@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.60 $
-%	$Id: sopen.m,v 1.60 2004-08-16 15:59:40 schloegl Exp $
+%	$Revision: 1.61 $
+%	$Id: sopen.m,v 1.61 2004-08-31 07:03:24 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -542,7 +542,7 @@ if any(PERMISSION=='r'),
                         elseif strcmpi(HDR.FILE.Ext,'trl')
 
                         elseif length(HDR.FILE.Ext)>2, 
-                                if all(HDR.FILE.Ext(1:2)=='0') & any(HDR.FILE.Ext(3)==['0':'9']),	% WSCORE scoring file
+                                if all(HDR.FILE.Ext(1:2)=='0') & any(HDR.FILE.Ext(3)==[48:57]),	% WSCORE scoring file
                                         x = load(HDR.FileName);
                                         HDR.EVENT.N   = size(x,1);
                                         HDR.EVENT.POS = x(:,1);
