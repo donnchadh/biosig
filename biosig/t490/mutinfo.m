@@ -18,8 +18,8 @@ function [I,ERR,SNR]=mutinfo(d,c);
 % Estimating the mutual information of an EEG-based Brain-Computer-Interface
 % Biomedizinische Technik 47(1-2): 3-8, 2002
 
-%	$Revision: 1.1 $
-%	$Id: mutinfo.m,v 1.1 2003-02-10 20:27:59 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: mutinfo.m,v 1.2 2003-06-25 16:23:33 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -51,7 +51,7 @@ if length(CL)~=2,
 end;
 
 % time course of the SNR+1, Mutual Information, and the Error rate [1]
-SNRp1 	= 2*var(d,2)./(var(d(:,c==CL(1)),2)+var(d(:,c==CL(2)),2));
+SNRp1 	= 2*var(d,[],2)./(var(d(:,c==CL(1)),[],2)+var(d(:,c==CL(2)),[],2));
 I 	= log2(SNRp1)/2;
 ERR 	= 1/2 - mean(sign(d).*sign(c(ones(nr,1),:)-mean(CL)),2)/2;
 
