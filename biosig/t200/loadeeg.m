@@ -15,8 +15,8 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
 %
 
-%	$Revision: 1.14 $
-%	$Id: loadeeg.m,v 1.14 2003-06-09 18:59:15 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: loadeeg.m,v 1.15 2003-07-18 22:22:43 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -90,7 +90,7 @@ elseif strcmp(H.TYPE,'DAQ')
         if CHAN<1,
                 CHAN = 1:H.NS; 
         end;
-        if ~H.FLAG.UCAL,
+        if ~H.FLAG.UCAL,
         	signal = [ones(size(signal,1),1),signal]*H.Calib(:,CHAN);        
         end;
         

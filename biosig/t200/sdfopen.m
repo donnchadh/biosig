@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.4 $
-%	$Id: sdfopen.m,v 1.4 2003-07-17 12:07:05 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: sdfopen.m,v 1.5 2003-07-18 22:22:43 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -1113,7 +1113,7 @@ if ~isfield(EDF,'reserved1')
         EDF.reserved1=char(ones(1,44)*32);
 else
         tmp=min(8,size(EDF.reserved1,2));
-        EDF.reserved1=[EDF.reserved1(1,1:tmp) 32+zeros(1,44-tmp)];
+        EDF.reserved1=[EDF.reserved1(1,1:tmp), char(32+zeros(1,44-tmp))];
 end;
 if ~isfield(EDF,'NRec')
         EDF.NRec=-1;
@@ -1136,26 +1136,26 @@ if ~isfield(EDF,'Label')
         fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.Label not defined\n');
 else
         tmp=min(16,size(EDF.Label,2));
-        EDF.Label=[EDF.Label(1:EDF.NS,1:tmp) 32+zeros(EDF.NS,16-tmp)];
+        EDF.Label=[EDF.Label(1:EDF.NS,1:tmp), char(32+zeros(EDF.NS,16-tmp))];
 end;
 if ~isfield(EDF,'Transducer')
         EDF.Transducer=setstr(32+zeros(EDF.NS,80));
 else
         tmp=min(80,size(EDF.Transducer,2));
-        EDF.Transducer=[EDF.Transducer(1:EDF.NS,1:tmp) 32+zeros(EDF.NS,80-tmp)];
+        EDF.Transducer=[EDF.Transducer(1:EDF.NS,1:tmp), char(32+zeros(EDF.NS,80-tmp))];
 end;
 if ~isfield(EDF,'PreFilt')
         EDF.PreFilt=setstr(32+zeros(EDF.NS,80));
 else
         tmp=min(80,size(EDF.PreFilt,2));
-        EDF.PreFilt=[EDF.PreFilt(1:EDF.NS,1:tmp) 32+zeros(EDF.NS,80-tmp)];
+        EDF.PreFilt=[EDF.PreFilt(1:EDF.NS,1:tmp), char(32+zeros(EDF.NS,80-tmp))];
 end;
 if ~isfield(EDF,'PhysDim')
         EDF.PhysDim=setstr(32+zeros(EDF.NS,8));
         fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.PhysDim not defined\n');
 else
         tmp=min(8,size(EDF.PhysDim,2));
-        EDF.PhysDim=[EDF.PhysDim(1:EDF.NS,1:tmp) 32+zeros(EDF.NS,8-tmp)];
+        EDF.PhysDim=[EDF.PhysDim(1:EDF.NS,1:tmp), char(32+zeros(EDF.NS,8-tmp))];
 end;
 
 if ~isfield(EDF,'PhysMin')
@@ -1204,7 +1204,7 @@ else
         EDF.SPR=reshape(EDF.SPR(1:EDF.NS),EDF.NS,1);
 end;
 
-if all(EDF.VERSION==[255,abs('BIOSEMI')]),
+if (abs(EDF.VERSION(1))==255)  & strcmp(EDF.VERSION(2:8),'BIOSEMI'),
         EDF.GDFTYP=255+24+zeros(1,EDF.NS);
 
 elseif strcmp(EDF.VERSION,'0       '),
@@ -1232,17 +1232,17 @@ H1(88+(1:length(EDF.RID)))=EDF.RID;
 %H1(185:192)=sprintf('%-8i',EDF.HeadLen);
 
 if strcmp(EDF.VERSION(1:3),'GDF'),
-        H1(168+(1:16))=sprintf('%04i%02i%02i%02i%02i%02i%02i',floor(EDF.T0),rem(EDF.T0(6),1));
-        fwrite(fid,H1(1:184),'uchar');
-        fwrite(fid,EDF.HeadLen,'int64');
-        fwrite(fid,ones(8,1)*32,'uint8'); % EP_ID=ones(8,1)*32;
-        fwrite(fid,ones(8,1)*32,'uint8'); % Lab_ID=ones(8,1)*32;
-        fwrite(fid,ones(8,1)*32,'uint8'); % T_ID=ones(8,1)*32;
-        fwrite(fid,ones(20,1)*32,'uint8'); % 
-        fwrite(fid,EDF.NRec,'int64');
+        H1(168+(1:16))=sprintf('%04i%02i%02i%02i%02i%02i%02i',floor(EDF.T0),floor(100*rem(EDF.T0(6),1)));
+        c=fwrite(fid,abs(H1(1:184)),'uchar');
+        c=fwrite(fid,EDF.HeadLen,'int64');
+        c=fwrite(fid,ones(8,1)*32,'uint8'); % EP_ID=ones(8,1)*32;
+        c=fwrite(fid,ones(8,1)*32,'uint8'); % Lab_ID=ones(8,1)*32;
+        c=fwrite(fid,ones(8,1)*32,'uint8'); % T_ID=ones(8,1)*32;
+        c=fwrite(fid,ones(20,1)*32,'uint8'); % 
+        c=fwrite(fid,EDF.NRec,'int64');
         %fwrite(fid,EDF.Dur,'float64');
         [n,d]=rat(EDF.Dur); fwrite(fid,[n d], 'uint32');
-        fwrite(fid,EDF.NS,'uint32');
+	c=fwrite(fid,EDF.NS,'uint32');
 else
         H1(168+(1:16))=sprintf('%02i.%02i.%02i%02i:%02i:%02i',rem(EDF.T0([3 2 1 4 5 6]),100));
         H1(185:192)=sprintf('%-8i',EDF.HeadLen);
@@ -1250,13 +1250,13 @@ else
         H1(237:244)=sprintf('%-8i',EDF.NRec);
         H1(245:252)=sprintf('%-8i',EDF.Dur);
         H1(253:256)=sprintf('%-4i',EDF.NS);
-        H1(find(H1==0))=32;
-        fwrite(fid,H1,'uchar');
-end;        
+        H1(abs(H1)==0)=char(32); 
+        c=fwrite(fid,abs(H1),'uchar');
+end;
 
 %%%%%% generate Header 2,  NS*256 bytes 
 if ~strcmp(EDF.VERSION(1:3),'GDF');
-        sPhysMax=32+zeros(EDF.NS,8);
+        sPhysMax=setstr(32+zeros(EDF.NS,8));
         for k=1:EDF.NS,
                 tmp=sprintf('%-8g',EDF.PhysMin(k));
                 lt=length(tmp);
@@ -1299,9 +1299,9 @@ if ~strcmp(EDF.VERSION(1:3),'GDF');
         h2(:,idx1(7)+1:idx1(8))=reshape(sprintf('%-8i',EDF.DigMax)',8,EDF.NS)';
         h2(:,idx1(8)+1:idx1(9))=EDF.PreFilt;
         h2(:,idx1(9)+1:idx1(10))=reshape(sprintf('%-8i',EDF.SPR)',8,EDF.NS)';
-        h2(h2==0)=32;
+        h2(abs(h2)==0)=char(32);
         for k=1:length(H2idx);
-                fwrite(fid,h2(:,idx1(k)+1:idx1(k+1))','uchar');
+                fwrite(fid,abs(h2(:,idx1(k)+1:idx1(k+1)))','uchar');
         end;
 else
         fwrite(fid, EDF.Label','16*uchar');
@@ -1336,7 +1336,7 @@ EDF.FILE.POS = 0;
 EDF.AS.MAXSPR = max(EDF.SPR);
 
 else % if arg2 is not 'r' or 'w'
-        fprintf(EDF.FILE.stderr,'Warning %s: Incorrect 2nd argument. Argument2 must be ''r'' or ''w''\n',upper(EDF.AS.Method));
+        fprintf(EDF.FILE.stderr,'Warning %s: Incorrect 2nd argument. \n',EDF.AS.Method);
 end;        
 
 if EDF.ErrNo>0

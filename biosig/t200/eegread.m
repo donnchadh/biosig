@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.17 $
-%	$Id: eegread.m,v 1.17 2003-06-14 21:01:11 schloegl Exp $
+%	$Revision: 1.18 $
+%	$Id: eegread.m,v 1.18 2003-07-18 22:22:43 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -286,7 +286,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
                         if count>0, 
                                 HDR.FILE.POS = HDR.FILE.POS + 1;
                         end;
-                        
+
                         if (HDR.eventtypes > 0),
                                 for k=HDR.NS+1:size(S,1)
                                         HDR.EventData{k-HDR.NS} = [HDR.EventData{k-HDR.NS};find(S(k,:))'];
@@ -433,5 +433,3 @@ elseif strcmp(HDR.TYPE,'SIGIF'),
 else
 	fprintf(2,'Error EEGREAD: %s-format not supported yet.\n', HDR.TYPE);        
 end;
-
-
