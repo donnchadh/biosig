@@ -15,8 +15,8 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % see also: SOPEN, SREAD, SCLOSE
 %
 
-%	$Revision: 1.6 $
-%	$Id: sload.m,v 1.6 2003-12-18 15:32:31 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: sload.m,v 1.7 2004-01-09 18:26:38 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -60,7 +60,7 @@ H = sopen(H,'rb',CHAN);
 if H.FILE.FID>0,
         [signal,H] = sread(H);
         H = sclose(H);
- 
+
 elseif strcmp(H.TYPE,'alpha'),
         if ~any(H.VERSION==[407.1,409.5]);
                 fprintf(2,'Warning SLOAD: Format ALPHA Version %6.2f not tested yet.\n',H.VERSION);
@@ -75,8 +75,8 @@ elseif strcmp(H.TYPE,'alpha'),
                 
                 if H.bits==12,
                         s = fread(fid,[3,inf],'uint8');
-                        s(1,:) = bitshift(s(1,:),4)+ bitshift(s(2,:),-4); 	
-                        s(3,:) = s(3,:)+ bitshift(bitand(s(2,:),15),8); 	
+                        s(1,:) = s(1,:)*16 + floor(s(2,:)/16); 	
+                        s(3,:) = s(3,:)+ mod(s(2,:),16)*256; 	
                         s = reshape(s([1,3],:),1,2*size(s,2));
                         signal = reshape(s(1:H.NS*H.SPR),H.NS,H.SPR)';
                         signal = signal-(signal>=2^11)*2^12;
