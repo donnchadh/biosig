@@ -1,8 +1,8 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004-2005 Alois Schloegl <a.schloegl@ieee.org>
-# $Revision: 1.9 $
-# $Id: eventcodes.txt,v 1.9 2005-01-05 09:06:36 schloegl Exp $
+# $Revision: 1.10 $
+# $Id: eventcodes.txt,v 1.10 2005-01-31 13:31:03 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -23,6 +23,15 @@
 0x0113	eeg:Saw-tooth waves
 0x0114  eeg:Idling EEG - eyes open
 0x0115  eeg:Idling EEG - eyes closed
+### 0x012_	Evoked potentials
+0x0121	VEP: visual EP
+0x0122	AEP: auditory EP
+0x0123	SEP: somato-sensory EP
+0x012F	TMS: transcranial magnetic stimulation 
+### 0x013_	Steady State Evoked potentials
+0x0131	SSVEP
+0x0132	SSAEP
+0x0133	SSSEP
 ### 0x03__	BCI: Trigger, cues, classlabels, 
 0x0300	Start of Trial, Trigger at t=0s
 0x0301	Left - cue onset (BCI experiment)
@@ -37,6 +46,8 @@
 0x0311	Beep (accustic stimulus, BCI experiment)
 0x0312	Cross on screen (BCI experiment)
 #0x0320 - 0x037f reserved for printable ASCII characters 32-127
+0x0381	target hit, task successful, correct classification
+0x0382	target missed, task not reached, incorrect classification
 0x03ff	Rejection of whole trial
 ### 0x040_	Sleep-related Respiratory Events
 0x0401	Obstructive Apnea/Hypopnea Event (OAHE) 
@@ -53,7 +64,7 @@
 0x0415	REM
 ### 0x042_	Sleep
 0x0420	Lights on 
-0x8420	Lights off
+#0x8420	Lights off
 ### 0x050_	ECG events
 0x0501	ecg:Fiducial point of QRS complex
 0x0502	ecg:P-wave
@@ -78,6 +89,24 @@
 0x058d	325 Watt
 0x058e	350 Watt
 0x8580  end
+### 0x00__	user specific events
+0x0001	condition 1
+0x0002	condition 2
+0x0003	condition 3
+0x0004	condition 4
+0x0005	condition 5
+0x0006	condition 6
+0x0007	condition 7
+0x0008	condition 8
+0x0009	condition 9
+0x000a	condition 10
+0x000b	condition 11
+0x000c	condition 12
+0x000d	condition 13
+0x000e	condition 14
+0x000f	condition 15
+0x0010	condition 16
+0x0011	condition 17
+0x0012	condition 18
 #
-
 
