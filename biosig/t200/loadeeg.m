@@ -1,4 +1,4 @@
-function [signal,H,cl] = loadeeg(FILENAME,CHAN,TYPE)
+function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % LOADEEG loads EEG data of various data formats
 %
 % --!! LOADEEG is obsolete. Use EEGOPEN, EEGREAD, EEGCLOSE instead !!--
@@ -15,8 +15,8 @@ function [signal,H,cl] = loadeeg(FILENAME,CHAN,TYPE)
 %
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
 
-%	$Revision: 1.4 $
-%	$Id: loadeeg.m,v 1.4 2003-03-12 13:55:43 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: loadeeg.m,v 1.5 2003-03-13 17:48:45 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -128,28 +128,49 @@ elseif strcmp(TYPE,'MAT')
                 end;
                 
         elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02 Data format
-                if (tmp.P_C_S.version==1.02) | (tmp.P_C_S.version==1.5),
-                        sz = size(tmp.P_C_S.data);
+                if isstruct(tmp.P_C_S),	% without gb-software	
+                        if (tmp.P_C_S.version==1.02) | (tmp.P_C_S.version==1.5),
+                                
+                                H.Filter.LowPass  = tmp.P_C_S.lowpass;
+                                H.Filter.HighPass = tmp.P_C_S.highpass;
+                                H.Filter.Notch    = tmp.P_C_S.notch;
+                                H.SampleRate = tmp.P_C_S.samplingfrequency;
+                                H.AS.Attribute = tmp.P_C_S.attribute;
+                                
+                                sz   = size(tmp.P_C_S.data);
+                                data = double(tmp.P_C_S.data);
+                                
+                        else
+                                fprintf(2,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.version);
+                        end;        
                         
-                        signal  = repmat(NaN,sz(1)*sz(2),sz(3)); 
-                        for k1 = 1:sz(1),
-                                for k2 = 1:sz(2),
-                                        signal((k1-1)*sz(2)+k2,:) = tmp.P_C_S.data(k1,k2,:);
-                                end;
+                elseif 1,	% with GB-analyze software, ML6.5
+                        if (tmp.P_C_S.Version==1.02) | (tmp.P_C_S.Version==1.5),
+                                
+                                H.Filter.LowPass = tmp.P_C_S.LowPass;
+                                H.Filter.HighPass = tmp.P_C_S.HighPass;
+                                H.Filter.Notch = tmp.P_C_S.Notch;
+                                H.SampleRate = tmp.P_C_S.SamplingFrequency;
+                                H.AS.Attribute = tmp.P_C_S.Attribute;
+                                
+                                sz   = size(tmp.P_C_S.Data);
+                                data = double(tmp.P_C_S.Data);
+                                
+                        else
+                                fprintf(2,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.Version);
                         end;
-                        
-                        H.SampleRate = tmp.P_C_S.samplingfrequency;
-                        H.NRec = sz(1);
-                        H.Dur  = sz(2)/H.SampleRate;
-                        H.NS   = sz(3);
-                        H.Filter.LowPass = tmp.P_C_S.lowpass;
-                        H.Filter.HighPass = tmp.P_C_S.highpass;
-                        H.Filter.Notch = tmp.P_C_S.notch;
-                        H.FLAG.TRIGGERED = H.NRec>1;
-                        cali = 1;
-                else
-                        fprintf(2,'Warning: PCS-Version is %4.2f.\n');
                 end;
+                
+                H.NRec = sz(1);
+                H.Dur  = sz(2)/H.SampleRate;
+                H.NS   = sz(3);
+                H.FLAG.TRIGGERED  = H.NRec>1;
+                
+                signal  = repmat(NaN,sz(1)*sz(2),sz(3)); 
+                for k1 = 1:sz(1),
+                        signal((k1-1)*sz(2)+(1:sz(2)),:) = squeeze(data(k1,:,:));
+                end;
+                cali = 1;
                 
         elseif isfield(tmp,'P_C_DAQ_S');
                 signal=double(tmp.P_C_DAQ_S.data{1});
