@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.13 $
-%	$Id: eegread.m,v 1.13 2003-05-30 11:14:58 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: eegread.m,v 1.14 2003-06-02 18:06:28 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -353,14 +353,14 @@ elseif strcmp(HDR.TYPE,'EEG'),
         S   = zeros(NoS*HDR.SPR,length(HDR.SIE.InChanSelect));
         count = 0;
         for i = 1:NoS,%h.compsweeps,
-                h.sweep(i).accept     = fread(HDR.FILE.FID,1,'char');
-                h.sweep(i).ttype      = fread(HDR.FILE.FID,1,'short');
-                h.sweep(i).correct    = fread(HDR.FILE.FID,1,'short');
-                h.sweep(i).rt         = fread(HDR.FILE.FID,1,'float');
-                h.sweep(i).response   = fread(HDR.FILE.FID,1,'short');
-                h.sweep(i).reserved   = fread(HDR.FILE.FID,1,'short');
+                h.sweep(i).accept     = fread(HDR.FILE.FID,1,'uchar');
+                h.sweep(i).ttype      = fread(HDR.FILE.FID,1,'ushort');
+                h.sweep(i).correct    = fread(HDR.FILE.FID,1,'ushort');
+                h.sweep(i).rt         = fread(HDR.FILE.FID,1,'float32');
+                h.sweep(i).response   = fread(HDR.FILE.FID,1,'ushort');
+                h.sweep(i).reserved   = fread(HDR.FILE.FID,1,'ushort');
                 
-                [signal,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],'int16');
+                [signal,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],HDR.GDFTYP);
                 
                 % S = [S;signal(HDR.SIE.InChanSelect,:)'];
                 S(i*HDR.SPR+(1-HDR.SPR:0),:) = signal(HDR.SIE.InChanSelect,:)';
@@ -393,4 +393,4 @@ else
 	fprintf(2,'Error EEGREAD: %s-format not supported yet.\n', HDR.TYPE);        
 end;
 
-
+

@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.8 $
-%	$Id: cntopen.m,v 1.8 2003-05-30 16:21:29 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: cntopen.m,v 1.9 2003-06-02 18:06:28 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -141,8 +141,8 @@ if 0,   % old header
         
 else    % new header
         h.rev               = fread(fid,12,'char');
-        h.nextfile          = fread(fid,1,'long');
-        h.prevfile          = fread(fid,1,'long');
+        h.nextfile          = fread(fid,1,'uint32');
+        h.prevfile          = fread(fid,1,'uint32');
         h.type              = fread(fid,1,'char');
         h.id                = fread(fid,20,'char');
         h.oper              = fread(fid,20,'char');
@@ -311,7 +311,7 @@ else    % new header
         h.scaletoolx2       = fread(fid,1,'float');
         h.scaletooly2       = fread(fid,1,'float');
         h.port              = fread(fid,1,'short');
-        h.numsamples        = fread(fid,1,'long');
+        h.numsamples        = fread(fid,1,'uint32');
 
         h.filterflag        = fread(fid,1,'char');
         h.lowcutoff         = fread(fid,1,'float');
@@ -323,9 +323,9 @@ else    % new header
         h.snrflag           = fread(fid,1,'char');
         h.coherenceflag     = fread(fid,1,'char');
         h.continuoustype    = fread(fid,1,'char');
-        h.eventtablepos     = fread(fid,1,'ulong');
+        h.eventtablepos     = fread(fid,1,'int32');
         h.continuousseconds = fread(fid,1,'float');
-        h.channeloffset     = fread(fid,1,'long');
+        h.channeloffset     = fread(fid,1,'uint32');
         h.autocorrectflag   = fread(fid,1,'char');
         h.dcthreshold       = fread(fid,1,'uchar');
         
@@ -373,11 +373,7 @@ else    % new header
         
 end;
 
-if 0,exist('OCTAVE_VERSION'),
-	CNT.VERSION = str2num(sprintf('%c',h.rev(8:12)'));
-else
-	CNT.VERSION = str2num(char(h.rev(8:12)'));
-end;
+CNT.VERSION = str2num(char(h.rev(8:12)'));
 CNT.CNT.type = h.type;
 CNT.PID = h.id;
 CNT.ID.Operator = char(h.oper');	%
@@ -394,13 +390,11 @@ CNT.Patient.State=char(h.state');	%
 CNT.Session.Label=char(h.label');	%	
 CNT.Date=char(h.date');	%	
 CNT.Time=char(h.time');	%	
-CNT.T0 = [str2num(CNT.Date(7:10)),str2num(CNT.Date(1:2)),str2num(CNT.Date(4:5)),str2num(CNT.Time(1:2)),str2num(CNT.Time(4:5)),str2num(CNT.Time(7:8))];
+CNT.T0 = [str2num(CNT.Date(7:length(CNT.Date))),str2num(CNT.Date(1:2)),str2num(CNT.Date(4:5)),str2num(CNT.Time(1:2)),str2num(CNT.Time(4:5)),str2num(CNT.Time(7:8))];
 if     CNT.T0(1) > 99,
 elseif CNT.T0(1) > 80, 	CNT.T0(1) = CNT.T0(1) + 1900;
 else			CNT.T0(1) = CNT.T0(1) + 2000;
 end;
-
-CNT.CNT.NumEvents = h.numevents;	%	
 
 CNT.NS=h.nchannels;	%	
 CNT.SampleRate=h.rate;	% D-to-A rate	
@@ -416,11 +410,11 @@ CNT.Filter.LowPass  = tmp(h.lowpass+1);
 tmp = [0, 0, .05, .1, .15, .3, 1, 5, 30, 100, 150, 300]; %HIGHPASS
 CNT.Filter.HighPass = tmp(h.highpass+1);
 CNT.Filter.Notch   = h.notch;
-%CNT.Filter.LowCutOff  = h.lowcutoff;
-%CNT.Filter.HighCutOff = h.highcutoff;
-%CNT.Filter.NotchOn = h.filterflag;
-%CNT.Filter.ON   = [e(:).filtered];
-CNT.Label = char(e.lab');
+CNT.CNT.Filter.LowCutOff  = h.lowcutoff;
+CNT.CNT.Filter.HighCutOff = h.highcutoff;
+CNT.CNT.Filter.NotchOn = h.filterflag;
+CNT.CNT.Filter.ON   = [e(:).filtered];
+CNT.Label = setstr(e.lab');
 
 if CHAN==0, CHAN=1:CNT.NS; end;
 CNT.SIE.ChanSelect = CHAN;
@@ -429,7 +423,7 @@ CNT.SIE.InChanSelect = CHAN;
 CNT.FILE.POS = 0;
 if (h.type==0),
 	if ~strcmp(upper(CNT.FILE.Ext),'AVG'),
-		fprinf(2,'Warning CNTOPEN: filetype 0 does not match file extension AVG.\n'); 
+		fprintf(2,'Warning CNTOPEN: filetype 0 does not match file extension AVG.\n'); 
 	end;
 	CNT.TYPE='AVG';
         CNT.AS.endpos = 1;
@@ -444,36 +438,45 @@ elseif strcmp(upper(CNT.FILE.Ext),'COH')
         warning('.COH data not supported yet')
         
 elseif strcmp(upper(CNT.FILE.Ext),'CSA')        
-        warning('.EEG data not supported yet')
+        warning('.CSA data not supported yet')
         
 elseif (h.type==1),
 	if ~strcmp(upper(CNT.FILE.Ext),'EEG'),
 		fprinf(2,'Warning CNTOPEN: filetype 1 does not match file extension EEG.\n'); 
 	end;
-	CNT.TYPE='EEG';
+	CNT.TYPE = 'EEG';
         CNT.SPR    = h.pnts;
         CNT.NRec   = h.compsweeps;
-	CNT.AS.bpb = (CNT.NS*CNT.SPR*2+1+2+2+4+2+2);
         CNT.AS.spb = CNT.NS*CNT.SPR;	% Samples per Block
-	%CNT.AS.endpos = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
-	CNT.Calib  = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
+        
+        tmp = (CNT.NS*CNT.SPR*2+1+2+2+4+2+2);
+	if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
+                CNT.AS.bpb = tmp;
+                CNT.GDFTYP = 'int16';
+        end;
+        tmp = (CNT.NS*CNT.SPR*4+1+2+2+4+2+2);
+	if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
+	        CNT.AS.bpb = tmp;
+                CNT.GDFTYP = 'int32';
+        end;
+        
+        CNT.Calib  = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
         CNT.AS.endpos  = CNT.NRec;
 	CNT.FLAG.TRIGGERED = 1;
 	CNT.Dur = CNT.SPR/CNT.SampleRate;
-        
-        % for some reason, this is correct, 
-        h.eventtablepos = CNT.NRec*CNT.AS.bpb+CNT.HeadLen;
         
 elseif (h.type==2),
 	if ~strcmp(upper(CNT.FILE.Ext),'CNT'),
 		fprinf(2,'Warning CNTOPEN: filetype 2 does not match file extension CNT.\n'); 
 	end;
-	CNT.TYPE='CNT';
+        CNT.TYPE = 'CNT';
+        %CNT.SPR    = h.numsamples;
 	CNT.AS.bpb = CNT.NS*2;	% Bytes per Block
 	CNT.AS.spb = CNT.NS;	% Samples per Block
-	CNT.SPR    = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
+        CNT.SPR    = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
 	CNT.AS.endpos = CNT.SPR;
-	CNT.NRec   = 1;
+        
+        CNT.NRec   = 1;
 	CNT.Calib  = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
 	CNT.FLAG.TRIGGERED = 0;	        
 	CNT.Dur = 1/CNT.SampleRate;
@@ -481,29 +484,36 @@ end;
 
 
 %%%%% read event table 
-fseek(CNT.FILE.FID,h.eventtablepos,'bof');
-
-CNT.EVENT.Teeg       = fread(fid,1,'char');	%	
-CNT.EVENT.TeegSize   = fread(fid,1,'int32');	%	
-CNT.EVENT.TeegOffset = fread(fid,1,'int32');	%	
-
-k=1;
-K=1;
-while 0,K < CNT.EVENT.TeegSize,
-	Teeg(k).Stimtype =  fread(fid,1,'uint16');        
-	Teeg(k).Keyboard =  fread(fid,1,'uchar');        
-	Teeg(k).Keyboard =  fread(fid,1,'uchar');        
-	Teeg(k).Offset   =  fread(fid,1,'int32');        
-        K = K + 8;
-        if CNT.EVENT.Teeg==1,
-		Teeg(k).Type =  fread(fid,1,'int16');        
-		Teeg(k).Code =  fread(fid,1,'int16');        
-		Teeg(k).Latency =  fread(fid,1,'float32');        
-		Teeg(k).EpochEvent =  fread(fid,1,'char');        
-		Teeg(k).Accept2  =  fread(fid,1,'char');        
-		Teeg(k).Accuracy =  fread(fid,1,'char');        
-        	K = K+11;        
-        end;        
-        k = k + 1;
+CNT.EVENT.Number     = h.numevents;
+if CNT.EVENT.Number > 0,
+        fseek(CNT.FILE.FID,h.eventtablepos,'bof');
+        CNT.EVENT.Teeg       = fread(fid,1,'uchar');	%	
+        CNT.EVENT.TeegSize   = fread(fid,1,'int32');	%	
+        CNT.EVENT.TeegOffset = fread(fid,1,'int32');	%	
+        
+        fseek(CNT.FILE.FID,CNT.EVENT.TeegOffset,'cof');
+        
+        k=1;
+        K=1;
+        Teeg=[];
+        while K < CNT.EVENT.TeegSize,
+                Teeg(k).Stimtype =  fread(fid,1,'int16');        
+                Teeg(k).Keyboard =  fread(fid,1,'char');        
+                Teeg(k).KeyPad =  fread(fid,1,'uchar');        
+                Teeg(k).Offset   =  fread(fid,1,'int32');        
+                K = K + 8;
+                if CNT.EVENT.Teeg==2,
+                        Teeg(k).Type =  fread(fid,1,'int16');        
+                        Teeg(k).Code =  fread(fid,1,'int16');        
+                        Teeg(k).Latency =  fread(fid,1,'float32');        
+                        Teeg(k).EpochEvent =  fread(fid,1,'char');        
+                        Teeg(k).Accept2  =  fread(fid,1,'char');        
+                        Teeg(k).Accuracy =  fread(fid,1,'char');        
+                        K = K + 11;        
+                end;        
+                k = k + 1;
+        end;
+        CNT.EVENT.Teeg = Teeg;
 end;
+
 fseek(CNT.FILE.FID, CNT.HeadLen, 'bof');
