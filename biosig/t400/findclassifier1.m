@@ -103,28 +103,41 @@ if tmp>0,
 end;        
 
 
+CMX = zeros([size(T,1),length(CL)*[1,1]]);
 for k = 1:size(T,1),
+	cmx = zeros(length(CL));
         for l = 1:length(CL), 
                 t = perm(TRIG(cl==CL(l)),T(k,:));
                 %t = t(t<=size(D,1));
                 [C{k,l},tmp] = covm(D(t(:),:),'M');
         end;
         %[Q(k),d{k}] = qcmahal({C0r,C{k,:}});
-        [Q(k),d{k}] = qcmahal({C{k,:}});
+        [CC.QC(k),d{k}] = qcmahal({C{k,:}});
         lnQ(k) = mean(log(d{k}(~eye(length(d{k})))));
-end;
+        for l = 1:length(CL), 
+                t = perm(TRIG(cl==CL(l)),T(k,:));
+                %t = t(t<=size(D,1));
+                [tmp,ix] = mdbc({C{k,:}},D(t(:),:));
+                tmp = histo3([ix;CL]);
+                cmx(tmp.X,l) = tmp.H-1;            
+        end;
+        CMX(k,:,:)  = cmx;
+        CC.KAPPA(k) = kappa(cmx);
+        CC.ACC(k)   = sum(diag(cmx))/sum(cmx(:));
+end;	
 if nargin>4,
-        tmp = Q;
+        tmp = CC.QC;
         tmp(~tmp)=0;
         [maxQ,CC.TI] = max(tmp); %d{K},
 else
-        [maxQ,CC.TI] = max(Q); %d{K},
+        [maxQ,CC.TI] = max(CC.QC); %d{K},
 end;
 %CC.TI = K;
-CC.MD = {C{CC.TI,:}};
-CC.IR = mdbc({C{CC.TI,:}});
-CC.D = d{CC.TI};
-CC.Q = Q(CC.TI);
+CC.MD  = {C{CC.TI,:}};
+CC.IR  = mdbc({C{CC.TI,:}});
+CC.D   = d{CC.TI};
+CC.Q   = CC.QC(CC.TI);
+CC.CMX = squeeze(CMX(CC.TI,:,:));
 
 m1=decovm(CC.MD{1});
 m2=decovm(CC.MD{2});
@@ -206,12 +219,34 @@ for l=find(~isnan(cl(:)'));1:length(cl);
                 JKD2(:,l) = d(:,2);
                 
                 JKLD(:,l) = ldbc(cc, D(t,:));
+        else
+                [tmp,MDIX(:,l)] = min(d,[],2);
         end;	
+end;
+
+% Concordance matrix with cross-validation 
+CC.mmx=zeros([size(MDIX,1),length(CL)^2]);
+tmp=zeros([size(MDIX,1),length(CL)]);
+for k = 1:length(CL),
+        for l = 1:length(CL),
+                tmp(:,l) = sum(MDIX(:,cl==CL(k))==CL(l),2);    
+                if CL(k) == CL(l),
+                        acc = tmp(:,l);
+                end;
+        end;
+        CC.mmx(:,(1-length(CL):0)+k*length(CL)) = tmp;
+        CC.acc(:,k) = acc./sum(tmp,2);
+end;
+CC.ACC00 = sum(CC.mmx(:,1:length(CL)+1:end),2)/sum(~isnan(cl));	
+CC.KAP00 = zeros(size(MDIX,1),1);
+for k = 1:size(MDIX,1),
+	CC.KAP00(k)=kappa(reshape(CC.mmx(k,:),[1,1]*length(CL)));	
 end;
 
 if length(CL)>2, 
         return; 
 end; 
+
 
 if bitand(SWITCH,1),
         CC.LDA.ERR00 = (mean(sign(JKLD),2)+1)/2;
