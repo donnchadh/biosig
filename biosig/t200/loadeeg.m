@@ -15,8 +15,8 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
 %
 
-%	$Revision: 1.15 $
-%	$Id: loadeeg.m,v 1.15 2003-07-18 22:22:43 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: loadeeg.m,v 1.16 2003-07-21 08:13:14 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -56,7 +56,7 @@ end;
 FileExt = FileExt(2:length(FileExt));
 
 H.FileName = FILENAME;
-H = eegopen(H,'r',CHAN);
+H = eegopen(H,'rb',CHAN);
 TYPE = H.TYPE;
 
 if H.FILE.FID>0,
