@@ -8,10 +8,10 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %	'r'	read 
 % ChanList	(List of) Channel(s) default 0 loads all channels
 %
-% See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
+% see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.14 $
-%	$Id: bkropen.m,v 1.14 2004-02-21 00:02:55 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: bkropen.m,v 1.15 2004-02-26 15:03:43 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -57,7 +57,7 @@ else
         BKR.FILE.Path = pfad;
         BKR.FILE.Ext  = FileExt(2:length(FileExt));
 end;
-if 0; %ftell(BKR.FILE.FID)~=0,	% 
+if ftell(BKR.FILE.FID)~=0,	% 
         fprintf(2,'Error: Fileposition is not 0\n');        	        
 end;
 
@@ -139,11 +139,11 @@ if any(PERMISSION=='r'),
 	        fprintf(2,'Warning BKRLOAD: Number of channels larger than 85; Header does not support more\n');
 	end;
 	fseek(fid,512-(nch*6),'cof');
-	%HeaderEnd=ftell(fid);
-	if 0, % ftell(fid)~=1024,
+	HeaderEnd=ftell(fid);
+	if HeaderEnd~=1024,
 	        fprintf(2,'Warning BKRLOAD: Length of Header does not confirm BKR-specification\n');
 	end;
-	HeaderEnd = 1024;
+	%HeaderEnd = 1024;
 
 	%%%%% Generate BKR-Struct; similar to EDF-struct
 	BKR.VERSION=VER;
@@ -236,7 +236,11 @@ if any(PERMISSION=='r'),
                 	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.MAT']);
                 end
                 if exist(tmp)==2,
-                        tmp = load(tmp);
+                        try,
+                                tmp = load(tmp);
+                        catch
+                                tmp = [];
+                        end
                         if isfield(tmp,'header'),
                                 BKR.Classlabel = tmp.header.Result.Classlabel;
                         end;
