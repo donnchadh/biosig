@@ -1,12 +1,11 @@
 function datatyp=gdfdatatype(x)
 % GDFDATATYPE converts number into data type according to the definition of the GDF format [1]. 
 %
-% See also: SDFREAD, SDFWRITE, SDFCLOSE
+% See also: SDFREAD, SREAD, SWRITE, SCLOSE
 %
 % References:
-% A. Schlögl, O. Filz, H. Ramoser, G. Pfurtscheller, GDF - A general dataformat for biosignals, Technical Report, 1999.
-% http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg/gdf4/tr_gdf.ps
-
+% [1] A. Schlögl, O. Filz, H. Ramoser, G. Pfurtscheller, GDF - A general dataformat for biosignals, Technical Report, 2004.
+% available online at: http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg/gdf4/TR_GDF.pdf. 
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -22,9 +21,10 @@ function datatyp=gdfdatatype(x)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.3 $
-%	$Id: gdfdatatype.m,v 1.3 2003-10-06 08:17:41 schloegl Exp $
-%	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.4 $
+%	$Id: gdfdatatype.m,v 1.4 2004-08-16 16:03:25 schloegl Exp $
+%	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
 k=1;

@@ -1,4 +1,4 @@
-% DATAFORMATS contains Matlab/Octave functions to access various biosignal dataformats
+% BIOSIG/T200 contains Matlab/Octave functions to access various biosignal dataformats
 % For simiplicity we call all supported files "Biosig"-files.  
 % Currently, the following formats are are supported:
 %	AIFF/C	Apple's audio interchange format 
@@ -58,6 +58,7 @@
 %	SDFERROR
 %	GDFDATATYP
 %	ADB2EVENT  converts artifact scorings into Event information
+%	WSCORE2EVENT  converts events in WSCORE format into BIOSIG event information
 %	
 %
 % Other functions from earlier projects are included, 
@@ -69,8 +70,8 @@
 % [2] http://biosig.sf.net/
 %
 
-%	$Revision: 1.11 $
-%	$Id: Contents.m,v 1.11 2004-06-16 21:25:41 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: Contents.m,v 1.12 2004-08-16 16:05:17 schloegl Exp $
 %	CopyLeft (c) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
