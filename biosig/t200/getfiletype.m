@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.3 $
-%	$Id: getfiletype.m,v 1.3 2004-09-12 15:47:08 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: getfiletype.m,v 1.4 2004-09-13 17:27:27 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -151,10 +151,13 @@ else
                         HDR.Endianity = 'ieee-le';
                 elseif strcmp(ss([1:4,9:12]),'RIFFWAVE'); 
                         HDR.TYPE='WAV';
+                        HDR.Endianity = 'ieee-le';
                 elseif strcmp(ss([1:4,9:11]),'FORMAIF'); 
                         HDR.TYPE='AIF';
+                        HDR.Endianity = 'ieee-be';
                 elseif strcmp(ss([1:4,9:12]),'RIFFAVI '); 
                         HDR.TYPE='AVI';
+                        HDR.Endianity = 'ieee-le';
                 elseif ~isempty(findstr(ss(1:16),'8SVXVHDR')); 
                         HDR.TYPE='8SVX';
                 elseif strcmp(ss([1:4,9:12]),'RIFFILBM'); 
@@ -303,16 +306,8 @@ else
                         HDR.TYPE='ACR-NEMA';
                 elseif all(s(1:132)==[zeros(1,128),abs('DICM')]); 
                         HDR.TYPE='DICOM';
-                elseif all(s([2,4,6:8])==0); % an DICOM? - maybe 
+                elseif all(s([2,4,6:8])==0);            % DICOM candidate
                         HDR.TYPE='DICOM';
-                %elseif all(s(1:8)==[8,0,5,0,10,0,0,0]); % another DICOM format ? 
-                %        HDR.TYPE='DICOM';
-                %elseif all(s(1:8)==[8,0,0,0,4,0,0,0]);	% another DICOM format ? 
-                %        HDR.TYPE='DICOM';
-                %elseif all(s(1:8)==[8,0,8,0,46,0,0,0]);	% another DICOM format ? 
-                %        HDR.TYPE='DICOM';
-                %elseif all(s(1:8)==[8,0,22,0,26,0,0,0]);	% another DICOM format ? 
-                %        HDR.TYPE='DICOM';
                         
                 elseif all(s(1:24)==[208,207,17,224,161,177,26,225,zeros(1,16)]);	% MS-EXCEL candidate
                         HDR.TYPE='BIFF';
@@ -322,8 +317,16 @@ else
                 elseif ~isempty(findstr(ss,'?xml version'))
                         HDR.TYPE='XML-UTF8';
 
+                elseif all(s([1:2,7:10])==[abs('BM'),zeros(1,4)])
+                        HDR.TYPE='BMP';
+                        HDR.Endianity = 'ieee-le';
+                elseif strncmp(s,'.PBF',4)      
+                        HDR.TYPE='PBF';
                 elseif all(s(1:2)=='P6') & any(s(3)==[10,13])
+                        HDR.TYPE='PNG6';
+                elseif all(s(1:8)==[137,80,78,71,13,10,26,10]) 
                         HDR.TYPE='PNG';
+			
                 elseif all(s(1:4)==hex2dec(['FF';'D9';'FF';'E0'])')
                         HDR.TYPE='JPG';
                         HDR.Endianity = 'ieee-be';
@@ -337,7 +340,6 @@ else
                         HDR.TYPE='LNK';
                         tmp = fread(fid,inf,'char');
                         HDR.LNK=[s,tmp'];
-                        HDR.Endianity = 'ieee-le';
                 elseif all(s(1:3)==[0,0,1])	
                         HDR.TYPE='MPG2MOV';
                 elseif strcmp(ss([3:5,7]),'-lh-'); 
@@ -445,6 +447,24 @@ else
                 %%% this is the file type check based on the file extionsion, only.  
                 if 0, 
                         
+                        % MIT-ECG / Physiobank format
+                elseif strcmpi(HDR.FILE.Ext,'HEA'), HDR.TYPE='MIT';
+                        
+                elseif strcmpi(HDR.FILE.Ext,'ATR'), HDR.TYPE='MIT';
+                        
+                elseif strcmpi(HDR.FILE.Ext,'DAT'), 
+                        tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hea']));
+                        if isempty(tmp), 
+                                tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.HEA']));
+                        end
+                        if isempty(tmp), 
+                                HDR.TYPE='DAT';
+                        else
+                                HDR.TYPE='MIT';
+                                [tmp,tmp1,tmp2] = fileparts(tmp.name);
+                                HDR.FILE.Ext = tmp2(2:end);
+                        end
+                        
                 elseif strcmpi(HDR.FILE.Ext,'rhf'),
                         HDR.FileName=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
                         HDR.TYPE = 'RG64';
@@ -541,7 +561,7 @@ else
                 end;
         end;
         
-        if strcmpi(HDR.TYPE,'unknown'),
+        if 0, strcmpi(HDR.TYPE,'unknown'),
                 try
                         [status, HDR.XLS.sheetNames] = xlsfinfo(HDR.FileName)
                         if ~isempty(status)

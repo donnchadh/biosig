@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.64 $
-%	$Id: sopen.m,v 1.64 2004-09-12 15:47:58 schloegl Exp $
+%	$Revision: 1.65 $
+%	$Id: sopen.m,v 1.65 2004-09-13 17:27:26 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -119,21 +119,6 @@ if ~isfield(HDR,'EVENT');
         HDR.EVENT.TYP = []; 
         HDR.EVENT.POS = []; 
 end;
-
-% MIT-ECG / Physiobank format
-if strcmp(HDR.TYPE,'HEA'), HDR.TYPE='MIT';
-        
-elseif strcmp(HDR.TYPE,'ATR'), HDR.TYPE='MIT';
-        
-elseif strcmp(HDR.TYPE,'DAT'), 
-        tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hea']));
-        if isempty(tmp), 
-                HDR.TYPE='DAT';
-        else
-                HDR.TYPE='MIT';
-                [tmp,tmp1,HDR.FILE.Ext] = fileparts(fn(1).name);
-        end
-end; 
 
 if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         if any(PERMISSION=='w');
@@ -315,17 +300,9 @@ elseif strcmp(HDR.TYPE,'EBS'),
                 end;
                 tag=fread(HDR.FILE.FID,1,'int32');	% Tag field
         end; 
-        
         fclose(HDR.FILE.FID);
         
         
-elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
-        if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
-                HDR.FILE.OPEN = 1; 
-        end;
-        
-        % Holter Excel 2 file, not supported yet. 
 elseif strcmp(HDR.TYPE,'rhdE'),
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
         
@@ -703,9 +680,6 @@ elseif strcmp(HDR.TYPE,'AKO'),
                 
         
 elseif strcmp(HDR.TYPE,'SND'),
-        if ~isfield(HDR,'Endianity'),
-                HDR.Endianity = 'ieee-be';
-        end;	 
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
         if HDR.FILE.FID < 0,
                 return;
@@ -1049,11 +1023,6 @@ elseif strcmp(HDR.TYPE,'ASF') ,
         
         
 elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') ,
-        if strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') 
-                HDR.Endianity = 'ieee-be';
-        elseif  strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI')  ,
-                HDR.Endianity = 'ieee-le';
-        end;
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
         
         if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
@@ -2339,6 +2308,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                         HDR.firstvalue(1,k) = A(5);        % first integer value of signal (to test for errors)
                 end;
                 HDR.Calib = sparse([HDR.zerovalue(:).';eye(HDR.NS)]*diag(1./HDR.gain(:)));
+                HDR.Label = char(HDR.Label);
                 
                 z = char(fread(fid,[1,inf],'char'));
                 ix1 = [findstr('AGE:',upper(z))+4; findstr('AGE>:',upper(z))+5];
@@ -2445,7 +2415,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 else
                         MACHINE_FOMRAT='ieee-le';
                 end;
-                %HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dat']),'r','ieee-le');
+                HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dat']),'r','ieee-le');
                 
                 tmpfile = fullfile(HDR.FILE.Path,HDR.FILE.DAT);
                 if  ~exist(tmpfile,'file'), 
