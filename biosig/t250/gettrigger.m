@@ -10,8 +10,8 @@ function TRIG = gettrigger(s,TH);
 %
 % see also TRIGG
 
-%	$Revision: 1.2 $
-% 	$Id: gettrigger.m,v 1.2 2003-02-01 15:03:46 schloegl Exp $
+%	$Revision: 1.3 $
+% 	$Id: gettrigger.m,v 1.3 2003-06-25 15:16:32 schloegl Exp $
 %       Version 0.92        16 Jan 2003
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
@@ -35,7 +35,7 @@ if nargin<2,
 	TH = (max(s)+min(s))/2;
 end;
 
-TRIG = find(diff(s>=TH)>0)+1;
+TRIG = find(diff(sign(s-TH))>0)+1;
 
 % perform check of trigger points
 
