@@ -27,7 +27,7 @@ function [CC,Q,tsd,md]=findclassifier1(D,TRIG,cl,T,t0,SWITCH)
 %
 
 %   Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Id: findclassifier1.m,v 1.5 2003-11-27 18:01:56 schloegl Exp $
+%	$Id: findclassifier1.m,v 1.6 2003-12-09 10:07:06 schloegl Exp $
 
 
 % This program is free software; you can redistribute it and/or
@@ -78,14 +78,14 @@ end;
 tmp = min(TRIG)+min(min(T))-1;
 if tmp<0,
         TRIG = TRIG - tmp;
-        D = [repmat(nan,-tmp,size(D,2));D];
+        D = [repmat(nan,[-tmp,size(D,2)]);D];
 end;        
 tmp = max(TRIG)+max(max(T))-size(D,1);
 if tmp>0,
-        D = [D;repmat(nan,tmp,size(D,2))];
+        D = [D;repmat(nan,[tmp,size(D,2)])];
 end;        
 
-
+% estimate classification result for all time segments in T - without crossvalidation 
 CMX = zeros([size(T,1),length(CL)*[1,1]]);
 for k = 1:size(T,1),
 	cmx = zeros(length(CL));
@@ -108,6 +108,7 @@ for k = 1:size(T,1),
         CC.KAPPA(k) = kappa(cmx);
         CC.ACC(k)   = sum(diag(cmx))/sum(cmx(:));
 end;	
+% identify best classification time 
 if nargin>4,
         tmp = CC.QC;
         tmp(~tmp)=0;
@@ -116,6 +117,8 @@ else
         [maxQ,CC.TI] = max(CC.QC); %d{K},
 end;
 %CC.TI = K;
+
+% build MD classifier 
 CC.MD  = {C{CC.TI,:}};
 CC.IR  = mdbc({C{CC.TI,:}});
 CC.D   = d{CC.TI};
@@ -131,7 +134,7 @@ CC.scale=[1,1]*1/max(abs(tmp(:)));  % element 1
 CC.DistMXln = d{CC.lnTI};
 CC.MDln = {C{CC.lnTI,:}};
 
-
+% alternative classifier using two different time segments.
 if 1,
         [Q,d] = qcmahal({C{:}}');
         CC.T2.D = d;
@@ -142,6 +145,7 @@ if 1,
         CC.T2.MD = {C{ix(1),1},C{iy(1),2}};
 end;
 
+% build LDA classifier
 if length(CL)==2,
         % LDA 
         C0 = zeros(size(C{CC.TI,1}));
@@ -162,21 +166,21 @@ end;
 md = mdbc(CC.MD,D);
 lld= llbc(CC.MD,D);
 
+% bias correction not used anymore.
 CC.BIAS.LDA=0;%mean(tsd);
 CC.BIAS.MDA=0;%mean(diff(-md,[],2));
 CC.BIAS.GRB=0;%mean(diff(-exp(-md/2),[],2));
 
-[tmp,IX] = min(md,[],2);
+%[tmp,IX] = min(md,[],2);
 
-%min(min(t)),max(max(t))
+%% cross-validation with jackknife (leave one trial out)
 nc  = max(max(T))-min(min(T))+1;
 
-JKD1=repmat(nan,nc,length(TRIG));
-JKD2=repmat(nan,nc,length(TRIG));
-JKLD=repmat(nan,nc,length(TRIG));
-
-%% jackknife
-for l=find(~isnan(cl(:)'));1:length(cl);
+JKD   = repmat(nan,[nc,length(CL),length(TRIG)]);
+JKD1  = repmat(nan,[nc,length(TRIG)]);
+JKD2  = repmat(nan,[nc,length(TRIG)]);
+JKLD  = repmat(nan,[nc,length(TRIG)]);
+for l = find(~isnan(cl(:)'));1:length(cl);
         c = find(cl(l)==CL);
         t = TRIG(l)+T(CC.TI,:);
         %t = t(t<=size(D,1));
@@ -196,7 +200,8 @@ for l=find(~isnan(cl(:)'));1:length(cl);
         end;
         
         d = mdbc(cc,D(t,:));
-        [tmp,MDIX(:,l)] = min(d,[],2);
+        JKD(:,:,l) = d;
+	[tmp,MDIX(:,l)] = min(d,[],2);
         
         if length(CL)==2,
                 JKD1(:,l) = d(:,1);
@@ -207,9 +212,25 @@ for l=find(~isnan(cl(:)'));1:length(cl);
 end;
 
 % Concordance matrix with cross-validation 
-CC.mmx = zeros([size(MDIX,1),length(CL)^2]);
-tmp=zeros([size(MDIX,1),length(CL)]);
+CC.mmx= zeros([size(MDIX,1),length(CL)^2]);
+CC.I0 = zeros([size(MDIX,1),length(CL)]);
+CC.I  = zeros([size(MDIX,1),1]);
+tmp = zeros([size(MDIX,1),length(CL)]);
 for k = 1:length(CL),
+        jkd = squeeze(JKD(:,k,:));
+        o = bci3eval(jkd(:,cl~=k),jkd(:,cl==k),2);
+	
+	CC.TSD{k}  = o;
+	CC.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,cl~=k),[],2)))/2;
+        
+        [sum0,n0,ssq0]=sumskipnan(jkd(:,cl==k),2);
+        [sum1,n1,ssq1]=sumskipnan(jkd(:,cl~=k),2);
+        s0  = (ssq0-sum0.*sum0./n0)./(n0-1);
+        s1  = (ssq1-sum1.*sum1./n1)./(n1-1);
+        s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
+        SNR = 2*s./(s0+s1); % this is SNR+1 
+        CC.I1(:,k) = log2(SNR)/2;
+        
         for l = 1:length(CL),
                 tmp(:,l) = sum(MDIX(:,cl==CL(k))==CL(l),2);    
                 if CL(k) == CL(l),
@@ -219,10 +240,12 @@ for k = 1:length(CL),
         CC.mmx(:,(1-length(CL):0)+k*length(CL)) = tmp;
         CC.acc(:,k) = acc./sum(tmp,2);
 end;
+CC.CMX00 = reshape(sum(CC.mmx(T(CC.TI,:),:),1),[1,1]*length(CL))/size(T,2);
+CC.I = sum(CC.I0,2);
 CC.ACC00 = sum(CC.mmx(:,1:length(CL)+1:end),2)/sum(~isnan(cl));	
 CC.KAP00 = zeros(size(MDIX,1),1);
 for k = 1:size(MDIX,1),
-	CC.KAP00(k)=kappa(reshape(CC.mmx(k,:),[1,1]*length(CL)));	
+	CC.KAP00(k) = kappa(reshape(CC.mmx(k,:),[1,1]*length(CL)));
 end;
 
 if length(CL) > 2, 
