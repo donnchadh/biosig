@@ -18,8 +18,8 @@ function [HDR]=sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: sclose.m,v 1.1 2003-09-06 17:19:32 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: sclose.m,v 1.2 2003-09-07 21:24:23 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org
 
@@ -59,7 +59,6 @@ if HDR.FILE.OPEN>=2,
 	        HDR.FILE.OPEN = 0;
 
 	elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
-        
          	tmp = floor((EndPos - HDR.HeadLen) / HDR.AS.bpb);  % calculate number of records
         	if ~isnan(tmp)
         	        HDR.NRec=tmp;
@@ -70,8 +69,21 @@ if HDR.FILE.OPEN>=2,
 			        fprintf(HDR.FILE.FID,'%-8i',HDR.NRec);
 			end;
 		end;
-        	%fclose(HDR.FILE.FID);
-        	%HDR=sdfopen(HDR,'w+');                    % update header information
+
+        elseif strcmp(HDR.TYPE,'SND');
+                HDR.SPR       = (EndPos-HDR.HeadLen)/HDR.AS.bpb;
+                if isnan(HDR.SPR), HDR.SPR=0; end;
+                if HDR.FILE.OPEN==3;
+			fclose(HDR.FILE.FID);
+			HDR.FILE.FID = fopen(HDR.FileName,'r+',HDR.Endianity);
+                        fseek(HDR.FILE.FID,8,'bof');
+                        count = fwrite(HDR.FILE.FID,HDR.SPR*HDR.AS.bpb,'uint32');           % bytes
+                        fseek(HDR.FILE.FID,20,'bof');
+                        count = fwrite(HDR.FILE.FID,HDR.NS,'uint32');           % channels
+		end;
+		HDR.FILE.status = fclose(HDR.FILE.FID);
+	        HDR.FILE.OPEN = 0;
+
 	end;
 end;
 

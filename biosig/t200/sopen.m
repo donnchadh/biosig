@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: sopen.m,v 1.1 2003-09-06 17:19:32 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: sopen.m,v 1.2 2003-09-07 21:24:23 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -41,7 +41,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 if nargin<2, 
         PERMISSION='rb'; 
 elseif ~any(PERMISSION=='b');
-        PERMISSION = [PERMISSION,'b']; % force binary open. 
+        PERMISSION = [PERMISSION,'b']; % force binary open. Needed for Octave
 end;
 if nargin<3, CHAN = 0; end; 
 if nargin<4, MODE = ''; end;
@@ -69,7 +69,8 @@ if ~isfield(HDR.FILE,'stdout'),
         HDR.FILE.stdout = 1;
 end;
 
-if exist(HDR.FileName)==2,
+%if exist(HDR.FileName)==2,
+if any(PERMISSION=='r'),
 	fid = fopen(HDR.FileName,'rb','ieee-le');
 	if fid>0,
 		[s,c] = fread(fid,[1,32],'uchar');
@@ -155,7 +156,7 @@ if exist(HDR.FileName)==2,
                                         HDR.Endianity = 'ieee-be';
                                 end;
                                 
-                       elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
+                        elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
 				HDR.TYPE = 'WFT';	% nicolet 	
 
                         elseif all(s(1:2)==[102,105]); 
@@ -256,9 +257,6 @@ if exist(HDR.FileName)==2,
 	end;
 end;
 
-if ~isfield(HDR,'TYPE'),
-       HDR.TYPE = upper(FileExt(2:length(FileExt)));
-end;
 
 
         % MIT-ECG / Physiobank format
@@ -502,73 +500,127 @@ elseif strcmp(HDR.TYPE,'ACQ'),
 	
         
 elseif strcmp(HDR.TYPE,'SND'),
+	if ~isfield(HDR,'Endianity'),
+		HDR.Endianity = 'ieee-be';
+	end;	 
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
-        
-        fseek(HDR.FILE.FID,4,'bof');
-	HDR.HeadLen = fread(HDR.FILE.FID,1,'uint32');
-	datlen = fread(HDR.FILE.FID,1,'uint32');
-	HDR.FILE.TYPE = fread(HDR.FILE.FID,1,'uint32');
-	HDR.SampleRate = fread(HDR.FILE.FID,1,'uint32');
-	HDR.NS = fread(HDR.FILE.FID,1,'uint32');
-	[tmp,count] = fread(HDR.FILE.FID, [1,HDR.HeadLen-24],'char');
-	HDR.INFO = setstr(tmp);
+	if HDR.FILE.FID < 0,
+		return;
+        end;
+	
+	if ~isempty(findstr(PERMISSION,'r')),	%%%%% READ 
+		HDR.FILE.OPEN = 1; 
+	        fseek(HDR.FILE.FID,4,'bof');
+		HDR.HeadLen = fread(HDR.FILE.FID,1,'uint32');
+		datlen = fread(HDR.FILE.FID,1,'uint32');
+		HDR.FILE.TYPE = fread(HDR.FILE.FID,1,'uint32');
+		HDR.SampleRate = fread(HDR.FILE.FID,1,'uint32');
+		HDR.NS = fread(HDR.FILE.FID,1,'uint32');
+		[tmp,count] = fread(HDR.FILE.FID, [1,HDR.HeadLen-24],'char');
+		HDR.INFO = setstr(tmp);
+	
+	elseif ~isempty(findstr(PERMISSION,'w')),	%%%%% WRITE 
+		HDR.FILE.OPEN = 2; 
+		if ~isfield(HDR,'NS'),
+			HDR.NS = 0;
+		end;
+		if ~isfield(HDR,'SPR'),
+			HDR.SPR = 0;
+		end;
+		if ~isfinite(HDR.NS)
+			HDR.NS = 0;
+		end;	
+		if ~isfinite(HDR.SPR)
+			HDR.SPR = 0;
+		end;	
+		if any([HDR.SPR,HDR.NS] <= 0);
+			HDR.FILE.OPEN = 3; 
+		end;
+		if ~isfield(HDR,'INFO')
+			HDR.INFO = HDR.FileName;
+		end;
+		len = length(HDR.INFO);
+		if len == 0; 
+			HDR.INFO = 'INFO';
+		else
+		    	HDR.INFO = [HDR.INFO,repmat(' ',1,mod(4-len,4))];	
+		end;
+		HDR.HeadLen = 24+length(HDR.INFO); 
+		if ~isfield(HDR.FILE,'TYPE')
+			HDR.FILE.TYPE = 6; % default float32
+		end;		
+	end;
 	
 	if HDR.FILE.TYPE==1, 
-		HDR.GDFTYP = 0;
-		HDR.AS.bpb = HDR.NS;
+		HDR.GDFTYP =  0;
+		HDR.bits   =  8;
 	elseif HDR.FILE.TYPE==2, 
-		HDR.GDFTYP = 1;
-		HDR.AS.bpb = HDR.NS;
+		HDR.GDFTYP =  1;
+		HDR.bits   =  8;
 	elseif HDR.FILE.TYPE==3, 
-		HDR.GDFTYP = 3;
-		HDR.AS.bpb = HDR.NS*2;
+		HDR.GDFTYP =  3;
+		HDR.bits   = 16;
 	elseif HDR.FILE.TYPE==4, 
 		HDR.GDFTYP = 255+24;
-		HDR.AS.bpb = HDR.NS*3;
+		HDR.bits   = 24;
 	elseif HDR.FILE.TYPE==5, 
-		HDR.GDFTYP = 5;
-		HDR.AS.bpb = HDR.NS*4;
+		HDR.GDFTYP =  5;
+		HDR.bits   = 32;
 	elseif HDR.FILE.TYPE==6, 
 		HDR.GDFTYP = 16;
-		HDR.AS.bpb = HDR.NS*4;
+		HDR.bits   = 32;
 	elseif HDR.FILE.TYPE==7, 
 		HDR.GDFTYP = 17;
-		HDR.AS.bpb = HDR.NS*8;
+		HDR.bits   = 64;
 	else
 		fprintf(2,'Error SOPEN SND-format: datatype %i not supported\n',HDR.FILE.TYPE);
 		return;
 	end;
+	HDR.AS.bpb = HDR.NS*HDR.bits/8;
+	
 	% Calibration 
 	if any(HDR.FILE.TYPE==[2:5]), 
 		HDR.Cal = 2^(1-HDR.bits); 
+	else
+		HDR.Cal = 1; 	
 	end;
 	
-	% check file length
-	fseek(HDR.FILE.FID,0,'eof');
-	len = ftell(HDR.FILE.FID); 
-	if len ~= datlen+HDR.HeadLen,
-		fprintf(2,'Warning SOPEN SND-format: header information does not fit file length \n');
-		datlen = len - HDR.HeadLen; 
-	end;	
-	fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+		%%%%% READ 
+	if HDR.FILE.OPEN == 1; 
+		% check file length
+		fseek(HDR.FILE.FID,0,1);
+		len = ftell(HDR.FILE.FID); 
+		if len ~= (datlen+HDR.HeadLen),
+			fprintf(HDR.FILE.stderr,'Warning SOPEN SND-format: header information does not fit file length \n');
+			datlen = len - HDR.HeadLen; 
+		end;	
+		fseek(HDR.FILE.FID,HDR.HeadLen,-1);
+		HDR.SPR  = datlen/HDR.AS.bpb;
+		HDR.AS.endpos = datlen/HDR.AS.bpb;
+		HDR.Dur  = HDR.SPR/HDR.SampleRate;
+
+	        if CHAN==0,		
+			HDR.SIE.InChanSelect = 1:HDR.NS;
+		elseif all(CHAN>0 & CHAN<=HDR.NS),
+			HDR.SIE.InChanSelect = CHAN;
+	    	else
+			fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+			fclose(HDR.FILE.FID); 
+			HDR.FILE.FID = -1;	
+			return;
+		end;
+	
+		%%%%% WRITE 
+	elseif HDR.FILE.OPEN > 1; 
+		datlen = HDR.SPR * HDR.AS.bpb;
+		fwrite(HDR.FILE.FID,[hex2dec('2e736e64'),HDR.HeadLen,datlen,HDR.FILE.TYPE,HDR.SampleRate,HDR.NS],'uint32');
+		fwrite(HDR.FILE.FID,HDR.INFO,'char');
+
+	end;
 	HDR.FILE.POS = 0;
 	HDR.NRec = 1;
-	HDR.SPR  = datlen/HDR.AS.bpb;
-	HDR.AS.endpos = datlen/HDR.AS.bpb;
-	HDR.Dur = HDR.SPR/HDR.SampleRate;
-
-        if CHAN==0,		
-		HDR.SIE.InChanSelect = 1:HDR.NS;
-	elseif all(CHAN>0 & CHAN<=HDR.NS),
-		HDR.SIE.InChanSelect = CHAN;
-	else
-		fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
-		fclose(HDR.FILE.FID); 
-		HDR.FILE.FID = -1;	
-		return;
-	end;
-
         
+	
 elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
 	
@@ -576,7 +628,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
 	if ~strcmpi(tmp,'FORM') & ~strcmpi(tmp,'RIFF'),
 		fprintf(2,'Warning SOPEN AIF/WAV-format: file %s might be corrupted 1\n',HDR.FileName);
 	end;
-	tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size
+	tagsize  = fread(HDR.FILE.FID,1,'uint32');        % which size
 	tagsize0 = tagsize + rem(tagsize,2); 
 	tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
 	if ~strncmpi(tmp,'AIF',3) & ~strncmpi(tmp,'WAVE',4), % not (AIFF or AIFC or WAVE)
@@ -600,7 +652,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
 			HDR.AS.endpos = HDR.SPR;
 			HDR.bits = fread(HDR.FILE.FID,1,'uint16');
 			HDR.GDFTYP = ceil(HDR.bits/8)*2-1; % unsigned integer of approbriate size;
-			HDR.Cal = 2^(1-HDR.bits);
+			HDR.Cal  = 2^(1-HDR.bits);
 			HDR.AS.bpb = ceil(HDR.bits/8)*HDR.NS;
 
 			% HDR.SampleRate; % construct Extended 80bit IEEE 754 format 
