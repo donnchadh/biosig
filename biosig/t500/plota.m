@@ -36,8 +36,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 
 
 
-%       $Revision: 1.18 $
-%	$Id: plota.m,v 1.18 2003-05-20 16:04:04 schloegl Exp $
+%       $Revision: 1.19 $
+%	$Id: plota.m,v 1.19 2003-12-09 10:15:01 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -56,7 +56,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 
 h = [];
 if strcmp(X.datatype,'MVAR-COHERENCE'),
-    fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
+    %fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
     if length(size(X.COH))==3,
         M = size(X.COH,1);
         
@@ -150,7 +150,7 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
                     end
                 end
                 hold off
-                axis([min(list3),max(list3),-0.2,1.5])
+                axis([min(list3),max(list3),-0.2,1.0])
                 if isfield(X,'ElectrodeName'),
                     if k1==1,
                         y=ylabel(X.ElectrodeName(list2(k2)));
@@ -265,7 +265,6 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
     end;
     
 elseif strcmp(X.datatype,'MVAR-DTF'),
-    
     if length(size(X.DTF))==3,
         if nargin<2,
             list2=1:size(X.COH,1);
@@ -698,6 +697,23 @@ elseif strcmp(X.datatype,'MVAR'),
         f = N;
         N = length(N);
     end;
+    if isfield(X,'SampleRate'); 
+            Fs=X.SampleRate;
+    end;
+    if isfield(X,'ElectrodeName'); 
+            if isstruct(X.ElectrodeName);
+                    Label = X.ElectrodeName;
+            else
+                    for k=1:K1,
+                            Label{k}=X.ElectrodeName(k,:);
+                    end;
+            end;
+    else
+            for k=1:K1,
+                    Label{k}=sprintf('#%02i',k);
+            end;
+    end;
+    
     s = exp(i*2*pi*f/Fs);
     z = i*2*pi/Fs;
     
@@ -742,7 +758,13 @@ elseif strcmp(X.datatype,'MVAR'),
             for k2=1:K2;
                 subplot(K1,K2,k2+(k1-1)*K1);
                 semilogy(f,squeeze(abs(S(k1,k2,:))));        
-                axis([0,max(f),minS,maxS])        
+                axis([0,max(f),minS,maxS]);
+                if k2==1;
+                        ylabel(Label{k1});
+                end;
+                if k1==1;
+                        title(Label{k2});
+                end;
             end;
         end;
         suptitle('Power spectrum')
@@ -756,6 +778,12 @@ elseif strcmp(X.datatype,'MVAR'),
                 subplot(K1,K2,k2+(k1-1)*K1);
                 plot(f,unwrap(squeeze(angle(S(k1,k2,:))))*180/pi);        
                 axis([0,max(f),-360,360])        
+                if k2==1;
+                        ylabel(Label{k1});
+                end;
+                if k1==1;
+                        title(Label{k2});
+                end;
             end;
         end;
         suptitle('phase')
@@ -766,6 +794,12 @@ elseif strcmp(X.datatype,'MVAR'),
                 subplot(K1,K2,k2+(k1-1)*K1);
                 area(f,squeeze(PDC(k1,k2,:)));        
                 axis([0,max(f),0,1]);
+                if k2==1;
+                        ylabel(Label{k1});
+                end;
+                if k1==1;
+                        title(Label{k2});
+                end;
             end;
         end;
         suptitle('partial directed coherence PDC');
@@ -798,6 +832,12 @@ elseif strcmp(X.datatype,'MVAR'),
                 subplot(K1,K2,k2+(k1-1)*K1);
                 plot(f,squeeze(COH(k1,k2,:)));        
                 axis([0,max(f),0,1])
+                if k2==1;
+                        ylabel(Label{k1});
+                end;
+                if k1==1;
+                        title(Label{k2});
+                end;
             end;
         end;
         suptitle('Ordinary coherence')
@@ -808,6 +848,12 @@ elseif strcmp(X.datatype,'MVAR'),
                 subplot(K1,K2,k2+(k1-1)*K1);
                 area(f,squeeze(DTF(k1,k2,:)));        
                 axis([0,max(f),0,1]);
+                if k2==1;
+                        ylabel(Label{k1});
+                end;
+                if k1==1;
+                        title(Label{k2});
+                end;
             end;
         end;
         suptitle('directed transfer function DTF');        
@@ -827,6 +873,76 @@ elseif strcmp(X.datatype,'EDF'),
     end;
     xlabel('t [s]')
     
+elseif strcmpi(X.datatype,'spectrum'),
+    if nargin>1,
+        Mode=arg2;
+    else
+        Mode='log';
+    end;
+
+    if ~isfield(X,'samplerate_units')
+	X.samplerate_units = 'Hz';    
+    end;
+    if ~isfield(X,'PhysDim')
+	X.PhysDim = '[1]';    
+    end;
+    if ~isfield(X,'QUANT')
+	X.QUANT = 0;    
+    end;
+
+    p = size(X.AR,2);
+    for k=1:size(X.AR,1);
+        [H,F] = freqz(sqrt(X.PE(k,size(X.AR,2)+1)/(X.SampleRate*2*pi)),ar2poly(X.AR(k,:)),(0:64*p)/(128*p)*X.SampleRate',X.SampleRate);
+    end;
+    if strcmp(lower(Mode),'log')
+        semilogy(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*X.QUANT/sqrt(12*X.SampleRate),'k:');
+        ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim,X.samplerate_units));
+
+    elseif strcmp(lower(Mode),'log2')
+        semilogy(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.QUANT.^2/(12*X.SampleRate),'k:');
+        ylabel(sprintf('[%s]^2/%s',X.PhysDim,X.samplerate_units));
+
+    elseif strcmp(lower(Mode),'lin')
+	plot(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*X.QUANT/sqrt(12*X.SampleRate),'k:');
+        ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim,X.samplerate_units));
+
+    elseif strcmp(lower(Mode),'lin2')
+        plot(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.QUANT.^2/(12*X.SampleRate),'k:');
+        ylabel(sprintf('[%s]^2/%s',X.PhysDim,X.samplerate_units));
+    end;
+    xlabel(sprintf('f [%s]',X.samplerate_units));
+        
+
+elseif strcmp(X.datatype,'confusion'),
+        if nargin>1,
+                [kap,sd,H,z,OA,SA]=kappa(X.data);
+                fprintf(1,'Kappa = %5.3f±%4.3f(%s)\tAccuracy = %4.1f%%\n',kap,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
+                %disp([X.data,sum(X.data,2);sum(X.data,1),sum(X.data(:))])       
+                
+                for k=1:size(X.data,1),
+                        fprintf(1,'%4.1f%%\t',X.data(k,:)./sum(X.data,1)*100);
+                        fprintf(1,'| %4.1f\n',sum(X.data(k,:),2));
+                end;
+                fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
+                fprintf(1,'%4.0f\t',sum(X.data,1));
+                fprintf(1,'| %4.0f\n',sum(X.data(:)));
+        else
+                [kap,sd,H,z,OA,SA]=kappa(X.data);
+                fprintf(1,'Kappa = %5.3f±%4.3f(%s)\tAccuracy = %4.1f%%\n',kap,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
+                %disp([X.data,sum(X.data,2);sum(X.data,1),sum(X.data(:))])       
+                
+                for k=1:size(X.data,1),
+                        fprintf(1,'%4.1f\t',X.data(k,:));
+                        fprintf(1,'| %4.1f\t| %4.1f%%\n',sum(X.data(k,:),2),X.data(k,k)/sum(X.data(k,:),2)*100);
+                end;
+                fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
+                fprintf(1,'%4.0f\t',sum(X.data,1));
+                fprintf(1,'| %4.0f\t|\n',sum(X.data(:)));
+                fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
+                fprintf(1,'%4.1f%%\t',diag(X.data)'./sum(X.data,1)*100);
+                fprintf(1,'|\n');
+        end;
+        
 elseif strcmp(X.datatype,'qualitycontrol'),
     if nargin>1,
         Mode=arg2;
@@ -1145,13 +1261,15 @@ elseif strcmp(X.datatype,'TSD_BCI7') |strcmp(X.datatype,'SNR'), ,
     else
         nf=arg2;
     end;
-    Fs=128;
+    if ~isfield(X,'Fs'),
+            X.Fs=128;
+    end;
     N=length(X.I);
     
     if isfield(X,'T')
-        t=(min(X.T(:)):max(X.T(:)))/X.Fs;
+        t=X.T;%(min(X.T(:)):max(X.T(:)))/X.Fs;
     else
-        t=(1:N)/Fs;        
+        t=(1:N)/X.Fs;        
     end;
     
     subplot(nf(1));
@@ -1161,7 +1279,8 @@ elseif strcmp(X.datatype,'TSD_BCI7') |strcmp(X.datatype,'SNR'), ,
     v=axis;v=[0,max(t),0,60];axis(v);
     
     subplot(nf(2));
-    if strcmp(X.datatype,'SNR'),
+    %if strcmp(X.datatype,'SNR'),
+    if isfield(X,'MEAN1'),
         h=plot(t,[X.MEAN1(:),X.MEAN2(:),X.SD1(:),X.SD2(:)]*[1,0,0,0; 0,1,0,0; 1,0,1,0; 1,0,-1,0; 0,1,0,1; 0,1,0,-1]','b',t([1,length(t)]),[0,0],'k');
     else
         h=plot(t,[X.M1(:),X.M2(:),X.SD1(:),X.SD2(:)]*[1,0,0,0; 0,1,0,0; 1,0,1,0; 1,0,-1,0; 0,1,0,1; 0,1,0,-1]','b',t([1,length(t)]),[0,0],'k');
@@ -1189,6 +1308,12 @@ elseif strcmp(X.datatype,'TSD_BCI7') |strcmp(X.datatype,'SNR'), ,
     end;
     
     
+elseif strcmp(X.datatype,'QRS_events'),
+        ix = X.QRS_event;
+        l =length(ix);
+        semilogy((ix(1:l-1)+ix(2:l))/2,diff(ix));
+        
+        
 elseif strcmp(X.datatype,'REV'),
     if nargin<2
         arg2=[];
@@ -1205,7 +1330,7 @@ elseif strcmp(X.datatype,'REV'),
         plot3(1:length(iy),iy,myR,'cx-')
         plot3(IX,IY,min(R(:)),'r*');
         hold off
-        v=axis;v(5:6)=[0.1,.2];axis(v);
+        %v=axis;v(5:6)=[0.1,.2];axis(v);
         a=gca;
         set(a,'xtick',X.P);
         t=1:5:length(X.UC);
