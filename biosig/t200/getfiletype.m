@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.32 $
-%	$Id: getfiletype.m,v 1.32 2005-03-25 11:20:22 schloegl Exp $
+%	$Revision: 1.33 $
+%	$Id: getfiletype.m,v 1.33 2005-04-05 17:49:13 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -170,6 +170,8 @@ else
                 elseif strcmp(ss(1:10),'EEG-1100C ')     % Nihon-Kohden
                         HDR.TYPE='EEG-1100-';
                         HDR.VERSION = ss(11:16);
+                elseif strncmp(ss,'GALILEO EEG TRACE FILE',22)     % Galilea EEG (from ESAOTE, EBNeuro spa) 
+                        HDR.TYPE='GTF';
                         
                 elseif strcmp(ss(1:8),'@  MFER '); 
                         HDR.TYPE='MFER';
@@ -191,8 +193,10 @@ else
                 elseif strncmp(ss,'DEMG',4);	% www.Delsys.com
                         HDR.TYPE='DEMG';
                         
-                elseif strncmp(ss,'NEX1',4); 
+                elseif all(s([1:4])==abs('NEX1')); 
                         HDR.TYPE='NEX';
+                elseif all(s([1:4,6:132])==[abs('PLEX'),zeros(1,127)]); 	% http://WWW.PLEXONINC.COM
+                        HDR.TYPE='PLEXON';
                 elseif strcmp(ss([1:4]),'fLaC'); 
                         HDR.TYPE='FLAC';
                 elseif strcmp(ss([1:4]),'OggS'); 
@@ -312,8 +316,6 @@ else
                         
                 elseif strncmp(ss,'CFWB',4); 	% Chart For Windows Binary data, defined by ADInstruments. 
                         HDR.TYPE='CFWB';
-                elseif all(s(1:132)==[abs('PLEXe'),zeros(1,127)]); 	% http://WWW.PLEXONINC.COM
-                        HDR.TYPE='PLX';
                 elseif strncmp(ss,'FILE FORMAT=RigSys',18); 	% RigSys file format 
                         HDR.TYPE='RigSys';
                         
@@ -470,6 +472,8 @@ else
                         HDR.TYPE='DLL';
                 elseif all(s([1:4])==[77,90,144,0])
                         HDR.TYPE='DLL';
+                elseif all(s(1:4)==hex2dec(['CA';'FE';'BA';'BE'])')
+                        HDR.TYPE='JAVA';
                 elseif all(s([1:8])==[254,237,250,206,0,0,0,18])
                         HDR.TYPE='MEXMAC';
 
@@ -813,6 +817,8 @@ else
                         
                 elseif strcmpi(HDR.FILE.Ext,'img')
                         
+                elseif strcmpi(HDR.FILE.Ext,'ddt')
+                        HDR.TYPE = 'DDT';
                 elseif strcmpi(HDR.FILE.Ext,'sx')
                         HDR.TYPE = 'SXI';
                 elseif strcmpi(HDR.FILE.Ext,'sxi')

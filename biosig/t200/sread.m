@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.50 $
-%	$Id: sread.m,v 1.50 2005-04-01 15:47:01 schloegl Exp $
+%	$Revision: 1.51 $
+%	$Id: sread.m,v 1.51 2005-04-05 17:49:13 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -131,7 +131,7 @@ elseif strmatch(HDR.TYPE,{'AIF','SND','WAV'})
                 end;
         end;
 
-elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','ISHNE','Nicolet','RG64'}),
+elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ISHNE','Nicolet','RG64'}),
         if nargin==3,
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -291,7 +291,7 @@ elseif strcmp(HDR.TYPE,'MIT'),
                 
         elseif HDR.VERSION == 310, 
                 [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb/2, DataLen], 'uint16'); 
-                A = A'; DataLen = count/HDR.AS.bpb*2;
+                A = A'; DataLen = count/HDR.AS.bpb*2; 
                 for k = 1:ceil(HDR.AS.spb/3),
                         k1=3*k-2; k2=3*k-1; k3=3*k;
                         S(:,3*k-2) = floor(mod(A(:,k*2-1),2^12)/2);	
@@ -553,7 +553,7 @@ elseif strcmp(HDR.TYPE,'BCI2000'),
         end;
 
         
-elseif strcmp(HDR.TYPE,'native'),
+elseif strcmp(HDR.TYPE,'native') | strcmp(HDR.TYPE,'SCP'),
 	if nargin>2,
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
@@ -562,6 +562,134 @@ elseif strcmp(HDR.TYPE,'native'),
         S  = HDR.data(HDR.FILE.POS + (1:nr), :);
         HDR.FILE.POS = HDR.FILE.POS + nr;
 
+        
+elseif strcmp(HDR.TYPE,'NEX'),
+        %% hack: read NEX data once, and transform into "native"
+        for k = 1:HDR.NEX.NS,
+                fseek(HDR.FILE.FID, HDR.NEX.offset(k), 'bof');
+                if 0,  % elseif HDR.NEX.type(k)==1, 
+                        
+                elseif HDR.NEX.type(k)==2,  % interval
+                        tmp = fread(HDR.FILE.FID, [HDR.NEX.nf(k),2], 'int32');
+                        HDR.EVENT.POS = [HDR.EVENT.POS; tmp(:,1)];
+                        HDR.EVENT.DUR = [HDR.EVENT.DUR; tmp(:,2)];
+                        HDR.EVENT.CHN = [HDR.EVENT.CHN; repmat(k,size(tmp,1),1)];
+                        
+                elseif HDR.NEX.type(k)==3,  % waveform 
+                        HDR.HeadLen = HDR.NEX.offset(k);
+                        HDR.NEX6.ts{k} = fread(HDR.FILE.FID, [HDR.NEX.nf(k),1], 'int32');
+                        HDR.NEX6.data{k} = fread(HDR.FILE.FID, [HDR.NEX.SPR(k), HDR.NEX.nf(k)], 'int16');
+                        
+                elseif HDR.NEX.type(k)==5, % continous variable  
+                        HDR.NEX5.ts{k} = fread(HDR.FILE.FID, [HDR.NEX.nf(k), 2], 'int32')';
+                        HDR.data(:,HDR.AS.chanreduce(k)) = fread(HDR.FILE.FID, [HDR.NEX.SPR(k), 1], 'int16');
+                        
+                elseif HDR.NEX.type(k)==6,  % marker
+                        ts = fread(HDR.FILE.FID, [1,HDR.NEX.nf(k)], 'int32');
+                        names = zeros(1,64);
+                        m = zeros(HDR.NEX.SPR(k), nl, nm);
+                        for j=1:nm
+                                names(j, :) = fread(HDR.FILE.FID, [1 64], 'char');
+                                for p = 1:HDR.NEX.SPR(k)
+                                        m(p, :, j) = fread(HDR.FILE.FID, [1 nl], 'char');
+                                end
+                        end
+                        HDR.NEX.names = names;
+                        HDR.NEX.m = m;
+                else
+                        ts = fread(HDR.FILE.FID, [1,HDR.NEX.nf(k)], 'int32');
+                        HDR.NEX0.ts{k}=ts;
+                end;
+        end
+        fclose(HDR.FILE.FID);
+        HDR.FILE.OPEN = 0; 
+        HDR.TYPE = 'native';
+        
+        % sequence for reading "native" format
+	if nargin>2,
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+
+        nr = min(round(HDR.SampleRate * NoS), size(HDR.data,1) - HDR.FILE.POS);
+        S  = HDR.data(HDR.FILE.POS + (1:nr), :);
+        HDR.FILE.POS = HDR.FILE.POS + nr;
+        
+        
+elseif strcmp(HDR.TYPE,'PLEXON'),
+        %% hack: read PLEXON data once, and transform into "native"
+        HDR.data = repmat(NaN,max(HDR.PLX.adcount),HDR.NS);
+        NRec = 0; 
+        nET  = 0; 
+        ET   = repmat(NaN,1024,6);
+        wav  = zeros(1024,HDR.PLX.wavlen); 
+        
+        tscount=zeros(5,130);
+        wfcount=zeros(5,130);
+        evcount=zeros(1,300);
+        adcount=zeros(1,212);
+        
+        adpos = zeros(1,HDR.NS);
+        typ_ubyte = fread(HDR.FILE.FID,2,'int16');
+        while ~feof(HDR.FILE.FID),
+                TYP = typ_ubyte(1);
+                ubyte = typ_ubyte(2);
+                POS = fread(HDR.FILE.FID,1,'int32');
+                tmp = fread(HDR.FILE.FID,4,'int16');
+                CHN = tmp(1)+1; 
+                unit= tmp(2);
+                nwf = tmp(3); 
+                DUR = tmp(4);
+                
+                wf  = fread(HDR.FILE.FID,[1,DUR],'int16');
+                nET = nET + 1; 
+                if size(ET,1)<nET;       % memory allocation
+                        ET  = [ET ; repmat(NaN,size(ET))];
+                        %        wav = [wav; repmat(NaN,size(wav))];
+                end;
+                ET(nET,:) = [TYP,POS,CHN,DUR,unit,nwf];
+                %wav(nET,1:N) = wf; %[wf,repmat(NaN,1,24-DUR)];
+                if TYP==1, % timestamps, waves
+                        tscount(unit+1,CHN) = tscount(unit+1,CHN)+1; 
+                        if DUR>0,
+                                wfcount(unit+1,CHN) = wfcount(unit+1,CHN)+1; 
+                        end;
+                elseif TYP==4, % events, 
+                        evcount(CHN) = evcount(CHN) + 1; 
+                elseif TYP==5,  
+                        t1 = adpos(CHN) + 1;
+                        t2 = adpos(CHN) + DUR;
+                        HDR.data(t1:t2,CHN) = wf';
+                        adpos(CHN) = t2;
+                end;
+                NRec = NRec+1;
+                typ_ubyte = fread(HDR.FILE.FID,2,'int16');
+        end
+        fclose(HDR.FILE.FID);
+        HDR.FILE.OPEN = 0; 
+        
+        HDR.PLX2.tscount = tscount; 
+        HDR.PLX2.wfcount = wfcount; 
+        HDR.PLX2.evcount = evcount; 
+        HDR.PLX2.adcount = adcount; 
+        
+        ET = ET(1:nET,:);
+        HDR.EVENT.ET  = ET; 
+        HDR.EVENT.TYP = ET(:,1); 
+        HDR.EVENT.POS = ET(:,2); 
+        HDR.EVENT.CHN = ET(:,3); 
+        HDR.EVENT.DUR = ET(:,4); 
+        HDR.EVENT.unit= ET(:,5); 
+        HDR.TYPE = 'native'
+        
+        % sequence for reading "native" format
+	if nargin>2,
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+
+        nr = min(round(HDR.SampleRate * NoS), size(HDR.data,1) - HDR.FILE.POS);
+        S  = HDR.data(HDR.FILE.POS + (1:nr), :);
+        HDR.FILE.POS = HDR.FILE.POS + nr;
+        
         
 elseif strcmp(HDR.TYPE,'SIGIF'),
         if nargin==3,
@@ -842,7 +970,9 @@ if STATUS,
         save biosigcore.mat 
 end;
 
-if isfield(HDR,'THRESHOLD') & HDR.FLAG.OVERFLOWDETECTION,
+if isempty(S),
+
+elseif isfield(HDR,'THRESHOLD') & HDR.FLAG.OVERFLOWDETECTION,
         ix = (S~=S);
         for k=1:length(HDR.InChanSelect),
                 TH = HDR.THRESHOLD(HDR.InChanSelect(k),:);
@@ -858,11 +988,18 @@ elseif isfield(HDR,'THRESHOLD'),
         % automated overflow detection has been turned off
 end;
 
-if ~HDR.FLAG.UCAL,
+if ~HDR.FLAG.UCAL
         % S = [ones(size(S,1),1),S]*HDR.Calib; 
         % perform the previous function more efficiently and
         % taking into account some specialities related to Octave sparse
         % data. 
+
+	if isempty(S),	% otherwise 2.1.64 could break below, 
+		if size(S,2)~=length(HDR.InChanSelect), 
+			fprintf(HDR.FILE.stderr,'Warning SREAD (%s): number of columns (%i) incorrect!\n',HDR.TYPE,size(S,2));
+		end;	
+		S = zeros(0,length(HDR.InChanSelect));
+	end;
 
         if 1; %exist('OCTAVE_VERSION')
                 % force octave to do a sparse multiplication
