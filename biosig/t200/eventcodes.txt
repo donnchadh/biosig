@@ -1,14 +1,14 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004-2005 Alois Schloegl <a.schloegl@ieee.org>
-# $Revision: 1.10 $
-# $Id: eventcodes.txt,v 1.10 2005-01-31 13:31:03 schloegl Exp $
+# $Revision: 1.11 $
+# $Id: eventcodes.txt,v 1.11 2005-03-29 08:28:35 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
 #
 ### 0x010_	EEG artifacts
-0x0101	artifact:EOG
+0x0101	artifact:EOG (blinks, fast, large amplitude)
 0x0102	artifact:ECG
 0x0103	artifact:EMG/Muscle
 0x0104	artifact:Movement
@@ -17,12 +17,15 @@
 0x0107	artifact:50/60 Hz mains interference
 0x0108	artifact:breathing
 0x0109	artifact:pulse
+0x010a  artifact:EOG (slow, small amplitudes)
 ### 0x011_	EEG patterns
 0x0111	eeg:Sleep spindles
 0x0112	eeg:K-complexes
 0x0113	eeg:Saw-tooth waves
 0x0114  eeg:Idling EEG - eyes open
 0x0115  eeg:Idling EEG - eyes closed
+0x0116	eeg:spike
+0x0117  eeg:seizure
 ### 0x012_	Evoked potentials
 0x0121	VEP: visual EP
 0x0122	AEP: auditory EP
@@ -72,6 +75,12 @@
 0x0504	ecg:R-point
 0x0506	ecg:T-wave
 0x0507	ecg:U-wave
+# related but non-concordant defintions can be found in   
+# - WFDB/MIT-BIH http://www.physionet.org/physiotools/wfdb/lib/ecgcodes.h
+# - SCP-ECG http://www.centc251.org/TCmeet/doclist/TCdoc02/N02-015-prEN1064.pdf
+# - FEF/Vital/11073 p.83
+# Unification is desired
+#
 ### 0x058_	ergometric events 
 0x0580	start
 0x0581	 25 Watt
@@ -88,8 +97,9 @@
 0x058c	300 Watt
 0x058d	325 Watt
 0x058e	350 Watt
-0x8580  end
+#0x8580  end
 ### 0x00__	user specific events
+# the use of these types is discouraged, because of ambigous definitions. 
 0x0001	condition 1
 0x0002	condition 2
 0x0003	condition 3
@@ -108,5 +118,9 @@
 0x0010	condition 16
 0x0011	condition 17
 0x0012	condition 18
+0x0020	condition 32
+0x0040	condition 64
+0x0060	condition 96
+0x0080	condition 128
 #
 
