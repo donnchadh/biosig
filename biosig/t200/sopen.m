@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.46 $
-%	$Id: sopen.m,v 1.46 2004-04-15 18:55:43 schloegl Exp $
+%	$Revision: 1.47 $
+%	$Id: sopen.m,v 1.47 2004-04-16 14:12:17 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -195,9 +195,9 @@ if any(PERMISSION=='r'),
                                 HDR.Endianity = 'ieee-be';
 
                         elseif strncmp(ss,'RIFF',4)
-                                HDR.TYPE='EEProbe';     % continuous EEG in EEProbe format, ANT Software (NL) and MPI Leipzig (DE)
-                        elseif all(ss(1:4)==[38 0 16 0])
-                                HDR.TYPE='EEProbe';     % averaged EEG in EEProbe format, ANT Software (NL) and MPI Leipzig (DE)
+                                HDR.TYPE='EEProbe-CNT';     % continuous EEG in EEProbe format, ANT Software (NL) and MPI Leipzig (DE)
+                        elseif all(s(1:4)==[38 0 16 0])
+                                HDR.TYPE='EEProbe-AVR';     % averaged EEG in EEProbe format, ANT Software (NL) and MPI Leipzig (DE)
                                 
                         elseif strncmp(ss,'ISHNE1.0',8);        % ISHNE Holter standard output file.
                                 HDR.TYPE='ISHNE';
@@ -3383,133 +3383,215 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
                         HDR.T0(6) = str2double([tmp(5:6),'.',tmp(7:9)]);
                 end;
         end;
-
+        
 elseif strcmp(HDR.TYPE,'BrainVision'),
         % get the header information from the VHDR ascii file
-        headerfile           = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);
-        tmp.DataFile         = read_ini(headerfile, 'DataFile=', '%s');
-        tmp.MarkerFile       = read_ini(headerfile, 'MarkerFile=', '%s');
-        tmp.DataFormat       = read_ini(headerfile, 'DataFormat=', '%s');
-        tmp.DataOrientation  = read_ini(headerfile, 'DataOrientation=', '%s');
-        tmp.BinaryFormat     = read_ini(headerfile, 'BinaryFormat=', '%s');
-        tmp.NumberOfChannels = read_ini(headerfile, 'NumberOfChannels=', '%d');
-        tmp.SamplingInterval = read_ini(headerfile, 'SamplingInterval=', '%f'); % microseconds!
-        if ~isempty(tmp.NumberOfChannels)
-          % parse the channel information
-          for i=1:tmp.NumberOfChannels
-            chan_str  = sprintf('Ch%d=', i);
-            chan_info = read_ini(headerfile, chan_str, '%s');
-            [t, r] = strtok(chan_info, ',');
-            tmp.label{i} = t;
-            if all(r(1:2)==',,')
-              % empty reference channel
-              r = r(2:end);
-              t = [];
-            else
-              [t, r] = strtok(r, ',');
-            end
-            tmp.reference{i} = t;
-            [t, r] = strtok(r, ',');
-            tmp.resolution(i) = str2double(t);          % in microvolt
-          end
+        HDR.BV.headerfile       = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);
+        HDR.BV.DataFile         = read_ini(HDR.BV.headerfile, 'DataFile=', '%s');
+        HDR.BV.MarkerFile       = read_ini(HDR.BV.headerfile, 'MarkerFile=', '%s');
+        HDR.BV.DataFormat       = read_ini(HDR.BV.headerfile, 'DataFormat=', '%s');
+        HDR.BV.DataOrientation  = read_ini(HDR.BV.headerfile, 'DataOrientation=', '%s');
+        HDR.BV.BinaryFormat     = read_ini(HDR.BV.headerfile, 'BinaryFormat=', '%s');
+        HDR.NS                  = read_ini(HDR.BV.headerfile, 'NumberOfChannels=', '%d');
+        HDR.BV.SamplingInterval = read_ini(HDR.BV.headerfile, 'SamplingInterval=', '%f'); % microseconds!
+        if ~isempty(HDR.NS)
+                % parse the channel information
+                for i=1:HDR.NS,
+                        chan_str  = sprintf('Ch%d=', i);
+                        chan_info = read_ini(HDR.BV.headerfile, chan_str, '%s');
+                        [t, r] = strtok(chan_info, ',');
+                        HDR.Label{i,1} = t;
+                        if all(r(1:2)==',,')
+                                % empty reference channel
+                                r = r(2:end);
+                                t = [];
+                        else
+                                [t, r] = strtok(r, ',');
+                        end
+                        HDR.BV.reference{i} = t;
+                        [t, r] = strtok(r, ',');
+                        HDR.Cal(i) = str2double(t);          % in microvolt
+                end
         end
         % ensure that these are all column-vectors
-        tmp.label      = tmp.label(:);
-        tmp.reference  = tmp.reference(:);
-        tmp.resolution = tmp.resolution(:);
-        % convert the header information to BIOSIG standards
-        HDR.FILE.FID = 1;               % ?
-        HDR.T0 = [0 0 0 0 0 0];         % there is no information about start time available
-        HDR.NS = tmp.NumberOfChannels;  % number of channels
-        HDR.SampleRate = 1e6/(tmp.SamplingInterval);      % sampling rate in Hz
-        HDR.NRec = 1;                   % it is a continuous datafile, therefore one record
-        % FIXME: the number of samples is unkown but could be determined from the length of the binary file
-        HDR.SPR = Inf;                  % total number of samples in the file
-        HDR.Dur = Inf;                  % total duration in seconds
-        HDR.Calib = [zeros(1,HDR.NS) ; diag(tmp.resolution)];  % is this correct?
-        HDR.Label = char(tmp.label);
-        HDR.PhysDim = 'uV';
-        % remember the details of the header, these are required when reading the binary data
-        HDR.details = tmp;
+        HDR.BV.reference  = HDR.BV.reference(:);
 
-elseif strcmp(HDR.TYPE,'EEProbe'),
-        % The type 'EEProbe' does not yet completely specify the file, we have to
-        % look in more detail (currently only at the extension).
-        if strcmp(HDR.FILE.Ext, 'cnt')
-          % it appears to be a EEProbe file with continuous EEG data
-          try
-            % Read the first sample of the file with a mex function
-            % this also gives back header information, which is needed here
-            tmp = read_eep_cnt(HDR.FileName, 1, 1);
-            % convert the header information to BIOSIG standards
-            HDR.FILE.FID = 1;               % ?
-            HDR.T0 = [0 0 0 0 0 0];         % there is no information about start time available
-            HDR.NS = tmp.nchan;             % number of channels
-            HDR.SampleRate = tmp.rate;      % sampling rate
-            HDR.NRec = 1;                   % it is always continuous data, therefore one record
-            HDR.SPR = tmp.nsample;          % total number of samples in the file
-            HDR.Dur = tmp.nsample/tmp.rate; % total duration in seconds
-            HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
-            HDR.Label = char(tmp.label);
-            HDR.PhysDim = 'uV';
-            % In principle it would also be possible now to check for the
-            % presence of a similar file with the extension *.trg. That file
-            % contains the accompanying triggers, and could be read with
-            % the function read_eep_trg.
-          catch
-            fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): Cannot open EEProbe-file, because read_eep_cnt.mex not installed. \n');
-            fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): see http://www.smi.auc.dk/~roberto/eeprobe/\n');
-            return;
-          end
-        elseif strcmp(HDR.FILE.Ext, 'avr')
-          % it appears to be a EEProbe file with an averaged ERP
-          try
-            % It is not possible to read the header by itself. Therefore we
-            % read the whole average and throw away the real data (that
-            % will be read again later with SREAD). This at least gives us
-            % the desired header information, albeit a bit clumsy.
-            tmp = read_eep_avr(HDR.FileName);
-            % convert the header information to BIOSIG standards
-            HDR.FILE.FID = 1;               % ?
-            HDR.T0 = [0 0 0 0 0 0];         % there is no information about start time available
-            HDR.NS = tmp.nchan;             % number of channels
-            HDR.SampleRate = tmp.rate;      % sampling rate
-            HDR.NRec = 1;                   % it is an averaged ERP, therefore one record
-            HDR.SPR = tmp.npnt;             % total number of samples in the file
-            HDR.Dur = tmp.npnt/tmp.rate;    % total duration in seconds
-            HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
-            HDR.Label = char(tmp.label);
-            HDR.PhysDim = 'uV';
-            HDR.FLAG.UCAL = 1;
-            % Where do I put the information about the timing within the
-            % single trial? The latency zero is not persee at the first
-            % sample.
-          catch
-            fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): Cannot open EEProbe-file, because read_eep_avr.mex not installed. \n');
-            fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): see http://www.smi.auc.dk/~roberto/eeprobe/\n');
-            return;
-          end
-        else
-          fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): File %s could not be opened - unknown subtype for EEProbe.\n',HDR.FileName);
-          return;
+        % convert the header information to BIOSIG standards
+        HDR.SampleRate = 1e6/(HDR.BV.SamplingInterval);      % sampling rate in Hz
+        HDR.NRec = 1;                   % it is a continuous datafile, therefore one record
+        HDR.Calib = [zeros(1,HDR.NS) ; diag(HDR.Cal)];  % is this correct?
+        HDR.PhysDim = 'uV';
+        HDR.FLAG.TRIGGERED = 0; 
+        HDR.Filter.Lowpass = repmat(NaN,HDR.NS,1);
+        HDR.Filter.Highpass = repmat(NaN,HDR.NS,1);
+        HDR.Filter.Notch = repmat(NaN,HDR.NS,1);
+        
+        if strncmpi(HDR.BV.BinaryFormat, 'int_16',6)
+                HDR.GDFTYP = 3; 
+                HDR.AS.bpb = HDR.NS * 2; 
+        elseif strncmpi(HDR.BV.BinaryFormat, 'ieee_float_32',13)
+                HDR.GDFTYP = 16; 
+                HDR.AS.bpb = HDR.NS * 4; 
+        elseif strncmpi(HDR.BV.BinaryFormat, 'ieee_float_64',13)
+                HDR.GDFTYP = 17; 
+                HDR.AS.bpb = HDR.NS * 8; 
+        end
+        
+        %read event file 
+        fid = fopen(fullfile(HDR.FILE.Path, HDR.BV.MarkerFile),'rt');
+        if fid>0,
+                while ~feof(fid),
+                        s = fgetl(fid);
+                        if strncmp(s,'Mk',2),
+                                %HDR.EVENT.N = HDR.EVENT.N + 1;
+                                [N,s] = strtok(s(3:end),'=');
+                                ix = find(s==',');
+                                ix(length(ix)+1)=length(s)+1;
+                                N = str2double(N);
+                                HDR.EVENT.POS(N,1) = str2double(s(ix(2)+1:ix(3)-1));
+                                HDR.EVENT.TYP(N,1) = 0;
+                                HDR.EVENT.DUR(N,1) = str2double(s(ix(3)+1:ix(4)-1));
+                                HDR.EVENT.CHN(N,1) = str2double(s(ix(4)+1:ix(5)-1));
+                                HDR.EVENT.TeegType{N,1} = s(2:ix(1)-1);
+                                HDR.EVENT.TeegDesc{N,1} = s(ix(1)+1:ix(2)-1);
+                        end;
+                end
+                fclose(fid);
+                HDR.EVENT.N = length(HDR.EVENT.POS);
         end
 
+        %open data file 
+        if strncmpi(HDR.BV.DataFormat, 'binary',5)
+                HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),'rb','ieee-le');
+        elseif strncmpi(HDR.BV.DataFormat, 'ascii',5)                 
+                HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),'rt','ieee-le');
+        end;
+        if HDR.FILE.FID < 0,
+                fprintf(2,'ERROR SOPEN BV: could not open file %s\n',fullfile(HDR.FILE.Path,HDR.BV.DataFile));
+                return;
+        end;
+        
+        HDR.FILE.OPEN= 1; 
+        HDR.FILE.POS = 0; 
+        HDR.HeadLen  = 0; 
+        if strncmpi(HDR.BV.DataFormat, 'binary',5)
+                fseek(HDR.FILE.FID,0,'eof');
+                HDR.AS.endpos = ftell(HDR.FILE.FID);
+                fseek(HDR.FILE.FID,0,'bof');
+                HDR.AS.endpos = HDR.AS.endpos/HDR.AS.bpb;
+                HDR.SPR = HDR.AS.endpos;
+                if strncmpi(HDR.BV.DataOrientation, 'multiplexed',6),
+                        HDR.TYPE = 'BVbinmul';
+                elseif strncmpi(HDR.BV.DataOrientation, 'vectorized',6),
+                        HDR.TYPE = 'BVbinvec';
+                end;
+        elseif strncmpi(HDR.BV.DataFormat, 'ascii',5)  
+                s = char(sread(HDR.FILE.FID,inf,'char')');
+                s(s==',')='.';
+                tmp = str2double(s);
+                if strncmpi(HDR.BV.DataOrientation, 'multiplexed',6),
+                        HDR.BV.data = tmp;
+                elseif strncmpi(HDR.BV.DataOrientation, 'vectorized',6),
+                        HDR.BV.data = HDR.BV.data';
+                end
+                HDR.SPR = size(HDR.BV.data,1);
+                HDR.AS.endpos = size(HDR.BV.data,1);
+                if ~any(HDR.NS ~= size(tmp));
+                        fprintf(2,'ERROR SOPEN BV-ascii: number of channels inconsistency\n');
+                end;
+                HDR.TYPE = 'BVascii';
+        end
+        
+elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
+        try
+                % Read the first sample of the file with a mex function
+                % this also gives back header information, which is needed here
+                tmp = read_eep_cnt(HDR.FileName, 1, 1);
+                % convert the header information to BIOSIG standards
+                HDR.FILE.FID = 1;               % ?
+                HDR.FILE.POS = 0;
+                HDR.NS = tmp.nchan;             % number of channels
+                HDR.SampleRate = tmp.rate;      % sampling rate
+                HDR.NRec = 1;                   % it is always continuous data, therefore one record
+                HDR.FLAG.TRIGGERED = 0; 
+                HDR.SPR = tmp.nsample;          % total number of samples in the file
+                HDR.Dur = tmp.nsample/tmp.rate; % total duration in seconds
+                HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
+                HDR.Label = char(tmp.label);
+                HDR.PhysDim = 'uV';
+                HDR.AS.endpos = HDR.SPR;
+                HDR.Label = tmp.label;
+                % In principle it would also be possible now to check for the
+                % presence of a similar file with the extension *.trg. That file
+                % contains the accompanying triggers, and could be read with
+                % the function read_eep_trg.
+                
+                % AS: this relates to Event information. see also 
+                % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg/EventCodes.html
+                
+        catch
+                fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): Cannot open EEProbe-file, because read_eep_cnt.mex not installed. \n');
+                fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): see http://www.smi.auc.dk/~roberto/eeprobe/\n');
+                return;
+        end
+        
+elseif strcmp(HDR.TYPE,'EEProbe-AVR'),
+        % it appears to be a EEProbe file with an averaged ERP
+        try
+                tmp = read_eep_avr(HDR.FileName);
+                % convert the header information to BIOSIG standards
+                HDR.FILE.FID = 1;               % ?
+                HDR.FILE.POS = 0;
+                HDR.NS = tmp.nchan;             % number of channels
+                HDR.SampleRate = tmp.rate;      % sampling rate
+                HDR.NRec = 1;                   % it is an averaged ERP, therefore one record
+                HDR.SPR = tmp.npnt;             % total number of samples in the file
+                HDR.Dur = tmp.npnt/tmp.rate;    % total duration in seconds
+                HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
+                HDR.Label = char(tmp.label);
+                HDR.PhysDim = 'uV';
+                HDR.FLAG.UCAL = 1;
+                HDR.FILE.POS = 0; 
+                HDR.AS.endpos = HDR.SPR;
+                HDR.Label = tmp.label;
+                % Where do I put the information about the timing within the
+                % single trial? The latency zero is not persee at the first
+                % sample.
+                
+                % TriggerOffset would be to best place 
+                HDR.TriggerOffset = 0 
+                
+                HDR.EEP.data = tmp.data';
+                
+        catch
+                fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): Cannot open EEProbe-file, because read_eep_avr.mex not installed. \n');
+                fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): see http://www.smi.auc.dk/~roberto/eeprobe/\n');
+                return;
+        end
+        
 elseif strncmp(HDR.TYPE,'FIF',3),
-        %%%% #### FIX ME ####
         if any(exist('rawdata')==[3,6]),
-                rawdata('any',HDR.FileName);
+                rawdata('any',HDR.FileName);  % opens file 
                 HDR.FILE.FID = 1;
-                HDR.SampleRate = rawdata(HDR.FileName,'sf');
-                HDR.T0 = rawdata(HDR.FileName,'t');
-                HDR.SPR = rawdata(HDR.FileName,'samples');
-                [HDR.MinMax,HDR.Cal] = rawdata(HDR.FileName,'range');
-                [HDR.Label, type, number] = channames(headerfile);
-                HDR.Calib = 1; 
+                HDR.SampleRate = rawdata('sf');
+                HDR.AS.endpos = rawdata('samples');
+                [HDR.MinMax,HDR.Cal] = rawdata('range');
+                [HDR.Label, type, number] = channames(HDR.FileName);
+        
+                rawdata('goto', 0);
+                [buf, status] = rawdata('next'); 
+                HDR.Dur = rawdata('t');
+                [HDR.NS,HDR.SPR] = size(buf);
+                HDR.AS.bpb = HDR.NS * 2;
+                HDR.Calib = [zeros(1,HDR.NS);diag(HDR.Cal)]; 
+                
+                rawdata('goto', 0);
+                HDR.FILE.POS = 0; 
+                HDR.FILE.OPEN = 1; 
         else
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): Cannot open FIF-file, because rawdata.mex not installed. \n',HDR.NS);
                 return;
         end
-        
         
 elseif strncmp(HDR.TYPE,'FS3',3),
         if any(PERMISSION=='r'),
@@ -3525,7 +3607,6 @@ elseif strncmp(HDR.TYPE,'FS3',3),
                 HDR.FACES = fread(HDR.FILE.FID,[3,HDR.FACE.N],'int32')';
                 fclose(HDR.FILE.FID);
         end
-        
         
 elseif strncmp(HDR.TYPE,'FS4',3),
         if any(PERMISSION=='r'),
@@ -3644,9 +3725,9 @@ if any(PERMISSION=='r');
                 HDR.InChanSelect = CHAN(:);
                 HDR.Calib = HDR.Calib(:,CHAN);
         end;
-        %HDR.Calib = sparse(HDR.Calib);
+        HDR.Calib = sparse(HDR.Calib); 
         
-        if any(HDR.InChanSelect > HDR.NS)
+        if any(HDR.InChanSelect > [HDR.NS]),
                 fprintf(HDR.FILE.stderr,'ERROR: selected channels exceed Number of Channels %i\n',HDR.NS);
                 fclose(HDR.FILE.FID); 
                 HDR.FILE.FID = -1;	
