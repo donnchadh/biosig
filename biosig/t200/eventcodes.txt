@@ -1,8 +1,8 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004 Alois Schloegl <a.schloegl@ieee.org>
-# $Revision: 1.5 $
-# $Id: eventcodes.txt,v 1.5 2004-10-05 19:51:34 schloegl Exp $
+# $Revision: 1.6 $
+# $Id: eventcodes.txt,v 1.6 2004-10-21 10:46:57 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -76,7 +76,6 @@
 0x058c	300 Watt
 0x058d	325 Watt
 0x058e	350 Watt
-0x8580  end 
-### 0x____	OTHER	
-0x0000	No event
+0x8580  end
+
 

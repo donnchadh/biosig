@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.11 $
-%	$Id: getfiletype.m,v 1.11 2004-10-13 19:38:21 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: getfiletype.m,v 1.12 2004-10-21 10:46:57 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -88,9 +88,12 @@ else
 	fseek(fid,0,'bof');
 
         [s,c] = fread(fid,132,'uchar');
-	s = s';
-        if (c < 132),
-                s = [s, repmat(0,1,132-c)];
+        if (c == 0),
+                s = repmat(0,1,132-c);
+        elseif (c < 132),
+                s = [s', repmat(0,1,132-c)];
+        else
+                s = s';
         end;
 
         if c,
@@ -139,8 +142,9 @@ else
                         HDR.TYPE='MFER';
                 elseif all(s(17:22)==abs('SCPECG')); 
                         HDR.TYPE='SCP';
-                elseif strncmp(ss,'ATES MEDICA SOFT',16);	% ATES MEDICA SOFTWARE, NeuroTravel 
+                elseif strncmp(ss,'ATES MEDICA SOFT. EEG for Windows',32);	% ATES MEDICA SOFTWARE, NeuroTravel 
                         HDR.TYPE='ATES';
+                        HDR.Version = ss(35:42);
                 elseif strncmp(ss,'POLY_SAM',8);	% Poly5/TMS32 sample file format.
                         HDR.TYPE='TMS32';
                 elseif strncmp(ss,'"Snap-Master Data File"',23);	% Snap-Master Data File .
@@ -274,6 +278,8 @@ else
                         HDR.TYPE='AKO';
                 elseif all(s(1:2)==[hex2dec('55'),hex2dec('AA')]);
                         HDR.TYPE='RDF';
+                elseif strncmp(ss,'Stamp',5)
+                        HDR.TYPE='XLTEK-EVENT';
                         
                 elseif all(s(1:2)==[hex2dec('55'),hex2dec('3A')]);      % little endian 
                         HDR.TYPE='SEG2';
@@ -343,6 +349,9 @@ else
                         HDR.TYPE='DICOM';
                 elseif all(s([1:8,13:20])==[8,0,0,0,4,0,0,0,8,0,5,0,10,0,0,0])            % DICOM candidate
                         HDR.TYPE='DICOM';
+                        
+                elseif all(s([1:4])==[103,23,208,113])
+                        HDR.TYPE='DXF13';
                         
                 elseif all(s([1:4])==[127,abs('ELF')])
                         HDR.TYPE='ELF';
@@ -503,18 +512,30 @@ else
                 elseif ~isempty(findstr(ss,'### Table of event codes.'))
                         fseek(fid,0,-1);
                         line = fgetl(fid);
-                        N = 1;
-                        while length(line),
-                                if (line(1)~='#'),
+                        N1 = 0; N2 = 0; 
+                        while ~feof(fid),%length(line),
+                                if 0, 
+                                elseif strncmp(line,'0x',2),
+                                        N1 = N1 + 1;
                                         [ix,desc] = strtok(line,char([9,32,13,10]));
                                         ix = hex2dec(ix(3:end));
-                                        HDR.EVENT.CodeDesc{N,1} = desc(2:end);
-                                        HDR.EVENT.CodeIndex(N,1) = ix;
-                                        N = N + 1;
+                                        HDR.EVENT.CodeDesc{N1,1} = desc(2:end);
+                                        HDR.EVENT.CodeIndex(N1,1) = ix;
+                                elseif strncmp(line,'### 0x',6)
+                                        N2 = N2 + 1;
+                                        HDR.EVENT.GroupDesc{N2,1} = line(12:end);
+                                        tmp = line(7:10);
+                                        HDR.EVENT.GroupIndex{N2,1} = tmp;
+                                        tmp1 = tmp; tmp1(tmp~='_') = 'F'; tmp1(tmp=='_')='0';
+                                        HDR.EVENT.GroupMask(N2,1)  = hex2dec(tmp1);
+                                        tmp1 = tmp; tmp1(tmp=='_') = '0';
+                                        HDR.EVENT.GroupValue(N2,1) = hex2dec(tmp1);
                                 end;	
                                 line = fgetl(fid);
                         end;
                         HDR.TYPE = 'EVENTCODES';
+                        HDR.EVENT.TYP = [];
+                        HDR.EVENT.POS = [];
                 else
                         HDR.TYPE='unknown';
 
@@ -528,7 +549,6 @@ else
                 end;
         end;
         fclose(fid);
-        
         
         if strcmpi(HDR.TYPE,'unknown'),
                 % alpha-TRACE Medical software
@@ -619,6 +639,16 @@ else
                                 HDR.FileName = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);	% point to header file
                         end
                         
+                elseif strcmpi(HDR.FILE.Ext,'ent')
+			HDR.TYPE = 'XLTEK-EVENT';		
+
+                elseif strcmpi(HDR.FILE.Ext,'etc')
+			HDR.TYPE = 'XLTEK-ETC';
+			fid = fopen(HDR.FileName,'r');
+			fseek(fid,355,'bof');
+			HDR.TIMESTAMP = fread(fid,1,'int32');
+			fclose(fid);
+
                 elseif strcmpi(HDR.FILE.Ext,'seg')
                         % If this is really a BrainVision file, there should also be a
                         % header with the same name and extension *.vhdr.
@@ -677,7 +707,6 @@ else
                 elseif (length(HDR.FILE.Ext)>2) & all(s>31),
                         if all(HDR.FILE.Ext(1:2)=='0') & any(abs(HDR.FILE.Ext(3))==abs([48:57])),	% WSCORE scoring file
                                 x = load('-ascii',HDR.FileName);
-                                HDR.EVENT.N   = size(x,1);
                                 HDR.EVENT.POS = x(:,1);
                                 HDR.EVENT.TYP = x(:,2);
                                 HDR.TYPE = 'EVENT';
