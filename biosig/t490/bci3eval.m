@@ -27,8 +27,9 @@ function [o] = bci3eval(x1,x2,DIM)
 %	http://ida.first.gmd.de/~blanker/competition/results/TR_BCI2003_III.pdf
 %  [4] BIOSIG.SF.NET
 
-%    $Revision: 1.1 $
-%    $Id: bci3eval.m,v 1.1 2003-05-21 13:13:29 schloegl Exp $
+
+%    $Revision: 1.2 $
+%    $Id: bci3eval.m,v 1.2 2003-05-21 13:20:59 schloegl Exp $
 %    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 %    This program is free software; you can redistribute it and/or modify
@@ -57,7 +58,7 @@ end;
 % classification error 
 if DIM==1,
 	o.ERR = (1-mean(sign([-x1;x2]),DIM))/2;
-else
+elseif DIM==2,
 	o.ERR = (1-mean(sign([-x1,x2]),DIM))/2;
 end;
 
@@ -78,33 +79,22 @@ o.SD2 = sqrt(v2./i2.N);
 o.SE2 = sqrt(v2)./i2.N;
 
 
-%%%%% Signal-to-Noise Ratio and Mutual Information 
 
-% This formula was used for the first evaluation in [3]. It was corrected on May 21st, 2003. 
-% o.SNR = 2*(o.MEAN2-o.MEAN1).^2./(v1./i1.N + v2./i1.N);  
+%%%%% Signal-to-Noise Ratio 
 
-% This is the correct formula in [2]
-o.SNR1 = 2/4*(o.MEAN2-o.MEAN1).^2./(v1./i1.N + v2./i2.N);
-
-% This are equivalent definitions
+	% intra-class variability
 if DIM==1,
-	v0 = var([x1;x2],DIM);        
 	vd = var([-x1;x2],DIM);        
-else
-	v0 = var([x1,x2],DIM);        
+elseif DIM==2,
 	vd = var([-x1,x2],DIM);        
 end;
 
-o.SNR2 = v0./vd-1;   
-o.SNR3 = 2*v0./(var(x1,DIM)+var(x2,DIM))-1;  % [1]
-o.SNR4 = 1/4*(o.MEAN2-o.MEAN1).^2./vd; 
-% Small differences (within the order of 1/N) can be observed. 
-% Hence, for large N the differences can be neglected. 
-
-o.SNR = o.SNR4;  %With this method, the SNR is always positive and unbiased estimation of intra-class variability
+o.SNR = 1/4*(o.MEAN2-o.MEAN1).^2./vd; 
 
 
+%%%%% Mutual Information 
 o.I   = 1/2*log2(o.SNR+1);
 
-o.datatype = 'SNR';
+
+o.datatype = 'SNR';  % useful for PLOTA
 
