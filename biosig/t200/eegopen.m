@@ -33,8 +33,8 @@ function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.4 $
-%	$Id: eegopen.m,v 1.4 2003-04-25 20:06:56 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: eegopen.m,v 1.5 2003-04-26 10:22:08 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -81,6 +81,8 @@ if exist(HDR.FileName)==2,
 			HDR.TYPE='CNT';
 		elseif strcmp(s,'ISHNE1.0');	% ISHNE Holter standard output file.
 			HDR.TYPE='ISHNE';
+		elseif strcmp(s,'POLY_SAM');	% Poly5/TMS32 sample file format.
+			HDR.TYPE='TMS32';
 		elseif s(1)==207; 
 			HDR.TYPE='BKR';
 		elseif strncmp(s,'RG64',4); 
@@ -101,7 +103,6 @@ end;
 if ~isfield(HDR,'TYPE'),
         HDR.TYPE = upper(FileExt(2:length(FileExt)));;
 end;
-
 
         %%% EDF format
         if     strcmp(HDR.TYPE,'REC'), HDR.TYPE='EDF';
@@ -244,6 +245,85 @@ elseif strcmp(HDR.TYPE,'EGI'),
 elseif strcmp(HDR.TYPE,'LDR'),
         HDR = openldr(HDR,PERMISSION);      
         
+
+elseif strcmp(HDR.TYPE,'TMS32'),
+	if strcmp(PERMISSION,'r'),
+		HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le')
+		if HDR.FILE.FID < 0,
+			fprintf(HDR.FILE.stderr,'Error: file %s not found.\n',HDR.FileName);
+			return;
+		else
+			fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
+		end;
+		HDR.FILE.OPEN = 1;
+		HDR.FILE.POS = 0;
+		HDR.ID = fread(HDR.FILE.FID,31,'char');
+		HDR.VERSION = fread(HDR.FILE.FID,1,'int16');
+		[tmp,c] = fread(HDR.FILE.FID,81,'char');
+		HDR.SampleRate = fread(HDR.FILE.FID,1,'int16');
+		HDR.TMS32.StorageRate = fread(HDR.FILE.FID,1,'int16');
+		HDR.TMS32.StorageType = fread(HDR.FILE.FID,1,'char');
+		HDR.NS = fread(HDR.FILE.FID,1,'int16');
+			NP = fread(HDR.FILE.FID,1,'int32');
+			tmp  = fread(HDR.FILE.FID,1,'int32');
+			Time = fread(HDR.FILE.FID,[1,7],'int16');
+		HDR.T0   = Time([1:3,5:7]);
+		HDR.NRec = fread(HDR.FILE.FID,1,'int32');
+		HDR.SPR  = fread(HDR.FILE.FID,1,'uint16');
+		HDR.AS.bpb = fread(HDR.FILE.FID,1,'uint16');
+		tmp = fread(HDR.FILE.FID,1,'int16');
+		tmp = fread(HDR.FILE.FID,64,'char');
+
+		HDR.Label   = zeros(HDR.NS,40);
+		HDR.PhysDim = zeros(HDR.NS,10);
+		k = 0,
+		while k <= HDR.NS,
+			c   = fread(HDR.FILE.FID,[1,1],'uint8');
+			tmp = fread(HDR.FILE.FID,[1,40],'char');
+			if strcmp(tmp(1:4),'(Lo)') ;
+				k = k + 1;
+				HDR.Label(k,1:c-4) = tmp(5:c);
+				HDR.GDFTYP(k) = 16;
+			elseif strcmp(tmp(1:4),'(Hi)') ;
+				HDR.NS = HDR.NS - 1;				
+			else
+				k = k+1;
+				HDR.Label(k,1:c) = tmp(1:c);
+				HDR.GDFTYP(k) = 5;
+			end;
+			
+			tmp = fread(HDR.FILE.FID,[1,4],'char');
+
+			c   = fread(HDR.FILE.FID,[1,1],'uint8');
+			tmp = fread(HDR.FILE.FID,[1,10],'char');
+			HDR.PhysDim(k,1:c) = tmp(1:c);
+
+			HDR.PhysMin(k,1) = fread(HDR.FILE.FID,1,'float32');			
+			HDR.PhysMax(k,1) = fread(HDR.FILE.FID,1,'float32');			
+			HDR.DigMin(k,1) = fread(HDR.FILE.FID,1,'float32');			
+			HDR.DigMax(k,1) = fread(HDR.FILE.FID,1,'float32');			
+			tmp = fread(HDR.FILE.FID,2,'char');
+			tmp = fread(HDR.FILE.FID,2,'char');
+			tmp = fread(HDR.FILE.FID,60,'char');
+		end;
+		HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
+		HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
+		HDR.Calib = [HDR.Off';(diag(HDR.Cal))];
+		HDR.HeadLen = 217 + HDR.NS*136;
+
+		if CHAN==0,		
+			HDR.SIE.InChanSelect = 1:HDR.NS;
+		elseif all(CHAN>0 & CHAN<=HDR.NS),
+			HDR.SIE.InChanSelect = CHAN;
+		else
+			fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+			fclose(HDR.FILE.FID); 
+			HDR.FILE.FID = -1;	
+			return;
+		end;
+
+	end;
+	        
 elseif strcmp(HDR.TYPE,'ISHNE'),
 	if strcmp(PERMISSION,'r'),
 		HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le')
@@ -326,6 +406,7 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
 else
 	%fprintf(HDR.FILE.stderr,'Format not supported yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
 	HDR.FILE.FID = -1;	
+	return;
 
 end;
 

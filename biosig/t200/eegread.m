@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.2 $
-%	$Id: eegread.m,v 1.2 2003-04-25 13:59:30 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: eegread.m,v 1.3 2003-04-26 10:22:08 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -48,6 +48,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF') ,
                 [S,HDR] = sdfread(HDR, NoS ,StartPos);
         end;
         
+
 elseif strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'ISHNE'),
         if nargin==3,
         	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
@@ -61,6 +62,61 @@ elseif strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'ISHNE'),
         if ~HDR.FLAG.UCAL,
                 S = S*HDR.Cal;
         end;
+        
+
+elseif strcmp(HDR.TYPE,'TMS32'),
+	tmp = NoS*HDR.SampleRate/HDR.SPR;
+	if tmp~=round(tmp)	
+		fprintf(2,'ERROR: NoS %f is not multiple of TMS32-blocksize %f. This is not supported yet.\n',NoS,HDR.SPR/HDR.SampleRate);
+		return;
+	end;
+	NoBlks = min(tmp,HDR.NRec-HDR.FILE.POS);
+
+        if nargin==3,
+		tmp = StartPos*HDR.SampleRate/HDR.SPR;
+		if tmp~=round(tmp)	
+			fprintf(2,'ERROR: StartPos %f is not multiple of TMS32-blocksize %f. This is not supported yet.\n',StartPos,HDR.SPR/HDR.SampleRate);
+			return;
+		end;
+
+        	fseek(HDR.FILE.FID,HDR.HeadLen+StartPos*HDR.SampleRate/HDR.SPR*(HDR.AS.bpb+86),'bof');        
+		HDR.FILE.POS = HDR.SampleRate/HDR.SPR*StartPos;
+	end;
+
+	S = [];
+	for k = 1:NoBlks, 
+	if all(HDR.GDFTYP==HDR.GDFTYP(1))
+		hdr = fread(HDR.FILE.FID,86,'char');
+		if HDR.GDFTYP(1)==3,
+			[s,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],'int16');
+		elseif HDR.GDFTYP(1)==3,
+			[s,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],'float32');
+		end;
+		S = [S;s'];
+		HDR.FILE.POS = HDR.FILE.POS + 1;
+	else
+		hdr = fread(HDR.FILE.FID,86,'char');
+		s = zeros(HDR.SPR,HDR.NS);
+		for k1 = 1: HDR.SPR,
+		for k2 = 1: HDR.NS,
+			if HDR.GDFTYP(k2)==3,
+			        [s(k1,k2),count] = fread(HDR.FILE.FID,1,'int16');
+			elseif HDR.GDFTYP(k2)==16,
+		        	[s(k1,k2),count] = fread(HDR.FILE.FID,1,'float32');
+			end;	
+		end;
+		end;
+		S = [S;s'];
+		HDR.FILE.POS = HDR.FILE.POS + 1;
+	end;
+	end;
+	
+        if ~HDR.FLAG.UCAL,
+                S = [ones(size(S,1),1),S]*HDR.Calib(:,HDR.InChanSelect);
+	else
+		S = S(:,HDR.InChanSelect);	
+        end;
+
         
 elseif strcmp(HDR.TYPE,'EGI'),
 	fprintf(2,'EGI format is under construction.\n');
