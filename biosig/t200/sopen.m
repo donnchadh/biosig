@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.94 $
-%	$Id: sopen.m,v 1.94 2005-02-19 21:45:08 schloegl Exp $
+%	$Revision: 1.95 $
+%	$Id: sopen.m,v 1.95 2005-02-22 09:55:09 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -5043,10 +5043,12 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                         HDR.TFM.S = [repmat(NaN,1,size(HDR.TFM.S,2));HDR.TFM.S];
                 end;
                 HDR.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
-	catch
+                HDR.T0 = datevec(HDR.TFM.S(2,1)+HDR.TFM.S(2,2)-1);
+                HDR.T0(1) = HDR.T0(1)+1900;
+        catch
 	end; 	
 
-	if strcmp(HDR.TYPE, 'TFM_EXCEL_Beat_to_Beat');
+        if strcmp(HDR.TYPE, 'TFM_EXCEL_Beat_to_Beat');
                 if ~isempty(strfind(HDR.TFM.E{3,1},'---'))
                         HDR.TFM.S(3,:) = [];    
                         HDR.TFM.E(3,:) = [];    
@@ -5060,7 +5062,7 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 
                 ix = find(isnan(HDR.TFM.S(:,2)) & ~isnan(HDR.TFM.S(:,1)));
                 HDR.EVENT.Desc = HDR.TFM.E(ix,2);
-                HDR.EVENT.TYP  = zeros(length(ix));
+                HDR.EVENT.TYP  = zeros(length(ix),1);
                 HDR.EVENT.POS  = ix(:);
                 
 		[HDR.SPR,HDR.NS] = size(HDR.TFM.S);
