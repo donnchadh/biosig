@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.29 $
-%	$Id: sopen.m,v 1.29 2004-02-23 18:55:28 schloegl Exp $
+%	$Revision: 1.30 $
+%	$Id: sopen.m,v 1.30 2004-02-24 21:18:19 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -64,8 +64,6 @@ HDR.FILE.Name = file;
 HDR.FILE.Path = pfad;
 HDR.FILE.Ext  = FileExt(2:length(FileExt));
 HDR.FILE.OPEN = 0;
-HDR.FILE.FID  = -1;
-HDR.TYPE = 'unknown';
 if ~isfield(HDR.FILE,'stderr'),
         HDR.FILE.stderr = 2;
 end;
@@ -75,6 +73,8 @@ end;
 
 %if exist(HDR.FileName)==2,
 if any(PERMISSION=='r'),
+        HDR.FILE.FID  = -1;
+        HDR.TYPE = 'unknown';
 	fid = fopen(HDR.FileName,'rb','ieee-le');
         if fid < 0,
                 fprintf(HDR.FILE.stderr,'Error SOPEN: file %s not found.\n',HDR.FileName);    
@@ -289,7 +289,9 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='ZYXEL';
                         elseif strcmpi(HDR.FILE.Name,ss(1:length(HDR.FILE.Name)));
                                 HDR.TYPE='HEA';
-                        elseif all(~type_mat4),  % should be last, otherwise to many false detections
+
+                        %elseif all(~type_mat4),  % should be last, otherwise to many false detections
+                        elseif all(s(1:4)==0),  % should be last, otherwise to many false detections
                                 HDR.TYPE='MAT4';
                                 if type_mat4(1)==1,
                                         HDR.MAT4.opentyp='ieee-be';
@@ -1003,8 +1005,8 @@ elseif strcmp(HDR.TYPE,'SND'),
 	if HDR.FILE.OPEN == 1; 
 		% check file length
 		fseek(HDR.FILE.FID,0,1);
-		%len = ftell(HDR.FILE.FID); 
-		if 0, %len ~= (datlen+HDR.HeadLen),
+		len = ftell(HDR.FILE.FID); 
+		if len ~= (datlen+HDR.HeadLen),
 			fprintf(HDR.FILE.stderr,'Warning SOPEN SND-format: header information does not fit file length \n');
 			datlen = len - HDR.HeadLen; 
 		end;	
@@ -2048,7 +2050,7 @@ elseif strcmp(HDR.TYPE,'RDF'),
 	while(~feof(HDR.FILE.FID)),
     		if tag == hex2dec('f0aa55'),
         		cnt = cnt + 1;
-			%HDR.Block.Pos(cnt) = ftell(HDR.FILE.FID);
+			HDR.Block.Pos(cnt) = ftell(HDR.FILE.FID);
 
         		% Read nchans and block length
         		tmp = fread(HDR.FILE.FID,34,'uint16');
@@ -2338,8 +2340,10 @@ elseif strcmp(HDR.TYPE,'DDF'),
 				HDR.DDF.ChanType(ch+1) = fread(HDR.FILE.FID,1,'uint16');	% channel type 
 				HDR.DDF.ChanFlag(ch+1) = fread(HDR.FILE.FID,1,'uint16');	% channel flag 
 				unused = fread(HDR.FILE.FID,2,'double');	% must be 0.0 for future extension
-				HDR.PhysDim{ch+1} = fgets(HDR.FILE.FID);	% channel unit
-				HDR.Label{ch+1} = fgets(HDR.FILE.FID);		% channel name 
+				tmp = fgets(HDR.FILE.FID);	% channel unit
+				HDR.PhysDim = strvcat(HDR.PhysDim, tmp);	% channel unit
+				tmp = fgets(HDR.FILE.FID);		% channel name 
+				HDR.Label = strvcat(HDR.Label, tmp);		% channel name 
 				fseek(HDR.FILE.FID,filepos+taglen,'bof');
 			end;
 
@@ -2664,10 +2668,12 @@ elseif strcmp(HDR.TYPE,'MAT4'),
 		HDR.FILE.OPEN = 1;
 		HDR.FILE.POS = 0;
                 k=0; NB=0;
-                type = fread(HDR.FILE.FID,4,'uchar'); 	% 4-byte header
+                %type = fread(HDR.FILE.FID,4,'uchar'); 	% 4-byte header
+                type = fread(HDR.FILE.FID,1,'uint32'); 	% 4-byte header
                 while ~isempty(type),
-                        type=str2double(char(abs(sprintf('%04i',sum(type(:).*[1;10;100;1000])))'));
-                        k=k+1;
+			type = sprintf('%04i',type)';
+			type = type - abs('0');
+                        k = k + 1;
                         [mrows,c] = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
                         ncols = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
                         imagf = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
@@ -2675,13 +2681,13 @@ elseif strcmp(HDR.TYPE,'MAT4'),
                         [name,c] = fread(HDR.FILE.FID,namelen,'char'); 
                         
                         if imagf, HDR.ErrNo=-1; fprintf(HDR.FILE.stderr,'Warning %s: Imaginary data not tested\n',mfilename); end;
-                        if type(1)==2,
+                        if type(4)==2,
                                 HDR.ErrNo=-1;
                                 fprintf(HDR.FILE.stderr,'Error %s: sparse data not supported\n',mfilename);
-                        elseif type(1)>2, 
-                                type(1)=rem(type(1),2);
+                        elseif type(4)>2, 
+                                type(4)=rem(type(4),2);
                         end;
-                        
+
                         dt=type(3);
                         if     dt==0, SIZOF=8; TYP = 'float64';
                         elseif dt==6, SIZOF=1; TYP = 'uint8';
@@ -2715,14 +2721,15 @@ elseif strcmp(HDR.TYPE,'MAT4'),
                         fseek(HDR.FILE.FID,tmp,0); 
                         
                         tmp2=ftell(HDR.FILE.FID);
-                        if 0,(tmp2-tmp1) < tmp,  % if skipping the block was not successful
+                        if (tmp2-tmp1) < tmp,  % if skipping the block was not successful
                                 HDR.ErrNo = -1;
                                 HDR.ERROR = sprintf('file %s is corrupted',HDR.FileName);
                                 fprintf(HDR.FILE.stderr,'Error SOPEN: MAT4 (ADICHT) file %s is corrupted\n',HDR.FileName);
                                 return;
                         end;	                
                         
-                        type = fread(HDR.FILE.FID,4,'uchar');  	% 4-byte header
+                        %type = fread(HDR.FILE.FID,4,'uchar');  	% 4-byte header
+	                type = fread(HDR.FILE.FID,1,'uint32'); 	% 4-byte header
                 end;
         end;
         
@@ -2974,7 +2981,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
 		fwrite(HDR.FILE.FID,HDR.preTrigger,'double');
 		fwrite(HDR.FILE.FID,[HDR.NS,HDR.SPR,HDR.Flag.TimeChannel],'int32');
 		fwrite(HDR.FILE.FID,tmp,'int32');
-		HDR.HeadLen = 68; %ftell(HDR.FILE.FID);
+		HDR.HeadLen = ftell(HDR.FILE.FID);
 		if (HDR.HeadLen~=68),
 			fprintf(2,'Error SOPEN CFWB: size of header1 does not fit in file %s\n',HDR.FileName);
 		end;
@@ -2986,8 +2993,9 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
 			fwrite(HDR.FILE.FID,[HDR.Cal(k),HDR.Off(k)],'double');
 			fwrite(HDR.FILE.FID,[HDR.PhysMax(k),HDR.PhysMin(k)],'double');
 		end;
-		HDR.HeadLen = (68+HDR.NS*96); %ftell(HDR.FILE.FID);
-		if 0, (HDR.HeadLen~=(68+HDR.NS*96))
+		%HDR.HeadLen = (68+HDR.NS*96); %
+		HDR.HeadLen = ftell(HDR.FILE.FID);
+		if (HDR.HeadLen~=(68+HDR.NS*96))
 			fprintf(2,'Error SOPEN CFWB: size of header2 does not fit in file %s\n',HDR.FileName);
 		end;
         end;
@@ -2995,7 +3003,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
         HDR.Label = setstr(HDR.Label);
         HDR.PhysDim = setstr(HDR.PhysDim);
 
-        %HDR.HeadLen = ftell(HDR.FILE.FID);
+        HDR.HeadLen = ftell(HDR.FILE.FID);
         HDR.FILE.POS = 0; 
         HDR.AS.endpos = HDR.SPR; 
 
