@@ -18,8 +18,8 @@ function [HDR]=eegwrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.3 $
-%	$Id: eegwrite.m,v 1.3 2003-07-18 15:24:04 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: eegwrite.m,v 1.4 2003-08-18 13:03:30 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -29,22 +29,24 @@ if HDR.FILE.OPEN==1,
 	return;
 end;
 
-%%% this tests are necessary, since Octave skips the high bits,
-if exist('OCTAVE_VERSION')>2,
-	if strcmp(HDR.TYPE,'EDF'),
-	        data(data> 2^15-1) =  2^15-1;
-	        data(data<-2^15  ) = -2^15;
-	end;
-	if strcmp(HDR.TYPE,'BDF'),
-	        data(data> 2^23-1) =  2^23-1;
-	        data(data<-2^23  ) = -2^23;
-	end;
-	if strcmp(HDR.TYPE,'GDF'),
-		fprintf(2,'Warning GDF-WRITE: overflow check not implemented.\n');
-	end;
-end;
 
 if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
+        
+        %%% this tests are necessary, since Octave skips the high bits,
+        if exist('OCTAVE_VERSION')>2,
+                if strcmp(HDR.TYPE,'EDF'),
+                        data(data> 2^15-1) =  2^15-1;
+                        data(data<-2^15  ) = -2^15;
+                end;
+                if strcmp(HDR.TYPE,'BDF'),
+                        data(data> 2^23-1) =  2^23-1;
+                        data(data<-2^23  ) = -2^23;
+                end;
+                if strcmp(HDR.TYPE,'GDF'),
+                        fprintf(2,'Warning GDF-WRITE: overflow check not implemented.\n');
+                end;
+        end;
+        
         % 	for GDF only one datatype is supported
         if ~all(HDR.GDFTYP==HDR.GDFTYP(1)) 
                 fprintf(2,'Error EEGWRITE: different GDFTYPs not supported yet!\n');
@@ -106,6 +108,8 @@ elseif strcmp(HDR.TYPE,'BKR'),
                 data(data>2^15-1)=  2^15-1;	
                 data(data<-2^15) = -2^15;
                 count = fwrite(HDR.FILE.FID,data','short');
+        elseif HDR.NS==0,
+                HDR.NS = size(data,2);
         else
                 fprintf(2,'EEGWRITE: number of columns (%i) does not fit Header information (number of channels HDR.NS %i)',size(data,2),HDR.NS)
         end;

@@ -6,8 +6,8 @@ function HDR=eegchkhdr(HDR);
 %
 % see also: EEGOPEN, EEGREAD, EEGSEEK, EEGTELL, EEGCLOSE, EEGWRITE
 
-%	$Revision: 1.4 $
-%	$Id: eegchkhdr.m,v 1.4 2003-07-31 12:16:56 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: eegchkhdr.m,v 1.5 2003-08-18 13:03:30 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -70,7 +70,7 @@ if strcmp(HDR.TYPE,'BKR'),
                         tmp=input('Whats the lower cutoff frequency?[Hz]:');
                         HDR.Filter.HighPass=tmp;
                 end;
-                
+                                
                 fprintf(1,'\n%% This demonstrates how the Header should be defined. \n');
                 fprintf(1,'HDR.TYPE\t= ''BKR'';  %% (file format)\n');
                 fprintf(1,'HDR.FileName\t= ''%s'';  %%(FileName)\n',HDR.FileName);
@@ -89,21 +89,22 @@ if strcmp(HDR.TYPE,'BKR'),
                         tmp_flag = isfield(HDR.FLAG,'TRIGGERED');
                         ref_flag = isfield(HDR.FLAG,'REFERENCE');
                 end; 
-                if strcmp(HDR.TYPE,'BKR'),
-                        if HDR.VERSION ~= 207;
-                                fprintf(HDR.FILE.stderr,'Error: HDR.VERSION is not 207\n',HDR.VERSION);
-                                HDR.Version=207;
-                        end;
-                        if ~tmp_flag, 
-                                HDR.FLAG.TRIGGERED   = HDR.NRec>1;	% Trigger Flag
-                        end;
-                        if ~ref_flag, 
-                                HDR.FLAG.REFERENCE   = '';	% Trigger Flag
-                        end;
-                        %fprintf(1,'HDR.FLAG.TRIGGERED\t=%2i;  %%(FLAG TRIGGERED 0=OFF, 1=ON)\n',HDR.FLAG.TRIGGERED);
-                        fprintf(1,'HDR.FLAG.REFERENCE\t=''%3s'';  %% (COM, CAR: common average reference; LOC,LAR local average ref; LAP Laplacian derivation, WGT weighted average)\n',HDR.FLAG.REFERENCE);
-                end;
                 
+                if HDR.VERSION ~= 207;
+                        fprintf(HDR.FILE.stderr,'Error: HDR.VERSION is not 207\n',HDR.VERSION);
+                        HDR.Version=207;
+                end;
+                if ~isfinite(HDR.NS) | (HDR.NS<0) | (HDR.NS~=round(HDR.NS)), % unknown channel number ...
+                        HDR.NS = 0;		% ... is encoded with 0  
+                end;
+                if ~tmp_flag, 
+                        HDR.FLAG.TRIGGERED   = HDR.NRec>1;	% Trigger Flag
+                end;
+                if ~ref_flag, 
+                        HDR.FLAG.REFERENCE   = '';	% Trigger Flag
+                end;
+                %fprintf(1,'HDR.FLAG.TRIGGERED\t=%2i;  %%(FLAG TRIGGERED 0=OFF, 1=ON)\n',HDR.FLAG.TRIGGERED);
+                fprintf(1,'HDR.FLAG.REFERENCE\t=''%3s'';  %% (COM, CAR: common average reference; LOC,LAR local average ref; LAP Laplacian derivation, WGT weighted average)\n',HDR.FLAG.REFERENCE);
                 %A = input('Are all values correct [Y]/n?');
                 Answer = 'Y';
         end;
