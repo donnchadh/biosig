@@ -35,8 +35,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.13 $
-% 	$Id: save2bkr.m,v 1.13 2004-02-12 15:03:15 schloegl Exp $
+%	$Revision: 1.14 $
+% 	$Id: save2bkr.m,v 1.14 2004-02-17 19:15:07 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -286,9 +286,16 @@ for k=1:length(infile);
         % add event channel 
         if isfield(HDR,'EVENT')
                 if HDR.EVENT.N > 0,
-                        event = zeros(size(y,1),1);
-                        event(HDR.EVENT.POS) = HDR.EVENT.TYP;        
-                        HDR.NS = HDR.NS + 1;
+                        % TypeList = unique(HDR.EVENT.TYP); but ignores NaN's
+                        [sY ,idx] = sort(HDR.EVENT.TYP);
+                        TypeList  = sY([1,find(diff(sY,1)>0)+1]);
+                        
+                        event = zeros(size(y,1),length(TypeList));
+                        for k2 = 1:length(TypeList),
+                                tmp = (HDR.EVENT.TYP==TypeList(k2));
+                                event(HDR.EVENT.POS(tmp),k2) = HDR.EVENT.TYP(tmp);        
+                        end;
+                        HDR.NS = HDR.NS + size(event,2);
                         y = [y, event];
                 end;
         end;
