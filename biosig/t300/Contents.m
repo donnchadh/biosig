@@ -1,5 +1,5 @@
 % BIOSIG/T300 contains signal processing functions for Matlab/Octave
-%     Several functions require the TSA-toolbox [1].
+%     It requires also the TSA-toolbox [1].
 %
 % Currently the following methods are supported:  
 %   Multivariate Autoregressive Analysis   
@@ -8,7 +8,8 @@
 %       mvfilter
 %   Time-varying Autoregressive spectral estimation  
 %       aar
-%       tvar
+%       tfar
+%	tvaar	wrapper for AAR estimators
 %   Time-varying Multivariate Autoregressive Analysis
 %       mvar
 %       mvaar
@@ -23,7 +24,6 @@
 %       ecgbcorr
 %       qrscorr
 %       tvaar
-%	synthetic_ecg 	generates an ECG sequence 
 %   Others:
 %       Hjorth
 %       
@@ -35,8 +35,8 @@
 %
 %
 
-%	$Revision: 1.2 $
-%	$Id: Contents.m,v 1.2 2004-11-25 08:47:36 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: Contents.m,v 1.3 2004-12-23 18:12:28 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
