@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.30 $
-%	$Id: plota.m,v 1.30 2004-10-04 11:24:06 schloegl Exp $
+%       $Revision: 1.31 $
+%	$Id: plota.m,v 1.31 2004-10-22 17:10:53 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -1751,6 +1751,14 @@ elseif strcmp(X.datatype,'Classifier')
                 plota(X,'fixed',hf(3));
                 plota(X,'MI',hf(4));
         end;
+        
+elseif strcmp(X.datatype,'TSD_BCI8') 
+        if ~isfield(X,'T');
+                X.T = [1:size(X.ACC00,1)]';
+        end;
+        h = plot(X.T, 100*[X.ACC00, X.KAP00*[1,1,1,0] + X.Ksd00*[-1,0,1,1]]);
+        legend('Accuracy [%]','kappa ± s.d. [%]')
+        xlabel = 't [s]';
         
 elseif strcmp(X.datatype,'TSD_BCI7') 
         if (nargin>1) & strcmpi(arg2,'balken2');
