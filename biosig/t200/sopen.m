@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.31 $
-%	$Id: sopen.m,v 1.31 2004-02-26 14:52:52 schloegl Exp $
+%	$Revision: 1.32 $
+%	$Id: sopen.m,v 1.32 2004-03-14 23:14:45 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -193,7 +193,7 @@ if any(PERMISSION=='r'),
                                 if tmp==(abs('MI').*[256,1])
 	                                HDR.Endianity = 'ieee-le';
                                 elseif tmp==(abs('IM').*[256,1])
-                                        HDR.Endianity = 'ieee-be';
+                                      	HDR.Endianity = 'ieee-be';
                                 end;
                                 
                         elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
@@ -203,6 +203,10 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='FS3';
                         elseif all(s(1:3)==[255,255,255]); 	% FREESURVER QUAD_FILE_MAGIC_NUMBER or CURVATURE
                                 HDR.TYPE='FS4';
+                        elseif all(s(1:3)==[0,1,134]) & any(s(4)==[162:164]); 	% SCAN *.TRI file 
+                                HDR.TYPE='TRI';
+                        elseif all((s(1:4)*(2.^[24;16;8;1]))==1229801286); 	% GE 5.X format image 
+                                HDR.TYPE='5.X';
                                 
                         elseif all(s(1:2)==[102,105]); 
                                 HDR.TYPE='669';
@@ -305,13 +309,19 @@ if any(PERMISSION=='r'),
                                         HDR.MAT4.opentyp='ieee-le';
                                 end;
                         else
-                                %TYPE='unknown';
-                                HDR.TYPE='unknown';
+				fseek(fid,3228,-1);
+				s=fread(fid,[1,4],'uint8'); 
+                        	if all((s(1:4)*(2.^[24;16;8;1]))==1229801286); 	% GE LX2 format image 
+	                                HDR.TYPE='LX2';
+				else
+        	                        %TYPE='unknown';
+        	                        HDR.TYPE='unknown';
+				end;
                         end;
                 end;
                 fclose(fid);
                 if strcmp(HDR.TYPE,'BKR'),
-                        if ~isemtpy(findstr(lower(HDR.FILE.Ext),'cnt')),
+                        if ~isempty(findstr(lower(HDR.FILE.Ext),'cnt')),
                                 fprintf(HDR.FILE.stderr,'Warning (dedicated to BB & CB): %s IS A BKR, not a CNT file\n',HDR.FileName);
                         end;
                 end;
@@ -1711,6 +1721,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
         else
                 HDR.Cal = 1;
         end;
+	HDR.PhysDim = 'uV';
         HDR.Label = char(zeros(HDR.NS,5));
         for k=1:HDR.NS,
                 HDR.Label(k,:)=sprintf('# %3i',k);
@@ -1774,7 +1785,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
         HDR.HeadLen = ftell(HDR.FILE.FID);
         HDR.FILE.POS= 0;
        
-        
+        NScript.nrf
 elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
 	% implementation of this format is not finished yet.
 
@@ -3295,6 +3306,72 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
 			return;
 		end;
 	end;
+
+
+elseif strncmp(HDR.TYPE,'FS3',3),
+	if any(PERMISSION=='r'),
+		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-be');
+		HDR.FILE.OPEN = 1;
+		HDR.FILE.POS  = 0;
+		HDR.Date = fgets(HDR.FILE.FID);
+		HDR.Info = fgets(HDR.FILE.FID);
+		HDR.SURF.N = fread(HDR.FILE.FID,1,'int32');
+		HDR.FACE.N = fread(HDR.FILE.FID,1,'int32');
+		HDR.VERTEX.COORD = fread(HDR.FILE.FID,3*HDR.SURF.N,'float32');
+
+		HDR.FACES = fread(HDR.FILE.FID,[3,HDR.FACE.N],'int32')';
+		fclose(HDR.FILE.FID);
+	end
+
+
+elseif strncmp(HDR.TYPE,'FS4',3),
+	if any(PERMISSION=='r'),
+		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-be');
+		HDR.FILE.OPEN = 1;
+		HDR.FILE.POS  = 0;
+
+		tmp = fread(HDR.FILE.FID,[1,3],'uint8');
+		HDR.SURF.N = tmp*(2.^[16;8;1]);
+		tmp = fread(HDR.FILE.FID,[1,3],'uint8');
+		HDR.FACE.N = tmp*(2.^[16;8;1]);
+		HDR.VERTEX.COORD = fread(HDR.FILE.FID,3*HDR.SURF.N,'int16')./100;
+		tmp = fread(HDR.FILE.FID,[4*HDR.FACE.N,3],'uint8')*(2.^[16;8;1]);
+		HDR.FACES = reshape(tmp,4,HDR.FACE.N)';
+		fclose(HDR.FILE.FID);
+	end
+
+
+elseif strncmp(HDR.TYPE,'TRI',3),
+	if any(PERMISSION=='r'),
+		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+		HDR.FILE.OPEN = 1;
+		HDR.FILE.POS  = 0;
+
+		HDR.ID = fread(HDR.FILE.FID,1,'int32');
+		HDR.type = fread(HDR.FILE.FID,1,'short');
+		HDR.VERSION = fread(HDR.FILE.FID,1,'short');
+		HDR.ELEC.Thickness = fread(HDR.FILE.FID,1,'float');
+		HDR.ELEC.Diameter = fread(HDR.FILE.FID,1,'float');
+		HDR.reserved = fread(HDR.FILE.FID,4080,'char');
+
+		HDR.FACE.N = fread(HDR.FILE.FID,1,'short');
+		HDR.SURF.N = fread(HDR.FILE.FID,1,'short');
+
+		HDR.centroid = fread(HDR.FILE.FID,[4,HDR.FACE.N],'float')';
+		HDR.VERTICES = fread(HDR.FILE.FID,[4,HDR.SURF.N],'float')';
+		HDR.FACES = fread(HDR.FILE.FID,[3,HDR.FACE.N],'short')';
+
+		HDR.ELEC.N = fread(HDR.FILE.FID,1,'ushort');
+		for k = 1:HDR.ELEC.N,
+			HDR.elec(k).Label = fread(HDR.FILE.FID,10,'char');	
+			HDR.elec(k).Key = fread(HDR.FILE.FID,1,'short');	
+			tmp = fread(HDR.FILE.FID,[1,3],'float');	
+			HDR.elec(k).POS = tmp(:);	
+			HDR.ELEC.XYZ(k,:) = tmp;
+			HDR.elec(k).idx = fread(HDR.FILE.FID,1,'ushort');	
+		end;
+		fclose(HDR.FILE.FID);
+	end
 
 
 elseif strcmp(HDR.TYPE,'unknown'),
