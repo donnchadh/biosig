@@ -35,8 +35,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.12 $
-% 	$Id: save2bkr.m,v 1.12 2004-02-06 13:35:05 schloegl Exp $
+%	$Revision: 1.13 $
+% 	$Id: save2bkr.m,v 1.13 2004-02-12 15:03:15 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -120,7 +120,6 @@ else
                 end;
         end;
 end;
-
 
 if isstr(arg1), 
         inpath = fileparts(arg1);
@@ -231,6 +230,12 @@ for k=1:length(infile);
         end;
         if ~isfield(HDR,'SPR'),
                 HDR.SPR = size(y,1)/HDR.NRec;
+        elseif length(HDR.SPR)>1,       % use just one sampling rate 
+                HDR.SPR = HDR.AS.MAXSPR;
+                HDR.SampleRate = HDR.AS.MAXSPR/HDR.Dur;
+                FLAG_PHYSMAX = 1; 
+                PHYSMAX = max(abs(y(:)));
+                HDR.DigMax  = 2^15-1;
         end;
         
         if FLAG_REMOVE_DC,
@@ -289,7 +294,7 @@ for k=1:length(infile);
         end;
         
         % re-scale data to account for the scaling factor in the header
-        HDR.DigMax=2^15-1;
+        HDR.DigMax = 2^15-1;
         if FLAG_PHYSMAX,
                 HDR.PhysMax = PHYSMAX;
         else
@@ -297,10 +302,10 @@ for k=1:length(infile);
                 HDR.PhysMax = max(abs(tmp(:))); %gives max of the whole matrix
         end;
         for k = 1:HDR.NS,
-                mm = max(abs(y(:,k)));
                 if any(k==chansel),
                         y(:,k) = y(:,k)*HDR.DigMax/HDR.PhysMax; % keep correct scaling factor 
                 else
+                        mm = max(abs(y(:,k)));
                         y(:,k) = y(:,k)*HDR.DigMax/mm;          % scale to maximum resolution
                 end;
         end;
@@ -310,6 +315,7 @@ for k=1:length(infile);
         HDR.PhysMax = tmp;
         HDR.TYPE = 'BKR';
         HDR.FLAG.REFERENCE = ' ';
+        HDR.FLAG.TRIGGERED = (HDR.NRec>1);
         
         HDR.VERSION = 207;
         HDR.FILE.Ext= 'bkr';
@@ -328,17 +334,17 @@ for k=1:length(infile);
         HDR   = eegchkhdr(HDR);
         
         fid   = fopen(HDR.FileName,'w+','ieee-le');
-        if fid<0,
+        if fid < 0,
                 fprintf('Error SAVE2BKR: couldnot open file %s.\n',HDR.FileName);
                 return;
         end;
         count = fwrite(fid,207,'short');	        % version number of header
-        count = fwrite(fid,HDR.NS  ,'short');	        % number of channels
-        count = fwrite(fid,HDR.SampleRate,'short');     % sampling rate
-        count = fwrite(fid,HDR.NRec,'uint32');          % number of trials: 1 for untriggered data
-        count = fwrite(fid,HDR.SPR ,'uint32');          % samples/trial/channel
-        count = fwrite(fid,HDR.PhysMax,'short');        % Kalibrierspannung
-        count = fwrite(fid,HDR.DigMax ,'short');        % Kalibrierwert
+        count = fwrite(fid,HDR.NS(1) ,'short');	        % number of channels
+        count = fwrite(fid,HDR.SampleRate(1),'short');     % sampling rate
+        count = fwrite(fid,HDR.NRec(1),'uint32');          % number of trials: 1 for untriggered data
+        count = fwrite(fid,HDR.SPR(1) ,'uint32');          % samples/trial/channel
+        count = fwrite(fid,HDR.PhysMax(1),'short');        % Kalibrierspannung
+        count = fwrite(fid,HDR.DigMax(1) ,'short');        % Kalibrierwert
         count = fwrite(fid,zeros(4,1),'char');        
         
         count = fwrite(fid,[HDR.Filter.LowPass(1),HDR.Filter.HighPass(1)],'float'); 

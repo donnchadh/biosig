@@ -4,10 +4,10 @@ function HDR=eegchkhdr(HDR);
 %
 % HDR=eegchkhdr(HDR)
 %
-% see also: EEGOPEN, EEGREAD, EEGSEEK, EEGTELL, EEGCLOSE, EEGWRITE
+% see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE
 
-%	$Revision: 1.6 $
-%	$Id: eegchkhdr.m,v 1.6 2003-08-19 08:02:45 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: eegchkhdr.m,v 1.7 2004-02-12 15:03:15 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
