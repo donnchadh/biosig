@@ -1,8 +1,8 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004 Alois Schloegl <a.schloegl@ieee.org>
-# $Revision: 1.3 $
-# $Id: eventcodes.txt,v 1.3 2004-06-17 17:08:54 schloegl Exp $
+# $Revision: 1.4 $
+# $Id: eventcodes.txt,v 1.4 2004-08-03 12:18:30 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -47,6 +47,9 @@
 0x0413	Stage 3
 0x0414	Stage 4
 0x0415	REM
+### 0x042_	Sleep
+0x0420	Lights on 
+0x8420	Lights off
 ### 0x050_	ECG events
 0x0501	ecg:Fiducial point of QRS complex
 0x0502	ecg:P-wave
@@ -55,6 +58,22 @@
 0x0505	ecg:S-point
 0x0506	ecg:T-point
 0x0507	ecg:U-wave
+### 0x058_	ergometric events 
+0x0580	start
+0x0581	 25 Watt
+0x0582	 50 Watt
+0x0583	 75 Watt
+0x0584	100 Watt
+0x0585	125 Watt
+0x0586	150 Watt
+0x0587	175 Watt
+0x0588	200 Watt
+0x0589	225 Watt
+0x058a	250 Watt
+0x058b	275 Watt
+0x058c	300 Watt
+0x058d	325 Watt
+0x058e	350 Watt
 ### 0x____	OTHER	
 0x0000	No event
 
