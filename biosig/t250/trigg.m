@@ -1,26 +1,32 @@
-function x=trigg(s,TRIG,pre,post,gap)
-% TRIGG cuts continous sequence into segments
+function [x,sz] = trigg(s,TRIG,pre,post,gap)
+% TRIGG cuts continous sequence into segments.
+% Missing values (in case s is to short) are substituted by NaN's.  
 %
-% X = trigg(s, TRIG, pre, post [,gap])
-% 
-%  s 	is the continous sequence
-%  TRIG defines the trigger points
-%  pre	offset of the start of each segment (relative to trigger) 
-%  post	offset of the end of each segment (relative to trigger) 
-%  gap  number of NaN's to separate trials (default=0)
-%  X	is a matrix of size(post-pre+1,length(TRIG))
+% [X,sz] = trigg(s, TRIG, PRE, PST [, GAP])
 %
-%  if s has more than one column 
-%    X.datatype = 'triggered'	
-%    X.sz	= [post-pre+1+gap, length(TRIG)];
-%    X.data is of size (post-pre+1+gap)*length(TRIG),size(s,2))
+% INPUT:
+%  S	is the continous data sequence (1 channel per column)
+%  TRIG	defines the trigger points
+%  PRE 	offset of the start of each segment (relative to trigger) 
+%  PST 	offset of the end of each segment (relative to trigger) 
+%  GAP	number of NaN's to separate trials (default=0)
+%  	TRIG, pre, post and gap are counted in samples
 %
+% OUTPUT:
+%  X	is a matrix of size [sz(1), sz(2)*sz(3)]
+%  sz	[size(s,2), post-pre+1+gap, length(TRIG)]   
+%	sz(1) is the number of channels NS 
+%	sz(2) is the number of samples per trial 
+%	sz(3) is the number of trials i.e. length(TRIG)
+%
+% X3D = reshape(X,sz) returns a 3-dimensional matrix 
+% X2D = reshape(X(K,:),sz(2:3)) returns channel K in a 2-dimensional matrix 
+%
+% see also: GETTRIGGER
 
-% see also: GETTRIGGER
-
-%
-%	Copyright (c) 1999-2002 by Alois Schloegl <a.schloegl@ieee.org>
-%	02.07.2002 Version 1.31
+%	$Revision: 1.3 $
+% 	$Id: trigg.m,v 1.3 2003-02-01 13:11:42 schloegl Exp $
+%	Copyright (c) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 %
 
 % This program is free software; you can redistribute it and/or
@@ -42,40 +48,21 @@ if nargin<5,
 end;
 
 [nr,nc] = size(s);
-N = post-pre+1+gap;
-
-
-if isempty(TRIG),
-        if nc==1,
-                x = zeros(N,length(TRIG));
-        else
-                x.datatype = 'triggered';
-		x.sz	   = [N, length(TRIG)];
-                x.data     = zeros(0,nc);
-        end;
-        return;
-end;
 
 % include leading nan's
-off = min(min(TRIG)+pre-1,0);
-s   = [repmat(nan,-off,nc);s];
-TRIG= TRIG-off;        
+off  = min(min(TRIG)+pre-1,0);
+s    = [repmat(nan,-off,nc);s];
+TRIG = TRIG-off;        
 
 % include following nan's
 off = max(max(TRIG)+post-length(s),0);
 s   = [s; repmat(nan,off,nc)];
 
 % devide into segments
-if nc==1,
-        x = repmat(NaN,N,length(TRIG));
-        for m = 1:length(TRIG),
-                x(1:N-gap,m) = s(TRIG(m)+(pre:post)');
-        end;
-else
-        x.datatype = 'triggered';
-	x.sz	   = [N, length(TRIG)];
-        x.data     = repmat(NaN, N*length(TRIG), nc);
-        for m = 1:length(TRIG),
-                x.data(m*N + (1-N:-gap),:) = s(TRIG(m)+(pre:post)',:);	
-        end;
+N   = post-pre+1+gap;
+sz  = [nc, post-pre+1+gap, length(TRIG)];
+x   = repmat(NaN, sz(1), sz(2)*sz(3));   % repmat(NaN, nc, N*length(TRIG));
+for m = 1:length(TRIG),
+	x(:,m*N + (1-N:-gap)) = s(TRIG(m)+(pre:post)',:).';
 end;
+
