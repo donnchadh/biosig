@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.15 $
-%	$Id: cntopen.m,v 1.15 2003-09-30 17:18:51 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: cntopen.m,v 1.16 2003-10-02 13:47:46 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -496,12 +496,11 @@ elseif (h.type==1),
                 return;
 	end;
         
-        CNT.Calib  = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
-        CNT.AS.endpos  = CNT.NRec;
+        CNT.Calib = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
+        CNT.AS.endpos = CNT.NRec;
 	CNT.FLAG.TRIGGERED = 1;
 	CNT.Dur = CNT.SPR/CNT.SampleRate;
         
-
 else  % if any(h.type==[2,184]),
 	if ~strcmp(upper(CNT.FILE.Ext),'CNT'),
 		fprinf(2,'Warning CNTOPEN: filetype 2 does not match file extension CNT.\n'); 
@@ -552,8 +551,10 @@ if (CNT.EVENT.Number > 0);
                         Teeg.Accuracy =  fread(fid,1,'char');        
                         K = K + 11;        
                 end;        
-	        CNT.EVENT.Teeg{k} = Teeg;
-        end;
+	        CNT.EVENT.Teeg(k) = Teeg;
+        end
+        CNT.EVENT.TYP =  cat(1,CNT.EVENT.Teeg(:).Stimtype);
+        CNT.EVENT.POS = (cat(1,CNT.EVENT.Teeg(:).Offset) - CNT.HeadLen) ./ CNT.AS.bpb;
 end;
 
 fseek(CNT.FILE.FID, CNT.HeadLen, 'bof');
