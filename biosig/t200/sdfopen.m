@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.9 $
-%	$Id: sdfopen.m,v 1.9 2003-10-06 08:19:47 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: sdfopen.m,v 1.10 2004-01-21 08:24:35 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -338,11 +338,14 @@ if strcmp(EDF.reserved1(1:4),'EDF+'),	% EDF+ specific header information
 	[EDF.ID.Equiment, tmp] = strtok(tmp,' ');
 end;
 
-if isempty(EDF.NS) %%%%% not EDF because filled out with ASCII(0) - should be spaces
+if any(size(EDF.NS)~=1) %%%%% not EDF because filled out with ASCII(0) - should be spaces
         fprintf(EDF.FILE.stderr, 'Warning SDFOPEN: invalid NS-value in header of %s\n',EDF.FileName);
         EDF.ErrNo=[1040,EDF.ErrNo];
         EDF.NS=1;
 end;
+% Octave assumes EDF.NS is a matrix instead of a scalare. Therefore, we need
+% Otherwise, eye(EDF.NS) will be executed as eye(size(EDF.NS)).
+EDF.NS = EDF.NS(1);     
 
 if isempty(EDF.HeadLen) %%%%% not EDF because filled out with ASCII(0) - should be spaces
         EDF.ErrNo=[1056,EDF.ErrNo];
