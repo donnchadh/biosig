@@ -1,9 +1,18 @@
 function [CC]=train_sc(D,classlabel)
 % Train statistical classifier
 % 
-% see also: COVM, DECOVM, R2, MDBC, LDBC, LDBC2, LDBC3, LDBC4
+%  CC = train_sc(D,classlabel)
+%       
+% CC is a statistical classifier, it contains basically the mean 
+% and the covariance of the data of each class. This information 
+% is incoded in the so-called "extended covariance matrices".  
+%
+% CC can be used for various statistical classifiers included
+%  LDA, MDA, QDA, GRB, etc. 
+%
+% see also: TEST_SC, COVM, LDBC2, LDBC3, LDBC4, MDBC, GDBC
 
-%	$Id: train_sc.m,v 1.1 2005-03-07 16:12:45 schloegl Exp $
+%	$Id: train_sc.m,v 1.2 2005-03-07 17:11:20 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -31,6 +40,7 @@ end;
 
 CC.datatype = 'classifier:statistical';
 CC.MD = repmat(NaN,[length(CC.Labels),sz(2)+[1,1]]);
+CC.NN = CC.MD;
 for k=1:length(CC.Labels),
-        CC.MD(k,:,:) = covm(D(classlabel==CC.Labels(k),:),'E');
+        [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
 end;        
