@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.45 $
-%	$Id: sread.m,v 1.45 2005-02-22 18:02:00 schloegl Exp $
+%	$Revision: 1.46 $
+%	$Id: sread.m,v 1.46 2005-02-28 14:15:44 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -269,13 +269,9 @@ elseif strcmp(HDR.TYPE,'MIT'),
                 STATUS = fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 tmp = HDR.SampleRate*StartPos;
                 if HDR.FILE.POS~=tmp,
-                        HDR.mode8.accu = zeros(1,HDR.NS);
+                        HDR.mode8.accu = zeros(1,length(HDR.InChanSelect));
                         HDR.mode8.valid= 0;
                 end;
-        end;
-        if HDR.FILE.POS==0,
-                HDR.mode8.accu = zeros(1,HDR.NS);
-                HDR.mode8.valid= 1;
         end;
 
         DataLen = NoS*HDR.SampleRate/HDR.AS.MAXSPR;
@@ -343,15 +339,18 @@ elseif strcmp(HDR.TYPE,'MIT'),
         end;
         if any(HDR.AS.SPR>1),
                 A = S;
-                S = zeros(size(A,1)*HDR.AS.MAXSPR,HDR.NS);
-                for k=1:HDR.NS,
-                        ix = HDR.AS.bi(k)+1:HDR.AS.bi(k+1);
-                        S(:,k)=rs(reshape(A(:,ix)',size(A,1)*HDR.AS.SPR(k),1),HDR.AS.SPR(k),HDR.AS.MAXSPR);
+                S = zeros(size(A,1)*HDR.AS.MAXSPR,length(HDR.InChanSelect));
+                for k = 1:length(HDR.InChanSelect),
+                        ch = HDR.InChanSelect(k);
+                        ix = HDR.AS.bi(ch)+1:HDR.AS.bi(ch+1);
+                        S(:,k)=rs(reshape(A(:,ix)',size(A,1)*HDR.AS.SPR(ch),1),HDR.AS.SPR(ch),HDR.AS.MAXSPR);
                 end
+        else
+                S = S(:,HDR.InChanSelect);
         end
         if HDR.VERSION == 8, 
                 if HDR.FILE.POS==0,
-                        HDR.mode8.accu = zeros(1,HDR.NS);
+                        HDR.mode8.accu = zeros(1,length(HDR.InChanSelect));
                         HDR.mode8.valid= 1;
                 end; 
                 if ~HDR.mode8.valid;
@@ -363,7 +362,6 @@ elseif strcmp(HDR.TYPE,'MIT'),
                 HDR.mode8.accu = S(size(S,1),:);
 	end;
         HDR.FILE.POS = HDR.FILE.POS + DataLen;   	
-        S = S(:,HDR.InChanSelect);
         
         
 elseif strcmp(HDR.TYPE,'TMS32'),
