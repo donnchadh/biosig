@@ -20,8 +20,8 @@ function [GDBC,kap,acc,H,MDBC]=gdbc(ECM,Y,CL)
 %  [1] J. Bortz, Statistik für Sozialwissenschaftler, 5. Auflage, Springer (1999).  
 %
 
-%	$Revision: 1.4 $
-%	$Id: gdbc.m,v 1.4 2004-10-04 12:47:26 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: gdbc.m,v 1.5 2005-03-07 16:12:45 schloegl Exp $
 %	Copyright (c) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -157,6 +157,8 @@ else
                         [kap(k), se, H{k}, zscore, p0, SA] = kappa(ix(~isnan(ix)), CL(~isnan(ix)),10);
                         acc(k) = sum(diag(H{k}))/sum(H{k}(:));
                 end;
+        else
+                kap = []; acc=[]; H = [];
         end;
         tmp  = exp(-MDBC{7}/2);
         GDBC = tmp./repmat(sum(tmp,2),1,size(tmp,2));  % Zuordungswahrscheinlichkeit [1], p.601, equ (18.39)

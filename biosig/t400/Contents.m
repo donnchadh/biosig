@@ -1,6 +1,10 @@
 % BIOSIG/T400 contains classifiers.  
 %
-% LDBC	linear discriminant based classifier 
+% TRAIN_SC      train statistical classifier
+% TEST_SC       test statistical classifier
+% LDBC	linear discriminant based classifier for two classes
+% LDBC2, LDBC3, LDBC4	three variants of linear discriminant 
+%	analysis for many classes
 % MDBC	mahalanobis distance based classifier 
 % LLBC	log-likelihood based classifier 
 % GDBC  general distance-based classifier 
@@ -8,10 +12,10 @@
 % FINDCLASSIFIER2 2nd generation classifier for BCI [2,3]
 % FC0   generates classifier from "asychronous" data
 %
-%  helper function%
+%  helper function%
 % PERM	permutations of indices in trials 
 %
-% see also: NaN/COVM, DECOVM, FINDCLASSIFIER1, FINDCLASSIFIER2 
+% see also: NaN/COVM, 
 %
 % REFERENCES: 
 % [1] http://biosig.sf.net/
@@ -24,8 +28,7 @@
 %	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, 
 %	Capri, Italy, Mar 20-22, 2003.
 
-%	$Revision: 1.3 $
-%	$Id: Contents.m,v 1.3 2004-09-02 17:12:35 schloegl Exp $
-%	Copyright (c) 1997-2004 by Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Id: Contents.m,v 1.4 2005-03-07 16:12:44 schloegl Exp $
+%	Copyright (c) 1997-2005 by Alois Schloegl
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
