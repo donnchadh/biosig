@@ -24,10 +24,11 @@ function [x,sz] = trigg(s,TRIG,pre,post,gap)
 %
 % see also: GETTRIGGER
 
-%	$Revision: 1.3 $
-% 	$Id: trigg.m,v 1.3 2003-02-01 13:11:42 schloegl Exp $
-%	Copyright (c) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
-%
+%	$Revision: 1.4 $
+% 	$Id: trigg.m,v 1.4 2005-04-01 07:00:39 schloegl Exp $
+%	Copyright (c) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -50,12 +51,12 @@ end;
 [nr,nc] = size(s);
 
 % include leading nan's
-off  = min(min(TRIG)+pre-1,0);
+off  = min(min([TRIG(:);+Inf])+pre-1,0);
 s    = [repmat(nan,-off,nc);s];
 TRIG = TRIG-off;        
 
 % include following nan's
-off = max(max(TRIG)+post-length(s),0);
+off = max(max([TRIG(:);-Inf])+post-length(s),0);
 s   = [s; repmat(nan,off,nc)];
 
 % devide into segments
