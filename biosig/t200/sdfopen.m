@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.8 $
-%	$Id: sdfopen.m,v 1.8 2003-07-22 07:37:42 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: sdfopen.m,v 1.9 2003-10-06 08:19:47 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -868,14 +868,14 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
     		        pulse(Index+length(QRS.Templates)) = 1;  
 	        end;
         
-                for i=1:length(EDF.SIE.InChanSelect),
-                        k=find(OutChanSelect==EDF.SIE.InChanSelect(i));
+                for k=1:length(EDF.SIE.InChanSelect),
+                        k=find(OutChanSelect==EDF.SIE.InChanSelect(k));
                         if isempty(k)
-                                EDF.TECG.QRStemp(:,i) = zeros(fs,1);
+                                EDF.TECG.QRStemp(:,k) = zeros(fs,1);
                         else
-                                EDF.TECG.QRStemp(:,i) = QRS.Templates(0.5*fs:1.5*fs-1,k).*hanning(fs);
+                                EDF.TECG.QRStemp(:,k) = QRS.Templates(0.5*fs:1.5*fs-1,k).*hanning(fs);
                         end;
-                        [tmp,EDF.TECG.Z(:,i)] = filter(EDF.TECG.QRStemp(:,i),1,pulse);
+                        [tmp,EDF.TECG.Z(:,k)] = filter(EDF.TECG.QRStemp(:,k),1,pulse);
                 end;
         end; % if EDF.SIE.TECG==1
         
@@ -1128,7 +1128,7 @@ if ~isfield(EDF,'NRec')
         EDF.NRec=-1;
 end;
 if ~isfield(EDF,'Dur')
-        fprintf('Warning SDFOPEN-W: EDF.Dur not defined\n');
+        fprintf('Error SDFOPEN-W: EDF.Dur not defined\n');
         EDF.Dur=NaN;
         EDF.ErrNo = EDF.ErrNo + 128;
         fclose(EDF.FILE.FID); return;
@@ -1255,7 +1255,7 @@ if strcmp(EDF.VERSION(1:3),'GDF'),
         [n,d]=rat(EDF.Dur); fwrite(fid,[n d], 'uint32');
 	c=fwrite(fid,EDF.NS,'uint32');
 else
-        H1(168+(1:16))=sprintf('%02i.%02i.%02i%02i:%02i:%02i',rem(EDF.T0([3 2 1 4 5 6]),100));
+        H1(168+(1:16))=sprintf('%02i.%02i.%02i%02i:%02i:%02i',floor(rem(EDF.T0([3 2 1 4 5 6]),100)));
         H1(185:192)=sprintf('%-8i',EDF.HeadLen);
         H1(193:236)=EDF.reserved1;
         H1(237:244)=sprintf('%-8i',EDF.NRec);
