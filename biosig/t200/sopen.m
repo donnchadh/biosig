@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.97 $
-%	$Id: sopen.m,v 1.97 2005-03-01 14:59:01 schloegl Exp $
+%	$Revision: 1.98 $
+%	$Id: sopen.m,v 1.98 2005-03-09 13:57:09 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2173,7 +2173,7 @@ elseif strcmp(HDR.TYPE,'WG1'),
         if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
                 HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
                 
-                HDR.Version = dec2hex(fread(HDR.FILE.FID,1,'uint32')); 
+                HDR.VERSION = dec2hex(fread(HDR.FILE.FID,1,'uint32')); 
                 HDR.WG1.MachineId = fread(HDR.FILE.FID,1,'uint32');
                 HDR.WG1.Day = fread(HDR.FILE.FID,1,'uint32'); 
                 HDR.WG1.millisec = fread(HDR.FILE.FID,1,'uint32');
@@ -3850,13 +3850,41 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         end;
 
         
-elseif strcmp(HDR.TYPE,'BCI2000'),
+elseif strncmp(HDR.TYPE,'BCI2000',7),
         if any(PERMISSION=='r'),
                 HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
                 
-                HDR.Header = fread(HDR.FILE.FID,HDR.HeadLen,'char');
-		[tline,rr] = strtok(char(HDR.Header'),[10,13]);
-		STATUSFLAG = 0;
+                [HDR.Header,count] = fread(HDR.FILE.FID,[1,256],'char');
+		[tmp,rr] = strtok(char(HDR.Header),[10,13]);
+                tmp(tmp=='=') = ' ';
+                [t,status,sa] = str2double(tmp,[9,32],[10,13]);
+                if (HDR.VERSION==1) & strcmp(sa{3},'SourceCh') & strcmp(sa{5},'StatevectorLen') & ~any(status([2,4,6]))
+                        HDR.HeadLen = t(2);
+                        HDR.NS = t(4);
+                        HDR.BCI2000.StateVectorLength = t(6);
+                        HDR.GDFTYP = 'int16';
+                elseif (HDR.VERSION==1.1) & strcmp(sa{5},'SourceCh') & strcmp(sa{7},'StatevectorLen') & strcmp(sa{9},'DataFormat') & ~any(status([2:2:8]))
+                        HDR.VERSION = t(2);
+                        HDR.HeadLen = t(4);
+                        HDR.NS = t(6);
+                        HDR.BCI2000.StateVectorLength = t(8);
+                        HDR.GDFTYP = sa{10};
+                else
+                        HDR.TYPE = 'unknown'; 
+                        fprintf(HDR.FILE.stderr,'Error SOPEN: file %s does not confirm with BCI2000 format\n',HDR.FileName);
+                        fclose(HDR.FILE.FID);
+                        return; 
+                end;
+                if count<HDR.HeadLen,
+                        status = fseek(HDR.FILE.FID,0,'bof');
+                        [HDR.Header,count] = fread(HDR.FILE.FID,[1,HDR.HeadLen],'char');
+                elseif count>HDR.HeadLen,
+                        status = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+                        HDR.Header = HDR.Header(1:HDR.HeadLen);
+                end
+		[tline,rr] = strtok(char(HDR.Header),[10,13]);
+
+                STATUSFLAG = 0;
 		while length(rr), 
 			tline = tline(1:min([length(tline),strfind(tline,[47,47])-1]));
 
@@ -3928,10 +3956,10 @@ elseif strcmp(HDR.TYPE,'BCI2000'),
 		% finalize header definition 		
 		status = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
 		HDR.AS.bpb = 2*HDR.NS + HDR.BCI2000.StateVectorLength;
-		HDR.SPR = (HDR.FILE.size - HDR.HeadLen)/HDR.AS.bpb;
+		HDR.SPR    = (HDR.FILE.size - HDR.HeadLen)/HDR.AS.bpb;
 		HDR.AS.endpos = HDR.SPR;
-		HDR.GDFTYP = [int2str(HDR.NS),'*int16=>int16'];
-		HDR.NRec = 1; 
+		HDR.GDFTYP    = [int2str(HDR.NS),'*',HDR.GDFTYP,'=>',HDR.GDFTYP];
+		HDR.NRec      = 1; 
 		
                 HDR.FILE.OPEN = 1;
 		HDR.FILE.POS = 0; 
@@ -5045,12 +5073,19 @@ elseif strcmp(HDR.TYPE,'STX'),
 elseif strcmp(HDR.TYPE,'BIFF'),
 	try, 
                 [HDR.TFM.S,HDR.TFM.E] = xlsread(HDR.FileName,'Beat-To-Beat');
-                if size(HDR.TFM.S,1)+1==size(HDR.TFM.E,1),
+                [ix,iy]=find(~isnan(HDR.TFM.S));
+                FLAG_CHECK_XLSREAD = 0; 
+                for k=1:length(ix),
+                        FLAG_CHECK_XLSREAD = FLAG_CHECK_XLSREAD | ~isempty(HDR.TFM.E(ix(k),iy(k)));
+                end
+                if FLAG_CHECK_XLSREAD,
+                        fprintf('Warning: XLSREAD-BUG has occured in file %s.\n',HDR.FileName);
                         HDR.TFM.S = [repmat(NaN,1,size(HDR.TFM.S,2));HDR.TFM.S];
                 end;
+                
                 HDR.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
-                HDR.T0 = datevec(HDR.TFM.S(2,1)+HDR.TFM.S(2,2)-1);
-                HDR.T0(1) = HDR.T0(1)+1900;
+                HDR.T0 = datevec(datenum('30-Dec-1899')+HDR.TFM.S(2,1)+HDR.TFM.S(2,2));
+                HDR.T0(1) = HDR.T0(1);
                 HDR.Patient.Name = [HDR.TFM.E{2,3},' ', HDR.TFM.E{2,4}];
                 HDR.Patient.Birthday = datevec(HDR.TFM.S(2,5)-1);
                 HDR.Patient.Age = datevec(HDR.TFM.S(2,1)-HDR.TFM.S(2,5));
@@ -5059,7 +5094,7 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 HDR.Patient.Weight = HDR.TFM.S(2,8);
                 HDR.Patient.Surface = HDR.TFM.S(2,9);
                 HDR.Patient.BMI = HDR.TFM.S(2,8)*HDR.TFM.S(2,7)^-2*1e4;
-                HDR.TFM.VERSION = HDR.TFM.E{2,12};
+                HDR.TFM.VERSION = HDR.TFM.E{2,11};
         catch
 	end; 	
 
@@ -5077,8 +5112,8 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 
                 ix = find(isnan(HDR.TFM.S(:,2)) & ~isnan(HDR.TFM.S(:,1)));
                 HDR.EVENT.Desc = HDR.TFM.E(ix,2);
-                HDR.EVENT.TYP  = zeros(length(ix),1);
                 HDR.EVENT.POS  = ix(:);
+                HDR.EVENT.TYP  = zeros(size(HDR.EVENT.POS));
                 
 		[HDR.SPR,HDR.NS] = size(HDR.TFM.S);
                 if any(CHAN),
@@ -5181,6 +5216,7 @@ end;
 
 % identify type of signal
 if HDR.NS>0,
+               HDR.Label = strvcat(HDR.Label);
         HDR.CHANTYP = repmat(' ',1,HDR.NS);
         tmp = HDR.NS-size(HDR.Label,1);
         %HDR.Label = [HDR.Label(1:HDR.NS,:);repmat(' ',max(0,tmp),size(HDR.Label,2))];
