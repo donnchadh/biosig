@@ -35,8 +35,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.16 $
-% 	$Id: save2bkr.m,v 1.16 2004-03-11 12:39:40 schloegl Exp $
+%	$Revision: 1.17 $
+% 	$Id: save2bkr.m,v 1.17 2004-03-15 14:57:50 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -381,7 +381,7 @@ for k=1:length(infile);
                 return;
         end;
         % writes data
-        HDR = swrite(HDR,data);  	% WRITE BKR FILE
+        HDR = swrite(HDR,y);  	% WRITE BKR FILE
         %count = fwrite(HDR.FILE.FID,y','short');
         HDR = sclose(HDR);
         
