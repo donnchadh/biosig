@@ -3,8 +3,8 @@
 %
 % Copyright (C) 2003, 2004 by Alois Schloegl <a.schloegl@ieee.org>
 % WWW: http://biosig.sf.net/
-% $Revision: 1.5 $ 
-% $Id: Contents.m,v 1.5 2004-12-03 14:19:49 schloegl Exp $
+% $Revision: 1.6 $ 
+% $Id: Contents.m,v 1.6 2004-12-04 19:05:21 schloegl Exp $
 % This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % LICENSE:
@@ -60,6 +60,7 @@
 %	SREWIND		sets file pointer to the start
 % 
 % 	SLOAD 	Opens, reads all data and closes file Biosig files. 
+% 	TLOAD 	triggered loading of data
 %  	and some utility functions
 % 
 % 
