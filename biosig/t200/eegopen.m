@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.21 $
-%	$Id: eegopen.m,v 1.21 2003-06-09 19:00:20 schloegl Exp $
+%	$Revision: 1.22 $
+%	$Id: eegopen.m,v 1.22 2003-06-10 10:15:44 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -70,13 +70,12 @@ if exist(HDR.FileName)==2,
 	fid = fopen(HDR.FileName,'r');
 	if fid>0,
 		[s,c] = fread(fid,[1,32],'uchar');
-		s = char(s);
                 if c,
-                        if strcmp(char(s),['MATLAB Data Acquisition File.' 0 25 0]);% Matlab Data Acquisition File 
-		                HDR.TYPE='DAQ';
-                        elseif strncmp(s,'0       ',8); 
+	                type_mat4=str2num(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
+	                s = char(s);
+                        if strncmp(s,'0       ',8); 
                                 HDR.TYPE='EDF';
-                        elseif all(s(1:8)==[255,abs('BIOSEMI')]); 
+                        elseif all(abs(s(1:8))==[255,abs('BIOSEMI')]); 
                                 HDR.TYPE='BDF';
                         elseif strncmp(s,'GDF',3); 
                                 HDR.TYPE='GDF';
@@ -96,7 +95,7 @@ if exist(HDR.FileName)==2,
                                 HDR.TYPE='RG64';
                         elseif strncmp(s,'DTDF',4); 
                                 HDR.TYPE='DDF';
-                        elseif strncmp(s,['RSRC',10,13,0,3],8); %strncmp(s,'RSRC',4); 
+                        elseif strncmp(s,'RSRC',4);
                                 HDR.TYPE='LABVIEW';
                         elseif strncmp(s,'IAvSFo',6); 
                                 HDR.TYPE='SIG';
@@ -115,6 +114,23 @@ if exist(HDR.FileName)==2,
 				HDR.TYPE='SEG2 b';
 					% SEG2 format specification: ftp://diftp.epfl.ch/pub/detec/doc/seg2.pdf
 
+                        elseif strncmp(char(s),'MATLAB Data Acquisition File.',29);% Matlab Data Acquisition File 
+		                HDR.TYPE='DAQ';
+                        elseif strncmp(s,'MATLAB 5.0 MAT-file',19); 
+		                HDR.TYPE='MAT5';
+                        elseif any(~type_mat4),
+                                HDR.TYPE='MAT4';
+                                if type_mat4(1)==1,
+                                        HDR.MAT4.opentyp='ieee-be';
+                                elseif type_mat4(1)==2,
+                                        HDR.MAT4.opentyp='vaxd';
+                                elseif type_mat4(1)==3,
+                                        HDR.MAT4.opentyp='vaxg';
+                                elseif type_mat4(1)==4,
+                                        HDR.MAT4.opentyp='gray';
+                                else
+                                        HDR.MAT4.opentyp='ieee-le';
+                                end;
                         else
                                 %TYPE='unknown';
                         end;
@@ -254,7 +270,7 @@ elseif strcmp(HDR.TYPE,'ACQ'),
 	
 	for k = 1:HDR.NS;
 	        HDR.ChanHeaderLen  = fread(HDR.FILE.FID,1,'int32');
-        	DHR.ChanSel(k) = fread(HDR.FILE.FID,1,'int16');
+        	HDR.ChanSel(k) = fread(HDR.FILE.FID,1,'int16');
 		HDR.Comment(no,1:40) = fread(HDR.FILE.FID,[1,40],'char');
 		rgbColor = fread(HDR.FILE.FID,4,'int8');
 		DispChan = fread(HDR.FILE.FID,2,'int8');
@@ -448,10 +464,10 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
                 end
                 if strncmp('"TIME$"',line,7)
                         [tmp,line] = strtok(line,'=');
-                        [time,line] = strtok(line,'"=');	
-                        time(time==':')=' ';
+                        [time,line] = strtok(line,'"=');
+			time(time==':')=' ';
                         time = str2num(time);
-                end
+                end;
                 if strncmp('"UNITS$[]"',line,10)
                         [tmp,line] = strtok(line,'=');
                         for k=1:HDR.NS,
@@ -611,14 +627,30 @@ elseif strcmp(HDR.TYPE,'LABVIEW'),
                 fprintf(HDR.FILE.stderr,'EEGOPEN: File %s couldnot be opened\n',HDR.FileName);
                 return;
         end;        
-	HDR.FILE.OPEN=1;
+        HDR.FILE.OPEN=1;
+        
+        tmp = fread(HDR.FILE.FID,8,'uchar');
+        HDR.VERSION = char(fread(HDR.FILE.FID,[1,8],'uchar'));
+        HDR.AS.endpos = fread(HDR.FILE.FID,1,'int32'); % 4 first bytes = total header length
+        
+        HDR.HeadLen  = fread(HDR.FILE.FID,1,'int32'); % 4 first bytes = total header length
+        HDR.NS       = fread(HDR.FILE.FID,1,'int32');  % 4 next bytes = channel list string length
+        HDR.AS.endpos2 = fread(HDR.FILE.FID,1,'int32'); % 4 first bytes = total header length
+        
+        HDR.ChanList = fread(HDR.FILE.FID,HDR.NS,'uchar'); % channel string
+        
+        
+        fclose(HDR.FILE.FID);
+        HDR.FILE.FID = -1;
+        
+        return;
 
-	%%%%% READ HEADER from Labview 5.1 supplied VI "create binary header"
-
-	HDR.HeadLen  = fread(HDR.FILE.FID,1,'int32'); % 4 first bytes = total header length
-	HDR.NS     = fread(HDR.FILE.FID,1,'int32');  % 4 next bytes = channel list string length
+        %%%%% READ HEADER from Labview 5.1 supplied VI "create binary header"
+        
+        HDR.HeadLen  = fread(HDR.FILE.FID,1,'int32'); % 4 first bytes = total header length
+        HDR.NS     = fread(HDR.FILE.FID,1,'int32');  % 4 next bytes = channel list string length
 	HDR.ChanList = fread(HDR.FILE.FID,HDR.NS,'uchar'); % channel string
-
+        
 	% Number of channels = 1 + ord(lastChann) - ord(firstChann):
 	HDR.LenN     = fread(HDR.FILE.FID,1,'int32'); % Hardware config length
 	HDR.HWconfig = fread(HDR.FILE.FID,HDR.LenN,'uchar'); % its value
@@ -824,8 +856,8 @@ elseif strcmp(HDR.TYPE,'MIT')
                 ix1 = [findstr('DIAGNOSIS:',upper(z))+10; findstr('DIAGNOSIS>:',upper(z))+11];
                 if ~isempty(ix1),
                         [HDR.Patient.Diagnosis,z]=strtok(z(ix1(1):length(z)),char([10,13,abs('#<>')]));
-                end;
-                ix1 = [findstr('MEDICATIONS:',upper(z))+12, findstr('MEDICATIONS>:',upper(z))+13];
+                end;
+		ix1 = [findstr('MEDICATIONS:',upper(z))+12, findstr('MEDICATIONS>:',upper(z))+13];
                 if ~isempty(ix1),
                         [HDR.Patient.Medication,z]=strtok(z(ix1(1):length(z)),char([10,13,abs('#<>')]));
                 end;
@@ -1025,11 +1057,169 @@ elseif strcmp(HDR.TYPE,'TMS32'),
 
 	end;
 
-	        
+
 elseif 0,strcmp(HDR.TYPE,'DAQ'),
         HDR = daqopen(HDR,PERMISSION,CHAN);
+
+
+elseif strcmp(HDR.TYPE,'MAT4'),
+        if strcmp(PERMISSION,'r'),
+                HDR.FILE.FID = fopen(HDR.FileName,'r',HDR.MAT4.opentyp)
+                if HDR.FILE.FID < 0,
+                        fprintf(HDR.FILE.stderr,'Error: file %s not found.\n',HDR.FileName);
+                        return;
+                else
+                        fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
+                end;
+		HDR.FILE.OPEN = 1;
+		HDR.FILE.POS = 0;
+                k=0;NB=0;
+                type = fread(HDR.FILE.FID,4,'uchar'); 	% 4-byte header
+                while ~isempty(type),
+                        type=str2num(char(abs(sprintf('%04i',sum(type(:).*[1;10;100;1000])))'));
+                        k=k+1;
+                        [mrows,c] = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
+                        ncols = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
+                        imagf = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
+                        namelen  = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
+                        [name,c] = fread(HDR.FILE.FID,namelen,'char'); 
+                        
+                        if imagf, HDR.ErrNo=-1; fprintf(HDR.FILE.stderr,'Warning %s: Imaginary data not tested\n',mfilename); end;
+                        if type(1)==2,
+                                HDR.ErrNo=-1;
+                                fprintf(HDR.FILE.stderr,'Error %s: sparse data not supported\n',mfilename);
+                        elseif type(1)>2, 
+                                type(1)=bitand(type(1),1);
+                        end;
+                        
+                        dt=type(3);
+                        if     dt==0, SIZOF=8; TYP = 'float64';
+                        elseif dt==6, SIZOF=1; TYP = 'uint8';
+                        elseif dt==4, SIZOF=2; TYP = 'uint16';
+                        elseif dt==3, SIZOF=2; TYP = 'int16';
+                        elseif dt==2, SIZOF=4; TYP = 'int32';
+                        elseif dt==1, SIZOF=4; TYP = 'float32';
+                        else
+                                fprintf(HDR.FILE.stderr,'Error %s: unknown data type\n',mfilename);
+                        end;
+                        
+                        HDR.Var(k).Name  = char(name(1:length(name)-1)');
+                        HDR.Var(k).Size  = [mrows,ncols];
+                        HDR.Var(k).SizeOfType = SIZOF;
+                        HDR.Var(k).Type  = [type;~~imagf]';
+                        HDR.Var(k).TYP   = TYP;
+                        HDR.Var(k).Pos   = ftell(HDR.FILE.FID);
+                        
+                        c=0; 
+                        %% find the ADICHT data channels
+                        if findstr(HDR.Var(k).Name,'data_block'),
+                                HDR.ADI.DB(str2num(HDR.Var(k).Name(11:length(HDR.Var(k).Name))))=k;
+                        elseif findstr(HDR.Var(k).Name,'ticktimes_block'),
+                                HDR.ADI.TB(str2num(HDR.Var(k).Name(16:length(HDR.Var(k).Name))))=k;
+                        end;
+                        
+                        tmp1=ftell(HDR.FILE.FID);
+                        
+                        % skip next block
+                        tmp=(prod(HDR.Var(k).Size)-c)*HDR.Var(k).SizeOfType*(1+(~~imagf));
+                        fseek(HDR.FILE.FID,tmp,0); 
+                        
+                        tmp2=ftell(HDR.FILE.FID);
+                        if (tmp2-tmp1) < tmp,  % if skipping the block was not successful
+                                HDR.ErrNo = -1;
+                                HDR.ERROR = sprintf('file %s is corrupted',HDR.FileName);
+                                fprintf(HDR.FILE.stderr,'Error EEGOPEN: MAT4 (ADICHT) file %s is corrupted\n',HDR.FileName);
+                                return;
+                        end;	                
+                        
+                        type = fread(HDR.FILE.FID,4,'uchar');  	% 4-byte header
+                end;
+        end;
         
-	        
+        if isfield(HDR,'ADI')
+                HDR.TYPE = 'ADI', % ADICHT-data, converted into a Matlab 4 file
+        end;
+        
+        if strcmp(HDR.TYPE,'ADI'), 
+                %% set internal sampling rate to 1000Hz (default). Set HDR.iFs=[] if no resampling should be performed 
+                HDR.iFs = []; %1000;
+                HDR.NS  = HDR.Var(HDR.ADI.DB(1)).Size(1);
+                HDR.ADI.comtick = [];        
+                HDR.ADI.comTick = [];        
+                HDR.ADI.comtext = [];
+                HDR.ADI.comchan = [];
+                HDR.ADI.comblok = [];
+                HDR.ADI.index   = [];
+                HDR.ADI.range   = [];
+                HDR.ADI.scale   = [];
+                HDR.ADI.titles  = [];
+                
+                HDR.ADI.units   = [];
+                
+                for k=1:length(HDR.ADI.TB),
+                        [HDR,t1] = matread(HDR,['ticktimes_block' int2str(k)],[1 2]);	% read first and second element of timeblock
+                        [HDR,t2] = matread(HDR,['ticktimes_block' int2str(k)],HDR.Var(HDR.ADI.DB(k)).Size(2)); % read last element of timeblock
+                        HDR.ADI.ti(k,1:2) = [t1(1),t2];
+                        HDR.SampleRate(k) = round(1/diff(t1));
+                        
+                        [HDR,tmp] = matread(HDR,['comtick_block' int2str(k)]);	% read first and second element of timeblock
+                        HDR.ADI.comtick = [HDR.ADI.comtick;tmp];
+                        %HDR.ADI.comTick = [HDR.ADI.comTick;tmp/HDR.SampleRate(k)+HDR.ADI.ti(k,1)];
+                        [HDR,tmp] = matread(HDR,['comchan_block' int2str(k)]);	% read first and second element of timeblock
+                        HDR.ADI.comchan = [HDR.ADI.comchan;tmp];
+                        [HDR,tmp] = matread(HDR,['comtext_block' int2str(k)]);	% read first and second element of timeblock
+                        tmp2 = size(HDR.ADI.comtext,2)-size(tmp,2);
+                        if tmp2>=0,
+                                HDR.ADI.comtext = [HDR.ADI.comtext;[tmp,zeros(size(tmp,1),tmp2)]];
+                        else
+                                HDR.ADI.comtext = [[HDR.ADI.comtext,zeros(size(HDR.ADI.comtext,1),-tmp2)];tmp];
+                        end;
+                        HDR.ADI.comblok=[HDR.ADI.comblok;repmat(k,size(tmp,1),1)];
+                        
+                        [HDR,tmp] = matread(HDR,['index_block' int2str(k)]);	% read first and second element of timeblock
+                        if isempty(tmp),
+                                HDR.ADI.index{k} = 1:HDR.NS;
+                        else
+                                HDR.NS=length(tmp); %
+                                HDR.ADI.index{k} = tmp;
+                        end;
+                        [HDR,tmp] = matread(HDR,['range_block' int2str(k)]);	% read first and second element of timeblock
+                        HDR.ADI.range{k} = tmp;
+                        [HDR,tmp] = matread(HDR,['scale_block' int2str(k)]);	% read first and second element of timeblock
+                        HDR.ADI.scale{k} = tmp;
+                        [HDR,tmp] = matread(HDR,['titles_block' int2str(k)]);	% read first and second element of timeblock
+                        HDR.ADI.titles{k} = tmp;
+                        
+                        [HDR,tmp] = matread(HDR,['units_block' int2str(k)]);	% read first and second element of timeblock
+                        HDR.ADI.units{k} = char(tmp);
+                        if k==1;
+                                HDR.PhysDim = char(sparse(find(HDR.ADI.index{1}),1:sum(HDR.ADI.index{1}>0),1)*HDR.ADI.units{1}); % for compatibility with the EDF toolbox
+                        elseif any(size(HDR.ADI.units{k-1})~=size(tmp))
+                                fprintf(2,'Warning MATOPEN: Units are different from block to block\n');
+                        elseif any(any(HDR.ADI.units{k-1}~=tmp))
+                                fprintf(2,'Warning MATOPEN: Units are different from block to block\n');
+                        end;	
+                        HDR.PhysDim = char(sparse(find(HDR.ADI.index{k}),1:sum(HDR.ADI.index{k}>0),1)*HDR.ADI.units{k}); % for compatibility with the EDF toolbox
+                        %HDR.PhysDim=HDR.ADI.PhysDim;
+                end;                
+                HDR.T0 = datevec(datenum(1970,1,1)+HDR.ADI.ti(1,1)/24/3600);
+                for k=1:size(HDR.ADI.comtext,1),
+                        HDR.ADI.comtime0(k)=HDR.ADI.comtick(k)./HDR.SampleRate(HDR.ADI.comblok(k))'+HDR.ADI.ti(HDR.ADI.comblok(k),1)-HDR.ADI.ti(1,1);
+                end;	
+                
+                % Test if timeindex is increasing
+                if ~all(HDR.ADI.ti(2:end,2)>HDR.ADI.ti(1:end-1,1)), 
+                        HDR.ErrNo=-1;
+                        fprintf(HDR.FILE.stderr,'Warning MATOPEN: Time index are not monotonic increasing !!!\n');
+                        return;
+                end;	
+                % end of ADI-Mode
+        else        
+        %        fclose(HDR.FILE.FID);
+        %        HDR.FILE.FID = -1;
+        end;
+        
+        
 elseif strcmp(HDR.TYPE,'ISHNE'),
 	if strcmp(PERMISSION,'r'),
 		HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le')
@@ -1166,7 +1356,7 @@ elseif strncmp(HDR.TYPE,'SEG2',4),
 		fprintf(HDR.FILE.stderr,'Format %s not implemented yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',HDR.TYPE);	
 		fclose(HDR.FILE.FID);
 		HDR.FILE.FID = -1;
-		
+	end;		
 else
 	%fprintf(2,'EEGOPEN does not support your data format yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
 	HDR.FILE.FID = -1;	% this indicates that file could not be opened. 
