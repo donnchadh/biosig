@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.16 $
-%	$Id: sopen.m,v 1.16 2003-12-18 16:12:23 schloegl Exp $
+%	$Revision: 1.17 $
+%	$Id: sopen.m,v 1.17 2003-12-19 16:32:18 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -54,9 +54,6 @@ end;
 
 if isempty(MODE), MODE=' '; end;	% Make sure MODE is not empty -> FINDSTR
 
-HDR.FLAG.UCAL = ~isempty(findstr(MODE,'UCAL'));   % FLAG for UN-CALIBRATING
-HDR.FLAG.FILT = 0; 	% FLAG if any filter is applied; 
-
 [pfad,file,FileExt] = fileparts(HDR.FileName);
 HDR.FILE.Name = file;
 HDR.FILE.Path = pfad;
@@ -72,8 +69,11 @@ end;
 %if exist(HDR.FileName)==2,
 if any(PERMISSION=='r'),
 	fid = fopen(HDR.FileName,'rb','ieee-le');
-	if fid>0,
-		[s,c] = fread(fid,[1,32],'uchar');
+        if fid < 0,
+                fprintf(HDR.FILE.stderr,'Error SOPEN: file %s could not be opened.\n',HDR.FileName);    
+                return;
+        else
+                [s,c] = fread(fid,[1,32],'uchar');
                 if c,
                         type_mat4=str2num(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
 	                ss = setstr(s);
@@ -276,8 +276,6 @@ if any(PERMISSION=='r'),
                                 %TYPE='unknown';
                                 HDR.TYPE='unknown';
                         end;
-                else
-                    	fprintf(2,'Error SOPEN: could not read any byte from file %s\n',HDR.FileName);    
                 end;
                 fclose(fid);
 
@@ -287,10 +285,22 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE = 'alpha'; %alpha trace medical software 
                         end;
                 end;
-	else
-                fprintf(HDR.FILE.stderr,'SOPEN: File %s couldnot be opened\n',HDR.FileName);
-                return;
-	end;
+        end;
+        
+        % initialize Header 
+        HDR.NS = NaN; 
+        HDR.SampleRate = NaN; 
+        HDR.Label = []; 
+        HDR.T0 = repmat(nan,1,6);
+        
+        HDR.Filter.LowPass  = NaN; 
+        HDR.Filter.HighPass = NaN; 
+        HDR.FLAG.UCAL = ~isempty(findstr(MODE,'UCAL'));   % FLAG for UN-CALIBRATING
+        HDR.FLAG.FILT = 0; 	% FLAG if any filter is applied; 
+        
+        HDR.EVENT.N   = 0; 
+        HDR.EVENT.TYP = []; 
+        HDR.EVENT.POS = []; 
 end;
 
         % MIT-ECG / Physiobank format
@@ -522,7 +532,6 @@ elseif strcmp(HDR.TYPE,'alpha'),
         fid = fopen(fullfile(HDR.FILE.Path,'digin'),'rt');
         if fid < 0,
                 fprintf(2,'Warning SOPEN alpha-trace: couldnot open DIGIN - no event information included\n');
-                HDR.EVENT.N   = 0;
         else
                 [s] = fgetl(fid);       % read version
                 
@@ -696,8 +705,6 @@ elseif strcmp(HDR.TYPE,'ACQ'),
 	HDR.EVENT.N   = fread(HDR.FILE.FID,1,'int32');
 	HDR.EVENT.POS = repmat(nan,HDR.EVENT.N  ,1);
 	HDR.EVENT.TYP = repmat(nan,HDR.EVENT.N  ,1);
-	HDR.EVENT.CHN = zeros(HDR.EVENT.N  ,1);
-	HDR.EVENT.DUR = zeros(HDR.EVENT.N  ,1);
 	for k = 1:HDR.EVENT.N  , 
 		%HDR.Event(k).Sample = fread(HDR.FILE.FID,1,'int32');
 		HDR.EVENT.POS(k) = fread(HDR.FILE.FID,1,'int32');
@@ -1365,24 +1372,33 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
 	end;
         
 elseif strcmp(HDR.TYPE,'EGI'),
-    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
         
-        HDR.VERSION = fread(HDR.FILE.FID,1,'integer*4');
+        HDR.VERSION  = fread(HDR.FILE.FID,1,'uint32');
         
         if ~(HDR.VERSION >= 2 & HDR.VERSION <= 7),
-             %   fprintf(HDR.FILE.stderr,'EGI Simple Binary Versions 2-7 supported only.\n');
+                %   fprintf(HDR.FILE.stderr,'EGI Simple Binary Versions 2-7 supported only.\n');
         end;
         
-        HDR.T0 = fread(HDR.FILE.FID,[1,6],'integer*2');
-        millisecond = fread(HDR.FILE.FID,1,'integer*4');
+        HDR.T0 = fread(HDR.FILE.FID,[1,6],'uint16');
+        millisecond = fread(HDR.FILE.FID,1,'uint32');
         HDR.T0(6) = HDR.T0(6) + millisecond/1000;
         
-        HDR.SampleRate = fread(HDR.FILE.FID,1,'integer*2');
-        HDR.NS = fread(HDR.FILE.FID,1,'integer*2');
-        HDR.gain = fread(HDR.FILE.FID,1,'integer*2');
-        HDR.bits = fread(HDR.FILE.FID,1,'integer*2');
+        HDR.SampleRate = fread(HDR.FILE.FID,1,'uint16');
+        HDR.NS   = fread(HDR.FILE.FID,1,'uint16');
+        HDR.gain = fread(HDR.FILE.FID,1,'uint16');
+        HDR.bits = fread(HDR.FILE.FID,1,'uint16');
         HDR.DigMax  = 2^HDR.bits;
-        HDR.PhysMax = fread(HDR.FILE.FID,1,'integer*2');
+        HDR.PhysMax = fread(HDR.FILE.FID,1,'uint16');
+        if ( HDR.bits ~= 0 & HDR.PhysMax ~= 0 )
+                HDR.Cal = (HDR.PhysMax/HDR.DigMax);
+        else
+                HDR.Cal = 1;
+        end;
+        HDR.Label = char(zeros(HDR.NS,5));
+        for k=1:HDR.NS,
+                HDR.Label(k,:)=sprintf('# %3i',k);
+        end;
         
         if CHAN<1, CHAN=1:HDR.NS; end;
         HDR.SIE.ChanSelect = CHAN;
@@ -1390,27 +1406,27 @@ elseif strcmp(HDR.TYPE,'EGI'),
         
         HDR.EVENT.N    = 0;
         HDR.categories = 0;
-        HDR.catname    = {};
+        HDR.EGI.catname= {};
         
         if any(HDR.VERSION==[2,4,6]),
                 HDR.SPR  = fread(HDR.FILE.FID, 1 ,'int32');
-                HDR.EVENT.N = fread(HDR.FILE.FID,1,'int16');
+                HDR.EGI.eventtype = fread(HDR.FILE.FID,1,'int16');
                 HDR.NRec = 1;
                 HDR.FLAG.TRIGGERED = logical(0); 
-                HDR.AS.spb = (HDR.NS+HDR.eventtypes);
+                HDR.AS.spb = HDR.NS;
                 HDR.AS.endpos = HDR.SPR;
 		HDR.Dur = 1/HDR.SampleRate;
         elseif any(HDR.VERSION==[3,5,7]),
-                HDR.categories = fread(HDR.FILE.FID,1,'integer*2');
-                if (HDR.categories),
-                        for i=1:HDR.categories,
+                HDR.EGI.categories = fread(HDR.FILE.FID,1,'uint16');
+                if (HDR.EGI.categories),
+                        for i=1:HDR.EGI.categories,
                                 catname_len(i) = fread(HDR.FILE.FID,1,'uchar');
-                                HDR.catname{i} = char(fread(HDR.FILE.FID,catname_len(i),'uchar'))';
+                                HDR.EGI.catname{i} = char(fread(HDR.FILE.FID,catname_len(i),'uchar'))';
                         end
                 end
                 HDR.NRec = fread(HDR.FILE.FID,1,'int16');
                 HDR.SPR  = fread(HDR.FILE.FID,1,'int32');
-                HDR.EVENT.N = fread(HDR.FILE.FID,1,'int16');
+                HDR.EGI.eventtype = fread(HDR.FILE.FID,1,'int16');
                 HDR.FLAG.TRIGGERED = logical(1); 
                 HDR.AS.spb = HDR.SPR*(HDR.NS+HDR.EVENT.N);
                 HDR.AS.endpos = HDR.NRec;
@@ -1435,8 +1451,8 @@ elseif strcmp(HDR.TYPE,'EGI'),
         end
         HDR.AS.bpb = HDR.AS.bpb + 6*HDR.FLAG.TRIGGERED;
                 
-        HDR.eventcode = char(fread(HDR.FILE.FID,[HDR.EVENT.N,4],'uchar')');
-	HDR.EVENT.TYP = HDR.eventcode*(2.^[24;16;8;0]);
+        HDR.EGI.eventcode = char(fread(HDR.FILE.FID,[4,HDR.EGI.eventtype],'uchar')');
+	HDR.EVENT.TYP = HDR.EGI.eventcode*(2.^[24;16;8;0]);
                 
         HDR.HeadLen = ftell(HDR.FILE.FID);
         HDR.FILE.POS= 0;
@@ -1500,7 +1516,7 @@ elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
 		% end;
 	end;
 	
-	% Segment informatino block entries 
+	% Segment information block entries 
 	if HDR.TEAM.Nsegments,
 		fseek(HDR.FILE.FID,HDR.TEAM.SegmentOffset,'bof');
 		for k = 1:HDR.TEAM.Nsegments, 
@@ -1631,7 +1647,8 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
                 if strncmp('"CHAN$[]"',line,9)
                         [tmp,line] = strtok(line,'=');
                         for k=1:HDR.NS,
-                                [HDR.Label{k,1},line] = strtok(line,[', =',10,13]);
+                                [tmp,line] = strtok(line,[', =',10,13]);
+                                HDR.Label{k,1} = tmp;
                         end;
                 end
                 if 0,strncmp('"CHANNEL.LABEL$[]"',line,18)
@@ -1676,8 +1693,10 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         HDR.Filter.T0 = zeros(1,length(HDR.SMA.EVENT_CHANNEL));
         
         if CHAN==0,		
+		HDR.SIE.ChanSelect = 1:HDR.NS;
 		HDR.SIE.InChanSelect = 1:HDR.NS;
 	elseif all(CHAN>0 & CHAN<=HDR.NS),
+		HDR.SIE.ChanSelect = CHAN;
 		HDR.SIE.InChanSelect = CHAN;
 	else
 		fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
@@ -1708,7 +1727,7 @@ elseif strcmp(HDR.TYPE,'RDF'),
 	while(~feof(HDR.FILE.FID)),
     		if tag == hex2dec('f0aa55'),
         		cnt = cnt + 1;
-			HDR.Block.Pos(cnt) = ftell(HDR.FILE.FID);
+			HDR.Block.Pos(cnt) = ftell(HDR.FILE.FID)
 
         		% Read nchans and block length
         		tmp = fread(HDR.FILE.FID,34,'uint16');
@@ -1716,19 +1735,17 @@ elseif strcmp(HDR.TYPE,'RDF'),
     	    		%fseek(HDR.FILE.FID,2,0);
         		nchans = tmp(2); %fread(HDR.FILE.FID,1,'uint16');
     	    		%fread(HDR.FILE.FID,1,'uint16');
-        		block_size = tmp(4); %fread(HDR.FILE.FID,1,'uint16');
+        		block_size = 2^tmp(3); %fread(HDR.FILE.FID,1,'uint16');
         		%ndupsamp = fread(HDR.FILE.FID,1,'uint16');
 			%nrun = fread(HDR.FILE.FID,1,'uint16');
         		%err_detect = fread(HDR.FILE.FID,1,'uint16');
         		%nlost = fread(HDR.FILE.FID,1,'uint16');
-        		HDR.EVENT.N = tmp(9), %fread(HDR.FILE.FID,1,'uint16');
+        		HDR.EVENT.N = tmp(9); %fread(HDR.FILE.FID,1,'uint16');
         		%fseek(HDR.FILE.FID,50,0);
 	    
                         % Read events
                         HDR.EVENT.POS = repmat(nan,HDR.EVENT.N,1);
                         HDR.EVENT.TYP = repmat(nan,HDR.EVENT.N,1);
-                        HDR.EVENT.CHN = zeros(HDR.EVENT.N,1);
-                        HDR.EVENT.DUR = zeros(HDR.EVENT.N,1);
         		for i = 1:HDR.EVENT.N,
             			tmp = fread(HDR.FILE.FID,2,'uint8');
             			%cond_code = fread(HDR.FILE.FID,1,'uint8');
@@ -1745,7 +1762,14 @@ elseif strcmp(HDR.TYPE,'RDF'),
     			end;
         		fseek(HDR.FILE.FID,4*(110-HDR.EVENT.N)+2*nchans*block_size,0);
 	    	        tag = fread(HDR.FILE.FID,1,'uint32');
+                else
+        		tmp = fread(HDR.FILE.FID,3,'uint16');
+        		nchans = tmp(2); %fread(HDR.FILE.FID,1,'uint16');
+        		block_size = 2^tmp(3); %fread(HDR.FILE.FID,1,'uint16');
+
+                        fseek(HDR.FILE.FID,62+4*(110-HDR.EVENT.N)+2*nchans*block_size,0);
     		end
+                tag = fread(HDR.FILE.FID,1,'uint32');
 	end
 	HDR.NRec = cnt;
     
@@ -2828,7 +2852,8 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
 
 		for k=1:HDR.NS,
 		        chandata = fgetl(HDR.FILE.FID);			% 18
-		        [HDR.Label{k},chandata] = strtok(chandata,' ,;:');  
+		        [tmp,chandata] = strtok(chandata,' ,;:');  
+                        HDR.Label{k} = tmp;
 		        [tmp,chandata] = strtok(chandata,' ,;:');  
 		        HDR.Cal(k) = str2num(tmp);  
         
