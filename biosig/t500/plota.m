@@ -35,9 +35,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-
-%       $Revision: 1.22 $
-%	$Id: plota.m,v 1.22 2004-03-17 19:48:33 schloegl Exp $
+%       $Revision: 1.23 $
+%	$Id: plota.m,v 1.23 2004-03-30 09:06:33 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -1015,9 +1014,11 @@ elseif strcmpi(X.datatype,'spectrum'),
                 X.QUANT = 0;    
         end;
         
-        p = size(X.AR,2);
+        [n,p] = size(X.AR);
+        H=[]; F=[];
         for k=1:size(X.AR,1);
-                [H,F] = freqz(sqrt(X.PE(k,size(X.AR,2)+1)/(X.SampleRate*2*pi)),ar2poly(X.AR(k,:)),(0:64*p)/(128*p)*X.SampleRate',X.SampleRate);
+                [h,f] = freqz(sqrt(X.PE(k,size(X.AR,2)+1)/(X.SampleRate*2*pi)),ar2poly(X.AR(k,:)),(0:64*p)/(128*p)*X.SampleRate',X.SampleRate);
+                H(:,k)=h(:);F(:,k)=f(:);
         end;
         if strcmp(lower(Mode),'log')
                 semilogy(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*X.QUANT/sqrt(12*X.SampleRate),'k:');
@@ -1391,18 +1392,30 @@ elseif strcmp(X.datatype,'TSD1'),
 elseif strcmp(X.datatype,'MEAN+SEM') 
         if nargin<2,
                 clf;
-                for k = 1:min(size(X.MEAN)), 
-                        nf(k)=subplot(1,4,k); 
+                N = min(size(X.MEAN));
+                for k = 1:N, 
+                        nf(k)=subplot(ceil(N/ceil(sqrt(N))),ceil(sqrt(N)),k); 
                 end;
         else
                 nf=arg2;
         end;
+        if isfield(X,'Label'),
+                if ischar(X.Label),
+                        X.Label=cellstr(X.Label);
+                end;
+        end;
         for k=1:min(size(X.MEAN));
                 subplot(nf(k));
-                plot(X.T,[1,0;0,-1]*[X.MEAN(k,:);X.STD(k,:)])        
+                plot(X.T,[1,0;0,1]*[X.MEAN(k,:);X.STD(k,:)])        
                 xlabel('time')
+                if isfield(X,'Label'),
+                        ylabel(X.Label{k});
+                end;
+                %v=axis;v(1:2)=[min(X.T),max(X.T)];axis(v);
+                v=axis;v=[min(X.T),max(X.T),-20,20];axis(v);
                 %legend('mean','std')
         end;
+        
         
 elseif strcmp(X.datatype,'TSD_BCI7') 
         if (nargin>1) & strcmpi(arg2,'balken2');
