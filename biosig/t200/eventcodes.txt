@@ -1,8 +1,8 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004 Alois Schloegl <a.schloegl@ieee.org>
-# $Revision: 1.6 $
-# $Id: eventcodes.txt,v 1.6 2004-10-21 10:46:57 schloegl Exp $
+# $Revision: 1.7 $
+# $Id: eventcodes.txt,v 1.7 2004-11-17 12:40:51 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -22,7 +22,7 @@
 0x0112	eeg:K-complexes
 0x0113	eeg:Saw-tooth waves
 ### 0x03__	BCI: Trigger, cues, classlabels, 
-0x0300	Start of Trial
+0x0300	Start of Trial, Trigger at t=0s
 0x0301	Left - cue onset (BCI experiment)
 0x0302	Right - cue onset (BCI experiment)
 0x0303	Foot - cue onset (BCI experiment)
@@ -77,5 +77,6 @@
 0x058d	325 Watt
 0x058e	350 Watt
 0x8580  end
+#
 
 
