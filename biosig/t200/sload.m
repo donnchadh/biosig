@@ -15,8 +15,8 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 %
 
-%	$Revision: 1.10 $
-%	$Id: sload.m,v 1.10 2004-02-07 16:51:31 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: sload.m,v 1.11 2004-02-10 18:40:39 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -208,8 +208,8 @@ elseif strncmp(H.TYPE,'MAT',3),
                         if ~isempty(ch)
                                 H.ArtifactSelection = tmp.P_C_S.attribute(ch,:);
                         end;
-                        
                         signal = double(tmp.P_C_S.data);
+
                 end;
                 tmp.P_C_S = []; % clear memory
 
@@ -225,8 +225,20 @@ elseif strncmp(H.TYPE,'MAT',3),
                 else
                         CHAN = 1:H.NS;
                 end;
-                
                 signal = reshape(permute(signal(:,:,CHAN),[2,1,3]),[sz(1)*sz(2),sz(3)]);
+
+                % Convert gBS-epochings into BIOSIG - Events
+                map = zeros(size(H.AS.EpochingName,1),1);
+                map(strmatch('AUGE',H.AS.EpochingName))=hex2dec('0101');
+                map(strmatch('MUSKEL',H.AS.EpochingName))=hex2dec('0103');
+                map(strmatch('ELECTRODE',H.AS.EpochingName))=hex2dec('0105');
+                
+                H.EVENT.N   = size(H.AS.EpochingSelect,1);
+                H.EVENT.TYP = map([H.AS.EpochingSelect{:,9}]');
+                H.EVENT.POS = [H.AS.EpochingSelect{:,1}]';
+                H.EVENT.CHN = [H.AS.EpochingSelect{:,3}]';
+                H.EVENT.DUR = [H.AS.EpochingSelect{:,4}]';
+
                 
 	elseif isfield(tmp,'P_C_DAQ_S');
                 if ~isempty(tmp.P_C_DAQ_S.data),
@@ -331,7 +343,6 @@ elseif strncmp(H.TYPE,'MAT',3),
                         signal = tmp.daten.raw*100;
                 end;
                 
-
         elseif isfield(tmp,'neun') & isfield(tmp,'zehn') & isfield(tmp,'trig');	% guger, 
                 H.NS=3;
                 if ~isfield(tmp,'SampleRate')
@@ -346,6 +357,14 @@ elseif strncmp(H.TYPE,'MAT',3),
                 if any(CHAN),
                         signal=signal(:,CHAN);
                 end;        
+                
+        elseif isfield(tmp,'header')    % Scherer
+                signal =[];
+                H = tmp.header;
+                
+        else
+                warning(['SLOAD: MAT-file ',FILENAME,' not identified as BIOSIG signal',]);
+                whos('-file',FILENAME);
         end;        
 
 elseif strcmp(TYPE,'DAT')
