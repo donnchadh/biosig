@@ -23,11 +23,11 @@ function [CC,Q,tsd,md]=findclassifier1(D,TRIG,cl,T,t0,SWITCH)
 %  	Biomedizinische Technik 47(1-2): 3-8, 2002.
 % [2] A. Schlögl, C. Keinrath, R. Scherer, G. Pfurtscheller,
 %	Information transfer of an EEG-based Bran-computer interface.
-%	Proceedings of the st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003 
-%
+%	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003 
 
-%   Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Id: findclassifier1.m,v 1.7 2003-12-15 18:35:42 schloegl Exp $
+
+%   Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: findclassifier1.m,v 1.8 2004-03-30 08:45:48 schloegl Exp $
 
 
 % This program is free software; you can redistribute it and/or
@@ -105,7 +105,7 @@ for k = 1:size(T,1),
                 tmp = isnan(tmp);
                 ix(tmp) = NaN; %NC(1)+1;	% not classified; any value but not 1:length(MD)
                 ix(~tmp) = CL(ix(~tmp));
-                tmp = histo3([ix;CL]);
+                tmp = histo3([ix;CL(:)]);
                 cmx(tmp.X,l) = tmp.H-1;            
         end;
         CMX(k,:,:)  = cmx;
@@ -375,14 +375,12 @@ s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
 SNR = 2*s./(s0+s1); % this is SNR+1 
 CC.MLL.I   = log2(SNR)/2;
 CC.MLL.SNR = SNR - 1;
-if 0,        
-        clear tmp1 tmp2; 
+if 0,        clear tmp1 tmp2; 
         tmp1 = stat2(d(:,cl==CL(1)),2);       
         tmp2 = stat2(d(:,cl==CL(2)),2);       
         CC.MLL.TSD=stat2res(tmp1,tmp2);
         CC.MLL.TSD.ERR=mean(sign([-d(:,cl==CL(1)),d(:,cl==CL(2))]),2)/2+1/2;
-elseif bitand(SWITCH,1),        
-        CC.MLL.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
+elseif bitand(SWITCH,1),        CC.MLL.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
 end;
 
 d = exp(-JKD1/2)-exp(-JKD2/2);
@@ -407,7 +405,6 @@ if 0,
         tmp2 = stat2(d(:,cl==CL(2)),2);       
         CC.GRB.TSD=stat2res(tmp1,tmp2);
         CC.GRB.TSD.ERR=1/2-mean(sign([-d(:,cl==CL(1)),d(:,cl==CL(2))]),2)/2;
-elseif bitand(SWITCH,1),        
-        CC.GRB.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
+elseif bitand(SWITCH,1),        CC.GRB.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
 end;
 
