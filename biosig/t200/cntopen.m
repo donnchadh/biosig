@@ -13,8 +13,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.20 $
-%	$Id: cntopen.m,v 1.20 2003-12-22 11:08:26 schloegl Exp $
+%	$Revision: 1.21 $
+%	$Id: cntopen.m,v 1.21 2004-01-23 09:10:42 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -391,7 +391,7 @@ else    % new header
         
 end;
 
-CNT.VERSION = str2num(char(h.rev(8:12)'));
+CNT.VERSION = str2double(char(h.rev(8:12)'));
 CNT.CNT.type = h.type;
 CNT.PID = h.id;
 CNT.ID.Operator = char(h.oper');	%
@@ -408,7 +408,7 @@ CNT.Patient.State=char(h.state');	%
 CNT.Session.Label=char(h.label');	%	
 CNT.Date=char(h.date');	%	
 CNT.Time=char(h.time');	%	
-CNT.T0 = [str2num(CNT.Date(7:length(CNT.Date))),str2num(CNT.Date(1:2)),str2num(CNT.Date(4:5)),str2num(CNT.Time(1:2)),str2num(CNT.Time(4:5)),str2num(CNT.Time(7:8))];
+CNT.T0 = [str2double(CNT.Date(7:length(CNT.Date))),str2double(CNT.Date(1:2)),str2double(CNT.Date(4:5)),str2double(CNT.Time(1:2)),str2double(CNT.Time(4:5)),str2double(CNT.Time(7:8))];
 if     CNT.T0(1) > 99,
 elseif CNT.T0(1) > 80, 	CNT.T0(1) = CNT.T0(1) + 1900;
 else			CNT.T0(1) = CNT.T0(1) + 2000;
