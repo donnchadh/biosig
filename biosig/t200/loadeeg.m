@@ -2,7 +2,7 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % LOADEEG loads EEG data of various data formats
 % 
 % Currently are the following data formats supported: 
-%    EDF, CNT, EEG, BDF, GDF, BKR, MAT(*) 
+%    EDF, CNT, EEG, BDF, GDF, BKR, MAT(*), PhysioNet (MIT-ECG) 
 %
 %       HDR = eegopen(FILENAME,'r',CHANNEL);
 %	[signal,HDR] = eegread(HDR);
@@ -18,8 +18,8 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
 %
 
-%	$Revision: 1.8 $
-%	$Id: loadeeg.m,v 1.8 2003-03-14 08:13:53 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: loadeeg.m,v 1.9 2003-04-25 20:06:58 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -55,8 +55,8 @@ if isstruct(FILENAME),
         end;
 end;
 
-[p,f,FileExt]=fileparts(FILENAME);
-FileExt=FileExt(2:length(FileExt));
+[p,f,FileExt] = fileparts(FILENAME);
+FileExt = FileExt(2:length(FileExt));
 if nargin<3, 
         TYPE = FileExt; 
         %%% EDF format
@@ -80,9 +80,19 @@ if nargin<3,
 	elseif upper(FileExt)=='MNB' TYPE='BKR';
 	elseif upper(FileExt)=='STB' TYPE='BKR';
                 
-        % other formates        
-        elseif upper(FileExt)=='DAT' TYPE='DAT';
+        % PhysioNet MIT-ECG database        
+        elseif upper(FileExt)=='HEA' TYPE='MIT';
+        elseif upper(FileExt)=='ATR' TYPE='MIT';
                 
+        % other formates        
+        elseif upper(FileExt)=='DAT' 
+		fn = dir(fullfile(p,[f,'.hea']));
+		if isempty(fn),
+			TYPE='DAT';
+		else
+			TYPE='MIT';
+                end;
+
         elseif upper(FileExt)=='SIG' TYPE='SIG';
                 
         elseif upper(FileExt(1:2))=='DA' TYPE='DA_';
@@ -93,11 +103,171 @@ if nargin<3,
 end;
 TYPE = upper(TYPE);
 
-if strcmp(TYPE,'BKR') | strcmp(TYPE,'CNT') | strcmp(TYPE,'EDF') | strcmp(TYPE,'BDF') | strcmp(TYPE,'GDF') | strcmp(TYPE,'EEG'), 
-        H = eegopen(FILENAME,'r',CHAN);
-	if H.FILE.FID<0, return; end;
-        [signal,H] = eegread(H);
+%if strcmp(TYPE,'BKR') | strcmp(TYPE,'CNT') | strcmp(TYPE,'EDF') | strcmp(TYPE,'BDF') | strcmp(TYPE,'GDF') | strcmp(TYPE,'EEG'), 
+H.FileName = FILENAME;
+H.TYPE = TYPE;
+H = eegopen(H,'r',CHAN);
+if H.FILE.FID>0,
+	[signal,H] = eegread(H);
 	H = eegclose(H);
+	
+	
+elseif strcmp(TYPE,'MIT')
+	[pfad,file,ext]=fileparts(FILENAME);
+
+	fid = fopen([pfad,file,'.hea'],'r');
+	z = fgetl(fid);
+	if ~strcmp(file,strtok(z,' /')),
+		fprintf(2,'Warning: RecordName %s does not fit filename %s\n',strtok(z,' /'),file);
+	end;	
+
+	% sscanf(z, '%*s %d %d %d',[1,3]);
+	[tmp,z] = strtok(z); 
+	[tmp,z] = strtok(z); 
+	H.NS = str2num(tmp);   % number of signals
+	[tmp,z] = strtok(z); 
+	H.SampleRate = str2num(tmp);   % sample rate of data
+	[tmp,z] = strtok(z,' ()'); 
+	H.SPR   = str2num(tmp);   % sample rate of data
+	H.NRec  = 1;
+
+	for k=1:H.NS,
+	    	z = fgetl(fid);
+	        A = sscanf(z, '%*s %d %d %d %d %d',[1,5]);
+		dformat(k,1) = A(1);         % format; here only 212 is allowed
+		gain(k,1) = A(2);              % number of integers per mV
+		bitres(k,1) = A(3);            % bitresolution
+		zerovalue(k,1)  = A(4);         % integer value of ECG zero point
+		H.firstvalue(1,k) = A(5);        % first integer value of signal (to test for errors)
+	end;
+	fclose(fid);
+
+	if all(dformat==dformat(1)),
+		H.VERSION = dformat(1);
+	else
+		fprintf(2,'different DFORMATs not supported.\n');
+		H.FILE.FID = -1;
+		return;
+	end;
+	
+	%------ LOAD BINARY DATA --------------------------------------------------
+	fid = fopen([pfad,file,'.dat'],'r','ieee-le');
+	if H.VERSION == 212, 
+		A = fread(fid, [ceil(H.NS*3/2), inf], 'uint8')';  % matrix with 3 rows, each 8 bits long, = 2*12bit
+		for k = 1:ceil(H.NS/2),
+			signal(:,2*k-1) = bitand(A(:,3*k+[-2:-1])*(2.^[0;8]),2^13-1);
+			signal(:,2*k)   = bitshift(bitand(A(:,3*k-1),15*16),4)+A(:,3*k);
+			signal = signal(:,1:H.NS);
+			signal = signal - 2^12*(signal>=2^11);	% 2-th complement
+		end;
+
+	elseif H.VERSION == 310, 
+		A = fread(fid, [ceil(H.NS*2/3), inf], 'uint16')';  % matrix with 3 rows, each 8 bits long, = 2*12bit
+		for k = 1:ceil(H.NS/3),
+			k1=3*k-2; k2=3*k-1; k3=3*k;
+			signal(:,3*k-2) = bitand(A(:,k*2-1),2^12-2)/2;	
+			signal(:,3*k-1) = bitand(A(:,k*2),2^12-2)/2;	
+			signal(:,3*k  ) = bitshift(A(:,k*2-1),-11) + bitshift(bitshift(A(:,k*2),-11) ,5); 
+			signal = signal(:,1:H.NS);
+			signal = signal - 2^10*(signal>=2^9);	% 2-th complement
+		end;
+
+	elseif H.VERSION == 311, 
+		A = fread(fid, [ceil(H.NS/3), inf], 'uint32')';  % matrix with 3 rows, each 8 bits long, = 2*12bit
+		for k = 1:ceil(H.NS/3),
+			signal(:,3*k-2) = bitand(A(:,k),2^11-1);	
+			signal(:,3*k-1) = bitand(bitshift(A(:,k),-11),2^11-1);	
+			signal(:,3*k)   = bitand(bitshift(A(:,k),-22),2^11-1);	
+			signal = signal(:,1:H.NS);
+			signal = signal - 2^10*(signal>=2^9);	% 2-th complement
+		end;
+
+	elseif H.VERSION == 8, 
+		signal = fread(fid, [H.NS,inf], 'int8')';  
+		signal = cumsum(signal');
+
+	elseif H.VERSION == 80, 
+		signal = fread(fid, [H.NS,inf], 'uint8')';  
+		signal = signal'-128;
+
+	elseif H.VERSION == 160, 
+		signal = fread(fid, [H.NS,inf], 'uint16')';  
+		signal = signal'-2^15;
+
+	elseif H.VERSION == 16, 
+		signal = fread(fid, [H.NS,inf], 'int16')'; 
+		signal = signal';
+
+	elseif H.VERSION == 61, 
+		fclose(fid);
+		fid = fopen([pfad,file,'.dat'],'r','ieee-be');
+		signal = fread(fid, [H.NS,inf], 'int16')'; 
+		signal = signal';
+
+	else
+		fprintf(2, 'ERROR MIT-ECG: format %i not supported.\n',H.VERSION); 
+	
+	end;
+	fclose(fid);
+
+	if any(signal(1,:) ~= H.firstvalue), 
+		fprintf(2,'ERROR MIT-ECG: inconsistency in the first bit values'); 
+	end;
+	for k = 1:H.NS,
+		signal(:,k) = (signal(:,k) - zerovalue(k))/gain(k);
+	end;
+	if all(CHAN>0),
+		signal = signal(:,CHAN);
+	end;
+
+	%------ LOAD ATTRIBUTES DATA ----------------------------------------------
+	fid = fopen([pfad,file,'.atr'],'r','ieee-le');
+	if fid<0,
+		A = []; c = 0;
+	else
+		[A,c]   = fread(fid, [2, inf], 'uint8')';
+		fclose(fid);
+	end;
+	
+	ATRTIME = zeros(c/2,1);
+	ANNOT   = zeros(c/2,1);
+	K = 0;
+	i = 1;
+	while i<=size(A,1),
+    		annoth = bitshift(A(i,2),-2);
+        	if annoth==59,
+			K = K + 1;
+	        	ANNOT(K) = bitshift(A(i+3,2),-2);
+		        ATRTIME(K) = A(i+2,1)+bitshift(A(i+2,2),8)+ bitshift(A(i+1,1),16)+bitshift(A(i+1,2),24);
+			i = i + 3;
+	    	elseif annoth==60
+		        % nothing to do!
+		elseif annoth==61
+			% nothing to do!
+		elseif annoth==62
+		        % nothing to do!
+		elseif annoth==63
+			hilfe = bitshift(bitand(A(i,2),3),8)+A(i,1);
+			hilfe = hilfe + mod(hilfe,2);
+			i = i + hilfe / 2;
+		else
+			K = K+1;
+		        ATRTIME(K) = bitshift(bitand(A(i,2),3),8)+A(i,1);
+		        ANNOT(K)   = bitshift(A(i,2),-2);
+		end;
+		i = i + 1;
+	end;
+
+	ANNOT   = ANNOT(1:K-1);    % last line = EOF (=0)
+	ATRTIME = ATRTIME(1:K-1);  % last line = EOF
+
+	clear A;
+	ATRTIME  = (cumsum(ATRTIME))/H.SampleRate;
+	ind = find(ATRTIME <= size(signal,1)/H.SampleRate);
+	H.ATRTIMED = ATRTIME(ind);
+	ANNOT    = round(ANNOT);
+	H.ANNOTD = ANNOT(ind);
+	
 	
 elseif strcmp(TYPE,'MAT')
         tmp = load(FILENAME);

@@ -1,4 +1,4 @@
-function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,TYPE,arg5,arg6)
+function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % Opens EEG files for reading and writing. 
 % The following data formats are supported: EDF, BKR, CNT, BDF, GDF
 %
@@ -33,16 +33,15 @@ function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,TYPE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.3 $
-%	$Id: eegopen.m,v 1.3 2003-04-25 13:59:28 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: eegopen.m,v 1.4 2003-04-25 20:06:56 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
 
 if nargin<2, PERMISSION = 'r'; end; 
 if nargin<3, CHAN = 0; end; 
-if nargin<4, MODE=''; end;
-if nargin<5, TYPE='unknown'; end;
+if nargin<4, MODE = ''; end;
 
 if ~isstruct(arg1),
 	HDR.FileName = arg1;
@@ -67,115 +66,114 @@ if ~isfield(HDR.FILE,'stdout'),
         HDR.FILE.stdout = 1;
 end;
 
-fid = fopen('HDR.FileName','r');
-if fid>0,
-	[s,c]=fread(fid,8,'uint8');
-	if s=='0       '; 
-		TYPE='EDF';
-	elseif all(s==[255,abs('BIOSEMI')]); 
-		TYPE='EDF';
-	elseif s(1)==207; 
-		TYPE='BKR';
-	elseif s(1:min(3,c))=='GDF'; 
-		TYPE='GDF';
-	elseif s(1:min(4,c))=='RG64'; 
-		TYPE='RG64';
-	elseif s(1:min(6,c))=='IAvSFo'; 
-		TYPE='SIG';
-	elseif s=='Version '; 
-		TYPE='CNT';
-	elseif any(s(4)==(2:7)) & all(s(1:3)==0); % [int32] 2...7
-		TYPE='EGI';
-	elseif s=='ISHNE1.0';	% ISHNE Holter standard output file.
-		TYPE='ISHNE';
-	elseif s(1:min(4,c))=='rhdE';	% Holter Excel 2 file, not supported yet. 
-		TYPE='rhdE';          
-	else
-		TYPE='unknown';
+if exist(HDR.FileName)==2,
+	fid = fopen(HDR.FileName,'r');
+	if fid>0,
+		[s,c] = fread(fid,[1,8],'uint8');
+		if c==8,
+		if strcmp(s,'0       '); 
+			HDR.TYPE='EDF';
+		elseif all(s==[255,abs('BIOSEMI')]); 
+			HDR.TYPE='BDF';
+		elseif strncmp(s,'GDF',3); 
+			HDR.TYPE='GDF';
+		elseif strcmp(s,'Version '); 
+			HDR.TYPE='CNT';
+		elseif strcmp(s,'ISHNE1.0');	% ISHNE Holter standard output file.
+			HDR.TYPE='ISHNE';
+		elseif s(1)==207; 
+			HDR.TYPE='BKR';
+		elseif strncmp(s,'RG64',4); 
+			HDR.TYPE='RG64';
+		elseif strncmp(s,'IAvSFo',6); 
+			HDR.TYPE='SIG';
+		elseif any(s(4)==(2:7)) & all(s(1:3)==0); % [int32] 2...7
+			HDR.TYPE='EGI';
+		elseif strncmp(s,'rhdE',4);	% Holter Excel 2 file, not supported yet. 
+			HDR.TYPE='rhdE';          
+		else
+			%TYPE='unknown';
+		end;
+		end;
+		fclose(fid);
 	end;
-	fclose(fid);
+end;
+if ~isfield(HDR,'TYPE'),
+        HDR.TYPE = upper(FileExt(2:length(FileExt)));;
 end;
 
-if strcmp(TYPE,'unknown')	, 
-        TYPE = upper(FileExt(2:length(FileExt)));
-        
+
         %%% EDF format
-        if     strcmp(TYPE,'REC'), TYPE='EDF';
-        elseif strcmp(TYPE,'EDF'), TYPE='EDF';
+        if     strcmp(HDR.TYPE,'REC'), HDR.TYPE='EDF';
+        elseif strcmp(HDR.TYPE,'EDF'), HDR.TYPE='EDF';
 
-        elseif strcmp(TYPE,'BDF'), TYPE='BDF';
+        elseif strcmp(HDR.TYPE,'BDF'), HDR.TYPE='BDF';
 
-        elseif strcmp(TYPE,'GDF'), TYPE='GDF';
+        elseif strcmp(HDR.TYPE,'GDF'), HDR.TYPE='GDF';
                 
         %%% Neuroscan Format        
-        elseif strcmp(TYPE,'AVG'), TYPE='AVG';
+        elseif strcmp(HDR.TYPE,'AVG'), HDR.TYPE='AVG';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
-        elseif strcmp(TYPE,'COH'), TYPE='COH';
+        elseif strcmp(HDR.TYPE,'COH'), HDR.TYPE='COH';
 		error(sprintf('EEGOPEN: filetype %s not implemented, yet.',TYPE));
-        elseif strcmp(TYPE,'CSA'), TYPE='COH';
+        elseif strcmp(HDR.TYPE,'CSA'), HDR.TYPE='COH';
 		error(sprintf('EEGOPEN: filetype %s not implemented, yet.',TYPE));
-        elseif strcmp(TYPE,'EEG'), TYPE='EEG';
+        elseif strcmp(HDR.TYPE,'EEG'), HDR.TYPE='EEG';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
-        elseif strcmp(TYPE,'CNT'), TYPE='CNT';
-        elseif strcmp(TYPE,'SET'), TYPE='SET';
+        elseif strcmp(HDR.TYPE,'CNT'), HDR.TYPE='CNT';
+        elseif strcmp(HDR.TYPE,'SET'), HDR.TYPE='SET';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
-        elseif strcmp(TYPE,'AST'), TYPE='AST';
+        elseif strcmp(HDR.TYPE,'AST'), HDR.TYPE='AST';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
                 
         %%% BKR Format        
-	elseif strcmp(TYPE,'BKR'), TYPE='BKR';
-	elseif strcmp(TYPE,'SPB'), TYPE='BKR';
+	elseif strcmp(HDR.TYPE,'BKR'), HDR.TYPE='BKR';
+	elseif strcmp(HDR.TYPE,'SPB'), HDR.TYPE='BKR';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
-	elseif strcmp(TYPE,'SAB'), TYPE='BKR';
+	elseif strcmp(HDR.TYPE,'SAB'), HDR.TYPE='BKR';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
-	elseif strcmp(TYPE,'SRB'), TYPE='BKR';
+	elseif strcmp(HDR.TYPE,'SRB'), HDR.TYPE='BKR';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
-	elseif strcmp(TYPE,'MNB'), TYPE='BKR';
+	elseif strcmp(HDR.TYPE,'MNB'), HDR.TYPE='BKR';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
-	elseif strcmp(TYPE,'STB'), TYPE='BKR';
+	elseif strcmp(HDR.TYPE,'STB'), HDR.TYPE='BKR';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
                 
         % MIT-ECG / Physiobank format
-        elseif strcmp(TYPE,'hea'), TYPE='MIT';
-        elseif strcmp(TYPE,'atr'), TYPE='MIT';
+        elseif strcmp(HDR.TYPE,'hea'), HDR.TYPE='MIT';
+        elseif strcmp(HDR.TYPE,'atr'), HDR.TYPE='MIT';
                 
         % other formates        
-        elseif strcmp(TYPE,'LDR'), TYPE='LDR';
+        elseif strcmp(HDR.TYPE,'LDR'), HDR.TYPE='LDR';
 
-        elseif strcmp(TYPE,'DAT'), TYPE='DAT';
+        elseif strcmp(HDR.TYPE,'DAT'), HDR.TYPE='DAT';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
                 
-        elseif strcmp(TYPE,'SIG'), TYPE='SIG';
+        elseif strcmp(HDR.TYPE,'SIG'), HDR.TYPE='SIG';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
                 
-        elseif strcmp(TYPE(1:2),'DA'), TYPE='DA_';
+        elseif strcmp(HDR.TYPE(1:2),'DA'), HDR.TYPE='DA_';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
                 
-        elseif strcmp(TYPE([1,3]),'RF'), TYPE='RG64';
+        elseif strcmp(HDR.TYPE([1,3]),'RF'), HDR.TYPE='RG64';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
                 
 	else
 			
         end; 
-end;
 
-HDR.TYPE = TYPE;
-
-if strcmp(TYPE,'EDF'),
+if strcmp(HDR.TYPE,'EDF'),
         HDR = sdfopen(HDR,PERMISSION,CHAN);
-        HDR.TYPE = TYPE;	% restore type information
 	HDR.FLAG.TRIGGERED = 0;	% Trigger Flag
         
-elseif strcmp(TYPE,'BDF'),
+elseif strcmp(HDR.TYPE,'BDF'),
         HDR = sdfopen(HDR,PERMISSION,CHAN);
-        HDR.TYPE = TYPE;	% restore type information
 	HDR.FLAG.TRIGGERED = 0;	% Trigger Flag
         
-elseif strcmp(TYPE,'GDF'),
-        HDR = sdfopen(HDR.FileName,PERMISSION,CHAN);
-        HDR.TYPE = TYPE;	% restore type information
+elseif strcmp(HDR.TYPE,'GDF'),
+        HDR = sdfopen(HDR,PERMISSION,CHAN);
         
-elseif strcmp(TYPE,'BKR'),
+elseif strcmp(HDR.TYPE,'BKR'),
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
         if HDR.FILE.FID<=0,
                 fprintf(HDR.FILE.stderr,'EEGOPEN: BKR-File %s couldnot be opened\n',HDR.FileName);
@@ -222,31 +220,31 @@ elseif strcmp(TYPE,'BKR'),
 		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
         end;
         
-elseif strcmp(TYPE,'CNT'),
+elseif strcmp(HDR.TYPE,'CNT'),
 	if strcmp(PERMISSION,'r'),
 	        HDR = cntopen(HDR,'r',CHAN);
 	else
 		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
         end;
         
-elseif strcmp(TYPE,'EEG'),
+elseif strcmp(HDR.TYPE,'EEG'),
 	if strcmp(PERMISSION,'r'),
 	        HDR = cntopen(HDR,'r',CHAN);
 	else
 		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
         end;
         
-elseif strcmp(TYPE,'EGI'),
+elseif strcmp(HDR.TYPE,'EGI'),
 	if strcmp(PERMISSION,'r'),
 	        HDR = openegi(HDR,'r',CHAN);
 	else
 		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
         end;
         
-elseif strcmp(TYPE,'LDR'),
+elseif strcmp(HDR.TYPE,'LDR'),
         HDR = openldr(HDR,PERMISSION);      
         
-elseif strcmp(TYPE,'ISHNE'),
+elseif strcmp(HDR.TYPE,'ISHNE'),
 	if strcmp(PERMISSION,'r'),
 		HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le')
 		if HDR.FILE.FID < 0,
@@ -280,6 +278,8 @@ elseif strcmp(TYPE,'ISHNE'),
 		AmplitudeResolution = fread(HDR.FILE.FID,12,'int16');
 		if any(HDR.Lead.AmplitudeResolution(HDR.NS+1:12)~=-9)
 			fprintf(HDR.FILE.stderr,'Warning: AmplitudeResolution and Number of Channels %i do not fit.\n',HDR.NS);
+			fclose(HDR.FILE.FID); 
+			HDR.FILE.FID = -1;	
 		end;
 
 		HDR.PacemakerCode = fread(HDR.FILE.FID,1,'int16');		
@@ -288,13 +288,17 @@ elseif strcmp(TYPE,'ISHNE'),
 		HDR.Proprietary_of_ECG = fread(HDR.FILE.FID,80,'char');		
 		HDR.Copyright = fread(HDR.FILE.FID,80,'char');		
 		HDR.reserved1 = fread(HDR.FILE.FID,80,'char');		
-		if ftell(HDR.FILE.FID)~=HDR.offset_variable_legnth_block,
+		if ftell(HDR.FILE.FID)~=HDR.offset_variable_length_block,
 			fprintf(HDR.FILE.stderr,'ERROR: length of fixed header does not fit %i %i \n',ftell(HDR.FILE.FID),HDR.offset_variable_length_block);
+			fclose(HDR.FILE.FID); 
+			HDR.FILE.FID = -1;	
 			return;
 		end;
-		HDR.VariableHeader=fread(HDR.FILE.FID,HDR.variable_length_block,'char);	
+		HDR.VariableHeader=fread(HDR.FILE.FID,HDR.variable_length_block,'char');	
 		if ftell(HDR.FILE.FID)~=HDR.HeadLen,
 			fprintf(HDR.FILE.stderr,'ERROR: length of variable header does not fit %i %i \n',ftell(HDR.FILE.FID),HDR.HeadLen);
+			fclose(HDR.FILE.FID); 
+			HDR.FILE.FID = -1;	
 			return;
 		end;
 
@@ -304,6 +308,8 @@ elseif strcmp(TYPE,'ISHNE'),
 			HDR.SIE.InChanSelect = CHAN;
 		else
 			fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+			fclose(HDR.FILE.FID); 
+			HDR.FILE.FID = -1;	
 			return;
 		end;
 		
@@ -311,13 +317,15 @@ elseif strcmp(TYPE,'ISHNE'),
 		HDR.PhysDim = 'uV';
 		HDR.AS.bpb = 2*HDR.NS;
 		HDR.AS.endpos = 8+2+512+HDR.variable_length_block+HDR.NS*2*HDR.SPR;
+		HDR.FLAG.TRIGGERED = 0;	% Trigger Flag
 		
 	else
 		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
 	end;			
 
 else
-	fprintf(HDR.FILE.stderr,'Format not supported yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
+	%fprintf(HDR.FILE.stderr,'Format not supported yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
+	HDR.FILE.FID = -1;	
 
 end;
 
