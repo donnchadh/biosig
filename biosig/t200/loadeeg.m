@@ -1,5 +1,8 @@
 function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % LOADEEG loads EEG data of various data formats
+% 
+% Currently are the following data formats supported: 
+%    EDF, CNT, EEG, BDF, GDF, BKR, MAT(*) 
 %
 %       HDR = eegopen(FILENAME,'r',CHANNEL);
 %	[signal,HDR] = eegread(HDR);
@@ -13,9 +16,10 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % TYPE (optional) forces a certain dataformat
 %
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
+%
 
-%	$Revision: 1.7 $
-%	$Id: loadeeg.m,v 1.7 2003-03-13 18:52:33 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: loadeeg.m,v 1.8 2003-03-14 08:13:53 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -89,18 +93,12 @@ if nargin<3,
 end;
 TYPE = upper(TYPE);
 
-if strcmp(TYPE,'BKR') | strcmp(TYPE,'CNT') | strcmp(TYPE,'EDF')| strcmp(TYPE,'BDF')|strcmp(TYPE,'GDF')| strcmp(TYPE,'EEG'), 
+if strcmp(TYPE,'BKR') | strcmp(TYPE,'CNT') | strcmp(TYPE,'EDF') | strcmp(TYPE,'BDF') | strcmp(TYPE,'GDF') | strcmp(TYPE,'EEG'), 
         H = eegopen(FILENAME,'r',CHAN);
 	if H.FILE.FID<0, return; end;
         [signal,H] = eegread(H);
 	H = eegclose(H);
 	
-elseif strcmp(TYPE,'DAT')
-        loaddat;     
-        signal = Voltage(:,CHAN);
-elseif strcmp(TYPE,'EBS') 
-        loadebs;
-
 elseif strcmp(TYPE,'MAT')
         tmp = load(FILENAME);
         if isfield(tmp,'y')
@@ -133,33 +131,29 @@ elseif strcmp(TYPE,'MAT')
         	        signal = tmp.eeg;
                 end;
                 
-        elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02 Data format
-                if isstruct(tmp.P_C_S),	% without gb-software	
+        elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.50 data format
+                if isstruct(tmp.P_C_S),	% without BS.analyze	
                         if (tmp.P_C_S.version==1.02) | (tmp.P_C_S.version==1.5),
-                                
                                 H.Filter.LowPass  = tmp.P_C_S.lowpass;
                                 H.Filter.HighPass = tmp.P_C_S.highpass;
                                 H.Filter.Notch    = tmp.P_C_S.notch;
-                                H.SampleRate = tmp.P_C_S.samplingfrequency;
+                                H.SampleRate   = tmp.P_C_S.samplingfrequency;
                                 H.AS.Attribute = tmp.P_C_S.attribute;
                                 
-                                sz   = size(tmp.P_C_S.data);
                                 data = double(tmp.P_C_S.data);
                                 
                         else
                                 fprintf(2,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.version);
                         end;        
                         
-                elseif 1,	% with GB-analyze software, ML6.5
+                elseif 1,	% with BS.analyze software, ML6.5
                         if (tmp.P_C_S.Version==1.02) | (tmp.P_C_S.Version==1.5),
-                                
-                                H.Filter.LowPass = tmp.P_C_S.LowPass;
+                                H.Filter.LowPass  = tmp.P_C_S.LowPass;
                                 H.Filter.HighPass = tmp.P_C_S.HighPass;
-                                H.Filter.Notch = tmp.P_C_S.Notch;
-                                H.SampleRate = tmp.P_C_S.SamplingFrequency;
+                                H.Filter.Notch    = tmp.P_C_S.Notch;
+                                H.SampleRate   = tmp.P_C_S.SamplingFrequency;
                                 H.AS.Attribute = tmp.P_C_S.Attribute;
                                 
-                                sz   = size(tmp.P_C_S.Data);
                                 data = double(tmp.P_C_S.Data);
                                 
                         else
@@ -167,10 +161,11 @@ elseif strcmp(TYPE,'MAT')
                         end;
                 end;
                 
+                sz   = size(data);
                 H.NRec = sz(1);
                 H.Dur  = sz(2)/H.SampleRate;
                 H.NS   = sz(3);
-                H.FLAG.TRIGGERED  = H.NRec>1;
+                H.FLAG.TRIGGERED = H.NRec>1;
                 
                 if any(CHAN),
                         %signal=signal(:,CHAN);
@@ -180,11 +175,7 @@ elseif strcmp(TYPE,'MAT')
                 end;
                 
                 tmp.P_C_S = []; % clear memory
-                signal = repmat(NaN,sz(1)*sz(2),sz(3)); 
-                for k1 = 1:sz(1),
-                        signal((k1-1)*sz(2)+(1:sz(2)),:) = reshape(data(k1,:,CHAN),sz(2:3));
-                end;
-                cali = 1;
+                signal = reshape(permute(data(:,:,CHAN),[2,1,3]),[sz(1)*sz(2),sz(3)]);
                 
         elseif isfield(tmp,'P_C_DAQ_S');
                 signal = double(tmp.P_C_DAQ_S.data{1});
@@ -192,6 +183,11 @@ elseif strcmp(TYPE,'MAT')
                 %H.PhysDim=tmp.P_C_DAQ_S.unit;     %propriatory information
                 %scale=tmp.P_C_DAQ_S.sens;         %propriatory information
                 H.SampleRate = tmp.P_C_DAQ_S.samplingfrequency;
+                sz     = size(signal);
+                H.NRec = sz(1);
+                H.Dur  = sz(2)/H.SampleRate;
+                H.NS   = sz(3);
+                H.FLAG.TRIGGERED = H.NRec>1;
                 
         elseif isfield(tmp,'data');
                 H.NS = size(tmp.data,2);
@@ -256,6 +252,11 @@ elseif strcmp(TYPE,'MAT')
                 end;        
         end;        
         
+elseif strcmp(TYPE,'DAT')
+        loaddat;     
+        signal = Voltage(:,CHAN);
+elseif strcmp(TYPE,'EBS') 
+        loadebs;
 elseif strcmp(TYPE,'RAW')
         loadraw;
 elseif strcmp(TYPE,'RDT')
