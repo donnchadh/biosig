@@ -1,12 +1,12 @@
 function [LDBC,ix]=ldbc(ECM,Y)
 % Linear discriminant based classifier
-% [LDBC] = ldbc(ECM);
+% [LDBC] = ldbc1(ECM);
 % LDBC is a multiple discriminator
 %
 % The difference to LDBC.M is, that LDBC1.M uses the within-class
 % covariance matrices, whereas LDBC.M uses the overall covariance matrix.
 %
-% [LD] = ldbc(ECM,D);
+% [LD] = ldbc1(ECM,D);
 % calculates the LD to each class
 %
 % ECM 	is the extended covariance matrix
@@ -16,11 +16,11 @@ function [LDBC,ix]=ldbc(ECM,Y)
 % LD    mahalanobis distance
 % C     classification output
 % 
-% see also: LDBC1, DECOVM, R2, MDBC
+% see also: DECOVM, R2, MDBC, LDBC
 
-%	$Revision: 1.3 $
-%	$Id: ldbc.m,v 1.3 2004-10-13 14:35:52 schloegl Exp $
-%	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.1 $
+%	$Id: ldbc1.m,v 1.1 2004-10-13 14:35:52 schloegl Exp $
+%	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -68,19 +68,20 @@ for k = 1:NC(1);
         nn = ECM{k}(1,1);	% number of samples in training set for class k
         XC = ECM{k}/nn;		% normalize correlation matrix
         M  = XC(1,2:c);		% mean 
-        S  = XC(2:c,2:c) - M'*M;% covariance matrix
+        S{k}  = XC(2:c,2:c) - M'*M;% covariance matrix
         C0 = C0 + ECM{k};
         m{k}=M;
         %M  = M/nn; S=S/(nn-1);
-        IR{k} = [-M;eye(NC(2)-1)]*inv(S)*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean 
+        %IR{k} = [-M;eye(NC(2)-1)]*inv(S)*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean 
 end;
 [M0,sd,COV0,xc,N,R2] = decovm(C0);
 
 K=1;
 for k = 1:NC(1);
 for l = k+1:NC(1);
-	w     = COV0\(m{l}'-m{k}');
-	w0    = -M0*w;
+        [M0,sd,COV0,xc,N,R2] = decovm(ECM{k}+ECM{l});
+        w     = COV0\(m{l}'-m{k}');
+        w0    = -M0*w;
         LDC(:,K) = [w0; w];
         K=K+1;
 end;
@@ -89,13 +90,6 @@ end;
 if nargin<2,
         LDBC = LDC;	% inverse correlation matrix
 else
-        LDBC=zeros(size(Y,1),size(LDC,2)); %allocate memory
-        %for k = 1:size(LDC,2);  
-                %MDBC(:,k) = sqrt(sum((Y*IR{k}).*Y,2)); % calculate distance of each data point to each class
-        %end;
         LDBC = Y*LDC;
         
-        %if nargout>1,
-        %        [LDBC,ix] = min(LDBC,[],2);
-        %end;
 end;
