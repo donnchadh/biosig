@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.11 $
-%	$Id: sdfopen.m,v 1.11 2004-01-23 10:15:54 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: sdfopen.m,v 1.12 2004-01-25 02:18:09 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -319,7 +319,6 @@ else
         EDF.NS      = str2double(H1(253:256));     % 4 Bytes  # of signals
 	EDF.AS.H1   = H1;	                     % for debugging the EDF Header
 end;
-
 if strcmp(EDF.reserved1(1:4),'EDF+'),	% EDF+ specific header information 
 	[EDF.Patient.Id,   tmp] = strtok(EDF.PID,' ');
 	[EDF.Patient.Sex,  tmp] = strtok(tmp,' ');
@@ -508,7 +507,6 @@ if EDF.NRec == -1   % unknown record size, determine correct NRec
         EDF.NRec = floor((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
 elseif  EDF.NRec ~= ((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
         EDF.ErrNo=[16,EDF.ErrNo];
-	
 	fprintf(2,'\nWarning SDFOPEN: size (%i) of file %s does not fit headerinformation\n',EDF.AS.endpos,EDF.FileName);
         
 	EDF.NRec = floor((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);

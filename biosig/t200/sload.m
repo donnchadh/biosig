@@ -15,8 +15,8 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % see also: SOPEN, SREAD, SCLOSE
 %
 
-%	$Revision: 1.7 $
-%	$Id: sload.m,v 1.7 2004-01-09 18:26:38 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: sload.m,v 1.8 2004-01-25 02:18:09 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -34,7 +34,6 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % License along with this library; if not, write to the
 % Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 % Boston, MA  02111-1307, USA.
-
 
 if nargin<2; CHAN=0; end;
 
@@ -57,7 +56,11 @@ FileExt = FileExt(2:length(FileExt));
 H.FileName = FILENAME;
 H = sopen(H,'rb',CHAN);
 
-if H.FILE.FID>0,
+if strcmp(H.TYPE,'SCPECG'),
+        signal = H.SCP.data;
+        return;
+        
+elseif H.FILE.FID>0,
         [signal,H] = sread(H);
         H = sclose(H);
 
@@ -180,8 +183,8 @@ elseif strncmp(H.TYPE,'MAT',3),
                         H.Label = tmp.P_C_S.ChannelName;
                         H.AS.EpochingSelect = tmp.P_C_S.EpochingSelect;
                         H.AS.EpochingName = tmp.P_C_S.EpochingName;
-                        
                         signal = double(tmp.P_C_S.Data);
+
                         
                 else %if isfield(tmp.P_C_S,'Version'),	% with BS.analyze software, ML6.5
                         if any(tmp.P_C_S.version==[1.02, 1.5, 1.52]),
