@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.5 $
-%	$Id: sdfopen.m,v 1.5 2003-07-18 22:22:43 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: sdfopen.m,v 1.6 2003-07-19 13:48:20 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -163,7 +163,7 @@ GDFTYP_BYTE(1:18)=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8]';
 EDF.ErrNo = 0;
 
 %%%%%%% ============= READ ===========%%%%%%%%%%%%
-if (strcmp(arg2,'r') | strcmp(arg2,'r+')) 
+if any(arg2=='r'), %(strcmp(arg2,'r') | strcmp(arg2,'r+')) 
 
 [EDF.FILE.FID,MESSAGE]=fopen(FILENAME,arg2,'ieee-le');          
 %EDF.FILE.FID=fid;
@@ -175,11 +175,7 @@ if EDF.FILE.FID<0
         EDF.ErrNo = [32,EDF.ErrNo];
 	return;
 end;
-if (arg2=='r') 
-        EDF.FILE.OPEN = 1;
-elseif (arg2=='r+') 
-        EDF.FILE.OPEN = 2;
-end;
+EDF.FILE.OPEN = 1 + any(arg2=='+') 
 EDF.FileName = FILENAME;
 
 PPos=min([max(find(FILENAME=='.')) length(FILENAME)+1]);
@@ -218,23 +214,27 @@ IsGDF=strcmp(EDF.VERSION(1:3),'GDF');
 if strcmp(EDF.VERSION(1:3),'GDF'),
         %EDF.T0=[str2num(H1(168+[1:4])) str2num(H1(168+[5 6])) str2num(H1(168+[7 8])) str2num(H1(168+[9 10])) str2num(H1(168+[11 12])) str2num(H1(168+[13:16]))/100 ];
         if 1, % if strcmp(EDF.VERSION(4:8),' 0.12'); % in future versions the date format might change. 
-      		EDF.T0(1) = str2num( H1(168 + [ 1:4]));
-		EDF.T0(2) = str2num( H1(168 + [ 5 6]));
-        	EDF.T0(3) = str2num( H1(168 + [ 7 8]));
-        	EDF.T0(4) = str2num( H1(168 + [ 9 10]));
-        	EDF.T0(5) = str2num( H1(168 + [11 12]));
-        	EDF.T0(6) = str2num( H1(168 + [13:16]))/100;
+      		EDF.T0(1,1) = str2num( H1(168 + [ 1:4]));
+		EDF.T0(1,2) = str2num( H1(168 + [ 5 6]));
+        	EDF.T0(1,3) = str2num( H1(168 + [ 7 8]));
+        	EDF.T0(1,4) = str2num( H1(168 + [ 9 10]));
+        	EDF.T0(1,5) = str2num( H1(168 + [11 12]));
+        	EDF.T0(1,6) = str2num( H1(168 + [13:16]))/100;
      	end; 
      
 	if str2num(EDF.VERSION(4:8))<0.12
                 tmp = setstr(fread(EDF.FILE.FID,8,'uchar')');    % 8 Byte  Length of Header
                 EDF.HeadLen = str2num(tmp);    % 8 Byte  Length of Header
         else
-                EDF.HeadLen = fread(EDF.FILE.FID,1,'int64');    % 8 Byte  Length of Header
+		%EDF.HeadLen = fread(EDF.FILE.FID,1,'int64');    % 8 Byte  Length of Header
+		EDF.HeadLen = fread(EDF.FILE.FID,1,'int32');    % 8 Byte  Length of Header
+		tmp         = fread(EDF.FILE.FID,1,'int32');    % 8 Byte  Length of Header
         end;
         EDF.reserved1 = fread(EDF.FILE.FID,8+8+8+20,'uchar');     % 44 Byte reserved
         
-        EDF.NRec = fread(EDF.FILE.FID,1,'int64');     % 8 Byte  # of data records
+        %EDF.NRec = fread(EDF.FILE.FID,1,'int64');     % 8 Byte  # of data records
+        EDF.NRec = fread(EDF.FILE.FID,1,'int32');     % 8 Byte  # of data records
+                   fread(EDF.FILE.FID,1,'int32');     % 8 Byte  # of data records
         if strcmp(EDF.VERSION(4:8),' 0.10')
                 EDF.Dur =  fread(EDF.FILE.FID,1,'float64');    % 8 Byte  # duration of data record in sec
         else
@@ -416,8 +416,13 @@ else
 %       EDF.AS.GDF.TEXT = EDF.GDFTYP.TEXT;
         EDF.PhysMin    =         fread(EDF.FILE.FID,[EDF.NS,1],'float64');	
         EDF.PhysMax    =         fread(EDF.FILE.FID,[EDF.NS,1],'float64');	
-        EDF.DigMin     =         fread(EDF.FILE.FID,[EDF.NS,1],'int64');	
-        EDF.DigMax     =         fread(EDF.FILE.FID,[EDF.NS,1],'int64');	
+
+        %EDF.DigMin     =         fread(EDF.FILE.FID,[EDF.NS,1],'int64');	
+        %EDF.DigMax     =         fread(EDF.FILE.FID,[EDF.NS,1],'int64');	
+	tmp            =         fread(EDF.FILE.FID,[2*EDF.NS,1],'int32');	
+        EDF.DigMin     = tmp((1:EDF.NS)*2-1);
+        tmp            =         fread(EDF.FILE.FID,[2*EDF.NS,1],'int32');	
+        EDF.DigMax     = tmp((1:EDF.NS)*2-1);
         
         EDF.PreFilt    =  setstr(fread(EDF.FILE.FID,[80,EDF.NS],'uchar')');	%	
         EDF.SPR        =         fread(EDF.FILE.FID,[ 1,EDF.NS],'uint32')';	%	samples per data record
@@ -1015,7 +1020,7 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
 
 %%%%%%% ============= WRITE ===========%%%%%%%%%%%%        
 
-elseif (arg2=='w') | (arg2=='w+')
+elseif any(arg2=='w') %  | (arg2=='w+')
 %        fprintf(EDF.FILE.stderr,'error EDFOPEN: write mode not possible.\n'); 
         H1=[]; H2=[];
 %        return;
@@ -1045,11 +1050,11 @@ if ~isstruct(arg1)  % if arg1 is the filename
 end;
 
 FILENAME=EDF.FileName;
-if (arg2=='w') 
-        [fid,MESSAGE]=fopen(FILENAME,'w','ieee-le');          
-elseif (arg2=='w+')  % may be called only by SDFCLOSE
+if ~any(arg2=='+') 
+        [fid,MESSAGE]=fopen(FILENAME,'w+b','ieee-le');          
+else  % (arg2=='w+')  % may be called only by SDFCLOSE
         if EDF.FILE.OPEN==2 
-                [fid,MESSAGE]=fopen(FILENAME,'r+','ieee-le');          
+                [fid,MESSAGE]=fopen(FILENAME,'r+b','ieee-le');          
         else
                 fprintf(EDF.FILE.stderr,'Error SDFOPEN-W+: Cannot open %s for write access\n',FILENAME);
                 return;
@@ -1179,7 +1184,7 @@ end;
 if ~isfield(EDF,'DigMin')
         fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.DigMin not defined\n');
         EDF.DigMin=repmat(nan,EDF.NS,1);
-        %EDF.ERROR = sprintf('Error SDFOPEN-W: EDF.DigMax not defined\n');
+        %EDF.ERROR = sprintf('Error SDFOPEN-W: EDF.DigMin not defined\n');
         %EDF.ErrNo = EDF.ErrNo + 128;
         %fclose(EDF.FILE.FID); return;
 else
@@ -1234,12 +1239,14 @@ H1(88+(1:length(EDF.RID)))=EDF.RID;
 if strcmp(EDF.VERSION(1:3),'GDF'),
         H1(168+(1:16))=sprintf('%04i%02i%02i%02i%02i%02i%02i',floor(EDF.T0),floor(100*rem(EDF.T0(6),1)));
         c=fwrite(fid,abs(H1(1:184)),'uchar');
-        c=fwrite(fid,EDF.HeadLen,'int64');
+        %c=fwrite(fid,EDF.HeadLen,'int64');
+        c=fwrite(fid,[EDF.HeadLen,0],'int32');
         c=fwrite(fid,ones(8,1)*32,'uint8'); % EP_ID=ones(8,1)*32;
         c=fwrite(fid,ones(8,1)*32,'uint8'); % Lab_ID=ones(8,1)*32;
         c=fwrite(fid,ones(8,1)*32,'uint8'); % T_ID=ones(8,1)*32;
         c=fwrite(fid,ones(20,1)*32,'uint8'); % 
-        c=fwrite(fid,EDF.NRec,'int64');
+        %c=fwrite(fid,EDF.NRec,'int64');
+        c=fwrite(fid,[EDF.NRec,0],'int32');
         %fwrite(fid,EDF.Dur,'float64');
         [n,d]=rat(EDF.Dur); fwrite(fid,[n d], 'uint32');
 	c=fwrite(fid,EDF.NS,'uint32');
@@ -1304,14 +1311,20 @@ if ~strcmp(EDF.VERSION(1:3),'GDF');
                 fwrite(fid,abs(h2(:,idx1(k)+1:idx1(k+1)))','uchar');
         end;
 else
-        fwrite(fid, EDF.Label','16*uchar');
-        fwrite(fid, EDF.Transducer','80*uchar');
-        fwrite(fid, EDF.PhysDim','8*uchar');
+        fwrite(fid, abs(EDF.Label)','uchar');
+        fwrite(fid, abs(EDF.Transducer)','uchar');
+        fwrite(fid, abs(EDF.PhysDim)','uchar');
         fwrite(fid, EDF.PhysMin,'float64');
         fwrite(fid, EDF.PhysMax,'float64');
-        fwrite(fid, EDF.DigMin,'int64');
-        fwrite(fid, EDF.DigMax,'int64');
-        fwrite(fid, EDF.PreFilt','80*uchar');
+	if exist('OCTAVE_VERSION')>4,  % Octave does not support INT64 yet. 
+        	fwrite(fid, [EDF.DigMin,-(EDF.DigMin<0)]','int32');
+	        fwrite(fid, [EDF.DigMax,-(EDF.DigMax<0)]','int32');
+        else
+		fwrite(fid, EDF.DigMin, 'int64');
+	        fwrite(fid, EDF.DigMax, 'int64');
+	end;
+
+        fwrite(fid, abs(EDF.PreFilt)','uchar');
         fwrite(fid, EDF.SPR,'uint32');
         fwrite(fid, EDF.GDFTYP,'uint32');
         fprintf(fid,'%c',32*ones(32,EDF.NS));

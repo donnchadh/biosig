@@ -18,8 +18,8 @@ function [HDR]=eegclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.2 $
-%	$Id: eegclose.m,v 1.2 2003-07-18 15:23:22 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: eegclose.m,v 1.3 2003-07-19 13:48:20 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org
 
@@ -50,9 +50,15 @@ if HDR.FILE.OPEN>=2,
          	tmp = floor((EndPos - HDR.HeadLen) / HDR.AS.bpb);  % calculate number of records
         	if ~isnan(tmp)
         	        HDR.NRec=tmp;
-        	end;
+			fseek(HDR.FILE.FID,236,'bof');
+			if strcmp(HDR.TYPE,'GDF')
+			        c=fwrite(HDR.FILE.FID,[HDR.NRec,0],'int32');
+			else	
+			        fprintf(HDR.FILE.FID,'%-8i',HDR.NRec);
+			end;
+		end;
         	%fclose(HDR.FILE.FID);
-        	HDR=sdfopen(HDR,'w+');                    % update header information
+        	%HDR=sdfopen(HDR,'w+');                    % update header information
 	end;
 end;
 
