@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.83 $
-%	$Id: sopen.m,v 1.83 2004-12-28 20:35:11 schloegl Exp $
+%	$Revision: 1.84 $
+%	$Id: sopen.m,v 1.84 2004-12-30 21:47:38 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -3097,6 +3097,27 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 clear tmp; 
 		
                 
+        elseif isfield(tmp,'Signal') & isfield(tmp,'Flashing') & isfield(tmp,'StimulusCode')
+                HDR.INFO = 'BCI competition 2005, dataset II (Albany)'; 
+                HDR.SampleRate = 240; 
+		HDR.Filter.LowPass   = 60;
+		HDR.Filter.HighPass  = 0.1;
+                [HDR.NRec,HDR.SPR,HDR.NS] = size(tmp.Signal); 
+		HDR.BCI2000.Flashing = tmp.Flashing;
+		HDR.BCI2000.StimulusCode = tmp.StimulusCode;
+		if isfield(tmp,'TargetChar')
+			HDR.BCI2000.TargetChar = tmp.TargetChar;
+		end;	
+		if isfield(tmp,'StimulusType')
+			HDR.BCI2000.StimulusType = tmp.StimulusType;
+		end;	
+
+		HDR.FILE.POS = 0; 
+                HDR.TYPE = 'native'; 
+		HDR.data = reshape(tmp.Signal,[HDR.NRec*HDR.SPR, HDR.NS]);
+		clear tmp;
+		
+                
         elseif isfield(tmp,'run') & isfield(tmp,'trial') & isfield(tmp,'sample') & isfield(tmp,'signal') & isfield(tmp,'TargetCode');
                 HDR.INFO='BCI competition 2003, dataset 2a (Albany)'; 
                 HDR.SampleRate = 160; 
@@ -3333,19 +3354,19 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.data = tmp.ECoGdata';
                 HDR.T0 = datevec(datenum(tmp.dataset.filetype.timestamp));
                 HDR.SampleRate = tmp.dataset.specs.sample_rate;
-                HDR.FILTER.HighPass = tmp.dataset.specs.filters.lowcut;
-                HDR.FILTER.LowPass = tmp.dataset.specs.filters.highcut;
+                HDR.Filter.HighPass = tmp.dataset.specs.filters.lowcut;
+                HDR.Filter.LowPass = tmp.dataset.specs.filters.highcut;
                 if isfield(tmp.dataset.specs.filters,'notch60');
                         HDR.FILTER.Notch = tmp.dataset.specs.filters.notch60*60;
                 end;
                 HDR.Patient.Sex = tmp.dataset.subject_info.gender; 
                 HDR.Patient.Age = tmp.dataset.subject_info.age; 
                 HDR.Label = tmp.dataset.electrode.names;
-                HDR.NS = tmp.dataset.electrode.number;
+                HDR.NS    = tmp.dataset.electrode.number;
 
                 trigchancode = getfield(tmp.dataset.electrode.options,'TRIGGER');
                 HDR.AS.TRIGCHAN = find(tmp.dataset.electrode.region==trigchancode);
-                HDR.TRIG =  tmp.dataset.trigger.trigs_all;
+                HDR.TRIG  = tmp.dataset.trigger.trigs_all;
                 
                 HDR.FLAG.TRIGGERED = 0;
                 HDR.NRec  = 1; 

@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.35 $
-%	$Id: sread.m,v 1.35 2004-12-28 20:35:12 schloegl Exp $
+%	$Revision: 1.36 $
+%	$Id: sread.m,v 1.36 2004-12-30 21:47:38 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -550,7 +550,7 @@ elseif strmatch(HDR.TYPE,{'native','SCP'}),
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
 
-	nr = min(HDR.SampleRate * NoS, size(HDR.data,1) - HDR.FILE.POS);
+	nr = min(round(HDR.SampleRate * NoS), size(HDR.data,1) - HDR.FILE.POS);
         
         S  = HDR.data(HDR.FILE.POS + (1:nr), HDR.InChanSelect);
         
