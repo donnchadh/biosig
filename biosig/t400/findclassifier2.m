@@ -28,7 +28,7 @@ function [CC,Q,tsd,md]=findclassifier2(D,TRIG,cl,T,t0,SWITCH)
 
 
 %   Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Id: findclassifier2.m,v 1.3 2004-09-02 22:12:14 schloegl Exp $
+%	$Id: findclassifier2.m,v 1.4 2005-02-08 14:47:27 schloegl Exp $
 
 
 % This program is free software; you can redistribute it and/or
@@ -64,6 +64,7 @@ if length(TRIG)~=length(cl);
         fprintf(2,'number of Triggers do not match class information');
 end;
 
+cl = cl(:);
 CL = unique(cl(~isnan(cl)));
 
 CL = sort(CL);
@@ -110,13 +111,23 @@ for k = 1:size(T,1),
                 ix(~tmp) = CL(ix(~tmp));
                 tmp = histo3([ix;CL(:)]);
                 cmx(tmp.X,l) = tmp.H-1;            
+                
+                [tmp] = gdbc({C{k,:}},D(t(:),:));
+                [tmp,ix] = min(tmp,[],2);
+                tmp = isnan(tmp);
+                ix(tmp) = NaN; %NC(1)+1;	% not classified; any value but not 1:length(MD)
+                ix(~tmp) = CL(ix(~tmp));
+                tmp = histo3([ix;CL(:)]);
+                cmx2(tmp.X,l) = tmp.H-1;            
         end;
-        CMX(k,:,:)  = cmx;
-        CC.KAPPA(k) = kappa(cmx);
-        CC.ACC(k)   = sum(diag(cmx))/sum(cmx(:));
+        CMX(k,:,:)   = cmx;
+        CC.KAPPA(k)  = kappa(cmx);
+        CC.ACC(k)    = sum(diag(cmx))/sum(cmx(:));
+        CC.KAPPA2(k) = kappa(cmx2);
+        CC.ACC2(k)   = sum(diag(cmx2))/sum(cmx2(:));
 
-        t = perm(TRIG,T(k,:));
-        tmp = repmat(cl(:)',size(T,2),1);
+        t = perm(TRIG(~isnan(cl)),T(k,:));
+        tmp = repmat(cl(~isnan(cl))',size(T,2),1);
         [tmp,acc_g(k,:),kap_g(k,:),H] = gdbc({C{k,:}},D(t(:),:),tmp(:));
 end;	
 CC.GDBC.acc = acc_g;
@@ -143,15 +154,18 @@ CC.qc = [CC.QC',CC.KAPPA',CC.ACC',CC.QC2'];
 CC.TIS = TI;
 CC.TI  = TI(2);
 %if any(TI(1)~=TI),
-        fprintf(1,'FINDCLASSIFIER2: \nTIS:  %i\t%i\t%i\t%i',TI);
-        fprintf(1,'\n     %5.3f\t%5.3f\t%5.3f\t%5.3f\n',maxQ);
+%        fprintf(1,'FINDCLASSIFIER2: \nTIS:  %i\t%i\t%i\t%i',TI);
+%        fprintf(1,'\n     %5.3f\t%5.3f\t%5.3f\t%5.3f\n',maxQ);
 %end;
 
 % build MD classifier 
-CC.MD  = {C{CC.TI,:}};
-CC.IR  = mdbc({C{CC.TI,:}});
 CC.D   = d{CC.TI};
 CC.Q   = CC.QC(CC.TI);
+CC.MD  = {C{CC.TI,:}};
+
+if SWITCH<0, return; end; 
+
+CC.IR  = mdbc({C{CC.TI,:}});
 CC.CMX = squeeze(CMX(CC.TI,:,:));
 CC.CMX = CMX;
 CC.tsc = T(CC.TI,[1,end]);
@@ -253,6 +267,18 @@ for l = find(~isnan(cl(:)'));1:length(cl);
         JKGD(:,:,l) = d;
         [tmp,GDIX(:,l)] = max(d,[],2);
         
+        d = ldbc2(cc,D(t,:));
+        LDA2(:,:,l) = d;
+        [tmp,LD2IX(:,l)] = max(d,[],2);
+        
+        d = ldbc3(cc,D(t,:));
+        LDA3(:,:,l) = d;
+        [tmp,LD3IX(:,l)] = max(d,[],2);
+        
+        d = ldbc4(cc,D(t,:));
+        LDA4(:,:,l) = d;
+        [tmp,LD4IX(:,l)] = max(d,[],2);
+        
         if length(CL)==2,
                 JKD5(:,l) = d(:,1);
                 JKD6(:,l) = d(:,2);
@@ -278,12 +304,48 @@ CC.MD2.I  = zeros([size(MDIX,1),1]);
 tmp   = zeros([size(MDIX,1),length(CL)]);
 for k = 1:length(CL),
 
-        jkd = squeeze(JKGD(:,k,:));
-        o = bci3eval(jkd(:,cl~=k),jkd(:,cl==k),2);
-        CC.MD3.TSD{k}  = o;
-        CC.MD3.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,cl~=k),[],2)))/2;
+        jkd = squeeze(LDA4(:,k,:));
+        o = bci3eval(jkd(:,(cl~=k)&~isnan(cl)),jkd(:,cl==k),2);
+        CC.LD4.TSD{k}  = o;
+        CC.LD4.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,(cl~=k)&~isnan(cl)),[],2)))/2;
         [sum0,n0,ssq0]=sumskipnan(jkd(:,cl==k),2);
-        [sum1,n1,ssq1]=sumskipnan(jkd(:,cl~=k),2);
+        [sum1,n1,ssq1]=sumskipnan(jkd(:,(cl~=k)&~isnan(cl)),2);
+        s0  = (ssq0-sum0.*sum0./n0)./(n0-1);
+        s1  = (ssq1-sum1.*sum1./n1)./(n1-1);
+        s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
+        SNR = 2*s./(s0+s1); % this is SNR+1 
+        CC.LD4.I1(:,k) = log2(SNR)/2;
+
+        jkd = squeeze(LDA3(:,k,:));
+        o = bci3eval(jkd(:,(cl~=k)&~isnan(cl)),jkd(:,cl==k),2);
+        CC.LD3.TSD{k}  = o;
+        CC.LD3.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,(cl~=k)&~isnan(cl)),[],2)))/2;
+        [sum0,n0,ssq0]=sumskipnan(jkd(:,cl==k),2);
+        [sum1,n1,ssq1]=sumskipnan(jkd(:,(cl~=k)&~isnan(cl)),2);
+        s0  = (ssq0-sum0.*sum0./n0)./(n0-1);
+        s1  = (ssq1-sum1.*sum1./n1)./(n1-1);
+        s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
+        SNR = 2*s./(s0+s1); % this is SNR+1 
+        CC.LD3.I1(:,k) = log2(SNR)/2;
+
+        jkd = squeeze(LDA2(:,k,:));
+        o = bci3eval(jkd(:,(cl~=k)&~isnan(cl)),jkd(:,cl==k),2);
+        CC.LD2.TSD{k}  = o;
+        CC.LD2.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,(cl~=k)&~isnan(cl)),[],2)))/2;
+        [sum0,n0,ssq0]=sumskipnan(jkd(:,cl==k),2);
+        [sum1,n1,ssq1]=sumskipnan(jkd(:,(cl~=k)&~isnan(cl)),2);
+        s0  = (ssq0-sum0.*sum0./n0)./(n0-1);
+        s1  = (ssq1-sum1.*sum1./n1)./(n1-1);
+        s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
+        SNR = 2*s./(s0+s1); % this is SNR+1 
+        CC.LD2.I1(:,k) = log2(SNR)/2;
+        
+        jkd = squeeze(JKGD(:,k,:));
+        o = bci3eval(jkd(:,(cl~=k)&~isnan(cl)),jkd(:,cl==k),2);
+        CC.MD3.TSD{k}  = o;
+        CC.MD3.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,(cl~=k)&~isnan(cl)),[],2)))/2;
+        [sum0,n0,ssq0]=sumskipnan(jkd(:,cl==k),2);
+        [sum1,n1,ssq1]=sumskipnan(jkd(:,(cl~=k)&~isnan(cl)),2);
         s0  = (ssq0-sum0.*sum0./n0)./(n0-1);
         s1  = (ssq1-sum1.*sum1./n1)./(n1-1);
         s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
@@ -291,11 +353,11 @@ for k = 1:length(CL),
         CC.MD3.I1(:,k) = log2(SNR)/2;
         
         jkd = squeeze(JKD(:,k,:));
-        o = bci3eval(jkd(:,cl~=k),jkd(:,cl==k),2);
+        o = bci3eval(jkd(:,(cl~=k)&~isnan(cl)),jkd(:,cl==k),2);
         CC.MD2.TSD{k}  = o;
-        CC.MD2.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,cl~=k),[],2)))/2;
+        CC.MD2.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,(cl~=k)&~isnan(cl)),[],2)))/2;
         [sum0,n0,ssq0]=sumskipnan(jkd(:,cl==k),2);
-        [sum1,n1,ssq1]=sumskipnan(jkd(:,cl~=k),2);
+        [sum1,n1,ssq1]=sumskipnan(jkd(:,(cl~=k)&~isnan(cl)),2);
         s0  = (ssq0-sum0.*sum0./n0)./(n0-1);
         s1  = (ssq1-sum1.*sum1./n1)./(n1-1);
         s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
@@ -303,11 +365,11 @@ for k = 1:length(CL),
         CC.MD2.I1(:,k) = log2(SNR)/2;
         
         jkd = squeeze(JKD(:,k,:).^2);
-        o = bci3eval(jkd(:,cl~=k),jkd(:,cl==k),2);
+        o = bci3eval(jkd(:,(cl~=k)&~isnan(cl)),jkd(:,cl==k),2);
         CC.MDA.TSD{k}  = o;
-        CC.MDA.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,cl~=k),[],2)))/2;
+        CC.MDA.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,(cl~=k)&~isnan(cl)),[],2)))/2;
         [sum0,n0,ssq0]=sumskipnan(jkd(:,cl==k),2);
-        [sum1,n1,ssq1]=sumskipnan(jkd(:,cl~=k),2);
+        [sum1,n1,ssq1]=sumskipnan(jkd(:,(cl~=k)&~isnan(cl)),2);
         s0  = (ssq0-sum0.*sum0./n0)./(n0-1);
         s1  = (ssq1-sum1.*sum1./n1)./(n1-1);
         s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
@@ -315,11 +377,11 @@ for k = 1:length(CL),
         CC.MDA.I1(:,k) = log2(SNR)/2;
         
         jkd = exp(-squeeze(JKD(:,k,:))/2);
-        o = bci3eval(jkd(:,cl~=k),jkd(:,cl==k),2);
+        o = bci3eval(jkd(:,(cl~=k)&~isnan(cl)),jkd(:,cl==k),2);
         CC.GRB.TSD{k}  = o;
-        CC.GRB.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,cl~=k),[],2)))/2;
+        CC.GRB.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,(cl~=k)&~isnan(cl)),[],2)))/2;
         [sum0,n0,ssq0]=sumskipnan(jkd(:,cl==k),2);
-        [sum1,n1,ssq1]=sumskipnan(jkd(:,cl~=k),2);
+        [sum1,n1,ssq1]=sumskipnan(jkd(:,(cl~=k)&~isnan(cl)),2);
         s0  = (ssq0-sum0.*sum0./n0)./(n0-1);
         s1  = (ssq1-sum1.*sum1./n1)./(n1-1);
         s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
@@ -327,11 +389,11 @@ for k = 1:length(CL),
         CC.GRB.I1(:,k) = log2(SNR)/2;
         
         jkd = exp(-squeeze(JKLL(:,k,:))/2);
-        o = bci3eval(jkd(:,cl~=k),jkd(:,cl==k),2);
+        o = bci3eval(jkd(:,(cl~=k)&~isnan(cl)),jkd(:,cl==k),2);
         CC.LLH.TSD{k}  = o;
-        CC.LLH.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,cl~=k),[],2)))/2;
+        CC.LLH.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,(cl~=k)&~isnan(cl)),[],2)))/2;
         [sum0,n0,ssq0]=sumskipnan(jkd(:,cl==k),2);
-        [sum1,n1,ssq1]=sumskipnan(jkd(:,cl~=k),2);
+        [sum1,n1,ssq1]=sumskipnan(jkd(:,(cl~=k)&~isnan(cl)),2);
         s0  = (ssq0-sum0.*sum0./n0)./(n0-1);
         s1  = (ssq1-sum1.*sum1./n1)./(n1-1);
         s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
@@ -357,6 +419,33 @@ for k = 1:length(CL),
         CC.MD3.acc(:,k) = acc./sum(tmp,2);
 
         for l = 1:length(CL),
+                tmp(:,l) = sum(LD2IX(:,cl==CL(k))==CL(l),2);    
+                if CL(k) == CL(l),
+                        acc = tmp(:,l);
+                end;
+        end;
+        CC.LD2.mmx(:,(1-length(CL):0)+k*length(CL)) = tmp;
+        CC.LD2.acc(:,k) = acc./sum(tmp,2);
+
+        for l = 1:length(CL),
+                tmp(:,l) = sum(LD3IX(:,cl==CL(k))==CL(l),2);    
+                if CL(k) == CL(l),
+                        acc = tmp(:,l);
+                end;
+        end;
+        CC.LD3.mmx(:,(1-length(CL):0)+k*length(CL)) = tmp;
+        CC.LD3.acc(:,k) = acc./sum(tmp,2);
+
+        for l = 1:length(CL),
+                tmp(:,l) = sum(LD4IX(:,cl==CL(k))==CL(l),2);    
+                if CL(k) == CL(l),
+                        acc = tmp(:,l);
+                end;
+        end;
+        CC.LD4.mmx(:,(1-length(CL):0)+k*length(CL)) = tmp;
+        CC.LD4.acc(:,k) = acc./sum(tmp,2);
+
+        for l = 1:length(CL),
                 tmp(:,l) = sum(LLIX(:,cl==CL(k))==CL(l),2);    
                 if CL(k) == CL(l),
                         acc = tmp(:,l);
@@ -368,6 +457,7 @@ end;
 CC.MDA.I = sum(CC.MDA.I0,2);
 CC.MD2.I = sum(CC.MD2.I0,2);
 CC.MD3.I = sum(CC.MD3.I0,2);
+CC.LD2.I = sum(CC.LD2.I0,2);
 CC.GRB.I = sum(CC.GRB.I0,2);
 CC.LLH.I = sum(CC.LLH.I0,2);
 
@@ -379,12 +469,27 @@ CC.MD3.CMX00 = reshape(sum(CC.MD3.mmx(T(CC.TI,:),:),1),[1,1]*length(CL))/size(T,
 CC.MD3.ACC00 = sum(CC.MD3.mmx(:,1:length(CL)+1:end),2)/sum(~isnan(cl));	
 CC.MD3.KAP00 = zeros(size(GDIX,1),1);
 
+CC.LD2.CMX00 = reshape(sum(CC.LD2.mmx(T(CC.TI,:),:),1),[1,1]*length(CL))/size(T,2);
+CC.LD2.ACC00 = sum(CC.LD2.mmx(:,1:length(CL)+1:end),2)/sum(~isnan(cl));	
+CC.LD2.KAP00 = zeros(size(LD2IX,1),1);
+
+CC.LD3.CMX00 = reshape(sum(CC.LD3.mmx(T(CC.TI,:),:),1),[1,1]*length(CL))/size(T,2);
+CC.LD3.ACC00 = sum(CC.LD3.mmx(:,1:length(CL)+1:end),2)/sum(~isnan(cl));	
+CC.LD3.KAP00 = zeros(size(LD3IX,1),1);
+
+CC.LD4.CMX00 = reshape(sum(CC.LD4.mmx(T(CC.TI,:),:),1),[1,1]*length(CL))/size(T,2);
+CC.LD4.ACC00 = sum(CC.LD4.mmx(:,1:length(CL)+1:end),2)/sum(~isnan(cl));	
+CC.LD4.KAP00 = zeros(size(LD4IX,1),1);
+
 CC.LLH.CMX00 = reshape(sum(CC.LLH.mmx(T(CC.TI,:),:),1),[1,1]*length(CL))/size(T,2);
 CC.LLH.ACC00 = sum(CC.LLH.mmx(:,1:length(CL)+1:end),2)/sum(~isnan(cl));	
 CC.LLH.KAP00 = zeros(size(LLIX,1),1);
 for k = 1:size(MDIX,1),
         CC.MDA.KAP00(k) = kappa(reshape(CC.MDA.mmx(k,:),[1,1]*length(CL)));
         CC.MD3.KAP00(k) = kappa(reshape(CC.MD3.mmx(k,:),[1,1]*length(CL)));
+        CC.LD2.KAP00(k) = kappa(reshape(CC.LD2.mmx(k,:),[1,1]*length(CL)));
+        CC.LD3.KAP00(k) = kappa(reshape(CC.LD3.mmx(k,:),[1,1]*length(CL)));
+        CC.LD4.KAP00(k) = kappa(reshape(CC.LD4.mmx(k,:),[1,1]*length(CL)));
         CC.LLH.KAP00(k) = kappa(reshape(CC.LLH.mmx(k,:),[1,1]*length(CL)));
 end;
 
