@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.25 $
-%	$Id: sdfopen.m,v 1.25 2004-10-04 12:48:41 schloegl Exp $
+%	$Revision: 1.26 $
+%	$Id: sdfopen.m,v 1.26 2004-10-07 12:42:28 schloegl Exp $
 %	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -691,6 +691,17 @@ if EDF.AS.EVENTTABLEPOS > 0,
                 fprintf(2,'\nWarning SDFOPEN: Eventtable version %i not supported\n',EDF.EVENT.Version);
         end;
         EDF.AS.endpos = EDF.AS.EVENTTABLEPOS;   % set end of data block, might be important for SSEEK
+
+        % Trigger information and Artifact Selection 
+        ix = find(EDF.EVENT.TYP==hex2dec('0300')); 
+        EDF.TRIG = EDF.EVENT.POS(ix);
+        EDF.ArtifactSelection = repmat(logical(0),length(ix),1);
+        for k = 1:length(ix),
+                ix2 = find(EDF.EVENT.POS(ix(k))==EDF.EVENT.POS);
+                if any(EDF.EVENT.TYP(ix2)==hex2dec('03ff'))
+                        EDF.ArtifactSelection(k) = logical(1);                
+                end;
+        end;
 end;
 
 fseek(EDF.FILE.FID, EDF.HeadLen, 'bof');
