@@ -32,8 +32,8 @@ function [EDF]=gdfcheck(EDF,Mode,Version)
 %
 
 INFO='(C) 1997-2003 by Alois Schloegl, 17.7.2003';
-%	$Revision: 1.1 $
-%	$Id: gdfcheck.m,v 1.1 2003-07-17 12:07:05 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: gdfcheck.m,v 1.2 2003-07-18 15:31:32 schloegl Exp $
 %	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 
@@ -65,7 +65,44 @@ GDFTYP_BYTE(1:18)=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8]';
 
 if nargin<2 Mode=1; end;
 
+if isfield(EDF,'TYPE')
+        if strcmp(EDF.TYPE,'BDF');
+                EDF.VERSION=[255,'BIOSEMI'];
+        elseif strcmp(EDF.TYPE,'EDF');
+                EDF.VERSION='0       ';
+        elseif strcmp(EDF.TYPE,'GDF');
+                EDF.VERSION='GDF 0.12';
+        else
+                fprintf(2,'ERROR GDFCHECK: incorrect file type \n');
+                EDF.TYPE,
+                return;
+        end;
+elseif isfield(EDF,'VERSION')
+        if strcmp(EDF.VERSION,'0       '); 
+                EDF.TYPE = 'EDF';
+        elseif strcmp(EDF.VERSION(1:3),'GDF'); 
+                EDF.TYPE = 'GDF';
+        elseif (EDF.VERSION(1)==255) & strcmp(EDF.VERSION(2:8),'BIOSEMI'); 
+                EDF.TYPE = 'BDF';
+        else
+                fprintf(2,'ERROR GDFCHECK: incorrect file type \n');
+                EDF.VERSION,
+                return;
+        end;
+else
+        fprintf('Warning GDFCHECK: EDF.VERSION not defined; default=EDF assumed\n');
+        EDF.VERSION = '0       '; % default EDF-format
+        EDF.TYPE = 'EDF';
+end;
 GDF=strcmp(EDF.VERSION(1:3),'GDF');
+
+if ~(strcmp(EDF.VERSION,'0       ') | all(abs(EDF.VERSION)==[255,abs('BIOSEMI')]) | strcmp(EDF.VERSION(1:3),'GDF'))
+        EDF.ErrNo = [1,EDF.ErrNo];
+	if ~strcmp(EDF.VERSION(1:3),'   '); % if not a scoring file, 
+                return; 
+	end;
+end;
+
 
 if ~GDF
         % Y2K compatibility until year 2090
