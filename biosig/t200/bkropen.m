@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.6 $
-%	$Id: bkropen.m,v 1.6 2003-07-21 20:59:19 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: bkropen.m,v 1.7 2003-07-24 06:51:44 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -53,7 +53,11 @@ else
 		return;
 	end;
 	BKR.FILE.OPEN = 1;
-	BKR.FileName = FILENAME;
+        BKR.FileName  = FILENAME;
+        [pfad,file,FileExt] = fileparts(BKR.FileName);
+        BKR.FILE.Name = file;
+        BKR.FILE.Path = pfad;
+        BKR.FILE.Ext  = FileExt(2:length(FileExt));
 end;
 if ftell(BKR.FILE.FID)~=0,
         fprintf(2,'Error: Fileposition is not 0\n');        	        
@@ -205,7 +209,31 @@ if any(PERMISSION=='r'),
 		if BKR.NRec==1,
 			BKR.SPR=(EndPos-HeaderEnd)/(BKR.NRec*BKR.NS*2);
         	end;
-	end;
+        end;
+        
+        % look for Classlabel information
+        if 1; %~isfield(BKR,'Classlabel'),
+                tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.par']);
+                if exist(tmp)~=2,
+                	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.PAR']);
+                end
+                if exist(tmp)==2,
+                        BKR.Classlabel = load(tmp);
+                end;
+        end;
+        if ~isfield(BKR,'Classlabel'),
+                tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.mat']);
+                if exist(tmp)~=2,
+                	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.MAT']);
+                end
+                if exist(tmp)==2,
+                        tmp = load(tmp);
+                        if isfield(tmp,'header'),
+                                BKR.Classlabel = tmp.header.Result.Classlabel;
+                        end;
+                end;
+        end;
+
 
 elseif any(PERMISSION=='w') | ~isempty(findstr(PERMISSION,'r+')),
         if ~isfield(BKR,'SPR'),
@@ -260,7 +288,17 @@ elseif any(PERMISSION=='w') | ~isempty(findstr(PERMISSION,'r+')),
 	BKR.FILE.POS  = 0;
 	BKR.AS.endpos = 0;
 	BKR.AS.bpb = BKR.NS*2;	% Bytes per Block
-	BKR.AS.spb = BKR.NS;	% Samples per Block
+        BKR.AS.spb = BKR.NS;	% Samples per Block
+        
+        if isfield(BKR,'Classlabel');
+                if exist('OCTAVE_VERSION');
+                        fid = fopen(fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.par']),'w+');       
+                else        
+                        fid = fopen(fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.par']),'w+t');
+                end;
+                fwrite(fid,'%i\n',BKR.Classlabel);  
+                fclose(fid);
+        end;
 end;
 
 
