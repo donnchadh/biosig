@@ -20,18 +20,14 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 % [signal,header] = sload('f*.emg', CHAN)
 %  	loads channels CHAN from all files 'f*.emg'
 %
-% see also: SVIEW, SOPEN, SREAD, SCLOSE, SAVE2BKR
+% see also: SVIEW, SOPEN, SREAD, SCLOSE, SAVE2BKR, TLOAD
 %
 % Reference(s):
-% -------------
-% BCI competition 2003 
-%    http://ida.first.fraunhofer.de/projects/bci/competition/results/
-%
 %
 
 
-%	$Revision: 1.46 $
-%	$Id: sload.m,v 1.46 2004-12-03 20:14:20 schloegl Exp $
+%	$Revision: 1.47 $
+%	$Id: sload.m,v 1.47 2004-12-23 18:17:56 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -245,7 +241,7 @@ elseif strcmp(H.TYPE,'BIFF'),
                 H.EVENT.Desc = H.TFM.E(ix,2);
                 H.EVENT.POS  = ix;
                 
-                S(:,3) = S(:,3)/1000;   % convert RRI from [ms] into [s]
+                H.TFM.S(:,3) = H.TFM.S(:,3)/1000;   % convert RRI from [ms] into [s]
                 H.PhysDim{3} = '[s]';
 
                 if ~CHAN,
