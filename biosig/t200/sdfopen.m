@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.31 $
-%	$Id: sdfopen.m,v 1.31 2004-11-25 19:14:23 schloegl Exp $
+%	$Revision: 1.32 $
+%	$Id: sdfopen.m,v 1.32 2004-11-26 16:50:29 schloegl Exp $
 %	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -532,19 +532,19 @@ if 0,
         
 elseif strcmp(EDF.TYPE,'GDF') & (EDF.AS.EVENTTABLEPOS > 0),  
         status = fseek(EDF.FILE.FID, EDF.AS.EVENTTABLEPOS, 'bof');
-        [EDF.EVENT.Version,c] = fread(EDF.FILE.FID,1,'char');
+        [EVENT.Version,c] = fread(EDF.FILE.FID,1,'char');
         tmp = fread(EDF.FILE.FID,3,'char');
-        EDF.EVENT.N = fread(EDF.FILE.FID,1,'uint32');
-        if EDF.EVENT.Version==1,
-                [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint32');
-                [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint16');
-                if any([c1,c2]~=EDF.EVENT.N) | (EDF.AS.endpos~=EDF.AS.EVENTTABLEPOS+8+EDF.EVENT.N*6),
+        EVENT.N = fread(EDF.FILE.FID,1,'uint32');
+        if EVENT.Version==1,
+                [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EVENT.N,1],'uint32');
+                [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EVENT.N,1],'uint16');
+                if any([c1,c2]~=EVENT.N) | (EDF.AS.endpos~=EDF.AS.EVENTTABLEPOS+8+EVENT.N*6),
                         fprintf(2,'\nERROR SDFOPEN: Eventtable corrupted in file %s\n',EDF.FileName);
                 end
                 
                 % convert EVENT.Version 1 to 3
-                EDF.EVENT.CHN = zeros(EDF.EVENT.N,1);    
-                EDF.EVENT.DUR = zeros(EDF.EVENT.N,1);    
+                EDF.EVENT.CHN = zeros(EVENT.N,1);    
+                EDF.EVENT.DUR = zeros(EVENT.N,1);    
                 flag_remove = zeros(size(EDF.EVENT.TYP));        
                 types  = unique(EDF.EVENT.TYP);
                 for k1 = find(bitand(types(:)',hex2dec('8000')));
@@ -567,19 +567,19 @@ elseif strcmp(EDF.TYPE,'GDF') & (EDF.AS.EVENTTABLEPOS > 0),
                 EDF.EVENT.POS = EDF.EVENT.POS(~flag_remove);
                 EDF.EVENT.CHN = EDF.EVENT.CHN(~flag_remove);
                 EDF.EVENT.DUR = EDF.EVENT.DUR(~flag_remove);
-                EDF.EVENT.N   = EDF.EVENT.N - sum(flag_remove);
-                EDF.EVENT.Version = 3; 
+                EVENT.Version = 3; 
                 
-        elseif EDF.EVENT.Version==3,
-                [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint32');
-                [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint16');
-                [EDF.EVENT.CHN,c3] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint16');
-                [EDF.EVENT.DUR,c4] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint32');
-                if any([c1,c2,c3,c4]~=EDF.EVENT.N) | (EDF.AS.endpos~=EDF.AS.EVENTTABLEPOS+8+EDF.EVENT.N*12),
+        elseif EVENT.Version==3,
+                [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EVENT.N,1],'uint32');
+                [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EVENT.N,1],'uint16');
+                [EDF.EVENT.CHN,c3] = fread(EDF.FILE.FID,[EVENT.N,1],'uint16');
+                [EDF.EVENT.DUR,c4] = fread(EDF.FILE.FID,[EVENT.N,1],'uint32');
+                if any([c1,c2,c3,c4]~=EVENT.N) | (EDF.AS.endpos~=EDF.AS.EVENTTABLEPOS+8+EVENT.N*12),
                         fprintf(2,'\nERROR SDFOPEN: Eventtable corrupted in file %s\n',EDF.FileName);
                 end
+                
         else
-                fprintf(2,'\nWarning SDFOPEN: Eventtable version %i not supported\n',EDF.EVENT.Version);
+                fprintf(2,'\nWarning SDFOPEN: Eventtable version %i not supported\n',EVENT.Version);
         end;
         EDF.AS.endpos = EDF.AS.EVENTTABLEPOS;   % set end of data block, might be important for SSEEK
 
