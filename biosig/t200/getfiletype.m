@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.23 $
-%	$Id: getfiletype.m,v 1.23 2005-01-15 20:36:45 schloegl Exp $
+%	$Revision: 1.24 $
+%	$Id: getfiletype.m,v 1.24 2005-01-16 23:35:14 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -493,6 +493,12 @@ else
 	    		HDR.DigMax = tmp(3);
 			HDR.HeadLen = len; %gth(ss)-length(t)+1;
 
+                elseif ~isempty(strfind(ss,'bits[] = {')) & ~isempty(strfind(ss,'width')) & ~isempty(strfind(ss,'height'))
+                        HDR.TYPE='IMAGE:XBM';
+                elseif strncmp(ss,'/* XBM ',7)
+                        HDR.TYPE='IMAGE:XBM';
+                elseif strncmp(ss,'#define icon_width',7)
+                        HDR.TYPE='IMAGE:XBM';
                 elseif strncmp(ss,'/* XPM */',9)
                         HDR.TYPE='IMAGE:XPM';
 

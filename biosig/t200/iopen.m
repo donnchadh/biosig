@@ -1,4 +1,4 @@
-function [HDR,data] = iload(HDR,PERMISSION,CHAN,MODE,arg5,arg6)
+function [HDR,data] = iopen(HDR,PERMISSION,CHAN,MODE,arg5,arg6)
 % IOPEN opens image files for reading and writing and returns 
 %       the header information. Many different IMAGE formats are supported.
 %
@@ -27,7 +27,7 @@ function [HDR,data] = iload(HDR,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: iopen.m,v 1.1 2005-01-15 20:36:46 schloegl Exp $
+%	$Id: iopen.m,v 1.2 2005-01-16 23:35:14 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -488,6 +488,54 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
         end;
         HDR.GDFTYP = ['uint',int2str(HDR.Bits(1))];
         HDR.FILE.OPEN = 1; 
+
+        
+elseif strcmp(HDR.TYPE,'IMAGE:XBM'),
+	HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
+	K = 0; 
+	while K<2
+		tmp = fgetl(HDR.FILE.FID);
+		if strncmp(tmp,'/*',2)
+		elseif strncmp(tmp,'#define ',7)
+			K = K+1;
+			[t1,t2] = strtok(tmp(8:end));
+			if strfind(tmp,'width')
+				HDR.IMAGE.Size(2) = str2double(t2);
+			elseif strfind(tmp,'height')
+				HDR.IMAGE.Size(1) = str2double(t2);
+			end
+		end;	
+	end;
+	t = fread(HDR.FILE.FID,[1,inf],'uchar=>uchar');
+	fclose(HDR.FILE.FID);
+	t(t==10)=' ';	
+	t(t==13)=' ';	
+	[tmp,t] = strtok(t,'{}');
+	[r,t]   = strtok(t,'{}');
+	K = 0; 
+	N = repmat(NaN,ceil(HDR.IMAGE.Size([2,1])./[8,1]));
+	data = repmat(NaN,HDR.IMAGE.Size([2,1]));
+	while ~isempty(t)
+		[t,r] = strtok(r,' ,');
+		n = NaN;
+		if strncmp(t,'0x',2)
+			n = hex2dec(t(3:end));
+		elseif strncmp(t,'0',1)
+			n = base2dec(t,8);
+		else
+			n = str2double(t);
+		end;
+		if ~isnan(n) & ~isempty(n),
+			K = K + 1;
+			N(K) = n; 
+		end	
+	end;
+	data = repmat(NaN,HDR.IMAGE.Size([2,1]));
+	for k = 1:8,
+		ix = k:8:HDR.IMAGE.Size(2);
+		data(ix,:) = logical(bitand(N(1:length(ix),:),2^(k-1)));
+	end
+	data = data';
 
         
 elseif strcmp(HDR.TYPE,'IMAGE:XPM'),
