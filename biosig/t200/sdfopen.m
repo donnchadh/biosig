@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.20 $
-%	$Id: sdfopen.m,v 1.20 2004-06-16 21:20:42 schloegl Exp $
+%	$Revision: 1.21 $
+%	$Id: sdfopen.m,v 1.21 2004-08-16 15:59:40 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -134,6 +134,7 @@ if 1,exist('OCTAVE_VERSION');
 else 
         EDF.AS.Method=mfilename;
 end;
+
 
 EDF.AS.Method=[EDF.AS.Method '-' arg2];
 EDF.AS.Date=fix(clock);
@@ -1090,7 +1091,7 @@ EDF.SIE.REG=eye(EDF.NS);
         FN=[lower(EDF.FILE.Name), 'th.mat'];
         if exist(FN)~=2,
 	        if EDF.SIE.TH, % && ~exist('OCTAVE_VERSION'),
-                        fprintf(EDF.FILE.stderr,'Warning %s: THRESHOLD-file %s not found.\n',EDF.AS.Method,FN);
+                        fprintf(EDF.FILE.stderr,'Warning SDFOPEN: THRESHOLD-file %s not found.\n',FN);
                         EDF.SIE.TH=0;   
                 end;
         else
@@ -1107,7 +1108,7 @@ EDF.SIE.REG=eye(EDF.NS);
 
         end;
     	if EDF.SIE.TH>1, % Failing electrode detector 
-	        fprintf(2,'Warning SDFOPEN: FED not implemented yet\n');
+	        fprintf(2,'Warning SDFOPEN (%s): FED not implemented yet\n',EDF.FileName);
                 for k=1:length(EDF.InChanSelect),K=EDF.InChanSelect(k);
 	        %for k=1:EDF.NS,
     		        [y1,EDF.Block.z1{k}] = filter([1 -1], 1, zeros(EDF.SPR(K)/EDF.Dur,1));

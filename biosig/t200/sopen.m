@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.59 $
-%	$Id: sopen.m,v 1.59 2004-07-05 08:38:37 schloegl Exp $
+%	$Revision: 1.60 $
+%	$Id: sopen.m,v 1.60 2004-08-16 15:59:40 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -159,6 +159,8 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='MFER';
                         elseif all(s(17:22)==abs('SCPECG')); 
                                 HDR.TYPE='SCP';
+                        elseif strncmp(ss,'ATES MEDICA SOFT',16);	% ATES MEDICA SOFTWARE, NeuroTravel 
+                                HDR.TYPE='ATES';
                         elseif strncmp(ss,'POLY_SAM',8);	% Poly5/TMS32 sample file format.
                                 HDR.TYPE='TMS32';
                         elseif strncmp(ss,'"Snap-Master Data File"',23);	% Snap-Master Data File .
@@ -388,6 +390,8 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='STX';
                         elseif all(ss(1:2)==[25,149]); 
                                 HDR.TYPE='TWE';
+                        elseif strncmp(ss,'# vtk DataFile Version',20); 
+                                HDR.TYPE='VTK';
                         elseif all(ss(1:5)==[0,0,2,0,4]); 
                                 HDR.TYPE='WKS';
                         elseif all(ss(1:5)==[0,0,2,0,abs('Q')]); 
@@ -604,14 +608,16 @@ elseif strcmp(HDR.TYPE,'DAT'),
         end
 end; 
 
-
 if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         if any(PERMISSION=='w');
                 HDR = eegchkhdr(HDR);
         end;
-        HDR = sdfopen(HDR,PERMISSION,CHAN);
-
-
+        if nargin<4,
+                HDR = sdfopen(HDR,PERMISSION,CHAN);
+        else
+                HDR = sdfopen(HDR,PERMISSION,CHAN,MODE);
+        end;
+        
 elseif strcmp(HDR.TYPE,'BKR'),
         HDR = bkropen(HDR,PERMISSION,CHAN);
         
@@ -4209,6 +4215,22 @@ elseif strncmp(HDR.TYPE,'TRI',3),
                 fclose(HDR.FILE.FID);
         end
         
+        
+elseif strcmp(HDR.TYPE,'VTK'),
+        if any(PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
+                
+                HDR.VTK.version = fgetl(HDR.FILE.FID);
+                HDR.VTK.Title   = fgetl(HDR.FILE.FID);
+                HDR.VTK.type    = fgetl(HDR.FILE.FID);
+                HDR.VTK.dataset = fgetl(HDR.FILE.FID);
+
+
+                fclose(HDR.FILE.FID);
+
+                fprintf(HDR.FILE.stderr,'Warning SOPEN: VTK-format not supported, yet.\n');
+                return;
+	end;        
         
 elseif strcmp(HDR.TYPE,'STX'),
         if any(PERMISSION=='r'),
