@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.18 $
-%	$Id: getfiletype.m,v 1.18 2004-11-18 16:48:44 schloegl Exp $
+%	$Revision: 1.19 $
+%	$Id: getfiletype.m,v 1.19 2004-11-28 19:57:56 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -153,8 +153,6 @@ else
                         HDR.TYPE='SMA';
                 elseif all(s([1:2,20])==[1,0,0]) & any(s(19)==[2,4]); 
                         HDR.TYPE='TEAM';	% Nicolet TEAM file format
-                elseif strncmp(ss,['# ',HDR.FILE.Name],length(HDR.FILE.Name)+2); 
-                        HDR.TYPE='SMNI';
                 elseif strncmp(ss,HDR.FILE.Name,length(HDR.FILE.Name)); 
                         HDR.TYPE='MIT';
                 elseif strncmp(ss,'DEMG',4);	% www.Delsys.com
@@ -290,7 +288,7 @@ else
                 elseif all(s(1:4) == hex2dec(['FD';'AE';'2D';'05'])');
                         HDR.TYPE='AKO';
                 elseif all(s(1:2)==[hex2dec('55'),hex2dec('AA')]);
-                        HDR.TYPE='RDF';
+                        HDR.TYPE='RDF'; % UCSD ERPSS aquisition system 
                 elseif strncmp(ss,'Stamp',5)
                         HDR.TYPE='XLTEK-EVENT';
                         
@@ -467,10 +465,12 @@ else
                         HDR.TYPE='PBMB';
 			id = 'BGP';
 			HDR.TYPE(2) = id(s(2)-abs('3'));
-			[s1,t]=strtok(ss,[9,10,13,32]);
-			[s1,t]=strtok(t,[9,10,13,32]);
-			[s2,t]=strtok(t,[9,10,13,32]);
-			HDR.IMAGE.Size = [str2double(s2),str2double(s1)];
+			[s1,t]=strtok(ss,[10,13]);
+			[s1,t]=strtok(t,[10,13]);
+			while (s1(1)=='#')	% ignore comment lines
+				[s1,t]=strtok(t,[10,13]);
+			end;	
+			HDR.IMAGE.Size = str2double(s1);
 			if s(2)~='4',
 				[s3,t]=strtok(t,[9,10,13,32]);
 		    		HDR.DigMax = str2double(s3);
@@ -590,6 +590,8 @@ else
                 elseif strcmpi(HDR.FILE.Name,ss(1:length(HDR.FILE.Name)));
                         HDR.TYPE='HEA';
                         
+                elseif strncmp(ss,['# ',HDR.FILE.Name],length(HDR.FILE.Name)+2); 
+                        HDR.TYPE='SMNI';
                 elseif all(s(1:16)==[1,0,0,0,1,0,0,0,4,0,0,0,0,0,0,0]),  % should be last, otherwise to many false detections
                         HDR.TYPE='MAT4';
                         HDR.MAT4.opentyp='ieee-be';
