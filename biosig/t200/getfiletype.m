@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.7 $
-%	$Id: getfiletype.m,v 1.7 2004-09-25 20:28:10 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: getfiletype.m,v 1.8 2004-10-05 19:52:09 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -75,19 +75,20 @@ end;
 fid = fopen(HDR.FileName,'rb','ieee-le');
 if fid < 0,
 	HDR.ERROR.status = -1; 
-        HDR.ERROR.message = sprintf('Error GETFILETYPE: file %s not found.\n',HDR.FileName);    
+        HDR.ERROR.message = sprintf('Error GETFILETYPE: file %s not found.\n',HDR.FileName);
         return;
 else
         [pfad,file,FileExt] = fileparts(HDR.FileName);
         HDR.FILE.Name = file;
         HDR.FILE.Path = pfad;
-        HDR.FILE.Ext  = FileExt(2:length(FileExt));
+        HDR.FILE.Ext  = char(FileExt(2:length(FileExt)));
 
 	fseek(fid,0,'eof');
 	HDR.FILE.size = ftell(fid);
 	fseek(fid,0,'bof');
 
-        [s,c] = fread(fid,[1,132],'uchar');
+        [s,c] = fread(fid,132,'uchar');
+	s = s';
         if (c < 132),
                 s = [s, repmat(0,1,132-c)];
         end;
@@ -96,7 +97,7 @@ else
                 %%%% file type check based on magic numbers %%%
                 type_mat4=str2double(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
                 ss = setstr(s);
-                if all(s(1:2)==[207,0]); 
+                if all(s(1:2)==[207,0]);
                         HDR.TYPE='BKR';
                 elseif strncmp(ss,'Version 3.0',11); 
                         HDR.TYPE='CNT';
@@ -252,6 +253,8 @@ else
                         
                 elseif strncmp(ss,'CFWB',4); 	% Chart For Windows Binary data, defined by ADInstruments. 
                         HDR.TYPE='CFWB';
+                elseif all(s==[abs('PLEXe'),zeros(1,127)]); 	% http://WWW.PLEXONINC.COM
+                        HDR.TYPE='PLX';
                         
                 elseif any(s(3:6)*(2.^[0;8;16;24]) == (30:40))
                         HDR.VERSION = s(3:6)*(2.^[0;8;16;24]);
@@ -361,7 +364,7 @@ else
                         HDR.TYPE='PNG6';
                 elseif all(s(1:8)==[137,80,78,71,13,10,26,10]) 
                         HDR.TYPE='PNG';
-			
+elseif 1,
                 elseif all(s(1:4)==hex2dec(['FF';'D9';'FF';'E0'])')
                         HDR.TYPE='JPG';
                         HDR.Endianity = 'ieee-be';
@@ -424,6 +427,10 @@ else
                 elseif strcmpi(HDR.FILE.Name,ss(1:length(HDR.FILE.Name)));
                         HDR.TYPE='HEA';
                         
+                elseif all(s(1:16)==[1,0,0,0,1,0,0,0,4,0,0,0,0,0,0,0]),  % should be last, otherwise to many false detections
+                        HDR.TYPE='MAT4';
+                        HDR.MAT4.opentyp='ieee-be';
+			
                         %elseif all(~type_mat4),  % should be last, otherwise to many false detections
                 elseif all(s(1:4)==0),  % should be last, otherwise to many false detections
                         HDR.TYPE='MAT4';
@@ -459,9 +466,11 @@ else
 
                         status = fseek(fid,3228,-1);
                         [s,c]=fread(fid,[1,4],'uint8'); 
-			if (status & (c==4)) & all((s(1:4)*(2.^[24;16;8;1]))==1229801286); 	% GE LX2 format image 
+			if (status & (c==4)) 
+			if all((s(1:4)*(2.^[24;16;8;1]))==1229801286); 	% GE LX2 format image 
                                 HDR.TYPE='LX2';
                         end;
+			end;
                 end;
         end;
         fclose(fid);
@@ -595,10 +604,6 @@ else
                         
                 elseif strcmpi(HDR.FILE.Ext,'fif')
                         HDR.TYPE = 'FIF';	% Neuromag MEG data (company is now part of 4D Neuroimaging)
-                        global FLAG_NUMBER_OF_OPEN_FIF_FILES
-                        if isempty(FLAG_NUMBER_OF_OPEN_FIF_FILES)
-                                FLAG_NUMBER_OF_OPEN_FIF_FILES = 0;
-                        end; 
                         
                 elseif strcmpi(HDR.FILE.Ext,'bdip')
                         
