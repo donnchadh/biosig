@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.21 $
-%	$Id: sread.m,v 1.21 2004-05-11 20:56:48 schloegl Exp $
+%	$Revision: 1.22 $
+%	$Id: sread.m,v 1.22 2004-06-01 12:16:05 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -660,6 +660,20 @@ elseif strcmp(HDR.TYPE,'SierraECG'),   %% SierraECG  1.03  *.open.xml from PHILI
                 HDR.data = str2double(HDR.XML.waveforms.parsedwaveforms);
                 HDR.data = reshape(HDR.data,length(HDR.data)/HDR.NS,HDR.NS);
                 HDR.SPR = size(HDR.data,1);
+        else
+                % base64 - decoding 
+                base64 = ['A':'Z','a':'z','0':'9','+','/'];
+                decode64 = repmat(nan,256,1);
+                decode64(abs(base64)) = 0:63;
+                tmp = decode64(HDR.XML.waveforms.parsedwaveforms);
+                tmp(isnan(tmp)) = [];
+                n   = length(tmp);
+                tmp = reshape([tmp;zeros(mod(n,4),1)], 4, ceil(n/4));
+                t1  = tmp(1,:)*4 + floor(tmp(2,:)/16);
+                t2  = mod(tmp(2,:),16)*16 + floor(tmp(3,:)/4);
+                t3  = mod(tmp(3,:),4)*64 + tmp(4,:);
+                tmp = reshape([t1,t2,t3], ceil(n/4)*3, 1);
+                
         end;
         if nargin>2,
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -725,19 +739,29 @@ end;
 
 
 if ~HDR.FLAG.UCAL,
-        if exist('OCTAVE_VERSION')
+        % S = [ones(size(S,1),1),S]*HDR.Calib([1;1+HDR.InChanSelect],:); 
+        % perform the previous function more efficiently and
+        % taking into account some specialities related to Octave sparse
+        % data. 
+
+        if 1; %exist('OCTAVE_VERSION')
                 % force octave to do a sparse multiplication
                 % the difference is NaN*sparse(0) = 0 instead of NaN
                 % this is important for the automatic overflow detection
 
 		Calib = full(HDR.Calib);   % Octave can not index structed sparse matrix 
-                tmp = zeros(size(S,1),size(Calib,2));
+                tmp = zeros(size(S,1),size(Calib,2));   % memory allocation
                 for k = 1:size(Calib,2),
                         chan = find(Calib(1+HDR.InChanSelect,k));
-                        tmp(:,k)=[ones(size(S,1),1),S(:,chan)]*Calib([1;1+HDR.InChanSelect(chan)],k);
+                        tmp(:,k) = S(:,chan) * Calib(1+HDR.InChanSelect(chan),k) + Calib(1,k);
                 end
                 S = tmp; 
         else
-                S = [ones(size(S,1),1),S]*HDR.Calib([1;1+HDR.InChanSelect],:);
+                % S = [ones(size(S,1),1),S]*HDR.Calib([1;1+HDR.InChanSelect],:); 
+                % the following is the same as above but needs less memory. 
+                S = S * HDR.Calib(1+HDR.InChanSelect,:);
+                for k = 1:size(HDR.Calib,2),
+                        S(:,k) = S(:,k) + HDR.Calib(1,k);
+                end;
         end;
 end;
