@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.29 $
-%	$Id: plota.m,v 1.29 2004-08-31 07:14:11 schloegl Exp $
+%       $Revision: 1.30 $
+%	$Id: plota.m,v 1.30 2004-10-04 11:24:06 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -897,7 +897,7 @@ elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1','lo
              
         gf = arg2;
         if ~isfield(X.M,gf)
-                error('PLOTA TFAR_ALL: field %s is unknonw\n',gf);
+                error('PLOTA TFAR_ALL: field %s is unknown\n',gf);
         end;
         
         %ClassList = {'left','right','foot','tongue'};
@@ -991,7 +991,7 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
         
         gf = arg2;
         if ~isfield(X.M,gf)
-                error('PLOTA TFMVAR_ALL: field %s is unknonw\n',gf);
+                error('PLOTA TFMVAR_ALL: field %s is unknown\n',gf);
         end;
         
         %ClassList = {'left','right','foot','tongue'};
@@ -1023,13 +1023,13 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
                 x0 = (real(getfield(X.M,gf)) - real(getfield(Y.M,gf)))./(real(getfield(X.SE,gf))*X.N + real(getfield(Y.SE,gf))*Y.N);
         end;
         
-        clim = [min(x0(:)),max(x0(:))]
+        clim = [min(x0(:)),max(x0(:))];
         caxis(clim);
         cm = colormap;
         for k1 = 1:M,
                 for k2 = 1:M,
                         subplot(hf(k1*M-M+k2));
-                        x = x0(k1,k2,1:length(X.F),:);
+                        x  = x0(k1,k2,1:length(X.F),:);
                         ci = getfield(X.SE,gf)*(X.N-1);
                         ci = ci(k1,k2,1:length(X.F),:);
                         if alpha < .5,
@@ -1187,14 +1187,14 @@ elseif strcmp(X.datatype,'confusion'),
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
                 
                 for k=1:size(X.data,1),
-                        fprintf(1,'%4.0f\t',X.data(k,:));
-                        fprintf(1,'| %4.0f\t| %4.1f%%\n',sum(X.data(k,:),2),X.data(k,k)/sum(X.data(k,:),2)*100);
+                        fprintf(1,'%6.0f\t',X.data(k,:));
+                        fprintf(1,'|%6.0f\t| %4.1f%%\n',sum(X.data(k,:),2),X.data(k,k)/sum(X.data(k,:),2)*100);
                 end;
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
-                fprintf(1,'%4.0f\t',sum(X.data,1));
-                fprintf(1,'| %4.0f\t|\n',sum(X.data(:)));
+                fprintf(1,'%6.0f\t',sum(X.data,1));
+                fprintf(1,'|%6.0f\t|\n',sum(X.data(:)));
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
-                fprintf(1,'%4.1f%%\t',diag(X.data)'./sum(X.data,1)*100);
+                fprintf(1,'%5.1f%%\t',diag(X.data)'./sum(X.data,1)*100);
                 fprintf(1,'|\n\n');
                 
         end;
@@ -1534,78 +1534,72 @@ elseif strcmp(X.datatype,'MEAN+STD')
         nchns = min(size(X.MEAN));  % Number of channels
         
         if nargin < 2
-                clf;
-                for k = 1:nchns
-                        nf(k) = subplot(ceil(nchns/ceil(sqrt(nchns))),ceil(sqrt(nchns)),k);  % Handles to subplots
-                end;
+            clf;
+            for k = 1:nchns
+                nf(k) = subplot(ceil(nchns/ceil(sqrt(nchns))),ceil(sqrt(nchns)),k);  % Handles to subplots
+            end;
         else
-                nf = arg2;  % Handles to subplots
+            nf = arg2;  % Handles to subplots
         end;
         
         if isfield(X,'Label')
-                if ischar(X.Label)
-                        X.Label=cellstr(X.Label);
-                end;
+            if ischar(X.Label)
+                X.Label=cellstr(X.Label);
+            end;
         end;
         
         minmean = floor(min(min(X.MEAN)));
         maxmean = ceil(max(max(X.MEAN)));
         maxstd = ceil(max(max(X.STD)));
-        
+
+
+
         for k = 1:nchns  % For each channel
-                
-                subplot(nf(k));
-                [ax,h1,h2] = plotyy(X.T,X.MEAN(k,:),X.T,X.STD(k,:));
-                drawnow; 
-                set(ax,'FontSize',6);
-                
-                % Sets the axes limits to avoid overlapping of the two functions
-                set(ax(1),'YLim',[minmean-maxstd maxmean]);
-                set(ax(2),'YLim',[0 -minmean+maxstd+maxmean]);
-                set(ax,'XLim',[min(X.T) max(X.T)]);
-                
-                set(ax,'YTickLabel',[]);
-                set(ax,'YTick',[]);
-                
-                % Label y1-axis (mean)
-                temp = [floor(minmean/10) * 10 : 10 : ceil(maxmean/10) * 10];  % Label only ..., -20, -10, 0, 10, 20, 30, ...
-                set(ax(1),'YTick',temp);
-                if (mod(k,ceil(sqrt(nchns))) == 1)
-                        set(ax(1),'YTickLabel',temp);
-                else
-                        set(ax(1),'YTickLabel',[]);
+
+            subplot(nf(k));
+            [ax,h1,h2] = plotyy(X.T,X.MEAN(k,:),X.T,X.STD(k,:));
+            drawnow;
+            set(ax,'FontSize',6);
+
+            % Sets the axes limits to avoid overlapping of the two functions
+            set(ax(1),'YLim',[minmean-maxstd maxmean]);
+            set(ax(2),'YLim',[0 -minmean+maxstd+maxmean]);
+            set(ax,'XLim',[min(X.T) max(X.T)]);
+
+            set(ax,'YTickLabel',[]);
+            set(ax,'YTick',[]);
+
+            % Label y1-axis (mean)
+            temp = [floor(minmean/10) * 10 : 10 : ceil(maxmean/10) * 10];  % Label only ..., -20, -10, 0, 10, 20, 30, ...
+            set(ax(1),'YTick',temp);
+
+            set(ax(1),'YTickLabel',temp);
+
+            % Label y2-axis (standard deviation)
+            temp = [0 : 10 : ceil(maxstd/10) * 10];  % Label only 0, 10, 20, 30, ...
+            set(ax(2),'YTick',temp);
+
+            set(ax(2),'YTickLabel',temp);
+
+            % Label x-axis
+
+            xlabel('Time (s)');
+
+
+            if isfield(X,'Label')  % Print label of each channel (if such a label exists)
+                if k <= length(X.Label)
+                    title(X.Label{k},'FontSize',6,'Interpreter','none');
                 end;
-                
-                % Label y2-axis (standard deviation)
-                temp = [0 : 10 : ceil(maxstd/10) * 10];  % Label only 0, 10, 20, 30, ...
-                set(ax(2),'YTick',temp);
-                if (mod(k,ceil(sqrt(nchns))) == 0) | (k == nchns)
-                        set(ax(2),'YTickLabel',temp);
-                else
-                        set(ax(2),'YTickLabel',[]);
-                end;
-                
-                % Label x-axis
-                if k > (nchns - ceil(nchns/ceil(sqrt(nchns))))
-                        xlabel('Time (s)');
-                else
-                        set(ax,'XTickLabel',[]);
-                end;
-                
-                if isfield(X,'Label')  % Print label of each channel (if such a label exists)
-                        if k <= length(X.Label)
-                                title(X.Label{k},'FontSize',6,'Interpreter','none');
-                        end;
-                end;
-                
-                if isfield(X,'trigger')  % Mark trigger
-                        line([X.T(X.trigger),X.T(X.trigger)],[minmean-maxstd,maxmean],'Color',[1 0 0]);
-                end;
-                pause;
+            end;
+
+            if isfield(X,'trigger')  % Mark trigger
+                line([X.T(X.trigger),X.T(X.trigger)],[minmean-maxstd,maxmean],'Color',[1 0 0]);
+            end;
         end;
         drawnow;
         %set(0,'DefaultTextInterpreter','none');  % Avoid having TeX interpretation in title string
         %suptitle(X.Title);
+        
         
         
 elseif strcmp(X.datatype,'Classifier')
@@ -1829,8 +1823,8 @@ elseif strcmp(X.datatype,'TSD_BCI7')
         else
                 if nargin<2,
                         clf;
-                        for k=1:4, 
-                                nf(k)=subplot(1,4,k); 
+                        for k=1:3, 
+                                nf(k)=subplot(1,3,k); 
                         end;
                 else
                         nf=arg2;
