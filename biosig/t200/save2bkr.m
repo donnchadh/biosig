@@ -1,14 +1,16 @@
 function [HDR] = save2bkr(arg1,arg2,arg3);
 % SAVE2BKR loads EEG data and saves it in BKR format
+% The following data formats are supported:
+%	CNT, EDF, BKR, MAT, etc. format
 %
 %       HDR = save2bkr(sourcefile [, destfile [, option]]);  
 %
 %       HDR = eegchkhdr();
 %	HDR = save2bkr(HDR,data);
 %
-%   sourcefile	source file CNT, EDF, BKR, MAT, etc. format
+%   sourcefile	sourcefile wildcards are allowed
 %   destfile	destination file in BKR format 
-%	if destfile is empty, sourcefile but with extension .bkr is used.
+%	if destfile is empty or a directory, sourcefile but with extension .bkr is used.
 %   option
 %       gain            Gain factor for unscaled EEG data (e.g. old Matlab files) 
 %       'removeDC'      removes mean
@@ -17,11 +19,19 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %   HDR		Header, HDR.FileName must contain target filename
 %   data	data samples
 %
+% Examples: 
+%   save2bkr('/tmp/*.cnt',[],'autoscale 5:30');
+%	converts all CNT-files from subdir /tmp/ into BKR files 
+%       and saves them in the current directory 
+%   save2bkr('/tmp/*.cnt','/tmp2/','autoscale 5:30');
+%	converts all CNT-files from subdir /tmp/ into BKR files 
+%       and saves them in the directory /tmp2/
+%
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.5 $
-% 	$Id: save2bkr.m,v 1.5 2003-03-13 18:36:18 schloegl Exp $
+%	$Revision: 1.6 $
+% 	$Id: save2bkr.m,v 1.6 2003-03-18 13:35:38 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -64,16 +74,15 @@ else
 end;
 
 if isstr(arg1), 
-	filename = arg1;	% input  file 
-	if isempty(arg2),	% output file
-		ix = max(find(arg1=='.'));
-		HDR.FileName = [arg1(1:ix-1),'.bkr'];
-	else
-		HDR.FileName = arg2;
-	end;
+        inpath = fileparts(arg1);
+        infile = dir(arg1);	% input  file 
+        outfile = arg2;
 elseif isstruct(arg1) & isnumeric(arg2),
 	HDR  = arg1;
 	data = arg2;
+else  %if isstruct(arg1) & isnumeric(arg2),
+        fprintf(2,'Error SAVE2BKR: invalid input arguments\n');	        
+        return;
 end;		
 
 if isstruct(arg1),
@@ -141,81 +150,103 @@ if isstruct(arg1),
         return;
 end;
 
-[pf,fn,ext] = fileparts(filename);
 
-[y,HDR] = loadeeg(filename);
-if isempty(y), 
-        fprintf(2,'Error SAVE2BKR: file %s not found\n',filename);
-        return; 
-end; 
+for k=1:length(infile);
+        filename = fullfile(inpath,infile(k).name);
+        [pf,fn,ext] = fileparts(filename);
         
-if ~isfield(HDR,'NS'),
-        warning(['number of channels undefined in ',filename]);
-        HDR.NS = size(y,2);
-end;
-if ~isfield(HDR,'NRec'),
-        HDR.NRec = 1;
-end;
-if ~isfield(HDR,'SPR'),
-        HDR.SPR = size(y,1)/HDR.NRec;
-end;
-
-if FLAG_REMOVE_DC,
-        y = y-repmat(mean(y,1),size(y,1),1);
-end;
-
-HDR.DigMax=2^15-1;
-if chansel==0,
-	HDR.PhysMax = max(abs(y(:))); %gives max of the whole matrix
-        y = y*(HDR.DigMax/HDR.PhysMax);	%transpose, da zuerst 1.Sample-1.Channel, dann 
-else
-        tmp = y(:,chansel);
-        HDR.PhysMax = max(abs(tmp(:))); %gives max of the whole matrix
-        for k = 1:HDR.NS,
-                mm = max(abs(y(:,k)));
-                if any(k==chansel),
-                        y(:,k) = y(:,k)*HDR.DigMax/HDR.PhysMax;
-                else
-                        y(:,k) = y(:,k)*HDR.DigMax/mm;
+        [y,HDR] = loadeeg(filename);
+        if isempty(y), 
+                fprintf(2,'Error SAVE2BKR: file %s not found\n',filename);
+                return; 
+        end; 
+        
+        if ~isfield(HDR,'NS'),
+                warning(['number of channels undefined in ',filename]);
+                HDR.NS = size(y,2);
+        end;
+        if ~isfield(HDR,'NRec'),
+                HDR.NRec = 1;
+        end;
+        if ~isfield(HDR,'SPR'),
+                HDR.SPR = size(y,1)/HDR.NRec;
+        end;
+        
+        if FLAG_REMOVE_DC,
+                y = y-repmat(mean(y,1),size(y,1),1);
+        end;
+        
+        HDR.DigMax=2^15-1;
+        if chansel==0,
+                HDR.PhysMax = max(abs(y(:))); %gives max of the whole matrix
+                y = y*(HDR.DigMax/HDR.PhysMax);	%transpose, da zuerst 1.Sample-1.Channel, dann 
+        else
+                tmp = y(:,chansel);
+                HDR.PhysMax = max(abs(tmp(:))); %gives max of the whole matrix
+                for k = 1:HDR.NS,
+                        mm = max(abs(y(:,k)));
+                        if any(k==chansel),
+                                y(:,k) = y(:,k)*HDR.DigMax/HDR.PhysMax;
+                        else
+                                y(:,k) = y(:,k)*HDR.DigMax/mm;
+                        end;
                 end;
         end;
-end;
-
-tmp = round(HDR.PhysMax);
-fprintf(1,'Rounding of PhysMax yields %f%% error.\n',abs((HDR.PhysMax-tmp)/tmp)*100);
-HDR.PhysMax = tmp;
-HDR.TYPE = 'BKR';
-HDR.FLAG.REFERENCE = ' ';
-
-HDR = eegchkhdr(HDR);
-
-fid   = fopen(HDR.FileName,'w+','ieee-le');
-count = fwrite(fid,207,'short');	        % version number of header
-count = fwrite(fid,HDR.NS  ,'short');	        % number of channels
-count = fwrite(fid,HDR.SampleRate,'short');     % sampling rate
-count = fwrite(fid,HDR.NRec,'uint32');          % number of trials: 1 for untriggered data
-count = fwrite(fid,HDR.SPR ,'uint32');          % samples/trial/channel
-count = fwrite(fid,HDR.PhysMax,'short');        % Kalibrierspannung
-count = fwrite(fid,HDR.DigMax ,'short');        % Kalibrierwert
-count = fwrite(fid,zeros(4,1),'char');        
-
-count = fwrite(fid,[HDR.Filter.LowPass(1),HDR.Filter.HighPass(1)],'float'); 
-count = fwrite(fid,zeros(16,1),'char');         % offset 30
-
-count = fwrite(fid,HDR.FLAG.TRIGGERED,'int16');	% offset 32
-count = fwrite(fid,zeros(24,1),'char');         % offset 46
-tmp   = [strcmp(HDR.FLAG.REFERENCE,'COM')|strcmp(HDR.FLAG.REFERENCE,'CAR'), strcmp(HDR.FLAG.REFERENCE,'LOC')|strcmp(HDR.FLAG.REFERENCE,'LAR'), strcmp(HDR.FLAG.REFERENCE,'LAP'), strcmp(HDR.FLAG.REFERENCE,'WGT')];
-count = fwrite(fid,tmp,'int16'); 			% offset 72 + 4*BOOL
-
-%speichert den rest des BKR-headers
-count = fwrite(fid,zeros(1024-80,1),'char');
-% writes data
-count = fwrite(fid,y','short');
-fclose(fid);
-
-% save classlabels
-if isfield(HDR,'Classlabel'),
-        fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.par'],'w');
-        fprintf(fid, '%i\r\n', HDR.Classlabel);
+        
+        tmp = round(HDR.PhysMax);
+        fprintf(1,'Rounding of PhysMax yields %f%% error.\n',abs((HDR.PhysMax-tmp)/tmp)*100);
+        HDR.PhysMax = tmp;
+        HDR.TYPE = 'BKR';
+        HDR.FLAG.REFERENCE = ' ';
+        
+        HDR.VERSION = 207;
+        HDR.FILE.Ext= 'bkr';
+        
+        if isempty(outfile), 	% default destination directory  
+                ix = max(find(filename=='.'));
+                %HDR.FileName = [filename(1:ix-1),'.bkr'];  % destination directory is same as source directory 
+                HDR.FileName  = [HDR.FILE.Name,'.bkr'];     % destination directory is current working directory 
+        elseif isdir(outfile),	% output file
+                HDR.FILE.Path = outfile;            
+	        HDR.FileName  = fullfile(outfile,[HDR.FILE.Name,'.bkr']);
+        else
+                %[HDR.FILE.Path,HDR.FILE.Path,HDR.FILE.Path]=fileparts(outfile);
+                HDR.FileName = outfile;
+        end;
+        HDR   = eegchkhdr(HDR);
+        
+        fid   = fopen(HDR.FileName,'w+','ieee-le');
+        if fid<0,
+                fprintf('Error SAVE2BKR: couldnot open file %s.\n',HDR.FileName);
+                return;
+        end;
+        count = fwrite(fid,207,'short');	        % version number of header
+        count = fwrite(fid,HDR.NS  ,'short');	        % number of channels
+        count = fwrite(fid,HDR.SampleRate,'short');     % sampling rate
+        count = fwrite(fid,HDR.NRec,'uint32');          % number of trials: 1 for untriggered data
+        count = fwrite(fid,HDR.SPR ,'uint32');          % samples/trial/channel
+        count = fwrite(fid,HDR.PhysMax,'short');        % Kalibrierspannung
+        count = fwrite(fid,HDR.DigMax ,'short');        % Kalibrierwert
+        count = fwrite(fid,zeros(4,1),'char');        
+        
+        count = fwrite(fid,[HDR.Filter.LowPass(1),HDR.Filter.HighPass(1)],'float'); 
+        count = fwrite(fid,zeros(16,1),'char');         % offset 30
+        
+        count = fwrite(fid,HDR.FLAG.TRIGGERED,'int16');	% offset 32
+        count = fwrite(fid,zeros(24,1),'char');         % offset 46
+        tmp   = [strcmp(HDR.FLAG.REFERENCE,'COM')|strcmp(HDR.FLAG.REFERENCE,'CAR'), strcmp(HDR.FLAG.REFERENCE,'LOC')|strcmp(HDR.FLAG.REFERENCE,'LAR'), strcmp(HDR.FLAG.REFERENCE,'LAP'), strcmp(HDR.FLAG.REFERENCE,'WGT')];
+        count = fwrite(fid,tmp,'int16'); 			% offset 72 + 4*BOOL
+        
+        %speichert den rest des BKR-headers
+        count = fwrite(fid,zeros(1024-80,1),'char');
+        % writes data
+        count = fwrite(fid,y','short');
         fclose(fid);
+        
+        % save classlabels
+        if isfield(HDR,'Classlabel'),
+                fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.par'],'w');
+                fprintf(fid, '%i\r\n', HDR.Classlabel);
+                fclose(fid);
+        end;
 end;

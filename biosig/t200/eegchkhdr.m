@@ -6,8 +6,8 @@ function HDR=eegchkhdr(HDR);
 %
 % see also: EEGOPEN, EEGREAD, EEGSEEK, EEGTELL, EEGCLOSE, EEGWRITE
 
-%	$Revision: 1.2 $
-%	$Id: eegchkhdr.m,v 1.2 2003-02-10 14:52:53 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: eegchkhdr.m,v 1.3 2003-03-18 13:35:38 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -18,8 +18,9 @@ if ~isfield(HDR,'FileName'),
         tmp = input('Whats the Filename? :');
         HDR.FileName = tmp;
 end;
+
+[HDR.FILE.Path,HDR.FILE.Name,FileExt] = fileparts(HDR.FileName);
 if ~isfield(HDR,'TYPE'),
-	[pfad,file,FileExt] = fileparts(HDR.FileName);
         HDR.TYPE = upper(FileExt(2:length(FileExt)));
 end;
 
