@@ -1,22 +1,38 @@
-
 % BIOSIG runs on Matlab and Octave. 
-% To install the toolbox you need to run this program.
-%
+% This is a script installing all components in an automatically.
+%  
 % 1) extract the files and
 % 2) save the BIOSIG files in <your_directory>
 % 3) start matlab
 %    cd <your_directory>
 %    install 
+% 4) For a permanent installation, save the default path with 
+%     PATH2RC or
+%     PATHTOOL and click on the "SAVE" button. 
+% 5) For removing the toolbox 
+%    remove the path to 
+%       HOME/tsa
+%       HOME/NaN
+%       HOME/BIOSIG/ and all its subdirectories
+% 
+%  NOTE: by default also the NaN-toolbox is installed - 
+%  - a statistical toolbox for handling missing values - which 
+%  changes the behaviour of some standard functions. For more  
+%  information see NaN/README.TXT . In case you do not want this, 
+%  you can excluded the path to NaN/*. The BIOSIG tools will still 
+%  work, but does not support the handling of NaN's.
 
-disp('BIOSIG-toolbox activated');
+%	Copyright (C) 2003,2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.2 $
+%	$Id: install.m,v 1.2 2004-01-23 12:37:00 schloegl Exp $
 
 if exist('OCTAVE_VERSION')
-	tmp = pwd;	%
-        ix=max(find(tmp==filesep));
+        tmp = pwd;	%
+        ix = max(find(tmp==filesep));
         HOME = tmp(1:ix);
 else
-	tmp=which('install'); 
-	[HOME,f,e]=fileparts(tmp);
+        tmp = which('install'); 
+        [HOME,f,e] = fileparts(tmp);
 end;
 addpath([HOME,'/biosig/demo/']);		% dataformat
 addpath([HOME,'/biosig/t200/']);		% dataformat
@@ -30,32 +46,13 @@ addpath([HOME,'/biosig/viewer/']);		% viewer
 addpath([HOME,'/tsa/']);		%  Time Series Analysis
 addpath([HOME,'/NaN/']);		%  Statistics analysis for missing data
 
-% save path permanently to PATHDEF
-if exist('path2rc')>1,
-        tmp=path2rc;
-        if tmp==0,
-                fprintf(1,'Toolboxes BIOSIG, TSA and NaN added permanently in MATLABPATH\n');
-        end;
-end;
-
 % test of installation 
 naninsttest; 
 
-if exist('bitand')<2,	
-        fprintf(1,'warning: BITAND is not available. MIT-BIH format not supported\n');
-end;
-if exist('bitshift')<2,	
-        fprintf(1,'warning: BITSHIFT is not available. MIT-BIH format not supported\n');
-end;
 try,
-	c=fwrite(1,0,'bit24');
+        c = fwrite(1,0,'bit24');
 catch
         fprintf(1,'Warning: datatype BIT24 is not available. BDF-format not supported. Some GDF-files might not be supported\n');
 end;        
 
-%       Version 0.20        10 Jul 2003
-%	Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Revision: 1.1 $
-%	$Id: install.m,v 1.1 2003-10-03 10:30:27 schloegl Exp $
-
-
+disp('BIOSIG-toolbox activated');
