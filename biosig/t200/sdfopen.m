@@ -122,8 +122,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.43 $
-%	$Id: sdfopen.m,v 1.43 2005-03-25 11:20:22 schloegl Exp $
+%	$Revision: 1.44 $
+%	$Id: sdfopen.m,v 1.44 2005-04-02 22:22:12 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -514,9 +514,10 @@ if EDF.NRec == -1   % unknown record size, determine correct NRec
         EDF.NRec = floor((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
 elseif  (EDF.NRec*EDF.AS.bpb) ~= (EDF.AS.endpos - EDF.HeadLen);
         if ~strcmp(EDF.VERSION(1:3),'GDF'),
-                EDF.ErrNo=[16,EDF.ErrNo];
-                fprintf(2,'\nWarning SDFOPEN: size (%i) of file %s does not fit headerinformation\n',EDF.AS.endpos,EDF.FileName);
+                EDF.ErrNo= [16,EDF.ErrNo];
+		tmp = EDF.NRec; 
                 EDF.NRec = floor((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
+                fprintf(2,'\nWarning SDFOPEN: filesize (%i) of %s does not fit headerinformation (NRec = %i not %i)\n',EDF.AS.endpos,EDF.FileName,tmp,EDF.NRec);
         else
                 EDF.AS.EVENTTABLEPOS = EDF.HeadLen + EDF.AS.bpb*EDF.NRec;
         end;
@@ -1394,8 +1395,31 @@ else
 	fprintf(EDF.FILE.stderr,'ERROR SDFOPEN: more than 1 of EDF.Dur, EDF.SampleRate, EDF.AS.SPR undefined.\n');
 	return; 
 end;
+if (abs(EDF.VERSION(1))==255)  & strcmp(EDF.VERSION(2:8),'BIOSEMI'),
+        EDF.GDFTYP=255+24+zeros(1,EDF.NS);
 
+elseif strcmp(EDF.VERSION,'0       '),
+        EDF.GDFTYP=3+zeros(1,EDF.NS);
 
+elseif strcmp(EDF.VERSION(1:3),'GDF'),
+	if EDF.NS == 0;
+		EDF.GDFTYP = 3;
+	elseif ~isfield(EDF,'GDFTYP'),
+	        EDF.ERROR = sprintf('Warning SDFOPEN-W: EDF.GDFTYP not defined\n');
+                EDF.ErrNo = EDF.ErrNo + 128;
+                % fclose(EDF.FILE.FID); return;
+        elseif length(EDF.GDFTYP)==1,
+                EDF.GDFTYP = EDF.GDFTYP(ones(EDF.NS,1));
+        elseif length(EDF.GDFTYP)>=EDF.NS,
+                EDF.GDFTYP = EDF.GDFTYP(1:EDF.NS);
+        end;
+else
+	fprintf(EDF.FILE.stderr,'Error SDFOPEN: invalid VERSION %s\n ',EDF.VERSION);
+	return;
+end;
+[tmp,EDF.THRESHOLD]=gdfdatatype(EDF.GDFTYP);
+
+if EDF.NS>0,	% header 2
 % Check all fields of Header2
 if ~isfield(EDF,'Label')
         EDF.Label=setstr(32+zeros(EDF.NS,16));
@@ -1439,7 +1463,9 @@ if ~isfield(EDF,'PhysDim')
                 fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.PhysDim not defined\n');
         end;
 else
-        if size(EDF.PhysDim,1)<EDF.NS,
+        if size(EDF.PhysDim,1)==0,
+                EDF.PhysDim = repmat(' ',EDF.NS,1);
+        elseif size(EDF.PhysDim,1)<EDF.NS,
                 EDF.PhysDim = repmat(EDF.PhysDim,EDF.NS,1);
         end;
         tmp=min(8,size(EDF.PhysDim,2));
@@ -1483,7 +1509,14 @@ if ~isfield(EDF,'DigMax')
 else
         EDF.DigMax=EDF.DigMax(1:EDF.NS);
 end;
-if ~isfield(EDF,'SPR')
+
+ix = find((EDF.DigMax(:)==EDF.DigMin(:)) & (EDF.PhysMax(:)==EDF.PhysMin(:)));
+EDF.PhysMax(ix) = 1; 
+EDF.PhysMin(ix) = 0; 
+EDF.DigMax(ix) = 1; 
+EDF.DigMin(ix) = 0; 
+        
+if ~isfield(EDF.AS,'SPR')
         if EDF.NS>0,
                 fprintf('Warning SDFOPEN-W: EDF.AS.SPR not defined\n');
         end;
@@ -1494,32 +1527,14 @@ if ~isfield(EDF,'SPR')
 else
         EDF.AS.SPR=reshape(EDF.AS.SPR(1:EDF.NS),EDF.NS,1);
 end;
+
+end;	% header 2
+
 EDF.SPR = 1;
 for k=1:EDF.NS,
         EDF.SPR = lcm(EDF.SPR,EDF.AS.SPR(k));
 end;
 
-if (abs(EDF.VERSION(1))==255)  & strcmp(EDF.VERSION(2:8),'BIOSEMI'),
-        EDF.GDFTYP=255+24+zeros(1,EDF.NS);
-
-elseif strcmp(EDF.VERSION,'0       '),
-        EDF.GDFTYP=3+zeros(1,EDF.NS);
-
-elseif strcmp(EDF.VERSION(1:3),'GDF'),
-	if EDF.NS == 0;
-		EDF.GDFTYP = [];
-	elseif ~isfield(EDF,'GDFTYP'),
-	        EDF.ERROR = sprintf('Warning SDFOPEN-W: EDF.GDFTYP not defined\n');
-                EDF.ErrNo = EDF.ErrNo + 128;
-                % fclose(EDF.FILE.FID); return;
-        else
-                EDF.GDFTYP= EDF.GDFTYP(1:EDF.NS);
-        end;
-else
-	fprintf(EDF.FILE.stderr,'Error SDFOPEN: invalid VERSION %s\n ',EDF.VERSION);
-	return;
-end;
-[tmp,EDF.THRESHOLD]=gdfdatatype(EDF.GDFTYP);
 
 
 %%%%%% generate Header 1, first 256 bytes 
@@ -1554,7 +1569,7 @@ EDF.FILE.OPEN = 2;
 EDF.AS.spb = sum(EDF.AS.SPR);	% Samples per Block
 EDF.AS.bi  = [0;cumsum(EDF.AS.SPR)];
 EDF.AS.BPR = ceil(EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)');
-while any(EDF.AS.BPR  ~= EDF.AS.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)');
+while EDF.NS & any(EDF.AS.BPR  ~= EDF.AS.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)');
         fprintf(2,'\nWarning SDFOPEN: invalid block configuration in file %s.\n',EDF.FileName);
         DIV = 2;
         EDF.SPR = EDF.SPR*DIV;
@@ -1600,6 +1615,7 @@ else
 end;
 
 %%%%%% generate Header 2,  NS*256 bytes 
+if EDF.NS>0, 
 if ~strcmp(EDF.VERSION(1:3),'GDF');
         sPhysMax=char(32+zeros(EDF.NS,8));
         sPhysMin=char(32+zeros(EDF.NS,8));
@@ -1665,7 +1681,7 @@ else
         fwrite(fid, EDF.GDFTYP,'uint32');
         fprintf(fid,'%c',32*ones(32,EDF.NS));
 end;
-
+end;
 tmp = ftell(EDF.FILE.FID);
 if tmp ~= (256 * (EDF.NS+1)) 
         fprintf(1,'Warning SDFOPEN-WRITE: incorrect header length %i bytes\n',tmp);
