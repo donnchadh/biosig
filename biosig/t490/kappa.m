@@ -1,8 +1,8 @@
 function [kap,se,H,zscore,p0,SA]=kappa(d,c,kk);
 % kap	Cohen's kappa coefficient
 %
-% [kap,sd,H,z] = kappa(d1,d2);
-% [kap,sd,H,z] = kappa(H);
+% [kap,sd,H,z,OA,SA] = kappa(d1,d2);
+% [kap,sd,H,z,OA,SA] = kappa(H);
 %
 % d1    data of scorer 1 
 % d2    data of scorer 2 
@@ -23,9 +23,9 @@ function [kap,se,H,zscore,p0,SA]=kappa(d,c,kk);
 %        Encyclopedia of Statistical Sciences. New York: John Wiley & Sons.
 % [5] http://ourworld.compuserve.com/homepages/jsuebersax/kappa.htm
 
-%	Version 1.25
-%	11 Oct 2002
-%	Copyright (c) 1997-2002 by Alois Schloegl
+%	$Revision: 1.2 $
+%	$Id: kappa.m,v 1.2 2003-12-09 10:10:47 schloegl Exp $
+%	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
 % This library is free software; you can redistribute it and/or
@@ -90,7 +90,7 @@ else
 end;
 
 warning('off');
-p0  = sum(diag(H))/N;  %overall agreement 
+p0  = sum(diag(H))/N;  %accuracy of observed agreement, overall agreement 
 %OA = sum(diag(H))/N);
 
 p_i = sum(H); %sum(H,1);
@@ -98,7 +98,7 @@ pi_ = sum(H'); %sum(H,2)';
 
 SA  = 2*diag(H)'./(p_i+pi_); % specific agreement 
 
-pe  = (p_i*pi_')/(N*N);  % change agreement
+pe  = (p_i*pi_')/(N*N);  % estimate of change agreement
 
 px  = sum(p_i.*pi_.*(p_i+pi_))/(N*N*N);
 
