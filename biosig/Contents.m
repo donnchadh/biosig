@@ -3,8 +3,8 @@
 %
 % Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>
 % WWW: http://biosig.sf.net/
-% $Revision: 1.3 $ 
-% $Id: Contents.m,v 1.3 2004-02-07 16:51:30 schloegl Exp $
+% $Revision: 1.4 $ 
+% $Id: Contents.m,v 1.4 2004-02-13 17:03:01 schloegl Exp $
 % This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % LICENSE:
@@ -39,8 +39,7 @@
 %	demo3	demonstrates how the generate an EDF/GDF/BDF file
 %	demo4	Demonstrates how the generate an BKR file
 %	demo5	Demonstrates how the generate an WAV file
-
-
+%       scptest tests loading routine of SCP-ECG data
 % 	
 % 
 % T100: [Data Acquistion] 
@@ -96,14 +95,17 @@
 % 	MUTINFO		mutual information
 % 	QCMAHAL		quality check of multiple discriminator
 % 	KAPPA		kappa statistics
-% 	BCI3EVAL	Evaluation of BCI results
+% 	BCI3EVAL	Evaluation of BCI results (triggered output)
+% 	BCI4EVAL	Evaluation of BCI results (continous output)
 % 	
 % 
 % T500: Presentation, Output
 % ---------------------------------------------
 % 	PLOTA		general plot functions for various data structures
+%       ELPOS           2-D electrode positions
+%       ELPOS3          3-D electrode positions
 % 
-% 
+%
 % T550: Topographic Mapping, 3-dimensional display
 % ---------------------------------------------
 % 
