@@ -6,6 +6,9 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %    PhysioNet (MIT-ECG), Poly5/TMS32, SMA, RDF, CFWB,
 %    Alpha-Trace, DEMG, SCP-ECG.
 %
+% [signal,header] = sload(FILENAME,CHAN)
+%       reads selected (CHAN) channels
+%       if CHAN is 0, all channels are read 
 % [signal,header] = sload(FILENAME [,CHANNEL [,Fs]])
 % FILENAME      name of file, or list of filenames
 % channel       list of selected channels
@@ -17,13 +20,18 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 % [signal,header] = sload('f*.emg', CHAN)
 %  	loads channels CHAN from all files 'f*.emg'
 %
-% see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
+% see also: SVIEW, SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 %
 % Reference(s):
+% -------------
+% BCI competition 2003 
+%    http://ida.first.fraunhofer.de/projects/bci/competition/results/
+%
+%
 
 
-%	$Revision: 1.33 $
-%	$Id: sload.m,v 1.33 2004-09-22 11:23:53 schloegl Exp $
+%	$Revision: 1.34 $
+%	$Id: sload.m,v 1.34 2004-09-22 17:14:54 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -301,30 +309,11 @@ elseif strncmp(H.TYPE,'MAT',3),
                 H.Classlabel = tmp.StimulusCode(ix+1); 
                 
                 
-        elseif isfield(tmp,'x_train') & isfield(tmp,'y_train') & isfield(tmp,'x_test');	
-                H.INFO='BCI competition 2003, dataset 3 (Graz)'; 
-                H.Label = {'C3','Cz','C4'};
-
-                H.SampleRate = 128; 
-                H.Classlabel = [tmp.y_train-1;repmat(nan,size(tmp.x_test,3),1)];
-                signal = cat(3,tmp.x_test,tmp.x_train);
-                
-                H.NRec = length(H.Classlabel);
-                H.FLAG.TRIGGERED = 1; 
-                H.SampleRate = 128;
-                H.Dur = 9; 
-                H.NS  = 3;
-                H.SPR = H.SampleRate*H.Dur;
-                
-                sz = [H.NS,H.SPR,H.NRec];
-                signal=reshape(permute(signal,[2,1,3]),sz(1),sz(2)*sz(3))';
-                
-                
         elseif isfield(tmp,'clab') & isfield(tmp,'x_train') & isfield(tmp,'y_train') & isfield(tmp,'x_test');	
                 H.INFO='BCI competition 2003, dataset 4 (Berlin)'; 
-                %load('berlin/sp1s_aa_1000Hz.mat');
-                H.Classlabel=[repmat(nan,size(tmp.x_test,3),1);tmp.y_train';repmat(nan,size(tmp.x_test,3),1)];
-                H.NRec = length(H.Classlabel);
+                H.Label = tmp.clab;        
+                H.Classlabel = [repmat(nan,size(tmp.x_test,3),1);tmp.y_train';repmat(nan,size(tmp.x_test,3),1)];
+                H.NRec  = length(H.Classlabel);
                 
                 H.SampleRate = 1000;
                 H.Dur = 0.5; 
@@ -334,6 +323,24 @@ elseif strncmp(H.TYPE,'MAT',3),
                 sz = [H.NS,H.SPR,H.NRec];
                 
                 signal = reshape(permute(cat(3,tmp.x_test,tmp.x_train,tmp.x_test),[2,1,3]),sz(1),sz(2)*sz(3))';
+                
+                
+        elseif isfield(tmp,'x_train') & isfield(tmp,'y_train') & isfield(tmp,'x_test');	
+                H.INFO  = 'BCI competition 2003, dataset 3 (Graz)'; 
+                H.Label = {'C3a-C3p'; 'Cza-Czp'; 'C4a-C4p'};
+                H.SampleRate = 128; 
+                H.Classlabel = [tmp.y_train-1; repmat(nan,size(tmp.x_test,3),1)];
+                signal = cat(3, tmp.x_test, tmp.x_train);
+                
+                H.NRec = length(H.Classlabel);
+                H.FLAG.TRIGGERED = 1; 
+                H.SampleRate = 128;
+                H.Dur = 9; 
+                H.NS  = 3;
+                H.SPR = H.SampleRate*H.Dur;
+                
+                sz = [H.NS, H.SPR, H.NRec];
+                signal = reshape(permute(signal,[2,1,3]),sz(1),sz(2)*sz(3))';
                 
                 
         elseif isfield(tmp,'RAW_SIGNALS')    % TFM Matlab export 
