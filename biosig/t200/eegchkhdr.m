@@ -6,8 +6,8 @@ function HDR=eegchkhdr(HDR);
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE
 
-%	$Revision: 1.7 $
-%	$Id: eegchkhdr.m,v 1.7 2004-02-12 15:03:15 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: eegchkhdr.m,v 1.8 2004-03-11 12:41:30 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -41,11 +41,7 @@ if strcmp(HDR.TYPE,'BKR'),
                         tmp=input('Whats the maximum physical value [µV]:');
                         HDR.PhysMax=tmp;
                 end;
-                if isempty(HDR.PhysMax), HDR.PhysMax=nan; end;
                 
-                if ~isfield(HDR,'DigMax'),
-                        HDR.DigMax=2^15-1;
-                end;
                 if ~isfield(HDR,'Filter'),
                         HDR.Filter=[];
                 end;
@@ -62,10 +58,6 @@ if strcmp(HDR.TYPE,'BKR'),
                 fprintf(1,'HDR.TYPE\t= ''BKR'';  %% (file format)\n');
                 fprintf(1,'HDR.FileName\t= ''%s'';  %%(FileName)\n',HDR.FileName);
                 fprintf(1,'HDR.SampleRate\t=%5i;  %%(Sampling rate [Hz])\n',HDR.SampleRate);
-                fprintf(1,'HDR.PhysMax\t= %.3f; %%(Physical Maximum)\n',HDR.PhysMax);
-                fprintf(1,'HDR.DigMax\t= %5i;  %%(Digital Maximum)\n',HDR.DigMax);
-                fprintf(1,'HDR.Filter.LowPass\t=%5f;  %%(upper cutoff frequency)\n',HDR.Filter.LowPass(1));
-                fprintf(1,'HDR.Filter.HighPass\t=%5f;  %%(lower cutoff frequency [Hz])\n',HDR.Filter.HighPass(1));
                 
                 if ~isfield(HDR,'FLAG'), 
                         tmp_flag = 0; 
