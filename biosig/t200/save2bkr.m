@@ -35,8 +35,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.10 $
-% 	$Id: save2bkr.m,v 1.10 2003-12-16 10:16:53 schloegl Exp $
+%	$Revision: 1.11 $
+% 	$Id: save2bkr.m,v 1.11 2003-12-16 17:46:19 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -88,7 +88,7 @@ else
                 [chansel_dt,tmp] = strtok(arg3(tmp+7:length(arg3)),' ;,+');
                 tmp = str2num(chansel_dt);
                 if isempty(tmp),
-                        fprintf(2,'invalid detrend argument %s',chansel);
+                        fprintf(2,'invalid detrend argument %s',chansel_dt);
                         return;
                 else
                         FLAG_DETREND = 1;
@@ -113,13 +113,14 @@ else
                 [tmp,tmp1] = strtok(arg3(tmp+8:length(arg3)),' ;,');
                 PHYSMAX = str2num(tmp);
                 if isempty(PHYSMAX ),
-                        fprintf(2,'invalid PhysMax argument %s',chansel);
+                        fprintf(2,'invalid PhysMax argument %s',tmp);
                         return;
                 else
                         FLAG_PHYSMAX = 1;
                 end;
         end;
 end;
+
 
 if isstr(arg1), 
         inpath = fileparts(arg1);
@@ -173,19 +174,17 @@ if isstruct(arg1),
                 %y = center(y,1);
                 data = data - repmat(mean(data,1),size(data,1),1);
         end;
-        if chansel==0,
-                HDR.PhysMax = max(abs(data(:))); %gives max of the whole matrix
-                data = data*(HDR.DigMax/HDR.PhysMax);	%transpose, da zuerst 1.Sample-1.Channel, dann 
-        else
-                tmp = data(:,chansel);
-                HDR.PhysMax = max(abs(tmp(:))); %gives max of the whole matrix
-                for k = 1:HDR.NS,
-                        if any(k==chansel),
-                                data(:,k) = data(:,k)*HDR.DigMax/HDR.PhysMax;
-                        else
-	                        mm = max(abs(data(:,k)));
-                                data(:,k) = data(:,k)*HDR.DigMax/mm;
-                        end;
+        if chansel == 0;
+                chansel=1:HDR.NS;
+        end;
+        tmp = data(:,chansel);
+        HDR.PhysMax = max(abs(tmp(:))); %gives max of the whole matrix
+        for k = 1:HDR.NS,
+                if any(k==chansel),
+                        data(:,k) = data(:,k)*HDR.DigMax/HDR.PhysMax;
+                else
+                        mm = max(abs(data(:,k)));
+                        data(:,k) = data(:,k)*HDR.DigMax/mm;
                 end;
         end;
         
@@ -275,6 +274,10 @@ for k=1:length(infile);
 	        end;                
         end;
         
+        if chansel == 0;
+                chansel=1:HDR.NS;
+        end;
+
         % add event channel 
         if isfield(HDR,'EVENT')
                 if HDR.EVENT.N > 0,
@@ -290,23 +293,15 @@ for k=1:length(infile);
         if FLAG_PHYSMAX,
                 HDR.PhysMax = PHYSMAX;
         else
-                if chansel==0,
-                        HDR.PhysMax = max(abs(y(:))); %gives max of the whole matrix
-                else
-                        tmp = y(:,chansel);
-                        HDR.PhysMax = max(abs(tmp(:))); %gives max of the whole matrix
-                end;
+                tmp = y(:,chansel);
+                HDR.PhysMax = max(abs(tmp(:))); %gives max of the whole matrix
         end;
-        if chansel==0,
-                y = y*(HDR.DigMax/HDR.PhysMax);	%transpose, da zuerst 1.Sample-1.Channel, dann 
-        else
-                for k = 1:HDR.NS,
-                        mm = max(abs(y(:,k)));
-                        if any(k==chansel),
-                                y(:,k) = y(:,k)*HDR.DigMax/HDR.PhysMax;
-                        else
-                                y(:,k) = y(:,k)*HDR.DigMax/mm;
-                        end;
+        for k = 1:HDR.NS,
+                mm = max(abs(y(:,k)));
+                if any(k==chansel),
+                        y(:,k) = y(:,k)*HDR.DigMax/HDR.PhysMax; % keep correct scaling factor 
+                else
+                        y(:,k) = y(:,k)*HDR.DigMax/mm;          % scale to maximum resolution
                 end;
         end;
         
