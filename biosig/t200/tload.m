@@ -7,8 +7,9 @@ function [signal,H] = tload(FILENAME,TI1,CHAN,EVENTFILE,TI2)
 %
 % FILENAME  name of file, or list of filenames, wildcards '*' are supported. 
 %	    The files must contain the trigger information. 
-% TI	    trigger interval [t1,t2] in seconds, relative to TRIGGER point
-%	    This interval defines the trigger segment. 
+% TI	    trigger interval [t1,t2,t3] in seconds, relative to TRIGGER point
+%	    The interval [t1,t2] defines the trigger segment, t3 is 
+%	    optional and determines the number of NaN's after each trial. 
 % CHAN      list of selected channels
 %           default=0: loads all channels
 % EVENTFILE file of artifact scoring 
@@ -20,7 +21,7 @@ function [signal,H] = tload(FILENAME,TI1,CHAN,EVENTFILE,TI2)
 % see also: SLOAD, SVIEW, SOPEN
 
 
-%	$Id: tload.m,v 1.2 2004-12-04 19:23:06 schloegl Exp $
+%	$Id: tload.m,v 1.3 2004-12-04 23:40:14 schloegl Exp $
 %	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -49,7 +50,7 @@ end;
 [s,HDR] = sload(FILENAME,CHAN); 
 
 if nargin>3,
-	if nargin<5, TI2 = TI1; end; 
+	if nargin<5, TI2 = TI1(1:2); end; 
 	HDR = artifact_selection({HDR,EVENTFILE},TI2);
 end;
 
@@ -59,7 +60,14 @@ if isfield(HDR,'ArtifactSelection')
 end;
 
 TI1 = TI1*HDR.SampleRate;
-[signal,sz] = trigg(s,TRIG,TI1(1),TI1(2)-1);
+if length(TI1)<3, TI1(3)=0; end; 
+if HDR.FLAG.TRIGGERED & (any(TI1<1) | any(TI1>HDR.SPR))
+	fprintf(2,'Warning TLOAD: data is already triggered - invalid trigger interval\n');
+	[signal,sz] = trigg(s,TRIG,1,HDR.SPR,TI1(2)-TI1(1)-HDR.SPR+TI1(3));
+	signal = [signal(:,1+end+TI1(1):end),signal(:,1:end+TI1(1))];
+else
+	[signal,sz] = trigg(s,TRIG,TI1(1),TI1(2),TI1(3));
+end;		
 signal = signal';
 
 H = HDR; 

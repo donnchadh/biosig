@@ -24,8 +24,8 @@ function [HDR,A] = artifact_selection(fn,t1,t2)
 %
 % see also: TRIGG, SOPEN, SCLOSE
 
-%	$Revision: 1.3 $
-% 	$Id: artifact_selection.m,v 1.3 2004-12-04 17:15:11 schloegl Exp $
+%	$Revision: 1.4 $
+% 	$Id: artifact_selection.m,v 1.4 2004-12-04 23:40:16 schloegl Exp $
 %	Copyright (c) 2004 by Alois Schloegl <a.schloegl@ieee.org>
 %
 
@@ -92,9 +92,9 @@ SEL = zeros(length(HDR.TRIG),1);
 % define interval
 if nargin<2, 
 	if HDR.FLAG.TRIGGERED, 
-		ti = [0, HDR.SPR-1];
+		ti = [1, HDR.SPR];
 	else
-		ti = [0, max(diff(HDR.TRIG))-1];
+		ti = [1, max(diff(HDR.TRIG))];
 	end;	
 else
 	if prod(size(t1))==1,
