@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.10 $
-%	$Id: bkropen.m,v 1.10 2003-08-18 08:59:53 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: bkropen.m,v 1.11 2003-08-18 16:41:30 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -262,7 +262,7 @@ elseif any(PERMISSION=='w') | ~isempty(findstr(PERMISSION,'r+')),
 	count=fwrite(BKR.FILE.FID,zeros(4,1),'char');        
 	if isfield(BKR,'Filter'),
 		if ~isfield(BKR.Filter,'LowPass'),
-			BKR.Filter.LowPass =NaN; 
+			BKR.Filter.LowPass = NaN; 
 		end;        
 		if ~isfield(BKR.Filter,'HighPass'),
 			BKR.Filter.HighPass=NaN; 

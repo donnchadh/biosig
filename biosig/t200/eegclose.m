@@ -18,8 +18,8 @@ function [HDR]=eegclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.4 $
-%	$Id: eegclose.m,v 1.4 2003-08-18 13:03:30 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: eegclose.m,v 1.5 2003-08-18 16:41:30 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org
 
@@ -28,11 +28,10 @@ if HDR.FILE.FID<0, return; end;
 
 if HDR.FILE.OPEN>=2,
 	% check file length - simple test for file integrity         
-        EndPos = ftell(HDR.FILE.FID);           % get file length
+        EndPos = ftell(HDR.FILE.FID);          % get file length
         % force file pointer to the end, otherwise Matlab 6.5 R13 on PCWIN
         status = fseek(HDR.FILE.FID, 0, 'eof'); % go to end-of-file
-	% check file length - simple test for file integrity         
-        EndPos = ftell(HDR.FILE.FID);           % get file length
+        
         
         if strcmp(HDR.TYPE,'BKR');
                 if HDR.NS<1, 
@@ -41,12 +40,12 @@ if HDR.FILE.OPEN>=2,
                 end;
                 % check file length and write Headerinfo.
                 HDR.SPR       = (EndPos-HDR.HeadLen)/(HDR.NRec*HDR.NS*2);
-                if HDR.FILE.OPEN==3,
+                if HDR.FILE.OPEN>1;
 			fclose(HDR.FILE.FID);
 			HDR.FILE.FID = fopen(HDR.FileName,'r+');
                         fseek(HDR.FILE.FID,2,'bof');
                		count = fwrite(HDR.FILE.FID,HDR.NS,'int16');             % channel
-        		fseek(HDR.FILE.FID,9,'bof');
+        		fseek(HDR.FILE.FID,10,'bof');
                         count = fwrite(HDR.FILE.FID,HDR.SPR,'uint32');           % samples/trial
                 end;
 		HDR.FILE.status = fclose(HDR.FILE.FID);

@@ -18,8 +18,8 @@ function [HDR]=eegwrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.4 $
-%	$Id: eegwrite.m,v 1.4 2003-08-18 13:03:30 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: eegwrite.m,v 1.5 2003-08-18 16:41:30 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -100,18 +100,18 @@ elseif strcmp(HDR.TYPE,'BKR'),
                 data = data';
         end
         
-        if HDR.NS==size(data,2),
+        if any(HDR.NS==[size(data,2),0]),	% check if HDR.NS = 0 (unknown channel number) or number_of_columns 
+                if HDR.NS==0, HDR.NS = size(data,2); end;   % if HDR.NS not set, set it. 
                 if ~HDR.FLAG.UCAL,
-	                data = data*(HDR.DigMax/HDR.PhysMax);
+                        data = data*(HDR.DigMax/HDR.PhysMax);
                 end;
                 % Overflow detection
                 data(data>2^15-1)=  2^15-1;	
                 data(data<-2^15) = -2^15;
                 count = fwrite(HDR.FILE.FID,data','short');
-        elseif HDR.NS==0,
-                HDR.NS = size(data,2);
         else
-                fprintf(2,'EEGWRITE: number of columns (%i) does not fit Header information (number of channels HDR.NS %i)',size(data,2),HDR.NS)
+                fprintf(2,'Error EEGWRITE: number of columns (%i) does not fit Header information (number of channels HDR.NS %i)',size(data,2),HDR.NS);
+                return;
         end;
 	if HDR.NRec > 1,
 	        HDR.FILE.POS = HDR.FILE.POS + size(data,1)/HDR.SPR;
