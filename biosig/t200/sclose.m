@@ -18,8 +18,8 @@ function [HDR]=sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.2 $
-%	$Id: sclose.m,v 1.2 2003-09-07 21:24:23 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: sclose.m,v 1.3 2003-09-09 23:10:30 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org
 
@@ -76,10 +76,34 @@ if HDR.FILE.OPEN>=2,
                 if HDR.FILE.OPEN==3;
 			fclose(HDR.FILE.FID);
 			HDR.FILE.FID = fopen(HDR.FileName,'r+',HDR.Endianity);
-                        fseek(HDR.FILE.FID,8,'bof');
+                        fseek(HDR.FILE.FID,8,-1);
                         count = fwrite(HDR.FILE.FID,HDR.SPR*HDR.AS.bpb,'uint32');           % bytes
-                        fseek(HDR.FILE.FID,20,'bof');
+                        fseek(HDR.FILE.FID,20,-1);
                         count = fwrite(HDR.FILE.FID,HDR.NS,'uint32');           % channels
+		end;
+		HDR.FILE.status = fclose(HDR.FILE.FID);
+	        HDR.FILE.OPEN = 0;
+
+        elseif strcmp(HDR.TYPE,'AIF');
+                if HDR.FILE.OPEN==3;
+			fclose(HDR.FILE.FID);
+			HDR.FILE.FID = fopen(HDR.FileName,'r+','ieee-be');
+                        fseek(HDR.FILE.FID,4,-1);
+                        count = fwrite(HDR.FILE.FID,EndPos-8,'uint32');           % bytes
+                        fseek(HDR.FILE.FID,HDR.WAV.posis(2),-1);
+                        count = fwrite(HDR.FILE.FID,EndPos-4-HDR.WAV.posis(2),'uint32');           % channels
+		end;
+		HDR.FILE.status = fclose(HDR.FILE.FID);
+	        HDR.FILE.OPEN = 0;
+
+        elseif strcmp(HDR.TYPE,'WAV') ;
+                if HDR.FILE.OPEN==3;
+			fclose(HDR.FILE.FID);
+			HDR.FILE.FID = fopen(HDR.FileName,'r+','ieee-le');
+                        fseek(HDR.FILE.FID,4,-1);
+                        count = fwrite(HDR.FILE.FID,EndPos-16,'uint32');           % bytes
+                        fseek(HDR.FILE.FID,HDR.WAV.posis(2),-1);
+                        count = fwrite(HDR.FILE.FID,EndPos-4-HDR.WAV.posis(2),'uint32');           % channels
 		end;
 		HDR.FILE.status = fclose(HDR.FILE.FID);
 	        HDR.FILE.OPEN = 0;

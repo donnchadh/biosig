@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.2 $
-%	$Id: sopen.m,v 1.2 2003-09-07 21:24:23 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: sopen.m,v 1.3 2003-09-09 23:10:30 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -116,10 +116,8 @@ if any(PERMISSION=='r'),
 				HDR.Endianity = 'ieee-le';
                         elseif strcmp(ss([1:4,9:12]),'RIFFWAVE'); 
                                 HDR.TYPE='WAV';
-				HDR.Endianity = 'ieee-le';
                         elseif strcmp(ss([1:4,9:11]),'FORMAIF'); 
                                 HDR.TYPE='AIF';
-				HDR.Endianity = 'ieee-be';
                         elseif strncmp(ss,'RG64',4); 
                                 HDR.TYPE='RG64';
                         elseif strncmp(ss,'DTDF',4); 
@@ -572,6 +570,20 @@ elseif strcmp(HDR.TYPE,'SND'),
 	elseif HDR.FILE.TYPE==7, 
 		HDR.GDFTYP = 17;
 		HDR.bits   = 64;
+
+	elseif HDR.FILE.TYPE==11, 
+		HDR.GDFTYP =  2;
+		HDR.bits   =  8;
+	elseif HDR.FILE.TYPE==12, 
+		HDR.GDFTYP =  4;
+		HDR.bits   = 16;
+	elseif HDR.FILE.TYPE==13, 
+		HDR.GDFTYP = 511+24;
+		HDR.bits   = 24;
+	elseif HDR.FILE.TYPE==14, 
+		HDR.GDFTYP =  6;
+		HDR.bits   = 32;
+
 	else
 		fprintf(2,'Error SOPEN SND-format: datatype %i not supported\n',HDR.FILE.TYPE);
 		return;
@@ -622,192 +634,288 @@ elseif strcmp(HDR.TYPE,'SND'),
         
 	
 elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
+	if strcmp(HDR.TYPE,'AIF') 
+		HDR.Endianity = 'ieee-be';
+	elseif  strcmp(HDR.TYPE,'WAV') ,
+		HDR.Endianity = 'ieee-le';
+	end;
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
 	
-	tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
-	if ~strcmpi(tmp,'FORM') & ~strcmpi(tmp,'RIFF'),
-		fprintf(2,'Warning SOPEN AIF/WAV-format: file %s might be corrupted 1\n',HDR.FileName);
-	end;
-	tagsize  = fread(HDR.FILE.FID,1,'uint32');        % which size
-	tagsize0 = tagsize + rem(tagsize,2); 
-	tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
-	if ~strncmpi(tmp,'AIF',3) & ~strncmpi(tmp,'WAVE',4), % not (AIFF or AIFC or WAVE)
-		fprintf(2,'Warning SOPEN AIF/WAF-format: file %s might be corrupted 2\n',HDR.FileName);
-	end;
-
-	while ~feof(HDR.FILE.FID),	
-		[tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
-		tag     = setstr(tmp);
-		tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size 
-		tagsize0= tagsize + rem(tagsize,2); 
-		filepos = ftell(HDR.FILE.FID);
-                %%%% AIF - section %%%%%
-		if strcmpi(tag,'COMM')
-			if tagsize<18, 
-				fprintf(2,'Error SOPEN AIF: incorrect tag size\n');
-				return;
-			end;
-			HDR.NS   = fread(HDR.FILE.FID,1,'uint16');
-			HDR.SPR  = fread(HDR.FILE.FID,1,'uint32');
-			HDR.AS.endpos = HDR.SPR;
-			HDR.bits = fread(HDR.FILE.FID,1,'uint16');
-			HDR.GDFTYP = ceil(HDR.bits/8)*2-1; % unsigned integer of approbriate size;
-			HDR.Cal  = 2^(1-HDR.bits);
-			HDR.AS.bpb = ceil(HDR.bits/8)*HDR.NS;
-
-			% HDR.SampleRate; % construct Extended 80bit IEEE 754 format 
-			tmp = fread(HDR.FILE.FID,1,'int16');
-			sgn = sign(tmp);
-			if tmp(1)>= 2^15; tmp(1)=tmp(1)-2^15; end;
-			e = tmp - 2^14 + 1;
-			tmp = fread(HDR.FILE.FID,2,'uint32');
-			HDR.SampleRate = sgn * (tmp(1)*(2^(e-31))+tmp(2)*2^(e-63));
-			HDR.Dur = HDR.SPR/HDR.SampleRate;
-
-			if tagsize>18,
-				[tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
-				HDR.AIF.CompressionType = setstr(tmp);
-				[tmp,c] = fread(HDR.FILE.FID,taglen-18-c,'char');
-				HDR.AIF.CompressionName = setstr(tmp);
-				
-				if ~strcmpi(HDR.AIF.CompressionType,'NONE');
-					fprintf(2,'Warning SOPEN AIFC-format: CompressionType %s is not supported\n', HDR.AIF.CompressionType);
+	if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+		HDR.FILE.OPEN = 1; 
+	
+	    	tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
+		if ~strcmpi(tmp,'FORM') & ~strcmpi(tmp,'RIFF'),
+			fprintf(2,'Warning SOPEN AIF/WAV-format: file %s might be corrupted 1\n',HDR.FileName);
+		end;
+		tagsize  = fread(HDR.FILE.FID,1,'uint32');        % which size
+		tagsize0 = tagsize + rem(tagsize,2); 
+		tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
+		if ~strncmpi(tmp,'AIF',3) & ~strncmpi(tmp,'WAVE',4), % not (AIFF or AIFC or WAVE)
+			fprintf(2,'Warning SOPEN AIF/WAF-format: file %s might be corrupted 2\n',HDR.FileName);
+		end;
+	
+		while ~feof(HDR.FILE.FID),	
+			[tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
+			tag     = setstr(tmp);
+			tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size 
+			tagsize0= tagsize + rem(tagsize,2); 
+			filepos = ftell(HDR.FILE.FID);
+            		%%%% AIF - section %%%%%
+			if strcmpi(tag,'COMM')
+				if tagsize<18, 
+					fprintf(2,'Error SOPEN AIF: incorrect tag size\n');
+					return;
 				end;
-			end;	
-					
-		elseif strcmpi(tag,'SSND');
-			HDR.AIF.offset   = fread(HDR.FILE.FID,1,'int32');
-			HDR.AIF.blocksize= fread(HDR.FILE.FID,1,'int32');
-			tmp = (tagsize-8)/HDR.AS.bpb;
-			if tmp~=HDR.SPR,
-				fprintf(2,'Waring SOPEN AIF: Number of samples do not fit %i vs %i\n',tmp,HDR.SPR);
+				HDR.NS   = fread(HDR.FILE.FID,1,'uint16');
+				HDR.SPR  = fread(HDR.FILE.FID,1,'uint32');
+				HDR.AS.endpos = HDR.SPR;
+				HDR.bits = fread(HDR.FILE.FID,1,'uint16');
+				HDR.GDFTYP = ceil(HDR.bits/8)*2-1; % unsigned integer of approbriate size;
+				HDR.Cal  = 2^(1-HDR.bits);
+				HDR.AS.bpb = ceil(HDR.bits/8)*HDR.NS;
+
+				% HDR.SampleRate; % construct Extended 80bit IEEE 754 format 
+				tmp = fread(HDR.FILE.FID,1,'int16');
+				sgn = sign(tmp);
+				if tmp(1)>= 2^15; tmp(1)=tmp(1)-2^15; end;
+				e = tmp - 2^14 + 1;
+				tmp = fread(HDR.FILE.FID,2,'uint32');
+				HDR.SampleRate = sgn * (tmp(1)*(2^(e-31))+tmp(2)*2^(e-63));
+				HDR.Dur = HDR.SPR/HDR.SampleRate;
+
+				if tagsize>18,
+					[tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
+					HDR.AIF.CompressionType = setstr(tmp);
+					[tmp,c] = fread(HDR.FILE.FID,taglen-18-c,'char');
+					HDR.AIF.CompressionName = setstr(tmp);
+				
+					if ~strcmpi(HDR.AIF.CompressionType,'NONE');
+						fprintf(2,'Warning SOPEN AIFC-format: CompressionType %s is not supported\n', HDR.AIF.CompressionType);
+					end;
+				end;	
+
+			elseif strcmpi(tag,'SSND');
+				HDR.AIF.offset   = fread(HDR.FILE.FID,1,'int32');
+				HDR.AIF.blocksize= fread(HDR.FILE.FID,1,'int32');
+				tmp = (tagsize-8)/HDR.AS.bpb;
+				if tmp~=HDR.SPR,
+					fprintf(2,'Warning SOPEN AIF: Number of samples do not fit %i vs %i\n',tmp,HDR.SPR);
+				end;
+			
+				HDR.HeadLen = filepos+8; 
+				%HDR.AIF.sounddata= fread(HDR.FILE.FID,tagsize-8,'uint8');
+
+			elseif strcmpi(tag,'FVER');
+				if tagsize<4, 
+					fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
+					return;
+				end;
+				HDR.AIF.TimeStamp   = fread(HDR.FILE.FID,1,'uint32');
+
+			elseif strcmp(tag,'DATA') & strcmp(HDR.TYPE,'AIF') ;	% AIF uses upper case, there is a potential conflict with WAV using lower case data  
+				HDR.AIF.DATA  = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+
+			elseif strcmpi(tag,'INST');   % not sure if this is ok !
+				%HDR.AIF.INST  = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				%HDR.AIF.INST.notes  = fread(HDR.FILE.FID,[1,6],'char');
+				HDR.AIF.INST.baseNote  = fread(HDR.FILE.FID,1,'char');
+				HDR.AIF.INST.detune    = fread(HDR.FILE.FID,1,'char');
+				HDR.AIF.INST.lowNote   = fread(HDR.FILE.FID,1,'char');
+				HDR.AIF.INST.highNote  = fread(HDR.FILE.FID,1,'char');
+				HDR.AIF.INST.lowvelocity = fread(HDR.FILE.FID,1,'char');
+				HDR.AIF.INST.highvelocity  = fread(HDR.FILE.FID,1,'char');
+				HDR.AIF.INST.gain      = fread(HDR.FILE.FID,1,'int16');
+
+				HDR.AIF.INST.sustainLoop_PlayMode = fread(HDR.FILE.FID,1,'char');
+				HDR.AIF.INST.sustainLoop = fread(HDR.FILE.FID,2,'uint16');
+				HDR.AIF.INST.releaseLoop_PlayMode = fread(HDR.FILE.FID,1,'char');
+				HDR.AIF.INST.releaseLoop = fread(HDR.FILE.FID,2,'uint16');
+
+			elseif strcmpi(tag,'MIDI');
+				HDR.AIF.MIDI  = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+
+			elseif strcmpi(tag,'AESD');
+				HDR.AIF.AESD  = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+
+			elseif strcmpi(tag,'APPL');
+				HDR.AIF.APPL  = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+
+			elseif strcmpi(tag,'COMT');
+				HDR.AIF.COMT  = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+		
+			elseif strcmpi(tag,'(c) ');
+				[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.Copyright = tmp;
+                
+	                %%%% WAV - section %%%%%
+    			elseif strcmpi(tag,'fmt ')
+				if tagsize<14, 
+					fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
+					return;
+				end;
+				HDR.WAV.Format = fread(HDR.FILE.FID,1,'uint16');
+				HDR.NS = fread(HDR.FILE.FID,1,'uint16');
+				HDR.SampleRate = fread(HDR.FILE.FID,1,'uint32');
+				HDR.WAV.AvgBytesPerSec = fread(HDR.FILE.FID,1,'uint32');
+				HDR.WAV.BlockAlign = fread(HDR.FILE.FID,1,'uint16');
+				if HDR.WAV.Format==1,	% PCM format
+    					HDR.bits = fread(HDR.FILE.FID,1,'uint16');
+					HDR.GDFTYP = ceil(HDR.bits/8) + 1; 
+	    				HDR.Cal = 2^(1-HDR.bits);    
+		    		else 
+					fprintf(2,'Error SOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
+				end;
+				if tagsize>16,
+					HDR.WAV.cbSize = fread(HDR.FILE.FID,1,'uint16');
+				end;
+                        
+	                elseif strcmp(tag,'data') & strcmp(HDR.TYPE,'WAV') ;	% AIF uses upper case, there is a potential conflict with WAV using lower case data  
+    		                HDR.HeadLen = filepos; 
+				if HDR.WAV.Format == 1, 
+					HDR.AS.bpb = HDR.NS * ceil(HDR.bits/8);
+					HDR.SPR = tagsize/HDR.AS.bpb;
+					HDR.Dur = HDR.SPR/HDR.SampleRate;
+					HDR.AS.endpos = HDR.SPR;
+				    	
+				else 
+					fprintf(2,'Error SOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
+				end;
+
+			elseif strcmpi(tag,'fact');
+				if tagsize<4, 
+					fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
+					return;
+				end;
+		    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.WAV.FACT = setstr(tmp);
+		
+			elseif strcmpi(tag,'disp');
+				if tagsize<8, 
+					fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
+					return;
+				end;
+	    			[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.WAV.DISP = setstr(tmp);
+				if ~all(tmp(1:8)==[0,1,0,0,0,0,1,1])
+					HDR.WAV.DISPTEXT = setstr(tmp(5:length(tmp)));
+				end;
+		
+			elseif strcmpi(tag,'list');
+				if tagsize<4, 
+					fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
+					return;
+				end;
+		    		[tmp,c]  = fread(HDR.FILE.FID,[1,tagsize],'char');
+		    		HDR.WAV.list = setstr(tmp);
+				listtype = setstr(tmp(1:4));
+				listdata = setstr(tmp(5:length(tmp)));
+				HDR.WAV.LIST = setfield(HDR.WAV,listtype, listdata);
+
+			elseif ~isempty(tagsize)
+				fprintf(1,'Warning SOPEN AIF/WAV: unknown TAG: %s \n',tag);
+			end;
+			if ~isempty(tagsize)
+				fseek(HDR.FILE.FID,filepos+tagsize0,'bof');
+			end;
+		end;
+        
+    		if ~isfield(HDR,'HeadLen')
+			fprintf(2,'Error SOPEN AIF/WAV: missing data section\n');
+			fclose(HDR.FILE.FID)	
+		end;
+	
+		fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+		HDR.FILE.POS = 0;
+		HDR.FILE.OPEN = 1;
+		HDR.NRec = 1;
+
+	        if CHAN==0,		
+			HDR.SIE.InChanSelect = 1:HDR.NS;
+		elseif all(CHAN>0 & CHAN<=HDR.NS),
+			HDR.SIE.InChanSelect = CHAN;
+		else
+			fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+			fclose(HDR.FILE.FID); 
+			HDR.FILE.FID = -1;	
+			return;
+		end;
+
+	elseif ~isempty(findstr(PERMISSION,'w')),	%%%%% WRITE 
+		HDR.FILE.OPEN = 3; 
+		if strcmp(HDR.TYPE,'AIF') 
+			fwrite(HDR.FILE.FID,'FORM','char');	
+			fwrite(HDR.FILE.FID,0,'uint32');	
+			fwrite(HDR.FILE.FID,'AIFFCOMM','char');	
+			fwrite(HDR.FILE.FID,18,'uint32');	
+			fwrite(HDR.FILE.FID,HDR.NS,'uint16');	
+			fwrite(HDR.FILE.FID,HDR.SPR,'uint32');	
+			fwrite(HDR.FILE.FID,HDR.bits,'uint16');	
+
+			HDR.GDFTYP = ceil(HDR.bits/8)*2-1; % unsigned integer of appropriate size;
+			HDR.Cal    = 2^(1-HDR.bits);
+			HDR.AS.bpb = ceil(HDR.bits/8)*HDR.NS;
+	
+			[f,e] = log2(HDR.SampleRate);
+			tmp = e + 2^14 - 1;
+			if tmp<0, tmp = tmp + 2^15; end;
+			fwrite(HDR.FILE.FID,tmp,'uint16');	
+			fwrite(HDR.FILE.FID,[bitshift(abs(f),31),bitshift(abs(f),63)],'uint32');	
+			
+			HDR.AS.bpb = HDR.NS * ceil(HDR.bits/8);
+			tagsize = HDR.SPR*HDR.AS.bpb + 8;
+			HDR.Dur = HDR.SPR/HDR.SampleRate;
+			HDR.AS.endpos = HDR.SPR;
+
+			if 0; isfield(HDR.AIF,'INST');	% does not work yet
+				fwrite(HDR.FILE.FID,'SSND','char');	
+				fwrite(HDR.FILE.FID,20,'uint32');	
+
+				fwrite(HDR.FILE.FID,HDR.AIF.INST.baseNote,'char');
+				fwrite(HDR.FILE.FID,HDR.AIF.INST.detune,'char');
+				fwrite(HDR.FILE.FID,HDR.AIF.INST.lowNote,'char');
+				fwrite(HDR.FILE.FID,HDR.AIF.INST.highNote,'char');
+				fwrite(HDR.FILE.FID,HDR.AIF.INST.lowvelocity,'char');
+				fwrite(HDR.FILE.FID,HDR.AIF.INST.highvelocity,'char');
+				fwrite(HDR.FILE.FID,HDR.AIF.INST.gain,'int16');
+
+				fwrite(HDR.FILE.FID,HDR.AIF.INST.sustainLoop_PlayMode,'char');
+				fwrite(HDR.FILE.FID,HDR.AIF.INST.sustainLoop,'uint16');
+				fwrite(HDR.FILE.FID,HDR.AIF.INST.releaseLoop_PlayMode,'char');
+				fwrite(HDR.FILE.FID,HDR.AIF.INST.releaseLoop,'uint16');
 			end;
 			
-			HDR.HeadLen = filepos; 
-			%HDR.AIF.sounddata= fread(HDR.FILE.FID,tagsize-8,'uint8');
-
-		elseif strcmpi(tag,'FVER');
-			if tagsize<4, 
-				fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
-				return;
-			end;
-			HDR.AIF.TimeStamp   = fread(HDR.FILE.FID,1,'uint32');
-
-		elseif strcmp(tag,'DATA') & strcmp(HDR.TYPE,'AIF') ;	% AIF uses upper case, there is a potential conflict with WAV using lower case data  
-
-		elseif strcmpi(tag,'INST');
-
-		elseif strcmpi(tag,'MIDI');
-
-		elseif strcmpi(tag,'AESD');
-
-		elseif strcmpi(tag,'APPL');
-
-		elseif strcmpi(tag,'COMT');
+			fwrite(HDR.FILE.FID,'SSND','char');	
+			HDR.WAV.posis = [4, ftell(HDR.FILE.FID)];
+			fwrite(HDR.FILE.FID,[tagsize,0,0],'uint32');	
+			
+			HDR.HeadLen = ftell(HDR.FILE.FID);
 		
-		elseif strcmpi(tag,'(c) ');
-			[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
-			HDR.Copyright = tmp;
-                
-                %%%% WAV - section %%%%%
-        	elseif strcmpi(tag,'fmt ')
-			if tagsize<14, 
-				fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
-				return;
-			end;
-			HDR.WAV.Format = fread(HDR.FILE.FID,1,'uint16');
-			HDR.NS = fread(HDR.FILE.FID,1,'uint16');
-			HDR.SampleRate = fread(HDR.FILE.FID,1,'uint32');
-			HDR.WAV.AvgBytesPerSec = fread(HDR.FILE.FID,1,'uint32');
-			HDR.WAV.BlockAlign = fread(HDR.FILE.FID,1,'uint16');
-			if HDR.WAV.Format==1,	% PCM format
-    				HDR.bits = fread(HDR.FILE.FID,1,'uint16');
-				tmp = ceil(HDR.bits/8);
-				%if tmp==1, 	HDR.GDFTYP = 2; 	% uint8
-				%elseif tmp==2,	HDR.GDFTYP = 3; 	% int16
-				%else
-				%end;
-				HDR.GDFTYP = tmp + 1; 
-				HDR.Cal = 2^(1-HDR.bits);    
-			else 
-				fprintf(2,'Error SOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
-			end;
-			if tagsize>16,
-				HDR.WAV.cbSize = fread(HDR.FILE.FID,1,'uint16');
-			end;
-                        
-                elseif strcmp(tag,'data') & strcmp(HDR.TYPE,'WAV') ;	% AIF uses upper case, there is a potential conflict with WAV using lower case data  
-                        HDR.HeadLen = filepos; 
-			if HDR.WAV.Format == 1, 
-				HDR.AS.bpb = HDR.NS * ceil(HDR.bits/8);
-				HDR.SPR = tagsize/HDR.AS.bpb;
-				HDR.Dur = HDR.SPR/HDR.SampleRate;
-				HDR.AS.endpos = HDR.SPR;
-				    	
-			else 
-				fprintf(2,'Error SOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
-			end;
+		elseif  strcmp(HDR.TYPE,'WAV'),
+			fwrite(HDR.FILE.FID,'RIFF','char');	
+			fwrite(HDR.FILE.FID,0,'uint32');	
+			fwrite(HDR.FILE.FID,'WAVEfmt ','char');	
+			fwrite(HDR.FILE.FID,16,'uint32');	
+			fwrite(HDR.FILE.FID,[1,HDR.NS],'uint16');	
+			fwrite(HDR.FILE.FID,[HDR.SampleRate,HDR.bits/8*HDR.NS*HDR.SampleRate],'uint32');	
+			fwrite(HDR.FILE.FID,[HDR.bits/8*HDR.NS,HDR.bits],'uint16');	
 
-		elseif strcmpi(tag,'fact');
-			if tagsize<4, 
-				fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
-				return;
-			end;
-	    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
-			HDR.WAV.FACT = setstr(tmp);
-		
-		elseif strcmpi(tag,'disp');
-			if tagsize<8, 
-				fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
-				return;
-			end;
-	    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
-			HDR.WAV.DISP = setstr(tmp);
-			if ~all(tmp(1:8)==[0,1,0,0,0,0,1,1])
-				HDR.WAV.DISPTEXT = setstr(tmp(5:length(tmp)));
-			end;
-		
-		elseif strcmpi(tag,'list');
-			if tagsize<4, 
-				fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
-				return;
-			end;
-	    		[tmp,c]  = fread(HDR.FILE.FID,[1,tagsize],'char');
-			HDR.WAV.list = setstr(tmp);
-			listtype = setstr(tmp(1:4));
-			listdata = setstr(tmp(5:length(tmp)));
-			HDR.WAV.LIST = setfield(HDR.WAV,listtype, listdata);
+			HDR.GDFTYP = ceil(HDR.bits/8) + 1; 
+			HDR.Cal = 2^(1-HDR.bits);
 
-		elseif ~isempty(tagsize)
-			fprintf(1,'Warning SOPEN AIF/WAV: unknown TAG: %s \n',tag);
-		end;
-		if ~isempty(tagsize)
-			fseek(HDR.FILE.FID,filepos+tagsize0,'bof');
-		end;
-		
-	end;
-        
-        if ~isfield(HDR,'HeadLen')
-		fprintf(2,'Error SOPEN AIF/WAV: missing data section\n');
-		fclose(HDR.FILE.FID)	
-	end;
+			HDR.AS.bpb = HDR.NS * ceil(HDR.bits/8);
+			tagsize = HDR.SPR*HDR.AS.bpb;
+			HDR.Dur = HDR.SPR/HDR.SampleRate;
+			HDR.AS.endpos = HDR.SPR;
+
+			fwrite(HDR.FILE.FID,'data','char');	
+			HDR.WAV.posis=[4,ftell(HDR.FILE.FID)];
+			fwrite(HDR.FILE.FID,tagsize,'uint32');	
 	
-	fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
-	HDR.FILE.POS = 0;
-	HDR.FILE.OPEN = 1;
-	HDR.NRec = 1;
+			HDR.HeadLen = ftell(HDR.FILE.FID);
+		end;
 
-        if CHAN==0,		
-		HDR.SIE.InChanSelect = 1:HDR.NS;
-	elseif all(CHAN>0 & CHAN<=HDR.NS),
-		HDR.SIE.InChanSelect = CHAN;
-	else
-		fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
-		fclose(HDR.FILE.FID); 
-		HDR.FILE.FID = -1;	
-		return;
 	end;
-
         
 elseif strcmp(HDR.TYPE,'EGI'),
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');

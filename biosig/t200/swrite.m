@@ -18,8 +18,8 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.2 $
-%	$Id: swrite.m,v 1.2 2003-09-07 21:24:23 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: swrite.m,v 1.3 2003-09-09 23:10:30 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -124,18 +124,27 @@ elseif strcmp(HDR.TYPE,'BKR'),
         %HDR.AS.endpos = HDR.AS.endpos + size(data,1);
         
         
-elseif strcmp(HDR.TYPE,'SND'),
-        count=0;
-        if HDR.NS~=size(data,2) & HDR.NS==size(data,1),
+elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
+        count = 0;
+        if HDR.NS ~= size(data,2) & HDR.NS==size(data,1),
                 fprintf(2,'SWRITE: number of channels fits number of rows. Transposed data\n');
                 data = data';
         end
 
-	if HDR.FILE.TYPE==1,
+	if strcmp(HDR.TYPE,'SND') & (HDR.FILE.TYPE==1),
 		data = lin2mu(data);
+	elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV'),
+		if ~HDR.FLAG.UCAL,
+			data = data * 2^(HDR.bits-1);
+		end;
+	elseif strcmp(HDR.TYPE,'AIF'),
+
 	end;
+
         count = fwrite(HDR.FILE.FID,data',gdfdatatype(HDR.GDFTYP));
 	if HDR.NS==0, 
-                HDR.SPR=size(data,2);
+                HDR.NS=size(data,2);
         end;
+
+
 end;                        
