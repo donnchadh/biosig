@@ -18,8 +18,8 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.5 $
-%	$Id: swrite.m,v 1.5 2003-10-25 08:55:15 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: swrite.m,v 1.6 2004-03-11 12:41:11 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -103,11 +103,17 @@ elseif strcmp(HDR.TYPE,'BKR'),
         if any(HDR.NS==[size(data,2),0]),	% check if HDR.NS = 0 (unknown channel number) or number_of_columns 
                 if HDR.NS==0, HDR.NS = size(data,2); end;   % if HDR.NS not set, set it. 
                 if ~HDR.FLAG.UCAL,
+                        if isnan(HDR.PhysMax)
+                                HDR.PhysMax = max(abs(data(:)));
+                        elseif HDR.PhysMax < max(abs(data(:))),
+                                fprintf(2,'Warning SWRITE: Data Saturation. max(data)=%f is larger than HDR.PhysMax %f.\n',max(abs(data(:))),HDR.PhysMax);
+                        end;
                         data = data*(HDR.DigMax/HDR.PhysMax);
                 end;
                 % Overflow detection
-                data(data>2^15-1)=  2^15-1;	
-                data(data<-2^15) = -2^15;
+                %data(data>2^15-1)=  2^15-1;	
+                %data(data<-2^15) = -2^15;
+                data((data>2^15-1) | (data<-2^15)) = HDR.SIE.THRESHOLD;	
                 count = fwrite(HDR.FILE.FID,data','short');
         else
                 fprintf(2,'Error SWRITE: number of columns (%i) does not fit Header information (number of channels HDR.NS %i)',size(data,2),HDR.NS);

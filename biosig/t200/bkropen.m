@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.16 $
-%	$Id: bkropen.m,v 1.16 2004-03-08 09:02:37 schloegl Exp $
+%	$Revision: 1.17 $
+%	$Id: bkropen.m,v 1.17 2004-03-11 12:41:11 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -47,15 +47,15 @@ if isstruct(arg1),
 else
 	FILENAME=arg1;
 	BKR.FILE.FID = fopen(FILENAME,PERMISSION,'ieee-le');          
-	if BKR.FILE.FID<0,
-		fprintf(2,'Error BKROPEN: file %s not found.\n',FILENAME); 
-		return;
-	end;
         BKR.FileName  = FILENAME;
         [pfad,file,FileExt] = fileparts(BKR.FileName);
         BKR.FILE.Name = file;
         BKR.FILE.Path = pfad;
         BKR.FILE.Ext  = FileExt(2:length(FileExt));
+end;
+if BKR.FILE.FID<0,
+        fprintf(2,'Error BKROPEN: file %s not found.\n',FILENAME); 
+        return;
 end;
 if ftell(BKR.FILE.FID)~=0,	% 
         fprintf(2,'Error: Fileposition is not 0\n');        	        
@@ -128,18 +128,22 @@ if any(PERMISSION=='r'),
 	scales=fread(fid,1,'ushort');	%	2 Byte	142	Anzahl Frequenzbänder für kont. WT
 	cwt_fe=fread(fid,1, FLOAT);	%	4 Byte	144	frequ. für Dt = Df = 1/2Öp
 	cwt_start=fread(fid,1, ULONG);	%	4 Byte	148	Startsample für kont. WT Berechnung
-	%-- NULL --	-------------	--------	152	-- Offset bis 512 Byte --
-	fread(fid,512-152,'char');
-	for i=1:nch,
-		eletyp(i)=fread(fid,1,'uchar');	%	1 Byte	512	Elektrode 1: Signalart (z.B: EEG)
-		elenum(i)=fread(fid,1,'uchar');	%	1 Byte	513	Elektrode 1: Kanalnr. für gleiche Signalart
-		ref(i)=fread(fid,1, FLOAT);	%	4 Byte	514	Referenzwert für Kanal 1
-	end;
-	if nch>85,
-	        fprintf(2,'Warning BKRLOAD: Number of channels larger than 85; Header does not support more\n');
-	end;
-	fseek(fid,512-(nch*6),'cof');
-	HeaderEnd=ftell(fid);
+        %-- NULL --	-------------	--------	152	-- Offset bis 512 Byte --
+        if 1, 
+                fread(fid,1024-152,'char');
+        else
+                fread(fid,512-152,'char');
+                for i=1:nch,
+                        eletyp(i)=fread(fid,1,'uchar');	%	1 Byte	512	Elektrode 1: Signalart (z.B: EEG)
+                        elenum(i)=fread(fid,1,'uchar');	%	1 Byte	513	Elektrode 1: Kanalnr. für gleiche Signalart
+                        ref(i)=fread(fid,1, FLOAT);	%	4 Byte	514	Referenzwert für Kanal 1
+                end;
+                if nch>85,
+                        fprintf(2,'Warning BKRLOAD: Number of channels larger than 85; Header does not support more\n');
+                end;
+                fseek(fid,512-(nch*6),'cof');
+        end;
+        HeaderEnd = ftell(fid);
 	if HeaderEnd~=1024,
 	        fprintf(2,'Warning BKRLOAD: Length of Header does not confirm BKR-specification\n');
 	end;
@@ -266,13 +270,20 @@ elseif any(PERMISSION=='w'),
         else
                 BKR.NRec = -1; 	% Unknown - Value will be fixed when file is closed. 
         end;
-        if any([BKR.NS==0,BKR.SPR==0,BKR.NRec<0]), 	% if any unknown, ...	
+        if any([BKR.NS==0,BKR.SPR==0,BKR.NRec<0,isnan([BKR.NRec,BKR.NS,BKR.SPR,BKR.DigMax,BKR.PhysMax,BKR.SampleRate])]), 	% if any unknown, ...	
                 BKR.FILE.OPEN = 3;			%	... fix header when file is closed. 
         end;
         if ~isfield(BKR,'FLAG'),
                 BKR.FLAG.UCAL = 0; 
         elseif ~isfield(BKR.FLAG,'UCAL'),
                 BKR.FLAG.UCAL = 0; 
+        end;
+
+        if ~isfield(BKR,'PhysMax'), BKR.PhysMax = NaN; end;
+        if isempty(BKR.PhysMax),    BKR.PhysMax = NaN; end;
+        if ~isfield(BKR,'DigMax'),  BKR.DigMax  = NaN; end;
+        if isnan(BKR.DigMax) | isempty(BKR.DigMax),
+                BKR.DigMax = 2^15-1;   
         end;
         
         tmp = round(BKR.PhysMax);
@@ -324,7 +335,7 @@ elseif any(PERMISSION=='w'),
                 
 	%speichert den rest des BKR-headers
 	count = fwrite(BKR.FILE.FID,zeros(1024-80,1),'char');
-	BKR.HeadLen   = ftell(BKR.FILE.FID);
+	BKR.HeadLen = ftell(BKR.FILE.FID);
 	if BKR.HeadLen~=1024,
 		fprintf(2,'Error BKROPEN WRITE: HeaderLength is not 1024 but %i\n',BKR.HeadLen);
 	end;

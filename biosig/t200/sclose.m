@@ -18,8 +18,8 @@ function [HDR]=sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.4 $
-%	$Id: sclose.m,v 1.4 2003-10-25 08:55:15 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: sclose.m,v 1.5 2004-03-11 12:41:11 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org
 
@@ -34,24 +34,37 @@ if HDR.FILE.OPEN>=2,
         
         if strcmp(HDR.TYPE,'BKR');
                 if HDR.NS<1, 
-                        fprintf(2,'Error EEGOPEN BKR: number of channels (HDR.NS) must be larger than zero.\n');
+                        fprintf(2,'Error SCLOSE BKR: number of channels (HDR.NS) must be larger than zero.\n');
                         return;
                 end;
                 if HDR.NRec<1, 
-                        fprintf(2,'Error EEGOPEN BKR: number of blocks (HDR.NRec) must be larger than zero.\n');
+                        fprintf(2,'Error SCLOSE BKR: number of blocks (HDR.NRec) must be larger than zero.\n');
                         return;
                 end;
                 % check file length and write Headerinfo.
-                HDR.SPR       = (EndPos-HDR.HeadLen)/(HDR.NRec*HDR.NS*2);
+                HDR.SPR = (EndPos-HDR.HeadLen)/(HDR.NRec*HDR.NS*2);
                 if isnan(HDR.SPR), HDR.SPR=0; end;
                 if HDR.FILE.OPEN==3;
-			fclose(HDR.FILE.FID);
-			HDR.FILE.FID = fopen(HDR.FileName,'r+');
-                        fseek(HDR.FILE.FID,2,'bof');
-               		count = fwrite(HDR.FILE.FID,HDR.NS,'uint16');             % channel
-        		fseek(HDR.FILE.FID,6,'bof');
-                        count = fwrite(HDR.FILE.FID,[HDR.NRec,HDR.SPR],'uint32');           % trials/samples/trial
-        		fseek(HDR.FILE.FID,32,'bof');
+                        if any(isnan([HDR.NRec,HDR.NS,HDR.SPR,HDR.DigMax,HDR.PhysMax,HDR.SampleRate])), 	% if any unknown, ...	
+                                fprintf(2,'Error SCLOSE BKR: some important header information is still undefined (i.e. NaN).\n');
+                                fprintf(2,'\t HDR.NRec,HDR.NS,HDR.SPR,HDR.DigMax,HDR.PhysMax,HDR.SampleRate must be defined.\n');
+                                fprintf(2,'\t Try again.\n');
+                        end;
+                        
+                        fclose(HDR.FILE.FID);
+                        HDR.FILE.FID = fopen(HDR.FileName,'r+');
+                        
+                        count=fwrite(HDR.FILE.FID,HDR.VERSION,'short');	        % version number of header
+                        count=fwrite(HDR.FILE.FID,HDR.NS,'short');	        % number of channels
+                        count=fwrite(HDR.FILE.FID,HDR.SampleRate,'short');      % sampling rate
+                        count=fwrite(HDR.FILE.FID,HDR.NRec,'int32');            % number of trials: 1 for untriggered data
+                        count=fwrite(HDR.FILE.FID,HDR.SPR,'uint32');            % samples/trial/channel
+                        count=fwrite(HDR.FILE.FID,HDR.PhysMax,'short');		% Kalibrierspannung
+                        count=fwrite(HDR.FILE.FID,HDR.DigMax, 'short');		% Kalibrierwert
+                        count=fwrite(HDR.FILE.FID,zeros(4,1),'char');        
+                        count=fwrite(HDR.FILE.FID,[HDR.Filter.LowPass,HDR.Filter.HighPass],'float'); 
+                        
+                        fseek(HDR.FILE.FID,32,'bof');
                         HDR.FLAG.TRIGGERED   = HDR.NRec>1;	% Trigger Flag
                         count = fwrite(HDR.FILE.FID,HDR.FLAG.TRIGGERED,'int16');           % FLAG TRIGGERED
                 end;
@@ -119,8 +132,8 @@ if HDR.FILE.OPEN>=2,
 		end;
 		HDR.FILE.status = fclose(HDR.FILE.FID);
 	        HDR.FILE.OPEN = 0;
-
-	end;
+                
+        end;
 end;
 
 if HDR.FILE.OPEN,
