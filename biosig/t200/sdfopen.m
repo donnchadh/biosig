@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.12 $
-%	$Id: sdfopen.m,v 1.12 2004-01-25 02:18:09 schloegl Exp $
+%	$Revision: 1.13 $
+%	$Id: sdfopen.m,v 1.13 2004-02-21 00:02:55 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -486,7 +486,7 @@ if any(EDF.DigMax ==EDF.DigMin ), EDF.ErrNo=[1030,EDF.ErrNo]; end;
 EDF.Cal = (EDF.PhysMax-EDF.PhysMin)./(EDF.DigMax-EDF.DigMin);
 EDF.Off = EDF.PhysMin - EDF.Cal .* EDF.DigMin;
 EDF.Calib=[EDF.Off';(diag(EDF.Cal))];
-EDF.SampleRate = EDF.SPR / EDF.Dur;
+EDF.EDF.SampleRate = EDF.SPR / EDF.Dur;
 
 EDF.AS.spb = sum(EDF.SPR);	% Samples per Block
 EDF.AS.bi = [0;cumsum(EDF.SPR)]; 
@@ -582,6 +582,7 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
         EDF.SIE.AFIR=0;
         EDF.SIE.FILT=0;
         EDF.AS.MAXSPR=max(EDF.SPR(EDF.SIE.ChanSelect)); % Layer 3 defines EDF.AS.MAXSPR in GDFREAD
+	EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
         
         EDF.SIE.REG=eye(EDF.NS);
 
@@ -1053,28 +1054,6 @@ if ~isstruct(arg1)  % if arg1 is the filename
 end;
 
 FILENAME=EDF.FileName;
-if ~any(arg2=='+') 
-        [fid,MESSAGE]=fopen(FILENAME,'w+b','ieee-le');          
-else  % (arg2=='w+')  % may be called only by SDFCLOSE
-        if EDF.FILE.OPEN==2 
-                [fid,MESSAGE]=fopen(FILENAME,'r+b','ieee-le');          
-        else
-                fprintf(EDF.FILE.stderr,'Error SDFOPEN-W+: Cannot open %s for write access\n',FILENAME);
-                return;
-        end;
-end;
-if fid<0 
-        %fprintf(EDF.FILE.stderr,'Error EDFOPEN: %s\n',MESSAGE);  
-        H1=MESSAGE;H2=[];
-        EDF.ErrNo = EDF.ErrNo + 32;
-        fprintf(EDF.FILE.stderr,'Error SDFOPEN-W: Could not open %s \n',FILENAME);
-        return;
-end;
-EDF.FILE.FID = fid;
-EDF.FILE.OPEN = 2;
-
-%%%% generate optional parameters
-
 PPos=min([max(find(FILENAME=='.')) length(FILENAME)+1]);
 SPos=max([0 find(FILENAME==filesep)]);
 EDF.FILE.Ext = FILENAME(PPos+1:length(FILENAME));
@@ -1129,14 +1108,39 @@ end;
 if ~isfield(EDF,'Dur')
         fprintf('Error SDFOPEN-W: EDF.Dur not defined\n');
         EDF.Dur=NaN;
-        EDF.ErrNo = EDF.ErrNo + 128;
-        fclose(EDF.FILE.FID); return;
 end;
 if ~isfield(EDF,'NS')
         EDF.ERROR = sprintf('Error SDFOPEN-W: EDF.NS not defined\n');
         EDF.ErrNo = EDF.ErrNo + 128;
-        fclose(EDF.FILE.FID); return;
+	return;
 end;
+if ~isfield(EDF,'SampleRate')
+        EDF.SampleRate = NaN;
+end;
+if ~isfield(EDF,'EDF')
+        EDF.EDF.SampleRate = repmat(NaN,EDF.NS,1);
+elseif ~isfield(EDF.EDF,'SampleRate')
+        EDF.EDF.SampleRate = repmat(NaN,EDF.NS,1);
+end;
+
+if ~isnan(EDF.Dur) & any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
+	EDF.SPR = EDF.EDF.SampleRate * EDF.SPR;
+elseif ~isnan(EDF.Dur) & ~any(isnan(EDF.SPR)) & any(isnan(EDF.EDF.SampleRate))
+	EDF.SampleRate = EDF.Dur * EDF.SPR;
+elseif isnan(EDF.Dur) & ~any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
+	EDF.Dur = EDF.SPR ./ EDF.SampleRate;
+	if all(EDF.Dur(1)==EDF.Dur)
+		EDF.Dur = EDF.Dur(1);
+	else
+		fprintf(EDF.FILE.stderr,'Warning SDFOPEN: SPR and SampleRate do not fit\n');
+		[EDF.SPR,EDF.SampleRate,EDF.Dur]
+	end;
+else
+        EDF.ErrNo = EDF.ErrNo + 128;
+	fprintf(EDF.FILE.stderr,'ERROR SDFOPEN: more than 1 of EDF.Dur, EDF.SampleRate, EDF.SPR undefined.\n');
+	return; 
+end;
+
 
 % Check all fields of Header2
 if ~isfield(EDF,'Label')
@@ -1238,6 +1242,27 @@ H1(1:8)=EDF.VERSION; %sprintf('%08i',EDF.VERSION);     % 8 Byte  Versionsnummer
 H1( 8+(1:length(EDF.PID)))=EDF.PID;       
 H1(88+(1:length(EDF.RID)))=EDF.RID;
 %H1(185:192)=sprintf('%-8i',EDF.HeadLen);
+
+%%%%% Open File 
+if ~any(arg2=='+') 
+        [fid,MESSAGE]=fopen(FILENAME,'w+b','ieee-le');          
+else  % (arg2=='w+')  % may be called only by SDFCLOSE
+        if EDF.FILE.OPEN==2 
+                [fid,MESSAGE]=fopen(FILENAME,'r+b','ieee-le');          
+        else
+                fprintf(EDF.FILE.stderr,'Error SDFOPEN-W+: Cannot open %s for write access\n',FILENAME);
+                return;
+        end;
+end;
+if fid<0 
+        %fprintf(EDF.FILE.stderr,'Error EDFOPEN: %s\n',MESSAGE);  
+        H1=MESSAGE;H2=[];
+        EDF.ErrNo = EDF.ErrNo + 32;
+        fprintf(EDF.FILE.stderr,'Error SDFOPEN-W: Could not open %s \n',FILENAME);
+        return;
+end;
+EDF.FILE.FID = fid;
+EDF.FILE.OPEN = 2;
 
 if strcmp(EDF.VERSION(1:3),'GDF'),
         H1(168+(1:16))=sprintf('%04i%02i%02i%02i%02i%02i%02i',floor(EDF.T0),floor(100*rem(EDF.T0(6),1)));

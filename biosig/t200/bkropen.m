@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.13 $
-%	$Id: bkropen.m,v 1.13 2004-02-06 13:35:05 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: bkropen.m,v 1.14 2004-02-21 00:02:55 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -264,6 +264,11 @@ elseif any(PERMISSION=='w'),
         end;
         if any([BKR.NS==0,BKR.SPR==0,BKR.NRec<0]), 	% if any unknown, ...	
                 BKR.FILE.OPEN = 3;			%	... fix header when file is closed. 
+        end;
+        if ~isfield(BKR,'FLAG'),
+                BKR.FLAG.UCAL = 0; 
+        elseif ~isfield(BKR.FLAG,'UCAL'),
+                BKR.FLAG.UCAL = 0; 
         end;
         
         tmp = round(BKR.PhysMax);
