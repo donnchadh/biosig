@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.81 $
-%	$Id: sopen.m,v 1.81 2004-12-06 08:37:48 schloegl Exp $
+%	$Revision: 1.82 $
+%	$Id: sopen.m,v 1.82 2004-12-23 17:37:13 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -178,7 +178,8 @@ elseif strcmp(HDR.TYPE,'EVENT') & any(lower(PERMISSION)=='w'),
 
 elseif strcmp(HDR.TYPE,'BKR'),
         HDR = bkropen(HDR,PERMISSION,CHAN);
-        
+        %%% Get trigger information from BKR data 
+
         
 elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
         if any(PERMISSION=='r');
@@ -727,7 +728,7 @@ elseif strcmp(HDR.TYPE,'AKO'),
         warning('support of AKO format not completed');
         HDR.SampleRate = 136; % ???
         HDR.NS = 1;
-        H.NRec = 1; 
+        HDR.NRec = 1; 
         HDR.Calib = [-127;1];
                 
         
@@ -3257,6 +3258,34 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 end;
                 HDR.data = signal; 
                 HDR.TYPE = 'native'; 
+
+                
+        elseif isfield(tmp,'ECoGdata') & isfield(tmp,'dataset')  %Michigan ECoG dataset 
+                HDR.data = tmp.ECoGdata';
+                HDR.T0 = datevec(datenum(tmp.dataset.filetype.timestamp));
+                HDR.SampleRate = tmp.dataset.specs.sample_rate;
+                HDR.FILTER.HighPass = tmp.dataset.specs.filters.lowcut;
+                HDR.FILTER.LowPass = tmp.dataset.specs.filters.highcut;
+                if isfield(tmp.dataset.specs.filters,'notch60');
+                        HDR.FILTER.Notch = tmp.dataset.specs.filters.notch60*60;
+                end;
+                HDR.Patient.Sex = tmp.dataset.subject_info.gender; 
+                HDR.Patient.Age = tmp.dataset.subject_info.age; 
+                HDR.Label = tmp.dataset.electrode.names;
+                HDR.NS = tmp.dataset.electrode.number;
+
+                trigchancode = getfield(tmp.dataset.electrode.options,'TRIGGER');
+                HDR.AS.TRIGCHAN = find(tmp.dataset.electrode.region==trigchancode);
+                HDR.TRIG =  tmp.dataset.trigger.trigs_all;
+                
+                HDR.FLAG.TRIGGERED = 0;
+                HDR.NRec  = 1; 
+                HDR.SPR = size(HDR.data,1);
+                HDR.Dur = HDR.SPR/HDR.SampleRate;
+                HDR.TYPE  = 'native'; 
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+                clear tmp; 
+                
                 
         elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.5x data format
                 HDR.FILE.POS = 0; 
@@ -3304,7 +3333,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.FLAG.TRIGGERED = HDR.NRec>1;
                 
                 if any(CHAN),
-                        %HDR.data = HDR.data(:,CHAN);
                         sz(3)= length(CHAN);
                 else
                         CHAN = 1:HDR.NS;
