@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: scpopen.m,v 1.1 2004-01-25 02:19:31 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: scpopen.m,v 1.2 2004-01-28 08:26:37 schloegl Exp $
 %	(C) 2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -180,8 +180,8 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                 elseif section.ID==3, 
                         HDR.NS = fread(fid,1,'char');    
                         HDR.FLAG.Byte = fread(fid,1,'char');    
-                        HDR.FLAG.ReferenceBeat = bitand(HDR.FLAG.Byte,1);    
-                        %HDR.NS = floor(bitand(HDR.FLAG.Byte,127)/8);    
+                        HDR.FLAG.ReferenceBeat = mod(HDR.FLAG.Byte,2);    
+                        %HDR.NS = floor(mod(HDR.FLAG.Byte,128)/8);    
                         for k = 1:HDR.NS,
                                 HDR.LeadPos(k,1:2) = fread(fid,[1,2],'uint32');    
                                 HDR.Lead(k,1) = fread(fid,1,'uint8');    
@@ -252,18 +252,21 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                 ixx = find(bitand(repmat(accu,19,1),mask) == PREFIX);
                                                 if ixx < 18,
                                                         c = c + prefix(ixx);
-                                                        accu  = bitshift(accu, prefix(ixx),32);
+                                                        %accu  = bitshift(accu, prefix(ixx),32);
+                                                        accu  = mod(accu.*(2^prefix(ixx)),2^32);
                                                         l2    = l2 + 1;
                                                         x(l2) = HuffTab(ixx,1);
                                                         
                                                 elseif ixx == 18,
                                                         c = c + prefix(ixx) + 8;
-                                                        accu  = bitshift(accu, prefix(ixx),32);
+                                                        %accu  = bitshift(accu, prefix(ixx),32);
+                                                        accu  = mod(accu.*(2^prefix(ixx)),2^32);
                                                         l2    = l2 + 1;
-                                                        x(l2) = bitand(floor(accu*2^(-24)),255);
+                                                        x(l2) = mod(floor(accu*2^(-24)),256);
                                                         
-                                                        acc1 = bitand(floor(accu*2^(-8)),2^8-1);
-                                                        accu = bitshift(accu, 8, 32);
+                                                        acc1 = mod(floor(accu*2^(-8)),2^8);
+                                                        %accu = bitshift(accu, 8, 32);
+                                                        accu = mod(accu*256, 2^32);
                                                         x(l2) = acc1-(acc1>=2^7)*2^6;
                                                         acc2 = 0;
                                                         for kk=1:8,
@@ -274,15 +277,19 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                        
                                                 elseif ixx == 19,
                                                         c = c + prefix(ixx);
-                                                        accu  = bitshift(accu, prefix(ixx),32);
+                                                        %accu  = bitshift(accu, prefix(ixx),32);
+                                                        accu  = mod(accu.*(2^prefix(ixx)),2^32);
                                                         l2    = l2 + 1;
                                                         while (c > 7) & (l < Ntmp),
                                                                 l = l+1;
                                                                 c = c-8;
                                                                 accu = accu + tmp(l)*2^c;
                                                         end;
-                                                        acc1 = bitand(floor(accu*2^(-16)),2^16-1);
-                                                        accu = bitshift(accu, 16, 32);
+                                                        
+                                                        acc1 = mod(floor(accu*2^(-16)),2^16);
+                                                        %accu = bitshift(accu, 16, 32);
+                                                        accu = mod(accu.*(2^16), 2^32);
+                                                        
                                                         x(l2) = acc1-(acc1>=2^15)*2^16;
                                                         acc2 = 0;
                                                         for kk=1:16,
@@ -296,8 +303,9 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                 while (c > 7) & (l < Ntmp),
                                                         l = l+1;
                                                         c = c-8;
-                                                        accu = accu + tmp(l)*2^c;
+                                                        accu = accu + tmp(l)*(2^c);
                                                 end;
+                                                %accu,
                                         end;
                                         HDR.SCP6.S(:,k) = x(1:end-1)';
                                 end;
