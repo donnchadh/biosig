@@ -37,10 +37,11 @@
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-%	$Revision: 1.2 $
-%	$Id: pop_biosig.m,v 1.2 2004-09-24 11:06:36 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: pop_biosig.m,v 1.3 2004-09-24 12:49:56 schloegl Exp $
 %	Modified (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
-%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%    	This file is hosted at the repository of BIOSIG http://biosig.sf.net/
+%       within the subdirectory biosig/eeglab/
 
 % $Log: not supported by cvs2svn $
 % Revision 1.1  2004/09/12 02:03:47  arnodelorme
@@ -68,7 +69,7 @@
 % Initial revision
 %
 
-function [EEG, command] = pop_biosig(filename, channels, type); 
+function [EEG, command] = pop_biosig(filename, channels); 
 EEG = [];
 command = '';
 
@@ -81,40 +82,45 @@ if nargin < 1
 	[filename, filepath] = uigetfile('*.*', 'Choose a DAQ file -- pop_biosig'); 
     drawnow;
 	if filename == 0 return; end;
-	filename = [filepath '/' filename];
-    alltypes = { 'autodetect' 'DAQ' 'MAT' 'DAT' 'EBS' 'RAW' 'RDT' 'XLS' 'DA_' 'RG64' 'SIG' };
+	filename = fullfile(filepath ,filename);
 
     uilist   = { { 'style' 'text' 'String' 'Channel list (defaut all):' } ...
                  { 'style' 'edit' 'string' '' } ...
-                 { 'style' 'text' 'string' 'Force data type' } ...
-                 { 'style' 'list' 'string'  strvcat(alltypes{:}) } };
+                 { 'style' 'text' 'string' 'Start [s]' } ...
+                 { 'style' 'edit' 'string' '' } ...
+                 { 'style' 'text' 'string' 'Duration [s]' } ...
+                 { 'style' 'edit' 'string' '' } ...
+               };
     
-    results = inputgui( { [1 1] [1 1] }, uilist, 'pophelp(''pop_biosig'')', ...
+    results = inputgui( { [1 1] [1 1]  [1 1] }, uilist, 'pophelp(''pop_biosig'')', ...
                                  'Load data using BIOSIG -- pop_biosig()');
+
     if length(results) == 0 return; end;
     
     if ~isempty(results{1})
         channels = eval( [ '[ ' results{1} ' ]' ]);
+    else
+        channels = 0; 
     end;
-    if results{2} ~= 1
-        type = alltypes{results{2}};
+    if ~isempty(results{2})
+        start = eval( [ '[ ' results{2} ' ]' ]);
+    else
+        start = 0; 
+    end;
+    if ~isempty(results{3})
+        duration = eval( [ '[ ' results{3} ' ]' ]);
+    else
+        duration = inf; 
     end;
 end;
+
 
 % loading data
 % ------------
-if ~exist('channels','var')
-    channels = 0;
-end;
-
-%%%% modify this part, if you want read only parts of your data
-start = 0; 
-duration = inf; 
-
 disp('Importing data...');
-H = sopen(filename,channels);
-[signal,H] = sread(filename,duration,start);
-H=sclose(H); 
+H = sopen(filename,'r',channels);
+[signal,H] = sread(H,duration,start);
+H = sclose(H); 
 
 
 % decoding data
@@ -150,9 +156,6 @@ else
     disp('         To extract events, use menu File > Import Event Info > From data channel');
 end;
 
-if exist('type') ~= 1
-    command = sprintf('EEG = pop_biosig(''%s'', %s);', filename, vararg2str({ channels }));
-else
-    command = sprintf('EEG = pop_biosig(''%s'', %s);',filename, vararg2str({ channels type }));
-end;
+command = sprintf('EEG = pop_biosig(''%s'', %s);', filename, vararg2str({ channels }));
+
 return;
