@@ -3,6 +3,7 @@ function [HDR] = ssave(FILENAME,DATA,TYPE,Fs,bits)
 % 
 % Currently are the following data formats supported: 
 %    EDF, BDF, GDF, BKR, SND/AU, (WAV, AIF)
+%    and WSCORE event file
 %
 % HDR = ssave(HDR,data);
 % HDR = ssave(FILENAME,data,TYPE,Fs);
@@ -15,10 +16,10 @@ function [HDR] = ssave(FILENAME,DATA,TYPE,Fs,bits)
 % see also: SSAVE, SOPEN, SWRITE, SCLOSE, doc/README
 %
 
-%	$Revision: 1.2 $
-%	$Id: ssave.m,v 1.2 2004-05-24 11:49:10 schloegl Exp $
-%	Copyright (C) 1997-2003 by Alois Schloegl 
-%	a.schloegl@ieee.org	
+% $Revision: 1.3 $
+% $Id: ssave.m,v 1.3 2004-06-10 21:16:12 schloegl Exp $
+% Copyright (C) 2003-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+# This file is part of the biosig project http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -42,7 +43,7 @@ if isstruct(FILENAME),
         if isfield(HDR,'FileName'),
                 FILENAME=HDR.FileName;
         else
-                fprintf(2,'Error LOADEEG: missing FileName.\n');	
+                fprintf(2,'Error SSAVE: missing FileName.\n');	
                 return; 
         end;
 else
@@ -52,9 +53,40 @@ else
         HDR.bits = bits;
 end;
 
-[HDR.SPR,HDR.NS]   = size(DATA);
+if (nargin > 1),
+	[HDR.SPR, HDR.NS] = size(DATA);
+	
+	HDR = sopen(HDR,'wb');
+	HDR = swrite(HDR,DATA);
+	HDR = sclose(HDR);
+end;
 
-HDR = sopen(HDR,'wb');
-HDR = swrite(HDR,DATA);
-HDR = sclose(HDR);
+% Convert EVENT into WSCORE event format
+if all([HDR.EVENT.N, length(HDR.EVENT.POS), length(HDR.EVENT.TYP)]),
+	p = which('sopen'); [p,H,e] = fileparts(p);
+	H = sload(fullfile(p,'eventcodes.txt'));
 
+	HDR.EVENT.CodeDesc  = H.CodeDesc;
+	HDR.EVENT.CodeIndex = H.CodeIndex;
+	if isfield(HDR.EVENT,'DUR')
+	        HDR.EVENT.POS = [HDR.EVENT.POS; HDR.EVENT.POS + HDR.EVENT.DUR];
+	        HDR.EVENT.TYP = [HDR.EVENT.TYP; HDR.EVENT.TYP + hex2dec('8000')];
+	end;
+	OnOff = {'On','Off'};
+	
+	[HDR.EVENT.POS, ix] = sort(HDR.EVENT.POS);
+	HDR.EVENT.TYP       = HDR.EVENT.TYP(ix);
+	[TYP, IX, IY]       = unique(HDR.EVENT.TYP);
+
+	% write "free form" scoring file for WSCORE
+	fid   = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.C07']),'w');
+	for k = 1:length(TYP), 
+    		fprintf(fid,'%2i %s (%s)\r\n', k, HDR.EVENT.CodeDesc(mod(TYP(k),2^15)==HDR.EVENT.CodeIndex), OnOff{(TYP(k)>=2^15)+1});
+	end;
+	fclose(fid);
+
+	% write "free form" scoring file for WSCORE
+	fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.007']),'w');
+	fprintf(fid,'%8i %i\r\n', [round(HDR.EVENT.POS(:)),IY(:)]');
+	fclose(fid);
+end;

@@ -17,8 +17,8 @@ function [signal,H] = sload(FILENAME,CHAN)
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.26 $
-%	$Id: sload.m,v 1.26 2004-05-11 20:56:48 schloegl Exp $
+%	$Revision: 1.27 $
+%	$Id: sload.m,v 1.27 2004-06-10 21:16:12 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -106,6 +106,10 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
                         clear s
                 end;
 	end;
+        ix = find(H.EVENT.TYP==hex2dec('0300')); 
+        H.TRIG = mod(H.EVENT.POS(ix),256);
+
+        
 	fprintf(1,'  SLOAD: data segments are concanated with NaNs in between.\n');
 	return;	
 end;
@@ -138,11 +142,15 @@ FileExt = FileExt(2:length(FileExt));
 H.FileName = FILENAME;
 H = sopen(H,'rb',CHAN);
 
-if H.FILE.OPEN,
+if H.FILE.OPEN > 0,
         [signal,H] = sread(H);
         H = sclose(H);
-       
-        
+
+
+elseif strcmp(H.TYPE,'EVENTCODES')
+        signal = H.EVENT;
+
+
 elseif strcmp(H.TYPE,'DAQ')
 	fprintf(1,'Loading a matlab DAQ data file - this can take a while.\n');
 	tic;
@@ -257,7 +265,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 H.FLAG.TRIGGERED = H.NRec>1;
                 
                 if any(CHAN),
-                        %signal=signal(:,CHAN);
+                        %signal = signal(:,CHAN);
                         sz(3)= length(CHAN);
                 else
                         CHAN = 1:H.NS;
@@ -275,13 +283,14 @@ elseif strncmp(H.TYPE,'MAT',3),
                 map(strmatch('AUGE',H.gBS.EpochingName))=hex2dec('0101');
                 map(strmatch('MUSKEL',H.gBS.EpochingName))=hex2dec('0103');
                 map(strmatch('ELECTRODE',H.gBS.EpochingName))=hex2dec('0105');
-                
-                H.EVENT.N   = size(H.gBS.EpochingSelect,1);
-                H.EVENT.TYP = map([H.gBS.EpochingSelect{:,9}]');
-                H.EVENT.POS = [H.gBS.EpochingSelect{:,1}]';
-                H.EVENT.CHN = [H.gBS.EpochingSelect{:,3}]';
-                H.EVENT.DUR = [H.gBS.EpochingSelect{:,4}]';
 
+                if ~isempty(H.gBS.EpochingSelect),
+                        H.EVENT.TYP = map([H.gBS.EpochingSelect{:,9}]');
+                        H.EVENT.POS = [H.gBS.EpochingSelect{:,1}]';
+                        H.EVENT.CHN = [H.gBS.EpochingSelect{:,3}]';
+                        H.EVENT.DUR = [H.gBS.EpochingSelect{:,4}]';
+                end;
+                
                 
 	elseif isfield(tmp,'P_C_DAQ_S');
                 if ~isempty(tmp.P_C_DAQ_S.data),

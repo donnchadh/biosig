@@ -1,8 +1,8 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004 Alois Schloegl <a.schloegl@ieee.org>
-# $Revision: 1.1 $
-# $Id: eventcodes.txt,v 1.1 2004-06-01 22:24:21 schloegl Exp $
+# $Revision: 1.2 $
+# $Id: eventcodes.txt,v 1.2 2004-06-10 21:16:12 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -18,11 +18,11 @@
 0x0108	artifact:breathing
 0x0109	artifact:pulse
 ### 0x011_	EEG patterns
-0x0111	Sleep spindles
-0x0112	K-complexes
-0x0113	Saw-tooth waves
+0x0111	eeg:Sleep spindles
+0x0112	eeg:K-complexes
+0x0113	eeg:Saw-tooth waves
 ### 0x03__	Trigger, cues, classlabels, 
-0x0300	Trigger, start ofTrial  (unspecific)
+0x0300	Trigger, start of Trial  (unspecific)
 0x0301	Left - cue onset (BCI experiment)
 0x0302	Right - cue onset (BCI experiment)
 0x0303	Foot - cue onset (BCI experiment)
@@ -35,19 +35,19 @@
 0x0312	Cross on screen (BCI experiment)
 0x03ff	Rejection of whole trial
 ### 0x040_	Sleep-related Respiratory Events
-0x0401	Obstructive Hypopnea/Apnea
+0x0401	Obstructive Apnea/Hypopnea Event (OAHE) 
 0x0402	Respiratory Effort Related Arousal (RERA)
-0x0403	Central Hypopnea/Apnea
-0x0404	Cheyne-Stokes Breathing
-0x0405	Sleep Hypoventilation
+0x0403	Central Apnea/Hypopnea Event (CAHE)
+0x0404	Cheyne-Stokes Breathing (CSB)
+0x0405	Sleep Hypoventilation 
 ### 0x050_	ECG events
-0x0501	Fiducial point of QRS complex
-0x0502	P-wave
-0x0503	Q-point
-0x0504	R-point
-0x0505	S-point
-0x0506	T-point
-0x0507	U-wave
+0x0501	ecg:Fiducial point of QRS complex
+0x0502	ecg:P-wave
+0x0503	ecg:Q-point
+0x0504	ecg:R-point
+0x0505	ecg:S-point
+0x0506	ecg:T-point
+0x0507	ecg:U-wave
 ### 0x____	OTHER	
-0x0000 No event
+0x0000	No event
 
