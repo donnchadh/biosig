@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.6 $
-%	$Id: sread.m,v 1.6 2003-10-25 08:55:15 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: sread.m,v 1.7 2003-12-17 19:38:12 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -289,6 +289,21 @@ elseif 0, %strcmp(HDR.TYPE,'SND'),
 	end;
 
         
+
+
+elseif strcmp(HDR.TYPE,'DEMG'),
+        if nargin==3,
+        	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+		HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP));
+	if count,
+	        S = S(HDR.SIE.ChanSelect,:)';
+                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+        end;
+        if ~HDR.FLAG.UCAL,
+		S = S*HDR.Cal + HDR.Off;
+	end;
 
 
 elseif strcmp(HDR.TYPE,'CFWB'),

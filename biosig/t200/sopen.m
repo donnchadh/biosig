@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.13 $
-%	$Id: sopen.m,v 1.13 2003-11-27 11:44:57 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: sopen.m,v 1.14 2003-12-17 19:38:12 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -106,6 +106,8 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='TEAM';	% Nicolet TEAM file format
                         elseif strncmp(ss,HDR.FILE.Name,length(HDR.FILE.Name)); 
                                 HDR.TYPE='MIT';
+                        elseif strncmp(ss,'DEMG',4);	% www.Delsys.com
+                                HDR.TYPE='DEMG';
 
                         elseif strncmp(ss,'.snd',4); 
                                 HDR.TYPE='SND';
@@ -257,7 +259,7 @@ if any(PERMISSION=='r'),
                         elseif strncmp(ss,'ZYXEL',5); 
                                 HDR.TYPE='ZYXEL';
                                 
-                        elseif any(~type_mat4),  % should be last, otherwise to many false detections
+                        elseif all(~type_mat4),  % should be last, otherwise to many false detections
                                 HDR.TYPE='MAT4';
                                 if type_mat4(1)==1,
                                         HDR.MAT4.opentyp='ieee-be';
@@ -274,8 +276,35 @@ if any(PERMISSION=='r'),
                                 %TYPE='unknown';
                                 HDR.TYPE='unknown';
                         end;
+                else
+                    	fprintf(2,'Error SOPEN: could not read any byte from file %s\n',HDR.FileName);    
                 end;
                 fclose(fid);
+
+		% alpha-TRACE Medical software
+	        if (strcmpi(HDR.FILE.Name,'rawdata') | strcmpi(HDR.FILE.Name,'rawhead')) & isempty(HDR.FILE.Ext),
+            		H   = HDR;		% copy HDR struct
+    		        fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),'rt');
+            		while ~feof(fid),
+                    		[s] = fgetl(fid);
+                    		[tag,s] = strtok(s,'=');
+                    		[tmp,s] = strtok(s,'=');
+                    		num = str2num(tmp);
+                    		if isempty(num),
+                            		HDR = setfield(HDR,tag,tmp);
+                    		else
+                            		HDR = setfield(HDR,tag,num);
+                    		end;	                        
+            		end;
+                        fclose(fid);
+                        
+                        if isfield(HDR,'Version');	
+                                HDR.TYPE = 'alpha'; %alpha trace medical software 
+                                HDR.FILE.FID = -1;
+                        else
+                                HDR = H;	% restore original HDR struct 
+                        end;
+                end;
 	else
                 fprintf(HDR.FILE.stderr,'SOPEN: File %s couldnot be opened\n',HDR.FileName);
                 return;
@@ -411,6 +440,58 @@ elseif strcmp(HDR.TYPE,'rhdE'),
 	fclose(HDR.FILE.FID);
 
 
+elseif strcmp(HDR.TYPE,'DEMG'),
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');      % ### native should be fixed
+        if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+                % read header
+                fseek(HDR.FILE.FID,4,'bof');    % skip first 4 bytes, should contain 'DEMG'
+                HDR.VERSION = fread(HDR.FILE.FID,1,'uint16');	
+                HDR.NS  = fread(HDR.FILE.FID,1,'uint16'); 
+                HDR.SampleRate = fread(HDR.FILE.FID,1,'uint32');
+                HDR.SPR = fread(HDR.FILE.FID,1,'uint32');
+                HDR.NRec = 1; 
+                
+                HDR.bits = fread(HDR.FILE.FID,1,'uint8');
+                HDR.PhysMin = fread(HDR.FILE.FID,1,'int8');
+                HDR.PhysMax = fread(HDR.FILE.FID,1,'int8');
+                if HDR.VERSION==1,
+                        HDR.GDFTYP = 16;        % float
+                        HDR.Cal = 1; 
+                        HDR.Off = 0; 
+                        HDR.AS.bpb = 4*HDR.NS;
+                elseif HDR.VERSION==2,
+                        HDR.GDFTYP = 4;         % uint16
+                        HDR.Cal = (HDR.PhysMax-HDR.PhysMin)/(2^HDR.bits-1);
+                        HDR.Off = HDR.PhysMin;
+                        HDR.AS.bpb = 2*HDR.NS;
+                else    
+                        fprintf(2,'Error SOPEN DEMG: invalid version number.\n');
+                        fclose(HDR.FILE.FID);
+                        HDR.FILE.FID=-1;
+                        return;
+                end;
+                HDR.HeadLen = ftell(HDR.FILE.FID);
+                HDR.FILE.POS = 0;
+                HDR.FILE.OPEN = 1; 
+                HDR.AS.endpos = HDR.SPR;
+                %HDR.Filter.LowPass = 450;       % default values
+                %HDR.Filter.HighPass = 20;       % default values
+
+                if CHAN==0,		
+                        HDR.SIE.ChanSelect = 1:HDR.NS;
+                elseif all(CHAN>0 & CHAN<=HDR.NS),
+                        HDR.SIE.ChanSelect = CHAN;
+                else
+                        fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+                        fclose(HDR.FILE.FID); 
+                        HDR.FILE.FID = -1;	
+                        return;
+                end;
+        else
+                fprintf(2,'Warning SOPEN DEMG: writing not implemented, yet.\n');
+        end;
+
+        
 elseif strcmp(HDR.TYPE,'ACQ'),
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
 
@@ -2739,6 +2820,7 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
 			return;
 		end;
 	end;
+
 else
 	%fprintf(2,'SOPEN does not support your data format yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
 	HDR.FILE.FID = -1;	% this indicates that file could not be opened. 
