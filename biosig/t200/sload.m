@@ -30,8 +30,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.41 $
-%	$Id: sload.m,v 1.41 2004-11-06 22:51:59 schloegl Exp $
+%	$Revision: 1.42 $
+%	$Id: sload.m,v 1.42 2004-11-07 22:58:08 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -736,40 +736,97 @@ elseif strcmp(H.TYPE,'BMP'),
 elseif strcmp(H.TYPE,'MatrixMarket'),
         H.FILE.FID = fopen(H.FileName,'rt','ieee-le');
 
-	K = 0;
-	whm = [];
-	H.Length = [inf];
-    	line1 = fgetl(H.FILE.FID);
-	while ~feof(H.FILE.FID) & (K<H.Length)
-        	line = fgetl(H.FILE.FID);
+    	line = fgetl(H.FILE.FID);
+	
+	H.FLAG.Coordinate = ~isempty(strfind(line,'coordinate'));
+	H.FLAG.Array 	  = ~isempty(strfind(line,'array'));
 
-		if isempty(line),
-		elseif line(1)=='%',
-		elseif isnumeric(line),
-		else
+	H.FLAG.Complex = ~isempty(strfind(line,'complex'));
+	H.FLAG.Real = ~isempty(strfind(line,'real'));
+	H.FLAG.Integer = ~isempty(strfind(line,'integer'));
+	H.FLAG.Pattern = ~isempty(strfind(line,'pattern'));
+	
+	H.FLAG.General = ~isempty(strfind(line,'general'));
+	H.FLAG.Symmetric = ~isempty(strfind(line,' symmetric'));
+	H.FLAG.SkewSymmetric = ~isempty(strfind(line,'skew-symmetric'));
+	H.FLAG.Hermitian = ~isempty(strfind(lower(line),'hermitian'));
+
+	while strncmp(line,'%',1)
+        	line = fgetl(H.FILE.FID);
+	end;
+
+	[tmp,status] = str2double(line);
+	if any(status)
+		fprintf(H.FILE.stderr,'SLOAD (MM): invalid size %s\n',line);
+	else
+		H.MATRIX.Size = tmp;
+	end;	
+
+	if length(H.MATRIX.Size)==3,
+		H.Length = tmp(3);
+		signal = sparse([],[],[],tmp(1),tmp(2),tmp(3));
+		for k = 1:H.Length,
+	        	line = fgetl(H.FILE.FID);
 			[tmp,status] = str2double(line);
-			if status
-			%	error('SLOAD (MM)');
-			elseif (K == 0); 
-				H.IMAGE.Size = tmp;
-				if length(H.IMAGE.Size)==3,
-					H.Length = tmp(3);
-					signal = sparse([],[],[],tmp(1),tmp(2),tmp(3));
-					K = K + 1;
-				elseif length(H.IMAGE.Size)==2
-					H.Length = prod(tmp);
-					signal = zeros(tmp);
-					K = K + 1;
-				end	
-			elseif length(H.IMAGE.Size)==4,	
-				signal(tmp(1),tmp(2))=tmp(3)+imag(tmp(4));
-				K = K + 1;	
-			elseif length(H.IMAGE.Size)==3,	
-				signal(tmp(1),tmp(2))=tmp(3);
-				K = K + 1;	
-			elseif length(H.IMAGE.Size)==2,	
-				signal(K)=tmp;
-				K = K + 1;
+			if any(status)
+				fprintf(H.FILE.stderr,'SLOAD (MM): invalid size %s\n',line);
+			elseif length(tmp)==4,	
+		    		val = tmp(3) + i*tmp(4);
+			elseif length(tmp)==3,	
+				val = tmp(3);
+			elseif length(tmp)==2,	
+				val = 1;
+			else
+				fprintf(H.FILE.stderr,'SLOAD (MM): invalid size %s\n',line);
+			end;
+
+			if H.FLAG.General,
+				signal(tmp(1),tmp(2)) = val;
+			elseif H.FLAG.Symmetric,
+				signal(tmp(1),tmp(2)) = val;
+				signal(tmp(2),tmp(1)) = val;
+			elseif H.FLAG.SkewSymmetric,
+				signal(tmp(1),tmp(2)) = val;
+				signal(tmp(2),tmp(1)) =-val;
+			elseif H.FLAG.Hermitian,
+				signal(tmp(1),tmp(2)) = val;
+				signal(tmp(2),tmp(1)) = conj(val);
+			else	
+				fprintf(H.FILE.stderr,'SLOAD (MM): invalid size %s\n',line);
+			end;	
+		end;
+					
+	elseif length(H.MATRIX.Size)==2
+		H.Length = prod(tmp);
+		signal = zeros(H.MATRIX.Size);
+		if H.FLAG.General==1,
+			[IX,IY]=find(ones(H.MATRIX.Size));
+		else
+			[IX,IY]=find(cumsum(eye(H.MATRIX.Size)));
+		end;
+				
+		for k = 1:H.Length,
+	        	line = fgetl(H.FILE.FID);
+			[tmp,status] = str2double(line);
+			if any(status)
+				error('SLOAD (MM)');
+			elseif length(tmp)==2,	
+				val=tmp(1) + i*tmp(2);
+			elseif length(tmp)==1,	
+				val=tmp(1);
+			else
+				fprintf(H.FILE.stderr,'SLOAD (MM): invalid size %s\n',line);
+			end;
+
+			signal(IX(k),IY(k)) = val;
+			if H.FLAG.Symmetric,
+				signal(IY(k),IX(k)) = val;
+			elseif H.FLAG.SkewSymmetric,
+				signal(IY(k),IX(k)) =-val;
+			elseif H.FLAG.Hermitian,
+				signal(IY(k),IX(k)) = conj(val);
+			else	
+				fprintf(H.FILE.stderr,'SLOAD (MM): invalid size %s\n',line);
 			end;	
 		end;
         end;
@@ -984,8 +1041,42 @@ elseif strcmp(H.TYPE,'SMF'),
 		end;	
 	
         
+elseif strcmp(H.TYPE,'FITS'),
+	[tmp, KK] = max(H.IMAGE_Size);   % select block
+	status = fseek(H.FILE.FID,H.HeadLen(KK),'bof');
+
+	H.AS.bps = abs(H.FITS{KK}.BITPIX)/8;
+	if H.FITS{KK}.BITPIX==8,
+		H.GDFTYP = 'uint8';
+	elseif H.FITS{KK}.BITPIX==16,
+		H.GDFTYP = 'int16';
+	elseif H.FITS{KK}.BITPIX==32,
+		H.GDFTYP = 'int32';
+	elseif H.FITS{KK}.BITPIX==-32,
+		H.GDFTYP = 'float32';
+	elseif H.FITS{KK}.BITPIX==-64,
+		H.GDFTYP = 'float64';
+	else
+		warning('SOPEN (FITS{KK})');
+	end;	
+	
+	if isfield(H.FITS{KK},'BZERO')		H.Off = H.FITS{KK}.BZERO;
+	else					H.Off = 0;			end;		
+	if isfield(H.FITS{KK},'BSCALE')		H.Cal = H.FITS{KK}.BSCALE;
+	else					H.Cal = 1;			end;		
+	if isfield(H.FITS{KK},'BUNIT'),		H.PhysDim = H.FITS{KK}.BUNIT;
+	else					H.PhysDim = '[1]';		end;		
+	if isfield(H.FITS{KK},'DATAMAX'),	H.PhysMax = H.FITS{KK}.DATAMAX;
+	else					H.PhysMax = NaN;		end;
+	if isfield(H.FITS{KK},'DATAMIN'),	H.PhysMin = H.FITS{KK}.DATAMIN;
+	else					H.PhysMin = NaN;	 	end;
+
+	[signal,c] = fread(H.FILE.FID,prod(H.IMAGE(KK).Size),H.GDFTYP);
+	signal = reshape(signal,H.IMAGE(KK).Size);  % * H.Cal + H.Off;
+	fclose(H.FILE.FID);	
+
+        
 elseif strcmp(H.TYPE,'VTK'),
-        if any(PERMISSION=='r'),
                 H.FILE.FID = fopen(H.FileName,'rt','ieee-le');
                 
                 H.VTK.version = fgetl(H.FILE.FID);
@@ -998,7 +1089,6 @@ elseif strcmp(H.TYPE,'VTK'),
 
                 fprintf(H.FILE.stderr,'Warning SOPEN: VTK-format not supported, yet.\n');
                 return;
-		end;	
 	
         
 elseif strcmp(H.TYPE,'XPM'),
