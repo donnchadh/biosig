@@ -11,11 +11,15 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %   sourcefile	sourcefile wildcards are allowed
 %   destfile	destination file in BKR format 
 %	if destfile is empty or a directory, sourcefile but with extension .bkr is used.
-%   option
+%   options
 %       gain            Gain factor for unscaled EEG data (e.g. old Matlab files) 
 %       'removeDC'      removes mean
 %       'autoscale k:l'	uses only channels from k to l for scaling
-%       'removeDC+autoscale k:l'	combines both   
+%       'detrend k:l'	channels from k to l are detrended with an FIR-highpass filter.
+%       'PhysMax=XXX'	uses a fixed scaling factor; might be important for concanating BKR files 
+%			+XXX and -XXX correspond to the maximum and minimum physical value, resp. 
+% 		You can concanate several options by separating with space, komma or semicolon 
+%
 %   HDR		Header, HDR.FileName must contain target filename
 %   data	data samples
 %
@@ -23,15 +27,16 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %   save2bkr('/tmp/*.cnt',[],'autoscale 5:30');
 %	converts all CNT-files from subdir /tmp/ into BKR files 
 %       and saves them in the current directory 
-%   save2bkr('/tmp/*.cnt','/tmp2/','autoscale 5:30');
+%   save2bkr('/tmp/*.cnt','/tmp2/','autoscale 5:30, PhysMax=200');
 %	converts all CNT-files from subdir /tmp/ into BKR files 
 %       and saves them in the directory /tmp2/
+%	
 %
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.6 $
-% 	$Id: save2bkr.m,v 1.6 2003-03-18 13:35:38 schloegl Exp $
+%	$Revision: 1.7 $
+% 	$Id: save2bkr.m,v 1.7 2003-05-20 13:20:45 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -51,6 +56,10 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 
 
 FLAG_REMOVE_DC = 0;
+FLAG_AUTOSCALE = 0;
+FLAG_DETREND = 0;
+FLAG_PHYSMAX = 0;
+
 chansel = 0; 
 
 if nargin<2, arg2=[]; end;
@@ -60,16 +69,41 @@ if nargin<3,
 elseif isnumeric(arg3)
         cali = arg3;        
 else
-        FLAG_REMOVE_DC = findstr(arg3,'removeDC');        
+        FLAG_REMOVE_DC = findstr(lower(arg3),'removedc');        
         tmp = findstr(arg3,'autoscale');
         if ~isempty(tmp);
-                chansel = arg3(tmp+9:length(arg3));
+                [chansel,tmp] = strtok(arg3(tmp+9:length(arg3)),' ;,+');
                 tmp = str2num(chansel);
                 if isempty(tmp),
                         fprintf(2,'invalid autoscale argument %s',chansel);
                         return;
+                else
+		        FLAG_AUTOSCALE = 1;
+	                chansel = tmp;
                 end;
-                chansel = tmp;
+        end;
+        tmp = findstr(lower(arg3),'detrend');
+        if ~isempty(tmp);
+                [chansel_dt,tmp] = strtok(arg3(tmp+7:length(arg3)),' ;,+');
+                tmp = str2num(chansel_dt);
+                if isempty(tmp),
+                        fprintf(2,'invalid detrend argument %s',chansel);
+                        return;
+                else
+                        FLAG_DETREND = 1;
+	                chansel_dt = tmp;
+                end;
+        end;
+        tmp = findstr(lower(arg3),'physmax=');
+        if ~isempty(tmp);
+                [tmp,tmp1] = strtok(arg3(tmp+8:length(arg3)),' ;,');
+                PHYSMAX = str2num(tmp);
+                if isempty(PHYSMAX ),
+                        fprintf(2,'invalid PhysMax argument %s',chansel);
+                        return;
+                else
+                        FLAG_PHYSMAX = 1;
+                end;
         end;
 end;
 
@@ -175,14 +209,37 @@ for k=1:length(infile);
         if FLAG_REMOVE_DC,
                 y = y-repmat(mean(y,1),size(y,1),1);
         end;
+        if FLAG_DETREND,
+                B = -ones(1,HDR.SampleRate)/HDR.SampleRate;
+                B(HDR.SampleRate/2) = B(HDR.SampleRate/2)+1;
+                HDR.Filter.B = B;
+                HDR.Filter.A = 1;
+                %HDR.Filter.B=B;%conv(-B, HDR.Filter.B);
+                Delay = length(B)/2;        
+                HDR.FLAG.FILT = 1;
+                HDR.Filter.HighPass = .5;
+                
+                for k = chansel_dt,
+                        tmp = filter(B,1,[y(:,k);zeros(length(B),1)]);
+                        y(:,k) = tmp(Delay+1:size(y,1)+Delay);
+	        end;                
+        end;
         
         HDR.DigMax=2^15-1;
+        if FLAG_PHYSMAX,
+                HDR.PhysMax = PHYSMAX;
+        else
+                if chansel==0,
+                        HDR.PhysMax = max(abs(y(:))); %gives max of the whole matrix
+                else
+                        tmp = y(:,chansel);
+                        HDR.PhysMax = max(abs(tmp(:))); %gives max of the whole matrix
+                end;
+        end;
+        
         if chansel==0,
-                HDR.PhysMax = max(abs(y(:))); %gives max of the whole matrix
                 y = y*(HDR.DigMax/HDR.PhysMax);	%transpose, da zuerst 1.Sample-1.Channel, dann 
         else
-                tmp = y(:,chansel);
-                HDR.PhysMax = max(abs(tmp(:))); %gives max of the whole matrix
                 for k = 1:HDR.NS,
                         mm = max(abs(y(:,k)));
                         if any(k==chansel),
