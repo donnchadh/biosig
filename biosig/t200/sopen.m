@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.43 $
-%	$Id: sopen.m,v 1.43 2004-04-08 16:46:52 schloegl Exp $
+%	$Revision: 1.44 $
+%	$Id: sopen.m,v 1.44 2004-04-09 13:16:39 oostenveld Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -194,8 +194,10 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='WG1';
                                 HDR.Endianity = 'ieee-be';
 
-                        elseif strcmp(ss([1:4,9:16]),'RIFFCNT LIST'); 
-                                HDR.TYPE='EEProbe';     % EEGProbe ? 
+                        elseif strncmp(ss,'RIFF',4)
+                                HDR.TYPE='EEProbe';     % continuous EEG in EEProbe format, ANT Software (NL) and MPI Leipzig (DE)
+                        elseif all(ss(1:4)==[38 0 16 0])
+                                HDR.TYPE='EEProbe';     % averaged EEG in EEProbe format, ANT Software (NL) and MPI Leipzig (DE)
                                 
                         elseif strncmp(ss,'ISHNE1.0',8);        % ISHNE Holter standard output file.
                                 HDR.TYPE='ISHNE';
@@ -412,7 +414,7 @@ if any(PERMISSION=='r'),
                         elseif strcmpi(HDR.FILE.Ext,'msm')
                                 
                         elseif strcmpi(HDR.FILE.Ext,'msr')
-                                HDR.TYPE = 'ASA2';    % Brainvision ?
+                                HDR.TYPE = 'ASA2';    % ASA version 2.x, see http://www.ant-software.nl
                                 
                         elseif strcmpi(HDR.FILE.Ext,'dip')
                                 
@@ -420,28 +422,37 @@ if any(PERMISSION=='r'),
                                 
                         elseif strcmpi(HDR.FILE.Ext,'iso')
                                 
-                                
                         elseif strcmpi(HDR.FILE.Ext,'hdr')
                                 
                         elseif strcmpi(HDR.FILE.Ext,'img')
-                                
-                                
+
+                        % the following are Brainvision format, see http://www.brainproducts.de
                         elseif strcmpi(HDR.FILE.Ext,'vhdr')
-                                TYPE = 'BrainVision';    % Brainvision ?
-                                
+                            HDR.TYPE = 'BrainVision';    % Brainvision EEG header file
+
                         elseif strcmpi(HDR.FILE.Ext,'vmrk')
-                                TYPE = 'BrainVision';    % Brainvision ?
-                                
-                        elseif strcmpi(HDR.FILE.Ext,'vabs')
-                                TYPE = 'BrainVision';    % Brainvision ?
-                                
+                            HDR.TYPE = 'BrainVision';    % Brainvision EEG marker/event file
+
                         elseif strcmpi(HDR.FILE.Ext,'eeg')
-                                TYPE = 'BrainVision';    % Brainvision ?
-                                
+                          % If this is really a BrainVision file, there should also be a
+                          % header with the same name and extension *.vhdr.
+                          if exist(fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']), 'file')
+                            HDR.TYPE          = 'BrainVision';
+                            HDR.FILE.FileName = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);	% point to header file
+                          end
+
                         elseif strcmpi(HDR.FILE.Ext,'seg')
-                                
+                          % If this is really a BrainVision file, there should also be a
+                          % header with the same name and extension *.vhdr.
+                          if exist(fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']), 'file')
+                            HDR.TYPE          = 'BrainVision';
+                            HDR.FILE.FileName = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);	% point to header file
+                          end
+
+                        elseif strcmpi(HDR.FILE.Ext,'vabs')
+
                         elseif strcmpi(HDR.FILE.Ext,'fif')
-                                HDR.TYPE = 'FIF'; 
+                                HDR.TYPE = 'FIF';	% Neuromag MEG data (company is now part of 4D Neuroimaging)
                                 
                         elseif strcmpi(HDR.FILE.Ext,'bdip')
                                 
@@ -455,11 +466,6 @@ if any(PERMISSION=='r'),
                                 
                         end;
                         
-                        if strcmp(TYPE,'BrainVision')
-                                if (exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.eeg']))==2) & (exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.vhdr']))==2),
-                                        HDR.TYPE=TYPE;
-                                end;
-                        end;
                 end;
                 
                 if strcmp(HDR.TYPE,'BKR'),
@@ -3375,67 +3381,115 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
                         HDR.T0(6) = str2double([tmp(5:6),'.',tmp(7:9)]);
                 end;
         end;
-        
-        
-elseif strncmp(HDR.TYPE,'BrainVision',3),
-        %%%% #### FIX ME ####
-        if any(PERMISSION=='r'),
-                if any(exist('read_brainvision_vhdr')==[2:6]), 
-                        hdr = read_brainvision_vhdr(HDR.FileName,1,1);
-                        HDR.SampleRate = hdr.Fs;
-                        HDR.NS = hdr.nchan; 
-                        HDR.NRec = 1; 
-                        HDR.FLAG.TRIGGERED = 0;
-                        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
-                else
-                        fprintf(2,'Error SOPEN (EEProbe): reading function READ_BRAINVISION_VHDR not available\n');
-                end
-                
-                fprintf(HDR.FILE.stderr,'Warning: Implementing Format %s not completed yet. \n',HDR.TYPE);	
-                return;
+
+elseif strcmp(HDR.TYPE,'BrainVision'),
+        % get the header information from the VHDR ascii file
+        headerfile           = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);
+        tmp.DataFile         = read_ini(headerfile, 'DataFile=', '%s');
+        tmp.MarkerFile       = read_ini(headerfile, 'MarkerFile=', '%s');
+        tmp.DataFormat       = read_ini(headerfile, 'DataFormat=', '%s');
+        tmp.DataOrientation  = read_ini(headerfile, 'DataOrientation=', '%s');
+        tmp.BinaryFormat     = read_ini(headerfile, 'BinaryFormat=', '%s');
+        tmp.NumberOfChannels = read_ini(headerfile, 'NumberOfChannels=', '%d');
+        tmp.SamplingInterval = read_ini(headerfile, 'SamplingInterval=', '%f'); % microseconds!
+        if ~isempty(tmp.NumberOfChannels)
+          % parse the channel information
+          for i=1:tmp.NumberOfChannels
+            chan_str  = sprintf('Ch%d=', i);
+            chan_info = read_asa(headerfile, chan_str, '%s');
+            [t, r] = strtok(chan_info, ',');
+            tmp.label{i} = t;
+            if all(r(1:2)==',,')
+              % empty reference channel
+              r = r(2:end);
+              t = [];
+            else
+              [t, r] = strtok(r, ',');
+            end
+            tmp.reference{i} = t;
+            [t, r] = strtok(r, ',');
+            tmp.resolution(i) = str2double(t);          % in microvolt
+          end
         end
-        
-        
-elseif strncmp(HDR.TYPE,'CTF',3),
-        %%%% #### FIX ME ####
-        if any(PERMISSION=='r'),
-                if any(exist('read_ctf_res4')==[2,3,6]), 
-                        hdr = read_ctf_res4(HDR.FileName,1,1);
-                        HDR.SampleRate = hdr.Fs;
-                        HDR.NS = hdr.nchan; 
-                        HDR.NRec = 1; 
-                        HDR.FLAG.TRIGGERED = 0;
-                        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
-                else
-                        fprintf(2,'Error SOPEN (EEProbe): reading function READ_CTF_RES4 not available\n');
-                end
-                
-                fprintf(HDR.FILE.stderr,'Warning: Implementing Format %s not completed yet. \n',HDR.TYPE);	
-                return;
+        % ensure that these are all column-vectors
+        tmp.label      = tmp.label(:);
+        tmp.reference  = tmp.reference(:);
+        tmp.resolution = tmp.resolution(:);
+        if strcmpi(tmp.DataFormat, 'binary') & strcmpi(tmp.DataOrientation, 'multiplexed') & strcmpi(tmp.BinaryFormat, 'int_16')
+          % this is a known sub-format
+          % convert the header information to BIOSIG standards
+          HDR.FILE.FID = 1;               % ?
+          HDR.T0 = [0 0 0 0 0 0];         % there is no information about start time available
+          HDR.NS = tmp.NumberOfChannels;  % number of channels
+          HDR.SampleRate = 1e6/(tmp.SamplingInterval);      % sampling rate in Hz
+          HDR.NRec = 1;                   % it is a continuous datafile, therefore one record
+          % FIXME: the number of samples is unkown but could be determined from the length of the binary file
+          HDR.SPR = Inf;                  % total number of samples in the file
+          HDR.Dur = Inf;                  % total duration in seconds
+          HDR.Calib = [];                 % ?, probably something with tmp.resolution
+          HDR.Label = char(tmp.label);
+          HDR.PhysDim = 'uV';
         else
-                
+          fprintf(HDR.FILE.stderr,'ERROR SOPEN (BrainVision): File %s could not be opened - unknown subtype for BrainVision.\n',HDR.FileName);
         end
-        
-        
-elseif strncmp(HDR.TYPE,'EEProbe',3),
-        %%%% #### FIX ME ####
-        if any(PERMISSION=='r'),
-                if any(exist('read_eep_cnt')==[2,3,6]), 
-                        hdr = read_eep_cnt(HDR.FileName,1,1);
-                        HDR.SampleRate = hdr.Fs;
-                        HDR.NS = hdr.nchan; 
-                        HDR.NRec = 1; 
-                        HDR.FLAG.TRIGGERED = 0;
-                        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
-                else
-                        fprintf(2,'Error SOPEN (EEProbe): reading function READ_EEP_CNT not available\n');
-                end
-                
-                fprintf(HDR.FILE.stderr,'Warning: Implementing Format %s not completed yet. \n',HDR.TYPE);	
-                return;
+
+elseif strcmp(HDR.TYPE,'EEProbe'),
+        % The type 'EEProbe' does not yet completely specify the file, we have to
+        % look in more detail (currently only at the extension).
+        if strcmp(HDR.FILE.Ext, 'cnt')
+          % it appears to be a EEProbe file with continuous EEG data
+          try
+            % Read the first sample of the file with a mex function
+            % this also gives back header information, which is needed here
+            tmp = read_eep_cnt(HDR.FileName, 1, 1);
+            % convert the header information to BIOSIG standards
+            HDR.FILE.FID = 1;               % ?
+            HDR.T0 = [0 0 0 0 0 0];         % there is no information about start time available
+            HDR.NS = tmp.nchan;             % number of channels
+            HDR.SampleRate = tmp.rate;      % sampling rate
+            HDR.NRec = 1;                   % it is always continuous data, therefore one record
+            HDR.SPR = tmp.nsample;          % total number of samples in the file
+            HDR.Dur = tmp.nsample/tmp.rate; % total duration in seconds
+            HDR.Calib = [];                 % ?, mex file returns calibrated data
+            HDR.Label = char(tmp.label);
+            HDR.PhysDim = 'uV';
+            % In principle it would also be possible now to check for the
+            % presence of a similar file with the extension *.trg. That file
+            % contains the accompanying triggers, and could be read with
+            % the function read_eep_trg.
+          catch
+            fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): Cannot open EEProbe-file, because read_eep_cnt.mex not installed. \n');
+            fprintf(HDR.FILE.stderr,'see http://www.smi.auc.dk/~roberto/eeprobe/\n');
+          end
+        elseif strcmp(HDR.FILE.Ext, 'avr')
+          % it appears to be a EEProbe file with an averaged ERP
+          try
+            % It is not possible to read the header by itself. Therefore we
+            % read the whole average and throw away the real data (that
+            % will be read again later with SREAD). This at least gives us
+            % the desired header information, albeit a bit clumsy.
+            tmp = read_eep_avr(HDR.FileName);
+            % convert the header information to BIOSIG standards
+            HDR.FILE.FID = 1;               % ?
+            HDR.T0 = [0 0 0 0 0 0];         % there is no information about start time available
+            HDR.NS = tmp.nchan;             % number of channels
+            HDR.SampleRate = tmp.rate;      % sampling rate
+            HDR.NRec = 1;                   % it is an averaged ERP, therefore one record
+            HDR.SPR = tmp.npnt;             % total number of samples in the file
+            HDR.Dur = tmp.npnt/tmp.rate;    % total duration in seconds
+            HDR.Calib = [];                 % ?, mex file returns calibrated data
+            HDR.Label = char(tmp.label);
+            HDR.PhysDim = 'uV';
+            % Where do I put the information about the timing within the
+            % single trial? The latency zero is not persee at the first
+            % sample.
+          catch
+            fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): Cannot open EEProbe-file, because read_eep_avr.mex not installed. \n');
+          end
+        else
+          fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): File %s could not be opened - unknown subtype for EEProbe.\n',HDR.FileName);
         end
-        
-        
+
 elseif strncmp(HDR.TYPE,'FIF',3),
         %%%% #### FIX ME ####
         if any(exist('rawdata')==[3,6]),
