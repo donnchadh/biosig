@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.96 $
-%	$Id: sopen.m,v 1.96 2005-02-28 17:36:52 schloegl Exp $
+%	$Revision: 1.97 $
+%	$Id: sopen.m,v 1.97 2005-03-01 14:59:01 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2737,7 +2737,8 @@ elseif strcmp(HDR.TYPE,'MIT')
                 [tmp,z] = strtok(z); 
                 [tmp,z] = strtok(z);
                 HDR.NS  = str2double(tmp);   % number of signals
-                [tmp,z] = strtok(z); 
+                [tmp,z] = strtok(z);
+                [tmp,tmp1] = strtok(tmp,'/');
                 HDR.SampleRate = str2double(tmp);   % sample rate of data
                 [tmp,z] = strtok(z,' ()');
                 HDR.SPR   = str2double(tmp);   % sample rate of data
@@ -5068,8 +5069,8 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                         HDR.TFM.E(3,:) = [];    
                 end;
                 
-                HDR.Label   = strvcat(HDR.TFM.E(4,:)');
-                HDR.PhysDim = strvcat(HDR.TFM.E(5,:)');
+                HDR.Label   = strvcat(HDR.TFM.E{4,:});
+                HDR.PhysDim = strvcat(HDR.TFM.E{5,:});
            
                 HDR.TFM.S = HDR.TFM.S(6:end,:);
                 HDR.TFM.E = HDR.TFM.E(6:end,:);
@@ -5179,15 +5180,18 @@ end;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % identify type of signal
-HDR.CHANTYP = repmat(' ',1,HDR.NS);
-tmp   = reshape(lower([HDR.Label,repmat(' ',HDR.NS,1)])',1,prod(size(HDR.Label)+[0,1]));
-HDR.CHANTYP(ceil([strfind(tmp,'eeg'),strfind(tmp,'meg')]/(size(HDR.Label,2)+1))) = 'E'; 
-HDR.CHANTYP(ceil([strfind(tmp,'emg')]/(size(HDR.Label,2)+1))) = 'M'; 
-HDR.CHANTYP(ceil([strfind(tmp,'eog')]/(size(HDR.Label,2)+1))) = 'O'; 
-HDR.CHANTYP(ceil([strfind(tmp,'ecg'),strfind(tmp,'ekg')]/(size(HDR.Label,2)+1))) = 'C'; 
-HDR.CHANTYP(ceil([strfind(tmp,'air'),strfind(tmp,'resp')]/(size(HDR.Label,2)+1))) = 'R'; 
-HDR.CHANTYP(ceil([strfind(tmp,'trig')]/(size(HDR.Label,2)+1))) = 'T'; 
-
+if HDR.NS>0,
+        HDR.CHANTYP = repmat(' ',1,HDR.NS);
+        tmp = HDR.NS-size(HDR.Label,1);
+        %HDR.Label = [HDR.Label(1:HDR.NS,:);repmat(' ',max(0,tmp),size(HDR.Label,2))];
+        tmp = reshape(lower([[HDR.Label(1:min(HDR.NS,size(HDR.Label,1)),:);repmat(' ',max(0,tmp),size(HDR.Label,2))],repmat(' ',HDR.NS,1)])',1,HDR.NS*(size(HDR.Label,2)+1));
+        HDR.CHANTYP(ceil([strfind(tmp,'eeg'),strfind(tmp,'meg')]/(size(HDR.Label,2)+1))) = 'E'; 
+        HDR.CHANTYP(ceil([strfind(tmp,'emg')]/(size(HDR.Label,2)+1))) = 'M'; 
+        HDR.CHANTYP(ceil([strfind(tmp,'eog')]/(size(HDR.Label,2)+1))) = 'O'; 
+        HDR.CHANTYP(ceil([strfind(tmp,'ecg'),strfind(tmp,'ekg')]/(size(HDR.Label,2)+1))) = 'C'; 
+        HDR.CHANTYP(ceil([strfind(tmp,'air'),strfind(tmp,'resp')]/(size(HDR.Label,2)+1))) = 'R'; 
+        HDR.CHANTYP(ceil([strfind(tmp,'trig')]/(size(HDR.Label,2)+1))) = 'T'; 
+end;
 
 % add trigger information for triggered data
 if HDR.FLAG.TRIGGERED & isempty(HDR.EVENT.POS)
