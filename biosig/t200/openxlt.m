@@ -7,8 +7,6 @@ function [HDR]=openxlt(fn)
 % See also: fopen, SOPEN, 
 %
 % References: 
-% [1] 
-% [2] 
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -24,10 +22,12 @@ function [HDR]=openxlt(fn)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: openxlt.m,v 1.1 2004-11-18 16:03:55 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: openxlt.m,v 1.2 2004-11-18 16:17:40 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%
+%       Thanks to Andrey Vankov for his support. 
 
 
 fprintf(2,'Warning: OPENXLT is in an experimental state and is most likely not useful to you.\n'); 
