@@ -3,20 +3,20 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % 
 % Currently are the following data formats supported: 
 %    EDF, CNT, EEG, BDF, GDF, BKR, MAT(*), 
-%    PhysioNet (MIT-ECG), Poly5/TMS32, SMA, RDF, CFWB 
+%    PhysioNet (MIT-ECG), Poly5/TMS32, SMA, RDF, CFWB,
+%    Alpha-Trace, DEMG
 %
-% [signal,header] = sload(FILENAME [,CHANNEL[,TYPE]])
+% [signal,header] = sload(FILENAME [,CHANNEL])
 %
 % FILENAME      name of file
 % channel       list of selected channels
 %               default=0: loads all channels
-% TYPE (optional) forces a certain dataformat
 %
 % see also: SOPEN, SREAD, SCLOSE
 %
 
-%	$Revision: 1.5 $
-%	$Id: sload.m,v 1.5 2003-12-17 19:36:39 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: sload.m,v 1.6 2003-12-18 15:32:31 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -62,15 +62,10 @@ if H.FILE.FID>0,
         H = sclose(H);
  
 elseif strcmp(H.TYPE,'alpha'),
-        H.VERSION = H.Version;
-        H.NS  = H.ChanCount;
-        H.SampleRate = H.SampleFreq;
-        H.SPR = H.SampleCount;
-
         if ~any(H.VERSION==[407.1,409.5]);
                 fprintf(2,'Warning SLOAD: Format ALPHA Version %6.2f not tested yet.\n',H.VERSION);
         end;
-
+        
         fid = fopen(fullfile(p,'rawdata'),'rb');
         if fid > 0,
                 H.VERSION2  = fread(fid,1,'int16');
@@ -78,54 +73,27 @@ elseif strcmp(H.TYPE,'alpha'),
                 H.bits = fread(fid,1,'int16');
                 H.AS.bpb = H.NS*H.bits/8;
                 
-                if H.BitsPerValue==12,
+                if H.bits==12,
                         s = fread(fid,[3,inf],'uint8');
                         s(1,:) = bitshift(s(1,:),4)+ bitshift(s(2,:),-4); 	
                         s(3,:) = s(3,:)+ bitshift(bitand(s(2,:),15),8); 	
                         s = reshape(s([1,3],:),1,2*size(s,2));
                         signal = reshape(s(1:H.NS*H.SPR),H.NS,H.SPR)';
                         signal = signal-(signal>=2^11)*2^12;
-                elseif H.BitsPerValue==16,
+                elseif H.bits==16,
                         s = fread(fid,[H.NS,inf],'int16');
                         signal = reshape(s(1:H.NS*H.SPR),H.NS,H.SPR)';
-                elseif H.BitsPerValue==32,
+                elseif H.bits==32,
                         s = fread(fid,[H.NS,inf],'int32');
                         signal = reshape(s(1:H.NS*H.SPR),H.NS,H.SPR)';
                 end;        
                 fclose(fid);
-                if any(CHAN),
-                        signal = signal(:,CHAN);
+                if CHAN==0,
+                        CHAN = 1:H.NS;
                 end;
+                signal = [ones(size(signal,1),1),signal] * H.Calib(:,CHAN);
         end;        
         
-        fid = fopen(fullfile(H.FILE.Path,'digin'),'rt');
-        if fid > 0,
-                [s] = fgetl(fid);
-                
-                k = 0; POS = []; TYP = []; IO = [];
-                while ~feof(fid),
-                        [s] = fgetl(fid);
-                        [timestamp,s] = strtok(s,'=');
-                        [type,io] = strtok(s,'=,');
-                        timestamp = str2num(timestamp);
-                        if ~isempty(timestamp),
-                                k = k + 1;
-                                POS(k) = timestamp;     
-                                TYP(k) = hex2dec(type);     
-                        else
-                                fprintf(2,'Warning SOPEN: alpha: invalid Event type\n');
-                        end;	                        
-                        if length(io)>1,
-                                IO(k) = io(2);
-                        end;
-                end;
-                fclose(fid);
-                H.EVENT.N   = k;
-                H.EVENT.POS = POS;
-                H.EVENT.TYP = TYP;
-                H.EVENT.IO  = IO;
-        end;
-
         
 elseif strcmp(H.TYPE,'DAQ')
 	fprintf(1,'Loading a matlab DAQ data file - this can take a while.\n');

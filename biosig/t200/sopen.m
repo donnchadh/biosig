@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.14 $
-%	$Id: sopen.m,v 1.14 2003-12-17 19:38:12 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: sopen.m,v 1.15 2003-12-18 15:32:31 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -283,26 +283,8 @@ if any(PERMISSION=='r'),
 
 		% alpha-TRACE Medical software
 	        if (strcmpi(HDR.FILE.Name,'rawdata') | strcmpi(HDR.FILE.Name,'rawhead')) & isempty(HDR.FILE.Ext),
-            		H   = HDR;		% copy HDR struct
-    		        fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),'rt');
-            		while ~feof(fid),
-                    		[s] = fgetl(fid);
-                    		[tag,s] = strtok(s,'=');
-                    		[tmp,s] = strtok(s,'=');
-                    		num = str2num(tmp);
-                    		if isempty(num),
-                            		HDR = setfield(HDR,tag,tmp);
-                    		else
-                            		HDR = setfield(HDR,tag,num);
-                    		end;	                        
-            		end;
-                        fclose(fid);
-                        
-                        if isfield(HDR,'Version');	
+                        if exist(fullfile(HDR.FILE.Path,'digin')) & exist(fullfile(HDR.FILE.Path,'cal_res'))& exist(fullfile(HDR.FILE.Path,'r_info'));	
                                 HDR.TYPE = 'alpha'; %alpha trace medical software 
-                                HDR.FILE.FID = -1;
-                        else
-                                HDR = H;	% restore original HDR struct 
                         end;
                 end;
 	else
@@ -438,6 +420,127 @@ elseif strcmp(HDR.TYPE,'rhdE'),
     		H1 = fread(HDR.FILE.FID,[1,inf],'uchar')';
     	end;
 	fclose(HDR.FILE.FID);
+
+
+elseif strcmp(HDR.TYPE,'alpha'),
+        fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),'rt');
+        if fid < 0,
+                fprintf(2,'Error SOPEN alpha-trace: couldnot open RAWHEAD\n');
+        else
+                H = [];
+                while ~feof(fid),
+                        [s] = fgetl(fid);
+                        [tag,s] = strtok(s,'=');
+                        [tmp,s] = strtok(s,'=');
+                        num = str2num(tmp);
+                        if isempty(num),
+                                H = setfield(H,tag,tmp);
+                        else
+                                H = setfield(H,tag,num);
+                        end;	                        
+                end;
+                fclose(fid);
+                HDR.VERSION = H.Version;
+                HDR.NS  = H.ChanCount;
+                HDR.SampleRate = H.SampleFreq;
+                HDR.SPR = H.SampleCount;
+                HDR.rawhead = H;
+        end;
+        
+        fid = fopen(fullfile(HDR.FILE.Path,'cal_res'),'rt');
+        if fid < 0,
+                fprintf(2,'Error SOPEN alpha-trace: could not open CAL_RES. Data is uncalibrated.\n');
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+        else
+                [s] = fgetl(fid);       % read version
+                [s] = fgetl(fid);       % read calibration time 
+                
+                HDR.Label = zeros(HDR.NS,1);
+                HDR.Cal   = repmat(NaN,HDR.NS,1);
+                HDR.Off   = zeros(HDR.NS,1);
+                OK   = zeros(HDR.NS,1);
+                for k = 1:HDR.NS,
+                        [s] = fgetl(fid);
+                        [tmp,s] = strtok(s,',');
+                        [lab,ok] = strtok(tmp,' =,');
+                        [ok] = strtok(ok,' =,');
+
+                        [cal,s] = strtok(s,' ,');
+                        cal = str2num(cal);
+                        [off,s] = strtok(s,' ,');
+                        off = str2num(off);
+
+                        HDR.Off(k)=off;
+                        HDR.Cal(k)=cal;
+                        OK(k)=strcmpi(ok,'yes');
+                        HDR.Label(k,1:length(lab))=lab;
+                end;
+                fclose(fid);
+
+                HDR.FLAG.UCAL = ~all(OK);
+                if ~all(OK),
+                        fprintf(2,'Warning SLOAD alpha-trace: calibration not valid for some channels\n');
+                end;
+                HDR.Cal(~OK) = NaN;
+                HDR.Calib = sparse([-HDR.Off';eye(HDR.NS)])*sparse(1:HDR.NS,1:HDR.NS,HDR.Cal);
+        end;        
+
+        fid = fopen(fullfile(HDR.FILE.Path,'r_info'),'rt');
+        if fid < 0,
+                fprintf(2,'Warning SOPEN alpha-trace: couldnot open R_INFO\n');
+        else
+                H = [];
+                while ~feof(fid),
+                        [s] = fgetl(fid);
+                        [tag,s] = strtok(s,'=');
+                        [tmp,s] = strtok(s,'=');
+                        num = str2num(tmp);
+                        if isempty(num),
+                                H = setfield(H,tag,tmp);
+                        else
+                                H = setfield(H,tag,num);
+                        end;	                        
+                end;
+                HDR.r_info = H;
+                if isfield(HDR,'RecDate');
+                        HDR.T0(1:3) = [str2num(HDR.RecTime(7:end)),str2num(HDR.RecTime(4:5)),str2num(HDR.RecTime(1:2))];
+                end;
+                if isfield(HDR,'RecTime');
+                        HDR.T0(4:6) = [str2num(HDR.RecTime(1:2)),str2num(HDR.RecTime(4:5)),str2num(HDR.RecTime(7:8))];
+                end;
+        end;        
+        
+        fid = fopen(fullfile(HDR.FILE.Path,'digin'),'rt');
+        if fid < 0,
+                fprintf(2,'Warning SOPEN alpha-trace: couldnot open DIGIN - no event information included\n');
+                HDR.EVENT.N   = 0;
+        else
+                [s] = fgetl(fid);       % read version
+                
+                k = 0; POS = []; TYP = []; IO = [];
+                while ~feof(fid),
+                        [s] = fgetl(fid);
+                        [timestamp,s] = strtok(s,'=');
+                        [type,io] = strtok(s,'=,');
+                        timestamp = str2num(timestamp);
+                        if ~isempty(timestamp),
+                                k = k + 1;
+                                POS(k) = timestamp;     
+                                TYP(k) = hex2dec(type);   
+                        else
+                                fprintf(2,'Warning SOPEN: alpha: invalid Event type\n');
+                        end;	                        
+                        if length(io)>1,
+                                IO(k) = io(2);
+                        end;
+                end;
+                fclose(fid);
+                HDR.EVENT.N   = k;
+                HDR.EVENT.POS = POS;
+                HDR.EVENT.TYP = TYP;
+                HDR.EVENT.IO  = IO;
+        end;
+        HDR.FILE.FID = -1;      % make sure SLOAD does not call SREAD;
 
 
 elseif strcmp(HDR.TYPE,'DEMG'),
@@ -2173,7 +2276,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),
 		end;
 		HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
 		HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
-		HDR.Calib = [HDR.Off';(diag(HDR.Cal))];
+		HDR.Calib = sparse([HDR.Off';(diag(HDR.Cal))]);
 		HDR.HeadLen = 217 + HDR.NS*136;
 
 		if CHAN==0,		
@@ -2530,7 +2633,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
 			fprintf(2,'Error SOPEN CFWB: size of header2 does not fit in file %s\n',HDR.FileName);
 		end;
         end;
-        HDR.Calib = [HDR.Off';eye(HDR.NS)]*diag(HDR.Cal);
+        HDR.Calib = [HDR.Off';speye(HDR.NS)]*spdiags(1:HDR.NS,1:HDR.NS,HDR.Cal);
         HDR.Label = setstr(HDR.Label);
         HDR.PhysDim = setstr(HDR.PhysDim);
 
