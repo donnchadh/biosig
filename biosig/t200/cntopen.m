@@ -13,8 +13,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.29 $
-%	$Id: cntopen.m,v 1.29 2004-10-22 10:43:50 schloegl Exp $
+%	$Revision: 1.30 $
+%	$Id: cntopen.m,v 1.30 2005-01-28 01:55:48 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -405,6 +405,9 @@ CNT.Patient.State=char(h.state');	%
 CNT.Session.Label=char(h.label');	%	
 CNT.Date=char(h.date');	%	
 CNT.Time=char(h.time');	%	
+%% data format MM-DD-YYYY
+%CNT.T0 = [str2double(CNT.Date(7:length(CNT.Date))),str2double(CNT.Date(1:2)),str2double(CNT.Date(4:5)),str2double(CNT.Time(1:2)),str2double(CNT.Time(4:5)),str2double(CNT.Time(7:8))];
+%% data format DD-MM-YYYY
 CNT.T0 = [str2double(CNT.Date(7:length(CNT.Date))),str2double(CNT.Date(4:5)),str2double(CNT.Date(1:2)),str2double(CNT.Time(1:2)),str2double(CNT.Time(4:5)),str2double(CNT.Time(7:8))];
 % check year
 if     CNT.T0(1) > 99,
@@ -560,8 +563,13 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
                 CNT.AS.bpb = CNT.NS*2;	% Bytes per Block
         end;
 	CNT.AS.spb = CNT.NS;	% Samples per Block
-        CNT.AS.EVENTTABLEPOS = h.eventtablepos;
-        CNT.SPR    = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
+	CNT.AS.EVENTTABLEPOS = h.eventtablepos;
+	if h.eventtablepos>CNT.FILE.size,
+                fprintf(CNT.FILE.stderr,'Warning CNTOPEN: %s is corrupted:\n    - position of eventtable (%i) past end of file (%i).\n',CNT.FileName,h.eventtablepos,CNT.FILE.size);
+	        CNT.SPR    = floor((CNT.FILE.size-CNT.HeadLen)/CNT.AS.bpb);
+        else
+	        CNT.SPR    = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
+	end;	
 	CNT.AS.endpos = CNT.SPR;
         
         CNT.NRec   = 1;
@@ -580,8 +588,6 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
                 [CNT.EVENT.TeegType,c1] = fread(fid,1,'uchar');		
                 [CNT.EVENT.TeegSize,c2] = fread(fid,1,'int32');	
                 [CNT.EVENT.TeegOffset,c3] = fread(fid,1,'int32');
-        else
-                fprintf(CNT.FILE.stderr,'Warning CNTOPEN: fseek failed. %s might be corrupted\n',CNT.FileName);
 	end;	
 	
         k = 0; 
