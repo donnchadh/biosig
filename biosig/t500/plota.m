@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.24 $
-%	$Id: plota.m,v 1.24 2004-05-09 17:36:18 schloegl Exp $
+%       $Revision: 1.25 $
+%	$Id: plota.m,v 1.25 2004-05-20 02:52:20 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -1833,7 +1833,8 @@ elseif strcmp(X.datatype,'AMARMA')
 
         m0 = X.AAR(:,1)./(1-sum(X.AAR(:,2:end),2)); 
 	
-	if strcmp(upper(arg3),'TIME'),	MODE = 1; end;
+	MODE = [];
+	if strcmp(upper(arg3),'TIME'),	MODE = [MODE,1]; end;
 	if strcmp(upper(arg3),'VLHF'),	MODE = [MODE,2]; end;
 	if strcmp(upper(arg3),'IMAGE'),	MODE = [MODE,3]; end;
 	if strcmp(upper(arg3),'3D'),	MODE = [MODE,4]; end;
@@ -1859,8 +1860,12 @@ elseif strcmp(X.datatype,'AMARMA')
 		K = K + 1;
                 subplot(hf(K));
                 %plot(X.T,[signal,m0,sqrt([tmp(:,8),X.PE])]);
-                plot(X.T,[m0,sqrt(X.PE)]);
-                ylabel([X.Label,' [',X.PhysDim,']']);
+		if isfield(X,'S')
+	                plot(X.T,[X.S,m0,sqrt(X.PE)]);
+                else
+		        plot(X.T,[m0,sqrt(X.PE)]);
+    		end;
+		ylabel([X.Label,' [',X.PhysDim,']']);
                 legend('mean','RMS')
 	end;        
 
@@ -1905,7 +1910,7 @@ elseif strcmp(X.datatype,'AMARMA')
         
 		K = K + 1;
                 subplot(hf(K));
-                if 1;%FB{1}=='B';
+                if 0;%FB{1}=='B';
                         imagesc(X.T(1:DN:N),F2,2*log10(abs(h2(:,end:-1:1)))); 
                 else
                         imagesc(X.T(1:DN:N),F2,2*log10(abs(h2))); 
