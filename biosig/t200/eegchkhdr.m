@@ -6,8 +6,8 @@ function HDR=eegchkhdr(HDR);
 %
 % see also: EEGOPEN, EEGREAD, EEGSEEK, EEGTELL, EEGCLOSE, EEGWRITE
 
-%	$Revision: 1.1 $
-%	$Id: eegchkhdr.m,v 1.1 2003-02-01 15:03:45 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: eegchkhdr.m,v 1.2 2003-02-10 14:52:53 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -77,8 +77,8 @@ if strcmp(HDR.TYPE,'BKR'),
                 fprintf(1,'HDR.NRec\t=%5i;  %%(number of trials)\n',HDR.NRec);
                 fprintf(1,'HDR.PhysMax\t= %.3f; %%(Physical Maximum)\n',HDR.PhysMax);
                 fprintf(1,'HDR.DigMax\t= %5i;  %%(Digital Maximum)\n',HDR.DigMax);
-                fprintf(1,'HDR.Filter.LowPass\t=%5f;  %%(upper cutoff frequency)\n',HDR.Filter.LowPass);
-                fprintf(1,'HDR.Filter.HighPass\t=%5f;  %%(lower cutoff frequency [Hz])\n',HDR.Filter.HighPass);
+                fprintf(1,'HDR.Filter.LowPass\t=%5f;  %%(upper cutoff frequency)\n',HDR.Filter.LowPass(1));
+                fprintf(1,'HDR.Filter.HighPass\t=%5f;  %%(lower cutoff frequency [Hz])\n',HDR.Filter.HighPass(1));
                 
                 if ~isfield(HDR,'FLAG'), 
                         tmp_flag = 0; 

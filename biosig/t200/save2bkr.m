@@ -20,8 +20,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.3 $
-% 	$Id: save2bkr.m,v 1.3 2003-02-07 21:08:19 schloegl Exp $
+%	$Revision: 1.4 $
+% 	$Id: save2bkr.m,v 1.4 2003-02-10 14:52:53 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -157,6 +157,27 @@ if strcmp(upper(ext(2:4)),'MAT'),
                         HDR.SampleRate=tmp.SampleRate;
                 end;
                 
+        elseif isfield(tmp,'P_C_S');	% G.Tec Version 1.02 data format
+                if tmp.P_C_S.version~=1.02,
+                        fprintf(2,'Warning: PCS-Version is not 1.02 but %4.2f.\n');
+                end;
+                sz = size(tmp.P_C_S.data);
+                
+                y  = repmat(NaN,sz(1)*sz(2),sz(3)); 
+                for k1 = 1:sz(1),
+                        y((k1-1)*sz(2)+(1:sz(2)),:) = squeeze(tmp.P_C_S.data(k1,:,:));
+                end;
+                
+                HDR.SampleRate = tmp.P_C_S.samplingfrequency;
+                HDR.NRec = sz(1);
+                HDR.SPR  = sz(2);
+                HDR.Dur  = sz(2)/HDR.SampleRate;
+                HDR.NS   = sz(3);
+                HDR.Filter.LowPass = tmp.P_C_S.lowpass;
+                HDR.Filter.HighPass = tmp.P_C_S.highpass;
+                HDR.Filter.Notch = tmp.P_C_S.notch;
+                cali=1;
+                                
         elseif isfield(tmp,'P_C_DAQ_S');
                 y=double(tmp.P_C_DAQ_S.data{1});
                 %HDR.PhysDim=tmp.P_C_DAQ_S.unit;     %propriatory information
@@ -264,8 +285,10 @@ count = fwrite(fid,HDR.SPR ,'uint32');          % samples/trial/channel
 count = fwrite(fid,HDR.PhysMax,'short');        % Kalibrierspannung
 count = fwrite(fid,HDR.DigMax ,'short');        % Kalibrierwert
 count = fwrite(fid,zeros(4,1),'char');        
-count = fwrite(fid,[HDR.Filter.LowPass,HDR.Filter.HighPass],'float'); 
+
+count = fwrite(fid,[HDR.Filter.LowPass(1),HDR.Filter.HighPass(1)],'float'); 
 count = fwrite(fid,zeros(16,1),'char');         % offset 30
+
 count = fwrite(fid,HDR.FLAG.TRIGGERED,'int16');	% offset 32
 count = fwrite(fid,zeros(24,1),'char');         % offset 46
 tmp   = [strcmp(HDR.FLAG.REFERENCE,'COM')|strcmp(HDR.FLAG.REFERENCE,'CAR'), strcmp(HDR.FLAG.REFERENCE,'LOC')|strcmp(HDR.FLAG.REFERENCE,'LAR'), strcmp(HDR.FLAG.REFERENCE,'LAP'), strcmp(HDR.FLAG.REFERENCE,'WGT')];
