@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.90 $
-%	$Id: sopen.m,v 1.90 2005-01-19 21:01:32 schloegl Exp $
+%	$Revision: 1.91 $
+%	$Id: sopen.m,v 1.91 2005-01-19 22:20:36 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2518,7 +2518,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 		end;	
                 
                 fid = HDR.FILE.FID;
-                z = fgetl(fid);
+                z   = fgetl(fid);
                 tmpfile = strtok(z,' /');
                 if ~strcmpi(HDR.FILE.Name,tmpfile),
                         fprintf(HDR.FILE.stderr,'Warning: RecordName %s does not fit filename %s\n',tmpfile,HDR.FILE.Name);
@@ -2534,7 +2534,10 @@ elseif strcmp(HDR.TYPE,'MIT')
                 HDR.SPR   = str2double(tmp);   % sample rate of data
                 HDR.NRec  = 1;
                 
-                for k=1:HDR.NS,
+		HDR.MIT.gain = zeros(1,HDR.NS);
+		HDR.MIT.zerovalue  = repmat(NaN,1,HDR.NS);
+		HDR.MIT.firstvalue = repmat(NaN,1,HDR.NS);
+                for k = 1:HDR.NS,
                         z = fgetl(fid);
                         [HDR.FILE.DAT,z]=strtok(z);
                         for k0 = 1:7,
@@ -2550,25 +2553,29 @@ elseif strcmp(HDR.TYPE,'MIT')
                                         else
                                                 HDR.AS.SPR(k) = 1; 
                                         end                                                
-                                elseif k0 == 2,  
+                                elseif k0==2,  
                                         % EC13*.HEA files have special gain values like "200(23456)/uV". 
                                         [tmp, tmp2] = strtok(tmp,'/');
                                         HDR.PhysDim(k,1:length(tmp2)) = [tmp2(2:end),' '];
                                         [tmp, tmp1] = strtok(tmp,' ()');
                                         [tmp, status] = str2double(tmp); 
-                                        if isempty(tmp) | isnan(tmp), tmp = 1; end;   % gain
+                                        if isempty(tmp), tmp = 0; end;   % gain
+                                        if isnan(tmp),   tmp = 0; end;
                                         HDR.MIT.gain(1,k) = tmp;
                                 elseif k0==3,
                                         [tmp, status] = str2double(tmp); 
-                                        if isempty(tmp) | isnan(tmp), tmp = NaN; end; 
+                                        if isempty(tmp), tmp = NaN; end; 
+                                        if isnan(tmp),   tmp = NaN; end;
                                         HDR.MIT.bitres(1,k) = tmp;
                                 elseif k0==4,
-                                        [tmp, status] = str2double(tmp); 
-                                        if isempty(tmp) | isnan(tmp), tmp = 0; end;   
-                                        HDR.MIT.zerovalue(1,k) = tmp; 
-                                elseif k0 == 5, 
                                         [tmp, status] = str2double(tmp);
-                                        if isempty(tmp) | isnan(tmp), tmp = NaN; end; 
+                                        if isempty(tmp), tmp = 0; end;
+                                        if isnan(tmp),   tmp = 0; end;
+                                        HDR.MIT.zerovalue(1,k) = tmp; 
+                                elseif k0==5, 
+                                        [tmp, status] = str2double(tmp);
+                                        if isempty(tmp), tmp = NaN; end; 
+                                        if isnan(tmp),   tmp = NaN; end;
                                         HDR.MIT.firstvalue(1,k) = tmp;        % first integer value of signal (to test for errors)
                                 else
  
@@ -2578,7 +2585,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 end;
                 
                 HDR.MIT.gain(HDR.MIT.gain==0) = 200;    % default gain 
-                HDR.Calib = sparse([HDR.MIT.zerovalue(:).';eye(HDR.NS)]*diag(1./HDR.MIT.gain(:)));
+                HDR.Calib = sparse([HDR.MIT.zerovalue; eye(HDR.NS)]*diag(1./HDR.MIT.gain(:)));
                 HDR.Label = char(HDR.Label);
                 
                 z = char(fread(fid,[1,inf],'char'));
