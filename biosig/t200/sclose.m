@@ -20,14 +20,14 @@ function [HDR]=sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.8 $
-%	$Id: sclose.m,v 1.8 2004-08-16 16:01:40 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: sclose.m,v 1.9 2004-09-03 15:17:39 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
 if (HDR.FILE.FID<0) | ~HDR.FILE.OPEN, 
-        fprintf('Error SCLOSE: invalid handle');
+        fprintf(HDR.FILE.stderr,'Error SCLOSE (%s): invalid handle\n',HDR.FileName);
 end;
 
 if HDR.FILE.OPEN >= 2,          % write-open of files 
@@ -38,11 +38,11 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
         
         if strcmp(HDR.TYPE,'BKR');
                 if HDR.NS<1, 
-                        fprintf(2,'Error SCLOSE BKR: number of channels (HDR.NS) must be larger than zero.\n');
+                        fprintf(HDR.FILE.stderr,'Error SCLOSE BKR: number of channels (HDR.NS) must be larger than zero.\n');
                         return;
                 end;
                 if HDR.NRec<1, 
-                        fprintf(2,'Error SCLOSE BKR: number of blocks (HDR.NRec) must be larger than zero.\n');
+                        fprintf(HDR.FILE.stderr,'Error SCLOSE BKR: number of blocks (HDR.NRec) must be larger than zero.\n');
                         return;
                 end;
                 % check file length and write Headerinfo.
@@ -50,9 +50,9 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                 if isnan(HDR.SPR), HDR.SPR=0; end;
                 if HDR.FILE.OPEN==3;
                         if any(isnan([HDR.NRec,HDR.NS,HDR.SPR,HDR.DigMax,HDR.PhysMax,HDR.SampleRate])), 	% if any unknown, ...	
-                                fprintf(2,'Error SCLOSE BKR: some important header information is still undefined (i.e. NaN).\n');
-                                fprintf(2,'\t HDR.NRec,HDR.NS,HDR.SPR,HDR.DigMax,HDR.PhysMax,HDR.SampleRate must be defined.\n');
-                                fprintf(2,'\t Try again.\n');
+                                fprintf(HDR.FILE.stderr,'Error SCLOSE BKR: some important header information is still undefined (i.e. NaN).\n');
+                                fprintf(HDR.FILE.stderr,'\t HDR.NRec,HDR.NS,HDR.SPR,HDR.DigMax,HDR.PhysMax,HDR.SampleRate must be defined.\n');
+                                fprintf(HDR.FILE.stderr,'\t Try again.\n');
                         end;
                         
                         fclose(HDR.FILE.FID);
@@ -165,12 +165,16 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
 end;
 
 if strcmp(HDR.TYPE,'FIF') ;
+        global FLAG_NUMBER_OF_OPEN_FIF_FILES
         rawdata('close');
         HDR.FILE.OPEN = 0;
         HDR.FILE.status = 0;
-end;
-
-if HDR.FILE.OPEN,
+        FLAG_NUMBER_OF_OPEN_FIF_FILES = FLAG_NUMBER_OF_OPEN_FIF_FILES-1; 
+        
+elseif strncmp(HDR.TYPE,'XML',3) | strcmp(HDR.TYPE,'SierraECG') ,
+        HDR.FILE.OPEN = 0;
+        
+elseif HDR.FILE.OPEN,
         HDR.FILE.OPEN = 0;
         HDR.FILE.status = fclose(HDR.FILE.FID);
 end;
