@@ -15,8 +15,8 @@ function [signal,H,cl] = loadeeg(FILENAME,CHAN,TYPE)
 %
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
 
-%	$Revision: 1.1 $
-%	$Id: loadeeg.m,v 1.1 2003-02-01 15:03:46 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: loadeeg.m,v 1.2 2003-02-05 21:08:47 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -55,7 +55,7 @@ if isstruct(FILENAME),
 end;
 
 [p,f,FileExt]=fileparts(FILENAME);
-FileExt(1)=[];
+FileExt=FileExt(2:length(FileExt));
 if nargin<3, 
         TYPE = FileExt; 
         %%% EDF format

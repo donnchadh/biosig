@@ -33,8 +33,8 @@ function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,TYPE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: eegopen.m,v 1.1 2003-02-01 15:03:45 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: eegopen.m,v 1.2 2003-02-05 21:08:46 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -49,6 +49,8 @@ if ~isstruct(arg1),
 else
         HDR = arg1;
 end;
+
+if isempty(MODE), MODE=' '; end;	% Make sure MODE is not empty -> FINDSTR
 
 HDR.FLAG.UCAL = ~isempty(findstr(MODE,'UCAL'));   % FLAG for UN-CALIBRATING
 HDR.FLAG.FILT = 0; 	% FLAG if any filter is applied; 
