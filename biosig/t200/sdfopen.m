@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.10 $
-%	$Id: sdfopen.m,v 1.10 2004-01-21 08:24:35 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: sdfopen.m,v 1.11 2004-01-23 10:15:54 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -216,19 +216,18 @@ EDF.RID = deblank(H1(89:168));                % 80 Byte local recording identifi
 IsGDF=strcmp(EDF.VERSION(1:3),'GDF');
 
 if strcmp(EDF.VERSION(1:3),'GDF'),
-        %EDF.T0=[str2num(H1(168+[1:4])) str2num(H1(168+[5 6])) str2num(H1(168+[7 8])) str2num(H1(168+[9 10])) str2num(H1(168+[11 12])) str2num(H1(168+[13:16]))/100 ];
         if 1, % if strcmp(EDF.VERSION(4:8),' 0.12'); % in future versions the date format might change. 
-      		EDF.T0(1,1) = str2num( H1(168 + [ 1:4]));
-		EDF.T0(1,2) = str2num( H1(168 + [ 5 6]));
-        	EDF.T0(1,3) = str2num( H1(168 + [ 7 8]));
-        	EDF.T0(1,4) = str2num( H1(168 + [ 9 10]));
-        	EDF.T0(1,5) = str2num( H1(168 + [11 12]));
-        	EDF.T0(1,6) = str2num( H1(168 + [13:16]))/100;
+      		EDF.T0(1,1) = str2double( H1(168 + [ 1:4]));
+		EDF.T0(1,2) = str2double( H1(168 + [ 5 6]));
+        	EDF.T0(1,3) = str2double( H1(168 + [ 7 8]));
+        	EDF.T0(1,4) = str2double( H1(168 + [ 9 10]));
+        	EDF.T0(1,5) = str2double( H1(168 + [11 12]));
+        	EDF.T0(1,6) = str2double( H1(168 + [13:16]))/100;
      	end; 
      
-	if str2num(EDF.VERSION(4:8))<0.12
+	if str2double(EDF.VERSION(4:8))<0.12
                 tmp = setstr(fread(EDF.FILE.FID,8,'uchar')');    % 8 Byte  Length of Header
-                EDF.HeadLen = str2num(tmp);    % 8 Byte  Length of Header
+                EDF.HeadLen = str2double(tmp);    % 8 Byte  Length of Header
         else
 		%EDF.HeadLen = fread(EDF.FILE.FID,1,'int64');    % 8 Byte  Length of Header
 		EDF.HeadLen = fread(EDF.FILE.FID,1,'int32');    % 8 Byte  Length of Header
@@ -256,22 +255,21 @@ else
                 %H1(tmp)=32; 
                 EDF.ErrNo=[1025,EDF.ErrNo];
         end;
-        %EDF.T0=[str2num(H1(168+[7 8])) str2num(H1(168+[4 5])) str2num(H1(168+[1 2])) str2num(H1(168+[9 10])) str2num(H1(168+[12 13])) str2num(H1(168+[15 16])) ];
         
         EDF.T0 = zeros(1,6);
         ErrT0=0;
-        tmp = str2num( H1(168 + [ 7  8]));
-        if ~isempty(tmp), EDF.T0(1) = tmp; else ErrT0 = 1; end;
-        tmp = str2num( H1(168 + [ 4  5]));
-        if ~isempty(tmp), EDF.T0(2) = tmp; else ErrT0 = 1; end;
-        tmp = str2num( H1(168 + [ 1  2]));
-        if ~isempty(tmp), EDF.T0(3) = tmp; else ErrT0 = 1; end;
-        tmp = str2num( H1(168 + [ 9 10]));
-        if ~isempty(tmp), EDF.T0(4) = tmp; else ErrT0 = 1; end;
-        tmp = str2num( H1(168 + [12 13]));
-        if ~isempty(tmp), EDF.T0(5) = tmp; else ErrT0 = 1; end;
-        tmp = str2num( H1(168 + [15 16]));
-        if ~isempty(tmp), EDF.T0(6) = tmp; else ErrT0 = 1; end;
+        tmp = str2double( H1(168 + [ 7  8]));
+        if ~isnan(tmp), EDF.T0(1) = tmp; else ErrT0 = 1; end;
+        tmp = str2double( H1(168 + [ 4  5]));
+        if ~isnan(tmp), EDF.T0(2) = tmp; else ErrT0 = 1; end;
+        tmp = str2double( H1(168 + [ 1  2]));
+        if ~isnan(tmp), EDF.T0(3) = tmp; else ErrT0 = 1; end;
+        tmp = str2double( H1(168 + [ 9 10]));
+        if ~isnan(tmp), EDF.T0(4) = tmp; else ErrT0 = 1; end;
+        tmp = str2double( H1(168 + [12 13]));
+        if ~isnan(tmp), EDF.T0(5) = tmp; else ErrT0 = 1; end;
+        tmp = str2double( H1(168 + [15 16]));
+        if ~isnan(tmp), EDF.T0(6) = tmp; else ErrT0 = 1; end;
         
 	if any(EDF.T0~=fix(EDF.T0)); ErrT0=1; end;
 
@@ -283,7 +281,7 @@ else
                 for k = [3 2 1],
                         %fprintf(1,'\n zz%szz \n',tmp);
                         [tmp1,tmp] = strtok(tmp,' :./-');
-			tmp1 = str2num([tmp1,' ']);
+			tmp1 = str2double([tmp1,' ']);
 			
                         if isempty(tmp1)
                                 ErrT0 = ErrT0 | 1;
@@ -294,7 +292,7 @@ else
                 tmp = H1(168 + [9:16]);
                 for k = [4 5 6],
                         [tmp1,tmp] = strtok(tmp,' :./-');
-                        tmp1=str2num([tmp1,' ']);
+                        tmp1=str2double([tmp1,' ']);
                         if isempty(tmp1)
                                 ErrT0 = ErrT0 | 1;
                         else
@@ -314,11 +312,11 @@ else
                 end;
         end;     
         H1(185:256)=setstr(fread(EDF.FILE.FID,256-184,'uchar')');     %
-        EDF.HeadLen = str2num(H1(185:192));           % 8 Bytes  Length of Header
+        EDF.HeadLen = str2double(H1(185:192));           % 8 Bytes  Length of Header
         EDF.reserved1=H1(193:236);              % 44 Bytes reserved   
-        EDF.NRec    = str2num(H1(237:244));     % 8 Bytes  # of data records
-        EDF.Dur     = str2num(H1(245:252));     % 8 Bytes  # duration of data record in sec
-        EDF.NS      = str2num(H1(253:256));     % 4 Bytes  # of signals
+        EDF.NRec    = str2double(H1(237:244));     % 8 Bytes  # of data records
+        EDF.Dur     = str2double(H1(245:252));     % 8 Bytes  # duration of data record in sec
+        EDF.NS      = str2double(H1(253:256));     % 4 Bytes  # of signals
 	EDF.AS.H1   = H1;	                     % for debugging the EDF Header
 end;
 
@@ -397,12 +395,12 @@ if ~strcmp(EDF.VERSION(1:3),'GDF'),
         EDF.Label      =         h2(:,idx1(1)+1:idx1(2));
         EDF.Transducer =         h2(:,idx1(2)+1:idx1(3));
         EDF.PhysDim    =         h2(:,idx1(3)+1:idx1(4));
-        EDF.PhysMin    = str2num(h2(:,idx1(4)+1:idx1(5)));
-        EDF.PhysMax    = str2num(h2(:,idx1(5)+1:idx1(6)));
-        EDF.DigMin     = str2num(h2(:,idx1(6)+1:idx1(7)));
-        EDF.DigMax     = str2num(h2(:,idx1(7)+1:idx1(8)));
+        EDF.PhysMin    = str2double(h2(:,idx1(4)+1:idx1(5)));
+        EDF.PhysMax    = str2double(h2(:,idx1(5)+1:idx1(6)));
+        EDF.DigMin     = str2double(h2(:,idx1(6)+1:idx1(7)));
+        EDF.DigMax     = str2double(h2(:,idx1(7)+1:idx1(8)));
         EDF.PreFilt    =         h2(:,idx1(8)+1:idx1(9));
-        EDF.SPR        = str2num(h2(:,idx1(9)+1:idx1(10)));
+        EDF.SPR        = str2double(h2(:,idx1(9)+1:idx1(10)));
         %EDF.reserved  =       h2(:,idx1(10)+1:idx1(11));
 	if ~all(abs(EDF.VERSION)==[255,abs('BIOSEMI')]),
 		EDF.GDFTYP     = 3*ones(1,EDF.NS);	%	datatype
@@ -469,14 +467,14 @@ try;
 	if ~isempty(tmp), F2=F2(1:tmp-1);end;
 
 	if strcmp(T1,'LP'), 
-		EDF.Filter.LowPass(k) =str2num(F1);
+		EDF.Filter.LowPass(k) =str2double(F1);
 	elseif strcmp(T1,'HP'), 
-		EDF.Filter.HighPass(k)=str2num(F1);
+		EDF.Filter.HighPass(k)=str2double(F1);
 	end;
 	if strcmp(T2,'LP'), 
-		EDF.Filter.LowPass(k) =str2num(F2);
+		EDF.Filter.LowPass(k) =str2double(F2);
 	elseif strcmp(T2,'HP'), 
-		EDF.Filter.HighPass(k)=str2num(F2);
+		EDF.Filter.HighPass(k)=str2double(F2);
 	end;
 catch
 	fprintf(1,'Cannot interpret: %s\n',EDF.PreFilt(k,:));
@@ -763,7 +761,7 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
                 elseif ~isempty(findstr(upper(arg4),'TAU')),  % high pass filtering / compensate time constant
                         tmp=findstr(upper(arg4),'TAU');
                         TAU=strtok(upper(arg4(tmp:length(arg4))),'S');
-                        tau=str2num(TAU);
+                        tau=str2double(TAU);
                         if isempty(tau)
                                 fprintf(EDF.FILE.stderr,'Warning SDFOPEN: invalid tau-value.\n');
                         else
@@ -778,7 +776,7 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
 			    [FilterArg1,FilterArg2]=strtok(FilterArg0,'_');
 			    [FilterArg2,FilterArg3]=strtok(FilterArg2,'_');
 			    tmp=findstr(FilterArg1,'Hz');
-			    F0=str2num(FilterArg1(1:tmp-1));				    
+			    F0=str2double(FilterArg1(1:tmp-1));				    
 			    B=feval(FilterArg2,F0*EDF.AS.MAXSPR/EDF.Dur);
 			    B=B/sum(B);
 			    B(ceil(length(B)/2))=(B(ceil(length(B)/2)))-1;

@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.22 $
-%	$Id: sopen.m,v 1.22 2004-01-21 07:30:42 schloegl Exp $
+%	$Revision: 1.23 $
+%	$Id: sopen.m,v 1.23 2004-01-23 10:15:26 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -79,7 +79,7 @@ if any(PERMISSION=='r'),
                         s = [s, repmat(0,1,132-c)];
                 end;
                 if c,
-                        type_mat4=str2num(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
+                        type_mat4=str2double(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
 	                ss = setstr(s);
                         if all(s(1:2)==[207,0]); 
                                 HDR.TYPE='BKR';
@@ -95,9 +95,9 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='EBS';
                         elseif strncmp(ss,'CEN',3) & all(s(4:8)==hex2dec(['13';'10';'1A';'04';'84'])'); 
                                 HDR.TYPE='FEF';
-                                HDR.VERSION   = str2num(ss(9:16));
-                                HDR.Encoding  = str2num(ss(17:24));
-                                if any(str2num(ss(25:32))),
+                                HDR.VERSION   = str2double(ss(9:16));
+                                HDR.Encoding  = str2double(ss(17:24));
+                                if any(str2double(ss(25:32))),
                                         HDR.Endianity = 'ieee-be';
                                 else
                                         HDR.Endianity = 'ieee-le';
@@ -509,7 +509,7 @@ elseif strcmp(HDR.TYPE,'SCPECG'),	%
 					elseif tag == 3,
 						HDR.Patient.LastName2 = char(field);
 					elseif tag == 4,
-						HDR.Patient.Age = str2num(char(field(1:2)));
+						HDR.Patient.Age = str2double(char(field(1:2)));
 						tmp = field(3);
 						if tmp==0, unit=' ';
 						elseif tmp==1, unit='Y';
@@ -900,7 +900,7 @@ elseif strcmp(HDR.TYPE,'EBS'),
 	        elseif tag==hex2dec('0000000a') HDR.PATIENT_SEX=val;
 	        elseif tag==hex2dec('0000000c') HDR.SHORT_DESCRIPTION=val;
 	        elseif tag==hex2dec('0000000e') HDR.DESCRIPTION=val;
-	        elseif tag==hex2dec('00000010') HDR.SAMPLE_RATE=str2num(val);
+	        elseif tag==hex2dec('00000010') HDR.SAMPLE_RATE=str2double(val);
 	        elseif tag==hex2dec('00000012') HDR.INSTITUTION=val;
 	        elseif tag==hex2dec('00000014') HDR.PROCESSING_HISTORY=val;
 	        elseif tag==hex2dec('00000016') HDR.LOCATION_DIAGRAM=val;
@@ -973,7 +973,7 @@ elseif strcmp(HDR.TYPE,'alpha'),
                         if ~isnumeric(s),
                                 [tag,s] = strtok(s,'=');
                                 [tmp,s] = strtok(s,'=');
-                                num = str2num(tmp);
+                                num = str2double(tmp);
                                 if isempty(num),
                                         num = tmp;
                                 end;
@@ -1018,9 +1018,9 @@ elseif strcmp(HDR.TYPE,'alpha'),
                         [ok] = strtok(ok,' =,');
 
                         [cal,s] = strtok(s,' ,');
-                        cal = str2num(cal);
+                        cal = str2double(cal);
                         [off,s] = strtok(s,' ,');
-                        off = str2num(off);
+                        off = str2double(off);
 
                         HDR.Off(k)=off;
                         HDR.Cal(k)=cal;
@@ -1047,7 +1047,7 @@ elseif strcmp(HDR.TYPE,'alpha'),
                         if ~isnumeric(s),
                                 [tag,s] = strtok(s,'=');
                                 [tmp,s] = strtok(s,'=');
-                                num = str2num(tmp);
+                                num = str2double(tmp);
                                 try,
                                         H = setfield(H,deblank(tag),tmp);
                                 catch
@@ -1060,12 +1060,12 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 HDR.r_info = H;
                 if isfield(H,'RecDate');
                         pos = [1,find(H.RecDate=='.'),length(H.RecDate)];
-                        tmp = [str2num(H.RecDate(pos(3)+1:pos(4))),str2num(H.RecDate(pos(2)+1:pos(3)-1)),str2num(H.RecDate(pos(1):pos(2)-1))];
+                        tmp = [str2double(H.RecDate(pos(3)+1:pos(4))),str2double(H.RecDate(pos(2)+1:pos(3)-1)),str2double(H.RecDate(pos(1):pos(2)-1))];
                         HDR.T0(1:3) = tmp;
                 end;
                 if isfield(H,'RecTime');
                         pos = [1,find(H.RecTime=='.'),length(H.RecTime)];
-                        tmp = [str2num(H.RecTime(pos(1):pos(2)-1)),str2num(H.RecTime(pos(2)+1:pos(3)-1)),str2num(H.RecTime(pos(3)+1:pos(4)))];
+                        tmp = [str2double(H.RecTime(pos(1):pos(2)-1)),str2double(H.RecTime(pos(2)+1:pos(3)-1)),str2double(H.RecTime(pos(3)+1:pos(4)))];
                         HDR.T0(4:6) = tmp; 
                 end;
         end;        
@@ -1082,8 +1082,8 @@ elseif strcmp(HDR.TYPE,'alpha'),
                         if ~isnumeric(s),
                                 [timestamp,s] = strtok(s,'='); 
                                 [type,io] = strtok(s,'=,');
-                                timestamp = str2num(timestamp);
-                                if ~isempty(timestamp),
+                                timestamp = str2double(timestamp);
+                                if ~isnan(timestamp),
                                         k = k + 1;
                                         POS(k) = timestamp;     
                                         TYP(k) = hex2dec(type);   
@@ -2106,36 +2106,36 @@ elseif strcmp(HDR.TYPE,'WFT'),	% implementation of this format is not finished y
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
 	[s,c] = fread(HDR.FILE.FID,1536,'char');
 	[tmp,s] = strtok(s,setstr([0,32]));
-	Nic_id0 = str2num(tmp);
+	Nic_id0 = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	Niv_id1 = str2num(tmp);
+	Niv_id1 = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	Nic_id2 = str2num(tmp);
+	Nic_id2 = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	User_id = str2num(tmp);
+	User_id = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	HDR.HeadLen = str2num(tmp);
+	HDR.HeadLen = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	HDR.FILE.Size = str2num(tmp);
+	HDR.FILE.Size = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	HDR.VERSION = str2num(tmp);
+	HDR.VERSION = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	HDR.WFT.WaveformTitle = str2num(tmp);
+	HDR.WFT.WaveformTitle = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	HDR.T0(1) = str2num(tmp);
+	HDR.T0(1) = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	HDR.T0(1,2) = str2num(tmp);
+	HDR.T0(1,2) = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	HDR.T0(1,3) = str2num(tmp);
+	HDR.T0(1,3) = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	tmp = str2num(tmp);
+	tmp = str2double(tmp);
 	HDR.T0(1,4:6) = [floor(tmp/3600000),floor(rem(tmp,3600000)/60000),rem(tmp,60000)];
 	[tmp,s] = strtok(s,setstr([0,32]));
-	HDR.SPR = str2num(tmp);
+	HDR.SPR = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	HDR.Off = str2num(tmp);
+	HDR.Off = str2double(tmp);
 	[tmp,s] = strtok(s,setstr([0,32]));
-	HDR.Cal = str2num(tmp);
+	HDR.Cal = str2double(tmp);
 
         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
 	
@@ -2163,29 +2163,37 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
                 if strncmp('"NCHAN%"',line,8) 
                         [tmp,line] = strtok(line,'=');
                         [tmp,line] = strtok(line,delim);
-                        HDR.NS = str2num(char(tmp));
+                        HDR.NS = str2double(char(tmp));
                 end
                 if strncmp('"NUM.POINTS"',line,12) 
                         [tmp,line] = strtok(line,'=');
                         [tmp,line] = strtok(line,delim);
-                        HDR.SPR = str2num(tmp);
+                        HDR.SPR = str2double(tmp);
                 end
                 if strncmp('"ACT.FREQ"',line,10) 
                         [tmp,line] = strtok(line,'=');
                         [tmp,line] = strtok(line,delim);
-                        HDR.SampleRate= str2num(tmp);
+                        HDR.SampleRate= str2double(tmp);
                 end
                 if strncmp('"DATE$"',line,7)
                         [tmp,line] = strtok(line,'=');
                         [date,line] = strtok(line,delim);
-                        date(date=='-')=' ';
-                        date = str2num(date);
+                        [tmp,date]=strtok(date,'-');
+                        HDR.T0(3) = str2double(tmp);
+                        [tmp,date]=strtok(date,'-');
+                        HDR.T0(2) = str2double(tmp);
+                        [tmp,date]=strtok(date,'-');
+                        HDR.T0(1) = str2double(tmp);
                 end
                 if strncmp('"TIME$"',line,7)
                         [tmp,line] = strtok(line,'=');
                         [time,line] = strtok(line,delim);
-			time(time==':')=' ';
-                        time = str2num(time);
+                        [tmp,date]=strtok(time,':');
+                        HDR.T0(4) = str2double(tmp);
+                        [tmp,date]=strtok(date,':');
+                        HDR.T0(5) = str2double(tmp);
+                        [tmp,date]=strtok(date,':');
+                        HDR.T0(6) = str2double(tmp);
                 end;
                 if strncmp('"UNITS$[]"',line,10)
                         [tmp,line] = strtok(char(line),'=');
@@ -2199,10 +2207,10 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
                         [tmp,line] = strtok(line,'= ');
                         for k=1:HDR.NS,
                                 [tmp,line] = strtok(line,[' ',delim]);
-                                tmp(tmp=='(' | tmp==')')=' ';
-                                tmp=str2num(tmp);
-                                HDR.PhysMin(k,1)=tmp(1);
-                                HDR.PhysMax(k,1)=tmp(2);
+                                [tmp1, tmp]=strtok(tmp,'(),');
+                                HDR.PhysMin(k,1)=str2double(tmp1);
+                                [tmp2, tmp]=strtok(tmp,'(),');
+                                HDR.PhysMax(k,1)=str2double(tmp2);
                         end;
                 end
                 if strncmp('"CHAN$[]"',line,9)
@@ -2228,7 +2236,6 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
                         numbegin=1;
                 end
         end
-        HDR.T0 = [date([3,1,2]),time];
         
         %%%%%%%%%%%%%%%%%%% check file length %%%%%%%%%%%%%%%%%%%%
 
@@ -2499,9 +2506,9 @@ elseif strcmp(HDR.TYPE,'DDF'),
 			[field,value] = strtok(ds,'=');
 			if findstr(field,'SAMPLE RATE');
 				[tmp1,tmp2] = strtok(value,'=');
-				HDR.SampleRate = str2num(tmp1);
+				HDR.SampleRate = str2double(tmp1);
 			elseif findstr(field,'DATA CHANNELS');
-				HDR.NS = str2num(value);
+				HDR.NS = str2double(value);
 			elseif findstr(field,'START TIME');
 				Time = value;
 			elseif findstr(field,'DATA FILE');
@@ -2639,11 +2646,11 @@ elseif strcmp(HDR.TYPE,'MIT')
 		%A = sscanf(z, '%*s %d %d %d',[1,3]);
 		[tmp,z] = strtok(z); 
 		[tmp,z] = strtok(z);
-		HDR.NS  = str2num(tmp);   % number of signals
+		HDR.NS  = str2double(tmp);   % number of signals
 		[tmp,z] = strtok(z); 
-		HDR.SampleRate = str2num(tmp);   % sample rate of data
+		HDR.SampleRate = str2double(tmp);   % sample rate of data
 		[tmp,z] = strtok(z,' ()');
-		HDR.SPR   = str2num(tmp);   % sample rate of data
+		HDR.SPR   = str2double(tmp);   % sample rate of data
 		HDR.NRec  = 1;
 
 		for k=1:HDR.NS,
@@ -2655,7 +2662,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 					% EC13*.HEA files have special gain values like "200(23456)/uV". 
  					[tmp, tmp1] = strtok(tmp,' ()');
 				end;
-				A(k0) = str2num(tmp); 
+				A(k0) = str2double(tmp); 
 			end;
                         HDR.Label(k,1:length(z)) = z; 
 			dformat(k,1) = A(1);         % format; 
@@ -2668,7 +2675,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 ix1 = [findstr('AGE:',upper(z))+4; findstr('AGE>:',upper(z))+5];
                 if ~isempty(ix1),
                         [tmp,z]=strtok(z(ix1(1):length(z)));
-                        HDR.Patient.Age = str2num(tmp);
+                        HDR.Patient.Age = str2double(tmp);
                 end;
                 ix1 = [findstr('SEX:',upper(z))+4, findstr('SEX>:',upper(z))+5];
                 if ~isempty(ix1),
@@ -2907,7 +2914,7 @@ elseif strcmp(HDR.TYPE,'MAT4'),
                 k=0; NB=0;
                 type = fread(HDR.FILE.FID,4,'uchar'); 	% 4-byte header
                 while ~isempty(type),
-                        type=str2num(char(abs(sprintf('%04i',sum(type(:).*[1;10;100;1000])))'));
+                        type=str2double(char(abs(sprintf('%04i',sum(type(:).*[1;10;100;1000])))'));
                         k=k+1;
                         [mrows,c] = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
                         ncols = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
@@ -2944,9 +2951,9 @@ elseif strcmp(HDR.TYPE,'MAT4'),
                         c=0; 
                         %% find the ADICHT data channels
                         if findstr(HDR.Var(k).Name,'data_block'),
-                                HDR.ADI.DB(str2num(HDR.Var(k).Name(11:length(HDR.Var(k).Name))))=k;
+                                HDR.ADI.DB(str2double(HDR.Var(k).Name(11:length(HDR.Var(k).Name))))=k;
                         elseif findstr(HDR.Var(k).Name,'ticktimes_block'),
-                                HDR.ADI.TB(str2num(HDR.Var(k).Name(16:length(HDR.Var(k).Name))))=k;
+                                HDR.ADI.TB(str2double(HDR.Var(k).Name(16:length(HDR.Var(k).Name))))=k;
                         end;
                         
                         tmp1=ftell(HDR.FILE.FID);
@@ -3393,26 +3400,26 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
 
 		[tmp1,tmp] = strtok(HDR.Date,'-/'); 
 		HDR.T0     = zeros(1,6);
-		HDR.T0(1)  = str2num(tmp1);
+		HDR.T0(1)  = str2double(tmp1);
 		if length(tmp1)<3, HDR.T0(1) = 1900+HDR.T0(1); end;
 		[tmp1,tmp] = strtok(tmp,'-/'); 
-		HDR.T0(2)  = str2num(tmp1);
+		HDR.T0(2)  = str2double(tmp1);
 		[tmp1,tmp] = strtok(tmp,'-/'); 
-		HDR.T0(3)  = str2num(tmp1);
+		HDR.T0(3)  = str2double(tmp1);
 
 		HDR.SIG.Type   = fgetl(HDR.FILE.FID);		% 6 simultaneous or serial sampling
 		    Source = fgetl(HDR.FILE.FID);		% 7 - obsolete
-		HDR.NS     = str2num(fgetl(HDR.FILE.FID));  	% 8 number of channels
-		HDR.NRec   = str2num(fgetl(HDR.FILE.FID)); % 9 number of segments
-		    NFrames= str2num(fgetl(HDR.FILE.FID));  % 10 number of frames per segment - obsolete
+		HDR.NS     = str2double(fgetl(HDR.FILE.FID));  	% 8 number of channels
+		HDR.NRec   = str2double(fgetl(HDR.FILE.FID)); % 9 number of segments
+		    NFrames= str2double(fgetl(HDR.FILE.FID));  % 10 number of frames per segment - obsolete
 
-		%HDR.SPR    = str2num(fgetl(HDR.FILE.FID));  			% 11 	number of samples per frame
-		HDR.AS.spb  = str2num(fgetl(HDR.FILE.FID));  			% 11 	number of samples per frame
-		H1.Bytes_per_Sample = str2num(fgetl(HDR.FILE.FID));	% 12 number of bytes per samples
+		%HDR.SPR    = str2double(fgetl(HDR.FILE.FID));  			% 11 	number of samples per frame
+		HDR.AS.spb  = str2double(fgetl(HDR.FILE.FID));  			% 11 	number of samples per frame
+		H1.Bytes_per_Sample = str2double(fgetl(HDR.FILE.FID));	% 12 number of bytes per samples
 		HDR.AS.bpb = HDR.AS.spb * H1.Bytes_per_Sample;
-		HDR.Sampling_order   = str2num(fgetl(HDR.FILE.FID));  	% 13
-		HDR.FLAG.INTEL_format = str2num(fgetl(HDR.FILE.FID));  	% 14
-		HDR.FormatCode = str2num(fgetl(HDR.FILE.FID));  	% 15
+		HDR.Sampling_order   = str2double(fgetl(HDR.FILE.FID));  	% 13
+		HDR.FLAG.INTEL_format = str2double(fgetl(HDR.FILE.FID));  	% 14
+		HDR.FormatCode = str2double(fgetl(HDR.FILE.FID));  	% 15
 
 		HDR.CompressTechnique = fgetl(HDR.FILE.FID);  		% 16
 		HDR.SignalType = fgetl(HDR.FILE.FID);  			% 17
@@ -3422,10 +3429,10 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
 		        [tmp,chandata] = strtok(chandata,' ,;:');  
                         HDR.Label(k,1:length(tmp)) = tmp;
 		        [tmp,chandata] = strtok(chandata,' ,;:');  
-		        HDR.Cal(k) = str2num(tmp);  
+		        HDR.Cal(k) = str2double(tmp);  
         
 		        [tmp,chandata] = strtok(chandata,' ,;:');
-		        HDR.SampleRate(k) = str2num(tmp);
+		        HDR.SampleRate(k) = str2double(tmp);
                 
 		        %[tmp,chandata] = strtok(chandata);  
 		        HDR.Variable{k} = chandata;  
@@ -3440,10 +3447,10 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
 		HDR.Segment_separator = fgetl(HDR.FILE.FID);  		% 19
 		%HDR.Segment_separator = hex2dec(fgetl(HDR.FILE.FID));  
 
-		HDR.FLAG.TimeStamp = str2num(fgetl(HDR.FILE.FID));  	% 20
+		HDR.FLAG.TimeStamp = str2double(fgetl(HDR.FILE.FID));  	% 20
 
 		if HDR.VERSION>=3,
-    			HDR.FLAG.SegmentLength = str2num(fgetl(HDR.FILE.FID));	% 21  
+    			HDR.FLAG.SegmentLength = str2double(fgetl(HDR.FILE.FID));	% 21  
 		        HDR.AppStartMark = fgetl(HDR.FILE.FID);  		% 22
 		        HDR.AppInfo = fgetl(HDR.FILE.FID);  			% 23
 		else
@@ -3507,9 +3514,9 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
 
 		if HDR.FLAG.TimeStamp,
 			tmp=char(HDR.Frame(1).TimeStamp);
-			HDR.T0(4) = str2num(tmp(1:2));
-			HDR.T0(5) = str2num(tmp(3:4));
-			HDR.T0(6) = str2num([tmp(5:6),'.',tmp(7:9)]);
+			HDR.T0(4) = str2double(tmp(1:2));
+			HDR.T0(5) = str2double(tmp(3:4));
+			HDR.T0(6) = str2double([tmp(5:6),'.',tmp(7:9)]);
 		end;
 
 		if CHAN==0,		
