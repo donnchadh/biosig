@@ -25,7 +25,6 @@ help eegopen
 help eegread
 help loadeeg
 
-
-
-%       Version 0.12        16 Jan 2003
+%	$Revision: 1.4 $
+%	$Id: INSTALL,v 1.4 2003-03-14 14:05:25 schloegl Exp $
 %	Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>		
