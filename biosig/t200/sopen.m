@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.76 $
-%	$Id: sopen.m,v 1.76 2004-11-25 10:22:45 schloegl Exp $
+%	$Revision: 1.77 $
+%	$Id: sopen.m,v 1.77 2004-11-26 14:14:51 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2910,13 +2910,12 @@ elseif strcmp(HDR.TYPE,'MAT4') & any(PERMISSION=='r'),
                 HDR.FILE.FID = -1;
 		return; 
         end;
-	
         
         
 elseif strncmp(HDR.TYPE,'MAT',3),
         status = warning;
         warning('off');
-        tmp = load('-mat',HDR.FileName);
+        tmp = load('-mat',HDR.FileName)
         warning(status);
         if isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.5x data format
                 HDR.TYPE = 'GTEC'; 
@@ -3751,10 +3750,9 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                 end
         end
         fclose(fid);
-        
+
         % convert the header information to BIOSIG standards
         HDR.NS = str2double(HDR.BV.NumberOfChannels);
-        HDR.SPR = str2double(HDR.BV.DataPoints);
         HDR.SampleRate = 1e6/str2double(HDR.BV.SamplingInterval);      % sampling rate in Hz
         if UCAL & ~strncmp(HDR.BV.BinaryFormat,'IEEE_FLOAT',10),
                 fprintf(2,'Warning SOPEN (BV): missing calibration values\n');
@@ -3802,11 +3800,12 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
 
         %open data file 
         if strncmpi(HDR.BV.DataFormat, 'binary',5)
-                HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),'rb','ieee-le');
+                PERMISSION='rb';
         elseif strncmpi(HDR.BV.DataFormat, 'ascii',5)                 
-                HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),'rt','ieee-le');
+                PERMISSION='rt';
         end;
 
+        HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),PERMISSION,'ieee-le');
         if HDR.FILE.FID < 0,
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN BV: could not open file %s\n',fullfile(HDR.FILE.Path,HDR.BV.DataFile));
                 return;
@@ -3820,28 +3819,23 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                 HDR.AS.endpos = ftell(HDR.FILE.FID);
                 fseek(HDR.FILE.FID,0,'bof');
                 HDR.AS.endpos = HDR.AS.endpos/HDR.AS.bpb;
-                HDR.SPR = HDR.AS.endpos;
-                if strncmpi(HDR.BV.DataOrientation, 'multiplexed',6),
-                        HDR.TYPE = 'BVbinmul';
-                elseif strncmpi(HDR.BV.DataOrientation, 'vectorized',6),
-                        HDR.TYPE = 'BVbinvec';
-                end;
+                
         elseif strncmpi(HDR.BV.DataFormat, 'ascii',5)  
                 s = char(sread(HDR.FILE.FID,inf,'char')');
                 s(s==',')='.';
-                tmp = str2double(s);
+                [tmp,status] = str2double(s);
                 if strncmpi(HDR.BV.DataOrientation, 'multiplexed',6),
                         HDR.BV.data = tmp;
                 elseif strncmpi(HDR.BV.DataOrientation, 'vectorized',6),
-                        HDR.BV.data = HDR.BV.data';
+                        HDR.BV.data = tmp';
                 end
-                HDR.SPR = size(HDR.BV.data,1);
                 HDR.AS.endpos = size(HDR.BV.data,1);
                 if ~any(HDR.NS ~= size(tmp));
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN BV-ascii: number of channels inconsistency\n');
                 end;
-                HDR.TYPE = 'BVascii';
         end
+        HDR.SPR = HDR.AS.endpos;
+        
         
 elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
         try
