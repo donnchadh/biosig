@@ -22,8 +22,8 @@ function datatyp=gdfdatatype(x)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.2 $
-%	$Id: gdfdatatype.m,v 1.2 2003-07-17 12:07:05 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: gdfdatatype.m,v 1.3 2003-10-06 08:17:41 schloegl Exp $
 %	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 
@@ -45,16 +45,12 @@ elseif EDF.GDFTYP(k)==6
         datatyp=('uint32');
 elseif EDF.GDFTYP(k)==7
         datatyp=('int64');
-elseif 0; EDF.GDFTYP(k)==8
+elseif EDF.GDFTYP(k)==8
         datatyp=('uint64');
 elseif EDF.GDFTYP(k)==16
         datatyp=('float32');
 elseif EDF.GDFTYP(k)==17
         datatyp=('float64');
-elseif 0;EDF.GDFTYP(k)>255 & EDF.GDFTYP(k)< 256+64
-        datatyp=(['bit' int2str(EDF.GDFTYP(k))]);
-elseif 0;EDF.GDFTYP(k)>511 & EDF.GDFTYP(k)< 511+64
-        datatyp=(['ubit' int2str(EDF.GDFTYP(k))]);
 elseif EDF.GDFTYP(k)==256
         datatyp=('bit1');
 elseif EDF.GDFTYP(k)==512
@@ -71,6 +67,10 @@ elseif EDF.GDFTYP(k)==255+24
         datatyp=('bit24');
 elseif EDF.GDFTYP(k)==511+24
         datatyp=('ubit24');
+%elseif EDF.GDFTYP(k)>255 & EDF.GDFTYP(k)< 256+64
+%        datatyp=(['bit' int2str(EDF.GDFTYP(k)-255)]);
+%elseif EDF.GDFTYP(k)>511 & EDF.GDFTYP(k)< 511+64
+%        datatyp=(['ubit' int2str(EDF.GDFTYP(k)-511)]);
 else 
         fprintf(2,'Error GDFREAD: Invalid GDF channel type\n');
         datatyp='';
