@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.3 $
-%	$Id: eegread.m,v 1.3 2003-04-26 10:22:08 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: eegread.m,v 1.4 2003-04-26 19:02:52 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -62,6 +62,93 @@ elseif strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'ISHNE'),
         if ~HDR.FLAG.UCAL,
                 S = S*HDR.Cal;
         end;
+        
+
+elseif strcmp(HDR.TYPE,'MIT'),
+        if nargin==3,
+        	fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                tmp = HDR.SampleRate*StartPos;
+                if HDR.FILE.POS~=tmp,
+	                HDR.mode8.accu = zeros(1,HDR.NS);
+        	        HDR.mode8.valid= 0;
+        	end;
+        end;
+        if HDR.FILE.POS==0,
+                HDR.mode8.accu = zeros(1,HDR.NS);
+                HDR.mode8.valid= 1;
+        end;
+        
+	DataLen = NoS*HDR.SampleRate;
+	if HDR.VERSION == 212, 
+		A = fread(HDR.FILE.FID, [HDR.AS.bpb, DataLen], 'uint8')';  % matrix with 3 rows, each 8 bits long, = 2*12bit
+		for k = 1:ceil(HDR.NS/2),
+			S(:,2*k-1) = bitand(A(:,3*k+[-2:-1])*(2.^[0;8]),2^13-1);
+			S(:,2*k)   = bitshift(bitand(A(:,3*k-1),15*16),4)+A(:,3*k);
+			S = S(:,1:HDR.NS);
+			S = S - 2^12*(S>=2^11);	% 2-th complement
+		end;
+
+	elseif HDR.VERSION == 310, 
+		A = fread(HDR.FILE.FID, [HDR.AS.bpb/2, DataLen], 'uint16')';  % matrix with 3 rows, each 8 bits long, = 2*12bit
+		for k = 1:ceil(HDR.NS/3),
+			k1=3*k-2; k2=3*k-1; k3=3*k;
+			S(:,3*k-2) = bitand(A(:,k*2-1),2^12-2)/2;	
+			S(:,3*k-1) = bitand(A(:,k*2),2^12-2)/2;	
+			S(:,3*k  ) = bitshift(A(:,k*2-1),-11) + bitshift(bitshift(A(:,k*2),-11) ,5); 
+			S = S(:,1:HDR.NS);
+			S = S - 2^10*(S>=2^9);	% 2-th complement
+		end;
+
+	elseif HDR.VERSION == 311, 
+		A = fread(HDR.FILE.FID, [HDR.AS.bpb/4, DataLen], 'uint32')';  % matrix with 3 rows, each 8 bits long, = 2*12bit
+		for k = 1:ceil(HDR.NS/3),
+			S(:,3*k-2) = bitand(A(:,k),2^11-1);	
+			S(:,3*k-1) = bitand(bitshift(A(:,k),-11),2^11-1);	
+			S(:,3*k)   = bitand(bitshift(A(:,k),-22),2^11-1);	
+			S = S(:,1:HDR.NS);
+			S = S - 2^10*(S>=2^9);	% 2-th complement
+		end;
+
+	elseif HDR.VERSION == 8, 
+		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int8')';  
+                
+                if HDR.FILE.POS==0,
+	                HDR.mode8.accu = zeros(1,HDR.NS);
+                        HDR.mode8.reset= 0;
+                end; 
+                if HDR.mode8.reset;
+                        fprintf(2,'Warning EDFREAD: unknown offset (TYPE=MIT, mode=8) \n');
+                end;        
+                S = cumsum(S');
+
+	elseif HDR.VERSION == 80, 
+		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'uint8')';  
+		S = S'-128;
+
+	elseif HDR.VERSION == 160, 
+		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'uint16')';  
+		S = S'-2^15;
+
+	elseif HDR.VERSION == 16, 
+		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int16')'; 
+		S = S';
+
+	elseif HDR.VERSION == 61, 
+		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int16')'; 
+		S = S';
+
+	else
+		fprintf(2, 'ERROR MIT-ECG: format %i not supported.\n',HDR.VERSION); 
+	
+	end;
+        HDR.FILE.POS = HDR.FILE.POS + DataLen;   	
+        
+        if ~HDR.FLAG.UCAL,
+		for k = 1:HDR.NS,
+			S(:,k) = (S(:,k) - HDR.zerovalue(k))/HDR.gain(k);
+		end;
+	end;
+	S = S(:,HDR.SIE.InChanSelect);
         
 
 elseif strcmp(HDR.TYPE,'TMS32'),
@@ -137,17 +224,17 @@ elseif strcmp(HDR.TYPE,'EGI'),
 	readtotal = 0;
 	if HDR.FLAG.TRIGGERED,
 		for i = 1:HDR.NRec,
-			SegmentCatIndex(i)  = fread(fid,1,'integer*2');
-			SegmentStartTime(i) = fread(fid,1,'integer*4');
+			SegmentCatIndex(i)  = fread(HDR.FILE.FID,1,'integer*2');
+			SegmentStartTime(i) = fread(HDR.FILE.FID,1,'integer*4');
 
 			[S(:,[1+(i-1)*HDR.SPR:i*HDR.SPR]), count] = ...
-			   fread(fid,[FrameVals,HDR.SPR],HDR.datatype);
+			   fread(HDR.FILE.FID,[FrameVals,HDR.SPR],HDR.datatype);
 
         		readtotal = readtotal + count;
     		end;
 	else
 		% read unsegmented data
-		[S, readtotal] = fread(fid, [FrameVals,HDR.samples],HDR.datatype); 
+		[S, readtotal] = fread(HDR.FILE.FID, [FrameVals,HDR.samples],HDR.datatype); 
 	end
 
 	if ~isequal(readtotal, readexpected)

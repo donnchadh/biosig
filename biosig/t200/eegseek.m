@@ -8,8 +8,8 @@ function [HDR]=eegseek(HDR,offset,origin)
 %
 % See also: FSEEK, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.3 $
-%	$Id: eegseek.m,v 1.3 2003-04-26 10:22:08 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: eegseek.m,v 1.4 2003-04-26 19:02:52 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -49,14 +49,14 @@ elseif origin == 1,
 	if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
 		HDR.FILE.POS = HDR.NRec+offset;
 		HDR.FILE.status = fseek(HDR.FILE.FID,OFFSET,1);
-	elseif strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'ISHNE'),
+	elseif strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'ISHNE') | strcmp(HDR.TYPE,'MIT'),
 		HDR.FILE.POS = HDR.AS.endpos+offset;
 		HDR.FILE.status = fseek(HDR.FILE.FID,OFFSET,1);
 	elseif strcmp(HDR.TYPE,'CNT'),
 		HDR.FILE.POS = HDR.AS.endpos+offset;
 		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.endpos*HDR.AS.bpb+OFFSET,-1);
 	else
-		fprintf(2,'Waring EEGSEEK: format %s not supported.\n',HDR.TYPE);	
+		fprintf(2,'Warning EEGSEEK: format %s not supported.\n',HDR.TYPE);	
 	end;
 else
         fprintf(2,'error EEGSEEK: 3rd argument "%s" invalid\n',origin);

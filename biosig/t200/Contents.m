@@ -7,6 +7,10 @@
 %	BDF	Biosemi data format (EDF with 24bit integers)
 %	GDF	General data format (EDF different datatypes)
 %       EGI	Format from Electrical Geodesics
+%	MIT/ECG	PhysioNet data format
+%	ISHNE	The ISHNE Holter Standard Output File Format
+%	Poly5/TMS32 Format used for recordings with the Porti-system and the PortiLab software
+%
 %
 % A united interface is provided for all data formats:
 %	LOADEEG Opens, reads all data and closes file Biosig files. 
@@ -20,7 +24,7 @@
 %	EEGCLOSE closes an biosignal file 
 %  	EEGWRITE (only BKR and EDF implemented)
 %
-%    UTILITY FUNCTIONS. In general, it is not recommended 
+% UTILITY FUNCTIONS. In general, it is not recommended 
 %	to use them directly. Use them only if you absolute sure what 
 %	you are doing. You are warned! 
 % 	
@@ -43,8 +47,8 @@
 % REFERENCES: 
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg
 
-%	$Revision: 1.2 $
-%	$Id: Contents.m,v 1.2 2003-02-03 17:00:07 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: Contents.m,v 1.3 2003-04-26 19:02:54 schloegl Exp $
 %	CopyLeft (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
