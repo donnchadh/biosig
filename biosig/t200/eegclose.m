@@ -18,19 +18,20 @@ function [HDR]=eegclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: eegclose.m,v 1.1 2003-02-01 15:03:45 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: eegclose.m,v 1.2 2003-07-18 15:23:22 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org
 
 
 if HDR.FILE.FID<0, return; end;
-        
+
 if HDR.FILE.OPEN>=2,
-        status = fseek(HDR.FILE.FID, 0, 'eof'); % go to end-of-file
+	% check file length - simple test for file integrity         
         EndPos = ftell(HDR.FILE.FID);           % get file length
+        % force file pointer to the end, otherwise Matlab 6.5 R13 on PCWIN
+        status = fseek(HDR.FILE.FID, 0, 'eof'); % go to end-of-file
         
-        % check file length - simple test for file integrity         
         if strcmp(HDR.TYPE,'BKR');
                 % check whether Headerinfo fits to file length.
                 HDR.AS.EndPos = (EndPos-HDR.HeadLen)/(HDR.NRec*HDR.NS*2);
@@ -46,14 +47,13 @@ if HDR.FILE.OPEN>=2,
 
 	elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
         
-        	tmp = floor((EndPos - HDR.HeadLen) / HDR.AS.bpb);  % calculate number of records
+         	tmp = floor((EndPos - HDR.HeadLen) / HDR.AS.bpb);  % calculate number of records
         	if ~isnan(tmp)
         	        HDR.NRec=tmp;
         	end;
         	%fclose(HDR.FILE.FID);
         	HDR=sdfopen(HDR,'w+');                    % update header information
 	end;
-
 end;
 
 if HDR.FILE.OPEN,
