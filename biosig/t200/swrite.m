@@ -18,8 +18,8 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.4 $
-%	$Id: swrite.m,v 1.4 2003-10-14 21:28:40 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: swrite.m,v 1.5 2003-10-25 08:55:15 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -121,6 +121,31 @@ elseif strcmp(HDR.TYPE,'BKR'),
 	else
 		HDR.FILE.POS = 1;		% untriggered data
 	end;
+        %HDR.AS.endpos = HDR.AS.endpos + size(data,1);
+        
+        
+elseif strcmp(HDR.TYPE,'CFWB'),
+        count=0;
+        if HDR.NS~=size(data,2) & HDR.NS==size(data,1),
+                fprintf(2,'SWRITE: number of channels fits number of rows. Transposed data\n');
+                data = data';
+        end
+        
+	if HDR.GDFTYP==3,
+		if ~HDR.FLAG.UCAL,
+			data = data*diag(1./HDR.Cal)-HDR.Off(:,ones(1,size(data,1)))';
+		end;
+                % Overflow detection
+                data(data>2^15-1)=  2^15-1;	
+                data(data<-2^15) = -2^15;
+                count = fwrite(HDR.FILE.FID,data','short');
+        else
+                count = fwrite(HDR.FILE.FID,data',gdfdatatype(HDR.GDFTYP));
+        end;
+        if HDR.SPR==0, 
+                HDR.SPR=size(data,1);
+        end;
+        HDR.FILE.POS = HDR.FILE.POS + size(data,1);
         %HDR.AS.endpos = HDR.AS.endpos + size(data,1);
         
         

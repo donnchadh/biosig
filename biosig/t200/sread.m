@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.5 $
-%	$Id: sread.m,v 1.5 2003-10-24 11:58:30 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: sread.m,v 1.6 2003-10-25 08:55:15 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -289,6 +289,23 @@ elseif 0, %strcmp(HDR.TYPE,'SND'),
 	end;
 
         
+
+
+elseif strcmp(HDR.TYPE,'CFWB'),
+        if nargin==3,
+        	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+		HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP));
+	if count,
+	        S = S(HDR.SIE.ChanSelect,:)';
+                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+        end;
+        if ~HDR.FLAG.UCAL,
+		S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.ChanSelect],HDR.SIE.ChanSelect);
+	end;
+
+        
 elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
         if nargin==3,
         	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
@@ -423,24 +440,7 @@ elseif strcmp(HDR.TYPE,'EEG'),
                 S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.InChanSelect],HDR.SIE.ChanSelect);
         end;
         
-elseif strcmp(HDR.TYPE,'CFWB'),
-        if nargin>2,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        
-        [S,count] = fread(HDR.FILE.FID, [HDR.NS, min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS)], gdfdatatype(HDR.GDFTYP));
-        
-        if count==0,
-                S = [];	
-        else
-		S = S(HDR.SIE.ChanSelect,:)';
-                if ~HDR.FLAG.UCAL,
-                        S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.ChanSelect],HDR.SIE.ChanSelect);
-                end;
-                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
-        end;
-        
+
 elseif strcmp(HDR.TYPE,'CNT'),
         if nargin>2,
                 fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        

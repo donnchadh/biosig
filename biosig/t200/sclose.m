@@ -18,8 +18,8 @@ function [HDR]=sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.3 $
-%	$Id: sclose.m,v 1.3 2003-09-09 23:10:30 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: sclose.m,v 1.4 2003-10-25 08:55:15 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org
 
@@ -69,6 +69,18 @@ if HDR.FILE.OPEN>=2,
 			        fprintf(HDR.FILE.FID,'%-8i',HDR.NRec);
 			end;
 		end;
+
+        elseif strcmp(HDR.TYPE,'CFWB');
+                HDR.SPR       = (EndPos-HDR.HeadLen)/HDR.AS.bpb;
+                if isnan(HDR.SPR), HDR.SPR=0; end;
+                if HDR.FILE.OPEN==3;
+			fclose(HDR.FILE.FID);
+			HDR.FILE.FID = fopen(HDR.FileName,'r+','ieee-le');
+                        fseek(HDR.FILE.FID,15,-1);
+                        count = fwrite(HDR.FILE.FID,HDR.SPR,'int32');           % channels
+		end;
+		HDR.FILE.status = fclose(HDR.FILE.FID);
+	        HDR.FILE.OPEN = 0;
 
         elseif strcmp(HDR.TYPE,'SND');
                 HDR.SPR       = (EndPos-HDR.HeadLen)/HDR.AS.bpb;

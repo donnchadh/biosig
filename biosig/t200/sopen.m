@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.10 $
-%	$Id: sopen.m,v 1.10 2003-10-24 11:58:30 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: sopen.m,v 1.11 2003-10-25 08:55:15 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -140,6 +140,7 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='ISHNE';
                         elseif strncmp(ss,'rhdE',4);	% Holter Excel 2 file, not supported yet. 
                                 HDR.TYPE='rhdE';          
+
                         elseif strncmp(ss,'RRI',3);	% R-R interval format % Holter Excel 2 file, not supported yet. 
                                 HDR.TYPE='RRI';          
                         elseif strncmp(ss,'Repo',4);	% Repo Holter Excel 2 file, not supported yet. 
@@ -151,6 +152,7 @@ if any(PERMISSION=='r'),
 
                         elseif strncmp(ss,'CFWB',4); 	% Chart For Windows Binary data, defined by ADInstruments. 
                                 HDR.TYPE='CFWB';
+
 			elseif any(s(3:6)*(2.^[0;8;16;24]) == (30:40))
 				HDR.TYPE='ACQ';
 			elseif all(s(1:2)==[hex2dec('55'),hex2dec('AA')]);
@@ -800,6 +802,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
             		%%%% AIF - section %%%%%
 			if strcmpi(tag,'COMM')
 				if tagsize<18, 
+
 					fprintf(2,'Error SOPEN AIF: incorrect tag size\n');
 					return;
 				end;
@@ -2256,9 +2259,9 @@ elseif strcmp(HDR.TYPE,'MAT4'),
         
 elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADInstruments. 
         CHANNEL_TITLE_LEN = 32;
-        UNITS_LEN = 32
+        UNITS_LEN = 32;
         if any(PERMISSION=='r'),
-		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le')
+		HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
 
 		fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
 
@@ -2275,7 +2278,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 HDR.SPR = fread(HDR.FILE.FID,1,'int32');
                 HDR.NRec = 1;
 		HDR.FLAG.TRIGGERED = 0;	        
-                
+
                 HDR.Flag.TimeChannel = fread(HDR.FILE.FID,1,'int32');
                 tmp = fread(HDR.FILE.FID,1,'int32');
                 if tmp == 1, 
@@ -2283,7 +2286,6 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
 	                HDR.AS.bpb = HDR.NS * 8;
                 elseif tmp == 2, 
                         HDR.GDFTYP = 16;	% float
-                        HDR.bytes = 4;
 	                HDR.AS.bpb = HDR.NS * 4;
                 elseif tmp == 3, 
                         HDR.GDFTYP =  3;	% int16
@@ -2297,11 +2299,6 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                         HDR.PhysMax(1,k) = fread(HDR.FILE.FID,1,'double');   
                         HDR.PhysMin(1,k) = fread(HDR.FILE.FID,1,'double');   
                 end;
-                HDR.Calib = [HDR.Off;eye(HDR.NS)]*HDR.Cal;
-                
-                HDR.HeadLen = ftell(HDR.FILE.FID);
-                HDR.FILE.POS = 0; 
-                HDR.AS.endpos = HDR.SPR; 
                 
                 if CHAN==0,		
 			CHAN = 1:HDR.NS;
@@ -2316,8 +2313,138 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 HDR.SIE.ChanSelect = CHAN;
                 
         elseif any(PERMISSION=='w'),
-                
+        	HDR.VERSION   = 1;
+        	if ~isfield(HDR,'NS'),
+                	HDR.NS = 0; 	% unknown channel number ...
+ 			fprintf(2,'Error SOPEN-W CFWB: number of channels HDR.NS undefined.\n');
+			return;
+ 	      	end;
+        	if ~isfield(HDR,'SPR'),
+        	        HDR.SPR = 0; 	% Unknown - Value will be fixed when file is closed. 
+		else
+			HDR.SPR = HDR.SPR(1);
+        	end;
+        	if ~isfield(HDR,'SampleRate'),
+        	        HDR.SampleRate = 1; 	% Unknown - Value will be fixed when file is closed. 
+ 			fprintf(2,'Warning SOPEN-W CFWB: samplerate undefined.\n');
+        	end;
+        	if any([HDR.SPR==0]), 	% if any unknown, ...				HDR.FILE.OPEN = 3;			%	... fix header when file is closed. 
+		end;
+        	if ~isfield(HDR,'CFWB'),
+        	        HDR.CFWB.preTrigger = 0; 	% Unknown - Value will be fixed when file is closed. 
+		end;
+        	if ~isfield(HDR.CFWB,'preTrigger'),
+        	        HDR.CFWB.preTrigger = 0; 	% Unknown - Value will be fixed when file is closed. 
+        	end;
+        	if ~isfield(HDR,'Flag'),
+			HDR.Flag.TimeChannel = 0;
+ 		else
+		       	if ~isfield(HDR.Flag,'preTrigger'),
+				HDR.Flag.TimeChannel = 0;
+			end;
+		end;
+		if HDR.GDFTYP == 17;	% doubletmp == 1, 
+                        tmp = 1;
+	                HDR.AS.bpb = HDR.NS * 8;
+			HDR.Cal = ones(HDR.NS,1);
+			HDR.Off = zeros(HDR.NS,1);
+                elseif HDR.GDFTYP == 16;	% float
+			tmp = 2; 
+	                HDR.AS.bpb = HDR.NS * 4;
+			HDR.Cal = ones(HDR.NS,1);
+			HDR.Off = zeros(HDR.NS,1);
+                elseif HDR.GDFTYP == 3;	% int16
+			tmp = 3;
+                        HDR.AS.bpb = HDR.NS * 2;
+                end;
+		HDR.PhysMax = repmat(NaN,HDR.NS,1);
+		HDR.PhysMin = repmat(NaN,HDR.NS,1);
+        	if ~isfield(HDR,'Cal'),
+			fprintf(2,'Warning SOPEN-W CFWB: undefined scaling factor\n');			
+			HDR.Cal = ones(HDR.NS,1);
+		end;
+        	if ~isfield(HDR,'Off'),
+			fprintf(2,'Warning SOPEN-W CFWB: undefined offset\n');			
+			HDR.Off = zeros(HDR.NS,1);
+		end;
+        	if ~isfield(HDR,'Label'),
+			for k = 1:HDR.NS,
+				tmp = sprintf('channel %i',k);
+				HDR.Label(k,:) = [tmp,setstr(repmat(32,1,max(0,CHANNEL_TITLE_LEN-length(tmp))))];
+			end;
+		elseif iscell(HDR.Label)
+			Label = [];
+			for k = 1:HDR.NS,
+				tmp = [HDR.Label{k}, setstr(reshape(32,1,max(0,CHANNEL_TITLE_LEN-size(HDR.Label, 2))))];
+				Label(k,:) = tmp(1:CHANNEL_TITLE_LEN);
+			end;
+			HDR.Label = Label;
+		else
+			HDR.Label = [HDR.Label,setstr(repmat(32,size(HDR.Label,1),max(0,CHANNEL_TITLE_LEN-size(HDR.Label,2))))];
+			HDR.Label = [HDR.Label;setstr(repmat(32,max(0,HDR.NS-size(HDR.Label,1)),size(HDR.Label,2)))];
+ 		end;
+
+        	if ~isfield(HDR,'PhysDim'),
+			HDR.PhysDim = setstr(repmat(32,HDR.NS,UNITS_LEN));
+		end;
+		
+		if size(HDR.PhysDim,1)==1,
+			HDR.PhysDim = HDR.PhysDim(ones(HDR.NS,1),:);
+		end;		
+		if iscell(HDR.PhysDim)
+			Label = [];
+			for k = 1:size(HDR.PhysDim,1),
+				tmp = [HDR.PhysDim{k}, setstr(reshape(32,1,max(0,UNITS_LEN-size(HDR.PhysDim, 2))))];
+				Label(k,:) = tmp(1:UNITS_LEN);
+			end;
+			HDR.PhysDim = setstr(Label);
+		else
+			HDR.PhysDim = [HDR.PhysDim, setstr(repmat(32,size(HDR.PhysDim,1),max(0,UNITS_LEN-size(HDR.PhysDim,2))))];
+			HDR.PhysDim = [HDR.PhysDim; setstr(repmat(32,max(0,HDR.NS-size(HDR.PhysDim,1)),size(HDR.PhysDim,2)))];
+ 		end;
+
+
+		%%%%% write fixed header
+		HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+		if HDR.FILE.FID<0, 
+			fprintf(2,'Error SOPEN-W CFWB: could not open file %s .\n',HDR.FileName);
+			return;
+		else
+			HDR.FILE.OPEN = 2;		
+		end;
+		fwrite(HDR.FILE.FID,'CFWB','char');
+		fwrite(HDR.FILE.FID,HDR.VERSION,'int32');
+		fwrite(HDR.FILE.FID,1/HDR.SampleRate(1),'double');
+		fwrite(HDR.FILE.FID,HDR.T0(1:5),'int32');
+		fwrite(HDR.FILE.FID,HDR.T0(6),'double');
+		fwrite(HDR.FILE.FID,HDR.preTrigger,'double');
+		fwrite(HDR.FILE.FID,[HDR.NS,HDR.SPR,HDR.Flag.TimeChannel],'int32');
+		fwrite(HDR.FILE.FID,tmp,'int32');
+		HDR.HeadLen = ftell(HDR.FILE.FID);
+		if (HDR.HeadLen~=68),
+			fprintf(2,'Error SOPEN CFWB: size of header1 does not fit in file %s\n',HDR.FileName);
+		end;
+
+		%%%%% write channel header
+		for k = 1:HDR.NS,
+			fwrite(HDR.FILE.FID,HDR.Label(k,1:32),'char');
+			fwrite(HDR.FILE.FID,setstr(HDR.PhysDim(k,1:32)),'char');
+			fwrite(HDR.FILE.FID,[HDR.Cal(k),HDR.Off(k)],'double');
+			fwrite(HDR.FILE.FID,[HDR.PhysMax(k),HDR.PhysMin(k)],'double');
+		end;
+		HDR.HeadLen = ftell(HDR.FILE.FID);
+		if (HDR.HeadLen~=(68+HDR.NS*96))
+			fprintf(2,'Error SOPEN CFWB: size of header2 does not fit in file %s\n',HDR.FileName);
+		end;
         end;
+        HDR.Calib = [HDR.Off';eye(HDR.NS)]*diag(HDR.Cal);
+        HDR.Label = setstr(HDR.Label);
+        HDR.PhysDim = setstr(HDR.PhysDim);
+
+        HDR.HeadLen = ftell(HDR.FILE.FID);
+        HDR.FILE.POS = 0; 
+        HDR.AS.endpos = HDR.SPR; 
+
         
 elseif strcmp(HDR.TYPE,'ISHNE'),
 	if any(PERMISSION=='r'),
