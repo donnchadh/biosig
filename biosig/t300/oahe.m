@@ -7,8 +7,8 @@ function [Y,Z] = OAHE(X,Fs)
 %
 
 
-%	$Revision: 1.1 $
-%	$Id: oahe.m,v 1.1 2003-10-12 22:12:42 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: oahe.m,v 1.2 2004-06-09 18:21:03 schloegl Exp $
 %	Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This library is free software; you can redistribute it and/or
@@ -33,20 +33,22 @@ function [Y,Z] = OAHE(X,Fs)
 nseg  = ceil (nr/(120*Fs));
 nseg2 = floor(nr/(  5*Fs));
 
-X = [X; repmat(nan,  nseg*120*Fs-nr, nc)];
-X = reshape(X,5*Fs,24*nseg);
+X = [repmat(nan,125*Fs,nc); X; repmat(nan, nseg*120*Fs-nr, nc)];
+X = reshape(X,5*Fs,24*nseg+25);
 
 hi_baseline = max(X);
 lo_baseline = min(X);
 
-blh = median(hi_baseline(hankel(1:nseg2-25,nseg2-25:nseg2-2))');
-bll = median(lo_baseline(hankel(1:nseg2-25,nseg2-25:nseg2-2))');
+ix = hankel(1:nseg2,nseg2:nseg2+25)';
 
-mh = max(hi_baseline(hankel(25:nseg2-1,nseg2+(-1:0)))');
-ml = min(lo_baseline(hankel(25:nseg2-1,nseg2+(-1:0)))');
+blh = median(hi_baseline(ix(1:24,:)));
+bll = median(lo_baseline(ix(1:24,:)));
 
-Y = (blh-bll)'>2*(mh-ml)';
+mh  = max(hi_baseline(ix(25:26,:)));
+ml  = min(lo_baseline(ix(25:26,:)));
 
+Y   = real((blh-bll)' > 2*(mh-ml)');
+Y(any(isnan([mh;ml;blh;bll]))) = NaN;
 
 
 
