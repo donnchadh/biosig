@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.39 $
-%	$Id: sdfopen.m,v 1.39 2005-03-05 00:56:35 schloegl Exp $
+%	$Revision: 1.40 $
+%	$Id: sdfopen.m,v 1.40 2005-03-22 16:26:18 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -598,13 +598,16 @@ elseif strcmp(EDF.TYPE,'EDF') & (length(strmatch('EDF Annotations',EDF.Label))==
         EDF.Off(EDF.EDF.Annotations) = 0;
         
         status = fseek(EDF.FILE.FID,EDF.HeadLen+EDF.AS.bi(EDF.EDF.Annotations)*2,'bof');
-        t = fread(EDF.FILE.FID,EDF.SPR(EDF.EDF.Annotations),'uchar',EDF.AS.bpb-EDF.SPR(EDF.EDF.Annotations)*2);
-        t = char(t)';
+        t = fread(EDF.FILE.FID,inf,[int2str(EDF.SPR(EDF.EDF.Annotations)*2),'*uchar=>uchar'],EDF.AS.bpb-EDF.SPR(EDF.EDF.Annotations)*2);
+        EDF.EDF.ANNONS = t';
         lt = length(t);
-        EDF.EDF.ANNONS = t;
+        EVENTTABLE = repmat(0,lt/2,4);
+        TeegType = repmat({''},lt/2,1);
+        TeegDesc = TeegType; 
         N = 0; 
         ix = 1; 
-	t = [t,' '];
+	t = [t;' ']';
+        FLAG.DUR = 0; 
         while ix < length(t),
                 while (ix<=lt) & (t(ix)==0), ix = ix+1; end;
                 ix1 = ix; 
@@ -620,16 +623,27 @@ elseif strcmp(EDF.TYPE,'EDF') & (length(strmatch('EDF Annotations',EDF.Label))==
                         [s3,v]=strtok(v,20);
                         
                         N = N+1;
-                        EDF.EVENT.POS(N,1) = tmp(1);
+                        EVENTTABLE(N,2) = tmp(1);
                         if length(tmp)>1,
-                                EDF.EVENT.DUR(N,1) = tmp(2);
+                                EVENTTABLE(N,3) = tmp(2);
+                                FLAG.DUR = 1; 
                         end;
-                        EDF.EVENT.TeegType{N,1} = char(s2);
-                        EDF.EVENT.TeegDesc{N,1} = char(s3);
+                        TeegType{N} = char(s2);
+                        TeegDesc{N} = char(s3);
                 end;
         end;
-        EDF.EVENT.TYP(1:N,1) = 0;
+        EDF.EVENT.TYP = ones(N,1);
+        EDF.EVENT.POS = EVENTTABLE(1:N,2)*EDF.SampleRate;
+        if FLAG.DUR, 
+                EDF.EVENT.DUR = EVENTTABLE(1:N,3)*EDF.SampleRate;
+                EDF.EVENT.CHN = zeros(N,1);
+        end;
+        [EDF.EVENT.CodeDesc,EDF.EVENT.CodeIndex,TYP] = unique(TeegType(1:N));
+        if length(EDF.EVENT.CodeDesc)<16;
+                EDF.EVENT.TYP = TYP;
+        end;
 
+        
 elseif 0, strcmp(EDF.TYPE,'EDF') & (length(EDF.FILE.Name)==8) & any(lower(EDF.FILE.Name(1))=='bchmnpsu') 
         if strcmp(lower(EDF.FILE.Name([3,6:8])),'001a'),
                 % load scoring of ADB database if available 
@@ -1534,7 +1548,8 @@ end;
 
 %%%%%% generate Header 2,  NS*256 bytes 
 if ~strcmp(EDF.VERSION(1:3),'GDF');
-        sPhysMax=setstr(32+zeros(EDF.NS,8));
+        sPhysMax=char(32+zeros(EDF.NS,8));
+        sPhysMin=char(32+zeros(EDF.NS,8));
         for k=1:EDF.NS,
                 tmp=sprintf('%-8g',EDF.PhysMin(k));
                 lt=length(tmp);
@@ -1559,8 +1574,6 @@ if ~strcmp(EDF.VERSION(1:3),'GDF');
                         end;
                 end;
         end;
-        sPhysMin=reshape(sprintf('%-8.1f',EDF.PhysMin)',8,EDF.NS)';
-        sPhysMax=reshape(sprintf('%-8.1f',EDF.PhysMax)',8,EDF.NS)';
         
         idx1=cumsum([0 H2idx]);
         idx2=EDF.NS*idx1;
