@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.54 $
-%	$Id: sopen.m,v 1.54 2004-05-24 11:47:17 schloegl Exp $
+%	$Revision: 1.55 $
+%	$Id: sopen.m,v 1.55 2004-05-31 21:34:08 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -111,7 +111,7 @@ if any(PERMISSION=='r'),
                 if c < 132,
                         s = [s, repmat(0,1,132-c)];
                 end;
-		
+
                 if c,
                         %%%% file type check based on magic numbers %%%
                         type_mat4=str2double(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
@@ -154,7 +154,7 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='MFER';
                         elseif strcmp(ss(1:6),'@ MFR '); 
                                 HDR.TYPE='MFER';
-                        elseif all(s(17:22)=='SCPECG'); 
+                        elseif all(s(17:22)==abs('SCPECG')); 
                                 HDR.TYPE='SCP';
                         elseif strncmp(ss,'POLY_SAM',8);	% Poly5/TMS32 sample file format.
                                 HDR.TYPE='TMS32';
@@ -187,7 +187,7 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='AIF';
                         elseif strcmp(ss([1:4,9:12]),'RIFFAVI '); 
                                 HDR.TYPE='AVI';
-                        elseif strcmp(ss([1:4,9:16]),'RIFF8SVXVHDR'); 
+                        elseif ~isempty(findstr(ss(1:16),'8SVXVHDR')); 
                                 HDR.TYPE='8SVX';
                         elseif strcmp(ss([1:4,9:12]),'RIFFILBM'); 
                                 HDR.TYPE='ILBM';
@@ -292,7 +292,7 @@ if any(PERMISSION=='r'),
                         elseif all((s(1:4)*(2.^[24;16;8;1]))==1229801286); 	% GE 5.X format image 
                                 HDR.TYPE='5.X';
                                 
-                        elseif all(s(1:2)==[102,105]); 
+                        elseif all(s(1:2)==[105,102]); 
                                 HDR.TYPE='669';
                         elseif all(s(1:2)==[234,96]); 
                                 HDR.TYPE='ARJ';
@@ -353,6 +353,8 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='LZH';
                         elseif strcmp(ss(1:4),'MThd'); 
                                 HDR.TYPE='MIDI';
+                        elseif strcmp(ss(1:3),'MMD'); 
+                                HDR.TYPE='MED';
                         elseif (s(1)==255) & any(s(2)>=224); 
                                 HDR.TYPE='MPEG';
                         elseif strncmp(ss(5:8),'mdat',4); 
@@ -1462,8 +1464,8 @@ elseif strcmp(HDR.TYPE,'ASF') ,
         end; 
         
         
-elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') ,
-        if strcmp(HDR.TYPE,'AIF') 
+elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') ,
+        if strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') 
                 HDR.Endianity = 'ieee-be';
         elseif  strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI')  ,
                 HDR.Endianity = 'ieee-le';
