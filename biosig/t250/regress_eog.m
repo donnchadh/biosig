@@ -7,13 +7,15 @@ function [R,S] = regress_eog(D,ny,nx)
 %   [R,S2] = regress_eog(S1, el, ol)
 %       
 %  Correction matrix is obtained through
-%   [R] = regress_eog(covm(S1,'E'), el, ol)
+%   [R] = regress_eog(covm(S1,'E'), EL, OL)
 %   S2 = S1 * R.ro;    % without offset correction
 %   S2 = [ones(size(S1,1),1),S1] * R.r1;    % with offset correction
 %  
 %  S1   recorded data
-%  el   list of eeg channels: those channels will be corrected   
-%  ol   list of eog channels 
+%  EL   list of eeg channels: those channels will be corrected   
+%  OL   eog/ecg channels. 
+%       if OL is a vector, it represents the list of noise channels 
+%       if OL is a matrix, OL references the noise channels 
 %  R    rereferencing matrix for correction artifacts with regression analysis
 %  S2   corrected EEG-signal      
 %
@@ -39,20 +41,11 @@ function [R,S] = regress_eog(D,ny,nx)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.4 $
-%	$Id: regress_eog.m,v 1.4 2004-07-07 11:34:32 schloegl Exp $
-%	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.5 $
+%	$Id: regress_eog.m,v 1.5 2005-01-04 11:04:13 schloegl Exp $
+%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
-
-R.datatype = 'ArtifactCorrection_Regression';
-R.signalchannel = ny;
-R.noise_channel = nx;
-R.Mode = 1; % correction of the mean 
-R.Mode = 0; % correction without mean 
-
-nx = nx(:);
-ny = ny(:);
 
 if ischar(D),
         [D,H] = sload(D);
@@ -66,25 +59,42 @@ else
         C = covm(D,'E');
 end
 
-r0 = eye(H.NS);
+R.datatype = 'ArtifactCorrection_Regression';
+R.signalchannel = ny;
+R.noise_channel = nx;
+R.Mode = 1; % correction of the mean 
+R.Mode = 0; % correction without mean 
+
+a = speye(H.NS+1);
+if size(nx,1)==1,  % list of noise channel 
+        nx  = nx(:);
+        
+else    % noise channels are defined through rereferencing (e.g. bipoloar channels)
+        tmp = H.NS+(1:size(nx,2)); 
+        a(2:size(nx,1)+1,tmp+1) = nx;
+        if rank(full(nx)) < size(nx,2),
+                fprintf(2,'Warning REGRESS_EOG: referencing matrix is singular! \n');
+        end; 
+        C   = a'*C*a; 
+        nx  = tmp';
+        
+end;
+ny = ny(:);
+
+r0 = speye(H.NS);
 r1 = sparse(2:H.NS+1,1:H.NS,1);
 
 b0 = -inv(C([1; nx+1], [1; nx+1])) * C([1; nx+1], ny+1);
 r0(nx,ny) = b0(2:end,:);       % rearrange channel order
 r1([1;1+nx], ny) = b0;       % rearrange channel order
 
-R.r0 = r0;
-R.r1 = r1;
+R.r0 = a(2:end,2:end)*r0;
+R.r1 = a*r1;
 
 if size(D,1)==size(D,2),
         % R = R;         
         
-else    
-        if ischar(D),
-                %R.Calib = [[1;zeros(H.NS,1)],r1] * H.Calib;
-                R.Calib = H.Calib * R.r0;
-        end;
-
+elseif (nargout>1)
         % S = D * R.r0;   % without offset correction 
         S = [ones(size(D,1),1),D] * R.r1; % with offset correction
 end
