@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.20 $
-%	$Id: getfiletype.m,v 1.20 2004-12-03 20:14:20 schloegl Exp $
+%	$Revision: 1.21 $
+%	$Id: getfiletype.m,v 1.21 2004-12-23 18:19:23 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -104,7 +104,8 @@ else
                 %%%% file type check based on magic numbers %%%
                 type_mat4 = str2double(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
                 ss = char(s);
-                if all(s(1:2)==[207,0]);
+                if 0,
+                elseif all(s(1:2)==[207,0]);
                         HDR.TYPE='BKR';
                 elseif strncmp(ss,'Version 3.0',11); 
                         HDR.TYPE='CNT';
@@ -112,8 +113,9 @@ else
                         HDR.TYPE = 'BrainVision';
                 elseif strncmp(ss,'0       ',8); 
                         HDR.TYPE='EDF';
-                elseif all(s(1:8)==[char(255),abs('BIOSEMI')]); 
+                elseif all(s(1:8)==[255,abs('BIOSEMI')]); 
                         HDR.TYPE='BDF';
+                        
                 elseif strncmp(ss,'GDF',3); 
                         HDR.TYPE='GDF';
                 elseif strncmp(ss,'EBS',3); 
@@ -254,6 +256,19 @@ else
                 elseif all(s(1:4)==hex2dec(reshape('DADAFEAF',2,4)')'); 
                         HDR.TYPE='WG1';
                         HDR.Endianity = 'ieee-be';
+                        
+                elseif strncmp(ss,'HeaderLen=',10); 
+                        [t,r]=strtok(ss(11:end));
+                        [len,status]=str2double(strtok(ss(11:end)));
+                        if ~status,
+                                HDR.TYPE='BCI2000';
+                                HDR.HeadLen = len;
+                                ix(1) = strfind(ss,'SourceCh');
+                                ix(2) = strfind(ss,'StateVectorLength');
+                                ix(3) = strfind(ss,[13,10]);
+                                poseq = find(ss(1:ix(3)=='='));
+                                [HDR.NS,status] = str2double(ss(ix(1)+9:ix(2)-1));
+                        end;
                         
                 elseif strcmp(ss([1:4,9:12]),'RIFFCNT ')
                         HDR.TYPE='EEProbe-CNT';     % continuous EEG in EEProbe format, ANT Software (NL) and MPI Leipzig (DE)
