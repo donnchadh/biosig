@@ -26,9 +26,9 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.47 $
-%	$Id: sload.m,v 1.47 2004-12-23 18:17:56 schloegl Exp $
-%	Copyright (C) 1997-2004 by Alois Schloegl 
+%	$Revision: 1.48 $
+%	$Id: sload.m,v 1.48 2005-01-05 09:08:03 schloegl Exp $
+%	Copyright (C) 1997-2005 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -85,6 +85,9 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			H = h;
 			signal = s;  
 			LEN = size(s,1);
+                elseif strcmp(H.TYPE,'TFM_EXCEL_Beat_to_Beat'); 
+                        H.TFM.S = [H.TFM.S(:,1:13); repmat(NaN,100,13),h.TFM.S(:,1:13)];
+                        H.TFM.E = [H.TFM.E(:,1:13); num2cell(zeros(100,13)),h.TFM.E(:,1:13)];
 		else
 			H.FILE(k) = h.FILE;
 			if (H.SampleRate ~= h.SampleRate),
@@ -172,7 +175,8 @@ if H.FILE.OPEN > 0,
 
 
 elseif strcmp(H.TYPE,'native'),
-        signal = H.data;
+        [signal,H] = sread(H);
+        H = sclose(H);
 
         
 elseif strcmp(H.TYPE,'EVENTCODES')
@@ -1067,19 +1071,6 @@ if (strcmp(H.TYPE,'GDF') & isempty(H.EVENT.TYP)),
         end;
 end;    
 
-        %%% Get trigger information from BKR data 
-if strcmp(H.TYPE,'BKR');
-        if isfield(H.AS,'TRIGCHAN') & isempty(H.EVENT.POS)
-                if H.AS.TRIGCHAN<=size(signal,2),
-                        H.TRIG = gettrigger(signal(:,H.AS.TRIGCHAN));
-                        if isfield(H,'TriggerOffset')
-                                H.TRIG = H.TRIG - round(H.TriggerOffset/1000*H.SampleRate);
-                        end;
-                        H.EVENT.POS = H.TRIG; 
-                        H.EVENT.TYP = repmat(hex2dec('0300'),size(H.EVENT.POS));
-                end;
-        end;
-end;
 
 % resampling 
 if ~isnan(Fs) & (H.SampleRate~=Fs);
