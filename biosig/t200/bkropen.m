@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.7 $
-%	$Id: bkropen.m,v 1.7 2003-07-24 06:51:44 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: bkropen.m,v 1.8 2003-07-24 07:02:49 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -291,12 +291,8 @@ elseif any(PERMISSION=='w') | ~isempty(findstr(PERMISSION,'r+')),
         BKR.AS.spb = BKR.NS;	% Samples per Block
         
         if isfield(BKR,'Classlabel');
-                if exist('OCTAVE_VERSION');
-                        fid = fopen(fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.par']),'w+');       
-                else        
-                        fid = fopen(fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.par']),'w+t');
-                end;
-                fwrite(fid,'%i\n',BKR.Classlabel);  
+                fid = fopen(fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.par']),'w+b');  % force binary mode
+                fwrite(fid,'%i\r\n',BKR.Classlabel);  % explicit 0x0d and 0x0a
                 fclose(fid);
         end;
 end;
