@@ -1,6 +1,8 @@
 function [HDR]=sclose(HDR)
-% [EEG]=sclose(EEG)
-% Closes an Signal-File 
+% SCLOSE closes the file with the handle HDR
+% [HDR] = sclose(HDR)
+%    HDR.FILE.status = -1 if file could not be closed.
+%    HDR.FILE.status = 0 indicates the file has been closed.
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE
 
@@ -18,16 +20,17 @@ function [HDR]=sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.7 $
-%	$Id: sclose.m,v 1.7 2004-04-18 22:17:20 schloegl Exp $
-%	Copyright (C) 1997-2003 by Alois Schloegl
-%	a.schloegl@ieee.org
+%	$Revision: 1.8 $
+%	$Id: sclose.m,v 1.8 2004-08-16 16:01:40 schloegl Exp $
+%	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
-if HDR.FILE.FID<0, return; end;
+if (HDR.FILE.FID<0) | ~HDR.FILE.OPEN, 
+        fprintf('Error SCLOSE: invalid handle');
+end;
 
-
-if HDR.FILE.OPEN>=2,
+if HDR.FILE.OPEN >= 2,          % write-open of files 
 	% check file length - simple test for file integrity         
         EndPos = ftell(HDR.FILE.FID);          % get file length
         % force file pointer to the end, otherwise Matlab 6.5 R13 on PCWIN
@@ -69,8 +72,6 @@ if HDR.FILE.OPEN>=2,
                         HDR.FLAG.TRIGGERED   = HDR.NRec>1;	% Trigger Flag
                         count = fwrite(HDR.FILE.FID,HDR.FLAG.TRIGGERED,'int16');           % FLAG TRIGGERED
                 end;
-		HDR.FILE.status = fclose(HDR.FILE.FID);
-	        HDR.FILE.OPEN = 0;
 
 	elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
          	tmp = floor((EndPos - HDR.HeadLen) / HDR.AS.bpb);  % calculate number of records
@@ -128,8 +129,6 @@ if HDR.FILE.OPEN>=2,
                         fseek(HDR.FILE.FID,15,-1);
                         count = fwrite(HDR.FILE.FID,HDR.SPR,'int32');           % channels
 		end;
-		HDR.FILE.status = fclose(HDR.FILE.FID);
-	        HDR.FILE.OPEN = 0;
 
         elseif strcmp(HDR.TYPE,'SND');
                 HDR.SPR       = (EndPos-HDR.HeadLen)/HDR.AS.bpb;
@@ -142,8 +141,6 @@ if HDR.FILE.OPEN>=2,
                         fseek(HDR.FILE.FID,20,-1);
                         count = fwrite(HDR.FILE.FID,HDR.NS,'uint32');           % channels
 		end;
-		HDR.FILE.status = fclose(HDR.FILE.FID);
-	        HDR.FILE.OPEN = 0;
 
         elseif strcmp(HDR.TYPE,'AIF');
                 if HDR.FILE.OPEN==3;
@@ -154,8 +151,6 @@ if HDR.FILE.OPEN>=2,
                         fseek(HDR.FILE.FID,HDR.WAV.posis(2),-1);
                         count = fwrite(HDR.FILE.FID,EndPos-4-HDR.WAV.posis(2),'uint32');           % channels
 		end;
-		HDR.FILE.status = fclose(HDR.FILE.FID);
-	        HDR.FILE.OPEN = 0;
 
         elseif strcmp(HDR.TYPE,'WAV') ;
                 if HDR.FILE.OPEN==3;
@@ -166,19 +161,17 @@ if HDR.FILE.OPEN>=2,
                         fseek(HDR.FILE.FID,HDR.WAV.posis(2),-1);
                         count = fwrite(HDR.FILE.FID,EndPos-4-HDR.WAV.posis(2),'uint32');           % channels
 		end;
-		HDR.FILE.status = fclose(HDR.FILE.FID);
-	        HDR.FILE.OPEN = 0;
-
         end;
 end;
 
 if strcmp(HDR.TYPE,'FIF') ;
         rawdata('close');
         HDR.FILE.OPEN = 0;
+        HDR.FILE.status = 0;
 end;
 
 if HDR.FILE.OPEN,
         HDR.FILE.OPEN = 0;
-        HDR.ErrNo = fclose(HDR.FILE.FID);
+        HDR.FILE.status = fclose(HDR.FILE.FID);
 end;
         
