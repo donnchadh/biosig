@@ -1,29 +1,31 @@
-function [LDBC,ix]=ldbc(ECM,Y)
+function [LDBC,ix]=ldbc4(ECM,Y)
 % Linear discriminant based classifier
-% [LDBC] = ldbc2(ECM);
+% [LDBC] = ldbc4(ECM);
 % LDBC is a multiple discriminator
 %
-% The difference to LDBC.M is, that LDBC2.M can be used with 
-% more than two classes. The within-class covariance matrices, 
-% are used, whereas LDBC3.M uses the overall covariance matrix.
+% The difference to LDBC.M is, that LDBC[234].M can be used with 
+% more than two classes. The differences between LDBC2, LDBC3, and LDBC4
+% are related to the kind of used  covariance matric
+%      LDBC2	(m2-m1)/(cov1+cov2)	% average covariance
+%      LDBC3	(m2-m1)/(cov0)		% overall covariance
+%      LDBC4	(N1+N2)*(m2-m1)/(N1*cov1+N2*cov2)	% weighted cov
 %
-% [LD] = ldbc2(ECM,D);
-% calculates the LD to each class
-% [LD,ix] = ldbc2(ECM,D);
-% ix is the selected class
+% [LD] = ldbc4(ECM,D);
+% 	calculates the LD to each class
+% [LD,ix] = ldbc4(ECM,D);
+% 	ix is the selected class
 %
 % ECM 	is the extended covariance matrix
 % D     data
 %
 % LDBC  classifier
-% LD    mahalanobis distance
-% C     classification output
+% LD    distance 
+% ix     classification output
 % 
-% see also: DECOVM, R2, MDBC, LDBC, LDBC2
+% see also: COVM, MDBC, LDBC, LDBC2, LDBC3, LDBC4, TRAIN_SC, TEST_SC
 
-%	$Revision: 1.1 $
-%	$Id: ldbc4.m,v 1.1 2005-02-08 14:47:27 schloegl Exp $
-%	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: ldbc4.m,v 1.2 2005-03-08 11:40:55 schloegl Exp $
+%	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
