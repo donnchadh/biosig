@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.8 $
-%	$Id: scpopen.m,v 1.8 2004-02-11 18:20:35 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: scpopen.m,v 1.9 2004-05-02 11:00:02 schloegl Exp $
 %	(C) 2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -36,7 +36,7 @@ fid = fopen(HDR.FileName,PERMISSION,'ieee-le');
 if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
         HDR.FILE.CRC = fread(fid,1,'uint16');
         HDR.FILE.Length = fread(fid,1,'uint32');
-	HDR.SCP.data = [];
+	HDR.data = [];
         
         DHT = [0,1,-1,2,-2,3,-3,4,-4,5,-5,6,-6,7,-7,8,-8,9,-9;0,1,5,3,11,7,23,15,47,31,95,63,191,127,383,255,767,511,1023]';
         prefix  = [1,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10,10];
@@ -63,15 +63,14 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                 c   = c + 1;
         end;
         
-        
         K  = 0;
         section.CRC = fread(fid,1,'uint16');
         while ~feof(fid)
                 pos = ftell(fid);
-                section.ID  = fread(fid,1,'uint16');
-                section.Length = fread(fid,1,'uint32');
-                section.Version= fread(fid,[1,2],'uint8');
-                tmp = fread(fid,[1,6],'uint8');
+                section.ID      = fread(fid,1,'uint16');
+                section.Length  = fread(fid,1,'uint32');
+                section.Version = fread(fid,[1,2],'uint8');
+                section.tmp     = fread(fid,[1,6],'uint8');
                 
                 K = K + 1;
                 HDR.Section{K} = section;
@@ -84,12 +83,12 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         
                 elseif section.ID==1,
                         tag = 0; 
-                        k1 = 0;
+                        k1  = 0;
                         while tag~=255,
                                 tag = fread(fid,1,'uchar');    
                                 len = fread(fid,1,'uint16');    
                                 field = fread(fid,[1,len],'uchar');
-                                
+
                                 if tag == 0,	
                                         HDR.Patient.LastName = char(field);
                                 elseif tag == 1,
@@ -110,7 +109,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                         end;
                                         HDR.Patient.AgeUnit = unit;
                                 elseif tag == 5,
-                                        HDR.Patient.DateOfBirth = [field(1:2)*[1;256],field(3:4)];
+                                %        HDR.Patient.DateOfBirth = [field(1:2)*[1;256],field(3:4)];
                                 elseif tag == 6,
                                         HDR.Patient.Height = field(1:2)*[1;256];
                                         tmp = field(3);
@@ -259,7 +258,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 HDR.HeadLen = ftell(fid);
                                 HDR.FLAG.DIFF = SCP.FLAG.DIFF;
                                 HDR.FLAG.bimodal_compression = SCP.FLAG.bimodal_compression;
-                                HDR.SCP.data = [];
+                                HDR.data = [];
                         end;
 
                         if ~isfield(HDR,'SCP2'),
@@ -336,7 +335,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                 S2(:,k) = x';
 					else
 	                                        fprintf(HDR.FILE.stderr,'Error SCPOPEN: Huffman decoding failed (%i) \n',size(x,1));
-	    					HDR.SCP.data = S2;
+	    					HDR.data = S2;
 						return;
                                         end;
 				end;
@@ -428,7 +427,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                 S2(:,k) = x;
 					else
 	                                        fprintf(HDR.FILE.stderr,'Error SCPOPEN: Huffman decoding failed (%i) \n',size(x,1));
-	    					HDR.SCP.data=S2;
+	    					HDR.data=S2;
 						return;
                                         end;
                                 end;
@@ -473,7 +472,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 HDR.SCP6 = SCP;
                                 HDR.SampleRate = SCP.SampleRate;
                                 HDR.PhysDim = HDR.SCP6.PhysDim;
-                                HDR.SCP.data = S2;
+                                HDR.data = S2;
                                 
                                 if HDR.SCP6.FLAG.bimodal_compression,
                                         F = HDR.SCP5.SampleRate/HDR.SCP6.SampleRate;
@@ -523,7 +522,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                 S2(t1,:) = S2(t1,:) + HDR.SCP5.data(t0,:); 
                                         end;
                                 end;
-                                HDR.SCP.data = S2;
+                                HDR.data = S2;
                         end;
                         
                 elseif section.ID==7, 
@@ -607,10 +606,12 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                 section.CRC = fread(fid,1,'uint16');
         end;
         
-        HDR.FILE.FID = fid;
-        HDR.FILE.OPEN = 0; 
-        HDR.FILE.POS = 0; 
-        HDR.AS.bpb = 2 * HDR.NS;
+        HDR.FILE.FID  = fid;
+        HDR.FILE.OPEN = 1; 
+        HDR.FILE.POS  = 0; 
+        [HDR.SPR, HDR.NS] = size(HDR.data);
+        HDR.NRec = 1;
+        HDR.AS.endpos = HDR.SPR;
         
         fclose(HDR.FILE.FID);
 end;

@@ -21,9 +21,10 @@ function [HDR]=mwfopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % You should have received a copy of the GNU General Public License
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+        HDR.FILE.OPEN= 0; 
 
-%	$Revision: 1.2 $
-%	$Id: mwfopen.m,v 1.2 2004-04-08 16:46:54 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: mwfopen.m,v 1.3 2004-05-02 11:00:02 schloegl Exp $
 %	(C) 2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -45,7 +46,7 @@ HDR.Endianity= 'ieee-be';
 HDR.SampleRate = 1000;
 HDR.GDFTYP = 3;        
 HDR.AS.bps = 2;
-HDR.AS.MAXSPR = NaN;
+HDR.SPR = NaN;
 HDR.NS = 1; 
 HDR.NRec = NaN; 
 HDR.Off = 0; 
@@ -185,7 +186,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 HDR.MFER.WaveFormType = 'ECG_LTERM';
                         else
                                 HDR.MFER.WaveFormType = tmp;
-                        end
+			end
                         
                 elseif tag==9; 
                         [tmp,count] = fread(HDR.FILE.FID,[1,len],'uchar');
@@ -254,7 +255,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         [tmp,count] = fread(HDR.FILE.FID,2,'int8');
                         if     tmp(1)==0, HDR.PhysDim = 'V';
                         elseif tmp(1)==1, HDR.PhysDim = 'mmHg';
-                        elseif tmp(1)==2, HDR.PhysDim = 'Pa';
+                   	elseif tmp(1)==2, HDR.PhysDim = 'Pa';
                         elseif tmp(1)==3, HDR.PhysDim = 'cmH2O';
                         elseif tmp(1)==4, HDR.PhysDim = 'mmHg';
                         elseif tmp(1)==5, HDR.PhysDim = 'dyne';
@@ -326,43 +327,29 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         HDR.tag23 = char(tmp);
                         
                 elseif tag==30;          % 
-                        if length(HDR.SPR)==1,
-                                HDR.AS.spb = HDR.SPR*HDR.NS;
-                                HDR.SPR = HDR.SPR(ones(1,HDR.NS));
-                        else
-                                HDR.AS.spb = sum(HDR.SPR);
-                        end;
-                        HDR.AS.MAXSPR = HDR.SPR(1);
+			if isfield(HDR,'MFER');
+				if isfield(HDR.MFER,'SPR');
+	                                HDR.AS.spb = sum(HDR.MFER.SPR);
+				else
+	                                HDR.AS.spb = HDR.SPR*HDR.NS;
+        	                        HDR.MFER.SPR = HDR.SPR(ones(1,HDR.NS));
+				end;
+			end;					
+        
+                        HDR.SPR = HDR.MFER.SPR(1);
                         for k=2:HDR.NS,
-                                HDR.AS.MAXSPR = lcm(HDR.AS.MAXSPR,HDR.SPR(k));
+                                HDR.SPR = lcm(HDR.SPR,HDR.MFER.SPR(k));
                         end;
 
                         HDR.FRAME.N = HDR.FRAME.N + 1; 
                         HDR.FRAME.POS(HDR.FRAME.N) = ftell(HDR.FILE.FID);
-                        HDR.FRAME.LEN(HDR.FRAME.N) = len;
                         HDR.FRAME.TYP(HDR.FRAME.N) = HDR.GDFTYP;
-                        HDR.FRAME.sz(HDR.FRAME.N,1:3) = [HDR.AS.spb,HDR.NRec,HDR.NS];
+                        nos = len/(HDR.AS.bps*HDR.AS.spb);
+                        HDR.FRAME.sz(HDR.FRAME.N,1:5) = [HDR.AS.spb,nos,HDR.NRec,HDR.NS,len];
                         HDR.FRAME.Fs(HDR.FRAME.N) = HDR.SampleRate;
                         
-                        nos = len/(HDR.AS.bps*HDR.AS.spb);
-                        [tmp,count] = fread(HDR.FILE.FID,[HDR.AS.spb,nos],gdfdatatype(HDR.GDFTYP));
-                        if isnan(HDR.NRec),
-                                HDR.NRec = length(tmp)/(HDR.SPR*HDR.NS)
-                        end;
-                        %[size(tmp),count,HDR.SPR,HDR.NS,HDR.NRec]
-                        if HDR.NRec == 1, %% alternate mode format
-                                tmp = reshape(tmp,[HDR.AS.MAXSPR,HDR.NS]);
-                        else
-                                tmp = reshape(tmp,[HDR.SPR,HDR.NS,HDR.NRec]);   % convert into 3-Dim
-                                tmp = permute(tmp,[1,3,2]);                     % re-order dimensions
-                                tmp = reshape(tmp,[HDR.SPR*HDR.NRec,HDR.NS]);   % make 2-Dim 
-                        end;
-
-                        HDR.tag30 = tmp;
-                        if count==nos*HDR.SPR,
-                        elseif count>nos*HDR.SPR,
-                        elseif count>nos*HDR.SPR,
-                        end;
+                        fseek(HDR.FILE.FID,len,'cof');
+			
                         
                 elseif tag==63;     
                         chansel = mod(len,128)+1;
@@ -396,8 +383,8 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                         fprintf(2,'Error MWFOPEN: len=%i exceeds max length (4) in tag 04h\n',len);
                                                 end;
                                                 %[HDR.SPR,count] = fread(HDR.FILE.FID,[1,len],'uchar');
-                                                HDR.SPR(chansel) = tmp;
-                                                HDR.AS.MAXSPR = lcm(tmp,HDR.AS.MAXSPR);
+                                                HDR.MFER.SPR(chansel) = tmp;
+                                                HDR.SPR = lcm(tmp,HDR.SPR);
                                                 
                                         elseif (tag2 == 12), 
                                                 [tmp, count] = fread(HDR.FILE.FID,1,gdfdatatype(HDR.GDFTYP));
@@ -497,9 +484,8 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
         end;
 
         HDR.HeadLen = ftell(HDR.FILE.FID);
-        fclose(HDR.FILE.FID);
-        HDR.FILE.FID = -1;
-        HDR.FILE.OPEN= 0; 
+        HDR.FILE.POS  = 0; 
         HDR.Calib = sparse([HDR.Off(ones(1,HDR.NS/length(HDR.Off)));eye(HDR.NS)]);
         HDR.Calib = HDR.Calib * sparse(1:HDR.NS,1:HDR.NS,HDR.Cal);
 end;        
+

@@ -8,8 +8,8 @@ function [HDR]=sseek(HDR,offset,origin)
 %
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
-%	$Revision: 1.5 $
-%	$Id: sseek.m,v 1.5 2004-04-18 22:17:20 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: sseek.m,v 1.6 2004-05-02 11:00:02 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -39,18 +39,30 @@ end;
 
 if origin == -1, 
         HDR.FILE.POS = offset;
-        if HDR.FILE.FID>2,
-                HDR.FILE.status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*offset,-1);
+        if strmatch(HDR.TYPE,{'MFER','SCP'}),
+	elseif HDR.FILE.FID>2,
+                POS = HDR.HeadLen+HDR.AS.bpb*offset;
+                if POS~=ceil(POS),  % for alpha format
+                        fprintf(HDR.FILE.stderr,'Error STELL (alpha): starting position is non-integer\n');     
+                        return;
+                end
+                HDR.FILE.status = fseek(HDR.FILE.FID,POS,-1);
         end
         
 elseif origin == 0, 
         HDR.FILE.POS = HDR.FILE.POS + offset;
-        if HDR.FILE.FID>2,
-                HDR.FILE.status = fseek(HDR.FILE.FID,HDR.AS.bpb*offset,0);
+        if strmatch(HDR.TYPE,{'MFER','SCP'}),
+	elseif HDR.FILE.FID>2,
+                POS = HDR.AS.bpb*offset;
+                if POS~=ceil(POS),  % for alpha format
+                        fprintf(HDR.FILE.stderr,'Error STELL (alpha): starting position is non-integer\n');     
+                        return;
+                end
+                HDR.FILE.status = fseek(HDR.FILE.FID,POS,0);
         end
         
 elseif origin == 1, 
-	if strmatch(HDR.TYPE,{'EDF','GDF','BDF','CTF'),
+	if strmatch(HDR.TYPE,{'EDF','GDF','BDF','CTF'}),
 		HDR.FILE.POS = HDR.NRec+offset;
 		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.AS.bpb*offset,1);
 	elseif strmatch(HDR.TYPE,{'BKR','ISHNE','RG64','MIT','LABVIEW','SMA','BVbinmul'}),
@@ -59,9 +71,17 @@ elseif origin == 1,
 	elseif strmatch(HDR.TYPE,{'CNT','EEG','AVG','EGI','SND','WAV','AIF','CFWB','DEMG'}),
 		HDR.FILE.POS = HDR.AS.endpos+offset;
 		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.HeadLen+(HDR.AS.endpos+offset)*HDR.AS.bpb,-1);
+        elseif strmatch(HDR.TYPE,{'alpha'}),
+                POS = HDR.HeadLen+(HDR.AS.endpos+offset)*HDR.AS.bpb;
+                if POS~=ceil(POS),  % for alpha format
+                        fprintf(HDR.FILE.stderr,'Error STELL (alpha): starting position is non-integer\n');     
+                        return;
+                end
+		HDR.FILE.POS = HDR.AS.endpos+offset;
+		HDR.FILE.status = fseek(HDR.FILE.FID,POS,-1);
         elseif strmatch(HDR.TYPE,{'RDF','SIGIF'}),
 		HDR.FILE.POS = length(HDR.Block.Pos)+offset;
-        elseif strmatch(HDR.TYPE,{'BVascii','BVbinvec','EEProbe-CNT','EEProbe-AVR','FIF'}),
+        elseif strmatch(HDR.TYPE,{'BVascii','BVbinvec','EEProbe-CNT','EEProbe-AVR','FIF','MFER','SCP'}),
 		HDR.FILE.POS = HDR.AS.endpos+offset;
 	else
 		fprintf(HDR.FILE.stderr,'Warning SSEEK: format %s not supported.\n',HDR.TYPE);	

@@ -17,8 +17,8 @@ function [signal,H] = sload(FILENAME,CHAN)
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.24 $
-%	$Id: sload.m,v 1.24 2004-04-27 16:12:59 schloegl Exp $
+%	$Revision: 1.25 $
+%	$Id: sload.m,v 1.25 2004-05-02 11:00:01 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -138,15 +138,10 @@ FileExt = FileExt(2:length(FileExt));
 H.FileName = FILENAME;
 H = sopen(H,'rb',CHAN);
 
-if strcmp(H.TYPE,'SCPECG'),
-        signal = H.SCP.data(:,H.InChanSelect)*H.Calib(H.InChanSelect+1,:);
-        return;
-        
-        
-elseif H.FILE.FID>0,
+if H.FILE.OPEN,
         [signal,H] = sread(H);
         H = sclose(H);
-
+        
         
 elseif strcmp(H.TYPE,'XML'),
         fprintf(H.FILE.stderr,'Warning SLOAD: implementing XML not completed yet.\n');
@@ -163,48 +158,10 @@ elseif strcmp(H.TYPE,'XML'),
                 tmp = H.XML.component.series.derivation.Series.component.sequenceSet.component;
                 H.NS = length(tmp);
                 for k = 1:H.NS;
-                        str2double(tmp{k}.sequence.value.digits)';
+                        signal{k} = str2double(tmp{k}.sequence.value.digits)';
                 end;
                 H.TYPE = 'XML-FDA';     % that's an FDA XML file 
         catch
-        end;
-        
-elseif strcmp(H.TYPE,'MFER'),
-        signal = [ones(size(H.tag30,1),1),H.tag30(:,H.InChanSelect)]*H.Calib([1;1+H.InChanSelect],:);
-        
-elseif strcmp(H.TYPE,'alpha'),
-        if ~any(H.VERSION==[407.1,409.5]);
-                fprintf(H.FILE.stderr,'Warning SLOAD: Format ALPHA Version %6.2f not tested yet.\n',H.VERSION);
-        end;
-        
-        fid = fopen(fullfile(p,'rawdata'),'rb');
-        if fid > 0,
-                H.VERSION2  = fread(fid,1,'int16');
-                H.NS   = fread(fid,1,'int16');
-                H.bits = fread(fid,1,'int16');
-                H.AS.bpb = H.NS*H.bits/8;
-                
-                if H.bits==12,
-                        s = fread(fid,[3,inf],'uint8');
-                        s(1,:) = s(1,:)*16 + floor(s(2,:)/16); 	
-                        s(3,:) = s(3,:)+ mod(s(2,:),16)*256; 	
-                        s = reshape(s([1,3],:),1,2*size(s,2));
-                        signal = reshape(s(1:H.NS*H.SPR),H.NS,H.SPR)';
-                        signal = signal-(signal>=2^11)*2^12;
-                elseif H.bits==16,
-                        s = fread(fid,[H.NS,inf],'int16');
-                        signal = reshape(s(1:H.NS*H.SPR),H.NS,H.SPR)';
-                elseif H.bits==32,
-                        s = fread(fid,[H.NS,inf],'int32');
-                        signal = reshape(s(1:H.NS*H.SPR),H.NS,H.SPR)';
-                end;        
-                fclose(fid);
-                if CHAN==0,
-                        CHAN = 1:H.NS;
-                end;
-                signal = [ones(size(signal,1),1),signal(:,H.InChanSelect)]*H.Calib([1;H.InChanSelect+1],:);
-                %signal = [ones(size(signal,1),1),signal] * H.Calib;
-                % signal = signal * diag(H.Cal);
         end;
         
         
@@ -235,7 +192,8 @@ elseif strcmp(H.TYPE,'DAQ')
                 CHAN = 1:H.NS; 
         end;
         if ~H.FLAG.UCAL,
-        	signal = [ones(size(signal,1),1),signal]*H.Calib(:,CHAN);
+	        Calib = H.Calib;	% Octave can not index sparse matrices within a struct
+        	signal = [ones(size(signal,1),1),signal]*Calib(:,CHAN);
         end;
      
 elseif strncmp(H.TYPE,'MAT',3),

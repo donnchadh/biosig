@@ -11,8 +11,8 @@ function [POS,HDR] = stell(HDR)
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
 
-%	$Revision: 1.5 $
-%	$Id: stell.m,v 1.5 2004-04-18 22:17:20 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: stell.m,v 1.6 2004-05-02 11:00:02 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -23,7 +23,7 @@ if POS<0,
         return; 
 end;
 
-if strmatch(HDR.TYPE,'EDF','BDF','GDF','CTF'),
+if strmatch(HDR.TYPE,{'EDF','BDF','GDF','CTF'}),
 	POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
 	HDR.ERROR = [];
 	HDR.ErrNo = 0;
@@ -33,10 +33,10 @@ if strmatch(HDR.TYPE,'EDF','BDF','GDF','CTF'),
                 HDR.AS.startrec = POS;
         end;
 
-elseif strmatch(HDR.TYPE,{'BKR','ISHNE','CNT','EEG','AVG','MIT','RG64','LABVIEW','EGI','SMA','SND','WAV','AIF','CFWB','DEMG'}),
+elseif strmatch(HDR.TYPE,{'BKR','ISHNE','CNT','EEG','AVG','MIT','RG64','LABVIEW','EGI','SMA','SND','WAV','AIF','CFWB','DEMG','alpha'}),
 	POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
 
-elseif strmatch(HDR.TYPE,{'RDF','SIGIF','BVbinmul','BVbinvec','BVascii','EEProbe-CNT','EEProbe-AVR','FIF'}),
+elseif strmatch(HDR.TYPE,{'RDF','SIGIF','BVbinmul','BVbinvec','BVascii','EEProbe-CNT','EEProbe-AVR','FIF','MFER'}),
 	POS = HDR.FILE.POS;
 	
 else

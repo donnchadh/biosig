@@ -34,10 +34,12 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.18 $
-%	$Id: sread.m,v 1.18 2004-04-18 22:17:19 schloegl Exp $
+%	$Revision: 1.19 $
+%	$Id: sread.m,v 1.19 2004-05-02 11:00:01 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
+
+S = [];
 
 if nargin<2, NoS = inf; end;
 
@@ -146,6 +148,47 @@ elseif strcmp(HDR.TYPE,'LABVIEW'),
         end;
         
         
+elseif strcmp(HDR.TYPE,'alpha'),
+        if nargin==3,
+                POS = HDR.SampleRate*HDR.AS.bpb*StartPos;
+                if POS~=ceil(POS),
+                        fprintf(HDR.FILE.stderr,'Error SREAD (alpha): starting position is non-integer\n');     
+                        return;
+                end
+                fseek(HDR.FILE.FID,HDR.HeadLen + POS,'bof');        
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        
+        nr = min(HDR.SampleRate*NoS, HDR.SPR-HDR.FILE.POS)*HDR.AS.bpb;
+        %nr = HDR.SampleRate*NoS*HDR.AS.bpb;
+        if nr ~= ceil(nr),
+                fprintf(HDR.FILE.stderr,'Error SREAD (alpha): can not deal with odd number of samples \n');     
+                return;
+        end
+        
+        if HDR.bits==12,
+                [s,count] = fread(HDR.FILE.FID,[3,nr/3],'uint8');
+                s(1,:) = s(1,:)*16 + floor(s(2,:)/16); 	
+                s(3,:) = s(3,:)+ mod(s(2,:),16)*256; 	
+                s = reshape(s([1,3],:),2*size(s,2),1);
+                s = s - (s>=2^11)*2^12;
+		nr = floor(length(s)/HDR.NS);
+                S = reshape(s(1:nr*HDR.NS),HDR.NS,nr);
+                count = count*2/3;
+                
+        elseif HDR.bits==16,
+                [S,count] = fread(HDR.FILE.FID,[HDR.NS,nr],'int16');
+                
+        elseif HDR.bits==32,
+                [S,count] = fread(HDR.FILE.FID,[HDR.NS,nr],'int32');
+        end;        
+        
+        if count,
+                S = S(HDR.InChanSelect,:)';
+                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+        end;
+
+                
 elseif strcmp(HDR.TYPE,'MIT'),
         if nargin==3,
                 fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
@@ -435,6 +478,51 @@ elseif strcmp(HDR.TYPE,'CNT'),
         HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         
         
+elseif strcmp(HDR.TYPE,'MFER'),
+	if (HDR.FRAME.N ~= 1),
+		fprintf(2,'Warning MWFOPEN: files with more than one frame not implemented, yet.\n');
+		return;
+	end
+	
+	N = 1;
+	if ~isfield(HDR,'data'),
+		fseek(HDR.FILE.FID,HDR.FRAME.POS(N),'bof');
+		[tmp,count] = fread(HDR.FILE.FID,HDR.FRAME.sz(N,1:2),gdfdatatype(HDR.FRAME.TYP(N)));
+        	if isnan(HDR.NRec),
+        		HDR.NRec = count/(HDR.SPR*HDR.NS);
+        	end;
+
+        	if count==(HDR.SPR*HDR.NS), %% alternate mode format
+        		tmp = reshape(tmp,[HDR.SPR,HDR.NS]);
+        	else
+        	        tmp = reshape(tmp,[HDR.SPR,HDR.NS,HDR.NRec]);   % convert into 3-Dim
+        	        tmp = permute(tmp,[1,3,2]);                     % re-order dimensions
+        	        tmp = reshape(tmp,[HDR.SPR*HDR.NRec,HDR.NS]);   % make 2-Dim 
+        	end;
+		HDR.data = tmp;
+	end;
+
+	if nargin>2,
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        
+        nr = min(HDR.SampleRate*NoS,size(HDR.data,1)-HDR.FILE.POS);
+	S  = HDR.data(HDR.FILE.POS + (1:nr), HDR.InChanSelect);
+        HDR.FILE.POS = HDR.FILE.POS + nr;
+	
+        
+elseif strcmp(HDR.TYPE,'SCP'),
+	if nargin>2,
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+
+	nr = min(HDR.SampleRate * NoS, size(HDR.data,1) - HDR.FILE.POS);
+        
+        S  = HDR.data(HDR.FILE.POS + (1:nr), HDR.InChanSelect);
+        
+        HDR.FILE.POS = HDR.FILE.POS + nr;
+	
+        
 elseif strcmp(HDR.TYPE,'SIGIF'),
         if nargin==3,
                 HDR.FILE.POS = StartPos;
@@ -462,7 +550,6 @@ elseif strcmp(HDR.TYPE,'SIGIF'),
                 end;
                 S = [S; dat(HDR.InChanSelect,:)'];
         end;
-        
         
 elseif strcmp(HDR.TYPE,'CTF'),
         if nargin>2,
