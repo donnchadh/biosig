@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.19 $
-%	$Id: eegopen.m,v 1.19 2003-05-30 16:21:28 schloegl Exp $
+%	$Revision: 1.20 $
+%	$Id: eegopen.m,v 1.20 2003-06-02 22:43:49 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -84,7 +84,7 @@ if exist(HDR.FileName)==2,
                                 HDR.TYPE='ISHNE';
                         elseif strcmp(s,'POLY_SAM');	% Poly5/TMS32 sample file format.
                                 HDR.TYPE='TMS32';
-                        elseif strcmp(s,'"Snap-Ma');	% Snap-Master Data File .
+%                        elseif strcmp(s,'"Snap-Ma');	% Snap-Master Data File .
                                 HDR.TYPE='SMA';
                         elseif s(1)==207; 
                                 HDR.TYPE='BKR';
@@ -256,6 +256,118 @@ elseif strmatch(HDR.TYPE,{'CNT','AVG','EEG'}),
         end;
         
 
+elseif strcmp(HDR.TYPE,'ACQ'),
+    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+        if HDR.FILE.FID <= 0,
+                fprintf(HDR.FILE.stderr,'EEGOPEN TYPE=EGI: File %s couldnot be opened\n',HDR.FileName);
+                return;
+        end;        
+
+
+	%--------    Fixed Header        
+        ItemHeaderLen = fread(HDR.FILE.FID,1,'int16');
+        HDR.VERSION = fread(HDR.FILE.FID,1,'int32');
+        ExtItemHeaderLen = fread(HDR.FILE.FID,1,'int32');
+        HDR.NS = fread(HDR.FILE.FID,1,'int16');
+        HorizAxisType = fread(HDR.FILE.FID,1,'int16');
+        CurChannel = fread(HDR.FILE.FID,1,'int16');
+        SampleTime = fread(HDR.FILE.FID,1,'float64');
+	%HDR.SampleRate = 1/SampleTime;
+        HDR.TimeOffset = fread(HDR.FILE.FID,1,'float64');
+        HDR.TimeScale  = fread(HDR.FILE.FID,1,'float64');
+        TimeCursor1  = fread(HDR.FILE.FID,1,'float64');
+        TimeCursor2  = fread(HDR.FILE.FID,1,'float64');
+        rcWindow  = fread(HDR.FILE.FID,1,'float64');
+	MeasurementType = fread(HDR.FILE.FID,6,'int16');
+	HiLite = fread(HDR.FILE.FID,2,'uint8');
+        HDR.FirstTimeOffset = fread(HDR.FILE.FID,1,'float64');
+
+	if HDR.VERSION < 34, offset = 150;
+	elseif HDR.VERSION < 35, offset = 164; 
+	elseif HDR.VERSION < 36, offset = 326; 
+	elseif HDR.VERSION < 38, offset = 886; 
+	else offset = 1894; 
+	end;
+	
+	fseek(HDR.FILE.FID,offset,'bof');
+	
+	
+	%--------   Variable Header        
+	HDR.Comment = zeros(HDR.NS,40);
+	HDR.Off = zeros(HDR.NS,1);
+	HDR.Cal = ones(HDR.NS,1);
+	HDR.PhysDim = zeros(HDR.NS,20);
+	
+	for k = 1:HDR.NS;
+	        HDR.ChanHeaderLen  = fread(HDR.FILE.FID,1,'int32');
+        	DHR.ChanSel(k) = fread(HDR.FILE.FID,1,'int16');
+		HDR.Comment(no,1:40) = fread(HDR.FILE.FID,[1,40],'char');
+		rgbColor = fread(HDR.FILE.FID,4,'int8');
+		DispChan = fread(HDR.FILE.FID,2,'int8');
+		HDR.Off(k) = fread(HDR.FILE.FID,1,'float64');
+		HDR.Cal(k) = fread(HDR.FILE.FID,1,'float64');
+		HDR.PhysDim(k,1:20) = fread(HDR.FILE.FID,[1,20],'char');
+		HDR.SPR(k) = fread(HDR.FILE.FID,1,'int32');
+		HDR.AmpGain(k) = fread(HDR.FILE.FID,1,'float64');
+		HDR.AmpOff(k) = fread(HDR.FILE.FID,1,'float64');
+		ChanOrder = fread(HDR.FILE.FID,1,'int16');
+		DispSize = fread(HDR.FILE.FID,1,'int16');
+
+		if HDR.VERSION >= 34,
+			fseek(HDR.FILE.FID,10,'cof')	
+		end;
+		if HDR.VERSION >= 38,
+			HDR.Description(k,1:128) = fread(HDR.FILE.FID,[1,128],'char');
+			HDR.VarSampleDiv(k) = fread(HDR.FILE.FID,1,'uint16');
+		else
+			HDR.VarSampleDiv(k) = 1;
+		end;
+	end;
+	HDR.MAXSPR = lcm(HDR.VarSampleDiv);
+	HDR.SampleRate = 1./(HDR.VarSampleDiv*SampleTime);
+	HDR.Dur = HDR.MAXSPR*SampleTime;
+	
+	%--------   foreign data section
+	ForeignDataLength = fread(HDR.FILE.FID,1,'int16');
+	%ID = fread(HDR.FILE.FID,1,'');
+	fseek(HDR.FILE.FID,ForeignDataLength+2,'cof');
+
+
+	%--------   per channel data type section
+	offset3 = 0;
+	HDR.AS.bpb = 0;	
+	HDR.AS.spb = 0;	
+	for k = 1:HDR.NS,
+        	sz = fread(HDR.FILE.FID,1,'int16');
+		HDR.AS.bpb = HDR.AS.bpb + HDR.MAXSPR/HDR.VarSampleDiv(k)*sz; 
+		HDR.AS.spb = HDR.AS.spb + HDR.MAXSPR/HDR.VarSampleDiv(k); 
+		offset3 = offset3+HDR.SPR(k)*sz;
+
+		typ = fread(HDR.FILE.FID,1,'int16');
+		HDR.GDFTYP(k) = typ*14-11;   % 1 = int16; 2 = double
+	end;
+
+	HDR.HeadLen = offset + HDR.ChanHeaderLen*HDR.NS + ForeignDataLength + 4*HDR.NS; 
+	HDR.AS.endpos = HDR.HeadLen + offset3; 
+	fseek(HDR.FILE.FID,HDR.AS.endpos,'bof');	
+
+
+	%--------  Markers Header section
+	len = fread(HDR.FILE.FID,1,'int32');
+	HDR.NumEevents = fread(HDR.FILE.FID,1,'int32');
+	for k = 1:HDR.NumEvents, 
+		HDR.EVENT(k).Sample = fread(HDR.FILE.FID,1,'int32');
+		tmp = fread(HDR.FILE.FID,4,'int16');
+		HDR.EVENT(k).selected = tmp(1); 
+		HDR.EVENT(k).TextLocked = tmp(2); 
+		HDR.EVENT(k).PositionLocked = tmp(3); 
+		textlen = tmp(4);
+		HDR.EVENT(k).Text = fread(HDR.FILE.FID,textlen,'char');
+	end;
+	fseek(HDR.FILE.FID,HDR.HeadLen,'bof');	
+
+	
+        
 elseif strcmp(HDR.TYPE,'EGI'),
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
         if HDR.FILE.FID <= 0,
