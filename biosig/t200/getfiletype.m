@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.27 $
-%	$Id: getfiletype.m,v 1.27 2005-02-19 21:45:09 schloegl Exp $
+%	$Revision: 1.28 $
+%	$Id: getfiletype.m,v 1.28 2005-03-15 08:32:11 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -162,7 +162,7 @@ else
                         HDR.TYPE='SCP';
                 elseif strncmp(ss,'ATES MEDICA SOFT. EEG for Windows',32);	% ATES MEDICA SOFTWARE, NeuroTravel 
                         HDR.TYPE='ATES';
-                        HDR.Version = ss(35:42);
+                        HDR.VERSION = ss(35:42);
                 elseif strncmp(ss,'POLY_SAM',8);	% Poly5/TMS32 sample file format.
                         HDR.TYPE='TMS32';
                 elseif strncmp(ss,'"Snap-Master Data File"',23);	% Snap-Master Data File .
@@ -268,15 +268,11 @@ else
                         HDR.Endianity = 'ieee-le';
                         
                 elseif strncmp(ss,'HeaderLen=',10); 
-			tmp = ss(1:min(find((s==10) | (s==13))));
-			tmp(tmp=='=') = ' ';
-                        [t,status,sa] = str2double(tmp,[9,32],[10,13]);
-                        if strcmp(sa{3},'SourceCh') & strcmp(sa{5},'StatevectorLen') & ~any(status([2,4,6]))
-                                HDR.TYPE='BCI2000';
-                                HDR.HeadLen = t(2);
-                                HDR.NS = t(4);
-                                HDR.BCI2000.StateVectorLength = t(6);
-                        end;
+                        HDR.TYPE    = 'BCI2000'; 
+                        HDR.VERSION = 1;
+                elseif strncmp(ss,'BCI2000',7); 
+                        HDR.TYPE    = 'BCI2000'; 
+                        HDR.VERSION = 1.1;
                         
                 elseif strcmp(ss([1:4,9:12]),'RIFFCNT ')
                         HDR.TYPE='EEProbe-CNT';     % continuous EEG in EEProbe format, ANT Software (NL) and MPI Leipzig (DE)
@@ -382,8 +378,8 @@ else
                 elseif strncmp(ss,'GF1PATCH110',12); 
                         HDR.TYPE='GF1';
                 elseif strcmp(ss([1:6,12]),'(DWF V)'); 
-                        HDR.Version = str2double(ss(7:11));
-                        if ~isnan(HDR.Version),
+                        HDR.VERSION = str2double(ss(7:11));
+                        if ~isnan(HDR.VERSION),
                                 HDR.TYPE='IMAGE:DWF';           % Design Web Format  from Autodesk
                         end;
                 elseif strncmp(ss,'GIF8',4); 
@@ -424,17 +420,17 @@ else
                         HDR.TYPE='HRCH';
                 elseif strncmp(ss,'#Inventor V2.0 ascii',11)
                         HDR.TYPE='IV2';
-			HDR.Version = ss(12:14);
+			HDR.VERSION = ss(12:14);
                 elseif strncmp(ss,'HRCH: Softimage 4D Creative Environment',38)
                         HDR.TYPE='HRCH';
                 elseif all(s([1:2])==[1,218])
                         HDR.TYPE='RGB';
                 elseif strncmp(ss,'#$SMF',5)
                         HDR.TYPE='SMF';
-			HDR.Version = str2double(ss(7:10));
+			HDR.VERSION = str2double(ss(7:10));
                 elseif strncmp(ss,'#SMF',4)
                         HDR.TYPE='SMF';
-			HDR.Version = str2double(ss(5:8));
+			HDR.VERSION = str2double(ss(5:8));
                         
                 elseif all(s([1:4])==[127,abs('ELF')])
                         HDR.TYPE='ELF';
@@ -494,7 +490,7 @@ else
                 elseif all(s([1,3])==[10,1]) & any(s(2)==[0,2,3,5]) & any(s(4)==[1,4,8,24]) & any(s(59)==[4,3])
                         HDR.TYPE='PCX';
 			tmp = [2.5, 0, 2.8, 2.8, 0, 3];
-                        HDR.Version=tmp(s(2)+1);
+                        HDR.VERSION=tmp(s(2)+1);
 			HDR.Encoding = s(3);
 			HDR.BitsPerPixel = s(4);
 			HDR.NPlanes = s(65);
@@ -589,7 +585,7 @@ else
                         HDR.TYPE='VRML';
                 elseif strncmp(ss,'# vtk DataFile Version ',23); 
                         HDR.TYPE='VTK';
-			HDR.Version = ss(24:26);
+			HDR.VERSION = ss(24:26);
                 elseif all(ss(1:5)==[0,0,2,0,4]); 
                         HDR.TYPE='WKS';
                 elseif all(ss(1:5)==[0,0,2,0,abs('Q')]); 
@@ -610,7 +606,7 @@ else
                         HDR.TYPE='Z';
                 elseif all(s([1:4])==[80,75,3,4]) & (c>=30)
                         HDR.TYPE='ZIP';
-                        HDR.Version = s(5:6)*[1;256];
+                        HDR.VERSION = s(5:6)*[1;256];
                         HDR.ZIP.FLAG = s(7:8);
                         HDR.ZIP.CompressionMethod = s(9:10);
                         
@@ -729,6 +725,15 @@ else
                                 [tmp,tmp1,tmp2] = fileparts(tmp.name);
                                 HDR.FILE.Ext = tmp2(2:end);
                         end
+                        if isempty(tmp), 
+                                tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.vhdr']));
+                        end
+                        if isempty(tmp), 
+                                tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.VHDR']));
+                        end
+                        if ~isempty(tmp), 
+                                HDR = getfiletype(tmp);
+                        end
                         
                 elseif strcmpi(HDR.FILE.Ext,'rhf'),
                         HDR.FileName=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
@@ -784,15 +789,10 @@ else
                 elseif strcmpi(HDR.FILE.Ext,'sxi')
                         HDR.TYPE = 'SXI';
                         
-                        % the following are Brainvision format, see http://www.brainproducts.de
-                elseif exist(fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']), 'file')
-                        HDR.TYPE = 'BrainVision';
-                        HDR.FileName = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);	% point to header file
-                elseif strcmpi(HDR.FILE.Ext,'vmrk')
-                        HDR.TYPE = 'BrainVisionMarkerFile';
-                        
                 elseif strcmpi(HDR.FILE.Ext,'ent')
 			HDR.TYPE = 'XLTEK-EVENT';		
+                elseif strcmpi(HDR.FILE.Ext,'erd')
+			HDR.TYPE = 'XLTEK';		
 
                 elseif strcmpi(HDR.FILE.Ext,'etc')
 			HDR.TYPE = 'XLTEK-ETC';
@@ -801,12 +801,16 @@ else
 			HDR.TIMESTAMP = fread(fid,1,'int32');
 			fclose(fid);
 
-                elseif strcmpi(HDR.FILE.Ext,'seg')
+                        % the following are Brainvision format, see http://www.brainproducts.de
+                elseif strcmpi(HDR.FILE.Ext,'seg') | strcmpi(HDR.FILE.Ext,'vmrk')
                         % If this is really a BrainVision file, there should also be a
                         % header with the same name and extension *.vhdr.
-                        if exist(fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']), 'file')
-                                HDR.TYPE          = 'BrainVision';
-                                HDR.FileName = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);	% point to header file
+                        tmp = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);
+                        if exist(tmp, 'file')
+                                tmp = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.VHDR']);
+                        end;
+                        if exist(tmp, 'file')
+                                HDR = getfiletype(tmp);
                         end
                         
                 elseif strcmpi(HDR.FILE.Ext,'vabs')
