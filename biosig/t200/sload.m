@@ -30,8 +30,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.36 $
-%	$Id: sload.m,v 1.36 2004-10-05 19:54:02 schloegl Exp $
+%	$Revision: 1.37 $
+%	$Id: sload.m,v 1.37 2004-10-07 15:54:19 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -69,6 +69,7 @@ if (ischar(FILENAME) & any(FILENAME=='*'))
         FILENAME=f;
 end;        
 
+
 if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 	signal = [];
 	for k = 1:length(FILENAME),
@@ -78,7 +79,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			f = FILENAME(k);
 		end	
 
-		[s,h] = sload(f,CHAN,Fs);
+                [s,h] = sload(f,CHAN,Fs);
 		if k==1,
 			H = h;
 			signal = s;  
@@ -88,6 +89,24 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			if (H.SampleRate ~= h.SampleRate),
 				fprintf(2,'Warning SLOAD: sampling rates of multiple files differ %i!=%i.\n',H.SampleRate, h.SampleRate);
 			end;
+                        if ~isempty(h.EVENT.POS),
+                                H.EVENT.POS = [H.EVENT.POS; h.EVENT.POS+size(signal,1)-size(s,1)];
+                                H.EVENT.TYP = [H.EVENT.TYP; h.EVENT.TYP];
+                                if isfield(H.EVENT,'CHN');
+                                        H.EVENT.CHN = [H.EVENT.CHN; h.EVENT.CHN];
+                                end;
+                                if isfield(H.EVENT,'DUR');
+                                        H.EVENT.DUR = [H.EVENT.DUR; h.EVENT.DUR];
+                                end;
+                        end;			
+                        
+                        if isfield(h,'TRIG'), 
+                                if ~isfield(H,'TRIG'),
+                                        H.TRIG = [];
+                                end;
+                                H.TRIG = [H.TRIG(:); h.TRIG(:)+size(signal,1)];
+                        end;
+                        
 			if size(s,2)==size(signal,2), %(H.NS == h.NS) 
 				signal = [signal; repmat(NaN,100,size(s,2)); s];
 			else
@@ -115,22 +134,9 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
                                 end;
                                 H.Classlabel = [H.Classlabel(:);h.Classlabel(:)];
                         end;
-                        if h.EVENT.N > 0,
-                                H.EVENT.POS = [H.EVENT.POS; h.EVENT.POS+size(signal,1)-size(s,1)];
-                                H.EVENT.TYP = [H.EVENT.TYP; h.EVENT.TYP];
-                                if isfield(H.EVENT,'CHN');
-                                        H.EVENT.CHN = [H.EVENT.CHN; h.EVENT.CHN];
-                                end;
-                                if isfield(H.EVENT,'DUR');
-                                        H.EVENT.DUR = [H.EVENT.DUR; h.EVENT.DUR];
-                                end;
-                                H.EVENT.N   =  H.EVENT.N  + h.EVENT.N;
-                        end;			
                         clear s
                 end;
 	end;
-        ix = find(H.EVENT.TYP==hex2dec('0300')); 
-        H.TRIG = mod(H.EVENT.POS(ix),256);
         
 	fprintf(1,'  SLOAD: data segments are concanated with NaNs in between.\n');
 	return;	
@@ -147,7 +153,8 @@ else
 end;
 
 signal = [];
-H = sopen(FILENAME,'rb',CHAN);	
+
+H = sopen(FILENAME,'rb',CHAN);
 if isempty(H),
 	fprintf(2,'Warning SLOAD: no file found\n');
 	return;
@@ -533,6 +540,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                         H.ArtifactSelection(tmp.artifact)=1;
                 end;        
                 
+                
         elseif isfield(tmp,'EEGdata');  % Telemonitoring Daten (Reinhold Scherer)
                 H.NS = size(tmp.EEGdata,2);
                 H.NRec = 1; 
@@ -742,11 +750,6 @@ elseif strcmp(H.TYPE,'unknown')
         end;
 end;
 
-% Trigger information
-ix = find(H.EVENT.TYP==hex2dec('0300')); 
-H.TRIG = mod(H.EVENT.POS(ix),256);
-
-
 if strcmp(H.TYPE,'CNT');    
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.txt']); 
         if exist(f,'file'),
@@ -804,8 +807,8 @@ if ~isempty(findstr(upper(MODE),'TSD'));
 end;
 
 
-%%%%% if possible, load Reinhold's configuration files
-if any(strmatch(H.TYPE,{'BKR','GDF'}));
+if (isempty(H.EVENT.TYP) & strcmp(H.TYPE,'GDF')),
+        %%%%% if possible, load Reinhold's configuration files
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
         if exist(f,'file'),
                 x = load(f,'header');
@@ -822,17 +825,19 @@ if any(strmatch(H.TYPE,{'BKR','GDF'}));
                         end;
 		end;
         end;
-        
-        %%% Robert's VR data 
-        TRIGCHAN = strmatch('TRIGGER',H.Label); 
-        if ~isempty(TRIGCHAN) & isempty(H.EVENT.POS)
+end;    
+
+        %%% Get trigger information from Robert's VR data 
+if strcmp(H.TYPE,'BKR');
+        if ~isempty(strmatch('TRIGGER',H.Label)) & isempty(H.EVENT.POS)
+                TRIGCHAN = H.NS; %strmatch('TRIGGER',H.Label); 
                 if isfield(H,'TriggerOffset')
-                        H.EVENT.POS = gettrigger(signal(:,TRIGCHAN))-round(H.TriggerOffset/1000*H.SampleRate);
+                        H.TRIG = gettrigger(signal(:,TRIGCHAN))-round(H.TriggerOffset/1000*H.SampleRate);
                 else
-                        H.EVENT.POS = gettrigger(signal(:,TRIGCHAN));
+                        H.TRIG = gettrigger(signal(:,TRIGCHAN));
                 end;
+                H.EVENT.POS = H.TRIG; 
                 H.EVENT.TYP = repmat(hex2dec('0300'),size(H.EVENT.POS));
-                H.EVENT.N = length(H.EVENT.POS);
         end;
 end;
 

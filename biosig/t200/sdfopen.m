@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.26 $
-%	$Id: sdfopen.m,v 1.26 2004-10-07 12:42:28 schloegl Exp $
+%	$Revision: 1.27 $
+%	$Id: sdfopen.m,v 1.27 2004-10-07 15:54:19 schloegl Exp $
 %	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -510,10 +510,74 @@ EDF.AS.startrec = 0;
 EDF.AS.numrec = 0;
 EDF.AS.EVENTTABLEPOS = -1;
 
+EDF.Calib = [EDF.Off'; diag(EDF.Cal)];
+status = fseek(EDF.FILE.FID, 0, 'eof');
+EDF.FILE.size = ftell(EDF.FILE.FID);
+EDF.AS.endpos = EDF.FILE.size;
 
-% EDF+: 
-tmp = strmatch('EDF Annotations',EDF.Label);
-if strcmp(EDF.TYPE,'EDF') & (length(tmp)==1),
+%[status, EDF.AS.endpos, EDF.HeadLen, EDF.AS.bpb EDF.NRec, EDF.HeadLen+EDF.AS.bpb*EDF.NRec]
+if EDF.NRec == -1   % unknown record size, determine correct NRec
+        EDF.NRec = floor((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
+elseif  EDF.NRec ~= ((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
+        if ~strcmp(EDF.VERSION(1:3),'GDF'),
+                EDF.ErrNo=[16,EDF.ErrNo];
+                fprintf(2,'\nWarning SDFOPEN: size (%i) of file %s does not fit headerinformation\n',EDF.AS.endpos,EDF.FileName);
+                EDF.NRec = floor((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
+        else
+                EDF.AS.EVENTTABLEPOS = EDF.HeadLen + EDF.AS.bpb*EDF.NRec;
+        end;
+end; 
+
+
+if 0, 
+        
+elseif strcmp(EDF.TYPE,'GDF'), %EDF.AS.EVENTTABLEPOS > 0,  
+        fseek(EDF.FILE.FID, EDF.AS.EVENTTABLEPOS, 'bof');
+        EDF.EVENT.Version = fread(EDF.FILE.FID,1,'char');
+        tmp = fread(EDF.FILE.FID,3,'char');
+        EDF.EVENT.N = fread(EDF.FILE.FID,1,'uint32');
+        if EDF.EVENT.Version==1,
+                [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint32');
+                [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint16');
+                if any([c1,c2]~=EDF.EVENT.N) | (EDF.AS.endpos~=EDF.AS.EVENTTABLEPOS+8+EDF.EVENT.N*6),
+                        fprintf(2,'\nERROR SDFOPEN: Eventtable corrupted in file %s\n',EDF.FileName);
+                end
+        elseif EDF.EVENT.Version==3,
+                [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint32');
+                [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint16');
+                [EDF.EVENT.CHN,c3] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint16');
+                [EDF.EVENT.DUR,c4] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint32');
+                if any([c1,c2,c3,c4]~=EDF.EVENT.N) | (EDF.AS.endpos~=EDF.AS.EVENTTABLEPOS+8+EDF.EVENT.N*12),
+                        fprintf(2,'\nERROR SDFOPEN: Eventtable corrupted in file %s\n',EDF.FileName);
+                end
+        else
+                fprintf(2,'\nWarning SDFOPEN: Eventtable version %i not supported\n',EDF.EVENT.Version);
+        end;
+        EDF.AS.endpos = EDF.AS.EVENTTABLEPOS;   % set end of data block, might be important for SSEEK
+
+        % Classlabels according to 
+        % http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig/t200/eventcodes.txt
+        if (length(EDF.EVENT.TYP)>0)
+                ix = (EDF.EVENT.TYP>hex2dec('0300')) & (EDF.EVENT.TYP<hex2dec('030d'));
+                ix = ix | (EDF.EVENT.TYP==hex2dec('030f')); % unknown/undefined cue
+                EDF.Classlabel = mod(EDF.EVENT.TYP(ix),256);
+                EDF.Classlabel(EDF.Classlabel==15) = NaN; % unknown/undefined cue
+        end;
+
+        % Trigger information and Artifact Selection 
+        ix = find(EDF.EVENT.TYP==hex2dec('0300')); 
+        EDF.TRIG = EDF.EVENT.POS(ix);
+        EDF.ArtifactSelection = repmat(logical(0),length(ix),1);
+        for k = 1:length(ix),
+                ix2 = find(EDF.EVENT.POS(ix(k))==EDF.EVENT.POS);
+                if any(EDF.EVENT.TYP(ix2)==hex2dec('03ff'))
+                        EDF.ArtifactSelection(k) = logical(1);                
+                end;
+        end;
+        
+elseif strcmp(EDF.TYPE,'EDF') & (length(strmatch('EDF Annotations',EDF.Label))==1),
+        % EDF+: 
+        tmp = strmatch('EDF Annotations',EDF.Label);
         EDF.EDF.Annotations = tmp;
         EDF.Cal(EDF.EDF.Annotations) = 1;
         EDF.Off(EDF.EDF.Annotations) = 0;
@@ -550,7 +614,6 @@ if strcmp(EDF.TYPE,'EDF') & (length(tmp)==1),
                 end;
         end;
         EDF.EVENT.TYP(1:N,1) = 0;
-        EDF.EVENT.N = N; 
 
 elseif strcmp(EDF.TYPE,'EDF') & (length(EDF.FILE.Name)==8) & any(lower(EDF.FILE.Name(1))=='bchmnpsu') 
         if strcmp(lower(EDF.FILE.Name([3,6:8])),'001a'),
@@ -627,7 +690,6 @@ elseif strcmp(EDF.TYPE,'EDF') & (length(EDF.FILE.Name)==8) & any(lower(EDF.FILE.
 				EDF.EVENT.TYP = TYP(ix) + hex2dec('0100');
 				EDF.EVENT.CHN = CHN(ix);
 				EDF.EVENT.DUR = DUR(ix)*EVENT.Fs;
-				EDF.EVENT.N   = N;
 				
 				%EDF.EVENT.ERG = ERG;
 			end;
@@ -642,67 +704,12 @@ else
                 fclose(fid2);
                 [x,status] = str2double(char(tmp'));
                 if ~any(isnan(status(:))),
-                        EDF.EVENT.N   = size(x,1);
                         EDF.EVENT.POS = x(:,1);
                         EDF.EVENT.TYP = x(:,2);
                 end;
         end;
 end;
 
-
-EDF.Calib = [EDF.Off'; diag(EDF.Cal)];
-status = fseek(EDF.FILE.FID, 0, 'eof');
-EDF.FILE.size = ftell(EDF.FILE.FID);
-EDF.AS.endpos = EDF.FILE.size;
-
-%[status, EDF.AS.endpos, EDF.HeadLen, EDF.AS.bpb EDF.NRec, EDF.HeadLen+EDF.AS.bpb*EDF.NRec]
-if EDF.NRec == -1   % unknown record size, determine correct NRec
-        EDF.NRec = floor((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
-elseif  EDF.NRec ~= ((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
-        if ~strcmp(EDF.VERSION(1:3),'GDF'),
-                EDF.ErrNo=[16,EDF.ErrNo];
-                fprintf(2,'\nWarning SDFOPEN: size (%i) of file %s does not fit headerinformation\n',EDF.AS.endpos,EDF.FileName);
-                EDF.NRec = floor((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
-        else
-                EDF.AS.EVENTTABLEPOS = EDF.HeadLen + EDF.AS.bpb*EDF.NRec;
-        end;
-end; 
-
-if EDF.AS.EVENTTABLEPOS > 0,  
-        fseek(EDF.FILE.FID, EDF.AS.EVENTTABLEPOS, 'bof');
-        EDF.EVENT.Version = fread(EDF.FILE.FID,1,'char');
-        tmp = fread(EDF.FILE.FID,3,'char');
-        EDF.EVENT.N = fread(EDF.FILE.FID,1,'uint32');
-        if EDF.EVENT.Version==1,
-                [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint32');
-                [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint16');
-                if any([c1,c2]~=EDF.EVENT.N) | (EDF.AS.endpos~=EDF.AS.EVENTTABLEPOS+8+EDF.EVENT.N*6),
-                        fprintf(2,'\nERRR SDFOPEN: Eventtable corrupted in file %s\n',EDF.FileName);
-                end
-        elseif EDF.EVENT.Version==3,
-                [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint32');
-                [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint16');
-                [EDF.EVENT.CHN,c3] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint16');
-                [EDF.EVENT.DUR,c4] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint32');
-                if any([c1,c2,c3,c4]~=EDF.EVENT.N) | (EDF.AS.endpos~=EDF.AS.EVENTTABLEPOS+8+EDF.EVENT.N*12),
-                        fprintf(2,'\nERRR SDFOPEN: Eventtable corrupted in file %s\n',EDF.FileName);
-                end
-        else
-                fprintf(2,'\nWarning SDFOPEN: Eventtable version %i not supported\n',EDF.EVENT.Version);
-        end;
-        EDF.AS.endpos = EDF.AS.EVENTTABLEPOS;   % set end of data block, might be important for SSEEK
-
-        % Trigger information and Artifact Selection 
-        ix = find(EDF.EVENT.TYP==hex2dec('0300')); 
-        EDF.TRIG = EDF.EVENT.POS(ix);
-        EDF.ArtifactSelection = repmat(logical(0),length(ix),1);
-        for k = 1:length(ix),
-                ix2 = find(EDF.EVENT.POS(ix(k))==EDF.EVENT.POS);
-                if any(EDF.EVENT.TYP(ix2)==hex2dec('03ff'))
-                        EDF.ArtifactSelection(k) = logical(1);                
-                end;
-        end;
-end;
 
 fseek(EDF.FILE.FID, EDF.HeadLen, 'bof');
 EDF.FILE.POS = 0;

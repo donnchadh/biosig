@@ -1,4 +1,4 @@
-function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
+        function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % SOPEN opens signal files for reading and writing and returns 
 %       the header information. Many different data formats are supported.
 %
@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.69 $
-%	$Id: sopen.m,v 1.69 2004-10-05 19:51:34 schloegl Exp $
+%	$Revision: 1.70 $
+%	$Id: sopen.m,v 1.70 2004-10-07 15:54:19 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2138,7 +2138,7 @@ elseif strcmp(HDR.TYPE,'RDF'),
         % first pass, scan data
         totalsize = 0;
         tag = fread(HDR.FILE.FID,1,'uint32');
-        while(~feof(HDR.FILE.FID)),
+        while ~feof(HDR.FILE.FID),
                 if tag == hex2dec('f0aa55'),
                         cnt = cnt + 1;
                         HDR.Block.Pos(cnt) = ftell(HDR.FILE.FID);
@@ -2156,7 +2156,7 @@ elseif strcmp(HDR.TYPE,'RDF'),
                         %nlost = fread(HDR.FILE.FID,1,'uint16');
                         HDR.EVENT.N = tmp(9); %fread(HDR.FILE.FID,1,'uint16');
                         %fseek(HDR.FILE.FID,50,0);
-                        
+
                         % Read events
                         HDR.EVENT.POS = repmat(nan,HDR.EVENT.N,1);
                         HDR.EVENT.TYP = repmat(nan,HDR.EVENT.N,1);
@@ -2178,11 +2178,12 @@ elseif strcmp(HDR.TYPE,'RDF'),
                         tag = fread(HDR.FILE.FID,1,'uint32');
                 else
                         [tmp, c] = fread(HDR.FILE.FID,3,'uint16');
-			if (c>2),
+			if (c > 2),
 	                        nchans = tmp(2); %fread(HDR.FILE.FID,1,'uint16');
     		                block_size = 2^tmp(3); %fread(HDR.FILE.FID,1,'uint16');
                         
-            		        fseek(HDR.FILE.FID,62+4*(110-HDR.EVENT.N)+2*nchans*block_size,0);
+            		        %fseek(HDR.FILE.FID,62+4*(110-HDR.EVENT.N)+2*nchans*block_size,0);
+			        fseek(HDR.FILE.FID, 62 + 4*110 + 2*nchans*block_size, 0);
 			end;
                 end
                 tag = fread(HDR.FILE.FID,1,'uint32');
@@ -3828,8 +3829,8 @@ elseif strcmp(HDR.TYPE,'EEProbe-AVR'),
         
 elseif strncmp(HDR.TYPE,'FIF',3),
         if any(exist('rawdata')==[3,6]),
-		if isempty('FLAG_NUMBER_OF_OPEN_FIF_FILES')
-			FLAG_NUMBER_OF_OPEN_FIF_FILES = 0; 
+		if isempty(FLAG_NUMBER_OF_OPEN_FIF_FILES)
+			FLAG_NUMBER_OF_OPEN_FIF_FILES = 0;
 		end;	    
                 if ~any(FLAG_NUMBER_OF_OPEN_FIF_FILES==[0,1])
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): number of open FIF files must be zero or one\n\t Perhaps, you forgot to SCLOSE(HDR) the previous FIF-file.\n');
@@ -4085,13 +4086,5 @@ if any(PERMISSION=='r') & ~isnan(HDR.NS);
         HDR.Calib = sparse(HDR.Calib); 
 end;
         
-% Classlabels according to 
-% http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig/t200/eventcodes.txt
-if ~isfield(HDR,'Classlabel') & (length(HDR.EVENT.TYP)>0)
-        ix = (HDR.EVENT.TYP>hex2dec('0300')) & (HDR.EVENT.TYP<hex2dec('030d'));
-        ix = ix | (HDR.EVENT.TYP==hex2dec('030f')); % unknown/undefined cue
-        HDR.Classlabel = mod(HDR.EVENT.TYP(ix),256);
-        HDR.Classlabel(HDR.Classlabel==15) = NaN; % unknown/undefined cue
-end;
 
 
