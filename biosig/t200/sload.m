@@ -29,8 +29,8 @@ function [signal,H] = sload(FILENAME,CHAN,MODE)
 %
 
 
-%	$Revision: 1.55 $
-%	$Id: sload.m,v 1.55 2005-02-12 14:59:29 schloegl Exp $
+%	$Revision: 1.56 $
+%	$Id: sload.m,v 1.56 2005-02-22 09:58:09 schloegl Exp $
 %	Copyright (C) 1997-2005 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -93,6 +93,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			H.SegLen = [0,size(s,1)];
 		else
 			H.FILE(k) = h.FILE;
+                        H.T0(k,1:6) = h.T0;
 			if ~isnan(h.SampleRate) & (H.SampleRate ~= h.SampleRate),
 				fprintf(2,'Warning SLOAD: sampling rates of multiple files differ %i!=%i.\n',H.SampleRate, h.SampleRate);
 			end;
