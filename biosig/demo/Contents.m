@@ -1,7 +1,10 @@
-
-%	$Revision: 1.3 $
-%	$Id: Contents.m,v 1.3 2003-07-31 12:16:57 schloegl Exp $
-%	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
+% Demos of the BIOSIG-toolbox;
+% Version 0.26 06-Oct-2003
+%
+% Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
+% WWW: http://bisig.sf.net/
+% $Revision: 1.4 $
+% $Id: Contents.m,v 1.4 2003-10-13 18:32:05 schloegl Exp $
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -19,9 +22,10 @@
 % Boston, MA  02111-1307, USA.
 
 
-DEMO1.M	  QRS-Detection
-DEMO2.M   Estimate and validate BCI classifier
-DEMO3.M	  Demonstrates how the generate an EDF/GDF/BDF file
-DEMO4.M	  Demonstrates how the generate an BKR file
+DEMO1.M	  % QRS-Detection
+DEMO2.M   % Estimate and validate BCI classifier
+DEMO3.M	  % Demonstrates how the generate an EDF/GDF/BDF file
+DEMO4.M	  % Demonstrates how the generate an BKR file
+DEMO5.M	  % Demonstrates how the generate an WAV file
 
 

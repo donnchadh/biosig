@@ -1,7 +1,7 @@
 % DEMO 1 - identifies QRS-complexes
 
-%	$Revision: 1.2 $
-%	$Id: demo1.m,v 1.2 2003-05-22 16:29:31 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: demo1.m,v 1.3 2003-10-13 18:32:05 schloegl Exp $
 %	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This library is free software; you can redistribute it and/or
@@ -31,7 +31,7 @@ end
 
 CHAN = input('which channel?');
 if CHAN<1, CHAN=0; end;
-[s,h] = loadeeg(fullfile(P,F),CHAN);
+[s,h] = sload(fullfile(P,F),CHAN);
 Fs = h.SampleRate(min(length(h.SampleRate),CHAN));
 
 

@@ -4,8 +4,8 @@
 %     and contains a few tests 
 % 
 
-%	$Revision: 1.2 $
-%	$Id: demo4.m,v 1.2 2003-08-19 08:03:05 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: demo4.m,v 1.3 2003-10-13 18:32:05 schloegl Exp $
 %	Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This library is free software; you can redistribute it and/or
@@ -51,14 +51,14 @@ s = randn(1000,5);	% Generate Test data
 
 %%%%%%% 1st way to generate BKR-file
 HDR.FileName = F{1};	% Assign Filename
-HDR = eegopen(HDR,'w'); 	% OPEN BKR FILE
+HDR = sopen(HDR,'w'); 	% OPEN BKR FILE
 dig_values = s'*HDR.DigMax/HDR.PhysMax; 	% digital values without scaling, each row is a channel.
 fwrite(HDR.FILE.FID,dig_values,'int16'); 
 % number of channels [must be fixed before calling EEGCLOSE]
     HDR.NS = size(s,2);	
 % number of blocks [must be fixed before calling EEGCLOSE]
     HDR.NRec= 1;
-HDR = eegclose(HDR);            % CLOSE BKR FILE
+HDR = sclose(HDR);            % CLOSE BKR FILE
 
 %%%%%%% 2nd way to generate BKR-file
 % number of records, HDR.NRec must be fixed before EEGCLOSE, in case of triggered data (FLAG.TRIGGERED==1)
@@ -68,23 +68,24 @@ HDR = eegclose(HDR);            % CLOSE BKR FILE
 % if HDR.NRec is not set, and FLAG.TRIGGERED = 0, HDR.NRec is set to 1; 
 
 HDR.FileName = F{2};	% Assign Filename
-HDR = eegopen(HDR,'w'); 	% OPEN BKR FILE
-HDR = eegwrite(HDR,s);  	% WRITE BKR FILE
+HDR.Classlabel=[1,2,3,0,0];
+HDR = sopen(HDR,'w'); 	% OPEN BKR FILE
+HDR = swrite(HDR,s);  	% WRITE BKR FILE
 HDR.NRec = 1; 
-HDR = eegwrite(HDR,s);  	% WRITE BKR FILE
+HDR = swrite(HDR,s);  	% WRITE BKR FILE
 % number of blocks [must be fixed before calling EEGCLOSE]
 HDR.NRec = HDR.NRec+1; 
-HDR = eegclose(HDR);            % CLOSE BKR FILE
+HDR = sclose(HDR);            % CLOSE BKR FILE
 
 
 % read file 
-HDR = eegopen(HDR,'r'); 	% OPEN BKR FILE
-[s0,HDR] = eegread(HDR);  	% WRITE BKR FILE
-HDR = eegclose(HDR);
+HDR = sopen(HDR,'r'); 	% OPEN BKR FILE
+[s0,HDR] = sread(HDR);  	% WRITE BKR FILE
+HDR = sclose(HDR);
 
 
-[s1,H1]=loadeeg('test1.bkr');
-[s2,H2]=loadeeg('test2.bkr');
+[s1,H1]=sload('test1.bkr');
+[s2,H2]=sload('test2.bkr');
 
 
 
