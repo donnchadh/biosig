@@ -24,8 +24,8 @@ function [HDR,A] = artifact_selection(fn,t1,t2)
 %
 % see also: TRIGG, SOPEN, SCLOSE
 
-%	$Revision: 1.2 $
-% 	$Id: artifact_selection.m,v 1.2 2004-12-04 11:47:18 schloegl Exp $
+%	$Revision: 1.3 $
+% 	$Id: artifact_selection.m,v 1.3 2004-12-04 17:15:11 schloegl Exp $
 %	Copyright (c) 2004 by Alois Schloegl <a.schloegl@ieee.org>
 %
 
@@ -111,26 +111,31 @@ end;
 
 % prepare artifact information 
 ix  = find(bitand(HDR.EVENT.TYP,hex2dec('FFF0'))==hex2dec('0100'));
-A.EVENT.POS = [0; HDR.EVENT.POS(ix); HDR.EVENT.POS(ix) + HDR.EVENT.DUR(ix); inf];   % onset and offset 
-A.EVENT.TYP = [0; ones(length(ix),1); -ones(length(ix),1); 0];			% onset = +1, offset = -1;
+A.EVENT.POS = [HDR.EVENT.POS(ix); HDR.EVENT.POS(ix) + HDR.EVENT.DUR(ix); inf];   % onset and offset 
+A.EVENT.TYP = [ones(length(ix),1); -ones(length(ix),1); 0];			% onset = +1, offset = -1;
 [A.EVENT.POS, ix2] = sort(A.EVENT.POS);		%  sort the positions
 A.EVENT.TYP = A.EVENT.TYP(ix2);		
 
 % check each trial for an artifact. 
-ix1 = 1; ix2 = 1; a = 0; 
+ix1 = 1; ix2 = 1; a = 0; k=0;
+P1 = HDR.TRIG(ix1)+ti(1);
+P2 = A.EVENT.POS(ix2);
+P3 = HDR.TRIG(ix1)+ti(2);
 while (ix1<=length(HDR.TRIG)) & (ix2<length(A.EVENT.POS))
-
-	P1 = HDR.TRIG(ix1)+ti(1);
-	P2 = A.EVENT.POS(ix2);
-	a  = a + A.EVENT.TYP(ix2); 
-
-	if P1<P2, 
-		SEL(ix1) = (HDR.TRIG(ix1)+ti(2)>A.EVENT.POS(ix2));
+	k = k+1;
+	if P1<=P2, 
+		SEL(ix1) = (P3>P2) | a;
+		%fprintf(1,'%6i\t',-1,k,a, ix1,ix2,P1,P2,P3,SEL(ix1));
 		ix1 = ix1+1;
+		P1  = HDR.TRIG(ix1)+ti(1);
+		P3  = HDR.TRIG(ix1)+ti(2);
 	elseif P2<P1, 
-		SEL(ix1) = a; 	
+		a   = a + A.EVENT.TYP(ix2); 
+		%fprintf(1,'%6i\t',-2,k,a,ix1,ix2,P1,P2,P3,SEL(ix1));
 		ix2 = ix2+1;
+		P2  = A.EVENT.POS(ix2);
 	end;
+	%fprintf(1,'\n');
 end; 
 
 HDR.ArtifactSelection = SEL; 
