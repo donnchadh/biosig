@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.22 $
-%	$Id: eegopen.m,v 1.22 2003-06-10 10:15:44 schloegl Exp $
+%	$Revision: 1.23 $
+%	$Id: eegopen.m,v 1.23 2003-06-12 17:07:39 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -72,36 +72,36 @@ if exist(HDR.FileName)==2,
 		[s,c] = fread(fid,[1,32],'uchar');
                 if c,
 	                type_mat4=str2num(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
-	                s = char(s);
-                        if strncmp(s,'0       ',8); 
+	                ss = setstr(s);
+                        if strncmp(ss,'0       ',8); 
                                 HDR.TYPE='EDF';
-                        elseif all(abs(s(1:8))==[255,abs('BIOSEMI')]); 
+                        elseif all(s(1:8)==[255,abs('BIOSEMI')]); 
                                 HDR.TYPE='BDF';
-                        elseif strncmp(s,'GDF',3); 
+                        elseif strncmp(ss,'GDF',3); 
                                 HDR.TYPE='GDF';
-                        elseif strncmp(s,'Version ',8); 
+                        elseif strncmp(ss,'Version ',8); 
                                 HDR.TYPE='CNT';
-                        elseif strncmp(s,'ISHNE1.0',8);	% ISHNE Holter standard output file.
+                        elseif strncmp(ss,'ISHNE1.0',8);	% ISHNE Holter standard output file.
                                 HDR.TYPE='ISHNE';
-                        elseif strncmp(s,'POLY_SAM',8);	% Poly5/TMS32 sample file format.
+                        elseif strncmp(ss,'POLY_SAM',8);	% Poly5/TMS32 sample file format.
                                 HDR.TYPE='TMS32';
-                        elseif strncmp(s,'"Snap-Master Data File"',23);	% Snap-Master Data File .
+                        elseif strncmp(ss,'"Snap-Master Data File"',23);	% Snap-Master Data File .
                                 HDR.TYPE='SMA';
                         elseif s(1)==207; 
                                 HDR.TYPE='BKR';
-                        elseif strncmp(s,HDR.FILE.Name,length(HDR.FILE.Name)); 
+                        elseif strncmp(ss,HDR.FILE.Name,length(HDR.FILE.Name)); 
                                 HDR.TYPE='MIT';
-                        elseif strncmp(s,'RG64',4); 
+                        elseif strncmp(ss,'RG64',4); 
                                 HDR.TYPE='RG64';
-                        elseif strncmp(s,'DTDF',4); 
+                        elseif strncmp(ss,'DTDF',4); 
                                 HDR.TYPE='DDF';
-                        elseif strncmp(s,'RSRC',4);
+                        elseif strncmp(ss,'RSRC',4);
                                 HDR.TYPE='LABVIEW';
-                        elseif strncmp(s,'IAvSFo',6); 
+                        elseif strncmp(ss,'IAvSFo',6); 
                                 HDR.TYPE='SIG';
                         elseif any(s(4)==(2:7)) & all(s(1:3)==0); % [int32] 2...7
                                 HDR.TYPE='EGI';
-                        elseif strncmp(s,'rhdE',4);	% Holter Excel 2 file, not supported yet. 
+                        elseif strncmp(ss,'rhdE',4);	% Holter Excel 2 file, not supported yet. 
                                 HDR.TYPE='rhdE';          
 			elseif any(s(3:6)*(2.^[0;8;16;24]) == (30:40))
 				HDR.TYPE='ACQ';
@@ -114,9 +114,9 @@ if exist(HDR.FileName)==2,
 				HDR.TYPE='SEG2 b';
 					% SEG2 format specification: ftp://diftp.epfl.ch/pub/detec/doc/seg2.pdf
 
-                        elseif strncmp(char(s),'MATLAB Data Acquisition File.',29);% Matlab Data Acquisition File 
+                        elseif strncmp(ss,'MATLAB Data Acquisition File.',29);% Matlab Data Acquisition File 
 		                HDR.TYPE='DAQ';
-                        elseif strncmp(s,'MATLAB 5.0 MAT-file',19); 
+                        elseif strncmp(ss,'MATLAB 5.0 MAT-file',19); 
 		                HDR.TYPE='MAT5';
                         elseif any(~type_mat4),
                                 HDR.TYPE='MAT4';
@@ -158,7 +158,6 @@ elseif strcmp(HDR.TYPE,'DAT'),
                 [tmp,tmp1,HDR.FILE.Ext] = fileparts(fn(1).name);
         end
 end; 
-
 
 
 if strcmp(HDR.TYPE,'EDF'),
@@ -220,7 +219,7 @@ elseif strcmp(HDR.TYPE,'BKR'),
         end;
         
 
-elseif strmatch(HDR.TYPE,{'CNT','AVG','EEG'}),
+elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
 	if strcmp(PERMISSION,'r'),
 	        [HDR,H1,h2] = cntopen(HDR,'r',CHAN);
 	else
@@ -592,9 +591,12 @@ elseif strcmp(HDR.TYPE,'RDF'),
             			%cond_code = fread(HDR.FILE.FID,1,'uint8');
             			ev_code = fread(HDR.FILE.FID,1,'uint16');
 				ev_cnt  = ev_cnt + 1;
-            			ev(ev_cnt).sample_offset = tmp(1) + (cnt-1)*128;
-            			ev(ev_cnt).cond_code     = tmp(2);
-            			ev(ev_cnt).event_code    = ev_code;
+            			tmp2.sample_offset = tmp(1) + (cnt-1)*128;
+            			tmp2.cond_code     = tmp(2);
+                            	tmp2.event_code    = ev_code;
+                                if exist('OCTAVE_VERSION')<5, 	   
+                                        ev{ev_cnt} = tmp2;
+                                end;
     			end;
         		fseek(HDR.FILE.FID,4*(110-nevents)+2*nchans*block_size,0);
     		end
@@ -835,8 +837,9 @@ elseif strcmp(HDR.TYPE,'MIT')
 		for k=1:HDR.NS,
                         z = fgetl(fid);
                         [HDR.FILE.DAT,z]=strtok(z);
-                        [A,count,errmsg,nextidx] = sscanf(z, '%d %d %d %d %d %d %d ',[1,7]);
-                        HDR.Label{k}=z(nextidx:length(z));
+                        %[A,count,errmsg,nextidx] = sscanf(z, '%d %d %d %d %d %d %d ',[1,7]); % not supported by Octave 2.1.42
+                        for k0=1:7,[tmp,z]=strtok(z); A(k0)=str2num(tmp); end;
+                        HDR.Label{k}=z; 
 			dformat(k,1) = A(1);         % format; 
 			HDR.gain(k,1) = A(2);              % number of integers per mV
 			bitres(k,1) = A(3);            % bitresolution
@@ -1215,10 +1218,10 @@ elseif strcmp(HDR.TYPE,'MAT4'),
                 end;	
                 % end of ADI-Mode
         else        
-        %        fclose(HDR.FILE.FID);
-        %        HDR.FILE.FID = -1;
+                fclose(HDR.FILE.FID);
+                HDR.FILE.FID = -1;
         end;
-        
+
         
 elseif strcmp(HDR.TYPE,'ISHNE'),
 	if strcmp(PERMISSION,'r'),
