@@ -1,4 +1,4 @@
-function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
+function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % Opens EEG files for reading and writing. 
 % The following data formats are supported: EDF, BKR, CNT, BDF, GDF
 %
@@ -33,8 +33,8 @@ function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.11 $
-%	$Id: eegopen.m,v 1.11 2003-05-26 09:06:42 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: eegopen.m,v 1.12 2003-05-26 10:30:07 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -276,25 +276,74 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         numbegin=0;
         HDR.H1 = [];
         while ~numbegin,
-                line = fgets(HDR.FILE.FID);
+                line = fgetl(HDR.FILE.FID);
                 HDR.H1 = [HDR.H1 line];
-                if (length(line)>=8 & line(1:8)=='"NCHAN%"') 
-                        HDR.NS=str2num(line(findstr(line,'=')+1:end-1));
+                if strncmp('"NCHAN%"',line,8) 
+                        [tmp,line] = strtok(line,'=');
+                        [tmp,line] = strtok(line,'"=');
+                        HDR.NS = str2num(tmp);
                 end
-                if (length(line)>= 12 & line(1:12)=='"NUM.POINTS"') 
-                        HDR.NRec=str2num(line(findstr(line,'=')+1:end-1));
+                if strncmp('"NUM.POINTS"',line,12) 
+                        [tmp,line] = strtok(line,'=');
+                        [tmp,line] = strtok(line,'"=');
+                        HDR.SPR = str2num(tmp);
                 end
-                if (length(line)>= 10 & line(1:10)=='"ACT.FREQ"') 
-                        HDR.SampleRate=str2num(line(findstr(line,'=')+1:end-1));
+                if strncmp('"ACT.FREQ"',line,10) 
+                        [tmp,line] = strtok(line,'=');
+                        [tmp,line] = strtok(line,'"=');
+                        HDR.SampleRate= str2num(tmp);
                 end
-                if (length(line)>= 4 & line(1:4)=='"TR"') 
+                if strncmp('"DATE$"',line,7)
+                        [tmp,line] = strtok(line,'=');
+                        [date,line] = strtok(line,'"=');
+                        date(date=='-')=' ';
+                        date = str2num(date);
+                end
+                if strncmp('"TIME$"',line,7)
+                        [tmp,line] = strtok(line,'=');
+                        [time,line] = strtok(line,'"=');	
+                        time(time==':')=' ';
+                        time = str2num(time);
+                end
+                if strncmp('"UNITS$[]"',line,10)
+                        [tmp,line] = strtok(line,'=');
+                        for k=1:HDR.NS,
+                                [HDR.PhysDim{k},line] = strtok(line,[', =',10,13]);
+                        end;
+                end
+                if strncmp('"CHANNEL.RANGES[]"',line,18)
+                        [tmp,line] = strtok(line,'=');
+                        for k=1:HDR.NS,
+                                [tmp,line] = strtok(line,[' =',10,13]);
+                                tmp(tmp=='(' | tmp==')')=' ';
+                                tmp=str2num(tmp);
+                                HDR.PhysMin(k,1)=tmp(1);
+                                HDR.PhysMax(k,1)=tmp(2);
+                        end;
+                end
+                if strncmp('"CHAN$[]"',line,9)
+                        [tmp,line] = strtok(line,'=');
+                        for k=1:HDR.NS,
+                                [HDR.Label{k},line] = strtok(line,[', =',10,13]);
+                        end;
+                end
+                if 0,strncmp('"CHANNEL.LABEL$[]"',line,18)
+                        [tmp,line] = strtok(line,'=');
+                        for k=1:HDR.NS,
+                                [HDR.Label{k},line] = strtok(line,[', =',10,13]);
+                        end;
+                end
+                if strncmp(line,'"TR"',4) 
                         HDR.H1 = HDR.H1(1:length(HDR.H1)-length(line));
-                        line =fgets(HDR.FILE.FID); % get the time and date stamp line
+                        line = fgetl(HDR.FILE.FID); % get the time and date stamp line
+		        tmp=fread(HDR.FILE.FID,1,'uint8'); % read sync byte hex-AA char
+                        if tmp~=hex2dec('AA');
+                                fprintf(HDR.FILE.stderr,'Error EEGOPEN type=SMA: Sync byte is not "AA"\n');
+                        end;        
                         numbegin=1;
                 end
         end
-        
-        fseek(HDR.FILE.FID,1,0); % skip final hex-AA char
+        HDR.T0 = [date([3,1,2]),time];
         
         %%%%%%%%%%%%%%%%%%% check file length %%%%%%%%%%%%%%%%%%%%
         
@@ -303,21 +352,25 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         fseek(HDR.FILE.FID,0,'eof'); 
         HDR.AS.endpos = ftell(HDR.FILE.FID); 
         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
-        if HDR.AS.endpos-HDR.HeadLen ~= HDR.NS*HDR.NRec*4;
-                fprintf(2,'Error EEGOPEN TYPE=SMA: Header information does not fit size of file\n');
+        %[HDR.AS.endpos,HDR.HeadLen,HDR.NS,HDR.SPR,HDR.NS*HDR.SPR*4,HDR.AS.endpos-HDR.HeadLen - HDR.NS*HDR.SPR*4]
+        if HDR.AS.endpos-HDR.HeadLen ~= HDR.NS*HDR.SPR*4;
+                fprintf(HDR.FILE.stderr,'Warning EEGOPEN TYPE=SMA: Header information does not fit size of file\n');
+                fprintf(HDR.FILE.stderr,'\tProbably more than one data segment - this is not supported in the current version of EEGOPEN\n');
         end
         HDR.AS.bpb = HDR.NS*4;
         
-        HDR.SMA.EVENT_CHANNEL= 1;
-        HDR.SMA.EVENT_THRESH = 2.3;
+        if ~isfield(HDR,'SMA')
+	        HDR.SMA.EVENT_CHANNEL= 1;
+        	HDR.SMA.EVENT_THRESH = 2.3;
+        end;
         HDR.Filter.T0 = zeros(1,length(HDR.SMA.EVENT_CHANNEL));
         
         if CHAN==0,		
 		HDR.SIE.InChanSelect = 1:HDR.NS;
 		HDR.SIE.ChanSelect   = 2:HDR.NS;
 	elseif all(CHAN>0 & CHAN<=HDR.NS),
-		HDR.SIE.InChanSelect = [1;CHAN(:)+1];
-		HDR.SIE.ChanSelect = [1+CHAN];
+		HDR.SIE.InChanSelect = [HDR.SMA.EVENT_CHANNEL; CHAN(:)+1];
+		HDR.SIE.ChanSelect = [1+CHAN(:)];
 	else
 		fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
 		fclose(HDR.FILE.FID); 
