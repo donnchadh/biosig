@@ -34,8 +34,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.36 $
-%	$Id: eegopen.m,v 1.36 2003-09-06 18:31:07 schloegl Exp $
+%	$Revision: 1.37 $
+%	$Id: eegopen.m,v 1.37 2003-09-30 17:16:06 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -46,6 +46,6 @@ elseif ~any(PERMISSION=='b');
         PERMISSION = [PERMISSION,'b']; % force binary open. 
 end;
 if nargin<3, CHAN = 0; end; 
-if nargin<4, MODE = ''; end;
+if nargin<4, MODE = ' '; end;
 
-[HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE);
+[HDR] = sopen(arg1,PERMISSION,CHAN,MODE);
