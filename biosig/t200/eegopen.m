@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.25 $
-%	$Id: eegopen.m,v 1.25 2003-07-18 12:10:38 schloegl Exp $
+%	$Revision: 1.26 $
+%	$Id: eegopen.m,v 1.26 2003-07-19 14:01:46 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -163,16 +163,18 @@ elseif strcmp(HDR.TYPE,'DAT'),
 end; 
 
 
-if strcmp(HDR.TYPE,'EDF'),
+%if strmatch(HDR.TYPE,{'EDF','GDF','BDF'}),
+if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
+        if strcmp(HDR.TYPE,'BDF'),
+                HDR.VERSION=[char(255),'BIOSEMI'];
+        elseif strcmp(HDR.TYPE,'EDF');
+                HDR.VERSION='0       ';
+        elseif strcmp(HDR.TYPE,'GDF');
+                HDR.VERSION='GDF     ';
+        end;
         HDR = sdfopen(HDR,PERMISSION,CHAN);
 	HDR.FLAG.TRIGGERED = 0;	% Trigger Flag
-        
-elseif strcmp(HDR.TYPE,'BDF'),
-        HDR = sdfopen(HDR,PERMISSION,CHAN);
-	HDR.FLAG.TRIGGERED = 0;	% Trigger Flag
-        
-elseif strcmp(HDR.TYPE,'GDF'),
-        HDR = sdfopen(HDR,PERMISSION,CHAN);
+
         
 elseif strcmp(HDR.TYPE,'BKR'),
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
@@ -219,11 +221,7 @@ elseif strcmp(HDR.TYPE,'BKR'),
         
 
 elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
-	if strcmp(PERMISSION,'r'),
-	        [HDR,H1,h2] = cntopen(HDR,'r',CHAN);
-	else
-		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
-        end;
+        [HDR,H1,h2] = cntopen(HDR,PERMISSION,CHAN);
         
 
 elseif strcmp(HDR.TYPE,'ACQ'),
@@ -1174,7 +1172,8 @@ elseif strcmp(HDR.TYPE,'MAT4'),
                 end;	
                 
                 % Test if timeindex is increasing
-                if ~all(HDR.ADI.ti(2:end,2)>HDR.ADI.ti(1:end-1,1)), 
+		tmp = size(HDR.ADI.ti,1);
+                if ~all(HDR.ADI.ti(2:tmp,2)>HDR.ADI.ti(1:tmp-1,1)), 
                         HDR.ErrNo=-1;
                         fprintf(HDR.FILE.stderr,'Warning MATOPEN: Time index are not monotonic increasing !!!\n');
                         return;
