@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.44 $
-%	$Id: sopen.m,v 1.44 2004-04-09 13:16:39 oostenveld Exp $
+%	$Revision: 1.45 $
+%	$Id: sopen.m,v 1.45 2004-04-13 16:56:57 oostenveld Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -3396,7 +3396,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
           % parse the channel information
           for i=1:tmp.NumberOfChannels
             chan_str  = sprintf('Ch%d=', i);
-            chan_info = read_asa(headerfile, chan_str, '%s');
+            chan_info = read_ini(headerfile, chan_str, '%s');
             [t, r] = strtok(chan_info, ',');
             tmp.label{i} = t;
             if all(r(1:2)==',,')
@@ -3415,23 +3415,20 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         tmp.label      = tmp.label(:);
         tmp.reference  = tmp.reference(:);
         tmp.resolution = tmp.resolution(:);
-        if strcmpi(tmp.DataFormat, 'binary') & strcmpi(tmp.DataOrientation, 'multiplexed') & strcmpi(tmp.BinaryFormat, 'int_16')
-          % this is a known sub-format
-          % convert the header information to BIOSIG standards
-          HDR.FILE.FID = 1;               % ?
-          HDR.T0 = [0 0 0 0 0 0];         % there is no information about start time available
-          HDR.NS = tmp.NumberOfChannels;  % number of channels
-          HDR.SampleRate = 1e6/(tmp.SamplingInterval);      % sampling rate in Hz
-          HDR.NRec = 1;                   % it is a continuous datafile, therefore one record
-          % FIXME: the number of samples is unkown but could be determined from the length of the binary file
-          HDR.SPR = Inf;                  % total number of samples in the file
-          HDR.Dur = Inf;                  % total duration in seconds
-          HDR.Calib = [];                 % ?, probably something with tmp.resolution
-          HDR.Label = char(tmp.label);
-          HDR.PhysDim = 'uV';
-        else
-          fprintf(HDR.FILE.stderr,'ERROR SOPEN (BrainVision): File %s could not be opened - unknown subtype for BrainVision.\n',HDR.FileName);
-        end
+        % convert the header information to BIOSIG standards
+        HDR.FILE.FID = 1;               % ?
+        HDR.T0 = [0 0 0 0 0 0];         % there is no information about start time available
+        HDR.NS = tmp.NumberOfChannels;  % number of channels
+        HDR.SampleRate = 1e6/(tmp.SamplingInterval);      % sampling rate in Hz
+        HDR.NRec = 1;                   % it is a continuous datafile, therefore one record
+        % FIXME: the number of samples is unkown but could be determined from the length of the binary file
+        HDR.SPR = Inf;                  % total number of samples in the file
+        HDR.Dur = Inf;                  % total duration in seconds
+        HDR.Calib = [zeros(1,HDR.NS) ; diag(tmp.resolution)];  % is this correct?
+        HDR.Label = char(tmp.label);
+        HDR.PhysDim = 'uV';
+        % remember the details of the header, these are required when reading the binary data
+        HDR.details = tmp;
 
 elseif strcmp(HDR.TYPE,'EEProbe'),
         % The type 'EEProbe' does not yet completely specify the file, we have to
@@ -3450,7 +3447,7 @@ elseif strcmp(HDR.TYPE,'EEProbe'),
             HDR.NRec = 1;                   % it is always continuous data, therefore one record
             HDR.SPR = tmp.nsample;          % total number of samples in the file
             HDR.Dur = tmp.nsample/tmp.rate; % total duration in seconds
-            HDR.Calib = [];                 % ?, mex file returns calibrated data
+            HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
             HDR.Label = char(tmp.label);
             HDR.PhysDim = 'uV';
             % In principle it would also be possible now to check for the
@@ -3459,7 +3456,8 @@ elseif strcmp(HDR.TYPE,'EEProbe'),
             % the function read_eep_trg.
           catch
             fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): Cannot open EEProbe-file, because read_eep_cnt.mex not installed. \n');
-            fprintf(HDR.FILE.stderr,'see http://www.smi.auc.dk/~roberto/eeprobe/\n');
+            fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): see http://www.smi.auc.dk/~roberto/eeprobe/\n');
+            return;
           end
         elseif strcmp(HDR.FILE.Ext, 'avr')
           % it appears to be a EEProbe file with an averaged ERP
@@ -3477,17 +3475,21 @@ elseif strcmp(HDR.TYPE,'EEProbe'),
             HDR.NRec = 1;                   % it is an averaged ERP, therefore one record
             HDR.SPR = tmp.npnt;             % total number of samples in the file
             HDR.Dur = tmp.npnt/tmp.rate;    % total duration in seconds
-            HDR.Calib = [];                 % ?, mex file returns calibrated data
+            HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
             HDR.Label = char(tmp.label);
             HDR.PhysDim = 'uV';
+            HDR.FLAG.UCAL = 1;
             % Where do I put the information about the timing within the
             % single trial? The latency zero is not persee at the first
             % sample.
           catch
             fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): Cannot open EEProbe-file, because read_eep_avr.mex not installed. \n');
+            fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): see http://www.smi.auc.dk/~roberto/eeprobe/\n');
+            return;
           end
         else
           fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): File %s could not be opened - unknown subtype for EEProbe.\n',HDR.FileName);
+          return;
         end
 
 elseif strncmp(HDR.TYPE,'FIF',3),

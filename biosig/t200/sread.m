@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.15 $
-%	$Id: sread.m,v 1.15 2004-04-09 13:27:15 oostenveld Exp $
+%	$Revision: 1.16 $
+%	$Id: sread.m,v 1.16 2004-04-13 16:56:58 oostenveld Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -467,17 +467,18 @@ elseif strcmp(HDR.TYPE,'SIGIF'),
 elseif strcmp(HDR.TYPE,'EEProbe'),
   if nargin<3,
     % StartPos has not been specified
-    begsample = 1;
-    % FIXME: In general I would like to start reading at the position 
-    % in the file where the last SREAD ended. Where can I find that
-    % position? In other parts of the code I see HDR.FILE.POS and
-    % HDR.AS.bpb being used, but neither of them is defined in the
-    % documentation.
+    if ~isfield(HDR.FILE, 'POS')
+      % position in file is not specified, start with the first sample
+      HDR.FILE.POS = 1;
+    end
+    % start with the sample where the last sread-operation ended
+    begsample = HDR.FILE.POS;
   else
-    begsample = StartPos*HDR.SampleRate;
+    begsample = round(StartPos*HDR.SampleRate)+1;
   end 
-  endsample = begsample - 1 + NoS*HDR.SampleRate; % compute number of samples to read
-  endsample = min(endsample, HDR.SPR);            % do not read beyond end of file
+  endsample = round(begsample - 1 + NoS*HDR.SampleRate); % compute number of samples to read
+  endsample = min(endsample, HDR.SPR);                   % do not read beyond end of file
+  HDR.FILE.POS = endsample+1;                            % needed for subsequent calls
   % The type 'EEProbe' does not yet completely specify the file, we have to
   % look in more detail (currently only at the extension).
   if strcmp(HDR.FILE.Ext, 'cnt')
@@ -488,7 +489,7 @@ elseif strcmp(HDR.TYPE,'EEProbe'),
       fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): Cannot open EEProbe-file, because read_eep_cnt.mex not installed. \n');
       fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): You can downlad it from http://www.smi.auc.dk/~roberto/eeprobe/\n');
     end
-    S = tmp.data;
+    S = tmp.data';
   elseif strcmp(HDR.FILE.Ext, 'avr')
     try
       % it appears to be a EEProbe file with an averaged ERP
@@ -497,7 +498,7 @@ elseif strcmp(HDR.TYPE,'EEProbe'),
       fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): Cannot open EEProbe-file, because read_eep_avr.mex not installed. \n');
       fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): You can downlad it from http://www.smi.auc.dk/~roberto/eeprobe/\n');
     end
-    S = tmp.data(:,begsample:endsample);
+    S = tmp.data(:,begsample:endsample)';
   else
     fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): File %s could not be opened - unknown subtype for EEProbe.\n',HDR.FileName);
   end
@@ -505,22 +506,93 @@ elseif strcmp(HDR.TYPE,'EEProbe'),
   % so that the next SREAD knows where to continue
 
 elseif strcmp(HDR.TYPE,'BrainVision'),
-  fprintf(2,'Error SREAD: %s-format not supported yet.\n', HDR.TYPE);
-
-  % This code snippet shows how the data can be read from an *.eeg file.
-  % Opening of the file should be done in SOPEN, and seeking should be combined with
-  % keeping the file pointer position up-to-date.
-  %    begsample = ?;
-  %    endsample = ?;
-  %    fid = fopen(HDR.FileName, 'rb', 'ieee-le');
-  %    fseek(fid, HDR.NS*2*(begsample-1), 'cof');
-  %    [dat, siz] = fread(fid, [HDR.NS, (endsample-begsample+1)], 'int16');
-  %    fclose(fid);
-  % Compute real microvolts using the calibration factor (resolution).
-  % This should also be combined with HDR.Calib and SOPEN.
-  % Am I right that HDR.Calib == res?
-  %    res = sparse(diag(hdr.resolution));
-  %    dat = res * dat;
+  if nargin<3,
+    % StartPos has not been specified
+    if ~isfield(HDR.FILE, 'POS')
+      % position in file is not specified, start with the first sample
+      HDR.FILE.POS = 1;
+    end
+    % start with the sample where the last sread-operation ended
+    begsample = HDR.FILE.POS;
+  else
+    begsample = round(StartPos*HDR.SampleRate)+1;
+  end 
+  endsample = round(begsample - 1 + NoS*HDR.SampleRate); % compute number of samples to read
+  endsample = min(endsample, HDR.SPR);                   % do not read beyond end of file
+  HDR.FILE.POS = endsample+1;                            % needed for subsequent calls
+  
+  % make a copy of the header details that originate from the VMRK file
+  hdr = HDR.details;
+  if exist(hdr.DataFile)
+    filename = hdr.DataFile;
+  elseif exist([HDR.FILE.Path filesep hdr.DataFile])
+    filename = [HDR.FILE.Path filesep hdr.DataFile];
+  else
+    error('SREAD (BrainVision): could not locate datafile that belongs to this *.vhdr');
+  end    
+  
+  if strcmpi(hdr.DataFormat, 'binary') & strcmpi(hdr.DataOrientation, 'multiplexed') & strcmpi(hdr.BinaryFormat, 'int_16')
+    fid = fopen(filename, 'rb', 'ieee-le');
+    fseek(fid, hdr.NumberOfChannels*2*(begsample-1), 'cof');
+    [dat, siz] = fread(fid, [hdr.NumberOfChannels, (endsample-begsample+1)], 'int16');
+    fclose(fid);
+    % data should still be calibrated, but that is taken care of later
+    
+  elseif strcmpi(hdr.DataFormat, 'binary') & strcmpi(hdr.DataOrientation, 'multiplexed') & strcmpi(hdr.BinaryFormat, 'ieee_float_32')
+    fid = fopen(filename, 'rb', 'ieee-le');
+    fseek(fid, hdr.NumberOfChannels*4*(begsample-1), 'cof');
+    [dat, siz] = fread(fid, [hdr.NumberOfChannels, (endsample-begsample+1)], 'float32');
+    fclose(fid);
+    
+  elseif strcmpi(hdr.DataFormat, 'binary') & strcmpi(hdr.DataOrientation, 'vectorized') & strcmpi(hdr.BinaryFormat, 'ieee_float_32')
+    fid = fopen(filename, 'rb', 'ieee-le');
+    fseek(fid, 0, 'eof');
+    hdr.nSamples = ftell(fid)/(4*hdr.NumberOfChannels);
+    fseek(fid, 0, 'bof');
+    numsamples = (endsample-begsample+1);
+    for chan=1:hdr.NumberOfChannels
+      fseek(fid, (begsample-1)*4, 'cof');                 % skip the first N samples
+      [tmp, siz] = fread(fid, numsamples, 'float32');     % read these samples
+      fseek(fid, (hdr.nSamples-endsample)*4, 'cof');      % skip the last M samples
+      dat(chan,:) = tmp(:)';
+    end
+    fclose(fid);
+    
+  elseif strcmpi(hdr.DataFormat, 'ascii') & strcmpi(hdr.DataOrientation, 'multiplexed')
+    fid = fopen(filename, 'rt');
+    for line=1:(begsample-1)
+      % read first lines and discard the data in them
+      str = fgets(fid);
+    end
+    dat = zeros(endsample-begsample+1, hdr.NumberOfChannels);
+    for line=1:(endsample-begsample+1)
+      str = fgets(fid);			% read a single line with Nchan samples
+      str(find(str==',')) = '.';		% replace comma with point
+      dat(line,:) = str2num(str);
+    end
+    fclose(fid);
+    % transpose the data
+    dat = dat';
+    
+  elseif strcmpi(hdr.DataFormat, 'ascii') & strcmpi(hdr.DataOrientation, 'vectorized')
+    % this is a very inefficient fileformat to read data from, since it requires to
+    % read in all the samples of each channel and then select only the samples of interest
+    fid = fopen(filename, 'rt');
+    dat = zeros(hdr.NumberOfChannels, endsample-begsample+1);
+    for chan=1:hdr.NumberOfChannels
+      str = fgets(fid);			% read all samples of a single channel
+      str(find(str==',')) = '.';		% replace comma with point
+      tmp = str2num(str);
+      dat(chan,:) = tmp(begsample:endsample);
+    end
+    fclose(fid);
+    
+  else
+    error('SREAD (BrainVision): unsupported fileformat for data');
+  end
+  
+  % rename and transpose the data
+  S = dat';
 
 elseif strcmp(HDR.TYPE,'FIF'),
         %%%% #### FIX ME ####
