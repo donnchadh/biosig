@@ -2,6 +2,7 @@
 % For simiplicity we call all supported files "Biosig"-files.  
 % Currently, the following formats are are supported:
 %	AIFF/C	Apple's audio interchange format 
+%	ACQ	Biopac ACQ format 
 %	ADI/CFWB Chart (translated binary) format from ADInstruments
 %	alpha	alpha trace 
 %	BDF	Biosemi data format (EDF with 24bit integers)
@@ -72,8 +73,8 @@
 % [2] http://biosig.sf.net/
 %
 
-%	$Revision: 1.13 $
-%	$Id: Contents.m,v 1.13 2004-09-07 16:21:27 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: Contents.m,v 1.14 2004-09-09 15:21:37 schloegl Exp $
 %	CopyLeft (c) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 

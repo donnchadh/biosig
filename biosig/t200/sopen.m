@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.62 $
-%	$Id: sopen.m,v 1.62 2004-09-07 16:21:27 schloegl Exp $
+%	$Revision: 1.63 $
+%	$Id: sopen.m,v 1.63 2004-09-09 15:21:37 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -579,45 +579,43 @@ elseif strcmp(HDR.TYPE,'DEMG'),
         
         
 elseif strcmp(HDR.TYPE,'ACQ'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
         
         %--------    Fixed Header        
-        ItemHeaderLen = fread(HDR.FILE.FID,1,'int16');
-        HDR.VERSION = fread(HDR.FILE.FID,1,'int32');
-        ExtItemHeaderLen = fread(HDR.FILE.FID,1,'int32');
+        ItemHeaderLen = fread(HDR.FILE.FID,1,'uint16');
+        HDR.VERSION = fread(HDR.FILE.FID,1,'uint32');
+        HDR.ACQ.ExtItemHeaderLen = fread(HDR.FILE.FID,1,'uint32');
+
         HDR.NS = fread(HDR.FILE.FID,1,'int16');
-        HorizAxisType = fread(HDR.FILE.FID,1,'int16');
-        CurChannel = fread(HDR.FILE.FID,1,'int16');
-        SampleTime = fread(HDR.FILE.FID,1,'float64');
-        %HDR.SampleRate = 1/SampleTime;
-        HDR.TimeOffset = fread(HDR.FILE.FID,1,'float64');
+        HDR.ACQ.HorizAxisType = fread(HDR.FILE.FID,1,'int16');
+        HDR.ACQ.CurChannel = fread(HDR.FILE.FID,1,'int16');
+        HDR.ACQ.SampleTime = fread(HDR.FILE.FID,1,'float64')/1000;
+        HDR.SampleRate = 1/HDR.ACQ.SampleTime;
+        HDR.TimeOffset = fread(HDR.FILE.FID,1,'float64')/1000;
         HDR.TimeScale  = fread(HDR.FILE.FID,1,'float64');
-        TimeCursor1  = fread(HDR.FILE.FID,1,'float64');
-        TimeCursor2  = fread(HDR.FILE.FID,1,'float64');
-        rcWindow  = fread(HDR.FILE.FID,1,'float64');
-        MeasurementType = fread(HDR.FILE.FID,6,'int16');
-        HiLite    = fread(HDR.FILE.FID,2,'uint8');
+        HDR.ACQ.TimeCursor1  = fread(HDR.FILE.FID,1,'float64');
+        HDR.ACQ.TimeCursor2  = fread(HDR.FILE.FID,1,'float64');
+        HDR.ACQ.rcWindow  = fread(HDR.FILE.FID,1,'float64');
+        HDR.ACQ.MeasurementType = fread(HDR.FILE.FID,6,'int16');
+        HDR.ACQ.HiLite    = fread(HDR.FILE.FID,2,'uint8');
         HDR.FirstTimeOffset = fread(HDR.FILE.FID,1,'float64');
         
-        if     HDR.VERSION < 34, offset = 150;
-        elseif HDR.VERSION < 35, offset = 164; 
-        elseif HDR.VERSION < 36, offset = 326; 
-        elseif HDR.VERSION < 38, offset = 886; 
-        else   offset = 1894; 
-        end;
+        fseek(HDR.FILE.FID,HDR.ACQ.ExtItemHeaderLen,'bof');
+
+        % --------   Variable Header        
         
-        fseek(HDR.FILE.FID,offset,'bof');
-        
-        %--------   Variable Header        
-        HDR.Comment = zeros(HDR.NS,40);
+        % --------   Per Channel data section 
+        HDR.Labels = char(zeros(HDR.NS,40));
         HDR.Off = zeros(HDR.NS,1);
         HDR.Cal = ones(HDR.NS,1);
-        HDR.PhysDim = zeros(HDR.NS,20);
-        
+        HDR.ChanHeaderLen = zeros(HDR.NS,1);
+        HDR.PhysDim = char(zeros(HDR.NS,20));
+        offset = ftell(HDR.FILE.FID); 
         for k = 1:HDR.NS;
-                HDR.ChanHeaderLen  = fread(HDR.FILE.FID,1,'int32');
+                fseek(HDR.FILE.FID,offset+sum(HDR.ChanHeaderLen),'bof');
+                HDR.ChanHeaderLen(k) = fread(HDR.FILE.FID,1,'uint32');
                 HDR.ChanSel(k) = fread(HDR.FILE.FID,1,'int16');
-                HDR.Comment(no,1:40) = fread(HDR.FILE.FID,[1,40],'char');
+                HDR.Label(k,1:40) = fread(HDR.FILE.FID,[1,40],'char');
                 rgbColor = fread(HDR.FILE.FID,4,'int8');
                 DispChan = fread(HDR.FILE.FID,2,'int8');
                 HDR.Off(k) = fread(HDR.FILE.FID,1,'float64');
@@ -626,11 +624,11 @@ elseif strcmp(HDR.TYPE,'ACQ'),
                 HDR.SPR(k) = fread(HDR.FILE.FID,1,'int32');
                 HDR.AmpGain(k) = fread(HDR.FILE.FID,1,'float64');
                 HDR.AmpOff(k) = fread(HDR.FILE.FID,1,'float64');
-                ChanOrder = fread(HDR.FILE.FID,1,'int16');
-                DispSize = fread(HDR.FILE.FID,1,'int16');
+                HDR.ACQ.ChanOrder = fread(HDR.FILE.FID,1,'int16');
+                HDR.ACQ.DispSize = fread(HDR.FILE.FID,1,'int16');
                 
                 if HDR.VERSION >= 34,
-                        fseek(HDR.FILE.FID,10,'cof')	
+                        fseek(HDR.FILE.FID,10,'cof');
                 end;
                 if HDR.VERSION >= 38,
                         HDR.Description(k,1:128) = fread(HDR.FILE.FID,[1,128],'char');
@@ -639,43 +637,53 @@ elseif strcmp(HDR.TYPE,'ACQ'),
                         HDR.VarSampleDiv(k) = 1;
                 end;
         end;
-        HDR.Calib = [HDR.Cal(:);diag(HDR.Off)];
-        HDR.MAXSPR = lcm(HDR.VarSampleDiv);
-        HDR.SampleRate = 1./(HDR.VarSampleDiv*SampleTime);
-        HDR.Dur = HDR.MAXSPR*SampleTime;
+        HDR.Label = char(HDR.Label);
+        HDR.PhysDim = char(HDR.PhysDim);
+        HDR.Calib = [HDR.Off(:).';diag(HDR.Cal)];
+        HDR.MAXSPR = HDR.VarSampleDiv(1);
+        for k = 2:length(HDR.VarSampleDiv);
+                HDR.MAXSPR = lcm(HDR.MAXSPR,HDR.VarSampleDiv(k));
+        end;
+        HDR.ACQ.SampleRate = 1./(HDR.VarSampleDiv*HDR.ACQ.SampleTime);
+        HDR.SampleRate = 1/HDR.ACQ.SampleTime;
+        HDR.Dur = HDR.MAXSPR*HDR.ACQ.SampleTime;
         
         %--------   foreign data section
         ForeignDataLength = fread(HDR.FILE.FID,1,'int16');
-        %ID = fread(HDR.FILE.FID,1,'');
-        fseek(HDR.FILE.FID,ForeignDataLength+2,'cof');
+        HDR.ACQ.ForeignDataID = fread(HDR.FILE.FID,1,'uint16');
+        HDR.ACQ.ForeignData = fread(HDR.FILE.FID,[1,ForeignDataLength-4],'char');
+        %fseek(HDR.FILE.FID,ForeignDataLength-2,'cof');
         
         %--------   per channel data type section
         offset3 = 0;
         HDR.AS.bpb = 0;	
         HDR.AS.spb = 0;	
         for k = 1:HDR.NS,
-                sz = fread(HDR.FILE.FID,1,'int16');
+                sz = fread(HDR.FILE.FID,1,'uint16');
                 HDR.AS.bpb = HDR.AS.bpb + HDR.MAXSPR/HDR.VarSampleDiv(k)*sz; 
                 HDR.AS.spb = HDR.AS.spb + HDR.MAXSPR/HDR.VarSampleDiv(k); 
-                offset3 = offset3+HDR.SPR(k)*sz;
+                offset3 = offset3 + HDR.SPR(k) * sz;
                 
-                typ = fread(HDR.FILE.FID,1,'int16');
-                HDR.GDFTYP(k) = typ*14-11;   % 1 = int16; 2 = double
+                typ = fread(HDR.FILE.FID,1,'uint16');
+                HDR.GDFTYP(k) = 31-typ*14;   % 1 = int16; 2 = double
         end;
         
-        HDR.HeadLen = offset + HDR.ChanHeaderLen*HDR.NS + ForeignDataLength + 4*HDR.NS; 
+        HDR.HeadLen = HDR.ACQ.ExtItemHeaderLen + sum(HDR.ChanHeaderLen) + ForeignDataLength + 4*HDR.NS; 
+        HDR.FILE.POS = 0; 
+        HDR.FILE.OPEN = 1; 
         HDR.AS.endpos = HDR.HeadLen + offset3; 
         fseek(HDR.FILE.FID,HDR.AS.endpos,'bof');	
-        
+
         %--------  Markers Header section
-        len = fread(HDR.FILE.FID,1,'int32');
-        HDR.EVENT.N   = fread(HDR.FILE.FID,1,'int32');
+        len = fread(HDR.FILE.FID,1,'uint32');
+        HDR.EVENT.N   = fread(HDR.FILE.FID,1,'uint32');
         HDR.EVENT.POS = repmat(nan,HDR.EVENT.N  ,1);
         HDR.EVENT.TYP = repmat(nan,HDR.EVENT.N  ,1);
-        for k = 1:HDR.EVENT.N  , 
+
+        for k = 1:HDR.EVENT.N, 
                 %HDR.Event(k).Sample = fread(HDR.FILE.FID,1,'int32');
                 HDR.EVENT.POS(k) = fread(HDR.FILE.FID,1,'int32');
-                tmp = fread(HDR.FILE.FID,4,'int16');
+                tmp = fread(HDR.FILE.FID,4,'uint16');
                 HDR.Event(k).selected = tmp(1); 
                 HDR.Event(k).TextLocked = tmp(2); 
                 HDR.Event(k).PositionLocked = tmp(3); 
@@ -3786,6 +3794,28 @@ elseif strcmp(HDR.TYPE,'STX'),
                 fclose(HDR.FILE.FID);
         end
         
+        
+elseif strcmp(HDR.TYPE,'EXCEL'),
+        if ~isempty(strmatch('Beat-To-Beat',HDR.XLS.sheetNames)),
+                %%% a file from the TaskForceMonitor from CNSystems
+                if exist('OCTAVE_VERSION','builtin')                        
+                        [NUM,STR] = xlsread(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.txt']));
+                else
+                        [NUM,STR] = xlsread(HDR.FileName,'Beat-To-Beat');
+                end;
+                if ~isempty(findstr(STR{3,1},'---'))
+                        NUM(3,:) = [];    
+                        STR(3,:) = [];    
+                end;
+                
+                HDR.Label   = STR(4,:)';
+                HDR.PhysDim = STR(5,:)';
+                
+                HDR.TFM.S = NUM(6:end,:);
+                HDR.TFM.E = STR(6:end,:);
+                HDR.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
+        end;
+
         
 elseif strncmp(HDR.TYPE,'XML',3),
         if any(PERMISSION=='r'),

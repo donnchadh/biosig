@@ -1,5 +1,5 @@
 function [S,HDR] = sread(HDR,NoS,StartPos)
-% Loads selected seconds of an Signal file
+% SREAD loads selected seconds of a signal file
 %
 % [S,HDR] = sread(HDR [,NoS [,StartPos]] )
 % NoS       Number of seconds, default = 1 (second)
@@ -34,10 +34,10 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.25 $
-%	$Id: sread.m,v 1.25 2004-08-03 10:14:52 schloegl Exp $
-%	Copyright (c) 1997-2004 by Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Revision: 1.26 $
+%	$Id: sread.m,v 1.26 2004-09-09 15:21:37 schloegl Exp $
+%	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 S = [];
 
@@ -348,6 +348,23 @@ elseif strcmp(HDR.TYPE,'DEMG'),
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
         
+        
+elseif strcmp(HDR.TYPE,'ACQ'),
+        if nargin==3,
+                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        count = 0;
+        if all(HDR.GDFTYP==HDR.GDFTYP(1)) & all(HDR.SPR==HDR.SPR(1))
+                [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP(1)));
+        else
+                fprintf(HDR.FILE.FID,'Warning SREAD (ACQ): interleaved format not supported (yet).');
+        end;
+        if count,
+                S = S(HDR.InChanSelect,:)';
+                HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.spb;
+        end;
+
         
 elseif strcmp(HDR.TYPE,'CFWB'),
         if nargin==3,
@@ -727,7 +744,7 @@ elseif strcmp(HDR.TYPE,'XML-FDA'),   % FDA-XML Format
 
         
 elseif strcmp(HDR.TYPE,'FIF'),
-        % some parts of this code is from Robert Oostenveld, 
+        % some parts of this code are from Robert Oostenveld, 
         if ~(exist('rawdata')==3 & exist('channames')==3)
                 error('cannot find Neuromag import routines on your Matlab path (see http://boojum.hut.fi/~kuutela/meg-pd)');
         end

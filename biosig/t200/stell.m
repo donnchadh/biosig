@@ -11,8 +11,8 @@ function [POS,HDR] = stell(HDR)
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
 
-%	$Revision: 1.7 $
-%	$Id: stell.m,v 1.7 2004-06-16 18:24:41 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: stell.m,v 1.8 2004-09-09 15:21:37 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -33,7 +33,7 @@ if strmatch(HDR.TYPE,{'EDF','BDF','GDF','CTF'}),
                 HDR.AS.startrec = POS;
         end;
 
-elseif strmatch(HDR.TYPE,{'BKR','ISHNE','CNT','EEG','AVG','MIT','RG64','LABVIEW','EGI','SMA','SND','WAV','AIF','CFWB','DEMG','alpha'}),
+elseif strmatch(HDR.TYPE,{'ACQ','BKR','ISHNE','CNT','EEG','AVG','MIT','RG64','LABVIEW','EGI','SMA','SND','WAV','AIF','CFWB','DEMG','alpha'}),
 	POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
 
 elseif strmatch(HDR.TYPE,{'RDF','SIGIF','BVbinmul','BVbinvec','BVascii','EEProbe-CNT','EEProbe-AVR','FIF','GTEC','MFER'}),

@@ -21,8 +21,8 @@ function [status]=seof(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.7 $
-%	$Id: seof.m,v 1.7 2004-06-16 18:24:41 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: seof.m,v 1.8 2004-09-09 15:21:37 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -35,7 +35,7 @@ if strmatch(HDR.TYPE,{'EDF','BDF','GDF','CTF','RDF','EEG','AVG','SIGIF'}),
 	%if EDF.FILE.POS~=EDF.AS.startrec+EDF.AS.numrec;
         status = (HDR.FILE.POS >= HDR.NRec);
 	
-elseif strmatch(HDR.TYPE,{'RG64','LABVIEW','BVbinmul','BVbinvec','BVascii'}),
+elseif strmatch(HDR.TYPE,{'ACQ','RG64','LABVIEW','BVbinmul','BVbinvec','BVascii'}),
 	status = (HDR.FILE.POS >= (HDR.AS.endpos-HDR.HeadLen));
 
 elseif strmatch(HDR.TYPE,{'BKR','CNT','CTF','MIT','SMA','CFWB','DEMG','EEProbe-CNT','EEProbe-AVR','MFER','alpha','GTEC','SCP'}),
@@ -55,6 +55,3 @@ elseif strmatch(HDR.TYPE,{'FIF'}),
 else
 	status=feof(HDR.FILE.FID);
 end;
-
-
-

@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: getfiletype.m,v 1.1 2004-09-07 16:19:57 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: getfiletype.m,v 1.2 2004-09-09 15:21:36 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -43,6 +43,12 @@ if ~isstruct(arg1),
 else
         HDR = arg1;
 end;
+if ~isfield(HDR.FILE,'stderr'),
+        HDR.FILE.stderr = 2;
+end;
+if ~isfield(HDR.FILE,'stdout'),
+        HDR.FILE.stdout = 1;
+end;	
 
 HDR.TYPE = 'unknown';
 
@@ -221,7 +227,19 @@ else
                         HDR.TYPE='CFWB';
                         
                 elseif any(s(3:6)*(2.^[0;8;16;24]) == (30:40))
-                        HDR.TYPE='ACQ';
+                        HDR.VERSION = s(3:6)*(2.^[0;8;16;24]);
+                        offset2 = s(7:10)*(2.^[0;8;16;24]);
+                        
+                        if     HDR.VERSION < 34, offset = 150;
+                        elseif HDR.VERSION < 35, offset = 164; 
+                        elseif HDR.VERSION < 36, offset = 326; 
+                        elseif HDR.VERSION < 38, offset = 886; 
+                        else   offset = 1894; 
+                        end;
+                        if (offset==offset2),  
+                                HDR.TYPE = 'ACQ';
+                        end;
+                        
                 elseif all(s(1:4) == hex2dec(['FD';'AE';'2D';'05'])');
                         HDR.TYPE='AKO';
                 elseif all(s(1:2)==[hex2dec('55'),hex2dec('AA')]);
@@ -404,6 +422,13 @@ else
                 end;
         end;
         fclose(fid);
+
+        if exist('xlsfinfo','file')
+                [status, HDR.XLS.sheetNames] = xlsfinfo(HDR.FileName);
+                if ~isempty(status)
+                        HDR.TYPE = 'EXCEL';
+                end;
+        end;
         
         if strcmpi(HDR.TYPE,'unknown'),
                 % alpha-TRACE Medical software
