@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.15 $
-%	$Id: sopen.m,v 1.15 2003-12-18 15:32:31 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: sopen.m,v 1.16 2003-12-18 16:12:23 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -423,6 +423,7 @@ elseif strcmp(HDR.TYPE,'rhdE'),
 
 
 elseif strcmp(HDR.TYPE,'alpha'),
+        HDR.FILE.FID = -1;      % make sure SLOAD does not call SREAD;
         fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),'rt');
         if fid < 0,
                 fprintf(2,'Error SOPEN alpha-trace: couldnot open RAWHEAD\n');
@@ -440,6 +441,10 @@ elseif strcmp(HDR.TYPE,'alpha'),
                         end;	                        
                 end;
                 fclose(fid);
+                if ~isfield(H,'Version');
+                        HDR.TYPE = 'unknown';
+                        return;
+                end
                 HDR.VERSION = H.Version;
                 HDR.NS  = H.ChanCount;
                 HDR.SampleRate = H.SampleFreq;
@@ -502,11 +507,15 @@ elseif strcmp(HDR.TYPE,'alpha'),
                         end;	                        
                 end;
                 HDR.r_info = H;
-                if isfield(HDR,'RecDate');
-                        HDR.T0(1:3) = [str2num(HDR.RecTime(7:end)),str2num(HDR.RecTime(4:5)),str2num(HDR.RecTime(1:2))];
+                if isfield(H,'RecDate');
+                        pos = [1,find(H.RecDate=='.'),length(H.RecDate)];
+                        tmp = [str2num(H.RecDate(pos(3)+1:pos(4))),str2num(H.RecDate(pos(2)+1:pos(3)-1)),str2num(H.RecDate(pos(1):pos(2)-1))];
+                        HDR.T0(1:3) = tmp;
                 end;
-                if isfield(HDR,'RecTime');
-                        HDR.T0(4:6) = [str2num(HDR.RecTime(1:2)),str2num(HDR.RecTime(4:5)),str2num(HDR.RecTime(7:8))];
+                if isfield(H,'RecTime');
+                        pos = [1,find(H.RecTime=='.'),length(H.RecTime)];
+                        tmp = [str2num(H.RecTime(pos(1):pos(2)-1)),str2num(H.RecTime(pos(2)+1:pos(3)-1)),str2num(H.RecTime(pos(3)+1:pos(4)))];
+                        HDR.T0(4:6) = tmp; 
                 end;
         end;        
         
@@ -540,9 +549,8 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 HDR.EVENT.TYP = TYP;
                 HDR.EVENT.IO  = IO;
         end;
-        HDR.FILE.FID = -1;      % make sure SLOAD does not call SREAD;
 
-
+        
 elseif strcmp(HDR.TYPE,'DEMG'),
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');      % ### native should be fixed
         if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
