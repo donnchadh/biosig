@@ -4,10 +4,11 @@
 === INDEX  ===
 
 T100: [Data Acquistion] 
+---------------------------------------------
+
 
 T200: Data Formats
 ---------------------------------------------
-	SAVE2BKR	saves data into BKR format
 	EEGOPEN		opens biosig data and reads header information
 	EEGREAD		reads biosig data
 	EEGCLOSE	closes biosig file
@@ -16,25 +17,47 @@ T200: Data Formats
 	EEGTELL		returns file position indicator
 	EEGEOF		checks for end-of-file
 
+	LOADEEG 	Opens, reads all data and closes file Biosig files. 
+ 	and some utility functions
+
+
 T250: Quality Control and Artifact Processing
 ---------------------------------------------
 	EEG2HIST	calculates histogram
 	GETTRIGGER	gets trigger points
 	TRIGG		extract fixed-length trials around trigger points	
 
+
 T300: Signal Processing and Feature extraction
 ---------------------------------------------
+	AAR		adaptive autoregressive parameters
+
 
 T400: Classification, Single Trial Analysis, Statistics,
 ---------------------------------------------
+	LDBC		linear discriminant analysis
+	MDBC		mahalanobis distance based classifier
+	LLBC		log-likelihood based classifier
+	DECOVM		decomposes an "extended" covariance matrix	
+
+
 T490: Evaluation criteria
 ---------------------------------------------
+	AUC		area under the curve
+	ROC		receiver-operator-characteristics 	
+	MUTINFO		mutual information
+	QCMAHAL		quality check of multiple discriminator
+	KAPPA		kappa statistics
+
 
 T500: Presentation, Output
 ---------------------------------------------
+	plota		general plot functions for various data structures
+
 
 T550: Topographic Mapping, 3-dimensional display
 ---------------------------------------------
+
 
 T600: Interactive Viewer and Scoring  
 ---------------------------------------------

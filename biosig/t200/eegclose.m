@@ -1,0 +1,63 @@
+function [HDR]=eegclose(HDR)
+% [EEG]=eegclose(EEG)
+% Closes an EEG-File 
+%
+% see also: EEGOPEN, EEGREAD, EEGSEEK, EEGTELL, EEGCLOSE, EEGWRITE
+
+% This program is free software; you can redistribute it and/or
+% modify it under the terms of the GNU General Public License
+% as published by the Free Software Foundation; either version 2
+% of the License, or (at your option) any later version.
+% 
+% This program is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU General Public License for more details.
+% 
+% You should have received a copy of the GNU General Public License
+% along with this program; if not, write to the Free Software
+% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+%	$Revision: 1.1 $
+%	$Id: eegclose.m,v 1.1 2003-02-01 15:03:45 schloegl Exp $
+%	Copyright (C) 1997-2003 by Alois Schloegl
+%	a.schloegl@ieee.org
+
+
+if HDR.FILE.FID<0, return; end;
+        
+if HDR.FILE.OPEN>=2,
+        status = fseek(HDR.FILE.FID, 0, 'eof'); % go to end-of-file
+        EndPos = ftell(HDR.FILE.FID);           % get file length
+        
+        % check file length - simple test for file integrity         
+        if strcmp(HDR.TYPE,'BKR');
+                % check whether Headerinfo fits to file length.
+                HDR.AS.EndPos = (EndPos-HDR.HeadLen)/(HDR.NRec*HDR.NS*2);
+                HDR.SPR       = (EndPos-HDR.HeadLen)/(HDR.NRec*HDR.NS*2);
+                if HDR.FILE.OPEN==3,
+			fclose(HDR.FILE.FID);
+			HDR.FILE.FID = fopen(HDR.FileName,'r+');
+        		fseek(HDR.FILE.FID,9,'bof');
+               		count = fwrite(HDR.FILE.FID,HDR.SPR,'uint32');             % samples/trial/channel
+		end;
+		HDR.FILE.status = fclose(HDR.FILE.FID);
+	        HDR.FILE.OPEN = 0;
+
+	elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
+        
+        	tmp = floor((EndPos - HDR.HeadLen) / HDR.AS.bpb);  % calculate number of records
+        	if ~isnan(tmp)
+        	        HDR.NRec=tmp;
+        	end;
+        	%fclose(HDR.FILE.FID);
+        	HDR=sdfopen(HDR,'w+');                    % update header information
+	end;
+
+end;
+
+if HDR.FILE.OPEN,
+        HDR.FILE.OPEN = 0;
+        HDR.ErrNo = fclose(HDR.FILE.FID);
+end;
+        
