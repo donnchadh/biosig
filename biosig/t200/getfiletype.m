@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.28 $
-%	$Id: getfiletype.m,v 1.28 2005-03-15 08:32:11 schloegl Exp $
+%	$Revision: 1.29 $
+%	$Id: getfiletype.m,v 1.29 2005-03-20 21:55:48 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -104,6 +104,7 @@ else
                 %%%% file type check based on magic numbers %%%
                 type_mat4 = str2double(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
                 ss = char(s);
+		pos1_ascii10 = min(find(s==10));
                 if 0,
                 elseif all(s(1:2)==[207,0]);
                         HDR.TYPE='BKR';
@@ -120,6 +121,8 @@ else
                         HDR.TYPE='GDF';
                 elseif strncmp(ss,'EBS',3); 
                         HDR.TYPE='EBS';
+                %elseif all(s(1:4) == [hex2dec(['5f';'09';'a7';'82'])]'); 
+                        %HDR.TYPE='ASN.1';
                 elseif strncmp(ss,'CEN',3) & all(s(6:8)==hex2dec(['1A';'04';'84'])') & (all(s(4:5)==hex2dec(['13';'10'])') | all(s(4:5)==hex2dec(['0D';'0A'])')); 
                         HDR.TYPE='FEF';
                         HDR.VERSION   = str2double(ss(9:16))/100;
@@ -130,7 +133,7 @@ else
                                 HDR.Endianity = 'ieee-le';
                         end;
                         if any(s(4:5)~=[13,10])
-                                fprintf(2,'Warning GETFILETYPE (FEF): incorrect preamble in file %s\n',HDR.FileName);
+                        %        fprintf(2,'Warning GETFILETYPE (FEF): incorrect preamble in file %s\n',HDR.FileName);
                         end;
                         
                 elseif strncmp(ss,'MEG41CP',7); 
@@ -167,7 +170,7 @@ else
                         HDR.TYPE='TMS32';
                 elseif strncmp(ss,'"Snap-Master Data File"',23);	% Snap-Master Data File .
                         HDR.TYPE='SMA';
-                elseif all(s([1:2,20])==[1,0,0]) & any(s(19)==[2,4]); 
+                elseif 0, all(s([1:2,20])==[1,0,0]) & any(s(19)==[2,4]); 
                         HDR.TYPE='TEAM';	% Nicolet TEAM file format
                 elseif strncmp(ss,HDR.FILE.Name,length(HDR.FILE.Name)); 
                         HDR.TYPE='MIT';
@@ -350,7 +353,7 @@ else
                 elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
                         HDR.TYPE = 'WFT';	% nicolet
                         
-                elseif all(s(1:3)==[255,255,254]); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
+                elseif all(s(1:3)==[255,255,254]) & any(s==10) & all(s(4:pos1_ascii10)>=32 | s(4:pos1_ascii10)<128); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
                         HDR.TYPE='FS3';
                 elseif all(s(1:3)==[255,255,255]); 	% FREESURVER QUAD_FILE_MAGIC_NUMBER or CURVATURE
                         HDR.TYPE='FS4';
@@ -547,7 +550,8 @@ else
                         HDR.TYPE='LZH';
                 elseif strcmp(ss(1:3),'MMD'); 
                         HDR.TYPE='MED';
-                elseif (s(1)==255) & any(s(2)>=224); 
+                elseif 0, % conflict with some WFDB-data
+			%(s(1)==255) & any(s(2)>=224); 
                         HDR.TYPE='MPEG';
                 elseif strncmp(ss(5:8),'mdat',4); 
                         HDR.TYPE='MOV';
@@ -711,8 +715,10 @@ else
                         % MIT-ECG / Physiobank format
                 elseif strcmpi(HDR.FILE.Ext,'HEA'), HDR.TYPE='MIT';
 
-                elseif strcmpi(HDR.FILE.Ext,'ATR'), HDR.TYPE='MIT-ATR';
-                        
+			% Physiobank annotation files 
+		elseif strmatch(HDR.FILE.Ext,{'16a','abp','al','ari','atr','atr-','pap','ple','qrs','qrsc','sta','stb','stc'}),  
+			HDR.TYPE='MIT-ATR';
+			
                 elseif strcmpi(HDR.FILE.Ext,'DAT') & (upper(HDR.FILE.Name(1))=='E')
                         
                 elseif strcmpi(HDR.FILE.Ext,'DAT') 
