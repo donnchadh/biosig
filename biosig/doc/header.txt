@@ -30,6 +30,11 @@ HDR.NRec		integer		number of records or blocks; 1 for continous data
 HDR.SPR			integer		samples per record  
 HDR.Dur			float		Duration (in [s]) of minimal block length
 
+HDR.EVENT.POS		uint32		Position of event 
+HDR.EVENT.TYP		uint16		Type of event
+HDR.EVENT.CHN		uint16		channel event
+HDR.EVENT.DUR		uint32		event duration 
+
 
 # # # # optional # # # # 
 
@@ -50,6 +55,21 @@ HDR.FLAG.REFERENCE	string          COM, CAR: common average reference; LOC,LAR l
 	
 HDR.Classlabel		int		0: left, 1: right, etc. 
 
+
+HDR.ID.Doctor				Identification of doctor
+HDR.ID.Hospital				Identification of Hospital
+HDR.Patient.Name			Name of Patient 
+HDR.Patient.Age				Age of Patient
+HDR.Patient.Sex				Patient Gender
+HDR.Patient.Handedness			Patient Handedness
+HDR.Patient.Medication			Medication
+HDR.Patient.Classification		Classification of Patient
+
+HDR.EVENT.N				number of events
+HDR.EVENT.POS		uint32		Position of event 
+HDR.EVENT.TYP		uint16		Type of event
+HDR.EVENT.CHN		uint16		channel event
+HDR.EVENT.DUR		uint32		event duration 
 
 
 

@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.11 $
-%	$Id: sopen.m,v 1.11 2003-10-25 08:55:15 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: sopen.m,v 1.12 2003-11-02 21:26:16 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -428,14 +428,14 @@ elseif strcmp(HDR.TYPE,'ACQ'),
         TimeCursor2  = fread(HDR.FILE.FID,1,'float64');
         rcWindow  = fread(HDR.FILE.FID,1,'float64');
 	MeasurementType = fread(HDR.FILE.FID,6,'int16');
-	HiLite = fread(HDR.FILE.FID,2,'uint8');
+	HiLite    = fread(HDR.FILE.FID,2,'uint8');
         HDR.FirstTimeOffset = fread(HDR.FILE.FID,1,'float64');
 
-	if HDR.VERSION < 34, offset = 150;
+	if     HDR.VERSION < 34, offset = 150;
 	elseif HDR.VERSION < 35, offset = 164; 
 	elseif HDR.VERSION < 36, offset = 326; 
 	elseif HDR.VERSION < 38, offset = 886; 
-	else offset = 1894; 
+	else   offset = 1894; 
 	end;
 	
 	fseek(HDR.FILE.FID,offset,'bof');
@@ -500,15 +500,20 @@ elseif strcmp(HDR.TYPE,'ACQ'),
 
 	%--------  Markers Header section
 	len = fread(HDR.FILE.FID,1,'int32');
-	HDR.NumEevents = fread(HDR.FILE.FID,1,'int32');
-	for k = 1:HDR.NumEvents, 
-		HDR.EVENT(k).Sample = fread(HDR.FILE.FID,1,'int32');
+	HDR.EVENT.N   = fread(HDR.FILE.FID,1,'int32');
+	HDR.EVENT.POS = repmat(nan,HDR.EVENT.N  ,1);
+	HDR.EVENT.TYP = repmat(nan,HDR.EVENT.N  ,1);
+	HDR.EVENT.CHN = zeros(HDR.EVENT.N  ,1);
+	HDR.EVENT.DUR = zeros(HDR.EVENT.N  ,1);
+	for k = 1:HDR.EVENT.N  , 
+		%HDR.Event(k).Sample = fread(HDR.FILE.FID,1,'int32');
+		HDR.EVENT.POS(k) = fread(HDR.FILE.FID,1,'int32');
 		tmp = fread(HDR.FILE.FID,4,'int16');
-		HDR.EVENT(k).selected = tmp(1); 
-		HDR.EVENT(k).TextLocked = tmp(2); 
-		HDR.EVENT(k).PositionLocked = tmp(3); 
+		HDR.Event(k).selected = tmp(1); 
+		HDR.Event(k).TextLocked = tmp(2); 
+		HDR.Event(k).PositionLocked = tmp(3); 
 		textlen = tmp(4);
-		HDR.EVENT(k).Text = fread(HDR.FILE.FID,textlen,'char');
+		HDR.Event(k).Text = fread(HDR.FILE.FID,textlen,'char');
 	end;
 	fseek(HDR.FILE.FID,HDR.HeadLen,'bof');	
 	
@@ -1190,14 +1195,13 @@ elseif strcmp(HDR.TYPE,'EGI'),
         HDR.SIE.ChanSelect = CHAN;
         HDR.SIE.InChanSelect = CHAN;
         
-        HDR.eventtypes = 0;
+        HDR.EVENT.N    = 0;
         HDR.categories = 0;
         HDR.catname    = {};
-        HDR.eventcode  = '';
         
         if any(HDR.VERSION==[2,4,6]),
-                HDR.SPR  = fread(HDR.FILE.FID, 1 ,'integer*4');
-                HDR.eventtypes = fread(HDR.FILE.FID,1,'integer*2');
+                HDR.SPR  = fread(HDR.FILE.FID, 1 ,'int32');
+                HDR.EVENT.N = fread(HDR.FILE.FID,1,'int16');
                 HDR.NRec = 1;
                 HDR.FLAG.TRIGGERED = logical(0); 
                 HDR.AS.spb = (HDR.NS+HDR.eventtypes);
@@ -1211,11 +1215,11 @@ elseif strcmp(HDR.TYPE,'EGI'),
                                 HDR.catname{i} = char(fread(HDR.FILE.FID,catname_len(i),'uchar'))';
                         end
                 end
-                HDR.NRec = fread(HDR.FILE.FID,1,'integer*2');
-                HDR.SPR  = fread(HDR.FILE.FID,1,'integer*4');
-                HDR.eventtypes = fread(HDR.FILE.FID,1,'integer*2');
+                HDR.NRec = fread(HDR.FILE.FID,1,'int16');
+                HDR.SPR  = fread(HDR.FILE.FID,1,'int32');
+                HDR.EVENT.N = fread(HDR.FILE.FID,1,'int16');
                 HDR.FLAG.TRIGGERED = logical(1); 
-                HDR.AS.spb = HDR.SPR*(HDR.NS+HDR.eventtypes);
+                HDR.AS.spb = HDR.SPR*(HDR.NS+HDR.EVENT.N);
                 HDR.AS.endpos = HDR.NRec;
 		HDR.Dur = HDR.SPR/HDR.SampleRate;
         else
@@ -1225,7 +1229,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
         
         % get datatype from version number
         if any(HDR.VERSION==[2,3]),
-                HDR.datatype = 'integer*2';
+                HDR.datatype = 'int16';
                 HDR.AS.bpb = HDR.AS.spb*2;
         elseif any(HDR.VERSION==[4,5]),
                 HDR.datatype = 'float32';
@@ -1238,17 +1242,9 @@ elseif strcmp(HDR.TYPE,'EGI'),
         end
         HDR.AS.bpb = HDR.AS.bpb + 6*HDR.FLAG.TRIGGERED;
                 
+        HDR.eventcode = char(fread(HDR.FILE.FID,[HDR.EVENT.N,4],'uchar')');
+	HDR.EVENT.TYP = HDR.eventcode*(2.^[24;16;8;0]);
                 
-        if isequal(HDR.eventtypes,0),
-                HDR.eventcode(1,1:4) = 'none';
-        else
-                for i = 1:HDR.eventtypes,
-                        HDR.eventcode(i,1:4) = char(fread(HDR.FILE.FID,[1,4],'uchar'));
-                        HDR.EventData{i} = [];
-                end
-                
-        end
-        
         HDR.HeadLen = ftell(HDR.FILE.FID);
         HDR.FILE.POS= 0;
        
@@ -1279,7 +1275,8 @@ elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
 	tmp = fread(HDR.FILE.FID,[1,6],'uchar');
 	tmp(1) = tmp(1) + 1980;
 	HDR.T0 = tmp([4,5,6,1,2,3]);
-	HDR.TEAM.Nevents = fread(HDR.FILE.FID,1,'int16');
+
+	HDR.EVENT.N   = fread(HDR.FILE.FID,1,'int16');
 	HDR.TEAM.Nsegments = fread(HDR.FILE.FID,1,'int16');
 	HDR.TEAM.SegmentOffset = fread(HDR.FILE.FID,1,'int32');
 	HDR.XPhysDim = fread(HDR.FILE.FID,[1,8],'char');
@@ -1301,11 +1298,11 @@ elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
 	HDR.TEAM.DigitalOffset = 256 + 32*HDR.NS + HDR.NS*HDR.NRec*HDR.SPR*HDR.Samptype;
 	fssek(HDR.FILE.FID,HDR.TEAM.DigitalOffset,'bof');
 	if HDR.TEAM.DigitalOffset < HDR.TEAM.SegmentOffset,
-		HDR.EventLabels = setstr(fread(HDR.FILE.FID,[16,HDR.TEAM.Nevents],'char')');
+		HDR.EventLabels = setstr(fread(HDR.FILE.FID,[16,HDR.EVENT.N],'char')');
 
 		% Events could be detected in this way
 		% HDR.Events = zeros(HDR.SPR*HDR.NRec,1);
-		% for k = 1:ceil(HDR.TEAM.Nevents/16)
+		% for k = 1:ceil(HDR.EVENT.N/16)
 		%	HDR.Events = HDR.Events + 2^(16*k-16)*fread(HDR.FILE.FID,HDR.SPR*HDR.NRec,'uint16');
 		% end;
 	end;
@@ -1514,11 +1511,8 @@ elseif strcmp(HDR.TYPE,'RDF'),
     
 	% first pass, scan data
 	totalsize = 0;
+        tag = fread(HDR.FILE.FID,1,'uint32');
 	while(~feof(HDR.FILE.FID)),
-    	        tag = fread(HDR.FILE.FID,1,'uint32');
-    		if length(tag) == 0,
-    		        break;
-    		end
     		if tag == hex2dec('f0aa55'),
         		cnt = cnt + 1;
 			HDR.Block.Pos(cnt) = ftell(HDR.FILE.FID);
@@ -1534,11 +1528,15 @@ elseif strcmp(HDR.TYPE,'RDF'),
 			%nrun = fread(HDR.FILE.FID,1,'uint16');
         		%err_detect = fread(HDR.FILE.FID,1,'uint16');
         		%nlost = fread(HDR.FILE.FID,1,'uint16');
-        		nevents = tmp(9); %fread(HDR.FILE.FID,1,'uint16');
+        		HDR.EVENT.N = tmp(9), %fread(HDR.FILE.FID,1,'uint16');
         		%fseek(HDR.FILE.FID,50,0);
 	    
-        		% Read events
-        		for i = 1:nevents,
+                        % Read events
+                        HDR.EVENT.POS = repmat(nan,HDR.EVENT.N,1);
+                        HDR.EVENT.TYP = repmat(nan,HDR.EVENT.N,1);
+                        HDR.EVENT.CHN = zeros(HDR.EVENT.N,1);
+                        HDR.EVENT.DUR = zeros(HDR.EVENT.N,1);
+        		for i = 1:HDR.EVENT.N,
             			tmp = fread(HDR.FILE.FID,2,'uint8');
             			%cond_code = fread(HDR.FILE.FID,1,'uint8');
             			ev_code = fread(HDR.FILE.FID,1,'uint16');
@@ -1549,8 +1547,11 @@ elseif strcmp(HDR.TYPE,'RDF'),
                                 if exist('OCTAVE_VERSION')<5, 	   
                                         ev{ev_cnt} = tmp2;
                                 end;
+                                HDR.EVENT.POS(ev_cnt) = tmp(1) + (cnt-1)*128;
+                                HDR.EVENT.TYP(ev_cnt) = ev_code;
     			end;
-        		fseek(HDR.FILE.FID,4*(110-nevents)+2*nchans*block_size,0);
+        		fseek(HDR.FILE.FID,4*(110-HDR.EVENT.N)+2*nchans*block_size,0);
+	    	        tag = fread(HDR.FILE.FID,1,'uint32');
     		end
 	end
 	HDR.NRec = cnt;
@@ -1703,15 +1704,17 @@ elseif strcmp(HDR.TYPE,'DDF'),
 		HDR.FILE.POS = 0;
 		%HDR.ID = fread(HDR.FILE.FID,5,'char');
         	ds=fread(HDR.FILE.FID,[1,128],'char');
-		HDR.ID = setstr(ds(1:4));
-		DataSource = ds(6:length(ds));
+		HDR.ID = setstr(ds(1:5));
+		DataSource = ds;
 		k = 0;
 		while ~(any(ds==26)),
 			ds = fread(HDR.FILE.FID,[1,128],'char');
 			DataSource = [DataSource,ds];
 			k = k+1;	
 		end;	
-		fseek(HDR.FILE.FID,find(ds==26)+k*128,'bof'); 	% position file identifier
+		pos = find(ds==26)+k*128;
+		DataSource = setstr(DataSource(6:pos));
+		HDR.DDF.Source = DataSource;
 		while ~isempty(DataSource),
 			[ds,DataSource] = strtok(setstr(DataSource),[10,13]);
 			[field,value] = strtok(ds,'=');
@@ -1726,10 +1729,11 @@ elseif strcmp(HDR.TYPE,'DDF'),
 				HDR.FILE.DATA = value;
 			end;			 	
 		end;
+		fseek(HDR.FILE.FID,pos,'bof'); 	% position file identifier
 		if 0;%DataSource(length(DataSource))~=26,
 			fprintf(1,'Warning: DDF header seems to be incorrenct. Contact <alois.schloegl@tugraz.at> Subject: BIOSIG/DATAFORMAT/DDF  \n');
 		end;
-		CPUidentifier  = fread(HDR.FILE.FID,[1,2],'char');
+		HDR.DDF.CPUidentifier  = setstr(fread(HDR.FILE.FID,[1,2],'char'));
 		HDR.HeadLen(1) = fread(HDR.FILE.FID,1,'uint16');
 		tmp = fread(HDR.FILE.FID,1,'uint16');
 		if tmp == 0, HDR.GDFTYP = 4; 		% streamer format (data are raw data in WORD=UINT16)
@@ -1738,8 +1742,8 @@ elseif strcmp(HDR.TYPE,'DDF'),
 		elseif tmp <= 1000, % reserved
 		else		% unused
 		end;
-		HDR.FILE.Type = tmp;
-		HDR.VERSION = fread(HDR.FILE.FID,1,'uint16');
+		HDR.FILE.Type  = tmp;
+		HDR.VERSION    = fread(HDR.FILE.FID,1,'uint16');
 		HDR.HeadLen(2) = fread(HDR.FILE.FID,1,'uint16');	% second global Header
 		HDR.HeadLen(3) = fread(HDR.FILE.FID,1,'uint16');	% size of channel Header
 		fread(HDR.FILE.FID,1,'uint16');	% size of a block Header
@@ -1750,10 +1754,9 @@ elseif strcmp(HDR.TYPE,'DDF'),
 		HDR.NS = fread(HDR.FILE.FID,1,'uint16');
 		HDR.Delay = fread(HDR.FILE.FID,1,'double');
 		HDR.StartTime = fread(HDR.FILE.FID,1,'uint32');  % might be incorrect
-
 		
 		% it looks good so far. 
-		
+		% fseek(HDR.FILE.FID,HDR.HeadLen(1),'bof');
 		if HDR.FILE.Type==0,
 			% second global header
 			fread(HDR.FILE.FID,1,'uint16')	% overall number of bytes in this header
@@ -1778,23 +1781,28 @@ elseif strcmp(HDR.TYPE,'DDF'),
 
 		elseif HDR.FILE.Type==1,
 			% second global header
-			pos = ftell(HDR.FILE.FID);
-			HeadLen = fread(HDR.FILE.FID,1,'uint16');	% size of this header 
+			HDR.pos1 = ftell(HDR.FILE.FID);
+			tmp = fread(HDR.FILE.FID,1,'uint16');	% size of this header 
+			if (tmp~=HDR.HeadLen(2)),
+				fprintf(2,'Error SOPEN DDF: error in header of file %s\n',HDR.FileName);
+			end;
 			HDR.U1G.NS = fread(HDR.FILE.FID,1,'uint16');	% number of channels
-			fread(HDR.FILE.FID,1,'uint16');	% multiplexed: 0=no, 1=yes
-			fread(HDR.FILE.FID,[1,16],'uint16');	% array of channels collected on each input channel
+			HDR.FLAG.multiplexed = fread(HDR.FILE.FID,1,'uint16');	% multiplexed: 0=no, 1=yes
+			HDR.DDF.array = fread(HDR.FILE.FID,[1,16],'uint16');	% array of channels collected on each input channel
 
 			% channel header
 			for k = 1:HDR.NS,
-				fread(HDR.FILE.FID,1,'uint16');	% size of this header
+				filepos = ftell(HDR.FILE.FID);    
+				taglen = fread(HDR.FILE.FID,1,'uint16');	% size of this header
 				ch = fread(HDR.FILE.FID,1,'uint16');	% channel number
 				HDR.DDF.MAXSPR(ch+1)= fread(HDR.FILE.FID,1,'uint16');	% maximum size of block in samples
 				HDR.DDF.delay(ch+1) = fread(HDR.FILE.FID,1,'double');	% time delay between two samples
 				HDR.DDF.ChanType(ch+1) = fread(HDR.FILE.FID,1,'uint16');	% channel type 
 				HDR.DDF.ChanFlag(ch+1) = fread(HDR.FILE.FID,1,'uint16');	% channel flag 
 				unused = fread(HDR.FILE.FID,2,'double');	% must be 0.0 for future extension
-				%HDR.PhysDim{ch+1} = fgets(HDR.FILE.FID);	% channel unit
-				%HDR.Label{ch+1} = fgets(HDR.FILE.FID);		% channel name 
+				HDR.PhysDim{ch+1} = fgets(HDR.FILE.FID);	% channel unit
+				HDR.Label{ch+1} = fgets(HDR.FILE.FID);		% channel name 
+				fseek(HDR.FILE.FID,filepos+taglen,'bof');
 			end;
 
 			% channel header
@@ -1804,8 +1812,8 @@ elseif strcmp(HDR.TYPE,'DDF'),
 				HDR.BlockStartTime = fread(HDR.FILE.FID,1,'uint32');  % might be incorrect
 				unused = fread(HDR.FILE.FID,2,'double');	% must be 0.0 for future extension
 				ch = fread(HDR.FILE.FID,1,'uint32');  % channel number
-				
 			end;    
+			fseek(HDR.FILE.FID,HDR.pos1+sum(HDR.HeadLen(2:3)),'bof');
 
 		elseif HDR.FILE.Type==2,
 			% second global header
@@ -1826,7 +1834,10 @@ elseif strcmp(HDR.TYPE,'DDF'),
 				HDR.Cal(k) = fread(HDR.FILE.FID,1,'double');	
 			end;
 		else
+		
 		end;
+		ftell(HDR.FILE.FID),
+		tag=fread(HDR.FILE.FID,[1,4],'char')
 
 	end;
 
@@ -2279,7 +2290,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 HDR.NRec = 1;
 		HDR.FLAG.TRIGGERED = 0;	        
 
-                HDR.Flag.TimeChannel = fread(HDR.FILE.FID,1,'int32');
+                HDR.FLAG.TimeChannel = fread(HDR.FILE.FID,1,'int32');
                 tmp = fread(HDR.FILE.FID,1,'int32');
                 if tmp == 1, 
                         HDR.GDFTYP = 17;	% double
@@ -2336,10 +2347,10 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
         	if ~isfield(HDR.CFWB,'preTrigger'),
         	        HDR.CFWB.preTrigger = 0; 	% Unknown - Value will be fixed when file is closed. 
         	end;
-        	if ~isfield(HDR,'Flag'),
-			HDR.Flag.TimeChannel = 0;
+        	if ~isfield(HDR,'FLAG'),
+			HDR.FLAG.TimeChannel = 0;
  		else
-		       	if ~isfield(HDR.Flag,'preTrigger'),
+		       	if ~isfield(HDR.FLAG,'TimeChannel'),
 				HDR.Flag.TimeChannel = 0;
 			end;
 		end;
