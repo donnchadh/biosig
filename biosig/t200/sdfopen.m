@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.24 $
-%	$Id: sdfopen.m,v 1.24 2004-09-25 20:28:10 schloegl Exp $
+%	$Revision: 1.25 $
+%	$Id: sdfopen.m,v 1.25 2004-10-04 12:48:41 schloegl Exp $
 %	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -430,39 +430,58 @@ for k=1:EDF.NS,
 
 	ixh=findstr(tmp,'HP');
 	ixl=findstr(tmp,'LP');
+	ixn=findstr(tmp,'Notch');
 	ix=findstr(lower(tmp),'hz');
 	%tmp(tmp==':')=' ';
 try;
 	if any(tmp==';')
 		[tok1,tmp] = strtok(tmp,';');
 		[tok2,tmp] = strtok(tmp,';');
+		[tok3,tmp] = strtok(tmp,';');
 	else
 		[tok1,tmp] = strtok(tmp,' ');
 		[tok2,tmp] = strtok(tmp,' ');
+		[tok3,tmp] = strtok(tmp,' ');
 	end;
 	[T1, F1 ] = strtok(tok1,': ');
 	[T2, F2 ] = strtok(tok2,': ');
+	[T3, F3 ] = strtok(tok3,': ');
 
 	[F1 ] = strtok(F1,': ');
 	[F2 ] = strtok(F2,': ');
+	[F3 ] = strtok(F3,': ');
 	
 	if strcmp(F1,'DC'), F1='0'; end;
 	if strcmp(F2,'DC'), F2='0'; end;
+	if strcmp(F3,'DC'), F3='0'; end;
 	
 	tmp = findstr(lower(F1),'hz');
-	if ~isempty(tmp), F1=F1(1:tmp-1);end;
+	if ~isempty(tmp), F1=F1(1:tmp-1); end;
 	tmp = findstr(lower(F2),'hz');
-	if ~isempty(tmp), F2=F2(1:tmp-1);end;
+	if ~isempty(tmp), F2=F2(1:tmp-1); end;
+	tmp = findstr(lower(F3),'hz');
+	if ~isempty(tmp), F3=F3(1:tmp-1); end;
 
 	if strcmp(T1,'LP'), 
 		EDF.Filter.LowPass(k) =str2double(F1);
 	elseif strcmp(T1,'HP'), 
 		EDF.Filter.HighPass(k)=str2double(F1);
+	elseif strcmp(T1,'Notch'), 
+		EDF.Filter.Notch(k)   =str2double(F1);
 	end;
 	if strcmp(T2,'LP'), 
 		EDF.Filter.LowPass(k) =str2double(F2);
 	elseif strcmp(T2,'HP'), 
 		EDF.Filter.HighPass(k)=str2double(F2);
+	elseif strcmp(T2,'Notch'), 
+		EDF.Filter.Notch(k)   =str2double(F2);
+	end;
+	if strcmp(T3,'LP'), 
+		EDF.Filter.LowPass(k) =str2double(F3);
+	elseif strcmp(T3,'HP'), 
+		EDF.Filter.HighPass(k)=str2double(F3);
+	elseif strcmp(T3,'Notch'), 
+		EDF.Filter.Notch(k)   =str2double(F3);
 	end;
 catch
 	fprintf(1,'Cannot interpret: %s\n',EDF.PreFilt(k,:));
@@ -1242,7 +1261,7 @@ if ~strcmp(EDF.VERSION(1:3),'GDF');
                 fprintf(EDF.FILE.stderr,'\nWarning SDFOPEN: One block exceeds 61440 bytes.\n')
         end;
 else
-        EDF.VERSION = 'GDF 1.21';       % April 15th, 2004, support of eventtable position included
+        EDF.VERSION = 'GDF 1.24';       % April 15th, 2004, support of eventtable position included
 end;
 
 if ~isfield(EDF,'PID')
@@ -1287,7 +1306,6 @@ elseif ~isfield(EDF.EDF,'SampleRate')
         EDF.EDF.SampleRate = repmat(EDF.SampleRate,EDF.NS,1);
 end;
 
-
 if ~isnan(EDF.Dur) & any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
 	EDF.SPR = EDF.EDF.SampleRate * EDF.Dur;
 elseif ~isnan(EDF.Dur) & ~any(isnan(EDF.SPR)) & any(isnan(EDF.EDF.SampleRate))
@@ -1324,11 +1342,24 @@ else
         EDF.Transducer=[EDF.Transducer(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,80-tmp))];
 end;
 if ~isfield(EDF,'PreFilt')
-        EDF.PreFilt=setstr(32+zeros(EDF.NS,80));
-else
-        tmp=min(80,size(EDF.PreFilt,2));
-        EDF.PreFilt=[EDF.PreFilt(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,80-tmp))];
+        EDF.PreFilt = setstr(32+zeros(EDF.NS,80));
+        if isfield(EDF,'Filter'),
+        if isfield(EDF.Filter,'LowPass') & isfield(EDF.Filter,'HighPass') & isfield(EDF.Filter,'Notch'),
+                if any(length(EDF.Filter.LowPass) == [1,EDF.NS]) & any(length(EDF.Filter.HighPass) == [1,EDF.NS]) & any(length(EDF.Filter.Notch) == [1,EDF.NS])
+                        for k = 1:EDF.NS,
+                                k1 = min(k,length(EDF.Filter.LowPass));
+                                k2 = min(k,length(EDF.Filter.HighPass));
+                                k3 = min(k,length(EDF.Filter.Notch));
+                                PreFilt{k,1} = sprintf('LP: %5.f Hz; HP: %5.2f Hz; Notch: %i',EDF.Filter.LowPass(k1),EDF.Filter.HighPass(k2),EDF.Filter.Notch(k3));
+                        end;
+                        EDF.PreFilt = strvcat(PreFilt);
+                end;
+        end
+        end
 end;
+tmp = min(80,size(EDF.PreFilt,2));
+EDF.PreFilt = [EDF.PreFilt(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,80-tmp))];
+
 if ~isfield(EDF,'PhysDim')
         EDF.PhysDim=setstr(32+zeros(EDF.NS,8));
         fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.PhysDim not defined\n');
