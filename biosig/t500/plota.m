@@ -1,4 +1,4 @@
-function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
+#function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % PLOTA plots all kind of data types
 %
 % PLOTA(X [,Mode]) 
@@ -40,8 +40,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 
 >>>>>>> 1.7
 
-%       $Revision: 1.8 $
-%	$Id: plota.m,v 1.8 2003-04-07 15:39:57 montaine Exp $
+%       $Revision: 1.9 $
+%	$Id: plota.m,v 1.9 2003-04-07 15:44:42 montaine Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -242,6 +242,7 @@ elseif strcmp(X.datatype,'MVAR-PDC'),
         end;
         
 elseif strcmp(X.datatype,'MVAR'),
+<<<<<<< plota.m
         if ~isfield(X,'A') | ~isfield(X,'B'),
                 fprintf(2,'Error PLOTA: MVAR missing input data\n');
                 return;
@@ -258,6 +259,24 @@ elseif strcmp(X.datatype,'MVAR'),
         if ~isfield(X,'C');
                 X.C=ones(K1,K1);
         end;
+=======
+        if ~isfield(X,'A') | ~isfield(X,'B'),
+                fprintf(2,'Error PLOTA: MVAR missing input data\n');
+                return;
+        end;
+
+
+        
+        [K1,K2] = size(X.A);
+        p = K2/K1-1;
+        %a=ones(1,p+1);
+        [K1,K2] = size(X.B);
+        q = K2/K1-1;
+        %b=ones(1,q+1);
+        if ~isfield(X,'C');
+                X.C=ones(K1,K1);
+        end;
+>>>>>>> 1.8
         if nargin<2,
                 Mode= 'DTF';
                 Fs  = 1;
