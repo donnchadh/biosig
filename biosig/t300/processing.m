@@ -26,8 +26,8 @@ function [Y,Z] = processing(MODE,X,Z)
 %
 
 
-%	$Revision: 1.3 $
-%	$Id: processing.m,v 1.3 2003-07-23 06:53:04 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: processing.m,v 1.4 2004-07-07 12:57:57 schloegl Exp $
 %	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This library is free software; you can redistribute it and/or
@@ -74,11 +74,11 @@ elseif strcmp(D{1},'ECG_envelope')
                 else 
                         Fs = D{2};   	%.SampleRate;
                         if length(D)>2,
-                                T.TH = D{3};	% Threshold
-                                Z.datatype='QRS_events'    
+                                Z.TH = D{3};	% Threshold
+                                Z.datatype='QRS_events';    
                                 Z.QRS_event = [];
                         else
-                                Z.datatype='ECG_envelope'    
+                                Z.datatype='ECG_envelope';    
                                 Z.ECGenvelope = [];
                         end;
                 end;
@@ -93,25 +93,27 @@ elseif strcmp(D{1},'ECG_envelope')
                 Z.B2 = [1:PAR.trgL+1 PAR.trgL:-1:1];
                 Z.A2 = sum(abs(Z.B2));
                 
-                Z.B1 = conv(PAR.HI,[ones(1,T*Fs),-ones(1,T*Fs)]*1000/Fs);       
+                Z.B1 = conv(PAR.HI,[ones(1,ceil(T*Fs)),-ones(1,ceil(T*Fs))]*1000/Fs);       
                 Z.A1 = 1;
-                
-                [tmp, Z.Z1] = filter(Z.B1,Z.A1,X);
-                [Y,   Z.Z2] = filter(Z.B2,Z.A2,abs(tmp));
                 
                 Z.tix = 0; 
                 Z.RESULT =[];
+
+                [tmp, Z.Z1] = filter(Z.B1,Z.A1,X);
+                [Y,   Z.Z2] = filter(Z.B2,Z.A2,abs(tmp));
+                
         else
                 [tmp, Z.Z1] = filter(Z.B1,Z.A1,X,Z.Z1);
                 [Y,   Z.Z2] = filter(Z.B2,Z.A2,abs(tmp),Z.Z2);
-                if isfield(Z,'TH'),
-                        Y = gettrigger(Y,Z.TH);
-                        Z.QRS_event = [Z.QRS_event; (Y + Z.tix)/Fs];
-                        Z.tix    = Z.tix + size(Y,1);
-                else
-                        Z.ECGenvelope = [Z.ECGenvelope; Y];
-                end;
         end;
+        if isfield(Z,'TH'),
+                Y = gettrigger(Y,Z.TH);
+                Z.QRS_event = [Z.QRS_event; (Y + Z.tix)/Fs];
+                Z.tix    = Z.tix + size(Y,1);
+        else
+                Z.ECGenvelope = [Z.ECGenvelope; Y];
+        end;
+        
         
 elseif strcmp(D{1},'CORRCOEF')
         Y.datatype='CORRCOEF';
