@@ -13,8 +13,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.25 $
-%	$Id: cntopen.m,v 1.25 2004-03-24 19:01:41 schloegl Exp $
+%	$Revision: 1.26 $
+%	$Id: cntopen.m,v 1.26 2004-03-26 18:46:11 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -506,12 +506,13 @@ elseif strcmp(upper(CNT.FILE.Ext),'EEG'),
                 if CNT.CNT.minor_revision~=16,
                         fprintf(CNT.FILE.stderr,'Warning CNTOPEN: EEG-Format Minor-Revision %i not tested.\n',CNT.CNT.minor_revision);
                 end;
-                
+		
                 tmp = (CNT.AS.spb*2+1+2+2+4+2+2);
                 if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
                         CNT.AS.bpb = tmp;
                         CNT.GDFTYP = 3; %'int16';
                 end;
+		
                 tmp = (CNT.AS.spb*4+1+2+2+4+2+2);
                 if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
                         CNT.AS.bpb = tmp;
@@ -549,48 +550,46 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
         CNT.EVENT.POS = [];
         CNT.EVENT.N = h.numevents;
 
+	CNT.EVENT.TeegSize = 0;
         status = fseek(CNT.FILE.FID,h.eventtablepos,'bof');
-        if status,
-                fprintf(CNT.FILE.stderr,'Warning CNTOPEN: corrupted EVENTTABLEPOS (%i) in file %s\n',h.eventtablepos,CNT.FileName);        
-		c1 = 1; c2 = 1; c3 = 1; 
-        else
+        if ~status,
                 [CNT.EVENT.TeegType,c1] = fread(fid,1,'uchar');		
                 [CNT.EVENT.TeegSize,c2] = fread(fid,1,'int32');	
                 [CNT.EVENT.TeegOffset,c3] = fread(fid,1,'int32');
 	end;	
-
-	if ~all([c1,c2,c3]) | status,
-    		fprintf(CNT.FILE.stderr,'Error CNTOPEN: reading of EVENTTABLE failed\n');
-    	else;
-                k = 0;
-                K = 1;
-                Teeg = [];
-                while (K < CNT.EVENT.TeegSize),
-                        k = k + 1;
-                        Teeg.Stimtype = fread(fid,1,'int16');        
-                        Teeg.Keyboard = fread(fid,1,'char');        
-                        tmp = fread(fid,1,'uint8');        
-                        Teeg.KeyPad = rem(tmp,16); %bitand(tmp,15);
-                        Teeg.Accept = (fix(tmp/16)*16)==13; % (bitshift(tmp,-4)==13);  % 0xd = accept, 0xc = reject 
+	
+        k = 0; 
+        K = 1;
+        TEEG = [];
+        while (K < CNT.EVENT.TeegSize),
+		k = k+1;
+                Teeg.Stimtype = fread(fid,1,'int16');        
+                Teeg.Keyboard = fread(fid,1,'char');        
+                tmp = fread(fid,1,'uint8');        
+                Teeg.KeyPad = rem(tmp,16); %bitand(tmp,15);
+                Teeg.Accept = (fix(tmp/16)*16)==13; % (bitshift(tmp,-4)==13);  % 0xd = accept, 0xc = reject 
                         
-                        Teeg.Offset = fread(fid,1,'int32');        
-                        K = K + 8;
-                        if CNT.EVENT.TeegType==2,
-                                Teeg.Type =  fread(fid,1,'int16');        
-                                Teeg.Code =  fread(fid,1,'int16');        
-                                Teeg.Latency  =  fread(fid,1,'float32');        
-                                Teeg.EpochEvent =  fread(fid,1,'char');        
-                                Teeg.Accept2  =  fread(fid,1,'char');        
-                                Teeg.Accuracy =  fread(fid,1,'char');        
-                                K = K + 11;        
-                        end;        
-                        CNT.EVENT.Teeg(k) = Teeg;
-                end;
-                if k,
-                        CNT.EVENT.TYP = [CNT.EVENT.Teeg(:).Stimtype]';
-                        CNT.EVENT.POS = ([CNT.EVENT.Teeg(:).Offset]' - CNT.HeadLen) ./ CNT.AS.bpb;
-                        CNT.EVENT.N   = length(CNT.EVENT.TYP);
-                end;
+                Teeg.Offset = fread(fid,1,'int32');        
+                K = K + 8;
+                if CNT.EVENT.TeegType==2,
+                        Teeg.Type =  fread(fid,1,'int16');        
+                        Teeg.Code =  fread(fid,1,'int16');        
+                        Teeg.Latency  =  fread(fid,1,'float32');        
+                        Teeg.EpochEvent =  fread(fid,1,'char');        
+                        Teeg.Accept2  =  fread(fid,1,'char');        
+                        Teeg.Accuracy =  fread(fid,1,'char');        
+                        K = K + 11;        
+                end;    
+		if k==1,
+	                TEEG = Teeg;
+    		else
+		        TEEG(k) = Teeg;
+		end;
+        end;
+        if length(TEEG) > 0,
+                CNT.EVENT.TYP = [TEEG(:).Stimtype]';
+                CNT.EVENT.POS = ([TEEG(:).Offset]' - CNT.HeadLen) ./ CNT.AS.bpb;
+                CNT.EVENT.N   = length(CNT.EVENT.TYP);
         end;
 end;
 

@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.13 $
-%	$Id: sread.m,v 1.13 2004-03-25 18:53:10 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: sread.m,v 1.14 2004-03-26 18:46:11 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -274,23 +274,6 @@ elseif strcmp(HDR.TYPE,'TMS32'),
         S = S(:,HDR.InChanSelect);	
 
 
-elseif 0, %strcmp(HDR.TYPE,'SND'),
-        if nargin==3,
-        	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
-		HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP));
-	if count,
-	        S = S(HDR.InChanSelect,:)';
-                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
-        end;
-        if ~HDR.FLAG.UCAL,
-                if HDR.FILE.TYPE==1,
-			S = mu2lin(S);
-		end;
-	end;
-
-
 elseif strcmp(HDR.TYPE,'DEMG'),
         if nargin==3,
         	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
@@ -433,11 +416,9 @@ elseif strcmp(HDR.TYPE,'EEG'),
                 h.sweep(i).reserved = tmp(2);
                 
                 [signal,c] = fread(HDR.FILE.FID, [HDR.NS,HDR.SPR], gdfdatatype(HDR.GDFTYP));
-                
-                % S = [S;signal(HDR.InChanSelect,:)'];
-		%[size(signal),c,i,HDR.SPR,NoS,ftell(HDR.FILE.FID)]
+
                 S(i*HDR.SPR+(1-HDR.SPR:0),:) = signal(HDR.InChanSelect,:)';
-                count = count + c;			
+                count = count + c;
         end;
         HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.spb;        
         
@@ -449,13 +430,9 @@ elseif strcmp(HDR.TYPE,'CNT'),
         end;
         
         [S,count] = fread(HDR.FILE.FID, [HDR.NS, min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS)], 'int16');
-        
-        if count==0,
-                S = [];	% Octave 2.1.40 returns size(S)==[0,1], therefore the next line would fail
-        else
-		S = S(HDR.InChanSelect,:)';
-                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
-        end;
+
+	S = S(HDR.InChanSelect,:)';
+        HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         
         
 elseif strcmp(HDR.TYPE,'SIGIF'),
@@ -483,9 +460,8 @@ elseif strcmp(HDR.TYPE,'SIGIF'),
 				fprintf(HDR.FILE.stderr,'Error SREAD Type=SIGIF: blockseparator not found\n');
 			end;
 		end;
-		S = [S; dat'];
+		S = [S; dat(HDR.InChanSelect,:)'];
 	end;
-        S = S(:,HDR.InChanSelect);
                 
 
 elseif strcmp(HDR.TYPE,'BrainVision'),
