@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.42 $
-%	$Id: sopen.m,v 1.42 2004-04-08 07:07:54 schloegl Exp $
+%	$Revision: 1.43 $
+%	$Id: sopen.m,v 1.43 2004-04-08 16:46:52 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -3567,7 +3567,6 @@ end;
 if any(PERMISSION=='r');
         HDR.Calib = full(HDR.Calib);	% Octace can not index sparse matrices
         if exist('ReRefMx')==1,
-                %HDR.SIE.ChanSelect = 1:size(ReRefMx,2);         
                 HDR.Calib = HDR.Calib*ReRefMx;
                 HDR.InChanSelect = find(any(HDR.Calib(2:end,:),2));
         else

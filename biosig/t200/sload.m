@@ -17,8 +17,8 @@ function [signal,H] = sload(FILENAME,CHAN)
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.19 $
-%	$Id: sload.m,v 1.19 2004-03-25 18:53:10 schloegl Exp $
+%	$Revision: 1.20 $
+%	$Id: sload.m,v 1.20 2004-04-08 16:46:54 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -159,6 +159,8 @@ elseif strcmp(H.TYPE,'XML'),
         catch
         end;
         
+elseif strcmp(H.TYPE,'MFER'),
+        signal = [ones(size(H.tag30,1),1),H.tag30(:,H.InChanSelect)]*H.Calib([1;1+H.InChanSelect],:);
         
 elseif strcmp(H.TYPE,'alpha'),
         if ~any(H.VERSION==[407.1,409.5]);
@@ -223,7 +225,7 @@ elseif strcmp(H.TYPE,'DAQ')
                 CHAN = 1:H.NS; 
         end;
         if ~H.FLAG.UCAL,
-        	signal = [ones(size(signal,1),1),signal]*H.Calib(:,CHAN);        
+        	signal = [ones(size(signal,1),1),signal]*H.Calib(:,CHAN);
         end;
      
 elseif strncmp(H.TYPE,'MAT',3),
