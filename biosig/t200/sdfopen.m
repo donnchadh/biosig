@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.17 $
-%	$Id: sdfopen.m,v 1.17 2004-04-20 16:36:27 schloegl Exp $
+%	$Revision: 1.18 $
+%	$Id: sdfopen.m,v 1.18 2004-05-02 13:14:09 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -505,16 +505,17 @@ if strcmp(EDF.TYPE,'EDF') & (length(tmp)==1),
         EDF.Off(EDF.EDF.Annotations) = 0;
         
         fseek(EDF.FILE.FID,EDF.HeadLen+EDF.AS.bi(EDF.EDF.Annotations)*2,'bof');
-        t = fread(EDF.FILE.FID,EDF.SPR(EDF.EDF.Annotations),[int2str(EDF.SPR(EDF.EDF.Annotations)*2),'*uchar=>uchar'],EDF.AS.bpb-EDF.SPR(EDF.EDF.Annotations)*2);
+        t = fread(EDF.FILE.FID,EDF.SPR(EDF.EDF.Annotations),'uchar',EDF.AS.bpb-EDF.SPR(EDF.EDF.Annotations)*2);
         t = char(t)';
+        lt = length(t);
         EDF.EDF.ANNONS = t;
         N = 0; 
         ix = 1; 
-        lt = length(t);
+	t = [t,' '];
         while ix < length(t),
-                while (ix<=lt ) & (t(ix)==0), ix = ix+1; end;
+                while (ix<=lt) & (t(ix)==0), ix = ix+1; end;
                 ix1 = ix; 
-                while (ix<=lt ) & (t(ix)~=0), ix = ix+1; end;
+                while (ix<=lt) & (t(ix)~=0), ix = ix+1; end;
                 ix2 = ix; 
                 if (ix < lt),
                         v = t(ix1:ix2-1);
