@@ -36,8 +36,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 
 
 
-%       $Revision: 1.17 $
-%	$Id: plota.m,v 1.17 2003-05-12 09:16:29 montaine Exp $
+%       $Revision: 1.18 $
+%	$Id: plota.m,v 1.18 2003-05-20 16:04:04 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -928,7 +928,7 @@ elseif strcmp(X.datatype,'HISTOGRAM')
         yscale=arg2;
     end;
     
-    if ~isfield(H,'N');
+    if ~isfield(X,'N');
         X.N = full(sum(X.H,1));
     end;
     
