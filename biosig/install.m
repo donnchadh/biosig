@@ -5,7 +5,7 @@
 % 2) save the BIOSIG files in <your_directory>
 % 3) start matlab
 %    cd <your_directory>
-%    install 
+%    biosig_installer 
 % 4) For a permanent installation, save the default path with 
 %     PATH2RC or
 %     PATHTOOL and click on the "SAVE" button. 
@@ -23,36 +23,96 @@
 %  work, but does not support the handling of NaN's.
 
 %	Copyright (C) 2003,2004 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Revision: 1.2 $
-%	$Id: install.m,v 1.2 2004-01-23 12:37:00 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: install.m,v 1.3 2005-02-28 09:26:11 schloegl Exp $
 
 if exist('OCTAVE_VERSION')
-        tmp = pwd;	%
-        ix = max(find(tmp==filesep));
-        HOME = tmp(1:ix);
+        HOME = pwd;	%
 else
         tmp = which('install'); 
-        [HOME,f,e] = fileparts(tmp);
+        if ~isempty(tmp),
+                [HOME,f,e] = fileparts(tmp);
+                if strfind(upper(f),'biosig')
+                        [HOME,f,e] = fileparts(HOME);
+                end;
+        else
+                tmp = which('biosig_installer'); 
+                [HOME,f,e] = fileparts(tmp);
+        end;
 end;
-addpath([HOME,'/biosig/demo/']);		% dataformat
-addpath([HOME,'/biosig/t200/']);		% dataformat
-addpath([HOME,'/biosig/t250/']);		% trigger and quality control
-addpath([HOME,'/biosig/t300/']);		% signal processing and feature extraction
-addpath([HOME,'/biosig/t400/']);		% classification
-addpath([HOME,'/biosig/t490/']);		% evaluation criteria
-addpath([HOME,'/biosig/t500/']);		% display and presentation
-addpath([HOME,'/biosig/viewer/']);		% viewer
+path([HOME,'/biosig/'],path);			% dataformat
+path([HOME,'/biosig/demo/'],path);		% dataformat
+path([HOME,'/biosig/t200/'],path);		% dataformat
+path([HOME,'/biosig/t250/'],path);		% trigger and quality control
+path([HOME,'/biosig/t300/'],path);		% signal processing and feature extraction
+path([HOME,'/biosig/t400/'],path);		% classification
+path([HOME,'/biosig/t490/'],path);		% evaluation criteria
+path([HOME,'/biosig/t500/'],path);		% display and presentation
+%path([HOME,'/biosig/t600/'],path);
+path([HOME,'/biosig/viewer/'],path);		% viewer
+path([HOME,'/biosig/viewer/utils'],path);	% viewer
+path([HOME,'/biosig/viewer/help'],path);	% viewer
 
-addpath([HOME,'/tsa/']);		%  Time Series Analysis
-addpath([HOME,'/NaN/']);		%  Statistics analysis for missing data
+path([HOME,'/tsa/'],path);		%  Time Series Analysis
+% some users might get confused by this
+path([HOME,'/NaN/'],path);		%  Statistics analysis for missing data
+
+if exist([HOME,'/biosig/eeglab/'],'dir'),
+	path([HOME,'/biosig/eeglab/'],path);
+end;
+if exist([HOME,'/eeglab/'],'dir'),
+	path([HOME,'/eeglab/'],path);
+end;
+%%% NONFREE %%%
+if exist([HOME,'/biosig/NONFREE/EEProbe'],'dir'),
+	path(path,[HOME,'/biosig/NONFREE/EEProbe']);	% Robert Oostenveld's MEX-files to access EEProbe data
+end;
+if exist([HOME,'/biosig/NONFREE/meg-pd-1.2-4/'],'dir'),
+        path(path,[HOME,'/biosig/NONFREE/meg-pd-1.2-4/']);	% Kimmo Uutela's library to access FIF data
+end;
+
+path(path,[HOME,'/maybe-missing/']);
 
 % test of installation 
-naninsttest; 
+fun = {'isdir','ischar','strtok','str2double','strcmpi','strmatch','bitand','bitshift','sparse','strfind'};
+for k = 1:length(fun),
+        x = which(fun{k});
+        if isempty(x) | strcmp(x,'undefined'),
+                fprintf(2,'Function %s is missing\n',upper(fun{k}));     
+        end;
+end;
+        
+if exist('OCTAVE_VERSION') > 2,	% OCTAVE
+        fun = {'bitand'};
+        for k = 1:length(fun),
+                try,
+                        bitand(5,7);
+                catch
+                        unix('mkoctfile maybe-missing/bitand.cc');
+                end;
 
-try,
-        c = fwrite(1,0,'bit24');
-catch
-        fprintf(1,'Warning: datatype BIT24 is not available. BDF-format not supported. Some GDF-files might not be supported\n');
-end;        
+                try,
+                        x = which(fun{k});
+                catch
+                        x = [];
+                end;	
+
+                if isempty(x) | strcmp(x,'undefined'),
+                        fprintf(2,'Function %s is missing. \n',upper(fun{k}));     
+                end;
+        end;
+	if any(size(sparse(5,4))<0)
+        	fprintf(2,'Warning: Size of Sparse does not work\n')
+	end;
+end;
+
+% test of installation 
+% 	Some users might get confused by it. 
+% nantest;	
+% naninsttest; 
 
 disp('BIOSIG-toolbox activated');
+if ~exist('OCTAVE_VERSION'),	% OCTAVE
+    disp('	If you want BIOSIG permanently installed, use the command PATH2RC.')
+    disp('	or use PATHTOOL to select and deselect certain components.')
+end; 
