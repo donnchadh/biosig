@@ -27,7 +27,7 @@ function [CC,Q,tsd,md]=findclassifier1(D,TRIG,cl,T,t0,SWITCH)
 
 
 %   Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Id: findclassifier1.m,v 1.9 2004-04-14 08:53:42 schloegl Exp $
+%	$Id: findclassifier1.m,v 1.10 2004-04-14 16:03:41 schloegl Exp $
 
 
 % This program is free software; you can redistribute it and/or
@@ -132,7 +132,7 @@ CC.CMX = squeeze(CMX(CC.TI,:,:));
 m1=decovm(CC.MD{1});
 m2=decovm(CC.MD{2});
 tmp=mdbc(CC.MD,[1,m1;1,m2]);
-CC.scale=[1,1]*1/max(abs(tmp(:)));  % element 1 
+CC.scale=[1,1]*max(abs(tmp(:)));  % element 1 
 
 [maxQ,CC.lnTI] = max(lnQ); %d{K},
 CC.DistMXln = d{CC.lnTI};
@@ -215,8 +215,9 @@ for l = find(~isnan(cl(:)'));1:length(cl);
                 JKLD(:,l) = D(t,:)*LDA(:,l);
         end;	
 end;
-CC.ldaC0 = covm(center(LDA'));
-%CC.ldaCE = covm(LDA','E');
+[CC.ldaC0,NN] = covm(LDA','D0');
+%CC.ldaC0=CC.ldaC0./NN*min(0,sum(~isnan(CL))-1); 
+% since NN==min(0,sum(~isnan(CL))-1), no need to rescale
 
 % Concordance matrix with cross-validation 
 CC.mmx= zeros([size(MDIX,1),length(CL)^2]);
