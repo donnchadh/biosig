@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.24 $
-%	$Id: eegopen.m,v 1.24 2003-06-14 21:01:11 schloegl Exp $
+%	$Revision: 1.25 $
+%	$Id: eegopen.m,v 1.25 2003-07-18 12:10:38 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -1333,10 +1333,10 @@ elseif strncmp(HDR.TYPE,'SIGIF',4),
 		else
 	                HDR.VERSION = 1.1;
 		end;        
-		HDR.Comment=fgetl(HDR.FILE.FID);		% 2        
-		HDR.SignalName=fgetl(HDR.FILE.FID);	% 3
-		HDR.Date=fgetl(HDR.FILE.FID);		% 4 
-		HDR.modifDate=fgetl(HDR.FILE.FID);	% 5
+		HDR.Comment=fgetl(HDR.FILE.FID);		% 2        
+		HDR.SignalName=fgetl(HDR.FILE.FID);	% 3
+		HDR.Date=fgetl(HDR.FILE.FID);		% 4 
+		HDR.modifDate=fgetl(HDR.FILE.FID);	% 5
 
 		[tmp1,tmp] = strtok(HDR.Date,'-/'); 
 		HDR.T0     = zeros(1,6);
@@ -1347,8 +1347,8 @@ elseif strncmp(HDR.TYPE,'SIGIF',4),
 		[tmp1,tmp] = strtok(tmp,'-/'); 
 		HDR.T0(3)  = str2num(tmp1);
 
-		HDR.SIG.Type   = fgetl(HDR.FILE.FID);		% 6 simultaneous or serial sampling
-		    Source = fgetl(HDR.FILE.FID);		% 7 - obsolete
+		HDR.SIG.Type   = fgetl(HDR.FILE.FID);		% 6 simultaneous or serial sampling
+		    Source = fgetl(HDR.FILE.FID);		% 7 - obsolete
 		HDR.NS     = str2num(fgetl(HDR.FILE.FID));  	% 8 number of channels
 		HDR.NRec   = str2num(fgetl(HDR.FILE.FID)); % 9 number of segments
 		    NFrames= str2num(fgetl(HDR.FILE.FID));  % 10 number of frames per segment - obsolete
@@ -1357,12 +1357,12 @@ elseif strncmp(HDR.TYPE,'SIGIF',4),
 		HDR.AS.spb  = str2num(fgetl(HDR.FILE.FID));  			% 11 	number of samples per frame
 		H1.Bytes_per_Sample = str2num(fgetl(HDR.FILE.FID));	% 12 number of bytes per samples
 		HDR.AS.bpb = HDR.AS.spb * H1.Bytes_per_Sample;
-		HDR.Sampling_order   = str2num(fgetl(HDR.FILE.FID));  	% 13
-		HDR.FLAG.INTEL_format = str2num(fgetl(HDR.FILE.FID));  	% 14
-		HDR.FormatCode = str2num(fgetl(HDR.FILE.FID));  	% 15
+		HDR.Sampling_order   = str2num(fgetl(HDR.FILE.FID));  	% 13
+		HDR.FLAG.INTEL_format = str2num(fgetl(HDR.FILE.FID));  	% 14
+		HDR.FormatCode = str2num(fgetl(HDR.FILE.FID));  	% 15
 
-		HDR.CompressTechnique = fgetl(HDR.FILE.FID);  		% 16
-		HDR.SignalType = fgetl(HDR.FILE.FID);  			% 17
+		HDR.CompressTechnique = fgetl(HDR.FILE.FID);  		% 16
+		HDR.SignalType = fgetl(HDR.FILE.FID);  			% 17
 
 		for k=1:HDR.NS,
 		        chandata = fgetl(HDR.FILE.FID);			% 18
@@ -1383,19 +1383,19 @@ elseif strncmp(HDR.TYPE,'SIGIF',4),
 		                end;        
 		        end;
 		end;
-		HDR.Segment_separator = fgetl(HDR.FILE.FID);  		% 19
+		HDR.Segment_separator = fgetl(HDR.FILE.FID);  		% 19
 		%HDR.Segment_separator = hex2dec(fgetl(HDR.FILE.FID));  
 
-		HDR.FLAG.TimeStamp = str2num(fgetl(HDR.FILE.FID));  	% 20
+		HDR.FLAG.TimeStamp = str2num(fgetl(HDR.FILE.FID));  	% 20
 
-		if HDR.VERSION>=3,
+		if HDR.VERSION>=3,
     			HDR.FLAG.SegmentLength = str2num(fgetl(HDR.FILE.FID));	% 21  
-		        HDR.AppStartMark = fgetl(HDR.FILE.FID);  		% 22
-		        HDR.AppInfo = fgetl(HDR.FILE.FID);  			% 23
+		        HDR.AppStartMark = fgetl(HDR.FILE.FID);  		% 22
+		        HDR.AppInfo = fgetl(HDR.FILE.FID);  			% 23
 		else
 		        HDR.FLAG.SegmentLength = 0;    
 		end;        
-		HDR.footer = fgets(HDR.FILE.FID,6);			% 24
+		HDR.footer = fgets(HDR.FILE.FID,6);			% 24
 
 		if ~strcmp(HDR.footer,'oFSvAI')
 			fprintf(2,['Warning LOADSIG in ' FILENAME ': Footer not found\n']);  
@@ -1407,7 +1407,7 @@ elseif strncmp(HDR.TYPE,'SIGIF',4),
 
 		switch HDR.FormatCode,
 		case 0; HDR.GDFTYP = 'uint16';
-		case 3; HDR.GDFTYP = 'int16';  
+		case 3; HDR.GDFTYP = 'int16';  
 			HDR.Segment_separator = hex2dec(HDR.Segment_separator([3:4,1:2]));
 		case 5; HDR.GDFTYP = 'float';
 		otherwise;
