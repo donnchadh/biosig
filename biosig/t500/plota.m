@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.25 $
-%	$Id: plota.m,v 1.25 2004-05-20 02:52:20 schloegl Exp $
+%       $Revision: 1.26 $
+%	$Id: plota.m,v 1.26 2004-05-24 11:38:03 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -1844,8 +1844,8 @@ elseif strcmp(X.datatype,'AMARMA')
 		if any(MODE==4)
 			hf = gca;
 		else
-			for k = 1:3;
-				hf(k) = subplot(3,1,k);	
+			for k = 1:length(MODE);
+				hf(k) = subplot(length(MODE),1,k);	
 			end;
 		end;	
 	else
@@ -1864,11 +1864,20 @@ elseif strcmp(X.datatype,'AMARMA')
 	                plot(X.T,[X.S,m0,sqrt(X.PE)]);
                 else
 		        plot(X.T,[m0,sqrt(X.PE)]);
-    		end;
-		ylabel([X.Label,' [',X.PhysDim,']']);
-                legend('mean','RMS')
+                end;
+                v = axis; v(2) = max(X.T); axis(v);
+                ylabel([X.Label,' [',X.PhysDim,']']);
+		hc= colorbar;
+		pos=get(gca,'position');
+		delete(hc);
+		set(gca,'position',pos);
+		if isfield(X,'S')
+                        legend('Raw','Mean','RMS')
+                else
+                        legend('mean','RMS')
+                end;
 	end;        
-
+	
 	if prod(size(arg2))<2,    
 		f0 = 1./m0;
 	else
@@ -1893,6 +1902,14 @@ elseif strcmp(X.datatype,'AMARMA')
 		K = K + 1;
                 subplot(hf(K));
                 semilogy(X.T,tmp(:,[3,4,8])); % 1
+                v = axis; v(2) = max(X.T); axis(v);
+                ylabel(sprintf('%s [%s^2]',X.Label,X.PhysDim));
+		hc= colorbar;
+		pos=get(gca,'position');
+		delete(hc);
+		set(gca,'position',pos);
+		
+
                 %ylabel(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
                 legend({'LF','HF','VLF+LF+HF'})
 	end;        
@@ -1911,16 +1928,25 @@ elseif strcmp(X.datatype,'AMARMA')
 		K = K + 1;
                 subplot(hf(K));
                 if 0;%FB{1}=='B';
-                        imagesc(X.T(1:DN:N),F2,2*log10(abs(h2(:,end:-1:1)))); 
+                        h=imagesc(X.T(1:DN:N),F2,2*log10(abs(h2(:,end:-1:1)))); 
                 else
-                        imagesc(X.T(1:DN:N),F2,2*log10(abs(h2))); 
+                        h=imagesc(X.T(1:DN:N),F2,2*log10(abs(h2))); 
                 end;
-                xlabel('samples ');
+                xlabel('beats');
                 ylabel('f [1/s]');
+                pos0 = get(gca,'position');
+                
                 hc= colorbar;
+                %pos1 = get(gca,'position')
                 v = get(hc,'yticklabel');
                 v = 10.^str2num(v)*2;
-                set(hc,'yticklabel',v);
+                pos2 = get(hc,'position');
+                %pos2(1) = 1 - (1 - pos0(1) - pos0(3))/4;
+                %pos2(1) = pos0(1) + pos0(3) + pos2(3)/2;
+                %pos2(3) = pos2(3)/2
+                set(hc,'yticklabel',v,'position',pos2);
+                
+                %set(gca,'position',pos0);
                 title(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
 	end;
 
@@ -1938,15 +1964,15 @@ elseif strcmp(X.datatype,'AMARMA')
 		K = K + 1;
                 subplot(hf(K));
                 plot3(repmat(1:DN:ceil(N),128,1),F,6+2*log10(abs(h))); 
-                xlabel('samples ');
+                xlabel('beats');
                 ylabel('f [1/s]');
                 zlabel(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
                 v = get(ah,'zticklabel');
                 v = 10.^str2num(v)*2;
                 set(ah,'zticklabel',v);
                 
-                view([60,-45])	
-                pos=get(ah,'position');%pos(4)=.5;
+                view([60,-45]);	
+                pos=get(ah,'position'); %pos(4)=.5;
                 set(ah,'position',pos);
                 set(1,'PaperUnits','inches','PaperOrientation','portrait','PaperPosition',[0.25 .5 8 10]);
 
