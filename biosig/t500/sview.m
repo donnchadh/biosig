@@ -7,8 +7,8 @@ function argout=sview(s,H),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.4 $
-%	$Id: sview.m,v 1.4 2004-05-09 17:38:55 schloegl Exp $ 
+%	$Revision: 1.5 $
+%	$Id: sview.m,v 1.5 2004-08-31 07:15:08 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -26,6 +26,8 @@ function argout=sview(s,H),
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
+[p,f,e]=fileparts(s);
+
 if ischar(s),
         if nargin<2,
                 [s,H] = sload(s);
@@ -38,9 +40,15 @@ else
         return;
 end;
 
+%s(abs(s)>1e3)=NaN;
 
-%s = regress_eog(s,1:3,4:7);
-
+fn=dir(fullfile(p,[f,'EOG',e]));
+if 0, length(fn)==1,
+        [R,tmp] = regress_eog(fullfile(p,fn.name),1:4,5:7);
+        s = s*R.r0;
+end; 
+%[R,s0] = regress_eog('v608eog.bkr',1:4,5:7);R.r0,
+%s = s*R.r0;
 
 if isfield(H,'Label'),
         LEG = H.Label;
@@ -49,11 +57,11 @@ else
 end;
 
 t = s(:); 
-t(isnan(t))=median(t);
+%t(isnan(t))=median(t);
 dd = max(t)-min(t);
 
 plot((1:size(s,1))'/H.SampleRate,((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)),'-');
-if H.EVENT.N > 0,
+if 0,H.EVENT.N > 0,
         hold on;
         if 0, 
         elseif isfield(H.EVENT,'DUR') & isfield(H.EVENT,'CHN');
@@ -75,7 +83,11 @@ end;
 
 title([H.FileName, ' generated with BIOSIG tools for Octave and Matlab(R)']);
 xlabel('time t[s]');
-ylabel(sprintf('Amplitude [%s]',H.PhysDim(1,:)));
+PhysDim = '';
+if ~isempty(H.PhysDim),
+        PhysDim = deblank(H.PhysDim(1,:));
+end;
+ylabel(sprintf('Amplitude [%s]',PhysDim));
 
 if exist('OCTAVE_VERSION')<5;
         if ~isempty(LEG);
