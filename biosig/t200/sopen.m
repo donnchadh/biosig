@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.27 $
-%	$Id: sopen.m,v 1.27 2004-02-10 09:31:21 schloegl Exp $
+%	$Revision: 1.28 $
+%	$Id: sopen.m,v 1.28 2004-02-12 15:03:38 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -107,6 +107,11 @@ if any(PERMISSION=='r'),
                                 else
                                         HDR.Endianity = 'ieee-le';
                                 end;
+                                
+                        elseif strcmp(ss(1:8),'@  MFER '); 
+                                HDR.TYPE='MFER';
+                        elseif strcmp(ss(1:6),'@ MFR '); 
+                                HDR.TYPE='MFER';
                         elseif all(s(17:22)=='SCPECG'); 
                                 HDR.TYPE='SCPECG';
                         elseif strncmp(ss,'POLY_SAM',8);	% Poly5/TMS32 sample file format.
