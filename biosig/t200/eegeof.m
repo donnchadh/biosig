@@ -21,8 +21,8 @@ function [status]=eegeof(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: eegeof.m,v 1.1 2003-02-01 15:03:45 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: eegeof.m,v 1.2 2003-04-26 19:01:26 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -35,9 +35,11 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
 	%if EDF.FILE.POS~=EDF.AS.startrec+EDF.AS.numrec;
         status=(HDR.FILE.POS>=HDR.NRec);
 elseif strcmp(HDR.TYPE,'BKR'),
-	status = (HDR.FILE.POS*HDR.NS >= (HDR.AS.endpos-HDR.HeadLen));
+	status = (HDR.FILE.POS >= (HDR.AS.endpos-HDR.HeadLen));
 elseif strcmp(HDR.TYPE,'CNT'),
-	status = (HDR.FILE.POS*HDR.NS >= (HDR.AS.endpos-HDR.HeadLen));
+	status = (HDR.FILE.POS >= (HDR.AS.endpos-HDR.HeadLen));
+elseif strcmp(HDR.TYPE,'MIT'),
+	status = (HDR.FILE.POS >= (HDR.AS.endpos-HDR.HeadLen));
 else
 	status=feof(HDR.FILE.FID);
 end;
