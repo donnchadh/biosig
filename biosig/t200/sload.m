@@ -22,8 +22,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 % Reference(s):
 
 
-%	$Revision: 1.28 $
-%	$Id: sload.m,v 1.28 2004-08-03 10:15:45 schloegl Exp $
+%	$Revision: 1.29 $
+%	$Id: sload.m,v 1.29 2004-08-16 16:01:01 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -85,7 +85,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 				fprintf(2,'ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
 				return;
 			end;
-f,size(signal),
+
                         if isfield(H,'TriggerOffset'),
                                 if H.TriggerOffset ~= h.TriggerOffset,
                                         fprintf(2,'Warning SLOAD: Triggeroffset does not fit.\n',H.TriggerOffset,h.TriggerOffset);
@@ -479,13 +479,21 @@ elseif strcmp(H.TYPE,'unknown')
                 fprintf('Error SLOAD: Unknown Data Format\n');
                 signal = [];
         end;
+        
+        
 end;
+
 
 if strcmp(H.TYPE,'CNT');    
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.txt']);
         if exist(f)==2,
-                tmp = load(f);
-                H.Classlabel=tmp(:);                        
+                fid = fopen(fid,'r');
+		tmp = fread(fid,inf,'char');
+		fclose(fid);
+		[tmp,v] = str2double(char(tmp'));
+		if ~any(v), 
+            		H.Classlabel=tmp(:);                        
+	        end;
         end
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
         if exist(f)==2,
@@ -542,7 +550,7 @@ if any(strmatch(H.TYPE,{'BKR','GDF'}));
         end;
 end;
 
-
+% resampling 
 if ~isnan(Fs) & (H.SampleRate~=Fs);
         tmp = ~mod(H.SampleRate,Fs) | ~mod(Fs,H.SampleRate);
         tmp2= ~mod(H.SampleRate,Fs*2.56);
