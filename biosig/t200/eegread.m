@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.16 $
-%	$Id: eegread.m,v 1.16 2003-06-03 17:41:52 schloegl Exp $
+%	$Revision: 1.17 $
+%	$Id: eegread.m,v 1.17 2003-06-14 21:01:11 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -398,6 +398,37 @@ elseif strcmp(HDR.TYPE,'CNT'),
                 end;
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
+        
+        
+elseif strcmp(HDR.TYPE,'SIGIF'),
+        if nargin==3,
+                HDR.FILE.POS = StartPos;
+        end;
+
+	S = [];
+	for k = 1:min(NoS,HDR.NRec-HDR.FILE.POS),
+		HDR.FILE.POS = HDR.FILE.POS + 1;
+		fseek(HDR.FILE.FID, HDR.Block.Pos(HDR.FILE.POS), 'bof');
+		if HDR.FLAG.TimeStamp,
+			HDR.Frame(k).TimeStamp = fread(HDR.FILE.FID,[1,9],'char');
+		end;
+			
+		if HDR.FLAG.SegmentLength,
+        		HDR.Block.Length(k) = fread(HDR.FILE.FID,1,'uint16');  %#26
+			fseek(HDR.FILE.FID,HDR.Block.Length(k)*H1.Bytes_per_Sample,'cof');
+		else
+			tmp = HDR.Segment_separator-1;
+			[dat,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.Block.Length/HDR.NS],HDR.GDFTYP);
+			[tmpsep,c] = fread(HDR.FILE.FID,1,HDR.GDFTYP);
+		
+			if  (tmpsep~=HDR.Segment_separator);
+				fprintf(HDR.FILE.stderr,'Error EEGREAD Type=SIGIF: blockseparator not found\n');
+			end;
+		end;
+		S = [S; dat'];
+	end;
+	S = S(:,HDR.SIE.InChanSelect);
+
         
 else
 	fprintf(2,'Error EEGREAD: %s-format not supported yet.\n', HDR.TYPE);        

@@ -21,8 +21,8 @@ function [status]=eegeof(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.7 $
-%	$Id: eegeof.m,v 1.7 2003-05-30 11:14:58 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: eegeof.m,v 1.8 2003-06-14 21:01:11 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -30,7 +30,7 @@ function [status]=eegeof(HDR)
 %status=feof(EDF.FILE.FID);  % does not work properly
 %if EDF.FILE.POS~=EDF.AS.startrec+EDF.AS.numrec;
         
-if strmatch(HDR.TYPE,{'EDF','BDF','GDF','RDF','EEG','AVG'}),
+if strmatch(HDR.TYPE,{'EDF','BDF','GDF','RDF','EEG','AVG','SIGIF'}),
 	%status=feof(EDF.FILE.FID);  % does not work properly
 	%if EDF.FILE.POS~=EDF.AS.startrec+EDF.AS.numrec;
         status = (HDR.FILE.POS >= HDR.NRec);
@@ -39,7 +39,7 @@ elseif strmatch(HDR.TYPE,{'RG64','LABVIEW'}),
 	status = (HDR.FILE.POS >= (HDR.AS.endpos-HDR.HeadLen));
 
 elseif strmatch(HDR.TYPE,{'BKR','CNT','MIT','SMA'}),
-	status = (HDR.FILE.POS >= HDR.SPR);
+	status = (HDR.FILE.POS >= HDR.SPR*HDR.NRec);
 
 elseif strmatch(HDR.TYPE,{'EGI'}),
         if HDR.FLAG.TRIGGERED,
