@@ -56,6 +56,9 @@
 % programmed from pop_readedf() version 1.15
 
 % $Log: not supported by cvs2svn $
+% Revision 1.1  2004/09/12 02:03:47  arnodelorme
+% Adding EEGLAB folder with EEGLAB interface files
+%
 % Revision 1.34  2004/09/07 22:33:32  arno
 % fix transpose problem
 %
@@ -207,9 +210,10 @@ EEG = eeg_emptyset;
 fprintf('Reading BDF data in 24-bit format...\n');
 dat = sopen(filename);
 if ~isempty(blockrange)
-    blockrange(2) = min(blockrange(2), dat.NRec);
-    blockrange = (blockrange-1)*dat.Dur;
-    DAT=sread(dat, blockrange(2)-blockrange(1), blockrange(1))';
+    newblockrange    = blockrange;
+    newblockrange(2) = min(newblockrange(2), dat.NRec);
+    newblockrange    = (newblockrange-1)*dat.Dur;
+    DAT=sread(dat, newblockrange(2)-newblockrange(1), newblockrange(1))';
 else 
     DAT=sread(dat, Inf)';
 end;
