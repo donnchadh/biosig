@@ -34,14 +34,16 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.30 $
-%	$Id: sread.m,v 1.30 2004-11-03 17:43:50 schloegl Exp $
+%	$Revision: 1.31 $
+%	$Id: sread.m,v 1.31 2004-11-04 17:33:11 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 S = [];
 
-if nargin<2, NoS = inf; end;
+if nargin<2, 
+        NoS = inf; 
+end;
 
 if NoS<0,
         fprintf(HDR.FILE.stderr,'Error SREAD: NoS must be non-negative\n');
@@ -54,14 +56,14 @@ if (nargin==3)
         end;
         tmp = HDR.SampleRate*StartPos;
         if tmp ~= round(tmp),
-                fprintf(HDR.FILE.stderr,'Warning SREAD: StartPos yields non-integer position\n');
+        %        fprintf(HDR.FILE.stderr,'Warning SREAD: StartPos yields non-integer position\n');
                 StartPos = round(tmp)/HDR.SampleRate;
         end;
 end;
 
 tmp = HDR.SampleRate*NoS;
 if tmp ~= round(tmp),
-        fprintf(HDR.FILE.stderr,'Warning SREAD: NoS yields non-integer position\n');
+        %fprintf(HDR.FILE.stderr,'Warning SREAD: NoS yields non-integer position [%f, %f]\n',NoS,HDR.SampleRate);
         NoS = round(tmp)/HDR.SampleRate;
 end;
 STATUS = 0; 
@@ -93,19 +95,61 @@ elseif strmatch(HDR.TYPE,{'BKR'}),
                 S(S==HDR.SIE.THRESHOLD(1)) = NaN;       % Overflow detection
         end;
         
-        
-elseif strmatch(HDR.TYPE,{'ISHNE','RG64'}),
+elseif strcmp(HDR.TYPE,'ACQ'),
         if nargin==3,
-                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
-        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],'int16');
+        count = 0;
+        if all(HDR.GDFTYP==HDR.GDFTYP(1)) & all(HDR.SPR==HDR.SPR(1))
+                [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP(1)));
+        else
+                fprintf(HDR.FILE.FID,'Warning SREAD (ACQ): interleaved format not supported (yet).');
+        end;
         if count,
                 S = S(HDR.InChanSelect,:)';
-                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+                HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.spb;
         end;
         
+elseif strmatch(HDR.TYPE,{'AIF','SND','WAV'})
+        if nargin==3,
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+
+        maxsamples = min(HDR.AS.endpos - HDR.FILE.POS, HDR.SampleRate*NoS);
+        [S,count] = fread(HDR.FILE.FID,[HDR.NS,maxsamples],HDR.GDFTYP);
+
+        S = S(HDR.InChanSelect,:)';
+        HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         
+        if ~HDR.FLAG.UCAL,
+                if isfield(HDR.FILE,'TYPE')
+                        if HDR.FILE.TYPE==1,
+                                S = mu2lin(S);
+                        end;
+                end;
+        end;
+
+elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','ISHNE','Nicolet','RG64'}),
+        if nargin==3,
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+
+        maxsamples = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
+	S = []; count = 0;
+	while maxsamples>0,	
+    		[s,c]  = fread(HDR.FILE.FID,[HDR.NS,min(2^16,maxsamples)], HDR.GDFTYP);
+		count = count + c;
+		maxsamples = maxsamples - c/HDR.NS;
+        	if c,
+            		S = [S;s(HDR.InChanSelect,:)'];
+    		end;
+        end;
+	HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+
+
 elseif strcmp(HDR.TYPE,'SMA'),
         if nargin==3,
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
@@ -348,67 +392,6 @@ elseif strcmp(HDR.TYPE,'TMS32'),
         S = S(:,HDR.InChanSelect);	
         
         
-elseif strcmp(HDR.TYPE,'DEMG'),
-        if nargin==3,
-                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],HDR.GDFTYP);
-        if count,
-                S = S(HDR.InChanSelect,:)';
-                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
-        end;
-        
-        
-elseif strcmp(HDR.TYPE,'ACQ'),
-        if nargin==3,
-                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        count = 0;
-        if all(HDR.GDFTYP==HDR.GDFTYP(1)) & all(HDR.SPR==HDR.SPR(1))
-                [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP(1)));
-        else
-                fprintf(HDR.FILE.FID,'Warning SREAD (ACQ): interleaved format not supported (yet).');
-        end;
-        if count,
-                S = S(HDR.InChanSelect,:)';
-                HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.spb;
-        end;
-
-        
-elseif strcmp(HDR.TYPE,'CFWB'),
-        if nargin==3,
-                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],HDR.GDFTYP);
-        if count,
-                S = S(HDR.InChanSelect,:)';
-                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
-        end;
-        
-        
-elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
-        if nargin==3,
-                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        maxsamples = min(HDR.SPR,HDR.SampleRate*NoS);
-        [S,count] = fread(HDR.FILE.FID,[HDR.NS,maxsamples],HDR.GDFTYP);
-
-        S = S(HDR.InChanSelect,:)';
-        HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
-        
-        if ~HDR.FLAG.UCAL,
-                if isfield(HDR.FILE,'TYPE')
-                        if HDR.FILE.TYPE==1,
-                                S = mu2lin(S);
-                        end;
-                end;
-        end;
-        
-        
 elseif strcmp(HDR.TYPE,'EGI'),
         if nargin==3,
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*StartPos,'bof');        
@@ -511,16 +494,6 @@ elseif strcmp(HDR.TYPE,'EEG'),
         HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.spb;        
         
         
-elseif strcmp(HDR.TYPE,'CNT'),
-        if nargin>2,
-                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        [S,count] = fread(HDR.FILE.FID, [HDR.NS, min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS)], gdfdatatype(HDR.GDFTYP));
-        
-        S = S(HDR.InChanSelect,:)';
-        HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
-        
 elseif strcmp(HDR.TYPE,'MFER'),
 	if (HDR.FRAME.N ~= 1),
 		fprintf(2,'Warning MWFOPEN: files with more than one frame not implemented, yet.\n');
@@ -554,7 +527,7 @@ elseif strcmp(HDR.TYPE,'MFER'),
         HDR.FILE.POS = HDR.FILE.POS + nr;
 	
         
-elseif strcmp(HDR.TYPE,'SCP'),
+elseif strmatch(HDR.TYPE,{'GTEC','SCP'}),
 	if nargin>2,
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
@@ -565,30 +538,6 @@ elseif strcmp(HDR.TYPE,'SCP'),
         
         HDR.FILE.POS = HDR.FILE.POS + nr;
 	
-        
-elseif strcmp(HDR.TYPE,'GTEC'),
-	if nargin>2,
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-
-	nr = min(HDR.SampleRate * NoS, size(HDR.data,1) - HDR.FILE.POS);
-        
-        S  = HDR.data(HDR.FILE.POS + (1:nr), HDR.InChanSelect);
-        
-        HDR.FILE.POS = HDR.FILE.POS + nr;
-	
-        
-elseif strcmp(HDR.TYPE,'Nicolet'),
-        if nargin>2,
-                STATUS = fseek(HDR.FILE.FID,HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        
-        [S,count] = fread(HDR.FILE.FID, [HDR.NS, min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS)], 'int16');
-        
-        S = S(HDR.InChanSelect,:)';
-        HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
-        
         
 elseif strcmp(HDR.TYPE,'SIGIF'),
         if nargin==3,
@@ -706,7 +655,7 @@ elseif strcmp(HDR.TYPE,'BVascii'), %Brainvision, ascii
         S  = HDR.BV.data(HDR.FILE.POS+(1:nr),HDR.InChanSelect);
         
         
-elseif strcmp(HDR.TYPE,'BrainVision'),   %Brainvision, unknown
+elseif 0, strcmp(HDR.TYPE,'BrainVision'),   %Brainvision, unknown
         error('SREAD (BrainVision): unsupported fileformat for data');
         
         
@@ -797,6 +746,7 @@ elseif strcmp(HDR.TYPE,'FIF'),
         
 else
         fprintf(2,'Error SREAD: %s-format not supported yet.\n', HDR.TYPE);        
+	return;
 end;
 
 
@@ -814,7 +764,7 @@ SREAD_TOGGLE_CHECK = SREAD_TOGGLE_CHECK+1;
 HDR.FLAG.TOGGLE = HDR.FLAG.TOGGLE+1;
 
 if STATUS,
-        fprintf(HDR.FILE.stderr,'WARNING SREAD: something went wrong. Please send these files %s and BIOSIGCORE to <a.schloegl@ieee.org>');
+        fprintf(HDR.FILE.stderr,'WARNING SREAD: something went wrong. Please send these files %s and BIOSIGCORE to <a.schloegl@ieee.org>',HDR.FileName);
         save biosigcore.mat 
 end;
 
@@ -829,8 +779,8 @@ if ~HDR.FLAG.UCAL,
                 % the difference is NaN*sparse(0) = 0 instead of NaN
                 % this is important for the automatic overflow detection
 
-		Calib = full(HDR.Calib);   % Octave can not index structed sparse matrix 
-                tmp = zeros(size(S,1),size(Calib,2));   % memory allocation
+		Calib = HDR.Calib;  
+                tmp   = zeros(size(S,1),size(Calib,2));   % memory allocation
                 for k = 1:size(Calib,2),
                         chan = find(Calib(1+HDR.InChanSelect,k));
                         tmp(:,k) = S(:,chan) * Calib(1+HDR.InChanSelect(chan),k) + Calib(1,k);
