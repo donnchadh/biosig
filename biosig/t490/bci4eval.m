@@ -15,13 +15,14 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %
 % X = bci4eval(tsd,trig,cl,pre,post,Fs)
 %       tsd     continous output 
-%               tsd has size Nx1 for 2-classes and 
-%               size NxM for M-classes 
+%               for 2 classes, tsd must have size Nx1 
+%               size NxM for M-classes, for each row the largest value 
+%               determines the assigned class 
 %       trig    trigger time points
 %       cl      classlabels
 %       pre     offset of trial start 
 %       post    offset of trial end 
-%       Fs      sampling rate (default Fs =128);
+%       Fs      sampling rate;
 %
 %       X is a struct with various results  
 %
@@ -38,9 +39,10 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %	http://ida.first.fraunhofer.de/projects/bci/competition/results/TR_BCI2003_III.pdf
 
 
-%    $Revision: 1.2 $
-%    $Id: bci4eval.m,v 1.2 2004-10-22 17:10:52 schloegl Exp $
+%    $Revision: 1.3 $
+%    $Id: bci4eval.m,v 1.3 2004-12-09 16:53:30 schloegl Exp $
 %    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
+%    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 %    This program is free software; you can redistribute it and/or modify
 %    it under the terms of the GNU General Public License as published by
@@ -56,11 +58,6 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %    along with this program; if not, write to the Free Software
 %    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-%	$Revision: 1.2 $
-%	$Id: bci4eval.m,v 1.2 2004-10-22 17:10:52 schloegl Exp $
-%	Copyright (C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
-%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
-
 if nargin<6
         Fs = 1;
 end;
@@ -70,6 +67,9 @@ CL = unique(cl);
 
 [x,sz]=trigg(tsd,TRIG,pre,post);
 D = squeeze(reshape(x,sz));
+
+% Time axis
+o.T = [pre:post]'/Fs;
 
 if (length(CL)==2) & (sz(1)==1),
         for k = 1:length(CL),
@@ -82,8 +82,6 @@ if (length(CL)==2) & (sz(1)==1),
         % within-class accuracy
         o.BCG1 = (1 + mean(sign(-X{1}), DIM))/2;
         o.BCG2 = (1 + mean(sign( X{2}), DIM))/2;
-        o.T    = (1 : length(o.BCG1))'/Fs;
-        o.Fs   = Fs; 
         
         %%%%% 2nd order statistics
         [i1.SUM, o.N1, i1.SSQ] = sumskipnan(X{1},DIM);       
@@ -112,7 +110,9 @@ if (length(CL)==2) & (sz(1)==1),
         
         o.datatype = 'TSD_BCI7';  % useful for PLOTA
         
-elseif length(CL)<=sz(1),
+end
+
+if length(CL)==sz(1),
         [m,IX] = max(D,[],1);
         IX(isnan(m)) = NaN;
         IX = squeeze(IX);
@@ -124,11 +124,6 @@ elseif length(CL)<=sz(1),
         end;
         end;
         
-        if nargin<6,
-                o.T = [pre:post]';
-        else
-                o.T = [pre:post]'/Fs;
-        end;
         o.KAP00 = zeros(size(CMX,1),1);
         o.Ksd00 = zeros(size(CMX,1),1);
         o.ACC00 = zeros(size(CMX,1),1);

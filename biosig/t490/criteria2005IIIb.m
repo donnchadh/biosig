@@ -2,11 +2,15 @@ function [crit] = criteria2005IIIb(X)
 % criteria2005IIIb evalates the criterium according the 
 % BCI competition 2005, dataset IIIb. 
 %
+%  X = bci4eval(...); 
+%  [crit] = criteria2005IIIb(X)
+%
 % see also: SUMSKIPNAN, PLOTA, BCI3EVAL, BCI4EVAL
 
-%    $Revision: 1.1 $
-%    $Id: criteria2005IIIb.m,v 1.1 2004-12-03 11:05:16 schloegl Exp $
-%    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
+
+%    $Revision: 1.2 $
+%    $Id: criteria2005IIIb.m,v 1.2 2004-12-09 16:53:31 schloegl Exp $
+%    Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 %    This program is free software; you can redistribute it and/or modify
