@@ -3,7 +3,7 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % 
 % Currently are the following data formats supported: 
 %    EDF, CNT, EEG, BDF, GDF, BKR, MAT(*), 
-%    PhysioNet (MIT-ECG), Poly5/TMS32,  
+%    PhysioNet (MIT-ECG), Poly5/TMS32, SMA, RDF 
 %
 % [signal,header] = loadeeg(FILENAME [,CHANNEL[,TYPE]])
 %
@@ -15,8 +15,8 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
 %
 
-%	$Revision: 1.13 $
-%	$Id: loadeeg.m,v 1.13 2003-05-24 01:01:42 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: loadeeg.m,v 1.14 2003-06-09 18:59:15 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -54,61 +54,48 @@ end;
 
 [p,f,FileExt] = fileparts(FILENAME);
 FileExt = FileExt(2:length(FileExt));
-if nargin<3, 
-        TYPE = FileExt; 
-        %%% EDF format
-        if     upper(FileExt)=='REC' TYPE='EDF';
-        elseif upper(FileExt)=='EDF' TYPE='EDF';
-                
-        %%% Neuroscan Format        
-        elseif upper(FileExt)=='AVG' TYPE='CNT';
-        elseif upper(FileExt)=='COH' TYPE='CNT';
-        elseif upper(FileExt)=='CSA' TYPE='CNT';
-        elseif upper(FileExt)=='EEG' TYPE='CNT';
-        elseif upper(FileExt)=='CNT' TYPE='CNT';
-        elseif upper(FileExt)=='SET' TYPE='CNT';
-        elseif upper(FileExt)=='AST' TYPE='CNT';
-                
-        %%% BKR Format        
-	elseif upper(FileExt)=='BKR' TYPE='BKR';
-	elseif upper(FileExt)=='SPB' TYPE='BKR';
-	elseif upper(FileExt)=='SAB' TYPE='BKR';
-	elseif upper(FileExt)=='SRB' TYPE='BKR';
-	elseif upper(FileExt)=='MNB' TYPE='BKR';
-	elseif upper(FileExt)=='STB' TYPE='BKR';
-                
-        % PhysioNet MIT-ECG database        
-        elseif upper(FileExt)=='HEA' TYPE='MIT';
-        elseif upper(FileExt)=='ATR' TYPE='MIT';
-                
-        % other formates        
-        elseif upper(FileExt)=='DAT' 
-		fn = dir(fullfile(p,[f,'.hea']));
-		if isempty(fn),
-			TYPE='DAT';
-		else
-			TYPE='MIT';
-                end;
 
-        elseif upper(FileExt)=='SIG' TYPE='SIG';
-                
-        elseif upper(FileExt(1:2))=='DA' TYPE='DA_';
-                
-        elseif upper(FileExt([1 3]))=='RF' TYPE='RG64';
-                
-        end; 
-end;
-TYPE = upper(TYPE);
-
-%if strcmp(TYPE,'BKR') | strcmp(TYPE,'CNT') | strcmp(TYPE,'EDF') | strcmp(TYPE,'BDF') | strcmp(TYPE,'GDF') | strcmp(TYPE,'EEG'), 
 H.FileName = FILENAME;
-H.TYPE = TYPE;
 H = eegopen(H,'r',CHAN);
+TYPE = H.TYPE;
+
 if H.FILE.FID>0,
         [signal,H] = eegread(H);
 	H = eegclose(H);
+ 
+
+elseif strcmp(H.TYPE,'DAQ')
+	fprintf(1,'Loading a matlab DAQ data file - this can take a while.\n');
+	tic;
+ 	[signal, tmp, H.DAQ.T0, H.DAQ.events, DAQ.info] = daqread(H.FileName);
+	fprintf(1,'Loading DAQ file finished after %.0f s.\n',toc);
+	H.NS   = size(signal,2);
+        
+	H.SampleRate = DAQ.info.ObjInfo.SampleRate;
+        sz     = size(signal);
+        if length(sz)==2, sz=[1,sz]; end;
+        H.NRec = sz(1);
+        H.Dur  = sz(2)/H.SampleRate;
+        H.NS   = sz(3);
+        H.FLAG.TRIGGERED = H.NRec>1;
+        H.FLAG.UCAL = 1;
 	
-elseif strcmp(TYPE,'MAT')
+        H.PhysDim = {DAQ.info.ObjInfo.Channel.Units};
+        H.DAQ   = DAQ.info.ObjInfo.Channel;
+        
+        H.Cal   = diff(cat(1,DAQ.info.ObjInfo.Channel.InputRange),[],2).*(2.^(-DAQ.info.HwInfo.Bits));
+        H.Off   = cat(1,DAQ.info.ObjInfo.Channel.NativeOffset); 
+        H.Calib = sparse([H.Off';eye(H.NS)]*diag(H.Cal));
+        
+        if CHAN<1,
+                CHAN = 1:H.NS; 
+        end;
+        if ~H.FLAG.UCAL,
+        	signal = [ones(size(signal,1),1),signal]*H.Calib(:,CHAN);        
+        end;
+        
+         
+elseif strcmp(H.TYPE,'MAT'),FILENAME,
         tmp = load(FILENAME);
         if isfield(tmp,'y')
                 H.NS = size(tmp.y,2);
@@ -142,6 +129,7 @@ elseif strcmp(TYPE,'MAT')
                 if isfield(tmp,'classlabel'),
                 	H.Classlabel = tmp.classlabel;
                 end;        
+
                         	
         elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.50 data format
                 if isstruct(tmp.P_C_S),	% without BS.analyze	
@@ -195,9 +183,28 @@ elseif strcmp(TYPE,'MAT')
                 
                 tmp.P_C_S = []; % clear memory
                 signal = reshape(permute(data(:,:,CHAN),[2,1,3]),[sz(1)*sz(2),sz(3)]);
+
                 
-        elseif isfield(tmp,'P_C_DAQ_S');
-                signal = double(tmp.P_C_DAQ_S.data{1});
+	elseif isfield(tmp,'P_C_DAQ_S');
+                if ~isempty(tmp.P_C_DAQ_S.data),
+                        signal = double(tmp.P_C_DAQ_S.data{1});
+                        
+                elseif ~isempty(tmp.P_C_DAQ_S.daqboard),
+                        [tmppfad,file,ext] = fileparts(tmp.P_C_DAQ_S.daqboard{1}.ObjInfo.LogFileName),
+                        file = [file,ext];
+                        if exist(file)==2,
+                                signal=daqread(file);        
+                                H.info=daqread(file,'info');        
+                        else
+                                fprintf(H.FILE.stderr,'Error LOADEEG: no data file found\n');
+                                return;
+                        end;
+                        
+                else
+                        fprintf(H.FILE.stderr,'Error LOADEEG: no data file found\n');
+                        return;
+                end;
+                
                 H.NS = size(signal,2);
                 %scale  = tmp.P_C_DAQ_S.sens;      
                 H.Cal = tmp.P_C_DAQ_S.sens*(2.^(1-tmp.P_C_DAQ_S.daqboard{1}.HwInfo.Bits));
@@ -241,6 +248,10 @@ elseif strcmp(TYPE,'MAT')
                 else
         	        signal = tmp.data;
                 end;
+                if isfield(tmp,'classlabel'),
+                	H.Classlabel = tmp.classlabel;
+                end;        
+
                 
         elseif isfield(tmp,'EEGdata');  % Telemonitoring Daten (Reinhold Scherer)
                 H.NS = size(tmp.EEGdata,2);
@@ -259,6 +270,7 @@ elseif strcmp(TYPE,'MAT')
                         signal = tmp.EEGdata*50;
                 end;
                 
+
         elseif isfield(tmp,'daten');	% EP Daten von Michael Woertz
                 H.NS = size(tmp.daten.raw,2)-1;
                 if ~isfield(tmp,'SampleRate')
@@ -276,6 +288,7 @@ elseif strcmp(TYPE,'MAT')
                         signal = tmp.daten.raw*100;
                 end;
                 
+
         elseif isfield(tmp,'neun') & isfield(tmp,'zehn') & isfield(tmp,'trig');
                 H.NS=3;
                 if ~isfield(tmp,'SampleRate')
@@ -291,7 +304,7 @@ elseif strcmp(TYPE,'MAT')
                         signal=signal(:,CHAN);
                 end;        
         end;        
-        
+
 elseif strcmp(TYPE,'DAT')
         loaddat;     
         signal = Voltage(:,CHAN);
