@@ -15,8 +15,8 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % see also: SOPEN, SREAD, SCLOSE
 %
 
-%	$Revision: 1.1 $
-%	$Id: sload.m,v 1.1 2003-09-06 17:19:32 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: sload.m,v 1.2 2003-09-09 23:16:08 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -100,8 +100,8 @@ elseif strcmp(H.TYPE,'MAT'),FILENAME,
         if isfield(tmp,'y')
                 H.NS = size(tmp.y,2);
                 if ~isfield(tmp,'SampleRate')
-                        warning(['Samplerate not known in ',FILENAME,'. 128Hz is chosen']);
-                        H.SampleRate=128;
+                        %warning(['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
+                        H.SampleRate=125;
                 else
                         H.SampleRate=tmp.SampleRate;
                 end;
@@ -116,8 +116,8 @@ elseif strcmp(H.TYPE,'MAT'),FILENAME,
                 warning(['Sensitivity not known in ',FILENAME]);
                 H.NS=size(tmp.eeg,2);
                 if ~isfield(tmp,'SampleRate')
-                        warning(['Samplerate not known in ',FILENAME,'. 128Hz is chosen']);
-                        H.SampleRate=128;
+                        %warning(['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
+                        H.SampleRate=125;
                 else
                         H.SampleRate=tmp.SampleRate;
                 end;
@@ -239,7 +239,7 @@ elseif strcmp(H.TYPE,'MAT'),FILENAME,
                 H.NS = size(tmp.data,2);
                 if ~isfield(tmp,'SampleRate')
                         warning(['Samplerate not known in ',FILENAME,'. 128Hz is chosen']);
-                        H.SampleRate=128;
+                        H.SampleRate=125;
                 else
                         H.SampleRate=tmp.SampleRate;
                 end;
@@ -258,7 +258,7 @@ elseif strcmp(H.TYPE,'MAT'),FILENAME,
                 H.Classlabel = tmp.classlabel;
                 if ~isfield(tmp,'SampleRate')
                         warning(['Samplerate not known in ',FILENAME,'. 128Hz is chosen']);
-                        H.SampleRate=128;
+                        H.SampleRate=125;
                 else
                         H.SampleRate=tmp.SampleRate;
                 end;
