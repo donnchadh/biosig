@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.27 $
-%	$Id: eegopen.m,v 1.27 2003-07-21 16:19:27 schloegl Exp $
+%	$Revision: 1.28 $
+%	$Id: eegopen.m,v 1.28 2003-07-22 07:37:05 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -418,7 +418,11 @@ elseif strcmp(HDR.TYPE,'LDR'),
 
         
 elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
-    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        PERMISSION = PERMISSION(PERMISSION~='b');
+        if ~exist('OCTAVE_VERSION'),
+        	PERMISSION=[PERMISSION,'t'];	% force text mode [Matlab has default binary-mode]
+        end;
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
 
         numbegin=0;
         HDR.H1 = [];
