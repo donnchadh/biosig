@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.2 $
-%	$Id: sread.m,v 1.2 2003-09-09 23:11:35 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: sread.m,v 1.3 2003-09-14 21:34:14 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -304,18 +304,14 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
 	        S = S(HDR.SIE.InChanSelect,:)';
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
-	if strcmp(HDR.TYPE,'SND'),
-                if HDR.FILE.TYPE==1,
-			S = mu2lin(S);
-    		else
-			S = S*HDR.Cal;
-		end;
-	else
-	        if ~HDR.FLAG.UCAL,
-			S = S*2^(1-HDR.bits);
-		end;
-	end;
-
+        if ~HDR.FLAG.UCAL,
+                if isfield(HDR.FILE,'TYPE')
+                        if HDR.FILE.TYPE==1,
+                                S = mu2lin(S);
+                        end;
+                end;
+                S = S*HDR.Cal;
+        end;
         
 elseif strcmp(HDR.TYPE,'EGI'),
         if nargin==3,

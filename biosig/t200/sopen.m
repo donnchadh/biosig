@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.3 $
-%	$Id: sopen.m,v 1.3 2003-09-09 23:10:30 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: sopen.m,v 1.4 2003-09-14 21:34:14 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -683,15 +683,44 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
 				tmp = fread(HDR.FILE.FID,2,'uint32');
 				HDR.SampleRate = sgn * (tmp(1)*(2^(e-31))+tmp(2)*2^(e-63));
 				HDR.Dur = HDR.SPR/HDR.SampleRate;
-
-				if tagsize>18,
+                                HDR.FILE.TYPE = 0;
+                                
+                                if tagsize>18,
 					[tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
 					HDR.AIF.CompressionType = setstr(tmp);
-					[tmp,c] = fread(HDR.FILE.FID,taglen-18-c,'char');
-					HDR.AIF.CompressionName = setstr(tmp);
+					[tmp,c] = fread(HDR.FILE.FID,[1,tagsize-18-c],'char');
+					HDR.AIF.CompressionName = tmp;
 				
-					if ~strcmpi(HDR.AIF.CompressionType,'NONE');
-						fprintf(2,'Warning SOPEN AIFC-format: CompressionType %s is not supported\n', HDR.AIF.CompressionType);
+					if strcmpi(HDR.AIF.CompressionType,'NONE');
+                                        elseif strcmpi(HDR.AIF.CompressionType,'fl32');
+                                                HDR.GDFTYP = 16;
+					elseif strcmpi(HDR.AIF.CompressionType,'fl64');
+                                                HDR.GDFTYP = 17;
+					elseif strcmpi(HDR.AIF.CompressionType,'alaw');
+                                	        HDR.GDFTYP = 2;
+                                                HDR.AS.bpb = HDR.NS;
+                                                %HDR.FILE.TYPE = 1;
+                                                fprintf(2,'Warning SOPEN AIFC-format: data not scaled because of CompressionType ALAW\n');
+                                                HDR.FLAG.UCAL = 1;
+                                        elseif strcmpi(HDR.AIF.CompressionType,'ulaw');
+                                                HDR.GDFTYP = 2;
+                                                HDR.AS.bpb = HDR.NS;
+                                                HDR.FILE.TYPE = 1;  
+                                                
+                                        %%%% other compression types - currently not supported, probably obsolete
+                                        %elseif strcmpi(HDR.AIF.CompressionType,'DWVW');
+					%elseif strcmpi(HDR.AIF.CompressionType,'GSM');
+					%elseif strcmpi(HDR.AIF.CompressionType,'ACE2');
+					%elseif strcmpi(HDR.AIF.CompressionType,'ACE8');
+					%elseif strcmpi(HDR.AIF.CompressionType,'ima4');
+					%elseif strcmpi(HDR.AIF.CompressionType,'MAC3');
+					%elseif strcmpi(HDR.AIF.CompressionType,'MAC6');
+					%elseif strcmpi(HDR.AIF.CompressionType,'Qclp');
+					%elseif strcmpi(HDR.AIF.CompressionType,'QDMC');
+					%elseif strcmpi(HDR.AIF.CompressionType,'rt24');
+					%elseif strcmpi(HDR.AIF.CompressionType,'rt24');
+                                        else        
+                                                fprintf(2,'Warning SOPEN AIFC-format: CompressionType %s is not supported\n', HDR.AIF.CompressionType);
 					end;
 				end;	
 
@@ -743,6 +772,9 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
 
 			elseif strcmpi(tag,'COMT');
 				HDR.AIF.COMT  = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+		
+			elseif strcmpi(tag,'ANNO');
+				HDR.AIF.ANNO  = setstr(fread(HDR.FILE.FID,[1,tagsize],'uchar'));
 		
 			elseif strcmpi(tag,'(c) ');
 				[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
