@@ -30,8 +30,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.35 $
-%	$Id: sload.m,v 1.35 2004-09-25 20:28:10 schloegl Exp $
+%	$Revision: 1.36 $
+%	$Id: sload.m,v 1.36 2004-10-05 19:54:02 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -102,8 +102,16 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
                                 end;
                         end;
                         if isfield(H,'Classlabel'),
-                                if isfield(H,'ArtifactSelection'),
-                                        H.ArtifactSelection = [H.ArtifactSelection(:);h.ArtifactSelection(:)+length(H.Classlabel)];
+                                if isfield(H,'ArtifactSelection')
+                                        if isfield(h,'ArtifactSelection'),
+                                                if length(h.ArtifactSelection)<length(h.Classlabel)
+                                                        H.ArtifactSelection = [H.ArtifactSelection; h.ArtifactSelection(:)+length(H.Classlabel)];
+                                                elseif length(h.ArtifactSelection)==length(h.Classlabel),
+                                                        H.ArtifactSelection = [H.ArtifactSelection; h.ArtifactSelection(:)];
+                                                end;
+                                        elseif isfield(H,'ArtifactSelection'),
+                                                H.ArtifactSelection = [H.ArtifactSelection;zeros(length(h.Classlabel),1)];
+                                        end;
                                 end;
                                 H.Classlabel = [H.Classlabel(:);h.Classlabel(:)];
                         end;
@@ -202,8 +210,8 @@ elseif strcmp(H.TYPE,'DIR'),
         
         if exist(f0,'file') & exist(f1,'file') & exist(f2,'file')
                 % BCI competition 2003, dataset 1a+b (Tuebingen)
-                data = load('-ascii', f0);
-                test = load('-ascii', f1);
+                data = load('-ascii',f0);
+                test = load('-ascii',f1);
                 data = [data; test];
                 test = load('-ascii',f2);
                 H.Classlabel = [data(:,1); repmat(NaN,size(test,1),1)];
@@ -734,9 +742,23 @@ elseif strcmp(H.TYPE,'unknown')
         end;
 end;
 
+% Trigger information
+ix = find(H.EVENT.TYP==hex2dec('0300')); 
+H.TRIG = mod(H.EVENT.POS(ix),256);
+
 
 if strcmp(H.TYPE,'CNT');    
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.txt']); 
+        if exist(f,'file'),
+                fid = fopen(f,'r');
+		tmp = fread(fid,inf,'char');
+		fclose(fid);
+		[tmp,v] = str2double(char(tmp'));
+		if ~any(v), 
+            		H.Classlabel=tmp(:);                        
+	        end;
+        end
+        f = fullfile(H.FILE.Path, [H.FILE.Name,'.par']); 
         if exist(f,'file'),
                 fid = fopen(f,'r');
 		tmp = fread(fid,inf,'char');
@@ -781,6 +803,7 @@ if ~isempty(findstr(upper(MODE),'TSD'));
         end;
 end;
 
+
 %%%%% if possible, load Reinhold's configuration files
 if any(strmatch(H.TYPE,{'BKR','GDF'}));
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
@@ -799,7 +822,20 @@ if any(strmatch(H.TYPE,{'BKR','GDF'}));
                         end;
 		end;
         end;
+        
+        %%% Robert's VR data 
+        TRIGCHAN = strmatch('TRIGGER',H.Label); 
+        if ~isempty(TRIGCHAN) & isempty(H.EVENT.POS)
+                if isfield(H,'TriggerOffset')
+                        H.EVENT.POS = gettrigger(signal(:,TRIGCHAN))-round(H.TriggerOffset/1000*H.SampleRate);
+                else
+                        H.EVENT.POS = gettrigger(signal(:,TRIGCHAN));
+                end;
+                H.EVENT.TYP = repmat(hex2dec('0300'),size(H.EVENT.POS));
+                H.EVENT.N = length(H.EVENT.POS);
+        end;
 end;
+
 
 % resampling 
 if ~isnan(Fs) & (H.SampleRate~=Fs);

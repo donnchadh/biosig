@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.20 $
-%	$Id: bkropen.m,v 1.20 2004-03-25 18:53:10 schloegl Exp $
+%	$Revision: 1.21 $
+%	$Id: bkropen.m,v 1.21 2004-10-05 19:54:02 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -164,7 +164,7 @@ if any(PERMISSION=='r'),
         BKR.Calib = sparse(2:BKR.NS+1,1:BKR.NS,BKR.Cal,BKR.NS+1,BKR.NS);
         BKR.PhysDim = 'µV';
 	BKR.Label=code;
-	tmp=sprintf('LowPass %4.1fHz, HighPass %4.1fHz, Notch ?',lcf,ucf);
+	tmp=sprintf('LowPass %4.1f Hz; HighPass %4.1f Hz; Notch ?',lcf,ucf);
 	BKR.PreFilt=tmp;%ones(BKR.NS,1)*[tmp 32+zeros(1,80-length(tmp))];
 	BKR.HeadLen=HeaderEnd;
 
@@ -223,28 +223,33 @@ if any(PERMISSION=='r'),
         % look for Classlabel information
         if 1; %~isfield(BKR,'Classlabel'),
                 tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.par']);
-                if exist(tmp)~=2,
+                if ~exist(tmp,'file'),
                 	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.PAR']);
                 end
-                if exist(tmp)==2,
+                if exist(tmp,'file'),
                         BKR.Classlabel = load(tmp);
                 end;
         end;
         if 1; %~isfield(BKR,'ArtifactSelection'),
                 tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.sel']);
-                if exist(tmp)~=2,
+                if ~exist(tmp,'file'),
                 	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.SEL']);
                 end
-                if exist(tmp)==2,
+                if exist(tmp,'file'),
                         BKR.ArtifactSelection = load(tmp);
+                end;
+                tmp = fullfile(BKR.FILE.Path,[BKR.FILE.Name,'_artifact.mat']);
+                if exist(tmp,'file'),
+                        tmp = load(tmp);
+                        BKR.ArtifactSelection = tmp.artifact(:); 
                 end;
         end;
         if ~isfield(BKR,'Classlabel'),
                 tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.mat']);
-                if exist(tmp)~=2,
+                if ~exist(tmp,'file'),
                 	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.MAT']);
                 end
-                if exist(tmp)==2,
+                if exist(tmp,'file'),
                         try,
                                 tmp = load(tmp);
                         catch
@@ -254,9 +259,13 @@ if any(PERMISSION=='r'),
                                 BKR.Classlabel = tmp.header.Result.Classlabel;
                         end;
                 end;
+
+                if isfield(tmp.header,'PhysioRec'), % R. Leeb's data 
+                        BKR.Label = tmp.header.PhysioRec;
+                end;
         end;
 
-
+        
 elseif any(PERMISSION=='w'),
         
         BKR.FILE.OPEN = 2;		
@@ -280,6 +289,13 @@ elseif any(PERMISSION=='w'),
         else
                 BKR.NRec = -1; 	% Unknown - Value will be fixed when file is closed. 
         end;
+        if ~isfield(BKR,'PhysMax'), BKR.PhysMax = NaN; end;
+        if isempty(BKR.PhysMax),    BKR.PhysMax = NaN; end;
+        if ~isfield(BKR,'DigMax'),  BKR.DigMax  = NaN; end;
+        if isnan(BKR.DigMax) | isempty(BKR.DigMax),
+                BKR.DigMax = 2^15-1;   
+        end;
+        
         if any([BKR.NS==0,BKR.SPR==0,BKR.NRec<0,isnan([BKR.NRec,BKR.NS,BKR.SPR,BKR.DigMax,BKR.PhysMax,BKR.SampleRate])]), 	% if any unknown, ...	
                 BKR.FILE.OPEN = 3;			%	... fix header when file is closed. 
         end;
@@ -289,13 +305,6 @@ elseif any(PERMISSION=='w'),
                 BKR.FLAG.UCAL = 0; 
         end;
 
-        if ~isfield(BKR,'PhysMax'), BKR.PhysMax = NaN; end;
-        if isempty(BKR.PhysMax),    BKR.PhysMax = NaN; end;
-        if ~isfield(BKR,'DigMax'),  BKR.DigMax  = NaN; end;
-        if isnan(BKR.DigMax) | isempty(BKR.DigMax),
-                BKR.DigMax = 2^15-1;   
-        end;
-        
         tmp = round(BKR.PhysMax);
 	fprintf(1,'Scaling error in file %s due to rounding of PhysMax is in the range of %f%%.\n',BKR.FileName, abs((BKR.PhysMax-tmp)/tmp)*100);
 	BKR.PhysMax = tmp;
