@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.17 $
-%	$Id: bkropen.m,v 1.17 2004-03-11 12:41:11 schloegl Exp $
+%	$Revision: 1.18 $
+%	$Id: bkropen.m,v 1.18 2004-03-17 19:46:22 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -161,6 +161,7 @@ if any(PERMISSION=='r'),
 	BKR.PhysMax=cvlt;
 	BKR.Cal=BKR.PhysMax/BKR.DigMax; %*ones(BKR.NS,1);
 	BKR.Off=zeros(BKR.NS,1);
+        BKR.PhysDim = 'µV';
 	BKR.Label=code;
 	tmp=sprintf('LowPass %4.1fHz, HighPass %4.1fHz, Notch ?',lcf,ucf);
 	BKR.PreFilt=tmp;%ones(BKR.NS,1)*[tmp 32+zeros(1,80-length(tmp))];
@@ -259,6 +260,14 @@ elseif any(PERMISSION=='w'),
         
         BKR.FILE.OPEN = 2;		
         BKR.VERSION   = 207;
+        BKR.TYPE      = 'BKR';
+        if ~strcmpi(BKR.FILE.Ext,'BKR'),
+                fprintf(2,'Warning BKROPEN-WRITE: file extionsion is not BKR.\n');
+        end;
+        if ~isfield(BKR,'SampleRate'),
+                fprintf(2,'Error BKROPEN-WRITE: HDR.SampleRate not defined.\n');
+                return;
+        end;
         if ~isfield(BKR,'NS'),
                 BKR.NS = 0; 	% unknown channel number ...
         end;

@@ -35,8 +35,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.17 $
-% 	$Id: save2bkr.m,v 1.17 2004-03-15 14:57:50 schloegl Exp $
+%	$Revision: 1.18 $
+% 	$Id: save2bkr.m,v 1.18 2004-03-17 19:46:22 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -368,12 +368,9 @@ for k=1:length(infile);
 	        HDR.FileName  = fullfile(outfile,[HDR.FILE.Name,'.bkr']);
         else
                 [HDR.FILE.Path,HDR.FILE.Name,Ext] = fileparts(outfile);
-                if isempty(findstr(lower(Ext),'bkr'))
-                        fprintf(2,'Warning SAVE2BKR: extension of target file should be .BKR, not %s\n',Ext);
-                end;
                 HDR.FileName = fullfile(HDR.FILE.Path,[HDR.FILE.Name,Ext]);
         end;
-        HDR = eegchkhdr(HDR);
+        %HDR = eegchkhdr(HDR);
         
         HDR = sopen(HDR,'w');
         if HDR.FILE.FID < 0,
