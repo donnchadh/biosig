@@ -1,5 +1,5 @@
 function [LogLik,ix,x]=llbc(ECM,Y,Mode)
-% Log-Likelihood based classifier
+% LLBC Log-Likelihood based classifier
 % [LLBC] = llbc(ECM);
 % LLBC is a multiple discriminator
 %
@@ -19,8 +19,9 @@ function [LogLik,ix,x]=llbc(ECM,Y,Mode)
 % 
 % see also: DECOVM, ECOVM.M, R2.M, MDBC, LDBC
 
-%	Version 1.23	Date: 30 Dec 2002
-%	Copyright (c) 1999-2002 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.2 $
+%	$Id: llbc.m,v 1.2 2003-07-24 10:27:31 schloegl Exp $
+%	Copyright (c) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -40,6 +41,9 @@ NC=size(ECM);
 if length(NC)<3, 
         if iscell(ECM(1)),
                 NC=[max(NC(1:2)),size(ECM{1})];
+        elseif isstruct(ECM),
+		x = ECM;
+                NC=[length(x.IR),size(x.IR{1})]
         elseif NC(1)==NC(2)
                 ECM{1}=ECM;
         end;
@@ -55,9 +59,12 @@ if nargin>1,
         if NC(2) == size(Y,2)+1;
                 Y = [ones(size(Y,1),1),Y];  % add 1-column
                 warning('LLBC: 1-column added to data');
+        elseif ~all(Y(:,1)==1 | isnan(Y(:,1)))
+                warning('first column does not contain ones only'); 
         end;
 end;
 
+if exist('x')~=1,
 for k = 1:NC(1);
         %[M,sd,S,xc,N] = decovm(ECM{k});  %decompose ECM
         c  = size(ECM{k},2);
@@ -71,9 +78,11 @@ for k = 1:NC(1);
 	x.logSF(k) = log(nn) - d/2*log(2*pi) - det(S)/2;
 	x.logSF2(k)= log(nn) - d/2*log(2*pi) - log(det(S))/2;
 	x.SF(k) = nn/sqrt((2*pi)^d * det(S));
+	x.datatype='LLBC';
+end;
 end;
 
-if 0, %nargin<2,
+if nargin<2,
         LogLik = x;	% inverse correlation matrix
 else
         LogLik=zeros(size(Y,1),NC(1)); %alllocate memory

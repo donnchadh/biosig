@@ -22,8 +22,9 @@ function [MDBC,ix]=mdbc(ECM,Y)
 % REFERENCE(S):
 % P. C. Mahalanobis, Proc. Natl. Institute of Science of India, 2, 49, (1936)
 
-%	Version 1.23    Date: 30 Dec 2002
-%	Copyright (c) 1999-2002 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.2 $
+%	$Id: mdbc.m,v 1.2 2003-07-24 10:27:31 schloegl Exp $
+%	Copyright (c) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -58,7 +59,7 @@ if nargin>1,
         if (NC(2) == size(Y,2)+1) 
                 Y = [ones(size(Y,1),1),Y];  % add 1-column
                 warning('MDBC: 1-column added to data');
-        elseif ~all(Y(:,1)==1)
+        elseif ~all(Y(:,1)==1 | isnan(Y(:,1)))
                 warning('first column does not contain ones only') 
         end;
 end;
@@ -80,12 +81,12 @@ end;
 if nargin<2,
         MDBC = IR;	% inverse correlation matrix
 else
-        MDBC=zeros(size(Y,1),NC(1)); %alllocate memory
+        MDBC = zeros(size(Y,1),NC(1)); %allocate memory
         for k = 1:NC(1);  
                 MDBC(:,k) = sum((Y*IR{k}).*Y,2); % calculate distance of each data point to each class
 	end;
         
-	MDBC=sqrt(MDBC);
+	MDBC = sqrt(MDBC);
         if nargout==2,
                 [MDBC,ix] = min(MDBC,[],2);
 		ix(isnan(MDBC)) = NC(1)+1;	% not classified

@@ -19,9 +19,9 @@ function [LDBC,ix]=ldbc(ECM,Y)
 % 
 % see also: DECOVM, ECOVM.M, R2.M, MDBC
 
-%	Copyright (C) 1999-2002 by Alois Schloegl
-%	a.schloegl@ieee.org	
-%	22.11.2000 Version 1.21
+%	$Revision: 1.2 $
+%	$Id: ldbc.m,v 1.2 2003-07-24 10:27:31 schloegl Exp $
+%	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -56,6 +56,8 @@ if nargin>1,
         if NC(2) == size(Y,2)+1;
                 Y = [ones(size(Y,1),1),Y];  % add 1-column
                 fprintf(2,'Warning LDBC: 1-column added to data \n');
+        elseif ~all(Y(:,1)==1 | isnan(Y(:,1)))
+                warning('first column does not contain ones only') 
         end;
 end;
 
