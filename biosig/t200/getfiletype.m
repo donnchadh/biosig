@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.17 $
-%	$Id: getfiletype.m,v 1.17 2004-11-16 19:53:37 schloegl Exp $
+%	$Revision: 1.18 $
+%	$Id: getfiletype.m,v 1.18 2004-11-18 16:48:44 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -104,6 +104,8 @@ else
                         HDR.TYPE='BKR';
                 elseif strncmp(ss,'Version 3.0',11); 
                         HDR.TYPE='CNT';
+                elseif strncmp(ss,'Brain Vision Data Exchange Header File',38); 
+                        HDR.TYPE = 'BrainVision';
                 elseif strncmp(ss,'0       ',8); 
                         HDR.TYPE='EDF';
                 elseif all(s(1:8)==[255,abs('BIOSEMI')]); 
@@ -721,19 +723,11 @@ else
                         HDR.TYPE = 'SXI';
                         
                         % the following are Brainvision format, see http://www.brainproducts.de
-                elseif strcmpi(HDR.FILE.Ext,'vhdr')
-                        HDR.TYPE = 'BrainVision';    % Brainvision EEG header file
-                        
+                elseif exist(fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']), 'file')
+                        HDR.TYPE = 'BrainVision';
+                        HDR.FileName = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);	% point to header file
                 elseif strcmpi(HDR.FILE.Ext,'vmrk')
-                        HDR.TYPE = 'BrainVision';    % Brainvision EEG marker/event file
-                        
-                elseif strcmpi(HDR.FILE.Ext,'eeg')
-                        % If this is really a BrainVision file, there should also be a
-                        % header with the same name and extension *.vhdr.
-                        if exist(fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']), 'file')
-                                HDR.TYPE          = 'BrainVision';
-                                HDR.FileName = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);	% point to header file
-                        end
+                        HDR.TYPE = 'BrainVisionMarkerFile';
                         
                 elseif strcmpi(HDR.FILE.Ext,'ent')
 			HDR.TYPE = 'XLTEK-EVENT';		
@@ -768,7 +762,7 @@ else
                         if exist(HDR.FileName, 'file')
                                 fid = fopen(HDR.FileName,'r','ieee-le');
                                 fseek(fid,-4,'eof');
-                                datalen = frea(fid,1,'uint32');
+                                datalen = fread(fid,1,'uint32');
                                 fseek(fid,datalen,'bof');
                                 HDR.Header = char(fread(fid,[1,inf],'uchar'));
                                 fclose(fid);
