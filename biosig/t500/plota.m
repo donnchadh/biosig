@@ -1,4 +1,4 @@
-#function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
+function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % PLOTA plots all kind of data types
 %
 % PLOTA(X [,Mode]) 
@@ -31,17 +31,13 @@
 %   'REV' Mode='2D'
 %
 % REFERENCE(S):
-%
-<<<<<<< plota.m
-
-=======
 
 
 
->>>>>>> 1.7
 
-%       $Revision: 1.9 $
-%	$Id: plota.m,v 1.9 2003-04-07 15:44:42 montaine Exp $
+
+%       $Revision: 1.10 $
+%	$Id: plota.m,v 1.10 2003-04-07 18:48:56 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -67,7 +63,11 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
                         for k2 = 1:M;
                                 subplot(M,M,k1+(k2-1)*M);
                                 tmp = abs(squeeze(X.COH(k1,k2,:)));        
-                                plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);        
+                                if isfield(X,'ci'),
+                                        plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);        
+                                else
+	                                plot(X.f,abs(tmp));        
+                                end;
                                 axis([0,max(X.f),0,1])
                         end;
                 end;
@@ -242,13 +242,10 @@ elseif strcmp(X.datatype,'MVAR-PDC'),
         end;
         
 elseif strcmp(X.datatype,'MVAR'),
-<<<<<<< plota.m
         if ~isfield(X,'A') | ~isfield(X,'B'),
                 fprintf(2,'Error PLOTA: MVAR missing input data\n');
                 return;
         end;
-
-
         
         [K1,K2] = size(X.A);
         p = K2/K1-1;
@@ -259,24 +256,6 @@ elseif strcmp(X.datatype,'MVAR'),
         if ~isfield(X,'C');
                 X.C=ones(K1,K1);
         end;
-=======
-        if ~isfield(X,'A') | ~isfield(X,'B'),
-                fprintf(2,'Error PLOTA: MVAR missing input data\n');
-                return;
-        end;
-
-
-        
-        [K1,K2] = size(X.A);
-        p = K2/K1-1;
-        %a=ones(1,p+1);
-        [K1,K2] = size(X.B);
-        q = K2/K1-1;
-        %b=ones(1,q+1);
-        if ~isfield(X,'C');
-                X.C=ones(K1,K1);
-        end;
->>>>>>> 1.8
         if nargin<2,
                 Mode= 'DTF';
                 Fs  = 1;
