@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.29 $
-%	$Id: sread.m,v 1.29 2004-10-05 19:44:00 schloegl Exp $
+%	$Revision: 1.30 $
+%	$Id: sread.m,v 1.30 2004-11-03 17:43:50 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -52,8 +52,19 @@ if (nargin==3)
                 fprintf(HDR.FILE.stderr,'Error SREAD: StartPos must be non-negative\n');
                 return;
         end;
+        tmp = HDR.SampleRate*StartPos;
+        if tmp ~= round(tmp),
+                fprintf(HDR.FILE.stderr,'Warning SREAD: StartPos yields non-integer position\n');
+                StartPos = round(tmp)/HDR.SampleRate;
+        end;
 end;
 
+tmp = HDR.SampleRate*NoS;
+if tmp ~= round(tmp),
+        fprintf(HDR.FILE.stderr,'Warning SREAD: NoS yields non-integer position\n');
+        NoS = round(tmp)/HDR.SampleRate;
+end;
+STATUS = 0; 
 
 if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF') ,
         if nargin<3,
@@ -72,7 +83,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF') ,
         
 elseif strmatch(HDR.TYPE,{'BKR'}),
         if nargin==3,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],'int16');
@@ -85,7 +96,7 @@ elseif strmatch(HDR.TYPE,{'BKR'}),
         
 elseif strmatch(HDR.TYPE,{'ISHNE','RG64'}),
         if nargin==3,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],'int16');
@@ -97,7 +108,7 @@ elseif strmatch(HDR.TYPE,{'ISHNE','RG64'}),
         
 elseif strcmp(HDR.TYPE,'SMA'),
         if nargin==3,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         tmp = min(NoS*HDR.SampleRate,(HDR.AS.endpos-HDR.FILE.POS));
@@ -131,12 +142,12 @@ elseif strcmp(HDR.TYPE,'RDF'),
         S = zeros(NoSeg*HDR.SPR, length(HDR.InChanSelect));
         
         for k = 1:NoSeg,
-                fseek(HDR.FILE.FID,HDR.Block.Pos(POS+k),-1);
+                STATUS = fseek(HDR.FILE.FID,HDR.Block.Pos(POS+k),-1);
                 
                 % Read nchans and block length
                 tmp = fread(HDR.FILE.FID,34+220,'uint16');
                 
-                %fseek(HDR.FILE.FID,2,0);
+                %STATUS = fseek(HDR.FILE.FID,2,0);
                 nchans = tmp(2); %fread(HDR.FILE.FID,1,'uint16');
                 %fread(HDR.FILE.FID,1,'uint16');
                 block_size = tmp(4); %fread(HDR.FILE.FID,1,'uint16');
@@ -145,7 +156,7 @@ elseif strcmp(HDR.TYPE,'RDF'),
                 %err_detect = fread(HDR.FILE.FID,1,'uint16');
                 %nlost = fread(HDR.FILE.FID,1,'uint16');
                 nevents = tmp(9); %fread(HDR.FILE.FID,1,'uint16');
-                %fseek(HDR.FILE.FID,50,0);
+                %STATUS = fseek(HDR.FILE.FID,50,0);
                 
                 [data,c] = fread(HDR.FILE.FID,[nchans,block_size],'int16');
                 %S = [S; data(HDR.InChanSelect,:)']; 	% concatenate data blocks
@@ -157,7 +168,7 @@ elseif strcmp(HDR.TYPE,'RDF'),
         
 elseif strcmp(HDR.TYPE,'LABVIEW'),
         if nargin==3,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],'int32');
@@ -174,7 +185,7 @@ elseif strcmp(HDR.TYPE,'alpha'),
                         fprintf(HDR.FILE.stderr,'Error SREAD (alpha): starting position is non-integer\n');     
                         return;
                 end
-                fseek(HDR.FILE.FID,HDR.HeadLen + POS,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen + POS,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         
@@ -211,7 +222,7 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 
 elseif strcmp(HDR.TYPE,'MIT'),
         if nargin==3,
-                fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 tmp = HDR.SampleRate*StartPos;
                 if HDR.FILE.POS~=tmp,
                         HDR.mode8.accu = zeros(1,HDR.NS);
@@ -311,7 +322,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),
                         return;
                 end;
                 
-                fseek(HDR.FILE.FID,HDR.HeadLen+StartPos*HDR.SampleRate/HDR.SPR*(HDR.AS.bpb+86),'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+StartPos*HDR.SampleRate/HDR.SPR*(HDR.AS.bpb+86),'bof');        
                 HDR.FILE.POS = HDR.SampleRate/HDR.SPR*StartPos;
         end;
         
@@ -339,7 +350,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),
         
 elseif strcmp(HDR.TYPE,'DEMG'),
         if nargin==3,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],HDR.GDFTYP);
@@ -351,7 +362,7 @@ elseif strcmp(HDR.TYPE,'DEMG'),
         
 elseif strcmp(HDR.TYPE,'ACQ'),
         if nargin==3,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         count = 0;
@@ -368,7 +379,7 @@ elseif strcmp(HDR.TYPE,'ACQ'),
         
 elseif strcmp(HDR.TYPE,'CFWB'),
         if nargin==3,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],HDR.GDFTYP);
@@ -380,12 +391,12 @@ elseif strcmp(HDR.TYPE,'CFWB'),
         
 elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
         if nargin==3,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
-        maxsamples = min(HDR.SPR,HDR.SampleRate*NoS)-HDR.FILE.POS;
+        maxsamples = min(HDR.SPR,HDR.SampleRate*NoS);
         [S,count] = fread(HDR.FILE.FID,[HDR.NS,maxsamples],HDR.GDFTYP);
-        
+
         S = S(HDR.InChanSelect,:)';
         HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         
@@ -400,7 +411,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
         
 elseif strcmp(HDR.TYPE,'EGI'),
         if nargin==3,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*StartPos,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         
@@ -463,7 +474,7 @@ elseif strcmp(HDR.TYPE,'COH'),
                 fprintf(HDR.FILE.stderr,'Error SREAD mode=COH: invalid arguments.\n');
         end;
         
-        fseek(HDR.FILE.FID,HDR.COH.directory(rows,cols)+8,'bof'); % skip over a small unused header of 8 bytes 
+        STATUS = fseek(HDR.FILE.FID,HDR.COH.directory(rows,cols)+8,'bof'); % skip over a small unused header of 8 bytes 
         sr = fread(HDR.FILE.FID, HDR.SPR, 'float32');  % read real part of coherence    
         si = fread(HDR.FILE.FID, HDR.SPR, 'float32');  % read imag part of coherence    
         S = sr + i * si;
@@ -476,7 +487,7 @@ elseif strcmp(HDR.TYPE,'CSA'),
         
 elseif strcmp(HDR.TYPE,'EEG'),
         if nargin>2,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*StartPos,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*StartPos,'bof');        
         end;
         
         NoS = min(NoS, HDR.NRec-HDR.FILE.POS);
@@ -502,15 +513,13 @@ elseif strcmp(HDR.TYPE,'EEG'),
         
 elseif strcmp(HDR.TYPE,'CNT'),
         if nargin>2,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
-        
         [S,count] = fread(HDR.FILE.FID, [HDR.NS, min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS)], gdfdatatype(HDR.GDFTYP));
         
         S = S(HDR.InChanSelect,:)';
         HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
-        
         
 elseif strcmp(HDR.TYPE,'MFER'),
 	if (HDR.FRAME.N ~= 1),
@@ -520,7 +529,7 @@ elseif strcmp(HDR.TYPE,'MFER'),
 	
 	N = 1;
 	if ~isfield(HDR,'data'),
-		fseek(HDR.FILE.FID,HDR.FRAME.POS(N),'bof');
+		STATUS = fseek(HDR.FILE.FID,HDR.FRAME.POS(N),'bof');
 		[tmp,count] = fread(HDR.FILE.FID,HDR.FRAME.sz(N,1:2),gdfdatatype(HDR.FRAME.TYP(N)));
         	if isnan(HDR.NRec),
         		HDR.NRec = count/(HDR.SPR*HDR.NS);
@@ -571,7 +580,7 @@ elseif strcmp(HDR.TYPE,'GTEC'),
         
 elseif strcmp(HDR.TYPE,'Nicolet'),
         if nargin>2,
-                fseek(HDR.FILE.FID,HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         
@@ -589,14 +598,14 @@ elseif strcmp(HDR.TYPE,'SIGIF'),
         S = [];
         for k = 1:min(NoS,HDR.NRec-HDR.FILE.POS),
                 HDR.FILE.POS = HDR.FILE.POS + 1;
-                fseek(HDR.FILE.FID, HDR.Block.Pos(HDR.FILE.POS), 'bof');
+                STATUS = fseek(HDR.FILE.FID, HDR.Block.Pos(HDR.FILE.POS), 'bof');
                 if HDR.FLAG.TimeStamp,
                         HDR.Frame(k).TimeStamp = fread(HDR.FILE.FID,[1,9],'char');
                 end;
                 
                 if HDR.FLAG.SegmentLength,
                         HDR.Block.Length(k) = fread(HDR.FILE.FID,1,'uint16');  %#26
-                        fseek(HDR.FILE.FID,HDR.Block.Length(k)*H1.Bytes_per_Sample,'cof');
+                        STATUS = fseek(HDR.FILE.FID,HDR.Block.Length(k)*H1.Bytes_per_Sample,'cof');
                 else
                         tmp = HDR.Segment_separator-1;
                         [dat,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.Block.Length/HDR.NS],HDR.GDFTYP);
@@ -612,7 +621,7 @@ elseif strcmp(HDR.TYPE,'SIGIF'),
         
 elseif strcmp(HDR.TYPE,'CTF'),
         if nargin>2,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.NS*HDR.SPR*4*StartPos,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.NS*HDR.SPR*4*StartPos,'bof');        
                 HDR.FILE.POS = StartPos;
         end;
 	
@@ -631,7 +640,7 @@ elseif strcmp(HDR.TYPE,'CTF'),
         
 elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
         if nargin>2,
-                fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         
@@ -660,7 +669,7 @@ elseif strcmp(HDR.TYPE,'EEProbe-AVR'),
         
 elseif strcmp(HDR.TYPE,'BVbinmul'), %Brainvision, binary, multiplexed
         if nargin>2,
-                fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         
@@ -678,7 +687,7 @@ elseif strcmp(HDR.TYPE,'BVbinvec'), %Brainvision, binary, vectorized
         nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
 
         for chan = 1:length(HDR.InChanSelect);
-                fseek(HDR.FILE.FID,HDR.HeadLen + HDR.FILE.POS + HDR.AS.bpb/HDR.NS * HDR.SPR,'bof');
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen + HDR.FILE.POS + HDR.AS.bpb/HDR.NS * HDR.SPR,'bof');
                 [s,count] = fread(HDR.FILE.FID,[nr,1],HDR.GDFTYP);
                 if count~=nr,
                         fprintf(2,'ERROR READ BV-bin-vec: \n');
@@ -804,6 +813,10 @@ end;
 SREAD_TOGGLE_CHECK = SREAD_TOGGLE_CHECK+1;
 HDR.FLAG.TOGGLE = HDR.FLAG.TOGGLE+1;
 
+if STATUS,
+        fprintf(HDR.FILE.stderr,'WARNING SREAD: something went wrong. Please send these files %s and BIOSIGCORE to <a.schloegl@ieee.org>');
+        save biosigcore.mat 
+end;
 
 if ~HDR.FLAG.UCAL,
         % S = [ones(size(S,1),1),S]*HDR.Calib([1;1+HDR.InChanSelect],:); 
