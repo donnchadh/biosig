@@ -37,7 +37,15 @@
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+%	$Revision: 1.2 $
+%	$Id: pop_biosig.m,v 1.2 2004-09-24 11:06:36 schloegl Exp $
+%	Modified (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+
 % $Log: not supported by cvs2svn $
+% Revision 1.1  2004/09/12 02:03:47  arnodelorme
+% Adding EEGLAB folder with EEGLAB interface files
+%
 % Revision 1.4  2004/08/31 21:08:43  arno
 % new messages
 %
@@ -95,21 +103,24 @@ end;
 
 % loading data
 % ------------
-if exist('channels') ~= 1
+if ~exist('channels','var')
     channels = 0;
 end;
+
+%%%% modify this part, if you want read only parts of your data
+start = 0; 
+duration = inf; 
+
 disp('Importing data...');
-if exist('type') ~= 1
-    [signal,H] = sload(filename,channels);
-else
-    [signal,H] = sload(filename,channels, type);
-end;
-        
+H = sopen(filename,channels);
+[signal,H] = sread(filename,duration,start);
+H=sclose(H); 
+
+
 % decoding data
 % -------------
 try, EEG = eeg_emptyset;
 catch, end;
-[signal, H]  = sload(filename);
 EEG.filename = filename;
 EEG.srate    = H.SampleRate(1);
 EEG.data     = signal';
