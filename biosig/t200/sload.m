@@ -30,8 +30,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.44 $
-%	$Id: sload.m,v 1.44 2004-11-16 19:54:37 schloegl Exp $
+%	$Revision: 1.45 $
+%	$Id: sload.m,v 1.45 2004-11-25 10:22:03 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1258,13 +1258,40 @@ elseif strcmp(H.TYPE,'VTK'),
                 H.VTK.version = fgetl(H.FILE.FID);
                 H.VTK.Title   = fgetl(H.FILE.FID);
                 H.VTK.type    = fgetl(H.FILE.FID);
-                H.VTK.dataset = fgetl(H.FILE.FID);
+		
+		while ~feof(H.FILE.FID),
+			tline = fgetl(H.FILE.FID);
+			
+			if 0, 
+			elseif strncmp(tline,'CELLS',5);
+			elseif strncmp(tline,'CELL_DATA',9);
+			elseif strncmp(tline,'DATASET',7);
+		                H.VTK.DATASET = tline(8:end);
+			elseif strncmp(tline,'LINES',6);
+			elseif strncmp(tline,'POINTS',6);
+			elseif strncmp(tline,'POINT_DATA',10);
+			elseif strncmp(tline,'POLYGON',7);
+			elseif strncmp(tline,'SCALARS',7);
+				[t1,r]=strtok(tline);
+				[dataName,r]=strtok(r);
+				[dataType,r]=strtok(r);
+				[numComp ,r]=strtok(r);
+				if isempty(numComp), numComp=1;
+				else numComp = str2double(numComp); end;
+				tline = fgetl(fid);
+				if strcmp(tline,'LOOKUP_TABLE');
+	    				[t1,r]=strtok(tline);
+	    				[tableName,r]=strtok(tline);
+				else	
+					tline = fgetl(fid);
+				end;
+			end;
 
-
+		
+		end;
                 fclose(H.FILE.FID);
 
                 fprintf(H.FILE.stderr,'Warning SOPEN: VTK-format not supported, yet.\n');
-                return;
 	
         
 elseif strcmp(H.TYPE,'XPM'),
@@ -1461,7 +1488,7 @@ end;
         %%% Get trigger information from BKR data 
 if strcmp(H.TYPE,'BKR');
         if isfield(H.AS,'TRIGCHAN') & isempty(H.EVENT.POS)
-                if H.AS.TRIGCHAN<size(signal,2),
+                if H.AS.TRIGCHAN<=size(signal,2),
                         H.TRIG = gettrigger(signal(:,H.AS.TRIGCHAN));
                         if isfield(H,'TriggerOffset')
                                 H.TRIG = H.TRIG - round(H.TriggerOffset/1000*H.SampleRate);
