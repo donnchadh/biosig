@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.49 $
-%	$Id: sread.m,v 1.49 2005-03-25 11:20:22 schloegl Exp $
+%	$Revision: 1.50 $
+%	$Id: sread.m,v 1.50 2005-04-01 15:47:01 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -553,15 +553,13 @@ elseif strcmp(HDR.TYPE,'BCI2000'),
         end;
 
         
-elseif strmatch(HDR.TYPE,{'native','SCP'}),
+elseif strcmp(HDR.TYPE,'native'),
 	if nargin>2,
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
 
-	nr = min(round(HDR.SampleRate * NoS), size(HDR.data,1) - HDR.FILE.POS);
-        
-        S  = HDR.data(HDR.FILE.POS + (1:nr), HDR.InChanSelect);
-        
+        nr = min(round(HDR.SampleRate * NoS), size(HDR.data,1) - HDR.FILE.POS);
+        S  = HDR.data(HDR.FILE.POS + (1:nr), :);
         HDR.FILE.POS = HDR.FILE.POS + nr;
 
         
@@ -850,8 +848,10 @@ if isfield(HDR,'THRESHOLD') & HDR.FLAG.OVERFLOWDETECTION,
                 TH = HDR.THRESHOLD(HDR.InChanSelect(k),:);
                 ix(:,k) = (S(:,k)<=TH(1)) | (S(:,k)>=TH(2));
         end
-        S = double(S);
-        S(ix) = NaN;
+        if exist('double','builtin')
+                S = double(S);
+        end;
+        S(ix>0) = NaN;
 elseif HDR.FLAG.OVERFLOWDETECTION,
         % no HDR.THRESHOLD defined
 elseif isfield(HDR,'THRESHOLD'),
@@ -859,7 +859,7 @@ elseif isfield(HDR,'THRESHOLD'),
 end;
 
 if ~HDR.FLAG.UCAL,
-        % S = [ones(size(S,1),1),S]*HDR.Calib([1;1+HDR.InChanSelect],:); 
+        % S = [ones(size(S,1),1),S]*HDR.Calib; 
         % perform the previous function more efficiently and
         % taking into account some specialities related to Octave sparse
         % data. 
@@ -871,14 +871,14 @@ if ~HDR.FLAG.UCAL,
 		Calib = HDR.Calib;
                 tmp   = zeros(size(S,1),size(Calib,2));   % memory allocation
                 for k = 1:size(Calib,2),
-                        chan = find(Calib(1+HDR.InChanSelect,k));
-                        tmp(:,k) = double(S(:,chan)) * Calib(1+HDR.InChanSelect(chan),k) + Calib(1,k);
+                        chan = find(Calib(2:end,k));
+                        tmp(:,k) = double(S(:,chan)) * Calib(1+chan,k) + Calib(1,k);
                 end
                 S = tmp; 
         else
-                % S = [ones(size(S,1),1),S]*HDR.Calib([1;1+HDR.InChanSelect],:); 
+                % S = [ones(size(S,1),1),S]*HDR.Calib; 
                 % the following is the same as above but needs less memory. 
-                S = double(S) * HDR.Calib(1+HDR.InChanSelect,:);
+                S = double(S) * HDR.Calib(2:end,:);
                 for k = 1:size(HDR.Calib,2),
                         S(:,k) = S(:,k) + HDR.Calib(1,k);
                 end;
