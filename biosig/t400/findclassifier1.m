@@ -44,6 +44,8 @@ function [CC,Q,tsd,md]=findclassifier1(D,TRIG,cl,T,t0,SWITCH)
 %       25.06.2002	BIAS correction removed, because does not help 
 %	30.07.2002	Jackknife extended to SNR, I, and AUC, get rid of eval_offline
 %       14.08.2002	bugs fixed. 
+%	 6.10.2003 	MD2 (square root of Mahalanobis Distance)
+
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -268,6 +270,32 @@ if 0,
         CC.MDA.TSD.ERR=1/2-mean(sign([-d(:,cl==CL(1)),d(:,cl==CL(2))]),2)/2;
 elseif bitand(SWITCH,1),
         CC.MDA.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
+end;
+
+d = sqrt(JKD1) - sqrt(JKD2);
+tmp1 = d(1-min(T(:))+T(CC.TI,:),cl==CL(1));
+[sum0,n0,ssq0] = sumskipnan(tmp1(:));       
+tmp2 = d(1-min(T(:))+T(CC.TI,:),cl==CL(2));
+[sum1,n1,ssq1] = sumskipnan(tmp2(:));       
+CC.MD2.AUC      = auc(tmp1,tmp2);
+CC.MD2.ERR(1,1) = mean(sign([tmp1(:)]))/2+1/2;
+CC.MD2.ERR(1,2) = mean(sign([tmp2(:)]))/2+1/2;
+CC.MD2.ERR(2,1) = mean(sign([mean(tmp1,1)']))/2+1/2;
+CC.MD2.ERR(2,2) = mean(sign([mean(tmp2,1)']))/2+1/2;
+s0  = (ssq0-sum0.*sum0./n0)./(n0-1);
+s1  = (ssq1-sum1.*sum1./n1)./(n1-1);
+s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
+SNR = 2*s./(s0+s1); % this is SNR+1 
+CC.MD2.I   = log2(SNR)/2;
+CC.MD2.SNR = SNR - 1;
+if 0,
+        clear tmp1 tmp2; 
+        tmp1 = stat2(d(:,cl==CL(1)),2);       
+        tmp2 = stat2(d(:,cl==CL(2)),2);       
+        CC.MD2.TSD=stat2res(tmp1,tmp2);
+        CC.MD2.TSD.ERR=1/2-mean(sign([-d(:,cl==CL(1)),d(:,cl==CL(2))]),2)/2;
+elseif bitand(SWITCH,1),
+        CC.MD2.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
 end;
 
 %%%
