@@ -36,8 +36,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 
 
 
-%       $Revision: 1.14 $
-%	$Id: plota.m,v 1.14 2003-04-23 13:00:30 montaine Exp $
+%       $Revision: 1.15 $
+%	$Id: plota.m,v 1.15 2003-04-29 10:35:22 montaine Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -58,11 +58,6 @@ h = [];
 if strcmp(X.datatype,'MVAR-COHERENCE'),
         fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
         if length(size(X.COH))==3,
-                if nargin < 2
-                    ic = 0.05/2;
-                else
-                    ic = arg2;
-                end
                 M = size(X.COH,1);
                 for k1 = 1:M;
                         for k2 = 1:M;
@@ -70,98 +65,85 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
                                 tmp = abs(squeeze(X.COH(k1,k2,:)));
                                 if isfield(X,'ci'),
                                     if isfield(X,'p'),
-                                        plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);        
+                                        h = plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);        
                                     else
-                                        h = plot(X.f,[tmp,tmp./(1-2*squeeze(X.ci(k1,k2,:))),tmp./(1+2*squeeze(X.ci(k1,k2,:)))]);
-                                        %plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);
-                                        set(h(1),'color',[0 0 1]);
-                                        set(h(2),'color',[0.5 0 1]);
-                                        set(h(3),'color',[0 0.5 1]);
+                                        h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+X.ci/(sqrt(X.N))),tanh(atanh(tmp)-X.ci/(sqrt(X.N)))]);  
                                     end
-                                else
-                                    h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)/(sqrt(X.N))),tanh(atanh(tmp)-norminv(ic)/(sqrt(X.N)))]);        
-                                    %h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)*(sqrt(squeeze(X.var(k1,k2,:))))),tanh(atanh(tmp)-norminv(ic)*(sqrt(squeeze(X.var(k1,k2,:)))))]);
                                     set(h(1),'color',[0 0 1]);
                                     set(h(2),'color',[0 0.8 1]);
-                                    set(h(3),'color',[0 0.8 1]);    
+                                    set(h(3),'color',[0 0.8 1]);   
+                                    
+                                else
+                                    h = plot(X.f,abs(tmp));
                                 end;
                                 axis([0,max(X.f),-0.5,1.2])
                                 set(s,'FontSize',6); 
-                        end;
+                            end;
                 end;
                 suptitle('Ordinary coherence')
 elseif (length(size(X.COH))==4) & ((size(X.COH,4)==2) | (size(X.COH,4)==3)) ,
                 if nargin<2,
                     list1=1:size(X.COH,1);
                     list2=1:size(X.COH,2);
+                    list3=1:size(X.COH,3);
                 else
                     list1=arg2;
                     list2=arg3;
+                    list3=arg4';
                 end;
-                if nargin < 4
-                    ic = 0.05/2;
-                else
-                    ic = arg4;
-                end                
                 M = size(X.COH,1);
-      
                 for k1 = 1:length(list1);
-                        for k2 = 1:length(list2);%k1:M;
-                                s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
-                                tmp = abs(squeeze(X.COH(list1(k1),list2(k2),:,1)));
-                                hold on
-                                if isfield(X,'ci'),
-                                    h=plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N(1,:))-X.p))*[1,-1]])]);        
-                                    set(h(1),'color',[0,0,1])
-                                    set(h(2),'color',[.5,.5,1])
-                                    set(h(3),'color',[.5,.5,1])     
-                                    
-                                    
-                                else
-                                    h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)/(sqrt(X.N))),tanh(atanh(tmp)-norminv(ic)/(sqrt(X.N)))]);        
-                                    set(h(1),'color',[0 0 1]);
-                                    set(h(2),'color',[0 0.5 1]);
-                                    set(h(3),'color',[0 0.5 1]);   
-                                end
-                                
-                                tmp = abs(squeeze(X.COH(list1(k1),list2(k2),:,2)));
-                                if isfield(X,'ci'),
-                                    h=plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N(2,:))-X.p))*[1,-1]])]);        
-                                    set(h(1),'color',[0,1,0])
-                                    set(h(2),'color',[.5,1,.5])
-                                    set(h(3),'color',[.5,1,.5])                                    
-                                else
-                                    h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)/(sqrt(X.N))),tanh(atanh(tmp)-norminv(ic)/(sqrt(X.N)))]);        
-                                    set(h(1),'color',[0 1 0]);
-                                    set(h(2),'color',[0.5 1 0.5]);
-                                    set(h(3),'color',[0.5 1 0.5]);   
-                                end
-                                
-                                if (size(X.COH,4)==3)
-                                    tmp = abs(squeeze(X.COH(list1(k1),list2(k2),:,3)));
-                                    h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)/(sqrt(X.N))),tanh(atanh(tmp)-norminv(ic)/(sqrt(X.N)))]);        
-                                    %h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)*(sqrt(squeeze(X.var(k1,k2,:))))),tanh(atanh(tmp)-norminv(ic)*(sqrt(squeeze(X.var(k1,k2,:)))))]);
-                                    set(h(1),'color',[1 0 0]);
-                                    set(h(2),'color',[1 0.5 0.5]);
-                                    set(h(3),'color',[1 0.5 0.5]);   
-                                end
-                                
-                                hold off
-                                axis([min(X.f),max(X.f),0,1])
-                                if isfield(X,'ElectrodeName'),
-                                    if k1==1,
-                                            y=ylabel(X.ElectrodeName(list2(k2)));
-                                            set(y,'FontSize',6);
-                                    end;
-                                    if k2==1,
-                                            t = title(X.ElectrodeName(list1(k1)));
-                                            set(t,'FontSize',6);
-                                    end;
-                                   
-                                end;
-                                set(s,'FontSize',6); 
+                    for k2 = 1:length(list2);%k1:M;
+                        s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
+                        hold on
+                        if isfield(X,'U')
+                            % with interval confidence and significant
+                            % difference
+                            tmp = abs(squeeze(X.COH(list1(k1),list2(k2),list3,1)));
+                            tmpU = abs(squeeze(X.U(list1(k1),list2(k2),list3,1)));
+                            tmpL = abs(squeeze(X.L(list1(k1),list2(k2),list3,1)));
+                            h = plot(list3,[tmp,tmpU,tmpL]);
+                            set(h(1),'color',[0.2 0.2 1]);
+                            set(h(2),'color',[0.9 0.9 1]);
+                            set(h(3),'color',[0.9 0.9 1]);   
+                            
+                            tmp = abs(squeeze(X.COH(list1(k1),list2(k2),list3,2)));
+                            tmpU = abs(squeeze(X.U(list1(k1),list2(k2),list3,2)));
+                            tmpL = abs(squeeze(X.L(list1(k1),list2(k2),list3,2)));
+                            h = plot(list3,[tmp,tmpU,tmpL]);
+                            set(h(1),'color',[0.2 0.8 0.2]);
+                            set(h(2),'color',[0.8 1 0.8]);
+                            set(h(3),'color',[0.8 1 0.8]);   
+                            plot(list3,squeeze(X.DS(list1(k1),list2(k2),list3)),'.r')
+                        else
+                            % 2 or 3 curves without ci
+                            tmp = abs(squeeze(X.COH(list1(k1),list2(k2),list3,1)));
+                            h = plot(list3,abs(tmp));
+                            set(h(1),'color',[0 0 1]);  
+                            tmp = abs(squeeze(X.COH(list1(k1),list2(k2),list3,2)));
+                            h = plot(list3,abs(tmp));
+                            set(h(1),'color',[0 1 0]); 
+                            if (size(X.COH,4)==3)
+                                tmp = abs(squeeze(X.COH(list1(k1),list2(k2),list3,3)));
+                                h = plot(list3,abs(tmp));
+                                set(h(1),'color',[1 0 0]);                                    
+                            end
+                        end
+                        hold off
+                        axis([min(list3),max(list3),-0.2,1.5])
+                        if isfield(X,'ElectrodeName'),
+                            if k1==1,
+                                y=ylabel(X.ElectrodeName(list2(k2)));
+                                set(y,'FontSize',6);
                             end;
-                    end                           
+                            if k2==1,
+                                t = title(X.ElectrodeName(list1(k1)));
+                                set(t,'FontSize',6);
+                            end;
+                        end;
+                        set(s,'FontSize',6); 
+                    end;
+                end                           
                 suptitle('Ordinary coherence')
         elseif length(size(X.COH))==4,
                 M = size(X.COH,1);
@@ -215,7 +197,7 @@ elseif strcmp(X.datatype,'MVAR-DTF'),
                         figure;
                         for k1= 1:M
                             for k2 = 1:M
-                                if k2~=k1
+                                %if k2~=k1
                                     s = subplot(M,M,k2+(k1-1)*M);
                                     imagesc(X.t,X.f,squeeze(abs(X.DTF(k1,k2,:,:))),[0 1]);
                                     axis([min(X.t) max(X.t) min(X.f) max(X.f)])
@@ -224,7 +206,7 @@ elseif strcmp(X.datatype,'MVAR-DTF'),
                                     set(s,'YDir','normal','FontSize',5);
                                     c = colorbar;
                                     set(c,'FontSize',5);
-                                end
+                                    %end
                             end
                         end
                         suptitle('Time-varying DTF')
@@ -233,9 +215,13 @@ elseif strcmp(X.datatype,'MVAR-DTF'),
                         M=size(X.DTF,1);
                         for k1= 1:M
                             for k2 = 1:M
+                                tmp = abs(squeeze(X.DTF(k1,k2,:)));
                                 subplot(M,M,k2+(k1-1)*M)
-                                area(abs(squeeze(X.DTF(k1,k2,:))));
-                                axis([min(X.f) max(X.f) 0 1])
+                                h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)/(sqrt(X.n))),tanh(atanh(tmp)-norminv(ic)/(sqrt(X.n)))]);        
+                                set(h(1),'color',[0 0 1]);
+                                set(h(2),'color',[0 0.8 1]);
+                                set(h(3),'color',[0 0.8 1]);  
+                                axis([min(X.f) max(X.f) -.4 1.2])
                             end
                         end
                         suptitle('Direct Transfer Function')
