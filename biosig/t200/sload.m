@@ -30,8 +30,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.38 $
-%	$Id: sload.m,v 1.38 2004-10-08 20:13:14 schloegl Exp $
+%	$Revision: 1.39 $
+%	$Id: sload.m,v 1.39 2004-10-12 18:28:19 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -89,6 +89,14 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			if (H.SampleRate ~= h.SampleRate),
 				fprintf(2,'Warning SLOAD: sampling rates of multiple files differ %i!=%i.\n',H.SampleRate, h.SampleRate);
 			end;
+
+                        if size(s,2)==size(signal,2), %(H.NS == h.NS) 
+				signal = [signal; repmat(NaN,100,size(s,2)); s];
+			else
+				fprintf(2,'ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
+				return;
+			end;
+
                         if ~isempty(h.EVENT.POS),
                                 H.EVENT.POS = [H.EVENT.POS; h.EVENT.POS+size(signal,1)-size(s,1)];
                                 H.EVENT.TYP = [H.EVENT.TYP; h.EVENT.TYP];
@@ -99,21 +107,13 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
                                         H.EVENT.DUR = [H.EVENT.DUR; h.EVENT.DUR];
                                 end;
                         end;			
-                        
                         if isfield(h,'TRIG'), 
                                 if ~isfield(H,'TRIG'),
                                         H.TRIG = [];
                                 end;
-                                H.TRIG = [H.TRIG(:); h.TRIG(:)+size(signal,1)];
+                                H.TRIG = [H.TRIG(:); h.TRIG(:)+size(signal,1)-size(s,1)];
                         end;
                         
-			if size(s,2)==size(signal,2), %(H.NS == h.NS) 
-				signal = [signal; repmat(NaN,100,size(s,2)); s];
-			else
-				fprintf(2,'ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
-				return;
-			end;
-
                         if isfield(H,'TriggerOffset'),
                                 if H.TriggerOffset ~= h.TriggerOffset,
                                         fprintf(2,'Warning SLOAD: Triggeroffset does not fit.\n',H.TriggerOffset,h.TriggerOffset);
@@ -123,11 +123,13 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
                         if isfield(H,'Classlabel'),
                                 if isfield(H,'ArtifactSelection')
                                         if isfield(h,'ArtifactSelection'),
-                                                if length(h.ArtifactSelection)<length(h.Classlabel)
-                                                        H.ArtifactSelection = [H.ArtifactSelection; h.ArtifactSelection(:)+length(H.Classlabel)];
-                                                elseif length(h.ArtifactSelection)==length(h.Classlabel),
-                                                        H.ArtifactSelection = [H.ArtifactSelection; h.ArtifactSelection(:)];
+                                                if any(h.ArtifactSelection>1) | (length(h.ArtifactSelection) < length(h.Classlabel))
+                                                        sel = zeros(size(h.Classlabel));
+                                                        sel(h.ArtifactSelection) = 1; 
+                                                else
+                                                        sel = h.ArtifactSelection(:);
                                                 end;
+                                                H.ArtifactSelection = [H.ArtifactSelection; h.ArtifactSelection(:)];
                                         elseif isfield(H,'ArtifactSelection'),
                                                 H.ArtifactSelection = [H.ArtifactSelection;zeros(length(h.Classlabel),1)];
                                         end;
@@ -786,6 +788,34 @@ if strcmp(H.TYPE,'CNT');
                 if isfield(tmp,'classlabel') & ~isfield(H,'Classlabel')
                         H.Classlabel=tmp.classlabel(:);                        
                 end;
+        end;
+        f = fullfile(H.FILE.Path, [H.FILE.Name,'_classlabel.mat']);
+        if exist(f,'file'),
+                tmp = load(f);
+                if isfield(tmp,'Classlabel') & (size(tmp.Classlabel,2)==4)
+                        [x,H.Classlabel] = max(tmp.Classlabel,[],2);                        
+                end;
+                if isfield(tmp,'classlabel') & (size(tmp.classlabel,2)==4)
+                        [x,H.Classlabel] = max(tmp.classlabel,[],2);                        
+                end;
+        end;
+        f=fullfile(H.FILE.Path,[H.FILE.Name,'.sel']);
+        if ~exist(f,'file'),
+                f=fullfile(H.FILE.Path,[H.FILE.Name,'.SEL']);
+        end
+        if exist(f,'file'),
+                fid = fopen(f,'r');
+		tmp = fread(fid,inf,'char');
+		fclose(fid);
+		[tmp,v] = str2double(char(tmp'));
+		if ~any(v), 
+            		H.ArtifactSelection = tmp(:);         
+                        if any(H.ArtifactSelection>1) | (length(H.ArtifactSelection)<length(H.Classlabe))
+                                sel = zeros(size(H.Classlabel));
+                                sel(H.ArtifactSelection) = 1; 
+                                H.ArtifactSelection = sel;
+                        end;
+	        end;
         end;
 end;
 
