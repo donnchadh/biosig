@@ -17,8 +17,8 @@ function [signal,H] = sload(FILENAME,CHAN)
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.16 $
-%	$Id: sload.m,v 1.16 2004-03-17 19:45:26 schloegl Exp $
+%	$Revision: 1.17 $
+%	$Id: sload.m,v 1.17 2004-03-23 19:53:17 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -44,6 +44,15 @@ if nargin<2; CHAN=0; end;
 if CHAN<1 | ~isfinite(CHAN),
         CHAN=0;
 end;
+
+if (ischar(FILENAME) & any(FILENAME=='*'))
+        p = fileparts(FILENAME);
+        f = dir(FILENAME);
+        for k = 1:length(f);
+                f(k).name = fullfile(p,f(k).name);
+        end;
+        FILENAME=f;
+end;        
 
 if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 	signal = [];
@@ -94,6 +103,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
                                 end;
                                 H.EVENT.N   =  H.EVENT.N  + h.EVENT.N;
                         end;			
+                        clear s
                 end;
 	end;
 	fprintf(1,'  SLOAD: data segments are concanated with NaNs in between.\n');
@@ -110,15 +120,6 @@ if isstruct(FILENAME),
     		fprintf(2,'Error SLOAD: missing FileName.\n');	
     		return; 
 	end;
-        
-elseif any(FILENAME=='*');      % wildcards
-        p = fileparts(FILENAME);
-        f = dir(FILENAME);
-        for k = 1:length(f);
-                f(k).name = fullfile(p,f(k).name);
-        end;
-        [signal,H] = sload(f,CHAN);
-        return;
 end;
 
 signal = [];
@@ -128,7 +129,7 @@ H.FileName = FILENAME;
 H = sopen(H,'rb',CHAN);
 
 if strcmp(H.TYPE,'SCPECG'),
-        signal = H.SCP.data;
+        signal = H.SCP.data*HDR.Calib;
         return;
         
         
@@ -141,18 +142,18 @@ elseif strcmp(H.TYPE,'XML'),
         fprintf(H.FILE.stderr,'Warning SLOAD: implementing XML not completed yet.\n');
         if isfield(H,'XML'),
                 if isa(H.XML,'XMLTree'),
-                        try;
+                        %try;
                                 H.XML = convert(H.XML);
-                        catch;
-                                fprintf(2,'Error SLOAD: conversion from XLMtree into STRUCT failed in file %s.\n',H.FileName);
-                        end;
+                                %catch;
+                                %fprintf(2,'Error SLOAD: conversion from XMLtree into STRUCT failed in file %s.\n',H.FileName);
+                                %end;
                 end;
         end;        
         try,    %
                 tmp = H.XML.component.series.derivation.Series.component.sequenceSet.component;
-                H.NS = length(tmp)-1;
+                H.NS = length(tmp);
                 for k = 1:H.NS;
-                        signal(:,k) = str2double(tmp{k+1}.sequence.value.digits)';
+                        str2double(tmp{k}.sequence.value.digits)';
                 end;
                 H.TYPE = 'XML-FDA';     % that's an FDA XML file 
         catch
@@ -189,7 +190,7 @@ elseif strcmp(H.TYPE,'alpha'),
                 if CHAN==0,
                         CHAN = 1:H.NS;
                 end;
-                signal = [ones(size(signal,1),1),signal] * H.Calib(:,CHAN);
+                signal = [ones(size(signal,1),1),signal] * H.Calib;
                 % signal = signal * diag(H.Cal);
         end;
         
@@ -458,12 +459,73 @@ elseif strncmp(H.TYPE,'MAT',3),
                 signal =[];
                 H = tmp.header;
                 
+        elseif isfield(tmp,'Recorder1')    % Nicolet NRF format converted into Matlab 
+                for k = 1:length(s.Recorder1.Channels.ChannelInfos);
+                        HDR.Label{k} = s.Recorder1.Channels.ChannelInfos(k).ChannelInfo.Name;
+                        HDR.PhysDim{k} = s.Recorder1.Channels.ChannelInfos(k).ChannelInfo.YUnits;
+                end;
+                signal = [];
+                T = [];
+                for k = 1:length(s.Recorder1.Channels.Segments)
+                        tmp = s.Recorder1.Channels.Segments(k).Data;
+                        sz = size(tmp.Samples);
+                        signal = [signal; repmat(nan,100,sz(1)); tmp.Samples'];
+                        T = [T;repmat(nan,100,1);tmp.dX0+(1:sz(2))'*tmp.dXstep ]
+                        Fs = 1./tmp.dXstep;
+                        if k==1,
+                                HDR.SampleRate = Fs;
+                        elseif HDR.SampleRate ~= Fs; 
+                                fprintf(2,'Error SLOAD (NRF): different Sampling rates not supported, yet.\n');
+                        end;
+                end;
+                
         else
 		signal = [];
                 fprintf(H.FILE.stderr,'Warning SLOAD: MAT-file %s not identified as BIOSIG signal\n',FILENAME);
                 whos('-file',FILENAME);
         end;        
 
+        
+elseif strcmp(H.TYPE,'BrainVision'),
+        %%%% #### FIX ME ####
+        signal = read_brainvision_seg(H,CHAN);
+        % H.FileName  contains name of the file
+        
+        
+elseif strcmp(H.TYPE,'CTF'),
+        %%%% #### FIX ME ####
+        signal = read_ctf_meg4(H, CHAN);
+
+        
+elseif strcmp(H.TYPE,'EEProbe'),
+        %%%% #### FIX ME ####
+        signal = read_brainvision_eeg(H,CHAN);
+
+        
+elseif strcmp(H.TYPE,'FIF'),
+        %%%% #### FIX ME ####
+        if ~(exist('rawdata')==3 & exist('channames')==3)
+                error('cannot find Neuromag import routines on your Matlab path (see http://boojum.hut.fi/~kuutela/meg-pd)');
+        end
+        rawdata('any',headerfile);
+        H.SampleRate = rawdata('sf');
+        H.NRec = 0;
+        rawdata('goto', 0);
+        [buf, status] = rawdata('next');
+        [H.NS,H.SPR] = size(buf);
+        while strcmp(status, 'ok')
+                H.NRec = H.NRec + 1;
+                [buf, status] = rawdata('next');
+        end
+        % I don't know how to get this out of the file
+        H.nSamplesPre  = 0;
+        % this would give some information that I don't know how to use
+        % [range, cal] = rawdata('range');
+        % this would give the current latency
+        % rawdata('t');
+        rawdata('close');
+       
+        
 elseif strcmp(H.TYPE,'unknown')
         TYPE = upper(H.FILE.Ext);
         if strcmp(TYPE,'DAT')
@@ -485,6 +547,29 @@ elseif strcmp(H.TYPE,'unknown')
         else
                 fprintf('Error SLOAD: Unknown Data Format\n');
                 signal = [];
+        end;
+end;
+
+
+if strcmp(H.TYPE,'CNT');    
+        f = fullfile(H.FILE.Path, [H.FILE.Name,'.txt']);
+        if exist(f)==2,
+                tmp = load(f);
+                H.Classlabel=tmp(:);                        
+        end
+        f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
+        if exist(f)==2,
+                tmp = load(f);
+                if isfield(tmp,'classlabel') & ~isfield(H,'Classlabel')
+                        H.Classlabel=tmp.classlabel(:);                        
+                end;
+        end;
+        f = fullfile(H.FILE.Path, [H.FILE.Name,'c.mat']);
+        if exist(f)==2,
+                tmp = load(f);
+                if isfield(tmp,'classlabel') & ~isfield(H,'Classlabel')
+                        H.Classlabel=tmp.classlabel(:);                        
+                end;
         end;
 end;
 

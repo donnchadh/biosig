@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.37 $
-%	$Id: sopen.m,v 1.37 2004-03-23 18:30:36 schloegl Exp $
+%	$Revision: 1.38 $
+%	$Id: sopen.m,v 1.38 2004-03-23 19:53:16 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -397,6 +397,7 @@ if any(PERMISSION=='r'),
                         elseif strcmpi(HDR.FILE.Ext,'msm')
                                 
                         elseif strcmpi(HDR.FILE.Ext,'msr')
+                                HDR.TYPE = 'ASA2';    % Brainvision ?
                                 
                         elseif strcmpi(HDR.FILE.Ext,'dip')
                                 
@@ -3313,7 +3314,7 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
         
         
 elseif strncmp(HDR.TYPE,'BrainVision',3),
-        % robert oostenveld
+        %%%% #### FIX ME ####
         if any(PERMISSION=='r'),
                 if any(exist('read_brainvision_vhdr')==[2:6]), 
                         hdr = read_brainvision_vhdr(HDR.FileName,1,1);
@@ -3321,53 +3322,59 @@ elseif strncmp(HDR.TYPE,'BrainVision',3),
                         HDR.NS = hdr.nchan; 
                         HDR.NRec = 1; 
                         HDR.FLAG.TRIGGERED = 0;
+                        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 else
                         fprintf(2,'Error SOPEN (EEProbe): reading function READ_BRAINVISION_VHDR not available\n');
                 end
                 
                 fprintf(HDR.FILE.stderr,'Warning: Implementing Format %s not completed yet. \n',HDR.TYPE);	
+                return;
         end
         
         
 elseif strncmp(HDR.TYPE,'CTF',3),
-        % robert oostenveld, please check here
+        %%%% #### FIX ME ####
         if any(PERMISSION=='r'),
-                if any(exist('read_ctf_res4')==[2:6]), 
+                if any(exist('read_ctf_res4')==[2,3,6]), 
                         hdr = read_ctf_res4(HDR.FileName,1,1);
                         HDR.SampleRate = hdr.Fs;
                         HDR.NS = hdr.nchan; 
                         HDR.NRec = 1; 
                         HDR.FLAG.TRIGGERED = 0;
+                        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 else
                         fprintf(2,'Error SOPEN (EEProbe): reading function READ_CTF_RES4 not available\n');
                 end
                 
                 fprintf(HDR.FILE.stderr,'Warning: Implementing Format %s not completed yet. \n',HDR.TYPE);	
+                return;
         else
                 
         end
         
         
 elseif strncmp(HDR.TYPE,'EEProbe',3),
-        % robert oostenveld, please check here
+        %%%% #### FIX ME ####
         if any(PERMISSION=='r'),
-                if any(exist('read_eep_cnt')==[2:6]), 
+                if any(exist('read_eep_cnt')==[2,3,6]), 
                         hdr = read_eep_cnt(HDR.FileName,1,1);
                         HDR.SampleRate = hdr.Fs;
                         HDR.NS = hdr.nchan; 
                         HDR.NRec = 1; 
                         HDR.FLAG.TRIGGERED = 0;
+                        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 else
                         fprintf(2,'Error SOPEN (EEProbe): reading function READ_EEP_CNT not available\n');
                 end
                 
                 fprintf(HDR.FILE.stderr,'Warning: Implementing Format %s not completed yet. \n',HDR.TYPE);	
+                return;
         end
         
         
 elseif strncmp(HDR.TYPE,'FIF',3),
-        % robert oostenveld, please check here
-        if any(exist('rawdata')==[2:6]),
+        %%%% #### FIX ME ####
+        if any(exist('rawdata')==[3,6]),
                 rawdata('any',HDR.FileName);
                 HDR.FILE.FID = 1;
                 HDR.SampleRate = rawdata(HDR.FileName,'sf');
@@ -3375,8 +3382,10 @@ elseif strncmp(HDR.TYPE,'FIF',3),
                 HDR.SPR = rawdata(HDR.FileName,'samples');
                 [HDR.MinMax,HDR.Cal] = rawdata(HDR.FileName,'range');
                 [HDR.Label, type, number] = channames(headerfile);
+                HDR.Calib = 1; 
         else
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): Cannot open FIF-file, because rawdata.mex not installed. \n',HDR.NS);
+                return;
         end
         
         
