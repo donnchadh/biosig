@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.16 $
-%	$Id: sdfopen.m,v 1.16 2004-04-15 17:28:56 schloegl Exp $
+%	$Revision: 1.17 $
+%	$Id: sdfopen.m,v 1.17 2004-04-20 16:36:27 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -485,7 +485,6 @@ if any(EDF.PhysMax==EDF.PhysMin), EDF.ErrNo=[1029,EDF.ErrNo]; end;
 if any(EDF.DigMax ==EDF.DigMin ), EDF.ErrNo=[1030,EDF.ErrNo]; end;	
 EDF.Cal = (EDF.PhysMax-EDF.PhysMin)./(EDF.DigMax-EDF.DigMin);
 EDF.Off = EDF.PhysMin - EDF.Cal .* EDF.DigMin;
-EDF.Calib=[EDF.Off';(diag(EDF.Cal))];
 EDF.EDF.SampleRate = EDF.SPR / EDF.Dur;
 
 EDF.AS.spb = sum(EDF.SPR);	% Samples per Block
@@ -497,8 +496,49 @@ EDF.AS.bpb = sum(ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'));	% Bytes per Block
 EDF.AS.startrec = 0;
 EDF.AS.numrec = 0;
 EDF.AS.EVENTTABLEPOS = -1;
-EDF.FILE.POS = 0;
 
+% EDF+: 
+tmp = strmatch('EDF Annotations',EDF.Label);
+if strcmp(EDF.TYPE,'EDF') & (length(tmp)==1),
+        EDF.EDF.Annotations = tmp;
+        EDF.Cal(EDF.EDF.Annotations) = 1;
+        EDF.Off(EDF.EDF.Annotations) = 0;
+        
+        fseek(EDF.FILE.FID,EDF.HeadLen+EDF.AS.bi(EDF.EDF.Annotations)*2,'bof');
+        t = fread(EDF.FILE.FID,EDF.SPR(EDF.EDF.Annotations),[int2str(EDF.SPR(EDF.EDF.Annotations)*2),'*uchar=>uchar'],EDF.AS.bpb-EDF.SPR(EDF.EDF.Annotations)*2);
+        t = char(t)';
+        EDF.EDF.ANNONS = t;
+        N = 0; 
+        ix = 1; 
+        lt = length(t);
+        while ix < length(t),
+                while (ix<=lt ) & (t(ix)==0), ix = ix+1; end;
+                ix1 = ix; 
+                while (ix<=lt ) & (t(ix)~=0), ix = ix+1; end;
+                ix2 = ix; 
+                if (ix < lt),
+                        v = t(ix1:ix2-1);
+                        [s1,v]=strtok(v,20);
+                        s1(s1==21) = 0;
+                        tmp=str2double(char(s1));
+                        
+                        [s2,v]=strtok(v,20);
+                        [s3,v]=strtok(v,20);
+                        
+                        N = N+1;
+                        EDF.EVENT.POS(N,1) = tmp(1);
+                        if length(tmp)>1,
+                                EDF.EVENT.DUR(N,1) = tmp(2);
+                        end;
+                        EDF.EVENT.TeegType{N,1} = char(s2);
+                        EDF.EVENT.TeegDesc{N,1} = char(s3);
+                end;
+        end;
+        EDF.EVENT.TYP(1:N,1) = 0;
+        EDF.EVENT.N = N; 
+end;
+
+EDF.Calib = [EDF.Off'; diag(EDF.Cal)];
 status = fseek(EDF.FILE.FID, 0, 'eof');
 EDF.FILE.size = ftell(EDF.FILE.FID);
 EDF.AS.endpos = EDF.FILE.size;
@@ -516,7 +556,7 @@ elseif  EDF.NRec ~= ((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
         end;
 end; 
 
-if EDF.AS.EVENTTABLEPOS > 0,
+if EDF.AS.EVENTTABLEPOS > 0,  
         fseek(EDF.FILE.FID, EDF.AS.EVENTTABLEPOS, 'bof');
         EDF.EVENT.Version = fread(EDF.FILE.FID,1,'char');
         tmp = fread(EDF.FILE.FID,3,'char');
@@ -540,7 +580,9 @@ if EDF.AS.EVENTTABLEPOS > 0,
         end;
         EDF.AS.endpos = EDF.AS.EVENTTABLEPOS;   % set end of data block, might be important for SSEEK
 end;
+
 fseek(EDF.FILE.FID, EDF.HeadLen, 'bof');
+EDF.FILE.POS = 0;
 
 % if Channelselect, ReReferenzing and Resampling
 % Overflowcheck, Adaptive FIR
@@ -553,7 +595,6 @@ end;
 
 EDF.SIE.ChanSelect = 1:EDF.NS;
 EDF.InChanSelect = 1:EDF.NS;
-
 
 %EDF.SIE.RR=1; %is replaced by ~EDF.FLAG.UCAL
 if ~isfield(EDF,'FLAG')
@@ -1151,11 +1192,15 @@ end;
 if ~isfield(EDF,'SampleRate')
         EDF.SampleRate = NaN;
 end;
-if ~isfield(EDF,'EDF')
-        EDF.EDF.SampleRate = repmat(NaN,EDF.NS,1);
-elseif ~isfield(EDF.EDF,'SampleRate')
-        EDF.EDF.SampleRate = repmat(NaN,EDF.NS,1);
+if ~isfield(EDF,'SPR')
+        EDF.SPR = NaN;
 end;
+if ~isfield(EDF,'EDF')
+        EDF.EDF.SampleRate = repmat(EDF.SampleRate,EDF.NS,1);
+elseif ~isfield(EDF.EDF,'SampleRate')
+        EDF.EDF.SampleRate = repmat(EDF.SampleRate,EDF.NS,1);
+end;
+
 
 if ~isnan(EDF.Dur) & any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
 	EDF.SPR = EDF.EDF.SampleRate * EDF.Dur;
