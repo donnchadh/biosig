@@ -72,20 +72,20 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 % Testing state
 %
 % (1) reads header information and writes the header; can be used to check SDFOPEN or for correcting headerinformation
-% EDF=sdfopen(EDF,'r+'); EDF=sdfclose(EDF); 
+% EDF=sdfopen(EDF,'r+b'); EDF=sdfclose(EDF); 
 % 
 % (2a) Minimal requirements for opening an EDF-File
 % EDF.FileName='file.edf'; % define filename
 % EDF.NS = 5; % fix number of channels
-% EDF=sdfopen(EDF,'w');
+% EDF=sdfopen(EDF,'wb');
 %     write file
 %     define header somewhen before 
 % EDF=sdfclose(EDF); % writes the corrected header information
 % 
 % (2b) Minimal requirements for opening an EDF-File
-% EDF=sdfopen('file.edf','w',N); % N number of channels
+% EDF=sdfopen('file.edf','wb',N); % N number of channels
 %      .. do anything, e.g define header
-% EDF=sdfopen(EDF,'w+'); % writes Header information
+% EDF=sdfopen(EDF,'w+b'); % writes Header information
 %
 %
 % This program is free software; you can redistribute it and/or
@@ -117,12 +117,16 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.6 $
-%	$Id: sdfopen.m,v 1.6 2003-07-19 13:48:20 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: sdfopen.m,v 1.7 2003-07-21 16:19:27 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
-if nargin<2, arg2='r';end;
+if nargin<2, 
+        arg2='rb'; 
+elseif ~any(arg2=='b');
+        arg2= [arg2,'b']; % force binary open. 
+end;
 
 if 1,exist('OCTAVE_VERSION');
         EDF.AS.Method='sdfopen';
@@ -163,8 +167,8 @@ GDFTYP_BYTE(1:18)=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8]';
 EDF.ErrNo = 0;
 
 %%%%%%% ============= READ ===========%%%%%%%%%%%%
-if any(arg2=='r'), %(strcmp(arg2,'r') | strcmp(arg2,'r+')) 
-
+if any(arg2=='r'), 
+        
 [EDF.FILE.FID,MESSAGE]=fopen(FILENAME,arg2,'ieee-le');          
 %EDF.FILE.FID=fid;
 
@@ -1141,26 +1145,26 @@ if ~isfield(EDF,'Label')
         fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.Label not defined\n');
 else
         tmp=min(16,size(EDF.Label,2));
-        EDF.Label=[EDF.Label(1:EDF.NS,1:tmp), char(32+zeros(EDF.NS,16-tmp))];
+        EDF.Label=[EDF.Label(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,16-tmp))];
 end;
 if ~isfield(EDF,'Transducer')
         EDF.Transducer=setstr(32+zeros(EDF.NS,80));
 else
         tmp=min(80,size(EDF.Transducer,2));
-        EDF.Transducer=[EDF.Transducer(1:EDF.NS,1:tmp), char(32+zeros(EDF.NS,80-tmp))];
+        EDF.Transducer=[EDF.Transducer(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,80-tmp))];
 end;
 if ~isfield(EDF,'PreFilt')
         EDF.PreFilt=setstr(32+zeros(EDF.NS,80));
 else
         tmp=min(80,size(EDF.PreFilt,2));
-        EDF.PreFilt=[EDF.PreFilt(1:EDF.NS,1:tmp), char(32+zeros(EDF.NS,80-tmp))];
+        EDF.PreFilt=[EDF.PreFilt(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,80-tmp))];
 end;
 if ~isfield(EDF,'PhysDim')
         EDF.PhysDim=setstr(32+zeros(EDF.NS,8));
         fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.PhysDim not defined\n');
 else
         tmp=min(8,size(EDF.PhysDim,2));
-        EDF.PhysDim=[EDF.PhysDim(1:EDF.NS,1:tmp), char(32+zeros(EDF.NS,8-tmp))];
+        EDF.PhysDim=[EDF.PhysDim(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,8-tmp))];
 end;
 
 if ~isfield(EDF,'PhysMin')

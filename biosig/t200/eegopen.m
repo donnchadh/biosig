@@ -33,13 +33,17 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.26 $
-%	$Id: eegopen.m,v 1.26 2003-07-19 14:01:46 schloegl Exp $
+%	$Revision: 1.27 $
+%	$Id: eegopen.m,v 1.27 2003-07-21 16:19:27 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
 
-if nargin<2, PERMISSION = 'r'; end; 
+if nargin<2, 
+        PERMISSION='rb'; 
+elseif ~any(PERMISSION=='b');
+        PERMISSION = [PERMISSION,'b']; % force binary open. 
+end;
 if nargin<3, CHAN = 0; end; 
 if nargin<4, MODE = ''; end;
 
@@ -67,7 +71,7 @@ if ~isfield(HDR.FILE,'stdout'),
 end;
 
 if exist(HDR.FileName)==2,
-	fid = fopen(HDR.FileName,'r');
+	fid = fopen(HDR.FileName,'rb');
 	if fid>0,
 		[s,c] = fread(fid,[1,32],'uchar');
                 if c,
@@ -163,14 +167,9 @@ elseif strcmp(HDR.TYPE,'DAT'),
 end; 
 
 
-%if strmatch(HDR.TYPE,{'EDF','GDF','BDF'}),
 if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
-        if strcmp(HDR.TYPE,'BDF'),
-                HDR.VERSION=[char(255),'BIOSEMI'];
-        elseif strcmp(HDR.TYPE,'EDF');
-                HDR.VERSION='0       ';
-        elseif strcmp(HDR.TYPE,'GDF');
-                HDR.VERSION='GDF     ';
+        if any(PERMISSION=='w');
+                HDR = eegchkhdr(HDR);
         end;
         HDR = sdfopen(HDR,PERMISSION,CHAN);
 	HDR.FLAG.TRIGGERED = 0;	% Trigger Flag
@@ -179,47 +178,47 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
 elseif strcmp(HDR.TYPE,'BKR'),
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
 
-	if strcmp(PERMISSION,'r'),
-		HDR = bkropen(HDR,'r',CHAN);
-        
-        elseif strcmp(PERMISSION,'r+'),
+        if any(PERMISSION=='r') & any(PERMISSION=='+'),
 		HDR = eegchkhdr(HDR);
                 HDR.FILE.OPEN = 2;	        
-                HDR = bkropen(HDR,'r+',CHAN);
+                HDR = bkropen(HDR,'r+b',CHAN);
         
-        elseif strcmp(PERMISSION,'w'),
-		HDR = eegchkhdr(HDR);
-                HDR.FILE.OPEN = 2;	        
-                HDR = bkropen(HDR,'w',CHAN);
+        elseif any(PERMISSION=='r'),
+		HDR = bkropen(HDR,'rb',CHAN);
         
-        elseif strcmp(PERMISSION,'w+'),
+        elseif any(PERMISSION=='w') & any(PERMISSION=='+'),
 		if feof(HDR.FILE.FID),
 			HDR = eegchkhdr(HDR);
-                	HDR = bkropen(HDR,'r+',CHAN);
+                	HDR = bkropen(HDR,'r+b',CHAN);
 		else
-                	HDR = bkropen(HDR,'r',CHAN);
+                	HDR = bkropen(HDR,'rb',CHAN);
         	end;
        	        HDR.FILE.OPEN = 2;
 		
-        elseif strcmp(PERMISSION,'a'),
-       	        HDR.FILE.OPEN = 3;
-		HDR.FILE.POS  = HDR.AS.endpos;
+        elseif any(PERMISSION=='w'),
+		HDR = eegchkhdr(HDR);
+                HDR.FILE.OPEN = 2;	        
+                HDR = bkropen(HDR,'wb',CHAN);
         
-        elseif strcmp(PERMISSION,'a+'),
+        elseif any(PERMISSION=='a') & any(PERMISSION=='+'),
 		if ftell(HDR.FILE.FID),
         		fseek(HDR.FILE.FID,0,'bof');
-			HDR = bkropen(HDR,'r',CHAN);
+			HDR = bkropen(HDR,'rb',CHAN);
 			HDR = eegseek(HDR, 0,'eof');
 		else
 			HDR = eegchkhdr(HDR);
-                	HDR = bkropen(HDR,'w',CHAN);
+                	HDR = bkropen(HDR,'wb',CHAN);
 		end;
        	        HDR.FILE.OPEN = 3;	        
+        elseif any(PERMISSION=='a'),
+       	        HDR.FILE.OPEN = 3;
+		HDR.FILE.POS  = HDR.AS.endpos;
+        
 	else
 		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
         end;
         
-
+        
 elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
         [HDR,H1,h2] = cntopen(HDR,PERMISSION,CHAN);
         
@@ -701,7 +700,7 @@ elseif strcmp(HDR.TYPE,'RG64'),
 	elseif strcmp(HDR.FILE.Ext,'RHF'),
 		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1:2),'D']);
 	end;
-	HDR.FILE.FID=fopen(FILENAME,'r','ieee-le');
+	HDR.FILE.FID=fopen(FILENAME,'rb','ieee-le');
 	if HDR.FILE.FID<0,
 		fprintf(2,'\nError LOADRG64: %s not found\n',FILENAME); 
 		return;
@@ -728,8 +727,8 @@ elseif strcmp(HDR.TYPE,'DDF'),
 	HDR.FILE.FID = -1;
 	return;
 
-	if strcmp(PERMISSION,'r'),
-		HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le')
+	if any(PERMISSION=='r'),
+		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le')
 		HDR.FILE.OPEN = 1;
 		HDR.FILE.POS = 0;
 		HDR.ID = fread(HDR.FILE.FID,5,'char');
@@ -778,10 +777,10 @@ elseif strcmp(HDR.TYPE,'DDF'),
 
 
 elseif strcmp(HDR.TYPE,'MIT')
-	if strcmp(PERMISSION,'r'),
+	if any(PERMISSION=='r'),
 		HDR.FileName = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
 
-		HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le');
+		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
 		HDR.FILE.OPEN = 1;
 		HDR.FILE.POS = 0;
 		
@@ -862,7 +861,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 
 
 	%------ LOAD ATTRIBUTES DATA ----------------------------------------------
-		fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.atr']),'r','ieee-le');
+		fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.atr']),'rb','ieee-le');
 		if fid<0,
 			A = []; c = 0;
 		else
@@ -918,7 +917,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 			MACHINE_FOMRAT='ieee-le';
 		end;
 		%HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dat']),'r','ieee-le');
-		HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.FILE.DAT),'r','ieee-le');
+		HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.FILE.DAT),'rb','ieee-le');
                 HDR.HeadLen  = 0;
                 fseek(HDR.FILE.FID,0,'eof');
                 tmp = ftell(HDR.FILE.FID);
@@ -950,8 +949,8 @@ elseif strcmp(HDR.TYPE,'MIT')
 
 
 elseif strcmp(HDR.TYPE,'TMS32'),
-	if strcmp(PERMISSION,'r'),
-		HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le')
+	if any(PERMISSION=='r'),
+		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le')
 
 		fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
 
@@ -1030,8 +1029,8 @@ elseif 0,strcmp(HDR.TYPE,'DAQ'),
 
 
 elseif strcmp(HDR.TYPE,'MAT4'),
-        if strcmp(PERMISSION,'r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'r',HDR.MAT4.opentyp)
+        if any(PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.MAT4.opentyp)
 
                 fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
 
@@ -1186,8 +1185,8 @@ elseif strcmp(HDR.TYPE,'MAT4'),
 
         
 elseif strcmp(HDR.TYPE,'ISHNE'),
-	if strcmp(PERMISSION,'r'),
-		HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le')
+	if any(PERMISSION=='r'),
+		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le')
 
 		fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
 
@@ -1263,12 +1262,12 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
 
 
 elseif strncmp(HDR.TYPE,'SEG2',4),
-	if strcmp(PERMISSION,'r'),
+	if any(PERMISSION,'rb'),
 
 		if strcmp(HDR.TYPE,'SEG2 l'),
-			HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le')
+			HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le')
 		elseif strcmp(HDR.TYPE,'SEG2 l'),
-			HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-be')
+			HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-be')
 		end;
 		HDR.TYPE = 'SEG2'; % remove endian indicator  
 
@@ -1320,8 +1319,8 @@ elseif strncmp(HDR.TYPE,'SEG2',4),
 
 
 elseif strncmp(HDR.TYPE,'SIGIF',4),
-	if strcmp(PERMISSION,'r'),
-		HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le');
+	if any(PERMISSION=='r'),
+		HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
 		HDR.FILE.OPEN = 1;
 		HDR.FILE.POS  = 0;
 
@@ -1416,7 +1415,7 @@ elseif strncmp(HDR.TYPE,'SIGIF',4),
 		tmp = ftell(HDR.FILE.FID);
 		if ~HDR.FLAG.INTEL_format,
 			fclose(HDR.FILE.FID);
-	    		HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-be');
+	    		HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-be');
 			fseek(HDR.FILE.FID,tmp,'bof');
 		end;
 		HDR.HeadLen = tmp + HDR.FLAG.TimeStamp*9;

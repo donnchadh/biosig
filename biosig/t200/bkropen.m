@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.4 $
-%	$Id: bkropen.m,v 1.4 2003-05-30 12:19:38 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: bkropen.m,v 1.5 2003-07-21 16:19:27 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -29,7 +29,11 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-if nargin<2, PERMISSION='r'; end;
+if nargin<2, 
+        PERMISSION='rb'; 
+elseif ~any(PERMISSION=='b');
+        PERMISSION = [PERMISSION,'b']; % force binary open. 
+end;
 if nargin<3, CHAN=0; end;
 
 
@@ -61,7 +65,7 @@ ULONG='uint32';
 FLOAT='float32';
 
 
-if strcmp(PERMISSION,'r'),
+if any(PERMISSION=='r'),
 	fid = BKR.FILE.FID;
 %%%%% READ HEADER
 
@@ -78,46 +82,46 @@ if strcmp(PERMISSION,'r'),
 	code=setstr(code)';
 	lcf=fread(fid,1, FLOAT);	%	4 Byte	22	untere Eckfrequenz
 	ucf=fread(fid,1, FLOAT);	%	4 Byte	26	obere Eckfrequenz
-	sref=fread(fid,1, ULONG);	%	4 Byte	30	Startzeitpunkt Referenz in Samples
-	eref=fread(fid,1, ULONG);	%	4 Byte	34	Länge Referenz in Samples	
-	sact=fread(fid,1, ULONG);	%	4 Byte	38	Startzeitpunkt Aktion in Samples
-	eact=fread(fid,1, ULONG);	%	4 Byte	42	Länge Aktion in Samples
+	BKR.BKR.sref=fread(fid,1, ULONG);	%	4 Byte	30	Startzeitpunkt Referenz in Samples
+	BKR.BKR.eref=fread(fid,1, ULONG);	%	4 Byte	34	Länge Referenz in Samples	
+	BKR.BKR.sact=fread(fid,1, ULONG);	%	4 Byte	38	Startzeitpunkt Aktion in Samples
+	BKR.BKR.eact=fread(fid,1, ULONG);	%	4 Byte	42	Länge Aktion in Samples
 	trg=fread(fid,1,BOOL);		%	2 Byte	46	flag für Trigger
-	pre=fread(fid,1, ULONG);	%	4 Byte	48	Anzahl der Sampels vor dem Trigger
-	pst=fread(fid,1, ULONG);	%	4 Byte	52	Anzahl der Sampels nach dem Trigger
-	hav=fread(fid,1,BOOL);		%	2 Byte	56	flag für "horizontale" Mittelung
-	nah=fread(fid,1, ULONG);	%	4 Byte	58	Anzahl der gemittelten Trials
-	vav=fread(fid,1,BOOL);		%	2 Byte	62	flag für "vertikale" Mittelung	
-	nav=fread(fid,1,'ushort');	%	2 Byte	64	Anzahl der gemittelten Kanäle
-	cav=fread(fid,1,BOOL);		%	2 Byte	66	flag für Datenkomprimierung
-	nac=fread(fid,1, ULONG);	%	4 Byte	68	Anzahl der gemittelten Samples
+	BKR.BKR.pre=fread(fid,1, ULONG);	%	4 Byte	48	Anzahl der Sampels vor dem Trigger
+	BKR.BKR.pst=fread(fid,1, ULONG);	%	4 Byte	52	Anzahl der Sampels nach dem Trigger
+	BKR.BKR.hav=fread(fid,1,BOOL);		%	2 Byte	56	flag für "horizontale" Mittelung
+	BKR.BKR.nah=fread(fid,1, ULONG);	%	4 Byte	58	Anzahl der gemittelten Trials
+	BKR.BKR.vav=fread(fid,1,BOOL);		%	2 Byte	62	flag für "vertikale" Mittelung	
+	BKR.BKR.nav=fread(fid,1,'ushort');	%	2 Byte	64	Anzahl der gemittelten Kanäle
+	BKR.BKR.cav=fread(fid,1,BOOL);		%	2 Byte	66	flag für Datenkomprimierung
+	BKR.BKR.nac=fread(fid,1, ULONG);	%	4 Byte	68	Anzahl der gemittelten Samples
 	com=fread(fid,1,BOOL);		%	2 Byte	72	flag: Common Average Reference
 	loc=fread(fid,1,BOOL);		%	2 Byte	74	flag: Local Average Reference
 	lap=fread(fid,1,BOOL);		%	2 Byte	76	flag: Laplace Berechnung
 	wgt=fread(fid,1,BOOL);		%	2 Byte	78	flag: Weighted Average Reference
-	pwr=fread(fid,1,BOOL);		%	2 Byte	80	flag: Leistung
-	avr=fread(fid,1,BOOL);		%	2 Byte	82	flag: Mittelwert
-	std=fread(fid,1,BOOL);		%	2 Byte	84	flag: Streuung
-	bps=fread(fid,1,BOOL);		%	2 Byte	86	flag: Bandpaß
-	erd=fread(fid,1,BOOL);		%	2 Byte	88	flag: ERD
-	sig=fread(fid,1,BOOL);		%	2 Byte	90	flag: Signifikanz 
-	coh=fread(fid,1,BOOL);		%	2 Byte	92	flag: Kohärenz
-	spc=fread(fid,1,BOOL);		%	2 Byte	94	flag: Spectrum
-	conf=fread(fid,1, FLOAT);	%	4 Byte	96	Konfidenz
-	csp=fread(fid,1,BOOL);		%	2 Byte	100	flag: Kohärenz Leistungsspektrum
-	erc=fread(fid,1,BOOL);		%	2 Byte	102	flag: ERC
-	ham=fread(fid,1,BOOL);		%	2 Byte	104	flag: Hanning smoothed
-	ann=fread(fid,1,BOOL);		%	2 Byte	106	flag: art. Neuronal. NW. Filter (ANN)
+	BKR.BKR.pwr=fread(fid,1,BOOL);		%	2 Byte	80	flag: Leistung
+	BKR.BKR.avr=fread(fid,1,BOOL);		%	2 Byte	82	flag: Mittelwert
+	BKR.BKR.std=fread(fid,1,BOOL);		%	2 Byte	84	flag: Streuung
+	BKR.BKR.bps=fread(fid,1,BOOL);		%	2 Byte	86	flag: Bandpaß
+	BKR.BKR.erd=fread(fid,1,BOOL);		%	2 Byte	88	flag: ERD
+	BKR.BKR.sig=fread(fid,1,BOOL);		%	2 Byte	90	flag: Signifikanz 
+	BKR.BKR.coh=fread(fid,1,BOOL);		%	2 Byte	92	flag: Kohärenz
+	BKR.BKR.spc=fread(fid,1,BOOL);		%	2 Byte	94	flag: Spectrum
+	BKR.BKR.conf=fread(fid,1, FLOAT);	%	4 Byte	96	Konfidenz
+	BKR.BKR.csp=fread(fid,1,BOOL);		%	2 Byte	100	flag: Kohärenz Leistungsspektrum
+	BKR.BKR.erc=fread(fid,1,BOOL);		%	2 Byte	102	flag: ERC
+	BKR.BKR.ham=fread(fid,1,BOOL);		%	2 Byte	104	flag: Hanning smoothed
+	BKR.BKR.ann=fread(fid,1,BOOL);		%	2 Byte	106	flag: art. Neuronal. NW. Filter (ANN)
 	niu=fread(fid,1,'ushort');	%	2 Byte 	108	ANN: Anzahl input units 
 	nhu=fread(fid,1,'ushort');	%	2 Byte	110	ANN: Anzahl hidden units
 	nlc=fread(fid,1, ULONG);	%	4 Byte	112	ANN: Anzahl Lernzyklen
 	reg=fread(fid,1, FLOAT);	%	4 Byte	116	ANN: regression
 	lco=fread(fid,1, FLOAT);	%	4 Byte 	120	ANN: Lernkoeffizient
 	epo=fread(fid,1,'ushort');	%	2 Byte	124	ANN: Epoche
-	rel=fread(fid,1,BOOL);		%	2 Byte	126	flag: ERC in Relativwerten
+	BKR.BKR.rel=fread(fid,1,BOOL);		%	2 Byte	126	flag: ERC in Relativwerten
 	wnd=fread(fid,1,'ushort');	%	2 Byte	128	Fenstertyp
-	kal=fread(fid,1,BOOL);		%	2 Byte	130	flag: Kalman gefilterte Daten
-	cwt=fread(fid,1,BOOL);		%	2 Byte	132	flag: kont. Wavelet transformtiert
+	BKR.BKR.kal=fread(fid,1,BOOL);		%	2 Byte	130	flag: Kalman gefilterte Daten
+	BKR.BKR.cwt=fread(fid,1,BOOL);		%	2 Byte	132	flag: kont. Wavelet transformtiert
 	cwt_fmin=fread(fid,1, FLOAT);	%	4 Byte	134	unterste Frequenz, kont. Wavelettransform.
 	cwt_fmax=fread(fid,1, FLOAT);	%	4 Byte	138	oberste Frequenz, kont. Wavelettransform.
 	scales=fread(fid,1,'ushort');	%	2 Byte	142	Anzahl Frequenzbänder für kont. WT
@@ -162,7 +166,8 @@ if strcmp(PERMISSION,'r'),
 	BKR.AS.spb = BKR.NS;	% Samples per Block
 	BKR.FILE.POS = 0;
 
-	BKR.BKR.ham=ham;
+	%BKR.BKR.ham=ham;
+	%BKR.BKR.spc=spc;
 	%BKR.AS.sref=sref;
 	%BKR.AS.eref=eref;
 	%BKR.AS.eletyp=eletyp;

@@ -4,12 +4,12 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % FILENAME 
 % PERMISSION is one of the following strings 
-%	'r'	read 
+%	'rb'	read 
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.12 $
-%	$Id: cntopen.m,v 1.12 2003-06-14 20:59:59 schloegl Exp $
+%	$Revision: 1.13 $
+%	$Id: cntopen.m,v 1.13 2003-07-21 16:19:27 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -27,7 +27,11 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-if nargin<2, PERMISSION='r'; end;
+if nargin<2, 
+        PERMISSION='rb'; 
+elseif ~any(PERMISSION=='b');
+        PERMISSION = [PERMISSION,'b']; % force binary open. 
+end;
 if nargin<3, CHAN=0; end;
 
 if isstruct(arg1),
@@ -496,8 +500,8 @@ elseif (h.type==1),
 	CNT.FLAG.TRIGGERED = 1;
 	CNT.Dur = CNT.SPR/CNT.SampleRate;
         
-        
-elseif any(h.type==[2,184]),
+
+else  % if any(h.type==[2,184]),
 	if ~strcmp(upper(CNT.FILE.Ext),'CNT'),
 		fprinf(2,'Warning CNTOPEN: filetype 2 does not match file extension CNT.\n'); 
 	end;

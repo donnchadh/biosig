@@ -35,8 +35,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.7 $
-% 	$Id: save2bkr.m,v 1.7 2003-05-20 13:20:45 schloegl Exp $
+%	$Revision: 1.8 $
+% 	$Id: save2bkr.m,v 1.8 2003-07-21 16:19:27 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -171,14 +171,14 @@ if isstruct(arg1),
                 end;
         end;
         
-        HDR = eegopen (HDR,'w',0,'UCAL');     	% OPEN BKR FILE
+        HDR = eegopen (HDR,'wb',0,'UCAL');     	% OPEN BKR FILE
         HDR = eegwrite(HDR,data);  	% WRITE BKR FILE
         HDR = eegclose(HDR);            % CLOSE BKR FILE
 
 	% save Classlabels
 	if isfield(HDR,'Classlabel'),
-		fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.par'],'w');
-        	fprintf(fid, '%i\r\n', HDR.Classlabel);
+		fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.par'],'wt');
+        	fprintf(fid, '%i\n', HDR.Classlabel);
         	fclose(fid);
 	end;
         return;
