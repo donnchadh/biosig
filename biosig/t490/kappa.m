@@ -23,8 +23,8 @@ function [kap,se,H,zscore,p0,SA]=kappa(d,c,kk);
 %        Encyclopedia of Statistical Sciences. New York: John Wiley & Sons.
 % [5] http://ourworld.compuserve.com/homepages/jsuebersax/kappa.htm
 
-%	$Revision: 1.2 $
-%	$Id: kappa.m,v 1.2 2003-12-09 10:10:47 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: kappa.m,v 1.3 2004-10-04 12:47:25 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -72,13 +72,13 @@ if nargin>1,
         	H = reshape(h(1:length(h)-1));
         	H(1,1) = H(1,1)-1;
     	else
-		if exist('OCTAVE_VERSION')>=5
+		if 1;%exist('OCTAVE_VERSION')>=5;
 	        	H = zeros(kk);
     			for k = 1:N, 
 	    			H(d(k),c(k)) = H(d(k),c(k))+1;
         		end;
 		else
-			H=full(sparse(d(1:N),c(1:N),1,kk,kk));
+			H = full(sparse(d(1:N),c(1:N),1,kk,kk));
     		end;
 	end;
 else
