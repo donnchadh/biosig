@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.29 $
-%	$Id: getfiletype.m,v 1.29 2005-03-20 21:55:48 schloegl Exp $
+%	$Revision: 1.30 $
+%	$Id: getfiletype.m,v 1.30 2005-03-22 17:28:50 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -91,22 +91,30 @@ else
 	HDR.FILE.size = ftell(fid);
 	fseek(fid,0,'bof');
 
-        [s,c] = fread(fid,132,'uchar');
+        [s,c] = fread(fid,256,'uchar');
         if (c == 0),
-                s = repmat(0,1,132-c);
-        elseif (c < 132),
-                s = [s', repmat(0,1,132-c)];
+                s = repmat(0,1,256-c);
+        elseif (c < 256),
+                s = [s', repmat(0,1,256-c)];
         else
                 s = s';
         end;
 
         if c,
                 %%%% file type check based on magic numbers %%%
-                type_mat4 = str2double(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
+		tmp = 256.^[0:3]*reshape(s(1:20),4,5);
+		mat4.flag = (c>20) & (tmp(5)<256) & tmp(5) & (tmp(1)<4053) & any(s(13)==[0,1]) & any(tmp(4)==[0,1]);
+		if mat4.flag,
+			mat4.matrixname = lower(s(21:20+tmp(5)-1));
+	                mat4.type = sprintf('%04i',tmp(1))-48;
+			mat4.flag = mat4.flag & s(20+tmp(5));
+			mat4.flag = all((mat4.matrixname>='0' & mat4.matrixname<='9') | (mat4.matrixname>='_' & mat4.matrixname<='z'));
+			mat4.flag = mat4.flag & all(any(mat4.type(ones(6,1),:)==[0,0:4;zeros(1,6);0:5;0:2,0,0,0]'));
+		end;
                 ss = char(s);
 		pos1_ascii10 = min(find(s==10));
                 if 0,
-                elseif all(s(1:2)==[207,0]);
+                elseif all(s([1:2,155:156])==[207,0,0,0]);
                         HDR.TYPE='BKR';
                 elseif strncmp(ss,'Version 3.0',11); % Neuroscan 
                         HDR.TYPE='CNT';
@@ -172,7 +180,7 @@ else
                         HDR.TYPE='SMA';
                 elseif 0, all(s([1:2,20])==[1,0,0]) & any(s(19)==[2,4]); 
                         HDR.TYPE='TEAM';	% Nicolet TEAM file format
-                elseif strncmp(ss,HDR.FILE.Name,length(HDR.FILE.Name)); 
+                elseif strncmp(ss,HDR.FILE.Name,length(HDR.FILE.Name)) & strcmpi(HDR.FILE.Ext,'HEA'); 
                         HDR.TYPE='MIT';
                 elseif strncmp(ss,'DEMG',4);	% www.Delsys.com
                         HDR.TYPE='DEMG';
@@ -298,7 +306,7 @@ else
                         
                 elseif strncmp(ss,'CFWB',4); 	% Chart For Windows Binary data, defined by ADInstruments. 
                         HDR.TYPE='CFWB';
-                elseif all(s==[abs('PLEXe'),zeros(1,127)]); 	% http://WWW.PLEXONINC.COM
+                elseif all(s(1:132)==[abs('PLEXe'),zeros(1,127)]); 	% http://WWW.PLEXONINC.COM
                         HDR.TYPE='PLX';
                 elseif strncmp(ss,'FILE FORMAT=RigSys',18); 	% RigSys file format 
                         HDR.TYPE='RigSys';
@@ -353,7 +361,7 @@ else
                 elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
                         HDR.TYPE = 'WFT';	% nicolet
                         
-                elseif all(s(1:3)==[255,255,254]) & any(s==10) & all(s(4:pos1_ascii10)>=32 | s(4:pos1_ascii10)<128); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
+                elseif all(s(1:3)==[255,255,254]) & any(s==10) & all(s(4:pos1_ascii10)>=32 & s(4:pos1_ascii10)<128); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
                         HDR.TYPE='FS3';
                 elseif all(s(1:3)==[255,255,255]); 	% FREESURVER QUAD_FILE_MAGIC_NUMBER or CURVATURE
                         HDR.TYPE='FS4';
@@ -638,29 +646,28 @@ else
                 elseif strncmp(ss,'ZYXEL',5); 
                         HDR.TYPE='ZYXEL';
                 elseif strcmpi(HDR.FILE.Name,ss(1:length(HDR.FILE.Name)));
-                        HDR.TYPE='HEA';
+                        HDR.TYPE='TAR?';
                         
                 elseif strncmp(ss,['# ',HDR.FILE.Name],length(HDR.FILE.Name)+2); 
                         HDR.TYPE='SMNI';
-                elseif all(s(1:16)==[1,0,0,0,1,0,0,0,4,0,0,0,0,0,0,0]),  % should be last, otherwise to many false detections
-                        HDR.TYPE='MAT4';
-                        HDR.MAT4.opentyp='ieee-be';
 			
-                        %elseif all(~type_mat4),  % should be last, otherwise to many false detections
-                elseif all(s(1:4)==0),  % should be last, otherwise to many false detections
-                        HDR.TYPE='MAT4';
-                        if type_mat4(1)==1,
-                                HDR.MAT4.opentyp='ieee-be';
-                        elseif type_mat4(1)==2,
-                                HDR.MAT4.opentyp='vaxd';
-                        elseif type_mat4(1)==3,
-                                HDR.MAT4.opentyp='vaxg';
-                        elseif type_mat4(1)==4,
-                                HDR.MAT4.opentyp='gray';
-                        else
-                                HDR.MAT4.opentyp='ieee-le';
+                elseif mat4.flag,
+		%(c>20) & (s(1:4)*256.^[0:3]'<4053) & any(s(13)==[0,1]) & all(s(14:16)==0) & any(s(17:20)>0) & all(mat4.matrixname>='0' & mat4.matrixname<='z') & ~mat4.matrixname(20+mat4.matrixname_len) & all(any(mat4.type(ones(6,1),:)==[0,0:4;zeros(1,6);0:5;0:2,0,0,0]')),  
+		%& (type_mat4(1)==(0:4)) & (type_mat4(2)==0) & (type_mat4(3)==(0:5)) & (type_mat4(4)==(0:2)) 
+			% should be last, otherwise to many false detections
+                        HDR.TYPE = 'MAT4';
+			if mat4.type(1)=='0'
+				HDR.MAT4.opentyp = 'ieee-le';
+			elseif mat4.type(1)=='1'
+				HDR.MAT4.opentyp = 'ieee-be';
+			elseif mat4.type(1)=='2'
+				HDR.MAT4.opentyp = 'vaxd';
+			elseif mat4.type(1)=='3'
+				HDR.MAT4.opentyp = 'vaxg';
+			elseif mat4.type(1)=='4'
+				HDR.MAT4.opentyp = 'cray';
                         end;
-                        
+			
                 elseif ~isempty(findstr(ss,'### Table of event codes.'))
                         fseek(fid,0,-1);
                         line = fgetl(fid);
@@ -716,7 +723,7 @@ else
                 elseif strcmpi(HDR.FILE.Ext,'HEA'), HDR.TYPE='MIT';
 
 			% Physiobank annotation files 
-		elseif strmatch(HDR.FILE.Ext,{'16a','abp','al','ari','atr','atr-','pap','ple','qrs','qrsc','sta','stb','stc'}),  
+		elseif length(HDR.FILE.Ext) & strmatch(HDR.FILE.Ext,{'16a','abp','al','apn','ari','atr','atr-','pap','ple','qrs','qrsc','sta','stb','stc'}),  
 			HDR.TYPE='MIT-ATR';
 			
                 elseif strcmpi(HDR.FILE.Ext,'DAT') & (upper(HDR.FILE.Name(1))=='E')

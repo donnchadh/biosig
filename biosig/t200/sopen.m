@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.99 $
-%	$Id: sopen.m,v 1.99 2005-03-20 21:55:48 schloegl Exp $
+%	$Revision: 1.100 $
+%	$Id: sopen.m,v 1.100 2005-03-22 17:28:49 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -568,6 +568,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
                 fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         end;
                 
+        
 elseif strcmp(HDR.TYPE,'DEMG'),
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');      % ### native should be fixed
         if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
@@ -2738,22 +2739,30 @@ elseif strcmp(HDR.TYPE,'MIT')
 		t = z;
 		k = 0;
 		while ~isempty(t)
-			k = k+1;
-	                [s,t] = strtok(t);
-			Z{k} = s;
-			if any(s==':')
-				HDR.T0(4:6)=str2double(s,':');
-			elseif any(s=='/') & (k>2)
+			k = k + 1;
+	                [s,t] = strtok(t,[9,10,13,32]);
+			Z{k}  = s;
+			if any(s==':'),
+                                t0 = str2double(s,':');
+				HDR.T0(3+(1:length(t0))) = t0;
+			elseif sum(s=='/')==2,
 				HDR.T0([3,2,1])=str2double(s,'/');
 			end;	
 		end;	
                 HDR.NS   = str2double(Z{2});   % number of signals
-                [tmp,tmp1] = strtok(Z{3},'/');
-                HDR.SampleRate = str2double(tmp);   % sample rate of data
+
+		if k>2,
+	                [tmp,tmp1] = strtok(Z{3},'/');
+	                HDR.SampleRate = str2double(tmp);   % sample rate of data
+		end;
 
 		[tmp,z1] = strtok(Z{1},'/');
 		if ~isempty(z1)	
 			%%%%%%%%%% Multi-Segment files %%%%%%% 
+			fprintf(HDR.FILE.stderr,'Error SOPEN (MIT) %s:  multi-segment files not supported.\n',tmpfile);
+			
+			return;
+			
 			HDR.FLAG.TRIGGERED = 1; 
 			z1 = strtok(z1,'/');
 			HDR.NRec = str2double(z1);
@@ -2997,29 +3006,63 @@ elseif strcmp(HDR.TYPE,'MIT')
 					ix = (k==k1);
 					f = fullfile(HDR.FILE.Path,HDR.FILE.DAT{j(k1)});
 					hdr.FILE.FID = fopen(f,'rb');
-					hdr.FILE.POS = 0; 
-					hdr.NS = sum(ix);
-					hdr.InChanSelect = 1:hdr.NS;
-					hdr.MIT.dformat = HDR.MIT.dformat(ix);
-					%hdr.Calib = HDR.Calib(:,ix);
-			                hdr.AS.spb = sum(HDR.AS.SPR(ix));
-					hdr.SampleRate = HDR.SampleRate;
-					hdr.TYPE = 'MIT';
-					hdr.AS.MAXSPR = HDR.AS.MAXSPR;
-					hdr.AS.SPR = HDR.AS.SPR(ix);
-					hdr.FLAG = HDR.FLAG; 
-					hdr.FLAG.UCAL = 1; 
-					
-			                if all(hdr.MIT.dformat==hdr.MIT.dformat(1)),
-	            			        hdr.VERSION = hdr.MIT.dformat(1);
-	            			else
-	                    			fprintf(hdr.FILE.stderr,'different DFORMATs not supported.\n');
-	                    			hdr.FILE.FID = -1;
-	                    			return;
-	            			end;
-					[s,hdr] = sread(hdr);
-					fclose(hdr.FILE.FID);
-					
+                                        if hdr.FILE.FID>0,
+                                                hdr.FILE.stderr = HDR.FILE.stderr;
+                                                hdr.FILE.stdout = HDR.FILE.stdout;
+                                                hdr.FILE.POS = 0; 
+                                                hdr.NS = sum(ix);
+                                                hdr.InChanSelect = 1:hdr.NS;
+                                                hdr.MIT.dformat = HDR.MIT.dformat(ix);
+                                                %hdr.Calib = HDR.Calib(:,ix);
+                                                hdr.AS.spb = sum(HDR.AS.SPR(ix));
+                                                hdr.SampleRate = HDR.SampleRate;
+                                                hdr.TYPE = 'MIT';
+                                                hdr.AS.MAXSPR = HDR.AS.MAXSPR;
+                                                hdr.AS.SPR = HDR.AS.SPR(ix);
+                                                hdr.FLAG = HDR.FLAG; 
+                                                hdr.FLAG.UCAL = 1; 
+                                                
+                                                if all(hdr.MIT.dformat(1)==hdr.MIT.dformat),
+                                                        hdr.VERSION = hdr.MIT.dformat(1);
+                                                else
+                                                        fprintf(hdr.FILE.stderr,'different DFORMATs not supported.\n');
+                                                        hdr.FILE.FID = -1;
+                                                        return;
+                                                end;
+                                                if 0,
+                                                        
+                                                elseif hdr.VERSION == 212, 
+                                                        if mod(hdr.AS.spb,2) 
+                                                                hdr.AS.spb = hdr.AS.spb*2;
+                                                        end
+                                                        hdr.AS.bpb = hdr.AS.spb*3/2;
+                                                elseif hdr.VERSION == 310, 
+                                                        if mod(hdr.AS.spb,3) 
+                                                                hdr.AS.spb = hdr.AS.spb*2/3;
+                                                        end
+                                                        hdr.AS.bpb = hdr.AS.spb*2;
+                                                elseif hdr.VERSION == 311, 
+                                                        if mod(hdr.AS.spb,3) 
+                                                                hdr.AS.spb = hdr.AS.spb*3;
+                                                        end
+                                                        hdr.AS.bpb = hdr.AS.spb*4;
+                                                elseif hdr.VERSION == 8, 
+                                                        hdr.AS.bpb = hdr.AS.spb;
+                                                elseif hdr.VERSION == 80, 
+                                                        hdr.AS.bpb = hdr.AS.spb;
+                                                elseif hdr.VERSION == 160, 
+                                                        hdr.AS.bpb = hdr.AS.spb;
+                                                elseif hdr.VERSION == 16, 
+                                                        hdr.AS.bpb = hdr.AS.spb;
+                                                elseif hdr.VERSION == 61, 
+                                                        hdr.AS.bpb = hdr.AS.spb;
+                                                end;
+                                                [s,hdr] = sread(hdr);
+                                                fclose(hdr.FILE.FID);
+                                        else 
+                                                s = [];
+                                        end;
+                                        
 					if k1==1,
 						HDR.data = s; 
 					else	
@@ -3041,8 +3084,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 elseif strcmp(HDR.TYPE,'MIT-ATR'),
                 tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hea']));
 		if isempty(tmp)
-			HDR.TYPE = 'unknown'; 
-			return; 
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN: no corresponing header file found for MIT-ATR EVENT file %s.\n',HDR.FileName);
 		end;	
 		
                 %------ LOAD ATTRIBUTES DATA ----------------------------------------------
@@ -3059,7 +3101,8 @@ elseif strcmp(HDR.TYPE,'MIT-ATR'),
                 i  = 1;
 		ch = 0; 
 		accu = 0; 
-                while ((A(i)>0) & (i<=size(A,1))),
+                FLAG63=0;
+                while ((i<=size(A,1)) & (A(i)>0)),
                         annoth = floor(A(i)/1024);
 			L = rem(A(i),1024);
                         if A(i)==0,  % end of file
@@ -3078,6 +3121,7 @@ elseif strcmp(HDR.TYPE,'MIT-ATR'),
 				t = [mod(A(i+(1:c)),256),floor(A(i+(1:c))/256)]';
 				Desc{K} = char(t(:))'; 
                         	i = i + c;
+                                FLAG63=1;
                         elseif annoth==59,	% SKIP 
 				if (L==0), 
 					L = (2.^[0,16])*[A(i+2);A(i+1)];
@@ -3085,7 +3129,7 @@ elseif strcmp(HDR.TYPE,'MIT-ATR'),
 				end;	
 				accu = accu + L;
                     	else
-                            	K = K+1;
+                            	K = K + 1;
 	    			accu = accu + L; 
 				EVENTTABLE(K,:) = [annoth,accu,ch];
                         end;
@@ -3095,7 +3139,7 @@ elseif strcmp(HDR.TYPE,'MIT-ATR'),
 		HDR.EVENT.POS = EVENTTABLE(1:K,2); 
 		HDR.EVENT.CHN = EVENTTABLE(1:K,3); 
 		HDR.EVENT.DUR = zeros(K,1); 
-		HDR.EVENT.Desc= Desc(1:K);
+                if FLAG63, HDR.EVENT.Desc= Desc(1:K); end;
 		HDR.TYPE = 'EVENT';
                 
         
