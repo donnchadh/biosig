@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.24 $
-%	$Id: sread.m,v 1.24 2004-07-05 08:38:39 schloegl Exp $
+%	$Revision: 1.25 $
+%	$Id: sread.m,v 1.25 2004-08-03 10:14:52 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -54,11 +54,19 @@ if (nargin==3)
         end;
 end;
 
+
 if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF') ,
         if nargin<3,
                 [S,HDR] = sdfread(HDR, NoS );
         else
                 [S,HDR] = sdfread(HDR, NoS ,StartPos);
+        end;
+
+        if strcmp(HDR.TYPE,'GDF'),      % overflow detection
+                for k = 1:length(HDR.InChanSelect),
+                        ix = (S(:,k)>=HDR.DigMax(HDR.InChanSelect(k))) | (S(:,k)<=HDR.DigMin(HDR.InChanSelect(k)));
+                        S(ix,k) = NaN;
+                end;
         end;
         
         
