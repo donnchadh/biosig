@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.14 $
-%	$Id: sread.m,v 1.14 2004-03-26 18:46:11 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: sread.m,v 1.15 2004-04-09 13:27:15 oostenveld Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -464,32 +464,63 @@ elseif strcmp(HDR.TYPE,'SIGIF'),
 	end;
                 
 
-elseif strcmp(HDR.TYPE,'BrainVision'),
-        %%%% #### FIX ME ####
-        if nargin>2, % StartPos indicates the starting position in seconds
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        % NoS        indicates the number of seconds to read. 
-
-        
-elseif strcmp(HDR.TYPE,'CTF'),
-        %%%% #### FIX ME ####
-        if nargin>2, % StartPos indicates the starting position in seconds
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        % NoS        indicates the number of seconds to read. 
-        
-
 elseif strcmp(HDR.TYPE,'EEProbe'),
-        %%%% #### FIX ME ####
-        if nargin>2, % StartPos indicates the starting position in seconds
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        % NoS        indicates the number of seconds to read. 
-        
+  if nargin<3,
+    % StartPos has not been specified
+    begsample = 1;
+    % FIXME: In general I would like to start reading at the position 
+    % in the file where the last SREAD ended. Where can I find that
+    % position? In other parts of the code I see HDR.FILE.POS and
+    % HDR.AS.bpb being used, but neither of them is defined in the
+    % documentation.
+  else
+    begsample = StartPos*HDR.SampleRate;
+  end 
+  endsample = begsample - 1 + NoS*HDR.SampleRate; % compute number of samples to read
+  endsample = min(endsample, HDR.SPR);            % do not read beyond end of file
+  % The type 'EEProbe' does not yet completely specify the file, we have to
+  % look in more detail (currently only at the extension).
+  if strcmp(HDR.FILE.Ext, 'cnt')
+    try
+      % it appears to be a EEProbe file with continuous EEG data
+      tmp = read_eep_cnt(HDR.FileName, begsample, endsample);
+    catch
+      fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): Cannot open EEProbe-file, because read_eep_cnt.mex not installed. \n');
+      fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): You can downlad it from http://www.smi.auc.dk/~roberto/eeprobe/\n');
+    end
+    S = tmp.data;
+  elseif strcmp(HDR.FILE.Ext, 'avr')
+    try
+      % it appears to be a EEProbe file with an averaged ERP
+      tmp = read_eep_avr(HDR.FileName);
+    catch
+      fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): Cannot open EEProbe-file, because read_eep_avr.mex not installed. \n');
+      fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): You can downlad it from http://www.smi.auc.dk/~roberto/eeprobe/\n');
+    end
+    S = tmp.data(:,begsample:endsample);
+  else
+    fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): File %s could not be opened - unknown subtype for EEProbe.\n',HDR.FileName);
+  end
+  % FIXME: now I would like to update the position in the file
+  % so that the next SREAD knows where to continue
+
+elseif strcmp(HDR.TYPE,'BrainVision'),
+  fprintf(2,'Error SREAD: %s-format not supported yet.\n', HDR.TYPE);
+
+  % This code snippet shows how the data can be read from an *.eeg file.
+  % Opening of the file should be done in SOPEN, and seeking should be combined with
+  % keeping the file pointer position up-to-date.
+  %    begsample = ?;
+  %    endsample = ?;
+  %    fid = fopen(HDR.FileName, 'rb', 'ieee-le');
+  %    fseek(fid, HDR.NS*2*(begsample-1), 'cof');
+  %    [dat, siz] = fread(fid, [HDR.NS, (endsample-begsample+1)], 'int16');
+  %    fclose(fid);
+  % Compute real microvolts using the calibration factor (resolution).
+  % This should also be combined with HDR.Calib and SOPEN.
+  % Am I right that HDR.Calib == res?
+  %    res = sparse(diag(hdr.resolution));
+  %    dat = res * dat;
 
 elseif strcmp(HDR.TYPE,'FIF'),
         %%%% #### FIX ME ####
