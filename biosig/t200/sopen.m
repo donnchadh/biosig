@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.75 $
-%	$Id: sopen.m,v 1.75 2004-11-18 13:20:44 schloegl Exp $
+%	$Revision: 1.76 $
+%	$Id: sopen.m,v 1.76 2004-11-25 10:22:45 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -734,7 +734,6 @@ elseif strcmp(HDR.TYPE,'ATES'),
         HDR.NS = fread(HDR.FILE.FID,1,'int16');
 
                 
-        
 elseif strcmp(HDR.TYPE,'SND'),
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
         if HDR.FILE.FID < 0,
@@ -3694,7 +3693,11 @@ elseif strcmp(HDR.TYPE,'CTF'),
         
 elseif strcmp(HDR.TYPE,'BrainVision'),
         % get the header information from the VHDR ascii file
-        fid = fopen(fullfile(HDR.FILE.Path, HDR.FileName),'rt');
+        fid = fopen(HDR.FileName,'rt');
+        if fid<0,
+                fprintf('Error SOPEN: could not open file %s\n',HDR.FileName);
+                return;
+        end; 
         tline = fgetl(fid);
         HDR.BV = [];
         UCAL = 0; 
@@ -3722,28 +3725,24 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                         
                 elseif any(flag==[2,3]),
                         [t1,r] = strtok(tline,'=');
-                        [t2,r] = strtok(r,['=,',10,13]);
+                        [t2,r] = strtok(r,['=,',char([10,13])]);
                         if ~isempty(t2),
                                 HDR.BV = setfield(HDR.BV,t1,t2);
                         end;
                 elseif flag==4,        
                         [t1,r] = strtok(tline,'=');
-                        [t2,r] = strtok(r,['=',10,13]);
+                        [t2,r] = strtok(r, ['=',char([10,13])]);
                         ix = [find(t2==','),length(t2)];
-                        t3 = t2(1:ix(1)-1);
-                        t4 = t2(ix(1)+1:ix(2)-1);
-                        t5 = t2(ix(2)+1:end);
-                        [chan,stat1] = str2double(t1(3:end));
-                        HDR.Label{chan} = t2;        
-                        HDR.BV.reference{chan} = t3;
-                        [v, stat] = str2double(t5);          % in microvolt
+                        [chan, stat1] = str2double(t1(3:end));
+                        HDR.Label{chan,1} = t2(1:ix(1)-1);        
+                        HDR.BV.reference{chan,1} = t2(ix(1)+1:ix(2)-1);
+                        [v, stat] = str2double(t2(ix(2)+1:end));          % in microvolt
                         if (prod(size(v))==1) & ~any(stat)
                                 HDR.Cal(chan) = v;                                
                         else
                                 UCAL = 1; 
                                 HDR.Cal(chan) = 1;
                         end;
-                        
                 elseif flag==5,   
                         [t1,r] = strtok(tline,'=');
                         chan = str2double(t1(3:end));
@@ -3755,6 +3754,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         
         % convert the header information to BIOSIG standards
         HDR.NS = str2double(HDR.BV.NumberOfChannels);
+        HDR.SPR = str2double(HDR.BV.DataPoints);
         HDR.SampleRate = 1e6/str2double(HDR.BV.SamplingInterval);      % sampling rate in Hz
         if UCAL & ~strncmp(HDR.BV.BinaryFormat,'IEEE_FLOAT',10),
                 fprintf(2,'Warning SOPEN (BV): missing calibration values\n');
@@ -3801,10 +3801,10 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         end
 
         %open data file 
-        if strncmpi(HDR.BV.DataFormat, 'binary',5),
-                HDR.FILE.FID = fopen(HDR.BV.DataFile,'rb','ieee-le');
-        elseif strncmpi(HDR.BV.DataFormat, 'ascii',5),
-                HDR.FILE.FID = fopen(tmp,'rt','ieee-le');
+        if strncmpi(HDR.BV.DataFormat, 'binary',5)
+                HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),'rb','ieee-le');
+        elseif strncmpi(HDR.BV.DataFormat, 'ascii',5)                 
+                HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),'rt','ieee-le');
         end;
 
         if HDR.FILE.FID < 0,
