@@ -29,8 +29,8 @@ function [signal,H] = sload(FILENAME,CHAN,MODE)
 %
 
 
-%	$Revision: 1.54 $
-%	$Id: sload.m,v 1.54 2005-01-26 18:27:14 schloegl Exp $
+%	$Revision: 1.55 $
+%	$Id: sload.m,v 1.55 2005-02-12 14:59:29 schloegl Exp $
 %	Copyright (C) 1997-2005 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -51,7 +51,8 @@ function [signal,H] = sload(FILENAME,CHAN,MODE)
 
 
 if nargin<2; CHAN=0; end;
-if nargin<3; Fs=NaN; end;
+if nargin<3; MODE = ''; end;
+
 
 if CHAN<1 | ~isfinite(CHAN),
         CHAN=0;
@@ -166,6 +167,8 @@ if ~isnumeric(CHAN),
 end
 if isnumeric(MODE),
         Fs  = MODE;
+else
+        Fs  = NaN;
 end;
 
 signal = [];
