@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.27 $
-%	$Id: sread.m,v 1.27 2004-09-19 02:06:21 schloegl Exp $
+%	$Revision: 1.28 $
+%	$Id: sread.m,v 1.28 2004-09-24 18:02:05 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -342,7 +342,7 @@ elseif strcmp(HDR.TYPE,'DEMG'),
                 fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
-        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP));
+        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],HDR.GDFTYP);
         if count,
                 S = S(HDR.InChanSelect,:)';
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
@@ -371,7 +371,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),
                 fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
-        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP));
+        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],HDR.GDFTYP);
         if count,
                 S = S(HDR.InChanSelect,:)';
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
@@ -384,11 +384,8 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         maxsamples = min(HDR.SPR,HDR.SampleRate*NoS)-HDR.FILE.POS;
-        if maxsamples>0,
-                [S,count] = fread(HDR.FILE.FID,[HDR.NS,maxsamples],gdfdatatype(HDR.GDFTYP));
-        else
-                S = []; count = 0;
-        end;	
+        [S,count] = fread(HDR.FILE.FID,[HDR.NS,maxsamples],HDR.GDFTYP);
+        
         S = S(HDR.InChanSelect,:)';
         HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         
@@ -414,7 +411,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
                         SegmentCatIndex(HDR.FILE.POS+i) = fread(HDR.FILE.FID,1,'uint16');
                         SegmentStartTime(HDR.FILE.POS+i) = fread(HDR.FILE.FID,1,'uint32');
                         
-                        [s,count] = fread(HDR.FILE.FID, [HDR.NS + HDR.EVENT.N, HDR.SPR], HDR.datatype);
+                        [s,count] = fread(HDR.FILE.FID, [HDR.NS + HDR.EVENT.N, HDR.SPR], HDR.GDFTYP);
                         tmp = (HDR.NS + HDR.EVENT.N) * HDR.SPR;
                         if count < tmp,
                                 fprintf(HDR.FILE.stderr,'Warning SREAD EGI: only %i out of %i samples read\n',count,tmp);
@@ -428,7 +425,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
                         S((i-1)*HDR.SPR + (1:size(s,2)),:) = s(HDR.InChanSelect,:)';
                 end;
         else
-                [S,count] = fread(HDR.FILE.FID,[HDR.NS + HDR.EVENT.N, HDR.SampleRate*NoS],HDR.datatype);
+                [S,count] = fread(HDR.FILE.FID,[HDR.NS + HDR.EVENT.N, HDR.SampleRate*NoS],HDR.GDFTYP);
                 tmp = (HDR.NS + HDR.EVENT.N) * HDR.SampleRate * NoS;
                 if count < tmp,
                         fprintf(HDR.FILE.stderr,'Warning SREAD EGI: only %i out of %i samples read\n',count,tmp);
@@ -509,7 +506,7 @@ elseif strcmp(HDR.TYPE,'CNT'),
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         
-        [S,count] = fread(HDR.FILE.FID, [HDR.NS, min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS)], 'int16');
+        [S,count] = fread(HDR.FILE.FID, [HDR.NS, min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS)], gdfdatatype(HDR.GDFTYP));
         
         S = S(HDR.InChanSelect,:)';
         HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
@@ -668,7 +665,7 @@ elseif strcmp(HDR.TYPE,'BVbinmul'), %Brainvision, binary, multiplexed
         end;
         
         nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
-        [dat, count] = fread(HDR.FILE.FID, [HDR.NS, nr], gdfdatatype(HDR.GDFTYP));
+        [dat, count] = fread(HDR.FILE.FID, [HDR.NS, nr], HDR.GDFTYP);
         
         % rename and transpose the data
         S = dat(HDR.InChanSelect,:)';
@@ -682,7 +679,7 @@ elseif strcmp(HDR.TYPE,'BVbinvec'), %Brainvision, binary, vectorized
 
         for chan = 1:length(HDR.InChanSelect);
                 fseek(HDR.FILE.FID,HDR.HeadLen + HDR.FILE.POS + HDR.AS.bpb/HDR.NS * HDR.SPR,'bof');
-                [s,count] = fread(HDR.FILE.FID,[nr,1],gdfdatatype(HDR.GDFTYP));
+                [s,count] = fread(HDR.FILE.FID,[nr,1],HDR.GDFTYP);
                 if count~=nr,
                         fprintf(2,'ERROR READ BV-bin-vec: \n');
                         return;
@@ -792,6 +789,20 @@ elseif strcmp(HDR.TYPE,'FIF'),
 else
         fprintf(2,'Error SREAD: %s-format not supported yet.\n', HDR.TYPE);        
 end;
+
+
+%%% TOGGLE CHECK - checks whether HDR is kept consist %%% 
+global SREAD_TOGGLE_CHECK
+if isfield(HDR.AS,'TOGGLE');
+        if HDR.AS.TOGGLE~=SREAD_TOGGLE_CHECK,
+                fprintf(HDR.FILE.stderr,'Warning SREAD: [s,HDR]=sread(HDR, ...) \nYou forgot to pass HDR in %i call(s) of SREAD\n',SREAD_TOGGLE_CHECK-HDR.AS.TOGGLE);
+        end;
+else
+        HDR.AS.TOGGLE=0;
+        SREAD_TOGGLE_CHECK=0;
+end;
+SREAD_TOGGLE_CHECK = SREAD_TOGGLE_CHECK+1;
+HDR.AS.TOGGLE = HDR.AS.TOGGLE+1;
 
 
 if ~HDR.FLAG.UCAL,
