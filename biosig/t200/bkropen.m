@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.5 $
-%	$Id: bkropen.m,v 1.5 2003-07-21 16:19:27 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: bkropen.m,v 1.6 2003-07-21 20:59:19 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -35,7 +35,6 @@ elseif ~any(PERMISSION=='b');
         PERMISSION = [PERMISSION,'b']; % force binary open. 
 end;
 if nargin<3, CHAN=0; end;
-
 
 if isstruct(arg1),
 	BKR=arg1;
@@ -63,7 +62,6 @@ end;
 BOOL='int16';
 ULONG='uint32'; 
 FLOAT='float32';
-
 
 if any(PERMISSION=='r'),
 	fid = BKR.FILE.FID;
@@ -209,12 +207,12 @@ if any(PERMISSION=='r'),
         	end;
 	end;
 
-elseif strcmp(PERMISSION,'w') | strcmp(PERMISSION,'w+') | strcmp(PERMISSION,'r+'),
+elseif any(PERMISSION=='w') | ~isempty(findstr(PERMISSION,'r+')),
         if ~isfield(BKR,'SPR'),
 		BKR.SPR = 0; 	% Unknown - Value will be fixed when file is closed. 
         end;
-        
-        if strcmp(PERMISSION,'r+'), 	% calculate BKR.SPR based on the length of the data file.  
+
+        if findstr(PERMISSION,'r+'), 	% calculate BKR.SPR based on the length of the data file.  
                 fseek(BKR.FILE.FID,0,'eof');
                 EndPos = ftell(BKR.FILE.FID);
                 fseek(BKR.FILE.FID,0,'bof');
@@ -246,7 +244,7 @@ elseif strcmp(PERMISSION,'w') | strcmp(PERMISSION,'w+') | strcmp(PERMISSION,'r+'
 		BKR.Filter.HighPass=NaN; 
         end;
 
-	fwrite(BKR.FILE.FID,[BKR.Filter.LowPass,BKR.Filter.HighPass],'float'); 
+	count=fwrite(BKR.FILE.FID,[BKR.Filter.LowPass,BKR.Filter.HighPass],'float'); 
 
 	count=fwrite(BKR.FILE.FID,zeros(16,1),'char');         	% offset 30
 	count=fwrite(BKR.FILE.FID,BKR.FLAG.TRIGGERED,'int16');	% offset 32
@@ -264,3 +262,5 @@ elseif strcmp(PERMISSION,'w') | strcmp(PERMISSION,'w+') | strcmp(PERMISSION,'r+'
 	BKR.AS.bpb = BKR.NS*2;	% Bytes per Block
 	BKR.AS.spb = BKR.NS;	% Samples per Block
 end;
+
+

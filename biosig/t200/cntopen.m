@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.13 $
-%	$Id: cntopen.m,v 1.13 2003-07-21 16:19:27 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: cntopen.m,v 1.14 2003-07-21 20:59:19 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -521,7 +521,7 @@ end;
 
 %%%%% read event table 
 CNT.EVENT.Number     = h.numevents;
-if CNT.EVENT.Number > 0,
+if (CNT.EVENT.Number > 0);
         fseek(CNT.FILE.FID,h.eventtablepos,'bof');
         CNT.EVENT.TeegType   = fread(fid,1,'uchar');	%	
         CNT.EVENT.TeegSize   = fread(fid,1,'int32');	%	
@@ -529,30 +529,30 @@ if CNT.EVENT.Number > 0,
         
         fseek(CNT.FILE.FID,CNT.EVENT.TeegOffset,'cof');
         
-        k=1;
+        k=0;
         K=1;
         Teeg=[];
         while K < CNT.EVENT.TeegSize,
-                Teeg(k).Stimtype =  fread(fid,1,'int16');        
-                Teeg(k).Keyboard =  fread(fid,1,'char');        
-                tmp =  fread(fid,1,'uchar');        
-                Teeg(k).KeyPad = bitand(tmp,15);
-                Teeg(k).Accept = (bitshift(tmp,-4)==13);  % 0xd = accept, 0xc = reject 
+                k = k + 1;
+                Teeg.Stimtype =  fread(fid,1,'int16');        
+                Teeg.Keyboard =  fread(fid,1,'char');        
+                tmp =  fread(fid,1,'uint8');        
+                Teeg.KeyPad = rem(tmp,16); %bitand(tmp,15);
+                Teeg.Accept = (fix(tmp/16)*16)==13; % (bitshift(tmp,-4)==13);  % 0xd = accept, 0xc = reject 
                 
-                Teeg(k).Offset   =  fread(fid,1,'int32');        
+                Teeg.Offset   =  fread(fid,1,'int32');        
                 K = K + 8;
                 if CNT.EVENT.TeegType==2,
-                        Teeg(k).Type =  fread(fid,1,'int16');        
-                        Teeg(k).Code =  fread(fid,1,'int16');        
-                        Teeg(k).Latency =  fread(fid,1,'float32');        
-                        Teeg(k).EpochEvent =  fread(fid,1,'char');        
-                        Teeg(k).Accept2  =  fread(fid,1,'char');        
-                        Teeg(k).Accuracy =  fread(fid,1,'char');        
+                        Teeg.Type =  fread(fid,1,'int16');        
+                        Teeg.Code =  fread(fid,1,'int16');        
+                        Teeg.Latency =  fread(fid,1,'float32');        
+                        Teeg.EpochEvent =  fread(fid,1,'char');        
+                        Teeg.Accept2  =  fread(fid,1,'char');        
+                        Teeg.Accuracy =  fread(fid,1,'char');        
                         K = K + 11;        
                 end;        
-                k = k + 1;
+	        CNT.EVENT.Teeg{k} = Teeg;
         end;
-        CNT.EVENT.Teeg = Teeg;
 end;
 
 fseek(CNT.FILE.FID, CNT.HeadLen, 'bof');
