@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.9 $
-%	$Id: scpopen.m,v 1.9 2004-05-02 11:00:02 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: scpopen.m,v 1.10 2004-05-02 11:30:36 schloegl Exp $
 %	(C) 2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -613,6 +613,5 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
         HDR.NRec = 1;
         HDR.AS.endpos = HDR.SPR;
         
-        fclose(HDR.FILE.FID);
 end;
 
