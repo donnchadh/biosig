@@ -35,8 +35,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.18 $
-% 	$Id: save2bkr.m,v 1.18 2004-03-17 19:46:22 schloegl Exp $
+%	$Revision: 1.19 $
+% 	$Id: save2bkr.m,v 1.19 2004-04-22 18:02:31 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -188,7 +188,8 @@ if isstruct(arg1),
                 end;
         end;
         HDR.FLAG.UCAL = 1;              % data is de-calibrated, no rescaling within SWRITE 
-        %HDR = eegchkhdr(HDR);          
+        %HDR = eegchkhdr(HDR);   
+        HDR.TYPE = 'BKR';
         
         HDR = sopen (HDR,'w',0);     	% OPEN BKR FILE
         HDR = swrite(HDR,data);  	% WRITE BKR FILE
@@ -241,6 +242,10 @@ for k=1:length(infile);
         if ~isfield(HDR,'NS'),
                 warning(['number of channels undefined in ',filename]);
                 HDR.NS = size(y,2);
+        end;
+        if ~HDR.FLAG.TRIGGERED,
+                HDR.NRec = 1; 
+                HDR.SPR = size(y,1);
         end;
         if ~isfield(HDR,'NRec'),
                 HDR.NRec = 1;
@@ -302,8 +307,8 @@ for k=1:length(infile);
 
         % add event channel 
         if isfield(HDR,'EVENT')
-                if HDR.EVENT.N > 0,
-		if 0,
+                if HDR.EVENT.N <= 0,
+                elseif 0,
                         % TypeList = unique(HDR.EVENT.TYP); but ignores NaN's
                         [sY ,idx] = sort(HDR.EVENT.TYP(:));
                         TypeList  = sY([1;find(diff(sY,1)>0)+1]);
@@ -315,21 +320,23 @@ for k=1:length(infile);
                         end;
                         HDR.NS = HDR.NS + size(event,2);
                         y = [y, event];
-		else
-			K = 0; event = [];
-			for k1 = 0:15,
-				tmp = bitand(HDR.EVENT.TYP,2^k1);
-				if any(tmp),
-					K = K+1;
-	                                event(size(y,1),K) = 0;        
-	                                event(HDR.EVENT.POS,K) = 1;        
-				end;				
-			end;    
-			if any(sum(event,2)>1),
-				fprintf(2,'Warning SAVE2BKR: simulateneous events occur. \n');
-			end;	
-                        HDR.NS = HDR.NS + size(event,2);
-                        y = [y, event];
+                else
+                        if all(HDR.EVENT.TYP < 256),  % only NeuroScan Events are converted into separate channels
+                                K = 0; event = [];
+                                for k1 = 0:7,
+                                        tmp = bitand(HDR.EVENT.TYP,2^k1);
+                                        if any(tmp),
+                                                K = K+1;
+                                                event(size(y,1),K) = 0;        
+                                                event(HDR.EVENT.POS(tmp>0),K) = 1;        
+                                        end;				
+                                end;    
+                                if any(sum(event,2)>1),
+                                        fprintf(2,'Warning SAVE2BKR: simulateneous events occur. \n');
+                                end;	
+                                HDR.NS = HDR.NS + size(event,2);
+                                y = [y, event];
+                        end;
                 end;
 		end;
         end;
@@ -378,7 +385,7 @@ for k=1:length(infile);
                 return;
         end;
         % writes data
-        HDR = swrite(HDR,y);  	% WRITE BKR FILE
+        HDR = swrite(HDR,y(:,1:HDR.NS));  	% WRITE BKR FILE
         %count = fwrite(HDR.FILE.FID,y','short');
         HDR = sclose(HDR);
         

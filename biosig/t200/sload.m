@@ -17,8 +17,8 @@ function [signal,H] = sload(FILENAME,CHAN)
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.22 $
-%	$Id: sload.m,v 1.22 2004-04-18 22:17:20 schloegl Exp $
+%	$Revision: 1.23 $
+%	$Id: sload.m,v 1.23 2004-04-22 18:02:32 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -40,6 +40,13 @@ function [signal,H] = sload(FILENAME,CHAN)
 
 
 if nargin<2; CHAN=0; end;
+
+if ~isnumeric(CHAN),
+        MODE = CHAN;
+        CHAN = 0; 
+else
+        MODE = '';
+end;
 
 if CHAN<1 | ~isfinite(CHAN),
         CHAN=0;
@@ -87,10 +94,10 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
                                 end;
                         end;
                         if isfield(H,'Classlabel'),
+                                if isfield(H,'ArtifactSelection'),
+                                        H.ArtifactSelection = [H.ArtifactSelection(:);h.ArtifactSelection(:)+length(H.Classlabel)];
+                                end;
                                 H.Classlabel = [H.Classlabel(:);h.Classlabel(:)];
-			end;
-			if isfield(H,'ArtifactSelection'),
-                                H.ArtifactSelection = [H.ArtifactSelection(:);h.ArtifactSelection(:)];
                         end;
                         if h.EVENT.N > 0,
                                 H.EVENT.POS = [H.EVENT.POS; h.EVENT.POS+size(signal,1)-size(s,1)];
@@ -536,18 +543,25 @@ if strcmp(H.TYPE,'CNT');
         end;
 end;
 
-if strcmp(H.TYPE,'BKR');
-        f = fullfile(H.FILE.Path, [H.FILE.Name,'.tsd']);
-        if exist(f)==2,
+if ~isempty(findstr(MODE,'TSD'));
+        f = fullfile(H.FILE.Path, [H.FILE.Name,'.tsd'])
+        if (exist(f)~=2),
+                        fprintf(2,'Warning SLOAD-TSD: file %s.tsd found\n',H.FILE(1).Name,H.FILE(1).Name);
+        else
                 fid = fopen(f,'rb');
                 tsd = fread(fid,inf,'float');
                 fclose(fid);
-                if size(signal,1)==size(tsd,1),
-                        signal = [signal, tsd];
+                nc = size(signal,1)\size(tsd,1);
+                if (nc == round(nc)),
+                        signal = [signal, reshape(tsd,nc,size(tsd,1)/nc)'];
                 else
                         fprintf(2,'Warning SLOAD: size of %s.tsd does not fit to size of %s.bkr\n',H.FILE(1).Name,H.FILE(1).Name);
                 end;
         end;
+end;
+
+%%%%% if possible, load Reinhold's configuration files
+if any(strmatch(H.TYPE,{'BKR','GDF'}));
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
         if exist(f)==2,
                 x = load(f);
@@ -560,5 +574,12 @@ if strcmp(H.TYPE,'BKR');
             		end;
 		end;
         end;
+end;
+
+% Classlabels according to 
+% http://www.dpmi.tu-graz.ac.at/%7Eschloegl/matlab/eeg/EventCodes.html
+if ~isfield(H,'Classlabel') & (H.EVENT.N>0)
+        ix = (H.EVENT.TYP>hex2dec('300')) & (H.EVENT.TYP<hex2dec('30d')); 
+        H.Classlabel = mod(H.EVENT.TYP(ix),256);
 end;
 
