@@ -34,9 +34,9 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.36 $
-%	$Id: sread.m,v 1.36 2004-12-30 21:47:38 schloegl Exp $
-%	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.37 $
+%	$Id: sread.m,v 1.37 2005-01-05 09:05:47 schloegl Exp $
+%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 S = [];
@@ -74,13 +74,6 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF') ,
         else
                 [S,HDR] = sdfread(HDR, NoS ,StartPos);
         end;
-
-        if strcmp(HDR.TYPE,'GDF'),      % overflow detection
-                for k = 1:length(HDR.InChanSelect),
-                        ix = (S(:,k)>=HDR.DigMax(HDR.InChanSelect(k))) | (S(:,k)<=HDR.DigMin(HDR.InChanSelect(k)));
-                        S(ix,k) = NaN;
-                end;
-        end;
         
         
 elseif strmatch(HDR.TYPE,{'BKR'}),
@@ -100,6 +93,7 @@ elseif strmatch(HDR.TYPE,{'BKR'}),
                 
                 S(S==-(2^15)) = NaN;       % Overflow detection
         end;
+
         
 elseif strcmp(HDR.TYPE,'ACQ'),
         if nargin==3,
@@ -555,7 +549,7 @@ elseif strmatch(HDR.TYPE,{'native','SCP'}),
         S  = HDR.data(HDR.FILE.POS + (1:nr), HDR.InChanSelect);
         
         HDR.FILE.POS = HDR.FILE.POS + nr;
-                
+
         
 elseif strcmp(HDR.TYPE,'SIGIF'),
         if nargin==3,
@@ -783,6 +777,16 @@ HDR.FLAG.TOGGLE = HDR.FLAG.TOGGLE+1;
 if STATUS,
         fprintf(HDR.FILE.stderr,'WARNING SREAD: something went wrong. Please send these files %s and BIOSIGCORE to <a.schloegl@ieee.org>',HDR.FileName);
         save biosigcore.mat 
+end;
+
+if isfield(HDR,'THRESHOLD'),
+        ix = (S==S);
+        for k=1:length(HDR.InChanSelect),
+                TH = HDR.THRESHOLD(HDR.InChanSelect(k),:);
+                ix(:,k) = (S(:,k)<=TH(1)) | (S(:,k)>=TH(2));
+        end
+        S = double(S);
+        S(ix) = NaN;
 end;
 
 if ~HDR.FLAG.UCAL,

@@ -117,9 +117,9 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.34 $
-%	$Id: sdfopen.m,v 1.34 2004-12-09 16:51:31 schloegl Exp $
-%	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.35 $
+%	$Id: sdfopen.m,v 1.35 2005-01-05 09:05:48 schloegl Exp $
+%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if nargin<2, 
@@ -141,17 +141,15 @@ H2idx = [16 80 8 8 8 8 8 80 8 32];
 
 %%%%% Define Valid Data types %%%%%%
 %GDFTYPES=[0 1 2 3 4 5 6 7 16 17 255+(1:64) 511+(1:64)];
-GDFTYPES=[0 1 2 3 4 5 6 7 16 17 255+[1 12 22 24] 511+[1 12 22 24]];
+GDFTYPES=[0 1 2 3 4 5 6 7 16 17 18 255+[1 12 22 24] 511+[1 12 22 24]];
 
 %%%%% Define Size for each data type %%%%%
 GDFTYP_BYTE=zeros(1,512+64);
 GDFTYP_BYTE(256+(1:64))=(1:64)/8;
 GDFTYP_BYTE(512+(1:64))=(1:64)/8;
-GDFTYP_BYTE(1:18)=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8]';
+GDFTYP_BYTE(1:19)=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8 16]';
 
-%EDF.GDFTYP.TEXT={'char','int8','uint8','int16','uint16','int32','uint32','int64','uint64','float32','float64'};
-%GDFTYP_BYTE=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8]';
-%GDFTYPES=[0 1 2 3 4 5 6 7 16 17];
+%EDF.GDFTYP.TEXT={'char','int8','uint8','int16','uint16','int32','uint32','int64','uint64','float32','float64','float128'};
 
 EDF.ErrNo = 0;
 
@@ -396,6 +394,7 @@ if ~strcmp(EDF.VERSION(1:3),'GDF'),
         %EDF.reserved  =       h2(:,idx1(10)+1:idx1(11));
 	if ~all(abs(EDF.VERSION)==[255,abs('BIOSEMI')]),
 		EDF.GDFTYP     = 3*ones(1,EDF.NS);	%	datatype
+                EDF.THRESHOLD  = [EDF.DigMin,EDF.DigMax];       % automated overflow detection 
 	else
 		EDF.GDFTYP     = (255+24)*ones(1,EDF.NS);	%	datatype
 	end;
