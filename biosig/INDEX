@@ -6,16 +6,37 @@
 T100: [Data Acquistion] 
 
 T200: Data Formats
+---------------------------------------------
+	SAVE2BKR	saves data into BKR format
+	EEGOPEN		opens biosig data and reads header information
+	EEGREAD		reads biosig data
+	EEGCLOSE	closes biosig file
+	EEGWRITE	writes biosig data (currently only BKR, EDF, BDF implemented)
+	EEGSEEK		set file positon indicator
+	EEGTELL		returns file position indicator
+	EEGEOF		checks for end-of-file
+
 T250: Quality Control and Artifact Processing
+---------------------------------------------
+	EEG2HIST	calculates histogram
+	GETTRIGGER	gets trigger points
+	TRIGG		extract fixed-length trials around trigger points	
 
 T300: Signal Processing and Feature extraction
+---------------------------------------------
 
 T400: Classification, Single Trial Analysis, Statistics,
+---------------------------------------------
 T490: Evaluation criteria
+---------------------------------------------
 
 T500: Presentation, Output
+---------------------------------------------
+
 T550: Topographic Mapping, 3-dimensional display
+---------------------------------------------
 
 T600: Interactive Viewer and Scoring  
+---------------------------------------------
 
 
