@@ -7,16 +7,17 @@ function [signal,H] = sload(FILENAME,CHAN)
 %    Alpha-Trace, DEMG, SCP-ECG.
 %
 % [signal,header] = sload(FILENAME [,CHANNEL])
-%
-% FILENAME      name of file
+% FILENAME      name of file, or list of filenames
 % channel       list of selected channels
 %               default=0: loads all channels
 %
-% see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
+% [signal,header] = sload(dir('f*.emg'), CHAN)
+%  	loads channels CHAN from all files 'f*.emg'
 %
+% see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.13 $
-%	$Id: sload.m,v 1.13 2004-02-23 18:55:27 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: sload.m,v 1.14 2004-02-24 21:16:11 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -36,20 +37,60 @@ function [signal,H] = sload(FILENAME,CHAN)
 % Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 % Boston, MA  02111-1307, USA.
 
+
 if nargin<2; CHAN=0; end;
 
-if CHAN<1 | ~isfinite(CHAN)
+if CHAN<1 | ~isfinite(CHAN),
         CHAN=0;
 end;
 
+if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
+	signal = [];
+	for k = 1:length(FILENAME),
+		if iscell(FILENAME(k))
+			f = FILENAME{k};
+		else 
+			f = FILENAME(k);
+		end	
+
+		[s,h] = sload(f,CHAN);
+		if k==1,
+			H = h;
+			signal = s;  
+			LEN = size(s,1);
+		else
+			H.FILE(k) = h.FILE;
+			if (H.SampleRate ~= h.SampleRate),
+				fprintf(2,'Warning SLOAD: sampling rates of multiple files differ %i!=%i.\n',H.SampleRate, h.SampleRate);
+			end;
+			if (H.NS == h.NS) 
+				signal = [signal; repmat(NaN,100,size(s,2)); s];
+			else
+				fprintf(2,'ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
+				return;
+			end;
+			if h.EVENT.N > 0,
+				H.EVENT.POS = [H.EVENT.POS; h.EVENT.POS+size(signal,1)-size(s,1)];
+				H.EVENT.TYP = [H.EVENT.TYP; h.EVENT.TYP];
+				H.EVENT.CHN = [H.EVENT.CHN; h.EVENT.CHN];
+				H.EVENT.DUR = [H.EVENT.DUR; h.EVENT.DUR];
+				H.EVENT.N   =  H.EVENT.N  + h.EVENT.N;
+			end;			
+		end;
+	end;
+	return;	
+end;
+
 if isstruct(FILENAME),
-        HDR=FILENAME;
-        if isfield(HDR,'FileName'),
-                FILENAME=HDR.FileName;
-        else
-                fprintf(2,'Error LOADEEG: missing FileName.\n');	
-                return; 
-        end;
+	HDR = FILENAME;
+	if isfield(HDR,'FileName'),
+    		FILENAME = HDR.FileName;
+	elseif isfield(HDR,'name'),
+    		FILENAME = HDR.name;
+	else
+    		fprintf(2,'Error SLOAD: missing FileName.\n');	
+    		return; 
+	end;
 end;
 
 [p,f,FileExt] = fileparts(FILENAME);
@@ -129,8 +170,7 @@ elseif strcmp(H.TYPE,'DAQ')
         if ~H.FLAG.UCAL,
         	signal = [ones(size(signal,1),1),signal]*H.Calib(:,CHAN);        
         end;
-        
-         
+     
 elseif strncmp(H.TYPE,'MAT',3),
         tmp = load(FILENAME);
         if isfield(tmp,'y'),		% Guger, Mueller, Scherer
@@ -150,7 +190,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 
         elseif isfield(tmp,'daten');	% Woertz, GLBMT-Uebungen 2003
                 H = tmp.daten;
-                s = H.raw*H.Cal;
+                signal = H.raw*H.Cal;
                 
         elseif isfield(tmp,'eeg');	% Scherer
                 warning(['Sensitivity not known in ',FILENAME]);
@@ -363,6 +403,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 H = tmp.header;
                 
         else
+		signal = [];
                 warning(['SLOAD: MAT-file ',FILENAME,' not identified as BIOSIG signal',]);
                 whos('-file',FILENAME);
         end;        
@@ -389,4 +430,12 @@ elseif strcmp(H.TYPE,'unknown')
                 fprintf('Error SLOAD: Unknown Data Format\n');
                 signal = [];
         end;
+end;
+
+f = fullfile(H.FILE.Path, [H.FILE.Name,'.tsd']);
+if exist(f)==2,
+        fid = fopen(f,'r');
+        tsd = fread(fid,inf,'float');
+        fclose(fid);
+	signal = [signal, tsd];
 end;
