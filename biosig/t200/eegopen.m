@@ -33,8 +33,8 @@ function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,TYPE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.2 $
-%	$Id: eegopen.m,v 1.2 2003-02-05 21:08:46 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: eegopen.m,v 1.3 2003-04-25 13:59:28 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -86,6 +86,10 @@ if fid>0,
 		TYPE='CNT';
 	elseif any(s(4)==(2:7)) & all(s(1:3)==0); % [int32] 2...7
 		TYPE='EGI';
+	elseif s=='ISHNE1.0';	% ISHNE Holter standard output file.
+		TYPE='ISHNE';
+	elseif s(1:min(4,c))=='rhdE';	% Holter Excel 2 file, not supported yet. 
+		TYPE='rhdE';          
 	else
 		TYPE='unknown';
 	end;
@@ -130,6 +134,10 @@ if strcmp(TYPE,'unknown')	,
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
 	elseif strcmp(TYPE,'STB'), TYPE='BKR';
 		warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
+                
+        % MIT-ECG / Physiobank format
+        elseif strcmp(TYPE,'hea'), TYPE='MIT';
+        elseif strcmp(TYPE,'atr'), TYPE='MIT';
                 
         % other formates        
         elseif strcmp(TYPE,'LDR'), TYPE='LDR';
@@ -238,5 +246,78 @@ elseif strcmp(TYPE,'EGI'),
 elseif strcmp(TYPE,'LDR'),
         HDR = openldr(HDR,PERMISSION);      
         
+elseif strcmp(TYPE,'ISHNE'),
+	if strcmp(PERMISSION,'r'),
+		HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le')
+		if HDR.FILE.FID < 0,
+			fprintf(HDR.FILE.stderr,'Error: file %s not found.\n',HDR.FileName);
+			return;
+		else
+			fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
+		end;
+		HDR.FILE.OPEN = 1;
+		fseek(HDR.FILE.FID,10,'bof');
+		HDR.variable_length_block = fread(HDR.FILE.FID,1,'int32');		
+		HDR.SPR = fread(HDR.FILE.FID,1,'int32');		
+		HDR.NRec= 1;
+		HDR.offset_variable_length_block = fread(HDR.FILE.FID,1,'int32');
+		HDR.HeadLen = fread(HDR.FILE.FID,1,'int32');		
+		HDR.VERSION = fread(HDR.FILE.FID,1,'int16');		
+		HDR.Patient.Name = fread(HDR.FILE.FID,80,'char');		
+		%HDR.Surname = fread(HDR.FILE.FID,40,'char');		
+		HDR.PID = fread(HDR.FILE.FID,20,'char');		
+		HDR.Patient.Sex = fread(HDR.FILE.FID,1,'int16');		
+		HDR.Patient.Race = fread(HDR.FILE.FID,1,'int16');		
+		HDR.Patient.Birthday = fread(HDR.FILE.FID,3,'int16');		
+		%HDR.Surname = fread(HDR.FILE.FID,40,'char')		
+		Date = fread(HDR.FILE.FID,[1,3],'int16');		
+		Date2 = fread(HDR.FILE.FID,[1,3],'int16');		
+		Time = fread(HDR.FILE.FID,[1,3],'int16');		
+		HDR.T0 = [Date([3,2,1]),Time];
+		HDR.NS = fread(HDR.FILE.FID,1,'int16');		
+		HDR.Lead.Specification = fread(HDR.FILE.FID,12,'int16');		
+		HDR.Lead.Quality = fread(HDR.FILE.FID,12,'int16');		
+		AmplitudeResolution = fread(HDR.FILE.FID,12,'int16');
+		if any(HDR.Lead.AmplitudeResolution(HDR.NS+1:12)~=-9)
+			fprintf(HDR.FILE.stderr,'Warning: AmplitudeResolution and Number of Channels %i do not fit.\n',HDR.NS);
+		end;
+
+		HDR.PacemakerCode = fread(HDR.FILE.FID,1,'int16');		
+		HDR.TypeOfRecorder = fread(HDR.FILE.FID,40,'char');		
+		HDR.SampleRate = fread(HDR.FILE.FID,1,'int16');		
+		HDR.Proprietary_of_ECG = fread(HDR.FILE.FID,80,'char');		
+		HDR.Copyright = fread(HDR.FILE.FID,80,'char');		
+		HDR.reserved1 = fread(HDR.FILE.FID,80,'char');		
+		if ftell(HDR.FILE.FID)~=HDR.offset_variable_legnth_block,
+			fprintf(HDR.FILE.stderr,'ERROR: length of fixed header does not fit %i %i \n',ftell(HDR.FILE.FID),HDR.offset_variable_length_block);
+			return;
+		end;
+		HDR.VariableHeader=fread(HDR.FILE.FID,HDR.variable_length_block,'char);	
+		if ftell(HDR.FILE.FID)~=HDR.HeadLen,
+			fprintf(HDR.FILE.stderr,'ERROR: length of variable header does not fit %i %i \n',ftell(HDR.FILE.FID),HDR.HeadLen);
+			return;
+		end;
+
+		if CHAN==0,		
+			HDR.SIE.InChanSelect = 1:HDR.NS;
+		elseif all(CHAN>0 & CHAN<=HDR.NS),
+			HDR.SIE.InChanSelect = CHAN;
+		else
+			fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+			return;
+		end;
+		
+		HDR.Cal = eye(AmplitudeResolution(HDR.InChanSelect))/1000;
+		HDR.PhysDim = 'uV';
+		HDR.AS.bpb = 2*HDR.NS;
+		HDR.AS.endpos = 8+2+512+HDR.variable_length_block+HDR.NS*2*HDR.SPR;
+		
+	else
+		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
+	end;			
+
+else
+	fprintf(HDR.FILE.stderr,'Format not supported yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
+
 end;
 

@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.1 $
-%	$Id: eegread.m,v 1.1 2003-02-01 15:03:46 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: eegread.m,v 1.2 2003-04-25 13:59:30 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -48,7 +48,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF') ,
                 [S,HDR] = sdfread(HDR, NoS ,StartPos);
         end;
         
-elseif strcmp(HDR.TYPE,'BKR'),
+elseif strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'ISHNE'),
         if nargin==3,
         	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
 		HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -59,7 +59,7 @@ elseif strcmp(HDR.TYPE,'BKR'),
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
         if ~HDR.FLAG.UCAL,
-                S = HDR.Cal*S;
+                S = S*HDR.Cal;
         end;
         
 elseif strcmp(HDR.TYPE,'EGI'),
@@ -175,6 +175,7 @@ elseif strcmp(HDR.TYPE,'CNT'),
                 end;
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
+        
 else
 	fprintf(2,'Error EEGREAD: %s-format not supported yet.\n', HDR.TYPE);        
 end;
