@@ -58,9 +58,10 @@ Data=get(findobj('Tag','sviewer'),'UserData');
 if isempty(Data)
     return;
 else
+save matlab Data,
     button = Data.Channelconf.whichbutton;
-    channel_name = Data.Channel{button};
-    pos = strmatch(channel_name,Data.allChannel);
+    channel_name = Data.Channel{button,1};
+    pos = Data.Channel{button,2};
     set(findobj('Tag', 'text_channel'), 'String',channel_name);
     phyMin = Data.HDR.PhysMin(pos);
     set(findobj('Tag', 'text_PhysicalMin'), 'String',phyMin);
@@ -109,9 +110,8 @@ close;
 % calculate new range
 function pushbutton_autoscale_Callback(hObject, eventdata, handles)
 Data=get(findobj('Tag','sviewer'),'UserData');
-button = Data.Channelconf.whichbutton;
-channel_name = Data.Channel{button};
-pos = strmatch(channel_name,Data.allChannel);
+button = Data.Channelconf.whichbutton
+pos    = Data.Channel{button,2};
 sample_min = min(Data.signal(:,pos));
 sample_max = max(Data.signal(:,pos));
 if sample_min == sample_max
@@ -206,9 +206,7 @@ if select == 0
     Data.ChannelConf.Scale = scale_factor; 
     set(findobj('Tag','sviewer'),'UserData',Data);
     close;
-    return;
-end
-if select == 1
+elseif select == 1
     for k = 1:length(Data.ChannelConf.Display_min)
         sample_min = min(Data.signal(:,k));
         sample_max = max(Data.signal(:,k));
@@ -222,15 +220,12 @@ if select == 1
     Data.ChannelConf.Scale = scale_factor; 
     set(findobj('Tag','sviewer'),'UserData',Data);
     close;
-    return;
-end
-if select == 2
+elseif select == 2
     Data.ChannelConf.Display_min(1:end,:) = display_min;
     Data.ChannelConf.Display_max(1:end,:) = display_max;
     Data.ChannelConf.Scale = scale_factor; 
     set(findobj('Tag','sviewer'),'UserData',Data);
     close;
-    return;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
