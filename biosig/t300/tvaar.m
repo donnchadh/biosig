@@ -25,7 +25,7 @@ function INI = tvaar(signal,arg2,arg3,arg4)
 %   X.PE  time-varying variance of residual process
 
 
-%	$Id: tvaar.m,v 1.1 2004-12-23 18:13:13 schloegl Exp $
+%	$Id: tvaar.m,v 1.2 2005-01-20 10:21:52 schloegl Exp $
 %	Copyright (c) 2003-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -74,8 +74,10 @@ tmp = filter(INI.UC,[1,INI.UC-1],[mean(V);E(ix).*E(ix)]);
 PE(find(ix)) = tmp(2:end);
 
 tmp    = z(~isnan(E),:);
-INI.Z0 = covm(tmp,'D');
-INI.z0 = mean(tmp);
+INI.C0 = covm(tmp,'E');
+%INI.Z0 = covm(tmp,'D');
+%INI.z0 = mean(tmp);
+[INI.z0,sd,INI.Z0] = decovm(INI.C0);
 INI.W0 = covm(diff(tmp));
 INI.V0 = meansq(E);
 
