@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.6 $
-%	$Id: scpopen.m,v 1.6 2004-02-09 18:14:51 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: scpopen.m,v 1.7 2004-02-09 22:09:06 schloegl Exp $
 %	(C) 2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -261,11 +261,11 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 HDR.FLAG.bimodal_compression = SCP.FLAG.bimodal_compression;
                                 HDR.SCP.data = [];
                         end;
-                        
+
                         if ~isfield(HDR,'SCP2'),
                                 S2 = fread(fid,[SCP.SPR,HDR.NS],'int16');    
                                 
-                        elseif HDR.SCP2.NHT==19999,
+                        elseif 0,HDR.SCP2.NHT==19999,
                                 HuffTab = DHT;
 				S2 = []; %repmat(NaN,HDR.N,HDR.NS);
                                 for k = 1:HDR.NS,

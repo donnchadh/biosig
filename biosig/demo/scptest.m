@@ -7,8 +7,8 @@
 
 % Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>
 % WWW: http://biosig.sf.net/
-% $Revision: 1.1 $ 
-% $Id: scptest.m,v 1.1 2004-02-09 18:14:52 schloegl Exp $
+% $Revision: 1.2 $ 
+% $Id: scptest.m,v 1.2 2004-02-09 22:09:14 schloegl Exp $
 %
 % LICENSE:
 %     This program is free software; you can redistribute it and/or modify
@@ -27,81 +27,83 @@
 
 
 % get all files in current directory
-if 0,%try
-    fn = dir('*.*c*');
-    fn = {fn.name}';
-%catch,
-else
-#    !unix('ls *.*[cC]* >tmp.tmp','-echo');
-    fid = fopen('tmp.tmp','r');
-    s = fread(fid,inf,'char');
-    fclose(fid);
-    sf = char(s');
+try
+        fn = dir('*.*c*');
+        %fn = {fn.name}';
+        ssf = 'ASDF';
+catch,
+        %else
+        !unix('ls *.*[cC]* >tmp.tmp','-echo');
+        fid = fopen('tmp.tmp','r');
+        s = fread(fid,inf,'char');
+        fclose(fid);
+        ssf = char(s');
+        fprintf(2,'Warning: plot might not work correctly in Octave4Windows 2.1.50\n');
 end;
-
 
 fprintf(1,'No\tFilename\tFs [Hz]\tsize(s) \ttime [s]\n=========================================================\n');
 k = 0;
-fn = [];
 status = [];
-while ~isempty(sf)
-	k = k+1;
-	status(k) = -1;	
-	[f,sf]=strtok(sf,[10,13,32]);	
-%for k=1:length(fn),
-	%f = fn(k).name;
-	%f = fn{k};
-	H = [];
+while ~isempty(ssf),
+	k = k + 1;
+        if ~strcmp(ssf,'ASDF')
+        	[f,ssf] = strtok(ssf,[10,13,32]);	
+        else
+        	f = fn(k).name;
+	end;
+
+        status(k) = -1;	
+        H = [];
         try
                 fprintf(1,'\n%i\t%s\t',k,f);
-	        tic;
+                tic;
                 [H]=sopen(f);
-		status(k) = -2;
+                status(k) = -2;
                 %[H]=save2txt(f);	% ASCII dump of Text file
                 S = H.SCP.data;
-		status(k) = -3;
- 		fprintf(1,'%i\t%i x %i\t%3.1f',H.SampleRate,size(S),toc);
-		[p,f,e]=fileparts(f);		% a hack, to avoid loading data twice.
-		save('-ascii',[f,'.txt'] ,'S'); 
-		status(k) = -4;
-
+                status(k) = -3;
+                fprintf(1,'%i\t%i x %i\t%3.1f',H.SampleRate,size(S),toc);
+                [p,f,e]=fileparts(f);		% a hack, to avoid loading data twice.
+                save('-ascii',[f,'.txt'] ,'S'); 
+                status(k) = -4;
+                
                 RRmx = sparse([1:8],[1,2,7:12],ones(1,8),8,12);
                 RRmx = RRmx + sparse([1,2,1,2,1,2,1,2],[3,3,4,4,5,5,6,6],[-1,1,-1/2,-1/2,1,-1/2,-1,1/2],8,12);
-
-		status(k) = -5;
+                
+                status(k) = -5;
                 cal = mod([1:H.N+2*H.SampleRate]',H.SampleRate) < H.SampleRate/2;
                 s = [[S*RRmx; repmat(NaN,2*H.SampleRate,12)],cal];
-		status(k) = -6;
-
-		t = s(:); t(~isnan(t));
+                status(k) = -6;
+                
+                t = s(:); t(~isnan(t));
                 dd = max(t)-min(t);
-                        
+                
                 plot((1:size(s,1))'/H.SampleRate,((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)));
                 %title(sprintf('%s   -  generated with BIOSIG tools for Octave and Matlab(R)',H.FileName));
                 %xlabel('time t[s]');
                 %ylabel(sprintf('Amplitude [%s]',H.PhysDim));
-
+                
                 %Label = {H.Label{1:2},'III','aVR','aVL','VF',H.Label{3:8},'1mV/1Hz'}';
                 %legend(Label);
-
-
-
-		status(k) = 0;
+                
+                
+                
+                status(k) = 0;
                 %drawnow;
-		%pause;
+                %pause;
         catch;
-		if status(k)==-2,
-			if ~isstruct(H)
-			        status(k) = 1001;
-			        %fprintf(1,' cannot handle file');
-			elseif ~isfield(H,'TYPE')
-			        status(k) = 1002;
-			        %fprintf(1,' unknown TYPE');
-			elseif ~strcmp(H.TYPE,'SCPECG')
-		    		status(k) = 1003;
-				% fprintf(1,' no SCP file. Type: %s ',H.TYPE);
-			end;
-		end; 
-	 	fprintf(1,'[%i]', 	status(k));
+                if status(k)==-2,
+                        if ~isstruct(H)
+                                status(k) = 1001;
+                                %fprintf(1,' cannot handle file');
+                        elseif ~isfield(H,'TYPE')
+                                status(k) = 1002;
+                                %fprintf(1,' unknown TYPE');
+                        elseif ~strcmp(H.TYPE,'SCPECG')
+                                status(k) = 1003;
+                                % fprintf(1,' no SCP file. Type: %s ',H.TYPE);
+                        end;
+                end; 
+                fprintf(1,'[%i]', 	status(k));
         end;
 end;
