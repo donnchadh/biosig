@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.12 $
-%	$Id: eegopen.m,v 1.12 2003-05-26 10:30:07 schloegl Exp $
+%	$Revision: 1.13 $
+%	$Id: eegopen.m,v 1.13 2003-05-26 17:17:24 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -109,10 +109,10 @@ if exist(HDR.FileName)==2,
 	end;
 end;
 if ~isfield(HDR,'TYPE'),
-        HDR.TYPE = upper(FileExt(2:length(FileExt)));;
+       HDR.TYPE = upper(FileExt(2:length(FileExt)));
 end;
 
-	%%% EDF format
+%%% EDF format
 if     strcmp(HDR.TYPE,'REC'), HDR.TYPE='EDF';
 elseif strcmp(HDR.TYPE,'EDF'), HDR.TYPE='EDF';
         
@@ -128,7 +128,7 @@ elseif strcmp(HDR.TYPE,'COH'), HDR.TYPE='COH';
 elseif strcmp(HDR.TYPE,'CSA'), HDR.TYPE='COH';
         error(sprintf('EEGOPEN: filetype %s not implemented, yet.',TYPE));
 elseif strcmp(HDR.TYPE,'EEG'), HDR.TYPE='EEG';
-        warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
+        warning(sprintf('EEGOPEN: filetype %s not tested, yet.',HDR.TYPE));
 elseif strcmp(HDR.TYPE,'CNT'), HDR.TYPE='CNT';
 elseif strcmp(HDR.TYPE,'SET'), HDR.TYPE='SET';
         warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
@@ -252,17 +252,98 @@ elseif strcmp(HDR.TYPE,'CNT'),
         
 elseif strcmp(HDR.TYPE,'EEG'),
 	if strcmp(PERMISSION,'r'),
-	        HDR = cntopen(HDR,'r',CHAN);
+	        [HDR,H1,h2] = cntopen(HDR,'r',CHAN);
 	else
 		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
         end;
         
 elseif strcmp(HDR.TYPE,'EGI'),
-	if strcmp(PERMISSION,'r'),
-	        HDR = openegi(HDR,'r',CHAN);
-	else
-		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
+    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+        if HDR.FILE.FID <= 0,
+                fprintf(HDR.FILE.stderr,'EEGOPEN TYPE=EGI: File %s couldnot be opened\n',HDR.FileName);
+                return;
+        end;        
+        
+        HDR.VERSION = fread(HDR.FILE.FID,1,'integer*4');
+        
+        if ~(HDR.VERSION >= 2 & HDR.VERSION <= 7),
+             %   fprintf(HDR.FILE.stderr,'EGI Simple Binary Versions 2-7 supported only.\n');
         end;
+        
+        HDR.T0 = fread(HDR.FILE.FID,[1,6],'integer*2');
+        millisecond = fread(HDR.FILE.FID,1,'integer*4');
+        HDR.T0(6) = HDR.T0(6) + millisecond/1000;
+        
+        HDR.SampleRate = fread(HDR.FILE.FID,1,'integer*2');
+        HDR.NS = fread(HDR.FILE.FID,1,'integer*2');
+        HDR.gain = fread(HDR.FILE.FID,1,'integer*2');
+        HDR.bits = fread(HDR.FILE.FID,1,'integer*2');
+        HDR.DigMax  = 2^HDR.bits;
+        HDR.PhysMax = fread(HDR.FILE.FID,1,'integer*2');
+        
+        if CHAN<1, CHAN=1:HDR.NS; end;
+        HDR.SIE.ChanSelect = CHAN;
+        HDR.SIE.InChanSelect = CHAN;
+        
+        HDR.eventtypes = 0;
+        HDR.categories = 0;
+        HDR.catname    = {};
+        HDR.eventcode  = '';
+        
+        if any(HDR.VERSION==[2,4,6]),
+                HDR.SPR  = fread(HDR.FILE.FID, 1 ,'integer*4');
+                HDR.eventtypes = fread(HDR.FILE.FID,1,'integer*2');
+                HDR.NRec = 1;
+                HDR.FLAG.TRIGGERED = logical(0); 
+                HDR.AS.spb = (HDR.NS+HDR.eventtypes);
+                HDR.AS.endpos = HDR.SPR;
+        elseif any(HDR.VERSION==[3,5,7]),
+                HDR.categories = fread(HDR.FILE.FID,1,'integer*2');
+                if (HDR.categories),
+                        for i=1:HDR.categories,
+                                catname_len(i) = fread(HDR.FILE.FID,1,'uchar');
+                                HDR.catname{i} = char(fread(HDR.FILE.FID,catname_len(i),'uchar'))';
+                        end
+                end
+                HDR.NRec = fread(HDR.FILE.FID,1,'integer*2');
+                HDR.SPR  = fread(HDR.FILE.FID,1,'integer*4');
+                HDR.eventtypes = fread(HDR.FILE.FID,1,'integer*2');
+                HDR.FLAG.TRIGGERED = logical(1); 
+                HDR.AS.spb = HDR.SPR*(HDR.NS+HDR.eventtypes);
+                HDR.AS.endpos = HDR.NRec;
+        else
+                fprintf(HDR.FILE.stderr,'Invalid EGI version %i\n',HDR.VERSION);
+                return;
+        end
+        
+        % get datatype from version number
+        if any(HDR.VERSION==[2,3]),
+                HDR.datatype = 'integer*2';
+                HDR.AS.bpb = HDR.AS.spb*2;
+        elseif any(HDR.VERSION==[4,5]),
+                HDR.datatype = 'float32';
+                HDR.AS.bpb = HDR.AS.spb*4;
+        elseif any(HDR.VERSION==[6,7]),
+                HDR.datatype = 'float64';
+                HDR.AS.bpb = HDR.AS.spb*8;
+        else
+                error('Unknown data format');
+        end
+        
+        if isequal(HDR.eventtypes,0),
+                HDR.eventcode(1,1:4) = 'none';
+        else
+                for i = 1:HDR.eventtypes,
+                        HDR.eventcode(i,1:4) = char(fread(HDR.FILE.FID,[1,4],'uchar'));
+                        HDR.EventData{i} = [];
+                end
+                
+        end
+        
+        HDR.HeadLen = ftell(HDR.FILE.FID);
+        HDR.FILE.POS=0;
+        HDR.VERSION = fread(HDR.FILE.FID,1,'integer*4');
+        
         
 elseif strcmp(HDR.TYPE,'LDR'),
         HDR = openldr(HDR,PERMISSION);      

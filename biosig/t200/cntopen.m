@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.2 $
-%	$Id: cntopen.m,v 1.2 2003-05-09 09:03:37 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: cntopen.m,v 1.3 2003-05-26 17:17:24 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -323,7 +323,7 @@ else    % new header
         h.snrflag           = fread(fid,1,'char');
         h.coherenceflag     = fread(fid,1,'char');
         h.continuoustype    = fread(fid,1,'char');
-        h.eventtablepos     = fread(fid,1,'long');
+        h.eventtablepos     = fread(fid,1,'ulong');
         h.continuousseconds = fread(fid,1,'float');
         h.channeloffset     = fread(fid,1,'long');
         h.autocorrectflag   = fread(fid,1,'char');
@@ -436,15 +436,18 @@ elseif strcmp(upper(CNT.FILE.Ext),'CSA')
         
 elseif strcmp(upper(CNT.FILE.Ext),'EEG')
 	CNT.FILE.POS = 0;
-	CNT.AS.bpb = (h.channels*h.pnts*2+1+2+2+4+2+2);
-        CNT.AS.spb = CNT.NS*H.pnts;	% Samples per Block
-        CNT.SPR = H.pnts;
-	CNT.AS.endpos = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
-	CNT.NRec = CNT.AS.endpos;
+        CNT.SPR = h.pnts;
+	CNT.AS.bpb = (CNT.NS*CNT.SPR*2+1+2+2+4+2+2);
+        CNT.AS.spb = CNT.NS*CNT.SPR;	% Samples per Block
+	%CNT.AS.endpos = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
 	CNT.Calib = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
-	CNT.NRec=h.compsweeps;
+        CNT.NRec = h.compsweeps;
+        CNT.AS.endpos = CNT.NRec;
 	CNT.FLAG.TRIGGERED=1;	        
-
+        
+        % for some reason, this is correct, 
+        h.eventtablepos = CNT.NRec*CNT.AS.bpb+CNT.HeadLen,
+        
 elseif strcmp(upper(CNT.FILE.Ext),'CNT')        
 	CNT.FILE.POS = 0;
 	CNT.AS.bpb = CNT.NS*2;	% Bytes per Block
@@ -464,9 +467,11 @@ CNT.EVENT.Teeg       = fread(fid,1,'char');	%
 CNT.EVENT.TeegSize   = fread(fid,1,'int32');	%	
 CNT.EVENT.TeegOffset = fread(fid,1,'int32');	%	
 
+CNT.EVENT,
+
 k=1;
 K=1;
-while K < CNT.EVENT.TeegSize,
+while 0,K < CNT.EVENT.TeegSize,
 	Teeg(k).Stimtype =  fread(fid,1,'uint16');        
 	Teeg(k).Keyboard =  fread(fid,1,'uchar');        
 	Teeg(k).Keyboard =  fread(fid,1,'uchar');        

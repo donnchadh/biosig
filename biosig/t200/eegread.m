@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.8 $
-%	$Id: eegread.m,v 1.8 2003-05-26 09:06:43 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: eegread.m,v 1.9 2003-05-26 17:17:24 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -272,57 +272,55 @@ elseif strcmp(HDR.TYPE,'TMS32'),
 
         
 elseif strcmp(HDR.TYPE,'EGI'),
-	fprintf(2,'EGI format is under construction.\n');
-	% do we have segmented data?
-
-	% each type of event has a dedicated "channel"
-	FrameVals = HDR.NS + HDR.eventtypes;
-
-	if HDR.FLAG.TRIGGERED, 
-		S = zeros(FrameVals,HDR.SPR*HDR.NRec);
-		readexpected = FrameVals*HDR.SPR*HDR.NRec; 
-	else
-		S = zeros(FrameVals,HDR.samples);
-		readexpected = FrameVals*HDR.samples;
-	end
-
-	% read in epoch data
-	readtotal = 0;
-	if HDR.FLAG.TRIGGERED,
-		for i = 1:HDR.NRec,
-			SegmentCatIndex(i)  = fread(HDR.FILE.FID,1,'integer*2');
-			SegmentStartTime(i) = fread(HDR.FILE.FID,1,'integer*4');
-
-			[S(:,[1+(i-1)*HDR.SPR:i*HDR.SPR]), count] = ...
-			   fread(HDR.FILE.FID,[FrameVals,HDR.SPR],HDR.datatype);
-
-        		readtotal = readtotal + count;
-    		end;
-	else
-		% read unsegmented data
-		[S, readtotal] = fread(HDR.FILE.FID, [FrameVals,HDR.samples],HDR.datatype); 
-	end
-
-	if ~isequal(readtotal, readexpected)
-		error('Number of values read not equal to number given in header.');
-	end 
-
-	EventData = [];
-	if (HDR.eventtypes > 0),
-		EventData = S(HDR.NS+1:size(S,1),:);
-	end 
-	S = S(HDR.SIE.InChanSelect,:)';
-
+        if nargin==3,
+	        if HDR.FLAG.TRIGGERED,
+                        fseek(HDR.FILE.FID,HDR.HeadLen+(HDR.AS.bpb+6)*StartPos,'bof');        
+                        HDR.FILE.POS = StartPos;
+                else
+                        fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*StartPos,'bof');        
+                        HDR.FILE.POS = HDR.SampleRate*StartPos;
+        	end;        
+        end;
+        
+        if HDR.FLAG.TRIGGERED,
+                NoS = min(NoS,(HDR.NRec-HDR.FILE.POS));
+                S = zeros(NoS*HDR.SPR,length(HDR.SIE.InChanSelect));
+                for i = (1:NoS),
+                        SegmentCatIndex(HDR.FILE.POS+i)  = fread(HDR.FILE.FID,1,'integer*2');
+                        SegmentStartTime(HDR.FILE.POS+i) = fread(HDR.FILE.FID,1,'integer*4');
+                        [s,count] = fread(HDR.FILE.FID, [HDR.NS + HDR.eventtypes, HDR.SPR], HDR.datatype);
+                        if count>0, 
+                                HDR.FILE.POS = HDR.FILE.POS + 1;
+                        end;
+                        
+                        if (HDR.eventtypes > 0),
+                                for k=HDR.NS+1:size(S,1)
+                                        HDR.EventData{k-HDR.NS} = [HDR.EventData{k-HDR.NS};find(S(k,:))'];
+                                end;
+                        end 
+                        %S = [S;s(HDR.SIE.InChanSelect,:)'];
+                        S(i*HDR.SPR+(1-HDR.SPR:0),:) = s(HDR.SIE.InChanSelect,:)';
+                end;
+                
+        else
+                %NoS = min(NoS,(HDR.SPR-HDR.FILE.POS)/HDR.SampleRate)
+                [S,count] = fread(HDR.FILE.FID,[HDR.NS + HDR.eventtypes, HDR.SampleRate*NoS],HDR.datatype);
+                HDR.FILE.POS = HDR.FILE.POS + round(count/(HDR.NS + HDR.eventtypes));
+                
+                if (HDR.eventtypes > 0),
+                        for k=HDR.NS+1:size(S,1)
+                                HDR.EventData{k-HDR.NS} = [HDR.EventData{k-HDR.NS};find(S(k,:))'];
+                        end;
+                end 
+                S = S(HDR.SIE.InChanSelect,:)';
+        end;
+        
 	% convert from A/D units to microvolts
 	if ( HDR.bits ~= 0 & HDR.PhysMax ~= 0 )
 	       S = (HDR.PhysMax/HDR.DigMax)*S;
 	end;
 
-	% convert event codes to char
-	% ---------------------------
-	HDR.eventcode = char(HDR.eventcode);
-
-
+        
 elseif strcmp(HDR.TYPE,'AVG'),
     		for i = 1:h.nchannels
                             d(i).header      = fread(HDR.FILE.FID,5,'char'); % no longer used 
@@ -342,10 +340,13 @@ elseif strcmp(HDR.TYPE,'CSA'),
         
 elseif strcmp(HDR.TYPE,'EEG'),
         if nargin>2,
-                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
+                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*StartPos,'bof');        
         end;
-        S= []; count=0;
-        for i = 1:h.compsweeps,
+        
+        NoS = min(NoS,HDR.NRec-HDR.FILE.POS);
+        S   = zeros(NoS*HDR.SPR,HDR.NS); 
+        count = 0;
+        for i = 1:NoS,%h.compsweeps,
                 h.sweep(i).accept     = fread(HDR.FILE.FID,1,'char');
                 h.sweep(i).ttype      = fread(HDR.FILE.FID,1,'short');
                 h.sweep(i).correct    = fread(HDR.FILE.FID,1,'short');
@@ -353,18 +354,15 @@ elseif strcmp(HDR.TYPE,'EEG'),
                 h.sweep(i).response   = fread(HDR.FILE.FID,1,'short');
                 h.sweep(i).reserved   = fread(HDR.FILE.FID,1,'short');
                 
-                [signal,count] = fread(HDR.FILE.FID,[h.nchannels,h.pnts],'int16');
+                [signal,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],'int16');
                 
-                S = [S;signal(HDR.SIE.InChanSelect,:)'];
+                %S = [S;signal(HDR.SIE.InChanSelect,:)'];
+                S(i*HDR.SPR+(1-HDR.SPR:0),:) = signal(HDR.SIE.InChanSelect,:)';
                 count = count + c;			
         end;
-        if count==0,
-                S = [];	% Octave 2.1.40 returns size(S)==[0,1], therefore the next line would fail
-        else
-                if ~HDR.FLAG.UCAL,
-                        S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.InChanSelect],HDR.SIE.ChanSelect);
-                end;
-                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;        
+        HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.spb;        
+        if ~HDR.FLAG.UCAL,
+                S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.InChanSelect],:);
         end;
         
 elseif strcmp(HDR.TYPE,'CNT'),
