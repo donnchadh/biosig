@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.26 $
-%	$Id: bkropen.m,v 1.26 2005-01-05 09:03:35 schloegl Exp $
+%	$Revision: 1.27 $
+%	$Id: bkropen.m,v 1.27 2005-01-20 09:58:29 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -162,7 +162,7 @@ if any(PERMISSION=='r'),
 	BKR.Cal=BKR.PhysMax/BKR.DigMax; %*ones(BKR.NS,1);
 	BKR.Off=zeros(BKR.NS,1);
         BKR.Calib = sparse(2:BKR.NS+1,1:BKR.NS,BKR.Cal,BKR.NS+1,BKR.NS);
-        BKR.PhysDim = 'µV';
+        BKR.PhysDim = repmat('µV',BKR.NS,1);
 	BKR.Label=code;
 	tmp=sprintf('LowPass %4.1f Hz; HighPass %4.1f Hz; Notch ?',lcf,ucf);
 	BKR.PreFilt=tmp;%ones(BKR.NS,1)*[tmp 32+zeros(1,80-length(tmp))];
@@ -218,6 +218,9 @@ if any(PERMISSION=='r'),
         % look for Classlabel information
         if ~isfield(BKR,'Classlabel'),
                 BKR.Classlabel = [];
+        end;
+        if ~isfield(BKR,'TRIG'),
+                BKR.TRIG = [];
         end;
         tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.mat']);
         if ~exist(tmp,'file'),
@@ -287,25 +290,46 @@ if any(PERMISSION=='r'),
                         BKR.Classlabel = load(tmp);
                 end;
         end;
-        if 1; %~isfield(BKR,'ArtifactSelection'),
-                tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.sel']);
-                if ~exist(tmp,'file'),
-                	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.SEL']);
-                end
-                if exist(tmp,'file'),
-                        BKR.ArtifactSelection = load(tmp);
+
+        %%% Artifact Selection files 
+        tmp1=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.sel']);
+        if ~exist(tmp1,'file'),
+                tmp1=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.SEL']);
+        end
+        tmp2 = fullfile(BKR.FILE.Path,[BKR.FILE.Name,'_artifact.mat']);
+        SW   = (exist(tmp1,'file')>0) + 2*(exist(tmp2,'file')>0);
+        if SW == 0, 
+        elseif SW == 1,
+                if exist('OCTAVE_VERSION')>5
+                        BKR.ArtifactSelection = load('-ascii',tmp1);
+                else
+                        BKR.ArtifactSelection = load(tmp1);
                 end;
-                tmp = fullfile(BKR.FILE.Path,[BKR.FILE.Name,'_artifact.mat']);
-                if exist(tmp,'file'),
-                        tmp = load(tmp);
-                        BKR.ArtifactSelection = tmp.artifact(:);
-                        if any(BKR.ArtifactSelection>1) | (length(BKR.ArtifactSelection)<length(BKR.Classlabel))
-                                sel = zeros(size(BKR.Classlabel));
-                                sel(BKR.ArtifactSelection) = 1; 
-                                BKR.ArtifactSelection = sel;
-                        end;
+        elseif SW == 2,
+                if exist('OCTAVE_VERSION')>5
+                        BKR.ArtifactSelection = load('-mat',tmp2);
+                else
+                        BKR.ArtifactSelection = load(tmp2);
+                end;
+                BKR.ArtifactSelection = tmp.artifact(:);
+        elseif SW == 3,
+                fprintf(HDR.FILE.stderr,'Warning BKROPEN: more than one ArtifactSelection files. File %s is used.\n',tmp1);
+                if exist('OCTAVE_VERSION')>5
+                        BKR.ArtifactSelection = load('-ascii',tmp1);
+                else
+                        BKR.ArtifactSelection = load(tmp1);
                 end;
         end;
+        if isfield(BKR,'ArtifactSelection'),
+                if any(BKR.ArtifactSelection>1) | (length(BKR.ArtifactSelection)<length(BKR.Classlabel))
+                        sel = zeros(size(BKR.Classlabel));
+                        sel(BKR.ArtifactSelection) = 1;
+                        BKR.ArtifactSelection = sel(:);
+                end;
+                BKR.ArtifactSelection = BKR.ArtifactSelection(:);
+        end;
+        
+        
         if isfield(BKR.AS,'TRIGCHAN') % & isempty(BKR.EVENT.POS)
                 if BKR.AS.TRIGCHAN<=size(BKR.data,2),
                         BKR.THRESHOLD(BKR.AS.TRIGCHAN,:)=NaN; % do not apply overflow detection for Trigger channel 
