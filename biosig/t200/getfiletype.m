@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.10 $
-%	$Id: getfiletype.m,v 1.10 2004-10-10 20:25:34 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: getfiletype.m,v 1.11 2004-10-13 19:38:21 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -372,6 +372,8 @@ else
                         HDR.TYPE='FITS';
                 elseif strncmp(ss,'CDF',3)
                         HDR.TYPE='NETCDF';
+                elseif strncmp(ss,'IFS',3)
+                        HDR.TYPE='IFS';
                 elseif strncmp(ss,'.PBF',4)      
                         HDR.TYPE='PBF';
                 elseif all(s(1:2)=='P6') & any(s(3)==[10,13])
@@ -596,6 +598,11 @@ else
                 elseif strcmpi(HDR.FILE.Ext,'hdr')
                         
                 elseif strcmpi(HDR.FILE.Ext,'img')
+                        
+                elseif strcmpi(HDR.FILE.Ext,'sx')
+                        HDR.TYPE = 'SXI';
+                elseif strcmpi(HDR.FILE.Ext,'sxi')
+                        HDR.TYPE = 'SXI';
                         
                         % the following are Brainvision format, see http://www.brainproducts.de
                 elseif strcmpi(HDR.FILE.Ext,'vhdr')
