@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.100 $
-%	$Id: sopen.m,v 1.100 2005-03-22 17:28:49 schloegl Exp $
+%	$Revision: 1.101 $
+%	$Id: sopen.m,v 1.101 2005-03-24 18:34:52 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1584,6 +1584,8 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                                         end;
                                 else 
                                         fprintf(HDR.FILE.stderr,'Error SOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
+                                        fclose(HDR.FILE.FID);
+                                        return; 
                                 end;
                                 if tagsize>16,
                                         HDR.WAV.cbSize = fread(HDR.FILE.FID,1,'uint16');
@@ -2732,7 +2734,9 @@ elseif strcmp(HDR.TYPE,'MIT')
                 end;
                 tmpfile = strtok(z,' /');
                 if ~strcmpi(HDR.FILE.Name,tmpfile),
-                        fprintf(HDR.FILE.stderr,'Warning: RecordName %s does not fit filename %s\n',tmpfile,HDR.FILE.Name);
+                        fprintf(HDR.FILE.stderr,'Error: RecordName %s does not fit filename %s\n',tmpfile,HDR.FILE.Name);
+                        fclose(HDR.FILE.FID)
+                        return; 
                 end;	
                 
                 %A = sscanf(z, '%*s %d %d %d',[1,3]);
@@ -2797,13 +2801,13 @@ elseif strcmp(HDR.TYPE,'MIT')
 
 		else
 
-			HDR.NRec = 1;
     		        [tmp,z] = strtok(z); 
     		        [tmp,z] = strtok(z);
 	                %HDR.NS  = str2double(Z{2});   % number of signals
 	                [tmp,z] = strtok(z);
 	                [tmp,z] = strtok(z,' ()');
-	                HDR.SPR = str2double(tmp);   % sample rate of data
+	                HDR.NRec = str2double(tmp);   % length of data
+                        HDR.SPR = 1; 
                 
 	                HDR.MIT.gain = zeros(1,HDR.NS);
 			HDR.MIT.zerovalue  = repmat(NaN,1,HDR.NS);
@@ -2838,7 +2842,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 	                                        [tmp, status] = str2double(tmp); 
 	                                        if isempty(tmp), tmp = NaN; end; 
 	                                        if isnan(tmp),   tmp = NaN; end;
-	                                        HDR.MIT.bitres(1,k) = tmp;
+	                                        HDR.bits(1,k) = tmp;
 	                                elseif k0==4,
 	                                        [tmp, status] = str2double(tmp);
 	                                        if isempty(tmp), tmp = 0; end;
@@ -2902,12 +2906,12 @@ elseif strcmp(HDR.TYPE,'MIT')
 	                end;
 	                HDR.AS.spb = sum(HDR.AS.SPR);
 	                HDR.AS.bi = [0;cumsum(HDR.AS.SPR(:))]; 
-	                HDR.AS.MAXSPR = HDR.AS.SPR(1);
+	                HDR.SPR = HDR.AS.SPR(1);
 	                for k = 2:HDR.NS,
-	                        HDR.AS.MAXSPR = lcm(HDR.AS.MAXSPR,HDR.AS.SPR(k));
+	                        HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
 	                end;
 	                HDR.AS.SampleRate = HDR.SampleRate*HDR.AS.SPR;
-	                HDR.SampleRate = HDR.SampleRate*HDR.AS.MAXSPR;
+	                HDR.SampleRate = HDR.SampleRate*HDR.SPR;
 	                
 	                if all(HDR.MIT.dformat==HDR.MIT.dformat(1)),
 	                        HDR.VERSION = HDR.MIT.dformat(1);
@@ -2944,7 +2948,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 	                elseif HDR.VERSION == 61, 
 	                        HDR.AS.bpb = HDR.AS.spb;
 	                end;
-	                HDR.Dur = HDR.AS.MAXSPR/HDR.SampleRate;
+	                HDR.Dur = HDR.SPR/HDR.SampleRate;
 	
 	                if HDR.VERSION ==61,
 	                        MACHINE_FORMAT='ieee-be';
@@ -2988,7 +2992,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 		                FLAG_UCAL = HDR.FLAG.UCAL;	
 		                HDR.FLAG.UCAL = 1;
 		                S = NaN;
-		                [S,HDR] = sread(HDR,HDR.AS.MAXSPR/HDR.SampleRate); % load 1st sample
+		                [S,HDR] = sread(HDR,HDR.SPR/HDR.SampleRate); % load 1st sample
 		                if (HDR.VERSION>0) & (any(S(1,:) - HDR.MIT.firstvalue)), 
 		                        fprintf(HDR.FILE.stderr,'Warning SOPEN MIT-ECG: First values of header and datablock do not fit in file %s.\n\tHeader:\t',HDR.FileName); 
 		                        fprintf(HDR.FILE.stderr,'\t%5i',HDR.MIT.firstvalue);
@@ -3017,7 +3021,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                                                 hdr.AS.spb = sum(HDR.AS.SPR(ix));
                                                 hdr.SampleRate = HDR.SampleRate;
                                                 hdr.TYPE = 'MIT';
-                                                hdr.AS.MAXSPR = HDR.AS.MAXSPR;
+                                                hdr.SPR = HDR.SPR;
                                                 hdr.AS.SPR = HDR.AS.SPR(ix);
                                                 hdr.FLAG = HDR.FLAG; 
                                                 hdr.FLAG.UCAL = 1; 

@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.47 $
-%	$Id: sread.m,v 1.47 2005-03-09 13:56:33 schloegl Exp $
+%	$Revision: 1.48 $
+%	$Id: sread.m,v 1.48 2005-03-24 18:34:52 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -274,15 +274,16 @@ elseif strcmp(HDR.TYPE,'MIT'),
                 end;
         end;
 
-        DataLen = NoS*HDR.SampleRate/HDR.AS.MAXSPR;
+        DataLen = NoS*HDR.SampleRate/HDR.SPR;
         if HDR.VERSION == 212, 
                 [A,count] = fread(HDR.FILE.FID, [1,DataLen*HDR.AS.bpb], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
+		DataLen = floor(count/HDR.AS.bpb);
 		if (count~= DataLen*HDR.AS.bpb) & isfinite(DataLen),
-			fprintf(HDR.FILE.stderr,'Error SREAD (MIT): non-integer block length %i,%f\n',count, DataLen*HDR.AS.bpb);
-			HDR = sseek(HDR,HDR.FILE.POS,'bof');
-			return;
+			fprintf(HDR.FILE.stderr,'Warning SREAD (MIT): non-integer block length %i,%f\n',count, DataLen*HDR.AS.bpb);
+			%HDR = sseek(HDR,HDR.FILE.POS,'bof');
+			%return;
+                        A = A(1:DataLen*HDR.AS.bpb);
 		end;
-		DataLen = count/HDR.AS.bpb;
                 S = [A(1:3:end) + mod(A(2:3:end),16)*256; A(3:3:end) + floor(A(2:3:end)/16)*256]; 
                 clear A;
                 S = S - 2^12*(S>=2^11);	% 2-th complement
@@ -339,11 +340,11 @@ elseif strcmp(HDR.TYPE,'MIT'),
         end;
         if any(HDR.AS.SPR>1),
                 A = S;
-                S = zeros(size(A,1)*HDR.AS.MAXSPR,length(HDR.InChanSelect));
+                S = zeros(size(A,1)*HDR.SPR,length(HDR.InChanSelect));
                 for k = 1:length(HDR.InChanSelect),
                         ch = HDR.InChanSelect(k);
                         ix = HDR.AS.bi(ch)+1:HDR.AS.bi(ch+1);
-                        S(:,k)=rs(reshape(A(:,ix)',size(A,1)*HDR.AS.SPR(ch),1),HDR.AS.SPR(ch),HDR.AS.MAXSPR);
+                        S(:,k)=rs(reshape(A(:,ix)',size(A,1)*HDR.AS.SPR(ch),1),HDR.AS.SPR(ch),HDR.SPR);
                 end
         else
                 S = S(:,HDR.InChanSelect);
