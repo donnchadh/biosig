@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.102 $
-%	$Id: sopen.m,v 1.102 2005-03-25 11:20:22 schloegl Exp $
+%	$Revision: 1.103 $
+%	$Id: sopen.m,v 1.103 2005-04-01 15:45:32 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -60,18 +60,30 @@ global FLAG_NUMBER_OF_OPEN_FIF_FILES;
 
 if ischar(arg1),
         HDR.FileName = arg1;
+        HDR.FILE.stdout = 1;
+        HDR.FILE.stderr = 2;
 %elseif length(arg1)~=1,
 %	HDR = [];
 elseif isfield(arg1,'name')
         HDR.FileName = arg1.name;
 	HDR.FILE = arg1; 
+        HDR.FILE.stdout = 1;
+        HDR.FILE.stderr = 2;
 else %if isfield(arg1,'FileName')
         HDR = arg1;
 %else
 %	HDR = [];
 end;
 
+if ~isfield(HDR.FILE,'stdout'),
+        HDR.FILE.stdout = 1;
+end;	
+if ~isfield(HDR.FILE,'stderr'),
+        HDR.FILE.stderr = 2;
+end;
 
+if nargin<3, CHAN = 0; end; 
+if nargin<4, MODE = ''; end;
 if nargin<2, 
         PERMISSION='r'; 
 elseif isempty(PERMISSION),
@@ -88,13 +100,10 @@ if ~any(PERMISSION=='b');
         PERMISSION = [PERMISSION,'b']; % force binary open. Needed for Octave
 end;
 
-if nargin<3, CHAN = 0; end; 
-if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | (any(CHAN<0) & prod(size(CHAN))>1),
+if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | (any(CHAN<0) & (numel(CHAN)>1));
         ReRefMx = CHAN; 
         CHAN = find(any(CHAN,2));
 end
-
-if nargin<4, MODE = ''; end;
 if isempty(MODE), MODE=' '; end;	% Make sure MODE is not empty -> FINDSTR
 
 % test for type of file 
@@ -109,12 +118,6 @@ else
 	HDR.FILE.Name = file;
 	HDR.FILE.Path = pfad;
 	HDR.FILE.Ext  = FileExt(2:length(FileExt));
-	if ~isfield(HDR.FILE,'stderr'),
-	        HDR.FILE.stderr = 2;
-	end;
-	if ~isfield(HDR.FILE,'stdout'),
-	        HDR.FILE.stdout = 1;
-	end;	
 	HDR.FILE.OPEN = 0;
         HDR.FILE.FID  = -1;
 	HDR.ERROR.status  = 0; 
@@ -186,7 +189,7 @@ elseif strcmp(HDR.TYPE,'BKR'),
         %%% Get trigger information from BKR data 
 
         
-elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
+elseif strncmp(HDR.TYPE,['CNT';'AVG';'EEG'],3),
         if any(PERMISSION=='r');
                 [HDR,H1,h2] = cntopen(HDR,PERMISSION,CHAN);
                 if ~isfield(HDR,'GDFTYP'), HDR.GDFTYP='int16'; end; 
@@ -213,7 +216,7 @@ elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
                 
                 if ~isfield(HDR,'PID')
                         HDR.PID = char(repmat(32,1,20));
-                elseif prod(size(HDR.PID))>20,
+                elseif numel(HDR.PID)>20,
                         HDR.PID = HDR.PID(1:20);
                 else 
                         HDR.PID = [HDR.PID(:)',repmat(32,1,20-length(HDR.PID(:)))];
@@ -304,6 +307,7 @@ elseif strcmp(HDR.TYPE,'SCP'),	%
 		return;
 	end;	
         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+        HDR.TYPE = 'native';
         
         
 elseif strcmp(HDR.TYPE,'EBS'),
@@ -313,7 +317,7 @@ elseif strcmp(HDR.TYPE,'EBS'),
         
         %%%%% (1) Fixed Header (32 bytes) %%%%%
         HDR.VERSION = fread(HDR.FILE.FID,[1,8],'char');	%
-        if setstr(HDR.VERSION(1:3)')~='EBS' 
+        if strncmp(char(HDR.VERSION(1:3)),'EBS') 
                 fprintf(HDR.FILE.stderr,'Error LOADEBS: %s not an EBS-File',HDR.FileName); 
                 if any(HDR.VERSION(4:8)~=hex2dec(['94';'0a';'13';'1a';'0d'])'); 
                         fprintf(HDR.FILE.stderr,'Warning SOPEN EBS: %s may be corrupted',HDR.FileName); 
@@ -323,7 +327,7 @@ elseif strcmp(HDR.TYPE,'EBS'),
         HDR.NS  = fread(HDR.FILE.FID,1,'uint32');	% Number of Channels
         HDR.SPR = fread(HDR.FILE.FID,2,'uint32');	% Number of Samples
         if HDR.SPR(1)==0,
-                HDR.SPR=HDR.SPR(2)
+                HDR.SPR=HDR.SPR(2);
         else 
                 fprintf(HDR.FILE.stderr,'Error SOPEN: EBS-FILE %s too large',HDR.FileName); 
         end;
@@ -333,7 +337,7 @@ elseif strcmp(HDR.TYPE,'EBS'),
         tag=fread(HDR.FILE.FID,1,'int32');	% Tag field
         while (tag~=0),
                 l  =fread(HDR.FILE.FID,1,'int32');	% length of value field
-                val=setstr(fread(HDR.FILE.FID,4*l,'char')');	% depends on Tag field
+                val=char(fread(HDR.FILE.FID,4*l,'char')');	% depends on Tag field
                 if     tag==hex2dec('00000002'),	%IGNORE
                 elseif tag==hex2dec('00000004') HDR.PATIENT_NAME=val;
                 elseif tag==hex2dec('00000006') HDR.PATIENT_ID=val;
@@ -570,7 +574,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
                 
         
 elseif strcmp(HDR.TYPE,'DEMG'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');      % ### native should be fixed
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');     
         if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
                 % read header
                 fseek(HDR.FILE.FID,4,'bof');    % skip first 4 bytes, should contain 'DEMG'
@@ -1049,15 +1053,19 @@ elseif strncmp(HDR.TYPE,'EEG-1100',8),
         end;
         
         
+elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
+        HDR = gtfopen(HDR,PERMISSION);
+        
+        
 elseif strcmp(HDR.TYPE,'MFER'),
-	HDR = mwfopen(HDR,PERMISSION);
-	if (HDR.FRAME.N ~= 1),
-		fprintf(HDR.FILE.stderr,'Error SOPEN (MFER): files with more than one frame not implemented, yet.\n');
-		fclose(HDR.FILE.FID);
-		HDR.FILE.FID  =-1;
-		HDR.FILE.OPEN = 0;
-	end
-
+        HDR = mwfopen(HDR,PERMISSION);
+        if (HDR.FRAME.N ~= 1),
+                fprintf(HDR.FILE.stderr,'Error SOPEN (MFER): files with more than one frame not implemented, yet.\n');
+                fclose(HDR.FILE.FID);
+                HDR.FILE.FID  =-1;
+                HDR.FILE.OPEN = 0;
+        end
+        
         
 elseif strcmp(HDR.TYPE,'MPEG'),
         % http://www.dv.co.yu/mpgscript/mpeghdr.htm
@@ -3099,43 +3107,49 @@ elseif strcmp(HDR.TYPE,'MIT-ATR'),
                         [A,c] = fread(fid, inf, 'uint16');
                         fclose(fid);
                 end;
+		
 		EVENTTABLE = repmat(NaN,c,3);
-		Desc = repmat({''},c,1);
+		Desc = repmat({''},ceil(c/20),1);
+                FLAG63 = 0;
                 K  = 0;
                 i  = 1;
 		ch = 0; 
 		accu = 0; 
-                FLAG63=0;
+
+		tmp = floor(A(:)/1024);
+		annoth = tmp;
+		L   = A(:) - tmp*1024;
+		tmp = floor(A(:)/256);
+		t0  = char([A(:)-256*tmp, tmp])';
                 while ((i<=size(A,1)) & (A(i)>0)),
-                        annoth = floor(A(i)/1024);
-			L = rem(A(i),1024);
-                        if A(i)==0,  % end of file
+			a = annoth(i);
+                        if a==0,  % end of file
 			  
-			elseif annoth==60	% NUM
+                    	elseif a<50,
+                            	K = K + 1;
+	    			accu = accu + L(i);
+				EVENTTABLE(K,:) = [a,accu,ch];
+                        elseif a==59,	% SKIP 
+				if (L(i)==0), 
+					accu = accu + (2.^[0,16])*[A(i+2);A(i+1)];
+    	        	                i = i + 2;
+				else
+					accu = accu + L(i);	
+				end;	
+			%elseif a==60,	% NUM
 				%[60,L,A(i)]
                                 % nothing to do!
-                        elseif annoth==61	% SUB
+                        %elseif a==61,	% SUB
 				%[61,L,A(i)]
 			        % nothing to do!
-                        elseif annoth==62	% CHN
-				ch = L; 
-                                % nothing to do!
-                        elseif annoth==63	% AUX
-				c = ceil(L/2);
-				t = [mod(A(i+(1:c)),256),floor(A(i+(1:c))/256)]';
-				Desc{K} = char(t(:))'; 
+                        elseif a==62,	% CHN
+				ch = L(i); 
+                        elseif a==63,	% AUX
+				c = ceil(L(i)/2);
+				t = t0(:,i+1:i+c)';
+				Desc{K} = t(:)'; 
+                                FLAG63 = 1;
                         	i = i + c;
-                                FLAG63=1;
-                        elseif annoth==59,	% SKIP 
-				if (L==0), 
-					L = (2.^[0,16])*[A(i+2);A(i+1)];
-    	        	                i = i + 2;
-				end;	
-				accu = accu + L;
-                    	else
-                            	K = K + 1;
-	    			accu = accu + L; 
-				EVENTTABLE(K,:) = [annoth,accu,ch];
                         end;
                         i = i + 1;
                 end;
@@ -3143,7 +3157,7 @@ elseif strcmp(HDR.TYPE,'MIT-ATR'),
 		HDR.EVENT.POS = EVENTTABLE(1:K,2); 
 		HDR.EVENT.CHN = EVENTTABLE(1:K,3); 
 		HDR.EVENT.DUR = zeros(K,1); 
-                if FLAG63, HDR.EVENT.Desc= Desc(1:K); end;
+                if FLAG63, HDR.EVENT.Desc = Desc(1:K); end;
 		HDR.TYPE = 'EVENT';
                 
         
@@ -3151,7 +3165,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),
         if any(PERMISSION=='r'),
                 HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le')
                 
-                fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
+                fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n');	
                 
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS = 0;
@@ -3413,10 +3427,8 @@ elseif strcmp(HDR.TYPE,'BCI2003_Ia+b');
         HDR.SPR = HDR.SampleRate*HDR.Dur;
         HDR.NS  = length(HDR.Label);
         HDR.data = reshape(permute(reshape(data, [HDR.NRec, HDR.SPR, HDR.NS]),[2,1,3]),[HDR.SPR*HDR.NRec,HDR.NS]);
-        if any(CHAN), 
-                HDR.data = HDR.data(:,chan);
-        end;
         HDR.TYPE = 'native'; 
+        HDR.FILE.POS = 0; 
         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         
         
@@ -3470,11 +3482,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.SampleRate=tmp.SampleRate;
                 end;
                 fprintf(HDR.FILE.stderr,'Sensitivity not known in %s.\n',HDR.FileName);
-                if any(CHAN),
-                        HDR.data = tmp.y(:,CHAN);
-                else
-        	        HDR.data = tmp.y;
-                end;
+                HDR.data = tmp.y;
                 HDR.TYPE = 'native'; 
                 
                 
@@ -3576,11 +3584,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.SampleRate = 160; 
                 HDR.NRec = 1; 
 		[HDR.SPR,HDR.NS]=size(tmp.signal);
-                if CHAN>0,
-                        HDR.data = tmp.signal(:,CHAN); 
-                else
-                        HDR.data = tmp.signal; 
-                end
+                HDR.data = tmp.signal; 
                 HDR.EVENT.POS = [0;find(diff(tmp.trial)>0)-1];
                 HDR.EVENT.TYP = ones(length(HDR.EVENT.POS),1)*hex2dec('0300'); % trial onset; 
                 
@@ -3604,11 +3608,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.SampleRate = 240; 
                 HDR.NRec = 1; 
 		[HDR.SPR,HDR.NS]=size(tmp.signal);
-                if CHAN>0,
-                        HDR.data = tmp.signal(:,CHAN); 
-                else
-                        HDR.data = tmp.signal; 
-                end
+                HDR.data = tmp.signal; 
                 HDR.EVENT.POS = [0;find(diff(tmp.trialnr)>0)-1];
                 HDR.EVENT.TYP = ones(length(HDR.EVENT.POS),1)*hex2dec('0300'); % trial onset; 
 
@@ -3688,11 +3688,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 else
                         HDR.SampleRate=tmp.SampleRate;
                 end;
-                if any(CHAN),
-                        HDR.data = tmp.eeg(:,CHAN);
-                else
-        	        HDR.data = tmp.eeg;
-                end;
+                HDR.data = tmp.eeg;
                 if isfield(tmp,'classlabel'),
                 	HDR.Classlabel = tmp.classlabel;
                 end;        
@@ -3729,11 +3725,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         else
                                 HDR.SampleRate=tmp.SampleRate;
                         end;
-                        if any(CHAN),
-                                HDR.data = tmp.data(:,CHAN);
-                        else
-                                HDR.data = tmp.data;
-                        end;
+                        HDR.data = tmp.data;
                         if isfield(tmp,'classlabel'),
                                 HDR.Classlabel = tmp.classlabel;
                         end;        
@@ -3757,11 +3749,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 end;
                 HDR.PhysDim = 'µV';
                 fprintf(HDR.FILE.stderr,'Sensitivity not known in %s. 50µV is chosen\n',HDR.FileName);
-                if any(CHAN),
-                        HDR.data = tmp.EEGdata(:,CHAN)*50;
-                else
                         HDR.data = tmp.EEGdata*50;
-                end;
                 HDR.TYPE = 'native'; 
                 
         elseif isfield(tmp,'daten');	% EP Daten von Michael Woertz
@@ -3776,11 +3764,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.PhysDim = 'µV';
                 fprintf(HDR.FILE.stderr,'Sensitivity not known in %s. 100µV is chosen\n',HDR.FileName);
                 %signal=tmp.daten.raw(:,1:HDR.NS)*100;
-                if any(CHAN),
-                        HDR.data = tmp.daten.raw(:,CHAN)*100;
-                else
-                        HDR.data = tmp.daten.raw*100;
-                end;
+                HDR.data = tmp.daten.raw*100;
                 HDR.TYPE = 'native'; 
                 
         elseif isfield(tmp,'neun') & isfield(tmp,'zehn') & isfield(tmp,'trig');	% guger, 
@@ -3793,11 +3777,8 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.SampleRate=tmp.SampleRate;
                 end;
                 fprintf(HDR.FILE.stderr,'Sensitivity not known in %s. \n',HDR.FileName);
-                signal  = [tmp.neun;tmp.zehn;tmp.trig];
+                HDR.data = [tmp.neun;tmp.zehn;tmp.trig];
                 HDR.Label = {'Neun','Zehn','TRIG'};
-                if any(CHAN),
-                        HDR.data=signal(:,CHAN);
-                end;        
                 HDR.TYPE = 'native'; 
                 
                 
@@ -3896,12 +3877,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.NS   = sz(3);
                 HDR.FLAG.TRIGGERED = HDR.NRec>1;
                 
-                if any(CHAN),
-                        sz(3)= length(CHAN);
-                else
-                        CHAN = 1:HDR.NS;
-                end;
-                HDR.data  = reshape(permute(HDR.data(:,:,CHAN),[2,1,3]),[sz(1)*sz(2),sz(3)]);
+                HDR.data  = reshape(permute(HDR.data,[2,1,3]),[sz(1)*sz(2),sz(3)]);
 
                 % Selection of trials with artifacts
                 ch = strmatch('ARTIFACT',HDR.gBS.AttributeName);
@@ -5432,6 +5408,15 @@ if any(PERMISSION=='r') & ~isnan(HDR.NS);
                         return;
                 end;
 		HDR.Calib = HDR.Calib(:,CHAN(:));
+                % % Octave 2.1.50 needs this workaround
+                %Calib = full(HDR.Calib);
+                %Calib = Calib(:,CHAN(:));
+		%HDR.Calib = Calib;
         end;
+
         HDR.InChanSelect = find(any(HDR.Calib(2:HDR.NS+1,:),2));
+        HDR.Calib = HDR.Calib([1;1+HDR.InChanSelect(:)],:);
+        if strcmp(HDR.TYPE,'native')
+                HDR.data = HDR.data(:,HDR.InChanSelect);
+        end;                                
 end;
