@@ -17,8 +17,8 @@ function [signal,H] = sload(FILENAME,CHAN)
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.25 $
-%	$Id: sload.m,v 1.25 2004-05-02 11:00:01 schloegl Exp $
+%	$Revision: 1.26 $
+%	$Id: sload.m,v 1.26 2004-05-11 20:56:48 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -141,29 +141,7 @@ H = sopen(H,'rb',CHAN);
 if H.FILE.OPEN,
         [signal,H] = sread(H);
         H = sclose(H);
-        
-        
-elseif strcmp(H.TYPE,'XML'),
-        fprintf(H.FILE.stderr,'Warning SLOAD: implementing XML not completed yet.\n');
-        if isfield(H,'XML'),
-                if isa(H.XML,'XMLTree'),
-                        %try;
-                                H.XML = convert(H.XML);
-                                %catch;
-                                %fprintf(2,'Error SLOAD: conversion from XMLtree into STRUCT failed in file %s.\n',H.FileName);
-                                %end;
-                end;
-        end;        
-        try,    %
-                tmp = H.XML.component.series.derivation.Series.component.sequenceSet.component;
-                H.NS = length(tmp);
-                for k = 1:H.NS;
-                        signal{k} = str2double(tmp{k}.sequence.value.digits)';
-                end;
-                H.TYPE = 'XML-FDA';     % that's an FDA XML file 
-        catch
-        end;
-        
+       
         
 elseif strcmp(H.TYPE,'DAQ')
 	fprintf(1,'Loading a matlab DAQ data file - this can take a while.\n');
@@ -491,6 +469,8 @@ if strcmp(H.TYPE,'CNT');
         if exist(f)==2,
                 tmp = load(f);
                 if isfield(tmp,'classlabel') & ~isfield(H,'Classlabel')
+                        H.Classlabel=tmp.classlabel(:);                        
+                elseif isfield(tmp,'classlabel') & isfield(tmp,'header') & isfield(tmp.header,'iniFile') & strcmp(tmp.header.iniFile,'oom.ini'), %%% for OOM study only. 
                         H.Classlabel=tmp.classlabel(:);                        
                 end;
         end;

@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.52 $
-%	$Id: sopen.m,v 1.52 2004-05-04 22:05:38 schloegl Exp $
+%	$Revision: 1.53 $
+%	$Id: sopen.m,v 1.53 2004-05-11 20:56:48 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -111,6 +111,7 @@ if any(PERMISSION=='r'),
                 if c < 132,
                         s = [s, repmat(0,1,132-c)];
                 end;
+		
                 if c,
                         %%%% file type check based on magic numbers %%%
                         type_mat4=str2double(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
@@ -311,6 +312,11 @@ if any(PERMISSION=='r'),
                         elseif all(s(1:4)==hex2dec(['E0';'FF';'D8';'FF'])')
                                 HDR.TYPE='JPG';
                                 HDR.Endianity = 'ieee-le';
+                        elseif all(s(1:20)==['L',0,0,0,1,20,2,0,0,0,0,0,192,0,0,0,0,0,0,70])
+                                HDR.TYPE='LNK';
+				tmp = fread(fid,inf,'char');
+				HDR.LNK=[s,tmp'];
+                                HDR.Endianity = 'ieee-le';
                         elseif all(s(1:3)==[0,0,1])	
                                 HDR.TYPE='MPG2MOV';
                         elseif strcmp(ss([3:5,7]),'-lh-'); 
@@ -341,6 +347,8 @@ if any(PERMISSION=='r'),
                         elseif strncmp(ss,'MM',2); 
                                 HDR.TYPE='TIFF';
                                 HDR.Endianity = 1;
+                        elseif strncmp(ss,'StockChartX',11); 
+                                HDR.TYPE='STX';
                         elseif all(ss(1:2)==[25,149]); 
                                 HDR.TYPE='TWE';
                         elseif all(ss(1:5)==[0,0,2,0,4]); 
@@ -394,6 +402,16 @@ if any(PERMISSION=='r'),
                         
                         %%% this is the file type check based on the file extionsion, only.  
                         if 0, 
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'rhf'),
+                                HDR.FileName=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
+                                HDR.TYPE = 'RG64';
+                        elseif strcmp(HDR.FILE.Ext,'rdf'),
+                                HDR.FileName=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1),'h',HDR.FILE.Ext(3)]);
+                                HDR.TYPE = 'RG64';
+                        elseif strcmp(HDR.FILE.Ext,'RDF'),
+                                HDR.FileName=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1),'H',HDR.FILE.Ext(3)]);
+                                HDR.TYPE = 'RG64';
                                 
                         elseif strcmpi(HDR.FILE.Ext,'hdm')
                                 
@@ -2367,51 +2385,45 @@ elseif strcmp(HDR.TYPE,'LABVIEW'),
         
         
 elseif strcmp(HDR.TYPE,'RG64'),
-        if strcmpi(HDR.FILE.Ext,'rhf'),
-                FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
-        elseif strcmp(HDR.FILE.Ext,'rdf'),
-                FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1),'h',HDR.FILE.Ext(3)]);
-        elseif strcmp(HDR.FILE.Ext,'RDF'),
-                FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1),'H',HDR.FILE.Ext(3)]);
-        end;
-        HDR.FILE.FID = fopen(FILENAME,PERMISSION,'ieee-le');
+        fid = fopen(HDR.FileName,PERMISSION,'ieee-le');
         
-        HDR.FILE.OPEN=1;
-        HDR.IDCODE=char(fread(HDR.FILE.FID,[1,4],'char'));	%
+        HDR.IDCODE=char(fread(fid,[1,4],'char'));	%
         if ~strcmp(HDR.IDCODE,'RG64') 
-                fprintf(2,'\nError LOADRG64: %s not an RG64-File\n',FILENAME); 
+                fprintf(2,'\nError LOADRG64: %s not a valid RG64 - header file\n',FILENAME); 
+                HDR.TYPE = 'unknown';
+                fclose(fid);
+                return;
         end; %end;
         
-        tmp = fread(HDR.FILE.FID,2,'int32');
+        tmp = fread(fid,2,'int32');
         HDR.VERSION = tmp(1)+tmp(2)/100;
-        HDR.NS = fread(HDR.FILE.FID,1,'int32');
-        HDR.SampleRate = fread(HDR.FILE.FID,1,'int32');
-        HDR.SPR = fread(HDR.FILE.FID,1,'int32');
-        AMPF = fread(HDR.FILE.FID,64,'int32');		
-        fclose(HDR.FILE.FID);
+        HDR.NS = fread(fid,1,'int32');
+        HDR.SampleRate = fread(fid,1,'int32');
+        HDR.SPR = fread(fid,1,'int32');
+        AMPF = fread(fid,64,'int32');		
+        fclose(fid);
         
         HDR.HeadLen = 0;
         HDR.PhysDim = 'uV';
+        HDR.Cal = (5E6/2048)./AMPF;
         HDR.AS.endpos = HDR.SPR;
         HDR.AS.bpb    = HDR.NS*2;
         
-        if strcmpi(HDR.FILE.Ext,'rdf'),
-                FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
-        elseif strcmp(HDR.FILE.Ext,'rhf'),
-                FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1),'d',HDR.FILE.Ext(3)]);
-        elseif strcmp(HDR.FILE.Ext,'RHF'),
-                FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1),'D',HDR.FILE.Ext(3)]);
+        EXT = HDR.FILE.Ext; 
+        if upper(EXT(2))~='D',
+                EXT(2) = EXT(2) - 'H' + 'D';
         end;
+        FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',EXT]);
         
         HDR.FILE.FID=fopen(FILENAME,'rb','ieee-le');
         if HDR.FILE.FID<0,
-                fprintf(2,'\nError LOADRG64: %s not found\n',FILENAME); 
+                fprintf(2,'\nError LOADRG64: data file %s not found\n',FILENAME); 
                 return;
         end;
-        
-        HDR.Cal = diag(AMPF(HDR.InChanSelect));
-        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
+
+        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal(1:HDR.NS),HDR.NS+1,HDR.NS);
         HDR.FILE.POS = 0; 
+        HDR.FILE.OPEN= 1;
         
         
 elseif strcmp(HDR.TYPE,'DDF'),
@@ -3931,39 +3943,82 @@ elseif strncmp(HDR.TYPE,'TRI',3),
         end
         
         
-elseif strcmp(HDR.TYPE,'XML-UTF16'),
-        if any(PERMISSION=='r'),
-                fid = fopen(HDR.FileName,'rb','ieee-le');
-                magic = fread(fid,2,'uint8');
-                HDR.XML = char(fread(fid,[1,inf],'uint16'));
-                fclose(fid);
-                try,
-                        %HDR.XML = xml_parser(HDR.XML);
-                        HDR.XML = xmltree(char(HDR.XML));
-                        HDR.XML = convert(HDR.XML);
-                        HDR.TYPE= 'XML';
-                catch
-                end;
-        end;
-        fprintf(HDR.FILE.stderr,'Warning SOPEN (XML): Implementation of XML-Files not completed.\n',HDR.NS);
-        return;
-        
-        
-elseif strcmp(HDR.TYPE,'XML-UTF8'),
+elseif strcmp(HDR.TYPE,'STX'),
         if any(PERMISSION=='r'),
                 fid = fopen(HDR.FileName,'rt','ieee-le');
-                HDR.XML = char(fread(fid,[1,inf],'char'));
+                FileInfo = fread(fid,20,'char');
+                HDR.Label = fread(fid,50,'char');
+                tmp = fread(fid,6,'int');
+                HDR.NRec = tmp(1);
+		HDR.SPR = 1; 
+		
+		tmp = fread(fid,5,'long');
+		HDR.HeadLen = 116;
+
+
+                fclose(HDR.FILE.FID);
+        end
+        
+        
+elseif strncmp(HDR.TYPE,'XML',3),
+        if any(PERMISSION=='r'),
+                fid = fopen(HDR.FileName,'rb','ieee-le');
+                if strcmp(HDR.TYPE,'XML-UTF16'),
+                        magic = char(fread(fid,1,'uint16'));
+                        HDR.XML = char(fread(fid,[1,inf],'uint16'));
+                elseif strcmp(HDR.TYPE,'XML-UTF8'),
+                        HDR.XML = char(fread(fid,[1,inf],'char'));
+                end;
                 fclose(fid);
+                
                 try,
-                        %HDR.XML = xml_parser(HDR.XML);
                         HDR.XML = xmltree(HDR.XML);
                         HDR.XML = convert(HDR.XML);
                         HDR.TYPE= 'XML';
                 catch
+                        fprintf(HDR.FILE.stderr,'ERROR SOPEN (XML): XML-toolbox missing or invalid XML file.\n');
+                        return;
                 end;
+                
+                try,    % SierraECG  1.03  *.open.xml from PHILIPS
+                        HDR.SampleRate = str2double(HDR.XML.dataacquisition.signalcharacteristics.samplingrate);
+                        HDR.NS  = str2double(HDR.XML.dataacquisition.signalcharacteristics.numberchannelsvalid);
+                        HDR.Cal = str2double(HDR.XML.reportinfo.reportgain.amplitudegain.overallgain);
+                        HDR.PhysDim = 'uV';
+                        HDR.Filter.HighPass = str2double(HDR.XML.reportinfo.reportbandwidth.highpassfiltersetting);
+                        HDR.Filter.LowPass  = str2double(HDR.XML.reportinfo.reportbandwidth.lowpassfiltersetting);
+                        HDR.Filter.Notch    = str2double(HDR.XML.reportinfo.reportbandwidth.notchfiltersetting);
+                        
+                        t = HDR.XML.reportinfo.reportformat.waveformformat.mainwaveformformat;
+                        k = 0; 
+                        HDR.Label=[];
+                        while ~isempty(t),
+                                [s,t] = strtok(t,' ');
+                                k = k+1; 
+                                HDR.Label{k, 1} = s;
+                        end;
+                        
+                        HDR.VERSION = HDR.XML.documentinfo.documentversion;
+                        HDR.TYPE = HDR.XML.documentinfo.documenttype;
+                catch
+                        
+                try,    % FDA-XML Format
+                        HDR.NS = length(HDR.XML.component.series.derivation.Series.component.sequenceSet.component)-1;
+                        HDR.Cal = 1;
+                        HDR.PhysDim = ' ';
+                        HDR.SampleRate = 1;
+                        HDR.TYPE = 'XML-FDA';     % that's an FDA XML file 
+                catch
+                        fprintf(HDR.FILE.stderr,'Error SOPEN (XML): File %s is not supported.\n',HDR.FileName);
+                        return;
+                end;
+                end
+                
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
+                HDR.FILE.OPEN = 1;
+                HDR.FILE.POS  = 0;
         end;
-        fprintf(HDR.FILE.stderr,'Warning SOPEN (XML): Implementation of XML-Files not completed.\n',HDR.NS);
-        return;
+        
         
 elseif strcmp(HDR.TYPE,'unknown'),
         fprintf(HDR.FILE.stderr,'ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
@@ -3977,7 +4032,7 @@ else
 end;
 
 if any(PERMISSION=='r');
-        HDR.Calib = full(HDR.Calib);	% Octace can not index sparse matrices
+        HDR.Calib = full(HDR.Calib);	% Octave can not index sparse matrices
         if exist('ReRefMx')==1,
                 % fix size if ReRefMx
                 sz = size(ReRefMx); 	                 

@@ -34,14 +34,25 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.20 $
-%	$Id: sread.m,v 1.20 2004-05-02 13:28:34 schloegl Exp $
+%	$Revision: 1.21 $
+%	$Id: sread.m,v 1.21 2004-05-11 20:56:48 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
 S = [];
 
 if nargin<2, NoS = inf; end;
+
+if NoS<0,
+        fprintf(HDR.FILE.stderr,'Error SREAD: NoS must be non-negative\n');
+        return;
+end;
+if (nargin==3) 
+        if (StartPos<0),
+                fprintf(HDR.FILE.stderr,'Error SREAD: StartPos must be non-negative\n');
+                return;
+        end;
+end;
 
 if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF') ,
         if nargin<3,
@@ -552,6 +563,7 @@ elseif strcmp(HDR.TYPE,'SIGIF'),
                 S = [S; dat(HDR.InChanSelect,:)'];
         end;
         
+        
 elseif strcmp(HDR.TYPE,'CTF'),
         if nargin>2,
                 fseek(HDR.FILE.FID,HDR.HeadLen+HDR.NS*HDR.SPR*4*StartPos,'bof');        
@@ -641,10 +653,39 @@ elseif strcmp(HDR.TYPE,'BVascii'), %Brainvision, ascii
         
 elseif strcmp(HDR.TYPE,'BrainVision'),   %Brainvision, unknown
         error('SREAD (BrainVision): unsupported fileformat for data');
+        
+        
+elseif strcmp(HDR.TYPE,'SierraECG'),   %% SierraECG  1.03  *.open.xml from PHILIPS
+        if ~isfield(HDR,'data');
+                HDR.data = str2double(HDR.XML.waveforms.parsedwaveforms);
+                HDR.data = reshape(HDR.data,length(HDR.data)/HDR.NS,HDR.NS);
+                HDR.SPR = size(HDR.data,1);
+        end;
+        if nargin>2,
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        nr = min(HDR.SampleRate*NoS, HDR.SPR-HDR.FILE.POS);
+        S  = HDR.data(HDR.FILE.POS+(1:nr),HDR.InChanSelect);
+        HDR.FILE.POS = HDR.FILE.POS + nr;
+
+        
+elseif strcmp(HDR.TYPE,'XML-FDA'),   % FDA-XML Format
+        if ~isfield(HDR,'data');
+                tmp   = HDR.XML.component.series.derivation.Series.component.sequenceSet.component;
+                for k = 1:length(HDR.InChanSelect);
+                        HDR.data(:,k) = str2double(tmp{HDR.InChanSelect(k)+1}.sequence.value.digits)';
+                end;
+                HDR.SPR = size(HDR.data,1);
+        end;
+        if nargin>2,
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        nr = min(HDR.SampleRate*NoS, HDR.SPR-HDR.FILE.POS);
+        S  = HDR.data(HDR.FILE.POS+(1:nr),:);
+        HDR.FILE.POS = HDR.FILE.POS + nr;
 
         
 elseif strcmp(HDR.TYPE,'FIF'),
-        %%%% #### FIX ME ####
         % some parts of this code is from Robert Oostenveld, 
         if ~(exist('rawdata')==3 & exist('channames')==3)
                 error('cannot find Neuromag import routines on your Matlab path (see http://boojum.hut.fi/~kuutela/meg-pd)');
