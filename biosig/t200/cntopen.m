@@ -13,8 +13,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.22 $
-%	$Id: cntopen.m,v 1.22 2004-02-26 14:52:53 schloegl Exp $
+%	$Revision: 1.23 $
+%	$Id: cntopen.m,v 1.23 2004-03-03 15:06:15 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -327,7 +327,7 @@ else    % new header
         h.scaletoolx2       = fread(fid,1,'float');
         h.scaletooly2       = fread(fid,1,'float');
         h.port              = fread(fid,1,'short');
-        h.numsamples        = fread(fid,1,'uint32');	%%%
+        h.numsamples        = fread(fid,1,'int32');	%%%
 
         h.filterflag        = fread(fid,1,'char');	%%%
         h.lowcutoff         = fread(fid,1,'float');	%%%
@@ -346,7 +346,6 @@ else    % new header
         h.dcthreshold       = fread(fid,1,'uchar');
         
         if ftell(fid)~=900,
-	% this check does not work in the currenct CVS-version of Octave	
                 warning(['supicous Neuroscan file ',FILENAME]);
         end;
         
@@ -423,18 +422,36 @@ CNT.ChanTyp=zeros(CNT.NS,1);
 CNT.HeadLen = 900 + 75*CNT.NS;
 CNT.PhysDim = 'µV';
 
+% Scan4.3->Edit->Overall Setup->Amplifier->Notch->Off/50Hz/60Hz
+tmp = [0,50,60]; 
+CNT.Filter.Notch  = tmp(h.notchfilter+1);
 
+% Scan4.3->Edit->Overall Setup->Amplifier->AC/DC
+CNT.Filter.ACmode = h.acmode;
+
+% Scan4.3->Edit->Overall Setup->Amplifier->DC Auto Correction
+CNT.Filter.DCauto = h.autocorrectflag;
+
+% Scan4.3->Edit->Overall Setup->Amplifier->Amplifier Settings->Low Pass
 tmp = [30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000]; % LOWPASS
-CNT.Filter.LowPass  = tmp(h.lowpass+1);
-tmp = [0, 0, .05, .1, .15, .3, 1, 5, 30, 100, 150, 300]; %HIGHPASS
-CNT.Filter.HighPass = tmp(h.highpass+1);
-CNT.Filter.Notch   = h.notch;
+CNT.Filter.LowPass = tmp(e.lopass+1);
+
+CNT.CNT.Filter.LowPass = tmp(h.lowpass+1); % ???
+
+% Scan4.3->Edit->Overall Setup->Amplifier->Amplifier Settings->High Pass
+tmp = [NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300]; %HIGHPASS
+CNT.Filter.HighPass = tmp(e.hipass+1);
+
+CNT.CNT.Filter.HighPass = tmp(h.highpass+1); % ???
+
+ % ???
 CNT.CNT.Filter.LowCutOff  = h.lowcutoff;
 CNT.CNT.Filter.HighCutOff = h.highcutoff;
 CNT.CNT.Filter.NotchOn = h.filterflag;
 CNT.CNT.Filter.ON   = [e(:).filtered];
 CNT.CNT.minor_revision = h.minor_rev;
 CNT.CNT.EventTablePos = h.eventtablepos;
+
 CNT.Label = setstr(e.lab');
 
 if CHAN==0, CHAN=1:CNT.NS; end;
@@ -526,15 +543,24 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
 	CNT.Dur    = 1/CNT.SampleRate;
 
         %%%%% read event table 
+        CNT.EVENT.TYP = [];
+        CNT.EVENT.POS = [];
+        CNT.EVENT.CHN = [];
         CNT.EVENT.N = h.numevents;
+
         status = fseek(CNT.FILE.FID,h.eventtablepos,'bof');
         if status,
                 fprintf(CNT.FILE.stderr,'Warning CNTOPEN: corrupted EVENTTABLEPOS (%i) in file %s\n',h.eventtablepos,CNT.FileName);        
+		c1 = 1; c2 = 1; c3 = 1; 
         else
                 [CNT.EVENT.TeegType,c1] = fread(fid,1,'uchar');		
                 [CNT.EVENT.TeegSize,c2] = fread(fid,1,'int32');	
                 [CNT.EVENT.TeegOffset,c3] = fread(fid,1,'int32');
+	end;	
 
+	if ~all([c1,c2,c3]) | status,
+    		fprintf(CNT.FILE.stderr,'Error CNTOPEN: reading of EVENTTABLE failed\n');
+    	else;
                 k = 0;
                 K = 1;
                 Teeg = [];
@@ -562,6 +588,7 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
                 if k,
                         CNT.EVENT.TYP = [CNT.EVENT.Teeg(:).Stimtype]';
                         CNT.EVENT.POS = ([CNT.EVENT.Teeg(:).Offset]' - CNT.HeadLen) ./ CNT.AS.bpb;
+                        CNT.EVENT.CHN = zeros(size(CNT.EVENT.TYP));
                         CNT.EVENT.N   = length(CNT.EVENT.TYP);
                 end;
         end;
