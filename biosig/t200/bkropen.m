@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.24 $
-%	$Id: bkropen.m,v 1.24 2004-10-22 10:44:52 schloegl Exp $
+%	$Revision: 1.25 $
+%	$Id: bkropen.m,v 1.25 2004-11-10 10:48:30 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -231,26 +231,6 @@ if any(PERMISSION=='r'),
                 end;
         end;
         
-        if 1; %~isfield(BKR,'ArtifactSelection'),
-                tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.sel']);
-                if ~exist(tmp,'file'),
-                	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.SEL']);
-                end
-                if exist(tmp,'file'),
-                        BKR.ArtifactSelection = load(tmp);
-                end;
-                tmp = fullfile(BKR.FILE.Path,[BKR.FILE.Name,'_artifact.mat']);
-                if exist(tmp,'file'),
-                        tmp = load(tmp);
-                        BKR.ArtifactSelection = tmp.artifact(:); 
-                        if any(BKR.ArtifactSelection>1) | (length(BKR.ArtifactSelection)<length(BKR.Classlabe))
-                                sel = zeros(size(BKR.Classlabel));
-                                sel(BKR.ArtifactSelection) = 1; 
-                                BKR.ArtifactSelection = sel;
-                        end;
-                end;
-        end;
-        
         if ~isfield(BKR,'Classlabel'),
                 BKR.Classlabel = [];
         end;
@@ -260,7 +240,7 @@ if any(PERMISSION=='r'),
         end
         x = [];
         if exist(tmp,'file'),
-                        x = load('-mat',tmp);
+                x = load('-mat',tmp);
         end;
         if isfield(x,'header'),
                 if isfield(x.header,'Result') & isfield(x.header.Result,'Classlabel'),
@@ -286,8 +266,11 @@ if any(PERMISSION=='r'),
                         end;
                         if isfield(x.header.BKRHeader,'Label'),
                                 BKR.Label = x.header.BKRHeader.Label;
-                                if size(BKR.Label,1)==(BKR.NS-1);
+                                ns = BKR.NS-size(BKR.Label,1);
+                                if ns == 1;
                                         BKR.Label = strvcat(BKR.Label,'TRIGGER');
+                                elseif ns > 1;
+                                        BKR.Label = strvcat(BKR.Label,char(repmat('n.a.',-ns,1)));
                                 end;
                         end;
                 end;
@@ -304,6 +287,25 @@ if any(PERMISSION=='r'),
                 end;
                 if ~isempty(strmatch('TRIGGER',BKR.Label))
                         BKR.AS.TRIGCHAN = BKR.NS; %strmatch('TRIGGER',H.Label); 
+                end;
+        end;
+        if 1; %~isfield(BKR,'ArtifactSelection'),
+                tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.sel']);
+                if ~exist(tmp,'file'),
+                	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.SEL']);
+                end
+                if exist(tmp,'file'),
+                        BKR.ArtifactSelection = load(tmp);
+                end;
+                tmp = fullfile(BKR.FILE.Path,[BKR.FILE.Name,'_artifact.mat']);
+                if exist(tmp,'file'),
+                        tmp = load(tmp);
+                        BKR.ArtifactSelection = tmp.artifact(:);
+                        if any(BKR.ArtifactSelection>1) | (length(BKR.ArtifactSelection)<length(BKR.Classlabel))
+                                sel = zeros(size(BKR.Classlabel));
+                                sel(BKR.ArtifactSelection) = 1; 
+                                BKR.ArtifactSelection = sel;
+                        end;
                 end;
         end;
 
