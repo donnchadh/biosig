@@ -1,8 +1,8 @@
 % DEMO 1 - identifies QRS-complexes
 
-%	$Revision: 1.3 $
-%	$Id: demo1.m,v 1.3 2003-10-13 18:32:05 schloegl Exp $
-%	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.4 $
+%	$Id: demo1.m,v 1.4 2005-02-28 09:09:14 schloegl Exp $
+%	Copyright (C) 2000-2003, 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -21,38 +21,41 @@
 
 
 % load file
-if exist('F')~=1,
-        F=''; P='';
-end
-if exist(fullfile(P,F))~=2,
-        [F,P]=uigetfile('*.*','Pick an ECG file');
-end
+[F,P]=uigetfile('*.*','Pick an ECG file');
+
+CHAN = 0; 
+HDR=sopen(fullfile(P,F),'r');
+if HDR.NS>1,
+        HDR = sclose(HDR);
+        fprintf(1,'The selected file contains the following channels: \n');
+        for k=1:HDR.NS,
+                fprintf(1,'%3i: %s\n',k,HDR.Label(k,:));
+        end;
+        CHAN = input('Which channel should be used for QRS-detection? ');
+        HDR=sopen(fullfile(P,F),'r',CHAN);
+end;
+[s,HDR]=sread(HDR);
+HDR = sclose(HDR);
 
 
-CHAN = input('which channel?');
-if CHAN<1, CHAN=0; end;
-[s,h] = sload(fullfile(P,F),CHAN);
-Fs = h.SampleRate(min(length(h.SampleRate),CHAN));
+% QRS-Detection
+H2 = qrsdetect(s,HDR.SampleRate);
 
 
-% processing of ECG-envelope
-MODE  = {'ECG_envelope',Fs};
-[Y,Z] = processing(MODE,s(:,1));
-
-
-% THRESHOLD = quantile(Y,.9) is often a good choice.  
-tmp = sort(Y); TH = tmp(round(length(Y)*.9));
-
-% identify fiducial points
-qrsindex = gettrigger(Y,TH); 
+% Extract QRS-info according to BIOSIG/T200/EVENTCODES.TXT
+idx = find(H2.EVENT.TYP == hex2dec('0501'));
+qrsindex = H2.EVENT.POS(idx)/H2.EVENT.SampleRate; 
 
 
 % displays detection
 subplot(211)
-plot((1:size(s,1))/Fs,[s,Y],'-',qrsindex/Fs,-ones(size(qrsindex)),'x');
+plot((1:size(s,1))/HDR.SampleRate,s,'-',qrsindex,-ones(size(qrsindex)),'x');
+xlabel('time t[s]');
+ylabel(sprintf('%s [%s]',HDR.Label(CHAN,:),HDR.PhysDim(CHAN,:)));
 
 subplot(212)
-semilogy((qrsindex(1:end-1)+qrsindex(2:end))/Fs/2,diff(qrsindex)/Fs);
-
+semilogy((qrsindex(1:end-1)+qrsindex(2:end))/2,diff(qrsindex));
+ylabel('RRI [s]');
+xlabel('time t[s]');
 
 
