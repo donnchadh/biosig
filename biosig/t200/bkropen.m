@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.2 $
-%	$Id: bkropen.m,v 1.2 2003-02-03 17:00:08 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: bkropen.m,v 1.3 2003-02-07 21:08:50 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -230,25 +230,24 @@ elseif strcmp(PERMISSION,'w') | strcmp(PERMISSION,'w+') | strcmp(PERMISSION,'r+'
         
 	count=fwrite(BKR.FILE.FID,zeros(4,1),'char');        
 	if isfield(BKR,'Filter'),
-		if isfield(BKR.Filter,'LowPass'),
-			fwrite(BKR.FILE.FID,BKR.Filter.LowPass,'float'); 
-		else
-			fwrite(BKR.FILE.FID,nan,'float'); 
+		if ~isfield(BKR.Filter,'LowPass'),
+			BKR.Filter.LowPass =NaN; 
 		end;        
-		if isfield(BKR.Filter,'HighPass'),
-			fwrite(BKR.FILE.FID,BKR.Filter.HighPass,'float'); 
-		else
-			fwrite(BKR.FILE.FID,nan,'float'); 
+		if ~isfield(BKR.Filter,'HighPass'),
+			BKR.Filter.HighPass=NaN; 
 		end;
 	else
-		fwrite(BKR.FILE.FID,[nan,nan],'float'); 
+		BKR.Filter.LowPass =NaN; 
+		BKR.Filter.HighPass=NaN; 
         end;
+
+	fwrite(BKR.FILE.FID,[BKR.Filter.LowPass,BKR.Filter.HighPass],'float'); 
 
 	count=fwrite(BKR.FILE.FID,zeros(16,1),'char');         	% offset 30
 	count=fwrite(BKR.FILE.FID,BKR.FLAG.TRIGGERED,'int16');	% offset 32
 	count=fwrite(BKR.FILE.FID,zeros(24,1),'char');         	% offset 46
         
-        tmp = [strcmp(BKR.FLAG.REFERENCE,'COM')|strcmp(BKR.FLAG.REFERENCE,'CAR'), strcmp(BKR.FLAG.REFERENCE,'LOC')|strcmp(BKR.FLAG.REFERENCE,'LAR'), strcmp(BKR.FLAG.REFERENCE,'LAP'), strcmp(BKR.FLAG.REFERENCE,'WGT')];
+        tmp  = [strcmp(BKR.FLAG.REFERENCE,'COM')|strcmp(BKR.FLAG.REFERENCE,'CAR'), strcmp(BKR.FLAG.REFERENCE,'LOC')|strcmp(BKR.FLAG.REFERENCE,'LAR'), strcmp(BKR.FLAG.REFERENCE,'LAP'), strcmp(BKR.FLAG.REFERENCE,'WGT')];
         
         fwrite(BKR.FILE.FID,tmp,BOOL); 		% offset 72 + 4*BOOL
                 
