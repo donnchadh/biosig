@@ -26,8 +26,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.51 $
-%	$Id: sload.m,v 1.51 2005-01-17 13:14:10 schloegl Exp $
+%	$Revision: 1.52 $
+%	$Id: sload.m,v 1.52 2005-01-19 21:20:46 schloegl Exp $
 %	Copyright (C) 1997-2005 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -177,8 +177,11 @@ if strncmp(H.TYPE,'IMAGE:',5)
 		fclose(H.FILE.FID);
 	end;
 	return;
+end;
 
-
+H = sopen(H,'r',CHAN);
+if 0,
+        
 elseif H.FILE.OPEN > 0,
         [signal,H] = sread(H);
         H = sclose(H);
@@ -766,5 +769,6 @@ if ~isnan(Fs) & (H.SampleRate~=Fs);
         else 
                 fprintf(2,'Warning SLOAD: resampling %f Hz to %f Hz not implemented.\n',H.SampleRate,Fs);
         end;                
+    end;
 end;
 
