@@ -1,4 +1,4 @@
-% Demostration for generating GDF-files
+% Demostration for generating EDF/BDF/GDF-files
 % DEMO3 is part of the biosig-toolbox
 %    and it tests also Matlab/Octave for its correctness. 
 % 
@@ -12,8 +12,8 @@
 %   i686-pc-cygwin	2.1.42		OK
 %   i586-pc-linux-gnu   2.1.40		OK
 
-%	$Revision: 1.4 $
-%	$Id: demo3.m,v 1.4 2003-10-06 08:15:57 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: demo3.m,v 1.5 2004-04-15 17:28:59 schloegl Exp $
 %	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This library is free software; you can redistribute it and/or
@@ -33,66 +33,70 @@
 
 x = randn(10000,5)+(1:1e4)'*ones(1,5); % test data
 x = (1:1e4)'*ones(1,5); % test data
-clear GDF;
+clear HDR;
 
 VER   = version;
 cname = computer;
 
 % select file format 
-GDF.TYPE='GDF';
-%GDF.TYPE='EDF';
-%GDF.TYPE='BDF'; 
+HDR.TYPE='GDF';
+%HDR.TYPE='EDF';
+%HDR.TYPE='BDF'; 
 
 % set Filename
-GDF.FileName = ['TEST_',VER([1,3]),cname(1:3),'.',GDF.TYPE];
+HDR.FileName = ['TEST_',VER([1,3]),cname(1:3),'.',HDR.TYPE];
 
 % person identification, max 80 char
-GDF.PID = 'person identification';	% e.g. 'MCH-0234567 F 02-MAY-1951 Haagse_Harry'
+HDR.PID = 'person identification';	% e.g. 'MCH-0234567 F 02-MAY-1951 Haagse_Harry'
 
 % recording identification, max 80 char.
-GDF.RID = 'recording identification';	% e.g. 'EMG561 BK/JOP Sony. MNC R Median Nerve.'
+HDR.RID = 'recording identification';	% e.g. 'EMG561 BK/JOP Sony. MNC R Median Nerve.'
 
 % recording time [YYYY MM DD hh mm ss.ccc]
-GDF.T0 = clock;	
+HDR.T0 = clock;	
 
 % number of channels
-GDF.NS = size(x,2);
+HDR.NS = size(x,2);
 
 % Duration of one block in seconds
-GDF.Dur = 1;
+HDR.Dur = 1;
 
 % Samples within 1 block
-GDF.SPR = [100;100;100;100;100];	% samples per block;
+HDR.SPR = [100;100;100;100;100];	% samples per block;
 
 % channel identification, max 80 char. per channel
-GDF.Label=['chan 1  ';'chan 2  ';'chan 3  ';'chan 4  ';'chan 5  '];
+HDR.Label=['chan 1  ';'chan 2  ';'chan 3  ';'chan 4  ';'chan 5  '];
 
 % Transducer, mx 80 char per channel
-GDF.Transducer = ['Ag-AgCl ';'Airflow ';'xyz     ';'        ';'        '];
+HDR.Transducer = ['Ag-AgCl ';'Airflow ';'xyz     ';'        ';'        '];
 
 % filter settings of each channel 
-GDF.PreFilt = ['0-100Hz ';'0-100Hz ';'0-100Hz ';'none    ';'----    '];		% Prefiltering
+HDR.PreFilt = ['0-100Hz ';'0-100Hz ';'0-100Hz ';'none    ';'----    '];		% Prefiltering
 
-% define datatypes (GDF only, see GDFDATATYPE.M for mor details)
-GDF.GDFTYP = 16*ones(1,GDF.NS);
+% define datatypes (GDF only, see GDFDATATYPE.M for more details)
+HDR.GDFTYP = 16*ones(1,HDR.NS);
 
 % define scaling factors 
-GDF.PhysMax = [100;100;100;100;100];
-GDF.PhysMin = [0;0;0;0;0];
-GDF.DigMax  = [100;100;100;100;100];
-GDF.DigMin  = [0;0;0;0;0];
+HDR.PhysMax = [100;100;100;100;100];
+HDR.PhysMin = [0;0;0;0;0];
+HDR.DigMax  = [100;100;100;100;100];
+HDR.DigMin  = [0;0;0;0;0];
 
 % define physical dimension
-GDF.PhysDim = ['uV ';'   ';'   ';'   ';'   '];
+HDR.PhysDim = ['uV ';'   ';'   ';'   ';'   '];
 
-GDF = sopen(GDF,'wb');
-%GDF.SIE.RAW = 0; % [default] channel data mode, one column is one channel 
-%GDF.SIE.RAW = 1; % switch to raw data mode, i.e. one column for one EDF-record
-GDF = swrite(GDF,x);
+t = [100:100:size(x,1)]';
+HDR.EVENT.POS = t;
+HDR.EVENT.TYP = t/100;
 
-GDF = sclose(GDF);
+HDR = sopen(HDR,'wb');
+%HDR.SIE.RAW = 0; % [default] channel data mode, one column is one channel 
+%HDR.SIE.RAW = 1; % switch to raw data mode, i.e. one column for one EDF-record
+HDR = swrite(HDR,x);
 
-[s0,GDF0] = sload(GDF.FileName);	% test file 
+HDR = sclose(HDR);
+
+[s0,HDR0] = sload(HDR.FileName);	% test file 
 
 plot(s0-x)
 

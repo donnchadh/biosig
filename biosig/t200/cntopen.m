@@ -13,8 +13,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.26 $
-%	$Id: cntopen.m,v 1.26 2004-03-26 18:46:11 schloegl Exp $
+%	$Revision: 1.27 $
+%	$Id: cntopen.m,v 1.27 2004-04-15 17:28:56 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -537,6 +537,7 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
 
         CNT.AS.bpb = CNT.NS*2;	% Bytes per Block
 	CNT.AS.spb = CNT.NS;	% Samples per Block
+        CNT.AS.EVENTTABLEPOS = h.eventtablepos;
         CNT.SPR    = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
 	CNT.AS.endpos = CNT.SPR;
         
@@ -586,6 +587,7 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
 		        TEEG(k) = Teeg;
 		end;
         end;
+	
         if length(TEEG) > 0,
                 CNT.EVENT.TYP = [TEEG(:).Stimtype]';
                 CNT.EVENT.POS = ([TEEG(:).Offset]' - CNT.HeadLen) ./ CNT.AS.bpb;

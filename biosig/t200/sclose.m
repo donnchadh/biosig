@@ -18,13 +18,14 @@ function [HDR]=sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.5 $
-%	$Id: sclose.m,v 1.5 2004-03-11 12:41:11 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: sclose.m,v 1.6 2004-04-15 17:28:56 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org
 
 
 if HDR.FILE.FID<0, return; end;
+
 
 if HDR.FILE.OPEN>=2,
 	% check file length - simple test for file integrity         
@@ -82,6 +83,41 @@ if HDR.FILE.OPEN>=2,
 			        fprintf(HDR.FILE.FID,'%-8i',HDR.NRec);
 			end;
 		end;
+                if strcmp(HDR.TYPE,'GDF')
+                        if isfield(HDR,'EVENT'),
+                                if length(HDR.EVENT.POS)~=length(HDR.EVENT.TYP),
+                                        fprintf(HDR.FILE.stderr,'Warning SCLOSE-GDF: cannot write Event table, its broken\n');
+                                else
+                                        HDR.EVENT.N = length(HDR.EVENT.POS);
+                                        HDR.AS.EVENTTABLEPOS = HDR.HeadLen+HDR.AS.bpb*HDR.NRec;
+                                        %fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*HDR.NRec,'bof');
+                                        fseek(HDR.FILE.FID,0,'eof');
+                                        if ftell(HDR.FILE.FID)~=HDR.AS.EVENTTABLEPOS,
+                                                fprintf(HDR.FILE.stderr,'Warning SCLOSE-GDF: inconsistent GDF file\n');
+                                        end
+                                        HDR.EVENT.Version = 1;
+                                        if isfield(HDR.EVENT,'CHN'),
+                                                HDR.EVENT.Version = HDR.EVENT.Version + 1;
+                                        end;
+                                        if isfield(HDR.EVENT,'DUR'),
+                                                HDR.EVENT.Version = HDR.EVENT.Version + 1;
+                                        end;
+                                        fwrite(HDR.FILE.FID,[HDR.EVENT.Version,0,0,0],'char');  % Type of eventtable
+                                        fwrite(HDR.FILE.FID,HDR.EVENT.N,'uint32');
+                                        if HDR.EVENT.Version==1;
+                                                c1 = fwrite(HDR.FILE.FID,HDR.EVENT.POS,'uint32');
+                                                c2 = fwrite(HDR.FILE.FID,HDR.EVENT.TYP,'uint16');
+                                        elseif HDR.EVENT.Version==3;
+                                                c1 = fwrite(HDR.FILE.FID,HDR.EVENT.POS,'uint32');
+                                                c2 = fwrite(HDR.FILE.FID,HDR.EVENT.TYP,'uint16');
+                                                c3 = fwrite(HDR.FILE.FID,HDR.EVENT.CHN,'uint16');
+                                                c4 = fwrite(HDR.FILE.FID,HDR.EVENT.DUR,'uint32');
+                                        else
+                                                fprintf(2,'\nWarning SDFOPEN: Eventtable version %i not supported\n',HDR.EVENT.Version);
+                                        end;
+                                end
+                        end;
+                end;
 
         elseif strcmp(HDR.TYPE,'CFWB');
                 HDR.SPR       = (EndPos-HDR.HeadLen)/HDR.AS.bpb;
@@ -132,8 +168,12 @@ if HDR.FILE.OPEN>=2,
 		end;
 		HDR.FILE.status = fclose(HDR.FILE.FID);
 	        HDR.FILE.OPEN = 0;
-                
+
         end;
+end;
+
+if strcmp(HDR.TYPE,'FIF') ;
+        rawdata('close');
 end;
 
 if HDR.FILE.OPEN,

@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.15 $
-%	$Id: sdfopen.m,v 1.15 2004-03-25 18:51:30 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: sdfopen.m,v 1.16 2004-04-15 17:28:56 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -496,21 +496,51 @@ EDF.AS.GDFbi = [0;cumsum(ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'))];
 EDF.AS.bpb = sum(ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'));	% Bytes per Block
 EDF.AS.startrec = 0;
 EDF.AS.numrec = 0;
+EDF.AS.EVENTTABLEPOS = -1;
 EDF.FILE.POS = 0;
 
 status = fseek(EDF.FILE.FID, 0, 'eof');
-EDF.AS.endpos = ftell(EDF.FILE.FID);
-fseek(EDF.FILE.FID, EDF.HeadLen, 'bof');
+EDF.FILE.size = ftell(EDF.FILE.FID);
+EDF.AS.endpos = EDF.FILE.size;
 
 %[status, EDF.AS.endpos, EDF.HeadLen, EDF.AS.bpb EDF.NRec, EDF.HeadLen+EDF.AS.bpb*EDF.NRec]
 if EDF.NRec == -1   % unknown record size, determine correct NRec
         EDF.NRec = floor((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
 elseif  EDF.NRec ~= ((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
-        EDF.ErrNo=[16,EDF.ErrNo];
-	fprintf(2,'\nWarning SDFOPEN: size (%i) of file %s does not fit headerinformation\n',EDF.AS.endpos,EDF.FileName);
-        
-	EDF.NRec = floor((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
+        if ~strcmp(EDF.VERSION(1:3),'GDF'),
+                EDF.ErrNo=[16,EDF.ErrNo];
+                fprintf(2,'\nWarning SDFOPEN: size (%i) of file %s does not fit headerinformation\n',EDF.AS.endpos,EDF.FileName);
+                EDF.NRec = floor((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
+        else
+                EDF.AS.EVENTTABLEPOS = EDF.HeadLen + EDF.AS.bpb*EDF.NRec;
+        end;
 end; 
+
+if EDF.AS.EVENTTABLEPOS > 0,
+        fseek(EDF.FILE.FID, EDF.AS.EVENTTABLEPOS, 'bof');
+        EDF.EVENT.Version = fread(EDF.FILE.FID,1,'char');
+        tmp = fread(EDF.FILE.FID,3,'char');
+        EDF.EVENT.N = fread(EDF.FILE.FID,1,'uint32');
+        if EDF.EVENT.Version==1,
+                [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint32');
+                [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint16');
+                if any([c1,c2]~=EDF.EVENT.N) | (EDF.AS.endpos~=EDF.AS.EVENTTABLEPOS+8+EDF.EVENT.N*6),
+                        fprintf(2,'\nERRR SDFOPEN: Eventtable corrupted in file %s\n',EDF.FileName);
+                end
+        elseif EDF.EVENT.Version==3,
+                [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint32');
+                [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint16');
+                [EDF.EVENT.CHN,c3] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint16');
+                [EDF.EVENT.DUR,c4] = fread(EDF.FILE.FID,[EDF.EVENT.N,1],'uint32');
+                if any([c1,c2,c3,c4]~=EDF.EVENT.N) | (EDF.AS.endpos~=EDF.AS.EVENTTABLEPOS+8+EDF.EVENT.N*12),
+                        fprintf(2,'\nERRR SDFOPEN: Eventtable corrupted in file %s\n',EDF.FileName);
+                end
+        else
+                fprintf(2,'\nWarning SDFOPEN: Eventtable version %i not supported\n',EDF.EVENT.Version);
+        end;
+        EDF.AS.endpos = EDF.AS.EVENTTABLEPOS;   % set end of data block, might be important for SSEEK
+end;
+fseek(EDF.FILE.FID, EDF.HeadLen, 'bof');
 
 % if Channelselect, ReReferenzing and Resampling
 % Overflowcheck, Adaptive FIR
@@ -1085,7 +1115,7 @@ if ~strcmp(EDF.VERSION(1:3),'GDF');
                 fprintf(EDF.FILE.stderr,'\nWarning SDFOPEN: One block exceeds 61440 bytes.\n')
         end;
 else
-        EDF.VERSION = 'GDF 0.12';
+        EDF.VERSION = 'GDF 1.21';       % April 15th, 2004, support of eventtable position included
 end;
 
 if ~isfield(EDF,'PID')
