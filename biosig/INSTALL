@@ -5,8 +5,7 @@
 % 2) save the BIOSIG files in <your_directory>
 % 3) start matlab and type
 
-addpath <your_directory>/biosig/dataformats
-addpath <your_directory>/biosig/dataformats/edf
+addpath <your_directory>/biosig/t200/
 addpath <your_directory>/biosig/t250/
 
 % you can apply the following commands to load
