@@ -10,6 +10,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 %   'MVAR',	'COHERENCE'
 %   'MVAR'      'DTF'
 %   'MVAR'      'PDC'
+%   'TF-MVAR'	Time-frequency MVAR analysis	
+%		e.g. plota(X, 'PDC' [,alpha]);	%
 %
 %   'HISTOGRAM'	'log'	chansel
 %   'HISTOGRAM'	'log+'	chansel
@@ -34,10 +36,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 
 
 
-
-
-%       $Revision: 1.20 $
-%	$Id: plota.m,v 1.20 2004-02-13 16:58:55 schloegl Exp $
+%       $Revision: 1.21 $
+%	$Id: plota.m,v 1.21 2004-02-23 15:43:22 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -864,6 +864,86 @@ elseif strcmp(X.datatype,'MVAR'),
                 return;
         end;        
         
+elseif strcmp(X.datatype,'TF-MVAR'),
+%GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
+	
+	if nargin<2,
+		arg2 = 'PDC';
+	end;
+	if nargin<3,
+		alpha = 1; 
+	elseif isnumeric(arg3),
+		alpha = arg3;
+	elseif isempty(str2num(arg3))
+		alpha = flag_implicit_significance;
+	else
+		alpha = arg3;
+	end;
+
+	gf = arg2;
+	if ~isfield(X.M,gf)
+		error('PLOTA GMVAR_ALL: field %s is unknonw\n',gf);
+	end;
+	
+	%ClassList = {'left','right','foot','tongue'};
+
+	M   = size(X.M.AR,1);
+	tmp = size(X.M.AR);
+	MOP = tmp(2)/tmp(1);
+
+	if ~isfield(X,'Label'),
+		for k1 = 1:M,
+			Label{k1}=['# ',int2str(k1)];
+		end;
+	end;
+		
+        orient('LANDSCAPE'); 
+        for k1 = 1:M,
+                for k2 = 1:M,
+                        subplot(M,M,(k1-1)*5+k2);
+                        x0 = real(getfield(X.M,gf));
+			x = x0(k1,k2,1:length(X.F),:);
+                        ci = getfield(X.SE,gf)*(X.N-1);
+			ci = ci(k1,k2,1:length(X.F),:);
+                        clim = [min(x0(:)),max(x0(:))];
+			caxis(clim);
+			cm = colormap;
+			if alpha<.5,
+        			xc = 2+round(62*(squeeze(x)-clim(1))/diff(clim));
+				sz = size(x);
+				%x = x(:);
+				xc(abs(x) < (ci*norminv(1-alpha/2))) = 1;
+				%x(abs(x) < .5) = NaN;
+				%x = reshape(x,sz);
+				cm(1,:) = [1,1,1];
+				colormap(cm);
+			else
+				xc = 1+round(63*(squeeze(x)-clim(1))/diff(clim));
+				colormap('default');
+			end;
+			x1 = reshape(cm(xc,1),size(xc));
+			x2 = reshape(cm(xc,2),size(xc));
+			x3 = reshape(cm(xc,3),size(xc));
+			
+                        h  = imagesc(X.T,X.F,cat(3,x1,x2,x3)*diff(clim)+clim(1),clim);
+                        if k1==1, title(Label{k2}); end;
+                        if k2==1, ylabel(Label{k1});end;
+                end;
+        end;
+	%caxis = clim;
+        h   = colorbar;
+	%tmp = get(h,'ytick')'/64*diff(clim)+clim(1);
+	%set(h,'yticklabel',num2str(tmp));
+		
+	if ~isfield(X,'TITLE');	
+		X.TITLE = '';
+	end
+        TIT = [X.TITLE,'_mvar(',int2str(MOP),')_',gf];
+	%[SUBJ,'_',ClassList{k0},'_mvar-',int2str(MOP),'_',gf];
+        tmp=TIT; tmp(tmp=='_')=' ';
+        suptitle(tmp);
+
+        
 elseif strcmp(X.datatype,'EDF'),
         data = arg2;
         [nr,nc]=size(data);
@@ -1326,19 +1406,19 @@ elseif strcmp(X.datatype,'TSD_BCI7')
                 
                 %if 0,%
                 % the following sequence is from R. Scherer 
-                for i = 1:size(mn, 2),
-                        if abs(mn(1,i)) > abs(mn(2,i))
-                                patch([0 0 mn(1,i) mn(1,i) 0], [i-dy i+dy i+dy i-dy i-dy], 'k');
-                                patch([0 0 mn(2,i) mn(2,i) 0], [i-dy i+dy i+dy i-dy i-dy], 'w');
+                for k = 1:size(mn, 2),
+                        if abs(mn(1,k)) > abs(mn(2,k))
+                                patch([0 0 mn(1,k) mn(1,k) 0], [k-dy k+dy k+dy k-dy k-dy], 'k');
+                                patch([0 0 mn(2,k) mn(2,k) 0], [k-dy k+dy k+dy k-dy k-dy], 'w');
                         else
-                                patch([0 0 mn(2,i) mn(2,i) 0], [i-dy i+dy i+dy i-dy i-dy], 'w');
-                                patch([0 0 mn(1,i) mn(1,i) 0], [i-dy i+dy i+dy i-dy i-dy], 'k');
+                                patch([0 0 mn(2,k) mn(2,k) 0], [k-dy k+dy k+dy k-dy k-dy], 'w');
+                                patch([0 0 mn(1,k) mn(1,k) 0], [k-dy k+dy k+dy k-dy k-dy], 'k');
                         end
-                        pos1 = min(min(mn(:,i)), 0);
-                        pos2 = max(max(mn(:,i)), 0);
+                        pos1 = min(min(mn(:,k)), 0);
+                        pos2 = max(max(mn(:,k)), 0);
                         
-                        text(pos1, i, [' ' num2str(100*pc(1,i), '%.0f') '% '], 'HorizontalAlignment', 'Right');
-                        text(pos2, i, [' ' num2str(100*pc(2,i), '%.0f') '% '], 'HorizontalAlignment', 'Left');
+                        text(pos1, k, [' ' num2str(100*pc(1,k), '%.0f') '% '], 'HorizontalAlignment', 'Right');
+                        text(pos2, k, [' ' num2str(100*pc(2,k), '%.0f') '% '], 'HorizontalAlignment', 'Left');
                 end
                 
                 mx = max(max(mn));
