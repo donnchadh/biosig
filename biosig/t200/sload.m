@@ -15,8 +15,8 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 %
 
-%	$Revision: 1.11 $
-%	$Id: sload.m,v 1.11 2004-02-10 18:40:39 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: sload.m,v 1.12 2004-02-17 19:16:38 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -96,7 +96,8 @@ elseif strcmp(H.TYPE,'alpha'),
                         CHAN = 1:H.NS;
                 end;
                 signal = [ones(size(signal,1),1),signal] * H.Calib(:,CHAN);
-        end;        
+                % signal = signal * diag(H.Cal);
+        end;
         
         
 elseif strcmp(H.TYPE,'DAQ')
@@ -178,16 +179,13 @@ elseif strncmp(H.TYPE,'MAT',3),
                         H.Filter.LowPass  = tmp.P_C_S.LowPass;
                         H.Filter.HighPass = tmp.P_C_S.HighPass;
                         H.Filter.Notch    = tmp.P_C_S.Notch;
-                        H.SampleRate   = tmp.P_C_S.SamplingFrequency;
-                        H.AS.Attribute = tmp.P_C_S.Attribute;
-                        H.AS.AttributeName = tmp.P_C_S.AttributeName;
+                        H.SampleRate      = tmp.P_C_S.SamplingFrequency;
+                        H.gBS.Attribute   = tmp.P_C_S.Attribute;
+                        H.gBS.AttributeName = tmp.P_C_S.AttributeName;
                         H.Label = tmp.P_C_S.ChannelName;
-                        H.AS.EpochingSelect = tmp.P_C_S.EpochingSelect;
-                        H.AS.EpochingName = tmp.P_C_S.EpochingName;
-                        ch = strmatch('ARTIFACT',tmp.P_C_S.AttributeName);
-                        if ~isempty(ch)
-                                H.ArtifactSelection = tmp.P_C_S.Attribute(h,:);
-                        end;
+                        H.gBS.EpochingSelect = tmp.P_C_S.EpochingSelect;
+                        H.gBS.EpochingName = tmp.P_C_S.EpochingName;
+
                         signal = double(tmp.P_C_S.Data);
                         
                 else %if isfield(tmp.P_C_S,'Version'),	% with BS.analyze software, ML6.5
@@ -198,22 +196,18 @@ elseif strncmp(H.TYPE,'MAT',3),
                         H.Filter.LowPass  = tmp.P_C_S.lowpass;
                         H.Filter.HighPass = tmp.P_C_S.highpass;
                         H.Filter.Notch    = tmp.P_C_S.notch;
-                        H.SampleRate   = tmp.P_C_S.samplingfrequency;
-                        H.AS.Attribute = tmp.P_C_S.attribute;
-                        H.AS.AttributeName = tmp.P_C_S.attributename;
+                        H.SampleRate      = tmp.P_C_S.samplingfrequency;
+                        H.gBS.Attribute   = tmp.P_C_S.attribute;
+                        H.gBS.AttributeName = tmp.P_C_S.attributename;
                         H.Label = tmp.P_C_S.channelname;
-                        H.AS.EpochingSelect = tmp.P_C_S.epochingselect;
-                        H.AS.EpochingName = tmp.P_C_S.epochingname;
-                        ch = strmatch('ARTIFACT',tmp.P_C_S.attributename);
-                        if ~isempty(ch)
-                                H.ArtifactSelection = tmp.P_C_S.attribute(ch,:);
-                        end;
+                        H.gBS.EpochingSelect = tmp.P_C_S.epochingselect;
+                        H.gBS.EpochingName = tmp.P_C_S.epochingname;
+                        
                         signal = double(tmp.P_C_S.data);
-
                 end;
-                tmp.P_C_S = []; % clear memory
+                tmp = []; % clear memory
 
-                sz   = size(signal);
+                sz     = size(signal);
                 H.NRec = sz(1);
                 H.Dur  = sz(2)/H.SampleRate;
                 H.NS   = sz(3);
@@ -227,17 +221,23 @@ elseif strncmp(H.TYPE,'MAT',3),
                 end;
                 signal = reshape(permute(signal(:,:,CHAN),[2,1,3]),[sz(1)*sz(2),sz(3)]);
 
-                % Convert gBS-epochings into BIOSIG - Events
-                map = zeros(size(H.AS.EpochingName,1),1);
-                map(strmatch('AUGE',H.AS.EpochingName))=hex2dec('0101');
-                map(strmatch('MUSKEL',H.AS.EpochingName))=hex2dec('0103');
-                map(strmatch('ELECTRODE',H.AS.EpochingName))=hex2dec('0105');
+                % Selection of trials with artifacts
+                ch = strmatch('ARTIFACT',H.gBS.AttributeName);
+                if ~isempty(ch)
+                        H.ArtifactSelection = H.gBS.Attribute(ch,:);
+                end;
                 
-                H.EVENT.N   = size(H.AS.EpochingSelect,1);
-                H.EVENT.TYP = map([H.AS.EpochingSelect{:,9}]');
-                H.EVENT.POS = [H.AS.EpochingSelect{:,1}]';
-                H.EVENT.CHN = [H.AS.EpochingSelect{:,3}]';
-                H.EVENT.DUR = [H.AS.EpochingSelect{:,4}]';
+                % Convert gBS-epochings into BIOSIG - Events
+                map = zeros(size(H.gBS.EpochingName,1),1);
+                map(strmatch('AUGE',H.gBS.EpochingName))=hex2dec('0101');
+                map(strmatch('MUSKEL',H.gBS.EpochingName))=hex2dec('0103');
+                map(strmatch('ELECTRODE',H.gBS.EpochingName))=hex2dec('0105');
+                
+                H.EVENT.N   = size(H.gBS.EpochingSelect,1);
+                H.EVENT.TYP = map([H.gBS.EpochingSelect{:,9}]');
+                H.EVENT.POS = [H.gBS.EpochingSelect{:,1}]';
+                H.EVENT.CHN = [H.gBS.EpochingSelect{:,3}]';
+                H.EVENT.DUR = [H.gBS.EpochingSelect{:,4}]';
 
                 
 	elseif isfield(tmp,'P_C_DAQ_S');
