@@ -10,9 +10,9 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.25 $
-%	$Id: bkropen.m,v 1.25 2004-11-10 10:48:30 schloegl Exp $
-%	Copyright (c) 1997-2004 by Alois Schloegl
+%	$Revision: 1.26 $
+%	$Id: bkropen.m,v 1.26 2005-01-05 09:03:35 schloegl Exp $
+%	Copyright (c) 1997-2005 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
 % This program is free software; you can redistribute it and/or
@@ -174,19 +174,9 @@ if any(PERMISSION=='r'),
 	BKR.AS.spb = BKR.NS;	% Samples per Block
 	BKR.FILE.POS = 0;
 
-	%BKR.BKR.ham=ham;
-	%BKR.BKR.spc=spc;
-	%BKR.AS.sref=sref;
-	%BKR.AS.eref=eref;
-	%BKR.AS.eletyp=eletyp;
-	%BKR.AS.elenum=elenum;
-	%BKR.AS.ref=ref;
-
 	BKR.Filter.LowPass  = lcf;
 	BKR.Filter.HighPass = ucf;
 	BKR.Filter.Notch    = nan; %h.notchfilter;
-	%BKR.Filter.NotchOn = h.filterflag;
-	%BKR.Filter.ON   = [e(:).filtered];
         
         BKR.FLAG.TRIGGERED = trg;
 	if ~BKR.FLAG.TRIGGERED & (BKR.NRec>1);
@@ -205,12 +195,17 @@ if any(PERMISSION=='r'),
 
         % THRESHOLD for Overflow detection
         BKR.SIE.THRESHOLD = -(2^15);
+        BKR.THRESHOLD = repmat([-1,1]*BKR.DigMax,BKR.NS,1);
+
+	%status = fseek(fid,0,'eof');
+        BKR.data = fread(fid,[BKR.NS,inf],'int16=>int16')';
+	EndPos = ftell(fid);
+        %status = fseek(fid,BKR.HeadLen,'bof');
+	BKR.AS.endpos = (EndPos-BKR.HeadLen)/BKR.AS.bpb;
+	fclose(fid);
+	BKR.FILE.OPEN = 1;
 
         % check whether Headerinfo fits to file length.
-	status = fseek(fid,0,'eof');
-	EndPos = ftell(fid);
-	BKR.AS.endpos = (EndPos-BKR.HeadLen)/BKR.AS.bpb;
-	status = fseek(fid,BKR.HeadLen,'bof');
 	if (EndPos-BKR.HeadLen)~=BKR.SPR*BKR.NRec*BKR.NS*2,
 		[EndPos,BKR.HeadLen,BKR.SPR,BKR.NRec,BKR.NS],
 		[EndPos-BKR.HeadLen-BKR.SPR*BKR.NRec*BKR.NS*2],
@@ -221,16 +216,6 @@ if any(PERMISSION=='r'),
         end;
 
         % look for Classlabel information
-        if 1; %~isfield(BKR,'Classlabel'),
-                tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.par']);
-                if ~exist(tmp,'file'),
-                	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.PAR']);
-                end
-                if exist(tmp,'file'),
-                        BKR.Classlabel = load(tmp);
-                end;
-        end;
-        
         if ~isfield(BKR,'Classlabel'),
                 BKR.Classlabel = [];
         end;
@@ -243,6 +228,7 @@ if any(PERMISSION=='r'),
                 x = load('-mat',tmp);
         end;
         if isfield(x,'header'),
+                BKR.MAT = x.header;
                 if isfield(x.header,'Result') & isfield(x.header.Result,'Classlabel'),
                         BKR.Classlabel = x.header.Result.Classlabel;
                 end;
@@ -251,12 +237,15 @@ if any(PERMISSION=='r'),
                                 BKR.Classlabel = x.header.Paradigm.Classlabel;
                         end;
                         BKR.BCI.Paradigm = x.header.Paradigm;
-                        if isfield(BKR.BCI.Paradigm,'TriggerTiming');
-                                BKR.TriggerOffset = BKR.BCI.Paradigm.TriggerTiming;
-                        elseif isfield(BKR.BCI.Paradigm,'TriggerOnset');
+                        if isfield(BKR.BCI.Paradigm,'TriggerOnset');
                                 BKR.TriggerOffset = BKR.BCI.Paradigm.TriggerOnset;
+                        elseif isfield(BKR.BCI.Paradigm,'TriggerTiming');
+                            %    BKR.BCI.Paradigm.TriggerTiming,
+                                BKR.TriggerOffset = BKR.BCI.Paradigm.TriggerTiming;
+                                fprintf(2,'Warning BKROPEN: Paradigm.TriggerOnset is unknown. Paradigm.TriggerTiming= %f ms is used instead\n',BKR.TriggerOffset);
                         end;
                 end;
+
                 if isfield(x.header,'PhysioRec'), % R. Leeb's data 
                         BKR.Label = x.header.PhysioRec;
                 end;
@@ -270,7 +259,7 @@ if any(PERMISSION=='r'),
                                 if ns == 1;
                                         BKR.Label = strvcat(BKR.Label,'TRIGGER');
                                 elseif ns > 1;
-                                        BKR.Label = strvcat(BKR.Label,char(repmat('n.a.',-ns,1)));
+                                        BKR.Label = strvcat(BKR.Label,char(repmat('n.a.',ns,1)));
                                 end;
                         end;
                 end;
@@ -287,6 +276,15 @@ if any(PERMISSION=='r'),
                 end;
                 if ~isempty(strmatch('TRIGGER',BKR.Label))
                         BKR.AS.TRIGCHAN = BKR.NS; %strmatch('TRIGGER',H.Label); 
+                end;
+        end;
+        if 1; %~isfield(BKR,'Classlabel'),
+                tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.par']);
+                if ~exist(tmp,'file'),
+                	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.PAR']);
+                end
+                if exist(tmp,'file'),
+                        BKR.Classlabel = load(tmp);
                 end;
         end;
         if 1; %~isfield(BKR,'ArtifactSelection'),
@@ -307,6 +305,23 @@ if any(PERMISSION=='r'),
                                 BKR.ArtifactSelection = sel;
                         end;
                 end;
+        end;
+        if isfield(BKR.AS,'TRIGCHAN') % & isempty(BKR.EVENT.POS)
+                if BKR.AS.TRIGCHAN<=size(BKR.data,2),
+                        BKR.THRESHOLD(BKR.AS.TRIGCHAN,:)=NaN; % do not apply overflow detection for Trigger channel 
+                        BKR.TRIG = gettrigger(double(BKR.data(:,BKR.AS.TRIGCHAN)));
+                        if isfield(BKR,'TriggerOffset')
+                                BKR.TRIG = BKR.TRIG - round(BKR.TriggerOffset/1000*BKR.SampleRate);
+                        end;
+                end;
+        end;
+	BKR.TYPE = 'native'; 
+        if length(BKR.TRIG)~=length(BKR.Classlabel),
+                % hack to deal with BCI22 data
+                fprintf(2,'Warning BKROPEN: Number of triggers (%i) and number of Classlabels (%i) do not fit\n',length(BKR.TRIG),length(BKR.Classlabel));
+                BKR.TRIG = [];
+                BKR.Classlabel = [];
+                BKR.ArtifactSelection = [];
         end;
 
         
