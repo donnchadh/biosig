@@ -28,8 +28,8 @@ function [H,HDR]=eeg2hist(FILENAME,CHAN);
 % [4] A. Schlögl, Time Series Analysis toolbox for Matlab. 1996-2003
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/tsa/
 
-%	$Revision: 1.2 $
-% 	$Id: eeg2hist.m,v 1.2 2003-02-01 15:03:46 schloegl Exp $
+%	$Revision: 1.3 $
+% 	$Id: eeg2hist.m,v 1.3 2003-02-01 15:23:18 schloegl Exp $
 %       Version 0.92        16 Jan 2003
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
@@ -68,8 +68,11 @@ if strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'CNT') | strcmp(HDR.TYPE,'EEG'),
         
         H.H = zeros(2^16,HDR.NS);
         for l = 1:HDR.NS,
-                H.H(:,l)=sparse(s(:,l)'+2^15+1,1,1,2^16,1);
-                %for k = s(:,l)'+2^15+1, H.H(k,l) = H.H(k,l)+1;  end;
+		if exist('OCTAVE_VERSION') > 2,
+                	for k = s(:,l)'+2^15+1, H.H(k,l) = H.H(k,l)+1;  end;
+		else
+                	H.H(:,l)=sparse(s(:,l)'+2^15+1,1,1,2^16,1);
+		end;
         end;
         tmp = find(any(H.H,2));
         H.X = tmp-2^15-1; 	%int16
@@ -89,7 +92,7 @@ elseif strcmp(HDR.TYPE,'BDF'),
         H.H = H.H(tmp,:);
         
 elseif strcmp(HDR.TYPE,'EDF');
-        NoBlks=ceil(60/EDF.Dur);
+        NoBlks=ceil(60/HDR.Dur);
         bi=[0;cumsum(HDR.SPR)];     
         ns=length(CHAN);
         
@@ -104,11 +107,14 @@ elseif strcmp(HDR.TYPE,'EDF');
                 end;
                 
                 %%%%% HISTOGRAM
-                h = zeros(2^16,ns);
                 for l=1:ns,
-                        %for k=reshape(S(bi(CHAN(l))+1:bi(CHAN(l)+1),:),1,HDR.SPR(l)*NoBlks)+2^15+1, H.H(k,l) = H.H(k,l)+1; end;     
-                        h = sparse(S(bi(CHAN(l))+1:bi(CHAN(l)+1),:)+2^15+1,1,1,2^16,1);	                        
-                        H.H(:,ns) = H.H(:,ns) + h;
+	                h = zeros(2^16,1);
+			if exist('OCTAVE_VERSION') > 2,
+                        for k=reshape(S(bi(CHAN(l))+1:bi(CHAN(l)+1),:),1,HDR.SPR(l)*NoBlks)+2^15+1, h(k,l) = h(k,l)+1; end;     
+                        else
+			h = sparse(S(bi(CHAN(l))+1:bi(CHAN(l)+1),:)+2^15+1,1,1,2^16,1);	                        
+                        end;
+			H.H(:,ns) = H.H(:,ns) + h;
                 end;
                 
                 l=l+NoBlks; 
