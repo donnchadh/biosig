@@ -27,7 +27,7 @@ function [CC,Q,tsd,md]=findclassifier1(D,TRIG,cl,T,t0,SWITCH)
 
 
 %   Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Id: findclassifier1.m,v 1.8 2004-03-30 08:45:48 schloegl Exp $
+%	$Id: findclassifier1.m,v 1.9 2004-04-14 08:53:42 schloegl Exp $
 
 
 % This program is free software; you can redistribute it and/or
@@ -211,9 +211,12 @@ for l = find(~isnan(cl(:)'));1:length(cl);
                 JKD1(:,l) = d(:,1);
                 JKD2(:,l) = d(:,2);
                 
-                JKLD(:,l) = ldbc(cc, D(t,:));
+                LDA(:,l) = ldbc(cc);
+                JKLD(:,l) = D(t,:)*LDA(:,l);
         end;	
 end;
+CC.ldaC0 = covm(center(LDA'));
+%CC.ldaCE = covm(LDA','E');
 
 % Concordance matrix with cross-validation 
 CC.mmx= zeros([size(MDIX,1),length(CL)^2]);
