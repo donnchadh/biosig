@@ -1,8 +1,8 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004 Alois Schloegl <a.schloegl@ieee.org>
-# $Revision: 1.7 $
-# $Id: eventcodes.txt,v 1.7 2004-11-17 12:40:51 schloegl Exp $
+# $Revision: 1.8 $
+# $Id: eventcodes.txt,v 1.8 2004-12-22 08:34:12 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -55,10 +55,9 @@
 ### 0x050_	ECG events
 0x0501	ecg:Fiducial point of QRS complex
 0x0502	ecg:P-wave
-0x0503	ecg:Q-point
+0x0503	ecg:QRS-complex
 0x0504	ecg:R-point
-0x0505	ecg:S-point
-0x0506	ecg:T-point
+0x0506	ecg:T-wave
 0x0507	ecg:U-wave
 ### 0x058_	ergometric events 
 0x0580	start
