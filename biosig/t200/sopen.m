@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.20 $
-%	$Id: sopen.m,v 1.20 2003-12-29 09:33:32 schloegl Exp $
+%	$Revision: 1.21 $
+%	$Id: sopen.m,v 1.21 2004-01-09 18:12:54 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -74,7 +74,10 @@ if any(PERMISSION=='r'),
                 fprintf(HDR.FILE.stderr,'Error SOPEN: file %s could not be opened.\n',HDR.FileName);    
                 return;
         else
-                [s,c] = fread(fid,[1,32],'uchar');
+                [s,c] = fread(fid,[1,132],'uchar');
+                if c < 132,
+                        s = [s, repmat(0,1,132-c)];
+                end;
                 if c,
                         type_mat4=str2num(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
 	                ss = setstr(s);
@@ -210,6 +213,16 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='GF1';
                         elseif strncmp(ss,'GIF8',4); 
                                 HDR.TYPE='GIF';
+
+                        elseif all(s(21:28)==abs('ACR-NEMA')); 
+                                HDR.TYPE='ACR-NEMA';
+                        elseif all(s(1:132)==[zeros(1,128),abs('DICM')]); 
+                                HDR.TYPE='DICOM';
+                        elseif all(s(1:8)==[8,0,5,0,10,0,0,0]); % another DICOM format ? 
+                                HDR.TYPE='DICOM';
+                        elseif all(s(1:8)==[8,0,0,0,4,0,0,0]);	% another DICOM format ? 
+                                HDR.TYPE='DICOM';
+
                         elseif all(s(1:4)==hex2dec(['FF';'D9';'FF';'E0'])')
                                 HDR.TYPE='JPG';
 				HDR.Endianity = 'ieee-be';
@@ -261,7 +274,8 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='ZIP';
                         elseif strncmp(ss,'ZYXEL',5); 
                                 HDR.TYPE='ZYXEL';
-                                
+                        elseif strcmpi(HDR.FILE.Name,ss(1:length(HDR.FILE.Name)));
+                                HDR.TYPE='HEA';
                         elseif all(~type_mat4),  % should be last, otherwise to many false detections
                                 HDR.TYPE='MAT4';
                                 if type_mat4(1)==1,
@@ -448,30 +462,34 @@ elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
 elseif strcmp(HDR.TYPE,'SCPECG'),	%
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
 	if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
-                HDR.FILE.OPEN = 1; 
-		HDR.FILE.CRC = fread(HDR.FILE.FID,1,'uint16');
-		HDR.FILE.Length = fread(HDR.FILE.FID,1,'uint32');
+		HDR.FILE.CRC = fread(fid,1,'uint16');
+		HDR.FILE.Length = fread(fid,1,'uint32');
 
-		k = 0;
-		section.CRC = fread(HDR.FILE.FID,1,'uint16');
-		while ~feof(HDR.FILE.FID)
-			pos = ftell(HDR.FILE.FID);
-			section.ID  = fread(HDR.FILE.FID,1,'uint16');
-			section.Length = fread(HDR.FILE.FID,1,'uint32');
-			section.Version= fread(HDR.FILE.FID,[1,2],'uint8');
-			tmp = fread(HDR.FILE.FID,6,'uint8');
+		K = 0;
+		section.CRC = fread(fid,1,'uint16');
+		while ~feof(fid)
+			pos = ftell(fid);
+			section.ID  = fread(fid,1,'uint16');
+			section.Length = fread(fid,1,'uint32');
+			section.Version= fread(fid,[1,2],'uint8');
+			tmp = fread(fid,6,'uint8');
 			
-			k = k + 1;
-			HDR.Section{k} = section;
+			K = K + 1;
+			HDR.Section{K} = section;
 			if section.ID==0, 
+				for k = 1:((section.Length-16)/10),
+					HDR.Block(k).id = fread(fid,1,'uint16');    
+					HDR.Block(k).length = fread(fid,1,'uint32');    
+					HDR.Block(k).startpos = fread(fid,1,'uint32');    
+				end;
 
 			elseif section.ID==1,
 				tag = 0; 
 				k1 = 0;
 				while tag~=255,
-					tag = fread(HDR.FILE.FID,1,'uchar');    
-					len = fread(HDR.FILE.FID,1,'uint16');    
-					field = fread(HDR.FILE.FID,[1,len],'char');    
+					tag = fread(fid,1,'uchar');    
+					len = fread(fid,1,'uint16');    
+					field = fread(fid,[1,len],'uchar');    
 					
 					if tag == 0,	
 						HDR.Patient.LastName = char(field);
@@ -493,43 +511,130 @@ elseif strcmp(HDR.TYPE,'SCPECG'),	%
 						end;
 						HDR.Patient.AgeUnit = unit;
 					elseif tag == 5,
-					else
+						HDR.Patient.DateOfBirth = [field(1:2)*[1;256],field(3:4)];
+					elseif tag == 6,
+						HDR.Patient.Height = field(1:2)*[1;256];
+						tmp = field(3);
+						if tmp==0, unit=' ';
+						elseif tmp==1, unit='cm';
+						elseif tmp==2, unit='inches';
+						elseif tmp==3, unit='mm';
+						end;
+						HDR.Patient.HeightUnit = unit;
+					elseif tag == 7,
+						HDR.Patient.Weight = field(1:2)*[1;256];
+						tmp = field(3);
+						if tmp==0, unit=' ';
+						elseif tmp==1, unit='kg';
+						elseif tmp==2, unit='g';
+						elseif tmp==3, unit='pound';
+						elseif tmp==4, unit='ounce';
+						end;
+						HDR.Patient.WeightUnit = unit;
+					elseif tag == 8,
+						HDR.Patient.Sex = field;
+					elseif tag == 9,
+						HDR.Patient.Race = field;
+					elseif tag == 10,
+						HDR.Patient.Medication = field;
+					elseif tag == 11,
+						HDR.Patient.BloodPressure.Systolic = field*[1;256];
+					elseif tag == 12,
+						HDR.Patient.BloodPressure.Diastolic = field*[1;256];
+					elseif tag == 13,
+						HDR.Patient.Diagnosis = char(field);
+					elseif tag == 14,
+						HDR.SCP.AcquiringDeviceID = char(field);
+					elseif tag == 15,
+						HDR.SCP.AnalyisingDeviceID = char(field);
+					elseif tag == 16,
+						HDR.SCP.AcquiringInstitution = char(field);
+					elseif tag == 17,
+						HDR.SCP.AnalyzingInstitution = char(field);
+					elseif tag == 18,
+						HDR.SCP.AcquiringDepartment = char(field);
+					elseif tag == 19,
+						HDR.SCP.AnalyisingDepartment = char(field);
+					elseif tag == 20,
+						HDR.SCP.Physician = char(field);
+					elseif tag == 21,
+						HDR.SCP.LatestComfirmingPhysician = char(field);
+					elseif tag == 22,
+						HDR.SCP.Technician = char(field);
+					elseif tag == 23,
+						HDR.SCP.Room = char(field);
+					elseif tag == 24,
+						HDR.SCP.Emergency = field;
+					elseif tag == 25,
+						HDR.T0(1,1:3) = [field(1:2)*[1;256],field(3:4)];
+					elseif tag == 26,
+						HDR.T0(1,4:6) = field(1:3);
+					elseif tag == 27,
+						HDR.Filter.HighPass = field(1:2)*[1;256]/100;
+					elseif tag == 28,
+						HDR.Filter.LowPass = field(1:2)*[1;256]/100;
+					elseif tag == 28,
+						HDR.Filter.BitMap = field;
+					elseif tag == 30,
+						HDR.SCP.FreeText = char(field);
+					elseif tag == 31,
+						HDR.SCP.ECGSequenceNumber = char(field);
+					elseif tag == 32,
+						HDR.SCP.MedicalHistoryCodes = char(field);
+					elseif tag == 33,
+						HDR.SCP.ElectrodeConfigurationCodes = field;
+					elseif tag == 34,
+						HDR.SCP.Timezone = field;
+					elseif tag == 35,
+						HDR.SCP.MedicalHistory = char(field);
+					elseif tag == 255,
+						% section terminator	
 					end;
 				end;
 
-			elseif section.ID==2, 
+			elseif section.ID==2, 	% Huffman tables 
+				HDR.SCP2.NHT = fread(fid,1,'uint16');    
+				HDR.SCP2.NCT = fread(fid,1,'uint16');    
+			
 
 			elseif section.ID==3, 
-				HDR.NS = fread(HDR.FILE.FID,1,'char');    
+				HDR.NS = fread(fid,1,'char');    
+				HDR.FLAG.Byte = fread(fid,1,'char');    
+				for k = 1:HDR.NS,
+					HDR.LeadPos(k,1:2) = fread(fid,[1,2],'uint32');    
+					HDR.Lead(k,1) = fread(fid,1,'uint8');    
+		    		end;
+				%LeadIdTable = 	{'I','II','V1','V2','V3','V4','V5','V6','V7','V2R','V3R','V4R','V5R','V6R','V7R','X','Y','Z','CC5','CM5','left arm','right arm','left leg','I','E','C','A','M','F','H','I-cal' ...}';
+				%HDR.Label = LeadIdTable(HDR.Lead);
 
 			elseif section.ID==4, 
 
 			elseif section.ID==5,
-				HDR.Cal = fread(HDR.FILE.FID,1,'int16');    
-				HDR.Dur = fread(HDR.FILE.FID,1,'int16');    
+				HDR.Cal = fread(fid,1,'int16');    
+				HDR.Dur = fread(fid,1,'int16');    
 				HDR.SampleRate = 1e6/HDR.Dur;
-				HDR.CodeTyp = fread(HDR.FILE.FID,1,'int16');    
-				HDR.CodeTyp2 = fread(HDR.FILE.FID,1,'int16');    
+				HDR.CodeTyp = fread(fid,1,'int16');    
+				HDR.CodeTyp2 = fread(fid,1,'int16');    
 
 			elseif section.ID==6, 
-				HDR.Cal = fread(HDR.FILE.FID,1,'int16');    
-				HDR.Dur = fread(HDR.FILE.FID,1,'int16');    
+				HDR.Cal = fread(fid,1,'int16');    
+				HDR.Dur = fread(fid,1,'int16');    
 				HDR.SampleRate = 1e6/HDR.Dur;
-				HDR.CodeTyp = fread(HDR.FILE.FID,1,'uint8');    
-				HDR.CodeTyp2 = fread(HDR.FILE.FID,1,'uint8');    
-				HDR.SPR = fread(HDR.FILE.FID,HDR.NS,'int16');    
-				HDR.HeadLen = ftell(HDR.FILE.FID);
+				HDR.CodeTyp = fread(fid,1,'uint8');    
+				HDR.CodeTyp2 = fread(fid,1,'uint8');    
+				HDR.SPR = fread(fid,HDR.NS,'int16');    
+				HDR.HeadLen = ftell(fid);
 				for k = 1:HDR.NS,
-					tmp = fread(HDR.FILE.FID,HDR.SPR(k),'int8');    
+					tmp = fread(fid,HDR.SPR(k),'int8');    
 					if HDR.CodeTyp==0,
-						HDR.data{k} = tmp;    
+						HDR.SCP.data{k} = tmp;    
 					elseif HDR.CodeTyp==1,
-						HDR.data{k} = cumsum(tmp);    
+						HDR.SCP.data{k} = cumsum(tmp);    
 					elseif HDR.CodeTyp==2,
 						for k1 = 3:length(tmp);
 							tmp(k1) = tmp(k1) + [2,-1]*tmp(k1-(1:2));
 						end;
-						HDR.data{k} = tmp;
+						HDR.SCP.data{k} = tmp;
 					end;
 		    		end;
 
@@ -543,25 +648,29 @@ elseif strcmp(HDR.TYPE,'SCPECG'),	%
 
 			elseif section.ID==11, 
 
-			elseif section.ID==12, 
-
-			elseif section.ID==13, 
-
-			elseif section.ID==14, 
-
-			elseif section.ID==15, 
-
-			elseif section.ID==16, 
-
-			elseif section.ID==17, 
-
 			end;
 
-			tmp = fread(HDR.FILE.FID,min(section.Length-16,1000),'uchar');    
-			
-			fseek(HDR.FILE.FID, pos+section.Length-2, -1);
-			section.CRC = fread(HDR.FILE.FID,1,'uint16');
+			%tmp = fread(fid,min(section.Length-16,1000),'uchar');    
+
+			fseek(fid, pos+section.Length-2, -1);
+			section.CRC = fread(fid,1,'uint16');
 		end;
+		
+                if CHAN==0,		
+                        HDR.SIE.ChanSelect = 1:HDR.NS;
+                elseif all(CHAN>0 & CHAN<=HDR.NS),
+                        HDR.SIE.ChanSelect = CHAN;
+                else
+                        fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+                        fclose(HDR.FILE.FID); 
+                        HDR.FILE.FID = -1;	
+                        return;
+                end;
+	        
+		HDR.FILE.FID = fid;
+                HDR.FILE.OPEN = 1; 
+		HDR.FILE.POS = 0; 
+		HDR.AS.bpb = 2 * HDR.NS;
 	end;
 
 
@@ -655,7 +764,7 @@ elseif strcmp(HDR.TYPE,'rhdE'),
 
 elseif strcmp(HDR.TYPE,'alpha'),
         HDR.FILE.FID = -1;      % make sure SLOAD does not call SREAD;
-        fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),'rt');
+        fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),PERMISSION);
         if fid < 0,
                 fprintf(2,'Error SOPEN alpha-trace: couldnot open RAWHEAD\n');
         else
@@ -696,7 +805,7 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 [s] = fgetl(fid);       % read version
                 [s] = fgetl(fid);       % read calibration time 
                 
-                HDR.Label = zeros(HDR.NS,1);
+                HDR.Label = char(zeros(HDR.NS,1));
                 HDR.Cal   = repmat(NaN,HDR.NS,1);
                 HDR.Off   = zeros(HDR.NS,1);
                 OK   = zeros(HDR.NS,1);
@@ -2317,7 +2426,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 		fid = HDR.FILE.FID;
 		z = fgetl(fid);
 		tmpfile = strtok(z,' /');
-		if ~strcmp(file,tmpfile),
+		if ~strcmpi(file,tmpfile),
 			fprintf(2,'Warning: RecordName %s does not fit filename %s\n',tmpfile,file);
 		end;	
 
@@ -2480,7 +2589,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 		HDR.SIE.InChanSelect = 1:HDR.NS;
 		FLAG_UCAL = HDR.FLAG.UCAL;	
 		HDR.FLAG.UCAL = 1;
-		[S,HDR] = eegread(HDR,1/HDR.SampleRate); % load 1st sample
+		[S,HDR] = sread(HDR,1/HDR.SampleRate); % load 1st sample
                 if any(S(1,:) ~= HDR.firstvalue), 
 			fprintf(2,'ERROR SOPEN MIT-ECG: inconsistency in the first values\n'); 
 		end;
