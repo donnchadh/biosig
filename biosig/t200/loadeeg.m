@@ -14,8 +14,8 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 %
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
 
-%	$Revision: 1.6 $
-%	$Id: loadeeg.m,v 1.6 2003-03-13 18:35:21 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: loadeeg.m,v 1.7 2003-03-13 18:52:33 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -172,14 +172,17 @@ elseif strcmp(TYPE,'MAT')
                 H.NS   = sz(3);
                 H.FLAG.TRIGGERED  = H.NRec>1;
                 
-                tmp.P_C_S = []; % clear memory
                 if any(CHAN),
                         %signal=signal(:,CHAN);
-                        sz(3)=length(CHAN);
-                end;        
-                signal  = repmat(NaN,sz(1)*sz(2),sz(3)); 
+                        sz(3)= length(CHAN);
+                else
+                        CHAN = 1:H.NS;
+                end;
+                
+                tmp.P_C_S = []; % clear memory
+                signal = repmat(NaN,sz(1)*sz(2),sz(3)); 
                 for k1 = 1:sz(1),
-                        signal((k1-1)*sz(2)+(1:sz(2)),:) = squeeze(data(k1,:,CHAN));
+                        signal((k1-1)*sz(2)+(1:sz(2)),:) = reshape(data(k1,:,CHAN),sz(2:3));
                 end;
                 cali = 1;
                 
