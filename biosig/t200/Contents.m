@@ -75,6 +75,7 @@
 %	OPENLDR
 %	BKROPEN
 %	CNTOPEN
+%	GTFOPEN
 %	SDFOPEN
 %	SDFREAD
 %	SDFERROR
@@ -92,8 +93,8 @@
 % [2] http://biosig.sf.net/
 %
 
-%	$Revision: 1.16 $
-%	$Id: Contents.m,v 1.16 2005-03-24 18:20:39 schloegl Exp $
+%	$Revision: 1.17 $
+%	$Id: Contents.m,v 1.17 2005-03-30 14:23:41 schloegl Exp $
 %	CopyLeft (c) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
