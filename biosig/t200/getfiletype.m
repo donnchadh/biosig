@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.19 $
-%	$Id: getfiletype.m,v 1.19 2004-11-28 19:57:56 schloegl Exp $
+%	$Revision: 1.20 $
+%	$Id: getfiletype.m,v 1.20 2004-12-03 20:14:20 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -56,7 +56,7 @@ end;
 
 if exist(HDR.FileName,'dir') 
         [pfad,file,FileExt] = fileparts(HDR.FileName);
-        HDR.FILE.File = file; 
+        HDR.FILE.Name = file; 
         HDR.FILE.Path = pfad; 
 	HDR.FILE.Ext  = FileExt(2:end); 
 	if strcmpi(FileExt,'.ds'), % .. & isdir(HDR.FileName)
@@ -79,8 +79,12 @@ if fid < 0,
         return;
 else
         [pfad,file,FileExt] = fileparts(HDR.FileName);
+        if ~isempty(pfad),
+                HDR.FILE.Path = pfad;
+        else
+                HDR.FILE.Path = pwd;
+        end;
         HDR.FILE.Name = file;
-        HDR.FILE.Path = pfad;
         HDR.FILE.Ext  = char(FileExt(2:length(FileExt)));
 
 	fseek(fid,0,'eof');
@@ -98,7 +102,7 @@ else
 
         if c,
                 %%%% file type check based on magic numbers %%%
-                type_mat4=str2double(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
+                type_mat4 = str2double(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
                 ss = char(s);
                 if all(s(1:2)==[207,0]);
                         HDR.TYPE='BKR';
@@ -108,7 +112,7 @@ else
                         HDR.TYPE = 'BrainVision';
                 elseif strncmp(ss,'0       ',8); 
                         HDR.TYPE='EDF';
-                elseif all(s(1:8)==[255,abs('BIOSEMI')]); 
+                elseif all(s(1:8)==[char(255),abs('BIOSEMI')]); 
                         HDR.TYPE='BDF';
                 elseif strncmp(ss,'GDF',3); 
                         HDR.TYPE='GDF';
@@ -222,6 +226,10 @@ else
                         HDR.TYPE='VOC';
                 elseif strcmp(ss([5:8]),'moov'); 	% QuickTime movie 
                         HDR.TYPE='QTFF';
+                elseif strncmp(ss,'FWS',3) | strncmp(ss,'CWS',3); 	% Macromedia 
+                        HDR.TYPE='SWF';
+			HDR.VERSION = s(4); 
+			HDR.SWF.size = s(5:8)*256.^[0:3]';
                 elseif all(s(1:16)==hex2dec(reshape('3026b2758e66cf11a6d900aa0062ce6c',2,16)')')
                         %'75B22630668e11cfa6d900aa0062ce6c'
                         HDR.TYPE='ASF';
@@ -247,7 +255,7 @@ else
                         HDR.TYPE='WG1';
                         HDR.Endianity = 'ieee-be';
                         
-                elseif strncmp(ss,'RIFF',4)
+                elseif strcmp(ss([1:4,9:12]),'RIFFCNT ')
                         HDR.TYPE='EEProbe-CNT';     % continuous EEG in EEProbe format, ANT Software (NL) and MPI Leipzig (DE)
                 elseif all(s(1:4)==[38 0 16 0])
                         HDR.TYPE='EEProbe-AVR';     % averaged EEG in EEProbe format, ANT Software (NL) and MPI Leipzig (DE)
@@ -303,18 +311,18 @@ else
                         HDR.TYPE='DAQ';
                 elseif strncmp(ss,'MATLAB 5.0 MAT-file',19); 
                         HDR.TYPE='MAT5';
-                        fseek(fid,126,'bof');
-                        tmp = fread(fid,1,'uint16');
-                        if tmp==(abs('MI').*[256,1])
+                        if (s(127:128)==abs('MI')),
                                 HDR.Endianity = 'ieee-le';
-                        elseif tmp==(abs('IM').*[256,1])
+                        elseif (s(127:128)==abs('IM')),
                                 HDR.Endianity = 'ieee-be';
                         end;
                 elseif strncmp(ss,'Model {',7); 
                         HDR.TYPE='MDL';
+                elseif all(s(85:92)==abs('SAS FILE')); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
+                        HDR.TYPE='SAS';
                         
                 elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
-                        HDR.TYPE = 'WFT';	% nicolet 	
+                        HDR.TYPE = 'WFT';	% nicolet
                         
                 elseif all(s(1:3)==[255,255,254]); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
                         HDR.TYPE='FS3';
@@ -538,8 +546,9 @@ else
 			HDR.Endianity = 'ieee-be';
                 elseif strncmp(ss,'#VRML',5); 
                         HDR.TYPE='VRML';
-                elseif strncmp(ss,'# vtk DataFile Version',20); 
+                elseif strncmp(ss,'# vtk DataFile Version ',23); 
                         HDR.TYPE='VTK';
+			HDR.Version = ss(24:26);
                 elseif all(ss(1:5)==[0,0,2,0,4]); 
                         HDR.TYPE='WKS';
                 elseif all(ss(1:5)==[0,0,2,0,abs('Q')]); 
@@ -686,6 +695,12 @@ else
                         HDR.FileName=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1),'H',HDR.FILE.Ext(3)]);
                         HDR.TYPE = 'RG64';
                         
+                elseif strcmpi(HDR.FILE.Ext,'txt') & (any(strfind(HDR.FILE.Path,'a34lkt')) | any(strfind(HDR.FILE.Path,'egl2ln'))) & any(strmatch(HDR.FILE.Name,{'Traindata_0','Traindata_1','Testdata'}))
+                        HDR.TYPE = 'BCI2003_Ia+b';
+                        
+                elseif any(strmatch(HDR.FILE.Name,{'x_train','x_test'}))
+                        HDR.TYPE = 'BCI2003_III';
+                        
                 elseif strcmpi(HDR.FILE.Ext,'hdm')
                         
                 elseif strcmpi(HDR.FILE.Ext,'hc')
@@ -800,8 +815,8 @@ else
                         if all(HDR.FILE.Ext(1:2)=='0') & any(abs(HDR.FILE.Ext(3))==abs([48:57])),	% WSCORE scoring file
                                 x = load('-ascii',HDR.FileName);
                                 HDR.EVENT.POS = x(:,1);
-                                HDR.EVENT.TYP = x(:,2);
-                                HDR.TYPE = 'EVENT';
+                                HDR.EVENT.WSCORETYP = x(:,2);
+                                HDR.TYPE = 'WCORE_EVENT';
                         end;
                 end;
         end;
