@@ -34,9 +34,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 %
 
 
-
-%       $Revision: 1.3 $
-%	$Id: plota.m,v 1.3 2003-04-07 07:27:04 astest Exp $
+%       $Revision: 1.4 $
+%	$Id: plota.m,v 1.4 2003-04-07 07:28:12 astest Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
