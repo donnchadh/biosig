@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.25 $
-%	$Id: getfiletype.m,v 1.25 2005-01-19 21:05:31 schloegl Exp $
+%	$Revision: 1.26 $
+%	$Id: getfiletype.m,v 1.26 2005-02-03 20:41:34 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -107,7 +107,7 @@ else
                 if 0,
                 elseif all(s(1:2)==[207,0]);
                         HDR.TYPE='BKR';
-                elseif strncmp(ss,'Version 3.0',11); 
+                elseif strncmp(ss,'Version 3.0',11); % Neuroscan 
                         HDR.TYPE='CNT';
                 elseif strncmp(ss,'Brain Vision Data Exchange Header File',38); 
                         HDR.TYPE = 'BrainVision';
@@ -143,6 +143,16 @@ else
                         HDR.TYPE='CTF';
                 elseif 0, strncmp(ss,'PATH OF DATASET:',16); 
                         HDR.TYPE='CTF';
+                        
+                elseif strcmp(ss(1:10),'EEG-1100C ') & strcmp(ss(16+(1:length(HDR.FILE.Name))),HDR.FILE.Name);      % Nihon-Kohden
+                        HDR.TYPE='EEG-1100';
+                        HDR.VERSION = ss(11:16);
+                elseif strcmp(ss(1:10),'EEG-1100C ') & strcmp(ss(32+(1:length(HDR.FILE.Name))),HDR.FILE.Name);      % Nihon-Kohden
+                        HDR.TYPE='EEG-1100+';
+                        HDR.VERSION = ss(11:16);
+                elseif strcmp(ss(1:10),'EEG-1100C ')     % Nihon-Kohden
+                        HDR.TYPE='EEG-1100-';
+                        HDR.VERSION = ss(11:16);
                         
                 elseif strcmp(ss(1:8),'@  MFER '); 
                         HDR.TYPE='MFER';
@@ -291,6 +301,8 @@ else
                         HDR.TYPE='CFWB';
                 elseif all(s==[abs('PLEXe'),zeros(1,127)]); 	% http://WWW.PLEXONINC.COM
                         HDR.TYPE='PLX';
+                elseif strncmp(ss,'FILE FORMAT=RigSys',18); 	% RigSys file format 
+                        HDR.TYPE='RigSys';
                         
                 elseif any(s(3:6)*(2.^[0;8;16;24]) == (30:40))
                         HDR.VERSION = s(3:6)*(2.^[0;8;16;24]);
@@ -308,7 +320,7 @@ else
                         
                 elseif (s(1) == 253) & (HDR.FILE.size==(s(6:7)*[1;256]+7));
                         HDR.TYPE='AKO+';
-                elseif all(s(1) == hex2dec(['FD';'AE';'2D';'05'])');
+                elseif all(s(1:4) == [253, 174, 45, 5]); 
                         HDR.TYPE='AKO';
                 elseif s(1) == 253;
                         HDR.TYPE='AKO-';
@@ -378,7 +390,8 @@ else
                         
                 elseif all(s(21:28)==abs('ACR-NEMA')); 
                         HDR.TYPE='ACR-NEMA';
-                elseif all(s(1:132)==[zeros(1,128),abs('DICM')]); 
+
+                elseif all(s(129:132)==abs('DICM')); 
                         HDR.TYPE='DICOM';
                 elseif all(s([2,4,6:8])==0) & all(s([1,3,5]));            % DICOM candidate
                         HDR.TYPE='DICOM';
@@ -388,6 +401,8 @@ else
                         HDR.TYPE='DICOM';
                 elseif all(s([1:8,13:20])==[8,0,0,0,4,0,0,0,8,0,5,0,10,0,0,0])            % DICOM candidate
                         HDR.TYPE='DICOM';
+		% more about the heuristics to identify DICOM files at
+		%<http://groups.google.com/groups?hl=fr&lr=&frame=right&th=cb048de7b4459bd3&seekm=9h9jrs%247jf%40news.Informatik.Uni-Oldenburg.DE#link1>
                         
                 elseif strncmp(ss,'*3DSMAX_ASCIIEXPORT',19)
                         HDR.TYPE='ASE';
@@ -661,7 +676,7 @@ else
                                         tmp = line(7:10);
                                         HDR.EVENT.GroupIndex{N2,1} = tmp;
                                         tmp1 = tmp; tmp1(tmp~='_') = 'F'; tmp1(tmp=='_')='0';
-                                        HDR.EVENT.GroupMask(N2,1)  = hex2dec(tmp1);
+                                        HDR.EVENT.GroupMask(N2,1)  = bitand(hex2dec(tmp1),hex2dec('7FFF'));
                                         tmp1 = tmp; tmp1(tmp=='_') = '0';
                                         HDR.EVENT.GroupValue(N2,1) = hex2dec(tmp1);
                                 end;	
@@ -696,6 +711,8 @@ else
                         
                         % MIT-ECG / Physiobank format
                 elseif strcmpi(HDR.FILE.Ext,'HEA'), HDR.TYPE='MIT';
+                        
+                elseif strcmpi(HDR.FILE.Ext,'DAT') & (upper(HDR.FILE.Name(1))=='E')
                         
                 elseif strcmpi(HDR.FILE.Ext,'DAT') | strcmpi(HDR.FILE.Ext,'ATR'), 
                         tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hea']));
