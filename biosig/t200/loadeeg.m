@@ -1,7 +1,6 @@
 function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % LOADEEG loads EEG data of various data formats
 %
-% --!! LOADEEG is obsolete. Use EEGOPEN, EEGREAD, EEGCLOSE instead !!--
 %       HDR = eegopen(FILENAME,'r',CHANNEL);
 %	[signal,HDR] = eegread(HDR);
 %       HDR = eegclose(HDR);
@@ -15,8 +14,8 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 %
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
 
-%	$Revision: 1.5 $
-%	$Id: loadeeg.m,v 1.5 2003-03-13 17:48:45 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: loadeeg.m,v 1.6 2003-03-13 18:35:21 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -35,8 +34,6 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 % Boston, MA  02111-1307, USA.
 
-
-% fprintf(2,'Warning: LOADEEG is obsolete. Use EEGOPEN, EEGREAD, EEGCLOSE instead. see HELP LOADEEG\n');
 
 if nargin<2; CHAN=0; end;
 
@@ -107,8 +104,6 @@ elseif strcmp(TYPE,'EBS')
 elseif strcmp(TYPE,'MAT')
         tmp = load(FILENAME);
         if isfield(tmp,'y')
-                warning(['Sensitivity not known in ',FILENAME]);
-                signal = tmp.y;
                 H.NS = size(tmp.y,2);
                 if ~isfield(tmp,'SampleRate')
                         warning(['Samplerate not known in ',FILENAME,'. 128Hz is chosen']);
@@ -116,15 +111,26 @@ elseif strcmp(TYPE,'MAT')
                 else
                         H.SampleRate=tmp.SampleRate;
                 end;
+                warning(['Sensitivity not known in ',FILENAME]);
+                if any(CHAN),
+                        signal = tmp.y(:,CHAN);
+                else
+        	        signal = tmp.y;
+                end;
+                
         elseif isfield(tmp,'eeg');
                 warning(['Sensitivity not known in ',FILENAME]);
-                signal=tmp.eeg;
                 H.NS=size(tmp.eeg,2);
                 if ~isfield(tmp,'SampleRate')
                         warning(['Samplerate not known in ',FILENAME,'. 128Hz is chosen']);
                         H.SampleRate=128;
                 else
                         H.SampleRate=tmp.SampleRate;
+                end;
+                if any(CHAN),
+                        signal = tmp.eeg(:,CHAN);
+                else
+        	        signal = tmp.eeg;
                 end;
                 
         elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02 Data format
@@ -166,57 +172,73 @@ elseif strcmp(TYPE,'MAT')
                 H.NS   = sz(3);
                 H.FLAG.TRIGGERED  = H.NRec>1;
                 
+                tmp.P_C_S = []; % clear memory
+                if any(CHAN),
+                        %signal=signal(:,CHAN);
+                        sz(3)=length(CHAN);
+                end;        
                 signal  = repmat(NaN,sz(1)*sz(2),sz(3)); 
                 for k1 = 1:sz(1),
-                        signal((k1-1)*sz(2)+(1:sz(2)),:) = squeeze(data(k1,:,:));
+                        signal((k1-1)*sz(2)+(1:sz(2)),:) = squeeze(data(k1,:,CHAN));
                 end;
                 cali = 1;
                 
         elseif isfield(tmp,'P_C_DAQ_S');
-                signal=double(tmp.P_C_DAQ_S.data{1});
-                H.NS=size(signal,2);
+                signal = double(tmp.P_C_DAQ_S.data{1});
+                H.NS = size(signal,2);
                 %H.PhysDim=tmp.P_C_DAQ_S.unit;     %propriatory information
                 %scale=tmp.P_C_DAQ_S.sens;         %propriatory information
-                H.SampleRate=tmp.P_C_DAQ_S.samplingfrequency;
+                H.SampleRate = tmp.P_C_DAQ_S.samplingfrequency;
                 
         elseif isfield(tmp,'data');
-                signal=tmp.data;
-                H.NS=size(tmp.data,2);
+                H.NS = size(tmp.data,2);
                 if ~isfield(tmp,'SampleRate')
                         warning(['Samplerate not known in ',FILENAME,'. 128Hz is chosen']);
                         H.SampleRate=128;
                 else
                         H.SampleRate=tmp.SampleRate;
+                end;
+                if any(CHAN),
+                        signal = tmp.data(:,CHAN);
+                else
+        	        signal = tmp.data;
                 end;
                 
         elseif isfield(tmp,'EEGdata');  % Telemonitoring Daten (Reinhold Scherer)
-                warning(['Sensitivity not known in ',FILENAME,'. 50µV is chosen']);
-                signal=tmp.EEGdata*50;
-                H.PhysDim='µV';
-                H.NS=size(tmp.EEGdata,2);
-		cl = tmp.classlabel;
+                H.NS = size(tmp.EEGdata,2);
+                H.Classlabel = tmp.classlabel;
                 if ~isfield(tmp,'SampleRate')
                         warning(['Samplerate not known in ',FILENAME,'. 128Hz is chosen']);
                         H.SampleRate=128;
                 else
                         H.SampleRate=tmp.SampleRate;
                 end;
+                H.PhysDim = 'µV';
+                warning(['Sensitivity not known in ',FILENAME,'. 50µV is chosen']);
+                if any(CHAN),
+                        signal = tmp.EEGdata(:,CHAN)*50;
+                else
+                        signal = tmp.EEGdata*50;
+                end;
                 
         elseif isfield(tmp,'daten');	% EP Daten von Michael Woertz
-                warning(['Sensitivity not known in ',FILENAME,'. 100µV is chosen']);
                 H.NS=size(tmp.daten.raw,2)-1;
-                signal=tmp.daten.raw(:,1:H.NS)*100;
-                H.PhysDim='µV';
                 if ~isfield(tmp,'SampleRate')
                         warning(['Samplerate not known in ',FILENAME,'. 2000Hz is chosen']);
                         H.SampleRate=2000;
                 else
                         H.SampleRate=tmp.SampleRate;
                 end;
+                H.PhysDim='µV';
+                warning(['Sensitivity not known in ',FILENAME,'. 100µV is chosen']);
+                %signal=tmp.daten.raw(:,1:H.NS)*100;
+                if any(CHAN),
+                        signal = tmp.daten.raw(:,CHAN)*100;
+                else
+                        signal = tmp.daten.raw*100;
+                end;
                 
         elseif isfield(tmp,'neun') & isfield(tmp,'zehn') & isfield(tmp,'trig');
-                warning(['Sensitivity not known in ',FILENAME]);
-                signal=[tmp.neun;tmp.zehn;tmp.trig];
                 H.NS=3;
                 if ~isfield(tmp,'SampleRate')
                         warning(['Samplerate not known in ',FILENAME,'. 128Hz is chosen']);
@@ -224,11 +246,13 @@ elseif strcmp(TYPE,'MAT')
                 else
                         H.SampleRate=tmp.SampleRate;
                 end;
+                warning(['Sensitivity not known in ',FILENAME]);
+                signal=[tmp.neun;tmp.zehn;tmp.trig];
+                if any(CHAN),
+                        signal=signal(:,CHAN);
+                end;        
         end;        
         
-	if any(CHAN),
-                signal=signal(:,CHAN);
-        end;        
 elseif strcmp(TYPE,'RAW')
         loadraw;
 elseif strcmp(TYPE,'RDT')
