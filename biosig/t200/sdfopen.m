@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.2 $
-%	$Id: sdfopen.m,v 1.2 2003-05-09 17:54:18 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: sdfopen.m,v 1.3 2003-05-30 15:02:20 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -311,11 +311,27 @@ else
         end;     
         H1(185:256)=setstr(fread(EDF.FILE.FID,256-184,'uchar')');     %
         EDF.HeadLen = str2num(H1(185:192));           % 8 Bytes  Length of Header
-        EDF.reserved1=H1(193:136);              % 44 Bytes reserved   
+        EDF.reserved1=H1(193:236);              % 44 Bytes reserved   
         EDF.NRec    = str2num(H1(237:244));     % 8 Bytes  # of data records
         EDF.Dur     = str2num(H1(245:252));     % 8 Bytes  # duration of data record in sec
         EDF.NS      = str2num(H1(253:256));     % 4 Bytes  # of signals
 	EDF.AS.H1   = H1;	                     % for debugging the EDF Header
+end;
+
+if strcmp(EDF.reserved1(1:4),'EDF+'),	% EDF+ specific header information 
+	[EDF.Patient.Id,   tmp] = strtok(EDF.PID,' ');
+	[EDF.Patient.Sex,  tmp] = strtok(tmp,' ');
+	[EDF.Patient.Birthday, tmp] = strtok(tmp,' ');
+	[EDF.Patient.Name, tmp] = strtok(tmp,' ');
+
+	[chk, tmp] = strtok(EDF.RID,' ');
+	if ~strcmp(chk,'Startdate')
+		fprinf(EDF.FILE.stderr,'Warning SDFOPEN: EDF+ header is corrupted.\n');
+	end;
+	[EDF.Date2, tmp] = strtok(tmp,' ');
+	[EDF.ID.Investigation, tmp] = strtok(tmp,' ');
+	[EDF.ID.Investigator,  tmp] = strtok(tmp,' ');
+	[EDF.ID.Equiment, tmp] = strtok(tmp,' ');
 end;
 
 if isempty(EDF.NS) %%%%% not EDF because filled out with ASCII(0) - should be spaces
@@ -329,13 +345,6 @@ if isempty(EDF.HeadLen) %%%%% not EDF because filled out with ASCII(0) - should 
         EDF.HeadLen=256*(1+EDF.NS);
 end;
 
-
-if any(~isempty(EDF.reserved1)) %%%%% not EDF because filled out with ASCII(0) - should be spaces
-        fprintf(2, 'Warning SDFOPEN: 44bytes-reserved-field of fixed header is not empty in %s\n',EDF.FILE.Name);
-        %EDF.ErrNo=[1057,EDF.ErrNo];
-end;
-
-
 if isempty(EDF.NRec) %%%%% not EDF because filled out with ASCII(0) - should be spaces
         EDF.ErrNo=[1027,EDF.ErrNo];
         EDF.NRec = -1;
@@ -344,12 +353,6 @@ end;
 if isempty(EDF.Dur) %%%%% not EDF because filled out with ASCII(0) - should be spaces
         EDF.ErrNo=[1088,EDF.ErrNo];
         EDF.Dur=30;
-else 
-	if ~strcmp(EDF.VERSION(1:3),'GDF'),
-		if (EDF.Dur>1) & (EDF.Dur~=fix(EDF.Dur)), % Blockduration must be in seconds or subsecond range 
-		        EDF.ErrNo=[1088,EDF.ErrNo];
-		end;
-	end;	
 end;
 
 if  any(EDF.T0>[2084 12 31 24 59 59]) | any(EDF.T0<[1985 1 1 0 0 0])
