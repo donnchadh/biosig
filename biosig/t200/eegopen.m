@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.13 $
-%	$Id: eegopen.m,v 1.13 2003-05-26 17:17:24 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: eegopen.m,v 1.14 2003-05-26 18:42:36 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -431,14 +431,15 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         HDR.FILE.POS= 0;
         HDR.HeadLen = ftell(HDR.FILE.FID);  % Length of Header
         fseek(HDR.FILE.FID,0,'eof'); 
-        HDR.AS.endpos = ftell(HDR.FILE.FID); 
+        endpos = ftell(HDR.FILE.FID); 
         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         %[HDR.AS.endpos,HDR.HeadLen,HDR.NS,HDR.SPR,HDR.NS*HDR.SPR*4,HDR.AS.endpos-HDR.HeadLen - HDR.NS*HDR.SPR*4]
-        if HDR.AS.endpos-HDR.HeadLen ~= HDR.NS*HDR.SPR*4;
+        if endpos-HDR.HeadLen ~= HDR.NS*HDR.SPR*4;
                 fprintf(HDR.FILE.stderr,'Warning EEGOPEN TYPE=SMA: Header information does not fit size of file\n');
                 fprintf(HDR.FILE.stderr,'\tProbably more than one data segment - this is not supported in the current version of EEGOPEN\n');
         end
-        HDR.AS.bpb = HDR.NS*4;
+        HDR.AS.bpb    = HDR.NS*4;
+        HDR.AS.endpos = (endpos-HDR.HeadLen)/HDR.NS/4;
         
         if ~isfield(HDR,'SMA')
 	        HDR.SMA.EVENT_CHANNEL= 1;

@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.9 $
-%	$Id: eegread.m,v 1.9 2003-05-26 17:17:24 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: eegread.m,v 1.10 2003-05-26 18:42:36 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -70,12 +70,14 @@ elseif strcmp(HDR.TYPE,'SMA'),
 		HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         
+        NoS = min(NoS,(HDR.AS.endpos-HDR.FILE.POS)/HDR.SPR);
         [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],'float'); % read data frame
         
         HDR.SMA.events = diff(sign([HDR.Filter.T0',S(HDR.SMA.EVENT_CHANNEL,:)]-HDR.SMA.EVENT_THRESH))>0;
-        HDR.Filter.T0 = S(HDR.SMA.EVENT_CHANNEL,size(S,2))';
-        
-	if count,
+        if size(S,2)>0,
+	        HDR.Filter.T0  = S(HDR.SMA.EVENT_CHANNEL,size(S,2))';
+        end;
+        if count,
 	        S = S(HDR.SIE.ChanSelect,:)';
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
@@ -292,7 +294,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
                         if count>0, 
                                 HDR.FILE.POS = HDR.FILE.POS + 1;
                         end;
-                        
+                        
                         if (HDR.eventtypes > 0),
                                 for k=HDR.NS+1:size(S,1)
                                         HDR.EventData{k-HDR.NS} = [HDR.EventData{k-HDR.NS};find(S(k,:))'];
@@ -344,7 +346,7 @@ elseif strcmp(HDR.TYPE,'EEG'),
         end;
         
         NoS = min(NoS,HDR.NRec-HDR.FILE.POS);
-        S   = zeros(NoS*HDR.SPR,HDR.NS); 
+        S   = zeros(NoS*HDR.SPR,length(HDR.SIE.InChanSelect));
         count = 0;
         for i = 1:NoS,%h.compsweeps,
                 h.sweep(i).accept     = fread(HDR.FILE.FID,1,'char');
@@ -362,7 +364,7 @@ elseif strcmp(HDR.TYPE,'EEG'),
         end;
         HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.spb;        
         if ~HDR.FLAG.UCAL,
-                S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.InChanSelect],:);
+                S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.InChanSelect],HDR.SIE.ChanSelect);
         end;
         
 elseif strcmp(HDR.TYPE,'CNT'),

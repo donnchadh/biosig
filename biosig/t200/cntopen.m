@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.3 $
-%	$Id: cntopen.m,v 1.3 2003-05-26 17:17:24 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: cntopen.m,v 1.4 2003-05-26 18:42:35 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -446,7 +446,7 @@ elseif strcmp(upper(CNT.FILE.Ext),'EEG')
 	CNT.FLAG.TRIGGERED=1;	        
         
         % for some reason, this is correct, 
-        h.eventtablepos = CNT.NRec*CNT.AS.bpb+CNT.HeadLen,
+        h.eventtablepos = CNT.NRec*CNT.AS.bpb+CNT.HeadLen;
         
 elseif strcmp(upper(CNT.FILE.Ext),'CNT')        
 	CNT.FILE.POS = 0;
@@ -466,8 +466,6 @@ fseek(CNT.FILE.FID,h.eventtablepos,'bof');
 CNT.EVENT.Teeg       = fread(fid,1,'char');	%	
 CNT.EVENT.TeegSize   = fread(fid,1,'int32');	%	
 CNT.EVENT.TeegOffset = fread(fid,1,'int32');	%	
-
-CNT.EVENT,
 
 k=1;
 K=1;
