@@ -7,8 +7,8 @@ function argout=sview(s,H),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.3 $
-%	$Id: sview.m,v 1.3 2004-04-16 20:44:48 schloegl Exp $ 
+%	$Revision: 1.4 $
+%	$Id: sview.m,v 1.4 2004-05-09 17:38:55 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -27,21 +27,30 @@ function argout=sview(s,H),
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 if ischar(s),
-        if exist(s)==2,
+        if nargin<2,
                 [s,H] = sload(s);
+        else
+                [s,H] = sload(s,H);
         end;
-elseif isstruct(H)
-        [s,H] = sload(H);
+elseif isstruct(s)
+        [s,H] = sload(s);
 else 
         return;
 end;
 
-LEG = H.Label;
 
-t  = s(:); 
+%s = regress_eog(s,1:3,4:7);
+
+
+if isfield(H,'Label'),
+        LEG = H.Label;
+else
+        LEG = '';
+end;
+
+t = s(:); 
 t(isnan(t))=median(t);
 dd = max(t)-min(t);
-
 
 plot((1:size(s,1))'/H.SampleRate,((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)),'-');
 if H.EVENT.N > 0,
@@ -49,7 +58,7 @@ if H.EVENT.N > 0,
         if 0, 
         elseif isfield(H.EVENT,'DUR') & isfield(H.EVENT,'CHN');
                 plot([H.EVENT.POS,H.EVENT.POS+H.EVENT.DUR]'/H.SampleRate,[dd;dd]*H.EVENT.CHN','+-');    
-                
+
         elseif isfield(H.EVENT,'CHN');
                 plot(H.EVENT.POS/H.SampleRate, H.EVENT.CHN*dd, 'x');
                 
@@ -69,7 +78,9 @@ xlabel('time t[s]');
 ylabel(sprintf('Amplitude [%s]',H.PhysDim(1,:)));
 
 if exist('OCTAVE_VERSION')<5;
-        legend(LEG);
+        if ~isempty(LEG);
+                legend(LEG);
+        end;
 end;
 
 if nargout
