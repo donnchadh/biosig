@@ -18,9 +18,9 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.7 $
-%	$Id: swrite.m,v 1.7 2004-04-16 14:10:43 schloegl Exp $
-%	Copyright (c) 1997-2003 by Alois Schloegl
+%	$Revision: 1.8 $
+%	$Id: swrite.m,v 1.8 2005-01-05 13:11:06 schloegl Exp $
+%	Copyright (c) 1997-2005 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
 
@@ -31,64 +31,44 @@ end;
 
 
 if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
-        
-        %%% this tests are necessary, since Octave skips the high bits,
-        if exist('OCTAVE_VERSION')>2,
-                if strcmp(HDR.TYPE,'EDF'),
-                        data(data> 2^15-1) =  2^15-1;
-                        data(data<-2^15  ) = -2^15;
-                end;
-                if strcmp(HDR.TYPE,'BDF'),
-                        data(data> 2^23-1) =  2^23-1;
-                        data(data<-2^23  ) = -2^23;
-                end;
-                if strcmp(HDR.TYPE,'GDF'),
-                        fprintf(2,'Warning GDF-WRITE: overflow check not implemented.\n');
-                end;
-        end;
-        
-        % 	for GDF only one datatype is supported
         if ~all(HDR.GDFTYP==HDR.GDFTYP(1)) 
                 fprintf(2,'Error SWRITE: different GDFTYPs not supported yet!\n');
                 return;
-        end;
+        end;        
+
+        if ~any(HDR.GDFTYP(1)==[16,17,18]),
+                data(data< HDR.THRESHOLD(1,1)) = HDR.THRESHOLD(1,1); %underflow
+                data(data> HDR.THRESHOLD(1,2)) = HDR.THRESHOLD(1,2); %overflow 
+                data(isnan(data))  = HDR.THRESHOLD(1,3);        % missing value
+        end
         
+        % 	for GDF only one datatype is supported
         if HDR.SIE.RAW,
-                if isnan(HDR.AS.spb),  %first call of sdfwrite
-                        [HDR.AS.spb,HDR.NRec]=size(data);
-                        HDR.AS.bpb = 2*HDR.AS.spb; %only for HDR
-                end;
                 if sum(HDR.SPR)~=size(data,1)
                         fprintf(2,'Warning EDFWRITE: datasize must fit to the Headerinfo %i %i %i\n',HDR.AS.spb,size(data));
                         fprintf(2,'Define the Headerinformation correctly.\n',HDR.AS.spb,size(data));
                 end;
-                count = fwrite(HDR.FILE.FID,data,gdfdatatype(HDR.GDFTYP(1)));
-        else
+                D = data; 
                 
-                %   Support of only 1 sample rate
-                if ~all(HDR.SPR==HDR.SPR(1)) 
-                        fprintf(2,'Error SWRITE: different Samplingrates require RAW-data mode !\n');
-                        return;
-                end;
+        elseif ~all(HDR.SPR==HDR.SPR(1)) %   Support of only 1 sample rate
+                fprintf(2,'Error SWRITE: different Samplingrates require RAW-data mode !\n');
+                return;
                 
-                [nr,HDR.NS] = size(data);
-                if isnan(HDR.AS.spb),  %first call of sdfwrite
-                        HDR.AS.MAXSPR = floor(61440/2/HDR.NS);
-                        HDR.SPR = ones(HDR.NS,1)*HDR.AS.MAXSPR;
-                        HDR.AS.spb = sum(HDR.SPR);
-                        HDR.AS.bpb = 2*HDR.AS.spb; %only for HDR
-                end;        
+        elseif (HDR.AS.MAXSPR == 1), 
+                D=data'; 
                 
-                count=0;
-                for k = 0:floor(nr/HDR.AS.MAXSPR)-1;
-                        c = fwrite(HDR.FILE.FID,data(k*HDR.AS.MAXSPR+(1:HDR.AS.MAXSPR),:),gdfdatatype(HDR.GDFTYP(1)));
-                        count = count + c;
-                end;
-                tmp = rem(nr,HDR.AS.MAXSPR);
-                if tmp,
-                        fprintf(2,'Warning SWRITE (EDF/GDF/BDF): last block is too short\n');
+        else    
+                % fill missing data with NaN
+                tmp = rem(size(data,1),HDR.AS.MAXSPR);
+                data = [data;repmat(HDR.THRESHOLD(1,3),HDR.AS.MAXSPR-tmp,size(data,2))];                                
+                
+                D = [];
+                for k = 0:size(data,1)/HDR.AS.MAXSPR-1;
+                        tmp = data(k*HDR.AS.MAXSPR+(1:HDR.AS.MAXSPR),:);
+                        D = [D,tmp(:)];
                 end;
         end;
+        count = fwrite(HDR.FILE.FID,D,gdfdatatype(HDR.GDFTYP(1)));
         HDR.AS.numrec = HDR.AS.numrec + count/HDR.AS.spb;
         HDR.FILE.POS  = HDR.FILE.POS  + count/HDR.AS.spb;
         
@@ -111,9 +91,7 @@ elseif strcmp(HDR.TYPE,'BKR'),
                         data = data*(HDR.DigMax/HDR.PhysMax);
                 end;
                 % Overflow detection
-                %data(data>2^15-1)=  2^15-1;	
-                %data(data<-2^15) = -2^15;
-                data((data>2^15-1) | (data<-2^15)) = HDR.SIE.THRESHOLD;	
+                data((data>2^15-1) | (data<-2^15)) = -2^15; 
                 count = fwrite(HDR.FILE.FID,data','short');
         else
                 fprintf(2,'Error SWRITE: number of columns (%i) does not fit Header information (number of channels HDR.NS %i)',size(data,2),HDR.NS);

@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.35 $
-%	$Id: sdfopen.m,v 1.35 2005-01-05 09:05:48 schloegl Exp $
+%	$Revision: 1.36 $
+%	$Id: sdfopen.m,v 1.36 2005-01-05 13:11:06 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -394,7 +394,6 @@ if ~strcmp(EDF.VERSION(1:3),'GDF'),
         %EDF.reserved  =       h2(:,idx1(10)+1:idx1(11));
 	if ~all(abs(EDF.VERSION)==[255,abs('BIOSEMI')]),
 		EDF.GDFTYP     = 3*ones(1,EDF.NS);	%	datatype
-                EDF.THRESHOLD  = [EDF.DigMin,EDF.DigMax];       % automated overflow detection 
 	else
 		EDF.GDFTYP     = (255+24)*ones(1,EDF.NS);	%	datatype
 	end;
@@ -422,6 +421,7 @@ else
         EDF.DigMin     = tmp((1:EDF.NS)*2-1);
         tmp            =         fread(EDF.FILE.FID,[2*EDF.NS,1],'int32');	
         EDF.DigMax     = tmp((1:EDF.NS)*2-1);
+        EDF.THRESHOLD  = [EDF.DigMin,EDF.DigMax];       % automated overflow detection 
         
         EDF.PreFilt    =  setstr(fread(EDF.FILE.FID,[80,EDF.NS],'uchar')');	%	
         EDF.SPR        =         fread(EDF.FILE.FID,[ 1,EDF.NS],'uint32')';	%	samples per data record
@@ -1496,6 +1496,8 @@ else
 	fprintf(EDF.FILE.stderr,'Error SDFOPEN: invalid VERSION %s\n ',EDF.VERSION);
 	return;
 end;
+[tmp,EDF.THRESHOLD]=gdfdatatype(EDF.GDFTYP);
+
 
 %%%%%% generate Header 1, first 256 bytes 
 EDF.HeadLen=(EDF.NS+1)*256;

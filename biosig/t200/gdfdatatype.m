@@ -1,5 +1,8 @@
-function datatyp=gdfdatatype(x)
+function [datatyp,limits,datatypes]=gdfdatatype(GDFTYP)
 % GDFDATATYPE converts number into data type according to the definition of the GDF format [1]. 
+%
+%   [datatyp,limits,datatypes]=gdfdatatype(GDFTYP)
+%
 %
 % See also: SDFREAD, SREAD, SWRITE, SCLOSE
 %
@@ -21,62 +24,70 @@ function datatyp=gdfdatatype(x)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.5 $
-%	$Id: gdfdatatype.m,v 1.5 2004-09-24 18:01:12 schloegl Exp $
-%	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.6 $
+%	$Id: gdfdatatype.m,v 1.6 2005-01-05 13:11:06 schloegl Exp $
+%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
-if ischar(x),
-        datatyp=x;
+if ischar(GDFTYP),
+        datatyp=GDFTYP;
         return; 
 end;
 
-k=1;
-EDF.GDFTYP(1)=x;
-if EDF.GDFTYP(k)==0
-        datatyp=('uchar');
-elseif EDF.GDFTYP(k)==1
-        datatyp=('int8');
-elseif EDF.GDFTYP(k)==2
-        datatyp=('uint8');
-elseif EDF.GDFTYP(k)==3
-        datatyp=('int16');
-elseif EDF.GDFTYP(k)==4
-        datatyp=('uint16');
-elseif EDF.GDFTYP(k)==5
-        datatyp=('int32');
-elseif EDF.GDFTYP(k)==6
-        datatyp=('uint32');
-elseif EDF.GDFTYP(k)==7
-        datatyp=('int64');
-elseif EDF.GDFTYP(k)==8
-        datatyp=('uint64');
-elseif EDF.GDFTYP(k)==16
-        datatyp=('float32');
-elseif EDF.GDFTYP(k)==17
-        datatyp=('float64');
-elseif EDF.GDFTYP(k)==256
-        datatyp=('bit1');
-elseif EDF.GDFTYP(k)==512
-        datatyp=('ubit1');
-elseif EDF.GDFTYP(k)==255+12
-        datatyp=('bit12');
-elseif EDF.GDFTYP(k)==511+12
-        datatyp=('ubit12');
-elseif EDF.GDFTYP(k)==255+22
-        datatyp=('bit22');
-elseif EDF.GDFTYP(k)==511+22
-        datatyp=('ubit22');
-elseif EDF.GDFTYP(k)==255+24
-        datatyp=('bit24');
-elseif EDF.GDFTYP(k)==511+24
-        datatyp=('ubit24');
-%elseif EDF.GDFTYP(k)>255 & EDF.GDFTYP(k)< 256+64
-%        datatyp=(['bit' int2str(EDF.GDFTYP(k)-255)]);
-%elseif EDF.GDFTYP(k)>511 & EDF.GDFTYP(k)< 511+64
-%        datatyp=(['ubit' int2str(EDF.GDFTYP(k)-511)]);
-else 
-        fprintf(2,'Error GDFREAD: Invalid GDF channel type\n');
-        datatyp='';
+limits=repmat(NaN,length(GDFTYP),3);
+
+for k=1:length(GDFTYP),
+        if GDFTYP(k)==0
+                datatyp=('uchar');
+                limit = [0,256,256];        
+        elseif GDFTYP(k)==1
+                datatyp=('int8');
+                limit = [-128,127,128];        
+        elseif GDFTYP(k)==2
+                datatyp=('uint8');
+                limit = [0,256,256];        
+        elseif GDFTYP(k)==3
+                datatyp=('int16');
+                limit = [-2^15,2^15-1,-2^15];        
+        elseif GDFTYP(k)==4
+                datatyp=('uint16');
+                limit = [0,2^16,2^16];        
+        elseif GDFTYP(k)==5
+                datatyp=('int32');
+                limit = [-2^32,2^32-1,-2^32];        
+        elseif GDFTYP(k)==6
+                datatyp=('uint32');
+                limit = [0,2^32,2^32];        
+        elseif GDFTYP(k)==7
+                datatyp=('int64');
+                limit = [-2^63,2^63-1,-2^63];        
+        elseif GDFTYP(k)==8
+                datatyp=('uint64');
+                limit = [0,2^64,2^64];        
+        elseif GDFTYP(k)==16
+                datatyp=('float32');
+                limit = [-inf,inf,NaN];        
+        elseif GDFTYP(k)==17
+                datatyp=('float64');
+                limit = [-inf,inf,NaN];        
+        elseif GDFTYP(k)==18
+                datatyp=('float128');
+                limit = [-inf,inf,NaN];        
+        elseif (GDFTYP(k)>255) & (GDFTYP(k)<512)
+                nbits = int2str(GDFTYP(k)-255);
+                datatyp=['bit',nbits];
+                limit = [-(2^(nbits-1)),2^(nbits-1)-1,-(2^(nbits-1))];
+        elseif (GDFTYP(k)>511) & (GDFTYP(k)<768)
+                nbits = int2str(GDFTYP(k)-511);
+                datatyp=['ubit',nbits];
+                limit = [0,2^nbits,2^nbits];
+        else 
+                fprintf(2,'Error GDFREAD: Invalid GDF channel type\n');
+                datatyp='';
+                limit = [NaN,NaN,NaN];
+
+        end;
+        datatypes{k} = datatyp;
+        limits(k,:)  = limit;
 end;
