@@ -168,12 +168,12 @@ else
     if strmatch('Stop/Save Detection',detect_stat)
         setdefault_detection_stop(Data);
     end
-    try
+%    try
         setdefault(file,path);
-    catch
-        errordlg('Incorrect file! (Error:D1)', 'Error');
-        return;
-    end
+        %    catch
+        %errordlg('Incorrect file! (Error:D1)', 'Error');
+        %return;
+        %    end
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1280,7 +1280,7 @@ if ~isempty(eventmatrix)
         D=num2str(D);
         H=num2str(H);
         MI=num2str(MI);
-        [file,path]=uiputfile([filename '-' Y M D '-' H MI '.mat'],'Save Detection');
+        [file,path]=uiputfile([filename '-' Y M D '-' H MI '.evt'],'Save Detection');
         if isequal(file,0) | isequal(path,0)
             set(findobj('Tag','Startdetection'),'Label','Start                               F5');
             Data.Detection.EventMatrix = [];
@@ -1292,8 +1292,21 @@ if ~isempty(eventmatrix)
             return;
         else
             new_detection = [path file];
-            samplerate = max(Data.HDR.SampleRate);
-            save(new_detection,'eventmatrix','samplerate');
+
+            % save EVENTS in GDF format
+            H.TYPE = 'EVENT';
+            [p,f,e]=fileparts(new_detection);
+            H.FileName = fullfile(p,[f,'.evt']);
+            H.T0 = Data.HDR.T0;
+            H.PID = ['Scoring of file: ', Data.HDR.FileName];
+            H.RID = 'Generated with SVIEWER from http://biosig.sf.net';
+            H.EVENT.SampleRate = Data.HDR.SampleRate; 
+            H.EVENT.POS = eventmatrix(:,1);
+            H.EVENT.TYP = eventmatrix(:,2);
+            H.EVENT.CHN = eventmatrix(:,3);
+            H.EVENT.DUR = eventmatrix(:,4);
+            H=sopen(H,'w'); H=sclose(H);
+
             Data.Detection.EventMatrix = [];
             set(findobj('Tag','sviewer'),'UserData',Data);
             h = Data.SPlot;
