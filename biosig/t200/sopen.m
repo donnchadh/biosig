@@ -32,13 +32,19 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.24 $
-%	$Id: sopen.m,v 1.24 2004-01-25 02:12:37 schloegl Exp $
-%	(C) 1997-2003 by Alois Schloegl
+%	$Revision: 1.25 $
+%	$Id: sopen.m,v 1.25 2004-02-02 15:42:58 schloegl Exp $
+%	(C) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
+biosig_update;
+
+if isnan(str2double('1, 3'));
+	fprintf(2,'Warning BIOSIG: incorrect version of STR2DOUBLE.\n');
+	fprintf(2,'- Its recommended to update STR2DOUBLE. Contact Alois!\n');
+end;
 
 if nargin<2, 
         PERMISSION='rb'; 
@@ -580,35 +586,36 @@ elseif strcmp(HDR.TYPE,'alpha'),
 	                fprintf(2,'Error SOPEN alpha-trace: couldnot open RAWHEAD\n');
         else
                 H = []; k = 0;
+                HDR.TYPE = 'unknown';
                 while ~feof(fid),
                         [s] = fgetl(fid);
                         if ~isnumeric(s),
                                 [tag,s] = strtok(s,'=');
                                 [tmp,s] = strtok(s,'=');
-                                num = str2double(tmp);
-                                if isempty(num),
-                                        num = tmp;
+                                [val,status] = str2double(tmp);
+                                if status,
+                                        val = tmp;
                                 end;
-                                try,
-                                        H = setfield(H,deblank(tag),num);
-                                catch
-                                        fprintf(HDR.FILE.stderr,'Error 1001 SOPEN: SETFIELD operator not avaiable\n');
-                                        fclose(fid);
-                                        return;
+                                tag = deblank(tag);
+                                if strcmp(tag,'Version'),
+                                        HDR.VERSION = val;
+                                        HDR.TYPE = 'alpha';
+                                elseif strcmp(tag,'BitsPerValue'),
+                                        HDR.Bits = val;
+                                elseif strcmp(tag,'ChanCount'),
+                                        HDR.NS = val;
+                                elseif strcmp(tag,'SampleCount'),
+                                        HDR.SPR = val;
+                                elseif strcmp(tag,'SampleFreq'),
+                                        HDR.SampleRate = val;
+                                elseif strcmp(tag,'NotchFreq'),
+                                        HDR.Filter.Notch = val;
+                                else
+                                        %fprintf(HDR.FILE.stderr,'Warning SOPEN Type=alpha: unknown Tag %s.\n',tag);
                                 end;
                         end;
                 end;
                 fclose(fid);
-                
-                HDR.rawhead = H;
-                if ~isfield(H,'Version');
-                        HDR.TYPE = 'unknown';
-                        return;
-                end
-                HDR.VERSION = H.Version;
-                HDR.NS  = H.ChanCount;
-                HDR.SampleRate = H.SampleFreq;
-                HDR.SPR = H.SampleCount;
         end;
 
         fid = fopen(fullfile(HDR.FILE.Path,'cal_res'),PERMISSION);
@@ -654,31 +661,36 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 fprintf(2,'Warning SOPEN alpha-trace: couldnot open R_INFO\n');
         else
                 H = [];
+                HDR.TYPE = 'unknown';
                 while ~feof(fid),
                         [s] = fgetl(fid);
                         if ~isnumeric(s),
                                 [tag,s] = strtok(s,'=');
                                 [tmp,s] = strtok(s,'=');
-                                num = str2double(tmp);
-                                try,
-                                        H = setfield(H,deblank(tag),tmp);
-                                catch
-                                        fprintf(HDR.FILE.stderr,'Error 1002 SOPEN: SETFIELD operator not avaiable\n');
-                                        fclose(fid);
-                                        return;
+                                [val,status] = str2double(tmp);
+                                if status,
+                                        val = tmp;
+                                end;
+                                tag = deblank(tag);
+                                if strcmp(tag,'Version'),
+                                        HDR.VERSION = val;
+                                        HDR.TYPE = 'alpha';
+                                elseif strcmp(tag,'RecId'),
+                                        HDR.ID.Recording = val;
+                                elseif strcmp(tag,'Laboratory'),
+                                        HDR.ID.Lab = val;
+                                elseif strcmp(tag,'RecDate'),
+                                        pos = [1,find(val=='.'),length(val)];
+                                        tmp = [str2double(val(pos(3)+1:pos(4))),str2double(val(pos(2)+1:pos(3)-1)),str2double(val(pos(1):pos(2)-1))];
+                                        HDR.T0(1:3) = tmp;
+                                elseif strcmp(tag,'RecTime'),
+                                        pos = [1,find(val=='.'),length(val)];
+                                        tmp = [str2double(val(pos(1):pos(2)-1)),str2double(val(pos(2)+1:pos(3)-1)),str2double(val(pos(3)+1:pos(4)))];
+                                        HDR.T0(4:6) = tmp; 
+                                else
+                                        %fprintf(HDR.FILE.stderr,'Warning SOPEN Type=alpha: unknown Tag %s.\n',tag);
                                 end;
                         end;
-                end;
-                HDR.r_info = H;
-                if isfield(H,'RecDate');
-                        pos = [1,find(H.RecDate=='.'),length(H.RecDate)];
-                        tmp = [str2double(H.RecDate(pos(3)+1:pos(4))),str2double(H.RecDate(pos(2)+1:pos(3)-1)),str2double(H.RecDate(pos(1):pos(2)-1))];
-                        HDR.T0(1:3) = tmp;
-                end;
-                if isfield(H,'RecTime');
-                        pos = [1,find(H.RecTime=='.'),length(H.RecTime)];
-                        tmp = [str2double(H.RecTime(pos(1):pos(2)-1)),str2double(H.RecTime(pos(2)+1:pos(3)-1)),str2double(H.RecTime(pos(3)+1:pos(4)))];
-                        HDR.T0(4:6) = tmp; 
                 end;
         end;        
         
@@ -1118,12 +1130,19 @@ elseif strcmp(HDR.TYPE,'QTFF'),
                                 if strcmpi(tag,'mdat')
                                 	HDR.HeadLen = ftell(HDR.FILE.FID);        
                                 end;
-                                tmp = fread(HDR.FILE.FID,[1,tagsize-8],'char');
-				try,
-			                HDR = setfield(HDR,tag,tmp);
-				catch
-					fprintf(HDR.FILE.stderr,'Warning 2002 SOPEN: SETFIELD operator not available. TAG "%s" = "%s"\n',char(tag),char(tmp));
-				end;	
+                                val = fread(HDR.FILE.FID,[1,tagsize-8],'char');
+
+                                if strcmp(tag,'moov'),
+                                        HDR.MOV.moov=val;
+                                elseif strcmp(tag,'free'),
+                                        HDR.MOV.free = val;
+                                elseif strcmp(tag,'wide'),
+                                        HDR.MOV.wide = val;
+                                elseif strcmp(tag,'mdat'),
+                                        HDR.MOV.mdat = val;
+                                else
+                                        fprintf(HDR.FILE.stderr,'Warning SOPEN Type=MOV: unknown Tag %s.\n',tag);
+                                end;
                 	end;        
                 end;
         end;        
@@ -1373,13 +1392,19 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
                                         HDR.RIFF.N1 = HDR.RIFF.N1+1;
                                 end;
                                         
-                                listtype = setstr(tmp(1:4));
-                                listdata = setstr(tmp(5:length(tmp)));
-				try,
-	                                HDR.RIFF = setfield(HDR.RIFF,listtype, listdata);
-    				catch, 
-					fprintf(HDR.FILE.stderr,'Warning 2001 SOPEN: SETFIELD operator not avaiable.\nHDR.RIFF not completed.\n');
-				end;                        
+                                tag = setstr(tmp(1:4));
+                                val = setstr(tmp(5:length(tmp)));
+                                if strcmp(tag,'INFO'),
+                                        HDR.RIFF.INFO=val;
+                                elseif strcmp(tag,'movi'),
+                                        HDR.RIFF.movi = val;
+                                elseif strcmp(tag,'hdrl'),
+                                        HDR.RIFF.hdr1 = val;
+                                elseif 0,strcmp(tag,'mdat'),
+                                        %HDR.RIFF.mdat = val;
+                                else
+                                        fprintf(HDR.FILE.stderr,'Warning SOPEN Type=RIFF: unknown Tag %s.\n',tag);
+                                end;
                                 % AVI  audio video interleave format 	
 			elseif strcmpi(tag,'movi');
 				if tagsize<4, 
@@ -1405,6 +1430,38 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
 		    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
 				HDR.RIFF.junk = setstr(tmp);
 		
+			elseif strcmpi(tag,'MARK');
+				if tagsize<4, 
+					fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+					return;
+				end;
+		    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.RIFF.MARK = setstr(tmp);
+                                
+			elseif strcmpi(tag,'AUTH');
+				if tagsize<4, 
+					fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+					return;
+				end;
+		    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.RIFF.AUTH = setstr(tmp);
+                                
+			elseif strcmpi(tag,'NAME');
+				if tagsize<4, 
+					fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+					return;
+				end;
+		    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.RIFF.NAME = setstr(tmp);
+                                
+			elseif strcmpi(tag,'afsp');
+				if tagsize<4, 
+					fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+					return;
+				end;
+		    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.RIFF.afsp = setstr(tmp);
+                                
 			elseif ~isempty(tagsize)
 				fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAV: unknown TAG: %s(%i) \n',tag,tagsize);
 		    		[tmp,c] = fread(HDR.FILE.FID,[1,min(100,tagsize)],'uchar');
@@ -1420,7 +1477,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
     		if ~isfield(HDR,'HeadLen')
 			fprintf(2,'Warning SOPEN AIF/WAV: missing data section\n');
 		else
-			fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+			fseek(HDR.FILE.FID, HDR.HeadLen,'bof');
 		end;
 	
 		HDR.FILE.POS = 0;
