@@ -6,8 +6,8 @@ function [argout,s]=sview(s,H),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.8 $
-%	$Id: sview.m,v 1.8 2005-01-22 23:02:05 schloegl Exp $ 
+%	$Revision: 1.9 $
+%	$Id: sview.m,v 1.9 2005-04-01 10:39:35 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -34,95 +34,129 @@ if ischar(s),
         end;
 elseif isstruct(s)
         [s,H] = sload(s);
-
+        
 elseif isnumeric(s) & (length(H.InChanSelect)==size(s,2))
-
-else 
+        
+else    
         return;
 end;
 
 %if strmatch(H.TYPE,{'BMP','PBMA','PGMA','PPMA','PBMB','PGMB','PPMB','XPM'}),
 if isfield(H,'IMAGE');
-	if exist('OCTAVE_VERSION','builtin')
-		if (length(size(s))==3) & (size(s,3)==3)
-			imshow(s(:,:,1),s(:,:,2),s(:,:,3));
-		else
-			imshow(s);
-		end;	
-	else	
-		image(s);
-	end;
-	argout=H;
-	return;
+        if exist('OCTAVE_VERSION','builtin')
+                if (length(size(s))==3) & (size(s,3)==3)
+                        imshow(s(:,:,1),s(:,:,2),s(:,:,3));
+                else
+                        imshow(s);
+                end;	
+        else	
+                image(s);
+        end;
+        argout=H;
+        return;
+elseif strcmp(H.TYPE,'unknown');
+        argout=H;
+        return;
 end;
 
 %s(abs(s)>1e3)=NaN;
 
 [p,f,e]=fileparts(H.FileName);
 fn=dir(fullfile(p,[f,'EOG',e]));
-if 0, length(fn)==1,
-        [R,tmp] = regress_eog(fullfile(p,fn.name),1:4,5:7);
+if 1,   % no EOG corrections
+        
+elseif 1
+        nx = sparse(28,2);
+        nx(23:24,1) = [1;-1];
+        nx(24:25,2) = [1;-1];
+        %nx(23:24,2) = [-1;1];
+        nx(26,3)    = [1];
+        
+        [R,tmp] = regress_eog(fullfile(H.FILE(1).Path,[H.FILE(length(H.FILE)-6).Name,'.',H.FILE(1).Ext]),[1:22],nx);
         s = s*R.r0;
-end; 
-%[R,s0] = regress_eog('v608eog.bkr',1:4,5:7);R.r0,
-%s = s*R.r0;
-
-if isfield(H,'Label'),
-        LEG = H.Label(H.InChanSelect,:);
-else
-        LEG = '';
+        
+elseif 0, %length(fn)==1,
+        fn=dir(fullfile(p,[f(1:min(4,length(f))),'EOG',e]));
+        [R,tmp] = regress_eog(fullfile(p,fn.name),1:4,5:7);
+        %s = s*R.r0;
+        
+        if 0, length(fn)==1,
+                [R,tmp] = regress_eog(fullfile(p,fn.name),1:4,5:7);
+                s = s*R.r0;
+        end; 
+        %[R,s0] = regress_eog('v608eog.bkr',1:4,5:7);R.r0,
+        %s = s*R.r0;
 end;
 
-t = s(:); 
+if ~isfield(H,'Label'),
+        LEG = '';
+elseif size(H.Label,1)<H.NS,
+        LEG = H.Label;
+else
+        LEG = H.Label(H.InChanSelect,:);
+end;
+
+t = detrend(s);
+t = t(:); 
 %t(isnan(t))=median(t);
 dd = max(t)-min(t);
 %dd = max(std(s))*5;
-%s = zscore(s);
-%dd = 20;
+%s = zscore(s); dd = 20; % 
 
 H.AS.TIMECHAN = strmatch('Time',H.Label);
-if (length(H.FILE)==1) & any(H.AS.TIMECHAN) & any(H.AS.TIMECHAN==H.InChanSelect),
-	t = s(:,H.AS.TIMECHAN);
-	s(:,H.AS.TIMECHAN) = NaN;
-	X_Label = [H.Label(H.AS.TIMECHAN,:),' [',H.PhysDim(H.AS.TIMECHAN,:),']'];
+FLAG.tmp = (length(H.FILE)==1) & ~isempty(H.AS.TIMECHAN);
+if FLAG.tmp & any(H.AS.TIMECHAN==H.InChanSelect),
+        % this construct is necessary for compatibility with Octave and Matlab 5.3
+        FLAG.tmp = any(H.AS.TIMECHAN==H.InChanSelect),
+end;
+if FLAG.tmp,
+        t = s(:,H.AS.TIMECHAN);
+        s(:,H.AS.TIMECHAN) = NaN;
+        X_Label = [H.Label(H.AS.TIMECHAN,:),' [',H.PhysDim(H.AS.TIMECHAN,:),']'];
 elseif isnan(H.SampleRate)
-	t = (1:size(s,1))';
-	X_Label = 'samples';
+        t = (1:size(s,1))';
+        X_Label = 'samples';
 else
-	t = (1:size(s,1))'/H.SampleRate;
-	X_Label = 'time [s]';
+        t = (1:size(s,1))'/H.SampleRate;
+        X_Label = 'time [s]';
 end;
 
 if 0,
 elseif isfield(H,'SegLen'), 
-	EVENT.POS = H.SegLen(1:end-1)'+1;
-	EVENT.Desc = {H.FILE.Name}';
-	t = (1:size(s,1))';
-	X_Label = 'samples';
+        EVENT.POS = H.SegLen(1:end-1)'+1;
+        EVENT.Desc = {H.FILE.Name}';
+        t = (1:size(s,1))';
+        X_Label = 'samples';
 elseif isfield(H.EVENT,'Desc'),
-	EVENT = H.EVENT;
+        EVENT = H.EVENT;
 elseif ~isfield(H.EVENT,'Desc') & (length(H.EVENT.TYP)>0),
-	g = sload('eventcodes.txt');
-	ix = sparse(g.CodeIndex,1,1:length(g.CodeIndex));
-	EVENT.POS = H.EVENT.POS;
-	EVENT.Desc = {g.CodeDesc{ix(H.EVENT.TYP)}};
+        g = sload('eventcodes.txt');
+        ix = sparse(g.CodeIndex,1,1:length(g.CodeIndex));
+        EVENT.POS = H.EVENT.POS;
+        try,
+                EVENT.Desc = {g.CodeDesc{ix(H.EVENT.TYP)}};
+        catch
+                fprintf(2,'SVIEW: unknown eventcodes in file %s',H.FileName)
+        end
+else
+        EVENT = [];
 end;
 
 plot(t,((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)),'-');
-if isfield(EVENT,'Desc')
-	v = axis;
-	hold on
-	N = length(EVENT.POS);
-	plot([1;1]*t(EVENT.POS)',v(3:4),':k')
-	for k=1:length(EVENT.POS),
-		txt = EVENT.Desc{k}; 
-		if isempty(txt),txt='';end; 
-		txt(txt=='_')=' ';
-		h=text(t(EVENT.POS(k)),v(3:4)*[-.2;.8],txt);
-		set(h,'Rotation',90,'VerticalAlignment','top');
-	end;	
-	v(4) = v(3:4)*[-.7;1.3]; axis(v);
-	hold off;
+if 0, isfield(EVENT,'Desc')
+        v = axis;
+        hold on
+        N = length(EVENT.POS);
+        plot([1;1]*t(EVENT.POS)',v(3:4),':k')
+        for k=1:length(EVENT.POS),
+                txt = EVENT.Desc{k}; 
+                if isempty(txt),txt='';end; 
+                txt(txt=='_')=' ';
+                h=text(t(EVENT.POS(k)),v(3:4)*[-.2;.8],txt);
+                set(h,'Rotation',90,'VerticalAlignment','top');
+        end;	
+        v(4) = v(3:4)*[-.7;1.3]; axis(v);
+        hold off;
 end;
 
 if 0, length(H.EVENT.POS) > 0,
@@ -130,7 +164,7 @@ if 0, length(H.EVENT.POS) > 0,
         if 0, 
         elseif isfield(H.EVENT,'DUR') & isfield(H.EVENT,'CHN');
                 plot([H.EVENT.POS,H.EVENT.POS+H.EVENT.DUR]'/H.SampleRate,[dd;dd]*H.EVENT.CHN','+-');    
-
+                
         elseif isfield(H.EVENT,'CHN');
                 plot(H.EVENT.POS/H.SampleRate, H.EVENT.CHN*dd, 'x');
                 
@@ -146,9 +180,9 @@ if 0, length(H.EVENT.POS) > 0,
 end;
 
 if length(H.FILE)==1,
-    tmp = H.FileName; tmp(find(tmp==92))='/'; tmp(find(tmp=='_'))=' ';
+        tmp = H.FileName; tmp(find(tmp==92))='/'; tmp(find(tmp=='_'))=' ';
 else
-    tmp = '';
+        tmp = '';
 end;
 title([tmp, ' generated with BIOSIG tools for Octave and Matlab(R)']);
 xlabel(X_Label);
