@@ -33,8 +33,10 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 %
 
-%       $Revision: 1.2 $
-%	$Id: plota.m,v 1.2 2003-04-04 13:16:53 schloegl Exp $
+
+
+%       $Revision: 1.3 $
+%	$Id: plota.m,v 1.3 2003-04-07 07:27:04 astest Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
