@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.24 $
-%	$Id: getfiletype.m,v 1.24 2005-01-16 23:35:14 schloegl Exp $
+%	$Revision: 1.25 $
+%	$Id: getfiletype.m,v 1.25 2005-01-19 21:05:31 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -306,8 +306,15 @@ else
                                 HDR.TYPE = 'ACQ';
                         end;
                         
-                elseif all(s(1:4) == hex2dec(['FD';'AE';'2D';'05'])');
+                elseif (s(1) == 253) & (HDR.FILE.size==(s(6:7)*[1;256]+7));
+                        HDR.TYPE='AKO+';
+                elseif all(s(1) == hex2dec(['FD';'AE';'2D';'05'])');
                         HDR.TYPE='AKO';
+                elseif s(1) == 253;
+                        HDR.TYPE='AKO-';
+                elseif all(s(1:8) == [1,16,137,0,0,225,165,4]);
+                        HDR.TYPE='ALICE4';
+                        
                 elseif all(s(1:2)==[hex2dec('55'),hex2dec('AA')]);
                         HDR.TYPE='RDF'; % UCSD ERPSS aquisition system 
                 elseif strncmp(ss,'Stamp',5)
@@ -436,6 +443,8 @@ else
                 elseif ~isempty(findstr(ss,'?xml version'))
                         HDR.TYPE='XML-UTF8';
 
+                elseif strncmp(ss,'binterr1.3',10)
+                        HDR.TYPE='BT1.3';
                 elseif all(s([1:2,7:10])==[abs('BM'),zeros(1,4)])
                         HDR.TYPE='IMAGE:BMP';
                         HDR.Endianity = 'ieee-le';
@@ -472,8 +481,6 @@ else
 			HDR.BitsPerPixel = s(4);
 			HDR.NPlanes = s(65);
 			
-                elseif 0, all(s(1:2)=='P6') & any(s(3)==[10,13])
-                        HDR.TYPE='PNG6';
                 elseif all(s(1:8)==[139,74,78,71,13,10,26,10])
                         HDR.TYPE='IMAGE:JNG';
                 elseif all(s(1:8)==[137,80,78,71,13,10,26,10]) 
@@ -493,12 +500,13 @@ else
 	    		HDR.DigMax = tmp(3);
 			HDR.HeadLen = len; %gth(ss)-length(t)+1;
 
-                elseif ~isempty(strfind(ss,'bits[] = {')) & ~isempty(strfind(ss,'width')) & ~isempty(strfind(ss,'height'))
+                elseif strcmpi(HDR.FILE.Ext,'XBM') & ~isempty(strfind(ss,'bits[]')) & ~isempty(strfind(ss,'width')) & ~isempty(strfind(ss,'height'))
                         HDR.TYPE='IMAGE:XBM';
                 elseif strncmp(ss,'/* XBM ',7)
                         HDR.TYPE='IMAGE:XBM';
                 elseif strncmp(ss,'#define icon_width',7)
                         HDR.TYPE='IMAGE:XBM';
+
                 elseif strncmp(ss,'/* XPM */',9)
                         HDR.TYPE='IMAGE:XPM';
 
@@ -799,7 +807,7 @@ else
 					return; 
 				end
                                 datalen = fread(fid,1,'uint32');
-                                statut = fseek(fid,datalen,'bof');
+                                status  = fseek(fid,datalen,'bof');
                                 HDR.Header = char(fread(fid,[1,inf],'uchar'));
                                 fclose(fid);
                         end;
