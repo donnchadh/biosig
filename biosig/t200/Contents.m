@@ -11,6 +11,7 @@
 %	ISHNE	The ISHNE Holter Standard Output File Format
 %	Poly5/TMS32 Format used for recordings with the Porti-system and the PortiLab software
 %	RDF	EPRSS Data Format
+%	SMA	Snap-Master file format
 %
 %
 % A united interface is provided for all data formats:
@@ -48,8 +49,8 @@
 % REFERENCES: 
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg
 
-%	$Revision: 1.4 $
-%	$Id: Contents.m,v 1.4 2003-05-24 01:01:42 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: Contents.m,v 1.5 2003-05-26 09:12:21 schloegl Exp $
 %	CopyLeft (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
