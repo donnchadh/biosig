@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.28 $
-%	$Id: plota.m,v 1.28 2004-07-09 21:21:07 schloegl Exp $
+%       $Revision: 1.29 $
+%	$Id: plota.m,v 1.29 2004-08-31 07:14:11 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -68,6 +68,7 @@ if ~isfield(X,'datatype');
 end;
 
 if strcmp(X.datatype,'MVAR-COHERENCE'),
+        fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
         %fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
         if length(size(X.COH))==3,
                 M = size(X.COH,1);
@@ -277,6 +278,7 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
         end;
         
 elseif strcmp(X.datatype,'MVAR-DTF'),
+        fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
         if length(size(X.DTF))==3,
                 if nargin<2,
                         list2=1:size(X.COH,1);
@@ -872,7 +874,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 return;
         end;        
         
-elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) & ~isempty(strmatch(arg2,{'S1','logS1',})),
+elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1','logS1',})),
                 %GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
         
         if nargin<2,
@@ -882,10 +884,15 @@ elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) & ~isempty(strmatch(arg2,{'S1',
                 alpha = 1; 
         elseif isnumeric(arg4),
                 alpha = arg4;
-        elseif isempty(str2num(arg4))
+        elseif ischar(arg4) & isempty(str2num(arg4))
                 alpha = flag_implicit_significance;
         else
                 alpha = arg4;
+        end;
+        if nargin<5,
+                Y = [];
+        else
+                Y = arg5; 
         end;
              
         gf = arg2;
@@ -906,14 +913,20 @@ elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) & ~isempty(strmatch(arg2,{'S1',
         end;
         nr = ceil(sqrt(M));
         nc = ceil(M/nr);
-        if nargin>2,
+        if (nargin>2) & ~isempty(arg3),
                 hf = arg3;
         else
                 for k = 1:M,
                         hf(k)=subplot(nr,nc,k);
                 end;
         end;
-        x0 = real(getfield(X.M,gf));
+
+        if isempty(Y);
+                x0 = real(getfield(X.M,gf));
+        else
+                x0 = (real(getfield(X.M,gf)) - real(getfield(Y.M,gf)))./(real(getfield(X.SE,gf))*X.N + real(getfield(Y.SE,gf))*Y.N);
+        end;
+        
         clim = [min(x0(:)),max(x0(:))]
         caxis(clim);
         cm = colormap;
@@ -955,11 +968,11 @@ elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) & ~isempty(strmatch(arg2,{'S1',
         end
         
         
-elseif strcmp(X.datatype,'TF-MVAR') 
+elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1 
                 %GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
         
         if nargin<2,
-                arg2 = 'PDC';
+                arg2 = 'logS1';
         end;
         if nargin<3,
                 alpha = 1; 
@@ -969,6 +982,11 @@ elseif strcmp(X.datatype,'TF-MVAR')
                 alpha = flag_implicit_significance;
         else
                 alpha = arg3;
+        end;
+        if nargin<4,
+                Y = [];
+        else
+                Y = arg4; 
         end;
         
         gf = arg2;
@@ -999,7 +1017,12 @@ elseif strcmp(X.datatype,'TF-MVAR')
                 end;
         end;
         
-        x0 = real(getfield(X.M,gf));
+        if isempty(Y);
+                x0 = real(getfield(X.M,gf));
+        else
+                x0 = (real(getfield(X.M,gf)) - real(getfield(Y.M,gf)))./(real(getfield(X.SE,gf))*X.N + real(getfield(Y.SE,gf))*Y.N);
+        end;
+        
         clim = [min(x0(:)),max(x0(:))]
         caxis(clim);
         cm = colormap;
@@ -1144,32 +1167,46 @@ elseif strcmpi(X.datatype,'spectrum'),
 elseif strcmp(X.datatype,'confusion'),
         if nargin>1,
                 [kap,sd,H,z,OA,SA]=kappa(X.data);
-                fprintf(1,'Kappa = %5.3f±%4.3f(%s)\tAccuracy = %4.1f%%\n',kap,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
+                fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
+                fprintf(1,'Kappa = %5.3f ± %4.3f(%s)\tOverall Accuracy = %4.1f%%\n',kap,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
                 %disp([X.data,sum(X.data,2);sum(X.data,1),sum(X.data(:))])       
                 
+                fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
                 for k=1:size(X.data,1),
                         fprintf(1,'%4.1f%%\t',X.data(k,:)./sum(X.data,1)*100);
-                        fprintf(1,'| %4.1f\n',sum(X.data(k,:),2));
+                        fprintf(1,'| %4.0f\n',sum(X.data(k,:),2));
                 end;
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
                 fprintf(1,'%4.0f\t',sum(X.data,1));
-                fprintf(1,'| %4.0f\n',sum(X.data(:)));
+                fprintf(1,'| %4.0f\n\n',sum(X.data(:)));
         else
                 [kap,sd,H,z,OA,SA]=kappa(X.data);
-                fprintf(1,'Kappa = %5.3f±%4.3f(%s)\tAccuracy = %4.1f%%\n',kap,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
+                fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
+                fprintf(1,'Kappa = %5.3f ± %4.3f(%s)\tOverall Accuracy = %4.1f%%\n',kap,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
                 %disp([X.data,sum(X.data,2);sum(X.data,1),sum(X.data(:))])       
+                fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
                 
                 for k=1:size(X.data,1),
-                        fprintf(1,'%4.1f\t',X.data(k,:));
-                        fprintf(1,'| %4.1f\t| %4.1f%%\n',sum(X.data(k,:),2),X.data(k,k)/sum(X.data(k,:),2)*100);
+                        fprintf(1,'%4.0f\t',X.data(k,:));
+                        fprintf(1,'| %4.0f\t| %4.1f%%\n',sum(X.data(k,:),2),X.data(k,k)/sum(X.data(k,:),2)*100);
                 end;
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
                 fprintf(1,'%4.0f\t',sum(X.data,1));
                 fprintf(1,'| %4.0f\t|\n',sum(X.data(:)));
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
                 fprintf(1,'%4.1f%%\t',diag(X.data)'./sum(X.data,1)*100);
-                fprintf(1,'|\n');
+                fprintf(1,'|\n\n');
+                
         end;
+        if isfield(X,'Label'),
+                fprintf(1,'%s\nStage:\t\t',repmat('-',1,8*(size(X.data,1)+2)));
+                for k = 1:length(X.Label)
+                        fprintf(1,'%-7s\t',X.Label{k});
+                end;
+        end;
+        fprintf(1,'\nSpec.Acc:\t');
+        fprintf(1,'%4.1f%%\t',SA*100);
+        fprintf(1,'\n%s\n',repmat('-',1,8*(size(X.data,1)+2)));
         
 elseif strcmp(X.datatype,'qualitycontrol'),
         if nargin>1,
