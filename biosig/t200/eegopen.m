@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.34 $
-%	$Id: eegopen.m,v 1.34 2003-08-04 19:16:45 schloegl Exp $
+%	$Revision: 1.35 $
+%	$Id: eegopen.m,v 1.35 2003-08-19 17:38:05 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -71,13 +71,17 @@ if ~isfield(HDR.FILE,'stdout'),
 end;
 
 if exist(HDR.FileName)==2,
-	fid = fopen(HDR.FileName,'rb');
+	fid = fopen(HDR.FileName,'rb','ieee-le');
 	if fid>0,
 		[s,c] = fread(fid,[1,32],'uchar');
                 if c,
-	                type_mat4=str2num(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
+                        type_mat4=str2num(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
 	                ss = setstr(s);
-                        if strncmp(ss,'0       ',8); 
+                        if all(s(1:2)==[207,0]); 
+                                HDR.TYPE='BKR';
+                        elseif strncmp(ss,'Version ',8); 
+                                HDR.TYPE='CNT';
+                        elseif strncmp(ss,'0       ',8); 
                                 HDR.TYPE='EDF';
                         elseif all(s(1:8)==[255,abs('BIOSEMI')]); 
                                 HDR.TYPE='BDF';
@@ -94,16 +98,12 @@ if exist(HDR.FileName)==2,
                                 else
                                         HDR.Endianity = 'ieee-le';
                                 end;
-                        elseif strncmp(ss,'Version ',8); 
-                                HDR.TYPE='CNT';
                         elseif strncmp(ss,'ISHNE1.0',8);	% ISHNE Holter standard output file.
                                 HDR.TYPE='ISHNE';
                         elseif strncmp(ss,'POLY_SAM',8);	% Poly5/TMS32 sample file format.
                                 HDR.TYPE='TMS32';
                         elseif strncmp(ss,'"Snap-Master Data File"',23);	% Snap-Master Data File .
                                 HDR.TYPE='SMA';
-                        elseif s(1)==207; 
-                                HDR.TYPE='BKR';
                         elseif all(s([1:2,20])==[1,0,0]) & any(s(19)==[2,4]); 
                                 HDR.TYPE='TEAM';	% Nicolet TEAM file format
                         elseif strncmp(ss,HDR.FILE.Name,length(HDR.FILE.Name)); 
@@ -120,24 +120,6 @@ if exist(HDR.FileName)==2,
                         elseif strcmp(ss([1:4,9:11]),'FORMAIF'); 
                                 HDR.TYPE='AIF';
 				HDR.Endianity = 'ieee-be';
-                        elseif strncmp(ss,'DDMF',4); 
-                                HDR.TYPE='DMF';
-                        elseif strncmp(ss,'DMS',4); 
-                                HDR.TYPE='DMS';
-                        elseif strncmp(ss,'FAR',3); 
-                                HDR.TYPE='FAR';
-                        elseif all(ss(5:6)==[175,18]); 
-                                HDR.TYPE='FLC';
-                        elseif strncmp(ss,'GF1PATCH110',12); 
-                                HDR.TYPE='GF1';
-                        elseif all(ss(1:2)==[25,149]); 
-                                HDR.TYPE='TWE';
-                        elseif strncmp(ss(5:8),'mdat',4); 
-                                HDR.TYPE='MOV';
-                        elseif (s(1)==255) & any(s(2)>=224); 
-                                HDR.TYPE='MPEG3';
-                        elseif all(s(1:2)==[102,105]); 
-                                HDR.TYPE='669';
                         elseif strncmp(ss,'RG64',4); 
                                 HDR.TYPE='RG64';
                         elseif strncmp(ss,'DTDF',4); 
@@ -165,24 +147,20 @@ if exist(HDR.FileName)==2,
                         elseif strncmp(ss,'MATLAB Data Acquisition File.',29);% Matlab Data Acquisition File 
 		                HDR.TYPE='DAQ';
                         elseif strncmp(ss,'MATLAB 5.0 MAT-file',19); 
-		                HDR.TYPE='MAT5';
-                        elseif any(~type_mat4),
-                                HDR.TYPE='MAT4';
-                                if type_mat4(1)==1,
-                                        HDR.MAT4.opentyp='ieee-be';
-                                elseif type_mat4(1)==2,
-                                        HDR.MAT4.opentyp='vaxd';
-                                elseif type_mat4(1)==3,
-                                        HDR.MAT4.opentyp='vaxg';
-                                elseif type_mat4(1)==4,
-                                        HDR.MAT4.opentyp='gray';
-                                else
-                                        HDR.MAT4.opentyp='ieee-le';
+                                HDR.TYPE='MAT5';
+                                fseek(fid,126,'bof');
+                                tmp = fread(fid,1,'uint16');
+                                if tmp==(abs('MI').*[256;1])
+	                                HDR.Endianity = 'ieee-le';
+                                elseif tmp==(abs('IM').*[256;1])
+                                        HDR.Endianity = 'ieee-be';
                                 end;
-                        elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
+                                
+                       elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
 				HDR.TYPE = 'WFT';	% nicolet 	
 
-		%%% Formats identified but not supported %%%	    
+                        elseif all(s(1:2)==[102,105]); 
+                                HDR.TYPE='669';
                         elseif all(s(1:2)==[234,96]); 
                                 HDR.TYPE='ARJ';
                         elseif strcmp(ss([1:4,9:12]),'RIFFAVI '); 
@@ -191,6 +169,16 @@ if exist(HDR.FileName)==2,
                                 HDR.TYPE='DB2';
                         elseif any(s(1)==[3,131]); 
                                 HDR.TYPE='DB3';
+                        elseif strncmp(ss,'DDMF',4); 
+                                HDR.TYPE='DMF';
+                        elseif strncmp(ss,'DMS',4); 
+                                HDR.TYPE='DMS';
+                        elseif strncmp(ss,'FAR',3); 
+                                HDR.TYPE='FAR';
+                        elseif all(ss(5:6)==[175,18]); 
+                                HDR.TYPE='FLC';
+                        elseif strncmp(ss,'GF1PATCH110',12); 
+                                HDR.TYPE='GF1';
                         elseif strncmp(ss,'GIF8',4); 
                                 HDR.TYPE='GIF';
                         elseif all(s(1:4)==hex2dec(['FF';'D9';'FF';'E0'])')
@@ -199,22 +187,24 @@ if exist(HDR.FileName)==2,
                         elseif all(s(1:4)==hex2dec(['FF';'D8';'FF';'E0'])')
                                 HDR.TYPE='JPG';
 				HDR.Endianity = 'ieee-be';
-                        elseif all(s(1:4)==hex2dec(['E0;''FF';'D8';'FF'])')
+                        elseif all(s(1:4)==hex2dec(['E0';'FF';'D8';'FF'])')
                                 HDR.TYPE='JPG';
 				HDR.Endianity = 'ieee-le';
 			elseif all(s(1:3)==[0,0,1])	
                                 HDR.TYPE='JPG';
-                        elseif strcmo(ss([3:5,7])=='-lh-'); 
+                        elseif strcmp(ss([3:5,7]),'-lh-'); 
                                 HDR.TYPE='LZH';
-                        elseif strcmo(ss([3:5,7])=='-lz-'); 
+                        elseif strcmp(ss([3:5,7]),'-lz-'); 
                                 HDR.TYPE='LZH';
-                        elseif strcmo(ss(1:4)=='MThd'); 
+                        elseif strcmp(ss(1:4),'MThd'); 
                                 HDR.TYPE='MIDI';
-                        elseif all(ss(1:2)==[26,63]); 
+                        elseif (s(1)==255) & any(s(2)>=224); 
+                                HDR.TYPE='MPEG3';
+                        elseif strncmp(ss(5:8),'mdat',4); 
+                                HDR.TYPE='MOV';
+                        elseif all(s(1:2)==[26,63]); 
                                 HDR.TYPE='OPT';
                         elseif strncmp(ss,'%PDF',4); 
-                                HDR.TYPE='PDF';
-                        elseif all(s(1:4)==[80,75,3,4]); 
                                 HDR.TYPE='PDF';
                         elseif strncmp(ss,'QLIIFAX',7); 
                                 HDR.TYPE='QFX';
@@ -230,16 +220,32 @@ if exist(HDR.FileName)==2,
                         elseif strncmp(ss,'MM',2); 
                                 HDR.TYPE='TIFF';
                                 HDR.Endianity = 1;
+                        elseif all(ss(1:2)==[25,149]); 
+                                HDR.TYPE='TWE';
                         elseif all(ss(1:5)==[0,0,2,0,4]); 
                                 HDR.TYPE='WKS';
                         elseif all(ss(1:5)==[0,0,2,0,abs('Q')]); 
                                 HDR.TYPE='WQ1';
                         elseif all(s(1:8)==hex2dec(['30';'26';'B2';'75';'8E';'66';'CF';'11'])'); 
                                 HDR.TYPE='WMV';
-                        elseif all(ss(1:5)==[80,75,3,4,14]); 
+                        elseif all(s(1:5)==[80,75,3,4,20]); 
                                 HDR.TYPE='ZIP';
                         elseif strncmp(ss,'ZYXEL',5); 
                                 HDR.TYPE='ZYXEL';
+                                
+                        elseif any(~type_mat4),  % should be last, otherwise to many false detections
+                                HDR.TYPE='MAT4';
+                                if type_mat4(1)==1,
+                                        HDR.MAT4.opentyp='ieee-be';
+                                elseif type_mat4(1)==2,
+                                        HDR.MAT4.opentyp='vaxd';
+                                elseif type_mat4(1)==3,
+                                        HDR.MAT4.opentyp='vaxg';
+                                elseif type_mat4(1)==4,
+                                        HDR.MAT4.opentyp='gray';
+                                else
+                                        HDR.MAT4.opentyp='ieee-le';
+                                end;
                         else
                                 %TYPE='unknown';
                         end;
