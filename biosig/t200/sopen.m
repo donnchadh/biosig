@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.55 $
-%	$Id: sopen.m,v 1.55 2004-05-31 21:34:08 schloegl Exp $
+%	$Revision: 1.56 $
+%	$Id: sopen.m,v 1.56 2004-06-01 22:24:21 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -408,6 +408,22 @@ if any(PERMISSION=='r'),
                                 else
                                         HDR.MAT4.opentyp='ieee-le';
                                 end;
+
+                        elseif ~isempty(findstr(ss,'### Table of event codes.'))
+				fseek(fid,0,-1);
+				line = fgetl(fid);
+				N = 1;
+				while length(line)>0,
+					if line(1)~='#',
+						[ix,desc] = strtok(line,[9,32,13,10]);
+						ix = hex2dec(ix(3:end));
+						HDR.EVENT.CodeDesc{N} = desc(2:end);
+						HDR.EVENT.CodeIndex(N) = ix;
+						N = N+1;
+					end;	
+					line = fgetl(fid);
+				end;
+                                HDR.TYPE = 'EVENTCODES';
                         else
                                 fseek(fid,3228,-1);
                                 s=fread(fid,[1,4],'uint8'); 
@@ -514,6 +530,13 @@ if any(PERMISSION=='r'),
                                 
                         elseif strcmpi(HDR.FILE.Ext,'trl')
                                 
+                        elseif all(HDR.FILE.Ext(1:2)=='0') & any(HDR.FILE.Ext(3)==['0':'9']),	% WSCORE scoring file
+				x = load(HDR.FileName);
+				HDR.EVENT.N   = size(x,1);
+				HDR.EVENT.POS = x(:,1);
+				HDR.EVENT.TYP = x(:,2);
+				HDR.TYPE = 'EVENT';
+				return;
                         end;
                         
                 end;
@@ -3784,6 +3807,7 @@ elseif strcmp(HDR.TYPE,'CTF'),
 		HDR.AS.endpos = ftell(HDR.FILE.FID);
 		fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         end;
+
         
 elseif strcmp(HDR.TYPE,'BrainVision'),
         % get the header information from the VHDR ascii file

@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.18 $
-%	$Id: sdfopen.m,v 1.18 2004-05-02 13:14:09 schloegl Exp $
+%	$Revision: 1.19 $
+%	$Id: sdfopen.m,v 1.19 2004-06-01 22:24:21 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -319,6 +319,7 @@ else
         EDF.NS      = str2double(H1(253:256));     % 4 Bytes  # of signals
 	EDF.AS.H1   = H1;	                     % for debugging the EDF Header
 end;
+
 if strcmp(EDF.reserved1(1:4),'EDF+'),	% EDF+ specific header information 
 	[EDF.Patient.Id,   tmp] = strtok(EDF.PID,' ');
 	[EDF.Patient.Sex,  tmp] = strtok(tmp,' ');
@@ -537,6 +538,19 @@ if strcmp(EDF.TYPE,'EDF') & (length(tmp)==1),
         end;
         EDF.EVENT.TYP(1:N,1) = 0;
         EDF.EVENT.N = N; 
+else
+	% search for WSCORE scoring file in path and in file directory. 
+	tmp = [upper(EDF.FILE.Name),'.000'];
+	if exist(tmp)~=2,
+		tmp = fullfile(EDF.FILE.Path,tmp);
+	end;
+	try,
+		x = load(tmp);
+		EDF.EVENT.N   = size(x,1);
+		EDF.EVENT.POS = x(:,1);
+		EDF.EVENT.TYP = x(:,2);
+	catch
+	end;
 end;
 
 EDF.Calib = [EDF.Off'; diag(EDF.Cal)];
@@ -1215,6 +1229,8 @@ elseif isnan(EDF.Dur) & ~any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
 		fprintf(EDF.FILE.stderr,'Warning SDFOPEN: SPR and SampleRate do not fit\n');
 		[EDF.SPR,EDF.SampleRate,EDF.Dur]
 	end;
+elseif ~isnan(EDF.Dur) & ~any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
+        %% thats ok, 
 else
         EDF.ErrNo = EDF.ErrNo + 128;
 	fprintf(EDF.FILE.stderr,'ERROR SDFOPEN: more than 1 of EDF.Dur, EDF.SampleRate, EDF.SPR undefined.\n');
