@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.18 $
-%	$Id: eegread.m,v 1.18 2003-07-18 22:22:43 schloegl Exp $
+%	$Revision: 1.19 $
+%	$Id: eegread.m,v 1.19 2003-08-02 13:12:57 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -268,6 +268,42 @@ elseif strcmp(HDR.TYPE,'TMS32'),
 	else
 		S = S(:,HDR.InChanSelect);	
         end;
+
+        
+elseif strcmp(HDR.TYPE,'SND'),
+        if nargin==3,
+        	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+		HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP));
+	if count,
+	        S = S(HDR.SIE.InChanSelect,:)';
+                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+        end;
+        if ~HDR.FLAG.UCAL,
+                if HDR.FILE.TYPE==1,
+			S = mu2lin(S);
+    		else
+			S = S*HDR.Cal;
+		end;
+	end;
+
+        
+elseif strcmp(HDR.TYPE,'WAV'),
+        if nargin==3,
+        	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+		HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP));
+	if count,
+	        S = S(HDR.SIE.InChanSelect,:)';
+                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+        end;
+        if ~HDR.FLAG.UCAL,
+		S = S*HDR.Cal;
+	end;
+
+
 
         
 elseif strcmp(HDR.TYPE,'EGI'),
