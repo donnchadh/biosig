@@ -1,29 +1,34 @@
 % DATAFORMATS contains Matlab/Octave functions to access various biosignal dataformats
 % For simiplicity we call all supported files "Biosig"-files.  
 % Currently, the following formats are are supported:
+%	AIFF/C	Apple's audio interchange format 
+%	ADI/CFWB Chart (translated binary) format from ADInstruments
+%	alpha	alpha trace 
 %	BDF	Biosemi data format (EDF with 24bit integers)
 %	BKR	Dept for Medical informatics, University of Technology Graz
+%	BV	Brainvision
 %     	CNT	Neuroscan (continous data)
+%	CTF-MEG	CTF System
+%	DEMG	DelSys Inc.
 %	EDF	European Data Format
 %       EEG	Neuroscan (triggered data)
 %       EGI	Format from Electrical Geodesics
+%	EEProbe	ANT Software
+%	FIFF	NeuroMag FIF format
 %	GDF	General data format (EDF different datatypes)
 %	ISHNE	The ISHNE Holter Standard Output File Format
+%	MFER	medical waveform format encoding rules
 %	MIT/ECG	PhysioNet data format
 %	SCP-ECG	Standard Communication Protocol - Computer-assisted electrocardiography
 %	ISHNE	The ISHNE Holter Standard Output File Format
 %	Poly5/TMS32 Format used for recordings with the Porti-system and the PortiLab software
 %	RDF	EPRSS Data Format
 %	SMA	Snap-Master file format
-%	WAV	Audio, Microsoft's PCM data format
-%	AIFF/C	Apple's audio interchange format 
 %	SND/AU	Next/SUN sound file
-%	ADI/CFWB Chart (translated binary) format from ADInstruments
+%	WAV	Audio, Microsoft's PCM data format
 %
 %
 % A united interface is provided for all data formats:
-%	SLOAD Opens, reads all data and closes file Biosig files. 
-%
 %  	SOPEN 	opens an Biosignal file (and reads all header information)
 %	SREAD	reads data blockwise
 %       SEOF	checks end-of-file
@@ -31,8 +36,11 @@
 %	SSEEK	moves file handle to position
 %  	SREWIND moves file handle to beginning 
 %	SCLOSE 	closes an biosignal file 
-%  	SWRITE 	(only BKR and EDF/BDF/GDF implemented)
+%  	SWRITE 	writes data blocks 
 %
+%	SLOAD 	Opens, reads and closes signal files. 
+%	SSAVE 	Opens, writes and closes signal files. 
+%		SLOAD and SSAVE provide a simple interface to signal files. 
 %
 % UTILITY FUNCTIONS. In general, it is not recommended 
 %	to use them directly. Use them only if you absolute sure what 
@@ -59,8 +67,8 @@
 % [2] http://biosig.sf.net/
 %
 
-%	$Revision: 1.9 $
-%	$Id: Contents.m,v 1.9 2004-02-07 16:51:31 schloegl Exp $
-%	CopyLeft (c) 1997-2003 by Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Revision: 1.10 $
+%	$Id: Contents.m,v 1.10 2004-05-02 13:57:53 schloegl Exp $
+%	CopyLeft (c) 1997-2003 by Alois Schloegl <a.schloegl@ieee.org>	
+%	This is part of the BIOSIG project http://biosig.sf.net/
 
