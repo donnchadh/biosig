@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.1 $
-%	$Id: cntopen.m,v 1.1 2003-02-01 15:03:45 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: cntopen.m,v 1.2 2003-05-09 09:03:37 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -415,6 +415,7 @@ CNT.Filter.Notch   = h.notch;
 %CNT.Filter.HighCutOff = h.highcutoff;
 %CNT.Filter.NotchOn = h.filterflag;
 %CNT.Filter.ON   = [e(:).filtered];
+CNT.Label = char(e.lab');
 
 if CHAN==0, CHAN=1:CNT.NS; end;
 CNT.SIE.ChanSelect = CHAN;
