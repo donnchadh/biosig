@@ -1,4 +1,4 @@
-function argout=sview(s,H),
+function [argout,s]=sview(s,H),
 % SVIEW - a simple signal viewer 
 %    SVIEW(filename)
 %    SVIEW(HDR)
@@ -7,8 +7,8 @@ function argout=sview(s,H),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.5 $
-%	$Id: sview.m,v 1.5 2004-08-31 07:15:08 schloegl Exp $ 
+%	$Revision: 1.6 $
+%	$Id: sview.m,v 1.6 2004-09-25 00:19:57 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -26,7 +26,6 @@ function argout=sview(s,H),
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-[p,f,e]=fileparts(s);
 
 if ischar(s),
         if nargin<2,
@@ -40,8 +39,15 @@ else
         return;
 end;
 
+
+if strcmp(H.TYPE,'BMP'),
+	image(s);
+	return;
+end;
+
 %s(abs(s)>1e3)=NaN;
 
+[p,f,e]=fileparts(H.FileName);
 fn=dir(fullfile(p,[f,'EOG',e]));
 if 0, length(fn)==1,
         [R,tmp] = regress_eog(fullfile(p,fn.name),1:4,5:7);
@@ -81,7 +87,8 @@ if 0,H.EVENT.N > 0,
         LEG = strvcat(LEG,'Events');
 end;
 
-title([H.FileName, ' generated with BIOSIG tools for Octave and Matlab(R)']);
+tmp = H.FileName; tmp(tmp=='\')='/'; tmp(tmp=='_')=' ';
+title([tmp, ' generated with BIOSIG tools for Octave and Matlab(R)']);
 xlabel('time t[s]');
 PhysDim = '';
 if ~isempty(H.PhysDim),
@@ -95,6 +102,6 @@ if exist('OCTAVE_VERSION')<5;
         end;
 end;
 
-if nargout
+if nargout, 
         argout=H;
 end;
