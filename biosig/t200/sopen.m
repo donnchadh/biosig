@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.9 $
-%	$Id: sopen.m,v 1.9 2003-10-18 20:43:59 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: sopen.m,v 1.10 2003-10-24 11:58:30 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -149,6 +149,8 @@ if any(PERMISSION=='r'),
                         elseif strncmp(ss,'Evnt',4);	% Event file % Holter Excel 2 file, not supported yet. 
                                 HDR.TYPE='EVNT';          
 
+                        elseif strncmp(ss,'CFWB',4); 	% Chart For Windows Binary data, defined by ADInstruments. 
+                                HDR.TYPE='CFWB';
 			elseif any(s(3:6)*(2.^[0;8;16;24]) == (30:40))
 				HDR.TYPE='ACQ';
 			elseif all(s(1:2)==[hex2dec('55'),hex2dec('AA')]);
@@ -2251,6 +2253,71 @@ elseif strcmp(HDR.TYPE,'MAT4'),
                 HDR.FILE.FID = -1;
         end;
 
+        
+elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADInstruments. 
+        CHANNEL_TITLE_LEN = 32;
+        UNITS_LEN = 32
+        if any(PERMISSION=='r'),
+		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le')
+
+		fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
+
+		HDR.FILE.OPEN = 1;
+		fseek(HDR.FILE.FID,4,'bof');
+                HDR.VERSION = fread(HDR.FILE.FID,1,'int32');
+                HDR.Dur = fread(HDR.FILE.FID,1,'double');
+                HDR.SampleRate = 1/HDR.Dur;
+                HDR.T0 = fread(HDR.FILE.FID,5,'int32');
+                tmp = fread(HDR.FILE.FID,2,'double');
+                HDR.T0(6) = tmp(1);
+                HDR.CFWB.preTrigger = tmp(2);
+                HDR.NS = fread(HDR.FILE.FID,1,'int32');
+                HDR.SPR = fread(HDR.FILE.FID,1,'int32');
+                HDR.NRec = 1;
+		HDR.FLAG.TRIGGERED = 0;	        
+                
+                HDR.Flag.TimeChannel = fread(HDR.FILE.FID,1,'int32');
+                tmp = fread(HDR.FILE.FID,1,'int32');
+                if tmp == 1, 
+                        HDR.GDFTYP = 17;	% double
+	                HDR.AS.bpb = HDR.NS * 8;
+                elseif tmp == 2, 
+                        HDR.GDFTYP = 16;	% float
+                        HDR.bytes = 4;
+	                HDR.AS.bpb = HDR.NS * 4;
+                elseif tmp == 3, 
+                        HDR.GDFTYP =  3;	% int16
+	                HDR.AS.bpb = HDR.NS * 2;
+                end;
+                for k = 1:HDR.NS,
+                        HDR.Label(k,:) = fread(HDR.FILE.FID,[1, CHANNEL_TITLE_LEN],'char');   
+                        HDR.PhysDim(k,:) = fread(HDR.FILE.FID,[1, UNITS_LEN],'char');   
+                        HDR.Cal(k,1) = fread(HDR.FILE.FID,1,'double');   
+                        HDR.Off(k,1) = fread(HDR.FILE.FID,1,'double');   
+                        HDR.PhysMax(1,k) = fread(HDR.FILE.FID,1,'double');   
+                        HDR.PhysMin(1,k) = fread(HDR.FILE.FID,1,'double');   
+                end;
+                HDR.Calib = [HDR.Off;eye(HDR.NS)]*HDR.Cal;
+                
+                HDR.HeadLen = ftell(HDR.FILE.FID);
+                HDR.FILE.POS = 0; 
+                HDR.AS.endpos = HDR.SPR; 
+                
+                if CHAN==0,		
+			CHAN = 1:HDR.NS;
+		elseif all(CHAN>0 & CHAN<=HDR.NS),
+                        
+                else
+			fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+			fclose(HDR.FILE.FID); 
+			HDR.FILE.FID = -1;	
+			return;
+                end;
+                HDR.SIE.ChanSelect = CHAN;
+                
+        elseif any(PERMISSION=='w'),
+                
+        end;
         
 elseif strcmp(HDR.TYPE,'ISHNE'),
 	if any(PERMISSION=='r'),

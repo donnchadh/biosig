@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.4 $
-%	$Id: sread.m,v 1.4 2003-10-14 21:28:40 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: sread.m,v 1.5 2003-10-24 11:58:30 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -423,6 +423,23 @@ elseif strcmp(HDR.TYPE,'EEG'),
                 S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.InChanSelect],HDR.SIE.ChanSelect);
         end;
         
+elseif strcmp(HDR.TYPE,'CFWB'),
+        if nargin>2,
+                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        
+        [S,count] = fread(HDR.FILE.FID, [HDR.NS, min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS)], gdfdatatype(HDR.GDFTYP));
+        
+        if count==0,
+                S = [];	
+        else
+		S = S(HDR.SIE.ChanSelect,:)';
+                if ~HDR.FLAG.UCAL,
+                        S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.ChanSelect],HDR.SIE.ChanSelect);
+                end;
+                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+        end;
         
 elseif strcmp(HDR.TYPE,'CNT'),
         if nargin>2,
@@ -432,10 +449,10 @@ elseif strcmp(HDR.TYPE,'CNT'),
         
         [S,count] = fread(HDR.FILE.FID, [HDR.NS, min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS)], 'int16');
         
-	S = S(HDR.SIE.InChanSelect,:)';
         if count==0,
                 S = [];	% Octave 2.1.40 returns size(S)==[0,1], therefore the next line would fail
         else
+		S = S(HDR.SIE.InChanSelect,:)';
                 if ~HDR.FLAG.UCAL,
                         S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.InChanSelect],HDR.SIE.ChanSelect);
                 end;
