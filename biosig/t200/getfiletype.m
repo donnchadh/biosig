@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.30 $
-%	$Id: getfiletype.m,v 1.30 2005-03-22 17:28:50 schloegl Exp $
+%	$Revision: 1.31 $
+%	$Id: getfiletype.m,v 1.31 2005-03-24 18:31:46 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -107,6 +107,8 @@ else
 		if mat4.flag,
 			mat4.matrixname = lower(s(21:20+tmp(5)-1));
 	                mat4.type = sprintf('%04i',tmp(1))-48;
+                        mat4.size = tmp(2:3);
+                        mat4.imagf= tmp(4);
 			mat4.flag = mat4.flag & s(20+tmp(5));
 			mat4.flag = all((mat4.matrixname>='0' & mat4.matrixname<='9') | (mat4.matrixname>='_' & mat4.matrixname<='z'));
 			mat4.flag = mat4.flag & all(any(mat4.type(ones(6,1),:)==[0,0:4;zeros(1,6);0:5;0:2,0,0,0]'));
@@ -331,6 +333,16 @@ else
                         HDR.TYPE='AKO';
                 elseif all(s(1:8) == [1,16,137,0,0,225,165,4]);
                         HDR.TYPE='ALICE4';
+                        
+                elseif strfind(ss,'W1N10936.');
+                        ss(1:20),
+                        
+                elseif all(s(1:4) == [27,153,153,153]);
+                        HDR.TYPE='???';
+                        %ss(1:20),
+                elseif all(s(1:4) == [28,153,153,153]);
+                        HDR.TYPE='???';
+                        %ss(1:20),
                         
                 elseif all(s(1:2)==[hex2dec('55'),hex2dec('AA')]);
                         HDR.TYPE='RDF'; % UCSD ERPSS aquisition system 
@@ -656,6 +668,7 @@ else
 		%& (type_mat4(1)==(0:4)) & (type_mat4(2)==0) & (type_mat4(3)==(0:5)) & (type_mat4(4)==(0:2)) 
 			% should be last, otherwise to many false detections
                         HDR.TYPE = 'MAT4';
+                        HDR.MAT4 = mat4; 
 			if mat4.type(1)=='0'
 				HDR.MAT4.opentyp = 'ieee-le';
 			elseif mat4.type(1)=='1'
@@ -723,7 +736,7 @@ else
                 elseif strcmpi(HDR.FILE.Ext,'HEA'), HDR.TYPE='MIT';
 
 			% Physiobank annotation files 
-		elseif length(HDR.FILE.Ext) & strmatch(HDR.FILE.Ext,{'16a','abp','al','apn','ari','atr','atr-','pap','ple','qrs','qrsc','sta','stb','stc'}),  
+		elseif length(HDR.FILE.Ext) & strmatch(HDR.FILE.Ext,{'16a','abp','al','apn','ari','atr','atr-','ecg','pap','ple','qrs','qrsc','sta','stb','stc'},'exact'),  
 			HDR.TYPE='MIT-ATR';
 			
                 elseif strcmpi(HDR.FILE.Ext,'DAT') & (upper(HDR.FILE.Name(1))=='E')
