@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.22 $
-%	$Id: bkropen.m,v 1.22 2004-10-08 20:13:14 schloegl Exp $
+%	$Revision: 1.23 $
+%	$Id: bkropen.m,v 1.23 2004-10-10 20:24:49 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -219,7 +219,7 @@ if any(PERMISSION=='r'),
 			BKR.SPR=(EndPos-HeaderEnd)/(BKR.NRec*BKR.NS*2);
         	end;
         end;
-        
+55,        
         % look for Classlabel information
         if 1; %~isfield(BKR,'Classlabel'),
                 tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.par']);
@@ -282,7 +282,7 @@ if any(PERMISSION=='r'),
                         if isfield(x.header.BKRHeader,'Label'),
                                 BKR.Label = x.header.BKRHeader.Label;
                                 if size(BKR.Label,1)==(BKR.NS-1);
-                                        BKR.Label = strvcat(BKR.Label,'TRIGGER')
+                                        BKR.Label = strvcat(BKR.Label,'TRIGGER');
                                 end;
                         end;
                 end;
