@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.66 $
-%	$Id: sopen.m,v 1.66 2004-09-19 02:06:21 schloegl Exp $
+%	$Revision: 1.67 $
+%	$Id: sopen.m,v 1.67 2004-09-24 18:01:11 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -52,8 +52,18 @@ if isnan(str2double('1, 3'));
 end;
 
 if nargin<2, 
-        PERMISSION='rb'; 
-elseif ~any(PERMISSION=='b');
+        PERMISSION='r'; 
+elseif isempty(PERMISSION),
+        PERMISSION='r'; 
+elseif isnumeric(PERMISSION),
+        fprintf(2,'Warning SOPEN: second argument should be PERMISSION, assume its the channel selection\n');
+        CHAN = PERMISSION; 
+        PERMISSION = 'r'; 
+elseif ~any(PERMISSION(1)=='RWrw'),
+        fprintf(2,'Warning SOPEN: PERMISSION must be ''r'' or ''w''. Assume PERMISSION is ''r''\n');
+        PERMISSION = 'r'; 
+end;
+if ~any(PERMISSION=='b');
         PERMISSION = [PERMISSION,'b']; % force binary open. Needed for Octave
 end;
 if nargin<3, CHAN = 0; end; 
@@ -137,6 +147,7 @@ elseif strcmp(HDR.TYPE,'BKR'),
 elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
         if any(PERMISSION=='r');
                 [HDR,H1,h2] = cntopen(HDR,PERMISSION,CHAN);
+                if ~isfield(HDR,'GDFTYP'), HDR.GDFTYP='int16'; end; 
                 
         elseif any(PERMISSION=='w');
                 % check header information
@@ -144,7 +155,7 @@ elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
                         HDR.NS = 0;
                 end;
                 if ~isfinite(HDR.NS) | (HDR.NS<0)
-                        fprintf(2,'Error SOPEN CNT-Write: HDR.NS not defined\n');
+                        fprintf(HDR.FILE.stderr,'Error SOPEN CNT-Write: HDR.NS not defined\n');
                         return;
                 end;	
                 if ~isfield(HDR,'SPR'),
@@ -225,20 +236,20 @@ elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
                 
                 HDR.HeadLen = ftell(HDR.FILE.FID);
                 if HDR.HeadLen ~= (900+75*HDR.NS),
-                        fprintf(2,'Error SOPEN CNT-Write: Headersize does not fit\n');
+                        fprintf(HDR.FILE.stderr,'Error SOPEN CNT-Write: Headersize does not fit\n');
                 end;
         end;
         
         
 elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
-        fseek(HDR.FILE.FID,32,'bof'); 	% skip preamble
+        status = fseek(HDR.FILE.FID,32,'bof'); 	% skip preamble
         
-        if exist('fefopen','file'),
+        if exist('fefopen','file') & ~status,
                 HDR = fefopen(HDR);
         end;
         
-        fprintf(2,'Warning SOPEN: Implementing Vital/FEF format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: Implementing Vital/FEF format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
         HDR.FILE.FID = -1;
         return;        
 
@@ -251,14 +262,14 @@ elseif strcmp(HDR.TYPE,'SCP'),	%
 elseif strcmp(HDR.TYPE,'EBS'),
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
         
-        fprintf(2,'Warning SOPEN: Implementing EBS format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: Implementing EBS format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
         
         %%%%% (1) Fixed Header (32 bytes) %%%%%
         HDR.VERSION = fread(HDR.FILE.FID,[1,8],'char');	%
         if setstr(HDR.VERSION(1:3)')~='EBS' 
-                fprintf(2,'Error LOADEBS: %s not an EBS-File',HDR.FileName); 
+                fprintf(HDR.FILE.stderr,'Error LOADEBS: %s not an EBS-File',HDR.FileName); 
                 if any(HDR.VERSION(4:8)~=hex2dec(['94';'0a';'13';'1a';'0d'])'); 
-                        fprintf(2,'Warning SOPEN EBS: %s may be corrupted',HDR.FileName); 
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN EBS: %s may be corrupted',HDR.FileName); 
                 end; 
         end;
         HDR.EncodingId = fread(HDR.FILE.FID,1,'int32');	%
@@ -267,7 +278,7 @@ elseif strcmp(HDR.TYPE,'EBS'),
         if HDR.SPR(1)==0,
                 HDR.SPR=HDR.SPR(2)
         else 
-                fprintf(2,'Error SOPEN: EBS-FILE %s too large',HDR.FileName); 
+                fprintf(HDR.FILE.stderr,'Error SOPEN: EBS-FILE %s too large',HDR.FileName); 
         end;
         LenData=fread(HDR.FILE.FID,1,'int64');	% Data Length
         
@@ -342,7 +353,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
         
         fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),PERMISSION);	
         if fid < 0,
-                fprintf(2,'Error SOPEN (alpha): couldnot open RAWHEAD\n');
+                fprintf(HDR.FILE.stderr,'Error SOPEN (alpha): couldnot open RAWHEAD\n');
         else
                 H = []; k = 0;
                 HDR.TYPE = 'unknown';
@@ -380,7 +391,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
         HDR.PhysDim = '  ';
         fid = fopen(fullfile(HDR.FILE.Path,'cal_res'),PERMISSION);
         if fid < 0,
-                fprintf(2,'Warning SOPEN alpha-trace: could not open CAL_RES. Data is uncalibrated.\n');
+                fprintf(HDR.FILE.stderr,'Warning SOPEN alpha-trace: could not open CAL_RES. Data is uncalibrated.\n');
                 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         else
                 [s] = fgetl(fid);       % read version
@@ -410,7 +421,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
                 
                 HDR.FLAG.UCAL = ~all(OK);
                 if ~all(OK),
-                        fprintf(2,'Warning SOPEN (alpha): calibration not valid for some channels\n');
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN (alpha): calibration not valid for some channels\n');
                 end;
                 HDR.Cal(find(~OK)) = NaN;
                 HDR.Calib = sparse([-HDR.Off';eye(HDR.NS*[1,1])])*sparse(1:HDR.NS,1:HDR.NS,HDR.Cal);
@@ -419,7 +430,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
         
         fid = fopen(fullfile(HDR.FILE.Path,'r_info'),PERMISSION);
         if fid < 0,
-                fprintf(2,'Warning SOPEN alpha-trace: couldnot open R_INFO\n');
+                fprintf(HDR.FILE.stderr,'Warning SOPEN alpha-trace: couldnot open R_INFO\n');
         else
                 H = [];
                 HDR.TYPE = 'unknown';
@@ -457,7 +468,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
         
         fid = fopen(fullfile(HDR.FILE.Path,'digin'),PERMISSION);
         if fid < 0,
-                fprintf(2,'Warning SOPEN alpha-trace: couldnot open DIGIN - no event information included\n');
+                fprintf(HDR.FILE.stderr,'Warning SOPEN alpha-trace: couldnot open DIGIN - no event information included\n');
         else
                 [s] = fgetl(fid);       % read version
                 
@@ -477,7 +488,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
                                                 DUR(k-1) = POS(k)-POS(k-1);
                                         end;
                                 else
-                                        fprintf(2,'Warning SOPEN: alpha: invalid Event type\n');
+                                        fprintf(HDR.FILE.stderr,'Warning SOPEN: alpha: invalid Event type\n');
                                 end;	                        
                                 if length(io)>1,
                                         IO(k) = io(2);
@@ -526,17 +537,17 @@ elseif strcmp(HDR.TYPE,'DEMG'),
                 HDR.PhysMin = fread(HDR.FILE.FID,1,'int8');
                 HDR.PhysMax = fread(HDR.FILE.FID,1,'int8');
                 if HDR.VERSION==1,
-                        HDR.GDFTYP = 16;        % float
+                        HDR.GDFTYP = 'float32';
                         HDR.Cal = 1; 
                         HDR.Off = 0; 
                         HDR.AS.bpb = 4*HDR.NS;
                 elseif HDR.VERSION==2,
-                        HDR.GDFTYP = 4;         % uint16
+                        HDR.GDFTYP = 'uint16';
                         HDR.Cal = (HDR.PhysMax-HDR.PhysMin)/(2^HDR.bits-1);
                         HDR.Off = HDR.PhysMin;
                         HDR.AS.bpb = 2*HDR.NS;
                 else    
-                        fprintf(2,'Error SOPEN DEMG: invalid version number.\n');
+                        fprintf(HDR.FILE.stderr,'Error SOPEN DEMG: invalid version number.\n');
                         fclose(HDR.FILE.FID);
                         HDR.FILE.FID=-1;
                         return;
@@ -550,7 +561,7 @@ elseif strcmp(HDR.TYPE,'DEMG'),
                 %HDR.Filter.HighPass = 20;       % default values
                 
         else
-                fprintf(2,'Warning SOPEN DEMG: writing not implemented, yet.\n');
+                fprintf(HDR.FILE.stderr,'Warning SOPEN DEMG: writing not implemented, yet.\n');
         end;
         
         
@@ -617,6 +628,7 @@ elseif strcmp(HDR.TYPE,'ACQ'),
         HDR.PhysDim = char(HDR.PhysDim);
         HDR.Calib = [HDR.Off(:).';diag(HDR.Cal)];
         HDR.MAXSPR = HDR.VarSampleDiv(1);
+        HDR.NRec = 1; 
         for k = 2:length(HDR.VarSampleDiv);
                 HDR.MAXSPR = lcm(HDR.MAXSPR,HDR.VarSampleDiv(k));
         end;
@@ -675,6 +687,7 @@ elseif strcmp(HDR.TYPE,'AKO'),
         warning('support of AKO format not completed');
         HDR.SampleRate = 136; % ???
         HDR.NS = 1;
+        H.NRec = 1; 
         HDR.Calib = [-127;1];
                 
         
@@ -728,42 +741,42 @@ elseif strcmp(HDR.TYPE,'SND'),
         end;
         
         if HDR.FILE.TYPE==1, 
-                HDR.GDFTYP =  0;
+                HDR.GDFTYP =  'uchar';
                 HDR.bits   =  8;
         elseif HDR.FILE.TYPE==2, 
-                HDR.GDFTYP =  1;
+                HDR.GDFTYP =  'int8';
                 HDR.bits   =  8;
         elseif HDR.FILE.TYPE==3, 
-                HDR.GDFTYP =  3;
+                HDR.GDFTYP =  'int16';
                 HDR.bits   = 16;
         elseif HDR.FILE.TYPE==4, 
-                HDR.GDFTYP = 255+24;
+                HDR.GDFTYP = 'bit24';
                 HDR.bits   = 24;
         elseif HDR.FILE.TYPE==5, 
-                HDR.GDFTYP =  5;
+                HDR.GDFTYP = 'int32';
                 HDR.bits   = 32;
         elseif HDR.FILE.TYPE==6, 
-                HDR.GDFTYP = 16;
+                HDR.GDFTYP = 'float32';
                 HDR.bits   = 32;
         elseif HDR.FILE.TYPE==7, 
-                HDR.GDFTYP = 17;
+                HDR.GDFTYP = 'float64';
                 HDR.bits   = 64;
                 
         elseif HDR.FILE.TYPE==11, 
-                HDR.GDFTYP =  2;
+                HDR.GDFTYP = 'uint8';
                 HDR.bits   =  8;
         elseif HDR.FILE.TYPE==12, 
-                HDR.GDFTYP =  4;
+                HDR.GDFTYP = 'uint16';
                 HDR.bits   = 16;
         elseif HDR.FILE.TYPE==13, 
-                HDR.GDFTYP = 511+24;
+                HDR.GDFTYP = 'ubit24';
                 HDR.bits   = 24;
         elseif HDR.FILE.TYPE==14, 
-                HDR.GDFTYP =  6;
+                HDR.GDFTYP = 'uint32';
                 HDR.bits   = 32;
                 
         else
-                fprintf(2,'Error SOPEN SND-format: datatype %i not supported\n',HDR.FILE.TYPE);
+                fprintf(HDR.FILE.stderr,'Error SOPEN SND-format: datatype %i not supported\n',HDR.FILE.TYPE);
                 return;
         end;
         HDR.AS.bpb = HDR.NS*HDR.bits/8;
@@ -806,7 +819,7 @@ elseif strcmp(HDR.TYPE,'SND'),
 elseif strcmp(HDR.TYPE,'MFER'),
 	HDR = mwfopen(HDR,PERMISSION);
 	if (HDR.FRAME.N ~= 1),
-		fprintf(2,'Error SOPEN (MFER): files with more than one frame not implemented, yet.\n');
+		fprintf(HDR.FILE.stderr,'Error SOPEN (MFER): files with more than one frame not implemented, yet.\n');
 		fclose(HDR.FILE.FID);
 		HDR.FILE.FID  =-1;
 		HDR.FILE.OPEN = 0;
@@ -856,7 +869,7 @@ elseif strcmp(HDR.TYPE,'MPEG'),
                         HDR.bitrate = NaN;
                 elseif HDR.MPEG.bitrate_index==15,
                         fclose(HDR.FILE.FID);
-                        fprintf(2,'SOPEN: corrupted MPEG file %s ',HDR.FileName);
+                        fprintf(HDR.FILE.stderr,'SOPEN: corrupted MPEG file %s ',HDR.FileName);
                         return;
                 else
                         HDR.bitrate = tmp(HDR.MPEG.bitrate_index,floor(HDR.VERSION)*3+HDR.MPEG.layer-3);
@@ -897,7 +910,7 @@ elseif strcmp(HDR.TYPE,'MPEG'),
                 for k = HDR.MPEG.idx,
                         HDR.MPEG.temp(1:12,k) = fread(HDR.FILE.FID,[12,1],['ubit',int2str(HDR.MPEG.allocation(k))]);
                 end;
-                fprintf(2,'Warning SOPEN: MPEG not ready for use\n');
+                fprintf(HDR.FILE.stderr,'Warning SOPEN: MPEG not ready for use\n');
         end;
         HDR.FILE.OPEN = 0; 
         fclose(HDR.FILE.FID);
@@ -1029,13 +1042,13 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                 
                 tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
                 if ~strcmpi(tmp,'FORM') & ~strcmpi(tmp,'RIFF'),
-                        fprintf(2,'Warning SOPEN AIF/WAV-format: file %s might be corrupted 1\n',HDR.FileName);
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAV-format: file %s might be corrupted 1\n',HDR.FileName);
                 end;
                 tagsize  = fread(HDR.FILE.FID,1,'uint32');        % which size
                 tagsize0 = tagsize + rem(tagsize,2); 
                 tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
                 if ~strncmpi(tmp,'AIF',3) & ~strncmpi(tmp,'WAVE',4) & ~strncmpi(tmp,'AVI ',4), % not (AIFF or AIFC or WAVE)
-                        fprintf(2,'Warning SOPEN AIF/WAF-format: file %s might be corrupted 2\n',HDR.FileName);
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAF-format: file %s might be corrupted 2\n',HDR.FileName);
                 end;
                 
                 [tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
@@ -1048,15 +1061,15 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                         %%%% AIF - section %%%%%
                         if strcmpi(tag,'COMM')
                                 if tagsize<18, 
-                                        
-                                        fprintf(2,'Error SOPEN AIF: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN AIF: incorrect tag size\n');
                                         return;
                                 end;
                                 HDR.NS   = fread(HDR.FILE.FID,1,'uint16');
                                 HDR.SPR  = fread(HDR.FILE.FID,1,'uint32');
                                 HDR.AS.endpos = HDR.SPR;
                                 HDR.bits = fread(HDR.FILE.FID,1,'uint16');
-                                HDR.GDFTYP = ceil(HDR.bits/8)*2-1; % unsigned integer of approbriate size;
+                                %HDR.GDFTYP = ceil(HDR.bits/8)*2-1; % unsigned integer of approbriate size;
+                                HDR.GDFTYP = ['ubit', int2str(HDR.bits)];
                                 HDR.Cal  = 2^(1-HDR.bits);
                                 HDR.Off  = 0; 
                                 HDR.AS.bpb = ceil(HDR.bits/8)*HDR.NS;
@@ -1079,19 +1092,19 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                         
                                         if strcmpi(HDR.AIF.CompressionType,'NONE');
                                         elseif strcmpi(HDR.AIF.CompressionType,'fl32');
-                                                HDR.GDFTYP = 16;
+                                                HDR.GDFTYP = 'uint16';
                                                 HDR.Cal = 1;
                                         elseif strcmpi(HDR.AIF.CompressionType,'fl64');
-                                                HDR.GDFTYP = 17;
+                                                HDR.GDFTYP = 'float64';
                                                 HDR.Cal = 1;
                                         elseif strcmpi(HDR.AIF.CompressionType,'alaw');
-                                                HDR.GDFTYP = 2;
+                                                HDR.GDFTYP = 'uint8';
                                                 HDR.AS.bpb = HDR.NS;
                                                 %HDR.FILE.TYPE = 1;
-                                                fprintf(2,'Warning SOPEN AIFC-format: data not scaled because of CompressionType ALAW\n');
+                                                fprintf(HDR.FILE.stderr,'Warning SOPEN AIFC-format: data not scaled because of CompressionType ALAW\n');
                                                 HDR.FLAG.UCAL = 1;
                                         elseif strcmpi(HDR.AIF.CompressionType,'ulaw');
-                                                HDR.GDFTYP = 2;
+                                                HDR.GDFTYP = 'uint8';
                                                 HDR.AS.bpb = HDR.NS;
                                                 HDR.FILE.TYPE = 1;  
                                                 
@@ -1108,7 +1121,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                                 %elseif strcmpi(HDR.AIF.CompressionType,'rt24');
                                                 %elseif strcmpi(HDR.AIF.CompressionType,'rt29');
                                         else
-                                                fprintf(2,'Warning SOPEN AIFC-format: CompressionType %s is not supported\n', HDR.AIF.CompressionType);
+                                                fprintf(HDR.FILE.stderr,'Warning SOPEN AIFC-format: CompressionType %s is not supported\n', HDR.AIF.CompressionType);
                                         end;
                                 end;	
                                 
@@ -1116,9 +1129,9 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 HDR.AIF.offset   = fread(HDR.FILE.FID,1,'int32');
                                 HDR.AIF.blocksize= fread(HDR.FILE.FID,1,'int32');
                                 
-                                %tmp = (tagsize-8)/HDR.AS.bpb;
-                                if 0,tmp~=HDR.SPR,
-                                        fprintf(2,'Warning SOPEN AIF: Number of samples do not fit %i vs %i\n',tmp,HDR.SPR);
+                                tmp = (tagsize-8)/HDR.AS.bpb;
+                                if tmp~=HDR.SPR,
+                                        fprintf(HDR.FILE.stderr,'Warning SOPEN AIF: Number of samples do not fit %i vs %i\n',tmp,HDR.SPR);
                                 end;
                                 
                                 HDR.HeadLen = filepos+8; 
@@ -1126,7 +1139,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 
                         elseif strcmpi(tag,'FVER');
                                 if tagsize<4, 
-                                        fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN WAV: incorrect tag size\n');
                                         return;
                                 end;
                                 HDR.AIF.TimeStamp   = fread(HDR.FILE.FID,1,'uint32');
@@ -1172,7 +1185,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 %%%% WAV - section %%%%%
                         elseif strcmpi(tag,'fmt ')
                                 if tagsize<14, 
-                                        fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN WAV: incorrect tag size\n');
                                         return;
                                 end;
                                 HDR.WAV.Format = fread(HDR.FILE.FID,1,'uint16');
@@ -1185,18 +1198,18 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                         HDR.Off = 0;
                                         HDR.Cal = 2^(1-8*ceil(HDR.bits/8));
                                         if HDR.bits<=8,
-                                                HDR.GDFTYP = 0; 
+                                                HDR.GDFTYP = 'uchar'; 
                                                 HDR.Off =  1;
                                                 %HDR.Cal = HDR.Cal*2;
                                         elseif HDR.bits<=16,
-                                                HDR.GDFTYP = 3; 
+                                                HDR.GDFTYP = 'int16'; 
                                         elseif HDR.bits<=24,
-                                                HDR.GDFTYP = 255+24; 
+                                                HDR.GDFTYP = 'bit24'; 
                                         elseif HDR.bits<=32,
-                                                HDR.GDFTYP = 5; 
+                                                HDR.GDFTYP = 'int32'; 
                                         end;
                                 else 
-                                        fprintf(2,'Error SOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
                                 end;
                                 if tagsize>16,
                                         HDR.WAV.cbSize = fread(HDR.FILE.FID,1,'uint16');
@@ -1211,12 +1224,12 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                         HDR.AS.endpos = HDR.SPR;
                                         
                                 else 
-                                        fprintf(2,'Error SOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
                                 end;
                                 
                         elseif strcmpi(tag,'fact');
                                 if tagsize<4, 
-                                        fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN WAV: incorrect tag size\n');
                                         return;
                                 end;
                                 [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
@@ -1224,7 +1237,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 
                         elseif strcmpi(tag,'disp');
                                 if tagsize<8, 
-                                        fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN WAV: incorrect tag size\n');
                                         return;
                                 end;
                                 [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
@@ -1235,7 +1248,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 
                         elseif strcmpi(tag,'list');
                                 if tagsize<4, 
-                                        fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN WAV: incorrect tag size\n');
                                         return;
                                 end;
                                 [tmp,c]  = fread(HDR.FILE.FID,[1,tagsize],'char');
@@ -1265,7 +1278,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 % AVI  audio video interleave format 	
                         elseif strcmpi(tag,'movi');
                                 if tagsize<4, 
-                                        fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
                                 [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
@@ -1273,7 +1286,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 
                         elseif strcmp(tag,'idx1');
                                 if tagsize<4, 
-                                        fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
                                 [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
@@ -1281,7 +1294,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 
                         elseif strcmpi(tag,'junk');
                                 if tagsize<4, 
-                                        fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
                                 [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
@@ -1289,7 +1302,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 
                         elseif strcmpi(tag,'MARK');
                                 if tagsize<4, 
-                                        fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
                                 [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
@@ -1297,7 +1310,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 
                         elseif strcmpi(tag,'AUTH');
                                 if tagsize<4, 
-                                        fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
                                 [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
@@ -1305,7 +1318,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 
                         elseif strcmpi(tag,'NAME');
                                 if tagsize<4, 
-                                        fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
                                 [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
@@ -1313,28 +1326,32 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 
                         elseif strcmpi(tag,'afsp');
                                 if tagsize<4, 
-                                        fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
                                 [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
                                 HDR.RIFF.afsp = setstr(tmp);
                                 
                         elseif ~isempty(tagsize)
-                                fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAV: unknown TAG: %s(%i) \n',tag,tagsize);
+                                fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAV: unknown TAG in %s: %s(%i) \n',HDR.FileName,tag,tagsize);
                                 [tmp,c] = fread(HDR.FILE.FID,[1,min(100,tagsize)],'uchar');
                                 fprintf(HDR.FILE.stderr,'%s\n',char(tmp));
                         end;
-                        
+
                         if ~isempty(tagsize)
-                                fseek(HDR.FILE.FID,filepos+tagsize0,'bof');
+                                status = fseek(HDR.FILE.FID,filepos+tagsize0,'bof');
+                                if status, 
+                                        fprintf(HDR.FILE.stderr,'Warning SOPEN (WAF/AIF/AVI): fseek failed. Probably tagsize larger than end-of-file and/or file corrupted\n');
+                                        fseek(HDR.FILE.FID,0,'eof')
+                                end; 
                         end;
                         [tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
                 end;
                 
                 if ~isfield(HDR,'HeadLen')
-                        fprintf(2,'Warning SOPEN AIF/WAV: missing data section\n');
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAV: missing data section\n');
                 else
-                        fseek(HDR.FILE.FID, HDR.HeadLen,'bof');
+                        status = fseek(HDR.FILE.FID, HDR.HeadLen, 'bof');
                 end;
                 
                 % define Calib: implements S = (S+.5)*HDR.Cal - HDR.Off;
@@ -1357,7 +1374,8 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                         fwrite(HDR.FILE.FID,HDR.SPR,'uint32');	
                         fwrite(HDR.FILE.FID,HDR.bits,'uint16');	
                         
-                        HDR.GDFTYP = ceil(HDR.bits/8)*2-1; % unsigned integer of appropriate size;
+                        %HDR.GDFTYP = ceil(HDR.bits/8)*2-1; % unsigned integer of appropriate size;
+                        HDR.GDFTYP = ['ubit', int2str(HDR.bits)];
                         HDR.Cal    = 2^(1-HDR.bits);
                         HDR.AS.bpb = ceil(HDR.bits/8)*HDR.NS;
                         
@@ -1417,15 +1435,15 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                         HDR.Off = 0;
                         HDR.Cal = 2^(1-8*ceil(HDR.bits/8));
                         if HDR.bits<=8,
-                                HDR.GDFTYP = 0; 
+                                HDR.GDFTYP = 'uchar'; 
                                 HDR.Off =  1;
                                 %HDR.Cal = HDR.Cal*2;
                         elseif HDR.bits<=16,
-                                HDR.GDFTYP = 3; 
+                                HDR.GDFTYP = 'int16'; 
                         elseif HDR.bits<=24,
-                                HDR.GDFTYP = 255+24; 
+                                HDR.GDFTYP = 'bit24'; 
                         elseif HDR.bits<=32,
-                                HDR.GDFTYP = 5; 
+                                HDR.GDFTYP = 'int32'; 
                         end;
                         
                         HDR.AS.bpb = HDR.NS * ceil(HDR.bits/8);
@@ -1438,7 +1456,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                         fwrite(HDR.FILE.FID,tagsize,'uint32');	
                         
                         if rem(tagsize,2)
-                                fprintf(2,'Error SOPEN WAV: data section has odd number of samples.\n. This violates the WAV specification\n');
+                                fprintf(HDR.FILE.stderr,'Error SOPEN WAV: data section has odd number of samples.\n. This violates the WAV specification\n');
                                 fclose(HDR.FILE.FID);
                                 HDR.FILE.OPEN = 0;
                                 return;  
@@ -1506,7 +1524,7 @@ elseif strcmp(HDR.TYPE,'FLAC'),
 
                 fclose(HDR.FILE.FID)        
 
-                fprintf(2,'Warning SOPEN: FLAC not ready for use\n');
+                fprintf(HDR.FILE.stderr,'Warning SOPEN: FLAC not ready for use\n');
 		return;
         end;
 
@@ -1536,7 +1554,7 @@ elseif strcmp(HDR.TYPE,'OGG'),
 		% 63rd AC coefficient
 
                 fclose(HDR.FILE.FID);        
-                fprintf(2,'Warning SOPEN: OGG not ready for use\n');
+                fprintf(HDR.FILE.stderr,'Warning SOPEN: OGG not ready for use\n');
 		return;
         end;
 
@@ -1547,7 +1565,7 @@ elseif strcmp(HDR.TYPE,'RMF'),
 	if HDR.FILE.FID > 0,
                 fclose(HDR.FILE.FID)        
 
-                fprintf(2,'Warning SOPEN: RMF not ready for use\n');
+                fprintf(HDR.FILE.stderr,'Warning SOPEN: RMF not ready for use\n');
 		return;
         end;
 
@@ -1619,13 +1637,13 @@ elseif strcmp(HDR.TYPE,'EGI'),
         
         % get datatype from version number
         if any(HDR.VERSION==[2,3]),
-                HDR.datatype = 'int16';
+                HDR.GDFTYP = 'int16';
                 HDR.AS.bpb = HDR.AS.spb*2;
         elseif any(HDR.VERSION==[4,5]),
-                HDR.datatype = 'float32';
+                HDR.GDFTYP = 'float32';
                 HDR.AS.bpb = HDR.AS.spb*4;
         elseif any(HDR.VERSION==[6,7]),
-                HDR.datatype = 'float64';
+                HDR.GDFTYP = 'float64';
                 HDR.AS.bpb = HDR.AS.spb*8;
         else
                 error('Unknown data format');
@@ -1652,10 +1670,10 @@ elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
         HDR.TEAM.NSKIP = fread(HDR.FILE.FID,1,'int32');
         HDR.SPR = fread(HDR.FILE.FID,1,'int32');
         HDR.Samptype = fread(HDR.FILE.FID,1,'int16');
-        if   	HDR.Samptype==2, HDR.GDFTYP = 3;
-        elseif 	HDR.Samptype==4, HDR.GDFTYP = 16; 
+        if   	HDR.Samptype==2, HDR.GDFTYP = 'int16';
+        elseif 	HDR.Samptype==4, HDR.GDFTYP = 'float32'; 
         else
-                fprintf(2,'Error SOPEN TEAM-format: invalid file\n');
+                fprintf(HDR.FILE.stderr,'Error SOPEN TEAM-format: invalid file\n');
                 fclose(HDR.FILE.FID);
                 return;
         end;	
@@ -1721,7 +1739,7 @@ elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
                 end;
                 HDR.TRIGGER.Date(k,1) = HDR.TRIGGER.Date(k,1) + 1900;
         end;
-        fprintf(2,'Warning SOPEN: Implementing Nicolet TEAM file format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: Implementing Nicolet TEAM file format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
         fclose(HDR.FILE.FID);
         
         
@@ -1763,7 +1781,7 @@ elseif strcmp(HDR.TYPE,'WFT'),	% implementation of this format is not finished y
         
         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         
-        fprintf(2,'Warning SOPEN: Implementing Nicolet WFT file format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: Implementing Nicolet WFT file format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
         fclose(HDR.FILE.FID);
         
         
@@ -1815,7 +1833,7 @@ elseif strcmp(HDR.TYPE,'WG1'),
                 
         end;
 
-        fprintf(2,'Warning SOPEN: Implementing Walter-Graphtek (WG1) format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: Implementing Walter-Graphtek (WG1) format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
         fclose(HDR.FILE.FID);
         
         
@@ -2074,7 +2092,7 @@ elseif strcmp(HDR.TYPE,'RG64'),
         
         HDR.IDCODE=char(fread(fid,[1,4],'char'));	%
         if ~strcmp(HDR.IDCODE,'RG64') 
-                fprintf(2,'\nError LOADRG64: %s not a valid RG64 - header file\n',FILENAME); 
+                fprintf(HDR.FILE.stderr,'\nError LOADRG64: %s not a valid RG64 - header file\n',FILENAME); 
                 HDR.TYPE = 'unknown';
                 fclose(fid);
                 return;
@@ -2102,7 +2120,7 @@ elseif strcmp(HDR.TYPE,'RG64'),
         
         HDR.FILE.FID=fopen(FILENAME,'rb','ieee-le');
         if HDR.FILE.FID<0,
-                fprintf(2,'\nError LOADRG64: data file %s not found\n',FILENAME); 
+                fprintf(HDR.FILE.stderr,'\nError LOADRG64: data file %s not found\n',FILENAME); 
                 return;
         end;
 
@@ -2114,7 +2132,7 @@ elseif strcmp(HDR.TYPE,'RG64'),
 elseif strcmp(HDR.TYPE,'DDF'),
         
         % implementation of this format is not finished yet.
-        fprintf(2,'Warning SOPEN: Implementing DASYLAB format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: Implementing DASYLAB format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
         %HDR.FILE.FID = -1;
         %return;
         
@@ -2156,9 +2174,9 @@ elseif strcmp(HDR.TYPE,'DDF'),
                 HDR.DDF.CPUidentifier  = setstr(fread(HDR.FILE.FID,[1,2],'char'));
                 HDR.HeadLen(1) = fread(HDR.FILE.FID,1,'uint16');
                 tmp = fread(HDR.FILE.FID,1,'uint16');
-                if tmp == 0, HDR.GDFTYP = 4; 		% streamer format (data are raw data in WORD=UINT16)
-                elseif tmp == 1, HDR.GDFTYP = 16; 	% Universal Format 1 (FLOAT)
-                elseif tmp == 2, HDR.GDFTYP = 17; 	% Universal Format 2 (DOUBLE)
+                if tmp == 0, HDR.GDFTYP = 'uint16'; 		% streamer format (data are raw data in WORD=UINT16)
+                elseif tmp == 1, HDR.GDFTYP = 'float32'; 	% Universal Format 1 (FLOAT)
+                elseif tmp == 2, HDR.GDFTYP = 'float64'; 	% Universal Format 2 (DOUBLE)
                 elseif tmp <= 1000, % reserved
                 else		% unused
                 end;
@@ -2204,7 +2222,7 @@ elseif strcmp(HDR.TYPE,'DDF'),
                         HDR.pos1 = ftell(HDR.FILE.FID);
                         tmp = fread(HDR.FILE.FID,1,'uint16');	% size of this header 
                         if (tmp~=HDR.HeadLen(2)),
-                                fprintf(2,'Error SOPEN DDF: error in header of file %s\n',HDR.FileName);
+                                fprintf(HDR.FILE.stderr,'Error SOPEN DDF: error in header of file %s\n',HDR.FileName);
                         end;
                         HDR.U1G.NS = fread(HDR.FILE.FID,1,'uint16');	% number of channels
                         HDR.FLAG.multiplexed = fread(HDR.FILE.FID,1,'uint16');	% multiplexed: 0=no, 1=yes
@@ -2275,7 +2293,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 z = fgetl(fid);
                 tmpfile = strtok(z,' /');
                 if ~strcmpi(file,tmpfile),
-                        fprintf(2,'Warning: RecordName %s does not fit filename %s\n',tmpfile,file);
+                        fprintf(HDR.FILE.stderr,'Warning: RecordName %s does not fit filename %s\n',tmpfile,file);
                 end;	
                 
                 %A = sscanf(z, '%*s %d %d %d',[1,3]);
@@ -2332,7 +2350,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 if all(dformat==dformat(1)),
                         HDR.VERSION = dformat(1);
                 else
-                        fprintf(2,'different DFORMATs not supported.\n');
+                        fprintf(HDR.FILE.stderr,'different DFORMATs not supported.\n');
                         HDR.FILE.FID = -1;
                         return;
                 end;
@@ -2442,7 +2460,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 HDR.FLAG.UCAL = 1;
                 [S,HDR] = sread(HDR,1/HDR.SampleRate); % load 1st sample
                 if any(S(1,:) ~= HDR.firstvalue), 
-                        fprintf(2,'ERROR SOPEN MIT-ECG: inconsistency in the first values\n'); 
+                        fprintf(HDR.FILE.stderr,'ERROR SOPEN MIT-ECG: inconsistency in the first values\n'); 
                 end;
                 HDR.FLAG.UCAL = FLAG_UCAL ;	
                 fseek(HDR.FILE.FID,0,'bof');	% reset file pointer
@@ -2653,9 +2671,9 @@ elseif strcmp(HDR.TYPE,'MAT4'),
                         if k==1;
                                 HDR.PhysDim = char(sparse(find(HDR.ADI.index{1}),1:sum(HDR.ADI.index{1}>0),1)*HDR.ADI.units{1}); % for compatibility with the EDF toolbox
                         elseif any(size(HDR.ADI.units{k-1})~=size(tmp))
-                                fprintf(2,'Warning MATOPEN: Units are different from block to block\n');
+                                fprintf(HDR.FILE.stderr,'Warning MATOPEN: Units are different from block to block\n');
                         elseif any(any(HDR.ADI.units{k-1}~=tmp))
-                                fprintf(2,'Warning MATOPEN: Units are different from block to block\n');
+                                fprintf(HDR.FILE.stderr,'Warning MATOPEN: Units are different from block to block\n');
                         end;	
                         HDR.PhysDim = char(sparse(find(HDR.ADI.index{k}),1:sum(HDR.ADI.index{k}>0),1)*HDR.ADI.units{k}); % for compatibility with the EDF toolbox
                         %HDR.PhysDim=HDR.ADI.PhysDim;
@@ -2799,13 +2817,13 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 HDR.FLAG.TimeChannel = fread(HDR.FILE.FID,1,'int32');
                 tmp = fread(HDR.FILE.FID,1,'int32');
                 if tmp == 1, 
-                        HDR.GDFTYP = 17;	% double
+                        HDR.GDFTYP = 'float64';
                         HDR.AS.bpb = HDR.NS * 8;
                 elseif tmp == 2, 
-                        HDR.GDFTYP = 16;	% float
+                        HDR.GDFTYP = 'float32';
                         HDR.AS.bpb = HDR.NS * 4;
                 elseif tmp == 3, 
-                        HDR.GDFTYP =  3;	% int16
+                        HDR.GDFTYP = 'int16';
                         HDR.AS.bpb = HDR.NS * 2;
                 end;
                 for k = 1:HDR.NS,
@@ -2822,7 +2840,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 HDR.VERSION   = 1;
                 if ~isfield(HDR,'NS'),
                         HDR.NS = 0; 	% unknown channel number ...
-                        fprintf(2,'Error SOPEN-W CFWB: number of channels HDR.NS undefined.\n');
+                        fprintf(HDR.FILE.stderr,'Error SOPEN-W CFWB: number of channels HDR.NS undefined.\n');
                         return;
                 end;
                 if ~isfield(HDR,'SPR'),
@@ -2832,7 +2850,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 end;
                 if ~isfield(HDR,'SampleRate'),
                         HDR.SampleRate = 1; 	% Unknown - Value will be fixed when file is closed. 
-                        fprintf(2,'Warning SOPEN-W CFWB: samplerate undefined.\n');
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN-W CFWB: samplerate undefined.\n');
                 end;
                 if any([HDR.SPR==0]), 	% if any unknown, ...				HDR.FILE.OPEN = 3;			%	... fix header when file is closed. 
                 end;
@@ -2849,28 +2867,28 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                                 HDR.Flag.TimeChannel = 0;
                         end;
                 end;
-                if HDR.GDFTYP == 17;	% doubletmp == 1, 
+                if strcmp(gdfdatatype(HDR.GDFTYP),'float64');
                         tmp = 1;
                         HDR.AS.bpb = HDR.NS * 8;
                         HDR.Cal = ones(HDR.NS,1);
                         HDR.Off = zeros(HDR.NS,1);
-                elseif HDR.GDFTYP == 16;	% float
+                elseif strcmp(gdfdatatype(HDR.GDFTYP),'float32');
                         tmp = 2; 
                         HDR.AS.bpb = HDR.NS * 4;
                         HDR.Cal = ones(HDR.NS,1);
                         HDR.Off = zeros(HDR.NS,1);
-                elseif HDR.GDFTYP == 3;	% int16
+                elseif strcmp(gdfdatatype(HDR.GDFTYP),'int16');
                         tmp = 3;
                         HDR.AS.bpb = HDR.NS * 2;
                 end;
                 HDR.PhysMax = repmat(NaN,HDR.NS,1);
                 HDR.PhysMin = repmat(NaN,HDR.NS,1);
                 if ~isfield(HDR,'Cal'),
-                        fprintf(2,'Warning SOPEN-W CFWB: undefined scaling factor\n');			
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN-W CFWB: undefined scaling factor\n');			
                         HDR.Cal = ones(HDR.NS,1);
                 end;
                 if ~isfield(HDR,'Off'),
-                        fprintf(2,'Warning SOPEN-W CFWB: undefined offset\n');			
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN-W CFWB: undefined offset\n');			
                         HDR.Off = zeros(HDR.NS,1);
                 end;
                 if ~isfield(HDR,'Label'),
@@ -2913,7 +2931,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 %%%%% write fixed header
                 HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
                 if HDR.FILE.FID<0, 
-                        fprintf(2,'Error SOPEN-W CFWB: could not open file %s .\n',HDR.FileName);
+                        fprintf(HDR.FILE.stderr,'Error SOPEN-W CFWB: could not open file %s .\n',HDR.FileName);
                         return;
                 else
                         HDR.FILE.OPEN = 2;		
@@ -2928,7 +2946,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 fwrite(HDR.FILE.FID,tmp,'int32');
                 HDR.HeadLen = ftell(HDR.FILE.FID);
                 if (HDR.HeadLen~=68),
-                        fprintf(2,'Error SOPEN CFWB: size of header1 does not fit in file %s\n',HDR.FileName);
+                        fprintf(HDR.FILE.stderr,'Error SOPEN CFWB: size of header1 does not fit in file %s\n',HDR.FileName);
                 end;
                 
                 %%%%% write channel header
@@ -2941,7 +2959,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 %HDR.HeadLen = (68+HDR.NS*96); %
                 HDR.HeadLen = ftell(HDR.FILE.FID);
                 if (HDR.HeadLen~=(68+HDR.NS*96))
-                        fprintf(2,'Error SOPEN CFWB: size of header2 does not fit in file %s\n',HDR.FileName);
+                        fprintf(HDR.FILE.stderr,'Error SOPEN CFWB: size of header2 does not fit in file %s\n',HDR.FileName);
                 end;
         end;
         HDR.Calib = [HDR.Off';speye(HDR.NS)]*spdiags(1:HDR.NS,1:HDR.NS,HDR.Cal);
@@ -3111,7 +3129,7 @@ elseif strcmp(HDR.TYPE,'Nicolet'),
                 HDR.FILE.OPEN = 1; 
                 HDR.AS.endpos = HDR.SPR;
                 HDR.AS.bpb = 2*HDR.NS;
-                HDR.GDFTYP = 3; % int16;
+                HDR.GDFTYP = 'int16';
                 HDR.HeadLen = 0; 
         else
                 fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
@@ -3250,7 +3268,7 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
                 HDR.footer = fgets(HDR.FILE.FID,6);			% 24
                 
                 if ~strcmp(HDR.footer,'oFSvAI')
-                        fprintf(2,'Warning LOADSIG in %s: Footer not found\n',  HDR.FileName);  
+                        fprintf(HDR.FILE.stderr,'Warning LOADSIG in %s: Footer not found\n',  HDR.FileName);  
                 end;
                 
                 if HDR.VERSION<2,
@@ -3263,7 +3281,7 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
                                 HDR.Segment_separator = hex2dec(HDR.Segment_separator([3:4,1:2]));
                         case 5; HDR.GDFTYP = 'float';
                         otherwise;
-                                fprintf(2,'Warning LOADSIG: FormatCode %i not implemented\n',HDR.FormatCode);
+                                fprintf(HDR.FILE.stderr,'Warning LOADSIG: FormatCode %i not implemented\n',HDR.FormatCode);
                 end;
                 
                 tmp = ftell(HDR.FILE.FID);
@@ -3491,13 +3509,13 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         HDR.Filter.Notch = repmat(NaN,HDR.NS,1);
         
         if strncmpi(HDR.BV.BinaryFormat, 'int_16',6)
-                HDR.GDFTYP = 3; 
+                HDR.GDFTYP = 'int16'; 
                 HDR.AS.bpb = HDR.NS * 2; 
         elseif strncmpi(HDR.BV.BinaryFormat, 'ieee_float_32',13)
-                HDR.GDFTYP = 16; 
+                HDR.GDFTYP = 'float32'; 
                 HDR.AS.bpb = HDR.NS * 4; 
         elseif strncmpi(HDR.BV.BinaryFormat, 'ieee_float_64',13)
-                HDR.GDFTYP = 17; 
+                HDR.GDFTYP = 'float64'; 
                 HDR.AS.bpb = HDR.NS * 8; 
         end
         
@@ -3531,7 +3549,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                 HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),'rt','ieee-le');
         end;
         if HDR.FILE.FID < 0,
-                fprintf(2,'ERROR SOPEN BV: could not open file %s\n',fullfile(HDR.FILE.Path,HDR.BV.DataFile));
+                fprintf(HDR.FILE.stderr,'ERROR SOPEN BV: could not open file %s\n',fullfile(HDR.FILE.Path,HDR.BV.DataFile));
                 return;
         end;
         
@@ -3561,7 +3579,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                 HDR.SPR = size(HDR.BV.data,1);
                 HDR.AS.endpos = size(HDR.BV.data,1);
                 if ~any(HDR.NS ~= size(tmp));
-                        fprintf(2,'ERROR SOPEN BV-ascii: number of channels inconsistency\n');
+                        fprintf(HDR.FILE.stderr,'ERROR SOPEN BV-ascii: number of channels inconsistency\n');
                 end;
                 HDR.TYPE = 'BVascii';
         end
@@ -3836,6 +3854,7 @@ elseif strncmp(HDR.TYPE,'XML',3),
                                 tmp = tmp.derivedSeries.component.sequenceSet.component;
                         end;
                         HDR.NS = length(tmp)-1;
+                        HDR.NRec = 1; 
                         HDR.Cal = 1;
                         HDR.PhysDim = ' ';
                         HDR.SampleRate = 1;
@@ -3858,7 +3877,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
         return;
         
 else
-        %fprintf(2,'SOPEN does not support your data format yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+        %fprintf(HDR.FILE.stderr,'SOPEN does not support your data format yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
         HDR.FILE.FID = -1;	% this indicates that file could not be opened. 
         return;
 end;
