@@ -8,10 +8,19 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 %   'MVAR'      'SPECTRUM'
 %   'MVAR'      'Phase'
 %   'MVAR',	'COHERENCE'
-%   'MVAR'      'DTF'
-%   'MVAR'      'PDC'
+%   'MVAR'      'DTF'  
+%   'MVAR'      'PDC'  
 %   'TF-MVAR'	Time-frequency MVAR analysis	
-%		e.g. plota(X, 'PDC' [,alpha]);	%
+%		e.g. plota(X, 'PDC', hf, [,alpha]);	%
+%
+%   'MEAN+STD'    
+%       plota(X,hf,minmean,maxmean,maxstd [,trigger]) 
+%       arg1 ... R
+%       arg2 ... hf (handles to figures)
+%       arg3 ... minmean (minimum of mean)
+%       arg4 ... maxmean (maximum of mean)
+%       arg5 ... maxstd (maximum of standard deviation)
+%       arg6 ... trigger (trigger instant) [optional]
 %
 %   'HISTOGRAM'	'log'	chansel
 %   'HISTOGRAM'	'log+'	chansel
@@ -35,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.23 $
-%	$Id: plota.m,v 1.23 2004-03-30 09:06:33 schloegl Exp $
+%       $Revision: 1.24 $
+%	$Id: plota.m,v 1.24 2004-05-09 17:36:18 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -863,68 +872,161 @@ elseif strcmp(X.datatype,'MVAR'),
                 return;
         end;        
         
-elseif strcmp(X.datatype,'TF-MVAR'),
-%GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
-	
-	if nargin<2,
-		arg2 = 'PDC';
-	end;
-	if nargin<3,
-		alpha = 1; 
-	elseif isnumeric(arg3),
-		alpha = arg3;
-	elseif isempty(str2num(arg3))
-		alpha = flag_implicit_significance;
-	else
-		alpha = arg3;
-	end;
-
-	gf = arg2;
-	if ~isfield(X.M,gf)
-		error('PLOTA TFMVAR_ALL: field %s is unknonw\n',gf);
-	end;
-	
-	%ClassList = {'left','right','foot','tongue'};
-
-	M   = size(X.M.AR,1);
-	tmp = size(X.M.AR);
-	MOP = tmp(2)/tmp(1);
-
-	if ~isfield(X,'Label'),
-		for k1 = 1:M,
-			Label{k1}=['# ',int2str(k1)];
-		end;
-	end;
-		
-        orient('LANDSCAPE'); 
+elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) & ~isempty(strmatch(arg2,{'S1','logS1',})),
+                %GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
+        
+        if nargin<2,
+                arg2 = 'S1';
+        end;
+        if nargin<4,
+                alpha = 1; 
+        elseif isnumeric(arg4),
+                alpha = arg4;
+        elseif isempty(str2num(arg4))
+                alpha = flag_implicit_significance;
+        else
+                alpha = arg4;
+        end;
+             
+        gf = arg2;
+        if ~isfield(X.M,gf)
+                error('PLOTA TFAR_ALL: field %s is unknonw\n',gf);
+        end;
+        
+        %ClassList = {'left','right','foot','tongue'};
+        
+        M   = size(X.M.AR,1);
+        tmp = size(X.M.AR);
+        MOP = tmp(2)/tmp(1);
+        
+        if ~isfield(X,'Label'),
+                for k1 = 1:M,
+                        Label{k1}=['# ',int2str(k1)];
+                end;
+        end;
+        nr = ceil(sqrt(M));
+        nc = ceil(M/nr);
+        if nargin>2,
+                hf = arg3;
+        else
+                for k = 1:M,
+                        hf(k)=subplot(nr,nc,k);
+                end;
+        end;
+        x0 = real(getfield(X.M,gf));
+        clim = [min(x0(:)),max(x0(:))]
+        caxis(clim);
+        cm = colormap;
+        for k = 1:M,
+                subplot(hf(k));
+                %imagesc(X.T,X.F,squeeze(X.M.logS1(k,:,:)))
+        
+                x = x0(k,1:length(X.F),:);
+                ci = getfield(X.SE,gf)*(X.N-1);
+                ci = ci(k,1:length(X.F),:);
+                if alpha < .5,
+                        xc = 2 + round(62*(squeeze(x)-clim(1))/diff(clim));
+                        sz = size(x);
+                        %x = x(:);
+                        bf = prod(size(x));
+                        xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
+                        %x(abs(x) < .5) = NaN;
+                        %x = reshape(x,sz);
+                        cm(1,:) = [1,1,1];
+                        colormap(cm);
+                else
+                        xc = 1+round(63*(squeeze(x)-clim(1))/diff(clim));
+                        colormap('default');
+                end;
+                x1 = reshape(cm(xc,1),size(xc));
+                x2 = reshape(cm(xc,2),size(xc));
+                x3 = reshape(cm(xc,3),size(xc));
+                
+                %h = imagesc(X.T,X.F,cat(3,x1,x2,x3)*diff(clim)+clim(1),clim);
+                %imagesc(X.T,X.F,squeeze(X.M.logS1(k,:,:)))
+                h = imagesc(X.T,X.F,cat(3,x1,x2,x3),clim);
+        end;
+        if isfield(X,'TITLE');	
+                TIT = X.TITLE;
+                TIT(TIT=='_')=' ';
+                suptitle(TIT);
+        else
+                TIT = '';
+        end
+        
+        
+elseif strcmp(X.datatype,'TF-MVAR') 
+                %GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
+        
+        if nargin<2,
+                arg2 = 'PDC';
+        end;
+        if nargin<3,
+                alpha = 1; 
+        elseif isnumeric(arg3),
+                alpha = arg3;
+        elseif isempty(str2num(arg3))
+                alpha = flag_implicit_significance;
+        else
+                alpha = arg3;
+        end;
+        
+        gf = arg2;
+        if ~isfield(X.M,gf)
+                error('PLOTA TFMVAR_ALL: field %s is unknonw\n',gf);
+        end;
+        
+        %ClassList = {'left','right','foot','tongue'};
+        
+        M   = size(X.M.AR,1);
+        tmp = size(X.M.AR);
+        MOP = tmp(2)/tmp(1);
+        
+        if ~isfield(X,'Label'),
+                for k1 = 1:M,
+                        Label{k1}=['# ',int2str(k1)];
+                end;
+        end;
+        nr = ceil(sqrt(M));
+        nc = ceil(M/nr);
+        if nargin>2,
+                hf = arg3;
+        else
+                for k1 = 1:M,
+                        for k2 = 1:M,
+                                hf(k1,k2)=subplot(M,M,(k1-1)*M+k2);
+                        end;
+                end;
+        end;
+        
         x0 = real(getfield(X.M,gf));
         clim = [min(x0(:)),max(x0(:))]
         caxis(clim);
         cm = colormap;
         for k1 = 1:M,
                 for k2 = 1:M,
-                        subplot(M,M,(k1-1)*M+k2);
+                        subplot(hf(k1*M-M+k2));
                         x = x0(k1,k2,1:length(X.F),:);
                         ci = getfield(X.SE,gf)*(X.N-1);
                         ci = ci(k1,k2,1:length(X.F),:);
                         if alpha < .5,
-        			xc = 2 + round(62*(squeeze(x)-clim(1))/diff(clim));
-				sz = size(x);
-				%x = x(:);
+                                xc = 2 + round(62*(squeeze(x)-clim(1))/diff(clim));
+                                sz = size(x);
+                                %x = x(:);
                                 bf = prod(size(x));
-				xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
-				%x(abs(x) < .5) = NaN;
-				%x = reshape(x,sz);
-				cm(1,:) = [1,1,1];
-				colormap(cm);
-			else
-				xc = 1+round(63*(squeeze(x)-clim(1))/diff(clim));
-				colormap('default');
-			end;
-			x1 = reshape(cm(xc,1),size(xc));
-			x2 = reshape(cm(xc,2),size(xc));
-			x3 = reshape(cm(xc,3),size(xc));
-			
+                                xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
+                                %x(abs(x) < .5) = NaN;
+                                %x = reshape(x,sz);
+                                cm(1,:) = [1,1,1];
+                                colormap(cm);
+                        else
+                                xc = 1+round(63*(squeeze(x)-clim(1))/diff(clim));
+                                colormap('default');
+                        end;
+                        x1 = reshape(cm(xc,1),size(xc));
+                        x2 = reshape(cm(xc,2),size(xc));
+                        x3 = reshape(cm(xc,3),size(xc));
+                        
                         %h = imagesc(X.T,X.F,cat(3,x1,x2,x3)*diff(clim)+clim(1),clim);
                         h = imagesc(X.T,X.F,cat(3,x1,x2,x3),clim);
                         %h  = imagesc(X.T,X.F,squeeze(x),clim);
@@ -932,19 +1034,19 @@ elseif strcmp(X.datatype,'TF-MVAR'),
                         if k2==1, ylabel(Label{k1});end;
                 end;
         end;
-	%caxis = clim;
+        %caxis = clim;
         h   = colorbar;
-	%tmp = get(h,'ytick')'/64*diff(clim)+clim(1);
-	%set(h,'yticklabel',num2str(tmp));
-		
-	if ~isfield(X,'TITLE');	
-		X.TITLE = '';
-	end
-        TIT = [X.TITLE,'_mvar(',int2str(MOP),')_',gf];
-	%[SUBJ,'_',ClassList{k0},'_mvar-',int2str(MOP),'_',gf];
-        tmp=TIT; tmp(tmp=='_')=' ';
-        suptitle(tmp);
-
+        %tmp = get(h,'ytick')'/64*diff(clim)+clim(1);
+        %set(h,'yticklabel',num2str(tmp));
+        
+        if isfield(X,'TITLE');	
+                TIT = X.TITLE;
+                TIT(TIT=='_')=' ';
+                suptitle(TIT);
+        else
+                TIT = '';
+        end
+        
         
 elseif strcmp(X.datatype,'EDF'),
         data = arg2;
@@ -967,36 +1069,36 @@ elseif strcmpi(X.datatype,'pfurtscheller_spectral_difference'),
         f = (0:.1:X.SampleRate/2)';
         H = zeros(length(f),X.NC+1);
         for k1=1:nc,
-        for k2=1:nr,
-                c = k1+(k2-1)*nc;
-                if nargin>1,
-                        H = X.S(:,c+X.NS*(0:X.NC));        
-                        F = 0:size(X.S,1)-1;
-                else
-                        for k3 = 1:X.NC+1;
-                                ix = c + X.NS*(k3-1);
-                                [H(:,k3), F] = freqz(sqrt(X.PE(ix,end)/X.SampleRate),ar2poly(X.AR(ix,:)),f,X.SampleRate);
-                        end
-                end;
-                subplot(nc,nr,c);
-                semilogy(F,abs(H),'-');
-                legend({'ref','1','2'});
-                ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim,X.samplerate_units));
-                v=axis;v(2:4)=[max(F),1e-2,10];axis(v);
-                %hold on;
-                grid on;
-                if isfield(X,'Label');
-                        if iscell(X.Label)
-                                title(X.Label{c});
+                for k2=1:nr,
+                        c = k1+(k2-1)*nc;
+                        if nargin>1,
+                                H = X.S(:,c+X.NS*(0:X.NC));        
+                                F = 0:size(X.S,1)-1;
                         else
-                                title(X.Label(c,:));
+                                for k3 = 1:X.NC+1;
+                                        ix = c + X.NS*(k3-1);
+                                        [H(:,k3), F] = freqz(sqrt(X.PE(ix,end)/X.SampleRate),ar2poly(X.AR(ix,:)),f,X.SampleRate);
+                                end
                         end;
-                else
-                        title(['channel # ',int2str(c)]);
-                end;
-        end
+                        subplot(nc,nr,c);
+                        semilogy(F,abs(H),'-');
+                        legend({'ref','1','2'});
+                        ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim,X.samplerate_units));
+                        v=axis;v(2:4)=[max(F),1e-2,10];axis(v);
+                        %hold on;
+                        grid on;
+                        if isfield(X,'Label');
+                                if iscell(X.Label)
+                                        title(X.Label{c});
+                                else
+                                        title(X.Label(c,:));
+                                end;
+                        else
+                                title(['channel # ',int2str(c)]);
+                        end;
+                end
         end;
-
+        
 elseif strcmpi(X.datatype,'spectrum'),
         if nargin>1,
                 Mode=arg2;
@@ -1244,8 +1346,8 @@ elseif strcmp(X.datatype,'HISTOGRAM')
                         tmp=sum(h)/2;
                         %semilogx(X.X,cumsum(X.H,1)./X.N(ones(size(X.X,1),1),:),'-');
                         plot([X.X(1,:)-eps;X.X],[zeros(1,size(X.H,2));cumsum(X.H,1)]./X.N(ones(size(X.X,1)+1,1),:),'-');
-			t = [t(1)-eps;t];
-			%plot(t,[cumsum([0;h])/X.N(K),normcdf(t,mu,sqrt(sd2))])
+                        t = [t(1)-eps;t];
+                        %plot(t,[cumsum([0;h])/X.N(K),normcdf(t,mu,sqrt(sd2))])
                         %plot(t,cumsum([0;h])/X.N(K))
                         %v=axis; v(1:2)=[MaxMin(2)+0.1*diff(MaxMin) MaxMin(1)-0.1*diff(MaxMin)]; axis(v);
                         v=axis; v(3:4)=[0,1]; axis(v);
@@ -1378,6 +1480,7 @@ elseif strcmp(X.datatype,'STAT2'),
         set(h(3),'color',1-(1-tmp)/2);
         %set(h(4),'color',[0,0,1]);
         %set(h(5),'color',[0,0,1]);
+
         
 elseif strcmp(X.datatype,'TSD1'),
         if nargin<2,
@@ -1389,33 +1492,177 @@ elseif strcmp(X.datatype,'TSD1'),
         h=plot(X.TI(:),1,'.k');
         
         
-elseif strcmp(X.datatype,'MEAN+SEM') 
-        if nargin<2,
+elseif strcmp(X.datatype,'MEAN+STD')
+        
+        nchns = min(size(X.MEAN));  % Number of channels
+        
+        if nargin < 2
                 clf;
-                N = min(size(X.MEAN));
-                for k = 1:N, 
-                        nf(k)=subplot(ceil(N/ceil(sqrt(N))),ceil(sqrt(N)),k); 
+                for k = 1:nchns
+                        nf(k) = subplot(ceil(nchns/ceil(sqrt(nchns))),ceil(sqrt(nchns)),k);  % Handles to subplots
                 end;
         else
-                nf=arg2;
+                nf = arg2;  % Handles to subplots
         end;
-        if isfield(X,'Label'),
-                if ischar(X.Label),
+        
+        if isfield(X,'Label')
+                if ischar(X.Label)
                         X.Label=cellstr(X.Label);
                 end;
         end;
-        for k=1:min(size(X.MEAN));
+        
+        minmean = floor(min(min(X.MEAN)));
+        maxmean = ceil(max(max(X.MEAN)));
+        maxstd = ceil(max(max(X.STD)));
+        
+        for k = 1:nchns  % For each channel
+                
                 subplot(nf(k));
-                plot(X.T,[1,0;0,1]*[X.MEAN(k,:);X.STD(k,:)])        
-                xlabel('time')
-                if isfield(X,'Label'),
-                        ylabel(X.Label{k});
+                [ax,h1,h2] = plotyy(X.T,X.MEAN(k,:),X.T,X.STD(k,:));
+                set(ax,'FontSize',6);
+                
+                % Sets the axes limits to avoid overlapping of the two functions
+                set(ax(1),'YLim',[minmean-maxstd maxmean]);
+                set(ax(2),'YLim',[0 -minmean+maxstd+maxmean]);
+                set(ax,'XLim',[min(X.T) max(X.T)]);
+                
+                set(ax,'YTickLabel',[]);
+                set(ax,'YTick',[]);
+                
+                % Label y1-axis (mean)
+                temp = [floor(minmean/10) * 10 : 10 : ceil(maxmean/10) * 10];  % Label only ..., -20, -10, 0, 10, 20, 30, ...
+                set(ax(1),'YTick',temp);
+                if (mod(k,ceil(sqrt(nchns))) == 1)
+                        set(ax(1),'YTickLabel',temp);
+                else
+                        set(ax(1),'YTickLabel',[]);
                 end;
-                %v=axis;v(1:2)=[min(X.T),max(X.T)];axis(v);
-                v=axis;v=[min(X.T),max(X.T),-20,20];axis(v);
-                %legend('mean','std')
+                
+                % Label y2-axis (standard deviation)
+                temp = [0 : 10 : ceil(maxstd/10) * 10];  % Label only 0, 10, 20, 30, ...
+                set(ax(2),'YTick',temp);
+                if (mod(k,ceil(sqrt(nchns))) == 0) | (k == nchns)
+                        set(ax(2),'YTickLabel',temp);
+                else
+                        set(ax(2),'YTickLabel',[]);
+                end;
+                
+                % Label x-axis
+                if k > (nchns - ceil(nchns/ceil(sqrt(nchns))))
+                        xlabel('Time (s)');
+                else
+                        set(ax,'XTickLabel',[]);
+                end;
+                
+                if isfield(X,'Label')  % Print label of each channel (if such a label exists)
+                        if k <= length(X.Label)
+                                title(X.Label{k},'FontSize',6,'Interpreter','none');
+                        end;
+                end;
+                
+                if isfield(X,'trigger')  % Mark trigger
+                        line([X.T(X.trigger),X.T(X.trigger)],[minmean-maxstd,maxmean],'Color',[1 0 0]);
+                end;
+                
+        end;
+        drawnow;
+        set(0,'DefaultTextInterpreter','none');  % Avoid having TeX interpretation in title string
+        suptitle(X.Title);
+        
+        
+elseif strcmp(X.datatype,'Classifier')
+        if ~isfield(X,'tsc'),
+                X.tsc=X.TI*16+[-15,1];
+        end;
+        if (nargin==1);
+                arg2 = 'all';
+                for k=1:3,
+                        hf(k) = subplot(1,3,k);
+                end
+        elseif isnumeric(arg2)
+                hf = arg2; 
+                if length(hf)==3,
+                        arg2='all';
+                elseif length(hf)==1,
+                        arg2='acc';
+                        subplot(hf);
+                end;
+        end;
+        if ~isfield(X,'T');
+                if ~isfield(X,'Fs'),
+                        X.T = (1:size(X.acc,1))';
+                else
+                        X.T = (1:size(X.acc,1))'/X.Fs;
+                end;
+        else;
+                
+        end;        
+        LEG = [];
+        if isfield(X,'Classes'),
+                if ischar(X.Classes)
+                        LEG = X.Classes;
+                elseif isnumeric(X.Classes)
+                        LEG = num2str(X.Classes(:));
+                end;
         end;
         
+        if strncmpi(arg2,'acc',3)
+                if isfield(X,'tsc'),
+                        patch(X.T(X.tsc([1,1,2,2,1])),[0,1,1,0,0]*100,[1,1,1]*.8);
+                end;
+                hold on;
+                plot(X.T,X.acc*100,'-',X.T([1,end]),[100,100]./size(X.acc,2),'k:');
+                hold off;
+                v=axis;v(3:4)=[0,100];axis(v);
+                
+                ylabel('Accuracy [%]');
+                grid on;
+                if ~isempty(LEG)
+                        legend(LEG);
+                end
+                
+        elseif strncmpi(arg2,'KAPPA',3)
+                if isfield(X,'tsc'),
+                        patch(X.T(X.tsc([1,1,2,2,1])),[0,1,1,0,0]*100,[1,1,1]*.8);
+                end;
+                hold on;
+                plot(X.T,[X.KAP00,X.ACC00]*100);
+                hold off;
+                grid on;
+                v=axis; v(3:4)=[-10,100]; axis(v);
+                ylabel('Kappa [%], Accuracy [%]')
+                xlabel('time t [s]');
+                legend('Kappa', 'Accuracy');
+                
+        elseif strncmpi(arg2,'MI',2)
+                if isfield(X,'tsc'),
+                        patch(X.T(X.tsc([1,1,2,2,1])),[0,1,1,0,0],[1,1,1]*.8);
+                end;
+                hold on;
+                if isfield(X,'I0') %& any(X.I0(:)~=0);
+                        h=plot(X.T,[X.I0,X.I])
+                else
+                        h=plot(X.T,[X.MD2.I0,sum(X.MD2.I0,2)]);
+                        %h=plot(X.T,[X.GRB.I0,X.GRB.I2]);
+                end;
+                hold off
+                grid on;
+                v=axis; v(3:4)=[0,1]; axis(v);
+                set(h(end),'linewidth',2)
+                ylabel('MI [bit]');
+                xlabel('time t [s]');
+                if ~isempty(LEG)
+                        legend(LEG);
+                end
+                
+        elseif strncmpi(arg2,'all',3)
+                subplot(hf(1))
+                plota(X,'acc');
+                subplot(hf(2))
+                plota(X,'KAPPA');
+                subplot(hf(3))
+                plota(X,'MI');
+        end;
         
 elseif strcmp(X.datatype,'TSD_BCI7') 
         if (nargin>1) & strcmpi(arg2,'balken2');
@@ -1477,7 +1724,7 @@ elseif strcmp(X.datatype,'TSD_BCI7')
                 pos = get(gca, 'position');
                 axes('position', pos, 'color', 'none', 'YTick', [], 'XTick', []);
                 set(gca, 'YAxisLocation', 'right');
-
+                
                 xlim(1.2 * [mn mx]);
                 ylim([0.5 length(samples)+0.5]);
                 set(gca, 'ytick', 1:length(time), 'yticklabel', num2str(100*mean(pc)', '%.0f'));
@@ -1491,7 +1738,7 @@ elseif strcmp(X.datatype,'TSD_BCI7')
                         for k=1:4, 
                                 nf(k)=subplot(1,4,k); 
                         end;
-                        else
+                else
                         nf=arg2;
                 end;
                 if isfield(X,'KAP00');
@@ -1582,6 +1829,125 @@ elseif strcmp(X.datatype,'QRS_events'),
         semilogy((ix(1:l-1)+ix(2:l))/2,diff(ix));
         
         
+elseif strcmp(X.datatype,'AMARMA')
+
+        m0 = X.AAR(:,1)./(1-sum(X.AAR(:,2:end),2)); 
+	
+	if strcmp(upper(arg3),'TIME'),	MODE = 1; end;
+	if strcmp(upper(arg3),'VLHF'),	MODE = [MODE,2]; end;
+	if strcmp(upper(arg3),'IMAGE'),	MODE = [MODE,3]; end;
+	if strcmp(upper(arg3),'3D'),	MODE = [MODE,4]; end;
+	if strcmp(upper(arg3),'ALL'),	MODE = 1:3; end;
+		
+	if nargin<4,
+		if any(MODE==4)
+			hf = gca;
+		else
+			for k = 1:3;
+				hf(k) = subplot(3,1,k);	
+			end;
+		end;	
+	else
+		hf = arg4;
+	end;
+	if ~isfield(X,'T')
+                X.T = (0:size(X.AAR,1)-1);
+	end;
+	
+	K = 0;
+	if any(MODE==1)	
+		K = K + 1;
+                subplot(hf(K));
+                %plot(X.T,[signal,m0,sqrt([tmp(:,8),X.PE])]);
+                plot(X.T,[m0,sqrt(X.PE)]);
+                ylabel([X.Label,' [',X.PhysDim,']']);
+                legend('mean','RMS')
+	end;        
+
+	if prod(size(arg2))<2,    
+		f0 = 1./m0;
+	else
+		f0 = arg2;
+	end;
+
+	if any(MODE==2)	
+                [w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,2:end),f0,X.PE);
+                ix = (imag(F)==0);
+                
+                ixVLF = ((w>=0)  & (w<.04)); F1 = real(F); F1(~ixVLF)= NaN;
+                ixLF  = (w>=.04) & (w<=.15); F2 = real(F); F2(~ixLF) = NaN;
+                ixHF  = (w>.15)  & (w<=.4) ; F3 = real(F); F3(~ixHF) = NaN;
+                
+                tmp = [X.PE, sumskipnan(F1,2), sumskipnan(F2,2), sumskipnan(F3,2)];
+                tmp(:,5) = tmp(:,3)./tmp(:,4);
+                tmp(:,6) = tmp(:,3)./(tmp(:,1)-tmp(:,2));
+                tmp(:,7) = tmp(:,4)./(tmp(:,1)-tmp(:,2));
+                tmp(:,8) = sum(tmp(:,2:4),2);
+                
+
+		K = K + 1;
+                subplot(hf(K));
+                semilogy(X.T,tmp(:,[3,4,8])); % 1
+                %ylabel(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
+                legend({'LF','HF','VLF+LF+HF'})
+	end;        
+                
+	if any(MODE==3), 	
+                DN = max(1,ceil(size(X.AAR,1)/1000)); %assume 1000 pixels 
+                N  = size(X.AAR,1);
+                clear h F h2 F2
+                for l = 1:DN:N,  %N/2; [k,size(sdf),N],%length(AR);
+                        k = ceil(l/DN);
+                        % [h(:,k),F(:,k)] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',128,f0(l,1));
+                        [h2(:,k),F2] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',[0:70]'/64,f0(l,1));
+                        h2(find(F2>f0(l,1)/2),k)=NaN;
+                end;
+        
+		K = K + 1;
+                subplot(hf(K));
+                if 1;%FB{1}=='B';
+                        imagesc(X.T(1:DN:N),F2,2*log10(abs(h2(:,end:-1:1)))); 
+                else
+                        imagesc(X.T(1:DN:N),F2,2*log10(abs(h2))); 
+                end;
+                xlabel('samples ');
+                ylabel('f [1/s]');
+                hc= colorbar;
+                v = get(hc,'yticklabel');
+                v = 10.^str2num(v)*2;
+                set(hc,'yticklabel',v);
+                title(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
+	end;
+
+	if any(MODE==4), 	
+                DN = 32; %10;
+                N  = size(X.AAR,1);
+                clear h F h2 F2
+                for l = 1:DN:N,  %N/2; [k,size(sdf),N],%length(AR);
+                        k = ceil(l/DN);
+                        [h(:,k),F(:,k)] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',128,f0(l,1));
+                        % [h2(:,k),F2] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',[0:70]'/64,f0(l,1));
+                        % h2(find(F2>f0(l,1)/2),k)=NaN;
+                end;
+
+		K = K + 1;
+                subplot(hf(K));
+                plot3(repmat(1:DN:ceil(N),128,1),F,6+2*log10(abs(h))); 
+                xlabel('samples ');
+                ylabel('f [1/s]');
+                zlabel(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
+                v = get(ah,'zticklabel');
+                v = 10.^str2num(v)*2;
+                set(ah,'zticklabel',v);
+                
+                view([60,-45])	
+                pos=get(ah,'position');%pos(4)=.5;
+                set(ah,'position',pos);
+                set(1,'PaperUnits','inches','PaperOrientation','portrait','PaperPosition',[0.25 .5 8 10]);
+
+	end;        
+
+
 elseif strcmp(X.datatype,'REV'),
         if nargin<2
                 arg2=[];
