@@ -1,6 +1,7 @@
 % BIOSIG/T200 contains Matlab/Octave functions to access various biosignal dataformats
 % For simiplicity we call all supported files "Biosig"-files.  
 % Currently, the following formats are are supported:
+%    SIGNALS (1-Dim)
 %	AIFF/C	Apple's audio interchange format 
 %	ACQ	Biopac ACQ format 
 %	ADI/CFWB Chart (translated binary) format from ADInstruments
@@ -28,6 +29,23 @@
 %	SMA	Snap-Master file format
 %	SND/AU	Next/SUN sound file
 %	WAV	Audio, Microsoft's PCM data format
+%
+%    IMAGES (2-Dim)
+%	BMP
+%	FITS
+%	PNM (PBMA, PGMA, PPMA, PBMB, PGMB, PPMB) 	
+%	TIFF
+%	XPM
+%
+%    IMAGES (3-Dim)
+%	OFF
+%	POLY
+%	SMF
+%	VTK	
+%	VRML
+%
+%    MATRICES
+%	MatrixMarket (MM)
 %
 %
 % A united interface is provided for all data formats:
@@ -73,8 +91,8 @@
 % [2] http://biosig.sf.net/
 %
 
-%	$Revision: 1.14 $
-%	$Id: Contents.m,v 1.14 2004-09-09 15:21:37 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: Contents.m,v 1.15 2004-11-07 22:59:14 schloegl Exp $
 %	CopyLeft (c) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
