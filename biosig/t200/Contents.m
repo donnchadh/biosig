@@ -37,7 +37,7 @@
 %	TIFF
 %	XPM
 %
-%    IMAGES (3-Dim)
+%    MESHES (3-Dim)
 %	OFF
 %	POLY
 %	SMF
@@ -62,6 +62,7 @@
 %	SLOAD 	Opens, reads and closes signal files. 
 %	SSAVE 	Opens, writes and closes signal files. 
 %		SLOAD and SSAVE provide a simple interface to signal files. 
+%	SAVE2GDF converts data into GDF-format
 % 
 % UTILITY FUNCTIONS. In general, it is not recommended 
 %	to use them directly. Use them only if you absolute sure what 
@@ -91,8 +92,8 @@
 % [2] http://biosig.sf.net/
 %
 
-%	$Revision: 1.15 $
-%	$Id: Contents.m,v 1.15 2004-11-07 22:59:14 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: Contents.m,v 1.16 2005-03-24 18:20:39 schloegl Exp $
 %	CopyLeft (c) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
