@@ -1,4 +1,4 @@
-Ffunction [GDBC,kap,acc,H,MDBC]=gdbc(ECM,Y,CL)
+function [GDBC,kap,acc,H,MDBC]=gdbc(ECM,Y,CL)
 % GDBC General discriminant-based classifier
 % [MDBC] = gdbc(ECM);
 % GDBC is a multiple discriminator
@@ -20,8 +20,8 @@ Ffunction [GDBC,kap,acc,H,MDBC]=gdbc(ECM,Y,CL)
 %  [1] J. Bortz, Statistik für Sozialwissenschaftler, 5. Auflage, Springer (1999).  
 %
 
-%	$Revision: 1.1 $
-%	$Id: gdbc.m,v 1.1 2004-08-18 13:29:26 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: gdbc.m,v 1.2 2004-08-18 14:50:20 schloegl Exp $
 %	Copyright (c) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -43,7 +43,7 @@ NC=size(ECM);
 if length(NC)<3, 
         if iscell(ECM(1)),
                 NC = [max(NC(1:2)),size(ECM{1})];
-                for k = 1:max(NC(1:2)),
+                for k = 1:NC(1),
                         tmp(k,:,:)=ECM{k};
                 end;
                 ECM = tmp;
