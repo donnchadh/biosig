@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.51 $
-%	$Id: sopen.m,v 1.51 2004-05-02 11:19:52 schloegl Exp $
+%	$Revision: 1.52 $
+%	$Id: sopen.m,v 1.52 2004-05-04 22:05:38 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -501,6 +501,7 @@ end;
 if ~isfield(HDR,'FLAG');
         HDR.FLAG.UCAL = ~isempty(findstr(MODE,'UCAL'));   % FLAG for UN-CALIBRATING
         HDR.FLAG.FILT = 0; 	% FLAG if any filter is applied; 
+        HDR.FLAG.TRIGGERED = 0; % the data is untriggered by default
 end;
 if ~isfield(HDR,'EVENT');
         HDR.EVENT.N   = 0; 
@@ -736,7 +737,7 @@ elseif strcmp(HDR.TYPE,'rhdE'),
         fclose(HDR.FILE.FID);
         
         
-elseif strcmp(HDR.TYPE,'alpha'),
+elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
         HDR.FILE.FID = -1;      % make sure SLOAD does not call SREAD;
         
         % The header files are text files (not binary).
@@ -750,7 +751,7 @@ elseif strcmp(HDR.TYPE,'alpha'),
         
         fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),PERMISSION);	
         if fid < 0,
-                fprintf(2,'Error SOPEN alpha-trace: couldnot open RAWHEAD\n');
+                fprintf(2,'Error SOPEN (alpha): couldnot open RAWHEAD\n');
         else
                 H = []; k = 0;
                 HDR.TYPE = 'unknown';
@@ -818,7 +819,7 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 
                 HDR.FLAG.UCAL = ~all(OK);
                 if ~all(OK),
-                        fprintf(2,'Warning SLOAD alpha-trace: calibration not valid for some channels\n');
+                        fprintf(2,'Warning SOPEN (alpha): calibration not valid for some channels\n');
                 end;
                 HDR.Cal(find(~OK)) = NaN;
                 HDR.Calib = sparse([-HDR.Off';eye(HDR.NS*[1,1])])*sparse(1:HDR.NS,1:HDR.NS,HDR.Cal);
@@ -900,7 +901,7 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 HDR.EVENT.IO  = IO(:);
                 HDR.EVENT.CHN = zeros(HDR.EVENT.N,1);
         end;
-        if ~any(HDR.VERSION==[407.1,409.5]);
+        if all(abs(HDR.VERSION-[407.1,409.5]) > 1e-6);
                 fprintf(HDR.FILE.stderr,'Warning SLOAD: Format ALPHA Version %6.2f not tested yet.\n',HDR.VERSION);
         end;
         
@@ -1934,6 +1935,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
         
         HDR.HeadLen = ftell(HDR.FILE.FID);
         HDR.FILE.POS= 0;
+	HDR.FILE.OPEN = 1; 
         
 elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
         % implementation of this format is not finished yet.
@@ -3232,7 +3234,7 @@ elseif strcmp(HDR.TYPE,'NEX'),
                         return;
                 end
                 
-                HDR.FILE.OPEN = 1;
+                %HDR.FILE.OPEN = 1;
                 HDR.FILE.POS  = 0;
                 HDR.NEX.magic = fread(HDR.FILE.FID,1,'int32');
                 HDR.VERSION = fread(HDR.FILE.FID,1,'int32');
@@ -3859,7 +3861,8 @@ elseif strncmp(HDR.TYPE,'FIF',3),
                 HDR.FILE.POS = 0; 
                 HDR.FILE.OPEN = 1; 
         else
-                fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): Cannot open FIF-file, because rawdata.mex not installed. \n',HDR.NS);
+                fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): NeuroMag FIFF access functions not available. \n');
+                fprintf(HDR.FILE.stderr,'\tOnline available at: http://boojum.hut.fi/~kuutela/meg-pd/ \n');
                 return;
         end
         

@@ -35,8 +35,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.19 $
-% 	$Id: save2bkr.m,v 1.19 2004-04-22 18:02:31 schloegl Exp $
+%	$Revision: 1.20 $
+% 	$Id: save2bkr.m,v 1.20 2004-05-04 22:08:04 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -79,8 +79,8 @@ else
                         fprintf(2,'invalid autoscale argument %s',chansel);
                         return;
                 else
-		        FLAG_AUTOSCALE = 1;
-	                chansel = tmp;
+                        FLAG_AUTOSCALE = 1;
+                        chansel = tmp;
                 end;
         end;
         tmp = findstr(lower(arg3),'detrend');
@@ -92,7 +92,7 @@ else
                         return;
                 else
                         FLAG_DETREND = 1;
-	                chansel_dt = tmp;
+                        chansel_dt = tmp;
                 end;
         end;
         
@@ -105,7 +105,7 @@ else
                         return;
                 else
                         FLAG_removeDrift = 1;
-	                chansel_dt2 = tmp;
+                        chansel_dt2 = tmp;
                 end;
         end;
         tmp = findstr(lower(arg3),'physmax=');
@@ -130,8 +130,8 @@ if isstr(arg1),
         end;
         outfile = arg2;
 elseif isstruct(arg1) & isnumeric(arg2),
-	HDR  = arg1;
-	data = arg2;
+        HDR  = arg1;
+        data = arg2;
 else  %if isstruct(arg1) & isnumeric(arg2),
         fprintf(2,'Error SAVE2BKR: invalid input arguments\n');	        
         return;
@@ -139,19 +139,19 @@ end;
 
 if isstruct(arg1),
         %HDR.FileName 	= destfile;	% Assign Filename
-	if isfield(HDR,'NS')
-		if HDR.NS==size(data,2),
-			% It's ok. 
-		elseif HDR.NS==size(data,1),
-			warning('data is transposed\n');
-			data = data';
-		else
-			fprintf(2,'HDR.NS=%i is not equal number of data columns %i\n',HDR.NS,size(data,2));
-			return;
-		end;				
-	else
-	        HDR.NS = size(data,2);	% number of channels
-	end;
+        if isfield(HDR,'NS')
+                if HDR.NS==size(data,2),
+                        % It's ok. 
+                elseif HDR.NS==size(data,1),
+                        warning('data is transposed\n');
+                        data = data';
+                else
+                        fprintf(2,'HDR.NS=%i is not equal number of data columns %i\n',HDR.NS,size(data,2));
+                        return;
+                end;				
+        else
+                HDR.NS = size(data,2);	% number of channels
+        end;
         if ~isfield(HDR,'NRec'),
                 HDR.NRec = 1;		% number of trials (1 for continous data)
         end;	
@@ -195,19 +195,19 @@ if isstruct(arg1),
         HDR = swrite(HDR,data);  	% WRITE BKR FILE
         %fwrite(HDR.FILE.FID,data','int16');  	% WRITE BKR FILE
         HDR = sclose(HDR);            % CLOSE BKR FILE
-
-	% save Classlabels
-	if isfield(HDR,'Classlabel'),
-		fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.par'],'wt');
-        	fprintf(fid, '%i\n', HDR.Classlabel);
-        	fclose(fid);
-	end;
+        
+        % save Classlabels
+        if isfield(HDR,'Classlabel'),
+                fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.par'],'wt');
+                fprintf(fid, '%i\n', HDR.Classlabel);
+                fclose(fid);
+        end;
         if isfield(HDR,'ArtifactSelection'),
                 fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.sel'],'w');
                 fprintf(fid, '%i\r\n', HDR.ArtifactSelection);
                 fclose(fid);
         end;
-
+        
         % final test 
         try
                 HDR = sopen(HDR.FileName,'r');
@@ -224,7 +224,7 @@ for k=1:length(infile);
         
         % load eeg data 
         [y,HDR] = sload(filename);
-
+        
         % load classlabels if the exist
         tmp = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.mat']);
         if exist(tmp),
@@ -233,7 +233,7 @@ for k=1:length(infile);
                         HDR.Classlabel = tmp.classlabel;
                 end;
         end;
-
+        
         if isempty(y), 
                 fprintf(2,'Error SAVE2BKR: file %s not found\n',filename);
                 return; 
@@ -276,7 +276,7 @@ for k=1:length(infile);
                 for k = chansel_dt,
                         tmp = filter(B,1,[y(:,k);zeros(length(B),1)]);
                         y(:,k) = tmp(Delay+1:size(y,1)+Delay);
-	        end;                
+                end;                
         end;
         
         if FLAG_removeDrift,
@@ -298,13 +298,13 @@ for k=1:length(infile);
                 for k = chansel_dt2,
                         y(:,k) = filtfilt(B,1,y(:,k));
                         %y(:,k) = tmp(Delay+1:size(y,1)+Delay);
-	        end;                
+                end;                
         end;
         
         if chansel == 0;
                 chansel=1:HDR.NS;
         end;
-
+        
         % add event channel 
         if isfield(HDR,'EVENT')
                 if HDR.EVENT.N <= 0,
@@ -320,25 +320,22 @@ for k=1:length(infile);
                         end;
                         HDR.NS = HDR.NS + size(event,2);
                         y = [y, event];
-                else
-                        if all(HDR.EVENT.TYP < 256),  % only NeuroScan Events are converted into separate channels
-                                K = 0; event = [];
-                                for k1 = 0:7,
-                                        tmp = bitand(HDR.EVENT.TYP,2^k1);
-                                        if any(tmp),
-                                                K = K+1;
-                                                event(size(y,1),K) = 0;        
-                                                event(HDR.EVENT.POS(tmp>0),K) = 1;        
-                                        end;				
-                                end;    
-                                if any(sum(event,2)>1),
-                                        fprintf(2,'Warning SAVE2BKR: simulateneous events occur. \n');
-                                end;	
-                                HDR.NS = HDR.NS + size(event,2);
-                                y = [y, event];
-                        end;
+                elseif all(HDR.EVENT.TYP < 256),  % only NeuroScan Events are converted into separate channels
+                        K = 0; event = [];
+                        for k1 = 0:7,
+                                tmp = bitand(HDR.EVENT.TYP,2^k1);
+                                if any(tmp),
+                                        K = K+1;
+                                        event(size(y,1),K) = 0;        
+                                        event(HDR.EVENT.POS(tmp>0),K) = 1;        
+                                end;				
+                        end;    
+                        if any(sum(event,2)>1),
+                                fprintf(2,'Warning SAVE2BKR: simulateneous events occur. \n');
+                        end;	
+                        HDR.NS = HDR.NS + size(event,2);
+                        y = [y, event];
                 end;
-		end;
         end;
         
         % re-scale data to account for the scaling factor in the header
@@ -372,7 +369,7 @@ for k=1:length(infile);
                 HDR.FileName  = [HDR.FILE.Name,'.bkr'];     % destination directory is current working directory 
         elseif isdir(outfile),	% output file
                 HDR.FILE.Path = outfile;            
-	        HDR.FileName  = fullfile(outfile,[HDR.FILE.Name,'.bkr']);
+                HDR.FileName  = fullfile(outfile,[HDR.FILE.Name,'.bkr']);
         else
                 [HDR.FILE.Path,HDR.FILE.Name,Ext] = fileparts(outfile);
                 HDR.FileName = fullfile(HDR.FILE.Path,[HDR.FILE.Name,Ext]);
@@ -391,9 +388,11 @@ for k=1:length(infile);
         
         % save classlabels
         if isfield(HDR,'Classlabel'),
-                fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.par'],'w');
-                fprintf(fid, '%i\r\n', HDR.Classlabel);
-                fclose(fid);
+                if ~isempty(HDR.Classlabel),
+                        fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.par'],'w');
+                        fprintf(fid, '%i\r\n', HDR.Classlabel);
+                        fclose(fid);
+                end;
         end;
         if isfield(HDR,'ArtifactSelection'),
                 fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.sel'],'w');
