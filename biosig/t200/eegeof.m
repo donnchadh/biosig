@@ -21,8 +21,8 @@ function [status]=eegeof(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.3 $
-%	$Id: eegeof.m,v 1.3 2003-05-24 01:01:42 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: eegeof.m,v 1.4 2003-05-26 09:06:43 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -33,9 +33,9 @@ function [status]=eegeof(HDR)
 if strmatch(HDR.TYPE,{'EDF','BDF','GDF','RDF'}),
 	%status=feof(EDF.FILE.FID);  % does not work properly
 	%if EDF.FILE.POS~=EDF.AS.startrec+EDF.AS.numrec;
-        status=(HDR.FILE.POS>=HDR.NRec);
+        status = (HDR.FILE.POS >= HDR.NRec);
 	
-elseif strmatch(HDR.TYPE,{'BKR','CNT','MIT','RG64','LABVIEW'}),
+elseif strmatch(HDR.TYPE,{'BKR','CNT','MIT','RG64','LABVIEW','SMA'}),
 	status = (HDR.FILE.POS >= (HDR.AS.endpos-HDR.HeadLen));
 
 else

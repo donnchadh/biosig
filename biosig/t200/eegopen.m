@@ -33,8 +33,8 @@ function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.10 $
-%	$Id: eegopen.m,v 1.10 2003-05-24 01:01:41 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: eegopen.m,v 1.11 2003-05-26 09:06:42 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -267,8 +267,67 @@ elseif strcmp(HDR.TYPE,'EGI'),
 elseif strcmp(HDR.TYPE,'LDR'),
         HDR = openldr(HDR,PERMISSION);      
         
-elseif strcmp(HDR.TYPE,'RDF'),  % under constructions
-
+elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
+    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        if HDR.FILE.FID <= 0,
+                fprintf(HDR.FILE.stderr,'EEGOPEN: RDF-File %s couldnot be opened\n',HDR.FileName);
+                return;
+        end;        
+        numbegin=0;
+        HDR.H1 = [];
+        while ~numbegin,
+                line = fgets(HDR.FILE.FID);
+                HDR.H1 = [HDR.H1 line];
+                if (length(line)>=8 & line(1:8)=='"NCHAN%"') 
+                        HDR.NS=str2num(line(findstr(line,'=')+1:end-1));
+                end
+                if (length(line)>= 12 & line(1:12)=='"NUM.POINTS"') 
+                        HDR.NRec=str2num(line(findstr(line,'=')+1:end-1));
+                end
+                if (length(line)>= 10 & line(1:10)=='"ACT.FREQ"') 
+                        HDR.SampleRate=str2num(line(findstr(line,'=')+1:end-1));
+                end
+                if (length(line)>= 4 & line(1:4)=='"TR"') 
+                        HDR.H1 = HDR.H1(1:length(HDR.H1)-length(line));
+                        line =fgets(HDR.FILE.FID); % get the time and date stamp line
+                        numbegin=1;
+                end
+        end
+        
+        fseek(HDR.FILE.FID,1,0); % skip final hex-AA char
+        
+        %%%%%%%%%%%%%%%%%%% check file length %%%%%%%%%%%%%%%%%%%%
+        
+        HDR.FILE.POS= 0;
+        HDR.HeadLen = ftell(HDR.FILE.FID);  % Length of Header
+        fseek(HDR.FILE.FID,0,'eof'); 
+        HDR.AS.endpos = ftell(HDR.FILE.FID); 
+        fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+        if HDR.AS.endpos-HDR.HeadLen ~= HDR.NS*HDR.NRec*4;
+                fprintf(2,'Error EEGOPEN TYPE=SMA: Header information does not fit size of file\n');
+        end
+        HDR.AS.bpb = HDR.NS*4;
+        
+        HDR.SMA.EVENT_CHANNEL= 1;
+        HDR.SMA.EVENT_THRESH = 2.3;
+        HDR.Filter.T0 = zeros(1,length(HDR.SMA.EVENT_CHANNEL));
+        
+        if CHAN==0,		
+		HDR.SIE.InChanSelect = 1:HDR.NS;
+		HDR.SIE.ChanSelect   = 2:HDR.NS;
+	elseif all(CHAN>0 & CHAN<=HDR.NS),
+		HDR.SIE.InChanSelect = [1;CHAN(:)+1];
+		HDR.SIE.ChanSelect = [1+CHAN];
+	else
+		fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+		fclose(HDR.FILE.FID); 
+		HDR.FILE.FID = -1;	
+		return;
+	end;
+                
+        
+        
+elseif strcmp(HDR.TYPE,'RDF'),  
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
         if HDR.FILE.FID <= 0,
                 fprintf(HDR.FILE.stderr,'EEGOPEN: RDF-File %s couldnot be opened\n',HDR.FileName);

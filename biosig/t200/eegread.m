@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.7 $
-%	$Id: eegread.m,v 1.7 2003-05-24 01:01:41 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: eegread.m,v 1.8 2003-05-26 09:06:43 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -63,6 +63,23 @@ elseif strmatch(HDR.TYPE,{'BKR','ISHNE','RG64'}),
                 S = S*HDR.Cal;
         end;
 
+
+elseif strcmp(HDR.TYPE,'SMA'),
+        if nargin==3,
+        	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*4,'bof');        
+		HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        
+        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],'float'); % read data frame
+        
+        HDR.SMA.events = diff(sign([HDR.Filter.T0',S(HDR.SMA.EVENT_CHANNEL,:)]-HDR.SMA.EVENT_THRESH))>0;
+        HDR.Filter.T0 = S(HDR.SMA.EVENT_CHANNEL,size(S,2))';
+        
+	if count,
+	        S = S(HDR.SIE.ChanSelect,:)';
+                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+        end;
+       
 
 elseif strcmp(HDR.TYPE,'RDF'),
 	S = [];
