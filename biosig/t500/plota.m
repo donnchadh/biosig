@@ -36,8 +36,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 
 
 
-%       $Revision: 1.10 $
-%	$Id: plota.m,v 1.10 2003-04-07 18:48:56 schloegl Exp $
+%       $Revision: 1.11 $
+%	$Id: plota.m,v 1.11 2003-04-09 07:04:17 montaine Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -113,6 +113,51 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
                 suptitle('timevarying coherence')
         end;
         
+elseif strcmp(X.datatype,'MVAR-DTF'),
+                    if length(size(X.DTF))==4,
+                        M = size(X.DTF,1);
+                        for k1 = 1:M;
+                            for k2 = 1:M;
+                                s = subplot(M,M,k2+(k1-1)*M);
+                                tmp = abs(squeeze(X.DTF(k1,k2,:,:)));
+                                [a,b] = meshgrid(X.t,X.f);
+                                mesh(a,b,abs(tmp));
+                                v = axis; v(5:6)=[0,1]; axis(v);
+                                xlabel('Time','FontSize',6);
+                                ylabel('Freq','FontSize',6);
+                                set(s,'FontSize',6);
+                            end;
+                        end;
+                        suptitle('Time-varying DTF')
+                        figure;
+                        for k1= 1:M
+                            for k2 = 1:M
+                                if k2~=k1
+                                    s = subplot(M,M,k2+(k1-1)*M);
+                                    imagesc(X.t,X.f,squeeze(abs(X.DTF(k1,k2,:,:))),[0 1]);
+                                    axis([min(X.t) max(X.t) min(X.f) max(X.f)])
+                                    xlabel('Time','FontSize',5);
+                                    ylabel('Freq','FontSize',5);
+                                    set(s,'YDir','normal','FontSize',5);
+                                    c = colorbar;
+                                    set(c,'FontSize',5);
+                                end
+                            end
+                        end
+                        suptitle('Time-varying DTF')
+                        
+                    elseif length(size(X.DTF))==3,
+                        M=size(X.DTF,1);
+                        for k1= 1:M
+                            for k2 = 1:M
+                                subplot(M,M,k2+(k1-1)*M)
+                                area(abs(squeeze(X.DTF(k1,k2,:))));
+                                axis([min(X.f) max(X.f) 0 1])
+                            end
+                        end
+                        suptitle('Direct Transfer Function')
+                    end;
+                    
 elseif strcmp(X.datatype,'MVAR-PHASE'),
         fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
         if length(size(X.COH))==3,
