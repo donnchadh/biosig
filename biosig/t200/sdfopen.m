@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.29 $
-%	$Id: sdfopen.m,v 1.29 2004-11-04 17:42:49 schloegl Exp $
+%	$Revision: 1.30 $
+%	$Id: sdfopen.m,v 1.30 2004-11-16 19:55:04 schloegl Exp $
 %	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -136,8 +136,8 @@ else
         fprintf(2,'Warning SDFOPEN: the use of SDFOPEN is discouraged (SDFOPEN might disappear); please use SOPEN instead.\n');
 end;
 
-H1idx=[8 80 80 8 8 8 44 8 8 4];
-H2idx=[16 80 8 8 8 8 8 80 8 32];
+H1idx = [8 80 80 8 8 8 44 8 8 4];
+H2idx = [16 80 8 8 8 8 8 80 8 32];
 
 %%%%% Define Valid Data types %%%%%%
 %GDFTYPES=[0 1 2 3 4 5 6 7 16 17 255+(1:64) 511+(1:64)];
@@ -234,11 +234,7 @@ if strcmp(EDF.VERSION(1:3),'GDF'),
         end;
         EDF.NS =   fread(EDF.FILE.FID,1,'uint32');     % 4 Byte  # of signals
 else 
-        if exist('OCTAVE_VERSION')>=5
-                tmp=(find((toascii(H1)<32) | (toascii(H1)>126))); 	%%% snytax for OCTAVE
-        else
-                tmp=(find((H1<32) | (H1>126))); 		%%% syntax for Matlab
-        end;
+        tmp=(find((H1<32) | (H1>126))); 		%%% syntax for Matlab
         if ~isempty(tmp) %%%%% not EDF because filled out with ASCII(0) - should be spaces
                 %H1(tmp)=32; 
                 EDF.ErrNo=[1025,EDF.ErrNo];
@@ -316,7 +312,7 @@ if strcmp(EDF.reserved1(1:4),'EDF+'),	% EDF+ specific header information
 
 	[chk, tmp] = strtok(EDF.RID,' ');
 	if ~strcmp(chk,'Startdate')
-		fprinf(EDF.FILE.stderr,'Warning SDFOPEN: EDF+ header is corrupted.\n');
+		fprintf(EDF.FILE.stderr,'Warning SDFOPEN: EDF+ header is corrupted.\n');
 	end;
 	[EDF.Date2, tmp] = strtok(tmp,' ');
 	[EDF.ID.Investigation, tmp] = strtok(tmp,' ');
@@ -380,14 +376,14 @@ if ~strcmp(EDF.VERSION(1:3),'GDF'),
         %(h2(:,idx1(9)+1:idx1(10))),
         %abs(h2(:,idx1(9)+1:idx1(10))),
         
-        EDF.Label      =         h2(:,idx1(1)+1:idx1(2));
-        EDF.Transducer =         h2(:,idx1(2)+1:idx1(3));
-        EDF.PhysDim    =         h2(:,idx1(3)+1:idx1(4));
+        EDF.Label      =            h2(:,idx1(1)+1:idx1(2));
+        EDF.Transducer =            h2(:,idx1(2)+1:idx1(3));
+        EDF.PhysDim    =            h2(:,idx1(3)+1:idx1(4));
         EDF.PhysMin    = str2double(h2(:,idx1(4)+1:idx1(5)));
         EDF.PhysMax    = str2double(h2(:,idx1(5)+1:idx1(6)));
         EDF.DigMin     = str2double(h2(:,idx1(6)+1:idx1(7)));
         EDF.DigMax     = str2double(h2(:,idx1(7)+1:idx1(8)));
-        EDF.PreFilt    =         h2(:,idx1(8)+1:idx1(9));
+        EDF.PreFilt    =            h2(:,idx1(8)+1:idx1(9));
         EDF.SPR        = str2double(h2(:,idx1(9)+1:idx1(10)));
         %EDF.reserved  =       h2(:,idx1(10)+1:idx1(11));
 	if ~all(abs(EDF.VERSION)==[255,abs('BIOSEMI')]),
@@ -402,7 +398,10 @@ if ~strcmp(EDF.VERSION(1:3),'GDF'),
 	        EDF.ErrNo=[1028,EDF.ErrNo];
         end;
 else
-        fseek(EDF.FILE.FID,256,'bof');
+        if (ftell(EDF.FILE.FID)~=256),
+		error('position error');
+	end;	 
+%%%        status = fseek(EDF.FILE.FID,256,'bof');
         EDF.Label      =  setstr(fread(EDF.FILE.FID,[16,EDF.NS],'uchar')');		
         EDF.Transducer =  setstr(fread(EDF.FILE.FID,[80,EDF.NS],'uchar')');	
         EDF.PhysDim    =  setstr(fread(EDF.FILE.FID,[ 8,EDF.NS],'uchar')');
@@ -531,9 +530,9 @@ end;
 
 if 0, 
         
-elseif strcmp(EDF.TYPE,'GDF'), %EDF.AS.EVENTTABLEPOS > 0,  
-        fseek(EDF.FILE.FID, EDF.AS.EVENTTABLEPOS, 'bof');
-        EDF.EVENT.Version = fread(EDF.FILE.FID,1,'char');
+elseif strcmp(EDF.TYPE,'GDF') & (EDF.AS.EVENTTABLEPOS > 0),  
+        status = fseek(EDF.FILE.FID, EDF.AS.EVENTTABLEPOS, 'bof');
+        [EDF.EVENT.Version,c] = fread(EDF.FILE.FID,1,'char');
         tmp = fread(EDF.FILE.FID,3,'char');
         EDF.EVENT.N = fread(EDF.FILE.FID,1,'uint32');
         if EDF.EVENT.Version==1,
@@ -582,7 +581,7 @@ elseif strcmp(EDF.TYPE,'EDF') & (length(strmatch('EDF Annotations',EDF.Label))==
         EDF.Cal(EDF.EDF.Annotations) = 1;
         EDF.Off(EDF.EDF.Annotations) = 0;
         
-        fseek(EDF.FILE.FID,EDF.HeadLen+EDF.AS.bi(EDF.EDF.Annotations)*2,'bof');
+        status = fseek(EDF.FILE.FID,EDF.HeadLen+EDF.AS.bi(EDF.EDF.Annotations)*2,'bof');
         t = fread(EDF.FILE.FID,EDF.SPR(EDF.EDF.Annotations),'uchar',EDF.AS.bpb-EDF.SPR(EDF.EDF.Annotations)*2);
         t = char(t)';
         lt = length(t);
@@ -710,8 +709,7 @@ else
         end;
 end;
 
-
-fseek(EDF.FILE.FID, EDF.HeadLen, 'bof');
+status = fseek(EDF.FILE.FID, EDF.HeadLen, 'bof');
 EDF.FILE.POS = 0;
 
 % if Channelselect, ReReferenzing and Resampling

@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.73 $
-%	$Id: sopen.m,v 1.73 2004-11-07 22:58:08 schloegl Exp $
+%	$Revision: 1.74 $
+%	$Id: sopen.m,v 1.74 2004-11-16 19:55:04 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -348,10 +348,8 @@ elseif strcmp(HDR.TYPE,'rhdE'),
         HDR.H2 = tmp;
         HDR.NS = tmp(8);		% ? number of channels
         
-        fseek(HDR.FILE.FID,0,'eof');
-        HDR.AS.endpos = ftell(HDR.FILE.FID);
+        HDR.AS.endpos = HDR.FILE.size;
         HDR.NRec = (HDR.AS.endpos-HDR.HeadLen)/1024;
-        fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         
         fprintf(1,'Warning SOPEN HolterExcel2: is under construction.\n');
         
@@ -359,6 +357,7 @@ elseif strcmp(HDR.TYPE,'rhdE'),
                 H1 = fread(HDR.FILE.FID,[1,inf],'uchar')';
         end;
         fclose(HDR.FILE.FID);
+        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         
         
 elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
@@ -1212,9 +1211,13 @@ elseif strcmp(HDR.TYPE,'MIDI') | strcmp(HDR.TYPE,'RMID') ,
         end; 
         
         
-elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
-
+elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
+	if strcmp(HDR.TYPE,'AIF')
+	        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+        else
+		HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+	end;
+	
         if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
 
                 tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));
@@ -2486,7 +2489,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 
                 HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le');
                 if HDR.FILE.FID<0,
-			fprintf(HDR.FILE.stderr,'Error SOPEN: Couldnot open file %s\n',tmpfile);
+			fprintf(HDR.FILE.stderr,'Error SOPEN: Couldnot open file %s\n',HDR.FileName);
 			return;
 		end;	
                 
@@ -4050,14 +4053,14 @@ elseif strcmp(HDR.TYPE,'FITS'),
 				key(key=='-') = '_';
 				if s(11)==char(39),		% string
 					[val, t] = strtok(s(11:len),char(39));
-					HDR.FITS{KK} = setfields(HDR.FITS{KK},key,val);
+					HDR.FITS{KK} = setfield(HDR.FITS{KK},key,val);
 				elseif any(s(30)=='TF'),    	% logical
-					HDR.FITS{KK} = setfields(HDR.FITS{KK},key,s(30)=='T');
+					HDR.FITS{KK} = setfield(HDR.FITS{KK},key,s(30)=='T');
 				elseif all(s(11:len)==' '), 	% empty
-					HDR.FITS{KK} = setfields(HDR.FITS{KK},key,[]);
+					HDR.FITS{KK} = setfield(HDR.FITS{KK},key,[]);
 				elseif all(s(11:len)=='('), 	% complex
 					[val,status] = str2double(s(11:len),[],'(,)');
-					HDR.FITS{KK} = setfields(HDR.FITS{KK},key,val(1)+i*val(2));
+					HDR.FITS{KK} = setfield(HDR.FITS{KK},key,val(1)+i*val(2));
 				else 				% numerical
 					[val,status] = str2double(s(11:len));
 					if any(status),
@@ -4065,9 +4068,10 @@ elseif strcmp(HDR.TYPE,'FITS'),
 						[val,status] = str2double(s(11:len));
 					end;
 					if any(status),
-						fprintf(2,'ERROR SOPEN (FITS): %s\n',s(11:len));
+						fprintf(2,'Warning SOPEN (FITS): Expected numerical value - found string \n\t%s: %s\n',key,s(11:len));
+						HDR.FITS{KK} = setfield(HDR.FITS{KK},key,s(11:len));
 					else
-						HDR.FITS{KK} = setfields(HDR.FITS{KK},key,val);
+						HDR.FITS{KK} = setfield(HDR.FITS{KK},key,val);
 					end;	
 				end	
 
@@ -4128,7 +4132,7 @@ elseif strcmp(HDR.TYPE,'TIFF'),
 			    		status = fseek(HDR.FILE.FID, OFFSET, 'bof');
 				end;
 			
-				[VALUE,c] = fread(HDR.FILE.FID, COUNT, GDFTYP(TYP));
+				[VALUE,c] = fread(HDR.FILE.FID, COUNT, GDFTYP{TYP});
 				if any(TAG==[5,10])
 				%	VALUE = VALUE(1:2:end)./VALUE(2:2:end);
 				end;
