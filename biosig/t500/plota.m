@@ -31,11 +31,10 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 %   'REV' Mode='2D'
 %
 % REFERENCE(S):
-%
 
 
-%       $Revision: 1.4 $
-%	$Id: plota.m,v 1.4 2003-04-07 07:28:12 astest Exp $
+%       $Revision: 1.5 $
+%	$Id: plota.m,v 1.5 2003-04-07 08:25:24 montaine Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
