@@ -15,8 +15,8 @@ function [signal,H,cl] = loadeeg(FILENAME,CHAN,TYPE)
 %
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
 
-%	$Revision: 1.3 $
-%	$Id: loadeeg.m,v 1.3 2003-02-10 14:52:53 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: loadeeg.m,v 1.4 2003-03-12 13:55:43 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -128,26 +128,28 @@ elseif strcmp(TYPE,'MAT')
                 end;
                 
         elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02 Data format
-                if tmp.P_C_S.version~=1.02,
+                if (tmp.P_C_S.version==1.02) | (tmp.P_C_S.version==1.5),
+                        sz = size(tmp.P_C_S.data);
+                        
+                        signal  = repmat(NaN,sz(1)*sz(2),sz(3)); 
+                        for k1 = 1:sz(1),
+                                for k2 = 1:sz(2),
+                                        signal((k1-1)*sz(2)+k2,:) = tmp.P_C_S.data(k1,k2,:);
+                                end;
+                        end;
+                        
+                        H.SampleRate = tmp.P_C_S.samplingfrequency;
+                        H.NRec = sz(1);
+                        H.Dur  = sz(2)/H.SampleRate;
+                        H.NS   = sz(3);
+                        H.Filter.LowPass = tmp.P_C_S.lowpass;
+                        H.Filter.HighPass = tmp.P_C_S.highpass;
+                        H.Filter.Notch = tmp.P_C_S.notch;
+                        H.FLAG.TRIGGERED = H.NRec>1;
+                        cali = 1;
+                else
                         fprintf(2,'Warning: PCS-Version is %4.2f.\n');
                 end;
-                sz = size(tmp.P_C_S.data);
-                
-                y  = repmat(NaN,sz(1)*sz(2),sz(3)); 
-                for k1 = 1:sz(1),
-                        for k2 = 1:sz(2),
-                                y((k1-1)*sz(2)+k2,:) = tmp.P_C_S.data(k1,k2,:);
-                        end;
-                end;
-                
-                HDR.SampleRate = tmp.P_C_S.samplingfrequency;
-                HDR.NRec = sz(1);
-                HDR.Dur  = sz(2)/HDR.SampleRate;
-                HDR.NS   = sz(3);
-                HDR.Filter.LowPass = tmp.P_C_S.lowpass;
-                HDR.Filter.HighPass = tmp.P_C_S.highpass;
-                HDR.Filter.Notch = tmp.P_C_S.notch;
-                cali=1;
                 
         elseif isfield(tmp,'P_C_DAQ_S');
                 signal=double(tmp.P_C_DAQ_S.data{1});
