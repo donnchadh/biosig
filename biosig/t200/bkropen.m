@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.27 $
-%	$Id: bkropen.m,v 1.27 2005-01-20 09:58:29 schloegl Exp $
+%	$Revision: 1.28 $
+%	$Id: bkropen.m,v 1.28 2005-01-20 10:18:48 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -307,9 +307,9 @@ if any(PERMISSION=='r'),
                 end;
         elseif SW == 2,
                 if exist('OCTAVE_VERSION')>5
-                        BKR.ArtifactSelection = load('-mat',tmp2);
+                        tmp = load('-mat',tmp2);
                 else
-                        BKR.ArtifactSelection = load(tmp2);
+                        tmp = load(tmp2);
                 end;
                 BKR.ArtifactSelection = tmp.artifact(:);
         elseif SW == 3,
