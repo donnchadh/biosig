@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.21 $
-%	$Id: bkropen.m,v 1.21 2004-10-05 19:54:02 schloegl Exp $
+%	$Revision: 1.22 $
+%	$Id: bkropen.m,v 1.22 2004-10-08 20:13:14 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -230,6 +230,7 @@ if any(PERMISSION=='r'),
                         BKR.Classlabel = load(tmp);
                 end;
         end;
+        
         if 1; %~isfield(BKR,'ArtifactSelection'),
                 tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.sel']);
                 if ~exist(tmp,'file'),
@@ -244,24 +245,49 @@ if any(PERMISSION=='r'),
                         BKR.ArtifactSelection = tmp.artifact(:); 
                 end;
         end;
+        
         if ~isfield(BKR,'Classlabel'),
-                tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.mat']);
-                if ~exist(tmp,'file'),
-                	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.MAT']);
-                end
-                if exist(tmp,'file'),
-                        try,
-                                tmp = load(tmp);
-                        catch
-                                tmp = [];
-                        end
-                        if isfield(tmp,'header'),
-                                BKR.Classlabel = tmp.header.Result.Classlabel;
+                BKR.Classlabel = [];
+        end;
+        tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.mat']);
+        if ~exist(tmp,'file'),
+                tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.MAT']);
+        end
+        x = [];
+        if exist(tmp,'file'),
+                        x = load('-mat',tmp);
+        end;
+        if isfield(x,'header'),
+                if isfield(x.header,'Result') & isfield(x.header.Result,'Classlabel'),
+                        BKR.Classlabel = x.header.Result.Classlabel;
+                end;
+                if  isfield(x.header,'Paradigm')
+                        if isempty(BKR.Classlabel) & isfield(x.header.Paradigm,'Classlabel')
+                                BKR.Classlabel = x.header.Paradigm.Classlabel;
+                        end;
+                        BKR.BCI.Paradigm = x.header.Paradigm;
+                        if isfield(BKR.BCI.Paradigm,'TriggerTiming');
+                                BKR.TriggerOffset = BKR.BCI.Paradigm.TriggerTiming;
+                        elseif isfield(BKR.BCI.Paradigm,'TriggerOnset');
+                                BKR.TriggerOffset = BKR.BCI.Paradigm.TriggerOnset;
                         end;
                 end;
-
-                if isfield(tmp.header,'PhysioRec'), % R. Leeb's data 
-                        BKR.Label = tmp.header.PhysioRec;
+                if isfield(x.header,'PhysioRec'), % R. Leeb's data 
+                        BKR.Label = x.header.PhysioRec;
+                end;
+                if isfield(x.header,'BKRHeader'), % R. Scherer Data 
+                        if isfield(x.header.BKRHeader,'TO'),
+                                BKR.T0 = x.header.BKRHeader.TO;
+                        end;
+                        if isfield(x.header.BKRHeader,'Label'),
+                                BKR.Label = x.header.BKRHeader.Label;
+                                if size(BKR.Label,1)==(BKR.NS-1);
+                                        BKR.Label = strvcat(BKR.Label,'TRIGGER')
+                                end;
+                        end;
+                end;
+                if ~isempty(strmatch('TRIGGER',BKR.Label))
+                        BKR.AS.TRIGCHAN = BKR.NS; %strmatch('TRIGGER',H.Label); 
                 end;
         end;
 

@@ -30,8 +30,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.37 $
-%	$Id: sload.m,v 1.37 2004-10-07 15:54:19 schloegl Exp $
+%	$Revision: 1.38 $
+%	$Id: sload.m,v 1.38 2004-10-08 20:13:14 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -827,14 +827,12 @@ if (isempty(H.EVENT.TYP) & strcmp(H.TYPE,'GDF')),
         end;
 end;    
 
-        %%% Get trigger information from Robert's VR data 
+        %%% Get trigger information from BKR data 
 if strcmp(H.TYPE,'BKR');
-        if ~isempty(strmatch('TRIGGER',H.Label)) & isempty(H.EVENT.POS)
-                TRIGCHAN = H.NS; %strmatch('TRIGGER',H.Label); 
+        if isfield(H.AS,'TRIGCHAN') & isempty(H.EVENT.POS)
+                H.TRIG = gettrigger(signal(:,H.AS.TRIGCHAN));
                 if isfield(H,'TriggerOffset')
-                        H.TRIG = gettrigger(signal(:,TRIGCHAN))-round(H.TriggerOffset/1000*H.SampleRate);
-                else
-                        H.TRIG = gettrigger(signal(:,TRIGCHAN));
+                        H.TRIG = H.TRIG - round(H.TriggerOffset/1000*H.SampleRate);
                 end;
                 H.EVENT.POS = H.TRIG; 
                 H.EVENT.TYP = repmat(hex2dec('0300'),size(H.EVENT.POS));
