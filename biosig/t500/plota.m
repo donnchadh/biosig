@@ -36,8 +36,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 
 
 
-%       $Revision: 1.21 $
-%	$Id: plota.m,v 1.21 2004-02-23 15:43:22 schloegl Exp $
+%       $Revision: 1.22 $
+%	$Id: plota.m,v 1.22 2004-03-17 19:48:33 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -882,7 +882,7 @@ elseif strcmp(X.datatype,'TF-MVAR'),
 
 	gf = arg2;
 	if ~isfield(X.M,gf)
-		error('PLOTA GMVAR_ALL: field %s is unknonw\n',gf);
+		error('PLOTA TFMVAR_ALL: field %s is unknonw\n',gf);
 	end;
 	
 	%ClassList = {'left','right','foot','tongue'};
@@ -898,21 +898,22 @@ elseif strcmp(X.datatype,'TF-MVAR'),
 	end;
 		
         orient('LANDSCAPE'); 
+        x0 = real(getfield(X.M,gf));
+        clim = [min(x0(:)),max(x0(:))]
+        caxis(clim);
+        cm = colormap;
         for k1 = 1:M,
                 for k2 = 1:M,
-                        subplot(M,M,(k1-1)*5+k2);
-                        x0 = real(getfield(X.M,gf));
-			x = x0(k1,k2,1:length(X.F),:);
+                        subplot(M,M,(k1-1)*M+k2);
+                        x = x0(k1,k2,1:length(X.F),:);
                         ci = getfield(X.SE,gf)*(X.N-1);
-			ci = ci(k1,k2,1:length(X.F),:);
-                        clim = [min(x0(:)),max(x0(:))];
-			caxis(clim);
-			cm = colormap;
-			if alpha<.5,
-        			xc = 2+round(62*(squeeze(x)-clim(1))/diff(clim));
+                        ci = ci(k1,k2,1:length(X.F),:);
+                        if alpha < .5,
+        			xc = 2 + round(62*(squeeze(x)-clim(1))/diff(clim));
 				sz = size(x);
 				%x = x(:);
-				xc(abs(x) < (ci*norminv(1-alpha/2))) = 1;
+                                bf = prod(size(x));
+				xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
 				%x(abs(x) < .5) = NaN;
 				%x = reshape(x,sz);
 				cm(1,:) = [1,1,1];
@@ -925,7 +926,9 @@ elseif strcmp(X.datatype,'TF-MVAR'),
 			x2 = reshape(cm(xc,2),size(xc));
 			x3 = reshape(cm(xc,3),size(xc));
 			
-                        h  = imagesc(X.T,X.F,cat(3,x1,x2,x3)*diff(clim)+clim(1),clim);
+                        %h = imagesc(X.T,X.F,cat(3,x1,x2,x3)*diff(clim)+clim(1),clim);
+                        h = imagesc(X.T,X.F,cat(3,x1,x2,x3),clim);
+                        %h  = imagesc(X.T,X.F,squeeze(x),clim);
                         if k1==1, title(Label{k2}); end;
                         if k2==1, ylabel(Label{k1});end;
                 end;
@@ -1224,17 +1227,27 @@ elseif strcmp(X.datatype,'HISTOGRAM')
                         semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT],'-',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         v=axis; v=[MaxMin(2)+0.1*diff(MaxMin) MaxMin(1)-0.1*diff(MaxMin) 1 max(h)]; axis(v);
                         %v=axis; v=[v(1:2) 1 max(h)]; axis(v);
+                elseif strcmp(yscale,'qq'),
+                        subplot(ceil(size(X.H,2)/N),N,K);
+                        tmp=.5;sum(h)/2;
+                        %plot(t,cumsum(h)/sum(h),'-',t,cumsum(exp(-(t-mu).^2/sd2/2)/sqrt(2*pi*sd2)/X.N(K)),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+                        plot(cumsum(h)/sum(h),normcdf(t,mu,sqrt(sd2)),'xb',[0,1],[0,1],'-c');
                 elseif strcmp(yscale,'csum'),
                         subplot(ceil(size(X.H,2)/N),N,K);
-                        tmp=sum(h)/2;
-                        plot(t,cumsum(h),'-',t,cumsum(exp(-(t-mu).^2/sd2/2)/sqrt(2*pi*sd2)/X.N(k)),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+                        tmp=.5;sum(h)/2;
+                        %plot(t,cumsum(h)/sum(h),'-',t,cumsum(exp(-(t-mu).^2/sd2/2)/sqrt(2*pi*sd2)/X.N(K)),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+                        plot(t,cumsum(h)/sum(h),'-',t,normcdf(t,mu,sqrt(sd2)),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         v=axis; v(1:2)=[MaxMin(2)+0.1*diff(MaxMin) MaxMin(1)-0.1*diff(MaxMin)]; axis(v);
                 elseif strcmp(yscale,'CDF'),
                         %subplot(ceil(size(X.H,2)/N),N,K);
                         tmp=sum(h)/2;
                         %semilogx(X.X,cumsum(X.H,1)./X.N(ones(size(X.X,1),1),:),'-');
-                        plot(X.X,cumsum(X.H,1)./X.N(ones(size(X.X,1),1),:),'-');
+                        plot([X.X(1,:)-eps;X.X],[zeros(1,size(X.H,2));cumsum(X.H,1)]./X.N(ones(size(X.X,1)+1,1),:),'-');
+			t = [t(1)-eps;t];
+			%plot(t,[cumsum([0;h])/X.N(K),normcdf(t,mu,sqrt(sd2))])
+                        %plot(t,cumsum([0;h])/X.N(K))
                         %v=axis; v(1:2)=[MaxMin(2)+0.1*diff(MaxMin) MaxMin(1)-0.1*diff(MaxMin)]; axis(v);
+                        v=axis; v(3:4)=[0,1]; axis(v);
                 elseif strcmp(yscale,'stacked'),
                         bar(t,h,'stacked');        
                 end;
@@ -1374,6 +1387,23 @@ elseif strcmp(X.datatype,'TSD1'),
         hold on
         h=plot(X.TI(:),1,'.k');
         
+        
+elseif strcmp(X.datatype,'MEAN+SEM') 
+        if nargin<2,
+                clf;
+                for k = 1:min(size(X.MEAN)), 
+                        nf(k)=subplot(1,4,k); 
+                end;
+        else
+                nf=arg2;
+        end;
+        for k=1:min(size(X.MEAN));
+                subplot(nf(k));
+                plot(X.T,[1,0;0,-1]*[X.MEAN(k,:);X.STD(k,:)])        
+                xlabel('time')
+                %legend('mean','std')
+        end;
+        
 elseif strcmp(X.datatype,'TSD_BCI7') 
         if (nargin>1) & strcmpi(arg2,'balken2');
                 %elseif strcmpi(X.datatype,'Balken_Diagramm'),
@@ -1388,7 +1418,7 @@ elseif strcmp(X.datatype,'TSD_BCI7')
                 %elseif strcmpi(X.datatype,'Balken_Diagramm'),
                 
                 dy = 0.3;
-                F  = 25;
+                F  = 125;
                 if isfield(X,'Fs'),
                         if X.Fs==125,
                                 F = 50;
@@ -1396,15 +1426,14 @@ elseif strcmp(X.datatype,'TSD_BCI7')
                                 F = 32;
                         end
                 end;
-                mn = rs([X.MEAN2(:),X.MEAN1(:)],F,1)';
-                pc = rs([X.BCG2(:),X.BCG1(:)],F,1)';
+                mn = [rs(X.MEAN2(:),F,1)';rs(X.MEAN1(:),F,1)'];
+                pc = [rs(X.BCG2(:),F,1)';rs(X.BCG1(:),F,1)'];
                 %barh(rs(X.T,F,1),rs([X.BCG1,X.BCG2],F,1),1)
                 
                 samples = (1:length(mn))';
                 time = X.T(F:F:end)';
                 %time = time - time(1);
                 
-                %if 0,%
                 % the following sequence is from R. Scherer 
                 for k = 1:size(mn, 2),
                         if abs(mn(1,k)) > abs(mn(2,k))
@@ -1424,8 +1453,9 @@ elseif strcmp(X.datatype,'TSD_BCI7')
                 mx = max(max(mn));
                 mn = min(min(mn));
                 
-                xlim(1.2 * [mn mx]);
-                set(gca, 'ytick', 1:length(time), 'yticklabel', num2str(time', '%02.2f'));
+                %xlim(1.2 * [mn mx]);
+                xlim([-1,1]);
+                set(gca, 'ytick', 1:length(time), 'yticklabel', num2str(time(:), '%02.2f'));
                 ylabel('time in seconds');
                 xlabel('distance')
                 ylim([0.5 length(samples)+0.5]);
@@ -1444,10 +1474,11 @@ elseif strcmp(X.datatype,'TSD_BCI7')
                 %elseif strcmp(X.datatype,'TSD_BCI7') | strcmp(X.datatype,'SNR'), ,
         else
                 if nargin<2,
-                        for k=1:3, 
-                                nf(k)=subplot(1,3,k); 
+                        clf;
+                        for k=1:4, 
+                                nf(k)=subplot(1,4,k); 
                         end;
-                else
+                        else
                         nf=arg2;
                 end;
                 if isfield(X,'KAP00');
@@ -1522,7 +1553,7 @@ elseif strcmp(X.datatype,'TSD_BCI7')
                 v=axis;v=[0,max(t),0,2];axis(v);
                 
                 if length(nf)>3,
-                        subplot(nf(4))
+                        axes(nf(4))
                         plota(X,'balken');
                 elseif 0,
                         plot(t,X.corcov)
