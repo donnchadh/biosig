@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.7 $
-%	$Id: scpopen.m,v 1.7 2004-02-09 22:09:06 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: scpopen.m,v 1.8 2004-02-11 18:20:35 schloegl Exp $
 %	(C) 2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -265,7 +265,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         if ~isfield(HDR,'SCP2'),
                                 S2 = fread(fid,[SCP.SPR,HDR.NS],'int16');    
                                 
-                        elseif 0,HDR.SCP2.NHT==19999,
+                        elseif HDR.SCP2.NHT==19999,
                                 HuffTab = DHT;
 				S2 = []; %repmat(NaN,HDR.N,HDR.NS);
                                 for k = 1:HDR.NS,
@@ -294,7 +294,8 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
 						end;
 
                                                 ixx = 1;
-                                                acc = mod(accu,2^32);   % bitand returns NaN if accu >= 2^32
+                                                %acc = mod(accu,2^32);   % bitand returns NaN if accu >= 2^32
+						acc = accu - 2^32*fix(accu*(2^(-32)));   % bitand returns NaN if accu >= 2^32
 						while (bitand(acc,2^HT(ixx,1)-1) ~= HT(ixx,5)),
 							ixx = ixx + 1;
 						end;
@@ -309,7 +310,12 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
 						else %if (HT(ixx,3)>0),
 							l2 = l2 + 1;
 							%acc2  = fix(accu*(2^(-HT(ixx,1))));
-							tmp = mod(fix(accu*(2^(-HT(ixx,1)))),2^dd);
+							%tmp = mod(fix(accu*(2^(-HT(ixx,1)))),2^dd);
+							
+                                                        tmp = fix(accu*(2^(-HT(ixx,1))));       % bitshift(accu,-HT(ixx,1))
+                                                        tmp = tmp - (2^dd)*fix(tmp*(2^(-dd)));  % bitand(...,2^dd)
+                                                        
+                                                        %tmp = bitand(accu,(2^dd-1)*(2^HT(ixx,1)))*(2^-HT(ixx,1));
                                                         % reverse bit-pattern
                                                         if dd==8,
                                                                 tmp = ACC(tmp+1);
@@ -335,6 +341,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                         end;
 				end;
                                 
+                                
                         elseif (HDR.SCP2.NHT==19999), % alternative decoding algorithm. 
                                 HuffTab = DHT;
                                 for k = 1:HDR.NS,
@@ -351,7 +358,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                         clear x;
                                         Ntmp = length(tmp);
                                         tmp = [tmp; zeros(4,1)];
-                                        while c<=32, %1:HDR.SPR(k),
+                                        while c <= 32, %1:HDR.SPR(k),
                                                 ixx = 1;
                                                 while (bitand(accu,mask(ixx)) ~= PREFIX(ixx)), 
                                                         ixx = ixx + 1;
@@ -366,7 +373,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                         
                                                 elseif ixx == 18,
                                                         c = c + prefix(ixx) + 8;
-                                                        %accu  = bitshift(accu, prefix(ixx),32);
+                                                        %accu = bitshift(accu, prefix(ixx),32);
                                                         accu  = mod(accu.*(2^prefix(ixx)),2^32);
                                                         l2    = l2 + 1;
                                                         
@@ -383,7 +390,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                         
                                                 elseif ixx == 19,
                                                         c = c + prefix(ixx);
-                                                        %accu  = bitshift(accu, prefix(ixx),32);
+                                                        %accu = bitshift(accu, prefix(ixx),32);
                                                         accu  = mod(accu.*(2^prefix(ixx)),2^32);
                                                         l2    = l2 + 1;
                                                         while (c > 7) & (l < Ntmp),
@@ -396,7 +403,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                         %accu = bitshift(accu, 16, 32);
                                                         accu = mod(accu.*(2^16), 2^32);
                                                         
-                                                       x(l2) = acc1-(acc1>=2^15)*2^16;
+                                                        x(l2) = acc1-(acc1>=2^15)*2^16;
                                                         acc2 = 0;
                                                         for kk=1:16,
                                                                 acc2 = acc2*2+mod(acc1,2);
@@ -426,7 +433,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                         end;
                                 end;
                                         
-                      elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) & (HDR.SCP2.prefix==0), 
+                        elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) & (HDR.SCP2.prefix==0), 
 				codelength = HDR.SCP.HT(1,4);
                                 if (codelength==16)
                                         S2 = fread(fid,[HDR.N,HDR.NS],'int16');  
