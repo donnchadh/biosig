@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.89 $
-%	$Id: sopen.m,v 1.89 2005-01-15 20:36:46 schloegl Exp $
+%	$Revision: 1.90 $
+%	$Id: sopen.m,v 1.90 2005-01-19 21:01:32 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2557,27 +2557,28 @@ elseif strcmp(HDR.TYPE,'MIT')
                                         [tmp, tmp1] = strtok(tmp,' ()');
                                         [tmp, status] = str2double(tmp); 
                                         if isempty(tmp) | isnan(tmp), tmp = 1; end;   % gain
-                                        HDR.gain(k,1) = tmp;
+                                        HDR.MIT.gain(1,k) = tmp;
                                 elseif k0==3,
                                         [tmp, status] = str2double(tmp); 
                                         if isempty(tmp) | isnan(tmp), tmp = NaN; end; 
-                                        HDR.MIT.bitres(k,1) = tmp;
+                                        HDR.MIT.bitres(1,k) = tmp;
                                 elseif k0==4,
                                         [tmp, status] = str2double(tmp); 
                                         if isempty(tmp) | isnan(tmp), tmp = 0; end;   
-                                        HDR.zerovalue(k,1) = tmp; 
+                                        HDR.MIT.zerovalue(1,k) = tmp; 
                                 elseif k0 == 5, 
                                         [tmp, status] = str2double(tmp);
                                         if isempty(tmp) | isnan(tmp), tmp = NaN; end; 
-                                        HDR.firstvalue(1,k) = tmp;        % first integer value of signal (to test for errors)
+                                        HDR.MIT.firstvalue(1,k) = tmp;        % first integer value of signal (to test for errors)
                                 else
  
                                 end;
                         end;
                         HDR.Label(k,1:length(z)+1) = [z,' ']; 
                 end;
-		HDR,
-                HDR.Calib = sparse([HDR.zerovalue(:).';eye(HDR.NS)]*diag(1./HDR.gain(:)));
+                
+                HDR.MIT.gain(HDR.MIT.gain==0) = 200;    % default gain 
+                HDR.Calib = sparse([HDR.MIT.zerovalue(:).';eye(HDR.NS)]*diag(1./HDR.MIT.gain(:)));
                 HDR.Label = char(HDR.Label);
                 
                 z = char(fread(fid,[1,inf],'char'));
@@ -2727,17 +2728,17 @@ elseif strcmp(HDR.TYPE,'MIT')
                 HDR.InChanSelect = 1:HDR.NS;
                 FLAG_UCAL = HDR.FLAG.UCAL;	
                 HDR.FLAG.UCAL = 1;
-                [S,HDR] = sread(HDR,1/HDR.SampleRate); % load 1st sample
-                if (HDR.VERSION>0) & (any(S(1,:) - HDR.firstvalue)), 
+                S = NaN;
+                %[S,HDR] = sread(HDR,1/HDR.SampleRate); % load 1st sample
+                if (HDR.VERSION>0) & (any(S(1,:) - HDR.MIT.firstvalue)), 
                         fprintf(HDR.FILE.stderr,'Warning SOPEN MIT-ECG: First values of header and datablock do not fit.\n\tHeader:\t'); 
-                        fprintf(HDR.FILE.stderr,'\t%5i',HDR.firstvalue);
+                        fprintf(HDR.FILE.stderr,'\t%5i',HDR.MIT.firstvalue);
                         fprintf(HDR.FILE.stderr,'\n\tData 1:\t');
                         fprintf(HDR.FILE.stderr,'\t%5i',S(1,:));
                         fprintf(HDR.FILE.stderr,'\n');
                 end;
                 HDR.FLAG.UCAL = FLAG_UCAL ;	
                 fseek(HDR.FILE.FID,0,'bof');	% reset file pointer
-
         end;
         
         

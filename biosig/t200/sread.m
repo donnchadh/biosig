@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.39 $
-%	$Id: sread.m,v 1.39 2005-01-15 20:36:46 schloegl Exp $
+%	$Revision: 1.40 $
+%	$Id: sread.m,v 1.40 2005-01-19 21:01:36 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -280,38 +280,11 @@ elseif strcmp(HDR.TYPE,'MIT'),
 
         DataLen = NoS*HDR.SampleRate;
         if HDR.VERSION == 212, 
-                [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb, DataLen], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
-                A = A'; 
-                for k = 1:ceil(HDR.AS.spb/2),
-                        S(:,2*k-1) = mod(A(:,3*k+[-2:-1])*(2.^[0;8]),2^12);
-                        S(:,2*k)   = mod(floor(A(:,3*k-1)/16),16)*256+A(:,3*k);
-                end
+                [A,count] = fread(HDR.FILE.FID, [3, DataLen*HDR.AS.bpb/2], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
+                S(1,:) = A(1,:) + mod(A(2,:), 16)*256;
+                S(2,:) = floor(A(2,:)/16)*256 + A(3,:);
                 S = S - 2^12*(S>=2^11);	% 2-th complement
-                HDR.FLAG.UCAL = 1; 
-                HDR.S = S;
-                
-        elseif 0, HDR.VERSION == 212, % previous version 
-                [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb, DataLen], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
-                A = [A', zeros(size(A,2),1)]; DataLen = count/HDR.AS.bpb;
-                for k = 1:ceil(HDR.NS/2),
-                        S(:,2*k-1) = mod(A(:,3*k+[-2:-1])*(2.^[0;8]),2^12);
-                        S(:,2*k)   = floor(A(:,3*k-1)/16)*256 + A(:,3*k);
-                end
-                S = S(:,1:HDR.NS);
-                S = S - 2^12*(S>=2^11);	% 2-th complement
-                
-        elseif HDR.VERSION == 212, 
-                [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb, DataLen], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
-                A = [A',zeros(size(A,2),3)]; DataLen = count/HDR.AS.bpb;
-                for k = 1:HDR.NS,k,
-                        if mod(k,2),        
-                                S(:,2*k-1) = mod(A(:,3*k+[-2:-1])*(2.^[0;8]),2^12);
-                        else
-                                S(:,2*k)   = mod(floor(A(:,3*k-1)/16),16)*256+A(:,3*k);
-                        end;
-                        %S = S(:,1:HDR.NS);
-                        S = S - 2^12*(S>=2^11);	% 2-th complement
-                end
+                S = reshape(S,HDR.AS.spb,prod(size(S))/HDR.AS.spb)';
                 
         elseif HDR.VERSION == 310, 
                 [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb/2, DataLen], 'uint16');  % matrix with 3 rows, each 8 bits long, = 2*12bit
