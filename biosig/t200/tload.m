@@ -18,11 +18,11 @@ function [signal,H] = tload(FILENAME,TI1,CHAN,EVENTFILE,TI2)
 %	    By default AI=TI, AI enables to select the critical period. 
 %
 %
-% see also: SLOAD, SVIEW, SOPEN
+% see also: SLOAD, SVIEW, SOPEN, ARTIFACT_SELECTION
 
 
-%	$Id: tload.m,v 1.3 2004-12-04 23:40:14 schloegl Exp $
-%	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>
+%	$Id: tload.m,v 1.4 2005-03-04 18:06:05 schloegl Exp $
+%	Copyright (C) 2004-2005 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -48,15 +48,20 @@ if (CHAN<1) | ~isfinite(CHAN),
 end;
 
 [s,HDR] = sload(FILENAME,CHAN); 
-
 if nargin>3,
-	if nargin<5, TI2 = TI1(1:2); end; 
-	HDR = artifact_selection({HDR,EVENTFILE},TI2);
+        if nargin<5, TI2 = TI1(1:2); end; 
+        HDR = artifact_selection({HDR,EVENTFILE},TI2);
 end;
 
-TRIG = HDR.TRIG; 
-if isfield(HDR,'ArtifactSelection')
-	TRIG = TRIG(~HDR.ArtifactSelection);
+H = HDR;
+TRIG = HDR.TRIG;
+if isfield(HDR,'ArtifactSelection'),
+        fprintf(1,'TLOAD: Due to Artifact_Selection, %i (out of %i) trials have been removed from %s \n', sum(HDR.ArtifactSelection),length(TRIG),HDR.FileName);
+        TRIG = TRIG(~HDR.ArtifactSelection);
+        if isfield(HDR.Classlabel);
+                H.Classlabel = HDR.Classlabel(~HDR.ArtifactSelection);
+        end;
+        H.ArtifactSelection = zeros(size(TRIG));
 end;
 
 TI1 = TI1*HDR.SampleRate;
@@ -66,16 +71,15 @@ if HDR.FLAG.TRIGGERED & (any(TI1<1) | any(TI1>HDR.SPR))
 	[signal,sz] = trigg(s,TRIG,1,HDR.SPR,TI1(2)-TI1(1)-HDR.SPR+TI1(3));
 	signal = [signal(:,1+end+TI1(1):end),signal(:,1:end+TI1(1))];
 else
-	[signal,sz] = trigg(s,TRIG,TI1(1),TI1(2),TI1(3));
+        [signal,sz] = trigg(s,TRIG,TI1(1),TI1(2),TI1(3));
 end;		
-signal = signal';
+signal = signal'; 
 
-H = HDR; 
+H.EVENT = [];
 H.size = sz([2,3,1]);
 H.FLAG.TRIGGERED = 1; 
 H.SPR  = sz(2);
 H.DUR  = diff(TI1)/H.SampleRate;
 H.NRec = sz(3); 
 H.TRIG = (0:H.NRec-1)'*H.SPR; 
-
-	
+        
