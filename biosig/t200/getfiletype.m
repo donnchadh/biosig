@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.8 $
-%	$Id: getfiletype.m,v 1.8 2004-10-05 19:52:09 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: getfiletype.m,v 1.9 2004-10-10 16:50:05 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -96,7 +96,7 @@ else
         if c,
                 %%%% file type check based on magic numbers %%%
                 type_mat4=str2double(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
-                ss = setstr(s);
+                ss = char(s);
                 if all(s(1:2)==[207,0]);
                         HDR.TYPE='BKR';
                 elseif strncmp(ss,'Version 3.0',11); 
@@ -293,6 +293,8 @@ else
                         elseif tmp==(abs('IM').*[256,1])
                                 HDR.Endianity = 'ieee-be';
                         end;
+                elseif strncmp(ss,'Model {',7); 
+                        HDR.TYPE='MDL';
                         
                 elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
                         HDR.TYPE = 'WFT';	% nicolet 	
@@ -342,10 +344,14 @@ else
                 elseif all(s([1:8,13:20])==[8,0,0,0,4,0,0,0,8,0,5,0,10,0,0,0])            % DICOM candidate
                         HDR.TYPE='DICOM';
                         
-                elseif all(s([1:5,9,13,14,17,25])==[77,90,144,0,3,4,255,255,184,64]) & ~any(s([4,6:8,10:12,15:16,18:24,26:60]))
-		        HDR.TYPE='DLL';
-                elseif all(s([1:24])==[127,abs('ELF'),1,1,1,zeros(1,9),2,0,3,0,1,0,0,0])
-		        HDR.TYPE='ELF';
+                elseif all(s([1:4])==[77,90,192,0])
+                        HDR.TYPE='EXE';
+                elseif all(s([1:4])==[77,90,80,0])
+                        HDR.TYPE='EXE/DLL';
+                elseif all(s([1:4])==[77,90,128,0])
+                        HDR.TYPE='DLL';
+                elseif all(s([1:4])==[77,90,144,0])
+                        HDR.TYPE='DLL';
                         
                 elseif all(s(1:24)==[208,207,17,224,161,177,26,225,zeros(1,16)]);	% MS-EXCEL candidate
                         HDR.TYPE='BIFF';
@@ -358,13 +364,16 @@ else
                 elseif all(s([1:2,7:10])==[abs('BM'),zeros(1,4)])
                         HDR.TYPE='BMP';
                         HDR.Endianity = 'ieee-le';
-                elseif strncmp(s,'.PBF',4)      
+                elseif strncmp(ss,'SIMPLE  =                    T / Standard FITS format',30)
+                        HDR.TYPE='FITS';
+                elseif strncmp(ss,'CDF',3)      
+                        HDR.TYPE='NETCDF';
+                elseif strncmp(ss,'.PBF',4)      
                         HDR.TYPE='PBF';
                 elseif all(s(1:2)=='P6') & any(s(3)==[10,13])
                         HDR.TYPE='PNG6';
                 elseif all(s(1:8)==[137,80,78,71,13,10,26,10]) 
                         HDR.TYPE='PNG';
-elseif 1,
                 elseif all(s(1:4)==hex2dec(['FF';'D9';'FF';'E0'])')
                         HDR.TYPE='JPG';
                         HDR.Endianity = 'ieee-be';
@@ -400,7 +409,7 @@ elseif 1,
                         HDR.TYPE='RMF';
                 elseif strncmp(ss,'IREZ',4); 
                         HDR.TYPE='RMF';
-                elseif strncmp(ss,'{/rtf',5); 
+                elseif strncmp(ss,'{\rtf',5); 
                         HDR.TYPE='RTF';
                 elseif strncmp(ss,'II',2); 
                         HDR.TYPE='TIFF';
@@ -412,6 +421,8 @@ elseif 1,
                         HDR.TYPE='STX';
                 elseif all(ss(1:2)==[25,149]); 
                         HDR.TYPE='TWE';
+                elseif strncmp(ss,'#VRML',5); 
+                        HDR.TYPE='VRML';
                 elseif strncmp(ss,'# vtk DataFile Version',20); 
                         HDR.TYPE='VTK';
                 elseif all(ss(1:5)==[0,0,2,0,4]); 
@@ -420,8 +431,45 @@ elseif 1,
                         HDR.TYPE='WQ1';
                 elseif all(s(1:8)==hex2dec(['30';'26';'B2';'75';'8E';'66';'CF';'11'])'); 
                         HDR.TYPE='WMV';
-                elseif all(s(1:5)==[80,75,3,4,20]); 
+                        
+                	% compression formats        
+                elseif strncmp(ss,'BZh91AH&SY',10); 
+                        HDR.TYPE='BZ2';
+                elseif all(s(1:3)==[66,90,104]); 
+                        HDR.TYPE='BZ2';
+                elseif strncmp(ss,'MSCF',4); 
+                        HDR.TYPE='CAB';
+                elseif all(s(1:3)==[31,139,8]); 
+                        HDR.TYPE='gzip';
+                elseif all(s(1:3)==[31,157,144]); 
+                        HDR.TYPE='Z';
+                elseif all(s([1:4])==[80,75,3,4]) & (c>=30)
                         HDR.TYPE='ZIP';
+                        HDR.Version = s(5:6)*[1;256];
+                        HDR.ZIP.FLAG = s(7:8);
+                        HDR.ZIP.CompressionMethod = s(9:10);
+                        
+                        % converting MS-Dos Date*Time format
+                        tmp = s(11:14)*2.^[0:8:31]';
+                        HDR.T0(6) = rem(tmp,2^5)*2;	tmp=floor(tmp/2^5);
+                        HDR.T0(5) = rem(tmp,2^6);	tmp=floor(tmp/2^6);
+                        HDR.T0(4) = rem(tmp,2^5);	tmp=floor(tmp/2^5);
+                        HDR.T0(3) = rem(tmp,2^5);	tmp=floor(tmp/2^5);
+                        HDR.T0(2) = rem(tmp,2^4); 	tmp=floor(tmp/2^4);
+                        HDR.T0(1) = 1980+tmp; 
+                        
+                        HDR.ZIP.CRC = s(15:18)*2.^[0:8:31]';
+                        HDR.ZIP.size2 = s(19:22)*2.^[0:8:31]';
+                        HDR.ZIP.size1 = s(23:26)*2.^[0:8:31]';
+                        HDR.ZIP.LengthFileName = s(27:28)*[1;256];
+                        HDR.ZIP.filename = char(s(31:min(c,30+HDR.ZIP.LengthFileName)));
+                        HDR.ZIP.LengthExtra = s(29:30)*[1;256];
+                        HDR.HeadLen = 30 + HDR.ZIP.LengthFileName + HDR.ZIP.LengthExtra;
+                        HDR.tmp = char(s);
+                        HDR.ZIP.Extra = s(31+HDR.ZIP.LengthFileName:min(c,HDR.HeadLen));
+                        if strncmp(ss(31:end),'mimetypeapplication/vnd.sun.xml.writer',38)
+                                HDR.TYPE='SWX';
+                        end;
                 elseif strncmp(ss,'ZYXEL',5); 
                         HDR.TYPE='ZYXEL';
                 elseif strcmpi(HDR.FILE.Name,ss(1:length(HDR.FILE.Name)));
