@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.53 $
-%	$Id: sopen.m,v 1.53 2004-05-11 20:56:48 schloegl Exp $
+%	$Revision: 1.54 $
+%	$Id: sopen.m,v 1.54 2004-05-24 11:47:17 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -169,6 +169,12 @@ if any(PERMISSION=='r'),
                                 
                         elseif strncmp(ss,'NEX1',4); 
                                 HDR.TYPE='NEX';
+                        elseif strcmp(ss([1:4]),'fLaC'); 
+                                HDR.TYPE='FLAC';
+                        elseif strcmp(ss([1:4]),'OggS'); 
+                                HDR.TYPE='OGG';
+                        elseif strcmp(ss([1:4]),'.RMF'); 
+                                HDR.TYPE='RMF';
                         elseif strncmp(ss,'.snd',4); 
                                 HDR.TYPE='SND';
                                 HDR.Endianity = 'ieee-be';
@@ -181,6 +187,26 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='AIF';
                         elseif strcmp(ss([1:4,9:12]),'RIFFAVI '); 
                                 HDR.TYPE='AVI';
+                        elseif strcmp(ss([1:4,9:16]),'RIFF8SVXVHDR'); 
+                                HDR.TYPE='8SVX';
+                        elseif strcmp(ss([1:4,9:12]),'RIFFILBM'); 
+                                HDR.TYPE='ILBM';
+                        elseif strcmp(ss([1:4]),'2BIT'); 
+                                HDR.TYPE='AVR';
+                        elseif all(s([1:4])==[26,106,0,0]); 
+                                HDR.TYPE='ESPS';
+                                HDR.Endianity = 'ieee-le';
+                        elseif all(s([1:4])==[0,0,106,26]); 
+                                HDR.TYPE='ESPS';
+                                HDR.Endianity = 'ieee-le';
+                        elseif all(s([1:8])==[abs('NIST_1A'),0]); 
+                                HDR.TYPE='NIST';
+                        elseif all(s([1:7])==[abs('SOUND'),0,13]); 
+                                HDR.TYPE='SNDT';
+                        elseif strcmp(ss([1:18]),'SOUND SAMPLE DATA '); 
+                                HDR.TYPE='SMP';
+                        elseif strcmp(ss([1:19]),'Creative Voice File'); 
+                                HDR.TYPE='VOC';
                         elseif strcmp(ss([5:8]),'moov'); 	% QuickTime movie 
                                 HDR.TYPE='QTFF';
                         elseif all(s(1:16)==hex2dec(reshape('3026b2758e66cf11a6d900aa0062ce6c',2,16)')')
@@ -303,6 +329,8 @@ if any(PERMISSION=='r'),
                         elseif ~isempty(findstr(ss,'?xml version'))
                                 HDR.TYPE='XML-UTF8';
                                 
+                        elseif all(s(1:2)=='P6') & any(s(3)==[10,13])
+                                HDR.TYPE='PNG';
                         elseif all(s(1:4)==hex2dec(['FF';'D9';'FF';'E0'])')
                                 HDR.TYPE='JPG';
                                 HDR.Endianity = 'ieee-be';
@@ -1864,8 +1892,111 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
                         
                         HDR.HeadLen = ftell(HDR.FILE.FID);
                 end;
-                
         end;
+
+        
+elseif strcmp(HDR.TYPE,'FLAC'),
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+        
+	if HDR.FILE.FID > 0,
+    	        HDR.magic  = fread(HDR.FILE.FID,[1,4],'char');
+		
+		% read METADATA_BLOCK
+		% 	read METADATA_BLOCK_HEADER
+    	        tmp = fread(HDR.FILE.FID,[1,4],'uchar')
+		while (tmp(1)<128),
+			BLOCK_TYPE = mod(tmp(1),128);
+			LEN = tmp(2:4)*2.^[0;8;16];
+			POS = ftell(HDR.FILE.FID);
+			if (BLOCK_TYPE == 0),		% STREAMINFO
+				minblksz = fread(HDR.FILE.FID,1,'uint16')
+				maxblksz = fread(HDR.FILE.FID,1,'uint16')
+				minfrmsz = 2.^[0,8,16]*fread(HDR.FILE.FID,3,'uint8')
+				maxfrmsz = 2.^[0,8,16]*fread(HDR.FILE.FID,3,'uint8')
+				%Fs = fread(HDR.FILE.FID,3,'ubit20')
+			elseif (BLOCK_TYPE == 1),	% PADDING
+			elseif (BLOCK_TYPE == 2),	% APPLICATION
+				HDR.FLAC.Reg.Appl.ID = fread(HDR.FILE.FID,1,'uint32')
+			elseif (BLOCK_TYPE == 3),	% SEEKTABLE
+				HDR.EVENT.N = LEN/18;
+				for k = 1:LEN/18,
+	    				HDR.EVENT.POS(k) = 2.^[0,32]*fread(HDR.FILE.FID,2,'uint32');
+	    				HDR.EVENT.DUR(k) = 2.^[0,32]*fread(HDR.FILE.FID,2,'uint32');
+	    				HDR.EVENT.nos(k) = fread(HDR.FILE.FID,1,'uint16');
+				
+				end;
+			elseif (BLOCK_TYPE == 4),	% VORBIS_COMMENT
+			elseif (BLOCK_TYPE == 5),	% CUESHEET
+			else					% reserved
+			end;
+			
+			fseek(HDR.FILE.FID, POS+LEN,'bof');
+        	        tmp = fread(HDR.FILE.FID,[1,4],'uchar')
+		end;
+		
+		% 	read METADATA_BLOCK_DATA
+
+		% read METADATA_BLOCK_DATA
+		% 	read METADATA_BLOCK_STREAMINFO
+		% 	read METADATA_BLOCK_PADDING
+		% 	read METADATA_BLOCK_APPLICATION
+		% 	read METADATA_BLOCK_SEEKTABLE
+		% 	read METADATA_BLOCK_COMMENT
+		% 	read METADATA_BLOCK_CUESHEET
+
+		% read FRAME
+		%	read FRAME_HEADER
+		%	read FRAME_SUBFRAME
+		%		read FRAME_SUBFRAME_HEADER
+		%	read FRAME_HEADER
+
+                fclose(HDR.FILE.FID)        
+
+                fprintf(2,'Warning SOPEN: FLAC not ready for use\n');
+		return;
+        end;
+
+        
+elseif strcmp(HDR.TYPE,'OGG'),
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        
+	if HDR.FILE.FID > 0,
+		% chunk header
+		tmp = fread(HDR.FILE.FID,1,'uchar');
+		QualityIndex = mod(tmp(1),64);
+		if (tmp(1)<128), % golden frame 
+			tmp = fread(HDR.FILE.FID,2,'uchar');
+			HDR.VERSION = tmp(1);
+			HDR.VP3.Version = floor(tmp(2)/8);
+			HDR.OGG.KeyFrameCodingMethod = floor(mod(tmp(2),8)/4);
+		end;
+		
+		% block coding information
+		% coding mode info
+		% motion vectors
+		% DC coefficients
+		% DC coefficients
+		% 1st AC coefficients
+		% 2nd AC coefficients
+		% ...
+		% 63rd AC coefficient
+
+                fclose(HDR.FILE.FID);        
+                fprintf(2,'Warning SOPEN: OGG not ready for use\n');
+		return;
+        end;
+
+        
+elseif strcmp(HDR.TYPE,'RMF'),
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        
+	if HDR.FILE.FID > 0,
+                fclose(HDR.FILE.FID)        
+
+                fprintf(2,'Warning SOPEN: RMF not ready for use\n');
+		return;
+        end;
+
         
 elseif strcmp(HDR.TYPE,'EGI'),
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
