@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.23 $
-%	$Id: bkropen.m,v 1.23 2004-10-10 20:24:49 schloegl Exp $
+%	$Revision: 1.24 $
+%	$Id: bkropen.m,v 1.24 2004-10-22 10:44:52 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -219,7 +219,7 @@ if any(PERMISSION=='r'),
 			BKR.SPR=(EndPos-HeaderEnd)/(BKR.NRec*BKR.NS*2);
         	end;
         end;
-55,        
+
         % look for Classlabel information
         if 1; %~isfield(BKR,'Classlabel'),
                 tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.par']);
@@ -243,6 +243,11 @@ if any(PERMISSION=='r'),
                 if exist(tmp,'file'),
                         tmp = load(tmp);
                         BKR.ArtifactSelection = tmp.artifact(:); 
+                        if any(BKR.ArtifactSelection>1) | (length(BKR.ArtifactSelection)<length(BKR.Classlabe))
+                                sel = zeros(size(BKR.Classlabel));
+                                sel(BKR.ArtifactSelection) = 1; 
+                                BKR.ArtifactSelection = sel;
+                        end;
                 end;
         end;
         
@@ -261,7 +266,7 @@ if any(PERMISSION=='r'),
                 if isfield(x.header,'Result') & isfield(x.header.Result,'Classlabel'),
                         BKR.Classlabel = x.header.Result.Classlabel;
                 end;
-                if  isfield(x.header,'Paradigm')
+                if isfield(x.header,'Paradigm')
                         if isempty(BKR.Classlabel) & isfield(x.header.Paradigm,'Classlabel')
                                 BKR.Classlabel = x.header.Paradigm.Classlabel;
                         end;
@@ -284,6 +289,17 @@ if any(PERMISSION=='r'),
                                 if size(BKR.Label,1)==(BKR.NS-1);
                                         BKR.Label = strvcat(BKR.Label,'TRIGGER');
                                 end;
+                        end;
+                end;
+                if isfield(x.header,'Model'), % More 
+                        if isfield(x.header.Model,'AnalogInput'), 
+                                for k = 1:length(x.header.Model.AnalogInput),
+                                        BKR.Filter.HighPass(k) = x.header.Model.AnalogInput{k}{5};
+                                        BKR.Filter.LowPass(k)  = x.header.Model.AnalogInput{k}{6};
+                                        BKR.Filter.Notch(k)    = strcmpi(x.header.Model.AnalogInput{k}{7},'on');
+
+                                        BKR.MAT.Cal(k) = x.header.Model.AnalogInput{k}{3};
+                                end
                         end;
                 end;
                 if ~isempty(strmatch('TRIGGER',BKR.Label))
