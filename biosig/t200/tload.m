@@ -2,26 +2,25 @@ function [signal,H] = tload(FILENAME,TI1,CHAN,EVENTFILE,TI2)
 % TLOAD loads and triggers signal data.  
 %
 % [signal,HDR] = tload(FILENAME, TI, [CHAN,] EVENTFILE, AI)
-%       reads selected (CHAN) channels
-%       if CHAN is 0, all channels are read 
 %
-% FILENAME  name of file, or list of filenames
+% S = reshape(signal,HDR.size) returns the corresponding 3-dim Matrix 
+%
+% FILENAME  name of file, or list of filenames, wildcards '*' are supported. 
+%	    The files must contain the trigger information. 
 % TI	    trigger interval [t1,t2] in seconds, relative to TRIGGER point
-%	    	this interval defines the trigger information
+%	    This interval defines the trigger segment. 
 % CHAN      list of selected channels
 %           default=0: loads all channels
 % EVENTFILE file of artifact scoring 
 % AI	    Artifactinterval [t1,t2] in seconds, relative to TRIGGER point  	
-%		this interval is used to check for any artifacts
+%	    Trials with artifacts within this segment are removed. 
+%	    By default AI=TI, AI enables to select the critical period. 
 %
-% [signal,HDR] = tload(dir('f*.eeg'),...)
-% [signal,HDR] = tload('f*.eeg', ...)
-%  	loads channels CHAN from all files 'f*.emg'
 %
 % see also: SLOAD, SVIEW, SOPEN
 
 
-%	$Id: tload.m,v 1.1 2004-12-04 19:05:07 schloegl Exp $
+%	$Id: tload.m,v 1.2 2004-12-04 19:23:06 schloegl Exp $
 %	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
