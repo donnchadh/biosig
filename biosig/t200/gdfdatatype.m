@@ -24,8 +24,8 @@ function [datatyp,limits,datatypes]=gdfdatatype(GDFTYP)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.6 $
-%	$Id: gdfdatatype.m,v 1.6 2005-01-05 13:11:06 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: gdfdatatype.m,v 1.7 2005-01-12 15:46:34 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -35,7 +35,9 @@ if ischar(GDFTYP),
         return; 
 end;
 
-limits=repmat(NaN,length(GDFTYP),3);
+datatyp = [];
+datatypes = {};
+limits = repmat(NaN,length(GDFTYP),3);
 
 for k=1:length(GDFTYP),
         if GDFTYP(k)==0
