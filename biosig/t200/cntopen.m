@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.14 $
-%	$Id: cntopen.m,v 1.14 2003-07-21 20:59:19 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: cntopen.m,v 1.15 2003-09-30 17:18:51 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -407,6 +407,7 @@ CNT.Scale2=h.ampsensitivity;
 CNT.ChanTyp=zeros(CNT.NS,1);
 %CNT.ChanTyp(h.trigchnl)=
 CNT.HeadLen = 900 + 75*CNT.NS;
+CNT.PhysDim = 'µV';
 
 
 tmp = [30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000]; % LOWPASS

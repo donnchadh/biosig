@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.5 $
-%	$Id: sopen.m,v 1.5 2003-09-19 17:05:39 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: sopen.m,v 1.6 2003-09-30 17:16:42 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -880,10 +880,10 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
                                 elseif ~isfield(HDR.RIFF,'N');
                                         HDR.RIFF.N1 = 1;
                                 else
-                                        HDR.RIFF.N1 = HDR.RIFF.N+1;
+                                        HDR.RIFF.N1 = HDR.RIFF.N1+1;
                                 end;
                                         
-                                listtype = setstr(tmp(1:4))
+                                listtype = setstr(tmp(1:4));
                                 listdata = setstr(tmp(5:length(tmp)));
                                 HDR.RIFF = setfield(HDR.RIFF,listtype, listdata);
                                 
