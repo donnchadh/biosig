@@ -1,4 +1,4 @@
-function [signal,H] = sload(FILENAME,CHAN)
+function [signal,H] = sload(FILENAME,CHAN,Fs)
 % SLOAD loads signal data of various data formats
 % 
 % Currently are the following data formats supported: 
@@ -6,19 +6,24 @@ function [signal,H] = sload(FILENAME,CHAN)
 %    PhysioNet (MIT-ECG), Poly5/TMS32, SMA, RDF, CFWB,
 %    Alpha-Trace, DEMG, SCP-ECG.
 %
-% [signal,header] = sload(FILENAME [,CHANNEL])
+% [signal,header] = sload(FILENAME [,CHANNEL [,Fs]])
 % FILENAME      name of file, or list of filenames
 % channel       list of selected channels
 %               default=0: loads all channels
+% Fs            force target samplerate Fs (only 
+%               integer and 256->100 conversion is supported) 
 %
 % [signal,header] = sload(dir('f*.emg'), CHAN)
 % [signal,header] = sload('f*.emg', CHAN)
 %  	loads channels CHAN from all files 'f*.emg'
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
+%
+% Reference(s):
 
-%	$Revision: 1.27 $
-%	$Id: sload.m,v 1.27 2004-06-10 21:16:12 schloegl Exp $
+
+%	$Revision: 1.28 $
+%	$Id: sload.m,v 1.28 2004-08-03 10:15:45 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -40,6 +45,7 @@ function [signal,H] = sload(FILENAME,CHAN)
 
 
 if nargin<2; CHAN=0; end;
+if nargin<3; Fs=NaN; end;
 
 if CHAN<1 | ~isfinite(CHAN),
         CHAN=0;
@@ -63,7 +69,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			f = FILENAME(k);
 		end	
 
-		[s,h] = sload(f,CHAN);
+		[s,h] = sload(f,CHAN,Fs);
 		if k==1,
 			H = h;
 			signal = s;  
@@ -73,13 +79,13 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			if (H.SampleRate ~= h.SampleRate),
 				fprintf(2,'Warning SLOAD: sampling rates of multiple files differ %i!=%i.\n',H.SampleRate, h.SampleRate);
 			end;
-			if (H.NS == h.NS) 
+			if size(s,2)==size(signal,2), %(H.NS == h.NS) 
 				signal = [signal; repmat(NaN,100,size(s,2)); s];
 			else
 				fprintf(2,'ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
 				return;
 			end;
-
+f,size(signal),
                         if isfield(H,'TriggerOffset'),
                                 if H.TriggerOffset ~= h.TriggerOffset,
                                         fprintf(2,'Warning SLOAD: Triggeroffset does not fit.\n',H.TriggerOffset,h.TriggerOffset);
@@ -150,6 +156,12 @@ if H.FILE.OPEN > 0,
 elseif strcmp(H.TYPE,'EVENTCODES')
         signal = H.EVENT;
 
+
+elseif strcmp(H.TYPE,'AKO')
+        signal = fread(H.FILE.FID,inf,'uint8')*H.Calib(2,1)+H.Calib(1,1);
+        
+        fclose(H.FILE.FID);
+        
 
 elseif strcmp(H.TYPE,'DAQ')
 	fprintf(1,'Loading a matlab DAQ data file - this can take a while.\n');
@@ -281,7 +293,9 @@ elseif strncmp(H.TYPE,'MAT',3),
                 % Convert gBS-epochings into BIOSIG - Events
                 map = zeros(size(H.gBS.EpochingName,1),1);
                 map(strmatch('AUGE',H.gBS.EpochingName))=hex2dec('0101');
+                map(strmatch('EOG',H.gBS.EpochingName))=hex2dec('0101');
                 map(strmatch('MUSKEL',H.gBS.EpochingName))=hex2dec('0103');
+                map(strmatch('MUSCLE',H.gBS.EpochingName))=hex2dec('0103');
                 map(strmatch('ELECTRODE',H.gBS.EpochingName))=hex2dec('0105');
 
                 if ~isempty(H.gBS.EpochingSelect),
@@ -290,7 +304,6 @@ elseif strncmp(H.TYPE,'MAT',3),
                         H.EVENT.CHN = [H.gBS.EpochingSelect{:,3}]';
                         H.EVENT.DUR = [H.gBS.EpochingSelect{:,4}]';
                 end;
-                
                 
 	elseif isfield(tmp,'P_C_DAQ_S');
                 if ~isempty(tmp.P_C_DAQ_S.data),
@@ -429,10 +442,10 @@ elseif strncmp(H.TYPE,'MAT',3),
                         sz = size(tmp.Samples);
                         signal = [signal; repmat(nan,100,sz(1)); tmp.Samples'];
                         T = [T;repmat(nan,100,1);tmp.dX0+(1:sz(2))'*tmp.dXstep ]
-                        Fs = 1./tmp.dXstep;
+                        fs = 1./tmp.dXstep;
                         if k==1,
-                                HDR.SampleRate = Fs;
-                        elseif HDR.SampleRate ~= Fs; 
+                                HDR.SampleRate = fs;
+                        elseif HDR.SampleRate ~= fs; 
                                 fprintf(2,'Error SLOAD (NRF): different Sampling rates not supported, yet.\n');
                         end;
                 end;
@@ -453,7 +466,7 @@ elseif strcmp(H.TYPE,'unknown')
                 loadraw;
         elseif strcmp(TYPE,'RDT')
                 [signal] = loadrdt(FILENAME,CHAN);
-                Fs = 128;
+                fs = 128;
         elseif strcmp(TYPE,'XLS')
                 loadxls;
         elseif strcmp(TYPE,'DA_')
@@ -521,8 +534,38 @@ if any(strmatch(H.TYPE,{'BKR','GDF'}));
             		elseif isfield(H.BCI.Paradigm,'TriggerOnset');
                     		H.TriggerOffset = H.BCI.Paradigm.TriggerOnset;
             		end;
+                        
+                        if isempty(H.Classlabel),
+                                H.Classlabel = x.header.Paradigm.Classlabel;
+                        end;
 		end;
         end;
 end;
 
+
+if ~isnan(Fs) & (H.SampleRate~=Fs);
+        tmp = ~mod(H.SampleRate,Fs) | ~mod(Fs,H.SampleRate);
+        tmp2= ~mod(H.SampleRate,Fs*2.56);
+        if tmp,
+                signal = rs(signal,H.SampleRate,Fs);
+                H.EVENT.POS = H.EVENT.POS/H.SampleRate*Fs;
+                if isfield(H.EVENT,'DUR');
+                        H.EVENT.DUR = H.EVENT.DUR/H.SampleRate*Fs;
+                end;
+                H.SampleRate = Fs;
+        elseif tmp2,
+                x = load('resample_matrix.mat');
+                signal = rs(signal,x.T256100);
+                if H.SampleRate*100~=Fs*256,
+                        signal = rs(signal,H.SampleRate/(Fs*2.56),1);
+                end;
+                H.EVENT.POS = H.EVENT.POS/H.SampleRate*Fs;
+                if isfield(H.EVENT,'DUR');
+                        H.EVENT.DUR = H.EVENT.DUR/H.SampleRate*Fs;
+                end;
+                H.SampleRate = Fs;
+        else 
+                fprintf(2,'Warning SLOAD: resampling %f Hz to %f Hz not implemented.\n',H.SampleRate,Fs);
+        end;                
+end;
 
