@@ -1,4 +1,29 @@
-
+% BIOSIG toolbox contains many useful functions for biomedical signal processing
+% Version 0.26 02-Oct-2003
+%
+% Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>
+% WWW: http://biosig.sf.net/
+% $Revision: 1.2 $ 
+% $Id: Contents.m,v 1.2 2003-10-03 10:26:34 schloegl Exp $
+%
+% LICENSE:
+%     This program is free software; you can redistribute it and/or modify
+%     it under the terms of the GNU General Public License as published by
+%     the Free Software Foundation; either version 2 of the License, or
+%     (at your option) any later version.
+% 
+%     This program is distributed in the hope that it will be useful,
+%     but WITHOUT ANY WARRANTY; without even the implied warranty of
+%     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%     GNU General Public License for more details.
+% 
+%     You should have received a copy of the GNU General Public License
+%     along with this program; if not, write to the Free Software
+%     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
+% 
+% 
+% 
+% 
 % === INDEX  BIOSIG ===
 % 
 % DOC: Documentation
@@ -42,6 +67,8 @@
 % ---------------------------------------------
 % 	processing	general framework for blockwise-dataprocessing
 % 	getar0		initial AAR parameters
+%	QRScorr		correctiong of QRS-detection
+%	ECTBcorr	correction of Ectopic beat effect
 % 	
 % 
 % T400: Classification, Single Trial Analysis, Statistics,
@@ -76,5 +103,6 @@
 % T600: Interactive Viewer and Scoring  
 % ---------------------------------------------
 % 	VIEWEDF		EDF-Viewer 
+
 
 
