@@ -22,8 +22,8 @@ function [MDBC,ix]=mdbc(ECM,Y)
 % REFERENCE(S):
 % P. C. Mahalanobis, Proc. Natl. Institute of Science of India, 2, 49, (1936)
 
-%	$Revision: 1.2 $
-%	$Id: mdbc.m,v 1.2 2003-07-24 10:27:31 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: mdbc.m,v 1.3 2003-11-06 16:36:11 schloegl Exp $
 %	Copyright (c) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This program is free software; you can redistribute it and/or
@@ -64,18 +64,27 @@ if nargin>1,
         end;
 end;
 
-for k = 1:NC(1);
-        %[M,sd,S,xc,N] = decovm(ECM{k});  %decompose ECM
-        c  = size(ECM{k},2);
-        nn = ECM{k}(1,1);	% number of samples in training set for class k
-        XC = ECM{k}/nn;		% normalize correlation matrix
-        M  = XC(1,2:c);		% mean 
-        S  = XC(2:c,2:c) - M'*M;% covariance matrix
-        %M  = M/nn; S=S/(nn-1);
-        IR{k} = [-M;eye(NC(2)-1)]*inv(S)*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean 
-	%x.logSF{k} = -(nn*log(2*pi) + det(S))/2;
-	%x.logSF2{k} = -(nn*log(2*pi) + log(det(S)))/2;
-	%x.SF{k} = sqrt((2*pi)^nn*det(S));
+if 0,	% after a discussion with Carmen Vidaurre, we found out together, 
+        % that the following procedure is equivalent to the one below. 
+        % Therefore, the simplier version is used as default. 
+        for k = 1:NC(1);
+                %[M,sd,S,xc,N] = decovm(ECM{k});  %decompose ECM
+                c  = size(ECM{k},2);
+                nn = ECM{k}(1,1);	% number of samples in training set for class k
+                XC = ECM{k}/nn;		% normalize correlation matrix
+                M  = XC(1,2:c);		% mean 
+                S  = XC(2:c,2:c) - M'*M;% covariance matrix
+                %M  = M/nn; S=S/(nn-1);
+                IR{k} = [-M;eye(NC(2)-1)]*inv(S)*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean 
+                %x.logSF{k} = -(nn*log(2*pi) + det(S))/2;
+                %x.logSF2{k} = -(nn*log(2*pi) + log(det(S)))/2;
+                %x.SF{k} = sqrt((2*pi)^nn*det(S));
+        end;
+else
+        for k = 1:NC(1);
+                IR{k} = inv(ECM{k}/ECM{k}(1,1));
+                IR{k}(1,1) = IR{k}(1,1) - 1 ;
+        end;
 end;
 
 if nargin<2,
