@@ -1,8 +1,8 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
-# Copyright (C) 2004 Alois Schloegl <a.schloegl@ieee.org>
-# $Revision: 1.8 $
-# $Id: eventcodes.txt,v 1.8 2004-12-22 08:34:12 schloegl Exp $
+# Copyright (C) 2004-2005 Alois Schloegl <a.schloegl@ieee.org>
+# $Revision: 1.9 $
+# $Id: eventcodes.txt,v 1.9 2005-01-05 09:06:36 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -21,6 +21,8 @@
 0x0111	eeg:Sleep spindles
 0x0112	eeg:K-complexes
 0x0113	eeg:Saw-tooth waves
+0x0114  eeg:Idling EEG - eyes open
+0x0115  eeg:Idling EEG - eyes closed
 ### 0x03__	BCI: Trigger, cues, classlabels, 
 0x0300	Start of Trial, Trigger at t=0s
 0x0301	Left - cue onset (BCI experiment)
