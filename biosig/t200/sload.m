@@ -22,8 +22,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 % Reference(s):
 
 
-%	$Revision: 1.30 $
-%	$Id: sload.m,v 1.30 2004-09-07 16:22:39 schloegl Exp $
+%	$Revision: 1.31 $
+%	$Id: sload.m,v 1.31 2004-09-12 15:47:58 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -472,6 +472,31 @@ elseif strncmp(H.TYPE,'MAT',3),
         end;        
 
         
+elseif strcmp(H.TYPE,'BIFF'),
+	try, 
+                [H.TFM.S,H.TFM.E] = xlsread(H.FileName,'Beat-To-Beat');
+                H.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
+                if ~isempty(findstr(STR{3,1},'---'))
+                        H.TFM.S(3,:) = [];    
+                        H.TFM.E(3,:) = [];    
+                end;
+                
+                H.Label   = H.TFM.E(4,:)';
+                H.PhysDim = H.TFM.E(5,:)';
+                
+                H.TFM.S = H.TFM.S(6:end,:);
+                H.TFM.E = H.TFM.E(6:end,:);
+		
+		if ~CHAN,
+			signal  = H.TFM.S;
+		else
+			signal  = H.TFM.S(:,CHAN);
+		end;
+	catch,
+
+        end;
+
+
 elseif strcmp(H.TYPE,'unknown')
         TYPE = upper(H.FILE.Ext);
         if strcmp(TYPE,'DAT')

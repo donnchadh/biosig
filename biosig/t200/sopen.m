@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.63 $
-%	$Id: sopen.m,v 1.63 2004-09-09 15:21:37 schloegl Exp $
+%	$Revision: 1.64 $
+%	$Id: sopen.m,v 1.64 2004-09-12 15:47:58 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -3762,6 +3762,10 @@ elseif strncmp(HDR.TYPE,'TRI',3),
         end
         
         
+elseif strcmp(HDR.TYPE,'DICOM'),
+	HDR = opendicom(HDR,PERMISSION,CHAN);
+        
+        
 elseif strcmp(HDR.TYPE,'VTK'),
         if any(PERMISSION=='r'),
                 HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
@@ -3793,28 +3797,6 @@ elseif strcmp(HDR.TYPE,'STX'),
 
                 fclose(HDR.FILE.FID);
         end
-        
-        
-elseif strcmp(HDR.TYPE,'EXCEL'),
-        if ~isempty(strmatch('Beat-To-Beat',HDR.XLS.sheetNames)),
-                %%% a file from the TaskForceMonitor from CNSystems
-                if exist('OCTAVE_VERSION','builtin')                        
-                        [NUM,STR] = xlsread(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.txt']));
-                else
-                        [NUM,STR] = xlsread(HDR.FileName,'Beat-To-Beat');
-                end;
-                if ~isempty(findstr(STR{3,1},'---'))
-                        NUM(3,:) = [];    
-                        STR(3,:) = [];    
-                end;
-                
-                HDR.Label   = STR(4,:)';
-                HDR.PhysDim = STR(5,:)';
-                
-                HDR.TFM.S = NUM(6:end,:);
-                HDR.TFM.E = STR(6:end,:);
-                HDR.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
-        end;
 
         
 elseif strncmp(HDR.TYPE,'XML',3),
