@@ -36,8 +36,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR, REGRESS_EOG, SLOAD
 
-%	$Revision: 1.21 $
-% 	$Id: save2bkr.m,v 1.21 2004-06-29 18:17:51 schloegl Exp $
+%	$Revision: 1.22 $
+% 	$Id: save2bkr.m,v 1.22 2004-07-07 11:34:30 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -74,6 +74,7 @@ elseif isnumeric(arg3)
         cali = arg3;        
 else
         FLAG_REMOVE_DC = findstr(lower(arg3),'removedc');        
+        
         tmp = findstr(arg3,'autoscale');
         if ~isempty(tmp);
                 [chansel,tmp] = strtok(arg3(tmp+9:length(arg3)),' ;+');
@@ -286,11 +287,12 @@ for k=1:length(infile);
                 PHYSMAX = max(abs(y(:)));
                 HDR.DigMax  = 2^15-1;
         end;
-        
+
         if FLAG_REGRESS_EOG,
                 fprintf(1,'\tREGRESS_EOG \n');
-                y = regress_eog(y,chansel_dt3,chansel_dt4);
+                [R,y] = regress_eog(y,chansel_dt3,chansel_dt4);
         end;
+
         if FLAG_REMOVE_DC,
                 fprintf(1,'\tREMOVE_DC \n');
                 y = y - repmat(mean(y,1),size(y,1),1);

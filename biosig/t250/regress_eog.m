@@ -39,8 +39,8 @@ function [R,S] = regress_eog(D,ny,nx)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.3 $
-%	$Id: regress_eog.m,v 1.3 2004-07-05 10:55:51 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: regress_eog.m,v 1.4 2004-07-07 11:34:32 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -69,9 +69,9 @@ end
 r0 = eye(H.NS);
 r1 = sparse(2:H.NS+1,1:H.NS,1);
 
-b0 = -inv(C([1;nx+1],[1;nx+1]))*C([1;nx+1],ny+1);
+b0 = -inv(C([1; nx+1], [1; nx+1])) * C([1; nx+1], ny+1);
 r0(nx,ny) = b0(2:end,:);       % rearrange channel order
-r1([1;1+nx],ny) = b0;       % rearrange channel order
+r1([1;1+nx], ny) = b0;       % rearrange channel order
 
 R.r0 = r0;
 R.r1 = r1;
