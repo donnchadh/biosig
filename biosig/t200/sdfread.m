@@ -31,8 +31,8 @@ function [S,EDF] = sdfread(EDF,NoS,StartPos)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.8 $
-%	$Id: sdfread.m,v 1.8 2004-09-24 18:02:10 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: sdfread.m,v 1.9 2004-11-04 17:42:49 schloegl Exp $
 %	(C) 1997-2002,2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

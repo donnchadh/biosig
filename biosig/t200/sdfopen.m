@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.28 $
-%	$Id: sdfopen.m,v 1.28 2004-10-21 10:49:08 schloegl Exp $
+%	$Revision: 1.29 $
+%	$Id: sdfopen.m,v 1.29 2004-11-04 17:42:49 schloegl Exp $
 %	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -428,10 +428,10 @@ EDF.Filter.HighPass = repmat(nan,1,EDF.NS);
 for k=1:EDF.NS,
 	tmp = EDF.PreFilt(k,:);
 
-	ixh=findstr(tmp,'HP');
-	ixl=findstr(tmp,'LP');
-	ixn=findstr(tmp,'Notch');
-	ix=findstr(lower(tmp),'hz');
+	ixh=strfind(tmp,'HP');
+	ixl=strfind(tmp,'LP');
+	ixn=strfind(tmp,'Notch');
+	ix =strfind(lower(tmp),'hz');
 	%tmp(tmp==':')=' ';
 try;
 	if any(tmp==';')
@@ -455,11 +455,11 @@ try;
 	if strcmp(F2,'DC'), F2='0'; end;
 	if strcmp(F3,'DC'), F3='0'; end;
 	
-	tmp = findstr(lower(F1),'hz');
+	tmp = strfind(lower(F1),'hz');
 	if ~isempty(tmp), F1=F1(1:tmp-1); end;
-	tmp = findstr(lower(F2),'hz');
+	tmp = strfind(lower(F2),'hz');
 	if ~isempty(tmp), F2=F2(1:tmp-1); end;
-	tmp = findstr(lower(F3),'hz');
+	tmp = strfind(lower(F3),'hz');
 	if ~isempty(tmp), F3=F3(1:tmp-1); end;
 
 	if strcmp(T1,'LP'), 
@@ -781,17 +781,19 @@ EDF.SIE.REG=eye(EDF.NS);
         EDF.SIE.AFIR=0;
         EDF.SIE.FILT=0;
         %EDF.AS.MAXSPR=max(EDF.SPR(EDF.SIE.ChanSelect)); % Layer 3 defines EDF.AS.MAXSPR in GDFREAD
-        EDF.AS.MAXSPR=EDF.SPR(EDF.SIE.ChanSelect(1));
-        for k=2:length(EDF.SIE.ChanSelect),
-                EDF.AS.MAXSPR = lcm(EDF.AS.MAXSPR,EDF.SPR(EDF.SIE.ChanSelect(k)));
-        end;
+        if 0,
+		EDF.AS.MAXSPR=EDF.SPR(EDF.SIE.ChanSelect(1));
+	        for k=2:length(EDF.SIE.ChanSelect),
+    		        EDF.AS.MAXSPR = lcm(EDF.AS.MAXSPR,EDF.SPR(EDF.SIE.ChanSelect(k)));
+	        end;
+	end;
 	EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
         
         EDF.SIE.REG=eye(EDF.NS);
 
         %elseif nargin>3   %%%%% RE-REFERENCING
         if nargin>3   
-                if ~isempty(findstr(upper(arg4),'SIESTA'))
+                if ~isempty(strfind(upper(arg4),'SIESTA'))
                         EDF.SIE.ReRefMx = eye(EDF.NS);% speye(EDF.NS);
                         EDF.SIE.ReRefMx(7,1:6)=[1 1 1 -1 -1 -1]/2;
                         EDF.SIE.TH=1;
@@ -799,8 +801,8 @@ EDF.SIE.REG=eye(EDF.NS);
     		        EDF.InChanSelect = find(any(EDF.SIE.ReRefMx'));
             		EDF.SIE.ChanSelect = find(any(EDF.SIE.ReRefMx));
                 end;
-                if ~isempty(findstr(upper(arg4),'EOG'))
-                        tmp=findstr(upper(arg4),'EOG');
+                if ~isempty(strfind(upper(arg4),'EOG'))
+                        tmp=strfind(upper(arg4),'EOG');
                         tmp=lower(strtok(arg4(tmp:length(arg4)),' +'));
                         EDF.SIE.ReRefMx = sparse(EDF.NS,EDF.NS);% speye(EDF.NS);
                         if any(tmp=='h'); EDF.SIE.ReRefMx(8:9,1)=[ 1 -1 ]';  end;
@@ -812,24 +814,24 @@ EDF.SIE.REG=eye(EDF.NS);
             		EDF.SIE.ChanSelect = find(any(EDF.SIE.ReRefMx));
                 end;
                 
-                if ~isempty(findstr(upper(arg4),'UCAL'))
+                if ~isempty(strfind(upper(arg4),'UCAL'))
                         %EDF.SIE.ReRefMx = speye(EDF.NS); % OVERRIDES 'SIESTA' and 'REGRESS_ECG'
                         %EDF.SIE.RR  = 0;
                         EDF.FLAG.UCAL = 1;
                 end;
-                if ~isempty(findstr(upper(arg4),'RAW'))
+                if ~isempty(strfind(upper(arg4),'RAW'))
                         EDF.SIE.RAW = 1;
                 end;
-                if ~isempty(findstr(upper(arg4),'OVERFLOW'))
+                if ~isempty(strfind(upper(arg4),'OVERFLOW'))
                         EDF.SIE.TH  = 1;
                 end;
-                if ~isempty(findstr(arg4,'FailingElectrodeDetector'))
+                if ~isempty(strfind(arg4,'FailingElectrodeDetector'))
                         EDF.SIE.FED = 1;
 			EDF.SIE.TH  = 2;
                 end;
 		
-                if ~isempty(findstr(upper(arg4),'ECG')), % identify ECG channel for some ECG artifact processing method   
-                        if ~isempty(findstr(upper(arg4),'SIESTA'))
+                if ~isempty(strfind(upper(arg4),'ECG')), % identify ECG channel for some ECG artifact processing method   
+                        if ~isempty(strfind(upper(arg4),'SIESTA'))
                                 channel1=12;
                                 %channel2=1:9;
                                 M=zeros(EDF.NS,1);M(channel1)=1;
@@ -846,14 +848,14 @@ EDF.SIE.REG=eye(EDF.NS);
                         end;
                         
                 end;
-                if ~isempty(findstr(upper(arg4),'RECG'))
+                if ~isempty(strfind(upper(arg4),'RECG'))
                         EDF.SIE.REGC = 1;
                         if all(EDF.InChanSelect~=channel1)
                                 EDF.InChanSelect=[EDF.InChanSelect channel1];        
                         end;
                 end;
                 
-                if ~isempty(findstr(upper(arg4),'TECG'))
+                if ~isempty(strfind(upper(arg4),'TECG'))
                         fprintf(EDF.FILE.stderr,'SDFOPEN: status of TECG Mode: alpha test passed\n');    
                         %%%% TECG - ToDo
                         % - optimize window
@@ -875,7 +877,7 @@ EDF.SIE.REG=eye(EDF.NS);
                         end;
                 end;
                 
-                if ~isempty(findstr(upper(arg4),'AFIR')) 
+                if ~isempty(strfind(upper(arg4),'AFIR')) 
                         % Implements Adaptive FIR filtering for ECG removal in EDF/GDF-tb.
                         % based on the Algorithm of Mikko Koivuluoma <k7320@cs.tut.fi>
                                 
@@ -921,7 +923,7 @@ EDF.SIE.REG=eye(EDF.NS);
                 end;
 
 
-                if isempty(findstr(upper(arg4),'NOTCH50')) 
+                if isempty(strfind(upper(arg4),'NOTCH50')) 
                         EDF.Filter.A = 1;
                         EDF.Filter.B = 1;
                 else
@@ -948,20 +950,20 @@ EDF.SIE.REG=eye(EDF.NS);
 
 
 
-                if ~isempty(findstr(upper(arg4),'NOTCH60')) 
+                if ~isempty(strfind(upper(arg4),'NOTCH60')) 
                         fprintf(EDF.FILE.stderr,'Warning SDFOPEN: option NOTCH60 not implemented yet.\n');    
                 end;
 
 
-                if ~isempty(findstr(upper(arg4),'HPF')),  % high pass filtering
+                if ~isempty(strfind(upper(arg4),'HPF')),  % high pass filtering
                         if EDF.SIE.FILT==0; EDF.Filter.B=1; end;
                         EDF.SIE.FILT=1;
                         EDF.Filter.A=1;
 		end;
-                if ~isempty(findstr(upper(arg4),'HPF0.0Hz')),  % high pass filtering
+                if ~isempty(strfind(upper(arg4),'HPF0.0Hz')),  % high pass filtering
                         EDF.Filter.B=conv([1 -1], EDF.Filter.B);
-                elseif ~isempty(findstr(upper(arg4),'TAU')),  % high pass filtering / compensate time constant
-                        tmp=findstr(upper(arg4),'TAU');
+                elseif ~isempty(strfind(upper(arg4),'TAU')),  % high pass filtering / compensate time constant
+                        tmp=strfind(upper(arg4),'TAU');
                         TAU=strtok(upper(arg4(tmp:length(arg4))),'S');
                         tau=str2double(TAU);
                         if isempty(tau)
@@ -971,13 +973,13 @@ EDF.SIE.REG=eye(EDF.NS);
                         end;
 			
                 %%%% example 'HPF_1.0Hz_Hamming',  % high pass filtering
-                elseif ~isempty(findstr(upper(arg4),'HPF')),  % high pass filtering
-			    tmp=findstr(upper(arg4),'HPF');
+                elseif ~isempty(strfind(upper(arg4),'HPF')),  % high pass filtering
+			    tmp=strfind(upper(arg4),'HPF');
 			    FilterArg0=arg4(tmp+4:length(arg4));
 			    %[tmp,FilterArg0]=strtok(arg4,'_');
 			    [FilterArg1,FilterArg2]=strtok(FilterArg0,'_');
 			    [FilterArg2,FilterArg3]=strtok(FilterArg2,'_');
-			    tmp=findstr(FilterArg1,'Hz');
+			    tmp=strfind(FilterArg1,'Hz');
 			    F0=str2double(FilterArg1(1:tmp-1));				    
 			    B=feval(FilterArg2,F0*EDF.AS.MAXSPR/EDF.Dur);
 			    B=B/sum(B);
@@ -987,7 +989,7 @@ EDF.SIE.REG=eye(EDF.NS);
                 end;
 
 
-                if ~isempty(findstr(upper(arg4),'UNITS_BLOCK'))
+                if ~isempty(strfind(upper(arg4),'UNITS_BLOCK'))
 			EDF.SIE.TimeUnits_Seconds=0; 
                 end;
 
@@ -1241,7 +1243,7 @@ if ~isstruct(arg1)  % if arg1 is the filename
                 EDF.Dur = tmp;
                 EDF.SPR=EDF.Dur*EDF.SampleRate;
         else
-                if ~isempty(findstr(upper(arg4),'RAW'))
+                if ~isempty(strfind(upper(arg4),'RAW'))
                         EDF.SIE.RAW = 1;
                 else
                         EDF.Dur = arg4;

@@ -30,8 +30,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.39 $
-%	$Id: sload.m,v 1.39 2004-10-12 18:28:19 schloegl Exp $
+%	$Revision: 1.40 $
+%	$Id: sload.m,v 1.40 2004-11-04 17:42:49 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -63,10 +63,16 @@ end;
 if (ischar(FILENAME) & any(FILENAME=='*'))
         p = fileparts(FILENAME);
         f = dir(FILENAME);
+        EOGix = zeros(1,length(f));
         for k = 1:length(f);
                 f(k).name = fullfile(p,f(k).name);
+                [p,g,e]=fileparts(f(k).name);
+                lg = length(g);
+                if (lg>2) & strcmp(upper(g(lg+(-2:0))),'EOG')
+                        EOGix(k) = 1;
+                end
         end;
-        FILENAME=f;
+        FILENAME=f([find(EOGix),find(~EOGix)]);
 end;        
 
 
@@ -638,7 +644,7 @@ elseif strcmp(H.TYPE,'BIFF'),
                 end;
 
                 H.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
-                if ~isempty(findstr(H.TFM.E{3,1},'---'))
+                if ~isempty(strfind(H.TFM.E{3,1},'---'))
                         H.TFM.S(3,:) = [];    
                         H.TFM.E(3,:) = [];    
                 end;
@@ -668,65 +674,81 @@ elseif strcmp(H.TYPE,'BIFF'),
 
 
 elseif strcmp(H.TYPE,'BMP'),
-                H.FILE.FID = fopen(H.FileName,'rb','ieee-le');
-		fseek(H.FILE.FID,10,-1);
+        H.FILE.FID = fopen(H.FileName,'rb','ieee-le');
+        fseek(H.FILE.FID,10,-1);
+        
+        tmp = fread(H.FILE.FID,4,'uint32');
+        H.HeadLen = tmp(1);
+        H.BMP.sizeBitmapInfoHeader = tmp(2);
+        H.BMP.Size = tmp(3:4)';
+        
+        tmp = fread(H.FILE.FID,2,'uint16');
+        H.BMP.biPlanes = tmp(1);
+        H.bits = tmp(2);
+        
+        tmp = fread(H.FILE.FID,6,'uint32');
+        H.BMP.biCompression = tmp(1);
+        H.BMP.biImageSize = tmp(2);
+        H.BMP.biXPelsPerMeter = tmp(3);
+        H.BMP.biYPelsPerMeter = tmp(4);
+        H.BMP.biColorUsed = tmp(5);
+        H.BMP.biColorImportant = tmp(6);
+        
+        fseek(H.FILE.FID,H.HeadLen,'bof');
+        nc = ceil((H.bits*H.BMP.Size(1))/32)*4;
+        
+        if (H.bits==1)
+                signal = fread(H.FILE.FID,[nc,H.BMP.Size(2)*8],'ubit1');
+                signal = signal(1:H.BMP.Size(1),:)';
+                
+        elseif (H.bits==4)
+                palr   = [  0,128,  0,128,  0,128,  0,192,128,255,  0,255,  0,255,  0,255]; 
+                palg   = [  0,  0,128,128,  0,  0,128,192,128,  0,255,255,  0,  0,255,255]; 
+                palb   = [  0,  0,  0,  0,128,128,128,192,128,  0,  0,  0,255,255,255,255]; 
+                tmp    = uint8(fread(H.FILE.FID,[nc,H.BMP.Size(2)*2],'ubit4'));
+                signal        = palr(tmp(1:H.BMP.Size(1),:)'+1);
+                signal(:,:,2) = palg(tmp(1:H.BMP.Size(1),:)'+1);
+                signal(:,:,3) = palb(tmp(1:H.BMP.Size(1),:)'+1);
+                signal = signal(H.BMP.Size(2):-1:1,:,:);
+                
+        elseif (H.bits==8)
+                pal = uint8(colormap*256);
+                tmp = fread(H.FILE.FID,[nc,H.BMP.Size(2)],'uint8');
+                signal        = pal(tmp(1:H.BMP.Size(1),:)'+1,1);
+                signal(:,:,2) = pal(tmp(1:H.BMP.Size(1),:)'+1,2);
+                signal(:,:,3) = pal(tmp(1:H.BMP.Size(1),:)'+1,3);
+                signal = signal(H.BMP.Size(2):-1:1,:,:);
+                
+        elseif (H.bits==24)
+                [signal]    = uint8(fread(H.FILE.FID,[nc,H.BMP.Size(2)],'uint8'));
+                H.BMP.Red   = signal((1:H.BMP.Size(1))*3,:)';
+                H.BMP.Green = signal((1:H.BMP.Size(1))*3-1,:)';
+                H.BMP.Blue  = signal((1:H.BMP.Size(1))*3-2,:)';
+                signal = H.BMP.Red;
+                signal(:,:,2) = H.BMP.Green;
+                signal(:,:,3) = H.BMP.Blue;
+                signal = signal(H.BMP.Size(2):-1:1,:,:);
+        else
+                
+        end;
+        fclose(H.FILE.FID);
 
-		tmp = fread(H.FILE.FID,4,'uint32');
-		H.HeadLen = tmp(1);
-		H.BMP.sizeBitmapInfoHeader = tmp(2);
-		H.BMP.Size = tmp(3:4)';
-
-		tmp = fread(H.FILE.FID,2,'uint16');
-		H.BMP.biPlanes = tmp(1);
-		H.bits = tmp(2);
-
-		tmp = fread(H.FILE.FID,6,'uint32');
-		H.BMP.biCompression = tmp(1);
-		H.BMP.biImageSize = tmp(2);
-		H.BMP.biXPelsPerMeter = tmp(3);
-		H.BMP.biYPelsPerMeter = tmp(4);
-		H.BMP.biColorUsed = tmp(5);
-		H.BMP.biColorImportant = tmp(6);
-		
-		fseek(H.FILE.FID,H.HeadLen,'bof');
-		nc = ceil((H.bits*H.BMP.Size(1))/32)*4;
-
-		if (H.bits==1)
-			signal = fread(H.FILE.FID,[nc,H.BMP.Size(2)*8],'ubit1');
-			signal = signal(1:H.BMP.Size(1),:)';
-
-		elseif (H.bits==4)
-			palr   = [  0,128,  0,128,  0,128,  0,192,128,255,  0,255,  0,255,  0,255]; 
-			palg   = [  0,  0,128,128,  0,  0,128,192,128,  0,255,255,  0,  0,255,255]; 
-			palb   = [  0,  0,  0,  0,128,128,128,192,128,  0,  0,  0,255,255,255,255]; 
-			tmp    = uint8(fread(H.FILE.FID,[nc,H.BMP.Size(2)*2],'ubit4'));
-			signal        = palr(tmp(1:H.BMP.Size(1),:)'+1);
-			signal(:,:,2) = palg(tmp(1:H.BMP.Size(1),:)'+1);
-			signal(:,:,3) = palb(tmp(1:H.BMP.Size(1),:)'+1);
-	    		signal = signal(H.BMP.Size(2):-1:1,:,:);
-
-		elseif (H.bits==8)
-			pal = uint8(colormap*256);
-			tmp = fread(H.FILE.FID,[nc,H.BMP.Size(2)],'uint8');
-			signal        = pal(tmp(1:H.BMP.Size(1),:)'+1,1);
-			signal(:,:,2) = pal(tmp(1:H.BMP.Size(1),:)'+1,2);
-			signal(:,:,3) = pal(tmp(1:H.BMP.Size(1),:)'+1,3);
-	    		signal = signal(H.BMP.Size(2):-1:1,:,:);
-
-		elseif (H.bits==24)
-			[signal]    = uint8(fread(H.FILE.FID,[nc,H.BMP.Size(2)],'uint8'));
-			H.BMP.Red   = signal((1:H.BMP.Size(1))*3,:)';
-			H.BMP.Green = signal((1:H.BMP.Size(1))*3-1,:)';
-			H.BMP.Blue  = signal((1:H.BMP.Size(1))*3-2,:)';
-			signal = H.BMP.Red;
-			signal(:,:,2) = H.BMP.Green;
-			signal(:,:,3) = H.BMP.Blue;
-	    		signal = signal(H.BMP.Size(2):-1:1,:,:);
-		else
-
-		end;
-                fclose(H.FILE.FID);
-
+        
+elseif strcmp(H.TYPE,'IFS'),    % Ultrasound file format
+        H.FILE.FID = fopen(H.FileName,'rb','ieee-le');
+        H.HeadLen = 512;
+        hdr = fread(H.FILE.FID,[1,H.HeadLen],'uchar');
+        H.Date = char(hdr(77:100));
+        tmp = char(hdr(213:220));
+        if strncmp(tmp,'32flt',5)
+                HDR.GDFTYP = 'float32';
+        elseif strncmp(tmp,'u8bit',5)
+                HDR.GDFTYP = 'uint8';
+        else
+                
+        end
+        fclose(H.FILE.FID);
+        
         
 elseif strcmp(H.TYPE,'unknown')
         TYPE = upper(H.FILE.Ext);
@@ -819,7 +841,7 @@ if strcmp(H.TYPE,'CNT');
         end;
 end;
 
-if ~isempty(findstr(upper(MODE),'TSD'));
+if ~isempty(strfind(upper(MODE),'TSD'));
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.tsd']);
         if ~exist(f,'file'),
                         fprintf(2,'Warning SLOAD-TSD: file %s.tsd found\n',H.FILE(1).Name,H.FILE(1).Name);
@@ -837,7 +859,7 @@ if ~isempty(findstr(upper(MODE),'TSD'));
 end;
 
 
-if (isempty(H.EVENT.TYP) & strcmp(H.TYPE,'GDF')),
+if (strcmp(H.TYPE,'GDF') & isempty(H.EVENT.TYP)),
         %%%%% if possible, load Reinhold's configuration files
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
         if exist(f,'file'),
@@ -860,15 +882,16 @@ end;
         %%% Get trigger information from BKR data 
 if strcmp(H.TYPE,'BKR');
         if isfield(H.AS,'TRIGCHAN') & isempty(H.EVENT.POS)
-                H.TRIG = gettrigger(signal(:,H.AS.TRIGCHAN));
-                if isfield(H,'TriggerOffset')
-                        H.TRIG = H.TRIG - round(H.TriggerOffset/1000*H.SampleRate);
+                if H.AS.TRIGCHAN<size(signal,2),
+                        H.TRIG = gettrigger(signal(:,H.AS.TRIGCHAN));
+                        if isfield(H,'TriggerOffset')
+                                H.TRIG = H.TRIG - round(H.TriggerOffset/1000*H.SampleRate);
+                        end;
+                        H.EVENT.POS = H.TRIG; 
+                        H.EVENT.TYP = repmat(hex2dec('0300'),size(H.EVENT.POS));
                 end;
-                H.EVENT.POS = H.TRIG; 
-                H.EVENT.TYP = repmat(hex2dec('0300'),size(H.EVENT.POS));
         end;
 end;
-
 
 % resampling 
 if ~isnan(Fs) & (H.SampleRate~=Fs);

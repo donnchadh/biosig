@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.13 $
-%	$Id: getfiletype.m,v 1.13 2004-10-29 18:10:59 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: getfiletype.m,v 1.14 2004-11-04 17:42:49 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -133,7 +133,7 @@ else
                         HDR.TYPE='CTF';
                 elseif strncmp(ss,'CTF_MRI_FORMAT VER 2.2',22); 
                         HDR.TYPE='CTF';
-                elseif strncmp(ss,'PATH OF DATASET:',16); 
+                elseif 0, strncmp(ss,'PATH OF DATASET:',16); 
                         HDR.TYPE='CTF';
                         
                 elseif strcmp(ss(1:8),'@  MFER '); 
