@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.15 $
-%	$Id: getfiletype.m,v 1.15 2004-11-06 22:51:59 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: getfiletype.m,v 1.16 2004-11-11 10:09:48 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -438,6 +438,8 @@ else
 			
                 elseif 0, all(s(1:2)=='P6') & any(s(3)==[10,13])
                         HDR.TYPE='PNG6';
+                elseif all(s(1:8)==[139,74,78,71,13,10,26,10])
+                        HDR.TYPE='JNG';
                 elseif all(s(1:8)==[137,80,78,71,13,10,26,10]) 
                         HDR.TYPE='PNG';
 		elseif (ss(1)=='P') & any(ss(2)=='123')	% PBMA, PGMA, PPMA
@@ -509,6 +511,14 @@ else
                         HDR.TYPE='STX';
                 elseif all(ss(1:2)==[25,149]); 
                         HDR.TYPE='TWE';
+                elseif strncmp(ss,'TVF 1.1A',7); 
+                        HDR.TYPE = ss(1:8);
+                elseif all(s(1:12)==[abs('TVF 1.1B'),1,0,0,0]); 
+                        HDR.TYPE = ss(1:8);
+			HDR.Endianity = 'ieee-le';
+                elseif all(s(1:12)==[abs('TVF 1.1B'),0,0,0,1]); 
+                        HDR.TYPE = ss(1:8);
+			HDR.Endianity = 'ieee-be';
                 elseif strncmp(ss,'#VRML',5); 
                         HDR.TYPE='VRML';
                 elseif strncmp(ss,'# vtk DataFile Version',20); 

@@ -30,8 +30,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.42 $
-%	$Id: sload.m,v 1.42 2004-11-07 22:58:08 schloegl Exp $
+%	$Revision: 1.43 $
+%	$Id: sload.m,v 1.43 2004-11-11 10:09:48 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1076,6 +1076,91 @@ elseif strcmp(H.TYPE,'FITS'),
 	fclose(H.FILE.FID);	
 
         
+elseif strcmp(H.TYPE,'TVF 1.1A'),
+        H.FILE.FID = fopen(H.FileName,'rt');
+
+	tmp = fgetl(H.FILE.FID);
+	H.TVF.Name = fgetl(H.FILE.FID);
+	H.TVF.Desc = fgetl(H.FILE.FID);
+	[tmp,status] = str2double(fgetl(H.FILE.FID));
+	H.TVF.NTR = tmp(1);
+	H.TVF.NV  = tmp(2);
+	H.FLAG.CULL = ~~tmp(3);
+	[tmp,status] = str2double(fgetl(H.FILE.FID));
+	H.TVF.NTRC  = tmp(1);
+	H.TVF.NTRM  = tmp(2);
+	[tmp,status] = str2double(fgetl(H.FILE.FID));
+	H.TVF.NVC   = tmp(1);
+	H.TVF.NVN   = tmp(2);
+	[tmp,status] = str2double(fgetl(H.FILE.FID));
+	H.TVF.GlobalColor = tmp;
+	[tmp,status] = str2double(fgetl(H.FILE.FID));
+	H.TVF.GlobalMtrlProps = tmp;
+	
+	H.TVF.Triangles = repmat(NaN,[H.TVF.NTR,3]);
+	for k = 1:H.TVF.NTR,
+		[tmp, status] = str2double(fgetl(H.FILE.FID));
+		H.TVF.Triangles(k,:) = tmp;
+	end;	
+	H.TVF.TrColorSets = reshape(NaN,[H.TVF.NTRC,H.TVF.NTR]);
+	for k = 1:H.TVF.NTRC,
+		[tmp, status] = str2double(fgetl(H.FILE.FID));
+		H.TVF.TrColorSets(k,:) = tmp;
+	end;
+	H.TVF.TrMtrlSets = repmat(NaN, [H.TVF.NTRM,H.TVF.NTR]);
+	for k = 1:H.TVF.NTRM,
+		[tmp, status] = str2double(fgetl(H.FILE.FID));
+		H.TVF.TrMtrlSets(k,:) = tmp;
+	end;
+
+	H.TVF.Vertices   = repmat(NaN, [H.TVF.NV,3]);
+	for k = 1:H.TVF.NV,
+		[tmp, status] = str2double(fgetl(H.FILE.FID));
+		H.TVF.Vertices(k,:) = tmp;
+	end;
+	H.TVF.VColorSets = repmat(NaN, [H.TVF.NVC,H.TVF.NV]);
+	for k = 1:H.TVF.NVC,
+		[tmp, status] = str2double(fgetl(H.FILE.FID));
+		H.TVF.VColorSets(k,:) = tmp;
+	end;
+	H.TVF.VNrmlSets  = repmat(NaN, [H.TVF.NVN,3]);
+	for k = 1:H.TVF.NVN,
+		[tmp, status] = str2double(fgetl(H.FILE.FID));
+		H.TVF.VNrmlSets(k,:) = tmp;
+	end;
+
+	fclose(H.FILE.FID);	
+
+        
+elseif strcmp(H.TYPE,'TVF 1.1B'),
+        H.FILE.FID = fopen(H.FileName,'rb',H.Endianity);
+
+	tmp = fread(H.FILE.FID,12,'uchar');
+	H.TVF.Name = char(fread(H.FILE.FID,32,'uchar'));
+	H.TVF.Desc = char(fread(H.FILE.FID,80,'uchar'));
+	tmp = fread(H.FILE.FID,7,'uint32');
+	H.TVF.NTR = tmp(1);
+	H.TVF.NV  = tmp(2);
+	H.FLAG.CULL = ~~tmp(3);
+	H.TVF.NTRC  = tmp(4);
+	H.TVF.NTRM  = tmp(5);
+	H.TVF.NVC   = tmp(6);
+	H.TVF.NVN   = tmp(7);
+	tmp = fread(H.FILE.FID,[4,2],'float32');
+	H.TVF.GlobalColor = tmp(:,1)';
+	H.TVF.GlobalMtrlProps = tmp(:,2)';
+
+	H.TVF.Triangles   = fread(H.FILE.FID, [3,H.TVF.NTR],'uint32')';
+	H.TVF.TrColorSets = fread(H.FILE.FID, [H.TVF.NTR,H.TVF.NTRC],'uint32')';
+	H.TVF.TrMtrlSets  = fread(H.FILE.FID, [H.TVF.NTR,H.TVF.NTRM],'uint32')';
+
+	H.TVF.Vertices   = fread(H.FILE.FID, [3,H.TVF.NV],'float32')';
+	H.TVF.VColorSets = fread(H.FILE.FID, [H.TVF.NV,H.TVF.NVC],'uint32')';
+	H.TVF.VNrmlSets  = fread(H.FILE.FID, [3,H.TVF.NVN],'float32')';
+
+	fclose(H.FILE.FID);	
+
+        
 elseif strcmp(H.TYPE,'VTK'),
                 H.FILE.FID = fopen(H.FileName,'rt','ieee-le');
                 
@@ -1275,7 +1360,7 @@ if (strcmp(H.TYPE,'GDF') & isempty(H.EVENT.TYP)),
                     		H.TriggerOffset = H.BCI.Paradigm.TriggerOnset;
             		end;
 
-                        if isempty(H.Classlabel),
+                        if isfield(H,'Classlabel') & isempty(H.Classlabel),
                                 H.Classlabel = x.header.Paradigm.Classlabel;
                         end;
 		end;
@@ -1306,7 +1391,7 @@ if ~isnan(Fs) & (H.SampleRate~=Fs);
                 if isfield(H.EVENT,'DUR');
                         H.EVENT.DUR = H.EVENT.DUR/H.SampleRate*Fs;
                 end;
-                H.SampleRate = Fs;
+               H.SampleRate = Fs;
         elseif tmp2,
                 x = load('resample_matrix.mat');
                 signal = rs(signal,x.T256100);
