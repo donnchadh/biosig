@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.15 $
-%	$Id: eegopen.m,v 1.15 2003-05-27 13:53:15 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: eegopen.m,v 1.16 2003-05-30 10:34:20 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -122,11 +122,11 @@ elseif strcmp(HDR.TYPE,'GDF'), HDR.TYPE='GDF';
         
         %%% Neuroscan Format        
 elseif strcmp(HDR.TYPE,'AVG'), HDR.TYPE='AVG';
-        warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
+        warning(sprintf('EEGOPEN: filetype %s not tested, yet.',HDR.TYPE));
 elseif strcmp(HDR.TYPE,'COH'), HDR.TYPE='COH';
-        error(sprintf('EEGOPEN: filetype %s not implemented, yet.',TYPE));
-elseif strcmp(HDR.TYPE,'CSA'), HDR.TYPE='COH';
-        error(sprintf('EEGOPEN: filetype %s not implemented, yet.',TYPE));
+        error(sprintf('EEGOPEN: filetype %s not implemented, yet.',HDR.TYPE));
+elseif strcmp(HDR.TYPE,'CSA'), HDR.TYPE='CSA';
+        error(sprintf('EEGOPEN: filetype %s not implemented, yet.',HDR.TYPE));
 elseif strcmp(HDR.TYPE,'EEG'), HDR.TYPE='EEG';
 elseif strcmp(HDR.TYPE,'CNT'), HDR.TYPE='CNT';
 elseif strcmp(HDR.TYPE,'SET'), HDR.TYPE='SET';
@@ -242,20 +242,15 @@ elseif strcmp(HDR.TYPE,'BKR'),
 		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
         end;
         
-elseif strcmp(HDR.TYPE,'CNT'),
+
+elseif strmatch(HDR.TYPE,{'CNT','AVG','EEG'}),
 	if strcmp(PERMISSION,'r'),
 	        [HDR,H1,h2] = cntopen(HDR,'r',CHAN);
 	else
 		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
         end;
         
-elseif strcmp(HDR.TYPE,'EEG'),
-	if strcmp(PERMISSION,'r'),
-	        [HDR,H1,h2] = cntopen(HDR,'r',CHAN);
-	else
-		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
-        end;
-        
+
 elseif strcmp(HDR.TYPE,'EGI'),
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
         if HDR.FILE.FID <= 0,

@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.4 $
-%	$Id: cntopen.m,v 1.4 2003-05-26 18:42:35 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: cntopen.m,v 1.5 2003-05-30 10:34:20 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -394,8 +394,13 @@ CNT.Patient.State=char(h.state');	%
 CNT.Session.Label=char(h.label');	%	
 CNT.Date=char(h.date');	%	
 CNT.Time=char(h.time');	%	
-CNT.T0 = [str2num(CNT.Date(7:8))+2000,str2num(CNT.Date(4:5)),str2num(CNT.Date(1:2)),str2num(CNT.Time(1:2)),str2num(CNT.Time(4:5)),str2num(CNT.Time(7:8))];
-CNT.CNT.NumEvents=h.numevents;	%	
+CNT.T0 = [str2num(CNT.Date(7:10)),str2num(CNT.Date(1:2)),str2num(CNT.Date(4:5)),str2num(CNT.Time(1:2)),str2num(CNT.Time(4:5)),str2num(CNT.Time(7:8))];
+if     CNT.T0(1) > 99,
+elseif CNT.T0(1) > 80, 	CNT.T0(1) = CNT.T0(1) + 1900;
+else			CNT.T0(1) = CNT.T0(1) + 2000;
+end;
+
+CNT.CNT.NumEvents = h.numevents;	%	
 
 CNT.NS=h.nchannels;	%	
 CNT.SampleRate=h.rate;	% D-to-A rate	
@@ -421,12 +426,12 @@ if CHAN==0, CHAN=1:CNT.NS; end;
 CNT.SIE.ChanSelect = CHAN;
 CNT.SIE.InChanSelect = CHAN;
 
-
-if 1, %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+CNT.FILE.POS = 0;
 if strcmp(upper(CNT.FILE.Ext),'AVG'),
         CNT.AS.endpos = 1;
-	CNT.FILE.POS = 0;
 	CNT.NRec = 1;
+        CNT.SPR  = h.pnts;
+        CNT.Cal  = e.calib./e.n;   % scaling
 	
 elseif strcmp(upper(CNT.FILE.Ext),'COH')        
         warning('.COH data not supported yet')
@@ -435,30 +440,28 @@ elseif strcmp(upper(CNT.FILE.Ext),'CSA')
         warning('.EEG data not supported yet')
         
 elseif strcmp(upper(CNT.FILE.Ext),'EEG')
-	CNT.FILE.POS = 0;
-        CNT.SPR = h.pnts;
+        CNT.SPR    = h.pnts;
+        CNT.NRec   = h.compsweeps;
 	CNT.AS.bpb = (CNT.NS*CNT.SPR*2+1+2+2+4+2+2);
         CNT.AS.spb = CNT.NS*CNT.SPR;	% Samples per Block
 	%CNT.AS.endpos = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
-	CNT.Calib = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
-        CNT.NRec = h.compsweeps;
-        CNT.AS.endpos = CNT.NRec;
-	CNT.FLAG.TRIGGERED=1;	        
+	CNT.Calib  = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
+        CNT.AS.endpos  = CNT.NRec;
+	CNT.FLAG.TRIGGERED = 1;
         
         % for some reason, this is correct, 
         h.eventtablepos = CNT.NRec*CNT.AS.bpb+CNT.HeadLen;
         
 elseif strcmp(upper(CNT.FILE.Ext),'CNT')        
-	CNT.FILE.POS = 0;
 	CNT.AS.bpb = CNT.NS*2;	% Bytes per Block
 	CNT.AS.spb = CNT.NS;	% Samples per Block
-	CNT.SPR   = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
+	CNT.SPR    = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
 	CNT.AS.endpos = CNT.SPR;
-	CNT.NRec  = 1;
-	CNT.Calib = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
+	CNT.NRec   = 1;
+	CNT.Calib  = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
 	CNT.FLAG.TRIGGERED = 0;	        
 end;
-end; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 %%%%% read event table 
 fseek(CNT.FILE.FID,h.eventtablepos,'bof');

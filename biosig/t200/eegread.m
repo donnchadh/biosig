@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.11 $
-%	$Id: eegread.m,v 1.11 2003-05-27 13:53:16 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: eegread.m,v 1.12 2003-05-30 10:34:20 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -324,15 +324,16 @@ elseif strcmp(HDR.TYPE,'EGI'),
 
         
 elseif strcmp(HDR.TYPE,'AVG'),
-    		for i = 1:h.nchannels
-                            d(i).header      = fread(HDR.FILE.FID,5,'char'); % no longer used 
-                            d(i).samples     = fread(HDR.FILE.FID,h.pnts,'float');
-                    end
-                    for j = 1:h.nchannels
-                            tmp     = fread(HDR.FILE.FID,h.pnts,'float');
-                            signal(j).samples = tmp*e(j).calib/e(j).n;   % scaling
-                    end
-                    HDR.FILE.POS = 1;        
+	S = repmat(nan,HDR.SPR,HDR.NS);
+	for i = 1:HDR.NS, 
+                [tmp,c]     = fread(HDR.FILE.FID,5,'char'); % no longer used 
+                [S(:,i), c] = fread(HDR.FILE.FID,HDR.SPR,'float');
+        end
+        if ~HDR.FLAG.UCAL,
+		S = S*diag(HDR.Cal);
+        end;
+	HDR.FILE.POS = 1;        
+
                     
 elseif strcmp(HDR.TYPE,'COH'),
         warning('.COH data not supported yet')
@@ -358,7 +359,7 @@ elseif strcmp(HDR.TYPE,'EEG'),
                 
                 [signal,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],'int16');
                 
-                %S = [S;signal(HDR.SIE.InChanSelect,:)'];
+                % S = [S;signal(HDR.SIE.InChanSelect,:)'];
                 S(i*HDR.SPR+(1-HDR.SPR:0),:) = signal(HDR.SIE.InChanSelect,:)';
                 count = count + c;			
         end;
