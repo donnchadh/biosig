@@ -15,8 +15,8 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
 %
 
-%	$Revision: 1.10 $
-%	$Id: loadeeg.m,v 1.10 2003-04-26 10:22:35 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: loadeeg.m,v 1.11 2003-05-06 15:55:41 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -297,7 +297,10 @@ elseif strcmp(TYPE,'MAT')
                 else
         	        signal = tmp.eeg;
                 end;
-                
+                if isfield(tmp,'classlabel'),
+                	H.Classlabel = tmp.classlabel;
+                end;        
+                        	
         elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.50 data format
                 if isstruct(tmp.P_C_S),	% without BS.analyze	
                         if (tmp.P_C_S.version==1.02) | (tmp.P_C_S.version==1.5),
@@ -347,14 +350,34 @@ elseif strcmp(TYPE,'MAT')
         elseif isfield(tmp,'P_C_DAQ_S');
                 signal = double(tmp.P_C_DAQ_S.data{1});
                 H.NS = size(signal,2);
-                %H.PhysDim=tmp.P_C_DAQ_S.unit;     %propriatory information
-                %scale=tmp.P_C_DAQ_S.sens;         %propriatory information
+                %scale  = tmp.P_C_DAQ_S.sens;      
+                H.Cal = tmp.P_C_DAQ_S.sens*(2.^(1-tmp.P_C_DAQ_S.daqboard{1}.HwInfo.Bits));
+                
+                if all(tmp.P_C_DAQ_S.unit==1)
+                        H.PhysDim='uV';
+                else
+                        H.PhysDim='[?]';
+                end;
+                
                 H.SampleRate = tmp.P_C_DAQ_S.samplingfrequency;
                 sz     = size(signal);
+                if length(sz)==2, sz=[1,sz]; end;
                 H.NRec = sz(1);
                 H.Dur  = sz(2)/H.SampleRate;
                 H.NS   = sz(3);
                 H.FLAG.TRIGGERED = H.NRec>1;
+                H.Filter.LowPass = tmp.P_C_DAQ_S.lowpass;
+                H.Filter.HighPass = tmp.P_C_DAQ_S.highpass;
+                H.Filter.Notch50 = tmp.P_C_DAQ_S.notch;
+                if any(CHAN),
+                        signal=signal(:,CHAN);
+                else
+                        CHAN=1:H.NS;
+                end; 
+                if ~H.FLAG.UCAL,
+			signal=signal*diag(H.Cal(CHAN));                	        
+                end;
+                
                 
         elseif isfield(tmp,'data');
                 H.NS = size(tmp.data,2);
