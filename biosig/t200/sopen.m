@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.78 $
-%	$Id: sopen.m,v 1.78 2004-12-03 20:14:20 schloegl Exp $
+%	$Revision: 1.79 $
+%	$Id: sopen.m,v 1.79 2004-12-03 20:36:46 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2292,7 +2292,7 @@ elseif strcmp(HDR.TYPE,'RG64'),
         
         HDR.IDCODE=char(fread(fid,[1,4],'char'));	%
         if ~strcmp(HDR.IDCODE,'RG64') 
-                fprintf(HDR.FILE.stderr,'\nError LOADRG64: %s not a valid RG64 - header file\n',FILENAME); 
+                fprintf(HDR.FILE.stderr,'\nError LOADRG64: %s not a valid RG64 - header file\n',HDR.FileName); 
                 HDR.TYPE = 'unknown';
                 fclose(fid);
                 return;
@@ -2994,19 +2994,18 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.NS = size(tmp.y,2);
                 HDR.NRec = 1; 
                 if ~isfield(tmp,'SampleRate')
-                        %fprintf(HDR.FILE.stderr,['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
+                        %fprintf(HDR.FILE.stderr,['Samplerate not known in ',HDR.FileName,'. 125Hz is chosen']);
                         HDR.SampleRate=125;
                 else
                         HDR.SampleRate=tmp.SampleRate;
                 end;
-                fprintf(HDR.FILE.stderr,'Sensitivity not known in %s.\n',FILENAME);
+                fprintf(HDR.FILE.stderr,'Sensitivity not known in %s.\n',HDR.FileName);
                 if any(CHAN),
                         HDR.data = tmp.y(:,CHAN);
                 else
         	        HDR.data = tmp.y;
                 end;
                 HDR.TYPE = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 
                 
         elseif isfield(tmp,'run') & isfield(tmp,'trial') & isfield(tmp,'sample') & isfield(tmp,'signal') & isfield(tmp,'TargetCode');
@@ -3035,7 +3034,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 ix = find((tmp.TargetCode(1:end-1)==0) & (tmp.TargetCode(2:end)>0));
                 HDR.Classlabel = tmp.TargetCode(ix+1); 
                 HDR.TYPE = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 
                 
         elseif isfield(tmp,'runnr') & isfield(tmp,'trialnr') & isfield(tmp,'samplenr') & isfield(tmp,'signal') & isfield(tmp,'StimulusCode');
@@ -3064,7 +3062,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 ix = find((tmp.StimulusCode(1:end-1)==0) & (tmp.StimulusCode(2:end)>0));
                 HDR.Classlabel = tmp.StimulusCode(ix+1); 
                 HDR.TYPE = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 
                 
         elseif isfield(tmp,'clab') & isfield(tmp,'x_train') & isfield(tmp,'y_train') & isfield(tmp,'x_test');	
@@ -3082,7 +3079,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 
                 HDR.data = reshape(permute(cat(3,tmp.x_test,tmp.x_train,tmp.x_test),[2,1,3]),sz(1),sz(2)*sz(3))';
                 HDR.TYPE = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 
        elseif isfield(tmp,'x_train') & isfield(tmp,'y_train') & isfield(tmp,'x_test');	
                 HDR.INFO  = 'BCI competition 2003, dataset 3 (Graz)'; 
@@ -3101,7 +3097,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 sz = [HDR.NS, HDR.SPR, HDR.NRec];
                 HDR.data = reshape(permute(HDR.data,[2,1,3]),sz(1),sz(2)*sz(3))';
                 HDR.TYPE = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 
         elseif isfield(tmp,'RAW_SIGNALS')    % TFM Matlab export 
                 HDR.Label = fieldnames(tmp.RAW_SIGNALS);
@@ -3118,15 +3113,14 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.data = cat(1,s{k1})';
                 end;
                 HDR.TYPE = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 
                 
         elseif isfield(tmp,'eeg');	% Scherer
-                fprintf(HDR.FILE.stderr,'Warning SLOAD: Sensitivity not known in %s,\n',FILENAME);
+                fprintf(HDR.FILE.stderr,'Warning SLOAD: Sensitivity not known in %s,\n',HDR.FileName);
                 HDR.NS=size(tmp.eeg,2);
                 HDR.NRec = 1; 
                 if ~isfield(tmp,'SampleRate')
-                        %fprintf(HDR.FILE.stderr,['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
+                        %fprintf(HDR.FILE.stderr,['Samplerate not known in ',HDR.FileName,'. 125Hz is chosen']);
                         HDR.SampleRate=125;
                 else
                         HDR.SampleRate=tmp.SampleRate;
@@ -3140,15 +3134,14 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 	HDR.Classlabel = tmp.classlabel;
                 end;        
                 HDR.TYPE = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 
                 
         elseif isfield(tmp,'data');	% Mueller, Scherer ? 
                 HDR.NS = size(tmp.data,2);
                 HDR.NRec = 1; 
-                fprintf(HDR.FILE.stderr,'Warning SLOAD: Sensitivity not known in %s,\n',FILENAME);
+                fprintf(HDR.FILE.stderr,'Warning SLOAD: Sensitivity not known in %s,\n',HDR.FileName);
                 if ~isfield(tmp,'SampleRate')
-                        fprintf(HDR.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',FILENAME);
+                        fprintf(HDR.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',HDR.FileName);
                         HDR.SampleRate=125;
                 else
                         HDR.SampleRate=tmp.SampleRate;
@@ -3166,7 +3159,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.ArtifactSelection(tmp.artifact)=1;
                 end;        
                 HDR.TYPE = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 
                 
         elseif isfield(tmp,'EEGdata');  % Telemonitoring Daten (Reinhold Scherer)
@@ -3174,32 +3166,31 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.NRec = 1; 
                 HDR.Classlabel = tmp.classlabel;
                 if ~isfield(tmp,'SampleRate')
-                        fprintf(HDR.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',FILENAME);
+                        fprintf(HDR.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',HDR.FileName);
                         HDR.SampleRate=125;
                 else
                         HDR.SampleRate=tmp.SampleRate;
                 end;
                 HDR.PhysDim = 'µV';
-                fprintf(HDR.FILE.stderr,'Sensitivity not known in %s. 50µV is chosen\n',FILENAME);
+                fprintf(HDR.FILE.stderr,'Sensitivity not known in %s. 50µV is chosen\n',HDR.FileName);
                 if any(CHAN),
                         HDR.data = tmp.EEGdata(:,CHAN)*50;
                 else
                         HDR.data = tmp.EEGdata*50;
                 end;
                 HDR.TYPE = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 
         elseif isfield(tmp,'daten');	% EP Daten von Michael Woertz
                 HDR.NS = size(tmp.daten.raw,2)-1;
                 HDR.NRec = 1; 
                 if ~isfield(tmp,'SampleRate')
-                        fprintf(HDR.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 2000Hz is chosen\n',FILENAME);
+                        fprintf(HDR.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 2000Hz is chosen\n',HDR.FileName);
                         HDR.SampleRate=2000;
                 else
                         HDR.SampleRate=tmp.SampleRate;
                 end;
                 HDR.PhysDim = 'µV';
-                fprintf(HDR.FILE.stderr,'Sensitivity not known in %s. 100µV is chosen\n',FILENAME);
+                fprintf(HDR.FILE.stderr,'Sensitivity not known in %s. 100µV is chosen\n',HDR.FileName);
                 %signal=tmp.daten.raw(:,1:HDR.NS)*100;
                 if any(CHAN),
                         HDR.data = tmp.daten.raw(:,CHAN)*100;
@@ -3207,25 +3198,23 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.data = tmp.daten.raw*100;
                 end;
                 HDR.TYPE = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 
         elseif isfield(tmp,'neun') & isfield(tmp,'zehn') & isfield(tmp,'trig');	% guger, 
                 HDR.NS=3;
                 HDR.NRec = 1; 
                 if ~isfield(tmp,'SampleRate')
-                        fprintf(HDR.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',FILENAME);
+                        fprintf(HDR.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',HDR.FileName);
                         HDR.SampleRate=125;
                 else
                         HDR.SampleRate=tmp.SampleRate;
                 end;
-                fprintf(HDR.FILE.stderr,'Sensitivity not known in %s. \n',FILENAME);
+                fprintf(HDR.FILE.stderr,'Sensitivity not known in %s. \n',HDR.FileName);
                 signal  = [tmp.neun;tmp.zehn;tmp.trig];
                 HDR.Label = {'Neun','Zehn','TRIG'};
                 if any(CHAN),
                         HDR.data=signal(:,CHAN);
                 end;        
                 HDR.TYPE = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 
                 
         elseif isfield(tmp,'Recorder1')    % Nicolet NRF format converted into Matlab 
@@ -3249,7 +3238,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 end;
                 HDR.data = signal; 
                 HDR.TYPE = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 
         elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.5x data format
                 HDR.FILE.POS = 0; 
@@ -3303,7 +3291,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         CHAN = 1:HDR.NS;
                 end;
                 HDR.data  = reshape(permute(HDR.data(:,:,CHAN),[2,1,3]),[sz(1)*sz(2),sz(3)]);
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 
                 % Selection of trials with artifacts
                 ch = strmatch('ARTIFACT',HDR.gBS.AttributeName);
@@ -3389,8 +3376,22 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.Calib = 1; 
                 CHAN = 1; 
         end;
-        
+        if strcmp(HDR.TYPE,'native'),
+                if ~isfield(HDR,'NS');
+                        HDR.NS = size(HDR.data,2);
+                end;
+                if ~isfield(HDR,'SPR');
+                        HDR.SPR = size(HDR.data,1);
+                end;
+                if ~isfield(HDR.FILE,'Calib');
+                        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+                end;
+                if ~isfield(HDR.FILE,'POS');
+                        HDR.FILE.POS = 0;
+                end;
+        end;
 
+        
 elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADInstruments. 
         CHANNEL_TITLE_LEN = 32;
         UNITS_LEN = 32;
