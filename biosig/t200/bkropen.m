@@ -10,9 +10,9 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.19 $
-%	$Id: bkropen.m,v 1.19 2004-03-24 19:01:41 schloegl Exp $
-%	Copyright (c) 1997-2003 by  Alois Schloegl
+%	$Revision: 1.20 $
+%	$Id: bkropen.m,v 1.20 2004-03-25 18:53:10 schloegl Exp $
+%	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
 % This program is free software; you can redistribute it and/or

@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.39 $
-%	$Id: sopen.m,v 1.39 2004-03-24 19:01:41 schloegl Exp $
+%	$Revision: 1.40 $
+%	$Id: sopen.m,v 1.40 2004-03-25 18:53:10 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -89,7 +89,7 @@ if any(PERMISSION=='r'),
         HDR.TYPE = 'unknown';
         fid = fopen(HDR.FileName,'rb','ieee-le');
         if fid < 0,
-                if isdir(HDR.FileName),
+                if exist(HDR.FileName)==7, % isdir(...)
                         
                 else
                         fprintf(HDR.FILE.stderr,'Error SOPEN: file %s not found.\n',HDR.FileName);    
@@ -373,7 +373,7 @@ if any(PERMISSION=='r'),
                         %%% this is the file type check based on the file extionsion, only.  
                         if 0, 
                                 
-                        elseif strcmpi(HDR.FILE.Ext,'ds') & isdir(HDR.FileName)
+                        elseif strcmpi(HDR.FILE.Ext,'ds') & (exist(HDR.FileName)==7), % .. & isdir(HDR.FileName)
                                 f1 = fullfile(HDR.FileName,[HDR.FILE.Name,'.meg4']);
                                 f2 = fullfile(HDR.FileName,[HDR.FILE.Name,'.res4']);
                                 f3 = fullfile(HDR.FileName,['MarkerFile.mrk']);
@@ -501,6 +501,8 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         end;
         HDR = sdfopen(HDR,PERMISSION,CHAN);
         HDR.FLAG.TRIGGERED = 0;	% Trigger Flag
+
+        %ReRefMx = EDF.SIE.REG*EDF.SIE.ReRefMx;
         
         
 elseif strcmp(HDR.TYPE,'BKR'),
@@ -909,16 +911,6 @@ elseif strcmp(HDR.TYPE,'DEMG'),
                 %HDR.Filter.LowPass = 450;       % default values
                 %HDR.Filter.HighPass = 20;       % default values
                 
-                if CHAN==0,		
-                        HDR.SIE.ChanSelect = 1:HDR.NS;
-                elseif all(CHAN>0 & CHAN<=HDR.NS),
-                        HDR.SIE.ChanSelect = CHAN;
-                else
-                        fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
-                        fclose(HDR.FILE.FID); 
-                        HDR.FILE.FID = -1;	
-                        return;
-                end;
         else
                 fprintf(2,'Warning SOPEN DEMG: writing not implemented, yet.\n');
         end;
@@ -1247,6 +1239,8 @@ elseif strcmp(HDR.TYPE,'MPEG'),
         end;
         HDR.FILE.OPEN = 0; 
         fclose(HDR.FILE.FID);
+        HDR.FILE.FID = -1; 
+        return; 
         
         
 elseif strcmp(HDR.TYPE,'QTFF'),
@@ -1516,7 +1510,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
                                 
                         elseif strcmpi(tag,'(c) ');
                                 [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
-                                HDR.Copyright = tmp;
+                                HDR.Copyright = setstr(tmp);
                                 
                                 %%%% WAV - section %%%%%
                         elseif strcmpi(tag,'fmt ')
@@ -2112,10 +2106,15 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         HDR.HeadLen = ftell(HDR.FILE.FID);  % Length of Header
         fseek(HDR.FILE.FID,0,'eof'); 
         endpos = ftell(HDR.FILE.FID); 
+
+        fclose(HDR.FILE.FID);
+        PERMISSION = PERMISSION(PERMISSION~='t');       % open in binary mode 
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        
         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         %[HDR.AS.endpos,HDR.HeadLen,HDR.NS,HDR.SPR,HDR.NS*HDR.SPR*4,HDR.AS.endpos-HDR.HeadLen - HDR.NS*HDR.SPR*4]
         HDR.AS.endpos = HDR.NS*HDR.SPR*4 - HDR.HeadLen;
-        if 0, endpos-HDR.HeadLen ~= HDR.NS*HDR.SPR*4;
+        if endpos-HDR.HeadLen ~= HDR.NS*HDR.SPR*4;
                 fprintf(HDR.FILE.stderr,'Warning SOPEN TYPE=SMA: Header information does not fit size of file\n');
                 fprintf(HDR.FILE.stderr,'\tProbably more than one data segment - this is not supported in the current version of SOPEN\n');
         end
@@ -2300,7 +2299,7 @@ elseif strcmp(HDR.TYPE,'RG64'),
                 return;
         end;
         
-        HDR.Cal = diag(AMPF(HDR.SIE.InChanSelect));
+        HDR.Cal = diag(AMPF(HDR.InChanSelect));
         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
         HDR.FILE.POS = 0; 
         
@@ -2454,9 +2453,8 @@ elseif strcmp(HDR.TYPE,'DDF'),
                 end;
                 %ftell(HDR.FILE.FID),
                 tag=fread(HDR.FILE.FID,[1,4],'char');
-                
         end;
-        
+        return;         
         
 elseif strcmp(HDR.TYPE,'MIT')
         if any(PERMISSION=='r'),
@@ -2501,7 +2499,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                         HDR.zerovalue(k,1)  = A(4);         % integer value of ECG zero point
                         HDR.firstvalue(1,k) = A(5);        % first integer value of signal (to test for errors)
                 end;
-                HDR.Calib = sparse([HDR.zerovalue(:).';eye(HDR.NS)]*diag(HDR.gain(:)));
+                HDR.Calib = sparse([HDR.zerovalue(:).';eye(HDR.NS)]*diag(1./HDR.gain(:)));
                 
                 z = char(fread(fid,[1,inf],'char'));
                 ix1 = [findstr('AGE:',upper(z))+4; findstr('AGE>:',upper(z))+5];
@@ -2631,7 +2629,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 end;
                 fseek(HDR.FILE.FID,0,'bof');
                 
-                HDR.SIE.InChanSelect = 1:HDR.NS;
+                HDR.InChanSelect = 1:HDR.NS;
                 FLAG_UCAL = HDR.FLAG.UCAL;	
                 HDR.FLAG.UCAL = 1;
                 [S,HDR] = sread(HDR,1/HDR.SampleRate); % load 1st sample
@@ -2915,18 +2913,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                         HDR.PhysMax(1,k) = fread(HDR.FILE.FID,1,'double');   
                         HDR.PhysMin(1,k) = fread(HDR.FILE.FID,1,'double');   
                 end;
-                
-                if CHAN==0,		
-                        CHAN = 1:HDR.NS;
-                elseif all(CHAN>0 & CHAN<=HDR.NS),
-                        
-                else
-                        fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
-                        fclose(HDR.FILE.FID); 
-                        HDR.FILE.FID = -1;	
-                        return;
-                end;
-                HDR.SIE.ChanSelect = CHAN;
+
                 
         elseif any(PERMISSION=='w'),
                 HDR.VERSION   = 1;
@@ -3265,7 +3252,7 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
                 HDR.footer = fgets(HDR.FILE.FID,6);			% 24
                 
                 if ~strcmp(HDR.footer,'oFSvAI')
-                        fprintf(2,['Warning LOADSIG in ' FILENAME ': Footer not found\n']);  
+                        fprintf(2,'Warning LOADSIG in %s: Footer not found\n',  HDR.FileName);  
                 end;
                 
                 if HDR.VERSION<2,
@@ -3506,7 +3493,7 @@ elseif strcmp(HDR.TYPE,'XML-UTF8'),
 elseif strcmp(HDR.TYPE,'unknown'),
         fprintf(HDR.FILE.stderr,'ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
         HDR.FILE.FID = -1;
-        
+        return;
         
 else
         %fprintf(2,'SOPEN does not support your data format yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
@@ -3514,9 +3501,8 @@ else
         return;
 end;
 
-
 %if isfield(HDR,'Calib');
-if ~isfield(HDR,'Calib');
+if 0, ~isfield(HDR,'Calib');
         if ~isfield(HDR,'Cal');
                 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1,HDR.NS+1,HDR.NS);
         else
@@ -3530,16 +3516,16 @@ if any(PERMISSION=='r');
                 [i,j,v] = find(sparse(ReRefMx));
                 ReRefMx = sparse(i,j,v,HDR.NS,size(ReRefMx,2));
                 HDR.Calib = HDR.Calib*ReRefMx;
-                HDR.SIE.InChanSelect = find(any(HDR.Calib(2:end,:),2));
+                HDR.InChanSelect = find(any(HDR.Calib(2:end,:),2));
         else
                 if CHAN==0,
                         CHAN=1:HDR.NS;
                 end;
-                HDR.SIE.InChanSelect = CHAN(:);
+                HDR.InChanSelect = CHAN(:);
                 HDR.Calib = HDR.Calib(:,CHAN);
         end;
         
-        if any(HDR.SIE.InChanSelect > HDR.NS)
+        if any(HDR.InChanSelect > HDR.NS)
                 fprintf(HDR.FILE.stderr,'ERROR: selected channels exceed Number of Channels %i\n',HDR.NS);
                 fclose(HDR.FILE.FID); 
                 HDR.FILE.FID = -1;	
