@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.3 $
-%	$Id: sdfopen.m,v 1.3 2003-05-30 15:02:20 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: sdfopen.m,v 1.4 2003-07-17 12:07:05 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -1235,10 +1235,10 @@ if strcmp(EDF.VERSION(1:3),'GDF'),
         H1(168+(1:16))=sprintf('%04i%02i%02i%02i%02i%02i%02i',floor(EDF.T0),rem(EDF.T0(6),1));
         fwrite(fid,H1(1:184),'uchar');
         fwrite(fid,EDF.HeadLen,'int64');
-        fwrite(fid,ones(8,1)*32,'byte'); % EP_ID=ones(8,1)*32;
-        fwrite(fid,ones(8,1)*32,'byte'); % Lab_ID=ones(8,1)*32;
-        fwrite(fid,ones(8,1)*32,'byte'); % T_ID=ones(8,1)*32;
-        fwrite(fid,ones(20,1)*32,'byte'); % 
+        fwrite(fid,ones(8,1)*32,'uint8'); % EP_ID=ones(8,1)*32;
+        fwrite(fid,ones(8,1)*32,'uint8'); % Lab_ID=ones(8,1)*32;
+        fwrite(fid,ones(8,1)*32,'uint8'); % T_ID=ones(8,1)*32;
+        fwrite(fid,ones(20,1)*32,'uint8'); % 
         fwrite(fid,EDF.NRec,'int64');
         %fwrite(fid,EDF.Dur,'float64');
         [n,d]=rat(EDF.Dur); fwrite(fid,[n d], 'uint32');
@@ -1255,7 +1255,7 @@ else
 end;        
 
 %%%%%% generate Header 2,  NS*256 bytes 
-if strcmp(EDF.VERSION(1:3),'GDF');
+if ~strcmp(EDF.VERSION(1:3),'GDF');
         sPhysMax=32+zeros(EDF.NS,8);
         for k=1:EDF.NS,
                 tmp=sprintf('%-8g',EDF.PhysMin(k));
@@ -1333,6 +1333,7 @@ EDF.AS.bpb = sum(ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'));	% Bytes per Block
 EDF.AS.startrec = 0;
 EDF.AS.numrec = 0;
 EDF.FILE.POS = 0;
+EDF.AS.MAXSPR = max(EDF.SPR);
 
 else % if arg2 is not 'r' or 'w'
         fprintf(EDF.FILE.stderr,'Warning %s: Incorrect 2nd argument. Argument2 must be ''r'' or ''w''\n',upper(EDF.AS.Method));
@@ -1341,3 +1342,4 @@ end;
 if EDF.ErrNo>0
         fprintf(EDF.FILE.stderr,'ERROR %i SDFOPEN\n',EDF.ErrNo);
 end;
+

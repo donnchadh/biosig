@@ -22,12 +22,9 @@ function datatyp=gdfdatatype(x)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-
-%
-%       Version 0.90,   03 Jan 2003
-% 	(C) 1997-2003 Alois Schloegl 
-%	<a.schloegl@ieee.org>  
-
+%	$Revision: 1.2 $
+%	$Id: gdfdatatype.m,v 1.2 2003-07-17 12:07:05 schloegl Exp $
+%	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 
 k=1;
