@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.34 $
-%	$Id: sread.m,v 1.34 2004-12-23 18:16:11 schloegl Exp $
+%	$Revision: 1.35 $
+%	$Id: sread.m,v 1.35 2004-12-28 20:35:12 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -533,6 +533,18 @@ elseif strcmp(HDR.TYPE,'MFER'),
         HDR.FILE.POS = HDR.FILE.POS + nr;
 	
         
+elseif strcmp(HDR.TYPE,'BCI2000'),
+        if nargin==3,
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],HDR.GDFTYP,HDR.BCI2000.StateVectorLength);
+        if count,
+                S = S(HDR.InChanSelect,:)';
+                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+        end;
+
+        
 elseif strmatch(HDR.TYPE,{'native','SCP'}),
 	if nargin>2,
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -788,13 +800,13 @@ if ~HDR.FLAG.UCAL,
                 tmp   = zeros(size(S,1),size(Calib,2));   % memory allocation
                 for k = 1:size(Calib,2),
                         chan = find(Calib(1+HDR.InChanSelect,k));
-                        tmp(:,k) = S(:,chan) * Calib(1+HDR.InChanSelect(chan),k) + Calib(1,k);
+                        tmp(:,k) = double(S(:,chan)) * Calib(1+HDR.InChanSelect(chan),k) + Calib(1,k);
                 end
                 S = tmp; 
         else
                 % S = [ones(size(S,1),1),S]*HDR.Calib([1;1+HDR.InChanSelect],:); 
                 % the following is the same as above but needs less memory. 
-                S = S * HDR.Calib(1+HDR.InChanSelect,:);
+                S = double(S) * HDR.Calib(1+HDR.InChanSelect,:);
                 for k = 1:size(HDR.Calib,2),
                         S(:,k) = S(:,k) + HDR.Calib(1,k);
                 end;

@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.82 $
-%	$Id: sopen.m,v 1.82 2004-12-23 17:37:13 schloegl Exp $
+%	$Revision: 1.83 $
+%	$Id: sopen.m,v 1.83 2004-12-28 20:35:11 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -3028,6 +3028,75 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.TYPE = 'native'; 
                 
                 
+        elseif [isfield(tmp,'cnt') | isfield(tmp,'X') ] & isfield(tmp,'nfo')
+        	if isfield(tmp,'cnt') 
+			[HDR.SPR,HDR.NS] = size(tmp.cnt);
+			HDR.INFO='BCI competition 2005, dataset IV (Berlin)'; 
+			HDR.Filter.LowPass = 0.05; 
+			HDR.Filter.HighPass = 200; 
+			HDR.Cal   = 0.1; 
+			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,.1);
+		elseif isfield(tmp,'X'),
+			[HDR.SPR,HDR.NS] = size(tmp.X);
+			HDR.INFO='BCI competition 2005, dataset V (IDIAP)'; 
+			HDR.Filter.LowPass = 0; 
+			HDR.Filter.HighPass = 256; 
+			if isfield(tmp,'Y'),
+				HDR.Classlabe = tmp.Y(:);
+			end;	
+			HDR.Cal   = 1; 
+			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+		else
+		
+		end;
+		
+		HDR.PhysDim = 'uV';
+		HDR.SampleRate = tmp.nfo.fs; 
+		%HDR.Dur = HDR.SPR/HDR.SampleRate;
+		if isfield(tmp,'mrk')
+			HDR.TRIG  = tmp.mrk.pos; 
+			HDR.EVENT.POS = tmp.mrk.pos(:); 
+			HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
+			if isfield(tmp.mrk,'y'),
+				HDR.Classlabel = tmp.mrk.y; 
+			else	
+				HDR.Classlabel = repmat(NaN,size(HDR.TRIG));
+			end;
+			if isfield(tmp.mrk,'className'),
+				HDR.EVENT.Desc = tmp.mrk.className;
+				ix = strmatch('left',tmp.mrk.className); 
+				if ~isempty(ix),
+					HDR.EVENT.TYP(HDR.Classlabel==ix) = hex2dec('0301');  % left
+				end;	
+				ix = strmatch('right',tmp.mrk.className); 
+				if ~isempty(ix),
+					HDR.EVENT.TYP(HDR.Classlabel==ix) = hex2dec('0302');  % right
+				end;	
+				ix = strmatch('foot',tmp.mrk.className); 
+				if ~isempty(ix),
+					HDR.EVENT.TYP(HDR.Classlabel==ix) = hex2dec('0303');  % foot
+				end;	
+				ix = strmatch('tongue',tmp.mrk.className); 
+				if ~isempty(ix),
+					HDR.EVENT.TYP(HDR.Classlabel==ix) = hex2dec('0304');  % tongue
+				end;	
+			end;
+		end;
+		HDR.Label = tmp.nfo.clab';
+		HDR.ELPOS = [tmp.nfo.xpos,tmp.nfo.ypos];
+                HDR.NRec = 1; 
+		HDR.FILE.POS = 0; 
+                HDR.TYPE = 'native'; 
+        	if isfield(tmp,'cnt') 
+			HDR.data = tmp.cnt;
+		elseif isfield(tmp,'X'),
+			HDR.data = tmp.X;
+		else
+		
+		end;
+                clear tmp; 
+		
+                
         elseif isfield(tmp,'run') & isfield(tmp,'trial') & isfield(tmp,'sample') & isfield(tmp,'signal') & isfield(tmp,'TargetCode');
                 HDR.INFO='BCI competition 2003, dataset 2a (Albany)'; 
                 HDR.SampleRate = 160; 
@@ -3436,6 +3505,94 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 if ~isfield(HDR.FILE,'POS');
                         HDR.FILE.POS = 0;
                 end;
+        end;
+
+        
+elseif strcmp(HDR.TYPE,'BCI2000'),
+        if any(PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+                
+                HDR.Header = fread(HDR.FILE.FID,HDR.HeadLen,'char');
+		[tline,rr] = strtok(char(HDR.Header'),[10,13]);
+		STATUSFLAG = 0;
+		while length(rr), 
+			tline = tline(1:min([length(tline),strfind(tline,[47,47])-1]));
+
+			if ~isempty(strfind(tline,'[ State Vector Definition ]'))
+				STATUSFLAG = 1;
+				STATECOUNT = 0; 
+
+			elseif ~isempty(strfind(tline,'[ Parameter Definition ]'))
+				STATUSFLAG = 2;
+
+			elseif strncmp(tline,'[',1)
+				STATUSFLAG = 3;
+			
+			elseif STATUSFLAG==1, 
+				[t,r] = strtok(tline);
+				val = str2double(r);
+				%HDR.BCI2000 = setfield(HDR.BCI2000,t,val);
+				STATECOUNT = STATECOUNT + 1; 
+				HDR.BCI2000.StateVector(STATECOUNT,:) = val; 
+				HDR.BCI2000.StateDef{STATECOUNT,1} = t; 
+		    
+			elseif STATUSFLAG==2, 
+				[tag,r] = strtok(tline,'=');
+				[val,r] = strtok(r,'=');
+				if ~isempty(strfind(tag,'SamplingRate'))
+					[tmp,status] = str2double(val);
+					HDR.SampleRate = tmp(1);
+				elseif ~isempty(strfind(tag,'SourceChGain'))
+					[tmp,status] = str2double(val);
+					HDR.Cal = tmp(2:tmp(1)+1);
+				elseif ~isempty(strfind(tag,'SourceChOffset'))
+					[tmp,status] = str2double(val);
+					HDR.Off = tmp(2:tmp(1)+1);
+				elseif ~isempty(strfind(tag,'SourceMin'))
+					[tmp,status] = str2double(val);
+					HDR.DigMin = tmp(1);
+				elseif ~isempty(strfind(tag,'SourceMax'))
+					[tmp,status] = str2double(val);
+					HDR.DigMax = tmp(1);
+				end;
+			end;	
+			[tline,rr] = strtok(rr,[10,13]);
+		end;
+		
+		% decode State Vector Definition 
+		X = repmat(NaN,1,HDR.BCI2000.StateVectorLength*8);
+		for k = 1:STATECOUNT,
+			for k1 = 1:HDR.BCI2000.StateVector(k,1),
+				X(HDR.BCI2000.StateVector(k,3:4)*[8;1]+k1) = k;
+			end;		
+		end;
+		HDR.BCI2000.X = X;
+		
+		% convert EVENT information
+		status = fseek(HDR.FILE.FID,HDR.HeadLen+2*HDR.NS,'bof');
+		tmp = fread(HDR.FILE.FID,[HDR.BCI2000.StateVectorLength,inf],[int2str(HDR.BCI2000.StateVectorLength),'*uchar'],HDR.NS*2)';
+		ix = find(any(diff(tmp,[],1),2));
+		HDR.BCI2000.STATUS = tmp([ix;length(tmp)],:);
+		tmp = HDR.BCI2000.STATUS';
+		HDR.BCI2000.BINARYSTATUS = reshape(dec2bin(tmp(:),8)',8*HDR.BCI2000.StateVectorLength,size(HDR.BCI2000.STATUS,1))';
+		HDR.EVENT.POS = [0; ix+1];
+		HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS));
+		HDR.EVENT.DUR = diff([0;ix+1;size(tmp,1)]);
+		HDR.EVENT.TYP = repmat(NaN,size(HDR.EVENT.POS)); 	% should be extracted from BCI2000.BINARYSTATUS
+		fprintf(2,'Warning SOPEN (BCI2000): HDR.EVENT.TYP information need to be extracted from HDR.BCI2000.BINARYSTATUS\n');
+
+		% finalize header definition 		
+		status = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+		HDR.AS.bpb = 2*HDR.NS + HDR.BCI2000.StateVectorLength;
+		HDR.SPR = (HDR.FILE.size - HDR.HeadLen)/HDR.AS.bpb;
+		HDR.AS.endpos = HDR.SPR;
+		HDR.GDFTYP = [int2str(HDR.NS),'*int16=>int16'];
+		HDR.NRec = 1; 
+		HDR.FLAG.UCAL = 1; 
+		HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+		
+                HDR.FILE.OPEN = 1;
+		HDR.FILE.POS = 0; 
         end;
 
         

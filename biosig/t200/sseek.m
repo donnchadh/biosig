@@ -8,8 +8,8 @@ function [HDR]=sseek(HDR,offset,origin)
 %
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
-%	$Revision: 1.10 $
-%	$Id: sseek.m,v 1.10 2004-12-03 20:15:47 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: sseek.m,v 1.11 2004-12-28 20:35:12 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -69,7 +69,7 @@ elseif origin == 1,
 		POS = HDR.AS.endpos+offset*HDR.AS.bpb;
 		HDR.FILE.status = fseek(HDR.FILE.FID,POS,-1);
 		HDR.FILE.POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
-	elseif strmatch(HDR.TYPE,{'BKR','ISHNE','RG64','MIT','LABVIEW','SMA','BVbinmul'}),
+	elseif strmatch(HDR.TYPE,{'BKR','ISHNE','RG64','MIT','LABVIEW','SMA','BVbinmul','BCI2000'}),
 		HDR.FILE.POS = HDR.AS.endpos+offset;
 		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.AS.bpb*offset,1);
 	elseif strmatch(HDR.TYPE,{'CNT','EEG','AVG','EGI','SND','WAV','AIF','CFWB','DEMG'}),

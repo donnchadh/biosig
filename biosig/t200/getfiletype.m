@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.21 $
-%	$Id: getfiletype.m,v 1.21 2004-12-23 18:19:23 schloegl Exp $
+%	$Revision: 1.22 $
+%	$Id: getfiletype.m,v 1.22 2004-12-28 20:35:12 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -258,16 +258,14 @@ else
                         HDR.Endianity = 'ieee-be';
                         
                 elseif strncmp(ss,'HeaderLen=',10); 
-                        [t,r]=strtok(ss(11:end));
-                        [len,status]=str2double(strtok(ss(11:end)));
-                        if ~status,
+			tmp = ss(1:min(find((s==10) | (s==13))));
+			tmp(tmp=='=') = ' ';
+                        [t,status,sa] = str2double(tmp,[9,32],[10,13]);
+                        if strcmp(sa{3},'SourceCh') & strcmp(sa{5},'StatevectorLen') & ~any(status([2,4,6]))
                                 HDR.TYPE='BCI2000';
-                                HDR.HeadLen = len;
-                                ix(1) = strfind(ss,'SourceCh');
-                                ix(2) = strfind(ss,'StateVectorLength');
-                                ix(3) = strfind(ss,[13,10]);
-                                poseq = find(ss(1:ix(3)=='='));
-                                [HDR.NS,status] = str2double(ss(ix(1)+9:ix(2)-1));
+                                HDR.HeadLen = t(2);
+                                HDR.NS = t(4);
+                                HDR.BCI2000.StateVectorLength = t(6);
                         end;
                         
                 elseif strcmp(ss([1:4,9:12]),'RIFFCNT ')
