@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.17 $
-%	$Id: eegopen.m,v 1.17 2003-05-30 11:14:58 schloegl Exp $
+%	$Revision: 1.18 $
+%	$Id: eegopen.m,v 1.18 2003-05-30 12:19:37 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -290,6 +290,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
                 HDR.FLAG.TRIGGERED = logical(0); 
                 HDR.AS.spb = (HDR.NS+HDR.eventtypes);
                 HDR.AS.endpos = HDR.SPR;
+		HDR.Dur = 1/HDR.SampleRate;
         elseif any(HDR.VERSION==[3,5,7]),
                 HDR.categories = fread(HDR.FILE.FID,1,'integer*2');
                 if (HDR.categories),
@@ -304,6 +305,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
                 HDR.FLAG.TRIGGERED = logical(1); 
                 HDR.AS.spb = HDR.SPR*(HDR.NS+HDR.eventtypes);
                 HDR.AS.endpos = HDR.NRec;
+		HDR.Dur = HDR.SPR/HDR.SampleRate;
         else
                 fprintf(HDR.FILE.stderr,'Invalid EGI version %i\n',HDR.VERSION);
                 return;
@@ -399,13 +401,13 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
                 if strncmp('"CHAN$[]"',line,9)
                         [tmp,line] = strtok(line,'=');
                         for k=1:HDR.NS,
-                                [HDR.Label{k},line] = strtok(line,[', =',10,13]);
+                                [HDR.Label{k,1},line] = strtok(line,[', =',10,13]);
                         end;
                 end
                 if 0,strncmp('"CHANNEL.LABEL$[]"',line,18)
                         [tmp,line] = strtok(line,'=');
                         for k=1:HDR.NS,
-                                [HDR.Label{k},line] = strtok(line,[', =',10,13]);
+                                [HDR.Label{k,1},line] = strtok(line,[', =',10,13]);
                         end;
                 end
                 if strncmp(line,'"TR"',4) 
@@ -434,7 +436,9 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         end
         HDR.AS.bpb    = HDR.NS*4;
         HDR.AS.endpos = (endpos-HDR.HeadLen)/HDR.AS.bpb;
-        
+	HDR.Dur = 1/HDR.SampleRate;
+        HDR.NRec = 1;
+	
         if ~isfield(HDR,'SMA')
 	        HDR.SMA.EVENT_CHANNEL= 1;
         	HDR.SMA.EVENT_THRESH = 2.3;
@@ -518,6 +522,7 @@ elseif strcmp(HDR.TYPE,'RDF'),
 	HDR.FILE.POS = 0; 
 	HDR.SPR = block_size;
 	HDR.AS.bpb = HDR.SPR*HDR.NS*2;
+	HDR.Dur = HDR.SPR/HDR.SampleRate;
 		
 	if CHAN==0,		
 		HDR.SIE.InChanSelect = 1:HDR.NS;
@@ -782,6 +787,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 		elseif HDR.VERSION == 61, 
 			HDR.AS.bpb = HDR.NS*2;
 		end;
+		HDR.Dur = 1/HDR.SampleRate;
 
 
 	%------ LOAD ATTRIBUTES DATA ----------------------------------------------

@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.3 $
-%	$Id: bkropen.m,v 1.3 2003-02-07 21:08:50 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: bkropen.m,v 1.4 2003-05-30 12:19:38 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -143,7 +143,7 @@ if strcmp(PERMISSION,'r'),
 	BKR.VERSION=VER;
 	BKR.NS=nch;
 	BKR.NRec=ntr;
-	BKR.Dur=nsp/nhz;
+	BKR.Dur=1/nhz;
 
 	BKR.SampleRate=nhz;%(ones(BKR.NS,1));
 	BKR.SPR=nsp;%(ones(BKR.NS,1));

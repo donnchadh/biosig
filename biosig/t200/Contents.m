@@ -14,7 +14,6 @@
 %	Poly5/TMS32 Format used for recordings with the Porti-system and the PortiLab software
 %	RDF	EPRSS Data Format
 %	SMA	Snap-Master file format
-%       
 %
 %
 % A united interface is provided for all data formats:
@@ -29,6 +28,7 @@
 %	EEGCLOSE closes an biosignal file 
 %  	EEGWRITE (only BKR and EDF implemented)
 %
+%
 % UTILITY FUNCTIONS. In general, it is not recommended 
 %	to use them directly. Use them only if you absolute sure what 
 %	you are doing. You are warned! 
@@ -38,7 +38,6 @@
 %	OPENLDR
 %	BKROPEN
 %	CNTOPEN
-%	OPENEGI
 %	SDFOPEN
 %	SDFREAD
 %	SDFERROR
@@ -52,8 +51,8 @@
 % REFERENCES: 
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg
 
-%	$Revision: 1.6 $
-%	$Id: Contents.m,v 1.6 2003-05-26 17:17:24 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: Contents.m,v 1.7 2003-05-30 12:19:38 schloegl Exp $
 %	CopyLeft (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 

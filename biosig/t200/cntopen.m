@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.6 $
-%	$Id: cntopen.m,v 1.6 2003-05-30 11:14:58 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: cntopen.m,v 1.7 2003-05-30 12:19:38 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -434,6 +434,7 @@ if strcmp(upper(CNT.FILE.Ext),'AVG'),
         CNT.Cal  = e.calib./e.n;   % scaling
 	CNT.AS.bpb = h.pnts*h.nchannels*4+5;
 	CNT.AS.spb = h.pnts*h.nchannels;
+	CNT.Dur = CNT.SPR/CNT.SampleRate;
 	
 elseif strcmp(upper(CNT.FILE.Ext),'COH')        
         warning('.COH data not supported yet')
@@ -450,6 +451,7 @@ elseif strcmp(upper(CNT.FILE.Ext),'EEG')
 	CNT.Calib  = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
         CNT.AS.endpos  = CNT.NRec;
 	CNT.FLAG.TRIGGERED = 1;
+	CNT.Dur = CNT.SPR/CNT.SampleRate;
         
         % for some reason, this is correct, 
         h.eventtablepos = CNT.NRec*CNT.AS.bpb+CNT.HeadLen;
@@ -462,6 +464,7 @@ elseif strcmp(upper(CNT.FILE.Ext),'CNT')
 	CNT.NRec   = 1;
 	CNT.Calib  = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
 	CNT.FLAG.TRIGGERED = 0;	        
+	CNT.Dur = 1/CNT.SampleRate;
 end;
 
 

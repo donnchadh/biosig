@@ -1,5 +1,7 @@
+
 SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
+
 
 Date: 20 Feb 2003
 (C) Alois Schloegl <a.schloegl@ieee.org>
@@ -15,19 +17,21 @@ CONTENT:
 
 
 
-
 (A)========== Basic header definition ================================
 
-Name_of_field		type		example
+Name_of_field		type		description
 -------------------------------------------------------------------------
+HDR.TYPE		string		type of data format 
 HDR.VERSION		string		(depends on data format)
 HDR.T0			float[1..6]	[yyyy mm dd hh MM ss.cc] see HELP CLOCK  
 HDR.NS			integer		number of channels
 HDR.SampleRate		integer		sampling frequency in [Hz]
-HDR.NRec		integer		EDF: number of records: 
-					BKR (triggered):   number of trials
-					BKR (untriggered): 1	
-HDR.SPR			integer		samples per record 
+HDR.NRec		integer		number of records or blocks; 1 for continous data 
+HDR.SPR			integer		samples per record  
+HDR.Dur			float		Duration (in [s]) of minimal block length
+
+
+# # # # optional # # # # 
 
 HDR.Filter.LowPass	float		[Hz]
 HDR.Filter.HighPass	float		[Hz]
@@ -35,18 +39,16 @@ HDR.Filter.Notch 	int8		0=Off, 1=ON
 
 HDR.PreFilt		string		filter setting
 HDR.Label		char-array	z.B. '+C3a - C3p  '
-HDR.PhysDim		string		'uV'
+HDR.PhysDim		string		physical dimension e.g. 'uV'
 HDR.PhysMax		float		physical maximum
 HDR.DigMax		integer		digital maximum
-HDR.PhysMin		float		physical minimum +EDF,BDF;  -BKR,EGI
-HDR.DigMin		integer		digital minimum  +EDF,BDF;  -BKR,EGI
+HDR.PhysMin		float		physical minimum 
+HDR.DigMin		integer		digital minimum  
 
 HDR.FLAG.TRIGGERED	int		0=no, 1=yes
 HDR.FLAG.REFERENCE	string          COM, CAR: common average reference; LOC,LAR local average ref; LAP Laplacian derivation, WGT weighted average
 	
 HDR.Classlabel		int		0: left, 1: right, etc. 
-
-
 
 
 
