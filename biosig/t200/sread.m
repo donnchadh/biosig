@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.46 $
-%	$Id: sread.m,v 1.46 2005-02-28 14:15:44 schloegl Exp $
+%	$Revision: 1.47 $
+%	$Id: sread.m,v 1.47 2005-03-09 13:56:33 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -645,7 +645,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),   %Brainvision
         if strncmpi(HDR.BV.DataFormat, 'binary',5)
                 if strncmpi(HDR.BV.DataOrientation, 'multiplexed',6),
                         if nargin>2,
-                                STATUS = fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb,'bof');        
+                                STATUS = fseek(HDR.FILE.FID,StartPos*HDR.SampleRate*HDR.AS.bpb,'bof');        
                                 HDR.FILE.POS = HDR.SampleRate*StartPos;
                         end;
                         
