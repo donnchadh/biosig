@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.15 $
-%	$Id: eegread.m,v 1.15 2003-06-02 22:45:05 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: eegread.m,v 1.16 2003-06-03 17:41:52 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -331,28 +331,45 @@ elseif strcmp(HDR.TYPE,'AVG'),
 
                     
 elseif strcmp(HDR.TYPE,'COH'),
-        warning('.COH data not supported yet')
+        warning('.COH data not tested yet')
+        if prod(size(NoS))==1 & nargin>2, 
+                rows = NoS; cols = StartPos;
+        elseif prod(size(NoS))==2
+                rows = NoS(1); cols = NoS(2);
+        else
+                fprintf(HDR.FILE.stderr,'Error EEGREAD mode=COH: invalid arguments.\n');
+        end;
+                
+        fseek(CNT.FILE.FID,CNT.COH.directory(rows,cols)+8,'bof'); % skip over a small unused header of 8 bytes 
+        sr = fread(CNT.FILE.FID, CNT.SPR, 'float32');  % read real part of coherence    
+        si = fread(CNT.FILE.FID, CNT.SPR, 'float32');  % read imag part of coherence    
+        s = sr + i * si;
+        
         
 elseif strcmp(HDR.TYPE,'CSA'),
-        warning('.CSA data not supported yet')
+        warning('.CSA data not tested yet')
+	s = fread(CNT.FILE.FID, [CNT.NRec*(CNT.SPR+6)*CNT.NS], 'float32');	        
+        
         
 elseif strcmp(HDR.TYPE,'EEG'),
         if nargin>2,
                 fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*StartPos,'bof');        
         end;
         
-        NoS = min(NoS,HDR.NRec-HDR.FILE.POS);
-        S   = zeros(NoS*HDR.SPR,length(HDR.SIE.InChanSelect));
+        NoS = min(NoS, HDR.NRec-HDR.FILE.POS);
+        S   = zeros(NoS*HDR.SPR, length(HDR.SIE.InChanSelect));
         count = 0;
-        for i = 1:NoS,%h.compsweeps,
-                h.sweep(i).accept     = fread(HDR.FILE.FID,1,'uchar');
-                h.sweep(i).ttype      = fread(HDR.FILE.FID,1,'ushort');
-                h.sweep(i).correct    = fread(HDR.FILE.FID,1,'ushort');
-                h.sweep(i).rt         = fread(HDR.FILE.FID,1,'float32');
-                h.sweep(i).response   = fread(HDR.FILE.FID,1,'ushort');
-                h.sweep(i).reserved   = fread(HDR.FILE.FID,1,'ushort');
+        for i = 1:NoS, %h.compsweeps,
+                h.sweep(i).accept   = fread(HDR.FILE.FID,1,'uchar');
+                tmp		    = fread(HDR.FILE.FID,2,'ushort');
+                h.sweep(i).ttype    = tmp(1);
+                h.sweep(i).correct  = tmp(2);
+                h.sweep(i).rt       = fread(HDR.FILE.FID,1,'float32');
+                tmp  		    = fread(HDR.FILE.FID,2,'ushort');
+                h.sweep(i).response = tmp(1);
+                h.sweep(i).reserved = tmp(2);
                 
-                [signal,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],gdfdatatype(HDR.GDFTYP));
+                [signal,c] = fread(HDR.FILE.FID, [HDR.NS,HDR.SPR], gdfdatatype(HDR.GDFTYP));
                 
                 % S = [S;signal(HDR.SIE.InChanSelect,:)'];
                 S(i*HDR.SPR+(1-HDR.SPR:0),:) = signal(HDR.SIE.InChanSelect,:)';
@@ -362,6 +379,7 @@ elseif strcmp(HDR.TYPE,'EEG'),
         if ~HDR.FLAG.UCAL,
                 S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.InChanSelect],HDR.SIE.ChanSelect);
         end;
+        
         
 elseif strcmp(HDR.TYPE,'CNT'),
         if nargin>2,

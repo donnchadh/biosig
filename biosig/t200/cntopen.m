@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.10 $
-%	$Id: cntopen.m,v 1.10 2003-06-02 22:45:05 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: cntopen.m,v 1.11 2003-06-03 17:41:52 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -414,6 +414,9 @@ CNT.CNT.Filter.LowCutOff  = h.lowcutoff;
 CNT.CNT.Filter.HighCutOff = h.highcutoff;
 CNT.CNT.Filter.NotchOn = h.filterflag;
 CNT.CNT.Filter.ON   = [e(:).filtered];
+CNT.CNT.minor_revision = h.minor_rev;
+CNT.CNT.ChannelOffset = h.channeloffset;
+CNT.CNT.NumSamples = h.numsamples;
 CNT.Label = setstr(e.lab');
 
 if CHAN==0, CHAN=1:CNT.NS; end;
@@ -433,37 +436,67 @@ if (h.type==0),
 	CNT.AS.bpb = h.pnts*h.nchannels*4+5;
 	CNT.AS.spb = h.pnts*h.nchannels;
 	CNT.Dur = CNT.SPR/CNT.SampleRate;
-	
+        
+        
 elseif strcmp(upper(CNT.FILE.Ext),'COH')        
         warning('.COH data not supported yet')
+        CNT.COH.directory = fread(CNT.FILE.FID,[CNT.NS,CNT.NS],'int32');
+        CNT.SPR = h.pnts;
+        
         
 elseif strcmp(upper(CNT.FILE.Ext),'CSA')        
         warning('.CSA data not supported yet')
+        CNT.SPR  = h.pnts;
+        CNT.NRec = h.compsweeps;
+        
         
 elseif (h.type==1),
 	if ~strcmp(upper(CNT.FILE.Ext),'EEG'),
 		fprinf(2,'Warning CNTOPEN: filetype 1 does not match file extension EEG.\n'); 
 	end;
-	CNT.TYPE = 'EEG';
+	CNT.TYPE   = 'EEG';
         CNT.SPR    = h.pnts;
         CNT.NRec   = h.compsweeps;
         CNT.AS.spb = CNT.NS*CNT.SPR;	% Samples per Block
         
-        tmp = (CNT.NS*CNT.SPR*2+1+2+2+4+2+2);
-	if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
-                CNT.AS.bpb = tmp;
+        % Sometimes h.eventtablepos seems to need a correction, also I've not figured out why. 
+        % The Manual SCAN 4.2 Vol II, Page Headers-7 refers to "286 SCAN manual". Maybe this could bring a clarification. 
+        % Anyway, the following code deals with the problem.   
+        CNT.AS.bpb = -1;
+        if CNT.CNT.minor_revision==12,
+                CNT.AS.bpb = 2*CNT.AS.spb+1+2+2+4+2+2;
                 CNT.GDFTYP = 3; %'int16';
-        end;
-        tmp = (CNT.NS*CNT.SPR*4+1+2+2+4+2+2);
-	if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
-	        CNT.AS.bpb = tmp;
-                CNT.GDFTYP = 5; %'int32';
-        end;
+                % correct(?) eventtablepos
+                h.eventtablepos = CNT.HeadLen + CNT.NRec*CNT.AS.bpb;    	    
+        else
+                if CNT.CNT.minor_revision~=16,
+                        fprintf(CNT.FILE.stderr,'Warning CNTOPEN: EEG-Format Minor-Revision %i not tested.\n',CNT.CNT.minor_revision);
+                end;
+                
+                tmp = (CNT.AS.spb*2+1+2+2+4+2+2);
+                if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
+                        CNT.AS.bpb = tmp;
+                        CNT.GDFTYP = 3; %'int16';
+                end;
+                tmp = (CNT.AS.spb*4+1+2+2+4+2+2);
+                if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
+                        CNT.AS.bpb = tmp;
+                        CNT.GDFTYP = 5; %'int32';
+                end;
+        end; 
+        if CNT.AS.bpb < 0;
+                fprintf(CNT.FILE.stderr,'Error CNTOPEN: header information of file %s corrupted.\n',CNT.FileName);
+                fclose(CNT.FILE.FID);
+                CNT.FILE.FID = -1;
+                return;
+	end;
         
         CNT.Calib  = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
         CNT.AS.endpos  = CNT.NRec;
 	CNT.FLAG.TRIGGERED = 1;
 	CNT.Dur = CNT.SPR/CNT.SampleRate;
+        
+        
         
 elseif (h.type==2),
 	if ~strcmp(upper(CNT.FILE.Ext),'CNT'),
@@ -487,7 +520,7 @@ end;
 CNT.EVENT.Number     = h.numevents;
 if CNT.EVENT.Number > 0,
         fseek(CNT.FILE.FID,h.eventtablepos,'bof');
-        CNT.EVENT.Teeg       = fread(fid,1,'uchar');	%	
+        CNT.EVENT.TeegType       = fread(fid,1,'uchar');	%	
         CNT.EVENT.TeegSize   = fread(fid,1,'int32');	%	
         CNT.EVENT.TeegOffset = fread(fid,1,'int32');	%	
         
@@ -499,7 +532,10 @@ if CNT.EVENT.Number > 0,
         while K < CNT.EVENT.TeegSize,
                 Teeg(k).Stimtype =  fread(fid,1,'int16');        
                 Teeg(k).Keyboard =  fread(fid,1,'char');        
-                Teeg(k).KeyPad =  fread(fid,1,'uchar');        
+                tmp =  fread(fid,1,'uchar');        
+                Teeg(k).KeyPad = bitand(tmp,15);
+                Teeg(k).Accept = (bitshift(tmp,-4)==13);  % 0xd = accept, 0xc = reject 
+                
                 Teeg(k).Offset   =  fread(fid,1,'int32');        
                 K = K + 8;
                 if CNT.EVENT.Teeg==2,
