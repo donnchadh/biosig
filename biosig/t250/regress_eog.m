@@ -7,6 +7,8 @@ function R = regress_eog(D,ny,nx)
 %  R    rereferencing matrix for correction artifacts with regression
 %  analysis
 %
+% see also: SAVE2BKR
+%
 % Reference(s):
 % [1] A. Schlögl and G. Pfurtscheller,
 %    EOG and ECG minimization based on regression analysis, Technical Report - SIESTA, 1997.
@@ -27,8 +29,8 @@ function R = regress_eog(D,ny,nx)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: regress_eog.m,v 1.1 2004-06-05 19:49:26 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: regress_eog.m,v 1.2 2004-06-29 18:17:52 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -73,6 +75,7 @@ if ischar(D),
         
 elseif size(D,1)==size(D,2)
         R = R;         
+        
 else
         R = [ones(size(D,1),1),D]*r1;
 end

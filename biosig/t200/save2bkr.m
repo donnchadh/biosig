@@ -14,6 +14,7 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %   options
 %       gain            Gain factor for unscaled EEG data (e.g. old Matlab files) 
 %       'removeDC'      removes mean
+%       'regressEOG k:l,m:n'     removes EOG (channels m:n) from EEG (channels k:l)  
 %       'autoscale k:l'	uses only channels from k to l for scaling
 %       'detrend k:l'	channels from k to l are detrended with an FIR-highpass filter.
 %       'PhysMax=XXX'	uses a fixed scaling factor; might be important for concanating BKR files 
@@ -33,11 +34,12 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %	
 %
 %
-% see also: EEGCHKHDR
+% see also: EEGCHKHDR, REGRESS_EOG, SLOAD
 
-%	$Revision: 1.20 $
-% 	$Id: save2bkr.m,v 1.20 2004-05-04 22:08:04 schloegl Exp $
+%	$Revision: 1.21 $
+% 	$Id: save2bkr.m,v 1.21 2004-06-29 18:17:51 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -55,6 +57,7 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 % Boston, MA  02111-1307, USA.
 
 
+FLAG_REGRESS_EOG = 0;
 FLAG_REMOVE_DC = 0;
 FLAG_AUTOSCALE = 0;
 FLAG_DETREND = 0;
@@ -73,7 +76,7 @@ else
         FLAG_REMOVE_DC = findstr(lower(arg3),'removedc');        
         tmp = findstr(arg3,'autoscale');
         if ~isempty(tmp);
-                [chansel,tmp] = strtok(arg3(tmp+9:length(arg3)),' ;,+');
+                [chansel,tmp] = strtok(arg3(tmp+9:length(arg3)),' ;+');
                 tmp = str2num(chansel);
                 if isempty(tmp),
                         fprintf(2,'invalid autoscale argument %s',chansel);
@@ -83,6 +86,7 @@ else
                         chansel = tmp;
                 end;
         end;
+        
         tmp = findstr(lower(arg3),'detrend');
         if ~isempty(tmp);
                 [chansel_dt,tmp] = strtok(arg3(tmp+7:length(arg3)),' ;,+');
@@ -98,7 +102,7 @@ else
         
         tmp = findstr(lower(arg3),'removedrift');
         if ~isempty(tmp);
-                [chansel_dt2,tmp] = strtok(arg3(tmp+11:length(arg3)),' ;,+');
+                [chansel_dt2,tmp] = strtok(arg3(tmp+11:length(arg3)),' ;+');
                 tmp = str2num(chansel_dt2);
                 if isempty(tmp),
                         fprintf(2,'invalid RemoveDrift argument %s',chansel_dt2);
@@ -106,6 +110,29 @@ else
                 else
                         FLAG_removeDrift = 1;
                         chansel_dt2 = tmp;
+                end;
+        end;
+        
+        tmp = findstr(lower(arg3),'regresseog');
+        if ~isempty(tmp);
+                [chansel_dt3,tmp] = strtok(arg3(tmp+11:length(arg3)),' ;,+');
+                [chansel_dt4,tmp] = strtok(tmp,' ;,+');
+                tmp = str2num(chansel_dt3);
+                FLAG_REGRESS_EOG = ~isempty(tmp);
+                if isempty(tmp),
+                        fprintf(2,'invalid REGRESSEOG argument %s',chansel_dt3);
+                        return;
+                else
+                        FLAG_REGRESS_EOG = 1;
+                        chansel_dt3 = tmp;
+                end;
+                tmp = str2num(chansel_dt4);
+                FLAG_REGRESS_EOG = FLAG_REGRESS_EOG * ~isempty(tmp);
+                if isempty(tmp),
+                        fprintf(2,'invalid REGRESSEOG argument %s',chansel_dt4);
+                        return;
+                else
+                        chansel_dt4 = tmp;
                 end;
         end;
         tmp = findstr(lower(arg3),'physmax=');
@@ -260,8 +287,13 @@ for k=1:length(infile);
                 HDR.DigMax  = 2^15-1;
         end;
         
+        if FLAG_REGRESS_EOG,
+                fprintf(1,'\tREGRESS_EOG \n');
+                y = regress_eog(y,chansel_dt3,chansel_dt4);
+        end;
         if FLAG_REMOVE_DC,
-                y = y-repmat(mean(y,1),size(y,1),1);
+                fprintf(1,'\tREMOVE_DC \n');
+                y = y - repmat(mean(y,1),size(y,1),1);
         end;
         if FLAG_DETREND,
                 B = -ones(1,HDR.SampleRate)/HDR.SampleRate;
