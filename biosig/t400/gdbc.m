@@ -20,8 +20,8 @@ function [GDBC,kap,acc,H,MDBC]=gdbc(ECM,Y,CL)
 %  [1] J. Bortz, Statistik für Sozialwissenschaftler, 5. Auflage, Springer (1999).  
 %
 
-%	$Revision: 1.2 $
-%	$Id: gdbc.m,v 1.2 2004-08-18 14:50:20 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: gdbc.m,v 1.3 2004-09-02 22:12:14 schloegl Exp $
 %	Copyright (c) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -39,14 +39,15 @@ function [GDBC,kap,acc,H,MDBC]=gdbc(ECM,Y,CL)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-NC=size(ECM);
-if length(NC)<3, 
+NC = size(ECM);
+if length(NC)<3,
         if iscell(ECM(1)),
                 NC = [max(NC(1:2)),size(ECM{1})];
+		tmp = ECM;
+		ECM = zeros([NC(1),size(tmp{1})]);
                 for k = 1:NC(1),
-                        tmp(k,:,:)=ECM{k};
+                        ECM(k,:,:) = tmp{k};
                 end;
-                ECM = tmp;
 
 	elseif isfield(ECM,'COV') & isfield(ECM,'NN')
     		ECM = ECM.COV./ECM.NN; 
@@ -54,11 +55,11 @@ if length(NC)<3,
         
         elseif isstruct(ECM),
                 x = ECM;
-                NC=[length(x.IR),size(x.IR{1})]
+                NC=[length(x.IR),size(x.IR{1})];
         elseif NC(1)==NC(2)
                 ECM{1}=ECM;
         end;
-        
+
 elseif (length(NC)==3) & (NC(2)==NC(3)),
         
 elseif isfield(ECM,'COV') & isfield(ECM,'NN')
