@@ -1,5 +1,10 @@
 function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
-% CNTOPEN opens neuroscan files
+% CNTOPEN opens neuroscan files (but does not read the data). 
+% However, it is recommended to use SOPEN instead of CNTOPEN.
+% For loading whole Neuroscan data files, use SLOAD. 
+%
+% see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
+
 % HDR=cntopen(Filename, PERMISSION, [, ChanList ]);
 %
 % FILENAME 
@@ -8,8 +13,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.17 $
-%	$Id: cntopen.m,v 1.17 2003-11-02 21:26:16 schloegl Exp $
+%	$Revision: 1.18 $
+%	$Id: cntopen.m,v 1.18 2003-12-11 17:00:18 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -431,7 +436,7 @@ CNT.SIE.InChanSelect = CHAN;
 CNT.FILE.POS = 0;
 if (h.type==0),
 	if ~strcmp(upper(CNT.FILE.Ext),'AVG'),
-		fprintf(2,'Warning CNTOPEN: filetype 0 does not match file extension AVG.\n'); 
+		fprinf(2,'Warning CNTOPEN: filetype 0 (AVG) does not match file extension (%s).\n',CNT.FILE.Ext); 
 	end;
 	CNT.TYPE='AVG';
         CNT.AS.endpos = 1;
@@ -457,7 +462,7 @@ elseif strcmp(upper(CNT.FILE.Ext),'CSA')
         
 elseif (h.type==1),
 	if ~strcmp(upper(CNT.FILE.Ext),'EEG'),
-		fprinf(2,'Warning CNTOPEN: filetype 1 does not match file extension EEG.\n'); 
+		fprinf(2,'Warning CNTOPEN: filetype 1 (EEG) does not match file extension (%s).\n',CNT.FILE.Ext); 
 	end;
 	CNT.TYPE   = 'EEG';
         CNT.SPR    = h.pnts;
@@ -503,7 +508,7 @@ elseif (h.type==1),
         
 else  % if any(h.type==[2,184]),
 	if ~strcmp(upper(CNT.FILE.Ext),'CNT'),
-		fprinf(2,'Warning CNTOPEN: filetype 2 does not match file extension CNT.\n'); 
+		fprinf(2,'Warning CNTOPEN: filetype 2 (CNT) does not match file extension (%s).\n',CNT.FILE.Ext); 
 	end;
         CNT.TYPE = 'CNT';
         %CNT.SPR    = h.numsamples;
