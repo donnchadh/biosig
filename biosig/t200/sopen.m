@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.95 $
-%	$Id: sopen.m,v 1.95 2005-02-22 09:55:09 schloegl Exp $
+%	$Revision: 1.96 $
+%	$Id: sopen.m,v 1.96 2005-02-28 17:36:52 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2808,6 +2808,11 @@ elseif strcmp(HDR.TYPE,'MIT')
                 if ~isempty(ix1),
                         [HDR.Patient.Sex,z]=strtok(z(ix1(1):length(z)));
                 end;
+                ix1 = [strfind(upper(z),'BMI:')+4, strfind(upper(z),'BMI>:')+5];
+                if ~isempty(ix1),
+                        [tmp,z]=strtok(z(ix1(1):length(z)));
+                        HDR.Patient.BMI = str2double(tmp);
+                end;
                 ix1 = [strfind(upper(z),'DIAGNOSIS:')+10; strfind(upper(z),'DIAGNOSIS>:')+11];
                 if ~isempty(ix1),
                         [HDR.Patient.Diagnosis,z]=strtok(z(ix1(1):length(z)),char([10,13,abs('#<>')]));
@@ -2899,7 +2904,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 			fprintf(HDR.FILE.stderr,'Error SOPEN: Couldnot open file %s\n',tmpfile);
 			return;
 		end;	
-		
+
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS = 0;
                 HDR.HeadLen  = 0;
@@ -2911,7 +2916,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                         fprintf(HDR.FILE.stderr,'Warning 2003 SOPEN: FTELL does not return numeric value (Octave > 2.1.52).\nHDR.AS.endpos not completed.\n');
                 end;
                 fseek(HDR.FILE.FID,0,'bof');
-                
+
                 HDR.InChanSelect = 1:HDR.NS;
                 FLAG_UCAL = HDR.FLAG.UCAL;	
                 HDR.FLAG.UCAL = 1;
@@ -5045,6 +5050,15 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 HDR.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
                 HDR.T0 = datevec(HDR.TFM.S(2,1)+HDR.TFM.S(2,2)-1);
                 HDR.T0(1) = HDR.T0(1)+1900;
+                HDR.Patient.Name = [HDR.TFM.E{2,3},' ', HDR.TFM.E{2,4}];
+                HDR.Patient.Birthday = datevec(HDR.TFM.S(2,5)-1);
+                HDR.Patient.Age = datevec(HDR.TFM.S(2,1)-HDR.TFM.S(2,5));
+                HDR.Patient.Sex = HDR.TFM.E{2,6};
+                HDR.Patient.Height = HDR.TFM.S(2,7);
+                HDR.Patient.Weight = HDR.TFM.S(2,8);
+                HDR.Patient.Surface = HDR.TFM.S(2,9);
+                HDR.Patient.BMI = HDR.TFM.S(2,8)*HDR.TFM.S(2,7)^-2*1e4;
+                HDR.TFM.VERSION = HDR.TFM.E{2,12};
         catch
 	end; 	
 
@@ -5163,6 +5177,17 @@ end;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %	General Postprecessing for all formats of Header information 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% identify type of signal
+HDR.CHANTYP = repmat(' ',1,HDR.NS);
+tmp   = reshape(lower([HDR.Label,repmat(' ',HDR.NS,1)])',1,prod(size(HDR.Label)+[0,1]));
+HDR.CHANTYP(ceil([strfind(tmp,'eeg'),strfind(tmp,'meg')]/(size(HDR.Label,2)+1))) = 'E'; 
+HDR.CHANTYP(ceil([strfind(tmp,'emg')]/(size(HDR.Label,2)+1))) = 'M'; 
+HDR.CHANTYP(ceil([strfind(tmp,'eog')]/(size(HDR.Label,2)+1))) = 'O'; 
+HDR.CHANTYP(ceil([strfind(tmp,'ecg'),strfind(tmp,'ekg')]/(size(HDR.Label,2)+1))) = 'C'; 
+HDR.CHANTYP(ceil([strfind(tmp,'air'),strfind(tmp,'resp')]/(size(HDR.Label,2)+1))) = 'R'; 
+HDR.CHANTYP(ceil([strfind(tmp,'trig')]/(size(HDR.Label,2)+1))) = 'T'; 
+
 
 % add trigger information for triggered data
 if HDR.FLAG.TRIGGERED & isempty(HDR.EVENT.POS)

@@ -6,7 +6,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 Date: 20 Feb 2003
 (C) Alois Schloegl <a.schloegl@ieee.org>
 Version 1.0 (0.10 for testing)
-$Revision: 1.10 $
+$Revision: 1.11 $
 $Id
 
 
@@ -60,6 +60,7 @@ HDR.PhysMin		float		physical minimum (for calibration)
 HDR.DigMin		integer		digital minimum (for calibration) 
 HDR.THRESHOLD		numeric		digital minimum and maximum (for saturation detection);
 					a third column indicates the encoding of missing data;  
+HDR.CHANTYP		ascii		guess for signal type 
 
 HDR.FLAG.TRIGGERED	int		0=no, 1=yes
 HDR.FLAG.REFERENCE	string          COM, CAR: common average reference; LOC,LAR local average ref; LAP Laplacian derivation, WGT weighted average
@@ -82,6 +83,9 @@ HDR.Patient.Sex				Patient Gender
 HDR.Patient.Handedness			Patient Handedness
 HDR.Patient.Medication			Medication
 HDR.Patient.Classification		Classification of Patient
+HDR.Patient.Height			height
+HDR.Patient.Weight			weight
+HDR.Patient.BMI				Body mass index
 
 HDR.AS.MAXSPR				least common multiple samplerate
 HDR.AS.bpb				bytes per block
