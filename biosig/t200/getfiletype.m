@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.5 $
-%	$Id: getfiletype.m,v 1.5 2004-09-19 02:06:21 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: getfiletype.m,v 1.6 2004-09-22 11:28:54 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -60,6 +60,10 @@ if exist(HDR.FileName,'dir') & strcmpi(HDR.FILE.Ext,'ds'), % .. & isdir(HDR.File
                 HDR.FILE.Ext  = 'meg4'; 
                 HDR.FileName  = f1; 
         end;
+        
+elseif isdir(HDR.FileName),
+        HDR.TYPE = 'DIR'; 
+        return; 
 end;
 
 fid = fopen(HDR.FileName,'rb','ieee-le');
@@ -540,7 +544,7 @@ else
                         fn = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.bni']);
                         if exist(fn, 'file')
                                 fid = fopen(fn,'r','ieee-le');
-                                HDR.Header = char(fread(fid,[1,inf],'uchar');
+                                HDR.Header = char(fread(fid,[1,inf],'uchar'));
                                 fclose(fid);
                         end;
                         if exist(HDR.FileName, 'file')
@@ -548,7 +552,7 @@ else
                                 fseek(fid,-4,'eof');
                                 datalen = frea(fid,1,'uint32');
                                 fseek(fid,datalen,'bof');
-                                HDR.Header = char(fread(fid,[1,inf],'uchar');
+                                HDR.Header = char(fread(fid,[1,inf],'uchar'));
                                 fclose(fid);
                         end;
                         pos_rate = strfind(HDR.Header,'Rate =');
