@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.35 $
-%	$Id: sopen.m,v 1.35 2004-03-22 18:32:25 schloegl Exp $
+%	$Revision: 1.36 $
+%	$Id: sopen.m,v 1.36 2004-03-23 12:13:37 oostenveld Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -174,7 +174,7 @@ if any(PERMISSION=='r'),
                         elseif any(s(4)==(2:7)) & all(s(1:3)==0); % [int32] 2...7
                                 HDR.TYPE='EGI';
                         elseif strncmp(ss,'RIFF',4); 
-                                HDR.TYPE='EEProbe';     % EEGProbe ? 
+                                HDR.TYPE='EEProbe';     % developed by ANT (NL) and MPI Leipzig (DE)
 
                         elseif strncmp(ss,'ISHNE1.0',8);        % ISHNE Holter standard output file.
                                 HDR.TYPE='ISHNE';
