@@ -1,7 +1,7 @@
 function [CC,Q,tsd,md]=findclassifier1(D,TRIG,cl,T,t0,SWITCH)
-% FINDCLASSIFIER
+% FINDCLASSIFIER1
 % 
-% [CC,Q,TSD,MD]=findclassifier(D,TRIG,Class,class_times,t_ref);
+% [CC,Q,TSD,MD]=findclassifier1(D,TRIG,Class,class_times,t_ref);
 %
 % D 	data, each row is one time point
 % TRIG	trigger time points
@@ -14,10 +14,8 @@ function [CC,Q,tsd,md]=findclassifier1(D,TRIG,cl,T,t0,SWITCH)
 % TSD 	returns the LDA classification 
 % MD	returns the MD  classification 
 %
-%
 % [CC,Q,TSD,MD]=findclassifier(AR,find(trig>0.5)-257,~mod(1:80,2),reshape(1:14*128,16,14*8)');
 %
-% see also: DECOVM, ECOVM.M, R2.M
 %
 % Reference(s): 
 % [1] Schlögl A., Neuper C. Pfurtscheller G.
@@ -28,23 +26,8 @@ function [CC,Q,tsd,md]=findclassifier1(D,TRIG,cl,T,t0,SWITCH)
 %	Proceedings of the st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003 
 %
 
-%   Version 1.31  Date: 21 Aug 2002   
-%   Copyright (C) 1999-2002 by Alois Schloegl <a.schloegl@ieee.org>	
-%
-% CHANGELOG
-%	10.12.2001	changed Covariance-Matrix from unbiased to biased
-%	20.12.2001	ROC and AUC included 	
-% 	04.01.2002	zeros class added 
-%			md changed to diff of log of MD
-%	18.01.2002	Gaussian Radial basis functions
-%	12.02.2002	included in BCI7-paradigm
-%	13.02.2002	CC.D included
-%       30.04.2002	JACKKNIFE included
-%	May 2002	BIAS correction included
-%       25.06.2002	BIAS correction removed, because does not help 
-%	30.07.2002	Jackknife extended to SNR, I, and AUC, get rid of eval_offline
-%       14.08.2002	bugs fixed. 
-%	 6.10.2003 	MD2 (square root of Mahalanobis Distance)
+%   Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: findclassifier1.m,v 1.5 2003-11-27 18:01:56 schloegl Exp $
 
 
 % This program is free software; you can redistribute it and/or
@@ -141,7 +124,7 @@ CC.CMX = squeeze(CMX(CC.TI,:,:));
 
 m1=decovm(CC.MD{1});
 m2=decovm(CC.MD{2});
-tmp=sqrt(mdbc(CC.MD,[1,m1;1,m2]));
+tmp=mdbc(CC.MD,[1,m1;1,m2]);
 CC.scale=[1,1]*1/max(abs(tmp(:)));  % element 1 
 
 [maxQ,CC.lnTI] = max(lnQ); %d{K},
@@ -213,19 +196,18 @@ for l=find(~isnan(cl(:)'));1:length(cl);
         end;
         
         d = mdbc(cc,D(t,:));
+        [tmp,MDIX(:,l)] = min(d,[],2);
         
         if length(CL)==2,
                 JKD1(:,l) = d(:,1);
                 JKD2(:,l) = d(:,2);
                 
                 JKLD(:,l) = ldbc(cc, D(t,:));
-        else
-                [tmp,MDIX(:,l)] = min(d,[],2);
         end;	
 end;
 
 % Concordance matrix with cross-validation 
-CC.mmx=zeros([size(MDIX,1),length(CL)^2]);
+CC.mmx = zeros([size(MDIX,1),length(CL)^2]);
 tmp=zeros([size(MDIX,1),length(CL)]);
 for k = 1:length(CL),
         for l = 1:length(CL),
@@ -243,7 +225,7 @@ for k = 1:size(MDIX,1),
 	CC.KAP00(k)=kappa(reshape(CC.mmx(k,:),[1,1]*length(CL)));	
 end;
 
-if length(CL)>2, 
+if length(CL) > 2, 
         return; 
 end; 
 
