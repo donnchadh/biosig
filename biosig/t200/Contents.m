@@ -5,6 +5,7 @@
 %     	CNT	Neuroscan 
 %	EDF	European Data Format
 %	BDF	Biosemi data format (EDF with 24bit integers)
+%	GDF	General data format (EDF different datatypes)
 %       EGI	Format from Electrical Geodesics
 %
 % A united interface is provided for all data formats:
@@ -21,7 +22,7 @@
 %
 %    UTILITY FUNCTIONS. In general, it is not recommended 
 %	to use them directly. Use them only if you absolute sure what 
-%	you are doing. At least, you've been warned. 
+%	you are doing. You are warned! 
 % 	
 %	SAVE2BKR
 % 	EEGCHKHDR	
@@ -42,8 +43,8 @@
 % REFERENCES: 
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg
 
-%	$Revision: 1.1 $
-%	$Id: Contents.m,v 1.1 2003-02-01 15:03:45 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: Contents.m,v 1.2 2003-02-03 17:00:07 schloegl Exp $
 %	CopyLeft (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 

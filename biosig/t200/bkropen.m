@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.1 $
-%	$Id: bkropen.m,v 1.1 2003-02-01 15:03:45 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: bkropen.m,v 1.2 2003-02-03 17:00:08 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -207,6 +207,13 @@ if strcmp(PERMISSION,'r'),
 elseif strcmp(PERMISSION,'w') | strcmp(PERMISSION,'w+') | strcmp(PERMISSION,'r+'),
         if ~isfield(BKR,'SPR'),
 		BKR.SPR = 0; 	% Unknown - Value will be fixed when file is closed. 
+        end;
+        
+        if strcmp(PERMISSION,'r+'), 	% calculate BKR.SPR based on the length of the data file.  
+                fseek(BKR.FILE.FID,0,'eof');
+                EndPos = ftell(BKR.FILE.FID);
+                fseek(BKR.FILE.FID,0,'bof');
+                BKR.SPR = (EndPos - 1024)/(BKR.NS*2*BKR.NRec);
         end;
         
         tmp = round(BKR.PhysMax);
