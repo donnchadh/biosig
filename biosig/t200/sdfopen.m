@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.27 $
-%	$Id: sdfopen.m,v 1.27 2004-10-07 15:54:19 schloegl Exp $
+%	$Revision: 1.28 $
+%	$Id: sdfopen.m,v 1.28 2004-10-21 10:49:08 schloegl Exp $
 %	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -682,7 +682,7 @@ elseif strcmp(EDF.TYPE,'EDF') & (length(EDF.FILE.Name)==8) & any(lower(EDF.FILE.
 				
 				EDF.EVENT.Fs = 1;
 				if nargin>1,
-				        EVENT.Fs = Fs;
+				        EVENT.Fs = EDF.SampleRate;
 				end;
 				
 				[tmp,ix] = sort(POS);
