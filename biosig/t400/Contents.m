@@ -3,10 +3,16 @@
 % LDBC	linear discriminant based classifier 
 % MDBC	mahalanobis distance based classifier 
 % LLBC	log-likelihood based classifier 
-% FINDCLASSIFIER1 generattes classifier for a BCI [2,3]
+% GDBC  general distance-based classifier 
+% FINDCLASSIFIER1 generate classifier for a BCI [2,3]
+% FINDCLASSIFIER2 2nd generation classifier for BCI [2,3]
+%
+%  helper function%
+% PERM	permutations of indices in trials 
 %
 %
-% see also: NaN/COVM, DECOVM
+%
+% see also: NaN/COVM, DECOVM, FINDCLASSIFIER1, FINDCLASSIFIER2 
 %
 %
 %
@@ -21,8 +27,8 @@
 %	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, 
 %	Capri, Italy, Mar 20-22, 2003.
 
-%	$Revision: 1.1 $
-%	$Id: Contents.m,v 1.1 2004-02-13 16:59:40 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: Contents.m,v 1.2 2004-08-18 13:33:17 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
