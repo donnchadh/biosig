@@ -22,9 +22,9 @@
 %  you can excluded the path to NaN/*. The BIOSIG tools will still 
 %  work, but does not support the handling of NaN's.
 
-%	Copyright (C) 2003,2004 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Revision: 1.3 $
-%	$Id: install.m,v 1.3 2005-02-28 09:26:11 schloegl Exp $
+%	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.4 $
+%	$Id: install.m,v 1.4 2005-02-28 09:37:07 schloegl Exp $
 
 if exist('OCTAVE_VERSION')
         HOME = pwd;	%
@@ -32,7 +32,7 @@ else
         tmp = which('install'); 
         if ~isempty(tmp),
                 [HOME,f,e] = fileparts(tmp);
-                if strfind(upper(f),'biosig')
+                if ~isempty(findstr(lower(HOME),'biosig'))
                         [HOME,f,e] = fileparts(HOME);
                 end;
         else
