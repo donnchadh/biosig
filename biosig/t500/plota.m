@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.26 $
-%	$Id: plota.m,v 1.26 2004-05-24 11:38:03 schloegl Exp $
+%       $Revision: 1.27 $
+%	$Id: plota.m,v 1.27 2004-05-25 20:21:30 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -1519,6 +1519,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
                 
                 subplot(nf(k));
                 [ax,h1,h2] = plotyy(X.T,X.MEAN(k,:),X.T,X.STD(k,:));
+                drawnow; 
                 set(ax,'FontSize',6);
                 
                 % Sets the axes limits to avoid overlapping of the two functions
@@ -1563,11 +1564,11 @@ elseif strcmp(X.datatype,'MEAN+STD')
                 if isfield(X,'trigger')  % Mark trigger
                         line([X.T(X.trigger),X.T(X.trigger)],[minmean-maxstd,maxmean],'Color',[1 0 0]);
                 end;
-                
+                pause;
         end;
         drawnow;
-        set(0,'DefaultTextInterpreter','none');  % Avoid having TeX interpretation in title string
-        suptitle(X.Title);
+        %set(0,'DefaultTextInterpreter','none');  % Avoid having TeX interpretation in title string
+        %suptitle(X.Title);
         
         
 elseif strcmp(X.datatype,'Classifier')
@@ -1576,23 +1577,36 @@ elseif strcmp(X.datatype,'Classifier')
         end;
         if (nargin==1);
                 arg2 = 'all';
-                for k=1:3,
-                        hf(k) = subplot(1,3,k);
+                for k=1:4,
+                        hf(k) = subplot(1,4,k);
                 end
-        elseif isnumeric(arg2)
-                hf = arg2; 
-                if length(hf)==3,
-                        arg2='all';
-                elseif length(hf)==1,
-                        arg2='acc';
-                        subplot(hf);
-                end;
-        end;
-        if ~isfield(X,'T');
-                if ~isfield(X,'Fs'),
-                        X.T = (1:size(X.acc,1))';
+        elseif (nargin==2);
+                if isnumeric(arg2)
+                        hf = arg2; 
+                        if length(hf)==3,
+                                arg2='all';
+                        elseif length(hf)==1,
+                                arg2='acc';
+                                subplot(hf);
+                        end;
+                else   % arg2=arg2;
+                end
+        elseif (nargin==3);
+                if isnumeric(arg2)
+                        hf = arg2; 
+                        arg2 = arg3;
                 else
-                        X.T = (1:size(X.acc,1))'/X.Fs;
+                        hf = arg3;
+                end;                
+        else
+                
+        end;
+        
+        if ~isfield(X,'T');
+                %X.T = (1:size(X.acc,1))';
+                X.T = (1:size(X.MDA.ACC00,1))';
+                if isfield(X,'Fs'),
+                        X.T = X.T/X.Fs;
                 end;
         else;
                 
@@ -1605,13 +1619,13 @@ elseif strcmp(X.datatype,'Classifier')
                         LEG = num2str(X.Classes(:));
                 end;
         end;
-        
         if strncmpi(arg2,'acc',3)
                 if isfield(X,'tsc'),
                         patch(X.T(X.tsc([1,1,2,2,1])),[0,1,1,0,0]*100,[1,1,1]*.8);
                 end;
                 hold on;
-                plot(X.T,X.acc*100,'-',X.T([1,end]),[100,100]./size(X.acc,2),'k:');
+                %plot(X.T,X.acc*100,'-',X.T([1,end]),[100,100]./size(X.acc,2),'k:');
+                plot(X.T,X.MDA.ACC00*100,'-',X.T([1,end]),[100,100]./size(X.MDA.ACC00,2),'k:');
                 hold off;
                 v=axis;v(3:4)=[0,100];axis(v);
                 
@@ -1621,15 +1635,60 @@ elseif strcmp(X.datatype,'Classifier')
                         legend(LEG);
                 end
                 
-        elseif strncmpi(arg2,'KAPPA',3)
+        elseif strcmpi(arg2,'fixed') |  strcmpi(arg2,'fixed-MDA'),
+                if 0,isfield(X,'tsc'),
+                        patch(X.T(X.tsc([1,1,2,2,1])),[0,1,1,0,0]*100,[1,1,1]*.8);
+                end;
+                hold on;
+                plot(X.T,X.MDA.acc*100,'-',X.T([1,end]),[100,100]./size(X.MDA.acc,2),'k:');
+                hold off;
+                v=axis;v(3:4)=[0,100];axis(v);
+                
+                ylabel('mean recognistion rate [%]');
+                grid on;
+                if ~isempty(LEG)
+                        legend(LEG);
+                end
+                
+        elseif strcmpi(arg2,'fixed-LLH')
+                if 0,isfield(X,'tsc'),
+                        patch(X.T(X.tsc([1,1,2,2,1])),[0,1,1,0,0]*100,[1,1,1]*.8);
+                end;
+                hold on;
+                plot(X.T,X.LLH.acc*100,'-',X.T([1,end]),[100,100]./size(X.LLH.acc,2),'k:');
+                hold off;
+                v=axis;v(3:4)=[0,100];axis(v);
+                
+                ylabel('Accuracy [%]');
+                grid on;
+                if ~isempty(LEG)
+                        legend(LEG);
+                end
+                
+        elseif strcmpi(arg2,'KAPPA') | strcmpi(arg2,'KAPPA-MDA')
                 if isfield(X,'tsc'),
                         patch(X.T(X.tsc([1,1,2,2,1])),[0,1,1,0,0]*100,[1,1,1]*.8);
                 end;
                 hold on;
-                plot(X.T,[X.KAP00,X.ACC00]*100);
+                plot(X.T,[X.MDA.KAP00,X.MDA.ACC00]*100);
                 hold off;
                 grid on;
-                v=axis; v(3:4)=[-10,100]; axis(v);
+                %v=axis; v(3:4)=[-10,100]; axis(v);
+                v=axis; v(3:4)=[0,100]; axis(v);
+                ylabel('Kappa [%], Accuracy [%]')
+                xlabel('time t [s]');
+                legend('Kappa', 'Accuracy');
+                
+        elseif strcmpi(arg2,'KAPPA-LLH')
+                if isfield(X,'tsc'),
+                        patch(X.T(X.tsc([1,1,2,2,1])),[0,1,1,0,0]*100,[1,1,1]*.8);
+                end;
+                hold on;
+                plot(X.T,[X.LLH.KAP00,X.LLH.ACC00]*100);
+                hold off;
+                grid on;
+                %v=axis; v(3:4)=[-10,100]; axis(v);
+                v=axis; v(3:4)=[0,100]; axis(v);
                 ylabel('Kappa [%], Accuracy [%]')
                 xlabel('time t [s]');
                 legend('Kappa', 'Accuracy');
@@ -1656,12 +1715,10 @@ elseif strcmp(X.datatype,'Classifier')
                 end
                 
         elseif strncmpi(arg2,'all',3)
-                subplot(hf(1))
-                plota(X,'acc');
-                subplot(hf(2))
-                plota(X,'KAPPA');
-                subplot(hf(3))
-                plota(X,'MI');
+                plota(X,'acc',hf(1));
+                plota(X,'KAPPA',hf(2));
+                plota(X,'fixed',hf(3));
+                plota(X,'MI',hf(4));
         end;
         
 elseif strcmp(X.datatype,'TSD_BCI7') 
