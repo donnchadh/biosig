@@ -23,8 +23,8 @@
 %  work, but does not support the handling of NaN's.
 
 %	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Revision: 1.4 $
-%	$Id: install.m,v 1.4 2005-02-28 09:37:07 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: install.m,v 1.5 2005-02-28 09:45:50 schloegl Exp $
 
 if exist('OCTAVE_VERSION')
         HOME = pwd;	%
@@ -56,20 +56,6 @@ path([HOME,'/biosig/viewer/help'],path);	% viewer
 path([HOME,'/tsa/'],path);		%  Time Series Analysis
 % some users might get confused by this
 path([HOME,'/NaN/'],path);		%  Statistics analysis for missing data
-
-if exist([HOME,'/biosig/eeglab/'],'dir'),
-	path([HOME,'/biosig/eeglab/'],path);
-end;
-if exist([HOME,'/eeglab/'],'dir'),
-	path([HOME,'/eeglab/'],path);
-end;
-%%% NONFREE %%%
-if exist([HOME,'/biosig/NONFREE/EEProbe'],'dir'),
-	path(path,[HOME,'/biosig/NONFREE/EEProbe']);	% Robert Oostenveld's MEX-files to access EEProbe data
-end;
-if exist([HOME,'/biosig/NONFREE/meg-pd-1.2-4/'],'dir'),
-        path(path,[HOME,'/biosig/NONFREE/meg-pd-1.2-4/']);	% Kimmo Uutela's library to access FIF data
-end;
 
 path(path,[HOME,'/maybe-missing/']);
 
