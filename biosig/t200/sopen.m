@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.8 $
-%	$Id: sopen.m,v 1.8 2003-10-14 21:28:40 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: sopen.m,v 1.9 2003-10-18 20:43:59 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -98,8 +98,6 @@ if any(PERMISSION=='r'),
                                 else
                                         HDR.Endianity = 'ieee-le';
                                 end;
-                        elseif strncmp(ss,'ISHNE1.0',8);	% ISHNE Holter standard output file.
-                                HDR.TYPE='ISHNE';
                         elseif strncmp(ss,'POLY_SAM',8);	% Poly5/TMS32 sample file format.
                                 HDR.TYPE='TMS32';
                         elseif strncmp(ss,'"Snap-Master Data File"',23);	% Snap-Master Data File .
@@ -108,6 +106,7 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='TEAM';	% Nicolet TEAM file format
                         elseif strncmp(ss,HDR.FILE.Name,length(HDR.FILE.Name)); 
                                 HDR.TYPE='MIT';
+
                         elseif strncmp(ss,'.snd',4); 
                                 HDR.TYPE='SND';
 				HDR.Endianity = 'ieee-be';
@@ -122,6 +121,10 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='AVI';
                         elseif strcmp(ss([5:8]),'moov'); 	% QuickTime movie 
                                 HDR.TYPE='QTFF';
+                        elseif all(s(1:16)==hex2dec(reshape('3026b2758e66cf11a6d900aa0062ce6c',2,16)')')
+                        %'75B22630668e11cfa6d900aa0062ce6c'
+			        HDR.TYPE='ASF';
+
                         elseif strncmp(ss,'RG64',4); 
                                 HDR.TYPE='RG64';
                         elseif strncmp(ss,'DTDF',4); 
@@ -132,8 +135,20 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='SIGIF';
                         elseif any(s(4)==(2:7)) & all(s(1:3)==0); % [int32] 2...7
                                 HDR.TYPE='EGI';
+
+                        elseif strncmp(ss,'ISHNE1.0',8);% ISHNE Holter standard output file.
+                                HDR.TYPE='ISHNE';
                         elseif strncmp(ss,'rhdE',4);	% Holter Excel 2 file, not supported yet. 
                                 HDR.TYPE='rhdE';          
+                        elseif strncmp(ss,'RRI',3);	% R-R interval format % Holter Excel 2 file, not supported yet. 
+                                HDR.TYPE='RRI';          
+                        elseif strncmp(ss,'Repo',4);	% Repo Holter Excel 2 file, not supported yet. 
+                                HDR.TYPE='REPO';          
+                        elseif strncmp(ss,'Beat',4);	% Beat file % Holter Excel 2 file, not supported yet. 
+                                HDR.TYPE='Beat';          
+                        elseif strncmp(ss,'Evnt',4);	% Event file % Holter Excel 2 file, not supported yet. 
+                                HDR.TYPE='EVNT';          
+
 			elseif any(s(3:6)*(2.^[0;8;16;24]) == (30:40))
 				HDR.TYPE='ACQ';
 			elseif all(s(1:2)==[hex2dec('55'),hex2dec('AA')]);
@@ -361,6 +376,33 @@ elseif strcmp(HDR.TYPE,'EBS'),
 		tag=fread(HDR.FILE.FID,1,'int32');	% Tag field
         end; 
 
+	fclose(HDR.FILE.FID);
+
+
+	% Holter Excel 2 file, not supported yet. 
+elseif strcmp(HDR.TYPE,'rhdE'),
+    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+	
+	%fseek(HDR.FILE.FID,4,'bof');		% skip 4 bytes ID
+	%HDR.HeadLen = fread(HDR.FILE.FID,1,'int32');	% Length of Header ? 
+	%HDR.H2 = fread(HDR.FILE.FID,5,'int32');	
+	%HDR.NS = fread(HDR.FILE.FID,1,'int32');		% ? number of channels
+	%HDR.H3 = fread(HDR.FILE.FID,5,'int32');	
+	tmp = fread(HDR.FILE.FID,10,'int32');	
+	HDR.HeadLen = tmp(2);		% Length of Header ? 
+	HDR.H2 = tmp;
+	HDR.NS = tmp(8);		% ? number of channels
+    
+	fseek(HDR.FILE.FID,0,'eof');
+	HDR.AS.endpos = ftell(HDR.FILE.FID);
+	HDR.NRec = (HDR.AS.endpos-HDR.HeadLen)/1024;
+	fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+
+	fprintf(1,'Warning SOPEN HolterExcel2: is under construction.\n');
+
+	if (nargout>1),	% just for testing
+    		H1 = fread(HDR.FILE.FID,[1,inf],'uchar')';
+    	end;
 	fclose(HDR.FILE.FID);
 
 
@@ -713,6 +755,17 @@ elseif strcmp(HDR.TYPE,'QTFF'),
         end;        
         fclose(HDR.FILE.FID);
 	
+
+elseif strcmp(HDR.TYPE,'ASF') ,
+        if exist('asfopen')==2,
+		HDR = asfopen(HDR,PERMISSION);
+	else
+		fprintf(1,'SOPEN ASF-File: Microsoft claims that its illegal to implement the ASF format.\n');
+		fprintf(1,'     Anyway Microsoft provides the specification at http://www.microsoft.com/windows/windowsmedia/format/asfspec.aspx \n');
+		fprintf(1,'     So, you can implement it and use it for your own purpose.\n');
+	end; 
+	
+	
 elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') ,
 	if strcmp(HDR.TYPE,'AIF') 
 		HDR.Endianity = 'ieee-be';
@@ -734,13 +787,14 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
 		if ~strncmpi(tmp,'AIF',3) & ~strncmpi(tmp,'WAVE',4) & ~strncmpi(tmp,'AVI ',4), % not (AIFF or AIFC or WAVE)
 			fprintf(2,'Warning SOPEN AIF/WAF-format: file %s might be corrupted 2\n',HDR.FileName);
 		end;
-	
+
+		[tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
 		while ~feof(HDR.FILE.FID),	
-			[tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
 			tag     = setstr(tmp);
 			tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size 
 			tagsize0= tagsize + rem(tagsize,2); 
 			filepos = ftell(HDR.FILE.FID);
+
             		%%%% AIF - section %%%%%
 			if strcmpi(tag,'COMM')
 				if tagsize<18, 
@@ -975,9 +1029,11 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
 			elseif ~isempty(tagsize)
 				fprintf(1,'Warning SOPEN AIF/WAV: unknown TAG: %s \n',tag);
 			end;
+
 			if ~isempty(tagsize)
 				fseek(HDR.FILE.FID,filepos+tagsize0,'bof');
 			end;
+			[tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
 		end;
         
     		if ~isfield(HDR,'HeadLen')
