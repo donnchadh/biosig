@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.15 $
-%	$Id: bkropen.m,v 1.15 2004-02-26 15:03:43 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: bkropen.m,v 1.16 2004-03-08 09:02:37 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -197,7 +197,10 @@ if any(PERMISSION=='r'),
 	BKR.SIE.ChanSelect = CHAN;
 	BKR.SIE.InChanSelect = CHAN;
 
-	% check whether Headerinfo fits to file length.
+        % THRESHOLD for Overflow detection
+        BKR.SIE.THRESHOLD = -(2^15);
+
+        % check whether Headerinfo fits to file length.
 	status = fseek(fid,0,'eof');
 	EndPos = ftell(fid);
 	BKR.AS.endpos = (EndPos-BKR.HeadLen)/BKR.AS.bpb;
@@ -205,7 +208,7 @@ if any(PERMISSION=='r'),
 	if (EndPos-BKR.HeadLen)~=BKR.SPR*BKR.NRec*BKR.NS*2,
 		[EndPos,BKR.HeadLen,BKR.SPR,BKR.NRec,BKR.NS],
 		[EndPos-BKR.HeadLen-BKR.SPR*BKR.NRec*BKR.NS*2],
-		warning(['Header information in ',BKR.FileName,' corrupted; Data could be reconstructed.']);
+		fprintf(2,'Header information in %s corrupted; Data could be reconstructed.\n',BKR.FileName);
 		if BKR.NRec==1,
 			BKR.SPR=(EndPos-HeaderEnd)/(BKR.NRec*BKR.NS*2);
         	end;
@@ -258,13 +261,10 @@ elseif any(PERMISSION=='w'),
         if ~isfield(BKR,'SPR'),
                 BKR.SPR = 0; 	% Unknown - Value will be fixed when file is closed. 
         end;
-        if ~isfield(BKR,'NRec'),
+        if isfield(BKR,'NRec'),
+                BKR.FLAG.TRIGGERED = BKR.NRec>1;
+        else
                 BKR.NRec = -1; 	% Unknown - Value will be fixed when file is closed. 
-		if isfield(BKR,'FLAG');
-                if isfield(BKR.FLAG,'TRIGGERED');
-                        BKR.NRec = sign(BKR.FLAG.TRIGGERED-.5);
-        	end;
-    		end;
         end;
         if any([BKR.NS==0,BKR.SPR==0,BKR.NRec<0]), 	% if any unknown, ...	
                 BKR.FILE.OPEN = 3;			%	... fix header when file is closed. 
@@ -278,11 +278,14 @@ elseif any(PERMISSION=='w'),
         tmp = round(BKR.PhysMax);
 	fprintf(1,'Scaling error in file %s due to rounding of PhysMax is in the range of %f%%.\n',BKR.FileName, abs((BKR.PhysMax-tmp)/tmp)*100);
 	BKR.PhysMax = tmp;
+
+        % THRESHOLD for Overflow detection
+        BKR.SIE.THRESHOLD = -(2^15);
         
 	count=fwrite(BKR.FILE.FID,BKR.VERSION,'short');	        % version number of header
 	count=fwrite(BKR.FILE.FID,BKR.NS,'short');	        % number of channels
 	count=fwrite(BKR.FILE.FID,BKR.SampleRate,'short');      % sampling rate
-	count=fwrite(BKR.FILE.FID,BKR.NRec,'uint32');           % number of trials: 1 for untriggered data
+	count=fwrite(BKR.FILE.FID,BKR.NRec,'int32');            % number of trials: 1 for untriggered data
 	count=fwrite(BKR.FILE.FID,BKR.SPR,'uint32');            % samples/trial/channel
 	count=fwrite(BKR.FILE.FID,BKR.PhysMax,'short');		% Kalibrierspannung
 	count=fwrite(BKR.FILE.FID,BKR.DigMax, 'short');		% Kalibrierwert
@@ -299,7 +302,16 @@ elseif any(PERMISSION=='w'),
 		BKR.Filter.LowPass =NaN; 
 		BKR.Filter.HighPass=NaN; 
         end;
-
+	if all(BKR.Filter.LowPass(1)==BKR.Filter.LowPass)
+		BKR.Filter.LowPass = BKR.Filter.LowPass(1);
+	else
+		BKR.Filter.LowPass = NaN;
+	end;
+	if all(BKR.Filter.HighPass(1)==BKR.Filter.HighPass)
+		BKR.Filter.HighPass = BKR.Filter.HighPass(1);
+	else
+		BKR.Filter.HighPass = NaN;
+	end;
 	count=fwrite(BKR.FILE.FID,[BKR.Filter.LowPass,BKR.Filter.HighPass],'float'); 
 
 	count=fwrite(BKR.FILE.FID,zeros(16,1),'char');         	% offset 30
@@ -313,6 +325,9 @@ elseif any(PERMISSION=='w'),
 	%speichert den rest des BKR-headers
 	count = fwrite(BKR.FILE.FID,zeros(1024-80,1),'char');
 	BKR.HeadLen   = ftell(BKR.FILE.FID);
+	if BKR.HeadLen~=1024,
+		fprintf(2,'Error BKROPEN WRITE: HeaderLength is not 1024 but %i\n',BKR.HeadLen);
+	end;
 	BKR.FILE.POS  = 0;
 	BKR.AS.endpos = 0;
 	BKR.AS.bpb = BKR.NS*2;	% Bytes per Block
