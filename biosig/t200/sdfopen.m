@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.7 $
-%	$Id: sdfopen.m,v 1.7 2003-07-21 16:19:27 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: sdfopen.m,v 1.8 2003-07-22 07:37:42 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -179,7 +179,7 @@ if EDF.FILE.FID<0
         EDF.ErrNo = [32,EDF.ErrNo];
 	return;
 end;
-EDF.FILE.OPEN = 1 + any(arg2=='+') 
+EDF.FILE.OPEN = 1 + any(arg2=='+'); 
 EDF.FileName = FILENAME;
 
 PPos=min([max(find(FILENAME=='.')) length(FILENAME)+1]);
