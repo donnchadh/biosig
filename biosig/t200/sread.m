@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.37 $
-%	$Id: sread.m,v 1.37 2005-01-05 09:05:47 schloegl Exp $
+%	$Revision: 1.38 $
+%	$Id: sread.m,v 1.38 2005-01-11 17:27:48 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -277,15 +277,39 @@ elseif strcmp(HDR.TYPE,'MIT'),
                 HDR.mode8.accu = zeros(1,HDR.NS);
                 HDR.mode8.valid= 1;
         end;
-        
+
         DataLen = NoS*HDR.SampleRate;
         if HDR.VERSION == 212, 
                 [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb, DataLen], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
-                A = A'; DataLen = count/HDR.AS.bpb;
-                for k = 1:ceil(HDR.NS/2),
+                A = A'; 
+                for k = 1:ceil(HDR.AS.spb/2),
                         S(:,2*k-1) = mod(A(:,3*k+[-2:-1])*(2.^[0;8]),2^12);
                         S(:,2*k)   = mod(floor(A(:,3*k-1)/16),16)*256+A(:,3*k);
-                        S = S(:,1:HDR.NS);
+                end
+                S = S - 2^12*(S>=2^11);	% 2-th complement
+                HDR.FLAG.UCAL = 1; 
+                HDR.S = S;
+                
+        elseif 0, HDR.VERSION == 212, % previous version 
+                [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb, DataLen], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
+                A = [A', zeros(size(A,2),1)]; DataLen = count/HDR.AS.bpb;
+                for k = 1:ceil(HDR.NS/2),
+                        S(:,2*k-1) = mod(A(:,3*k+[-2:-1])*(2.^[0;8]),2^12);
+                        S(:,2*k)   = floor(A(:,3*k-1)/16)*256 + A(:,3*k);
+                end
+                S = S(:,1:HDR.NS);
+                S = S - 2^12*(S>=2^11);	% 2-th complement
+                
+        elseif HDR.VERSION == 212, 
+                [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb, DataLen], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
+                A = [A',zeros(size(A,2),3)]; DataLen = count/HDR.AS.bpb;
+                for k = 1:HDR.NS,k,
+                        if mod(k,2),        
+                                S(:,2*k-1) = mod(A(:,3*k+[-2:-1])*(2.^[0;8]),2^12);
+                        else
+                                S(:,2*k)   = mod(floor(A(:,3*k-1)/16),16)*256+A(:,3*k);
+                        end;
+                        %S = S(:,1:HDR.NS);
                         S = S - 2^12*(S>=2^11);	% 2-th complement
                 end
                 
@@ -347,6 +371,14 @@ elseif strcmp(HDR.TYPE,'MIT'),
                 fprintf(2, 'ERROR MIT-ECG: format %i not supported.\n',HDR.VERSION); 
                 
         end;
+        if any(HDR.AS.SPR>1),
+                A = S;
+                S = zeros(size(A,1)*HDR.AS.MAXSPR,HDR.NS);
+                for k=1:HDR.NS,
+                        ix = HDR.AS.bi(k)+1:HDR.AS.bi(k+1);
+                        S(:,k)=rs(reshape(A(:,ix)',size(A,1)*HDR.AS.SPR(k),1),HDR.AS.SPR(k),HDR.AS.MAXSPR);
+                end
+        end
         HDR.FILE.POS = HDR.FILE.POS + DataLen;   	
         S = S(:,HDR.InChanSelect);
         
@@ -700,6 +732,13 @@ elseif strcmp(HDR.TYPE,'SierraECG'),   %% SierraECG  1.03  *.open.xml from PHILI
         HDR.FILE.POS = HDR.FILE.POS + nr;
 
         
+elseif strcmp(HDR.TYPE,'TFM_EXCEL_Beat_to_Beat'); 
+        if nargin>2,
+		fprintf(HDR.FILE.stderr,'Warning SREAD (TFM-EXCEL): only one input argument supported.\n');
+        end;
+	S = HDR.TFM.S; 
+
+
 elseif strcmp(HDR.TYPE,'XML-FDA'),   % FDA-XML Format
         if ~isfield(HDR,'data');
                 tmp   = HDR.XML.component.series.derivation;

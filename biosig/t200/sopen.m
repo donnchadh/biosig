@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.85 $
-%	$Id: sopen.m,v 1.85 2005-01-10 18:26:32 schloegl Exp $
+%	$Revision: 1.86 $
+%	$Id: sopen.m,v 1.86 2005-01-11 17:27:48 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2505,6 +2505,7 @@ elseif strcmp(HDR.TYPE,'DDF'),
                 tag=fread(HDR.FILE.FID,[1,4],'char');
         end;
         return;         
+
         
 elseif strcmp(HDR.TYPE,'MIT')
         if any(PERMISSION=='r'),
@@ -2538,16 +2539,25 @@ elseif strcmp(HDR.TYPE,'MIT')
                         [HDR.FILE.DAT,z]=strtok(z);
                         for k0 = 1:7,
                                 [tmp,z] = strtok(z);
-                                if k0 == 2,  
+                                if k0 == 1, 
+                                        [tmp,tmp1] = strtok(tmp,'x:');
+                                        if isempty(tmp1)
+                                                HDR.AS.SPR(k) = 1; 
+                                        elseif tmp1(1)=='x'
+                                                HDR.AS.SPR(k) = str2double(tmp1(2:end)); 
+                                        else
+                                                HDR.AS.SPR(k) = 1; 
+                                        end                                                
+                                elseif k0 == 2,  
                                         % EC13*.HEA files have special gain values like "200(23456)/uV". 
-                                        [tmp, tmp1] = strtok(tmp,' ()');
+                                        [tmp, tmp1] = strtok(tmp,' ()/');
                                 end;
                                 A(k0) = str2double(tmp); 
                         end;
                         HDR.Label(k,1:length(z)) = z; 
-                        dformat(k,1) = A(1);         % format; 
+                        HDR.MIT.dformat(k,1) = A(1);         % format; 
                         HDR.gain(k,1) = A(2);              % number of integers per mV
-                        bitres(k,1) = A(3);            % bitresolution
+                        HDR.MIT.bitres(k,1) = A(3);            % bitresolution
                         HDR.zerovalue(k,1)  = A(4);         % integer value of ECG zero point
                         HDR.firstvalue(1,k) = A(5);        % first integer value of signal (to test for errors)
                 end;
@@ -2574,16 +2584,23 @@ elseif strcmp(HDR.TYPE,'MIT')
                 end;
                 fclose(fid);
                 
-                if all(dformat==dformat(1)),
-                        HDR.VERSION = dformat(1);
+                if all(HDR.MIT.dformat==HDR.MIT.dformat(1)),
+                        HDR.VERSION = HDR.MIT.dformat(1);
                 else
                         fprintf(HDR.FILE.stderr,'different DFORMATs not supported.\n');
                         HDR.FILE.FID = -1;
                         return;
                 end;
-                
-                if HDR.VERSION == 212, 
-                        HDR.AS.bpb = ceil(HDR.NS*3/2);
+
+                HDR.AS.spb = sum(HDR.AS.SPR);
+                HDR.AS.bi = [0;cumsum(HDR.AS.SPR(:))]; 
+                HDR.AS.MAXSPR = max(HDR.AS.SPR);
+                if 0, HDR.VERSION == -1, 
+                        HDR.AS.bpb = 3;
+                        HDR.NS = 2;
+                        HDR.FLAG.UCAL = 1; 
+                elseif HDR.VERSION == 212, 
+                        HDR.AS.bpb = ceil(HDR.AS.spb*3/2);
                 elseif HDR.VERSION == 310, 
                         HDR.AS.bpb = ceil(HDR.NS*2/3)*2;
                 elseif HDR.VERSION == 311, 
@@ -2692,7 +2709,8 @@ elseif strcmp(HDR.TYPE,'MIT')
                 FLAG_UCAL = HDR.FLAG.UCAL;	
                 HDR.FLAG.UCAL = 1;
                 [S,HDR] = sread(HDR,1/HDR.SampleRate); % load 1st sample
-                if any(S(1,:) ~= HDR.firstvalue), 
+                if (HDR.VERSION>0) & (any(S(1,:) ~= HDR.firstvalue)), 
+                        [HDR.firstvalue;S]
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN MIT-ECG: inconsistency in the first values\n'); 
                 end;
                 HDR.FLAG.UCAL = FLAG_UCAL ;	
