@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.19 $
-%	$Id: eegread.m,v 1.19 2003-08-02 13:12:57 schloegl Exp $
+%	$Revision: 1.20 $
+%	$Id: eegread.m,v 1.20 2003-08-02 17:38:05 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -184,9 +184,9 @@ elseif strcmp(HDR.TYPE,'MIT'),
 		S = S'; DataLen = count/HDR.NS;               
                 if HDR.FILE.POS==0,
 	                HDR.mode8.accu = zeros(1,HDR.NS);
-                        HDR.mode8.reset= 0;
+                        HDR.mode8.valid= 1;
                 end; 
-                if HDR.mode8.reset;
+                if ~HDR.mode8.valid;
                         fprintf(2,'Warning EDFREAD: unknown offset (TYPE=MIT, mode=8) \n');
 		else
 			S(1,:) = S(1,:) + HDR.mode8.accu;
@@ -289,7 +289,7 @@ elseif strcmp(HDR.TYPE,'SND'),
 	end;
 
         
-elseif strcmp(HDR.TYPE,'WAV'),
+elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV'),
         if nargin==3,
         	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
 		HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -300,7 +300,7 @@ elseif strcmp(HDR.TYPE,'WAV'),
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
         if ~HDR.FLAG.UCAL,
-		S = S*HDR.Cal;
+		S = S*2^(1-HDR.bits);
 	end;
 
 

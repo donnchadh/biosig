@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.32 $
-%	$Id: eegopen.m,v 1.32 2003-08-02 13:12:14 schloegl Exp $
+%	$Revision: 1.33 $
+%	$Id: eegopen.m,v 1.33 2003-08-02 17:38:05 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -106,8 +106,16 @@ if exist(HDR.FileName)==2,
                                 HDR.TYPE='MIT';
                         elseif strncmp(ss,'.snd',4); 
                                 HDR.TYPE='SND';
+				HDR.Endianity = 1;
+                        elseif strncmp(ss,'dns.',4); 
+                                HDR.TYPE='SND';
+				HDR.Endianity = 0;
                         elseif strncmp(ss,'RIFF',4); 
                                 HDR.TYPE='WAV';
+                        elseif strncmp(ss,'FORM',4); 
+                                HDR.TYPE='AIF';
+                        elseif (s(1)==255) & any(s(2)==([0:5]+248)); 
+                                HDR.TYPE='MEPG';
                         elseif strncmp(ss,'RG64',4); 
                                 HDR.TYPE='RG64';
                         elseif strncmp(ss,'DTDF',4); 
@@ -426,7 +434,11 @@ elseif strcmp(HDR.TYPE,'ACQ'),
 	
         
 elseif strcmp(HDR.TYPE,'SND'),
-    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+	if HDR.Endianity, 
+        	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+	else
+		HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+	end;
 	fseek(HDR.FILE.FID,4,'bof');
 	HDR.HeadLen = fread(HDR.FILE.FID,1,'uint32');
 	datlen = fread(HDR.FILE.FID,1,'uint32');
@@ -489,6 +501,126 @@ elseif strcmp(HDR.TYPE,'SND'),
 	end;
 
         
+elseif strcmp(HDR.TYPE,'AIF'),
+    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+	
+	tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
+	if ~strcmpi(tmp,'FORM'),
+		fprintf(2,'Warning EEGOPEN AIF-format: file %s might be corrupted 1\n',HDR.FileName);
+	end;
+	tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size
+	tagsize0 = tagsize + rem(tagsize,2); 
+	tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
+	if ~strncmpi(tmp,'AIF',3), % AIFF or AIFC
+		fprintf(2,'Warning EEGOPEN AIF-format: file %s might be corrupted 2\n',HDR.FileName);
+	end;
+
+	while ~feof(HDR.FILE.FID),	
+		[tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
+		tag     = setstr(tmp);
+		tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size 
+		tagsize0= tagsize + rem(tagsize,2); 
+		filepos = ftell(HDR.FILE.FID);
+		if strcmpi(tag,'COMM')
+			if tagsize<18, 
+				fprintf(2,'Error EEGOPEN AIF: incorrect tag size\n');
+				return;
+			end;
+			HDR.NS   = fread(HDR.FILE.FID,1,'uint16');
+			HDR.SPR  = fread(HDR.FILE.FID,1,'uint32');
+			HDR.AS.endpos = HDR.SPR;
+			HDR.bits = fread(HDR.FILE.FID,1,'uint16');
+			HDR.GDFTYP = ceil(HDR.bits/8)*2-1; % unsigned integer of approbriate size;
+			HDR.Cal = 2^(1-HDR.bits);
+			HDR.AS.bpb = ceil(HDR.bits/8)*HDR.NS;
+
+			% HDR.SampleRate; % construct Extended 80bit IEEE 754 format 
+			tmp = fread(HDR.FILE.FID,1,'int16');
+			sgn = sign(tmp);
+			if tmp(1)>= 2^15; tmp(1)=tmp(1)-2^15; end;
+			e = tmp - 2^14 + 1;
+			tmp = fread(HDR.FILE.FID,2,'uint32');
+			HDR.SampleRate = sgn * (tmp(1)*(2^(e-31))+tmp(2)*2^(e-63));
+			HDR.Dur = HDR.SPR/HDR.SampleRate;
+
+			if tagsize>18,
+				[tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
+				HDR.AIF.CompressionType = setstr(tmp);
+				[tmp,c] = fread(HDR.FILE.FID,taglen-18-c,'char');
+				HDR.AIF.CompressionName = setstr(tmp);
+				
+				if ~strcmpi(HDR.AIF.CompressionType,'NONE');
+					fprintf(2,'Warning EEGOPEN AIFC-format: CompressionType %s is not supported\n', HDR.AIF.CompressionType);
+				end;
+			end;	
+					
+		elseif strcmpi(tag,'SSND');
+			HDR.AIF.offset   = fread(HDR.FILE.FID,1,'int32');
+			HDR.AIF.blocksize= fread(HDR.FILE.FID,1,'int32');
+			tmp = (tagsize-8)/HDR.AS.bpb;
+			if tmp~=HDR.SPR,
+				fprintf(2,'Waring EEGOPEN AIF: Number of samples do not fit %i vs %i\n',tmp,HDR.SPR);
+			end;
+			
+			HDR.HeadLen = filepos; 
+			%HDR.AIF.sounddata= fread(HDR.FILE.FID,tagsize-8,'uint8');
+
+		elseif strcmpi(tag,'FVER');
+			if tagsize<4, 
+				fprintf(2,'Error EEGOPEN WAV: incorrect tag size\n');
+				return;
+			end;
+			HDR.AIF.TimeStamp   = fread(HDR.FILE.FID,1,'uint32');
+
+		elseif strcmpi(tag,'DATA');
+
+		elseif strcmpi(tag,'INST');
+
+		elseif strcmpi(tag,'MIDI');
+
+		elseif strcmpi(tag,'AESD');
+
+		elseif strcmpi(tag,'APPL');
+
+		elseif strcmpi(tag,'COMT');
+		
+		elseif strcmpi(tag,'(c) ');
+			[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+			HDR.Copyright = tmp;
+		
+		else
+			if ~isempty(tagsize)
+				fprintf(1,'Warning EEGOPEN AIF: unknown TAG: %s \n',tag);
+			end;
+		end;
+		if ~isempty(tagsize)
+			fseek(HDR.FILE.FID,filepos+tagsize0,'bof');
+		end;
+		
+	end;
+	if ~isfield(HDR,'HeadLen')
+		fprintf(2,'Error EEGOPEN WAV: missing data section\n');
+		fclose(HDR.FILE.FID)	
+	end;
+	
+	fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+	HDR.FILE.POS = 0;
+	HDR.FILE.OPEN = 1;
+	HDR.NRec = 1;
+
+        if CHAN==0,		
+		HDR.SIE.InChanSelect = 1:HDR.NS;
+	elseif all(CHAN>0 & CHAN<=HDR.NS),
+		HDR.SIE.InChanSelect = CHAN;
+	else
+		fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+		fclose(HDR.FILE.FID); 
+		HDR.FILE.FID = -1;	
+		return;
+	end;
+
+
+        
 elseif strcmp(HDR.TYPE,'WAV'),
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
 	
@@ -497,6 +629,7 @@ elseif strcmp(HDR.TYPE,'WAV'),
 		fprintf(2,'Warning EEGOPEN WAV-format: file %s might be corrupted 1\n',HDR.FileName);
 	end;
 	tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size 
+	tagsize0 = tagsize + rem(tagsize,2); 
 	tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
 	if ~strncmpi(tmp,'WAVE',4),
 		fprintf(2,'Warning EEGOPEN WAV-format: file %s might be corrupted 2\n',HDR.FileName);
@@ -504,10 +637,10 @@ elseif strcmp(HDR.TYPE,'WAV'),
 
 	while ~feof(HDR.FILE.FID),	
 		[tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
-		tag     = deblank(setstr(tmp));
+		tag     = setstr(tmp);
 		tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size 
 		filepos = ftell(HDR.FILE.FID);
-		if strcmpi(tag,'fmt')
+		if strcmpi(tag,'fmt_')
 			if tagsize<14, 
 				fprintf(2,'Error EEGOPEN WAV: incorrect tag size\n');
 				return;
@@ -532,7 +665,7 @@ elseif strcmp(HDR.TYPE,'WAV'),
 			if tagsize>16,
 				HDR.WAV.cbSize = fread(HDR.FILE.FID,1,'uint16');
 			end;
-			fseek(HDR.FILE.FID,filepos+tagsize,'bof');
+			fseek(HDR.FILE.FID,filepos+tagsize0,'bof');
 					
 		elseif strcmpi(tag,'data');
 			HDR.HeadLen = filepos; 
@@ -554,7 +687,7 @@ elseif strcmp(HDR.TYPE,'WAV'),
 			end;
 	    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
 			HDR.WAV.FACT = setstr(tmp);
-			fseek(HDR.FILE.FID,filepos+tagsize,'bof');
+			fseek(HDR.FILE.FID,filepos+tagsize0,'bof');
 		
 		elseif strcmpi(tag,'disp');
 			if tagsize<8, 
@@ -566,7 +699,7 @@ elseif strcmp(HDR.TYPE,'WAV'),
 			if ~all(tmp(1:8)==[0,1,0,0,0,0,1,1])
 				HDR.WAV.DISPTEXT = setstr(tmp(5:length(tmp)));
 			end;
-			fseek(HDR.FILE.FID,filepos+tagsize,'bof');
+			fseek(HDR.FILE.FID,filepos+tagsize0,'bof');
 		
 		elseif strcmpi(tag,'list');
 			if tagsize<4, 
@@ -578,10 +711,12 @@ elseif strcmp(HDR.TYPE,'WAV'),
 			listtype = setstr(tmp(1:4));
 			listdata = setstr(tmp(5:length(tmp)));
 			HDR.WAV.LIST = setfield(HDR.WAV,listtype, listdata);
-			fseek(HDR.FILE.FID,filepos+tagsize,'bof');
+			fseek(HDR.FILE.FID,filepos+tagsize0,'bof');
 
 		else
-		
+			fprintf(1,'EEGOPEN AIF: unknown TAG: %s \n',tag);
+			fseek(HDR.FILE.FID,filepos+tagsize0,'bof');
+				
 		end;
 	end;
 	if ~isfield(HDR,'HeadLen')
