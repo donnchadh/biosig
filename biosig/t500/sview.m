@@ -6,8 +6,8 @@ function [argout,s]=sview(s,H),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.9 $
-%	$Id: sview.m,v 1.9 2005-04-01 10:39:35 schloegl Exp $ 
+%	$Revision: 1.10 $
+%	$Id: sview.m,v 1.10 2005-04-05 21:11:23 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -29,14 +29,17 @@ function [argout,s]=sview(s,H),
 if ischar(s),
         if nargin<2,
                 [s,H] = sload(s);
+		CHAN = 1:H.NS; 
         else
-                [s,H] = sload(s,H);
+		CHAN = H; 
+                [s,H] = sload(s,CHAN);
         end;
 elseif isstruct(s)
         [s,H] = sload(s);
+	CHAN = 1:H.NS;
         
 elseif isnumeric(s) & (length(H.InChanSelect)==size(s,2))
-        
+        CHAN = 1:size(s,2);        
 else    
         return;
 end;
@@ -62,30 +65,11 @@ end;
 %s(abs(s)>1e3)=NaN;
 
 [p,f,e]=fileparts(H.FileName);
-fn=dir(fullfile(p,[f,'EOG',e]));
+%fn=dir(fullfile(p,[f,'EOG',e]));
 if 1,   % no EOG corrections
         
 elseif 1
-        nx = sparse(28,2);
-        nx(23:24,1) = [1;-1];
-        nx(24:25,2) = [1;-1];
-        %nx(23:24,2) = [-1;1];
-        nx(26,3)    = [1];
-        
-        [R,tmp] = regress_eog(fullfile(H.FILE(1).Path,[H.FILE(length(H.FILE)-6).Name,'.',H.FILE(1).Ext]),[1:22],nx);
-        s = s*R.r0;
-        
-elseif 0, %length(fn)==1,
-        fn=dir(fullfile(p,[f(1:min(4,length(f))),'EOG',e]));
-        [R,tmp] = regress_eog(fullfile(p,fn.name),1:4,5:7);
-        %s = s*R.r0;
-        
-        if 0, length(fn)==1,
-                [R,tmp] = regress_eog(fullfile(p,fn.name),1:4,5:7);
-                s = s*R.r0;
-        end; 
-        %[R,s0] = regress_eog('v608eog.bkr',1:4,5:7);R.r0,
-        %s = s*R.r0;
+        [R,s] = regress_eog(s,1:60,61);
 end;
 
 if ~isfield(H,'Label'),
@@ -93,19 +77,19 @@ if ~isfield(H,'Label'),
 elseif size(H.Label,1)<H.NS,
         LEG = H.Label;
 else
-        LEG = H.Label(H.InChanSelect,:);
+        LEG = H.Label(CHAN,:);
 end;
 
-t = detrend(s);
-t = t(:); 
-%t(isnan(t))=median(t);
+t = detrend(s); t = t(:); 
+t(isnan(t))=median(t);
 dd = max(t)-min(t);
 %dd = max(std(s))*5;
 %s = zscore(s); dd = 20; % 
+%dd=400;
 
 H.AS.TIMECHAN = strmatch('Time',H.Label);
 FLAG.tmp = (length(H.FILE)==1) & ~isempty(H.AS.TIMECHAN);
-if FLAG.tmp & any(H.AS.TIMECHAN==H.InChanSelect),
+if FLAG.tmp,
         % this construct is necessary for compatibility with Octave and Matlab 5.3
         FLAG.tmp = any(H.AS.TIMECHAN==H.InChanSelect),
 end;
@@ -121,7 +105,7 @@ else
         X_Label = 'time [s]';
 end;
 
-if 0,
+if isfield(H,'PLX'),
 elseif isfield(H,'SegLen'), 
         EVENT.POS = H.SegLen(1:end-1)'+1;
         EVENT.Desc = {H.FILE.Name}';
