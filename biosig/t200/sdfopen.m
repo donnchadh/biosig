@@ -117,10 +117,10 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.22 $
-%	$Id: sdfopen.m,v 1.22 2004-08-19 00:36:40 schloegl Exp $
-INFO='(C) 1997-2002, 2004 by Alois Schloegl, 17 Aug 2004 #0.87';
-%	a.schloegl@ieee.org
+%	$Revision: 1.23 $
+%	$Id: sdfopen.m,v 1.23 2004-08-31 17:50:20 schloegl Exp $
+%	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if nargin<2, 
         arg2='rb'; 
@@ -128,24 +128,12 @@ elseif ~any(arg2=='b');
         arg2= [arg2,'b']; % force binary open. 
 end;
 
-if 1,exist('OCTAVE_VERSION');
-        EDF.AS.Method='sdfopen';
-        mfilename=EDF.AS.Method;
-else 
-        EDF.AS.Method=mfilename;
-end;
-
-
-EDF.AS.Method=[EDF.AS.Method '-' arg2];
-EDF.AS.Date=fix(clock);
-EDF.AS.Info=INFO;
-EDF.AS.Ver = 0.86;
-
 if isstruct(arg1) 
         EDF=arg1; 
         FILENAME=EDF.FileName;
 else
         FILENAME=arg1;
+        fprintf(2,'Warning SDFOPEN: the use of SDFOPEN is discouraged (SDFOPEN might disappear); please use SOPEN instead.\n');
 end;
 
 H1idx=[8 80 80 8 8 8 44 8 8 4];
@@ -980,7 +968,7 @@ EDF.SIE.REG=eye(EDF.NS);
         if EDF.SIE.REGC
                 FN=[lower(EDF.FILE.Name) 'cov.mat'];
                 if exist(FN)~=2
-                        fprintf(EDF.FILE.stderr,'Warning %s: Covariance-file %s not found.\n',EDF.AS.Method,FN);
+                        fprintf(EDF.FILE.stderr,'Warning SDFOPEN: Covariance-file %s not found.\n',FN);
                         EDF.SIE.REGC=0;   
                 else
                         if exist('OCTAVE_VERSION')==5
@@ -1002,7 +990,7 @@ EDF.SIE.REG=eye(EDF.NS);
                                 EDF.SIE.REG(channel1,channel1) = 1; % do not remove the regressed channels
                                 %mcov, EDF.SIE.REG, 
                         else
-                                fprintf(EDF.FILE.stderr,'Error %s: Regression Coefficients for ECG minimization not available.\n',EDF.AS.Method);
+                                fprintf(EDF.FILE.stderr,'Error SDFOPEN: Regression Coefficients for ECG minimization not available.\n');
                         end;
                 end;
                 
@@ -1071,16 +1059,16 @@ EDF.SIE.REG=eye(EDF.NS);
                 end;
                 for l=2:length(tmp), L=tmp(l);
                         if (EDF.SPR(tmp(l-1),:)~=EDF.SPR(tmp(l),:))  
-                                fprintf(EDF.FILE.stderr,'Warning %s: SampleRate Mismatch in "%s", channel #%i and #%i\n',upper(EDF.AS.Method),EDF.FILE.Name,tmp(l-1),tmp(l));
+                                fprintf(EDF.FILE.stderr,'Warning SDFOPEN: SampleRate Mismatch in "%s", channel #%i and #%i\n',EDF.FILE.Name,tmp(l-1),tmp(l));
                         end;
                         if ~strcmp(EDF.PhysDim(tmp(l-1),:),EDF.PhysDim(tmp(l),:))  
-                                fprintf(EDF.FILE.stderr,'Warning %s: Dimension Mismatch in "%s", channel #%i and #%i\n',upper(EDF.AS.Method),EDF.FILE.Name,tmp(l-1),tmp(l));
+                                fprintf(EDF.FILE.stderr,'Warning SDFOPEN: Dimension Mismatch in "%s", channel #%i and #%i\n',EDF.FILE.Name,tmp(l-1),tmp(l));
                         end;
                         if ~strcmp(EDF.Transducer(tmp(l-1),:),EDF.Transducer(tmp(l),:))  
-                                fprintf(EDF.FILE.stderr,'Warning %s: Transducer Mismatch in "%s", channel #%i and #%i\n',upper(EDF.AS.Method),EDF.FILE.Name,tmp(l-1),tmp(l));
+                                fprintf(EDF.FILE.stderr,'Warning SDFOPEN: Transducer Mismatch in "%s", channel #%i and #%i\n',EDF.FILE.Name,tmp(l-1),tmp(l));
                         end;
                         if ~strcmp(EDF.PreFilt(tmp(l-1),:),EDF.PreFilt(tmp(l),:))  
-                                fprintf(EDF.FILE.stderr,'Warning %s: PreFiltering Mismatch in "%s", channel #%i and #%i\n',upper(EDF.AS.Method),EDF.FILE.Name,tmp(l-1),tmp(l));
+                                fprintf(EDF.FILE.stderr,'Warning SDFOPEN: PreFiltering Mismatch in "%s", channel #%i and #%i\n',EDF.FILE.Name,tmp(l-1),tmp(l));
                         end;
                         x=[x sprintf('+(%3.1f)*(%s)',EDF.SIE.ReRefMx(tmp(l),k),deblank(EDF.Label(tmp(l),:)))];
                 end;
@@ -1121,7 +1109,7 @@ EDF.SIE.REG=eye(EDF.NS);
                                 elseif tmp==100,
                                         EDF.SIE.T=1;
                                 else
-                                        fprintf('Warning %s-READ: sampling rates should be equal\n',upper(EDF.AS.Method));     
+                                        fprintf('Warning SDFOPEN-READ: sampling rates should be equal\n');     
                                 end;	
                         else
                                 tmp=EDF.SPR(EDF.SIE.ChanSelect)/EDF.Dur;
@@ -1141,11 +1129,11 @@ EDF.SIE.REG=eye(EDF.NS);
                                         EDF.SIE.RS=0;
                                 else
                                         EDF.SIE.RS=0;
-                                        fprintf('Warning %s-READ: sampling rates should be equal\n',upper(EDF.AS.Method));     
+                                        fprintf('Warning SDFOPEN-READ: sampling rates should be equal\n');     
                                 end;
                         end;
                 else
-                        fprintf(EDF.FILE.stderr,'Error %s-READ: invalid target sampling rate of %i Hz\n',upper(EDF.AS.Method),arg5);
+                        fprintf(EDF.FILE.stderr,'Error SDFOPEN-READ: invalid target sampling rate of %i Hz\n',arg5);
                         EDF.SIE.RS=0;
 			EDF.ErrNo=[EDF.ErrNo,];
 			%EDF=sdfclose(EDF);
@@ -1167,7 +1155,7 @@ EDF.SIE.REG=eye(EDF.NS);
                 end;
                 if isfield(tmp,'TRESHOLD'), 
                         EDF.SIE.THRESHOLD = tmp.TRESHOLD;
-            	        %fprintf(EDF.FILE.stderr,'Error %s: TRESHOLD''s not found.\n',EDF.AS.Method);
+            	        %fprintf(EDF.FILE.stderr,'Error SDFOPEN: TRESHOLD''s not found.\n');
                 end;
                 
 
@@ -1544,7 +1532,7 @@ end;
 
 tmp = ftell(EDF.FILE.FID);
 if tmp ~= (256 * (EDF.NS+1)) 
-        fprintf(1,'Warning %s-WRITE: incorrect header length %i bytes\n',upper(EDF.AS.Method),tmp);
+        fprintf(1,'Warning SDFOPEN-WRITE: incorrect header length %i bytes\n',tmp);
 %else   fprintf(1,'sdfopen in write mode: header info stored correctly\n');
 end;        
 
@@ -1560,7 +1548,7 @@ EDF.AS.numrec = 0;
 EDF.FILE.POS = 0;
 
 else % if arg2 is not 'r' or 'w'
-        fprintf(EDF.FILE.stderr,'Warning %s: Incorrect 2nd argument. \n',EDF.AS.Method);
+        fprintf(EDF.FILE.stderr,'Warning SDFOPEN: Incorrect 2nd argument. \n');
 end;        
 
 if EDF.ErrNo>0
