@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.31 $
-%	$Id: eegopen.m,v 1.31 2003-07-31 12:16:56 schloegl Exp $
+%	$Revision: 1.32 $
+%	$Id: eegopen.m,v 1.32 2003-08-02 13:12:14 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -83,6 +83,13 @@ if exist(HDR.FileName)==2,
                                 HDR.TYPE='BDF';
                         elseif strncmp(ss,'GDF',3); 
                                 HDR.TYPE='GDF';
+                        elseif strncmp(ss,'EBS',3); 
+                                HDR.TYPE='EBS';
+                        elseif strncmp(ss,'CEN',3) & all(s(4:8)==hex2dec(['13';'10';'1A';'04';'84'])'); 
+                                HDR.TYPE='CEN';
+				HDR.VERSION   = s(9:16);
+				HDR.Encoding  = s(17:24);
+				HDR.Endianity = any(s(25:32));
                         elseif strncmp(ss,'Version ',8); 
                                 HDR.TYPE='CNT';
                         elseif strncmp(ss,'ISHNE1.0',8);	% ISHNE Holter standard output file.
@@ -93,8 +100,14 @@ if exist(HDR.FileName)==2,
                                 HDR.TYPE='SMA';
                         elseif s(1)==207; 
                                 HDR.TYPE='BKR';
+                        elseif all(s([1:2,20])==[1,0,0]) & any(s(19)==[2,4]); 
+                                HDR.TYPE='TEAM';	% Nicolet TEAM file format
                         elseif strncmp(ss,HDR.FILE.Name,length(HDR.FILE.Name)); 
                                 HDR.TYPE='MIT';
+                        elseif strncmp(ss,'.snd',4); 
+                                HDR.TYPE='SND';
+                        elseif strncmp(ss,'RIFF',4); 
+                                HDR.TYPE='WAV';
                         elseif strncmp(ss,'RG64',4); 
                                 HDR.TYPE='RG64';
                         elseif strncmp(ss,'DTDF',4); 
@@ -113,10 +126,11 @@ if exist(HDR.FileName)==2,
 				HDR.TYPE='RDF';
 
 			elseif all(s(1:2)==[hex2dec('55'),hex2dec('3A')]); % little endian 
-				HDR.TYPE='SEG2 l';
+				HDR.TYPE='SEG2';
+				HDR.Endianity = 0;
 			elseif all(s(1:2)==[hex2dec('3A'),hex2dec('55')]); % big endian 
 				HDR.TYPE='SEG2 b';
-					% SEG2 format specification: ftp://diftp.epfl.ch/pub/detec/doc/seg2.pdf
+				HDR.Endianity = 1;
 
                         elseif strncmp(ss,'MATLAB Data Acquisition File.',29);% Matlab Data Acquisition File 
 		                HDR.TYPE='DAQ';
@@ -135,6 +149,20 @@ if exist(HDR.FileName)==2,
                                 else
                                         HDR.MAT4.opentyp='ieee-le';
                                 end;
+                        elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
+				HDR.TYPE = 'WFT';	% nicolet 	
+
+		%%% Formats identified but not supported %%%	    
+                        elseif strncmp(ss,'GIF8',4); 
+                                HDR.TYPE='GIF';
+                        elseif strncmp(ss,'%PDF',4); 
+                                HDR.TYPE='PDF';
+                        elseif strncmp(ss,'{/rtf',5); 
+                                HDR.TYPE='RTF';
+                        elseif all(ss(1:5)==[80,75,3,4,14]); 
+                                HDR.TYPE='ZIP';
+			elseif strcmp(s(7:10),'JFIF')	
+                                HDR.TYPE='JPG';
                         else
                                 %TYPE='unknown';
                         end;
@@ -186,6 +214,113 @@ elseif strcmp(HDR.TYPE,'BKR'),
 elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
         [HDR,H1,h2] = cntopen(HDR,PERMISSION,CHAN);
         
+
+elseif strcmp(HDR.TYPE,'CEN'),
+	if HDR.Endianity, 
+        	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+	else
+        	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+	end;
+	fseek(HDR.FILE.FID,32,'bof');
+
+	%%%%% (2) Session Archive Section %%%%%
+	DS_begin=ftell(fid,0,'bof');
+	DS_ID=fread(fid,1,'int16')
+	DS_Length=fread(fid,1,TYP_LENGTH);
+	fseek(fid,DS_begin+DS_Length,'bof');
+
+	%%%%% (2) Demographic Section %%%%%
+	DS_begin=ftell(fid,0,'bof');
+	DS_ID=fread(fid,1,'int16')
+	DS_Length=fread(fid,1,TYP_LENGTH);
+	fseek(fid,DS_begin+DS_Length,'bof');
+
+	%%%%% (3) Medical Device System Presentation Section %%%%%
+	MDSP_begin=ftell(fid,0,'bof');
+	MDSP_ID=fread(fid,1,'int16')
+	MDSP_Length=fread(fid,1,TYP_LENGTH);
+	fseek(fid,MDSP_begin+MDSP_Length,'bof');
+
+	%%%%% (4) Manufacture Specific Section %%%%%
+	MS_begin=ftell(fid,0,'bof');
+	MS_ID=fread(fid,1,'int16')
+	MS_Length=fread(fid,1,TYP_LENGTH);
+	fseek(fid,MS_begin+MS_Length,'bof');
+
+	%%%%% (5) Image Section %%%%%
+	IS_begin=ftell(fid,0,'bof');
+	IS_ID=fread(fid,1,'int16')
+	IS_Length=fread(fid,1,TYP_LENGTH);
+	fseek(fid,IS_begin+IS_Length,'bof');
+
+	%%%%% (6) Archive & Measurement Section %%%%%
+	SA_begin=ftell(fid,0,'bof');
+	OIDSA_ID=fread(fid,1,'int16')
+	O_Length=fread(fid,1,TYP_LENGTH);
+	fseek(fid,SA_begin+SA_Length,'bof');
+
+	%%%%% (6.1) Test Sub-Section %%%%%
+
+
+	fprintf(2,'Warning EEGOPEN: Implementing CEN/FEF format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+	fclose(fid);
+
+
+elseif strcmp(HDR.TYPE,'EBS'),
+    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+	
+	fprintf(2,'Warning EEGOPEN: Implementing EBS format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+
+	%%%%% (1) Fixed Header (32 bytes) %%%%%
+	HDR.VERSION = fread(fid,[1,8],'char');	%
+	if setstr(HDR.VERSION(1:3)')~='EBS' 
+	    	fprintf(2,'Error LOADEBS: %s not an EBS-File',HDR.FileName); 
+		if any(HDR.VERSION(4:8)~=hex2dec(['94';'0a';'13';'1a';'0d'])'); 
+			fprintf(2,'Warning EEGOPEN EBS: %s may be corrupted',HDR.FileName); 
+		end; 
+	end;
+	HDR.EncodingId = fread(fid,1,'int32');	%
+	HDR.NS  = fread(fid,1,'uint32');	% Number of Channels
+	HDR.SPR = fread(fid,2,'uint32');	% Number of Samples
+	if HDR.SPR(1)==0,
+		 HDR.SPR=HDR.SPR(2)
+	else 
+		fprintf(2,'Error EEGOPEN: EBS-FILE %s too large',HDR.FileName); 
+	end;
+	LenData=fread(fid,1,'int64');	% Data Length
+
+	%%%%% (2) LOAD Variable Header %%%%%
+	tag=fread(fid,1,'int32');	% Tag field
+	while tag~=0
+	        l  =fread(fid,1,'int32');	% length of value field
+	        val=setstr(fread(fid,4*l,'char')');	% depends on Tag field
+	        if     tag==hex2dec('00000002'),	%IGNORE
+	        elseif tag==hex2dec('00000004') HDR.PATIENT_NAME=val;
+	        elseif tag==hex2dec('00000006') HDR.PATIENT_ID=val;
+	        elseif tag==hex2dec('00000008') HDR.PATIENT_BIRTHDAY=val;
+	        elseif tag==hex2dec('0000000a') HDR.PATIENT_SEX=val;
+	        elseif tag==hex2dec('0000000c') HDR.SHORT_DESCRIPTION=val;
+	        elseif tag==hex2dec('0000000e') HDR.DESCRIPTION=val;
+	        elseif tag==hex2dec('00000010') HDR.SAMPLE_RATE=str2num(val);
+	        elseif tag==hex2dec('00000012') HDR.INSTITUTION=val;
+	        elseif tag==hex2dec('00000014') HDR.PROCESSING_HISTORY=val;
+	        elseif tag==hex2dec('00000016') HDR.LOCATION_DIAGRAM=val;
+	     
+	        elseif tag==hex2dec('00000001') HDR.PREFERRED_INTEGER_RANGE=vec2matx(vec2matx(val,HDR.NS),2);
+	        elseif tag==hex2dec('00000003') HDR.PhysDim=val;
+	        elseif tag==hex2dec('00000005') HDR.CHANNEL_DESCRIPTION=val;
+	        elseif tag==hex2dec('00000007') HDR.CHANNEL_GROUPS=val;
+	        elseif tag==hex2dec('00000009') HDR.EVENTS=val;
+	        elseif tag==hex2dec('0000000b') HDR.RECORDING_TIME=val;
+	        elseif tag==hex2dec('0000000d') HDR.HDR.CHANNEL_LOCATIONS=val;
+	        elseif tag==hex2dec('0000000f') HDR.FILTERS=val;
+		end;
+		tag=fread(fid,1,'int32');	% Tag field
+        end; 
+
+
+	fclose(fid);
+
 
 elseif strcmp(HDR.TYPE,'ACQ'),
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
@@ -290,6 +425,187 @@ elseif strcmp(HDR.TYPE,'ACQ'),
 	fseek(HDR.FILE.FID,HDR.HeadLen,'bof');	
 	
         
+elseif strcmp(HDR.TYPE,'SND'),
+    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+	fseek(HDR.FILE.FID,4,'bof');
+	HDR.HeadLen = fread(HDR.FILE.FID,1,'uint32');
+	datlen = fread(HDR.FILE.FID,1,'uint32');
+	HDR.FILE.TYPE = fread(HDR.FILE.FID,1,'uint32');
+	HDR.SampleRate = fread(HDR.FILE.FID,1,'uint32');
+	HDR.NS = fread(HDR.FILE.FID,1,'uint32');
+	[tmp,count] = fread(HDR.FILE.FID, [1,HDR.HeadLen-24],'char');
+	HDR.INFO = setstr(tmp);
+	
+	if HDR.FILE.TYPE==1, 
+		HDR.GDFTYP = 0;
+		HDR.AS.bpb = HDR.NS;
+	elseif HDR.FILE.TYPE==2, 
+		HDR.GDFTYP = 1;
+		HDR.AS.bpb = HDR.NS;
+	elseif HDR.FILE.TYPE==3, 
+		HDR.GDFTYP = 3;
+		HDR.AS.bpb = HDR.NS*2;
+	elseif HDR.FILE.TYPE==5, 
+		HDR.GDFTYP = 5;
+		HDR.AS.bpb = HDR.NS*4;
+	elseif HDR.FILE.TYPE==6, 
+		HDR.GDFTYP = 16;
+		HDR.AS.bpb = HDR.NS*4;
+	elseif HDR.FILE.TYPE==7, 
+		HDR.GDFTYP = 17;
+		HDR.AS.bpb = HDR.NS*8;
+	else
+		fprintf(2,'Error EEGOPEN SND-format: datatype not recognized\n');
+		return;
+	end;
+	% Calibration 
+	if any(HDR.FILE.TYPE==[2:5]), 
+		HDR.Cal = 2^(1-HDR.bits); 
+	end;
+	
+	% check file length
+	fseek(HDR.FILE.FID,0,'eof');
+	len = ftell(HDR.FILE.FID); 
+	if len ~= datlen+HDR.HeadLen,
+		fprintf(2,'Warning EEGOPEN SND-format: header information does not fit file length \n');
+		datlen = len - HDR.HeadLen; 
+	end;	
+	fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+	HDR.FILE.POS = 0;
+	HDR.NRec = 1;
+	HDR.SPR  = datlen/HDR.AS.bpb;
+	HDR.AS.endpos = datlen/HDR.AS.bpb;
+	HDR.Dur = HDR.SPR/HDR.SampleRate;
+
+        if CHAN==0,		
+		HDR.SIE.InChanSelect = 1:HDR.NS;
+	elseif all(CHAN>0 & CHAN<=HDR.NS),
+		HDR.SIE.InChanSelect = CHAN;
+	else
+		fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+		fclose(HDR.FILE.FID); 
+		HDR.FILE.FID = -1;	
+		return;
+	end;
+
+        
+elseif strcmp(HDR.TYPE,'WAV'),
+    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+	
+	tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
+	if ~strcmpi(tmp,'RIFF'),
+		fprintf(2,'Warning EEGOPEN WAV-format: file %s might be corrupted 1\n',HDR.FileName);
+	end;
+	tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size 
+	tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
+	if ~strncmpi(tmp,'WAVE',4),
+		fprintf(2,'Warning EEGOPEN WAV-format: file %s might be corrupted 2\n',HDR.FileName);
+	end;
+
+	while ~feof(HDR.FILE.FID),	
+		[tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
+		tag     = deblank(setstr(tmp));
+		tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size 
+		filepos = ftell(HDR.FILE.FID);
+		if strcmpi(tag,'fmt')
+			if tagsize<14, 
+				fprintf(2,'Error EEGOPEN WAV: incorrect tag size\n');
+				return;
+			end;
+			HDR.WAV.Format = fread(HDR.FILE.FID,1,'uint16');
+			HDR.NS = fread(HDR.FILE.FID,1,'uint16');
+			HDR.SampleRate = fread(HDR.FILE.FID,1,'uint32');
+			HDR.WAV.AvgBytesPerSec = fread(HDR.FILE.FID,1,'uint32');
+			HDR.WAV.BlockAlign = fread(HDR.FILE.FID,1,'uint16');
+			if HDR.WAV.Format==1,	% PCM format
+				HDR.bits = fread(HDR.FILE.FID,1,'uint16');
+				tmp = ceil(HDR.bits/8);
+				%if tmp==1, 	HDR.GDFTYP = 2; 	% uint8
+				%elseif tmp==2,	HDR.GDFTYP = 3; 	% int16
+				%else
+				%end;
+				HDR.GDFTYP = tmp + 1; 
+				HDR.Cal = 2^(1-HDR.bits);    
+			else 
+				fprintf(2,'Error EEGOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
+			end;
+			if tagsize>16,
+				HDR.WAV.cbSize = fread(HDR.FILE.FID,1,'uint16');
+			end;
+			fseek(HDR.FILE.FID,filepos+tagsize,'bof');
+					
+		elseif strcmpi(tag,'data');
+			HDR.HeadLen = filepos; 
+			if HDR.WAV.Format == 1, 
+				HDR.AS.bpb = HDR.NS * ceil(HDR.bits/8);
+				HDR.SPR = tagsize/HDR.AS.bpb;
+				HDR.Dur = HDR.SPR/HDR.SampleRate;
+				HDR.AS.endpos = HDR.SPR;
+				    	
+			else 
+				fprintf(2,'Error EEGOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
+			end;
+			fseek(HDR.FILE.FID,filepos+tagsize,'bof');
+
+		elseif strcmpi(tag,'fact');
+			if tagsize<4, 
+				fprintf(2,'Error EEGOPEN WAV: incorrect tag size\n');
+				return;
+			end;
+	    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+			HDR.WAV.FACT = setstr(tmp);
+			fseek(HDR.FILE.FID,filepos+tagsize,'bof');
+		
+		elseif strcmpi(tag,'disp');
+			if tagsize<8, 
+				fprintf(2,'Error EEGOPEN WAV: incorrect tag size\n');
+				return;
+			end;
+	    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+			HDR.WAV.DISP = setstr(tmp);
+			if ~all(tmp(1:8)==[0,1,0,0,0,0,1,1])
+				HDR.WAV.DISPTEXT = setstr(tmp(5:length(tmp)));
+			end;
+			fseek(HDR.FILE.FID,filepos+tagsize,'bof');
+		
+		elseif strcmpi(tag,'list');
+			if tagsize<4, 
+				fprintf(2,'Error EEGOPEN WAV: incorrect tag size\n');
+				return;
+			end;
+	    		[tmp,c]  = fread(HDR.FILE.FID,[1,tagsize],'char');
+			HDR.WAV.list = setstr(tmp);
+			listtype = setstr(tmp(1:4));
+			listdata = setstr(tmp(5:length(tmp)));
+			HDR.WAV.LIST = setfield(HDR.WAV,listtype, listdata);
+			fseek(HDR.FILE.FID,filepos+tagsize,'bof');
+
+		else
+		
+		end;
+	end;
+	if ~isfield(HDR,'HeadLen')
+		fprintf(2,'Error EEGOPEN WAV: missing data section\n');
+		fclose(HDR.FILE.FID)	
+	end;
+	
+	fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+	HDR.FILE.POS = 0;
+	HDR.FILE.OPEN = 1;
+	HDR.NRec = 1;
+
+        if CHAN==0,		
+		HDR.SIE.InChanSelect = 1:HDR.NS;
+	elseif all(CHAN>0 & CHAN<=HDR.NS),
+		HDR.SIE.InChanSelect = CHAN;
+	else
+		fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+		fclose(HDR.FILE.FID); 
+		HDR.FILE.FID = -1;	
+		return;
+	end;
+
+        
 elseif strcmp(HDR.TYPE,'EGI'),
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
         
@@ -377,6 +693,132 @@ elseif strcmp(HDR.TYPE,'EGI'),
         HDR.FILE.POS= 0;
        
         
+elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
+	% implementation of this format is not finished yet.
+
+	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+	%%%%% X-Header %%%%%
+	HDR.VERSION = fread(HDR.FILE.FID,1,'int16');
+	HDR.NS = fread(HDR.FILE.FID,1,'int16');
+	HDR.NRec = fread(HDR.FILE.FID,1,'int16');
+	HDR.TEAM.Length = fread(HDR.FILE.FID,1,'int32');
+	HDR.TEAM.NSKIP = fread(HDR.FILE.FID,1,'int32');
+	HDR.SPR = fread(HDR.FILE.FID,1,'int32');
+	HDR.Samptype = fread(HDR.FILE.FID,1,'int16');
+	if   	HDR.Samptype==2, HDR.GDFTYP = 3;
+	elseif 	HDR.Samptype==4, HDR.GDFTYP = 16; 
+	else
+		fprintf(2,'Error EEGOPEN TEAM-format: invalid file\n');
+		fclose(HDR.FILE.FID);
+		return;
+	end;	
+	HDR.XLabel = fread(HDR.FILE.FID,[1,8],'char');
+	HDR.X0 = fread(HDR.FILE.FID,1,'float');
+	HDR.TEAM.Xstep = fread(HDR.FILE.FID,1,'float');
+	HDR.SampleRate = 1/HDR.TEAM.Xstep;
+	tmp = fread(HDR.FILE.FID,[1,6],'uchar');
+	tmp(1) = tmp(1) + 1980;
+	HDR.T0 = tmp([4,5,6,1,2,3]);
+	HDR.TEAM.Nevents = fread(HDR.FILE.FID,1,'int16');
+	HDR.TEAM.Nsegments = fread(HDR.FILE.FID,1,'int16');
+	HDR.TEAM.SegmentOffset = fread(HDR.FILE.FID,1,'int32');
+	HDR.XPhysDim = fread(HDR.FILE.FID,[1,8],'char');
+	HDR.TEAM.RecInfoOffset = fread(HDR.FILE.FID,1,'int32');
+        fseek(HDR.FILE.FID,256,'bof');
+	%%%%% Y-Header %%%%%
+        for k = 1:HDR.NS,
+		HDR.Label(k,1:7) = fread(HDR.FILE.FID,[1,7],'char');
+		HDR.PhysDim(k,1:7) = fread(HDR.FILE.FID,[1,7],'char');
+	    	HDR.Off(1,k) = fread(HDR.FILE.FID,1,'float');
+	    	HDR.Cal(1,k) = fread(HDR.FILE.FID,1,'float');
+	    	HDR.PhysMax(1,k) = fread(HDR.FILE.FID,1,'float');
+	    	HDR.PhysMin(1,k) = fread(HDR.FILE.FID,1,'float');
+		fseek(HDR.FILE.FID,2,'cof');
+	end;
+        HDR.HeadLen = 256+HDR.NS*32;
+	
+	% Digital (event) information 
+	HDR.TEAM.DigitalOffset = 256 + 32*HDR.NS + HDR.NS*HDR.NRec*HDR.SPR*HDR.Samptype;
+	fssek(HDR.FILE.FID,HDR.TEAM.DigitalOffset,'bof');
+	if HDR.TEAM.DigitalOffset < HDR.TEAM.SegmentOffset,
+		HDR.EventLabels = setstr(fread(HDR.FILE.FID,[16,HDR.TEAM.Nevents],'char')');
+
+		% Events could be detected in this way
+		% HDR.Events = zeros(HDR.SPR*HDR.NRec,1);
+		% for k = 1:ceil(HDR.TEAM.Nevents/16)
+		%	HDR.Events = HDR.Events + 2^(16*k-16)*fread(HDR.FILE.FID,HDR.SPR*HDR.NRec,'uint16');
+		% end;
+	end;
+	
+	% Segment informatino block entries 
+	if HDR.TEAM.Nsegments,
+		fseek(HDR.FILE.FID,HDR.TEAM.SegmentOffset,'bof');
+		for k = 1:HDR.TEAM.Nsegments, 
+			HDR.TEAM.NSKIP(k) = fread(HDR.FILE.FID,1,'int32');
+			HDR.SPR(k)  = fread(HDR.FILE.FID,1,'int32');
+			HDR.X0(k) = fread(HDR.FILE.FID,1,'float');
+			HDR.Xstep(k) = fread(HDR.FILE.FID,1,'float');
+			fseek(HDR.FILE.FID,8,'cof');
+		end;
+	end;
+	
+	% Recording information block entries
+	if HDR.TEAM.RecInfoOffset,
+		fseek(HDR.FILE.FID,HDR.TEAM.RecInfoOffset,'bof');
+		blockinformation = fread(HDR.FILE.FID,[1,32],'char');
+		for k = 1:HDR.NRec, 
+			HDR.TRIGGER.Time(k) = fread(HDR.FILE.FID,1,'double');
+			HDR.TRIGGER.Date(k,1:3) = fread(HDR.FILE.FID,[1,3],'uint8');
+			fseek(HDR.FILE.FID,20,'cof');
+		end;
+		HDR.TRIGGER.Date(k,1) = HDR.TRIGGER.Date(k,1) + 1900;
+ 	end;
+	fprintf(2,'Warning EEGOPEN: Implementing Nicolet TEAM file format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+	fclose(HDR.FILE.FID);
+	
+	
+elseif strcmp(HDR.TYPE,'WFT'),	% implementation of this format is not finished yet.
+
+    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+	[s,c] = fread(HDR.FILE.FID,1536,'char');
+	[tmp,s] = strtok(s,setstr([0,32]));
+	Nic_id0 = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	Niv_id1 = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	Nic_id2 = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	User_id = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	HDR.HeadLen = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	HDR.FILE.Size = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	HDR.VERSION = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	HDR.WFT.WaveformTitle = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	HDR.T0(1) = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	HDR.T0(1,2) = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	HDR.T0(1,3) = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	tmp = str2num(tmp);
+	HDR.T0(1,4:6) = [floor(tmp/3600000),floor(rem(tmp,3600000)/60000),rem(tmp,60000)];
+	[tmp,s] = strtok(s,setstr([0,32]));
+	HDR.SPR = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	HDR.Off = str2num(tmp);
+	[tmp,s] = strtok(s,setstr([0,32]));
+	HDR.Cal = str2num(tmp);
+
+        fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+	
+	fprintf(2,'Warning EEGOPEN: Implementing Nicolet WFT file format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+	fclose(HDR.FILE.FID);
+
+	
 elseif strcmp(HDR.TYPE,'LDR'),
         HDR = openldr(HDR,PERMISSION);      
 
@@ -691,24 +1133,30 @@ elseif strcmp(HDR.TYPE,'RG64'),
 elseif strcmp(HDR.TYPE,'DDF'),
 
 	% implementation of this format is not finished yet.
-	fprintf(2,'EEGOPEN does not support DASYLAB format yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
-	HDR.FILE.FID = -1;
-	return;
+	fprintf(2,'Warning EEGOPEN: Implementing DASYLAB format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+	%HDR.FILE.FID = -1;
+	%return;
 
 	if any(PERMISSION=='r'),
-		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le')
+		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
 		HDR.FILE.OPEN = 1;
 		HDR.FILE.POS = 0;
-		HDR.ID = fread(HDR.FILE.FID,5,'char');
-        	ds=fgets(HDR.FILE.FID);
-		DataSource = ds;
-		k = 1;
+		%HDR.ID = fread(HDR.FILE.FID,5,'char');
+        	ds=fread(HDR.FILE.FID,[1,128],'char');
+		HDR.ID = setstr(ds(1:4));
+		DataSource = ds(6:length(ds));
+		k = 0;
 		while ~(any(ds==26)),
-			ds = fgets(HDR.FILE.FID);
+			ds = fread(HDR.FILE.FID,[1,128],'char');
 			DataSource = [DataSource,ds];
+			k = k+1;	
+		end;	
+		fseek(HDR.FILE.FID,find(ds==26)+k*128,'bof'); 	% position file identifier
+		while ~isempty(DataSource),
+			[ds,DataSource] = strtok(setstr(DataSource),[10,13]);
 			[field,value] = strtok(ds,'=');
 			if findstr(field,'SAMPLE RATE');
-				[tmp1,tmp2] = strtok(value);
+				[tmp1,tmp2] = strtok(value,'=');
 				HDR.SampleRate = str2num(tmp1);
 			elseif findstr(field,'DATA CHANNELS');
 				HDR.NS = str2num(value);
@@ -717,30 +1165,109 @@ elseif strcmp(HDR.TYPE,'DDF'),
 			elseif findstr(field,'DATA FILE');
 				HDR.FILE.DATA = value;
 			end;			 	
-			k = k+1;	
-		end;	
-		if DataSource(length(DataSource))~=26,
+		end;
+		if 0;%DataSource(length(DataSource))~=26,
 			fprintf(1,'Warning: DDF header seems to be incorrenct. Contact <alois.schloegl@tugraz.at> Subject: BIOSIG/DATAFORMAT/DDF  \n');
 		end;
-		CPUidentifier = fread(HDR.FILE.FID,2,'char');
-		HDR.HeadLen = fread(HDR.FILE.FID,1,'uint16');
+		CPUidentifier  = fread(HDR.FILE.FID,[1,2],'char');
+		HDR.HeadLen(1) = fread(HDR.FILE.FID,1,'uint16');
 		tmp = fread(HDR.FILE.FID,1,'uint16');
-		if tmp == 0, HDR.GDFTYP = 3; 
-		elseif tmp == 1, HDR.GDFTYP = 16; 
-		elseif tmp == 2, HDR.GDFTYP = 17; 
+		if tmp == 0, HDR.GDFTYP = 4; 		% streamer format (data are raw data in WORD=UINT16)
+		elseif tmp == 1, HDR.GDFTYP = 16; 	% Universal Format 1 (FLOAT)
+		elseif tmp == 2, HDR.GDFTYP = 17; 	% Universal Format 2 (DOUBLE)
 		elseif tmp <= 1000, % reserved
 		else		% unused
 		end;
+		HDR.FILE.Type = tmp;
 		HDR.VERSION = fread(HDR.FILE.FID,1,'uint16');
-		HDR.HeadLen = HDR.HeadLen + fread(HDR.FILE.FID,1,'uint16');
-		HDR.HeadLen = HDR.HeadLen + fread(HDR.FILE.FID,1,'uint16');
+		HDR.HeadLen(2) = fread(HDR.FILE.FID,1,'uint16');	% second global Header
+		HDR.HeadLen(3) = fread(HDR.FILE.FID,1,'uint16');	% size of channel Header
+		fread(HDR.FILE.FID,1,'uint16');	% size of a block Header
 		tmp = fread(HDR.FILE.FID,1,'uint16');
-		if tmp ~= isfield(HDR.FILE.DATA)
+		if tmp ~= isfield(HDR.FILE,'DATA')
 			fprintf(1,'Warning: DDF header seems to be incorrenct. Contact <alois.schloegl@tugraz.at> Subject: BIOSIG/DATAFORMAT/DDF  \n');
 		end;
 		HDR.NS = fread(HDR.FILE.FID,1,'uint16');
 		HDR.Delay = fread(HDR.FILE.FID,1,'double');
-		Datum = fread(HDR.FILE.FID,7,'uint16');  % might be incorrect
+		HDR.StartTime = fread(HDR.FILE.FID,1,'uint32');  % might be incorrect
+
+		
+		% it looks good so far. 
+		
+		if HDR.FILE.Type==0,
+			% second global header
+			fread(HDR.FILE.FID,1,'uint16')	% overall number of bytes in this header
+			fread(HDR.FILE.FID,1,'uint16')	% number of analog channels
+			fread(HDR.FILE.FID,1,'uint16')	% number of counter channels
+			fread(HDR.FILE.FID,1,'uint16')	% number of digital ports
+			fread(HDR.FILE.FID,1,'uint16')	% number of bits in each digital port
+			fread(HDR.FILE.FID,1,'uint16')	% original blocksize when data was stored
+			fread(HDR.FILE.FID,1,'uint32')	% sample number of the first sample (when cyclic buffer not activated, always zero
+			fread(HDR.FILE.FID,1,'uint32')	% number of samples per channel
+
+			% channel header
+			for k = 1:HDR.NS,
+				fread(HDR.FILE.FID,1,'uint16')	% number of bytes in this hedader
+				fread(HDR.FILE.FID,1,'uint16')	% channel type 0: analog, 1: digital, 2: counter
+				HDR.Label = setstr(fread(HDR.FILE.FID,[24,16],'char')');	% 
+				tmp = fread(HDR.FILE.FID,1,'uint16')	% dataformat 0 UINT, 1: INT
+				HDR.GDFTYP(k) = 3 + (~tmp);
+				HDR.Cal(k) = fread(HDR.FILE.FID,1,'double');	% 
+				HDR.Off(k) = fread(HDR.FILE.FID,1,'double');	% 
+			end;    
+
+		elseif HDR.FILE.Type==1,
+			% second global header
+			pos = ftell(HDR.FILE.FID);
+			HeadLen = fread(HDR.FILE.FID,1,'uint16');	% size of this header 
+			HDR.U1G.NS = fread(HDR.FILE.FID,1,'uint16');	% number of channels
+			fread(HDR.FILE.FID,1,'uint16');	% multiplexed: 0=no, 1=yes
+			fread(HDR.FILE.FID,[1,16],'uint16');	% array of channels collected on each input channel
+
+			% channel header
+			for k = 1:HDR.NS,
+				fread(HDR.FILE.FID,1,'uint16');	% size of this header
+				ch = fread(HDR.FILE.FID,1,'uint16');	% channel number
+				HDR.DDF.MAXSPR(ch+1)= fread(HDR.FILE.FID,1,'uint16');	% maximum size of block in samples
+				HDR.DDF.delay(ch+1) = fread(HDR.FILE.FID,1,'double');	% time delay between two samples
+				HDR.DDF.ChanType(ch+1) = fread(HDR.FILE.FID,1,'uint16');	% channel type 
+				HDR.DDF.ChanFlag(ch+1) = fread(HDR.FILE.FID,1,'uint16');	% channel flag 
+				unused = fread(HDR.FILE.FID,2,'double');	% must be 0.0 for future extension
+				%HDR.PhysDim{ch+1} = fgets(HDR.FILE.FID);	% channel unit
+				%HDR.Label{ch+1} = fgets(HDR.FILE.FID);		% channel name 
+			end;
+
+			% channel header
+			for k = 1:HDR.NS,
+				fread(HDR.FILE.FID,[1,4],'char');
+				fread(HDR.FILE.FID,1,'uint16');	% overall number of bytes in this header
+				HDR.BlockStartTime = fread(HDR.FILE.FID,1,'uint32');  % might be incorrect
+				unused = fread(HDR.FILE.FID,2,'double');	% must be 0.0 for future extension
+				ch = fread(HDR.FILE.FID,1,'uint32');  % channel number
+				
+			end;    
+
+		elseif HDR.FILE.Type==2,
+			% second global header
+			pos = ftell(HDR.FILE.FID);
+			HeadLen = fread(HDR.FILE.FID,1,'uint16');	% size of this header 
+			fread(HDR.FILE.FID,1,'uint16');	% number of channels
+			fseek(HDR.FILE.FID, pos+HeadLen ,'bof');
+
+			% channel header
+			for k = 1:HDR.NS,
+			pos = ftell(HDR.FILE.FID);
+				HeadLen = fread(HDR.FILE.FID,1,'uint16');	% size of this header 
+				HDR.DDF.Blocksize(k) = fread(HDR.FILE.FID,1,'uint16');	% 
+				HDR.DDF.Delay(k) = fread(HDR.FILE.FID,1,'double');	% 
+				HDR.DDF.chantyp(k) = fread(HDR.FILE.FID,1,'uint16');	% 
+				HDR.FLAG.TRIGGER(k) = ~~fread(HDR.FILE.FID,1,'uint16');	
+				fread(HDR.FILE.FID,1,'uint16');	
+				HDR.Cal(k) = fread(HDR.FILE.FID,1,'double');	
+			end;
+		else
+		end;
+
 	end;
 
 
@@ -1249,13 +1776,11 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
 
 elseif strncmp(HDR.TYPE,'SEG2',4),
 	if any(PERMISSION,'rb'),
-
-		if strcmp(HDR.TYPE,'SEG2 l'),
-			HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le')
-		elseif strcmp(HDR.TYPE,'SEG2 l'),
+		if HDR.Endianity,
 			HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-be')
+		else
+			HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le')
 		end;
-		HDR.TYPE = 'SEG2'; % remove endian indicator  
 
 		HDR.FILE.OPEN = 1;
 		HDR.FILE.POS  = 0;
