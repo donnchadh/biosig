@@ -1,6 +1,11 @@
 function [S,EDF] = sdfread(EDF,NoS,StartPos)
 % SDFREAD loads selected seconds of an EDF/GDF/BDF File
 %
+% DO NOT CALL SDFREAD DIRECTLY, USE SREAD INSTEAD
+%
+% See also: fread, SREAD, SCLOSE, SSEEK, SREWIND, STELL, SEOF
+
+%
 % [S,EDF] = sdfread(EDF [,NoS [,StartPos]] )
 % NoS       Number of seconds, default = 1 (second)
 % StartPos  Starting position, if not provided the following data is read continously from the EDF file. 
@@ -14,8 +19,6 @@ function [S,EDF] = sdfread(EDF,NoS,StartPos)
 % [S,EDF] = sdfread(EDF, EDF.NRec*EDF.Dur) and
 % [S,EDF] = sdfread(EDF, inf) 
 % reads til the end
-%
-% See also: fread, SREAD, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -31,9 +34,9 @@ function [S,EDF] = sdfread(EDF,NoS,StartPos)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.10 $
-%	$Id: sdfread.m,v 1.10 2004-11-17 19:39:18 schloegl Exp $
-%	(C) 1997-2002,2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.11 $
+%	$Id: sdfread.m,v 1.11 2005-03-24 17:48:15 schloegl Exp $
+%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -78,31 +81,31 @@ if isfield(EDF,'SIE')   % SIESTA; Layer 4
                         %tmp = floor(StartPos/EDF.Dur);
                         if StartPos+NoS > EDF.Dur*EDF.NRec;
                                 fprintf(EDF.FILE.stderr,'Warning SDFREAD: %s has only %i seconds\n',EDF.FileName, EDF.Dur*EDF.NRec);
-                                StartPos = min(StartPos*EDF.AS.MAXSPR/EDF.Dur,EDF.AS.MAXSPR*EDF.NRec); % transformation of seconds to samples + Overflowcheck
-                                NoS = EDF.AS.MAXSPR*EDF.NRec-StartPos;
+                                StartPos = min(StartPos*EDF.SPR/EDF.Dur,EDF.SPR*EDF.NRec); % transformation of seconds to samples + Overflowcheck
+                                NoS = EDF.SPR*EDF.NRec-StartPos;
                         else
-                                StartPos = StartPos*EDF.AS.MAXSPR/EDF.Dur;% EDF.Block.number(4);%/EDF.AS.MAXSPR*EDF.Dur;
-                                NoS = NoS*EDF.AS.MAXSPR/EDF.Dur;
+                                StartPos = StartPos*EDF.SPR/EDF.Dur;% EDF.Block.number(4);%/EDF.SPR*EDF.Dur;
+                                NoS = NoS*EDF.SPR/EDF.Dur;
                         end;
-                        NoR = ceil((StartPos+NoS)/EDF.AS.MAXSPR)-floor(StartPos/EDF.AS.MAXSPR);
+                        NoR = ceil((StartPos+NoS)/EDF.SPR)-floor(StartPos/EDF.SPR);
                         %EDF.AS.A_Block_number=0;
                 elseif nargin==2 %nargin==2
-                        StartPos = EDF.Block.number(4); % EDF.Block.number(4);%/EDF.AS.MAXSPR*EDF.Dur;
-                        NoS = NoS * EDF.AS.MAXSPR/EDF.Dur; % 
+                        StartPos = EDF.Block.number(4); % EDF.Block.number(4);%/EDF.SPR*EDF.Dur;
+                        NoS = NoS * EDF.SPR/EDF.Dur; % 
                 else  % nargin<2
                         %NoR = 1, %ceil(NoS/EDF.Dur);
-                        NoS = EDF.AS.MAXSPR/EDF.Dur; %EDF.Dur; % default one second
-                        StartPos = EDF.Block.number(4);%/EDF.AS.MAXSPR*EDF.Dur; % EDF.FILE.POS*EDF.Dur;
+                        NoS = EDF.SPR/EDF.Dur; %EDF.Dur; % default one second
+                        StartPos = EDF.Block.number(4);%/EDF.SPR*EDF.Dur; % EDF.FILE.POS*EDF.Dur;
                         %StartPos = EDF.FILE.POS*EDF.Dur,
                 end;
                 if isinf(NoS), 
-                        NoS=EDF.NRec*EDF.AS.MAXSPR-EDF.Block.number(4); 
+                        NoS=EDF.NRec*EDF.SPR-EDF.Block.number(4); 
                 end;
                 
                 % Q? whether repositioning is required, otherwise read continously, 
-                if floor(StartPos/EDF.AS.MAXSPR)~=EDF.FILE.POS; % if start not next block 
-                        if floor(StartPos/EDF.AS.MAXSPR)~=floor(EDF.Block.number(1)/EDF.AS.MAXSPR); % if start not same as Block.data
-                                [EDF]=sseek(EDF,floor(StartPos/EDF.AS.MAXSPR),'bof');
+                if floor(StartPos/EDF.SPR)~=EDF.FILE.POS; % if start not next block 
+                        if floor(StartPos/EDF.SPR)~=floor(EDF.Block.number(1)/EDF.SPR); % if start not same as Block.data
+                                [EDF]=sseek(EDF,floor(StartPos/EDF.SPR),'bof');
                         end;
                 end;
 
@@ -110,9 +113,9 @@ if isfield(EDF,'SIE')   % SIESTA; Layer 4
                 if (StartPos >= EDF.Block.number(2)) | (StartPos < EDF.Block.number(1)) | diff(EDF.Block.number(1:2))==0
                         EDF.Block.number=[0 0 0 0 ];
                         EDF.Block.data=[];
-                        NoR=ceil((StartPos+NoS)/EDF.AS.MAXSPR)-floor(StartPos/EDF.AS.MAXSPR);
+                        NoR=ceil((StartPos+NoS)/EDF.SPR)-floor(StartPos/EDF.SPR);
                 else
-                        NoR=ceil((StartPos+NoS-EDF.Block.number(2))/EDF.AS.MAXSPR);
+                        NoR=ceil((StartPos+NoS-EDF.Block.number(2))/EDF.SPR);
                 end;
                 
         end;
@@ -120,7 +123,7 @@ if isfield(EDF,'SIE')   % SIESTA; Layer 4
         
         %clear chan;
 	InChanSelect=EDF.InChanSelect;
-        Mode_CHANSAME = ~all(EDF.SPR(InChanSelect)==EDF.SPR(InChanSelect(1)));
+        Mode_CHANSAME = ~all(EDF.AS.SPR(InChanSelect)==EDF.AS.SPR(InChanSelect(1)));
         clear Mode;
         
 else % Layer 3
@@ -158,18 +161,18 @@ else % Layer 3
 
         InChanSelect = EDF.InChanSelect;
         
-        Mode_CHANSAME = ~all(EDF.SPR(InChanSelect)==EDF.SPR(InChanSelect(1)));
-	%if any(EDF.SPR(chan)~=EDF.SPR(chan(1))) fprintf(EDF.FILE.stderr,'Warning SDFREAD: channels do not have the same sampling rate\n');end;
+        Mode_CHANSAME = ~all(EDF.AS.SPR(InChanSelect)==EDF.AS.SPR(InChanSelect(1)));
+	%if any(EDF.AS.SPR(chan)~=EDF.AS.SPR(chan(1))) fprintf(EDF.FILE.stderr,'Warning SDFREAD: channels do not have the same sampling rate\n');end;
 end;
         
-bi=[0;cumsum(EDF.SPR)];
+bi=[0;cumsum(EDF.AS.SPR)];
 Records=NoR;
-maxspr=EDF.AS.MAXSPR; %max(EDF.SPR(EDF.SIE.ChanSelect));
+maxspr=EDF.SPR; %max(EDF.AS.SPR(EDF.SIE.ChanSelect));
 count=0;
 
 if Mode_RAW;
-        S=zeros(sum(EDF.SPR(InChanSelect)),Records);
-        bi=[0;cumsum(EDF.SPR(InChanSelect))];
+        S=zeros(sum(EDF.AS.SPR(InChanSelect)),Records);
+        bi=[0;cumsum(EDF.AS.SPR(InChanSelect))];
 else
         S=zeros(maxspr*Records,length(InChanSelect));
 end;        
@@ -177,7 +180,7 @@ end;
 if ~EDF.AS.SAMECHANTYP; % all(EDF.GDFTYP(:)~=EDF.GDFTYP(1))
         idx0=0;
         count=0;
-        while (count<Records*EDF.AS.spb) & ~sdfeof(EDF), 
+        while (count<Records*EDF.AS.spb) & ~seof(EDF), 
                 %   for K=1:length(InChanSelect), K=InChanSelect(k);
                 for k=1:EDF.NS,
                         %if GDF-format should be used 
@@ -188,18 +191,18 @@ if ~EDF.AS.SAMECHANTYP; % all(EDF.GDFTYP(:)~=EDF.GDFTYP(1))
                         %        tmp1=~isempty(datatyp);
                         %end;
                         %if tmp1
-                        %        [tmp,cnt]=fread(EDF.FILE.FID,EDF.SPR(k),datatyp);
+                        %        [tmp,cnt]=fread(EDF.FILE.FID,EDF.AS.SPR(k),datatyp);
                         %else 
                         %        fprintf(EDF.FILE.stderr,'Error SDFREAD: Invalid SDF channel type in %s at channel %i',EDF.FileName,k);
                         %end;
                         
-                        [tmp,cnt]=fread(EDF.FILE.FID,EDF.SPR(k),gdfdatatype(EDF.GDFTYP(k)));
+                        [tmp,cnt]=fread(EDF.FILE.FID,EDF.AS.SPR(k),gdfdatatype(EDF.GDFTYP(k)));
                         if any(InChanSelect==k), K=find(InChanSelect==k);
                                 if Mode_RAW;
                                         S(bi(K)+1:bi(K+1),count+1)=tmp;
                                 else 
                                         if ~Mode_CHANSAME
-                                                tmp=reshape(tmp(:,ones(1,maxspr/EDF.SPR(k)))',maxspr,1);
+                                                tmp=reshape(tmp(:,ones(1,maxspr/EDF.AS.SPR(k)))',maxspr,1);
                                         end;
                                         %disp([size(tmp) size(S) k K l maxspr])
                                         S(idx0+(1:maxspr),K)=tmp; %RS%
@@ -223,10 +226,10 @@ if ~EDF.AS.SAMECHANTYP; % all(EDF.GDFTYP(:)~=EDF.GDFTYP(1))
                 for k=1:length(InChanSelect),K=InChanSelect(k);
 	        	tmp = S(:,k);
 			[y1,EDF.Block.z1{k}]=filter([1 -1],1,tmp,EDF.Block.z1{k});
-            		[y2,EDF.Block.z2{k}]=filter(ones(1,EDF.SPR(K)/EDF.Dur)/(EDF.SPR(K)/EDF.Dur),1,y1==0,EDF.Block.z2{k});
-            		%y2=y2>0.079*(EDF.SPR(k)/EDF.Dur);
-    			[y3,EDF.Block.z3{k}]=filter(ones(1,EDF.SPR(K)/EDF.Dur)/(EDF.SPR(K)/EDF.Dur),1,(tmp>=EDF.SIE.THRESHOLD(K,2)) | (tmp<=EDF.SIE.THRESHOLD(K,1)),EDF.Block.z3{k});
-            		%y3=y3>0.094*(EDF.SPR(k)/EDF.Dur);
+            		[y2,EDF.Block.z2{k}]=filter(ones(1,EDF.AS.SPR(K)/EDF.Dur)/(EDF.AS.SPR(K)/EDF.Dur),1,y1==0,EDF.Block.z2{k});
+            		%y2=y2>0.079*(EDF.AS.SPR(k)/EDF.Dur);
+    			[y3,EDF.Block.z3{k}]=filter(ones(1,EDF.AS.SPR(K)/EDF.Dur)/(EDF.AS.SPR(K)/EDF.Dur),1,(tmp>=EDF.SIE.THRESHOLD(K,2)) | (tmp<=EDF.SIE.THRESHOLD(K,1)),EDF.Block.z3{k});
+            		%y3=y3>0.094*(EDF.AS.SPR(k)/EDF.Dur);
 			%OFCHK(bi(k)+1:bi(k+1),:) = y3>0.094 | y2>0.079;
 			S(y3>0.094 | y2>0.079, k) = NaN;
 		end;
@@ -253,10 +256,10 @@ if Mode_RAW;
                 for k=1:length(InChanSelect),K=InChanSelect(k);
 			tmp = S(bi(k)+1:bi(k+1),:);
 	                [y1,EDF.Block.z1{k}]=filter([1 -1],1,tmp(:),EDF.Block.z1{k});
-        		[y2,EDF.Block.z2{k}]=filter(ones(1,EDF.SPR(K)/EDF.Dur)/(EDF.SPR(K)/EDF.Dur),1,y1==0,EDF.Block.z2{k});
-        		%y2=y2>0.079*(EDF.SPR(k)/EDF.Dur);
-    			[y3,EDF.Block.z3{k}]=filter(ones(1,EDF.SPR(K)/EDF.Dur)/(EDF.SPR(K)/EDF.Dur),1,(tmp>=EDF.SIE.THRESHOLD(K,2)) | (tmp<=EDF.SIE.THRESHOLD(K,1)),EDF.Block.z3{k});
-        		%y3=y3>0.094*(EDF.SPR(k)/EDF.Dur);
+        		[y2,EDF.Block.z2{k}]=filter(ones(1,EDF.AS.SPR(K)/EDF.Dur)/(EDF.AS.SPR(K)/EDF.Dur),1,y1==0,EDF.Block.z2{k});
+        		%y2=y2>0.079*(EDF.AS.SPR(k)/EDF.Dur);
+    			[y3,EDF.Block.z3{k}]=filter(ones(1,EDF.AS.SPR(K)/EDF.Dur)/(EDF.AS.SPR(K)/EDF.Dur),1,(tmp>=EDF.SIE.THRESHOLD(K,2)) | (tmp<=EDF.SIE.THRESHOLD(K,1)),EDF.Block.z3{k});
+        		%y3=y3>0.094*(EDF.AS.SPR(k)/EDF.Dur);
 			tmp(y3>0.094 | y2>0.079) = NaN;
 			S(bi(k)+1:bi(k+1),:) = tmp;
 		end;
@@ -274,7 +277,7 @@ if Mode_RAW;
                 end;
         end;
 else
-        if all(EDF.SPR(InChanSelect)==EDF.AS.MAXSPR)
+        if all(EDF.AS.SPR(InChanSelect)==EDF.SPR)
                 if ~OptiMEM % but OptiSPEED
                         [s, count]=fread(EDF.FILE.FID,[EDF.AS.spb,Records],datatyp);
                         count = (count/EDF.AS.spb);
@@ -308,10 +311,10 @@ else
                 	for k=1:length(InChanSelect),K=InChanSelect(k);
 				tmp = S(:,k);
 		    		[y1,EDF.Block.z1{k}]=filter([1 -1],1,tmp,EDF.Block.z1{k});
-            			[y2,EDF.Block.z2{k}]=filter(ones(1,EDF.SPR(K)/EDF.Dur)/(EDF.SPR(K)/EDF.Dur),1,y1==0,EDF.Block.z2{k});
-            			%y2=y2>0.079*(EDF.SPR(k)/EDF.Dur);
-            			[y3,EDF.Block.z3{k}]=filter(ones(1,EDF.SPR(K)/EDF.Dur)/(EDF.SPR(K)/EDF.Dur),1,(tmp>=EDF.SIE.THRESHOLD(K,2)) | (tmp<=EDF.SIE.THRESHOLD(K,1)),EDF.Block.z3{k});
-            			%y3=y3>0.094*(EDF.SPR(k)/EDF.Dur);
+            			[y2,EDF.Block.z2{k}]=filter(ones(1,EDF.AS.SPR(K)/EDF.Dur)/(EDF.AS.SPR(K)/EDF.Dur),1,y1==0,EDF.Block.z2{k});
+            			%y2=y2>0.079*(EDF.AS.SPR(k)/EDF.Dur);
+            			[y3,EDF.Block.z3{k}]=filter(ones(1,EDF.AS.SPR(K)/EDF.Dur)/(EDF.AS.SPR(K)/EDF.Dur),1,(tmp>=EDF.SIE.THRESHOLD(K,2)) | (tmp<=EDF.SIE.THRESHOLD(K,1)),EDF.Block.z3{k});
+            			%y3=y3>0.094*(EDF.AS.SPR(k)/EDF.Dur);
 				%OFCHK(bi(k)+1:bi(k+1),:) = (y3>0.094) | (y2>0.079);
 				%OFCHK(:,K) = (y3>0.094) | (y2>0.079);
 				S(y3>0.094 | y2>0.079, k) = NaN;
@@ -332,17 +335,17 @@ else
                         count = (count/EDF.AS.spb);
                         S = zeros(maxspr*count,length(InChanSelect));
                         for k=1:length(InChanSelect), K=InChanSelect(k);
-                                tmp=reshape(s(bi(K)+1:bi(K+1),:),EDF.SPR(K)*count,1);
-                                if EDF.SPR(K) == maxspr
-                                        S(:,k)=tmp;%reshape(tmp(:,ones(1,maxspr/EDF.SPR(K)))',maxspr*Records,1); %RS%
-                                elseif EDF.SPR(K) > maxspr
-                                        if rem(EDF.SPR(K)/maxspr,1)==0
-                                                S(:,k)=rs(tmp,EDF.SPR(K),maxspr);
+                                tmp=reshape(s(bi(K)+1:bi(K+1),:),EDF.AS.SPR(K)*count,1);
+                                if EDF.AS.SPR(K) == maxspr
+                                        S(:,k)=tmp;%reshape(tmp(:,ones(1,maxspr/EDF.AS.SPR(K)))',maxspr*Records,1); %RS%
+                                elseif EDF.AS.SPR(K) > maxspr
+                                        if rem(EDF.AS.SPR(K)/maxspr,1)==0
+                                                S(:,k)=rs(tmp,EDF.AS.SPR(K),maxspr);
                                         else
-                                                S(:,k)=rs(tmp,EDF.SIE.T); %(:,ones(1,maxspr/EDF.SPR(K)))',maxspr*Records,1); %RS%
+                                                S(:,k)=rs(tmp,EDF.SIE.T); %(:,ones(1,maxspr/EDF.AS.SPR(K)))',maxspr*Records,1); %RS%
                                         end;
-                                elseif EDF.SPR(K) < maxspr
-                                        S(:,k)=reshape(tmp(:,ones(1,maxspr/EDF.SPR(K)))',maxspr*count,1); %RS%
+                                elseif EDF.AS.SPR(K) < maxspr
+                                        S(:,k)=reshape(tmp(:,ones(1,maxspr/EDF.AS.SPR(K)))',maxspr*count,1); %RS%
                                 end;
                         end;    
                 else %OptiMEM % but ~OptiSPEED
@@ -354,17 +357,17 @@ else
                                 [s, C]=fread(EDF.FILE.FID,[EDF.AS.spb,tmp_norr],datatyp);
                                 C = C/EDF.AS.spb;
                                 for k=1:length(InChanSelect), K=InChanSelect(k); 
-                                        tmp0=reshape(s(bi(K)+1:bi(K+1),:),EDF.SPR(K)*C,1);
-                                        if EDF.SPR(K)==maxspr
-                                                S(idx0+(1:maxspr*C),k)=tmp0;%reshape(tmp(:,ones(1,maxspr/EDF.SPR(K)))',maxspr*Records,1); %RS%
-                                        elseif EDF.SPR(K)>maxspr
-                                                if rem(EDF.SPR(K)/maxspr,1)==0
-                                                        S(idx0+(1:maxspr*C),k)=rs(tmp0,EDF.SPR(K),maxspr);
+                                        tmp0=reshape(s(bi(K)+1:bi(K+1),:),EDF.AS.SPR(K)*C,1);
+                                        if EDF.AS.SPR(K)==maxspr
+                                                S(idx0+(1:maxspr*C),k)=tmp0;%reshape(tmp(:,ones(1,maxspr/EDF.AS.SPR(K)))',maxspr*Records,1); %RS%
+                                        elseif EDF.AS.SPR(K)>maxspr
+                                                if rem(EDF.AS.SPR(K)/maxspr,1)==0
+                                                        S(idx0+(1:maxspr*C),k)=rs(tmp0,EDF.AS.SPR(K),maxspr);
                                                 else
-                                                        S(idx0+(1:maxspr*C),k)=rs(tmp0,EDF.SIE.T); %(:,ones(1,maxspr/EDF.SPR(K)))',maxspr*Records,1); %RS%
+                                                        S(idx0+(1:maxspr*C),k)=rs(tmp0,EDF.SIE.T); %(:,ones(1,maxspr/EDF.AS.SPR(K)))',maxspr*Records,1); %RS%
                                                 end;
-                                        elseif EDF.SPR(K)<maxspr
-                                                S(idx0+(1:maxspr*C),k)=reshape(tmp0(:,ones(1,maxspr/EDF.SPR(K)))',maxspr*C,1); %RS%
+                                        elseif EDF.AS.SPR(K)<maxspr
+                                                S(idx0+(1:maxspr*C),k)=reshape(tmp0(:,ones(1,maxspr/EDF.AS.SPR(K)))',maxspr*C,1); %RS%
                                         end;
                                 end;
                                 idx0 = idx0 + maxspr*C;
@@ -385,10 +388,10 @@ else
                 	for k=1:length(InChanSelect),K=InChanSelect(k);
 				tmp = S(:,k);
 		    		[y1,EDF.Block.z1{k}]=filter([1 -1],1,tmp,EDF.Block.z1{k});
-            			[y2,EDF.Block.z2{k}]=filter(ones(1,EDF.SPR(K)/EDF.Dur)/(EDF.SPR(K)/EDF.Dur),1,y1==0,EDF.Block.z2{k});
-            			%y2=y2>0.079*(EDF.SPR(k)/EDF.Dur);
-            			[y3,EDF.Block.z3{k}]=filter(ones(1,EDF.SPR(K)/EDF.Dur)/(EDF.SPR(K)/EDF.Dur),1,(tmp>=EDF.SIE.THRESHOLD(K,2)) | (tmp<=EDF.SIE.THRESHOLD(K,1)),EDF.Block.z3{k});
-            			%y3=y3>0.094*(EDF.SPR(k)/EDF.Dur);
+            			[y2,EDF.Block.z2{k}]=filter(ones(1,EDF.AS.SPR(K)/EDF.Dur)/(EDF.AS.SPR(K)/EDF.Dur),1,y1==0,EDF.Block.z2{k});
+            			%y2=y2>0.079*(EDF.AS.SPR(k)/EDF.Dur);
+            			[y3,EDF.Block.z3{k}]=filter(ones(1,EDF.AS.SPR(K)/EDF.Dur)/(EDF.AS.SPR(K)/EDF.Dur),1,(tmp>=EDF.SIE.THRESHOLD(K,2)) | (tmp<=EDF.SIE.THRESHOLD(K,1)),EDF.Block.z3{k});
+            			%y3=y3>0.094*(EDF.AS.SPR(k)/EDF.Dur);
 				%OFCHK(bi(k)+1:bi(k+1),:) = (y3>0.094) | (y2>0.079);
 				%OFCHK(:,K) = (y3>0.094) | (y2>0.079);
 				S((y3>0.094) | (y2>0.079),k) = NaN;
@@ -425,11 +428,11 @@ if EDF.SIE.TECG,
                 fprintf(EDF.FILE.stderr,'ERROR SDFREAD: Mode TECG requires update of EDF [S,EDF]=sdfread(EDF,...)\n');
                 EDF=sdftell(EDF);
         end;
-        pulse = zeros(EDF.AS.numrec*EDF.SPR(12),1);
+        pulse = zeros(EDF.AS.numrec*EDF.AS.SPR(12),1);
         
         Index=[];
-        while EDF.TECG.idx(EDF.TECG.idxidx) <= EDF.FILE.POS*EDF.SPR(12)
-                Index=[Index EDF.TECG.idx(EDF.TECG.idxidx)-EDF.AS.startrec*EDF.SPR(12)];
+        while EDF.TECG.idx(EDF.TECG.idxidx) <= EDF.FILE.POS*EDF.AS.SPR(12)
+                Index=[Index EDF.TECG.idx(EDF.TECG.idxidx)-EDF.AS.startrec*EDF.AS.SPR(12)];
                 EDF.TECG.idxidx=EDF.TECG.idxidx+1;
         end;
 
@@ -437,9 +440,9 @@ if EDF.SIE.TECG,
                 pulse(Index) = 1;
         end;
         
-        %tmp=find(EDF.TECG.idx > EDF.AS.startrec*EDF.SPR(12) & EDF.TECG.idx <= EDF.FILE.POS*EDF.SPR(12));
+        %tmp=find(EDF.TECG.idx > EDF.AS.startrec*EDF.AS.SPR(12) & EDF.TECG.idx <= EDF.FILE.POS*EDF.AS.SPR(12));
         %if ~isempty(tmp)
-        %        pulse(EDF.TECG.idx(tmp)-EDF.AS.startrec*EDF.AS.MAXSPR) = 1;
+        %        pulse(EDF.TECG.idx(tmp)-EDF.AS.startrec*EDF.SPR) = 1;
         %end;
         
         for i=1:size(S,2),
@@ -486,37 +489,37 @@ if ~EDF.SIE.RAW & EDF.SIE.TimeUnits_Seconds
         if NoR>0
                 %EDF.Block,
                 %[StartPos,StartPos+NoS,EDF.AS.startrec*EDF.Dur]
-                if (StartPos < EDF.AS.startrec*EDF.AS.MAXSPR)
-                        tmp = S(size(S,1)+(1-EDF.AS.MAXSPR:0),:);
+                if (StartPos < EDF.AS.startrec*EDF.SPR)
+                        tmp = S(size(S,1)+(1-EDF.SPR:0),:);
                         
                         EDF.Block.number(3) = StartPos;
                         EDF.Block.number(4) = (StartPos+NoS);
                         
                         if ~isempty(EDF.Block.data);
-                                S = [EDF.Block.data(floor(EDF.Block.number(3)-EDF.Block.number(1))+1:EDF.AS.MAXSPR,:); S(1:floor(EDF.Block.number(4)-EDF.AS.startrec*EDF.AS.MAXSPR),:)];
+                                S = [EDF.Block.data(floor(EDF.Block.number(3)-EDF.Block.number(1))+1:EDF.SPR,:); S(1:floor(EDF.Block.number(4)-EDF.AS.startrec*EDF.SPR),:)];
                         else
-                        %        S = [S(1:floor(EDF.Block.number(4)-EDF.AS.startrec*EDF.AS.MAXSPR),:)];
+                        %        S = [S(1:floor(EDF.Block.number(4)-EDF.AS.startrec*EDF.SPR),:)];
                         end;
                         
-                        EDF.Block.number(1:2)=(EDF.FILE.POS+[-1 0])*EDF.AS.MAXSPR;
+                        EDF.Block.number(1:2)=(EDF.FILE.POS+[-1 0])*EDF.SPR;
                         EDF.Block.data = tmp;
                 else
                         EDF.Block.number(3) = StartPos;
                         EDF.Block.number(4) = (StartPos+NoS);
-                        EDF.Block.number(1:2)=(EDF.FILE.POS+[-1 0])*EDF.AS.MAXSPR;
-                        EDF.Block.data = S(size(S,1)+(1-EDF.AS.MAXSPR:0),:);
+                        EDF.Block.number(1:2)=(EDF.FILE.POS+[-1 0])*EDF.SPR;
+                        EDF.Block.data = S(size(S,1)+(1-EDF.SPR:0),:);
                         
-                        %[floor(EDF.Block.number(3)-EDF.AS.startrec*EDF.AS.MAXSPR)+ 1,floor(EDF.Block.number(4)-EDF.AS.startrec*EDF.AS.MAXSPR)],
-                        S = S(floor(EDF.Block.number(3)-EDF.AS.startrec*EDF.AS.MAXSPR)+ 1:floor(EDF.Block.number(4)-EDF.AS.startrec*EDF.AS.MAXSPR),:);
-                        %S = S(EDF.AS.MAXSPR/EDF.Dur*(rem(StartPos,EDF.Dur))+(1:NoR*EDF.AS.MAXSPR),:);
+                        %[floor(EDF.Block.number(3)-EDF.AS.startrec*EDF.SPR)+ 1,floor(EDF.Block.number(4)-EDF.AS.startrec*EDF.SPR)],
+                        S = S(floor(EDF.Block.number(3)-EDF.AS.startrec*EDF.SPR)+ 1:floor(EDF.Block.number(4)-EDF.AS.startrec*EDF.SPR),:);
+                        %S = S(EDF.SPR/EDF.Dur*(rem(StartPos,EDF.Dur))+(1:NoR*EDF.SPR),:);
                 end;
                 
         else
                 EDF.Block.number(3) = StartPos;
                 EDF.Block.number(4) = (StartPos+NoS);
-                EDF.Block.number(1:2)=(EDF.FILE.POS+[-1 0])*EDF.AS.MAXSPR;
+                EDF.Block.number(1:2)=(EDF.FILE.POS+[-1 0])*EDF.SPR;
                 S = [EDF.Block.data(floor(EDF.Block.number(3)-EDF.Block.number(1))+1:floor(EDF.Block.number(4)-EDF.Block.number(1)),:)];
-                %S = EDF.Block.data(floor(StartPos*EDF.AS.MAXSPR/EDF.Dur+1:floor((StartPos+NoS)*EDF.AS.MAXSPR/EDF.Dur),:)];
+                %S = EDF.Block.data(floor(StartPos*EDF.SPR/EDF.Dur+1:floor((StartPos+NoS)*EDF.SPR/EDF.Dur),:)];
         end;
 end;
 %end;

@@ -18,8 +18,8 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.8 $
-%	$Id: swrite.m,v 1.8 2005-01-05 13:11:06 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: swrite.m,v 1.9 2005-03-24 17:48:15 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -44,27 +44,31 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         
         % 	for GDF only one datatype is supported
         if HDR.SIE.RAW,
-                if sum(HDR.SPR)~=size(data,1)
+                if sum(HDR.AS.SPR)~=size(data,1)
                         fprintf(2,'Warning EDFWRITE: datasize must fit to the Headerinfo %i %i %i\n',HDR.AS.spb,size(data));
                         fprintf(2,'Define the Headerinformation correctly.\n',HDR.AS.spb,size(data));
                 end;
                 D = data; 
                 
-        elseif ~all(HDR.SPR==HDR.SPR(1)) %   Support of only 1 sample rate
-                fprintf(2,'Error SWRITE: different Samplingrates require RAW-data mode !\n');
-                return;
+        elseif ~all(HDR.AS.SPR==HDR.AS.SPR(1))        % if different sampling rates are used. 
+                fprintf(2,'Warning SWRITE: different Samplingrates not well tested!\n');
+                NRec = size(data,1)/HDR.SPR; 
+                D = repmat(NaN,sum(HDR.AS.SPR),NRec);
+                for k = 1:HDR.NS;
+                        D(HDR.AS.bi(k)+1:HDR.AS.bi(k+1),:) = rs(reshape(data(:,k),HDR.SPR,NRec),HDR.SPR/HDR.AS.SPR(k),1);
+                end;
                 
-        elseif (HDR.AS.MAXSPR == 1), 
+        elseif (HDR.SPR == 1), 
                 D=data'; 
                 
         else    
                 % fill missing data with NaN
-                tmp = rem(size(data,1),HDR.AS.MAXSPR);
-                data = [data;repmat(HDR.THRESHOLD(1,3),HDR.AS.MAXSPR-tmp,size(data,2))];                                
+                tmp = rem(size(data,1),HDR.SPR);
+                data = [data;repmat(HDR.THRESHOLD(1,3),HDR.SPR-tmp,size(data,2))];                                
                 
                 D = [];
-                for k = 0:size(data,1)/HDR.AS.MAXSPR-1;
-                        tmp = data(k*HDR.AS.MAXSPR+(1:HDR.AS.MAXSPR),:);
+                for k = 0:size(data,1)/HDR.SPR-1;
+                        tmp = data(k*HDR.SPR+(1:HDR.SPR),:);
                         D = [D,tmp(:)];
                 end;
         end;

@@ -1,5 +1,10 @@
 function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 % Opens EDF/GDF/SDF files for reading and writing. 
+%
+% !!! DO NOT CALL "SDFOPEN" DIRECTLY, USE "SOPEN" INSTEAD !!!
+%
+% See also: fread, SREAD, SCLOSE, SSEEK, SREWIND, STELL, SEOF
+
 % The EDF format is specified in [1], GDF in [2].
 % SDF is the SIESTA convention about polygraphic recordings (see [3], pp.8-9). 
 % SDF used the EDF format.
@@ -117,8 +122,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.40 $
-%	$Id: sdfopen.m,v 1.40 2005-03-22 16:26:18 schloegl Exp $
+%	$Revision: 1.41 $
+%	$Id: sdfopen.m,v 1.41 2005-03-24 17:48:14 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -366,7 +371,7 @@ if ~strcmp(EDF.VERSION(1:3),'GDF'),
         EDF.DigMin     = str2double(h2(:,idx1(6)+1:idx1(7)));
         EDF.DigMax     = str2double(h2(:,idx1(7)+1:idx1(8)));
         EDF.PreFilt    =            h2(:,idx1(8)+1:idx1(9));
-        EDF.SPR        = str2double(h2(:,idx1(9)+1:idx1(10)));
+        EDF.AS.SPR        = str2double(h2(:,idx1(9)+1:idx1(10)));
         %EDF.reserved  =       h2(:,idx1(10)+1:idx1(11));
 	if ~all(abs(EDF.VERSION)==[255,abs('BIOSEMI')]),
 		EDF.GDFTYP     = 3*ones(1,EDF.NS);	%	datatype
@@ -374,9 +379,9 @@ if ~strcmp(EDF.VERSION(1:3),'GDF'),
 		EDF.GDFTYP     = (255+24)*ones(1,EDF.NS);	%	datatype
 	end;
 	
-        if isempty(EDF.SPR), 
+        if isempty(EDF.AS.SPR), 
                 fprintf(EDF.FILE.stderr, 'Warning SDFOPEN: invalid SPR-value in header of %s\n',EDF.FileName);
-                EDF.SPR=ones(EDF.NS,1);
+                EDF.AS.SPR=ones(EDF.NS,1);
 	        EDF.ErrNo=[1028,EDF.ErrNo];
         end;
 else
@@ -400,7 +405,7 @@ else
         EDF.THRESHOLD  = [EDF.DigMin,EDF.DigMax];       % automated overflow detection 
         
         EDF.PreFilt    =  setstr(fread(EDF.FILE.FID,[80,EDF.NS],'uchar')');	%	
-        EDF.SPR        =         fread(EDF.FILE.FID,[ 1,EDF.NS],'uint32')';	%	samples per data record
+        EDF.AS.SPR        =         fread(EDF.FILE.FID,[ 1,EDF.NS],'uint32')';	%	samples per data record
         EDF.GDFTYP     =         fread(EDF.FILE.FID,[ 1,EDF.NS],'uint32');	%	datatype
         %                        fread(EDF.FILE.FID,[32,EDF.NS],'uchar')';	%	datatype
 end;
@@ -473,21 +478,26 @@ end;
 %		EDF=gdfcheck(EDF,1);
 if any(EDF.PhysMax==EDF.PhysMin), EDF.ErrNo=[1029,EDF.ErrNo]; end;	
 if any(EDF.DigMax ==EDF.DigMin ), EDF.ErrNo=[1030,EDF.ErrNo]; end;	
-EDF.Cal = (EDF.PhysMax-EDF.PhysMin)./(EDF.DigMax-EDF.DigMin);
-EDF.Off = EDF.PhysMin - EDF.Cal .* EDF.DigMin;
-EDF.EDF.SampleRate = EDF.SPR / EDF.Dur;
-EDF.AS.MAXSPR=1;
-for k=1:EDF.NS,
-        EDF.AS.MAXSPR = lcm(EDF.AS.MAXSPR,EDF.SPR(k));
+if ~any(EDF.GDFTYP(1)==[0,16:18])
+        EDF.Cal = (EDF.PhysMax-EDF.PhysMin)./(EDF.DigMax-EDF.DigMin);
+        EDF.Off = EDF.PhysMin - EDF.Cal .* EDF.DigMin;
+else
+        EDF.Off = zeros(EDF.NS,1);
+        EDF.Cal = ones(EDF.NS,1);
 end;
-EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
+EDF.EDF.SampleRate = EDF.AS.SPR / EDF.Dur;
+EDF.SPR=1;
+for k=1:EDF.NS,
+        EDF.SPR = lcm(EDF.SPR,EDF.AS.SPR(k));
+end;
+EDF.SampleRate = EDF.SPR/EDF.Dur;
 
-EDF.AS.spb = sum(EDF.SPR);	% Samples per Block
-EDF.AS.bi = [0;cumsum(EDF.SPR)]; 
-EDF.AS.BPR  = ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'); 
-EDF.AS.SAMECHANTYP = all(EDF.AS.BPR == (EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)')) & ~any(diff(EDF.GDFTYP)); 
-EDF.AS.GDFbi = [0;cumsum(ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'))]; 
-EDF.AS.bpb = sum(ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'));	% Bytes per Block
+EDF.AS.spb = sum(EDF.AS.SPR);	% Samples per Block
+EDF.AS.bi = [0;cumsum(EDF.AS.SPR)]; 
+EDF.AS.BPR  = ceil(EDF.AS.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'); 
+EDF.AS.SAMECHANTYP = all(EDF.AS.BPR == (EDF.AS.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)')) & ~any(diff(EDF.GDFTYP)); 
+EDF.AS.GDFbi = [0;cumsum(ceil(EDF.AS.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'))]; 
+EDF.AS.bpb = sum(ceil(EDF.AS.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'));	% Bytes per Block
 EDF.AS.startrec = 0;
 EDF.AS.numrec = 0;
 EDF.AS.EVENTTABLEPOS = -1;
@@ -598,7 +608,7 @@ elseif strcmp(EDF.TYPE,'EDF') & (length(strmatch('EDF Annotations',EDF.Label))==
         EDF.Off(EDF.EDF.Annotations) = 0;
         
         status = fseek(EDF.FILE.FID,EDF.HeadLen+EDF.AS.bi(EDF.EDF.Annotations)*2,'bof');
-        t = fread(EDF.FILE.FID,inf,[int2str(EDF.SPR(EDF.EDF.Annotations)*2),'*uchar=>uchar'],EDF.AS.bpb-EDF.SPR(EDF.EDF.Annotations)*2);
+        t = fread(EDF.FILE.FID,inf,[int2str(EDF.AS.SPR(EDF.EDF.Annotations)*2),'*uchar=>uchar'],EDF.AS.bpb-EDF.AS.SPR(EDF.EDF.Annotations)*2);
         EDF.EDF.ANNONS = t';
         lt = length(t);
         EVENTTABLE = repmat(0,lt/2,4);
@@ -808,14 +818,14 @@ EDF.SIE.REG=eye(EDF.NS);
         EDF.SIE.TECG=0;
         EDF.SIE.AFIR=0;
         EDF.SIE.FILT=0;
-        %EDF.AS.MAXSPR=max(EDF.SPR(EDF.SIE.ChanSelect)); % Layer 3 defines EDF.AS.MAXSPR in GDFREAD
+        %EDF.SPR=max(EDF.AS.SPR(EDF.SIE.ChanSelect)); % Layer 3 defines EDF.SPR in GDFREAD
         if 0,
-		EDF.AS.MAXSPR=EDF.SPR(EDF.SIE.ChanSelect(1));
+		EDF.SPR=EDF.AS.SPR(EDF.SIE.ChanSelect(1));
 	        for k=2:length(EDF.SIE.ChanSelect),
-    		        EDF.AS.MAXSPR = lcm(EDF.AS.MAXSPR,EDF.SPR(EDF.SIE.ChanSelect(k)));
+    		        EDF.SPR = lcm(EDF.SPR,EDF.AS.SPR(EDF.SIE.ChanSelect(k)));
 	        end;
 	end;
-	EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
+	EDF.SampleRate = EDF.SPR/EDF.Dur;
         
         EDF.SIE.REG=eye(EDF.NS);
 
@@ -895,8 +905,8 @@ EDF.SIE.REG=eye(EDF.NS);
                                 end;
                                 if isstruct(QRS)
                                         EDF.SIE.TECG = 1;
-					%%%  EDF.AS.MAXSPR=size(QRS.Templates,1)/3;
-                                        EDF.AS.MAXSPR=lcm(EDF.AS.MAXSPR,EDF.SPR(channel1));
+					%%%  EDF.SPR=size(QRS.Templates,1)/3;
+                                        EDF.SPR=lcm(EDF.SPR,EDF.AS.SPR(channel1));
 				else
                                         fprintf(EDF.FILE.stderr,'WARNING SDFOPEN: %s invalid for TECG\n',[ lower(EDF.FILE.Name) 'ECG.mat']);
                                 end;
@@ -923,8 +933,8 @@ EDF.SIE.REG=eye(EDF.NS);
                                 EDF.AFIR.alfa=0.01;
                                 EDF.AFIR.gamma=1e-32;
                                 
-                                EDF.AFIR.delay  = ceil(0.05*EDF.AS.MAXSPR/EDF.Dur); 
-                                EDF.AFIR.nord = EDF.AFIR.delay+EDF.AS.MAXSPR/EDF.Dur; 
+                                EDF.AFIR.delay  = ceil(0.05*EDF.SPR/EDF.Dur); 
+                                EDF.AFIR.nord = EDF.AFIR.delay+EDF.SPR/EDF.Dur; 
                                 
                                 EDF.AFIR.nC = length(EDF.AFIR.channel2);
                                 EDF.AFIR.w = zeros(EDF.AFIR.nC, max(EDF.AFIR.nord));
@@ -959,16 +969,16 @@ EDF.SIE.REG=eye(EDF.NS);
                         EDF.Filter.A = 1;
                         EDF.Filter.B = 1;
                         %if all(EDF.SampleRate(EDF.SIE.ChanSelect)==100)
-                        if EDF.AS.MAXSPR/EDF.Dur==100
+                        if EDF.SPR/EDF.Dur==100
                                 EDF.Filter.B=[1 1]/2;
                                 %elseif all(EDF.SampleRate(EDF.SIE.ChanSelect)==200)
-                        elseif EDF.AS.MAXSPR/EDF.Dur==200
+                        elseif EDF.SPR/EDF.Dur==200
                                 EDF.Filter.B=[1 1 1 1]/4;
                                 %elseif all(EDF.SampleRate(EDF.SIE.ChanSelect)==256)
-                        elseif EDF.AS.MAXSPR/EDF.Dur==400
+                        elseif EDF.SPR/EDF.Dur==400
                                 EDF.Filter.B=ones(1,8)/8;
                                 %elseif all(EDF.SampleRate(EDF.SIE.ChanSelect)==256)
-                        elseif EDF.AS.MAXSPR/EDF.Dur==256
+                        elseif EDF.SPR/EDF.Dur==256
                                 EDF.Filter.B=poly([exp([-1 1 -2 2]*2*pi*i*50/256)]); %max(EDF.SampleRate(EDF.SIE.ChanSelect)))]);
                                 EDF.Filter.B=EDF.Filter.B/sum(EDF.Filter.B);
                         else
@@ -997,7 +1007,7 @@ EDF.SIE.REG=eye(EDF.NS);
                         if isempty(tau)
                                 fprintf(EDF.FILE.stderr,'Warning SDFOPEN: invalid tau-value.\n');
                         else
-                                EDF.Filter.B=conv([1 (EDF.Dur/EDF.AS.MAXSPR/tau-1)], EDF.Filter.B);
+                                EDF.Filter.B=conv([1 (EDF.Dur/EDF.SPR/tau-1)], EDF.Filter.B);
                         end;
 			
                 %%%% example 'HPF_1.0Hz_Hamming',  % high pass filtering
@@ -1009,7 +1019,7 @@ EDF.SIE.REG=eye(EDF.NS);
 			    [FilterArg2,FilterArg3]=strtok(FilterArg2,'_');
 			    tmp=strfind(FilterArg1,'Hz');
 			    F0=str2double(FilterArg1(1:tmp-1));				    
-			    B=feval(FilterArg2,F0*EDF.AS.MAXSPR/EDF.Dur);
+			    B=feval(FilterArg2,F0*EDF.SPR/EDF.Dur);
 			    B=B/sum(B);
 			    B(ceil(length(B)/2))=(B(ceil(length(B)/2)))-1;
 			    
@@ -1085,16 +1095,16 @@ EDF.SIE.REG=eye(EDF.NS);
                         end;
                         
                 end;
-                fs = EDF.SPR(12)/EDF.Dur; 
+                fs = EDF.AS.SPR(12)/EDF.Dur; 
                 QRS.Templates=detrend(QRS.Templates,0); %remove mean
-                EDF.TECG.idx = [(QRS.Index-fs/2-1) (EDF.NRec+1)*EDF.SPR(12)]; %include terminating element
+                EDF.TECG.idx = [(QRS.Index-fs/2-1) (EDF.NRec+1)*EDF.AS.SPR(12)]; %include terminating element
                 EDF.TECG.idxidx = 1; %pointer to next index
 
                 % initialize if any spike is detected before first window    
 	        pulse = zeros(length(QRS.Templates),1);
     		Index=[];
 	        while EDF.TECG.idx(EDF.TECG.idxidx) < 1,
-    		        Index=[Index EDF.TECG.idx(EDF.TECG.idxidx)-EDF.AS.startrec*EDF.SPR(12)];
+    		        Index=[Index EDF.TECG.idx(EDF.TECG.idxidx)-EDF.AS.startrec*EDF.AS.SPR(12)];
             		EDF.TECG.idxidx=EDF.TECG.idxidx+1;
 	        end;
 	        if ~isempty(Index)
@@ -1124,7 +1134,7 @@ EDF.SIE.REG=eye(EDF.NS);
                         x=sprintf('%3.1f*%s',EDF.SIE.ReRefMx(tmp(1),k),deblank(EDF.Label(tmp(1),:)));
                 end;
                 for l=2:length(tmp), L=tmp(l);
-                        if (EDF.SPR(tmp(l-1),:)~=EDF.SPR(tmp(l),:))  
+                        if (EDF.AS.SPR(tmp(l-1),:)~=EDF.AS.SPR(tmp(l),:))  
                                 fprintf(EDF.FILE.stderr,'Warning SDFOPEN: SampleRate Mismatch in "%s", channel #%i and #%i\n',EDF.FILE.Name,tmp(l-1),tmp(l));
                         end;
                         if ~strcmp(EDF.PhysDim(tmp(l-1),:),EDF.PhysDim(tmp(l),:))  
@@ -1149,9 +1159,9 @@ EDF.SIE.REG=eye(EDF.NS);
         end;
         
         if EDF.SIE.RS,
-		tmp = EDF.AS.MAXSPR/EDF.Dur;
+		tmp = EDF.SPR/EDF.Dur;
                 if arg5==0
-                        %arg5 = max(EDF.SPR(EDF.SIE.ChanSelect))/EDF.Dur;
+                        %arg5 = max(EDF.AS.SPR(EDF.SIE.ChanSelect))/EDF.Dur;
                         
                 elseif ~rem(tmp,arg5); % The target sampling rate must divide the source sampling rate   
 			EDF.SIE.RS = 1;
@@ -1159,7 +1169,7 @@ EDF.SIE.REG=eye(EDF.NS);
 			EDF.SIE.T = ones(tmp,1)/tmp;
                 elseif arg5==100; % Currently, only the target sampling rate of 100Hz are supported. 
                         EDF.SIE.RS=1;
-                        tmp=EDF.AS.MAXSPR/EDF.Dur;
+                        tmp=EDF.SPR/EDF.Dur;
                         if exist('OCTAVE_VERSION')
                                 load resample_matrix4octave.mat T256100 T200100;
                         else
@@ -1178,7 +1188,7 @@ EDF.SIE.REG=eye(EDF.NS);
                                         fprintf('Warning SDFOPEN-READ: sampling rates should be equal\n');     
                                 end;	
                         else
-                                tmp=EDF.SPR(EDF.SIE.ChanSelect)/EDF.Dur;
+                                tmp=EDF.AS.SPR(EDF.SIE.ChanSelect)/EDF.Dur;
                                 if all((tmp==256) | (tmp<100)) 
                                         EDF.SIE.RS = 1;
                                         %tmp=load(RSMN,'T256100');	
@@ -1230,10 +1240,10 @@ EDF.SIE.REG=eye(EDF.NS);
 	        fprintf(2,'Warning SDFOPEN (%s): FED not implemented yet\n',EDF.FileName);
                 for k=1:length(EDF.InChanSelect),K=EDF.InChanSelect(k);
 	        %for k=1:EDF.NS,
-    		        [y1,EDF.Block.z1{k}] = filter([1 -1], 1, zeros(EDF.SPR(K)/EDF.Dur,1));
-            		[y2,EDF.Block.z2{k}] = filter(ones(1,EDF.SPR(K)/EDF.Dur)/(EDF.SPR(K)/EDF.Dur),1,zeros(EDF.SPR(K)/EDF.Dur,1));
+    		        [y1,EDF.Block.z1{k}] = filter([1 -1], 1, zeros(EDF.AS.SPR(K)/EDF.Dur,1));
+            		[y2,EDF.Block.z2{k}] = filter(ones(1,EDF.AS.SPR(K)/EDF.Dur)/(EDF.AS.SPR(K)/EDF.Dur),1,zeros(EDF.AS.SPR(K)/EDF.Dur,1));
                 
-           		[y3,EDF.Block.z3{k}] = filter(ones(1,EDF.SPR(K)/EDF.Dur)/(EDF.SPR(K)/EDF.Dur),1,zeros(EDF.SPR(K)/EDF.Dur,1));
+           		[y3,EDF.Block.z3{k}] = filter(ones(1,EDF.AS.SPR(K)/EDF.Dur)/(EDF.AS.SPR(K)/EDF.Dur),1,zeros(EDF.AS.SPR(K)/EDF.Dur,1));
     		end;
         end;
 
@@ -1269,16 +1279,16 @@ if ~isstruct(arg1)  % if arg1 is the filename
         if nargin<4
                 tmp=input('SDFOPEN: Duration of one block in seconds: '); 
                 EDF.Dur = tmp;
-                EDF.SPR=EDF.Dur*EDF.SampleRate;
+                EDF.AS.SPR=EDF.Dur*EDF.SampleRate;
         else
                 if ~isempty(strfind(upper(arg4),'RAW'))
                         EDF.SIE.RAW = 1;
                 else
                         EDF.Dur = arg4;
-                        EDF.SPR=EDF.Dur*EDF.SampleRate;
+                        EDF.AS.SPR=EDF.Dur*EDF.SampleRate;
                 end;
         end;
-        EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
+        EDF.SampleRate = EDF.SPR/EDF.Dur;
 end;
 
 FILENAME=EDF.FileName;
@@ -1303,7 +1313,7 @@ if ~strcmp(EDF.VERSION(1:3),'GDF');
         %EDF.VERSION = '0       ';
         fprintf(EDF.FILE.stderr,'\nData are stored with integer16.\nMeasures for minimizing round-off errors have been taken.\nDespite, overflow and round off errors may occur.\n');  
         
-        if sum(EDF.SPR)>61440/2;
+        if sum(EDF.AS.SPR)>61440/2;
                 fprintf(EDF.FILE.stderr,'\nWarning SDFOPEN: One block exceeds 61440 bytes.\n')
         end;
 else
@@ -1321,6 +1331,9 @@ end;
 if ~isfield(EDF,'T0')
         EDF.T0=zeros(1,6);
         fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.T0 not defined\n');
+elseif any(isnan(EDF.T0))
+        EDF.T0(isnan(EDF.T0))=0;
+        fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.T0 not completely defined\n');
 end;
 if ~isfield(EDF,'reserved1')
         EDF.reserved1=char(ones(1,44)*32);
@@ -1345,8 +1358,11 @@ end;
 if ~isfield(EDF,'SampleRate')
         EDF.SampleRate = NaN;
 end;
-if ~isfield(EDF,'SPR')
-        EDF.SPR = NaN;
+if ~isfield(EDF,'AS')
+        EDF.AS.SPR = NaN;
+end;
+if ~isfield(EDF.AS,'SPR')
+        EDF.AS.SPR = NaN;
 end;
 if ~isfield(EDF,'EDF')
         EDF.EDF.SampleRate = repmat(EDF.SampleRate,EDF.NS,1);
@@ -1355,23 +1371,23 @@ elseif ~isfield(EDF.EDF,'SampleRate')
 end;
 
 if ~EDF.NS,
-elseif ~isnan(EDF.Dur) & any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
-	EDF.SPR = EDF.EDF.SampleRate * EDF.Dur;
-elseif ~isnan(EDF.Dur) & ~any(isnan(EDF.SPR)) & any(isnan(EDF.EDF.SampleRate))
-	EDF.SampleRate = EDF.Dur * EDF.SPR;
-elseif isnan(EDF.Dur) & ~any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
-	EDF.Dur = EDF.SPR ./ EDF.SampleRate;
+elseif ~isnan(EDF.Dur) & any(isnan(EDF.AS.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
+	EDF.AS.SPR = EDF.EDF.SampleRate * EDF.Dur;
+elseif ~isnan(EDF.Dur) & ~any(isnan(EDF.AS.SPR)) & any(isnan(EDF.EDF.SampleRate))
+	EDF.SampleRate = EDF.Dur * EDF.AS.SPR;
+elseif isnan(EDF.Dur) & ~any(isnan(EDF.AS.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
+	EDF.Dur = EDF.AS.SPR ./ EDF.SampleRate;
 	if all(EDF.Dur(1)==EDF.Dur)
 		EDF.Dur = EDF.Dur(1);
 	else
 		fprintf(EDF.FILE.stderr,'Warning SDFOPEN: SPR and SampleRate do not fit\n');
-		[EDF.SPR,EDF.SampleRate,EDF.Dur]
+		[EDF.AS.SPR,EDF.SampleRate,EDF.Dur]
 	end;
-elseif ~isnan(EDF.Dur) & ~any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
+elseif ~isnan(EDF.Dur) & ~any(isnan(EDF.AS.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
         %% thats ok, 
 else
         EDF.ErrNo = EDF.ErrNo + 128;
-	fprintf(EDF.FILE.stderr,'ERROR SDFOPEN: more than 1 of EDF.Dur, EDF.SampleRate, EDF.SPR undefined.\n');
+	fprintf(EDF.FILE.stderr,'ERROR SDFOPEN: more than 1 of EDF.Dur, EDF.SampleRate, EDF.AS.SPR undefined.\n');
 	return; 
 end;
 
@@ -1420,7 +1436,12 @@ else
         tmp=min(8,size(EDF.PhysDim,2));
         EDF.PhysDim=[EDF.PhysDim(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,8-tmp))];
 end;
-
+if ~any(EDF.GDFTYP(1)==[0,16:18])
+        EDF.DigMin  = repmat(-2^31,1,EDF.NS);
+        EDF.DigMax  = repmat( 2^31-1,1,EDF.NS);
+        EDF.PhysMin = repmat(-2^31,1,EDF.NS);
+        EDF.PhysMax = repmat( 2^31-1,1,EDF.NS);
+end;
 if ~isfield(EDF,'PhysMin')
         if EDF.NS>0,
                 fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.PhysMin not defined\n');
@@ -1455,18 +1476,18 @@ else
 end;
 if ~isfield(EDF,'SPR')
         if EDF.NS>0,
-                fprintf('Warning SDFOPEN-W: EDF.SPR not defined\n');
+                fprintf('Warning SDFOPEN-W: EDF.AS.SPR not defined\n');
         end;
-        EDF.SPR = repmat(nan,EDF.NS,1);
-        EDF.ERROR = sprintf('Error SDFOPEN-W: EDF.SPR not defined\n');
+        EDF.AS.SPR = repmat(nan,EDF.NS,1);
+        EDF.ERROR = sprintf('Error SDFOPEN-W: EDF.AS.SPR not defined\n');
         EDF.ErrNo = EDF.ErrNo + 128;
         %fclose(EDF.FILE.FID); return;
 else
-        EDF.SPR=reshape(EDF.SPR(1:EDF.NS),EDF.NS,1);
+        EDF.AS.SPR=reshape(EDF.AS.SPR(1:EDF.NS),EDF.NS,1);
 end;
-EDF.AS.MAXSPR = 1;
+EDF.SPR = 1;
 for k=1:EDF.NS,
-        EDF.AS.MAXSPR = lcm(EDF.AS.MAXSPR,EDF.SPR(k));
+        EDF.SPR = lcm(EDF.SPR,EDF.AS.SPR(k));
 end;
 
 if (abs(EDF.VERSION(1))==255)  & strcmp(EDF.VERSION(2:8),'BIOSEMI'),
@@ -1589,7 +1610,7 @@ if ~strcmp(EDF.VERSION(1:3),'GDF');
         h2(:,idx1(6)+1:idx1(7))=reshape(sprintf('%-8i',EDF.DigMin)',8,EDF.NS)';
         h2(:,idx1(7)+1:idx1(8))=reshape(sprintf('%-8i',EDF.DigMax)',8,EDF.NS)';
         h2(:,idx1(8)+1:idx1(9))=EDF.PreFilt;
-        h2(:,idx1(9)+1:idx1(10))=reshape(sprintf('%-8i',EDF.SPR)',8,EDF.NS)';
+        h2(:,idx1(9)+1:idx1(10))=reshape(sprintf('%-8i',EDF.AS.SPR)',8,EDF.NS)';
         h2(abs(h2)==0)=char(32);
         for k=1:length(H2idx);
                 fwrite(fid,abs(h2(:,idx1(k)+1:idx1(k+1)))','uchar');
@@ -1609,7 +1630,7 @@ else
 	end;
 
         fwrite(fid, abs(EDF.PreFilt)','uchar');
-        fwrite(fid, EDF.SPR,'uint32');
+        fwrite(fid, EDF.AS.SPR,'uint32');
         fwrite(fid, EDF.GDFTYP,'uint32');
         fprintf(fid,'%c',32*ones(32,EDF.NS));
 end;
@@ -1620,13 +1641,13 @@ if tmp ~= (256 * (EDF.NS+1))
 %else   fprintf(1,'sdfopen in write mode: header info stored correctly\n');
 end;        
 
-EDF.AS.spb = sum(EDF.SPR);	% Samples per Block
-EDF.AS.bi  = [0;cumsum(EDF.SPR)];
-EDF.AS.BPR = ceil(EDF.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)');
-EDF.AS.SAMECHANTYP = all(EDF.AS.BPR == (EDF.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)')) & ~any(diff(EDF.GDFTYP));
+EDF.AS.spb = sum(EDF.AS.SPR);	% Samples per Block
+EDF.AS.bi  = [0;cumsum(EDF.AS.SPR)];
+EDF.AS.BPR = ceil(EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)');
+EDF.AS.SAMECHANTYP = all(EDF.AS.BPR == (EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)')) & ~any(diff(EDF.GDFTYP));
 %EDF.AS.GDFbi= [0;cumsum(EDF.AS.BPR)];
-EDF.AS.GDFbi = [0;cumsum(ceil(EDF.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)'))];
-EDF.AS.bpb   = sum(ceil(EDF.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)'));	% Bytes per Block
+EDF.AS.GDFbi = [0;cumsum(ceil(EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)'))];
+EDF.AS.bpb   = sum(ceil(EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)'));	% Bytes per Block
 EDF.AS.startrec = 0;
 EDF.AS.numrec = 0;
 EDF.FILE.POS  = 0;
