@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.22 $
-%	$Id: sread.m,v 1.22 2004-06-01 12:16:05 schloegl Exp $
+%	$Revision: 1.23 $
+%	$Id: sread.m,v 1.23 2004-06-16 18:24:41 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -524,6 +524,18 @@ elseif strcmp(HDR.TYPE,'MFER'),
 	
         
 elseif strcmp(HDR.TYPE,'SCP'),
+	if nargin>2,
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+
+	nr = min(HDR.SampleRate * NoS, size(HDR.data,1) - HDR.FILE.POS);
+        
+        S  = HDR.data(HDR.FILE.POS + (1:nr), HDR.InChanSelect);
+        
+        HDR.FILE.POS = HDR.FILE.POS + nr;
+	
+        
+elseif strcmp(HDR.TYPE,'GTEC'),
 	if nargin>2,
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;

@@ -8,8 +8,8 @@ function [HDR]=sseek(HDR,offset,origin)
 %
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
-%	$Revision: 1.6 $
-%	$Id: sseek.m,v 1.6 2004-05-02 11:00:02 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: sseek.m,v 1.7 2004-06-16 18:24:41 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -39,7 +39,7 @@ end;
 
 if origin == -1, 
         HDR.FILE.POS = offset;
-        if strmatch(HDR.TYPE,{'MFER','SCP'}),
+        if strmatch(HDR.TYPE,{'GTEC','MFER','SCP'}),
 	elseif HDR.FILE.FID>2,
                 POS = HDR.HeadLen+HDR.AS.bpb*offset;
                 if POS~=ceil(POS),  % for alpha format
@@ -51,7 +51,7 @@ if origin == -1,
         
 elseif origin == 0, 
         HDR.FILE.POS = HDR.FILE.POS + offset;
-        if strmatch(HDR.TYPE,{'MFER','SCP'}),
+        if strmatch(HDR.TYPE,{'GTEC','MFER','SCP'}),
 	elseif HDR.FILE.FID>2,
                 POS = HDR.AS.bpb*offset;
                 if POS~=ceil(POS),  % for alpha format
@@ -81,7 +81,7 @@ elseif origin == 1,
 		HDR.FILE.status = fseek(HDR.FILE.FID,POS,-1);
         elseif strmatch(HDR.TYPE,{'RDF','SIGIF'}),
 		HDR.FILE.POS = length(HDR.Block.Pos)+offset;
-        elseif strmatch(HDR.TYPE,{'BVascii','BVbinvec','EEProbe-CNT','EEProbe-AVR','FIF','MFER','SCP'}),
+        elseif strmatch(HDR.TYPE,{'BVascii','BVbinvec','EEProbe-CNT','EEProbe-AVR','FIF','GTEC','MFER','SCP'}),
 		HDR.FILE.POS = HDR.AS.endpos+offset;
 	else
 		fprintf(HDR.FILE.stderr,'Warning SSEEK: format %s not supported.\n',HDR.TYPE);	

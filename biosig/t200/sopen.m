@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.56 $
-%	$Id: sopen.m,v 1.56 2004-06-01 22:24:21 schloegl Exp $
+%	$Revision: 1.57 $
+%	$Id: sopen.m,v 1.57 2004-06-16 18:24:41 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -199,6 +199,8 @@ if any(PERMISSION=='r'),
                         elseif all(s([1:4])==[0,0,106,26]); 
                                 HDR.TYPE='ESPS';
                                 HDR.Endianity = 'ieee-le';
+                        elseif strcmp(ss([1:15]),'IMA_ADPCM_Sound'); 
+                                HDR.TYPE='IMA ADPCM';
                         elseif all(s([1:8])==[abs('NIST_1A'),0]); 
                                 HDR.TYPE='NIST';
                         elseif all(s([1:7])==[abs('SOUND'),0,13]); 
@@ -413,13 +415,13 @@ if any(PERMISSION=='r'),
 				fseek(fid,0,-1);
 				line = fgetl(fid);
 				N = 1;
-				while length(line)>0,
-					if line(1)~='#',
-						[ix,desc] = strtok(line,[9,32,13,10]);
+				while length(line),
+					if (line(1)~='#'),
+						[ix,desc] = strtok(line,char([9,32,13,10]));
 						ix = hex2dec(ix(3:end));
-						HDR.EVENT.CodeDesc{N} = desc(2:end);
-						HDR.EVENT.CodeIndex(N) = ix;
-						N = N+1;
+						HDR.EVENT.CodeDesc{N,1} = desc(2:end);
+						HDR.EVENT.CodeIndex(N,1) = ix;
+						N = N + 1;
 					end;	
 					line = fgetl(fid);
 				end;
@@ -601,7 +603,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 HDR = eegchkhdr(HDR);
         end;
         HDR = sdfopen(HDR,PERMISSION,CHAN);
-        
+
         
 elseif strcmp(HDR.TYPE,'BKR'),
         HDR = bkropen(HDR,PERMISSION,CHAN);
@@ -3149,6 +3151,89 @@ elseif strcmp(HDR.TYPE,'MAT4'),
         end;
         
         
+elseif strncmp(HDR.TYPE,'MAT',3),
+        status = warning;
+        warning('off');
+        tmp = load(HDR.FileName);
+        warning(status);
+        if isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.5x data format
+                HDR.TYPE = 'GTEC'; 
+                HDR.FILE.OPEN = 1; 
+                HDR.FILE.POS = 0; 
+                if isa(tmp.P_C_S,'data'), %isfield(tmp.P_C_S,'version'); % without BS.analyze	
+                        if any(tmp.P_C_S.Version==[1.02, 1.5, 1.52]),
+                        else
+                                fprintf(HDR.FILE.stderr,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.Version);
+                        end;
+                        HDR.Filter.LowPass  = tmp.P_C_S.LowPass;
+                        HDR.Filter.HighPass = tmp.P_C_S.HighPass;
+                        HDR.Filter.Notch    = tmp.P_C_S.Notch;
+                        HDR.SampleRate      = tmp.P_C_S.SamplingFrequency;
+                        HDR.gBS.Attribute   = tmp.P_C_S.Attribute;
+                        HDR.gBS.AttributeName = tmp.P_C_S.AttributeName;
+                        HDR.Label = tmp.P_C_S.ChannelName;
+                        HDR.gBS.EpochingSelect = tmp.P_C_S.EpochingSelect;
+                        HDR.gBS.EpochingName = tmp.P_C_S.EpochingName;
+
+                        HDR.data = double(tmp.P_C_S.Data);
+                        
+                else %if isfield(tmp.P_C_S,'Version'),	% with BS.analyze software, ML6.5
+                        if any(tmp.P_C_S.version==[1.02, 1.5, 1.52]),
+                        else
+                                fprintf(HDR.FILE.stderr,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.version);
+                        end;        
+                        HDR.Filter.LowPass  = tmp.P_C_S.lowpass;
+                        HDR.Filter.HighPass = tmp.P_C_S.highpass;
+                        HDR.Filter.Notch    = tmp.P_C_S.notch;
+                        HDR.SampleRate      = tmp.P_C_S.samplingfrequency;
+                        HDR.gBS.Attribute   = tmp.P_C_S.attribute;
+                        HDR.gBS.AttributeName = tmp.P_C_S.attributename;
+                        HDR.Label = tmp.P_C_S.channelname;
+                        HDR.gBS.EpochingSelect = tmp.P_C_S.epochingselect;
+                        HDR.gBS.EpochingName = tmp.P_C_S.epochingname;
+                        
+                        HDR.data = double(tmp.P_C_S.data);
+                end;
+                tmp = []; % clear memory
+
+                sz     = size(HDR.data);
+                HDR.NRec = sz(1);
+                HDR.Dur  = sz(2)/HDR.SampleRate;
+                HDR.NS   = sz(3);
+                HDR.FLAG.TRIGGERED = HDR.NRec>1;
+                
+                if any(CHAN),
+                        %HDR.data = HDR.data(:,CHAN);
+                        sz(3)= length(CHAN);
+                else
+                        CHAN = 1:HDR.NS;
+                end;
+                HDR.data  = reshape(permute(HDR.data(:,:,CHAN),[2,1,3]),[sz(1)*sz(2),sz(3)]);
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+
+                % Selection of trials with artifacts
+                ch = strmatch('ARTIFACT',HDR.gBS.AttributeName);
+                if ~isempty(ch)
+                        HDR.ArtifactSelection = HDR.gBS.Attribute(ch,:);
+                end;
+                
+                % Convert gBS-epochings into BIOSIG - Events
+                map = zeros(size(HDR.gBS.EpochingName,1),1);
+                map(strmatch('AUGE',HDR.gBS.EpochingName))=hex2dec('0101');
+                map(strmatch('EOG',HDR.gBS.EpochingName))=hex2dec('0101');
+                map(strmatch('MUSKEL',HDR.gBS.EpochingName))=hex2dec('0103');
+                map(strmatch('MUSCLE',HDR.gBS.EpochingName))=hex2dec('0103');
+                map(strmatch('ELECTRODE',HDR.gBS.EpochingName))=hex2dec('0105');
+
+                if ~isempty(HDR.gBS.EpochingSelect),
+                        HDR.EVENT.TYP = map([HDR.gBS.EpochingSelect{:,9}]');
+                        HDR.EVENT.POS = [HDR.gBS.EpochingSelect{:,1}]';
+                        HDR.EVENT.CHN = [HDR.gBS.EpochingSelect{:,3}]';
+                        HDR.EVENT.DUR = [HDR.gBS.EpochingSelect{:,4}]';
+                end;
+        end;
+
+
 elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADInstruments. 
         CHANNEL_TITLE_LEN = 32;
         UNITS_LEN = 32;
@@ -4213,8 +4298,9 @@ if any(PERMISSION=='r');
                         HDR.FILE.FID = -1;	
                         return;
                 end;
-                HDR.InChanSelect = CHAN(:);
-                HDR.Calib = HDR.Calib(:,CHAN);
+                
+		HDR.Calib = HDR.Calib(:,CHAN(:));
+                HDR.InChanSelect = find(any(HDR.Calib(2:end,:),2));
         end;
         HDR.Calib = sparse(HDR.Calib); 
         
