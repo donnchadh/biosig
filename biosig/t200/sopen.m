@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.18 $
-%	$Id: sopen.m,v 1.18 2003-12-22 11:08:26 schloegl Exp $
+%	$Revision: 1.19 $
+%	$Id: sopen.m,v 1.19 2003-12-23 22:26:21 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -98,6 +98,8 @@ if any(PERMISSION=='r'),
                                 else
                                         HDR.Endianity = 'ieee-le';
                                 end;
+                        elseif all(s(17:22)=='SCPECG'); 
+                                HDR.TYPE='SCPECG';
                         elseif strncmp(ss,'POLY_SAM',8);	% Poly5/TMS32 sample file format.
                                 HDR.TYPE='TMS32';
                         elseif strncmp(ss,'"Snap-Master Data File"',23);	% Snap-Master Data File .
@@ -442,6 +444,125 @@ elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
 	fclose(HDR.FILE.FID);
 
 
+elseif strcmp(HDR.TYPE,'SCPECG'),	%
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+	if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+                HDR.FILE.OPEN = 1; 
+		HDR.FILE.CRC = fread(HDR.FILE.FID,1,'uint16');
+		HDR.FILE.Length = fread(HDR.FILE.FID,1,'uint32');
+
+		k = 0;
+		section.CRC = fread(HDR.FILE.FID,1,'uint16');
+		while ~feof(HDR.FILE.FID)
+			pos = ftell(HDR.FILE.FID);
+			section.ID  = fread(HDR.FILE.FID,1,'uint16');
+			section.Length = fread(HDR.FILE.FID,1,'uint32');
+			section.Version= fread(HDR.FILE.FID,[1,2],'uint8');
+			tmp = fread(HDR.FILE.FID,6,'uint8');
+			
+			k = k + 1;
+			HDR.Section{k} = section;
+			if section.ID==0, 
+
+			elseif section.ID==1,
+				tag = 0; 
+				k1 = 0;
+				while tag~=255,
+					tag = fread(HDR.FILE.FID,1,'uchar');    
+					len = fread(HDR.FILE.FID,1,'uint16');    
+					field = fread(HDR.FILE.FID,[1,len],'char');    
+					
+					if tag == 0,	
+						HDR.Patient.LastName = char(field);
+					elseif tag == 1,
+						HDR.Patient.FirstName = char(field);
+					elseif tag == 2,
+						HDR.Patient.ID = char(field);
+					elseif tag == 3,
+						HDR.Patient.LastName2 = char(field);
+					elseif tag == 4,
+						HDR.Patient.Age = str2num(char(field(1:2)));
+						tmp = field(3);
+						if tmp==0, unit=' ';
+						elseif tmp==1, unit='Y';
+						elseif tmp==2, unit='M';
+						elseif tmp==3, unit='W';
+						elseif tmp==4, unit='d';
+						elseif tmp==5, unit='h';
+						end;
+						HDR.Patient.AgeUnit = unit;
+					elseif tag == 1,
+					end;
+				end;
+
+			elseif section.ID==2, 
+
+			elseif section.ID==3, 
+				HDR.NS = fread(HDR.FILE.FID,1,'char');    
+
+			elseif section.ID==4, 
+
+			elseif section.ID==5,
+				HDR.Cal = fread(HDR.FILE.FID,1,'int16');    
+				HDR.Dur = fread(HDR.FILE.FID,1,'int16');    
+				HDR.SampleRate = 1e6/HDR.Dur;
+				HDR.CodeTyp = fread(HDR.FILE.FID,1,'int16');    
+				HDR.CodeTyp2 = fread(HDR.FILE.FID,1,'int16');    
+
+			elseif section.ID==6, 
+				HDR.Cal = fread(HDR.FILE.FID,1,'int16');    
+				HDR.Dur = fread(HDR.FILE.FID,1,'int16');    
+				HDR.SampleRate = 1e6/HDR.Dur;
+				HDR.CodeTyp = fread(HDR.FILE.FID,1,'uint8');    
+				HDR.CodeTyp2 = fread(HDR.FILE.FID,1,'uint8');    
+				HDR.SPR = fread(HDR.FILE.FID,HDR.NS,'int16');    
+				HDR.HeadLen = ftell(HDR.FILE.FID);
+				for k = 1:HDR.NS,
+					tmp = fread(HDR.FILE.FID,HDR.SPR(k),'int8');    
+					if HDR.CodeTyp==0,
+						HDR.data{k} = tmp;    
+					elseif HDR.CodeTyp==1,
+						HDR.data{k} = cumsum(tmp);    
+					elseif HDR.CodeTyp==2,
+						for k1 = 3:length(tmp);
+							tmp(k1) = tmp(k1) + [2,-1]*tmp(k1-(1:2));
+						end;
+						HDR.data{k} = tmp;
+					end;
+		    		end;
+
+			elseif section.ID==7, 
+
+			elseif section.ID==8, 
+
+			elseif section.ID==9, 
+
+			elseif section.ID==10, 
+
+			elseif section.ID==11, 
+
+			elseif section.ID==12, 
+
+			elseif section.ID==13, 
+
+			elseif section.ID==14, 
+
+			elseif section.ID==15, 
+
+			elseif section.ID==16, 
+
+			elseif section.ID==17, 
+
+			end;
+
+			tmp = fread(HDR.FILE.FID,min(section.Length-16,1000),'uchar');    
+			
+			fseek(HDR.FILE.FID, pos+section.Length-2, -1);
+			section.CRC = fread(HDR.FILE.FID,1,'uint16');
+		end;
+	end;
+
+
 elseif strcmp(HDR.TYPE,'EBS'),
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
 	
@@ -496,6 +617,12 @@ elseif strcmp(HDR.TYPE,'EBS'),
 
 	fclose(HDR.FILE.FID);
 
+
+elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
+	if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+                HDR.FILE.OPEN = 1; 
+	end;
 
 	% Holter Excel 2 file, not supported yet. 
 elseif strcmp(HDR.TYPE,'rhdE'),
