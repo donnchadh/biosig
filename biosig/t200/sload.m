@@ -22,8 +22,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 % Reference(s):
 
 
-%	$Revision: 1.29 $
-%	$Id: sload.m,v 1.29 2004-08-16 16:01:01 schloegl Exp $
+%	$Revision: 1.30 $
+%	$Id: sload.m,v 1.30 2004-09-07 16:22:39 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -211,6 +211,21 @@ elseif strncmp(H.TYPE,'MAT',3),
         	        signal = tmp.y;
                 end;
                 
+        elseif isfield(tmp,'clab') & isfield(tmp,'x_train') & isfield(tmp,'y_train') & isfield(tmp,'x_test');	
+                % BCI competition 2003, dataset 4 (Berlin) 
+                %load('berlin/sp1s_aa_1000Hz.mat');
+                HDR.Classlabel=[repmat(nan,size(tmp.x_test,3),1);tmp.y_train';repmat(nan,size(tmp.x_test,3),1)];
+                HDR.NRec = length(HDR.Classlabel);
+                
+                HDR.SampleRate=1000;
+                HDR.Dur = .5; 
+                HDR.NS = size(tmp.x_test,2);
+                HDR.SPR = HDR.SampleRate*HDR.Dur;
+                HDR.FLAG.TRIGGERED = 1; 
+                sz = [HDR.NS,HDR.SPR,HDR.NRec];
+                
+                signal=reshape(permute(cat(3,tmp.x_test,tmp.x_train,tmp.x_test),[2,1,3]),sz(1),sz(2)*sz(3))';
+                
         elseif isfield(tmp,'daten');	% Woertz, GLBMT-Uebungen 2003
                 H = tmp.daten;
                 signal = H.raw*H.Cal;
@@ -312,7 +327,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 elseif ~isempty(tmp.P_C_DAQ_S.daqboard),
                         [tmppfad,file,ext] = fileparts(tmp.P_C_DAQ_S.daqboard{1}.ObjInfo.LogFileName),
                         file = [file,ext];
-                        if exist(file)==2,
+                        if exist(file,'file')
                                 signal=daqread(file);        
                                 H.info=daqread(file,'info');        
                         else
@@ -485,9 +500,9 @@ end;
 
 
 if strcmp(H.TYPE,'CNT');    
-        f = fullfile(H.FILE.Path, [H.FILE.Name,'.txt']);
-        if exist(f)==2,
-                fid = fopen(fid,'r');
+        f = fullfile(H.FILE.Path, [H.FILE.Name,'.txt']); 
+        if exist(f,'file'),
+                fid = fopen(f,'r');
 		tmp = fread(fid,inf,'char');
 		fclose(fid);
 		[tmp,v] = str2double(char(tmp'));
@@ -496,7 +511,7 @@ if strcmp(H.TYPE,'CNT');
 	        end;
         end
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
-        if exist(f)==2,
+        if exist(f,'file'),
                 tmp = load(f);
                 if isfield(tmp,'classlabel') & ~isfield(H,'Classlabel')
                         H.Classlabel=tmp.classlabel(:);                        
@@ -505,7 +520,7 @@ if strcmp(H.TYPE,'CNT');
                 end;
         end;
         f = fullfile(H.FILE.Path, [H.FILE.Name,'c.mat']);
-        if exist(f)==2,
+        if exist(f,'file'),
                 tmp = load(f);
                 if isfield(tmp,'classlabel') & ~isfield(H,'Classlabel')
                         H.Classlabel=tmp.classlabel(:);                        
@@ -515,7 +530,7 @@ end;
 
 if ~isempty(findstr(upper(MODE),'TSD'));
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.tsd']);
-        if (exist(f)~=2),
+        if ~exist(f,'file'),
                         fprintf(2,'Warning SLOAD-TSD: file %s.tsd found\n',H.FILE(1).Name,H.FILE(1).Name);
         else
                 fid = fopen(f,'rb');
@@ -533,7 +548,7 @@ end;
 %%%%% if possible, load Reinhold's configuration files
 if any(strmatch(H.TYPE,{'BKR','GDF'}));
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
-        if exist(f)==2,
+        if exist(f,'file'),
                 x = load(f,'header');
 		if isfield(x,'header'),
 	                H.BCI.Paradigm = x.header.Paradigm;

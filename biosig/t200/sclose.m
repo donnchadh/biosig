@@ -1,4 +1,4 @@
-function [HDR]=sclose(HDR)
+function [HDR] = sclose(HDR)
 % SCLOSE closes the file with the handle HDR
 % [HDR] = sclose(HDR)
 %    HDR.FILE.status = -1 if file could not be closed.
@@ -20,14 +20,15 @@ function [HDR]=sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.9 $
-%	$Id: sclose.m,v 1.9 2004-09-03 15:17:39 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: sclose.m,v 1.10 2004-09-07 16:22:39 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
 if (HDR.FILE.FID<0) | ~HDR.FILE.OPEN, 
-        fprintf(HDR.FILE.stderr,'Error SCLOSE (%s): invalid handle\n',HDR.FileName);
+        HDR.FILE.status = -1;
+        %fprintf(HDR.FILE.stderr,'Warning SCLOSE (%s): invalid handle\n',HDR.FileName);
 end;
 
 if HDR.FILE.OPEN >= 2,          % write-open of files 
