@@ -1,17 +1,20 @@
 function [a0,A0] = getar0(S,P,NTR,NN);
 % GETAR0 calculates average AR parameters for initialization of 
 % AAR estimation
-% [a0,A0] = getar0(S,P,NTR,NN);
+%
+% C0 = getar0(S,P,NTR,NN);
 %    S  signal 
 %    P  list of model orders
 %    NTR  number of realizations
 %    NN   length each segment
+%    C0 extended covarance matrix (contains a0 and A0)
+%
+% [a0,A0] = getar0(...); % in future this will become obsolete 
 %    a0 average AR-parameters	
 %    A0 covariance 
-%
 
-%	$Revision: 1.2 $
-%	$Id: getar0.m,v 1.2 2003-06-17 09:37:58 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: getar0.m,v 1.3 2003-07-12 00:05:58 schloegl Exp $
 %	Copyright (c) 1996-2003 by Alois Schloegl
 %	e-mail: a.schloegl@ieee.org	
 
@@ -41,7 +44,11 @@ end;
 
 for k=1:length(P),
         a = MX(:,P(k)*(P(k)-1)/2+(1:P(k)));
-        a0{k} = mean(a);
-        A0{k} = covm(a,'D');
+	if nargout<2,
+	        a0{k} = covm(a,'E');
+        else	% OBSOLETE 
+		a0{k} = mean(a);
+    		A0{k} = covm(a,'D');
+	end;
 end;	
 
