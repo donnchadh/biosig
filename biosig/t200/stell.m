@@ -11,8 +11,8 @@ function [POS,HDR] = stell(HDR)
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
 
-%	$Revision: 1.4 $
-%	$Id: stell.m,v 1.4 2004-04-16 14:10:43 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: stell.m,v 1.5 2004-04-18 22:17:20 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -23,7 +23,7 @@ if POS<0,
         return; 
 end;
 
-if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
+if strmatch(HDR.TYPE,'EDF','BDF','GDF','CTF'),
 	POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
 	HDR.ERROR = [];
 	HDR.ErrNo = 0;

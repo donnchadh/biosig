@@ -17,8 +17,8 @@ function [signal,H] = sload(FILENAME,CHAN)
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.21 $
-%	$Id: sload.m,v 1.21 2004-04-16 14:10:43 schloegl Exp $
+%	$Revision: 1.22 $
+%	$Id: sload.m,v 1.22 2004-04-18 22:17:20 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -488,11 +488,6 @@ elseif strncmp(H.TYPE,'MAT',3),
                 whos('-file',FILENAME);
         end;        
 
-        
-elseif strcmp(H.TYPE,'CTF'),
-        %%%% #### FIX ME ####
-        signal = read_ctf_meg4(H, CHAN);
-       
         
 elseif strcmp(H.TYPE,'unknown')
         TYPE = upper(H.FILE.Ext);

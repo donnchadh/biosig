@@ -18,8 +18,8 @@ function [HDR]=sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.6 $
-%	$Id: sclose.m,v 1.6 2004-04-15 17:28:56 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: sclose.m,v 1.7 2004-04-18 22:17:20 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org
 
@@ -174,6 +174,7 @@ end;
 
 if strcmp(HDR.TYPE,'FIF') ;
         rawdata('close');
+        HDR.FILE.OPEN = 0;
 end;
 
 if HDR.FILE.OPEN,

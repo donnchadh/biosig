@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.17 $
-%	$Id: sread.m,v 1.17 2004-04-16 14:12:33 schloegl Exp $
+%	$Revision: 1.18 $
+%	$Id: sread.m,v 1.18 2004-04-18 22:17:19 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -464,6 +464,25 @@ elseif strcmp(HDR.TYPE,'SIGIF'),
         end;
         
         
+elseif strcmp(HDR.TYPE,'CTF'),
+        if nargin>2,
+                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.NS*HDR.SPR*4*StartPos,'bof');        
+                HDR.FILE.POS = StartPos;
+        end;
+	
+	nr = min(NoS, HDR.NRec - HDR.FILE.POS);
+	
+        S = []; count = 0; 
+	for k = 1:nr,
+	        %[tmp,c] = fread(HDR.FILE.FID, 1, 'int32')
+	        [s,c] = fread(HDR.FILE.FID, [HDR.SPR, HDR.NS], 'int32');
+		S = [S; s(:,HDR.InChanSelect)];
+		count = count + c;
+	end;
+	
+        HDR.FILE.POS = HDR.FILE.POS + count/(HDR.SPR*HDR.NS);
+        
+        
 elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
         if nargin>2,
                 fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb,'bof');        
@@ -581,10 +600,12 @@ if ~HDR.FLAG.UCAL,
                 % force octave to do a sparse multiplication
                 % the difference is NaN*sparse(0) = 0 instead of NaN
                 % this is important for the automatic overflow detection
-                tmp = zeros(size(S,1),size(HDR.Calib,2));
-                for k = 1:size(HDR.Calib,2),
-                        chan = find(HDR.Calib(1+HDR.InChanSelect,k));
-                        tmp(:,k)=[ones(size(S,1),1),S(:,chan)]*HDR.Calib([1;1+HDR.InChanSelect(chan)],k);
+
+		Calib = full(HDR.Calib);   % Octave can not index structed sparse matrix 
+                tmp = zeros(size(S,1),size(Calib,2));
+                for k = 1:size(Calib,2),
+                        chan = find(Calib(1+HDR.InChanSelect,k));
+                        tmp(:,k)=[ones(size(S,1),1),S(:,chan)]*Calib([1;1+HDR.InChanSelect(chan)],k);
                 end
                 S = tmp; 
         else
