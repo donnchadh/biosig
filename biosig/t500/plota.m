@@ -36,8 +36,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 
 
 
-%       $Revision: 1.12 $
-%	$Id: plota.m,v 1.12 2003-04-22 08:13:28 montaine Exp $
+%       $Revision: 1.13 $
+%	$Id: plota.m,v 1.13 2003-04-22 08:43:22 montaine Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -80,13 +80,21 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
                         end;
                 end;
                 suptitle('Ordinary coherence')
-        elseif ((length(size(X.COH))==4) & (size(X.COH,4)==2)) | (((length(size(X.COH))==4) & (size(X.COH,4)==3))) ,
+elseif (length(size(X.COH))==4) & ((size(X.COH,4)==2) | (size(X.COH,4)==3)) ,
+                if nargin<2,
+                    list1=1:size(X.COH,1);
+                    list2=1:size(X.COH,2);
+                else
+                    list1=arg2;
+                    list2=arg3;
+                end;
+                
                 M = size(X.COH,1);
       
-                for k1 = 1:M;
-                        for k2 = k1:M;
-                                s = subplot(M,M,k1+(k2-1)*M);
-                                tmp = abs(squeeze(X.COH(k1,k2,:,1)));
+                for k1 = 1:length(list1);
+                        for k2 = 1:length(list2);%k1:M;
+                                s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
+                                tmp = abs(squeeze(X.COH(list1(k1),list2(k2),:,1)));
                                 hold on
                                 if isfield(X,'ci'),
                                     h=plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N(1,:))-X.p))*[1,-1]])]);        
@@ -96,10 +104,9 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
                                 else
                                     h=plot(X.f,abs(tmp));
                                     set(h(1),'color',[0,0,1])
-                                    %set(h(1),'LineWidth',1.5);
                                 end
                                 
-                                tmp = abs(squeeze(X.COH(k1,k2,:,2)));
+                                tmp = abs(squeeze(X.COH(list1(k1),list2(k2),:,2)));
                                 if isfield(X,'ci'),
                                     h=plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N(2,:))-X.p))*[1,-1]])]);        
                                     set(h(1),'color',[0,1,0])
@@ -111,21 +118,21 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
                                 end
                                 
                                 if (size(X.COH,4)==3)
-                                    tmp = abs(squeeze(X.COH(k1,k2,:,3)));
+                                    tmp = abs(squeeze(X.COH(list1(k1),list2(k2),:,3)));
+                                    %tmp = abs(squeeze(X.COH(k1,k2,:,3)));
                                     h=plot(X.f,abs(tmp));
-                                    set(h(1),'color','y')
-                                    %set(h(1),'LineStyle','--');
+                                    set(h(1),'color',[1,0,0])
                                 end
                                 
                                 hold off
                                 axis([min(X.f),max(X.f),0,1])
                                 if isfield(X,'ElectrodeName'),
                                     if k1==1,
-                                            y=ylabel(X.ElectrodeName(k2));
+                                            y=ylabel(X.ElectrodeName(list2(k2)));
                                             set(y,'FontSize',6);
                                     end;
-                                    if k1==k2,
-                                            t = title(X.ElectrodeName(k2));
+                                    if k2==1,
+                                            t = title(X.ElectrodeName(list1(k1)));
                                             set(t,'FontSize',6);
                                     end;
                                    
