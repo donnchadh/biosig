@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.44 $
-%	$Id: sread.m,v 1.44 2005-02-22 15:58:17 schloegl Exp $
+%	$Revision: 1.45 $
+%	$Id: sread.m,v 1.45 2005-02-22 18:02:00 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -734,26 +734,33 @@ elseif strcmp(HDR.TYPE,'WG1'),   %walter-graphtek
     	status = fseek(HDR.FILE.FID, fp, 'bof');
 
         nr     = min(HDR.AS.endpos-HDR.FILE.POS, NoS*HDR.SampleRate);
-	S      = zeros(nr,length(HDR.InChanSelect)); 
-	count  = 0; 
+	S      = repmat(NaN,nr,length(HDR.InChanSelect)); 
+	count  = 0;
+        endloop= 0;
         [offset,c] = fread(HDR.FILE.FID, HDR.WG1.szOffset, 'int32');
-    	while (c>0) & (offset(1)~=(hex2dec('AEAE5555')-2^32)) & (count<nr);
+    	while ~endloop & (c>0) & (offset(1)~=(hex2dec('AEAE5555')-2^32)) & (count<nr);
 		[databuf,c] = fread(HDR.FILE.FID,[HDR.WG1.szBlock,HDR.NS+HDR.WG1.szExtra],'uint8');
             	dt = HDR.WG1.conv(databuf(:,1:HDR.NS)+1);
             	if any(dt(:)==HDR.WG1.unknownNr),
-            	    	disp('error in reading datastream');
+            	    	fprintf(HDR.FILE.stderr,'Error SREAD (WG1): error in reading datastream');
             	end;
 		dt(1,:) = dt(1,:) + offset(1:HDR.NS)';
-		dt = cumsum(dt);
+		dt = cumsum(dt,1);
 		
 		ix2 = min(nr-count, size(dt,1)-ix1);
 		S(count+1:count+ix2,:) = dt(ix1+1:ix1+ix2, HDR.InChanSelect);
 		count = count + ix2; 
 		ix1 = 0;	% reset starting index, 
-	
+
+                k = 0; 
+                while (k<HDR.WG1.szExtra) & ~endloop, 
+                        endloop = ~isempty(strfind(databuf(:,HDR.NS+k)',[85,85,174,174]));
+                        k = k+1; 
+                end;
+                
 	        [offset,c] = fread(HDR.FILE.FID, HDR.WG1.szOffset, 'int32');
 	end;	
-	S = S(1:count,:);
+	%S = S(1:count,:);
 	HDR.FILE.POS = HDR.FILE.POS + count;
 
 
