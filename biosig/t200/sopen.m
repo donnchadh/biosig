@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.41 $
-%	$Id: sopen.m,v 1.41 2004-03-30 16:15:46 schloegl Exp $
+%	$Revision: 1.42 $
+%	$Id: sopen.m,v 1.42 2004-04-08 07:07:54 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -186,6 +186,13 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='SIGIF';
                         elseif any(s(4)==(2:7)) & all(s(1:3)==0); % [int32] 2...7
                                 HDR.TYPE='EGI';
+                                
+                        elseif all(s(1:4)==hex2dec(reshape('AFFEDADA',2,4)')');        % Walter Graphtek
+                                HDR.TYPE='WG1';
+                                HDR.Endianity = 'ieee-le';
+                        elseif all(s(1:4)==hex2dec(reshape('DADAFEAF',2,4)')'); 
+                                HDR.TYPE='WG1';
+                                HDR.Endianity = 'ieee-be';
 
                         elseif strcmp(ss([1:4,9:16]),'RIFFCNT LIST'); 
                                 HDR.TYPE='EEProbe';     % EEGProbe ? 
@@ -1151,6 +1158,10 @@ elseif strcmp(HDR.TYPE,'SND'),
         HDR.NRec = 1;
         
         
+elseif strcmp(HDR.TYPE,'MFER'),
+	HDR = mwfopen(HDR,PERMISSION);
+
+        
 elseif strcmp(HDR.TYPE,'MPEG'),
         % http://www.dv.co.yu/mpgscript/mpeghdr.htm
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
@@ -2006,6 +2017,58 @@ elseif strcmp(HDR.TYPE,'WFT'),	% implementation of this format is not finished y
         fclose(HDR.FILE.FID);
         
         
+elseif strcmp(HDR.TYPE,'WG1'),
+
+        if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+                HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
+                %HDR.FILE.OPEN = 1; 
+                
+                HDR.Version = fread(HDR.FILE.FID,1,'uint32'); 
+                HDR.WG1.MachineId = fread(HDR.FILE.FID,1,'uint32');
+                HDR.WG1.Day = fread(HDR.FILE.FID,1,'uint32'); 
+                HDR.WG1.millisec = fread(HDR.FILE.FID,1,'uint32');
+                dT = fread(HDR.FILE.FID,1,'uint32');
+                HDR.SampleRate = 1/dT;
+                HDR.NRec = fread(HDR.FILE.FID,1,'uint16');
+                HDR.NS = fread(HDR.FILE.FID,1,'uint16'); 
+                HDR.WG1.poffset = fread(HDR.FILE.FID,1,'uint16');
+                HDR.WG1.pad1 = fread(HDR.FILE.FID,38,'char');   
+                for k=1:HDR.NS,
+                        HDR.Label(k,1:8) = fread(HDR.FILE.FID,[1,8],'char');
+                        HDR.Cal(k,1) = fread(HDR.FILE.FID,1,'uint32')/1000;
+                        tmp = fread(HDR.FILE.FID,[1,2],'uint16');
+                        HDR.InChanSelect(k) = tmp(1);
+                        % skip tmp(2)
+                end;
+                fseek(HDR.FILE.FID,7*256,'bof');
+                HDR.WG1.neco1 = fread(HDR.FILE.FID,1,'uint32');
+                HDR.Patient.Id = fread(HDR.FILE.FID,[1,12],'char');
+                HDR.Patient.LastName = fread(HDR.FILE.FID,[1,20],'char');
+                HDR.Patient.text1 = fread(HDR.FILE.FID,[1,20],'char');
+                HDR.Patient.FirstName = fread(HDR.FILE.FID,[1,20],'char');
+                HDR.Patient.Sex = fread(HDR.FILE.FID,[1,2],'char');
+                HDR.Patient.vata = fread(HDR.FILE.FID,[1,8],'char');
+                HDR.Patient.text2 = fread(HDR.FILE.FID,[1,14],'char');
+                HDR.WG1.Datum = fread(HDR.FILE.FID,1,'uint32');
+                HDR.WG1.mstime = fread(HDR.FILE.FID,1,'uint32');
+                HDR.WG1.nic = fread(HDR.FILE.FID,[1,4],'uint32');
+                HDR.WG1.neco3 = fread(HDR.FILE.FID,1,'uint32');
+               
+                fseek(HDR.FILE.FID,128,'cof');
+                HDR.HeadLen = ftell(HDR.FILE.FID);
+                
+                
+                while 1,
+                        HDR.data = fread(HDR.FILE.FID,[256,HDR.WG1.poffset],'uint32');
+                end;
+        else
+                
+        end;
+
+        fprintf(2,'Warning SOPEN: Implementing Walter-Graphtek (WG1) format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+        fclose(HDR.FILE.FID);
+        
+        
 elseif strcmp(HDR.TYPE,'LDR'),
         HDR = openldr(HDR,PERMISSION);      
         
@@ -2501,8 +2564,8 @@ elseif strcmp(HDR.TYPE,'MIT')
                 end;
                 HDR.Calib = sparse([HDR.zerovalue(:).';eye(HDR.NS)]*diag(1./HDR.gain(:)));
                 
-                z   = char(fread(fid,[1,inf],'char'));
-                ix1 = [findstr('AGE:',upper(z))+4, findstr('AGE>:',upper(z))+5];
+                z = char(fread(fid,[1,inf],'char'));
+                ix1 = [findstr('AGE:',upper(z))+4; findstr('AGE>:',upper(z))+5];
                 if ~isempty(ix1),
                         [tmp,z]=strtok(z(ix1(1):length(z)));
                         HDR.Patient.Age = str2double(tmp);
@@ -3502,21 +3565,14 @@ else
 end;
 
 if any(PERMISSION=='r');
-        HDR.Calib = full(HDR.Calib);	% Octave can not index sparse matrices
+        HDR.Calib = full(HDR.Calib);	% Octace can not index sparse matrices
         if exist('ReRefMx')==1,
-                % HDR.SIE.ChanSelect = 1:size(ReRefMx,2);         
-                [i,j,v] = find(ReRefMx);
-                if any(i) > HDR.NS,
-                        fprintf(HDR.FILE.stderr,'ERROR: size of ReRefMx [%i,%i] exceeds Number of Channels (%i)\n',size(ReRefMx),HDR.NS);
-                        fclose(HDR.FILE.FID); 
-                        HDR.FILE.FID = -1;	
-                        return;
-                end;
-                HDR.Calib = HDR.Calib * sparse(i,j,v,HDR.NS,size(ReRefMx,2));
+                %HDR.SIE.ChanSelect = 1:size(ReRefMx,2);         
+                HDR.Calib = HDR.Calib*ReRefMx;
                 HDR.InChanSelect = find(any(HDR.Calib(2:end,:),2));
-        else 
+        else
                 if CHAN==0,
-                        CHAN = 1:HDR.NS;
+                        CHAN=1:HDR.NS;
                 end;
                 HDR.InChanSelect = CHAN(:);
                 HDR.Calib = HDR.Calib(:,CHAN);
