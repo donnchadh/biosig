@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.87 $
-%	$Id: sopen.m,v 1.87 2005-01-12 15:45:21 schloegl Exp $
+%	$Revision: 1.88 $
+%	$Id: sopen.m,v 1.88 2005-01-14 20:03:05 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2598,6 +2598,15 @@ elseif strcmp(HDR.TYPE,'MIT')
                         [HDR.Patient.Medication,z]=strtok(z(ix1(1):length(z)),char([10,13,abs('#<>')]));
                 end;
                 fclose(fid);
+
+                HDR.AS.spb = sum(HDR.AS.SPR);
+                HDR.AS.bi = [0;cumsum(HDR.AS.SPR(:))]; 
+                HDR.AS.MAXSPR = HDR.AS.SPR(1);
+                for k = 2:HDR.NS,
+                        HDR.AS.MAXSPR = lcm(HDR.AS.MAXSPR,HDR.AS.SPR(k));
+                end;
+                HDR.AS.SampleRate = HDR.SampleRate*HDR.AS.SPR;
+                HDR.SampleRate = HDR.SampleRate*HDR.AS.MAXSPR;
                 
                 if all(HDR.MIT.dformat==HDR.MIT.dformat(1)),
                         HDR.VERSION = HDR.MIT.dformat(1);
@@ -2606,16 +2615,8 @@ elseif strcmp(HDR.TYPE,'MIT')
                         HDR.FILE.FID = -1;
                         return;
                 end;
-
-                HDR.AS.spb = sum(HDR.AS.SPR);
-                HDR.AS.bi = [0;cumsum(HDR.AS.SPR(:))]; 
-                HDR.AS.MAXSPR = max(HDR.AS.SPR);
-                HDR.SampleRate = HDR.SampleRate*HDR.AS.MAXSPR;
-                HDR.AS.SampleRate = HDR.SampleRate*HDR.AS.SPR;
-                if 0, HDR.VERSION == -1, 
-                        HDR.AS.bpb = 3;
-                        HDR.NS = 2;
-                        HDR.FLAG.UCAL = 1; 
+                if 0,
+                        
                 elseif HDR.VERSION == 212, 
                         HDR.AS.bpb = ceil(HDR.AS.spb*3/2);
                 elseif HDR.VERSION == 310, 
@@ -2726,7 +2727,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 FLAG_UCAL = HDR.FLAG.UCAL;	
                 HDR.FLAG.UCAL = 1;
                 [S,HDR] = sread(HDR,1/HDR.SampleRate); % load 1st sample
-                if (HDR.VERSION>0) & (any(S(1,:) ~= HDR.firstvalue)), 
+                if (HDR.VERSION>0) & (any(S(1,:) - HDR.firstvalue)), 
                         fprintf(HDR.FILE.stderr,'Warning SOPEN MIT-ECG: First values of header and datablock do not fit.\n\tHeader:\t'); 
                         fprintf(HDR.FILE.stderr,'\t%5i',HDR.firstvalue);
                         fprintf(HDR.FILE.stderr,'\n\tData 1:\t');
