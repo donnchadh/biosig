@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.79 $
-%	$Id: sopen.m,v 1.79 2004-12-03 20:36:46 schloegl Exp $
+%	$Revision: 1.80 $
+%	$Id: sopen.m,v 1.80 2004-12-04 19:03:49 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -4864,6 +4864,37 @@ else
         return;
 end;
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%	General Postprecessing for all formats of Header information 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% add trigger information for triggered data
+if HDR.FLAG.TRIGGERED & isempty(HDR.EVENT.POS)
+	HDR.EVENT.POS = [0:HDR.NRec-1]'*HDR.SPR;
+	HDR.EVENT.TYP = repmat(hex2dec('0300'),HDR.NRec,1);
+	HDR.EVENT.CHN = repmat(0,HDR.NRec,1);
+	HDR.EVENT.DUR = repmat(0,HDR.NRec,1);
+end;
+
+% apply channel selections to EVENT table
+if any(CHAN) & ~isempty(HDR.EVENT.POS) & isfield(HDR.EVENT,'CHN'),	% only if channels are selected. 
+	sel = (HDR.EVENT.CHN(:)==0);	% memory allocation, select all general events
+	for k = find(~sel'),		% select channel specific elements
+		sel(k) = any(HDR.EVENT.CHN(k)==CHAN);
+	end;
+	HDR.EVENT.POS = HDR.EVENT.POS(sel);
+	HDR.EVENT.TYP = HDR.EVENT.TYP(sel);
+	HDR.EVENT.DUR = HDR.EVENT.DUR(sel);	% if EVENT.CHN available, also EVENT.DUR is defined. 
+	HDR.EVENT.CHN = HDR.EVENT.CHN(sel);
+	% assigning new channel number 
+	a = zeros(1,HDR.NS);
+	for k = 1:length(CHAN),		% select channel specific elements
+		a(CHAN(k)) = k;		% assigning to new channel number. 
+	end;
+	ix = HDR.EVENT.CHN>0;
+	HDR.EVENT.CHN(ix) = a(HDR.EVENT.CHN(ix));	% assigning new channel number
+end;	
 
 if any(PERMISSION=='r') & ~isnan(HDR.NS);
         if exist('ReRefMx','var'),
