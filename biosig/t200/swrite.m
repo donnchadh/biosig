@@ -18,8 +18,8 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.3 $
-%	$Id: swrite.m,v 1.3 2003-09-09 23:10:30 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: swrite.m,v 1.4 2003-10-14 21:28:40 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -126,19 +126,23 @@ elseif strcmp(HDR.TYPE,'BKR'),
         
 elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
         count = 0;
-        if HDR.NS ~= size(data,2) & HDR.NS==size(data,1),
+        if (HDR.NS ~= size(data,2)) & (HDR.NS==size(data,1)),
                 fprintf(2,'SWRITE: number of channels fits number of rows. Transposed data\n');
                 data = data';
         end
-
-	if strcmp(HDR.TYPE,'SND') & (HDR.FILE.TYPE==1),
-		data = lin2mu(data);
-	elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV'),
-		if ~HDR.FLAG.UCAL,
-			data = data * 2^(HDR.bits-1);
-		end;
+        
+        if strcmp(HDR.TYPE,'SND') 
+                if (HDR.FILE.TYPE==1),
+                        data = lin2mu(data);
+                end;
+        elseif strcmp(HDR.TYPE,'WAV'),
+                if ~HDR.FLAG.UCAL,
+                        data = round((data + HDR.Off) / HDR.Cal-.5);
+                end;
 	elseif strcmp(HDR.TYPE,'AIF'),
-
+		if ~HDR.FLAG.UCAL,
+                        data = data * 2^(HDR.bits-1);
+		end;
 	end;
 
         count = fwrite(HDR.FILE.FID,data',gdfdatatype(HDR.GDFTYP));

@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.7 $
-%	$Id: sopen.m,v 1.7 2003-10-08 16:30:32 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: sopen.m,v 1.8 2003-10-14 21:28:40 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -474,7 +474,7 @@ elseif strcmp(HDR.TYPE,'SND'),
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
 	if HDR.FILE.FID < 0,
 		return;
-        end;
+        end;
 	
 	if ~isempty(findstr(PERMISSION,'r')),	%%%%% READ 
 		HDR.FILE.OPEN = 1; 
@@ -565,7 +565,8 @@ elseif strcmp(HDR.TYPE,'SND'),
 		HDR.Cal = 2^(1-HDR.bits); 
 	else
 		HDR.Cal = 1; 	
-	end;
+        end;
+        HDR.Off = 0;
 	
 		%%%%% READ 
 	if HDR.FILE.OPEN == 1; 
@@ -751,7 +752,8 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
 				HDR.AS.endpos = HDR.SPR;
 				HDR.bits = fread(HDR.FILE.FID,1,'uint16');
 				HDR.GDFTYP = ceil(HDR.bits/8)*2-1; % unsigned integer of approbriate size;
-				HDR.Cal  = 2^(1-HDR.bits);
+                                HDR.Cal  = 2^(1-HDR.bits);
+                                HDR.Off  = 0; 
 				HDR.AS.bpb = ceil(HDR.bits/8)*HDR.NS;
 
 				% HDR.SampleRate; % construct Extended 80bit IEEE 754 format 
@@ -872,14 +874,25 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
 				HDR.SampleRate = fread(HDR.FILE.FID,1,'uint32');
 				HDR.WAV.AvgBytesPerSec = fread(HDR.FILE.FID,1,'uint32');
 				HDR.WAV.BlockAlign = fread(HDR.FILE.FID,1,'uint16');
-				if HDR.WAV.Format==1,	% PCM format
-    					HDR.bits = fread(HDR.FILE.FID,1,'uint16');
-					HDR.GDFTYP = ceil(HDR.bits/8) + 1; 
-	    				HDR.Cal = 2^(1-HDR.bits);    
-		    		else 
-					fprintf(2,'Error SOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
-				end;
-				if tagsize>16,
+                                if HDR.WAV.Format==1,	% PCM format
+                                        HDR.bits = fread(HDR.FILE.FID,1,'uint16');
+                                        HDR.Off = 0;
+                                        HDR.Cal = 2^(1-8*ceil(HDR.bits/8));
+                                        if HDR.bits<=8,
+                                                HDR.GDFTYP = 0; 
+                                                HDR.Off =  1;
+                                                %HDR.Cal = HDR.Cal*2;
+                                        elseif HDR.bits<=16,
+                                                HDR.GDFTYP = 3; 
+                                        elseif HDR.bits<=24,
+                                                HDR.GDFTYP = 255+24; 
+                                        elseif HDR.bits<=32,
+                                                HDR.GDFTYP = 5; 
+                                        end;
+                                else 
+                                        fprintf(2,'Error SOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
+                                end;
+                                if tagsize>16,
 					HDR.WAV.cbSize = fread(HDR.FILE.FID,1,'uint16');
 				end;
                         
@@ -1046,12 +1059,32 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
 			fwrite(HDR.FILE.FID,16,'uint32');	
 			fwrite(HDR.FILE.FID,[1,HDR.NS],'uint16');	
 			fwrite(HDR.FILE.FID,[HDR.SampleRate,HDR.bits/8*HDR.NS*HDR.SampleRate],'uint32');	
-			fwrite(HDR.FILE.FID,[HDR.bits/8*HDR.NS,HDR.bits],'uint16');	
+                        fwrite(HDR.FILE.FID,[HDR.bits/8*HDR.NS,HDR.bits],'uint16');	
+                        
+			if isfield(HDR,'Copyright'),
+				fwrite(HDR.FILE.FID,'(c) ','char');	
+				if rem(length(HDR.Copyright),2),
+			    		HDR.Copyright(length(HDR.Copyright)+1)=' ';
+				end;	
+				fwrite(HDR.FILE.FID,length(HDR.Copyright),'uint32');	
+				fwrite(HDR.FILE.FID,HDR.Copyright,'char');	
+			end;
 
-			HDR.GDFTYP = ceil(HDR.bits/8) + 1; 
-			HDR.Cal = 2^(1-HDR.bits);
-
-			HDR.AS.bpb = HDR.NS * ceil(HDR.bits/8);
+                        HDR.Off = 0;
+                        HDR.Cal = 2^(1-8*ceil(HDR.bits/8));
+                        if HDR.bits<=8,
+                                HDR.GDFTYP = 0; 
+                                HDR.Off =  1;
+                                %HDR.Cal = HDR.Cal*2;
+                        elseif HDR.bits<=16,
+                                HDR.GDFTYP = 3; 
+                        elseif HDR.bits<=24,
+                                HDR.GDFTYP = 255+24; 
+                        elseif HDR.bits<=32,
+                                HDR.GDFTYP = 5; 
+                        end;
+                        
+                        HDR.AS.bpb = HDR.NS * ceil(HDR.bits/8);
 			tagsize = HDR.SPR*HDR.AS.bpb;
 			HDR.Dur = HDR.SPR/HDR.SampleRate;
 			HDR.AS.endpos = HDR.SPR;
@@ -1059,6 +1092,13 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
 			fwrite(HDR.FILE.FID,'data','char');	
 			HDR.WAV.posis=[4,ftell(HDR.FILE.FID)];
 			fwrite(HDR.FILE.FID,tagsize,'uint32');	
+			
+			if rem(tagsize,2)
+				fprintf(2,'Error SOPEN WAV: data section has odd number of samples.\n. This violates the WAV specification\n');
+				fclose(HDR.FILE.FID);
+				HDR.FILE.OPEN = 0;
+				return;  
+			end;
 	
 			HDR.HeadLen = ftell(HDR.FILE.FID);
 		end;
