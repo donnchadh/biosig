@@ -1,6 +1,6 @@
 
-%	$Revision: 1.2 $
-%	$Id: Contents.m,v 1.2 2003-07-17 12:07:05 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: Contents.m,v 1.3 2003-07-31 12:16:57 schloegl Exp $
 %	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This library is free software; you can redistribute it and/or
@@ -18,8 +18,10 @@
 % Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 % Boston, MA  02111-1307, USA.
 
+
 DEMO1.M	  QRS-Detection
 DEMO2.M   Estimate and validate BCI classifier
 DEMO3.M	  Demonstrates how the generate an EDF/GDF/BDF file
+DEMO4.M	  Demonstrates how the generate an BKR file
 
 

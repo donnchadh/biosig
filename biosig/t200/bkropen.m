@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.8 $
-%	$Id: bkropen.m,v 1.8 2003-07-24 07:02:49 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: bkropen.m,v 1.9 2003-07-31 12:16:56 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -43,7 +43,6 @@ if isstruct(arg1),
 		fseek(BKR.FILE.FID,0,'bof');	
 	else
 		BKR.FILE.FID = fopen(FILENAME,PERMISSION,'ieee-le');          
-		BKR.FILE.OPEN= 1;
 	end;
 else
 	FILENAME=arg1;
@@ -52,7 +51,6 @@ else
 		fprintf(2,'Error BKROPEN: file %s not found.\n',FILENAME); 
 		return;
 	end;
-	BKR.FILE.OPEN = 1;
         BKR.FileName  = FILENAME;
         [pfad,file,FileExt] = fileparts(BKR.FileName);
         BKR.FILE.Name = file;
@@ -68,6 +66,7 @@ ULONG='uint32';
 FLOAT='float32';
 
 if any(PERMISSION=='r'),
+	BKR.FILE.OPEN = 1;
 	fid = BKR.FILE.FID;
 %%%%% READ HEADER
 
@@ -236,6 +235,7 @@ if any(PERMISSION=='r'),
 
 
 elseif any(PERMISSION=='w') | ~isempty(findstr(PERMISSION,'r+')),
+	BKR.FILE.OPEN = 2;
         if ~isfield(BKR,'SPR'),
 		BKR.SPR = 0; 	% Unknown - Value will be fixed when file is closed. 
         end;

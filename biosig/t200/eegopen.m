@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.30 $
-%	$Id: eegopen.m,v 1.30 2003-07-29 08:34:52 schloegl Exp $
+%	$Revision: 1.31 $
+%	$Id: eegopen.m,v 1.31 2003-07-31 12:16:56 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -146,6 +146,7 @@ if exist(HDR.FileName)==2,
 	end;
 end;
 
+
 if ~isfield(HDR,'TYPE'),
        HDR.TYPE = upper(FileExt(2:length(FileExt)));
 end;
@@ -176,48 +177,11 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
 
         
 elseif strcmp(HDR.TYPE,'BKR'),
-    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
-
-        if any(PERMISSION=='r') & any(PERMISSION=='+'),
-		HDR = eegchkhdr(HDR);
-                HDR.FILE.OPEN = 2;	        
-                HDR = bkropen(HDR,'r+b',CHAN);
-        
-        elseif any(PERMISSION=='r'),
-		HDR = bkropen(HDR,'rb',CHAN);
-        
-        elseif any(PERMISSION=='w') & any(PERMISSION=='+'),
-		if feof(HDR.FILE.FID),
-			HDR = eegchkhdr(HDR);
-                	HDR = bkropen(HDR,'r+b',CHAN);
-		else
-                	HDR = bkropen(HDR,'rb',CHAN);
-        	end;
-       	        HDR.FILE.OPEN = 2;
-		
-        elseif any(PERMISSION=='w'),
-		HDR = eegchkhdr(HDR);
-                HDR.FILE.OPEN = 2;	        
-                HDR = bkropen(HDR,'wb',CHAN);
-        
-        elseif any(PERMISSION=='a') & any(PERMISSION=='+'),
-		if ftell(HDR.FILE.FID),
-        		fseek(HDR.FILE.FID,0,'bof');
-			HDR = bkropen(HDR,'rb',CHAN);
-			HDR = eegseek(HDR, 0,'eof');
-		else
-			HDR = eegchkhdr(HDR);
-                	HDR = bkropen(HDR,'wb',CHAN);
-		end;
-       	        HDR.FILE.OPEN = 3;	        
-        elseif any(PERMISSION=='a'),
-       	        HDR.FILE.OPEN = 3;
-		HDR.FILE.POS  = HDR.AS.endpos;
-        
-	else
-		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
+        if any(PERMISSION=='w');
+                HDR = eegchkhdr(HDR);
         end;
-        
+        HDR = bkropen(HDR,PERMISSION,CHAN);
+
         
 elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
         [HDR,H1,h2] = cntopen(HDR,PERMISSION,CHAN);

@@ -6,8 +6,8 @@ function HDR=eegchkhdr(HDR);
 %
 % see also: EEGOPEN, EEGREAD, EEGSEEK, EEGTELL, EEGCLOSE, EEGWRITE
 
-%	$Revision: 1.3 $
-%	$Id: eegchkhdr.m,v 1.3 2003-03-18 13:35:38 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: eegchkhdr.m,v 1.4 2003-07-31 12:16:56 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -72,6 +72,7 @@ if strcmp(HDR.TYPE,'BKR'),
                 end;
                 
                 fprintf(1,'\n%% This demonstrates how the Header should be defined. \n');
+                fprintf(1,'HDR.TYPE\t= ''BKR'';  %% (file format)\n');
                 fprintf(1,'HDR.FileName\t= ''%s'';  %%(FileName)\n',HDR.FileName);
                 fprintf(1,'HDR.NS\t\t=%5i;  %%(number of channels)\n',HDR.NS);
                 fprintf(1,'HDR.SampleRate\t=%5i;  %%(Sampling rate [Hz])\n',HDR.SampleRate);
@@ -106,4 +107,14 @@ if strcmp(HDR.TYPE,'BKR'),
                 %A = input('Are all values correct [Y]/n?');
                 Answer = 'Y';
         end;
+        
+elseif strcmp(HDR.TYPE,'EDF') 
+        HDR.VERSION='0       ';
+        
+elseif strcmp(HDR.TYPE,'GDF') 
+        HDR.VERSION='GDF     ';
+        
+elseif strcmp(HDR.TYPE,'BDF'),
+        HDR.VERSION=[char(255),'BIOSEMI'];
+        
 end;
