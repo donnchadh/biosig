@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.14 $
-%	$Id: sdfopen.m,v 1.14 2004-03-04 18:16:11 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: sdfopen.m,v 1.15 2004-03-25 18:51:30 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -522,7 +522,7 @@ if nargin <3 %else
 end;
 
 EDF.SIE.ChanSelect = 1:EDF.NS;
-EDF.SIE.InChanSelect = 1:EDF.NS;
+EDF.InChanSelect = 1:EDF.NS;
 
 
 %EDF.SIE.RR=1; %is replaced by ~EDF.FLAG.UCAL
@@ -547,29 +547,29 @@ end;
 %EDF.AS.MAXSPR=max(EDF.SPR(EDF.SIE.ChanSelect)); % Layer 3 defines EDF.AS.MAXSPR in GDFREAD
 EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
 
-EDF.SIE.ReRefMx=eye(EDF.NS);
+%EDF.SIE.ReRefMx=eye(EDF.NS);
 EDF.SIE.REG=eye(EDF.NS);
-EDF.SIE.ReRefMx = EDF.SIE.ReRefMx(:,EDF.SIE.ChanSelect);
-EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx; 
+%EDF.SIE.ReRefMx = EDF.SIE.ReRefMx(:,EDF.SIE.ChanSelect);
+%EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx; 
 
 %if nargin>2 %%%%%          Channel Selection 
         EDF.SIE.REG=eye(EDF.NS);
         if arg3==0
                 EDF.SIE.ChanSelect = 1:EDF.NS;
-                EDF.SIE.InChanSelect = 1:EDF.NS;
+                EDF.InChanSelect = 1:EDF.NS;
                 EDF.SIE.ReRefMx = eye(EDF.NS);
         else
                 [nr,nc]=size(arg3);
                 if all([nr,nc]>1), % Re-referencing
                         EDF.SIE.ReRefMx = [[arg3 zeros(size(arg3,1),EDF.NS-size(arg3,2))]; zeros(EDF.NS-size(arg3,1),EDF.NS)];
-                        EDF.SIE.InChanSelect = find(any(EDF.SIE.ReRefMx'));
+                        EDF.InChanSelect = find(any(EDF.SIE.ReRefMx'));
                         EDF.SIE.ChanSelect = find(any(EDF.SIE.ReRefMx));
                         if nargin>3
                         %        fprintf(EDF.FILE.stderr,'Error SDFOPEN: Rereferenzing does not work correctly with %s (more than 3 input arguments)\n',arg4);
                         end;
                 else
                         EDF.SIE.ChanSelect = arg3; %full(sparse(1,arg3(:),1,1,EDF.NS));
-                        EDF.SIE.InChanSelect = arg3;
+                        EDF.InChanSelect = arg3;
                         EDF.SIE.ReRefMx = eye(EDF.NS);
                 end;
         end;
@@ -602,7 +602,7 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
                         EDF.SIE.ReRefMx(7,1:6)=[1 1 1 -1 -1 -1]/2;
                         EDF.SIE.TH=1;
 	                % calculate (In)ChanSelect based on ReRefMatrix
-    		        EDF.SIE.InChanSelect = find(any(EDF.SIE.ReRefMx'));
+    		        EDF.InChanSelect = find(any(EDF.SIE.ReRefMx'));
             		EDF.SIE.ChanSelect = find(any(EDF.SIE.ReRefMx));
                 end;
                 if ~isempty(findstr(upper(arg4),'EOG'))
@@ -614,7 +614,7 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
                         if any(tmp=='r'); EDF.SIE.ReRefMx(3:9,3)=[ 1 0 0 1 2 -2 -2]'/2;  end;
                         %EDF.SIE.TH = 1;
 	                % calculate (In)ChanSelect based on ReRefMatrix
-    		        EDF.SIE.InChanSelect = find(any(EDF.SIE.ReRefMx'));
+    		        EDF.InChanSelect = find(any(EDF.SIE.ReRefMx'));
             		EDF.SIE.ChanSelect = find(any(EDF.SIE.ReRefMx));
                 end;
                 
@@ -654,8 +654,8 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
                 end;
                 if ~isempty(findstr(upper(arg4),'RECG'))
                         EDF.SIE.REGC = 1;
-                        if all(EDF.SIE.InChanSelect~=channel1)
-                                EDF.SIE.InChanSelect=[EDF.SIE.InChanSelect channel1];        
+                        if all(EDF.InChanSelect~=channel1)
+                                EDF.InChanSelect=[EDF.InChanSelect channel1];        
                         end;
                 end;
                 
@@ -720,8 +720,8 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
                                         EDF.AFIR.channel1 = channel1;
                                 end;
                                 
-                                if all(EDF.SIE.InChanSelect~=channel1)
-                                        EDF.SIE.InChanSelect=[EDF.SIE.InChanSelect channel1];        
+                                if all(EDF.InChanSelect~=channel1)
+                                        EDF.InChanSelect=[EDF.InChanSelect channel1];        
                                 end;
                         end;
                 end;
@@ -877,8 +877,8 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
     		        pulse(Index+length(QRS.Templates)) = 1;  
 	        end;
         
-                for k=1:length(EDF.SIE.InChanSelect),
-                        k=find(OutChanSelect==EDF.SIE.InChanSelect(k));
+                for k=1:length(EDF.InChanSelect),
+                        k=find(OutChanSelect==EDF.InChanSelect(k));
                         if isempty(k)
                                 EDF.TECG.QRStemp(:,k) = zeros(fs,1);
                         else
@@ -889,6 +889,7 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
         end; % if EDF.SIE.TECG==1
         
         %syms Fp1 Fp2 M1 M2 O2 O1 A1 A2 C3 C4
+        if 0, % ??? not sure, whether it has any advantage
         for k=EDF.SIE.ChanSelect,
                 %fprintf(1,'#%i: ',k);
                 tmp=find(EDF.SIE.ReRefMx(:,k))';
@@ -917,14 +918,7 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
         end;
         %Label,
         EDF.SIE.ReRefMx = EDF.SIE.ReRefMx(:,EDF.SIE.ChanSelect);
-	if exist('OCTAVE_VERSION')>=5,
-            EDF.Calib = (EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx); % important to be sparse, otherwise overflow-check does not work correctly.
-	    fprintf(EDF.FILE.stderr,'Warning SDFOPEN: Overflow Check does not work without SPARSE\n');
-	else
-            EDF.Calib = sparse(EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx); % important to be sparse, otherwise overflow-check does not work correctly.
-	end;
 	        
-        if 1, % ??? not sure, whether it has any advantage
         EDF.PhysDim = EDF.PhysDim(EDF.SIE.ChanSelect,:);
         EDF.PreFilt = EDF.PreFilt(EDF.SIE.ChanSelect,:);
         EDF.Transducer = EDF.Transducer(EDF.SIE.ChanSelect,:);
@@ -1010,7 +1004,7 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
         end;
     	if EDF.SIE.TH>1, % Failing electrode detector 
 	        fprintf(2,'Warning SDFOPEN: FED not implemented yet\n');
-                for k=1:length(EDF.SIE.InChanSelect),K=EDF.SIE.InChanSelect(k);
+                for k=1:length(EDF.InChanSelect),K=EDF.InChanSelect(k);
 	        %for k=1:EDF.NS,
     		        [y1,EDF.Block.z1{k}] = filter([1 -1], 1, zeros(EDF.SPR(K)/EDF.Dur,1));
             		[y2,EDF.Block.z2{k}] = filter(ones(1,EDF.SPR(K)/EDF.Dur)/(EDF.SPR(K)/EDF.Dur),1,zeros(EDF.SPR(K)/EDF.Dur,1));

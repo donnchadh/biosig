@@ -8,7 +8,7 @@ function [S,EDF] = sdfread(EDF,NoS,StartPos)
 %
 % (Ver > 0.75 requests NoS and StartPos in seconds. Previously (Ver <0.76) the units were Records.) 
 %
-% EDF=sdfopen(Filename,'r',CHAN,ReRefMx,TSR,OFCHK);
+% EDF=sdfopen(Filename,'r',[[CHAN] | [ReRefMx]],TSR,OFCHK);
 % [S,EDF] = sdfread(EDF, NoS, StartPos)
 % 
 % [S,EDF] = sdfread(EDF, EDF.NRec*EDF.Dur) and
@@ -17,8 +17,8 @@ function [S,EDF] = sdfread(EDF,NoS,StartPos)
 %
 % See also: fread, SDFREAD, SDFWRITE, SDFCLOSE, SDFSEEK, SDFREWIND, SDFTELL, SDFEOF
 
-%	$Revision: 1.4 $
-%	$Id: sdfread.m,v 1.4 2004-03-24 19:01:41 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: sdfread.m,v 1.5 2004-03-25 18:51:30 schloegl Exp $
 %	Copyright (c) 1997-2002 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -117,7 +117,7 @@ if isfield(EDF,'SIE')   % SIESTA; Layer 4
         
         
         %clear chan;
-	InChanSelect=EDF.SIE.InChanSelect;
+	InChanSelect=EDF.InChanSelect;
         Mode_CHANSAME = ~all(EDF.SPR(InChanSelect)==EDF.SPR(InChanSelect(1)));
         clear Mode;
         
@@ -135,7 +135,6 @@ else % Layer 3
 
         Mode_RAW=any(Mode==[[4:7 12:15] [4:7 12:15]+16]);
         EDF.SIE.RR=any(Mode==[[2 3 6 7 10 11 14 15] [2 3 6 7 10 11 14 15]+16]);
-        Mode_REF=any(Mode==[[8:15] [8:15]+16]);
         Mode_SEC=any(Mode==[[1:2:15] [1:2:15]+16]);
         Mode_RS100=0; %bitand(Mode,2^4)>0;
         EDF.SIE.FILT=0;
@@ -155,37 +154,7 @@ else % Layer 3
                 EDF.AS.numrec=0;
 	end;
 
-	if Mode_REF
-    		ReRefMx=chan;
-                InChanSelect=find(any(ReRefMx,1))';
-	else 
-                InChanSelect=reshape(chan,1,prod(size(chan)));
-                ReRefMx=eye(EDF.NS);
-                ReRefMx=ReRefMx(:,chan);
-	end;
-
-        tmp = EDF.SIE.RR + Mode_REF*2;
-        if tmp==0
-                EDF.Calib = [zeros(1,EDF.NS);eye(EDF.NS)];
-                EDF.Calib = EDF.Calib(:,chan);
-                %[zeros(1,EDF.NS); eye(EDF.NS)];
-        elseif tmp==1
-                %EDF.Calib=EDF.Calib;
-                EDF.Calib = EDF.Calib(:,chan);
-                %S=[ones(size(S,1),1) S]*EDF.Calib([1 chan+1],chan);
-        elseif tmp==2
-                EDF.Calib=[zeros(1,length(chan)); ReRefMx];
-                %S=S*ReRefMx(chan,:);
-        elseif tmp==3
-                EDF.Calib=(EDF.Calib*ReRefMx);
-                %S=[ones(size(S,1),1) S]*(EDF.Calib([1 chan+1],chan)*ReRefMx(chan,:));
-        end;
-        
-	if exist('OCTAVE_VERSION')~=1
-        	InChanSelect=find(any(EDF.Calib(2:EDF.NS+1,:),2))';
-        else
-                InChanSelect=find(any(EDF.Calib(2:EDF.NS+1,:)'));
-        end;
+        InChanSelect = EDF.InChanSelect;
         
         Mode_CHANSAME = ~all(EDF.SPR(InChanSelect)==EDF.SPR(InChanSelect(1)));
 	%if any(EDF.SPR(chan)~=EDF.SPR(chan(1))) fprintf(2,'Warning EDFREAD: channels do not have the same sampling rate\n');end;
@@ -244,7 +213,7 @@ if ~EDF.AS.SAMECHANTYP; % all(EDF.GDFTYP(:)~=EDF.GDFTYP(1))
         
         %AFIR%
         if EDF.SIE.AFIR
-                %EDF.AFIR.xin=S(:,find(EDF.AFIR.channel1==EDF.SIE.InChanSelect)); 
+                %EDF.AFIR.xin=S(:,find(EDF.AFIR.channel1==EDF.InChanSelect)); 
                 EDF.AFIR.xin=S(:,EDF.AFIR.channel1); 
         end;
         
@@ -298,11 +267,12 @@ if Mode_RAW;
                 end;
         end;
         
-	if Mode_REF
-	    fprintf(2,'Warning SDFREAD: ReReferenzing "R" is not possible in combination with RAW "W"\n');
-	end;
+        if isfield(EDF.SIE,'RAW'), 
+                if EDF.SIE.RAW, 
+                        fprintf(2,'Warning SDFREAD: ReReferenzing "R" is not possible in combination with RAW "W"\n');
+                end;
+        end;
 else
-
         if all(EDF.SPR(InChanSelect)==EDF.AS.MAXSPR)
                 if ~OptiMEM % but OptiSPEED
                         [s, count]=fread(EDF.FILE.FID,[EDF.AS.spb,Records],datatyp);
@@ -439,15 +409,13 @@ if EDF.AS.numrec~=Records,
 end;
 
 %%%%% Calibration of the signal 
-if ~EDF.FLAG.UCAL,          % Autocalib 
-        if Mode_RAW 
+if Mode_RAW 
+        if ~EDF.FLAG.UCAL,          % Autocalib for RAW mode, 
                 for k=1:EDF.NS,
                         S(bi(k)+1:bi(k+1),:)=S(bi(k)+1:bi(k+1),:)*EDF.Cal(k)+EDF.Off(k);
                 end;
-        else
-               %S=[ones(size(S,1),1) S(:,InChanSelect)]*EDF.Calib([1 InChanSelect+1],:);
-                S=[ones(size(S,1),1), S]*EDF.Calib([1; InChanSelect+1],:); % EDF.Calib must be sparse, otherwise overflow-check is incorrect. 
         end;
+        % else % calibration is done in SREAD.M 
 end;
 
 %%%%% Removing ECG Templates
