@@ -45,7 +45,7 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 % At least EDF.FileName, EDF.NS, EDF.Dur and EDF.EDF.SampleRate must be defined
 % 
 % 
-% See also: fopen, SDFREAD, SDFWRITE, SDFCLOSE, SDFSEEK, SDFREWIND, SDFTELL, SDFEOF
+% See also: fopen, SDFREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
 
 % References: 
@@ -117,9 +117,9 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.21 $
-%	$Id: sdfopen.m,v 1.21 2004-08-16 15:59:40 schloegl Exp $
-INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
+%	$Revision: 1.22 $
+%	$Id: sdfopen.m,v 1.22 2004-08-19 00:36:40 schloegl Exp $
+INFO='(C) 1997-2002, 2004 by Alois Schloegl, 17 Aug 2004 #0.87';
 %	a.schloegl@ieee.org
 
 if nargin<2, 
@@ -546,36 +546,101 @@ if strcmp(EDF.TYPE,'EDF') & (length(tmp)==1),
         EDF.EVENT.TYP(1:N,1) = 0;
         EDF.EVENT.N = N; 
 
-elseif strcmp(EDF.TYPE,'EDF') & (length(EDF.FILE.Name)==8) & any(lower(EDF.FILE.Name(1))=='bchmnpsu') & strcmp(lower(EDF.FILE.Name([3,6:8])),'001a'),
-        % load scoring of ADB database if available 
-        fn = fullfile(EDF.FILE.Path, [EDF.FILE.Name(1:7),'.txt']);
-        if exist(fn)~=2
-                fn = fullfile(EDF.FILE.Path,[lower(EDF.FILE.Name(1:7)),'.txt']);
-        end
-        if exist(fn)~=2
-                fn = fullfile(EDF.FILE.Path,[EDF.FILE.Name(1:7),'.TXT']);
-        end
-        if exist(fn)==2,
-		try,
-	                EDF.EVENT = adb2event(fn,EDF.SampleRate);        
-		catch
-		end;
-        end
+elseif strcmp(EDF.TYPE,'EDF') & (length(EDF.FILE.Name)==8) & any(lower(EDF.FILE.Name(1))=='bchmnpsu') 
+        if strcmp(lower(EDF.FILE.Name([3,6:8])),'001a'),
+                % load scoring of ADB database if available 
 
+                fid2 = fopen(fullfile(EDF.FILE.Path, [EDF.FILE.Name(1:7),'.txt']),'r');
+                if fid2<0,
+                        fid2 = fopen(fullfile(EDF.FILE.Path,[lower(EDF.FILE.Name(1:7)),'.txt']),'r');
+                end
+                if fid2<0,
+                        fid2 = fopen(fullfile(EDF.FILE.Path,[EDF.FILE.Name(1:7),'.TXT']),'r');
+                end
+                if fid2>0,
+                        tmp = fread(fid2,inf,'char');
+                        fclose(fid2);
+                        [ma,status] = str2double(char(tmp'));
+                        if ~any(isnan(status(:))),
+                                %%% TODO: include ADB2EVENT here
+
+				% code from MAK2BIN.M (C) 1998-2004 A. Schlögl 
+				ERG = zeros(size(ma));
+
+				%%%% one artifact %%%%
+				for k=0:9,
+				        if exist('OCTAVE_VERSION')==5
+				                ERG = ERG+(ma==k)*2^k;
+				        else
+				                ERG(ma==k) = 2^k;
+				        end;
+				end;
+
+				%%%% more than one artifact %%%%
+				[i,j] = find(ma>9);
+				L='123456789';
+				for k=1:length(i),
+				        b=int2str(ma(i(k),j(k)));
+				        erg=0;
+				        for l=1:9,
+				                if any(b==L(l)), erg=erg+2^l; end;
+				        end;        
+				        ERG(i(k),j(k)) = erg;
+				end;
+				
+				N   = 0;
+				POS = [];
+				TYP = [];
+				DUR = [];
+				CHN = [];
+				cc  = zeros(1,10);
+				for k = 1:9,
+				        for c = 1:7;%size(ERG,2),
+				                tmp = [0;~~(bitand(ERG(:,c),2^k));0];
+				 
+				                cc(k+1) = cc(k+1) + sum(tmp);
+				                pos = find(diff(tmp)>0);
+				                pos2 = find(diff(tmp)<0);
+				                n   = length(pos);
+				                
+				                POS = [POS; pos(:)];
+				                TYP = [TYP; repmat(k,n,1)];
+				                CHN = [CHN; repmat(c,n,1)];
+				                DUR = [DUR; pos2(:)-pos(:)];
+				                N   = N + n;
+				        end;
+				end;
+				
+				EDF.EVENT.Fs = 1;
+				if nargin>1,
+				        EVENT.Fs = Fs;
+				end;
+				
+				[tmp,ix] = sort(POS);
+				EDF.EVENT.POS = (POS(ix)-1)*EVENT.Fs+1;
+				EDF.EVENT.TYP = TYP(ix) + hex2dec('0100');
+				EDF.EVENT.CHN = CHN(ix);
+				EDF.EVENT.DUR = DUR(ix)*EVENT.Fs;
+				EDF.EVENT.N   = N;
+				
+				%EDF.EVENT.ERG = ERG;
+			end;
+                end
+        end;
 else
 	% search for WSCORE scoring file in path and in file directory. 
 	tmp = [upper(EDF.FILE.Name),'.006'];
-	if exist(tmp)~=2,
-		tmp = fullfile(EDF.FILE.Path,tmp);
-	end;
-	try,
-		x = load(tmp);
-		EDF.EVENT.N   = size(x,1);
-		EDF.EVENT.POS = x(:,1);
-		EDF.EVENT.TYP = x(:,2);
-	catch
-	end;
-
+        fid2 = fopen(fullfile(EDF.FILE.Path,tmp),'r');
+        if fid2 > 0,
+                tmp = fread(fid2,inf,'char');
+                fclose(fid2);
+                [x,status] = str2double(char(tmp'));
+                if ~any(isnan(status(:))),
+                        EDF.EVENT.N   = size(x,1);
+                        EDF.EVENT.POS = x(:,1);
+                        EDF.EVENT.TYP = x(:,2);
+                end;
+        end;
 end;
 
 
