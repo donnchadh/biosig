@@ -1,7 +1,7 @@
 % DEMO 1 - identifies QRS-complexes
 
-%	$Revision: 1.1 $
-%	$Id: demo1.m,v 1.1 2003-05-16 15:57:51 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: demo1.m,v 1.2 2003-05-22 16:29:31 schloegl Exp $
 %	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This library is free software; you can redistribute it and/or
@@ -36,12 +36,15 @@ Fs = h.SampleRate(min(length(h.SampleRate),CHAN));
 
 
 % processing of ECG-envelope
-MODE = {'ECG_envelope',Fs};
+MODE  = {'ECG_envelope',Fs};
 [Y,Z] = processing(MODE,s(:,1));
 
 
+% THRESHOLD = quantile(Y,.9) is often a good choice.  
+tmp = sort(Y); TH = tmp(round(length(Y)*.9));
+
 % identify fiducial points
-qrsindex = gettrigger(Y,quantile(Y,.9));
+qrsindex = gettrigger(Y,TH); 
 
 
 % displays detection
