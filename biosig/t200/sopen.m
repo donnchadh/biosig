@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.33 $
-%	$Id: sopen.m,v 1.33 2004-03-16 18:00:43 schloegl Exp $
+%	$Revision: 1.34 $
+%	$Id: sopen.m,v 1.34 2004-03-17 19:45:26 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -240,6 +240,11 @@ if any(PERMISSION=='r'),
                         elseif all(s(1:8)==[8,0,0,0,4,0,0,0]);	% another DICOM format ? 
                                 HDR.TYPE='DICOM';
 
+                        elseif all(s(1:2)==[255,254]) & all(s(4:2:end)==0)
+                                HDR.TYPE='XML-UTF16';
+                        elseif ~isempty(findstr(ss,'?xml version'))
+                                HDR.TYPE='XML-UTF8';
+
                         elseif all(s(1:4)==hex2dec(['FF';'D9';'FF';'E0'])')
                                 HDR.TYPE='JPG';
 				HDR.Endianity = 'ieee-be';
@@ -321,23 +326,16 @@ if any(PERMISSION=='r'),
                 end;
                 fclose(fid);
                 if strcmp(HDR.TYPE,'unknown'),
-                        try
-                                HDR.XML = xmltree(HDR.FileName);
-                                HDR.TYPE = 'XML';
-                                return; 
-                        catch
+                        % alpha-TRACE Medical software
+                        if (strcmpi(HDR.FILE.Name,'rawdata') | strcmpi(HDR.FILE.Name,'rawhead')) & isempty(HDR.FILE.Ext),
+                                if exist(fullfile(HDR.FILE.Path,'digin')) & exist(fullfile(HDR.FILE.Path,'r_info'));	
+                                        HDR.TYPE = 'alpha'; %alpha trace medical software 
+                                end;
                         end;
                 end;
                 if strcmp(HDR.TYPE,'BKR'),
                         if ~isempty(findstr(lower(HDR.FILE.Ext),'cnt')),
                                 fprintf(HDR.FILE.stderr,'Warning (dedicated to BB & CB): %s IS A BKR, not a CNT file\n',HDR.FileName);
-                        end;
-                end;
-
-		% alpha-TRACE Medical software
-	        if (strcmpi(HDR.FILE.Name,'rawdata') | strcmpi(HDR.FILE.Name,'rawhead')) & isempty(HDR.FILE.Ext),
-                        if exist(fullfile(HDR.FILE.Path,'digin')) & exist(fullfile(HDR.FILE.Path,'r_info'));	
-                                HDR.TYPE = 'alpha'; %alpha trace medical software 
                         end;
                 end;
         end;
@@ -384,11 +382,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
 
 
 elseif strcmp(HDR.TYPE,'BKR'),
-        if any(PERMISSION=='w');
-                HDR = eegchkhdr(HDR);
-        end;
         HDR = bkropen(HDR,PERMISSION,CHAN);
-        HDR.PhysDim = 'µV';
         
         
 elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
@@ -3380,10 +3374,36 @@ elseif strncmp(HDR.TYPE,'TRI',3),
 		fclose(HDR.FILE.FID);
 	end
 
+        
+elseif strcmp(HDR.TYPE,'XML-UTF16'),
+	if any(PERMISSION=='r'),
+		fid = fopen(HDR.FileName,'rb','ieee-le');
+	        magic = fread(fid,2,'uint8');
+	        HDR.XML = char(fread(fid,[1,inf],'uint16'));
+                fclose(fid);
+                try,
+                        HDR.XML = xmltree(char(HDR.XML));
+                        HDR.TYPE= 'XML';
+                catch
+                end;
+        end;
 
+        
+elseif strcmp(HDR.TYPE,'XML-UTF8'),
+	if any(PERMISSION=='r'),
+		fid = fopen(HDR.FileName,'rt','ieee-le');
+                HDR.XML = char(fread(fid,[1,inf],'char'));
+	        fclose(fid);
+                try,
+                        HDR.XML = xmltree(HDR.XML);
+                        HDR.TYPE= 'XML';
+                catch
+                end;
+        end;
+        
 elseif strcmp(HDR.TYPE,'unknown'),
-	fprintf(HDR.FILE.stderr,'ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
-	HDR.FILE.FID = -1;
+        fprintf(HDR.FILE.stderr,'ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
+        HDR.FILE.FID = -1;
 
 	
 else

@@ -17,8 +17,8 @@ function [signal,H] = sload(FILENAME,CHAN)
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.15 $
-%	$Id: sload.m,v 1.15 2004-03-16 18:00:43 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: sload.m,v 1.16 2004-03-17 19:45:26 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -117,10 +117,11 @@ elseif any(FILENAME=='*');      % wildcards
         for k = 1:length(f);
                 f(k).name = fullfile(p,f(k).name);
         end;
-        [signal,H] = sload(f);
+        [signal,H] = sload(f,CHAN);
         return;
 end;
 
+signal = [];
 [p,f,FileExt] = fileparts(FILENAME);
 FileExt = FileExt(2:length(FileExt));
 H.FileName = FILENAME;
@@ -137,12 +138,16 @@ elseif H.FILE.FID>0,
 
         
 elseif strcmp(H.TYPE,'XML'),
-        signal = [];
         fprintf(H.FILE.stderr,'Warning SLOAD: implementing XML not completed yet.\n');
-        if isa(H.XML,'XMLTree'),
-                H.XML = convert(H.XML);
-        end;
-        
+        if isfield(H,'XML'),
+                if isa(H.XML,'XMLTree'),
+                        try;
+                                H.XML = convert(H.XML);
+                        catch;
+                                fprintf(2,'Error SLOAD: conversion from XLMtree into STRUCT failed in file %s.\n',H.FileName);
+                        end;
+                end;
+        end;        
         try,    %
                 tmp = H.XML.component.series.derivation.Series.component.sequenceSet.component;
                 H.NS = length(tmp)-1;
