@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.50 $
-%	$Id: sopen.m,v 1.50 2004-04-27 16:12:56 schloegl Exp $
+%	$Revision: 1.51 $
+%	$Id: sopen.m,v 1.51 2004-05-02 11:19:52 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -154,7 +154,7 @@ if any(PERMISSION=='r'),
                         elseif strcmp(ss(1:6),'@ MFR '); 
                                 HDR.TYPE='MFER';
                         elseif all(s(17:22)=='SCPECG'); 
-                                HDR.TYPE='SCPECG';
+                                HDR.TYPE='SCP';
                         elseif strncmp(ss,'POLY_SAM',8);	% Poly5/TMS32 sample file format.
                                 HDR.TYPE='TMS32';
                         elseif strncmp(ss,'"Snap-Master Data File"',23);	% Snap-Master Data File .
@@ -643,7 +643,7 @@ elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
         fclose(HDR.FILE.FID);
         
         
-elseif strcmp(HDR.TYPE,'SCPECG'),	%
+elseif strcmp(HDR.TYPE,'SCP'),	%
         HDR = scpopen(HDR,PERMISSION);        
         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         
@@ -785,6 +785,7 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 fclose(fid);
         end;
         
+        HDR.PhysDim = '  ';
         fid = fopen(fullfile(HDR.FILE.Path,'cal_res'),PERMISSION);
         if fid < 0,
                 fprintf(2,'Warning SOPEN alpha-trace: could not open CAL_RES. Data is uncalibrated.\n');
@@ -899,8 +900,25 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 HDR.EVENT.IO  = IO(:);
                 HDR.EVENT.CHN = zeros(HDR.EVENT.N,1);
         end;
+        if ~any(HDR.VERSION==[407.1,409.5]);
+                fprintf(HDR.FILE.stderr,'Warning SLOAD: Format ALPHA Version %6.2f not tested yet.\n',HDR.VERSION);
+        end;
         
-        
+        HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,'rawdata'),'rb');
+        if HDR.FILE.FID > 0,
+                HDR.VERSION2  = fread(HDR.FILE.FID,1,'int16');
+                HDR.NS   = fread(HDR.FILE.FID,1,'int16');
+                HDR.bits = fread(HDR.FILE.FID,1,'int16');
+                HDR.AS.bpb = HDR.NS*HDR.bits/8;
+                HDR.FILE.OPEN = 1;
+                HDR.FILE.POS  = 0;
+                HDR.HeadLen = ftell(HDR.FILE.FID);
+                fseek(HDR.FILE.FID,0,'eof');
+                HDR.AS.endpos = (ftell(HDR.FILE.FID)-HDR.HeadLen)/HDR.AS.bpb;
+                HDR.SPR = HDR.AS.endpos;
+                fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+        end;
+                
 elseif strcmp(HDR.TYPE,'DEMG'),
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');      % ### native should be fixed
         if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
@@ -1181,6 +1199,12 @@ elseif strcmp(HDR.TYPE,'SND'),
         
 elseif strcmp(HDR.TYPE,'MFER'),
 	HDR = mwfopen(HDR,PERMISSION);
+	if (HDR.FRAME.N ~= 1),
+		fprintf(2,'Error SOPEN (MFER): files with more than one frame not implemented, yet.\n');
+		fclose(HDR.FILE.FID);
+		HDR.FILE.FID  =-1;
+		HDR.FILE.OPEN = 0;
+	end
 
         
 elseif strcmp(HDR.TYPE,'MPEG'),
