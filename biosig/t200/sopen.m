@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.88 $
-%	$Id: sopen.m,v 1.88 2005-01-14 20:03:05 schloegl Exp $
+%	$Revision: 1.89 $
+%	$Id: sopen.m,v 1.89 2005-01-15 20:36:46 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2576,6 +2576,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                         end;
                         HDR.Label(k,1:length(z)+1) = [z,' ']; 
                 end;
+		HDR,
                 HDR.Calib = sparse([HDR.zerovalue(:).';eye(HDR.NS)]*diag(1./HDR.gain(:)));
                 HDR.Label = char(HDR.Label);
                 
@@ -4745,82 +4746,7 @@ elseif 0, strcmp(HDR.TYPE,'DXF'),
 		
                 fclose(HDR.FILE.FID);
         end
-        
-        
-elseif strcmp(HDR.TYPE,'FITS'),
-        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-be');
 
-	KK = 0; 
-	HDR.HeadLen = ftell(HDR.FILE.FID);
-	BlockSize = 0;
-	while (HDR.FILE.size > HDR.HeadLen(max(KK,1))+BlockSize),
-	KK = KK+1;
-	FLAG.END = 0; 
-	HDR.FITS{KK} = [];
-	while ~FLAG.END,
-		[tmp,c] = fread(HDR.FILE.FID,[80,36],'uchar');
-		signal  = char(tmp)';
-		for k   = 1:size(signal,1),
-			s = signal(k,:);
-			if strncmp(s,'COMMENT',7);
-			    
-			elseif strncmp(s,'HISTORY',7);
-
-			elseif all(s(9:10)=='= ');
-				len = min([80,find(s=='/')-1]);
-				[key, t] = strtok(s, '= '); 
-				key(key=='-') = '_';
-				if s(11)==char(39),		% string
-					[val, t] = strtok(s(11:len),char(39));
-					HDR.FITS{KK} = setfield(HDR.FITS{KK},key,val);
-				elseif any(s(30)=='TF'),    	% logical
-					HDR.FITS{KK} = setfield(HDR.FITS{KK},key,s(30)=='T');
-				elseif all(s(11:len)==' '), 	% empty
-					HDR.FITS{KK} = setfield(HDR.FITS{KK},key,[]);
-				elseif all(s(11:len)=='('), 	% complex
-					[val,status] = str2double(s(11:len),[],'(,)');
-					HDR.FITS{KK} = setfield(HDR.FITS{KK},key,val(1)+i*val(2));
-				else 				% numerical
-					[val,status] = str2double(s(11:len));
-					if any(status),
-						s(s=='D')='E';
-						[val,status] = str2double(s(11:len));
-					end;
-					if any(status),
-						fprintf(2,'Warning SOPEN (FITS): Expected numerical value - found string \n\t%s: %s\n',key,s(11:len));
-						HDR.FITS{KK} = setfield(HDR.FITS{KK},key,s(11:len));
-					else
-						HDR.FITS{KK} = setfield(HDR.FITS{KK},key,val);
-					end;	
-				end	
-
-			elseif strncmp(s,'END',3)
-				FLAG.END = 1;
-			
-			%elseif strncmp(s,'         ',8),
-			
-			else
-			%	fprintf(2,'ERROR SOPEN (FITS): "%s"\n',s);	
-    			end;
-		end;
-	end;
-
-	HDR.HeadLen(KK) = ftell(HDR.FILE.FID);
-	HDR.IMAGE(KK).Size = [0,0];
-	for k = 1:HDR.FITS{KK}.NAXIS,
-		HDR.IMAGE(KK).Size(k) = getfield(HDR.FITS{KK},['NAXIS',int2str(k)]);
-	end;
-	HDR.IMAGE_Size(KK) = prod(HDR.IMAGE(KK).Size);
-
-	%signal = fread(HDR.FILE.FID,prod(HDR.IMAGE.Size),HDR.GDFTYP);
-	%signal = reshape(signal,HDR.IMAGE.Size);  % * HDR.Cal + HDR.Off;
-	
-	BlockSize = ceil(prod(HDR.IMAGE(KK).Size)*abs(HDR.FITS{KK}.BITPIX)/(8*2880))*2880;
-	fseek(HDR.FILE.FID,BlockSize,'cof');
-	end;
-	
-	%fclose(HDR.FILE.FID);	
-        
 
 elseif strcmp(HDR.TYPE,'STX'),
         if any(PERMISSION=='r'),

@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.38 $
-%	$Id: sread.m,v 1.38 2005-01-11 17:27:48 schloegl Exp $
+%	$Revision: 1.39 $
+%	$Id: sread.m,v 1.39 2005-01-15 20:36:46 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -838,8 +838,7 @@ if ~HDR.FLAG.UCAL,
                 % force octave to do a sparse multiplication
                 % the difference is NaN*sparse(0) = 0 instead of NaN
                 % this is important for the automatic overflow detection
-
-		Calib = HDR.Calib;  
+		Calib = full(HDR.Calib);
                 tmp   = zeros(size(S,1),size(Calib,2));   % memory allocation
                 for k = 1:size(Calib,2),
                         chan = find(Calib(1+HDR.InChanSelect,k));

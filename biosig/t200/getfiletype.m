@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.22 $
-%	$Id: getfiletype.m,v 1.22 2004-12-28 20:35:12 schloegl Exp $
+%	$Revision: 1.23 $
+%	$Id: getfiletype.m,v 1.23 2005-01-15 20:36:45 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -365,7 +365,7 @@ else
                 elseif strncmp(ss,'GF1PATCH110',12); 
                         HDR.TYPE='GF1';
                 elseif strncmp(ss,'GIF8',4); 
-                        HDR.TYPE='GIF';
+                        HDR.TYPE='IMAGE:GIF';
                 elseif strncmp(ss,'CPT9FILE',8);        % Corel PhotoPaint Format
                         HDR.TYPE='CPT9';
                         
@@ -437,13 +437,13 @@ else
                         HDR.TYPE='XML-UTF8';
 
                 elseif all(s([1:2,7:10])==[abs('BM'),zeros(1,4)])
-                        HDR.TYPE='BMP';
+                        HDR.TYPE='IMAGE:BMP';
                         HDR.Endianity = 'ieee-le';
                 elseif strncmp(ss,'#FIG',4)
                         HDR.TYPE='FIG';
 			HDR.VERSION = strtok(ss(6:end),[10,13]);
                 elseif strncmp(ss,'SIMPLE  =                    T / Standard FITS format',30)
-                        HDR.TYPE='FITS';
+                        HDR.TYPE='IMAGE:FITS';
                 elseif all(s(1:40)==[137,abs('HDF'),13,10,26,10,0,0,0,0,0,8,8,0,4,0,16,0,3,zeros(1,11),repmat(255,1,8)]) & (HDR.FILE.size==s(41:44)*2.^[0:8:24]')
                         HDR.TYPE='HDF';
                 elseif strncmp(ss,'CDF',3)
@@ -455,7 +455,7 @@ else
 			HDR.HeadLen = s(5:8)*2.^[0:8:24];
 			HDR.T0 = s([20,19,18,17,24,23]);
                 elseif strncmp(ss,'IFS',3)
-                        HDR.TYPE='IFS';
+                        HDR.TYPE='IMAGE:IFS';
                 elseif strncmp(ss,'OFF',3)
                         HDR.TYPE='OFF';
 			HDR.ND = 3;
@@ -475,41 +475,37 @@ else
                 elseif 0, all(s(1:2)=='P6') & any(s(3)==[10,13])
                         HDR.TYPE='PNG6';
                 elseif all(s(1:8)==[139,74,78,71,13,10,26,10])
-                        HDR.TYPE='JNG';
+                        HDR.TYPE='IMAGE:JNG';
                 elseif all(s(1:8)==[137,80,78,71,13,10,26,10]) 
-                        HDR.TYPE='PNG';
+                        HDR.TYPE='IMAGE:PNG';
 		elseif (ss(1)=='P') & any(ss(2)=='123')	% PBMA, PGMA, PPMA
-                        HDR.TYPE='PBMA';
+                        HDR.TYPE='IMAGE:PBMA';
 			id = 'BGP';
-			HDR.TYPE(2)=id(s(2)-48);
+			HDR.TYPE(8)=id(s(2)-48);
+			
 		elseif (ss(1)=='P') & any(ss(2)=='456')	% PBMB, PGMB, PPMB
-                        HDR.TYPE='PBMB';
+                        HDR.TYPE='IMAGE:PBMB';
 			id = 'BGP';
-			HDR.TYPE(2) = id(s(2)-abs('3'));
-			[s1,t]=strtok(ss,[10,13]);
-			[s1,t]=strtok(t,[10,13]);
-			while (s1(1)=='#')	% ignore comment lines
-				[s1,t]=strtok(t,[10,13]);
-			end;	
-			HDR.IMAGE.Size = str2double(s1);
-			if s(2)~='4',
-				[s3,t]=strtok(t,[9,10,13,32]);
-		    		HDR.DigMax = str2double(s3);
-			end;
-			HDR.HeadLen = length(ss)-length(t)+1;
+			HDR.TYPE(8) = id(s(2)-abs('3'));
+			len = min(find((ss<32) | (ss>127)));
+			tmp = str2double(s2);
+			HDR.IMAGE.Size = tmp(1:2);
+	    		HDR.DigMax = tmp(3);
+			HDR.HeadLen = len; %gth(ss)-length(t)+1;
+
                 elseif strncmp(ss,'/* XPM */',9)
-                        HDR.TYPE='XPM';
+                        HDR.TYPE='IMAGE:XPM';
 
                 elseif strncmp(ss,['#  ',HDR.FILE.Name,'.poly'],8+length(HDR.FILE.Name)) 
                         HDR.TYPE='POLY';
                 elseif all(s(1:4)==hex2dec(['FF';'D9';'FF';'E0'])')
-                        HDR.TYPE='JPG';
+                        HDR.TYPE='IMAGE:JPG';
                         HDR.Endianity = 'ieee-be';
                 elseif all(s(1:4)==hex2dec(['FF';'D8';'FF';'E0'])')
-                        HDR.TYPE='JPG';
+                        HDR.TYPE='IMAGE:JPG';
                         HDR.Endianity = 'ieee-be';
                 elseif all(s(1:4)==hex2dec(['E0';'FF';'D8';'FF'])')
-                        HDR.TYPE='JPG';
+                        HDR.TYPE='IMAGE:JPG';
                         HDR.Endianity = 'ieee-le';
                 elseif all(s(1:20)==['L',0,0,0,1,20,2,0,0,0,0,0,192,0,0,0,0,0,0,70])
                         HDR.TYPE='LNK';
@@ -540,10 +536,10 @@ else
                 elseif all(s(1:5)==[123,92,114,116,102]);           % '{\rtf' 
                         HDR.TYPE='RTF';
                 elseif all(s(1:4)==[73,73,42,0]); 
-                        HDR.TYPE='TIFF';
+                        HDR.TYPE='IMAGE:TIFF';
                         HDR.Endianity = 'ieee-le';
                 elseif all(s(1:4)==[77,77,0,42]); 
-                        HDR.TYPE='TIFF';
+                        HDR.TYPE='IMAGE:TIFF';
                         HDR.Endianity = 'ieee-be';
                 elseif strncmp(ss,'StockChartX',11); 
                         HDR.TYPE='STX';
@@ -791,9 +787,13 @@ else
                         end;
                         if exist(HDR.FileName, 'file')
                                 fid = fopen(HDR.FileName,'r','ieee-le');
-                                fseek(fid,-4,'eof');
+                                status = fseek(fid,-4,'eof');
+				if status,
+					fprintf(2,'Error GETFILETYPE: file %s\n',HDR.FileName); 
+					return; 
+				end
                                 datalen = fread(fid,1,'uint32');
-                                fseek(fid,datalen,'bof');
+                                statut = fseek(fid,datalen,'bof');
                                 HDR.Header = char(fread(fid,[1,inf],'uchar'));
                                 fclose(fid);
                         end;
