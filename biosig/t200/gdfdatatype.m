@@ -24,8 +24,8 @@ function [datatyp,limits,datatypes]=gdfdatatype(GDFTYP)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.7 $
-%	$Id: gdfdatatype.m,v 1.7 2005-01-12 15:46:34 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: gdfdatatype.m,v 1.8 2005-03-25 16:27:21 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -77,12 +77,12 @@ for k=1:length(GDFTYP),
                 datatyp=('float128');
                 limit = [-inf,inf,NaN];        
         elseif (GDFTYP(k)>255) & (GDFTYP(k)<512)
-                nbits = int2str(GDFTYP(k)-255);
-                datatyp=['bit',nbits];
+                nbits = GDFTYP(k)-255;
+                datatyp=['bit',int2str(nbits)];
                 limit = [-(2^(nbits-1)),2^(nbits-1)-1,-(2^(nbits-1))];
         elseif (GDFTYP(k)>511) & (GDFTYP(k)<768)
-                nbits = int2str(GDFTYP(k)-511);
-                datatyp=['ubit',nbits];
+                nbits = GDFTYP(k)-511;
+                datatyp=['ubit',int2str(nbits)];
                 limit = [0,2^nbits,2^nbits];
         else 
                 fprintf(2,'Error GDFREAD: Invalid GDF channel type\n');
