@@ -32,10 +32,9 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.28 $
-%	$Id: sopen.m,v 1.28 2004-02-12 15:03:38 schloegl Exp $
-%	(C) 1997-2004 by Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Revision: 1.29 $
+%	$Id: sopen.m,v 1.29 2004-02-23 18:55:28 schloegl Exp $
+%	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -65,6 +64,8 @@ HDR.FILE.Name = file;
 HDR.FILE.Path = pfad;
 HDR.FILE.Ext  = FileExt(2:length(FileExt));
 HDR.FILE.OPEN = 0;
+HDR.FILE.FID  = -1;
+HDR.TYPE = 'unknown';
 if ~isfield(HDR.FILE,'stderr'),
         HDR.FILE.stderr = 2;
 end;
@@ -76,7 +77,7 @@ end;
 if any(PERMISSION=='r'),
 	fid = fopen(HDR.FileName,'rb','ieee-le');
         if fid < 0,
-                fprintf(HDR.FILE.stderr,'Error SOPEN: file %s could not be opened.\n',HDR.FileName);    
+                fprintf(HDR.FILE.stderr,'Error SOPEN: file %s not found.\n',HDR.FileName);    
                 return;
         else
                 [s,c] = fread(fid,[1,132],'uchar');
@@ -223,6 +224,8 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='GF1';
                         elseif strncmp(ss,'GIF8',4); 
                                 HDR.TYPE='GIF';
+                        elseif strncmp(ss,'CPT9FILE',8);        % Corel PhotoPaint Format
+                                HDR.TYPE='CPT9';        
 
                         elseif all(s(21:28)==abs('ACR-NEMA')); 
                                 HDR.TYPE='ACR-NEMA';
@@ -354,7 +357,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         HDR = sdfopen(HDR,PERMISSION,CHAN);
 	HDR.FLAG.TRIGGERED = 0;	% Trigger Flag
 
-        
+
 elseif strcmp(HDR.TYPE,'BKR'),
         if any(PERMISSION=='w');
                 HDR = eegchkhdr(HDR);
@@ -657,6 +660,7 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 end;
                 HDR.Cal(find(~OK)) = NaN;
                 HDR.Calib = sparse([-HDR.Off';eye(HDR.NS*[1,1])])*sparse(1:HDR.NS,1:HDR.NS,HDR.Cal);
+                HDR.PhysDim = 'µV';
         end;        
         
         fid = fopen(fullfile(HDR.FILE.Path,'r_info'),PERMISSION);
@@ -703,7 +707,7 @@ elseif strcmp(HDR.TYPE,'alpha'),
         else
                 [s] = fgetl(fid);       % read version
                 
-                k = 0; POS = []; TYP = []; IO = [];
+                k = 0; POS = []; DUR = []; TYP = []; IO = [];
                 while ~feof(fid),
                         [s] = fgetl(fid);
                         if ~isnumeric(s),
@@ -714,6 +718,10 @@ elseif strcmp(HDR.TYPE,'alpha'),
                                         k = k + 1;
                                         POS(k) = timestamp;     
                                         TYP(k) = hex2dec(type);   
+                                        DUR(k) = 0;
+                                        if (k>1) & (TYP(k)==0),
+                                                DUR(k-1) = POS(k)-POS(k-1);
+                                        end;
                                 else
                                         fprintf(2,'Warning SOPEN: alpha: invalid Event type\n');
                                 end;	                        
@@ -724,9 +732,11 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 end;
                 fclose(fid);
                 HDR.EVENT.N   = k;
-                HDR.EVENT.POS = POS;
-                HDR.EVENT.TYP = TYP;
-                HDR.EVENT.IO  = IO;
+                HDR.EVENT.POS = POS(:);
+                HDR.EVENT.DUR = DUR(:);
+                HDR.EVENT.TYP = TYP(:);
+                HDR.EVENT.IO  = IO(:);
+                HDR.EVENT.CHN = zeros(HDR.EVENT.N,1);
         end;
 
         
@@ -1126,32 +1136,101 @@ elseif strcmp(HDR.TYPE,'QTFF'),
                                 offset = offset + tagsize; 
                                 tag = setstr(fread(HDR.FILE.FID,[1,4],'char'));
                                 if tagsize==0,
-                                	tagsize=inf;        
+                                	tagsize=inf; %tagsize-8;        
                                 elseif tagsize==1,
-                                	tagsize=fread(HDR.FILE.FID,1,'uint64')-8;        
+                                	tagsize=fread(HDR.FILE.FID,1,'uint64');        
                                 end;
-                                if strcmpi(tag,'mdat')
-                                	HDR.HeadLen = ftell(HDR.FILE.FID);        
-                                end;
-                                val = fread(HDR.FILE.FID,[1,tagsize-8],'char');
 
-                                if strcmp(tag,'moov'),
-                                        HDR.MOV.moov=val;
+                                if tagsize <= 8,
                                 elseif strcmp(tag,'free'),
+                                        val = fread(HDR.FILE.FID,[1,tagsize-8],'char');
                                         HDR.MOV.free = val;
+                                elseif strcmp(tag,'skip'),
+                                        val = fread(HDR.FILE.FID,[1,tagsize-8],'char');
+                                        HDR.MOV.skip = val;
                                 elseif strcmp(tag,'wide'),
-                                        HDR.MOV.wide = val;
+                                        %val = fread(HDR.FILE.FID,[1,tagsize-8],'char');
+                                        %HDR.MOV.wide = val;
+                                elseif strcmp(tag,'pnot'),
+                                        val = fread(HDR.FILE.FID,[1,tagsize-8],'char');
+                                        HDR.MOV.pnot = val;
+                                elseif strcmp(tag,'moov'),
+                                        offset2 = 8;
+                                        while offset2 < tagsize, 
+                                                tagsize2 = fread(HDR.FILE.FID,1,'uint32');        % which size 
+                                                if tagsize2==0,
+                                                        tagsize2 = inf;
+                                                elseif tagsize2==1,
+                                                        tagsize2=fread(HDR.FILE.FID,1,'uint64');        
+                                                end;
+                                                offset2 = offset2 + tagsize2;                
+                                                tag2 = setstr(fread(HDR.FILE.FID,[1,4],'char'));
+                                                if tagsize2 <= 8,
+                                                elseif strcmp(tag2,'mvhd'),
+                                                        HDR.MOOV.Version = fread(HDR.FILE.FID,1,'char');
+                                                        HDR.MOOV.Flags = fread(HDR.FILE.FID,3,'char');
+                                                        HDR.MOOV.Times = fread(HDR.FILE.FID,5,'uint32');
+                                                        HDR.T0 = datevec(HDR.MOOV.Times(1)/(3600*24))+[1904,0,0,0,0,0];
+                                                        HDR.MOOV.prefVol = fread(HDR.FILE.FID,1,'uint16');
+                                                        HDR.MOOV.reserved = fread(HDR.FILE.FID,10,'char');
+                                                        HDR.MOOV.Matrix = fread(HDR.FILE.FID,[3,3],'int32')';
+                                                        HDR.MOOV.Matrix(:,1:2) = HDR.MOOV.Matrix(:,1:2)/2^16; 
+                                                        HDR.MOOV.Preview = fread(HDR.FILE.FID,5,'uint32');
+                                                elseif strcmp(tag2,'trak'),
+                                                        HDR.MOOV.trak = fread(HDR.FILE.FID,[1,tagsize2-8],'char');
+                                                elseif strcmp(tag2,'cmov'),
+                                                        HDR.MOOV.cmov = fread(HDR.FILE.FID,[1,tagsize2-8],'uchar');
+                                                elseif strcmp(tag2,'free'),
+                                                        HDR.MOOV.free = fread(HDR.FILE.FID,[1,tagsize2-8],'char');
+                                                elseif strcmp(tag2,'clip'),
+                                                        HDR.MOOV.clip = fread(HDR.FILE.FID,[1,tagsize2-8],'char');
+                                                elseif strcmp(tag2,'udta'),
+                                                        HDR.MOOV.udta = fread(HDR.FILE.FID,[1,tagsize2-8],'char');
+                                                elseif strcmp(tag2,'ctab'),
+                                                        HDR.MOOV.ctab = fread(HDR.FILE.FID,[1,tagsize2-8],'char');
+                                                else
+                                                end;
+                                        end;
+                                        %HDR.MOV.moov = fread(HDR.FILE.FID,[1,tagsize-8],'char');
+                                        
                                 elseif strcmp(tag,'mdat'),
-                                        HDR.MOV.mdat = val;
+                                	HDR.HeadLen = ftell(HDR.FILE.FID);        
+                                        offset2 = 8;
+                                        while offset2 < tagsize, 
+                                                tagsize2 = fread(HDR.FILE.FID,1,'uint32');        % which size 
+                                                tag2 = char(fread(HDR.FILE.FID,[1,4],'char'));
+                                                if tagsize2==0,
+                                                        tagsize2 = inf;
+                                                elseif tagsize2==1,
+                                                        tagsize2 = fread(HDR.FILE.FID,1,'uint64');        
+                                                end;
+                                                offset2  = offset2 + tagsize2;
+                                                if tagsize2 <= 8,
+                                                elseif strcmp(tag2,'mdat'),
+                                                        HDR.MDAT.mdat = fread(HDR.FILE.FID,[1,tagsize2-8],'char');
+                                                elseif strcmp(tag2,'wide'),
+                                                        HDR.MDAT.wide = fread(HDR.FILE.FID,[1,tagsize2],'char');
+                                                elseif strcmp(tag2,'clip'),
+                                                        HDR.MDAT.clip = fread(HDR.FILE.FID,[1,tagsize2-8],'char');
+                                                elseif strcmp(tag2,'udta'),
+                                                        HDR.MDAT.udta = fread(HDR.FILE.FID,[1,tagsize2-8],'char');
+                                                elseif strcmp(tag2,'ctab'),
+                                                        HDR.MDAT.ctab = fread(HDR.FILE.FID,[1,tagsize2-8],'char');
+                                                else
+                                                end;
+                                        end;
+                                        %HDR.MOV.mdat = fread(HDR.FILE.FID,[1,tagsize-8],'char');
                                 else
+                                        val = fread(HDR.FILE.FID,[1,tagsize-8],'char');
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN Type=MOV: unknown Tag %s.\n',tag);
                                 end;
-                	end;        
+                        fseek(HDR.FILE.FID,offset,'bof');
+                	end;       
                 end;
         end;        
         %fclose(HDR.FILE.FID);
-	
 
+        
 elseif strcmp(HDR.TYPE,'ASF') ,
         if exist('asfopen')==2,
 		HDR = asfopen(HDR,PERMISSION);

@@ -1,4 +1,4 @@
-function [signal,H] = sload(FILENAME,CHAN,TYPE)
+function [signal,H] = sload(FILENAME,CHAN)
 % SLOAD loads signal data of various data formats
 % 
 % Currently are the following data formats supported: 
@@ -15,8 +15,8 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 %
 
-%	$Revision: 1.12 $
-%	$Id: sload.m,v 1.12 2004-02-17 19:16:38 schloegl Exp $
+%	$Revision: 1.13 $
+%	$Id: sload.m,v 1.13 2004-02-23 18:55:27 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -367,29 +367,26 @@ elseif strncmp(H.TYPE,'MAT',3),
                 whos('-file',FILENAME);
         end;        
 
-elseif strcmp(TYPE,'DAT')
-        loaddat;     
-        signal = Voltage(:,CHAN);
-elseif strcmp(TYPE,'EBS') 
-        loadebs;
-elseif strcmp(TYPE,'RAW')
-        loadraw;
-elseif strcmp(TYPE,'RDT')
-        [signal] = loadrdt(FILENAME,CHAN);
-        Fs = 128;
-elseif strcmp(TYPE,'XLS')
-        loadxls;
-elseif strcmp(TYPE,'DA_')
-        fprintf('Warning LOADEEG: Format DA# in testing state and is not supported\n');
-        loadda_;
-elseif strcmp(TYPE,'RG64')
-        [signal,H.SampleRate,H.Label,H.PhysDim,H.NS]=loadrg64(FILENAME,CHAN);
-        %loadrg64;
-elseif strcmp(TYPE,'SIG')
-        if exist('loadsig')~=2,
-                error('LOADSIG not installed.');
+elseif strcmp(H.TYPE,'unknown')
+        TYPE = upper(H.FILE.Ext);
+        if strcmp(TYPE,'DAT')
+                loaddat;     
+                signal = Voltage(:,CHAN);
+        elseif strcmp(TYPE,'RAW')
+                loadraw;
+        elseif strcmp(TYPE,'RDT')
+                [signal] = loadrdt(FILENAME,CHAN);
+                Fs = 128;
+        elseif strcmp(TYPE,'XLS')
+                loadxls;
+        elseif strcmp(TYPE,'DA_')
+                fprintf('Warning LOADEEG: Format DA# in testing state and is not supported\n');
+                loadda_;
+        elseif strcmp(TYPE,'RG64')
+                [signal,H.SampleRate,H.Label,H.PhysDim,H.NS]=loadrg64(FILENAME,CHAN);
+                %loadrg64;
+        else
+                fprintf('Error SLOAD: Unknown Data Format\n');
+                signal = [];
         end;
-        [H,signal] = loadsig(FILENAME);
-else
-        fprintf('Error SLOAD: Unknown Data Format\n');
 end;
