@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.30 $
-%	$Id: sopen.m,v 1.30 2004-02-24 21:18:19 schloegl Exp $
+%	$Revision: 1.31 $
+%	$Id: sopen.m,v 1.31 2004-02-26 14:52:52 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -310,6 +310,11 @@ if any(PERMISSION=='r'),
                         end;
                 end;
                 fclose(fid);
+                if strcmp(HDR.TYPE,'BKR'),
+                        if ~isemtpy(findstr(lower(HDR.FILE.Ext),'cnt')),
+                                fprintf(HDR.FILE.stderr,'Warning (dedicated to BB & CB): %s IS A BKR, not a CNT file\n',HDR.FileName);
+                        end;
+                end;
 
 		% alpha-TRACE Medical software
 	        if (strcmpi(HDR.FILE.Name,'rawdata') | strcmpi(HDR.FILE.Name,'rawhead')) & isempty(HDR.FILE.Ext),
@@ -366,7 +371,7 @@ elseif strcmp(HDR.TYPE,'BKR'),
         end;
         HDR = bkropen(HDR,PERMISSION,CHAN);
         HDR.PhysDim = 'µV';
-
+        
         
 elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
         if any(PERMISSION=='r');

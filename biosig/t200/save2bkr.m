@@ -35,8 +35,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.14 $
-% 	$Id: save2bkr.m,v 1.14 2004-02-17 19:15:07 schloegl Exp $
+%	$Revision: 1.15 $
+% 	$Id: save2bkr.m,v 1.15 2004-02-26 14:52:52 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -287,8 +287,8 @@ for k=1:length(infile);
         if isfield(HDR,'EVENT')
                 if HDR.EVENT.N > 0,
                         % TypeList = unique(HDR.EVENT.TYP); but ignores NaN's
-                        [sY ,idx] = sort(HDR.EVENT.TYP);
-                        TypeList  = sY([1,find(diff(sY,1)>0)+1]);
+                        [sY ,idx] = sort(HDR.EVENT.TYP(:));
+                        TypeList  = sY([1;find(diff(sY,1)>0)+1]);
                         
                         event = zeros(size(y,1),length(TypeList));
                         for k2 = 1:length(TypeList),
@@ -335,8 +335,11 @@ for k=1:length(infile);
                 HDR.FILE.Path = outfile;            
 	        HDR.FileName  = fullfile(outfile,[HDR.FILE.Name,'.bkr']);
         else
-                %[HDR.FILE.Path,HDR.FILE.Path,HDR.FILE.Path]=fileparts(outfile);
-                HDR.FileName = outfile;
+                [HDR.FILE.Path,HDR.FILE.Name,Ext] = fileparts(outfile);
+                if isempty(findstr(lower(Ext),'bkr'))
+                        fprintf(2,'Warning SAVE2BKR: extension of target file should be .BKR, not %s\n',Ext);
+                end;
+                HDR.FileName = fullfile(HDR.FILE.Path,[HDR.FILE.Name,Ext]);
         end;
         HDR   = eegchkhdr(HDR);
         
@@ -378,5 +381,13 @@ for k=1:length(infile);
                 fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.sel'],'w');
                 fprintf(fid, '%i\r\n', HDR.ArtifactSelection);
                 fclose(fid);
+        end;
+        
+        % final test 
+        try
+                HDR = sopen(HDR.FileName,'r');
+                HDR = sclose(HDR);
+        catch
+                fprintf(2,'Error SAVE2BKR: saving file %s failed\n',HDR.FileName);
         end;
 end;

@@ -13,8 +13,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.21 $
-%	$Id: cntopen.m,v 1.21 2004-01-23 09:10:42 schloegl Exp $
+%	$Revision: 1.22 $
+%	$Id: cntopen.m,v 1.22 2004-02-26 14:52:53 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -345,7 +345,7 @@ else    % new header
         h.autocorrectflag   = fread(fid,1,'char');
         h.dcthreshold       = fread(fid,1,'uchar');
         
-        if 0,%ftell(fid)~=900,
+        if ftell(fid)~=900,
 	% this check does not work in the currenct CVS-version of Octave	
                 warning(['supicous Neuroscan file ',FILENAME]);
         end;
@@ -384,7 +384,7 @@ else    % new header
                 e.calib(1,n)          = fread(fid,1,'float');
         end
         
-        if 0,%ftell(fid)~=(900+h.nchannels*75),	
+        if ftell(fid)~=(900+h.nchannels*75),	
 	% this check does not work in the currenct CVS-version of Octave	
                 warning(['supicous Neuroscan file ',FILENAME]);
         end;
