@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.31 $
-%	$Id: sread.m,v 1.31 2004-11-04 17:33:11 schloegl Exp $
+%	$Revision: 1.32 $
+%	$Id: sread.m,v 1.32 2004-11-26 14:14:04 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -616,48 +616,47 @@ elseif strcmp(HDR.TYPE,'EEProbe-AVR'),
         HDR.FILE.POS = HDR.FILE.POS + nr;
 
         
-elseif strcmp(HDR.TYPE,'BVbinmul'), %Brainvision, binary, multiplexed
-        if nargin>2,
-                STATUS = fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb,'bof');        
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
+elseif strcmp(HDR.TYPE,'BrainVision'),   %Brainvision
+        if strncmpi(HDR.BV.DataFormat, 'binary',5)
+                if strncmpi(HDR.BV.DataOrientation, 'multiplexed',6),
+                        if nargin>2,
+                                STATUS = fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb,'bof');        
+                                HDR.FILE.POS = HDR.SampleRate*StartPos;
+                        end;
+                        
+                        nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
+                        [dat, count] = fread(HDR.FILE.FID, [HDR.NS, nr], HDR.GDFTYP);
+                        
+                        % rename and transpose the data
+                        S = dat(HDR.InChanSelect,:)';
+                        HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+                        
+                elseif strncmpi(HDR.BV.DataOrientation, 'vectorized',6),
+                        S = [];
+                        nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
+                        
+                        count = 0; 
+                        for chan = 1:length(HDR.InChanSelect);
+                                STATUS = fseek(HDR.FILE.FID, HDR.HeadLen + HDR.FILE.POS + HDR.AS.bpb*HDR.SPR*(chan-1)/HDR.NS, 'bof');
+                                [s,count] = fread(HDR.FILE.FID, [nr,1], HDR.GDFTYP);
+                                if count ~= nr,
+                                        fprintf(2,'ERROR READ BV-bin-vec: \n');
+                                        return;
+                                end;    
+                                S(:,chan) = s;        
+                        end
+                        HDR.FILE.POS = HDR.FILE.POS + count; 
+                end;
         
-        nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
-        [dat, count] = fread(HDR.FILE.FID, [HDR.NS, nr], HDR.GDFTYP);
-        
-        % rename and transpose the data
-        S = dat(HDR.InChanSelect,:)';
-        HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
-
-        
-elseif strcmp(HDR.TYPE,'BVbinvec'), %Brainvision, binary, vectorized
-        S = [];
-        
-        nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
-
-        for chan = 1:length(HDR.InChanSelect);
-                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen + HDR.FILE.POS + HDR.AS.bpb/HDR.NS * HDR.SPR,'bof');
-                [s,count] = fread(HDR.FILE.FID,[nr,1],HDR.GDFTYP);
-                if count~=nr,
-                        fprintf(2,'ERROR READ BV-bin-vec: \n');
-                        return;
-                end;    
-                S(:,chan) = s;        
+        elseif strncmpi(HDR.BV.DataFormat, 'ascii',5)  
+                if nargin>2,
+                        HDR.FILE.POS = HDR.SampleRate*StartPos;
+                end;
+                nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
+                S  = HDR.BV.data(HDR.FILE.POS+(1:nr),HDR.InChanSelect);
+                
         end
-        HDR.FILE.POS = HDR.FILE.POS + count; 
-
-        
-elseif strcmp(HDR.TYPE,'BVascii'), %Brainvision, ascii
-        if nargin>2,
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
-        S  = HDR.BV.data(HDR.FILE.POS+(1:nr),HDR.InChanSelect);
-        
-        
-elseif 0, strcmp(HDR.TYPE,'BrainVision'),   %Brainvision, unknown
-        error('SREAD (BrainVision): unsupported fileformat for data');
-        
+                
         
 elseif strcmp(HDR.TYPE,'SierraECG'),   %% SierraECG  1.03  *.open.xml from PHILIPS
         if ~isfield(HDR,'data');
