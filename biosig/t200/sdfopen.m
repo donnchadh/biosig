@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.33 $
-%	$Id: sdfopen.m,v 1.33 2004-12-06 08:37:48 schloegl Exp $
+%	$Revision: 1.34 $
+%	$Id: sdfopen.m,v 1.34 2004-12-09 16:51:31 schloegl Exp $
 %	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1305,8 +1305,6 @@ EDF.FileName = [EDF.FILE.Path filesep EDF.FILE.Name '.' EDF.FILE.Ext];
 if ~isfield(EDF,'VERSION')
         fprintf('Warning SDFOPEN-W: EDF.VERSION not defined; default=EDF assumed\n');
         EDF.VERSION='0       '; % default EDF-format
-        %EDF.ErrNo = EDF.ErrNo + 128;
-        %fclose(EDF.FILE.FID); return;
 end;
 
 if ~strcmp(EDF.VERSION(1:3),'GDF');
@@ -1342,7 +1340,9 @@ if ~isfield(EDF,'NRec')
         EDF.NRec=-1;
 end;
 if ~isfield(EDF,'Dur')
-        fprintf('Warning SDFOPEN-W: EDF.Dur not defined\n');
+        if EDF.NS>0,
+                fprintf('Warning SDFOPEN-W: EDF.Dur not defined\n');
+        end;
         EDF.Dur=NaN;
 end;
 if ~isfield(EDF,'NS')
@@ -1387,7 +1387,9 @@ end;
 % Check all fields of Header2
 if ~isfield(EDF,'Label')
         EDF.Label=setstr(32+zeros(EDF.NS,16));
-        fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.Label not defined\n');
+        if EDF.NS>0,
+                fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.Label not defined\n');
+        end;
 else
         tmp=min(16,size(EDF.Label,2));
         EDF.Label = [EDF.Label(1:EDF.NS,1:tmp), char(32+zeros(EDF.NS,16-tmp))];
@@ -1419,50 +1421,50 @@ EDF.PreFilt = [EDF.PreFilt(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,80-tmp))];
 
 if ~isfield(EDF,'PhysDim')
         EDF.PhysDim=setstr(32+zeros(EDF.NS,8));
-        fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.PhysDim not defined\n');
+        if EDF.NS>0,
+                fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.PhysDim not defined\n');
+        end;
 else
         tmp=min(8,size(EDF.PhysDim,2));
         EDF.PhysDim=[EDF.PhysDim(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,8-tmp))];
 end;
 
 if ~isfield(EDF,'PhysMin')
-        fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.PhysMin not defined\n');
+        if EDF.NS>0,
+                fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.PhysMin not defined\n');
+        end
         EDF.PhysMin=repmat(nan,EDF.NS,1);
-        %EDF.ERROR = sprintf('Error SDFOPEN-W: EDF.PhysMax not defined\n');
-        %EDF.ErrNo = EDF.ErrNo + 128;
-        %fclose(EDF.FILE.FID); return;
 else
         EDF.PhysMin=EDF.PhysMin(1:EDF.NS);
 end;
 if ~isfield(EDF,'PhysMax')
-        fprintf('Warning SDFOPEN-W: EDF.PhysMax not defined\n');
+        if EDF.NS>0,
+                fprintf('Warning SDFOPEN-W: EDF.PhysMax not defined\n');
+        end;
         EDF.PhysMax=repmat(nan,EDF.NS,1);
-        %EDF.ERROR = sprintf('Error SDFOPEN-W: EDF.PhysMax not defined\n');
-        %EDF.ErrNo = EDF.ErrNo + 128;
-        %fclose(EDF.FILE.FID); return;
 else
         EDF.PhysMax=EDF.PhysMax(1:EDF.NS);
 end;
 if ~isfield(EDF,'DigMin')
-        fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.DigMin not defined\n');
+        if EDF.NS>0,
+                fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.DigMin not defined\n');
+        end
         EDF.DigMin=repmat(nan,EDF.NS,1);
-        %EDF.ERROR = sprintf('Error SDFOPEN-W: EDF.DigMin not defined\n');
-        %EDF.ErrNo = EDF.ErrNo + 128;
-        %fclose(EDF.FILE.FID); return;
 else
         EDF.DigMin=EDF.DigMin(1:EDF.NS);
 end;
 if ~isfield(EDF,'DigMax')
-        fprintf('Warning SDFOPEN-W: EDF.DigMax not defined\n');
+        if EDF.NS>0,
+                fprintf('Warning SDFOPEN-W: EDF.DigMax not defined\n');
+        end;
         EDF.DigMax=repmat(nan,EDF.NS,1);
-        %EDF.ERROR = sprintf('Error SDFOPEN-W: EDF.DigMax not defined\n');
-        %EDF.ErrNo = EDF.ErrNo + 128;
-        %fclose(EDF.FILE.FID); return;
 else
         EDF.DigMax=EDF.DigMax(1:EDF.NS);
 end;
 if ~isfield(EDF,'SPR')
-        fprintf('Warning SDFOPEN-W: EDF.SPR not defined\n');
+        if EDF.NS>0,
+                fprintf('Warning SDFOPEN-W: EDF.SPR not defined\n');
+        end;
         EDF.SPR = repmat(nan,EDF.NS,1);
         EDF.ERROR = sprintf('Error SDFOPEN-W: EDF.SPR not defined\n');
         EDF.ErrNo = EDF.ErrNo + 128;
