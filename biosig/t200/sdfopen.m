@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.38 $
-%	$Id: sdfopen.m,v 1.38 2005-03-04 18:07:30 schloegl Exp $
+%	$Revision: 1.39 $
+%	$Id: sdfopen.m,v 1.39 2005-03-05 00:56:35 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -587,7 +587,7 @@ elseif strcmp(EDF.TYPE,'GDF') & (EDF.AS.EVENTTABLEPOS > 0),
                 end;
         end;
         if any(ArtifactSelection), % define only if necessary
-                HDR.ArtifactSelection = ArtifactSelection; 
+                EDF.ArtifactSelection = ArtifactSelection; 
         end;
         
 elseif strcmp(EDF.TYPE,'EDF') & (length(strmatch('EDF Annotations',EDF.Label))==1),
