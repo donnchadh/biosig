@@ -33,8 +33,8 @@ function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.8 $
-%	$Id: eegopen.m,v 1.8 2003-05-17 16:31:50 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: eegopen.m,v 1.9 2003-05-20 13:39:35 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -241,7 +241,7 @@ elseif strcmp(HDR.TYPE,'BKR'),
         
 elseif strcmp(HDR.TYPE,'CNT'),
 	if strcmp(PERMISSION,'r'),
-	        HDR = cntopen(HDR,'r',CHAN);
+	        [HDR,H1,h2] = cntopen(HDR,'r',CHAN);
 	else
 		fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
         end;
