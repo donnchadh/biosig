@@ -4,8 +4,16 @@
 
 DOC: Documentation
 ---------------------------------------------
+	header.txt	specification of header (Dokumentation) 
 
 
+
+demo: [demo's, examples] 
+---------------------------------------------
+	demo1		QRS-detection
+	demo2		estimates and validates BCI classifier
+
+	
 
 T100: [Data Acquistion] 
 ---------------------------------------------
@@ -25,8 +33,6 @@ T200: Data Formats
 	LOADEEG 	Opens, reads all data and closes file Biosig files. 
  	and some utility functions
 
-	header.txt	specification of header (Dokumentation) 
-
 
 T250: Quality Control and Artifact Processing
 ---------------------------------------------
@@ -37,9 +43,9 @@ T250: Quality Control and Artifact Processing
 
 T300: Signal Processing and Feature extraction
 ---------------------------------------------
-The TSA-toolbox should be included here
-	MVFREQZ
-	TSA/AAR		adaptive autoregressive parameters
+	processing	general framework for blockwise-dataprocessing
+	getar0		initial AAR parameters
+
 	
 
 T400: Classification, Single Trial Analysis, Statistics,
@@ -49,7 +55,8 @@ T400: Classification, Single Trial Analysis, Statistics,
 	LLBC		log-likelihood based classifier
 	DECOVM		decomposes an "extended" covariance matrix	
 	GETCLASSIFIER	estimates classifier from labelled data
-
+	FINDCLASSIFIER1	obtains classifier includeding performance test. 
+	
 
 T490: Evaluation criteria
 ---------------------------------------------
@@ -58,7 +65,8 @@ T490: Evaluation criteria
 	MUTINFO		mutual information
 	QCMAHAL		quality check of multiple discriminator
 	KAPPA		kappa statistics
-
+	BCI3EVAL	Evaluation of BCI results
+	
 
 T500: Presentation, Output
 ---------------------------------------------
