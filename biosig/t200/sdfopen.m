@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.1 $
-%	$Id: sdfopen.m,v 1.1 2003-02-01 15:03:46 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: sdfopen.m,v 1.2 2003-05-09 17:54:18 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -980,11 +980,12 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
                 else
                         tmp=load(FN);
                 end;
-    	        if isfield(tmp,'TRESHOLD') 
-        	        EDF.SIE.THRESHOLD = tmp.TRESHOLD;
-                %else
+                if isfield(tmp,'TRESHOLD'), 
+                        EDF.SIE.THRESHOLD = tmp.TRESHOLD;
             	        %fprintf(EDF.FILE.stderr,'Error %s: TRESHOLD''s not found.\n',EDF.AS.Method);
                 end;
+                
+
         end;
     	if EDF.SIE.TH>1, % Failing electrode detector 
 	        fprintf(2,'Warning SDFOPEN: FED not implemented yet\n');

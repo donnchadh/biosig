@@ -33,8 +33,8 @@ function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.6 $
-%	$Id: eegopen.m,v 1.6 2003-04-26 19:02:51 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: eegopen.m,v 1.7 2003-05-09 17:54:18 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -95,6 +95,8 @@ if exist(HDR.FileName)==2,
                                 HDR.TYPE='EGI';
                         elseif strncmp(s,'rhdE',4);	% Holter Excel 2 file, not supported yet. 
                                 HDR.TYPE='rhdE';          
+			elseif any(s(3:6)*(2.^[0;8;16;24]) == (30:40))
+				HDR.TYPE='ACQ';
                         else
                                 %TYPE='unknown';
                         end;
@@ -146,7 +148,7 @@ elseif strcmp(HDR.TYPE,'STB'), HDR.TYPE='BKR';
 elseif strcmp(HDR.TYPE,'HEA'), HDR.TYPE='MIT';
 elseif strcmp(HDR.TYPE,'ATR'), HDR.TYPE='MIT';
 elseif strcmp(HDR.TYPE,'DAT'), 
-        tmp = dir(fullfile(HDR.FILE.Path,[DHR.FILE.Name,'.hea']));
+        tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hea']));
         if isempty(tmp), 
                 HDR.TYPE='DAT';
         else
@@ -262,6 +264,112 @@ elseif strcmp(HDR.TYPE,'LDR'),
         HDR = openldr(HDR,PERMISSION);      
         
 
+elseif strcmp(HDR.TYPE,'LABVIEW'),
+    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+        if HDR.FILE.FID<=0,
+                fprintf(HDR.FILE.stderr,'EEGOPEN: File %s couldnot be opened\n',HDR.FileName);
+                return;
+        end;        
+	HDR.FILE.OPEN=1;
+
+	%%%%% READ HEADER from Labview 5.1 supplied VI "create binary header"
+
+	HDR.HeadLen  = fread(HDR.FILE.FID,1,'int32'); % 4 first bytes = total header length
+	HDR.NS     = fread(HDR.FILE.FID,1,'int32');  % 4 next bytes = channel list string length
+	HDR.ChanList = fread(HDR.FILE.FID,HDR.NS,'uchar'); % channel string
+
+	% Number of channels = 1 + ord(lastChann) - ord(firstChann):
+	HDR.LenN     = fread(HDR.FILE.FID,1,'int32'); % Hardware config length
+	HDR.HWconfig = fread(HDR.FILE.FID,HDR.LenN,'uchar'); % its value
+	HDR.SampleRate = fread(HDR.FILE.FID,1,'float32');
+	HDR.InterChannelDelay = fread(HDR.FILE.FID,1,'float32');
+	tmp=fread(HDR.FILE.FID,[1,HDR.HeadLen - ftell(HDR.FILE.FID)],'uchar'); % read rest of header
+	[HDR.Date,tmp]= strtok(tmp,9) ; % date is the first 10 elements of this tmp array (strip out tab)
+	[HDR.Time,tmp]= strtok(tmp,9); % and time is the next 8 ones
+	% HDR.T0 = [yyyy mm dd hh MM ss];   %should be Matlab date/time format like in clock()
+	HDR.Description= char(tmp); % description is the rest of elements.
+
+	% Empirically determine the number of bytes per multichannel point:
+	HDR.HeadLen = ftell(HDR.FILE.FID) ; 
+	dummy10 = fread(HDR.FILE.FID,[HDR.NS,1],'int32');
+	HDR.AS.bpb = (ftell(HDR.FILE.FID) - HDR.HeadLen); % hope it's an int !
+
+	tmp = fseek(HDR.FILE.FID,0,'eof'); 
+	HDR.AS.endpos = (ftell(HDR.FILE.FID) - HDR.HeadLen)/HDR.AS.bpb;
+	fseek(HDR.FILE.FID,HDR.HeadLen,'bof'); 
+
+	if CHAN==0,		
+		HDR.SIE.InChanSelect = 1:HDR.NS;
+	elseif all(CHAN>0 & CHAN<=HDR.NS),
+		HDR.SIE.InChanSelect = CHAN;
+	else
+		fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+		fclose(HDR.FILE.FID); 
+		HDR.FILE.FID = -1;	
+		return;
+	end;
+	HDR.Cal = 1;
+        
+
+elseif strcmp(HDR.TYPE,'RG64'),
+	if strncmp(HDR.FILE.Ext,'rhf'),
+		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
+	elseif strcmp(HDR.FILE.Ext,'rhd'),
+		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1:2),'f']);
+	elseif strcmp(HDR.FILE.Ext,'RHD'),
+		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1:2),'F']);
+	end;
+    	HDR.FILE.FID = fopen(FILENAME,PERMISSION,'ieee-le');
+        if HDR.FILE.FID<=0,
+                fprintf(HDR.FILE.stderr,'EEGOPEN: File %s couldnot be opened\n',HDR.FileName);
+                return;
+        end;        
+	HDR.FILE.OPEN=1;
+        HDR.IDCODE=fread(HDR.FILE.FID,4,'char');	%
+	if strcmp(HDR.IDCODE')~='RG64' 
+	    	fprintf(2,'\nError LOADRG64: %s not an RG64-File\n',FILENAME); 
+	end; %end;
+
+	tmp = fread(HDR.FILE.FID,2,'int32');
+	HDR.VERSION = tmp(1)+tmp(2)/100;
+	HDR.NS = fread(HDR.FILE.FID,1,'int32');
+	HDR.SampleRate = fread(HDR.FILE.FID,1,'int32');
+	HDR.SPR = fread(HDR.FILE.FID,1,'int32');
+	AMPF = fread(HDR.FILE.FID,64,'int32');		
+	fclose(HDR.FILE.FID);
+
+	HDR.HeadLen = 0;
+	HDR.PhysDim = 'uV';
+	HDR.AS.endpos = HDR.SPR;
+	HDR.AS.bpb    = HDR.NS*2;
+
+	if strncmp(HDR.FILE.Ext,'rhd'),
+		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
+	elseif strcmp(HDR.FILE.Ext,'rhf'),
+		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1:2),'d']);
+	elseif strcmp(HDR.FILE.Ext,'RHF'),
+		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1:2),'D']);
+	end;
+	HDR.FILE.FID=fopen(FILENAME,'r','ieee-le');
+	if HDR.FILE.FID<0,
+		fprintf(2,'\nError LOADRG64: %s not found\n',FILENAME); 
+		return;
+	end;
+
+
+	if CHAN==0,		
+		HDR.SIE.InChanSelect = 1:HDR.NS;
+	elseif all(CHAN>0 & CHAN<=HDR.NS),
+		HDR.SIE.InChanSelect = CHAN;
+	else
+		fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+		fclose(HDR.FILE.FID); 
+		HDR.FILE.FID = -1;	
+		return;
+	end;
+	HDR.Cal = diag(AMPF(HDR.InChanSelect));
+    
+	
 elseif strcmp(HDR.TYPE,'DDF'),
 
 	% implementation of this format is not finished yet.
@@ -320,6 +428,7 @@ elseif strcmp(HDR.TYPE,'DDF'),
 		HDR.Delay = fread(HDR.FILE.FID,1,'double');
 		Datum = fread(HDR.FILE.FID,7,'uint16');  % might be incorrect
 	end;
+
 
 elseif strcmp(HDR.TYPE,'MIT')
 	if strcmp(PERMISSION,'r'),
@@ -449,7 +558,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 fseek(HDR.FILE.FID,0,'eof');
                 tmp = ftell(HDR.FILE.FID);
                 fseek(HDR.FILE.FID,0,'bof');
-                HDR.AS.endpos = tmp/HDR.AS.bpb
+                HDR.AS.endpos = tmp/HDR.AS.bpb;
                 
 		HDR.SIE.InChanSelect = 1:HDR.NS;
 		FLAG_UCAL = HDR.FLAG.UCAL;	
@@ -459,10 +568,6 @@ elseif strcmp(HDR.TYPE,'MIT')
 			fprintf(2,'ERROR EEGOPEN MIT-ECG: inconsistency in the first bit values'); 
 		end;
                 HDR.FLAG.UCAL = FLAG_UCAL ;	
-                
-                fseek(HDR.FILE.FID,0,'eof');
-                tmp = ftell(HDR.FILE.FID);
-		HDR.AS.endpos = tmp/HDR.AS.bpb
                 fseek(HDR.FILE.FID,0,'bof');	% reset file pointer
                 HDR.FILE.POS = 0;
                 
@@ -556,6 +661,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),
 		end;
 
 	end;
+
 	        
 elseif strcmp(HDR.TYPE,'ISHNE'),
 	if strcmp(PERMISSION,'r'),
@@ -637,9 +743,9 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
 	end;			
 
 else
-	fprintf(2,'EEGOPEN does not support your data format yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
-	HDR.FILE.FID = -1;	
-	return;
+	%fprintf(2,'EEGOPEN does not support your data format yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+	HDR.FILE.FID = -1;	% this indicates that file could not be opened. 
+        return;
 
 end;
 
