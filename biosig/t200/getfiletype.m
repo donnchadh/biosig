@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.16 $
-%	$Id: getfiletype.m,v 1.16 2004-11-11 10:09:48 schloegl Exp $
+%	$Revision: 1.17 $
+%	$Id: getfiletype.m,v 1.17 2004-11-16 19:53:37 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -166,6 +166,17 @@ else
                         HDR.TYPE='OGG';
                 elseif strcmp(ss([1:4]),'.RMF'); 
                         HDR.TYPE='RMF';
+
+                elseif strncmp(ss,'AON4',4); 
+                        HDR.TYPE='AON4';
+                elseif all(s(3:7)==abs('-lh5-')); 
+                        HDR.TYPE='LHA';
+                elseif strncmp(ss,'PSID',4); 
+                        HDR.TYPE='SID';
+			HDR.Title = ss(23:54);    
+			HDR.Author = ss(55:86);    
+			HDR.Copyright = ss(87:118);    
+
                 elseif strncmp(ss,'.snd',4); 
                         HDR.TYPE='SND';
                         HDR.Endianity = 'ieee-be';
@@ -353,11 +364,13 @@ else
                 elseif strncmp(ss,'*3DSMAX_ASCIIEXPORT',19)
                         HDR.TYPE='ASE';
                 elseif strncmp(s,'999',3)
-                        HDR.TYPE='DXF';
+                        HDR.TYPE='DXF-Ascii';
                 elseif all(s([1:4])==[32,32,48,10])
                         HDR.TYPE='DXF?';
                 elseif all(s([1:4])==[103,23,208,113])
                         HDR.TYPE='DXF13';
+                elseif strncmp(ss,'AutoCAD Binary DXF',18)
+                        HDR.TYPE='DXF-Binary';
 
                 elseif strncmp(ss,'%!PS-Adobe',10)
                         HDR.TYPE='PS/EPS';
@@ -393,6 +406,8 @@ else
                 elseif all(s(1:24)==[208,207,17,224,161,177,26,225,zeros(1,16)]);	% MS-EXCEL candidate
                         HDR.TYPE='BIFF';
                         
+                elseif strncmp(lower(ss),'<?php',5)
+                        HDR.TYPE='PHP';
                 elseif strncmp(ss,'<WORLD>',7)
                         HDR.TYPE='XML';
                 elseif all(s(1:2)==[255,254]) & all(s(4:2:end)==0)
@@ -499,7 +514,7 @@ else
                         HDR.TYPE='RMF';
                 elseif strncmp(ss,'IREZ',4); 
                         HDR.TYPE='RMF';
-                elseif strncmp(ss,'{\rtf',5); 
+                elseif all(s(1:5)==[123,92,114,116,102]);           % '{\rtf' 
                         HDR.TYPE='RTF';
                 elseif all(s(1:4)==[73,73,42,0]); 
                         HDR.TYPE='TIFF';
