@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.10 $
-%	$Id: scpopen.m,v 1.10 2004-05-02 11:30:36 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: scpopen.m,v 1.11 2004-07-02 16:17:02 schloegl Exp $
 %	(C) 2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -252,7 +252,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         SCP.SampleRate = 1e6/SCP.Dur;
                         SCP.FLAG.DIFF = fread(fid,1,'uint8');    
                         SCP.FLAG.bimodal_compression = fread(fid,1,'uint8');    
-                        SCP.SPR = fread(fid,HDR.NS,'int16');
+                        SCP.SPR = fread(fid,HDR.NS,'uint16');
                         
                         if section.ID==6,
                                 HDR.HeadLen = ftell(fid);
@@ -262,14 +262,17 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         end;
 
                         if ~isfield(HDR,'SCP2'),
-                                S2 = fread(fid,[SCP.SPR,HDR.NS],'int16');    
-                                
+                                if any(SCP.SPR(1)~=SCP.SPR),
+                                        error('SCPOPEN: SPR do not fit');
+                                else
+                                        S2 = fread(fid,[SCP.SPR(1)/2,HDR.NS],'int16');
+                                end;
+        
                         elseif HDR.SCP2.NHT==19999,
                                 HuffTab = DHT;
 				S2 = []; %repmat(NaN,HDR.N,HDR.NS);
                                 for k = 1:HDR.NS,
                                         SCP.data{k} = fread(fid,SCP.SPR(k),'uint8');    
-
                                         s2 = SCP.data{k};
                                         s2 = [s2; repmat(0,ceil(max(HDR.SCP2.HT(:,4))/8),1)];
 					k1 = 0;	
@@ -281,6 +284,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
 					while (l2 < HDR.LeadPos(k,2)),
 						while c < max(HT(:,2));
 							k1 = k1 + 1;
+ %                                                       [k1,length(s2),k,HDR.NS],ret
 							dd = s2(k1);
 							accu = accu + ACC(dd+1)*(2^c);
 							c = c + 8;
