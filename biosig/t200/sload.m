@@ -30,8 +30,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.43 $
-%	$Id: sload.m,v 1.43 2004-11-11 10:09:48 schloegl Exp $
+%	$Revision: 1.44 $
+%	$Id: sload.m,v 1.44 2004-11-16 19:54:37 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -301,7 +301,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 
                 
         elseif isfield(tmp,'runnr') & isfield(tmp,'trialnr') & isfield(tmp,'samplenr') & isfield(tmp,'signal') & isfield(tmp,'StimulusCode');
-                H.INFO='BCI competition 2003, dataset 2b (Albany)'; 
+                H.INFO = 'BCI competition 2003, dataset 2b (Albany)'; 
                 H.SampleRate = 240; 
                 H.NRec = 1; 
 		[H.SPR,H.NS]=size(tmp.signal);
@@ -328,7 +328,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 
                 
         elseif isfield(tmp,'clab') & isfield(tmp,'x_train') & isfield(tmp,'y_train') & isfield(tmp,'x_test');	
-                H.INFO='BCI competition 2003, dataset 4 (Berlin)'; 
+                H.INFO  = 'BCI competition 2003, dataset 4 (Berlin)'; 
                 H.Label = tmp.clab;        
                 H.Classlabel = [repmat(nan,size(tmp.x_test,3),1);tmp.y_train';repmat(nan,size(tmp.x_test,3),1)];
                 H.NRec  = length(H.Classlabel);
@@ -1042,19 +1042,28 @@ elseif strcmp(H.TYPE,'SMF'),
 	
         
 elseif strcmp(H.TYPE,'FITS'),
-	[tmp, KK] = max(H.IMAGE_Size);   % select block
+	if CHAN>1,
+		KK = CHAN;
+	else	
+		[tmp, KK] = max(H.IMAGE_Size);   % select block
+	end;
+	
+	for KK = 1:length(H.FITS),
+
 	status = fseek(H.FILE.FID,H.HeadLen(KK),'bof');
 
 	H.AS.bps = abs(H.FITS{KK}.BITPIX)/8;
-	if H.FITS{KK}.BITPIX==8,
+	if H.FITS{KK}.BITPIX == 8,
 		H.GDFTYP = 'uint8';
-	elseif H.FITS{KK}.BITPIX==16,
+	elseif H.FITS{KK}.BITPIX == 16,
 		H.GDFTYP = 'int16';
-	elseif H.FITS{KK}.BITPIX==32,
+	elseif H.FITS{KK}.BITPIX == 32,
 		H.GDFTYP = 'int32';
-	elseif H.FITS{KK}.BITPIX==-32,
+	elseif H.FITS{KK}.BITPIX == 64,
+		H.GDFTYP = 'int64';
+	elseif H.FITS{KK}.BITPIX == -32,
 		H.GDFTYP = 'float32';
-	elseif H.FITS{KK}.BITPIX==-64,
+	elseif H.FITS{KK}.BITPIX == -64,
 		H.GDFTYP = 'float64';
 	else
 		warning('SOPEN (FITS{KK})');
@@ -1071,11 +1080,93 @@ elseif strcmp(H.TYPE,'FITS'),
 	if isfield(H.FITS{KK},'DATAMIN'),	H.PhysMin = H.FITS{KK}.DATAMIN;
 	else					H.PhysMin = NaN;	 	end;
 
-	[signal,c] = fread(H.FILE.FID,prod(H.IMAGE(KK).Size),H.GDFTYP);
-	signal = reshape(signal,H.IMAGE(KK).Size);  % * H.Cal + H.Off;
-	fclose(H.FILE.FID);	
+	if ~isfield(H.FITS{KK},'XTENSION')
+		[signal,c] = fread(H.FILE.FID, prod(H.IMAGE(KK).Size), H.GDFTYP);
+		signal = reshape(signal,H.IMAGE(KK).Size) * H.Cal + H.Off;
 
+	elseif strncmp(H.FITS{KK}.XTENSION,'TABLE',5)
+		for k = 1:H.FITS{KK}.TFIELDS,
+			f = ['TTYPE',int2str(k)];
+			if isfield(H.FITS{KK},f)
+				H.TABLE{KK}.Label(k,:) = getfield(H.FITS{KK},f);
+			end;	
+			tmp = getfield(H.FITS{KK},['TFORM',int2str(k)]);
+			typ(k) = tmp(1);
+			ix(k)  = getfield(H.FITS{KK},['TBCOL',int2str(k)]);
+		end; 
+		ix(k+1) = H.FITS{KK}.NAXIS1+1;
+
+		sa = {};
+		[signal,c] = fread(H.FILE.FID, H.IMAGE(KK).Size, H.GDFTYP);
+		signal = signal';
+		s = repmat(NaN, H.FITS{KK}.NAXIS2, H.FITS{KK}.TFIELDS);
+		for k = 1:H.FITS{KK}.TFIELDS,
+			[s(:,k), status,sa(:,k)] = str2double(char(signal(:,ix(k):ix(k+1)-1)));
+		end;
+		H.TABLE{KK} = s;
         
+	elseif strncmp(H.FITS{KK}.XTENSION,'BINTABLE',8)
+		for k = 1:H.FITS{KK}.TFIELDS,
+			f = ['TTYPE',int2str(k)];
+			if isfield(H.FITS{KK},f)
+				H.TABLE{KK}.Label(k,:) = getfield(H.FITS{KK},f);
+			end;
+			tmp = getfield(H.FITS{KK},['TFORM',int2str(k)]);
+			ix  = min(find(tmp>'9'));
+			sz(k) = str2double(tmp(1:ix-1)); 
+			H.FITS{KK}.TYP(k) = tmp(ix);
+
+			if 0, 
+			elseif tmp(ix)=='L', 	GDFTYP{k} = 'char';	% char T, F
+			elseif tmp(ix)=='X', 	GDFTYP{k} = 'ubit1';	%ubit1
+			elseif tmp(ix)=='B', 	GDFTYP{k} = 'uint8';	% uint8
+			elseif tmp(ix)=='I', 	GDFTYP{k} = 'int16';	% int16
+			elseif tmp(ix)=='J', 	GDFTYP{k} = 'int32';	% int32
+			elseif tmp(ix)=='A', 	GDFTYP{k} = 'uchar';	% char
+			elseif tmp(ix)=='E', 	GDFTYP{k} = 'float32';	% float32
+			elseif tmp(ix)=='D', 	GDFTYP{k} = 'float64';	% double
+			elseif tmp(ix)=='C', sz(k) = sz(k)*2;	GDFTYP{k} = 'float32';	% [1+i]*float32
+			elseif tmp(ix)=='M', sz(k) = sz(k)*2;	GDFTYP{k} = 'float64';	% [1+i]*double
+			elseif tmp(ix)=='P', 	GDFTYP{k} = 'uint64';	% uint64, array desc ? 
+			else
+			end;
+		end; 
+
+		for k2 = 1:H.FITS{KK}.NAXIS2,
+		for k1 = 1:H.FITS{KK}.TFIELDS,
+			[s,c] = fread(H.FILE.FID, [1,sz(k1)], GDFTYP{k1});
+
+			if 0, 
+			elseif H.FITS{KK}.TYP(k1)=='L',
+				sig{k1}(k2,:) = (s=='T');
+			elseif H.FITS{KK}.TYP(k1)=='A',
+				sig{k1}(k2,:) = char(s);
+			elseif any(H.FITS{KK}.TYP(k1)=='CM'),
+				sig{k1}(k2,:) = [1,i]*reshape(s,2,sz(k1)/2);
+			else
+				sig{k1}(k2,:) = s;
+			end;	
+ 		end;
+		end;
+		H.TABLE{KK} = sig;
+        
+	elseif strncmp(H.FITS{KK}.XTENSION,'IMAGE',5)
+	H.GDFTYP,
+	ftell(H.FILE.FID),
+		[signal,c] = fread(H.FILE.FID, prod(H.IMAGE(KK).Size), H.GDFTYP);
+		
+		[c,size(signal),H.IMAGE(KK).Size]
+		signal = reshape(signal,H.IMAGE(KK).Size) * H.Cal + H.Off;
+
+	else
+		[signal,c] = fread(H.FILE.FID, prod(H.IMAGE(KK).Size), H.GDFTYP);
+		signal = reshape(signal,H.IMAGE(KK).Size) * H.Cal + H.Off;
+
+	end;
+	end;
+	fclose(H.FILE.FID);	
+	
+	
 elseif strcmp(H.TYPE,'TVF 1.1A'),
         H.FILE.FID = fopen(H.FileName,'rt');
 
