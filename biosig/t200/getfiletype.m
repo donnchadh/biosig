@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.12 $
-%	$Id: getfiletype.m,v 1.12 2004-10-21 10:46:57 schloegl Exp $
+%	$Revision: 1.13 $
+%	$Id: getfiletype.m,v 1.13 2004-10-29 18:10:59 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -379,6 +379,8 @@ else
                         HDR.Endianity = 'ieee-le';
                 elseif strncmp(ss,'SIMPLE  =                    T / Standard FITS format',30)
                         HDR.TYPE='FITS';
+                elseif all(s(1:40)==[137,abs('HDF'),13,10,26,10,0,0,0,0,0,8,8,0,4,0,16,0,3,zeros(1,11),repmat(255,1,8)]) & (HDR.FILE.size==s(41:44)*2.^[0:8:24]')
+                        HDR.TYPE='HDF';
                 elseif strncmp(ss,'CDF',3)
                         HDR.TYPE='NETCDF';
                 elseif strncmp(ss,'IFS',3)
@@ -534,8 +536,6 @@ else
                                 line = fgetl(fid);
                         end;
                         HDR.TYPE = 'EVENTCODES';
-                        HDR.EVENT.TYP = [];
-                        HDR.EVENT.POS = [];
                 else
                         HDR.TYPE='unknown';
 
