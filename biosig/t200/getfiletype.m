@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.14 $
-%	$Id: getfiletype.m,v 1.14 2004-11-04 17:42:49 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: getfiletype.m,v 1.15 2004-11-06 22:51:59 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -350,8 +350,32 @@ else
                 elseif all(s([1:8,13:20])==[8,0,0,0,4,0,0,0,8,0,5,0,10,0,0,0])            % DICOM candidate
                         HDR.TYPE='DICOM';
                         
+                elseif strncmp(ss,'*3DSMAX_ASCIIEXPORT',19)
+                        HDR.TYPE='ASE';
+                elseif strncmp(s,'999',3)
+                        HDR.TYPE='DXF';
+                elseif all(s([1:4])==[32,32,48,10])
+                        HDR.TYPE='DXF?';
                 elseif all(s([1:4])==[103,23,208,113])
                         HDR.TYPE='DXF13';
+
+                elseif strncmp(ss,'%!PS-Adobe',10)
+                        HDR.TYPE='PS/EPS';
+                elseif strncmp(ss,'HRCH: Softimage 4D Creative Environment',38)
+                        HDR.TYPE='HRCH';
+                elseif strncmp(ss,'#Inventor V2.0 ascii',11)
+                        HDR.TYPE='IV2';
+			HDR.Version = ss(12:14);
+                elseif strncmp(ss,'HRCH: Softimage 4D Creative Environment',38)
+                        HDR.TYPE='HRCH';
+                elseif all(s([1:2])==[1,218])
+                        HDR.TYPE='RGB';
+                elseif strncmp(ss,'#$SMF',5)
+                        HDR.TYPE='SMF';
+			HDR.Version = str2double(ss(7:10));
+                elseif strncmp(ss,'#SMF',4)
+                        HDR.TYPE='SMF';
+			HDR.Version = str2double(ss(5:8));
                         
                 elseif all(s([1:4])==[127,abs('ELF')])
                         HDR.TYPE='ELF';
@@ -369,6 +393,8 @@ else
                 elseif all(s(1:24)==[208,207,17,224,161,177,26,225,zeros(1,16)]);	% MS-EXCEL candidate
                         HDR.TYPE='BIFF';
                         
+                elseif strncmp(ss,'<WORLD>',7)
+                        HDR.TYPE='XML';
                 elseif all(s(1:2)==[255,254]) & all(s(4:2:end)==0)
                         HDR.TYPE='XML-UTF16';
                 elseif ~isempty(findstr(ss,'?xml version'))
@@ -377,20 +403,65 @@ else
                 elseif all(s([1:2,7:10])==[abs('BM'),zeros(1,4)])
                         HDR.TYPE='BMP';
                         HDR.Endianity = 'ieee-le';
+                elseif strncmp(ss,'#FIG',4)
+                        HDR.TYPE='FIG';
+			HDR.VERSION = strtok(ss(6:end),[10,13]);
                 elseif strncmp(ss,'SIMPLE  =                    T / Standard FITS format',30)
                         HDR.TYPE='FITS';
                 elseif all(s(1:40)==[137,abs('HDF'),13,10,26,10,0,0,0,0,0,8,8,0,4,0,16,0,3,zeros(1,11),repmat(255,1,8)]) & (HDR.FILE.size==s(41:44)*2.^[0:8:24]')
                         HDR.TYPE='HDF';
                 elseif strncmp(ss,'CDF',3)
                         HDR.TYPE='NETCDF';
+                elseif strncmp(ss,'%%MatrixMarket matrix coordinate',32)
+                        HDR.TYPE='MatrixMarket';
+                elseif s(1:4)*2.^[0:8:24]'==5965600,	 % Kodac ICC format
+                        HDR.TYPE='ICC';
+			HDR.HeadLen = s(5:8)*2.^[0:8:24];
+			HDR.T0 = s([20,19,18,17,24,23]);
                 elseif strncmp(ss,'IFS',3)
                         HDR.TYPE='IFS';
+                elseif strncmp(ss,'OFF',3)
+                        HDR.TYPE='OFF';
+			HDR.ND = 3;
+                elseif strncmp(ss,'4OFF',4)
+                        HDR.TYPE='OFF';
+			HDR.ND = 4;
                 elseif strncmp(ss,'.PBF',4)      
                         HDR.TYPE='PBF';
-                elseif all(s(1:2)=='P6') & any(s(3)==[10,13])
+                elseif (s(1)==16) & any(s(2)==[0,2,3,5])
+                        HDR.TYPE='PCX';
+			tmp = [2.5, 0, 2.8, 2.8, 0, 3];
+                        HDR.Version=tmp(s(2));
+			HDR.Encoding = s(3);
+			HDR.BitsPerPixel = s(4);
+			HDR.NPlanes = s(65);
+			
+                elseif 0, all(s(1:2)=='P6') & any(s(3)==[10,13])
                         HDR.TYPE='PNG6';
                 elseif all(s(1:8)==[137,80,78,71,13,10,26,10]) 
                         HDR.TYPE='PNG';
+		elseif (ss(1)=='P') & any(ss(2)=='123')	% PBMA, PGMA, PPMA
+                        HDR.TYPE='PBMA';
+			id = 'BGP';
+			HDR.TYPE(2)=id(s(2)-48);
+		elseif (ss(1)=='P') & any(ss(2)=='456')	% PBMB, PGMB, PPMB
+                        HDR.TYPE='PBMB';
+			id = 'BGP';
+			HDR.TYPE(2) = id(s(2)-abs('3'));
+			[s1,t]=strtok(ss,[9,10,13,32]);
+			[s1,t]=strtok(t,[9,10,13,32]);
+			[s2,t]=strtok(t,[9,10,13,32]);
+			HDR.IMAGE.Size = [str2double(s2),str2double(s1)];
+			if s(2)~='4',
+				[s3,t]=strtok(t,[9,10,13,32]);
+		    		HDR.DigMax = str2double(s3);
+			end;
+			HDR.HeadLen = length(ss)-length(t)+1;
+                elseif strncmp(ss,'/* XPM */',9)
+                        HDR.TYPE='XPM';
+
+                elseif strncmp(ss,['#  ',HDR.FILE.Name,'.poly'],8+length(HDR.FILE.Name)) 
+                        HDR.TYPE='POLY';
                 elseif all(s(1:4)==hex2dec(['FF';'D9';'FF';'E0'])')
                         HDR.TYPE='JPG';
                         HDR.Endianity = 'ieee-be';
@@ -428,12 +499,12 @@ else
                         HDR.TYPE='RMF';
                 elseif strncmp(ss,'{\rtf',5); 
                         HDR.TYPE='RTF';
-                elseif strncmp(ss,'II',2); 
+                elseif all(s(1:4)==[73,73,42,0]); 
                         HDR.TYPE='TIFF';
-                        HDR.Endianity = 0;
-                elseif strncmp(ss,'MM',2); 
+                        HDR.Endianity = 'ieee-le';
+                elseif all(s(1:4)==[77,77,0,42]); 
                         HDR.TYPE='TIFF';
-                        HDR.Endianity = 1;
+                        HDR.Endianity = 'ieee-be';
                 elseif strncmp(ss,'StockChartX',11); 
                         HDR.TYPE='STX';
                 elseif all(ss(1:2)==[25,149]); 

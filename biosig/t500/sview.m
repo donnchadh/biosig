@@ -7,8 +7,8 @@ function [argout,s]=sview(s,H),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.6 $
-%	$Id: sview.m,v 1.6 2004-09-25 00:19:57 schloegl Exp $ 
+%	$Revision: 1.7 $
+%	$Id: sview.m,v 1.7 2004-11-06 22:53:18 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -39,9 +39,18 @@ else
         return;
 end;
 
-
-if strcmp(H.TYPE,'BMP'),
-	image(s);
+%if strmatch(H.TYPE,{'BMP','PBMA','PGMA','PPMA','PBMB','PGMB','PPMB','XPM'}),
+if isfield(H,'IMAGE');
+	if exist('OCTAVE_VERSION','builtin')
+		if (length(size(s))==3) & (size(s,3)==3)
+			imshow(s(:,:,1),s(:,:,2),s(:,:,3));
+		else
+			imshow(s);
+		end;	
+	else	
+		image(s);
+	end;
+	argout=H;
 	return;
 end;
 
@@ -87,7 +96,7 @@ if 0,H.EVENT.N > 0,
         LEG = strvcat(LEG,'Events');
 end;
 
-tmp = H.FileName; tmp(tmp=='\')='/'; tmp(tmp=='_')=' ';
+tmp = H.FileName; tmp(find(tmp==92))='/'; tmp(find(tmp=='_'))=' ';
 title([tmp, ' generated with BIOSIG tools for Octave and Matlab(R)']);
 xlabel('time t[s]');
 PhysDim = '';

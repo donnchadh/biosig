@@ -30,10 +30,9 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.40 $
-%	$Id: sload.m,v 1.40 2004-11-04 17:42:49 schloegl Exp $
+%	$Revision: 1.41 $
+%	$Id: sload.m,v 1.41 2004-11-06 22:51:59 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
-%	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -680,7 +679,7 @@ elseif strcmp(H.TYPE,'BMP'),
         tmp = fread(H.FILE.FID,4,'uint32');
         H.HeadLen = tmp(1);
         H.BMP.sizeBitmapInfoHeader = tmp(2);
-        H.BMP.Size = tmp(3:4)';
+        H.IMAGE.Size = tmp(3:4)';
         
         tmp = fread(H.FILE.FID,2,'uint16');
         H.BMP.biPlanes = tmp(1);
@@ -695,43 +694,357 @@ elseif strcmp(H.TYPE,'BMP'),
         H.BMP.biColorImportant = tmp(6);
         
         fseek(H.FILE.FID,H.HeadLen,'bof');
-        nc = ceil((H.bits*H.BMP.Size(1))/32)*4;
+        nc = ceil((H.bits*H.IMAGE.Size(1))/32)*4;
         
         if (H.bits==1)
-                signal = fread(H.FILE.FID,[nc,H.BMP.Size(2)*8],'ubit1');
-                signal = signal(1:H.BMP.Size(1),:)';
+                signal = fread(H.FILE.FID,[nc,H.IMAGE.Size(2)*8],'ubit1');
+                signal = signal(1:H.IMAGE.Size(1),:)';
                 
         elseif (H.bits==4)
                 palr   = [  0,128,  0,128,  0,128,  0,192,128,255,  0,255,  0,255,  0,255]; 
                 palg   = [  0,  0,128,128,  0,  0,128,192,128,  0,255,255,  0,  0,255,255]; 
                 palb   = [  0,  0,  0,  0,128,128,128,192,128,  0,  0,  0,255,255,255,255]; 
-                tmp    = uint8(fread(H.FILE.FID,[nc,H.BMP.Size(2)*2],'ubit4'));
-                signal        = palr(tmp(1:H.BMP.Size(1),:)'+1);
-                signal(:,:,2) = palg(tmp(1:H.BMP.Size(1),:)'+1);
-                signal(:,:,3) = palb(tmp(1:H.BMP.Size(1),:)'+1);
-                signal = signal(H.BMP.Size(2):-1:1,:,:);
+                tmp    = uint8(fread(H.FILE.FID,[nc,H.IMAGE.Size(2)*2],'ubit4'));
+                signal        = palr(tmp(1:H.IMAGE.Size(1),:)'+1);
+                signal(:,:,2) = palg(tmp(1:H.IMAGE.Size(1),:)'+1);
+                signal(:,:,3) = palb(tmp(1:H.IMAGE.Size(1),:)'+1);
+                signal = signal(H.IMAGE.Size(2):-1:1,:,:);
                 
         elseif (H.bits==8)
                 pal = uint8(colormap*256);
-                tmp = fread(H.FILE.FID,[nc,H.BMP.Size(2)],'uint8');
-                signal        = pal(tmp(1:H.BMP.Size(1),:)'+1,1);
-                signal(:,:,2) = pal(tmp(1:H.BMP.Size(1),:)'+1,2);
-                signal(:,:,3) = pal(tmp(1:H.BMP.Size(1),:)'+1,3);
-                signal = signal(H.BMP.Size(2):-1:1,:,:);
+                tmp = fread(H.FILE.FID,[nc,H.IMAGE.Size(2)],'uint8');
+                signal        = pal(tmp(1:H.IMAGE.Size(1),:)'+1,1);
+                signal(:,:,2) = pal(tmp(1:H.IMAGE.Size(1),:)'+1,2);
+                signal(:,:,3) = pal(tmp(1:H.IMAGE.Size(1),:)'+1,3);
+                signal = signal(H.IMAGE.Size(2):-1:1,:,:);
                 
         elseif (H.bits==24)
-                [signal]    = uint8(fread(H.FILE.FID,[nc,H.BMP.Size(2)],'uint8'));
-                H.BMP.Red   = signal((1:H.BMP.Size(1))*3,:)';
-                H.BMP.Green = signal((1:H.BMP.Size(1))*3-1,:)';
-                H.BMP.Blue  = signal((1:H.BMP.Size(1))*3-2,:)';
+                [signal]    = uint8(fread(H.FILE.FID,[nc,H.IMAGE.Size(2)],'uint8'));
+                H.BMP.Red   = signal((1:H.IMAGE.Size(1))*3,:)';
+                H.BMP.Green = signal((1:H.IMAGE.Size(1))*3-1,:)';
+                H.BMP.Blue  = signal((1:H.IMAGE.Size(1))*3-2,:)';
                 signal = H.BMP.Red;
                 signal(:,:,2) = H.BMP.Green;
                 signal(:,:,3) = H.BMP.Blue;
-                signal = signal(H.BMP.Size(2):-1:1,:,:);
+                signal = signal(H.IMAGE.Size(2):-1:1,:,:);
         else
                 
         end;
         fclose(H.FILE.FID);
+
+        
+elseif strcmp(H.TYPE,'MatrixMarket'),
+        H.FILE.FID = fopen(H.FileName,'rt','ieee-le');
+
+	K = 0;
+	whm = [];
+	H.Length = [inf];
+    	line1 = fgetl(H.FILE.FID);
+	while ~feof(H.FILE.FID) & (K<H.Length)
+        	line = fgetl(H.FILE.FID);
+
+		if isempty(line),
+		elseif line(1)=='%',
+		elseif isnumeric(line),
+		else
+			[tmp,status] = str2double(line);
+			if status
+			%	error('SLOAD (MM)');
+			elseif (K == 0); 
+				H.IMAGE.Size = tmp;
+				if length(H.IMAGE.Size)==3,
+					H.Length = tmp(3);
+					signal = sparse([],[],[],tmp(1),tmp(2),tmp(3));
+					K = K + 1;
+				elseif length(H.IMAGE.Size)==2
+					H.Length = prod(tmp);
+					signal = zeros(tmp);
+					K = K + 1;
+				end	
+			elseif length(H.IMAGE.Size)==4,	
+				signal(tmp(1),tmp(2))=tmp(3)+imag(tmp(4));
+				K = K + 1;	
+			elseif length(H.IMAGE.Size)==3,	
+				signal(tmp(1),tmp(2))=tmp(3);
+				K = K + 1;	
+			elseif length(H.IMAGE.Size)==2,	
+				signal(K)=tmp;
+				K = K + 1;
+			end;	
+		end;
+        end;
+        fclose(H.FILE.FID);
+
+        
+elseif strcmp(H.TYPE,'OFF'),
+	        H.FILE.FID = fopen(H.FileName,'rt','ieee-le');
+		
+                line1 = fgetl(H.FILE.FID);
+                line2 = fgetl(H.FILE.FID);
+		while ~feof(H.FILE.FID) & (line2(1)=='#'),
+	                line2 = fgetl(H.FILE.FID);
+		end;
+		[tmp,status] = str2double(line2);
+		if status | (size(tmp,2)~=3), 
+			fclose(H.FILE.FID);
+			error('SOPEN (OFF)');
+		else
+			H.VertexCount = tmp(1);
+			H.FaceCount = tmp(2);
+			H.EdgeCount = tmp(3);
+		end	
+		
+		H.Vertex = repmat(NaN,H.VertexCount,3);
+		for k = 1:H.VertexCount,
+			line = '';
+			while isempty(line) | strncmp(line,'#',1)
+				line = fgetl(H.FILE.FID);
+			end;
+			len = min(length(line),min(find(line=='#')));
+			tmp = str2double(line(1:len));
+			H.Vertex(k,:) = tmp(1:H.ND);
+		end;	
+		
+%		H.Face = repmat(NaN,H.FaceCount,3);
+		for k = 1:H.FaceCount,
+			line = '';
+			while isempty(line) | strncmp(line,'#',1)
+				line = fgetl(H.FILE.FID);
+			end;
+			len = min(length(line),min(find(line=='#')));
+			tmp = str2double(line(1:len));
+			H.Ngon(k) = tmp(1);
+			H.Face{k} = tmp(2:tmp(1)+1) + 1;
+		end;	
+		if all(H.Ngon(1)==H.Ngon),
+			H.Face = cat(1,H.Face{:});
+		end;	
+                fclose(H.FILE.FID);
+        
+        
+elseif strcmp(H.TYPE,'POLY'),
+        H.FILE.FID = fopen(H.FileName,'rt','ieee-le');
+
+	K = 0;
+	while ~feof(H.FILE.FID)
+        	line = fgetl(H.FILE.FID);
+		if isempty(line),
+		elseif line(1)=='#',
+		else
+			K = K + 1;
+			
+		end;
+        end;
+        fclose(H.FILE.FID);
+        
+        
+elseif strcmp(H.TYPE,'PBMA') | strcmp(H.TYPE,'PGMA')  | strcmp(H.TYPE,'PPMA') ,
+        H.FILE.FID = fopen(H.FileName,'rt','ieee-le');
+
+	N = NaN;
+	K = 1;
+	s = [];
+	H.IMAGE.Size = [inf,inf];
+	while ~feof(H.FILE.FID) & (length(signal)<prod(H.IMAGE.Size))
+        	line = fgetl(H.FILE.FID);
+
+		if isempty(line),
+		elseif strncmp(line,'P1',2),
+			N = 1; 
+		elseif strncmp(line,'P2',2),
+			N = 2; 
+		elseif strncmp(line,'P3',2),
+			N = 2; 
+		elseif line(1)=='#',
+		elseif isnumeric(line),
+		elseif K==1,
+			[tmp, status] = str2double(line);
+			K = K + 1;
+			H.IMAGE.Size = tmp([2,1]);
+			if status
+				error('SLOAD (PPMA)');
+			end;
+		elseif K==N,
+			[tmp, status] = str2double(line);
+			K = K + 1;
+			H.DigMax = tmp; 
+		else
+			line = line(1:min([find(line=='#'),length(line)]));	% remove comment
+			[tmp,status] = str2double(char(line)); %,[],[9,10,13,32])
+			if ~any(status),
+				s = [s; tmp'];
+			end;	
+		end;
+	end;	
+	fclose(H.FILE.FID);
+	H.s=s;
+	if strcmp(H.TYPE,'PPMA'),
+	if prod(H.IMAGE.Size)*3~=length(s),
+		fprintf(H.FILE.stderr,'SLOAD(P3): %i * %i != %i \n',H.IMAGE.Size,length(s));
+	else
+		signal = repmat(NaN,[H.IMAGE.Size,3]);
+		signal(:,:,1) = reshape(s(1:3:end),H.IMAGE.Size)';
+		signal(:,:,2) = reshape(s(2:3:end),H.IMAGE.Size)';
+		signal(:,:,3) = reshape(s(3:3:end),H.IMAGE.Size)';
+        end;
+	else
+	if prod(H.IMAGE.Size)~=length(s),
+		fprintf(H.FILE.stderr,'SLOAD(P1/P2): %i * %i != %i \n',H.IMAGE.Size,length(s));
+	else
+		signal = reshape(s,H.IMAGE.Size)';
+        end;
+        end;
+
+elseif strcmp(H.TYPE,'PBMB'),
+        H.FILE.FID = fopen(H.FileName,'rb','ieee-le');
+	status = fseek(H.FILE.FID, H.HeadLen, 'bof');
+	[tmp,count] = fread(H.FILE.FID,[H.IMAGE.Size(2)/8,H.IMAGE.Size(1)],'uint8');
+        fclose(H.FILE.FID);
+	
+	signal = zeros(H.IMAGE.Size)';
+	
+	for k = 1:8,
+		signal(:,k:8:H.IMAGE.Size(1)) = bitand(tmp',2^(8-k))>0;
+	end;		
+
+elseif strcmp(H.TYPE,'PGMB'),
+        H.FILE.FID = fopen(H.FileName,'rb','ieee-le');
+	status = fseek(H.FILE.FID, H.HeadLen, 'bof');
+	[signal,count] = fread(H.FILE.FID,[H.IMAGE.Size(2),H.IMAGE.Size(1)],'uint8');
+        fclose(H.FILE.FID);
+	signal = signal';
+
+elseif strcmp(H.TYPE,'PPMB'),
+        H.FILE.FID = fopen(H.FileName,'rb','ieee-le');
+	status = fseek(H.FILE.FID, H.HeadLen, 'bof');
+	[tmp,count] = fread(H.FILE.FID,[3*H.IMAGE.Size(2),H.IMAGE.Size(1)],'uint8');
+        fclose(H.FILE.FID);
+
+	signal = zeros([H.IMAGE.Size(1:2),3]);
+	signal(:,:,1) = tmp(1:3:end,:)';
+	signal(:,:,2) = tmp(2:3:end,:)';
+	signal(:,:,3) = tmp(3:3:end,:)';
+	
+        
+elseif strcmp(H.TYPE,'SMF'),
+	        H.FILE.FID = fopen(H.FileName,'rt','ieee-le');
+		
+		VertexCount = 0;
+		FaceCount = 0;
+		PalLen = 0; 
+		K = 1;
+		while ~feof(H.FILE.FID)
+	                line = fgetl(H.FILE.FID);
+			if isempty(line)
+			elseif line(1)=='#';
+
+			elseif line(1)=='v';
+				[tmp,status] = str2double(line(3:end));
+				if ~any(status)
+					VertexCount = VertexCount + 1 ;
+					H.Vertex(VertexCount,:) = tmp;
+				else
+					fprintf(H.FILE.stderr,'Warning SLOAD: could not read line %i in file %s\n',K,H.FileName); 	
+				end;	
+
+			elseif line(1)=='f';
+				[tmp,status] = str2double(line(3:end));
+				if ~any(status)
+					FaceCount  = FaceCount + 1; 
+					H.Ngon(FaceCount) = length(tmp);
+					H.Face{FaceCount} = tmp;
+				else
+					fprintf(H.FILE.stderr,'Warning SLOAD: could not read line %i in file %s\n',K,H.FileName); 	
+				end;	
+
+			elseif line(1)=='n';
+				[tmp,status] = str2double(line(3:end));
+				if ~any(status)
+					H.NormalVector = tmp;
+				else
+					fprintf(H.FILE.stderr,'Warning SLOAD: could not read line %i in file %s\n',K,H.FileName); 	
+				end;	
+
+			elseif line(1)=='c';
+				[tmp,status] = str2double(line(3:end));
+				if ~any(status)
+					PalLen = PalLen +1; 
+					H.Palette(PalLen,:)= tmp;
+				else
+					fprintf(H.FILE.stderr,'Warning SLOAD: could not read line %i in file %s\n',K,H.FileName); 	
+				end;	
+			else
+
+			end;
+			K = K+1;
+		end;
+		fclose(H.FILE.FID);
+		if all(H.Ngon(1)==H.Ngon),
+			H.Face = cat(1,H.Face{:});
+		end;	
+	
+        
+elseif strcmp(H.TYPE,'VTK'),
+        if any(PERMISSION=='r'),
+                H.FILE.FID = fopen(H.FileName,'rt','ieee-le');
+                
+                H.VTK.version = fgetl(H.FILE.FID);
+                H.VTK.Title   = fgetl(H.FILE.FID);
+                H.VTK.type    = fgetl(H.FILE.FID);
+                H.VTK.dataset = fgetl(H.FILE.FID);
+
+
+                fclose(H.FILE.FID);
+
+                fprintf(H.FILE.stderr,'Warning SOPEN: VTK-format not supported, yet.\n');
+                return;
+		end;	
+	
+        
+elseif strcmp(H.TYPE,'XPM'),
+	H.FILE.FID = fopen(H.FileName,'rt','ieee-le');
+		line = '';
+		while ~any(line=='{'),
+	                line = fgetl(H.FILE.FID);
+		end;
+
+                line = fgetl(H.FILE.FID);
+		[s,t]=strtok(line,char(34));
+		[tmp,status] = str2double(s);
+
+		code1 = repmat(NaN,tmp(3),1);
+		code2 = repmat(0,256,1);
+		Palette = repmat(NaN,tmp(3),3);
+		H.IMAGE.Size = tmp([2,1]);
+		k1 = tmp(3);
+
+		for k = 1:k1,
+	                line = fgetl(H.FILE.FID);
+			[s,t]= strtok(line,char(34));
+			code1(k) = s(1);
+			code2(s(1)+1) = k;
+			Palette(k,:) = [hex2dec(s(6:9)),hex2dec(s(10:13)),hex2dec(s(14:17))];
+		end;
+		Palette = (Palette/2^16);
+		R = Palette(:,1);
+		G = Palette(:,2);
+		B = Palette(:,3);
+		H.Code1 = code1; 
+		H.Code2 = code2; 
+		H.IMAGE.Palette = Palette; 
+
+		signal = repmat(NaN,[H.IMAGE.Size]);
+		for k = 1:H.IMAGE.Size(1),
+	                line = fgetl(H.FILE.FID);
+			[s,t]= strtok(line,char(34));
+			signal(k,:) = abs(s);
+		end;
+        fclose(H.FILE.FID);
+	signal(:,:,1) = code2(signal+1);
+
+	signal(:,:,3) = B(signal(:,:,1));
+	signal(:,:,2) = G(signal(:,:,1));
+	signal(:,:,1) = R(signal(:,:,1));
 
         
 elseif strcmp(H.TYPE,'IFS'),    % Ultrasound file format
@@ -741,9 +1054,9 @@ elseif strcmp(H.TYPE,'IFS'),    % Ultrasound file format
         H.Date = char(hdr(77:100));
         tmp = char(hdr(213:220));
         if strncmp(tmp,'32flt',5)
-                HDR.GDFTYP = 'float32';
+                H.GDFTYP = 'float32';
         elseif strncmp(tmp,'u8bit',5)
-                HDR.GDFTYP = 'uint8';
+                H.GDFTYP = 'uint8';
         else
                 
         end
