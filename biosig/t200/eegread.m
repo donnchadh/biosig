@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.5 $
-%	$Id: eegread.m,v 1.5 2003-05-17 16:31:50 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: eegread.m,v 1.6 2003-05-22 13:30:08 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -49,7 +49,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF') ,
         end;
         
 
-elseif strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'ISHNE'),
+elseif strmatch(HDR.TYPE,{'BKR','ISHNE','RG64'}),
         if nargin==3,
         	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
 		HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -61,6 +61,18 @@ elseif strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'ISHNE'),
         end;
         if ~HDR.FLAG.UCAL,
                 S = S*HDR.Cal;
+        end;
+
+
+elseif strcmp(HDR.TYPE,'LABVIEW'),
+        if nargin==3,
+        	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+		HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],'int32');
+	if count,
+	        S = S(HDR.SIE.InChanSelect,:)';
+                HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
         
 
@@ -118,8 +130,11 @@ elseif strcmp(HDR.TYPE,'MIT'),
                 end; 
                 if HDR.mode8.reset;
                         fprintf(2,'Warning EDFREAD: unknown offset (TYPE=MIT, mode=8) \n');
+		else
+			S(1,:) = S(1,:) + HDR.mode8.accu;
                 end;        
-                S = cumsum(S);
+		S = cumsum(S);
+		HDR.mode8.accu = S(size(S,1),:);
 
 	elseif HDR.VERSION == 80, 
 		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'uint8')';  
