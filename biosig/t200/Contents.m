@@ -10,7 +10,7 @@
 %     	CNT	Neuroscan (continous data)
 %	CTF-MEG	CTF System
 %	DEMG	DelSys Inc.
-%	EDF	European Data Format
+%	EDF+	European Data Format
 %       EEG	Neuroscan (triggered data)
 %       EGI	Format from Electrical Geodesics
 %	EEProbe	ANT Software
@@ -23,6 +23,7 @@
 %	ISHNE	The ISHNE Holter Standard Output File Format
 %	Poly5/TMS32 Format used for recordings with the Porti-system and the PortiLab software
 %	RDF	EPRSS Data Format
+%	Sierra ECG 1.03	Philips XML format for ECG data
 %	SMA	Snap-Master file format
 %	SND/AU	Next/SUN sound file
 %	WAV	Audio, Microsoft's PCM data format
@@ -55,7 +56,8 @@
 %	SDFOPEN
 %	SDFREAD
 %	SDFERROR
-%	GDFDATATYP	
+%	GDFDATATYP
+%	ADB2EVENT  converts artifact scorings into Event information
 %	
 %
 % Other functions from earlier projects are included, 
@@ -67,8 +69,8 @@
 % [2] http://biosig.sf.net/
 %
 
-%	$Revision: 1.10 $
-%	$Id: Contents.m,v 1.10 2004-05-02 13:57:53 schloegl Exp $
-%	CopyLeft (c) 1997-2003 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.11 $
+%	$Id: Contents.m,v 1.11 2004-06-16 21:25:41 schloegl Exp $
+%	CopyLeft (c) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 

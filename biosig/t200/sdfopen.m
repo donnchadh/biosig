@@ -56,8 +56,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %
 % [2] Alois Schlögl, Oliver Filz, Herbert Ramoser, Gert Pfurtscheller
 %     GDF - A GENERAL DATAFORMAT FOR BIOSIGNALS
-%     Technical Report, Department for Medical Informatics, Universtity of Technology, Graz (1999)
-% see also: http://www-dpmi.tu-graz.ac.at/~schloegl/matlab/eeg/gdf4/tr_gdf.ps
+%     Technical Report, Department for Medical Informatics, Universtity of Technology, Graz (2004)
+% see also: http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg/gdf4/TR_GDF.PDF
 %
 % [3] The SIESTA recording protocol. 
 % see http://www.ai.univie.ac.at/siesta/protocol.html
@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.19 $
-%	$Id: sdfopen.m,v 1.19 2004-06-01 22:24:21 schloegl Exp $
+%	$Revision: 1.20 $
+%	$Id: sdfopen.m,v 1.20 2004-06-16 21:20:42 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -487,6 +487,11 @@ if any(EDF.DigMax ==EDF.DigMin ), EDF.ErrNo=[1030,EDF.ErrNo]; end;
 EDF.Cal = (EDF.PhysMax-EDF.PhysMin)./(EDF.DigMax-EDF.DigMin);
 EDF.Off = EDF.PhysMin - EDF.Cal .* EDF.DigMin;
 EDF.EDF.SampleRate = EDF.SPR / EDF.Dur;
+EDF.AS.MAXSPR=EDF.SPR(1);
+for k=2:EDF.NS,
+        EDF.AS.MAXSPR = lcm(EDF.AS.MAXSPR,EDF.SPR(k));
+end;
+EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
 
 EDF.AS.spb = sum(EDF.SPR);	% Samples per Block
 EDF.AS.bi = [0;cumsum(EDF.SPR)]; 
@@ -497,6 +502,7 @@ EDF.AS.bpb = sum(ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'));	% Bytes per Block
 EDF.AS.startrec = 0;
 EDF.AS.numrec = 0;
 EDF.AS.EVENTTABLEPOS = -1;
+
 
 % EDF+: 
 tmp = strmatch('EDF Annotations',EDF.Label);
@@ -538,9 +544,26 @@ if strcmp(EDF.TYPE,'EDF') & (length(tmp)==1),
         end;
         EDF.EVENT.TYP(1:N,1) = 0;
         EDF.EVENT.N = N; 
+
+elseif strcmp(EDF.TYPE,'EDF') & (length(EDF.FILE.Name)==8) & any(lower(EDF.FILE.Name(1))=='bchmnpsu') & strcmp(lower(EDF.FILE.Name([3,6:8])),'001a'),
+        % load scoring of ADB database if available 
+        fn = fullfile(EDF.FILE.Path, [EDF.FILE.Name(1:7),'.txt']);
+        if exist(fn)~=2
+                fn = fullfile(EDF.FILE.Path,[lower(EDF.FILE.Name(1:7)),'.txt']);
+        end
+        if exist(fn)~=2
+                fn = fullfile(EDF.FILE.Path,[EDF.FILE.Name(1:7),'.TXT']);
+        end
+        if exist(fn)==2,
+		try,
+	                EDF.EVENT = adb2event(fn,EDF.SampleRate);        
+		catch
+		end;
+        end
+
 else
 	% search for WSCORE scoring file in path and in file directory. 
-	tmp = [upper(EDF.FILE.Name),'.000'];
+	tmp = [upper(EDF.FILE.Name),'.006'];
 	if exist(tmp)~=2,
 		tmp = fullfile(EDF.FILE.Path,tmp);
 	end;
@@ -551,7 +574,9 @@ else
 		EDF.EVENT.TYP = x(:,2);
 	catch
 	end;
+
 end;
+
 
 EDF.Calib = [EDF.Off'; diag(EDF.Cal)];
 status = fseek(EDF.FILE.FID, 0, 'eof');
@@ -626,13 +651,6 @@ EDF.SIE.TECG=0;
 EDF.SIE.AFIR=0;
 EDF.SIE.FILT=0;
 EDF.SIE.TimeUnits_Seconds=1;
-EDF.AS.MAXSPR=EDF.SPR(1);
-for k=2:EDF.NS,
-        EDF.AS.MAXSPR = lcm(EDF.AS.MAXSPR,EDF.SPR(k));
-end;
-%EDF.AS.MAXSPR=max(EDF.SPR(EDF.SIE.ChanSelect)); % Layer 3 defines EDF.AS.MAXSPR in GDFREAD
-EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
-
 %EDF.SIE.ReRefMx=eye(EDF.NS);
 EDF.SIE.REG=eye(EDF.NS);
 %EDF.SIE.ReRefMx = EDF.SIE.ReRefMx(:,EDF.SIE.ChanSelect);
@@ -663,7 +681,7 @@ EDF.SIE.REG=eye(EDF.NS);
         if (exist('sedfchk')==2),  
                 EDF=sedfchk(EDF); % corrects incorrect Header information. 
         end;
-        
+
 	%EDF.SIE.CS=1;
         EDF.SIE.RS=exist('arg5')==1; if EDF.SIE.RS, EDF.SIE.RS==(arg5>0); end;
         EDF.SIE.TH=0; %(exist('arg6')==1);
