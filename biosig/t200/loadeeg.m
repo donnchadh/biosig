@@ -15,8 +15,8 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
 %
 
-%	$Revision: 1.12 $
-%	$Id: loadeeg.m,v 1.12 2003-05-09 17:54:18 schloegl Exp $
+%	$Revision: 1.13 $
+%	$Id: loadeeg.m,v 1.13 2003-05-24 01:01:42 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -105,7 +105,7 @@ H.FileName = FILENAME;
 H.TYPE = TYPE;
 H = eegopen(H,'r',CHAN);
 if H.FILE.FID>0,
-	[signal,H] = eegread(H);
+        [signal,H] = eegread(H);
 	H = eegclose(H);
 	
 elseif strcmp(TYPE,'MAT')

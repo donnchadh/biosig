@@ -10,6 +10,7 @@
 %	MIT/ECG	PhysioNet data format
 %	ISHNE	The ISHNE Holter Standard Output File Format
 %	Poly5/TMS32 Format used for recordings with the Porti-system and the PortiLab software
+%	RDF	EPRSS Data Format
 %
 %
 % A united interface is provided for all data formats:
@@ -47,8 +48,8 @@
 % REFERENCES: 
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg
 
-%	$Revision: 1.3 $
-%	$Id: Contents.m,v 1.3 2003-04-26 19:02:54 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: Contents.m,v 1.4 2003-05-24 01:01:42 schloegl Exp $
 %	CopyLeft (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 

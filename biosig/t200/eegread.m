@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.6 $
-%	$Id: eegread.m,v 1.6 2003-05-22 13:30:08 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: eegread.m,v 1.7 2003-05-24 01:01:41 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -62,6 +62,42 @@ elseif strmatch(HDR.TYPE,{'BKR','ISHNE','RG64'}),
         if ~HDR.FLAG.UCAL,
                 S = S*HDR.Cal;
         end;
+
+
+elseif strcmp(HDR.TYPE,'RDF'),
+	S = [];
+        if nargin>2,
+		HDR.FILE.POS = StartPos;
+	end;
+	POS = HDR.FILE.POS;
+
+	NoSeg = min(NoS,length(HDR.Block.Pos)-HDR.FILE.POS);
+	count = 0;
+	S = zeros(NoSeg*HDR.SPR ,length(HDR.SIE.InChanSelect));
+
+        for k = 1:NoSeg,
+	    	fseek(HDR.FILE.FID,HDR.Block.Pos(POS+k),-1);
+
+        	% Read nchans and block length
+        	tmp = fread(HDR.FILE.FID,34+220,'uint16');
+
+    		%fseek(HDR.FILE.FID,2,0);
+        	nchans = tmp(2); %fread(HDR.FILE.FID,1,'uint16');
+    		%fread(HDR.FILE.FID,1,'uint16');
+        	block_size = tmp(4); %fread(HDR.FILE.FID,1,'uint16');
+        	%ndupsamp = fread(HDR.FILE.FID,1,'uint16');
+		%nrun = fread(HDR.FILE.FID,1,'uint16');
+        	%err_detect = fread(HDR.FILE.FID,1,'uint16');
+        	%nlost = fread(HDR.FILE.FID,1,'uint16');
+        	nevents = tmp(9); %fread(HDR.FILE.FID,1,'uint16');
+        	%fseek(HDR.FILE.FID,50,0);
+
+	        [data,c] = fread(HDR.FILE.FID,[nchans,block_size],'int16');
+    		%S = [S; data(HDR.SIE.InChanSelect,:)']; 	% concatenate data blocks
+		S(k*HDR.SPR+(1-HDR.SPR:0),:) = data(HDR.SIE.InChanSelect,:)';
+		count = count + c;
+	end;
+	HDR.FILE.POS = HDR.FILE.POS + NoSeg; 
 
 
 elseif strcmp(HDR.TYPE,'LABVIEW'),

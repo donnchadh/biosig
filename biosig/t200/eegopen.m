@@ -33,8 +33,8 @@ function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.9 $
-%	$Id: eegopen.m,v 1.9 2003-05-20 13:39:35 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: eegopen.m,v 1.10 2003-05-24 01:01:41 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -83,6 +83,8 @@ if exist(HDR.FileName)==2,
                                 HDR.TYPE='ISHNE';
                         elseif strcmp(s,'POLY_SAM');	% Poly5/TMS32 sample file format.
                                 HDR.TYPE='TMS32';
+                        elseif strcmp(s,'"Snap-Ma');	% Snap-Master Data File .
+                                HDR.TYPE='SMA';
                         elseif s(1)==207; 
                                 HDR.TYPE='BKR';
                         elseif strncmp(s,'RG64',4); 
@@ -97,6 +99,8 @@ if exist(HDR.FileName)==2,
                                 HDR.TYPE='rhdE';          
 			elseif any(s(3:6)*(2.^[0;8;16;24]) == (30:40))
 				HDR.TYPE='ACQ';
+			elseif all(s(1:2)==[hex2dec('55'),hex2dec('AA')]);
+				HDR.TYPE='RDF';
                         else
                                 %TYPE='unknown';
                         end;
@@ -172,8 +176,8 @@ elseif strcmp(HDR.TYPE,'SIG'), HDR.TYPE='SIG';
 elseif strcmp(HDR.TYPE(1:2),'DA'), HDR.TYPE='DA_';
         warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
         
-elseif strcmp(HDR.TYPE([1,3]),'RF'), HDR.TYPE='RG64';
-        warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
+%elseif strcmp(HDR.TYPE([1,3]),'RF'), HDR.TYPE='RG64';
+%       warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
         
 else
         
@@ -263,6 +267,83 @@ elseif strcmp(HDR.TYPE,'EGI'),
 elseif strcmp(HDR.TYPE,'LDR'),
         HDR = openldr(HDR,PERMISSION);      
         
+elseif strcmp(HDR.TYPE,'RDF'),  % under constructions
+
+    	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        if HDR.FILE.FID <= 0,
+                fprintf(HDR.FILE.stderr,'EEGOPEN: RDF-File %s couldnot be opened\n',HDR.FileName);
+                return;
+        end;        
+        fseek(HDR.FILE.FID,6,-1);
+        HDR.NS = fread(HDR.FILE.FID,1,'uint16');
+	fseek(HDR.FILE.FID,552,-1);
+	HDR.SampleRate  = fread(HDR.FILE.FID,1,'uint16');
+	fseek(HDR.FILE.FID,580,-1);
+	tmp = fread(HDR.FILE.FID,[8,HDR.NS],'char');
+	HDR.Label = char(tmp');
+
+	cnt = 0;
+	ev_cnt = 0;
+	ev = [];
+    
+	% first pass, scan data
+	totalsize = 0;
+	while(~feof(HDR.FILE.FID)),
+    	        tag = fread(HDR.FILE.FID,1,'uint32');
+    		if length(tag) == 0,
+    		        break;
+    		end
+    		if tag == hex2dec('f0aa55'),
+        		cnt = cnt + 1;
+			HDR.Block.Pos(cnt) = ftell(HDR.FILE.FID);
+
+        		% Read nchans and block length
+        		tmp = fread(HDR.FILE.FID,34,'uint16');
+
+    	    		%fseek(HDR.FILE.FID,2,0);
+        		nchans = tmp(2); %fread(HDR.FILE.FID,1,'uint16');
+    	    		%fread(HDR.FILE.FID,1,'uint16');
+        		block_size = tmp(4); %fread(HDR.FILE.FID,1,'uint16');
+        		%ndupsamp = fread(HDR.FILE.FID,1,'uint16');
+			%nrun = fread(HDR.FILE.FID,1,'uint16');
+        		%err_detect = fread(HDR.FILE.FID,1,'uint16');
+        		%nlost = fread(HDR.FILE.FID,1,'uint16');
+        		nevents = tmp(9); %fread(HDR.FILE.FID,1,'uint16');
+        		%fseek(HDR.FILE.FID,50,0);
+	    
+        		% Read events
+        		for i = 1:nevents,
+            			tmp = fread(HDR.FILE.FID,2,'uint8');
+            			%cond_code = fread(HDR.FILE.FID,1,'uint8');
+            			ev_code = fread(HDR.FILE.FID,1,'uint16');
+				ev_cnt  = ev_cnt + 1;
+            			ev(ev_cnt).sample_offset = tmp(1) + (cnt-1)*128;
+            			ev(ev_cnt).cond_code     = tmp(2);
+            			ev(ev_cnt).event_code    = ev_code;
+    			end;
+        		fseek(HDR.FILE.FID,4*(110-nevents)+2*nchans*block_size,0);
+    		end
+	end
+	HDR.NRec = cnt;
+    
+        HDR.Events = ev;
+	HDR.HeadLen = 0;
+	HDR.FLAG.TRIGGERED = 1;	        
+	HDR.FILE.POS = 0; 
+	HDR.SPR = block_size;
+	HDR.AS.bpb = HDR.SPR*HDR.NS*2;
+		
+	if CHAN==0,		
+		HDR.SIE.InChanSelect = 1:HDR.NS;
+	elseif all(CHAN>0 & CHAN<=HDR.NS),
+		HDR.SIE.InChanSelect = CHAN;
+	else
+		fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
+		fclose(HDR.FILE.FID); 
+		HDR.FILE.FID = -1;	
+		return;
+	end;
+
 
 elseif strcmp(HDR.TYPE,'LABVIEW'),
     	HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');

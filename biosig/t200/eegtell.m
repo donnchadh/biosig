@@ -1,7 +1,7 @@
 function [HDR] = eegtell(HDR)
 % EEGTELL returns file position of EEG data files
-% EEG=sdftell(EEG)
-% returns the location of the EEEG_file position indicator in the specified file.  
+% EEG=eegtell(EEG)
+% returns the location of the EEG_file position indicator in the specified file.  
 % Position is indicated in Blocks from the beginning of the file.  If -1 is returned, 
 % it indicates that the query was unsuccessful; 
 % EEG_Struct is a struct obtained by EEGOPEN.
@@ -11,8 +11,8 @@ function [HDR] = eegtell(HDR)
 % See also: FTELL, EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGSEEK, EEGEOF
 
 
-%	$Revision: 1.3 $
-%	$Id: eegtell.m,v 1.3 2003-04-26 19:02:55 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: eegtell.m,v 1.4 2003-05-24 01:01:42 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -33,9 +33,12 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
                 HDR.AS.startrec = POS;
         end;
 
-elseif strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'ISHNE') | strcmp(HDR.TYPE,'CNT') | strcmp(HDR.TYPE,'EEG') | strcmp(HDR.TYPE,'MIT'),
+elseif strmatch(HDR.TYPE,{'BKR','ISHNE','CNT','EEG','MIT','RG64','LABVIEW'}),
 	POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
 
+elseif strmatch(HDR.TYPE,{'RDF'}),
+	POS = HDR.FILE.POS;
+	
 else
     	fprintf(2,'Error EEGTELL: format %s not supported',HDR.TYPE);    
 end;        
