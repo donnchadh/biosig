@@ -33,8 +33,8 @@ function [HDR,H1,h2]=eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.7 $
-%	$Id: eegopen.m,v 1.7 2003-05-09 17:54:18 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: eegopen.m,v 1.8 2003-05-17 16:31:50 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -369,7 +369,7 @@ elseif strcmp(HDR.TYPE,'RG64'),
 	end;
 	HDR.Cal = diag(AMPF(HDR.InChanSelect));
     
-	
+
 elseif strcmp(HDR.TYPE,'DDF'),
 
 	% implementation of this format is not finished yet.
@@ -460,17 +460,37 @@ elseif strcmp(HDR.TYPE,'MIT')
 		HDR.NRec  = 1;
 
 		for k=1:HDR.NS,
-		    	z = fgetl(fid);
-	        	A = sscanf(z, '%*s %d %d %d %d %d',[1,5]);
+                        z = fgetl(fid);
+                        [HDR.FILE.DAT,z]=strtok(z);
+                        [A,count,errmsg,nextidx] = sscanf(z, '%d %d %d %d %d %d %d ',[1,7]);
+                        HDR.Label{k}=z(nextidx:length(z));
 			dformat(k,1) = A(1);         % format; 
 			HDR.gain(k,1) = A(2);              % number of integers per mV
 			bitres(k,1) = A(3);            % bitresolution
 			HDR.zerovalue(k,1)  = A(4);         % integer value of ECG zero point
 			HDR.firstvalue(1,k) = A(5);        % first integer value of signal (to test for errors)
 		end;
-		fclose(fid);
-
-		if all(dformat==dformat(1)),
+                z = char(fread(fid,[1,inf],'char'));
+                ix1 = [findstr('AGE:',upper(z))+4; findstr('AGE>:',upper(z))+5];
+                if ~isempty(ix1),
+                        [tmp,z]=strtok(z(ix1(1):length(z)));
+                        HDR.Patient.Age = str2num(tmp);
+                end;
+                ix1 = [findstr('SEX:',upper(z))+4, findstr('SEX>:',upper(z))+5];
+                if ~isempty(ix1),
+                        [HDR.Patient.Sex,z]=strtok(z(ix1(1):length(z)));
+                end;
+                ix1 = [findstr('DIAGNOSIS:',upper(z))+10; findstr('DIAGNOSIS>:',upper(z))+11];
+                if ~isempty(ix1),
+                        [HDR.Patient.Diagnosis,z]=strtok(z(ix1(1):length(z)),char([10,13,abs('#<>')]));
+                end;
+                ix1 = [findstr('MEDICATIONS:',upper(z))+12, findstr('MEDICATIONS>:',upper(z))+13];
+                if ~isempty(ix1),
+                        [HDR.Patient.Medication,z]=strtok(z(ix1(1):length(z)),char([10,13,abs('#<>')]));
+                end;
+                fclose(fid);
+                
+                if all(dformat==dformat(1)),
 			HDR.VERSION = dformat(1);
 		else
 			fprintf(2,'different DFORMATs not supported.\n');
@@ -553,7 +573,8 @@ elseif strcmp(HDR.TYPE,'MIT')
 		else
 			MACHINE_FOMRAT='ieee-le';
 		end;
-		HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dat']),'r','ieee-le');
+		%HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dat']),'r','ieee-le');
+		HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.FILE.DAT),'r','ieee-le');
                 HDR.HeadLen  = 0;
                 fseek(HDR.FILE.FID,0,'eof');
                 tmp = ftell(HDR.FILE.FID);
@@ -564,7 +585,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 		FLAG_UCAL = HDR.FLAG.UCAL;	
 		HDR.FLAG.UCAL = 1;
 		[S,HDR] = eegread(HDR,1/HDR.SampleRate); % load 1st sample
-		if any(S(1,:) ~= HDR.firstvalue), 
+                if any(S(1,:) ~= HDR.firstvalue), 
 			fprintf(2,'ERROR EEGOPEN MIT-ECG: inconsistency in the first bit values'); 
 		end;
                 HDR.FLAG.UCAL = FLAG_UCAL ;	

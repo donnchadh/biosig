@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.4 $
-%	$Id: eegread.m,v 1.4 2003-04-26 19:02:52 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: eegread.m,v 1.5 2003-05-17 16:31:50 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -81,13 +81,13 @@ elseif strcmp(HDR.TYPE,'MIT'),
 	DataLen = NoS*HDR.SampleRate;
 	if HDR.VERSION == 212, 
 		A = fread(HDR.FILE.FID, [HDR.AS.bpb, DataLen], 'uint8')';  % matrix with 3 rows, each 8 bits long, = 2*12bit
-		for k = 1:ceil(HDR.NS/2),
-			S(:,2*k-1) = bitand(A(:,3*k+[-2:-1])*(2.^[0;8]),2^13-1);
+                for k = 1:ceil(HDR.NS/2),
+			S(:,2*k-1) = bitand(A(:,3*k+[-2:-1])*(2.^[0;8]),2^12-1);
 			S(:,2*k)   = bitshift(bitand(A(:,3*k-1),15*16),4)+A(:,3*k);
 			S = S(:,1:HDR.NS);
 			S = S - 2^12*(S>=2^11);	% 2-th complement
-		end;
-
+                end
+                
 	elseif HDR.VERSION == 310, 
 		A = fread(HDR.FILE.FID, [HDR.AS.bpb/2, DataLen], 'uint16')';  % matrix with 3 rows, each 8 bits long, = 2*12bit
 		for k = 1:ceil(HDR.NS/3),
@@ -119,23 +119,21 @@ elseif strcmp(HDR.TYPE,'MIT'),
                 if HDR.mode8.reset;
                         fprintf(2,'Warning EDFREAD: unknown offset (TYPE=MIT, mode=8) \n');
                 end;        
-                S = cumsum(S');
+                S = cumsum(S);
 
 	elseif HDR.VERSION == 80, 
 		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'uint8')';  
-		S = S'-128;
+		S = S-128;
 
 	elseif HDR.VERSION == 160, 
 		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'uint16')';  
-		S = S'-2^15;
+		S = S-2^15;
 
 	elseif HDR.VERSION == 16, 
 		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int16')'; 
-		S = S';
 
 	elseif HDR.VERSION == 61, 
 		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int16')'; 
-		S = S';
 
 	else
 		fprintf(2, 'ERROR MIT-ECG: format %i not supported.\n',HDR.VERSION); 
