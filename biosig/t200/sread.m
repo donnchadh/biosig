@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.9 $
-%	$Id: sread.m,v 1.9 2004-01-09 18:12:14 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: sread.m,v 1.10 2004-03-06 23:55:37 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -277,7 +277,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),
 		S = S(:,HDR.InChanSelect);	
         end;
 
-        
+
 elseif 0, %strcmp(HDR.TYPE,'SND'),
         if nargin==3,
         	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
@@ -295,8 +295,6 @@ elseif 0, %strcmp(HDR.TYPE,'SND'),
 			S = S*HDR.Cal;
 		end;
 	end;
-
-        
 
 
 elseif strcmp(HDR.TYPE,'DEMG'),
@@ -352,6 +350,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
                 end;
                 S = (S+.5)*HDR.Cal - HDR.Off;
         end;
+
         
 elseif strcmp(HDR.TYPE,'EGI'),
         if nargin==3,
@@ -366,29 +365,28 @@ elseif strcmp(HDR.TYPE,'EGI'),
                         SegmentCatIndex(HDR.FILE.POS+i) = fread(HDR.FILE.FID,1,'uint16');
                         SegmentStartTime(HDR.FILE.POS+i) = fread(HDR.FILE.FID,1,'uint32');
 
-                        [s,count] = fread(HDR.FILE.FID, [HDR.NS + HDR.EGI.eventtype, HDR.SPR], HDR.datatype);
-                        tmp = (HDR.NS + HDR.EGI.eventtype) * HDR.SPR;
+                        [s,count] = fread(HDR.FILE.FID, [HDR.NS + HDR.EVENT.N, HDR.SPR], HDR.datatype);
+                        tmp = (HDR.NS + HDR.EVENT.N) * HDR.SPR;
                         if count < tmp,
                                 fprintf(HDR.FILE.stderr,'Warning SREAD EGI: only %i out of %i samples read\n',count,tmp);
                         end;
                         HDR.FILE.POS = HDR.FILE.POS + count/tmp;
 
-                        if (HDR.EGI.eventtype > 0),
+                        if (HDR.EVENT.N > 0),
                                 [HDR.EVENT.POS,HDR.EVENT.CHN,HDR.EVENT.TYP] = find(s(HDR.NS+1:size(s,1),:)');
                                 HDR.EVENT.N = length(HDR.EVENT.POS);
                         end 
                         S((i-1)*HDR.SPR + (1:size(s,2)),:) = s(HDR.SIE.InChanSelect,:)';
                 end;
-                
         else
-                [S,count] = fread(HDR.FILE.FID,[HDR.NS + HDR.EGI.eventtype, HDR.SampleRate*NoS],HDR.datatype);
-                tmp = [(HDR.NS + HDR.EGI.eventtype) * HDR.SampleRate*NoS];
+                [S,count] = fread(HDR.FILE.FID,[HDR.NS + HDR.EVENT.N, HDR.SampleRate*NoS],HDR.datatype);
+                tmp = (HDR.NS + HDR.EVENT.N) * HDR.SampleRate * NoS;
                 if count < tmp,
                         fprintf(HDR.FILE.stderr,'Warning SREAD EGI: only %i out of %i samples read\n',count,tmp);
                 end;
-                HDR.FILE.POS = HDR.FILE.POS + round(count/(HDR.NS + HDR.EGI.eventtype));
+                HDR.FILE.POS = HDR.FILE.POS + round(count/(HDR.NS + HDR.EVENT.N));
                 
-                if (HDR.EGI.eventtype > 0),
+                if (HDR.EVENT.N > 0),
                         [HDR.EVENT.POS,HDR.EVENT.CHN,HDR.EVENT.TYP] = find(S(HDR.NS+1:size(S,1),:)');
                         HDR.EVENT.N = length(HDR.EVENT.POS);
                 end 
@@ -456,6 +454,7 @@ elseif strcmp(HDR.TYPE,'EEG'),
                 [signal,c] = fread(HDR.FILE.FID, [HDR.NS,HDR.SPR], gdfdatatype(HDR.GDFTYP));
                 
                 % S = [S;signal(HDR.SIE.InChanSelect,:)'];
+		%[size(signal),c,i,HDR.SPR,NoS,ftell(HDR.FILE.FID)]
                 S(i*HDR.SPR+(1-HDR.SPR:0),:) = signal(HDR.SIE.InChanSelect,:)';
                 count = count + c;			
         end;
