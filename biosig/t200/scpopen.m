@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.11 $
-%	$Id: scpopen.m,v 1.11 2004-07-02 16:17:02 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: scpopen.m,v 1.12 2004-09-25 20:28:10 schloegl Exp $
 %	(C) 2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -33,6 +33,7 @@ if nargin<1, PERMISSION='rb'; end;
 VER = version;
 
 fid = fopen(HDR.FileName,PERMISSION,'ieee-le');
+HDR.FILE.FID = fid; 
 if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
         HDR.FILE.CRC = fread(fid,1,'uint16');
         HDR.FILE.Length = fread(fid,1,'uint32');
@@ -134,7 +135,12 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 elseif tag == 9,
                                         HDR.Patient.Race = field;
                                 elseif tag == 10,
-                                        HDR.Patient.Medication = field;
+					if logical(field(1))
+	                                        HDR.Patient.Medication = field;
+					else	
+	                                        HDR.Patient.Medication.Code = field(2:3);
+						HDR.Patient.Medication = field(4:end);
+					end;	
                                 elseif tag == 11,
                                         HDR.Patient.BloodPressure.Systolic = field*[1;256];
                                 elseif tag == 12,
@@ -208,7 +214,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                         tmp(4) = fread(fid,1,'int16');    
                                         tmp(5) = fread(fid,1,'uint32');    
                                 	k3 = k3 + 1;
-				        HT(k3,:) = [k1,k2,tmp']; 
+				        HT(k3,:) = [tmp']; 
                                 end;
 			end;
 			if HDR.SCP2.NHT~=19999,
@@ -252,6 +258,13 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         SCP.SampleRate = 1e6/SCP.Dur;
                         SCP.FLAG.DIFF = fread(fid,1,'uint8');    
                         SCP.FLAG.bimodal_compression = fread(fid,1,'uint8');    
+
+			if isnan(HDR.NS),
+				HDR.ERROR.status = -1; 
+				HDR.ERROR.message = sprintf('Error SCPOPEN: could not read %s\n',HDR.FileName);
+				return;
+			end;
+			
                         SCP.SPR = fread(fid,HDR.NS,'uint16');
                         
                         if section.ID==6,
@@ -282,9 +295,8 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
 					x  = [];
 					HT = HDR.SCP2.HT(find(HDR.SCP2.HT(:,1)==1),3:7);
 					while (l2 < HDR.LeadPos(k,2)),
-						while c < max(HT(:,2));
+						while ((c < max(HT(:,2))) & (k1<length(s2)-1));
 							k1 = k1 + 1;
- %                                                       [k1,length(s2),k,HDR.NS],ret
 							dd = s2(k1);
 							accu = accu + ACC(dd+1)*(2^c);
 							c = c + 8;
@@ -437,7 +449,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 end;
                                         
                         elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) & (HDR.SCP2.prefix==0), 
-				codelength = HDR.SCP.HT(1,4);
+				codelength = HDR.SCP2.HT(1,4);
                                 if (codelength==16)
                                         S2 = fread(fid,[HDR.N,HDR.NS],'int16');  
                                 elseif (codelength==8)
@@ -594,28 +606,31 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 HDR.SCP8.Statement{k} = char(tmp);    
                         end
                         
-                elseif section.ID==9, 
-                        HDR.SCP9.byte1 = fread(fid,1,'uint8');    
+                %elseif section.ID==9, 
+                %        HDR.SCP9.byte1 = fread(fid,1,'uint8');    
                         
-                elseif section.ID==10, 
-                        HDR.SCP10.byte1 = fread(fid,1,'uint8');    
+                %elseif section.ID==10, 
+                %        HDR.SCP10.byte1 = fread(fid,1,'uint8');    
                         
-                elseif section.ID==11, 
+                %elseif section.ID==11, 
                         
                 end;
                 
+		if ~section.Length,
+			HDR.ERROR.status  = -1; 
+			HDR.ERROR.message = 'Error SCPOPEN: \n';
+			return;
+		end;			
+		
                 %tmp = fread(fid,min(section.Length-16,1000),'uchar');    
                 
                 fseek(fid, pos+section.Length-2, -1);
                 section.CRC = fread(fid,1,'uint16');
         end;
-        
-        HDR.FILE.FID  = fid;
-        HDR.FILE.OPEN = 1; 
-        HDR.FILE.POS  = 0; 
+
         [HDR.SPR, HDR.NS] = size(HDR.data);
         HDR.NRec = 1;
         HDR.AS.endpos = HDR.SPR;
-        
 end;
-
+HDR.FILE.OPEN = 1; 
+HDR.FILE.POS  = 0; 

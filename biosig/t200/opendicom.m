@@ -24,8 +24,8 @@ function [HDR,H1,h2]=opendicom(arg1,arg2,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: opendicom.m,v 1.1 2004-09-12 15:47:08 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: opendicom.m,v 1.2 2004-09-25 20:28:10 schloegl Exp $
 %	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -54,7 +54,7 @@ if any(PERMISSION=='r'),
         HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le');
 	id = fread(HDR.FILE.FID,132,'uchar');
 	if ~all(id' == [zeros(1,128),abs('DICM')])
-		fseek(HDR.FILE.FID,0,'bof');
+		status = fseek(HDR.FILE.FID,0,'bof');
 	else
 		HDR.FLAG.implicite_VR = 0;
         end;
@@ -66,8 +66,13 @@ if any(PERMISSION=='r'),
 		if  HDR.FLAG.implicite_VR, 	% implicite VR
 			LEN = fread(HDR.FILE.FID,1,'uint32');
 		else  % Explicite VR
-			VR = fread(HDR.FILE.FID,2,'uint16');
+			[VR,c] = fread(HDR.FILE.FID,2,'uint16');
 			ix = ['OB';'OW';'OF';'SQ';'UT';'UN']*[1;256];
+			if ~c, 
+				HDR.ERROR.status = -1;
+				HDR.ERROR.message = sprintf('Error OPENDICOM: %s\n', HDR.FileName);
+				return,
+			end
 			if ~any(VR(1)==ix)
 				LEN = VR(2);
 			else
@@ -88,7 +93,7 @@ if any(PERMISSION=='r'),
 		if 0, 
 
 		elseif (LEN>100000),  
-			status=fseek(HDR.FILE.FID,LEN,0);
+			status = fseek(HDR.FILE.FID,LEN,0);
 			if status, 
 				fclose(HDR.FILE.FID);
 				return;
@@ -116,7 +121,7 @@ if any(PERMISSION=='r'),
 			HDR.DICOM.UID = char(VAL');
 		elseif (TAG==hex2dec('00020003')),
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uchar');
-			HDR.DICOM.MediaStorage_SOP_InstanceUID = VAL';
+			HDR.DICOM.MediaStorage_SOP_InstanceUID = char(VAL)';
 		elseif (TAG==hex2dec('00020010')),
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uchar');
 			HDR.DICOM.TransferSyntaxUID = char(VAL');
@@ -501,7 +506,7 @@ if any(PERMISSION=='r'),
 		tmp([12,13,15,16,18,19]) = HDR.DICOM.StudyTime(1:6);
 		HDR.T0 = str2double(tmp);
 	end;
-	if isfield(HDR.DICOM,'Modality') & strcmp(HDR.DICOM.Modality(1:3),'ECG')
+	if isfield(HDR.DICOM,'Modality') & strncmp(HDR.DICOM.Modality,'ECG',3)
 		tmp = char(repmat(32,[1,20]));
 		tmp([1:4,6,7,9,10]) = HDR.DICOM.ContentDate;
 		tmp([12,13,15,16,18,19]) = HDR.DICOM.ContentTime(1:6);

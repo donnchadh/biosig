@@ -28,21 +28,25 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.6 $
-%	$Id: getfiletype.m,v 1.6 2004-09-22 11:28:54 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: getfiletype.m,v 1.7 2004-09-25 20:28:10 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
-if ~isstruct(arg1),
+if ischar(arg1),
         HDR.FileName = arg1;
-
-        [pfad,file,FileExt] = fileparts(HDR.FileName);
-        HDR.FILE.Name = file;
-        HDR.FILE.Path = pfad;
-        HDR.FILE.Ext  = FileExt(2:length(FileExt));
-else
+elseif isfield(arg1,'name')
+        HDR.FileName = arg1.name;
+	HDR.FILE = arg1; 
+elseif isfield(arg1,'FileName')
         HDR = arg1;
 end;
+
+HDR.TYPE = 'unknown';
+HDR.FILE.OPEN = 0;
+HDR.FILE.FID  = -1;
+HDR.ERROR.status  = 0; 
+HDR.ERROR.message = ''; 
 if ~isfield(HDR.FILE,'stderr'),
         HDR.FILE.stderr = 2;
 end;
@@ -50,36 +54,44 @@ if ~isfield(HDR.FILE,'stdout'),
         HDR.FILE.stdout = 1;
 end;	
 
-HDR.TYPE = 'unknown';
-
-if exist(HDR.FileName,'dir') & strcmpi(HDR.FILE.Ext,'ds'), % .. & isdir(HDR.FileName)
-        f1 = fullfile(HDR.FileName,[HDR.FILE.Name,'.meg4']);
-        f2 = fullfile(HDR.FileName,[HDR.FILE.Name,'.res4']);
-        if (exist(f1)==2) & (exist(f2)==2), % & (exist(f3)==2)
-                HDR.FILE.Path = HDR.FileName; 
-                HDR.FILE.Ext  = 'meg4'; 
-                HDR.FileName  = f1; 
-        end;
-        
-elseif isdir(HDR.FileName),
-        HDR.TYPE = 'DIR'; 
-        return; 
+if exist(HDR.FileName,'dir') 
+        [pfad,file,FileExt] = fileparts(HDR.FileName);
+        HDR.FILE.File = file; 
+        HDR.FILE.Path = pfad; 
+	HDR.FILE.Ext  = FileExt(2:end); 
+	if strcmpi(FileExt,'.ds'), % .. & isdir(HDR.FileName)
+	        f1 = fullfile(HDR.FileName,[file,'.meg4']);
+	        f2 = fullfile(HDR.FileName,[file,'.res4']);
+	        if (exist(f1,'file') & exist(f2,'file')), % & (exist(f3)==2)
+            		HDR.FileName  = f1; 
+			% HDR.TYPE = 'MEG4'; % will be checked below 
+	        end;
+	else
+    		HDR.TYPE = 'DIR'; 
+    		return; 
+	end;
 end;
 
 fid = fopen(HDR.FileName,'rb','ieee-le');
 if fid < 0,
-        if exist(HDR.FileName,'dir') % isdir(...)
-                
-        else
-                fprintf(HDR.FILE.stderr,'Error GETFILETYPE: file %s not found.\n',HDR.FileName);    
-                return;
-        end;
+	HDR.ERROR.status = -1; 
+        HDR.ERROR.message = sprintf('Error GETFILETYPE: file %s not found.\n',HDR.FileName);    
+        return;
 else
+        [pfad,file,FileExt] = fileparts(HDR.FileName);
+        HDR.FILE.Name = file;
+        HDR.FILE.Path = pfad;
+        HDR.FILE.Ext  = FileExt(2:length(FileExt));
+
+	fseek(fid,0,'eof');
+	HDR.FILE.size = ftell(fid);
+	fseek(fid,0,'bof');
+
         [s,c] = fread(fid,[1,132],'uchar');
-        if c < 132,
+        if (c < 132),
                 s = [s, repmat(0,1,132-c)];
         end;
-        
+
         if c,
                 %%%% file type check based on magic numbers %%%
                 type_mat4=str2double(char(abs(sprintf('%04i',s(1:4)*[1;10;100;1000]))'));
@@ -134,6 +146,8 @@ else
                         HDR.TYPE='SMA';
                 elseif all(s([1:2,20])==[1,0,0]) & any(s(19)==[2,4]); 
                         HDR.TYPE='TEAM';	% Nicolet TEAM file format
+                elseif strncmp(ss,['# ',HDR.FILE.Name],length(HDR.FILE.Name)+2); 
+                        HDR.TYPE='SMNI';
                 elseif strncmp(ss,HDR.FILE.Name,length(HDR.FILE.Name)); 
                         HDR.TYPE='MIT';
                 elseif strncmp(ss,'DEMG',4);	% www.Delsys.com
@@ -162,6 +176,12 @@ else
                 elseif strcmp(ss([1:4,9:12]),'RIFFAVI '); 
                         HDR.TYPE='AVI';
                         HDR.Endianity = 'ieee-le';
+                elseif all(s([1:4,9:21])==[abs('RIFFRMIDMThd'),0,0,0,6,0]); 
+                        HDR.TYPE='RMID';
+                        HDR.Endianity = 'ieee-be';
+                elseif all(s(1:9)==[abs('MThd'),0,0,0,6,0]) & any(s(10)==[0:2]); 
+                        HDR.TYPE='MIDI';
+			HDR.Endianity = 'ieee-be';
                 elseif ~isempty(findstr(ss(1:16),'8SVXVHDR')); 
                         HDR.TYPE='8SVX';
                 elseif strcmp(ss([1:4,9:12]),'RIFFILBM'); 
@@ -310,8 +330,19 @@ else
                         HDR.TYPE='ACR-NEMA';
                 elseif all(s(1:132)==[zeros(1,128),abs('DICM')]); 
                         HDR.TYPE='DICOM';
-                elseif all(s([2,4,6:8])==0);            % DICOM candidate
+                elseif all(s([2,4,6:8])==0) & all(s([1,3,5]));            % DICOM candidate
                         HDR.TYPE='DICOM';
+                elseif all(s(1:18)==[8,0,5,0,10,0,0,0,abs('ISO_IR 100')])             % DICOM candidate
+                        HDR.TYPE='DICOM';
+                elseif all(s(12+[1:18])==[8,0,5,0,10,0,0,0,abs('ISO_IR 100')])             % DICOM candidate
+                        HDR.TYPE='DICOM';
+                elseif all(s([1:8,13:20])==[8,0,0,0,4,0,0,0,8,0,5,0,10,0,0,0])            % DICOM candidate
+                        HDR.TYPE='DICOM';
+                        
+                elseif all(s([1:5,9,13,14,17,25])==[77,90,144,0,3,4,255,255,184,64]) & ~any(s([4,6:8,10:12,15:16,18:24,26:60]))
+		        HDR.TYPE='DLL';
+                elseif all(s([1:24])==[127,abs('ELF'),1,1,1,zeros(1,9),2,0,3,0,1,0,0,0])
+		        HDR.TYPE='ELF';
                         
                 elseif all(s(1:24)==[208,207,17,224,161,177,26,225,zeros(1,16)]);	% MS-EXCEL candidate
                         HDR.TYPE='BIFF';
@@ -350,8 +381,6 @@ else
                         HDR.TYPE='LZH';
                 elseif strcmp(ss([3:5,7]),'-lz-'); 
                         HDR.TYPE='LZH';
-                elseif strcmp(ss(1:4),'MThd'); 
-                        HDR.TYPE='MIDI';
                 elseif strcmp(ss(1:3),'MMD'); 
                         HDR.TYPE='MED';
                 elseif (s(1)==255) & any(s(2)>=224); 
@@ -426,13 +455,12 @@ else
                         end;
                         HDR.TYPE = 'EVENTCODES';
                 else
-                        fseek(fid,3228,-1);
-                        s=fread(fid,[1,4],'uint8'); 
-                        if all((s(1:4)*(2.^[24;16;8;1]))==1229801286); 	% GE LX2 format image 
+                        HDR.TYPE='unknown';
+
+                        status = fseek(fid,3228,-1);
+                        [s,c]=fread(fid,[1,4],'uint8'); 
+			if (status & (c==4)) & all((s(1:4)*(2.^[24;16;8;1]))==1229801286); 	% GE LX2 format image 
                                 HDR.TYPE='LX2';
-                        else
-                                %TYPE='unknown';
-                                HDR.TYPE='unknown';
                         end;
                 end;
         end;
@@ -454,16 +482,12 @@ else
                         % MIT-ECG / Physiobank format
                 elseif strcmpi(HDR.FILE.Ext,'HEA'), HDR.TYPE='MIT';
                         
-                elseif strcmpi(HDR.FILE.Ext,'ATR'), HDR.TYPE='MIT';
-                        
-                elseif strcmpi(HDR.FILE.Ext,'DAT'), 
+                elseif strcmpi(HDR.FILE.Ext,'DAT') | strcmpi(HDR.FILE.Ext,'ATR'), 
                         tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hea']));
                         if isempty(tmp), 
                                 tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.HEA']));
                         end
-                        if isempty(tmp), 
-                                HDR.TYPE='DAT';
-                        else
+                        if ~isempty(tmp), 
                                 HDR.TYPE='MIT';
                                 [tmp,tmp1,tmp2] = fileparts(tmp.name);
                                 HDR.FILE.Ext = tmp2(2:end);
@@ -587,8 +611,8 @@ else
                 elseif strcmpi(HDR.FILE.Ext,'trl')
                         
                 elseif length(HDR.FILE.Ext)>2, 
-                        if all(HDR.FILE.Ext(1:2)=='0') & any(HDR.FILE.Ext(3)==[48:57]),	% WSCORE scoring file
-                                x = load(HDR.FileName);
+                        if all(HDR.FILE.Ext(1:2)=='0') & any(abs(HDR.FILE.Ext(3))==abs([48:57])),	% WSCORE scoring file
+                                x = load('-ascii',HDR.FileName);
                                 HDR.EVENT.N   = size(x,1);
                                 HDR.EVENT.POS = x(:,1);
                                 HDR.EVENT.TYP = x(:,2);

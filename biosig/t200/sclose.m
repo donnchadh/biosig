@@ -20,8 +20,8 @@ function [HDR] = sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.10 $
-%	$Id: sclose.m,v 1.10 2004-09-07 16:22:39 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: sclose.m,v 1.11 2004-09-25 20:28:10 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -172,7 +172,7 @@ if strcmp(HDR.TYPE,'FIF') ;
         HDR.FILE.status = 0;
         FLAG_NUMBER_OF_OPEN_FIF_FILES = FLAG_NUMBER_OF_OPEN_FIF_FILES-1; 
         
-elseif strncmp(HDR.TYPE,'XML',3) | strcmp(HDR.TYPE,'SierraECG') ,
+elseif strmatch(HDR.TYPE,{'ADI','GTEC','LABVIEW','MAT','MAT4','MAT5','XML','XML-FDA','SierraECG'}),
         HDR.FILE.OPEN = 0;
         
 elseif HDR.FILE.OPEN,

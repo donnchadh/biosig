@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.23 $
-%	$Id: sdfopen.m,v 1.23 2004-08-31 17:50:20 schloegl Exp $
+%	$Revision: 1.24 $
+%	$Id: sdfopen.m,v 1.24 2004-09-25 20:28:10 schloegl Exp $
 %	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -161,7 +161,6 @@ if any(arg2=='r'),
 [EDF.FILE.FID,MESSAGE]=fopen(FILENAME,arg2,'ieee-le');          
 %EDF.FILE.FID=fid;
 
-EDF.FILE.stderr=2;
 if EDF.FILE.FID<0 
         %fprintf(EDF.FILE.stderr,'Error SDFOPEN: %s %s\n',MESSAGE,FILENAME);  
         H1=MESSAGE; H2=FILENAME;

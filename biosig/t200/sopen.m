@@ -17,13 +17,13 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 %   E.g. the following command returns the difference and 
 %       the mean of the first two channels. 
 %   HDR = sopen(Filename, 'r', [[1;-1],[.5,5]]);
-%   [S,HDR] = sread(HDR, NoR, StartPos);
+%   [S,HDR] = sread(HDR, Duration, Start);
 %   HDR = sclose(HDR);
 %
 % HDR contains the Headerinformation and internal data
 % S 	returns the signal data 
 %
-% see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
+% see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
 % This program is free software; you can redistribute it and/or
@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.67 $
-%	$Id: sopen.m,v 1.67 2004-09-24 18:01:11 schloegl Exp $
+%	$Revision: 1.68 $
+%	$Id: sopen.m,v 1.68 2004-09-25 20:28:10 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -51,52 +51,69 @@ if isnan(str2double('1, 3'));
         fprintf(2,'- Its recommended to update STR2DOUBLE. Contact Alois!\n');
 end;
 
+global FLAG_NUMBER_OF_OPEN_FIF_FILES;
+
+if ischar(arg1),
+        HDR.FileName = arg1;
+%elseif length(arg1)~=1,
+%	HDR = [];
+elseif isfield(arg1,'name')
+        HDR.FileName = arg1.name;
+	HDR.FILE = arg1; 
+else %if isfield(arg1,'FileName')
+        HDR = arg1;
+%else
+%	HDR = [];
+end;
+
+
 if nargin<2, 
         PERMISSION='r'; 
 elseif isempty(PERMISSION),
         PERMISSION='r'; 
 elseif isnumeric(PERMISSION),
-        fprintf(2,'Warning SOPEN: second argument should be PERMISSION, assume its the channel selection\n');
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: second argument should be PERMISSION, assume its the channel selection\n');
         CHAN = PERMISSION; 
         PERMISSION = 'r'; 
 elseif ~any(PERMISSION(1)=='RWrw'),
-        fprintf(2,'Warning SOPEN: PERMISSION must be ''r'' or ''w''. Assume PERMISSION is ''r''\n');
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: PERMISSION must be ''r'' or ''w''. Assume PERMISSION is ''r''\n');
         PERMISSION = 'r'; 
 end;
 if ~any(PERMISSION=='b');
         PERMISSION = [PERMISSION,'b']; % force binary open. Needed for Octave
 end;
+
 if nargin<3, CHAN = 0; end; 
 if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | (any(CHAN<0) & prod(size(CHAN))>1),
         ReRefMx = CHAN; 
         CHAN = find(any(CHAN,2));
 end
+
 if nargin<4, MODE = ''; end;
-
-if ~isstruct(arg1),
-        HDR.FileName = arg1;
-else
-        HDR = arg1;
-end;
-
 if isempty(MODE), MODE=' '; end;	% Make sure MODE is not empty -> FINDSTR
-
-[pfad,file,FileExt] = fileparts(HDR.FileName);
-HDR.FILE.Name = file;
-HDR.FILE.Path = pfad;
-HDR.FILE.Ext  = FileExt(2:length(FileExt));
-HDR.FILE.OPEN = 0;
-HDR.FILE.FID  = -1;
-if ~isfield(HDR.FILE,'stderr'),
-        HDR.FILE.stderr = 2;
-end;
-if ~isfield(HDR.FILE,'stdout'),
-        HDR.FILE.stdout = 1;
-end;	
 
 % test for type of file 
 if any(PERMISSION=='r'),
         HDR = getfiletype(HDR);
+	if HDR.ERROR.status, 
+		fprintf(HDR.FILE.stderr,'%s\n',HDR.ERROR.message);
+		return;
+	end;
+else
+	[pfad,file,FileExt] = fileparts(HDR.FileName);
+	HDR.FILE.Name = file;
+	HDR.FILE.Path = pfad;
+	HDR.FILE.Ext  = FileExt(2:length(FileExt));
+	if ~isfield(HDR.FILE,'stderr'),
+	        HDR.FILE.stderr = 2;
+	end;
+	if ~isfield(HDR.FILE,'stdout'),
+	        HDR.FILE.stdout = 1;
+	end;	
+	HDR.FILE.OPEN = 0;
+        HDR.FILE.FID  = -1;
+	HDR.ERROR.status  = 0; 
+	HDR.ERROR.message = ''; 
 end;
 
 %% Initialization
@@ -256,6 +273,11 @@ elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
         
 elseif strcmp(HDR.TYPE,'SCP'),	%
         HDR = scpopen(HDR,PERMISSION);        
+	if HDR.ERROR.status,
+		fclose(HDR.FILE.FID);
+		HDR.FILE.OPEN = 0; 
+		return;
+	end;	
         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         
         
@@ -830,7 +852,6 @@ elseif strcmp(HDR.TYPE,'MPEG'),
         % http://www.dv.co.yu/mpgscript/mpeghdr.htm
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
         if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
-                HDR.FILE.OPEN = 1; 
                 % read header
                 try,
                         tmp = fread(HDR.FILE.FID,1,'ubit11');
@@ -910,7 +931,8 @@ elseif strcmp(HDR.TYPE,'MPEG'),
                 for k = HDR.MPEG.idx,
                         HDR.MPEG.temp(1:12,k) = fread(HDR.FILE.FID,[12,1],['ubit',int2str(HDR.MPEG.allocation(k))]);
                 end;
-                fprintf(HDR.FILE.stderr,'Warning SOPEN: MPEG not ready for use\n');
+                fprintf(HDR.FILE.stderr,'Warning SOPEN: MPEG not ready for use (%s)\n',HDR.FileName);
+                HDR.FILE.OPEN = 1; 
         end;
         HDR.FILE.OPEN = 0; 
         fclose(HDR.FILE.FID);
@@ -1034,20 +1056,153 @@ elseif strcmp(HDR.TYPE,'ASF') ,
         end; 
         
         
-elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') ,
+elseif strcmp(HDR.TYPE,'MIDI') | strcmp(HDR.TYPE,'RMID') ,
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
-        
+
         if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
-                HDR.FILE.OPEN = 1; 
                 
-                tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
-                if ~strcmpi(tmp,'FORM') & ~strcmpi(tmp,'RIFF'),
+                [tmp,c] = fread(HDR.FILE.FID,[1,4+12*strcmp(HDR.TYPE,'RMID') ],'char');
+		tmp = char(tmp(c+(-3:0)));
+                if ~strcmpi(tmp,'MThd'),
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN (MIDI): file %s might be corrupted 1\n',HDR.FileName);
+                end;
+
+                while ~feof(HDR.FILE.FID),	
+                        tag     = setstr(tmp);
+                        tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size 
+                        filepos = ftell(HDR.FILE.FID);
+                        
+                        if 0, 
+
+			%%%% MIDI file format 	
+                        elseif strcmpi(tag,'MThd');
+                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize/2],'uint16');
+                                HDR.MIDI.Format = tmp(1);
+                                HDR.NS = tmp(2);
+				if tmp(3)<2^15,
+		                        HDR.SampleRate = tmp(3);
+				else	
+					tmp4 = floor(tmp(3)/256);
+					if tmp>127, 
+						tmp4 = 256-tmp4; 
+						HDR.SampleRate = (tmp4*rem(tmp(3),256));
+					end
+				end;
+				CurrentTrack = 0; 
+
+                        elseif strcmpi(tag,'MTrk');
+                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8');
+				CurrentTrack = CurrentTrack + 1; 
+				HDR.MIDI.Track{CurrentTrack} = tmp; 
+				k = 1; 
+				while 0,k<c,
+					deltatime = 1; 
+					while tmp(k)>127,
+						deltatime = mod(tmp(k),128) + deltatime*128;
+						k = k+1;
+					end;
+					deltatime = tmp(k) + deltatime*128;
+					k = k+1;
+					status_byte = tmp(k);
+					k = k+1;
+					
+					if any(floor(status_byte/16)==[8:11]), % Channel Mode Message
+						databyte = tmp(k:k+1);
+						k = k+2;
+				
+					elseif any(floor(status_byte/16)==[12:14]), % Channel Voice Message
+						databyte = tmp(k);
+						k = k+1;
+
+					elseif any(status_byte==hex2dec(['F0';'F7'])) % Sysex events
+						len = 1; 
+						while tmp(k)>127,
+							len = mod(tmp(1),128) + len*128
+							k = k+1;
+						end;
+						len = tmp(k) + len*128;
+						data = tmp(k+(1:len));
+				
+					% System Common Messages 
+					elseif status_byte==240, % F0 
+					elseif status_byte==241, % F1 
+						while tmp(k)<128,
+							k = k+1;
+						end;
+					elseif status_byte==242, % F2 
+						k = k + 1; 
+					elseif status_byte==243, % F3 
+						k = k + 1; 
+					elseif status_byte==244, % F4 
+					elseif status_byte==245, % F5 
+					elseif status_byte==246, % F6 
+					elseif status_byte==247, % F7 
+					elseif status_byte==(248:254), % F7:FF 
+								
+					elseif (status_byte==255) % Meta Events
+						type = tmp(k);
+						k = k+1;
+						len = 1; 
+						while tmp(k)>127,
+							len = mod(tmp(1),128) + len*128
+							k = k+1;
+						end;
+						len = tmp(k) + len*128;
+						data = tmp(k+1:min(k+len,length(tmp)));
+						if 0, 
+						elseif type==0,	HDR.MIDI.SequenceNumber = data;
+						elseif type==1,	HDR.MIDI.TextEvent = char(data);
+						elseif type==2,	HDR.Copyright = char(data);
+						elseif type==3,	HDR.MIDI.SequenceTrackName = char(data);
+						elseif type==4,	HDR.MIDI.InstrumentNumber = char(data);
+						elseif type==5,	HDR.MIDI.Lyric = char(data);
+						elseif type==6,	HDR.EVENT.POS = data;
+						elseif type==7,	HDR.MIDI.CuePoint = char(data);
+						elseif type==32,MDR.MIDI.ChannelPrefix = data;
+						elseif type==47,MDR.MIDI.EndOfTrack = k;
+						
+						end;
+					else
+					end; 
+				end;
+                                
+                        elseif ~isempty(tagsize)
+                                fprintf(HDR.FILE.stderr,'Warning SOPEN (MIDI): unknown TAG in %s: %s(%i) \n',HDR.FileName,tag,tagsize);
+                                [tmp,c] = fread(HDR.FILE.FID,[1,min(100,tagsize)],'uchar');
+                                fprintf(HDR.FILE.stderr,'%s\n',char(tmp));
+			end,
+
+                        if ~isempty(tagsize)
+                                status = fseek(HDR.FILE.FID,filepos+tagsize,'bof');
+                                if status, 
+                                        fprintf(HDR.FILE.stderr,'Warning SOPEN (MIDI): fseek failed. Probably tagsize larger than end-of-file and/or file corrupted\n');
+                                        fseek(HDR.FILE.FID,0,'eof');
+                                end; 
+                        end;
+                        [tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
+		end;
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+
+                HDR.FILE.POS = 0;
+                HDR.FILE.OPEN = 1;
+                HDR.NRec = 1;
+        end; 
+        
+        
+elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI'),
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
+
+        if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+
+                tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));
+                if ~strcmpi(tmp,'FORM') & ~strcmpi(tmp,'RIFF')
                         fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAV-format: file %s might be corrupted 1\n',HDR.FileName);
                 end;
                 tagsize  = fread(HDR.FILE.FID,1,'uint32');        % which size
                 tagsize0 = tagsize + rem(tagsize,2); 
-                tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
-                if ~strncmpi(tmp,'AIF',3) & ~strncmpi(tmp,'WAVE',4) & ~strncmpi(tmp,'AVI ',4), % not (AIFF or AIFC or WAVE)
+                tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));
+                if ~strncmpi(tmp,'AIF',3) & ~strncmpi(tmp,'WAVE',4) & ~strncmpi(tmp,'AVI ',4),
+			% not (AIFF or AIFC or WAVE)
                         fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAF-format: file %s might be corrupted 2\n',HDR.FileName);
                 end;
                 
@@ -1128,12 +1283,8 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                         elseif strcmpi(tag,'SSND');
                                 HDR.AIF.offset   = fread(HDR.FILE.FID,1,'int32');
                                 HDR.AIF.blocksize= fread(HDR.FILE.FID,1,'int32');
-                                
-                                tmp = (tagsize-8)/HDR.AS.bpb;
-                                if tmp~=HDR.SPR,
-                                        fprintf(HDR.FILE.stderr,'Warning SOPEN AIF: Number of samples do not fit %i vs %i\n',tmp,HDR.SPR);
-                                end;
-                                
+                                HDR.AIF.SSND.tagsize = tagsize-8; 
+				
                                 HDR.HeadLen = filepos+8; 
                                 %HDR.AIF.sounddata= fread(HDR.FILE.FID,tagsize-8,'uint8');
                                 
@@ -1342,18 +1493,26 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'IIF') | strcmp(HDR.TYPE,'WAV') 
                                 status = fseek(HDR.FILE.FID,filepos+tagsize0,'bof');
                                 if status, 
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (WAF/AIF/AVI): fseek failed. Probably tagsize larger than end-of-file and/or file corrupted\n');
-                                        fseek(HDR.FILE.FID,0,'eof')
+                                        fseek(HDR.FILE.FID,0,'eof');
                                 end; 
                         end;
                         [tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
                 end;
                 
-                if ~isfield(HDR,'HeadLen')
+		if strncmpi(tmp,'AIF',3),
+                        if HDR.AIF.SSND.tagsize~=HDR.SPR*HDR.AS.bpb,
+                                fprintf(HDR.FILE.stderr,'Warning SOPEN AIF: Number of samples do not fit %i vs %i\n',tmp,HDR.SPR);
+                        end;
+                end;
+		                
+                if ~isfield(HDR,'HeadLen') 
                         fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAV: missing data section\n');
                 else
                         status = fseek(HDR.FILE.FID, HDR.HeadLen, 'bof');
                 end;
-                
+		
+		if isnan(HDR.NS), return; end; 
+
                 % define Calib: implements S = (S+.5)*HDR.Cal - HDR.Off;
                 HDR.Calib = [repmat(.5,1,HDR.NS);eye(HDR.NS)] * diag(repmat(HDR.Cal,1,HDR.NS));
                 HDR.Calib(1,:) = HDR.Calib(1,:) - HDR.Off;
@@ -2019,11 +2178,13 @@ elseif strcmp(HDR.TYPE,'RDF'),
                         fseek(HDR.FILE.FID,4*(110-HDR.EVENT.N)+2*nchans*block_size,0);
                         tag = fread(HDR.FILE.FID,1,'uint32');
                 else
-                        tmp = fread(HDR.FILE.FID,3,'uint16');
-                        nchans = tmp(2); %fread(HDR.FILE.FID,1,'uint16');
-                        block_size = 2^tmp(3); %fread(HDR.FILE.FID,1,'uint16');
+                        [tmp, c] = fread(HDR.FILE.FID,3,'uint16');
+			if c>2,
+	                        nchans = tmp(2); %fread(HDR.FILE.FID,1,'uint16');
+    		                block_size = 2^tmp(3); %fread(HDR.FILE.FID,1,'uint16');
                         
-                        fseek(HDR.FILE.FID,62+4*(110-HDR.EVENT.N)+2*nchans*block_size,0);
+            		        fseek(HDR.FILE.FID,62+4*(110-HDR.EVENT.N)+2*nchans*block_size,0);
+			end;
                 end
                 tag = fread(HDR.FILE.FID,1,'uint32');
         end
@@ -2036,11 +2197,11 @@ elseif strcmp(HDR.TYPE,'RDF'),
         HDR.SPR = block_size;
         HDR.AS.bpb = HDR.SPR*HDR.NS*2;
         HDR.Dur = HDR.SPR/HDR.SampleRate;
+	HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         
         
 elseif strcmp(HDR.TYPE,'LABVIEW'),
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
-        HDR.FILE.OPEN=1;
         
         tmp = fread(HDR.FILE.FID,8,'uchar');
         HDR.VERSION = char(fread(HDR.FILE.FID,[1,8],'uchar'));
@@ -2052,8 +2213,8 @@ elseif strcmp(HDR.TYPE,'LABVIEW'),
         
         HDR.ChanList = fread(HDR.FILE.FID,HDR.NS,'uchar'); % channel string
         
-        
         fclose(HDR.FILE.FID);
+        %HDR.FILE.OPEN = 1;
         HDR.FILE.FID = -1;
         
         return;
@@ -2292,8 +2453,8 @@ elseif strcmp(HDR.TYPE,'MIT')
                 fid = HDR.FILE.FID;
                 z = fgetl(fid);
                 tmpfile = strtok(z,' /');
-                if ~strcmpi(file,tmpfile),
-                        fprintf(HDR.FILE.stderr,'Warning: RecordName %s does not fit filename %s\n',tmpfile,file);
+                if ~strcmpi(HDR.FILE.Name,tmpfile),
+                        fprintf(HDR.FILE.stderr,'Warning: RecordName %s does not fit filename %s\n',tmpfile,HDR.FILE.Name);
                 end;	
                 
                 %A = sscanf(z, '%*s %d %d %d',[1,3]);
@@ -2538,14 +2699,8 @@ elseif 0,strcmp(HDR.TYPE,'DAQ'),
         HDR = daqopen(HDR,PERMISSION,CHAN);
         
         
-elseif strcmp(HDR.TYPE,'MAT4'),
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.MAT4.opentyp);
-                
-                fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
-                
-                HDR.FILE.OPEN = 1;
-                HDR.FILE.POS = 0;
+elseif strcmp(HDR.TYPE,'MAT4') & any(PERMISSION=='r'),
+    		HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.MAT4.opentyp);
                 k=0; NB=0;
                 %type = fread(HDR.FILE.FID,4,'uchar'); 	% 4-byte header
                 type = fread(HDR.FILE.FID,1,'uint32'); 	% 4-byte header
@@ -2557,11 +2712,20 @@ elseif strcmp(HDR.TYPE,'MAT4'),
                         ncols = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
                         imagf = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
                         namelen  = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
-                        [name,c] = fread(HDR.FILE.FID,namelen,'char'); 
+                        if namelen>HDR.FILE.size,
+			%	fclose(HDR.FILE.FID);
+				HDR.ERROR.status  = -1; 
+				HDR.ERROR.message = sprintf('Error SOPEN (MAT4): Could not open %s\n',HDR.FileName);
+				return;
+			end;
+			[name,c] = fread(HDR.FILE.FID,namelen,'char'); 
                         
-                        if imagf, HDR.ErrNo=-1; fprintf(HDR.FILE.stderr,'Warning %s: Imaginary data not tested\n',mfilename); end;
+                        if imagf, 
+				HDR.ERROR.status=-1; 
+				fprintf(HDR.FILE.stderr,'Warning %s: Imaginary data not tested\n',mfilename); 
+			end;
                         if type(4)==2,
-                                HDR.ErrNo=-1;
+                                HDR.ERROR.status=-1;
                                 fprintf(HDR.FILE.stderr,'Error %s: sparse data not supported\n',mfilename);
                         elseif type(4)>2, 
                                 type(4)=rem(type(4),2);
@@ -2609,14 +2773,16 @@ elseif strcmp(HDR.TYPE,'MAT4'),
                         
                         %type = fread(HDR.FILE.FID,4,'uchar');  	% 4-byte header
                         type = fread(HDR.FILE.FID,1,'uint32'); 	% 4-byte header
-                end;
-        end;
+	        end;
+	        HDR.FILE.OPEN = 1;
+	        HDR.FILE.POS = 0;
         
-        if isfield(HDR,'ADI')
+	
+    	if isfield(HDR,'ADI')
                 HDR.TYPE = 'ADI', % ADICHT-data, converted into a Matlab 4 file
-        end;
-        
-        if strcmp(HDR.TYPE,'ADI'), 
+    		
+	        fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
+
                 %% set internal sampling rate to 1000Hz (default). Set HDR.iFs=[] if no resampling should be performed 
                 HDR.iFs = []; %1000;
                 HDR.NS  = HDR.Var(HDR.ADI.DB(1)).Size(1);
@@ -2702,7 +2868,7 @@ elseif strcmp(HDR.TYPE,'MAT4'),
 elseif strncmp(HDR.TYPE,'MAT',3),
         status = warning;
         warning('off');
-        tmp = load(HDR.FileName);
+        tmp = load('-mat',HDR.FileName);
         warning(status);
         if isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.5x data format
                 HDR.TYPE = 'GTEC'; 
@@ -3061,8 +3227,8 @@ elseif strcmp(HDR.TYPE,'NEX'),
                         HDR.NEX.type(k) = fread(HDR.FILE.FID, 1, 'int32');
                         HDR.NEX.version(k) = fread(HDR.FILE.FID, 1, 'int32');
                         Label(k,:) = fread(HDR.FILE.FID, [1 64], 'char');
-                        HDR.NEX.offset(k)  = fread(fid, 1, 'int32');
-                        HDR.NEX.nf(k)  = fread(fid, 1, 'int32');
+                        HDR.NEX.offset(k)  = fread(HDR.FILE.FID, 1, 'int32');
+                        HDR.NEX.nf(k)  = fread(HDR.FILE.FID, 1, 'int32');
                         reserved(k,:) = char(fread(HDR.FILE.FID, [1 32], 'char'));
                         HDR.NEX.adfreq(k) = fread(HDR.FILE.FID, 1, 'double');
                         HDR.Cal(k) = fread(HDR.FILE.FID, 1, 'double');
@@ -3073,7 +3239,7 @@ elseif strcmp(HDR.TYPE,'NEX'),
                         HDR.NEX.pos(k) = ftell(HDR.FILE.FID);
                         if HDR.NEX.type(k)==2,  % interval
                                 fseek(HDR.FILE.FID, HDR.NEX.offset(k), 'bof');
-                                tmp = fread(fid, [HDR.NEX.nf(k),2], 'int32');
+                                tmp = fread(HDR.FILE.FID, [HDR.NEX.nf(k),2], 'int32');
                                 HDR.EVENT.POS = tmp(:,1);
                                 HDR.EVENT.DUR = tmp(:,2) - tmp(:,1);
                                 HDR.EVENT.N = HDR.NEX.nf(k);
@@ -3082,13 +3248,13 @@ elseif strcmp(HDR.TYPE,'NEX'),
                                 HDR.HeadLen = HDR.NEX.offset(k);
                                 num = k; 
                                 fseek(HDR.FILE.FID, HDR.NEX.offset(k), 'bof');
-                                HDR.NEX6.t = fread(fid, [1, HDR.NEX.nf(num)], 'int32')/HDR.SampleRate;
-                                HDR.NEX6.data = fread(fid, [HDR.NEX.n(num), HDR.NEX.nf(num)], 'int16');
+                                HDR.NEX6.t = fread(HDR.FILE.FID, [1, HDR.NEX.nf(num)], 'int32')/HDR.SampleRate;
+                                HDR.NEX6.data = fread(HDR.FILE.FID, [HDR.NEX.n(num), HDR.NEX.nf(num)], 'int16');
 
                         elseif HDR.NEX.type(k)==5, % continous variable  
                                 fseek(HDR.FILE.FID, HDR.NEX.offset(k), 'bof');
-                                HDR.NEX5.ts = fread(fid, [HDR.NEX.nf(k), 2], 'int32');
-                                HDR.NEX5.data = fread(fid, [HDR.NEX.nf(k), 1], 'int16');
+                                HDR.NEX5.ts = fread(HDR.FILE.FID, [HDR.NEX.nf(k), 2], 'int32');
+                                HDR.NEX5.data = fread(HDR.FILE.FID, [HDR.NEX.nf(k), 1], 'int16');
                                 
                         elseif HDR.NEX.type(k)==6,  % marker
                                 fseek(HDR.FILE.FID, HDR.NEX.offset(k), 'bof');
@@ -3468,7 +3634,8 @@ elseif strcmp(HDR.TYPE,'CTF'),
         
 elseif strcmp(HDR.TYPE,'BrainVision'),
         % get the header information from the VHDR ascii file
-        HDR.BV.headerfile       = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);
+        HDR.BV.headerfile       = HDR.FileName;
+	%fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);
         HDR.BV.DataFile         = read_ini(HDR.BV.headerfile, 'DataFile=', '%s');
         HDR.BV.MarkerFile       = read_ini(HDR.BV.headerfile, 'MarkerFile=', '%s');
         HDR.BV.DataFormat       = read_ini(HDR.BV.headerfile, 'DataFormat=', '%s');
@@ -3476,8 +3643,10 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         HDR.BV.BinaryFormat     = read_ini(HDR.BV.headerfile, 'BinaryFormat=', '%s');
         HDR.NS                  = read_ini(HDR.BV.headerfile, 'NumberOfChannels=', '%d');
         HDR.BV.SamplingInterval = read_ini(HDR.BV.headerfile, 'SamplingInterval=', '%f'); % microseconds!
-        if ~isempty(HDR.NS)
-                % parse the channel information
+        if isempty(HDR.NS)
+    		return;
+	else
+	        % parse the channel information
                 for i=1:HDR.NS,
                         chan_str  = sprintf('Ch%d=', i);
                         chan_info = read_ini(HDR.BV.headerfile, chan_str, '%s');
@@ -3494,9 +3663,9 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                         [t, r] = strtok(r, ',');
                         HDR.Cal(i) = str2double(t);          % in microvolt
                 end
+	        % ensure that these are all column-vectors
+	        HDR.BV.reference  = HDR.BV.reference(:);
         end
-        % ensure that these are all column-vectors
-        HDR.BV.reference  = HDR.BV.reference(:);
 
         % convert the header information to BIOSIG standards
         HDR.SampleRate = 1e6/(HDR.BV.SamplingInterval);      % sampling rate in Hz
@@ -3663,6 +3832,9 @@ elseif strcmp(HDR.TYPE,'EEProbe-AVR'),
         
 elseif strncmp(HDR.TYPE,'FIF',3),
         if any(exist('rawdata')==[3,6]),
+		if isempty('FLAG_NUMBER_OF_OPEN_FIF_FILES')
+			FLAG_NUMBER_OF_OPEN_FIF_FILES = 0; 
+		end;	    
                 if ~any(FLAG_NUMBER_OF_OPEN_FIF_FILES==[0,1])
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): number of open FIF files must be zero or one\n\t Perhaps, you forgot to SCLOSE(HDR) the previous FIF-file.\n');
                         return;
@@ -3767,8 +3939,8 @@ elseif strncmp(HDR.TYPE,'TRI',3),
         end
         
         
-elseif strcmp(HDR.TYPE,'DICOM'),
-	HDR = opendicom(HDR,PERMISSION,CHAN);
+%elseif strcmp(HDR.TYPE,'DICOM'),
+%	HDR = opendicom(HDR,PERMISSION,CHAN);
         
         
 elseif strcmp(HDR.TYPE,'VTK'),
@@ -3872,7 +4044,9 @@ elseif strncmp(HDR.TYPE,'XML',3),
         
         
 elseif strcmp(HDR.TYPE,'unknown'),
-        fprintf(HDR.FILE.stderr,'ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
+        HDR.ERROR.status = -1;
+	%HDR.ERROR.message = sprintf('ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
+	%fprintf(HDR.FILE.stderr,'ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
         HDR.FILE.FID = -1;
         return;
         

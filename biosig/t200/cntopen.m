@@ -13,8 +13,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.27 $
-%	$Id: cntopen.m,v 1.27 2004-04-15 17:28:56 schloegl Exp $
+%	$Revision: 1.28 $
+%	$Id: cntopen.m,v 1.28 2004-09-25 20:28:10 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -54,8 +54,6 @@ else
 	CNT.FileName = arg1;
         [CNT.FILE.Path,CNT.FILE.Name,ext]=fileparts(arg1);
         CNT.FILE.Ext = ext(2:end);
-        CNT.FILE.stdout=1;
-        CNT.FILE.stderr=2;
         CNT.FILE.FID = fopen(CNT.FileName,PERMISSION,'ieee-le');          
 	if CNT.FILE.FID<0,
 		fprintf(2,'Error CNTOPEN: file %s not found.\n',CNT.FileName); 
@@ -327,7 +325,7 @@ else    % new header
         h.scaletoolx2       = fread(fid,1,'float');
         h.scaletooly2       = fread(fid,1,'float');
         h.port              = fread(fid,1,'short');
-        h.numsamples        = fread(fid,1,'int32');	%%%
+        h.numsamples        = fread(fid,1,'uint32');	%%%
 
         h.filterflag        = fread(fid,1,'char');	%%%
         h.lowcutoff         = fread(fid,1,'float');	%%%
@@ -499,7 +497,7 @@ elseif strcmp(upper(CNT.FILE.Ext),'EEG'),
         CNT.AS.bpb = -1;
         if CNT.CNT.minor_revision==12,
                 CNT.AS.bpb = 2*CNT.AS.spb+1+2+2+4+2+2;
-                CNT.GDFTYP = 3; %'int16';
+                CNT.GDFTYP = 'int16';
                 % correct(?) eventtablepos
                 h.eventtablepos = CNT.HeadLen + CNT.NRec*CNT.AS.bpb;    	    
         else
@@ -510,13 +508,13 @@ elseif strcmp(upper(CNT.FILE.Ext),'EEG'),
                 tmp = (CNT.AS.spb*2+1+2+2+4+2+2);
                 if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
                         CNT.AS.bpb = tmp;
-                        CNT.GDFTYP = 3; %'int16';
+                        CNT.GDFTYP = 'int16';
                 end;
 		
                 tmp = (CNT.AS.spb*4+1+2+2+4+2+2);
                 if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
                         CNT.AS.bpb = tmp;
-                        CNT.GDFTYP = 5; %'int32';
+                        CNT.GDFTYP = 'int32';
                 end;
         end; 
         if CNT.AS.bpb < 0;
@@ -533,9 +531,28 @@ elseif strcmp(upper(CNT.FILE.Ext),'EEG'),
         
 elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
         CNT.TYPE = 'CNT';
-        %CNT.SPR   = h.numsamples;
-
-        CNT.AS.bpb = CNT.NS*2;	% Bytes per Block
+        CNT.SPR   = h.numsamples;
+        %CNT.SPR    = h.pnts;
+        CNT.NRec   = h.compsweeps;
+        %disp([h.eventtablepos,CNT.HeadLen,CNT.NS,h.pnts,CNT.NRec,CNT.SampleRate,h.type,CNT.CNT.minor_revision])
+        
+        if (CNT.CNT.minor_revision==8),
+                CNT.GDFTYP = 'int16';
+                h.numsamples; % might have some meaning 
+        elseif (CNT.CNT.minor_revision==12),
+                CNT.GDFTYP = 'int16';
+        elseif (CNT.CNT.minor_revision==16),
+                CNT.GDFTYP = 'int16';
+        else
+                fprintf(CNT.FILE.stderr,'Warning CNTOPEN: EEG-Format Minor-Revision %i not tested.\n',CNT.CNT.minor_revision);
+        end;
+        if 0, %h.type==184
+                CNT.GDFTYP = 'int32';
+                CNT.AS.bpb = CNT.NS*4;	% Bytes per Block
+        else
+                CNT.GDFTYP = 'int16';
+                CNT.AS.bpb = CNT.NS*2;	% Bytes per Block
+        end;
 	CNT.AS.spb = CNT.NS;	% Samples per Block
         CNT.AS.EVENTTABLEPOS = h.eventtablepos;
         CNT.SPR    = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
@@ -557,6 +574,8 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
                 [CNT.EVENT.TeegType,c1] = fread(fid,1,'uchar');		
                 [CNT.EVENT.TeegSize,c2] = fread(fid,1,'int32');	
                 [CNT.EVENT.TeegOffset,c3] = fread(fid,1,'int32');
+        else
+                fprintf(CNT.FILE.stderr,'Warning CNTOPEN: fseek failed. %s might be corrupted\n',CNT.FileName);
 	end;	
 	
         k = 0; 

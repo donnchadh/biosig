@@ -20,7 +20,7 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 % [signal,header] = sload('f*.emg', CHAN)
 %  	loads channels CHAN from all files 'f*.emg'
 %
-% see also: SVIEW, SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
+% see also: SVIEW, SOPEN, SREAD, SCLOSE, SAVE2BKR
 %
 % Reference(s):
 % -------------
@@ -30,8 +30,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.34 $
-%	$Id: sload.m,v 1.34 2004-09-22 17:14:54 schloegl Exp $
+%	$Revision: 1.35 $
+%	$Id: sload.m,v 1.35 2004-09-25 20:28:10 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -59,6 +59,7 @@ if CHAN<1 | ~isfinite(CHAN),
         CHAN=0;
 end;
 
+%%% resolve wildcards %%%
 if (ischar(FILENAME) & any(FILENAME=='*'))
         p = fileparts(FILENAME);
         f = dir(FILENAME);
@@ -122,27 +123,14 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 	end;
         ix = find(H.EVENT.TYP==hex2dec('0300')); 
         H.TRIG = mod(H.EVENT.POS(ix),256);
-
         
 	fprintf(1,'  SLOAD: data segments are concanated with NaNs in between.\n');
 	return;	
 end;
 %%% end of multi-file section 
 
+
 %%%% start of single file section
-
-if isstruct(FILENAME),
-	HDR = FILENAME;
-	if isfield(HDR,'FileName'),
-    		FILENAME = HDR.FileName;
-	elseif isfield(HDR,'name'),
-    		FILENAME = HDR.name;
-	else
-    		fprintf(2,'Error SLOAD: missing FileName.\n');	
-    		return; 
-	end;
-end;
-
 if ~isnumeric(CHAN),
         MODE = CHAN;
         CHAN = 0; 
@@ -151,12 +139,15 @@ else
 end;
 
 signal = [];
-[p,f,FileExt] = fileparts(FILENAME);
-FileExt = FileExt(2:length(FileExt));
-H.FileName = FILENAME;
-H = sopen(H,'rb',CHAN);
-
-
+H = sopen(FILENAME,'rb',CHAN);	
+if isempty(H),
+	fprintf(2,'Warning SLOAD: no file found\n');
+	return;
+else	
+	% FILENAME can be fn.name struct, or HDR struct. 
+	FILENAME = H.FileName; 
+end;
+    
 if H.FILE.OPEN > 0,
         [signal,H] = sread(H);
         H = sclose(H);
@@ -245,6 +236,7 @@ elseif strncmp(H.TYPE,'MAT',3),
         tmp = load('-MAT',FILENAME);
         if isfield(tmp,'y'),		% Guger, Mueller, Scherer
                 H.NS = size(tmp.y,2);
+                H.NRec = 1; 
                 if ~isfield(tmp,'SampleRate')
                         %fprintf(H.FILE.stderr,['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
                         H.SampleRate=125;
@@ -262,6 +254,8 @@ elseif strncmp(H.TYPE,'MAT',3),
         elseif isfield(tmp,'run') & isfield(tmp,'trial') & isfield(tmp,'sample') & isfield(tmp,'signal') & isfield(tmp,'TargetCode');
                 H.INFO='BCI competition 2003, dataset 2a (Albany)'; 
                 H.SampleRate = 160; 
+                H.NRec = 1; 
+		[H.SPR,H.NS]=size(tmp.signal);
                 if CHAN>0,
                         signal = tmp.signal(:,CHAN); 
                 else
@@ -287,6 +281,8 @@ elseif strncmp(H.TYPE,'MAT',3),
         elseif isfield(tmp,'runnr') & isfield(tmp,'trialnr') & isfield(tmp,'samplenr') & isfield(tmp,'signal') & isfield(tmp,'StimulusCode');
                 H.INFO='BCI competition 2003, dataset 2b (Albany)'; 
                 H.SampleRate = 240; 
+                H.NRec = 1; 
+		[H.SPR,H.NS]=size(tmp.signal);
                 if CHAN>0,
                         signal = tmp.signal(:,CHAN); 
                 else
@@ -362,11 +358,13 @@ elseif strncmp(H.TYPE,'MAT',3),
         elseif isfield(tmp,'daten');	% Woertz, GLBMT-Uebungen 2003
                 H = tmp.daten;
                 signal = H.raw*H.Cal;
+                H.NRec = 1; 
                 
                 
         elseif isfield(tmp,'eeg');	% Scherer
                 fprintf(H.FILE.stderr,'Warning SLOAD: Sensitivity not known in %s,\n',FILENAME);
                 H.NS=size(tmp.eeg,2);
+                H.NRec = 1; 
                 if ~isfield(tmp,'SampleRate')
                         %fprintf(H.FILE.stderr,['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
                         H.SampleRate=125;
@@ -506,6 +504,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 
         elseif isfield(tmp,'data');	% Mueller, Scherer ? 
                 H.NS = size(tmp.data,2);
+                H.NRec = 1; 
                 fprintf(H.FILE.stderr,'Warning SLOAD: Sensitivity not known in %s,\n',FILENAME);
                 if ~isfield(tmp,'SampleRate')
                         fprintf(H.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',FILENAME);
@@ -528,6 +527,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 
         elseif isfield(tmp,'EEGdata');  % Telemonitoring Daten (Reinhold Scherer)
                 H.NS = size(tmp.EEGdata,2);
+                H.NRec = 1; 
                 H.Classlabel = tmp.classlabel;
                 if ~isfield(tmp,'SampleRate')
                         fprintf(H.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',FILENAME);
@@ -546,6 +546,7 @@ elseif strncmp(H.TYPE,'MAT',3),
 
         elseif isfield(tmp,'daten');	% EP Daten von Michael Woertz
                 H.NS = size(tmp.daten.raw,2)-1;
+                H.NRec = 1; 
                 if ~isfield(tmp,'SampleRate')
                         fprintf(H.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 2000Hz is chosen\n',FILENAME);
                         H.SampleRate=2000;
@@ -563,6 +564,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 
         elseif isfield(tmp,'neun') & isfield(tmp,'zehn') & isfield(tmp,'trig');	% guger, 
                 H.NS=3;
+                H.NRec = 1; 
                 if ~isfield(tmp,'SampleRate')
                         fprintf(H.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',FILENAME);
                         H.SampleRate=125;
@@ -578,7 +580,8 @@ elseif strncmp(H.TYPE,'MAT',3),
                 
                 
         elseif isfield(tmp,'header')    % Scherer
-                signal =[];
+                signal = [];
+                H.NRec = 1; 
                 H = tmp.header;
 
                 
@@ -729,8 +732,6 @@ elseif strcmp(H.TYPE,'unknown')
                 fprintf('Error SLOAD: Unknown Data Format\n');
                 signal = [];
         end;
-        
-        
 end;
 
 
@@ -792,7 +793,7 @@ if any(strmatch(H.TYPE,{'BKR','GDF'}));
             		elseif isfield(H.BCI.Paradigm,'TriggerOnset');
                     		H.TriggerOffset = H.BCI.Paradigm.TriggerOnset;
             		end;
-                        
+
                         if isempty(H.Classlabel),
                                 H.Classlabel = x.header.Paradigm.Classlabel;
                         end;
