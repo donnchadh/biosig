@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.9 $
-%	$Id: getfiletype.m,v 1.9 2004-10-10 16:50:05 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: getfiletype.m,v 1.10 2004-10-10 20:25:34 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -344,6 +344,8 @@ else
                 elseif all(s([1:8,13:20])==[8,0,0,0,4,0,0,0,8,0,5,0,10,0,0,0])            % DICOM candidate
                         HDR.TYPE='DICOM';
                         
+                elseif all(s([1:4])==[127,abs('ELF')])
+                        HDR.TYPE='ELF';
                 elseif all(s([1:4])==[77,90,192,0])
                         HDR.TYPE='EXE';
                 elseif all(s([1:4])==[77,90,80,0])
@@ -352,7 +354,9 @@ else
                         HDR.TYPE='DLL';
                 elseif all(s([1:4])==[77,90,144,0])
                         HDR.TYPE='DLL';
-                        
+                elseif all(s([1:8])==[254,237,250,206,0,0,0,18])
+                        HDR.TYPE='MEXMAC';
+
                 elseif all(s(1:24)==[208,207,17,224,161,177,26,225,zeros(1,16)]);	% MS-EXCEL candidate
                         HDR.TYPE='BIFF';
                         
@@ -366,7 +370,7 @@ else
                         HDR.Endianity = 'ieee-le';
                 elseif strncmp(ss,'SIMPLE  =                    T / Standard FITS format',30)
                         HDR.TYPE='FITS';
-                elseif strncmp(ss,'CDF',3)      
+                elseif strncmp(ss,'CDF',3)
                         HDR.TYPE='NETCDF';
                 elseif strncmp(ss,'.PBF',4)      
                         HDR.TYPE='PBF';
@@ -513,9 +517,9 @@ else
                         HDR.TYPE='unknown';
 
                         status = fseek(fid,3228,-1);
-                        [s,c]=fread(fid,[1,4],'uint8'); 
+                        [s0,c]=fread(fid,[1,4],'uint8'); 
 			if (status & (c==4)) 
-			if all((s(1:4)*(2.^[24;16;8;1]))==1229801286); 	% GE LX2 format image 
+			if all((s0(1:4)*(2.^[24;16;8;1]))==1229801286); 	% GE LX2 format image 
                                 HDR.TYPE='LX2';
                         end;
 			end;
@@ -663,7 +667,7 @@ else
                         
                 elseif strcmpi(HDR.FILE.Ext,'trl')
                         
-                elseif length(HDR.FILE.Ext)>2, 
+                elseif (length(HDR.FILE.Ext)>2) & all(s>31),
                         if all(HDR.FILE.Ext(1:2)=='0') & any(abs(HDR.FILE.Ext(3))==abs([48:57])),	% WSCORE scoring file
                                 x = load('-ascii',HDR.FileName);
                                 HDR.EVENT.N   = size(x,1);
