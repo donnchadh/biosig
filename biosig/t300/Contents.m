@@ -26,7 +26,7 @@
 %       tvaar
 %   Others:
 %       Hjorth
-%       
+%       Bandpower
 % 
 %
 % REFERENCES: 
@@ -35,8 +35,8 @@
 %
 %
 
-%	$Revision: 1.3 $
-%	$Id: Contents.m,v 1.3 2004-12-23 18:12:28 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: Contents.m,v 1.4 2005-03-22 18:51:30 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
