@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.33 $
-%	$Id: sread.m,v 1.33 2004-12-03 20:14:20 schloegl Exp $
+%	$Revision: 1.34 $
+%	$Id: sread.m,v 1.34 2004-12-23 18:16:11 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -92,7 +92,13 @@ elseif strmatch(HDR.TYPE,{'BKR'}),
         if count,
                 S = S(HDR.InChanSelect,:)';
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
-                S(S==HDR.SIE.THRESHOLD(1)) = NaN;       % Overflow detection
+
+                if any(S(:)>=HDR.DigMax) | any(S(:)<-HDR.DigMax)
+                        fprintf(HDR.FILE.stderr,'Warning SREAD (BKR): range error - value is outside of interval [-DigMax, DigMax[. Overflow detection might not work correctly.\n')
+                end
+                S([S<=-HDR.DigMax] | [S>=(HDR.DigMax-1)] ) = -(2^15);   % mark overflow 
+                
+                S(S==-(2^15)) = NaN;       % Overflow detection
         end;
         
 elseif strcmp(HDR.TYPE,'ACQ'),
