@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.34 $
-%	$Id: sopen.m,v 1.34 2004-03-17 19:45:26 schloegl Exp $
+%	$Revision: 1.35 $
+%	$Id: sopen.m,v 1.35 2004-03-22 18:32:25 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -77,8 +77,12 @@ if any(PERMISSION=='r'),
         HDR.TYPE = 'unknown';
 	fid = fopen(HDR.FileName,'rb','ieee-le');
         if fid < 0,
-                fprintf(HDR.FILE.stderr,'Error SOPEN: file %s not found.\n',HDR.FileName);    
-                return;
+                if isdir(HDR.FileName),
+                        
+                else
+                        fprintf(HDR.FILE.stderr,'Error SOPEN: file %s not found.\n',HDR.FileName);    
+                        return;
+                end;
         else
                 [s,c] = fread(fid,[1,132],'uchar');
                 if c < 132,
@@ -108,6 +112,18 @@ if any(PERMISSION=='r'),
                                 else
                                         HDR.Endianity = 'ieee-le';
                                 end;
+                                
+                        elseif strncmp(ss,'MEG41CP',7); 
+                                HDR.TYPE='CTF_MEG4';
+                        elseif strncmp(ss,'MEG41RS',7) | strncmp(ss,'MEG4RES',7); 
+                                HDR.TYPE='CTF_RES';
+                        elseif strncmp(ss,'MEG4',4); 
+                                HDR.TYPE='CTF';
+                        elseif strncmp(ss,'CTF_MRI_FORMAT VER 2.2',22); 
+                                HDR.TYPE='CTF_MRI';
+                        elseif strncmp(ss,'PATH OF DATASET:',16); 
+                                HDR.TYPE='CTF_MRK';
+                        
                                 
                         elseif strcmp(ss(1:8),'@  MFER '); 
                                 HDR.TYPE='MFER';
@@ -144,6 +160,9 @@ if any(PERMISSION=='r'),
                         %'75B22630668e11cfa6d900aa0062ce6c'
 			        HDR.TYPE='ASF';
 
+                        elseif strncmp(ss,'MPv4',4); 
+                                HDR.TYPE='MPv4';
+                                HDR.Date = ss(65:87);
                         elseif strncmp(ss,'RG64',4); 
                                 HDR.TYPE='RG64';
                         elseif strncmp(ss,'DTDF',4); 
@@ -154,6 +173,8 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='SIGIF';
                         elseif any(s(4)==(2:7)) & all(s(1:3)==0); % [int32] 2...7
                                 HDR.TYPE='EGI';
+                        elseif strncmp(ss,'RIFF',4); 
+                                HDR.TYPE='EEProbe';     % EEGProbe ? 
 
                         elseif strncmp(ss,'ISHNE1.0',8);        % ISHNE Holter standard output file.
                                 HDR.TYPE='ISHNE';
@@ -325,6 +346,7 @@ if any(PERMISSION=='r'),
                         end;
                 end;
                 fclose(fid);
+                
                 if strcmp(HDR.TYPE,'unknown'),
                         % alpha-TRACE Medical software
                         if (strcmpi(HDR.FILE.Name,'rawdata') | strcmpi(HDR.FILE.Name,'rawhead')) & isempty(HDR.FILE.Ext),
@@ -332,7 +354,68 @@ if any(PERMISSION=='r'),
                                         HDR.TYPE = 'alpha'; %alpha trace medical software 
                                 end;
                         end;
+                        if 0, 
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'hdm')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'hc')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'shape')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'shape_info')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'trg')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'rej')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'elc')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'vol')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'bnd')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'msm')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'msr')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'dip')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'mri')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'iso')
+                                
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'hdr')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'img')
+                                
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'vhdr')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'vmrk')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'vabs')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'eeg')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'seg')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'fif')
+                                HDR.TYPE = 'FIF'; 
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'bdip')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'elp')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'sfp')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'ela')
+                                
+                        elseif strcmpi(HDR.FILE.Ext,'trl')
+                                
+                        end;
                 end;
+                
                 if strcmp(HDR.TYPE,'BKR'),
                         if ~isempty(findstr(lower(HDR.FILE.Ext),'cnt')),
                                 fprintf(HDR.FILE.stderr,'Warning (dedicated to BB & CB): %s IS A BKR, not a CNT file\n',HDR.FileName);
@@ -2193,18 +2276,18 @@ elseif strcmp(HDR.TYPE,'LABVIEW'),
         
 
 elseif strcmp(HDR.TYPE,'RG64'),
-	if strncmp(HDR.FILE.Ext,'rhf'),
+	if strcmpi(HDR.FILE.Ext,'rhf'),
 		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
-	elseif strcmp(HDR.FILE.Ext,'rhd'),
-		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1:2),'f']);
-	elseif strcmp(HDR.FILE.Ext,'RHD'),
-		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1:2),'F']);
+	elseif strcmp(HDR.FILE.Ext,'rdf'),
+		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1),'h',HDR.FILE.Ext(3)]);
+	elseif strcmp(HDR.FILE.Ext,'RDF'),
+		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1),'H',HDR.FILE.Ext(3)]);
 	end;
     	HDR.FILE.FID = fopen(FILENAME,PERMISSION,'ieee-le');
 
 	HDR.FILE.OPEN=1;
-        HDR.IDCODE=fread(HDR.FILE.FID,4,'char');	%
-	if strcmp(HDR.IDCODE')~='RG64' 
+        HDR.IDCODE=char(fread(HDR.FILE.FID,[1,4],'char'));	%
+	if ~strcmp(HDR.IDCODE,'RG64') 
 	    	fprintf(2,'\nError LOADRG64: %s not an RG64-File\n',FILENAME); 
 	end; %end;
 
@@ -2221,19 +2304,19 @@ elseif strcmp(HDR.TYPE,'RG64'),
 	HDR.AS.endpos = HDR.SPR;
 	HDR.AS.bpb    = HDR.NS*2;
 
-	if strncmp(HDR.FILE.Ext,'rhd'),
+	if strcmpi(HDR.FILE.Ext,'rdf'),
 		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
 	elseif strcmp(HDR.FILE.Ext,'rhf'),
-		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1:2),'d']);
+		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1),'d',HDR.FILE.Ext(3)]);
 	elseif strcmp(HDR.FILE.Ext,'RHF'),
-		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1:2),'D']);
+		FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1),'D',HDR.FILE.Ext(3)]);
 	end;
+        
 	HDR.FILE.FID=fopen(FILENAME,'rb','ieee-le');
 	if HDR.FILE.FID<0,
 		fprintf(2,'\nError LOADRG64: %s not found\n',FILENAME); 
 		return;
 	end;
-
 
 	if CHAN==0,		
 		HDR.SIE.InChanSelect = 1:HDR.NS;
@@ -2245,7 +2328,8 @@ elseif strcmp(HDR.TYPE,'RG64'),
 		HDR.FILE.FID = -1;	
 		return;
 	end;
-	HDR.Cal = diag(AMPF(HDR.InChanSelect));
+	HDR.Cal = diag(AMPF(HDR.SIE.InChanSelect));
+        HDR.FILE.POS = 0; 
     
 
 elseif strcmp(HDR.TYPE,'DDF'),
@@ -3309,6 +3393,22 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
 	end;
 
 
+elseif strncmp(HDR.TYPE,'CTF_RES',7),
+
+        
+elseif strncmp(HDR.TYPE,'FIF',3),
+        if exist('rawdata')==3,
+                rawdata('any',HDR.FileName);
+                HDR.FILE.FID = 1;
+                HDR.SampleRate = rawdata(HDR.FileName,'sf');
+                HDR.T0 = rawdata(HDR.FileName,'t');
+                HDR.SPR = rawdata(HDR.FileName,'samples');
+                [HDR.MinMax,HDR.Cal] = rawdata(HDR.FileName,'range');
+        else
+                fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): Cannot open FIF-file, because rawdata.mex not installed. \n',HDR.NS);
+        end
+
+
 elseif strncmp(HDR.TYPE,'FS3',3),
 	if any(PERMISSION=='r'),
 		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-be');
@@ -3382,6 +3482,7 @@ elseif strcmp(HDR.TYPE,'XML-UTF16'),
 	        HDR.XML = char(fread(fid,[1,inf],'uint16'));
                 fclose(fid);
                 try,
+                        %HDR.XML = xml_parser(HDR.XML);
                         HDR.XML = xmltree(char(HDR.XML));
                         HDR.TYPE= 'XML';
                 catch
@@ -3395,6 +3496,7 @@ elseif strcmp(HDR.TYPE,'XML-UTF8'),
                 HDR.XML = char(fread(fid,[1,inf],'char'));
 	        fclose(fid);
                 try,
+                        %HDR.XML = xml_parser(HDR.XML);
                         HDR.XML = xmltree(HDR.XML);
                         HDR.TYPE= 'XML';
                 catch
