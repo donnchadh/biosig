@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.6 $
-%	$Id: sopen.m,v 1.6 2003-09-30 17:16:42 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: sopen.m,v 1.7 2003-10-08 16:30:32 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -90,10 +90,10 @@ if any(PERMISSION=='r'),
                         elseif strncmp(ss,'EBS',3); 
                                 HDR.TYPE='EBS';
                         elseif strncmp(ss,'CEN',3) & all(s(4:8)==hex2dec(['13';'10';'1A';'04';'84'])'); 
-                                HDR.TYPE='CEN';
-                                HDR.VERSION   = s(9:16);
-                                HDR.Encoding  = s(17:24);
-                                if any(s(25:32)),
+                                HDR.TYPE='FEF';
+                                HDR.VERSION   = str2num(ss(9:16));
+                                HDR.Encoding  = str2num(ss(17:24));
+                                if any(str2num(ss(25:32))),
                                         HDR.Endianity = 'ieee-be';
                                 else
                                         HDR.Endianity = 'ieee-le';
@@ -196,7 +196,7 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='JPG';
 				HDR.Endianity = 'ieee-le';
 			elseif all(s(1:3)==[0,0,1])	
-                                HDR.TYPE='JPG';
+                                HDR.TYPE='MPG2MOV';
                         elseif strcmp(ss([3:5,7]),'-lh-'); 
                                 HDR.TYPE='LZH';
                         elseif strcmp(ss([3:5,7]),'-lz-'); 
@@ -204,7 +204,7 @@ if any(PERMISSION=='r'),
                         elseif strcmp(ss(1:4),'MThd'); 
                                 HDR.TYPE='MIDI';
                         elseif (s(1)==255) & any(s(2)>=224); 
-                                HDR.TYPE='MPEG3';
+                                HDR.TYPE='MPEG';
                         elseif strncmp(ss(5:8),'mdat',4); 
                                 HDR.TYPE='MOV';
                         elseif all(s(1:2)==[26,63]); 
@@ -262,8 +262,6 @@ if any(PERMISSION=='r'),
 	end;
 end;
 
-
-
         % MIT-ECG / Physiobank format
 if strcmp(HDR.TYPE,'HEA'), HDR.TYPE='MIT';
 
@@ -299,51 +297,16 @@ elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
         [HDR,H1,h2] = cntopen(HDR,PERMISSION,CHAN);
         
 
-elseif strcmp(HDR.TYPE,'CEN'),
+elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
-	fseek(HDR.FILE.FID,32,'bof');
-
-	%%%%% (2) Session Archive Section %%%%%
-	DS_begin=ftell(fid,0,'bof');
-	DS_ID=fread(fid,1,'int16')
-	DS_Length=fread(fid,1,TYP_LENGTH);
-	fseek(fid,DS_begin+DS_Length,'bof');
-
-	%%%%% (2) Demographic Section %%%%%
-	DS_begin=ftell(fid,0,'bof');
-	DS_ID=fread(fid,1,'int16')
-	DS_Length=fread(fid,1,TYP_LENGTH);
-	fseek(fid,DS_begin+DS_Length,'bof');
-
-	%%%%% (3) Medical Device System Presentation Section %%%%%
-	MDSP_begin=ftell(fid,0,'bof');
-	MDSP_ID=fread(fid,1,'int16')
-	MDSP_Length=fread(fid,1,TYP_LENGTH);
-	fseek(fid,MDSP_begin+MDSP_Length,'bof');
-
-	%%%%% (4) Manufacture Specific Section %%%%%
-	MS_begin=ftell(fid,0,'bof');
-	MS_ID=fread(fid,1,'int16')
-	MS_Length=fread(fid,1,TYP_LENGTH);
-	fseek(fid,MS_begin+MS_Length,'bof');
-
-	%%%%% (5) Image Section %%%%%
-	IS_begin=ftell(fid,0,'bof');
-	IS_ID=fread(fid,1,'int16')
-	IS_Length=fread(fid,1,TYP_LENGTH);
-	fseek(fid,IS_begin+IS_Length,'bof');
-
-	%%%%% (6) Archive & Measurement Section %%%%%
-	SA_begin=ftell(fid,0,'bof');
-	OIDSA_ID=fread(fid,1,'int16')
-	O_Length=fread(fid,1,TYP_LENGTH);
-	fseek(fid,SA_begin+SA_Length,'bof');
-
-	%%%%% (6.1) Test Sub-Section %%%%%
-
-
-	fprintf(2,'Warning SOPEN: Implementing CEN/FEF format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
-	fclose(fid);
+	fseek(HDR.FILE.FID,32,'bof'); 	% skip preamble
+        
+        if exist('fefopen')==2,
+	        HDR = fefopen(HDR,PERMISSION);
+        end;
+        
+	fprintf(2,'Warning SOPEN: Implementing Vital/FEF format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+	fclose(HDR.FILE.FID);
 
 
 elseif strcmp(HDR.TYPE,'EBS'),
@@ -352,28 +315,28 @@ elseif strcmp(HDR.TYPE,'EBS'),
 	fprintf(2,'Warning SOPEN: Implementing EBS format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
 
 	%%%%% (1) Fixed Header (32 bytes) %%%%%
-	HDR.VERSION = fread(fid,[1,8],'char');	%
+	HDR.VERSION = fread(HDR.FILE.FID,[1,8],'char');	%
 	if setstr(HDR.VERSION(1:3)')~='EBS' 
 	    	fprintf(2,'Error LOADEBS: %s not an EBS-File',HDR.FileName); 
 		if any(HDR.VERSION(4:8)~=hex2dec(['94';'0a';'13';'1a';'0d'])'); 
 			fprintf(2,'Warning SOPEN EBS: %s may be corrupted',HDR.FileName); 
 		end; 
 	end;
-	HDR.EncodingId = fread(fid,1,'int32');	%
-	HDR.NS  = fread(fid,1,'uint32');	% Number of Channels
-	HDR.SPR = fread(fid,2,'uint32');	% Number of Samples
+	HDR.EncodingId = fread(HDR.FILE.FID,1,'int32');	%
+	HDR.NS  = fread(HDR.FILE.FID,1,'uint32');	% Number of Channels
+	HDR.SPR = fread(HDR.FILE.FID,2,'uint32');	% Number of Samples
 	if HDR.SPR(1)==0,
 		 HDR.SPR=HDR.SPR(2)
 	else 
 		fprintf(2,'Error SOPEN: EBS-FILE %s too large',HDR.FileName); 
 	end;
-	LenData=fread(fid,1,'int64');	% Data Length
+	LenData=fread(HDR.FILE.FID,1,'int64');	% Data Length
 
 	%%%%% (2) LOAD Variable Header %%%%%
-	tag=fread(fid,1,'int32');	% Tag field
+	tag=fread(HDR.FILE.FID,1,'int32');	% Tag field
 	while tag~=0
-	        l  =fread(fid,1,'int32');	% length of value field
-	        val=setstr(fread(fid,4*l,'char')');	% depends on Tag field
+	        l  =fread(HDR.FILE.FID,1,'int32');	% length of value field
+	        val=setstr(fread(HDR.FILE.FID,4*l,'char')');	% depends on Tag field
 	        if     tag==hex2dec('00000002'),	%IGNORE
 	        elseif tag==hex2dec('00000004') HDR.PATIENT_NAME=val;
 	        elseif tag==hex2dec('00000006') HDR.PATIENT_ID=val;
@@ -395,10 +358,10 @@ elseif strcmp(HDR.TYPE,'EBS'),
 	        elseif tag==hex2dec('0000000d') HDR.HDR.CHANNEL_LOCATIONS=val;
 	        elseif tag==hex2dec('0000000f') HDR.FILTERS=val;
 		end;
-		tag=fread(fid,1,'int32');	% Tag field
+		tag=fread(HDR.FILE.FID,1,'int32');	% Tag field
         end; 
 
-	fclose(fid);
+	fclose(HDR.FILE.FID);
 
 
 elseif strcmp(HDR.TYPE,'ACQ'),
@@ -638,6 +601,90 @@ elseif strcmp(HDR.TYPE,'SND'),
 	end;
 	HDR.FILE.POS = 0;
 	HDR.NRec = 1;
+        
+	
+elseif strcmp(HDR.TYPE,'MPEG'),
+        % http://www.dv.co.yu/mpgscript/mpeghdr.htm
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+	if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+                HDR.FILE.OPEN = 1; 
+                % read header
+                HDR.MPEG.syncword = fread(HDR.FILE.FID,1,'ubit11');
+		HDR.MPEG.ID = fread(HDR.FILE.FID,1,'ubit2');
+                HDR.MPEG.layer = fread(HDR.FILE.FID,1,'ubit2');
+                HDR.MPEG.protection_bit = fread(HDR.FILE.FID,1,'ubit1');
+                HDR.MPEG.bitrate_index = fread(HDR.FILE.FID,1,'ubit4');
+                HDR.MPEG.sampling_frequency_index = fread(HDR.FILE.FID,1,'ubit2');
+                HDR.MPEG.padding_bit = fread(HDR.FILE.FID,1,'ubit1');
+                HDR.MPEG.privat_bit = fread(HDR.FILE.FID,1,'ubit1');
+                HDR.MPEG.mode = fread(HDR.FILE.FID,1,'ubit2');
+                HDR.MPEG.mode_extension = fread(HDR.FILE.FID,1,'ubit2');
+                HDR.MPEG.copyright = fread(HDR.FILE.FID,1,'ubit1');
+                HDR.MPEG.original_home = fread(HDR.FILE.FID,1,'ubit1');
+                HDR.MPEG.emphasis = fread(HDR.FILE.FID,1,'ubit2');
+                
+                switch HDR.MPEG.ID,	%Layer 
+                case 0,
+                        HDR.VERSION = 2.5;
+                case 1,
+                        HDR.VERSION = -1;% reserved
+                case 2,
+                        HDR.VERSION = 2;
+                case 3,
+                        HDR.VERSION = 1;
+                end;
+                
+		tmp = [32,32,32,32,8; 64,48,40,48,16; 96,56,48,56,24; 128,64,56,64,32; 160,80,64,80,40; 192,96,80,96,48; 224,112,96,112,56; 256,128,112,128,64; 288,160,128,144,80; 320,192 160,160,96; 352,224,192,176,112; 384,256,224, 192,128; 416,320,256,224,144;  448,384,320,256,160];
+		tmp = [tmp,tmp(:,5)];
+                if HDR.MPEG.bitrate_index==0,
+                        HDR.bitrate = NaN;
+                elseif HDR.MPEG.bitrate_index==15,
+                        fclose(HDR.FILE.FID);
+                        fprintf(2,'SOPEN: corrupted MPEG file %s ',HDR.FileName);
+                        return;
+                else
+                        HDR.bitrate = tmp(HDR.MPEG.bitrate_index,floor(HDR.VERSION)*3+HDR.MPEG.layer-3);
+                end;
+                
+                switch HDR.MPEG.sampling_frequency_index,
+                case 0,
+                        HDR.SampleRate = 44.100;
+                case 1,
+                        HDR.SampleRate = 48.000;
+                case 2,
+                        HDR.SampleRate = 32.000;
+                otherwise,
+                        HDR.SampleRate = NaN;
+                end;
+                HDR.SampleRate_units = 'kHz';
+		HDR.SampleRate = HDR.SampleRate*(2^(1-ceil(HDR.VERSION)));
+
+                switch 4-HDR.MPEG.layer,	%Layer 
+                case 1,
+                        HDR.SPR = 384;
+			slot = 32*HDR.MPEG.padding_bit; % bits, 4 bytes
+			HDR.FrameLengthInBytes = (12*HDR.bitrate/HDR.SampleRate+slot)*4; 
+                case {2,3},
+                        HDR.SampleRate = 1152;
+			slot = 8*HDR.MPEG.padding_bit; % bits, 1 byte
+			HDR.FrameLengthInBytes = 144*HDR.bitrate/HDR.SampleRate+slot; 
+                end;
+                
+                if ~HDR.MPEG.protection_bit,
+	                HDR.MPEG.error_check = fread(HDR.FILE.FID,1,'uint16');
+		end;
+                
+                HDR.MPEG.allocation = fread(HDR.FILE.FID,[1,32],'ubit4');
+                HDR.MPEG.NoFB = sum(HDR.MPEG.allocation>0);
+                HDR.MPEG.idx = find(HDR.MPEG.allocation>0);
+                HDR.MPEG.scalefactor = fread(HDR.FILE.FID,[1,HDR.MPEG.NoFB],'ubit6');
+                for k = HDR.MPEG.idx,
+	                HDR.MPEG.temp(1:12,k) = fread(HDR.FILE.FID,[12,1],['ubit',int2str(HDR.MPEG.allocation(k))]);
+                end;
+                fprintf(2,'Warning SOPEN: MPEG not ready for use\n');
+        end;
+        HDR.FILE.OPEN = 0; 
+        fclose(HDR.FILE.FID);
         
 	
 elseif strcmp(HDR.TYPE,'QTFF'),
