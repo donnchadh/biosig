@@ -13,8 +13,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.18 $
-%	$Id: cntopen.m,v 1.18 2003-12-11 17:00:18 schloegl Exp $
+%	$Revision: 1.19 $
+%	$Id: cntopen.m,v 1.19 2003-12-16 16:58:04 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -42,14 +42,21 @@ if nargin<3, CHAN=0; end;
 if isstruct(arg1),
 	CNT=arg1;
 	if CNT.FILE.OPEN,
-		fseek(CNT.FILE.FID,0,'bof');	
-	else
+                status=fseek(CNT.FILE.FID,0,'bof');	
+                if status,
+                        fprintf(CNT.FILE.stderr,'Warning CNTOPEN: I/O error in file %s\n',CNT.FileName);
+                end;        
+        else
 		CNT.FILE.FID = fopen(CNT.FileName,PERMISSION,'ieee-le');          
 		CNT.FILE.OPEN= 1;
 	end;
 else
 	CNT.FileName = arg1;
-	CNT.FILE.FID = fopen(CNT.FileName,PERMISSION,'ieee-le');          
+        [CNT.FILE.Path,CNT.FILE.Name,ext]=fileparts(arg1);
+        CNT.FILE.Ext = ext(2:end);
+        CNT.FILE.stdout=1;
+        CNT.FILE.stderr=2;
+        CNT.FILE.FID = fopen(CNT.FileName,PERMISSION,'ieee-le');          
 	if CNT.FILE.FID<0,
 		fprintf(2,'Error CNTOPEN: file %s not found.\n',CNT.FileName); 
 		return;
@@ -425,8 +432,7 @@ CNT.CNT.Filter.HighCutOff = h.highcutoff;
 CNT.CNT.Filter.NotchOn = h.filterflag;
 CNT.CNT.Filter.ON   = [e(:).filtered];
 CNT.CNT.minor_revision = h.minor_rev;
-CNT.CNT.ChannelOffset = h.channeloffset;
-CNT.CNT.NumSamples = h.numsamples;
+CNT.CNT.EventTablePos = h.eventtablepos;
 CNT.Label = setstr(e.lab');
 
 if CHAN==0, CHAN=1:CNT.NS; end;
@@ -434,9 +440,9 @@ CNT.SIE.ChanSelect = CHAN;
 CNT.SIE.InChanSelect = CHAN;
 
 CNT.FILE.POS = 0;
-if (h.type==0),
-	if ~strcmp(upper(CNT.FILE.Ext),'AVG'),
-		fprinf(2,'Warning CNTOPEN: filetype 0 (AVG) does not match file extension (%s).\n',CNT.FILE.Ext); 
+if strcmp(upper(CNT.FILE.Ext),'AVG'),
+        if (h.type~=0),
+		fprintf(2,'Warning CNTOPEN: filetype %i does not match file extension (%s).\n',h.type,CNT.FILE.Ext); 
 	end;
 	CNT.TYPE='AVG';
         CNT.AS.endpos = 1;
@@ -447,22 +453,19 @@ if (h.type==0),
 	CNT.AS.spb = h.pnts*h.nchannels;
 	CNT.Dur = CNT.SPR/CNT.SampleRate;
         
-        
 elseif strcmp(upper(CNT.FILE.Ext),'COH')        
         warning('.COH data not supported yet')
         CNT.COH.directory = fread(CNT.FILE.FID,[CNT.NS,CNT.NS],'int32');
         CNT.SPR = h.pnts;
-        
         
 elseif strcmp(upper(CNT.FILE.Ext),'CSA')        
         warning('.CSA data not supported yet')
         CNT.SPR  = h.pnts;
         CNT.NRec = h.compsweeps;
         
-        
-elseif (h.type==1),
-	if ~strcmp(upper(CNT.FILE.Ext),'EEG'),
-		fprinf(2,'Warning CNTOPEN: filetype 1 (EEG) does not match file extension (%s).\n',CNT.FILE.Ext); 
+elseif strcmp(upper(CNT.FILE.Ext),'EEG'),
+	if (h.type~=1),
+		fprintf(2,'Warning CNTOPEN: filetype %i does not match file extension (%s).\n',h.type,CNT.FILE.Ext); 
 	end;
 	CNT.TYPE   = 'EEG';
         CNT.SPR    = h.pnts;
@@ -506,13 +509,14 @@ elseif (h.type==1),
 	CNT.FLAG.TRIGGERED = 1;
 	CNT.Dur = CNT.SPR/CNT.SampleRate;
         
-else  % if any(h.type==[2,184]),
-	if ~strcmp(upper(CNT.FILE.Ext),'CNT'),
-		fprinf(2,'Warning CNTOPEN: filetype 2 (CNT) does not match file extension (%s).\n',CNT.FILE.Ext); 
+elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
+	if ~any(h.type==[2,184]),
+		fprintf(2,'Warning CNTOPEN: filetype %i does not match file extension (%s).\n',h.type,CNT.FILE.Ext); 
 	end;
         CNT.TYPE = 'CNT';
-        %CNT.SPR    = h.numsamples;
-	CNT.AS.bpb = CNT.NS*2;	% Bytes per Block
+        %CNT.SPR   = h.numsamples;
+
+        CNT.AS.bpb = CNT.NS*2;	% Bytes per Block
 	CNT.AS.spb = CNT.NS;	% Samples per Block
         CNT.SPR    = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
 	CNT.AS.endpos = CNT.SPR;
@@ -520,46 +524,52 @@ else  % if any(h.type==[2,184]),
         CNT.NRec   = 1;
 	CNT.Calib  = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
 	CNT.FLAG.TRIGGERED = 0;	        
-	CNT.Dur = 1/CNT.SampleRate;
+	CNT.Dur    = 1/CNT.SampleRate;
+
+        %%%%% read event table 
+        CNT.EVENT.N = h.numevents;
+        status = fseek(CNT.FILE.FID,h.eventtablepos,'bof');
+        if status,
+                fprintf(CNT.FILE.stderr,'Warning CNTOPEN: corrupted EVENTTABLEPOS (%i) in file %s\n',h.eventtablepos,CNT.FileName);        
+        else
+                [CNT.EVENT.TeegType,c1] = fread(fid,1,'uchar');		
+                [CNT.EVENT.TeegSize,c2] = fread(fid,1,'int32');	
+                [CNT.EVENT.TeegOffset,c3] = fread(fid,1,'int32');
+
+                k = 0;
+                K = 1;
+                Teeg = [];
+                while (K < CNT.EVENT.TeegSize),
+                        k = k + 1;
+                        Teeg.Stimtype = fread(fid,1,'int16');        
+                        Teeg.Keyboard = fread(fid,1,'char');        
+                        tmp = fread(fid,1,'uint8');        
+                        Teeg.KeyPad = rem(tmp,16); %bitand(tmp,15);
+                        Teeg.Accept = (fix(tmp/16)*16)==13; % (bitshift(tmp,-4)==13);  % 0xd = accept, 0xc = reject 
+                        
+                        Teeg.Offset =  fread(fid,1,'int32');        
+                        K = K + 8;
+                        if CNT.EVENT.TeegType==2,
+                                Teeg.Type =  fread(fid,1,'int16');        
+                                Teeg.Code =  fread(fid,1,'int16');        
+                                Teeg.Latency  =  fread(fid,1,'float32');        
+                                Teeg.EpochEvent =  fread(fid,1,'char');        
+                                Teeg.Accept2  =  fread(fid,1,'char');        
+                                Teeg.Accuracy =  fread(fid,1,'char');        
+                                K = K + 11;        
+                        end;        
+                        CNT.EVENT.Teeg(k) = Teeg;
+                end
+                if k,
+                        CNT.EVENT.TYP =  cat(1,CNT.EVENT.Teeg(:).Stimtype);
+                        CNT.EVENT.POS = (cat(1,CNT.EVENT.Teeg(:).Offset) - CNT.HeadLen) ./ CNT.AS.bpb;
+                        CNT.EVENT.N   = length(CNT.EVENT.TYP);
+                end;
+        end;
 end;
 
-
-%%%%% read event table 
-CNT.EVENT.N     = h.numevents;
-if (CNT.EVENT.N > 0);
-        fseek(CNT.FILE.FID,h.eventtablepos,'bof');
-        CNT.EVENT.TeegType   = fread(fid,1,'uchar');	%	
-        CNT.EVENT.TeegSize   = fread(fid,1,'int32');	%	
-        CNT.EVENT.TeegOffset = fread(fid,1,'int32');	%	
-        
-        fseek(CNT.FILE.FID,CNT.EVENT.TeegOffset,'cof');
-        
-        k=0;
-        K=1;
-        Teeg=[];
-        while K < CNT.EVENT.TeegSize,
-                k = k + 1;
-                Teeg.Stimtype =  fread(fid,1,'int16');        
-                Teeg.Keyboard =  fread(fid,1,'char');        
-                tmp =  fread(fid,1,'uint8');        
-                Teeg.KeyPad = rem(tmp,16); %bitand(tmp,15);
-                Teeg.Accept = (fix(tmp/16)*16)==13; % (bitshift(tmp,-4)==13);  % 0xd = accept, 0xc = reject 
-                
-                Teeg.Offset   =  fread(fid,1,'int32');        
-                K = K + 8;
-                if CNT.EVENT.TeegType==2,
-                        Teeg.Type =  fread(fid,1,'int16');        
-                        Teeg.Code =  fread(fid,1,'int16');        
-                        Teeg.Latency =  fread(fid,1,'float32');        
-                        Teeg.EpochEvent =  fread(fid,1,'char');        
-                        Teeg.Accept2  =  fread(fid,1,'char');        
-                        Teeg.Accuracy =  fread(fid,1,'char');        
-                        K = K + 11;        
-                end;        
-	        CNT.EVENT.Teeg(k) = Teeg;
-        end
-        CNT.EVENT.TYP =  cat(1,CNT.EVENT.Teeg(:).Stimtype);
-        CNT.EVENT.POS = (cat(1,CNT.EVENT.Teeg(:).Offset) - CNT.HeadLen) ./ CNT.AS.bpb;
-end;
-
-fseek(CNT.FILE.FID, CNT.HeadLen, 'bof');
+% set file pointer to the beginning of the data block
+status = fseek(CNT.FILE.FID, CNT.HeadLen, 'bof');
+if status,
+        fprintf(CNT.FILE.stderr,'Warning CNTOPEN: I/O error in file %s\n',CNT.FileName);
+end;        
