@@ -58,15 +58,16 @@ Data=get(findobj('Tag','sviewer'),'UserData');
 if isempty(Data)
     return;
 else
-save matlab Data,
     button = Data.Channelconf.whichbutton;
-    channel_name = Data.Channel{button,1};
-    pos = Data.Channel{button,2};
+    
+    pos_sliderchannel = get(findobj('Tag','Slider_Channel'), 'Value');
+    startchannel = (size(Data.Channel,1) - Data.NS) - pos_sliderchannel * (size(Data.Channel,1) - Data.NS) + 1;
+    startchannel = round(startchannel);
+    button = button + startchannel - 1;
+    
+    channel_name = Data.Channel{button};
+    pos = strmatch(channel_name,Data.allChannel);
     set(findobj('Tag', 'text_channel'), 'String',channel_name);
-    phyMin = Data.HDR.PhysMin(pos);
-    set(findobj('Tag', 'text_PhysicalMin'), 'String',phyMin);
-    phyMax = Data.HDR.PhysMax(pos);
-    set(findobj('Tag', 'text_PhysicalMax'), 'String',phyMax);
     display_min = Data.ChannelConf.Display_min(pos,:);
     set(findobj('Tag', 'edit_DisplayMin'), 'String',display_min);
     display_max = Data.ChannelConf.Display_max(pos,:);
@@ -90,11 +91,9 @@ varargout{1} = handles.output;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function pushbutton_OK_Callback(hObject, eventdata, handles)
 
-value_auto = get(findobj('Tag', 'Applyall_auto'), 'Value');
 value_disp = get(findobj('Tag', 'Applyall_disp'), 'Value');
-if value_auto == 1
-    select = 1;
-elseif value_disp == 1
+
+if value_disp == 1
     select = 2;
 else
     select = 0;
@@ -109,9 +108,15 @@ close;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % calculate new range
 function pushbutton_autoscale_Callback(hObject, eventdata, handles)
+
 Data=get(findobj('Tag','sviewer'),'UserData');
-button = Data.Channelconf.whichbutton
-pos    = Data.Channel{button,2};
+button = Data.Channelconf.whichbutton;
+pos_sliderchannel = get(findobj('Tag','Slider_Channel'), 'Value');
+startchannel = (size(Data.Channel,1) - Data.NS) - pos_sliderchannel * (size(Data.Channel,1) - Data.NS) + 1;
+startchannel = round(startchannel);
+button = button + startchannel - 1;
+channel_name = Data.Channel{button};
+pos = strmatch(channel_name,Data.allChannel);
 sample_min = min(Data.signal(:,pos));
 sample_max = max(Data.signal(:,pos));
 if sample_min == sample_max
@@ -123,46 +128,39 @@ set(findobj('Tag', 'edit_DisplayMax'), 'String',sample_max);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % change the display minimum
-function edit_DisplayMin_CreateFcn(hObject, eventdata, handles)
+function edit_DisplayMin_Callback(hObject, eventdata, handles)
 
-if ispc
-    set(hObject,'BackgroundColor','white');
-else
-    set(hObject,'BackgroundColor',get(0,'defaultUicontrolBackgroundColor'));
-end
-Data = get(findobj('Tag', 'sviewer'), 'UserData');
-button = Data.Channelconf.whichbutton;
-display_min = Data.ChannelConf.Display_min(button,:);
-display_min = round(display_min*100)/100;
-set(findobj('Tag', 'edit_DisplayMin'), 'String',display_min);
+% % % Data = get(findobj('Tag', 'sviewer'), 'UserData');
+% % % button = Data.Channelconf.whichbutton;
+% % % pos_sliderchannel = get(findobj('Tag','Slider_Channel'), 'Value');
+% % % startchannel = (size(Data.Channel,1) - Data.NS) - pos_sliderchannel * (size(Data.Channel,1) - Data.NS) + 1;
+% % % startchannel = round(startchannel);
+% % % button = button + startchannel - 1;
+% % % display_min = Data.ChannelConf.Display_min(button,:);
+% % % display_min = round(display_min*100)/100;
+% % % set(findobj('Tag', 'edit_DisplayMin'), 'String',display_min);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %change the display maximum
-function edit_DisplayMax_CreateFcn(hObject, eventdata, handles)
+%%%function edit_DisplayMax_Callback(hObject, eventdata, handles)
 
-if ispc
-    set(hObject,'BackgroundColor','white');
-else
-    set(hObject,'BackgroundColor',get(0,'defaultUicontrolBackgroundColor'));
-end
-Data = get(findobj('Tag', 'sviewer'), 'UserData');
-button = Data.Channelconf.whichbutton;
-display_max = Data.ChannelConf.Display_max(button,:);
-display_max = round(display_max*100)/100;
-set(findobj('Tag', 'edit_DisplayMax'), 'String',display_max);
+% % % Data = get(findobj('Tag', 'sviewer'), 'UserData');
+% % % button = Data.Channelconf.whichbutton;
+% % % pos_sliderchannel = get(findobj('Tag','Slider_Channel'), 'Value');
+% % % startchannel = (size(Data.Channel,1) - Data.NS) - pos_sliderchannel * (size(Data.Channel,1) - Data.NS) + 1;
+% % % startchannel = round(startchannel);
+% % % button = button + startchannel - 1;
+% % % display_max = Data.ChannelConf.Display_max(button,:);
+% % % display_max = round(display_max*100)/100;
+% % % set(findobj('Tag', 'edit_DisplayMax'), 'String',display_max);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% change the zoom factor
-function edit_Zoomfactor_CreateFcn(hObject, eventdata, handles)
-
-if ispc
-    set(hObject,'BackgroundColor','white');
-else
-    set(hObject,'BackgroundColor',get(0,'defaultUicontrolBackgroundColor'));
-end
-Data = get(findobj('Tag', 'sviewer'), 'UserData');
-scale_factor = Data.ChannelConf.Scale;
-set(findobj('Tag', 'edit_Zoomfactor'), 'String',scale_factor);
+% % % % change the zoom factor
+% % % function edit_Zoomfactor_Callback(hObject, eventdata, handles)
+% % % 
+% % % Data = get(findobj('Tag', 'sviewer'), 'UserData');
+% % % scale_factor = Data.ChannelConf.Scale;
+% % % set(findobj('Tag', 'edit_Zoomfactor'), 'String',scale_factor);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % close window
@@ -171,7 +169,7 @@ function close_figure(select)
 Data = get(findobj('Tag', 'sviewer'), 'UserData');
 display_min_t = get(findobj('Tag', 'edit_DisplayMin'), 'String');
 display_max_t = get(findobj('Tag', 'edit_DisplayMax'), 'String');
-scale_factor_t = get(findobj('Tag', 'edit_Zoomfactor'), 'String');
+scale_factor_t = get(findobj('Tag', 'zoom_factor'), 'String');
 display_min = str2num(display_min_t);
 display_max = str2num(display_max_t);
 scale_factor = str2num(scale_factor_t);
@@ -184,21 +182,17 @@ if length(display_max) > 1 | length(display_max) == 0
     errordlg('The value for Display-Max is Not a Number!', 'Error');
     return;
 end
-if length(scale_factor) > 1 | length(scale_factor) == 0
-    errordlg('The value for Zoom-Factor is Not a Number!', 'Error');
-    return;
-end
 if display_min > display_max
     errordlg('Display-Min is larger than Display-Max !', 'Error');
-    return;
-end
-if scale_factor <= 1
-    errordlg('Zoom-Factor must be larger than 1 (e.g. 1.1) !', 'Error');
     return;
 end
 
 if select == 0
     button = Data.Channelconf.whichbutton;
+    pos_sliderchannel = get(findobj('Tag','Slider_Channel'), 'Value');
+    startchannel = (size(Data.Channel,1) - Data.NS) - pos_sliderchannel * (size(Data.Channel,1) - Data.NS) + 1;
+    startchannel = round(startchannel);
+    button = button + startchannel - 1;
     channel_name = Data.Channel{button};
     pos = strmatch(channel_name,Data.allChannel);
     Data.ChannelConf.Display_min(pos,:) = display_min;
@@ -206,26 +200,15 @@ if select == 0
     Data.ChannelConf.Scale = scale_factor; 
     set(findobj('Tag','sviewer'),'UserData',Data);
     close;
-elseif select == 1
-    for k = 1:length(Data.ChannelConf.Display_min)
-        sample_min = min(Data.signal(:,k));
-        sample_max = max(Data.signal(:,k));
-        if sample_min == sample_max
-            sample_min = sample_min -10;
-            sample_max = sample_max +10;
-        end
-        Data.ChannelConf.Display_min(k,:) = sample_min;
-        Data.ChannelConf.Display_max(k,:) = sample_max;
-    end
-    Data.ChannelConf.Scale = scale_factor; 
-    set(findobj('Tag','sviewer'),'UserData',Data);
-    close;
-elseif select == 2
+    return;
+end
+if select == 2
     Data.ChannelConf.Display_min(1:end,:) = display_min;
     Data.ChannelConf.Display_max(1:end,:) = display_max;
     Data.ChannelConf.Scale = scale_factor; 
     set(findobj('Tag','sviewer'),'UserData',Data);
     close;
+    return;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -238,23 +221,7 @@ set(findobj('Tag', 'edit_DisplayMax'), 'Enable', 'on');
 set(findobj('Tag', 'pushbutton_autoscale'), 'Enable', 'on');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% --- Executes on button press in Applyall_auto.
-function Applyall_auto_Callback(hObject, eventdata, handles)
 
-active = get(findobj('Tag', 'Applyall_auto'), 'Value');
-if active
-    set(findobj('Tag', 'Applyall_disp'), 'Value', 0);
-    set(findobj('Tag', 'edit_DisplayMin'), 'Enable', 'off');
-    set(findobj('Tag', 'edit_DisplayMax'), 'Enable', 'off');
-    set(findobj('Tag', 'pushbutton_autoscale'), 'Enable', 'off');
-else
-    set(findobj('Tag', 'Applyall_auto'), 'Value', 0);
-    set(findobj('Tag', 'edit_DisplayMin'), 'Enable', 'on');
-    set(findobj('Tag', 'edit_DisplayMax'), 'Enable', 'on');
-    set(findobj('Tag', 'pushbutton_autoscale'), 'Enable', 'on');
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 

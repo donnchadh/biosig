@@ -48,7 +48,7 @@ if isequal(mousebutton,'alt')
 end
 try
 	if isequal(mousebutton,'extend')
-        Data=get(findobj('Tag','sviewer'),'UserData');
+        Data = get(findobj('Tag','sviewer'),'UserData');
         tag = varargin{4};
         id = str2num(varargin{6});
         patch_pos = findobj(gcf,'Tag',tag); %gca
@@ -90,7 +90,7 @@ if isstr(varargin{1})
           case 'id'
               id = num2str(varargin{i+1});
           case 'data'
-              Data=varargin{i+1};
+              Data = varargin{i+1};
           otherwise
               disp(varargin{i});
       end
@@ -105,7 +105,8 @@ switch action,
         x2 = patchval.patch_pos(1) + patchval.patch_pos(3);
         y1 = patchval.patch_pos(2);
         y2 = patchval.patch_pos(2) + patchval.patch_pos(4);
-  
+        
+        try subplot(Data.SPlot(Data.Patch.actchannelpos));end
         patch_h = patch([x1 x2 x2 x1],[y1 y1 y2 y2],'k');
         set(patch_h,'facecolor',patchval.facecolor,...
                 'erasemode','xor',...

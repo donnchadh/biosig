@@ -2,7 +2,7 @@ function varargout = sviewer(varargin)
 % SVIEWER
 % Select HELP in the Info menu 
 %
-% Version 1.0, November 2004
+% Version 1.5, November 2004
 % Copyright by (C) Franz Einspieler <znarfi5@hotmail.com> and
 %                  Alois Schloegl   <a.schloegl@ieee.org>
 % University of Technology Graz, Austria
@@ -74,6 +74,8 @@ function sviewer_OpeningFcn(hObject, eventdata, handles, varargin)
 % Choose default command line output for sviewer
 handles.output = hObject;
 set(gcf,'Color',[0.949,0.949,1]);
+set(gcf,'Name','SViewer (C) 2004 V1.5, University of Technology Graz, Austria');
+set(findobj('Tag','ChannelsMenu'),'Enable','off');
 
 % Update handles structure
 guidata(hObject, handles);
@@ -114,9 +116,23 @@ else
     if isfield(Data,'HDR')
         Data.HDR = sclose(Data.HDR);
     end
-    deleteObj(Data);
+    deleteObj(Data,0);
     Data = [];
 end
+set(findobj('Tag','checkbox_grid'),'Enable','off');
+set(findobj('Tag','checkbox_range'),'Enable','off');
+set(findobj('Tag','numb_act_channels'),'Enable','off');
+set(findobj('Tag','Slider_ShowChannels'),'Enable','off');
+set(findobj('Tag','zoom_factor'),'Enable','off');
+set(findobj('Tag','pb_zoom_in_all'),'Enable','off');
+set(findobj('Tag','pb_zoom_out_all'),'Enable','off');
+set(findobj('Tag','pb_Autoscale'),'Enable','off');
+set(findobj('Tag','displayed'),'Enable','off');
+set(findobj('Tag', 'goto_h'), 'Enable','off');
+set(findobj('Tag', 'goto_min'), 'Enable','off'); 
+set(findobj('Tag', 'goto_sec'), 'Enable','off'); 
+set(findobj('Tag', 'edit_gotosecond'), 'Enable','off'); 
+set(findobj('Tag', 'checkbox_buttons'), 'Enable','off');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % open a new window
@@ -166,14 +182,9 @@ else
     Data = get(findobj('Tag','sviewer'),'UserData');
     detect_stat = get(findobj('Tag','Startdetection'),'Label');
     if strmatch('Stop/Save Detection',detect_stat)
-        setdefault_detection_stop(Data);
+        setdefault_detection_stop(Data,1);
     end
-%    try
         setdefault(file,path);
-        %    catch
-        %errordlg('Incorrect file! (Error:D1)', 'Error');
-        %return;
-        %    end
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -184,7 +195,7 @@ Data = get(findobj('Tag','sviewer'),'UserData');
 
 if isfield(Data,'HDR')
     try Data.HDR = sclose(Data.HDR); end
-    deleteObj(Data);
+    deleteObj(Data,0);
     Data=[];
 end
 
@@ -193,10 +204,12 @@ Event_string = sprintf('%s |',Data.Eventcodes_txt.GroupDesc{:});
 Event_string = Event_string(1:end-2);
 set(findobj('Tag','Event'),'String',Event_string);
 set(findobj('Tag','listbox_Event'),'String',Event_string);
+
 pos_eventdetail = find(Data.Eventcodes_txt.CodeIndex >= Data.Eventcodes_txt.GroupValue(1) ...
                             & Data.Eventcodes_txt.CodeIndex < Data.Eventcodes_txt.GroupValue(2));
 Eventdetail_string = sprintf('%s |',Data.Eventcodes_txt.CodeDesc{pos_eventdetail});
 Eventdetail_string = Eventdetail_string(1:end-2);
+
 set(findobj('Tag','Event_detail'),'String',Eventdetail_string);
 set(findobj('Tag','listbox_Event_detail'),'String',['all Events |' Eventdetail_string]);
 Data.detcolor = load('detcolor.mat');
@@ -291,7 +304,7 @@ else
 end
 
 Data.ShowChannelmax = 4;
-set(findobj('Tag','Show_Channels'),'String',min(size(Data.Channel,1),Data.ShowChannelmax));
+set(findobj('Tag','numb_act_channels'),'String',min(size(Data.Channel,1),Data.ShowChannelmax));
 set(findobj('Tag','Slider_Channel'),'Visible','on','Value',1);
 Data.ChannelConf.Display_min = Data.HDR.PhysMin;
 Data.ChannelConf.Display_max = Data.HDR.PhysMax;
@@ -301,20 +314,20 @@ Data.File.file = file;
 Data.File.path = path;
 set(findobj('Tag','sviewer'),'UserData',Data);
 
-drawnew (file,path,Data.ShowSamples); 
+drawnew (file,path,Data.ShowSamples,0); 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function drawnew (file,path,showsamples)
+function drawnew (file,path,showsamples,only_plot)
 newfile = [path,file];
 Data = get(findobj('Tag','sviewer'),'UserData');
 if ~isequal(Data, 0)
     if isfield(Data,'NoS');
-        deleteObj(Data);
+        deleteObj(Data,only_plot);
         Data.NS = [];
     end
     Data = get(findobj('Tag','sviewer'),'UserData');
     Data.NoS = showsamples / max(Data.HDR.SampleRate);
-    Data.NS = str2num(get(findobj('Tag','Show_Channels'),'String'));
+    Data.NS = str2num(get(findobj('Tag','numb_act_channels'),'String'));
     tsec = Data.Total_length_sec;
     tmin = floor(tsec/60);
     tsec = rem(tsec,60);
@@ -323,14 +336,19 @@ if ~isequal(Data, 0)
 
     set(findobj('Tag','total_length'), 'String', ...
         sprintf('%02d:%02d:%02d', th,tmin,floor(tsec))); % total length
-    set(findobj('Tag','file'), 'String', ...
-        sprintf(file)); % file name
+    
+    titlename = get(gcf,'Name');
+    oldfilepos = strfind(titlename,':');
+    if ~isempty(oldfilepos)
+        titlename = deblank(titlename(1:oldfilepos-6));
+    end
+    titlename = [titlename, '             File: ' file];
+    set(gcf,'Name',titlename);
+    
     set(findobj('Tag','displayed'), 'String', ...
         sprintf('%c',num2str(Data.NoS))); % displayed length
     actchannels = size(Data.Channel);
-    set(findobj('Tag','numbchannels'), 'String', ...
-        sprintf('%c',[num2str(actchannels(1)) '/' num2str(Data.HDR.NS)])); % number of channels
-    
+    set(findobj('Tag','numb_all_channels'), 'String', Data.HDR.NS);
     set(findobj('Tag','sviewer'),'UserData',Data);
     
     Data = get(findobj('Tag','sviewer'),'UserData');
@@ -363,7 +381,7 @@ if ~isequal(Data, 0)
             'Units', 'Normalized', ...
             'Max', 1, ...      
             'Min', 0, ...
-            'SliderStep',[step step*10]);
+            'SliderStep',[step step*2]);
     catch
         errordlg('Incorrect file! (Error:S1)', 'Error');
         CloseFile_Callback;
@@ -395,45 +413,59 @@ if ~isequal(Data, 0)
     end
        
     % activate checkboxes
-    set(findobj('Tag','checkbox_dim'), ...
-        'Enable','on');
-    set(findobj('Tag','checkbox_grid'), ...
-        'Enable','on');
-    set(findobj('Tag','checkbox_range'), ...
-        'Enable','on');
-    set(findobj('Tag','Show_Channels'), ...
-        'Enable','on');
-    set(findobj('Tag', 'Time_Slider1'), 'String', ...
-                sprintf('%02d:%02d:%06.3f', th_ts,tmin_ts,tsec1_ts));
+    set(findobj('Tag','checkbox_grid'),'Enable','on');
+    set(findobj('Tag','checkbox_range'),'Enable','on');
+    set(findobj('Tag','numb_act_channels'),'Enable','on');
+    set(findobj('Tag','Slider_ShowChannels'),'Enable','on');
+    set(findobj('Tag','zoom_factor'),'Enable','on');
+    set(findobj('Tag','pb_zoom_in_all'),'Enable','on');
+    set(findobj('Tag','pb_zoom_out_all'),'Enable','on');
+    set(findobj('Tag','pb_Autoscale'),'Enable','on');
+    set(findobj('Tag','displayed'),'Enable','on');
+    set(findobj('Tag', 'goto_h'), 'Enable','on');
+    set(findobj('Tag', 'goto_min'), 'Enable','on'); 
+    set(findobj('Tag', 'goto_sec'), 'Enable','on'); 
+    set(findobj('Tag', 'edit_gotosecond'), 'Enable','on'); 
+    set(findobj('Tag', 'checkbox_buttons'), 'Enable','on'); 
+    set(findobj('Tag', 'goto_h'), 'String',sprintf('%02d', th_ts));
+    set(findobj('Tag', 'goto_min'), 'String',sprintf('%02d', tmin_ts)); 
+    set(findobj('Tag', 'goto_sec'), 'String',sprintf('%06.3f', tsec1_ts)); 
     Data.File.file = file;
     Data.File.path = path;
     set(findobj('Tag','sviewer'),'UserData',Data);
     a = Data.NS; % number of channels
-    drawplot(a);
+    drawplot(a,only_plot);
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % draw plots
-function drawplot(numb_channel)
+function drawplot(numb_channel,only_plot)
 
     Data = get(findobj('Tag','sviewer'),'UserData');
     Data.SPlot = [];
     b = 0;
     cb_range = get(findobj('Tag','checkbox_range'),'Value');
-    cb_physdim = get(findobj('Tag','checkbox_dim'),'Value');
     cb_grid = get(findobj('Tag','checkbox_grid'),'Value');
-    width = 0.77;
+    cb_buttons = get(findobj('Tag','checkbox_buttons'),'Value');
     
-    if cb_range == 1 | cb_physdim == 1
-        plotstart = 0.1;
-    else
-        plotstart = 0.018;
-        width = width + 0.1 - 0.018; % 0.86; % 0.9
-    end
-    % f is the space requirement for the plots (80% of the window)
-    f = 0.789;
+    plotstart = 0.1;    % Start-Position of the plots
+    f = 0.789;  % f is the vertical space requirement for the plots (% of the window)
+    width = 0.84; %0.77 % width of the plots
     d = f / numb_channel;
     
+% % %     if cb_range == 1
+% % %         plotstart = 0.1;
+% % %     else
+% % %         plotstart = 0.05;
+% % %         width = width + 0.1 - 0.018; % 0.86; % 0.9
+% % %     end
+    
+    if cb_buttons == 1
+        plotstart = 0.1;
+    else
+        width = width + 0.03;
+    end
+
     pos_sliderchannel = get(findobj('Tag','Slider_Channel'), 'Value');
     startchannel = (size(Data.Channel,1) - Data.NS) - pos_sliderchannel * (size(Data.Channel,1) - Data.NS) + 1;
     startchannel = round(startchannel);
@@ -446,7 +478,6 @@ function drawplot(numb_channel)
         b = Data.Channel{i,2};
         Data.actButton = k;
         plot_chan = plot(Data.signal(:,b),'b');
-        
         if isfield(Data,'Detection')
             if isfield(Data.Detection,'Start')
                 if isequal(Data.Detection.Start,'on')
@@ -456,13 +487,19 @@ function drawplot(numb_channel)
         end
         plot_line(b);
         set_yTick(Data,b,numb_channel,cb_range);
+        %set_yTick(Data,k,numb_channel,cb_range);
         if cb_grid == 1
             grid on;
         end 
 
         anz_xticks = length(get(gca, 'xtick'));
         if k == numb_channel
-			x_ticklabel1 = [0:Data.NoS/10:Data.NoS];
+            try
+                actpossl = Data.Slider.tsec;
+            catch
+                actpossl = 0;
+            end
+			x_ticklabel1 = [actpossl:Data.NoS/10:Data.NoS+actpossl];
 			x_ticklabel = round(x_ticklabel1 * 100) / 100;
 			
 			if size(x_ticklabel,2) > size(unique(x_ticklabel),2)
@@ -504,64 +541,101 @@ function drawplot(numb_channel)
                 end
             end
         end
-         if size(Data.HDR.PhysDim) > 1
-            text_dim = Data.HDR.PhysDim(b,:);
-        else
-            text_dim = Data.HDR.PhysDim;
-        end  
         
-        x_koord = Data.NoS*max(Data.HDR.SampleRate)+Data.NoS*max(Data.HDR.SampleRate)*0.03;
-        plotpos = get(gca,'Position');
-        y_koord = plotpos(2);
-
-        text_label = Data.Channel{i,1};
-        Data.Label.Text(:,k) = uicontrol(gcf, ...
-            'Style', 'PushButton', ...
-            'Units', 'Normalized', ...
-            'BackgroundColor', [0.502, 0.502, 0.753], ...
-            'ForegroundColor', [1, 1, 0], ...
-            'FontWeight', 'Bold', ...
-            'String', text_label, ...
-            'Enable', 'inactive', ...
-            'Position', [0.918,y_koord+(f/numb_channel)/2,0.1,0.020]);
-        if cb_physdim == 1
-            ylabel(text_dim,'Rotation',0,'HorizontalAlignment', 'right', ...
-                'FontWeight', 'Bold', ...
-                'Color',[0, 0.459, 0]);
+        if only_plot == 0
+            if size(Data.HDR.PhysDim) > 1
+                text_dim = Data.HDR.PhysDim(b,:);
+            else
+                text_dim = Data.HDR.PhysDim;
+            end  
+            text_dim = deblank(text_dim);
+            
+            x_koord = Data.NoS*max(Data.HDR.SampleRate)+Data.NoS*max(Data.HDR.SampleRate)*0.03;
+            plotpos = get(gca,'Position');
+            y_koord = plotpos(2);
+	
+            text_label = deblank(Data.Channel{i,1});
+            if cb_range == 1
+                text_dim = strvcat(text_label,text_dim);
+                if Data.NS > 8
+                    ylabel(text_label,'Rotation',0,'HorizontalAlignment', 'right','Color',[0, 0.459, 0]);
+                else
+                    ylabel(text_dim,'Color',[0, 0.459, 0]);
+                end
+            else
+                if Data.NS > 8
+                    ylabel(text_label,'Rotation',0,'HorizontalAlignment', 'right','Color',[0, 0.459, 0]);
+                else
+                    ylabel(text_label,'Color',[0, 0.459, 0]);
+                end
+            end
+            
+            x1 = 0.942; %0.933; % Start-Position of the buttons
+            x2 = y_koord + (f/numb_channel)/2;
+            x3 = 0.013;
+            x4 = ((f-0.05)/numb_channel)/2; %0.015;
+            
+            if rem(k,2) == 0
+                bcolor = [0.502, 0.502, 1];
+            else
+                bcolor = [0, 0.502, 0];
+            end
+            
+            if cb_buttons == 1
+                bcolor = [0, 0.502, 1]; % Button-Color
+                fcolor = [1, 1, 0]; % Button-Font Color
+                fsize = 18;
+                Data.Label.Background(:,k) = uicontrol(gcf, ...
+                    'Style', 'Frame', ...
+                    'Units', 'Normalized', ...
+                    'Position', [x1-0.004,x2-((f-0.39)/numb_channel),x3*2+0.01,((f-0.39)/numb_channel)*2], ...
+                    'BackgroundColor', [1,1,1], ...
+                    'UserData', Data.actButton);
+                Data.Label.Zoom_in(:,k) = uicontrol(gcf, ...
+                    'Style', 'PushButton', ...
+                    'Units', 'normalized', ...
+                    'Position', [x1,x2,x3,x4], ...
+                    'String', '+', ...
+                    'ForegroundColor', fcolor, ...
+                    'FontWeight', 'Bold', ...
+                    'FontUnit', 'pixel', ...
+                    'FontName', 'Arial', ...
+                    'FontSize', fsize, ...
+                    'BackgroundColor', bcolor, ...
+                    'Callback', 'sviewer(''LocalRescaleIN_Callback'',gcbo,[],guidata(gcbo))', ...
+                    'UserData', Data.actButton);
+                Data.Label.Zoom_out(:,k) = uicontrol(gcf, ...
+                    'Style', 'PushButton', ...
+                    'Units', 'Normalized', ...
+                    'Position', [x1,x2-x4,x3,x4], ...
+                    'String', '-', ...
+                    'ForegroundColor', fcolor, ...
+                    'FontWeight', 'Bold', ...
+                    'FontUnit', 'pixel', ...
+                    'FontName', 'Arial', ...
+                    'FontSize', fsize, ...
+                    'BackgroundColor', bcolor, ...
+                    'Callback', 'sviewer(''LocalRescaleOUT_Callback'',gcbo,[],guidata(gcbo))', ...
+                    'UserData', Data.actButton);
+                Data.Label.Info(:,k) = uicontrol(gcf, ...
+                    'Style', 'PushButton', ...
+                    'Units', 'Normalized', ...
+                    'Position', [x1+x3,x2-x4,x3,x4*2], ...
+                    'String', '?', ...
+                    'ForegroundColor', fcolor, ...
+                    'FontWeight', 'Bold', ...
+                    'FontUnit', 'pixel', ...
+                    'FontName', 'Arial', ...
+                    'FontSize', fsize, ...
+                    'BackgroundColor', bcolor, ...
+                    'Callback', 'sviewer(''Channel_conf_Callback'',gcbo,[],guidata(gcbo))', ...
+                    'UserData', Data.actButton);
+            end
+            try delete(Data.Patch.firstline); end
+            Data.Patch = [];
         end
-        Data.Label.Zoom_in(:,k) = uicontrol(gcf, ...
-            'Style', 'PushButton', ...
-            'Units', 'normalized', ...
-            'Position', [0.918,y_koord+(f/numb_channel)/2-0.02,0.025,0.015], ...
-            'String', '+', ...
-            'ForegroundColor', [1, 1, 0], ...
-            'FontWeight', 'Bold', ...
-            'BackgroundColor', [0.259, 0.518, 0.518], ...
-            'Callback', 'sviewer(''LocalRescaleIN_Callback'',gcbo,[],guidata(gcbo))', ...
-            'UserData', Data.actButton);
-        Data.Label.Zoom_out(:,k) = uicontrol(gcf, ...
-            'Style', 'PushButton', ...
-            'Units', 'Normalized', ...
-            'Position', [0.918+0.025,y_koord+(f/numb_channel)/2-0.02,0.025,0.015], ...
-            'String', '-', ...
-            'ForegroundColor', [1, 1, 0], ...
-            'FontWeight', 'Bold', ...
-            'BackgroundColor', [0.259, 0.518, 0.518], ...
-            'Callback', 'sviewer(''LocalRescaleOUT_Callback'',gcbo,[],guidata(gcbo))', ...
-            'UserData', Data.actButton);
-        Data.Label.Info(:,k) = uicontrol(gcf, ...
-            'Style', 'PushButton', ...
-            'Units', 'Normalized', ...
-            'Position', [0.918+2*0.025,y_koord+(f/numb_channel)/2-0.02,0.025,0.015], ...
-            'String', '?', ...
-            'ForegroundColor', [1, 1, 0], ...
-            'FontWeight', 'Bold', ...
-            'BackgroundColor', [0.259, 0.518, 0.518], ...
-            'Callback', 'sviewer(''Channel_conf_Callback'',gcbo,[],guidata(gcbo))', ...
-            'UserData', Data.actButton);  
-        Data.line=[];
-        set(findobj('Tag','sviewer'),'UserData',Data);
     end
+set(findobj('Tag','sviewer'),'UserData',Data);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % calculate YTICK
@@ -582,36 +656,56 @@ if numb_channel <= 8
             y_temp = y_tick1(find(y_tick1 > 0));
             min_ytick = abs(min(y_temp));
         end
-        %factor = abs(ceil(log10(min_ytick-floor(min_ytick)))) + 1;
         factor = abs(ceil(log10(step-floor(step)))) + 1;
         y_tick = round(y_tick1(2:end-1)*100*10^factor)/(100*10^factor);
     end
     y_ticklabel = y_tick;
+    set(findobj('Tag','checkbox_range'),'Enable','on');
 end
 
 if numb_channel > 8
     y_lim = [akt_min akt_max];
     y_tick = y_lim;
     y_ticklabel = '';
+    set(findobj('Tag','checkbox_range'),'Enable','off');
 end
- 
+
+if size(Data.HDR.PhysDim) > 1
+    text_dim = Data.HDR.PhysDim(b,:);
+else
+    text_dim = Data.HDR.PhysDim;
+end  
+text_dim = deblank(text_dim);
+text_label = deblank(Data.Channel{b,1});
+
 if cb_range == 1
     set(gca, ...
         'YLim', y_lim, ...
         'YTick', [y_tick], ...
         'YTickLabel', [y_ticklabel]);
+    text_dim = strvcat(text_label,text_dim);
+    if Data.NS > 8
+        ylabel(text_label,'Rotation',0,'HorizontalAlignment', 'right','Color',[0, 0.459, 0]);
+    else
+        ylabel(text_dim,'Color',[0, 0.459, 0]);
+    end
 else
     set(gca, ...
         'YLim', y_lim, ...
         'YTick', [y_tick], ...
         'YTickLabel', '');
+    if Data.NS > 8
+        ylabel(text_label,'Rotation',0,'HorizontalAlignment', 'right','Color',[0, 0.459, 0]);
+    else
+        ylabel(text_label,'Color',[0, 0.459, 0]);
+    end
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % draw plot
 function plot_line(channel_numb)
 
-Data=get(findobj('Tag','sviewer'),'UserData');
+Data = get(findobj('Tag','sviewer'),'UserData');
 
 if isfield(Data,'Detection')
     slider_step = get(findobj('Tag','Slider1'),'SliderStep');
@@ -733,21 +827,28 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % delete old Buttons, Text....
-function deleteObj(Data)
+function deleteObj(Data,only_plot)
 if ~isempty(Data);
-    try delete(Data.Label.Text); end
-    try delete(Data.Label.Zoom_out); end
-    try delete(Data.Label.Zoom_in); end
-    try delete(Data.Label.Info); end
-    try delete(Data.SPlot); end
-    try Data.Label.Text=[]; end
-    try Data.Label.Zoom_out=[]; end
-    try Data.Label.Zoom_in=[]; end
-    try Data.Label.Info=[]; end
-    try Data.SPlot=[]; end
-    if isfield(Data.Label,'Range')
-        delete(Data.Label.Range);
-        Data.Label.Range=[];
+    if only_plot == 0
+        try delete(Data.Label.Zoom_out); end
+        try delete(Data.Label.Zoom_in); end
+        try delete(Data.Label.Background); end
+        try delete(Data.Label.Info); end
+        try delete(Data.SPlot); end
+        try Data.Label.Text=[]; end
+        try Data.Label.Zoom_out=[]; end
+        try Data.Label.Zoom_in=[]; end
+        try Data.Label.Info=[]; end
+        try Data.Label.Background=[]; end
+        try Data.SPlot=[]; end
+        try Data.Patch = []; end
+        if isfield(Data.Label,'Range')
+            delete(Data.Label.Range);
+            Data.Label.Range=[];
+        end
+    else
+        try delete(Data.SPlot); end
+        try Data.SPlot=[]; end
     end
     set(findobj('Tag','sviewer'),'UserData',Data);
 end
@@ -767,8 +868,9 @@ for i = 1:numb_plot
     startchannel = startchannel + 1;
     plot_chan = plot(Data.signal(:,b),'b');
     
-    cb_range=get(findobj('Tag','checkbox_range'),'Value');
+    cb_range = get(findobj('Tag','checkbox_range'),'Value');
     set_yTick(Data,b,numb_plot,cb_range)
+    %set_yTick(Data,i,numb_plot,cb_range);
     
     set(findobj('Tag','sviewer'),'UserData',Data);
 
@@ -823,11 +925,11 @@ if pos <= (length-Data.ShowSamples)
         tsec = pos * (length-Data.ShowSamples) / max(Data.HDR.SampleRate);
         tmin = floor(tsec/60);
         tsec1 = rem(tsec,60);
-        %tsec1 = tsec - (tmin * 60);
         th = floor(tmin/60);
         tmin = rem(tmin,60);
-        set(handles.Time_Slider1, 'String', ...
-        sprintf('%02d:%02d:%06.3f', th,tmin,tsec1));
+        set(findobj('Tag', 'goto_h'), 'String',sprintf('%02d', th));
+        set(findobj('Tag', 'goto_min'), 'String',sprintf('%02d', tmin)); 
+        set(findobj('Tag', 'goto_sec'), 'String',sprintf('%06.3f', tsec1));
         read_dur = tsec + Data.NoS;
         if read_dur > Data.Total_length_sec
             tsec = Data.Total_length_sec - Data.NoS;
@@ -850,19 +952,27 @@ end
 
 % if the startpoint of the detection is marked and in the meantime the
 % slider is used the startpoint is drawn again
-if isfield(Data,'firstline')
-    if ~isequal(Data.firstline,[])
-        slider_step = get(findobj('Tag','Slider1'),'SliderStep');
-        pos = Data.Slider.Pos;
-        X = pos/slider_step(1)*max(Data.HDR.SampleRate)*Data.NoS / 2;
-        pos=Data.line;
-        if X < pos
-            line('XData', [pos-X pos-X], ...
-                'YData', [-99999 99999], ...
-                'EraseMode', 'xor', ...
-                'Color', [1 0.2 0.2]);
+try
+	if isfield(Data.Patch,'firstline')
+        if ~isequal(Data.Patch.firstline,[])
+            slider_step = get(findobj('Tag','Slider1'),'SliderStep');
+            pos = Data.Slider.Pos;
+            X = pos/slider_step(1)*max(Data.HDR.SampleRate)*Data.NoS / 2;
+            pos = Data.Patch.line;
+            if X < pos
+                h = Data.SPlot;
+                pos_sliderchannel = get(findobj('Tag','Slider_Channel'), 'Value');
+                startchannel = (size(Data.Channel,1) - Data.NS) - pos_sliderchannel * (size(Data.Channel,1) - Data.NS) + 1;
+                startchannel = round(startchannel);
+                subplot(h(Data.Patch.handleline-startchannel+1));
+                Data.Patch.firstline = line('XData', [pos-X pos-X], ...
+                    'YData', [-99999 99999], ...
+                    'EraseMode', 'xor', ...
+                    'Color', [1 0.2 0.2]);
+                set(findobj('Tag','sviewer'),'UserData',Data);
+            end
         end
-    end
+	end
 end
 figure(gcf);
 
@@ -878,7 +988,34 @@ if isempty(Data)
 end
 file = Data.File.file;
 path = Data.File.path;
-drawnew (file,path,Data.ShowSamples);
+drawnew (file,path,Data.ShowSamples,1);
+Data = get(findobj('Tag', 'sviewer'), 'UserData');
+% if the startpoint of the detection is marked and in the meantime the
+% slider is used the startpoint is drawn again
+try
+	if isfield(Data.Patch,'firstline')
+        if ~isequal(Data.Patch.firstline,[])
+            slider_step = get(findobj('Tag','Slider1'),'SliderStep');
+            
+            pos_sliderchannel = get(findobj('Tag','Slider_Channel'), 'Value');
+            startchannel = (size(Data.Channel,1) - Data.NS) - pos_sliderchannel * (size(Data.Channel,1) - Data.NS) + 1;
+            startchannel = round(startchannel);
+            
+            pos = Data.Slider.Pos;
+            X = pos/slider_step(1)*max(Data.HDR.SampleRate)*Data.NoS / 2;
+            pos = Data.Patch.line;
+            if (X < pos) & (Data.Patch.selChannel >= startchannel) & (Data.Patch.selChannel <= startchannel + Data.NS -1)
+                h = Data.SPlot;
+                subplot(h(Data.Patch.handleline-startchannel+1));
+                Data.Patch.firstline = line('XData', [pos-X pos-X], ...
+                    'YData', [-99999 99999], ...
+                    'EraseMode', 'xor', ...
+                    'Color', [1 0.2 0.2]);
+                set(findobj('Tag','sviewer'),'UserData',Data);
+            end
+        end
+	end
+end
 
 figure(gcf);
 
@@ -886,16 +1023,133 @@ figure(gcf);
 function Slider_ShowChannels_Callback(hObject, eventdata, handles)
 
 Data = get(findobj('Tag', 'sviewer'), 'UserData');
+
 pos1 = get(hObject, 'Value');
 numb = pos1 * size(Data.Channel,1);
-if numb > 0 & numb ~= str2num(get(findobj('Tag','Show_Channels'),'String'))
-    set(findobj('Tag','Show_Channels'),'String',numb);
+
+if numb > 0 & numb ~= str2num(get(findobj('Tag','numb_act_channels'),'String'))
+    set(findobj('Tag','numb_act_channels'),'String',numb);
     file = Data.File.file;
     path = Data.File.path;
-    drawnew (file,path,Data.ShowSamples);
+    try delete(Data.Patch.firstline); end
+    Data.Patch = [];
+    set(findobj('Tag','sviewer'),'UserData',Data);
+    drawnew (file,path,Data.ShowSamples,0);
 end
 
 figure(gcf);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function pb_Autoscale_Callback(hObject, eventdata, handles)
+
+Data = get(findobj('Tag', 'sviewer'), 'UserData');
+
+if isempty(Data)
+   errordlg('No File is open!', 'Error');
+   return;
+end
+
+for k = 1:length(Data.ChannelConf.Display_min)
+    sample_min = min(Data.signal(:,k));
+    sample_max = max(Data.signal(:,k));
+    if sample_min == sample_max
+        sample_min = sample_min -10;
+        sample_max = sample_max +10;
+    end
+    Data.ChannelConf.Display_min(k,:) = sample_min;
+    Data.ChannelConf.Display_max(k,:) = sample_max;
+end
+
+set(findobj('Tag','sviewer'),'UserData',Data);
+h = Data.SPlot;
+numb_plot = max(size(h));
+redraw_plots(h,numb_plot,Data,Data.Slider.tsec);
+figure(gcf);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function Edit_gotosecond_Callback(hObject, eventdata, handles)
+
+Data = get(findobj('Tag', 'sviewer'), 'UserData');
+
+maxtime = Data.Total_length_sec;
+gotime = get(hObject,'String');
+
+if isempty(gotime)
+    errordlg('No value for Go To Second!', 'Error');
+    return;
+end
+gotime = str2double(gotime);
+if gotime > maxtime
+    errordlg(['The value for Go To Second is too large ! [max. ' int2str(maxtime) ' sec.]'], 'Error');
+    set(hObject,'String','0');
+    return;
+end
+if isnan(gotime)
+    errordlg('The value for Go To Second is Not a Number!', 'Error');
+    set(hObject,'String','0');
+    return;
+end
+if gotime >= (maxtime-Data.NoS)
+    gotime = gotime - Data.NoS;
+end
+Data.Display.gotime = gotime;
+set(findobj('Tag','sviewer'),'UserData',Data);
+
+file = Data.File.file;
+path = Data.File.path;
+length = Data.Total_length_sec;
+
+pos = gotime/(length-Data.NoS);
+set(findobj('Tag', 'Slider1'), 'Value',pos); 
+last_pos = Data.Slider.Pos;
+if pos <= (length-Data.NoS) 
+    if pos ~= last_pos
+        tsec = round(pos*(length-Data.NoS));
+        tmin = floor(tsec/60);
+        tsec1 = rem(tsec,60);
+        th = floor(tmin/60);
+        tmin = rem(tmin,60); 
+        set(findobj('Tag', 'goto_h'), 'String',sprintf('%02d', th));
+        set(findobj('Tag', 'goto_min'), 'String',sprintf('%02d', tmin)); 
+        set(findobj('Tag', 'goto_sec'), 'String',sprintf('%06.3f', tsec1));
+        [Data.signal,Data.HDR] = sread(Data.HDR,Data.NoS,gotime);
+        h = Data.SPlot;
+        numb_plot = max(size(h));
+        Data.Slider.Pos = pos;
+        set(findobj('Tag','sviewer'),'UserData',Data);
+        redraw_plots(h,numb_plot,Data,tsec);
+        Data.Slider.Pos = pos;
+        Data.Slider.tsec = tsec;
+        set(findobj('Tag','sviewer'),'UserData',Data);
+    end
+end
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% change the zoom-factor
+function Zoom_factor_Callback(hObject, eventdata, handles)
+
+Data = get(findobj('Tag', 'sviewer'), 'UserData');
+scale_factor = str2num(get(hObject,'String')); 
+if length(scale_factor) > 1 | length(scale_factor) == 0
+    errordlg('The value for Zoom-Factor is Not a Number!', 'Error');
+    set(hObject,'String','2');
+    return;
+end
+if scale_factor <= 1
+    errordlg('Zoom-Factor must be larger than 1 (e.g. 1.1) !', 'Error');
+    set(hObject,'String','2');
+    return;
+end
+Data.ChannelConf.Scale = str2num(get(hObject,'String')); 
+set(findobj('Tag','sviewer'),'UserData',Data);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function Checkbox_buttons_Callback(hObject, eventdata, handles)
+
+Data = get(findobj('Tag', 'sviewer'), 'UserData');
+file = Data.File.file;
+path = Data.File.path;
+drawnew (file,path,Data.ShowSamples,0);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % to change the diplay-time or jump to a indicated second of the signal
@@ -909,6 +1163,9 @@ end
 
 waitfor(sviewer_display);
 Data = get(findobj('Tag', 'sviewer'), 'UserData');
+try delete(Data.Patch.firstline); end
+Data.Patch = [];
+set(findobj('Tag','sviewer'),'UserData',Data);
 displaytrue = Data.Display;
 
 if isempty(displaytrue)
@@ -930,7 +1187,7 @@ if ~isempty(displaytime)
     set(findobj('Tag', 'Slider1'), 'Value',0);
     Data.ShowSamples = displaytime * max(Data.HDR.SampleRate);
     set(findobj('Tag','sviewer'),'UserData',Data);
-    drawnew (file,path,Data.ShowSamples);
+    drawnew (file,path,Data.ShowSamples,0);
 end
 
 if ~isempty(gotime)
@@ -944,8 +1201,9 @@ if ~isempty(gotime)
             tsec1 = rem(tsec,60);
             th = floor(tmin/60);
             tmin = rem(tmin,60); 
-            set(findobj('Tag', 'Time_Slider1'), 'String', ...
-                sprintf('%02d:%02d:%06.3f', th,tmin,tsec1));
+            set(findobj('Tag', 'goto_h'), 'String',sprintf('%02d', th));
+            set(findobj('Tag', 'goto_min'), 'String',sprintf('%02d', tmin)); 
+            set(findobj('Tag', 'goto_sec'), 'String',sprintf('%06.3f', tsec1));
             [Data.signal,Data.HDR] = sread(Data.HDR,Data.NoS,gotime);
             h = Data.SPlot;
             numb_plot = max(size(h));
@@ -972,45 +1230,206 @@ end
 
 waitfor(sviewer_channel);
 Data = get(findobj('Tag', 'sviewer'), 'UserData');
+try delete(Data.Patch.firstline); end
+Data.Patch = [];
+set(findobj('Tag','sviewer'),'UserData',Data);
 newchannel = Data.Channel;
 
-if isequal(Data.changeChannel,'no')
-    return;
-end
+% % % if isequal(Data.changeChannel,'no')
+% % %     return;
+% % % end
 
 set(findobj('Tag','sviewer'),'UserData',Data);
 file = Data.File.file;
 path = Data.File.path;
-size_newchannel = size(newchannel);
-size_allchannel = size(Data.allChannel);
 
-for i = 1:size_newchannel(1)
-    sel_channel = deblank(Data.Channel(i,:));
-    b=0;
-    search = true;
-    while search
-        b=b+1;
-        data_channel = deblank(Data.allChannel(b,:));
-        if isequal(sel_channel,data_channel)
-            search = false;
-            text = data_channel{1,1};
-        end
-    end
-    channel{i,1}=text;
-    channel{i,2}=b;
-end
-Data.Channel = {};
-Data.Channel = channel;
-
-set(findobj('Tag','Show_Channels'),'String',min(Data.ShowChannelmax,size_newchannel(1)));
+% % % size_newchannel = size(newchannel);
+% % % size_allchannel = size(Data.allChannel);
+% % % 
+% % % for i = 1:size_newchannel(1)
+% % %     sel_channel = deblank(Data.Channel(i,:));
+% % %     b = 0;
+% % %     search = true;
+% % %     while search
+% % %         b = b + 1;
+% % %         data_channel = deblank(Data.allChannel(b,:));
+% % %         if isequal(sel_channel,data_channel)
+% % %             search = false;
+% % %             text = data_channel{1,1};
+% % %         end
+% % %     end
+% % %     channel{i,1}=text;
+% % %     channel{i,2}=b;
+% % % end
+% % % Data.Channel = {};
+% % % Data.Channel = channel;
+% % % 
+% % % set(findobj('Tag','numb_act_channels'),'String',min(Data.ShowChannelmax,size_newchannel(1)));
 
 set(findobj('Tag','sviewer'),'UserData',Data);
-drawnew (file,path,Data.ShowSamples);
+drawnew (file,path,Data.ShowSamples,0);
 all_channels{1}='all Channels';
 show_channels={};
 show_channels=[all_channels;Data.Channel(:,1)];
 set(findobj('Tag','listbox_detchannels'),'Value',1);
 set(findobj('Tag','listbox_detchannels'),'String',show_channels);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function Edit_Displayed_Callback(hObject, eventdata, handles)
+
+Data = get(findobj('Tag', 'sviewer'), 'UserData');
+
+if isempty(Data)
+   errordlg('No File is open!', 'Error');
+   return;
+end
+
+try delete(Data.Patch.firstline); end
+Data.Patch = [];
+set(findobj('Tag','sviewer'),'UserData',Data);
+Data.Display.newdisplaytime = '';
+maxtime = Data.Total_length_sec;
+file = Data.File.file;
+path = Data.File.path;
+
+displaytime = str2double(get(findobj('Tag', 'displayed'), 'String'));
+if displaytime > maxtime
+    errordlg(['The value for Displayed-Time is too large ! [max. ' num2str(maxtime) ' sec.]'], 'Error');
+    set(findobj('Tag', 'displayed'), 'String',num2str(Data.NoS));
+    return;
+end
+if isnan(displaytime)
+    errordlg('The value for Displayed-Time is Not a Number!', 'Error');
+    set(findobj('Tag', 'displayed'), 'String',num2str(Data.NoS));
+    return;
+end
+if length(displaytime) > 1 | length(displaytime) == 0
+    errordlg('The value for Display-Time is Not a Number!', 'Error');
+    set(findobj('Tag', 'displayed'), 'String',num2str(Data.NoS));
+    return;
+end
+if displaytime == 0
+    errordlg('The value must be larger than 0!', 'Error');
+    set(findobj('Tag', 'displayed'), 'String',num2str(Data.NoS));
+    return;
+end
+Data.Display.newdisplaytime = displaytime;
+channel = Data.Channel;
+if isempty(channel)
+    channel = {};
+end
+
+if ~isempty(displaytime)
+    Data.ShowSamples = displaytime * max(Data.HDR.SampleRate);
+    set(findobj('Tag','sviewer'),'UserData',Data);
+    drawnew (file,path,Data.ShowSamples,1);
+end
+figure(gcf);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function Edit_Goto_Callback(hObject, eventdata, handles)
+
+Data = get(findobj('Tag', 'sviewer'), 'UserData');
+
+if isempty(Data)
+   errordlg('No File is open!', 'Error');
+   return;
+end
+
+try delete(Data.Patch.firstline); end
+Data.Patch = [];
+set(findobj('Tag','sviewer'),'UserData',Data);
+Data.Display.gotime = '';
+file = Data.File.file;
+path = Data.File.path;
+length = Data.Total_length_sec;
+
+goto_h = str2num(get(findobj('Tag', 'goto_h'), 'String'));
+goto_min = str2num(get(findobj('Tag', 'goto_min'), 'String'));
+goto_sec = str2num(get(findobj('Tag', 'goto_sec'), 'String'));
+
+pos_s1 = get(findobj('Tag', 'Slider1'), 'Value');
+Data.Slider.Pos = pos_s1;
+length_s1 = Data.Total_length_samples;
+tsec_s1 = pos_s1 * (length_s1 - Data.ShowSamples) / max(Data.HDR.SampleRate);
+tmin_ts = floor(tsec_s1 / 60);
+tsec1_ts = rem(tsec_s1,60);
+th_ts = floor(tmin_ts / 60);
+tmin_ts = rem(tmin_ts,60); 
+tsec_s1 = round(tsec_s1 * Data.HDR.SampleRate) / Data.HDR.SampleRate;
+
+if size(goto_h,2) > 1 | size(goto_min,2) > 1 | size(goto_sec,2) > 1
+    errordlg('The value for Go To Second is wrong!', 'Error');
+    return;
+end
+
+if isempty(goto_h) | isempty(goto_min) | isempty(goto_sec)
+    errordlg('The value for Go To Second is wrong!', 'Error');
+    return;
+end
+
+gotime = (goto_h * 3600) +  (goto_min * 60) + goto_sec;
+
+if isempty(gotime)
+    errordlg('No value for Go To Second!', 'Error');
+    return;
+end
+if gotime > length
+    tsec = length;
+    tmin = floor(tsec/60);
+    tsec1 = rem(tsec,60);
+    th = floor(tmin/60);
+    tmin = rem(tmin,60);
+    max_value = sprintf('%02d:%02d:%06.3f', th,tmin,tsec1);
+    errordlg(['The value for Go To Second is too large ! [max. ' max_value ' sec.]'], 'Error');
+    set(findobj('Tag', 'goto_h'), 'String',sprintf('%02d', th_ts));
+    set(findobj('Tag', 'goto_min'), 'String',sprintf('%02d', tmin_ts));
+    set(findobj('Tag', 'goto_sec'), 'String',sprintf('%06.3f', tsec1_ts));
+    return;
+end
+if isnan(gotime)
+    errordlg('The value for Go To Second is Not a Number!', 'Error');
+    return;
+end
+if gotime >= (length-Data.NoS)
+    gotime = gotime - Data.NoS;
+end
+Data.Display.gotime = gotime;
+
+channel = Data.Channel;
+if isempty(channel)
+    channel = {};
+end
+
+if ~isempty(gotime)
+    pos = gotime/(length-Data.NoS);
+    set(findobj('Tag', 'Slider1'), 'Value',pos); 
+    last_pos = Data.Slider.Pos;
+    if pos <= (length-Data.NoS) 
+        if pos ~= last_pos
+            tsec = round(pos*(length-Data.NoS));
+            tmin = floor(tsec/60);
+            tsec1 = rem(tsec,60);
+            th = floor(tmin/60);
+            tmin = rem(tmin,60); 
+            set(findobj('Tag', 'goto_h'), 'String',sprintf('%02d', th));
+            set(findobj('Tag', 'goto_min'), 'String',sprintf('%02d', tmin)); 
+            set(findobj('Tag', 'goto_sec'), 'String',sprintf('%06.3f', tsec1));
+            [Data.signal,Data.HDR] = sread(Data.HDR,Data.NoS,gotime);
+            h = Data.SPlot;
+            numb_plot = max(size(h));
+            Data.Slider.Pos = pos;
+            set(findobj('Tag','sviewer'),'UserData',Data);
+            redraw_plots(h,numb_plot,Data,tsec);
+            Data.Slider.Pos = pos;
+            Data.Slider.tsec = tsec;
+            set(findobj('Tag','sviewer'),'UserData',Data);
+        end
+    end
+end
+
+set(findobj('Tag','sviewer'),'UserData',Data);
+figure(gcf);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % configurate the active channel
@@ -1021,6 +1440,9 @@ if isempty(Data)
    errordlg('No File is open!', 'Error');
    return;
 end
+try delete(Data.Patch.firstline); end
+Data.Patch = [];
+set(findobj('Tag','sviewer'),'UserData',Data);
 Data.Channelconf.whichbutton = get(gcbo, 'UserData');
 set(findobj('Tag', 'sviewer'), 'UserData',Data);
 pause(0.0000000001);
@@ -1035,43 +1457,50 @@ figure(gcf);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % zoom in
 function LocalRescaleIN_Callback(hObject, eventdata, handles)
-LocalRescale('in');
+LocalRescale('in',0);   % 0... zoom in -> act. Channel
 figure(gcf);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % zoom out
 function LocalRescaleOUT_Callback(hObject, eventdata, handles)
-LocalRescale('out');
+LocalRescale('out',0);  % 0... zoom in -> act. Channel
+figure(gcf);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% zoom out all channels
+function pb_zoom_out_all_Callback(hObject, eventdata, handles)
+LocalRescale('out',1);  % 1... zoom in -> all Channels
+figure(gcf);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% zoom in all channels
+function pb_zoom_in_all_Callback(hObject, eventdata, handles)
+LocalRescale('in',1);  % 1... zoom in -> all Channels
 figure(gcf);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % calculate the new values (Zoom-in / Zoom-out)
-function LocalRescale(Mode)
+function LocalRescale(Mode,settings)
+
+% Mode: in / out
+% settings: 0 ... act. Channel
+%           1 ... all Channels
 
 Data = get(findobj('Tag','sviewer'),'UserData');
-whichbutton = get(gcbo, 'UserData');
 
 pos_sliderchannel = get(findobj('Tag','Slider_Channel'), 'Value');
 startchannel = (size(Data.Channel,1) - Data.NS) - pos_sliderchannel * (size(Data.Channel,1) - Data.NS) + 1;
 startchannel = round(startchannel);
-actchannel = whichbutton + startchannel - 1;
 
-b = Data.Channel{actchannel,2};
-disp_min = Data.ChannelConf.Display_min(b);
-disp_max = Data.ChannelConf.Display_max(b);
-scale_factor = Data.ChannelConf.Scale;
-basisline = (disp_max + disp_min)/2;
-
-switch Mode,
-    case 'in',
-        Data.ChannelConf.Display_min(b) = (disp_min - basisline) / scale_factor + basisline;
-        Data.ChannelConf.Display_max(b) = (disp_max - basisline) / scale_factor + basisline;
-    case 'out',
-        Data.ChannelConf.Display_min(b) = (disp_min - basisline) * scale_factor + basisline;
-        Data.ChannelConf.Display_max(b) = (disp_max - basisline) * scale_factor + basisline;
+if settings == 0
+    whichbutton = get(gcbo, 'UserData');
+    actchannel = whichbutton + startchannel - 1;
+    numb_channels = 1;
+else
+    actchannel = startchannel;
+    numb_channels = Data.NS;
 end
 
-set(findobj('Tag','sviewer'),'UserData',Data);
 length = Data.Total_length_sec;
 last_pos = Data.Slider.Pos;
 pos1 = get(findobj('Tag','Slider1'), 'Value');
@@ -1084,41 +1513,52 @@ end
 pos = pos1;
 aktpos = round(pos*(length-Data.NoS));
 
-h = Data.SPlot;
-numb_plots = size(h);
- 
-subplot(h(whichbutton));
-        set(gca, ...
-            'YLim', [disp_min disp_max]);
-
-cb_range = get(findobj('Tag','checkbox_range'),'Value');
-set_yTick(Data,b,numb_plots(2),cb_range);
+for i = 1:numb_channels
+	b = Data.Channel{actchannel,2};
+	disp_min = Data.ChannelConf.Display_min(b);
+	disp_max = Data.ChannelConf.Display_max(b);
+	scale_factor = Data.ChannelConf.Scale;
+	basisline = (disp_max + disp_min)/2;
+	switch Mode,
+        case 'in',
+            Data.ChannelConf.Display_min(b) = (disp_min - basisline) / scale_factor + basisline;
+            Data.ChannelConf.Display_max(b) = (disp_max - basisline) / scale_factor + basisline;
+        case 'out',
+            Data.ChannelConf.Display_min(b) = (disp_min - basisline) * scale_factor + basisline;
+            Data.ChannelConf.Display_max(b) = (disp_max - basisline) * scale_factor + basisline;
+	end
+	set(findobj('Tag','sviewer'),'UserData',Data);
+	h = Data.SPlot;
+	numb_plots = size(h);
+    try
+        subplot(h(whichbutton));
+    catch
+        subplot(h(i));
+    end
+    set(gca,'YLim', [disp_min disp_max]);
+	cb_range = get(findobj('Tag','checkbox_range'),'Value');
+	set_yTick(Data,b,numb_plots(2),cb_range);
+    actchannel = actchannel + 1;
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % diplay the range
 function Checkbox_Range_Callback(hObject, eventdata, handles)
-Data = get(findobj('Tag', 'sviewer'), 'UserData');
-size_channel=size(Data.Channel,1);
-deleteObj(Data);
-file = Data.File.file;
-path = Data.File.path;
-drawnew (file,path,Data.ShowSamples);
-figure(gcf);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% display the dimension
-function Checkbox_PhysDim_Callback(hObject, eventdata, handles)
 Data = get(findobj('Tag', 'sviewer'), 'UserData');
-size_channel=size(Data.Channel,1);
-if isfield(Data.Label,'Range')
-    delete(Data.Label.Range);
-    Data.Label.Range=[];
+
+active = get(hObject,'Value');
+
+pos_sliderchannel = get(findobj('Tag','Slider_Channel'), 'Value');
+startchannel = (size(Data.Channel,1) - Data.NS) - pos_sliderchannel * (size(Data.Channel,1) - Data.NS) + 1;
+startchannel = round(startchannel)-1;
+
+h = Data.SPlot;
+numb_plots = size(h,2);
+for i = 1:numb_plots
+    subplot(h(i));
+    set_yTick(Data,i+startchannel,numb_plots,active)
 end
-deleteObj(Data);
-file = Data.File.file;
-path = Data.File.path;
-drawnew (file,path,Data.ShowSamples);
-figure(gcf);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % display the grid
@@ -1146,6 +1586,9 @@ figure(gcf);
 function ShowChannels_Callback(hObject, eventdata, handles)
 
 Data = get(findobj('Tag', 'sviewer'), 'UserData');
+try delete(Data.Patch.firstline); end
+Data.Patch = [];
+set(findobj('Tag','sviewer'),'UserData',Data);
 numb_showchannels = str2num(get(hObject,'String'));
 len_channels = size(Data.Channel,1);
 if numb_showchannels > size(Data.Channel,1) | numb_showchannels <= 0
@@ -1156,7 +1599,7 @@ else
     Data.ShowChannelmax = numb_showchannels;
     file = Data.File.file;
     path = Data.File.path;
-    drawnew (file,path,Data.ShowSamples);
+    drawnew (file,path,Data.ShowSamples,0);
     figure(gcf);
 end
 
@@ -1183,8 +1626,6 @@ if isempty(Data)
 end
 sviewer_fileinfo(Data);
 
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DETECTION
@@ -1202,21 +1643,34 @@ if isequal(get(findobj('Tag','Startdetection'),'Label'),'Start                  
     Event_string = sprintf('%s |',Data.Eventcodes_txt.GroupDesc{:});
     Event_string = Event_string(1:end-2);
     Data.Detection.Event_string = Event_string;
-    pos_eventdetail = find(Data.Eventcodes_txt.CodeIndex >= Data.Eventcodes_txt.GroupValue(1) ...
-                             & Data.Eventcodes_txt.CodeIndex < Data.Eventcodes_txt.GroupValue(2));
+    
+    if isfield(Data.Detection,'EventMatrix')
+        s = Data.Eventcodes_txt;
+        typ = Data.Detection.EventMatrix(1,2);
+        select = find(s.GroupValue == bitand(s.GroupMask,typ));
+        pos_eventdetail = find(bitand(s.CodeIndex,s.GroupMask(select))==s.GroupValue(select));        % decoding of eventtable 
+    else
+        pos_eventdetail = find(Data.Eventcodes_txt.CodeIndex >= Data.Eventcodes_txt.GroupValue(1) ...
+            & Data.Eventcodes_txt.CodeIndex < Data.Eventcodes_txt.GroupValue(2));
+    end
     Eventdetail_string = sprintf('%s |',Data.Eventcodes_txt.CodeDesc{pos_eventdetail});
     Eventdetail_string = Eventdetail_string(1:end-2);
     Data.Detection.Eventdetail_string = Eventdetail_string;
     set(findobj('Tag','sviewer'),'UserData',Data);
-    setdefault_detection_start(Data);
+    try
+        setdefault_detection_start(Data,select);
+    catch
+        setdefault_detection_start(Data,1);
+    end
 else
-    setdefault_detection_stop(Data);
+    setdefault_detection_stop(Data,1);
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % setting default values for starting detection
-function setdefault_detection_start(Data)
+function setdefault_detection_start(Data,select)
 
+set(findobj('Tag','listbox_Event'),'Value',select);
 set(findobj('Tag','Startdetection'),'Label','Stop/Save Detection      F5')
 set(findobj('Tag','Event'),'Enable','on');
 set(findobj('Tag','Event_detail'),'Enable','on');
@@ -1248,16 +1702,22 @@ set(findobj('Tag','sviewer'),'UserData',Data);
 
 file = Data.File.file;
 path = Data.File.path;
-drawnew (file,path,Data.ShowSamples);
-Radiobutton_Display_Callback
+drawnew (file,path,Data.ShowSamples,0);
+Radiobutton_Display_Callback;
+Radiobutton_Detection_Callback;
+set(findobj('Tag', 'Detection_radiobutton_detection'), 'Value', 1);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % setting default values for stoping detection
-function setdefault_detection_stop(Data)
+function setdefault_detection_stop(Data,pwarn)
 
 eventmatrix=Data.Detection.EventMatrix;
 if ~isempty(eventmatrix)
-    button = questdlg('Save Detection?','Warning');
+    if pwarn == 1
+        button = questdlg('Save Detection?','Warning');
+    else
+        button = 'Yes';
+    end
     if isequal(button,'Cancel')
         return;
     end
@@ -1280,7 +1740,7 @@ if ~isempty(eventmatrix)
         D=num2str(D);
         H=num2str(H);
         MI=num2str(MI);
-        [file,path]=uiputfile([filename '-' Y M D '-' H MI '.evt'],'Save Detection');
+        [file,path]=uiputfile([filename '-' Y M D '.evt'],'Save Detection');
         if isequal(file,0) | isequal(path,0)
             set(findobj('Tag','Startdetection'),'Label','Start                               F5');
             Data.Detection.EventMatrix = [];
@@ -1340,9 +1800,12 @@ set(findobj('Tag','Button_Update'),'Enable','off');
 function Listbox_MainClass_Callback(hObject, eventdata, handles)
 
 select = get(findobj('Tag','listbox_Event'), 'Value');
-Data=get(findobj('Tag','sviewer'),'UserData');
+Data = get(findobj('Tag','sviewer'),'UserData');
+try delete(Data.Patch.firstline); end
+Data.Patch = [];
+set(findobj('Tag','sviewer'),'UserData',Data);
 s = Data.Eventcodes_txt;
-pos_eventdetail = search_Events(select,s);
+pos_eventdetail = find(bitand(s.CodeIndex,s.GroupMask(select))==s.GroupValue(select));        % decoding of eventtable 
 Eventdetail_string = sprintf('%s |',Data.Eventcodes_txt.CodeDesc{pos_eventdetail});
 Eventdetail_string = Eventdetail_string(1:end-2);
 active_radiobutton = get(findobj('Tag', 'Detection_radiobutton_detection'), 'Value');
@@ -1367,6 +1830,9 @@ figure(gcf);
 % Multiple alternative of different Sub-Class events
 function Listbox_SubClass_Callback(hObject, eventdata, handles)
 
+Data = get(findobj('Tag','sviewer'),'UserData');
+try delete(Data.Patch.firstline); end
+Data.Patch = [];
 display_active = get(findobj('Tag', 'Detection_radiobutton_display'), 'Value');
 if display_active
     Data = get(findobj('Tag','sviewer'),'UserData');
@@ -1378,6 +1844,7 @@ if display_active
     numb_plot = max(size(h));
     redraw_plots(h,numb_plot,Data,Data.Slider.tsec);
 end
+set(findobj('Tag','sviewer'),'UserData',Data);
 figure(gcf);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1392,6 +1859,9 @@ display_active = get(findobj('Tag', 'Detection_radiobutton_display'), 'Value');
 if display_active
     return
 end
+try delete(Data.Patch.firstline); end
+Data.Patch = [];
+set(findobj('Tag','sviewer'),'UserData',Data);
 values = get(findobj('Tag','listbox_detchannels'),'Value');
 size_selected = length(values);
 % values == 1 -> all Channels
@@ -1440,34 +1910,17 @@ numb_plot = max(size(h));
 redraw_plots(h,numb_plot,Data,Data.Slider.tsec);
 figure(gcf);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% search the activ event
-function pos_eventdetail = search_Events(select,s)
-
-if (select + 1) > length(s.GroupValue)
-    pos_eventdetail = find(s.CodeIndex >= s.GroupValue(select) & ...
-        s.CodeIndex < 32768);
-else
-    if s.GroupValue(select) == 1056
-        pos_eventdetail = find(s.CodeIndex >= s.GroupValue(select) & ...
-            s.CodeIndex < s.GroupValue(select+1) | s.CodeIndex == 33824);
-    else
-        pos_eventdetail = find(s.CodeIndex >= s.GroupValue(select) & ...
-            s.CodeIndex < s.GroupValue(select+1));
-    end
-end
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  
 % load events
 function Loadfile_Callback(hObject, eventdata, handles)
 
-Data=get(findobj('Tag','sviewer'),'UserData');
+Data = get(findobj('Tag','sviewer'),'UserData');
 if isempty(Data)
    errordlg('No File is open!', 'Error');
    return;
 end
 if isfield(Data,'Detection')
-    setdefault_detection_stop(Data);
+    setdefault_detection_stop(Data,1);
 end
 [file,path]=uigetfile('*.*','Open Detection');
 if isequal(file,0) | isequal(path,0)
@@ -1530,12 +1983,12 @@ function Radiobutton_Detection_Callback(hObject, eventdata, handles)
 
 Data = get(findobj('Tag','sviewer'),'UserData');
 set(findobj('Tag', 'Detection_radiobutton_display'), 'Value', 0);
-set(findobj('Tag','listbox_Event'),'Value',1);
+%%%set(findobj('Tag','listbox_Event'),'Value',1);
 set(findobj('Tag','listbox_Event'),'BackgroundColor',[1 0.91 0.941]);
 set(findobj('Tag','listbox_Event_detail'),'Value',1,'MAX',1,'BackgroundColor',[1 0.91 0.941]);
 set(findobj('Tag','listbox_Event_detail'),'String',Data.Detection.Eventdetail_string);
 set(findobj('Tag','listbox_detchannels'),'Enable','on');
-Data.ShowDetection.MainClass = 1;
+Data.ShowDetection.MainClass = get(findobj('Tag','listbox_Event'),'Value');
 Data.ShowDetection.SubClass = 'all Events';
 set(findobj('Tag','sviewer'),'UserData',Data);
 h = Data.SPlot;
@@ -1565,7 +2018,9 @@ pos_sliderchannel = get(findobj('Tag','Slider_Channel'), 'Value');
 startchannel = (size(Data.Channel,1) - Data.NS) - pos_sliderchannel * (size(Data.Channel,1) - Data.NS) + 1;
 startchannel = round(startchannel);
 sel_channel = startchannel + get(gca, 'UserData') -1;
-pos_channel = sel_channel;
+channel_name = Data.Channel{sel_channel};
+%pos_channel = strmatch(channel_name,Data.allChannel);
+pos_channel = strmatch(channel_name,Data.Channel(:,1));
 slider_step = get(findobj('Tag','Slider1'),'SliderStep');
 pos_slider = Data.Slider.Pos;
 X = pos_slider / slider_step(1) * max(Data.HDR.SampleRate) * Data.NoS / 2;
@@ -1577,34 +2032,31 @@ numb_channel = size(Data.Channel);
 if ~isfield(Data.Detection,'EventMatrix')
     Data.Detection.EventMatrix=[]; 
 end 
-if isempty(Data.line)
-    Data.line = pos;
-    Data.selChannel = sel_channel;
-    Data.firstline=line('XData', [pos-X pos-X], ...
+if isempty(Data.Patch)
+    Data.Patch.line = pos;
+    Data.Patch.handleline = get(gca, 'UserData')+startchannel-1;
+    Data.Patch.selChannel = sel_channel;
+    Data.Patch.firstline = line('XData', [pos-X pos-X], ...
                    'YData', [-99999 99999], ...
                    'EraseMode', 'xor', ...
                    'Color', [1 0.2 0.2]);
 else
-    if ~isequal(Data.selChannel,sel_channel)
-        errordlg('Only one channel can be annotate! Use "all Channel"-Button.', 'Error');
-        return
-    end
-    startline = Data.line;
+    startline = Data.Patch.line;
     if startline > pos
         if startline <= Y
-            delete(Data.firstline);
+            delete(Data.Patch.firstline);
         end
-        Data.line = [];
-        Data.firstline = [];
+        try delete(Data.Patch.firstline); end
+        Data.Patch = [];
         set(findobj('Tag','sviewer'),'UserData',Data);
         errordlg('The starting time must lie before the end time!', 'Error');
         return
     end
-    if X < Data.firstline
+    if X < Data.Patch.firstline
         h = get(gca,'Children');
-        exist_line = find(h == Data.firstline);
+        exist_line = find(h == Data.Patch.firstline);
         if exist_line
-            delete(Data.firstline);
+            delete(Data.Patch.firstline);
         end
     end
 
@@ -1621,36 +2073,50 @@ else
     det_typ = s.CodeIndex(pos_desc);
 
     color = get_color(det_typ,Data);
-    i = size(Data.Detection.EventMatrix,1);
-    if i == 0
-        id = 1;
-    else
-        id = Data.Detection.EventMatrix(end,5)+1;
+    
+    pos_channel1 = [min(pos_channel,Data.Patch.selChannel):1:max(pos_channel,Data.Patch.selChannel)];
+    numb_showplots = abs(pos_channel-Data.Patch.selChannel)+1;
+    act_showplots = pos_channel1 - startchannel + 1; 
+    act_showplots = act_showplots(find(act_showplots > 0));
+    if numb_showplots == Data.NS_max
+        pos_channel1 = 0;
     end
-    if startline < X
-        Data.Detection.EventMatrix(i+1,:) = [round(startline),det_typ,pos_channel,round(pos-startline),id];
+    for z = 1:numb_showplots
+        i = size(Data.Detection.EventMatrix,1);
+        if i == 0
+            id = 1;
+        else
+            id = Data.Detection.EventMatrix(end,5)+1;
+        end
         Data.Detection.Update = [];
-        Data.Detection.Update = [round(startline),det_typ,pos_channel,round(pos-startline),id];
-        startline = 0;
-        pos = pos - X;
-    else
-        Data.Detection.EventMatrix(i+1,:) = [round(startline),det_typ,pos_channel,round(pos-startline),id];
-        Data.Detection.Update = [];
-        Data.Detection.Update = [round(startline),det_typ,pos_channel,round(pos-startline),id];
-        startline = startline - X;
-        pos = pos - X;
+        if sum(pos_channel1) == 0 & sum(pos_channel1) >= 0
+            Data.Detection.Update = [round(startline),det_typ,0,round(pos-startline),id];
+            Data.Detection.EventMatrix(i+1,:) = [round(startline),det_typ,0,round(pos-startline),id];
+            pos_channel1 = -1;
+        elseif sum(pos_channel1) >= 1
+            Data.Detection.Update = [round(startline),det_typ,pos_channel1(z),round(pos-startline),id];
+            Data.Detection.EventMatrix(i+1,:) = [round(startline),det_typ,pos_channel1(z),round(pos-startline),id];
+        end
+        if startline < X
+            startline1 = 0;
+            pos1 = pos - X;
+        else
+            startline1 = startline - X;
+            pos1 = pos - X;
+        end
     end
-    Data.actPatch = i;
-    patch1 = detpatch('position',[round(startline) -10000 round(pos-startline) 20000], ...
-                        'facecolor',color, ...
-                        'tag', ['detpatch_',int2str(id)], ...
-                        'id', id, ...
-                        'data', Data);
-    Data.Detection.Patch(:,1) = patch1;
-    Data.line = [];
-    try delete(Data.firstline); end
-    Data.firstline = [];
-    Data.selChannel = [];
+    for z = 1:length(act_showplots)
+        Data.actPatch = i;
+        Data.Patch.actchannelpos = act_showplots(z);
+        patch1 = detpatch('position',[round(startline1) -10000 round(pos1-startline1) 20000], ...
+                            'facecolor',color, ...
+                            'tag', ['detpatch_',int2str(id)], ...
+                            'id', id, ...
+                            'data', Data);
+        Data.Detection.Patch(:,1) = patch1;
+    end
+    try delete(Data.Patch.firstline); end
+    Data.Patch = [];
 end
 
 set(findobj('Tag','sviewer'),'UserData',Data);          
@@ -1664,7 +2130,7 @@ web(['file:///' which('viewer\Help\index.htm')]);
 % about
 function About_Callback(hObject, eventdata, handles)
 helpdlg(sprintf([ 'SViewer \n', ...
-      'Version 1.0  November 2004\n\n' ...
+      'Version 1.5  November 2004\n\n' ...
       'Copyright by (C) Franz Einspieler <znarfi5@hotmail.com> and\n', ...
       '                          Alois Schloegl   <a.schloegl@ieee.org>\n\n' ...
       '        University of Technology Graz, Austria\n\n' ...
@@ -1682,8 +2148,8 @@ switch get(gcf, 'CurrentKey')
         OpenFile_Callback;
     case 'f3'
         DisplayMenu_Callback;
-    case 'f4'
-        ChannelsMenu_Callback;
+% % %     case 'f4'
+% % %         ChannelsMenu_Callback;
     case 'f5'
         Startdetection_Callback;
     case 'f6'
