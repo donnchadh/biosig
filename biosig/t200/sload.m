@@ -26,8 +26,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.52 $
-%	$Id: sload.m,v 1.52 2005-01-19 21:20:46 schloegl Exp $
+%	$Revision: 1.53 $
+%	$Id: sload.m,v 1.53 2005-01-22 22:57:17 schloegl Exp $
 %	Copyright (C) 1997-2005 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -84,7 +84,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 		if k==1,
 			H = h;
 			signal = s;  
-			LEN = size(s,1);
+			H.SegLen = [0,size(s,1)];
 		else
 			H.FILE(k) = h.FILE;
 			if ~isnan(h.SampleRate) & (H.SampleRate ~= h.SampleRate),
@@ -93,6 +93,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 
                         if size(s,2)==size(signal,2), %(H.NS == h.NS) 
 				signal = [signal; repmat(NaN,100,size(s,2)); s];
+				H.SegLen = [H.SegLen,size(signal,1)];
 			else
 				fprintf(2,'ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
 				return;
@@ -182,16 +183,11 @@ end;
 H = sopen(H,'r',CHAN);
 if 0,
         
-elseif H.FILE.OPEN > 0,
+elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat'})); 
         [signal,H] = sread(H);
         H = sclose(H);
 
 
-elseif any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat'})); 
-        [signal,H] = sread(H);
-        H = sclose(H);
-
-        
 elseif strcmp(H.TYPE,'EVENTCODES')
         signal = H.EVENT;
         
@@ -769,6 +765,5 @@ if ~isnan(Fs) & (H.SampleRate~=Fs);
         else 
                 fprintf(2,'Warning SLOAD: resampling %f Hz to %f Hz not implemented.\n',H.SampleRate,Fs);
         end;                
-    end;
 end;
 
