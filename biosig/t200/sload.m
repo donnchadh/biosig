@@ -22,8 +22,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 % Reference(s):
 
 
-%	$Revision: 1.32 $
-%	$Id: sload.m,v 1.32 2004-09-13 17:28:26 schloegl Exp $
+%	$Revision: 1.33 $
+%	$Id: sload.m,v 1.33 2004-09-22 11:23:53 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -148,6 +148,7 @@ FileExt = FileExt(2:length(FileExt));
 H.FileName = FILENAME;
 H = sopen(H,'rb',CHAN);
 
+
 if H.FILE.OPEN > 0,
         [signal,H] = sread(H);
         H = sclose(H);
@@ -166,11 +167,11 @@ elseif strcmp(H.TYPE,'AKO')
 elseif strcmp(H.TYPE,'DAQ')
 	fprintf(1,'Loading a matlab DAQ data file - this can take a while.\n');
 	tic;
- 	[signal, tmp, H.DAQ.T0, H.DAQ.events, DAQ.info] = daqread(H.FileName);
-	fprintf(1,'Loading DAQ file finished after %.0f s.\n',toc);
-	H.NS   = size(signal,2);
+        [signal, tmp, H.DAQ.T0, H.DAQ.events, DAQ.info] = daqread(H.FileName);
+        fprintf(1,'Loading DAQ file finished after %.0f s.\n',toc);
+        H.NS   = size(signal,2);
         
-	H.SampleRate = DAQ.info.ObjInfo.SampleRate;
+        H.SampleRate = DAQ.info.ObjInfo.SampleRate;
         sz     = size(signal);
         if length(sz)==2, sz=[1,sz]; end;
         H.NRec = sz(1);
@@ -178,7 +179,7 @@ elseif strcmp(H.TYPE,'DAQ')
         H.NS   = sz(3);
         H.FLAG.TRIGGERED = H.NRec>1;
         H.FLAG.UCAL = 1;
-	
+        
         H.PhysDim = {DAQ.info.ObjInfo.Channel.Units};
         H.DAQ   = DAQ.info.ObjInfo.Channel;
         
@@ -190,12 +191,50 @@ elseif strcmp(H.TYPE,'DAQ')
                 CHAN = 1:H.NS; 
         end;
         if ~H.FLAG.UCAL,
-	        Calib = H.Calib;	% Octave can not index sparse matrices within a struct
-        	signal = [ones(size(signal,1),1),signal]*Calib(:,CHAN);
+                Calib = H.Calib;	% Octave can not index sparse matrices within a struct
+                signal = [ones(size(signal,1),1),signal]*Calib(:,CHAN);
         end;
-     
+        
+        
+elseif strcmp(H.TYPE,'DIR'),
+        f0 = fullfile(H.FileName,'Traindata_0.txt');
+        f1 = fullfile(H.FileName,'Traindata_1.txt');
+        f2 = fullfile(H.FileName,'Testdata.txt');
+        
+        if exist(f0,'file') & exist(f1,'file') & exist(f2,'file')
+                % BCI competition 2003, dataset 1a+b (Tuebingen)
+                data = load('-ascii', f0);
+                test = load('-ascii', f1);
+                data = [data; test];
+                test = load('-ascii',f2);
+                H.Classlabel = [data(:,1); repmat(NaN,size(test,1),1)];
+
+                H.NRec = length(H.Classlabel);
+                H.FLAG.TRIGGERED = H.NRec>1; 
+                H.PhysDim = 'µV';
+                H.SampleRate = 256; 
+                
+                if strcmp(H.FILE.Name,'a34lkt') 
+                        H.INFO='BCI competition 2003, dataset 1a (Tuebingen)';
+                        H.Dur = 3.5; 
+                        H.Label = {'A1-Cz';'A2-Cz';'C3f';'C3p';'C4f';'C4p'};
+                        H.TriggerOffset = -2; %[s]
+                end;
+                
+                if strcmp(H.FILE.Name,'egl2ln')
+                        H.INFO='BCI competition 2003, dataset 1b (Tuebingen)';
+                        H.Dur = 4.5; 
+                        H.Label = {'A1-Cz';'A2-Cz';'C3f';'C3p';'vEOG';'C4f';'C4p'};
+                        H.TriggerOffset = -2; %[s]
+                end;
+                H.SPR = H.SampleRate*H.Dur;
+                H.NS  = length(H.Label);
+                signal= reshape(permute(reshape([data(:,2:H.SPR*H.NS+1);test], [H.NRec, H.SPR, H.NS]),[2,1,3]),[H.SPR*H.NRec,H.NS]);
+        end;
+        
+        
 elseif strncmp(H.TYPE,'MAT',3),
-        tmp = load(FILENAME);
+        tmp = load('-MAT',FILENAME);
         if isfield(tmp,'y'),		% Guger, Mueller, Scherer
                 H.NS = size(tmp.y,2);
                 if ~isfield(tmp,'SampleRate')
@@ -211,24 +250,112 @@ elseif strncmp(H.TYPE,'MAT',3),
         	        signal = tmp.y;
                 end;
                 
+                
+        elseif isfield(tmp,'run') & isfield(tmp,'trial') & isfield(tmp,'sample') & isfield(tmp,'signal') & isfield(tmp,'TargetCode');
+                H.INFO='BCI competition 2003, dataset 2a (Albany)'; 
+                H.SampleRate = 160; 
+                if CHAN>0,
+                        signal = tmp.signal(:,CHAN); 
+                else
+                        signal = tmp.signal; 
+                end
+                H.EVENT.POS = [0;find(diff(tmp.trial)>0)-1];
+                H.EVENT.TYP = ones(length(H.EVENT.POS),1)*hex2dec('0300'); % trial onset; 
+                
+                if 0,
+                        EVENT.POS = [find(diff(tmp.trial)>0);length(tmp.trial)];
+                        EVENT.TYP = ones(length(EVENT.POS),1)*hex2dec('8300'); % trial offset; 
+                        H.EVENT.POS = [H.EVENT.POS; EVENT.POS];
+                        H.EVENT.TYP = [H.EVENT.TYP; EVENT.TYP];
+                        [H.EVENT.POS,ix]=sort(H.EVENT.POS);
+                        H.EVENT.TYP = H.EVENT.TYP(ix);
+                end;
+                
+                H.EVENT.N = length(H.EVENT.POS);
+                ix = find((tmp.TargetCode(1:end-1)==0) & (tmp.TargetCode(2:end)>0));
+                H.Classlabel = tmp.TargetCode(ix+1); 
+                
+                
+        elseif isfield(tmp,'runnr') & isfield(tmp,'trialnr') & isfield(tmp,'samplenr') & isfield(tmp,'signal') & isfield(tmp,'StimulusCode');
+                H.INFO='BCI competition 2003, dataset 2b (Albany)'; 
+                H.SampleRate = 240; 
+                if CHAN>0,
+                        signal = tmp.signal(:,CHAN); 
+                else
+                        signal = tmp.signal; 
+                end
+                H.EVENT.POS = [0;find(diff(tmp.trialnr)>0)-1];
+                H.EVENT.TYP = ones(length(H.EVENT.POS),1)*hex2dec('0300'); % trial onset; 
+
+                if 0,
+                        EVENT.POS = [find(diff(tmp.trial)>0);length(tmp.trial)];
+                        EVENT.TYP = ones(length(EVENT.POS),1)*hex2dec('8300'); % trial offset; 
+                        H.EVENT.POS = [H.EVENT.POS; EVENT.POS];
+                        H.EVENT.TYP = [H.EVENT.TYP; EVENT.TYP];
+                        [H.EVENT.POS,ix]=sort(H.EVENT.POS);
+                        H.EVENT.TYP = H.EVENT.TYP(ix);
+                end;
+                
+                H.EVENT.N = length(H.EVENT.POS);
+                ix = find((tmp.StimulusCode(1:end-1)==0) & (tmp.StimulusCode(2:end)>0));
+                H.Classlabel = tmp.StimulusCode(ix+1); 
+                
+                
+        elseif isfield(tmp,'x_train') & isfield(tmp,'y_train') & isfield(tmp,'x_test');	
+                H.INFO='BCI competition 2003, dataset 3 (Graz)'; 
+                H.Label = {'C3','Cz','C4'};
+
+                H.SampleRate = 128; 
+                H.Classlabel = [tmp.y_train-1;repmat(nan,size(tmp.x_test,3),1)];
+                signal = cat(3,tmp.x_test,tmp.x_train);
+                
+                H.NRec = length(H.Classlabel);
+                H.FLAG.TRIGGERED = 1; 
+                H.SampleRate = 128;
+                H.Dur = 9; 
+                H.NS  = 3;
+                H.SPR = H.SampleRate*H.Dur;
+                
+                sz = [H.NS,H.SPR,H.NRec];
+                signal=reshape(permute(signal,[2,1,3]),sz(1),sz(2)*sz(3))';
+                
+                
         elseif isfield(tmp,'clab') & isfield(tmp,'x_train') & isfield(tmp,'y_train') & isfield(tmp,'x_test');	
-                % BCI competition 2003, dataset 4 (Berlin) 
+                H.INFO='BCI competition 2003, dataset 4 (Berlin)'; 
                 %load('berlin/sp1s_aa_1000Hz.mat');
-                HDR.Classlabel=[repmat(nan,size(tmp.x_test,3),1);tmp.y_train';repmat(nan,size(tmp.x_test,3),1)];
-                HDR.NRec = length(HDR.Classlabel);
+                H.Classlabel=[repmat(nan,size(tmp.x_test,3),1);tmp.y_train';repmat(nan,size(tmp.x_test,3),1)];
+                H.NRec = length(H.Classlabel);
                 
-                HDR.SampleRate=1000;
-                HDR.Dur = .5; 
-                HDR.NS = size(tmp.x_test,2);
-                HDR.SPR = HDR.SampleRate*HDR.Dur;
-                HDR.FLAG.TRIGGERED = 1; 
-                sz = [HDR.NS,HDR.SPR,HDR.NRec];
+                H.SampleRate = 1000;
+                H.Dur = 0.5; 
+                H.NS  = size(tmp.x_test,2);
+                H.SPR = H.SampleRate*H.Dur;
+                H.FLAG.TRIGGERED = 1; 
+                sz = [H.NS,H.SPR,H.NRec];
                 
-                signal=reshape(permute(cat(3,tmp.x_test,tmp.x_train,tmp.x_test),[2,1,3]),sz(1),sz(2)*sz(3))';
+                signal = reshape(permute(cat(3,tmp.x_test,tmp.x_train,tmp.x_test),[2,1,3]),sz(1),sz(2)*sz(3))';
+                
+                
+        elseif isfield(tmp,'RAW_SIGNALS')    % TFM Matlab export 
+                H.Label = fieldnames(tmp.RAW_SIGNALS);
+                H.SampleRate = 1000; 
+                H.TFM.SampleRate = 1000./[10,20,5,1,2];
+                signal = [];
+                for k1 = 4;1:length(H.Label);
+                        s = getfield(tmp.RAW_SIGNALS,H.Label{k1});
+                        ix = [];
+                        for k2 = 1:length(s);
+                                ix = [ix;length(s{k2})];   
+                        end;
+                        H.EVENT.POS(:,k1) = cumsum(ix);
+                        signal = cat(1,s{k1})';
+                end;
+
                 
         elseif isfield(tmp,'daten');	% Woertz, GLBMT-Uebungen 2003
                 H = tmp.daten;
                 signal = H.raw*H.Cal;
+                
                 
         elseif isfield(tmp,'eeg');	% Scherer
                 fprintf(H.FILE.stderr,'Warning SLOAD: Sensitivity not known in %s,\n',FILENAME);
@@ -248,6 +375,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 	H.Classlabel = tmp.classlabel;
                 end;        
 
+                
         elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.5x data format
                 if isa(tmp.P_C_S,'data'), %isfield(tmp.P_C_S,'version'); % without BS.analyze	
                         if any(tmp.P_C_S.Version==[1.02, 1.5, 1.52]),
@@ -441,14 +569,16 @@ elseif strncmp(H.TYPE,'MAT',3),
                         signal=signal(:,CHAN);
                 end;        
                 
+                
         elseif isfield(tmp,'header')    % Scherer
                 signal =[];
                 H = tmp.header;
+
                 
         elseif isfield(tmp,'Recorder1')    % Nicolet NRF format converted into Matlab 
                 for k = 1:length(s.Recorder1.Channels.ChannelInfos);
-                        HDR.Label{k} = s.Recorder1.Channels.ChannelInfos(k).ChannelInfo.Name;
-                        HDR.PhysDim{k} = s.Recorder1.Channels.ChannelInfos(k).ChannelInfo.YUnits;
+                        H.Label{k} = s.Recorder1.Channels.ChannelInfos(k).ChannelInfo.Name;
+                        H.PhysDim{k} = s.Recorder1.Channels.ChannelInfos(k).ChannelInfo.YUnits;
                 end;
                 signal = [];
                 T = [];
@@ -459,8 +589,8 @@ elseif strncmp(H.TYPE,'MAT',3),
                         T = [T;repmat(nan,100,1);tmp.dX0+(1:sz(2))'*tmp.dXstep ]
                         fs = 1./tmp.dXstep;
                         if k==1,
-                                HDR.SampleRate = fs;
-                        elseif HDR.SampleRate ~= fs; 
+                                H.SampleRate = fs;
+                        elseif H.SampleRate ~= fs; 
                                 fprintf(2,'Error SLOAD (NRF): different Sampling rates not supported, yet.\n');
                         end;
                 end;
@@ -475,19 +605,31 @@ elseif strncmp(H.TYPE,'MAT',3),
 elseif strcmp(H.TYPE,'BIFF'),
 	try, 
                 [H.TFM.S,H.TFM.E] = xlsread(H.FileName,'Beat-To-Beat');
+                if size(H.TFM.S,1)+1==size(H.TFM.E,1),
+                        H.TFM.S = [repmat(NaN,1,size(H.TFM.S,2));H.TFM.S];
+                end;
+
                 H.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
-                if ~isempty(findstr(STR{3,1},'---'))
+                if ~isempty(findstr(H.TFM.E{3,1},'---'))
                         H.TFM.S(3,:) = [];    
                         H.TFM.E(3,:) = [];    
                 end;
                 
                 H.Label   = H.TFM.E(4,:)';
                 H.PhysDim = H.TFM.E(5,:)';
-                
+           
                 H.TFM.S = H.TFM.S(6:end,:);
                 H.TFM.E = H.TFM.E(6:end,:);
-		
-		if ~CHAN,
+                
+                ix = find(isnan(H.TFM.S(:,2)) & ~isnan(H.TFM.S(:,1)));
+                
+                H.EVENT.Desc = H.TFM.E(ix,2);
+                H.EVENT.POS  = ix;
+                
+                S(:,3) = S(:,3)/1000;   % convert RRI from [ms] into [s]
+                H.PhysDim{3} = '[s]';
+
+                if ~CHAN,
 			signal  = H.TFM.S;
 		else
 			signal  = H.TFM.S(:,CHAN);
