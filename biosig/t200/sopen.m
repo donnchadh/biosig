@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.12 $
-%	$Id: sopen.m,v 1.12 2003-11-02 21:26:16 schloegl Exp $
+%	$Revision: 1.13 $
+%	$Id: sopen.m,v 1.13 2003-11-27 11:44:57 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -272,6 +272,7 @@ if any(PERMISSION=='r'),
                                 end;
                         else
                                 %TYPE='unknown';
+                                HDR.TYPE='unknown';
                         end;
                 end;
                 fclose(fid);
