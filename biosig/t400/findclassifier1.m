@@ -67,7 +67,7 @@ if nargin<6,
 end;
 if nargin>4,
         if isempty(t0),
-                t0=1:size(T,2);
+                t0=logical(ones(size(T,1),1));
         end;
 end;
 tmp=cl;tmp(isnan(tmp))=0;
@@ -89,26 +89,45 @@ if ~all(D(:,1)==1)
 %	D1=[ones(size(D,1)-1,1),diff(D(:,2:end))];
 end;
 
+% add sufficient NaNs at the beginning and the end 
+tmp = min(TRIG)+min(min(T))-1;
+if tmp<0,
+        TRIG = TRIG - tmp;
+        D = [repmat(nan,-tmp,size(D,2));D];
+end;        
+tmp = max(TRIG)+max(max(T))-size(D,1);
+if tmp>0,
+        D = [D;repmat(nan,tmp,size(D,2))];
+end;        
+
+
 for k = 1:size(T,1),
         for l = 1:length(CL), 
                 t = perm(TRIG(cl==CL(l)),T(k,:));
-                t = t(t<=size(D,1));
+                %t = t(t<=size(D,1));
                 [C{k,l},tmp] = covm(D(t(:),:),'M');
         end;
         %[Q(k),d{k}] = qcmahal({C0r,C{k,:}});
         [Q(k),d{k}] = qcmahal({C{k,:}});
         lnQ(k) = mean(log(d{k}(~eye(length(d{k})))));
 end;
-tmp=repmat(nan,size(Q));
 if nargin>4,
-        tmp(t0)=Q(t0);
+        tmp = Q;
+        tmp(~tmp)=0;
+        [maxQ,CC.TI] = max(tmp); %d{K},
+else
+        [maxQ,CC.TI] = max(Q); %d{K},
 end;
-[maxQ,CC.TI] = max(tmp); %d{K},
 %CC.TI = K;
 CC.MD = {C{CC.TI,:}};
 CC.IR = mdbc({C{CC.TI,:}});
 CC.D = d{CC.TI};
 CC.Q = Q(CC.TI);
+
+m1=decovm(CC.MD{1});
+m2=decovm(CC.MD{2});
+tmp=sqrt(mdbc(CC.MD,[1,m1;1,m2]));
+CC.scale=[1,1]*1/max(abs(tmp(:)));  % element 1 
 
 [maxQ,CC.lnTI] = max(lnQ); %d{K},
 CC.DistMXln = d{CC.lnTI};
@@ -162,28 +181,29 @@ JKLD=repmat(nan,nc,length(TRIG));
 for l=find(~isnan(cl(:)'));1:length(cl);
         c = find(cl(l)==CL);
         t = TRIG(l)+T(CC.TI,:);
-        t = t(t<=size(D,1));
+        %t = t(t<=size(D,1));
         [tmp,tmpn] = covm(D(t(:),:),'M');
 
 	cc 	= CC.MD;
 	cc{c}   = CC.MD{c}-tmp;
         
-        t = TRIG(l)+(1:nc);
-        t = t(t<=size(D,1));
+        %t = TRIG(l)+(1:nc);
+        %t = t(t<=size(D,1));
+        t = TRIG(l)+(min(min(T)):max(max(T)));
         
         [d,ix] = llbc(cc,D(t,:));
 	if length(CL)==2,
-                JKD3(t-TRIG(l),l)=d(:,1);
-                JKD4(t-TRIG(l),l)=d(:,2);
+                JKD3(:,l)=d(:,1);
+                JKD4(:,l)=d(:,2);
         end;
         
         d = mdbc(cc,D(t,:));
         
         if length(CL)==2,
-                JKD1(t-TRIG(l),l) = d(:,1);
-                JKD2(t-TRIG(l),l) = d(:,2);
+                JKD1(:,l) = d(:,1);
+                JKD2(:,l) = d(:,2);
                 
-                JKLD(t-TRIG(l),l) = ldbc(cc, D(t,:));
+                JKLD(:,l) = ldbc(cc, D(t,:));
         end;	
 end;
 
