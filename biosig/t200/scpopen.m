@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.2 $
-%	$Id: scpopen.m,v 1.2 2004-01-28 08:26:37 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: scpopen.m,v 1.3 2004-02-02 19:31:00 schloegl Exp $
 %	(C) 2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -249,7 +249,10 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                         Ntmp = length(tmp);
                                         tmp = [tmp; zeros(4,1)];
                                         while c<=32, %1:HDR.SPR(k),
-                                                ixx = find(bitand(repmat(accu,19,1),mask) == PREFIX);
+                                                ixx = 1;
+                                                while (bitand(accu,mask(ixx)) ~= PREFIX(ixx)), 
+                                                        ixx = ixx + 1;
+                                                end;
                                                 if ixx < 18,
                                                         c = c + prefix(ixx);
                                                         %accu  = bitshift(accu, prefix(ixx),32);
@@ -269,8 +272,8 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                         accu = mod(accu*256, 2^32);
                                                         x(l2) = acc1-(acc1>=2^7)*2^6;
                                                         acc2 = 0;
-                                                        for kk=1:8,
-                                                                acc2=acc2*2+mod(acc1,2);
+                                                        for kk = 1:8,
+                                                                acc2 = acc2*2 + mod(acc1,2);
                                                                 acc1 = floor(acc1/2);
                                                         end;
                                                         %x(l2) = acc2;
@@ -350,7 +353,6 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 HDR.SCP.data = S2;
                         end;
                         
-                        
                 elseif section.ID==7, 
                         HDR.SCP7.byte1 = fread(fid,1,'uint8');    
                         HDR.SCP7.Nspikes = fread(fid,1,'uint8');    
@@ -425,7 +427,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
         end;
         
         HDR.FILE.FID = fid;
-        HDR.FILE.OPEN = 1; 
+        HDR.FILE.OPEN = 0; 
         HDR.FILE.POS = 0; 
         HDR.AS.bpb = 2 * HDR.NS;
         
