@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.11 $
-%	$Id: sread.m,v 1.11 2004-03-23 19:53:17 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: sread.m,v 1.12 2004-03-24 19:01:41 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -102,7 +102,7 @@ elseif strcmp(HDR.TYPE,'SMA'),
 	        HDR.Filter.T0  = S(HDR.SMA.EVENT_CHANNEL,size(S,2))';
         end;
         if count,
-	        S = S(HDR.SIE.ChanSelect,:)';
+	        S = S(HDR.SIE.InChanSelect,:)'*HDR.Calib(HDR.SIE.InChanSelect+1,:);
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
        
@@ -289,7 +289,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),
 	
         S = S(:,HDR.InChanSelect);	
         if ~HDR.FLAG.UCAL,
-                S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.InChanSelect],:);
+                S = [ones(size(S,1),1),S]*HDR.Calib([1;1+HDR.InChanSelect],:);
         end;
 
 
@@ -323,7 +323,7 @@ elseif strcmp(HDR.TYPE,'DEMG'),
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
         if ~HDR.FLAG.UCAL,
-		S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.InChanSelect],:);
+		S = [ones(size(S,1),1),S]*HDR.Calib([1;1+HDR.SIE.InChanSelect],:);
 		%S = S*HDR.Cal + HDR.Off;
 	end;
 
@@ -339,7 +339,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
         if ~HDR.FLAG.UCAL,
-		S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.InChanSelect],:);
+		S = [ones(size(S,1),1),S]*HDR.Calib([1;1+HDR.SIE.InChanSelect],:);
 	end;
 
         
@@ -364,7 +364,8 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
                                 S = mu2lin(S);
                         end;
                 end;
-                S = (S+.5)*HDR.Cal - HDR.Off;
+                %S = (S+.5)*HDR.Cal - HDR.Off;
+		S = [ones(size(S,1),1),S]*HDR.Calib([1;1+HDR.SIE.InChanSelect],:);
         end;
 
         
@@ -425,7 +426,7 @@ elseif strcmp(HDR.TYPE,'AVG'),
 		count = count + c*4;
         end
         if ~HDR.FLAG.UCAL,
-		S = S*diag(HDR.Cal);
+                S = S(:,HDR.SIE.InChanSelect)*HDR.Calib(1+HDR.SIE.InChanSelect,:);
         end;
 	HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.bpb;
 
@@ -478,7 +479,7 @@ elseif strcmp(HDR.TYPE,'EEG'),
         end;
         HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.spb;        
         if ~HDR.FLAG.UCAL,
-                S = [ones(size(S,1),1),S]*HDR.Calib([1,1+HDR.SIE.InChanSelect],:);
+                S = [ones(size(S,1),1),S]*HDR.Calib([1;1+HDR.SIE.InChanSelect],:);
         end;
         
 
@@ -529,7 +530,6 @@ elseif strcmp(HDR.TYPE,'SIGIF'),
 		S = [S; dat'];
 	end;
 	S = S(:,HDR.SIE.InChanSelect)*HDR.Calib(1+HDR.SIE.InChanSelect,:);
-        
                 
 
 elseif strcmp(HDR.TYPE,'BrainVision'),

@@ -13,8 +13,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.24 $
-%	$Id: cntopen.m,v 1.24 2004-03-03 15:18:17 schloegl Exp $
+%	$Revision: 1.25 $
+%	$Id: cntopen.m,v 1.25 2004-03-24 19:01:41 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -413,7 +413,7 @@ elseif CNT.T0(1) > 80, 	CNT.T0(1) = CNT.T0(1) + 1900;
 else			CNT.T0(1) = CNT.T0(1) + 2000;
 end;
 
-CNT.NS=h.nchannels;	%	
+CNT.NS = h.nchannels;	%	
 CNT.SampleRate=h.rate;	% D-to-A rate	
 CNT.Scale=h.scale;	% scale factor for calibration
 CNT.Scale2=h.ampsensitivity;
@@ -458,8 +458,6 @@ CNT.CNT.EventTablePos  = h.eventtablepos;
 CNT.Label = setstr(e.lab');
 
 if CHAN==0, CHAN=1:CNT.NS; end;
-CNT.SIE.ChanSelect = CHAN;
-CNT.SIE.InChanSelect = CHAN;
 
 CNT.FILE.POS = 0;
 if strcmp(upper(CNT.FILE.Ext),'AVG'),
@@ -471,6 +469,7 @@ if strcmp(upper(CNT.FILE.Ext),'AVG'),
 	CNT.NRec = 1;
         CNT.SPR  = h.pnts;
         CNT.Cal  = e.calib./e.n;   % scaling
+        CNT.Calib = sparse(2:CNT.NS+1,1:CNT.NS,CNT.Cal);
 	CNT.AS.bpb = h.pnts*h.nchannels*4+5;
 	CNT.AS.spb = h.pnts*h.nchannels;
 	CNT.Dur = CNT.SPR/CNT.SampleRate;
@@ -548,7 +547,6 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
         %%%%% read event table 
         CNT.EVENT.TYP = [];
         CNT.EVENT.POS = [];
-        CNT.EVENT.CHN = [];
         CNT.EVENT.N = h.numevents;
 
         status = fseek(CNT.FILE.FID,h.eventtablepos,'bof');
@@ -591,7 +589,6 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
                 if k,
                         CNT.EVENT.TYP = [CNT.EVENT.Teeg(:).Stimtype]';
                         CNT.EVENT.POS = ([CNT.EVENT.Teeg(:).Offset]' - CNT.HeadLen) ./ CNT.AS.bpb;
-                        CNT.EVENT.CHN = zeros(size(CNT.EVENT.TYP));
                         CNT.EVENT.N   = length(CNT.EVENT.TYP);
                 end;
         end;

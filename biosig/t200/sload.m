@@ -17,8 +17,8 @@ function [signal,H] = sload(FILENAME,CHAN)
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.17 $
-%	$Id: sload.m,v 1.17 2004-03-23 19:53:17 schloegl Exp $
+%	$Revision: 1.18 $
+%	$Id: sload.m,v 1.18 2004-03-24 19:01:41 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -129,7 +129,7 @@ H.FileName = FILENAME;
 H = sopen(H,'rb',CHAN);
 
 if strcmp(H.TYPE,'SCPECG'),
-        signal = H.SCP.data*HDR.Calib;
+        signal = H.SCP.data(:,H.SIE.InChanSelect)*H.Calib(H.SIE.InChanSelect+1,:);
         return;
         
         
@@ -190,7 +190,8 @@ elseif strcmp(H.TYPE,'alpha'),
                 if CHAN==0,
                         CHAN = 1:H.NS;
                 end;
-                signal = [ones(size(signal,1),1),signal] * H.Calib;
+                signal = [ones(size(signal,1),1),signal(:,H.SIE.InChanSelect)]*H.Calib([1;H.SIE.InChanSelect+1],:);
+                %signal = [ones(size(signal,1),1),signal] * H.Calib;
                 % signal = signal * diag(H.Cal);
         end;
         

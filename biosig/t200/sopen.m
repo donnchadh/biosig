@@ -1,8 +1,9 @@
 function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
-% Opens signal files for reading and writing. 
-% Many different data formats are supported.
+% SOPEN opens signal files for reading and writing and returns 
+%       the header information. 
+%       Many different data formats are supported.
 %
-% HDR = sopen(Filename,PERMISSION, [, CHAN [, MODE]]);
+% HDR = sopen(Filename, PERMISSION, [, CHAN [, MODE]]);
 % [S,HDR] = sread(HDR, NoR, StartPos);
 % HDR = sclose(HDR);
 %
@@ -10,7 +11,14 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 %	'r'	read header
 %	'w'	write header
 %
-% CHAN defines the selected Channels
+% CHAN defines a list of selected Channels
+%   Alternative CHAN can be also a Re-Referencing Matrix ReRefMx
+%       (i.e. a spatial filter). 
+%   E.g. the following command returns the difference and 
+%       the mean of the first two channels. 
+%   HDR = sopen(Filename, 'r', [[1;-1],[.5,5]]);
+%   [S,HDR] = sread(HDR, NoR, StartPos);
+%   HDR = sclose(HDR);
 %
 % HDR contains the Headerinformation and internal data
 % S 	returns the signal data 
@@ -32,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.38 $
-%	$Id: sopen.m,v 1.38 2004-03-23 19:53:16 schloegl Exp $
+%	$Revision: 1.39 $
+%	$Id: sopen.m,v 1.39 2004-03-24 19:01:41 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -98,7 +106,7 @@ if any(PERMISSION=='r'),
                         ss = setstr(s);
                         if all(s(1:2)==[207,0]); 
                                 HDR.TYPE='BKR';
-                        elseif strncmp(ss,'Version ',8); 
+                        elseif strncmp(ss,'Version 3.0',11); 
                                 HDR.TYPE='CNT';
                         elseif strncmp(ss,'0       ',8); 
                                 HDR.TYPE='EDF';
@@ -352,7 +360,7 @@ if any(PERMISSION=='r'),
                         end;
                 end;
                 fclose(fid);
-                
+
                 if strcmp(HDR.TYPE,'unknown'),
                         % alpha-TRACE Medical software
                         if (strcmpi(HDR.FILE.Name,'rawdata') | strcmpi(HDR.FILE.Name,'rawhead')) & isempty(HDR.FILE.Ext),
@@ -893,7 +901,7 @@ elseif strcmp(HDR.TYPE,'DEMG'),
                         HDR.FILE.FID=-1;
                         return;
                 end;
-                HDR.Calib = sparse([ones(1,HDR.NS)*HDR.Off;diag(HDR.Cal)]);
+                HDR.Calib = sparse([ones(1,HDR.NS),2:HDR.NS+1],[1:HDR.NS,1:HDR.NS],ones(HDR.NS,1)*[HDR.Off,HDR.Cal],HDR.NS+1,HDR.NS);
                 HDR.HeadLen = ftell(HDR.FILE.FID);
                 HDR.FILE.POS = 0;
                 HDR.FILE.OPEN = 1; 
@@ -1123,6 +1131,7 @@ elseif strcmp(HDR.TYPE,'SND'),
                 HDR.Cal = 1; 	
         end;
         HDR.Off = 0;
+        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
         
         %%%%% READ 
         if HDR.FILE.OPEN == 1; 
@@ -1677,6 +1686,10 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') 
                         fseek(HDR.FILE.FID, HDR.HeadLen,'bof');
                 end;
                 
+                % define Calib: implements S = (S+.5)*HDR.Cal - HDR.Off;
+                HDR.Calib = [repmat(.5,1,HDR.NS);eye(HDR.NS)] * diag(repmat(HDR.Cal,1,HDR.NS));
+                HDR.Calib(1,:) = HDR.Calib(1,:) - HDR.Off;
+
                 HDR.FILE.POS = 0;
                 HDR.FILE.OPEN = 1;
                 HDR.NRec = 1;
@@ -1809,7 +1822,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
         else
                 HDR.Cal = 1;
         end;
-        HDR.Calib = sparse(2:HDR.NS,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
+        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
         HDR.PhysDim = 'uV';
         HDR.Label = char(zeros(HDR.NS,5));
         for k=1:HDR.NS,
@@ -2110,7 +2123,8 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         HDR.AS.endpos = (HDR.AS.endpos-HDR.HeadLen)/HDR.AS.bpb;
         HDR.Dur = 1/HDR.SampleRate;
         HDR.NRec = 1;
-        
+        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+
         if ~isfield(HDR,'SMA')
                 HDR.SMA.EVENT_CHANNEL= 1;
                 HDR.SMA.EVENT_THRESH = 2.3;
@@ -3235,7 +3249,7 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
                                 end;        
                         end;
                 end;
-                HDR.Calib = sparse(2:HDR.NS,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
                 HDR.Segment_separator = fgetl(HDR.FILE.FID);  		% 19
                 %HDR.Segment_separator = hex2dec(fgetl(HDR.FILE.FID));  
                 
@@ -3464,10 +3478,13 @@ elseif strcmp(HDR.TYPE,'XML-UTF16'),
                 try,
                         %HDR.XML = xml_parser(HDR.XML);
                         HDR.XML = xmltree(char(HDR.XML));
+                        HDR.XML = convert(HDR.XML);
                         HDR.TYPE= 'XML';
                 catch
                 end;
         end;
+        fprintf(HDR.FILE.stderr,'Warning SOPEN (XML): Implementation of XML-Files not completed.\n',HDR.NS);
+        return;
         
         
 elseif strcmp(HDR.TYPE,'XML-UTF8'),
@@ -3478,10 +3495,13 @@ elseif strcmp(HDR.TYPE,'XML-UTF8'),
                 try,
                         %HDR.XML = xml_parser(HDR.XML);
                         HDR.XML = xmltree(HDR.XML);
+                        HDR.XML = convert(HDR.XML);
                         HDR.TYPE= 'XML';
                 catch
                 end;
         end;
+        fprintf(HDR.FILE.stderr,'Warning SOPEN (XML): Implementation of XML-Files not completed.\n',HDR.NS);
+        return;
         
 elseif strcmp(HDR.TYPE,'unknown'),
         fprintf(HDR.FILE.stderr,'ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
@@ -3494,21 +3514,35 @@ else
         return;
 end;
 
-if exist('ReRefMx')==1,
-        %HDR.SIE.ChanSelect = 1:size(ReRefMx,2);         
-        [i,j,v] = find(sparse(ReRefMx));
-        ReRefMx = sparse(i,j,v,HDR.NS,size(ReRefMx,2));
-        HDR.Calib = HDR.Calib*ReRefMx;
-        HDR.SIE.InChanSelect = find(any(HDR.Calib(2:end,:),2));
-else
-        HDR.SIE.InChanSelect = CHAN;
-        HDR.Calib = HDR.Calib(:,CHAN);
-end;
 
-if any(HDR.SIE.InChanSelect > HDR.NS)
-        fprintf(HDR.FILE.stderr,'ERROR: selected channels exceed Number of Channels %i\n',HDR.NS);
-        fclose(HDR.FILE.FID); 
-        HDR.FILE.FID = -1;	
-        return;
-end;
+%if isfield(HDR,'Calib');
+if ~isfield(HDR,'Calib');
+        if ~isfield(HDR,'Cal');
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1,HDR.NS+1,HDR.NS);
+        else
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
+        end;        
+end;        
 
+if any(PERMISSION=='r');
+        if exist('ReRefMx')==1,
+                %HDR.SIE.ChanSelect = 1:size(ReRefMx,2);         
+                [i,j,v] = find(sparse(ReRefMx));
+                ReRefMx = sparse(i,j,v,HDR.NS,size(ReRefMx,2));
+                HDR.Calib = HDR.Calib*ReRefMx;
+                HDR.SIE.InChanSelect = find(any(HDR.Calib(2:end,:),2));
+        else
+                if CHAN==0,
+                        CHAN=1:HDR.NS;
+                end;
+                HDR.SIE.InChanSelect = CHAN(:);
+                HDR.Calib = HDR.Calib(:,CHAN);
+        end;
+        
+        if any(HDR.SIE.InChanSelect > HDR.NS)
+                fprintf(HDR.FILE.stderr,'ERROR: selected channels exceed Number of Channels %i\n',HDR.NS);
+                fclose(HDR.FILE.FID); 
+                HDR.FILE.FID = -1;	
+                return;
+        end;
+end;

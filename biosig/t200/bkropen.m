@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.18 $
-%	$Id: bkropen.m,v 1.18 2004-03-17 19:46:22 schloegl Exp $
+%	$Revision: 1.19 $
+%	$Id: bkropen.m,v 1.19 2004-03-24 19:01:41 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -161,6 +161,7 @@ if any(PERMISSION=='r'),
 	BKR.PhysMax=cvlt;
 	BKR.Cal=BKR.PhysMax/BKR.DigMax; %*ones(BKR.NS,1);
 	BKR.Off=zeros(BKR.NS,1);
+        BKR.Calib = sparse(2:BKR.NS+1,1:BKR.NS,BKR.Cal,BKR.NS+1,BKR.NS);
         BKR.PhysDim = 'µV';
 	BKR.Label=code;
 	tmp=sprintf('LowPass %4.1fHz, HighPass %4.1fHz, Notch ?',lcf,ucf);
@@ -198,9 +199,9 @@ if any(PERMISSION=='r'),
         if lap, BKR.FLAG.REFERENCE = 'LAP'; end;
         if wgt, BKR.FLAG.REFERENCE = 'WGT'; end;
                 
-	if CHAN<1, CHAN=1:BKR.NS; end;
-	BKR.SIE.ChanSelect = CHAN;
-	BKR.SIE.InChanSelect = CHAN;
+        if (CHAN==0), 
+                CHAN = 1:BKR.NS; 
+        end;
 
         % THRESHOLD for Overflow detection
         BKR.SIE.THRESHOLD = -(2^15);
@@ -337,6 +338,13 @@ elseif any(PERMISSION=='w'),
 	count=fwrite(BKR.FILE.FID,zeros(16,1),'char');         	% offset 30
 	count=fwrite(BKR.FILE.FID,BKR.FLAG.TRIGGERED,'int16');	% offset 32
 	count=fwrite(BKR.FILE.FID,zeros(24,1),'char');         	% offset 46
+        
+        if ~isfield(BKR,'FLAG')
+                BKR.FLAG.REFERENCE='';
+        end;
+        if ~isfield(BKR.FLAG,'REFERENCE')
+                BKR.FLAG.REFERENCE='';
+        end;
         
         tmp  = [strcmp(BKR.FLAG.REFERENCE,'COM')|strcmp(BKR.FLAG.REFERENCE,'CAR'), strcmp(BKR.FLAG.REFERENCE,'LOC')|strcmp(BKR.FLAG.REFERENCE,'LAR'), strcmp(BKR.FLAG.REFERENCE,'LAP'), strcmp(BKR.FLAG.REFERENCE,'WGT')];
         

@@ -17,8 +17,8 @@ function [S,EDF] = sdfread(EDF,NoS,StartPos)
 %
 % See also: fread, SDFREAD, SDFWRITE, SDFCLOSE, SDFSEEK, SDFREWIND, SDFTELL, SDFEOF
 
-%	$Revision: 1.3 $
-%	$Id: sdfread.m,v 1.3 2004-03-11 12:28:02 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: sdfread.m,v 1.4 2004-03-24 19:01:41 schloegl Exp $
 %	Copyright (c) 1997-2002 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -446,7 +446,7 @@ if ~EDF.FLAG.UCAL,          % Autocalib
                 end;
         else
                %S=[ones(size(S,1),1) S(:,InChanSelect)]*EDF.Calib([1 InChanSelect+1],:);
-                S=[ones(size(S,1),1), S]*EDF.Calib([1, InChanSelect+1],:); % EDF.Calib must be sparse, otherwise overflow-check is incorrect. 
+                S=[ones(size(S,1),1), S]*EDF.Calib([1; InChanSelect+1],:); % EDF.Calib must be sparse, otherwise overflow-check is incorrect. 
         end;
 end;
 
