@@ -16,7 +16,7 @@ function [HDR] = getfiletype(arg1)
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 2
 % of the License, or (at your option) any later version.
 % 
 % This program is distributed in the hope that it will be useful,
@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.2 $
-%	$Id: getfiletype.m,v 1.2 2004-09-09 15:21:36 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: getfiletype.m,v 1.3 2004-09-12 15:47:08 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -297,22 +297,31 @@ else
                 elseif strncmp(ss,'GIF8',4); 
                         HDR.TYPE='GIF';
                 elseif strncmp(ss,'CPT9FILE',8);        % Corel PhotoPaint Format
-                        HDR.TYPE='CPT9';        
+                        HDR.TYPE='CPT9';
                         
                 elseif all(s(21:28)==abs('ACR-NEMA')); 
                         HDR.TYPE='ACR-NEMA';
                 elseif all(s(1:132)==[zeros(1,128),abs('DICM')]); 
                         HDR.TYPE='DICOM';
-                elseif all(s(1:8)==[8,0,5,0,10,0,0,0]); % another DICOM format ? 
+                elseif all(s([2,4,6:8])==0); % an DICOM? - maybe 
                         HDR.TYPE='DICOM';
-                elseif all(s(1:8)==[8,0,0,0,4,0,0,0]);	% another DICOM format ? 
-                        HDR.TYPE='DICOM';
+                %elseif all(s(1:8)==[8,0,5,0,10,0,0,0]); % another DICOM format ? 
+                %        HDR.TYPE='DICOM';
+                %elseif all(s(1:8)==[8,0,0,0,4,0,0,0]);	% another DICOM format ? 
+                %        HDR.TYPE='DICOM';
+                %elseif all(s(1:8)==[8,0,8,0,46,0,0,0]);	% another DICOM format ? 
+                %        HDR.TYPE='DICOM';
+                %elseif all(s(1:8)==[8,0,22,0,26,0,0,0]);	% another DICOM format ? 
+                %        HDR.TYPE='DICOM';
+                        
+                elseif all(s(1:24)==[208,207,17,224,161,177,26,225,zeros(1,16)]);	% MS-EXCEL candidate
+                        HDR.TYPE='BIFF';
                         
                 elseif all(s(1:2)==[255,254]) & all(s(4:2:end)==0)
                         HDR.TYPE='XML-UTF16';
                 elseif ~isempty(findstr(ss,'?xml version'))
                         HDR.TYPE='XML-UTF8';
-                        
+
                 elseif all(s(1:2)=='P6') & any(s(3)==[10,13])
                         HDR.TYPE='PNG';
                 elseif all(s(1:4)==hex2dec(['FF';'D9';'FF';'E0'])')
@@ -422,13 +431,7 @@ else
                 end;
         end;
         fclose(fid);
-
-        if exist('xlsfinfo','file')
-                [status, HDR.XLS.sheetNames] = xlsfinfo(HDR.FileName);
-                if ~isempty(status)
-                        HDR.TYPE = 'EXCEL';
-                end;
-        end;
+        
         
         if strcmpi(HDR.TYPE,'unknown'),
                 % alpha-TRACE Medical software
@@ -535,6 +538,16 @@ else
                                 HDR.EVENT.TYP = x(:,2);
                                 HDR.TYPE = 'EVENT';
                         end;
+                end;
+        end;
+        
+        if strcmpi(HDR.TYPE,'unknown'),
+                try
+                        [status, HDR.XLS.sheetNames] = xlsfinfo(HDR.FileName)
+                        if ~isempty(status)
+                                HDR.TYPE = 'EXCEL';
+                        end;
+                catch
                 end;
         end;
 end;
