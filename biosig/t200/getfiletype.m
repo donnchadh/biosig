@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.31 $
-%	$Id: getfiletype.m,v 1.31 2005-03-24 18:31:46 schloegl Exp $
+%	$Revision: 1.32 $
+%	$Id: getfiletype.m,v 1.32 2005-03-25 11:20:22 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -113,8 +113,12 @@ else
 			mat4.flag = all((mat4.matrixname>='0' & mat4.matrixname<='9') | (mat4.matrixname>='_' & mat4.matrixname<='z'));
 			mat4.flag = mat4.flag & all(any(mat4.type(ones(6,1),:)==[0,0:4;zeros(1,6);0:5;0:2,0,0,0]'));
 		end;
-                ss = char(s);
 		pos1_ascii10 = min(find(s==10));
+		FLAG.FS3 = any(s==10); 
+		if FLAG.FS3, 
+			FLAG.FS3=all((s(4:pos1_ascii10)>=32) & (s(4:pos1_ascii10)<128)); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
+                end; 
+		ss = char(s); 
                 if 0,
                 elseif all(s([1:2,155:156])==[207,0,0,0]);
                         HDR.TYPE='BKR';
@@ -373,7 +377,8 @@ else
                 elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
                         HDR.TYPE = 'WFT';	% nicolet
                         
-                elseif all(s(1:3)==[255,255,254]) & any(s==10) & all(s(4:pos1_ascii10)>=32 & s(4:pos1_ascii10)<128); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
+                elseif all(s(1:3)==[255,255,254]) & FLAG.FS3,
+		%any(s==10) & all((s(4:pos1_ascii10)>=32) & (s(4:pos1_ascii10)<128)); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
                         HDR.TYPE='FS3';
                 elseif all(s(1:3)==[255,255,255]); 	% FREESURVER QUAD_FILE_MAGIC_NUMBER or CURVATURE
                         HDR.TYPE='FS4';
@@ -532,7 +537,7 @@ else
 			id = 'BGP';
 			HDR.TYPE(8) = id(s(2)-abs('3'));
 			len = min(find((ss<32) | (ss>127)));
-			tmp = str2double(s2);
+			tmp = str2double(ss);
 			HDR.IMAGE.Size = tmp(1:2);
 	    		HDR.DigMax = tmp(3);
 			HDR.HeadLen = len; %gth(ss)-length(t)+1;
@@ -739,8 +744,6 @@ else
 		elseif length(HDR.FILE.Ext) & strmatch(HDR.FILE.Ext,{'16a','abp','al','apn','ari','atr','atr-','ecg','pap','ple','qrs','qrsc','sta','stb','stc'},'exact'),  
 			HDR.TYPE='MIT-ATR';
 			
-                elseif strcmpi(HDR.FILE.Ext,'DAT') & (upper(HDR.FILE.Name(1))=='E')
-                        
                 elseif strcmpi(HDR.FILE.Ext,'DAT') 
                         tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hea']));
                         if isempty(tmp), 

@@ -122,8 +122,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.42 $
-%	$Id: sdfopen.m,v 1.42 2005-03-24 18:17:35 schloegl Exp $
+%	$Revision: 1.43 $
+%	$Id: sdfopen.m,v 1.43 2005-03-25 11:20:22 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -398,7 +398,7 @@ else
 
         %EDF.DigMin     =         fread(EDF.FILE.FID,[EDF.NS,1],'int64');	
         %EDF.DigMax     =         fread(EDF.FILE.FID,[EDF.NS,1],'int64');	
-	tmp            =         fread(EDF.FILE.FID,[2*EDF.NS,1],'int32');	
+	tmp            =         fread(EDF.FILE.FID,[2*EDF.NS,1],'int32');
         EDF.DigMin     = tmp((1:EDF.NS)*2-1);
         tmp            =         fread(EDF.FILE.FID,[2*EDF.NS,1],'int32');	
         EDF.DigMax     = tmp((1:EDF.NS)*2-1);
@@ -496,6 +496,9 @@ EDF.SampleRate = EDF.SPR/EDF.Dur;
 EDF.AS.spb = sum(EDF.AS.SPR);	% Samples per Block
 EDF.AS.bi = [0;cumsum(EDF.AS.SPR)]; 
 EDF.AS.BPR  = ceil(EDF.AS.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'); 
+while any(EDF.AS.BPR  ~= EDF.AS.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)');
+        fprintf(2,'\nError SDFOPEN: block configuration in file %s not supported.\n',EDF.FileName);
+end;
 EDF.AS.SAMECHANTYP = all(EDF.AS.BPR == (EDF.AS.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)')) & ~any(diff(EDF.GDFTYP)); 
 EDF.AS.GDFbi = [0;cumsum(ceil(EDF.AS.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'))]; 
 EDF.AS.bpb = sum(ceil(EDF.AS.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'));	% Bytes per Block
@@ -1424,6 +1427,8 @@ if ~isfield(EDF,'PreFilt')
                 end;
         end
         end
+elseif size(EDF.PreFilt,1)<EDF.NS,
+        EDF.PreFilt = repmat(EDF.PreFilt,EDF.NS,1);
 end;
 tmp = min(80,size(EDF.PreFilt,2));
 EDF.PreFilt = [EDF.PreFilt(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,80-tmp))];
@@ -1434,10 +1439,13 @@ if ~isfield(EDF,'PhysDim')
                 fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.PhysDim not defined\n');
         end;
 else
+        if size(EDF.PhysDim,1)<EDF.NS,
+                EDF.PhysDim = repmat(EDF.PhysDim,EDF.NS,1);
+        end;
         tmp=min(8,size(EDF.PhysDim,2));
         EDF.PhysDim=[EDF.PhysDim(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,8-tmp))];
 end;
-if ~any(EDF.GDFTYP(1)==[0,16:18])
+if any(EDF.GDFTYP(1)==[0,16:18])
         EDF.DigMin  = repmat(-2^31,1,EDF.NS);
         EDF.DigMax  = repmat( 2^31-1,1,EDF.NS);
         EDF.PhysMin = repmat(-2^31,1,EDF.NS);
@@ -1543,6 +1551,29 @@ end;
 EDF.FILE.FID = fid;
 EDF.FILE.OPEN = 2;
 
+EDF.AS.spb = sum(EDF.AS.SPR);	% Samples per Block
+EDF.AS.bi  = [0;cumsum(EDF.AS.SPR)];
+EDF.AS.BPR = ceil(EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)');
+while any(EDF.AS.BPR  ~= EDF.AS.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)');
+        fprintf(2,'\nWarning SDFOPEN: invalid block configuration in file %s.\n',EDF.FileName);
+        DIV = 2;
+        EDF.SPR = EDF.SPR*DIV;
+        EDF.AS.SPR = EDF.AS.SPR*DIV;
+        EDF.Dur    = EDF.Dur*DIV; 
+        EDF.NRec   = EDF.NRec/DIV; 
+
+        EDF.AS.BPR = ceil(EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)');
+end;
+EDF.AS.SAMECHANTYP = all(EDF.AS.BPR == (EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)')) & ~any(diff(EDF.GDFTYP));
+EDF.AS.spb = sum(EDF.AS.SPR);	% Samples per Block
+EDF.AS.bi  = [0;cumsum(EDF.AS.SPR)];
+%EDF.AS.GDFbi= [0;cumsum(EDF.AS.BPR)];
+EDF.AS.GDFbi = [0;cumsum(ceil(EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)'))];
+EDF.AS.bpb   = sum(ceil(EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)'));	% Bytes per Block
+EDF.AS.startrec = 0;
+EDF.AS.numrec = 0;
+EDF.FILE.POS  = 0;
+
 if strcmp(EDF.VERSION(1:3),'GDF'),
         H1(168+(1:16))=sprintf('%04i%02i%02i%02i%02i%02i%02i',floor(EDF.T0),floor(100*rem(EDF.T0(6),1)));
         c=fwrite(fid,abs(H1(1:184)),'uchar');
@@ -1622,14 +1653,13 @@ else
         fwrite(fid, abs(EDF.PhysDim)','uchar');
         fwrite(fid, EDF.PhysMin,'float64');
         fwrite(fid, EDF.PhysMax,'float64');
-	if exist('OCTAVE_VERSION')>4,  % Octave does not support INT64 yet. 
-        	fwrite(fid, [EDF.DigMin,-(EDF.DigMin<0)]','int32');
-	        fwrite(fid, [EDF.DigMax,-(EDF.DigMax<0)]','int32');
+	if exist('OCTAVE_VERSION','builtin'),  % Octave does not support INT64 yet. 
+        	fwrite(fid, [EDF.DigMin(:),-(EDF.DigMin(:)<0)]','int32');
+	        fwrite(fid, [EDF.DigMax(:),-(EDF.DigMax(:)<0)]','int32');
         else
 		fwrite(fid, EDF.DigMin, 'int64');
 	        fwrite(fid, EDF.DigMax, 'int64');
 	end;
-
         fwrite(fid, abs(EDF.PreFilt)','uchar');
         fwrite(fid, EDF.AS.SPR,'uint32');
         fwrite(fid, EDF.GDFTYP,'uint32');
@@ -1641,17 +1671,6 @@ if tmp ~= (256 * (EDF.NS+1))
         fprintf(1,'Warning SDFOPEN-WRITE: incorrect header length %i bytes\n',tmp);
 %else   fprintf(1,'sdfopen in write mode: header info stored correctly\n');
 end;        
-
-EDF.AS.spb = sum(EDF.AS.SPR);	% Samples per Block
-EDF.AS.bi  = [0;cumsum(EDF.AS.SPR)];
-EDF.AS.BPR = ceil(EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)');
-EDF.AS.SAMECHANTYP = all(EDF.AS.BPR == (EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)')) & ~any(diff(EDF.GDFTYP));
-%EDF.AS.GDFbi= [0;cumsum(EDF.AS.BPR)];
-EDF.AS.GDFbi = [0;cumsum(ceil(EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)'))];
-EDF.AS.bpb   = sum(ceil(EDF.AS.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)'));	% Bytes per Block
-EDF.AS.startrec = 0;
-EDF.AS.numrec = 0;
-EDF.FILE.POS  = 0;
 
 else % if arg2 is not 'r' or 'w'
         fprintf(EDF.FILE.stderr,'Warning SDFOPEN: Incorrect 2nd argument. \n');

@@ -18,10 +18,10 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.9 $
-%	$Id: swrite.m,v 1.9 2005-03-24 17:48:15 schloegl Exp $
-%	Copyright (c) 1997-2005 by Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Revision: 1.10 $
+%	$Id: swrite.m,v 1.10 2005-03-25 11:20:22 schloegl Exp $
+%	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%       This file is part of the biosig project http://biosig.sf.net/
 
 
 if HDR.FILE.OPEN==1,
@@ -50,14 +50,6 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 end;
                 D = data; 
                 
-        elseif ~all(HDR.AS.SPR==HDR.AS.SPR(1))        % if different sampling rates are used. 
-                fprintf(2,'Warning SWRITE: different Samplingrates not well tested!\n');
-                NRec = size(data,1)/HDR.SPR; 
-                D = repmat(NaN,sum(HDR.AS.SPR),NRec);
-                for k = 1:HDR.NS;
-                        D(HDR.AS.bi(k)+1:HDR.AS.bi(k+1),:) = rs(reshape(data(:,k),HDR.SPR,NRec),HDR.SPR/HDR.AS.SPR(k),1);
-                end;
-                
         elseif (HDR.SPR == 1), 
                 D=data'; 
                 
@@ -65,11 +57,10 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 % fill missing data with NaN
                 tmp = rem(size(data,1),HDR.SPR);
                 data = [data;repmat(HDR.THRESHOLD(1,3),HDR.SPR-tmp,size(data,2))];                                
-                
-                D = [];
-                for k = 0:size(data,1)/HDR.SPR-1;
-                        tmp = data(k*HDR.SPR+(1:HDR.SPR),:);
-                        D = [D,tmp(:)];
+                NRec = size(data,1)/HDR.SPR; 
+                D = repmat(NaN,sum(HDR.AS.SPR),NRec);
+                for k = 1:HDR.NS;
+                        D(HDR.AS.bi(k)+1:HDR.AS.bi(k+1),:) = rs(reshape(data(:,k),HDR.SPR,NRec),HDR.SPR/HDR.AS.SPR(k),1);
                 end;
         end;
         count = fwrite(HDR.FILE.FID,D,gdfdatatype(HDR.GDFTYP(1)));

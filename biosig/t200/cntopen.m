@@ -13,8 +13,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.30 $
-%	$Id: cntopen.m,v 1.30 2005-01-28 01:55:48 schloegl Exp $
+%	$Revision: 1.31 $
+%	$Id: cntopen.m,v 1.31 2005-03-25 11:20:22 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -506,7 +506,7 @@ elseif strcmp(upper(CNT.FILE.Ext),'EEG'),
         CNT.AS.bpb = -1;
         if CNT.CNT.minor_revision==12,
                 CNT.AS.bpb = 2*CNT.AS.spb+1+2+2+4+2+2;
-                CNT.GDFTYP = 'int16';
+                CNT.GDFTYP = 3; %'int16';
                 % correct(?) eventtablepos
                 h.eventtablepos = CNT.HeadLen + CNT.NRec*CNT.AS.bpb;    	    
         else
@@ -517,13 +517,13 @@ elseif strcmp(upper(CNT.FILE.Ext),'EEG'),
                 tmp = (CNT.AS.spb*2+1+2+2+4+2+2);
                 if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
                         CNT.AS.bpb = tmp;
-                        CNT.GDFTYP = 'int16';
+                        CNT.GDFTYP = 3; %'int16';
                 end;
 		
                 tmp = (CNT.AS.spb*4+1+2+2+4+2+2);
                 if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
                         CNT.AS.bpb = tmp;
-                        CNT.GDFTYP = 'int32';
+                        CNT.GDFTYP = 5; %'int32';
                 end;
         end; 
         if CNT.AS.bpb < 0;
@@ -546,20 +546,20 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
         %disp([h.eventtablepos,CNT.HeadLen,CNT.NS,h.pnts,CNT.NRec,CNT.SampleRate,h.type,CNT.CNT.minor_revision])
         
         if (CNT.CNT.minor_revision==8),
-                CNT.GDFTYP = 'int16';
+                CNT.GDFTYP = 3; %'int16';
                 h.numsamples; % might have some meaning 
         elseif (CNT.CNT.minor_revision==12),
-                CNT.GDFTYP = 'int16';
+                CNT.GDFTYP = 3; %'int16';
         elseif (CNT.CNT.minor_revision==16),
-                CNT.GDFTYP = 'int16';
+                CNT.GDFTYP = 3; %'int16';
         else
                 fprintf(CNT.FILE.stderr,'Warning CNTOPEN: EEG-Format Minor-Revision %i not tested.\n',CNT.CNT.minor_revision);
         end;
         if 0, %h.type==184
-                CNT.GDFTYP = 'int32';
+                CNT.GDFTYP = 5; %'int32';
                 CNT.AS.bpb = CNT.NS*4;	% Bytes per Block
         else
-                CNT.GDFTYP = 'int16';
+                CNT.GDFTYP = 3; %'int16';
                 CNT.AS.bpb = CNT.NS*2;	% Bytes per Block
         end;
 	CNT.AS.spb = CNT.NS;	% Samples per Block
@@ -622,7 +622,6 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
         if length(TEEG) > 0,
                 CNT.EVENT.TYP = [TEEG(:).Stimtype]';
                 CNT.EVENT.POS = ([TEEG(:).Offset]' - CNT.HeadLen) ./ CNT.AS.bpb;
-                CNT.EVENT.N   = length(CNT.EVENT.TYP);
         end;
 end;
 

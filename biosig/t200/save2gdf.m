@@ -1,5 +1,7 @@
 function [HDR] = save2gdf(arg1,arg2,arg3);
 % SAVE2GDF loads EEG data and saves it in GDF format
+%    It has been tested with data of the following formats:
+%       Physiobank, BKR, CNT (Neurscan), EDF, 
 %
 %       HDR = save2gdf(sourcefile [, destfile [, option]]);  
 %
@@ -25,7 +27,7 @@ function [HDR] = save2gdf(arg1,arg2,arg3);
 %   data	data samples
 %
 
-% 	$Id: save2gdf.m,v 1.1 2005-03-24 18:20:39 schloegl Exp $
+% 	$Id: save2gdf.m,v 1.2 2005-03-25 11:20:22 schloegl Exp $
 %	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>		
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -249,23 +251,24 @@ for k=1:length(infile);
                         %y(:,k) = tmp(Delay+1:size(y,1)+Delay);
                 end;                
         end;
-        
         % re-scale data to account for the scaling factor in the header
-        digmax = max(y,[],1)
-        digmin = min(y,[],1)
-        if ~isfield(HDR,'GDFTYP')
+        %HIS = histo3(y); save HIS HIS
+        digmax = max(y,[],1);
+        digmin = min(y,[],1);
+        if 1; %~isfield(HDR,'GDFTYP')
                 bits1 = ceil(log2(max(digmax-digmin+1)));      
-                bits = ceil(log2(max(digmax-digmin+1))/8)*8;    % allows int8, int16, int24, int32, etc. 
-                %bits = ceil(log2(max(digmax-digmin+1)));        % allows any bit-depth
+                %bits = ceil(log2(max(digmax-digmin+1))/8)*8;    % allows int8, int16, int24, int32, etc. 
+                bits = ceil(log2(max(digmax-digmin+1)));        % allows any bit-depth
                 fprintf(1,'SAVE2GDF: %i bits needed, %i bits used for file %s\n',bits1,bits,HDR.FileName);
-                if     bits==8,  GDFTYP = 2;
-                elseif bits==16, GDFTYP = 4;
-                elseif bits==32, GDFTYP = 6;
-                elseif bits==64, GDFTYP = 8;
+                if     bits==8,  GDFTYP = 1;
+                elseif bits==16, GDFTYP = 3;
+                elseif bits==32, GDFTYP = 5;
+                elseif bits==64, GDFTYP = 7;
                 else             GDFTYP = 255+bits;
                 end;
                 HDR.GDFTYP = GDFTYP; 
         end
+        
         if ~isfield(HDR,'GDFTYP')
                 HDR.GDFTYP = 3; 
         end;
@@ -278,24 +281,32 @@ for k=1:length(infile);
                 
         HDR.PhysMax = [1,digmax]*HDR.Calib; %max(y,[],1); %gives max of the whole matrix
         HDR.PhysMin = [1,digmin]*HDR.Calib; %min(y,[],1); %gives max of the whole matrix
-        [datatyp,limits,datatypes] = gdfdatatype(HDR.GDFTYP)
+        [datatyp,limits,datatypes] = gdfdatatype(HDR.GDFTYP);
+        c0 = 0; 
         while any(digmin'<limits(:,1)),
                 c = 2^ceil(log2(max(limits(:,1)-digmin')))
                 digmin = digmin + c;
                 digmax = digmax + c;
-                y = y + c;
+                c0 = c0 + c;
         end;
         while any(digmax'>limits(:,2)),
                 c = 2^ceil(log2(max(digmax'-limits(:,2))))
                 digmin = digmin - c;
                 digmax = digmax - c;
-                y = y - c;
+                c0 = c0 - c;
         end;
+        while any(digmin'<limits(:,1)),
+                c = 2^ceil(log2(max(limits(:,1)-digmin')))
+                digmin = digmin + c;
+                digmax = digmax + c;
+                c0 = c0 + c;
+        end;
+        y = y + c0;
         
         HDR.DigMax = digmax; %limits(:,2); %*ones(1,HDR.NS);
         HDR.DigMin = digmin; %limits(:,1); %*ones(1,HDR.NS);
-        fprintf(1,'Warning SAVE2GDF: overflow detection not implemented, yet.\n');
-         
+        %fprintf(1,'Warning SAVE2GDF: overflow detection not implemented, yet.\n');
+        
         HDR.FLAG.UCAL = 1;              % data is de-calibrated, no rescaling within SWRITE 
         HDR.TYPE = 'GDF';
 

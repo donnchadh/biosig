@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.101 $
-%	$Id: sopen.m,v 1.101 2005-03-24 18:34:52 schloegl Exp $
+%	$Revision: 1.102 $
+%	$Id: sopen.m,v 1.102 2005-03-25 11:20:22 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2821,12 +2821,12 @@ elseif strcmp(HDR.TYPE,'MIT')
 	                                        [tmp, tmp1] = strtok(tmp,'x:');
 	                                        [tmp, status] = str2double(tmp); 
 	                                        HDR.MIT.dformat(k,1) = tmp;
+                                                HDR.AS.SPR(k) = 1; 
 	                                        if isempty(tmp1)
-	                                                HDR.AS.SPR(k) = 1; 
-	                                        elseif tmp1(1)=='x'
+                                                elseif tmp1(1)=='x'
 	                                                HDR.AS.SPR(k) = str2double(tmp1(2:end)); 
-	                                        else
-	                                                HDR.AS.SPR(k) = 1; 
+	                                        elseif tmp1(1)==':'
+                                                        fprintf(HDR.FILE.stderr,'Warning SOPEN: skew information in %s is ignored.\n', HDR.FileName);
 	                                        end                                                
 	                                elseif k0==2,  
 	                                        % EC13*.HEA files have special gain values like "200(23456)/uV". 
@@ -2916,7 +2916,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 	                if all(HDR.MIT.dformat==HDR.MIT.dformat(1)),
 	                        HDR.VERSION = HDR.MIT.dformat(1);
 	                else
-	                        fprintf(HDR.FILE.stderr,'different DFORMATs not supported.\n');
+	                        fprintf(HDR.FILE.stderr,'Error SOPEN: different DFORMATs not supported.\n');
 	                        HDR.FILE.FID = -1;
 	                        return;
 	                end;
