@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.14 $
-%	$Id: eegread.m,v 1.14 2003-06-02 18:06:28 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: eegread.m,v 1.15 2003-06-02 22:45:05 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -247,11 +247,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),
 	for k = 1:NoBlks, 
 	if all(HDR.GDFTYP==HDR.GDFTYP(1))
 		hdr = fread(HDR.FILE.FID,86,'char');
-		if HDR.GDFTYP(1)==3,
-			[s,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],'int16');
-		elseif HDR.GDFTYP(1)==3,
-			[s,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],'float32');
-		end;
+		[s,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],gdfdatatype(HDR.GDFTYP(1)));
 		S = [S;s'];
 		HDR.FILE.POS = HDR.FILE.POS + 1;
 	else
@@ -259,11 +255,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),
 		s = zeros(HDR.SPR,HDR.NS);
 		for k1 = 1: HDR.SPR,
 		for k2 = 1: HDR.NS,
-			if HDR.GDFTYP(k2)==3,
-			        [s(k1,k2),count] = fread(HDR.FILE.FID,1,'int16');
-			elseif HDR.GDFTYP(k2)==16,
-		        	[s(k1,k2),count] = fread(HDR.FILE.FID,1,'float32');
-			end;	
+		        [s(k1,k2),count] = fread(HDR.FILE.FID,1,gdfdatatype(HDR.GDFTYP(k2)));
 		end;
 		end;
 		S = [S;s'];
@@ -360,7 +352,7 @@ elseif strcmp(HDR.TYPE,'EEG'),
                 h.sweep(i).response   = fread(HDR.FILE.FID,1,'ushort');
                 h.sweep(i).reserved   = fread(HDR.FILE.FID,1,'ushort');
                 
-                [signal,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],HDR.GDFTYP);
+                [signal,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],gdfdatatype(HDR.GDFTYP));
                 
                 % S = [S;signal(HDR.SIE.InChanSelect,:)'];
                 S(i*HDR.SPR+(1-HDR.SPR:0),:) = signal(HDR.SIE.InChanSelect,:)';

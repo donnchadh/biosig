@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.9 $
-%	$Id: cntopen.m,v 1.9 2003-06-02 18:06:28 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: cntopen.m,v 1.10 2003-06-02 22:45:05 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -452,12 +452,12 @@ elseif (h.type==1),
         tmp = (CNT.NS*CNT.SPR*2+1+2+2+4+2+2);
 	if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
                 CNT.AS.bpb = tmp;
-                CNT.GDFTYP = 'int16';
+                CNT.GDFTYP = 3; %'int16';
         end;
         tmp = (CNT.NS*CNT.SPR*4+1+2+2+4+2+2);
 	if (h.eventtablepos-CNT.HeadLen)==(tmp*CNT.NRec),
 	        CNT.AS.bpb = tmp;
-                CNT.GDFTYP = 'int32';
+                CNT.GDFTYP = 5; %'int32';
         end;
         
         CNT.Calib  = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
