@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.40 $
-%	$Id: sopen.m,v 1.40 2004-03-25 18:53:10 schloegl Exp $
+%	$Revision: 1.41 $
+%	$Id: sopen.m,v 1.41 2004-03-30 16:15:46 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2501,8 +2501,8 @@ elseif strcmp(HDR.TYPE,'MIT')
                 end;
                 HDR.Calib = sparse([HDR.zerovalue(:).';eye(HDR.NS)]*diag(1./HDR.gain(:)));
                 
-                z = char(fread(fid,[1,inf],'char'));
-                ix1 = [findstr('AGE:',upper(z))+4; findstr('AGE>:',upper(z))+5];
+                z   = char(fread(fid,[1,inf],'char'));
+                ix1 = [findstr('AGE:',upper(z))+4, findstr('AGE>:',upper(z))+5];
                 if ~isempty(ix1),
                         [tmp,z]=strtok(z(ix1(1):length(z)));
                         HDR.Patient.Age = str2double(tmp);
@@ -3501,29 +3501,27 @@ else
         return;
 end;
 
-%if isfield(HDR,'Calib');
-if 0, ~isfield(HDR,'Calib');
-        if ~isfield(HDR,'Cal');
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1,HDR.NS+1,HDR.NS);
-        else
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
-        end;        
-end;        
-
 if any(PERMISSION=='r');
+        HDR.Calib = full(HDR.Calib);	% Octave can not index sparse matrices
         if exist('ReRefMx')==1,
-                %HDR.SIE.ChanSelect = 1:size(ReRefMx,2);         
-                [i,j,v] = find(sparse(ReRefMx));
-                ReRefMx = sparse(i,j,v,HDR.NS,size(ReRefMx,2));
-                HDR.Calib = HDR.Calib*ReRefMx;
+                % HDR.SIE.ChanSelect = 1:size(ReRefMx,2);         
+                [i,j,v] = find(ReRefMx);
+                if any(i) > HDR.NS,
+                        fprintf(HDR.FILE.stderr,'ERROR: size of ReRefMx [%i,%i] exceeds Number of Channels (%i)\n',size(ReRefMx),HDR.NS);
+                        fclose(HDR.FILE.FID); 
+                        HDR.FILE.FID = -1;	
+                        return;
+                end;
+                HDR.Calib = HDR.Calib * sparse(i,j,v,HDR.NS,size(ReRefMx,2));
                 HDR.InChanSelect = find(any(HDR.Calib(2:end,:),2));
-        else
+        else 
                 if CHAN==0,
-                        CHAN=1:HDR.NS;
+                        CHAN = 1:HDR.NS;
                 end;
                 HDR.InChanSelect = CHAN(:);
                 HDR.Calib = HDR.Calib(:,CHAN);
         end;
+        %HDR.Calib = sparse(HDR.Calib);
         
         if any(HDR.InChanSelect > HDR.NS)
                 fprintf(HDR.FILE.stderr,'ERROR: selected channels exceed Number of Channels %i\n',HDR.NS);
