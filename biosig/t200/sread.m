@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.19 $
-%	$Id: sread.m,v 1.19 2004-05-02 11:00:01 schloegl Exp $
+%	$Revision: 1.20 $
+%	$Id: sread.m,v 1.20 2004-05-02 13:28:34 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -160,9 +160,10 @@ elseif strcmp(HDR.TYPE,'alpha'),
         end;
         
         nr = min(HDR.SampleRate*NoS, HDR.SPR-HDR.FILE.POS)*HDR.AS.bpb;
-        %nr = HDR.SampleRate*NoS*HDR.AS.bpb;
-        if nr ~= ceil(nr),
-                fprintf(HDR.FILE.stderr,'Error SREAD (alpha): can not deal with odd number of samples \n');     
+        if (nr - round(nr)) < .01,
+    		nr = round(nr);
+	else
+	        fprintf(HDR.FILE.stderr,'Error SREAD (alpha): can not deal with odd number of samples \n');     
                 return;
         end
         
