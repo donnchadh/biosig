@@ -19,10 +19,14 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 %   [S,HDR] = sread(HDR, Duration, Start);
 %   HDR = sclose(HDR);
 %
-% Several files can be loaded at once with SLOAD
+% MODE  'UCAL'  uncalibrated data
+%       'OVERFLOWDETECTION:OFF' turns off automated overflow detection
+%       Several options can be concatenated within MODE. 
 %
 % HDR contains the Headerinformation and internal data
 % S 	returns the signal data 
+%
+% Several files can be loaded at once with SLOAD
 %
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
@@ -41,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.91 $
-%	$Id: sopen.m,v 1.91 2005-01-19 22:20:36 schloegl Exp $
+%	$Revision: 1.92 $
+%	$Id: sopen.m,v 1.92 2005-01-26 18:27:15 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -141,6 +145,7 @@ if ~isfield(HDR,'FLAG');
         HDR.FLAG.UCAL = ~isempty(strfind(MODE,'UCAL'));   % FLAG for UN-CALIBRATING
         HDR.FLAG.FILT = 0; 	% FLAG if any filter is applied; 
         HDR.FLAG.TRIGGERED = 0; % the data is untriggered by default
+        HDR.FLAG.OVERFLOWDETECTION = isempty(strfind(upper(MODE),'OVERFLOWDETECTION:OFF'));
 end;
 if ~isfield(HDR,'EVENT');
         HDR.EVENT.TYP = []; 
@@ -735,6 +740,7 @@ elseif strncmp(HDR.TYPE,'AKO',3),
         fclose(HDR.FILE.FID);
         HDR.FILE.POS = 0;
         HDR.TYPE = 'native';
+        
         
 elseif strcmp(HDR.TYPE,'ATES'),
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
@@ -2556,7 +2562,8 @@ elseif strcmp(HDR.TYPE,'MIT')
                                 elseif k0==2,  
                                         % EC13*.HEA files have special gain values like "200(23456)/uV". 
                                         [tmp, tmp2] = strtok(tmp,'/');
-                                        HDR.PhysDim(k,1:length(tmp2)) = [tmp2(2:end),' '];
+					tmp2 = [tmp2(2:end),' '];
+                                        HDR.PhysDim(k,1:length(tmp2)) = tmp2;
                                         [tmp, tmp1] = strtok(tmp,' ()');
                                         [tmp, status] = str2double(tmp); 
                                         if isempty(tmp), tmp = 0; end;   % gain
@@ -2627,23 +2634,32 @@ elseif strcmp(HDR.TYPE,'MIT')
                 if 0,
                         
                 elseif HDR.VERSION == 212, 
-                        HDR.AS.bpb = ceil(HDR.AS.spb*3/2);
+			if mod(HDR.AS.spb,2) 
+	                        HDR.AS.spb = HDR.AS.spb*2;
+			end
+	                HDR.AS.bpb = HDR.AS.spb*3/2;
                 elseif HDR.VERSION == 310, 
-                        HDR.AS.bpb = ceil(HDR.NS*2/3)*2;
+			if mod(HDR.AS.spb,3) 
+	                        HDR.AS.spb = HDR.AS.spb*2/3;
+			end
+                        HDR.AS.bpb = HDR.AS.spb*2;
                 elseif HDR.VERSION == 311, 
-                        HDR.AS.bpb = ceil(HDR.NS/3)*4;
+			if mod(HDR.AS.spb,3) 
+	                        HDR.AS.spb = HDR.AS.spb*3;
+			end
+                        HDR.AS.bpb = HDR.AS.spb*4;
                 elseif HDR.VERSION == 8, 
-                        HDR.AS.bpb = HDR.NS;
+                        HDR.AS.bpb = HDR.AS.spb;
                 elseif HDR.VERSION == 80, 
-                        HDR.AS.bpb = HDR.NS;
+                        HDR.AS.bpb = HDR.AS.spb;
                 elseif HDR.VERSION == 160, 
-                        HDR.AS.bpb = HDR.NS*2;
+                        HDR.AS.bpb = HDR.AS.spb;
                 elseif HDR.VERSION == 16, 
-                        HDR.AS.bpb = HDR.NS*2;
+                        HDR.AS.bpb = HDR.AS.spb;
                 elseif HDR.VERSION == 61, 
-                        HDR.AS.bpb = HDR.NS*2;
+                        HDR.AS.bpb = HDR.AS.spb;
                 end;
-                HDR.Dur = 1/HDR.SampleRate;
+                HDR.Dur = HDR.AS.MAXSPR/HDR.SampleRate;
                 
                 
                 %------ LOAD ATTRIBUTES DATA ----------------------------------------------
@@ -2736,7 +2752,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 FLAG_UCAL = HDR.FLAG.UCAL;	
                 HDR.FLAG.UCAL = 1;
                 S = NaN;
-                %[S,HDR] = sread(HDR,1/HDR.SampleRate); % load 1st sample
+                [S,HDR] = sread(HDR,HDR.AS.MAXSPR/HDR.SampleRate); % load 1st sample
                 if (HDR.VERSION>0) & (any(S(1,:) - HDR.MIT.firstvalue)), 
                         fprintf(HDR.FILE.stderr,'Warning SOPEN MIT-ECG: First values of header and datablock do not fit.\n\tHeader:\t'); 
                         fprintf(HDR.FILE.stderr,'\t%5i',HDR.MIT.firstvalue);
@@ -3101,7 +3117,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 		else
 		
 		end;
-		
+                
 		HDR.PhysDim = 'uV';
 		HDR.SampleRate = tmp.nfo.fs; 
 		%HDR.Dur = HDR.SPR/HDR.SampleRate;
@@ -3109,13 +3125,19 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 			HDR.TRIG  = tmp.mrk.pos; 
 			HDR.EVENT.POS = tmp.mrk.pos(:); 
 			HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
+			HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS));
+                        if ~isempty(strfind(HDR.INFO,'Berlin')),cuelen=3.5; 
+                        elseif ~isempty(strfind(HDR.INFO,'IDIAP')),cuelen=20; 
+                        end;
+			HDR.EVENT.DUR = repmat(cuelen*HDR.SampleRate,size(HDR.EVENT.POS));
 			if isfield(tmp.mrk,'y'),
 				HDR.Classlabel = tmp.mrk.y; 
 			else	
 				HDR.Classlabel = repmat(NaN,size(HDR.TRIG));
 			end;
 			if isfield(tmp.mrk,'className'),
-				HDR.EVENT.Desc = tmp.mrk.className;
+				HDR.EVENT.TeegType = tmp.mrk.className;
+                                HDR.EVENT.TYP(isnan(HDR.Classlabel)) = hex2dec('030f');  % unknown/undefined
 				ix = strmatch('left',tmp.mrk.className); 
 				if ~isempty(ix),
 					HDR.EVENT.TYP(HDR.Classlabel==ix) = hex2dec('0301');  % left
@@ -3298,29 +3320,50 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.TYPE = 'native'; 
 
                 
-        elseif isfield(tmp,'data');	% Mueller, Scherer ? 
-                HDR.NS = size(tmp.data,2);
-                HDR.NRec = 1; 
-                fprintf(HDR.FILE.stderr,'Warning SLOAD: Sensitivity not known in %s,\n',HDR.FileName);
-                if ~isfield(tmp,'SampleRate')
-                        fprintf(HDR.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',HDR.FileName);
-                        HDR.SampleRate=125;
-                else
-                        HDR.SampleRate=tmp.SampleRate;
+        elseif isfield(tmp,'data');
+                if isfield(tmp,'readme') & iscell(tmp.data) ;	%Zachary A. Keirn, Purdue University, 1988. 
+                        HDR.Label = {'C3'; 'C4'; 'P3'; 'P4'; 'O1'; 'O2'; 'EOG'};                               
+                        HDR.SampleRate = 250; 
+                        HDR.FLAG.TRIGGERED  = 1; 
+                        HDR.DUR = 10; 
+                        HDR.SPR = 2500;
+                        HDR.FILTER.LowPass  = 0.1;
+                        HDR.FILTER.HighPass = 100; 
+                        HDR.NRec = length(tmp.data);
+                        
+                        x = cat(1,tmp.data{:});
+                        [b,i,CL] = unique({x{:,1}}');
+                        [HDR.EVENT.TeegDesc,i,CL(:,2)] = unique({x{:,2}}');
+                        HDR.Classlabel = CL; 
+                        HDR.data = [x{:,4}]';
+                        HDR.NS   = size(HDR.data,2); 
+                        HDR.Calib= sparse(2:8,1:7,1);
+                        HDR.TYPE = 'native'; 
+                        
+                else        	% Mueller, Scherer ? 
+                        HDR.NS = size(tmp.data,2);
+                        HDR.NRec = 1; 
+                        fprintf(HDR.FILE.stderr,'Warning SLOAD: Sensitivity not known in %s,\n',HDR.FileName);
+                        if ~isfield(tmp,'SampleRate')
+                                fprintf(HDR.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',HDR.FileName);
+                                HDR.SampleRate=125;
+                        else
+                                HDR.SampleRate=tmp.SampleRate;
+                        end;
+                        if any(CHAN),
+                                HDR.data = tmp.data(:,CHAN);
+                        else
+                                HDR.data = tmp.data;
+                        end;
+                        if isfield(tmp,'classlabel'),
+                                HDR.Classlabel = tmp.classlabel;
+                        end;        
+                        if isfield(tmp,'artifact'),
+                                HDR.ArtifactSelection = zeros(size(tmp.classlabel));
+                                HDR.ArtifactSelection(tmp.artifact)=1;
+                        end;        
+                        HDR.TYPE = 'native'; 
                 end;
-                if any(CHAN),
-                        HDR.data = tmp.data(:,CHAN);
-                else
-        	        HDR.data = tmp.data;
-                end;
-                if isfield(tmp,'classlabel'),
-                	HDR.Classlabel = tmp.classlabel;
-                end;        
-                if isfield(tmp,'artifact'),
-                	HDR.ArtifactSelection = zeros(size(tmp.classlabel));
-                        HDR.ArtifactSelection(tmp.artifact)=1;
-                end;        
-                HDR.TYPE = 'native'; 
                 
                 
         elseif isfield(tmp,'EEGdata');  % Telemonitoring Daten (Reinhold Scherer)
@@ -3572,7 +3615,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 if ~isfield(HDR,'SPR');
                         HDR.SPR = size(HDR.data,1);
                 end;
-                if ~isfield(HDR.FILE,'Calib');
+                if ~isfield(HDR,'Calib');
                         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 end;
                 if ~isfield(HDR.FILE,'POS');
@@ -4796,13 +4839,14 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 
                 ix = find(isnan(HDR.TFM.S(:,2)) & ~isnan(HDR.TFM.S(:,1)));
                 HDR.EVENT.Desc = HDR.TFM.E(ix,2);
-                HDR.EVENT.POS  = ix;
+                HDR.EVENT.TYP  = zeros(length(ix));
+                HDR.EVENT.POS  = ix(:);
                 
+		[HDR.SPR,HDR.NS] = size(HDR.TFM.S);
                 if any(CHAN),
 			HDR.TFM.S = HDR.TFM.S(:,CHAN);
 			HDR.TFM.E = HDR.TFM.E(:,CHAN);
 		end;
-		[HDR.SPR,HDR.NS] = size(HDR.TFM.S);
 		HDR.NRec = 1;
 		HDR.THRESHOLD  = repmat([0,NaN],HDR.NS,1); 	% Underflow Detection 
 		HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
@@ -4899,10 +4943,10 @@ end;
 
 % add trigger information for triggered data
 if HDR.FLAG.TRIGGERED & isempty(HDR.EVENT.POS)
-	HDR.EVENT.POS = [0:HDR.NRec-1]'*HDR.SPR;
+	HDR.EVENT.POS = [0:HDR.NRec-1]'*HDR.SPR+1;
 	HDR.EVENT.TYP = repmat(hex2dec('0300'),HDR.NRec,1);
 	HDR.EVENT.CHN = repmat(0,HDR.NRec,1);
-	HDR.EVENT.DUR = repmat(0,HDR.SPR,1);
+	HDR.EVENT.DUR = repmat(0,HDR.NRec,1);
 end;
 
 % apply channel selections to EVENT table

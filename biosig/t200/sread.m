@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.40 $
-%	$Id: sread.m,v 1.40 2005-01-19 21:01:36 schloegl Exp $
+%	$Revision: 1.41 $
+%	$Id: sread.m,v 1.41 2005-01-26 18:27:15 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -278,67 +278,64 @@ elseif strcmp(HDR.TYPE,'MIT'),
                 HDR.mode8.valid= 1;
         end;
 
-        DataLen = NoS*HDR.SampleRate;
+        DataLen = NoS*HDR.SampleRate/HDR.AS.MAXSPR;
         if HDR.VERSION == 212, 
-                [A,count] = fread(HDR.FILE.FID, [3, DataLen*HDR.AS.bpb/2], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
-                S(1,:) = A(1,:) + mod(A(2,:), 16)*256;
-                S(2,:) = floor(A(2,:)/16)*256 + A(3,:);
+                [A,count] = fread(HDR.FILE.FID, [1,DataLen*HDR.AS.bpb], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
+		if (count~= DataLen*HDR.AS.bpb) & isfinite(DataLen),
+			fprintf(HDR.FILE.stderr,'Error SREAD (MIT): non-integer block length %i,%f\n',count, DataLen*HDR.AS.bpb);
+			HDR = sseek(HDR,HDR.FILE.POS,'bof');
+			return;
+		end;
+		DataLen = count/HDR.AS.bpb;
+                S = [A(1:3:end); A(3:3:end)] + [mod(A(2:3:end), 16); floor(A(2:3:end)/16)]*256;
                 S = S - 2^12*(S>=2^11);	% 2-th complement
                 S = reshape(S,HDR.AS.spb,prod(size(S))/HDR.AS.spb)';
+		
                 
         elseif HDR.VERSION == 310, 
-                [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb/2, DataLen], 'uint16');  % matrix with 3 rows, each 8 bits long, = 2*12bit
+                [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb/2, DataLen], 'uint16'); 
                 A = A'; DataLen = count/HDR.AS.bpb*2;
-                for k = 1:ceil(HDR.NS/3),
+                for k = 1:ceil(HDR.AS.spb/3),
                         k1=3*k-2; k2=3*k-1; k3=3*k;
                         S(:,3*k-2) = floor(mod(A(:,k*2-1),2^12)/2);	
                         S(:,3*k-1) = floor(mod(A(:,k*2),2^12)/2);	
                         S(:,3*k  ) = floor(A(:,k*2-1)*(2^-11)) + floor(A(:,k*2)*(2^-11))*2^5; 
-                        S = S(:,1:HDR.NS);
+                        S = mod(S(:,1:HDR.AS.spb),2^10);
                         S = S - 2^10*(S>=2^9);	% 2-th complement
                 end;
+		S = S;
                 
         elseif HDR.VERSION == 311, 
-                [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb/4, DataLen], 'uint32');  % matrix with 3 rows, each 8 bits long, = 2*12bit
+                [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb/4, DataLen], 'uint32');
                 A = A'; DataLen = count/HDR.AS.bpb*4;
-                for k = 1:ceil(HDR.NS/3),
-                        S(:,3*k-2) = mod(A(:,k),2^11);	
-                        S(:,3*k-1) = mod(floor(A(:,k)*2^(-11)),2^11);	
-                        S(:,3*k)   = mod(floor(A(:,k)*2^(-22)),2^11);	
-                        S = S(:,1:HDR.NS);
+                for k = 1:ceil(HDR.AS.spb/3),
+                        S(:,3*k-2) = mod(A(:,k),2^10);	
+                        S(:,3*k-1) = mod(floor(A(:,k)*2^(-11)),2^10);	
+                        S(:,3*k)   = mod(floor(A(:,k)*2^(-22)),2^10);	
+                        S = S(:,1:HDR.AS.spb);
                         S = S - 2^10*(S>=2^9);	% 2-th complement
                 end;
+		S = S';
                 
         elseif HDR.VERSION == 8, 
-                [S,count] = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int8');  
-                S = S'; DataLen = count/HDR.NS;               
-                if HDR.FILE.POS==0,
-                        HDR.mode8.accu = zeros(1,HDR.NS);
-                        HDR.mode8.valid= 1;
-                end; 
-                if ~HDR.mode8.valid;
-                        fprintf(2,'Warning EDFREAD: unknown offset (TYPE=MIT, mode=8) \n');
-                else
-                        S(1,:) = S(1,:) + HDR.mode8.accu;
-                end;        
-                S = cumsum(S);
-                HDR.mode8.accu = S(size(S,1),:);
+                [S,count] = fread(HDR.FILE.FID, [HDR.AS.spb,DataLen], 'int8');  
+                S = S'; DataLen = count/HDR.AS.spb          
                 
         elseif HDR.VERSION == 80, 
-                [S,count] = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'uint8');  
-                S = S'-128; DataLen = count/HDR.NS;
+                [S,count] = fread(HDR.FILE.FID, [HDR.AS.spb,DataLen], 'uint8');  
+                S = S'-128; DataLen = count/HDR.AS.spb;
                 
         elseif HDR.VERSION == 160, 
-                [S,count] = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'uint16');  
-                S = S'-2^15; DataLen = count/HDR.NS;
+                [S,count] = fread(HDR.FILE.FID, [HDR.AS.spb,DataLen], 'uint16');  
+                S = S'-2^15; DataLen = count/HDR.AS.spb;
                 
         elseif HDR.VERSION == 16, 
-                [S,count] = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int16'); 
-                S = S'; DataLen = count/HDR.NS;
+                [S,count] = fread(HDR.FILE.FID, [HDR.AS.spb,DataLen], 'int16'); 
+                S = S'; DataLen = count/HDR.AS.spb;
                 
         elseif HDR.VERSION == 61, 
-                [S,count] = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int16'); 
-                S = S'; DataLen = count/HDR.NS;
+                [S,count] = fread(HDR.FILE.FID, [HDR.AS.spb,DataLen], 'int16'); 
+                S = S'; DataLen = count/HDR.AS.spb;
                 
         else
                 fprintf(2, 'ERROR MIT-ECG: format %i not supported.\n',HDR.VERSION); 
@@ -352,6 +349,19 @@ elseif strcmp(HDR.TYPE,'MIT'),
                         S(:,k)=rs(reshape(A(:,ix)',size(A,1)*HDR.AS.SPR(k),1),HDR.AS.SPR(k),HDR.AS.MAXSPR);
                 end
         end
+        if HDR.VERSION == 8, 
+                if HDR.FILE.POS==0,
+                        HDR.mode8.accu = zeros(1,HDR.NS);
+                        HDR.mode8.valid= 1;
+                end; 
+                if ~HDR.mode8.valid;
+                        fprintf(2,'Warning SREAD: unknown offset (TYPE=MIT, mode=8) \n');
+                else
+                        S(1,:) = S(1,:) + HDR.mode8.accu;
+                end;        
+                S = cumsum(S);
+                HDR.mode8.accu = S(size(S,1),:);
+	end;
         HDR.FILE.POS = HDR.FILE.POS + DataLen;   	
         S = S(:,HDR.InChanSelect);
         
@@ -791,14 +801,18 @@ if STATUS,
         save biosigcore.mat 
 end;
 
-if isfield(HDR,'THRESHOLD'),
-        ix = (S==S);
+if isfield(HDR,'THRESHOLD') & HDR.FLAG.OVERFLOWDETECTION,
+        ix = (S~=S);
         for k=1:length(HDR.InChanSelect),
                 TH = HDR.THRESHOLD(HDR.InChanSelect(k),:);
                 ix(:,k) = (S(:,k)<=TH(1)) | (S(:,k)>=TH(2));
         end
         S = double(S);
         S(ix) = NaN;
+elseif HDR.FLAG.OVERFLOWDETECTION,
+        % no HDR.THRESHOLD defined
+elseif isfield(HDR,'THRESHOLD'),
+        % automated overflow detection has been turned off
 end;
 
 if ~HDR.FLAG.UCAL,
@@ -811,7 +825,7 @@ if ~HDR.FLAG.UCAL,
                 % force octave to do a sparse multiplication
                 % the difference is NaN*sparse(0) = 0 instead of NaN
                 % this is important for the automatic overflow detection
-		Calib = full(HDR.Calib);
+		Calib = HDR.Calib;
                 tmp   = zeros(size(S,1),size(Calib,2));   % memory allocation
                 for k = 1:size(Calib,2),
                         chan = find(Calib(1+HDR.InChanSelect,k));

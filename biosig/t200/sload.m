@@ -1,4 +1,4 @@
-function [signal,H] = sload(FILENAME,CHAN,Fs)
+function [signal,H] = sload(FILENAME,CHAN,MODE)
 % SLOAD loads signal data of various data formats
 % 
 % Currently are the following data formats supported: 
@@ -10,11 +10,14 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %       reads selected (CHAN) channels
 %       if CHAN is 0, all channels are read 
 % [signal,header] = sload(FILENAME [,CHANNEL [,Fs]])
+% [signal,header] = sload(FILENAME [,CHANNEL [,MODE]])
 % FILENAME      name of file, or list of filenames
 % channel       list of selected channels
 %               default=0: loads all channels
 % Fs            force target samplerate Fs (only 
 %               integer and 256->100 conversion is supported) 
+% MODE          'UCAL'  uncalibrated data
+%               'OVERFLOWDETECTION:OFF' turns off automated overflow detection
 %
 % [signal,header] = sload(dir('f*.emg'), CHAN)
 % [signal,header] = sload('f*.emg', CHAN)
@@ -26,8 +29,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.53 $
-%	$Id: sload.m,v 1.53 2005-01-22 22:57:17 schloegl Exp $
+%	$Revision: 1.54 $
+%	$Id: sload.m,v 1.54 2005-01-26 18:27:14 schloegl Exp $
 %	Copyright (C) 1997-2005 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -55,7 +58,8 @@ if CHAN<1 | ~isfinite(CHAN),
 end;
 
 %%% resolve wildcards %%%
-if (ischar(FILENAME) & any(FILENAME=='*'))
+if ischar(FILENAME) 
+if any(FILENAME=='*')
         p = fileparts(FILENAME);
         f = dir(FILENAME);
         EOGix = zeros(1,length(f));
@@ -69,6 +73,7 @@ if (ischar(FILENAME) & any(FILENAME=='*'))
         end;
         FILENAME=f([find(EOGix),find(~EOGix)]);
 end;        
+end;
 
 
 if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
@@ -80,7 +85,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			f = FILENAME(k);
 		end	
 
-                [s,h] = sload(f,CHAN,Fs);
+                [s,h] = sload(f,CHAN,MODE);
 		if k==1,
 			H = h;
 			signal = s;  
@@ -152,11 +157,15 @@ end;
 
 
 %%%% start of single file section
+if nargin<3
+        MODE = '';
+end;
 if ~isnumeric(CHAN),
         MODE = CHAN;
         CHAN = 0; 
-else
-        MODE = '';
+end
+if isnumeric(MODE),
+        Fs  = MODE;
 end;
 
 signal = [];
@@ -180,7 +189,7 @@ if strncmp(H.TYPE,'IMAGE:',5)
 	return;
 end;
 
-H = sopen(H,'r',CHAN);
+H = sopen(H,'r',CHAN,MODE);
 if 0,
         
 elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat'})); 
@@ -612,9 +621,7 @@ elseif strcmp(H.TYPE,'VTK'),
         
 elseif strcmp(H.TYPE,'unknown')
         TYPE = upper(H.FILE.Ext);
-        if strcmp(TYPE,'DAT')
-                loaddat;     
-                signal = Voltage(:,CHAN);
+        if 0, 
         elseif strcmp(TYPE,'RAW')
                 loadraw;
         elseif strcmp(TYPE,'RDT')
