@@ -20,8 +20,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.4 $
-% 	$Id: save2bkr.m,v 1.4 2003-02-10 14:52:53 schloegl Exp $
+%	$Revision: 1.5 $
+% 	$Id: save2bkr.m,v 1.5 2003-03-13 18:36:18 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -143,99 +143,12 @@ end;
 
 [pf,fn,ext] = fileparts(filename);
 
-if strcmp(upper(ext(2:4)),'MAT'),	
-        tmp = load(filename);
-	if isfield(tmp,'y')
-                y=tmp.y;
-                HDR.SampleRate=128;
-        elseif isfield(tmp,'eeg');
-                y=tmp.eeg;
-                if ~isfield(tmp,'SampleRate')
-                        warning(['Samplerate not known in ',filename,'. 128Hz is chosen']);
-                        HDR.SampleRate=128;
-                else
-                        HDR.SampleRate=tmp.SampleRate;
-                end;
-                
-        elseif isfield(tmp,'P_C_S');	% G.Tec Version 1.02 data format
-                if tmp.P_C_S.version~=1.02,
-                        fprintf(2,'Warning: PCS-Version is not 1.02 but %4.2f.\n');
-                end;
-                sz = size(tmp.P_C_S.data);
-                
-                y  = repmat(NaN,sz(1)*sz(2),sz(3)); 
-                for k1 = 1:sz(1),
-                        y((k1-1)*sz(2)+(1:sz(2)),:) = squeeze(tmp.P_C_S.data(k1,:,:));
-                end;
-                
-                HDR.SampleRate = tmp.P_C_S.samplingfrequency;
-                HDR.NRec = sz(1);
-                HDR.SPR  = sz(2);
-                HDR.Dur  = sz(2)/HDR.SampleRate;
-                HDR.NS   = sz(3);
-                HDR.Filter.LowPass = tmp.P_C_S.lowpass;
-                HDR.Filter.HighPass = tmp.P_C_S.highpass;
-                HDR.Filter.Notch = tmp.P_C_S.notch;
-                cali=1;
-                                
-        elseif isfield(tmp,'P_C_DAQ_S');
-                y=double(tmp.P_C_DAQ_S.data{1});
-                %HDR.PhysDim=tmp.P_C_DAQ_S.unit;     %propriatory information
-                %scale=tmp.P_C_DAQ_S.sens;         %propriatory information
-                HDR.SampleRate=tmp.P_C_DAQ_S.samplingfrequency;
-                
-        elseif isfield(tmp,'data');
-                y=tmp.data;
-                if ~isfield(tmp,'SampleRate')
-                        warning(['Samplerate not known in ',filename,'. 128Hz is chosen']);
-                        HDR.SampleRate=128;
-                else
-                        HDR.SampleRate=tmp.SampleRate;
-                end;
-                
-        elseif isfield(tmp,'EEGdata');
-                y=tmp.EEGdata;
-                classlabel = tmp.classlabel;
-                if ~isfield(tmp,'SampleRate')
-                        warning(['Samplerate not known in ',filename,'. 128Hz is chosen']);
-                        HDR.SampleRate=128;
-                else
-                        HDR.SampleRate=tmp.SampleRate;
-                end;
-                
-        elseif isfield(tmp,'daten');	% Michi's EP daten
-                HDR.NS=size(tmp.daten.raw,2)-1;
-                y=tmp.daten.raw(:,1:HDR.NS)*100;
-                cali=1;                
-                if ~isfield(tmp,'SampleRate')
-                        warning(['Samplerate not known in ',filename,'. 2000Hz is chosen']);
-                        HDR.SampleRate=2000;
-                else
-                        HDR.SampleRate=tmp.SampleRate;
-                end;
-                HDR.PhysDim='µV';
-                
-        elseif isfield(tmp,'neun') & isfield(tmp,'zehn') & isfield(tmp,'trig');
-                y=[tmp.neun;tmp.zehn;tmp.trig];
-                if ~isfield(tmp,'SampleRate')
-                        warning(['Samplerate not known in ',filename,'. 128Hz is chosen']);
-                        HDR.SampleRate=128;
-                else
-                        HDR.SampleRate=tmp.SampleRate;
-                end;
-        end;        
+[y,HDR] = loadeeg(filename);
+if isempty(y), 
+        fprintf(2,'Error SAVE2BKR: file %s not found\n',filename);
+        return; 
+end; 
         
-        if isnan(cali),
-                warning(['Calibration not defined in ',filename]);
-                cali=input('What was the sensitivity? ');
-        end;
-        y = y*cali;        
-else
-	HDR = eegopen(filename,'r',0);
-        [y,HDR] = eegread(HDR);
-        HDR = eegclose(HDR);
-end;
-
 if ~isfield(HDR,'NS'),
         warning(['number of channels undefined in ',filename]);
         HDR.NS = size(y,2);
@@ -301,8 +214,8 @@ count = fwrite(fid,y','short');
 fclose(fid);
 
 % save classlabels
-if exist('classlabel')==1,
+if isfield(HDR,'Classlabel'),
         fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.par'],'w');
-        fprintf(fid, '%i\r\n', classlabel);
+        fprintf(fid, '%i\r\n', HDR.Classlabel);
         fclose(fid);
 end;
