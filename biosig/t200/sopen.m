@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.32 $
-%	$Id: sopen.m,v 1.32 2004-03-14 23:14:45 schloegl Exp $
+%	$Revision: 1.33 $
+%	$Id: sopen.m,v 1.33 2004-03-16 18:00:43 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -320,6 +320,14 @@ if any(PERMISSION=='r'),
                         end;
                 end;
                 fclose(fid);
+                if strcmp(HDR.TYPE,'unknown'),
+                        try
+                                HDR.XML = xmltree(HDR.FileName);
+                                HDR.TYPE = 'XML';
+                                return; 
+                        catch
+                        end;
+                end;
                 if strcmp(HDR.TYPE,'BKR'),
                         if ~isempty(findstr(lower(HDR.FILE.Ext),'cnt')),
                                 fprintf(HDR.FILE.stderr,'Warning (dedicated to BB & CB): %s IS A BKR, not a CNT file\n',HDR.FileName);
@@ -1785,7 +1793,6 @@ elseif strcmp(HDR.TYPE,'EGI'),
         HDR.HeadLen = ftell(HDR.FILE.FID);
         HDR.FILE.POS= 0;
        
-        NScript.nrf
 elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
 	% implementation of this format is not finished yet.
 

@@ -12,12 +12,13 @@ function [signal,H] = sload(FILENAME,CHAN)
 %               default=0: loads all channels
 %
 % [signal,header] = sload(dir('f*.emg'), CHAN)
+% [signal,header] = sload('f*.emg', CHAN)
 %  	loads channels CHAN from all files 'f*.emg'
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.14 $
-%	$Id: sload.m,v 1.14 2004-02-24 21:16:11 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: sload.m,v 1.15 2004-03-16 18:00:43 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -69,15 +70,33 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 				fprintf(2,'ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
 				return;
 			end;
-			if h.EVENT.N > 0,
-				H.EVENT.POS = [H.EVENT.POS; h.EVENT.POS+size(signal,1)-size(s,1)];
-				H.EVENT.TYP = [H.EVENT.TYP; h.EVENT.TYP];
-				H.EVENT.CHN = [H.EVENT.CHN; h.EVENT.CHN];
-				H.EVENT.DUR = [H.EVENT.DUR; h.EVENT.DUR];
-				H.EVENT.N   =  H.EVENT.N  + h.EVENT.N;
-			end;			
-		end;
+
+                        if isfield(H,'TriggerOffset'),
+                                if H.TriggerOffset ~= h.TriggerOffset,
+                                        fprintf(2,'Warning SLOAD: Triggeroffset does not fit.\n',H.TriggerOffset,h.TriggerOffset);
+                                        return;
+                                end;
+                        end;
+                        if isfield(H,'Classlabel'),
+                                H.Classlabel = [H.Classlabel(:);h.Classlabel(:)];
+			end;
+			if isfield(H,'ArtifactSelection'),
+                                H.ArtifactSelection = [H.ArtifactSelection(:);h.ArtifactSelection(:)];
+                        end;
+                        if h.EVENT.N > 0,
+                                H.EVENT.POS = [H.EVENT.POS; h.EVENT.POS+size(signal,1)-size(s,1)];
+                                H.EVENT.TYP = [H.EVENT.TYP; h.EVENT.TYP];
+                                if isfield(H.EVENT,'CHN');
+                                        H.EVENT.CHN = [H.EVENT.CHN; h.EVENT.CHN];
+                                end;
+                                if isfield(H.EVENT,'DUR');
+                                        H.EVENT.DUR = [H.EVENT.DUR; h.EVENT.DUR];
+                                end;
+                                H.EVENT.N   =  H.EVENT.N  + h.EVENT.N;
+                        end;			
+                end;
 	end;
+	fprintf(1,'  SLOAD: data segments are concanated with NaNs in between.\n');
 	return;	
 end;
 
@@ -91,6 +110,15 @@ if isstruct(FILENAME),
     		fprintf(2,'Error SLOAD: missing FileName.\n');	
     		return; 
 	end;
+        
+elseif any(FILENAME=='*');      % wildcards
+        p = fileparts(FILENAME);
+        f = dir(FILENAME);
+        for k = 1:length(f);
+                f(k).name = fullfile(p,f(k).name);
+        end;
+        [signal,H] = sload(f);
+        return;
 end;
 
 [p,f,FileExt] = fileparts(FILENAME);
@@ -102,13 +130,33 @@ if strcmp(H.TYPE,'SCPECG'),
         signal = H.SCP.data;
         return;
         
+        
 elseif H.FILE.FID>0,
         [signal,H] = sread(H);
         H = sclose(H);
 
+        
+elseif strcmp(H.TYPE,'XML'),
+        signal = [];
+        fprintf(H.FILE.stderr,'Warning SLOAD: implementing XML not completed yet.\n');
+        if isa(H.XML,'XMLTree'),
+                H.XML = convert(H.XML);
+        end;
+        
+        try,    %
+                tmp = H.XML.component.series.derivation.Series.component.sequenceSet.component;
+                H.NS = length(tmp)-1;
+                for k = 1:H.NS;
+                        signal(:,k) = str2double(tmp{k+1}.sequence.value.digits)';
+                end;
+                H.TYPE = 'XML-FDA';     % that's an FDA XML file 
+        catch
+        end;
+        
+        
 elseif strcmp(H.TYPE,'alpha'),
         if ~any(H.VERSION==[407.1,409.5]);
-                fprintf(2,'Warning SLOAD: Format ALPHA Version %6.2f not tested yet.\n',H.VERSION);
+                fprintf(H.FILE.stderr,'Warning SLOAD: Format ALPHA Version %6.2f not tested yet.\n',H.VERSION);
         end;
         
         fid = fopen(fullfile(p,'rawdata'),'rb');
@@ -176,12 +224,12 @@ elseif strncmp(H.TYPE,'MAT',3),
         if isfield(tmp,'y'),		% Guger, Mueller, Scherer
                 H.NS = size(tmp.y,2);
                 if ~isfield(tmp,'SampleRate')
-                        %warning(['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
+                        %fprintf(H.FILE.stderr,['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
                         H.SampleRate=125;
                 else
                         H.SampleRate=tmp.SampleRate;
                 end;
-                warning(['Sensitivity not known in ',FILENAME]);
+                fprintf(H.FILE.stderr,'Sensitivity not known in %s.\n',FILENAME);
                 if any(CHAN),
                         signal = tmp.y(:,CHAN);
                 else
@@ -193,10 +241,10 @@ elseif strncmp(H.TYPE,'MAT',3),
                 signal = H.raw*H.Cal;
                 
         elseif isfield(tmp,'eeg');	% Scherer
-                warning(['Sensitivity not known in ',FILENAME]);
+                fprintf(H.FILE.stderr,'Warning SLOAD: Sensitivity not known in %s,\n',FILENAME);
                 H.NS=size(tmp.eeg,2);
                 if ~isfield(tmp,'SampleRate')
-                        %warning(['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
+                        %fprintf(H.FILE.stderr,['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
                         H.SampleRate=125;
                 else
                         H.SampleRate=tmp.SampleRate;
@@ -214,7 +262,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 if isa(tmp.P_C_S,'data'), %isfield(tmp.P_C_S,'version'); % without BS.analyze	
                         if any(tmp.P_C_S.Version==[1.02, 1.5, 1.52]),
                         else
-                                fprintf(2,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.Version);
+                                fprintf(H.FILE.stderr,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.Version);
                         end;
                         H.Filter.LowPass  = tmp.P_C_S.LowPass;
                         H.Filter.HighPass = tmp.P_C_S.HighPass;
@@ -231,7 +279,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 else %if isfield(tmp.P_C_S,'Version'),	% with BS.analyze software, ML6.5
                         if any(tmp.P_C_S.version==[1.02, 1.5, 1.52]),
                         else
-                                fprintf(2,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.version);
+                                fprintf(H.FILE.stderr,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.version);
                         end;        
                         H.Filter.LowPass  = tmp.P_C_S.lowpass;
                         H.Filter.HighPass = tmp.P_C_S.highpass;
@@ -291,12 +339,12 @@ elseif strncmp(H.TYPE,'MAT',3),
                                 signal=daqread(file);        
                                 H.info=daqread(file,'info');        
                         else
-                                fprintf(H.FILE.stderr,'Error LOADEEG: no data file found\n');
+                                fprintf(H.FILE.stderr,'Error SLOAD: no data file found\n');
                                 return;
                         end;
                         
                 else
-                        fprintf(H.FILE.stderr,'Error LOADEEG: no data file found\n');
+                        fprintf(H.FILE.stderr,'Error SLOAD: no data file found\n');
                         return;
                 end;
                 
@@ -329,11 +377,11 @@ elseif strncmp(H.TYPE,'MAT',3),
 			signal=signal*diag(H.Cal(CHAN));                	        
                 end;
                 
-                
         elseif isfield(tmp,'data');	% Mueller, Scherer ? 
                 H.NS = size(tmp.data,2);
+                fprintf(H.FILE.stderr,'Warning SLOAD: Sensitivity not known in %s,\n',FILENAME);
                 if ~isfield(tmp,'SampleRate')
-                        warning(['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
+                        fprintf(H.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',FILENAME);
                         H.SampleRate=125;
                 else
                         H.SampleRate=tmp.SampleRate;
@@ -346,19 +394,22 @@ elseif strncmp(H.TYPE,'MAT',3),
                 if isfield(tmp,'classlabel'),
                 	H.Classlabel = tmp.classlabel;
                 end;        
-
+                if isfield(tmp,'artifact'),
+                	H.ArtifactSelection = zeros(size(tmp.classlabel));
+                        H.ArtifactSelection(tmp.artifact)=1;
+                end;        
                 
         elseif isfield(tmp,'EEGdata');  % Telemonitoring Daten (Reinhold Scherer)
                 H.NS = size(tmp.EEGdata,2);
                 H.Classlabel = tmp.classlabel;
                 if ~isfield(tmp,'SampleRate')
-                        warning(['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
+                        fprintf(H.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',FILENAME);
                         H.SampleRate=125;
                 else
                         H.SampleRate=tmp.SampleRate;
                 end;
                 H.PhysDim = 'µV';
-                warning(['Sensitivity not known in ',FILENAME,'. 50µV is chosen']);
+                fprintf(H.FILE.stderr,'Sensitivity not known in %s. 50µV is chosen\n',FILENAME);
                 if any(CHAN),
                         signal = tmp.EEGdata(:,CHAN)*50;
                 else
@@ -369,13 +420,13 @@ elseif strncmp(H.TYPE,'MAT',3),
         elseif isfield(tmp,'daten');	% EP Daten von Michael Woertz
                 H.NS = size(tmp.daten.raw,2)-1;
                 if ~isfield(tmp,'SampleRate')
-                        warning(['Samplerate not known in ',FILENAME,'. 2000Hz is chosen']);
+                        fprintf(H.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 2000Hz is chosen\n',FILENAME);
                         H.SampleRate=2000;
                 else
                         H.SampleRate=tmp.SampleRate;
                 end;
                 H.PhysDim = 'µV';
-                warning(['Sensitivity not known in ',FILENAME,'. 100µV is chosen']);
+                fprintf(H.FILE.stderr,'Sensitivity not known in %s. 100µV is chosen\n',FILENAME);
                 %signal=tmp.daten.raw(:,1:H.NS)*100;
                 if any(CHAN),
                         signal = tmp.daten.raw(:,CHAN)*100;
@@ -386,12 +437,12 @@ elseif strncmp(H.TYPE,'MAT',3),
         elseif isfield(tmp,'neun') & isfield(tmp,'zehn') & isfield(tmp,'trig');	% guger, 
                 H.NS=3;
                 if ~isfield(tmp,'SampleRate')
-                        warning(['Samplerate not known in ',FILENAME,'. 125Hz is chosen']);
+                        fprintf(H.FILE.stderr,'Warning SLOAD: Samplerate not known in %s. 125Hz is chosen\n',FILENAME);
                         H.SampleRate=125;
                 else
                         H.SampleRate=tmp.SampleRate;
                 end;
-                warning(['Sensitivity not known in ',FILENAME]);
+                fprintf(H.FILE.stderr,'Sensitivity not known in %s. \n',FILENAME);
                 signal  = [tmp.neun;tmp.zehn;tmp.trig];
                 H.Label = {'Neun','Zehn','TRIG'};
                 if any(CHAN),
@@ -404,7 +455,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 
         else
 		signal = [];
-                warning(['SLOAD: MAT-file ',FILENAME,' not identified as BIOSIG signal',]);
+                fprintf(H.FILE.stderr,'Warning SLOAD: MAT-file %s not identified as BIOSIG signal\n',FILENAME);
                 whos('-file',FILENAME);
         end;        
 
@@ -421,7 +472,7 @@ elseif strcmp(H.TYPE,'unknown')
         elseif strcmp(TYPE,'XLS')
                 loadxls;
         elseif strcmp(TYPE,'DA_')
-                fprintf('Warning LOADEEG: Format DA# in testing state and is not supported\n');
+                fprintf('Warning SLOAD: Format DA# in testing state and is not supported\n');
                 loadda_;
         elseif strcmp(TYPE,'RG64')
                 [signal,H.SampleRate,H.Label,H.PhysDim,H.NS]=loadrg64(FILENAME,CHAN);
@@ -432,10 +483,29 @@ elseif strcmp(H.TYPE,'unknown')
         end;
 end;
 
-f = fullfile(H.FILE.Path, [H.FILE.Name,'.tsd']);
-if exist(f)==2,
-        fid = fopen(f,'r');
-        tsd = fread(fid,inf,'float');
-        fclose(fid);
-	signal = [signal, tsd];
+if strcmp(H.TYPE,'BKR');
+        f = fullfile(H.FILE.Path, [H.FILE.Name,'.tsd']);
+        if exist(f)==2,
+                fid = fopen(f,'r');
+                tsd = fread(fid,inf,'float');
+                fclose(fid);
+                if size(signal,1)==size(tsd,1),
+                        signal = [signal, tsd];
+                else
+                        fprintf(2,'Warning SLOAD: size of %s.tsd does not fit to size of %s.bkr\n',H.FILE(1).Name,H.FILE(1).Name);
+                end;
+        end;
+        f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
+        if exist(f)==2,
+                x = load(f);
+		if isfield(x,'header'),
+	                H.BCI.Paradigm = x.header.Paradigm;
+    		        if isfield(H.BCI.Paradigm,'TriggerTiming');
+    		                H.TriggerOffset = H.BCI.Paradigm.TriggerTiming;
+            		elseif isfield(H.BCI.Paradigm,'TriggerOnset');
+                    		H.TriggerOffset = H.BCI.Paradigm.TriggerOnset;
+            		end;
+		end;
+        end;
 end;
+
