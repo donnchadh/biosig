@@ -32,17 +32,12 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.26 $
-%	$Id: sopen.m,v 1.26 2004-02-07 16:51:31 schloegl Exp $
+%	$Revision: 1.27 $
+%	$Id: sopen.m,v 1.27 2004-02-10 09:31:21 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
-
-try,
-biosig_update;
-catch
-end;
 
 if isnan(str2double('1, 3'));
 	fprintf(2,'Warning BIOSIG: incorrect version of STR2DOUBLE.\n');
@@ -2803,7 +2798,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
         	        HDR.SampleRate = 1; 	% Unknown - Value will be fixed when file is closed. 
  			fprintf(2,'Warning SOPEN-W CFWB: samplerate undefined.\n');
         	end;
-        	if any([HDR.SPR==0]), 	% if any unknown, ...				HDR.FILE.OPEN = 3;			%	... fix header when file is closed. 
+        	if any([HDR.SPR==0]), 	% if any unknown, ...				HDR.FILE.OPEN = 3;			%	... fix header when file is closed. 
 		end;
         	if ~isfield(HDR,'CFWB'),
         	        HDR.CFWB.preTrigger = 0; 	% Unknown - Value will be fixed when file is closed. 
