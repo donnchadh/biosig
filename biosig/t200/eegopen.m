@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.28 $
-%	$Id: eegopen.m,v 1.28 2003-07-22 07:37:05 schloegl Exp $
+%	$Revision: 1.29 $
+%	$Id: eegopen.m,v 1.29 2003-07-24 12:41:14 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -1322,9 +1322,9 @@ elseif strncmp(HDR.TYPE,'SEG2',4),
 	end;		
 
 
-elseif strncmp(HDR.TYPE,'SIGIF',4),
+elseif strncmp(HDR.TYPE,'SIGIF',5),
 	if any(PERMISSION=='r'),
-		HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
+		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
 		HDR.FILE.OPEN = 1;
 		HDR.FILE.POS  = 0;
 
