@@ -18,8 +18,8 @@ function [HDR]=eegwrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.2 $
-%	$Id: eegwrite.m,v 1.2 2003-07-17 12:07:05 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: eegwrite.m,v 1.3 2003-07-18 15:24:04 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -45,14 +45,13 @@ if exist('OCTAVE_VERSION')>2,
 end;
 
 if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
+        % 	for GDF only one datatype is supported
+        if ~all(HDR.GDFTYP==HDR.GDFTYP(1)) 
+                fprintf(2,'Error EEGWRITE: different GDFTYPs not supported yet!\n');
+                return;
+        end;
+        
         if HDR.SIE.RAW,
-                
-                % 	for GDF only one datatype is supported
-                if ~all(HDR.GDFTYP==HDR.GDFTYP(1)) 
-                        fprintf(2,'Error EEGWRITE: different GDFTYPs not supported yet!\n');
-                        return;
-                end;
-                
                 if isnan(HDR.AS.spb),  %first call of sdfwrite
                         [HDR.AS.spb,HDR.NRec]=size(data);
                         HDR.AS.bpb = 2*HDR.AS.spb; %only for HDR
@@ -66,7 +65,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 
                 %   Support of only 1 sample rate
                 if ~all(HDR.SPR==HDR.SPR(1)) 
-                        fprintf(2,'Error EEGWRITE: different Samplingrates not supported yet!\n');
+                        fprintf(2,'Error EEGWRITE: different Samplingrates require RAW-data mode !\n');
                         return;
                 end;
                 
@@ -78,15 +77,18 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                         HDR.AS.bpb = 2*HDR.AS.spb; %only for HDR
                 end;        
                 
+                count=0;
                 for k = 0:floor(nr/HDR.AS.MAXSPR)-1;
-                        count = fwrite(HDR.FILE.FID,data(k*HDR.AS.MAXSPR+(1:HDR.AS.MAXSPR),:),gdfdatatype(HDR.GDFTYP(1)));
+                        c = fwrite(HDR.FILE.FID,data(k*HDR.AS.MAXSPR+(1:HDR.AS.MAXSPR),:),gdfdatatype(HDR.GDFTYP(1)));
+                        count = count + c;
                 end;
                 tmp = rem(nr,HDR.AS.MAXSPR);
                 if tmp,
                         fprintf(2,'Warning EEGWRITE (EDF/GDF/BDF): last block is too short\n');
                 end;
         end;
-        HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.bpb;
+        HDR.AS.numrec = HDR.AS.numrec + count/HDR.AS.spb;
+        HDR.FILE.POS  = HDR.FILE.POS  + count/HDR.AS.spb;
         
         
 elseif strcmp(HDR.TYPE,'BKR'),
