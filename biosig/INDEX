@@ -39,7 +39,8 @@ T250: Quality Control and Artifact Processing
 	EEG2HIST	calculates histogram
 	GETTRIGGER	gets trigger points
 	TRIGG		extract fixed-length trials around trigger points	
-
+	DETECTMUSCLE	detection of muscle artifacts in EEG
+	
 
 T300: Signal Processing and Feature extraction
 ---------------------------------------------
