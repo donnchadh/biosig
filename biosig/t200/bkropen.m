@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.11 $
-%	$Id: bkropen.m,v 1.11 2003-08-18 16:41:30 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: bkropen.m,v 1.12 2003-08-19 08:02:45 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -75,8 +75,8 @@ if any(PERMISSION=='r'),
 	if ((VER<=200) | (VER>207)) fprintf(2,'LOADBKR: WARNING  Version BKR Format %i',VER); end;
 	nch=fread(fid,1,'ushort');	%	2 Byte	2	Anzahl der Kanäle
 	nhz=fread(fid,1,'ushort');	%	2 Byte	4	Abtastfrequenz	
-	ntr=fread(fid,1, ULONG);	%	4 Byte	6	Anzahl der Trials
-	nsp=fread(fid,1, ULONG);	%	4 Byte	10	Anzahl Samples per Trial
+	ntr=fread(fid,1, 'uint32');	%	4 Byte	6	Anzahl der Trials
+	nsp=fread(fid,1, 'uint32');	%	4 Byte	10	Anzahl Samples per Trial
 	cvlt=fread(fid,1,'ushort');	%	2 Byte	14	Kalibrierspannung	
 	cval=fread(fid,1,'ushort');	%	2 Byte	16	Kalibrierwert
 	code=fread(fid,4,'char');	%	4 Byte	18	Elektrodencode
@@ -234,17 +234,26 @@ if any(PERMISSION=='r'),
         end;
 
 
-elseif any(PERMISSION=='w') | ~isempty(findstr(PERMISSION,'r+')),
-	BKR.FILE.OPEN = 2;
-        if ~isfield(BKR,'SPR'),
-		BKR.SPR = 0; 	% Unknown - Value will be fixed when file is closed. 
+elseif any(PERMISSION=='w'),
+        
+        BKR.FILE.OPEN = 2;		
+        BKR.VERSION   = 207;
+        if ~isfield(BKR,'NS'),
+                BKR.NS = 0; 	% unknown channel number ...
         end;
-
-        if findstr(PERMISSION,'r+'), 	% calculate BKR.SPR based on the length of the data file.  
-                fseek(BKR.FILE.FID,0,'eof');
-                EndPos = ftell(BKR.FILE.FID);
-                fseek(BKR.FILE.FID,0,'bof');
-                BKR.SPR = (EndPos - 1024)/(BKR.NS*2*BKR.NRec);
+        if ~isfield(BKR,'SPR'),
+                BKR.SPR = 0; 	% Unknown - Value will be fixed when file is closed. 
+        end;
+        if ~isfield(BKR,'NRec'),
+                BKR.NRec = -1; 	% Unknown - Value will be fixed when file is closed. 
+		if isfield(BKR,'FLAG');
+                if isfield(BKR.FLAG,'TRIGGERED');
+                        BKR.NRec = sign(BKR.FLAG.TRIGGERED-.5);
+        	end;
+    		end;
+        end;
+        if any([BKR.NS==0,BKR.SPR==0,BKR.NRec<0]), 	% if any unknown, ...	
+                BKR.FILE.OPEN = 3;			%	... fix header when file is closed. 
         end;
         
         tmp = round(BKR.PhysMax);
@@ -265,7 +274,7 @@ elseif any(PERMISSION=='w') | ~isempty(findstr(PERMISSION,'r+')),
 			BKR.Filter.LowPass = NaN; 
 		end;        
 		if ~isfield(BKR.Filter,'HighPass'),
-			BKR.Filter.HighPass=NaN; 
+			BKR.Filter.HighPass= NaN; 
 		end;
 	else
 		BKR.Filter.LowPass =NaN; 

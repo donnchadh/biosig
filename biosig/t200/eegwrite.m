@@ -18,8 +18,8 @@ function [HDR]=eegwrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.5 $
-%	$Id: eegwrite.m,v 1.5 2003-08-18 16:41:30 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: eegwrite.m,v 1.6 2003-08-19 08:02:45 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -113,8 +113,11 @@ elseif strcmp(HDR.TYPE,'BKR'),
                 fprintf(2,'Error EEGWRITE: number of columns (%i) does not fit Header information (number of channels HDR.NS %i)',size(data,2),HDR.NS);
                 return;
         end;
-	if HDR.NRec > 1,
-	        HDR.FILE.POS = HDR.FILE.POS + size(data,1)/HDR.SPR;
+        if HDR.SPR==0, 
+                HDR.SPR=size(data,1);
+        end;
+        if HDR.FLAG.TRIGGERED > 1,
+                HDR.FILE.POS = HDR.FILE.POS + size(data,1)/HDR.SPR;
 	else
 		HDR.FILE.POS = 1;		% untriggered data
 	end;
