@@ -3,7 +3,6 @@ function varargout = sviewer(varargin)
 % Select HELP in the Info menu 
 %
 % Version 1.0, November 2004
-% $Id%
 % Copyright by (C) Franz Einspieler <znarfi5@hotmail.com> and
 %                  Alois Schloegl   <a.schloegl@ieee.org>
 % University of Technology Graz, Austria
@@ -342,7 +341,7 @@ if ~isequal(Data, 0)
     [Data.signal,Data.HDR] = sread(Data.HDR,Data.NoS,0);  
     numb_samples = Data.Total_length_samples;
     max_length = numb_samples - Data.ShowSamples;
-    step = Data.ShowSamples / max_length; 
+    step = Data.ShowSamples / max_length / 2; 
     try
         set(findobj('Tag','Slider1'), ...
             'Enable','on', ...
@@ -570,9 +569,9 @@ if isfield(Data,'Detection')
     slider_step = get(findobj('Tag','Slider1'),'SliderStep');
     pos = Data.Slider.Pos;
     % X = startpoint of the plot in samples
-    X = pos/slider_step(1)*max(Data.HDR.SampleRate)*Data.NoS;
+    X = pos/slider_step(1)*max(Data.HDR.SampleRate)*Data.NoS/2;
     % Y = endpoint of the plot in samples
-    Y = X+max(Data.HDR.SampleRate)*Data.NoS;
+    Y = X + max(Data.HDR.SampleRate)*Data.NoS;
     if isequal(Data.Detection.Start,'on')
         if size(Data.Detection.EventMatrix) == 0
             return
@@ -757,18 +756,18 @@ pos1 = get(hObject, 'Value');
 
 numb_samples = Data.Total_length_samples;
 max_length = numb_samples - Data.ShowSamples;
-step = Data.ShowSamples / max_length; 
+step = Data.ShowSamples / max_length / 2; 
 
 if rem(pos1,step) > 0
     new_pos = round(pos1/step);
-    pos1=min(new_pos*step,1);
+    pos1 = min(new_pos*step,1);
     set(findobj('Tag', 'Slider1'), 'Value',pos1); 
 end
 
 pos = pos1;
 if pos <= (length-Data.ShowSamples) 
     if pos ~= last_pos
-        tsec=pos*(length-Data.ShowSamples) / max(Data.HDR.SampleRate);
+        tsec = pos * (length-Data.ShowSamples) / max(Data.HDR.SampleRate);
         tmin = floor(round(tsec)/60);
         tsec1=rem(round(tsec),60);
         th = floor(tmin/60);
@@ -801,7 +800,7 @@ if isfield(Data,'firstline')
     if ~isequal(Data.firstline,[])
         slider_step = get(findobj('Tag','Slider1'),'SliderStep');
         pos = Data.Slider.Pos;
-        X = pos/slider_step(1)*max(Data.HDR.SampleRate)*Data.NoS;
+        X = pos/slider_step(1)*max(Data.HDR.SampleRate)*Data.NoS / 2;
         pos=Data.line;
         if X < pos
             line('XData', [pos-X pos-X], ...
@@ -1481,7 +1480,7 @@ channel_name = Data.Channel{sel_channel};
 pos_channel = strmatch(channel_name,Data.allChannel);
 slider_step = get(findobj('Tag','Slider1'),'SliderStep');
 pos_slider = Data.Slider.Pos;
-X = pos_slider/slider_step(1)*max(Data.HDR.SampleRate)*Data.NoS;
+X = pos_slider/slider_step(1)*max(Data.HDR.SampleRate)*Data.NoS / 2;
 Y = X+max(Data.HDR.SampleRate)*Data.NoS;
 pos1 = get(gca,'CurrentPoint');
 pos = pos1(1)+X;
