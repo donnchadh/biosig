@@ -2,11 +2,8 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % LOADEEG loads EEG data of various data formats
 % 
 % Currently are the following data formats supported: 
-%    EDF, CNT, EEG, BDF, GDF, BKR, MAT(*), PhysioNet (MIT-ECG) 
-%
-%       HDR = eegopen(FILENAME,'r',CHANNEL);
-%	[signal,HDR] = eegread(HDR);
-%       HDR = eegclose(HDR);
+%    EDF, CNT, EEG, BDF, GDF, BKR, MAT(*), 
+%    PhysioNet (MIT-ECG), Poly5/TMS32,  
 %
 % [signal,header] = loadeeg(FILENAME [,CHANNEL[,TYPE]])
 %
@@ -18,8 +15,8 @@ function [signal,H] = loadeeg(FILENAME,CHAN,TYPE)
 % see also: EEGOPEN, EEGREAD, EEGCLOSE
 %
 
-%	$Revision: 1.9 $
-%	$Id: loadeeg.m,v 1.9 2003-04-25 20:06:58 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: loadeeg.m,v 1.10 2003-04-26 10:22:35 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -111,11 +108,10 @@ if H.FILE.FID>0,
 	[signal,H] = eegread(H);
 	H = eegclose(H);
 	
-	
 elseif strcmp(TYPE,'MIT')
 	[pfad,file,ext]=fileparts(FILENAME);
 
-	fid = fopen([pfad,file,'.hea'],'r');
+	fid = fopen(fullfile(pfad,[file,'.hea']),'r');
 	z = fgetl(fid);
 	if ~strcmp(file,strtok(z,' /')),
 		fprintf(2,'Warning: RecordName %s does not fit filename %s\n',strtok(z,' /'),file);
@@ -134,7 +130,7 @@ elseif strcmp(TYPE,'MIT')
 	for k=1:H.NS,
 	    	z = fgetl(fid);
 	        A = sscanf(z, '%*s %d %d %d %d %d',[1,5]);
-		dformat(k,1) = A(1);         % format; here only 212 is allowed
+		dformat(k,1) = A(1);         % format; 
 		gain(k,1) = A(2);              % number of integers per mV
 		bitres(k,1) = A(3);            % bitresolution
 		zerovalue(k,1)  = A(4);         % integer value of ECG zero point
@@ -151,7 +147,7 @@ elseif strcmp(TYPE,'MIT')
 	end;
 	
 	%------ LOAD BINARY DATA --------------------------------------------------
-	fid = fopen([pfad,file,'.dat'],'r','ieee-le');
+	fid = fopen(fullfile(pfad,[file,'.dat']),'r','ieee-le');
 	if H.VERSION == 212, 
 		A = fread(fid, [ceil(H.NS*3/2), inf], 'uint8')';  % matrix with 3 rows, each 8 bits long, = 2*12bit
 		for k = 1:ceil(H.NS/2),
@@ -221,12 +217,13 @@ elseif strcmp(TYPE,'MIT')
 	end;
 
 	%------ LOAD ATTRIBUTES DATA ----------------------------------------------
-	fid = fopen([pfad,file,'.atr'],'r','ieee-le');
+	fid = fopen(fullfile(pfad,[file,'.atr']),'r','ieee-le');
 	if fid<0,
 		A = []; c = 0;
 	else
-		[A,c]   = fread(fid, [2, inf], 'uint8')';
+		[A,c] = fread(fid, [2, inf], 'uint8');
 		fclose(fid);
+		A = A';
 	end;
 	
 	ATRTIME = zeros(c/2,1);
