@@ -35,8 +35,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.9 $
-% 	$Id: save2bkr.m,v 1.9 2003-09-22 13:16:32 schloegl Exp $
+%	$Revision: 1.10 $
+% 	$Id: save2bkr.m,v 1.10 2003-12-16 10:16:53 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -59,6 +59,7 @@ FLAG_REMOVE_DC = 0;
 FLAG_AUTOSCALE = 0;
 FLAG_DETREND = 0;
 FLAG_PHYSMAX = 0;
+FLAG_removeDrift = 0;
 
 chansel = 0; 
 
@@ -92,6 +93,19 @@ else
                 else
                         FLAG_DETREND = 1;
 	                chansel_dt = tmp;
+                end;
+        end;
+        
+        tmp = findstr(lower(arg3),'removedrift');
+        if ~isempty(tmp);
+                [chansel_dt2,tmp] = strtok(arg3(tmp+11:length(arg3)),' ;,+');
+                tmp = str2num(chansel_dt2);
+                if isempty(tmp),
+                        fprintf(2,'invalid RemoveDrift argument %s',chansel_dt2);
+                        return;
+                else
+                        FLAG_removeDrift = 1;
+	                chansel_dt2 = tmp;
                 end;
         end;
         tmp = findstr(lower(arg3),'physmax=');
@@ -189,10 +203,21 @@ if isstruct(arg1),
 end;
 
 for k=1:length(infile);
-        filename = fullfile(inpath,infile(k).name)
+        filename = fullfile(inpath,infile(k).name);
         [pf,fn,ext] = fileparts(filename);
         
+        % load eeg data 
         [y,HDR] = sload(filename);
+
+        % load classlabels if the exist
+        tmp = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.mat']);
+        if exist(tmp),
+                tmp=load(tmp);
+                if isfield(tmp,'classlabel');
+                        HDR.Classlabel = tmp.classlabel;
+                end;
+        end;
+
         if isempty(y), 
                 fprintf(2,'Error SAVE2BKR: file %s not found\n',filename);
                 return; 
@@ -228,6 +253,39 @@ for k=1:length(infile);
 	        end;                
         end;
         
+        if FLAG_removeDrift,
+                B = .5*(1 - cos(2*pi*(1:4*HDR.SampleRate+1)'/(4*HDR.SampleRate+2))); 
+                B = -B/sum(B);
+                B(2*HDR.SampleRate) = B(HDR.SampleRate)+1;
+                
+                B = -ones(1,HDR.SampleRate)/HDR.SampleRate;
+                B(HDR.SampleRate/2) = B(HDR.SampleRate/2)+1;
+                %B(1) = B(1)+1;
+                
+                HDR.Filter.B = B;
+                HDR.Filter.A = 1;
+                %HDR.Filter.B=B;%conv(-B, HDR.Filter.B);
+                Delay = (length(B)-1)/2;        
+                HDR.FLAG.FILT = 1;
+                HDR.Filter.HighPass = .5;
+                
+                for k = chansel_dt2,
+                        y(:,k) = filtfilt(B,1,y(:,k));
+                        %y(:,k) = tmp(Delay+1:size(y,1)+Delay);
+	        end;                
+        end;
+        
+        % add event channel 
+        if isfield(HDR,'EVENT')
+                if HDR.EVENT.N > 0,
+                        event = zeros(size(y,1),1);
+                        event(HDR.EVENT.POS) = HDR.EVENT.TYP;        
+                        HDR.NS = HDR.NS + 1;
+                        y = [y, event];
+                end;
+        end;
+        
+        % re-scale data to account for the scaling factor in the header
         HDR.DigMax=2^15-1;
         if FLAG_PHYSMAX,
                 HDR.PhysMax = PHYSMAX;
@@ -239,7 +297,6 @@ for k=1:length(infile);
                         HDR.PhysMax = max(abs(tmp(:))); %gives max of the whole matrix
                 end;
         end;
-        
         if chansel==0,
                 y = y*(HDR.DigMax/HDR.PhysMax);	%transpose, da zuerst 1.Sample-1.Channel, dann 
         else
