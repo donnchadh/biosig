@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.18 $
-%	$Id: eegopen.m,v 1.18 2003-05-30 12:19:37 schloegl Exp $
+%	$Revision: 1.19 $
+%	$Id: eegopen.m,v 1.19 2003-05-30 16:21:28 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -69,7 +69,8 @@ end;
 if exist(HDR.FileName)==2,
 	fid = fopen(HDR.FileName,'r');
 	if fid>0,
-		[s,c] = fread(fid,[1,8],'uint8');
+		[s,c] = fread(fid,[1,8],'uchar');
+		s = char(s);
                 if c==8,
                         if strcmp(s,'0       '); 
                                 HDR.TYPE='EDF';
@@ -87,6 +88,8 @@ if exist(HDR.FileName)==2,
                                 HDR.TYPE='SMA';
                         elseif s(1)==207; 
                                 HDR.TYPE='BKR';
+                        elseif strncmp(s,HDR.FILE.Name,length(HDR.FILE.Name)); 
+                                HDR.TYPE='MIT';
                         elseif strncmp(s,'RG64',4); 
                                 HDR.TYPE='RG64';
                         elseif strncmp(s,'DTDF',4); 
@@ -108,6 +111,9 @@ if exist(HDR.FileName)==2,
                 fclose(fid);
 	end;
 end;
+
+HDR.TYPE,
+
 if ~isfield(HDR,'TYPE'),
        HDR.TYPE = upper(FileExt(2:length(FileExt)));
 end;

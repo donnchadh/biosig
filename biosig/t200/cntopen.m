@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.7 $
-%	$Id: cntopen.m,v 1.7 2003-05-30 12:19:38 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: cntopen.m,v 1.8 2003-05-30 16:21:29 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -427,7 +427,11 @@ CNT.SIE.ChanSelect = CHAN;
 CNT.SIE.InChanSelect = CHAN;
 
 CNT.FILE.POS = 0;
-if strcmp(upper(CNT.FILE.Ext),'AVG'),
+if (h.type==0),
+	if ~strcmp(upper(CNT.FILE.Ext),'AVG'),
+		fprinf(2,'Warning CNTOPEN: filetype 0 does not match file extension AVG.\n'); 
+	end;
+	CNT.TYPE='AVG';
         CNT.AS.endpos = 1;
 	CNT.NRec = 1;
         CNT.SPR  = h.pnts;
@@ -442,7 +446,11 @@ elseif strcmp(upper(CNT.FILE.Ext),'COH')
 elseif strcmp(upper(CNT.FILE.Ext),'CSA')        
         warning('.EEG data not supported yet')
         
-elseif strcmp(upper(CNT.FILE.Ext),'EEG')
+elseif (h.type==1),
+	if ~strcmp(upper(CNT.FILE.Ext),'EEG'),
+		fprinf(2,'Warning CNTOPEN: filetype 1 does not match file extension EEG.\n'); 
+	end;
+	CNT.TYPE='EEG';
         CNT.SPR    = h.pnts;
         CNT.NRec   = h.compsweeps;
 	CNT.AS.bpb = (CNT.NS*CNT.SPR*2+1+2+2+4+2+2);
@@ -456,7 +464,11 @@ elseif strcmp(upper(CNT.FILE.Ext),'EEG')
         % for some reason, this is correct, 
         h.eventtablepos = CNT.NRec*CNT.AS.bpb+CNT.HeadLen;
         
-elseif strcmp(upper(CNT.FILE.Ext),'CNT')        
+elseif (h.type==2),
+	if ~strcmp(upper(CNT.FILE.Ext),'CNT'),
+		fprinf(2,'Warning CNTOPEN: filetype 2 does not match file extension CNT.\n'); 
+	end;
+	CNT.TYPE='CNT';
 	CNT.AS.bpb = CNT.NS*2;	% Bytes per Block
 	CNT.AS.spb = CNT.NS;	% Samples per Block
 	CNT.SPR    = (h.eventtablepos-CNT.HeadLen)/CNT.AS.bpb;
