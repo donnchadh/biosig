@@ -1,11 +1,11 @@
-% Demo for Writing BKR files %
-% DEMO4 is part of the biosig-toolbox
-%     it demonstrates generating BKR files 
+% Demo for Writing WAV files %
+% DEMO5 is part of the biosig-toolbox
+%     it demonstrates generating WAV files 
 %     and contains a few tests 
 % 
 
-%	$Revision: 1.1 $
-%	$Id: demo5.m,v 1.1 2003-10-13 18:32:05 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: demo5.m,v 1.2 2004-05-24 11:49:10 schloegl Exp $
 %	Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This library is free software; you can redistribute it and/or
@@ -26,8 +26,8 @@
 
 clear
 F{1}='test1.wav';
-s0 = randn(1000,5);	% Generate Test data
-s0 = [-10:10]'*[1:5];
+s0 = randn(1000,6);	% Generate Test data
+s0 = [-10:10]'*[1:size(s0,2)];
 
 % File type, format specification
     HDR.TYPE='WAV';		% Define file format
@@ -41,7 +41,7 @@ s0 = [-10:10]'*[1:5];
     s = (s0 / HDR.PhysMax);	% Wav does not include scaling
     HDR.FLAG.UCAL = 0;
 % number of bits
-    HDR.bits = 16;     	
+    HDR.bits = 16;
 % number of channels
     HDR.NS = size(s,2);     	
 % number samples (per record)
@@ -50,7 +50,6 @@ s0 = [-10:10]'*[1:5];
 %%%%%%% 1st way to generate WAV-file
 HDR.FileName = F{1};	% Assign Filename
 HDR = sopen(HDR,'w'); 	% OPEN BKR FILE
-H1 = HDR;
 swrite(HDR,s); 
 HDR = sclose(HDR);            % CLOSE BKR FILE
 

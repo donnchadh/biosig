@@ -4,6 +4,7 @@ function [HDR] = ssave(FILENAME,DATA,TYPE,Fs,bits)
 % Currently are the following data formats supported: 
 %    EDF, BDF, GDF, BKR, SND/AU, (WAV, AIF)
 %
+% HDR = ssave(HDR,data);
 % HDR = ssave(FILENAME,data,TYPE,Fs);
 %
 % FILENAME      name of file
@@ -11,11 +12,11 @@ function [HDR] = ssave(FILENAME,DATA,TYPE,Fs,bits)
 % TYPE 	determines dataformat
 % Fs	sampling rate	
 %
-% see also: SSAVE, SOPEN, SWRITE, SCLOSE
+% see also: SSAVE, SOPEN, SWRITE, SCLOSE, doc/README
 %
 
-%	$Revision: 1.1 $
-%	$Id: ssave.m,v 1.1 2003-09-09 23:14:46 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: ssave.m,v 1.2 2004-05-24 11:49:10 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -44,19 +45,16 @@ if isstruct(FILENAME),
                 fprintf(2,'Error LOADEEG: missing FileName.\n');	
                 return; 
         end;
+else
+        HDR.FileName = HDR;
+        HDR.TYPE = TYPE; 	% type of data format
+        HDR.SampleRate = Fs; 
+        HDR.bits = bits;
 end;
-
-HDR.FileName = FILENAME;
-HDR.TYPE = TYPE; 	% type of data format
-HDR.SampleRate = Fs; 
-HDR.bits = bits;
 
 [HDR.SPR,HDR.NS]   = size(DATA);
 
-
 HDR = sopen(HDR,'wb');
-
 HDR = swrite(HDR,DATA);
-
 HDR = sclose(HDR);
 
