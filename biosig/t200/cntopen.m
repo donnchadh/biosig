@@ -13,8 +13,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.19 $
-%	$Id: cntopen.m,v 1.19 2003-12-16 16:58:04 schloegl Exp $
+%	$Revision: 1.20 $
+%	$Id: cntopen.m,v 1.20 2003-12-22 11:08:26 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -169,12 +169,12 @@ else    % new header
         h.age               = fread(fid,1,'short');
         h.sex               = fread(fid,1,'char');
         h.hand              = fread(fid,1,'char');
-        h.med               = fread(fid,20, 'char');
-        h.category          = fread(fid,20, 'char');
-        h.state             = fread(fid,20, 'char');
-        h.label             = fread(fid,20, 'char');
-        h.date              = fread(fid,10, 'char');
-        h.time              = fread(fid,12, 'char');
+        h.med               = fread(fid,20,'char');
+        h.category          = fread(fid,20,'char');
+        h.state             = fread(fid,20,'char');
+        h.label             = fread(fid,20,'char');
+        h.date              = fread(fid,10,'char');	%%%
+        h.time              = fread(fid,12,'char');	%%%
         h.mean_age          = fread(fid,1,'float');
         h.stdev             = fread(fid,1,'float');
         h.n                 = fread(fid,1,'short');
@@ -183,7 +183,7 @@ else    % new header
         h.meanaccuracy      = fread(fid,1,'float');
         h.meanlatency       = fread(fid,1,'float');
         h.sortfile          = fread(fid,46,'char');
-        h.numevents         = fread(fid,1,'int');
+        h.numevents         = fread(fid,1,'int');	%%%
         h.compoper          = fread(fid,1,'char');
         h.avgmode           = fread(fid,1,'char');
         h.review            = fread(fid,1,'char');
@@ -192,11 +192,11 @@ else    % new header
         h.acceptcnt         = fread(fid,1,'ushort');
         h.rejectcnt         = fread(fid,1,'ushort');
         h.pnts              = fread(fid,1,'ushort');
-        h.nchannels         = fread(fid,1,'ushort');
+        h.nchannels         = fread(fid,1,'ushort');	%%%
         h.avgupdate         = fread(fid,1,'ushort');
         h.domain            = fread(fid,1,'char');
         h.variance          = fread(fid,1,'char');
-        h.rate              = fread(fid,1,'ushort');
+        h.rate              = fread(fid,1,'ushort');	%%%
         h.scale             = fread(fid,1,'double');
         h.veogcorrect       = fread(fid,1,'char');
         h.heogcorrect       = fread(fid,1,'char');
@@ -228,11 +228,11 @@ else    % new header
         h.aux2method        = fread(fid,1,'char');
         h.ampsensitivity    = fread(fid,1,'float');
 
-        h.lowpass           = fread(fid,1,'char');
-        h.highpass          = fread(fid,1,'char');
-        h.notch             = fread(fid,1,'char');
+        h.lowpass           = fread(fid,1,'char');	%%%
+        h.highpass          = fread(fid,1,'char');	%%%
+        h.notch             = fread(fid,1,'char');	%%%
         h.autoclipadd       = fread(fid,1,'char');
-        h.baseline          = fread(fid,1,'char');
+        h.baseline          = fread(fid,1,'char');	%%%
         h.offstart          = fread(fid,1,'float');
         h.offstop           = fread(fid,1,'float');
         h.reject            = fread(fid,1,'char');
@@ -242,7 +242,7 @@ else    % new header
         h.rejmax            = fread(fid,1,'float');
         h.trigtype          = fread(fid,1,'char');
         h.trigval           = fread(fid,1,'float');
-        h.trigchnl          = fread(fid,1,'char');
+        h.trigchnl          = fread(fid,1,'char');	%%%
         h.trigmask          = fread(fid,1,'short');
         h.trigisi           = fread(fid,1,'float');
         h.trigmin           = fread(fid,1,'float');
@@ -259,8 +259,8 @@ else    % new header
         h.automax           = fread(fid,1,'float');
         h.zmin              = fread(fid,1,'float');
         h.zmax              = fread(fid,1,'float');
-        h.lowcut            = fread(fid,1,'float');
-        h.highcut           = fread(fid,1,'float');
+        h.lowcut            = fread(fid,1,'float');	%%%
+        h.highcut           = fread(fid,1,'float');	%%%
         h.common            = fread(fid,1,'char');
         h.savemode          = fread(fid,1,'char');
         h.manmode           = fread(fid,1,'char');
@@ -288,8 +288,8 @@ else    % new header
         h.spectwindow       = fread(fid,1,'char');
         h.spectwinlength    = fread(fid,1,'float');
         h.spectorder        = fread(fid,1,'char');
-        h.notchfilter       = fread(fid,1,'char');
-        h.headgain          = fread(fid,1,'short');
+        h.notchfilter       = fread(fid,1,'char');	%%%
+        h.headgain          = fread(fid,1,'short');	%%%	
         h.additionalfiles   = fread(fid,1,'int');
         h.unused            = fread(fid,5,'char');
         h.fspstopmethod     = fread(fid,1,'short');
@@ -305,7 +305,7 @@ else    % new header
         h.montage           = fread(fid,40,'char');
         h.eventfile         = fread(fid,40,'char');
         h.fratio            = fread(fid,1,'float');
-        h.minor_rev         = fread(fid,1,'char');
+        h.minor_rev         = fread(fid,1,'char');	%%%
         h.eegupdate         = fread(fid,1,'short');
         h.compressed        = fread(fid,1,'char');
         h.xscale            = fread(fid,1,'float');
@@ -327,25 +327,26 @@ else    % new header
         h.scaletoolx2       = fread(fid,1,'float');
         h.scaletooly2       = fread(fid,1,'float');
         h.port              = fread(fid,1,'short');
-        h.numsamples        = fread(fid,1,'uint32');
+        h.numsamples        = fread(fid,1,'uint32');	%%%
 
-        h.filterflag        = fread(fid,1,'char');
-        h.lowcutoff         = fread(fid,1,'float');
-        h.lowpoles          = fread(fid,1,'short');
-        h.highcutoff        = fread(fid,1,'float');
+        h.filterflag        = fread(fid,1,'char');	%%%
+        h.lowcutoff         = fread(fid,1,'float');	%%%
+        h.lowpoles          = fread(fid,1,'short');	
+        h.highcutoff        = fread(fid,1,'float');	%%%
         h.highpoles         = fread(fid,1,'short');
         h.filtertype        = fread(fid,1,'char');
         h.filterdomain      = fread(fid,1,'char');
         h.snrflag           = fread(fid,1,'char');
         h.coherenceflag     = fread(fid,1,'char');
         h.continuoustype    = fread(fid,1,'char');
-        h.eventtablepos     = fread(fid,1,'int32');
+        h.eventtablepos     = fread(fid,1,'int32');	%%%
         h.continuousseconds = fread(fid,1,'float');
         h.channeloffset     = fread(fid,1,'uint32');
         h.autocorrectflag   = fread(fid,1,'char');
         h.dcthreshold       = fread(fid,1,'uchar');
         
-        if ftell(fid)~=900,
+        if 0,%ftell(fid)~=900,
+	% this check does not work in the currenct CVS-version of Octave	
                 warning(['supicous Neuroscan file ',FILENAME]);
         end;
         
@@ -383,7 +384,8 @@ else    % new header
                 e.calib(1,n)          = fread(fid,1,'float');
         end
         
-        if ftell(fid)~=(900+h.nchannels*75),
+        if 0,%ftell(fid)~=(900+h.nchannels*75),	
+	% this check does not work in the currenct CVS-version of Octave	
                 warning(['supicous Neuroscan file ',FILENAME]);
         end;
         
@@ -510,9 +512,6 @@ elseif strcmp(upper(CNT.FILE.Ext),'EEG'),
 	CNT.Dur = CNT.SPR/CNT.SampleRate;
         
 elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
-	if ~any(h.type==[2,184]),
-		fprintf(2,'Warning CNTOPEN: filetype %i does not match file extension (%s).\n',h.type,CNT.FILE.Ext); 
-	end;
         CNT.TYPE = 'CNT';
         %CNT.SPR   = h.numsamples;
 
@@ -547,7 +546,7 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
                         Teeg.KeyPad = rem(tmp,16); %bitand(tmp,15);
                         Teeg.Accept = (fix(tmp/16)*16)==13; % (bitshift(tmp,-4)==13);  % 0xd = accept, 0xc = reject 
                         
-                        Teeg.Offset =  fread(fid,1,'int32');        
+                        Teeg.Offset = fread(fid,1,'int32');        
                         K = K + 8;
                         if CNT.EVENT.TeegType==2,
                                 Teeg.Type =  fread(fid,1,'int16');        
@@ -559,10 +558,10 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
                                 K = K + 11;        
                         end;        
                         CNT.EVENT.Teeg(k) = Teeg;
-                end
+                end;
                 if k,
-                        CNT.EVENT.TYP =  cat(1,CNT.EVENT.Teeg(:).Stimtype);
-                        CNT.EVENT.POS = (cat(1,CNT.EVENT.Teeg(:).Offset) - CNT.HeadLen) ./ CNT.AS.bpb;
+                        CNT.EVENT.TYP = [CNT.EVENT.Teeg(:).Stimtype]';
+                        CNT.EVENT.POS = ([CNT.EVENT.Teeg(:).Offset]' - CNT.HeadLen) ./ CNT.AS.bpb;
                         CNT.EVENT.N   = length(CNT.EVENT.TYP);
                 end;
         end;

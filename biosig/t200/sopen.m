@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.17 $
-%	$Id: sopen.m,v 1.17 2003-12-19 16:32:18 schloegl Exp $
+%	$Revision: 1.18 $
+%	$Id: sopen.m,v 1.18 2003-12-22 11:08:26 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -64,7 +64,7 @@ if ~isfield(HDR.FILE,'stderr'),
 end;
 if ~isfield(HDR.FILE,'stdout'),
         HDR.FILE.stdout = 1;
-end;
+end;	
 
 %if exist(HDR.FileName)==2,
 if any(PERMISSION=='r'),
@@ -335,8 +335,100 @@ elseif strcmp(HDR.TYPE,'BKR'),
 
         
 elseif strmatch(HDR.TYPE,['CNT';'AVG';'EEG']),
-        [HDR,H1,h2] = cntopen(HDR,PERMISSION,CHAN);
-        
+        if any(PERMISSION=='r');
+	        [HDR,H1,h2] = cntopen(HDR,PERMISSION,CHAN);
+
+        elseif any(PERMISSION=='w');
+		% check header information
+		if ~isfield(HDR,'NS'),
+			HDR.NS = 0;
+		end;
+		if ~isfinite(HDR.NS) | (HDR.NS<0)
+			fprintf(2,'Error SOPEN CNT-Write: HDR.NS not defined\n');
+			return;
+		end;	
+		if ~isfield(HDR,'SPR'),
+			HDR.SPR = 0;
+		end;
+		if ~isfinite(HDR.SPR)
+			HDR.SPR = 0;
+		end;	
+		type = 2;
+		if strmatch(HDR.TYPE,'EEG'), type = 1;
+		elseif strmatch(HDR.TYPE,'AVG'), type = 0;
+		end;
+
+		if ~isfield(HDR,'PID')
+			HDR.PID = char(repmat(32,1,20));
+		elseif prod(size(HDR.PID))>20,
+			HDR.PID = HDR.PID(1:20);
+		else 
+			HDR.PID = [HDR.PID(:)',repmat(32,1,20-length(HDR.PID(:)))];
+			%HDR.PID = [HDR.PID,repmat(32,1,20-length(HDR.PID))];
+		end;
+		
+		if ~isfield(HDR,'Label')
+			HDR.Label = int2str((1:HDR.NS)');
+		elseif iscell(HDR.Label),
+			HDR.Label = cat(1,HDR.Label);
+		end;
+		if size(HDR.Label,2)>10,
+			HDR.Label = HDR.Label(:,1:10);
+		elseif size(HDR.Label,2)<10, 
+			HDR.Label = [HDR.Label,repmat(32,HDR.NS,10-size(HDR.Label,2))];
+		end;
+
+		if ~isfield(HDR,'Calib')
+			HDR.Cal = ones(HDR.NS,1);
+			e.sensitivity = ones(HDR.NS,1)*204.8;
+			HDR.Off = zeros(HDR.NS,1);
+		else
+			HDR.Cal = diag(HDR.Calib(2:end,:));
+			e.sensitivity = ones(HDR.NS,1)*204.8;
+			HDR.Off = round(HDR.Calib(1,:)'./HDR.Cal);
+		end;
+		
+		% open file 
+	        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+		if HDR.FILE.FID < 0,
+			return;
+    		end;
+		HDR.FILE.OPEN = 2; 
+		if any([HDR.SPR] <= 0);
+			HDR.FILE.OPEN = 3; 
+		end;
+
+		% write fixed header
+		fwrite(HDR.FILE.FID,'Version 3.0','char');
+		fwrite(HDR.FILE.FID,zeros(2,1),'uint32');
+		fwrite(HDR.FILE.FID,type,'uchar');
+		fwrite(HDR.FILE.FID,HDR.PID,'uchar');
+		
+		fwrite(HDR.FILE.FID,repmat(0,1,900-ftell(HDR.FILE.FID)),'uchar')
+
+		% write variable header
+		for k = 1:HDR.NS,
+	    		count = fwrite(HDR.FILE.FID,HDR.Label(k,:),'uchar');
+	    		count = fwrite(HDR.FILE.FID,zeros(5,1),'uchar');
+	    		count = fwrite(HDR.FILE.FID, 0, 'ushort');
+	    		count = fwrite(HDR.FILE.FID,zeros(2,1),'uchar');
+
+	    		count = fwrite(HDR.FILE.FID,zeros(7,1),'float');
+	    		count = fwrite(HDR.FILE.FID,HDR.Off(k),'short');
+	    		count = fwrite(HDR.FILE.FID,zeros(2,1),'uchar');
+	    		count = fwrite(HDR.FILE.FID,[zeros(2,1),e.sensitivity(k)],'float');
+	    		count = fwrite(HDR.FILE.FID,zeros(3,1),'char');
+	    		count = fwrite(HDR.FILE.FID,zeros(4,1),'uchar');
+	    		count = fwrite(HDR.FILE.FID,zeros(1,1),'char');
+	    		count = fwrite(HDR.FILE.FID,HDR.Cal(k),'short');
+		end;	
+
+		HDR.HeadLen = ftell(HDR.FILE.FID);
+		if HDR.HeadLen ~= (900+75*HDR.NS),
+			fprintf(2,'Error SOPEN CNT-Write: Headersize does not fit\n');
+		end;
+	end;
+
 
 elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
@@ -823,8 +915,8 @@ elseif strcmp(HDR.TYPE,'SND'),
 	if HDR.FILE.OPEN == 1; 
 		% check file length
 		fseek(HDR.FILE.FID,0,1);
-		len = ftell(HDR.FILE.FID); 
-		if len ~= (datlen+HDR.HeadLen),
+		%len = ftell(HDR.FILE.FID); 
+		if 0, %len ~= (datlen+HDR.HeadLen),
 			fprintf(HDR.FILE.stderr,'Warning SOPEN SND-format: header information does not fit file length \n');
 			datlen = len - HDR.HeadLen; 
 		end;	
@@ -1597,13 +1689,13 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
 
         numbegin=0;
-        HDR.H1 = [];
+        HDR.H1 = '';
         while ~numbegin,
                 line = fgetl(HDR.FILE.FID);
-                HDR.H1 = [HDR.H1 line];
+                HDR.H1 = [HDR.H1, line];
                 if strncmp('"NCHAN%"',line,8) 
                         [tmp,line] = strtok(line,'=');
-                        [tmp,line] = strtok(line,'"=');
+                        [tmp,line] = strtok(line,['"=',10,13]);
                         HDR.NS = str2num(tmp);
                 end
                 if strncmp('"NUM.POINTS"',line,12) 
@@ -1631,7 +1723,8 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
                 if strncmp('"UNITS$[]"',line,10)
                         [tmp,line] = strtok(line,'=');
                         for k=1:HDR.NS,
-                                [HDR.PhysDim{k},line] = strtok(line,[', =',10,13]);
+                                [tmp,line] = strtok(line,[', =',10,13]);
+				HDR.PhysDim(k,1:length(tmp)) = tmp;
                         end;
                 end
                 if strncmp('"CHANNEL.RANGES[]"',line,18)
@@ -1646,9 +1739,9 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
                 end
                 if strncmp('"CHAN$[]"',line,9)
                         [tmp,line] = strtok(line,'=');
-                        for k=1:HDR.NS,
+                        for k=1:HDR.NS,	
                                 [tmp,line] = strtok(line,[', =',10,13]);
-                                HDR.Label{k,1} = tmp;
+				HDR.Label(k,1:length(tmp)) = tmp;
                         end;
                 end
                 if 0,strncmp('"CHANNEL.LABEL$[]"',line,18)
@@ -1723,11 +1816,11 @@ elseif strcmp(HDR.TYPE,'RDF'),
     
 	% first pass, scan data
 	totalsize = 0;
-        tag = fread(HDR.FILE.FID,1,'uint32');
+        tag = fread(HDR.FILE.FID,1,'uint32')
 	while(~feof(HDR.FILE.FID)),
     		if tag == hex2dec('f0aa55'),
         		cnt = cnt + 1;
-			HDR.Block.Pos(cnt) = ftell(HDR.FILE.FID)
+			%HDR.Block.Pos(cnt) = ftell(HDR.FILE.FID);
 
         		% Read nchans and block length
         		tmp = fread(HDR.FILE.FID,34,'uint16');
@@ -2095,7 +2188,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 				end;
 				A(k0) = str2num(tmp); 
 			end;
-                        HDR.Label{k} = z; 
+                        HDR.Label(k,1:length(z)) = z; 
 			dformat(k,1) = A(1);         % format; 
 			HDR.gain(k,1) = A(2);              % number of integers per mV
 			bitres(k,1) = A(3);            % bitresolution
@@ -2648,7 +2741,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
 		fwrite(HDR.FILE.FID,HDR.preTrigger,'double');
 		fwrite(HDR.FILE.FID,[HDR.NS,HDR.SPR,HDR.Flag.TimeChannel],'int32');
 		fwrite(HDR.FILE.FID,tmp,'int32');
-		HDR.HeadLen = ftell(HDR.FILE.FID);
+		HDR.HeadLen = 68; %ftell(HDR.FILE.FID);
 		if (HDR.HeadLen~=68),
 			fprintf(2,'Error SOPEN CFWB: size of header1 does not fit in file %s\n',HDR.FileName);
 		end;
@@ -2660,8 +2753,8 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
 			fwrite(HDR.FILE.FID,[HDR.Cal(k),HDR.Off(k)],'double');
 			fwrite(HDR.FILE.FID,[HDR.PhysMax(k),HDR.PhysMin(k)],'double');
 		end;
-		HDR.HeadLen = ftell(HDR.FILE.FID);
-		if (HDR.HeadLen~=(68+HDR.NS*96))
+		HDR.HeadLen = (68+HDR.NS*96); %ftell(HDR.FILE.FID);
+		if 0, (HDR.HeadLen~=(68+HDR.NS*96))
 			fprintf(2,'Error SOPEN CFWB: size of header2 does not fit in file %s\n',HDR.FileName);
 		end;
         end;
@@ -2669,7 +2762,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
         HDR.Label = setstr(HDR.Label);
         HDR.PhysDim = setstr(HDR.PhysDim);
 
-        HDR.HeadLen = ftell(HDR.FILE.FID);
+        %HDR.HeadLen = ftell(HDR.FILE.FID);
         HDR.FILE.POS = 0; 
         HDR.AS.endpos = HDR.SPR; 
 
@@ -2853,7 +2946,7 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
 		for k=1:HDR.NS,
 		        chandata = fgetl(HDR.FILE.FID);			% 18
 		        [tmp,chandata] = strtok(chandata,' ,;:');  
-                        HDR.Label{k} = tmp;
+                        HDR.Label(k,1:length(tmp)) = tmp;
 		        [tmp,chandata] = strtok(chandata,' ,;:');  
 		        HDR.Cal(k) = str2num(tmp);  
         
