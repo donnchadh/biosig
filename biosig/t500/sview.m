@@ -1,4 +1,4 @@
-function sview(s,H),
+function argout=sview(s,H),
 % SVIEW - a simple signal viewer 
 %    SVIEW(filename)
 %    SVIEW(HDR)
@@ -7,8 +7,8 @@ function sview(s,H),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.1 $
-%	$Id: sview.m,v 1.1 2004-02-21 14:52:48 schloegl Exp $ 
+%	$Revision: 1.2 $
+%	$Id: sview.m,v 1.2 2004-04-08 16:47:47 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -36,11 +36,12 @@ else
         return;
 end;
 
-t  = s(:); t(~isnan(t));
+t  = s(:); 
+t(isnan(t))=median(t);
 dd = max(t)-min(t);
 
 plot((1:size(s,1))'/H.SampleRate,((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)),'-');
-if H.EVENT.N > 0,
+if 0, H.EVENT.N > 0,
         hold on;
         if ~isfield(H.EVENT,'DUR');
                 plot(H.EVENT.POS/H.SampleRate, H.EVENT.CHN*dd, 'x');
@@ -60,5 +61,10 @@ title([H.FileName, ' generated with BIOSIG tools for Octave and Matlab(R)']);
 xlabel('time t[s]');
 ylabel(sprintf('Amplitude [%s]',H.PhysDim(1,:)));
 
-legend(H.Label);
+if exist('OCTAVE_VERSION')<5;
+        legend(H.Label);
+end;
 
+if nargout
+        argout=H;
+end;
