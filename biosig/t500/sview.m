@@ -7,8 +7,8 @@ function argout=sview(s,H),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.2 $
-%	$Id: sview.m,v 1.2 2004-04-08 16:47:47 schloegl Exp $ 
+%	$Revision: 1.3 $
+%	$Id: sview.m,v 1.3 2004-04-16 20:44:48 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -36,25 +36,32 @@ else
         return;
 end;
 
+LEG = H.Label;
+
 t  = s(:); 
 t(isnan(t))=median(t);
 dd = max(t)-min(t);
 
+
 plot((1:size(s,1))'/H.SampleRate,((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)),'-');
-if 0, H.EVENT.N > 0,
+if H.EVENT.N > 0,
         hold on;
-        if ~isfield(H.EVENT,'DUR');
-                plot(H.EVENT.POS/H.SampleRate, H.EVENT.CHN*dd, 'x');
-                
-        elseif 1,
+        if 0, 
+        elseif isfield(H.EVENT,'DUR') & isfield(H.EVENT,'CHN');
                 plot([H.EVENT.POS,H.EVENT.POS+H.EVENT.DUR]'/H.SampleRate,[dd;dd]*H.EVENT.CHN','+-');    
                 
-        else
-                for k = 1:H.EVENT.N,
-                        plot(H.EVENT.POS(k)+[0,H.EVENT.DUR(k)],[0,0],'+-');    
-                end;
+        elseif isfield(H.EVENT,'CHN');
+                plot(H.EVENT.POS/H.SampleRate, H.EVENT.CHN*dd, 'x');
+                
+        elseif isfield(H.EVENT,'DUR');
+                plot([H.EVENT.POS,H.EVENT.POS+H.EVENT.DUR]'/H.SampleRate,[dd;dd]*H.EVENT.CHN','+-');    
+                
+        else; 
+                plot(H.EVENT.POS/H.SampleRate,dd*ones(H.EVENT.N,1),'^');    
+                
         end;
         hold off;
+        LEG = strvcat(LEG,'Events');
 end;
 
 title([H.FileName, ' generated with BIOSIG tools for Octave and Matlab(R)']);
@@ -62,7 +69,7 @@ xlabel('time t[s]');
 ylabel(sprintf('Amplitude [%s]',H.PhysDim(1,:)));
 
 if exist('OCTAVE_VERSION')<5;
-        legend(H.Label);
+        legend(LEG);
 end;
 
 if nargout
