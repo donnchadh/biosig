@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.27 $
-%	$Id: plota.m,v 1.27 2004-05-25 20:21:30 schloegl Exp $
+%       $Revision: 1.28 $
+%	$Id: plota.m,v 1.28 2004-07-09 21:21:07 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -1895,7 +1895,8 @@ elseif strcmp(X.datatype,'AMARMA')
 	if strcmp(upper(arg3),'VLHF'),	MODE = [MODE,2]; end;
 	if strcmp(upper(arg3),'IMAGE'),	MODE = [MODE,3]; end;
 	if strcmp(upper(arg3),'3D'),	MODE = [MODE,4]; end;
-	if strcmp(upper(arg3),'ALL'),	MODE = 1:3; end;
+	if strcmp(upper(arg3),'n.u.'),	MODE = [MODE,5]; end;
+	if strcmp(upper(arg3),'ALL'),	MODE = [1,5,3]; end;
 		
 	if nargin<4,
 		if any(MODE==4)
@@ -1944,12 +1945,12 @@ elseif strcmp(X.datatype,'AMARMA')
 	if any(MODE==2)	
                 [w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,2:end),f0,X.PE);
                 ix = (imag(F)==0);
-                
+
                 ixVLF = ((w>=0)  & (w<.04)); F1 = real(F); F1(~ixVLF)= NaN;
                 ixLF  = (w>=.04) & (w<=.15); F2 = real(F); F2(~ixLF) = NaN;
                 ixHF  = (w>.15)  & (w<=.4) ; F3 = real(F); F3(~ixHF) = NaN;
                 
-                tmp = [X.PE, sumskipnan(F1,2), sumskipnan(F2,2), sumskipnan(F3,2)];
+                tmp = [sumskipnan(real(F),2), sumskipnan(F1,2), sumskipnan(F2,2), sumskipnan(F3,2)];
                 tmp(:,5) = tmp(:,3)./tmp(:,4);
                 tmp(:,6) = tmp(:,3)./(tmp(:,1)-tmp(:,2));
                 tmp(:,7) = tmp(:,4)./(tmp(:,1)-tmp(:,2));
@@ -1958,7 +1959,7 @@ elseif strcmp(X.datatype,'AMARMA')
 
 		K = K + 1;
                 subplot(hf(K));
-                semilogy(X.T,tmp(:,[3,4,8])); % 1
+                semilogy(X.T,tmp(:,[3,4,8,1])); % 1
                 v = axis; v(2) = max(X.T); axis(v);
                 ylabel(sprintf('%s [%s^2]',X.Label,X.PhysDim));
 		hc= colorbar;
@@ -1968,7 +1969,38 @@ elseif strcmp(X.datatype,'AMARMA')
 		
 
                 %ylabel(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
-                legend({'LF','HF','VLF+LF+HF'})
+                legend({'LF','HF','VLF+LF+HF','total'})
+	end;        
+                
+	if any(MODE==5)	
+                [w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,2:end),1);
+                ix = (imag(F)==0);
+                
+                ixVLF = ((w>=0)  & (w<.04)); F1 = real(F); F1(~ixVLF)= NaN;
+                ixLF  = (w>=.04) & (w<=.15); F2 = real(F); F2(~ixLF) = NaN;
+                ixHF  = (w>.15)  & (w<=.4) ; F3 = real(F); F3(~ixHF) = NaN;
+                
+                tmp = [sumskipnan(real(F),2), sumskipnan(F1,2), sumskipnan(F2,2), sumskipnan(F3,2)];
+                tmp(:,5) = tmp(:,3)./tmp(:,4);
+                tmp(:,6) = tmp(:,3)./(tmp(:,1)-tmp(:,2));
+                tmp(:,7) = tmp(:,4)./(tmp(:,1)-tmp(:,2));
+                tmp(:,8) = sum(tmp(:,2:4),2);
+                
+
+		K = K + 1;
+                subplot(hf(K));
+                %semilogy(X.T,tmp(:,[3,4,8])); % 1
+                plot(X.T,tmp(:,[6,7])*100); % 1
+                v = axis; v(2:4) = [max(X.T),0,100]; axis(v);
+                ylabel(sprintf('%s [n.u. %%]',X.Label));
+		hc= colorbar;
+		pos=get(gca,'position');
+		delete(hc);
+		set(gca,'position',pos);
+	
+
+                %ylabel(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
+                legend({'LF','HF'})
 	end;        
                 
 	if any(MODE==3), 	
@@ -1978,7 +2010,7 @@ elseif strcmp(X.datatype,'AMARMA')
                 for l = 1:DN:N,  %N/2; [k,size(sdf),N],%length(AR);
                         k = ceil(l/DN);
                         % [h(:,k),F(:,k)] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',128,f0(l,1));
-                        [h2(:,k),F2] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',[0:70]'/64,f0(l,1));
+                        [h2(:,k),F2] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',[0:100]'/64,f0(l,1));
                         h2(find(F2>f0(l,1)/2),k)=NaN;
                 end;
         
