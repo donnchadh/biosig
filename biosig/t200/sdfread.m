@@ -17,8 +17,8 @@ function [S,EDF] = sdfread(EDF,NoS,StartPos)
 %
 % See also: fread, SDFREAD, SDFWRITE, SDFCLOSE, SDFSEEK, SDFREWIND, SDFTELL, SDFEOF
 
-%	$Revision: 1.1 $
-%	$Id: sdfread.m,v 1.1 2003-02-01 15:03:46 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: sdfread.m,v 1.2 2003-05-27 13:53:16 schloegl Exp $
 %	Copyright (c) 1997-2002 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -514,15 +514,19 @@ end;
 %%%%% select the correct seconds
 if ~EDF.SIE.RAW & EDF.SIE.TimeUnits_Seconds 
         if NoR>0
-                       %EDF.Block,
-		       %[StartPos,StartPos+NoS,EDF.AS.startrec*EDF.Dur]
+                %EDF.Block,
+                %[StartPos,StartPos+NoS,EDF.AS.startrec*EDF.Dur]
                 if (StartPos < EDF.AS.startrec*EDF.AS.MAXSPR)
                         tmp = S(size(S,1)+(1-EDF.AS.MAXSPR:0),:);
                         
                         EDF.Block.number(3) = StartPos;
                         EDF.Block.number(4) = (StartPos+NoS);
                         
-                        S = [EDF.Block.data(floor(EDF.Block.number(3)-EDF.Block.number(1))+1:EDF.AS.MAXSPR,:); S(1:floor(EDF.Block.number(4)-EDF.AS.startrec*EDF.AS.MAXSPR),:)];
+                        if ~isempty(EDF.Block.data);
+                                S = [EDF.Block.data(floor(EDF.Block.number(3)-EDF.Block.number(1))+1:EDF.AS.MAXSPR,:); S(1:floor(EDF.Block.number(4)-EDF.AS.startrec*EDF.AS.MAXSPR),:)];
+                        else
+                        %        S = [S(1:floor(EDF.Block.number(4)-EDF.AS.startrec*EDF.AS.MAXSPR),:)];
+                        end;
                         
                         EDF.Block.number(1:2)=(EDF.FILE.POS+[-1 0])*EDF.AS.MAXSPR;
                         EDF.Block.data = tmp;

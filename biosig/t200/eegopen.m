@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.14 $
-%	$Id: eegopen.m,v 1.14 2003-05-26 18:42:36 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: eegopen.m,v 1.15 2003-05-27 13:53:15 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -112,7 +112,7 @@ if ~isfield(HDR,'TYPE'),
        HDR.TYPE = upper(FileExt(2:length(FileExt)));
 end;
 
-%%% EDF format
+	%%% EDF format
 if     strcmp(HDR.TYPE,'REC'), HDR.TYPE='EDF';
 elseif strcmp(HDR.TYPE,'EDF'), HDR.TYPE='EDF';
         
@@ -128,7 +128,6 @@ elseif strcmp(HDR.TYPE,'COH'), HDR.TYPE='COH';
 elseif strcmp(HDR.TYPE,'CSA'), HDR.TYPE='COH';
         error(sprintf('EEGOPEN: filetype %s not implemented, yet.',TYPE));
 elseif strcmp(HDR.TYPE,'EEG'), HDR.TYPE='EEG';
-        warning(sprintf('EEGOPEN: filetype %s not tested, yet.',HDR.TYPE));
 elseif strcmp(HDR.TYPE,'CNT'), HDR.TYPE='CNT';
 elseif strcmp(HDR.TYPE,'SET'), HDR.TYPE='SET';
         warning(sprintf('EEGOPEN: filetype %s not tested, yet.',TYPE));
@@ -329,7 +328,9 @@ elseif strcmp(HDR.TYPE,'EGI'),
         else
                 error('Unknown data format');
         end
-        
+        HDR.AS.bpb = HDR.AS.bpb + 6*HDR.FLAG.TRIGGERED;
+                
+                
         if isequal(HDR.eventtypes,0),
                 HDR.eventcode(1,1:4) = 'none';
         else
@@ -341,9 +342,8 @@ elseif strcmp(HDR.TYPE,'EGI'),
         end
         
         HDR.HeadLen = ftell(HDR.FILE.FID);
-        HDR.FILE.POS=0;
-        HDR.VERSION = fread(HDR.FILE.FID,1,'integer*4');
-        
+        HDR.FILE.POS= 0;
+       
         
 elseif strcmp(HDR.TYPE,'LDR'),
         HDR = openldr(HDR,PERMISSION);      
@@ -439,7 +439,7 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
                 fprintf(HDR.FILE.stderr,'\tProbably more than one data segment - this is not supported in the current version of EEGOPEN\n');
         end
         HDR.AS.bpb    = HDR.NS*4;
-        HDR.AS.endpos = (endpos-HDR.HeadLen)/HDR.NS/4;
+        HDR.AS.endpos = (endpos-HDR.HeadLen)/HDR.AS.bpb;
         
         if ~isfield(HDR,'SMA')
 	        HDR.SMA.EVENT_CHANNEL= 1;
@@ -449,10 +449,8 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         
         if CHAN==0,		
 		HDR.SIE.InChanSelect = 1:HDR.NS;
-		HDR.SIE.ChanSelect   = 2:HDR.NS;
 	elseif all(CHAN>0 & CHAN<=HDR.NS),
-		HDR.SIE.InChanSelect = [HDR.SMA.EVENT_CHANNEL; CHAN(:)+1];
-		HDR.SIE.ChanSelect = [1+CHAN(:)];
+		HDR.SIE.InChanSelect = CHAN;
 	else
 		fprintf(HDR.FILE.stderr,'ERROR: selected channels are not positive or exceed Number of Channels %i\n',HDR.NS);
 		fclose(HDR.FILE.FID); 

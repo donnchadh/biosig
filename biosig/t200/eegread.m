@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.10 $
-%	$Id: eegread.m,v 1.10 2003-05-26 18:42:36 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: eegread.m,v 1.11 2003-05-27 13:53:16 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -66,11 +66,11 @@ elseif strmatch(HDR.TYPE,{'BKR','ISHNE','RG64'}),
 
 elseif strcmp(HDR.TYPE,'SMA'),
         if nargin==3,
-        	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*4,'bof');        
+        	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
 		HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         
-        NoS = min(NoS,(HDR.AS.endpos-HDR.FILE.POS)/HDR.SPR);
+        NoS = min(NoS,(HDR.AS.endpos-HDR.FILE.POS)/HDR.SampleRate);
         [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],'float'); % read data frame
         
         HDR.SMA.events = diff(sign([HDR.Filter.T0',S(HDR.SMA.EVENT_CHANNEL,:)]-HDR.SMA.EVENT_THRESH))>0;
@@ -78,7 +78,7 @@ elseif strcmp(HDR.TYPE,'SMA'),
 	        HDR.Filter.T0  = S(HDR.SMA.EVENT_CHANNEL,size(S,2))';
         end;
         if count,
-	        S = S(HDR.SIE.ChanSelect,:)';
+	        S = S(HDR.SIE.InChanSelect,:)';
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
        
@@ -147,7 +147,8 @@ elseif strcmp(HDR.TYPE,'MIT'),
         
 	DataLen = NoS*HDR.SampleRate;
 	if HDR.VERSION == 212, 
-		A = fread(HDR.FILE.FID, [HDR.AS.bpb, DataLen], 'uint8')';  % matrix with 3 rows, each 8 bits long, = 2*12bit
+		[A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb, DataLen], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
+                A = A'; DataLen = count/HDR.AS.bpb;
                 for k = 1:ceil(HDR.NS/2),
 			S(:,2*k-1) = bitand(A(:,3*k+[-2:-1])*(2.^[0;8]),2^12-1);
 			S(:,2*k)   = bitshift(bitand(A(:,3*k-1),15*16),4)+A(:,3*k);
@@ -156,7 +157,8 @@ elseif strcmp(HDR.TYPE,'MIT'),
                 end
                 
 	elseif HDR.VERSION == 310, 
-		A = fread(HDR.FILE.FID, [HDR.AS.bpb/2, DataLen], 'uint16')';  % matrix with 3 rows, each 8 bits long, = 2*12bit
+		[A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb/2, DataLen], 'uint16');  % matrix with 3 rows, each 8 bits long, = 2*12bit
+                A = A'; DataLen = count/HDR.AS.bpb*2;
 		for k = 1:ceil(HDR.NS/3),
 			k1=3*k-2; k2=3*k-1; k3=3*k;
 			S(:,3*k-2) = bitand(A(:,k*2-1),2^12-2)/2;	
@@ -167,7 +169,8 @@ elseif strcmp(HDR.TYPE,'MIT'),
 		end;
 
 	elseif HDR.VERSION == 311, 
-		A = fread(HDR.FILE.FID, [HDR.AS.bpb/4, DataLen], 'uint32')';  % matrix with 3 rows, each 8 bits long, = 2*12bit
+		[A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb/4, DataLen], 'uint32');  % matrix with 3 rows, each 8 bits long, = 2*12bit
+                A = A'; DataLen = count/HDR.AS.bpb*4;
 		for k = 1:ceil(HDR.NS/3),
 			S(:,3*k-2) = bitand(A(:,k),2^11-1);	
 			S(:,3*k-1) = bitand(bitshift(A(:,k),-11),2^11-1);	
@@ -177,8 +180,8 @@ elseif strcmp(HDR.TYPE,'MIT'),
 		end;
 
 	elseif HDR.VERSION == 8, 
-		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int8')';  
-                
+		[S,count] = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int8');  
+		S = S'; DataLen = count/HDR.NS;               
                 if HDR.FILE.POS==0,
 	                HDR.mode8.accu = zeros(1,HDR.NS);
                         HDR.mode8.reset= 0;
@@ -192,18 +195,20 @@ elseif strcmp(HDR.TYPE,'MIT'),
 		HDR.mode8.accu = S(size(S,1),:);
 
 	elseif HDR.VERSION == 80, 
-		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'uint8')';  
-		S = S-128;
+		[S,count] = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'uint8');  
+		S = S'-128; DataLen = count/HDR.NS;
 
 	elseif HDR.VERSION == 160, 
-		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'uint16')';  
-		S = S-2^15;
+		[S,count] = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'uint16');  
+		S = S'-2^15; DataLen = count/HDR.NS;
 
 	elseif HDR.VERSION == 16, 
-		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int16')'; 
+		[S,count] = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int16'); 
+		S = S'; DataLen = count/HDR.NS;
 
 	elseif HDR.VERSION == 61, 
-		S = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int16')'; 
+		[S,count] = fread(HDR.FILE.FID, [HDR.NS,DataLen], 'int16'); 
+		S = S'; DataLen = count/HDR.NS;
 
 	else
 		fprintf(2, 'ERROR MIT-ECG: format %i not supported.\n',HDR.VERSION); 
@@ -275,13 +280,8 @@ elseif strcmp(HDR.TYPE,'TMS32'),
         
 elseif strcmp(HDR.TYPE,'EGI'),
         if nargin==3,
-	        if HDR.FLAG.TRIGGERED,
-                        fseek(HDR.FILE.FID,HDR.HeadLen+(HDR.AS.bpb+6)*StartPos,'bof');        
-                        HDR.FILE.POS = StartPos;
-                else
-                        fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*StartPos,'bof');        
-                        HDR.FILE.POS = HDR.SampleRate*StartPos;
-        	end;        
+                fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*StartPos,'bof');        
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         
         if HDR.FLAG.TRIGGERED,

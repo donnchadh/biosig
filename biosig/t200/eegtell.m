@@ -1,4 +1,4 @@
-function [HDR] = eegtell(HDR)
+function [POS,HDR] = eegtell(HDR)
 % EEGTELL returns file position of EEG data files
 % EEG=eegtell(EEG)
 % returns the location of the EEG_file position indicator in the specified file.  
@@ -11,8 +11,8 @@ function [HDR] = eegtell(HDR)
 % See also: FTELL, EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGSEEK, EEGEOF
 
 
-%	$Revision: 1.5 $
-%	$Id: eegtell.m,v 1.5 2003-05-26 09:06:43 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: eegtell.m,v 1.6 2003-05-27 13:53:16 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -33,7 +33,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
                 HDR.AS.startrec = POS;
         end;
 
-elseif strmatch(HDR.TYPE,{'BKR','ISHNE','CNT','EEG','MIT','RG64','LABVIEW','SMA'}),
+elseif strmatch(HDR.TYPE,{'BKR','ISHNE','CNT','EEG','MIT','RG64','LABVIEW','EGI','SMA'}),
 	POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
 
 elseif strmatch(HDR.TYPE,{'RDF'}),
@@ -46,4 +46,4 @@ end;
 if HDR.FILE.POS~=POS,
         fprintf(2,'Warning EEGTELL: %s File position error  %i  %i\n', HDR.FileName, POS, HDR.FILE.POS);
 end;        
-HDR.FILE.POS=POS;
+HDR.FILE.POS=POS;	
