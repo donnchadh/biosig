@@ -17,8 +17,8 @@ function [signal,H] = sload(FILENAME,CHAN)
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.23 $
-%	$Id: sload.m,v 1.23 2004-04-22 18:02:32 schloegl Exp $
+%	$Revision: 1.24 $
+%	$Id: sload.m,v 1.24 2004-04-27 16:12:59 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -40,13 +40,6 @@ function [signal,H] = sload(FILENAME,CHAN)
 
 
 if nargin<2; CHAN=0; end;
-
-if ~isnumeric(CHAN),
-        MODE = CHAN;
-        CHAN = 0; 
-else
-        MODE = '';
-end;
 
 if CHAN<1 | ~isfinite(CHAN),
         CHAN=0;
@@ -116,6 +109,9 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 	fprintf(1,'  SLOAD: data segments are concanated with NaNs in between.\n');
 	return;	
 end;
+%%% end of multi-file section 
+
+%%%% start of single file section
 
 if isstruct(FILENAME),
 	HDR = FILENAME;
@@ -127,6 +123,13 @@ if isstruct(FILENAME),
     		fprintf(2,'Error SLOAD: missing FileName.\n');	
     		return; 
 	end;
+end;
+
+if ~isnumeric(CHAN),
+        MODE = CHAN;
+        CHAN = 0; 
+else
+        MODE = '';
 end;
 
 signal = [];
@@ -520,7 +523,6 @@ elseif strcmp(H.TYPE,'unknown')
         end;
 end;
 
-
 if strcmp(H.TYPE,'CNT');    
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.txt']);
         if exist(f)==2,
@@ -543,8 +545,8 @@ if strcmp(H.TYPE,'CNT');
         end;
 end;
 
-if ~isempty(findstr(MODE,'TSD'));
-        f = fullfile(H.FILE.Path, [H.FILE.Name,'.tsd'])
+if ~isempty(findstr(upper(MODE),'TSD'));
+        f = fullfile(H.FILE.Path, [H.FILE.Name,'.tsd']);
         if (exist(f)~=2),
                         fprintf(2,'Warning SLOAD-TSD: file %s.tsd found\n',H.FILE(1).Name,H.FILE(1).Name);
         else
@@ -564,7 +566,7 @@ end;
 if any(strmatch(H.TYPE,{'BKR','GDF'}));
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
         if exist(f)==2,
-                x = load(f);
+                x = load(f,'header');
 		if isfield(x,'header'),
 	                H.BCI.Paradigm = x.header.Paradigm;
     		        if isfield(H.BCI.Paradigm,'TriggerTiming');
@@ -576,10 +578,4 @@ if any(strmatch(H.TYPE,{'BKR','GDF'}));
         end;
 end;
 
-% Classlabels according to 
-% http://www.dpmi.tu-graz.ac.at/%7Eschloegl/matlab/eeg/EventCodes.html
-if ~isfield(H,'Classlabel') & (H.EVENT.N>0)
-        ix = (H.EVENT.TYP>hex2dec('300')) & (H.EVENT.TYP<hex2dec('30d')); 
-        H.Classlabel = mod(H.EVENT.TYP(ix),256);
-end;
 
