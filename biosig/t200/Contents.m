@@ -39,14 +39,16 @@
 %	SCLOSE 	closes an biosignal file 
 %  	SWRITE 	writes data blocks 
 %
+%       GETFILETYPE identifies the type (format) of a file. 
 %	SLOAD 	Opens, reads and closes signal files. 
 %	SSAVE 	Opens, writes and closes signal files. 
 %		SLOAD and SSAVE provide a simple interface to signal files. 
-%
+% 
 % UTILITY FUNCTIONS. In general, it is not recommended 
 %	to use them directly. Use them only if you absolute sure what 
 %	you are doing. You are warned! 
 % 	
+%       sload('eventcodes.txt')   loads latest version of table for event codes
 %	SAVE2BKR
 %	SAVE2TXT
 % 	EEGCHKHDR	
@@ -70,8 +72,8 @@
 % [2] http://biosig.sf.net/
 %
 
-%	$Revision: 1.12 $
-%	$Id: Contents.m,v 1.12 2004-08-16 16:05:17 schloegl Exp $
+%	$Revision: 1.13 $
+%	$Id: Contents.m,v 1.13 2004-09-07 16:21:27 schloegl Exp $
 %	CopyLeft (c) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
