@@ -28,8 +28,8 @@ function [o] = bci3eval(x1,x2,DIM)
 %  [4] BIOSIG.SF.NET
 
 
-%    $Revision: 1.2 $
-%    $Id: bci3eval.m,v 1.2 2003-05-21 13:20:59 schloegl Exp $
+%    $Revision: 1.3 $
+%    $Id: bci3eval.m,v 1.3 2003-05-27 14:32:43 schloegl Exp $
 %    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 %    This program is free software; you can redistribute it and/or modify
@@ -50,7 +50,7 @@ function [o] = bci3eval(x1,x2,DIM)
 
 
 if nargin<3,
-        DIM=min(find(size(i)>1));
+        DIM=min(find(size(x1)>1));
         if isempty(DIM), DIM=1; end;
 end;
 
@@ -63,7 +63,6 @@ elseif DIM==2,
 end;
 
 
-
 %%%%% 2nd order statistics
 [i1.SUM,i1.N,i1.SSQ] = sumskipnan(x1,DIM);       
 [i2.SUM,i2.N,i2.SSQ] = sumskipnan(x2,DIM);       
@@ -71,22 +70,21 @@ end;
 o.MEAN1 = i1.SUM./i1.N;	% mean
 v1    = i1.SSQ-i1.SUM.*o.MEAN1;	% n*var
 o.SD1 = sqrt(v1./i1.N); % standard deviation 
-o.SE1 = sqrt(v1)./i1.N; % standard error of the mean 
+%o.SE1 = sqrt(v1)./i1.N; % standard error of the mean 
 
 o.MEAN2 = i2.SUM./i2.N;
 v2    = i2.SSQ-i2.SUM.*o.MEAN2;
 o.SD2 = sqrt(v2./i2.N);
-o.SE2 = sqrt(v2)./i2.N;
-
+%o.SE2 = sqrt(v2)./i2.N;
 
 
 %%%%% Signal-to-Noise Ratio 
 
 	% intra-class variability
 if DIM==1,
-	vd = var([-x1;x2],DIM);        
+	vd = var([-x1;x2],[],DIM);        
 elseif DIM==2,
-	vd = var([-x1,x2],DIM);        
+	vd = var([-x1,x2],[],DIM);        
 end;
 
 o.SNR = 1/4*(o.MEAN2-o.MEAN1).^2./vd; 
@@ -96,5 +94,4 @@ o.SNR = 1/4*(o.MEAN2-o.MEAN1).^2./vd;
 o.I   = 1/2*log2(o.SNR+1);
 
 
-o.datatype = 'SNR';  % useful for PLOTA
-
+o.datatype = 'TSD_BCI7';  % useful for PLOTA
