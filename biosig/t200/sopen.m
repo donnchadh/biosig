@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.57 $
-%	$Id: sopen.m,v 1.57 2004-06-16 18:24:41 schloegl Exp $
+%	$Revision: 1.58 $
+%	$Id: sopen.m,v 1.58 2004-06-29 18:15:57 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -128,9 +128,9 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='GDF';
                         elseif strncmp(ss,'EBS',3); 
                                 HDR.TYPE='EBS';
-                        elseif strncmp(ss,'CEN',3) & all(s(4:8)==hex2dec(['13';'10';'1A';'04';'84'])'); 
+                        elseif strncmp(ss,'CEN',3) & all(s(6:8)==hex2dec(['1A';'04';'84'])') & (all(s(4:5)==hex2dec(['13';'10'])') | all(s(4:5)==hex2dec(['0D';'0A'])')); 
                                 HDR.TYPE='FEF';
-                                HDR.VERSION   = str2double(ss(9:16));
+                                HDR.VERSION   = str2double(ss(9:16))/100;
                                 HDR.Encoding  = str2double(ss(17:24));
                                 if any(str2double(ss(25:32))),
                                         HDR.Endianity = 'ieee-be';
@@ -260,6 +260,8 @@ if any(PERMISSION=='r'),
                                 
                         elseif any(s(3:6)*(2.^[0;8;16;24]) == (30:40))
                                 HDR.TYPE='ACQ';
+                        elseif all(s(1:4) == hex2dec(['FD';'AE';'2D';'05'])');
+                                HDR.TYPE='AKO'
                         elseif all(s(1:2)==[hex2dec('55'),hex2dec('AA')]);
                                 HDR.TYPE='RDF';
                                 
@@ -531,14 +533,16 @@ if any(PERMISSION=='r'),
                         elseif strcmpi(HDR.FILE.Ext,'ela')
                                 
                         elseif strcmpi(HDR.FILE.Ext,'trl')
-                                
-                        elseif all(HDR.FILE.Ext(1:2)=='0') & any(HDR.FILE.Ext(3)==['0':'9']),	% WSCORE scoring file
-				x = load(HDR.FileName);
-				HDR.EVENT.N   = size(x,1);
-				HDR.EVENT.POS = x(:,1);
-				HDR.EVENT.TYP = x(:,2);
-				HDR.TYPE = 'EVENT';
-				return;
+
+                        elseif length(HDR.FILE.Ext)>2, 
+                                if all(HDR.FILE.Ext(1:2)=='0') & any(HDR.FILE.Ext(3)==['0':'9']),	% WSCORE scoring file
+                                        x = load(HDR.FileName);
+                                        HDR.EVENT.N   = size(x,1);
+                                        HDR.EVENT.POS = x(:,1);
+                                        HDR.EVENT.TYP = x(:,2);
+                                        HDR.TYPE = 'EVENT';
+                                        return;
+                                end;
                         end;
                         
                 end;
@@ -604,7 +608,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         end;
         HDR = sdfopen(HDR,PERMISSION,CHAN);
 
-        
+
 elseif strcmp(HDR.TYPE,'BKR'),
         HDR = bkropen(HDR,PERMISSION,CHAN);
         
@@ -710,12 +714,14 @@ elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
         fseek(HDR.FILE.FID,32,'bof'); 	% skip preamble
         
         if exist('fefopen')==2,
-                HDR = fefopen(HDR,PERMISSION);
+                HDR = fefopen(HDR);
         end;
         
-        fprintf(2,'Warning SOPEN: Implementing Vital/FEF format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
         fclose(HDR.FILE.FID);
-        
+        fprintf(2,'Warning SOPEN: Implementing Vital/FEF format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
+        HDR.FILE.FID = -1;
+        return;        
+
         
 elseif strcmp(HDR.TYPE,'SCP'),	%
         HDR = scpopen(HDR,PERMISSION);        
@@ -1142,6 +1148,15 @@ elseif strcmp(HDR.TYPE,'ACQ'),
         end;
         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');	
         
+        
+elseif strcmp(HDR.TYPE,'AKO'),
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.Header = fread(HDR.FILE.FID,[1,46],'char');
+        warning('support of AKO format not completed');
+        HDR.SampleRate = 136; % ???
+        HDR.NS = 1;
+        HDR.Calib = [-127;1];
+                
         
 elseif strcmp(HDR.TYPE,'SND'),
         if ~isfield(HDR,'Endianity'),
@@ -3198,6 +3213,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 
                 sz     = size(HDR.data);
                 HDR.NRec = sz(1);
+                HDR.SPR  = sz(2);
                 HDR.Dur  = sz(2)/HDR.SampleRate;
                 HDR.NS   = sz(3);
                 HDR.FLAG.TRIGGERED = HDR.NRec>1;
@@ -3224,6 +3240,12 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 map(strmatch('MUSKEL',HDR.gBS.EpochingName))=hex2dec('0103');
                 map(strmatch('MUSCLE',HDR.gBS.EpochingName))=hex2dec('0103');
                 map(strmatch('ELECTRODE',HDR.gBS.EpochingName))=hex2dec('0105');
+
+                map(strmatch('SLEEPSTAGE1',HDR.gBS.EpochingName))=hex2dec('0411');
+                map(strmatch('SLEEPSTAGE2',HDR.gBS.EpochingName))=hex2dec('0412');
+                map(strmatch('SLEEPSTAGE3',HDR.gBS.EpochingName))=hex2dec('0413');
+                map(strmatch('SLEEPSTAGE4',HDR.gBS.EpochingName))=hex2dec('0414');
+                map(strmatch('REM',HDR.gBS.EpochingName))=hex2dec('0415');
 
                 if ~isempty(HDR.gBS.EpochingSelect),
                         HDR.EVENT.TYP = map([HDR.gBS.EpochingSelect{:,9}]');
@@ -4272,6 +4294,7 @@ else
         HDR.FILE.FID = -1;	% this indicates that file could not be opened. 
         return;
 end;
+
 
 if any(PERMISSION=='r');
         HDR.Calib = full(HDR.Calib);	% Octave can not index sparse matrices
