@@ -31,8 +31,8 @@ function [S,EDF] = sdfread(EDF,NoS,StartPos)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.9 $
-%	$Id: sdfread.m,v 1.9 2004-11-04 17:42:49 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: sdfread.m,v 1.10 2004-11-17 19:39:18 schloegl Exp $
 %	(C) 1997-2002,2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -160,7 +160,6 @@ else % Layer 3
         
         Mode_CHANSAME = ~all(EDF.SPR(InChanSelect)==EDF.SPR(InChanSelect(1)));
 	%if any(EDF.SPR(chan)~=EDF.SPR(chan(1))) fprintf(EDF.FILE.stderr,'Warning SDFREAD: channels do not have the same sampling rate\n');end;
-        clear chan;
 end;
         
 bi=[0;cumsum(EDF.SPR)];
