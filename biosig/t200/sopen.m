@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.65 $
-%	$Id: sopen.m,v 1.65 2004-09-13 17:27:26 schloegl Exp $
+%	$Revision: 1.66 $
+%	$Id: sopen.m,v 1.66 2004-09-19 02:06:21 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -238,7 +238,6 @@ elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
                 HDR = fefopen(HDR);
         end;
         
-        fclose(HDR.FILE.FID);
         fprintf(2,'Warning SOPEN: Implementing Vital/FEF format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
         HDR.FILE.FID = -1;
         return;        
@@ -3098,6 +3097,24 @@ elseif strcmp(HDR.TYPE,'NEX'),
                 fclose(HDR.FILE.FID);
                 HDR.FILE.FID = -1;
                 fprintf(HDR.FILE.stderr,'Format %s not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',HDR.TYPE);	
+        end;			
+        
+        
+elseif strcmp(HDR.TYPE,'Nicolet'),
+        if any(PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+                if HDR.FILE.FID<0,
+                        return;
+                end
+                
+                HDR.FILE.POS  = 0;
+                HDR.FILE.OPEN = 1; 
+                HDR.AS.endpos = HDR.SPR;
+                HDR.AS.bpb = 2*HDR.NS;
+                HDR.GDFTYP = 3; % int16;
+                HDR.HeadLen = 0; 
+        else
+                fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
         end;			
         
         
