@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.86 $
-%	$Id: sopen.m,v 1.86 2005-01-11 17:27:48 schloegl Exp $
+%	$Revision: 1.87 $
+%	$Id: sopen.m,v 1.87 2005-01-12 15:45:21 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2540,7 +2540,9 @@ elseif strcmp(HDR.TYPE,'MIT')
                         for k0 = 1:7,
                                 [tmp,z] = strtok(z);
                                 if k0 == 1, 
-                                        [tmp,tmp1] = strtok(tmp,'x:');
+                                        [tmp, tmp1] = strtok(tmp,'x:');
+                                        [tmp, status] = str2double(tmp); 
+                                        HDR.MIT.dformat(k,1) = tmp;
                                         if isempty(tmp1)
                                                 HDR.AS.SPR(k) = 1; 
                                         elseif tmp1(1)=='x'
@@ -2550,16 +2552,29 @@ elseif strcmp(HDR.TYPE,'MIT')
                                         end                                                
                                 elseif k0 == 2,  
                                         % EC13*.HEA files have special gain values like "200(23456)/uV". 
-                                        [tmp, tmp1] = strtok(tmp,' ()/');
+                                        [tmp, tmp2] = strtok(tmp,'/');
+                                        HDR.PhysDim(k,1:length(tmp2)) = [tmp2(2:end),' '];
+                                        [tmp, tmp1] = strtok(tmp,' ()');
+                                        [tmp, status] = str2double(tmp); 
+                                        if isempty(tmp) | isnan(tmp), tmp = 1; end;   % gain
+                                        HDR.gain(k,1) = tmp;
+                                elseif k0==3,
+                                        [tmp, status] = str2double(tmp); 
+                                        if isempty(tmp) | isnan(tmp), tmp = NaN; end; 
+                                        HDR.MIT.bitres(k,1) = tmp;
+                                elseif k0==4,
+                                        [tmp, status] = str2double(tmp); 
+                                        if isempty(tmp) | isnan(tmp), tmp = 0; end;   
+                                        HDR.zerovalue(k,1) = tmp; 
+                                elseif k0 == 5, 
+                                        [tmp, status] = str2double(tmp);
+                                        if isempty(tmp) | isnan(tmp), tmp = NaN; end; 
+                                        HDR.firstvalue(1,k) = tmp;        % first integer value of signal (to test for errors)
+                                else
+ 
                                 end;
-                                A(k0) = str2double(tmp); 
                         end;
-                        HDR.Label(k,1:length(z)) = z; 
-                        HDR.MIT.dformat(k,1) = A(1);         % format; 
-                        HDR.gain(k,1) = A(2);              % number of integers per mV
-                        HDR.MIT.bitres(k,1) = A(3);            % bitresolution
-                        HDR.zerovalue(k,1)  = A(4);         % integer value of ECG zero point
-                        HDR.firstvalue(1,k) = A(5);        % first integer value of signal (to test for errors)
+                        HDR.Label(k,1:length(z)+1) = [z,' ']; 
                 end;
                 HDR.Calib = sparse([HDR.zerovalue(:).';eye(HDR.NS)]*diag(1./HDR.gain(:)));
                 HDR.Label = char(HDR.Label);
@@ -2595,6 +2610,8 @@ elseif strcmp(HDR.TYPE,'MIT')
                 HDR.AS.spb = sum(HDR.AS.SPR);
                 HDR.AS.bi = [0;cumsum(HDR.AS.SPR(:))]; 
                 HDR.AS.MAXSPR = max(HDR.AS.SPR);
+                HDR.SampleRate = HDR.SampleRate*HDR.AS.MAXSPR;
+                HDR.AS.SampleRate = HDR.SampleRate*HDR.AS.SPR;
                 if 0, HDR.VERSION == -1, 
                         HDR.AS.bpb = 3;
                         HDR.NS = 2;
@@ -2710,8 +2727,11 @@ elseif strcmp(HDR.TYPE,'MIT')
                 HDR.FLAG.UCAL = 1;
                 [S,HDR] = sread(HDR,1/HDR.SampleRate); % load 1st sample
                 if (HDR.VERSION>0) & (any(S(1,:) ~= HDR.firstvalue)), 
-                        [HDR.firstvalue;S]
-                        fprintf(HDR.FILE.stderr,'ERROR SOPEN MIT-ECG: inconsistency in the first values\n'); 
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN MIT-ECG: First values of header and datablock do not fit.\n\tHeader:\t'); 
+                        fprintf(HDR.FILE.stderr,'\t%5i',HDR.firstvalue);
+                        fprintf(HDR.FILE.stderr,'\n\tData 1:\t');
+                        fprintf(HDR.FILE.stderr,'\t%5i',S(1,:));
+                        fprintf(HDR.FILE.stderr,'\n');
                 end;
                 HDR.FLAG.UCAL = FLAG_UCAL ;	
                 fseek(HDR.FILE.FID,0,'bof');	% reset file pointer
