@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.1 $
-%	$Id: sread.m,v 1.1 2003-09-06 17:19:32 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: sread.m,v 1.2 2003-09-09 23:11:35 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -270,7 +270,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),
         end;
 
         
-elseif strcmp(HDR.TYPE,'SND'),
+elseif 0, %strcmp(HDR.TYPE,'SND'),
         if nargin==3,
         	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
 		HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -289,21 +289,32 @@ elseif strcmp(HDR.TYPE,'SND'),
 	end;
 
         
-elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV'),
+elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
         if nargin==3,
         	fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
 		HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
-        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP));
+	maxsamples = min(HDR.SPR,HDR.SampleRate*NoS)-HDR.FILE.POS;
+	if maxsamples>0,
+	        [S,count] = fread(HDR.FILE.FID,[HDR.NS,maxsamples],gdfdatatype(HDR.GDFTYP));
+	else
+		S = []; count = 0;
+	end;	
 	if count,
 	        S = S(HDR.SIE.InChanSelect,:)';
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
         end;
-        if ~HDR.FLAG.UCAL,
-		S = S*2^(1-HDR.bits);
+	if strcmp(HDR.TYPE,'SND'),
+                if HDR.FILE.TYPE==1,
+			S = mu2lin(S);
+    		else
+			S = S*HDR.Cal;
+		end;
+	else
+	        if ~HDR.FLAG.UCAL,
+			S = S*2^(1-HDR.bits);
+		end;
 	end;
-
-
 
         
 elseif strcmp(HDR.TYPE,'EGI'),
