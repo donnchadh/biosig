@@ -20,8 +20,8 @@ function [HDR] = sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.11 $
-%	$Id: sclose.m,v 1.11 2004-09-25 20:28:10 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: sclose.m,v 1.12 2004-11-25 19:14:24 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -93,30 +93,32 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                                         HDR.EVENT.N = length(HDR.EVENT.POS);
                                         HDR.AS.EVENTTABLEPOS = HDR.HeadLen+HDR.AS.bpb*HDR.NRec;
                                         %fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*HDR.NRec,'bof');
-                                        fseek(HDR.FILE.FID,0,'eof');
+                                        status = fseek(HDR.FILE.FID,0,'eof');
                                         if ftell(HDR.FILE.FID)~=HDR.AS.EVENTTABLEPOS,
                                                 fprintf(HDR.FILE.stderr,'Warning SCLOSE-GDF: inconsistent GDF file\n');
                                         end
                                         HDR.EVENT.Version = 1;
-                                        if isfield(HDR.EVENT,'CHN'),
-                                                HDR.EVENT.Version = HDR.EVENT.Version + 1;
-                                        end;
-                                        if isfield(HDR.EVENT,'DUR'),
-                                                HDR.EVENT.Version = HDR.EVENT.Version + 1;
+                                        if isfield(HDR.EVENT,'CHN') & isfield(HDR.EVENT,'DUR'), 
+                                                if any(HDR.EVENT.CHN) | any(HDR.EVENT.DUR),
+                                                        HDR.EVENT.Version = 3;
+                                                end;
                                         end;
                                         fwrite(HDR.FILE.FID,[HDR.EVENT.Version,0,0,0],'char');  % Type of eventtable
-                                        fwrite(HDR.FILE.FID,HDR.EVENT.N,'uint32');
+                                        fwrite(HDR.FILE.FID,length(HDR.EVENT.POS),'uint32');
                                         if HDR.EVENT.Version==1;
                                                 c1 = fwrite(HDR.FILE.FID,HDR.EVENT.POS,'uint32');
                                                 c2 = fwrite(HDR.FILE.FID,HDR.EVENT.TYP,'uint16');
+                                                c3 = length(HDR.EVENT.POS); c4 = c3; 
                                         elseif HDR.EVENT.Version==3;
                                                 c1 = fwrite(HDR.FILE.FID,HDR.EVENT.POS,'uint32');
                                                 c2 = fwrite(HDR.FILE.FID,HDR.EVENT.TYP,'uint16');
                                                 c3 = fwrite(HDR.FILE.FID,HDR.EVENT.CHN,'uint16');
                                                 c4 = fwrite(HDR.FILE.FID,HDR.EVENT.DUR,'uint32');
-                                        else
-                                                fprintf(2,'\nWarning SDFOPEN: Eventtable version %i not supported\n',HDR.EVENT.Version);
                                         end;
+                                        if any([c1,c2,c3,c4]~=length(HDR.EVENT.POS))
+                                                fprintf(2,'\nError SCLOSE: writing of EVENTTABLE failed. File %s not closed.\n', HDR.FileName);
+                                                return;
+                                        end
                                 end
                         end;
                 end;
@@ -165,7 +167,7 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
         end;
 end;
 
-if strcmp(HDR.TYPE,'FIF') ;
+if strcmp(HDR.TYPE,'FIF') & HDR.FILE.OPEN;
         global FLAG_NUMBER_OF_OPEN_FIF_FILES
         rawdata('close');
         HDR.FILE.OPEN = 0;
