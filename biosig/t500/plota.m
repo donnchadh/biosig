@@ -36,8 +36,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 
 
 
-%       $Revision: 1.13 $
-%	$Id: plota.m,v 1.13 2003-04-22 08:43:22 montaine Exp $
+%       $Revision: 1.14 $
+%	$Id: plota.m,v 1.14 2003-04-23 13:00:30 montaine Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -58,6 +58,11 @@ h = [];
 if strcmp(X.datatype,'MVAR-COHERENCE'),
         fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
         if length(size(X.COH))==3,
+                if nargin < 2
+                    ic = 0.05/2;
+                else
+                    ic = arg2;
+                end
                 M = size(X.COH,1);
                 for k1 = 1:M;
                         for k2 = 1:M;
@@ -68,14 +73,19 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
                                         plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);        
                                     else
                                         h = plot(X.f,[tmp,tmp./(1-2*squeeze(X.ci(k1,k2,:))),tmp./(1+2*squeeze(X.ci(k1,k2,:)))]);
+                                        %plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);
                                         set(h(1),'color',[0 0 1]);
                                         set(h(2),'color',[0.5 0 1]);
                                         set(h(3),'color',[0 0.5 1]);
                                     end
                                 else
-	                                plot(X.f,abs(tmp));        
+                                    h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)/(sqrt(X.N))),tanh(atanh(tmp)-norminv(ic)/(sqrt(X.N)))]);        
+                                    %h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)*(sqrt(squeeze(X.var(k1,k2,:))))),tanh(atanh(tmp)-norminv(ic)*(sqrt(squeeze(X.var(k1,k2,:)))))]);
+                                    set(h(1),'color',[0 0 1]);
+                                    set(h(2),'color',[0 0.8 1]);
+                                    set(h(3),'color',[0 0.8 1]);    
                                 end;
-                                axis([0,max(X.f),-0.5,1.5])
+                                axis([0,max(X.f),-0.5,1.2])
                                 set(s,'FontSize',6); 
                         end;
                 end;
@@ -88,7 +98,11 @@ elseif (length(size(X.COH))==4) & ((size(X.COH,4)==2) | (size(X.COH,4)==3)) ,
                     list1=arg2;
                     list2=arg3;
                 end;
-                
+                if nargin < 4
+                    ic = 0.05/2;
+                else
+                    ic = arg4;
+                end                
                 M = size(X.COH,1);
       
                 for k1 = 1:length(list1);
@@ -100,10 +114,14 @@ elseif (length(size(X.COH))==4) & ((size(X.COH,4)==2) | (size(X.COH,4)==3)) ,
                                     h=plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N(1,:))-X.p))*[1,-1]])]);        
                                     set(h(1),'color',[0,0,1])
                                     set(h(2),'color',[.5,.5,1])
-                                    set(h(3),'color',[.5,.5,1])                                   
+                                    set(h(3),'color',[.5,.5,1])     
+                                    
+                                    
                                 else
-                                    h=plot(X.f,abs(tmp));
-                                    set(h(1),'color',[0,0,1])
+                                    h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)/(sqrt(X.N))),tanh(atanh(tmp)-norminv(ic)/(sqrt(X.N)))]);        
+                                    set(h(1),'color',[0 0 1]);
+                                    set(h(2),'color',[0 0.5 1]);
+                                    set(h(3),'color',[0 0.5 1]);   
                                 end
                                 
                                 tmp = abs(squeeze(X.COH(list1(k1),list2(k2),:,2)));
@@ -113,15 +131,19 @@ elseif (length(size(X.COH))==4) & ((size(X.COH,4)==2) | (size(X.COH,4)==3)) ,
                                     set(h(2),'color',[.5,1,.5])
                                     set(h(3),'color',[.5,1,.5])                                    
                                 else
-                                    h=plot(X.f,abs(tmp));
-                                    set(h(1),'color',[0,1,0])
+                                    h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)/(sqrt(X.N))),tanh(atanh(tmp)-norminv(ic)/(sqrt(X.N)))]);        
+                                    set(h(1),'color',[0 1 0]);
+                                    set(h(2),'color',[0.5 1 0.5]);
+                                    set(h(3),'color',[0.5 1 0.5]);   
                                 end
                                 
                                 if (size(X.COH,4)==3)
                                     tmp = abs(squeeze(X.COH(list1(k1),list2(k2),:,3)));
-                                    %tmp = abs(squeeze(X.COH(k1,k2,:,3)));
-                                    h=plot(X.f,abs(tmp));
-                                    set(h(1),'color',[1,0,0])
+                                    h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)/(sqrt(X.N))),tanh(atanh(tmp)-norminv(ic)/(sqrt(X.N)))]);        
+                                    %h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+norminv(ic)*(sqrt(squeeze(X.var(k1,k2,:))))),tanh(atanh(tmp)-norminv(ic)*(sqrt(squeeze(X.var(k1,k2,:)))))]);
+                                    set(h(1),'color',[1 0 0]);
+                                    set(h(2),'color',[1 0.5 0.5]);
+                                    set(h(3),'color',[1 0.5 0.5]);   
                                 end
                                 
                                 hold off
@@ -334,17 +356,36 @@ elseif strcmp(X.datatype,'MVAR-PDC'),
                 end;
                 suptitle('PDC')
         elseif length(size(X.PDC))==4,
-                M = size(X.PDC,1);
-                for k1 = 1:M;
-                        for k2 = 1:M;
-                                subplot(M,M,k1+(k2-1)*M);
-                                plot(X.f,squeeze(X.PDC(k1,k2,:)));        
-                                %plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);        
-                                mesh(abs(tmp));
-                                v = axis; v(5:6)=[0,1]; axis(v);%axis([0,max(X.f),0,1])
+                        M = size(X.PDC,1);
+                        for k1 = 1:M;
+                            for k2 = 1:M;
+                                s = subplot(M,M,k2+(k1-1)*M);
+                                tmp = abs(squeeze(X.PDC(k1,k2,:,:)));
+                                [a,b] = meshgrid(X.t,X.f);
+                                mesh(a,b,abs(tmp));
+                                v = axis; v(5:6)=[0,1]; axis(v);
+                                xlabel('Time','FontSize',6);
+                                ylabel('Freq','FontSize',6);
+                                set(s,'FontSize',6);
+                            end;
                         end;
-                end;
-                suptitle('time-varying PDC')
+                        suptitle('Time-varying PDC')
+                        figure;
+                        for k1= 1:M
+                            for k2 = 1:M
+                                if k2~=k1
+                                    s = subplot(M,M,k2+(k1-1)*M);
+                                    imagesc(X.t,X.f,squeeze(abs(X.PDC(k1,k2,:,:))),[0 1]);
+                                    axis([min(X.t) max(X.t) min(X.f) max(X.f)])
+                                    xlabel('Time','FontSize',5);
+                                    ylabel('Freq','FontSize',5);
+                                    set(s,'YDir','normal','FontSize',5);
+                                    c = colorbar;
+                                    set(c,'FontSize',5);
+                                end
+                            end
+                        end
+                        suptitle('Time-varying PDC')
         end;
         
 elseif strcmp(X.datatype,'MVAR'),
