@@ -1,8 +1,9 @@
 % DEMO 1 - identifies QRS-complexes
 
-%	$Revision: 1.4 $
-%	$Id: demo1.m,v 1.4 2005-02-28 09:09:14 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: demo1.m,v 1.5 2005-03-01 15:00:23 schloegl Exp $
 %	Copyright (C) 2000-2003, 2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -24,17 +25,21 @@
 [F,P]=uigetfile('*.*','Pick an ECG file');
 
 CHAN = 0; 
-HDR=sopen(fullfile(P,F),'r');
-if HDR.NS>1,
-        HDR = sclose(HDR);
-        fprintf(1,'The selected file contains the following channels: \n');
-        for k=1:HDR.NS,
-                fprintf(1,'%3i: %s\n',k,HDR.Label(k,:));
+HDR  = sopen(fullfile(P,F),'r');
+if HDR.NS > 1,
+        tmp   = reshape(lower([HDR.Label,repmat(' ',HDR.NS,1)])',1,prod(size(HDR.Label)+[0,1]));
+        CHAN  = ceil([strfind(tmp,'ecg'),strfind(tmp,'ekg')]/(size(HDR.Label,2)+1)); 
+        if length(CHAN)~=1,
+                HDR = sclose(HDR);
+                fprintf(1,'The selected file contains the following channels: \n');
+                for k = 1:HDR.NS,
+                        fprintf(1,'%3i: %s\n',k,HDR.Label(k,:));
+                end;
+                CHAN = input('Which channel should be used for QRS-detection? ');
         end;
-        CHAN = input('Which channel should be used for QRS-detection? ');
-        HDR=sopen(fullfile(P,F),'r',CHAN);
+        HDR = sopen(fullfile(P,F),'r',CHAN);
 end;
-[s,HDR]=sread(HDR);
+[s,HDR] = sread(HDR);
 HDR = sclose(HDR);
 
 
@@ -57,5 +62,3 @@ subplot(212)
 semilogy((qrsindex(1:end-1)+qrsindex(2:end))/2,diff(qrsindex));
 ylabel('RRI [s]');
 xlabel('time t[s]');
-
-
