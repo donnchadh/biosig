@@ -1,5 +1,5 @@
 function [S,EDF] = sdfread(EDF,NoS,StartPos)
-% Loads selected Seconds of an EDF File (European Data Format for Biosignals)
+% SDFREAD loads selected seconds of an EDF/GDF/BDF File
 %
 % [S,EDF] = sdfread(EDF [,NoS [,StartPos]] )
 % NoS       Number of seconds, default = 1 (second)
@@ -31,8 +31,8 @@ function [S,EDF] = sdfread(EDF,NoS,StartPos)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.6 $
-%	$Id: sdfread.m,v 1.6 2004-08-16 16:03:25 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: sdfread.m,v 1.7 2004-09-24 14:35:50 schloegl Exp $
 %	(C) 1997-2002,2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -57,7 +57,7 @@ MAX_BLOCK_NUMBER=16;	% %%max. # of blocks in case of OptiMEM
 GDF=strcmp(EDF.VERSION(1:3),'GDF');
 
 if nargin<1
-        fprintf(2,'error EDFREAD: missing input arguments\n');
+        fprintf(2,'ERROR SDFREAD: missing input arguments\n');
 end; if nargin<2
         NoS=1;
 end; if nargin<3
@@ -90,7 +90,7 @@ if isfield(EDF,'SIE')   % SIESTA; Layer 4
                 if (nargin>2) %nargin==3 or larger
                         %tmp = floor(StartPos/EDF.Dur);
                         if StartPos+NoS > EDF.Dur*EDF.NRec;
-                                fprintf(2,'Warning EDFREAD: %s has only %i seconds\n',EDF.FileName, EDF.Dur*EDF.NRec);
+                                fprintf(HDR.FILE.stderr,'Warning SDFREAD: %s has only %i seconds\n',EDF.FileName, EDF.Dur*EDF.NRec);
                                 StartPos = min(StartPos*EDF.AS.MAXSPR/EDF.Dur,EDF.AS.MAXSPR*EDF.NRec); % transformation of seconds to samples + Overflowcheck
                                 NoS = EDF.AS.MAXSPR*EDF.NRec-StartPos;
                         else
@@ -157,7 +157,7 @@ else % Layer 3
 	% Position file pointer and calculate number of Records
 	if Mode_SEC
     		if ~all(~rem([NoR StartPos],EDF.Dur))
-            		fprintf(2,'Warning EDFREAD: NoR and/or StartPos do not fit to blocklength of EDF File of %i s.\n',EDF.Dur);
+            		fprintf(HDR.FILE.stderr,'Warning SDFREAD: NoR and/or StartPos do not fit to blocklength of EDF File of %i s.\n',EDF.Dur);
 	        end;
     		StartPos=StartPos/EDF.Dur;
 	        NoR=NoR/EDF.Dur;
@@ -172,7 +172,7 @@ else % Layer 3
         InChanSelect = EDF.InChanSelect;
         
         Mode_CHANSAME = ~all(EDF.SPR(InChanSelect)==EDF.SPR(InChanSelect(1)));
-	%if any(EDF.SPR(chan)~=EDF.SPR(chan(1))) fprintf(2,'Warning EDFREAD: channels do not have the same sampling rate\n');end;
+	%if any(EDF.SPR(chan)~=EDF.SPR(chan(1))) fprintf(HDR.FILE.stderr,'Warning SDFREAD: channels do not have the same sampling rate\n');end;
         clear chan;
 end;
         
@@ -204,7 +204,7 @@ if ~EDF.AS.SAMECHANTYP; % all(EDF.GDFTYP(:)~=EDF.GDFTYP(1))
                         %if tmp1
                         %        [tmp,cnt]=fread(EDF.FILE.FID,EDF.SPR(k),datatyp);
                         %else 
-                        %        fprintf(2,'Error SDFREAD: Invalid SDF channel type in %s at channel %i',EDF.FileName,k);
+                        %        fprintf(HDR.FILE.stderr,'Error SDFREAD: Invalid SDF channel type in %s at channel %i',EDF.FileName,k);
                         %end;
                         
                         [tmp,cnt]=fread(EDF.FILE.FID,EDF.SPR(k),gdfdatatype(EDF.GDFTYP(k)));
@@ -260,7 +260,7 @@ if Mode_RAW;
         
         %count = floor(count/EDF.AS.spb);
         count = (count/EDF.AS.spb);
-        if count<1; fprintf(2,'Warning EDFREAD: only %3.1f blocks were read instead  of %3.1f\n',count,Records); end;
+        if count<1; fprintf(HDR.FILE.stderr,'Warning SDFREAD: only %3.1f blocks were read instead  of %3.1f\n',count,Records); end;
 
         % Overflow Check for EDF-RAW
         if EDF.SIE.TH>1,
@@ -284,7 +284,7 @@ if Mode_RAW;
         
         if isfield(EDF.SIE,'RAW'), 
                 if EDF.SIE.RAW, 
-                        fprintf(2,'Warning SDFREAD: ReReferenzing "R" is not possible in combination with RAW "W"\n');
+                        fprintf(HDR.FILE.stderr,'Warning SDFREAD: ReReferenzing "R" is not possible in combination with RAW "W"\n');
                 end;
         end;
 else
@@ -420,7 +420,7 @@ end; % SDF
 EDF.AS.numrec=count;
 EDF.FILE.POS = EDF.AS.startrec + EDF.AS.numrec;
 if EDF.AS.numrec~=Records, 
-        fprintf(2,'Warning %s: %s only %i blocks instead of %i read\n',mfilename,EDF.FILE.Name,EDF.AS.numrec,Records);
+        fprintf(HDR.FILE.stderr,'Warning %s: %s only %i blocks instead of %i read\n',mfilename,EDF.FILE.Name,EDF.AS.numrec,Records);
 end;
 
 %%%%% Calibration of the signal 
@@ -436,7 +436,7 @@ end;
 %%%%% Removing ECG Templates
 if EDF.SIE.TECG,
         if (EDF.AS.startrec+EDF.AS.numrec)~=(ftell(EDF.FILE.FID)-EDF.HeadLen)/EDF.AS.bpb;
-                fprintf(2,'ERROR SDFREAD: Mode TECG requires update of EDF [S,EDF]=sdfread(EDF,...)\n');
+                fprintf(HDR.FILE.stderr,'ERROR SDFREAD: Mode TECG requires update of EDF [S,EDF]=sdfread(EDF,...)\n');
                 EDF=sdftell(EDF);
         end;
         pulse = zeros(EDF.AS.numrec*EDF.SPR(12),1);
