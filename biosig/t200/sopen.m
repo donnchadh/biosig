@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.74 $
-%	$Id: sopen.m,v 1.74 2004-11-16 19:55:04 schloegl Exp $
+%	$Revision: 1.75 $
+%	$Id: sopen.m,v 1.75 2004-11-18 13:20:44 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -3683,7 +3683,7 @@ elseif strcmp(HDR.TYPE,'CTF'),
 			CHAN = find((info.index~=0) & (info.index~=1) & (info.index~=5) & (info.index~=9)); 
 		end;	
 		
-                HDR.FILE.FID  = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.meg4']),'rb','ieee-be');
+                HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.meg4']),'rb','ieee-be');
 		HDR.VERSION = char(fread(HDR.FILE.FID,[1,8],'char'));
 		HDR.HeadLen = ftell(HDR.FILE.FID);
 		fseek(HDR.FILE.FID,0,'eof');
@@ -3694,47 +3694,78 @@ elseif strcmp(HDR.TYPE,'CTF'),
         
 elseif strcmp(HDR.TYPE,'BrainVision'),
         % get the header information from the VHDR ascii file
-        HDR.BV.headerfile       = HDR.FileName;
-	%fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);
-        HDR.BV.DataFile         = read_ini(HDR.BV.headerfile, 'DataFile=', '%s');
-        HDR.BV.MarkerFile       = read_ini(HDR.BV.headerfile, 'MarkerFile=', '%s');
-        HDR.BV.DataFormat       = read_ini(HDR.BV.headerfile, 'DataFormat=', '%s');
-        HDR.BV.DataOrientation  = read_ini(HDR.BV.headerfile, 'DataOrientation=', '%s');
-        HDR.BV.BinaryFormat     = read_ini(HDR.BV.headerfile, 'BinaryFormat=', '%s');
-        HDR.NS                  = read_ini(HDR.BV.headerfile, 'NumberOfChannels=', '%d');
-        HDR.BV.SamplingInterval = read_ini(HDR.BV.headerfile, 'SamplingInterval=', '%f'); % microseconds!
-        if isempty(HDR.NS)
-    		return;
-	else
-	        % parse the channel information
-                for i=1:HDR.NS,
-                        chan_str  = sprintf('Ch%d=', i);
-                        chan_info = read_ini(HDR.BV.headerfile, chan_str, '%s');
-                        [t, r] = strtok(chan_info, ',');
-                        HDR.Label{i,1} = t;
-                        if all(r(1:2)==',,')
-                                % empty reference channel
-                                r = r(2:end);
-                                t = [];
+        fid = fopen(fullfile(HDR.FILE.Path, HDR.FileName),'rt');
+        tline = fgetl(fid);
+        HDR.BV = [];
+        UCAL = 0; 
+        flag = 1; 
+        while ~feof(fid), 
+                tline = fgetl(fid);
+                if isempty(tline),
+                elseif tline(1)==';',
+                elseif tline(1)==10, 
+                elseif tline(1)==13,    % needed for Octave 
+                elseif strncmp(tline,'[Common Infos]',14)
+                        flag = 2;     
+                elseif strncmp(tline,'[Binary Infos]',14)
+                        flag = 3;     
+                elseif strncmp(tline,'[Channel Infos]',14)
+                        flag = 4;     
+                elseif strncmp(tline,'[Coordinates]',12)
+                        flag = 5;     
+                elseif strncmp(tline,'[Marker Infos]',12)
+                        flag = 6;     
+                elseif strncmp(tline,'[Comment]',9)
+                        flag = 7;     
+                elseif strncmp(tline,'[',1)     % any other segment
+                        flag = 8;     
+                        
+                elseif any(flag==[2,3]),
+                        [t1,r] = strtok(tline,'=');
+                        [t2,r] = strtok(r,['=,',10,13]);
+                        if ~isempty(t2),
+                                HDR.BV = setfield(HDR.BV,t1,t2);
+                        end;
+                elseif flag==4,        
+                        [t1,r] = strtok(tline,'=');
+                        [t2,r] = strtok(r,['=',10,13]);
+                        ix = [find(t2==','),length(t2)];
+                        t3 = t2(1:ix(1)-1);
+                        t4 = t2(ix(1)+1:ix(2)-1);
+                        t5 = t2(ix(2)+1:end);
+                        [chan,stat1] = str2double(t1(3:end));
+                        HDR.Label{chan} = t2;        
+                        HDR.BV.reference{chan} = t3;
+                        [v, stat] = str2double(t5);          % in microvolt
+                        if (prod(size(v))==1) & ~any(stat)
+                                HDR.Cal(chan) = v;                                
                         else
-                                [t, r] = strtok(r, ',');
-                        end
-                        HDR.BV.reference{i} = t;
-                        [t, r] = strtok(r, ',');
-                        HDR.Cal(i) = str2double(t);          % in microvolt
+                                UCAL = 1; 
+                                HDR.Cal(chan) = 1;
+                        end;
+                        
+                elseif flag==5,   
+                        [t1,r] = strtok(tline,'=');
+                        chan = str2double(t1(3:end));
+                        [v, stat] = str2double(r(2:end));
+                        HDR.ElPos(chan,:) = v;
                 end
-	        % ensure that these are all column-vectors
-	        HDR.BV.reference  = HDR.BV.reference(:);
         end
-
+        fclose(fid);
+        
         % convert the header information to BIOSIG standards
-        HDR.SampleRate = 1e6/(HDR.BV.SamplingInterval);      % sampling rate in Hz
+        HDR.NS = str2double(HDR.BV.NumberOfChannels);
+        HDR.SampleRate = 1e6/str2double(HDR.BV.SamplingInterval);      % sampling rate in Hz
+        if UCAL & ~strncmp(HDR.BV.BinaryFormat,'IEEE_FLOAT',10),
+                fprintf(2,'Warning SOPEN (BV): missing calibration values\n');
+                HDR.FLAG.UCAL = 1; 
+        end;
         HDR.NRec = 1;                   % it is a continuous datafile, therefore one record
         HDR.Calib = [zeros(1,HDR.NS) ; diag(HDR.Cal)];  % is this correct?
         HDR.PhysDim = 'uV';
         HDR.FLAG.TRIGGERED = 0; 
-        HDR.Filter.Lowpass = repmat(NaN,HDR.NS,1);
-        HDR.Filter.Highpass = repmat(NaN,HDR.NS,1);
+        HDR.Filter.LowPass = repmat(NaN,HDR.NS,1);
+        HDR.Filter.HighPass = repmat(NaN,HDR.NS,1);
         HDR.Filter.Notch = repmat(NaN,HDR.NS,1);
         
         if strncmpi(HDR.BV.BinaryFormat, 'int_16',6)
@@ -3770,11 +3801,12 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         end
 
         %open data file 
-        if strncmpi(HDR.BV.DataFormat, 'binary',5)
-                HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),'rb','ieee-le');
-        elseif strncmpi(HDR.BV.DataFormat, 'ascii',5)                 
-                HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),'rt','ieee-le');
+        if strncmpi(HDR.BV.DataFormat, 'binary',5),
+                HDR.FILE.FID = fopen(HDR.BV.DataFile,'rb','ieee-le');
+        elseif strncmpi(HDR.BV.DataFormat, 'ascii',5),
+                HDR.FILE.FID = fopen(tmp,'rt','ieee-le');
         end;
+
         if HDR.FILE.FID < 0,
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN BV: could not open file %s\n',fullfile(HDR.FILE.Path,HDR.BV.DataFile));
                 return;
