@@ -22,10 +22,9 @@ function [HDR]=scpopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.12 $
-%	$Id: scpopen.m,v 1.12 2004-09-25 20:28:10 schloegl Exp $
-%	(C) 2004 by Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Revision: 1.13 $
+%	$Id: scpopen.m,v 1.13 2005-03-08 10:51:35 schloegl Exp $
+%	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if nargin<1, PERMISSION='rb'; end;
@@ -225,7 +224,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
 			end;
 
                 elseif section.ID==3, 
-                        HDR.NS = fread(fid,1,'char');    
+                        HDR.NS = fread(fid,1,'char');
                         HDR.FLAG.Byte = fread(fid,1,'char');    
                         HDR.FLAG.ReferenceBeat = mod(HDR.FLAG.Byte,2);    
                         %HDR.NS = floor(mod(HDR.FLAG.Byte,128)/8);    
@@ -235,10 +234,24 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         end;
                         HDR.N = max(HDR.LeadPos(:))-min(HDR.LeadPos(:))+1;
                         
-                        LeadIdTable = 	{'I';'II';'V1';'V2';'V3';'V4';'V5';'V6';'V7';'V2R';'V3R';'V4R';'V5R';'V6R';'V7R';'X';'Y';'Z';'CC5';'CM5';'left arm';'right arm';'left leg';'I';'E';'C';'A';'M';'F';'H';'I-cal'};
-                        if max(HDR.Lead)<length(LeadIdTable),        
-                                HDR.Label = LeadIdTable(HDR.Lead);
+                        LeadIdTable = {'I';'II';'V1';'V2';'V3';'V4';'V5';'V6';'V7';'V2R';'V3R';'V4R';'V5R';'V6R';'V7R';'X';'Y';'Z';'CC5';'CM5';'left arm';'right arm';'left leg';'I';'E';'C';'A';'M';'F';'H'};
+                        LeadIdTable = [LeadIdTable;{'I-cal';'II-cal';'V1-cal';'V2-cal';'V3-cal';'V4-cal';'V5-cal';'V6-cal';'V7-cal';'V2R-cal';'V3R-cal';'V4R-cal';'V5R-cal';'V6R-cal';'V7R-cal';'X-cal';'Y-cal';'Z-cal'}];
+                        LeadIdTable = [LeadIdTable;{'CC5-cal';'CM5-cal';'Left Arm-cal';'Right Arm-cal';'Left Leg-cal';'I-cal';'E-cal';'C-cal';'A-cal';'M-cal';'F-cal';'H-cal';'III';'aVR';'aVL';'aVF';'-aVR';'V8';'V9';'V8R';'V9R'}];
+                        LeadIdTable = [LeadIdTable;{'D (Nehb-Dorsal)';'A (Nehb-Anterior)';'J (Nehb-Inferior)';'Defibrillator Lead: anterior lateral';'Exernal Pacing Lead: anterior-posterior'}];
+                        LeadIdTable = [LeadIdTable;{'A1';'A2';'A3';'A4';'V8-cal';'V9-cal';'V8R-cal';'V9R-cal';'D-cal (cal for Nehb-Dorsal)';'A-cal (cal for Nehb-Anterior)';'J-cal (cal for Nehb-Inferior)'}];
+                        for k = 1:HDR.NS,
+                                if 0,
+                                elseif HDR.Lead(k)==0,
+                                        HDR.Label{k} = 'unspecified lead';
+                                elseif HDR.Lead(k)<86,        
+                                        HDR.Label{k} = LeadIdTable{HDR.Lead(k)};
+                                elseif HDR.Lead(k)>99,
+                                        HDR.Label{k} = 'manufacturer specific';
+                                else
+                                        HDR.Label{k} = 'reserved';
+                                end;
                         end;
+                        HDR.Label = strvcat(HDR.Label);
                         
                 elseif section.ID==4, 
                         HDR.SCP4.L = fread(fid,1,'int16');    
@@ -487,7 +500,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         elseif section.ID==6,
                                 HDR.SCP6 = SCP;
                                 HDR.SampleRate = SCP.SampleRate;
-                                HDR.PhysDim = HDR.SCP6.PhysDim;
+                                HDR.PhysDim = repmat(HDR.SCP6.PhysDim,HDR.NS,1);
                                 HDR.data = S2;
                                 
                                 if HDR.SCP6.FLAG.bimodal_compression,
