@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.16 $
-%	$Id: eegopen.m,v 1.16 2003-05-30 10:34:20 schloegl Exp $
+%	$Revision: 1.17 $
+%	$Id: eegopen.m,v 1.17 2003-05-30 11:14:58 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -122,7 +122,6 @@ elseif strcmp(HDR.TYPE,'GDF'), HDR.TYPE='GDF';
         
         %%% Neuroscan Format        
 elseif strcmp(HDR.TYPE,'AVG'), HDR.TYPE='AVG';
-        warning(sprintf('EEGOPEN: filetype %s not tested, yet.',HDR.TYPE));
 elseif strcmp(HDR.TYPE,'COH'), HDR.TYPE='COH';
         error(sprintf('EEGOPEN: filetype %s not implemented, yet.',HDR.TYPE));
 elseif strcmp(HDR.TYPE,'CSA'), HDR.TYPE='CSA';

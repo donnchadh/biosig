@@ -11,8 +11,8 @@ function [POS,HDR] = eegtell(HDR)
 % See also: FTELL, EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGSEEK, EEGEOF
 
 
-%	$Revision: 1.6 $
-%	$Id: eegtell.m,v 1.6 2003-05-27 13:53:16 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: eegtell.m,v 1.7 2003-05-30 11:14:58 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -33,7 +33,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
                 HDR.AS.startrec = POS;
         end;
 
-elseif strmatch(HDR.TYPE,{'BKR','ISHNE','CNT','EEG','MIT','RG64','LABVIEW','EGI','SMA'}),
+elseif strmatch(HDR.TYPE,{'BKR','ISHNE','CNT','EEG','AVG','MIT','RG64','LABVIEW','EGI','SMA'}),
 	POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
 
 elseif strmatch(HDR.TYPE,{'RDF'}),

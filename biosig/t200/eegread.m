@@ -34,8 +34,8 @@ function [S,HDR] = eegread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.12 $
-%	$Id: eegread.m,v 1.12 2003-05-30 10:34:20 schloegl Exp $
+%	$Revision: 1.13 $
+%	$Id: eegread.m,v 1.13 2003-05-30 11:14:58 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -325,14 +325,17 @@ elseif strcmp(HDR.TYPE,'EGI'),
         
 elseif strcmp(HDR.TYPE,'AVG'),
 	S = repmat(nan,HDR.SPR,HDR.NS);
+	count = 0;
 	for i = 1:HDR.NS, 
                 [tmp,c]     = fread(HDR.FILE.FID,5,'char'); % no longer used 
+		count = count + c;
                 [S(:,i), c] = fread(HDR.FILE.FID,HDR.SPR,'float');
+		count = count + c*4;
         end
         if ~HDR.FLAG.UCAL,
 		S = S*diag(HDR.Cal);
         end;
-	HDR.FILE.POS = 1;        
+	HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.bpb;
 
                     
 elseif strcmp(HDR.TYPE,'COH'),

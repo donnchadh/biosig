@@ -8,8 +8,8 @@ function [HDR]=eegseek(HDR,offset,origin)
 %
 % See also: FSEEK, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.7 $
-%	$Id: eegseek.m,v 1.7 2003-05-26 17:17:24 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: eegseek.m,v 1.8 2003-05-30 11:14:58 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -52,7 +52,7 @@ elseif origin == 1,
 	elseif strmatch(HDR.TYPE,{'BKR','ISHNE','RG64','MIT','LABVIEW','SMA'}),
 		HDR.FILE.POS = HDR.AS.endpos+offset;
 		HDR.FILE.status = fseek(HDR.FILE.FID,OFFSET,1);
-	elseif strmatch(HDR.TYPE,{'CNT','EEG','EGI'}),
+	elseif strmatch(HDR.TYPE,{'CNT','EEG','AVG','EGI'}),
 		HDR.FILE.POS = HDR.AS.endpos+offset;
 		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.endpos*HDR.AS.bpb+OFFSET,-1);
         elseif strcmp(HDR.TYPE,'RDF'),
