@@ -8,8 +8,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 % ChanList	(List of) Channel(s)
 %		default=0: loads all channels
 
-%	$Revision: 1.11 $
-%	$Id: cntopen.m,v 1.11 2003-06-03 17:41:52 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: cntopen.m,v 1.12 2003-06-14 20:59:59 schloegl Exp $
 %	Copyright (C) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -497,8 +497,7 @@ elseif (h.type==1),
 	CNT.Dur = CNT.SPR/CNT.SampleRate;
         
         
-        
-elseif (h.type==2),
+elseif any(h.type==[2,184]),
 	if ~strcmp(upper(CNT.FILE.Ext),'CNT'),
 		fprinf(2,'Warning CNTOPEN: filetype 2 does not match file extension CNT.\n'); 
 	end;
@@ -520,7 +519,7 @@ end;
 CNT.EVENT.Number     = h.numevents;
 if CNT.EVENT.Number > 0,
         fseek(CNT.FILE.FID,h.eventtablepos,'bof');
-        CNT.EVENT.TeegType       = fread(fid,1,'uchar');	%	
+        CNT.EVENT.TeegType   = fread(fid,1,'uchar');	%	
         CNT.EVENT.TeegSize   = fread(fid,1,'int32');	%	
         CNT.EVENT.TeegOffset = fread(fid,1,'int32');	%	
         
@@ -538,7 +537,7 @@ if CNT.EVENT.Number > 0,
                 
                 Teeg(k).Offset   =  fread(fid,1,'int32');        
                 K = K + 8;
-                if CNT.EVENT.Teeg==2,
+                if CNT.EVENT.TeegType==2,
                         Teeg(k).Type =  fread(fid,1,'int16');        
                         Teeg(k).Code =  fread(fid,1,'int16');        
                         Teeg(k).Latency =  fread(fid,1,'float32');        
