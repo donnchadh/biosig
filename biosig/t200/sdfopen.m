@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.36 $
-%	$Id: sdfopen.m,v 1.36 2005-01-05 13:11:06 schloegl Exp $
+%	$Revision: 1.37 $
+%	$Id: sdfopen.m,v 1.37 2005-02-08 10:51:17 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -210,105 +210,81 @@ EDF.RID = deblank(H1(89:168));                % 80 Byte local recording identifi
 IsGDF=strcmp(EDF.VERSION(1:3),'GDF');
 
 if strcmp(EDF.VERSION(1:3),'GDF'),
-        if 1, % if strcmp(EDF.VERSION(4:8),' 0.12'); % in future versions the date format might change. 
-      		EDF.T0(1,1) = str2double( H1(168 + [ 1:4]));
-		EDF.T0(1,2) = str2double( H1(168 + [ 5 6]));
-        	EDF.T0(1,3) = str2double( H1(168 + [ 7 8]));
-        	EDF.T0(1,4) = str2double( H1(168 + [ 9 10]));
-        	EDF.T0(1,5) = str2double( H1(168 + [11 12]));
-        	EDF.T0(1,6) = str2double( H1(168 + [13:16]))/100;
-     	end; 
-     
+	tmp = repmat(' ',1,22);
+	tmp([1:4,6:7,9:10,12:13,15:16,18:21]) = H1(168+[1:16]);
+	EDF.T0(1:6) = str2double(tmp);
+	EDF.T0(6)   = EDF.T0(6)/100;
+
 	if str2double(EDF.VERSION(4:8))<0.12
                 tmp = setstr(fread(EDF.FILE.FID,8,'uchar')');    % 8 Byte  Length of Header
                 EDF.HeadLen = str2double(tmp);    % 8 Byte  Length of Header
         else
-		%EDF.HeadLen = fread(EDF.FILE.FID,1,'int64');    % 8 Byte  Length of Header
+		%EDF.HeadLen = fread(EDF.FILE.FID,1,'int64');   % 8 Byte  Length of Header
 		EDF.HeadLen = fread(EDF.FILE.FID,1,'int32');    % 8 Byte  Length of Header
-		tmp         = fread(EDF.FILE.FID,1,'int32');    % 8 Byte  Length of Header
+		tmp         = fread(EDF.FILE.FID,1,'int32');	% 8 Byte  Length of Header
         end;
-        EDF.reserved1 = fread(EDF.FILE.FID,8+8+8+20,'uchar');     % 44 Byte reserved
+        EDF.reserved1 = fread(EDF.FILE.FID,8+8+8+20,'uchar');   % 44 Byte reserved
         
-        %EDF.NRec = fread(EDF.FILE.FID,1,'int64');     % 8 Byte  # of data records
-        EDF.NRec = fread(EDF.FILE.FID,1,'int32');     % 8 Byte  # of data records
-                   fread(EDF.FILE.FID,1,'int32');     % 8 Byte  # of data records
+        %EDF.NRec = fread(EDF.FILE.FID,1,'int64');     % 8 Byte # of data records
+        EDF.NRec = fread(EDF.FILE.FID,1,'int32');      % 8 Byte # of data records
+                   fread(EDF.FILE.FID,1,'int32');      % 8 Byte # of data records
         if strcmp(EDF.VERSION(4:8),' 0.10')
-                EDF.Dur =  fread(EDF.FILE.FID,1,'float64');    % 8 Byte  # duration of data record in sec
+                EDF.Dur = fread(EDF.FILE.FID,1,'float64');	% 8 Byte  # duration of data record in sec
         else
-                tmp =  fread(EDF.FILE.FID,2,'uint32');    % 8 Byte  # duration of data record in sec
-                EDF.Dur =  tmp(1)./tmp(2);
+                tmp  = fread(EDF.FILE.FID,2,'uint32');  % 8 Byte # duration of data record in sec
+		tmp1 = warning('off');
+                EDF.Dur = tmp(1)./tmp(2);
+		warning(tmp1);
         end;
-        EDF.NS =   fread(EDF.FILE.FID,1,'uint32');     % 4 Byte  # of signals
+        EDF.NS =   fread(EDF.FILE.FID,1,'uint32');     % 4 Byte # of signals
 else 
         tmp=(find((H1<32) | (H1>126))); 		%%% syntax for Matlab
         if ~isempty(tmp) %%%%% not EDF because filled out with ASCII(0) - should be spaces
                 %H1(tmp)=32; 
                 EDF.ErrNo=[1025,EDF.ErrNo];
         end;
-        
-        EDF.T0 = zeros(1,6);
-        ErrT0=0;
-        tmp = str2double( H1(168 + [ 7  8]));
-        if ~isnan(tmp), EDF.T0(1) = tmp; else ErrT0 = 1; end;
-        tmp = str2double( H1(168 + [ 4  5]));
-        if ~isnan(tmp), EDF.T0(2) = tmp; else ErrT0 = 1; end;
-        tmp = str2double( H1(168 + [ 1  2]));
-        if ~isnan(tmp), EDF.T0(3) = tmp; else ErrT0 = 1; end;
-        tmp = str2double( H1(168 + [ 9 10]));
-        if ~isnan(tmp), EDF.T0(4) = tmp; else ErrT0 = 1; end;
-        tmp = str2double( H1(168 + [12 13]));
-        if ~isnan(tmp), EDF.T0(5) = tmp; else ErrT0 = 1; end;
-        tmp = str2double( H1(168 + [15 16]));
-        if ~isnan(tmp), EDF.T0(6) = tmp; else ErrT0 = 1; end;
-        
-	if any(EDF.T0~=fix(EDF.T0)); ErrT0=1; end;
 
-        if ErrT0,
-                ErrT0=0;
+	tmp = repmat(' ',1,22);
+	tmp([3:4,6:7,9:10,12:13,15:16,18:19]) = H1(168+[7:8,4:5,1:2,9:10,12:13,15:16]);
+	tmp1 = str2double(tmp);
+	if length(tmp1)==6,
+		EDF.T0(1:6) = tmp1;
+	end;
+
+        if any(isnan(EDF.T0)),
                 EDF.ErrNo = [1032,EDF.ErrNo];
                 
-                tmp = H1(168 + [1:8]);
-                for k = [3 2 1],
-                        %fprintf(1,'\n zz%szz \n',tmp);
-                        [tmp1,tmp] = strtok(tmp,' :./-');
-			tmp1 = str2double([tmp1,' ']);
-			
-                        if isempty(tmp1)
-                                ErrT0 = ErrT0 | 1;
-                        else
-                                EDF.T0(k)  = tmp1;
-                        end;
-                end;
-                tmp = H1(168 + [9:16]);
-                for k = [4 5 6],
-                        [tmp1,tmp] = strtok(tmp,' :./-');
-                        tmp1=str2double([tmp1,' ']);
-                        if isempty(tmp1)
-                                ErrT0 = ErrT0 | 1;
-                        else
-                                EDF.T0(k)  = tmp1;
-                        end;
-                end;
-                if ErrT0
+                tmp = H1(168 + [1:16]);
+		tmp(tmp=='.' | tmp==':' | tmp=='/' | tmp=='-') = ' ';
+		tmp1 = str2double(tmp(1:8));
+		if length(tmp1)==3,
+			EDF.T0 = tmp1([3,2,1]);
+		end;	
+		tmp1 = str2double(tmp(9:16));
+		if length(tmp1)==3,
+			EDF.T0(4:6) = tmp1; 
+		end;
+	        if any(isnan(EDF.T0)),
                         EDF.ErrNo = [2,EDF.ErrNo];
                 end;
-        else
-                % Y2K compatibility until year 2084
-                if EDF.T0(1) < 85    % for biomedical data recorded in the 1950's and converted to EDF
-                        EDF.T0(1) = 2000+EDF.T0(1);
-                elseif EDF.T0(1) < 100
-                        EDF.T0(1) = 1900+EDF.T0(1);
-                %else % already corrected, do not change
-                end;
-        end;     
+        end
+
+        % Y2K compatibility until year 2084
+        if EDF.T0(1) < 85    % for biomedical data recorded in the 1950's and converted to EDF
+                EDF.T0(1) = 2000+EDF.T0(1);
+        elseif EDF.T0(1) < 100
+                EDF.T0(1) = 1900+EDF.T0(1);
+        %else % already corrected, do not change
+        end;
+
         H1(185:256)=setstr(fread(EDF.FILE.FID,256-184,'uchar')');     %
         EDF.HeadLen = str2double(H1(185:192));           % 8 Bytes  Length of Header
         EDF.reserved1=H1(193:236);              % 44 Bytes reserved   
         EDF.NRec    = str2double(H1(237:244));     % 8 Bytes  # of data records
         EDF.Dur     = str2double(H1(245:252));     % 8 Bytes  # duration of data record in sec
         EDF.NS      = str2double(H1(253:256));     % 4 Bytes  # of signals
-	EDF.AS.H1   = H1;	                     % for debugging the EDF Header
 end;
+EDF.AS.H1 = H1;	                     % for debugging the EDF Header
 
 if strcmp(EDF.reserved1(1:4),'EDF+'),	% EDF+ specific header information 
 	[EDF.Patient.Id,   tmp] = strtok(EDF.PID,' ');
@@ -522,7 +498,7 @@ EDF.AS.endpos = EDF.FILE.size;
 %[status, EDF.AS.endpos, EDF.HeadLen, EDF.AS.bpb EDF.NRec, EDF.HeadLen+EDF.AS.bpb*EDF.NRec]
 if EDF.NRec == -1   % unknown record size, determine correct NRec
         EDF.NRec = floor((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
-elseif  EDF.NRec ~= ((EDF.AS.endpos - EDF.HeadLen) / EDF.AS.bpb);
+elseif  (EDF.NRec*EDF.AS.bpb) ~= (EDF.AS.endpos - EDF.HeadLen);
         if ~strcmp(EDF.VERSION(1:3),'GDF'),
                 EDF.ErrNo=[16,EDF.ErrNo];
                 fprintf(2,'\nWarning SDFOPEN: size (%i) of file %s does not fit headerinformation\n',EDF.AS.endpos,EDF.FileName);
@@ -651,7 +627,7 @@ elseif strcmp(EDF.TYPE,'EDF') & (length(strmatch('EDF Annotations',EDF.Label))==
         end;
         EDF.EVENT.TYP(1:N,1) = 0;
 
-elseif strcmp(EDF.TYPE,'EDF') & (length(EDF.FILE.Name)==8) & any(lower(EDF.FILE.Name(1))=='bchmnpsu') 
+elseif 0, strcmp(EDF.TYPE,'EDF') & (length(EDF.FILE.Name)==8) & any(lower(EDF.FILE.Name(1))=='bchmnpsu') 
         if strcmp(lower(EDF.FILE.Name([3,6:8])),'001a'),
                 % load scoring of ADB database if available 
 
