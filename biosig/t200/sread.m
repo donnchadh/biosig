@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.28 $
-%	$Id: sread.m,v 1.28 2004-09-24 18:02:05 schloegl Exp $
+%	$Revision: 1.29 $
+%	$Id: sread.m,v 1.29 2004-10-05 19:44:00 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -793,16 +793,16 @@ end;
 
 %%% TOGGLE CHECK - checks whether HDR is kept consist %%% 
 global SREAD_TOGGLE_CHECK
-if isfield(HDR.AS,'TOGGLE');
-        if HDR.AS.TOGGLE~=SREAD_TOGGLE_CHECK,
-                fprintf(HDR.FILE.stderr,'Warning SREAD: [s,HDR]=sread(HDR, ...) \nYou forgot to pass HDR in %i call(s) of SREAD\n',SREAD_TOGGLE_CHECK-HDR.AS.TOGGLE);
+if isfield(HDR.FLAG,'TOGGLE');
+        if HDR.FLAG.TOGGLE~=SREAD_TOGGLE_CHECK,
+                fprintf(HDR.FILE.stderr,'Warning SREAD: [s,HDR]=sread(HDR, ...) \nYou forgot to pass HDR in %i call(s) of SREAD\n',SREAD_TOGGLE_CHECK-HDR.FLAG.TOGGLE);
         end;
 else
-        HDR.AS.TOGGLE=0;
+        HDR.FLAG.TOGGLE=0;
         SREAD_TOGGLE_CHECK=0;
 end;
 SREAD_TOGGLE_CHECK = SREAD_TOGGLE_CHECK+1;
-HDR.AS.TOGGLE = HDR.AS.TOGGLE+1;
+HDR.FLAG.TOGGLE = HDR.FLAG.TOGGLE+1;
 
 
 if ~HDR.FLAG.UCAL,
