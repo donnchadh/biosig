@@ -33,8 +33,8 @@ function [HDR,H1,h2] = eegopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.29 $
-%	$Id: eegopen.m,v 1.29 2003-07-24 12:41:14 schloegl Exp $
+%	$Revision: 1.30 $
+%	$Id: eegopen.m,v 1.30 2003-07-29 08:34:52 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -784,32 +784,39 @@ elseif strcmp(HDR.TYPE,'MIT')
 	if any(PERMISSION=='r'),
 		HDR.FileName = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
 
-		HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+		HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le');
 		HDR.FILE.OPEN = 1;
 		HDR.FILE.POS = 0;
 		
 		fid = HDR.FILE.FID;
 		z = fgetl(fid);
-		if ~strcmp(file,strtok(z,' /')),
-			fprintf(2,'Warning: RecordName %s does not fit filename %s\n',strtok(z,' /'),file);
+		tmpfile = strtok(z,' /');
+		if ~strcmp(file,tmpfile),
+			fprintf(2,'Warning: RecordName %s does not fit filename %s\n',tmpfile,file);
 		end;	
 
 		%A = sscanf(z, '%*s %d %d %d',[1,3]);
 		[tmp,z] = strtok(z); 
 		[tmp,z] = strtok(z);
-		HDR.NS = str2num(tmp);   % number of signals
+		HDR.NS  = str2num(tmp);   % number of signals
 		[tmp,z] = strtok(z); 
 		HDR.SampleRate = str2num(tmp);   % sample rate of data
-		[tmp,z] = strtok(z,' ()'); 
+		[tmp,z] = strtok(z,' ()');
 		HDR.SPR   = str2num(tmp);   % sample rate of data
 		HDR.NRec  = 1;
 
 		for k=1:HDR.NS,
                         z = fgetl(fid);
                         [HDR.FILE.DAT,z]=strtok(z);
-                        %[A,count,errmsg,nextidx] = sscanf(z, '%d %d %d %d %d %d %d ',[1,7]); % not supported by Octave 2.1.42
-                        for k0=1:7,[tmp,z]=strtok(z); A(k0)=str2num(tmp); end;
-                        HDR.Label{k}=z; 
+                        for k0 = 1:7,
+				[tmp,z] = strtok(z);
+				if k0 == 2,  
+					% EC13*.HEA files have special gain values like "200(23456)/uV". 
+ 					[tmp, tmp1] = strtok(tmp,' ()');
+				end;
+				A(k0) = str2num(tmp); 
+			end;
+                        HDR.Label{k} = z; 
 			dformat(k,1) = A(1);         % format; 
 			HDR.gain(k,1) = A(2);              % number of integers per mV
 			bitres(k,1) = A(3);            % bitresolution
@@ -921,7 +928,18 @@ elseif strcmp(HDR.TYPE,'MIT')
 			MACHINE_FOMRAT='ieee-le';
 		end;
 		%HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dat']),'r','ieee-le');
-		HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.FILE.DAT),'rb','ieee-le');
+
+		tmpfile = fullfile(HDR.FILE.Path,HDR.FILE.DAT);
+		if  exist(tmpfile)~=2, 
+			HDR.FILE.DAT = upper(HDR.FILE.DAT);
+			tmpfile = fullfile(HDR.FILE.Path,HDR.FILE.DAT);
+		end;
+		if  exist(tmpfile)~=2, 
+			HDR.FILE.DAT = lower(HDR.FILE.DAT);
+			tmpfile = fullfile(HDR.FILE.Path,HDR.FILE.DAT);
+		end;
+		HDR.FILE.FID = fopen(tmpfile,'rb','ieee-le');
+		
                 HDR.HeadLen  = 0;
                 fseek(HDR.FILE.FID,0,'eof');
                 tmp = ftell(HDR.FILE.FID);
@@ -933,7 +951,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 		HDR.FLAG.UCAL = 1;
 		[S,HDR] = eegread(HDR,1/HDR.SampleRate); % load 1st sample
                 if any(S(1,:) ~= HDR.firstvalue), 
-			fprintf(2,'ERROR EEGOPEN MIT-ECG: inconsistency in the first bit values'); 
+			fprintf(2,'ERROR EEGOPEN MIT-ECG: inconsistency in the first values\n'); 
 		end;
                 HDR.FLAG.UCAL = FLAG_UCAL ;	
                 fseek(HDR.FILE.FID,0,'bof');	% reset file pointer
