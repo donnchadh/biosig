@@ -22,13 +22,15 @@ function [HDR]=scpopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.3 $
-%	$Id: scpopen.m,v 1.3 2004-02-02 19:31:00 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: scpopen.m,v 1.4 2004-02-06 18:40:02 schloegl Exp $
 %	(C) 2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if nargin<1, PERMISSION='rb'; end;
+
+VER = version;
 
 fid = fopen(HDR.FileName,PERMISSION,'ieee-le');
 if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
@@ -41,6 +43,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
         PREFIX  = [0,4,5,12,13,28,29,60,61,124,125,252,253,508,509,1020,1021,1022,1023]'.*2.^[32-prefix]';
         codelength = [1,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,18,26];
         mask    = [1,7,7,15,15,31,31,63,63,127,127,255,255,511,511,1023,1023,1023,1023]'.*2.^[32-prefix]';
+        %MASK    = dec2bin(mask);
         %mask   = [1,7,7,15,15,31,31,63,63,127,127,255,255,511,511,1023,1023,1023,1023]';
         K  = 0;
         section.CRC = fread(fid,1,'uint16');
@@ -49,7 +52,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                 section.ID  = fread(fid,1,'uint16');
                 section.Length = fread(fid,1,'uint32');
                 section.Version= fread(fid,[1,2],'uint8');
-                tmp = fread(fid,6,'uint8');
+                tmp = fread(fid,[1,6],'uint8');
                 
                 K = K + 1;
                 HDR.Section{K} = section;
@@ -170,13 +173,34 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         end;
                         
                 elseif section.ID==2, 	% Huffman tables 
-                        HDR.SCP2.NHT = fread(fid,1,'uint16');    
+                        HDR.SCP2.NHT = fread(fid,1,'uint16');            
                         HDR.SCP2.NCT = fread(fid,1,'uint16');    
-                        tmp = fread(fid,3,'uint8');    
-                        HDR.SCP2.prefix = tmp(1);
-                        HDR.SCP2.codelength = tmp(2);
-                        HDR.SCP2.TableModeSwitch = tmp(3);
                         
+                        if HDR.SCP2.NHT~=19999,
+                                for k1 = 1:HDR.SCP2.NHT,
+                                        for k2 = 1:HDR.SCP2.NCT,
+                                                tmp = fread(fid,3,'uint8') ;
+                                                HDR.SCP2.prefix = tmp(1);
+                                                HDR.SCP2.codelength = tmp(2);
+                                                HDR.SCP2.TableModeSwitch = tmp(3);
+                                                tmp(4) = fread(fid,1,'int16');    
+                                                tmp(5) = fread(fid,1,'uint32');    
+                                                HDR.SCP2.HT{k1}(k2,:) = tmp; 
+                                        end;                                
+                                end;
+                        elseif 0,
+                                k1 = 1;
+                                for k2 = 1:HDR.SCP2.NCT,
+                                        tmp = fread(fid,3,'uint8') ;
+                                        HDR.SCP2.prefix = tmp(1);
+                                        HDR.SCP2.codelength = tmp(2);
+                                        HDR.SCP2.TableModeSwitch = tmp(3);
+                                        tmp(4) = fread(fid,1,'int16');    
+                                        tmp(5) = fread(fid,1,'uint32');    
+                                        HDR.SCP2.HT{k1}(k2,:) = tmp; 
+                                end;                                
+                                
+                        end;
                 elseif section.ID==3, 
                         HDR.NS = fread(fid,1,'char');    
                         HDR.FLAG.Byte = fread(fid,1,'char');    
@@ -186,6 +210,8 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 HDR.LeadPos(k,1:2) = fread(fid,[1,2],'uint32');    
                                 HDR.Lead(k,1) = fread(fid,1,'uint8');    
                         end;
+                        HDR.N = max(HDR.LeadPos(:))-min(HDR.LeadPos(:))+1;
+                        
                         LeadIdTable = 	{'I';'II';'V1';'V2';'V3';'V4';'V5';'V6';'V7';'V2R';'V3R';'V4R';'V5R';'V6R';'V7R';'X';'Y';'Z';'CC5';'CM5';'left arm';'right arm';'left leg';'I';'E';'C';'A';'M';'F';'H';'I-cal'};
                         if max(HDR.Lead)<length(LeadIdTable),        
                                 HDR.Label = LeadIdTable(HDR.Lead);
@@ -193,53 +219,51 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         
                 elseif section.ID==4, 
                         HDR.SCP4.L = fread(fid,1,'int16');    
-                        HDR.SCP4.M = fread(fid,1,'int16');    
+                        HDR.SCP4.fc0 = fread(fid,1,'int16');    
                         HDR.SCP4.N = fread(fid,1,'int16');    
-                        for k=1:HDR.SCP4.N,
-                                HDR.SCP4.B(k).type = fread(fid,1,'uint16');   
-                                HDR.SCP4.B(k).snum = fread(fid,1,'uint32');   
-                                HDR.SCP4.B(k).fc1 = fread(fid,1,'uint32');   
-                                HDR.SCP4.B(k).ty0 = fread(fid,1,'uint32');   
+                        HDR.SCP4.type = fread(fid,[7,HDR.SCP4.N],'uint16')'*[1,0,0,0; 0,1,0,0;0,2^16,0,0; 0,0,1,0;0,0,2^16,0; 0,0,0,1;0,0,0,2^16];   
+
+                        tmp = fread(fid,[2*HDR.SCP4.N],'uint32');
+                        HDR.SCP4.PA = reshape(tmp,2,HDR.SCP4.N)';   
+                        HDR.SCP4.pa = [0;tmp;HDR.N];   
+                        
+                elseif any(section.ID==[5,6]), 
+                        SCP = [];
+                        SCP.Cal = fread(fid,1,'int16')/1e6;    
+                        SCP.PhysDim = 'mV';
+                        SCP.Dur = fread(fid,1,'int16');    
+                        SCP.SampleRate = 1e6/SCP.Dur;
+                        SCP.FLAG.DIFF = fread(fid,1,'uint8');    
+                        SCP.FLAG.bimodal_compression = fread(fid,1,'uint8');    
+                        SCP.SPR = fread(fid,HDR.NS,'int16');
+                        
+                        if section.ID==6,
+                                HDR.HeadLen = ftell(fid);
+                                HDR.FLAG.DIFF = SCP.FLAG.DIFF;
+                                HDR.FLAG.bimodal_compression = SCP.FLAG.bimodal_compression;
+                                HDR.SCP.data = [];
                         end;
-                        HDR.SCP4.PA = fread(fid,[2,HDR.SCP4.N],'uint32')';   
-                        
-                elseif section.ID==5,
-                        HDR.Cal = fread(fid,1,'int16');    
-                        HDR.Dur = fread(fid,1,'int16');    
-                        HDR.SampleRate = 1e6/HDR.Dur;
-                        HDR.CodeTyp = fread(fid,1,'uint8');    
-                        HDR.CodeTyp2 = fread(fid,1,'uint8');    
-                        HDR.PhysDim = 'nV';
-                        
-                elseif section.ID==6, 
-                        HDR.Cal = fread(fid,1,'int16');    
-                        HDR.Dur = fread(fid,1,'int16');    
-                        HDR.SampleRate2 = 1e6/HDR.Dur;
-                        HDR.FLAG.DIFF = fread(fid,1,'uint8');    
-                        HDR.FLAG.bimodal_compression = fread(fid,1,'uint8');    
-                        HDR.SPR     = fread(fid,HDR.NS,'int16');
-                        HDR.HeadLen = ftell(fid);
-                        HDR.tmp.x = [];
                         
                         if ~isfield(HDR,'SCP2'),
-                                for k = 1:HDR.NS,
-                                        HDR.SCP6.S(:,k) = fread(fid,HDR.SPR(k),'int16');    
-                                end;
-                        else
+                                S2 = fread(fid,[SCP.SPR,HDR.NS],'int16');    
                                 
-                                for k = 1:HDR.NS,
-                                        SCP6.data{k} = fread(fid,HDR.SPR(k),'uint8');    
-                                end;
-                                
-                                if HDR.SCP2.NHT~=19999,
-                                        fprintf(HDR.FILE.stderr,'Warning SOPEN SCP-ECG: user specified Huffman Table not supported\n');
+                        elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) %& (HDR.SCP2.prefix==0) & (HDR.SCP2.TableModeSwitch==0),
+                                if (HDR.SCP2.codelength==16)
+                                        S2 = fread(fid,[HDR.N,HDR.NS],'int16');  
+                                else
+                                        fprintf(HDR.FILE.stderr,'Warning SCPOPEN: codelength %i is not supported yet.',HDR.SCP2.codelength);
+                                        fprintf(HDR.FILE.stderr,' Contact <a.schloegl@ieee.org>\n',HDR.SCP2.codelength);
                                         return;
-                                elseif HDR.SCP2.NHT==19999,
-                                        HuffTab = DHT;
-                                end;
+                                end;                                        
                                 
+                        elseif HDR.SCP2.NHT==19999,
+                                HuffTab = DHT;
                                 for k = 1:HDR.NS,
-                                        tmp = SCP6.data{k};
+                                        SCP.data{k} = fread(fid,SCP.SPR(k),'uint8');    
+                                end;
+                                clear S2;
+                                for k = 1:HDR.NS,
+                                        tmp = SCP.data{k};
                                         accu = [tmp(4)+256*tmp(3)+65536*tmp(2)+2^24*tmp(1)];
                                         %accu = bitshift(accu,HDR.SCP2.prefix,32);
                                         c  = 0; %HDR.SCP2.prefix;
@@ -253,6 +277,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                 while (bitand(accu,mask(ixx)) ~= PREFIX(ixx)), 
                                                         ixx = ixx + 1;
                                                 end;
+                                                
                                                 if ixx < 18,
                                                         c = c + prefix(ixx);
                                                         %accu  = bitshift(accu, prefix(ixx),32);
@@ -265,19 +290,18 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                         %accu  = bitshift(accu, prefix(ixx),32);
                                                         accu  = mod(accu.*(2^prefix(ixx)),2^32);
                                                         l2    = l2 + 1;
-                                                        x(l2) = mod(floor(accu*2^(-24)),256);
                                                         
-                                                        acc1 = mod(floor(accu*2^(-8)),2^8);
+                                                        acc1  = mod(floor(accu*2^(-24)),256);
                                                         %accu = bitshift(accu, 8, 32);
-                                                        accu = mod(accu*256, 2^32);
-                                                        x(l2) = acc1-(acc1>=2^7)*2^6;
-                                                        acc2 = 0;
+                                                        accu  = mod(accu*256, 2^32);
+                                                        
+                                                        x(l2) = acc1-(acc1>=2^7)*2^8;
+                                                        acc2  = 0;
                                                         for kk = 1:8,
                                                                 acc2 = acc2*2 + mod(acc1,2);
                                                                 acc1 = floor(acc1/2);
                                                         end;
-                                                        %x(l2) = acc2;
-                                                       
+                                                        
                                                 elseif ixx == 19,
                                                         c = c + prefix(ixx);
                                                         %accu  = bitshift(accu, prefix(ixx),32);
@@ -310,45 +334,96 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                 end;
                                                 %accu,
                                         end;
-                                        HDR.SCP6.S(:,k) = x(1:end-1)';
+                                        %HDR.SCP6.S(:,k) = x(1:end-1)';
+                                        x = x(1:end-1);
+                                        if k==1,
+                                                S2=x';
+                                        else
+                                                S2(:,k) = x';
+                                        end;
                                 end;
-                        end;
-                        
-                        S2 = HDR.SCP6.S;
-                        HDR.SCP.data = S2;
-                        
-                        S2 = HDR.SCP.data;
-                        if HDR.FLAG.DIFF==0,
-                                HDR.SCP.data = S2;    
-                        elseif HDR.FLAG.DIFF==1,
-                                HDR.SCP.data = cumsum(S2);    
-                        elseif HDR.FLAG.DIFF==2,
-                                for k1 = 3:size(S2,1);
-                                        S2(k1,:) = S2(k1,:) + [2,-1]*S2(k1-(1:2),:);
-                                end;
-                                HDR.SCP.data = S2;
-                        end;
-                        
-                        if HDR.FLAG.bimodal_compression,
-                                F = HDR.SampleRate/HDR.SampleRate2;
-                                S1 = HDR.SCP.data;
-                                N  = size(S1,1);
-                                ix = ones(F,1)*[1:N]; ix = ix(:);
-                                S2 = S1(ix,:);
                                 
-                                if F==4,
-                                        D = diff(S1)/F;
-                                        ix = (1:N-1)*F; 
-                                        S2(ix,:) = S2(ix,:) + D;
+                        elseif HDR.SCP2.NHT~=19999,
+                                fprintf(HDR.FILE.stderr,'Warning SOPEN SCP-ECG: user specified Huffman Table not supported\n');
+                                HDR.SCP = SCP;
+                                return;
+                                
+                        else
+                                HDR.SCP2,
+                        end;
+                        
+                        % Decoding of Difference encoding                  
+                        if SCP.FLAG.DIFF==2,
+                                for k1 = 3:size(S2,1);
+                                        S2(k1,:) = S2(k1,:) + [2,-1] * S2(k1-(1:2),:);
+                                end;
+                        elseif SCP.FLAG.DIFF==1,
+                                S2 = cumsum(S2);    
+                        end;
+                        
+                        S2 = S2 * SCP.Cal;
+                        if section.ID==5,
+                                HDR.SCP5 = SCP;
+                                HDR.SCP5.data = S2;
+                                HDR.SampleRate = SCP.SampleRate;
+                                
+                        elseif section.ID==6,
+                                HDR.SCP6 = SCP;
+                                HDR.SampleRate = SCP.SampleRate;
+                                HDR.PhysDim = HDR.SCP6.PhysDim;
+                                HDR.SCP.data = S2;
+                                
+                                if HDR.SCP6.FLAG.bimodal_compression,
+                                        fprintf(2,'Warning SCPOPEN: bimodal compression not well tested (%s)!\n',HDR.FileName);
                                         
-                                        ix = (1:N-1)*F+1; 
-                                        S2(ix,:) = S2(ix,:) - 2*D;
+                                        F = HDR.SCP5.SampleRate/HDR.SCP6.SampleRate;
+                                        HDR.SampleRate = HDR.SCP5.SampleRate;
+                                        HDR.FLAG.F = F;
                                         
-                                        ix = (1:N-1)*F+2; 
-                                        S2(ix,:) = S2(ix,:) - D;
-                                else
-                                        fprintf(HDR.FILE.stderr,'Error SOPEN SCP-ECG: Biomodal compression with Factor %i not supported\n',F);	
-                                        return;
+                                        tmp=[HDR.SCP4.PA(:,1);HDR.LeadPos(1,2)]-[1;HDR.SCP4.PA(:,2)+1];
+                                        if ~all(tmp==floor(tmp))
+                                                tmp,
+                                        end;
+                                        t  = (1:HDR.N) / HDR.SampleRate;
+                                        S1 = zeros(HDR.N, HDR.NS);
+                                        
+                                        
+                                        p = 1;
+                                        k2 = 1;
+                                        pa = [HDR.SCP4.PA;NaN,NaN];
+                                        flag = 1;
+                                        for k1 = 1:HDR.N,
+                                                if k1 == pa(p,2)+1,
+                                                        flag = 1;
+                                                        p    = p+1;
+                                                        accu = S2(k2,:);
+                                                elseif k1 == pa(p,1),
+                                                        flag = 0;
+                                                        k2 = ceil(k2);
+                                                end;
+                                                
+                                                if flag,
+                                                        S1(k1,:) = ((F-1)*accu + S2(fix(k2),:)) / F;
+                                                        k2 = k2 + 1/F;
+                                                else	
+                                                        S1(k1,:) = S2(k2,:);
+                                                        k2 = k2 + 1;
+                                                end;
+                                        end;	
+                                        
+                                        HDR.SCP.S2 = S2;
+                                        HDR.SCP.S1 = S1;
+                                        S2 = S1;
+                                        
+                                end;
+                                
+                                if HDR.FLAG.ReferenceBeat,
+                                        fprintf(2,'Warning SCPOPEN: reference beat substraction not well tested (%s)!\n',HDR.FileName);
+                                        for k = find(~HDR.SCP4.type(:,1)'),
+                                                t1 = (HDR.SCP4.type(k,2):HDR.SCP4.type(k,4));
+                                                t0 = t1 - HDR.SCP4.type(k,3) + HDR.SCP4.fc0;
+                                                S2(t1,:) = S2(t1,:) + HDR.SCP5.data(t0,:); 
+                                        end;
                                 end;
                                 HDR.SCP.data = S2;
                         end;
@@ -408,7 +483,16 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         
                         
                 elseif section.ID==8, 
-                        HDR.SCP8.byte1 = fread(fid,1,'uint8');    
+                        tmp = fread(fid,9,'uint8');    
+                        HDR.SCP8.Report = tmp(1);    
+                        HDR.SCP8.Time = [[1,256]*tmp(2:3),tmp(4:8)'];    
+                        HDR.SCP8.N = tmp(9);    
+                        for k = 1:HDR.SCP8.N,
+                                ix = fread(fid,1,'uint8');
+                                len = fread(fid,1,'uint16');
+                                tmp = fread(fid,[1,len],'char');    
+                                HDR.SCP8.Statement{k} = char(tmp);    
+                        end
                         
                 elseif section.ID==9, 
                         HDR.SCP9.byte1 = fread(fid,1,'uint8');    
