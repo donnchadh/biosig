@@ -26,8 +26,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 %
 
 
-%	$Revision: 1.48 $
-%	$Id: sload.m,v 1.48 2005-01-05 09:08:03 schloegl Exp $
+%	$Revision: 1.49 $
+%	$Id: sload.m,v 1.49 2005-01-08 21:25:22 schloegl Exp $
 %	Copyright (C) 1997-2005 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -85,12 +85,9 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			H = h;
 			signal = s;  
 			LEN = size(s,1);
-                elseif strcmp(H.TYPE,'TFM_EXCEL_Beat_to_Beat'); 
-                        H.TFM.S = [H.TFM.S(:,1:13); repmat(NaN,100,13),h.TFM.S(:,1:13)];
-                        H.TFM.E = [H.TFM.E(:,1:13); num2cell(zeros(100,13)),h.TFM.E(:,1:13)];
 		else
 			H.FILE(k) = h.FILE;
-			if (H.SampleRate ~= h.SampleRate),
+			if ~isnan(h.SampleRate) & (H.SampleRate ~= h.SampleRate),
 				fprintf(2,'Warning SLOAD: sampling rates of multiple files differ %i!=%i.\n',H.SampleRate, h.SampleRate);
 			end;
 
@@ -109,6 +106,9 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
                                 end;
                                 if isfield(H.EVENT,'DUR');
                                         H.EVENT.DUR = [H.EVENT.DUR; h.EVENT.DUR];
+                                end;
+                                if isfield(H.EVENT,'Desc');	% TFM-Excel-Beat-to-Beat
+                                        H.EVENT.Desc = [H.EVENT.Desc; h.EVENT.Desc];
                                 end;
                         end;			
                         if isfield(h,'TRIG'), 
@@ -174,7 +174,7 @@ if H.FILE.OPEN > 0,
         H = sclose(H);
 
 
-elseif strcmp(H.TYPE,'native'),
+elseif any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat'})); 
         [signal,H] = sread(H);
         H = sclose(H);
 
@@ -227,34 +227,36 @@ elseif strcmp(H.TYPE,'BIFF'),
                 if size(H.TFM.S,1)+1==size(H.TFM.E,1),
                         H.TFM.S = [repmat(NaN,1,size(H.TFM.S,2));H.TFM.S];
                 end;
-
                 H.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
+	catch
+	end; 	
+
+	if strcmp(H.TYPE, 'TFM_EXCEL_Beat_to_Beat');
                 if ~isempty(strfind(H.TFM.E{3,1},'---'))
                         H.TFM.S(3,:) = [];    
                         H.TFM.E(3,:) = [];    
                 end;
                 
-                H.Label   = H.TFM.E(4,:)';
-                H.PhysDim = H.TFM.E(5,:)';
+                H.Label   = strvcat(H.TFM.E(4,:)');
+                H.PhysDim = strvcat(H.TFM.E(5,:)');
            
                 H.TFM.S = H.TFM.S(6:end,:);
                 H.TFM.E = H.TFM.E(6:end,:);
                 
                 ix = find(isnan(H.TFM.S(:,2)) & ~isnan(H.TFM.S(:,1)));
-                
                 H.EVENT.Desc = H.TFM.E(ix,2);
                 H.EVENT.POS  = ix;
                 
-                H.TFM.S(:,3) = H.TFM.S(:,3)/1000;   % convert RRI from [ms] into [s]
-                H.PhysDim{3} = '[s]';
-
-                if ~CHAN,
-			signal  = H.TFM.S;
-		else
-			signal  = H.TFM.S(:,CHAN);
+                if any(CHAN),
+			H.TFM.S = H.TFM.S(:,CHAN);
+			H.TFM.E = H.TFM.E(:,CHAN);
 		end;
-	catch,
+		[H.SPR,H.NS] = size(H.TFM.S);
+		H.NRec = 1; 
+		H.THRESHOLD  = repmat([0,NaN],H.NS,1);
 
+		signal  = H.TFM.S;
+		signal(signal==0) = NaN;
         end;
 
 
