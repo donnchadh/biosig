@@ -32,8 +32,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.4 $
-%	$Id: sopen.m,v 1.4 2003-09-14 21:34:14 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: sopen.m,v 1.5 2003-09-19 17:05:39 schloegl Exp $
 %	(C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -118,6 +118,10 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='WAV';
                         elseif strcmp(ss([1:4,9:11]),'FORMAIF'); 
                                 HDR.TYPE='AIF';
+                        elseif strcmp(ss([1:4,9:12]),'RIFFAVI '); 
+                                HDR.TYPE='AVI';
+                        elseif strcmp(ss([5:8]),'moov'); 	% QuickTime movie 
+                                HDR.TYPE='QTFF';
                         elseif strncmp(ss,'RG64',4); 
                                 HDR.TYPE='RG64';
                         elseif strncmp(ss,'DTDF',4); 
@@ -148,21 +152,24 @@ if any(PERMISSION=='r'),
                                 HDR.TYPE='MAT5';
                                 fseek(fid,126,'bof');
                                 tmp = fread(fid,1,'uint16');
-                                if tmp==(abs('MI').*[256;1])
+                                if tmp==(abs('MI').*[256,1])
 	                                HDR.Endianity = 'ieee-le';
-                                elseif tmp==(abs('IM').*[256;1])
+                                elseif tmp==(abs('IM').*[256,1])
                                         HDR.Endianity = 'ieee-be';
                                 end;
                                 
                         elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
 				HDR.TYPE = 'WFT';	% nicolet 	
 
+                        elseif all(s(1:3)==[255,255,254]); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
+                                HDR.TYPE='FS3';
+                        elseif all(s(1:3)==[255,255,255]); 	% FREESURVER QUAD_FILE_MAGIC_NUMBER or CURVATURE
+                                HDR.TYPE='FS4';
+                                
                         elseif all(s(1:2)==[102,105]); 
                                 HDR.TYPE='669';
                         elseif all(s(1:2)==[234,96]); 
                                 HDR.TYPE='ARJ';
-                        elseif strcmp(ss([1:4,9:12]),'RIFFAVI '); 
-                                HDR.TYPE='AVI';
                         elseif s(1)==2; 
                                 HDR.TYPE='DB2';
                         elseif any(s(1)==[3,131]); 
@@ -633,10 +640,35 @@ elseif strcmp(HDR.TYPE,'SND'),
 	HDR.NRec = 1;
         
 	
-elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
+elseif strcmp(HDR.TYPE,'QTFF'),
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+	if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+                HDR.FILE.OPEN = 1; 
+                offset = 0; 
+	        while ~feof(HDR.FILE.FID),	
+                        tagsize = fread(HDR.FILE.FID,1,'uint32')        % which size 
+                        if ~isempty(tagsize),
+                                offset = offset + tagsize; 
+                                tag = setstr(fread(HDR.FILE.FID,[1,4],'char'))
+                                if tagsize==0,
+                                	tagsize=inf;        
+                                elseif tagsize==1,
+                                	tagsize=fread(HDR.FILE.FID,1,'uint64')-8;        
+                                end;
+                                if strcmpi(tag,'mdat')
+                                	HDR.HeadLen = ftell(HDR.FILE.FID);        
+                                end;
+                                tmp = fread(HDR.FILE.FID,[1,tagsize-8],'char');        
+		                HDR = setfield(HDR,tag,tmp);
+                	end;        
+                end;
+        end;        
+        fclose(HDR.FILE.FID);
+	
+elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI') ,
 	if strcmp(HDR.TYPE,'AIF') 
 		HDR.Endianity = 'ieee-be';
-	elseif  strcmp(HDR.TYPE,'WAV') ,
+	elseif  strcmp(HDR.TYPE,'WAV') | strcmp(HDR.TYPE,'AVI')  ,
 		HDR.Endianity = 'ieee-le';
 	end;
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
@@ -651,7 +683,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
 		tagsize  = fread(HDR.FILE.FID,1,'uint32');        % which size
 		tagsize0 = tagsize + rem(tagsize,2); 
 		tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));        
-		if ~strncmpi(tmp,'AIF',3) & ~strncmpi(tmp,'WAVE',4), % not (AIFF or AIFC or WAVE)
+		if ~strncmpi(tmp,'AIF',3) & ~strncmpi(tmp,'WAVE',4) & ~strncmpi(tmp,'AVI ',4), % not (AIFF or AIFC or WAVE)
 			fprintf(2,'Warning SOPEN AIF/WAF-format: file %s might be corrupted 2\n',HDR.FileName);
 		end;
 	
@@ -694,8 +726,10 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
 					if strcmpi(HDR.AIF.CompressionType,'NONE');
                                         elseif strcmpi(HDR.AIF.CompressionType,'fl32');
                                                 HDR.GDFTYP = 16;
+						HDR.Cal = 1;
 					elseif strcmpi(HDR.AIF.CompressionType,'fl64');
                                                 HDR.GDFTYP = 17;
+						HDR.Cal = 1;
 					elseif strcmpi(HDR.AIF.CompressionType,'alaw');
                                 	        HDR.GDFTYP = 2;
                                                 HDR.AS.bpb = HDR.NS;
@@ -718,8 +752,8 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
 					%elseif strcmpi(HDR.AIF.CompressionType,'Qclp');
 					%elseif strcmpi(HDR.AIF.CompressionType,'QDMC');
 					%elseif strcmpi(HDR.AIF.CompressionType,'rt24');
-					%elseif strcmpi(HDR.AIF.CompressionType,'rt24');
-                                        else        
+					%elseif strcmpi(HDR.AIF.CompressionType,'rt29');
+                                        else
                                                 fprintf(2,'Warning SOPEN AIFC-format: CompressionType %s is not supported\n', HDR.AIF.CompressionType);
 					end;
 				end;	
@@ -752,8 +786,8 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
 				HDR.AIF.INST.detune    = fread(HDR.FILE.FID,1,'char');
 				HDR.AIF.INST.lowNote   = fread(HDR.FILE.FID,1,'char');
 				HDR.AIF.INST.highNote  = fread(HDR.FILE.FID,1,'char');
-				HDR.AIF.INST.lowvelocity = fread(HDR.FILE.FID,1,'char');
-				HDR.AIF.INST.highvelocity  = fread(HDR.FILE.FID,1,'char');
+				HDR.AIF.INST.lowvelocity  = fread(HDR.FILE.FID,1,'char');
+				HDR.AIF.INST.highvelocity = fread(HDR.FILE.FID,1,'char');
 				HDR.AIF.INST.gain      = fread(HDR.FILE.FID,1,'int16');
 
 				HDR.AIF.INST.sustainLoop_PlayMode = fread(HDR.FILE.FID,1,'char');
@@ -762,19 +796,19 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
 				HDR.AIF.INST.releaseLoop = fread(HDR.FILE.FID,2,'uint16');
 
 			elseif strcmpi(tag,'MIDI');
-				HDR.AIF.MIDI  = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.AIF.MIDI = fread(HDR.FILE.FID,[1,tagsize],'uchar');
 
 			elseif strcmpi(tag,'AESD');
-				HDR.AIF.AESD  = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.AIF.AESD = fread(HDR.FILE.FID,[1,tagsize],'uchar');
 
 			elseif strcmpi(tag,'APPL');
-				HDR.AIF.APPL  = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.AIF.APPL = fread(HDR.FILE.FID,[1,tagsize],'uchar');
 
 			elseif strcmpi(tag,'COMT');
-				HDR.AIF.COMT  = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.AIF.COMT = fread(HDR.FILE.FID,[1,tagsize],'uchar');
 		
 			elseif strcmpi(tag,'ANNO');
-				HDR.AIF.ANNO  = setstr(fread(HDR.FILE.FID,[1,tagsize],'uchar'));
+				HDR.AIF.ANNO = setstr(fread(HDR.FILE.FID,[1,tagsize],'uchar'));
 		
 			elseif strcmpi(tag,'(c) ');
 				[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
@@ -820,7 +854,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
 					return;
 				end;
 		    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
-				HDR.WAV.FACT = setstr(tmp);
+				HDR.RIFF.FACT = setstr(tmp);
 		
 			elseif strcmpi(tag,'disp');
 				if tagsize<8, 
@@ -828,9 +862,9 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
 					return;
 				end;
 	    			[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
-				HDR.WAV.DISP = setstr(tmp);
+				HDR.RIFF.DISP = setstr(tmp);
 				if ~all(tmp(1:8)==[0,1,0,0,0,0,1,1])
-					HDR.WAV.DISPTEXT = setstr(tmp(5:length(tmp)));
+					HDR.RIFF.DISPTEXT = setstr(tmp(5:length(tmp)));
 				end;
 		
 			elseif strcmpi(tag,'list');
@@ -838,12 +872,46 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
 					fprintf(2,'Error SOPEN WAV: incorrect tag size\n');
 					return;
 				end;
-		    		[tmp,c]  = fread(HDR.FILE.FID,[1,tagsize],'char');
-		    		HDR.WAV.list = setstr(tmp);
-				listtype = setstr(tmp(1:4));
-				listdata = setstr(tmp(5:length(tmp)));
-				HDR.WAV.LIST = setfield(HDR.WAV,listtype, listdata);
-
+                                [tmp,c]  = fread(HDR.FILE.FID,[1,tagsize],'char');
+                                %HDR.RIFF.list = setstr(tmp);
+                                
+                                if ~isfield(HDR,'RIFF');
+                                        HDR.RIFF.N1 = 1;
+                                elseif ~isfield(HDR.RIFF,'N');
+                                        HDR.RIFF.N1 = 1;
+                                else
+                                        HDR.RIFF.N1 = HDR.RIFF.N+1;
+                                end;
+                                        
+                                listtype = setstr(tmp(1:4))
+                                listdata = setstr(tmp(5:length(tmp)));
+                                HDR.RIFF = setfield(HDR.RIFF,listtype, listdata);
+                                
+                                % AVI  audio video interleave format 	
+			elseif strcmpi(tag,'movi');
+				if tagsize<4, 
+					fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+					return;
+				end;
+		    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.RIFF.movi = setstr(tmp);
+		
+			elseif strcmp(tag,'idx1');
+				if tagsize<4, 
+					fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+					return;
+				end;
+		    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.RIFF.idx1 = setstr(tmp);
+		
+			elseif strcmpi(tag,'junk');
+				if tagsize<4, 
+					fprintf(2,'Error SOPEN AVI: incorrect tag size\n');
+					return;
+				end;
+		    		[tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uchar');
+				HDR.RIFF.junk = setstr(tmp);
+		
 			elseif ~isempty(tagsize)
 				fprintf(1,'Warning SOPEN AIF/WAV: unknown TAG: %s \n',tag);
 			end;
@@ -854,7 +922,8 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'WAV') ,
         
     		if ~isfield(HDR,'HeadLen')
 			fprintf(2,'Error SOPEN AIF/WAV: missing data section\n');
-			fclose(HDR.FILE.FID)	
+                        fclose(HDR.FILE.FID);	
+                        return;
 		end;
 	
 		fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
