@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.41 $
-%	$Id: sread.m,v 1.41 2005-01-26 18:27:15 schloegl Exp $
+%	$Revision: 1.42 $
+%	$Id: sread.m,v 1.42 2005-02-08 10:50:18 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -422,7 +422,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
                         
                         [s,count] = fread(HDR.FILE.FID, [HDR.NS + HDR.EVENT.N, HDR.SPR], HDR.GDFTYP);
                         tmp = (HDR.NS + HDR.EVENT.N) * HDR.SPR;
-                        if count < tmp,
+	                if isfinite(tmp) & (count < tmp),
                                 fprintf(HDR.FILE.stderr,'Warning SREAD EGI: only %i out of %i samples read\n',count,tmp);
                         end;
                         HDR.FILE.POS = HDR.FILE.POS + count/tmp;
@@ -436,7 +436,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
         else
                 [S,count] = fread(HDR.FILE.FID,[HDR.NS + HDR.EVENT.N, HDR.SampleRate*NoS],HDR.GDFTYP);
                 tmp = (HDR.NS + HDR.EVENT.N) * HDR.SampleRate * NoS;
-                if count < tmp,
+                if isfinite(tmp) & (count < tmp),
                         fprintf(HDR.FILE.stderr,'Warning SREAD EGI: only %i out of %i samples read\n',count,tmp);
                 end;
                 HDR.FILE.POS = HDR.FILE.POS + round(count/(HDR.NS + HDR.EVENT.N));
@@ -776,7 +776,9 @@ elseif strcmp(HDR.TYPE,'FIF'),
         ix = (t>StartPos*HDR.SampleRate) & (t<=(StartPos+NoS)*HDR.SampleRate);
         S = dat(ix,HDR.InChanSelect);
         HDR.FILE.POS = t2*HDR.SampleRate;        
-        
+
+elseif strcmp(HDR.TYPE,'EVENT'),
+        s = [];        
 else
         fprintf(2,'Error SREAD: %s-format not supported yet.\n', HDR.TYPE);        
 	return;
