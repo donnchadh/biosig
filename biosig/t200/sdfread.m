@@ -17,8 +17,8 @@ function [S,EDF] = sdfread(EDF,NoS,StartPos)
 %
 % See also: fread, SDFREAD, SDFWRITE, SDFCLOSE, SDFSEEK, SDFREWIND, SDFTELL, SDFEOF
 
-%	$Revision: 1.2 $
-%	$Id: sdfread.m,v 1.2 2003-05-27 13:53:16 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: sdfread.m,v 1.3 2004-03-11 12:28:02 schloegl Exp $
 %	Copyright (c) 1997-2002 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -65,7 +65,7 @@ if isfield(EDF,'SIE')   % SIESTA; Layer 4
         if ~EDF.SIE.TimeUnits_Seconds;        % units of time in records      
                 NoR=NoS;%chan;
                 if ~(nargin<3) 
-                        [EDF]=eegseek(EDF,StartPos,'bof'); 
+                        [EDF]=sseek(EDF,StartPos,'bof'); 
                 end;
                 if isinf(NoR), 
                         NoR=EDF.NRec-EDF.FILE.POS; 
@@ -100,9 +100,10 @@ if isfield(EDF,'SIE')   % SIESTA; Layer 4
                 % Q? whether repositioning is required, otherwise read continously, 
                 if floor(StartPos/EDF.AS.MAXSPR)~=EDF.FILE.POS; % if start not next block 
                         if floor(StartPos/EDF.AS.MAXSPR)~=floor(EDF.Block.number(1)/EDF.AS.MAXSPR); % if start not same as Block.data
-                                [EDF]=eegseek(EDF,floor(StartPos/EDF.AS.MAXSPR),'bof');
+                                [EDF]=sseek(EDF,floor(StartPos/EDF.AS.MAXSPR),'bof');
                         end;
                 end;
+
                 % Q whether last bufferblock is needed or not
                 if (StartPos >= EDF.Block.number(2)) | (StartPos < EDF.Block.number(1)) | diff(EDF.Block.number(1:2))==0
                         EDF.Block.number=[0 0 0 0 ];
@@ -148,7 +149,7 @@ else % Layer 3
 	        NoR=NoR/EDF.Dur;
 	end;
 	if ~(nargin<5) 
-    	        EDF=eegseek(EDF,StartPos,'bof'); 
+    	        EDF=sseek(EDF,StartPos,'bof'); 
         else
                 EDF.AS.startrec=EDF.AS.startrec+EDF.AS.numrec;
                 EDF.AS.numrec=0;
