@@ -3,7 +3,7 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % 
 % Currently are the following data formats supported: 
 %    EDF, CNT, EEG, BDF, GDF, BKR, MAT(*), 
-%    PhysioNet (MIT-ECG), Poly5/TMS32, SMA, RDF 
+%    PhysioNet (MIT-ECG), Poly5/TMS32, SMA, RDF, CFWB 
 %
 % [signal,header] = sload(FILENAME [,CHANNEL[,TYPE]])
 %
@@ -15,8 +15,8 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % see also: SOPEN, SREAD, SCLOSE
 %
 
-%	$Revision: 1.3 $
-%	$Id: sload.m,v 1.3 2003-11-27 11:44:57 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: sload.m,v 1.4 2003-12-11 16:59:52 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
@@ -54,70 +54,46 @@ end;
 
 [p,f,FileExt] = fileparts(FILENAME);
 FileExt = FileExt(2:length(FileExt));
-
 H.FileName = FILENAME;
 H = sopen(H,'rb',CHAN);
-TYPE = H.TYPE;
 
 if H.FILE.FID>0,
         [signal,H] = sread(H);
 	H = sclose(H);
  
+elseif strcmp(H.TYPE,'alpha'),
+        H.VERSION = H.Version;
+        H.NS  = H.ChanCount;
+        H.SampleRate = H.SampleFreq;
+        H.SPR = H.SampleCount;
 
-elseif strcmp(H.TYPE,'unknown'),
-        
-        if strcmpi(f,'rawdata') | strcmpi(f,'rawhead'),
-                fid = fopen(fullfile(p,'rawhead'),'rt');
-                H   = [];
-                while ~feof(fid),
-                        [s] = fgetl(fid);
-                        [tag,s] = strtok(s,'=');
-                        [tmp,s] = strtok(s,'=');
-                        num = str2num(tmp);
-                        if isempty(num),
-                                H = setfield(H,tag,tmp);
-                        else
-                                H = setfield(H,tag,num);
-                        end;	                        
-                end;
-                fclose(fid);
-                
-                if isfield(H,'Version');	
-                        HDR=H;
-                        HDR.VERSION = H.Version;
-                        HDR.TYPE = 'alpha'; %alpha trace medical software 
-                        
-                        HDR.NS  = H.ChanCount;
-                        HDR.SampleRate = H.SampleFreq;
-                        HDR.SPR = H.SampleCount;
-                end;
-        end;     
-        
-        if strcmp(HDR.TYPE,'alpha'), 
-                if HDR.VERSION~=407.1;
-                        fprintf(2,'Warning SLOAD: Format ALPHA Version %6.2f not tested yet.\n',HDR.VERSION);
-                end;
-                fid = fopen(fullfile(p,'rawdata'),'rb');
-                VERSION  = fread(fid,1,'int16');
-                HDR.NS   = fread(fid,1,'int16');
-                HDR.bits = fread(fid,1,'int16');
-                if H.BitsPerValue==12,
-                        s = fread(fid,[3,inf],'uint8');
-                        s(1,:) = bitshift(s(1,:),4)+ bitshift(s(2,:),-4); 	
-                        s(3,:) = s(3,:)+ bitshift(bitand(s(2,:),15),8); 	
-                        s = reshape(s([1,3],:),1,2*size(s,2));
-                        signal = reshape(s(1:HDR.NS*HDR.SPR),HDR.NS,HDR.SPR)';
-                        signal = signal-(signal>=2^11)*2^12;
-                elseif H.BitsPerValue==16,
-                        s = fread(fid,[HDR.NS,inf],'int16');
-                        signal = reshape(s(1:HDR.NS*HDR.SPR),HDR.NS,HDR.SPR)';
-                elseif H.BitsPerValue==32,
-                        s = fread(fid,[HDR.NS,inf],'int32');
-                        signal = reshape(s(1:HDR.NS*HDR.SPR),HDR.NS,HDR.SPR)';
-                end;        
-                fclose(fid);
-        else
-                fprintf(2,'Error SLOAD: unknown dataformat.\n');
+        if H.VERSION~=407.1;
+                fprintf(2,'Warning SLOAD: Format ALPHA Version %6.2f not tested yet.\n',H.VERSION);
+        end;
+
+        fid = fopen(fullfile(p,'rawdata'),'rb');
+	H.VERSION2  = fread(fid,1,'int16');
+        H.NS   = fread(fid,1,'int16');
+        H.bits = fread(fid,1,'int16');
+	H.AS.bpb = H.NS*H.bits/8;
+
+        if H.BitsPerValue==12,
+                s = fread(fid,[3,inf],'uint8');
+                s(1,:) = bitshift(s(1,:),4)+ bitshift(s(2,:),-4); 	
+                s(3,:) = s(3,:)+ bitshift(bitand(s(2,:),15),8); 	
+                s = reshape(s([1,3],:),1,2*size(s,2));
+                signal = reshape(s(1:H.NS*H.SPR),H.NS,H.SPR)';
+                signal = signal-(signal>=2^11)*2^12;
+        elseif H.BitsPerValue==16,
+                s = fread(fid,[H.NS,inf],'int16');
+                signal = reshape(s(1:H.NS*H.SPR),H.NS,H.SPR)';
+        elseif H.BitsPerValue==32,
+                s = fread(fid,[H.NS,inf],'int32');
+                signal = reshape(s(1:H.NS*H.SPR),H.NS,H.SPR)';
+        end;        
+        fclose(fid);
+        if any(CHAN),
+                signal = signal(:,CHAN);
         end;
         
         
@@ -191,26 +167,8 @@ elseif strncmp(H.TYPE,'MAT',3),
                 	H.Classlabel = tmp.classlabel;
                 end;        
 
-                        	
-        elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.50 data format
-                if isstruct(tmp.P_C_S),	% without BS.analyze	
-                        if any(tmp.P_C_S.Version==[1.02, 1.5, 1.52]),
-                        else
-                                fprintf(2,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.version);
-                        end;        
-                        H.Filter.LowPass  = tmp.P_C_S.lowpass;
-                        H.Filter.HighPass = tmp.P_C_S.highpass;
-                        H.Filter.Notch    = tmp.P_C_S.notch;
-                        H.SampleRate   = tmp.P_C_S.samplingfrequency;
-                        H.AS.Attribute = tmp.P_C_S.attribute;
-                        H.AS.AttributeName = tmp.P_C_S.attributename;
-                        H.Label = tmp.P_C_S.channelname;
-                        H.AS.EpochingSelect = tmp.P_C_S.epochingselect;
-                        H.AS.EpochingName = tmp.P_C_S.epochingname;
-                        
-                        data = double(tmp.P_C_S.data);
-                        
-                elseif 1,	% with BS.analyze software, ML6.5
+        elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.5x data format
+                if isa(tmp.P_C_S,'data'), %isfield(tmp.P_C_S,'version'); % without BS.analyze	
                         if any(tmp.P_C_S.Version==[1.02, 1.5, 1.52]),
                         else
                                 fprintf(2,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.Version);
@@ -225,10 +183,26 @@ elseif strncmp(H.TYPE,'MAT',3),
                         H.AS.EpochingSelect = tmp.P_C_S.EpochingSelect;
                         H.AS.EpochingName = tmp.P_C_S.EpochingName;
                         
-                        data = double(tmp.P_C_S.Data);
+                        signal = double(tmp.P_C_S.Data);
+                        
+                else %if isfield(tmp.P_C_S,'Version'),	% with BS.analyze software, ML6.5
+                        if any(tmp.P_C_S.version==[1.02, 1.5, 1.52]),
+                        else
+                                fprintf(2,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.version);
+                        end;        
+                        H.Filter.LowPass  = tmp.P_C_S.lowpass;
+                        H.Filter.HighPass = tmp.P_C_S.highpass;
+                        H.Filter.Notch    = tmp.P_C_S.notch;
+                        H.SampleRate   = tmp.P_C_S.samplingfrequency;
+                        H.AS.Attribute = tmp.P_C_S.attribute;
+                        H.AS.AttributeName = tmp.P_C_S.attributename;
+                        H.Label = tmp.P_C_S.channelname;
+                        H.AS.EpochingSelect = tmp.P_C_S.epochingselect;
+                        H.AS.EpochingName = tmp.P_C_S.epochingname;
+                        
+                        signal = double(tmp.P_C_S.data);
                 end;
-                
-                sz   = size(data);
+                sz   = size(signal);
                 H.NRec = sz(1);
                 H.Dur  = sz(2)/H.SampleRate;
                 H.NS   = sz(3);
@@ -242,7 +216,7 @@ elseif strncmp(H.TYPE,'MAT',3),
                 end;
                 
                 tmp.P_C_S = []; % clear memory
-                signal = reshape(permute(data(:,:,CHAN),[2,1,3]),[sz(1)*sz(2),sz(3)]);
+                signal = reshape(permute(signal(:,:,CHAN),[2,1,3]),[sz(1)*sz(2),sz(3)]);
                 
 	elseif isfield(tmp,'P_C_DAQ_S');
                 if ~isempty(tmp.P_C_DAQ_S.data),
