@@ -22,12 +22,13 @@ function [HDR,A] = artifact_selection(fn,t1,t2)
 % The header of the first file is merged with the Event information of 
 %    all other files. 
 %
-% see also: TRIGG, SOPEN, SCLOSE
+% see also: TLOAD, SLOAD, SOPEN,  
 
-%	$Revision: 1.4 $
-% 	$Id: artifact_selection.m,v 1.4 2004-12-04 23:40:16 schloegl Exp $
-%	Copyright (c) 2004 by Alois Schloegl <a.schloegl@ieee.org>
-%
+%	$Revision: 1.5 $
+% 	$Id: artifact_selection.m,v 1.5 2005-03-04 18:06:44 schloegl Exp $
+%	Copyright (c) 2004-2005 by Alois Schloegl <a.schloegl@ieee.org>
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -44,8 +45,6 @@ function [HDR,A] = artifact_selection(fn,t1,t2)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-fprintf(1,'Artifact_Selection: seems to work very well. Tell me <a.schloegl@ieee.org> about any possible problems.\n');
-
 % load and merge all artifact information
 if ischar(fn)
 	HDR = sopen(fn,'r'); HDR = sclose(HDR);
@@ -58,14 +57,17 @@ elseif iscell(fn)
 			h = fn{k};
 		end	
 		eventmatrix = [h.EVENT.POS,h.EVENT.TYP,h.EVENT.CHN,h.EVENT.DUR];
-		if k==1,
-			HDR = h; 
-			EVENTMATRIX = eventmatrix; 
+                if k==1,
+                        HDR = h; 
+                        if length(HDR.FILE)>1,
+                                fprintf(2,'Warning Artifact_Selection: does not work correctly for multiple files.\n');
+                        end;
+                        EVENTMATRIX = eventmatrix; 
 		else	
-			if isfield(h,'SampleRate')
-				if isfield(HDR,'SampleRate')
-					if HDR.SampleRate ~= h.SampleRate,
-						eventmatrix(:,[1,4]) = eventmatrix(:,[1,4])*HDR.SampleRate/h.SampleRate;
+			if isfield(h.EVENT,'SampleRate')
+				if isfield(HDR.EVENT,'SampleRate')
+					if HDR.EVENT.SampleRate ~= h.EVENT.SampleRate,
+						eventmatrix(:,[1,4]) = eventmatrix(:,[1,4])*HDR.EVENT.SampleRate/h.EVENT.SampleRate;
 					end	
 				else
 					HDR.SampleRate = h.SampleRate;
@@ -87,7 +89,7 @@ if ~isfield(HDR,'TRIG')
 	HDR.TRIG = HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('0300'));
 end;
 HDR.TRIG = sort(HDR.TRIG);
-SEL = zeros(length(HDR.TRIG),1);
+SEL = logical(zeros(length(HDR.TRIG),1));
 
 % define interval
 if nargin<2, 
@@ -99,8 +101,11 @@ if nargin<2,
 else
 	if prod(size(t1))==1,
 	        ti = [t1,t2];
-	else
+        elseif prod(size(t1))==2,
 	        ti = t1;
+        else
+                error('invalid time interval');
+                return; 
 	end;    
 	ti = ti*HDR.SampleRate;
 end;
@@ -116,19 +121,21 @@ A.EVENT.TYP = [ones(length(ix),1); -ones(length(ix),1); 0];			% onset = +1, offs
 [A.EVENT.POS, ix2] = sort(A.EVENT.POS);		%  sort the positions
 A.EVENT.TYP = A.EVENT.TYP(ix2);		
 
+
 % check each trial for an artifact. 
+TRIG = [HDR.TRIG(:);inf];
 ix1 = 1; ix2 = 1; a = 0; k=0;
 P1 = HDR.TRIG(ix1)+ti(1);
 P2 = A.EVENT.POS(ix2);
-P3 = HDR.TRIG(ix1)+ti(2);
+P3 = TRIG(ix1)+ti(2);
 while (ix1<=length(HDR.TRIG)) & (ix2<length(A.EVENT.POS))
 	k = k+1;
 	if P1<=P2, 
 		SEL(ix1) = (P3>P2) | a;
 		%fprintf(1,'%6i\t',-1,k,a, ix1,ix2,P1,P2,P3,SEL(ix1));
 		ix1 = ix1+1;
-		P1  = HDR.TRIG(ix1)+ti(1);
-		P3  = HDR.TRIG(ix1)+ti(2);
+		P1  = TRIG(ix1)+ti(1);
+		P3  = TRIG(ix1)+ti(2);
 	elseif P2<P1, 
 		a   = a + A.EVENT.TYP(ix2); 
 		%fprintf(1,'%6i\t',-2,k,a,ix1,ix2,P1,P2,P3,SEL(ix1));
