@@ -1,10 +1,9 @@
 % Demos of the BIOSIG-toolbox;
-% Version 0.26 06-Oct-2003
 %
-% Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
-% WWW: http://bisig.sf.net/
-% $Revision: 1.4 $
-% $Id: Contents.m,v 1.4 2003-10-13 18:32:05 schloegl Exp $
+% Copyright (C) 2003-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+% WWW: http://biosig.sf.net/
+% $Revision: 1.5 $
+% $Id: Contents.m,v 1.5 2004-02-09 18:14:52 schloegl Exp $
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -28,4 +27,6 @@ DEMO3.M	  % Demonstrates how the generate an EDF/GDF/BDF file
 DEMO4.M	  % Demonstrates how the generate an BKR file
 DEMO5.M	  % Demonstrates how the generate an WAV file
 
+    % This test was applied for the OPENECG programming contest. 
+SCPTEST.M % test of SCP-ECG files can be accessed. 
 

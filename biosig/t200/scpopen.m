@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.5 $
-%	$Id: scpopen.m,v 1.5 2004-02-07 16:51:31 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: scpopen.m,v 1.6 2004-02-09 18:14:51 schloegl Exp $
 %	(C) 2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -40,12 +40,30 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
         
         DHT = [0,1,-1,2,-2,3,-3,4,-4,5,-5,6,-6,7,-7,8,-8,9,-9;0,1,5,3,11,7,23,15,47,31,95,63,191,127,383,255,767,511,1023]';
         prefix  = [1,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10,10];
+
         %PREFIX = [0,4,5,12,13,28,29,60,61,124,125,252,253,508,509,1020,1021,1022,1023];
         PREFIX  = [0,4,5,12,13,28,29,60,61,124,125,252,253,508,509,1020,1021,1022,1023]'.*2.^[32-prefix]';
         codelength = [1,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,18,26];
         mask    = [1,7,7,15,15,31,31,63,63,127,127,255,255,511,511,1023,1023,1023,1023]'.*2.^[32-prefix]';
         %MASK    = dec2bin(mask);
         %mask   = [1,7,7,15,15,31,31,63,63,127,127,255,255,511,511,1023,1023,1023,1023]';
+
+        mask2    = [1,7,7,15,15,31,31,63,63,127,127,255,255,511,511,1023,1023,1023,1023]';
+        PREFIX2  = DHT(:,2);
+
+	HT19999 = [prefix',codelength',ones(length(prefix),1),DHT];
+	HT = [prefix',codelength',ones(length(prefix),1),DHT];
+        
+        dd = [0:255]';
+        ACC = zeros(size(dd));
+        c = 0;
+        for k2 = 1:8,
+                ACC = ACC + (dd>127).*(2^c);
+                dd  = mod(dd*2, 256);
+                c   = c + 1;
+        end;
+        
+        
         K  = 0;
         section.CRC = fread(fid,1,'uint16');
         while ~feof(fid)
@@ -176,34 +194,31 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                 elseif section.ID==2, 	% Huffman tables 
                         HDR.SCP2.NHT = fread(fid,1,'uint16');            
                         HDR.SCP2.NCT = fread(fid,1,'uint16');    
-                        
-                        if HDR.SCP2.NHT~=19999,
-				k3 = 0;
-                                for k1 = 1:HDR.SCP2.NHT,
-                                        for k2 = 1:HDR.SCP2.NCT,
-                                                tmp = fread(fid,3,'uint8') ;
-                                                HDR.SCP2.prefix = tmp(1);
-                                                HDR.SCP2.codelength = tmp(2);
-                                                HDR.SCP2.TableModeSwitch = tmp(3);
-                                                tmp(4) = fread(fid,1,'int16');    
-                                                tmp(5) = fread(fid,1,'uint32');    
-                                		k3 = k3 + 1;
-				                HDR.SCP2.HT(k3,:) = [k1,k2,tmp']; 
-                                        end;                                
-                                end;
-                        elseif 0,
-                                k1 = 1;
+			if HDR.SCP2.NHT~=19999,
+				NHT = HDR.SCP2.NHT;
+			else
+				NHT = 0; 
+			end;
+                        k3 = 0;
+                        for k1 = 1:NHT,
                                 for k2 = 1:HDR.SCP2.NCT,
-                                        tmp = fread(fid,3,'uint8') ;
+                                	tmp = fread(fid,3,'uint8') ;
                                         HDR.SCP2.prefix = tmp(1);
                                         HDR.SCP2.codelength = tmp(2);
                                         HDR.SCP2.TableModeSwitch = tmp(3);
                                         tmp(4) = fread(fid,1,'int16');    
                                         tmp(5) = fread(fid,1,'uint32');    
-                                        HDR.SCP2.HT{k1}(k2,:) = tmp; 
-                                end;                                
-                                
-                        end;
+                                	k3 = k3 + 1;
+				        HT(k3,:) = [k1,k2,tmp']; 
+                                end;
+			end;
+			if HDR.SCP2.NHT~=19999,
+				HDR.SCP2.HT = HT;
+			else
+				tmp = size(HT19999,1);
+				HDR.SCP2.HT = [ones(tmp,1),[1:tmp]',HT19999];
+			end;
+
                 elseif section.ID==3, 
                         HDR.NS = fread(fid,1,'char');    
                         HDR.FLAG.Byte = fread(fid,1,'char');    
@@ -252,6 +267,76 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 
                         elseif HDR.SCP2.NHT==19999,
                                 HuffTab = DHT;
+				S2 = []; %repmat(NaN,HDR.N,HDR.NS);
+                                for k = 1:HDR.NS,
+                                        SCP.data{k} = fread(fid,SCP.SPR(k),'uint8');    
+
+                                        s2 = SCP.data{k};
+                                        s2 = [s2; repmat(0,ceil(max(HDR.SCP2.HT(:,4))/8),1)];
+					k1 = 0;	
+					l2 = 0; 
+					accu = 0;
+					c  = 0; 
+					x  = [];
+					HT = HDR.SCP2.HT(find(HDR.SCP2.HT(:,1)==1),3:7);
+					while (l2 < HDR.LeadPos(k,2)),
+						while c < max(HT(:,2));
+							k1 = k1 + 1;
+							dd = s2(k1);
+							accu = accu + ACC(dd+1)*(2^c);
+							c = c + 8;
+
+							if 0, %for k2 = 1:8,
+								accu = accu + (dd>127)*(2^c);
+								dd = mod(dd*2,256);
+								c = c + 1;
+							end;
+						end;
+
+                                                ixx = 1;
+                                                acc = mod(accu,2^32);   % bitand returns NaN if accu >= 2^32
+						while (bitand(acc,2^HT(ixx,1)-1) ~= HT(ixx,5)),
+							ixx = ixx + 1;
+						end;
+                                                
+                                                dd = HT(ixx,2) - HT(ixx,1);
+						if HT(ixx,3)==0,
+							HT = HDR.SCP2.HT(find(HDR.SCP2.HT(:,1)==HT(ixx,5)),3:7);
+							fprintf(HDR.FILE.stderr,'Warning SCPOPEN: Switching Huffman Tables is not tested yet.\n');
+						elseif (dd==0),
+							l2 = l2 + 1;
+							x(l2) = HT(ixx,4);
+						else %if (HT(ixx,3)>0),
+							l2 = l2 + 1;
+							%acc2  = fix(accu*(2^(-HT(ixx,1))));
+							tmp = mod(fix(accu*(2^(-HT(ixx,1)))),2^dd);
+                                                        % reverse bit-pattern
+                                                        if dd==8,
+                                                                tmp = ACC(tmp+1);
+                                                        else
+                                                                tmp = dec2bin(tmp);
+                                                                tmp = [char(repmat('0',1,dd-length(tmp))),tmp];
+                                                                tmp = bin2dec(tmp(length(tmp):-1:1));
+                                                        end
+                                                        x(l2) = tmp-(tmp>=(2^(dd-1)))*(2^dd);
+						end;
+						accu = fix(accu*2^(-HT(ixx,2)));
+						c = c - HT(ixx,2); 
+					end;
+
+                                        if k==1,
+                                                S2 = x';
+                                        elseif size(x,2)==size(S2,1),
+                                                S2(:,k) = x';
+					else
+	                                        fprintf(HDR.FILE.stderr,'Error SCPOPEN: Huffman decoding failed (%i) \n',size(x,1));
+	    					HDR.SCP.data = S2;
+						return;
+                                        end;
+				end;
+                                
+                        elseif (HDR.SCP2.NHT==19999), % alternative decoding algorithm. 
+                                HuffTab = DHT;
                                 for k = 1:HDR.NS,
                                         SCP.data{k} = fread(fid,SCP.SPR(k),'uint8');    
                                 end;
@@ -271,7 +356,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                 while (bitand(accu,mask(ixx)) ~= PREFIX(ixx)), 
                                                         ixx = ixx + 1;
                                                 end;
-                                                
+
                                                 if ixx < 18,
                                                         c = c + prefix(ixx);
                                                         %accu  = bitshift(accu, prefix(ixx),32);
@@ -311,7 +396,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                         %accu = bitshift(accu, 16, 32);
                                                         accu = mod(accu.*(2^16), 2^32);
                                                         
-                                                        x(l2) = acc1-(acc1>=2^15)*2^16;
+                                                       x(l2) = acc1-(acc1>=2^15)*2^16;
                                                         acc2 = 0;
                                                         for kk=1:16,
                                                                 acc2 = acc2*2+mod(acc1,2);
@@ -340,15 +425,16 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
 						return;
                                         end;
                                 end;
-                                
-                        elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) & (HDR.SCP2.prefix==0) & (HDR.SCP2.TableModeSwitch==0),
-                                if (HDR.SCP2.codelength==16)
+                                        
+                      elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) & (HDR.SCP2.prefix==0), 
+				codelength = HDR.SCP.HT(1,4);
+                                if (codelength==16)
                                         S2 = fread(fid,[HDR.N,HDR.NS],'int16');  
-                                elseif (HDR.SCP2.codelength==8)
+                                elseif (codelength==8)
                                         S2 = fread(fid,[HDR.N,HDR.NS],'int8');  
                                 else
-                                        fprintf(HDR.FILE.stderr,'Warning SCPOPEN: codelength %i is not supported yet.',HDR.SCP2.codelength);
-                                        fprintf(HDR.FILE.stderr,' Contact <a.schloegl@ieee.org>\n',HDR.SCP2.codelength);
+                                        fprintf(HDR.FILE.stderr,'Warning SCPOPEN: codelength %i is not supported yet.',codelength);
+                                        fprintf(HDR.FILE.stderr,' Contact <a.schloegl@ieee.org>\n');
                                         return;
                                 end;                                        
                                 
