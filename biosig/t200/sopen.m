@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.93 $
-%	$Id: sopen.m,v 1.93 2005-02-03 20:41:34 schloegl Exp $
+%	$Revision: 1.94 $
+%	$Id: sopen.m,v 1.94 2005-02-19 21:45:08 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1046,6 +1046,7 @@ elseif strncmp(HDR.TYPE,'EEG-1100',8),
                 end;
                 fclose(HDR.FILE.FID);
         end;
+        
         
 elseif strcmp(HDR.TYPE,'MFER'),
 	HDR = mwfopen(HDR,PERMISSION);
@@ -2171,26 +2172,34 @@ elseif strcmp(HDR.TYPE,'WG1'),
 
         if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
                 HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
-                %HDR.FILE.OPEN = 1; 
                 
-                HDR.Version = fread(HDR.FILE.FID,1,'uint32'); 
+                HDR.Version = dec2hex(fread(HDR.FILE.FID,1,'uint32')); 
                 HDR.WG1.MachineId = fread(HDR.FILE.FID,1,'uint32');
                 HDR.WG1.Day = fread(HDR.FILE.FID,1,'uint32'); 
                 HDR.WG1.millisec = fread(HDR.FILE.FID,1,'uint32');
+		HDR.T0    = datevec(HDR.WG1.Day-15755-hex2dec('250000'));
+		HDR.T0(1) = HDR.T0(1) + 1970;
+		HDR.T0(4) = floor(HDR.WG1.millisec/3600000);
+		HDR.T0(5) = mod(floor(HDR.WG1.millisec/60000),60);
+		HDR.T0(6) = mod(HDR.WG1.millisec/1000,60);
                 dT = fread(HDR.FILE.FID,1,'uint32');
-                HDR.SampleRate = 1/dT;
-                HDR.NRec = fread(HDR.FILE.FID,1,'uint16');
+                HDR.SampleRate = 1e6/dT;
+                HDR.WG1.pdata = fread(HDR.FILE.FID,1,'uint16');
                 HDR.NS = fread(HDR.FILE.FID,1,'uint16'); 
                 HDR.WG1.poffset = fread(HDR.FILE.FID,1,'uint16');
-                HDR.WG1.pad1 = fread(HDR.FILE.FID,38,'char');   
+                HDR.WG1.pad1 = fread(HDR.FILE.FID,38,'char');
+		HDR.Cal = repmat(NaN,HDR.NS,1);
+		HDR.ChanSelect = repmat(NaN,HDR.NS,1);
                 for k=1:HDR.NS,
-                        HDR.Label(k,1:8) = fread(HDR.FILE.FID,[1,8],'char');
+                        Label(k,1:8) = fread(HDR.FILE.FID,[1,8],'char');
                         HDR.Cal(k,1) = fread(HDR.FILE.FID,1,'uint32')/1000;
                         tmp = fread(HDR.FILE.FID,[1,2],'uint16');
-                        HDR.InChanSelect(k) = tmp(1);
-                        % skip tmp(2)
+                        HDR.ChanSelect(k) = tmp(1)+1;
                 end;
-                fseek(HDR.FILE.FID,7*256,'bof');
+		HDR.Label = char(Label);
+		HDR.Calib = sparse(2:HDR.NS+1,HDR.ChanSelect,HDR.Cal);
+
+                status = fseek(HDR.FILE.FID,7*256,'bof');
                 HDR.WG1.neco1 = fread(HDR.FILE.FID,1,'uint32');
                 HDR.Patient.Id = fread(HDR.FILE.FID,[1,12],'char');
                 HDR.Patient.LastName = fread(HDR.FILE.FID,[1,20],'char');
@@ -2204,20 +2213,53 @@ elseif strcmp(HDR.TYPE,'WG1'),
                 HDR.WG1.nic = fread(HDR.FILE.FID,[1,4],'uint32');
                 HDR.WG1.neco3 = fread(HDR.FILE.FID,1,'uint32');
                
-                fseek(HDR.FILE.FID,128,'cof');
+                status = fseek(HDR.FILE.FID,128,'cof');
                 HDR.HeadLen = ftell(HDR.FILE.FID);
-                
-                
-                while 1,
-                        HDR.data = fread(HDR.FILE.FID,[256,HDR.WG1.poffset],'uint32');
-                end;
-        else
-                
+                HDR.FILE.OPEN = 1; 
+		HDR.FILE.POS  = 0; 
+
+		HDR.WG1.szBlock  = 256;  
+		HDR.WG1.szOffset = 128;
+		HDR.WG1.szExtra  = HDR.WG1.pdata-(HDR.NS+HDR.WG1.poffset);
+		szOneRec = HDR.WG1.szOffset*4+(HDR.NS+HDR.WG1.szExtra)*HDR.WG1.szBlock;
+		HDR.AS.bpb = szOneRec;
+		HDR.WG1.szRecs = floor((HDR.FILE.size-HDR.HeadLen)/HDR.AS.bpb);
+		HDR.WG1.szData = HDR.WG1.szBlock*HDR.WG1.szRecs;
+    		HDR.WG1.unknownNr = 11;
+        	conv = round(19*sinh((0:127)/19));
+		conv = [conv, HDR.WG1.unknownNr, -conv(end:-1:2)];
+    		HDR.WG1.conv = conv;
+
+		HDR.NRec = HDR.WG1.szRecs;
+		HDR.SPR  = HDR.WG1.szBlock;
+		HDR.Dur  = HDR.SPR/HDR.SampleRate;
+		HDR.AS.endpos = HDR.NRec*HDR.SPR;
+		
+		%----- load event information -----
+		eventFile = fullfile(HDR.FILE.Path,[HDR.FILE.Name, '.wg2']);
+		if ~exist(eventFile,'file')
+			eventFile = fullfile(HDR.FILE.Path,[HDR.FILE.Name, '.WG2']);
+		end;	
+		if exist(eventFile,'file')
+    			fid= fopen(eventFile,'r');
+    			nr = 1;
+			[s,c] = fread(fid,1,'uint32');
+    			while ~feof(fid)
+        			HDR.EVENT.POS(nr,1) = s;
+        			pad = fread(fid,3,'uint32');
+        			len = fread(fid,1,'uint8');
+        			tmp = char(fread(fid,[1,47], 'char'));
+				HDR.EVENT.Desc{nr,1} = tmp(1:len);  
+    				% find string between quotation marks
+				%  HDR.EVENT.Desc{nr}=regexpi(Event,'(?<=\'').*(?=\'')','match','once');
+				[s,c] = fread(fid,1,'uint32');
+        			nr  = nr+1;
+		        end;
+    			HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
+			fclose(fid);
+		end;
         end;
 
-        fprintf(HDR.FILE.stderr,'Warning SOPEN: Implementing Walter-Graphtek (WG1) format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
-        fclose(HDR.FILE.FID);
-        
         
 elseif strcmp(HDR.TYPE,'LDR'),
         HDR = openldr(HDR,PERMISSION);      
@@ -2683,6 +2725,9 @@ elseif strcmp(HDR.TYPE,'MIT')
                 
                 fid = HDR.FILE.FID;
                 z   = fgetl(fid);
+                while strncmp(z,'#',1) | isempty(z),
+                        z   = fgetl(fid);
+                end;
                 tmpfile = strtok(z,' /');
                 if ~strcmpi(HDR.FILE.Name,tmpfile),
                         fprintf(HDR.FILE.stderr,'Warning: RecordName %s does not fit filename %s\n',tmpfile,HDR.FILE.Name);
@@ -2698,7 +2743,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 HDR.SPR   = str2double(tmp);   % sample rate of data
                 HDR.NRec  = 1;
                 
-		HDR.MIT.gain = zeros(1,HDR.NS);
+                HDR.MIT.gain = zeros(1,HDR.NS);
 		HDR.MIT.zerovalue  = repmat(NaN,1,HDR.NS);
 		HDR.MIT.firstvalue = repmat(NaN,1,HDR.NS);
                 for k = 1:HDR.NS,
@@ -2743,7 +2788,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                                         if isnan(tmp),   tmp = NaN; end;
                                         HDR.MIT.firstvalue(1,k) = tmp;        % first integer value of signal (to test for errors)
                                 else
- 
+                                        
                                 end;
                         end;
                         HDR.Label(k,1:length(z)+1) = [z,' ']; 
@@ -2773,6 +2818,21 @@ elseif strcmp(HDR.TYPE,'MIT')
                 end;
                 fclose(fid);
 
+		%------ LOAD ATR FILE ---------------------------------------------------                        
+		tmp = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.atr']);
+		if ~exist(tmp,'file'),
+			tmp = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.ATR']);
+		end;
+		if exist(tmp,'file'),
+	                H = sopen(tmp);
+			HDR.EVENT = H.EVENT; 
+			HDR.EVENT.SampleRate = HDR.SampleRate;
+		end;
+
+                %------ LOAD BINARY DATA --------------------------------------------------
+                if ~HDR.NS, 
+                        return; 
+                end;
                 HDR.AS.spb = sum(HDR.AS.SPR);
                 HDR.AS.bi = [0;cumsum(HDR.AS.SPR(:))]; 
                 HDR.AS.MAXSPR = HDR.AS.SPR(1);
@@ -2792,19 +2852,19 @@ elseif strcmp(HDR.TYPE,'MIT')
                 if 0,
                         
                 elseif HDR.VERSION == 212, 
-			if mod(HDR.AS.spb,2) 
-	                        HDR.AS.spb = HDR.AS.spb*2;
-			end
-	                HDR.AS.bpb = HDR.AS.spb*3/2;
+                        if mod(HDR.AS.spb,2) 
+                                HDR.AS.spb = HDR.AS.spb*2;
+                        end
+                        HDR.AS.bpb = HDR.AS.spb*3/2;
                 elseif HDR.VERSION == 310, 
-			if mod(HDR.AS.spb,3) 
-	                        HDR.AS.spb = HDR.AS.spb*2/3;
-			end
+                        if mod(HDR.AS.spb,3) 
+                                HDR.AS.spb = HDR.AS.spb*2/3;
+                        end
                         HDR.AS.bpb = HDR.AS.spb*2;
                 elseif HDR.VERSION == 311, 
-			if mod(HDR.AS.spb,3) 
-	                        HDR.AS.spb = HDR.AS.spb*3;
-			end
+                        if mod(HDR.AS.spb,3) 
+                                HDR.AS.spb = HDR.AS.spb*3;
+                        end
                         HDR.AS.bpb = HDR.AS.spb*4;
                 elseif HDR.VERSION == 8, 
                         HDR.AS.bpb = HDR.AS.spb;
@@ -2818,66 +2878,12 @@ elseif strcmp(HDR.TYPE,'MIT')
                         HDR.AS.bpb = HDR.AS.spb;
                 end;
                 HDR.Dur = HDR.AS.MAXSPR/HDR.SampleRate;
-                
-                
-                %------ LOAD ATTRIBUTES DATA ----------------------------------------------
-                fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.atr']),'rb','ieee-le');
-                if fid<0,
-                        A = []; c = 0;
-                else
-                        [A,c] = fread(fid, [2, inf], 'uint8');
-                        fclose(fid);
-                        A = A';
-                end;
-                
-                ATRTIME = zeros(c/2,1);
-                ANNOT   = zeros(c/2,1);
-                K = 0;
-                i = 1;
-                while i<=size(A,1),
-                        %annoth = bitshift(A(i,2),-2);
-                        annoth = floor(A(i,2)/4);
-                        if annoth==59,
-                                K = K + 1;
-                                ANNOT(K) = annoth; %bitshift(A(i+3,2),-2);
-                                ATRTIME(K) = (256.^[0:3])*[A(i+2,1);A(i+2,2);A(i+1,1);+A(i+1,2)];
-                                i = i + 3;
-                        elseif annoth==60
-                                % nothing to do!
-                        elseif annoth==61
-                                % nothing to do!
-                        elseif annoth==62
-                                % nothing to do!
-                        elseif annoth==63
-                                hilfe = 256*rem(A(i,2),4)+A(i,1);
-                                hilfe = hilfe + mod(hilfe,2);
-                                i = i + hilfe / 2;
-                        else
-                                K = K+1;
-                                ATRTIME(K) = 256*rem(A(i,2),4)+A(i,1);
-                                ANNOT(K)   = annoth; %bitshift(A(i,2),-2);
-                        end;
-                        i = i + 1;
-                end;
-                
-                ANNOT   = ANNOT(1:K-1);    % last line = EOF (=0)
-                ATRTIME = ATRTIME(1:K-1);  % last line = EOF
-                
-                clear A;
-                HDR.ATRTIME  = (cumsum(ATRTIME))/HDR.SampleRate;
-                %ind = find(ATRTIME <= size(signal,1)/HDR.SampleRate);
-                %HDR.ATRTIMED = ATRTIME(ind);
-                HDR.ANNOT    = round(ANNOT);
-                %HDR.ANNOTD = ANNOT(ind);
-                
-                
-                %------ LOAD BINARY DATA --------------------------------------------------
+
                 if HDR.VERSION ==61,
-                        MACHINE_FOMRAT='ieee-be';
+                        MACHINE_FORMAT='ieee-be';
                 else
-                        MACHINE_FOMRAT='ieee-le';
+                        MACHINE_FORMAT='ieee-le';
                 end;
-                HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dat']),'r','ieee-le');
                 
                 tmpfile = fullfile(HDR.FILE.Path,HDR.FILE.DAT);
                 if  ~exist(tmpfile,'file'), 
@@ -2888,7 +2894,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                         HDR.FILE.DAT = lower(HDR.FILE.DAT);
                         tmpfile = fullfile(HDR.FILE.Path,HDR.FILE.DAT);
                 end;
-                HDR.FILE.FID = fopen(tmpfile,'rb','ieee-le');
+                HDR.FILE.FID = fopen(tmpfile,'rb',MACHINE_FORMAT);
                 if HDR.FILE.FID<0,
 			fprintf(HDR.FILE.stderr,'Error SOPEN: Couldnot open file %s\n',tmpfile);
 			return;
@@ -2922,6 +2928,65 @@ elseif strcmp(HDR.TYPE,'MIT')
                 fseek(HDR.FILE.FID,0,'bof');	% reset file pointer
         end;
         
+	
+elseif strcmp(HDR.TYPE,'MIT-ATR'),
+                %------ LOAD ATTRIBUTES DATA ----------------------------------------------
+                fid = fopen(HDR.FileName,'rb','ieee-le');
+                if fid<0,
+                        A = []; c = 0;
+                else
+                        [A,c] = fread(fid, inf, 'uint16');
+                        fclose(fid);
+                end;
+                
+                ATRTIME = zeros(c,1);
+                ANNOT   = zeros(c,1);
+                K  = 0;
+                i  = 1;
+		ch = 0; 
+		accu = 0; 
+                while i<=size(A,1),
+                        %annoth = bitshift(A(i,2),-2);
+                        annoth = floor(A(i)/1024);
+			L = rem(A(i),1024);
+                        if A(i)==0,  % end of file
+			  
+			elseif annoth==60
+				%[60,L,A(i)]
+                                % nothing to do!
+                        elseif annoth==61
+				%[61,L,A(i)]
+			        % nothing to do!
+                        elseif annoth==62
+				ch = L; 
+                                % nothing to do!
+                        elseif annoth==63
+                        	i = i + ceil(rem(A(i),1024)/2);
+                        else
+				if annoth==59,
+					if logical(L), 
+						[59,L,A(i)]
+					%	warning('ATR'); 
+					end;
+	                                ANNOT(K) = annoth; %bitshift(A(i+3,2),-2);
+					L = (2.^[0,16])*[A(i+2);A(i+1)];
+            		                i = i + 2;
+                    		end;
+                                K = K+1;
+                                ATRTIME(K) = L; %256*rem(A(i,2),4)+A(i,1);
+                                ANNOT(K)   = annoth; %bitshift(A(i,2),-2);
+				accu = accu + L; 
+
+				EVENT.TYP(K,1) = hex2dec('0501'); 
+				EVENT.POS(K,1) = accu; 
+				EVENT.CHN(K,1) = ch; 
+				EVENT.DUR(K,1) = 0; 
+                        end;
+                        i = i + 1;
+                end;
+		HDR.EVENT = EVENT;
+		HDR.TYPE = 'EVENT';
+                
         
 elseif strcmp(HDR.TYPE,'TMS32'),
         if any(PERMISSION=='r'),

@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.42 $
-%	$Id: sread.m,v 1.42 2005-02-08 10:50:18 schloegl Exp $
+%	$Revision: 1.43 $
+%	$Id: sread.m,v 1.43 2005-02-19 21:45:08 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -287,10 +287,10 @@ elseif strcmp(HDR.TYPE,'MIT'),
 			return;
 		end;
 		DataLen = count/HDR.AS.bpb;
-                S = [A(1:3:end); A(3:3:end)] + [mod(A(2:3:end), 16); floor(A(2:3:end)/16)]*256;
+                S = [A(1:3:end) + mod(A(2:3:end),16)*256; A(3:3:end) + floor(A(2:3:end)/16)*256]; 
+                clear A;
                 S = S - 2^12*(S>=2^11);	% 2-th complement
                 S = reshape(S,HDR.AS.spb,prod(size(S))/HDR.AS.spb)';
-		
                 
         elseif HDR.VERSION == 310, 
                 [A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb/2, DataLen], 'uint16'); 
@@ -720,6 +720,42 @@ elseif strcmp(HDR.TYPE,'TFM_EXCEL_Beat_to_Beat');
 		fprintf(HDR.FILE.stderr,'Warning SREAD (TFM-EXCEL): only one input argument supported.\n');
         end;
 	S = HDR.TFM.S; 
+
+
+elseif strcmp(HDR.TYPE,'WG1'),   %walter-graphtek
+	% code from Robert Reijntjes, Amsterdam, NL 
+	% modified by Alois Schloegl 19. Feb 2005 
+        if nargin==3,
+                HDR.FILE.POS = round(HDR.SampleRate*StartPos);
+        end;
+
+	ix1    = mod(HDR.FILE.POS, HDR.SPR);	% starting sample (minus one) within 1st block 
+    	fp     = HDR.HeadLen + floor(HDR.FILE.POS/HDR.SPR)*HDR.AS.bpb;
+    	status = fseek(HDR.FILE.FID, fp, 'bof');
+
+        nr     = min(HDR.AS.endpos-HDR.FILE.POS, NoS*HDR.SampleRate);
+	S      = zeros(nr,length(HDR.InChanSelect)); 
+	count  = 0; 
+        offset = fread(HDR.FILE.FID, HDR.WG1.szOffset, 'int32');
+    	while (offset(1)~=(hex2dec('AEAE5555')-2^32)) & (count<nr);
+		
+		[databuf,c] = fread(HDR.FILE.FID,[HDR.WG1.szBlock,HDR.NS+HDR.WG1.szExtra],'uint8');
+            	dt = HDR.WG1.conv(databuf(:,1:HDR.NS)+1);
+            	if any(dt(:)==HDR.WG1.unknownNr),
+            	    	disp('error in reading datastream');
+            	end;
+		dt(1,:) = dt(1,:) + offset(1:HDR.NS)';
+		dt = cumsum(dt);
+		
+		ix2 = min(nr-count, size(dt,1)-ix1);
+		S(count+1:count+ix2,:) = dt(ix1+1:ix1+ix2, HDR.InChanSelect);
+		count = count + ix2; 
+		ix1 = 0;	% reset starting index, 
+	
+	        offset = fread(HDR.FILE.FID, HDR.WG1.szOffset, 'int32');
+	end;	
+	S = S(1:count,:);
+	HDR.FILE.POS = HDR.FILE.POS + count;
 
 
 elseif strcmp(HDR.TYPE,'XML-FDA'),   % FDA-XML Format

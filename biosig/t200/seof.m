@@ -21,8 +21,8 @@ function [status]=seof(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.11 $
-%	$Id: seof.m,v 1.11 2004-12-28 20:35:12 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: seof.m,v 1.12 2005-02-19 21:45:08 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -38,7 +38,7 @@ if strmatch(HDR.TYPE,{'EDF','BDF','GDF','CTF','RDF','EEG','AVG','SIGIF'}),
 elseif strmatch(HDR.TYPE,{'ACQ','RG64','LABVIEW','Nicolet','BVbinmul','BVbinvec','BVascii'}),
 	status = (HDR.FILE.POS >= (HDR.AS.endpos-HDR.HeadLen));
 
-elseif strmatch(HDR.TYPE,{'BKR','CNT','CTF','MIT','SMA','CFWB','DEMG','EEProbe-CNT','EEProbe-AVR','MFER','alpha','native','SCP','BCI2000'}),
+elseif strmatch(HDR.TYPE,{'BKR','CNT','CTF','MIT','SMA','CFWB','DEMG','EEProbe-CNT','EEProbe-AVR','MFER','alpha','native','SCP','BCI2000','WG1'}),
 	status = (HDR.FILE.POS >= HDR.SPR*HDR.NRec);
 
 elseif strmatch(HDR.TYPE,{'EGI'}),

@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.26 $
-%	$Id: getfiletype.m,v 1.26 2005-02-03 20:41:34 schloegl Exp $
+%	$Revision: 1.27 $
+%	$Id: getfiletype.m,v 1.27 2005-02-19 21:45:09 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -265,7 +265,7 @@ else
                         HDR.Endianity = 'ieee-le';
                 elseif all(s(1:4)==hex2dec(reshape('DADAFEAF',2,4)')'); 
                         HDR.TYPE='WG1';
-                        HDR.Endianity = 'ieee-be';
+                        HDR.Endianity = 'ieee-le';
                         
                 elseif strncmp(ss,'HeaderLen=',10); 
 			tmp = ss(1:min(find((s==10) | (s==13))));
@@ -322,8 +322,6 @@ else
                         HDR.TYPE='AKO+';
                 elseif all(s(1:4) == [253, 174, 45, 5]); 
                         HDR.TYPE='AKO';
-                elseif s(1) == 253;
-                        HDR.TYPE='AKO-';
                 elseif all(s(1:8) == [1,16,137,0,0,225,165,4]);
                         HDR.TYPE='ALICE4';
                         
@@ -369,9 +367,9 @@ else
                         HDR.TYPE='669';
                 elseif all(s(1:2)==[234,96]); 
                         HDR.TYPE='ARJ';
-                elseif s(1)==2; 
+                elseif 0, s(1)==2; 
                         HDR.TYPE='DB2';
-                elseif any(s(1)==[3,131]); 
+                elseif 0, any(s(1)==[3,131]); 
                         HDR.TYPE='DB3';
                 elseif strncmp(ss,'DDMF',4); 
                         HDR.TYPE='DMF';
@@ -383,6 +381,11 @@ else
                         HDR.TYPE='FLC';
                 elseif strncmp(ss,'GF1PATCH110',12); 
                         HDR.TYPE='GF1';
+                elseif strcmp(ss([1:6,12]),'(DWF V)'); 
+                        HDR.Version = str2double(ss(7:11));
+                        if ~isnan(HDR.Version),
+                                HDR.TYPE='IMAGE:DWF';           % Design Web Format  from Autodesk
+                        end;
                 elseif strncmp(ss,'GIF8',4); 
                         HDR.TYPE='IMAGE:GIF';
                 elseif strncmp(ss,'CPT9FILE',8);        % Corel PhotoPaint Format
@@ -488,10 +491,10 @@ else
 			HDR.ND = 4;
                 elseif strncmp(ss,'.PBF',4)      
                         HDR.TYPE='PBF';
-                elseif (s(1)==16) & any(s(2)==[0,2,3,5])
+                elseif all(s([1,3])==[10,1]) & any(s(2)==[0,2,3,5]) & any(s(4)==[1,4,8,24]) & any(s(59)==[4,3])
                         HDR.TYPE='PCX';
 			tmp = [2.5, 0, 2.8, 2.8, 0, 3];
-                        HDR.Version=tmp(s(2));
+                        HDR.Version=tmp(s(2)+1);
 			HDR.Encoding = s(3);
 			HDR.BitsPerPixel = s(4);
 			HDR.NPlanes = s(65);
@@ -711,10 +714,12 @@ else
                         
                         % MIT-ECG / Physiobank format
                 elseif strcmpi(HDR.FILE.Ext,'HEA'), HDR.TYPE='MIT';
+
+                elseif strcmpi(HDR.FILE.Ext,'ATR'), HDR.TYPE='MIT-ATR';
                         
                 elseif strcmpi(HDR.FILE.Ext,'DAT') & (upper(HDR.FILE.Name(1))=='E')
                         
-                elseif strcmpi(HDR.FILE.Ext,'DAT') | strcmpi(HDR.FILE.Ext,'ATR'), 
+                elseif strcmpi(HDR.FILE.Ext,'DAT') 
                         tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hea']));
                         if isempty(tmp), 
                                 tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.HEA']));
