@@ -34,7 +34,7 @@
 
 function vers = eegplugin_biosig(fig, trystrs, catchstrs)
     
-  vers = 'biosig (rev.>0.07)';
+  vers = 'biosig (rev.>=0.07)';
   if nargin < 3
       error('eegplugin_eepimport requires 3 arguments');
   end;
@@ -46,8 +46,14 @@ function vers = eegplugin_biosig(fig, trystrs, catchstrs)
       p = p(1:findstr(p,'eegplugin_biosig.m')-1);
       delim = p(end);
       if exist('sload') ~= 2  % detect BIOSIG
-          addpath([ p delim 't200' ] );
+          addpath([ p delim '..' delim 't200' ] );
       end;
+  end;
+  
+  % test if plugin already present
+  % ------------------------------
+  if ~isempty(findobj(fig, 'tag', 'biosig'))
+      vers = 'biosig (ERROR: plugin already present)';
   end;
   
   % find import data menu
@@ -77,6 +83,6 @@ function vers = eegplugin_biosig(fig, trystrs, catchstrs)
           end;
       end;
       uimenu( menu, 'Label', 'From Biosemi .BDF file using BIOSIG', 'CallBack', combdf, 'Separator', 'on'); 
-      uimenu( menu, 'Label', 'From .EDF file using BIOSIG'        , 'CallBack', comedf); 
+      uimenu( menu, 'Label', 'From .EDF file using BIOSIG'        , 'CallBack', comedf, 'tag', 'biosig'); 
       uimenu( menu, 'Label', 'From other formats using BIOSIG'    , 'CallBack', combio); 
   end;
