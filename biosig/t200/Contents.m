@@ -14,19 +14,22 @@
 %	Poly5/TMS32 Format used for recordings with the Porti-system and the PortiLab software
 %	RDF	EPRSS Data Format
 %	SMA	Snap-Master file format
+%	WAV	Audio, Microsoft's PCM data format
+%	AIFF/C	Apple's audio interchange format 
+%	SND/AU	Next/SUN sound file
 %
 %
 % A united interface is provided for all data formats:
-%	LOADEEG Opens, reads all data and closes file Biosig files. 
+%	SLOAD Opens, reads all data and closes file Biosig files. 
 %
-%  	EEGOPEN opens an Biosignal file (and reads all header information)
-%	EEGREAD	reads data blockwise
-%       EEGEOF	checks end-of-file
-%  	EEGTELL	returns position of file handle
-%	EEGSEEK	moves file handle to position
-%  	EEGREWIND moves file handle to beginning 
-%	EEGCLOSE closes an biosignal file 
-%  	EEGWRITE (only BKR and EDF implemented)
+%  	SOPEN 	opens an Biosignal file (and reads all header information)
+%	SREAD	reads data blockwise
+%       SEOF	checks end-of-file
+%  	STELL	returns position of file handle
+%	SSEEK	moves file handle to position
+%  	SREWIND moves file handle to beginning 
+%	SCLOSE 	closes an biosignal file 
+%  	SWRITE 	(only BKR and EDF/BDF/GDF implemented)
 %
 %
 % UTILITY FUNCTIONS. In general, it is not recommended 
@@ -49,10 +52,12 @@
 % 
 %
 % REFERENCES: 
-% http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg
+% [1] http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg/
+% [2] http://biosig.sf.net/
+%
 
-%	$Revision: 1.7 $
-%	$Id: Contents.m,v 1.7 2003-05-30 12:19:38 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: Contents.m,v 1.8 2003-09-06 19:46:35 schloegl Exp $
 %	CopyLeft (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
