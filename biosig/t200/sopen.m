@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.48 $
-%	$Id: sopen.m,v 1.48 2004-04-18 22:17:19 schloegl Exp $
+%	$Revision: 1.49 $
+%	$Id: sopen.m,v 1.49 2004-04-20 10:31:03 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -3451,7 +3451,35 @@ elseif strcmp(HDR.TYPE,'CTF'),
 			fseek(HDR.FILE.FID,1280,'cof');
 		end;
 		fclose(HDR.FILE.FID);
-
+                
+                %%%%% read Markerfile %%%%%
+                fid = fopen(fullfile(HDR.FILE.Path,'MarkerFile.mrk'),'rb','ieee-be');
+                if fid > 0,
+                        while ~feof(fid),
+                                s = fgetl(fid);
+                                if ~isempty(strmatch('PATH OF DATASET:',s))
+                                        file = fgetl(fid);
+                                        
+                                elseif 0, 
+                                        
+                                elseif ~isempty(strmatch('TRIAL NUMBER',s))
+                                        N = 0; 
+                                        x = fgetl(fid);
+                                        while ~isempty(x),
+                                                tmp = str2double(x)
+                                                N = N+1;
+                                                HDR.EVENT.POS(N,1) = tmp(1)*HDR.SPR+tmp(2)*HDR.SampleRate;
+                                                HDR.EVENT.TYP(N,1) = 1;
+                                                x = fgetl(fid);
+                                        end
+                                        HDR.EVENT.N = N;
+                                else
+                                        
+                                end
+                        end
+                        fclose(fid);
+                end;
+                
 		HDR.CTF.info = info;
 		ix = (info.index==0) | (info.index==1) | (info.index==9);
 		ix0 = find(ix);
@@ -3462,7 +3490,6 @@ elseif strcmp(HDR.TYPE,'CTF'),
 		HDR.FLAG.TRIGGERED = HDR.NRec > 1;
 		HDR.AS.spb = HDR.NRec * HDR.NS;
 		HDR.AS.bpb = HDR.AS.spb * 4; 
-		
 		
 		HDR.CHANTYP = char(repmat(32,HDR.NS,1));
 		HDR.CHANTYP(info.index==9) = 'E';
@@ -3613,67 +3640,76 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
                 % Read the first sample of the file with a mex function
                 % this also gives back header information, which is needed here
                 tmp = read_eep_cnt(HDR.FileName, 1, 1);
-                % convert the header information to BIOSIG standards
-                HDR.FILE.FID = 1;               % ?
-                HDR.FILE.POS = 0;
-                HDR.NS = tmp.nchan;             % number of channels
-                HDR.SampleRate = tmp.rate;      % sampling rate
-                HDR.NRec = 1;                   % it is always continuous data, therefore one record
-                HDR.FLAG.TRIGGERED = 0; 
-                HDR.SPR = tmp.nsample;          % total number of samples in the file
-                HDR.Dur = tmp.nsample/tmp.rate; % total duration in seconds
-                HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
-                HDR.Label = char(tmp.label);
-                HDR.PhysDim = 'uV';
-                HDR.AS.endpos = HDR.SPR;
-                HDR.Label = tmp.label;
-                % In principle it would also be possible now to check for the
-                % presence of a similar file with the extension *.trg. That file
-                % contains the accompanying triggers, and could be read with
-                % the function read_eep_trg.
-                
-                % AS: this relates to Event information. see also 
-                % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg/EventCodes.html
-                
         catch
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): Cannot open EEProbe-file, because read_eep_cnt.mex not installed. \n');
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): see http://www.smi.auc.dk/~roberto/eeprobe/\n');
                 return;
         end
+        % convert the header information to BIOSIG standards
+        HDR.FILE.FID = 1;               % ?
+        HDR.FILE.POS = 0;
+        HDR.NS = tmp.nchan;             % number of channels
+        HDR.SampleRate = tmp.rate;      % sampling rate
+        HDR.NRec = 1;                   % it is always continuous data, therefore one record
+        HDR.FLAG.TRIGGERED = 0; 
+        HDR.SPR = tmp.nsample;          % total number of samples in the file
+        HDR.Dur = tmp.nsample/tmp.rate; % total duration in seconds
+        HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
+        HDR.Label = char(tmp.label);
+        HDR.PhysDim = 'uV';
+        HDR.AS.endpos = HDR.SPR;
+        HDR.Label = tmp.label;
         
+        fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.trg']),'rt');
+        if fid>0,
+                header = fgetl(fid);
+                N = 0; 
+                while ~feof(fid),
+                        tmp = fscanf(fid, '%f %d %s', 3);
+                        if ~isempty(tmp)
+                                N = N + 1; 
+                                HDR.EVENT.POS(N,1) = tmp(1)*HDR.SampleRate;
+                                HDR.EVENT.TYP(N,1) = 0;
+                                %HDR.EVENT.DUR(N,1) = 0;
+                                %HDR.EVENT.CHN(N,1) = 0;
+                                
+                                HDR.EVENT.TeegType{N,1}   = char(tmp(3:end));		% string
+                                HDR.EVENT.TYP(N,1) = str2double(HDR.EVENT.TeegType{N,1});		% numeric
+                        end
+                end
+                HDR.EVENT.N = N; 
+                
+                fclose(fid);
+        end;
+                
 elseif strcmp(HDR.TYPE,'EEProbe-AVR'),
         % it appears to be a EEProbe file with an averaged ERP
         try
                 tmp = read_eep_avr(HDR.FileName);
-                % convert the header information to BIOSIG standards
-                HDR.FILE.FID = 1;               % ?
-                HDR.FILE.POS = 0;
-                HDR.NS = tmp.nchan;             % number of channels
-                HDR.SampleRate = tmp.rate;      % sampling rate
-                HDR.NRec = 1;                   % it is an averaged ERP, therefore one record
-                HDR.SPR = tmp.npnt;             % total number of samples in the file
-                HDR.Dur = tmp.npnt/tmp.rate;    % total duration in seconds
-                HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
-                HDR.Label = char(tmp.label);
-                HDR.PhysDim = 'uV';
-                HDR.FLAG.UCAL = 1;
-                HDR.FILE.POS = 0; 
-                HDR.AS.endpos = HDR.SPR;
-                HDR.Label = tmp.label;
-                % Where do I put the information about the timing within the
-                % single trial? The latency zero is not persee at the first
-                % sample.
-                
-                % TriggerOffset would be to best place 
-                HDR.TriggerOffset = 0 
-                
-                HDR.EEP.data = tmp.data';
-                
         catch
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): Cannot open EEProbe-file, because read_eep_avr.mex not installed. \n');
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): see http://www.smi.auc.dk/~roberto/eeprobe/\n');
                 return;
         end
+        % convert the header information to BIOSIG standards
+        HDR.FILE.FID = 1;               % ?
+        HDR.FILE.POS = 0;
+        HDR.NS = tmp.nchan;             % number of channels
+        HDR.SampleRate = tmp.rate;      % sampling rate
+        HDR.NRec = 1;                   % it is an averaged ERP, therefore one record
+        HDR.SPR = tmp.npnt;             % total number of samples in the file
+        HDR.Dur = tmp.npnt/tmp.rate;    % total duration in seconds
+        HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
+        HDR.Label = char(tmp.label);
+        HDR.PhysDim = 'uV';
+        HDR.FLAG.UCAL = 1;
+        HDR.FILE.POS = 0; 
+        HDR.AS.endpos = HDR.SPR;
+        HDR.Label = tmp.label;
+        HDR.TriggerOffset = 0 
+        
+        HDR.EEP.data = tmp.data';
+        
         
 elseif strncmp(HDR.TYPE,'FIF',3),
         if any(exist('rawdata')==[3,6]),
@@ -3815,6 +3851,7 @@ else
         HDR.FILE.FID = -1;	% this indicates that file could not be opened. 
         return;
 end;
+
 
 if any(PERMISSION=='r');
         HDR.Calib = full(HDR.Calib);	% Octace can not index sparse matrices
