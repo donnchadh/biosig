@@ -20,8 +20,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.1 $
-% 	$Id: save2bkr.m,v 1.1 2003-02-01 15:03:46 schloegl Exp $
+%	$Revision: 1.2 $
+% 	$Id: save2bkr.m,v 1.2 2003-02-07 13:07:41 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -206,6 +206,9 @@ else
         end;
 end;
 
+if nargin>1,
+	HDR.FileName = destfile; 
+end;
 if ~isfield(HDR,'NS'),
         warning(['number of channels undefined in ',filename]);
         HDR.NS = 3;
