@@ -12,12 +12,12 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % channel       list of selected channels
 %               default=0: loads all channels
 %
-% see also: SOPEN, SREAD, SCLOSE
+% see also: SOPEN, SREAD, SCLOSE, MAT2SEL
 %
 
-%	$Revision: 1.8 $
-%	$Id: sload.m,v 1.8 2004-01-25 02:18:09 schloegl Exp $
-%	Copyright (C) 1997-2003 by Alois Schloegl 
+%	$Revision: 1.9 $
+%	$Id: sload.m,v 1.9 2004-02-06 13:35:05 schloegl Exp $
+%	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 
 % This library is free software; you can redistribute it and/or
@@ -183,8 +183,11 @@ elseif strncmp(H.TYPE,'MAT',3),
                         H.Label = tmp.P_C_S.ChannelName;
                         H.AS.EpochingSelect = tmp.P_C_S.EpochingSelect;
                         H.AS.EpochingName = tmp.P_C_S.EpochingName;
+                        ch = strmatch('ARTIFACT',tmp.P_C_S.AttributeName);
+                        if ~isempty(ch)
+                                H.ArtifactSelection = tmp.P_C_S.Attribute(h,:);
+                        end;
                         signal = double(tmp.P_C_S.Data);
-
                         
                 else %if isfield(tmp.P_C_S,'Version'),	% with BS.analyze software, ML6.5
                         if any(tmp.P_C_S.version==[1.02, 1.5, 1.52]),
@@ -200,9 +203,15 @@ elseif strncmp(H.TYPE,'MAT',3),
                         H.Label = tmp.P_C_S.channelname;
                         H.AS.EpochingSelect = tmp.P_C_S.epochingselect;
                         H.AS.EpochingName = tmp.P_C_S.epochingname;
+                        ch = strmatch('ARTIFACT',tmp.P_C_S.attributename);
+                        if ~isempty(ch)
+                                H.ArtifactSelection = tmp.P_C_S.attribute(ch,:);
+                        end;
                         
                         signal = double(tmp.P_C_S.data);
                 end;
+                tmp.P_C_S = []; % clear memory
+
                 sz   = size(signal);
                 H.NRec = sz(1);
                 H.Dur  = sz(2)/H.SampleRate;
@@ -216,7 +225,6 @@ elseif strncmp(H.TYPE,'MAT',3),
                         CHAN = 1:H.NS;
                 end;
                 
-                tmp.P_C_S = []; % clear memory
                 signal = reshape(permute(signal(:,:,CHAN),[2,1,3]),[sz(1)*sz(2),sz(3)]);
                 
 	elseif isfield(tmp,'P_C_DAQ_S');

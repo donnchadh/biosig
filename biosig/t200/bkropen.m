@@ -10,8 +10,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % See also: EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGEOF
 
-%	$Revision: 1.12 $
-%	$Id: bkropen.m,v 1.12 2003-08-19 08:02:45 schloegl Exp $
+%	$Revision: 1.13 $
+%	$Id: bkropen.m,v 1.13 2004-02-06 13:35:05 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -57,7 +57,7 @@ else
         BKR.FILE.Path = pfad;
         BKR.FILE.Ext  = FileExt(2:length(FileExt));
 end;
-if ftell(BKR.FILE.FID)~=0,
+if 0; %ftell(BKR.FILE.FID)~=0,	% 
         fprintf(2,'Error: Fileposition is not 0\n');        	        
 end;
 
@@ -139,10 +139,11 @@ if any(PERMISSION=='r'),
 	        fprintf(2,'Warning BKRLOAD: Number of channels larger than 85; Header does not support more\n');
 	end;
 	fseek(fid,512-(nch*6),'cof');
-	HeaderEnd=ftell(fid);
-	if HeaderEnd~=1024,
+	%HeaderEnd=ftell(fid);
+	if 0, % ftell(fid)~=1024,
 	        fprintf(2,'Warning BKRLOAD: Length of Header does not confirm BKR-specification\n');
 	end;
+	HeaderEnd = 1024;
 
 	%%%%% Generate BKR-Struct; similar to EDF-struct
 	BKR.VERSION=VER;
@@ -220,6 +221,15 @@ if any(PERMISSION=='r'),
                         BKR.Classlabel = load(tmp);
                 end;
         end;
+        if 1; %~isfield(BKR,'ArtifactSelection'),
+                tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.sel']);
+                if exist(tmp)~=2,
+                	tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.SEL']);
+                end
+                if exist(tmp)==2,
+                        BKR.ArtifactSelection = load(tmp);
+                end;
+        end;
         if ~isfield(BKR,'Classlabel'),
                 tmp=fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.mat']);
                 if exist(tmp)~=2,
@@ -252,7 +262,7 @@ elseif any(PERMISSION=='w'),
         	end;
     		end;
         end;
-        if any([BKR.NS==0,BKR.SPR==0,BKR.NRec<0]), 	% if any unknown, ...	
+        if any([BKR.NS==0,BKR.SPR==0,BKR.NRec<0]), 	% if any unknown, ...	
                 BKR.FILE.OPEN = 3;			%	... fix header when file is closed. 
         end;
         
@@ -302,6 +312,11 @@ elseif any(PERMISSION=='w'),
         if isfield(BKR,'Classlabel');
                 fid = fopen(fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.par']),'w+b');  % force binary mode
                 fprintf(fid,'%i\r\n',BKR.Classlabel);  % explicit 0x0d and 0x0a
+                fclose(fid);
+        end;
+        if isfield(BKR,'ArtifactSelection');
+                fid = fopen(fullfile(BKR.FILE.Path,[BKR.FILE.Name,'.sel']),'w+b');  % force binary mode
+                fprintf(fid,'%i\r\n',BKR.ArtifactSelection);  % explicit 0x0d and 0x0a
                 fclose(fid);
         end;
 end;

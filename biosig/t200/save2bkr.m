@@ -35,8 +35,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.11 $
-% 	$Id: save2bkr.m,v 1.11 2003-12-16 17:46:19 schloegl Exp $
+%	$Revision: 1.12 $
+% 	$Id: save2bkr.m,v 1.12 2004-02-06 13:35:05 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -359,6 +359,11 @@ for k=1:length(infile);
         if isfield(HDR,'Classlabel'),
                 fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.par'],'w');
                 fprintf(fid, '%i\r\n', HDR.Classlabel);
+                fclose(fid);
+        end;
+        if isfield(HDR,'ArtifactSelection'),
+                fid = fopen([HDR.FileName(1:length(HDR.FileName)-4) '.sel'],'w');
+                fprintf(fid, '%i\r\n', HDR.ArtifactSelection);
                 fclose(fid);
         end;
 end;
