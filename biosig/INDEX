@@ -1,7 +1,7 @@
 
 
-
 === INDEX  ===
+
 
 T100: [Data Acquistion] 
 ---------------------------------------------
@@ -20,6 +20,8 @@ T200: Data Formats
 	LOADEEG 	Opens, reads all data and closes file Biosig files. 
  	and some utility functions
 
+	header.txt	specification of header (Dokumentation) 
+
 
 T250: Quality Control and Artifact Processing
 ---------------------------------------------
@@ -30,8 +32,10 @@ T250: Quality Control and Artifact Processing
 
 T300: Signal Processing and Feature extraction
 ---------------------------------------------
-	AAR		adaptive autoregressive parameters
-
+The TSA-toolbox should be included here
+	MVFREQZ
+	TSA/AAR		adaptive autoregressive parameters
+	
 
 T400: Classification, Single Trial Analysis, Statistics,
 ---------------------------------------------
@@ -39,6 +43,7 @@ T400: Classification, Single Trial Analysis, Statistics,
 	MDBC		mahalanobis distance based classifier
 	LLBC		log-likelihood based classifier
 	DECOVM		decomposes an "extended" covariance matrix	
+	GETCLASSIFIER	estimates classifier from labelled data
 
 
 T490: Evaluation criteria
@@ -52,7 +57,7 @@ T490: Evaluation criteria
 
 T500: Presentation, Output
 ---------------------------------------------
-	plota		general plot functions for various data structures
+	PLOTA		general plot functions for various data structures
 
 
 T550: Topographic Mapping, 3-dimensional display
