@@ -35,8 +35,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR
 
-%	$Revision: 1.8 $
-% 	$Id: save2bkr.m,v 1.8 2003-07-21 16:19:27 schloegl Exp $
+%	$Revision: 1.9 $
+% 	$Id: save2bkr.m,v 1.9 2003-09-22 13:16:32 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
@@ -110,6 +110,10 @@ end;
 if isstr(arg1), 
         inpath = fileparts(arg1);
         infile = dir(arg1);	% input  file 
+        if isempty(infile)
+                fprintf(2,'ERROR SAVE2BKR: file %s not found.\n',arg1);
+                return;
+        end;
         outfile = arg2;
 elseif isstruct(arg1) & isnumeric(arg2),
 	HDR  = arg1;
@@ -171,9 +175,9 @@ if isstruct(arg1),
                 end;
         end;
         
-        HDR = eegopen (HDR,'wb',0,'UCAL');     	% OPEN BKR FILE
-        HDR = eegwrite(HDR,data);  	% WRITE BKR FILE
-        HDR = eegclose(HDR);            % CLOSE BKR FILE
+        HDR = sopen (HDR,'wb',0,'UCAL');     	% OPEN BKR FILE
+        HDR = swrite(HDR,data);  	% WRITE BKR FILE
+        HDR = sclose(HDR);            % CLOSE BKR FILE
 
 	% save Classlabels
 	if isfield(HDR,'Classlabel'),
@@ -184,12 +188,11 @@ if isstruct(arg1),
         return;
 end;
 
-
 for k=1:length(infile);
-        filename = fullfile(inpath,infile(k).name);
+        filename = fullfile(inpath,infile(k).name)
         [pf,fn,ext] = fileparts(filename);
         
-        [y,HDR] = loadeeg(filename);
+        [y,HDR] = sload(filename);
         if isempty(y), 
                 fprintf(2,'Error SAVE2BKR: file %s not found\n',filename);
                 return; 
