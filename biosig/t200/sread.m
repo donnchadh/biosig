@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.23 $
-%	$Id: sread.m,v 1.23 2004-06-16 18:24:41 schloegl Exp $
+%	$Revision: 1.24 $
+%	$Id: sread.m,v 1.24 2004-07-05 08:38:39 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -669,7 +669,10 @@ elseif strcmp(HDR.TYPE,'BrainVision'),   %Brainvision, unknown
         
 elseif strcmp(HDR.TYPE,'SierraECG'),   %% SierraECG  1.03  *.open.xml from PHILIPS
         if ~isfield(HDR,'data');
-                HDR.data = str2double(HDR.XML.waveforms.parsedwaveforms);
+                [HDR.data,status] = str2double(HDR.XML.waveforms.parsedwaveforms);
+                if any(status)
+                        error('SREAD: compressed SierraECG (Philips) format not supported')
+                end;
                 HDR.data = reshape(HDR.data,length(HDR.data)/HDR.NS,HDR.NS);
                 HDR.SPR = size(HDR.data,1);
         else
@@ -685,7 +688,6 @@ elseif strcmp(HDR.TYPE,'SierraECG'),   %% SierraECG  1.03  *.open.xml from PHILI
                 t2  = mod(tmp(2,:),16)*16 + floor(tmp(3,:)/4);
                 t3  = mod(tmp(3,:),4)*64 + tmp(4,:);
                 tmp = reshape([t1,t2,t3], ceil(n/4)*3, 1);
-                
         end;
         if nargin>2,
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -697,7 +699,12 @@ elseif strcmp(HDR.TYPE,'SierraECG'),   %% SierraECG  1.03  *.open.xml from PHILI
         
 elseif strcmp(HDR.TYPE,'XML-FDA'),   % FDA-XML Format
         if ~isfield(HDR,'data');
-                tmp   = HDR.XML.component.series.derivation.Series.component.sequenceSet.component;
+                tmp   = HDR.XML.component.series.derivation;
+                if isfield(tmp,'Series');
+                        tmp = tmp.Series.component.sequenceSet.component;
+                else    % Dovermed.CO.IL version of format
+                        tmp = tmp.derivedSeries.component.sequenceSet.component;
+                end;
                 for k = 1:length(HDR.InChanSelect);
                         HDR.data(:,k) = str2double(tmp{HDR.InChanSelect(k)+1}.sequence.value.digits)';
                 end;

@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.58 $
-%	$Id: sopen.m,v 1.58 2004-06-29 18:15:57 schloegl Exp $
+%	$Revision: 1.59 $
+%	$Id: sopen.m,v 1.59 2004-07-05 08:38:37 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -136,6 +136,9 @@ if any(PERMISSION=='r'),
                                         HDR.Endianity = 'ieee-be';
                                 else
                                         HDR.Endianity = 'ieee-le';
+                                end;
+                                if any(s(4:5)~=[13,10])
+                                        fprintf(2,'Warning SOPEN (FEF): incorrect preamble in file %s\n',HDR.FileName);
                                 end;
                                 
                         elseif strncmp(ss,'MEG41CP',7); 
@@ -4267,13 +4270,19 @@ elseif strncmp(HDR.TYPE,'XML',3),
                 catch
                         
                 try,    % FDA-XML Format
-                        HDR.NS = length(HDR.XML.component.series.derivation.Series.component.sequenceSet.component)-1;
+                        tmp   = HDR.XML.component.series.derivation;
+                        if isfield(tmp,'Series');
+                                tmp = tmp.Series.component.sequenceSet.component;
+                        else    % Dovermed.CO.IL version of format
+                                tmp = tmp.derivedSeries.component.sequenceSet.component;
+                        end;
+                        HDR.NS = length(tmp)-1;
                         HDR.Cal = 1;
                         HDR.PhysDim = ' ';
                         HDR.SampleRate = 1;
                         HDR.TYPE = 'XML-FDA';     % that's an FDA XML file 
                 catch
-                        fprintf(HDR.FILE.stderr,'Error SOPEN (XML): File %s is not supported.\n',HDR.FileName);
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN (XML): File %s is not supported.\n',HDR.FileName);
                         return;
                 end;
                 end
