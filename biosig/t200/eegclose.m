@@ -2,6 +2,8 @@ function [HDR]=eegclose(HDR)
 % [EEG]=eegclose(EEG)
 % Closes an EEG-File 
 %
+% SCLOSE replaces EEGCLOSE. 
+%
 % see also: EEGOPEN, EEGREAD, EEGSEEK, EEGTELL, EEGCLOSE, EEGWRITE
 
 % This program is free software; you can redistribute it and/or
@@ -18,65 +20,10 @@ function [HDR]=eegclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.6 $
-%	$Id: eegclose.m,v 1.6 2003-08-19 08:02:45 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: eegclose.m,v 1.7 2003-09-06 18:31:07 schloegl Exp $
 %	Copyright (C) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org
 
+HDR = sclose(HDR); 
 
-if HDR.FILE.FID<0, return; end;
-
-if HDR.FILE.OPEN>=2,
-	% check file length - simple test for file integrity         
-        EndPos = ftell(HDR.FILE.FID);          % get file length
-        % force file pointer to the end, otherwise Matlab 6.5 R13 on PCWIN
-        status = fseek(HDR.FILE.FID, 0, 'eof'); % go to end-of-file
-        
-        if strcmp(HDR.TYPE,'BKR');
-                if HDR.NS<1, 
-                        fprintf(2,'Error EEGOPEN BKR: number of channels (HDR.NS) must be larger than zero.\n');
-                        return;
-                end;
-                if HDR.NRec<1, 
-                        fprintf(2,'Error EEGOPEN BKR: number of blocks (HDR.NRec) must be larger than zero.\n');
-                        return;
-                end;
-                % check file length and write Headerinfo.
-                HDR.SPR       = (EndPos-HDR.HeadLen)/(HDR.NRec*HDR.NS*2);
-                if isnan(HDR.SPR), HDR.SPR=0; end;
-                if HDR.FILE.OPEN==3;
-			fclose(HDR.FILE.FID);
-			HDR.FILE.FID = fopen(HDR.FileName,'r+');
-                        fseek(HDR.FILE.FID,2,'bof');
-               		count = fwrite(HDR.FILE.FID,HDR.NS,'uint16');             % channel
-        		fseek(HDR.FILE.FID,6,'bof');
-                        count = fwrite(HDR.FILE.FID,[HDR.NRec,HDR.SPR],'uint32');           % trials/samples/trial
-        		fseek(HDR.FILE.FID,32,'bof');
-                        HDR.FLAG.TRIGGERED   = HDR.NRec>1;	% Trigger Flag
-                        count = fwrite(HDR.FILE.FID,HDR.FLAG.TRIGGERED,'int16');           % FLAG TRIGGERED
-                end;
-		HDR.FILE.status = fclose(HDR.FILE.FID);
-	        HDR.FILE.OPEN = 0;
-
-	elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
-        
-         	tmp = floor((EndPos - HDR.HeadLen) / HDR.AS.bpb);  % calculate number of records
-        	if ~isnan(tmp)
-        	        HDR.NRec=tmp;
-			fseek(HDR.FILE.FID,236,'bof');
-			if strcmp(HDR.TYPE,'GDF')
-			        c=fwrite(HDR.FILE.FID,[HDR.NRec,0],'int32');
-			else	
-			        fprintf(HDR.FILE.FID,'%-8i',HDR.NRec);
-			end;
-		end;
-        	%fclose(HDR.FILE.FID);
-        	%HDR=sdfopen(HDR,'w+');                    % update header information
-	end;
-end;
-
-if HDR.FILE.OPEN,
-        HDR.FILE.OPEN = 0;
-        HDR.ErrNo = fclose(HDR.FILE.FID);
-end;
-        

@@ -8,42 +8,16 @@ function [POS,HDR] = eegtell(HDR)
 %
 % EEG.FILE.POS contains the position of the EDF-Identifier in Blocks
 %
+% STELL replaces EEGTELL. 
+%
 % See also: FTELL, EEGOPEN, EEGREAD, EEGWRITE, EEGCLOSE, EEGREWIND, EEGTELL, EEGSEEK, EEGEOF
 
 
-%	$Revision: 1.10 $
-%	$Id: eegtell.m,v 1.10 2003-08-02 17:38:05 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: eegtell.m,v 1.11 2003-09-06 18:31:08 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
 
-POS = ftell(HDR.FILE.FID);
-if POS<0,
-        [HDR.ERROR,HDR.ErrNo] = ferror(HDR.FILE.FID);
-        return; 
-end;
+[POS,HDR] = stell(HDR);
 
-if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
-	POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
-	HDR.ERROR = [];
-	HDR.ErrNo = 0;
-
-	if (HDR.AS.startrec+HDR.AS.numrec)~=POS,
-        	fprintf(2,'Warning SDFTELL: File postion error in EDF/GDF/BDF-toolbox.\n')
-                HDR.AS.startrec = POS;
-        end;
-
-elseif strmatch(HDR.TYPE,{'BKR','ISHNE','CNT','EEG','AVG','MIT','RG64','LABVIEW','EGI','SMA','SND','WAV','AIF'}),
-	POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
-
-elseif strmatch(HDR.TYPE,{'RDF','SIGIF'}),
-	POS = HDR.FILE.POS;
-	
-else
-    	fprintf(2,'Error EEGTELL: format %s not supported',HDR.TYPE);    
-end;        
-
-if HDR.FILE.POS~=POS,
-        fprintf(2,'Warning EEGTELL: %s File position error  %i  %i\n', HDR.FileName, POS, HDR.FILE.POS);
-end;        
-HDR.FILE.POS=POS;	

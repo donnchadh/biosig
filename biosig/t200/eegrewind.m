@@ -18,10 +18,10 @@ function [HDR]=eegrewind(HDR);
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: eegrewind.m,v 1.1 2003-02-01 15:03:46 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: eegrewind.m,v 1.2 2003-09-06 18:31:08 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
 
-HDR=eegseek(HDR,0,'bof');
+HDR = sseek(HDR,0,'bof');
