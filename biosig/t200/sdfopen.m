@@ -122,8 +122,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.41 $
-%	$Id: sdfopen.m,v 1.41 2005-03-24 17:48:14 schloegl Exp $
+%	$Revision: 1.42 $
+%	$Id: sdfopen.m,v 1.42 2005-03-24 18:17:35 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -478,7 +478,8 @@ end;
 %		EDF=gdfcheck(EDF,1);
 if any(EDF.PhysMax==EDF.PhysMin), EDF.ErrNo=[1029,EDF.ErrNo]; end;	
 if any(EDF.DigMax ==EDF.DigMin ), EDF.ErrNo=[1030,EDF.ErrNo]; end;	
-if ~any(EDF.GDFTYP(1)==[0,16:18])
+
+if EDF.NS & ~any(EDF.GDFTYP(1)==[0,16:18])
         EDF.Cal = (EDF.PhysMax-EDF.PhysMin)./(EDF.DigMax-EDF.DigMin);
         EDF.Off = EDF.PhysMin - EDF.Cal .* EDF.DigMin;
 else
