@@ -1,10 +1,11 @@
 % BIOSIG toolbox contains many useful functions for biomedical signal processing
-% Version 0.26 02-Oct-2003
+%     http://biosig.sf.net/
 %
 % Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>
 % WWW: http://biosig.sf.net/
-% $Revision: 1.2 $ 
-% $Id: Contents.m,v 1.2 2003-10-03 10:26:34 schloegl Exp $
+% $Revision: 1.3 $ 
+% $Id: Contents.m,v 1.3 2004-02-07 16:51:30 schloegl Exp $
+% This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % LICENSE:
 %     This program is free software; you can redistribute it and/or modify
@@ -33,8 +34,13 @@
 % 
 % demo: [demo's, examples] 
 % ---------------------------------------------
-% 	demo1		QRS-detection
-% 	demo2		estimates and validates BCI classifier
+% 	demo1	QRS-detection
+% 	demo2	estimates and validates BCI classifier
+%	demo3	demonstrates how the generate an EDF/GDF/BDF file
+%	demo4	Demonstrates how the generate an BKR file
+%	demo5	Demonstrates how the generate an WAV file
+
+
 % 	
 % 
 % T100: [Data Acquistion] 
@@ -44,15 +50,16 @@
 % 
 % T200: Data Formats
 % ---------------------------------------------
-% 	EEGOPEN		opens biosig data and reads header information
-% 	EEGREAD		reads biosig data
-% 	EEGCLOSE	closes biosig file
-% 	EEGWRITE	writes biosig data (currently only BKR, EDF, BDF implemented)
-% 	EEGSEEK		set file positon indicator
-% 	EEGTELL		returns file position indicator
-% 	EEGEOF		checks for end-of-file
+% 	SOPEN		opens biosig data and reads header information
+% 	SREAD		reads biosig data
+% 	SCLOSE	closes biosig file
+% 	SWRITE	writes biosig data (currently only BKR, EDF, BDF implemented)
+% 	SSEEK		set file positon indicator
+% 	STELL		returns file position indicator
+% 	SEOF		checks for end-of-file
+%	SREWIND		sets file pointer to the start
 % 
-% 	LOADEEG 	Opens, reads all data and closes file Biosig files. 
+% 	SLOAD 	Opens, reads all data and closes file Biosig files. 
 %  	and some utility functions
 % 
 % 
@@ -61,6 +68,7 @@
 % 	EEG2HIST	calculates histogram
 % 	GETTRIGGER	gets trigger points
 % 	TRIGG		extract fixed-length trials around trigger points	
+%	detect_muscle	detection of muscle artefacts using a inverse filter
 % 
 % 
 % T300: Signal Processing and Feature extraction

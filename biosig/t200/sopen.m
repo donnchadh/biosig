@@ -32,14 +32,17 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.25 $
-%	$Id: sopen.m,v 1.25 2004-02-02 15:42:58 schloegl Exp $
+%	$Revision: 1.26 $
+%	$Id: sopen.m,v 1.26 2004-02-07 16:51:31 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
+try,
 biosig_update;
+catch
+end;
 
 if isnan(str2double('1, 3'));
 	fprintf(2,'Warning BIOSIG: incorrect version of STR2DOUBLE.\n');
@@ -3201,6 +3204,12 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
 		end;
 	end;
 
+
+elseif strcmp(HDR.TYPE,'unknown'),
+	fprintf(HDR.FILE.stderr,'ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
+	HDR.FILE.FID = -1;
+
+	
 else
 	%fprintf(2,'SOPEN does not support your data format yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
 	HDR.FILE.FID = -1;	% this indicates that file could not be opened. 

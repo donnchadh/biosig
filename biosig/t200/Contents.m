@@ -10,6 +10,7 @@
 %	GDF	General data format (EDF different datatypes)
 %	ISHNE	The ISHNE Holter Standard Output File Format
 %	MIT/ECG	PhysioNet data format
+%	SCP-ECG	Standard Communication Protocol - Computer-assisted electrocardiography
 %	ISHNE	The ISHNE Holter Standard Output File Format
 %	Poly5/TMS32 Format used for recordings with the Porti-system and the PortiLab software
 %	RDF	EPRSS Data Format
@@ -17,6 +18,7 @@
 %	WAV	Audio, Microsoft's PCM data format
 %	AIFF/C	Apple's audio interchange format 
 %	SND/AU	Next/SUN sound file
+%	ADI/CFWB Chart (translated binary) format from ADInstruments
 %
 %
 % A united interface is provided for all data formats:
@@ -37,6 +39,7 @@
 %	you are doing. You are warned! 
 % 	
 %	SAVE2BKR
+%	SAVE2TXT
 % 	EEGCHKHDR	
 %	OPENLDR
 %	BKROPEN
@@ -56,8 +59,8 @@
 % [2] http://biosig.sf.net/
 %
 
-%	$Revision: 1.8 $
-%	$Id: Contents.m,v 1.8 2003-09-06 19:46:35 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: Contents.m,v 1.9 2004-02-07 16:51:31 schloegl Exp $
 %	CopyLeft (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 

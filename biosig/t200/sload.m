@@ -4,7 +4,7 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % Currently are the following data formats supported: 
 %    EDF, CNT, EEG, BDF, GDF, BKR, MAT(*), 
 %    PhysioNet (MIT-ECG), Poly5/TMS32, SMA, RDF, CFWB,
-%    Alpha-Trace, DEMG
+%    Alpha-Trace, DEMG, SCP-ECG.
 %
 % [signal,header] = sload(FILENAME [,CHANNEL])
 %
@@ -12,13 +12,14 @@ function [signal,H] = sload(FILENAME,CHAN,TYPE)
 % channel       list of selected channels
 %               default=0: loads all channels
 %
-% see also: SOPEN, SREAD, SCLOSE, MAT2SEL
+% see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 %
 
-%	$Revision: 1.9 $
-%	$Id: sload.m,v 1.9 2004-02-06 13:35:05 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: sload.m,v 1.10 2004-02-07 16:51:31 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public

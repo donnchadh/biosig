@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.4 $
-%	$Id: scpopen.m,v 1.4 2004-02-06 18:40:02 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: scpopen.m,v 1.5 2004-02-07 16:51:31 schloegl Exp $
 %	(C) 2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -36,6 +36,7 @@ fid = fopen(HDR.FileName,PERMISSION,'ieee-le');
 if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
         HDR.FILE.CRC = fread(fid,1,'uint16');
         HDR.FILE.Length = fread(fid,1,'uint32');
+	HDR.SCP.data = [];
         
         DHT = [0,1,-1,2,-2,3,-3,4,-4,5,-5,6,-6,7,-7,8,-8,9,-9;0,1,5,3,11,7,23,15,47,31,95,63,191,127,383,255,767,511,1023]';
         prefix  = [1,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10,10];
@@ -177,6 +178,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         HDR.SCP2.NCT = fread(fid,1,'uint16');    
                         
                         if HDR.SCP2.NHT~=19999,
+				k3 = 0;
                                 for k1 = 1:HDR.SCP2.NHT,
                                         for k2 = 1:HDR.SCP2.NCT,
                                                 tmp = fread(fid,3,'uint8') ;
@@ -185,7 +187,8 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                 HDR.SCP2.TableModeSwitch = tmp(3);
                                                 tmp(4) = fread(fid,1,'int16');    
                                                 tmp(5) = fread(fid,1,'uint32');    
-                                                HDR.SCP2.HT{k1}(k2,:) = tmp; 
+                                		k3 = k3 + 1;
+				                HDR.SCP2.HT(k3,:) = [k1,k2,tmp']; 
                                         end;                                
                                 end;
                         elseif 0,
@@ -246,15 +249,6 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         
                         if ~isfield(HDR,'SCP2'),
                                 S2 = fread(fid,[SCP.SPR,HDR.NS],'int16');    
-                                
-                        elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) %& (HDR.SCP2.prefix==0) & (HDR.SCP2.TableModeSwitch==0),
-                                if (HDR.SCP2.codelength==16)
-                                        S2 = fread(fid,[HDR.N,HDR.NS],'int16');  
-                                else
-                                        fprintf(HDR.FILE.stderr,'Warning SCPOPEN: codelength %i is not supported yet.',HDR.SCP2.codelength);
-                                        fprintf(HDR.FILE.stderr,' Contact <a.schloegl@ieee.org>\n',HDR.SCP2.codelength);
-                                        return;
-                                end;                                        
                                 
                         elseif HDR.SCP2.NHT==19999,
                                 HuffTab = DHT;
@@ -335,13 +329,28 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                                 %accu,
                                         end;
                                         %HDR.SCP6.S(:,k) = x(1:end-1)';
-                                        x = x(1:end-1);
+                                        x = x(1:end-1)';
                                         if k==1,
-                                                S2=x';
-                                        else
-                                                S2(:,k) = x';
+                                                S2=x;
+                                        elseif size(x,1)==size(S2,1),
+                                                S2(:,k) = x;
+					else
+	                                        fprintf(HDR.FILE.stderr,'Error SCPOPEN: Huffman decoding failed (%i) \n',size(x,1));
+	    					HDR.SCP.data=S2;
+						return;
                                         end;
                                 end;
+                                
+                        elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) & (HDR.SCP2.prefix==0) & (HDR.SCP2.TableModeSwitch==0),
+                                if (HDR.SCP2.codelength==16)
+                                        S2 = fread(fid,[HDR.N,HDR.NS],'int16');  
+                                elseif (HDR.SCP2.codelength==8)
+                                        S2 = fread(fid,[HDR.N,HDR.NS],'int8');  
+                                else
+                                        fprintf(HDR.FILE.stderr,'Warning SCPOPEN: codelength %i is not supported yet.',HDR.SCP2.codelength);
+                                        fprintf(HDR.FILE.stderr,' Contact <a.schloegl@ieee.org>\n',HDR.SCP2.codelength);
+                                        return;
+                                end;                                        
                                 
                         elseif HDR.SCP2.NHT~=19999,
                                 fprintf(HDR.FILE.stderr,'Warning SOPEN SCP-ECG: user specified Huffman Table not supported\n');
@@ -374,8 +383,6 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 HDR.SCP.data = S2;
                                 
                                 if HDR.SCP6.FLAG.bimodal_compression,
-                                        fprintf(2,'Warning SCPOPEN: bimodal compression not well tested (%s)!\n',HDR.FileName);
-                                        
                                         F = HDR.SCP5.SampleRate/HDR.SCP6.SampleRate;
                                         HDR.SampleRate = HDR.SCP5.SampleRate;
                                         HDR.FLAG.F = F;
@@ -414,11 +421,9 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                         HDR.SCP.S2 = S2;
                                         HDR.SCP.S1 = S1;
                                         S2 = S1;
-                                        
                                 end;
                                 
                                 if HDR.FLAG.ReferenceBeat,
-                                        fprintf(2,'Warning SCPOPEN: reference beat substraction not well tested (%s)!\n',HDR.FileName);
                                         for k = find(~HDR.SCP4.type(:,1)'),
                                                 t1 = (HDR.SCP4.type(k,2):HDR.SCP4.type(k,4));
                                                 t0 = t1 - HDR.SCP4.type(k,3) + HDR.SCP4.fc0;
@@ -481,16 +486,15 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         HDR.SCP7.QRS_axis = fread(fid,1,'uint16');    
                         HDR.SCP7.T_axis = fread(fid,1,'uint16');    
                         
-                        
                 elseif section.ID==8, 
                         tmp = fread(fid,9,'uint8');    
                         HDR.SCP8.Report = tmp(1);    
                         HDR.SCP8.Time = [[1,256]*tmp(2:3),tmp(4:8)'];    
                         HDR.SCP8.N = tmp(9);    
                         for k = 1:HDR.SCP8.N,
-                                ix = fread(fid,1,'uint8');
+                                ix  = fread(fid,1,'uint8');
                                 len = fread(fid,1,'uint16');
-                                tmp = fread(fid,[1,len],'char');    
+                                tmp = fread(fid,[1,len],'uchar');    
                                 HDR.SCP8.Statement{k} = char(tmp);    
                         end
                         
