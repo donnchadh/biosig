@@ -36,8 +36,8 @@ function [EVENT,cc] = adb2event(fn,Fs)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: adb2event.m,v 1.1 2004-06-16 21:20:41 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: adb2event.m,v 1.2 2004-06-17 08:07:27 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -73,7 +73,7 @@ TYP = [];
 DUR = [];
 CHN = [];
 cc  = zeros(1,10);
-for k = 0:9,
+for k = 1:9,
         for c = 1:7;%size(ERG,2),
                 tmp = [0;~~(bitand(ERG(:,c),2^k));0];
  
@@ -97,7 +97,7 @@ end;
 
 [tmp,ix] = sort(POS);
 EVENT.POS = (POS(ix)-1)*EVENT.Fs+1;
-EVENT.TYP = TYP(ix);
+EVENT.TYP = TYP(ix) + hex2dec('0100');
 EVENT.CHN = CHN(ix);
 EVENT.DUR = DUR(ix)*EVENT.Fs;
 EVENT.N   = N;
