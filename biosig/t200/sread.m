@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.8 $
-%	$Id: sread.m,v 1.8 2003-12-19 16:32:18 schloegl Exp $
+%	$Revision: 1.9 $
+%	$Id: sread.m,v 1.9 2004-01-09 18:12:14 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -158,8 +158,8 @@ elseif strcmp(HDR.TYPE,'MIT'),
 		[A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb, DataLen], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
                 A = A'; DataLen = count/HDR.AS.bpb;
                 for k = 1:ceil(HDR.NS/2),
-			S(:,2*k-1) = bitand(A(:,3*k+[-2:-1])*(2.^[0;8]),2^12-1);
-			S(:,2*k)   = bitshift(bitand(A(:,3*k-1),15*16),4)+A(:,3*k);
+			S(:,2*k-1) = mod(A(:,3*k+[-2:-1])*(2.^[0;8]),2^12);
+			S(:,2*k)   = mod(floor(A(:,3*k-1)/16),16)*256+A(:,3*k);
 			S = S(:,1:HDR.NS);
 			S = S - 2^12*(S>=2^11);	% 2-th complement
                 end
@@ -169,9 +169,9 @@ elseif strcmp(HDR.TYPE,'MIT'),
                 A = A'; DataLen = count/HDR.AS.bpb*2;
 		for k = 1:ceil(HDR.NS/3),
 			k1=3*k-2; k2=3*k-1; k3=3*k;
-			S(:,3*k-2) = bitand(A(:,k*2-1),2^12-2)/2;	
-			S(:,3*k-1) = bitand(A(:,k*2),2^12-2)/2;	
-			S(:,3*k  ) = bitshift(A(:,k*2-1),-11) + bitshift(bitshift(A(:,k*2),-11) ,5); 
+			S(:,3*k-2) = floor(mod(A(:,k*2-1),2^12)/2);	
+			S(:,3*k-1) = floor(mod(A(:,k*2),2^12)/2);	
+			S(:,3*k  ) = floor(A(:,k*2-1)*(2^-11)) + floor(A(:,k*2)*(2^-11))*2^5; 
 			S = S(:,1:HDR.NS);
 			S = S - 2^10*(S>=2^9);	% 2-th complement
 		end;
@@ -180,9 +180,9 @@ elseif strcmp(HDR.TYPE,'MIT'),
 		[A,count] = fread(HDR.FILE.FID, [HDR.AS.bpb/4, DataLen], 'uint32');  % matrix with 3 rows, each 8 bits long, = 2*12bit
                 A = A'; DataLen = count/HDR.AS.bpb*4;
 		for k = 1:ceil(HDR.NS/3),
-			S(:,3*k-2) = bitand(A(:,k),2^11-1);	
-			S(:,3*k-1) = bitand(bitshift(A(:,k),-11),2^11-1);	
-			S(:,3*k)   = bitand(bitshift(A(:,k),-22),2^11-1);	
+			S(:,3*k-2) = mod(A(:,k),2^11);	
+			S(:,3*k-1) = mod(floor(A(:,k)*2^(-11)),2^11);	
+			S(:,3*k)   = mod(floor(A(:,k)*2^(-22)),2^11);	
 			S = S(:,1:HDR.NS);
 			S = S - 2^10*(S>=2^9);	% 2-th complement
 		end;
