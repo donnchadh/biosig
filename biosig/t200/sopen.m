@@ -41,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.80 $
-%	$Id: sopen.m,v 1.80 2004-12-04 19:03:49 schloegl Exp $
+%	$Revision: 1.81 $
+%	$Id: sopen.m,v 1.81 2004-12-06 08:37:48 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -156,7 +156,26 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         else
                 HDR = sdfopen(HDR,PERMISSION,CHAN,MODE);
         end;
+
+	%%% Event file stored in GDF-format
+	if ~any([HDR.NS,HDR.NRec,~length(HDR.EVENT.POS)]);
+		HDR.TYPE = 'EVENT';
+	end;	
         
+
+elseif strcmp(HDR.TYPE,'EVENT') & any(lower(PERMISSION)=='w'),
+	%%% Save event file in GDF-format
+	HDR.TYPE = 'GDF';
+	HDR.NS   = 0; 
+	HDR.NRec = 0; 
+	if any(isnan(HDR.T0))
+		HDR.T0 = clock;
+	end;
+        HDR = sdfopen(HDR,'w');
+	HDR = sclose(HDR);
+	HDR.TYPE = 'EVENT';
+
+
 elseif strcmp(HDR.TYPE,'BKR'),
         HDR = bkropen(HDR,PERMISSION,CHAN);
         

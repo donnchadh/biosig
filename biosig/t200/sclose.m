@@ -20,8 +20,8 @@ function [HDR] = sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.13 $
-%	$Id: sclose.m,v 1.13 2004-11-26 16:50:29 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: sclose.m,v 1.14 2004-12-06 08:37:48 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -102,7 +102,10 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                                                         EVENT.Version = 3;
                                                 end;
                                         end;
-                                        fwrite(HDR.FILE.FID,[EVENT.Version,0,0,0],'char');  % Type of eventtable
+					if ~isfield(HDR.EVENT,'Fs'), HDR.EVENT.SampleRate = HDR.SampleRate; end;
+					tmp = HDR.EVENT.SampleRate;
+					tmp = [EVENT.Version,mod(tmp,256),floor(mod(tmp,65536))/256,floor(tmp/65536)];
+                                        fwrite(HDR.FILE.FID,tmp,'uint8');  % Type of eventtable
                                         fwrite(HDR.FILE.FID,length(HDR.EVENT.POS),'uint32');
                                         if EVENT.Version==1;
                                                 c1 = fwrite(HDR.FILE.FID,HDR.EVENT.POS,'uint32');

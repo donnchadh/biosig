@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.32 $
-%	$Id: sdfopen.m,v 1.32 2004-11-26 16:50:29 schloegl Exp $
+%	$Revision: 1.33 $
+%	$Id: sdfopen.m,v 1.33 2004-12-06 08:37:48 schloegl Exp $
 %	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -154,6 +154,14 @@ GDFTYP_BYTE(1:18)=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8]';
 %GDFTYPES=[0 1 2 3 4 5 6 7 16 17];
 
 EDF.ErrNo = 0;
+
+if strcmp(EDF.TYPE,'EDF')
+        EDF.VERSION='0       ';
+elseif strcmp(EDF.TYPE,'GDF') 
+        EDF.VERSION='GDF     ';
+elseif strcmp(EDF.TYPE,'BDF'),
+        EDF.VERSION=[char(255),'BIOSEMI'];
+end;
 
 %%%%%%% ============= READ ===========%%%%%%%%%%%%
 if any(arg2=='r'), 
@@ -493,8 +501,8 @@ if any(EDF.DigMax ==EDF.DigMin ), EDF.ErrNo=[1030,EDF.ErrNo]; end;
 EDF.Cal = (EDF.PhysMax-EDF.PhysMin)./(EDF.DigMax-EDF.DigMin);
 EDF.Off = EDF.PhysMin - EDF.Cal .* EDF.DigMin;
 EDF.EDF.SampleRate = EDF.SPR / EDF.Dur;
-EDF.AS.MAXSPR=EDF.SPR(1);
-for k=2:EDF.NS,
+EDF.AS.MAXSPR=1;
+for k=1:EDF.NS,
         EDF.AS.MAXSPR = lcm(EDF.AS.MAXSPR,EDF.SPR(k));
 end;
 EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
@@ -502,7 +510,7 @@ EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
 EDF.AS.spb = sum(EDF.SPR);	% Samples per Block
 EDF.AS.bi = [0;cumsum(EDF.SPR)]; 
 EDF.AS.BPR  = ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'); 
-EDF.AS.SAMECHANTYP = all(EDF.AS.BPR == (EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)')) & all(EDF.GDFTYP(:)==EDF.GDFTYP(1));
+EDF.AS.SAMECHANTYP = all(EDF.AS.BPR == (EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)')) & ~any(diff(EDF.GDFTYP)); 
 EDF.AS.GDFbi = [0;cumsum(ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'))]; 
 EDF.AS.bpb = sum(ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'));	% Bytes per Block
 EDF.AS.startrec = 0;
@@ -510,8 +518,6 @@ EDF.AS.numrec = 0;
 EDF.AS.EVENTTABLEPOS = -1;
 
 EDF.Calib = [EDF.Off'; diag(EDF.Cal)];
-status = fseek(EDF.FILE.FID, 0, 'eof');
-EDF.FILE.size = ftell(EDF.FILE.FID);
 EDF.AS.endpos = EDF.FILE.size;
 
 %[status, EDF.AS.endpos, EDF.HeadLen, EDF.AS.bpb EDF.NRec, EDF.HeadLen+EDF.AS.bpb*EDF.NRec]
@@ -533,7 +539,10 @@ if 0,
 elseif strcmp(EDF.TYPE,'GDF') & (EDF.AS.EVENTTABLEPOS > 0),  
         status = fseek(EDF.FILE.FID, EDF.AS.EVENTTABLEPOS, 'bof');
         [EVENT.Version,c] = fread(EDF.FILE.FID,1,'char');
-        tmp = fread(EDF.FILE.FID,3,'char');
+        EDF.EVENT.SampleRate = [1,256,65536]*fread(EDF.FILE.FID,3,'uint8');
+	if ~EDF.EVENT.SampleRate, % ... is not defined in GDF 1.24 or earlier
+		EDF.EVENT.SampleRate = EDF.SampleRate; 
+	end;
         EVENT.N = fread(EDF.FILE.FID,1,'uint32');
         if EVENT.Version==1,
                 [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EVENT.N,1],'uint32');
@@ -1308,7 +1317,7 @@ if ~strcmp(EDF.VERSION(1:3),'GDF');
                 fprintf(EDF.FILE.stderr,'\nWarning SDFOPEN: One block exceeds 61440 bytes.\n')
         end;
 else
-        EDF.VERSION = 'GDF 1.24';       % April 15th, 2004, support of eventtable position included
+        EDF.VERSION = 'GDF 1.25';       % April 15th, 2004, support of eventtable position included
 end;
 
 if ~isfield(EDF,'PID')
@@ -1333,7 +1342,7 @@ if ~isfield(EDF,'NRec')
         EDF.NRec=-1;
 end;
 if ~isfield(EDF,'Dur')
-        fprintf('Error SDFOPEN-W: EDF.Dur not defined\n');
+        fprintf('Warning SDFOPEN-W: EDF.Dur not defined\n');
         EDF.Dur=NaN;
 end;
 if ~isfield(EDF,'NS')
@@ -1353,7 +1362,8 @@ elseif ~isfield(EDF.EDF,'SampleRate')
         EDF.EDF.SampleRate = repmat(EDF.SampleRate,EDF.NS,1);
 end;
 
-if ~isnan(EDF.Dur) & any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
+if ~EDF.NS,
+elseif ~isnan(EDF.Dur) & any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
 	EDF.SPR = EDF.EDF.SampleRate * EDF.Dur;
 elseif ~isnan(EDF.Dur) & ~any(isnan(EDF.SPR)) & any(isnan(EDF.EDF.SampleRate))
 	EDF.SampleRate = EDF.Dur * EDF.SPR;
@@ -1380,7 +1390,7 @@ if ~isfield(EDF,'Label')
         fprintf(EDF.FILE.stderr,'Warning SDFOPEN-W: EDF.Label not defined\n');
 else
         tmp=min(16,size(EDF.Label,2));
-        EDF.Label=[EDF.Label(1:EDF.NS,1:tmp), setstr(32+zeros(EDF.NS,16-tmp))];
+        EDF.Label = [EDF.Label(1:EDF.NS,1:tmp), char(32+zeros(EDF.NS,16-tmp))];
 end;
 if ~isfield(EDF,'Transducer')
         EDF.Transducer=setstr(32+zeros(EDF.NS,80));
@@ -1453,15 +1463,15 @@ else
 end;
 if ~isfield(EDF,'SPR')
         fprintf('Warning SDFOPEN-W: EDF.SPR not defined\n');
-        EDF.SPR=repmat(nan,EDF.NS,1);
+        EDF.SPR = repmat(nan,EDF.NS,1);
         EDF.ERROR = sprintf('Error SDFOPEN-W: EDF.SPR not defined\n');
         EDF.ErrNo = EDF.ErrNo + 128;
-        fclose(EDF.FILE.FID); return;
+        %fclose(EDF.FILE.FID); return;
 else
         EDF.SPR=reshape(EDF.SPR(1:EDF.NS),EDF.NS,1);
 end;
-EDF.AS.MAXSPR = EDF.SPR(1);
-for k=2:EDF.NS,
+EDF.AS.MAXSPR = 1;
+for k=1:EDF.NS,
         EDF.AS.MAXSPR = lcm(EDF.AS.MAXSPR,EDF.SPR(k));
 end;
 
@@ -1472,12 +1482,14 @@ elseif strcmp(EDF.VERSION,'0       '),
         EDF.GDFTYP=3+zeros(1,EDF.NS);
 
 elseif strcmp(EDF.VERSION(1:3),'GDF'),
-	if ~isfield(EDF,'GDFTYP'),
-	        EDF.ERROR = sprintf('Error SDFOPEN-W: EDF.GDFTYP not defined\n');
+	if EDF.NS == 0;
+		EDF.GDFTYP = [];
+	elseif ~isfield(EDF,'GDFTYP'),
+	        EDF.ERROR = sprintf('Warning SDFOPEN-W: EDF.GDFTYP not defined\n');
                 EDF.ErrNo = EDF.ErrNo + 128;
-                fclose(EDF.FILE.FID); return;
+                % fclose(EDF.FILE.FID); return;
         else
-                EDF.GDFTYP=EDF.GDFTYP(1:EDF.NS);
+                EDF.GDFTYP= EDF.GDFTYP(1:EDF.NS);
         end;
 else
 	fprintf(EDF.FILE.stderr,'Error SDFOPEN: invalid VERSION %s\n ',EDF.VERSION);
@@ -1614,15 +1626,15 @@ if tmp ~= (256 * (EDF.NS+1))
 end;        
 
 EDF.AS.spb = sum(EDF.SPR);	% Samples per Block
-EDF.AS.bi = [0;cumsum(EDF.SPR)]; 
-EDF.AS.BPR  = ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'); 
-EDF.AS.SAMECHANTYP = all(EDF.AS.BPR == (EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)')) & all(EDF.GDFTYP(:)~=EDF.GDFTYP(1));
+EDF.AS.bi  = [0;cumsum(EDF.SPR)];
+EDF.AS.BPR = ceil(EDF.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)');
+EDF.AS.SAMECHANTYP = all(EDF.AS.BPR == (EDF.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)')) & ~any(diff(EDF.GDFTYP));
 %EDF.AS.GDFbi= [0;cumsum(EDF.AS.BPR)];
-EDF.AS.GDFbi = [0;cumsum(ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'))]; 
-EDF.AS.bpb = sum(ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'));	% Bytes per Block
+EDF.AS.GDFbi = [0;cumsum(ceil(EDF.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)'))];
+EDF.AS.bpb   = sum(ceil(EDF.SPR(:).*GDFTYP_BYTE(EDF.GDFTYP(:)+1)'));	% Bytes per Block
 EDF.AS.startrec = 0;
 EDF.AS.numrec = 0;
-EDF.FILE.POS = 0;
+EDF.FILE.POS  = 0;
 
 else % if arg2 is not 'r' or 'w'
         fprintf(EDF.FILE.stderr,'Warning SDFOPEN: Incorrect 2nd argument. \n');
