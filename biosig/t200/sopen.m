@@ -40,8 +40,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.45 $
-%	$Id: sopen.m,v 1.45 2004-04-13 16:56:57 oostenveld Exp $
+%	$Revision: 1.46 $
+%	$Id: sopen.m,v 1.46 2004-04-15 18:55:43 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -438,7 +438,7 @@ if any(PERMISSION=='r'),
                           % header with the same name and extension *.vhdr.
                           if exist(fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']), 'file')
                             HDR.TYPE          = 'BrainVision';
-                            HDR.FILE.FileName = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);	% point to header file
+                            HDR.FileName = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);	% point to header file
                           end
 
                         elseif strcmpi(HDR.FILE.Ext,'seg')
@@ -446,7 +446,7 @@ if any(PERMISSION=='r'),
                           % header with the same name and extension *.vhdr.
                           if exist(fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']), 'file')
                             HDR.TYPE          = 'BrainVision';
-                            HDR.FILE.FileName = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);	% point to header file
+                            HDR.FileName = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);	% point to header file
                           end
 
                         elseif strcmpi(HDR.FILE.Ext,'vabs')
@@ -727,10 +727,12 @@ elseif strcmp(HDR.TYPE,'alpha'),
         HDR.FILE.FID = -1;      % make sure SLOAD does not call SREAD;
         
         % The header files are text files (not binary).
-        if exist('OCTAVE_VERSION')>2,
-                PERMISSION = 'r';	% Octave default is text, Octave does not support Mode='rt', 
-        else
+        try
                 PERMISSION = 'rt';	% MatLAB default is binary, force Mode='rt';
+                fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),PERMISSION);	
+        catch
+                PERMISSION = 'r';	% Octave 2.1.50 default is text, but does not support Mode='rt', 
+                fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),PERMISSION);	
         end;
         
         fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),PERMISSION);	
@@ -2081,11 +2083,11 @@ elseif strcmp(HDR.TYPE,'LDR'),
         
 elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         PERMISSION = PERMISSION(PERMISSION~='b');
-        if ~exist('OCTAVE_VERSION'),
-                PERMISSION=[PERMISSION,'t'];	% force text mode [Matlab has default binary-mode]
-        end;
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
-        
+        try     % MatLAB default is binary, force Mode='rt';
+                HDR.FILE.FID = fopen(HDR.FileName,[PERMISSION,'t'],'ieee-le');
+        catch 	% Octave 2.1.50 default is text, but does not support Mode='rt', 
+                HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        end
         numbegin=0;
         HDR.H1 = '';
         delim = char([abs('"='),10,13]);
@@ -2178,7 +2180,7 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
 
         fclose(HDR.FILE.FID);
         PERMISSION = PERMISSION(PERMISSION~='t');       % open in binary mode 
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[PERMISSION,'b'],'ieee-le');
         
         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         %[HDR.AS.endpos,HDR.HeadLen,HDR.NS,HDR.SPR,HDR.NS*HDR.SPR*4,HDR.AS.endpos-HDR.HeadLen - HDR.NS*HDR.SPR*4]
@@ -3518,7 +3520,7 @@ elseif strncmp(HDR.TYPE,'FS3',3),
                 HDR.Info = fgets(HDR.FILE.FID);
                 HDR.SURF.N = fread(HDR.FILE.FID,1,'int32');
                 HDR.FACE.N = fread(HDR.FILE.FID,1,'int32');
-                HDR.VERTEX.COORD = fread(HDR.FILE.FID,3*HDR.SURF.N,'float32');
+                HDR.VERTEX.COORD =   fread(HDR.FILE.FID,3*HDR.SURF.N,'float32');
                 
                 HDR.FACES = fread(HDR.FILE.FID,[3,HDR.FACE.N],'int32')';
                 fclose(HDR.FILE.FID);
@@ -3623,6 +3625,16 @@ end;
 if any(PERMISSION=='r');
         HDR.Calib = full(HDR.Calib);	% Octace can not index sparse matrices
         if exist('ReRefMx')==1,
+                % fix size if ReRefMx
+                [i,j,v] = find(ReRefMx); 	                 
+                if any(i) > HDR.NS, 	 
+                        fprintf(HDR.FILE.stderr,'ERROR: size of ReRefMx [%i,%i] exceeds Number of Channels (%i)\n',size(ReRefMx),HDR.NS); 	 
+                        fclose(HDR.FILE.FID); 	 
+                        HDR.FILE.FID = -1; 	 
+                        return; 	 
+                end; 	 
+                ReRefMx = sparse(i,j,v,HDR.NS,size(ReRefMx,2)); 
+                
                 HDR.Calib = HDR.Calib*ReRefMx;
                 HDR.InChanSelect = find(any(HDR.Calib(2:end,:),2));
         else
