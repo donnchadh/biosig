@@ -1,8 +1,8 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004 Alois Schloegl <a.schloegl@ieee.org>
-# $Revision: 1.4 $
-# $Id: eventcodes.txt,v 1.4 2004-08-03 12:18:30 schloegl Exp $
+# $Revision: 1.5 $
+# $Id: eventcodes.txt,v 1.5 2004-10-05 19:51:34 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -21,8 +21,8 @@
 0x0111	eeg:Sleep spindles
 0x0112	eeg:K-complexes
 0x0113	eeg:Saw-tooth waves
-### 0x03__	Trigger, cues, classlabels, 
-0x0300	Trigger, start of Trial  (unspecific)
+### 0x03__	BCI: Trigger, cues, classlabels, 
+0x0300	Start of Trial
 0x0301	Left - cue onset (BCI experiment)
 0x0302	Right - cue onset (BCI experiment)
 0x0303	Foot - cue onset (BCI experiment)
@@ -31,8 +31,10 @@
 0x030C	Up - cue onset (BCI experiment)
 0x030D	Feedback (continuous) - onset (BCI experiment)
 0x030E	Feedback (discrete) - onset (BCI experiment)
+0x030F  cue unknown/undefined (used for BCI competition) 
 0x0311	Beep (accustic stimulus, BCI experiment)
 0x0312	Cross on screen (BCI experiment)
+#0x0320 - 0x037f reserved for printable ASCII characters 32-127
 0x03ff	Rejection of whole trial
 ### 0x040_	Sleep-related Respiratory Events
 0x0401	Obstructive Apnea/Hypopnea Event (OAHE) 
@@ -74,6 +76,7 @@
 0x058c	300 Watt
 0x058d	325 Watt
 0x058e	350 Watt
+0x8580  end 
 ### 0x____	OTHER	
 0x0000	No event
 

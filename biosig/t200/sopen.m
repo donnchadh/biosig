@@ -1,7 +1,6 @@
 function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % SOPEN opens signal files for reading and writing and returns 
-%       the header information. 
-%       Many different data formats are supported.
+%       the header information. Many different data formats are supported.
 %
 % HDR = sopen(Filename, PERMISSION, [, CHAN [, MODE]]);
 % [S,HDR] = sread(HDR, NoR, StartPos);
@@ -19,6 +18,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 %   HDR = sopen(Filename, 'r', [[1;-1],[.5,5]]);
 %   [S,HDR] = sread(HDR, Duration, Start);
 %   HDR = sclose(HDR);
+%
+% Several files can be loaded at once with SLOAD
 %
 % HDR contains the Headerinformation and internal data
 % S 	returns the signal data 
@@ -40,8 +41,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.68 $
-%	$Id: sopen.m,v 1.68 2004-09-25 20:28:10 schloegl Exp $
+%	$Revision: 1.69 $
+%	$Id: sopen.m,v 1.69 2004-10-05 19:51:34 schloegl Exp $
 %	(C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -142,7 +143,6 @@ if ~isfield(HDR,'FLAG');
         HDR.FLAG.TRIGGERED = 0; % the data is untriggered by default
 end;
 if ~isfield(HDR,'EVENT');
-        HDR.EVENT.N   = 0; 
         HDR.EVENT.TYP = []; 
         HDR.EVENT.POS = []; 
 end;
@@ -1762,7 +1762,6 @@ elseif strcmp(HDR.TYPE,'EGI'),
         
         if CHAN<1, CHAN=1:HDR.NS; end;
         
-        HDR.EVENT.N    = 0;
         HDR.categories = 0;
         HDR.EGI.catname= {};
         
@@ -2179,7 +2178,7 @@ elseif strcmp(HDR.TYPE,'RDF'),
                         tag = fread(HDR.FILE.FID,1,'uint32');
                 else
                         [tmp, c] = fread(HDR.FILE.FID,3,'uint16');
-			if c>2,
+			if (c>2),
 	                        nchans = tmp(2); %fread(HDR.FILE.FID,1,'uint16');
     		                block_size = 2^tmp(3); %fread(HDR.FILE.FID,1,'uint16');
                         
@@ -2857,12 +2856,13 @@ elseif strcmp(HDR.TYPE,'MAT4') & any(PERMISSION=='r'),
                         return;
                 end;	
                 % end of ADI-Mode
+	        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,ones(1,HDR.NS));
         else        
                 fclose(HDR.FILE.FID);
                 HDR.FILE.FID = -1;
-                HDR.NS = 0; 
+		return; 
         end;
-        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+	
         
         
 elseif strncmp(HDR.TYPE,'MAT',3),
@@ -2873,6 +2873,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         if isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.5x data format
                 HDR.TYPE = 'GTEC'; 
                 HDR.FILE.OPEN = 1; 
+                HDR.FILE.FID = 1; 
                 HDR.FILE.POS = 0; 
                 if isa(tmp.P_C_S,'data'), %isfield(tmp.P_C_S,'version'); % without BS.analyze	
                         if any(tmp.P_C_S.Version==[1.02, 1.5, 1.52]),
@@ -3586,7 +3587,6 @@ elseif strcmp(HDR.TYPE,'CTF'),
                                                 HDR.EVENT.TYP(N,1) = 1;
                                                 x = fgetl(fid);
                                         end
-                                        HDR.EVENT.N = N;
                                 else
                                         
                                 end
@@ -3694,7 +3694,6 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                 while ~feof(fid),
                         s = fgetl(fid);
                         if strncmp(s,'Mk',2),
-                                %HDR.EVENT.N = HDR.EVENT.N + 1;
                                 [N,s] = strtok(s(3:end),'=');
                                 ix = find(s==',');
                                 ix(length(ix)+1)=length(s)+1;
@@ -3708,7 +3707,6 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                         end;
                 end
                 fclose(fid);
-                HDR.EVENT.N = length(HDR.EVENT.POS);
         end
 
         %open data file 
@@ -3795,8 +3793,6 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
                                 HDR.EVENT.TYP(N,1) = str2double(HDR.EVENT.TeegType{N,1});		% numeric
                         end
                 end
-                HDR.EVENT.N = N; 
-                
                 fclose(fid);
         end;
                 
@@ -3868,7 +3864,7 @@ elseif strncmp(HDR.TYPE,'FIF',3),
                 
         else
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): NeuroMag FIFF access functions not available. \n');
-                fprintf(HDR.FILE.stderr,'\tOnline available at: http://boojum.hut.fi/~kuutela/meg-pd/ \n');
+                fprintf(HDR.FILE.stderr,'\tOnline available at: http://www.kolumbus.fi/kuutela/programs/meg-pd/ \n');
                 return;
         end
         
@@ -3939,8 +3935,8 @@ elseif strncmp(HDR.TYPE,'TRI',3),
         end
         
         
-%elseif strcmp(HDR.TYPE,'DICOM'),
-%	HDR = opendicom(HDR,PERMISSION,CHAN);
+elseif strcmp(HDR.TYPE,'DICOM'),
+	HDR = opendicom(HDR,PERMISSION,CHAN);
         
         
 elseif strcmp(HDR.TYPE,'VTK'),
@@ -4091,9 +4087,11 @@ end;
         
 % Classlabels according to 
 % http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig/t200/eventcodes.txt
-if ~isfield(HDR,'Classlabel') & (HDR.EVENT.N>0)
-        ix = (HDR.EVENT.TYP>hex2dec('0300')) & (HDR.EVENT.TYP<hex2dec('030d')); 
+if ~isfield(HDR,'Classlabel') & (length(HDR.EVENT.TYP)>0)
+        ix = (HDR.EVENT.TYP>hex2dec('0300')) & (HDR.EVENT.TYP<hex2dec('030d'));
+        ix = ix | (HDR.EVENT.TYP==hex2dec('030f')); % unknown/undefined cue
         HDR.Classlabel = mod(HDR.EVENT.TYP(ix),256);
+        HDR.Classlabel(HDR.Classlabel==15) = NaN; % unknown/undefined cue
 end;
 
 
