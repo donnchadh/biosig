@@ -18,8 +18,8 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.6 $
-%	$Id: swrite.m,v 1.6 2004-03-11 12:41:11 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: swrite.m,v 1.7 2004-04-16 14:10:43 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -158,7 +158,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),
 elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
         count = 0;
         if (HDR.NS ~= size(data,2)) & (HDR.NS==size(data,1)),
-                fprintf(2,'SWRITE: number of channels fits number of rows. Transposed data\n');
+                fprintf(2,'Warning SWRITE: number of channels fits number of rows. Transposed data\n');
                 data = data';
         end
         
@@ -181,5 +181,8 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
                 HDR.NS=size(data,2);
         end;
 
+else
+        fprintf(2,'Error SWRITE: file type %s not supported \n',HDR.TYPE);
+        
 
 end;                        

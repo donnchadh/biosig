@@ -17,8 +17,8 @@ function [signal,H] = sload(FILENAME,CHAN)
 %
 % see also: SOPEN, SREAD, SCLOSE, MAT2SEL, SAVE2TXT, SAVE2BKR
 
-%	$Revision: 1.20 $
-%	$Id: sload.m,v 1.20 2004-04-08 16:46:54 schloegl Exp $
+%	$Revision: 1.21 $
+%	$Id: sload.m,v 1.21 2004-04-16 14:10:43 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -489,44 +489,9 @@ elseif strncmp(H.TYPE,'MAT',3),
         end;        
 
         
-elseif strcmp(H.TYPE,'BrainVision'),
-        %%%% #### FIX ME ####
-        signal = read_brainvision_seg(H,CHAN);
-        % H.FileName  contains name of the file
-        
-        
 elseif strcmp(H.TYPE,'CTF'),
         %%%% #### FIX ME ####
         signal = read_ctf_meg4(H, CHAN);
-
-        
-elseif strcmp(H.TYPE,'EEProbe'),
-        %%%% #### FIX ME ####
-        signal = read_brainvision_eeg(H,CHAN);
-
-        
-elseif strcmp(H.TYPE,'FIF'),
-        %%%% #### FIX ME ####
-        if ~(exist('rawdata')==3 & exist('channames')==3)
-                error('cannot find Neuromag import routines on your Matlab path (see http://boojum.hut.fi/~kuutela/meg-pd)');
-        end
-        rawdata('any',headerfile);
-        H.SampleRate = rawdata('sf');
-        H.NRec = 0;
-        rawdata('goto', 0);
-        [buf, status] = rawdata('next');
-        [H.NS,H.SPR] = size(buf);
-        while strcmp(status, 'ok')
-                H.NRec = H.NRec + 1;
-                [buf, status] = rawdata('next');
-        end
-        % I don't know how to get this out of the file
-        H.nSamplesPre  = 0;
-        % this would give some information that I don't know how to use
-        % [range, cal] = rawdata('range');
-        % this would give the current latency
-        % rawdata('t');
-        rawdata('close');
        
         
 elseif strcmp(H.TYPE,'unknown')
@@ -579,7 +544,7 @@ end;
 if strcmp(H.TYPE,'BKR');
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.tsd']);
         if exist(f)==2,
-                fid = fopen(f,'r');
+                fid = fopen(f,'rb');
                 tsd = fread(fid,inf,'float');
                 fclose(fid);
                 if size(signal,1)==size(tsd,1),

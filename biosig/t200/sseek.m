@@ -8,8 +8,8 @@ function [HDR]=sseek(HDR,offset,origin)
 %
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
-%	$Revision: 1.3 $
-%	$Id: sseek.m,v 1.3 2003-12-17 19:38:12 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: sseek.m,v 1.4 2004-04-16 14:10:43 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -37,26 +37,32 @@ elseif strcmp(origin,'eof')
 	origin = 1;        
 end;
 
-OFFSET = HDR.AS.bpb*offset;
-
 if origin == -1, 
         HDR.FILE.POS = offset;
-        HDR.FILE.status = fseek(HDR.FILE.FID,HDR.HeadLen+OFFSET,-1);
+        if HDR.FILE.FID>2,
+                HDR.FILE.status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*offset,-1);
+        end
+        
 elseif origin == 0, 
         HDR.FILE.POS = HDR.FILE.POS + offset;
-        HDR.FILE.status = fseek(HDR.FILE.FID,OFFSET,0);
+        if HDR.FILE.FID>2,
+                HDR.FILE.status = fseek(HDR.FILE.FID,HDR.AS.bpb*offset,0);
+        end
+        
 elseif origin == 1, 
 	if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
 		HDR.FILE.POS = HDR.NRec+offset;
-		HDR.FILE.status = fseek(HDR.FILE.FID,OFFSET,1);
-	elseif strmatch(HDR.TYPE,{'BKR','ISHNE','RG64','MIT','LABVIEW','SMA'}),
+		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.AS.bpb*offset,1);
+	elseif strmatch(HDR.TYPE,{'BKR','ISHNE','RG64','MIT','LABVIEW','SMA','BVbinmul'}),
 		HDR.FILE.POS = HDR.AS.endpos+offset;
-		HDR.FILE.status = fseek(HDR.FILE.FID,OFFSET,1);
+		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.AS.bpb*offset,1);
 	elseif strmatch(HDR.TYPE,{'CNT','EEG','AVG','EGI','SND','WAV','AIF','CFWB','DEMG'}),
 		HDR.FILE.POS = HDR.AS.endpos+offset;
-		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.endpos*HDR.AS.bpb+OFFSET,-1);
+		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.HeadLen+(HDR.AS.endpos+offset)*HDR.AS.bpb,-1);
         elseif strmatch(HDR.TYPE,{'RDF','SIGIF'}),
 		HDR.FILE.POS = length(HDR.Block.Pos)+offset;
+        elseif strmatch(HDR.TYPE,{'BVascii','BVbinvec','EEProbe-CNT','EEProbe-AVR','FIF'}),
+		HDR.FILE.POS = HDR.AS.endpos+offset;
 	else
 		fprintf(HDR.FILE.stderr,'Warning SSEEK: format %s not supported.\n',HDR.TYPE);	
 	end;

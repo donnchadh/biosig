@@ -21,8 +21,8 @@ function [status]=seof(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.3 $
-%	$Id: seof.m,v 1.3 2003-12-17 19:38:12 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: seof.m,v 1.4 2004-04-16 14:10:43 schloegl Exp $
 %	Copyright (c) 1997-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -35,10 +35,10 @@ if strmatch(HDR.TYPE,{'EDF','BDF','GDF','RDF','EEG','AVG','SIGIF'}),
 	%if EDF.FILE.POS~=EDF.AS.startrec+EDF.AS.numrec;
         status = (HDR.FILE.POS >= HDR.NRec);
 	
-elseif strmatch(HDR.TYPE,{'RG64','LABVIEW'}),
+elseif strmatch(HDR.TYPE,{'RG64','LABVIEW','BVbinmul','BVbinvec','BVascii'}),
 	status = (HDR.FILE.POS >= (HDR.AS.endpos-HDR.HeadLen));
 
-elseif strmatch(HDR.TYPE,{'BKR','CNT','MIT','SMA','CFWB','DEMG'}),
+elseif strmatch(HDR.TYPE,{'BKR','CNT','MIT','SMA','CFWB','DEMG','EEProbe-CNT','EEProbe-AVR'}),
 	status = (HDR.FILE.POS >= HDR.SPR*HDR.NRec);
 
 elseif strmatch(HDR.TYPE,{'EGI'}),
@@ -47,6 +47,11 @@ elseif strmatch(HDR.TYPE,{'EGI'}),
         else        
                 status = (HDR.FILE.POS >= HDR.SPR);
         end;
+
+elseif strmatch(HDR.TYPE,{'FIF'}),
+        [buf, status] = rawdata('next');
+        status = strcmp(status,'eof');
+        
 else
 	status=feof(HDR.FILE.FID);
 end;
