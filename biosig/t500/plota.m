@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.31 $
-%	$Id: plota.m,v 1.31 2004-10-22 17:10:53 schloegl Exp $
+%       $Revision: 1.32 $
+%	$Id: plota.m,v 1.32 2004-11-11 10:39:56 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -113,7 +113,9 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
                                 set(s,'FontSize',6); 
                         end
                 end;
-                suptitle('Ordinary coherence')
+                if exist('suptitle','file')
+                        suptitle('Ordinary coherence')
+                end;
         elseif (length(size(X.COH))==4) & ((size(X.COH,4)==2) | (size(X.COH,4)==3)) ,
                 if nargin<2,
                         list2=1:size(X.COH,1);
@@ -177,7 +179,9 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
                                 set(s,'FontSize',6); 
                         end;
                 end                           
-                suptitle('Ordinary coherence')
+                if exist('suptitle','file')
+                        suptitle('Ordinary coherence')
+                end;
         elseif length(size(X.COH))==4,
                 if nargin<2,
                         list2=1:size(X.COH,1);
@@ -212,7 +216,9 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
                                 end;                  
                         end;
                 end;
-                suptitle('Time-varying Coherence')
+                if exist('suptitle','file')
+                        suptitle('Time-varying Coherence')
+                end;
                 figure;
                 for k1 = 1:length(list1);
                         for k2 = 1:length(list2);
@@ -237,8 +243,9 @@ if strcmp(X.datatype,'MVAR-COHERENCE'),
                                 end;                  
                         end
                 end
-                suptitle('Time-varying Coherence')
-                
+                if exist('suptitle','file')
+                        suptitle('Time-varying Coherence')
+                end;                
         elseif length(size(X.COH))==5,
                 if nargin<2,
                         list2=1:size(X.COH,1);
@@ -781,7 +788,9 @@ elseif strcmp(X.datatype,'MVAR'),
                                 end;
                         end;
                 end;
-                suptitle('Power spectrum')
+                if exist('suptitle','file')
+                        suptitle('Power spectrum')
+                end;
                 return;
         elseif strcmpi(Mode,'Phase'),      
                 maxS=max(angle(S(:)));
@@ -800,7 +809,9 @@ elseif strcmp(X.datatype,'MVAR'),
                                 end;
                         end;
                 end;
-                suptitle('phase')
+                if exist('suptitle','file')
+                        suptitle('phase')
+                end;
                 return;
         elseif strcmpi(Mode,'PDC'),      
                 for k1=1:K1;
@@ -816,7 +827,9 @@ elseif strcmp(X.datatype,'MVAR'),
                                 end;
                         end;
                 end;
-                suptitle('partial directed coherence PDC');
+                if exist('suptitle','file')
+                        suptitle('partial directed coherence PDC');
+                end;
                 return;
         end;        
         
@@ -854,7 +867,9 @@ elseif strcmp(X.datatype,'MVAR'),
                                 end;
                         end;
                 end;
-                suptitle('Ordinary coherence')
+                if exist('suptitle','file')
+                        suptitle('Ordinary coherence')
+                end;
                 return;
         elseif strcmpi(Mode,'DTF'),      
                 for k1=1:K1;
@@ -870,7 +885,9 @@ elseif strcmp(X.datatype,'MVAR'),
                                 end;
                         end;
                 end;
-                suptitle('directed transfer function DTF');        
+                if exist('suptitle','file')
+                        suptitle('directed transfer function DTF');        
+                end;
                 return;
         end;        
         
@@ -962,7 +979,9 @@ elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1','lo
         if isfield(X,'TITLE');	
                 TIT = X.TITLE;
                 TIT(TIT=='_')=' ';
-                suptitle(TIT);
+                if exist('suptitle','file')
+                        suptitle(TIT);
+                end;
         else
                 TIT = '';
         end
@@ -1065,7 +1084,9 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
         if isfield(X,'TITLE');	
                 TIT = X.TITLE;
                 TIT(TIT=='_')=' ';
-                suptitle(TIT);
+                if exist('suptitle','file')
+                        suptitle(TIT);
+                end;
         else
                 TIT = '';
         end
@@ -1083,85 +1104,6 @@ elseif strcmp(X.datatype,'EDF'),
                 ylabel(deblank(X.Label(X.SIE.ChanSelect(k),:)));    
         end;
         xlabel('t [s]')
-        
-        
-elseif strcmpi(X.datatype,'pfurtscheller_spectral_difference'),
-        nc = ceil(sqrt(X.NS));
-        nr = ceil(X.NS/nc);
-        nch = size(X.AR,1)/X.NS;
-        f = (0:.1:X.SampleRate/2)';
-        H = zeros(length(f),X.NC+1);
-        for k1=1:nc,
-                for k2=1:nr,
-                        c = k1+(k2-1)*nc;
-                        if nargin>1,
-                                H = X.S(:,c+X.NS*(0:X.NC));        
-                                F = 0:size(X.S,1)-1;
-                        else
-                                for k3 = 1:X.NC+1;
-                                        ix = c + X.NS*(k3-1);
-                                        [H(:,k3), F] = freqz(sqrt(X.PE(ix,end)/X.SampleRate),ar2poly(X.AR(ix,:)),f,X.SampleRate);
-                                end
-                        end;
-                        subplot(nc,nr,c);
-                        semilogy(F,abs(H),'-');
-                        legend({'ref','1','2'});
-                        ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim,X.samplerate_units));
-                        v=axis;v(2:4)=[max(F),1e-2,10];axis(v);
-                        %hold on;
-                        grid on;
-                        if isfield(X,'Label');
-                                if iscell(X.Label)
-                                        title(X.Label{c});
-                                else
-                                        title(X.Label(c,:));
-                                end;
-                        else
-                                title(['channel # ',int2str(c)]);
-                        end;
-                end
-        end;
-        
-elseif strcmpi(X.datatype,'spectrum'),
-        if nargin>1,
-                Mode=arg2;
-        else
-                Mode='log';
-        end;
-        
-        if ~isfield(X,'samplerate_units')
-                X.samplerate_units = 'Hz';    
-        end;
-        if ~isfield(X,'PhysDim')
-                X.PhysDim = '[1]';    
-        end;
-        if ~isfield(X,'QUANT')
-                X.QUANT = 0;    
-        end;
-        
-        [n,p] = size(X.AR);
-        H=[]; F=[];
-        for k=1:size(X.AR,1);
-                [h,f] = freqz(sqrt(X.PE(k,size(X.AR,2)+1)/(X.SampleRate*2*pi)),ar2poly(X.AR(k,:)),(0:64*p)/(128*p)*X.SampleRate',X.SampleRate);
-                H(:,k)=h(:);F(:,k)=f(:);
-        end;
-        if strcmp(lower(Mode),'log')
-                semilogy(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*X.QUANT/sqrt(12*X.SampleRate),'k:');
-                ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim,X.samplerate_units));
-                
-        elseif strcmp(lower(Mode),'log2')
-                semilogy(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.QUANT.^2/(12*X.SampleRate),'k:');
-                ylabel(sprintf('[%s]^2/%s',X.PhysDim,X.samplerate_units));
-                
-        elseif strcmp(lower(Mode),'lin')
-                plot(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*X.QUANT/sqrt(12*X.SampleRate),'k:');
-                ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim,X.samplerate_units));
-                
-        elseif strcmp(lower(Mode),'lin2')
-                plot(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.QUANT.^2/(12*X.SampleRate),'k:');
-                ylabel(sprintf('[%s]^2/%s',X.PhysDim,X.samplerate_units));
-        end;
-        xlabel(sprintf('f [%s]',X.samplerate_units));
         
         
 elseif strcmp(X.datatype,'confusion'),
@@ -1208,42 +1150,109 @@ elseif strcmp(X.datatype,'confusion'),
         fprintf(1,'%4.1f%%\t',SA*100);
         fprintf(1,'\n%s\n',repmat('-',1,8*(size(X.data,1)+2)));
         
-elseif strcmp(X.datatype,'qualitycontrol'),
+
+elseif strcmpi(X.datatype,'pfurtscheller_spectral_difference'),
+        nc = ceil(sqrt(X.NS));
+        nr = ceil(X.NS/nc);
+        nch = size(X.AR,1)/X.NS;
+        f = (0:.1:X.SampleRate/2)';
+        H = zeros(length(f),X.NC+1);
+        for k1=1:nc,
+                for k2=1:nr,
+                        c = k1+(k2-1)*nc;
+                        if nargin>1,
+                                H = X.S(:,c+X.NS*(0:X.NC));        
+                                F = 0:size(X.S,1)-1;
+                        else
+                                for k3 = 1:X.NC+1;
+                                        ix = c + X.NS*(k3-1);
+                                        [H(:,k3), F] = freqz(sqrt(X.PE(ix,end)/X.SampleRate),ar2poly(X.AR(ix,:)),f,X.SampleRate);
+                                end
+                        end;
+                        subplot(nc,nr,c);
+                        semilogy(F,abs(H),'-');
+                        legend({'ref','1','2'});
+                        ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim,X.samplerate_units));
+                        v=axis;v(2:4)=[max(F),1e-2,10];axis(v);
+                        %hold on;
+                        grid on;
+                        if isfield(X,'Label');
+                                if iscell(X.Label)
+                                        title(X.Label{c});
+                                else
+                                        title(X.Label(c,:));
+                                end;
+                        else
+                                title(['channel # ',int2str(c)]);
+                        end;
+                end
+        end;
+        
+
+elseif strcmpi(X.datatype,'spectrum') | strcmp(X.datatype,'qualitycontrol'),
+
         if nargin>1,
                 Mode=arg2;
         else
-                c='b';
                 Mode='log';
         end;
         
-        for k=1:size(X.AR,1);
-                [H(:,k),F] = freqz(sqrt(X.PE(k,size(X.AR,2)+1)/X.SampleRate*2),ar2poly(X.AR(k,:)),(0:.1:X.SampleRate/2)',X.SampleRate);
+	if strcmp(X.datatype,'qualitycontrol'),
+                fprintf(1,'\n  [%s]',X.PhysDim(1,:));
+                fprintf(1,'\t#%02i',1:size(X.AR,1));
+                fprintf(1,'\nMEAN  ');
+                fprintf(1,'\t%+7.3f',X.stats.MEAN);
+                fprintf(1,'\nRMS');
+                fprintf(1,'\t%+7.3f',X.stats.RMS);
+                fprintf(1,'\nSTD');
+                fprintf(1,'\t%+7.3f',X.stats.STD);
+                fprintf(1,'\nQuant');
+                fprintf(1,'\t%+7.3f',X.stats.QUANT);
+                fprintf(1,'\n  [bit]\nEntropy');
+                fprintf(1,'\t%+4.1f',X.stats.ENTROPY);
+                fprintf(1,'\n\n');
+	end;
+
+        if ~isfield(X,'samplerate_units')
+                X.samplerate_units = 'Hz';    
+        end;
+        if ~isfield(X,'PhysDim')
+                X.PhysDim = '[1]';    
+        end;
+        if ~isfield(X,'QUANT')
+                X.QUANT = 0;    
         end;
         if ~isfield(X,'Impedance')
                 X.Impedance=5000; %5kOHM
         end;
-        X.Impedance,
-        if strcmp(lower(Mode),'log')
-                semilogy([0;X.SampleRate/2],[1;1]*[X.stats.QUANT(1)/sqrt(12*X.SampleRate/2),sqrt(4*310*138e-25*X.Impedance)*1e6],':',F,abs(H),'r');
-                %semilogy([0,X.SampleRate/2]',[1;1]*X.stats.QUANT/sqrt(12*X.SampleRate/2),':');
-                %hold on
-                %semilogy([0,X.SampleRate/2]',sqrt(4*310*138e-25*5e3)*1e6*[1,1],'k');
-                %h=semilogy(F,abs(H));
-                %hold off;
-        else
-                plot([0;X.SampleRate/2],[1;1]*[X.stats.QUANT(1)/sqrt(12*X.SampleRate/2),sqrt(4*310*138e-25*X.Impedance)],':',F,abs(H),'r');
-                %hold on;
-                %plot([0,X.SampleRate/2]',sqrt(4*310*138e-25*1e5)*1e6*[1,1],':');
-                %h=plot(F,abs(H));
-                %hold off;
+        
+        [n,p] = size(X.AR);
+        H=[]; F=[];
+        for k=1:size(X.AR,1);
+                [h,f] = freqz(sqrt(X.PE(k,size(X.AR,2)+1)/(X.SampleRate*2*pi)),ar2poly(X.AR(k,:)),(0:64*p)/(128*p)*X.SampleRate',X.SampleRate);
+                H(:,k)=h(:);F(:,k)=f(:);
         end;
+        if strcmp(lower(Mode),'log')
+                semilogy(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*X.QUANT/sqrt(12*X.SampleRate),'k:',[0,X.SampleRate/2]',1e6*[1;1]*sqrt(4*310*138e-25*X.Impedance),'r');
+                ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim,X.samplerate_units));
+                
+        elseif strcmp(lower(Mode),'log2')
+                semilogy(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.QUANT.^2/(12*X.SampleRate),'k:');
+                ylabel(sprintf('[%s]^2/%s',X.PhysDim,X.samplerate_units));
+                
+        elseif strcmp(lower(Mode),'lin')
+                plot(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*X.QUANT/sqrt(12*X.SampleRate),'k:');
+                ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim,X.samplerate_units));
+                
+        elseif strcmp(lower(Mode),'lin2')
+                plot(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.QUANT.^2/(12*X.SampleRate),'k:');
+                ylabel(sprintf('[%s]^2/%s',X.PhysDim,X.samplerate_units));
+        end;
+        xlabel(sprintf('f [%s]',X.samplerate_units));
+        if isfield(X,'Title'), title(X.Title);
+        elseif isfield(X,'FileName'); tmp=X.FileName; tmp(tmp=='_')=' '; title(tmp); end
+        H = X;
         
-        legend({'Q-noise',sprintf('%4.1f kOhm',X.Impedance/1000),'amp noise'})
-        
-        xlabel('frequency [Hz]')
-        ylabel([X.PhysDim,'/Hz^{1/2}']);
-        title('spectral density')
-        clear H
         
 elseif strcmp(X.datatype,'SIESTA_HISTOGRAM')
         if nargin<2,
