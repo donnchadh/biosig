@@ -117,8 +117,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.13 $
-%	$Id: sdfopen.m,v 1.13 2004-02-21 00:02:55 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: sdfopen.m,v 1.14 2004-03-04 18:16:11 schloegl Exp $
 INFO='(C) 1997-2002 by Alois Schloegl, 04 Oct 2002 #0.86';
 %	a.schloegl@ieee.org
 
@@ -540,7 +540,12 @@ EDF.SIE.TECG=0;
 EDF.SIE.AFIR=0;
 EDF.SIE.FILT=0;
 EDF.SIE.TimeUnits_Seconds=1;
-EDF.AS.MAXSPR=max(EDF.SPR(EDF.SIE.ChanSelect)); % Layer 3 defines EDF.AS.MAXSPR in GDFREAD
+EDF.AS.MAXSPR=EDF.SPR(1);
+for k=2:EDF.NS,
+        EDF.AS.MAXSPR = lcm(EDF.AS.MAXSPR,EDF.SPR(k));
+end;
+%EDF.AS.MAXSPR=max(EDF.SPR(EDF.SIE.ChanSelect)); % Layer 3 defines EDF.AS.MAXSPR in GDFREAD
+EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
 
 EDF.SIE.ReRefMx=eye(EDF.NS);
 EDF.SIE.REG=eye(EDF.NS);
@@ -581,7 +586,11 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
         EDF.SIE.TECG=0;
         EDF.SIE.AFIR=0;
         EDF.SIE.FILT=0;
-        EDF.AS.MAXSPR=max(EDF.SPR(EDF.SIE.ChanSelect)); % Layer 3 defines EDF.AS.MAXSPR in GDFREAD
+        %EDF.AS.MAXSPR=max(EDF.SPR(EDF.SIE.ChanSelect)); % Layer 3 defines EDF.AS.MAXSPR in GDFREAD
+        EDF.AS.MAXSPR=EDF.SPR(EDF.SIE.ChanSelect(1));
+        for k=2:length(EDF.SIE.ChanSelect),
+                EDF.AS.MAXSPR = lcm(EDF.AS.MAXSPR,EDF.SPR(EDF.SIE.ChanSelect(k)));
+        end;
 	EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
         
         EDF.SIE.REG=eye(EDF.NS);
@@ -663,7 +672,7 @@ EDF.Calib=EDF.Calib*EDF.SIE.REG*EDF.SIE.ReRefMx;
                                 if isstruct(QRS)
                                         EDF.SIE.TECG = 1;
 					%%%  EDF.AS.MAXSPR=size(QRS.Templates,1)/3;
-                                        EDF.AS.MAXSPR=max(EDF.AS.MAXSPR,EDF.SPR(channel1));
+                                        EDF.AS.MAXSPR=lcm(EDF.AS.MAXSPR,EDF.SPR(channel1));
 				else
                                         fprintf(EDF.FILE.stderr,'WARNING SDFOPEN: %s invalid for TECG\n',[ lower(EDF.FILE.Name) 'ECG.mat']);
                                 end;
@@ -1034,11 +1043,11 @@ if ~isstruct(arg1)  % if arg1 is the filename
         EDF.FileName=arg1;
         if nargin<3
                 tmp=input('SDFOPEN: list of samplerates for each channel? '); 
-                EDF.SampleRate = tmp(:);
+                EDF.EDF.SampleRate = tmp(:);
         else
-                EDF.SampleRate=arg3;
+                EDF.EDF.SampleRate = arg3;
         end;
-        EDF.NS=length(EDF.SampleRate);
+        EDF.NS=length(EDF.EDF.SampleRate);
         if nargin<4
                 tmp=input('SDFOPEN: Duration of one block in seconds: '); 
                 EDF.Dur = tmp;
@@ -1051,6 +1060,7 @@ if ~isstruct(arg1)  % if arg1 is the filename
                         EDF.SPR=EDF.Dur*EDF.SampleRate;
                 end;
         end;
+        EDF.SampleRate = EDF.AS.MAXSPR/EDF.Dur;
 end;
 
 FILENAME=EDF.FileName;
@@ -1124,7 +1134,7 @@ elseif ~isfield(EDF.EDF,'SampleRate')
 end;
 
 if ~isnan(EDF.Dur) & any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
-	EDF.SPR = EDF.EDF.SampleRate * EDF.SPR;
+	EDF.SPR = EDF.EDF.SampleRate * EDF.Dur;
 elseif ~isnan(EDF.Dur) & ~any(isnan(EDF.SPR)) & any(isnan(EDF.EDF.SampleRate))
 	EDF.SampleRate = EDF.Dur * EDF.SPR;
 elseif isnan(EDF.Dur) & ~any(isnan(EDF.SPR)) & ~any(isnan(EDF.EDF.SampleRate))
@@ -1214,6 +1224,10 @@ if ~isfield(EDF,'SPR')
         fclose(EDF.FILE.FID); return;
 else
         EDF.SPR=reshape(EDF.SPR(1:EDF.NS),EDF.NS,1);
+end;
+EDF.AS.MAXSPR = EDF.SPR(1);
+for k=2:EDF.NS,
+        EDF.AS.MAXSPR = lcm(EDF.AS.MAXSPR,EDF.SPR(k));
 end;
 
 if (abs(EDF.VERSION(1))==255)  & strcmp(EDF.VERSION(2:8),'BIOSEMI'),
@@ -1374,7 +1388,6 @@ EDF.AS.bpb = sum(ceil(EDF.SPR.*GDFTYP_BYTE(EDF.GDFTYP+1)'));	% Bytes per Block
 EDF.AS.startrec = 0;
 EDF.AS.numrec = 0;
 EDF.FILE.POS = 0;
-EDF.AS.MAXSPR = max(EDF.SPR);
 
 else % if arg2 is not 'r' or 'w'
         fprintf(EDF.FILE.stderr,'Warning %s: Incorrect 2nd argument. \n',EDF.AS.Method);
