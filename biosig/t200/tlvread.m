@@ -7,9 +7,11 @@ function [TLV] = tlvread(fid)
 % see also: SOPEN 
 %
 % References: 
-% <A HREF="ftp://sigftp.cs.tut.fi/pub/eeg-data/standards/cenf060.zip ">About CEN/TC251</A> 
+% [1] <A HREF="ftp://sigftp.cs.tut.fi/pub/eeg-data/standards/cenf060.zip ">About CEN/TC251</A> 
+% [2] http://telecom.htwm.de/ASN1/ber.htm
+% [3] http://asn1.elibel.tm.fr
 
-%	$Id: tlvread.m,v 1.1 2004-11-02 15:21:33 schloegl Exp $
+%	$Id: tlvread.m,v 1.2 2004-11-03 08:25:59 schloegl Exp $
 %	Copyright (C) 2004  Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -58,7 +60,7 @@ if bitand(LEN,128),
 end;
 
 class = bitand(tag,192)/64;             % get class 
-FLAG.Primitive = ~~bitand(tag,32);  % check P/C bit 
+FLAG.Primitive = ~bitand(tag,32);  % check P/C bit 
 
 
 if (tag == 0) & (LEN==0)
@@ -71,32 +73,78 @@ TLV.Class = class;
 TLV.PC = FLAG.Primitive;
 TLV.LEN = LEN;
 
-if ~FLAG.Primitive,
-        if ~isnan(LEN)
+if FLAG.Primitive,
+        if ~isnan(LEN),
                 if class == 0,  % Universal 
 			classtag = bitand(tag,31);
 			if classtag==0, 
-	    		        TLV.VALUE = fread(fid,LEN,'uchar');
+	    		        TLV.reservedBER = fread(fid,LEN,'uchar');
 			elseif classtag==1, 
-	    		        TLV.VALUE = ~~fread(fid,LEN,'uchar');
+	    		        TLV.Boolean = fread(fid,LEN,'uchar');
 			elseif classtag==2, 
-	    		        TLV.VALUE = fread(fid,LEN,'int8');
+	    		        TLV.Integer = fread(fid,LEN,'int8');
 			elseif classtag==3, 
-	    		        TLV.VALUE = fread(fid,LEN,'uchar');
+	    		        TLV.Bitstring = fread(fid,LEN,'uchar');
 			elseif classtag==4, 
-	    		        TLV.VALUE = dec2hex(fread(fid,LEN,'uchar'));
+	    		        TLV.OctetString = dec2hex(fread(fid,LEN,'uchar'));
+			elseif classtag==5, 
+	    		        TLV.Null = fread(fid,LEN,'uchar');
 			elseif classtag==6, 
-	    		        TLV.VALUE = fread(fid,LEN,'uchar');
+	    		        TLV.OID = fread(fid,LEN,'uchar');
+			elseif classtag==7, 
+	    		        TLV.ObjectDesc = fread(fid,LEN,'uchar');
+			elseif classtag==8, 
+	    		        TLV.external = fread(fid,LEN,'uchar');
+			elseif classtag==9, 
+	    		        TLV.real = fread(fid,LEN,'uchar');
+			elseif classtag==10, 
+	    		        TLV.enum = fread(fid,LEN,'uchar');
+			elseif classtag==11, 
+	    		        TLV.UTF8String = fread(fid,LEN,'uchar');
+			elseif classtag==12, 
+	    		        TLV.relativeOID = fread(fid,LEN,'uchar');
+			elseif classtag==13, 
+	    		        TLV.OID = fread(fid,LEN,'uchar');
+                                
+			elseif classtag==14, 
+	    		        TLV.reserved14 = fread(fid,LEN,'uchar');
+			elseif classtag==15, 
+	    		        TLV.reserved15 = fread(fid,LEN,'uchar');
 			elseif classtag==16, 
-	    		        TLV.VALUE = fread(fid,LEN,'uchar');
+	    		        TLV.sequenceof = fread(fid,LEN,'uchar');
 			elseif classtag==17, 
+	    		        TLV.setof = fread(fid,LEN,'uchar');
+			elseif classtag==18, 
+	    		        TLV.numericString = fread(fid,LEN,'uchar');
+			elseif classtag==19, 
+	    		        TLV.PrintableString = fread(fid,LEN,'uchar');
+			elseif classtag==20, 
+	    		        TLV.TeletexStringT61 = fread(fid,LEN,'uchar');
+			elseif classtag==21, 
 	    		        TLV.VALUE = fread(fid,LEN,'uchar');
+			elseif classtag==22, 
+	    		        TLV.IA5String = fread(fid,LEN,'uchar');
+			elseif classtag==23, 
+	    		        TLV.UTCtime = fread(fid,LEN,'uchar');
+			elseif classtag==24, 
+	    		        TLV.generalizedTime = fread(fid,LEN,'uchar');
+			elseif classtag==25, 
+	    		        TLV.GraphicString = fread(fid,LEN,'uchar');
+			elseif classtag==26, 
+	    		        TLV.VisibleStringISO646String = fread(fid,LEN,'uchar');
+			elseif classtag==27, 
+	    		        TLV.GeneralString = fread(fid,LEN,'uchar');
+			elseif classtag==28, 
+	    		        TLV.UniversalString = fread(fid,LEN,'uchar');
+			elseif classtag==29, 
+	    		        TLV.CharacterString = fread(fid,LEN,'uchar');
+			elseif classtag==30, 
+	    		        TLV.BMPString = fread(fid,LEN,'uchar');
 			elseif classtag==31, 
 	    		        TLV.VALUE = fread(fid,LEN,'uchar');
 			else
 	    		        TLV.VALUE = fread(fid,LEN,'uchar');
 			end;	
-			
                         
                 elseif class == 1,  % Application
     		        %TLV.VALUE = fread(fid,LEN,'uchar');
@@ -110,6 +158,7 @@ if ~FLAG.Primitive,
                         
                 end;
         else
+                warning('unspecified length %i',ftell(fid));
                 accu = 255;
                 tmp = fread(fid,256,'uint8');
                 TLV.VALUE = [];
@@ -122,13 +171,13 @@ if ~FLAG.Primitive,
                 TLV.VALUE = [TLV.VALUE, tmp(end-min(x))'];
                 status = fseek(fid,min(x)-length(tmp),0);
         end;
+        
 else
         K = 0; 
-        [VAL] = tlvread(fid);
+        VAL = tlvread(fid);
         while ~isempty(VAL), 
                 K = K + 1; 
-                TLV.VALUE = VAL; 
-                TLV.db = -11; 
-                [VAL] = tlvread(fid);
+                TLV.VALUE{K} = VAL; 
+                VAL = tlvread(fid);
         end;
 end
