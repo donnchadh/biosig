@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.43 $
-%	$Id: sread.m,v 1.43 2005-02-19 21:45:08 schloegl Exp $
+%	$Revision: 1.44 $
+%	$Id: sread.m,v 1.44 2005-02-22 15:58:17 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -736,9 +736,8 @@ elseif strcmp(HDR.TYPE,'WG1'),   %walter-graphtek
         nr     = min(HDR.AS.endpos-HDR.FILE.POS, NoS*HDR.SampleRate);
 	S      = zeros(nr,length(HDR.InChanSelect)); 
 	count  = 0; 
-        offset = fread(HDR.FILE.FID, HDR.WG1.szOffset, 'int32');
-    	while (offset(1)~=(hex2dec('AEAE5555')-2^32)) & (count<nr);
-		
+        [offset,c] = fread(HDR.FILE.FID, HDR.WG1.szOffset, 'int32');
+    	while (c>0) & (offset(1)~=(hex2dec('AEAE5555')-2^32)) & (count<nr);
 		[databuf,c] = fread(HDR.FILE.FID,[HDR.WG1.szBlock,HDR.NS+HDR.WG1.szExtra],'uint8');
             	dt = HDR.WG1.conv(databuf(:,1:HDR.NS)+1);
             	if any(dt(:)==HDR.WG1.unknownNr),
@@ -752,7 +751,7 @@ elseif strcmp(HDR.TYPE,'WG1'),   %walter-graphtek
 		count = count + ix2; 
 		ix1 = 0;	% reset starting index, 
 	
-	        offset = fread(HDR.FILE.FID, HDR.WG1.szOffset, 'int32');
+	        [offset,c] = fread(HDR.FILE.FID, HDR.WG1.szOffset, 'int32');
 	end;	
 	S = S(1:count,:);
 	HDR.FILE.POS = HDR.FILE.POS + count;
