@@ -22,7 +22,7 @@ function [HDR]=gtfopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: gtfopen.m,v 1.1 2005-03-30 14:23:41 schloegl Exp $
+%	$Id: gtfopen.m,v 1.2 2005-03-31 18:00:40 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -33,7 +33,6 @@ if ischar(HDR)
         HDR=[];
         HDR.FileName=tmp;
 end;
-
 
 fprintf(2,'Warning GTFOPEN (%s): implementation of GTF-support is not ready for production use.\n',HDR.FileName);
 
@@ -50,16 +49,32 @@ HDR.L3 = reshape(HDR.H3(1070+32*3+(1:232*20)),232,20)';
 
 HDR.Label = char(reshape(HDR.H3(1071:1070+32*3),3,32)');        % channel labels
 
-HDR.data  = fread(HDR.FILE.FID,inf,'int16');
-HDR.NS    = 24; 
-HDR.Dur   = 5; 
-HDR.SampleRate = 256; 
-HDR.AS.spb = 1280 + 408; 
-
-HDR.SPR = floor((size(HDR.data,1))/HDR.NS);
-HDR.d1  = reshape(HDR.data(1:HDR.NS*HDR.SPR),[HDR.NS,HDR.SPR])'; 
+H.i8  = fread(HDR.FILE.FID,inf,'int8');
 fclose(HDR.FILE.FID);
 
+HDR.NS   = 24; 
+HDR.Dur  = 10; 
+HDR.SampleRate = 256; 
+HDR.SPR  = 2560; 
+HDR.bits = 8; 
+
+HDR.SPR = floor((size(H.i8,1))/HDR.NS);
 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 
-        
+ix = find(H.i8==-128);
+
+t=ix(find(H.i8(ix+3)==5));
+% 1920 = 10x192 = 24*80 
+% 61760-192 = 61568
+t2 = t(find(diff(t)>1e4));
+t2 = [t2(:); t2(end)+63488];
+% 63488 = 61760 + 9*192
+
+HDR.NRec = length(t2);
+[s3,sz]  = trigg(H.i8,t2,125,61564);
+HDR.data = reshape(s3,[HDR.NS,sz(2)/HDR.NS*HDR.NRec])';
+
+HDR.TYPE = 'native'; 
+HDR.THRESHOLD = repmat([-127,127],HDR.NS,1);
+HDR.FILE.POS = 0; 
+
