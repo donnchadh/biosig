@@ -22,8 +22,8 @@ function [signal,H] = sload(FILENAME,CHAN,Fs)
 % Reference(s):
 
 
-%	$Revision: 1.31 $
-%	$Id: sload.m,v 1.31 2004-09-12 15:47:58 schloegl Exp $
+%	$Revision: 1.32 $
+%	$Id: sload.m,v 1.32 2004-09-13 17:28:26 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -497,6 +497,67 @@ elseif strcmp(H.TYPE,'BIFF'),
         end;
 
 
+elseif strcmp(H.TYPE,'BMP'),
+                H.FILE.FID = fopen(H.FileName,'rb','ieee-le');
+		fseek(H.FILE.FID,10,-1);
+
+		tmp = fread(H.FILE.FID,4,'uint32');
+		H.HeadLen = tmp(1);
+		H.BMP.sizeBitmapInfoHeader = tmp(2);
+		H.BMP.Size = tmp(3:4)';
+
+		tmp = fread(H.FILE.FID,2,'uint16');
+		H.BMP.biPlanes = tmp(1);
+		H.bits = tmp(2);
+
+		tmp = fread(H.FILE.FID,6,'uint32');
+		H.BMP.biCompression = tmp(1);
+		H.BMP.biImageSize = tmp(2);
+		H.BMP.biXPelsPerMeter = tmp(3);
+		H.BMP.biYPelsPerMeter = tmp(4);
+		H.BMP.biColorUsed = tmp(5);
+		H.BMP.biColorImportant = tmp(6);
+		
+		fseek(H.FILE.FID,H.HeadLen,'bof');
+		nc = ceil((H.bits*H.BMP.Size(1))/32)*4;
+
+		if (H.bits==1)
+			signal = fread(H.FILE.FID,[nc,H.BMP.Size(2)*8],'ubit1');
+			signal = signal(1:H.BMP.Size(1),:)';
+
+		elseif (H.bits==4)
+			palr   = [  0,128,  0,128,  0,128,  0,192,128,255,  0,255,  0,255,  0,255]; 
+			palg   = [  0,  0,128,128,  0,  0,128,192,128,  0,255,255,  0,  0,255,255]; 
+			palb   = [  0,  0,  0,  0,128,128,128,192,128,  0,  0,  0,255,255,255,255]; 
+			tmp    = uint8(fread(H.FILE.FID,[nc,H.BMP.Size(2)*2],'ubit4'));
+			signal        = palr(tmp(1:H.BMP.Size(1),:)'+1);
+			signal(:,:,2) = palg(tmp(1:H.BMP.Size(1),:)'+1);
+			signal(:,:,3) = palb(tmp(1:H.BMP.Size(1),:)'+1);
+	    		signal = signal(H.BMP.Size(2):-1:1,:,:);
+
+		elseif (H.bits==8)
+			pal = uint8(colormap*256);
+			tmp = fread(H.FILE.FID,[nc,H.BMP.Size(2)],'uint8');
+			signal        = pal(tmp(1:H.BMP.Size(1),:)'+1,1);
+			signal(:,:,2) = pal(tmp(1:H.BMP.Size(1),:)'+1,2);
+			signal(:,:,3) = pal(tmp(1:H.BMP.Size(1),:)'+1,3);
+	    		signal = signal(H.BMP.Size(2):-1:1,:,:);
+
+		elseif (H.bits==24)
+			[signal]    = uint8(fread(H.FILE.FID,[nc,H.BMP.Size(2)],'uint8'));
+			H.BMP.Red   = signal((1:H.BMP.Size(1))*3,:)';
+			H.BMP.Green = signal((1:H.BMP.Size(1))*3-1,:)';
+			H.BMP.Blue  = signal((1:H.BMP.Size(1))*3-2,:)';
+			signal = H.BMP.Red;
+			signal(:,:,2) = H.BMP.Green;
+			signal(:,:,3) = H.BMP.Blue;
+	    		signal = signal(H.BMP.Size(2):-1:1,:,:);
+		else
+
+		end;
+                fclose(H.FILE.FID);
+
+        
 elseif strcmp(H.TYPE,'unknown')
         TYPE = upper(H.FILE.Ext);
         if strcmp(TYPE,'DAT')
