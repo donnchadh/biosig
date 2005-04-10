@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.104 $
-%	$Id: sopen.m,v 1.104 2005-04-05 17:52:18 schloegl Exp $
+%	$Revision: 1.105 $
+%	$Id: sopen.m,v 1.105 2005-04-10 11:40:14 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -3185,14 +3185,9 @@ elseif strcmp(HDR.TYPE,'MIT-ATR'),
 		HDR.TYPE = 'EVENT';
                 
         
-elseif strcmp(HDR.TYPE,'TMS32'),
+elseif strcmp(HDR.TYPE,'TMS32'),        % Portilab/TMS32 format
         if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le')
-                
-                fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n');	
-                
-                HDR.FILE.OPEN = 1;
-                HDR.FILE.POS = 0;
+                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
                 HDR.ID = fread(HDR.FILE.FID,31,'char');
                 HDR.VERSION = fread(HDR.FILE.FID,1,'int16');
                 [tmp,c] = fread(HDR.FILE.FID,81,'char');
@@ -3200,53 +3195,55 @@ elseif strcmp(HDR.TYPE,'TMS32'),
                 HDR.TMS32.StorageRate = fread(HDR.FILE.FID,1,'int16');
                 HDR.TMS32.StorageType = fread(HDR.FILE.FID,1,'char');
                 HDR.NS = fread(HDR.FILE.FID,1,'int16');
-                NP = fread(HDR.FILE.FID,1,'int32');
-                tmp  = fread(HDR.FILE.FID,1,'int32');
-                Time = fread(HDR.FILE.FID,[1,7],'int16');
-                HDR.T0   = Time([1:3,5:7]);
+                HDR.AS.endpos = fread(HDR.FILE.FID,1,'int32');
+                tmp = fread(HDR.FILE.FID,1,'int32');
+                tmp = fread(HDR.FILE.FID,[1,7],'int16');
+                HDR.T0   = tmp([1:3,5:7]);
                 HDR.NRec = fread(HDR.FILE.FID,1,'int32');
                 HDR.SPR  = fread(HDR.FILE.FID,1,'uint16');
-                HDR.AS.bpb = fread(HDR.FILE.FID,1,'uint16');
-                tmp = fread(HDR.FILE.FID,1,'int16');
+                HDR.AS.bpb = fread(HDR.FILE.FID,1,'uint16')+86;
+                HDR.FLAG.DeltaCompression = fread(HDR.FILE.FID,1,'int16');
                 tmp = fread(HDR.FILE.FID,64,'char');
+                HDR.HeadLen = 217 + HDR.NS*136;
+                HDR.FILE.OPEN = 1;
+                HDR.FILE.POS = 0;
                 
-                HDR.Label   = zeros(HDR.NS,40);
-                HDR.PhysDim = zeros(HDR.NS,10);
-                k = 0,
+                Label   = zeros(HDR.NS,40);
+                PhysDim = zeros(HDR.NS,10);
+                k = 1;  aux = 0; 
                 while k <= HDR.NS,
                         c   = fread(HDR.FILE.FID,[1,1],'uint8');
-                        tmp = fread(HDR.FILE.FID,[1,40],'char');
-                        if strcmp(tmp(1:4),'(Lo)') ;
-                                k = k + 1;
-                                HDR.Label(k,1:c-4) = tmp(5:c);
-                                HDR.GDFTYP(k) = 16;
-                        elseif strcmp(tmp(1:4),'(Hi)') ;
-                                HDR.NS = HDR.NS - 1;				
+                        tmp = char(fread(HDR.FILE.FID,[1,40],'char'));
+                        if strncmp(tmp,'(Lo)',4);
+                                Label(k-aux,1:c-4) = tmp(5:c);
+                                HDR.GDFTYP(k-aux)  = 16;
+                        elseif strncmp(tmp,'(Hi)',4) ;
+                                aux = aux + 1;				
                         else
-                                k = k+1;
-                                HDR.Label(k,1:c) = tmp(1:c);
-                                HDR.GDFTYP(k) = 5;
+                                Label(k-aux,1:c)  = tmp(1:c);
+                                HDR.GDFTYP(k-aux) = 5;
                         end;
                         
                         tmp = fread(HDR.FILE.FID,[1,4],'char');
-                        
                         c   = fread(HDR.FILE.FID,[1,1],'uint8');
                         tmp = fread(HDR.FILE.FID,[1,10],'char');
-                        HDR.PhysDim(k,1:c) = tmp(1:c);
+                        PhysDim(k-aux,1:c) = tmp(1:c);
                         
-                        HDR.PhysMin(k,1) = fread(HDR.FILE.FID,1,'float32');			
-                        HDR.PhysMax(k,1) = fread(HDR.FILE.FID,1,'float32');			
-                        HDR.DigMin(k,1) = fread(HDR.FILE.FID,1,'float32');			
-                        HDR.DigMax(k,1) = fread(HDR.FILE.FID,1,'float32');			
-                        tmp = fread(HDR.FILE.FID,2,'char');
+                        HDR.PhysMin(k-aux,1) = fread(HDR.FILE.FID,1,'float32');			
+                        HDR.PhysMax(k-aux,1) = fread(HDR.FILE.FID,1,'float32');			
+                        HDR.DigMin(k-aux,1)  = fread(HDR.FILE.FID,1,'float32');			
+                        HDR.DigMax(k-aux,1)  = fread(HDR.FILE.FID,1,'float32');			
+                        HDR.TMS32.SI(k) = fread(HDR.FILE.FID,1,'int16');
                         tmp = fread(HDR.FILE.FID,2,'char');
                         tmp = fread(HDR.FILE.FID,60,'char');
+                        k = k + 1;
                 end;
+                HDR.NS = HDR.NS-aux; 
+                HDR.Label = deblank(char(Label(1:HDR.NS,:)));
+                HDR.PhysDim = char(PhysDim(1:HDR.NS,:));
                 HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
                 HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
                 HDR.Calib = sparse([HDR.Off';(diag(HDR.Cal))]);
-                HDR.HeadLen = 217 + HDR.NS*136;
-                
         end;
         
         
@@ -4372,23 +4369,50 @@ elseif strcmp(HDR.TYPE,'DDT'),
         if any(PERMISSION=='r'),
                 HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
                 tmp = fread(HDR.FILE.FID,2,'int32');
-                HDR.VERSION = tmp(1); 
+                HDR.Version = tmp(1); 
                 HDR.HeadLen = tmp(2); 
                 HDR.SampleRate = fread(HDR.FILE.FID,1,'double');
                 HDR.NS = fread(HDR.FILE.FID,1,'int32');
+                HDR.T0 = fread(HDR.FILE.FID,[1,6],'int32');
+                HDR.Gain = fread(HDR.FILE.FID,1,'int32');
+                HDR.Comment = char(fread(HDR.FILE.FID,[1,128],'char'));
+		tmp = fread(HDR.FILE.FID,[1,256],'uint8');
+		if HDR.Version == 100, 
+			HDR.Bits = 12; 
+			HDR.Cal = 5/2048*HDR.Gain;
+		elseif HDR.Version == 101, 
+			HDR.Bits = tmp(1);
+			HDR.Cal = 5*2^(1-HDR.Bits)/HDR.Gain;
+		elseif HDR.Version == 102, 
+			HDR.Bits = tmp(1);
+			ChannelGain = tmp(2:65);
+			HDR.Cal = 5000*2^(1-HDR.Bits)./(HDR.Gain*ChannelGain);
+		elseif HDR.Version == 103, 
+			HDR.Bits = tmp(1);
+			ChannelGain = tmp(2:65);
+			HDR.PhysMax = tmp(66:67)*[1;256]
+			HDR.Cal = 5000*2^(1-HDR.Bits)./(HDR.Gain*ChannelGain);
+		end;
+		HDR.DigMax(1:HDR.NS) = 2^(HDR.Bits-1)-1;
+		HDR.DigMin(1:HDR.NS) = -(2^(HDR.Bits-1));
+		HDR.PhysMax = HDR.DigMax * HDR.Cal;
+		HDR.PhysMin = HDR.DigMin * HDR.Cal;
+		HDR.PhysDim = 'mV';
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
+
                 HDR.AS.bpb = 2*HDR.NS; 
                 HDR.GDFTYP = 3; 
                 HDR.SPR = (HDR.FILE.size-HDR.HeadLen)/HDR.AS.bpb;
+		HDR.NRec = 1; 
                 HDR.AS.endpos = HDR.SPR; 
                 status = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
                 HDR.FILE.POS = 0; 
                 HDR.FILE.OPEN = 1; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         end;			
         
         
 elseif strcmp(HDR.TYPE,'NEX'),
-        fprintf(HDR.FILE.stderr,'Warning:  SOPEN (NEX) is still in testing phase.\n');	
+        fprintf(HDR.FILE.stderr,'Warning: SOPEN (NEX) is still in testing phase.\n');	
         if any(PERMISSION=='r'),
                 HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
                 if HDR.FILE.FID<0,
@@ -4443,8 +4467,10 @@ elseif strcmp(HDR.TYPE,'NEX'),
                 HDR.AS.SampleRate = HDR.NEX.SampleRate(CH);
                 HDR.AS.SPR = HDR.NEX.SPR(CH); 
                 HDR.SPR = 1;
+		HDR.SampleRate = 1; 
                 for k = 1:HDR.NS,
                         HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
+			HDR.SampleRate = lcm(HDR.SampleRate,HDR.AS.SampleRate(k));
                 end;
         end;			
         
@@ -4457,48 +4483,131 @@ elseif strcmp(HDR.TYPE,'PLEXON'),
                 if HDR.FILE.FID<0,
                         return;
                 end
-                fid = HDR.FILE.FID; 
-                H1 = fread(HDR.FILE.FID,64,'int32');
+                H1 = fread(HDR.FILE.FID,2,'int32');
+		HDR.magic = H1(1);
                 HDR.Version = H1(2); 
-                HDR.SampleRate = H1(35); 
-                HDR.NS = H1(36); 
-                HDR.EVENT.N = H1(37);
-                HDR.NSslow = H1(38); 
-                HDR.PLX.wavlen = H1(39);
-                HDR.TimeOffset = H1(40); 
-                HDR.T0 = H1(41:46)';
-                HDR.PLX.H1 = H1; 
-                
+                HDR.PLX.comment = fread(HDR.FILE.FID,128,'char');
+                H1 = fread(HDR.FILE.FID,14,'int32');
+                HDR.PLX.ADFrequency = H1(1); 
+		HDR.PLX.NumDSPChannels = H1(2);
+		HDR.PLX.NumEventChannels = H1(3);
+		HDR.PLX.NumSlowChannels = H1(4);
+		HDR.PLX.NumPointsWave = H1(5);
+		HDR.PLX.NumPointsPreThr = H1(6);
+                %HDR.NS = H1(2); 
+                HDR.EVENT.N = H1(3);
+                HDR.NS = H1(4); 
+                HDR.PLX.wavlen = H1(5);
+                HDR.TimeOffset = H1(6); 
+                HDR.T0 = H1(7:12)';
+                HDR.PLX.fastread = H1(13);
+                HDR.PLX.WaveFormFreq = H1(14);
+                HDR.PLX.LastTimeStamp = fread(HDR.FILE.FID,1,'double');
+                H1 = fread(HDR.FILE.FID,4,'char');
+	        H2 = fread(HDR.FILE.FID,3,'uint16');
+		if HDR.Version>=103,
+	                HDR.PLX.Trodalness          = H1(1);
+    		        HDR.PLX.DataTrodalness      = H1(2);
+        	        HDR.PLX.BitsPerSpikeSample  = H1(3);
+        	        HDR.PLX.BitsPerSlowSample   = H1(4);
+			HDR.PLX.SpikeMaxMagnitudeMV = H2(1);
+			HDR.PLX.SlowMaxMagnitudeMV  = H2(2);
+		end;	
+		if HDR.Version>=105,
+			HDR.PLX.SpikePreAmpGain     = H2(3);
+		end;
+                H1 = fread(HDR.FILE.FID,46,'char');
+		
                 HDR.PLX.tscount = fread(HDR.FILE.FID,[5,130],'int32');
                 HDR.PLX.wfcount = fread(HDR.FILE.FID,[5,130],'int32');
                 HDR.PLX.evcount = fread(HDR.FILE.FID,[1,300],'int32');
                 HDR.PLX.adcount = fread(HDR.FILE.FID,[1,212],'int32');
         
-                HDR.PLX.dspHeader = fread(HDR.FILE.FID,[1020,HDR.NS],'uint8');
-                HDR.PLX.evtHeader = fread(HDR.FILE.FID,[296,HDR.EVENT.N],'uint8');
-                HDR.PLX.adHeader = fread(HDR.FILE.FID,[74,HDR.NSslow],'int32');
-                %HDR.Label = int2str(HDR.PLX.adHeader(9,:)');
-                
-                HDR.AS.SampleRate = HDR.PLX.adHeader(10,:);
+                %HDR.PLX.dspHeader = fread(HDR.FILE.FID,[1020,HDR.NS],'uint8');
+		for k = 1:HDR.PLX.NumDSPChannels,
+            		tmp = fread(HDR.FILE.FID,[32,2],'char');
+			HDR.Spike.Name(k,:) 	 = tmp(:,1)';
+			HDR.Spike.SIGName(k,:) 	 = tmp(:,2)';
+            		tmp = fread(HDR.FILE.FID,9,'int32');
+			HDR.Spike.Channel(k) 	 = tmp(1);
+			HDR.Spike.WFRate(k) 	 = tmp(2);
+			HDR.Spike.SIG(k) 	 = tmp(3);
+			HDR.Spike.Ref(k)         = tmp(4);
+			HDR.Spike.Gain(k)        = tmp(5);
+			HDR.Spike.Filter(k)      = tmp(6);
+			HDR.Spike.Threshold(k)   = tmp(7);
+			HDR.Spike.Method(k)      = tmp(8);
+			HDR.Spike.NUnits(k)      = tmp(9);
+            		HDR.Spike.template(k,:,:) = fread(HDR.FILE.FID,[5,64],'int16');
+            		tmp = fread(HDR.FILE.FID,6,'int32');
+			HDR.Spike.Fit(k,:)       = tmp(1:5)';
+			HDR.Spike.SortWidth(k)   = tmp(6);
+			HDR.Spike.Boxes(k,:,:,:) = reshape(fread(HDR.FILE.FID,[40],'int16'),[5,2,4]);
+            		HDR.Spike.SortBeg(k)     = fread(HDR.FILE.FID,1,'int32');
+            		HDR.Spike.Comment(k,:)   = fread(HDR.FILE.FID,[1,128],'char');
+            		tmp = fread(HDR.FILE.FID,11,'int32');
+		end;
+		HDR.Spike.Name = deblank(char(HDR.Spike.Name));
+		HDR.Spike.Comment = deblank(char(HDR.Spike.Comment));
+		for k = 1:HDR.PLX.NumEventChannels,
+			HDR.EV.Name(k,:)         = fread(HDR.FILE.FID,[1,32],'char');
+			HDR.EV.Channel(k)        = fread(HDR.FILE.FID,1,'int32');
+            		HDR.EV.Comment(k,:)      = fread(HDR.FILE.FID,[1,128],'char');
+            		tmp = fread(HDR.FILE.FID,33,'int32');
+		end;
+		HDR.EV.Name = deblank(char(HDR.EV.Name));
+		HDR.EV.Comment = deblank(char(HDR.EV.Comment));
+		for k = 1:HDR.PLX.NumSlowChannels,
+			HDR.Cont.Name(k,:) = fread(HDR.FILE.FID,[1,32],'char');
+			tmp = fread(HDR.FILE.FID,6,'int32');
+			HDR.Cont.Channel(k)      = tmp(1)+1;
+			HDR.Cont.ADfreq(k)       = tmp(2);
+			HDR.Cont.Gain(k)         = tmp(3);
+			HDR.Cont.Enabled(k)      = tmp(4);
+			HDR.Cont.PreAmpGain(k)   = tmp(5);
+			HDR.Cont.SpikeChannel(k) = tmp(6);
+            		HDR.Cont.Comment(k,:) 	 = fread(HDR.FILE.FID,[1,128],'char');
+            		tmp = fread(HDR.FILE.FID,28,'int32');
+		end;
+		HDR.Cont.Name = deblank(char(HDR.Cont.Name));
+		HDR.Cont.Comment = deblank(char(HDR.Cont.Comment));
+
+                HDR.AS.SampleRate = HDR.Cont.ADfreq;
                 HDR.HeadLen = ftell(HDR.FILE.FID); 
+		HDR.EVENT.SampleRate = HDR.PLX.ADFrequency;
+		HDR.PhysDim = 'mV';
+		if HDR.Version<=102,
+			HDR.Spike.Cal = 3./(2048*HDR.Spike.Gain);
+		elseif HDR.Version<105
+			HDR.Spike.Cal = HDR.PLX.SpikeMaxMagnitudeMV*2.^(-HDR.PLX.BitsPerSpikeSample)./(500*HDR.Spike.Gain);
+		else
+			HDR.Spike.Cal = HDR.PLX.SpikeMaxMagnitudeMV*2.^(1-HDR.PLX.BitsPerSpikeSample)./(HDR.Spike.Gain*HDR.PLX.SpikePreAmpGain);
+		end;			
+		if HDR.Version<=101,
+			HDR.Cal = 5./(2048*HDR.Cont.Gain);
+		elseif HDR.Version<=102,
+			HDR.Cal = 5000./(2048*HDR.Cont.Gain.*HDR.Cont.PreAmpGain);
+		else
+			HDR.Cal = HDR.PLX.SpikeMaxMagnitudeMV*2^[1-HDR.PLX.BitsPerSlowSample]./(HDR.Cont.Gain.*HDR.Cont.PreAmpGain);
+		end;			
                 
                 % transfrom into native format
-                HDR.Label = int2str([1:HDR.NS]');
-                HDR.PhysDim = '[1]';
+                HDR.Label = HDR.Cont.Name;
                 HDR.NRec = 1;
                 HDR.SPR = max(HDR.PLX.adcount);
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
-                fprintf(HDR.FILE.stderr,'Warning SOPEN (PLX): Calibration(scaling) value not considered.\n');	
-
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
+		HDR.SampleRate = 1;
+		for k=1:HDR.NS,
+			HDR.SampleRate = lcm(HDR.SampleRate,HDR.AS.SampleRate(k));
+		end;
                 HDR.FILE.POS = 0; 
                 HDR.FILE.OPEN = 1; 
-                HDR.FLAG.UCAL = 1; 
 
                 CH = find(HDR.PLX.adcount>0);
-                if isempty(ReRefMx) & any(CH),
+                if isempty(ReRefMx) & any(CH) & (max(CH)<150),
                         HDR.NS = max(CH); 
                         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
-                        HDR.Label = int2str([1:HDR.NS]');
+                        HDR.Label = HDR.Label(1:HDR.NS,:);
                 end;
         end;			
 

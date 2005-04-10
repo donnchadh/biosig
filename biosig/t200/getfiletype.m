@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.33 $
-%	$Id: getfiletype.m,v 1.33 2005-04-05 17:49:13 schloegl Exp $
+%	$Revision: 1.34 $
+%	$Id: getfiletype.m,v 1.34 2005-04-10 11:40:15 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -182,7 +182,7 @@ else
                 elseif strncmp(ss,'ATES MEDICA SOFT. EEG for Windows',32);	% ATES MEDICA SOFTWARE, NeuroTravel 
                         HDR.TYPE='ATES';
                         HDR.VERSION = ss(35:42);
-                elseif strncmp(ss,'POLY_SAM',8);	% Poly5/TMS32 sample file format.
+                elseif all(s([1:24,29:31])==[abs('POLY SAMPLE FILEversion '),13,10,26]) & (str2double(ss(25:28))==(s([32:33])*[1;256]/100)); % Poly5/TMS32 sample file format.
                         HDR.TYPE='TMS32';
                 elseif strncmp(ss,'"Snap-Master Data File"',23);	% Snap-Master Data File .
                         HDR.TYPE='SMA';
@@ -193,10 +193,13 @@ else
                 elseif strncmp(ss,'DEMG',4);	% www.Delsys.com
                         HDR.TYPE='DEMG';
                         
+                elseif any(s(1)==[100:103]) & all(s([2:8])==[0,0,0,176,1,0,0]) & strcmpi(HDR.FILE.Ext,'DDT'); 
+                        HDR.TYPE='DDT';
                 elseif all(s([1:4])==abs('NEX1')); 
                         HDR.TYPE='NEX';
                 elseif all(s([1:4,6:132])==[abs('PLEX'),zeros(1,127)]); 	% http://WWW.PLEXONINC.COM
-                        HDR.TYPE='PLEXON';
+                        HDR.TYPE='PLEXON';                        
+                        
                 elseif strcmp(ss([1:4]),'fLaC'); 
                         HDR.TYPE='FLAC';
                 elseif strcmp(ss([1:4]),'OggS'); 
@@ -818,7 +821,7 @@ else
                 elseif strcmpi(HDR.FILE.Ext,'img')
                         
                 elseif strcmpi(HDR.FILE.Ext,'ddt')
-                        HDR.TYPE = 'DDT';
+%                        HDR.TYPE = 'DDT';
                 elseif strcmpi(HDR.FILE.Ext,'sx')
                         HDR.TYPE = 'SXI';
                 elseif strcmpi(HDR.FILE.Ext,'sxi')
