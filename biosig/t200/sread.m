@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.51 $
-%	$Id: sread.m,v 1.51 2005-04-05 17:49:13 schloegl Exp $
+%	$Revision: 1.52 $
+%	$Id: sread.m,v 1.52 2005-04-10 11:38:33 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -68,13 +68,52 @@ if tmp ~= round(tmp),
 end;
 STATUS = 0; 
 
-if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF') ,
+if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
         if nargin<3,
                 [S,HDR] = sdfread(HDR, NoS );
         else
                 [S,HDR] = sdfread(HDR, NoS ,StartPos);
         end;
         
+	
+elseif 0, strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
+	% experimental, might replace SDFREAD.M 
+	fprintf(2,'Warning SREAD(GDF): experimental version\n');
+        if nargin==3,
+                HDR.FILE.POS = round(HDR.SampleRate*StartPos);
+        end;
+
+        nr     = min(HDR.NRec*HDR.SPR-HDR.FILE.POS, NoS*HDR.SampleRate);
+	S      = repmat(NaN,nr,length(HDR.InChanSelect)); 
+
+	block1 = floor(HDR.FILE.POS/HDR.SPR);
+	ix1    = HDR.FILE.POS- block1*HDR.SPR;	% starting sample (minus one) within 1st block 
+	nb     = ceil((HDR.FILE.POS+nr)/HDR.SPR)-block1;
+    	fp     = HDR.HeadLen + block1*HDR.AS.bpb;
+    	status = fseek(HDR.FILE.FID, fp, 'bof');
+
+	count  = 0;
+        if all(HDR.GDFTYP==HDR.GDFTYP(1)),
+	        S = zeros(nr,length(HDR.InChanSelect));
+	    	while (count<nr);
+			len   = ceil(min([(nr-count)/HDR.SPR,2^22/HDR.AS.spb]));
+	                [s,c] = fread(HDR.FILE.FID,[HDR.AS.spb, len],gdfdatatype(HDR.GDFTYP(1)));
+	                s1    = zeros(HDR.SPR*c/HDR.AS.spb,length(HDR.InChanSelect));
+	                for k = 1:length(HDR.InChanSelect), 
+				K = HDR.InChanSelect(k);
+	                        tmp = reshape(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K)*c/HDR.AS.spb,1);
+	                        s1(:,k) = rs(tmp,HDR.AS.SPR(K),HDR.SPR);
+	                end;
+			ix2   = min(nr-count, size(s1,1)-ix1);
+			S(count+1:count+ix2,:) = s1(ix1+1:ix1+ix2,:);
+			count = count+ix2;
+			ix1   = 0; 
+		end;	
+		HDR.FILE.POS = HDR.FILE.POS + count;
+        else
+    		fprintf(2,'Error SREAD (GDF): different datatypes not supported (yet).\n');
+        end;
+                
         
 elseif strmatch(HDR.TYPE,{'BKR'}),
         if nargin==3,
@@ -82,16 +121,11 @@ elseif strmatch(HDR.TYPE,{'BKR'}),
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],'int16');
-        if count,
+        if ~isempty(S),
                 S = S(HDR.InChanSelect,:)';
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
-
-                if any(S(:)>=HDR.DigMax) | any(S(:)<-HDR.DigMax)
-                        fprintf(HDR.FILE.stderr,'Warning SREAD (BKR): range error - value is outside of interval [-DigMax, DigMax[. Overflow detection might not work correctly.\n')
-                end
-                S([S<=-HDR.DigMax] | [S>=(HDR.DigMax-1)] ) = -(2^15);   % mark overflow 
-                
-                S(S==-(2^15)) = NaN;       % Overflow detection
+	else
+		S = zeros(0,length(HDR.InChanSelect));		
         end;
 
         
@@ -366,44 +400,37 @@ elseif strcmp(HDR.TYPE,'MIT'),
         
         
 elseif strcmp(HDR.TYPE,'TMS32'),
-        tmp = NoS*HDR.SampleRate/HDR.SPR;
-        if tmp~=round(tmp)	
-                fprintf(2,'ERROR: NoS %f is not multiple of TMS32-blocksize %f. This is not supported yet.\n',NoS,HDR.SPR/HDR.SampleRate);
-                return;
-        end;
-        NoBlks = min(tmp,HDR.NRec-HDR.FILE.POS);
-        
         if nargin==3,
-                tmp = StartPos*HDR.SampleRate/HDR.SPR;
-                if tmp~=round(tmp)	
-                        fprintf(2,'ERROR: StartPos %f is not multiple of TMS32-blocksize %f. This is not supported yet.\n',StartPos,HDR.SPR/HDR.SampleRate);
-                        return;
-                end;
-                
-                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+StartPos*HDR.SampleRate/HDR.SPR*(HDR.AS.bpb+86),'bof');        
-                HDR.FILE.POS = HDR.SampleRate/HDR.SPR*StartPos;
+                HDR.FILE.POS = round(HDR.SampleRate*StartPos);
         end;
-        
-        S = [];
-        for k = 1:NoBlks, 
+
+	blockN = floor(HDR.FILE.POS/HDR.SPR);
+	ix1    = HDR.FILE.POS- blockN*HDR.SPR;	% starting sample (minus one) within 1st block 
+    	fp     = HDR.HeadLen + blockN*HDR.AS.bpb;
+    	status = fseek(HDR.FILE.FID, fp, 'bof');
+
+        nr     = min(HDR.AS.endpos-HDR.FILE.POS, NoS*HDR.SampleRate);
+	S      = repmat(NaN,nr,length(HDR.InChanSelect)); 
+	count  = 0;
+    	while (count<nr) & ~feof(HDR.FILE.FID);
+                hdr = fread(HDR.FILE.FID,86,'char');
                 if all(HDR.GDFTYP==HDR.GDFTYP(1))
-                        hdr = fread(HDR.FILE.FID,86,'char');
                         [s,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],gdfdatatype(HDR.GDFTYP(1)));
-                        S = [S;s'];
-                        HDR.FILE.POS = HDR.FILE.POS + 1;
                 else
-                        hdr = fread(HDR.FILE.FID,86,'char');
-                        s = zeros(HDR.SPR,HDR.NS);
-                        for k1 = 1: HDR.SPR,
-                                for k2 = 1: HDR.NS,
-                                        [s(k1,k2),count] = fread(HDR.FILE.FID,1,gdfdatatype(HDR.GDFTYP(k2)));
+                        s = repmat(NaN,HDR.NS,HDR.SPR);
+			c = 0;
+                        for k1 = 1:HDR.SPR,
+                                for k2 = 1:HDR.NS,
+                                        [s(k2,k1),c2] = fread(HDR.FILE.FID,1,gdfdatatype(HDR.GDFTYP(k2)));
                                 end;
                         end;
-                        S = [S;s'];
-                        HDR.FILE.POS = HDR.FILE.POS + 1;
                 end;
+		ix2 = min(nr-count, size(s,2)-ix1);
+		S(count+1:count+ix2,:) = s(HDR.InChanSelect, ix1+1:ix1+ix2)';
+		count = count + ix2; 
+		ix1 = 0;	% reset starting index, 
         end;
-        S = S(:,HDR.InChanSelect);	
+	HDR.FILE.POS = HDR.FILE.POS + count;
         
         
 elseif strcmp(HDR.TYPE,'EGI'),
@@ -604,13 +631,14 @@ elseif strcmp(HDR.TYPE,'NEX'),
         fclose(HDR.FILE.FID);
         HDR.FILE.OPEN = 0; 
         HDR.TYPE = 'native';
+	HDR.data = HDR.data(:,HDR.InChanSelect);
         
         % sequence for reading "native" format
 	if nargin>2,
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
-
-        nr = min(round(HDR.SampleRate * NoS), size(HDR.data,1) - HDR.FILE.POS);
+		
+        nr = min([round(HDR.SampleRate * NoS), size(HDR.data,1) - HDR.FILE.POS]);
         S  = HDR.data(HDR.FILE.POS + (1:nr), :);
         HDR.FILE.POS = HDR.FILE.POS + nr;
         
@@ -631,31 +659,32 @@ elseif strcmp(HDR.TYPE,'PLEXON'),
         adpos = zeros(1,HDR.NS);
         typ_ubyte = fread(HDR.FILE.FID,2,'int16');
         while ~feof(HDR.FILE.FID),
-                TYP = typ_ubyte(1);
-                ubyte = typ_ubyte(2);
-                POS = fread(HDR.FILE.FID,1,'int32');
-                tmp = fread(HDR.FILE.FID,4,'int16');
-                CHN = tmp(1)+1; 
-                unit= tmp(2);
-                nwf = tmp(3); 
-                DUR = tmp(4);
-                
-                wf  = fread(HDR.FILE.FID,[1,DUR],'int16');
-                nET = nET + 1; 
-                if size(ET,1)<nET;       % memory allocation
-                        ET  = [ET ; repmat(NaN,size(ET))];
-                        %        wav = [wav; repmat(NaN,size(wav))];
+                TYP  = typ_ubyte(1);
+                ubyte= typ_ubyte(2);
+                POS  = fread(HDR.FILE.FID,1,'int32');
+                tmp  = fread(HDR.FILE.FID,4,'int16');
+                CHN  = tmp(1)+1; 
+                unit = tmp(2);
+                nwf  = tmp(3); 
+                DUR  = tmp(4);
+    	        if nwf>0,
+		        wf = fread(HDR.FILE.FID,[1,DUR],'int16');
                 end;
-                ET(nET,:) = [TYP,POS,CHN,DUR,unit,nwf];
-                %wav(nET,1:N) = wf; %[wf,repmat(NaN,1,24-DUR)];
-                if TYP==1, % timestamps, waves
+		if TYP<5,
+			nET = nET + 1; 
+    		        if size(ET,1) < nET;       % memory allocation
+        	                ET  = [ET ; repmat(NaN,size(ET))];
+        	        end;
+        	        ET(nET,:) = [TYP,ubyte*2^32+POS,CHN,DUR,unit,nwf];
+		end;
+                if TYP==1, % spike
                         tscount(unit+1,CHN) = tscount(unit+1,CHN)+1; 
                         if DUR>0,
                                 wfcount(unit+1,CHN) = wfcount(unit+1,CHN)+1; 
                         end;
                 elseif TYP==4, % events, 
                         evcount(CHN) = evcount(CHN) + 1; 
-                elseif TYP==5,  
+                elseif TYP==5,  % continous
                         t1 = adpos(CHN) + 1;
                         t2 = adpos(CHN) + DUR;
                         HDR.data(t1:t2,CHN) = wf';
@@ -679,7 +708,9 @@ elseif strcmp(HDR.TYPE,'PLEXON'),
         HDR.EVENT.CHN = ET(:,3); 
         HDR.EVENT.DUR = ET(:,4); 
         HDR.EVENT.unit= ET(:,5); 
-        HDR.TYPE = 'native'
+
+        HDR.TYPE = 'native';
+	HDR.data = HDR.data(:,HDR.InChanSelect);
         
         % sequence for reading "native" format
 	if nargin>2,
@@ -691,6 +722,274 @@ elseif strcmp(HDR.TYPE,'PLEXON'),
         HDR.FILE.POS = HDR.FILE.POS + nr;
         
         
+elseif strcmp(HDR.TYPE,'SCP'),
+	% this branch is not in use yet. 
+	% its experiemental to improve performance
+
+	% decompress data in first call 
+	HT = HDR.Huffman.HT; 
+        
+	dd = [0:255]';
+        ACC = zeros(size(dd));
+        c = 0;
+        for k2 = 1:8,
+                ACC = ACC + (dd>127).*(2^c);
+                dd  = mod(dd*2, 256);
+                c   = c + 1;
+        end;
+        
+	S2 = []; 
+	for k3 = 5:6,
+		if (k3==5) & isfield(HDR,'SCP5');
+			SCP = HDR.SCP5;
+		elseif (k3==6) & isfield(HDR,'SCP6');
+			SCP = HDR.SCP6;
+		else 
+			SCP = []; 
+		end;
+
+		if ~isempty(SCP),
+                        if ~isfield(HDR,'SCP2'),
+				S2 = SCP.data(:,HDR.InChanSelect);                      
+        
+                        elseif HDR.SCP2.NHT==19999,
+                                HuffTab = HDR.Huffman.DHT;
+				S2 = zeros(0,length(HDR.InChanSelect));
+                                for k0 = 1:length(HDR.InChanSelect), k = HDR.InChanSelect(k0); %HDR.NS,
+                                        s2 = SCP.data{k};
+                                        s2 = [s2; repmat(0,ceil(max(HDR.SCP2.HT(:,4))/8),1)];
+					k1 = 0;	
+					l2 = 0; 
+					accu = 0;
+					c  = 0; 
+					x  = [];
+					HT = HDR.SCP2.HT(find(HDR.SCP2.HT(:,1)==1),3:7);
+					while (l2 < HDR.LeadPos(k,2)),
+						while ((c < max(HT(:,2))) & (k1<length(s2)-1));
+							k1 = k1 + 1;
+							dd = s2(k1);
+							accu = accu + ACC(dd+1)*(2^c);
+							c = c + 8;
+						end;
+
+                                                ixx = 1;
+						acc = accu - 2^32*floor(accu*(2^(-32)));   % bitand returns NaN if accu >= 2^32
+						while (bitand(acc,2^HT(ixx,1)-1) ~= HT(ixx,5)),
+							ixx = ixx + 1;
+						end;
+                                                
+                                                dd = HT(ixx,2) - HT(ixx,1);
+						if HT(ixx,3)==0,
+							HT = HDR.SCP2.HT(find(HDR.SCP2.HT(:,1)==HT(ixx,5)),3:7);
+							fprintf(HDR.FILE.stderr,'Warning SCPOPEN: Switching Huffman Tables is not tested yet.\n');
+						elseif (dd==0),
+							l2 = l2 + 1;
+							x(l2) = HT(ixx,4);
+						else %if (HT(ixx,3)>0),
+							l2 = l2 + 1;
+							
+                                                        tmp = floor(accu*(2^(-HT(ixx,1))));       % 
+							%tmp = bitshift(accu,-HT(ixx,1));
+                                                        tmp = tmp - (2^dd)*floor(tmp*(2^(-dd)));  % 
+							%tmp = bitand(tmp,2^dd)
+                                                        
+                                                        % reverse bit-pattern
+                                                        if dd==8,
+                                                                tmp = ACC(tmp+1);
+                                                        else
+                                                                tmp = dec2bin(tmp);
+                                                                tmp = [char(repmat('0',1,dd-length(tmp))),tmp];
+                                                                tmp = bin2dec(tmp(length(tmp):-1:1));
+                                                        end
+                                                        x(l2) = tmp-(tmp>=(2^(dd-1)))*(2^dd);
+						end;
+						accu = floor(accu*2^(-HT(ixx,2)));
+						c = c - HT(ixx,2); 
+					end;
+
+                                        if k0==1,
+                                                S2 = x';
+                                        elseif size(x,2)==size(S2,1),
+                                                S2(:,k0) = x';
+					else
+	                                        fprintf(HDR.FILE.stderr,'Error SCPOPEN: Huffman decoding failed (%i) \n',size(x,1));
+						return;
+                                        end;
+				end;
+                                
+                                
+                        elseif (HDR.SCP2.NHT==19999), % alternative decoding algorithm. 
+                                HuffTab = HDR.Huffman.DHT;
+
+                                for k0 = 1:length(HDR.InChanSelect), k = HDR.InChanSelect(k0); %HDR.NS,
+                                        tmp  = SCP.data{k};
+                                        accu = [tmp(4)+256*tmp(3)+65536*tmp(2)+2^24*tmp(1)];
+                                        %accu = bitshift(accu,HDR.SCP2.prefix,32);
+                                        c  = 0; %HDR.SCP2.prefix;
+                                        l  = 4;
+                                        l2 = 0;
+                                        clear x;
+                                        Ntmp = length(tmp);
+                                        tmp = [tmp; zeros(4,1)];
+                                        while c <= 32, %1:HDR.SPR(k),
+                                                ixx = 1;
+                                                while (bitand(accu,HDR.Huffman.mask(ixx)) ~= HDR.Huffman.PREFIX(ixx)), 
+                                                        ixx = ixx + 1;
+                                                end;
+
+                                                if ixx < 18,
+                                                        c = c + HDR.Huffman.prefix(ixx);
+                                                        %accu  = bitshift(accu, HDR.Huffman.prefix(ixx),32);
+                                                        accu  = mod(accu.*(2^HDR.Huffman.prefix(ixx)),2^32);
+                                                        l2    = l2 + 1;
+                                                        x(l2) = HuffTab(ixx,1);
+                                                        
+                                                elseif ixx == 18,
+                                                        c = c + HDR.Huffman.prefix(ixx) + 8;
+                                                        %accu = bitshift(accu, HDR.Huffman.prefix(ixx),32);
+                                                        accu  = mod(accu.*(2^HDR.Huffman.prefix(ixx)),2^32);
+                                                        l2    = l2 + 1;
+                                                        
+                                                        acc1  = mod(floor(accu*2^(-24)),256);
+                                                        %accu = bitshift(accu, 8, 32);
+                                                        accu  = mod(accu*256, 2^32);
+                                                        
+                                                        x(l2) = acc1-(acc1>=2^7)*2^8;
+                                                        acc2  = 0;
+                                                        for kk = 1:8,
+                                                                acc2 = acc2*2 + mod(acc1,2);
+                                                                acc1 = floor(acc1/2);
+                                                        end;
+                                                        
+                                                elseif ixx == 19,
+                                                        c = c + HDR.Huffman.prefix(ixx);
+                                                        %accu = bitshift(accu, HDR.Huffman.prefix(ixx),32);
+                                                        accu  = mod(accu.*(2^HDR.Huffman.prefix(ixx)),2^32);
+                                                        l2    = l2 + 1;
+                                                        while (c > 7) & (l < Ntmp),
+                                                                l = l+1;
+                                                                c = c-8;
+                                                                accu = accu + tmp(l)*2^c;
+                                                        end;
+                                                        
+                                                        acc1 = mod(floor(accu*2^(-16)),2^16);
+                                                        %accu = bitshift(accu, 16, 32);
+                                                        accu = mod(accu.*(2^16), 2^32);
+                                                        
+                                                        x(l2) = acc1-(acc1>=2^15)*2^16;
+                                                        acc2 = 0;
+                                                        for kk= 1:16,
+                                                                acc2 = acc2*2+mod(acc1,2);
+                                                                acc1 = floor(acc1/2);
+                                                        end;
+                                                        %x(l2) = acc2;
+                                                        c = c + 16;
+                                                end;
+                                                
+                                                while (c > 7) & (l < Ntmp),
+                                                        l = l+1;
+                                                        c = c-8;
+                                                        accu = accu + tmp(l)*(2^c);
+                                                end;
+                                        end;
+
+                                        x = x(1:end-1)';
+                                        if k==1,
+                                                S2=x;
+                                        elseif size(x,1)==size(S2,1),
+                                                S2(:,k0) = x;
+					else
+	                                        fprintf(HDR.FILE.stderr,'Error SCPOPEN: Huffman decoding failed (%i) \n',size(x,1));
+						return;
+                                        end;
+                                end;
+                        elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) & (HDR.SCP2.prefix==0), 
+				S2 = SCP.data(:,HDR.InChanSelect);                      
+                                
+                        elseif HDR.SCP2.NHT~=19999,
+                                fprintf(HDR.FILE.stderr,'Warning SOPEN SCP-ECG: user specified Huffman Table not supported\n');
+                                return;
+                        else
+                                HDR.SCP2,
+                        end;
+
+                        % Decoding of Difference encoding                  
+                        if SCP.FLAG.DIFF==2,
+                                for k1 = 3:size(S2,1);
+                                        S2(k1,:) = S2(k1,:) + [2,-1] * S2(k1-(1:2),:);
+                                end;
+                        elseif SCP.FLAG.DIFF==1,
+                                S2 = cumsum(S2);    
+                        end;
+                        S2 = S2 * SCP.Cal;
+
+			if (k3==5) & isfield(HDR,'SCP5');
+			%	HDR.SCP5.data = S2; 
+
+			elseif (k3==6) & isfield(HDR,'SCP6');
+                                if HDR.SCP6.FLAG.bimodal_compression,
+                                        F = HDR.SCP5.SampleRate/HDR.SCP6.SampleRate;
+                                        HDR.SampleRate = HDR.SCP5.SampleRate;
+                                        HDR.FLAG.F = F;
+                                        
+                                        tmp=[HDR.SCP4.PA(:,1);HDR.LeadPos(1,2)]-[1;HDR.SCP4.PA(:,2)+1];
+                                        if ~all(tmp==floor(tmp))
+                                                tmp,
+                                        end;
+                                        t  = (1:HDR.N) / HDR.SampleRate;
+                                        S1 = zeros(HDR.N, HDR.NS);
+                                        
+                                        
+                                        p = 1;
+                                        k2 = 1;
+                                        pa = [HDR.SCP4.PA;NaN,NaN];
+                                        flag = 1;
+                                        for k1 = 1:HDR.N,
+                                                if k1 == pa(p,2)+1,
+                                                        flag = 1;
+                                                        p    = p+1;
+                                                        accu = S2(k2,:);
+                                                elseif k1 == pa(p,1),
+                                                        flag = 0;
+                                                        k2 = ceil(k2);
+                                                end;
+                                                
+                                                if flag,
+                                                        S1(k1,:) = ((F-1)*accu + S2(floor(k2),:)) / F;
+                                                        k2 = k2 + 1/F;
+                                                else	
+                                                        S1(k1,:) = S2(k2,:);
+                                                        k2 = k2 + 1;
+                                                end;
+                                        end;	
+                                        
+                                        HDR.SCP.S2 = S2;
+                                        HDR.SCP.S1 = S1;
+                                        S2 = S1;
+                                end;
+                                
+                                if HDR.FLAG.ReferenceBeat,
+                                        for k = find(~HDR.SCP4.type(:,1)'),
+                                                t1 = (HDR.SCP4.type(k,2):HDR.SCP4.type(k,4));
+                                                t0 = t1 - HDR.SCP4.type(k,3) + HDR.SCP4.fc0;
+                                                S2(t1,:) = S2(t1,:) + HDR.SCP5.data(t0,:); 
+                                        end;
+                                end;
+			end;
+		end;
+	end;
+        HDR.data = S2;
+	HDR.TYPE = 'native'; 	% decompression is already applied
+
+	if nargin>2,
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+
+        nr = min(round(HDR.SampleRate * NoS), size(HDR.data,1) - HDR.FILE.POS);
+        S  = HDR.data(HDR.FILE.POS + (1:nr), :);
+        HDR.FILE.POS = HDR.FILE.POS + nr;
+        
+
 elseif strcmp(HDR.TYPE,'SIGIF'),
         if nargin==3,
                 HDR.FILE.POS = StartPos;
@@ -988,7 +1287,7 @@ elseif isfield(HDR,'THRESHOLD'),
         % automated overflow detection has been turned off
 end;
 
-if ~HDR.FLAG.UCAL
+if ~HDR.FLAG.UCAL,
         % S = [ones(size(S,1),1),S]*HDR.Calib; 
         % perform the previous function more efficiently and
         % taking into account some specialities related to Octave sparse
@@ -1001,17 +1300,17 @@ if ~HDR.FLAG.UCAL
 		S = zeros(0,length(HDR.InChanSelect));
 	end;
 
-        if 1; %exist('OCTAVE_VERSION')
+        if ~issparse(HDR.Calib); %exist('OCTAVE_VERSION')
                 % force octave to do a sparse multiplication
                 % the difference is NaN*sparse(0) = 0 instead of NaN
                 % this is important for the automatic overflow detection
 		Calib = HDR.Calib;
-                tmp   = zeros(size(S,1),size(Calib,2));   % memory allocation
+		tmp   = double(S);
+                S     = zeros(size(S,1),size(Calib,2));   % memory allocation
                 for k = 1:size(Calib,2),
                         chan = find(Calib(2:end,k));
-                        tmp(:,k) = double(S(:,chan)) * Calib(1+chan,k) + Calib(1,k);
-                end
-                S = tmp; 
+                        S(:,k) = tmp(:,chan) * Calib(1+chan,k) + Calib(1,k);
+                end;
         else
                 % S = [ones(size(S,1),1),S]*HDR.Calib; 
                 % the following is the same as above but needs less memory. 
