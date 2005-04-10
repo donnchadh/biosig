@@ -122,8 +122,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.44 $
-%	$Id: sdfopen.m,v 1.44 2005-04-02 22:22:12 schloegl Exp $
+%	$Revision: 1.45 $
+%	$Id: sdfopen.m,v 1.45 2005-04-10 12:12:15 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -533,7 +533,7 @@ elseif strcmp(EDF.TYPE,'GDF') & (EDF.AS.EVENTTABLEPOS > 0),
 	if ~EDF.EVENT.SampleRate, % ... is not defined in GDF 1.24 or earlier
 		EDF.EVENT.SampleRate = EDF.SampleRate; 
 	end;
-        EVENT.N = fread(EDF.FILE.FID,1,'uint32');
+        [EVENT.N,c] = fread(EDF.FILE.FID,1,'uint32');
         if EVENT.Version==1,
                 [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EVENT.N,1],'uint32');
                 [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EVENT.N,1],'uint16');
@@ -555,11 +555,11 @@ elseif strcmp(EDF.TYPE,'GDF') & (EDF.AS.EVENTTABLEPOS > 0),
                                 EDF.EVENT.DUR(ix0) = EDF.EVENT.POS(ix1) - EDF.EVENT.POS(ix0);
                                 flag_remove = flag_remove | (EDF.EVENT.TYP==TYP1);
                         else 
-                                fprintf(2,'Warning ELOAD: number of event onset (TYP=%s) and event offset (TYP=%s) differ\n',dec2hex(TYP0),dec2hex(TYP1));
+                                fprintf(2,'Warning SDFOPEN: number of event onset (TYP=%s) and event offset (TYP=%s) differ\n',dec2hex(TYP0),dec2hex(TYP1));
                         end;
                 end
                 if any(EDF.EVENT.DUR<0)
-                        fprintf(2,'Warning ELOAD: EVENT ONSET later than EVENT OFFSET\n',dec2hex(TYP0),dec2hex(TYP1));
+                        fprintf(2,'Warning SDFOPEN: EVENT ONSET later than EVENT OFFSET\n',dec2hex(TYP0),dec2hex(TYP1));
                         EDF.EVENT.DUR(:) = 0
                 end;
                 EDF.EVENT.TYP = EDF.EVENT.TYP(~flag_remove);
@@ -578,7 +578,7 @@ elseif strcmp(EDF.TYPE,'GDF') & (EDF.AS.EVENTTABLEPOS > 0),
                 end
                 
         else
-                fprintf(2,'\nWarning SDFOPEN: Eventtable version %i not supported\n',EVENT.Version);
+                fprintf(2,'\nWarning SDFOPEN: File %s corrupted (Eventtable version %i ).\n',EDF.FileName,EVENT.Version);
         end;
         EDF.AS.endpos = EDF.AS.EVENTTABLEPOS;   % set end of data block, might be important for SSEEK
 
@@ -609,8 +609,9 @@ elseif strcmp(EDF.TYPE,'EDF') & (length(strmatch('EDF Annotations',EDF.Label))==
         % EDF+: 
         tmp = strmatch('EDF Annotations',EDF.Label);
         EDF.EDF.Annotations = tmp;
-        EDF.Cal(EDF.EDF.Annotations) = 1;
-        EDF.Off(EDF.EDF.Annotations) = 0;
+%       EDF.Cal(EDF.EDF.Annotations) = 1;
+%       EDF.Off(EDF.EDF.Annotations) = 0;
+%	EDF.Calib(:,tmp) = [];
         
         status = fseek(EDF.FILE.FID,EDF.HeadLen+EDF.AS.bi(EDF.EDF.Annotations)*2,'bof');
         t = fread(EDF.FILE.FID,inf,[int2str(EDF.AS.SPR(EDF.EDF.Annotations)*2),'*uchar=>uchar'],EDF.AS.bpb-EDF.AS.SPR(EDF.EDF.Annotations)*2);
