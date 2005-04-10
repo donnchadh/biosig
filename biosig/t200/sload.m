@@ -29,8 +29,8 @@ function [signal,H] = sload(FILENAME,CHAN,MODE)
 %
 
 
-%	$Revision: 1.56 $
-%	$Id: sload.m,v 1.56 2005-02-22 09:58:09 schloegl Exp $
+%	$Revision: 1.57 $
+%	$Id: sload.m,v 1.57 2005-04-10 12:08:50 schloegl Exp $
 %	Copyright (C) 1997-2005 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -152,7 +152,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
                 end;
 	end;
         
-	fprintf(1,'  SLOAD: data segments are concanated with NaNs in between.\n');
+	fprintf(1,'  SLOAD: data segments are concatenated with NaNs in between.\n');
 	return;	
 end;
 %%% end of multi-file section 
@@ -237,7 +237,7 @@ elseif strcmp(H.TYPE,'DAQ')
         end;
         
         
-elseif strcmp(H.TYPE,'BIFF'),
+elseif 0, strcmp(H.TYPE,'BIFF'),
 	try, 
                 [H.TFM.S,H.TFM.E] = xlsread(H.FileName,'Beat-To-Beat');
                 if size(H.TFM.S,1)+1==size(H.TFM.E,1),
@@ -668,7 +668,11 @@ if strcmp(H.TYPE,'CNT');
         end
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
         if exist(f,'file'),
-                tmp = load(f);
+                try,
+                        tmp = load(f);
+                catch
+                        tmp = []; 
+                end
                 if isfield(tmp,'classlabel') & ~isfield(H,'Classlabel')
                         H.Classlabel=tmp.classlabel(:);                        
                 elseif isfield(tmp,'classlabel') & isfield(tmp,'header') & isfield(tmp.header,'iniFile') & strcmp(tmp.header.iniFile,'oom.ini'), %%% for OOM study only. 
@@ -677,14 +681,22 @@ if strcmp(H.TYPE,'CNT');
         end;
         f = fullfile(H.FILE.Path, [H.FILE.Name,'c.mat']);
         if exist(f,'file'),
-                tmp = load(f);
+                try,
+                        tmp = load(f);
+                catch
+                        tmp = []; 
+                end
                 if isfield(tmp,'classlabel') & ~isfield(H,'Classlabel')
                         H.Classlabel=tmp.classlabel(:);                        
                 end;
         end;
         f = fullfile(H.FILE.Path, [H.FILE.Name,'_classlabel.mat']);
         if exist(f,'file'),
-                tmp = load(f);
+                try,
+                        tmp = load(f);
+                catch
+                        tmp = []; 
+                end
                 if isfield(tmp,'Classlabel') & (size(tmp.Classlabel,2)==4)
                         [x,H.Classlabel] = max(tmp.Classlabel,[],2);                        
                 end;
@@ -701,14 +713,22 @@ if strcmp(H.TYPE,'CNT');
 		tmp = fread(fid,inf,'char');
 		fclose(fid);
 		[tmp,v] = str2double(char(tmp'));
-		if ~any(v), 
-            		H.ArtifactSelection = tmp(:);         
-                        if any(H.ArtifactSelection>1) | (length(H.ArtifactSelection)<length(H.Classlabe))
-                                sel = zeros(size(H.Classlabel));
-                                sel(H.ArtifactSelection) = 1; 
-                                H.ArtifactSelection = sel;
+		if any(isnan(tmp)) |any(tmp~=ceil(tmp)) | any(tmp<0) | (any(tmp==0) & any(tmp>1))
+                        fprintf(2,'Warning SLOAD(CNT): corrupted SEL-file %s\n',f);
+                else
+                        if isfield(H,'Classlabel'), 
+                                n = length(H.Classlabel);
+                        else
+                                n = length(H.EVENT.TYP);
                         end;
-	        end;
+                        
+                        H.ArtifactSelection = zeros(n,1);
+                        if all((tmp==0) | (tmp==1)) & (length(tmp)>1) & (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
+                                H.ArtifactSelection = logical(tmp);         
+                        else
+                                H.ArtifactSelection(tmp) = 1;         
+                        end;
+                end;
         end;
 end;
 
@@ -730,12 +750,19 @@ if ~isempty(strfind(upper(MODE),'TSD'));
 end;
 
 
-if (strcmp(H.TYPE,'GDF') & isempty(H.EVENT.TYP)),
+if (strcmp(H.TYPE,'GDF') & isempty(H.EVENT.TYP))
         %%%%% if possible, load Reinhold's configuration files
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
         if exist(f,'file'),
-                x = load(f,'header');
+                try
+                        x = load(f,'header');
+                catch; 
+                        x=[];
+                end; 
 		if isfield(x,'header'),
+                if isfield(x.header,'Paradigm')
+                        fprintf(2,'Warning SLOAD (GDF): Obsolete feature is used (header information loaded from MAT-file %s).\n',H.FileName);
+                        fprintf(2,'This feature will be removed in future. Contact <a.schloegl@ieee.org> if you need this.\n ');  
 	                H.BCI.Paradigm = x.header.Paradigm;
     		        if isfield(H.BCI.Paradigm,'TriggerTiming');
     		                H.TriggerOffset = H.BCI.Paradigm.TriggerTiming;
@@ -746,6 +773,7 @@ if (strcmp(H.TYPE,'GDF') & isempty(H.EVENT.TYP)),
                         if isfield(H,'Classlabel') & isempty(H.Classlabel),
                                 H.Classlabel = x.header.Paradigm.Classlabel;
                         end;
+                end;
 		end;
         end;
 end;    
