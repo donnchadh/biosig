@@ -1,22 +1,20 @@
-function [CNT,h,e]=cntopen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
+function [CNT,h,e]=cntopen(arg1,PERMISSION,arg3,arg4,arg5,arg6)
 % CNTOPEN opens neuroscan files (but does not read the data). 
 % However, it is recommended to use SOPEN instead of CNTOPEN.
 % For loading whole Neuroscan data files, use SLOAD. 
 %
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
-% HDR=cntopen(Filename, PERMISSION, [, ChanList ]);
+% HDR=cntopen(Filename, PERMISSION);
 %
 % FILENAME 
 % PERMISSION is one of the following strings 
 %	'rb'	read 
-% ChanList	(List of) Channel(s)
-%		default=0: loads all channels
 
-%	$Revision: 1.31 $
-%	$Id: cntopen.m,v 1.31 2005-03-25 11:20:22 schloegl Exp $
-%	Copyright (C) 1997-2003 by  Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Revision: 1.32 $
+%	$Id: cntopen.m,v 1.32 2005-04-11 17:59:58 schloegl Exp $
+%	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -37,7 +35,6 @@ if nargin<2,
 elseif ~any(PERMISSION=='b');
         PERMISSION = [PERMISSION,'b']; % force binary open. 
 end;
-if nargin<3, CHAN=0; end;
 
 if isstruct(arg1),
 	CNT=arg1;
@@ -464,8 +461,6 @@ CNT.CNT.EventTablePos  = h.eventtablepos;
 
 CNT.Label = setstr(e.lab');
 
-if CHAN==0, CHAN=1:CNT.NS; end;
-
 CNT.FILE.POS = 0;
 if strcmp(upper(CNT.FILE.Ext),'AVG'),
         if (h.type~=0),
@@ -480,16 +475,19 @@ if strcmp(upper(CNT.FILE.Ext),'AVG'),
 	CNT.AS.bpb = h.pnts*h.nchannels*4+5;
 	CNT.AS.spb = h.pnts*h.nchannels;
 	CNT.Dur = CNT.SPR/CNT.SampleRate;
+        CNT.GDFTYP = 16; %'float32';
         
 elseif strcmp(upper(CNT.FILE.Ext),'COH')        
         warning('.COH data not supported yet')
         CNT.COH.directory = fread(CNT.FILE.FID,[CNT.NS,CNT.NS],'int32');
         CNT.SPR = h.pnts;
+        CNT.GDFTYP = 16; %'float32';
         
 elseif strcmp(upper(CNT.FILE.Ext),'CSA')        
         warning('.CSA data not supported yet')
         CNT.SPR  = h.pnts;
         CNT.NRec = h.compsweeps;
+        CNT.GDFTYP = 16; %'float32';
         
 elseif strcmp(upper(CNT.FILE.Ext),'EEG'),
 	if (h.type~=1),
