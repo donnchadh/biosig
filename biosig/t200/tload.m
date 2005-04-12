@@ -21,7 +21,7 @@ function [signal,H] = tload(FILENAME,TI1,CHAN,EVENTFILE,TI2)
 % see also: SLOAD, SVIEW, SOPEN, ARTIFACT_SELECTION
 
 
-%	$Id: tload.m,v 1.4 2005-03-04 18:06:05 schloegl Exp $
+%	$Id: tload.m,v 1.5 2005-04-12 10:55:45 schloegl Exp $
 %	Copyright (C) 2004-2005 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -58,7 +58,8 @@ TRIG = HDR.TRIG;
 if isfield(HDR,'ArtifactSelection'),
         fprintf(1,'TLOAD: Due to Artifact_Selection, %i (out of %i) trials have been removed from %s \n', sum(HDR.ArtifactSelection),length(TRIG),HDR.FileName);
         TRIG = TRIG(~HDR.ArtifactSelection);
-        if isfield(HDR.Classlabel);
+        if isfield(HDR,'Classlabel');
+                22,
                 H.Classlabel = HDR.Classlabel(~HDR.ArtifactSelection);
         end;
         H.ArtifactSelection = zeros(size(TRIG));
