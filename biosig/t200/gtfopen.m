@@ -22,7 +22,7 @@ function [HDR]=gtfopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: gtfopen.m,v 1.3 2005-04-01 10:57:25 schloegl Exp $
+%	$Id: gtfopen.m,v 1.4 2005-04-23 21:14:10 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -44,49 +44,55 @@ function [HDR]=gtfopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
         [H.i8,count] = fread(HDR.FILE.FID,inf,'int8');
         fclose(HDR.FILE.FID);
         
-        if all(HDR.H1(33:43)==abs('ST24256.TDR'))
-                HDR.NS   = 24; 
-                HDR.SampleRate = 256; 
+
+	[t,status] = str2double(char([HDR.H1(35:36),32,HDR.H1(37:39)]));	
+        if ~any(status) & all(t>0)
+                HDR.NS = t(1); 
+                HDR.SampleRate = t(2); 
         else
-                fprintf(2,'ERROR SOPEN (%s): Currently, only driver ST24256.TDR (24 channels and 256 Hz Sampling Rate) is supported.\n\t If you want support for your data, send the data to <a.schloegl@ieee.org>.\n',HDR.FileName);
+                fprintf(2,'ERROR SOPEN (%s): Invalid GTF header.\n',HDR.FileName);
+		HDR.TYPE = 'unknown';
                 return; 
         end
         HDR.Dur  = 10; 
-        HDR.SPR  = 2560; 
+        HDR.SPR  = HDR.Dur*HDR.SampleRate; 
         HDR.bits = 8; 
+	HDR.GDFTYP = repmat(1,HDR.NS,1);
         HDR.TYPE = 'native'; 
         HDR.THRESHOLD = repmat([-127,127],HDR.NS,1);    % support of overflow detection
         HDR.FILE.POS = 0; 
         HDR.Label = HDR.Label(1:HDR.NS,:);
         
-        % Scaling(Calibration) not supported yet
-        fprintf(2,'Warning SOPEN (%s): implementation of GTF-format is not completed.\n\t- Scaling is not implemented\n',HDR.FileName);
-        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
-        HDR.FLAG.UCAL = 1;
-        
-        t2 = 9248+(0:floor(count/63488)-1)*63488;
+        HDR.AS.bpb = (HDR.SampleRate*240+2048);
+	HDR.GTF.Preset = HDR.H3(8134);	% Preset
+
+        t2 = 9248+(0:floor(count/HDR.AS.bpb)-1)*HDR.AS.bpb;
         HDR.NRec = length(t2);
-        [s2,sz]  = trigg(H.i8,t2,1,61440);
+        [s2,sz]  = trigg(H.i8,t2,1,HDR.SampleRate*240);
         HDR.data = reshape(s2,[HDR.NS,sz(2)/HDR.NS*HDR.NRec])';
+        
+        [s4,sz]  = trigg(H.i8,t2-85,0,1);
+        sz(sz==1)= []; 
+        x  = reshape(s4,sz)';   
+        HDR.GTF.timestamp = (x+(x<0)*256)*[1;256];      % convert from 2*int8 in 1*uint16
         
         HDR.GTF.i8 = H.i8; 
         HDR.GTF.t2 = t2; 
 
-        
-t2 = HDR.GTF.t2; 
-% check 
-[s3,sz] = trigg(HDR.GTF.i8,t2,-2000,-86);
-s3 = squeeze(reshape(s3,sz));
-ix = find(~all(s3==s3(:,ones(1,HDR.NRec)),2));
-if length(ix)>0;
-        fprintf(2,'Warning GTFOPEN (%s): decoding corrupted. Something might be wrong!!!. Contact <a.schloegl@ieee.org> for further checks.\n',HDR.FileName);
-end;
+	t2 = HDR.GTF.t2; 
+	[s4,sz] = trigg(HDR.GTF.i8,t2,-2047,0);
+	sz(sz==1)=[]; if length(sz)<2,sz = [sz,1]; end;
+	s4 = reshape(s4,sz);
 
-[s4,sz]  = trigg(HDR.GTF.i8,t2,-2047,0);
-s4 = squeeze(reshape(s4,sz));
-ix = find(~all(s4==s4(:,ones(1,HDR.NRec)),2))
-s4(ix,:)
+	tau  = [0.01, 0.03, 0.1, 0.3, 1];
+	LowPass = [30, 70];
 
-% these may contain some information, but its not clear what kind of informations
-ix4 = [4:13,1964:1965]-1;       
-HDR.GTK.s4 = s4(ix4,:);
+	%% Scaling 
+	Sens = [.5, .7, 1, 1.4, 2, 5, 7, 10, 14, 20, 50, 70, 100, 140, 200]; 
+	x    = reshape(s4(13:6:1932,:),32,HDR.NRec*HDR.Dur);
+	Cal  = Sens(x(1:HDR.NS,:)+1)'/4;
+	HDR.data  = HDR.data.*Cal(ceil((1:HDR.SampleRate*HDR.NRec*HDR.Dur)/HDR.SampleRate),:);
+        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+	HDR.PhysDim = 'uV';
+
+
