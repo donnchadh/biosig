@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.105 $
-%	$Id: sopen.m,v 1.105 2005-04-10 11:40:14 schloegl Exp $
+%	$Revision: 1.106 $
+%	$Id: sopen.m,v 1.106 2005-04-25 20:11:45 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -156,9 +156,9 @@ if ~isfield(HDR,'Filter');
         HDR.Filter.HighPass = NaN; 
 end;
 if ~isfield(HDR,'FLAG');
-        HDR.FLAG.UCAL = ~isempty(strfind(MODE,'UCAL'));   % FLAG for UN-CALIBRATING
         HDR.FLAG.FILT = 0; 	% FLAG if any filter is applied; 
         HDR.FLAG.TRIGGERED = 0; % the data is untriggered by default
+        HDR.FLAG.UCAL = ~isempty(strfind(MODE,'UCAL'));   % FLAG for UN-CALIBRATING
         HDR.FLAG.OVERFLOWDETECTION = isempty(strfind(upper(MODE),'OVERFLOWDETECTION:OFF'));
 end;
 if ~isfield(HDR,'EVENT');
@@ -205,7 +205,7 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'})
                 [HDR,H1,h2] = cntopen(HDR,PERMISSION);
                 if HDR.GDFTYP==3,       
                         % support of OVERFLOWDETECTION
-                        HDR.THRESHOLD = repmat([-2^15,2^15-1],HDR.NS,1);
+                       HDR.THRESHOLD = repmat([-2^15,2^15-1],HDR.NS,1);
                 end; 
                 
         elseif any(PERMISSION=='w');
@@ -761,7 +761,7 @@ elseif strncmp(HDR.TYPE,'AKO',3),
         
         
 elseif strcmp(HDR.TYPE,'ALICE4'),
-        fprintf(HDR.FILE.stderr,'Support of ALICE4 format not completeted. \n\tCalibration, filter setttings and SamplingRate are missing\n');
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: Support of ALICE4 format not completeted. \n\tCalibration, filter setttings and SamplingRate are missing\n');
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
         [s,c]  = fread(HDR.FILE.FID,[1,408],'char');
         HDR.NS = s(55:56)*[1;256];
@@ -771,14 +771,22 @@ elseif strcmp(HDR.TYPE,'ALICE4'),
         HDR.Patient.Date = char(s(187:194));
         [H2,c] = fread(HDR.FILE.FID,[118,HDR.NS],'char');
         HDR.Label = char(H2(1:12,:)');
-        HDR.FILE.POS = 0;
+        HDR.HeadLen = ftell(HDR.FILE.FID);
+        HDR.AS.bpb = HDR.NS*HDR.SampleRate + 5; 
+        [a,count] = fread(HDR.FILE.FID,[HDR.AS.bpb,floor((HDR.FILE.size-HDR.HeadLen)/HDR.AS.bpb)],'uint8');
+        fclose(HDR.FILE.FID);
+        count = ceil(count/HDR.AS.bpb);
+        HDR.data = repmat(NaN,100*count,HDR.NS);
+        for k = 1:HDR.NS,
+                HDR.data(:,k)=reshape(a(k*HDR.SampleRate+[1-HDR.SampleRate:0],:),HDR.SampleRate*count,1);
+        end
+        HDR.SPR = size(HDR.data,1);
+
+        HDR.NRec = 1; 
         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         HDR.FLAG.UCAL = 1; 
-        [tmp, count] = fread(HDR.FILE.FID,[HDR.NS,inf],'uint16');
-        HDR.SPR  = count/HDR.NS;
-        HDR.data = tmp';
-        fclose(HDR.FILE.FID);
         HDR.TYPE  = 'native';
+        HDR.FILE.POS = 0;
         
         
 elseif strcmp(HDR.TYPE,'ATES'),
@@ -1044,7 +1052,7 @@ elseif strcmp(HDR.TYPE,'SND'),
         
 elseif strncmp(HDR.TYPE,'EEG-1100',8),
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
-        if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+        if any(PERMISSION=='r'),		%%%%% READ 
                 [H1,count] = fread(HDR.FILE.FID,[1,6160],'char');
                 HDR.Patient.Name = char(H1(79+(1:32)));
                 if count<6160, 
@@ -2412,7 +2420,8 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
 elseif strcmp(HDR.TYPE,'RDF'),  % UCSD ERPSS acqusition software DIGITIZE
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
         
-        status = fseek(HDR.FILE.FID,6,-1);
+        status = fseek(HDR.FILE.FID,4,-1);
+        HDR.FLAG.compressed = fread(HDR.FILE.FID,1,'uint16');
         HDR.NS = fread(HDR.FILE.FID,1,'uint16');
         status = fseek(HDR.FILE.FID,552,-1);
         HDR.SampleRate  = fread(HDR.FILE.FID,1,'uint16');
@@ -2439,6 +2448,7 @@ elseif strcmp(HDR.TYPE,'RDF'),  % UCSD ERPSS acqusition software DIGITIZE
                         nchans = tmp(2); %fread(HDR.FILE.FID,1,'uint16');
                         %fread(HDR.FILE.FID,1,'uint16');
                         block_size = 2^tmp(3); %fread(HDR.FILE.FID,1,'uint16');
+                        blocksize2 = tmp(4);
                         %ndupsamp = fread(HDR.FILE.FID,1,'uint16');
                         %nrun = fread(HDR.FILE.FID,1,'uint16');
                         %err_detect = fread(HDR.FILE.FID,1,'uint16');
@@ -3247,7 +3257,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),        % Portilab/TMS32 format
         end;
         
         
-elseif 0,strcmp(HDR.TYPE,'DAQ'),
+elseif 0, strcmp(HDR.TYPE,'DAQ'),
         HDR = daqopen(HDR,PERMISSION);
         
         
@@ -5385,7 +5395,371 @@ elseif strcmp(HDR.TYPE,'STX'),
 		tmp = fread(fid,5,'long');
 		HDR.HeadLen = 116;
 
+		
                 fclose(HDR.FILE.FID);
+        end
+
+
+elseif strcmp(HDR.TYPE,'ABF'), 
+        fprintf(HDR.FILE.stderr,'Warning: SOPEN (ABF) is still experimental.\n');	
+        if any(PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
+                HDR.ABF.ID = fread(HDR.FILE.FID,1,'uint32');
+                HDR.Version = fread(HDR.FILE.FID,1,'float32');
+                HDR.ABF.Mode = fread(HDR.FILE.FID,1,'uint16');
+                HDR.AS.endpos = fread(HDR.FILE.FID,1,'uint32');
+                HDR.ABF.NumPoinstsIgnored = fread(HDR.FILE.FID,1,'uint16');
+                HDR.NRec = fread(HDR.FILE.FID,1,'uint32');
+                t = fread(HDR.FILE.FID,3,'uint32');
+                HDR.T0(1:3) = [floor(t(1)/1e4), floor(mod(t(1),1e4)/100), mod(t(1),100)];
+                HDR.T0(4:6) = [floor(t(2)/3600),floor(mod(t(2),3600)/60),mod(t(2),60)];
+                if HDR.T0(1)<80, HDR.T0(1)=HDR.T0(1)+2000;
+                elseif HDR.T0(1)<100, HDR.T0(1)=HDR.T0(1)+1900;
+                end;
+                
+                HDR.ABF.HeaderVersion = fread(HDR.FILE.FID,1,'float32');
+		if HDR.ABF.HeaderVersion>=1.6,
+			HDR.HeadLen = 1394+6144+654;
+		else
+			HDR.HeadLen =  370+2048+654;
+		end;	
+                HDR.ABF.FileType = fread(HDR.FILE.FID,1,'uint16');
+                HDR.ABF.MSBinFormat = fread(HDR.FILE.FID,1,'uint16');
+
+                HDR.ABF.SectionStart = fread(HDR.FILE.FID,15,'uint32');
+                DataFormat = fread(HDR.FILE.FID,1,'uint16');
+                HDR.ABF.simultanousScan = fread(HDR.FILE.FID,1,'uint16');
+                t = fread(HDR.FILE.FID,4,'uint32');
+
+                HDR.NS = fread(HDR.FILE.FID,1,'uint16');		
+                tmp = fread(HDR.FILE.FID,4,'float32');
+
+		HDR.SampleRate = 1000/tmp(1);
+		if ~DataFormat
+			HDR.GDFTYP = 3;		% int16 
+			HDR.AS.bpb = 2*HDR.NS;
+		else
+			HDR.GDFTYP = 16;	% float32
+			HDR.AS.bpb = 4*HDR.NS;
+		end;	
+		HDR.SPR = HDR.AS.endpos/HDR.NRec; 
+		HDR.Dur = HDR.SPR/HDR.SampleRate;
+		if HDR.FILE.size ~= HDR.HeadLen + HDR.AS.bpb*HDR.NRec*HDR.SPR;
+			[HDR.FILE.size,HDR.HeadLen,HDR.AS.bpb*HDR.NRec*HDR.SPR]
+			fprintf(HDR.FILE.stderr,'Warning SOPEN (ABF): filesize does not fit.\n');
+		end;
+
+                t = fread(HDR.FILE.FID,5,'uint32');
+
+                t = fread(HDR.FILE.FID,3,'uint16');
+		HDR.FLAG.AVERAGE = t(1);
+		
+                HDR.TRIGGER.THRESHOLD = fread(HDR.FILE.FID,1,'float');
+                t = fread(HDR.FILE.FID,3,'uint16');
+
+% this part is from IMPORT_ABF.M from 
+%     © 2002 - Michele Giugliano, PhD (http://www.giugliano.info) (Bern, Friday March 8th, 2002 - 20:09)
+
+HDR.ABF.ScopeOutputInterval  = fread(HDR.FILE.FID,1,'float'); % 174
+HDR.ABF.EpisodeStartToStart  = fread(HDR.FILE.FID,1,'float'); % 178
+HDR.ABF.RunStartToStart      = fread(HDR.FILE.FID,1,'float'); % 182
+HDR.ABF.TrialStartToStart    = fread(HDR.FILE.FID,1,'float'); % 186
+HDR.ABF.AverageCount         = fread(HDR.FILE.FID,1,'int');   % 190
+HDR.ABF.ClockChange          = fread(HDR.FILE.FID,1,'int');   % 194
+HDR.ABF.AutoTriggerStrategy  = fread(HDR.FILE.FID,1,'short'); % 198
+%-----------------------------------------------------------------------------
+% Display Parameters
+HDR.ABF.DrawingStrategy      = fread(HDR.FILE.FID,1,'short'); % 200
+HDR.ABF.TiledDisplay         = fread(HDR.FILE.FID,1,'short'); % 202
+HDR.ABF.EraseStrategy        = fread(HDR.FILE.FID,1,'short'); % 204
+HDR.ABF.DataDisplayMode      = fread(HDR.FILE.FID,1,'short'); % 206
+HDR.ABF.DisplayAverageUpdate = fread(HDR.FILE.FID,1,'int');   % 208
+HDR.ABF.ChannelStatsStrategy = fread(HDR.FILE.FID,1,'short'); % 212
+HDR.ABF.CalculationPeriod    = fread(HDR.FILE.FID,1,'int');   % 214
+HDR.ABF.SamplesPerTrace      = fread(HDR.FILE.FID,1,'int');   % 218
+HDR.ABF.StartDisplayNum      = fread(HDR.FILE.FID,1,'int');   % 222
+HDR.ABF.FinishDisplayNum     = fread(HDR.FILE.FID,1,'int');   % 226
+HDR.ABF.MultiColor           = fread(HDR.FILE.FID,1,'short'); % 230
+HDR.ABF.ShowPNRawData        = fread(HDR.FILE.FID,1,'short'); % 232
+HDR.ABF.StatisticsPeriod     = fread(HDR.FILE.FID,1,'float'); % 234
+HDR.ABF.StatisticsMeasurements=fread(HDR.FILE.FID,1,'int');   % 238
+%-----------------------------------------------------------------------------
+% Hardware Information
+HDR.ABF.StatisticsSaveStrategy=fread(HDR.FILE.FID,1,'short'); % 242
+HDR.ABF.ADCRange             = fread(HDR.FILE.FID,1,'float'); % 244
+HDR.ABF.DACRange             = fread(HDR.FILE.FID,1,'float'); % 248
+HDR.ABF.ADCResolution        = fread(HDR.FILE.FID,1,'int');   % 252
+HDR.ABF.DACResolution        = fread(HDR.FILE.FID,1,'int');   % 256
+%-----------------------------------------------------------------------------
+% Environmental Information
+HDR.ABF.ExperimentType       = fread(HDR.FILE.FID,1,'short'); % 260
+HDR.ABF.x_AutosampleEnable   = fread(HDR.FILE.FID,1,'short'); % 262
+HDR.ABF.x_AutosampleADCNum   = fread(HDR.FILE.FID,1,'short'); % 264
+HDR.ABF.x_AutosampleInstrument=fread(HDR.FILE.FID,1,'short'); % 266
+HDR.ABF.x_AutosampleAdditGain= fread(HDR.FILE.FID,1,'float'); % 268
+HDR.ABF.x_AutosampleFilter   = fread(HDR.FILE.FID,1,'float'); % 272
+HDR.ABF.x_AutosampleMembraneCapacitance=fread(HDR.FILE.FID,1,'float'); % 276
+HDR.ABF.ManualInfoStrategy   = fread(HDR.FILE.FID,1,'short'); % 280
+HDR.ABF.CellID1              = fread(HDR.FILE.FID,1,'float'); % 282
+HDR.ABF.CellID2              = fread(HDR.FILE.FID,1,'float'); % 286
+HDR.ABF.CellID3              = fread(HDR.FILE.FID,1,'float'); % 290
+HDR.ABF.CreatorInfo          = fread(HDR.FILE.FID,16,'char'); % 16char % 294
+HDR.ABF.x_FileComment        = fread(HDR.FILE.FID,56,'char'); % 56char % 310
+HDR.ABF.Unused366            = fread(HDR.FILE.FID,12,'char'); % 12char % 366
+%-----------------------------------------------------------------------------
+% Multi-channel Information
+HDR.ABF.ADCPtoLChannelMap    = fread(HDR.FILE.FID,16,'short');    % 378
+HDR.ABF.ADCSamplingSeq       = fread(HDR.FILE.FID,16,'short');    % 410
+HDR.ABF.ADCChannelName       = fread(HDR.FILE.FID,16*10,'char');  % 442
+HDR.ABF.ADCUnits             = fread(HDR.FILE.FID,16*8,'char');   % 8char % 602
+HDR.ABF.ADCProgrammableGain  = fread(HDR.FILE.FID,16,'float');    % 730
+HDR.ABF.ADCDisplayAmplification=fread(HDR.FILE.FID,16,'float');   % 794
+HDR.ABF.ADCDisplayOffset     = fread(HDR.FILE.FID,16,'float');    % 858
+HDR.ABF.InstrumentScaleFactor= fread(HDR.FILE.FID,16,'float');    % 922
+HDR.ABF.InstrumentOffset     = fread(HDR.FILE.FID,16,'float');    % 986
+HDR.ABF.SignalGain           = fread(HDR.FILE.FID,16,'float');    % 1050
+HDR.Off			     = fread(HDR.FILE.FID,16,'float');    % 1114
+HDR.ABF.SignalLowpassFilter  = fread(HDR.FILE.FID,16,'float');    % 1178
+HDR.ABF.SignalHighpassFilter = fread(HDR.FILE.FID,16,'float');    % 1242
+HDR.ABF.DACChannelName       = fread(HDR.FILE.FID,4*10,'char');   % 1306
+HDR.ABF.DACChannelUnits      = fread(HDR.FILE.FID,4*8,'char');    % 8char % 1346
+HDR.ABF.DACScaleFactor       = fread(HDR.FILE.FID,4,'float');     % 1378
+HDR.ABF.DACHoldingLevel      = fread(HDR.FILE.FID,4,'float');     % 1394
+HDR.ABF.SignalType           = fread(HDR.FILE.FID,1,'short');     % 12char % 1410
+HDR.ABF.Unused1412           = fread(HDR.FILE.FID,10,'char');     % 10char % 1412
+%-----------------------------------------------------------------------------
+% Synchronous Timer Outputs
+HDR.ABF.OUTEnable            = fread(HDR.FILE.FID,1,'short');     % 1422
+HDR.ABF.SampleNumberOUT1     = fread(HDR.FILE.FID,1,'short');     % 1424
+HDR.ABF.SampleNumberOUT2     = fread(HDR.FILE.FID,1,'short');     % 1426
+HDR.ABF.FirstEpisodeOUT      = fread(HDR.FILE.FID,1,'short');     % 1428
+HDR.ABF.LastEpisodeOUT       = fread(HDR.FILE.FID,1,'short');     % 1430
+HDR.ABF.PulseSamplesOUT1     = fread(HDR.FILE.FID,1,'short');     % 1432
+HDR.ABF.PulseSamplesOUT2     = fread(HDR.FILE.FID,1,'short');     % 1434
+%-----------------------------------------------------------------------------
+% Epoch Waveform and Pulses
+HDR.ABF.DigitalEnable        = fread(HDR.FILE.FID,1,'short');     % 1436
+HDR.ABF.x_WaveformSource     = fread(HDR.FILE.FID,1,'short');     % 1438
+HDR.ABF.ActiveDACChannel     = fread(HDR.FILE.FID,1,'short');     % 1440
+HDR.ABF.x_InterEpisodeLevel  = fread(HDR.FILE.FID,1,'short');     % 1442
+HDR.ABF.x_EpochType          = fread(HDR.FILE.FID,10,'short');    % 1444
+HDR.ABF.x_EpochInitLevel     = fread(HDR.FILE.FID,10,'float');    % 1464
+HDR.ABF.x_EpochLevelInc      = fread(HDR.FILE.FID,10,'float');    % 1504
+HDR.ABF.x_EpochInitDuration  = fread(HDR.FILE.FID,10,'short');    % 1544
+HDR.ABF.x_EpochDurationInc   = fread(HDR.FILE.FID,10,'short');    % 1564
+HDR.ABF.DigitalHolding       = fread(HDR.FILE.FID,1,'short');     % 1584
+HDR.ABF.DigitalInterEpisode  = fread(HDR.FILE.FID,1,'short');     % 1586
+HDR.ABF.DigitalValue         = fread(HDR.FILE.FID,10,'short');    % 1588
+HDR.ABF.Unavailable1608      = fread(HDR.FILE.FID,4,'char');      % 1608
+HDR.ABF.Unused1612           = fread(HDR.FILE.FID,8,'char');      % 8char % 1612
+%-----------------------------------------------------------------------------
+% DAC Output File
+HDR.ABF.x_DACFileScale       = fread(HDR.FILE.FID,1,'float');     % 1620
+HDR.ABF.x_DACFileOffset      = fread(HDR.FILE.FID,1,'float');     % 1624
+HDR.ABF.Unused1628           = fread(HDR.FILE.FID,2,'char');      % 2char % 1628
+HDR.ABF.x_DACFileEpisodeNum  = fread(HDR.FILE.FID,1,'short');     % 1630
+HDR.ABF.x_DACFileADCNum      = fread(HDR.FILE.FID,1,'short');     % 1632
+HDR.ABF.x_DACFileName        = fread(HDR.FILE.FID,12,'char');     % 12char % 1634
+HDR.ABF.DACFilePath=fread(HDR.FILE.FID,60,'char');                % 60char % 1646
+HDR.ABF.Unused1706=fread(HDR.FILE.FID,12,'char');                 % 12char % 1706
+%-----------------------------------------------------------------------------
+% Conditioning Pulse Train
+HDR.ABF.x_ConditEnable       = fread(HDR.FILE.FID,1,'short');     % 1718
+HDR.ABF.x_ConditChannel      = fread(HDR.FILE.FID,1,'short');     % 1720
+HDR.ABF.x_ConditNumPulses    = fread(HDR.FILE.FID,1,'int');       % 1722
+HDR.ABF.x_BaselineDuration   = fread(HDR.FILE.FID,1,'float');     % 1726
+HDR.ABF.x_BaselineLevel      = fread(HDR.FILE.FID,1,'float');     % 1730
+HDR.ABF.x_StepDuration       = fread(HDR.FILE.FID,1,'float');     % 1734
+HDR.ABF.x_StepLevel          = fread(HDR.FILE.FID,1,'float');     % 1738
+HDR.ABF.x_PostTrainPeriod    = fread(HDR.FILE.FID,1,'float');     % 1742
+HDR.ABF.x_PostTrainLevel     = fread(HDR.FILE.FID,1,'float');     % 1746
+HDR.ABF.Unused1750           = fread(HDR.FILE.FID,12,'char');     % 12char % 1750
+%-----------------------------------------------------------------------------
+% Variable Parameter User List
+HDR.ABF.x_ParamToVary        = fread(HDR.FILE.FID,1,'short');     % 1762
+HDR.ABF.x_ParamValueList     = fread(HDR.FILE.FID,80,'char');     % 80char % 1764
+%-----------------------------------------------------------------------------
+% Statistics Measurement
+HDR.ABF.AutopeakEnable       = fread(HDR.FILE.FID,1,'short'); % 1844
+HDR.ABF.AutopeakPolarity     = fread(HDR.FILE.FID,1,'short'); % 1846
+HDR.ABF.AutopeakADCNum       = fread(HDR.FILE.FID,1,'short'); % 1848
+HDR.ABF.AutopeakSearchMode   = fread(HDR.FILE.FID,1,'short'); % 1850
+HDR.ABF.AutopeakStart        = fread(HDR.FILE.FID,1,'int');   % 1852
+HDR.ABF.AutopeakEnd          = fread(HDR.FILE.FID,1,'int');   % 1856
+HDR.ABF.AutopeakSmoothing    = fread(HDR.FILE.FID,1,'short'); % 1860
+HDR.ABF.AutopeakBaseline     = fread(HDR.FILE.FID,1,'short'); % 1862
+HDR.ABF.AutopeakAverage      = fread(HDR.FILE.FID,1,'short'); % 1864
+HDR.ABF.Unavailable1866      = fread(HDR.FILE.FID,2,'char');  % 1866
+HDR.ABF.AutopeakBaselineStart= fread(HDR.FILE.FID,1,'int');   % 1868
+HDR.ABF.AutopeakBaselineEnd  = fread(HDR.FILE.FID,1,'int');   % 1872
+HDR.ABF.AutopeakMeasurements = fread(HDR.FILE.FID,1,'int');   % 1876
+%-----------------------------------------------------------------------------
+% Channel Arithmetic
+HDR.ABF.ArithmeticEnable     = fread(HDR.FILE.FID,1,'short'); % 1880
+HDR.ABF.ArithmeticUpperLimit = fread(HDR.FILE.FID,1,'float'); % 1882
+HDR.ABF.ArithmeticLowerLimit = fread(HDR.FILE.FID,1,'float'); % 1886
+HDR.ABF.ArithmeticADCNumA    = fread(HDR.FILE.FID,1,'short'); % 1890
+HDR.ABF.ArithmeticADCNumB    = fread(HDR.FILE.FID,1,'short'); % 1892
+HDR.ABF.ArithmeticK1         = fread(HDR.FILE.FID,1,'float'); % 1894
+HDR.ABF.ArithmeticK2         = fread(HDR.FILE.FID,1,'float'); % 1898
+HDR.ABF.ArithmeticK3         = fread(HDR.FILE.FID,1,'float'); % 1902
+HDR.ABF.ArithmeticK4         = fread(HDR.FILE.FID,1,'float'); % 1906
+HDR.ABF.ArithmeticOperator   = fread(HDR.FILE.FID,2,'char');  % 2char % 1910
+HDR.ABF.ArithmeticUnits      = fread(HDR.FILE.FID,8,'char');  % 8char % 1912
+HDR.ABF.ArithmeticK5         = fread(HDR.FILE.FID,1,'float'); % 1920
+HDR.ABF.ArithmeticK6         = fread(HDR.FILE.FID,1,'float'); % 1924
+HDR.ABF.ArithmeticExpression = fread(HDR.FILE.FID,1,'short'); % 1928
+HDR.ABF.Unused1930           = fread(HDR.FILE.FID,2,'char');  % 2char % 1930
+%-----------------------------------------------------------------------------
+% On-line Subtraction
+HDR.ABF.x_PNEnable           = fread(HDR.FILE.FID,1,'short'); % 1932
+HDR.ABF.PNPosition           = fread(HDR.FILE.FID,1,'short'); % 1934
+HDR.ABF.x_PNPolarity         = fread(HDR.FILE.FID,1,'short'); % 1936
+HDR.ABF.PNNumPulses          = fread(HDR.FILE.FID,1,'short'); % 1938
+HDR.ABF.x_PNADCNum           = fread(HDR.FILE.FID,1,'short'); % 1940
+HDR.ABF.x_PNHoldingLevel     = fread(HDR.FILE.FID,1,'float'); % 1942
+HDR.ABF.PNSettlingTime       = fread(HDR.FILE.FID,1,'float'); % 1946
+HDR.ABF.PNInterpulse         = fread(HDR.FILE.FID,1,'float'); % 1950
+HDR.ABF.Unused1954           = fread(HDR.FILE.FID,12,'char'); % 12char % 1954
+%-----------------------------------------------------------------------------
+% Unused Space at End of Header Block
+HDR.ABF.x_ListEnable         = fread(HDR.FILE.FID,1,'short'); % 1966
+HDR.ABF.BellEnable           = fread(HDR.FILE.FID,2,'short'); % 1968
+HDR.ABF.BellLocation         = fread(HDR.FILE.FID,2,'short'); % 1972
+HDR.ABF.BellRepetitions      = fread(HDR.FILE.FID,2,'short'); % 1976
+HDR.ABF.LevelHysteresis      = fread(HDR.FILE.FID,1,'int');   % 1980
+HDR.ABF.TimeHysteresis       = fread(HDR.FILE.FID,1,'int');   % 1982
+HDR.ABF.AllowExternalTags    = fread(HDR.FILE.FID,1,'short'); % 1986
+HDR.ABF.LowpassFilterType    = fread(HDR.FILE.FID,16,'char'); % 1988
+HDR.ABF.HighpassFilterType   = fread(HDR.FILE.FID,16,'char');% 2004
+HDR.ABF.AverageAlgorithm     = fread(HDR.FILE.FID,1,'short'); % 2020
+HDR.ABF.AverageWeighting     = fread(HDR.FILE.FID,1,'float'); % 2022
+HDR.ABF.UndoPromptStrategy   = fread(HDR.FILE.FID,1,'short'); % 2026
+HDR.ABF.TrialTriggerSource   = fread(HDR.FILE.FID,1,'short'); % 2028
+HDR.ABF.StatisticsDisplayStrategy= fread(HDR.FILE.FID,1,'short'); % 2030
+HDR.ABF.Unused2032           = fread(HDR.FILE.FID,16,'char'); % 2032
+
+%-----------------------------------------------------------------------------
+% File Structure 2
+HDR.ABF.DACFilePtr           = fread(HDR.FILE.FID,2,'int'); % 2048
+HDR.ABF.DACFileNumEpisodes   = fread(HDR.FILE.FID,2,'int'); % 2056
+HDR.ABF.Unused2              = fread(HDR.FILE.FID,10,'char');%2064
+%-----------------------------------------------------------------------------
+% Multi-channel Information 2
+HDR.ABF.DACCalibrationFactor = fread(HDR.FILE.FID,4,'float'); % 2074
+HDR.ABF.DACCalibrationOffset = fread(HDR.FILE.FID,4,'float'); % 2090
+HDR.ABF.Unused7              = fread(HDR.FILE.FID,190,'char');% 2106
+%-----------------------------------------------------------------------------
+% Epoch Waveform and Pulses 2
+HDR.ABF.WaveformEnable       = fread(HDR.FILE.FID,2,'short'); % 2296
+HDR.ABF.WaveformSource       = fread(HDR.FILE.FID,2,'short'); % 2300
+HDR.ABF.InterEpisodeLevel    = fread(HDR.FILE.FID,2,'short'); % 2304
+HDR.ABF.EpochType            = fread(HDR.FILE.FID,10*2,'short');% 2308
+HDR.ABF.EpochInitLevel       = fread(HDR.FILE.FID,10*2,'float');% 2348
+HDR.ABF.EpochLevelInc        = fread(HDR.FILE.FID,10*2,'float');% 2428
+HDR.ABF.EpochInitDuration    = fread(HDR.FILE.FID,10*2,'int');  % 2508
+HDR.ABF.EpochDurationInc     = fread(HDR.FILE.FID,10*2,'int');  % 2588
+HDR.ABF.Unused9              = fread(HDR.FILE.FID,40,'char');   % 2668
+%-----------------------------------------------------------------------------
+% DAC Output File 2
+HDR.ABF.DACFileScale         = fread(HDR.FILE.FID,2,'float');     % 2708
+HDR.ABF.DACFileOffset        = fread(HDR.FILE.FID,2,'float');     % 2716
+HDR.ABF.DACFileEpisodeNum    = fread(HDR.FILE.FID,2,'int');       % 2724
+HDR.ABF.DACFileADCNum        = fread(HDR.FILE.FID,2,'short');     % 2732
+HDR.ABF.DACFilePath          = fread(HDR.FILE.FID,2*256,'char');  % 2736
+HDR.ABF.Unused10             = fread(HDR.FILE.FID,12,'char');     % 3248
+%-----------------------------------------------------------------------------
+% Conditioning Pulse Train 2
+HDR.ABF.ConditEnable         = fread(HDR.FILE.FID,2,'short');     % 3260
+HDR.ABF.ConditNumPulses      = fread(HDR.FILE.FID,2,'int');       % 3264
+HDR.ABF.BaselineDuration     = fread(HDR.FILE.FID,2,'float');     % 3272
+HDR.ABF.BaselineLevel        = fread(HDR.FILE.FID,2,'float');     % 3280
+HDR.ABF.StepDuration         = fread(HDR.FILE.FID,2,'float');     % 3288
+HDR.ABF.StepLevel            = fread(HDR.FILE.FID,2,'float');     % 3296
+HDR.ABF.PostTrainPeriod      = fread(HDR.FILE.FID,2,'float');     % 3304
+HDR.ABF.PostTrainLevel       = fread(HDR.FILE.FID,2,'float');     % 3312
+HDR.ABF.Unused11             = fread(HDR.FILE.FID,2,'short');     % 3320
+HDR.ABF.Unused11             = fread(HDR.FILE.FID,36,'char');     % 3324
+%-----------------------------------------------------------------------------
+% Variable Parameter User List 2
+HDR.ABF.ULEnable             = fread(HDR.FILE.FID,4,'short');     % 3360
+HDR.ABF.ULParamToVary        = fread(HDR.FILE.FID,4,'short');     % 3368
+HDR.ABF.ULParamValueList     = fread(HDR.FILE.FID,4*256,'char');  % 3376
+HDR.ABF.Unused11             = fread(HDR.FILE.FID,56,'char');     % 4400
+%-----------------------------------------------------------------------------
+% On-line Subtraction 2
+HDR.ABF.PNEnable             = fread(HDR.FILE.FID,2,'short');     % 4456
+HDR.ABF.PNPolarity           = fread(HDR.FILE.FID,2,'short');     % 4460
+HDR.ABF.PNADCNum             = fread(HDR.FILE.FID,2,'short');     % 4464
+HDR.ABF.PNHoldingLevel       = fread(HDR.FILE.FID,2,'float');     % 4468
+HDR.ABF.Unused15             = fread(HDR.FILE.FID,36,'char');     % 4476
+%-----------------------------------------------------------------------------
+% Environmental Information 2
+HDR.ABF.TelegraphEnable      = fread(HDR.FILE.FID,16,'short');     % 4512
+HDR.ABF.TelegraphInstrument  = fread(HDR.FILE.FID,16,'short');     % 4544
+HDR.ABF.TelegraphAdditGain   = fread(HDR.FILE.FID,16,'float');     % 4576
+HDR.ABF.TelegraphFilter      = fread(HDR.FILE.FID,16,'float');     % 4640
+HDR.ABF.TelegraphMembraneCap = fread(HDR.FILE.FID,16,'float');     % 4704
+HDR.ABF.TelegraphMode        = fread(HDR.FILE.FID,16,'short');     % 4768
+HDR.ABF.ManualTelegraphStrategy= fread(HDR.FILE.FID,16,'short');   % 4800
+HDR.ABF.AutoAnalyseEnable    = fread(HDR.FILE.FID,1,'short');      % 4832
+HDR.ABF.AutoAnalysisMacroName= fread(HDR.FILE.FID,64,'char');      % 4834
+HDR.ABF.ProtocolPath         = fread(HDR.FILE.FID,256,'char');     % 4898
+HDR.ABF.FileComment          = fread(HDR.FILE.FID,128,'char');     % 5154
+HDR.ABF.Unused6              = fread(HDR.FILE.FID,128,'char');     % 5282
+HDR.ABF.Unused2048           = fread(HDR.FILE.FID,734,'char');     % 5410
+%
+%-----------------------------------------------------------------------------
+%
+
+		HDR.Cal = (HDR.ABF.ADCRange / (HDR.ABF.ADCResolution * HDR.ABF.x_AutosampleAdditGain))./ (HDR.ABF.InstrumentScaleFactor .* HDR.ABF.ADCProgrammableGain .* HDR.ABF.SignalGain);
+				
+		HDR.Calib = sparse([HDR.Off(1:HDR.NS)'; diag(HDR.Cal(1:HDR.NS))]);
+
+		status = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+		HDR.FILE.POS = 0; 
+		%HDR.FILE.OPEN = 1; 
+
+		HDR.data = fread(HDR.FILE.FID,[HDR.NS,HDR.NRec*HDR.SPR],gdfdatatype(HDR.GDFTYP))';
+		HDR.TYPE = 'native';
+		fclose(HDR.FILE.FID);
+        end
+
+
+elseif strcmp(HDR.TYPE,'ATF'),  % axon text file 
+        if any(PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
+                t = fgetl(HDR.FILE.FID);
+                t = str2double(fgetl(HDR.FILE.FID));
+                HDR.ATF.NoptHdr = t(1);
+                HDR.ATF.NS = t(2);
+                HDR.ATF.NormalizationFactor = [];
+                t = fgetl(HDR.FILE.FID);
+                while any(t=='=')
+                        [f,t]=strtok(t,[34,61]);        %  "= 
+                        [c,t]=strtok(t,[34,61]);        %  "= 
+                        if strfind(f,'NormalizationFactor:')
+                                [t1, t2] = strtok(f,':');
+                                [f] = strtok(t2,':');
+                                HDR.ATF.NormalizationFactor = setfield(HDR.ATF.NormalizationFactor,f,str2double(c));        
+                        else
+                                HDR.ATF = setfield(HDR.ATF,f,c);        
+                        end
+                        t = fgetl(HDR.FILE.FID);
+                end;
+                k = 0;
+                HDR.Label = {};
+                while ~isempty(t),
+                        k = k + 1;
+                        [HDR.Label{k,1},t] = strtok(t,[9,34]);    % ", TAB
+                end
+                HDR.HeadLen = ftell(HDR.FILE.FID);
+                if isfield(HDR.ATF,'DateTime');
+                        tmp = HDR.ATF.DateTime;
+                        tmp(tmp=='/' | tmp==':')=' ';
+                        HDR.T0 = str2double(tmp);
+                end;
+                HDR.FILE.OPEN = 1; 
         end
 
         
@@ -5528,6 +5902,14 @@ end;
 %	General Postprecessing for all formats of Header information 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% set FLAGS 
+HDR.FLAG.UCAL = ~isempty(strfind(MODE,'UCAL'));   % FLAG for UN-CALIBRATING
+HDR.FLAG.OVERFLOWDETECTION = isempty(strfind(upper(MODE),'OVERFLOWDETECTION:OFF'));
+%if ~isempty(strfind(upper(MODE),'OVERFLOWDETECTION:ON')) & ~isfield(HDR,'THRESHOLD'),
+if HDR.FLAG.OVERFLOWDETECTION & ~isfield(HDR,'THRESHOLD'),
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: OVERFLOWDETECTION not supported because of missing THRESHOLD.\n');
+end;
+
 % identify type of signal
 if HDR.NS>0,
         HDR.Label = strvcat(HDR.Label);
@@ -5575,7 +5957,7 @@ if ~isfield(HDR.EVENT,'DUR'),  HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS));  end;
 
 if any(PERMISSION=='r') & ~isnan(HDR.NS);
         if isempty(ReRefMx)     % CHAN==0,
-                ReRefMx = eye(HDR.NS);
+                ReRefMx = eye(max(1,HDR.NS));
         end;
         sz = size(ReRefMx);
         if sz(1) > HDR.NS,

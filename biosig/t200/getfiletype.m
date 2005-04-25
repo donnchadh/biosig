@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.34 $
-%	$Id: getfiletype.m,v 1.34 2005-04-10 11:40:15 schloegl Exp $
+%	$Revision: 1.35 $
+%	$Id: getfiletype.m,v 1.35 2005-04-25 20:11:46 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -492,6 +492,23 @@ else
                 elseif ~isempty(findstr(ss,'?xml version'))
                         HDR.TYPE='XML-UTF8';
 
+                elseif strncmp(ss,'ABF',3)
+                        HDR.TYPE = 'ABF';
+                elseif strncmp(ss,'CLPX',3)
+                        HDR.TYPE = 'ABF';
+                elseif strncmp(ss,'FTCX',3)
+                        HDR.TYPE = 'ABF';
+                elseif all(s(1:4)==[0,0,128,63])        %float(1)
+                        HDR.TYPE = 'ABF';
+                elseif all(s(1:4)==[0,0,32,65])         %float(10)
+                        HDR.TYPE = 'ABF';
+                        
+                elseif all(s(1:4)==abs(['ATF',9]))
+                        HDR.TYPE='ATF'; % axon text file 
+                        [tmp,t]=strtok(ss,[9,10,13,32]);
+                        [tmp,t]=strtok(t,[9,10,13,32]);
+                        HDR.Version = str2double(tmp);
+                        
                 elseif strncmp(ss,'binterr1.3',10)
                         HDR.TYPE='BT1.3';
                 elseif all(s([1:2,7:10])==[abs('BM'),zeros(1,4)])
@@ -669,9 +686,10 @@ else
                         end;
                 elseif strncmp(ss,'ZYXEL',5); 
                         HDR.TYPE='ZYXEL';
-                elseif strcmpi(HDR.FILE.Name,ss(1:length(HDR.FILE.Name)));
+                elseif strcmpi([HDR.FILE.Name,' '],ss(1:length(HDR.FILE.Name)+1)) & any(ss(length(HDR.FILE.Name)+2)==' 0123456789');
+                        HDR.TYPE='MIT';
+                elseif strcmpi(HDR.FILE.Name,ss(1:length(HDR.FILE.Name)))
                         HDR.TYPE='TAR?';
-                        
                 elseif strncmp(ss,['# ',HDR.FILE.Name],length(HDR.FILE.Name)+2); 
                         HDR.TYPE='SMNI';
 			
