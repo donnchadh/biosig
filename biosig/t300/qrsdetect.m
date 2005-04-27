@@ -1,4 +1,4 @@
-function [H2,HDR] = qrsdetect(fn,arg2,arg3)
+function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 % QRSDETECT - detection of QRS-complexes
 %
 %   HDR = qrsdetect(fn,chan)
@@ -22,7 +22,7 @@ function [H2,HDR] = qrsdetect(fn,arg2,arg3)
 %
 
 
-%	$Id: qrsdetect.m,v 1.1 2005-02-19 21:47:30 schloegl Exp $
+%	$Id: qrsdetect.m,v 1.2 2005-04-27 14:18:36 schloegl Exp $
 %	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -77,12 +77,18 @@ end;
 ET = []; 
 for k = 1:size(s,2),
 	y  = processing({'ECG_envelope',HDR.SampleRate},s(:,k));
-	TH = quantile(y,.9);
+	TH = quantile(y,.95);
 
-	POS = gettrigger(y,TH);
-	ET = [ET; [POS, repmat([hex2dec('0501'),chan(k),0], size(POS,1),1)]];
+	POS = gettrigger(y,TH);	% fiducial point
+	
+	% difference between R-peak and fiducial point
+	[t,sz] = trigg(s(:,k),POS,-HDR.SampleRate,HDR.SampleRate);
+	[tmp,ix] = max(abs(mean(reshape(t,sz(2:3)),2)));
+	delay = HDR.SampleRate + 1 - ix;
+	
+	ET = [ET; [POS-delay, repmat([hex2dec('0501'),chan(k),0], size(POS,1),1)]];
 end;
-[tmp,ix]=sort(ET(:,1));
+[tmp,ix] = sort(ET(:,1));
 H2.EVENT.POS = ET(ix,1);
 H2.EVENT.TYP = ET(ix,2);
 H2.EVENT.CHN = ET(ix,3);
