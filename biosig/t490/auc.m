@@ -18,9 +18,9 @@ function [AREA,d,SEN,SPEC,ACC] = auc(d,c,color);
 % SPEC    specificity
 % ACC     accuracy
 
-%	$Id: auc.m,v 1.2 2005-04-29 14:28:27 schloegl Exp $
-%	Copyright (c) 1997-2003 by  Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Id: auc.m,v 1.3 2005-04-29 14:32:04 schloegl Exp $
+%	Copyright (c) 1997-2003,2005 by  Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public

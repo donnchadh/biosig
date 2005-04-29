@@ -15,9 +15,9 @@ function [SEN,SPEC,d,ACC,AREA]=roc(d,c,color);
 % ACC     accuracy
 % AREA    area under ROC curve
 
-%	$Id: roc.m,v 1.1 2003-11-19 12:32:04 schloegl Exp $
-%	Copyright (C) 1997-2003 by  Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Id: roc.m,v 1.2 2005-04-29 14:32:04 schloegl Exp $
+%	Copyright (c) 1997-2003,2005 by  Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -48,6 +48,10 @@ if ~MODE
         d=[d;d2];
         fprintf(2,'Warning ROC: XXX\n')        
 end;        
+
+% handle (ignore) NaN's  
+c = c(~isnan(d));
+d = d(~isnan(d));
 
 if nargin<3
         color='-';
@@ -96,6 +100,4 @@ plot(FPR*100,TPR*100,color);
 %ylabel('true positive [%]');
 %xlabel('false positive [%]');
 
-%AREA=-trapz(FPR(tmp),TPR(tmp));
-
-AREA=-trapz(FPR,TPR);
+AREA = -diff(FPR)' * (TPR(1:end-1)+TPR(2:end))/2;
