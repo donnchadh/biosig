@@ -18,7 +18,7 @@ function [AREA,d,SEN,SPEC,ACC] = auc(d,c,color);
 % SPEC    specificity
 % ACC     accuracy
 
-%	$Id: auc.m,v 1.1 2003-11-19 12:32:04 schloegl Exp $
+%	$Id: auc.m,v 1.2 2005-04-29 14:28:27 schloegl Exp $
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 %
@@ -52,12 +52,16 @@ if nargin<3
         color='-';
 end;
 
+% handle (ignore) NaN's  
+c = c(~isnan(d));
+d = d(~isnan(d));
+
 [d,I] = sort(d);
 x = c(I);
 
 FN   = cumsum(x==1)/sum(x==1);
 TN   = cumsum(x==0)/sum(x==0);
-AREA = -trapz(1-TN,1-FN);
+AREA = diff(FN)' * (TN(1:end-1)+TN(2:end))/2;
 
 if nargin>2,  
         plot((1-TN)*100,(1-FN)*100,color);
