@@ -6,8 +6,8 @@ function [argout,s]=sview(s,H),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.10 $
-%	$Id: sview.m,v 1.10 2005-04-05 21:11:23 schloegl Exp $ 
+%	$Revision: 1.11 $
+%	$Id: sview.m,v 1.11 2005-05-07 19:38:47 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -29,14 +29,15 @@ function [argout,s]=sview(s,H),
 if ischar(s),
         if nargin<2,
                 [s,H] = sload(s);
-		CHAN = 1:H.NS; 
+		CHAN = 1:size(s,2); 
         else
 		CHAN = H; 
                 [s,H] = sload(s,CHAN);
         end;
+	
 elseif isstruct(s)
         [s,H] = sload(s);
-	CHAN = 1:H.NS;
+	CHAN = 1:size(s,2);
         
 elseif isnumeric(s) & (length(H.InChanSelect)==size(s,2))
         CHAN = 1:size(s,2);        
@@ -49,8 +50,8 @@ if isfield(H,'IMAGE');
         if exist('OCTAVE_VERSION','builtin')
                 if (length(size(s))==3) & (size(s,3)==3)
                         imshow(s(:,:,1),s(:,:,2),s(:,:,3));
-                else
-                        imshow(s);
+		else
+		        imshow(s);
                 end;	
         else	
                 image(s);
@@ -113,10 +114,13 @@ elseif isfield(H,'SegLen'),
         X_Label = 'samples';
 elseif isfield(H.EVENT,'Desc'),
         EVENT = H.EVENT;
+elseif isfield(H.EVENT,'CodeDesc'),
+        EVENT = H.EVENT;
+	EVENT.Desc = H.EVENT.CodeDesc(H.EVENT.TYP);	
 elseif ~isfield(H.EVENT,'Desc') & (length(H.EVENT.TYP)>0),
         g = sload('eventcodes.txt');
         ix = sparse(g.CodeIndex,1,1:length(g.CodeIndex));
-        EVENT.POS = H.EVENT.POS;
+        EVENT = H.EVENT;
         try,
                 EVENT.Desc = {g.CodeDesc{ix(H.EVENT.TYP)}};
         catch
@@ -126,18 +130,35 @@ else
         EVENT = [];
 end;
 
-plot(t,((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)),'-');
-if 0, isfield(EVENT,'Desc')
+plot(t(:),((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)),'-');
+ix = find(EVENT.POS>0 & EVENT.POS<=length(t));
+if isfield(EVENT,'Desc') & ~isempty(ix)
+	ix2 = find(EVENT.POS>0 & EVENT.POS<=length(t) & EVENT.DUR>0);
         v = axis;
         hold on
-        N = length(EVENT.POS);
-        plot([1;1]*t(EVENT.POS)',v(3:4),':k')
-        for k=1:length(EVENT.POS),
-                txt = EVENT.Desc{k}; 
+        N  = length(EVENT.POS);
+        plot([1;1]*t(EVENT.POS(ix))',v(3:4),':k')
+        for k=1:length(ix2),
+		x = t(EVENT.POS(ix2(k))+[0,EVENT.DUR(ix2(k))])';
+		y = v(3:4);
+		if exist('OCTAVE_VERSION','builtin');
+			patch(x([1,1,2,2,1]),y([1,2,2,1,1]),'b');
+		else
+			ha=patch(x([1,1,2,2,1]),y([1,2,2,1,1]),[1,1,1]/4*3);
+			set(ha,'FaceAlpha',.5);
+			set(ha,'EdgeAlpha',.5);
+		end;
+        end;
+	for k=1:length(ix),
+                txt = EVENT.Desc{ix(k)}; 
                 if isempty(txt),txt='';end; 
                 txt(txt=='_')=' ';
-                h=text(t(EVENT.POS(k)),v(3:4)*[-.2;.8],txt);
-                set(h,'Rotation',90,'VerticalAlignment','top');
+		if exist('OCTAVE_VERSION','builtin');
+	                text(t(EVENT.POS(ix(k))),v(3:4)*[-.2;.8],txt);
+                else
+			h=text(t(EVENT.POS(ix(k))),v(3:4)*[-.2;.8],txt);
+            		set(h,'Rotation',90,'VerticalAlignment','top');
+		end;	
         end;	
         v(4) = v(3:4)*[-.7;1.3]; axis(v);
         hold off;
