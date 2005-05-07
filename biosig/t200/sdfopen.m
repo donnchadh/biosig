@@ -122,8 +122,8 @@ function [EDF,H1,h2]=sdfopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %              4: Incorrect date information (later than actual date) 
 %             16: incorrect filesize, Header information does not match actual size
 
-%	$Revision: 1.45 $
-%	$Id: sdfopen.m,v 1.45 2005-04-10 12:12:15 schloegl Exp $
+%	$Revision: 1.46 $
+%	$Id: sdfopen.m,v 1.46 2005-05-07 21:00:11 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -211,8 +211,6 @@ if ~(strcmp(EDF.VERSION,'0       ') | all(abs(EDF.VERSION)==[255,abs('BIOSEMI')]
 end;
 EDF.PID = deblank(H1(9:88));                  % 80 Byte local patient identification
 EDF.RID = deblank(H1(89:168));                % 80 Byte local recording identification
-
-IsGDF=strcmp(EDF.VERSION(1:3),'GDF');
 
 if strcmp(EDF.VERSION(1:3),'GDF'),
 	tmp = repmat(' ',1,22);
@@ -534,43 +532,14 @@ elseif strcmp(EDF.TYPE,'GDF') & (EDF.AS.EVENTTABLEPOS > 0),
 		EDF.EVENT.SampleRate = EDF.SampleRate; 
 	end;
         [EVENT.N,c] = fread(EDF.FILE.FID,1,'uint32');
+        [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EVENT.N,1],'uint32');
+        [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EVENT.N,1],'uint16');
         if EVENT.Version==1,
-                [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EVENT.N,1],'uint32');
-                [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EVENT.N,1],'uint16');
                 if any([c1,c2]~=EVENT.N) | (EDF.AS.endpos~=EDF.AS.EVENTTABLEPOS+8+EVENT.N*6),
                         fprintf(2,'\nERROR SDFOPEN: Eventtable corrupted in file %s\n',EDF.FileName);
                 end
-                
-                % convert EVENT.Version 1 to 3
-                EDF.EVENT.CHN = zeros(EVENT.N,1);    
-                EDF.EVENT.DUR = zeros(EVENT.N,1);    
-                flag_remove = zeros(size(EDF.EVENT.TYP));        
-                types  = unique(EDF.EVENT.TYP);
-                for k1 = find(bitand(types(:)',hex2dec('8000')));
-                        TYP0 = bitand(types(k1),hex2dec('7fff'));
-                        TYP1 = types(k1);
-                        ix0 = (EDF.EVENT.TYP==TYP0);
-                        ix1 = (EDF.EVENT.TYP==TYP1);
-                        if sum(ix0)==sum(ix1), 
-                                EDF.EVENT.DUR(ix0) = EDF.EVENT.POS(ix1) - EDF.EVENT.POS(ix0);
-                                flag_remove = flag_remove | (EDF.EVENT.TYP==TYP1);
-                        else 
-                                fprintf(2,'Warning SDFOPEN: number of event onset (TYP=%s) and event offset (TYP=%s) differ\n',dec2hex(TYP0),dec2hex(TYP1));
-                        end;
-                end
-                if any(EDF.EVENT.DUR<0)
-                        fprintf(2,'Warning SDFOPEN: EVENT ONSET later than EVENT OFFSET\n',dec2hex(TYP0),dec2hex(TYP1));
-                        EDF.EVENT.DUR(:) = 0
-                end;
-                EDF.EVENT.TYP = EDF.EVENT.TYP(~flag_remove);
-                EDF.EVENT.POS = EDF.EVENT.POS(~flag_remove);
-                EDF.EVENT.CHN = EDF.EVENT.CHN(~flag_remove);
-                EDF.EVENT.DUR = EDF.EVENT.DUR(~flag_remove);
-                EVENT.Version = 3; 
-                
+
         elseif EVENT.Version==3,
-                [EDF.EVENT.POS,c1] = fread(EDF.FILE.FID,[EVENT.N,1],'uint32');
-                [EDF.EVENT.TYP,c2] = fread(EDF.FILE.FID,[EVENT.N,1],'uint16');
                 [EDF.EVENT.CHN,c3] = fread(EDF.FILE.FID,[EVENT.N,1],'uint16');
                 [EDF.EVENT.DUR,c4] = fread(EDF.FILE.FID,[EVENT.N,1],'uint32');
                 if any([c1,c2,c3,c4]~=EVENT.N) | (EDF.AS.endpos~=EDF.AS.EVENTTABLEPOS+8+EVENT.N*12),
@@ -586,6 +555,7 @@ elseif strcmp(EDF.TYPE,'GDF') & (EDF.AS.EVENTTABLEPOS > 0),
         % http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig/t200/eventcodes.txt
         if (length(EDF.EVENT.TYP)>0)
                 ix = (EDF.EVENT.TYP>hex2dec('0300')) & (EDF.EVENT.TYP<hex2dec('030d'));
+                ix = ix | ((EDF.EVENT.TYP>=hex2dec('0320')) & (EDF.EVENT.TYP<=hex2dec('037f')));
                 ix = ix | (EDF.EVENT.TYP==hex2dec('030f')); % unknown/undefined cue
                 EDF.Classlabel = mod(EDF.EVENT.TYP(ix),256);
                 EDF.Classlabel(EDF.Classlabel==15) = NaN; % unknown/undefined cue
@@ -867,7 +837,7 @@ EDF.SIE.REG=eye(EDF.NS);
                         EDF.SIE.RAW = 1;
                 end;
                 if ~isempty(strfind(upper(arg4),'OVERFLOW'))
-                        EDF.SIE.TH  = 1;
+                        EDF.SIE.TH  = any(strfind(upper(arg4),'OVERFLOWDETECTION:ON'));
                 end;
                 if ~isempty(strfind(arg4,'FailingElectrodeDetector'))
                         EDF.SIE.FED = 1;
@@ -1223,14 +1193,14 @@ EDF.SIE.REG=eye(EDF.NS);
                 end;
         end;
         
-        FN=[lower(EDF.FILE.Name), 'th.mat'];
-        if exist(FN)~=2,
+        FN = [lower(EDF.FILE.Name), 'th.mat'];
+        if ~exist(FN,'file'),
 	        if EDF.SIE.TH, % && ~exist('OCTAVE_VERSION'),
                         fprintf(EDF.FILE.stderr,'Warning SDFOPEN: THRESHOLD-file %s not found.\n',FN);
                         EDF.SIE.TH=0;   
                 end;
         else
-                if exist('OCTAVE_VERSION')==5
+                if exist('OCTAVE_VERSION','builtin')
                         tmp=load(file_in_loadpath(FN));
                 else
                         tmp=load(FN);
