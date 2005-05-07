@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.106 $
-%	$Id: sopen.m,v 1.106 2005-04-25 20:11:45 schloegl Exp $
+%	$Revision: 1.107 $
+%	$Id: sopen.m,v 1.107 2005-05-07 19:42:27 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -197,6 +197,7 @@ elseif strcmp(HDR.TYPE,'EVENT') & any(lower(PERMISSION)=='w'),
 
 elseif strcmp(HDR.TYPE,'BKR'),
         HDR = bkropen(HDR,PERMISSION);
+        HDR.GDFTYP = repmat(3,1,HDR.NS);
         %%% Get trigger information from BKR data 
 
         
@@ -404,7 +405,7 @@ elseif strcmp(HDR.TYPE,'rhdE'),
         
 elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
         HDR.FILE.FID = -1;      % make sure SLOAD does not call SREAD;
-        
+
         % The header files are text files (not binary).
         try
                 PERMISSION = 'rt';	% MatLAB default is binary, force Mode='rt';
@@ -414,123 +415,215 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
                 fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),PERMISSION);	
         end;
         
-        fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),PERMISSION);	
-        if fid < 0,
-                fprintf(HDR.FILE.stderr,'Error SOPEN (alpha): couldnot open RAWHEAD\n');
-        else
-                H = []; k = 0;
-                HDR.TYPE = 'unknown';
-                while ~feof(fid),
+	cfiles = {'alpha.alp','eog','mkdef','r_info','rawhead','imp_res','sleep','../s_info'};
+	%%,'marker','digin','montage','measure','cal_res'
+	
+	HDR.alpha = [];
+	for k = 1:length(cfiles),
+		[cf,tmp]=strtok(cfiles{k},'./');
+    		fid = fopen(fullfile(HDR.FILE.Path,cfiles{k}),PERMISSION);
+                if fid>0,
+                        S = {};
+                        state = 0; 
+                        flag.rawhead = strcmp(cf,'rawhead');
+                        flag.sleep = strcmp(cf,'sleep');
                         [s] = fgetl(fid);
-                        if ~isnumeric(s),
-                                [tag,s] = strtok(s,'=');
-                                [tmp,s] = strtok(s,'=');
-                                [val,status] = str2double(tmp);
-                                if status,
-                                        val = tmp;
-                                end;
-                                tag = deblank(tag);
-                                if strcmp(tag,'Version'),
-                                        HDR.VERSION = val;
-                                        HDR.TYPE = 'alpha';
-                                elseif strcmp(tag,'BitsPerValue'),
-                                        HDR.Bits = val;
-                                elseif strcmp(tag,'ChanCount'),
-                                        HDR.NS = val;
-                                elseif strcmp(tag,'SampleCount'),
-                                        HDR.SPR = val;
-                                elseif strcmp(tag,'SampleFreq'),
-                                        HDR.SampleRate = val;
-                                elseif strcmp(tag,'NotchFreq'),
-                                        HDR.Filter.Notch = val;
-                                else
-                                        %fprintf(HDR.FILE.stderr,'Warning SOPEN Type=alpha: unknown Tag %s.\n',tag);
-                                end;
-                        end;
+                        while ischar(s), %~feof(fid),
+                                [tag,s] = strtok(s,'= ');
+                                s(find(s=='='))=' ';
+                                [VAL,s1] = strtok(s,' ');
+                                [val,status] = str2double(VAL);
+                                if (state==0),
+                                        if any(status),
+                                                S=setfield(S,tag,VAL);
+                                        else
+                                                S=setfield(S,tag,val);
+                                        end;
+                                        if (flag.rawhead & strncmp(tag,'DispFlags',9))
+                                                state = 1;
+                                                k1 = 0; 
+                                        elseif (flag.sleep & strncmp(tag,'SleepType',9))
+                                                state = 3;
+                                                k1 = 0; 
+                                        end;
+                                elseif (state==1)	% rawhead: channel info
+                                        k1 = k1+1;
+                                        HDR.Label{k1} = tag; 
+                                        [num,status,sa] = str2double(s);
+                                        HDR.ELPOS(k1,1:2) = num(4:5);
+                                        CHANTYPE{k1}  = sa{3};
+                                        HDR.alpha.chanidx(k1)   = num(2);
+                                        if (k1==S.ChanCount);
+                                                [tmp,HDR.alpha.chanorder]  = sort(HDR.alpha.chanidx);
+                                                HDR.Label = HDR.Label(HDR.alpha.chanorder);
+                                                HDR.ELPOS = HDR.ELPOS(HDR.alpha.chanorder,:);
+                                                CHANTYPE  = CHANTYPE(HDR.alpha.chanorder);
+                                                state = 2;
+                                                k1 = 0; 
+                                                HDR.alpha.chantyp.num = [];
+                                        end;			
+                                elseif (state==2)	% rawhead: info on channel type 
+                                        k1 = k1+1; 
+                                        [num,status,sa] = str2double(s,',');
+                                        chantyp.s{k1}   = s;
+                                        chantyp.tag{k1} = tag;
+                                elseif (state==3)	% sleep: scoreing 
+                                        k1 = k1+1; 
+                                        scoring(k1) = val;
+                                end
+                                [s] = fgetl(fid);
+                        end;	
+                        fclose(fid);
+                        HDR.alpha=setfield(HDR.alpha,cf,S);
                 end;
-                fclose(fid);
-        end;
-        
-        HDR.PhysDim = '  ';
+	end;
+        HDR.VERSION = HDR.alpha.rawhead.Version;
+	if isfield(HDR.alpha,'rawhead')
+		HDR.Bits = HDR.alpha.rawhead.BitsPerValue;
+		HDR.NS   = HDR.alpha.rawhead.ChanCount;
+		HDR.SampleRate = HDR.alpha.rawhead.SampleFreq;
+		HDR.SPR  = HDR.alpha.rawhead.SampleCount;
+		HDR.Filter.Notch = HDR.alpha.rawhead.NotchFreq;
+                [datatyp, limits, datatypes] = gdfdatatype(HDR.Bits+255);
+                % THRESHOLD for Overflow detection
+                HDR.THRESHOLD = repmat(limits, HDR.NS, 1);
+		HDR.NRec = 1; 
+
+		% channel-specific settings
+		ix = zeros(1,HDR.NS);
+		for k = 1:HDR.NS,
+			ix(k) = strmatch(CHANTYPE{k},chantyp.tag,'exact');
+		end;
+
+		chantyp.s = chantyp.s(ix);
+		for k = 1:HDR.NS,
+			HDR.Filter.HighPass(k) = num(1);
+			HDR.Filter.LowPass(k) = num(2);
+			[num,status,sa] = str2double(chantyp.s{k},',');
+			if strcmp(sa{5},'%%'); 
+				sa{5}='%'; 
+			end;
+			HDR.PhysDim{k}=deblank(sa{5});
+		end;
+		HDR.PhysDim = strvcat(HDR.PhysDim);
+	else
+                fprintf(HDR.FILE.stderr,'Error SOPEN (alpha): couldnot open RAWHEAD\n');
+	end;
+	if isfield(HDR.alpha,'sleep')
+		HDR.alpha.sleep.scoring = scoring; 
+	end;
+	if isfield(HDR.alpha,'r_info')
+                HDR.ID.Recording = HDR.alpha.r_info.RecId;
+                HDR.ID.Lab = HDR.alpha.r_info.Laboratory;
+		tmp = [HDR.alpha.r_info.RecDate,' ',HDR.alpha.r_info.RecTime];
+		tmp(tmp=='.') = ' ';
+		[tmp,status]=str2double(tmp);
+		if ~any(status)
+			HDR.T0 = tmp([3,2,1,4:6]);
+		end;	
+	end;
+	if isfield(HDR.alpha,'s_info')
+        %       HDR.Patient.Name = [HDR.alpha.s_info.LastName,', ',HDR.alpha.s_info.FirstName];
+                HDR.Patient.Sex  = HDR.alpha.s_info.Gender;
+                HDR.Patient.Sex  = HDR.alpha.s_info.Handedness;
+                tmp = HDR.alpha.s_info.BirthDay;
+                tmp(tmp=='.')=' ';
+                t0 = str2double(tmp);
+                age = [HDR.T0(1:3)-t0([3,2,1])]*[365.25;30;1]; % days 
+                if (age<100)
+                        HDR.Patient.Age = sprintf('%i day',age);
+                elseif (age<1000)
+                        HDR.Patient.Age = sprintf('%4.1f month',age/30);
+                else
+                        HDR.Patient.Age = sprintf('%4.1f year(s)',age/365.25);
+                end;
+	end;
+
         fid = fopen(fullfile(HDR.FILE.Path,'cal_res'),PERMISSION);
         if fid < 0,
                 fprintf(HDR.FILE.stderr,'Warning SOPEN alpha-trace: could not open CAL_RES. Data is uncalibrated.\n');
                 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+                HDR.FLAG.UCAL = 1; 
         else
-                [s] = fgetl(fid);       % read version
-                [s] = fgetl(fid);       % read calibration time 
-                
-                HDR.Label = char(zeros(HDR.NS,1));
-                HDR.Cal   = repmat(NaN,HDR.NS,1);
-                HDR.Off   = zeros(HDR.NS,1);
-                OK   = zeros(HDR.NS,1);
-                for k = 1:HDR.NS,
-                        [s] = fgetl(fid);
-                        [tmp,s] = strtok(s,',');
-                        [lab,ok] = strtok(tmp,' =,');
-                        [ok] = strtok(ok,' =,');
-                        
-                        [cal,s] = strtok(s,' ,');
-                        cal = str2double(cal);
-                        [off,s] = strtok(s,' ,');
-                        off = str2double(off);
-                        
-                        HDR.Off(k)=off;
-                        HDR.Cal(k)=cal;
-                        OK(k)=strcmpi(ok,'yes');
-                        HDR.Label(k,1:length(lab))=lab;
-                end;
-                fclose(fid);
-                
-                HDR.FLAG.UCAL = ~all(OK);
-                if ~all(OK),
+		k = 0; 
+		while (k<2)		%% skip first 2 lines
+	                [s] = fgetl(fid);   
+			if ~strncmp(s,'#',1), %% comment lins do not count
+				k=k+1; 
+			end;
+		end;	
+		[s] = fread(fid,[1,inf],'uchar'); 
+		fclose(fid);
+
+		s(s=='=') = ',';
+		[val,status,strarray]=str2double(s);
+		
+		HDR.Cal = val(HDR.alpha.chanorder,3);
+		HDR.Off = val(HDR.alpha.chanorder,4);
+                HDR.Label2 = strvcat(strarray(HDR.alpha.chanorder,1));
+		OK = strmatch('no',strarray(HDR.alpha.chanorder,2));
+		
+                HDR.FLAG.UCAL = ~isempty(OK);
+                if ~isempty(OK),
                         fprintf(HDR.FILE.stderr,'Warning SOPEN (alpha): calibration not valid for some channels\n');
                 end;
-                HDR.Cal(find(~OK)) = NaN;
+                HDR.Cal(OK) = NaN;
                 HDR.Calib = sparse([-HDR.Off';eye(HDR.NS*[1,1])])*sparse(1:HDR.NS,1:HDR.NS,HDR.Cal);
-                HDR.PhysDim = 'µV';
         end;        
         
-        fid = fopen(fullfile(HDR.FILE.Path,'r_info'),PERMISSION);
-        if fid < 0,
-                fprintf(HDR.FILE.stderr,'Warning SOPEN alpha-trace: couldnot open R_INFO\n');
-        else
-                H = [];
-                HDR.TYPE = 'unknown';
-                while ~feof(fid),
-                        [s] = fgetl(fid);
-                        if ~isnumeric(s),
-                                [tag,s] = strtok(s,'=');
-                                [tmp,s] = strtok(s,'=');
-                                [val,status] = str2double(tmp);
-                                if status,
-                                        val = tmp;
-                                end;
-                                tag = deblank(tag);
-                                if strcmp(tag,'Version'),
-                                        HDR.VERSION = val;
-                                        HDR.TYPE = 'alpha';
-                                elseif strcmp(tag,'RecId'),
-                                        HDR.ID.Recording = val;
-                                elseif strcmp(tag,'Laboratory'),
-                                        HDR.ID.Lab = val;
-                                elseif strcmp(tag,'RecDate'),
-                                        pos = [1,find(val=='.'),length(val)];
-                                        tmp = [str2double(val(pos(3)+1:pos(4))),str2double(val(pos(2)+1:pos(3)-1)),str2double(val(pos(1):pos(2)-1))];
-                                        HDR.T0(1:3) = tmp;
-                                elseif strcmp(tag,'RecTime'),
-                                        pos = [1,find(val=='.'),length(val)];
-                                        tmp = [str2double(val(pos(1):pos(2)-1)),str2double(val(pos(2)+1:pos(3)-1)),str2double(val(pos(3)+1:pos(4)))];
-                                        HDR.T0(4:6) = tmp; 
-                                else
-                                        %fprintf(HDR.FILE.stderr,'Warning SOPEN Type=alpha: unknown Tag %s.\n',tag);
-                                end;
-                        end;
-                end;
+        fid = fopen(fullfile(HDR.FILE.Path,'marker'),PERMISSION);
+        if fid > 0,
+		k = 0; 
+		while (k<1)		%% skip first 2 lines
+	                [s] = fgetl(fid);   
+			if ~strncmp(s,'#',1), %% comment lins do not count
+				k=k+1; 
+			end;
+		end;	
+		[s] = fread(fid,[1,inf],'uchar'); 
+		fclose(fid);
+
+		s(s=='=') = ',';
+		[val,status,strarray]=str2double(s,', ');
+		HDR.EVENT.POS = val(:,3);
+		[HDR.EVENT.CodeDesc,tmp,HDR.EVENT.TYP] = unique(strarray(:,1));
+		ix = strmatch('off',strarray(:,2));
+		HDR.EVENT.TYP(ix) = HDR.EVENT.TYP(ix)+hex2dec('8000'); 
+        end;        
+        
+        fid = fopen(fullfile(HDR.FILE.Path,'montage'),PERMISSION);
+        if fid > 0,
+		K = 0; 
+		while ~feof(fid),
+	                s = fgetl(fid);   
+			[tag,s]   = strtok(s,' =');
+			[val1,r]  = strtok(s,' =,');
+			if strncmp(tag,'Version',7),
+			elseif strncmp(tag,'Montage',7),
+				K = K+1;
+				Montage{K,1} = s(4:end);
+				k = 0;
+			elseif strncmp(tag,'Trace',5),
+				k = k+1; 
+				trace{k,K} = s(4:end);
+				[num,status,str] = str2double(s(4:end),[32,34,44]);
+				if strcmpi(str{3},'xxx')
+					Label{k,K} = str{2};
+				else
+					Label{k,K} = [str{2},'-',str{3}];
+				end;	
+			elseif strncmp(tag,'RefType',7),
+			end;	
+		end;	
+		fclose(fid);
+		HDR.alpha.montage.Montage = Montage;
+		HDR.alpha.montage.Label   = Label;
+		HDR.alpha.montage.trace   = trace;
         end;        
         
         fid = fopen(fullfile(HDR.FILE.Path,'digin'),PERMISSION);
-        if fid < 0,
+        if 1,
+	elseif fid < 0,
                 fprintf(HDR.FILE.stderr,'Warning SOPEN alpha-trace: couldnot open DIGIN - no event information included\n');
         else
                 [s] = fgetl(fid);       % read version
@@ -566,7 +659,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
                 HDR.EVENT.IO  = IO(:);
                 HDR.EVENT.CHN = zeros(HDR.EVENT.N,1);
         end;
-        if all(abs(HDR.VERSION-[407.1,409.5]) > 1e-6);
+        if all(abs(HDR.alpha.rawhead.Version-[407.1,407.11,409.5]) > 1e-6);
                 fprintf(HDR.FILE.stderr,'Warning SLOAD: Format ALPHA Version %6.2f not tested yet.\n',HDR.VERSION);
         end;
         
@@ -1054,7 +1147,7 @@ elseif strncmp(HDR.TYPE,'EEG-1100',8),
         HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
         if any(PERMISSION=='r'),		%%%%% READ 
                 [H1,count] = fread(HDR.FILE.FID,[1,6160],'char');
-                HDR.Patient.Name = char(H1(79+(1:32)));
+                %HDR.Patient.Name = char(H1(79+(1:32)));
                 if count<6160, 
                         fclose(HDR.FILE.FID);
                         return;
@@ -1075,9 +1168,71 @@ elseif strncmp(HDR.TYPE,'EEG-1100',8),
         
         
 elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
-        HDR = gtfopen(HDR,PERMISSION);
+%        HDR = gtfopen(HDR,PERMISSION);
+
+        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
         
+        % read 3 header blocks 
+        HDR.H1 = fread(HDR.FILE.FID,[1,512],'uint8');
+        HDR.H2 = fread(HDR.FILE.FID,[1,15306],'int8');
+        HDR.H3 = fread(HDR.FILE.FID,[1,8146],'uint8');           
         
+        HDR.L1 = char(reshape(HDR.H3(1:650),65,10)');                   
+        HDR.L2 = char(reshape(HDR.H3(650+(1:20*16)),16,20)');
+        HDR.L3 = reshape(HDR.H3(1070+32*3+(1:232*20)),232,20)';
+        
+        HDR.Label = char(reshape(HDR.H3(1071:1070+32*3),3,32)');        % channel labels
+        
+        [H.i8,count] = fread(HDR.FILE.FID,inf,'int8');
+        fclose(HDR.FILE.FID);
+        
+	[t,status] = str2double(char([HDR.H1(35:36),32,HDR.H1(37:39)]));	
+        if ~any(status) & all(t>0)
+                HDR.NS = t(1); 
+                HDR.SampleRate = t(2); 
+        else
+                fprintf(2,'ERROR SOPEN (%s): Invalid GTF header.\n',HDR.FileName);
+		HDR.TYPE = 'unknown';
+                return; 
+        end
+        HDR.Dur  = 10; 
+        HDR.SPR  = HDR.Dur*HDR.SampleRate; 
+        HDR.bits = 8; 
+	HDR.GDFTYP = repmat(1,HDR.NS,1);
+        HDR.TYPE = 'native'; 
+        HDR.THRESHOLD = repmat([-127,127],HDR.NS,1);    % support of overflow detection
+        HDR.FILE.POS = 0; 
+        HDR.Label = HDR.Label(1:HDR.NS,:);
+        
+        HDR.AS.bpb = (HDR.SampleRate*240+2048);
+	HDR.GTF.Preset = HDR.H3(8134)+1;	% Preset
+
+        t2 = 9248+(0:floor(count/HDR.AS.bpb)-1)*HDR.AS.bpb;
+        HDR.NRec = length(t2);
+        [s2,sz]  = trigg(H.i8,t2,1,HDR.SampleRate*240);
+        HDR.data = reshape(s2,[HDR.NS,sz(2)/HDR.NS*HDR.NRec])';
+        
+        [s4,sz]  = trigg(H.i8,t2-85,0,1);
+        sz(sz==1)= []; 
+        x  = reshape(s4,sz)';   
+        HDR.GTF.timestamp = (x+(x<0)*256)*[1;256];      % convert from 2*int8 in 1*uint16
+        
+	[s4,sz] = trigg(H.i8,t2,-2047,0);
+	sz(sz==1)= []; if length(sz)<2,sz = [sz,1]; end;
+	s4 = reshape(s4,sz);
+
+	tau  = [0.01, 0.03, 0.1, 0.3, 1];
+	LowPass = [30, 70];
+
+	%% Scaling 
+	Sens = [.5, .7, 1, 1.4, 2, 5, 7, 10, 14, 20, 50, 70, 100, 140, 200]; 
+	x    = reshape(s4(13:6:1932,:),32,HDR.NRec*HDR.Dur);
+	Cal  = Sens(x(1:HDR.NS,:)+1)'/4;
+	HDR.data  = HDR.data.*Cal(ceil((1:HDR.SampleRate*HDR.NRec*HDR.Dur)/HDR.SampleRate),:);
+        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+	HDR.PhysDim = 'uV';
+
+                
 elseif strcmp(HDR.TYPE,'MFER'),
         HDR = mwfopen(HDR,PERMISSION);
         if (HDR.FRAME.N ~= 1),
@@ -4321,7 +4476,7 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
                 HDR.offset_variable_length_block = fread(HDR.FILE.FID,1,'int32');
                 HDR.HeadLen = fread(HDR.FILE.FID,1,'int32');		
                 HDR.VERSION = fread(HDR.FILE.FID,1,'int16');		
-                HDR.Patient.Name = fread(HDR.FILE.FID,80,'char');		
+                %HDR.Patient.Name = fread(HDR.FILE.FID,80,'char');		
                 %HDR.Surname = fread(HDR.FILE.FID,40,'char');		
                 HDR.PID = fread(HDR.FILE.FID,20,'char');		
                 HDR.Patient.Sex = fread(HDR.FILE.FID,1,'int16');		
@@ -5773,7 +5928,7 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 end;
                 
                 HDR.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
-                HDR.Patient.Name = [HDR.TFM.E{2,3},' ', HDR.TFM.E{2,4}];
+                %HDR.Patient.Name = [HDR.TFM.E{2,3},' ', HDR.TFM.E{2,4}];
                 HDR.Patient.Birthday = datevec(HDR.TFM.S(2,5)-1);
                 HDR.Patient.Age = datevec(HDR.TFM.S(2,1)-HDR.TFM.S(2,5));
                 HDR.Patient.Sex = HDR.TFM.E{2,6};
@@ -5884,6 +6039,12 @@ elseif strncmp(HDR.TYPE,'XML',3),
         end;
         
         
+elseif strcmp(HDR.TYPE,'IMAGE:',6),
+	% forward call to IOPEN
+        HDR = iopen(HDR);
+	return;
+
+
 elseif strcmp(HDR.TYPE,'unknown'),
         HDR.ERROR.status = -1;
 	%HDR.ERROR.message = sprintf('ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
@@ -5951,10 +6112,39 @@ if any(CHAN) & ~isempty(HDR.EVENT.POS) & isfield(HDR.EVENT,'CHN'),	% only if cha
 	ix = HDR.EVENT.CHN>0;
 	HDR.EVENT.CHN(ix) = a(HDR.EVENT.CHN(ix));	% assigning new channel number
 end;	
-% complete event information - needed by SVIEWER
-if ~isfield(HDR.EVENT,'CHN'),  HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS));  end;
-if ~isfield(HDR.EVENT,'DUR'),  HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS));  end;
 
+% complete event information - needed by SVIEWER
+if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),  
+	HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS)); 
+	HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS)); 
+
+	% convert EVENT.Version 1 to 3, currently used by GDF and alpha
+	flag_remove = zeros(size(HDR.EVENT.TYP));        
+	types  = unique(HDR.EVENT.TYP);
+	for k1 = find(bitand(types(:)',hex2dec('8000')));
+	        TYP0 = bitand(types(k1),hex2dec('7fff'));
+	        TYP1 = types(k1);
+	        ix0 = (HDR.EVENT.TYP==TYP0);
+	        ix1 = (HDR.EVENT.TYP==TYP1);
+	        if sum(ix0)==sum(ix1), 
+	                HDR.EVENT.DUR(ix0) = HDR.EVENT.POS(ix1) - HDR.EVENT.POS(ix0);
+	                flag_remove = flag_remove | (HDR.EVENT.TYP==TYP1);
+	        else 
+	                fprintf(2,'Warning SOPEN: number of event onset (TYP=%s) and event offset (TYP=%s) differ\n',dec2hex(TYP0),dec2hex(TYP1));
+	        end;
+	end
+	if any(HDR.EVENT.DUR<0)
+	        fprintf(2,'Warning SDFOPEN: EVENT ONSET later than EVENT OFFSET\n',dec2hex(TYP0),dec2hex(TYP1));
+	        HDR.EVENT.DUR(:) = 0
+	end;
+	HDR.EVENT.TYP = HDR.EVENT.TYP(~flag_remove);
+	HDR.EVENT.POS = HDR.EVENT.POS(~flag_remove);
+	HDR.EVENT.CHN = HDR.EVENT.CHN(~flag_remove);
+	HDR.EVENT.DUR = HDR.EVENT.DUR(~flag_remove);
+end;	
+
+
+% Calibration matrix
 if any(PERMISSION=='r') & ~isnan(HDR.NS);
         if isempty(ReRefMx)     % CHAN==0,
                 ReRefMx = eye(max(1,HDR.NS));
@@ -5965,7 +6155,7 @@ if any(PERMISSION=='r') & ~isnan(HDR.NS);
                 HDR = sclose(HDR);
                 return;
         end;
-        HDR.Calib = HDR.Calib*[ReRefMx; zeros(HDR.NS-sz(1),sz(2))];
+        HDR.Calib = HDR.Calib*sparse([ReRefMx; zeros(HDR.NS-sz(1),sz(2))]);
         
         HDR.InChanSelect = find(any(HDR.Calib(2:HDR.NS+1,:),2));
         HDR.Calib = sparse(HDR.Calib([1;1+HDR.InChanSelect(:)],:));
