@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.35 $
-%	$Id: getfiletype.m,v 1.35 2005-04-25 20:11:46 schloegl Exp $
+%	$Revision: 1.36 $
+%	$Id: getfiletype.m,v 1.36 2005-05-07 19:45:14 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -66,7 +66,9 @@ if exist(HDR.FileName,'dir')
             		HDR.FileName  = f1; 
 			% HDR.TYPE = 'MEG4'; % will be checked below 
 	        end;
-	else
+        elseif exist(fullfile(HDR.FileName,'alpha.alp'),'file')
+                HDR.FileName = fullfile(HDR.FileName,'rawhead');
+        else
     		HDR.TYPE = 'DIR'; 
     		return; 
 	end;
@@ -342,6 +344,9 @@ else
                         HDR.TYPE='AKO';
                 elseif all(s(1:8) == [1,16,137,0,0,225,165,4]);
                         HDR.TYPE='ALICE4';
+                        
+                elseif strfind(ss,'ALPHA-TRACE-MEDICAL');
+                        HDR.TYPE='alpha';
                         
                 elseif strfind(ss,'W1N10936.');
                         ss(1:20),
@@ -752,10 +757,9 @@ else
         
         if strcmpi(HDR.TYPE,'unknown'),
                 % alpha-TRACE Medical software
-                if (strcmpi(HDR.FILE.Name,'rawdata') | strcmpi(HDR.FILE.Name,'rawhead')) & isempty(HDR.FILE.Ext),
-                        if exist(fullfile(HDR.FILE.Path,'digin'),'file') & exist(fullfile(HDR.FILE.Path,'r_info'),'file');	
-                                HDR.TYPE = 'alpha'; %alpha trace medical software 
-                        end;
+                if exist(fullfile(HDR.FILE.Path,'alpha.alp'),'file')
+                        %HDR.TYPE = 'alpha'; %alpha trace medical software 
+                        HDR = getfiletype(fullfile(HDR.FILE.Path,'alpha.alp'));
                 end;
                 TYPE = [];
                 
