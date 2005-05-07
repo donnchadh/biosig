@@ -20,7 +20,7 @@ function [data,HDR] = iread(HDR,CHAN,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: iread.m,v 1.1 2005-01-15 20:36:46 schloegl Exp $
+%	$Id: iread.m,v 1.2 2005-05-07 19:37:38 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -132,6 +132,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:FITS'),
 		HDR.TABLE{KK} = s;
         
 	elseif strncmp(HDR.FITS{KK}.XTENSION,'BINTABLE',8)
+		sz = ones(1,HDR.FITS{KK}.TFIELDS);
 		for k = 1:HDR.FITS{KK}.TFIELDS,
 			f = ['TTYPE',int2str(k)];
 			if isfield(HDR.FITS{KK},f)
@@ -139,8 +140,9 @@ elseif strcmp(HDR.TYPE,'IMAGE:FITS'),
 			end;
 			tmp = getfield(HDR.FITS{KK},['TFORM',int2str(k)]);
 			ix  = min(find(tmp>'9'));
-			sz(k) = str2double(tmp(1:ix-1)); 
 			HDR.FITS{KK}.TYP(k) = tmp(ix);
+			tmp1 = str2double(tmp(1:ix-1));
+			if ~isempty(tmp1), sz(k)=tmp1; end;
 
 			if 0, 
 			elseif tmp(ix)=='L', 	GDFTYP{k} = 'char';	% char T, F
@@ -177,8 +179,6 @@ elseif strcmp(HDR.TYPE,'IMAGE:FITS'),
 		HDR.TABLE{KK} = sig;
         
 	elseif strncmp(HDR.FITS{KK}.XTENSION,'IMAGE',5)
-	HDR.GDFTYP,
-	ftell(HDR.FILE.FID),
 		[data,c] = fread(HDR.FILE.FID, prod(HDR.IMAGE(KK).Size), HDR.GDFTYP);
 		
 		[c,size(data),HDR.IMAGE(KK).Size]
