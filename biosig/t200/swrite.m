@@ -18,8 +18,8 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.10 $
-%	$Id: swrite.m,v 1.10 2005-03-25 11:20:22 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: swrite.m,v 1.11 2005-05-13 17:37:08 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -35,6 +35,9 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 fprintf(2,'Error SWRITE: different GDFTYPs not supported yet!\n');
                 return;
         end;        
+        if ~HDR.FLAG.UCAL,
+                fprintf(HDR.FILE.stderr,'Warning SWRITE(GDF): FLAG.UCAL not set - data must be correctly scaled.\n',tmp);
+        end;
 
         if ~any(HDR.GDFTYP(1)==[16,17,18]),
                 data(data< HDR.THRESHOLD(1,1)) = HDR.THRESHOLD(1,1); %underflow
@@ -42,8 +45,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 data(isnan(data))  = HDR.THRESHOLD(1,3);        % missing value
         end
         
-        % 	for GDF only one datatype is supported
-        if HDR.SIE.RAW,
+        if 0, HDR.SIE.RAW,
                 if sum(HDR.AS.SPR)~=size(data,1)
                         fprintf(2,'Warning EDFWRITE: datasize must fit to the Headerinfo %i %i %i\n',HDR.AS.spb,size(data));
                         fprintf(2,'Define the Headerinformation correctly.\n',HDR.AS.spb,size(data));
@@ -51,19 +53,60 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 D = data; 
                 
         elseif (HDR.SPR == 1), 
-                D=data'; 
+                D = data'; 
                 
         else    
                 % fill missing data with NaN
                 tmp = rem(size(data,1),HDR.SPR);
-                data = [data;repmat(HDR.THRESHOLD(1,3),HDR.SPR-tmp,size(data,2))];                                
+		if tmp,
+			fprintf(HDR.FILE.stderr,'Warning SWRITE: %i NaNs added to complete data block.\n',tmp);
+	                data = [data;repmat(HDR.THRESHOLD(1,3),HDR.SPR-tmp,size(data,2))];
+		end;	
                 NRec = size(data,1)/HDR.SPR; 
                 D = repmat(NaN,sum(HDR.AS.SPR),NRec);
                 for k = 1:HDR.NS;
                         D(HDR.AS.bi(k)+1:HDR.AS.bi(k+1),:) = rs(reshape(data(:,k),HDR.SPR,NRec),HDR.SPR/HDR.AS.SPR(k),1);
                 end;
         end;
-        count = fwrite(HDR.FILE.FID,D,gdfdatatype(HDR.GDFTYP(1)));
+	GDFTYP = HDR.GDFTYP(1);
+	if ~exist('OCTAVE_FORGE','builtin')
+	        count = fwrite(HDR.FILE.FID,D,gdfdatatype(GDFTYP));
+	else
+		if GDFTYP<256,
+	    		count = fwrite(HDR.FILE.FID,D,gdfdatatype(GDFTYP));
+		else
+		    [datatyp,limits,datatypes] = gdfdatatype(GDFTYP);
+		    [nr,nc] = size(D);
+		    if 1, %GDFTYP>511, % unsigned bitN
+			bits = GDFTYP - 511; 
+			
+			if 0, 
+			elseif bits==4,
+				X(2:2:2*nr,:) = floor(D/16);
+				X(1:2:2*nr,:) = mod(D,16);
+		    		count = fwrite(HDR.FILE.FID,X,'uint8');
+			elseif bits==12,
+				X(3:3:1.5*nr,:) = floor(D(2:2:nr,:)/16);
+				X(1:3:1.5*nr,:) = mod(D([1:2:nr],:),256);
+				X(2:3:1.5*nr,:) = mod(floor(D(1:2:nr,:)/256),16)+16*mod(D(2:2:nr,:),16);
+		    		count = fwrite(HDR.FILE.FID,X,'uint8');
+			elseif bits==24,
+				X(3:3:3*nr,:) = mod(floor(D*2^-16),256);
+				X(1:3:3*nr,:) = mod(D,256); 
+				X(2:3:3*nr,:) = mod(floor(D/256),256);
+		    		count = fwrite(HDR.FILE.FID,X,'uint8');
+			else
+				ix0 = ceil([1:nr*bits]'/8);
+				ix1 =  mod([1:nr*bits]',8);
+				ix2 = ceil([1:nr*bits]'/bits);
+				ix3 =  mod([1:nr*bits]',bits);
+				for k = 1:nr*bits,
+				
+				end;
+			end;	
+		    end;
+		end;
+	end;	
         HDR.AS.numrec = HDR.AS.numrec + count/HDR.AS.spb;
         HDR.FILE.POS  = HDR.FILE.POS  + count/HDR.AS.spb;
         
@@ -145,7 +188,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
                 end;
 	elseif strcmp(HDR.TYPE,'AIF'),
 		if ~HDR.FLAG.UCAL,
-                        data = data * 2^(HDR.bits-1);
+                        data = data * 2^(HDR.Bits-1);
 		end;
 	end;
 
