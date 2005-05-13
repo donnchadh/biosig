@@ -6,7 +6,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 Date: 20 Feb 2003
 (C) Alois Schloegl <a.schloegl@ieee.org>
 Version 1.0 (0.10 for testing)
-$Revision: 1.13 $
+$Revision: 1.14 $
 $Id
 
 
@@ -56,6 +56,9 @@ HDR.EVENT 	# two versions are possible. Version 1:
     EVENT.TYP		uint16		Type of event/marker/annotation according to table biosig/t200/eventcodes.txt 
     EVENT.CHN		uint16		associated channel; is zero if event applies to no specific or all channels
     EVENT.DUR		uint32		event duration in samples
+		# [OPTIONAL]
+    EVENT.CodeDesc	text		description of Eventtypes
+    EVENT.CodeIndex	int		corresponding index 
 
 HDR.Label		char-array	e.g. '+C3a - C3p  '
 HDR.PhysDim		string		physical dimension e.g. 'uV'
@@ -63,6 +66,7 @@ HDR.PhysMax		float		physical maximum (for calibration)
 HDR.DigMax		integer		digital maximum (for calibration)
 HDR.PhysMin		float		physical minimum (for calibration) 
 HDR.DigMin		integer		digital minimum (for calibration) 
+HDR.Bits		integer		number of bits used
 HDR.THRESHOLD		numeric		digital minimum and maximum (for saturation detection);
 					a third column indicates the encoding of missing data;  
 HDR.CHANTYP		ascii		guess for signal type 
@@ -85,7 +89,7 @@ HDR.PreFilt		string		[OPTIONAL] filter setting - used by GDF, BDF, EDF
 HDR.ID.Doctor				Identification of doctor
 HDR.ID.Hospital				Identification of Hospital
 HDR.Patient	# contains patient information [OPTIONAL]
-    Patient.Name			Name of Patient 
+    Patient.Name			Name of Patient [NOT SUPPORTED]
     Patient.Age				Age of Patient
     Patient.Sex				Patient Gender
     Patient.Handedness			Patient Handedness
