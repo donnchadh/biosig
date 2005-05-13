@@ -1,6 +1,9 @@
-function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
+function [BKR,s]=bkropen(arg1,PERMISSION,arg3,arg4,arg5,arg6)
 % BKROPEN opens BKR file
-% [BKR,signal] = bkropen(Filename, PERMISSION, ChanList);
+% However, it is recommended to use SOPEN instead .
+% For loading whole data files, use SLOAD. 
+
+% [BKR,signal] = bkropen(Filename, PERMISSION);
 % [s,BKR] = eegread(BKR [,NoS [,Startpos]])
 % 
 % FILENAME 
@@ -10,10 +13,10 @@ function [BKR,s]=bkropen(arg1,PERMISSION,CHAN,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.28 $
-%	$Id: bkropen.m,v 1.28 2005-01-20 10:18:48 schloegl Exp $
-%	Copyright (c) 1997-2005 by Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Revision: 1.29 $
+%	$Id: bkropen.m,v 1.29 2005-05-13 17:42:22 schloegl Exp $
+%	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -34,7 +37,6 @@ if nargin<2,
 elseif ~any(PERMISSION=='b');
         PERMISSION = [PERMISSION,'b']; % force binary open. 
 end;
-if nargin<3, CHAN=0; end;
 
 if isstruct(arg1),
 	BKR=arg1;
@@ -61,33 +63,33 @@ if ftell(BKR.FILE.FID)~=0,	%
         fprintf(2,'Error: Fileposition is not 0\n');        	        
 end;
 
-BOOL='int16';
+BOOL ='int16';
 ULONG='uint32'; 
 FLOAT='float32';
 
 if any(PERMISSION=='r'),
 	BKR.FILE.OPEN = 1;
 	fid = BKR.FILE.FID;
-%%%%% READ HEADER
+        %%%%% READ HEADER
 
-%VARIABLE	TYPE			#bytes	OFFSET	COMMENT
-	VER=fread(fid,1,'ushort');	%	2 Byte	0	Versionsnummer 
-	if ((VER<=200) | (VER>207)) fprintf(2,'LOADBKR: WARNING  Version BKR Format %i',VER); end;
-	nch=fread(fid,1,'ushort');	%	2 Byte	2	Anzahl der Kanäle
-	nhz=fread(fid,1,'ushort');	%	2 Byte	4	Abtastfrequenz	
-	ntr=fread(fid,1, 'uint32');	%	4 Byte	6	Anzahl der Trials
-	nsp=fread(fid,1, 'uint32');	%	4 Byte	10	Anzahl Samples per Trial
-	cvlt=fread(fid,1,'ushort');	%	2 Byte	14	Kalibrierspannung	
-	cval=fread(fid,1,'ushort');	%	2 Byte	16	Kalibrierwert
-	code=fread(fid,4,'char');	%	4 Byte	18	Elektrodencode
-	code=setstr(code)';
-	lcf=fread(fid,1, FLOAT);	%	4 Byte	22	untere Eckfrequenz
-	ucf=fread(fid,1, FLOAT);	%	4 Byte	26	obere Eckfrequenz
+        %VARIABLE	TYPE			#bytes	OFFSET	COMMENT
+	BKR.VERSION     = fread(fid,1,'ushort');	%	2 Byte	0	Versionsnummer 
+	if ((BKR.VERSION<=200) | (BKR.VERSION>207)) fprintf(2,'LOADBKR: WARNING  Version BKR Format %i',BKR.VERSION); end;
+	BKR.NS          = fread(fid,1,'ushort');	%	2 Byte	2	Anzahl der Kanäle
+	BKR.SampleRate  = fread(fid,1,'ushort');	%	2 Byte	4	Abtastfrequenz	
+	BKR.NRec        = fread(fid,1,'uint32');	%	4 Byte	6	Anzahl der Trials
+	BKR.SPR         = fread(fid,1,'uint32');	%	4 Byte	10	Anzahl Samples per Trial
+	BKR.PhysMax     = fread(fid,1,'ushort');	%	2 Byte	14	Kalibrierspannung	
+	BKR.DigMax      = fread(fid,1,'ushort');	%	2 Byte	16	Kalibrierwert
+	BKR.Label       = fread(fid,4,'char');	        %	4 Byte	18	Elektrodencode
+	BKR.Label       = char(BKR.Label)';
+	BKR.Filter.LowPass      = fread(fid,1, FLOAT);	%	4 Byte	22	untere Eckfrequenz
+	BKR.Filter.HighPass     = fread(fid,1, FLOAT);	%	4 Byte	26	obere Eckfrequenz
 	BKR.BKR.sref=fread(fid,1, ULONG);	%	4 Byte	30	Startzeitpunkt Referenz in Samples
 	BKR.BKR.eref=fread(fid,1, ULONG);	%	4 Byte	34	Länge Referenz in Samples	
 	BKR.BKR.sact=fread(fid,1, ULONG);	%	4 Byte	38	Startzeitpunkt Aktion in Samples
 	BKR.BKR.eact=fread(fid,1, ULONG);	%	4 Byte	42	Länge Aktion in Samples
-	trg=fread(fid,1,BOOL);		%	2 Byte	46	flag für Trigger
+	BKR.FLAG.TRIGGERED      = fread(fid,1,BOOL);	%	2 Byte	46	flag für Trigger
 	BKR.BKR.pre=fread(fid,1, ULONG);	%	4 Byte	48	Anzahl der Sampels vor dem Trigger
 	BKR.BKR.pst=fread(fid,1, ULONG);	%	4 Byte	52	Anzahl der Sampels nach dem Trigger
 	BKR.BKR.hav=fread(fid,1,BOOL);		%	2 Byte	56	flag für "horizontale" Mittelung
@@ -96,10 +98,10 @@ if any(PERMISSION=='r'),
 	BKR.BKR.nav=fread(fid,1,'ushort');	%	2 Byte	64	Anzahl der gemittelten Kanäle
 	BKR.BKR.cav=fread(fid,1,BOOL);		%	2 Byte	66	flag für Datenkomprimierung
 	BKR.BKR.nac=fread(fid,1, ULONG);	%	4 Byte	68	Anzahl der gemittelten Samples
-	com=fread(fid,1,BOOL);		%	2 Byte	72	flag: Common Average Reference
-	loc=fread(fid,1,BOOL);		%	2 Byte	74	flag: Local Average Reference
-	lap=fread(fid,1,BOOL);		%	2 Byte	76	flag: Laplace Berechnung
-	wgt=fread(fid,1,BOOL);		%	2 Byte	78	flag: Weighted Average Reference
+	BKR.FLAG.ref=fread(fid,4,BOOL);		%	2 Byte	72	flag: Common Average Reference
+	%       loc=fread(fid,1,BOOL);		%	2 Byte	74	flag: Local Average Reference
+	%       lap=fread(fid,1,BOOL);		%	2 Byte	76	flag: Laplace Berechnung
+	%       wgt=fread(fid,1,BOOL);		%	2 Byte	78	flag: Weighted Average Reference
 	BKR.BKR.pwr=fread(fid,1,BOOL);		%	2 Byte	80	flag: Leistung
 	BKR.BKR.avr=fread(fid,1,BOOL);		%	2 Byte	82	flag: Mittelwert
 	BKR.BKR.std=fread(fid,1,BOOL);		%	2 Byte	84	flag: Streuung
@@ -133,40 +135,33 @@ if any(PERMISSION=='r'),
                 fread(fid,1024-152,'char');
         else
                 fread(fid,512-152,'char');
-                for i=1:nch,
+                for i=1:BKR.NS,
                         eletyp(i)=fread(fid,1,'uchar');	%	1 Byte	512	Elektrode 1: Signalart (z.B: EEG)
                         elenum(i)=fread(fid,1,'uchar');	%	1 Byte	513	Elektrode 1: Kanalnr. für gleiche Signalart
                         ref(i)=fread(fid,1, FLOAT);	%	4 Byte	514	Referenzwert für Kanal 1
                 end;
-                if nch>85,
+                if BKR.NS>85,
                         fprintf(2,'Warning BKRLOAD: Number of channels larger than 85; Header does not support more\n');
                 end;
-                fseek(fid,512-(nch*6),'cof');
+                fseek(fid,512-(BKR.NS*6),'cof');
         end;
-        HeaderEnd = ftell(fid);
-	if HeaderEnd~=1024,
+        BKR.HeadLen = ftell(fid);
+	if BKR.HeadLen~=1024,
 	        fprintf(2,'Warning BKRLOAD: Length of Header does not confirm BKR-specification\n');
 	end;
-	%HeaderEnd = 1024;
+	%BKR.HeadLen = 1024;
 
-	%%%%% Generate BKR-Struct; similar to EDF-struct
-	BKR.VERSION=VER;
-	BKR.NS=nch;
-	BKR.NRec=ntr;
-	BKR.Dur=1/nhz;
-
-	BKR.SampleRate=nhz;%(ones(BKR.NS,1));
-	BKR.SPR=nsp;%(ones(BKR.NS,1));
-	BKR.DigMax=cval;
-	BKR.PhysMax=cvlt;
-	BKR.Cal=BKR.PhysMax/BKR.DigMax; %*ones(BKR.NS,1);
+	%%%%% Generate HDR-Struct according to biosig/doc/header.txt
+	BKR.Dur=1/BKR.SampleRate;
+	BKR.DigMax=BKR.DigMax;
+	BKR.PhysMax=BKR.PhysMax;
+	BKR.Cal=BKR.PhysMax/BKR.DigMax;
 	BKR.Off=zeros(BKR.NS,1);
         BKR.Calib = sparse(2:BKR.NS+1,1:BKR.NS,BKR.Cal,BKR.NS+1,BKR.NS);
         BKR.PhysDim = repmat('µV',BKR.NS,1);
-	BKR.Label=code;
-	tmp=sprintf('LowPass %4.1f Hz; HighPass %4.1f Hz; Notch ?',lcf,ucf);
-	BKR.PreFilt=tmp;%ones(BKR.NS,1)*[tmp 32+zeros(1,80-length(tmp))];
-	BKR.HeadLen=HeaderEnd;
+	tmp=sprintf('LowPass %4.1f Hz; HighPass %4.1f Hz; Notch ?',BKR.Filter.LowPass,BKR.Filter.HighPass);
+	BKR.PreFilt=tmp; %ones(BKR.NS,1)*[tmp 32+zeros(1,80-length(tmp))];
+	BKR.Filter.Notch    = nan; %h.notchfilter;
 
 	BKR.AS.startrec = 0;
 	BKR.AS.numrec = 0;
@@ -174,44 +169,33 @@ if any(PERMISSION=='r'),
 	BKR.AS.spb = BKR.NS;	% Samples per Block
 	BKR.FILE.POS = 0;
 
-	BKR.Filter.LowPass  = lcf;
-	BKR.Filter.HighPass = ucf;
-	BKR.Filter.Notch    = nan; %h.notchfilter;
-        
-        BKR.FLAG.TRIGGERED = trg;
 	if ~BKR.FLAG.TRIGGERED & (BKR.NRec>1);
 		fprintf(BKR.FILE.stderr,'Warning: TriggerFlag in file %s was not set.\n',BKR.FileName);
 		BKR.FLAG.TRIGGERED = 1;
 	end;	
         BKR.FLAG.REFERENCE = 'unknown';
-        if com, BKR.FLAG.REFERENCE = 'COM'; end;
-        if loc, BKR.FLAG.REFERENCE = 'LOC'; end;
-        if lap, BKR.FLAG.REFERENCE = 'LAP'; end;
-        if wgt, BKR.FLAG.REFERENCE = 'WGT'; end;
+        if BKR.FLAG.ref(1), BKR.FLAG.REFERENCE = 'COM'; end;
+        if BKR.FLAG.ref(2), BKR.FLAG.REFERENCE = 'LOC'; end;
+        if BKR.FLAG.ref(3), BKR.FLAG.REFERENCE = 'LAP'; end;
+        if BKR.FLAG.ref(4), BKR.FLAG.REFERENCE = 'WGT'; end;
                 
-        if (CHAN==0), 
-                CHAN = 1:BKR.NS; 
-        end;
-
         % THRESHOLD for Overflow detection
         BKR.SIE.THRESHOLD = -(2^15);
         BKR.THRESHOLD = repmat([-1,1]*BKR.DigMax,BKR.NS,1);
+	BKR.AS.endpos = (BKR.FILE.size-BKR.HeadLen)/BKR.AS.bpb;
 
-	%status = fseek(fid,0,'eof');
-        BKR.data = fread(fid,[BKR.NS,inf],'int16=>int16')';
-	EndPos = ftell(fid);
-        %status = fseek(fid,BKR.HeadLen,'bof');
-	BKR.AS.endpos = (EndPos-BKR.HeadLen)/BKR.AS.bpb;
+        BKR.data = fread(fid,[BKR.NS,inf],'int16')';
 	fclose(fid);
-	BKR.FILE.OPEN = 1;
+        BKR.TYPE = 'native'; 
+
 
         % check whether Headerinfo fits to file length.
-	if (EndPos-BKR.HeadLen)~=BKR.SPR*BKR.NRec*BKR.NS*2,
-		[EndPos,BKR.HeadLen,BKR.SPR,BKR.NRec,BKR.NS],
-		[EndPos-BKR.HeadLen-BKR.SPR*BKR.NRec*BKR.NS*2],
+	if (BKR.FILE.size-BKR.HeadLen)~=BKR.SPR*BKR.NRec*BKR.NS*2,
+		%[BKR.FILE.size,BKR.HeadLen,BKR.SPR,BKR.NRec,BKR.NS],
+		%[BKR.FILE.size-BKR.HeadLen-BKR.SPR*BKR.NRec*BKR.NS*2],
 		fprintf(2,'Header information in %s corrupted; Data could be reconstructed.\n',BKR.FileName);
 		if BKR.NRec==1,
-			BKR.SPR=(EndPos-HeaderEnd)/(BKR.NRec*BKR.NS*2);
+			BKR.SPR=(BKR.FILE.size-BKR.HeadLen)/(BKR.NRec*BKR.NS*2);
         	end;
         end;
 
@@ -231,7 +215,15 @@ if any(PERMISSION=='r'),
                 x = load('-mat',tmp);
         end;
         if isfield(x,'header'),
-                BKR.MAT = x.header;
+                BKR.MAT  = x.header;
+                if isfield(x.header,'Setup'), 
+                        if isfield(x.header.Setup,'Bits'), 
+                                BKR.Bits = x.header.Setup.Bits;
+                                [datatyp, limits, datatypes] = gdfdatatype(BKR.Bits+255);
+                                % THRESHOLD for Overflow detection
+                                BKR.THRESHOLD = repmat(limits, BKR.NS, 1);
+                        end;
+                end;
                 if isfield(x.header,'Result') & isfield(x.header.Result,'Classlabel'),
                         BKR.Classlabel = x.header.Result.Classlabel;
                 end;
@@ -329,23 +321,25 @@ if any(PERMISSION=='r'),
                 BKR.ArtifactSelection = BKR.ArtifactSelection(:);
         end;
         
-        
         if isfield(BKR.AS,'TRIGCHAN') % & isempty(BKR.EVENT.POS)
-                if BKR.AS.TRIGCHAN<=size(BKR.data,2),
-                        BKR.THRESHOLD(BKR.AS.TRIGCHAN,:)=NaN; % do not apply overflow detection for Trigger channel 
-                        BKR.TRIG = gettrigger(double(BKR.data(:,BKR.AS.TRIGCHAN)));
+                if BKR.AS.TRIGCHAN <= BKR.NS, %size(BKR.data,2),
+                        BKR.THRESHOLD(BKR.AS.TRIGCHAN,1:2) = [-1-2^15,2^15]; % do not apply overflow detection for Trigger channel 
+                        TRIGon = gettrigger(double(BKR.data(:,BKR.AS.TRIGCHAN)));
+                        %TRIGoff = gettrigger(-double(BKR.data(:,BKR.AS.TRIGCHAN)));
                         if isfield(BKR,'TriggerOffset')
-                                BKR.TRIG = BKR.TRIG - round(BKR.TriggerOffset/1000*BKR.SampleRate);
+                                TRIGon  = TRIGon - round(BKR.TriggerOffset/1000*BKR.SampleRate);
+                        %        TRIGoff = TRIGoff - round(BKR.TriggerOffset/1000*BKR.SampleRate);
                         end;
                 end;
+                BKR.EVENT.POS = TRIGon(:); %[TRIGon(:); TRIGoff(:)]; 
+                BKR.EVENT.TYP = repmat(hex2dec('0300'),numel(TRIGon),1); %repmat(hex2dec('8300'),numel(TRIGoff),1)];
         end;
-	BKR.TYPE = 'native'; 
         if length(BKR.TRIG)~=length(BKR.Classlabel),
                 % hack to deal with BCI22 data
                 fprintf(2,'Warning BKROPEN: Number of triggers (%i) and number of Classlabels (%i) do not fit\n',length(BKR.TRIG),length(BKR.Classlabel));
-                BKR.TRIG = [];
-                BKR.Classlabel = [];
-                BKR.ArtifactSelection = [];
+%                BKR.TRIG = [];
+%                BKR.Classlabel = [];
+%                BKR.ArtifactSelection = [];
         end;
 
         
