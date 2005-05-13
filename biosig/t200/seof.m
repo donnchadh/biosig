@@ -21,16 +21,15 @@ function [status]=seof(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.12 $
-%	$Id: seof.m,v 1.12 2005-02-19 21:45:08 schloegl Exp $
-%	Copyright (c) 1997-2003 by Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Id: seof.m,v 1.13 2005-05-13 17:47:38 schloegl Exp $
+%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
 %status=feof(HDR.FILE.FID);  % does not work properly
 %if HDR.FILE.POS~=HDR.AS.startrec+HDR.AS.numrec;
         
-if strmatch(HDR.TYPE,{'EDF','BDF','GDF','CTF','RDF','EEG','AVG','SIGIF'}),
+if strmatch(HDR.TYPE,{'CTF','RDF','EEG','AVG','SIGIF'}),
 	%status=feof(EDF.FILE.FID);  % does not work properly
 	%if EDF.FILE.POS~=EDF.AS.startrec+EDF.AS.numrec;
         status = (HDR.FILE.POS >= HDR.NRec);
@@ -38,7 +37,7 @@ if strmatch(HDR.TYPE,{'EDF','BDF','GDF','CTF','RDF','EEG','AVG','SIGIF'}),
 elseif strmatch(HDR.TYPE,{'ACQ','RG64','LABVIEW','Nicolet','BVbinmul','BVbinvec','BVascii'}),
 	status = (HDR.FILE.POS >= (HDR.AS.endpos-HDR.HeadLen));
 
-elseif strmatch(HDR.TYPE,{'BKR','CNT','CTF','MIT','SMA','CFWB','DEMG','EEProbe-CNT','EEProbe-AVR','MFER','alpha','native','SCP','BCI2000','WG1'}),
+elseif strmatch(HDR.TYPE,{'BKR','CNT','CTF','EDF','BDF','GDF','MIT','SMA','CFWB','DEMG','EEProbe-CNT','EEProbe-AVR','MFER','alpha','native','SCP','BCI2000','TMS32','WG1'}),
 	status = (HDR.FILE.POS >= HDR.SPR*HDR.NRec);
 
 elseif strmatch(HDR.TYPE,{'EGI'}),

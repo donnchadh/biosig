@@ -8,10 +8,9 @@ function [HDR]=sseek(HDR,offset,origin)
 %
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
-%	$Revision: 1.12 $
-%	$Id: sseek.m,v 1.12 2005-02-19 21:45:08 schloegl Exp $
-%	Copyright (c) 1997-2005 by Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Id: sseek.m,v 1.13 2005-05-13 17:47:38 schloegl Exp $
+%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -39,7 +38,7 @@ end;
 
 if origin == -1, 
         HDR.FILE.POS = offset;
-        if strmatch(HDR.TYPE,{'MFER','SCP','native','WG1'}),
+        if strmatch(HDR.TYPE,{'BDF','EDF','GDF','MFER','SCP','native','TMS32','WG1'}),
 	elseif HDR.FILE.FID>2,
                 POS = HDR.HeadLen+HDR.AS.bpb*offset;
                 if POS~=ceil(POS),  % for alpha format
@@ -51,7 +50,7 @@ if origin == -1,
         
 elseif origin == 0, 
         HDR.FILE.POS = HDR.FILE.POS + offset;
-        if strmatch(HDR.TYPE,{'MFER','SCP','native','WG1'}),
+        if strmatch(HDR.TYPE,{'BDF','EDF','GDF','MFER','SCP','native','TMS32','WG1'}),
 	elseif HDR.FILE.FID>2,
                 POS = HDR.AS.bpb*offset;
                 if POS~=ceil(POS),  % for alpha format
@@ -65,7 +64,9 @@ elseif origin == 1,
 	if 0, %strmatch(HDR.TYPE,{}),
 		HDR.FILE.POS = HDR.NRec+offset;
 		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.AS.bpb*offset,1);
-	elseif strmatch(HDR.TYPE,{'ACQ','BDF','CTF','EDF','GDF','Nicolet'}),
+	elseif strmatch(HDR.TYPE,{'BDF','EDF','GDF'}),
+		POS = HDR.NRec*HDR.SPR+offset;
+	elseif strmatch(HDR.TYPE,{'ACQ','CTF','Nicolet'}),
 		POS = HDR.AS.endpos+offset*HDR.AS.bpb;
 		HDR.FILE.status = fseek(HDR.FILE.FID,POS,-1);
 		HDR.FILE.POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
@@ -85,7 +86,7 @@ elseif origin == 1,
 		HDR.FILE.status = fseek(HDR.FILE.FID,POS,-1);
         elseif strmatch(HDR.TYPE,{'RDF','SIGIF'}),
 		HDR.FILE.POS = length(HDR.Block.Pos)+offset;
-        elseif strmatch(HDR.TYPE,{'BVascii','BVbinvec','EEProbe-CNT','EEProbe-AVR','FIF','native','MFER','SCP','WG1'}),
+        elseif strmatch(HDR.TYPE,{'BVascii','BVbinvec','EEProbe-CNT','EEProbe-AVR','FIF','native','MFER','SCP','TMS32','WG1'}),
 		HDR.FILE.POS = HDR.AS.endpos+offset;
 	else
 		fprintf(HDR.FILE.stderr,'Warning SSEEK: format %s not supported.\n',HDR.TYPE);	
@@ -95,38 +96,3 @@ else
         return;
 end;
 
-if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
-        HDR.AS.startrec = HDR.FILE.POS;
-        HDR.AS.numrec = 0;
-        %HDR = sdftell(HDR); % not really needed, only for double check of algorithms
-        
-        % Initialization of Bufferblock for random access (without EDF-blocklimits) of data 
-        if ~HDR.SIE.RAW & HDR.SIE.TimeUnits_Seconds,
-                HDR.Block.number = [0 0 0 0]; %Actual Blocknumber, start and end time of loaded block, diff(HDR.Block.number(1:2))==0 denotes no block is loaded;
-                % HDR.Blcok.number(3:4) indicate start and end of the returned data, [units]=samples.
-                HDR.Block.data = [];
-                HDR.Block.dataOFCHK = [];
-        end;
-        
-        if 1; %isfield(EDF,'AFIR');
-                if HDR.SIE.AFIR,
-                        HDR.AFIR.w = zeros(HDR.AFIR.nC,max(HDR.AFIR.nord));
-                        HDR.AFIR.x = zeros(1,HDR.AFIR.nord);
-                        HDR.AFIR.d = zeros(HDR.AFIR.delay,HDR.AFIR.nC);
-                        fprintf(2,'WARNING SSEEK: Repositioning deletes AFIR-filter status\n');
-                end;
-        end;
-        if 1; %isfield(EDF,'Filter');
-                if HDR.SIE.FILT,
-                        [tmp,HDR.Filter.Z] = filter(HDR.Filter.B,HDR.Filter.A,zeros(length(HDR.Filter.B+1),length(HDR.SIE.ChanSelect)));
-                        HDR.FilterOVG.Z = HDR.Filter.Z;
-                        fprintf(2,'WARNING SSEEK: Repositioning deletes Filter status of Notch\n');
-                end;
-        end;
-        
-        if 1; %isfield(EDF,'TECG')
-                if HDR.SIE.TECG,
-                        fprintf(2,'WARNING SSEEK: Repositioning deletes TECG filter status\n');
-                end;
-        end;
-end;
