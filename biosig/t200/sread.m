@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.52 $
-%	$Id: sread.m,v 1.52 2005-04-10 11:38:33 schloegl Exp $
+%	$Revision: 1.53 $
+%	$Id: sread.m,v 1.53 2005-05-13 17:35:33 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -67,8 +67,11 @@ if tmp ~= round(tmp),
         NoS = round(tmp)/HDR.SampleRate;
 end;
 STATUS = 0; 
+if isfield(HDR,'THRESHOLD')     % save THRESHOLD status (will be modified in BKR);
+        THRESHOLD = HDR.THRESHOLD; 
+end
 
-if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
+if 0, strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
         if nargin<3,
                 [S,HDR] = sdfread(HDR, NoS );
         else
@@ -76,9 +79,8 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
         end;
         
 	
-elseif 0, strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
+elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
 	% experimental, might replace SDFREAD.M 
-	fprintf(2,'Warning SREAD(GDF): experimental version\n');
         if nargin==3,
                 HDR.FILE.POS = round(HDR.SampleRate*StartPos);
         end;
@@ -94,22 +96,32 @@ elseif 0, strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF
 
 	count  = 0;
         if all(HDR.GDFTYP==HDR.GDFTYP(1)),
-	        S = zeros(nr,length(HDR.InChanSelect));
-	    	while (count<nr);
-			len   = ceil(min([(nr-count)/HDR.SPR,2^22/HDR.AS.spb]));
-	                [s,c] = fread(HDR.FILE.FID,[HDR.AS.spb, len],gdfdatatype(HDR.GDFTYP(1)));
-	                s1    = zeros(HDR.SPR*c/HDR.AS.spb,length(HDR.InChanSelect));
-	                for k = 1:length(HDR.InChanSelect), 
-				K = HDR.InChanSelect(k);
-	                        tmp = reshape(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K)*c/HDR.AS.spb,1);
-	                        s1(:,k) = rs(tmp,HDR.AS.SPR(K),HDR.SPR);
-	                end;
-			ix2   = min(nr-count, size(s1,1)-ix1);
-			S(count+1:count+ix2,:) = s1(ix1+1:ix1+ix2,:);
-			count = count+ix2;
-			ix1   = 0; 
-		end;	
-		HDR.FILE.POS = HDR.FILE.POS + count;
+                if (HDR.AS.spb*nb<=2^24), % faster access
+                        S = [];
+                        [s,c] = fread(HDR.FILE.FID,[HDR.AS.spb, nb],gdfdatatype(HDR.GDFTYP(1)));
+                        for k = 1:length(HDR.InChanSelect),
+                               S(:,k) = rs(reshape(s(HDR.AS.bi(k)+1:HDR.AS.bi(k+1),:),HDR.AS.SPR(k)*nb,1),HDR.AS.SPR(k),HDR.SPR); 
+                        end;
+                        S = S(ix1+1:ix1+nr,:);
+                        count = nr;
+                else
+                        S = zeros(nr,length(HDR.InChanSelect));
+                        while (count<nr);
+                                len   = ceil(min([(nr-count)/HDR.SPR,2^22/HDR.AS.spb]));
+                                [s,c] = fread(HDR.FILE.FID,[HDR.AS.spb, len],gdfdatatype(HDR.GDFTYP(1)));
+                                s1    = zeros(HDR.SPR*c/HDR.AS.spb,length(HDR.InChanSelect));
+                                for k = 1:length(HDR.InChanSelect), 
+                                        K = HDR.InChanSelect(k);
+                                        tmp = reshape(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K)*c/HDR.AS.spb,1);
+                                        s1(:,k) = rs(tmp,HDR.AS.SPR(K),HDR.SPR);
+                                end;
+                                ix2   = min(nr-count, size(s1,1)-ix1);
+                                S(count+1:count+ix2,:) = s1(ix1+1:ix1+ix2,:);
+                                count = count+ix2;
+                                ix1   = 0; 
+                        end;	
+                end;
+                HDR.FILE.POS = HDR.FILE.POS + count;
         else
     		fprintf(2,'Error SREAD (GDF): different datatypes not supported (yet).\n');
         end;
@@ -127,6 +139,7 @@ elseif strmatch(HDR.TYPE,{'BKR'}),
 	else
 		S = zeros(0,length(HDR.InChanSelect));		
         end;
+        THRESHOLD(HDR.AS.TRIGCHAN,:)=NaN; % do not apply overflow detection for Trigger channel 
 
         
 elseif strcmp(HDR.TYPE,'ACQ'),
@@ -275,7 +288,7 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 return;
         end
         
-        if HDR.bits==12,
+        if HDR.Bits==12,
                 [s,count] = fread(HDR.FILE.FID,[3,nr/3],'uint8');
                 s(1,:) = s(1,:)*16 + floor(s(2,:)/16); 	
                 s(3,:) = s(3,:)+ mod(s(2,:),16)*256; 	
@@ -285,10 +298,10 @@ elseif strcmp(HDR.TYPE,'alpha'),
                 S = reshape(s(1:nr*HDR.NS),HDR.NS,nr);
                 count = count*2/3;
                 
-        elseif HDR.bits==16,
+        elseif HDR.Bits==16,
                 [S,count] = fread(HDR.FILE.FID,[HDR.NS,nr],'int16');
                 
-        elseif HDR.bits==32,
+        elseif HDR.Bits==32,
                 [S,count] = fread(HDR.FILE.FID,[HDR.NS,nr],'int32');
         end;        
         
@@ -1139,6 +1152,17 @@ elseif strcmp(HDR.TYPE,'SierraECG'),   %% SierraECG  1.03  *.open.xml from PHILI
         HDR.FILE.POS = HDR.FILE.POS + nr;
 
         
+elseif strcmp(HDR.TYPE,'ATF'); 
+        if HDR.FILE.OPEN,
+                fseek(HDR.FILE.FID,HDR.HeadLen,-1);
+                t = fread(HDR.FILE.FID,[1,inf],'char');
+                fclose(HDR.FILE.FID);
+                HDR.FILE.OPEN=0; 
+                [HDR.ATF.NUM,status,HDR.ATF.STR] = str2double(char(t));
+        end;
+        S = HDR.ATF.NUM;
+        
+        
 elseif strcmp(HDR.TYPE,'TFM_EXCEL_Beat_to_Beat'); 
         if nargin>2,
 		fprintf(HDR.FILE.stderr,'Warning SREAD (TFM-EXCEL): only one input argument supported.\n');
@@ -1245,6 +1269,12 @@ elseif strcmp(HDR.TYPE,'FIF'),
 
 elseif strcmp(HDR.TYPE,'EVENT'),
         s = [];        
+
+elseif strcmp(HDR.TYPE,'IMAGE:',6),
+	% forward call to IREAD
+        HDR = iread(HDR);
+	return;
+
 else
         fprintf(2,'Error SREAD: %s-format not supported yet.\n', HDR.TYPE);        
 	return;
@@ -1274,7 +1304,7 @@ if isempty(S),
 elseif isfield(HDR,'THRESHOLD') & HDR.FLAG.OVERFLOWDETECTION,
         ix = (S~=S);
         for k=1:length(HDR.InChanSelect),
-                TH = HDR.THRESHOLD(HDR.InChanSelect(k),:);
+                TH = THRESHOLD(HDR.InChanSelect(k),:);
                 ix(:,k) = (S(:,k)<=TH(1)) | (S(:,k)>=TH(2));
         end
         if exist('double','builtin')
@@ -1315,6 +1345,7 @@ if ~HDR.FLAG.UCAL,
                 % S = [ones(size(S,1),1),S]*HDR.Calib; 
                 % the following is the same as above but needs less memory. 
                 S = double(S) * HDR.Calib(2:end,:);
+		if issparse(S), S = full(S); end;
                 for k = 1:size(HDR.Calib,2),
                         S(:,k) = S(:,k) + HDR.Calib(1,k);
                 end;
