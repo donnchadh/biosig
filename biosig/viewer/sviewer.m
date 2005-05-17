@@ -205,8 +205,10 @@ Event_string = Event_string(1:end-2);
 set(findobj('Tag','Event'),'String',Event_string);
 set(findobj('Tag','listbox_Event'),'String',Event_string);
 
-pos_eventdetail = find(Data.Eventcodes_txt.CodeIndex >= Data.Eventcodes_txt.GroupValue(1) ...
-                            & Data.Eventcodes_txt.CodeIndex < Data.Eventcodes_txt.GroupValue(2));
+%pos_eventdetail = find(Data.Eventcodes_txt.CodeIndex >= Data.Eventcodes_txt.GroupValue(1) ...
+%                            & Data.Eventcodes_txt.CodeIndex < Data.Eventcodes_txt.GroupValue(2));
+select = 1; s = Data.Eventcodes_txt;
+pos_eventdetail = find(bitand(s.CodeIndex,s.GroupMask(select))==s.GroupValue(select));        % decoding of eventtable 
 Eventdetail_string = sprintf('%s |',Data.Eventcodes_txt.CodeDesc{pos_eventdetail});
 Eventdetail_string = Eventdetail_string(1:end-2);
 
@@ -1645,14 +1647,14 @@ if isequal(get(findobj('Tag','Startdetection'),'Label'),'Start                  
     Data.Detection.Event_string = Event_string;
     
     if isfield(Data.Detection,'EventMatrix')
-        s = Data.Eventcodes_txt;
         typ = Data.Detection.EventMatrix(1,2);
-        select = find(s.GroupValue == bitand(s.GroupMask,typ));
-        pos_eventdetail = find(bitand(s.CodeIndex,s.GroupMask(select))==s.GroupValue(select));        % decoding of eventtable 
     else
-        pos_eventdetail = find(Data.Eventcodes_txt.CodeIndex >= Data.Eventcodes_txt.GroupValue(1) ...
-            & Data.Eventcodes_txt.CodeIndex < Data.Eventcodes_txt.GroupValue(2));
+        typ = hex2dec('0101');    
     end
+    s = Data.Eventcodes_txt;
+    select = find(s.GroupValue == bitand(s.GroupMask,typ));
+    pos_eventdetail = find(bitand(s.CodeIndex,s.GroupMask(select))==s.GroupValue(select));        % decoding of eventtable 
+
     Eventdetail_string = sprintf('%s |',Data.Eventcodes_txt.CodeDesc{pos_eventdetail});
     Eventdetail_string = Eventdetail_string(1:end-2);
     Data.Detection.Eventdetail_string = Eventdetail_string;
@@ -1926,7 +1928,10 @@ end
 if isequal(file,0) | isequal(path,0)
     return;
 else
-    if isequal([path file],[Data.File.path Data.File.file])
+    tmpflag = isequal(Data.HDR.TYPE,'alpha') & isequal(file,'marker');
+    tmpflag = tmpflag | isequal(file,Data.File.file);
+    tmpflag = tmpflag & isequal(path,Data.File.path);
+    if tmpflag,
         H = Data.HDR;
     else
         H = sopen([path file]);
@@ -1935,8 +1940,16 @@ else
     try
         typ = H.EVENT.TYP;
         pos = H.EVENT.POS;
-        chn = H.EVENT.CHN;
-        dur = H.EVENT.DUR;
+        if isfield(H.EVENT,'CHN')
+                chn = H.EVENT.CHN;
+        else    
+                chn = zeros(size(pos));
+        end;
+        if isfield(H.EVENT,'DUR')
+                dur = H.EVENT.DUR;
+        else    
+                dur = zeros(size(pos));
+        end;
     catch
         errordlg('The selected Event-File is incorrect!', 'File Error');
         return;
