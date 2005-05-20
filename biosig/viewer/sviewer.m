@@ -745,6 +745,8 @@ if isfield(Data,'Detection')
 end
 hold off;
 
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % color for the patch ist defined
 function color = get_color(det_typ,Data)
@@ -2031,9 +2033,9 @@ pos_sliderchannel = get(findobj('Tag','Slider_Channel'), 'Value');
 startchannel = (size(Data.Channel,1) - Data.NS) - pos_sliderchannel * (size(Data.Channel,1) - Data.NS) + 1;
 startchannel = round(startchannel);
 sel_channel = startchannel + get(gca, 'UserData') -1;
-channel_name = Data.Channel{sel_channel};
+%channel_name = Data.Channel{sel_channel};
 %pos_channel = strmatch(channel_name,Data.allChannel);
-pos_channel = strmatch(channel_name,Data.Channel(:,1));
+pos_channel = sel_channel; 
 slider_step = get(findobj('Tag','Slider1'),'SliderStep');
 pos_slider = Data.Slider.Pos;
 X = pos_slider / slider_step(1) * max(Data.HDR.SampleRate) * Data.NoS / 2;
