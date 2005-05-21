@@ -13,8 +13,8 @@ function [BKR,s]=bkropen(arg1,PERMISSION,arg3,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.29 $
-%	$Id: bkropen.m,v 1.29 2005-05-13 17:42:22 schloegl Exp $
+%	$Revision: 1.30 $
+%	$Id: bkropen.m,v 1.30 2005-05-21 21:04:33 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -331,6 +331,7 @@ if any(PERMISSION=='r'),
                         %        TRIGoff = TRIGoff - round(BKR.TriggerOffset/1000*BKR.SampleRate);
                         end;
                 end;
+                BKR.TRIG = TRIGon(:);
                 BKR.EVENT.POS = TRIGon(:); %[TRIGon(:); TRIGoff(:)]; 
                 BKR.EVENT.TYP = repmat(hex2dec('0300'),numel(TRIGon),1); %repmat(hex2dec('8300'),numel(TRIGoff),1)];
         end;
