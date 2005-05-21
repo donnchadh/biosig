@@ -1,8 +1,8 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004-2005 Alois Schloegl <a.schloegl@ieee.org>
-# $Revision: 1.11 $
-# $Id: eventcodes.txt,v 1.11 2005-03-29 08:28:35 schloegl Exp $
+# $Revision: 1.12 $
+# $Id: eventcodes.txt,v 1.12 2005-05-21 21:05:13 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -48,7 +48,7 @@
 0x030F  cue unknown/undefined (used for BCI competition) 
 0x0311	Beep (accustic stimulus, BCI experiment)
 0x0312	Cross on screen (BCI experiment)
-#0x0320 - 0x037f reserved for printable ASCII characters 32-127
+#0x031B - 0x037f reserved for ASCII characters #27-#127
 0x0381	target hit, task successful, correct classification
 0x0382	target missed, task not reached, incorrect classification
 0x03ff	Rejection of whole trial
@@ -98,6 +98,8 @@
 0x058d	325 Watt
 0x058e	350 Watt
 #0x8580  end
+### 0x100_	neural spikes 
+#
 ### 0x00__	user specific events
 # the use of these types is discouraged, because of ambigous definitions. 
 0x0001	condition 1
