@@ -24,7 +24,7 @@ function [LDBC,ix]=ldbc4(ECM,Y)
 % 
 % see also: COVM, MDBC, LDBC, LDBC2, LDBC3, LDBC4, TRAIN_SC, TEST_SC
 
-%	$Id: ldbc4.m,v 1.2 2005-03-08 11:40:55 schloegl Exp $
+%	$Id: ldbc4.m,v 1.3 2005-05-21 20:13:15 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -105,8 +105,7 @@ if nargin<2,
 else
         LDBC = Y * LDC;
 	if nargout>1,
-		tmp = all(isnan(LDBC,2));
         	[LDBC,ix] = max(LDBC,[],2);
-		ix(tmp) = NaN; 
+		ix(isnan(LDBC)) = NaN; 
 	end;    
 end;
