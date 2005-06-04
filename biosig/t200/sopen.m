@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.108 $
-%	$Id: sopen.m,v 1.108 2005-05-13 17:34:18 schloegl Exp $
+%	$Revision: 1.109 $
+%	$Id: sopen.m,v 1.109 2005-06-04 22:14:03 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1524,12 +1524,17 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
                 HDR.NS   = fread(HDR.FILE.FID,1,'int16');
                 HDR.Bits = fread(HDR.FILE.FID,1,'int16');
                 HDR.AS.bpb = HDR.NS*HDR.Bits/8;
+                HDR.SPR = 1; 
+                if rem(HDR.AS.bpb,1),
+                        HDR.AS.bpb = HDR.AS.bpb*2; %HDR.NS*HDR.Bits/8;
+                        HDR.SPR = 2; 
+                end;
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS  = 0;
                 HDR.HeadLen = ftell(HDR.FILE.FID);
                 fseek(HDR.FILE.FID,0,'eof');
                 HDR.AS.endpos = (ftell(HDR.FILE.FID)-HDR.HeadLen)/HDR.AS.bpb;
-                HDR.SPR = HDR.AS.endpos;
+                HDR.NRec = HDR.AS.endpos;
                 fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         end;
         
@@ -1634,6 +1639,12 @@ elseif strcmp(HDR.TYPE,'ACQ'),
                         HDR.VarSampleDiv(k) = fread(HDR.FILE.FID,1,'uint16');
                 else
                         HDR.VarSampleDiv(k) = 1;
+                end;
+                if HDR.VERSION >= 39,
+                        HDR.HorizPrecision(k) = fread(HDR.FILE.FID,1,'uint16');
+                end;
+                if HDR.VERSION >= 41,
+                        tmp = fread(HDR.FILE.FID,20+7*4,'uint8');
                 end;
         end;
         HDR.Label = char(HDR.Label);

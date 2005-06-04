@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.53 $
-%	$Id: sread.m,v 1.53 2005-05-13 17:35:33 schloegl Exp $
+%	$Revision: 1.54 $
+%	$Id: sread.m,v 1.54 2005-06-04 22:14:05 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -148,15 +148,15 @@ elseif strcmp(HDR.TYPE,'ACQ'),
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         count = 0;
-        if all(HDR.GDFTYP==HDR.GDFTYP(1)) & all(HDR.SPR==HDR.SPR(1))
+        if all(HDR.GDFTYP==HDR.GDFTYP(1)) & all(HDR.SPR==HDR.SPR(1)),
                 [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP(1)));
         else
-                fprintf(HDR.FILE.FID,'Warning SREAD (ACQ): interleaved format not supported (yet).');
+                S = zeros(length(HDR.InChanSelect),0);
+                fprintf(HDR.FILE.stderr,'Warning SREAD (ACQ): interleaved format not supported (yet).\n');
         end;
-        if count,
-                S = S(HDR.InChanSelect,:)';
-                HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.spb;
-        end;
+        S = S(HDR.InChanSelect,:)';
+        HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.spb;
+        
         
 elseif strmatch(HDR.TYPE,{'AIF','SND','WAV'})
         if nargin==3,
@@ -178,6 +178,7 @@ elseif strmatch(HDR.TYPE,{'AIF','SND','WAV'})
                 end;
         end;
 
+        
 elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ISHNE','Nicolet','RG64'}),
         if nargin==3,
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
@@ -271,16 +272,15 @@ elseif strcmp(HDR.TYPE,'LABVIEW'),
         
 elseif strcmp(HDR.TYPE,'alpha'),
         if nargin==3,
-                POS = HDR.SampleRate*HDR.AS.bpb*StartPos;
+                POS = HDR.SampleRate*StartPos*HDR.AS.bpb/HDR.SPR;
                 if POS~=ceil(POS),
-                        fprintf(HDR.FILE.stderr,'Error SREAD (alpha): starting position is non-integer\n');     
-                        return;
+                        fprintf(HDR.FILE.stderr,'warning SREAD (alpha): starting position is non-integer (%f)\n',POS);     
                 end
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen + POS,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         
-        nr = min(HDR.SampleRate*NoS, HDR.SPR-HDR.FILE.POS)*HDR.AS.bpb;
+        nr = min(HDR.SampleRate*NoS, HDR.NRec*HDR.SPR-HDR.FILE.POS)*HDR.AS.bpb;
         if (nr - round(nr)) < .01,
     		nr = round(nr);
 	else
