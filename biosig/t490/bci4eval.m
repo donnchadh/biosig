@@ -39,8 +39,8 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %	http://ida.first.fraunhofer.de/projects/bci/competition/results/TR_BCI2003_III.pdf
 
 
-%    $Revision: 1.3 $
-%    $Id: bci4eval.m,v 1.3 2004-12-09 16:53:30 schloegl Exp $
+%    $Revision: 1.4 $
+%    $Id: bci4eval.m,v 1.4 2005-06-04 22:07:44 schloegl Exp $
 %    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -65,12 +65,31 @@ end;
 DIM = 2; 
 CL = unique(cl);
 
-[x,sz]=trigg(tsd,TRIG,pre,post);
-D = squeeze(reshape(x,sz));
+
+if any([1,length(CL)]==size(tsd,2))
+        [x,sz] = trigg(tsd,TRIG,pre,post);
+        D = reshape(x,sz);
+        D = squeeze(D);
+else
+        if size(tsd,1)==length(cl)
+                D = tsd';
+        elseif size(tsd,2)==length(cl)
+                D = tsd;
+        else
+                error('BCI4EVAL: size of data and size of Classlabels does not fit');
+        end;
+        sz = [1,size(D)];
+        pre=1;
+        post=size(D,1);
+end;
+if size(D,(length(CL)==size(tsd,2))+2) ~= length(cl),
+        size(D,(length(CL)==size(tsd,2))+2),
+        [size(D), size(cl),size(CL),size(tsd)],
+        error('BCI4EVAL: length of Trigger and Length of Classlabels must fit')
+end;
 
 % Time axis
 o.T = [pre:post]'/Fs;
-
 if (length(CL)==2) & (sz(1)==1),
         for k = 1:length(CL),
                 X{k} = squeeze(D(:,cl==CL(k),:));
@@ -96,7 +115,6 @@ if (length(CL)==2) & (sz(1)==1),
         v2    = i2.SSQ-i2.SUM.*o.MEAN2;
         o.SD2 = sqrt(v2./o.N2);
         %o.SE2 = sqrt(v2)./o.N2;
-        
         
         %%%%% Signal-to-Noise Ratio 
         
@@ -132,6 +150,8 @@ if length(CL)==sz(1),
         end;
         o.datatype = 'TSD_BCI8';  % useful for PLOTA
         
+elseif sz(1)==1,
+        
 else
-        error('invalid input arguments');
+%        error('invalid input arguments');
 end;
