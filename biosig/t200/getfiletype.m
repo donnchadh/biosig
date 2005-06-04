@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.36 $
-%	$Id: getfiletype.m,v 1.36 2005-05-07 19:45:14 schloegl Exp $
+%	$Revision: 1.37 $
+%	$Id: getfiletype.m,v 1.37 2005-06-04 22:15:15 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -324,7 +324,7 @@ else
                 elseif strncmp(ss,'FILE FORMAT=RigSys',18); 	% RigSys file format 
                         HDR.TYPE='RigSys';
                         
-                elseif any(s(3:6)*(2.^[0;8;16;24]) == (30:40))
+                elseif any(s(3:6)*(2.^[0;8;16;24]) == (30:42))
                         HDR.VERSION = s(3:6)*(2.^[0;8;16;24]);
                         offset2 = s(7:10)*(2.^[0;8;16;24]);
                         
@@ -332,10 +332,17 @@ else
                         elseif HDR.VERSION < 35, offset = 164; 
                         elseif HDR.VERSION < 36, offset = 326; 
                         elseif HDR.VERSION < 38, offset = 886; 
-                        else   offset = 1894; 
+                        elseif HDR.VERSION < 39, offset = 1894; 
+                        elseif HDR.VERSION < 41, offset = 1896; 
+                        elseif HDR.VERSION == 41, offset = 1944; 
+                        else   offset = -1;
                         end;
+
                         if (offset==offset2),  
                                 HDR.TYPE = 'ACQ';
+                        end;
+                        if HDR.VERSION<0,
+                                fprintf(2,'Warning: Version %i of ACQ format not supported (yet).\n',HDR.VERSION);
                         end;
                         
                 elseif (s(1) == 253) & (HDR.FILE.size==(s(6:7)*[1;256]+7));
@@ -760,8 +767,10 @@ else
                 if exist(fullfile(HDR.FILE.Path,'alpha.alp'),'file')
                         %HDR.TYPE = 'alpha'; %alpha trace medical software 
                         HDR = getfiletype(fullfile(HDR.FILE.Path,'alpha.alp'));
+                        if strcmp(HDR.TYPE,'alpha')
+                                return;
+                        end;
                 end;
-                TYPE = [];
                 
                 %%% this is the file type check based on the file extionsion, only.  
                 if 0, 
