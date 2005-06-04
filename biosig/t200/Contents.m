@@ -70,18 +70,11 @@
 % 	
 %       sload('eventcodes.txt')   loads latest version of table for event codes
 %	SAVE2BKR
-%	SAVE2TXT
-% 	EEGCHKHDR	
 %	OPENLDR
 %	BKROPEN
 %	CNTOPEN
-%	GTFOPEN
-%	SDFOPEN
-%	SDFREAD
 %	SDFERROR
 %	GDFDATATYP
-%	ADB2EVENT  converts artifact scorings into Event information
-%	WSCORE2EVENT  converts events in WSCORE format into BIOSIG event information
 %	
 %
 % Other functions from earlier projects are included, 
@@ -93,8 +86,8 @@
 % [2] http://biosig.sf.net/
 %
 
-%	$Revision: 1.17 $
-%	$Id: Contents.m,v 1.17 2005-03-30 14:23:41 schloegl Exp $
-%	CopyLeft (c) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.18 $
+%	$Id: Contents.m,v 1.18 2005-06-04 22:19:05 schloegl Exp $
+%	CopyLeft (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
