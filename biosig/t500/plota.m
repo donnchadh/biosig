@@ -44,9 +44,9 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.32 $
-%	$Id: plota.m,v 1.32 2004-11-11 10:39:56 schloegl Exp $
-%	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
+%       $Revision: 1.33 $
+%	$Id: plota.m,v 1.33 2005-06-04 22:08:50 schloegl Exp $
+%	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -768,7 +768,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 
                 %PDCF(:,:,n,kk) = abs(atmp)./tmp2(ones(1,K1),:);
                 %PDC(:,:,n,kk)  = abs(atmp)./tmp1(ones(1,K1),:);
-                PDCF(:,:,n) = abs(atmp)./tmp2(ones(1,K1),:);
+                PDCF(:,:,n) = abs(atmp)./tmp2(ones(1,K1),:)	;
                 PDC(:,:,n)  = abs(atmp)./tmp1(ones(1,K1),:);
         end;
         
@@ -831,6 +831,24 @@ elseif strcmp(X.datatype,'MVAR'),
                         suptitle('partial directed coherence PDC');
                 end;
                 return;
+        elseif strcmpi(Mode,'PDCF'),      
+                for k1=1:K1;
+                        for k2=1:K2;
+                                subplot(K1,K2,k2+(k1-1)*K1);
+                                area(f,squeeze(PDCF(k1,k2,:)));        
+                                axis([0,max(f),0,1]);
+                                if k2==1;
+                                        ylabel(Label{k1});
+                                end;
+                                if k1==1;
+                                        title(Label{k2});
+                                end;
+                        end;
+                end;
+                if exist('suptitle','file')
+                        suptitle('partial directed coherence PDCF');
+                end;
+                return;
         end;        
         
         DC = zeros(K1);
@@ -838,7 +856,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 DC = DC + X.A(:,k*K1+(1:K1)).^2;
         end;
         if strcmpi(Mode,'DC'),      
-                fprintf(2,'Warning PLOTA: DC not implemented yet\n');
+                fprintf(2,'Warning PLOTA: DC not implemented yet.\n');
                 return;
         end;        
         
@@ -853,7 +871,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 end;
         end;
         
-        if strcmpi(Mode,'Coherence'),      
+        if strcmpi(Mode,'Coherence') | strcmpi(Mode,'COH');
                 for k1=1:K1;
                         for k2=1:K2;
                                 subplot(K1,K2,k2+(k1-1)*K1);
@@ -892,7 +910,8 @@ elseif strcmp(X.datatype,'MVAR'),
         end;        
         
 elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1','logS1',})),
-                %GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
+        
+        %GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
         
         if nargin<2,
                 arg2 = 'S1';
@@ -954,7 +973,7 @@ elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1','lo
                 x = x0(k,1:length(X.F),:);
                 ci = getfield(X.SE,gf)*(X.N-1);
                 ci = ci(k,1:length(X.F),:);
-                if alpha < .5,
+                if 1,%alpha < .5,
                         xc = 2 + round(62*(squeeze(x)-clim(1))/diff(clim));
                         sz = size(x);
                         %x = x(:);
@@ -968,6 +987,7 @@ elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1','lo
                         xc = 1+round(63*(squeeze(x)-clim(1))/diff(clim));
                         colormap('default');
                 end;
+
                 x1 = reshape(cm(xc,1),size(xc));
                 x2 = reshape(cm(xc,2),size(xc));
                 x3 = reshape(cm(xc,3),size(xc));
@@ -988,7 +1008,8 @@ elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1','lo
         
         
 elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1 
-                %GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
+        
+        %GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
         
         if nargin<2,
                 arg2 = 'logS1';
@@ -1110,7 +1131,7 @@ elseif strcmp(X.datatype,'confusion'),
         if nargin>1,
                 [kap,sd,H,z,OA,SA]=kappa(X.data);
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
-                fprintf(1,'Kappa = %5.3f ± %4.3f(%s)\tOverall Accuracy = %4.1f%%\n',kap,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
+                fprintf(1,'Kappa = %5.3f %c %4.3f(%s)\tOverall Accuracy = %4.1f%%\n',kap,177,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
                 %disp([X.data,sum(X.data,2);sum(X.data,1),sum(X.data(:))])       
                 
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
@@ -1124,13 +1145,13 @@ elseif strcmp(X.datatype,'confusion'),
         else
                 [kap,sd,H,z,OA,SA]=kappa(X.data);
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
-                fprintf(1,'Kappa = %5.3f ± %4.3f(%s)\tOverall Accuracy = %4.1f%%\n',kap,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
+                fprintf(1,'Kappa = %5.3f %c %4.3f(%s)\tOverall Accuracy = %4.1f%%\n',kap,177,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
                 %disp([X.data,sum(X.data,2);sum(X.data,1),sum(X.data(:))])       
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
                 
                 for k=1:size(X.data,1),
-                        fprintf(1,'%6.0f\t',X.data(k,:));
-                        fprintf(1,'|%6.0f\t| %4.1f%%\n',sum(X.data(k,:),2),X.data(k,k)/sum(X.data(k,:),2)*100);
+                        fprintf(1,'%6.1f\t',X.data(k,:));
+                        fprintf(1,'|%6.1f\t| %4.1f%%\n',sum(X.data(k,:),2),X.data(k,k)/sum(X.data(k,:),2)*100);
                 end;
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
                 fprintf(1,'%6.0f\t',sum(X.data,1));
@@ -1201,15 +1222,15 @@ elseif strcmpi(X.datatype,'spectrum') | strcmp(X.datatype,'qualitycontrol'),
                 fprintf(1,'\n  [%s]',X.PhysDim(1,:));
                 fprintf(1,'\t#%02i',1:size(X.AR,1));
                 fprintf(1,'\nMEAN  ');
-                fprintf(1,'\t%+7.3f',X.stats.MEAN);
+                fprintf(1,'\t%+7.3f',X.MEAN);
                 fprintf(1,'\nRMS');
-                fprintf(1,'\t%+7.3f',X.stats.RMS);
+                fprintf(1,'\t%+7.3f',X.RMS);
                 fprintf(1,'\nSTD');
-                fprintf(1,'\t%+7.3f',X.stats.STD);
+                fprintf(1,'\t%+7.3f',X.STD);
                 fprintf(1,'\nQuant');
-                fprintf(1,'\t%+7.3f',X.stats.QUANT);
+                fprintf(1,'\t%+7.3f',X.QUANT);
                 fprintf(1,'\n  [bit]\nEntropy');
-                fprintf(1,'\t%+4.1f',X.stats.ENTROPY);
+                fprintf(1,'\t%+4.1f',X.ENTROPY);
                 fprintf(1,'\n\n');
 	end;
 
@@ -1234,19 +1255,19 @@ elseif strcmpi(X.datatype,'spectrum') | strcmp(X.datatype,'qualitycontrol'),
         end;
         if strcmp(lower(Mode),'log')
                 semilogy(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*X.QUANT/sqrt(12*X.SampleRate),'k:',[0,X.SampleRate/2]',1e6*[1;1]*sqrt(4*310*138e-25*X.Impedance),'r');
-                ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim,X.samplerate_units));
+                ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim(1,:),X.samplerate_units));
                 
         elseif strcmp(lower(Mode),'log2')
                 semilogy(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.QUANT.^2/(12*X.SampleRate),'k:');
-                ylabel(sprintf('[%s]^2/%s',X.PhysDim,X.samplerate_units));
+                ylabel(sprintf('[%s]^2/%s',X.PhysDim(1,:),X.samplerate_units));
                 
         elseif strcmp(lower(Mode),'lin')
                 plot(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*X.QUANT/sqrt(12*X.SampleRate),'k:');
-                ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim,X.samplerate_units));
+                ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim(1,:),X.samplerate_units));
                 
         elseif strcmp(lower(Mode),'lin2')
                 plot(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.QUANT.^2/(12*X.SampleRate),'k:');
-                ylabel(sprintf('[%s]^2/%s',X.PhysDim,X.samplerate_units));
+                ylabel(sprintf('[%s]^2/%s',X.PhysDim(1,:),X.samplerate_units));
         end;
         xlabel(sprintf('f [%s]',X.samplerate_units));
         if isfield(X,'Title'), title(X.Title);
@@ -1544,11 +1565,14 @@ elseif strcmp(X.datatype,'MEAN+STD')
         
         if nargin < 2
             clf;
+            nf = [];
+        else
+            nf = arg2;  % Handles to subplots
+        end;
+        if isempty(nf)
             for k = 1:nchns
                 nf(k) = subplot(ceil(nchns/ceil(sqrt(nchns))),ceil(sqrt(nchns)),k);  % Handles to subplots
             end;
-        else
-            nf = arg2;  % Handles to subplots
         end;
         
         if isfield(X,'Label')
@@ -1557,11 +1581,16 @@ elseif strcmp(X.datatype,'MEAN+STD')
             end;
         end;
         
-        minmean = floor(min(min(X.MEAN)));
-        maxmean = ceil(max(max(X.MEAN)));
-        maxstd = ceil(max(max(X.STD)));
-
-
+        if nargin>2
+                minmean = arg3;
+                maxmean = arg4;
+                maxstd  = arg5;
+        else
+                minmean = floor(min(min(X.MEAN)));
+                maxmean = ceil(max(max(X.MEAN)));
+                maxstd = ceil(max(max(X.STD)));
+        end;
+        
 
         for k = 1:nchns  % For each channel
 
@@ -1593,7 +1622,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
             % Label x-axis
 
             xlabel('Time (s)');
-
+                grid on;
 
             if isfield(X,'Label')  % Print label of each channel (if such a label exists)
                 if k <= length(X.Label)
@@ -1765,9 +1794,14 @@ elseif strcmp(X.datatype,'TSD_BCI8')
         if ~isfield(X,'T');
                 X.T = [1:size(X.ACC00,1)]';
         end;
-        h = plot(X.T, 100*[X.ACC00, X.KAP00*[1,1,1,0] + X.Ksd00*[-1,0,1,1]]);
+        h = plot(X.T, 100*[X.ACC00, X.KAP00*[1,1,1,0] + X.Ksd00*[0,-1,1,1]],'-k');
+        v = axis; v(3:4)=[-20,129];axis(v)
+        set(h(1),'color',[0,0,1]);
+        set(h(2),'color',[0,.5,0]);
+        set(h(3),'color',[0,1,0]);
+        set(h(4),'color',[0,1,0]);
         legend('Accuracy [%]','kappa ± s.d. [%]')
-        xlabel = 't [s]';
+        xlabel('t [s]');
         
 elseif strcmp(X.datatype,'TSD_BCI7') 
         if (nargin>1) & strcmpi(arg2,'balken2');
@@ -1913,9 +1947,15 @@ elseif strcmp(X.datatype,'TSD_BCI7')
                 v=axis;v(1:2)=[0,max(t)];axis(v);
                 
                 subplot(nf(3));
-                plot(t,X.I);
+                if isfield(X,'T')
+                        tmp = repmat(NaN,size(X.T));
+                        tmp(X.T>=3.5) = 0;
+                        plot(t,[X.I,X.I./(X.T-3)+tmp]);
+                else
+                        plot(t,X.I);
+                end;
                 ylabel('Mutual Information [bits]')
-                v=axis;v=[0,max(t),0,2];axis(v);
+                v=axis;v=[0,max(t),0,.5];axis(v);
                 
                 if length(nf)>3,
                         axes(nf(4))
