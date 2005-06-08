@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.54 $
-%	$Id: sread.m,v 1.54 2005-06-04 22:14:05 schloegl Exp $
+%	$Revision: 1.55 $
+%	$Id: sread.m,v 1.55 2005-06-08 15:43:10 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -79,7 +79,7 @@ if 0, strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
         end;
         
 	
-elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
+elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'ACQ'),
 	% experimental, might replace SDFREAD.M 
         if nargin==3,
                 HDR.FILE.POS = round(HDR.SampleRate*StartPos);
@@ -100,7 +100,8 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                         S = [];
                         [s,c] = fread(HDR.FILE.FID,[HDR.AS.spb, nb],gdfdatatype(HDR.GDFTYP(1)));
                         for k = 1:length(HDR.InChanSelect),
-                               S(:,k) = rs(reshape(s(HDR.AS.bi(k)+1:HDR.AS.bi(k+1),:),HDR.AS.SPR(k)*nb,1),HDR.AS.SPR(k),HDR.SPR); 
+                               K = HDR.InChanSelect(k);
+                               S(:,k) = rs(reshape(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K)*nb,1),HDR.AS.SPR(K),HDR.SPR); 
                         end;
                         S = S(ix1+1:ix1+nr,:);
                         count = nr;
@@ -125,7 +126,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         else
     		fprintf(2,'Error SREAD (GDF): different datatypes not supported (yet).\n');
         end;
-                
+
         
 elseif strmatch(HDR.TYPE,{'BKR'}),
         if nargin==3,
@@ -142,14 +143,16 @@ elseif strmatch(HDR.TYPE,{'BKR'}),
         THRESHOLD(HDR.AS.TRIGCHAN,:)=NaN; % do not apply overflow detection for Trigger channel 
 
         
-elseif strcmp(HDR.TYPE,'ACQ'),
+elseif 0, strcmp(HDR.TYPE,'ACQ'),   % OBSOLETE: use of same branch than EDF/GDF
         if nargin==3,
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         count = 0;
-        if all(HDR.GDFTYP==HDR.GDFTYP(1)) & all(HDR.SPR==HDR.SPR(1)),
+        if all(HDR.GDFTYP==HDR.GDFTYP(1)) & all(HDR.AS.SPR==HDR.AS.SPR(1)),
                 [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP(1)));
+        elseif all(HDR.GDFTYP==HDR.GDFTYP(1)),
+                [S,count] = fread(HDR.FILE.FID,[HDR.AS.spb,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP(1)));
         else
                 S = zeros(length(HDR.InChanSelect),0);
                 fprintf(HDR.FILE.stderr,'Warning SREAD (ACQ): interleaved format not supported (yet).\n');
