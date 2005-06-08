@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.109 $
-%	$Id: sopen.m,v 1.109 2005-06-04 22:14:03 schloegl Exp $
+%	$Revision: 1.110 $
+%	$Id: sopen.m,v 1.110 2005-06-08 15:44:21 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1625,7 +1625,7 @@ elseif strcmp(HDR.TYPE,'ACQ'),
                 HDR.Off(k) = fread(HDR.FILE.FID,1,'float64');
                 HDR.Cal(k) = fread(HDR.FILE.FID,1,'float64');
                 HDR.PhysDim(k,1:20) = fread(HDR.FILE.FID,[1,20],'char');
-                HDR.SPR(k) = fread(HDR.FILE.FID,1,'int32');
+                HDR.ACQ.BufLength(k) = fread(HDR.FILE.FID,1,'int32');
                 HDR.AmpGain(k) = fread(HDR.FILE.FID,1,'float64');
                 HDR.AmpOff(k) = fread(HDR.FILE.FID,1,'float64');
                 HDR.ACQ.ChanOrder = fread(HDR.FILE.FID,1,'int16');
@@ -1636,9 +1636,9 @@ elseif strcmp(HDR.TYPE,'ACQ'),
                 end;
                 if HDR.VERSION >= 38,
                         HDR.Description(k,1:128) = fread(HDR.FILE.FID,[1,128],'char');
-                        HDR.VarSampleDiv(k) = fread(HDR.FILE.FID,1,'uint16');
+                        HDR.ACQ.VarSampleDiv(k) = fread(HDR.FILE.FID,1,'uint16');
                 else
-                        HDR.VarSampleDiv(k) = 1;
+                        HDR.ACQ.VarSampleDiv(k) = 1;
                 end;
                 if HDR.VERSION >= 39,
                         HDR.HorizPrecision(k) = fread(HDR.FILE.FID,1,'uint16');
@@ -1650,14 +1650,17 @@ elseif strcmp(HDR.TYPE,'ACQ'),
         HDR.Label = char(HDR.Label);
         HDR.PhysDim = char(HDR.PhysDim);
         HDR.Calib = [HDR.Off(:).';diag(HDR.Cal)];
-        HDR.MAXSPR = HDR.VarSampleDiv(1);
-        HDR.NRec = 1; 
-        for k = 2:length(HDR.VarSampleDiv);
-                HDR.MAXSPR = lcm(HDR.MAXSPR,HDR.VarSampleDiv(k));
+        HDR.SPR = HDR.ACQ.VarSampleDiv(1);
+        for k = 2:length(HDR.ACQ.VarSampleDiv);
+                HDR.SPR = lcm(HDR.SPR,HDR.ACQ.VarSampleDiv(k));
         end;
-        HDR.ACQ.SampleRate = 1./(HDR.VarSampleDiv*HDR.ACQ.SampleTime);
+        HDR.NRec =  floor(min(HDR.ACQ.BufLength.*HDR.ACQ.VarSampleDiv/HDR.SPR)); 
+        HDR.AS.SPR = HDR.SPR./HDR.ACQ.VarSampleDiv; 
+        HDR.AS.spb = sum(HDR.AS.SPR);	% Samples per Block
+        HDR.AS.bi = [0;cumsum(HDR.AS.SPR(:))]; 
+        HDR.ACQ.SampleRate = 1./(HDR.AS.SPR*HDR.ACQ.SampleTime);
         HDR.SampleRate = 1/HDR.ACQ.SampleTime;
-        HDR.Dur = HDR.MAXSPR*HDR.ACQ.SampleTime;
+        HDR.Dur = HDR.SPR*HDR.ACQ.SampleTime;
         
         %--------   foreign data section
         ForeignDataLength = fread(HDR.FILE.FID,1,'int16');
@@ -1668,14 +1671,15 @@ elseif strcmp(HDR.TYPE,'ACQ'),
         %--------   per channel data type section
         offset3 = 0;
         HDR.AS.bpb = 0;	
-        HDR.AS.spb = 0;	
         for k = 1:HDR.NS,
                 sz = fread(HDR.FILE.FID,1,'uint16');
-                HDR.AS.bpb = HDR.AS.bpb + HDR.MAXSPR/HDR.VarSampleDiv(k)*sz; 
-                HDR.AS.spb = HDR.AS.spb + HDR.MAXSPR/HDR.VarSampleDiv(k); 
-                offset3 = offset3 + HDR.SPR(k) * sz;
+                HDR.AS.bpb = HDR.AS.bpb + HDR.AS.SPR(k)*sz; 
+                offset3 = offset3 + HDR.ACQ.BufLength(k) * sz;
                 
                 typ = fread(HDR.FILE.FID,1,'uint16');
+                if ~any(typ==[1,2])
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN (ACQ): invalid or unknonw data type in file %s.\n',HDR.FileName);
+                end;
                 HDR.GDFTYP(k) = 31-typ*14;   % 1 = int16; 2 = double
         end;
         
@@ -1687,11 +1691,11 @@ elseif strcmp(HDR.TYPE,'ACQ'),
 
         %--------  Markers Header section
         len = fread(HDR.FILE.FID,1,'uint32');
-        HDR.EVENT.N   = fread(HDR.FILE.FID,1,'uint32');
-        HDR.EVENT.POS = repmat(nan,HDR.EVENT.N  ,1);
-        HDR.EVENT.TYP = repmat(nan,HDR.EVENT.N  ,1);
+        EVENT.N = fread(HDR.FILE.FID,1,'uint32');
+        HDR.EVENT.POS = repmat(nan, EVENT.N ,1);
+        HDR.EVENT.TYP = repmat(nan, EVENT.N ,1);
 
-        for k = 1:HDR.EVENT.N, 
+        for k = 1:EVENT.N, 
                 %HDR.Event(k).Sample = fread(HDR.FILE.FID,1,'int32');
                 HDR.EVENT.POS(k) = fread(HDR.FILE.FID,1,'int32');
                 tmp = fread(HDR.FILE.FID,4,'uint16');
@@ -1862,12 +1866,11 @@ elseif strcmp(HDR.TYPE,'RigSys'),       % thanks to  J. Chen
         HDR.RigSys.FrameHeaders=s(1:12,:);
 
         for k=1:HDR.NS,
-                if k==1, HDR.MAXSPR = HDR.AS.SPR(1);
-                else HDR.MAXSPR = lcm(HDR.MAXSPR, HDR.AS.SPR(1));
+                if k==1, HDR.SPR = HDR.AS.SPR(1);
+                else HDR.SPR = lcm(HDR.SPR, HDR.AS.SPR(1));
                 end;
         end;
         HDR.AS.bi = [0;cumsum(HDR.AS.SPR(:))];
-        HDR.SPR  = HDR.MAXSPR; 
         HDR.NRec = size(s,2); 
         HDR.FLAG.TRIGGERED = 0; 
         HDR.data = zeros(HDR.MAXSPR*HDR.NRec,HDR.NS);
@@ -7012,8 +7015,8 @@ if any(PERMISSION=='r') & ~isnan(HDR.NS);
                 ReRefMx = eye(max(1,HDR.NS));
         end;
         sz = size(ReRefMx);
-        if sz(1) > HDR.NS,
-                fprintf(HDR.FILE.stderr,'ERROR SOPEN: to many channels (%i) required, only %i channels available.\n',size(ReRefMx,1),HDR.NS); 	 
+        if (HDR.NS > 0) & (sz(1) > HDR.NS),
+                fprintf(HDR.FILE.stderr,'ERROR SOPEN: to many channels (%i) required, only %i channels available.\n',size(ReRefMx,1),HDR.NS);
                 HDR = sclose(HDR);
                 return;
         end;
