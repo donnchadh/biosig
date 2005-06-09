@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.55 $
-%	$Id: sread.m,v 1.55 2005-06-08 15:43:10 schloegl Exp $
+%	$Revision: 1.56 $
+%	$Id: sread.m,v 1.56 2005-06-09 16:51:31 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -124,7 +124,27 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF') 
                 end;
                 HDR.FILE.POS = HDR.FILE.POS + count;
         else
-    		fprintf(2,'Error SREAD (GDF): different datatypes not supported (yet).\n');
+                fprintf(2,'SREAD (GDF): different datatypes - this might take some time.\n');
+                
+                S = zeros(nr,length(HDR.InChanSelect));
+                while (count<nr);
+                        s = [];
+                        for k=1:length(HDR.AS.TYP),
+                                [s0,tmp] = fread(HDR.FILE.FID,[HDR.AS.c(k), 1],gdfdatatype(HDR.AS.TYP(k)));
+                                s = [s;s0];
+                        end;
+                        
+                        s1    = zeros(HDR.SPR,length(HDR.InChanSelect));
+                        for k = 1:length(HDR.InChanSelect), 
+                                K = HDR.InChanSelect(k);
+                                s1(:,k) = rs(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K),HDR.SPR);
+                        end;
+                        ix2   = min(nr-count, size(s1,1)-ix1);
+                        S(count+1:count+ix2,:) = s1(ix1+1:ix1+ix2,:);
+                        count = count+HDR.SPR;
+                        ix1   = 0; 
+                end;	
+                HDR.FILE.POS = HDR.FILE.POS + count;
         end;
 
         

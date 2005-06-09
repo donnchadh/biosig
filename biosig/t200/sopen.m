@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.110 $
-%	$Id: sopen.m,v 1.110 2005-06-08 15:44:21 schloegl Exp $
+%	$Revision: 1.111 $
+%	$Id: sopen.m,v 1.111 2005-06-09 16:51:31 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -165,6 +165,15 @@ if ~isfield(HDR,'EVENT');
         HDR.EVENT.TYP = []; 
         HDR.EVENT.POS = []; 
 end;
+%%%%% Define Valid Data types %%%%%%
+%GDFTYPES=[0 1 2 3 4 5 6 7 16 17 255+(1:64) 511+(1:64)];
+GDFTYPES=[0 1 2 3 4 5 6 7 16 17 18 255+[1 12 22 24] 511+[1 12 22 24]];
+
+%%%%% Define Size for each data type %%%%%
+GDFTYP_BYTE=zeros(1,512+64);
+GDFTYP_BYTE(256+(1:64))=(1:64)/8;
+GDFTYP_BYTE(512+(1:64))=(1:64)/8;
+GDFTYP_BYTE(1:19)=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8 16]';
 
 if 0, strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         if any(PERMISSION=='w');
@@ -186,15 +195,6 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         H1idx = [8 80 80 8 8 8 44 8 8 4];
         H2idx = [16 80 8 8 8 8 8 80 8 32];
         
-        %%%%% Define Valid Data types %%%%%%
-        %GDFTYPES=[0 1 2 3 4 5 6 7 16 17 255+(1:64) 511+(1:64)];
-        GDFTYPES=[0 1 2 3 4 5 6 7 16 17 18 255+[1 12 22 24] 511+[1 12 22 24]];
-        
-        %%%%% Define Size for each data type %%%%%
-        GDFTYP_BYTE=zeros(1,512+64);
-        GDFTYP_BYTE(256+(1:64))=(1:64)/8;
-        GDFTYP_BYTE(512+(1:64))=(1:64)/8;
-        GDFTYP_BYTE(1:19)=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8 16]';
         HDR.ErrNo = 0; 
         
         if any(PERMISSION=='r');
@@ -503,10 +503,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                         fprintf(2,'\nError SOPEN (GDF/EDF/BDF): block configuration in file %s not supported.\n',HDR.FileName);
                 end;
                 HDR.AS.SAMECHANTYP = all(HDR.AS.BPR == (HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)')) & ~any(diff(HDR.GDFTYP)); 
-                HDR.AS.GDFbi = [0;cumsum(ceil(HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)'))]; 
                 HDR.AS.bpb = sum(ceil(HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)'));	% Bytes per Block
-                HDR.AS.startrec = 0;
-                HDR.AS.numrec = 0;
                 HDR.AS.EVENTTABLEPOS = -1;
                 
                 HDR.Calib = [HDR.Off'; diag(HDR.Cal)];
@@ -524,6 +521,21 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                                 HDR.AS.EVENTTABLEPOS = HDR.HeadLen + HDR.AS.bpb*HDR.NRec;
                         end;
                 end; 
+                
+                % prepare SREAD for different data types 
+                n = 0; 
+                typ = [-1;HDR.GDFTYP(:)];
+                for k = 1:HDR.NS; 
+                        if (typ(k) == typ(k+1)),
+                                HDR.AS.c(n)   = HDR.AS.c(n)  + HDR.AS.SPR(k);
+                                HDR.AS.c2(n)  = HDR.AS.c2(n) + HDR.AS.BPR(k);
+                        else
+                                n = n + 1; 
+                                HDR.AS.c(n)   = HDR.AS.SPR(k);
+                                HDR.AS.c2(n)  = HDR.AS.BPR(k);
+                                HDR.AS.TYP(n) = HDR.GDFTYP(k);
+                        end;
+                end;
                 
                 
                 if 0, 
@@ -896,11 +908,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 HDR.AS.SAMECHANTYP = all(HDR.AS.BPR == (HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)')) & ~any(diff(HDR.GDFTYP));
                 HDR.AS.spb = sum(HDR.AS.SPR);	% Samples per Block
                 HDR.AS.bi  = [0;cumsum(HDR.AS.SPR)];
-                %HDR.AS.GDFbi= [0;cumsum(HDR.AS.BPR)];
-                HDR.AS.GDFbi = [0;cumsum(ceil(HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)'))];
                 HDR.AS.bpb   = sum(ceil(HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)'));	% Bytes per Block
-                HDR.AS.startrec = 0;
-                HDR.AS.numrec = 0;
                 HDR.FILE.POS  = 0;
                 
                 
@@ -1634,17 +1642,14 @@ elseif strcmp(HDR.TYPE,'ACQ'),
                 if HDR.VERSION >= 34,
                         fseek(HDR.FILE.FID,10,'cof');
                 end;
-                if HDR.VERSION >= 38,
+                if HDR.VERSION >= 38,   % version of Acq 3.7.0-3.7.2 (Win 98, 98SE, NT, Me, 2000) and above
                         HDR.Description(k,1:128) = fread(HDR.FILE.FID,[1,128],'char');
                         HDR.ACQ.VarSampleDiv(k) = fread(HDR.FILE.FID,1,'uint16');
                 else
                         HDR.ACQ.VarSampleDiv(k) = 1;
                 end;
-                if HDR.VERSION >= 39,
-                        HDR.HorizPrecision(k) = fread(HDR.FILE.FID,1,'uint16');
-                end;
-                if HDR.VERSION >= 41,
-                        tmp = fread(HDR.FILE.FID,20+7*4,'uint8');
+                if HDR.VERSION >= 39,  % version of Acq 3.7.3 or above (Win 98, 98SE, 2000, Me, XP)
+                        HDR.ACQ.VertPrecision(k) = fread(HDR.FILE.FID,1,'uint16');
                 end;
         end;
         HDR.Label = char(HDR.Label);
@@ -1655,7 +1660,7 @@ elseif strcmp(HDR.TYPE,'ACQ'),
                 HDR.SPR = lcm(HDR.SPR,HDR.ACQ.VarSampleDiv(k));
         end;
         HDR.NRec =  floor(min(HDR.ACQ.BufLength.*HDR.ACQ.VarSampleDiv/HDR.SPR)); 
-        HDR.AS.SPR = HDR.SPR./HDR.ACQ.VarSampleDiv; 
+        HDR.AS.SPR = HDR.SPR./HDR.ACQ.VarSampleDiv'; 
         HDR.AS.spb = sum(HDR.AS.SPR);	% Samples per Block
         HDR.AS.bi = [0;cumsum(HDR.AS.SPR(:))]; 
         HDR.ACQ.SampleRate = 1./(HDR.AS.SPR*HDR.ACQ.SampleTime);
@@ -1681,6 +1686,25 @@ elseif strcmp(HDR.TYPE,'ACQ'),
                         fprintf(HDR.FILE.stderr,'Warning SOPEN (ACQ): invalid or unknonw data type in file %s.\n',HDR.FileName);
                 end;
                 HDR.GDFTYP(k) = 31-typ*14;   % 1 = int16; 2 = double
+        end;
+        HDR.AS.BPR  = ceil(HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)'); 
+        while any(HDR.AS.BPR  ~= HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)');
+                fprintf(2,'\nError SOPEN (ACQ): block configuration in file %s not supported.\n',HDR.FileName);
+        end;
+        
+        % prepare SREAD for different data types 
+        n = 0; 
+        typ = [-1;HDR.GDFTYP(:)];
+        for k = 1:HDR.NS; 
+                if (typ(k) == typ(k+1)),
+                        HDR.AS.c(n)   = HDR.AS.c(n)  + HDR.AS.SPR(k);
+                        HDR.AS.c2(n)  = HDR.AS.c2(n) + HDR.AS.BPR(k);
+                else
+                        n = n + 1; 
+                        HDR.AS.c(n)   = HDR.AS.SPR(k);
+                        HDR.AS.c2(n)  = HDR.AS.BPR(k);
+                        HDR.AS.TYP(n) = HDR.GDFTYP(k);
+                end;
         end;
         
         HDR.HeadLen = HDR.ACQ.ExtItemHeaderLen + sum(HDR.ChanHeaderLen) + ForeignDataLength + 4*HDR.NS; 
