@@ -4,7 +4,7 @@ function [X] = criteria4asyncbci(d, TRIG, rbtime,Fs)
 %
 % X = CRITERIA4ASYNCBCI(D, TRIG, rb_time,Fs)
 %   D           detector output (assuming Threshold = 0); 
-%   TRIG        trigger time point in seconds
+%   TRIG        list of trigger times in seconds 
 %   rb_time     rebouncing time in second
 %   Fs          sampling rate (default = 1Hz)
 %
@@ -13,8 +13,12 @@ function [X] = criteria4asyncbci(d, TRIG, rbtime,Fs)
 %   X.rb_time   rebouncing time 
 %   X.H         confusion matrix       
 %
+% References: 
+%    http://chil.rice.edu/byrne/psyc540/pdf/StanislawTodorov99.pdf
 
-%    $Id: criteria4asyncbci.m,v 1.1 2005-06-23 16:49:26 schloegl Exp $
+
+
+%    $Id: criteria4asyncbci.m,v 1.2 2005-06-24 14:40:12 schloegl Exp $
 %    Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -38,31 +42,48 @@ function [X] = criteria4asyncbci(d, TRIG, rbtime,Fs)
 X.datatype = 'Criteria_Asychronous_BCI'; 
 X.rb_time = rbtime; 
 
-if nargin>4,
+if nargin>3,
         rbtime = round(rbtime*Fs);
         TRIG = round(TRIG*Fs); 
 end;
+if sum(size(d)>1)>1,
+        error('Detector must be a vector');
+end;
+
+TRIG = sort(TRIG); 
+if any(diff(TRIG) < rbtime)
+        warning('overlapping detection window');
+end;
+
+%### OPEN QUESTION: is there a reasonable way to deal with overlapping windows ? 
 
 % Detection of True Positives
-[x,sx] = trigg(d,TRIG,0,rbtime);        % intervals where detection is counted as hit
-x     = squeeze(reshape(x,sx));             % and bring it in proper shape
+[x,sx]= trigg(d(:),TRIG,0,rbtime);      % intervals where detection is counted as hit
+x     = reshape(x,sx(2:3));          % and bring it in proper shape
 
-tmp   = any(x>0,1);                       % within interval, is the THRESHOLD reached? 
-TP    = sum(tmp);                         % true positives/hits 
-X.TPR = TP/length(tmp);                 % true positive ratio
+tmp   = any(x>0,1);                      % within interval, is the THRESHOLD reached? 
+TP    = sum(tmp);                        % true positives/hits 
+X.TPR = TP/length(tmp);                  % true positive ratio
+
 
 % Detection of False Positives
-for k = 1:length(TRIG)                  % de-select (mark with NaN) all samples within window
+d = d>0;
+for k = 1:length(TRIG)                   % de-select (mark with NaN) all samples within window
         d(TRIG(k):TRIG(k)+rbtime) = NaN;
 end;
+[FP1,N1] = sumskipnan(d); 
+FPR1 = FP1/N1;                         % false positive ratio on a sample-basis
+
+N2  = sum(diff(isnan(d))>1)+1;           % number of intervals 
 d(isnan(d)) = [];
-
 tmp = diff(d>0)>0;
-FP  = sum(tmp);                          % false positives
-N   = length(tmp); 
-X.FPR = FP/N;                           % false positive ratio 
+FP2 = sum(tmp);                          % false positives
+FPR2 = FP2/N2;                         % false positive ratio 
 
+%### OPEN QUESTION: use of FPR1 or FPR2
+X.FPR = FPR1; % or 
+X.FPR = FPR2; 
+X.FPR = '?'
 
 % Confusion Matrix 
-X.H = [TP,FP;length(TRIG)-TP,N-FP];     % confusion matrix 
-
+X.H = [TP,FP;length(TRIG)-TP,N-FP];      % confusion matrix 
