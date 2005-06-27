@@ -1,16 +1,16 @@
-function [X] = criteria4asyncbci(d, TRIG, rbtime,Fs)
+function [X] = criteria4asyncbci(D, TRIG, dbtime,Fs)
 % CRITERIA4ASYNCBCI provides an evaluation criterion of asychronous BCI. 
 % based on the discussion at the BCI2005 meeting in Rensellearville.  
 %
-% X = CRITERIA4ASYNCBCI(D, TRIG, rb_time,Fs)
+% X = CRITERIA4ASYNCBCI(D, TRIG, db_time,Fs)
 %   D           detector output (assuming Threshold = 0); 
 %   TRIG        list of trigger times in seconds 
-%   rb_time     rebouncing time in second
+%   db_time     debouncing time in second
 %   Fs          sampling rate (default = 1Hz)
 %
 %   X.TPR       True Positive Ratio
 %   X.FPR       False Positive Ratio / False alarm rate
-%   X.rb_time   rebouncing time 
+%   X.db_time   debouncing time 
 %   X.H         confusion matrix       
 %
 % References: 
@@ -18,7 +18,7 @@ function [X] = criteria4asyncbci(d, TRIG, rbtime,Fs)
 
 
 
-%    $Id: criteria4asyncbci.m,v 1.2 2005-06-24 14:40:12 schloegl Exp $
+%    $Id: criteria4asyncbci.m,v 1.3 2005-06-27 18:11:05 schloegl Exp $
 %    Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -37,53 +37,92 @@ function [X] = criteria4asyncbci(d, TRIG, rbtime,Fs)
 %    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 
+% Wanted: 
+% Julien Kronegg: 
+%	Transition matrix (=extension of the 2-classes FP/FN/TP/TN to N classes) given in percentage of time; also named confusion matrix
+%	Response time for activation
+%	Response time for deactivation
+% 
 
 
 X.datatype = 'Criteria_Asychronous_BCI'; 
-X.rb_time = rbtime; 
+X.db_time = dbtime; 
 
 if nargin>3,
-        rbtime = round(rbtime*Fs);
+        dbtime = round(dbtime*Fs);
         TRIG = round(TRIG*Fs); 
 end;
-if sum(size(d)>1)>1,
+if sum(size(D)>1)>1,
         error('Detector must be a vector');
 end;
 
 TRIG = sort(TRIG); 
-if any(diff(TRIG) < rbtime)
+if any(diff(TRIG) < dbtime)
         warning('overlapping detection window');
 end;
 
-%### OPEN QUESTION: is there a reasonable way to deal with overlapping windows ? 
+%### OPEN QUESTION(s): 
+%###    is there a reasonable way to deal with overlapping windows ? 
+%###    how to handle more than 1 active class
 
+N0 = length(TRIG);                      % number of trigger events 
 % Detection of True Positives
-[x,sx]= trigg(d(:),TRIG,0,rbtime);      % intervals where detection is counted as hit
-x     = reshape(x,sx(2:3));          % and bring it in proper shape
+[d,sx]= trigg(D(:),TRIG,0,dbtime);     % intervals where detection is counted as hit
+d     = reshape(d,sx(2:3));            % and bring it in proper shape
+TP    = sum(any(d>0,1));                   % true positives/hits 
 
-tmp   = any(x>0,1);                      % within interval, is the THRESHOLD reached? 
-TP    = sum(tmp);                        % true positives/hits 
-X.TPR = TP/length(tmp);                  % true positive ratio
-
+N3    = sum(diff(D>0)>1);                  % total number of detections (JH) 
 
 % Detection of False Positives
-d = d>0;
-for k = 1:length(TRIG)                   % de-select (mark with NaN) all samples within window
-        d(TRIG(k):TRIG(k)+rbtime) = NaN;
+d = real(D>0);
+c = zeros(size(D));
+for k = 1:length(TRIG)                 % de-select (mark with NaN) all samples within window
+        d(TRIG(k):TRIG(k)+dbtime) = NaN;
+        c(TRIG(k):TRIG(k)+dbtime) = 1;
 end;
-[FP1,N1] = sumskipnan(d); 
-FPR1 = FP1/N1;                         % false positive ratio on a sample-basis
+[FP1,N1] = sumskipnan(d);              % false positive ratio on a sample-basis
+FP3  = sum(diff(d)>1);                 % number of detections
 
-N2  = sum(diff(isnan(d))>1)+1;           % number of intervals 
+N2   = ceil((1+sum(~diff(isnan(d))))/2);          % number of trigger events (with non-overlapping windows) 
 d(isnan(d)) = [];
-tmp = diff(d>0)>0;
-FP2 = sum(tmp);                          % false positives
+tmp  = diff(d)>0;
+FP2  = sum(tmp);                       % false positives
 FPR2 = FP2/N2;                         % false positive ratio 
 
+% Confusion Matrix 
+% X.H = [TP,FP;length(TRIG)-TP,N-FP];      % confusion matrix 
+
+% signal detection theory applied on a sample-basis
+X.AUC = auc(D,c); 
+
+%  suggestion 
+X.SM.TP  = TP; 
+X.SM.TPR = TP/length(TRIG); 
+X.SM.FP  = FP2; 
+X.SM.FPR = FP2/N2; 
+X.SM.N   = N2; 
+
+% Jane Huggins' suggestion 
+X.JH.TP  = TP; 
+X.JH.TPR = TP/N0; 
+X.JH.FP  = FP3; 
+X.JH.FPR = FP3/N3; 
+X.JH.N   = N3; 
+X.JH.HFdiff = X.JH.TPR-X.JH.FPR; 
+
 %### OPEN QUESTION: use of FPR1 or FPR2
-X.FPR = FPR1; % or 
-X.FPR = FPR2; 
+X.TPR = TP/N0;                % true positive ratio
+X.FPR = FP1/N1; % or 
+X.FPR = FP2/N2; 
+X.FPR = FP3/N3; 
 X.FPR = '?'
 
-% Confusion Matrix 
-X.H = [TP,FP;length(TRIG)-TP,N-FP];      % confusion matrix 
+
+return;
+% summary statistics
+X.HFdiff = max(0,X.TPR-X.FPR);         % 
+X.Dprime = norminv(X.TPR,0,1)-norminv(X.FPR,0,1);
+tmp = X.TPR-X.FPR;
+X.Aprime = .5+sign(tmp)*(tmp*tmp+abs(tmp))/(4*max(X.TPR,X.FPR)-4*X.TPR*X.FPR);
+tmp2 = [X.TPR*(1-X.TPR),X.FPR*(1-X.FPR)];
+X.Bsecond = sign(tmp)*diff(tmp2)/sum(tmp2);
