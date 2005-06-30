@@ -1,10 +1,18 @@
-function [X] = criteria4asyncbci(D, TRIG, dbtime,Fs)
+function [X] = criteria4asyncbci(D0, TRIG, dbtime,Fs)
 % CRITERIA4ASYNCBCI provides an evaluation criterion of asychronous BCI. 
 % based on the discussion at the BCI2005 meeting in Rensellearville.  
 %
-% X = CRITERIA4ASYNCBCI(D, TRIG, db_time,Fs)
-%   D           detector output (assuming Threshold = 0); 
-%   TRIG        list of trigger times in seconds 
+% X = CRITERIA4ASYNCBCI(D-Threshold, TRIG, db_time,Fs)
+%   D           detector output
+%               each column the output for each of the N states. 
+%               if all values are lower than the Threshold, the 
+%               no-control (NC) state is assumed. 
+%   Threshold   detector threshold
+%   TRIG        list of trigger events in seconds 
+%               if TRIG is a cell-array of a list of trigger times, 
+%                       TRIG{n} contains the list of trigger times for
+%                       state n. The number of detector traces (columns)
+%                       must be 1+number of states.
 %   db_time     debouncing time in second
 %   Fs          sampling rate (default = 1Hz)
 %
@@ -12,13 +20,21 @@ function [X] = criteria4asyncbci(D, TRIG, dbtime,Fs)
 %   X.FPR       False Positive Ratio / False alarm rate
 %   X.db_time   debouncing time 
 %   X.H         confusion matrix       
+% 
+%
+% X = CRITERIA4ASYNCBCI(D, C, ., Fs)
+%   D           State of detector output (discrete values, D=0 indicates no-control state) 
+%   C           Target state
+% 
+%
+% 
 %
 % References: 
 %    http://chil.rice.edu/byrne/psyc540/pdf/StanislawTodorov99.pdf
 
 
 
-%    $Id: criteria4asyncbci.m,v 1.3 2005-06-27 18:11:05 schloegl Exp $
+%    $Id: criteria4asyncbci.m,v 1.4 2005-06-30 10:44:15 schloegl Exp $
 %    Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -48,42 +64,64 @@ function [X] = criteria4asyncbci(D, TRIG, dbtime,Fs)
 X.datatype = 'Criteria_Asychronous_BCI'; 
 X.db_time = dbtime; 
 
-if nargin>3,
-        dbtime = round(dbtime*Fs);
-        TRIG = round(TRIG*Fs); 
+if nargin<4,
+        Fs = 1; 
 end;
-if sum(size(D)>1)>1,
-        error('Detector must be a vector');
-end;
+dbtime = round(dbtime*Fs);
 
-TRIG = sort(TRIG); 
+if iscell(TRIG(1))      % multiple states
+        if length(TRIG)~=size(D0,2),
+                warning('number of states does not fit number of detector traces');     
+        end;
+        T = [];CL = [];
+        for k=1:length(TRIG)
+                t = TRIG{k}(:);
+                T = [T;t]; 
+                CL = [CL; repmat(k,length(t),1)];
+        end;  
+        TRIG = T; 
+else
+        CL = ones(numel(TRIG),1);
+end;
+[TRIG,ix] = sort(TRIG*Fs); 
+CL = CL(ix);    % classlabels 
+
+if size(D0,2)>1,
+        [tmp,D] = max(D0,[],2);
+        D(tmp<0)= 0;  
+        D(isnan(tmp)) = NaN; 
+else
+        if 
+        D = D0; 
+end; 
+C = zeros(size(D));
+
 if any(diff(TRIG) < dbtime)
         warning('overlapping detection window');
 end;
-
 %### OPEN QUESTION(s): 
 %###    is there a reasonable way to deal with overlapping windows ? 
 %###    how to handle more than 1 active class
 
-N0 = length(TRIG);                      % number of trigger events 
+N0     = length(TRIG);                      % number of trigger events 
 % Detection of True Positives
-[d,sx]= trigg(D(:),TRIG,0,dbtime);     % intervals where detection is counted as hit
-d     = reshape(d,sx(2:3));            % and bring it in proper shape
-TP    = sum(any(d>0,1));                   % true positives/hits 
+[d,sx] = trigg(D(:),TRIG,0,dbtime);     % intervals where detection is counted as hit
+d      = reshape(d,sx(2:3));            % and bring it in proper shape
+TP     = sum(any(d>0,1));                   % true positives/hits 
 
-N3    = sum(diff(D>0)>1);                  % total number of detections (JH) 
+N3     = sum(diff(D>0)>1);                  % total number of detections (JH) 
 
 % Detection of False Positives
 d = real(D>0);
 c = zeros(size(D));
 for k = 1:length(TRIG)                 % de-select (mark with NaN) all samples within window
         d(TRIG(k):TRIG(k)+dbtime) = NaN;
-        c(TRIG(k):TRIG(k)+dbtime) = 1;
+        C(TRIG(k):TRIG(k)+dbtime) = CL(k);
 end;
 [FP1,N1] = sumskipnan(d);              % false positive ratio on a sample-basis
 FP3  = sum(diff(d)>1);                 % number of detections
 
-N2   = ceil((1+sum(~diff(isnan(d))))/2);          % number of trigger events (with non-overlapping windows) 
+N2   = ceil((1+sum(~diff(isnan(d))))/2);          % number of intervals between trigger events (with non-overlapping windows) 
 d(isnan(d)) = [];
 tmp  = diff(d)>0;
 FP2  = sum(tmp);                       % false positives
@@ -93,14 +131,18 @@ FPR2 = FP2/N2;                         % false positive ratio
 % X.H = [TP,FP;length(TRIG)-TP,N-FP];      % confusion matrix 
 
 % signal detection theory applied on a sample-basis
-X.AUC = auc(D,c); 
+for k=1:size(D0,2),
+        X.AS.AUC(k) = auc(D0(:,k),C); 
+end;
+[X.AS.KAP, X.AS.kapSD, X.AS.H, z] = kappa(D,C);
 
-%  suggestion 
+
+%  suggestion by Steve. # is this correct? 
 X.SM.TP  = TP; 
 X.SM.TPR = TP/length(TRIG); 
-X.SM.FP  = FP2; 
-X.SM.FPR = FP2/N2; 
-X.SM.N   = N2; 
+X.SM.FP  = FP1; 
+X.SM.FPR = FP1/N1;
+X.SM.N   = N1; 
 
 % Jane Huggins' suggestion 
 X.JH.TP  = TP; 
@@ -108,14 +150,20 @@ X.JH.TPR = TP/N0;
 X.JH.FP  = FP3; 
 X.JH.FPR = FP3/N3; 
 X.JH.N   = N3; 
-X.JH.HFdiff = X.JH.TPR-X.JH.FPR; 
+X.JH.HFdiff = X.JH.TPR-X.JH.FPR;        % ???
+
+% multi-state as suggested by Julien could go here
+
 
 %### OPEN QUESTION: use of FPR1 or FPR2
 X.TPR = TP/N0;                % true positive ratio
-X.FPR = FP1/N1; % or 
-X.FPR = FP2/N2; 
-X.FPR = FP3/N3; 
-X.FPR = '?'
+X.FPR = FP1/N1;                % or 
+%X.FPR = FP2/N2;        % dismissed 
+%X.FPR = FP3/N3; 
+X.FPR = '?';
+
+
+
 
 
 return;
