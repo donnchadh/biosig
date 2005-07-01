@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.111 $
-%	$Id: sopen.m,v 1.111 2005-06-09 16:51:31 schloegl Exp $
+%	$Revision: 1.112 $
+%	$Id: sopen.m,v 1.112 2005-07-01 22:42:34 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -213,7 +213,6 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 end;
                 H1=setstr(tmp');     %
                 
-                
                 HDR.VERSION=H1(1:8);                     % 8 Byte  Versionsnummer 
                 if ~(strcmp(HDR.VERSION,'0       ') | all(abs(HDR.VERSION)==[255,abs('BIOSEMI')]) | strcmp(HDR.VERSION(1:3),'GDF'))
                         HDR.ErrNo = [1,HDR.ErrNo];
@@ -230,7 +229,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                         HDR.T0(1:6) = str2double(tmp);
                         HDR.T0(6)   = HDR.T0(6)/100;
                         
-                        if str2double(HDR.VERSION(4:8))<0.12
+                        if str2double(HDR.VERSION(4:8))<0.12,
                                 tmp = setstr(fread(HDR.FILE.FID,8,'uchar')');    % 8 Byte  Length of Header
                                 HDR.HeadLen = str2double(tmp);    % 8 Byte  Length of Header
                         else
@@ -238,7 +237,11 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                                 HDR.HeadLen = fread(HDR.FILE.FID,1,'int32');    % 8 Byte  Length of Header
                                 tmp         = fread(HDR.FILE.FID,1,'int32');	% 8 Byte  Length of Header
                         end;
-                        HDR.reserved1 = fread(HDR.FILE.FID,8+8+8+20,'uchar');   % 44 Byte reserved
+                        HDR.reserved1 = fread(HDR.FILE.FID,[1,8*3+20],'uchar');   % 44 Byte reserved
+                        HDR.ID.Equipment  = HDR.reserved1(1:8);
+                        HDR.ID.Lab        = HDR.reserved1(9:16);
+                        HDR.ID.Technician = HDR.reserved1(17:24);
+                        %HDR.reserved1     = Id(25:44);
                         
                         %HDR.NRec = fread(HDR.FILE.FID,1,'int64');     % 8 Byte # of data records
                         HDR.NRec = fread(HDR.FILE.FID,1,'int32');      % 8 Byte # of data records
@@ -282,7 +285,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                                 if any(isnan(HDR.T0)),
                                         HDR.ErrNo = [2,HDR.ErrNo];
                                 end;
-                        end
+                        end;
                         
                         % Y2K compatibility until year 2084
                         if HDR.T0(1) < 85    % for biomedical data recorded in the 1950's and converted to EDF
@@ -475,7 +478,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                                         HDR.Filter.Notch(k)   =str2double(F3);
                                 end;
                         catch
-                                fprintf(1,'Cannot interpret: %s\n',HDR.PreFilt(k,:));
+                                fprintf(2,'Cannot interpret: %s\n',HDR.PreFilt(k,:));
                         end;
                 end;
                 
@@ -689,6 +692,13 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                         HDR.T0(isnan(HDR.T0))=0;
                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.T0 not completely defined\n');
                 end;
+                HDR.ID.Equipment = [1,abs('BIOSIG ')];
+                if ~isfield(HDR.ID,'Lab')
+                    HDR.ID.Lab = repmat(32,1,8);
+                end;
+                if ~isfield(HDR.ID,'Technician')
+                    HDR.ID.Technician = repmat(32,1,8);
+                end;
                 if ~isfield(HDR,'reserved1')
                         HDR.reserved1=char(ones(1,44)*32);
                 else
@@ -884,7 +894,6 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 end;
                 
                 
-                
                 %%%%%% generate Header 1, first 256 bytes 
                 HDR.HeadLen=(HDR.NS+1)*256;
                 H1=setstr(32*ones(1,256));
@@ -902,7 +911,6 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                         HDR.AS.SPR = HDR.AS.SPR*DIV;
                         HDR.Dur    = HDR.Dur*DIV; 
                         HDR.NRec   = HDR.NRec/DIV; 
-                        
                         HDR.AS.BPR = ceil(HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)');
                 end;
                 HDR.AS.SAMECHANTYP = all(HDR.AS.BPR == (HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)')) & ~any(diff(HDR.GDFTYP));
@@ -937,9 +945,9 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                         c=fwrite(HDR.FILE.FID,abs(H1(1:184)),'uchar');
                         %c=fwrite(HDR.FILE.FID,HDR.HeadLen,'int64');
                         c=fwrite(HDR.FILE.FID,[HDR.HeadLen,0],'int32');
-                        c=fwrite(HDR.FILE.FID,ones(8,1)*32,'uint8'); % EP_ID=ones(8,1)*32;
-                        c=fwrite(HDR.FILE.FID,ones(8,1)*32,'uint8'); % Lab_ID=ones(8,1)*32;
-                        c=fwrite(HDR.FILE.FID,ones(8,1)*32,'uint8'); % T_ID=ones(8,1)*32;
+                        c=fwrite(HDR.FILE.FID,HDR.ID.Equipment,'uint8'); % EP_ID=ones(8,1)*32;
+                        c=fwrite(HDR.FILE.FID,HDR.ID.Lab,'uint8'); % Lab_ID=ones(8,1)*32;
+                        c=fwrite(HDR.FILE.FID,HDR.ID.Technician,'uint8'); % T_ID=ones(8,1)*32;
                         c=fwrite(HDR.FILE.FID,ones(20,1)*32,'uint8'); % 
                         %c=fwrite(HDR.FILE.FID,HDR.NRec,'int64');
                         c=fwrite(HDR.FILE.FID,[HDR.NRec,0],'int32');
@@ -2066,20 +2074,22 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
         HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
         
         % read 3 header blocks 
-        HDR.H1 = fread(HDR.FILE.FID,[1,512],'uint8');
-        HDR.H2 = fread(HDR.FILE.FID,[1,15306],'int8');
-        HDR.H3 = fread(HDR.FILE.FID,[1,8146],'uint8');           
+        HDR.GTF.H1 = fread(HDR.FILE.FID,[1,512],'uint8');
+        HDR.GTF.H2 = fread(HDR.FILE.FID,[1,15306],'int8');
+        HDR.GTF.H3 = fread(HDR.FILE.FID,[1,8146],'uint8');           
+        HDR.GTF.messages = fread(HDR.FILE.FID,[3600,1],'int8');
+        HDR.GTF.states   = fread(HDR.FILE.FID,[3600,1],'int8');
         
-        HDR.L1 = char(reshape(HDR.H3(1:650),65,10)');                   
-        HDR.L2 = char(reshape(HDR.H3(650+(1:20*16)),16,20)');
-        HDR.L3 = reshape(HDR.H3(1070+32*3+(1:232*20)),232,20)';
+        HDR.GTF.L1 = char(reshape(HDR.GTF.H3(1:650),65,10)');                   
+        HDR.GTF.L2 = char(reshape(HDR.GTF.H3(650+(1:20*16)),16,20)');
+        HDR.GTF.L3 = reshape(HDR.GTF.H3(1070+32*3+(1:232*20)),232,20)';
         
-        HDR.Label = char(reshape(HDR.H3(1071:1070+32*3),3,32)');        % channel labels
+        HDR.Label = char(reshape(HDR.GTF.H3(1071:1070+32*3),3,32)');        % channel labels
         
-        [H.i8,count] = fread(HDR.FILE.FID,inf,'int8');
+        [H.i8, count]    = fread(HDR.FILE.FID,inf,'int8');
         fclose(HDR.FILE.FID);
         
-	[t,status] = str2double(char([HDR.H1(35:36),32,HDR.H1(37:39)]));	
+	[t,status] = str2double(char([HDR.GTF.H1(35:36),32,HDR.GTF.H1(37:39)]));	
         if ~any(status) & all(t>0)
                 HDR.NS = t(1); 
                 HDR.SampleRate = t(2); 
@@ -2088,6 +2098,29 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
 		HDR.TYPE = 'unknown';
                 return; 
         end
+
+        % convert messages, states and annotations into EVENT's
+        ix = find(HDR.GTF.messages<-1);
+        ann.POS  = ix*HDR.SampleRate;
+        ann.TYP  = -HDR.GTF.messages(ix)-1;
+        ann.Desc = [repmat('A: ',length(ix),1),HDR.GTF.L1(ann.TYP,:)];
+        ix = find(HDR.GTF.messages>-1);
+        msg.POS  = ix*HDR.SampleRate;
+        msg.TYP  = 1+HDR.GTF.messages(ix);
+        msg.Desc = [repmat('M: ',length(ix),1),HDR.GTF.L2(msg.TYP,:)];
+
+        ix = find(HDR.GTF.states>-1);
+        sts.POS  = ix*HDR.SampleRate;
+        sts.TYP  = HDR.GTF.states(ix);
+        % state should be converted in EVENT with Duration 
+        %ix      = ([HDR.GTF.states]>-1);
+        %tmp     = diff([-1;HDR.GTF.states(:);-1]>-1);
+        %sts.POS = find(tmp~=0)*HDR.SampleRate;
+        sts.Desc = [repmat('S: ',length(ix),1),HDR.GTF.L2(sts.TYP,:)];
+        HDR.EVENT.POS  = [ann.POS(:); msg.POS(:); sts.POS(:)];
+        HDR.EVENT.TYP  = [ann.TYP(:); msg.TYP(:)+10; sts.TYP(:)+10];
+        HDR.EVENT.Desc = cellstr(strvcat(ann.Desc,msg.Desc,sts.Desc));
+        
         HDR.Dur  = 10; 
         HDR.SPR  = HDR.Dur*HDR.SampleRate; 
         HDR.Bits = 8; 
@@ -2098,19 +2131,19 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
         HDR.Label = HDR.Label(1:HDR.NS,:);
         
         HDR.AS.bpb = (HDR.SampleRate*240+2048);
-	HDR.GTF.Preset = HDR.H3(8134)+1;	% Preset
+	HDR.GTF.Preset = HDR.GTF.H3(8134)+1;	% Preset
 
-        t2 = 9248+(0:floor(count/HDR.AS.bpb)-1)*HDR.AS.bpb;
+        t2 = (0:floor(count/HDR.AS.bpb)-1)*HDR.AS.bpb;
         HDR.NRec = length(t2);
         [s2,sz]  = trigg(H.i8,t2,1,HDR.SampleRate*240);
         HDR.data = reshape(s2,[HDR.NS,sz(2)/HDR.NS*HDR.NRec])';
         
-        [s4,sz]  = trigg(H.i8,t2-85,0,1);
+        [s4,sz]  = trigg(H.i8,t2+1963,0,1);
         sz(sz==1)= []; 
         x  = reshape(s4,sz)';   
         HDR.GTF.timestamp = (x+(x<0)*256)*[1;256];      % convert from 2*int8 in 1*uint16
         
-	[s4,sz] = trigg(H.i8,t2,-2047,0);
+	[s4,sz] = trigg(H.i8,t2,1,2048);
 	sz(sz==1)= []; if length(sz)<2,sz = [sz,1]; end;
 	s4 = reshape(s4,sz);
 
