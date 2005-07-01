@@ -27,10 +27,11 @@ function [HDR,data] = iopen(HDR,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: iopen.m,v 1.2 2005-01-16 23:35:14 schloegl Exp $
+%	$Id: iopen.m,v 1.3 2005-07-01 22:36:36 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
+data = [];
 
 if isstruct(HDR),
 
@@ -155,6 +156,177 @@ elseif strcmp(HDR.TYPE,'IMAGE:IFS'),    % Ultrasound file format
                 
         end
         fclose(HDR.FILE.FID);
+
+        
+elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9), 
+        GDFTYP = {'uint8','char','uint16','uint32','2*uint32','int8','uint8','int16','int32','2*int32','float32','float64'};
+        GDFTYP = {'uint8','char','uint16','uint32','uint64','int8','uint8','int16','int32','int64','float32','float64'};
+
+        HDR.EXIF = [];
+        HDR.JPEG = [];
+        HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.Endianity);
+        tag = fread(HDR.FILE.FID,[1],'uint16');
+        if tag == hex2dec('FFD8'), % compressed: JPEG or EXIF
+                
+                POS = ftell(HDR.FILE.FID); 
+                tag = fread(HDR.FILE.FID,1,'uint16');
+                LEN = fread(HDR.FILE.FID,1,'uint16');
+                while ftell(HDR.FILE.FID)<HDR.FILE.size,
+                        if 0, 
+                        elseif (tag == hex2dec('F9FE'))       % image data
+                                HDR.data.compressed = fread(HDR.FILE.FID,LEN-2,'uint8');
+                        elseif (tag == hex2dec('FEFA'))       % JPEG field: (thumbnail?)
+                                HDR.JPEG.FEFA = fread(HDR.FILE.FID,LEN-2,'uint8');
+                        elseif (tag == hex2dec('FF00'))       % JPEG field: (thumbnail?)
+                                HDR.JPEG.FF00 = fread(HDR.FILE.FID,LEN-2,'uint8');
+                        elseif (tag == hex2dec('FFC0'))       % JPEG field: start of frame
+                                HDR.JPEG.BITS = fread(HDR.FILE.FID,1,'uint8');
+                                HDR.JPEG.XYLines = fread(HDR.FILE.FID,[1,2],'uint16');
+                                HDR.JPEG.SOF = fread(HDR.FILE.FID,10,'uint8');
+                        elseif (tag == hex2dec('FFD9'))       % JPEG field: end of data
+                                HDR.EXIF.EOD = 1; 
+                        elseif (tag == hex2dec('FFC4'))       % JPEG field:
+                                tmp = fread(HDR.FILE.FID,LEN-2,'uint8');
+                                if isfield(HDR.JPEG,'C4');
+                                        HDR.JPEG.C4{length(HDR.JPEG.C4)+1}=tmp;
+                                else
+                                        HDR.JPEG.C4{1} = tmp;
+                                end;
+                        elseif (tag == hex2dec('FFDA'))       % JPEG field: start of scan
+                                HDR.JPEG.SOS = fread(HDR.FILE.FID,10,'uint8');
+                        elseif (tag == hex2dec('FFDB'))       % EXIF field: Quantization Table 
+                                tmp = fread(HDR.FILE.FID,[65,3],'uint8');
+                                if isfield(HDR.JPEG,'DQT');
+                                        HDR.JPEG.DQT{length(HDR.JPEG.DQT)+1}=tmp;
+                                else
+                                        HDR.JPEG.DQT{1} = tmp;
+                                end;
+
+                        elseif (tag == hex2dec('FFDD'))       % EXIF field: 
+                                HDR.EXIF.DRI = fread(HDR.FILE.FID,1,'uint16');
+                        elseif (tag == hex2dec('FFE0'))       % JPEG
+                                HDR.JPEG.E0 = fread(HDR.FILE.FID,LEN-2,'uint8');
+                        elseif 0, (tag == hex2dec('FFE1'))       % EXIF field: APP1
+                                tmp = fread(HDR.FILE.FID,6,'uint8');
+                                pos = ftell(HDR.FILE.FID); 
+                                tmp = fread(HDR.FILE.FID,8,'uint8');
+                                offset.IFD0 = fread(HDR.FILE.FID,1,'uint32')
+                                fseek(HDR.FILE.FID,pos+offset.IFD0,'bof');
+                                tmp = fread(HDR.FILE.FID,1,'uint16'),
+                                for k=1:11,
+                                        tmp = fread(HDR.FILE.FID,2,'uint16');
+                                        tagid(k) = tmp(1);
+                                        typ(k) = tmp(2);
+                                        tmp = fread(HDR.FILE.FID,2,'uint32');
+                                        count(k) = tmp(1);
+                                        valoffset(k) = tmp(2);
+                                end;
+                                count,
+                                len = fread(HDR.FILE.FID,1,'uint16') % jump to next IFD
+                                if len>0, LEN = len; end; 
+                                for k = 1:11, 
+                                        dec2hex(tagid(k)),
+                                        fseek(HDR.FILE.FID,pos+valoffset(k)-8,'bof');
+                                        if (typ(k)==5)
+                                                tmp = fread(HDR.FILE.FID,[count(k),2],'int32');
+                                                tmp = tmp(:,1)/tmp(:,2);
+                                        else
+                                                k,
+                                                tmp = fread(HDR.FILE.FID,count(k),GDFTYP{typ(k)});
+                                        end;
+                                        if tagid(k)==hex2dec('010e')
+                                                HDR.EXIF.ImageDesc = char(tmp(:)');
+                                        elseif tagid(k)==hex2dec('010f')
+                                                HDR.EXIF.Make = char(tmp(:)');
+                                        elseif tagid(k)==hex2dec('0110')
+                                                HDR.EXIF.Model = char(tmp(:)');
+                                        elseif tagid(k)==hex2dec('0121')
+                                                HDR.EXIF.Orientation = tmp;
+                                        elseif tagid(k)==hex2dec('011A')
+                                                HDR.EXIF.XResolution = tmp;
+                                        elseif tagid(k)==hex2dec('011B')
+                                                HDR.EXIF.YResolution = tmp;
+                                        elseif tagid(k)==hex2dec('0128')
+                                                HDR.EXIF.ResolutionUnit = char(tmp);
+                                        elseif tagid(k)==hex2dec('0132')
+                                                HDR.EXIF.DateTime = char(tmp);
+                                        elseif tagid(k)==hex2dec('0213')
+                                                HDR.EXIF.YCbCrPostionining = tmp;
+                                        elseif tagid(k)==hex2dec('8298')
+                                                HDR.EXIF.Copyright = char(tmp);
+                                        elseif tagid(k)==hex2dec('8769')
+                                                HDR.EXIF.IdPointer = tmp;
+                                        end;
+                                end
+                                %HDR.EXIF.APP1 = fread(HDR.FILE.FID,LEN-2-6-4,'uint8');
+                        elseif (tag == hex2dec('FFE2'))       % EXIF field: APP2
+                                HDR.EXIF.APP2 = fread(HDR.FILE.FID,LEN-2,'uint8');
+                        elseif (tag == hex2dec('FFE3'))       % EXIF field: APP3
+                                HDR.EXIF.APP3 = fread(HDR.FILE.FID,LEN-2,'uint8');
+                        elseif (tag == hex2dec('FFEC'))       % JPEG
+                                tmp = char(fread(HDR.FILE.FID,[1,LEN-2],'uint8'));
+                                if isfield(HDR.JPEG,'EC');
+                                        HDR.JPEG.EC{length(HDR.JPEG.EC)+1}=tmp;
+                                else
+                                        HDR.JPEG.EC{1} = tmp;
+                                end;
+                        elseif (tag == hex2dec('FFED'))       % JPEG
+                                tmp = char(fread(HDR.FILE.FID,[1,LEN-2],'uint8'));
+                                if isfield(HDR.JPEG,'ED');
+                                        HDR.JPEG.ED{length(HDR.JPEG.ED)+1}=tmp;
+                                else
+                                        HDR.JPEG.ED{1} = tmp;
+                                end;
+                        elseif (tag == hex2dec('FFFD'))       % JPEG
+                                tmp = char(fread(HDR.FILE.FID,[1,LEN-2],'uint8'));
+                                if isfield(HDR.JPEG,'FD');
+                                        HDR.JPEG.FD{length(HDR.JPEG.FD)+1}=tmp;
+                                else
+                                        HDR.JPEG.FD{1} = tmp;
+                                end;
+                        elseif (tag == hex2dec('FFEE'))       % JPEG
+                                tmp = char(fread(HDR.FILE.FID,[1,LEN-2],'uint8'));
+                                if isfield(HDR.JPEG,'EE');
+                                        HDR.JPEG.EE{length(HDR.JPEG.EE)+1}=tmp;
+                                else
+                                        HDR.JPEG.EE{1} = tmp;
+                                end;
+                        elseif (tag == hex2dec('FFFE'))       % JPEG
+                                tmp = char(fread(HDR.FILE.FID,[1,LEN-2],'uint8'));
+                                if isfield(HDR.JPEG,'FE');
+                                        HDR.JPEG.FE{length(HDR.JPEG.FE)+1}=tmp;
+                                else
+                                        HDR.JPEG.FE{1} = tmp;
+                                end;
+                        elseif 0, tag>=15/16*2^16; 
+                                fprintf(1,'%5i\t%4x\t%5i\n',LEN,tag,tag);
+                        else
+                        end;
+                        fseek(HDR.FILE.FID,POS+LEN+2,'bof');
+                        POS = ftell(HDR.FILE.FID); 
+                        tag = fread(HDR.FILE.FID,1,'uint16');
+                        LEN = fread(HDR.FILE.FID,1,'uint16');
+                end;
+        end;
+        fclose(HDR.FILE.FID);	
+
+        
+elseif strcmp(HDR.TYPE,'IMAGE:JPG'),  
+        GDFTYP = {'uint8','char','uint16','uint32','2*uint32','int8','uint8','int16','int32','2*int32','float32','float64'};
+        GDFTYP = {'uint8','char','uint16','uint32','uint64','int8','uint8','int16','int32','int64','float32','float64'};
+
+        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        HDR.JPEG.H1 = fread(HDR.FILE.FID,[1,8],'uchar');
+
+        % IFD
+        TAG = fread(HDR.FILE.FID,1,'uint16');
+        type = fread(HDR.FILE.FID,1,'uint16');
+        count = fread(HDR.FILE.FID,1,'uint32');
+        offset = fread(HDR.FILE.FID,1,'uint32');
+        
+        
+	fclose(HDR.FILE.FID);	
+	
         
 
 elseif strcmp(HDR.TYPE,'IMAGE:PBMA') | strcmp(HDR.TYPE,'IMAGE:PGMA')  | strcmp(HDR.TYPE,'IMAGE:PPMA') ,
@@ -478,8 +650,41 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
                                 
                         elseif TAG==33432,
                                 HDR.Copyright = char(VALUE);
-                        else
                                 
+                        elseif TAG==34016,
+                                HDR.TIFF.IT8.Site = VALUE;
+                        elseif TAG==34017,
+                                HDR.TIFF.IT8.ColorSequence = VALUE;
+                        elseif TAG==34018,
+                                HDR.TIFF.IT8.Header = VALUE;
+                        elseif TAG==34019,
+                                HDR.TIFF.IT8.RasterPadding = VALUE;
+                        elseif TAG==34020,
+                                HDR.TIFF.IT8.BitsPerRunLength = VALUE;
+                        elseif TAG==34021,
+                                HDR.TIFF.IT8.BitsPerExtendedRunLength = VALUE;
+                        elseif TAG==34022,
+                                HDR.TIFF.IT8.ColorTable = VALUE;
+                        elseif TAG==34023,
+                                HDR.TIFF.IT8.ImageColorIndicator = VALUE;
+                        elseif TAG==34024,
+                                HDR.TIFF.IT8.BKGColorIndicator = VALUE;
+                        elseif TAG==34025,
+                                HDR.TIFF.IT8.ImageColorValue = VALUE;
+                        elseif TAG==34026,
+                                HDR.TIFF.IT8.BKGColorValue = VALUE;
+                        elseif TAG==34027,
+                                HDR.TIFF.IT8.PixelIntensityRange = VALUE;
+                        elseif TAG==34028,
+                                HDR.TIFF.IT8.TransparencyIndicator = VALUE;
+                        elseif TAG==34029,
+                                HDR.TIFF.IT8.ColorCharacterization = VALUE;
+                        elseif TAG==34030,
+                                HDR.TIFF.IT8.t34030 = VALUE;
+                                
+                        elseif 1, %TAG<2^15,        
+                                fprintf(HDR.FILE.stdout,'IOPEN(TIFF): TAG %d %xH used\n',TAG,TAG)
+                        else
                         end;	
                         K = K + 1;
                         status = fseek(HDR.FILE.FID,POS+12,'bof');
