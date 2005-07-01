@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.37 $
-%	$Id: getfiletype.m,v 1.37 2005-06-04 22:15:15 schloegl Exp $
+%	$Revision: 1.38 $
+%	$Id: getfiletype.m,v 1.38 2005-07-01 22:40:45 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -334,15 +334,12 @@ else
                         elseif HDR.VERSION < 38, offset = 886; 
                         elseif HDR.VERSION < 39, offset = 1894; 
                         elseif HDR.VERSION < 41, offset = 1896; 
-                        elseif HDR.VERSION == 41, offset = 1944; 
+                        elseif HDR.VERSION ==41, offset = 1944; 
                         else   offset = -1;
+                               fprintf(2,'Warning: Version %i of ACQ format not supported (yet).\n',HDR.VERSION);
                         end;
-
                         if (offset==offset2),  
                                 HDR.TYPE = 'ACQ';
-                        end;
-                        if HDR.VERSION<0,
-                                fprintf(2,'Warning: Version %i of ACQ format not supported (yet).\n',HDR.VERSION);
                         end;
                         
                 elseif (s(1) == 253) & (HDR.FILE.size==(s(6:7)*[1;256]+7));
@@ -390,6 +387,9 @@ else
                         HDR.TYPE='MDL';
                 elseif all(s(85:92)==abs('SAS FILE')); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
                         HDR.TYPE='SAS';
+                
+                elseif all(s(1:16)==[15   195   123    28   207    45   109    75   138   234    31   100   206  210   185    23])
+                        HDR.TYPE='no spec (nicolet?)';
                         
                 elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
                         HDR.TYPE = 'WFT';	% nicolet
@@ -459,6 +459,9 @@ else
                 elseif strncmp(ss,'AutoCAD Binary DXF',18)
                         HDR.TYPE='DXF-Binary';
 
+                elseif all(s(1:24)==[0,0,39,10,zeros(1,20)])    
+                        HDR.TYPE='SHAPE';
+                        
                 elseif strncmp(ss,'%!PS-Adobe',10)
                         HDR.TYPE='PS/EPS';
                 elseif strncmp(ss,'HRCH: Softimage 4D Creative Environment',38)
@@ -590,14 +593,23 @@ else
 
                 elseif strncmp(ss,['#  ',HDR.FILE.Name,'.poly'],8+length(HDR.FILE.Name)) 
                         HDR.TYPE='POLY';
-                elseif all(s(1:4)==hex2dec(['FF';'D9';'FF';'E0'])')
-                        HDR.TYPE='IMAGE:JPG';
+                elseif all(s([1,3,7:12])==[255,255,abs('Exif'),0,0]) & any(s(2)==[216:217]) & any(s(4)==[224:225]); 
+                        HDR.TYPE='IMAGE:EXIF';
                         HDR.Endianity = 'ieee-be';
-                elseif all(s(1:4)==hex2dec(['FF';'D8';'FF';'E0'])')
-                        HDR.TYPE='IMAGE:JPG';
+                elseif all(s([1:4,7:12])==[255,216,255,225,abs('Exif'),0,0]); 
+                        HDR.TYPE='IMAGE:EXIF';
                         HDR.Endianity = 'ieee-be';
-                elseif all(s(1:4)==hex2dec(['E0';'FF';'D8';'FF'])')
-                        HDR.TYPE='IMAGE:JPG';
+                elseif all(s([1:3])==[255,216,255])
+                        HDR.TYPE='IMAGE:JPG-';
+                        HDR.Endianity = 'ieee-be';
+                elseif all(s([1:4,7:10])==[255,217,255,224,abs('JFIF')])
+                        HDR.TYPE='IMAGE:JPG1';
+                        HDR.Endianity = 'ieee-be';
+                elseif all(s([1:4,7:10])==[255,216,255,224,abs('JFIF')])
+                        HDR.TYPE='IMAGE:JPG2';
+                        HDR.Endianity = 'ieee-be';
+                elseif all(s(1:4)==[216,255,224,255])
+                        HDR.TYPE='IMAGE:JPG3';
                         HDR.Endianity = 'ieee-le';
                 elseif all(s(1:20)==['L',0,0,0,1,20,2,0,0,0,0,0,192,0,0,0,0,0,0,70])
                         HDR.TYPE='LNK';
