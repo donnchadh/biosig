@@ -16,7 +16,8 @@ PROcessing and FEEDback generation framework".
 
 The main application serves for controlling the data acquisition, 
 displaying and saving the data. There are different drivers for 
-different hardware available.
+different data acquisition hardware 
+(e.g. National Instruments NI-6024e PCMCIA under Linux) available.
 
 
 Licence
@@ -55,6 +56,7 @@ The following applications must be installed:
 	-) autotools (autoconf, automake, ...) 
 	-) libtool
 	-) pkg-config
+	-) binutils
 
 The following libraries must be installed:
 	-) gtk+ >=2.0
