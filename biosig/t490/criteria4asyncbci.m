@@ -34,7 +34,7 @@ function [X] = criteria4asyncbci(D0, TRIG, dbtime,Fs)
 
 
 
-%    $Id: criteria4asyncbci.m,v 1.4 2005-06-30 10:44:15 schloegl Exp $
+%    $Id: criteria4asyncbci.m,v 1.5 2005-07-02 00:02:14 schloegl Exp $
 %    Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -60,7 +60,20 @@ function [X] = criteria4asyncbci(D0, TRIG, dbtime,Fs)
 %	Response time for deactivation
 % 
 
+%%%%% INTERNAL VARIABLES %%% 
+%% D0   detector output, continuous in time and magnitude, one trace for each state
+%% D    classified transducer output 
+%%              [tmp,D] = max(D0,[],2); 
+%%              D(isnan(tmp)) = Nan;    % not classified 
+%%              D(tmp<Threshold) = 0;   % NC state
+%% C    target class; continuos in time, discrete states, same size than D
+%%              C can be constructed from TRIG and dbtime
+%%  
+%%
+%%
 
+
+Mode = 1;       % basic level, NC and one C state
 X.datatype = 'Criteria_Asychronous_BCI'; 
 X.db_time = dbtime; 
 
@@ -70,76 +83,90 @@ end;
 dbtime = round(dbtime*Fs);
 
 if iscell(TRIG(1))      % multiple states
+        M = max(length(TRIG),size(D0,2));       
         if length(TRIG)~=size(D0,2),
                 warning('number of states does not fit number of detector traces');     
         end;
-        T = [];CL = [];
-        for k=1:length(TRIG)
-                t = TRIG{k}(:);
-                T = [T;t]; 
+        T = []; CL = [];
+        for k = 1:length(TRIG)
+                t  = TRIG{k}(:);
+                T  = [T;t]; 
                 CL = [CL; repmat(k,length(t),1)];
         end;  
         TRIG = T; 
+        Mode = 2; 
 else
         CL = ones(numel(TRIG),1);
 end;
 [TRIG,ix] = sort(TRIG*Fs); 
 CL = CL(ix);    % classlabels 
 
+if any(diff(TRIG) < dbtime)
+        warning('overlapping detection window - dbtime reduced');
+	dbtime = min(diff(TRIG))-1;
+end;
+%### OPEN QUESTION(s): 
+%###    is there a reasonable way to deal with overlapping windows ? 
+
+% classifies transducer output / applies threshold
 if size(D0,2)>1,
         [tmp,D] = max(D0,[],2);
         D(tmp<0)= 0;  
         D(isnan(tmp)) = NaN; 
+        Mode = 2; 
 else
-        if 
-        D = D0; 
+        D = D0>0; 
 end; 
-C = zeros(size(D));
-
-if any(diff(TRIG) < dbtime)
-        warning('overlapping detection window');
+C  = zeros(size(D));
+d1 = real(D>0);
+for k = 1:length(TRIG)                
+        d1(TRIG(k):TRIG(k)+dbtime) = NaN;       % de-select (mark with NaN) all samples within window
+        C(TRIG(k):TRIG(k)+dbtime)  = CL(k);     % generate target state from TRIG and DBTIME
 end;
-%### OPEN QUESTION(s): 
-%###    is there a reasonable way to deal with overlapping windows ? 
-%###    how to handle more than 1 active class
+
+% signal detection theory applied on a sample-basis for multiple classes
+[KAP1, kapSD1, H, z] = kappa(D,C);
+X.AS.H   = H; 					% confusion matrix 
+X.AS.H0  = H./(ones(size(H,1),1)*sum(H,1));     % normalized by total time for each target state. 
+[KAP2, kapSD2] = kappa(X.AS.H0);
+X.AS.KAP = KAP2; % or KAP1 ?  
+X.AS.kapSD = kapSD2; % or kapSD1 ?  
+
+X.AS.AUC = NaN; 	
+if any(size(D0,2)==[1,M])
+	for k = 1:M,
+    		X.AS.AUC(k) = auc(D0(:,k),C==k); 
+	end;
+end;
+
+
+if Mode > 1, return; end; 
+    % following code not ready for more than 1 control (C) state
+
 
 N0     = length(TRIG);                      % number of trigger events 
 % Detection of True Positives
-[d,sx] = trigg(D(:),TRIG,0,dbtime);     % intervals where detection is counted as hit
-d      = reshape(d,sx(2:3));            % and bring it in proper shape
-TP     = sum(any(d>0,1));                   % true positives/hits 
+[d,sx] = trigg(D,TRIG,0,dbtime);           % intervals where detection is counted as hit
+d      = reshape(d,sx(2:3));               % and bring it in proper shape
+TP     = sum(any(d>0,1));                  % true positives/hits 
 
-N3     = sum(diff(D>0)>1);                  % total number of detections (JH) 
+N3     = sum(diff(D>0)>0);                  % total number of detections (JH) 
+
 
 % Detection of False Positives
-d = real(D>0);
-c = zeros(size(D));
-for k = 1:length(TRIG)                 % de-select (mark with NaN) all samples within window
-        d(TRIG(k):TRIG(k)+dbtime) = NaN;
-        C(TRIG(k):TRIG(k)+dbtime) = CL(k);
-end;
-[FP1,N1] = sumskipnan(d);              % false positive ratio on a sample-basis
-FP3  = sum(diff(d)>1);                 % number of detections
+[FP1,N1] = sumskipnan(d1);              % false positive ratio on a sample-basis
+FP3  = sum(diff(d1)>1);                 % number of detections
 
-N2   = ceil((1+sum(~diff(isnan(d))))/2);          % number of intervals between trigger events (with non-overlapping windows) 
+N2   = ceil((1+sum(~~diff(isnan(d))))/2);          % number of intervals between trigger events (with non-overlapping windows) 
 d(isnan(d)) = [];
 tmp  = diff(d)>0;
 FP2  = sum(tmp);                       % false positives
 FPR2 = FP2/N2;                         % false positive ratio 
 
-% Confusion Matrix 
-% X.H = [TP,FP;length(TRIG)-TP,N-FP];      % confusion matrix 
-
-% signal detection theory applied on a sample-basis
-for k=1:size(D0,2),
-        X.AS.AUC(k) = auc(D0(:,k),C); 
-end;
-[X.AS.KAP, X.AS.kapSD, X.AS.H, z] = kappa(D,C);
-
 
 %  suggestion by Steve. # is this correct? 
 X.SM.TP  = TP; 
-X.SM.TPR = TP/length(TRIG); 
+X.SM.TPR = TP/N0; 
 X.SM.FP  = FP1; 
 X.SM.FPR = FP1/N1;
 X.SM.N   = N1; 
@@ -150,10 +177,7 @@ X.JH.TPR = TP/N0;
 X.JH.FP  = FP3; 
 X.JH.FPR = FP3/N3; 
 X.JH.N   = N3; 
-X.JH.HFdiff = X.JH.TPR-X.JH.FPR;        % ???
-
-% multi-state as suggested by Julien could go here
-
+X.JH.HFdiff = max(0,X.JH.TPR-X.JH.FPR);        % ???
 
 %### OPEN QUESTION: use of FPR1 or FPR2
 X.TPR = TP/N0;                % true positive ratio
