@@ -1,0 +1,240 @@
+#include <gtk/gtk.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <gdk/gdkx.h>
+
+#include "dataaq.h"
+#include "bsv_module.h"
+#include "draw.h"
+#include "gdffile.h"
+#include "support.h"
+
+
+/* Defines ********************************************************************/
+
+#define DEAD		0
+#define ALIVE		1
+#define RUNNING		2
+#define DYING		3
+
+/* Exported Variables *********************************************************/
+
+extern GtkWidget*				bsv_main_win;
+
+
+/* Global Variables ***********************************************************/
+
+static pthread_t				reader;
+static pthread_mutex_t			state_mtx;
+static volatile unsigned char	state		= DEAD;
+
+
+/* Private Functions **********************************************************/
+
+static void display_errormsg(char* msg)
+{
+	guint			ctxid;
+	GtkStatusbar*	sbar;
+
+	sbar	= (GtkStatusbar*)lookup_widget(bsv_main_win, "statusbar");
+
+	gdk_threads_enter();
+	ctxid	= gtk_statusbar_get_context_id(sbar, "error");
+
+	/* Pop previous errormsg */
+	gtk_statusbar_pop(sbar, ctxid);
+
+	/* Push new errormsg */
+	gtk_statusbar_push(sbar, ctxid, msg);
+	gdk_threads_leave();
+}
+
+static void __change_but_state(void)
+{
+	GtkWidget*	start_widget;
+	GtkWidget*	stop_widget;
+	GtkWidget*	pref_driver;
+	GtkWidget*	pref_main;
+
+	start_widget= (GtkWidget*)lookup_widget(bsv_main_win, "start_but");
+	stop_widget	= (GtkWidget*)lookup_widget(bsv_main_win, "stop_but");
+	pref_driver	= (GtkWidget*)lookup_widget(bsv_main_win, "preferences_driver");
+	pref_main	= (GtkWidget*)lookup_widget(bsv_main_win, "preferences_main");
+
+	/* Set new button state */
+	switch(state) {
+		case RUNNING:
+			gtk_widget_set_sensitive(start_widget, 0);
+			gtk_widget_set_sensitive(stop_widget, 1);
+			gtk_widget_set_sensitive(pref_driver, 0);
+			gtk_widget_set_sensitive(pref_main, 0);
+			break;
+		case DEAD:
+			gtk_widget_set_sensitive(start_widget, 1);
+			gtk_widget_set_sensitive(stop_widget, 0);
+			gtk_widget_set_sensitive(pref_driver, 1);
+			gtk_widget_set_sensitive(pref_main, 1);
+			break;
+		default:
+			gtk_widget_set_sensitive(start_widget, 0);
+			gtk_widget_set_sensitive(stop_widget, 0);
+			gtk_widget_set_sensitive(pref_driver, 0);
+			gtk_widget_set_sensitive(pref_main, 0);
+	}
+}
+
+static void* read_data(void* param)
+{
+	bsv_data_t*		s_ptr;
+
+	/* Clear previous errormsg */
+	display_errormsg("");	
+
+	/* Setup */
+	if( d_setup() ) {
+		display_errormsg( d_get_errormsg() );
+	
+		goto exit;
+	}
+	if( gf_setup() ) {
+		display_errormsg( gf_get_errormsg() );
+	
+		goto d_exit;
+	}
+
+	/* Start aqistion */
+	if( bsv_start() ) {
+		display_errormsg( bsv_get_errormsg() );
+	
+		goto gf_exit;
+	}
+
+	/* Start main loop */
+	pthread_mutex_lock(&state_mtx);
+	if( state == ALIVE ) {
+		state	= RUNNING;
+	} else {
+		pthread_mutex_unlock(&state_mtx);
+		goto bsv_exit;
+	}
+	pthread_mutex_unlock(&state_mtx);
+
+	gdk_threads_enter();
+	__change_but_state();
+	gdk_threads_leave();
+
+	pthread_mutex_lock(&state_mtx);
+	while( state != DYING ) {
+		pthread_mutex_unlock(&state_mtx);
+
+		/* Get samples */
+		if( !(s_ptr = bsv_get_data()) ) {
+			/* Timeout or other error */
+			display_errormsg( bsv_get_errormsg() );
+
+			pthread_mutex_lock(&state_mtx);
+			state	= DYING;
+			continue;
+		}
+
+		/* Dispatch samples */
+		if( d_set_samples(s_ptr) ) {
+			display_errormsg( d_get_errormsg() );
+
+			pthread_mutex_lock(&state_mtx);
+			state	= DYING;
+			continue;
+		}
+		if( gf_set_samples(s_ptr) ) {
+			display_errormsg( gf_get_errormsg() );
+
+			pthread_mutex_lock(&state_mtx);
+			state	= DYING;
+			continue;
+		}
+
+		pthread_mutex_lock(&state_mtx);
+	}
+	pthread_mutex_unlock(&state_mtx);
+
+	gdk_threads_enter();
+	__change_but_state();
+	gdk_threads_leave();
+
+bsv_exit:
+	/* Stop aquistion */
+	bsv_stop();
+	
+	/* Cleanup */
+gf_exit:
+	gf_cleanup();
+
+d_exit:
+	d_cleanup();
+
+exit:
+	pthread_mutex_lock(&state_mtx);
+	state	= DEAD;
+	pthread_mutex_unlock(&state_mtx);
+
+	gdk_threads_enter();
+	__change_but_state();
+	gdk_threads_leave();
+
+	pthread_exit(NULL);
+}
+
+
+/* Public Functions ***********************************************************/
+
+void da_init(void)
+{
+	/* init mutex */
+	pthread_mutex_init(&state_mtx, NULL);
+}
+
+void da_destroy(void)
+{
+	da_stop();
+
+	/* destroy mutex */
+	pthread_mutex_destroy(&state_mtx);
+}
+
+void da_start(void)
+{
+	pthread_mutex_lock(&state_mtx);
+	if( state != DEAD ) {
+		pthread_mutex_unlock(&state_mtx);
+
+		/* already started */
+		return;
+	}
+
+	/* set new state */
+	state	= ALIVE;
+	pthread_mutex_unlock(&state_mtx);
+
+	__change_but_state();
+
+	/* start thread */
+	pthread_create(&reader, NULL, read_data, NULL);
+}
+
+void da_stop(void)
+{
+	pthread_mutex_lock(&state_mtx);
+	if( state != RUNNING && state != ALIVE ) {
+		pthread_mutex_unlock(&state_mtx);
+
+		/* not running */
+		return;
+	}
+
+	/* set new state */
+	state	= DYING;
+	pthread_mutex_unlock(&state_mtx);
+
+	/* Change but state when thread exited the main loop */
+}

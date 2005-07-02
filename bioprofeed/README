@@ -1,0 +1,124 @@
+BIOPROFEED framework
+====================
+
+Author:			Andreas Glatz
+Note:			Copyright (C) 2005 <gandy@sbox.tugraz.at>
+Supported by:	Alois Schloegl <alois.schloegl@tugraz.at>,
+				Institute for Medical Informatics, 
+				Graz University of Technology
+
+
+Introduction
+============
+
+BIOPROFEED stands for "Portable BIOsignal acquisition, real time 
+PROcessing and FEEDback generation framework".
+
+The main application serves for controlling the data acquisition, 
+displaying and saving the data. There are different drivers for 
+different hardware available.
+
+
+Licence
+=======
+
+The whole software including the modules is licenced under GPLv2.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
+USA; either version 2 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+
+Compiling
+==========
+
+The non realtime part of the application is known to run under 
+Linux (i386, ppc, arm), Cygwin on Windows and Fink on MacOSX.
+The realtime part of the application is known to work with
+RTAI and Linux.
+
+*) Prequesites
+The following applications must be installed:
+	-) gcc
+	-) make
+	-) autotools (autoconf, automake, ...) 
+	-) libtool
+	-) pkg-config
+
+The following libraries must be installed:
+	-) gtk+ >=2.0
+	-) gdk >=2.0
+	-) gdk-pixbuf >=2.0
+	-) atk >=1.0
+	-) pango >=1.0
+	-) freetype2
+	-) pangoxft >=1.0
+	-) pangox >=1.0
+	-) gobject >=2.0
+	-) gmodule >=2.0
+	-) glib >=2.0
+	-) iconv
+	-) gthread
+	-) pthread
+	
+*) Building the main application - assumes that the current working
+directory is the one where this README can be found:
+
+# cd main
+# ./autogen.sh
+# make
+
+The application "bsview" can be found under ./src .
+
+*) Building the testmodule - assumes that the current working directory is
+the one where this README can be found:
+
+(Additional building instructions for each module can be found in
+the README in each subdirectory.)
+
+# cd modules/testmodule
+# ./autogen.sh
+# make
+
+The module "testdriver.la" can be found under ./src .
+
+*) Note - when compiling under Cygwin the contents of "testdriver.la" has
+to be modified in the following way:
+
+
+Testing
+=======
+
+Assumes that the current working directory is the one where this 
+README can be found:
+
+# cd main/src
+# export BSV_MODULE_PATH=`pwd`/../../modules/testmodule/src
+# ./bsview testmodule
+
+
+Cleanup
+=======
+
+Assumes that the current working directory is the one where this 
+README can be found:
+
+# cd main
+# make clean
+# ./clean
+
+
+# cd module/testmodule
+# make clean
+# ./clean
