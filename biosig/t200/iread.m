@@ -20,7 +20,7 @@ function [data,HDR] = iread(HDR,CHAN,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: iread.m,v 1.2 2005-05-07 19:37:38 schloegl Exp $
+%	$Id: iread.m,v 1.3 2005-07-08 19:57:52 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -194,7 +194,35 @@ elseif strcmp(HDR.TYPE,'IMAGE:FITS'),
 
 elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
 
-        if ~any(HDR.TIFF.StripOffset(1:end-1)-HDR.TIFF.StripOffset(2:end)+HDR.TIFF.StripByteCounts(1:end-1))
+	if ~isfield(HDR.TIFF,'StripOffset')
+        if 1, 
+                data = []; count = 0; 
+                for k = 1:length(HDR.TIFF.TileOffset)
+                        status = fseek(HDR.FILE.FID,HDR.TIFF.TileOffset(k),'bof');
+                        [d,c]  = fread(HDR.FILE.FID,HDR.TIFF.TileByteCount(k),HDR.GDFTYP);
+                        data = [data; d]; count = count + c;
+                end;	
+	else
+
+		fprintf(HDR.FILE.stderr,'Warning IREAD (TIFF): TileOffset not supported yet.\n');
+                data = repmat(NaN,HDR.IMAGE.Size); 
+                count = 0; 
+                nr = HDR.IMAGE.Size(1)./HDR.TIFF.TileLength;
+                nc = HDR.IMAGE.Size(2)./HDR.TIFF.TileWidth;
+                for k1 = 1:nr
+                for k2 = 1:nc,
+                        status = fseek(HDR.FILE.FID,HDR.TIFF.TileOffset(k1*nc-nc+k2),'bof');
+                        [d,c]  = fread(HDR.FILE.FID,HDR.TIFF.TileByteCount(k1*nc-nc+k2),HDR.GDFTYP);
+                        d = permute(reshape(d,[HDR.TIFF.SamplesPerPixel,HDR.TIFF.TileWidth,HDR.TIFF.TileLength]),[3,2,1]);
+                        [size(d),size(data)],
+                        data ((k1-1)*HDR.TIFF.TileLength+1:k1*HDR.TIFF.TileLength,(k2-1)*HDR.TIFF.TileWidth+1:k2*HDR.TIFF.TileWidth,:) = d; 
+                        count = count + c;
+                end;
+                end;	
+        end;
+
+       
+        elseif ~any(HDR.TIFF.StripOffset(1:end-1)-HDR.TIFF.StripOffset(2:end)+HDR.TIFF.StripByteCounts(1:end-1))
                 status = fseek(HDR.FILE.FID,HDR.TIFF.StripOffset(1),'bof');
                 [data,count] = fread(HDR.FILE.FID,sum(HDR.TIFF.StripByteCounts)*length(HDR.Bits),HDR.GDFTYP);
         else
@@ -239,16 +267,17 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
         else
                 fprintf(HDR.FILE.stderr,'Error IREAD (TIFF): decompression Mode=%i not supported.\n',HDR.TIFF.Compression);
         end;
-        
+
         if prod(HDR.IMAGE.Size)<=length(data);
-		tmp = length(data)-prod(HDR.IMAGE.Size);
-		if tmp,
-	                fprintf(HDR.FILE.stderr,'Warning IREAD (TIFF): %i bytes to much.\n',tmp);		
+        	tmp = length(data)-prod(HDR.IMAGE.Size);
+	        if tmp,
+			fprintf(HDR.FILE.stderr,'Warning IREAD (TIFF): %i bytes to much.\n',tmp);		
         	end;
+        	       
                 data = permute(reshape(data(1:prod(HDR.IMAGE.Size)),HDR.IMAGE.Size([3,2,1])),[3,2,1]);
-		if HDR.IMAGE.Size(3)==1,
+	        if HDR.IMAGE.Size(3)==1,
 			data= squeeze(data);
-		end;
+	        end;
         else
                 fprintf(HDR.FILE.stderr,'Warning IREAD (TIFF): size of data does not fit.\n');	
         end;	

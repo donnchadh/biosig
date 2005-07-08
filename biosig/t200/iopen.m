@@ -27,7 +27,7 @@ function [HDR,data] = iopen(HDR,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: iopen.m,v 1.3 2005-07-01 22:36:36 schloegl Exp $
+%	$Id: iopen.m,v 1.4 2005-07-08 19:57:52 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -71,13 +71,18 @@ elseif strcmp(HDR.TYPE,'IMAGE:FITS'),
 	KK = 0; 
 	HDR.HeadLen = ftell(HDR.FILE.FID);
 	BlockSize = 0;
+	cpl = 80; 	% char's per line 
 	while (HDR.FILE.size > HDR.HeadLen(max(KK,1))+BlockSize),
 	KK = KK+1;
-	FLAG.END = 0; 
 	HDR.FITS{KK} = [];
-	while ~FLAG.END,
-		[tmp,c] = fread(HDR.FILE.FID,[80,36],'uchar');
+	FLAG.END = 0; 
+	while (~FLAG.END),
+		[tmp,c] = fread(HDR.FILE.FID,[cpl,36],'uchar');
+		if (c<cpl*36)
+			fprintf(HDR.FILE.stderr,'Warning IOPEN: incomplete block\n');	
+		end;
 		data  = char(tmp)';
+%		[FLAG.END,ftell(HDR.FILE.FID),size(data)],
 		for k = 1:size(data,1),
 			s = data(k,:);
 			if strncmp(s,'COMMENT',7);
@@ -85,7 +90,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:FITS'),
 			elseif strncmp(s,'HISTORY',7);
 
 			elseif all(s(9:10)=='= ');
-				len = min([80,find(s=='/')-1]);
+				len = min([cpl,find(s=='/')-1]);
 				[key, t] = strtok(s, '= '); 
 				key(key=='-') = '_';
 				if s(11)==char(39),		% string
@@ -114,7 +119,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:FITS'),
 
 			elseif strncmp(s,'END',3)
 				FLAG.END = 1;
-			
+
 			%elseif strncmp(s,'         ',8),
 			
 			else
@@ -125,6 +130,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:FITS'),
 
 	HDR.HeadLen(KK) = ftell(HDR.FILE.FID);
 	HDR.IMAGE(KK).Size = [0,0];
+
 	for k = 1:HDR.FITS{KK}.NAXIS,
 		HDR.IMAGE(KK).Size(k) = getfield(HDR.FITS{KK},['NAXIS',int2str(k)]);
 	end;
@@ -132,13 +138,14 @@ elseif strcmp(HDR.TYPE,'IMAGE:FITS'),
 
 	HDR.GDFTYP = ['uint',num2str(HDR.FITS{1}.BITPIX)];
 
-	%data = fread(HDR.FILE.FID,prod(HDR.IMAGE.Size),HDR.GDFTYP);
-	%data = reshape(data,HDR.IMAGE.Size);  % * HDR.Cal + HDR.Off;
-	
-	BlockSize = ceil(prod(HDR.IMAGE(KK).Size)*abs(HDR.FITS{KK}.BITPIX)/(8*2880))*2880;
+%	data = fread(HDR.FILE.FID,prod(HDR.IMAGE.Size),HDR.GDFTYP);
+%	data = reshape(data,HDR.IMAGE.Size);  % * HDR.Cal + HDR.Off;
+
+	BlockSize = ceil(prod(HDR.IMAGE(KK).Size)*abs(HDR.FITS{KK}.BITPIX)/(8*36*cpl))*cpl*36;
 	fseek(HDR.FILE.FID,BlockSize,'cof');
+
 	end;
-	%fclose(HDR.FILE.FID);	
+%	fclose(HDR.FILE.FID);	
 	HDR.FILE.OPEN = 1; 
 	
 
@@ -249,7 +256,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                                         elseif tagid(k)==hex2dec('0128')
                                                 HDR.EXIF.ResolutionUnit = char(tmp);
                                         elseif tagid(k)==hex2dec('0132')
-                                                HDR.EXIF.DateTime = char(tmp);
+                                                HDR.EXIF.Date = char(tmp);
                                         elseif tagid(k)==hex2dec('0213')
                                                 HDR.EXIF.YCbCrPostionining = tmp;
                                         elseif tagid(k)==hex2dec('8298')
@@ -298,7 +305,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                                 else
                                         HDR.JPEG.FE{1} = tmp;
                                 end;
-                        elseif 0, tag>=15/16*2^16; 
+                        elseif 1, %tag>=15/16*2^16; 
                                 fprintf(1,'%5i\t%4x\t%5i\n',LEN,tag,tag);
                         else
                         end;
@@ -421,38 +428,53 @@ elseif strcmp(HDR.TYPE,'IMAGE:PPMB'),
         
 elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
         GDFTYP = {'uint8','char','uint16','uint32','2*uint32','int8','uint8','int16','int32','2*int32','float32','float64'};
-        GDFTYP = {'uint8','char','uint16','uint32','uint64','int8','uint8','int16','int32','int64','float32','float64'};
-        SIZEOF = [1,1,2,4,8,1,1,2,4,8,4,8];
+        GDFTYP = {'uint8','char','uint16','uint32','uint32','int8','uint8','int16','int32','int32','float32','float64'};
+        GDFTYP{16} = 'uint64';
+        GDFTYP{17} = 'int64';
+        SIZEOF = [1,1,2,4,8,1,1,2,4,8,4,8,0,0,0,8,8,8];
         
+        if ~HDR.FLAG.BigTIFF,
+		NIFD_TYPE = 'uint16';
+		IFD_TYPE = 'uint32';
+        else
+		NIFD_TYPE = 'uint64';
+		IFD_TYPE = 'uint64';
+        end;
+
         HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.Endianity);
-        [tmp,c] = fread(HDR.FILE.FID,2,'uint32');
-        OFFSET = tmp(2);
+	[tmp,c] = fread(HDR.FILE.FID,2,IFD_TYPE);
+	OFFSET = tmp(2);
+        
+        % default values
+        HDR.TIFF.Compression = 1; 
         
         % read IFD
         K = 1;
         while OFFSET, 
                 status = fseek(HDR.FILE.FID, OFFSET, 'bof');
-                [NIFD,c] = fread(HDR.FILE.FID,1,'uint16');
+                [NIFD,c] = fread(HDR.FILE.FID,1,NIFD_TYPE);
                 for k = 1:NIFD,
                         POS = ftell(HDR.FILE.FID);
                         [tmp,c] = fread(HDR.FILE.FID,2,'uint16');
                         TAG = tmp(1);
                         TYP = tmp(2);
-                        [COUNT,c] = fread(HDR.FILE.FID,1,'uint32');
-                        
-                        FLAG = (TYP>0) & (TYP<=length(GDFTYP)); 
+
+                        [COUNT,c] = fread(HDR.FILE.FID,1,IFD_TYPE);
+
+                        FLAG = any(TYP==[1:12,16:17]); 
                         if FLAG,
-                                if (COUNT * SIZEOF(TYP)) > 4,
-                                        [OFFSET, c] = fread(HDR.FILE.FID, 1, 'uint32');
+	                        if (COUNT * SIZEOF(TYP)) > 4+4*HDR.FLAG.BigTIFF,
+	                                [OFFSET, c] = fread(HDR.FILE.FID, 1, IFD_TYPE);
                                         status = fseek(HDR.FILE.FID, OFFSET, 'bof');
-                                end;
-                                
-                                [VALUE,c] = fread(HDR.FILE.FID, COUNT, GDFTYP{TYP});
+                                end;         
                                 if any(TAG==[5,10])
-                                        %	VALUE = VALUE(1:2:end)./VALUE(2:2:end);
+                                	[VALUE,c] = fread(HDR.FILE.FID, [2,COUNT], GDFTYP{TYP});
+                                       	VALUE = VALUE(1,:)./VALUE(2,:);
+                                else         	
+			        	[VALUE,c] = fread(HDR.FILE.FID, [1,COUNT], GDFTYP{TYP});
                                 end;
                         end;	
-                        
+
                         if ~FLAG,
                                 
                         elseif TAG==254
@@ -466,8 +488,8 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
                         elseif TAG==258	
                                 HDR.Bits = VALUE(:)';
                                 HDR.IMAGE.Size(3) = length(VALUE);
-				if any(VALUE~=VALUE(1))
-					fprintf(HDR.FILE.stderr,'Warning IOPEN: different BitsPerSample not supported.\n');
+  				if any(VALUE~=VALUE(1))
+					fprintf(HDR.FILE.stderr,'Warning IOPEN: different BitsPerSample not supported.\n');										  
 				end;
                         elseif TAG==259	
                                 HDR.TIFF.Compression = VALUE;
@@ -540,10 +562,10 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
                         elseif TAG==301,
                                 HDR.TIFF.TansferFunction = VALUE;
                         elseif TAG==305,
-                                HDR.Software = char(VALUE');
+                                HDR.Software = char(VALUE);
                         elseif TAG==306,
-                                HDR.TIFF.DateTime = char(VALUE');
-                                [tmp,status] = str2double(char(VALUE'),': ');
+                                HDR.TIFF.DateTime = char(VALUE);
+                                [tmp,status] = str2double(char(VALUE),': ');
                                 if ~any(status)
                                         HDR.T0 = tmp;
                                 end;	
@@ -569,6 +591,14 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
                                 HDR.TIFF.TileOffset = VALUE;
                         elseif TAG==325,
                                 HDR.TIFF.TileByteCount = VALUE;
+                        elseif TAG==326,
+                                HDR.TIFF.BadFaxLines = VALUE;
+                        elseif TAG==327,
+                                HDR.TIFF.CleanFaxData = VALUE;
+                        elseif TAG==328,
+                                HDR.TIFF.ConsecutiveBadFaxLines = VALUE;
+                        elseif TAG==330,
+                                HDR.TIFF.SubIFDs = VALUE;
                         elseif TAG==332,
                                 HDR.TIFF.InkSet = VALUE;
                         elseif TAG==333,
@@ -618,38 +648,58 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
                         elseif TAG==532,
                                 HDR.TIFF.ReferenceBlackWhite = VALUE;
                                 
+                        elseif TAG==700,
+                                HDR.TIFF.XML_Packet = char(VALUE);
+                                
                         elseif TAG==1024,
-                                HDR.GeoTIFF.GTModelTypeGeoKey = VALUE;
+                                HDR.TIFF.GEO.GTModelTypeGeoKey = VALUE;
                         elseif TAG==1025,
-                                HDR.GeoTIFF.GTRasterTypeGeoKey = VALUE;
+                                HDR.TIFF.GEO.GTRasterTypeGeoKey = VALUE;
                         elseif TAG==1026,
-                                HDR.GeoTIFF.GTCitationGeoKey = VALUE;
+                                HDR.TIFF.GEO.GTCitationGeoKey = VALUE;
                         elseif TAG==2048,
-                                HDR.GeoTIFF.GeographicTypeGeoKey = VALUE;
+                                HDR.TIFF.GEO.GeographicTypeGeoKey = VALUE;
                         elseif TAG==2049,
-                                HDR.GeoTIFF.GeogCitationGeoKey = VALUE;
+                                HDR.TIFF.GEO.GeogCitationGeoKey = VALUE;
                         elseif TAG==2050,
-                                HDR.GeoTIFF.GeogGeodeticDatumGeoKey = VALUE;
+                                HDR.TIFF.GEO.GeogGeodeticDatumGeoKey = VALUE;
                         elseif TAG==2051,
-                                HDR.GeoTIFF.GeogPrimeMeridianGeoKey = VALUE;
+                                HDR.TIFF.GEO.GeogPrimeMeridianGeoKey = VALUE;
                         elseif TAG==2052,
-                                HDR.GeoTIFF.GeogLinearUnitsGeoKey = VALUE;
+                                HDR.TIFF.GEO.GeogLinearUnitsGeoKey = VALUE;
                         elseif TAG==2053,
-                                HDR.GeoTIFF.GeogLinearUnitSizeGeoKey = VALUE;
+                                HDR.TIFF.GEO.GeogLinearUnitSizeGeoKey = VALUE;
                         elseif TAG==2054,
-                                HDR.GeoTIFF.GeogAngularUnitsGeoKey = VALUE;
+                                HDR.TIFF.GEO.GeogAngularUnitsGeoKey = VALUE;
                         elseif TAG==2055,
-                                HDR.GeoTIFF.GeogAngularUnitSizeGeoKey = VALUE;
+                                HDR.TIFF.GEO.GeogAngularUnitSizeGeoKey = VALUE;
                         elseif TAG==2061,
-                                HDR.GeoTIFF.GeogPrimeMeridianLongGeoKey = VALUE;
+                                HDR.TIFF.GEO.GeogPrimeMeridianLongGeoKey = VALUE;
                         elseif TAG==2061,
-                                HDR.GeoTIFF.GeogPrimeMeridianLongGeoKey = VALUE;
+                                HDR.TIFF.GEO.GeogPrimeMeridianLongGeoKey = VALUE;
                                 
                         elseif TAG==3074,
-                                HDR.GeoTIFF.ProjectionGeoKey = VALUE;
+                                HDR.TIFF.GEO.ProjectionGeoKey = VALUE;
                                 
+                        elseif TAG==32781,
+                                HDR.TIFF.ImageId = char(VALUE);
+                                
+                        elseif TAG==32995,
+                                HDR.TIFF.Matteing = VALUE;
+                        elseif TAG==32996,
+                                HDR.TIFF.DataType = VALUE;
+                        elseif TAG==32997,
+                                HDR.TIFF.ImageDepth = VALUE;
+                        elseif TAG==32998,
+                                HDR.TIFF.TileDepth = VALUE;
+
                         elseif TAG==33432,
                                 HDR.Copyright = char(VALUE);
+                                
+                        elseif TAG==33550,
+                                HDR.TIFF.GEO.ModelPixelScale = VALUE;
+                        elseif TAG==33922,
+                                HDR.TIFF.GEO.ModelTiepoint = VALUE';
                                 
                         elseif TAG==34016,
                                 HDR.TIFF.IT8.Site = VALUE;
@@ -682,12 +732,22 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
                         elseif TAG==34030,
                                 HDR.TIFF.IT8.t34030 = VALUE;
                                 
+                        elseif TAG==34377,
+                                HDR.TIFF.Photoshop = VALUE;
+                        elseif TAG==34665,
+                                HDR.TIFF.EXIF_IFD = VALUE;
+
+                        elseif TAG==34735,
+                                HDR.TIFF.GEO.KeyDirectory = VALUE;
+                        elseif TAG==34737,
+                                HDR.TIFF.GEO.ASCII_Params = char(VALUE);
+                                
                         elseif 1, %TAG<2^15,        
                                 fprintf(HDR.FILE.stdout,'IOPEN(TIFF): TAG %d %xH used\n',TAG,TAG)
                         else
                         end;	
                         K = K + 1;
-                        status = fseek(HDR.FILE.FID,POS+12,'bof');
+                        status = fseek(HDR.FILE.FID,POS+12+8*HDR.FLAG.BigTIFF,'bof');
                 end;
                 [OFFSET, c] = fread(HDR.FILE.FID, 1, 'uint32');
         end;

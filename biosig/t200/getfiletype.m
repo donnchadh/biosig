@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.38 $
-%	$Id: getfiletype.m,v 1.38 2005-07-01 22:40:45 schloegl Exp $
+%	$Revision: 1.39 $
+%	$Id: getfiletype.m,v 1.39 2005-07-08 19:57:52 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -643,9 +643,19 @@ else
                 elseif all(s(1:4)==[73,73,42,0]); 
                         HDR.TYPE='IMAGE:TIFF';
                         HDR.Endianity = 'ieee-le';
+                        HDR.FLAG.BigTIFF = 0; 
                 elseif all(s(1:4)==[77,77,0,42]); 
                         HDR.TYPE='IMAGE:TIFF';
                         HDR.Endianity = 'ieee-be';
+                        HDR.FLAG.BigTIFF = 0; 
+                elseif all(s(1:8)==[73,73,43,0,8,0,0,0]); 
+                        HDR.TYPE='IMAGE:TIFF';
+                        HDR.Endianity = 'ieee-le';
+                        HDR.FLAG.BigTIFF = 1; 
+                elseif all(s(1:8)==[77,77,0,43,0,8,0,0]); 
+                        HDR.TYPE='IMAGE:TIFF';
+                        HDR.Endianity = 'ieee-be';
+                        HDR.FLAG.BigTIFF = 1; 
                 elseif strncmp(ss,'StockChartX',11); 
                         HDR.TYPE='STX';
                 elseif all(ss(1:2)==[25,149]); 
