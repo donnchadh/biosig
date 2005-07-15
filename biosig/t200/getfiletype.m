@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.39 $
-%	$Id: getfiletype.m,v 1.39 2005-07-08 19:57:52 schloegl Exp $
+%	$Revision: 1.40 $
+%	$Id: getfiletype.m,v 1.40 2005-07-15 20:59:50 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -126,6 +126,8 @@ else
                         HDR.TYPE='BKR';
                 elseif strncmp(ss,'Version 3.0',11); % Neuroscan 
                         HDR.TYPE='CNT';
+                elseif strncmp(ss,'NSI TFF',7); % Neuroscan 
+                        HDR.TYPE='AST';
                 elseif strncmp(ss,'Brain Vision Data Exchange Header File',38); 
                         HDR.TYPE = 'BrainVision';
                 elseif strncmp(ss,'0       ',8); 
@@ -401,6 +403,7 @@ else
                         HDR.TYPE='FS4';
                 elseif all(s(1:3)==[0,1,134]) & any(s(4)==[162:164]); 	% SCAN *.TRI file 
                         HDR.TYPE='TRI';
+                        
                 elseif all((s(1:4)*(2.^[24;16;8;1]))==1229801286); 	% GE 5.X format image 
                         HDR.TYPE='5.X';
                         
@@ -781,9 +784,18 @@ else
                         end;
 			end;
                 end;
+
+                if strcmp(HDR.TYPE,'unknown')
+                        frewind(fid);
+                        s = fread(fid,[1,1e5],'uint8');
+                        if all((s>=32) | (s==9) | (s==10) | (s==13));
+                                HDR.FLAG.ASCII = 1; 
+                                s = char(s);
+                        end; 
+                end;
         end;
         fclose(fid);
-        
+
         if strcmpi(HDR.TYPE,'unknown'),
                 % alpha-TRACE Medical software
                 if exist(fullfile(HDR.FILE.Path,'alpha.alp'),'file')
@@ -822,6 +834,24 @@ else
                         end
                         if ~isempty(tmp), 
                                 HDR = getfiletype(tmp);
+                        elseif HDR.FLAG.ASCII,
+                                [NUM, STATUS,STRARRAY] = str2double(char(s));
+                                if (size(NUM,2)<4) & ~any(any(STATUS))
+                                        %HDR.Label = strvcat(STRARRAY(:,2));
+                                        HDR.ELPOS = NUM(:,2:3); 
+                                        HDR.CHAN = NUM(:,1); 
+                                        HDR.TYPE = 'ELPOS_ThetaPhi'; 
+                                elseif ~any(any(STATUS))
+                                        %HDR.Label = strvcat(STRARRAY(:,2));
+                                        HDR.ELPOS = NUM(:,2:4); 
+                                        HDR.CHAN = NUM(:,1); 
+                                        HDR.TYPE = 'ELPOS_XYZ'; 
+                                elseif ~any(any(STATUS(:,[1,3:4])))
+                                        HDR.Label = strvcat(STRARRAY(:,2));
+                                        HDR.ELPOS = NUM(:,3:4); 
+                                        HDR.CHAN = NUM(:,1); 
+                                        HDR.TYPE = 'ELPOS_?'; 
+                                end;
                         end
                         
                 elseif strcmpi(HDR.FILE.Ext,'rhf'),
@@ -851,8 +881,6 @@ else
                 elseif strcmpi(HDR.FILE.Ext,'trg')
                         
                 elseif strcmpi(HDR.FILE.Ext,'rej')
-                        
-                elseif strcmpi(HDR.FILE.Ext,'elc')
                         
                 elseif strcmpi(HDR.FILE.Ext,'vol')
                         
@@ -947,12 +975,99 @@ else
                         
                 elseif strcmpi(HDR.FILE.Ext,'bdip')
                         
-                elseif strcmpi(HDR.FILE.Ext,'elp')
-                        
-                elseif strcmpi(HDR.FILE.Ext,'sfp')
-                        
                 elseif strcmpi(HDR.FILE.Ext,'ela')
                         
+                elseif strncmp(s,'NumberPositions',15) & strcmpi(HDR.FILE.Ext,'elc') & HDR.FLAG.ASCII;  % Polhemus 
+                        K = 0; 
+                        [tline, s] = strtok(s, [10,13]);
+                        while ~isempty(s),
+                                [num, stat, strarray] = str2double(tline); 
+                                if strcmp(strarray{1},'NumberPositions')
+                                        NK = num(2); 
+                                elseif strcmp(strarray{1},'UnitPosition')
+                                        HDR.ELPOS_Unit = strarray{2};
+                                elseif strcmp(strarray{1},'Positions')
+                                        ix = strfind(s,'Labels');
+                                        ix = min([ix-1,length(s)]);
+                                        [num, stat, strarray] = str2double(s(1:ix));
+                                        s(1:ix) = [];
+                                        if ~any(any(stat))
+                                                HDR.ELPOS_XYZ = num; 
+                                                HDR.TYPE = 'ELPOS_XYZ'; 
+                                        end;
+                                elseif strcmp(strarray{1},'Labels')
+                                        [tline, s] = strtok(s, [10,13]); 
+                                        [num, stat, strarray] = str2double(tline);
+                                        HDR.Label = strarray';
+                                end
+                                [tline, s] = strtok(s, [10,13]);
+                        end;
+                        
+                elseif strncmp(s,'Site',4) & strcmpi(HDR.FILE.Ext,'txt') & HDR.FLAG.ASCII; 
+                        [line1, s] = strtok(s, [10,13]); 
+                        s(s==',') = '.';
+                        [NUM, STATUS, STRARRAY] = str2double(s,[9,32]);
+                        if (size(NUM,2)==3) & ~any(any(STATUS(:,2:3)))
+                                HDR.Label = strvcat(STRARRAY(:,1));
+                                HDR.ELPOS_ThetaPhi = NUM(:,2:3); 
+                                HDR.TYPE = 'ELPOS_ThetaPhi'; 
+                        elseif (size(NUM,2)==4) & ~any(any(STATUS(:,2:4)))
+                                HDR.Label = strvcat(STRARRAY(:,1));
+                                HDR.ELPOS_XYZ = NUM(:,2:4); 
+                                HDR.TYPE = 'ELPOS_XYZ'; 
+                        end;
+                        
+                elseif strcmpi(HDR.FILE.Ext,'elp') & HDR.FLAG.ASCII
+                        s = char(s); 
+                        [line1,s]=strtok(s,[10,13]);
+                        [NUM, STATUS,STRARRAY] = str2double(char(s));
+                        if size(NUM,2)==3,
+                                if ~any(any(STATUS(:,2:3)))
+                                        HDR.Label = strvcat(STRARRAY(:,1));
+                                        HDR.ELPOS = NUM(:,2:3); 
+                                        HDR.CHAN = NUM(:,1); 
+                                        HDR.TYPE = 'ELPOS_ThetaPhi'; 
+                                end;
+                        elseif size(NUM,2)==4,
+                                if ~any(any(STATUS(:,3:4)))
+                                        HDR.Label = strvcat(STRARRAY(:,2));
+                                        HDR.ELPOS = NUM(:,3:4); 
+                                        HDR.CHAN = NUM(:,1); 
+                                        HDR.TYPE = 'ELPOS_ThetaPhi'; 
+                                end;
+                        end;
+                        
+                elseif strcmpi(HDR.FILE.Ext,'ced') & HDR.FLAG.ASCII     
+                        [line1,s]=strtok(char(s),[10,13]);
+                        [NUM, STATUS,STRARRAY] = str2double(char(s));
+                        if ~any(any(STATUS(:,[1,5:7])))
+                                HDR.Label = strvcat(STRARRAY(:,1));
+                                HDR.ELPOS = NUM(:,5:7); 
+                                HDR.CHAN = NUM(:,1); 
+                                HDR.TYPE = 'ELPOS_XYZ'; 
+                        end;
+                        
+                elseif (strcmpi(HDR.FILE.Ext,'loc') | strcmpi(HDR.FILE.Ext,'locs')) & HDR.FLAG.ASCII      
+                        [line1,s]=strtok(char(s),[10,13]);
+                        [NUM, STATUS,STRARRAY] = str2double(char(s));
+                        if ~any(any(STATUS(:,1:3)))
+                                HDR.Label = strvcat(STRARRAY(:,4));
+                                HDR.ELPOS = NUM(:,2:3); 
+                                HDR.CHAN = NUM(:,1); 
+                                HDR.TYPE = 'ELPOS_ThetaR'; 
+                        end;
+                        
+                elseif strcmpi(HDR.FILE.Ext,'sfp') & HDR.FLAG.ASCII     
+                        s = char(s); 
+                        if all((s>=32) | (s==9) | (s==10) | (s==13))
+                                [NUM, STATUS,STRARRAY] = str2double(char(s));
+                                if ~any(any(STATUS(:,2:4)))
+                                        HDR.Label = strvcat(STRARRAY(:,1));
+                                        HDR.ELPOS = NUM(:,2:4); 
+                                        HDR.TYPE = 'ELPOS_XYZ'; 
+                                end;
+                        end;
+                
                 elseif strcmpi(HDR.FILE.Ext,'trl')
                         
                 elseif (length(HDR.FILE.Ext)>2) & all(s>31),
