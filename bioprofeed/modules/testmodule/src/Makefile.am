@@ -8,6 +8,9 @@ INCLUDES = \
 
 lib_LTLIBRARIES	= testmodule.la
 
+testmodule_la_CPPFLAGS = \
+	-Wall
+
 testmodule_la_SOURCES = \
 	main.c \
 	support.c support.h \
