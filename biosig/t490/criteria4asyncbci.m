@@ -2,7 +2,8 @@ function [X] = criteria4asyncbci(D0, TRIG, dbtime,Fs)
 % CRITERIA4ASYNCBCI provides an evaluation criterion of asychronous BCI. 
 % based on the discussion at the BCI2005 meeting in Rensellearville.  
 %
-% X = CRITERIA4ASYNCBCI(D-Threshold, TRIG, db_time,Fs)
+% X = CRITERIA4ASYNCBCI(D - Threshold, TRIG, db_time,Fs)
+% X = CRITERIA4ASYNCBCI(D - Threshold, STATE, [] ,Fs)
 %   D           detector output
 %               each column the output for each of the N states. 
 %               if all values are lower than the Threshold, the 
@@ -13,19 +14,22 @@ function [X] = criteria4asyncbci(D0, TRIG, dbtime,Fs)
 %                       TRIG{n} contains the list of trigger times for
 %                       state n. The number of detector traces (columns)
 %                       must be 1+number of states.
-%   db_time     debouncing time in second
+%   db_time     debouncing time in seconds
 %   Fs          sampling rate (default = 1Hz)
+%   STATE       "true" state 
 %
 %   X.TPR       True Positive Ratio
 %   X.FPR       False Positive Ratio / False alarm rate
 %   X.db_time   debouncing time 
 %   X.H         confusion matrix       
+%   X.AUC       area-under-the-curve.
 % 
 %
-% X = CRITERIA4ASYNCBCI(D, C, ., Fs)
+% X = CRITERIA4ASYNCBCI(D, STATE, [], Fs)
 %   D           State of detector output (discrete values, D=0 indicates no-control state) 
-%   C           Target state
+%   STATE           Target state 
 % 
+%
 %
 % 
 %
@@ -34,7 +38,7 @@ function [X] = criteria4asyncbci(D0, TRIG, dbtime,Fs)
 
 
 
-%    $Id: criteria4asyncbci.m,v 1.5 2005-07-02 00:02:14 schloegl Exp $
+%    $Id: criteria4asyncbci.m,v 1.6 2005-07-15 20:58:52 schloegl Exp $
 %    Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -66,24 +70,24 @@ function [X] = criteria4asyncbci(D0, TRIG, dbtime,Fs)
 %%              [tmp,D] = max(D0,[],2); 
 %%              D(isnan(tmp)) = Nan;    % not classified 
 %%              D(tmp<Threshold) = 0;   % NC state
-%% C    target class; continuos in time, discrete states, same size than D
-%%              C can be constructed from TRIG and dbtime
+%% STATE    target class; continuos in time, discrete states, same size than D
+%%              STATE can be constructed from TRIG and dbtime
 %%  
 %%
 %%
 
-
-Mode = 1;       % basic level, NC and one C state
+Mode = 1;       % basic level, NC and one STATE state
 X.datatype = 'Criteria_Asychronous_BCI'; 
-X.db_time = dbtime; 
 
 if nargin<4,
         Fs = 1; 
 end;
+
 dbtime = round(dbtime*Fs);
 
+M1 = size(D0,2);         
 if iscell(TRIG(1))      % multiple states
-        M = max(length(TRIG),size(D0,2));       
+        M2 = length(TRIG); 
         if length(TRIG)~=size(D0,2),
                 warning('number of states does not fit number of detector traces');     
         end;
@@ -96,52 +100,69 @@ if iscell(TRIG(1))      % multiple states
         TRIG = T; 
         Mode = 2; 
 else
+        M2 = 1; 
         CL = ones(numel(TRIG),1);
 end;
-[TRIG,ix] = sort(TRIG*Fs); 
-CL = CL(ix);    % classlabels 
 
-if any(diff(TRIG) < dbtime)
-        warning('overlapping detection window - dbtime reduced');
-	dbtime = min(diff(TRIG))-1;
+FLAG.CONTINOUS = M1>1; 
+if ~FLAG.CONTINOUS 
+        tmp = D0(~isnan(D0)); 
+        FLAG.CONTINOUS  = ~all(round(tmp)==tmp);
 end;
-%### OPEN QUESTION(s): 
-%###    is there a reasonable way to deal with overlapping windows ? 
-
 % classifies transducer output / applies threshold
+
 if size(D0,2)>1,
         [tmp,D] = max(D0,[],2);
-        D(tmp<0)= 0;  
         D(isnan(tmp)) = NaN; 
-        Mode = 2; 
-else
+        D(tmp<0)= 0;                     % D=0,1,2, ... indicate output states N, A, B, ... respectively,
+elseif FLAG.CONTINOUS,
         D = D0>0; 
+else 
+        D = D0; 
+        M1 = max(D);
 end; 
-C  = zeros(size(D));
-d1 = real(D>0);
-for k = 1:length(TRIG)                
-        d1(TRIG(k):TRIG(k)+dbtime) = NaN;       % de-select (mark with NaN) all samples within window
-        C(TRIG(k):TRIG(k)+dbtime)  = CL(k);     % generate target state from TRIG and DBTIME
+
+if isempty(dbtime)
+        STATE = TRIG;  
+else         
+        [TRIG,ix] = sort(TRIG*Fs); 
+        CL = CL(ix);    % classlabels 
+        
+        if any(diff(TRIG) < dbtime)
+                warning('overlapping detection window - dbtime reduced');
+                dbtime = min(diff(TRIG))-1;
+        end;
+        %### OPEN QUESTION(s): 
+        %###    is there a reasonable way to deal with overlapping windows ? 
+        
+        STATE  = zeros(size(D));
+        d1 = real(D>0);
+        for k = 1:length(TRIG)                
+                d1(TRIG(k):TRIG(k)+dbtime) = NaN;       % de-select (mark with NaN) all samples within window
+                STATE(TRIG(k):TRIG(k)+dbtime)  = CL(k);     % generate target state from TRIG and DBTIME
+        end;
 end;
 
-% signal detection theory applied on a sample-basis for multiple classes
-[KAP1, kapSD1, H, z] = kappa(D,C);
+        % signal detection theory applied on a sample-basis for multiple classes
+[KAP1, kapSD1, H, z] = kappa(STATE, D);
 X.AS.H   = H; 					% confusion matrix 
-X.AS.H0  = H./(ones(size(H,1),1)*sum(H,1));     % normalized by total time for each target state. 
+X.AS.H0  = H./(sum(H,2)*ones(1,size(H,2)));     % normalized by total time for each target state. 
 [KAP2, kapSD2] = kappa(X.AS.H0);
 X.AS.KAP = KAP2; % or KAP1 ?  
 X.AS.kapSD = kapSD2; % or kapSD1 ?  
 
 X.AS.AUC = NaN; 	
-if any(size(D0,2)==[1,M])
-	for k = 1:M,
-    		X.AS.AUC(k) = auc(D0(:,k),C==k); 
+if FLAG.CONTINOUS %any(size(D0,2)==[1,M])
+	for k = 1:M1,
+    		X.AS.AUC(k) = auc(D0(:,k),STATE==k); 
 	end;
 end;
 
+%%% still missing 
 
-if Mode > 1, return; end; 
-    % following code not ready for more than 1 control (C) state
+
+if any([M1,M2]>1), return; end; 
+    % following code not ready for more than 1 control state
 
 
 N0     = length(TRIG);                      % number of trigger events 
