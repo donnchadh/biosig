@@ -1,3 +1,4 @@
+/* vim: set ts=4: */
 #ifndef _SQUEUE_H_
 #define _SQUEUE_H_
 

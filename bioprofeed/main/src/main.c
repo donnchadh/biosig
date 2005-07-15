@@ -1,3 +1,4 @@
+/* vim: set ts=4: */
 #include <stdio.h>
 #include <stdlib.h>
 #ifndef EXIT_FAILURE

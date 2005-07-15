@@ -1,8 +1,9 @@
+/* vim: set ts=4: */
 #include <gtk/gtk.h>
-#include <pthread.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <gdk/gdkx.h>
+#include <glib.h>
 
 #include "dataaq.h"
 #include "bsv_module.h"
@@ -25,8 +26,8 @@ extern GtkWidget*				bsv_main_win;
 
 /* Global Variables ***********************************************************/
 
-static pthread_t				reader;
-static pthread_mutex_t			state_mtx;
+static GThread*					reader_ptr;
+static GMutex*					state_mtx_ptr;
 static volatile unsigned char	state		= DEAD;
 
 
@@ -111,29 +112,29 @@ static void* read_data(void* param)
 	}
 
 	/* Start main loop */
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	if( state == ALIVE ) {
 		state	= RUNNING;
 	} else {
-		pthread_mutex_unlock(&state_mtx);
+		g_mutex_unlock(state_mtx_ptr);
 		goto bsv_exit;
 	}
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
 	gdk_threads_enter();
 	__change_but_state();
 	gdk_threads_leave();
 
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	while( state != DYING ) {
-		pthread_mutex_unlock(&state_mtx);
+		g_mutex_unlock(state_mtx_ptr);
 
 		/* Get samples */
 		if( !(s_ptr = bsv_get_data()) ) {
 			/* Timeout or other error */
 			display_errormsg( bsv_get_errormsg() );
 
-			pthread_mutex_lock(&state_mtx);
+			g_mutex_lock(state_mtx_ptr);
 			state	= DYING;
 			continue;
 		}
@@ -142,21 +143,21 @@ static void* read_data(void* param)
 		if( d_set_samples(s_ptr) ) {
 			display_errormsg( d_get_errormsg() );
 
-			pthread_mutex_lock(&state_mtx);
+			g_mutex_lock(state_mtx_ptr);
 			state	= DYING;
 			continue;
 		}
 		if( gf_set_samples(s_ptr) ) {
 			display_errormsg( gf_get_errormsg() );
 
-			pthread_mutex_lock(&state_mtx);
+			g_mutex_lock(state_mtx_ptr);
 			state	= DYING;
 			continue;
 		}
 
-		pthread_mutex_lock(&state_mtx);
+		g_mutex_lock(state_mtx_ptr);
 	}
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
 	gdk_threads_enter();
 	__change_but_state();
@@ -174,15 +175,15 @@ d_exit:
 	d_cleanup();
 
 exit:
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	state	= DEAD;
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
 	gdk_threads_enter();
 	__change_but_state();
 	gdk_threads_leave();
 
-	pthread_exit(NULL);
+	g_thread_exit(NULL);
 }
 
 
@@ -191,7 +192,7 @@ exit:
 void da_init(void)
 {
 	/* init mutex */
-	pthread_mutex_init(&state_mtx, NULL);
+	state_mtx_ptr = g_mutex_new();
 }
 
 void da_destroy(void)
@@ -199,14 +200,14 @@ void da_destroy(void)
 	da_stop();
 
 	/* destroy mutex */
-	pthread_mutex_destroy(&state_mtx);
+	g_mutex_free(state_mtx_ptr);
 }
 
 void da_start(void)
 {
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	if( state != DEAD ) {
-		pthread_mutex_unlock(&state_mtx);
+		g_mutex_unlock(state_mtx_ptr);
 
 		/* already started */
 		return;
@@ -214,19 +215,19 @@ void da_start(void)
 
 	/* set new state */
 	state	= ALIVE;
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
 	__change_but_state();
 
 	/* start thread */
-	pthread_create(&reader, NULL, read_data, NULL);
+	reader_ptr = g_thread_create(read_data, NULL, TRUE, NULL);
 }
 
 void da_stop(void)
 {
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	if( state != RUNNING && state != ALIVE ) {
-		pthread_mutex_unlock(&state_mtx);
+		g_mutex_unlock(state_mtx_ptr);
 
 		/* not running */
 		return;
@@ -234,7 +235,7 @@ void da_stop(void)
 
 	/* set new state */
 	state	= DYING;
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
 	/* Change but state when thread exited the main loop */
 }

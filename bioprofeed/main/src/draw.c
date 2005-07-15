@@ -1,12 +1,12 @@
+/* vim: set ts=4: */
 #include <stdio.h>
 #include <sys/queue.h>
 #include <gtk/gtk.h>
 #include <unistd.h>
-#include <pthread.h>
-#include <semaphore.h>
 #include <sys/stat.h>
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
+#include <glib.h>
 
 #include "draw.h"
 #include "pref.h"
@@ -75,15 +75,17 @@ typedef struct d_chan {
 static CIRCLEQ_HEAD(circleq, d_chan)	head;
 static int								channum			= 0;
 static GtkWidget*						drawarea		= NULL;
-static sem_t							start_sem;
-static pthread_mutex_t					state_mtx;
+static GMutex*							start_mtx_ptr;
+static GCond*							start_con_ptr;
+static GMutex*							state_mtx_ptr;
 static volatile unsigned char			state			= DEAD;
+static volatile unsigned char			wait_cnt		= 0;
 static bsv_data_t*						sample_ptr		= NULL;
 static GdkGC*							draw_color		= NULL;
 static GdkGC*							grid_color		= NULL;
 static GdkGC*							erase_color		= NULL;
 static char*							errormsg_ptr	= NULL;
-static pthread_t						drawer; 
+static GThread*							drawer_ptr; 
 static char*							terrormsg_ptr	= NULL;
 static int								channel_offset	= 0;
 
@@ -776,28 +778,44 @@ static int redraw(void)
 static void* draw_data(void* param)
 {
 	/* First redraw */
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	if( state == ALIVE ) {
 		state	= REDRAWING;
-		sem_post(&start_sem);
 	} else {
-		pthread_mutex_unlock(&state_mtx);
+		g_mutex_unlock(state_mtx_ptr);
 		goto exit;
 	}
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
 	say("draw_data",
 		"REDRAWING");
 
 	while(1) {
-		/* Wait for something to draw */
-		sem_wait(&start_sem);
+		g_mutex_lock(state_mtx_ptr);
+		if( state == RUNNING ) {
+			g_mutex_unlock(state_mtx_ptr);
+
+			/* Wait for something to draw */
+			g_mutex_lock(start_mtx_ptr);
+
+			/* Increase wait counter */
+			wait_cnt++;
+
+			g_cond_wait(start_con_ptr, start_mtx_ptr);
+
+			/* Decrease wait counter */
+			wait_cnt--;
+
+			g_mutex_unlock(start_mtx_ptr);
+		} else {
+			g_mutex_unlock(state_mtx_ptr);
+		}
 
 		/* Check state */
-		pthread_mutex_lock(&state_mtx);
+		g_mutex_lock(state_mtx_ptr);
 		switch( state) {
 			case RUNNING:
-				pthread_mutex_unlock(&state_mtx);
+				g_mutex_unlock(state_mtx_ptr);
 				/* Draw */
 				if( draw_samples() ) {
 					goto exit;
@@ -805,34 +823,34 @@ static void* draw_data(void* param)
 			break;
 				
 			case REDRAWING:
-				pthread_mutex_unlock(&state_mtx);
+				g_mutex_unlock(state_mtx_ptr);
 				/* Redraw */
 				if( redraw() ) {
 					goto exit;
 				}
 
 				/* New state */
-				pthread_mutex_lock(&state_mtx);
+				g_mutex_lock(state_mtx_ptr);
 				state	= RUNNING;
-				pthread_mutex_unlock(&state_mtx);
+				g_mutex_unlock(state_mtx_ptr);
 			break;	
 
 			default:
-				pthread_mutex_unlock(&state_mtx);
+				g_mutex_unlock(state_mtx_ptr);
 				/* DYING, aso... */
 				goto exit;
 		}
 	}
 
 exit:
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	state	= DEAD;
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
 	say("draw_data",
 		"DEAD");
 
-	pthread_exit(NULL);
+	g_thread_exit(NULL);
 }
 
 
@@ -841,8 +859,9 @@ exit:
 void d_init(void)
 {
 	CIRCLEQ_INIT(&head);
-	pthread_mutex_init(&state_mtx, NULL);
-	sem_init(&start_sem, 0, 0);
+	state_mtx_ptr = g_mutex_new();
+	start_mtx_ptr = g_mutex_new();
+	start_con_ptr = g_cond_new();
 
 	drawarea	= (GtkWidget*)lookup_widget(bsv_main_win, "drawingarea");
 	init_drawarea();
@@ -852,7 +871,9 @@ void d_destroy(void)
 {
 	d_cleanup();
 
-	pthread_mutex_destroy(&state_mtx);
+	g_mutex_destroy(state_mtx_ptr);
+	g_mutex_destroy(start_mtx_ptr);
+	g_cond_free(start_con_ptr);
 }
 
 int d_setup(void)
@@ -867,14 +888,11 @@ int d_setup(void)
 		return -1;
 	}
 
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	if( state != DEAD ) {
 		/* set new state */
 		state	= DEAD;
-		pthread_mutex_unlock(&state_mtx);
-
-		/* Force quit */
-		pthread_cancel(drawer);
+		g_mutex_unlock(state_mtx_ptr);
 
 		/* Error */
 		errormsg_ptr	= "d_setup: Error: Thread was running";
@@ -883,19 +901,19 @@ int d_setup(void)
 
 	/* set new state */
 	state	= ALIVE;
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
 	/* start thread */
-	pthread_create(&drawer, NULL, draw_data, NULL);
+	drawer_ptr = g_thread_create(draw_data, NULL, TRUE, NULL);
 
 	return 0;
 }
 
 void d_cleanup(void)
 {
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	if( state != RUNNING && state != REDRAWING && state != ALIVE ) {
-		pthread_mutex_unlock(&state_mtx);
+		g_mutex_unlock(state_mtx_ptr);
 
 		/* Error */
 		goto exit;
@@ -903,10 +921,10 @@ void d_cleanup(void)
 
 	/* set new state */
 	state	= DYING;
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
-	sem_post(&start_sem);
-	pthread_join(drawer, NULL);
+	g_cond_signal(start_con_ptr);
+	g_thread_join(drawer_ptr);
 
 exit:
 	cleanup_drawarea();
@@ -920,23 +938,25 @@ int d_set_samples(void* s_ptr)
 	say("d_set_samples",
 		"d_set_samples");
 
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	switch( state ) {
 		case RUNNING:
-			pthread_mutex_unlock(&state_mtx);
+			g_mutex_unlock(state_mtx_ptr);
 
-			/* sanity check */
-			if( !sem_trywait(&start_sem) ) {
-				sem_post(&start_sem);
-				say("d_set_samples", 
-				//printf("d_set_samples: "
-					"Warning: previous write operation has not finished\n");
+			/* Check if thread is waiting */
+			g_mutex_lock(start_mtx_ptr);
+			if( !wait_cnt ) {
+				g_mutex_unlock(start_mtx_ptr);
+				printf("d_set_samples: Warning: previous write "
+					   "operation has not finished\n");
 				return 0;
+			} else {
+				g_mutex_unlock(start_mtx_ptr);
 			}
 
 			/* set samples */
 			sample_ptr		= (bsv_data_t*)s_ptr;
-			sem_post(&start_sem);
+			g_cond_signal(start_con_ptr);
 
 			say("d_set_samples",
 				"s1:%d s2:%d", 
@@ -946,13 +966,13 @@ int d_set_samples(void* s_ptr)
 		
 		case REDRAWING:
 		case ALIVE:
-			pthread_mutex_unlock(&state_mtx);
+			g_mutex_unlock(state_mtx_ptr);
 
 			/* Ignore samples */
 			return 0;
 			
 		default:
-			pthread_mutex_unlock(&state_mtx);
+			g_mutex_unlock(state_mtx_ptr);
 
 			/* Error */
 			if( terrormsg_ptr ) {
@@ -987,13 +1007,13 @@ void d_redraw(void)
 	say("d_redraw",
 		"redraw");
 
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	if( state == RUNNING ) {
 		/* Set new state */
 		state	= REDRAWING;
-		sem_post(&start_sem);
+		g_cond_signal(start_con_ptr);
 	}
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 }
 
 char* d_get_errormsg(void)

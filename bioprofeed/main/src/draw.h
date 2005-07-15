@@ -1,3 +1,4 @@
+/* vim: set ts=4: */
 #ifndef _DRAW_H_
 #define _DRAW_H_
 

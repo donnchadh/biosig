@@ -1,3 +1,4 @@
+/* vim: set ts=4: */
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
@@ -28,7 +29,7 @@ start_acquistion                       (GtkButton       *button,
                                         gpointer         user_data)
 {
 	da_start();
- }
+}
 
 
 void

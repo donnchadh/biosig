@@ -1,3 +1,4 @@
+/* vim: set ts=4 */
 #ifndef _PREF_H_
 #define _PREF_H_
 

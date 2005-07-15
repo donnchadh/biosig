@@ -1,3 +1,4 @@
+/* vim: set ts=4: */
 #ifndef _DATAAQ_H_
 #define _DATAAQ_H_
 

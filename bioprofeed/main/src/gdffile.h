@@ -1,3 +1,4 @@
+/* vim: set ts=4: */
 #ifndef _GDFFILE_H_
 #define _GDFFILE_H_
 

@@ -1,3 +1,4 @@
+/* vim: set ts=4: */
 #include <stdio.h>
 #include <sys/queue.h>
 #include <unistd.h>
@@ -25,7 +26,9 @@ typedef struct sq_item {
 /* Variables ******************************************************************/
 
 static CIRCLEQ_HEAD(circleq, sq_item)	head;
-static pthread_mutex_t					mtx;
+static GMutex*							mtx_ptr;
+static GMutex*							con_mtx_ptr;
+static GCond*							con_ptr;
 static int								cnt;
 static sem_t							sem;
 
@@ -35,24 +38,26 @@ static sem_t							sem;
 void sq_init(void)
 {
 	CIRCLEQ_INIT(&head);
-	pthread_mutex_init(&mtx, NULL);
-	cnt	= -1;
+	mtx_ptr		= g_mutex_new();
+	con_mtx_ptr	= g_mutex_new();
+	con_ptr		= g_cond_new();
+	cnt		= -1;
 }
 
 void sq_destroy(void)
 {
 	sq_cleanup();
 
-	pthread_mutex_destroy(&mtx);
+	g_mutex_free(mtx_ptr);
+	g_mutex_free(con_mtx_ptr);
+	g_cond_free(con_ptr);
 }
 
 int sq_setup(void)
 {
-	sem_init(&sem, 0, 0);
-
-	pthread_mutex_lock(&mtx);
+	g_mutex_lock(mtx_ptr);
 	cnt		= 0;
-	pthread_mutex_unlock(&mtx);
+	g_mutex_unlock(mtx_ptr);
 
 	return 0;
 }
@@ -61,7 +66,7 @@ void sq_cleanup(void)
 {
 	sq_item_t*	item;
 
-	pthread_mutex_lock(&mtx);
+	g_mutex_lock(mtx_ptr);
 	while(head.cqh_first != (void*)&head) {
 		item	= head.cqh_first;
 		CIRCLEQ_REMOVE(&head, head.cqh_first, entries);
@@ -71,30 +76,30 @@ void sq_cleanup(void)
 
 	/* Exit */
 	cnt	= -1;
-	pthread_mutex_unlock(&mtx);
+	g_mutex_unlock(mtx_ptr);
 
-	sem_post(&sem);
+	g_cond_signal(con_ptr);
 }
 
 void sq_exit(void)
 {
-	pthread_mutex_lock(&mtx);
+	g_mutex_lock(mtx_ptr);
 	cnt	= -1;
-	pthread_mutex_unlock(&mtx);
+	g_mutex_unlock(mtx_ptr);
 
-	sem_post(&sem);
+	g_cond_signal(con_ptr);
 }
 
 int sq_append_data(void* data, int size)
 {
 	sq_item_t*	item;
 
-	pthread_mutex_lock(&mtx);
+	g_mutex_lock(mtx_ptr);
 	if( cnt < 0 || cnt > MAXSIZE) {
-		pthread_mutex_unlock(&mtx);
+		g_mutex_unlock(mtx_ptr);
 		return -1;
 	}
-	pthread_mutex_unlock(&mtx);
+	g_mutex_unlock(mtx_ptr);
 
 	item	= malloc(sizeof(sq_item_t));
 	if( !item ) {
@@ -109,14 +114,14 @@ int sq_append_data(void* data, int size)
 
 	memcpy(item->data, data, size);
 
-	pthread_mutex_lock(&mtx);
+	g_mutex_lock(mtx_ptr);
 	CIRCLEQ_INSERT_TAIL(&head, item, entries);
 
 	/* Data available */
 	cnt++;
-	pthread_mutex_unlock(&mtx);
+	g_mutex_unlock(mtx_ptr);
 
-	sem_post(&sem);
+	g_cond_signal(con_ptr);
 
 	return 0;
 }
@@ -127,32 +132,34 @@ void* sq_remove_data(void)
 	void*		data;
 
 	/* If setup has not been called don't wait */
-	pthread_mutex_lock(&mtx);
+	g_mutex_lock(mtx_ptr);
 	if( cnt < 0 ) {
-		pthread_mutex_unlock(&mtx);
+		g_mutex_unlock(mtx_ptr);
 		return NULL;
 	}
-	pthread_mutex_unlock(&mtx);
+	g_mutex_unlock(mtx_ptr);
 
 	/* Wait */
-	sem_wait(&sem);
+	g_mutex_lock(con_mtx_ptr);
+	g_cond_wait(con_ptr, con_mtx_ptr);
+	g_mutex_unlock(con_mtx_ptr);
 
 	/* Return data or exit */
-	pthread_mutex_lock(&mtx);
+	g_mutex_lock(mtx_ptr);
 	if( cnt < 0 ) {
-		pthread_mutex_unlock(&mtx);
+		g_mutex_unlock(mtx_ptr);
 		return NULL;
 	}
 
 	if(head.cqh_first == (void*)&head) {
-		pthread_mutex_unlock(&mtx);
+		g_mutex_unlock(mtx_ptr);
 		return NULL;
 	}
 	
 	item	= head.cqh_first;
 	CIRCLEQ_REMOVE(&head, head.cqh_first, entries);
 	cnt--;
-	pthread_mutex_unlock(&mtx);
+	g_mutex_unlock(mtx_ptr);
 
 	data	= item->data;
 	free(item);

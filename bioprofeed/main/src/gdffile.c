@@ -1,10 +1,9 @@
+/* vim: set ts=4: */
 #include <stdio.h>
 #include <gtk/gtk.h>
 #include <sys/queue.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <pthread.h>
-#include <semaphore.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <time.h>
@@ -105,9 +104,9 @@ static CIRCLEQ_HEAD(circleq, gf_vheader)	head;
 static int									fd				= -1;
 static char*								errormsg_ptr	= NULL;
 static char* 								terrormsg_ptr	= NULL;
-static pthread_t							writer;
+static GThread*								writer_ptr;
 static volatile unsigned char				state			= DEAD;
-static pthread_mutex_t						state_mtx;
+static GMutex*								state_mtx_ptr;
 static unsigned long						sbarcnt			= 0;
 static unsigned long						rectime			= 0;
 
@@ -618,14 +617,14 @@ static void* write_data(void* param)
 	}
 
 	/* Set new state */
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	if( state == ALIVE ) {
 		state	= RUNNING;
 	} else {
-		pthread_mutex_unlock(&state_mtx);
+		g_mutex_unlock(state_mtx_ptr);
 		goto exit;
 	}
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
 	say("write_data",
 		"RUNNING");
@@ -644,14 +643,14 @@ exit:
 	write_drecnum();
 	clear_statusbar(sbar);
 
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	state	= DEAD;
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 	
 	say("write_data",
 		"DEAD");
 	
-	pthread_exit(NULL);
+	g_thread_exit(NULL);
 }
 
 
@@ -660,7 +659,7 @@ exit:
 void gf_init(void)
 {
 	CIRCLEQ_INIT(&head);
-	pthread_mutex_init(&state_mtx, NULL);
+	state_mtx_ptr	= g_mutex_new();
 
 	sq_init();
 }
@@ -668,8 +667,8 @@ void gf_init(void)
 void gf_destroy(void)
 {
 	gf_cleanup();
-	
-	pthread_mutex_destroy(&state_mtx);
+
+	g_mutex_free(state_mtx_ptr);	
 
 	sq_destroy();
 }
@@ -699,14 +698,11 @@ int gf_setup(void)
 		return -1;
 	}
 
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_state);
 	if( state != DEAD ) {
 		/* Set new state */
 		state	= DEAD;
-		pthread_mutex_unlock(&state_mtx);
-
-		/* Force quit */
-		pthread_cancel(writer);
+		g_mutex_unlock(state_mtx_ptr);
 
 		/* Error */
 		errormsg_ptr	= "gf_setup: Error: Writer thread was running";
@@ -715,10 +711,10 @@ int gf_setup(void)
 
 	/* set new state */
 	state	= ALIVE;
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
 	/* start thread */
-	pthread_create(&writer, NULL, write_data, NULL);	
+	writer_ptr	= g_thread_create(write_data, NULL, TRUE, NULL);	
 
 	return 0;
 }
@@ -729,9 +725,9 @@ void gf_cleanup(void)
 		return;
 	}
 
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	if( state != RUNNING && state != ALIVE ) {
-		pthread_mutex_unlock(&state_mtx);
+		g_mutex_unlock(state_mtx_ptr);
 
 		/* Error */
 		goto exit;
@@ -739,10 +735,10 @@ void gf_cleanup(void)
 	
 	/* set new state */
 	state	= DYING;
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
 	sq_exit();
-	pthread_join(writer, NULL);
+	g_thread_join(writer_ptr);
 
 exit:
 	clear_circleq();
@@ -761,22 +757,22 @@ int gf_set_samples(void* s_ptr)
 	}
 
 	/* check if thread is running */
-	pthread_mutex_lock(&state_mtx);
+	g_mutex_lock(state_mtx_ptr);
 	switch( state ) {
 		case RUNNING:
-			pthread_mutex_unlock(&state_mtx);
+			g_mutex_unlock(state_mtx_ptr);
 
 			/* Continue */
 			break;
 
 		case ALIVE:
-			pthread_mutex_unlock(&state_mtx);
+			g_mutex_unlock(state_mtx_ptr);
 
 			/* Ignore samples */
 			return 0;
 
 		default:
-			pthread_mutex_unlock(&state_mtx);
+			g_mutex_unlock(state_mtx_ptr);
 			if( terrormsg_ptr ) {
 				errormsg_ptr	= terrormsg_ptr;
 				terrormsg_ptr	= NULL;
@@ -786,7 +782,7 @@ int gf_set_samples(void* s_ptr)
 			}
 			return -1;
 	}
-	pthread_mutex_unlock(&state_mtx);
+	g_mutex_unlock(state_mtx_ptr);
 
 	sample_ptr			= (bsv_data_t*)s_ptr;
 

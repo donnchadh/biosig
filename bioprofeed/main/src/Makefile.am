@@ -19,9 +19,12 @@ bsview_SOURCES = \
 	draw.c draw.h \
 	squeue.c squeue.h
 
+bsview_CPPFLAGS	= \
+	-Wall
+
 bsview_LDFLAGS	= \
 	-dlopen self
 
 bsview_LDADD = @PACKAGE_LIBS@ $(INTLLIBS) \
-	-lltdl -lpthread -lgthread-2.0
+	-lltdl -lgthread-2.0
 
