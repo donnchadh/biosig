@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <semaphore.h>
+#include <glib.h>
 
 #include "squeue.h"
 

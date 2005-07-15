@@ -698,7 +698,7 @@ int gf_setup(void)
 		return -1;
 	}
 
-	g_mutex_lock(state_mtx_state);
+	g_mutex_lock(state_mtx_ptr);
 	if( state != DEAD ) {
 		/* Set new state */
 		state	= DEAD;

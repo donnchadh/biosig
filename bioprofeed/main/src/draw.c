@@ -871,8 +871,8 @@ void d_destroy(void)
 {
 	d_cleanup();
 
-	g_mutex_destroy(state_mtx_ptr);
-	g_mutex_destroy(start_mtx_ptr);
+	g_mutex_free(state_mtx_ptr);
+	g_mutex_free(start_mtx_ptr);
 	g_cond_free(start_con_ptr);
 }
 
