@@ -12,7 +12,6 @@
 #include "pref.h"
 #include "bsv_module.h"
 #include "support.h"
-#include "squeue.h"
 
 
 /* Debugging ******************************************************************/
@@ -109,6 +108,7 @@ static volatile unsigned char				state			= DEAD;
 static GMutex*								state_mtx_ptr;
 static unsigned long						sbarcnt			= 0;
 static unsigned long						rectime			= 0;
+static GAsyncQueue*							sample_q_ptr;
 
 
 /* Private functions **********************************************************/
@@ -452,10 +452,14 @@ static int write_samples(void)
 {
 	gf_vheader_t*	vh_ptr;
 	int				offset;
-	char*			sample_ptr;
+	bsv_data_t*		sample_ptr;
 
-	sample_ptr	= (char*)sq_remove_data();
-	if( !sample_ptr ) {
+	sample_ptr	= (bsv_data_t*)g_async_queue_pop(sample_q_ptr);
+
+	/* Should exit? */
+	if( !sample_ptr->size ) {
+		g_free(sample_ptr);
+
 		return -1;
 	}
 
@@ -467,8 +471,11 @@ static int write_samples(void)
 			case BSV_CHTYPE_INT8:
 			case BSV_CHTYPE_UINT8:
 				if( write(fd, 
-						  &(sample_ptr)[offset], 
+						  &(sample_ptr->samples)[offset], 
 						  vh_ptr->srecnum) != vh_ptr->srecnum ) {
+
+					g_free((void*)sample_ptr->samples);
+					g_free(sample_ptr);
 					return -2;
 				}
 				offset	+= sizeof(char)*vh_ptr->srecnum;
@@ -477,8 +484,11 @@ static int write_samples(void)
 			case BSV_CHTYPE_INT16:
 			case BSV_CHTYPE_UINT16:
 				if( write_short(fd, 
-								(short*)&(sample_ptr)[offset], 
+								(short*)&(sample_ptr->samples)[offset], 
 								vh_ptr->srecnum) ) {
+	
+					g_free((void*)sample_ptr->samples);
+					g_free(sample_ptr);
 					return -3;
 				}
 				offset	+= sizeof(short)*vh_ptr->srecnum;
@@ -487,8 +497,11 @@ static int write_samples(void)
 			case BSV_CHTYPE_INT32:
 			case BSV_CHTYPE_UINT32:
 				if( write_ulong(fd, 
-								(unsigned long*)&(sample_ptr)[offset], 
+								(unsigned long*)&(sample_ptr->samples)[offset], 
 								vh_ptr->srecnum) ) {
+	
+					g_free((void*)sample_ptr->samples);
+					g_free(sample_ptr);
 					return -4;
 				}
 				offset	+= sizeof(unsigned long)*vh_ptr->srecnum;
@@ -496,8 +509,11 @@ static int write_samples(void)
 
 			case BSV_CHTYPE_INT64:
 				if( write_longlong(fd, 
-								   (long long*)&(sample_ptr)[offset], 
+								   (long long*)&(sample_ptr->samples)[offset], 
 								   vh_ptr->srecnum) ) {
+	
+					g_free((void*)sample_ptr->samples);
+					g_free(sample_ptr);
 					return -5;
 				}
 				offset	+= sizeof(long long)*vh_ptr->srecnum;
@@ -505,8 +521,11 @@ static int write_samples(void)
 
 			case BSV_CHTYPE_FLT32:
 				if( write_ulong(fd, 
-								(unsigned long*)&(sample_ptr)[offset], 
+								(unsigned long*)&(sample_ptr->samples)[offset], 
 								vh_ptr->srecnum) ) {
+	
+					g_free((void*)sample_ptr->samples);
+					g_free(sample_ptr);
 					return -6;
 				}
 				offset	+= sizeof(unsigned long)*vh_ptr->srecnum;
@@ -514,8 +533,11 @@ static int write_samples(void)
 
 			case BSV_CHTYPE_FLT64:
 				if( write_double(fd, 
-								 (double*)&(sample_ptr)[offset], 
+								 (double*)&(sample_ptr->samples)[offset], 
 								 vh_ptr->srecnum) ) {
+	
+					g_free((void*)sample_ptr->samples);
+					g_free(sample_ptr);
 					return -7;
 				}
 				offset	+= sizeof(double)*vh_ptr->srecnum;
@@ -523,6 +545,9 @@ static int write_samples(void)
 
 			default:
 				terrormsg_ptr= "write_samples: Error: Chtype not implemented";
+
+				g_free((void*)sample_ptr->samples);
+				g_free(sample_ptr);
 				return -8;
 		}
 	}
@@ -531,8 +556,8 @@ static int write_samples(void)
 	fheader.drecnum++;
 
 	/* free sample ptr */
-	free(sample_ptr);
-	
+	g_free((void*)sample_ptr->samples);
+	g_free(sample_ptr);
 	return 0;
 }
 
@@ -653,6 +678,27 @@ exit:
 	g_thread_exit(NULL);
 }
 
+static void sample_q_exit(void)
+{
+	bsv_data_t*		ptr;
+
+	/* Signal thread to exit */
+	ptr	= (bsv_data_t*)g_malloc(sizeof(bsv_data_t));
+	ptr->samples	= NULL;
+	ptr->size		= 0;
+	g_async_queue_push(sample_q_ptr, ptr);
+}
+
+static void sample_q_clear(void)
+{
+	bsv_data_t*		ptr;
+
+	while( (ptr = (bsv_data_t*)g_async_queue_try_pop(sample_q_ptr)) ) {
+		g_free((void*)ptr->samples);
+		g_free(ptr);
+	}
+}
+
 
 /* Public functions ***********************************************************/
 
@@ -661,7 +707,7 @@ void gf_init(void)
 	CIRCLEQ_INIT(&head);
 	state_mtx_ptr	= g_mutex_new();
 
-	sq_init();
+	sample_q_ptr	= g_async_queue_new();
 }
 
 void gf_destroy(void)
@@ -670,7 +716,7 @@ void gf_destroy(void)
 
 	g_mutex_free(state_mtx_ptr);	
 
-	sq_destroy();
+	g_async_queue_unref(sample_q_ptr);
 }
 
 int gf_setup(void)
@@ -690,11 +736,6 @@ int gf_setup(void)
 	
 	if( setup_vheader() ) {
 		errormsg_ptr	= "gf_setup: Error: Could not setup variable header";	
-		return -1;
-	}
-
-	if( sq_setup() ) {
-		errormsg_ptr	= "gf_setup: Error: Could not setup squeue";
 		return -1;
 	}
 
@@ -737,12 +778,12 @@ void gf_cleanup(void)
 	state	= DYING;
 	g_mutex_unlock(state_mtx_ptr);
 
-	sq_exit();
+	sample_q_exit();
 	g_thread_join(writer_ptr);
 
 exit:
 	clear_circleq();
-	sq_cleanup();
+	sample_q_clear();
 	close(fd);
 	fd				= -1;
 	terrormsg_ptr	= NULL;
@@ -751,6 +792,7 @@ exit:
 int gf_set_samples(void* s_ptr)
 {
 	bsv_data_t*		sample_ptr;
+	bsv_data_t*		cpy_sample_ptr;
 
 	if( fd == -1 ) {
 		return 0;
@@ -784,13 +826,14 @@ int gf_set_samples(void* s_ptr)
 	}
 	g_mutex_unlock(state_mtx_ptr);
 
-	sample_ptr			= (bsv_data_t*)s_ptr;
+	sample_ptr		= (bsv_data_t*)s_ptr;
 
 	/* Append samples */
-	if( sq_append_data((void*)sample_ptr->samples, sample_ptr->size) ) {
-		errormsg_ptr	= "gf_set_samples: Error: Could not append data";
-		return -1;
-	}
+	cpy_sample_ptr	
+				= (bsv_data_t*)g_memdup(sample_ptr, sizeof(bsv_data_t));
+	cpy_sample_ptr->samples	
+				= (char*)g_memdup(sample_ptr->samples, sample_ptr->size);
+	g_async_queue_push(sample_q_ptr, cpy_sample_ptr);
 
 	say("gf_set_samples",
 		"s:%d",
