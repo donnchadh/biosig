@@ -16,8 +16,7 @@ bsview_SOURCES = \
 	pref.c pref.h \
 	dataaq.c dataaq.h \
 	gdffile.c gdffile.h \
-	draw.c draw.h \
-	squeue.c squeue.h
+	draw.c draw.h 
 
 bsview_CPPFLAGS	= \
 	-Wall
