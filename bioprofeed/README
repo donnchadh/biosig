@@ -1,11 +1,11 @@
 BIOPROFEED framework
 ====================
 
-Author:			Andreas Glatz
-Note:			Copyright (C) 2005 <gandy@sbox.tugraz.at>
-Supported by:	Alois Schloegl <alois.schloegl@tugraz.at>,
-				Institute for Medical Informatics, 
-				Graz University of Technology
+Author:         Andreas Glatz
+Note:           Copyright (C) 2005 <gandy@sbox.tugraz.at>
+Supported by:   Alois Schloegl <alois.schloegl@tugraz.at>,
+                Institute for Medical Informatics, 
+                Graz University of Technology
 
 
 Introduction
@@ -72,7 +72,6 @@ The following libraries must be installed:
 	-) glib >=2.0
 	-) iconv
 	-) gthread
-	-) pthread
 	
 *) Building the main application - assumes that the current working
 directory is the one where this README can be found:
