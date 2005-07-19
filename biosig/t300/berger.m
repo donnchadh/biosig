@@ -10,10 +10,9 @@ function [Y,RRI]=berger(RRI,Fs)
 % RRI	R-to-R interval sampled with Fs
 %
 
-%	Version 0.25
-%	12 Feb 2001
-%	Copyright (c) 1997-2001 by  Alois Schloegl
-%	a.schloegl@ieee.org	
+%       $Id: berger.m,v 1.2 2005-07-19 10:40:31 schloegl Exp $
+%	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -30,13 +29,38 @@ function [Y,RRI]=berger(RRI,Fs)
 % Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 % Boston, MA  02111-1307, USA.
 
-
-if ~any(diff(RRI)<0),	
+if isstruct(RRI)
+        Fs0 = NaN; 
+        if isfield(RRI,'EVENT')
+                EVENT = RRI.EVENT; 
+        else
+                EVENT = RRI; 
+        end;
+        if isfield(EVENT,'SampleRate')
+                Fs0 = EVENT.SampleRate; 
+        elseif isfield(RRI.SampleRate)
+                Fs0 = RRI.EVENT.SampleRate; 
+        else    
+                warning('Invalid input argument causes unknown source sampleing rate.');
+        end;
+        if isfield(EVENT,'POS') & isfield(EVENT,'TYP') & isfield(EVENT,'CHN') & isfield(EVENT,'DUR');
+                ix = find(EVENT.TYP==hex2dec('0501'));
+                if all(EVENT.CHN(ix(1)) == EVENT.CHN(ix));
+                        on = EVENT.POS(EVENT.TYP==hex2dec('0501'))/Fs0;
+                end;
+        elseif isfield(EVENT,'POS') & isfield(EVENT,'TYP');
+                on = EVENT.POS(EVENT.TYP==hex2dec('0501'))/Fs0;
+        end;
+        
+elseif ~any(diff(RRI)<0),	
         on = RRI(:);%-min(RRI);
 else		% calculate onset of bursts 
         on = cumsum([0;RRI(:)]);
 end;
 
+if ~exist('on','var')
+        error('Invalid input argument'); 
+end;        
 %T=1/Fs;
 
 N  = ceil(max(on)*Fs);
@@ -81,8 +105,8 @@ for n = 1:N,
         end;
 end;        
 
-RRI=(2*max(on)/N/Fs)./Y;
+RRI = (2*max(on)/N/Fs)./Y;
 %Y=Fs/2*N/max(on(1:length(on)-1))*Y;
-Y=60./RRI;
+Y = 60./RRI;
 
 
