@@ -6,8 +6,8 @@ function [argout,s]=sview(s,H),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.11 $
-%	$Id: sview.m,v 1.11 2005-05-07 19:38:47 schloegl Exp $ 
+%	$Revision: 1.12 $
+%	$Id: sview.m,v 1.12 2005-07-19 08:23:13 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -25,14 +25,17 @@ function [argout,s]=sview(s,H),
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-
-if ischar(s),
+if nargin<2, 
+	arg2='';
+end;
+if ischar(s) | iscell(s),
         if nargin<2,
                 [s,H] = sload(s);
 		CHAN = 1:size(s,2); 
         else
 		CHAN = H; 
                 [s,H] = sload(s,CHAN);
+                CHAN = 1:size(s,2);        
         end;
 	
 elseif isstruct(s)
@@ -58,6 +61,31 @@ if isfield(H,'IMAGE');
         end;
         argout=H;
         return;
+
+elseif strcmp(H.TYPE,'ELPOS');
+	XYZ = H.ELEC.XYZ;
+	K = 1:size(XYZ,1); 
+		
+	if strcmpi(arg2,'2d')
+		T=0:.001:2*pi;
+
+		r = sqrt(sum(XYZ(:,1:2).^2,2));
+		Rmax = max(r);
+		R = Rmax * 11/10; 
+		r = 10/11*atan(r./XYZ(:,3));
+		XY = XYZ(:,1:2).*r(:,[1,1]);
+		plot(XY(:,1),XY(:,2),'x',XY(K,1),XY(K,2),'ro',R*sin(T),R*cos(T),'b-',-R+R/10*sin(-T/2),R/11*cos(-T/2),'b-',R/11*sin(T/2)+R,R/11*cos(T/2),'b-',[-R 0 R]/11,[R R*1.1 R],'b-');
+		for k=1:size(XYZ,1),
+			text(XY(k,1),XY(k,2),H.Label(k,:));
+		end;
+	else
+		plot3(XYZ(:,1),XYZ(:,2),XYZ(:,3),'x',XYZ(K,1),XYZ(K,2),XYZ(K,3),'ro');
+		for k=1:size(XYZ,1),
+			text(XYZ(k,1),XYZ(k,2),XYZ(k,3),H.Label(k,:));
+		end;
+	end;
+        return;
+        
 elseif strcmp(H.TYPE,'unknown');
         argout=H;
         return;
@@ -127,17 +155,21 @@ elseif ~isfield(H.EVENT,'Desc') & (length(H.EVENT.TYP)>0),
                 fprintf(2,'SVIEW: unknown eventcodes in file %s',H.FileName)
         end
 else
-        EVENT = [];
+        EVENT.POS = [];
 end;
 
-plot(t(:),((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)),'-');
+if H.NS==1,
+        plot(t(:),s,'-');
+else
+        plot(t(:),((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)),'-');
+end;
 ix = find(EVENT.POS>0 & EVENT.POS<=length(t));
 if isfield(EVENT,'Desc') & ~isempty(ix)
 	ix2 = find(EVENT.POS>0 & EVENT.POS<=length(t) & EVENT.DUR>0);
         v = axis;
-        hold on
+        hold on;
         N  = length(EVENT.POS);
-        plot([1;1]*t(EVENT.POS(ix))',v(3:4),':k')
+        plot([1;1]*t(EVENT.POS(ix))',v(3:4),':k');
         for k=1:length(ix2),
 		x = t(EVENT.POS(ix2(k))+[0,EVENT.DUR(ix2(k))])';
 		y = v(3:4);
@@ -193,7 +225,7 @@ title([tmp, ' generated with BIOSIG tools for Octave and Matlab(R)']);
 xlabel(X_Label);
 PhysDim = '';
 if ~isempty(H.PhysDim),
-        PhysDim = deblank(H.PhysDim(1,:));
+        PhysDim = deblank(H.PhysDim(CHAN(1),:));
 end;
 ylabel(sprintf('Amplitude [%s]',PhysDim));
 
