@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.33 $
-%	$Id: plota.m,v 1.33 2005-06-04 22:08:50 schloegl Exp $
+%       $Revision: 1.34 $
+%	$Id: plota.m,v 1.34 2005-07-19 08:23:51 schloegl Exp $
 %	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -909,7 +909,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 return;
         end;        
         
-elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1','logS1',})),
+elseif 0, strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1','logS1',})),
         
         %GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
         
@@ -962,6 +962,7 @@ elseif strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1','lo
         else
                 x0 = (real(getfield(X.M,gf)) - real(getfield(Y.M,gf)))./(real(getfield(X.SE,gf))*X.N + real(getfield(Y.SE,gf))*Y.N);
         end;
+
         
         clim = [min(x0(:)),max(x0(:))]
         caxis(clim);
@@ -1044,6 +1045,8 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
                 for k1 = 1:M,
                         Label{k1}=['# ',int2str(k1)];
                 end;
+        else 
+                Label = X.Label; 
         end;
         nr = ceil(sqrt(M));
         nc = ceil(M/nr);
@@ -1062,7 +1065,7 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
         else
                 x0 = (real(getfield(X.M,gf)) - real(getfield(Y.M,gf)))./(real(getfield(X.SE,gf))*X.N + real(getfield(Y.SE,gf))*Y.N);
         end;
-        
+
         clim = [min(x0(:)),max(x0(:))];
         caxis(clim);
         cm = colormap;
@@ -1093,12 +1096,12 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
                         %h = imagesc(X.T,X.F,cat(3,x1,x2,x3)*diff(clim)+clim(1),clim);
                         h = imagesc(X.T,X.F,cat(3,x1,x2,x3),clim);
                         %h  = imagesc(X.T,X.F,squeeze(x),clim);
-                        if k1==1, title(Label{k2}); end;
-                        if k2==1, ylabel(Label{k1});end;
+                        if k2==1, title(Label{k1}); end;
+                        if k1==1, ylabel(Label{k2});end;
                 end;
         end;
         %caxis = clim;
-        h   = colorbar;
+        %h   = colorbar;
         %tmp = get(h,'ytick')'/64*diff(clim)+clim(1);
         %set(h,'yticklabel',num2str(tmp));
         
@@ -1577,7 +1580,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
         
         if isfield(X,'Label')
             if ischar(X.Label)
-                X.Label=cellstr(X.Label);
+                X.Label = cellstr(X.Label);
             end;
         end;
         
@@ -1597,7 +1600,8 @@ elseif strcmp(X.datatype,'MEAN+STD')
             subplot(nf(k));
             [ax,h1,h2] = plotyy(X.T,X.MEAN(k,:),X.T,X.STD(k,:));
             drawnow;
-            set(ax,'FontSize',6);
+            set(ax(1),'FontSize',8);
+            set(ax(2),'FontSize',8);
 
             % Sets the axes limits to avoid overlapping of the two functions
             set(ax(1),'YLim',[minmean-maxstd maxmean]);
@@ -1626,7 +1630,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
 
             if isfield(X,'Label')  % Print label of each channel (if such a label exists)
                 if k <= length(X.Label)
-                    title(X.Label{k},'FontSize',6,'Interpreter','none');
+                    title(X.Label{k},'FontSize',8,'Interpreter','none');
                 end;
             end;
 
@@ -1949,7 +1953,7 @@ elseif strcmp(X.datatype,'TSD_BCI7')
                 subplot(nf(3));
                 if isfield(X,'T')
                         tmp = repmat(NaN,size(X.T));
-                        tmp(X.T>=3.5) = 0;
+                        tmp((X.T>=3.5) & X.ERR<=.50) = 0;
                         plot(t,[X.I,X.I./(X.T-3)+tmp]);
                 else
                         plot(t,X.I);
