@@ -27,7 +27,7 @@ function [HDR,data] = iopen(HDR,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: iopen.m,v 1.4 2005-07-08 19:57:52 schloegl Exp $
+%	$Id: iopen.m,v 1.5 2005-08-13 00:12:07 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -168,7 +168,8 @@ elseif strcmp(HDR.TYPE,'IMAGE:IFS'),    % Ultrasound file format
 elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9), 
         GDFTYP = {'uint8','char','uint16','uint32','2*uint32','int8','uint8','int16','int32','2*int32','float32','float64'};
         GDFTYP = {'uint8','char','uint16','uint32','uint64','int8','uint8','int16','int32','int64','float32','float64'};
-
+	size = [1,1,2,4,8,1,1,2,4,8,4,8];
+	
         HDR.EXIF = [];
         HDR.JPEG = [];
         HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.Endianity);
@@ -180,6 +181,8 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                 LEN = fread(HDR.FILE.FID,1,'uint16');
                 while ftell(HDR.FILE.FID)<HDR.FILE.size,
                         if 0, 
+                        elseif (tag == hex2dec('8298'))       % image data
+				HDR.EXIF.Copyright  = fread(HDR.FILE.FID,LEN-2,'uint8');
                         elseif (tag == hex2dec('F9FE'))       % image data
                                 HDR.data.compressed = fread(HDR.FILE.FID,LEN-2,'uint8');
                         elseif (tag == hex2dec('FEFA'))       % JPEG field: (thumbnail?)
@@ -188,7 +191,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                                 HDR.JPEG.FF00 = fread(HDR.FILE.FID,LEN-2,'uint8');
                         elseif (tag == hex2dec('FFC0'))       % JPEG field: start of frame
                                 HDR.JPEG.BITS = fread(HDR.FILE.FID,1,'uint8');
-                                HDR.JPEG.XYLines = fread(HDR.FILE.FID,[1,2],'uint16');
+                                HDR.IMAGE.Size= fread(HDR.FILE.FID,[1,2],'uint16');
                                 HDR.JPEG.SOF = fread(HDR.FILE.FID,10,'uint8');
                         elseif (tag == hex2dec('FFD9'))       % JPEG field: end of data
                                 HDR.EXIF.EOD = 1; 
@@ -213,63 +216,118 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                                 HDR.EXIF.DRI = fread(HDR.FILE.FID,1,'uint16');
                         elseif (tag == hex2dec('FFE0'))       % JPEG
                                 HDR.JPEG.E0 = fread(HDR.FILE.FID,LEN-2,'uint8');
-                        elseif 0, (tag == hex2dec('FFE1'))       % EXIF field: APP1
-                                tmp = fread(HDR.FILE.FID,6,'uint8');
+                        elseif (tag == hex2dec('FFE1'))       % EXIF field: APP1
+                                tmp = fread(HDR.FILE.FID,[1,6],'uint8');
+				if ~strncmp(char(tmp),'Exif',4)
+					fprintf(HDR.FILE.stderr,'Warning EXIF: tag FFE1 is not EXIF but %s\n',char(tmp));
+				end;
                                 pos = ftell(HDR.FILE.FID); 
-                                tmp = fread(HDR.FILE.FID,8,'uint8');
-                                offset.IFD0 = fread(HDR.FILE.FID,1,'uint32')
-                                fseek(HDR.FILE.FID,pos+offset.IFD0,'bof');
-                                tmp = fread(HDR.FILE.FID,1,'uint16'),
-                                for k=1:11,
+                                s = fread(HDR.FILE.FID,[1,4],'uint8');
+			        if all(s(1:4)==[73,73,42,0]); 
+		                        H.TYPE='IMAGE:TIFF';
+                		        H.Endianity = 'ieee-le';
+                        		H.FLAG.BigTIFF = 0; 
+		                elseif all(s(1:4)==[77,77,0,42]); 
+                		        H.TYPE='IMAGE:TIFF';
+                		        H.Endianity = 'ieee-be';
+                		        H.FLAG.BigTIFF = 0; 
+                		else
+ 					fprintf(HDR.FILE.stderr,'Warning EXIF: invalid TIFF tag %s\n',char(s));
+	               		end;      
+	               		if ~strcmp(HDR.Endianity,H.Endianity)  
+	               		{HDR.Endianity;H.Endianity}
+               	        	        HDR.FILE.FID = fopen(HDR.FileName,'rb',H.Endianity);
+					fseek(HDR.FILE.FID,pos+4,'bof');
+					HDR.FILE.OPEN = 1; 
+                	        end;
+
+                                offset.IFD0 = fread(HDR.FILE.FID,1,'uint32');
+                                fseek(HDR.FILE.FID, pos+offset.IFD0, 'bof');
+                                nf = fread(HDR.FILE.FID,1,'uint16');
+                                if nf ~= 11;
+ 					fprintf(HDR.FILE.stderr,'Warning EXIF: instead of 11 only %i tags.\n',nf);
+ 					if nf>11, return; end;
+				end;	
+                                
+                                for k = 1:nf,
                                         tmp = fread(HDR.FILE.FID,2,'uint16');
                                         tagid(k) = tmp(1);
                                         typ(k) = tmp(2);
-                                        tmp = fread(HDR.FILE.FID,2,'uint32');
+                                        tmp = fread(HDR.FILE.FID,1,'uint32');
                                         count(k) = tmp(1);
-                                        valoffset(k) = tmp(2);
-                                end;
-                                count,
-                                len = fread(HDR.FILE.FID,1,'uint16') % jump to next IFD
-                                if len>0, LEN = len; end; 
-                                for k = 1:11, 
-                                        dec2hex(tagid(k)),
-                                        fseek(HDR.FILE.FID,pos+valoffset(k)-8,'bof');
-                                        if (typ(k)==5)
-                                                tmp = fread(HDR.FILE.FID,[count(k),2],'int32');
-                                                tmp = tmp(:,1)/tmp(:,2);
+                                        if count(k)*size(typ(k))>4
+                                        	valoffset(k) = fread(HDR.FILE.FID,1,'uint32');
                                         else
-                                                k,
-                                                tmp = fread(HDR.FILE.FID,count(k),GDFTYP{typ(k)});
+	                                        tmp = fread(HDR.FILE.FID,4/size(typ(k)),GDFTYP{typ(k)});
+                                        	VAL{k} = tmp(1:count(k));
                                         end;
-                                        if tagid(k)==hex2dec('010e')
+                                end;
+				len = fread(HDR.FILE.FID,1,'uint16'); % jump to next IFD
+                                if len>0, LEN = len; end; 
+                                HDR.EXIF.ResolutionUnit = 2; % default value
+                                for k = 1:nf, 
+                                        if count(k)*size(typ(k))>4
+	                                        fseek(HDR.FILE.FID,pos+valoffset(k),'bof');
+	                                        if (typ(k)==5)
+	                                                tmp = fread(HDR.FILE.FID,[count(k),2],'int32');
+	                                                tmp = tmp(:,1)./tmp(:,2);
+	                                        else
+	                                                tmp = fread(HDR.FILE.FID,count(k),GDFTYP{typ(k)});
+	                                        end;
+	                                else
+	                                	tmp = VAL{k};
+	                                end;
+                                        if tagid(k)==270
                                                 HDR.EXIF.ImageDesc = char(tmp(:)');
-                                        elseif tagid(k)==hex2dec('010f')
+                                        elseif tagid(k)==271
                                                 HDR.EXIF.Make = char(tmp(:)');
-                                        elseif tagid(k)==hex2dec('0110')
+                                        elseif tagid(k)==272
                                                 HDR.EXIF.Model = char(tmp(:)');
-                                        elseif tagid(k)==hex2dec('0121')
-                                                HDR.EXIF.Orientation = tmp;
-                                        elseif tagid(k)==hex2dec('011A')
+                                        elseif tagid(k)==274
+                                                HDR.EXIF.Orientation = tmp';
+                                        elseif tagid(k)==282
                                                 HDR.EXIF.XResolution = tmp;
-                                        elseif tagid(k)==hex2dec('011B')
+                                        elseif tagid(k)==283
                                                 HDR.EXIF.YResolution = tmp;
-                                        elseif tagid(k)==hex2dec('0128')
-                                                HDR.EXIF.ResolutionUnit = char(tmp);
-                                        elseif tagid(k)==hex2dec('0132')
-                                                HDR.EXIF.Date = char(tmp);
-                                        elseif tagid(k)==hex2dec('0213')
-                                                HDR.EXIF.YCbCrPostionining = tmp;
-                                        elseif tagid(k)==hex2dec('8298')
-                                                HDR.EXIF.Copyright = char(tmp);
-                                        elseif tagid(k)==hex2dec('8769')
-                                                HDR.EXIF.IdPointer = tmp;
+                                        elseif tagid(k)==289
+                                                HDR.EXIF.Orientation = tmp;
+                                        elseif tagid(k)==296
+                                        	if tmp==2,
+	                                                HDR.EXIF.ResolutionUnit = 'inch';
+                                        	elseif tmp==3,
+	                                                HDR.EXIF.ResolutionUnit = 'cm';
+	                                        end;
+                                        elseif tagid(k)==305
+                                                HDR.EXIF.SoftwareVersion = char(tmp');
+                                        elseif tagid(k)==306
+                                                HDR.EXIF.Date = char(tmp');
+						HDR.T0 = str2double(HDR.EXIF.Date,': ');
+                                        elseif tagid(k)==531
+                                                HDR.EXIF.YCbCrPositioning = tmp;
+                                        elseif tagid(k)==33432
+                                                HDR.EXIF.Copyright = char(tmp');
+                                        elseif tagid(k)==34665
+                                                HDR.EXIF.IFDPointer = tmp;
+                                        elseif tagid(k)==34853
+                                                HDR.EXIF.GPS_IFDPointer = tmp;
+                                        elseif tagid(k)==40965
+                                                HDR.EXIF.Interoperability_IFDPointer = tmp;
+                                        elseif tagid(k)==hex2dec('c4a5')
+                                                HDR.EXIF.c4a5 = tmp';
+					else
+						dec2hex(tagid(k)),
+                                        	tagid(k),tmp,
                                         end;
                                 end
+	               		if ~strcmp(HDR.Endianity,H.Endianity)  
+               	        	        HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.Endianity);
+                	        end;
                                 %HDR.EXIF.APP1 = fread(HDR.FILE.FID,LEN-2-6-4,'uint8');
                         elseif (tag == hex2dec('FFE2'))       % EXIF field: APP2
-                                HDR.EXIF.APP2 = fread(HDR.FILE.FID,LEN-2,'uint8');
+                                HDR.EXIF.APP2 = fread(HDR.FILE.FID,LEN-2,'uint8')';
                         elseif (tag == hex2dec('FFE3'))       % EXIF field: APP3
-                                HDR.EXIF.APP3 = fread(HDR.FILE.FID,LEN-2,'uint8');
+                                HDR.EXIF.APP3 = fread(HDR.FILE.FID,LEN-2,'uint8')';
+                               
                         elseif (tag == hex2dec('FFEC'))       % JPEG
                                 tmp = char(fread(HDR.FILE.FID,[1,LEN-2],'uint8'));
                                 if isfield(HDR.JPEG,'EC');
@@ -306,8 +364,9 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                                         HDR.JPEG.FE{1} = tmp;
                                 end;
                         elseif 1, %tag>=15/16*2^16; 
-                                fprintf(1,'%5i\t%4x\t%5i\n',LEN,tag,tag);
+                                %fprintf(1,'%5i\t%4x\t%5i\n',LEN,tag,tag);
                         else
+                                fprintf(1,'%5i\t%4x\t%5i\n',LEN,tag,tag);
                         end;
                         fseek(HDR.FILE.FID,POS+LEN+2,'bof');
                         POS = ftell(HDR.FILE.FID); 
@@ -441,7 +500,9 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
 		IFD_TYPE = 'uint64';
         end;
 
-        HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.Endianity);
+	if ~HDR.FILE.OPEN,
+	        HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.Endianity);
+	end;
 	[tmp,c] = fread(HDR.FILE.FID,2,IFD_TYPE);
 	OFFSET = tmp(2);
         
@@ -472,7 +533,9 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
                                        	VALUE = VALUE(1,:)./VALUE(2,:);
                                 else         	
 			        	[VALUE,c] = fread(HDR.FILE.FID, [1,COUNT], GDFTYP{TYP});
+			        	if TAG==2, VALUE=char(VALUE); end; 
                                 end;
+                                
                         end;	
 
                         if ~FLAG,
@@ -504,13 +567,13 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
                         elseif TAG==266,
                                 HDR.FLAG.FillOrder = VALUE;
                         elseif TAG==269,
-                                HDR.TIFF.DocumentName = char(VALUE);
+                                HDR.TIFF.DocumentName = VALUE;
                         elseif TAG==270,
-                                HDR.TIFF.ImageDescription = char(VALUE);
+                                HDR.TIFF.ImageDescription = VALUE;
                         elseif TAG==271,
-                                HDR.TIFF.Maker = char(VALUE);
+                                HDR.TIFF.Maker = VALUE;
                         elseif TAG==272,
-                                HDR.TIFF.Model = char(VALUE);
+                                HDR.TIFF.Model = VALUE;
                         elseif TAG==273,
                                 HDR.TIFF.StripOffset = VALUE;
                         elseif TAG==274,
@@ -562,17 +625,17 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
                         elseif TAG==301,
                                 HDR.TIFF.TansferFunction = VALUE;
                         elseif TAG==305,
-                                HDR.Software = char(VALUE);
+                                HDR.Software = VALUE;
                         elseif TAG==306,
-                                HDR.TIFF.DateTime = char(VALUE);
-                                [tmp,status] = str2double(char(VALUE),': ');
+                                HDR.TIFF.DateTime = VALUE;
+                                [tmp,status] = str2double(VALUE,': ');
                                 if ~any(status)
                                         HDR.T0 = tmp;
                                 end;	
                         elseif TAG==315,
-                                HDR.Artist = char(VALUE);
+                                HDR.Artist = VALUE;
                         elseif TAG==316,
-                                HDR.TIFF.HostComputer = char(VALUE);
+                                HDR.TIFF.HostComputer = VALUE;
                         elseif TAG==317,
                                 HDR.TIFF.Predictor = VALUE;
                         elseif TAG==318,
@@ -610,7 +673,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
                         elseif TAG==337,
                                 HDR.TIFF.TargetPrinter = VALUE;
                         elseif TAG==338,
-                                HDR.TIFF.ExtraSamples = char(VALUE);
+                                HDR.TIFF.ExtraSamples = VALUE;
                         elseif TAG==339,
                                 HDR.TIFF.SampleFormat = VALUE;
                         elseif TAG==340,
@@ -694,8 +757,13 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
                                 HDR.TIFF.TileDepth = VALUE;
 
                         elseif TAG==33432,
-                                HDR.Copyright = char(VALUE);
-                                
+                                HDR.Copyright = VALUE;
+                        
+                        elseif TAG==33434,
+                        	HDR.EXIF.ExposureTime = VALUE; 
+                        elseif TAG==33437,
+                        	HDR.EXIF.FNumber = VALUE; 
+
                         elseif TAG==33550,
                                 HDR.TIFF.GEO.ModelPixelScale = VALUE;
                         elseif TAG==33922,
@@ -740,8 +808,122 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
                         elseif TAG==34735,
                                 HDR.TIFF.GEO.KeyDirectory = VALUE;
                         elseif TAG==34737,
-                                HDR.TIFF.GEO.ASCII_Params = char(VALUE);
+                                HDR.TIFF.GEO.ASCII_Params = VALUE;
                                 
+                        elseif TAG==34850,
+                        	HDR.EXIF.ExposureProgram = VALUE; 
+                        elseif TAG==34852,
+                        	HDR.EXIF.SpectralSensitivity = VALUE; 
+                        elseif TAG==34855,
+                        	HDR.EXIF.ISOSpeedRating = VALUE; 
+                        elseif TAG==36864
+                        	HDR.EXIF.ExifVersion = VALUE; 
+                        elseif TAG==36867
+                        	HDR.EXIF.DateTimeOriginal = VALUE; 
+                        elseif TAG==36868
+                        	HDR.EXIF.DateTimeDigitized = VALUE; 
+
+                        elseif TAG==37121
+                        	HDR.EXIF.ComponentsConfiguration = VALUE; 
+                        elseif TAG==37122
+                        	HDR.EXIF.CompressedBitsPerPixel = VALUE; 
+                        elseif TAG==37377
+                        	HDR.EXIF.ShutterSpeed = VALUE; 
+                        elseif TAG==37378
+                        	HDR.EXIF.Aperture = VALUE; 
+                        elseif TAG==37379
+                        	HDR.EXIF.Brightness = VALUE; 
+                        elseif TAG==37380
+                        	HDR.EXIF.ExposureBias = VALUE; 
+                        elseif TAG==37381
+                        	HDR.EXIF.MaxAperture = VALUE; 
+                        elseif TAG==37382
+                        	HDR.EXIF.SubjectDistance = VALUE; 
+                        elseif TAG==37383
+                        	HDR.EXIF.MeteringMode = VALUE; 
+                        elseif TAG==37384
+                        	HDR.EXIF.LightSource = VALUE; 
+                        elseif TAG==37385
+                        	HDR.EXIF.Flash = VALUE; 
+                        elseif TAG==37386
+                        	HDR.EXIF.FocalLength = VALUE; 
+                        elseif TAG==37396
+                        	HDR.EXIF.SubjectArea = VALUE; 
+
+                        elseif TAG==37500
+                        	HDR.EXIF.MakerNote = VALUE; 
+                        elseif TAG==37510
+                        	HDR.EXIF.UserComment = VALUE; 
+                        elseif TAG==37520
+                        	HDR.EXIF.SubSecTime = VALUE; 
+                        elseif TAG==37521
+                        	HDR.EXIF.SubSecTimeOriginal = VALUE; 
+                        elseif TAG==37522
+                        	HDR.EXIF.SubSecTimeDigitized = VALUE; 
+
+                        elseif TAG==40960
+                        	HDR.EXIF.FlashpixVersion = VALUE; 
+                        elseif TAG==40961
+                        	HDR.EXIF.ColorSpace = VALUE; 
+                        elseif TAG==40962
+                        	HDR.EXIF.PixelXDimension = VALUE; 
+                        elseif TAG==40963
+                        	HDR.EXIF.PixelYDimension = VALUE; 
+                        elseif TAG==40964
+                        	HDR.EXIF.RelatedSoundFile = VALUE; 
+                        	
+                        elseif TAG==41483
+                        	HDR.EXIF.FlashEnergy = VALUE; 
+                        elseif TAG==41484
+                        	HDR.EXIF.SpatialFrequencyResponse = VALUE; 
+                        elseif TAG==41486
+                        	HDR.EXIF.FocalPlaneXResolution = VALUE; 
+                        elseif TAG==41487
+                        	HDR.EXIF.FocalPlaneYResolution = VALUE; 
+                        elseif TAG==41488
+                        	HDR.EXIF.FocalPlaneResolutionUnit = VALUE; 
+                        elseif TAG==41492
+                        	HDR.EXIF.SubjectLocation = VALUE; 
+                        elseif TAG==41493
+                        	HDR.EXIF.ExposureIndex = VALUE; 
+                        elseif TAG==41495
+                        	HDR.EXIF.SensingMethod = VALUE; 
+
+                        elseif TAG==41728
+                        	HDR.EXIF.FileSource = VALUE; 
+                        elseif TAG==41729
+                        	HDR.EXIF.SceneType = VALUE; 
+                        elseif TAG==41730
+                        	HDR.EXIF.CFAPattern = VALUE; 
+                        	
+                        elseif TAG==41985
+                        	HDR.EXIF.CustomRendered = VALUE; 
+                        elseif TAG==41986
+                        	HDR.EXIF.ExposureMode = VALUE; 
+                        elseif TAG==41987
+                        	HDR.EXIF.WhiteBalance = VALUE; 
+                        elseif TAG==41988
+                        	HDR.EXIF.DigitalZoomRatio = VALUE; 
+                        elseif TAG==41989
+                        	HDR.EXIF.FocalLengthIn35mmFilm = VALUE; 
+                        elseif TAG==41990
+                        	HDR.EXIF.SceneCaptureType = VALUE; 
+                        elseif TAG==41991
+                        	HDR.EXIF.GainControl = VALUE; 
+                        elseif TAG==41992
+                        	HDR.EXIF.Contrast = VALUE; 
+                        elseif TAG==41993
+                        	HDR.EXIF.Saturation = VALUE; 
+                        elseif TAG==41994
+                        	HDR.EXIF.Sharpness = VALUE; 
+                        elseif TAG==41995
+                        	HDR.EXIF.DeviceSettingDescription = VALUE; 
+                        elseif TAG==41996
+                        	HDR.EXIF.SubjectDistanceRange = VALUE; 
+                        elseif TAG==42016
+                        	HDR.EXIF.ImageUniqueID = VALUE; 
+                        	
+                        
                         elseif 1, %TAG<2^15,        
                                 fprintf(HDR.FILE.stdout,'IOPEN(TIFF): TAG %d %xH used\n',TAG,TAG)
                         else
