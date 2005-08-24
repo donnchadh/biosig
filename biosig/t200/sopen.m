@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.113 $
-%	$Id: sopen.m,v 1.113 2005-07-16 22:10:07 schloegl Exp $
+%	$Revision: 1.114 $
+%	$Id: sopen.m,v 1.114 2005-08-24 13:05:30 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -156,11 +156,20 @@ if ~isfield(HDR,'Filter');
         HDR.Filter.HighPass = NaN; 
 end;
 if ~isfield(HDR,'FLAG');
-        HDR.FLAG.FILT = 0; 	% FLAG if any filter is applied; 
-        HDR.FLAG.TRIGGERED = 0; % the data is untriggered by default
-        HDR.FLAG.UCAL = ~isempty(strfind(MODE,'UCAL'));   % FLAG for UN-CALIBRATING
-        HDR.FLAG.OVERFLOWDETECTION = isempty(strfind(upper(MODE),'OVERFLOWDETECTION:OFF'));
+        HDR.FLAG = [];
 end;
+if ~isfield(HDR.FLAG,'FILT')
+        HDR.FLAG.FILT = 0; 	% FLAG if any filter is applied; 
+end;
+if ~isfield(HDR.FLAG,'TRIGGERED')
+        HDR.FLAG.TRIGGERED = 0; % the data is untriggered by default
+end;
+if ~isfield(HDR.FLAG,'UCAL')
+        HDR.FLAG.UCAL = ~isempty(strfind(MODE,'UCAL'));   % FLAG for UN-CALIBRATING
+end;
+if ~isfield(HDR.FLAG,'OVERFLOWDETECTION')
+        HDR.FLAG.OVERFLOWDETECTION = isempty(strfind(upper(MODE),'OVERFLOWDETECTION:OFF'));
+end; 
 if ~isfield(HDR,'EVENT');
         HDR.EVENT.TYP = []; 
         HDR.EVENT.POS = []; 
@@ -412,8 +421,9 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                         HDR.THRESHOLD  = [HDR.DigMin,HDR.DigMax];       % automated overflow detection 
                         
                         HDR.PreFilt    =  setstr(fread(HDR.FILE.FID,[80,HDR.NS],'uchar')');	%	
-                        HDR.AS.SPR        =         fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32')';	%	samples per data record
+                        HDR.AS.SPR     =         fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32')';	%	samples per data record
                         HDR.GDFTYP     =         fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32');	%	datatype
+                        %HDR.test       =         fread(HDR.FILE.FID,[ 2,HDR.NS],'float32');	%	datatype
                         %                        fread(HDR.FILE.FID,[32,HDR.NS],'uchar')';	%	datatype
                 end;
                 
@@ -427,7 +437,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                         ixn=strfind(tmp,'Notch');
                         ix =strfind(lower(tmp),'hz');
                         %tmp(tmp==':')=' ';
-                        try;
+                        %try;
                                 if any(tmp==';')
                                         [tok1,tmp] = strtok(tmp,';');
                                         [tok2,tmp] = strtok(tmp,';');
@@ -444,6 +454,10 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                                 [F1 ] = strtok(F1,': ');
                                 [F2 ] = strtok(F2,': ');
                                 [F3 ] = strtok(F3,': ');
+                                
+                                F1(F1==',')='.';
+                                F2(F2==',')='.';
+                                F3(F3==',')='.';
                                 
                                 if strcmp(F1,'DC'), F1='0'; end;
                                 if strcmp(F2,'DC'), F2='0'; end;
@@ -477,9 +491,9 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                                 elseif strcmp(T3,'Notch'), 
                                         HDR.Filter.Notch(k)   =str2double(F3);
                                 end;
-                        catch
-                                fprintf(2,'Cannot interpret: %s\n',HDR.PreFilt(k,:));
-                        end;
+                                %catch
+                        %        fprintf(2,'Cannot interpret: %s\n',HDR.PreFilt(k,:));
+                        %end;
                 end;
                 
                 if any(HDR.PhysMax==HDR.PhysMin), HDR.ErrNo=[1029,HDR.ErrNo]; end;	
@@ -1275,10 +1289,10 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
         % The header files are text files (not binary).
         try
                 PERMISSION = 'rt';	% MatLAB default is binary, force Mode='rt';
-                fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),PERMISSION);	
+                fid = fopen(fullfile(HDR.FILE.Path,'head'),PERMISSION);	
         catch
                 PERMISSION = 'r';	% Octave 2.1.50 default is text, but does not support Mode='rt', 
-                fid = fopen(fullfile(HDR.FILE.Path,'rawhead'),PERMISSION);	
+                fid = fopen(fullfile(HDR.FILE.Path,'head'),PERMISSION);	
         end;
         
 	cfiles = {'alpha.alp','eog','mkdef','r_info','rawhead','imp_res','sleep','../s_info'};
@@ -1807,6 +1821,17 @@ elseif strcmp(HDR.TYPE,'ATES'),
         HDR.ATES.MontageComment = fread(HDR.FILE.FID,31,'uchar');
         HDR.NS = fread(HDR.FILE.FID,1,'int16');
         fclose(HDR.FILE.FID);
+
+        
+elseif strcmp(HDR.TYPE,'BLSC'),
+        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.Header = fread(HDR.FILE.FID,[1,3720],'char');       % ???
+        HDR.data   = fread(HDR.FILE.FID,[32,inf],'ubit8');      % ???
+        %HDR.NS = 32; 
+        %HDR.SPR = 24063;
+        fclose(HDR.FILE.FID);
+        fprintf(2,'Error SOPEN: Format BLSC not supported (yet).\n'); 
+        return; 
 
         
 elseif strcmp(HDR.TYPE,'RigSys'),       % thanks to  J. Chen
@@ -4796,21 +4821,34 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.data = reshape(permute(HDR.data,[2,1,3]),sz(1),sz(2)*sz(3))';
                 HDR.TYPE = 'native'; 
                 
+                
         elseif isfield(tmp,'RAW_SIGNALS')    % TFM Matlab export 
                 HDR.Label = fieldnames(tmp.RAW_SIGNALS);
+                HDR.NS = length(HDR.Label); 
                 HDR.SampleRate = 1000; 
-                HDR.TFM.SampleRate = 1000./[10,20,5,1,2];
-                signal = [];
-                for k1 = 4;1:length(HDR.Label);
+		ix  = repmat(NaN,1,HDR.NS); 
+                for k1 = 1:HDR.NS;
                         s = getfield(tmp.RAW_SIGNALS,HDR.Label{k1});
-                        ix = [];
                         for k2 = 1:length(s);
-                                ix = [ix;length(s{k2})];   
+                                ix(k2,k1) = length(s{k2});   
                         end;
-                        HDR.EVENT.POS(:,k1) = cumsum(ix);
-                        HDR.data = cat(1,s{k1})';
                 end;
-                HDR.TYPE = 'native'; 
+		DIV = sum(ix,1);
+                HDR.TFM.DIV = round(max(DIV)./DIV);
+		
+                HDR.data = repmat(NaN, max(HDR.TFM.DIV.*DIV), HDR.NS);
+                for k1 = 1:HDR.NS;
+                        s = getfield(tmp.RAW_SIGNALS,HDR.Label{k1});
+                        s2= rs(cat(2,s{:})',1,HDR.TFM.DIV(k1));
+			HDR.data(1:size(s2,1),k1) = s2; 
+                end;
+		clear tmp s s2; 
+		HDR.EVENT.POS = cumsum(ix(:,min(find(HDR.TFM.DIV==1)))); 
+		HDR.EVENT.TYP = repmat(1,size(HDR.EVENT.POS)); 
+                HDR.TFM.SampleRate = HDR.SampleRate./HDR.TFM.DIV; 
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
+                HDR.TYPE  = 'native'; 
+                HDR.NRec  = 1; 
 
                 
         elseif isfield(tmp,'eeg');	% Scherer
@@ -7122,6 +7160,15 @@ elseif strcmp(HDR.TYPE,'unknown'),
                         [NUM, STATUS,STRARRAY] = str2double(char(s));
                         if ~any(any(STATUS(:,2:4)))
                                 HDR.Label    = strvcat(STRARRAY(:,1));
+                                HDR.ELEC.XYZ = NUM(:,2:4); 
+                                HDR.TYPE     = 'ELPOS'; 
+                        end;
+
+                elseif strcmpi(HDR.FILE.Ext,'xyz')
+                        [NUM, STATUS,STRARRAY] = str2double(char(s));
+                        if ~any(any(STATUS(:,2:4)))
+                                HDR.Label    = strvcat(STRARRAY(:,5));
+                                HDR.ELEC.CHAN= NUM(:,1); 
                                 HDR.ELEC.XYZ = NUM(:,2:4); 
                                 HDR.TYPE     = 'ELPOS'; 
                         end;
