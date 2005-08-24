@@ -11,8 +11,8 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,arg3,arg4,arg5,arg6)
 % PERMISSION is one of the following strings 
 %	'rb'	read 
 
-%	$Revision: 1.32 $
-%	$Id: cntopen.m,v 1.32 2005-04-11 17:59:58 schloegl Exp $
+%	$Revision: 1.33 $
+%	$Id: cntopen.m,v 1.33 2005-08-24 13:04:13 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -597,11 +597,11 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
                 Teeg.Keyboard = fread(fid,1,'char');        
                 tmp = fread(fid,1,'uint8');        
                 Teeg.KeyPad = rem(tmp,16); %bitand(tmp,15);
-                Teeg.Accept = (fix(tmp/16)*16)==13; % (bitshift(tmp,-4)==13);  % 0xd = accept, 0xc = reject 
+                Teeg.Accept = (fix(tmp/16))==13; % (bitshift(tmp,-4)==13);  % 0xd = accept, 0xc = reject 
                         
                 Teeg.Offset = fread(fid,1,'int32');        
                 K = K + 8;
-                if CNT.EVENT.TeegType==2,
+                if any(CNT.EVENT.TeegType==[2:3]),
                         Teeg.Type =  fread(fid,1,'int16');        
                         Teeg.Code =  fread(fid,1,'int16');        
                         Teeg.Latency  =  fread(fid,1,'float32');        
@@ -619,7 +619,11 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
 	
         if length(TEEG) > 0,
                 CNT.EVENT.TYP = [TEEG(:).Stimtype]';
-                CNT.EVENT.POS = ([TEEG(:).Offset]' - CNT.HeadLen) ./ CNT.AS.bpb;
+                if CNT.EVENT.TeegType==3,
+                        CNT.EVENT.POS =  [TEEG(:).Offset]';
+                else
+                        CNT.EVENT.POS = ([TEEG(:).Offset]' - CNT.HeadLen) ./ CNT.AS.bpb;
+                end;
         end;
 end;
 
