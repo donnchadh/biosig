@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.41 $
-%	$Id: getfiletype.m,v 1.41 2005-07-16 22:10:08 schloegl Exp $
+%	$Revision: 1.42 $
+%	$Id: getfiletype.m,v 1.42 2005-08-24 13:06:57 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -105,7 +105,7 @@ else
         if c,
                 %%%% file type check based on magic numbers %%%
 		tmp = 256.^[0:3]*reshape(s(1:20),4,5);
-		mat4.flag = (c>20) & (tmp(5)<256) & tmp(5) & (tmp(1)<4053) & any(s(13)==[0,1]) & any(tmp(4)==[0,1]);
+		mat4.flag = (c>20) & (tmp(5)<256) & (tmp(5)>1) & (tmp(1)<4053) & any(s(13)==[0,1]) & any(tmp(4)==[0,1]);
 		if mat4.flag,
 			mat4.matrixname = lower(s(21:20+tmp(5)-1));
 	                mat4.type = sprintf('%04i',tmp(1))-48;
@@ -196,6 +196,12 @@ else
                         HDR.TYPE='MIT';
                 elseif strncmp(ss,'DEMG',4);	% www.Delsys.com
                         HDR.TYPE='DEMG';
+                elseif strcmp(ss(35:38),'BLSC') % CeeGraph, Bio-Logic Systems Corp. 
+                        if strcmpi(ss(44+[0:length(HDR.FILE.Name)+length(HDR.FILE.Ext)]),[HDR.FILE.Name,'.',HDR.FILE.Ext]);
+                        else
+                                warning('BLSC: ????');
+                        end;
+                        HDR.TYPE='BLSC';
                         
                 elseif any(s(1)==[100:103]) & all(s([2:8])==[0,0,0,176,1,0,0]) & strcmpi(HDR.FILE.Ext,'DDT'); 
                         HDR.TYPE='DDT';
@@ -616,6 +622,9 @@ else
                         HDR.Endianity = 'ieee-be';
                 elseif all(s(1:4)==[216,255,224,255])
                         HDR.TYPE='IMAGE:JPG3';
+                        HDR.Endianity = 'ieee-le';
+                elseif all(s([1,3,65])==[10,1,0]) & any(s(2)==[0,2,3,4,5]) & any(s(4)==[1,2,4,8]) & any(s(66)==[1:4]) & any(s(69)==[1:2])
+                        HDR.TYPE='IMAGE:PCX';
                         HDR.Endianity = 'ieee-le';
                 elseif all(s(1:20)==['L',0,0,0,1,20,2,0,0,0,0,0,192,0,0,0,0,0,0,70])
                         HDR.TYPE='LNK';
