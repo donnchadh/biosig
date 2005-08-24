@@ -27,7 +27,7 @@ function [HDR,data] = iopen(HDR,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: iopen.m,v 1.5 2005-08-13 00:12:07 schloegl Exp $
+%	$Id: iopen.m,v 1.6 2005-08-24 13:22:53 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -245,7 +245,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                                 fseek(HDR.FILE.FID, pos+offset.IFD0, 'bof');
                                 nf = fread(HDR.FILE.FID,1,'uint16');
                                 if nf ~= 11;
- 					fprintf(HDR.FILE.stderr,'Warning EXIF: instead of 11 only %i tags.\n',nf);
+ 					fprintf(HDR.FILE.stderr,'Warning EXIF:  %i instead of 11  %i tags.\n',nf);
  					if nf>11, return; end;
 				end;	
                                 
@@ -390,6 +390,31 @@ elseif strcmp(HDR.TYPE,'IMAGE:JPG'),
         count = fread(HDR.FILE.FID,1,'uint32');
         offset = fread(HDR.FILE.FID,1,'uint32');
         
+        
+	fclose(HDR.FILE.FID);	
+	
+        
+
+elseif strcmp(HDR.TYPE,'IMAGE:PCX'),  
+
+        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        tmp = fread(HDR.FILE.FID,[1,4],'uchar');
+        HDR.PCX.Version = tmp(2); 
+        HDR.Bits = tmp(4);
+        axis_size = fread(HDR.FILE.FID,[1,6],'uint16');
+        HDR.IMAGE.Size = axis_size([3:4])-axis_size([1:2]);
+        HDR.PCX.dpi = axis_size(5:6);
+        LUT = fread(HDR.FILE.FID,[1,48],'uint8');
+        tmp = fread(HDR.FILE.FID,[5],'uint16');
+        HDR.PCX.Nplanes = tmp(1); 
+        
+        if HDR.Bits==8, 
+                fseek(HDR.FILE.FID,3*256,'eof'); 
+                HDR.IMAGE.Palette = fread(HDR.FILE.FID,[256,3],'uint8');
+        end;                        
+        
+        fseek(HDR.FILE.FID,128,'bof'); 
+
         
 	fclose(HDR.FILE.FID);	
 	
