@@ -7,13 +7,13 @@ function [kap,se,H,zscore,p0,SA]=kappa(d,c,kk);
 % d1    data of scorer 1 
 % d2    data of scorer 2 
 %
-% sd    Distance of every feature
 % kap	Cohen's kappa coefficient point
+% se	standard error of the kappa estimate
 % H	data scheme (Concordance matrix or confusion matrix)
 % z	z-score
 % OA	overall agreement 
 % SA	specific agreement 
-
+%
 % Reference(s):
 % [1] Cohen, J. (1960). A coefficient of agreement for nominal scales. Educational and Psychological Measurement, 20, 37-46.
 % [2] J Bortz, GA Lienert (1998) Kurzgefasste Statistik f|r die klassische Forschung, Springer Berlin - Heidelberg. 
@@ -23,10 +23,10 @@ function [kap,se,H,zscore,p0,SA]=kappa(d,c,kk);
 %        Encyclopedia of Statistical Sciences. New York: John Wiley & Sons.
 % [5] http://ourworld.compuserve.com/homepages/jsuebersax/kappa.htm
 
-%	$Revision: 1.3 $
-%	$Id: kappa.m,v 1.3 2004-10-04 12:47:25 schloegl Exp $
-%	Copyright (c) 1997-2003 by Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Revision: 1.4 $
+%	$Id: kappa.m,v 1.4 2005-08-24 13:10:22 schloegl Exp $
+%	Copyright (c) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -45,8 +45,12 @@ function [kap,se,H,zscore,p0,SA]=kappa(d,c,kk);
 %
 
 if nargin>1,
-	if any(rem(d,1)) | any(rem(c,1))
-		fprintf(2,'Error %s: class information is not integer\n',mfilename);
+	if (isa(d,'double') | isa(d,'single')) & any(rem(d,1)) 
+        	fprintf(2,'Error %s: class information is not integer\n',mfilename);
+		return;
+	end;
+	if (isa(c,'double') | isa(c,'single')) & any(rem(c,1)) 
+        	fprintf(2,'Error %s: class information is not integer\n',mfilename);
 		return;
 	end;
         
