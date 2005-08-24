@@ -1,4 +1,4 @@
-function [argout,s]=sview(s,H),
+function [argout,s]=sview(s,arg2),
 % SVIEW - a simple signal viewer 
 %    SVIEW(filename)
 %    SVIEW(HDR)
@@ -6,8 +6,8 @@ function [argout,s]=sview(s,H),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.12 $
-%	$Id: sview.m,v 1.12 2005-07-19 08:23:13 schloegl Exp $ 
+%	$Revision: 1.13 $
+%	$Id: sview.m,v 1.13 2005-08-24 13:08:46 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -27,6 +27,8 @@ function [argout,s]=sview(s,H),
 
 if nargin<2, 
 	arg2='';
+else
+        H=arg2; 
 end;
 if ischar(s) | iscell(s),
         if nargin<2,
@@ -44,6 +46,7 @@ elseif isstruct(s)
         
 elseif isnumeric(s) & (length(H.InChanSelect)==size(s,2))
         CHAN = 1:size(s,2);        
+        H.Label = H.Label(H.InChanSelect,:);
 else    
         return;
 end;
@@ -62,11 +65,11 @@ if isfield(H,'IMAGE');
         argout=H;
         return;
 
-elseif strcmp(H.TYPE,'ELPOS');
+elseif strcmp(H.TYPE,'ELPOS') | (isfield(H,'ELEC') & strncmpi(arg2,'ELPOS',5));
 	XYZ = H.ELEC.XYZ;
 	K = 1:size(XYZ,1); 
 		
-	if strcmpi(arg2,'2d')
+	if ~isempty(strfind(arg2,'2d'))
 		T=0:.001:2*pi;
 
 		r = sqrt(sum(XYZ(:,1:2).^2,2));
@@ -96,7 +99,7 @@ end;
 [p,f,e]=fileparts(H.FileName);
 %fn=dir(fullfile(p,[f,'EOG',e]));
 if 1,   % no EOG corrections
-        
+
 elseif 1
         [R,s] = regress_eog(s,1:60,61);
 end;
@@ -114,7 +117,7 @@ t(isnan(t))=median(t);
 dd = max(t)-min(t);
 %dd = max(std(s))*5;
 %s = zscore(s); dd = 20; % 
-%dd=400;
+dd=300;
 
 H.AS.TIMECHAN = strmatch('Time',H.Label);
 FLAG.tmp = (length(H.FILE)==1) & ~isempty(H.AS.TIMECHAN);
@@ -137,9 +140,10 @@ end;
 if isfield(H,'PLX'),
 elseif isfield(H,'SegLen'), 
         EVENT.POS = H.SegLen(1:end-1)'+1;
-        EVENT.Desc = {H.FILE.Name}';
-        t = (1:size(s,1))';
-        X_Label = 'samples';
+        EVENT.DUR = zeros(size(EVENT.POS));
+        EVENT.Desc = cellstr(repmat(' ',length(H.FILE),1));
+%        t = (1:size(s,1))';
+%        X_Label = 'samples';
 elseif isfield(H.EVENT,'Desc'),
         EVENT = H.EVENT;
 elseif isfield(H.EVENT,'CodeDesc'),
