@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.34 $
-%	$Id: plota.m,v 1.34 2005-07-19 08:23:51 schloegl Exp $
+%       $Revision: 1.35 $
+%	$Id: plota.m,v 1.35 2005-08-24 13:33:06 schloegl Exp $
 %	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -979,7 +979,8 @@ elseif 0, strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1',
                         sz = size(x);
                         %x = x(:);
                         bf = prod(size(x));
-                        xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
+                        %xc(abs(x) < (ci*norminv(1-alpha/(2*bf))))  = 1;
+                        xc(abs(x) < (ci*tinv(1-alpha/(2*bf),X.N))) = 1;
                         %x(abs(x) < .5) = NaN;
                         %x = reshape(x,sz);
                         cm(1,:) = [1,1,1];
@@ -1016,7 +1017,7 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
                 arg2 = 'logS1';
         end;
         if nargin<3,
-                alpha = 1; 
+                alpha = .01; 
         elseif isnumeric(arg3),
                 alpha = arg3;
         elseif isempty(str2num(arg3))
@@ -1032,7 +1033,7 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
         
         gf = arg2;
         if ~isfield(X.M,gf)
-                error('PLOTA TFMVAR_ALL: field %s is unknown\n',gf);
+                warning('PLOTA TFMVAR_ALL: field %s is unknown\n',gf);
         end;
         
         %ClassList = {'left','right','foot','tongue'};
@@ -1050,7 +1051,7 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
         end;
         nr = ceil(sqrt(M));
         nc = ceil(M/nr);
-        if nargin>2,
+        if 0, nargin>2,
                 hf = arg3;
         else
                 for k1 = 1:M,
@@ -1060,44 +1061,108 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
                 end;
         end;
         
-        if isempty(Y);
-                x0 = real(getfield(X.M,gf));
+        if ~isempty(strfind(gf,'eventrelated'))
+                [tmp]  = str2double(gf); 
+                [gf,r] = strtok(gf);
+                [t2,r] = strtok(r);
+                [t3,r] = strtok(r);
+                
+                ix = min(find(X.T==max(tmp)));
+                nix = [1:ix-1,ix+1:length(X.T)];
+                rix = repmat(ix,size(nix));
+                
+                m   = real(getfield(X.M,gf));
+                se  = real(getfield(X.SE,gf))*X.N;
+                x0  = m(:,:,:,nix)  - m(:,:,:,rix);
+                ci0 = se(:,:,:,nix) + se(:,:,:,rix);
+                X.T = X.T(nix); 
+        elseif isempty(Y);
+                nix = 2:length(X.T);
+                X.T = X.T(nix); 
+                x0  = real(getfield(X.M,gf));
+                ci0 = getfield(X.SE,gf)*X.N;
+                x0  = x0(:,:,:,nix);
+                ci0 = ci0(:,:,:,nix);
         else
-                x0 = (real(getfield(X.M,gf)) - real(getfield(Y.M,gf)))./(real(getfield(X.SE,gf))*X.N + real(getfield(Y.SE,gf))*Y.N);
+                nix = 2:length(X.T);
+                X.T = X.T(nix); 
+                x0  = (real(getfield(X.M,gf)) - real(getfield(Y.M,gf))); 
+                ci0 = real(getfield(X.SE,gf))*X.N + real(getfield(Y.SE,gf))*Y.N;
         end;
 
-        clim = [min(x0(:)),max(x0(:))];
-        caxis(clim);
-        cm = colormap;
-        for k1 = 1:M,
-                for k2 = 1:M,
-                        subplot(hf(k1*M-M+k2));
-                        x  = x0(k1,k2,1:length(X.F),:);
-                        ci = getfield(X.SE,gf)*(X.N-1);
-                        ci = ci(k1,k2,1:length(X.F),:);
-                        if alpha < .5,
-                                xc = 2 + round(62*(squeeze(x)-clim(1))/diff(clim));
-                                sz = size(x);
-                                %x = x(:);
-                                bf = prod(size(x));
-                                xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
-                                %x(abs(x) < .5) = NaN;
-                                %x = reshape(x,sz);
-                                cm(1,:) = [1,1,1];
-                                colormap(cm);
-                        else
-                                xc = 1+round(63*(squeeze(x)-clim(1))/diff(clim));
-                                colormap('default');
+
+        if strcmp(gf,'DC')
+                clim = [min(x0(:)),max(x0(:))];
+                caxis(clim);
+                cm = colormap;
+                for k1 = 1:M,
+                        for k2 = 1:M,
+                                subplot(hf(k1*M-M+k2));
+                                x  = x0(k1,k2,1,:);
+                                ci = ci0(k1,k2,1,:);
+                                if 1,
+                                elseif alpha < .5,
+                                        xc = 2 + round(62*(squeeze(x)-clim(1))/diff(clim));
+                                        sz = size(x);
+                                        %x = x(:);
+                                        bf = prod(size(x));
+                                        %xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
+                                        x(abs(x) < (ci*tinv(1-alpha,X.N))) = NaN;
+                                        %x(abs(x) < .5) = NaN;
+                                        %x = reshape(x,sz);
+                                        cm(1,:) = [1,1,1];
+                                        colormap(cm);
+                                else
+                                        xc = 1+round(63*(squeeze(x)-clim(1))/diff(clim));
+                                        colormap('default');
+                                end;
+                                
+                                h = semilogy(X.T,[x(:),ci(:)]*[1,1,1;0,-1,1]);
+                                %h = plot(X.T,[x(:),ci(:)]*[1,1,1;0,-1,1]);
+                                set(h(1),'color',[0,0,1]);
+                                set(h(2),'color',[0.5,0.5,1]);
+                                set(h(3),'color',[0.5,0.5,1]);
+                                v  = axis; v(1)=min(X.T);v(2)=max(X.T);v(3)=0;axis(v);
+                                axis([min(X.T),max(X.T),clim])
+                                %h  = imagesc(X.T,X.F,squeeze(x),clim);
+                                if k2==1, title(Label{k1}); end;
+                                if k1==1, ylabel(Label{k2});end;
                         end;
-                        x1 = reshape(cm(xc,1),size(xc));
-                        x2 = reshape(cm(xc,2),size(xc));
-                        x3 = reshape(cm(xc,3),size(xc));
-                        
-                        %h = imagesc(X.T,X.F,cat(3,x1,x2,x3)*diff(clim)+clim(1),clim);
-                        h = imagesc(X.T,X.F,cat(3,x1,x2,x3),clim);
-                        %h  = imagesc(X.T,X.F,squeeze(x),clim);
-                        if k2==1, title(Label{k1}); end;
-                        if k1==1, ylabel(Label{k2});end;
+                end;
+        else
+                clim = [min(x0(:)),max(x0(:))];
+                caxis(clim);
+                cm = colormap;
+                for k1 = 1:M,
+                        for k2 = 1:M,
+                                subplot(hf(k1*M-M+k2));
+                                x  = x0(k1,k2,1:length(X.F),:);
+                                ci = ci0(k1,k2,1:length(X.F),:);
+                                if alpha < .5,
+                                        xc = 2 + round(62*(squeeze(x)-clim(1))/diff(clim));
+                                        sz = size(x);
+                                        %x = x(:);
+                                        bf = prod(size(x));
+                                        %xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
+                                        xc(abs(x) < (ci*tinv(1-alpha,X.N))) = 1;
+                                        %x(abs(x) < .5) = NaN;
+                                        %x = reshape(x,sz);
+                                        cm(1,:) = [1,1,1];
+                                        colormap(cm);
+                                else
+                                        xc = 1+round(63*(squeeze(x)-clim(1))/diff(clim));
+                                        colormap('default');
+                                end;
+                                x1 = reshape(cm(xc,1),size(xc));
+                                x2 = reshape(cm(xc,2),size(xc));
+                                x3 = reshape(cm(xc,3),size(xc));
+                                
+                                %h = imagesc(X.T,X.F,cat(3,x1,x2,x3)*diff(clim)+clim(1),clim);
+                                h = imagesc(X.T,X.F,cat(3,x1,x2,x3),clim);
+                                %h  = imagesc(X.T,X.F,squeeze(x),clim);
+                                if k2==1, title(Label{k1}); end;
+                                if k1==1, ylabel(Label{k2});end;
+                        end;
                 end;
         end;
         %caxis = clim;
@@ -1112,7 +1177,10 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
                         suptitle(TIT);
                 end;
         else
-                TIT = '';
+                TIT = gf; 
+                if ~isempty(strfind(gf,'eventrelated'))
+                        TIT = ['er',TIT];
+                end;
         end
         
         
@@ -1642,6 +1710,29 @@ elseif strcmp(X.datatype,'MEAN+STD')
         %set(0,'DefaultTextInterpreter','none');  % Avoid having TeX interpretation in title string
         %suptitle(X.Title);
         
+        
+        
+elseif strcmp(X.datatype,'CORRELATION_WITH_REFERENCE')
+        if isfield(X,'ELEC') | isfield(X,'ELPOS')
+                fprintf(2,'PLOTA: X.ELPOS, X.ELEC not supported yet.\n'); 
+        end; 
+        FLAG.TOPOMAP = 1; 
+        if nargin>1,
+                if ~exist(arg2,'file');
+                        fprintf(2,'Warning PLOTA: electrode position file not found.\n'); 
+                        FLAG.TOPOMAP = 0; 
+                end;                
+        else
+        %        fprintf(2,'Warning PLOTA: electrode position file not specified.\n'); 
+                FLAG.TOPOMAP = 0; 
+        end;                
+        if FLAG.TOPOMAP,
+                topoplot(X.corr,arg2,'maplimits',[-1,1]);
+                colorbar;
+        else
+                plot(X.corr); 
+                axis([1,length(X.corr),-1,1]);
+        end;
         
         
 elseif strcmp(X.datatype,'Classifier')
