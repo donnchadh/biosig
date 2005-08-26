@@ -320,7 +320,7 @@ bsv_data_t* bsv_get_data(void)
 	} while(goon);
 
 	/* Exchange byte */
-	buf[1]	= buf[3];
+	//buf[1]	= buf[3];
 
 	data.samples	= (char*)buf;
 	data.size		= 2;
