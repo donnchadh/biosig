@@ -6,7 +6,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 Date: 20 Feb 2003
 (C) Alois Schloegl <a.schloegl@ieee.org>
 Version 1.0 (0.10 for testing)
-$Revision: 1.16 $
+$Revision: 1.17 $
 $Id
 
 
@@ -86,7 +86,7 @@ HDR.TriggerOffset       samples         [OPTIONAL] Offset time between TriggerOn
 HDR.Filter	% filter information, usually for each channel separatily
     Filter.LowPass	float		[Hz]
     Filter.HighPass	float		[Hz]
-    Filter.Notch 	int8		0=Off, 1=ON
+    Filter.Notch 	float		[Hz] NaN: unknown, -1(<0): off
 HDR.PreFilt		string		[OPTIONAL] filter setting - used by GDF, BDF, EDF
 
 HDR.ID.Doctor				Identification of doctor
@@ -102,15 +102,19 @@ HDR.Patient	# contains patient information [OPTIONAL]
     Patient.Weight			weight in kilogram [kg]
     Patient.BMI				Body mass index
     Patient.Headsize	3xfloat32	Distance Nasion-Inion, distance A1-A2, Circumference of head
-    Patient.Birthday			approx. Birthday, to calculate patient's age. 
+    Patient.Birthday			[Y M D h m s]: approx. Birthday, to calculate patient's age. 
+    Patient.Impairment.Visual		0: unknown 1: NO 2: YES 3: corrected (with visual aid) 
+    Patient.Smoking			0: unknown 1: NO 2: YES 
+    Patient.AlcoholAbuse		0: unknown 1: NO 2: YES 
+    Patient.DrugAbuse			0: unknown 1: NO 2: YES 
     
 HDR.REC.LOC		16 byte		Latitude, Longitude and Altitude 3 x INT32 according to RFC1876
 HDR.REC.IPaddr		4(6)xuint8	IP address of recording system
 # HDR.REC.Reference			reference (monopolar | CAR | LAR | Laplacian | Linked ears | weighted )
 HDR.REC.Impedance	NS*uint8	Electrode Impedance round(log2(Z[Ohm])*8) Z can be reconstructed with < 10% error 
 HDR.ELEC.XYZ		3xNSxfloat32	electrode position in cartesion coordinates
-# HDR.ELEC.Ref		3xfloat32	position of reference electrode 
-# HDR.ELEC.GND		3xfloat32	position of ground electrode 
+HDR.ELEC.REF		3xfloat32	position of reference electrode 
+HDR.ELEC.GND		3xfloat32	position of ground electrode 
 
 HDR.AS		# provides some internal information	
     AS.MAXSPR				least common multiple samplerate
