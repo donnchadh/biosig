@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.116 $
-%	$Id: sopen.m,v 1.116 2005-08-30 16:56:02 schloegl Exp $
+%	$Revision: 1.117 $
+%	$Id: sopen.m,v 1.117 2005-08-30 20:16:20 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -142,7 +142,7 @@ end;
 if ~isfield(HDR,'SampleRate');
         HDR.SampleRate = NaN; 
 end;
-if ~isfield(HDR,'Label');
+if 0, ~isfield(HDR,'Label');
         HDR.Label = []; 
 end;
 if ~isfield(HDR,'PhysDim');
@@ -245,9 +245,9 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                         end;
                 end;
                 
-		HDR.Patient.Age = NaN;
 		HDR.Patient.Sex = 0;
 		HDR.Patient.Handedness = 0;
+if 0,
 		HDR.Patient.Weight = NaN;
 		HDR.Patient.Height = NaN;
 		HDR.Patient.Impairment.Visual = NaN;
@@ -255,6 +255,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
 		HDR.Patient.AlcoholAbuse = NaN;
 		HDR.Patient.DrugAbuse = NaN;
 		HDR.Patient.Medication = NaN;
+end;
                 %if strcmp(HDR.VERSION(1:3),'GDF'),
                 if strcmp(HDR.TYPE,'GDF'),
                         if (HDR.VERSION >= 1.90)
@@ -334,7 +335,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                         end;
                         HDR.NS =   fread(HDR.FILE.FID,1,'uint32');     % 4 Byte # of signals
                 else 
-                        H1(185:256)= fread(HDR.FILE.FID,[1,256-192],'uchar');     %
+                        H1(193:256)= fread(HDR.FILE.FID,[1,256-192],'uchar');     %
                         H1 = char(H1); 
                         HDR.PID = deblank(char(H1(9:88)));                  % 80 Byte local patient identification
                         HDR.RID = deblank(char(H1(89:168)));                % 80 Byte local recording identification
@@ -774,7 +775,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
                 end;
-                
+
                 % Check all fields of Header1
                 %if ~strcmp(HDR.VERSION(1:3),'GDF');
                 if ~strcmp(HDR.TYPE,'GDF');
@@ -816,8 +817,20 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 end;
                 if ~isfield(HDR.Patient,'Sex')
 			HDR.Patient.Sex = 0; 
+		elseif strcmpi(HDR.Patient.Sex,'m') | strcmpi(HDR.Patient.Sex,'male')
+			HDR.Patient.Sex = 1; 
+		elseif strcmpi(HDR.Patient.Sex,'f') | strcmpi(HDR.Patient.Sex,'female')
+			HDR.Patient.Sex = 2; 
+		else	
+			HDR.Patient.Sex = 0; 
                 end;
                 if ~isfield(HDR.Patient,'Handedness')
+			HDR.Patient.Handedness = 0; 
+		elseif strcmpi(HDR.Patient.Handedness,'r') | strcmpi(HDR.Patient.Handedness,'right')
+			HDR.Patient.Handedness = 1; 
+		elseif strcmpi(HDR.Patient.Handedness,'l') | strcmpi(HDR.Patient.Handedness,'left')
+			HDR.Patient.Handedness = 2; 
+		else	
 			HDR.Patient.Handedness = 0; 
                 end;
                 if ~isfield(HDR.Patient,'Impairment.Visual')
@@ -885,10 +898,14 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 elseif isnan(HDR.Patient.Height) | (isnan(HDR.Patient.Height)<0)
 			HDR.Patient.Height = 0; 
                 end;
-                if ~isfield(HDR.Patient,'Birthday') & ~isfield(HDR.Patient.Age)
-			HDR.Patient.Birthday = zeros(1,6);
-                elseif ~isfield(HDR.Patient,'Birthday') & isfield(HDR.Patient.Age)
-			HDR.Patient.Birthday = datevec(datenum(HDR.T0) + HDR.Patient.Age*365.25);
+                if ~isfield(HDR.Patient,'Birthday') 
+			if ~isfield(HDR.Patient,'Age')
+				HDR.Patient.Birthday = zeros(1,6);
+                        elseif isnan(HDR.Patient.Age) 
+				HDR.Patient.Birthday = zeros(1,6);
+			else
+				HDR.Patient.Birthday = datevec(datenum(HDR.T0) + HDR.Patient.Age*365.25);
+			end;	
                 end;
                 if ~isfield(HDR.Patient,'Headsize')
 			HDR.Patient.Headsize = [NaN,NaN,NaN]; 
@@ -997,7 +1014,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.Label not defined\n');
                                 end;
                         else
-                                tmp=min(16,size(HDR.Label,2));
+                                tmp = min(16,size(HDR.Label,2));
                                 HDR.Label = [HDR.Label(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,16-tmp))];
                         end;
                         if ~isfield(HDR,'Transducer')
@@ -2285,6 +2302,7 @@ elseif strcmp(HDR.TYPE,'SND'),
                 HDR.FILE.TYPE = fread(HDR.FILE.FID,1,'uint32');
                 HDR.SampleRate = fread(HDR.FILE.FID,1,'uint32');
                 HDR.NS = fread(HDR.FILE.FID,1,'uint32');
+		HDR.Label = repmat(' ',HDR.NS,1);
                 [tmp,count] = fread(HDR.FILE.FID, [1,HDR.HeadLen-24],'char');
                 HDR.INFO = setstr(tmp);
                 
@@ -2359,6 +2377,7 @@ elseif strcmp(HDR.TYPE,'SND'),
                 fprintf(HDR.FILE.stderr,'Error SOPEN SND-format: datatype %i not supported\n',HDR.FILE.TYPE);
                 return;
         end;
+	[d,l,d1,b,HDR.GDFTYP] = gdfdatatype(HDR.GDFTYP);
         HDR.AS.bpb = HDR.NS*HDR.Bits/8;
         
         % Calibration 
@@ -3223,10 +3242,12 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                 end;
 		
 		if isnan(HDR.NS), return; end; 
+	    	[d,l,d1,b,HDR.GDFTYP] = gdfdatatype(HDR.GDFTYP);
 
                 % define Calib: implements S = (S+.5)*HDR.Cal - HDR.Off;
                 HDR.Calib = [repmat(.5,1,HDR.NS);eye(HDR.NS)] * diag(repmat(HDR.Cal,1,HDR.NS));
                 HDR.Calib(1,:) = HDR.Calib(1,:) - HDR.Off;
+		HDR.Label = repmat(' ',HDR.NS,1);
 
                 HDR.FILE.POS = 0;
                 HDR.FILE.OPEN = 1;
@@ -7528,8 +7549,14 @@ end;
 
 % identify type of signal
 if HDR.NS>0,
-        HDR.Label = strvcat(HDR.Label);
-        HDR.CHANTYP = repmat(' ',1,HDR.NS);
+	if ~isfield(HDR,'Label')	
+		HDR.Label = repmat(' ',HDR.NS,1);
+	elseif isempty(HDR.Label)	
+		HDR.Label = repmat(' ',HDR.NS,1);
+        else
+		HDR.Label = strvcat(HDR.Label);
+        end;
+	HDR.CHANTYP = repmat(' ',1,HDR.NS);
         tmp = HDR.NS-size(HDR.Label,1);
         %HDR.Label = [HDR.Label(1:HDR.NS,:);repmat(' ',max(0,tmp),size(HDR.Label,2))];
         tmp = reshape(lower([[HDR.Label(1:min(HDR.NS,size(HDR.Label,1)),:);repmat(' ',max(0,tmp),size(HDR.Label,2))],repmat(' ',HDR.NS,1)])',1,HDR.NS*(size(HDR.Label,2)+1));
