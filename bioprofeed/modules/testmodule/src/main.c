@@ -151,7 +151,7 @@ bsv_data_t* bsv_get_data(void)
 	}
 	
 	data.samples	= (char*)buf;
-	data.size		= 3;
+	data.size		= 3*sizeof(short);
 
 	usleep(4000);
 

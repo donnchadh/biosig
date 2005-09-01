@@ -54,8 +54,8 @@ bsv_channelinfo_t	chan1info		= {
 										"ch1",			/* label */
 										"Ag/AgCl",		/* transducer type */
 										"mV",			/* phys. dimension */
-										-5,				/* phys. minimum */
-										5,				/* phys. maximum */
+										-1.5,			/* phys. minimum */
+										1.5,			/* phys. maximum */
 										0,				/* digital minimum */
 										1023,			/* digital maximum */
 										"HP:0.16Hz LP:59Hz",/* prefiltering */
@@ -65,9 +65,9 @@ bsv_channelinfo_t	chan1info		= {
 bsv_channelinfo_t	chan2info		= {
 										"ch2",			/* label */
 										"Ag/AgCl",		/* transducer type */
-										"mV",			/* phys. dimension */
-										-5,				/* phys. minimum */
-										5,				/* phys. maximum */
+										"uV",			/* phys. dimension */
+										-125,			/* phys. minimum */
+										125,			/* phys. maximum */
 										0,				/* digital minimum */
 										1023,			/* digital maximum */
 										"HP:0.16Hz LP:59Hz",/* prefiltering */
@@ -323,7 +323,7 @@ bsv_data_t* bsv_get_data(void)
 	//buf[1]	= buf[3];
 
 	data.samples	= (char*)buf;
-	data.size		= 2;
+	data.size		= 2*sizeof(short);
 
 	return &data;
 }
