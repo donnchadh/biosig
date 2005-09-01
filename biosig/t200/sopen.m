@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.117 $
-%	$Id: sopen.m,v 1.117 2005-08-30 20:16:20 schloegl Exp $
+%	$Revision: 1.118 $
+%	$Id: sopen.m,v 1.118 2005-09-01 18:04:17 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -271,14 +271,18 @@ end;
 				HDR.Patient.Height = tmp(2);
 				HDR.Patient.Sex = GENDER{bitand(H1(88),3)+1};
 				HDR.Patient.Handedness = HANDEDNESS{bitand(floor(H1(88)/4),3)+1};
-				HDR.Patient.Impairment.Visual = SCALE14{bitand(floor(H1(88)/16),3)+1};
-				HDR.RID = deblank(char(H1(89:156)));
-				%HDR.REC.LOC.RFC1876  = 256.^[0:3]*reshape(H1(153:168),4,4);
-				HDR.REC.LOC.Version   = abs(H1(156));
-				HDR.REC.LOC.Size      = dec2hex(H1(155));
-				HDR.REC.LOC.HorizPre  = dec2hex(H1(154));
-				HDR.REC.LOC.VertPre   = dec2hex(H1(153));
-				HDR.REC.LOC.Latitude  = H1(157:160)*256.^[0:3]'/3600000;
+                                HDR.Patient.Impairment.Visual = SCALE14{bitand(floor(H1(88)/16),3)+1};
+                                if H1(156)>0, 
+                                        HDR.RID = deblank(char(H1(89:156)));
+                                else
+                                        HDR.RID = deblank(char(H1(89:152)));
+                                        %HDR.REC.LOC.RFC1876  = 256.^[0:3]*reshape(H1(153:168),4,4);
+                                        HDR.REC.LOC.Version   = abs(H1(156));
+                                        HDR.REC.LOC.Size      = dec2hex(H1(155));
+                                        HDR.REC.LOC.HorizPre  = dec2hex(H1(154));
+                                        HDR.REC.LOC.VertPre   = dec2hex(H1(153));
+                                end;
+                                HDR.REC.LOC.Latitude  = H1(157:160)*256.^[0:3]'/3600000;
 				HDR.REC.LOC.Longitude = H1(161:164)*256.^[0:3]'/3600000;
 				HDR.REC.LOC.Altitude  = H1(165:168)*256.^[0:3]'/100;
 
@@ -768,10 +772,8 @@ end;
                 if strcmp(HDR.TYPE,'EDF')
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF') 
-			if ~isfield(HDR,'VERSION')
-	                        HDR.VERSION = 1.25;
-			end;
-                        HDR.VERSION = 1.90; 
+                        HDR.VERSION = 1.25;     %% stable version 
+                        HDR.VERSION = 1.91;     %% testing 
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
                 end;
@@ -1271,8 +1273,13 @@ end;
                                 H1(86) = HDR.Patient.Weight; 
                                 H1(87) = HDR.Patient.Height; 
                 		H1(88) = bitand(HDR.Patient.Sex,3) + bitand(HDR.Patient.Handedness,3)*4 + bitand(HDR.Patient.Impairment.Visual,3)*16;
-	                        c = fwrite(HDR.FILE.FID,abs(H1(1:152)),'uchar');
-				c = fwrite(HDR.FILE.FID,HDR.REC.LOC.RFC1876,'uint32');
+                                if all(H1(153:156)==32)
+                                        c = fwrite(HDR.FILE.FID,abs(H1(1:152)),'uchar');
+                                        c = fwrite(HDR.FILE.FID,HDR.REC.LOC.RFC1876,'uint32');
+                                else
+                                        c = fwrite(HDR.FILE.FID,abs(H1(1:156)),'uchar');
+                                        c = fwrite(HDR.FILE.FID,HDR.REC.LOC.RFC1876(2:4),'uint32');
+                                end;
 				tmp = [datenum(HDR.T0), datenum(HDR.Patient.Birthday)];
 				tmp = floor([rem(tmp,1)*2^32;tmp]);
                                 c = fwrite(HDR.FILE.FID,tmp,'uint32');
@@ -2456,7 +2463,7 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
         HDR.GTF.L3 = reshape(HDR.GTF.H3(1070+32*3+(1:232*20)),232,20)';
         
         HDR.Label = char(reshape(HDR.GTF.H3(1071:1070+32*3),3,32)');        % channel labels
-        
+
         [H.i8, count]    = fread(HDR.FILE.FID,inf,'int8');
         fclose(HDR.FILE.FID);
         
@@ -2516,18 +2523,18 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
         HDR.Dur  = 10; 
         HDR.SPR  = HDR.Dur*HDR.SampleRate; 
         HDR.Bits = 8; 
-		  HDR.GDFTYP = repmat(1,HDR.NS,1);
+        HDR.GDFTYP = repmat(1,HDR.NS,1);
         HDR.TYPE = 'native'; 
         HDR.THRESHOLD = repmat([-127,127],HDR.NS,1);    % support of overflow detection
         HDR.FILE.POS = 0; 
         HDR.Label = HDR.Label(1:HDR.NS,:);
         
         HDR.AS.bpb = (HDR.SampleRate*240+2048);
-	     HDR.GTF.Preset = HDR.GTF.H3(8134)+1;	% Preset
+        HDR.GTF.Preset = HDR.GTF.H3(8134)+1;	% Preset
 
         t2 = (0:floor(count/HDR.AS.bpb)-1)*HDR.AS.bpb;
         HDR.NRec = length(t2);
-        [s2,sz]  = trigg(H.i8,t2,1,HDR.SampleRate*240);
+        [s2,sz]  = trigg(H.i8,t2+2048,1,HDR.SampleRate*240);
         HDR.data = reshape(s2,[HDR.NS,sz(2)/HDR.NS*HDR.NRec])';
         
         [s4,sz]  = trigg(H.i8,t2+1963,0,1);
@@ -7549,14 +7556,14 @@ end;
 
 % identify type of signal
 if HDR.NS>0,
-	if ~isfield(HDR,'Label')	
-		HDR.Label = repmat(' ',HDR.NS,1);
-	elseif isempty(HDR.Label)	
-		HDR.Label = repmat(' ',HDR.NS,1);
+        if ~isfield(HDR,'Label')	
+                HDR.Label = [repmat('#',HDR.NS,1),int2str([1:HDR.NS]')];
+        elseif isempty(HDR.Label)	
+                HDR.Label = [repmat('#',HDR.NS,1),int2str([1:HDR.NS]')];
         else
-		HDR.Label = strvcat(HDR.Label);
+                HDR.Label = strvcat(HDR.Label);
         end;
-	HDR.CHANTYP = repmat(' ',1,HDR.NS);
+        HDR.CHANTYP = repmat(' ',1,HDR.NS);
         tmp = HDR.NS-size(HDR.Label,1);
         %HDR.Label = [HDR.Label(1:HDR.NS,:);repmat(' ',max(0,tmp),size(HDR.Label,2))];
         tmp = reshape(lower([[HDR.Label(1:min(HDR.NS,size(HDR.Label,1)),:);repmat(' ',max(0,tmp),size(HDR.Label,2))],repmat(' ',HDR.NS,1)])',1,HDR.NS*(size(HDR.Label,2)+1));
