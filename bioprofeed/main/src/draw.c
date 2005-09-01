@@ -426,7 +426,7 @@ static inline int get_new_point(d_chan_t* c_ptr, int* o_ptr, gint* p_ptr)
 			
 			*o_ptr		+= c_ptr->srecnum*sizeof(short);
 			sample		= ((sample+c_ptr->s_off)*-1*c_ptr->mag)/100;
-			*p_ptr		= (sample*c_ptr->da_ydelta) / (c_ptr->s_dmaxabs);
+			*p_ptr		= (sample*c_ptr->da_ydelta*2) / (c_ptr->s_dmaxabs);
 		} break;
 
 		default:
