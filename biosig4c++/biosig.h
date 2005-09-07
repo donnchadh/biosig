@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.1 2005-09-07 14:08:32 schloegl Exp $
+% $Id: biosig.h,v 1.2 2005-09-07 17:08:21 schloegl Exp $
 % Author: Alois Schloegl <a.schloegl@ieee.org>
 % Copyright (C) 2000,2005 A.Schloegl
 % 
@@ -31,6 +31,7 @@
 
 
 enum FileFormat {unknown, GDF, EDF, BDF, CNT, BKR}; // list file formats 
+const int GDFTYP_BYTE[]={1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8, 16};
 
 typedef struct {
 	char* Label;
@@ -42,8 +43,8 @@ typedef struct {
 	float Notch;
 	float XYZ[3];
 	
-	float PhysMin;
-	float PhysMax;
+	double PhysMin;
+	double PhysMax;
 	long DigMin;
 	long DigMax;
 
@@ -85,10 +86,13 @@ typedef struct {
 	char *Time;
 	unsigned long int HeadLen;
 	long int NRec;
-	double Dur;
+	unsigned long Dur[2];	// Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1] 
 	// unsigned long int Dur[2];
 	unsigned long int NS;
 	unsigned long int SPR;
+	unsigned long int spb;
+	unsigned long int bpb;
+	unsigned long int *bi;
 	CHANNEL_TYPE *CHANNEL;
     } HDRTYPE;
 
@@ -96,5 +100,6 @@ typedef struct {
 
 HDRTYPE sopen(const char* FileName, HDRTYPE HDR, const char* MODE);
 HDRTYPE sclose(HDRTYPE HDR);
-
+HDRTYPE swrite(const void *ptr, size_t size, size_t nelem, HDRTYPE HDR);
+HDRTYPE sread (const void *ptr, size_t size, size_t nelem, HDRTYPE HDR);
 
