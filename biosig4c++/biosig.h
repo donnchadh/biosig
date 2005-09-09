@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.3 2005-09-09 14:35:15 schloegl Exp $
+% $Id: biosig.h,v 1.4 2005-09-09 17:18:34 schloegl Exp $
 % Author: Alois Schloegl <a.schloegl@ieee.org>
 % Copyright (C) 2000,2005 A.Schloegl
 % 
@@ -35,8 +35,13 @@
 /**                                                                        **/
 /****************************************************************************/
 
-enum FileFormat {unknown, BKR, BDF, CNT, DEMG, EDF, FLAC, GDF, MFER, NEX1, PLEXON}; // list file formats 
-const int GDFTYP_BYTE[]={1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8, 16};
+enum FileFormat {unknown, BKR, BDF, CNT, DEMG, EDF, FLAC, GDF, MFER, NEX1, PLEXON}; // list of file formats 
+const int GDFTYP_BYTE[] = {1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8, 16};
+
+#define min(a,b)                        (((a) < (b)) ? (a) : (b))
+#define max(a,b)                        (((a) > (b)) ? (a) : (b))
+#define convert_timet2timegdf(t)	((uint64)floor(ldexp((t)/86400.0 + 719529,32)))
+#define convert_timegdf2timet(t)	((time_t) ( (ldexp((t),-32) - 719529) * 86400)))
 
 /****************************************************************************/
 /**                                                                        **/
@@ -44,30 +49,38 @@ const int GDFTYP_BYTE[]={1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8, 1
 /**                                                                        **/
 /****************************************************************************/
 
+typedef char 			int8; 
+typedef unsigned char 		uint8; 
+typedef short 			int16; 
+typedef unsigned short 		uint16; 
+typedef long 			int32; 
+typedef unsigned long 		uint32;
+typedef long long 		int64; 
+typedef unsigned long long 	uint64; 
+
+
 /*
 	This structure defines the header for each channel (variable header) 
 */
 typedef struct {
-	char* Label;		// Label of channel 
-	char* Transducer;	// transducer e.g. EEG: Ag-AgCl electrodes
-	char* PhysDim;		// physical dimension
+	char* 	Label;		// Label of channel 
+	char* 	Transducer;	// transducer e.g. EEG: Ag-AgCl electrodes
+	char* 	PhysDim;	// physical dimension
+	//char* PreFilt;	// pre-filtering
 
-	float LowPass;		// lowpass filter
-	float HighPass;		// high pass
-	float Notch;		// notch filter
-	float XYZ[3];		// electrode position
+	float 	LowPass;	// lowpass filter
+	float 	HighPass;	// high pass
+	float 	Notch;		// notch filter
+	float 	XYZ[3];		// electrode position
+	float 	Impedance;   	// in Ohm
 	
-	double PhysMin;		// physical minimum
-	double PhysMax;		// physical maximum
-	long DigMin;		// digital minimum
-	long DigMax;		// digital maximum
+	double 	PhysMin;	// physical minimum
+	double 	PhysMax;	// physical maximum
+	int64 	DigMin;		// digital minimum
+	int64 	DigMax;		// digital maximum
 
-	//char PreFilt[81];	// pre-filtering
-	unsigned long GDFTYP;	// data type
-	
-	unsigned long SPR;	// samples per record (block)
-	float Impedance;   	// in Ohm
-	
+	uint16 	GDFTYP;		// data type
+	uint32 	SPR;		// samples per record (block)
 } CHANNEL_TYPE ;
 
 
@@ -78,20 +91,20 @@ typedef struct {
 	char* 	PID;			// patient identification
 	char* 	RID;			// recording identification 
 
-	unsigned long 	NS;		// number of channels
-	unsigned long 	SampleRate;	// Sampling rate
-	unsigned long 	SPR;		// samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR)
-	unsigned char 	IPaddr[6]; 	// IP address of recording device (if applicable)	
-	unsigned short 	Headsize[3]; 	// circumference, nasion-inion, left-right mastoid in millimeter; 
-	unsigned long   LOC[4];		// location of recording according to RFC1876
-	unsigned long 	T0[2]; 		// recording time
+	uint32 	NS;		// number of channels
+	uint32 	SampleRate;	// Sampling rate
+	uint32 	SPR;		// samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR)
+	uint8 	IPaddr[6]; 	// IP address of recording device (if applicable)	
+	uint16 	Headsize[3]; 	// circumference, nasion-inion, left-right mastoid in millimeter; 
+	uint32  LOC[4];		// location of recording according to RFC1876
+	uint64 	T0; 		// recording time
 		// T0[0]*2^32/(24*3600) are the seconds of the day since midnight
 		// T0[1] contains the number of days since 01-Jan-0000; 01-Jan-1970 is day 719529
-	unsigned long 	HeadLen;	// length of header in bytes
-	long 	      	NRec;		// number of records/blocks -1 indicates length is unknown.	
-	unsigned long 	Dur[2];	// Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1] 
+	uint32 	HeadLen;	// length of header in bytes
+	int32  	NRec;		// number of records/blocks -1 indicates length is unknown.	
+	uint32 	Dur[2];	// Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1] 
 
-	// psition of electrodes; see also HDR.CHANNEL[k].XYZ
+	// position of electrodes; see also HDR.CHANNEL[k].XYZ
 	struct {
 		float	REF[3];	// XYZ position of reference electrode
 		float	GND[3];	// XYZ position of ground electrode
@@ -103,38 +116,38 @@ typedef struct {
 		char AlcoholAbuse;	// 0: unknown, 1: no, 2: yes
 		char DrugAbuse;		// 0: unknown, 1: no, 2: yes
 		char Medication;	// 0: unknown, 1: no, 2: yes
-		unsigned int Height;	// height in centimeter [cm]
-		unsigned int Weight;	// weight in kilogramms [kg]
+		uint8 Height;		// height in centimeter [cm]
+		uint8 Weight;		// weight in kilogramms [kg]
 		char Gender; 		// 0: unknown, 1: male, 2: female
 		char Handedness;	// 0: unknown, 1: right, 2: left, 3: both equal
 		struct {
 			char Visual; // 0: unknown, 1: no, 2: yes, 3: yes and corrected
 		} Impairment;
 		//char VisualImpairment;  // 0: unknown, 1: no, 2: yes, 3: yes and corrected
-		unsigned long Birthday[2]; 	// Birthday of Patient	// Birthday uses the same format as T0.
+		uint64 Birthday; 	// Birthday of Patient	// Birthday uses the same format as T0.
 	} Patient; 
 
 	//	EVENTTABLE 
 	struct {
-		unsigned 	SampleRate;
-		unsigned 	N;
-		unsigned short *TYP;
-		unsigned long  *POS;
-		unsigned long  *DUR;
-		unsigned short *CHN;
+		uint32 	SampleRate;
+		uint32 	N;
+		uint16 *TYP;
+		uint32 *POS;
+		uint32 *DUR;
+		uint16 *CHN;
 	} EVENT; 
 
 	struct {	// File specific data 
-		FILE* 		FID;		// file handle 
-		unsigned long 	POS;		// current reading/writing position in samples 
-		unsigned char 	OPEN; 		// 0: closed, 1:read, 2: write
+		FILE* 	FID;		// file handle 
+		uint32 	POS;		// current reading/writing position in samples 
+		uint8 	OPEN; 		// 0: closed, 1:read, 2: write
 	} FILE; 
 
 	//	internal variables (not public) 
 	struct {
-		unsigned long spb;	// total samples per block
-		unsigned long bpb;  // total bytes per block
-		unsigned long *bi;
+		uint32 spb;	// total samples per block
+		uint32 bpb;  // total bytes per block
+		uint32 *bi;
 	} AS; 	
 	CHANNEL_TYPE *CHANNEL;  
 } HDRTYPE;

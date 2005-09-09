@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.c,v 1.3 2005-09-09 14:35:15 schloegl Exp $
+% $Id: biosig.c,v 1.4 2005-09-09 17:18:34 schloegl Exp $
 % Author: Alois Schloegl <a.schloegl@ieee.org>
 % Copyright (C) 2000,2005 A.Schloegl
 % 
@@ -58,8 +58,8 @@
 HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT)
 {
     	int k,k1;
-    	time_t t0; 
-    	double T0; 
+//    	time_t t0; 
+//    	double T0; 
 
       	HDR.TYPE = GDF; 
       	HDR.VERSION = 1.91; 
@@ -67,12 +67,16 @@ HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT)
       	HDR.NS = NS;	
       	HDR.PID = "test1"; 
       	HDR.RID = "GRAZ"; 
+      	/*
       	t0 = time(NULL); 	// number of seconds since 01-Jan-1970
-      	T0 = t0/(3600.0*24);
+      	T0 = t0/86400.0;
       	HDR.T0[1] = floor(T0) + 719529;			// number of days since 01-Jan-0000
       	HDR.T0[0] = floor(ldexp(T0-floor(T0),32));  	// fraction x/2^32; one day is 2^32 
-	HDR.Patient.Birthday[0] = 0;
-	HDR.Patient.Birthday[1] = 0;
+      	*/
+      	HDR.T0 = convert_timet2timegdf(time(NULL));
+
+	HDR.Patient.Birthday = 0;
+	//HDR.Patient.Birthday[1] = 0;
       	HDR.Patient.Medication = 0;
       	HDR.Patient.DrugAbuse = 0;
       	HDR.Patient.AlcoholAbuse = 0;
@@ -140,8 +144,8 @@ HDRTYPE sopen(const char* FileName, HDRTYPE HDR, const char* MODE)
 	char* Header1;
 	char* Header2;
 	struct tm tm_time; 
-    	time_t t0; 
-    	double T0; 
+  //  	time_t t0; 
+  //  	double T0; 
 
 if (!strcmp(MODE,"r"))	
 {
@@ -216,23 +220,19 @@ if (!strcmp(MODE,"r"))
 			memcpy(&HDR.ELEC.GND, Header1+224,12);
 	    	}
 	    	else {
-	    		memcpy(tmp,Header1+168,14);
-	    		tmp[14]=0;
-	    		tm_time.tm_sec = atoi(tmp+12); 
-	    		tmp[12]=0;
-	    		tm_time.tm_min = atoi(tmp+10); 
-	    		tmp[10]=0;
-	    		tm_time.tm_hour = atoi(tmp+8); 
-	    		tmp[8]=0;
-	    		tm_time.tm_mday = atoi(tmp+6); 
-	    		tmp[6]=0;
-	    		tm_time.tm_mon = atoi(tmp+4); 
-	    		tmp[4]=0;
-	    		tm_time.tm_year = atoi(tmp); 
-	    		t0 = mktime(&tm_time);
-		      	T0 = t0/(3600.0*24);
+	    		tm_time.tm_sec  = atoi(strncpy(tmp,Header1+168+12,2)); 
+	    		tm_time.tm_min  = atoi(strncpy(tmp,Header1+168+10,2)); 
+	    		tm_time.tm_hour = atoi(strncpy(tmp,Header1+168+8,2)); 
+	    		tm_time.tm_mday = atoi(strncpy(tmp,Header1+168+6,2)); 
+	    		tm_time.tm_mon  = atoi(strncpy(tmp,Header1+168+4,2)); 
+	    		tm_time.tm_year = atoi(strncpy(tmp,Header1+168,4)); 
+	    		HDR.T0 = convert_timet2timegdf(mktime(&tm_time)); 
+	    		/*
+		      	t0 = mktime(&tm_time);
+	    		T0 = t0/(3600.0*24);
 		      	HDR.T0[1] = floor(T0) + 719529;			// number of days since 01-Jan-0000
 		      	HDR.T0[0] = floor(ldexp(T0-floor(T0),32));  	// fraction x/2^32; one day is 2^32 
+		      	*/
 	    	}
     	}
     	else if ((HDR.TYPE == EDF) | (HDR.TYPE == BDF))	{
@@ -248,24 +248,21 @@ if (!strcmp(MODE,"r"))
 
 
 		// HDR.T0 
-    		strncpy(tmp,Header1+168,16);
-    		tm_time.tm_sec = atoi(tmp+14); 
-    		tmp[13]=0;
-    		tm_time.tm_min = atoi(tmp+11); 
-    		tmp[10]=0;
-    		tm_time.tm_hour = atoi(tmp+8); 
-    		tmp[8]=0;
-    		tm_time.tm_year = atoi(tmp+6); 
+    		tm_time.tm_sec  = atoi(strncpy(tmp,Header1+168+14,2)); 
+    		tm_time.tm_min  = atoi(strncpy(tmp,Header1+168+11,2)); 
+    		tm_time.tm_hour = atoi(strncpy(tmp,Header1+168+8,2)); 
+    		tm_time.tm_mday = atoi(strncpy(tmp,Header1+168,2)); 
+    		tm_time.tm_mon  = atoi(strncpy(tmp,Header1+168+3,2)); 
+    		tm_time.tm_year = atoi(strncpy(tmp,Header1+168+6,2)); 
     		tm_time.tm_year += (tm_time.tm_year<85)*100;
-    		tmp[5]=0;
-    		tm_time.tm_mon = atoi(tmp+3)-1; 
-    		tmp[2]=0;
-    		tm_time.tm_mday = atoi(tmp); 
     		
+		HDR.T0 = convert_timet2timegdf(mktime(&tm_time)); 
+    		/* 
     		t0 = mktime(&tm_time);
 	      	T0 = t0/(3600.0*24);
 	      	HDR.T0[1] = floor(T0) + 719529;			// number of days since 01-Jan-0000
 	      	HDR.T0[0] = floor(ldexp(T0-floor(T0),32));  	// fraction x/2^32; one day is 2^32 
+	      	*/
 	      	
 	      	if (HDR.TYPE == BDF)
 			for (k=0;k<HDR.NS;k++)
@@ -292,11 +289,11 @@ if (!strcmp(MODE,"r"))
 			//HDR.CHANNEL[k].PhysDim  = (HDR.Header2 + 8*k + 96*HDR.NS);
 			HDR.CHANNEL[k].PhysMin  = *(float*) (Header2+ 8*k + 104*HDR.NS);
 			HDR.CHANNEL[k].PhysMax  = *(float*) (Header2+ 8*k + 112*HDR.NS);
-			HDR.CHANNEL[k].DigMin   = *(long long*) (Header2+ 8*k + 120*HDR.NS);
-			HDR.CHANNEL[k].DigMax   = *(long long*) (Header2+ 8*k + 128*HDR.NS);
+			HDR.CHANNEL[k].DigMin   = *(int64*) (Header2+ 8*k + 120*HDR.NS);
+			HDR.CHANNEL[k].DigMax   = *(int64*) (Header2+ 8*k + 128*HDR.NS);
 			//HDR.CHANNEL[k].PreFilt  = (HDR.Header2+ 68*k + 136*HDR.NS);
-			HDR.CHANNEL[k].SPR      = *(unsigned long*) (Header2+ 4*k + 216*HDR.NS);
-			HDR.CHANNEL[k].GDFTYP   = *(unsigned long*) (Header2+ 4*k + 220*HDR.NS);
+			HDR.CHANNEL[k].SPR      = *(int32*) (Header2+ 4*k + 216*HDR.NS);
+			HDR.CHANNEL[k].GDFTYP   = *(int32*) (Header2+ 4*k + 220*HDR.NS);
 			if (HDR.VERSION>=1.90) {
 				HDR.CHANNEL[k].LowPass  = *(float*) (Header2+ 4*k + 204*HDR.NS);
 				HDR.CHANNEL[k].HighPass = *(float*) (Header2+ 4*k + 208*HDR.NS);
@@ -374,11 +371,11 @@ else { // WRITE
 		for (k=0;k<HDR.NS;k++)
 		{
 		     	len = strlen(HDR.CHANNEL[k].Label);
-		     	memcpy(Header2+16*k,HDR.CHANNEL[k].Label,((len<16) ? len : 16));
+		     	memcpy(Header2+16*k,HDR.CHANNEL[k].Label,min(len,16));
 		     	len = strlen(HDR.CHANNEL[k].Transducer);
-		     	memcpy(Header2+80*k + 16*HDR.NS,HDR.CHANNEL[k].Transducer,((len < 80) ? len : 80));
+		     	memcpy(Header2+80*k + 16*HDR.NS,HDR.CHANNEL[k].Transducer,min(len,80));
 		     	len = strlen(HDR.CHANNEL[k].PhysDim);
-		     	memcpy(Header2+ 8*k + 96*HDR.NS,HDR.CHANNEL[k].PhysDim,(len<8?len:8));
+		     	memcpy(Header2+ 8*k + 96*HDR.NS,HDR.CHANNEL[k].PhysDim,min(len,8));
 	
 		     	memcpy(Header2+ 8*k + 104*HDR.NS,&HDR.CHANNEL[k].PhysMin,8);
 		     	memcpy(Header2+ 8*k + 112*HDR.NS,&HDR.CHANNEL[k].PhysMax,8);
@@ -391,12 +388,7 @@ else { // WRITE
 		     	memcpy(Header2+ 4*k + 220*HDR.NS,&HDR.CHANNEL[k].GDFTYP,4);
 		     	memcpy(Header2+12*k + 224*HDR.NS,&HDR.CHANNEL[k].XYZ,12);
 	
-			if (HDR.CHANNEL[k].Impedance>39e8)
-				tmp[0]=255;
-			else 	
-		     		tmp[0] = ceil(log10(HDR.CHANNEL[k].Impedance)/log10(2.0)*8.0-0.5);
-		     	Header2[k+236*HDR.NS] = tmp[0];
-		     	
+	     		Header2[k+236*HDR.NS] = ceil(log10(min(39e8,HDR.CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
 		}
 	    	HDR.AS.bi = calloc(HDR.NS+1,sizeof(long));
 		HDR.AS.bi[0] = 0;
@@ -507,17 +499,23 @@ int main (int argc, char **argv)
     	short s[NELEM];
     	HDRTYPE HDR, HDR2;
     
-    if (argc < 2) 
-      	{	fprintf(stdout,"Warning: Invalid number of arguments\n");
+	if (argc < 2)  	{
+		fprintf(stderr,"Warning: Invalid number of arguments\n");
 		return(-1);
       	}	
-
 	
 	// initialize/generate signal 
 	for (k=0; k<NELEM; s[k] = k++%2000);	
       
-	// write: define fixed header
-	HDR = init_default_hdr(HDR,4,10);
+	// write: define header
+	HDR = init_default_hdr(HDR,4,10);  // allocate memory for 4 channels, 10 events 
+	/* 
+	DEFINE YOUR HEADER HERE  
+	see function init_default_hdr() or "biosig.h" -> struct HDRTYPE how to do it. 
+	HDR. = ....
+	HDR.CHANNEL[k].Label = ...
+	*/	
+	
 	// OPEN and WRITE GDF FILE 
       	HDR = sopen(argv[1], HDR,"w");
       	count = fwrite(s,sizeof(short),NELEM,HDR.FILE.FID);     
@@ -530,10 +528,9 @@ int main (int argc, char **argv)
       	HDR = sclose(HDR);
 
 //   	fprintf(stdout,"1-%i\t%i\t%i\t%i\t%u\t%u\n",sizeof(HDR.EVENT.TYP),sizeof(*HDR.EVENT.TYP),(long)HDR.NRec,HDR.HeadLen,HDR.Dur[0],HDR.Dur[1]);
-      
 
 	// READ GDF FILE 
-	HDR2 = init_default_hdr(HDR2,0,0);
+	HDR2 = init_default_hdr(HDR2,0,0);	// initializes fields which may stay undefined during SOPEN 
 	HDR2 = sopen(argv[1], HDR2,"r");
       	HDR2 = sclose(HDR2);
 
