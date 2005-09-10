@@ -46,11 +46,11 @@ function [M,SE,R] = tfmvar(s,TRIG,T,MOP,f,Fs)
 %	This has usually no common meaning (pretty much useless). 
 %     SE*(N-1)^(1/2) 
 %	standard deviation of the means from the bootstrapping
-%	It can be interpreted as the standard error of the mean 
-%	across all trials.
+%	It can be interpreted as the standard error of the total mean 
+%	(across all trials).
 %	This value becames smaller if the number of trials increase. 	
 %     SE*(N-1) 	
-%	standard error of the mean across all trials.
+%	average standard error of the mean (based on a single trial).
 %	This value provides a realistic value for the confidence 
 %	interval of the estimates and can be used to test the 
 %	significance. 
@@ -71,8 +71,8 @@ function [M,SE,R] = tfmvar(s,TRIG,T,MOP,f,Fs)
 % [7] Liang H., Ding M., Bressler S. L., On the Tracking of Dynamic Functional Relations in Monkey Cerebral Cortex, Neurocomputing, 2000
 % [8] Korzeniewska A., Manczak M., Kaminski M., Blinowska K. J., Kasicki S., Determination of Information Flow Direction Among Brain Structures By a Modified Directed Transfer Function (dDTF) Method, Journal of Neuroscience Methods 125, 2003
 
-%	$Revision: 1.2 $
-%	$Id: tfmvar.m,v 1.2 2004-05-09 17:37:52 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: tfmvar.m,v 1.3 2005-09-10 20:57:22 schloegl Exp $
 %	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -203,8 +203,10 @@ for k1 = 1:size(T,2),
         R.M.logS(:,:,:,k1)   = log(abs(S));
         R.M.logh(:,:,:,k1)   = log(abs(h));
         R.M.PDC(:,:,:,k1)    = PDC;
-        R.M.COH(:,:,:,k1)    = COH;
-        R.M.coh(:,:,:,k1)    = coh;
+        R.M.COH(:,:,:,k1)    = abs(COH);
+        R.M.coh(:,:,:,k1)    = abs(coh);
+        R.M.iCOH(:,:,:,k1)   = imag(COH);
+        R.M.icoh(:,:,:,k1)   = imag(coh);
         R.M.DTF(:,:,:,k1)    = DTF;
         R.M.pCOH(:,:,:,k1)   = pCOH;
         R.M.dDTF(:,:,:,k1)   = dDTF;
@@ -264,8 +266,10 @@ for k1 = 1:size(T,2),
                 [R.SE.logS(:,:,:,k1),   R.M.logS(:,:,:,k1)  ] = sem(log(abs(S)),4);
                 [R.SE.logh(:,:,:,k1),   R.M.logh(:,:,:,k1)  ] = sem(log(abs(h)),4);
                 [R.SE.PDC(:,:,:,k1),    R.M.PDC(:,:,:,k1)   ] = sem(PDC,4);
-                [R.SE.COH(:,:,:,k1),    R.M.COH(:,:,:,k1)   ] = sem(COH,4);
-                [R.SE.coh(:,:,:,k1),    R.M.coh(:,:,:,k1)   ] = sem(coh,4);
+                [R.SE.COH(:,:,:,k1),    R.M.COH(:,:,:,k1)   ] = sem(abs(COH),4);
+                [R.SE.coh(:,:,:,k1),    R.M.coh(:,:,:,k1)   ] = sem(abs(coh),4);
+                [R.SE.iCOH(:,:,:,k1),   R.M.iCOH(:,:,:,k1)  ] = sem(imag(COH),4);
+                [R.SE.icoh(:,:,:,k1),   R.M.icoh(:,:,:,k1)  ] = sem(imag(coh),4);
                 [R.SE.DTF(:,:,:,k1),    R.M.DTF(:,:,:,k1)   ] = sem(DTF,4);
                 [R.SE.pCOH(:,:,:,k1),   R.M.pCOH(:,:,:,k1)  ] = sem(pCOH,4);
                 [R.SE.dDTF(:,:,:,k1),   R.M.dDTF(:,:,:,k1)  ] = sem(dDTF,4);
