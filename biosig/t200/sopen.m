@@ -45,8 +45,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.118 $
-%	$Id: sopen.m,v 1.118 2005-09-01 18:04:17 schloegl Exp $
+%	$Revision: 1.119 $
+%	$Id: sopen.m,v 1.119 2005-09-10 20:43:54 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -261,6 +261,8 @@ end;
                         if (HDR.VERSION >= 1.90)
                                 HDR.PID = deblank(char(H1(9:84)));                  % 80 Byte local patient identification
                                 HDR.RID = deblank(char(H1(89:156)));                % 80 Byte local recording identification
+                                [HDR.Patient.Id,tmp] = strtok(HDR.PID,' ');
+                                HDR.Patient.Name = tmp(2:end); 
                                 
                                 HDR.Patient.Medication   = SCALE13{bitand(floor(H1(85)/64),3)+1};
                                 HDR.Patient.DrugAbuse    = SCALE13{bitand(floor(H1(85)/16),3)+1};
@@ -307,6 +309,9 @@ end;
                         else
                                 HDR.PID = deblank(char(H1(9:88)));                  % 80 Byte local patient identification
                                 HDR.RID = deblank(char(H1(89:168)));                % 80 Byte local recording identification
+                                [HDR.Patient.Id,tmp] = strtok(HDR.PID,' ');
+                                HDR.Patient.Name = tmp(2:end); 
+                                
                                 tmp = repmat(' ',1,22);
     		                tmp([1:4,6:7,9:10,12:13,15:16,18:21]) = char(H1(168+[1:16]));
             		        HDR.T0(1:6)   = str2double(tmp);
@@ -343,6 +348,11 @@ end;
                         H1 = char(H1); 
                         HDR.PID = deblank(char(H1(9:88)));                  % 80 Byte local patient identification
                         HDR.RID = deblank(char(H1(89:168)));                % 80 Byte local recording identification
+			[HDR.Patient.Id,tmp] = strtok(HDR.PID,' ');
+			[tmp1,tmp] = strtok(tmp,' ');
+			[tmp1,tmp] = strtok(tmp,' ');
+                        HDR.Patient.Name = tmp(2:end); 
+                                
                         tmp=(find((H1<32) | (H1>126))); 		%%% syntax for Matlab
                         if ~isempty(tmp) %%%%% not EDF because filled out with ASCII(0) - should be spaces
                                 %H1(tmp)=32; 
@@ -517,7 +527,7 @@ end;
                                 HDR.REC.Impedance = 2.^(tmp/8);
 			end;
                 end;
-                
+
                 if HDR.VERSION<1.9,
                 HDR.Filter.LowPass = repmat(nan,1,HDR.NS);
                 HDR.Filter.HighPass = repmat(nan,1,HDR.NS);
@@ -778,22 +788,7 @@ end;
                         HDR.VERSION = -1;
                 end;
 
-                % Check all fields of Header1
-                %if ~strcmp(HDR.VERSION(1:3),'GDF');
-                if ~strcmp(HDR.TYPE,'GDF');
-                        fprintf(HDR.FILE.stderr,'\nData are stored with INT16.\nMeasures for minimizing round-off errors have been taken.\nDespite, overflow and round off errors may occur.\n');  
-                        
-                        if sum(HDR.AS.SPR)*2>61440;
-                                fprintf(HDR.FILE.stderr,'\nWarning SOPEN (EDF): One block exceeds 61440 bytes.\n')
-                        end;
-                end;
-                
-                if ~isfield(HDR,'PID')
-                        fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.PID not defined\n');
-                        HDR.PID=setstr(32+zeros(1,80));
-                end;
                 if ~isfield(HDR,'RID')
-                        fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.RID not defined\n');
                         HDR.RID=setstr(32+zeros(1,80));
                 end;
                 if ~isfield(HDR,'T0')
@@ -826,6 +821,7 @@ end;
 		else	
 			HDR.Patient.Sex = 0; 
                 end;
+                
                 if ~isfield(HDR.Patient,'Handedness')
 			HDR.Patient.Handedness = 0; 
 		elseif strcmpi(HDR.Patient.Handedness,'r') | strcmpi(HDR.Patient.Handedness,'right')
@@ -918,7 +914,7 @@ end;
 			HDR.Patient.Headsize = HDR.Patient.Headsize(1:3); 
                 end;
                 if ~isfield(HDR,'REC')
-			HDR.REC.LOC.RFC1876 = uint32([hex2dec('00292929'),48*36e5,15*36e5,35000]);
+			HDR.REC.LOC.RFC1876 = uint32([hex2dec('00292929'),48*36e5+2^31,15*36e5+2^31,35000]);
 		end
 		if ~isfield(HDR.REC.LOC,'RFC1876')	
 			tmp = HDR.REC.LOC;
@@ -1191,19 +1187,23 @@ end;
                 %%%%%% generate Header 1, first 256 bytes 
                 HDR.HeadLen=(HDR.NS+1)*256;
                 %H1(1:8)=HDR.VERSION; %sprintf('%08i',HDR.VERSION);     % 8 Byte  Versionsnummer 
+		sex = 'XMF';
+		if ~HDR.Patient.Birthday(1), bd = 'X';
+		else bd=datestr(HDR.Patient.Birthday,'dd-mmm-yyyy');
+		end;
                 if HDR.VERSION == -1,
                         H1 = [255,'BIOSEMI',repmat(32,1,248)];
+			HDR.PID = [HDR.Patient.Id,' ',sex(HDR.Patient.Sex+1),' ',bd,' ',HDR.Patient.Name];
+			HDR.RID = ['Startdate ',datestr(HDR.T0,'dd-mmm-yyyy')];
                 elseif HDR.VERSION == 0,
 			H1 = ['0       ',repmat(32,1,248)]; 
-			sex = 'XMF';
-			if ~HDR.Patient.Birthday(1), bd = 'X';
-			else bd=datestr(HDR.Patient.Birthday,'dd-mmm-yyyy');
-			end;
 			HDR.PID = [HDR.Patient.Id,' ',sex(HDR.Patient.Sex+1),' ',bd,' ',HDR.Patient.Name];
-			HDR.RID = ['Startdate ',datestr(HDR.T0,'dd-mmm-yyyy'),' ',HDR.RID];
+			HDR.RID = ['Startdate ',datestr(HDR.T0,'dd-mmm-yyyy')];
                 elseif HDR.VERSION > 0,
                         tmp = sprintf('%5.2f',HDR.VERSION);
                         H1 = ['GDF',tmp(1:5),repmat(32,1,248)];
+			HDR.PID = [HDR.Patient.Id,' ',HDR.Patient.Name];
+			% HDR.RID = 'Hospital_administration_Code Technician_ID [Equipment_ID]'
                 else
                         fprintf(HDR.FILE.stderr,'Error SOPEN (GDF) WRITE: invalid version number %f\n',HDR.VERSION); 
                 end;
@@ -1216,7 +1216,7 @@ end;
                 while HDR.NS & any(HDR.AS.BPR  ~= HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)');
                         fprintf(2,'\nWarning SOPEN (GDF/EDF/BDF): invalid block configuration in file %s.\n',HDR.FileName);
                         DIV = 2;
-                        HDR.SPR = HDR.SPR*DIV;
+                        HDR.SPR    = HDR.SPR*DIV;
                         HDR.AS.SPR = HDR.AS.SPR*DIV;
                         HDR.Dur    = HDR.Dur*DIV; 
                         HDR.NRec   = HDR.NRec/DIV; 
@@ -1244,6 +1244,10 @@ end;
 		if any(isnan(HDR.ELEC.XYZ(:))),
                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF) WRITE: HDR.ELEC.XYZ not correctly defined.\n'); 
 		end;	
+		elseif (HDR.VERSION == 0)
+                        if sum(HDR.AS.bpb)>61440;
+                                fprintf(HDR.FILE.stderr,'\nWarning SOPEN (EDF): One block exceeds 61440 bytes.\n')
+                        end;
 		end;
 		                
                 %%%%% Open File 
@@ -2467,7 +2471,7 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
         [H.i8, count]    = fread(HDR.FILE.FID,inf,'int8');
         fclose(HDR.FILE.FID);
         
- 	     [t,status] = str2double(char([HDR.GTF.H1(35:36),32,HDR.GTF.H1(37:39)]));	
+        [t,status] = str2double(char([HDR.GTF.H1(35:36),32,HDR.GTF.H1(37:39)]));	
         if ~any(status) & all(t>0)
                 HDR.NS = t(1); 
                 HDR.SampleRate = t(2); 
@@ -2486,30 +2490,10 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
         msg.POS  = ix*HDR.SampleRate;
         msg.TYP  = 1+HDR.GTF.messages(ix);
         msg.Desc = [repmat('M: ',length(ix),1),HDR.GTF.L2(msg.TYP,:)];
-
-        ix = find(HDR.GTF.states>-1);
+        ix       = find((HDR.GTF.states>9) & (HDR.GTF.states<20));
         sts.POS  = ix*HDR.SampleRate;
-        sts.TYP  = HDR.GTF.states(ix);
-        % state should be converted in EVENT with Duration 
-        %ix      = ([HDR.GTF.states]>-1);
-        %tmp     = diff([-1;HDR.GTF.states(:);-1]>-1);
-        %sts.POS = find(tmp~=0)*HDR.SampleRate;
-        
-        % hack to correct state-type 
-        if ~any(sts.TYP==20) & (length(sts.TYP)>0),
-                sts.TYP = sts.TYP + 1; 
-        end;      
-        
-        if 0,
-        elseif any(sts.TYP==10) & any(sts.TYP==20),
-                % conflicting codes
-                fprintf(HDR.FILE.stderr,'SOPEN (GTF): conflicting codes!\n')
-        elseif any(sts.TYP==10) & ~any(sts.TYP==20),
-        elseif ~any(sts.TYP==10) & any(sts.TYP==20),
-                % nothing todo 
-        elseif ~any(sts.TYP==10) & ~any(sts.TYP==20) & (length(sts.TYP)>0),
-                % tested; seems ok now. 
-        end
+        sts.TYP  = HDR.GTF.states(ix)+1;
+        % ix       = find((HDR.GTF.states==20));  % Calibration ??? 
         
         sts.Desc = [repmat('S: ',length(ix),1),HDR.GTF.L2(sts.TYP,:)];
         HDR.EVENT.POS  = [ann.POS(:); msg.POS(:); sts.POS(:)];
