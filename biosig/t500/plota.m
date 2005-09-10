@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.35 $
-%	$Id: plota.m,v 1.35 2005-08-24 13:33:06 schloegl Exp $
+%       $Revision: 1.36 $
+%	$Id: plota.m,v 1.36 2005-09-10 20:58:23 schloegl Exp $
 %	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -63,7 +63,17 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 h = [];
-if ~isfield(X,'datatype');
+if isfield(X,'datatype');
+elseif isfield(X,'TYPE');
+        if strcmp(X.TYPE,'EVENT')
+                ix = find(X.EVENT.TYP==hex2dec('0501'));
+                if ~isempty(ix) 
+                        X.datatype = 'QRS_events';
+                        X.QRS_event = X.EVENT.POS(ix) / X.EVENT.SampleRate;
+                        H = X;
+                end
+        end;
+else
         return; 
 end;
 
