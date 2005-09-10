@@ -12,8 +12,8 @@
 %   i686-pc-cygwin	2.1.42		OK
 %   i586-pc-linux-gnu   2.1.40		OK
 
-%	$Revision: 1.5 $
-%	$Id: demo3.m,v 1.5 2004-04-15 17:28:59 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: demo3.m,v 1.6 2005-09-10 20:44:37 schloegl Exp $
 %	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This library is free software; you can redistribute it and/or
@@ -32,7 +32,8 @@
 % Boston, MA  02111-1307, USA.
 
 x = randn(10000,5)+(1:1e4)'*ones(1,5); % test data
-x = (1:1e4)'*ones(1,5); % test data
+x = (1:1e4)'*ones(1,5)/1000; % test data
+x = reshape(mod(1:5e4,100),5,1e4)';
 clear HDR;
 
 VER   = version;
@@ -40,17 +41,22 @@ cname = computer;
 
 % select file format 
 HDR.TYPE='GDF';
-%HDR.TYPE='EDF';
+HDR.TYPE='EDF';
 %HDR.TYPE='BDF'; 
 
 % set Filename
 HDR.FileName = ['TEST_',VER([1,3]),cname(1:3),'.',HDR.TYPE];
 
 % person identification, max 80 char
-HDR.PID = 'person identification';	% e.g. 'MCH-0234567 F 02-MAY-1951 Haagse_Harry'
+HDR.Patient.ID = 'P0000';	
+HDR.Patient.Sex = 'F';
+HDR.Patient.Birthday = [1951 05 13 0 0 0];
+HDR.Patient.Name = 'X';		% for privacy protection  
+HDR.Patient.Handedness = 0; 	% unknown, 1:left, 2:right, 3: equal
+
 
 % recording identification, max 80 char.
-HDR.RID = 'recording identification';	% e.g. 'EMG561 BK/JOP Sony. MNC R Median Nerve.'
+HDR.RID = 'recording identification';
 
 % recording time [YYYY MM DD hh mm ss.ccc]
 HDR.T0 = clock;	
@@ -62,7 +68,8 @@ HDR.NS = size(x,2);
 HDR.Dur = 1;
 
 % Samples within 1 block
-HDR.SPR = [100;100;100;100;100];	% samples per block;
+%HDR.SPR = [100;100;100;100;100];	% samples per block;
+HDR.EDF.SampleRate = [100;100;100;100;100];	% samples per block;
 
 % channel identification, max 80 char. per channel
 HDR.Label=['chan 1  ';'chan 2  ';'chan 3  ';'chan 4  ';'chan 5  '];
@@ -70,30 +77,30 @@ HDR.Label=['chan 1  ';'chan 2  ';'chan 3  ';'chan 4  ';'chan 5  '];
 % Transducer, mx 80 char per channel
 HDR.Transducer = ['Ag-AgCl ';'Airflow ';'xyz     ';'        ';'        '];
 
-% filter settings of each channel 
-HDR.PreFilt = ['0-100Hz ';'0-100Hz ';'0-100Hz ';'none    ';'----    '];		% Prefiltering
-
 % define datatypes (GDF only, see GDFDATATYPE.M for more details)
-HDR.GDFTYP = 16*ones(1,HDR.NS);
+HDR.GDFTYP = 3*ones(1,HDR.NS);
 
 % define scaling factors 
 HDR.PhysMax = [100;100;100;100;100];
 HDR.PhysMin = [0;0;0;0;0];
 HDR.DigMax  = [100;100;100;100;100];
 HDR.DigMin  = [0;0;0;0;0];
+HDR.Filter.Lowpass = [0,0,0,NaN,NaN];
+HDR.Filter.Highpass = [100,100,100,NaN,NaN];
+HDR.Filter.Notch = [0,0,0,0,0];
+
 
 % define physical dimension
 HDR.PhysDim = ['uV ';'   ';'   ';'   ';'   '];
 
 t = [100:100:size(x,1)]';
-HDR.EVENT.POS = t;
-HDR.EVENT.TYP = t/100;
-
 HDR = sopen(HDR,'wb');
 %HDR.SIE.RAW = 0; % [default] channel data mode, one column is one channel 
 %HDR.SIE.RAW = 1; % switch to raw data mode, i.e. one column for one EDF-record
 HDR = swrite(HDR,x);
 
+HDR.EVENT.POS = t;
+HDR.EVENT.TYP = t/100;
 HDR = sclose(HDR);
 
 [s0,HDR0] = sload(HDR.FileName);	% test file 
