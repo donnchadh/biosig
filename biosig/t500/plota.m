@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.36 $
-%	$Id: plota.m,v 1.36 2005-09-10 20:58:23 schloegl Exp $
+%       $Revision: 1.37 $
+%	$Id: plota.m,v 1.37 2005-09-16 13:41:41 schloegl Exp $
 %	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or
@@ -2081,16 +2081,28 @@ elseif strcmp(X.datatype,'QRS_events'),
         
 elseif strcmp(X.datatype,'AMARMA')
 
-        m0 = X.AAR(:,1)./(1-sum(X.AAR(:,2:end),2)); 
+        if X.MOP(3)~=0, return; end; 
+	if (X.MOP(1)==1) & (size(X.AAR,2)==X.MOP(2)+1), 
+	        m0 = X.AAR(:,1)./(1-sum(X.AAR(:,2:end),2));
+		AAR = X.AAR(:,2:end); 
+	elseif (X.MOP(1)==0) & (size(X.AAR,2)==X.MOP(2)),
+		m0 = zeros(size(X.AAR,1),1);
+		AAR = X.AAR;
+	else
+		return;
+	end;	 
 	
 	MODE = [];
-	if strcmp(upper(arg3),'TIME'),	MODE = [MODE,1]; end;
-	if strcmp(upper(arg3),'VLHF'),	MODE = [MODE,2]; end;
-	if strcmp(upper(arg3),'IMAGE'),	MODE = [MODE,3]; end;
-	if strcmp(upper(arg3),'3D'),	MODE = [MODE,4]; end;
-	if strcmp(upper(arg3),'n.u.'),	MODE = [MODE,5]; end;
-	if strcmp(upper(arg3),'ALL'),	MODE = [1,5,3]; end;
-		
+	if ~isempty(findstr(upper(arg3),'TIME')),	MODE = [MODE,1]; end;
+	if ~isempty(findstr(upper(arg3),'VLHF')),	MODE = [MODE,2]; end;
+	if ~isempty(findstr(upper(arg3),'IMAGE')),	MODE = [MODE,3]; end;
+	if ~isempty(findstr(upper(arg3),'3D')),		MODE = [MODE,4]; end;
+	if ~isempty(findstr(upper(arg3),'n.u.')),	MODE = [MODE,5]; end;
+	if ~isempty(findstr(upper(arg3),'LF-BW')),	MODE = [MODE,6]; end;
+	if ~isempty(findstr(upper(arg3),'F0')),		MODE = [MODE,7]; end;
+	if ~isempty(findstr(upper(arg3),'F0+-B')),	MODE = [MODE,8]; end;
+	if ~isempty(findstr(upper(arg3),'ALL')),	MODE = [1,5,3,6]; end;
+
 	if nargin<4,
 		if any(MODE==4)
 			hf = gca;
@@ -2106,18 +2118,38 @@ elseif strcmp(X.datatype,'AMARMA')
                 X.T = (0:size(X.AAR,1)-1);
 	end;
 	
+	HHHH = [];
 	K = 0;
 	if any(MODE==1)	
 		K = K + 1;
                 subplot(hf(K));
                 %plot(X.T,[signal,m0,sqrt([tmp(:,8),X.PE])]);
+		
 		if isfield(X,'S')
-	                plot(X.T,[X.S,m0,sqrt(X.PE)]);
+	                ha=plot(X.T,[X.S,m0,sqrt(X.PE)]);
+			MM1 = max([X.S,m0,sqrt(X.PE)]);
+			MM2 = min([X.S,m0,sqrt(X.PE)]);
                 else
-		        plot(X.T,[m0,sqrt(X.PE)]);
+		        ha=plot(X.T,[m0,sqrt(X.PE)]);
+			MM1 = max([m0,sqrt(X.PE)]);
+			MM2 = min([m0,sqrt(X.PE)]);
                 end;
+		MM = [max(MM1),min(MM2)];
+		if isfield(X,'EVENT')
+			hold on
+			%text(X.EVENT.POS,repmat(sqrt(max(X.PE))*2,length(X.EVENT.POS),1),'r+');
+			plot(X.EVENT.POS*[1,1],MM*[1.2,0;-.20,1],':k');
+			for k = 1:length(X.EVENT.POS), 
+				ha(k)=text(X.EVENT.POS(k),MM*[1;0],X.EVENT.Desc{k});
+				set(ha(k),'VerticalAlignment','top');
+				set(ha(k),'Rotation',90);
+			end;
+			hold off	
+		end;	
+		HHHH = ha;
+			
                 v = axis; v(2) = max(X.T); axis(v);
-                ylabel([X.Label,' [',X.PhysDim,']']);
+                ylabel([X.Label,' [',deblank(X.PhysDim),']']);
 		hc= colorbar;
 		pos=get(gca,'position');
 		delete(hc);
@@ -2129,16 +2161,27 @@ elseif strcmp(X.datatype,'AMARMA')
                 end;
 	end;        
 	
-	if prod(size(arg2))<2,    
+	if (length(X.MOP)==3) & (X.MOP(1)==1),    
 		f0 = 1./m0;
+        elseif prod(size(arg2))<2,    
+		f0 = repmat(arg2,size(X.AAR,1),1);
 	else
 		f0 = arg2;
 	end;
 
-	if any(MODE==2)	
-                [w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,2:end),f0,X.PE);
+	if any(MODE==2)
+                %[w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,2:end),f0,X.PE);
+                [w,A,B,R,P,F,ip] = ar_spa(AAR,f0,X.PE);
                 ix = (imag(F)==0);
 
+	elseif any(MODE==5) | any(MODE==6) | any(MODE==7) | any(MODE==8)	
+                %[w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,2:end),1);
+                [w,A,B,R,P,F,ip] = ar_spa(AAR,1);
+                ix = (imag(F)==0);
+
+	end;
+
+	if any(MODE==2)	
                 ixVLF = ((w>=0)  & (w<.04)); F1 = real(F); F1(~ixVLF)= NaN;
                 ixLF  = (w>=.04) & (w<=.15); F2 = real(F); F2(~ixLF) = NaN;
                 ixHF  = (w>.15)  & (w<=.4) ; F3 = real(F); F3(~ixHF) = NaN;
@@ -2166,13 +2209,12 @@ elseif strcmp(X.datatype,'AMARMA')
 	end;        
                 
 	if any(MODE==5)	
-                [w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,2:end),1);
-                ix = (imag(F)==0);
-                
                 ixVLF = ((w>=0)  & (w<.04)); F1 = real(F); F1(~ixVLF)= NaN;
                 ixLF  = (w>=.04) & (w<=.15); F2 = real(F); F2(~ixLF) = NaN;
-                ixHF  = (w>.15)  & (w<=.4) ; F3 = real(F); F3(~ixHF) = NaN;
-                
+                %ixHF  = (w>.15)  & (w<=.4) ; 
+		ixHF  = (w>.17*f0(:,ones(1,size(w,2)))) & (w<=.40*f0(:,ones(1,size(w,2)))); 
+                F3 = real(F); F3(~ixHF) = NaN;
+    		
                 tmp = [sumskipnan(real(F),2), sumskipnan(F1,2), sumskipnan(F2,2), sumskipnan(F3,2)];
                 tmp(:,5) = tmp(:,3)./tmp(:,4);
                 tmp(:,6) = tmp(:,3)./(tmp(:,1)-tmp(:,2));
@@ -2193,26 +2235,27 @@ elseif strcmp(X.datatype,'AMARMA')
 	
 
                 %ylabel(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
-                legend({'LF','HF'})
+                legend({'LF (0.05-0.17Hz)','HF (0.17*f0-0.40*f0)'})
 	end;        
                 
 	if any(MODE==3), 	
                 DN = max(1,ceil(size(X.AAR,1)/1000)); %assume 1000 pixels 
                 N  = size(X.AAR,1);
-                clear h F h2 F2
+                clear h h2 F3
                 for l = 1:DN:N,  %N/2; [k,size(sdf),N],%length(AR);
                         k = ceil(l/DN);
                         % [h(:,k),F(:,k)] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',128,f0(l,1));
-                        [h2(:,k),F2] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',[0:100]'/64,f0(l,1));
-                        h2(find(F2>f0(l,1)/2),k)=NaN;
+                        %[h2(:,k),F3] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -AAR(l,:)]',[0:100]'/64,f0(l,1));
+                        [h2(:,k),F3] = freqz(sqrt(X.PE(l)/(2*pi*f0(l,1))),[1, -AAR(l,:)]',[0:100]'/64*50,f0(l,1));
+                        h2(find(F3>f0(l,1)/2),k)=NaN;
                 end;
         
 		K = K + 1;
                 subplot(hf(K));
                 if 0;%FB{1}=='B';
-                        h=imagesc(X.T(1:DN:N),F2,2*log10(abs(h2(:,end:-1:1)))); 
+                        h=imagesc(X.T(1:DN:N),F3,2*log10(abs(h2(:,end:-1:1)))); 
                 else
-                        h=imagesc(X.T(1:DN:N),F2,2*log10(abs(h2))); 
+                        h=imagesc(X.T(1:DN:N),F3,2*log10(abs(h2))); 
                 end;
                 xlabel('beats');
                 ylabel('f [1/s]');
@@ -2226,26 +2269,26 @@ elseif strcmp(X.datatype,'AMARMA')
                 %pos2(1) = 1 - (1 - pos0(1) - pos0(3))/4;
                 %pos2(1) = pos0(1) + pos0(3) + pos2(3)/2;
                 %pos2(3) = pos2(3)/2
-                set(hc,'yticklabel',v,'position',pos2);
+                %set(hc,'yticklabel',v,'position',pos2);
                 
                 %set(gca,'position',pos0);
-                title(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
+                title(sprintf('%s [%s^2/%s]',deblank(X.Label),deblank(X.PhysDim),'s'));
 	end;
 
 	if any(MODE==4), 	
-                DN = 32; %10;
+                DN = 8; %10;
                 N  = size(X.AAR,1);
-                clear h F h2 F2
+                clear h h2 F3
                 for l = 1:DN:N,  %N/2; [k,size(sdf),N],%length(AR);
                         k = ceil(l/DN);
-                        [h(:,k),F(:,k)] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',128,f0(l,1));
-                        % [h2(:,k),F2] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',[0:70]'/64,f0(l,1));
-                        % h2(find(F2>f0(l,1)/2),k)=NaN;
+                        [h(:,k),F4(:,k)] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',128,f0(l,1));
+                        % [h2(:,k),F3] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',[0:70]'/64,f0(l,1));
+                        % h2(find(F3>f0(l,1)/2),k)=NaN;
                 end;
 
 		K = K + 1;
-                subplot(hf(K));
-                plot3(repmat(1:DN:ceil(N),128,1),F,6+2*log10(abs(h))); 
+                ah=subplot(hf(K));
+                plot3(repmat(1:DN:ceil(N),128,1),F4,6+2*log10(abs(h))); 
                 xlabel('beats');
                 ylabel('f [1/s]');
                 zlabel(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
@@ -2257,9 +2300,63 @@ elseif strcmp(X.datatype,'AMARMA')
                 pos=get(ah,'position'); %pos(4)=.5;
                 set(ah,'position',pos);
                 set(1,'PaperUnits','inches','PaperOrientation','portrait','PaperPosition',[0.25 .5 8 10]);
+		HHHH = ah;
+	end;        
+                
+	if any(MODE==6)	
+		ixVLF = ((w>=0)  & (w<.04)); F1 = real(F); F1(~ixVLF)= NaN;
+	        ixLF  = (w>=.04) & (w<=.15); F2 = real(F); F2(~ixLF) = NaN;
+    		ixHF  = (w>.15)  & (w<=.4) ; F3 = real(F); F3(~ixHF) = NaN;
+			
+		B2 = B; B2(~ixLF) = NaN; 
+		w2 = w; w2(~ixLF) = NaN; 
+
+		HHHH = mean(mean(B2,2).*f0);
+		fprintf(1,'Mean LF Bandwidth %f\n',HHHH);
+	
+		K = K + 1;
+                subplot(hf(K));
+		plot(X.T, [mean(w2,2), mean(B2,2).*f0]);
+		% hold on
+		% errorbar(X.T,mean(w2,2),mean(B2,2));
+		% hold off;
+		
+                v = axis; v(2:4) = [max(X.T),0,.2]; axis(v);
+
+		hc= colorbar;
+		pos=get(gca,'position');
+		delete(hc);
+		set(gca,'position',pos);
+
+		%legend('f0(LF)','bandwidth(LF)'); 
+		xlabel('time')
+		ylabel('f [Hz]');
+		legend('f0(LF)','bandwidth(LF)'); 
+		drawnow
 
 	end;        
 
+	if any(MODE==7)	
+		clim = [0,max(A(:))];
+		cm = colormap;
+
+		B2 = B; B2(w<0) = NaN; 
+		w2 = w; w2(w<0) = NaN; 
+		for k2 = 1:size(w2,2),
+		for k1 = 1:size(w2,1),
+		if w2(k1,k2)>0,
+			H = plot(X.T(k1),w2(k1,k2),'d');
+			set(H,'color',cm(ceil(A(k1,k2)/clim(2)*size(cm,1)),:));
+		end;
+		end;
+		end;	
+	end;
+	if any(MODE==8)	
+		B2 = B; B2(w<0) = NaN; 
+		w2 = w; w2(w<0) = NaN; 
+		HHHH = plot(X.T,w2,'d', X.T,w2+B,'v', X.T,w2-B,'^');
+	end;        
+	h = HHHH; 
 
 elseif strcmp(X.datatype,'REV'),
         if nargin<2
