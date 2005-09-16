@@ -1,7 +1,7 @@
-function [HDR]=scpopen(HDR,PERMISSION,CHAN,arg4,arg5,arg6)
+function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
 % SCPOPEN reads SCP-ECG files 
 %
-% HDR = scpopen(Filename,PERMISSION);
+% HDR = scpopen(Filename);
 %
 % HDR contains the Headerinformation and internal data
 %
@@ -22,19 +22,18 @@ function [HDR]=scpopen(HDR,PERMISSION,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.14 $
-%	$Id: scpopen.m,v 1.14 2005-04-03 21:09:18 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: scpopen.m,v 1.15 2005-09-16 13:43:31 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
-if nargin<2, PERMISSION='rb'; end;
-if nargin<3, CHAN=0; end;
+if nargin<2, CHAN=0; end;
 
 VER = version;
 
-fid = fopen(HDR.FileName,PERMISSION,'ieee-le');
+fid = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
 HDR.FILE.FID = fid; 
-if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ 
         HDR.FILE.CRC = fread(fid,1,'uint16');
         HDR.FILE.Length = fread(fid,1,'uint32');
 	HDR.data = [];

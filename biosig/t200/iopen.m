@@ -27,7 +27,7 @@ function [HDR,data] = iopen(HDR,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: iopen.m,v 1.6 2005-08-24 13:22:53 schloegl Exp $
+%	$Id: iopen.m,v 1.7 2005-09-16 13:43:31 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -43,7 +43,7 @@ end;
 if 0, 
 
 elseif strcmp(HDR.TYPE,'IMAGE:BMP'),
-        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         fseek(HDR.FILE.FID,10,-1);
         
         tmp = fread(HDR.FILE.FID,4,'uint32');
@@ -66,7 +66,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:BMP'),
 	
         
 elseif strcmp(HDR.TYPE,'IMAGE:FITS'),
-        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-be');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-be');
 
 	KK = 0; 
 	HDR.HeadLen = ftell(HDR.FILE.FID);
@@ -150,7 +150,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:FITS'),
 	
 
 elseif strcmp(HDR.TYPE,'IMAGE:IFS'),    % Ultrasound file format
-        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         HDR.HeadLen = 512;
         hdr = fread(HDR.FILE.FID,[1,HDR.HeadLen],'uchar');
         HDR.Date = char(hdr(77:100));
@@ -172,7 +172,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
 	
         HDR.EXIF = [];
         HDR.JPEG = [];
-        HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.Endianity);
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.Endianity);
         tag = fread(HDR.FILE.FID,[1],'uint16');
         if tag == hex2dec('FFD8'), % compressed: JPEG or EXIF
                 
@@ -236,7 +236,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
 	               		end;      
 	               		if ~strcmp(HDR.Endianity,H.Endianity)  
 	               		{HDR.Endianity;H.Endianity}
-               	        	        HDR.FILE.FID = fopen(HDR.FileName,'rb',H.Endianity);
+               	        	        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],H.Endianity);
 					fseek(HDR.FILE.FID,pos+4,'bof');
 					HDR.FILE.OPEN = 1; 
                 	        end;
@@ -320,7 +320,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                                         end;
                                 end
 	               		if ~strcmp(HDR.Endianity,H.Endianity)  
-               	        	        HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.Endianity);
+               	        	        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.Endianity);
                 	        end;
                                 %HDR.EXIF.APP1 = fread(HDR.FILE.FID,LEN-2-6-4,'uint8');
                         elseif (tag == hex2dec('FFE2'))       % EXIF field: APP2
@@ -381,7 +381,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:JPG'),
         GDFTYP = {'uint8','char','uint16','uint32','2*uint32','int8','uint8','int16','int32','2*int32','float32','float64'};
         GDFTYP = {'uint8','char','uint16','uint32','uint64','int8','uint8','int16','int32','int64','float32','float64'};
 
-        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         HDR.JPEG.H1 = fread(HDR.FILE.FID,[1,8],'uchar');
 
         % IFD
@@ -397,7 +397,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:JPG'),
 
 elseif strcmp(HDR.TYPE,'IMAGE:PCX'),  
 
-        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         tmp = fread(HDR.FILE.FID,[1,4],'uchar');
         HDR.PCX.Version = tmp(2); 
         HDR.Bits = tmp(4);
@@ -421,7 +421,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:PCX'),
         
 
 elseif strcmp(HDR.TYPE,'IMAGE:PBMA') | strcmp(HDR.TYPE,'IMAGE:PGMA')  | strcmp(HDR.TYPE,'IMAGE:PPMA') ,
-        HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'t'],'ieee-le');
 
 	N = NaN;
 	K = 1;
@@ -480,7 +480,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:PBMA') | strcmp(HDR.TYPE,'IMAGE:PGMA')  | strcmp(H
 
 
 elseif strcmp(HDR.TYPE,'IMAGE:PBMB'),
-        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
 	status = fseek(HDR.FILE.FID, HDR.HeadLen, 'bof');
 	[tmp,count] = fread(HDR.FILE.FID,[HDR.IMAGE.Size(2)/8,HDR.IMAGE.Size(1)],'uint8');
         fclose(HDR.FILE.FID);
@@ -492,14 +492,14 @@ elseif strcmp(HDR.TYPE,'IMAGE:PBMB'),
 	end;		
 
 elseif strcmp(HDR.TYPE,'IMAGE:PGMB'),
-        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
 	status = fseek(HDR.FILE.FID, HDR.HeadLen, 'bof');
 	[data,count] = fread(HDR.FILE.FID,[HDR.IMAGE.Size(2),HDR.IMAGE.Size(1)],'uint8');
         fclose(HDR.FILE.FID);
 	data = data';
 
 elseif strcmp(HDR.TYPE,'IMAGE:PPMB'),
-        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
 	status = fseek(HDR.FILE.FID, HDR.HeadLen, 'bof');
 	[tmp,count] = fread(HDR.FILE.FID,[3*HDR.IMAGE.Size(2),HDR.IMAGE.Size(1)],'uint8');
         fclose(HDR.FILE.FID);
@@ -526,7 +526,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
         end;
 
 	if ~HDR.FILE.OPEN,
-	        HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.Endianity);
+	        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.Endianity);
 	end;
 	[tmp,c] = fread(HDR.FILE.FID,2,IFD_TYPE);
 	OFFSET = tmp(2);
@@ -963,7 +963,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
 
         
 elseif strcmp(HDR.TYPE,'IMAGE:XBM'),
-	HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
+	HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'t'],'ieee-le');
 	K = 0; 
 	while K<2
 		tmp = fgetl(HDR.FILE.FID);
@@ -1011,7 +1011,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:XBM'),
 
         
 elseif strcmp(HDR.TYPE,'IMAGE:XPM'),
-	HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
+	HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'t'],'ieee-le');
 		line = '';
 		while ~any(line=='{'),
 	                line = fgetl(HDR.FILE.FID);

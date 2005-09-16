@@ -20,8 +20,8 @@ function [HDR] = sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.15 $
-%	$Id: sclose.m,v 1.15 2005-04-02 14:47:44 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: sclose.m,v 1.16 2005-09-16 13:43:31 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -35,7 +35,7 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
 	% check file length - simple test for file integrity         
         EndPos = ftell(HDR.FILE.FID);          % get file length
         % force file pointer to the end, otherwise Matlab 6.5 R13 on PCWIN
-        status = fseek(HDR.FILE.FID, 0, 'eof'); % go to end-of-file
+        status = fseek(HDR.FILE.FID,0,'eof');
         
         if strcmp(HDR.TYPE,'BKR');
                 if HDR.NS<1, 
@@ -76,16 +76,23 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
 
 	elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
          	tmp = floor((EndPos - HDR.HeadLen) / HDR.AS.bpb);  % calculate number of records
-        	if ~isnan(tmp)
-        	        HDR.NRec=tmp;
-			fseek(HDR.FILE.FID,236,'bof');
-			if strcmp(HDR.TYPE,'GDF')
-			        c=fwrite(HDR.FILE.FID,[HDR.NRec,0],'int32');
-			else	
-			        fprintf(HDR.FILE.FID,'%-8i',HDR.NRec);
-			end;
-		end;
-                if strcmp(HDR.TYPE,'GDF') & isfield(HDR,'EVENT'),
+                if ~isnan(tmp)
+                        if (HDR.NRec~=tmp)
+                                if ~any(HDR.FILE.PERMISSION=='z')
+                                        HDR.NRec=tmp;
+                                        fseek(HDR.FILE.FID,236,'bof');
+                                        if strcmp(HDR.TYPE,'GDF')
+                                                c=fwrite(HDR.FILE.FID,[HDR.NRec,0],'int32');
+                                        else	
+                                                fprintf(HDR.FILE.FID,'%-8i',HDR.NRec);
+                                        end;
+                                else    %% due to a limitation in zlib
+                                        fprintf(HDR.FILE.stderr,'ERROR SCLOSE: number-of-records-field (HDR.NRec) could not be updated in file %s.\n',HDR.FileName);
+                                end;
+                        end;
+                end;
+                
+                if strcmp(HDR.TYPE,'GDF') & isfield(HDR,'EVENT') & (HDR.NRec==tmp),
 			len = [length(HDR.EVENT.POS),length(HDR.EVENT.TYP)]; 
                         EVENT.Version = 1;
                         if isfield(HDR.EVENT,'CHN') & isfield(HDR.EVENT,'DUR'), 
@@ -104,8 +111,8 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
 				else	
 	                                HDR.AS.EVENTTABLEPOS = 256;
 				end;	
-                                %fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*HDR.NRec,'bof');
-                                status = fseek(HDR.FILE.FID,0,'eof');
+                                status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*HDR.NRec,'bof');
+                                %status = fseek(HDR.FILE.FID,0,'eof');
                                 if ftell(HDR.FILE.FID)~=HDR.AS.EVENTTABLEPOS,
                                         fprintf(HDR.FILE.stderr,'Warning SCLOSE-GDF: inconsistent GDF file\n');
                                 end
@@ -135,46 +142,48 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                 end;
 
         elseif strcmp(HDR.TYPE,'CFWB');
-                HDR.SPR       = (EndPos-HDR.HeadLen)/HDR.AS.bpb;
-                if isnan(HDR.SPR), HDR.SPR=0; end;
-                if HDR.FILE.OPEN==3;
-			fclose(HDR.FILE.FID);
-			HDR.FILE.FID = fopen(HDR.FileName,'r+','ieee-le');
-                        fseek(HDR.FILE.FID,15,-1);
-                        count = fwrite(HDR.FILE.FID,HDR.SPR,'int32');           % channels
-		end;
-
+                tmp = (EndPos-HDR.HeadLen)/HDR.AS.bpb;
+                if isnan(tmp), tmp=0; end;
+                if (tmp~=HDR.SPR);
+                        if ~any(HDR.FILE.PERMISSION=='z')
+                                HDR.SPR = tmp;
+                                fseek(HDR.FILE.FID,15,-1);
+                                count = fwrite(HDR.FILE.FID,HDR.SPR,'int32');           % channels
+                        else
+                                fprintf(HDR.FILE.stderr,'ERROR SCLOSE (CFWB): number-of-samples-field (HDR.SPR) could not be updated in file %s.\n',HDR.FileName);
+                        end;
+                end;
+                
         elseif strcmp(HDR.TYPE,'SND');
-                HDR.SPR       = (EndPos-HDR.HeadLen)/HDR.AS.bpb;
-                if isnan(HDR.SPR), HDR.SPR=0; end;
-                if HDR.FILE.OPEN==3;
-			fclose(HDR.FILE.FID);
-			HDR.FILE.FID = fopen(HDR.FileName,'r+',HDR.Endianity);
-                        fseek(HDR.FILE.FID,8,-1);
-                        count = fwrite(HDR.FILE.FID,HDR.SPR*HDR.AS.bpb,'uint32');           % bytes
-                        fseek(HDR.FILE.FID,20,-1);
-                        count = fwrite(HDR.FILE.FID,HDR.NS,'uint32');           % channels
+                tmp = (EndPos-HDR.HeadLen)/HDR.AS.bpb;
+                if isnan(tmp), tmp=0; end;
+                if (HDR.FILE.OPEN==3) & (tmp~=HDR.SPR);
+                        if ~any(HDR.FILE.PERMISSION=='z')
+                                HDR.SPR = tmp;
+                                fseek(HDR.FILE.FID,8,'bof');
+                                count = fwrite(HDR.FILE.FID,HDR.SPR*HDR.AS.bpb,'uint32');           % bytes
+                                fseek(HDR.FILE.FID,20,-1);
+                                count = fwrite(HDR.FILE.FID,HDR.NS,'uint32');           % channels
+                        else
+                                fprintf(HDR.FILE.stderr,'ERROR SCLOSE (SND): fields HDR.SPR and HDR.NS could not be updated in file %s.\n',HDR.FileName);
+                        end;
 		end;
-
+                
         elseif strcmp(HDR.TYPE,'AIF');
                 if HDR.FILE.OPEN==3;
-			fclose(HDR.FILE.FID);
-			HDR.FILE.FID = fopen(HDR.FileName,'r+','ieee-be');
                         fseek(HDR.FILE.FID,4,-1);
                         count = fwrite(HDR.FILE.FID,EndPos-8,'uint32');           % bytes
                         fseek(HDR.FILE.FID,HDR.WAV.posis(2),-1);
                         count = fwrite(HDR.FILE.FID,EndPos-4-HDR.WAV.posis(2),'uint32');           % channels
-		end;
-
+                end;
+                
         elseif strcmp(HDR.TYPE,'WAV') ;
                 if HDR.FILE.OPEN==3;
-			fclose(HDR.FILE.FID);
-			HDR.FILE.FID = fopen(HDR.FileName,'r+','ieee-le');
                         fseek(HDR.FILE.FID,4,-1);
                         count = fwrite(HDR.FILE.FID,EndPos-16,'uint32');           % bytes
                         fseek(HDR.FILE.FID,HDR.WAV.posis(2),-1);
                         count = fwrite(HDR.FILE.FID,EndPos-4-HDR.WAV.posis(2),'uint32');           % channels
-		end;
+                end;
         end;
 end;
 

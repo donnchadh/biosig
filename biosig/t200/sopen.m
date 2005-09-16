@@ -9,6 +9,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % PERMISSION is one of the following strings 
 %	'r'	read header
 %	'w'	write header
+%       'rz'    on-the-fly decompression of gzipped files (only supported with Octave 2.9.3 or higher). 
+%       'wz'    on-the-fly compression to gzipped files (only supported with Octave 2.9.3 or higher). 
 %
 % CHAN defines a list of selected Channels
 %   Alternative CHAN can be also a Re-Referencing Matrix ReRefMx
@@ -45,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.119 $
-%	$Id: sopen.m,v 1.119 2005-09-10 20:43:54 schloegl Exp $
+%	$Revision: 1.120 $
+%	$Id: sopen.m,v 1.120 2005-09-16 13:43:31 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -89,19 +91,18 @@ end;
 if nargin<3, CHAN = 0; end; 
 if nargin<4, MODE = ''; end;
 if nargin<2, 
-        PERMISSION='r'; 
+        HDR.FILE.PERMISSION='r'; 
 elseif isempty(PERMISSION),
-        PERMISSION='r'; 
+        HDR.FILE.PERMISSION='r'; 
 elseif isnumeric(PERMISSION),
         fprintf(HDR.FILE.stderr,'Warning SOPEN: second argument should be PERMISSION, assume its the channel selection\n');
         CHAN = PERMISSION; 
-        PERMISSION = 'r'; 
+        HDR.FILE.PERMISSION = 'r'; 
 elseif ~any(PERMISSION(1)=='RWrw'),
         fprintf(HDR.FILE.stderr,'Warning SOPEN: PERMISSION must be ''r'' or ''w''. Assume PERMISSION is ''r''\n');
-        PERMISSION = 'r'; 
-end;
-if ~any(PERMISSION=='b');
-        PERMISSION = [PERMISSION,'b']; % force binary open. Needed for Octave
+        HDR.FILE.PERMISSION = 'r'; 
+else
+        HDR.FILE.PERMISSION = PERMISSION; 
 end;
 
 if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | (any(CHAN<0) & (numel(CHAN)>1));
@@ -118,17 +119,24 @@ end
 if isempty(MODE), MODE=' '; end;	% Make sure MODE is not empty -> FINDSTR
 
 % test for type of file 
-if any(PERMISSION=='r'),
+if any(HDR.FILE.PERMISSION=='r'),
         HDR = getfiletype(HDR);
 	if HDR.ERROR.status, 
 		fprintf(HDR.FILE.stderr,'%s\n',HDR.ERROR.message);
 		return;
 	end;
-else
+elseif any(HDR.FILE.PERMISSION=='w'),
 	[pfad,file,FileExt] = fileparts(HDR.FileName);
 	HDR.FILE.Name = file;
 	HDR.FILE.Path = pfad;
 	HDR.FILE.Ext  = FileExt(2:length(FileExt));
+        if any(HDR.FILE.PERMISSION=='z')
+                HDR.FILE.Ext = [HDR.FILE.Ext,'.gz'];
+                HDR.FileName = [HDR.FileName,'.gz'];
+                HDR.FILE.PERMISSION = 'wz'; 
+        else
+                HDR.FILE.PERMISSION = 'w'; 
+        end;
 	HDR.FILE.OPEN = 0;
         HDR.FILE.FID  = -1;
 	HDR.ERROR.status  = 0; 
@@ -184,24 +192,7 @@ GDFTYP_BYTE(256+(1:64))=(1:64)/8;
 GDFTYP_BYTE(512+(1:64))=(1:64)/8;
 GDFTYP_BYTE(1:19)=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8 16]';
 
-if 0, strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
-        if any(PERMISSION=='w');
-                HDR = eegchkhdr(HDR);
-        end;
-        if nargin<4,
-                HDR = sdfopen(HDR,PERMISSION);
-        else
-                HDR = sdfopen(HDR,PERMISSION,CHAN,MODE);
-        end;
-
-	%%% Event file stored in GDF-format
-	if ~any([HDR.NS,HDR.NRec,~length(HDR.EVENT.POS)]);
-		HDR.TYPE = 'EVENT';
-	end;	
-        
-        
-elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
-        H1idx = [8 80 80 8 8 8 44 8 8 4];
+if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         H2idx = [16 80 8 8 8 8 8 80 8 32];
         
         HDR.ErrNo = 0; 
@@ -211,7 +202,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         SCALE14 = {'unknown','no','yes','corrected'};
                 
         if any(PERMISSION=='r');
-                [HDR.FILE.FID,MESSAGE]=fopen(HDR.FileName,'r','ieee-le');          
+                [HDR.FILE.FID,MESSAGE]=fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');          
                 
                 if HDR.FILE.FID<0 
                         HDR.ErrNo = [32,HDR.ErrNo];
@@ -480,7 +471,7 @@ end;
                         HDR.DigMin     = str2double(h2(:,idx1(6)+1:idx1(7)));
                         HDR.DigMax     = str2double(h2(:,idx1(7)+1:idx1(8)));
                         HDR.PreFilt    =            h2(:,idx1(8)+1:idx1(9));
-                        HDR.AS.SPR        = str2double(h2(:,idx1(9)+1:idx1(10)));
+                        HDR.AS.SPR     = str2double(h2(:,idx1(9)+1:idx1(10)));
                         %if ~all(abs(HDR.VERSION)==[255,abs('BIOSEMI')]),
                         if (HDR.VERSION ~= -1),
                                 HDR.GDFTYP     = 3*ones(1,HDR.NS);	%	datatype
@@ -1189,7 +1180,7 @@ end;
                 %H1(1:8)=HDR.VERSION; %sprintf('%08i',HDR.VERSION);     % 8 Byte  Versionsnummer 
 		sex = 'XMF';
 		if ~HDR.Patient.Birthday(1), bd = 'X';
-		else bd=datestr(HDR.Patient.Birthday,'dd-mmm-yyyy');
+		else bd=datestr(datenum(HDR.Patient.Birthday),'dd-mmm-yyyy');
 		end;
                 if HDR.VERSION == -1,
                         H1 = [255,'BIOSEMI',repmat(32,1,248)];
@@ -1198,7 +1189,7 @@ end;
                 elseif HDR.VERSION == 0,
 			H1 = ['0       ',repmat(32,1,248)]; 
 			HDR.PID = [HDR.Patient.Id,' ',sex(HDR.Patient.Sex+1),' ',bd,' ',HDR.Patient.Name];
-			HDR.RID = ['Startdate ',datestr(HDR.T0,'dd-mmm-yyyy')];
+			HDR.RID = ['Startdate ',datestr(datenum(HDR.T0),'dd-mmm-yyyy')];
                 elseif HDR.VERSION > 0,
                         tmp = sprintf('%5.2f',HDR.VERSION);
                         H1 = ['GDF',tmp(1:5),repmat(32,1,248)];
@@ -1251,7 +1242,15 @@ end;
 		end;
 		                
                 %%%%% Open File 
-                if ~any(PERMISSION=='+') 
+                if ((HDR.NRec<0) & any(HDR.FILE.PERMISSION=='z')),
+                        %% due to a limitation zlib
+                        fprintf(HDR.FILE.stderr,'ERROR SOPEN (GDF/EDF/BDF) "wz": Update of HDR.NRec and writing Eventtable are not possible.\n',HDR.FileName);
+                        fprintf(HDR.FILE.stderr,'\t Solution(s): (1) define exactly HDR.NRec before calling SOPEN(HDR,"wz"); or (2) write to uncompressed file instead.\n');
+                        return;
+                end;
+                if 1,
+                        [HDR.FILE.FID,MESSAGE]=fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');          
+                elseif ~any(PERMISSION=='+') 
                         [HDR.FILE.FID,MESSAGE]=fopen(HDR.FileName,'w+b','ieee-le');          
                 else  % (arg2=='w+')  % may be called only by SDFCLOSE
                         if HDR.FILE.OPEN==2 
@@ -1288,7 +1287,7 @@ end;
 				tmp = floor([rem(tmp,1)*2^32;tmp]);
                                 c = fwrite(HDR.FILE.FID,tmp,'uint32');
                                 c=fwrite(HDR.FILE.FID,[HDR.HeadLen,0],'int32');
-                                c=fwrite(HDR.FILE.FID,HDR.ID.Equipment,'uint8'); % EP_ID=ones(8,1)*32;
+                                c=fwrite(HDR.FILE.FID,'b4om1.91','uint8'); % EP_ID=ones(8,1)*32;
 				tmp = [HDR.REC.IPaddr, zeros(1,2)];
 			        c=fwrite(HDR.FILE.FID,tmp(6:-1:1),'uint8'); % IP address
 			        c=fwrite(HDR.FILE.FID,HDR.Patient.Headsize(1:3),'uint16'); % circumference, nasion-inion, left-right mastoid in [mm]
@@ -1415,7 +1414,7 @@ end;
         end;
         
 
-elseif strcmp(HDR.TYPE,'EVENT') & any(lower(PERMISSION)=='w'),
+elseif strcmp(HDR.TYPE,'EVENT') & any(lower(HDR.FILE.PERMISSION)=='w'),
 	%%% Save event file in GDF-format
 	HDR.TYPE = 'GDF';
 	HDR.NS   = 0; 
@@ -1429,20 +1428,20 @@ elseif strcmp(HDR.TYPE,'EVENT') & any(lower(PERMISSION)=='w'),
 
 
 elseif strcmp(HDR.TYPE,'BKR'),
-        HDR = bkropen(HDR,PERMISSION);
+        HDR = bkropen(HDR);
         HDR.GDFTYP = repmat(3,1,HDR.NS);
         %%% Get trigger information from BKR data 
 
         
 elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'})
-        if any(PERMISSION=='r');
-                [HDR,H1,h2] = cntopen(HDR,PERMISSION);
+        if any(HDR.FILE.PERMISSION=='r');
+                [HDR,H1,h2] = cntopen(HDR);
                 if HDR.GDFTYP==3,       
                         % support of OVERFLOWDETECTION
                        HDR.THRESHOLD = repmat([-2^15,2^15-1],HDR.NS,1);
                 end; 
                 
-        elseif any(PERMISSION=='w');
+        elseif any(HDR.FILE.PERMISSION=='w');
                 % check header information
                 if ~isfield(HDR,'NS'),
                         HDR.NS = 0;
@@ -1493,7 +1492,12 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'})
                 end;
                 
                 % open file 
-                HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+                if any(HDR.FILE.PERMISSION=='z') & (HDR.SPR<=0),
+                        fprintf(HDR.FILE.stderr,'ERROR SOPEN (CNT) "wz": Update of HDR.SPR is not possible.\n',HDR.FileName);
+                        fprintf(HDR.FILE.stderr,'\t Solution(s): (1) define exactly HDR.SPR before calling SOPEN(HDR,"wz"); or (2) write to uncompressed file instead.\n');
+                        return;
+                end;
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 if HDR.FILE.FID < 0,
                         return;
                 end;
@@ -1535,7 +1539,7 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'})
         
         
 elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.Endianity);
         status = fseek(HDR.FILE.FID,32,'bof'); 	% skip preamble
         
         if exist('fefopen','file') & ~status,
@@ -1548,7 +1552,7 @@ elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
 
         
 elseif strcmp(HDR.TYPE,'SCP'),	%
-        HDR = scpopen(HDR,PERMISSION,CHAN);
+        HDR = scpopen(HDR,CHAN);
 	if HDR.ERROR.status,
 		fclose(HDR.FILE.FID);
 		HDR.FILE.OPEN = 0; 
@@ -1558,7 +1562,7 @@ elseif strcmp(HDR.TYPE,'SCP'),	%
 	        
         
 elseif strcmp(HDR.TYPE,'EBS'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-be');
         
         fprintf(HDR.FILE.stderr,'Warning SOPEN: Implementing EBS format not completed yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
         
@@ -1612,7 +1616,7 @@ elseif strcmp(HDR.TYPE,'EBS'),
         
         
 elseif strcmp(HDR.TYPE,'rhdE'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         
         %fseek(HDR.FILE.FID,4,'bof');		% skip 4 bytes ID
         %HDR.HeadLen = fread(HDR.FILE.FID,1,'int32');	% Length of Header ? 
@@ -1636,7 +1640,7 @@ elseif strcmp(HDR.TYPE,'rhdE'),
         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         
         
-elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
+elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
         HDR.FILE.FID = -1;      % make sure SLOAD does not call SREAD;
 
         % The header files are text files (not binary).
@@ -1925,8 +1929,8 @@ elseif strcmp(HDR.TYPE,'alpha') & any(PERMISSION=='r'),
         
         
 elseif strcmp(HDR.TYPE,'DEMG'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');     
-        if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');     
+        if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ 
                 % read header
                 fseek(HDR.FILE.FID,4,'bof');    % skip first 4 bytes, should contain 'DEMG'
                 HDR.VERSION = fread(HDR.FILE.FID,1,'uint16');	
@@ -1968,7 +1972,7 @@ elseif strcmp(HDR.TYPE,'DEMG'),
         
         
 elseif strcmp(HDR.TYPE,'ACQ'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         
         %--------    Fixed Header        
         ItemHeaderLen = fread(HDR.FILE.FID,1,'uint16');
@@ -2110,7 +2114,7 @@ elseif strcmp(HDR.TYPE,'ACQ'),
         
         
 elseif strncmp(HDR.TYPE,'AKO',3),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         HDR.Header = fread(HDR.FILE.FID,[1,46],'char');
         warning('support of AKO format not completed');
         HDR.Patient.ID = char(HDR.Header(17:24));
@@ -2126,7 +2130,7 @@ elseif strncmp(HDR.TYPE,'AKO',3),
         
 elseif strcmp(HDR.TYPE,'ALICE4'),
         fprintf(HDR.FILE.stderr,'Warning SOPEN: Support of ALICE4 format not completeted. \n\tCalibration, filter setttings and SamplingRate are missing\n');
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         [s,c]  = fread(HDR.FILE.FID,[1,408],'char');
         HDR.NS = s(55:56)*[1;256];
         HDR.SampleRate   = 100; 
@@ -2154,7 +2158,7 @@ elseif strcmp(HDR.TYPE,'ALICE4'),
         
         
 elseif strcmp(HDR.TYPE,'ATES'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         HDR.Header = fread(HDR.FILE.FID,[1,128],'char');
         tmp = fread(HDR.FILE.FID,1,'int16');
         HDR.FLAG.Monopolar = logical(tmp);
@@ -2177,7 +2181,7 @@ elseif strcmp(HDR.TYPE,'ATES'),
 
         
 elseif strcmp(HDR.TYPE,'BLSC'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         HDR.Header = fread(HDR.FILE.FID,[1,3720],'char');       % ???
         HDR.data   = fread(HDR.FILE.FID,[32,inf],'ubit8');      % ???
         %HDR.NS = 32; 
@@ -2188,7 +2192,7 @@ elseif strcmp(HDR.TYPE,'BLSC'),
 
         
 elseif strcmp(HDR.TYPE,'RigSys'),       % thanks to  J. Chen
-        HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         [thdr,count] = fread(HDR.FILE.FID,[1,1024],'char');
         thdr = char(thdr);
         HDR.RigSys.H1 = thdr;        
@@ -2300,12 +2304,12 @@ elseif strcmp(HDR.TYPE,'RigSys'),       % thanks to  J. Chen
 
         
 elseif strcmp(HDR.TYPE,'SND'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.Endianity);
         if HDR.FILE.FID < 0,
                 return;
         end;
         
-        if ~isempty(findstr(PERMISSION,'r')),	%%%%% READ 
+        if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),	%%%%% READ 
                 HDR.FILE.OPEN = 1; 
                 fseek(HDR.FILE.FID,4,'bof');
                 HDR.HeadLen = fread(HDR.FILE.FID,1,'uint32');
@@ -2317,8 +2321,7 @@ elseif strcmp(HDR.TYPE,'SND'),
                 [tmp,count] = fread(HDR.FILE.FID, [1,HDR.HeadLen-24],'char');
                 HDR.INFO = setstr(tmp);
                 
-        elseif ~isempty(findstr(PERMISSION,'w')),	%%%%% WRITE 
-                HDR.FILE.OPEN = 2; 
+        elseif ~isempty(findstr(HDR.FILE.PERMISSION,'w')),	%%%%% WRITE 
                 if ~isfield(HDR,'NS'),
                         HDR.NS = 0;
                 end;
@@ -2331,6 +2334,13 @@ elseif strcmp(HDR.TYPE,'SND'),
                 if ~isfinite(HDR.SPR)
                         HDR.SPR = 0;
                 end;	
+                if any(HDR.FILE.PERMISSION=='z') & any([HDR.SPR,HDR.NS] <= 0),
+                        fprintf(HDR.FILE.stderr,'ERROR SOPEN (SND) "wz": Update of HDR.SPR and HDR.NS are not possible.\n',HDR.FileName);
+                        fprintf(HDR.FILE.stderr,'\t Solution(s): (1) define exactly HDR.SPR and HDR.NS before calling SOPEN(HDR,"wz"); or (2) write to uncompressed file instead.\n');
+                        fclose(HDR.FILE.FID)
+                        return;
+                end;
+                HDR.FILE.OPEN = 2; 
                 if any([HDR.SPR,HDR.NS] <= 0);
                         HDR.FILE.OPEN = 3; 
                 end;
@@ -2427,8 +2437,8 @@ elseif strcmp(HDR.TYPE,'SND'),
         
         
 elseif strncmp(HDR.TYPE,'EEG-1100',8),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
-        if any(PERMISSION=='r'),		%%%%% READ 
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),		%%%%% READ 
                 [H1,count] = fread(HDR.FILE.FID,[1,6160],'char');
                 %HDR.Patient.Name = char(H1(79+(1:32)));
                 if count<6160, 
@@ -2451,9 +2461,7 @@ elseif strncmp(HDR.TYPE,'EEG-1100',8),
         
         
 elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
-%        HDR = gtfopen(HDR,PERMISSION);
-
-        HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         
         % read 3 header blocks 
         HDR.GTF.H1 = fread(HDR.FILE.FID,[1,512],'uint8');
@@ -2543,7 +2551,7 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
 
                 
 elseif strcmp(HDR.TYPE,'MFER'),
-        HDR = mwfopen(HDR,PERMISSION);
+        HDR = mwfopen(HDR,[HDR.FILE.PERMISSION,'b']);
         if (HDR.FRAME.N ~= 1),
                 fprintf(HDR.FILE.stderr,'Error SOPEN (MFER): files with more than one frame not implemented, yet.\n');
                 fclose(HDR.FILE.FID);
@@ -2554,8 +2562,8 @@ elseif strcmp(HDR.TYPE,'MFER'),
         
 elseif strcmp(HDR.TYPE,'MPEG'),
         % http://www.dv.co.yu/mpgscript/mpeghdr.htm
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
-        if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
+        if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ 
                 % read header
                 try,
                         tmp = fread(HDR.FILE.FID,1,'ubit11');
@@ -2645,8 +2653,8 @@ elseif strcmp(HDR.TYPE,'MPEG'),
         
         
 elseif strcmp(HDR.TYPE,'QTFF'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
-        if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-be');
+        if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ 
                 HDR.FILE.OPEN = 1; 
                 offset = 0; 
                 while ~feof(HDR.FILE.FID),	
@@ -2752,7 +2760,7 @@ elseif strcmp(HDR.TYPE,'QTFF'),
         
 elseif strcmp(HDR.TYPE,'ASF') ,
         if exist('asfopen','file'),
-                HDR = asfopen(HDR,PERMISSION);
+                HDR = asfopen(HDR,[HDR.FILE.PERMISSION,'b']);
         else
                 fprintf(1,'SOPEN ASF-File: Microsoft claims that its illegal to implement the ASF format.\n');
                 fprintf(1,'     Anyway Microsoft provides the specification at http://www.microsoft.com/windows/windowsmedia/format/asfspec.aspx \n');
@@ -2761,9 +2769,9 @@ elseif strcmp(HDR.TYPE,'ASF') ,
         
         
 elseif strcmp(HDR.TYPE,'MIDI') | strcmp(HDR.TYPE,'RMID') ,
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.Endianity);
 
-        if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
+        if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ 
                 
                 [tmp,c] = fread(HDR.FILE.FID,[1,4+12*strcmp(HDR.TYPE,'RMID') ],'char');
 		tmp = char(tmp(c+(-3:0)));
@@ -2894,14 +2902,13 @@ elseif strcmp(HDR.TYPE,'MIDI') | strcmp(HDR.TYPE,'RMID') ,
         
         
 elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
-	if strcmp(HDR.TYPE,'AIF')
-	        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
-        else
-		HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
-	end;
-	
-        if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
-
+        if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ 
+                if strcmp(HDR.TYPE,'AIF')
+                        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-be');
+                else
+                        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
+                end;
+                
                 tmp = setstr(fread(HDR.FILE.FID,[1,4],'char'));
                 if ~strcmpi(tmp,'FORM') & ~strcmpi(tmp,'RIFF')
                         fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAV-format: file %s might be corrupted 1\n',HDR.FileName);
@@ -3245,7 +3252,16 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                 HDR.NRec = 1;
                 
                 
-        elseif ~isempty(findstr(PERMISSION,'w')),	%%%%% WRITE 
+        elseif ~isempty(findstr(HDR.FILE.PERMISSION,'w')),	%%%%% WRITE 
+                if any(HDR.FILE.PERMISSION=='z'),
+                        fprintf(HDR.FILE.stderr,'WARNING SOPEN (AIF/WAV/IIF,AVI) "wz": Writing to gzipped AIF file not supported (yet).\n');
+                        HDR.FILE.PERMISSION = 'w';
+                end;
+                if strcmp(HDR.TYPE,'AIF')
+                        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-be');
+                else
+                        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
+                end;
                 HDR.FILE.OPEN = 3; 
                 if strcmp(HDR.TYPE,'AIF') 
                         fwrite(HDR.FILE.FID,'FORM','char');	
@@ -3350,7 +3366,7 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
 
         
 elseif strcmp(HDR.TYPE,'FLAC'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-be');
         
 	if HDR.FILE.FID > 0,
     	        HDR.magic  = fread(HDR.FILE.FID,[1,4],'char');
@@ -3412,7 +3428,7 @@ elseif strcmp(HDR.TYPE,'FLAC'),
 
         
 elseif strcmp(HDR.TYPE,'OGG'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         
 	if HDR.FILE.FID > 0,
 		% chunk header
@@ -3442,7 +3458,7 @@ elseif strcmp(HDR.TYPE,'OGG'),
 
         
 elseif strcmp(HDR.TYPE,'RMF'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         
 	if HDR.FILE.FID > 0,
                 fclose(HDR.FILE.FID)        
@@ -3453,7 +3469,7 @@ elseif strcmp(HDR.TYPE,'RMF'),
 
         
 elseif strcmp(HDR.TYPE,'EGI'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-be');
         
         HDR.VERSION  = fread(HDR.FILE.FID,1,'uint32');
         
@@ -3541,7 +3557,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
 elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
         % implementation of this format is not finished yet.
         
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         %%%%% X-Header %%%%%
         HDR.VERSION = fread(HDR.FILE.FID,1,'int16');
         HDR.NS = fread(HDR.FILE.FID,1,'int16');
@@ -3625,7 +3641,7 @@ elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
         
 elseif strcmp(HDR.TYPE,'WFT'),	% implementation of this format is not finished yet.
         
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         [s,c] = fread(HDR.FILE.FID,1536,'char');
         [tmp,s] = strtok(s,setstr([0,32]));
         Nic_id0 = str2double(tmp);
@@ -3667,8 +3683,8 @@ elseif strcmp(HDR.TYPE,'WFT'),	% implementation of this format is not finished y
         
 elseif strcmp(HDR.TYPE,'WG1'),
 
-        if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ 
-                HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
+        if ~isempty(findstr([HDR.FILE.PERMISSION,'b'],'r')),		%%%%% READ 
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.Endianity);
                 
                 HDR.VERSION = dec2hex(fread(HDR.FILE.FID,1,'uint32')); 
                 HDR.WG1.MachineId = fread(HDR.FILE.FID,1,'uint32');
@@ -3759,15 +3775,14 @@ elseif strcmp(HDR.TYPE,'WG1'),
 
         
 elseif strcmp(HDR.TYPE,'LDR'),
-        HDR = openldr(HDR,PERMISSION);      
+        HDR = openldr(HDR,[HDR.FILE.PERMISSION,'t']);      
         
         
 elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
-        PERMISSION = PERMISSION(PERMISSION~='b');
         try     % MatLAB default is binary, force Mode='rt';
-                HDR.FILE.FID = fopen(HDR.FileName,[PERMISSION,'t'],'ieee-le');
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'t'],'ieee-le');
         catch 	% Octave 2.1.50 default is text, but does not support Mode='rt', 
-                HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+                HDR.FILE.FID = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
         end
         numbegin=0;
         HDR.H1 = '';
@@ -3860,8 +3875,8 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         endpos = ftell(HDR.FILE.FID); 
 
         fclose(HDR.FILE.FID);
-        PERMISSION = PERMISSION(PERMISSION~='t');       % open in binary mode 
-        HDR.FILE.FID = fopen(HDR.FileName,[PERMISSION,'b'],'ieee-le');
+        %% PERMISSION = PERMISSION(PERMISSION~='t');       % open in binary mode 
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         
         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         %[HDR.AS.endpos,HDR.HeadLen,HDR.NS,HDR.SPR,HDR.NS*HDR.SPR*4,HDR.AS.endpos-HDR.HeadLen - HDR.NS*HDR.SPR*4]
@@ -3884,7 +3899,7 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         
         
 elseif strcmp(HDR.TYPE,'RDF'),  % UCSD ERPSS acqusition software DIGITIZE
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         
         status = fseek(HDR.FILE.FID,4,-1);
         HDR.FLAG.compressed = fread(HDR.FILE.FID,1,'uint16');
@@ -3969,7 +3984,7 @@ elseif strcmp(HDR.TYPE,'RDF'),  % UCSD ERPSS acqusition software DIGITIZE
         
         
 elseif strcmp(HDR.TYPE,'LABVIEW'),
-        HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-be');
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-be');
         
         tmp = fread(HDR.FILE.FID,8,'uchar');
         HDR.VERSION = char(fread(HDR.FILE.FID,[1,8],'uchar'));
@@ -4017,7 +4032,7 @@ elseif strcmp(HDR.TYPE,'LABVIEW'),
         
         
 elseif strcmp(HDR.TYPE,'RG64'),
-        fid = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        fid = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         
         HDR.IDCODE=char(fread(fid,[1,4],'char'));	%
         if ~strcmp(HDR.IDCODE,'RG64') 
@@ -4048,7 +4063,7 @@ elseif strcmp(HDR.TYPE,'RG64'),
         end;
         FILENAME=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',EXT]);
         
-        HDR.FILE.FID=fopen(FILENAME,'rb','ieee-le');
+        HDR.FILE.FID=fopen(FILENAME,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         if HDR.FILE.FID<0,
                 fprintf(HDR.FILE.stderr,'\nError LOADRG64: data file %s not found\n',FILENAME); 
                 return;
@@ -4066,8 +4081,8 @@ elseif strcmp(HDR.TYPE,'DDF'),
         %HDR.FILE.FID = -1;
         %return;
         
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS = 0;
                 %HDR.ID = fread(HDR.FILE.FID,5,'char');
@@ -4215,10 +4230,10 @@ elseif strcmp(HDR.TYPE,'DDF'),
 
         
 elseif strcmp(HDR.TYPE,'MIT')
-        if any(PERMISSION=='r'),
+        if any(HDR.FILE.PERMISSION=='r'),
                 HDR.FileName = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
                 
-                HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le');
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 if HDR.FILE.FID<0,
 			fprintf(HDR.FILE.stderr,'Error SOPEN: Couldnot open file %s\n',HDR.FileName);
 			return;
@@ -4664,8 +4679,8 @@ elseif strcmp(HDR.TYPE,'MIT-ATR'),
                 
         
 elseif strcmp(HDR.TYPE,'TMS32'),        % Portilab/TMS32 format
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 HDR.ID = fread(HDR.FILE.FID,31,'char');
                 HDR.VERSION = fread(HDR.FILE.FID,1,'int16');
                 [tmp,c] = fread(HDR.FILE.FID,81,'char');
@@ -4726,11 +4741,11 @@ elseif strcmp(HDR.TYPE,'TMS32'),        % Portilab/TMS32 format
         
         
 elseif 0, strcmp(HDR.TYPE,'DAQ'),
-        HDR = daqopen(HDR,PERMISSION);
+        HDR = daqopen(HDR,[HDR.FILE.PERMISSION,'b']);
         
         
-elseif strcmp(HDR.TYPE,'MAT4') & any(PERMISSION=='r'),
-    		HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.MAT4.opentyp);
+elseif strcmp(HDR.TYPE,'MAT4') & any(HDR.FILE.PERMISSION=='r'),
+    		HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.MAT4.opentyp);
                 k=0; NB=0;
                 %type = fread(HDR.FILE.FID,4,'uchar'); 	% 4-byte header
                 type = fread(HDR.FILE.FID,1,'uint32'); 	% 4-byte header
@@ -4811,7 +4826,7 @@ elseif strcmp(HDR.TYPE,'MAT4') & any(PERMISSION=='r'),
     	if isfield(HDR,'ADI')
                 HDR.TYPE = 'ADI', % ADICHT-data, converted into a Matlab 4 file
     		
-	        fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
+	        fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',HDR.FILE.PERMISSION);	
 
                 %% set internal sampling rate to 1000Hz (default). Set HDR.iFs=[] if no resampling should be performed 
                 HDR.iFs = []; %1000;
@@ -5504,8 +5519,8 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 
         
 elseif strncmp(HDR.TYPE,'BCI2000',7),
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 
                 [HDR.Header,count] = fread(HDR.FILE.FID,[1,256],'char');
 		[tmp,rr] = strtok(char(HDR.Header),[10,13]);
@@ -5624,10 +5639,10 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADInstruments. 
         CHANNEL_TITLE_LEN = 32;
         UNITS_LEN = 32;
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 
-                fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
+                fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',HDR.FILE.PERMISSION);	
                 
                 HDR.FILE.OPEN = 1;
                 fseek(HDR.FILE.FID,4,'bof');
@@ -5665,7 +5680,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 end;
 
                 
-        elseif any(PERMISSION=='w'),
+        elseif any(HDR.FILE.PERMISSION=='w'),
                 HDR.VERSION   = 1;
                 if ~isfield(HDR,'NS'),
                         HDR.NS = 0; 	% unknown channel number ...
@@ -5681,7 +5696,14 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                         HDR.SampleRate = 1; 	% Unknown - Value will be fixed when file is closed. 
                         fprintf(HDR.FILE.stderr,'Warning SOPEN-W CFWB: samplerate undefined.\n');
                 end;
-                if any([HDR.SPR==0]), 	% if any unknown, ...				HDR.FILE.OPEN = 3;			%	... fix header when file is closed. 
+                if (any(HDR.SPR<0) & any(HDR.FILE.PERMISSION=='z')),
+                        %% due to a limitation zlib
+                        fprintf(HDR.FILE.stderr,'ERROR SOPEN (CFWB) "wz": Update of HDR.SPR not possible.\n',HDR.FileName);
+                        fprintf(HDR.FILE.stderr,'\t Solution(s): (1) define exactly HDR.SPR before calling SOPEN(HDR,"wz"); or (2) write to uncompressed file instead.\n');
+                        return;
+                end;
+                if any([HDR.SPR==0]), 	% if any unknown, ...				
+                        HDR.FILE.OPEN = 3;			%	... fix header when file is closed. 
                 end;
                 if ~isfield(HDR,'CFWB'),
                         HDR.CFWB.preTrigger = 0; 	% Unknown - Value will be fixed when file is closed. 
@@ -5752,7 +5774,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 
                 
                 %%%%% write fixed header
-                HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,'ieee-le');
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 if HDR.FILE.FID<0, 
                         fprintf(HDR.FILE.stderr,'Error SOPEN-W CFWB: could not open file %s .\n',HDR.FileName);
                         return;
@@ -5795,10 +5817,10 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
         
         
 elseif strcmp(HDR.TYPE,'ISHNE'),
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le')
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le')
                 
-                fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',PERMISSION);	
+                fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',HDR.FILE.PERMISSION);	
                 
                 HDR.FILE.OPEN = 1;
                 fseek(HDR.FILE.FID,10,'bof');
@@ -5858,13 +5880,13 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
                 HDR.FLAG.TRIGGERED = 0;	% Trigger Flag
                 
         else
-                fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
+                fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',HDR.FILE.PERMISSION);	
         end;			
         
         
 elseif strcmp(HDR.TYPE,'DDT'),
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 tmp = fread(HDR.FILE.FID,2,'int32');
                 HDR.Version = tmp(1); 
                 HDR.HeadLen = tmp(2); 
@@ -5910,8 +5932,8 @@ elseif strcmp(HDR.TYPE,'DDT'),
         
 elseif strcmp(HDR.TYPE,'NEX'),
         fprintf(HDR.FILE.stderr,'Warning: SOPEN (NEX) is still in testing phase.\n');	
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 if HDR.FILE.FID<0,
                         return;
                 end
@@ -5973,10 +5995,10 @@ elseif strcmp(HDR.TYPE,'NEX'),
         
         
 elseif strcmp(HDR.TYPE,'PLEXON'),
-        if any(PERMISSION=='r'),
+        if any(HDR.FILE.PERMISSION=='r'),
                 fprintf(HDR.FILE.stderr,'Warning:  SOPEN (PLX) is still in testing phase.\n');	
 
-                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 if HDR.FILE.FID<0,
                         return;
                 end
@@ -6110,8 +6132,8 @@ elseif strcmp(HDR.TYPE,'PLEXON'),
 
         
 elseif strcmp(HDR.TYPE,'Nicolet'),
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 if HDR.FILE.FID<0,
                         return;
                 end
@@ -6123,13 +6145,13 @@ elseif strcmp(HDR.TYPE,'Nicolet'),
                 HDR.GDFTYP = 'int16';
                 HDR.HeadLen = 0; 
         else
-                fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',PERMISSION);	
+                fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',HDR.FILE.PERMISSION);	
         end;			
         
         
 elseif strncmp(HDR.TYPE,'SEG2',4),
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.Endianity);
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,PERMISSION,HDR.Endianity);
                 
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS  = 0;
@@ -6181,7 +6203,7 @@ elseif strncmp(HDR.TYPE,'SEG2',4),
         
 elseif strncmp(HDR.TYPE,'SIGIF',5),
         if any(PERMISSION=='r'),
-                HDR.FILE.FID  = fopen(HDR.FileName,'rb','ieee-le');
+                HDR.FILE.FID  = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS  = 0;
                 
@@ -6321,8 +6343,8 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
         end;
         
 elseif strcmp(HDR.TYPE,'CTF'),
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID  = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.res4']),'rb','ieee-be');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID  = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.res4']),HDR.FILE.PERMISSION,'ieee-be');
 		if HDR.FILE.FID<0,
 			return
 		end;
@@ -6772,8 +6794,8 @@ elseif strncmp(HDR.TYPE,'FIF',3),
         
         
 elseif strncmp(HDR.TYPE,'FS3',3),
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-be');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-be');
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS  = 0;
                 HDR.Date = fgets(HDR.FILE.FID);
@@ -6788,8 +6810,8 @@ elseif strncmp(HDR.TYPE,'FS3',3),
         
         
 elseif strncmp(HDR.TYPE,'FS4',3),
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-be');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-be');
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS  = 0;
                 
@@ -6805,8 +6827,8 @@ elseif strncmp(HDR.TYPE,'FS4',3),
         
         
 elseif strncmp(HDR.TYPE,'TRI',3),
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rb','ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 HDR.FILE.POS  = 0;
                 
                 HDR.ID = fread(HDR.FILE.FID,1,'int32');
@@ -6840,12 +6862,12 @@ elseif strncmp(HDR.TYPE,'TRI',3),
         
         
 elseif strcmp(HDR.TYPE,'DICOM'),
-	HDR = opendicom(HDR,PERMISSION);
+	HDR = opendicom(HDR,HDR.FILE.PERMISSION);
         
         
 elseif 0, strcmp(HDR.TYPE,'DXF'),
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 
 		while ~feof(HDR.FILE.FID),
 	                line1 = fgetl(HDR.FILE.FID);
@@ -6873,8 +6895,8 @@ elseif 0, strcmp(HDR.TYPE,'DXF'),
 
 
 elseif strcmp(HDR.TYPE,'STX'),
-        if any(PERMISSION=='r'),
-                fid = fopen(HDR.FileName,'rt','ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                fid = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'t'],'ieee-le');
                 FileInfo = fread(fid,20,'char');
                 HDR.Label = fread(fid,50,'char');
                 tmp = fread(fid,6,'int');
@@ -6891,8 +6913,8 @@ elseif strcmp(HDR.TYPE,'STX'),
 
 elseif strcmp(HDR.TYPE,'ABF'), 
         fprintf(HDR.FILE.stderr,'Warning: SOPEN (ABF) is still experimental.\n');	
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'t'],'ieee-le');
                 HDR.ABF.ID = fread(HDR.FILE.FID,1,'uint32');
                 HDR.Version = fread(HDR.FILE.FID,1,'float32');
                 HDR.ABF.Mode = fread(HDR.FILE.FID,1,'uint16');
@@ -7216,8 +7238,8 @@ HDR.ABF.Unused2048           = fread(HDR.FILE.FID,734,'char');     % 5410
 
 
 elseif strcmp(HDR.TYPE,'ATF'),  % axon text file 
-        if any(PERMISSION=='r'),
-                HDR.FILE.FID = fopen(HDR.FileName,'rt','ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'t'],'ieee-le');
                 t = fgetl(HDR.FILE.FID);
                 t = str2double(fgetl(HDR.FILE.FID));
                 HDR.ATF.NoptHdr = t(1);
@@ -7304,8 +7326,8 @@ elseif strcmp(HDR.TYPE,'BIFF'),
 
 
 elseif strncmp(HDR.TYPE,'XML',3),
-        if any(PERMISSION=='r'),
-                fid = fopen(HDR.FileName,'rb','ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),
+                fid = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
                 if strcmp(HDR.TYPE,'XML-UTF16'),
                         magic = char(fread(fid,1,'uint16'));
                         HDR.XML = char(fread(fid,[1,inf],'uint16'));
@@ -7618,7 +7640,7 @@ end;
 
 
 % Calibration matrix
-if any(PERMISSION=='r') & ~isnan(HDR.NS);
+if any(HDR.FILE.PERMISSION=='r') & ~isnan(HDR.NS);
         if isempty(ReRefMx)     % CHAN==0,
                 ReRefMx = eye(max(1,HDR.NS));
         end;

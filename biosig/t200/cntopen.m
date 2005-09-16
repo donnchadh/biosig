@@ -1,18 +1,13 @@
-function [CNT,h,e]=cntopen(arg1,PERMISSION,arg3,arg4,arg5,arg6)
+function [CNT,h,e]=cntopen(arg1,arg3,arg4,arg5,arg6)
 % CNTOPEN opens neuroscan files (but does not read the data). 
 % However, it is recommended to use SOPEN instead of CNTOPEN.
 % For loading whole Neuroscan data files, use SLOAD. 
 %
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
-% HDR=cntopen(Filename, PERMISSION);
-%
-% FILENAME 
-% PERMISSION is one of the following strings 
-%	'rb'	read 
 
-%	$Revision: 1.33 $
-%	$Id: cntopen.m,v 1.33 2005-08-24 13:04:13 schloegl Exp $
+%	$Revision: 1.34 $
+%	$Id: cntopen.m,v 1.34 2005-09-16 13:43:31 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -30,11 +25,6 @@ function [CNT,h,e]=cntopen(arg1,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-if nargin<2, 
-        PERMISSION='rb'; 
-elseif ~any(PERMISSION=='b');
-        PERMISSION = [PERMISSION,'b']; % force binary open. 
-end;
 
 if isstruct(arg1),
 	CNT=arg1;
@@ -44,14 +34,14 @@ if isstruct(arg1),
                         fprintf(CNT.FILE.stderr,'Warning CNTOPEN: I/O error in file %s\n',CNT.FileName);
                 end;        
         else
-		CNT.FILE.FID = fopen(CNT.FileName,PERMISSION,'ieee-le');          
+		CNT.FILE.FID = fopen(CNT.FileName,CNT.FILE.PERMISSION,'ieee-le');          
 		CNT.FILE.OPEN= 1;
 	end;
 else
 	CNT.FileName = arg1;
         [CNT.FILE.Path,CNT.FILE.Name,ext]=fileparts(arg1);
         CNT.FILE.Ext = ext(2:end);
-        CNT.FILE.FID = fopen(CNT.FileName,PERMISSION,'ieee-le');          
+        CNT.FILE.FID = fopen(CNT.FileName,CNT.FILE.PERMISSION,'ieee-le');          
 	if CNT.FILE.FID<0,
 		fprintf(2,'Error CNTOPEN: file %s not found.\n',CNT.FileName); 
 		return;

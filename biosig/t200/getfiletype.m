@@ -28,9 +28,9 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.42 $
-%	$Id: getfiletype.m,v 1.42 2005-08-24 13:06:57 schloegl Exp $
-%	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.43 $
+%	$Id: getfiletype.m,v 1.43 2005-09-16 13:43:31 schloegl Exp $
+%	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if ischar(arg1),
@@ -41,6 +41,12 @@ elseif isfield(arg1,'name')
 elseif isfield(arg1,'FileName')
         HDR = arg1;
 end;
+if ~isfield(HDR,'FILE')
+        HDR.FILE.PERMISSION='r';
+end; 
+if ~isfield(HDR.FILE,'PERMISSION')
+        HDR.FILE.PERMISSION='r';
+end; 
 
 HDR.TYPE = 'unknown';
 HDR.FILE.OPEN = 0;
@@ -74,7 +80,8 @@ if exist(HDR.FileName,'dir')
 	end;
 end;
 
-fid = fopen(HDR.FileName,'rb','ieee-le');
+%fid = fopen(HDR.FileName,PERMISSION,'ieee-le');
+fid = fopen(HDR.FileName,HDR.FILE.PERMISSION);
 if fid < 0,
 	HDR.ERROR.status = -1; 
         HDR.ERROR.message = sprintf('Error GETFILETYPE: file %s not found.\n',HDR.FileName);
@@ -89,10 +96,15 @@ else
         HDR.FILE.Name = file;
         HDR.FILE.Ext  = char(FileExt(2:length(FileExt)));
 
-	fseek(fid,0,'eof');
+        if ~any(HDR.FILE.PERMISSION=='z')
+                fseek(fid,0,'eof');
+        else
+                fseek(fid,2^32,'bof');
+        end;
 	HDR.FILE.size = ftell(fid);
+        
 	fseek(fid,0,'bof');
-
+        
         [s,c] = fread(fid,256,'uchar');
         if (c == 0),
                 s = repmat(0,1,256-c);
@@ -439,7 +451,9 @@ else
                         if ~isnan(HDR.VERSION),
                                 HDR.TYPE='IMAGE:DWF';           % Design Web Format  from Autodesk
                         end;
-                elseif strncmp(ss,'GIF8',4); 
+                elseif strncmp(ss,'GIF87a',6); 
+                        HDR.TYPE='IMAGE:GIF';
+                elseif strncmp(ss,'GIF89a',6); 
                         HDR.TYPE='IMAGE:GIF';
                 elseif strncmp(ss,'CPT9FILE',8);        % Corel PhotoPaint Format
                         HDR.TYPE='CPT9';
@@ -614,10 +628,10 @@ else
                 elseif all(s([1:3])==[255,216,255])
                         HDR.TYPE='IMAGE:JPG-';
                         HDR.Endianity = 'ieee-be';
-                elseif all(s([1:4,7:10])==[255,217,255,224,abs('JFIF')])
+                elseif all(s([1:4,7:11])==[255,217,255,224,abs('JFIF'),0])
                         HDR.TYPE='IMAGE:JPG1';
                         HDR.Endianity = 'ieee-be';
-                elseif all(s([1:4,7:10])==[255,216,255,224,abs('JFIF')])
+                elseif all(s([1:4,7:11])==[255,216,255,224,abs('JFIF'),0])
                         HDR.TYPE='IMAGE:JPG2';
                         HDR.Endianity = 'ieee-be';
                 elseif all(s(1:4)==[216,255,224,255])
@@ -626,6 +640,9 @@ else
                 elseif all(s([1,3,65])==[10,1,0]) & any(s(2)==[0,2,3,4,5]) & any(s(4)==[1,2,4,8]) & any(s(66)==[1:4]) & any(s(69)==[1:2])
                         HDR.TYPE='IMAGE:PCX';
                         HDR.Endianity = 'ieee-le';
+                elseif all(s(1:4)==[149, 106, 166, 89])
+                        HDR.TYPE='IMAGE:SunRasterfile';
+                        HDR.Endianity = 'ieee-be';
                 elseif all(s(1:20)==['L',0,0,0,1,20,2,0,0,0,0,0,192,0,0,0,0,0,0,70])
                         HDR.TYPE='LNK';
                         tmp = fread(fid,inf,'char');
@@ -704,6 +721,12 @@ else
                         HDR.TYPE='CAB';
                 elseif all(s(1:3)==[31,139,8]); 
                         HDR.TYPE='gzip';
+                        if exist('OCTAVE_VERSION','builtin')
+                                fclose(fid); 
+                                HDR.FILE.PERMISSION = [HDR.FILE.PERMISSION ,'z'];
+                                HDR = getfiletype(HDR);
+                                return; 
+                        end;
                 elseif all(s(1:3)==[31,157,144]); 
                         HDR.TYPE='Z';
                 elseif all(s([1:4])==[80,75,3,4]) & (c>=30)

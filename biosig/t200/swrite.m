@@ -18,14 +18,14 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.12 $
-%	$Id: swrite.m,v 1.12 2005-07-19 08:18:15 schloegl Exp $
+%	$Revision: 1.13 $
+%	$Id: swrite.m,v 1.13 2005-09-16 13:43:31 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %       This file is part of the biosig project http://biosig.sf.net/
 
 
-if HDR.FILE.OPEN==1,
-	fprintf(HDR.FILE.stderr,'Error SWRITE can not be applied, File %s is open in READ mode\n',HDR.FileName);
+if HDR.FILE.OPEN < 2,
+	fprintf(HDR.FILE.stderr,'Error SWRITE can not be applied, File %s is not opened in WRITE mode\n',HDR.FileName);
 	return;
 end;
 

@@ -1,20 +1,11 @@
-function [BKR,s]=bkropen(arg1,PERMISSION,arg3,arg4,arg5,arg6)
+function [BKR,s]=bkropen(arg1,arg3,arg4,arg5,arg6)
 % BKROPEN opens BKR file
 % However, it is recommended to use SOPEN instead .
 % For loading whole data files, use SLOAD. 
-
-% [BKR,signal] = bkropen(Filename, PERMISSION);
-% [s,BKR] = eegread(BKR [,NoS [,Startpos]])
-% 
-% FILENAME 
-% PERMISSION is one of the following strings 
-%	'r'	read 
-% ChanList	(List of) Channel(s) default 0 loads all channels
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Revision: 1.30 $
-%	$Id: bkropen.m,v 1.30 2005-05-21 21:04:33 schloegl Exp $
+%	$Id: bkropen.m,v 1.31 2005-09-16 13:43:31 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -32,23 +23,17 @@ function [BKR,s]=bkropen(arg1,PERMISSION,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-if nargin<2, 
-        PERMISSION='rb'; 
-elseif ~any(PERMISSION=='b');
-        PERMISSION = [PERMISSION,'b']; % force binary open. 
-end;
-
 if isstruct(arg1),
 	BKR=arg1;
 	FILENAME=BKR.FileName;
 	if BKR.FILE.OPEN,
 		fseek(BKR.FILE.FID,0,'bof');	
 	else
-		BKR.FILE.FID = fopen(FILENAME,PERMISSION,'ieee-le');          
+		BKR.FILE.FID = fopen(FILENAME,BKR.FILE.PERMISSION,'ieee-le');          
 	end;
 else
 	FILENAME=arg1;
-	BKR.FILE.FID = fopen(FILENAME,PERMISSION,'ieee-le');          
+	BKR.FILE.FID = fopen(FILENAME,BKR.FILE.PERMISSION,'ieee-le');          
         BKR.FileName  = FILENAME;
         [pfad,file,FileExt] = fileparts(BKR.FileName);
         BKR.FILE.Name = file;
@@ -67,7 +52,7 @@ BOOL ='int16';
 ULONG='uint32'; 
 FLOAT='float32';
 
-if any(PERMISSION=='r'),
+if any(BKR.FILE.PERMISSION=='r'),
 	BKR.FILE.OPEN = 1;
 	fid = BKR.FILE.FID;
         %%%%% READ HEADER
@@ -151,7 +136,7 @@ if any(PERMISSION=='r'),
 	end;
 	%BKR.HeadLen = 1024;
 
-	%%%%% Generate HDR-Struct according to biosig/doc/header.txt
+	%%%%% Generate BKR-Struct according to biosig/doc/header.txt
 	BKR.Dur=1/BKR.SampleRate;
 	BKR.DigMax=BKR.DigMax;
 	BKR.PhysMax=BKR.PhysMax;
@@ -305,7 +290,7 @@ if any(PERMISSION=='r'),
                 end;
                 BKR.ArtifactSelection = tmp.artifact(:);
         elseif SW == 3,
-                fprintf(HDR.FILE.stderr,'Warning BKROPEN: more than one ArtifactSelection files. File %s is used.\n',tmp1);
+                fprintf(BKR.FILE.stderr,'Warning BKROPEN: more than one ArtifactSelection files. File %s is used.\n',tmp1);
                 if exist('OCTAVE_VERSION')>5
                         BKR.ArtifactSelection = load('-ascii',tmp1);
                 else
@@ -344,7 +329,7 @@ if any(PERMISSION=='r'),
         end;
 
         
-elseif any(PERMISSION=='w'),
+elseif any(BKR.FILE.PERMISSION=='w'),
         
         BKR.FILE.OPEN = 2;		
         BKR.VERSION   = 207;
@@ -353,7 +338,7 @@ elseif any(PERMISSION=='w'),
                 fprintf(2,'Warning BKROPEN-WRITE: file extionsion is not BKR.\n');
         end;
         if ~isfield(BKR,'SampleRate'),
-                fprintf(2,'Error BKROPEN-WRITE: HDR.SampleRate not defined.\n');
+                fprintf(2,'Error BKROPEN-WRITE: BKR.SampleRate not defined.\n');
                 return;
         end;
         if ~isfield(BKR,'NS'),
