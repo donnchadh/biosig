@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.6 2005-09-20 08:03:31 schloegl Exp $
+% $Id: biosig.h,v 1.7 2005-09-20 20:25:58 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -36,6 +36,8 @@
 /**                                                                        **/
 /****************************************************************************/
 
+#include <inttypes.h>
+
 #ifndef BIOSIG_H
 #define BIOSIG_H
 
@@ -51,13 +53,14 @@ const int GDFTYP_BYTE[] = {1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8,
 typedef char 			int8; 
 typedef unsigned char 		byte; 
 typedef unsigned char 		uint8; 
+/*
 typedef short 			int16; 
 typedef unsigned short 		uint16; 
 typedef long 			int32; 
 typedef unsigned long 		uint32;
 typedef long long 		int64; 
 typedef unsigned long long 	uint64; 
-
+*/
 
 #define min(a,b)                        (((a) < (b)) ? (a) : (b))
 #define max(a,b)                        (((a) > (b)) ? (a) : (b))
@@ -81,7 +84,7 @@ typedef unsigned long long 	uint64;
       	The following macros define the conversions between the unix time and the 
       	GDF format. 
 */
-typedef long long 		time_gdf; // gdf time is represented in 64 bits
+typedef int64_t 		time_gdf; // gdf time is represented in 64 bits
 #define time_t2time_gdf(t)	((time_gdf)floor(ldexp((t)/86400.0 + 719529, 32)))
 #define time_gdf2time_t(t)	((time_t)((ldexp((t),-32) - 719529) * 86400))
 
@@ -109,11 +112,11 @@ typedef struct {
 	
 	double 	PhysMin;	// physical minimum
 	double 	PhysMax;	// physical maximum
-	int64 	DigMin;		// digital minimum
-	int64 	DigMax;		// digital maximum
+	int64_t 	DigMin;		// digital minimum
+	int64_t 	DigMax;		// digital maximum
 
-	uint16 	GDFTYP;		// data type
-	uint32 	SPR;		// samples per record (block)
+	uint16_t 	GDFTYP;		// data type
+	uint32_t 	SPR;		// samples per record (block)
 } CHANNEL_TYPE;
 
 
@@ -126,15 +129,15 @@ typedef struct {
 	char* 	FileName;
 	void*  	buffer; 	// data returned by sread
 
-	uint32 	NS;		// number of channels
-	uint32 	SampleRate;	// Sampling rate
-	uint32 	SPR;		// samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR)
+	uint32_t 	NS;		// number of channels
+	uint32_t 	SampleRate;	// Sampling rate
+	uint32_t 	SPR;		// samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR)
 	uint8 	IPaddr[6]; 	// IP address of recording device (if applicable)	
-	uint32  LOC[4];		// location of recording according to RFC1876
+	uint32_t  LOC[4];		// location of recording according to RFC1876
 	time_gdf T0; 		// starttime of recording
-	uint32 	HeadLen;	// length of header in bytes
-	int32  	NRec;		// number of records/blocks -1 indicates length is unknown.	
-	uint32 	Dur[2];	// Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1] 
+	uint32_t 	HeadLen;	// length of header in bytes
+	int32_t  	NRec;		// number of records/blocks -1 indicates length is unknown.	
+	uint32_t 	Dur[2];	// Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1] 
 
 	// Patient specific information 
 	struct {
@@ -143,7 +146,7 @@ typedef struct {
 		uint8 		Weight;		// weight in kilograms [kg] 0:unkown, 255: overflow 
 		uint8 		Height;		// height in centimeter [cm] 0:unkown, 255: overflow 
 		time_gdf 	Birthday; 	// Birthday of Patient
-		uint16 		Headsize[3]; 	// circumference, nasion-inion, left-right mastoid in millimeter; 
+		uint16_t	Headsize[3]; 	// circumference, nasion-inion, left-right mastoid in millimeter; 
 		enum GENDER 	Sex; 	
 		enum HANDEDNESS Handedness;	
 		// Patient classification // 
@@ -158,7 +161,7 @@ typedef struct {
 	struct {
 		char* Technician; 	
 		char* Hospital; 	
-		uint64 Equipment; 	// identfies this software
+		uint64_t Equipment; 	// identfies this software
 	} ID; 
 
 	// position of electrodes; see also HDR.CHANNEL[k].XYZ
@@ -169,17 +172,17 @@ typedef struct {
 
 	//	EVENTTABLE 
 	struct {
-		uint32 	SampleRate;	// for converting POS and DUR into seconds 
-		uint32 	N;	// number of events
-		uint16 *TYP;	// defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup
-		uint32 *POS;	// starting position [in samples]
-		uint32 *DUR;	// duration [in samples]
-		uint16 *CHN;	// channel number; 0: all channels 
+		uint32_t 	SampleRate;	// for converting POS and DUR into seconds 
+		uint32_t 	N;	// number of events
+		uint16_t *TYP;	// defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup
+		uint32_t *POS;	// starting position [in samples]
+		uint32_t *DUR;	// duration [in samples]
+		uint16_t *CHN;	// channel number; 0: all channels 
 	} EVENT; 
 
 	struct {	// File specific data 
 		FILE* 	FID;		// file handle 
-		uint32 	POS;		// current reading/writing position in samples 
+		uint32_t 	POS;		// current reading/writing position in samples 
 		uint8 	OPEN; 		// 0: closed, 1:read, 2: write
 		uint8	LittleEndian; 	// 
 	} FILE; 
@@ -188,9 +191,9 @@ typedef struct {
 	struct {
 		char 	PID[81];	// patient identification
 		char* 	RID;		// recording identification 
-		uint32 	spb;		// total samples per block
-		uint32 	bpb;  		// total bytes per block
-		uint32 	*bi;
+		uint32_t 	spb;		// total samples per block
+		uint32_t 	bpb;  		// total bytes per block
+		uint32_t 	*bi;
 	} AS; 	
 	CHANNEL_TYPE *CHANNEL;  
 } HDRTYPE;
@@ -211,8 +214,8 @@ size_t 	sread(HDRTYPE* hdr, size_t nelem);
 size_t	swrite(const void *ptr, size_t nelem, HDRTYPE* hdr);
 int	seof(HDRTYPE HDR);
 int	srewind(HDRTYPE* hdr);
-int 	sseek(HDRTYPE* hdr, uint32 offset, int whence);
-int32   stell(HDRTYPE HDR);
+int 	sseek(HDRTYPE* hdr, uint32_t offset, int whence);
+int32_t   stell(HDRTYPE HDR);
 
 
 /****************************************************************************/
