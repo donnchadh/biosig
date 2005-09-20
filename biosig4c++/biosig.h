@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.5 2005-09-10 20:39:20 schloegl Exp $
+% $Id: biosig.h,v 1.6 2005-09-20 08:03:31 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -35,6 +35,9 @@
 /**                 DEFINITIONS, TYPEDEFS AND MACROS                       **/
 /**                                                                        **/
 /****************************************************************************/
+
+#ifndef BIOSIG_H
+#define BIOSIG_H
 
 	// list of file formats 
 enum FileFormat {ACQ, BKR, BDF, CNT, DEMG, EDF, FLAC, GDF, MFER, NEX1, PLEXON}; 
@@ -80,7 +83,7 @@ typedef unsigned long long 	uint64;
 */
 typedef long long 		time_gdf; // gdf time is represented in 64 bits
 #define time_t2time_gdf(t)	((time_gdf)floor(ldexp((t)/86400.0 + 719529, 32)))
-#define time_gdf2time_t(t)	((time_t)((ldexp((t),-32) - 719529) * 86400)))
+#define time_gdf2time_t(t)	((time_t)((ldexp((t),-32) - 719529) * 86400))
 
 
 /****************************************************************************/
@@ -152,6 +155,11 @@ typedef struct {
 			enum SCALE Visual;
 		} Impairment;
 	} Patient; 
+	struct {
+		char* Technician; 	
+		char* Hospital; 	
+		uint64 Equipment; 	// identfies this software
+	} ID; 
 
 	// position of electrodes; see also HDR.CHANNEL[k].XYZ
 	struct {
@@ -173,6 +181,7 @@ typedef struct {
 		FILE* 	FID;		// file handle 
 		uint32 	POS;		// current reading/writing position in samples 
 		uint8 	OPEN; 		// 0: closed, 1:read, 2: write
+		uint8	LittleEndian; 	// 
 	} FILE; 
 
 	//	internal variables (not public) 
@@ -211,3 +220,5 @@ int32   stell(HDRTYPE HDR);
 /**                               EOF                                      **/
 /**                                                                        **/
 /****************************************************************************/
+
+#endif	/* BIOSIG_H */
