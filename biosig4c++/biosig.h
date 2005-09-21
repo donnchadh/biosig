@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.7 2005-09-20 20:25:58 schloegl Exp $
+% $Id: biosig.h,v 1.8 2005-09-21 08:08:23 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -42,25 +42,13 @@
 #define BIOSIG_H
 
 	// list of file formats 
-enum FileFormat {ACQ, BKR, BDF, CNT, DEMG, EDF, FLAC, GDF, MFER, NEX1, PLEXON}; 
+enum FileFormat {ACQ, BKR, BDF, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON}; 
 
 enum HANDEDNESS {Unknown=0, Right=1, Left=2, Equal=3}; 
 enum GENDER  	{male=1,  female=2};
 enum SCALE 	{No=1,    Yes=2,	Corrected=3};
 
 const int GDFTYP_BYTE[] = {1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8, 16};
-
-typedef char 			int8; 
-typedef unsigned char 		byte; 
-typedef unsigned char 		uint8; 
-/*
-typedef short 			int16; 
-typedef unsigned short 		uint16; 
-typedef long 			int32; 
-typedef unsigned long 		uint32;
-typedef long long 		int64; 
-typedef unsigned long long 	uint64; 
-*/
 
 #define min(a,b)                        (((a) < (b)) ? (a) : (b))
 #define max(a,b)                        (((a) > (b)) ? (a) : (b))
@@ -132,7 +120,7 @@ typedef struct {
 	uint32_t 	NS;		// number of channels
 	uint32_t 	SampleRate;	// Sampling rate
 	uint32_t 	SPR;		// samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR)
-	uint8 	IPaddr[6]; 	// IP address of recording device (if applicable)	
+	uint8_t 	IPaddr[6]; 	// IP address of recording device (if applicable)	
 	uint32_t  LOC[4];		// location of recording according to RFC1876
 	time_gdf T0; 		// starttime of recording
 	uint32_t 	HeadLen;	// length of header in bytes
@@ -143,8 +131,8 @@ typedef struct {
 	struct {
 		char*		Name;		// not recommended because of privacy protection 
 		char*		Id;		// identification code as used in hospital 
-		uint8 		Weight;		// weight in kilograms [kg] 0:unkown, 255: overflow 
-		uint8 		Height;		// height in centimeter [cm] 0:unkown, 255: overflow 
+		uint8_t		Weight;		// weight in kilograms [kg] 0:unkown, 255: overflow 
+		uint8_t		Height;		// height in centimeter [cm] 0:unkown, 255: overflow 
 		time_gdf 	Birthday; 	// Birthday of Patient
 		uint16_t	Headsize[3]; 	// circumference, nasion-inion, left-right mastoid in millimeter; 
 		enum GENDER 	Sex; 	
@@ -181,10 +169,10 @@ typedef struct {
 	} EVENT; 
 
 	struct {	// File specific data 
-		FILE* 	FID;		// file handle 
+		FILE* 		FID;		// file handle 
 		uint32_t 	POS;		// current reading/writing position in samples 
-		uint8 	OPEN; 		// 0: closed, 1:read, 2: write
-		uint8	LittleEndian; 	// 
+		uint8_t		OPEN; 		// 0: closed, 1:read, 2: write
+		uint8_t		LittleEndian; 	// 
 	} FILE; 
 
 	//	internal variables (not public) 

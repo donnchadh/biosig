@@ -1,0 +1,31 @@
+
+
+File(s): 
+-------------
+    README 	this file
+    biosig.h	definition of biosig data structures	
+    biosig.c	SOPEN, SREAD, SWRITE, SEOF, SCLOSE functions 
+    main.c	demo how to use them 
+		
+Installation: 
+-------------
+# compilation 
+gcc -lm main.c 
+
+# generate test.gdf file 
+./a.out test.gdf     		
+
+
+More information is available at http://biosig.sf.net/
+
+If you have any questions you can also contact the newsgroup 
+news://tu-graz.biosig on the server news.tu-graz.ac.at. 
+The archive is available at 
+http://newsarchive.tugraz.at/browse/tu-graz.biosig/ 
+
+
+
+    Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
+    This function is part of the "BioSig for C/C++" repository 
+    (BioSig4C++) at http://biosig.sf.net/ 
+

@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.7 2005-09-20 20:25:58 schloegl Exp $
+    $Id: biosig.c,v 1.8 2005-09-21 08:08:23 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -66,7 +66,7 @@ HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT)
  */
 	union {
 		uint32_t testword;
-		uint8  testbyte[sizeof(uint32_t)];
+		uint8_t  testbyte[sizeof(uint32_t)];
 	} EndianTest; 
     	int k,k1;
 
@@ -320,7 +320,7 @@ if (!strcmp(MODE,"r"))
 	else if (HDR.TYPE==BKR) {
 	    	Header1 = realloc(Header1,1024);
 	    	count   = fread(Header1+256,1,1024-256,HDR.FILE.FID);
-	    	HDR.HeadLen = 1024; 
+	    	HDR.HeadLen 	= 1024; 
 		HDR.NS  	= *(uint16_t*) (Header1+2); 
 		HDR.SampleRate  = *(uint16_t*) (Header1+4); 
 		HDR.NRec  	= *(uint32_t*) (Header1+6); 
@@ -647,7 +647,7 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 	size_t count; 
 
 	// write data 
-	count = fwrite((byte*)ptr, hdr->AS.bpb, nelem, hdr->FILE.FID);
+	count = fwrite((uint8_t*)ptr, hdr->AS.bpb, nelem, hdr->FILE.FID);
 	
 	// set position of file handle 
 	(hdr->FILE.POS) += count; 
@@ -790,79 +790,6 @@ fprintf(stdout,"%i %i\n" , sizeof(*HDR.EVENT.POS),sizeof(*HDR.EVENT.TYP));
     	return(HDR);
 };
 
-
-/****************************************************************************/
-/**                                                                        **/
-/**                        MAIN FUNCTION                                   **/
-/**                                                                        **/
-/****************************************************************************/
- 
-int main (int argc, char **argv)
-{
-/*
-	currently, its used for testing SOPEN, SREAD, SWRITE, SEOF, STELL, SCLOSE, SSEEK
-*/
-
-#define NELEM (1<<15)
-	unsigned k; 	
-    	short s[NELEM];
-    	HDRTYPE HDR, HDR2;
-    	size_t count;
-
-	if (argc < 2)  	{
-		fprintf(stderr,"Warning: Invalid number of arguments\n");
-		return(-1);
-      	}	
-	
-	// initialize/generate signal 
-	for (k=0; k<NELEM; s[k] = k++%2000);	
-      
-	// write: define header
-	HDR = init_default_hdr(HDR,4,10);  // allocate memory for 4 channels, 10 events 
-	HDR.Patient.Id = "test1";
-	HDR.TYPE = GDF; 
-
-
-	// OPEN and WRITE GDF FILE 
-
-     	HDR   = sopen(argv[1], HDR, "w");
-
-	swrite(&s, NELEM/HDR.NS, &HDR);
-
-	// define events before SCLOSE; 
-	for (k=0; k<HDR.EVENT.N; k++) {
-		HDR.EVENT.TYP[k] = k+1;
-		HDR.EVENT.POS[k] = k*100;
-	};
-      	HDR = sclose(HDR);
-
-
-   	fprintf(stdout,"1-%i\t%i\t%i\t%i\t%u\t%u\n",sizeof(HDR.EVENT.TYP),sizeof(*HDR.EVENT.TYP),(int32_t)HDR.NRec,HDR.HeadLen,HDR.Dur[0],HDR.Dur[1]);
-
-	// READ GDF FILE 
-	HDR2 = sopen(argv[1], HDR2, "r");
-   	fprintf(stdout,"2-%i\t%i\t%i\t%i\t%u\t%u\n",HDR2.AS.bpb,HDR2.FILE.OPEN,(int32_t)HDR2.NRec,HDR2.HeadLen,HDR2.Dur[0],HDR2.Dur[1]);
-
-	while (!seof(HDR2)) {
-		count = sread(&HDR2,10);
-	
-		fprintf(stdout,"+ %lu\t %lu\t %lu\t %u  %i\n",HDR2.NRec,count,44,*(int16_t*)HDR2.buffer,seof(HDR2));
-	}	
-	sseek(&HDR2,50,SEEK_SET);
-fprintf(stdout,"3+ %lu\t %u\n",HDR2.FILE.POS,*(int16_t*)HDR2.buffer);	
-	srewind(&HDR2);
-fprintf(stdout,"4+ %lu\t %u\n",HDR2.FILE.POS,*(int16_t*)HDR2.buffer);	
-	count = sread(&HDR2,10);
-fprintf(stdout,"5+ %lu\t %u\n",HDR2.FILE.POS,*(int16_t*)HDR2.buffer);	
-	count = sread(&HDR2,10);
-fprintf(stdout,"+ %lu\t %u\n", HDR2.FILE.POS,*(int16_t*)HDR2.buffer);	
-	count = sread(&HDR2,10);
-//   	fprintf(stdout,"3-%i\t%i\t%i\t%i\t%u\t%u\n",HDR2.AS.bpb,HDR2.AS.spb,(long)HDR2.NRec,HDR2.HeadLen,HDR2.T0[0],HDR2.T0[1]);
-	HDR2 = sclose(HDR2);
-	
-      	return(0);
-
-};
 
 
 /****************************************************************************/
