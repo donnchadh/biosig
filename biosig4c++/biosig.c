@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.8 2005-09-21 08:08:23 schloegl Exp $
+    $Id: biosig.c,v 1.9 2005-09-21 15:48:34 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -80,7 +80,7 @@ HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT)
 
 
       	HDR.TYPE = GDF; 
-      	HDR.VERSION = 1.91; 
+      	HDR.VERSION = 1.92; 
       	HDR.buffer = malloc(0);
       	HDR.NRec = -1; 
       	HDR.NS = NS;	
@@ -173,7 +173,6 @@ HDRTYPE sopen(const char* FileName, HDRTYPE HDR, const char* MODE)
 
 if (!strcmp(MODE,"r"))	
 {
-	   
 	HDR = init_default_hdr(HDR,0,0);	// initializes fields that may stay undefined during SOPEN 
 
 #ifdef ZLIB_H
@@ -228,13 +227,13 @@ if (!strcmp(MODE,"r"))
     	if (HDR.TYPE == GDF) {
   	    	strncpy(tmp,(char*)Header1+3,5);
 	    	HDR.VERSION 	= atof(tmp);
-	    	HDR.HeadLen 	= *( int32_t*) (Header1+184); 
-	    	HDR.NRec 	= *( int32_t*) (Header1+236); 
-	    	HDR.Dur[0]  	= *(uint32_t*) (Header1+244);
-	    	HDR.Dur[1]  	= *(uint32_t*) (Header1+248); 
-	    	HDR.NS   	= *(uint32_t*) (Header1+252); 
+	    	HDR.NRec 	=  *( int64_t*) (Header1+236); 
+	    	HDR.Dur[0]  	=  *(uint32_t*) (Header1+244);
+	    	HDR.Dur[1]  	=  *(uint32_t*) (Header1+248); 
+	    	HDR.NS   	=  *(uint16_t*) (Header1+252); 
 	    	
 	    	if (HDR.VERSION > 1.90) { 
+		    	HDR.HeadLen 	= (*(uint16_t*) (Header1+184))<<8; 
 	    		strncpy(HDR.AS.PID,Header1+8,66);
 	    		HDR.Patient.Id = strtok(HDR.AS.PID," ");
 	    		HDR.Patient.Name = strtok(NULL," ");
@@ -277,6 +276,7 @@ if (!strcmp(MODE,"r"))
 	    		tm_time.tm_mon  = atoi(strncpy(tmp,Header1+168+4,2)); 
 	    		tm_time.tm_year = atoi(strncpy(tmp,Header1+168,4)); 
 	    		HDR.T0 = time_t2time_gdf(mktime(&tm_time)); 
+		    	HDR.HeadLen 	= (*(uint64_t*) (Header1+184)); 
 	    	}
     	}
     	else if ((HDR.TYPE == EDF) | (HDR.TYPE == BDF))	{
@@ -431,7 +431,7 @@ else { // WRITE
 	    	Header2 = Header1+256; 
 
 		memset(Header1,0,HDR.HeadLen);
-	     	strcpy(Header1, "GDF 1.91");
+	     	strcpy(Header1, "GDF 1.92");
 	     	strncat(Header1+8, HDR.Patient.Id,   66);
 	     	strncat(Header1+8, " ",   66);
 	     	strncat(Header1+8, HDR.Patient.Name, 66);
@@ -446,16 +446,16 @@ else { // WRITE
 		memcpy(Header1+152, &HDR.LOC, 16); 
 		memcpy(Header1+168, &HDR.T0, 8); 
 		memcpy(Header1+176, &HDR.Patient.Birthday, 8); 
-		memcpy(Header1+184, &HDR.HeadLen, 4); 
+		*(uint16_t*)(Header1+184) = (HDR.HeadLen>>8)+(HDR.HeadLen%256>0); 
 		memcpy(Header1+192, &HDR.ID.Equipment, 8);
 
 		memcpy(Header1+200, &HDR.IPaddr, 6);
 		memcpy(Header1+206, &HDR.Patient.Headsize, 6);
 		memcpy(Header1+212, &HDR.ELEC.REF, 12);
 		memcpy(Header1+224, &HDR.ELEC.GND, 12);
-		memcpy(Header1+236, &HDR.NRec, 4);
+		memcpy(Header1+236, &HDR.NRec, 8);
 		memcpy(Header1+244, &HDR.Dur, 8); 
-		memcpy(Header1+252, &HDR.NS, 4); 
+		memcpy(Header1+252, &HDR.NS, 2); 
 		
 	     	/* define HDR.Header2 
 	     	this requires checking the arguments in the fields of the struct HDR.CHANNEL
@@ -678,9 +678,9 @@ int srewind(HDRTYPE* hdr)
 /****************************************************************************/
 /**                     SSEEK                                             **/
 /****************************************************************************/
-int32_t sseek(HDRTYPE* hdr, uint32_t offset, int whence)
+int sseek(HDRTYPE* hdr, size_t offset, int whence)
 {
-	uint32_t pos; 
+	size_t pos; 
 	
 	if    	(whence == SEEK_SET) 
 		pos = offset*hdr->AS.bpb+(hdr->HeadLen);
@@ -703,15 +703,15 @@ int32_t sseek(HDRTYPE* hdr, uint32_t offset, int whence)
 /****************************************************************************/
 /**                     STELL                                              **/
 /****************************************************************************/
-int32_t stell(HDRTYPE HDR)
+size_t stell(HDRTYPE HDR)
 {
-	int32_t pos; 
+	size_t pos; 
 	
 	pos = ftell(HDR.FILE.FID);	
 	if (pos<0)
-		return(0xffffffff);
+		return(-1);
 	else if (pos != (HDR.FILE.POS * HDR.AS.bpb + HDR.HeadLen))
-		return(0xffffffff);
+		return(-1);
 	else 
 		return(HDR.FILE.POS);
 	
@@ -744,8 +744,6 @@ HDRTYPE sclose(HDRTYPE HDR)
 			}	
 		};	
 	
-fprintf(stdout,"%i %i\n" , sizeof(*HDR.EVENT.POS),sizeof(*HDR.EVENT.TYP));
-
 		// WRITE EVENTTABLE 
 		if ((HDR.TYPE==GDF) & (HDR.EVENT.N>0)) {
 			fseek(HDR.FILE.FID, HDR.HeadLen + HDR.AS.bpb*HDR.NRec, SEEK_SET); 
@@ -768,23 +766,23 @@ fprintf(stdout,"%i %i\n" , sizeof(*HDR.EVENT.POS),sizeof(*HDR.EVENT.TYP));
 
 	fclose(HDR.FILE.FID);
     	HDR.FILE.FID = 0;
-    	if (HDR.buffer!=NULL)	
+    	if (HDR.buffer != NULL)	
         	free(HDR.buffer);
-    	if (HDR.CHANNEL!=NULL)	
+    	if (HDR.CHANNEL != NULL)	
         	free(HDR.CHANNEL);
-    	if (HDR.AS.bi!=NULL)	
+    	if (HDR.AS.bi != NULL)	
         	free(HDR.AS.bi);
 
-    	if (HDR.EVENT.POS!=NULL)	
+    	if (HDR.EVENT.POS != NULL)	
         	free(HDR.EVENT.POS);
-    	if (HDR.EVENT.TYP!=NULL)	
+    	if (HDR.EVENT.TYP != NULL)	
         	free(HDR.EVENT.TYP);
-    	if (HDR.EVENT.DUR!=NULL)	
+    	if (HDR.EVENT.DUR != NULL)	
         	free(HDR.EVENT.DUR);
-    	if (HDR.EVENT.CHN!=NULL)	
+    	if (HDR.EVENT.CHN != NULL)	
         	free(HDR.EVENT.CHN);
         	
-        HDR.EVENT.N = 0; 
+        HDR.EVENT.N   = 0; 
 	HDR.FILE.OPEN = 0; 	     	
 
     	return(HDR);

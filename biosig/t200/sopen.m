@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.120 $
-%	$Id: sopen.m,v 1.120 2005-09-16 13:43:31 schloegl Exp $
+%	$Revision: 1.121 $
+%	$Id: sopen.m,v 1.121 2005-09-21 15:48:33 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -316,9 +316,11 @@ end;
                         %if str2double(HDR.VERSION(4:8))<0.12,
                         if (HDR.VERSION < 0.12),
                                 HDR.HeadLen  = str2double(H1(185:192));    % 8 Byte  Length of Header
-                        else
+                        elseif (HDR.VERSION < 1.92)
                                 HDR.HeadLen  = H1(185:188)*256.^[0:3]';    % 8 Byte  Length of Header
                                 HDR.reserved = H1(189:192);
+                        else 
+                                HDR.HeadLen  = H1(185:186)*256.^[1:2]';    % 8 Byte  Length of Header
                         end;
 
                         %HDR.NRec = fread(HDR.FILE.FID,1,'int64');     % 8 Byte # of data records
@@ -333,7 +335,8 @@ end;
                                 HDR.Dur = tmp(1)./tmp(2);
                                 warning(tmp1);
                         end;
-                        HDR.NS =   fread(HDR.FILE.FID,1,'uint32');     % 4 Byte # of signals
+                        tmp = fread(HDR.FILE.FID,2,'uint16');     % 4 Byte # of signals
+                        HDR.NS = tmp(1);
                 else 
                         H1(193:256)= fread(HDR.FILE.FID,[1,256-192],'uchar');     %
                         H1 = char(H1); 
@@ -396,7 +399,9 @@ end;
                                 [bd, tmp] = strtok(tmp,' ');
                                 [HDR.Patient.Name, tmp] = strtok(tmp,' ');
                                 HDR.Patient.Sex = any(sex(1)=='mM') + any(sex(1)=='Ff')*2;
-                                HDR.Patient.Birthday = datevec(bd);
+                                if (length(bd)==11),
+					HDR.Patient.Birthday = datevec(bd);
+                                end; 
                                 
                                 [chk, tmp] = strtok(HDR.RID,' ');
                                 if ~strcmp(chk,'Startdate')
@@ -405,7 +410,7 @@ end;
                                 [HDR.Date2, tmp] = strtok(tmp,' ');
                                 [HDR.ID.Investigation, tmp] = strtok(tmp,' ');
                                 [HDR.ID.Investigator,  tmp] = strtok(tmp,' ');
-                                [HDR.ID.Equiment, tmp] = strtok(tmp,' ');
+                                [HDR.ID.Equipment,     tmp] = strtok(tmp,' ');
                         end;
                 end;
                 
@@ -503,7 +508,7 @@ end;
                         HDR.THRESHOLD  = [HDR.DigMin,HDR.DigMax];       % automated overflow detection 
                         
 			if (HDR.VERSION < 1.9),
-                                HDR.PreFilt    = char(fread(HDR.FILE.FID,[80,HDR.NS],'uchar')');	%	
+                                HDR.PreFilt    =  char(fread(HDR.FILE.FID,[80,HDR.NS],'uchar')');	%	
                                 HDR.AS.SPR     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32')';	%	samples per data record
                                 HDR.GDFTYP     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32');	%	datatype
                         else
@@ -563,7 +568,7 @@ end;
                                 if ~isempty(tmp), F2=F2(1:tmp-1); end;
                                 tmp = strfind(lower(F3),'hz');
                                 if ~isempty(tmp), F3=F3(1:tmp-1); end;
-                                
+
                                 if strcmp(T1,'LP'), 
                                         HDR.Filter.LowPass(k) =str2double(F1);
                                 elseif strcmp(T1,'HP'), 
@@ -590,7 +595,7 @@ end;
                         %end;
                 end;
                 end
-        
+
                 if any(HDR.PhysMax==HDR.PhysMin), HDR.ErrNo=[1029,HDR.ErrNo]; end;	
                 if any(HDR.DigMax ==HDR.DigMin ), HDR.ErrNo=[1030,HDR.ErrNo]; end;	
                 
@@ -774,7 +779,7 @@ end;
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF') 
                         HDR.VERSION = 1.25;     %% stable version 
-                        HDR.VERSION = 1.91;     %% testing 
+                        HDR.VERSION = 1.92;     %% testing 
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
                 end;
@@ -1286,7 +1291,7 @@ end;
 				tmp = [datenum(HDR.T0), datenum(HDR.Patient.Birthday)];
 				tmp = floor([rem(tmp,1)*2^32;tmp]);
                                 c = fwrite(HDR.FILE.FID,tmp,'uint32');
-                                c=fwrite(HDR.FILE.FID,[HDR.HeadLen,0],'int32');
+                                c=fwrite(HDR.FILE.FID,[HDR.HeadLen/256,0,0,0],'uint16');
                                 c=fwrite(HDR.FILE.FID,'b4om1.91','uint8'); % EP_ID=ones(8,1)*32;
 				tmp = [HDR.REC.IPaddr, zeros(1,2)];
 			        c=fwrite(HDR.FILE.FID,tmp(6:-1:1),'uint8'); % IP address
@@ -1307,7 +1312,7 @@ end;
                         c=fwrite(HDR.FILE.FID,[HDR.NRec,0],'int32');
                         %fwrite(HDR.FILE.FID,HDR.Dur,'float64');
                         [n,d]=rat(HDR.Dur); fwrite(HDR.FILE.FID,[n d], 'uint32');
-                        c=fwrite(HDR.FILE.FID,HDR.NS,'uint32');
+                        c=fwrite(HDR.FILE.FID,[HDR.NS,0],'uint16');
                 else
                         H1(168+(1:16))=sprintf('%02i.%02i.%02i%02i:%02i:%02i',floor(rem(HDR.T0([3 2 1 4 5 6]),100)));
                         H1(185:192)=sprintf('%-8i',HDR.HeadLen);
@@ -4612,6 +4617,9 @@ elseif strcmp(HDR.TYPE,'MIT')
 	
 elseif strcmp(HDR.TYPE,'MIT-ATR'),
                 tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hea']));
+		if isempty(tmp)
+                        tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.HEA']));
+		end;	
 		if isempty(tmp)
                         fprintf(HDR.FILE.stderr,'Warning SOPEN: no corresponing header file found for MIT-ATR EVENT file %s.\n',HDR.FileName);
 		end;	

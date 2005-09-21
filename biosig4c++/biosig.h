@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.8 2005-09-21 08:08:23 schloegl Exp $
+% $Id: biosig.h,v 1.9 2005-09-21 15:48:34 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -87,19 +87,19 @@ typedef int64_t 		time_gdf; // gdf time is represented in 64 bits
 	This structure defines the header for each channel (variable header) 
 */
 typedef struct {
-	char* 	Label;		// Label of channel 
-	char* 	Transducer;	// transducer e.g. EEG: Ag-AgCl electrodes
-	char* 	PhysDim;	// physical dimension
-	//char* PreFilt;	// pre-filtering
+	char* 		Label;		// Label of channel 
+	char* 		Transducer;	// transducer e.g. EEG: Ag-AgCl electrodes
+	char* 		PhysDim;	// physical dimension
+	//char* 	PreFilt;	// pre-filtering
 
-	float 	LowPass;	// lowpass filter
-	float 	HighPass;	// high pass
-	float 	Notch;		// notch filter
-	float 	XYZ[3];		// electrode position
-	float 	Impedance;   	// in Ohm
+	float 		LowPass;	// lowpass filter
+	float 		HighPass;	// high pass
+	float 		Notch;		// notch filter
+	float 		XYZ[3];		// electrode position
+	float 		Impedance;   	// in Ohm
 	
-	double 	PhysMin;	// physical minimum
-	double 	PhysMax;	// physical maximum
+	double 		PhysMin;	// physical minimum
+	double 		PhysMax;	// physical maximum
 	int64_t 	DigMin;		// digital minimum
 	int64_t 	DigMax;		// digital maximum
 
@@ -113,18 +113,18 @@ typedef struct {
 */
 typedef struct {
 	enum FileFormat TYPE; 	// type of file format
-	float 	VERSION;	// GDF version number 
-	char* 	FileName;
-	void*  	buffer; 	// data returned by sread
+	float 		VERSION;	// GDF version number 
+	char* 		FileName;
+	void*  		buffer; 	// data returned by sread
 
-	uint32_t 	NS;		// number of channels
+	uint16_t 	NS;		// number of channels
 	uint32_t 	SampleRate;	// Sampling rate
 	uint32_t 	SPR;		// samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR)
 	uint8_t 	IPaddr[6]; 	// IP address of recording device (if applicable)	
-	uint32_t  LOC[4];		// location of recording according to RFC1876
-	time_gdf T0; 		// starttime of recording
+	uint32_t  	LOC[4];		// location of recording according to RFC1876
+	time_gdf 	T0; 		// starttime of recording
 	uint32_t 	HeadLen;	// length of header in bytes
-	int32_t  	NRec;		// number of records/blocks -1 indicates length is unknown.	
+	int64_t  	NRec;		// number of records/blocks -1 indicates length is unknown.	
 	uint32_t 	Dur[2];	// Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1] 
 
 	// Patient specific information 
@@ -147,8 +147,8 @@ typedef struct {
 		} Impairment;
 	} Patient; 
 	struct {
-		char* Technician; 	
-		char* Hospital; 	
+		char* 	Technician; 	
+		char* 	Hospital; 	
 		uint64_t Equipment; 	// identfies this software
 	} ID; 
 
@@ -160,8 +160,8 @@ typedef struct {
 
 	//	EVENTTABLE 
 	struct {
-		uint32_t 	SampleRate;	// for converting POS and DUR into seconds 
-		uint32_t 	N;	// number of events
+		uint32_t  SampleRate;	// for converting POS and DUR into seconds 
+		uint32_t  N;	// number of events
 		uint16_t *TYP;	// defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup
 		uint32_t *POS;	// starting position [in samples]
 		uint32_t *DUR;	// duration [in samples]
@@ -170,15 +170,15 @@ typedef struct {
 
 	struct {	// File specific data 
 		FILE* 		FID;		// file handle 
-		uint32_t 	POS;		// current reading/writing position in samples 
+		size_t 		POS;		// current reading/writing position in samples 
 		uint8_t		OPEN; 		// 0: closed, 1:read, 2: write
 		uint8_t		LittleEndian; 	// 
 	} FILE; 
 
 	//	internal variables (not public) 
 	struct {
-		char 	PID[81];	// patient identification
-		char* 	RID;		// recording identification 
+		char 		PID[81];	// patient identification
+		char* 		RID;		// recording identification 
 		uint32_t 	spb;		// total samples per block
 		uint32_t 	bpb;  		// total bytes per block
 		uint32_t 	*bi;
@@ -202,8 +202,8 @@ size_t 	sread(HDRTYPE* hdr, size_t nelem);
 size_t	swrite(const void *ptr, size_t nelem, HDRTYPE* hdr);
 int	seof(HDRTYPE HDR);
 int	srewind(HDRTYPE* hdr);
-int 	sseek(HDRTYPE* hdr, uint32_t offset, int whence);
-int32_t   stell(HDRTYPE HDR);
+int 	sseek(HDRTYPE* hdr, size_t offset, int whence);
+size_t stell(HDRTYPE HDR);
 
 
 /****************************************************************************/
