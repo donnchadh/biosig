@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.10 2005-09-22 06:28:31 schloegl Exp $
+    $Id: biosig.c,v 1.11 2005-09-22 10:48:00 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -44,6 +44,30 @@
 
 #include "biosig.h"
 //#include "zlib.h"
+
+
+/****************************************************************************/
+/**                                                                        **/
+/**                      INTERNAL FUNCTIONS                               **/
+/**                                                                        **/
+/****************************************************************************/
+ 
+// greatest common divisor 
+size_t gcd(size_t A,size_t B) 
+{	size_t t; 
+	while (!B) {
+		t = B; 
+		B = A%B;
+		A = t; 
+	}
+}
+
+// least common multiple
+size_t lcm(size_t A,size_t B) 
+{
+	return(A*B/gcd(A,B));
+}
+
 
 /****************************************************************************/
 /**                                                                        **/
@@ -230,7 +254,7 @@ if (!strcmp(MODE,"r"))
 	    	HDR.TYPE = NEX1;
     	else if (!memcmp(Header1,"PLEX",4))
 	    	HDR.TYPE = PLEXON;
-
+fprintf(stdout,"44\n");
     	if (HDR.TYPE == GDF) {
   	    	strncpy(tmp,(char*)Header1+3,5);
 	    	HDR.VERSION 	= atof(tmp);
@@ -298,6 +322,10 @@ if (!strcmp(MODE,"r"))
 			HDR.CHANNEL[k].PhysMax  = *(double*) (Header2+ 8*k + 112*HDR.NS);
 			HDR.CHANNEL[k].DigMin   = *(int64_t*)  (Header2+ 8*k + 120*HDR.NS);
 			HDR.CHANNEL[k].DigMax   = *(int64_t*)  (Header2+ 8*k + 128*HDR.NS);
+
+			HDR.CHANNEL[k].Cal   	= (HDR.CHANNEL[k].PhysMax-HDR.CHANNEL[k].PhysMin)/(HDR.CHANNEL[k].DigMax-HDR.CHANNEL[k].DigMin);
+			HDR.CHANNEL[k].Off   	= HDR.CHANNEL[k].PhysMin- HDR.CHANNEL[k].Cal*HDR.CHANNEL[k].DigMin;
+
 			//HDR.CHANNEL[k].PreFilt = (HDR.Header2+ 68*k + 136*HDR.NS);
 			HDR.CHANNEL[k].SPR      = *(int32_t*)  (Header2+ 4*k + 216*HDR.NS);
 			HDR.CHANNEL[k].GDFTYP   = *(int32_t*)  (Header2+ 4*k + 220*HDR.NS);
@@ -309,11 +337,12 @@ if (!strcmp(MODE,"r"))
 				HDR.CHANNEL[k].Impedance= ldexp(1.0, Header2[k + 236*HDR.NS]/8.0);
 			}
 		}
-	
-		for (k=0, HDR.AS.spb=0, HDR.AS.bpb=0; k<HDR.NS;) {
+		for (k=0, HDR.SPR=1, HDR.AS.spb=0, HDR.AS.bpb=0; k<HDR.NS;k++) {
 			HDR.AS.spb += HDR.CHANNEL[k].SPR;
 			HDR.AS.bpb += GDFTYP_BYTE[HDR.CHANNEL[k].GDFTYP]*HDR.CHANNEL[k].SPR;			
+			HDR.SPR = lcm(HDR.SPR,HDR.CHANNEL[k].SPR);
 		}	
+fprintf(stdout,"44\n");
 
 		// READ EVENTTABLE 
 		fseek(HDR.FILE.FID,HDR.HeadLen + HDR.AS.bpb*HDR.NRec, SEEK_SET); 
@@ -388,8 +417,10 @@ if (!strcmp(MODE,"r"))
 			HDR.CHANNEL[k].PhysMax = atof(strncpy(tmp,Header2 + 8*k + 112*HDR.NS,8)); 
 			HDR.CHANNEL[k].DigMin  = atol(strncpy(tmp,Header2 + 8*k + 120*HDR.NS,8)); 
 			HDR.CHANNEL[k].DigMax  = atol(strncpy(tmp,Header2 + 8*k + 128*HDR.NS,8)); 
+			HDR.CHANNEL[k].Cal     = (HDR.CHANNEL[k].PhysMax-HDR.CHANNEL[k].PhysMin)/(HDR.CHANNEL[k].DigMax-HDR.CHANNEL[k].DigMin);
+			HDR.CHANNEL[k].Off     =  HDR.CHANNEL[k].PhysMin-HDR.CHANNEL[k].Cal*HDR.CHANNEL[k].DigMin;
+
 			HDR.CHANNEL[k].SPR     = atol(strncpy(tmp,Header2+  8*k + 216*HDR.NS,8));
-		
 			HDR.CHANNEL[k].GDFTYP  = ((HDR.TYPE!=BDF) ? 3 : 255+24); 
 			
 			//HDR.CHANNEL[k].PreFilt = (Header2+ 80*k + 136*HDR.NS);
@@ -511,11 +542,14 @@ if (!strcmp(MODE,"r"))
 
 	HDR.AS.bi = realloc(HDR.AS.bi,(HDR.NS+1)*sizeof(uint32_t));
 	HDR.AS.bi[0] = 0;
-	for (k=0, HDR.AS.spb=0, HDR.AS.bpb=0; k<HDR.NS;) {
+	for (k=0, HDR.SPR = 1, HDR.AS.spb=0, HDR.AS.bpb=0; k<HDR.NS;) {
 		HDR.AS.spb += HDR.CHANNEL[k].SPR;
 		HDR.AS.bpb += GDFTYP_BYTE[HDR.CHANNEL[k].GDFTYP]*HDR.CHANNEL[k].SPR;			
+		HDR.SPR = lcm(HDR.SPR,HDR.CHANNEL[k].SPR);
 		HDR.AS.bi[++k] = HDR.AS.bpb; 
+fprintf(stdout,"so: %i  %i \n",HDR.AS.bi[k],HDR.NS);
 	}	
+fprintf(stdout,"44: %i %i\n",HDR.NS,HDR.SPR);
 	
 }
 else { // WRITE
@@ -577,7 +611,7 @@ else { // WRITE
 	
 	     		Header2[k+236*HDR.NS] = ceil(log10(min(39e8,HDR.CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
 		}
-	    	HDR.AS.bi = calloc(HDR.NS+1,sizeof(int32_t));
+	    	HDR.AS.bi = realloc(HDR.AS.bi,(HDR.NS+1)*sizeof(int32_t));
 		HDR.AS.bi[0] = 0;
 		for (k=0, HDR.AS.spb=0, HDR.AS.bpb=0; k<HDR.NS;)
 		{
@@ -710,8 +744,12 @@ size_t sread(HDRTYPE *hdr, size_t nelem) {
  *	reads NELEM blocks with HDR.AS.bpb BYTES each, 
  *	data is available in hdr->rawbuffer
  */
-	size_t 			count,k1,k2; 
+	size_t			count,k1,k3,k4,k5,DIV,SZ; 
 	biosig_data_type 	sample_value; 
+	int 			GDFTYP;
+	int64_t			int64_sample_value;
+	void*			ptr;
+	
 
 	// allocate rawbuffer 	
 	hdr->rawbuffer = realloc(hdr->rawbuffer, (hdr->AS.bpb)*nelem);
@@ -725,30 +763,49 @@ size_t sread(HDRTYPE *hdr, size_t nelem) {
 	// set position of file handle 
 	hdr->FILE.POS += count;
 
-/*
-	// allocate data 	
-	hdr->data = realloc(hdr->data, hdr->SPR*nelem*hdr->NS);
+	// transfer RAW into BIOSIG data format 
+	hdr->data = realloc(hdr->data, hdr->SPR*nelem*hdr->NS*sizeof(biosig_data_type));
 	
-	for (k1=0; k1<HDR.NS; k1++) 
-	//for (k2=0; k2<HDR.CHANNEL[k1].SPR; k2++) 
-	for (k2=0; k2 < (hdr->CHANNEL[k1].SPR * hdr->NRec); k2++) 
-	{
+	for (k1=0; k1<hdr->NS; k1++) {
 		DIV = hdr->SPR/hdr->CHANNEL[k1].SPR; 
+		GDFTYP = hdr->CHANNEL[k1].GDFTYP;
+		SZ  = GDFTYP_BYTE[GDFTYP];
+		int64_sample_value = 0; 
 
-		sample_value = (biosig_data_type) 
+		for (k4 = 0; k4 < count; k4++) {
+		for (k5 = 0; k5 < hdr->CHANNEL[k1].SPR; k5++) {
 
-		for (k3=0; k3 < DIV; k3++) 
-			hdr->data[k2*DIV+k3][k1] = sample_value; //*hdr->Cal[k1]+hdr->Off[k1]; 
+			// get source address 	
+			ptr = hdr->rawbuffer + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
+			
+			// mapping of raw data type to (biosig_data_type)
+			if (GDFTYP<8) {
+				memcpy(&int64_sample_value,ptr,SZ);
+				sample_value = (biosig_data_type)int64_sample_value;
+			} 
+			else if (GDFTYP==8)
+				sample_value = (biosig_data_type)(*(uint64_t*)ptr); 
+			else if (GDFTYP==16)
+				sample_value = (biosig_data_type)(*(float*)ptr); 
+			else if (GDFTYP==17)
+				sample_value = (biosig_data_type)(*(double*)ptr); 
+			else {
+				fprintf(stderr,"Error SREAD: datatype %i not supported\n",GDFTYP);
+				exit(-1);
+			}
+			// overflow and saturation detection 
+				// missing 
+			 
+			// scaling 
+			sample_value = sample_value * hdr->CHANNEL[k1].Cal + hdr->CHANNEL[k1].Off;
 
-		hdr->rawbuffer[]
-		/* 
-		   decompose bits and bytes of raw data
-		   convert from raw to double
-		   resampling 
-		
-		*/		
+			// resampling 1->DIV samples
+			for (k3=0; k3 < DIV; k3++) 
+				hdr->data[k1 * hdr->SPR*count + k4*hdr->CHANNEL[k1].SPR + k5 * + k3] = sample_value; 
+		}
+		}
 	}
-*/
+
 	return(count);
 
 }  // end of SREAD 

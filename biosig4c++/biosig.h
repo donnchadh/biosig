@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.9 2005-09-21 15:48:34 schloegl Exp $
+% $Id: biosig.h,v 1.10 2005-09-22 10:48:00 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -42,7 +42,7 @@
 #define BIOSIG_H
 
 	// list of file formats 
-enum FileFormat {ACQ, BKR, BDF, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON}; 
+enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON}; 
 
 enum HANDEDNESS {Unknown=0, Right=1, Left=2, Equal=3}; 
 enum GENDER  	{male=1,  female=2};
@@ -72,10 +72,11 @@ const int GDFTYP_BYTE[] = {1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8,
       	The following macros define the conversions between the unix time and the 
       	GDF format. 
 */
-typedef int64_t 		time_gdf; // gdf time is represented in 64 bits
-#define time_t2time_gdf(t)	((time_gdf)floor(ldexp((t)/86400.0 + 719529, 32)))
-#define time_gdf2time_t(t)	((time_t)((ldexp((t),-32) - 719529) * 86400))
-
+typedef int64_t 		gdf_time; // gdf time is represented in 64 bits
+typedef double	 		biosig_data_type; // data type of internal format
+#define t_time2gdf_time(t)	((gdf_time)floor(ldexp((t)/86400.0 + 719529, 32)))
+#define gdf_time2t_time(t)	((time_t)((ldexp((t),-32) - 719529) * 86400))
+#define tm_time2gdf_time(t) 	t_time2gdf_time(mktime(t))
 
 /****************************************************************************/
 /**                                                                        **/
@@ -105,6 +106,9 @@ typedef struct {
 
 	uint16_t 	GDFTYP;		// data type
 	uint32_t 	SPR;		// samples per record (block)
+	
+	double		Cal;
+	double		Off;
 } CHANNEL_TYPE;
 
 
@@ -115,14 +119,15 @@ typedef struct {
 	enum FileFormat TYPE; 	// type of file format
 	float 		VERSION;	// GDF version number 
 	char* 		FileName;
-	void*  		buffer; 	// data returned by sread
+	void*  		rawbuffer; 	// data returned by sread
+	biosig_data_type* 	data; 	// data returned by sread
 
 	uint16_t 	NS;		// number of channels
-	uint32_t 	SampleRate;	// Sampling rate
+	double 		SampleRate;	// Sampling rate
 	uint32_t 	SPR;		// samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR)
 	uint8_t 	IPaddr[6]; 	// IP address of recording device (if applicable)	
 	uint32_t  	LOC[4];		// location of recording according to RFC1876
-	time_gdf 	T0; 		// starttime of recording
+	gdf_time 	T0; 		// starttime of recording
 	uint32_t 	HeadLen;	// length of header in bytes
 	int64_t  	NRec;		// number of records/blocks -1 indicates length is unknown.	
 	uint32_t 	Dur[2];	// Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1] 
@@ -133,7 +138,7 @@ typedef struct {
 		char*		Id;		// identification code as used in hospital 
 		uint8_t		Weight;		// weight in kilograms [kg] 0:unkown, 255: overflow 
 		uint8_t		Height;		// height in centimeter [cm] 0:unkown, 255: overflow 
-		time_gdf 	Birthday; 	// Birthday of Patient
+		gdf_time 	Birthday; 	// Birthday of Patient
 		uint16_t	Headsize[3]; 	// circumference, nasion-inion, left-right mastoid in millimeter; 
 		enum GENDER 	Sex; 	
 		enum HANDEDNESS Handedness;	
@@ -182,7 +187,14 @@ typedef struct {
 		uint32_t 	spb;		// total samples per block
 		uint32_t 	bpb;  		// total bytes per block
 		uint32_t 	*bi;
+		void * 		Header1; 
 	} AS; 	
+	union {
+		struct {
+			int	FLAG_TimeChannel;
+			int	GDFTYP; 
+		} CFWB;
+	} X;
 	CHANNEL_TYPE *CHANNEL;  
 } HDRTYPE;
 
