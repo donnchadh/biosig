@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.9 2005-09-21 15:48:34 schloegl Exp $
+    $Id: biosig.c,v 1.10 2005-09-22 06:28:31 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -81,12 +81,13 @@ HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT)
 
       	HDR.TYPE = GDF; 
       	HDR.VERSION = 1.92; 
-      	HDR.buffer = malloc(0);
+      	HDR.rawbuffer = malloc(0);
       	HDR.NRec = -1; 
       	HDR.NS = NS;	
       	memset(HDR.AS.PID,32,81); 
       	HDR.AS.RID = "GRAZ"; 
-      	HDR.T0 = time_t2time_gdf(time(NULL));
+	HDR.AS.bi = calloc(HDR.NS+1,sizeof(uint32_t));
+      	HDR.T0 = t_time2gdf_time(time(NULL));
       	HDR.ID.Equipment = *(uint64_t*)&"b4c_0.20";
 
 	HDR.Patient.Name 	= "X";
@@ -158,6 +159,10 @@ HDRTYPE sopen(const char* FileName, HDRTYPE HDR, const char* MODE)
 {
     	
     	const char*	GENDER = "XMFX";  
+    	const uint16_t	CFWB_GDFTYP[] = {17,16,3};  
+	const float	CNT_SETTINGS_NOTCH[] = {0.0, 50.0, 60.0}; 
+	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
+	const float	CNT_SETTINGS_HIGHPASS[] = {0.0/0.0, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
 
     	int 		k, c[4];
     	unsigned int 	count,len;
@@ -203,6 +208,8 @@ if (!strcmp(MODE,"r"))
     	}	
     	else if ((Header1[0]==(char)207) & (!Header1[1]) & (!Header1[154]) & (!Header1[155]))
 	    	HDR.TYPE = BKR;
+    	else if (!memcmp(Header1,"CFWB\1\0\0\0",8))
+	    	HDR.TYPE = CFWB;
     	else if (!memcmp(Header1,"Version 3.0",11))
 	    	HDR.TYPE = CNT;
     	else if (!memcmp(Header1,"DEMG",4))
@@ -275,9 +282,59 @@ if (!strcmp(MODE,"r"))
 	    		tm_time.tm_mday = atoi(strncpy(tmp,Header1+168+6,2)); 
 	    		tm_time.tm_mon  = atoi(strncpy(tmp,Header1+168+4,2)); 
 	    		tm_time.tm_year = atoi(strncpy(tmp,Header1+168,4)); 
-	    		HDR.T0 = time_t2time_gdf(mktime(&tm_time)); 
+	    		HDR.T0 = t_time2gdf_time(mktime(&tm_time)); 
 		    	HDR.HeadLen 	= (*(uint64_t*) (Header1+184)); 
 	    	}
+
+	    	HDR.CHANNEL = calloc(HDR.NS,sizeof(CHANNEL_TYPE));
+	    	Header1 = realloc(Header1,HDR.HeadLen);
+	    	Header2 = Header1+256; 
+	    	count   = fread(Header2, 1, HDR.HeadLen-256, HDR.FILE.FID);
+		for (k=0; k<HDR.NS;k++)	{
+			//HDR.CHANNEL[k].Label  = (HDR.Header2 + 16*k);
+			//HDR.CHANNEL[k].Transducer  = (HDR.Header2 + 80*k + 16*HDR.NS);
+			//HDR.CHANNEL[k].PhysDim  = (HDR.Header2 + 8*k + 96*HDR.NS);
+			HDR.CHANNEL[k].PhysMin  = *(double*) (Header2+ 8*k + 104*HDR.NS);
+			HDR.CHANNEL[k].PhysMax  = *(double*) (Header2+ 8*k + 112*HDR.NS);
+			HDR.CHANNEL[k].DigMin   = *(int64_t*)  (Header2+ 8*k + 120*HDR.NS);
+			HDR.CHANNEL[k].DigMax   = *(int64_t*)  (Header2+ 8*k + 128*HDR.NS);
+			//HDR.CHANNEL[k].PreFilt = (HDR.Header2+ 68*k + 136*HDR.NS);
+			HDR.CHANNEL[k].SPR      = *(int32_t*)  (Header2+ 4*k + 216*HDR.NS);
+			HDR.CHANNEL[k].GDFTYP   = *(int32_t*)  (Header2+ 4*k + 220*HDR.NS);
+			if (HDR.VERSION>=1.90) {
+				HDR.CHANNEL[k].LowPass  = *(float*) (Header2+ 4*k + 204*HDR.NS);
+				HDR.CHANNEL[k].HighPass = *(float*) (Header2+ 4*k + 208*HDR.NS);
+				HDR.CHANNEL[k].Notch    = *(float*) (Header2+ 4*k + 212*HDR.NS);
+				memcpy(&HDR.CHANNEL[k].XYZ,Header2 + 4*k + 224*HDR.NS,12);
+				HDR.CHANNEL[k].Impedance= ldexp(1.0, Header2[k + 236*HDR.NS]/8.0);
+			}
+		}
+	
+		for (k=0, HDR.AS.spb=0, HDR.AS.bpb=0; k<HDR.NS;) {
+			HDR.AS.spb += HDR.CHANNEL[k].SPR;
+			HDR.AS.bpb += GDFTYP_BYTE[HDR.CHANNEL[k].GDFTYP]*HDR.CHANNEL[k].SPR;			
+		}	
+
+		// READ EVENTTABLE 
+		fseek(HDR.FILE.FID,HDR.HeadLen + HDR.AS.bpb*HDR.NRec, SEEK_SET); 
+		fread(tmp,sizeof(char),8,HDR.FILE.FID);
+		HDR.EVENT.SampleRate = 0; 
+		memcpy(&HDR.EVENT.SampleRate,tmp+1,3);
+		memcpy(&HDR.EVENT.N,tmp+4,4);
+		HDR.EVENT.POS = realloc(HDR.EVENT.POS,HDR.EVENT.N*sizeof(*HDR.EVENT.POS));
+		HDR.EVENT.TYP = realloc(HDR.EVENT.TYP,HDR.EVENT.N*sizeof(*HDR.EVENT.TYP));
+		fread(HDR.EVENT.POS,sizeof(*HDR.EVENT.POS),HDR.EVENT.N,HDR.FILE.FID);
+		fread(HDR.EVENT.TYP,sizeof(*HDR.EVENT.TYP),HDR.EVENT.N,HDR.FILE.FID);
+		if (tmp[0]>1) {
+			HDR.EVENT.DUR = realloc(HDR.EVENT.DUR,HDR.EVENT.N*sizeof(*HDR.EVENT.DUR));
+			HDR.EVENT.CHN = realloc(HDR.EVENT.CHN,HDR.EVENT.N*sizeof(*HDR.EVENT.CHN));
+			fread(HDR.EVENT.CHN,sizeof(*HDR.EVENT.CHN),HDR.EVENT.N,HDR.FILE.FID);
+			fread(HDR.EVENT.DUR,sizeof(*HDR.EVENT.DUR),HDR.EVENT.N,HDR.FILE.FID);
+		}
+		else {
+			HDR.EVENT.DUR = NULL;
+			HDR.EVENT.CHN = NULL;
+		}	
     	}
     	else if ((HDR.TYPE == EDF) | (HDR.TYPE == BDF))	{
     		strncpy(HDR.AS.PID,Header1+8,80);
@@ -298,7 +355,7 @@ if (!strcmp(MODE,"r"))
     		tm_time.tm_mon  = atoi(strncpy(tmp,Header1+168+3,2)); 
     		tm_time.tm_year = atoi(strncpy(tmp,Header1+168+6,2)); 
     		tm_time.tm_year+= (tm_time.tm_year<85)*100;
-		HDR.T0 = time_t2time_gdf(mktime(&tm_time)); 
+		HDR.T0 = tm_time2gdf_time(&tm_time); 
 
 		if (!strncmp(Header1+192,"EDF+",4)) {
 	    		HDR.Patient.Id  = strtok(HDR.AS.PID," ");
@@ -307,15 +364,39 @@ if (!strcmp(MODE,"r"))
 	    		ptr_str = strtok(NULL," ");	// birthday
 	    		HDR.Patient.Name= strtok(NULL," ");
 
-	    		tm_time.tm_mday = atoi(strtok(ptr_str,"-")); 
-/*	    		strcpy(tmp,strtok(NULL,"-"));
-	    		tm_time.tm_year = atoi(strtok(NULL,"-"))-1900; 
-	    		tm_time.tm_mon  = !strcmp(tmp,"Feb")+!strcmp(tmp,"Mar")*2+!strcmp(tmp,"Apr")*3+!strcmp(tmp,"May")*4+!strcmp(tmp,"Jun")*5+!strcmp(tmp,"Jul")*6+!strcmp(tmp,"Aug")*7+!strcmp(tmp,"Sep")*8+!strcmp(tmp,"Oct")*9+!strcmp(tmp,"Nov")*10+!strcmp(tmp,"Dec")*11;
-	    		tm_time.tm_sec  = 0; 
-	    		tm_time.tm_min  = 0; 
-	    		tm_time.tm_hour = 12; 
-	    		HDR.Patient.Birthday = time_t2time_gdf(mktime(&tm_time));
-*/		}
+			if (strlen(ptr_str)==11) {
+		    		tm_time.tm_mday = atoi(strtok(ptr_str,"-")); 
+		    		strcpy(tmp,strtok(NULL,"-"));
+		    		tm_time.tm_year = atoi(strtok(NULL,"-"))-1900; 
+		    		tm_time.tm_mon  = !strcmp(tmp,"Feb")+!strcmp(tmp,"Mar")*2+!strcmp(tmp,"Apr")*3+!strcmp(tmp,"May")*4+!strcmp(tmp,"Jun")*5+!strcmp(tmp,"Jul")*6+!strcmp(tmp,"Aug")*7+!strcmp(tmp,"Sep")*8+!strcmp(tmp,"Oct")*9+!strcmp(tmp,"Nov")*10+!strcmp(tmp,"Dec")*11;
+		    		tm_time.tm_sec  = 0; 
+		    		tm_time.tm_min  = 0; 
+		    		tm_time.tm_hour = 12; 
+		    		HDR.Patient.Birthday = t_time2gdf_time(mktime(&tm_time));
+		    	}	
+		}
+
+	    	HDR.CHANNEL = calloc(HDR.NS,sizeof(CHANNEL_TYPE));
+	    	Header1 = realloc(Header1,HDR.HeadLen);
+	    	Header2 = Header1+256; 
+	    	count   = fread(Header2, 1, HDR.HeadLen-256, HDR.FILE.FID);
+		for (k=0; k<HDR.NS; k++)	{
+			HDR.CHANNEL[k].Label   = (Header2 + 16*k);
+			HDR.CHANNEL[k].Transducer  = (Header2 + 80*k + 16*HDR.NS);
+			HDR.CHANNEL[k].PhysDim = (Header2 + 8*k + 96*HDR.NS);
+			HDR.CHANNEL[k].PhysMin = atof(strncpy(tmp,Header2 + 8*k + 104*HDR.NS,8)); 
+			HDR.CHANNEL[k].PhysMax = atof(strncpy(tmp,Header2 + 8*k + 112*HDR.NS,8)); 
+			HDR.CHANNEL[k].DigMin  = atol(strncpy(tmp,Header2 + 8*k + 120*HDR.NS,8)); 
+			HDR.CHANNEL[k].DigMax  = atol(strncpy(tmp,Header2 + 8*k + 128*HDR.NS,8)); 
+			HDR.CHANNEL[k].SPR     = atol(strncpy(tmp,Header2+  8*k + 216*HDR.NS,8));
+		
+			HDR.CHANNEL[k].GDFTYP  = ((HDR.TYPE!=BDF) ? 3 : 255+24); 
+			
+			//HDR.CHANNEL[k].PreFilt = (Header2+ 80*k + 136*HDR.NS);
+			if (strncmp(Header1+192,"EDF+",4)) {
+			// decode filter information into HDR.Filter.{Lowpass, Highpass, Notch}					
+			}
+		}
 	}      	
 	else if (HDR.TYPE==BKR) {
 	    	Header1 = realloc(Header1,1024);
@@ -325,103 +406,117 @@ if (!strcmp(MODE,"r"))
 		HDR.SampleRate  = *(uint16_t*) (Header1+4); 
 		HDR.NRec  	= *(uint32_t*) (Header1+6); 
 		HDR.SPR  	= *(uint32_t*) (Header1+10); 
+		HDR.NRec 	*= HDR.SPR; 
+		HDR.SPR  	= 1; 
 		HDR.T0 		= Unknown;
 	    	/* extract more header information */
+	    	HDR.CHANNEL = calloc(HDR.NS,sizeof(CHANNEL_TYPE));
+		for (k=0; k<HDR.NS;k++)	{
+		    	HDR.CHANNEL[k].GDFTYP 	= 3; 
+		    	HDR.CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
+		    	HDR.CHANNEL[k].LowPass	= *(float*)(Header1+22);
+		    	HDR.CHANNEL[k].HighPass	= *(float*)(Header1+26);
+		    	HDR.CHANNEL[k].Notch	= -1.0;
+		    	HDR.CHANNEL[k].PhysMax	= *(uint16_t*)(Header1+14);
+		    	HDR.CHANNEL[k].DigMax	= *(uint16_t*)(Header1+16);
+		    	HDR.CHANNEL[k].Cal	= ((double)HDR.CHANNEL[k].PhysMax)/HDR.CHANNEL[k].DigMax;
+		    	HDR.CHANNEL[k].Off	= 0.0;
+		}
+	}
+	else if (HDR.TYPE==CFWB) {
+	    	HDR.SampleRate  = *(double*) (Header1+8);
+	    	tm_time.tm_year = *(int32_t*)(Header1+16);
+	    	tm_time.tm_mon  = *(int32_t*)(Header1+20);
+	    	tm_time.tm_mday = *(int32_t*)(Header1+24);
+	    	tm_time.tm_hour = *(int32_t*)(Header1+28);
+	    	tm_time.tm_min  = *(int32_t*)(Header1+32);
+	    	tm_time.tm_sec  = *(double*) (Header1+36);
+    		HDR.T0 		= tm_time2gdf_time(&tm_time);
+	    	// = *(double*)(Header1+44);
+	    	HDR.NS   	= *(int32_t*)(Header1+52);
+	    	//  	= *(int32_t*)(Header1+56);	// TimeChannel
+	    	//  	= *(int32_t*)(Header1+60);	// DataFormat
+
+	    	Header1 = realloc(Header1,68+96*HDR.NS);
+	    	Header2 = Header1+96; 
+	    	HDR.HeadLen = 68+96*HDR.NS; 
+	    	fseek(HDR.FILE.FID,68,SEEK_SET);
+		count   = fread(Header2,1,96*HDR.NS,HDR.FILE.FID);
+	    	
+	    	HDR.CHANNEL = calloc(HDR.NS,sizeof(CHANNEL_TYPE));
+	    	HDR.CHANNEL[0].GDFTYP = CFWB_GDFTYP[*(int32_t*)(Header1+64)-1];
+		for (k=0; k<HDR.NS;k++)	{
+		    	HDR.CHANNEL[k].GDFTYP 	= HDR.CHANNEL[0].GDFTYP;
+		    	HDR.CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
+		    	HDR.CHANNEL[k].Label	= Header2+k*96;
+		    	HDR.CHANNEL[k].PhysDim	= Header2+k*96+32;
+		    	HDR.CHANNEL[k].Cal	= *(double*)(Header2+k*96+64);
+		    	HDR.CHANNEL[k].Off	= *(double*)(Header2+k*96+72);
+		    	HDR.CHANNEL[k].PhysMax	= *(double*)(Header2+k*96+80);
+		    	HDR.CHANNEL[k].PhysMin	= *(double*)(Header2+k*96+88);
+		}
 	}
 	else if (HDR.TYPE==CNT) {
 	    	Header1 = realloc(Header1,900);
 	    	count   = fread(Header1+256,1,900-256,HDR.FILE.FID);
+	    	ptr_str = Header1+136;
+    		HDR.Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
+	    	ptr_str = Header1+137;
+	    	HDR.Patient.Handedness = (ptr_str[0]=='r')*2 + (ptr_str[0]=='R')*2 + (ptr_str[0]=='L') + (ptr_str[0]=='l');
+    		tm_time.tm_sec  = atoi(strncpy(tmp,Header1+225+16,2)); 
+    		tm_time.tm_min  = atoi(strncpy(tmp,Header1+225+13,2)); 
+    		tm_time.tm_hour = atoi(strncpy(tmp,Header1+225+10,2)); 
+    		tm_time.tm_mday = atoi(strncpy(tmp,Header1+225,2)); 
+    		tm_time.tm_mon  = atoi(strncpy(tmp,Header1+225+3,2)); 
+    		tm_time.tm_year = atoi(strncpy(tmp,Header1+225+6,2)); 
+	    	if (tm_time.tm_year<=80)    	tm_time.tm_year += 2000;
+	    	else if (tm_time.tm_year<100) 	tm_time.tm_year += 1900;
+		HDR.T0 = tm_time2gdf_time(&tm_time); 
+		
 		HDR.NS  = *(uint16_t*) (Header1+370); 
 	    	HDR.HeadLen = 900+HDR.NS*75; 
+		HDR.SampleRate = *(uint16_t*) (Header1+376); 
+		HDR.SPR = 1; 
+#define _eventtablepos (*(uint32_t*)(Header1+886))
+		HDR.NRec = (_eventtablepos-HDR.HeadLen)/(HDR.NS*2);
+		
 	    	Header1 = realloc(Header1,HDR.HeadLen);
-	    	count   = fread(Header1+900,1,HDR.NS*75,HDR.FILE.FID);
 	    	Header2 = Header1+900; 
+	    	count   = fread(Header2,1,HDR.NS*75,HDR.FILE.FID);
 
-	    	/* extract more header information */
-	}
-    	
-	/* ******* read 2nd (variable)  header  ****** */	
-    	//HDR.Header2 = malloc(HDR.NS*256);
-    	HDR.CHANNEL = calloc(HDR.NS,sizeof(CHANNEL_TYPE));
-	if ((HDR.TYPE == GDF) | (HDR.TYPE == EDF) | (HDR.TYPE == BDF))  {
-	    	Header1 = realloc(Header1,HDR.HeadLen);
-	    	Header2 = Header1+256; 
-	    	count   = fread(Header2, 1, HDR.HeadLen-256, HDR.FILE.FID);
+	    	HDR.CHANNEL = calloc(HDR.NS,sizeof(CHANNEL_TYPE));
 		for (k=0; k<HDR.NS;k++)	{
-			//HDR.CHANNEL[k].Label  = (HDR.Header2 + 16*k);
-			//HDR.CHANNEL[k].Transducer  = (HDR.Header2 + 80*k + 16*HDR.NS);
-			//HDR.CHANNEL[k].PhysDim  = (HDR.Header2 + 8*k + 96*HDR.NS);
-			if (HDR.TYPE==GDF)
-				HDR.CHANNEL[k].PhysMin  = *(double*) (Header2+ 8*k + 104*HDR.NS);
-				HDR.CHANNEL[k].PhysMax  = *(double*) (Header2+ 8*k + 112*HDR.NS);
-				HDR.CHANNEL[k].DigMin   = *(int64_t*)  (Header2+ 8*k + 120*HDR.NS);
-				HDR.CHANNEL[k].DigMax   = *(int64_t*)  (Header2+ 8*k + 128*HDR.NS);
-				//HDR.CHANNEL[k].PreFilt = (HDR.Header2+ 68*k + 136*HDR.NS);
-				HDR.CHANNEL[k].SPR      = *(int32_t*)  (Header2+ 4*k + 216*HDR.NS);
-				HDR.CHANNEL[k].GDFTYP   = *(int32_t*)  (Header2+ 4*k + 220*HDR.NS);
-				if (HDR.VERSION>=1.90) {
-					HDR.CHANNEL[k].LowPass  = *(float*) (Header2+ 4*k + 204*HDR.NS);
-					HDR.CHANNEL[k].HighPass = *(float*) (Header2+ 4*k + 208*HDR.NS);
-					HDR.CHANNEL[k].Notch    = *(float*) (Header2+ 4*k + 212*HDR.NS);
-					memcpy(&HDR.CHANNEL[k].XYZ,Header2 + 4*k + 224*HDR.NS,12);
-					HDR.CHANNEL[k].Impedance= ldexp(1.0, Header2[k + 236*HDR.NS]/8.0);
-				}
-			else {
-				HDR.CHANNEL[k].PhysMin = atof(strncpy(tmp,Header2 + 8*k + 104*HDR.NS,8)); 
-				HDR.CHANNEL[k].PhysMax = atof(strncpy(tmp,Header2 + 8*k + 112*HDR.NS,8)); 
-				HDR.CHANNEL[k].DigMin  = atol(strncpy(tmp,Header2 + 8*k + 120*HDR.NS,8)); 
-				HDR.CHANNEL[k].DigMax  = atol(strncpy(tmp,Header2 + 8*k + 128*HDR.NS,8)); 
-				HDR.CHANNEL[k].SPR     = atol(strncpy(tmp,Header2+  8*k + 216*HDR.NS,8));
-				
-				HDR.CHANNEL[k].GDFTYP   = ((HDR.TYPE!=BDF) ? 3 : 255+24); 
-				
-				//HDR.CHANNEL[k].PreFilt  = (HDR.Header2+ 68*k + 136*HDR.NS);
-				if (strncmp(Header1+192,"EDF+",4)) {
-				// decode filter information into HDR.Filter.{Lowpass, Highpass, Notch}					
-				}
-			}	
+		    	HDR.CHANNEL[k].GDFTYP 	= 3;
+		    	HDR.CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
+		    	HDR.CHANNEL[k].Label	= Header2+k*75;
+		    	HDR.CHANNEL[k].PhysDim	= "uV";
+		    	HDR.CHANNEL[k].Cal	= *(float*)(Header2+k*75+59);
+		    	HDR.CHANNEL[k].Cal	*= *(float*)(Header2+k*75+71)/204.8;
+		    	HDR.CHANNEL[k].Off	= *(float*)(Header2+k*75+47) * HDR.CHANNEL[k].Cal;
+		    	HDR.CHANNEL[k].HighPass	= CNT_SETTINGS_HIGHPASS[Header2[64+k*75]];
+		    	HDR.CHANNEL[k].LowPass	= CNT_SETTINGS_LOWPASS[Header2[65+k*75]];
+		    	HDR.CHANNEL[k].Notch	= CNT_SETTINGS_NOTCH[Header1[682]];
 		}
-	
-		// internal variables
-    		HDR.AS.bi = calloc(HDR.NS+1,sizeof(long));
-		HDR.AS.bi[0] = 0;
-		for (k=0, HDR.AS.spb=0, HDR.AS.bpb=0; k<HDR.NS;) {
-			HDR.AS.spb += HDR.CHANNEL[k].SPR;
-			HDR.AS.bpb += GDFTYP_BYTE[HDR.CHANNEL[k].GDFTYP]*HDR.CHANNEL[k].SPR;			
-			HDR.AS.bi[++k] = HDR.AS.bpb; 
-		}	
-	
-		// READ EVENTTABLE 
-		if (HDR.TYPE==GDF) {
-			fseek(HDR.FILE.FID,HDR.HeadLen + HDR.AS.bpb*HDR.NRec, SEEK_SET); 
-			fread(tmp,sizeof(char),8,HDR.FILE.FID);
-			HDR.EVENT.SampleRate = 0; 
-			memcpy(&HDR.EVENT.SampleRate,tmp+1,3);
-			memcpy(&HDR.EVENT.N,tmp+4,4);
-			HDR.EVENT.POS = realloc(HDR.EVENT.POS,HDR.EVENT.N*sizeof(*HDR.EVENT.POS));
-			HDR.EVENT.TYP = realloc(HDR.EVENT.TYP,HDR.EVENT.N*sizeof(*HDR.EVENT.TYP));
-			fread(HDR.EVENT.POS,sizeof(*HDR.EVENT.POS),HDR.EVENT.N,HDR.FILE.FID);
-			fread(HDR.EVENT.TYP,sizeof(*HDR.EVENT.TYP),HDR.EVENT.N,HDR.FILE.FID);
-			if (tmp[0]>1) {
-				HDR.EVENT.DUR = realloc(HDR.EVENT.DUR,HDR.EVENT.N*sizeof(*HDR.EVENT.DUR));
-				HDR.EVENT.CHN = realloc(HDR.EVENT.CHN,HDR.EVENT.N*sizeof(*HDR.EVENT.CHN));
-				fread(HDR.EVENT.CHN,sizeof(*HDR.EVENT.CHN),HDR.EVENT.N,HDR.FILE.FID);
-				fread(HDR.EVENT.DUR,sizeof(*HDR.EVENT.DUR),HDR.EVENT.N,HDR.FILE.FID);
-			}
-			else {
-				HDR.EVENT.DUR = NULL;
-				HDR.EVENT.CHN = NULL;
-			}
-		}	
-		fseek(HDR.FILE.FID,HDR.HeadLen, SEEK_SET); 
-		HDR.FILE.OPEN = 2; 	     	
-		HDR.FILE.POS  = 0;
-        }   //  if GDF	
-        
-	else { // next format 
+	    	/* extract more header information */
+	    	// eventtablepos = *(uint32_t*)(Header1+886);
+	    	fseek(HDR.FILE.FID,_eventtablepos,SEEK_SET);
+	}
 
-        }   //  
-        
+
+	fseek(HDR.FILE.FID,HDR.HeadLen, SEEK_SET); 
+	HDR.FILE.OPEN = 1;
+	HDR.FILE.POS  = 0;
+
+	// internal variables
+
+	HDR.AS.bi = realloc(HDR.AS.bi,(HDR.NS+1)*sizeof(uint32_t));
+	HDR.AS.bi[0] = 0;
+	for (k=0, HDR.AS.spb=0, HDR.AS.bpb=0; k<HDR.NS;) {
+		HDR.AS.spb += HDR.CHANNEL[k].SPR;
+		HDR.AS.bpb += GDFTYP_BYTE[HDR.CHANNEL[k].GDFTYP]*HDR.CHANNEL[k].SPR;			
+		HDR.AS.bi[++k] = HDR.AS.bpb; 
+	}	
+	
 }
 else { // WRITE
 
@@ -456,7 +551,6 @@ else { // WRITE
 		memcpy(Header1+236, &HDR.NRec, 8);
 		memcpy(Header1+244, &HDR.Dur, 8); 
 		memcpy(Header1+252, &HDR.NS, 2); 
-		
 	     	/* define HDR.Header2 
 	     	this requires checking the arguments in the fields of the struct HDR.CHANNEL
 	     	and filling in the bytes in HDR.Header2. 
@@ -505,20 +599,20 @@ else { // WRITE
 	     		memcpy(Header1,"0       ",8);
 	     	}
 
-		tt = time_gdf2time_t(HDR.Patient.Birthday); 
+		tt = gdf_time2t_time(HDR.Patient.Birthday); 
 		if (HDR.Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",gmtime(&tt));
 		else strcpy(tmp,"X");	
 		sprintf(cmd,"%s %c %s %s",HDR.Patient.Id,GENDER[HDR.Patient.Sex],tmp,HDR.Patient.Name);
 	     	memcpy(Header1+8, cmd, strlen(cmd));
 	     	
-		tt = time_gdf2time_t(HDR.T0); 
+		tt = gdf_time2t_time(HDR.T0); 
 		if (HDR.T0>1) strftime(tmp,81,"%d-%b-%Y",gmtime(&tt));
 		else strcpy(tmp,"X");	
 		len = sprintf(cmd,"Startdate %s X X ",tmp,HDR.Patient.Name);
 	     	memcpy(Header1+88, cmd, len);
 	     	memcpy(Header1+88+len, &HDR.ID.Equipment, 8);
 	     	
-		tt = time_gdf2time_t(HDR.T0); 
+		tt = gdf_time2t_time(HDR.T0); 
 		strftime(tmp,81,"%d.%m.%y%H:%M:%S",gmtime(&tt));
 	     	memcpy(Header1+168, tmp, 16);
 
@@ -603,8 +697,7 @@ else { // WRITE
 	HDR.FILE.POS  = 0; 	
 
 }	// end of else 
-	
-	
+	HDR.AS.Header1 = Header1; 
 	return(HDR);
 }  // end of SOPEN 
 
@@ -615,22 +708,47 @@ else { // WRITE
 size_t sread(HDRTYPE *hdr, size_t nelem) {
 /* 
  *	reads NELEM blocks with HDR.AS.bpb BYTES each, 
- *	data is available in hdr->buffer
+ *	data is available in hdr->rawbuffer
  */
-	size_t count; 
-	
-	// allocate buffer 	
-	hdr->buffer = realloc(hdr->buffer, (hdr->AS.bpb)*nelem);
+	size_t 			count,k1,k2; 
+	biosig_data_type 	sample_value; 
+
+	// allocate rawbuffer 	
+	hdr->rawbuffer = realloc(hdr->rawbuffer, (hdr->AS.bpb)*nelem);
 
 	// limit reading to end of data block
 	nelem = max(min(nelem, hdr->NRec - hdr->FILE.POS),0);
 
 	// read data	
-	count = fread(hdr->buffer, hdr->AS.bpb, nelem, hdr->FILE.FID);
+	count = fread(hdr->rawbuffer, hdr->AS.bpb, nelem, hdr->FILE.FID);
 
 	// set position of file handle 
 	hdr->FILE.POS += count;
 
+/*
+	// allocate data 	
+	hdr->data = realloc(hdr->data, hdr->SPR*nelem*hdr->NS);
+	
+	for (k1=0; k1<HDR.NS; k1++) 
+	//for (k2=0; k2<HDR.CHANNEL[k1].SPR; k2++) 
+	for (k2=0; k2 < (hdr->CHANNEL[k1].SPR * hdr->NRec); k2++) 
+	{
+		DIV = hdr->SPR/hdr->CHANNEL[k1].SPR; 
+
+		sample_value = (biosig_data_type) 
+
+		for (k3=0; k3 < DIV; k3++) 
+			hdr->data[k2*DIV+k3][k1] = sample_value; //*hdr->Cal[k1]+hdr->Off[k1]; 
+
+		hdr->rawbuffer[]
+		/* 
+		   decompose bits and bytes of raw data
+		   convert from raw to double
+		   resampling 
+		
+		*/		
+	}
+*/
 	return(count);
 
 }  // end of SREAD 
@@ -732,8 +850,9 @@ HDRTYPE sclose(HDRTYPE HDR)
 	{
 		// WRITE HDR.NRec 
 		pos = (ftell(HDR.FILE.FID)-HDR.HeadLen); 
-		if (!(pos%HDR.AS.bpb) & (HDR.NRec<0)) 
-		{	HDR.NRec = pos/HDR.AS.bpb;
+		if (HDR.NRec<0)
+		{	if (pos>0) 	HDR.NRec = pos/HDR.AS.bpb;
+			else		HDR.NRec = 0; 	
 			fseek(HDR.FILE.FID,236,SEEK_SET); 
 			if (HDR.TYPE==GDF)
 				fwrite(&HDR.NRec,sizeof(HDR.NRec),1,HDR.FILE.FID);
@@ -766,12 +885,14 @@ HDRTYPE sclose(HDRTYPE HDR)
 
 	fclose(HDR.FILE.FID);
     	HDR.FILE.FID = 0;
-    	if (HDR.buffer != NULL)	
-        	free(HDR.buffer);
+    	if (HDR.rawbuffer != NULL)	
+        	free(HDR.rawbuffer);
     	if (HDR.CHANNEL != NULL)	
         	free(HDR.CHANNEL);
     	if (HDR.AS.bi != NULL)	
         	free(HDR.AS.bi);
+    	if (HDR.AS.Header1 != NULL)	
+        	free(HDR.AS.Header1);
 
     	if (HDR.EVENT.POS != NULL)	
         	free(HDR.EVENT.POS);
