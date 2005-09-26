@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.10 2005-09-22 10:48:00 schloegl Exp $
+% $Id: biosig.h,v 1.11 2005-09-26 15:03:32 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -77,6 +77,7 @@ typedef double	 		biosig_data_type; // data type of internal format
 #define t_time2gdf_time(t)	((gdf_time)floor(ldexp((t)/86400.0 + 719529, 32)))
 #define gdf_time2t_time(t)	((time_t)((ldexp((t),-32) - 719529) * 86400))
 #define tm_time2gdf_time(t) 	t_time2gdf_time(mktime(t))
+#define gdf_time2tm_time(t)	localtime(gdf_time2t_time(t))
 
 /****************************************************************************/
 /**                                                                        **/
@@ -107,8 +108,8 @@ typedef struct {
 	uint16_t 	GDFTYP;		// data type
 	uint32_t 	SPR;		// samples per record (block)
 	
-	double		Cal;
-	double		Off;
+	double		Cal;		// gain factor 
+	double		Off;		// bias 
 } CHANNEL_TYPE;
 
 
@@ -116,21 +117,23 @@ typedef struct {
 	This structure defines the general (fixed) header  
 */
 typedef struct {
-	enum FileFormat TYPE; 	// type of file format
+	enum FileFormat TYPE; 		// type of file format
 	float 		VERSION;	// GDF version number 
 	char* 		FileName;
-	void*  		rawbuffer; 	// data returned by sread
-	biosig_data_type* 	data; 	// data returned by sread
+	struct {
+		size_t 			size[2]; // size {rows, columns} of data block	
+		biosig_data_type* 	block; 	 // data block
+	} data;
 
+	uint32_t 	HeadLen;	// length of header in bytes
 	uint16_t 	NS;		// number of channels
-	double 		SampleRate;	// Sampling rate
 	uint32_t 	SPR;		// samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR)
+	int64_t  	NRec;		// number of records/blocks -1 indicates length is unknown.	
+	uint32_t 	Dur[2];		// Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1] 
+	double 		SampleRate;	// Sampling rate
 	uint8_t 	IPaddr[6]; 	// IP address of recording device (if applicable)	
 	uint32_t  	LOC[4];		// location of recording according to RFC1876
 	gdf_time 	T0; 		// starttime of recording
-	uint32_t 	HeadLen;	// length of header in bytes
-	int64_t  	NRec;		// number of records/blocks -1 indicates length is unknown.	
-	uint32_t 	Dur[2];	// Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1] 
 
 	// Patient specific information 
 	struct {
@@ -151,26 +154,27 @@ typedef struct {
 			enum SCALE Visual;
 		} Impairment;
 	} Patient; 
+	
 	struct {
-		char* 	Technician; 	
-		char* 	Hospital; 	
-		uint64_t Equipment; 	// identfies this software
+		char* 		Technician; 	
+		char* 		Hospital; 	
+		uint64_t 	Equipment; 	// identfies this software
 	} ID; 
 
 	// position of electrodes; see also HDR.CHANNEL[k].XYZ
 	struct {
-		float	REF[3];	// XYZ position of reference electrode
-		float	GND[3];	// XYZ position of ground electrode
+		float		REF[3];	// XYZ position of reference electrode
+		float		GND[3];	// XYZ position of ground electrode
 	} ELEC;
 
 	//	EVENTTABLE 
 	struct {
-		uint32_t  SampleRate;	// for converting POS and DUR into seconds 
-		uint32_t  N;	// number of events
-		uint16_t *TYP;	// defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup
-		uint32_t *POS;	// starting position [in samples]
-		uint32_t *DUR;	// duration [in samples]
-		uint16_t *CHN;	// channel number; 0: all channels 
+		uint32_t  	SampleRate;	// for converting POS and DUR into seconds 
+		uint32_t  	N;	// number of events
+		uint16_t 	*TYP;	// defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup
+		uint32_t 	*POS;	// starting position [in samples]
+		uint32_t 	*DUR;	// duration [in samples]
+		uint16_t 	*CHN;	// channel number; 0: all channels 
 	} EVENT; 
 
 	struct {	// File specific data 
@@ -187,14 +191,9 @@ typedef struct {
 		uint32_t 	spb;		// total samples per block
 		uint32_t 	bpb;  		// total bytes per block
 		uint32_t 	*bi;
-		void * 		Header1; 
+		void* 		Header1; 
+		void*  		rawdata; 	// raw data block 
 	} AS; 	
-	union {
-		struct {
-			int	FLAG_TimeChannel;
-			int	GDFTYP; 
-		} CFWB;
-	} X;
 	CHANNEL_TYPE *CHANNEL;  
 } HDRTYPE;
 
@@ -215,7 +214,7 @@ size_t	swrite(const void *ptr, size_t nelem, HDRTYPE* hdr);
 int	seof(HDRTYPE HDR);
 int	srewind(HDRTYPE* hdr);
 int 	sseek(HDRTYPE* hdr, size_t offset, int whence);
-size_t stell(HDRTYPE HDR);
+size_t  stell(HDRTYPE HDR);
 
 
 /****************************************************************************/
