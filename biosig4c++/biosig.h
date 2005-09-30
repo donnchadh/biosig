@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.11 2005-09-26 15:03:32 schloegl Exp $
+% $Id: biosig.h,v 1.12 2005-09-30 13:55:02 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -48,8 +48,6 @@ enum HANDEDNESS {Unknown=0, Right=1, Left=2, Equal=3};
 enum GENDER  	{male=1,  female=2};
 enum SCALE 	{No=1,    Yes=2,	Corrected=3};
 
-const int GDFTYP_BYTE[] = {1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8, 16};
-
 #define min(a,b)                        (((a) < (b)) ? (a) : (b))
 #define max(a,b)                        (((a) > (b)) ? (a) : (b))
 
@@ -65,7 +63,7 @@ const int GDFTYP_BYTE[] = {1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8,
 
       	time_t t0; 
       	t0 = time(NULL); 
-      	T0 = (double)t0/86400.0;	// convert seconds it days since 1970-Jan-01
+      	T0 = (double)t0/86400.0;	// convert seconds in days since 1970-Jan-01
       	floor(T0) + 719529;		// number of days since 01-Jan-0000
       	floor(ldexp(T0-floor(T0),32));  // fraction x/2^32; one day is 2^32 
       	
@@ -78,6 +76,8 @@ typedef double	 		biosig_data_type; // data type of internal format
 #define gdf_time2t_time(t)	((time_t)((ldexp((t),-32) - 719529) * 86400))
 #define tm_time2gdf_time(t) 	t_time2gdf_time(mktime(t))
 #define gdf_time2tm_time(t)	localtime(gdf_time2t_time(t))
+#define	ntp_time2gdf_time(t)	((gdf_time)ldexp(ldexp((t),-32)/86400 + 719529 - 70,32))
+#define	gdf_time2ntp_time(t)	((int64_t)ldexp((ldexp((t),-32) - 719529 + 70) * 86400,32))
 
 /****************************************************************************/
 /**                                                                        **/
@@ -179,7 +179,7 @@ typedef struct {
 
 	struct {	// File specific data 
 		FILE* 		FID;		// file handle 
-		size_t 		POS;		// current reading/writing position in samples 
+		size_t 		POS;		// current reading/writing position [in blocks]
 		uint8_t		OPEN; 		// 0: closed, 1:read, 2: write
 		uint8_t		LittleEndian; 	// 
 	} FILE; 
