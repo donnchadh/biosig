@@ -1,6 +1,5 @@
 function [R]=test_sc(CC,D,mode,classlabel)
 % TEST_SC: test statistical classifier
-%   tests of various stasttical classifiers
 %
 %  R = test_sc(CC,D,TYPE [,target_Classlabel]) 
 %       R.output     output distance for each class
@@ -18,10 +17,11 @@ function [R]=test_sc(CC,D,mode,classlabel)
 %    TYPE = 'LD3'    linear discriminant analysis (see LDBC2)
 %    TYPE = 'LD4'    linear discriminant analysis (see LDBC2)
 %    TYPE = 'GDBC'   general distance based classifier
+%    TYPE = 'SVM'    support vector machines
 % 
 % see also: COVM, DECOVM, R2, MDBC, GDBC, LDBC2, LDBC3, LDBC4
 
-%	$Id: test_sc.m,v 1.1 2005-03-07 16:12:52 schloegl Exp $
+%	$Id: test_sc.m,v 1.2 2005-10-03 13:18:56 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -63,6 +63,9 @@ elseif strcmpi(mode,'QDA');
 elseif strcmpi(mode,'GRB');
         d = mdbc(CC.MD,D);
         [tmp,cl] = max(exp(-d/2),[],2);
+elseif strcmpi(mode,'SVM');
+        d = D*CC.w+CC.b;
+        [tmp,cl] = max(d,[],2);
 end;
 cl(all(isnan(d),2)) = NaN; 
 
@@ -70,5 +73,6 @@ R.output = d;
 R.classlabel = cl; 
 
 if nargin>3,
-        [R.kappa,sd,R.H,z,R.ACC] = kappa(CC.Labels(cl),classlabel);
+        tmp = CC.Labels(cl);
+        [R.kappa,sd,R.H,z,R.ACC] = kappa(classlabel(:),tmp(:));
 end;
