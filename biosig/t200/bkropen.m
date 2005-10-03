@@ -5,7 +5,7 @@ function [BKR,s]=bkropen(arg1,arg3,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Id: bkropen.m,v 1.31 2005-09-16 13:43:31 schloegl Exp $
+%	$Id: bkropen.m,v 1.32 2005-10-03 13:15:30 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -166,21 +166,26 @@ if any(BKR.FILE.PERMISSION=='r'),
                 
         % THRESHOLD for Overflow detection
         BKR.SIE.THRESHOLD = -(2^15);
-        BKR.THRESHOLD = repmat([-1,1]*BKR.DigMax,BKR.NS,1);
 	BKR.AS.endpos = (BKR.FILE.size-BKR.HeadLen)/BKR.AS.bpb;
 
         BKR.data = fread(fid,[BKR.NS,inf],'int16')';
 	fclose(fid);
         BKR.TYPE = 'native'; 
 
-
         % check whether Headerinfo fits to file length.
 	if (BKR.FILE.size-BKR.HeadLen)~=BKR.SPR*BKR.NRec*BKR.NS*2,
 		%[BKR.FILE.size,BKR.HeadLen,BKR.SPR,BKR.NRec,BKR.NS],
 		%[BKR.FILE.size-BKR.HeadLen-BKR.SPR*BKR.NRec*BKR.NS*2],
-		fprintf(2,'Header information in %s corrupted; Data could be reconstructed.\n',BKR.FileName);
+		fprintf(2,'Warning BKROPEN: Header information in %s corrupted;',BKR.FileName);
 		if BKR.NRec==1,
+        		fprintf(2,'Data could be reconstructed.\n',BKR.FileName);
 			BKR.SPR=(BKR.FILE.size-BKR.HeadLen)/(BKR.NRec*BKR.NS*2);
+                elseif BKR.NRec==0,
+        		fprintf(2,'Data could be reconstructed.\n',BKR.FileName);
+			BKR.NRec=(BKR.FILE.size-BKR.HeadLen)/(BKR.SPR*BKR.NS*2);
+                end;
+        	if (BKR.FILE.size-BKR.HeadLen)~=BKR.SPR*BKR.NRec*BKR.NS*2,
+        		fprintf(2,'Unable to reconstruct data.\n',BKR.FileName);
         	end;
         end;
 
@@ -372,9 +377,6 @@ elseif any(BKR.FILE.PERMISSION=='w'),
 	fprintf(1,'Scaling error in file %s due to rounding of PhysMax is in the range of %f%%.\n',BKR.FileName, abs((BKR.PhysMax-tmp)/tmp)*100);
 	BKR.PhysMax = tmp;
 
-        % THRESHOLD for Overflow detection
-        BKR.SIE.THRESHOLD = -(2^15);
-        
 	count=fwrite(BKR.FILE.FID,BKR.VERSION,'short');	        % version number of header
 	count=fwrite(BKR.FILE.FID,BKR.NS,'short');	        % number of channels
 	count=fwrite(BKR.FILE.FID,BKR.SampleRate,'short');      % sampling rate
