@@ -4,7 +4,7 @@
 %      2) Estimatess MVAR parameters
 %      3) Displays the PDC for the original parameters and its estimates
 %
-% see also: BACCALA2001, MVAR, MVFILTER, PLOTA
+% see also: BACCALA2001, MVAR, MVFILTER, PLOTA, demo/demo7
 %
 % Reference(s):
 %  [1] Baccala LA, Sameshima K. (2001)
@@ -15,9 +15,9 @@
 %	Biol. Cybern., 85,145-157 (2001)
 %  [3] http://biosig.sf.net/
 
-%       $Revision: 1.1 $
-%	$Id: demo7.m,v 1.1 2004-11-08 14:06:40 schloegl Exp $
-%	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>
+%       $Revision: 1.2 $
+%	$Id: demo7.m,v 1.2 2005-10-03 09:15:50 schloegl Exp $
+%	Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -37,17 +37,19 @@
 % MULTIVARIATE AUTOREGRESSIVE Analysis: 
 [A1,A2,A3,A4,A5] = baccala2001;       
 
-AR0 = A3;        % select parameter set
+AR0 = A2;        % select parameter set
 
 M = size(AR0,1);
 % Simulated MVAR prosses can be produced with 
-y = mvfilter(eye(M),[eye(M),-AR0],randn(M,1000));  
+y = mvfilter(eye(M),[eye(M),-AR0],randn(M,10000));  
 
 % Estimate AR parameters
+%[AR,RC,PE] = mvar(y'+sin((1:10000)/2/pi*.2)'*ones(1,5),2);
+%[AR,RC,PE] = mvar(y'+randn(10000,1)*ones(1,5),2);
 [AR,RC,PE] = mvar(y',2);
 
 % The PDF and the DTF can be displayed with the following functions
-X.A = [eye(5),-AR0]; X.B = eye(size(X.A,1)); 
+X.A = [eye(M),-AR0]; X.B = eye(M); X.C = eye(size(X.A,1));
 X.datatype = 'MVAR';
 figure(1)
 plota(X,'PDC')         
@@ -56,12 +58,11 @@ if exist('suptitle','file')
 end;
 
 % The PDF and the DTF can be displayed with the following functions
-X.A = [eye(5),-AR]; X.B = eye(size(X.A,1)); 
+X.A = [eye(M),-AR]; X.B = eye(M); X.C  = PE(:,(1-M:0)+end);
 X.datatype = 'MVAR';
 figure(2)
-plota(X,'PDC')         
+plota(X,'DTF')         
 if exist('suptitle','file')
-        suptitle('PDC of MVAR estimates');
+        suptitle('DTF of MVAR estimates');
 end;
-
 
