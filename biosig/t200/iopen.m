@@ -27,7 +27,7 @@ function [HDR,data] = iopen(HDR,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: iopen.m,v 1.7 2005-09-16 13:43:31 schloegl Exp $
+%	$Id: iopen.m,v 1.8 2005-10-13 21:40:24 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -494,17 +494,17 @@ elseif strcmp(HDR.TYPE,'IMAGE:PBMB'),
 elseif strcmp(HDR.TYPE,'IMAGE:PGMB'),
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
 	status = fseek(HDR.FILE.FID, HDR.HeadLen, 'bof');
-	[data,count] = fread(HDR.FILE.FID,[HDR.IMAGE.Size(2),HDR.IMAGE.Size(1)],'uint8');
+	[data,count] = fread(HDR.FILE.FID,HDR.IMAGE.Size,'uint8');
         fclose(HDR.FILE.FID);
 	data = data';
 
 elseif strcmp(HDR.TYPE,'IMAGE:PPMB'),
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
 	status = fseek(HDR.FILE.FID, HDR.HeadLen, 'bof');
-	[tmp,count] = fread(HDR.FILE.FID,[3*HDR.IMAGE.Size(2),HDR.IMAGE.Size(1)],'uint8');
+	[tmp,count] = fread(HDR.FILE.FID,[3*HDR.IMAGE.Size(1),HDR.IMAGE.Size(2)],'uint8');
         fclose(HDR.FILE.FID);
 
-	data = zeros([HDR.IMAGE.Size(1:2),3]);
+	data = zeros([HDR.IMAGE.Size([2,1]),3]);
 	data(:,:,1) = tmp(1:3:end,:)';
 	data(:,:,2) = tmp(2:3:end,:)';
 	data(:,:,3) = tmp(3:3:end,:)';

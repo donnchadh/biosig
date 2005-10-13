@@ -20,7 +20,7 @@ function [data,HDR] = iread(HDR,CHAN,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: iread.m,v 1.3 2005-07-08 19:57:52 schloegl Exp $
+%	$Id: iread.m,v 1.4 2005-10-13 21:40:24 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -51,10 +51,11 @@ elseif strcmp(HDR.TYPE,'IMAGE:BMP'),
                 data        = pal(tmp(1:HDR.IMAGE.Size(1),:)'+1,1);
                 data(:,:,2) = pal(tmp(1:HDR.IMAGE.Size(1),:)'+1,2);
                 data(:,:,3) = pal(tmp(1:HDR.IMAGE.Size(1),:)'+1,3);
+                data = reshape(data,[HDR.IMAGE.Size([2,1]),3]);
                 data = data(HDR.IMAGE.Size(2):-1:1,:,:);
                 
         elseif (HDR.bits==24)
-                [data]    = uint8(fread(HDR.FILE.FID,[nc,HDR.IMAGE.Size(2)],'uint8'));
+                data   = uint8(fread(HDR.FILE.FID,[nc,HDR.IMAGE.Size(2)],'uint8'));
                 HDR.BMP.Red   = data((1:HDR.IMAGE.Size(1))*3,:)';
                 HDR.BMP.Green = data((1:HDR.IMAGE.Size(1))*3-1,:)';
                 HDR.BMP.Blue  = data((1:HDR.IMAGE.Size(1))*3-2,:)';
