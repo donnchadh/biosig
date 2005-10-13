@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.43 $
-%	$Id: getfiletype.m,v 1.43 2005-09-16 13:43:31 schloegl Exp $
+%	$Revision: 1.44 $
+%	$Id: getfiletype.m,v 1.44 2005-10-13 08:04:11 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -142,6 +142,8 @@ else
                         HDR.TYPE='AST';
                 elseif strncmp(ss,'Brain Vision Data Exchange Header File',38); 
                         HDR.TYPE = 'BrainVision';
+                elseif strncmp(ss,'Brain Vision Data Exchange Marker File',38); 
+                        HDR.TYPE = 'BrainVision_MarkerFile';
                 elseif strncmp(ss,'0       ',8); 
                         HDR.TYPE='EDF';
                 elseif all(s(1:8)==[255,abs('BIOSEMI')]); 
@@ -193,8 +195,37 @@ else
                         HDR.TYPE='MFER';
                 elseif strcmp(ss(1:6),'@ MFR '); 
                         HDR.TYPE='MFER';
+                elseif all(s([9:22])==[0,0,136,0,0,0,13,13,abs('SCPECG')]); 
+                        HDR.TYPE='SCP';
+                        HDR.VERSION = 1.3; 
+                elseif all(s([9:10,17:22])==[0,0,abs('SCPECG')]); 
+                        HDR.TYPE='SCP';
+                        HDR.VERSION = -1; 
                 elseif all(s(17:22)==abs('SCPECG')); 
                         HDR.TYPE='SCP';
+                        HDR.VERSION = -2; 
+                elseif strncmp(ss,'# EN1064 Lead Identification Table of the SCP-ECG format',6); 
+                        HDR.TYPE='EN1064:LeadId';
+                        tmp = fread(fid,[1,inf],'char'); 
+                        s = char([s(:);tmp(:)])';
+                        fclose(fid);
+                        k = 0; 
+                        while ~isempty(s),
+                                [t,s] = strtok(s,[10,13]);
+                                if ~length(t)
+                                elseif ~strncmp(t,'#',1)    
+                                        ix3 = strfind(t,'MDC_ECG_LEAD_');
+                                        [t1,t2] = strtok(t(1:ix3-1),[9,32]);
+                                        [t2,t3] = strtok(t2,[9,32]);
+                                        id = str2double(t2);
+                                        k = k+1;
+                                        HDR.EN1064.SCP_Name{k}    = t1;
+                                        HDR.EN1064.Code{k}        = id;
+                                        HDR.EN1064.Description{k} = deblank(t3);
+                                        HDR.EN1064.MDC_ECG_LEAD{k}= t(ix3+13:end);
+                                end;
+                        end;
+                        return;
                 elseif strncmp(ss,'ATES MEDICA SOFT. EEG for Windows',32);	% ATES MEDICA SOFTWARE, NeuroTravel 
                         HDR.TYPE='ATES';
                         HDR.VERSION = ss(35:42);

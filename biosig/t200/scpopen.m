@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.15 $
-%	$Id: scpopen.m,v 1.15 2005-09-16 13:43:31 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: scpopen.m,v 1.16 2005-10-13 08:04:11 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -98,37 +98,34 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 elseif tag == 3,
                                         HDR.Patient.LastName2 = char(field);
                                 elseif tag == 4,
-                                        HDR.Patient.Age = str2double(char(field(1:2)));
+                                        HDR.Patient.Age = field(1:2)*[1;256];
                                         tmp = field(3);
-                                        if tmp==0, unit=' ';
-                                        elseif tmp==1, unit='Y';
-                                        elseif tmp==2, unit='M';
-                                        elseif tmp==3, unit='W';
-                                        elseif tmp==4, unit='d';
-                                        elseif tmp==5, unit='h';
+                                        if     tmp==1, HDR.Patient.Age = HDR.Patient.Age; % unit='Y';
+                                        elseif tmp==2, HDR.Patient.Age = HDR.Patient.Age/12; % unit='M';
+                                        elseif tmp==3, HDR.Patient.Age = HDR.Patient.Age/52; % unit='W';
+                                        elseif tmp==4, HDR.Patient.Age = HDR.Patient.Age/365.25; % unit='d';
+                                        elseif tmp==5, HDR.Patient.Age = HDR.Patient.Age/(365.25*24); %unit='h';
+                                        else warning('units of age not specified');
                                         end;
-                                        HDR.Patient.AgeUnit = unit;
-                                elseif tag == 5,
-                                %        HDR.Patient.DateOfBirth = [field(1:2)*[1;256],field(3:4)];
-                                elseif tag == 6,
+                                elseif (tag == 5) & any(field(1:4))
+                                        HDR.Patient.Birthday = [field(1:2)*[1;256],field(3:4),12,0,0];
+                                elseif (tag == 6) & any(field(1:3)),
                                         HDR.Patient.Height = field(1:2)*[1;256];
                                         tmp = field(3);
-                                        if tmp==0, unit=' ';
-                                        elseif tmp==1, unit='cm';
-                                        elseif tmp==2, unit='inches';
-                                        elseif tmp==3, unit='mm';
+                                        if tmp==1, % unit='cm';
+                                        elseif tmp==2, HDR.Patient.Height = HDR.Patient.Height*2.54; %unit='inches'; 
+                                        elseif tmp==3, HDR.Patient.Height = HDR.Patient.Height*0.1; %unit='mm';
+                                        else warning('units of height not specified');
                                         end;
-                                        HDR.Patient.HeightUnit = unit;
-                                elseif tag == 7,
+                                elseif (tag == 7) & any(field(1:3)),
                                         HDR.Patient.Weight = field(1:2)*[1;256];
                                         tmp = field(3);
-                                        if tmp==0, unit=' ';
-                                        elseif tmp==1, unit='kg';
-                                        elseif tmp==2, unit='g';
-                                        elseif tmp==3, unit='pound';
-                                        elseif tmp==4, unit='ounce';
+                                        if tmp==1, % unit='kg';
+                                        elseif tmp==2, HDR.Patient.Weight = HDR.Patient.Weight/1000; %unit='g';
+                                        elseif tmp==3, HDR.Patient.Weight = HDR.Patient.Weight/2.2; %unit='pound';
+                                        elseif tmp==4, HDR.Patient.Weight = HDR.Patient.Weight*0.0284; %unit='ounce';
+                                        else warning('units of weight not specified');
                                         end;
-                                        HDR.Patient.WeightUnit = unit;
                                 elseif tag == 8,
                                         HDR.Patient.Sex = field;
                                 elseif tag == 9,
@@ -148,6 +145,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         HDR.Patient.Diagnosis = char(field);
                                 elseif tag == 14,
                                         HDR.SCP1.AcquiringDeviceID = char(field);
+                                        HDR.VERSION = field(15)/10;
                                 elseif tag == 15,
                                         HDR.SCP1.AnalyisingDeviceID = char(field);
                                 elseif tag == 16,
@@ -234,18 +232,27 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                         end;
                         HDR.N = max(HDR.LeadPos(:))-min(HDR.LeadPos(:))+1;
                         
-                        LeadIdTable = {'I';'II';'V1';'V2';'V3';'V4';'V5';'V6';'V7';'V2R';'V3R';'V4R';'V5R';'V6R';'V7R';'X';'Y';'Z';'CC5';'CM5';'left arm';'right arm';'left leg';'I';'E';'C';'A';'M';'F';'H'};
+                        %%%%% OBSOLETE
+                        LeadIdTable = {'I';'II';'V1';'V2';'V3';'V4';'V5';'V6';'V7';'V2R';'V3R';'V4R';'V5R';'V6R';'V7R';'X';'Y';'Z';'CC5';'CM5';'left arm';'right arm';'left leg';'fI';'fE';'fC';'fA';'fM';'fF';'fH'};
                         LeadIdTable = [LeadIdTable;{'I-cal';'II-cal';'V1-cal';'V2-cal';'V3-cal';'V4-cal';'V5-cal';'V6-cal';'V7-cal';'V2R-cal';'V3R-cal';'V4R-cal';'V5R-cal';'V6R-cal';'V7R-cal';'X-cal';'Y-cal';'Z-cal'}];
                         LeadIdTable = [LeadIdTable;{'CC5-cal';'CM5-cal';'Left Arm-cal';'Right Arm-cal';'Left Leg-cal';'I-cal';'E-cal';'C-cal';'A-cal';'M-cal';'F-cal';'H-cal';'III';'aVR';'aVL';'aVF';'-aVR';'V8';'V9';'V8R';'V9R'}];
                         LeadIdTable = [LeadIdTable;{'D (Nehb-Dorsal)';'A (Nehb-Anterior)';'J (Nehb-Inferior)';'Defibrillator Lead: anterior lateral';'Exernal Pacing Lead: anterior-posterior'}];
                         LeadIdTable = [LeadIdTable;{'A1';'A2';'A3';'A4';'V8-cal';'V9-cal';'V8R-cal';'V9R-cal';'D-cal (cal for Nehb-Dorsal)';'A-cal (cal for Nehb-Anterior)';'J-cal (cal for Nehb-Inferior)'}];
+                        %%%%% OBSOLETE
+                        
+                        H = sopen('leadidtable_scpecg.txt');
+                        LeadIdTable = H.EN1064.SCP_Name(2:end)';
                         for k = 1:HDR.NS,
                                 if 0,
-                                elseif HDR.Lead(k)==0,
+                                elseif (HDR.Lead(k)==0),
                                         HDR.Label{k} = 'unspecified lead';
-                                elseif HDR.Lead(k)<86,        
+                                elseif (HDR.VERSION <= 1.3) & (HDR.Lead(k) < 86),
                                         HDR.Label{k} = LeadIdTable{HDR.Lead(k)};
-                                elseif HDR.Lead(k)>99,
+                                elseif (HDR.VERSION <= 1.3) & (HDR.Lead(k) > 99),
+                                        HDR.Label{k} = 'manufacturer specific';
+                                elseif (HDR.VERSION >= 2.0) & (HDR.Lead(k) < 151),
+                                        HDR.Label{k} = HDR.LeadIdTable{HDR.Lead(k)};
+                                elseif (HDR.VERSION >= 2.0) & (HDR.Lead(k) > 199),
                                         HDR.Label{k} = 'manufacturer specific';
                                 else
                                         HDR.Label{k} = 'reserved';
