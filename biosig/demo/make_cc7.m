@@ -1,4 +1,4 @@
-function [cc3,cc0,cbp,cc4]=make_cc7(fn,eegchan,trigchan,Fs)
+function [cc3,cc0,cbp,cc4,cbp3]=make_cc7(fn,eegchan,trigchan,Fs)
 % Builds a classifier based on AAR parameters from BCI recordings. 
 %  The result includes also initial values for the next run. 
 %
@@ -15,10 +15,10 @@ function [cc3,cc0,cbp,cc4]=make_cc7(fn,eegchan,trigchan,Fs)
 % 	Fs=128;
 %
 % References:
-% [1] Schlögl A., Neuper C. Pfurtscheller G.
+% [1] Schlögl A., Neuper C. Pfurtscheller G. (2002)
 %   Estimating the mutual information of an EEG-based Brain-Computer-Interface.
 %   Biomedizinische Technik 47(1-2): 3-8, 2002
-% [2] A. Schlögl, C. Keinrath, R. Scherer, G. Pfurtscheller,
+% [2] A. Schlögl, C. Keinrath, R. Scherer, G. Pfurtscheller, (2003)
 %   Information transfer of an EEG-based Bran-computer interface.
 %   Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003. 
 % [3] A. Schlögl, D. Flotzinger and G. Pfurtscheller (1997)
@@ -32,16 +32,21 @@ function [cc3,cc0,cbp,cc4]=make_cc7(fn,eegchan,trigchan,Fs)
 %   Proceedings of the 19th Annual International Conference if the IEEE Engineering in Medicine and Biology Society ,vol 19 , pp.1533-1535, 1997.
 %
 
-%	Copyright (C) 1999-2002 by Alois Schloegl <a.schloegl@ieee.org>	
-%	15.06.2002 Version 1.02
+%	$Revision: 1.2 $
+%	$Id: make_cc7.m,v 1.2 2005-10-13 08:27:57 schloegl Exp $
+%	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
-cname=computer;
+cname = computer;
 
 if nargin<2,
 	eegchan  = NaN;
 end;
 if nargin<3,
 	trigchan = 4;
+        if ~isempty(findstr(fn,'Bci7c/'))
+                trigchan = 8;
+        end;
 end;
 if nargin<4,
 	Fs = 128;
@@ -52,31 +57,48 @@ MOP = 3;
 uc  = 30:5:80;
 
 [S,H] = sload(fn);
-Fs = H.SampleRate;
-cl = H.Classlabel(:);
-if isnan(eegchan)
-        eegchan=[1,H.NS-1];
-end;
 
-TRIG = gettrigger(S(:,trigchan));
-if isfield(H,'TriggerOffset');
-        TRIG = TRIG - H.TriggerOffset*Fs/1000;
-        LEN = H.BCI.Paradigm.TrialDuration*Fs/1000;
-else
-        fprintf(1,'MAKE_CC7: assume trigger occures at t=2s \n');
-        TRIG = TRIG - 2*Fs;
-        LEN  = 9*Fs;
+%S = regress_eog(S,1:3,4:7); disp('!!! EOG removal with regression  !!!');
+
+Fs    = H.SampleRate;
+%ix = (H.EVENT.TYP>hex2dec('300')) & (H.EVENT.TYP<hex2dec('30d')); 
+%H.Classlabel = mod(H.EVENT.TYP(ix),256);
+TRIG = [];
+if isfield(H,'EVENT'),  % GDF, BCI8 data
+        TRIG = H.EVENT.POS(H.EVENT.TYP==hex2dec('300'));
+        if isempty(TRIG),       % BKR, BCI7x data
+                TRIG = H.EVENT.POS((H.EVENT.TYP>hex2dec('300'))&(H.EVENT.TYP<hex2dec('305')));
+        end;
+end;
+if isempty(TRIG),       % BKR, BCI7x data
+        TRIG = gettrigger(S(:,trigchan));
+        if isfield(H,'TriggerOffset');
+                TRIG = TRIG - H.TriggerOffset*Fs/1000;
+                LEN  = H.BCI.Paradigm.TrialDuration*Fs/1000;
+        elseif ~isempty(findstr(lower(fn),'bci7a')),    
+                fprintf(1,'MAKE_CC7: assume trigger occures at t=2s \n');
+                TRIG = TRIG - 3*Fs;
+                LEN  = 9*Fs;
+        else
+                fprintf(1,'MAKE_CC7: assume trigger occures at t=2s \n');
+                TRIG = TRIG - 2*Fs;
+                LEN  = 9*Fs;
+        end;
+end;
+cl = H.Classlabel(:);
+
+if isnan(eegchan)
+        eegchan = [1,3];
 end;
 
 if length(TRIG)~=length(cl);
         fprintf(2,'Attention: \n'),
 end;
-if isfield(H,'ArtifactSelection'),
+if 0, isfield(H,'ArtifactSelection'),
         for k = find(H.ArtifactSelection)';
                 S(TRIG(k)+(1:9*Fs),eegchan) = NaN;
         end;
-end;
-if isfield(H,'ArtifactSelection'),
+        
         TRIG = TRIG(~H.ArtifactSelection);
         cl   = cl  (~H.ArtifactSelection);
 end;
@@ -91,16 +113,24 @@ if ~any(size(eegchan)==1)
 	eegchan=1:size(eegchan,2); 
 end;
 
+
+if Fs==250,
+        Fs = Fs/2;
+        S  = rs(S,2,1);        
+        TRIG = round(TRIG/2);
+end;
+
 % Muscle Detection 
 % [INI,s,E,arti] = detectmuscle2(S(:,1:3));
 
 % find initial values 
-randn('state',0);
+randn('seed',0);
 [a0,A0] = getar0(S(:,eegchan),1:15,1000,Fs/2);
 %save o3_init_A0 a0 A0
 %load o3_init_A0 a0 A0
-T = reshape((1:1152),16,1152/16)';
-t0 = zeros(1152/16,1);
+tmp = ceil(9*Fs/16)*16;
+T  = reshape((1:tmp),16,tmp/16)';
+t0 = zeros(tmp/16,1);
 if ~isfield(H,'BCI')
         t0(33:60) = 1;   % look for interval [4s,7.5s]
 else
@@ -116,8 +146,8 @@ end;
 
 t0 = logical(t0);
 
-for p = 3;6;1:M0;
-for k = 7;1:length(uc);
+for p = 3; 6;1:M0;
+for k = 7; 1:length(uc);
 	UC0 = 2^(-uc(k)/8);
         ar = zeros(size(S,1),p*length(eegchan));
         e  = zeros(size(S,1),  length(eegchan));
@@ -125,11 +155,7 @@ for k = 7;1:length(uc);
                 [ar(:,(1-p:0)+p*ch),e(:,ch),REV(ch)] = aar(S(:,eegchan(ch)), [2,3], p, UC0, a0{p},A0{p});
         end;
 
-        [cc,Q,tsd,md] = findclassifier1(ar,TRIG, cl,T,t0,3);
-        cc.MDA.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-        cc.MD2.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-        cc.LDA.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-        cc.GRB.TSD.T = (min(T(:)):max(T(:)))'/Fs;
+        [cc,Q,tsd,md] = findclassifier(ar,TRIG, cl,T,t0,'LD2');
         
         tmp   = ar(~any(isnan(e),2),:);
         cc.C0 = covm(tmp,'E');
@@ -143,7 +169,6 @@ for k = 7;1:length(uc);
         end;
         
         cc.Method = 'aar';
-        cc.T   = T;       
         cc.Fs  = Fs;
         cc.UC  = UC0;
         cc.p   = p;
@@ -154,9 +179,10 @@ for k = 7;1:length(uc);
         cc.EEGCHAN = eegchan;
         %cc.TRIGCHAN = trigchan;
         %CC{k+(p-1)*length(uc)}=cc;
+        cc0=cc ;
+        
 end;
 end;
-cc0=cc ;
 
 
 for p = 3;6;1:M0;
@@ -168,11 +194,7 @@ for k = 7;6;1:length(uc);
                 [ar(:,(1-p:0)+p*ch),e(:,ch),REV(ch)] = aar(S(:,eegchan(ch)), [0,0], p, UC0, cc0.a0{ch},cc0.A0{ch},cc0.W{ch},cc0.V(ch));
         end;
         
-        [cc,Q,tsd,md] = findclassifier1(ar,TRIG, cl,T,t0,3);
-        cc.MDA.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-        cc.MD2.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-        cc.LDA.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-        cc.GRB.TSD.T = (min(T(:)):max(T(:)))'/Fs;
+        [cc,Q,tsd,md] = findclassifier(ar,TRIG, cl,T,t0,'LD2');
         
         tmp   = ar(~any(isnan(e),2),:);
         cc.C0 = covm(tmp,'E');
@@ -186,7 +208,6 @@ for k = 7;6;1:length(uc);
         end;
         
         cc.Method = 'aar';
-        cc.T   = T;       
         cc.Fs  = Fs;
         cc.UC  = UC0;
         cc.p   = p;
@@ -197,19 +218,38 @@ for k = 7;6;1:length(uc);
         cc.EEGCHAN = eegchan;
         %cc.TRIGCHAN = trigchan;
         %CC{k+(p-1)*length(uc)}=cc;
+        cc3 = cc;
+
 end;
 end;
-cc3 = cc;
 
 
+if nargout>3,
         uc=1/8;
-        [cc,Q,tsd,md] = findclassifier1(filter(uc,[1,uc-1],ar),TRIG, cl,T,t0,3);
-        cc.MDA.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-        cc.MD2.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-        cc.LDA.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-        cc.GRB.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-cc4=cc;        
+        [cc,Q,tsd,md] = findclassifier(filter(uc,[1,uc-1],ar),TRIG, cl,T,t0,'LD2');
+        
+        tmp   = ar(~any(isnan(e),2),:);
+        cc.C0 = covm(tmp,'E');
+        cc.W0 = covm(diff(tmp),'M');
+        cc.V  = meansq(e);
+        for ch = 1:length(eegchan),
+                li        = (1-p:0)+ch*p;
+                cc.a0{ch} = cc.C0(1,li+1);
+                cc.A0{ch} = cc.C0(li+1,li+1) - cc.a0{ch}'*cc.a0{ch};
+	        cc.W{ch}  = cc.W0(li,li);
+        end;
+        
+        cc.Fs  = Fs;
+        cc.UC  = UC0;
+        cc.p   = p;
+        cc.MOP = p;
+        cc.REV = REV;
+        %cc.a0  = a0{p};
+        %cc.A0  = A0{p};
+        cc.EEGCHAN = eegchan;
 
+        cc4=cc;        
+end;
 
 s0 = S(:,eegchan);
 s0(isnan(s0)) = 0;
@@ -218,14 +258,27 @@ if nargout>2,
         B2 = fir1(Fs,[16,24]/Fs*2);
         arc = log(filter(ones(Fs,1)/Fs,1,[filter(B1,1,s0),filter(B2,1,s0)].^2 ));
 
-        [cc,Q,tsd,md] = findclassifier1(arc,TRIG, cl,T,t0,3);
-        cc.MDA.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-        cc.MD2.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-        cc.LDA.TSD.T = (min(T(:)):max(T(:)))'/Fs;
-        cc.GRB.TSD.T = (min(T(:)):max(T(:)))'/Fs;
+        [cc,Q,tsd,md] = findclassifier(arc,TRIG, cl,T,t0,'LD2');
 
         cc.EEGCHAN = eegchan;
         cc.BP.B1 = B1;
         cc.BP.B2 = B2;
+        cc.BP.A1 = 1;
+        cc.BP.A2 = 1;
+        cbp = cc;
 end;
-cbp = cc;
+
+if nargout>4,
+        [B1,A1] = butter(5,[10 12]/Fs*2);
+        [B2,A2] = butter(5,[16,24]/Fs*2);
+        arc = log(filter(ones(Fs,1)/Fs,1,[filter(B1,A1,s0),filter(B2,A2,s0)].^2 ));
+
+        [cc,Q,tsd,md] = findclassifier(arc,TRIG, cl,T,t0,'LD2');
+
+        cc.EEGCHAN = eegchan;
+        cc.BP.B1 = B1;
+        cc.BP.B2 = B2;
+        cc.BP.A1 = A1;
+        cc.BP.A2 = A1;
+        cbp3 = cc;
+end;
