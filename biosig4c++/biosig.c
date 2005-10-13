@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.13 2005-10-13 08:13:01 schloegl Exp $
+    $Id: biosig.c,v 1.14 2005-10-13 16:38:35 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -41,7 +41,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "biosig.h"
+//#include "biosig.h"
 //#include "zlib.h"
 
 
@@ -144,6 +144,9 @@ HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT)
 	HDR.LOC[1] = 48*3600000+(1<<31); 	// latitude
 	HDR.LOC[2] = 15*3600000+(1<<31); 	// longitude 
 	HDR.LOC[3] = 35000; 	 	//altitude in centimeter above sea level
+
+	HDR.FLAG.UCAL = 0; 		// un-calibration OFF (auto-scaling ON) 
+	HDR.FLAG.OVERFLOWDETECTION = 1; 		// overflow detection ON
 	
        	// define variable header 
 	HDR.CHANNEL = calloc(HDR.NS,sizeof(CHANNEL_TYPE));
@@ -194,7 +197,7 @@ HDRTYPE sopen(const char* FileName, HDRTYPE HDR, const char* MODE)
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
 	const float	CNT_SETTINGS_HIGHPASS[] = {0.0/0.0, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
 
-    	int 		k,id,;
+    	int 		k,id;
     	size_t	 	count,len,pos;
     	char 		tmp[81];
     	char 		cmd[256];
@@ -206,7 +209,7 @@ HDRTYPE sopen(const char* FileName, HDRTYPE HDR, const char* MODE)
 	time_t		tt;
 	struct	{
 		int	number_of_sections;
-	} SCP
+	} SCP;
 
 if (!strcmp(MODE,"r"))	
 {
@@ -262,7 +265,7 @@ if (!strcmp(MODE,"r"))
     	else if (!memcmp(Header1,"PLEX",4))
 	    	HDR.TYPE = PLEXON;
     	else if (!memcmp(Header1+16,"SCPECG",6))
-	    	HDR.TYPE = SCP;
+	    	HDR.TYPE = SCP_ECG;
 
     	if (HDR.TYPE == GDF) {
   	    	strncpy(tmp,(char*)Header1+3,5);
@@ -329,22 +332,27 @@ if (!strcmp(MODE,"r"))
 			//HDR.CHANNEL[k].PhysDim  = (HDR.Header2 + 8*k + 96*HDR.NS);
 			HDR.CHANNEL[k].PhysMin  = *(double*) (Header2+ 8*k + 104*HDR.NS);
 			HDR.CHANNEL[k].PhysMax  = *(double*) (Header2+ 8*k + 112*HDR.NS);
-			HDR.CHANNEL[k].DigMin   = *(int64_t*)(Header2+ 8*k + 120*HDR.NS);
-			HDR.CHANNEL[k].DigMax   = *(int64_t*)(Header2+ 8*k + 128*HDR.NS);
-
-			HDR.CHANNEL[k].Cal   	= (HDR.CHANNEL[k].PhysMax-HDR.CHANNEL[k].PhysMin)/(HDR.CHANNEL[k].DigMax-HDR.CHANNEL[k].DigMin);
-			HDR.CHANNEL[k].Off   	= HDR.CHANNEL[k].PhysMin- HDR.CHANNEL[k].Cal*HDR.CHANNEL[k].DigMin;
 
 			//HDR.CHANNEL[k].PreFilt = (HDR.Header2+ 68*k + 136*HDR.NS);
-			HDR.CHANNEL[k].SPR      = *(int32_t*)  (Header2+ 4*k + 216*HDR.NS);
-			HDR.CHANNEL[k].GDFTYP   = *(int32_t*)  (Header2+ 4*k + 220*HDR.NS);
-			if (HDR.VERSION>=1.90) {
+			HDR.CHANNEL[k].SPR      = *(int32_t*) (Header2+ 4*k + 216*HDR.NS);
+			HDR.CHANNEL[k].GDFTYP   = *(int32_t*) (Header2+ 4*k + 220*HDR.NS);
+			if (HDR.VERSION<1.90) {
+				HDR.CHANNEL[k].DigMin   = (double)*(int64_t*)(Header2+ 8*k + 120*HDR.NS);
+				HDR.CHANNEL[k].DigMax   = (double)*(int64_t*)(Header2+ 8*k + 128*HDR.NS);
+			}	
+			else {
+				HDR.CHANNEL[k].DigMin   = *(double*)(Header2+ 8*k + 120*HDR.NS);
+				HDR.CHANNEL[k].DigMax   = *(double*)(Header2+ 8*k + 128*HDR.NS);
 				HDR.CHANNEL[k].LowPass  = *(float*) (Header2+ 4*k + 204*HDR.NS);
 				HDR.CHANNEL[k].HighPass = *(float*) (Header2+ 4*k + 208*HDR.NS);
 				HDR.CHANNEL[k].Notch    = *(float*) (Header2+ 4*k + 212*HDR.NS);
 				memcpy(&HDR.CHANNEL[k].XYZ,Header2 + 4*k + 224*HDR.NS,12);
 				HDR.CHANNEL[k].Impedance= ldexp(1.0, Header2[k + 236*HDR.NS]/8.0);
 			}
+
+			HDR.CHANNEL[k].Cal   	= (HDR.CHANNEL[k].PhysMax-HDR.CHANNEL[k].PhysMin)/(HDR.CHANNEL[k].DigMax-HDR.CHANNEL[k].DigMin);
+			HDR.CHANNEL[k].Off   	= HDR.CHANNEL[k].PhysMin- HDR.CHANNEL[k].Cal*HDR.CHANNEL[k].DigMin;
+
 		}
 		for (k=0, HDR.SPR=1, HDR.AS.spb=0, HDR.AS.bpb=0; k<HDR.NS;k++) {
 			HDR.AS.spb += HDR.CHANNEL[k].SPR;
@@ -423,8 +431,8 @@ if (!strcmp(MODE,"r"))
 			HDR.CHANNEL[k].PhysDim = (Header2 + 8*k + 96*HDR.NS);
 			HDR.CHANNEL[k].PhysMin = atof(strncpy(tmp,Header2 + 8*k + 104*HDR.NS,8)); 
 			HDR.CHANNEL[k].PhysMax = atof(strncpy(tmp,Header2 + 8*k + 112*HDR.NS,8)); 
-			HDR.CHANNEL[k].DigMin  = atol(strncpy(tmp,Header2 + 8*k + 120*HDR.NS,8)); 
-			HDR.CHANNEL[k].DigMax  = atol(strncpy(tmp,Header2 + 8*k + 128*HDR.NS,8)); 
+			HDR.CHANNEL[k].DigMin  = atof(strncpy(tmp,Header2 + 8*k + 120*HDR.NS,8)); 
+			HDR.CHANNEL[k].DigMax  = atof(strncpy(tmp,Header2 + 8*k + 128*HDR.NS,8)); 
 			HDR.CHANNEL[k].Cal     = (HDR.CHANNEL[k].PhysMax-HDR.CHANNEL[k].PhysMin)/(HDR.CHANNEL[k].DigMax-HDR.CHANNEL[k].DigMin);
 			HDR.CHANNEL[k].Off     =  HDR.CHANNEL[k].PhysMin-HDR.CHANNEL[k].Cal*HDR.CHANNEL[k].DigMin;
 
@@ -436,6 +444,7 @@ if (!strcmp(MODE,"r"))
 			// decode filter information into HDR.Filter.{Lowpass, Highpass, Notch}					
 			}
 		}
+		HDR.FLAG.OVERFLOWDETECTION = 0; 	// EDF does not support automated overflow and saturation detection
 	}      	
 	else if (HDR.TYPE==BKR) {
 	    	Header1 = realloc(Header1,1024);
@@ -456,11 +465,12 @@ if (!strcmp(MODE,"r"))
 		    	HDR.CHANNEL[k].LowPass	= *(float*)(Header1+22);
 		    	HDR.CHANNEL[k].HighPass	= *(float*)(Header1+26);
 		    	HDR.CHANNEL[k].Notch	= -1.0;
-		    	HDR.CHANNEL[k].PhysMax	= *(uint16_t*)(Header1+14);
-		    	HDR.CHANNEL[k].DigMax	= *(uint16_t*)(Header1+16);
+		    	HDR.CHANNEL[k].PhysMax	= (double)*(uint16_t*)(Header1+14);
+		    	HDR.CHANNEL[k].DigMax	= (double)*(uint16_t*)(Header1+16);
 		    	HDR.CHANNEL[k].Cal	= ((double)HDR.CHANNEL[k].PhysMax)/HDR.CHANNEL[k].DigMax;
 		    	HDR.CHANNEL[k].Off	= 0.0;
 		}
+		HDR.FLAG.OVERFLOWDETECTION = 0; 	// BKR does not support automated overflow and saturation detection
 	}
 	else if (HDR.TYPE==CFWB) {
 	    	HDR.SampleRate  = *(double*) (Header1+8);
@@ -494,6 +504,7 @@ if (!strcmp(MODE,"r"))
 		    	HDR.CHANNEL[k].PhysMax	= *(double*)(Header2+k*96+80);
 		    	HDR.CHANNEL[k].PhysMin	= *(double*)(Header2+k*96+88);
 		}
+		HDR.FLAG.OVERFLOWDETECTION = 0; 	// CFWB does not support automated overflow and saturation detection
 	}
 	else if (HDR.TYPE==CNT) {
 	    	Header1 = realloc(Header1,900);
@@ -539,8 +550,10 @@ if (!strcmp(MODE,"r"))
 	    	/* extract more header information */
 	    	// eventtablepos = *(uint32_t*)(Header1+886);
 	    	fseek(HDR.FILE.FID,_eventtablepos,SEEK_SET);
+		HDR.FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	}
-	else if (HDR.TYPE==SCP) {
+	
+	else if (HDR.TYPE==SCP_ECG) {
 #define filesize (*(uint32_t*)(Header1+2))
 		// read whole file at once 
 		Header1 = realloc(Header1,filesize);
@@ -582,6 +595,7 @@ if (!strcmp(MODE,"r"))
 	    		else if (section_id==8) {
 	    		}
 	    	}
+		HDR.FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 
 		fprintf(stderr,"Support for Format SCP-ECG not completed.\n",HDR.TYPE,HDR.FileName); 
 	}
@@ -871,11 +885,13 @@ fprintf(stdout,"%p %p %i \n",hdr->data.block,ptr,hdr->SPR*count*hdr->NS*sizeof(b
 				fprintf(stderr,"Error SREAD: datatype %i not supported\n",GDFTYP);
 				exit(-1);
 			}
+
 			// overflow and saturation detection 
-				// missing 
-			 
-			// scaling 
-			sample_value = sample_value * CHptr->Cal + CHptr->Off;
+			if ((hdr->FLAG.OVERFLOWDETECTION) && ((sample_value<=hdr->CHANNEL[k1].DigMin) || (sample_value>=hdr->CHANNEL[k1].DigMax)))
+				sample_value = 0.0/0.0; 
+
+			else if (!hdr->FLAG.UCAL)	// scaling 
+				sample_value = sample_value * CHptr->Cal + CHptr->Off;
 
 			// resampling 1->DIV samples
 			for (k3=0; k3 < DIV; k3++) 

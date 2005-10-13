@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.122 $
-%	$Id: sopen.m,v 1.122 2005-10-13 08:05:09 schloegl Exp $
+%	$Revision: 1.123 $
+%	$Id: sopen.m,v 1.123 2005-10-13 16:39:16 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -501,27 +501,30 @@ end;
                         
                         %HDR.DigMin     =         fread(HDR.FILE.FID,[HDR.NS,1],'int64');	
                         %HDR.DigMax     =         fread(HDR.FILE.FID,[HDR.NS,1],'int64');	
-                        tmp            =         fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');
-                        HDR.DigMin     = tmp((1:HDR.NS)*2-1);
-                        tmp            =         fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');	
-                        HDR.DigMax     = tmp((1:HDR.NS)*2-1);
-                        HDR.THRESHOLD  = [HDR.DigMin,HDR.DigMax];       % automated overflow detection 
                         
 			if (HDR.VERSION < 1.9),
+	                        tmp            =         fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');
+	                        HDR.DigMin     =  tmp((1:HDR.NS)*2-1);
+	                        tmp            =         fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');	
+	                        HDR.DigMax     =  tmp((1:HDR.NS)*2-1);
+
                                 HDR.PreFilt    =  char(fread(HDR.FILE.FID,[80,HDR.NS],'uchar')');	%	
                                 HDR.AS.SPR     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32')';	%	samples per data record
                                 HDR.GDFTYP     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32');	%	datatype
                         else
-                                HDR.PreFilt    = char(fread(HDR.FILE.FID,[80-12,HDR.NS],'uchar')');	%	
+ 	                        HDR.DigMin     =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');
+ 	                        HDR.DigMax     =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');
+                                HDR.PreFilt    =  char(fread(HDR.FILE.FID,[80-12,HDR.NS],'uchar')');	%	
                                 HDR.Filter.LowPass  =  fread(HDR.FILE.FID,[ 1,HDR.NS],'float32');	% 
                                 HDR.Filter.HighPass =  fread(HDR.FILE.FID,[ 1,HDR.NS],'float32');	%
                                 HDR.Filter.Notch    =  fread(HDR.FILE.FID,[ 1,HDR.NS],'float32');	%
                                 HDR.AS.SPR     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32')';	%	samples per data record
                                 HDR.GDFTYP     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32');	%	datatype
-                                HDR.ELEC.XYZ = fread(HDR.FILE.FID,[ 3,HDR.NS],'float32')';	%	datatype
-                                tmp          = fread(HDR.FILE.FID,[HDR.NS, 1],'uint8');	%	datatype
+                                HDR.ELEC.XYZ   =       fread(HDR.FILE.FID,[ 3,HDR.NS],'float32')';	%	datatype
+                                tmp            =       fread(HDR.FILE.FID,[HDR.NS, 1],'uint8');	%	datatype
                                 HDR.REC.Impedance = 2.^(tmp/8);
 			end;
+                        HDR.THRESHOLD  = [HDR.DigMin,HDR.DigMax];       % automated overflow detection 
                 end;
 
                 if HDR.VERSION<1.9,
@@ -599,13 +602,9 @@ end;
                 if any(HDR.PhysMax==HDR.PhysMin), HDR.ErrNo=[1029,HDR.ErrNo]; end;	
                 if any(HDR.DigMax ==HDR.DigMin ), HDR.ErrNo=[1030,HDR.ErrNo]; end;	
                 
-                if HDR.NS & ~any(HDR.GDFTYP(1)==[0,16:18])
-                        HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
-                        HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
-                else
-                        HDR.Off = zeros(HDR.NS,1);
-                        HDR.Cal = ones(HDR.NS,1);
-                end;
+                HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
+                HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
+
                 HDR.EDF.SampleRate = HDR.AS.SPR / HDR.Dur;
                 HDR.SPR=1;
                 for k=1:HDR.NS,
@@ -1079,12 +1078,6 @@ end;
                                 tmp=min(8,size(HDR.PhysDim,2));
                                 HDR.PhysDim=[HDR.PhysDim(1:HDR.NS,1:tmp), setstr(32+zeros(HDR.NS,8-tmp))];
                         end;
-                        if any(HDR.GDFTYP(1)==[0,16:18])
-                                HDR.DigMin  = repmat(-2^31,1,HDR.NS);
-                                HDR.DigMax  = repmat( 2^31-1,1,HDR.NS);
-                                HDR.PhysMin = repmat(-2^31,1,HDR.NS);
-                                HDR.PhysMax = repmat( 2^31-1,1,HDR.NS);
-                        end;
                         if ~isfield(HDR,'PhysMin')
                                 if HDR.NS>0,
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.PhysMin not defined\n');
@@ -1379,19 +1372,22 @@ end;
                                 fwrite(HDR.FILE.FID, abs(HDR.PhysDim)','uchar');
                                 fwrite(HDR.FILE.FID, HDR.PhysMin,'float64');
                                 fwrite(HDR.FILE.FID, HDR.PhysMax,'float64');
-                                if exist('OCTAVE_VERSION','builtin'),  % Octave does not support INT64 yet. 
-                                        fwrite(HDR.FILE.FID, [HDR.DigMin(:),-(HDR.DigMin(:)<0)]','int32');
-                                        fwrite(HDR.FILE.FID, [HDR.DigMax(:),-(HDR.DigMax(:)<0)]','int32');
-                                else
-                                        fwrite(HDR.FILE.FID, HDR.DigMin, 'int64');
-                                        fwrite(HDR.FILE.FID, HDR.DigMax, 'int64');
-                                end;
                                 if (HDR.VERSION<1.9),
+	                                if exist('OCTAVE_VERSION','builtin'),  % Octave does not support INT64 yet. 
+	                                        fwrite(HDR.FILE.FID, [HDR.DigMin(:),-(HDR.DigMin(:)<0)]','int32');
+	                                        fwrite(HDR.FILE.FID, [HDR.DigMax(:),-(HDR.DigMax(:)<0)]','int32');
+	                                else
+	                                        fwrite(HDR.FILE.FID, HDR.DigMin, 'int64');
+	                                        fwrite(HDR.FILE.FID, HDR.DigMax, 'int64');
+	                                end;
                                         fwrite(HDR.FILE.FID, abs(HDR.PreFilt)','uchar');
                                         fwrite(HDR.FILE.FID, HDR.AS.SPR,'uint32');
                                         fwrite(HDR.FILE.FID, HDR.GDFTYP,'uint32');
 	                                fwrite(HDR.FILE.FID,32*ones(32,HDR.NS),'char');
                                 else
+                                        fwrite(HDR.FILE.FID, HDR.DigMin, 'float64');
+                                        fwrite(HDR.FILE.FID, HDR.DigMax, 'float64');
+                                        
                                         fwrite(HDR.FILE.FID, abs(HDR.PreFilt(:,1:68))','uchar');
                                         fwrite(HDR.FILE.FID, HDR.Filter.LowPass,'float32');
                                         fwrite(HDR.FILE.FID, HDR.Filter.HighPass,'float32');

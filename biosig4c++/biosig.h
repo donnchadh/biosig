@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.13 2005-10-13 08:13:01 schloegl Exp $
+% $Id: biosig.h,v 1.14 2005-10-13 16:38:35 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -38,11 +38,11 @@
 
 #include <inttypes.h>
 
-#ifndef BIOSIG_H
-#define BIOSIG_H
+#ifndef __BIOSIG_H__
+#define __BIOSIG_H__
 
 	// list of file formats 
-enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP}; 
+enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP_ECG}; 
 
 enum HANDEDNESS {Unknown=0, Right=1, Left=2, Equal=3}; 
 enum GENDER  	{male=1,  female=2};
@@ -102,8 +102,8 @@ typedef struct {
 	
 	double 		PhysMin;	// physical minimum
 	double 		PhysMax;	// physical maximum
-	int64_t 	DigMin;		// digital minimum
-	int64_t 	DigMax;		// digital maximum
+	double 		DigMin;		// digital minimum
+	double	 	DigMax;		// digital maximum
 
 	uint16_t 	GDFTYP;		// data type
 	uint32_t 	SPR;		// samples per record (block)
@@ -176,6 +176,11 @@ typedef struct {
 		uint32_t 	*DUR;	// duration [in samples]
 		uint16_t 	*CHN;	// channel number; 0: all channels 
 	} EVENT; 
+
+	struct {	// flags
+		char		OVERFLOWDETECTION; 	// overflow & saturation detection 0: OFF, !=0 ON
+		char		UCAL; 		// UnCalibration  0: scaling  !=0: NO scaling - raw data return 
+	} FLAG; 
 
 	struct {	// File specific data 
 		FILE* 		FID;		// file handle 
