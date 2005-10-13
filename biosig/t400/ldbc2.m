@@ -24,7 +24,7 @@ function [LDBC,ix]=ldbc2(ECM,Y)
 % 
 % see also: COVM, MDBC, LDBC, LDBC2, LDBC3, LDBC4, TRAIN_SC, TEST_SC
 
-%	$Id: ldbc2.m,v 1.3 2005-05-21 20:13:15 schloegl Exp $
+%	$Id: ldbc2.m,v 1.4 2005-10-13 07:56:55 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -95,7 +95,7 @@ for k = 1:NC(1);
 	ecm = squeeze(ECM(k,:,:));
         [M1,sd,COV1,xc,N,R2] = decovm(ECM0-ecm);
         [M2,sd,COV2,xc,N,R2] = decovm(ecm);
-        w     = (COV1+COV2)\(M2'-M1');
+        w     = (COV1+COV2)\(M2'-M1')*2;
         w0    = -M0*w;
         LDC(:,k) = [w0; w];
 end;

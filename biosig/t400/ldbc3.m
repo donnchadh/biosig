@@ -24,7 +24,7 @@ function [LDBC,ix]=ldbc3(ECM,Y)
 % 
 % see also: COVM, MDBC, LDBC, LDBC2, LDBC3, LDBC4, TRAIN_SC, TEST_SC
 
-%	$Id: ldbc3.m,v 1.3 2005-05-21 20:13:15 schloegl Exp $
+%	$Id: ldbc3.m,v 1.4 2005-10-13 07:56:55 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -52,6 +52,10 @@ if length(NC)<3,
                         ECM(k,:,:) = tmp{k};
                 end;
 
+	elseif isfield(ECM,'MD') & isfield(ECM,'NN')
+    		ECM = ECM.MD./ECM.NN; 
+    		NC  = size(ECM);
+        
 	elseif isfield(ECM,'COV') & isfield(ECM,'NN')
     		ECM = ECM.COV./ECM.NN; 
     		NC  = size(ECM);
@@ -59,6 +63,7 @@ if length(NC)<3,
         elseif isstruct(ECM),
                 x = ECM;
                 NC=[length(x.IR),size(x.IR{1})];
+                
         elseif NC(1)==NC(2)
                 ECM{1}=ECM;
         end;
@@ -82,7 +87,6 @@ end
 if nargin>1,
         if NC(2) == size(Y,2)+1;
                 Y = [ones(size(Y,1),1),Y];  % add 1-column
-                fprintf(2,'Warning LDBC: 1-column added to data \n');
         elseif ~all(Y(:,1)==1 | isnan(Y(:,1)))
                 warning('first column does not contain ones only') 
         end;
@@ -95,7 +99,7 @@ for k = 1:NC(1);
 	ecm = squeeze(ECM(k,:,:));
         [M1,sd,COV1,xc,N,R2] = decovm(ECM0-ecm);
         [M2,sd,COV2,xc,N,R2] = decovm(ecm);
-        w     = COV0\(M2'-M1');
+        w     = COV0\(M2'-M1')*2;
         w0    = -M0*w;
         LDC(:,k) = [w0; w];
 end;
