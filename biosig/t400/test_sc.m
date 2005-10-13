@@ -1,5 +1,5 @@
 function [R]=test_sc(CC,D,mode,classlabel)
-% TEST_SC: test statistical classifier
+% TEST_SC: apply statistical and SVM classifier to test data 
 %
 %  R = test_sc(CC,D,TYPE [,target_Classlabel]) 
 %       R.output     output distance for each class
@@ -11,17 +11,19 @@ function [R]=test_sc(CC,D,mode,classlabel)
 %
 %  The following classifier types are provide 
 %    TYPE = 'MDA'    mahalanobis distance based classifier
+%    TYPE = 'MD2'    mahalanobis distance based classifier
+%    TYPE = 'MD3'    mahalanobis distance based classifier
 %    TYPE = 'GRB'    Gaussian radial basis function 
 %    TYPE = 'QDA'    quadratic discriminant analysis
 %    TYPE = 'LD2'    linear discriminant analysis (see LDBC2)
-%    TYPE = 'LD3'    linear discriminant analysis (see LDBC2)
-%    TYPE = 'LD4'    linear discriminant analysis (see LDBC2)
+%    TYPE = 'LD3'    linear discriminant analysis (see LDBC3)
+%    TYPE = 'LD4'    linear discriminant analysis (see LDBC4)
 %    TYPE = 'GDBC'   general distance based classifier
 %    TYPE = 'SVM'    support vector machines
 % 
-% see also: COVM, DECOVM, R2, MDBC, GDBC, LDBC2, LDBC3, LDBC4
+% see also: MDBC, GDBC, LDBC2, LDBC3, LDBC4, TRAIN_SC, TRAIN_SVM
 
-%	$Id: test_sc.m,v 1.2 2005-10-03 13:18:56 schloegl Exp $
+%	$Id: test_sc.m,v 1.3 2005-10-13 08:26:19 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -39,35 +41,61 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-
-if strcmpi(mode,'LD2'),
-        d = ldbc2(CC.MD,D);
-        [tmp,cl] = max(d,[],2);
-elseif strcmpi(mode,'LD3');
-        d = ldbc3(CC.MD,D);
-        [tmp,cl] = max(d,[],2);
-elseif strcmpi(mode,'LD4');
-        d = ldbc4(CC.MD,D);
-        [tmp,cl] = max(d,[],2);
-elseif strcmpi(mode,'MDA');
-        d = mdbc(CC.MD,D);
-        [tmp,cl] = min(d,[],2);
-elseif strcmpi(mode,'GDBC');
-        [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
-        d = exp(-MDBC{7}/2);
-        [tmp,cl] = max(d,[],2);
-elseif strcmpi(mode,'QDA');
-        [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
-        d = MDBC{4};
-        [tmp,cl] = max(d,[],2);
-elseif strcmpi(mode,'GRB');
-        d = mdbc(CC.MD,D);
-        [tmp,cl] = max(exp(-d/2),[],2);
-elseif strcmpi(mode,'SVM');
-        d = D*CC.w+CC.b;
-        [tmp,cl] = max(d,[],2);
+if nargin<3, 
+        mode = [];
 end;
-cl(all(isnan(d),2)) = NaN; 
+[t1,t] = strtok(CC.datatype,':');
+[t2,t] = strtok(t,':');
+[t3,t] = strtok(t,':');
+if ~strcmp(t1,'classifier'), return; end; 
+
+if 0, 
+        
+elseif isfield(CC,'weights'); %strcmpi(t2,'svm') | (strcmpi(t2,'statistical') & strncmpi(t3,'ld',2)) |  ;
+        d = [ones(size(D,1),1), D] * CC.weights;
+        [tmp,cl] = max(d,[],2);
+        cl(all(isnan(d),2)) = NaN; 
+        
+elseif strcmp(t2,'statistical');
+        if isempty(mode)
+                mode = upper(t3); 
+        end;
+        if strcmpi(mode,'LD2'),
+                d = ldbc2(CC.MD,D);
+                [tmp,cl] = max(d,[],2);
+        elseif strcmpi(mode,'LD3');
+                d = ldbc3(CC.MD,D);
+                [tmp,cl] = max(d,[],2);
+        elseif strcmpi(mode,'LD4');
+                d = ldbc4(CC.MD,D);
+                [tmp,cl] = max(d,[],2);
+        elseif strcmpi(mode,'MDA');
+                d = -(mdbc(CC.MD,D).^2);
+                [tmp,cl] = max(d,[],2);
+        elseif strcmpi(mode,'MD2');
+                d = -mdbc(CC.MD,D);
+                [tmp,cl] = max(d,[],2);
+        elseif strcmpi(mode,'GDBC');
+                [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
+                d = exp(-MDBC{7}/2);
+                [tmp,cl] = max(d,[],2);
+        elseif strcmpi(mode,'MD3');
+                [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
+                d = -GDBC;
+                [tmp,cl] = max(d,[],2);
+        elseif strcmpi(mode,'QDA');     
+                [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
+                d = MDBC{4};
+                [tmp,cl] = max(d,[],2);
+        elseif strcmpi(mode,'GRB');     % Gaussian RBF
+                d = exp(-mdbc(CC.MD,D)/2);
+                [tmp,cl] = max(d,[],2);
+        end;
+        
+else
+        fprintf(2,'Error TEST_SC: unknown classifier\n'); 
+        return; 
+end;
 
 R.output = d; 
 R.classlabel = cl; 

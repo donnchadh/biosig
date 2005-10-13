@@ -1,4 +1,4 @@
-function [CC]=train_sc(D,classlabel)
+function [CC]=train_sc(D,classlabel,FUN)
 % Train statistical classifier
 % 
 %  CC = train_sc(D,classlabel)
@@ -12,7 +12,7 @@ function [CC]=train_sc(D,classlabel)
 %
 % see also: TEST_SC, COVM, LDBC2, LDBC3, LDBC4, MDBC, GDBC
 
-%	$Id: train_sc.m,v 1.2 2005-03-07 17:11:20 schloegl Exp $
+%	$Id: train_sc.m,v 1.3 2005-10-13 08:26:19 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -30,6 +30,12 @@ function [CC]=train_sc(D,classlabel)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
+if nargin<3, FUN = ''; end;
+        
+% remove all NaN's
+ix = any(isnan([D,classlabel]),2);
+D(ix,:)=[];
+classlabel(ix,:)=[];
 
 [CC.Labels] = unique(classlabel(~isnan(classlabel)));
 
@@ -38,9 +44,21 @@ if sz(1)~=length(classlabel),
         error('length of data and classlabel does not fit');
 end;
 
-CC.datatype = 'classifier:statistical';
-CC.MD = repmat(NaN,[length(CC.Labels),sz(2)+[1,1]]);
-CC.NN = CC.MD;
-for k=1:length(CC.Labels),
-        [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
-end;        
+if isempty(strfind(lower(FUN),'svm'))
+        CC.datatype = ['classifier:statistical:',lower(FUN)];
+        CC.MD = repmat(NaN,[length(CC.Labels),sz(2)+[1,1]]);
+        CC.NN = CC.MD;
+        for k=1:length(CC.Labels),
+                [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
+        end;        
+        if strcmpi(FUN,'LD2');
+                CC.weights = ldbc2(CC); 
+        elseif strcmpi(FUN,'LD3');
+                CC.weights = ldbc3(CC); 
+        elseif strcmpi(FUN,'LD4');
+                CC.weights = ldbc4(CC); 
+        end;
+else
+        CC = train_svm(D,classlabel);
+        %CC = train_svm(D,classlabel,'SVM:LIB');
+end;
