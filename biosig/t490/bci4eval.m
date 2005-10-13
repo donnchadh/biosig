@@ -14,6 +14,7 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %   Missing values can be encoded as NaN.
 %
 % X = bci4eval(tsd,trig,cl,pre,post,Fs)
+% INPUT:
 %       tsd     continous output 
 %               for 2 classes, tsd must have size Nx1 
 %               size NxM for M-classes, for each row the largest value 
@@ -24,7 +25,26 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %       post    offset of trial end 
 %       Fs      sampling rate;
 %
+% OUTPUT: 
 %       X is a struct with various results  
+%       2-classes:
+%               X.MEAN1, XMEAN2: mean of both classes      
+%               X.ERR           error rate 
+%               X.p_value       significance level of paired t-test 
+%               X.SNR           signal-to-noise ratio
+%               X.I             mutual information
+%               X.AUC           area-under-the-(ROC) curve
+%       N(>2)-classes:
+%               X.KAP00         Cohen's kappa coefficient
+%               X.Ksd00         standard error of kappa coefficient 
+%               X.ACC00         accuracy 
+%
+%               X.MEAN0         average output of non-active class                
+%               X.MEAN1         average output of active class
+%               X.SNR           signal-to-noise ratio for each class
+%               X.I             mutual information for each class
+%               X.AUC           area-under-the-(ROC) curve for each class
+%        
 %
 % see also: SUMSKIPNAN, PLOTA, BCI3EVAL
 %
@@ -39,8 +59,8 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %	http://ida.first.fraunhofer.de/projects/bci/competition/results/TR_BCI2003_III.pdf
 
 
-%    $Revision: 1.4 $
-%    $Id: bci4eval.m,v 1.4 2005-06-04 22:07:44 schloegl Exp $
+%    $Revision: 1.5 $
+%    $Id: bci4eval.m,v 1.5 2005-10-13 07:55:38 schloegl Exp $
 %    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -95,8 +115,9 @@ if (length(CL)==2) & (sz(1)==1),
                 X{k} = squeeze(D(:,cl==CL(k),:));
         end;
 
-        % classification error 
+        % classification error/accuracy 
         o.ERR = (1-mean(sign([-X{1},X{2}]),DIM))/2;
+        o.ACC00 = 1-o.ERR; 
         
         % within-class accuracy
         o.BCG1 = (1 + mean(sign(-X{1}), DIM))/2;
@@ -115,22 +136,82 @@ if (length(CL)==2) & (sz(1)==1),
         v2    = i2.SSQ-i2.SUM.*o.MEAN2;
         o.SD2 = sqrt(v2./o.N2);
         %o.SE2 = sqrt(v2)./o.N2;
-        
+    
         %%%%% Signal-to-Noise Ratio 
         
         % intra-class variability
         vd = var([-X{1},X{2}],[],DIM);        
+
+        % paired t-test
+        [se,m]=sem([-X{1},X{2}],DIM);
+        o.p_value = 2 * tcdf(-abs(m./se),o.N1+o.N2-2);
         
         o.SNR = 1/4*(o.MEAN2-o.MEAN1).^2./vd; 
         
         %%%%% Mutual Information 
         o.I   = 1/2*log2(o.SNR+1);
         
+        %%%%% ROC, AUC
+        [s,ix]=sort(D,DIM);
+        if DIM==2, D=D'; end; 
+        [s,ix]=sort(D,1);
+        TNR = cumsum(cl(ix)==CL(1),1);
+        FNR = cumsum(cl(ix)==CL(2),1);
+        TNR = TNR./repmat(TNR(end,:),size(ix,1),1);
+        FNR = FNR./repmat(FNR(end,:),size(ix,1),1);
+        AUC = sum(diff(FNR,[],1) .* (TNR(1:end-1,:)+TNR(2:end,:)))/2;
+        o.AUC = AUC'; 
+
+        for k=1:size(D,2),
+                [kap,sd,H,z,OA,SA] = kappa(cl(:),D(:,k)>0);
+                tpr = H(1,1)/sum(H(1,:));
+                fpr = H(2,2)/sum(H(2,:));
+                if tpr>fpr,
+                        Aprime(1,k) = 1/2 +(+tpr-fpr)*(1+tpr-fpr)/(4*tpr*(1-fpr));
+                else
+                        Aprime(1,k) = 1/2 -(-tpr+fpr)*(1-tpr+fpr)/(4*fpr*(1-tpr));
+                end
+                dprime(1,k) = norminv(tpr)-norminv(fpr); 
+                %ACC1,k) = sum(diag(H))/sum(H(:)); %see above
+        end;
+        o.dprime = dprime';
+        o.Aprime = Aprime';
+        
+        %%%%% OUTPUT
         o.datatype = 'TSD_BCI7';  % useful for PLOTA
         
 end
 
 if length(CL)==sz(1),
+        for k=1:sz(1),
+                x = bci4eval(tsd(:,k),TRIG,cl==CL(k),pre,post,Fs);
+                if k==1; 
+                        o.ERR      = x.ERR;
+                        o.MEAN1    = x.MEAN1;
+                        o.MEAN2    = x.MEAN2;
+                        o.SD0      = x.SD1;
+                        o.SD1      = x.SD2;
+                        o.SNR      = x.SNR;
+                        o.I        = x.I;
+                        o.AUC      = x.AUC;
+                        o.Aprime   = x.Aprime;
+                        o.dprime   = x.dprime;
+                        
+                else
+                        o.ERR(:,k)      = x.ERR;
+                        o.MEAN1(:,k)    = x.MEAN1;
+                        o.MEAN2(:,k)    = x.MEAN2;
+                        o.SD0(:,k)      = x.SD1;
+                        o.SD1(:,k)      = x.SD2;
+                        o.SNR(:,k)      = x.SNR;
+                        o.I(:,k)        = x.I;
+                        o.AUC(:,k)      = x.AUC;
+                        o.Aprime(:,k)   = x.Aprime;
+                        o.dprime(:,k)   = x.dprime;
+                end;
+        end;
+        o.CL = CL'; 
+        
         [m,IX] = max(D,[],1);
         IX(isnan(m)) = NaN;
         IX = squeeze(IX);
@@ -141,14 +222,18 @@ if length(CL)==sz(1),
                 CMX(:,k,j)=sum(IX(:,CL(k)==cl)==CL(j),2);
         end;
         end;
+        o.CMX = CMX; 
         
         o.KAP00 = zeros(size(CMX,1),1);
         o.Ksd00 = zeros(size(CMX,1),1);
         o.ACC00 = zeros(size(CMX,1),1);
         for k   = 1:size(CMX,1),
-                [o.KAP00(k),o.Ksd00(k),h,z,o.ACC00(k)]=kappa(squeeze(CMX(k,:,:)));            
+                [o.KAP00(k),o.Ksd00(k),h,z,o.ACC00(k)] = kappa(squeeze(CMX(k,:,:)));            
         end;
         o.datatype = 'TSD_BCI8';  % useful for PLOTA
+        [tmp,ix]=max(o.KAP00); 
+        o.optCMX=squeeze(CMX(ix,:,:));%,length(CL)*[1,1]);
+        
         
 elseif sz(1)==1,
         
