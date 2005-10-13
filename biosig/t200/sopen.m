@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.121 $
-%	$Id: sopen.m,v 1.121 2005-09-21 15:48:33 schloegl Exp $
+%	$Revision: 1.122 $
+%	$Id: sopen.m,v 1.122 2005-10-13 08:05:09 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -201,7 +201,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         SCALE13 = {'unknown','no','yes'};
         SCALE14 = {'unknown','no','yes','corrected'};
                 
-        if any(PERMISSION=='r');
+        if any(HDR.FILE.PERMISSION=='r');
                 [HDR.FILE.FID,MESSAGE]=fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');          
                 
                 if HDR.FILE.FID<0 
@@ -774,7 +774,7 @@ end;
                         HDR = sclose(HDR);
                 end;	
                 
-        elseif any(PERMISSION=='w');                %%%%%%% ============= WRITE ===========%%%%%%%%%%%%        
+        elseif any(HDR.FILE.PERMISSION=='w');                %%%%%%% ============= WRITE ===========%%%%%%%%%%%%        
                 if strcmp(HDR.TYPE,'EDF')
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF') 
@@ -1292,7 +1292,7 @@ end;
 				tmp = floor([rem(tmp,1)*2^32;tmp]);
                                 c = fwrite(HDR.FILE.FID,tmp,'uint32');
                                 c=fwrite(HDR.FILE.FID,[HDR.HeadLen/256,0,0,0],'uint16');
-                                c=fwrite(HDR.FILE.FID,'b4om1.91','uint8'); % EP_ID=ones(8,1)*32;
+                                c=fwrite(HDR.FILE.FID,'b4om1.92','uint8'); % EP_ID=ones(8,1)*32;
 				tmp = [HDR.REC.IPaddr, zeros(1,2)];
 			        c=fwrite(HDR.FILE.FID,tmp(6:-1:1),'uint8'); % IP address
 			        c=fwrite(HDR.FILE.FID,HDR.Patient.Headsize(1:3),'uint16'); % circumference, nasion-inion, left-right mastoid in [mm]
@@ -5657,25 +5657,26 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 HDR.VERSION = fread(HDR.FILE.FID,1,'int32');
                 HDR.Dur = fread(HDR.FILE.FID,1,'double');
                 HDR.SampleRate = 1/HDR.Dur;
-                HDR.T0 = fread(HDR.FILE.FID,5,'int32');
+                HDR.T0 = fread(HDR.FILE.FID,[1,5],'int32');
                 tmp = fread(HDR.FILE.FID,2,'double');
                 HDR.T0(6) = tmp(1);
                 HDR.CFWB.preTrigger = tmp(2);
                 HDR.NS = fread(HDR.FILE.FID,1,'int32');
-                HDR.SPR = fread(HDR.FILE.FID,1,'int32');
-                HDR.NRec = 1;
+                HDR.NRec = fread(HDR.FILE.FID,1,'int32');
+                HDR.SPR = 1;
                 HDR.FLAG.TRIGGERED = 0;	        
+                HDR.AS.endpos = HDR.NRec*HDR.SPR;
                 
                 HDR.FLAG.TimeChannel = fread(HDR.FILE.FID,1,'int32');
                 tmp = fread(HDR.FILE.FID,1,'int32');
                 if tmp == 1, 
-                        HDR.GDFTYP = 'float64';
+                        HDR.GDFTYP = 17; %'float64';
                         HDR.AS.bpb = HDR.NS * 8;
                 elseif tmp == 2, 
-                        HDR.GDFTYP = 'float32';
+                        HDR.GDFTYP = '16; %float32';
                         HDR.AS.bpb = HDR.NS * 4;
                 elseif tmp == 3, 
-                        HDR.GDFTYP = 'int16';
+                        HDR.GDFTYP = 3; %'int16';
                         HDR.AS.bpb = HDR.NS * 2;
                 end;
                 for k = 1:HDR.NS,
@@ -5695,22 +5696,28 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                         fprintf(HDR.FILE.stderr,'Error SOPEN-W CFWB: number of channels HDR.NS undefined.\n');
                         return;
                 end;
-                if ~isfield(HDR,'SPR'),
-                        HDR.SPR = 0; 	% Unknown - Value will be fixed when file is closed. 
-                else
-                        HDR.SPR = HDR.SPR(1);
+                if ~isfield(HDR,'NRec'),
+                        HDR.NRec = -1; 	% Unknown - Value will be fixed when file is closed. 
                 end;
+                HDR.SPR = 1; 
                 if ~isfield(HDR,'SampleRate'),
                         HDR.SampleRate = 1; 	% Unknown - Value will be fixed when file is closed. 
-                        fprintf(HDR.FILE.stderr,'Warning SOPEN-W CFWB: samplerate undefined.\n');
+                        if isfield(HDR,'Dur') 
+                                HDR.SampleRate = 1/HDR.Dur; 
+                        else        
+                                fprintf(HDR.FILE.stderr,'Warning SOPEN-W CFWB: samplerate undefined.\n');
+                        end;
+                else
+                        HDR.Dur = 1/HDR.SampleRate; 
                 end;
-                if (any(HDR.SPR<0) & any(HDR.FILE.PERMISSION=='z')),
+                
+                if (any(HDR.NRec<0) & any(HDR.FILE.PERMISSION=='z')),
                         %% due to a limitation zlib
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN (CFWB) "wz": Update of HDR.SPR not possible.\n',HDR.FileName);
                         fprintf(HDR.FILE.stderr,'\t Solution(s): (1) define exactly HDR.SPR before calling SOPEN(HDR,"wz"); or (2) write to uncompressed file instead.\n');
                         return;
                 end;
-                if any([HDR.SPR==0]), 	% if any unknown, ...				
+                if any([HDR.NRec<=0]), 	% if any unknown, ...				
                         HDR.FILE.OPEN = 3;			%	... fix header when file is closed. 
                 end;
                 if ~isfield(HDR,'CFWB'),
@@ -5780,7 +5787,6 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 HDR.PhysDim = [HDR.PhysDim, setstr(repmat(32,size(HDR.PhysDim,1),max(0,UNITS_LEN-size(HDR.PhysDim,2))))];
                 HDR.PhysDim = [HDR.PhysDim; setstr(repmat(32,max(0,HDR.NS-size(HDR.PhysDim,1)),size(HDR.PhysDim,2)))];
                 
-                
                 %%%%% write fixed header
                 HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 if HDR.FILE.FID<0, 
@@ -5791,11 +5797,11 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 end;
                 fwrite(HDR.FILE.FID,'CFWB','char');
                 fwrite(HDR.FILE.FID,HDR.VERSION,'int32');
-                fwrite(HDR.FILE.FID,1/HDR.SampleRate(1),'double');
+                fwrite(HDR.FILE.FID,HDR.Dur,'double');
                 fwrite(HDR.FILE.FID,HDR.T0(1:5),'int32');
                 fwrite(HDR.FILE.FID,HDR.T0(6),'double');
-                fwrite(HDR.FILE.FID,HDR.preTrigger,'double');
-                fwrite(HDR.FILE.FID,[HDR.NS,HDR.SPR,HDR.Flag.TimeChannel],'int32');
+                fwrite(HDR.FILE.FID,HDR.CFWB.preTrigger,'double');
+                fwrite(HDR.FILE.FID,[HDR.NS,HDR.NRec,HDR.Flag.TimeChannel],'int32');
                 fwrite(HDR.FILE.FID,tmp,'int32');
                 HDR.HeadLen = ftell(HDR.FILE.FID);
                 if (HDR.HeadLen~=68),
@@ -5815,13 +5821,13 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                         fprintf(HDR.FILE.stderr,'Error SOPEN CFWB: size of header2 does not fit in file %s\n',HDR.FileName);
                 end;
         end;
-        HDR.Calib = [HDR.Off';speye(HDR.NS)]*spdiags(1:HDR.NS,1:HDR.NS,HDR.Cal);
+        HDR.Calib = [HDR.Off';speye(HDR.NS)]*sparse(1:HDR.NS,1:HDR.NS,HDR.Cal);
         HDR.Label = setstr(HDR.Label);
         HDR.PhysDim = setstr(HDR.PhysDim);
         
         HDR.HeadLen = ftell(HDR.FILE.FID);
         HDR.FILE.POS = 0; 
-        HDR.AS.endpos = HDR.SPR; 
+        HDR.AS.endpos = HDR.NRec*HDR.SPR; 
         
         
 elseif strcmp(HDR.TYPE,'ISHNE'),
@@ -6415,7 +6421,7 @@ elseif strcmp(HDR.TYPE,'CTF'),
 
 			info.index2(k,:) = fread(HDR.FILE.FID,1,'int16');
 			info.extra2(k,:) = fread(HDR.FILE.FID,1,'int16');
-			info.ix2(k,:) = fread(HDR.FILE.FID,1,'int32');
+			info.ix2(k,:)    = fread(HDR.FILE.FID,1,'int32');
 
 			fseek(HDR.FILE.FID,1280,'cof');
 		end;
@@ -6484,6 +6490,30 @@ elseif strcmp(HDR.TYPE,'CTF'),
 		HDR.AS.endpos = ftell(HDR.FILE.FID);
 		fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         end;
+
+        
+elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
+        %read event file 
+        fid = fopen(HDR.FileName,'rt');
+        if fid>0,
+                while ~feof(fid),
+                        s = fgetl(fid);
+                        if strncmp(s,'Mk',2),
+                                [N,s] = strtok(s(3:end),'=');
+                                ix = find(s==',');
+                                ix(length(ix)+1)=length(s)+1;
+                                N = str2double(N);
+                                HDR.EVENT.POS(N,1) = str2double(s(ix(2)+1:ix(3)-1));
+                                HDR.EVENT.TYP(N,1) = 0;
+                                HDR.EVENT.DUR(N,1) = str2double(s(ix(3)+1:ix(4)-1));
+                                HDR.EVENT.CHN(N,1) = str2double(s(ix(4)+1:ix(5)-1));
+                                HDR.EVENT.TeegType{N,1} = s(2:ix(1)-1);
+                                HDR.EVENT.TeegDesc{N,1} = s(ix(1)+1:ix(2)-1);
+                        end;
+                end
+                fclose(fid);
+                HDR.TYPE = 'EVENT';
+        end
 
         
 elseif strcmp(HDR.TYPE,'BrainVision'),
@@ -6574,25 +6604,10 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         end
         
         %read event file 
-        fid = fopen(fullfile(HDR.FILE.Path, HDR.BV.MarkerFile),'rt');
-        if fid>0,
-                while ~feof(fid),
-                        s = fgetl(fid);
-                        if strncmp(s,'Mk',2),
-                                [N,s] = strtok(s(3:end),'=');
-                                ix = find(s==',');
-                                ix(length(ix)+1)=length(s)+1;
-                                N = str2double(N);
-                                HDR.EVENT.POS(N,1) = str2double(s(ix(2)+1:ix(3)-1));
-                                HDR.EVENT.TYP(N,1) = 0;
-                                HDR.EVENT.DUR(N,1) = str2double(s(ix(3)+1:ix(4)-1));
-                                HDR.EVENT.CHN(N,1) = str2double(s(ix(4)+1:ix(5)-1));
-                                HDR.EVENT.TeegType{N,1} = s(2:ix(1)-1);
-                                HDR.EVENT.TeegDesc{N,1} = s(ix(1)+1:ix(2)-1);
-                        end;
-                end
-                fclose(fid);
-        end
+        H = sopen(fullfile(HDR.FILE.Path, HDR.BV.MarkerFile),'rt');
+        if strcmp(H.TYPE,'EVENT');
+                HDR.EVENT = H.EVENT; 
+        end; 
 
         %open data file 
         if strncmpi(HDR.BV.DataFormat, 'binary',5)
