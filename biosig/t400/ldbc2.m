@@ -24,7 +24,7 @@ function [LDBC,ix]=ldbc2(ECM,Y)
 % 
 % see also: COVM, MDBC, LDBC, LDBC2, LDBC3, LDBC4, TRAIN_SC, TEST_SC
 
-%	$Id: ldbc2.m,v 1.4 2005-10-13 07:56:55 schloegl Exp $
+%	$Id: ldbc2.m,v 1.5 2005-10-13 08:23:13 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -54,6 +54,10 @@ if length(NC)<3,
 
 	elseif isfield(ECM,'COV') & isfield(ECM,'NN')
     		ECM = ECM.COV./ECM.NN; 
+    		NC  = size(ECM);
+        
+	elseif isfield(ECM,'MD') & isfield(ECM,'NN')
+    		ECM = ECM.MD./ECM.NN; 
     		NC  = size(ECM);
         
         elseif isstruct(ECM),
