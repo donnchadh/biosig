@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.45 $
-%	$Id: getfiletype.m,v 1.45 2005-10-13 21:40:23 schloegl Exp $
+%	$Revision: 1.46 $
+%	$Id: getfiletype.m,v 1.46 2005-10-13 22:20:53 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -633,17 +633,18 @@ else
 			id = 'BGP';
 			HDR.TYPE(8) = id(s(2)-abs('3'));
 			[t,ss] = strtok(ss,[10,13]);
+			lt = length(t) + 1;
 			[t,ss] = strtok(ss,[10,13]);
+			lt = lt + length(t) + 1;
 			while strncmp(t,'#',1)
 				[t,ss] = strtok(ss,[10,13]);
+				lt = lt + length(t) + 1; 
 			end;	
-			ss = [t,ss];
-			ss((ss==10) | (ss==13))=32;
-			len = min(find((ss<32) | (ss>127)));
-			tmp = str2double(ss(1:len));
-			HDR.IMAGE.Size = tmp(1:2);
-	    		HDR.DigMax = tmp(3);
-			HDR.HeadLen = len-1; %gth(ss)-length(t)+1;
+			HDR.IMAGE.Size = str2double(t);
+			[t,ss] = strtok(ss,[10,13]);
+			lt = lt + length(t) + 1;
+			HDR.DigMax  = str2double(t);
+			HDR.HeadLen = lt;
 
                 elseif strcmpi(HDR.FILE.Ext,'XBM') & ~isempty(strfind(ss,'bits[]')) & ~isempty(strfind(ss,'width')) & ~isempty(strfind(ss,'height'))
                         HDR.TYPE='IMAGE:XBM';
