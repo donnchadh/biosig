@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.12 2005-09-26 15:03:32 schloegl Exp $
+    $Id: biosig.c,v 1.13 2005-10-13 08:13:01 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -43,6 +43,9 @@
 
 #include "biosig.h"
 //#include "zlib.h"
+
+
+const int GDFTYP_BYTE[] = {1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8, 16};
 
 
 /****************************************************************************/
@@ -191,8 +194,8 @@ HDRTYPE sopen(const char* FileName, HDRTYPE HDR, const char* MODE)
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
 	const float	CNT_SETTINGS_HIGHPASS[] = {0.0/0.0, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
 
-    	int 		k;
-    	unsigned int 	count,len;
+    	int 		k,id,;
+    	size_t	 	count,len,pos;
     	char 		tmp[81];
     	char 		cmd[256];
     	double 		Dur; 
@@ -201,7 +204,9 @@ HDRTYPE sopen(const char* FileName, HDRTYPE HDR, const char* MODE)
 	char*		ptr_str;
 	struct tm 	tm_time; 
 	time_t		tt;
-	
+	struct	{
+		int	number_of_sections;
+	} SCP
 
 if (!strcmp(MODE,"r"))	
 {
@@ -256,6 +261,8 @@ if (!strcmp(MODE,"r"))
 	    	HDR.TYPE = NEX1;
     	else if (!memcmp(Header1,"PLEX",4))
 	    	HDR.TYPE = PLEXON;
+    	else if (!memcmp(Header1+16,"SCPECG",6))
+	    	HDR.TYPE = SCP;
 
     	if (HDR.TYPE == GDF) {
   	    	strncpy(tmp,(char*)Header1+3,5);
@@ -322,8 +329,8 @@ if (!strcmp(MODE,"r"))
 			//HDR.CHANNEL[k].PhysDim  = (HDR.Header2 + 8*k + 96*HDR.NS);
 			HDR.CHANNEL[k].PhysMin  = *(double*) (Header2+ 8*k + 104*HDR.NS);
 			HDR.CHANNEL[k].PhysMax  = *(double*) (Header2+ 8*k + 112*HDR.NS);
-			HDR.CHANNEL[k].DigMin   = *(int64_t*)  (Header2+ 8*k + 120*HDR.NS);
-			HDR.CHANNEL[k].DigMax   = *(int64_t*)  (Header2+ 8*k + 128*HDR.NS);
+			HDR.CHANNEL[k].DigMin   = *(int64_t*)(Header2+ 8*k + 120*HDR.NS);
+			HDR.CHANNEL[k].DigMax   = *(int64_t*)(Header2+ 8*k + 128*HDR.NS);
 
 			HDR.CHANNEL[k].Cal   	= (HDR.CHANNEL[k].PhysMax-HDR.CHANNEL[k].PhysMin)/(HDR.CHANNEL[k].DigMax-HDR.CHANNEL[k].DigMin);
 			HDR.CHANNEL[k].Off   	= HDR.CHANNEL[k].PhysMin- HDR.CHANNEL[k].Cal*HDR.CHANNEL[k].DigMin;
@@ -533,12 +540,60 @@ if (!strcmp(MODE,"r"))
 	    	// eventtablepos = *(uint32_t*)(Header1+886);
 	    	fseek(HDR.FILE.FID,_eventtablepos,SEEK_SET);
 	}
+	else if (HDR.TYPE==SCP) {
+#define filesize (*(uint32_t*)(Header1+2))
+		// read whole file at once 
+		Header1 = realloc(Header1,filesize);
+	    	count   = fread(Header1+256,1,filesize-256,HDR.FILE.FID);
+	    	
+#define section_crc 	(*(uint16_t*)(Header1+pos))
+#define section_id 	(*(uint16_t*)(Header1+2+pos))
+#define section_length 	(*(uint32_t*)(Header1+4+pos))
 
+		// Section 0
+		pos = 6;
+		SCP.number_of_sections = (section_length-16)/10;
+	    	for (k=1; k<SCP.number_of_sections; k++) {
+			id  = (*(uint16_t*)(Header1+22+k*10));
+			len = (*(uint32_t*)(Header1+24+k*10));
+			pos = (*(uint32_t*)(Header1+28+k*10));
+			
+			if (id!=section_id)
+				fprintf(stderr,"Warning: ID's do not fit\n");
+			if (len!=section_length)
+				fprintf(stderr,"Warning: LEN's do not fit\n");
 
-	fseek(HDR.FILE.FID,HDR.HeadLen, SEEK_SET); 
+	    		if (section_id==0) {
+	    		}
+	    		else if (section_id==1) {
+	    		}
+	    		else if (section_id==2) {
+	    		}
+	    		else if (section_id==3) {
+	    		}
+	    		else if (section_id==4) {
+	    		}
+	    		else if (section_id==5) {
+	    		}
+	    		else if (section_id==6) {
+	    		}
+	    		else if (section_id==7) {
+	    		}
+	    		else if (section_id==8) {
+	    		}
+	    	}
+
+		fprintf(stderr,"Support for Format SCP-ECG not completed.\n",HDR.TYPE,HDR.FileName); 
+	}
+	else {
+		fprintf(stderr,"Format (%i) of File %s not supported (yet)\n",HDR.TYPE,HDR.FileName); 
+		HDR = sclose(HDR); 
+		exit(-1);  
+	}
+
+	fseek(HDR.FILE.FID, HDR.HeadLen, SEEK_SET); 
 	HDR.FILE.OPEN = 1;
 	HDR.FILE.POS  = 0;
-
 }
 else { // WRITE
 

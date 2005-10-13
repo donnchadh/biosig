@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.12 2005-09-30 13:55:02 schloegl Exp $
+% $Id: biosig.h,v 1.13 2005-10-13 08:13:01 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -42,7 +42,7 @@
 #define BIOSIG_H
 
 	// list of file formats 
-enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON}; 
+enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP}; 
 
 enum HANDEDNESS {Unknown=0, Right=1, Left=2, Equal=3}; 
 enum GENDER  	{male=1,  female=2};
