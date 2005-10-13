@@ -6,8 +6,8 @@ function [CNT,h,e]=cntopen(arg1,arg3,arg4,arg5,arg6)
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
 
-%	$Revision: 1.34 $
-%	$Id: cntopen.m,v 1.34 2005-09-16 13:43:31 schloegl Exp $
+%	$Revision: 1.35 $
+%	$Id: cntopen.m,v 1.35 2005-10-13 08:01:42 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -212,7 +212,6 @@ else    % new header
         h.aux1method        = fread(fid,1,'char');
         h.aux2method        = fread(fid,1,'char');
         h.ampsensitivity    = fread(fid,1,'float');
-
         h.lowpass           = fread(fid,1,'char');	%%%
         h.highpass          = fread(fid,1,'char');	%%%
         h.notch             = fread(fid,1,'char');	%%%
@@ -255,7 +254,6 @@ else    % new header
         h.displayxmax       = fread(fid,1,'float');
         h.phase             = fread(fid,1,'char');
         h.screen            = fread(fid,16,'char');
-        
         h.calmode           = fread(fid,1,'short');
         h.calmethod         = fread(fid,1,'short');
         h.calupdate         = fread(fid,1,'short');
@@ -592,13 +590,13 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
                 Teeg.Offset = fread(fid,1,'int32');        
                 K = K + 8;
                 if any(CNT.EVENT.TeegType==[2:3]),
-                        Teeg.Type =  fread(fid,1,'int16');        
-                        Teeg.Code =  fread(fid,1,'int16');        
-                        Teeg.Latency  =  fread(fid,1,'float32');        
+                        Teeg.Type       =  fread(fid,1,'int16');        
+                        Teeg.Code       =  fread(fid,1,'int16');        
+                        Teeg.Latency    =  fread(fid,1,'float32');        
                         Teeg.EpochEvent =  fread(fid,1,'char');        
-                        Teeg.Accept2  =  fread(fid,1,'char');        
-                        Teeg.Accuracy =  fread(fid,1,'char');        
-                        K = K + 11;        
+                        Teeg.Accept2    =  fread(fid,1,'char');        
+                        Teeg.Accuracy   =  fread(fid,1,'char');        
+                        K = K + 11;
                 end;    
 		if k==1,
 	                TEEG = Teeg;
@@ -608,7 +606,8 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
         end;
 	
         if length(TEEG) > 0,
-                CNT.EVENT.TYP = [TEEG(:).Stimtype]';
+                CNT.EVENT.TEEG = TEEG'; 
+                CNT.EVENT.TYP  = [TEEG(:).Stimtype]';
                 if CNT.EVENT.TeegType==3,
                         CNT.EVENT.POS =  [TEEG(:).Offset]';
                 else
