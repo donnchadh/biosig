@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.46 $
-%	$Id: getfiletype.m,v 1.46 2005-10-13 22:20:53 schloegl Exp $
+%	$Revision: 1.47 $
+%	$Id: getfiletype.m,v 1.47 2005-10-19 17:06:09 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -847,6 +847,51 @@ else
                                 line = fgetl(fid);
                         end;
                         HDR.TYPE = 'EVENTCODES';
+			
+                elseif ~isempty(findstr(ss,'### Vital Signs Units of Measurement'))
+                        fseek(fid,0,-1);
+                        line = fgetl(fid);
+                        N1 = 0; N2 = 0;
+                        while ~feof(fid),%length(line),
+				N2 = N2 + 1;
+				if ~strncmp(line,'#',1),
+					N1 = N1 + 1;
+					ix = mod(cumsum(line=='"'),2);
+					tmp = line; 
+					tmp(~~ix) = ' '; 
+					ix  = find(tmp==',');
+					if (length(ix)~=3)
+						fprintf(2,'Warning: line (%3i: %s) not valid\n',N2,line);
+					else
+						fprintf(2,'         line (%3i: %s) not valid\n',N2,line);
+						t1 = line(1:ix(1)-1);
+						t2 = line(ix(1)+1:ix(2)-1);
+						t3 = line(ix(2)+1:ix(3)-1);
+						t4 = line(ix(3)+1:end);
+						HDR.Table.UnitsOfMeasurement.Code(N1,1)   = max([NaN,str2double(t1)]);
+						HDR.Table.UnitsOfMeasurement.Symbol{N1,1} = char(t2(2:end-1));
+                        		end;
+                                end;	
+                                line = fgetl(fid);
+                        end;
+			
+                elseif ~isempty(findstr(ss,'### Table of Decimal Factors'))
+                        fseek(fid,0,-1);
+                        line = fgetl(fid);
+                        N1 = 0; N2 = 0; 
+                        while ~feof(fid),%length(line),
+				if ~strncmp(line,'#',1),
+					N1 = N1+1;
+                        		[n,v,s]=str2double(line);
+                        		HDR.Table.DecimalFactor.Code(N1,1) = n(cumsum(~v)==2);
+                        		HDR.Table.DecimalFactor.Cal(N1,1) = n(cumsum(~v)==1);
+                        		if any(v)
+	                        		HDR.Table.DecimalFactor.Name(N1,1) = s(~~v);
+	                        	end;
+                                end;	
+                                line = fgetl(fid);
+                        end;
+                        
                 else
                         HDR.TYPE='unknown';
 
