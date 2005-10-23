@@ -44,6 +44,8 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %               X.SNR           signal-to-noise ratio for each class
 %               X.I             mutual information for each class
 %               X.AUC           area-under-the-(ROC) curve for each class
+%               X.r             correlation coefficient (parametric) 
+%               X.rankcorrelation    rank correlation (non-parametric) 
 %        
 %
 % see also: SUMSKIPNAN, PLOTA, BCI3EVAL
@@ -59,8 +61,7 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %	http://ida.first.fraunhofer.de/projects/bci/competition/results/TR_BCI2003_III.pdf
 
 
-%    $Revision: 1.5 $
-%    $Id: bci4eval.m,v 1.5 2005-10-13 07:55:38 schloegl Exp $
+%    $Id: bci4eval.m,v 1.6 2005-10-23 21:02:25 schloegl Exp $
 %    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -83,10 +84,11 @@ if nargin<6
 end;
 
 DIM = 2; 
-CL = unique(cl);
+CL = unique(cl(~isnan(cl)));
+M = length(CL); 
 
 
-if any([1,length(CL)]==size(tsd,2))
+if any([1,M]==size(tsd,2))
         [x,sz] = trigg(tsd,TRIG,pre,post);
         D = reshape(x,sz);
         D = squeeze(D);
@@ -102,15 +104,15 @@ else
         pre=1;
         post=size(D,1);
 end;
-if size(D,(length(CL)==size(tsd,2))+2) ~= length(cl),
-        size(D,(length(CL)==size(tsd,2))+2),
+if size(D,(M==size(tsd,2))+2) ~= length(cl),
+        size(D,(M==size(tsd,2))+2),
         [size(D), size(cl),size(CL),size(tsd)],
         error('BCI4EVAL: length of Trigger and Length of Classlabels must fit')
 end;
 
 % Time axis
 o.T = [pre:post]'/Fs;
-if (length(CL)==2) & (sz(1)==1),
+if (M==2) & (sz(1)==1),
         for k = 1:length(CL),
                 X{k} = squeeze(D(:,cl==CL(k),:));
         end;
@@ -152,7 +154,6 @@ if (length(CL)==2) & (sz(1)==1),
         o.I   = 1/2*log2(o.SNR+1);
         
         %%%%% ROC, AUC
-        [s,ix]=sort(D,DIM);
         if DIM==2, D=D'; end; 
         [s,ix]=sort(D,1);
         TNR = cumsum(cl(ix)==CL(1),1);
@@ -162,6 +163,9 @@ if (length(CL)==2) & (sz(1)==1),
         AUC = sum(diff(FNR,[],1) .* (TNR(1:end-1,:)+TNR(2:end,:)))/2;
         o.AUC = AUC'; 
 
+        o.r = corrcoef(D,double(cl(:)));
+        o.rankcorrelation = corrcoef(D,double(cl(:)),'rank');
+        
         for k=1:size(D,2),
                 [kap,sd,H,z,OA,SA] = kappa(cl(:),D(:,k)>0);
                 tpr = H(1,1)/sum(H(1,:));
@@ -182,35 +186,40 @@ if (length(CL)==2) & (sz(1)==1),
         
 end
 
-if length(CL)==sz(1),
+if M==sz(1),
         for k=1:sz(1),
                 x = bci4eval(tsd(:,k),TRIG,cl==CL(k),pre,post,Fs);
                 if k==1; 
                         o.ERR      = x.ERR;
                         o.MEAN1    = x.MEAN1;
                         o.MEAN2    = x.MEAN2;
-                        o.SD0      = x.SD1;
-                        o.SD1      = x.SD2;
+                        o.SD1      = x.SD1;
+                        o.SD2      = x.SD2;
                         o.SNR      = x.SNR;
                         o.I        = x.I;
                         o.AUC      = x.AUC;
                         o.Aprime   = x.Aprime;
                         o.dprime   = x.dprime;
+                        o.r        = x.r; 
+                        o.rankcorrelation = x.rankcorrelation; 
                         
                 else
                         o.ERR(:,k)      = x.ERR;
                         o.MEAN1(:,k)    = x.MEAN1;
                         o.MEAN2(:,k)    = x.MEAN2;
-                        o.SD0(:,k)      = x.SD1;
-                        o.SD1(:,k)      = x.SD2;
+                        o.SD1(:,k)      = x.SD1;
+                        o.SD2(:,k)      = x.SD2;
                         o.SNR(:,k)      = x.SNR;
                         o.I(:,k)        = x.I;
                         o.AUC(:,k)      = x.AUC;
                         o.Aprime(:,k)   = x.Aprime;
                         o.dprime(:,k)   = x.dprime;
+                        o.r(:,k)        = x.r; 
+                        o.rankcorrelation(:,k) = x.rankcorrelation; 
                 end;
         end;
         o.CL = CL'; 
+
         
         [m,IX] = max(D,[],1);
         IX(isnan(m)) = NaN;
@@ -227,16 +236,18 @@ if length(CL)==sz(1),
         o.KAP00 = zeros(size(CMX,1),1);
         o.Ksd00 = zeros(size(CMX,1),1);
         o.ACC00 = zeros(size(CMX,1),1);
+        o.R     = zeros(size(CMX,1),1);
+
         for k   = 1:size(CMX,1),
-                [o.KAP00(k),o.Ksd00(k),h,z,o.ACC00(k)] = kappa(squeeze(CMX(k,:,:)));            
+                [o.KAP00(k),o.Ksd00(k),h,z,o.ACC00(k),sa,o.R(k)] = kappa(squeeze(CMX(k,:,:)));            
         end;
-        o.datatype = 'TSD_BCI8';  % useful for PLOTA
-        [tmp,ix]=max(o.KAP00); 
-        o.optCMX=squeeze(CMX(ix,:,:));%,length(CL)*[1,1]);
+        o.datatype = 'TSD_BCI9';  % useful for PLOTA
+        [tmp,o.tix]=max([o.KAP00,o.R,sum(o.I,2),wolpaw_entropy(o.ACC00,M)]); 
+        o.optCMX=squeeze(CMX(o.tix(1),:,:));%,length(CL)*[1,1]);
         
         
 elseif sz(1)==1,
         
 else
-%        error('invalid input arguments');
+        error('number of classes and number of traces do not fit');
 end;

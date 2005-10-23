@@ -1,8 +1,8 @@
-function [kap,se,H,zscore,p0,SA]=kappa(d,c,kk);
+function [kap,se,H,zscore,p0,SA,R]=kappa(d,c,kk);
 % kap	Cohen's kappa coefficient
 %
-% [kap,sd,H,z,OA,SA] = kappa(d1,d2);
-% [kap,sd,H,z,OA,SA] = kappa(H);
+% [kap,sd,H,z,OA,SA,MI] = kappa(d1,d2);
+% [kap,sd,H,z,OA,SA,MI] = kappa(H);
 %
 % d1    data of scorer 1 
 % d2    data of scorer 2 
@@ -13,6 +13,7 @@ function [kap,se,H,zscore,p0,SA]=kappa(d,c,kk);
 % z	z-score
 % OA	overall agreement 
 % SA	specific agreement 
+% MI 	Mutual information or transfer information (in [bits])
 %
 % Reference(s):
 % [1] Cohen, J. (1960). A coefficient of agreement for nominal scales. Educational and Psychological Measurement, 20, 37-46.
@@ -23,8 +24,8 @@ function [kap,se,H,zscore,p0,SA]=kappa(d,c,kk);
 %        Encyclopedia of Statistical Sciences. New York: John Wiley & Sons.
 % [5] http://ourworld.compuserve.com/homepages/jsuebersax/kappa.htm
 
-%	$Revision: 1.4 $
-%	$Id: kappa.m,v 1.4 2005-08-24 13:10:22 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: kappa.m,v 1.5 2005-10-23 21:02:25 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -113,3 +114,15 @@ sd  = sqrt((pe+pe*pe-px)/(N*(1-pe*pe)));
 %standard error 
 se  = sqrt((p0+pe*pe-px)/N)/(1-pe);
 zscore = kap/se;
+
+
+if nargout<7, return; end; 
+
+% Nykopp's entropy
+pwi = sum(H,2)/N; 
+pwj = sum(H,1)/N; 
+pji = H./repmat(sum(H,2),1,size(H,2));
+pwj(pwj==0) = 1; 
+pji(pji==0) = 1; 
+R = - sumskipnan(pwj.*log2(pwj)) + sumskipnan(pwi'*(pji.*log2(pji)));
+
