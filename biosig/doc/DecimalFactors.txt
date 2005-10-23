@@ -3,35 +3,32 @@
 # File Exchange Format for Vital Signs - Annex A 
 # Table A.4.1: Table of Decimal Factors
 #
-# $Id: DecimalFactors.txt,v 1.1 2005-10-19 17:06:09 schloegl Exp $
+# $Id: DecimalFactors.txt,v 1.2 2005-10-23 19:10:41 schloegl Exp $
 # Copyright (C) 2005 Alois Schloegl <a.schloegl@ieee.org>
 # This file is part of the biosig project http://biosig.sf.net/
 #
-#Name	Magnitude	Code Offset
-yotta	1e+24	10
-zetta	1e+21	9
-exa	1e+18	8
-peta	1e+15	7
-tera	1e+12	6
-giga	1e+9	5
-mega	1e+6	4
-kilo	1e+3	3
-hecto	1e+2	2
-deca	1e+1	1
-	1e+0	0
-deci	1e-1	16
-centi	1e-2	17
-milli	1e-3	18
-micro	1e-6	19
-nano	1e-9	20
-pico	1e-12	21
-femto	1e-15	22
-atto	1e-18	23
-zepto	1e-21	24
-yocto	1e-24	25
-#
-#
-#
+#Name	Magnitude	Code Offset	Prefix
+yotta	1e+24	10	Y
+zetta	1e+21	9	Z
+exa	1e+18	8	E
+peta	1e+15	7	P
+tera	1e+12	6	T
+giga	1e+9	5	G
+mega	1e+6	4	M
+kilo	1e+3	3	k
+hecto	1e+2	2	h
+deca	1e+1	1	da
+	1e+0	0	
+deci	1e-1	16	d
+centi	1e-2	17	c
+milli	1e-3	18	m
+micro	1e-6	19	u
+nano	1e-9	20	n
+pico	1e-12	21	p
+femto	1e-15	22	f
+atto	1e-18	23	a
+zepto	1e-21	24	z
+yocto	1e-24	25	y
 #
 #
 #

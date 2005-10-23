@@ -33,8 +33,8 @@ function [out] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.1 2005-10-23 19:08:34 schloegl Exp $
-%	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: physicalunits.m,v 1.2 2005-10-23 19:10:41 schloegl Exp $
+%	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -101,7 +101,7 @@ if ~BIOSIG_GLOBAL.ISLOADED;
 	fclose(fid);
 	BIOSIG_GLOBAL.Units = UnitsOfMeasurement;
 
-	BIOSIG_GLOBAL.ISLOADED = 1
+	BIOSIG_GLOBAL.ISLOADED = 1;
 end; 
 
 
