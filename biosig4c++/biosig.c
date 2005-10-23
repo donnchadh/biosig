@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.15 2005-10-23 20:39:38 schloegl Exp $
+    $Id: biosig.c,v 1.16 2005-10-23 21:35:20 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -154,7 +154,7 @@ HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT)
 	      	HDR.CHANNEL[k].Label     = "C4";
 	      	HDR.CHANNEL[k].Transducer= "EEG: Ag-AgCl electrodes";
 	      	HDR.CHANNEL[k].PhysDim   = "uV";
-	      	HDR.CHANNEL[k].PhysDimCode = 0; // 19+4256; // uV
+	      	HDR.CHANNEL[k].PhysDimCode = 19+4256; // uV
 	      	HDR.CHANNEL[k].PhysMax   = +100;
 	      	HDR.CHANNEL[k].PhysMin   = -100;
 	      	HDR.CHANNEL[k].DigMax    = +2047;
@@ -621,7 +621,7 @@ else { // WRITE
 	    	Header2 = Header1+256; 
 
 		memset(Header1,0,HDR.HeadLen);
-	     	strcpy(Header1, "GDF 1.92");
+	     	strcpy(Header1, "GDF 1.93");
 	     	strncat(Header1+8, HDR.Patient.Id,   66);
 	     	strncat(Header1+8, " ",   66);
 	     	strncat(Header1+8, HDR.Patient.Name, 66);
@@ -659,10 +659,10 @@ else { // WRITE
 		     	len = strlen(HDR.CHANNEL[k].PhysDim);
 		     	if (HDR.VERSION<1.9)
 		     		memcpy(Header2+ 8*k + 96*HDR.NS,HDR.CHANNEL[k].PhysDim,min(len,8));
-		     	else	
+		     	else {	
 		     		memcpy(Header2+ 6*k + 96*HDR.NS,HDR.CHANNEL[k].PhysDim,min(len,6));
-		     		memcpy(Header2+ 2*k +102*HDR.NS,HDR.CHANNEL[k].PhysDimCode);
-			end;
+		     		memcpy(Header2+ 2*k +102*HDR.NS,&HDR.CHANNEL[k].PhysDimCode,2);
+			};
 		     	memcpy(Header2+ 8*k + 104*HDR.NS,&HDR.CHANNEL[k].PhysMin,8);
 		     	memcpy(Header2+ 8*k + 112*HDR.NS,&HDR.CHANNEL[k].PhysMax,8);
 		     	memcpy(Header2+ 8*k + 120*HDR.NS,&HDR.CHANNEL[k].DigMin,8);
