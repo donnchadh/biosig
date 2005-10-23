@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.14 2005-10-13 16:38:35 schloegl Exp $
+    $Id: biosig.c,v 1.15 2005-10-23 20:39:38 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -154,6 +154,7 @@ HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT)
 	      	HDR.CHANNEL[k].Label     = "C4";
 	      	HDR.CHANNEL[k].Transducer= "EEG: Ag-AgCl electrodes";
 	      	HDR.CHANNEL[k].PhysDim   = "uV";
+	      	HDR.CHANNEL[k].PhysDimCode = 0; // 19+4256; // uV
 	      	HDR.CHANNEL[k].PhysMax   = +100;
 	      	HDR.CHANNEL[k].PhysMin   = -100;
 	      	HDR.CHANNEL[k].DigMax    = +2047;
@@ -341,6 +342,8 @@ if (!strcmp(MODE,"r"))
 				HDR.CHANNEL[k].DigMax   = (double)*(int64_t*)(Header2+ 8*k + 128*HDR.NS);
 			}	
 			else {
+				HDR.CHANNEL[k].PhysDimCode = *(uint16_t*)(Header2+ 2*k + 102*HDR.NS);
+
 				HDR.CHANNEL[k].DigMin   = *(double*)(Header2+ 8*k + 120*HDR.NS);
 				HDR.CHANNEL[k].DigMax   = *(double*)(Header2+ 8*k + 128*HDR.NS);
 				HDR.CHANNEL[k].LowPass  = *(float*) (Header2+ 4*k + 204*HDR.NS);
@@ -540,6 +543,7 @@ if (!strcmp(MODE,"r"))
 		    	HDR.CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	HDR.CHANNEL[k].Label	= Header2+k*75;
 		    	HDR.CHANNEL[k].PhysDim	= "uV";
+		    	HDR.CHANNEL[k].PhysDimCode = 4256+19;
 		    	HDR.CHANNEL[k].Cal	= *(float*)(Header2+k*75+59);
 		    	HDR.CHANNEL[k].Cal	*= *(float*)(Header2+k*75+71)/204.8;
 		    	HDR.CHANNEL[k].Off	= *(float*)(Header2+k*75+47) * HDR.CHANNEL[k].Cal;
@@ -653,8 +657,12 @@ else { // WRITE
 		     	len = strlen(HDR.CHANNEL[k].Transducer);
 		     	memcpy(Header2+80*k + 16*HDR.NS,HDR.CHANNEL[k].Transducer,min(len,80));
 		     	len = strlen(HDR.CHANNEL[k].PhysDim);
-		     	memcpy(Header2+ 8*k + 96*HDR.NS,HDR.CHANNEL[k].PhysDim,min(len,8));
-	
+		     	if (HDR.VERSION<1.9)
+		     		memcpy(Header2+ 8*k + 96*HDR.NS,HDR.CHANNEL[k].PhysDim,min(len,8));
+		     	else	
+		     		memcpy(Header2+ 6*k + 96*HDR.NS,HDR.CHANNEL[k].PhysDim,min(len,6));
+		     		memcpy(Header2+ 2*k +102*HDR.NS,HDR.CHANNEL[k].PhysDimCode);
+			end;
 		     	memcpy(Header2+ 8*k + 104*HDR.NS,&HDR.CHANNEL[k].PhysMin,8);
 		     	memcpy(Header2+ 8*k + 112*HDR.NS,&HDR.CHANNEL[k].PhysMax,8);
 		     	memcpy(Header2+ 8*k + 120*HDR.NS,&HDR.CHANNEL[k].DigMin,8);

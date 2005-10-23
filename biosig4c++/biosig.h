@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.14 2005-10-13 16:38:35 schloegl Exp $
+% $Id: biosig.h,v 1.15 2005-10-23 20:39:38 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -92,6 +92,7 @@ typedef struct {
 	char* 		Label;		// Label of channel 
 	char* 		Transducer;	// transducer e.g. EEG: Ag-AgCl electrodes
 	char* 		PhysDim;	// physical dimension
+	uint16_t	PhysDimCode;	// code for physical dimension
 	//char* 	PreFilt;	// pre-filtering
 
 	float 		LowPass;	// lowpass filter
