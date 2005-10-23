@@ -1,44 +1,49 @@
-function [X] = criteria4asyncbci(D0, TRIG, dbtime,Fs)
+function [X] = criteria4asyncbci(D0, TRIG, ONTIME ,Fs)
 % CRITERIA4ASYNCBCI provides an evaluation criterion of asychronous BCI. 
 % based on the discussion at the BCI2005 meeting in Rensellearville.  
 %
-% X = CRITERIA4ASYNCBCI(D - Threshold, TRIG, db_time,Fs)
-% X = CRITERIA4ASYNCBCI(D - Threshold, STATE, [] ,Fs)
+% X = CRITERIA4ASYNCBCI(D, TRIG, ONTIME, Fs)
+% X = CRITERIA4ASYNCBCI(D, STATE, [], Fs)
 %   D           detector output
-%               each column the output for each of the N states. 
-%               if all values are lower than the Threshold, the 
+%               can be continuous; D should contain as many traces (columns) states. 
+%               [ max(STATES) < size(D,2) ]
+%               if all values are lower than the Threshold=0, the 
 %               no-control (NC) state is assumed. 
-%   Threshold   detector threshold
+%               If D is discrete, it must contain only one column, but no AUC can 
+%               estimated. 
 %   TRIG        list of trigger events in seconds 
 %               if TRIG is a cell-array of a list of trigger times, 
 %                       TRIG{n} contains the list of trigger times for
 %                       state n. The number of detector traces (columns)
 %                       must be 1+number of states.
-%   db_time     debouncing time in seconds
+%   ONTIME      on-time [in seconds] of event-driven discrete control
 %   Fs          sampling rate (default = 1Hz)
 %   STATE       "true" state 
 %
-%   X.TPR       True Positive Ratio
-%   X.FPR       False Positive Ratio / False alarm rate
-%   X.db_time   debouncing time 
 %   X.H         confusion matrix       
 %   X.AUC       area-under-the-curve.
 % 
+% X = CRITERIA4ASYNCBCI(D, TRIG, ONTIME, Fs)
+%               TRIG and ONTIME are used to construct the STATE
+%
+%   X.TPR       True Positive Ratio
+%   X.FPR       False Positive Ratio / False alarm rate
 %
 % X = CRITERIA4ASYNCBCI(D, STATE, [], Fs)
 %   D           State of detector output (discrete values, D=0 indicates no-control state) 
-%   STATE           Target state 
+%   STATE       Target state 
 % 
 %
 %
 % 
 %
+
 % References: 
 %    http://chil.rice.edu/byrne/psyc540/pdf/StanislawTodorov99.pdf
 
 
 
-%    $Id: criteria4asyncbci.m,v 1.6 2005-07-15 20:58:52 schloegl Exp $
+%    $Id: criteria4asyncbci.m,v 1.7 2005-10-23 21:01:09 schloegl Exp $
 %    Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -57,13 +62,6 @@ function [X] = criteria4asyncbci(D0, TRIG, dbtime,Fs)
 %    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 
-% Wanted: 
-% Julien Kronegg: 
-%	Transition matrix (=extension of the 2-classes FP/FN/TP/TN to N classes) given in percentage of time; also named confusion matrix
-%	Response time for activation
-%	Response time for deactivation
-% 
-
 %%%%% INTERNAL VARIABLES %%% 
 %% D0   detector output, continuous in time and magnitude, one trace for each state
 %% D    classified transducer output 
@@ -71,7 +69,8 @@ function [X] = criteria4asyncbci(D0, TRIG, dbtime,Fs)
 %%              D(isnan(tmp)) = Nan;    % not classified 
 %%              D(tmp<Threshold) = 0;   % NC state
 %% STATE    target class; continuos in time, discrete states, same size than D
-%%              STATE can be constructed from TRIG and dbtime
+%%              STATE can be constructed from TRIG and ONTIME from
+%%              event-driven discrete control. 
 %%  
 %%
 %%
@@ -83,7 +82,7 @@ if nargin<4,
         Fs = 1; 
 end;
 
-dbtime = round(dbtime*Fs);
+ONTIME = round(ONTIME*Fs);
 
 M1 = size(D0,2);         
 if iscell(TRIG(1))      % multiple states
@@ -122,15 +121,15 @@ else
         M1 = max(D);
 end; 
 
-if isempty(dbtime)
+if isempty(ONTIME )
         STATE = TRIG;  
 else         
         [TRIG,ix] = sort(TRIG*Fs); 
         CL = CL(ix);    % classlabels 
         
-        if any(diff(TRIG) < dbtime)
-                warning('overlapping detection window - dbtime reduced');
-                dbtime = min(diff(TRIG))-1;
+        if any(diff(TRIG) < ONTIME )
+                warning('overlapping detection window - ONTIME reduced');
+                ONTIME = min(diff(TRIG))-1;
         end;
         %### OPEN QUESTION(s): 
         %###    is there a reasonable way to deal with overlapping windows ? 
@@ -138,8 +137,8 @@ else
         STATE  = zeros(size(D));
         d1 = real(D>0);
         for k = 1:length(TRIG)                
-                d1(TRIG(k):TRIG(k)+dbtime) = NaN;       % de-select (mark with NaN) all samples within window
-                STATE(TRIG(k):TRIG(k)+dbtime)  = CL(k);     % generate target state from TRIG and DBTIME
+                d1(TRIG(k):TRIG(k)+ONTIME ) = NaN;       % de-select (mark with NaN) all samples within window
+                STATE(TRIG(k):TRIG(k)+ONTIME )  = CL(k);     % generate target state from TRIG and ONTIME 
         end;
 end;
 
@@ -167,7 +166,7 @@ if any([M1,M2]>1), return; end;
 
 N0     = length(TRIG);                      % number of trigger events 
 % Detection of True Positives
-[d,sx] = trigg(D,TRIG,0,dbtime);           % intervals where detection is counted as hit
+[d,sx] = trigg(D,TRIG,0,ONTIME );           % intervals where detection is counted as hit
 d      = reshape(d,sx(2:3));               % and bring it in proper shape
 TP     = sum(any(d>0,1));                  % true positives/hits 
 
