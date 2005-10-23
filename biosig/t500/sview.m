@@ -6,8 +6,8 @@ function [argout,s]=sview(s,arg2),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.13 $
-%	$Id: sview.m,v 1.13 2005-08-24 13:08:46 schloegl Exp $ 
+%	$Revision: 1.14 $
+%	$Id: sview.m,v 1.14 2005-10-23 19:39:18 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -87,6 +87,7 @@ elseif strcmp(H.TYPE,'ELPOS') | (isfield(H,'ELEC') & strncmpi(arg2,'ELPOS',5));
 			text(XYZ(k,1),XYZ(k,2),XYZ(k,3),H.Label(k,:));
 		end;
 	end;
+        argout=H;
         return;
         
 elseif strcmp(H.TYPE,'unknown');
@@ -99,7 +100,16 @@ end;
 [p,f,e]=fileparts(H.FileName);
 %fn=dir(fullfile(p,[f,'EOG',e]));
 if 1,   % no EOG corrections
-
+elseif 1
+                nx = sparse(28,3);
+                nx(23:24,1) = [1;-1];
+                nx(24:25,2) = [1;-1];
+                nx(26,3) = 1;
+                [R,s] = regress_eog(H.FileName,1:22,nx);
+		size(s),
+		[u,s0,v] = svd(s(~any(isnan(s),2),:),0);
+		size(u)
+		s = s*v;
 elseif 1
         [R,s] = regress_eog(s,1:60,61);
 end;
@@ -116,8 +126,8 @@ t = detrend(s); t = t(:);
 t(isnan(t))=median(t);
 dd = max(t)-min(t);
 %dd = max(std(s))*5;
-%s = zscore(s); dd = 20; % 
-dd=300;
+s = zscore(s); dd = 20; % 
+%dd=300;
 
 H.AS.TIMECHAN = strmatch('Time',H.Label);
 FLAG.tmp = (length(H.FILE)==1) & ~isempty(H.AS.TIMECHAN);
@@ -125,6 +135,7 @@ if FLAG.tmp,
         % this construct is necessary for compatibility with Octave and Matlab 5.3
         FLAG.tmp = any(H.AS.TIMECHAN==H.InChanSelect),
 end;
+
 if FLAG.tmp,
         t = s(:,H.AS.TIMECHAN);
         s(:,H.AS.TIMECHAN) = NaN;
@@ -150,7 +161,9 @@ elseif isfield(H.EVENT,'CodeDesc'),
         EVENT = H.EVENT;
 	EVENT.Desc = H.EVENT.CodeDesc(H.EVENT.TYP);	
 elseif ~isfield(H.EVENT,'Desc') & (length(H.EVENT.TYP)>0),
-        g = sload('eventcodes.txt');
+	[p,f,e]=fileparts(which('sopen.m'));
+	[p,f,e]=fileparts(p);
+        g = sload(fullfile(p,'doc/eventcodes.txt'));
         ix = sparse(g.CodeIndex,1,1:length(g.CodeIndex));
         EVENT = H.EVENT;
         try,
@@ -162,14 +175,16 @@ else
         EVENT.POS = [];
 end;
 
+
 if H.NS==1,
         plot(t(:),s,'-');
 else
         plot(t(:),((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)),'-');
 end;
+
 ix = find(EVENT.POS>0 & EVENT.POS<=length(t));
-if isfield(EVENT,'Desc') & ~isempty(ix)
-	ix2 = find(EVENT.POS>0 & EVENT.POS<=length(t) & EVENT.DUR>0);
+if isfield(EVENT,'Desc') & ~isempty(ix) %& ~exist('OCTAVE_VERSION','builtin')
+	ix2 = find((EVENT.POS>0) & (EVENT.POS<=length(t)) & (EVENT.DUR>0));
         v = axis;
         hold on;
         N  = length(EVENT.POS);
@@ -189,14 +204,16 @@ if isfield(EVENT,'Desc') & ~isempty(ix)
                 txt = EVENT.Desc{ix(k)}; 
                 if isempty(txt),txt='';end; 
                 txt(txt=='_')=' ';
-		if exist('OCTAVE_VERSION','builtin');
-	                text(t(EVENT.POS(ix(k))),v(3:4)*[-.2;.8],txt);
-                else
-			h=text(t(EVENT.POS(ix(k))),v(3:4)*[-.2;.8],txt);
-            		set(h,'Rotation',90,'VerticalAlignment','top');
-		end;	
+		if exist('text','builtin');
+			if exist('OCTAVE_VERSION','builtin');
+				text(t(EVENT.POS(ix(k))),v(3:4)*[-.2;.8],txt);
+			else 
+			        ha=text(t(EVENT.POS(ix(k))),v(3:4)*[-.2;.8],txt);
+        	    		set(ha,'Rotation',90,'VerticalAlignment','top');
+        	        end
+                end;
         end;	
-        v(4) = v(3:4)*[-.7;1.3]; axis(v);
+        % v(4) = v(3:4)*[-.7;1.3]; axis(v);
         hold off;
 end;
 
