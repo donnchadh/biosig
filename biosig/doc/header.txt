@@ -3,7 +3,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.18 2005-09-16 13:44:09 schloegl Exp $
+$Id: header.txt,v 1.19 2005-10-23 19:34:02 schloegl Exp $
 Copyright (C) Alois Schloegl 2003-2005 <a.schloegl@ieee.org>
 
 
@@ -63,6 +63,7 @@ HDR.ELEC.
 
 HDR.Label		char-array	e.g. '+C3a - C3p  '
 HDR.PhysDim		string		physical dimension e.g. 'uV'
+HDR.PhysDimCode		uint16		Code of physical dimension according to "File Exchange Format for Vital Signs - Annex A "
 HDR.PhysMax		float		physical maximum (for calibration)
 HDR.DigMax		integer		digital maximum (for calibration)
 HDR.PhysMin		float		physical minimum (for calibration) 

@@ -47,11 +47,10 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.123 $
-%	$Id: sopen.m,v 1.123 2005-10-13 16:39:16 schloegl Exp $
+%	$Revision: 1.124 $
+%	$Id: sopen.m,v 1.124 2005-10-23 19:34:02 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
-
 
 if isnan(str2double('1, 3'));
         fprintf(2,'Warning BIOSIG: incorrect version of STR2DOUBLE.\n');
@@ -140,7 +139,9 @@ elseif any(HDR.FILE.PERMISSION=='w'),
 	HDR.FILE.OPEN = 0;
         HDR.FILE.FID  = -1;
 	HDR.ERROR.status  = 0; 
-	HDR.ERROR.message = ''; 
+	HDR.ERROR.message = '';
+	
+	HDR = physicalunits(HDR); 
 end;
 
 %% Initialization
@@ -495,23 +496,25 @@ end;
                         end;	 
                         HDR.Label      =  setstr(fread(HDR.FILE.FID,[16,HDR.NS],'uchar')');		
                         HDR.Transducer =  setstr(fread(HDR.FILE.FID,[80,HDR.NS],'uchar')');	
-                        HDR.PhysDim    =  setstr(fread(HDR.FILE.FID,[ 8,HDR.NS],'uchar')');
-                        HDR.PhysMin    =         fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
-                        HDR.PhysMax    =         fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
-                        
-                        %HDR.DigMin     =         fread(HDR.FILE.FID,[HDR.NS,1],'int64');	
-                        %HDR.DigMax     =         fread(HDR.FILE.FID,[HDR.NS,1],'int64');	
                         
 			if (HDR.VERSION < 1.9),
-	                        tmp            =         fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');
+	                        HDR.PhysDim    =  char(fread(HDR.FILE.FID,[ 8,HDR.NS],'uchar')');
+	                        HDR.PhysMin    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
+	                        HDR.PhysMax    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
+	                        tmp            =       fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');
 	                        HDR.DigMin     =  tmp((1:HDR.NS)*2-1);
-	                        tmp            =         fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');	
+	                        tmp            =       fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');	
 	                        HDR.DigMax     =  tmp((1:HDR.NS)*2-1);
 
                                 HDR.PreFilt    =  char(fread(HDR.FILE.FID,[80,HDR.NS],'uchar')');	%	
                                 HDR.AS.SPR     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32')';	%	samples per data record
                                 HDR.GDFTYP     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32');	%	datatype
                         else
+	                        HDR.PhysDim    =  char(fread(HDR.FILE.FID,[6,HDR.NS],'uchar')');
+	                        HDR.PhysDimCode =      fread(HDR.FILE.FID,[HDR.NS,1],'uint16');
+
+	                        HDR.PhysMin    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
+	                        HDR.PhysMax    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
  	                        HDR.DigMin     =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');
  	                        HDR.DigMax     =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');
                                 HDR.PreFilt    =  char(fread(HDR.FILE.FID,[80-12,HDR.NS],'uchar')');	%	
@@ -778,7 +781,7 @@ end;
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF') 
                         HDR.VERSION = 1.25;     %% stable version 
-                        HDR.VERSION = 1.92;     %% testing 
+                        HDR.VERSION = 1.93;     %% testing 
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
                 end;
@@ -813,7 +816,8 @@ end;
 			HDR.Patient.Sex = 1; 
 		elseif strcmpi(HDR.Patient.Sex,'f') | strcmpi(HDR.Patient.Sex,'female')
 			HDR.Patient.Sex = 2; 
-		else	
+                elseif isnumeric(HDR.Patient.Sex)	
+                else
 			HDR.Patient.Sex = 0; 
                 end;
                 
@@ -1064,8 +1068,11 @@ end;
                         tmp = min(80,size(HDR.PreFilt,2));
                         HDR.PreFilt = [HDR.PreFilt(1:HDR.NS,1:tmp), setstr(32+zeros(HDR.NS,80-tmp))];
                         
+                        if isfield(HDR,'PhysDimCode')
+				HDR.PhysDimCode = HDR.PhysDimCode(1:HDR.NS);
+			end;	
                         if ~isfield(HDR,'PhysDim')
-                                HDR.PhysDim=setstr(32+zeros(HDR.NS,8));
+                                HDR.PhysDim=char(32+zeros(HDR.NS,8));
                                 if HDR.NS>0,
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.PhysDim not defined\n');
                                 end;
@@ -1078,6 +1085,13 @@ end;
                                 tmp=min(8,size(HDR.PhysDim,2));
                                 HDR.PhysDim=[HDR.PhysDim(1:HDR.NS,1:tmp), setstr(32+zeros(HDR.NS,8-tmp))];
                         end;
+                        HDR = physicalunits(HDR);
+                        if ~all(HDR.PhysDimCode>0)
+                                fprintf(HDR.FILE.stderr,'Warning SOPEN: HDR.PhysDimCode of the following channel(s) is(are) not defined:\n');
+                                fprintf(HDR.FILE.stderr,'%i ',find(~HDR.PhysDimCode));  
+                                fprintf(HDR.FILE.stderr,'\n');
+			end; 	                        	
+                        
                         if ~isfield(HDR,'PhysMin')
                                 if HDR.NS>0,
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.PhysMin not defined\n');
@@ -1216,8 +1230,8 @@ end;
                 HDR.AS.bi  = [0;cumsum(HDR.AS.SPR)];
                 HDR.AS.bpb   = sum(ceil(HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)'));	% Bytes per Block
                 HDR.FILE.POS  = 0;
-                
-		if HDR.VERSION>=1.9,	% do some header checks
+
+                if HDR.VERSION>=1.9,	% do some header checks
 		if ~HDR.Patient.Sex,
                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF) WRITE: HDR.Patient.Sex is not defined.\n'); 
 		end;	
@@ -1369,10 +1383,11 @@ end;
                         else
                                 fwrite(HDR.FILE.FID, abs(HDR.Label)','uchar');
                                 fwrite(HDR.FILE.FID, abs(HDR.Transducer)','uchar');
-                                fwrite(HDR.FILE.FID, abs(HDR.PhysDim)','uchar');
-                                fwrite(HDR.FILE.FID, HDR.PhysMin,'float64');
-                                fwrite(HDR.FILE.FID, HDR.PhysMax,'float64');
                                 if (HDR.VERSION<1.9),
+	                                fwrite(HDR.FILE.FID, abs(HDR.PhysDim)','uchar');
+	                                fwrite(HDR.FILE.FID, HDR.PhysMin,'float64');
+	                                fwrite(HDR.FILE.FID, HDR.PhysMax,'float64');
+
 	                                if exist('OCTAVE_VERSION','builtin'),  % Octave does not support INT64 yet. 
 	                                        fwrite(HDR.FILE.FID, [HDR.DigMin(:),-(HDR.DigMin(:)<0)]','int32');
 	                                        fwrite(HDR.FILE.FID, [HDR.DigMax(:),-(HDR.DigMax(:)<0)]','int32');
@@ -1385,6 +1400,11 @@ end;
                                         fwrite(HDR.FILE.FID, HDR.GDFTYP,'uint32');
 	                                fwrite(HDR.FILE.FID,32*ones(32,HDR.NS),'char');
                                 else
+	                                fwrite(HDR.FILE.FID, abs(HDR.PhysDim(:,1:6))','uchar');
+	                                fwrite(HDR.FILE.FID, HDR.PhysDimCode,'uint16');
+	                                fwrite(HDR.FILE.FID, HDR.PhysMin,'float64');
+	                                fwrite(HDR.FILE.FID, HDR.PhysMax,'float64');
+
                                         fwrite(HDR.FILE.FID, HDR.DigMin, 'float64');
                                         fwrite(HDR.FILE.FID, HDR.DigMax, 'float64');
                                         
@@ -4953,7 +4973,7 @@ elseif strcmp(HDR.TYPE,'BCI2003_Ia+b');
 elseif strcmp(HDR.TYPE,'BCI2003_III');
         % BCI competition 2003, dataset III (Graz)
         tmp = load(HDR.FileName);
-        HDR.data = tmp*50;
+        HDR.data = [tmp*50;repmat(NaN,100,size(tmp,2))];
         if strcmp(HDR.FILE.Name,'x_train'),
                 tmp = fullfile(HDR.FILE.Path,'y_train');
                 if exist(tmp,'file')
@@ -4971,12 +4991,13 @@ elseif strcmp(HDR.TYPE,'BCI2003_III');
         HDR.FLAG.TRIGGERED = 1; 
         HDR.Dur = 9; 
         HDR.NS  = 3;
-        HDR.SPR = HDR.SampleRate*HDR.Dur;
+        HDR.SPR = size(HDR.data,1); 
         
         sz = [HDR.NS, HDR.SPR, HDR.NRec];
-        HDR.data = reshape(permute(HDR.data,[2,1,3]),sz(1),sz(2)*sz(3))';
+        HDR.data = reshape(permute(reshape(HDR.data,sz([2,1,3])),[2,1,3]),sz(1),sz(2)*sz(3))';
         HDR.TYPE = 'native'; 
         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+        HDR.FILE.POS = 0; 
                 
                 
 elseif strncmp(HDR.TYPE,'MAT',3),
@@ -5070,7 +5091,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 		end;
 		HDR.Label = tmp.nfo.clab';
 		z2=sum([tmp.nfo.xpos,tmp.nfo.ypos].^2,2);
-		HDR.ELEC.XYZ = [tmp.nfo.xpos,tmp.nfo.ypos,sqrt(max(z2)-sz)];
+		HDR.ELEC.XYZ = [tmp.nfo.xpos,tmp.nfo.ypos,sqrt(max(z2)-z2)];
                 HDR.NRec = 1; 
 		HDR.FILE.POS = 0; 
                 HDR.TYPE = 'native'; 
@@ -7657,6 +7678,7 @@ if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	HDR.EVENT.DUR = HDR.EVENT.DUR(~flag_remove);
 end;	
 
+HDR = physicalunits(HDR); 
 
 % Calibration matrix
 if any(HDR.FILE.PERMISSION=='r') & ~isnan(HDR.NS);
