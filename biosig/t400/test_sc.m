@@ -23,7 +23,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % 
 % see also: MDBC, GDBC, LDBC2, LDBC3, LDBC4, TRAIN_SC, TRAIN_SVM
 
-%	$Id: test_sc.m,v 1.3 2005-10-13 08:26:19 schloegl Exp $
+%	$Id: test_sc.m,v 1.4 2005-10-24 15:12:19 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -53,8 +53,6 @@ if 0,
         
 elseif isfield(CC,'weights'); %strcmpi(t2,'svm') | (strcmpi(t2,'statistical') & strncmpi(t3,'ld',2)) |  ;
         d = [ones(size(D,1),1), D] * CC.weights;
-        [tmp,cl] = max(d,[],2);
-        cl(all(isnan(d),2)) = NaN; 
         
 elseif strcmp(t2,'statistical');
         if isempty(mode)
@@ -62,34 +60,25 @@ elseif strcmp(t2,'statistical');
         end;
         if strcmpi(mode,'LD2'),
                 d = ldbc2(CC.MD,D);
-                [tmp,cl] = max(d,[],2);
         elseif strcmpi(mode,'LD3');
                 d = ldbc3(CC.MD,D);
-                [tmp,cl] = max(d,[],2);
         elseif strcmpi(mode,'LD4');
                 d = ldbc4(CC.MD,D);
-                [tmp,cl] = max(d,[],2);
         elseif strcmpi(mode,'MDA');
                 d = -(mdbc(CC.MD,D).^2);
-                [tmp,cl] = max(d,[],2);
         elseif strcmpi(mode,'MD2');
                 d = -mdbc(CC.MD,D);
-                [tmp,cl] = max(d,[],2);
         elseif strcmpi(mode,'GDBC');
                 [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
                 d = exp(-MDBC{7}/2);
-                [tmp,cl] = max(d,[],2);
         elseif strcmpi(mode,'MD3');
                 [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
                 d = -GDBC;
-                [tmp,cl] = max(d,[],2);
         elseif strcmpi(mode,'QDA');     
                 [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
                 d = MDBC{4};
-                [tmp,cl] = max(d,[],2);
         elseif strcmpi(mode,'GRB');     % Gaussian RBF
                 d = exp(-mdbc(CC.MD,D)/2);
-                [tmp,cl] = max(d,[],2);
         end;
         
 else
@@ -97,10 +86,13 @@ else
         return; 
 end;
 
+[tmp,cl] = max(d,[],2);
+cl(isnan(tmp)) = NaN; 
+
 R.output = d; 
 R.classlabel = cl; 
 
 if nargin>3,
-        tmp = CC.Labels(cl);
+        tmp = CC.Labels(cl(~isnan(cl)));
         [R.kappa,sd,R.H,z,R.ACC] = kappa(classlabel(:),tmp(:));
 end;
