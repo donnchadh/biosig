@@ -1,4 +1,4 @@
-function [CC,Q,tsd,md]=findclassifier3(D,TRIG,cl,T,t0,FUN)
+function [CC,Q,tsd,md]=findclassifier(D,TRIG,cl,T,t0,FUN)
 % FINDCLASSIFIER3
 %       is very similar to FINDCLASSIFIER1 but uses a different 
 %       criterion for selecting the time segment.
@@ -27,8 +27,9 @@ function [CC,Q,tsd,md]=findclassifier3(D,TRIG,cl,T,t0,FUN)
 %	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003 
 
 
-%   Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Id: findclassifier.m,v 1.1 2005-10-13 08:27:35 schloegl Exp $
+%   $Id: findclassifier.m,v 1.2 2005-10-24 14:28:46 schloegl Exp $
+%   Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
 % This program is free software; you can redistribute it and/or
@@ -65,9 +66,11 @@ if length(TRIG)~=length(cl);
 end;
 
 cl = cl(:);
-CL = unique(cl(~isnan(cl)));
-[CL,iCL] = sort(CL);
 TRIG = TRIG(:);
+TRIG(isnan(cl))=[];
+cl(isnan(cl))=[];
+CL = unique(cl);
+[CL,iCL] = sort(CL);
 
 % add sufficient NaNs at the beginning and the end 
 tmp = min(TRIG)+min(min(T))-1;
@@ -114,6 +117,7 @@ LDA3  = JKGD;
 LDA4  = JKGD;
 tt    = MDA(:,1);
 IX = find(~isnan(cl(:)'));
+cc = CC; 
 for l = IX;1:length(cl);
         c = find(cl(l)==CL);
         t = TRIG(l)+T(CC.TI,:);
@@ -125,12 +129,12 @@ for l = IX;1:length(cl);
         elseif ~isempty(strfind(CC.datatype,'svm')),
                 ix = IX; ix(l)=[];
                 t = perm(TRIG(ix),T(k,:));
-                c = repmat(cl(ix)',size(T,2),1)';
+                c = repmat(cl(ix)',size(T,2),1);
                 cc = train_svm(D(t(:),:),c(:));                    
-        elseif 0 % manual untraining of statistical classifier 
+        else  %if 1 % manual untraining of statistical classifier 
                 [tmp,tmpn] = covm(D(t(:),:),'E');
-                cc 	= CC.MD;
-                cc(c,:,:) = CC.MD(c,:,:)-tmp;         
+                cc.MD 	= CC.MD;
+                cc.MD(c,:,:) = CC.MD(c,:,:)-reshape(tmp,[1,size(tmp)]);         
         end;
         
         t = TRIG(l)+(min(min(T)):max(max(T)));
