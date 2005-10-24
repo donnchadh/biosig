@@ -24,8 +24,8 @@ function [kap,se,H,zscore,p0,SA,R]=kappa(d,c,kk);
 %        Encyclopedia of Statistical Sciences. New York: John Wiley & Sons.
 % [5] http://ourworld.compuserve.com/homepages/jsuebersax/kappa.htm
 
-%	$Revision: 1.5 $
-%	$Id: kappa.m,v 1.5 2005-10-23 21:02:25 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: kappa.m,v 1.6 2005-10-24 15:12:51 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -62,7 +62,8 @@ if nargin>1,
     	ku = max([d;c]); % upper range
     	kl = min([d;c]); % lower range
     
-    	if nargin<3
+	
+    	if (nargin<3),
             	d = d-kl+1;	% minimum element is 1;
             	c = c-kl+1;	%
             	kk= ku-kl+1;  	% maximum element
@@ -77,10 +78,12 @@ if nargin>1,
         	H = reshape(h(1:length(h)-1));
         	H(1,1) = H(1,1)-1;
     	else
-		if 1;%exist('OCTAVE_VERSION')>=5;
+		if 1;   % exist('OCTAVE_VERSION')>=5;
 	        	H = zeros(kk);
     			for k = 1:N, 
-	    			H(d(k),c(k)) = H(d(k),c(k))+1;
+    				if ~isnan(d(k)) & ~isnan(c(k)),
+		    			H(d(k),c(k)) = H(d(k),c(k)) + 1;
+		    		end;	
         		end;
 		else
 			H = full(sparse(d(1:N),c(1:N),1,kk,kk));
