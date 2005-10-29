@@ -29,8 +29,8 @@ function [signal,H] = sload(FILENAME,CHAN,MODE)
 %
 
 
-%	$Revision: 1.57 $
-%	$Id: sload.m,v 1.57 2005-04-10 12:08:50 schloegl Exp $
+%	$Revision: 1.58 $
+%	$Id: sload.m,v 1.58 2005-10-29 17:58:38 schloegl Exp $
 %	Copyright (C) 1997-2005 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -54,7 +54,7 @@ if nargin<2; CHAN=0; end;
 if nargin<3; MODE = ''; end;
 
 
-if CHAN<1 | ~isfinite(CHAN),
+if (CHAN<1) | ~isfinite(CHAN),
         CHAN=0;
 end;
 
@@ -196,12 +196,12 @@ end;
 H = sopen(H,'r',CHAN,MODE);
 if 0,
         
-elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat'})); 
+elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat','EEProbe-CNT','EEProbe-AVR'})); 
         [signal,H] = sread(H);
         H = sclose(H);
 
-
-elseif strcmp(H.TYPE,'EVENTCODES')
+        
+elseif strncmp(H.TYPE,'EVENT',5)
         signal = H.EVENT;
         
 
@@ -750,7 +750,9 @@ if ~isempty(strfind(upper(MODE),'TSD'));
 end;
 
 
-if (strcmp(H.TYPE,'GDF') & isempty(H.EVENT.TYP))
+if strcmp(H.TYPE,'GDF') 
+if isfield(H.EVENT,'TYP')
+if isempty(H.EVENT.TYP)
         %%%%% if possible, load Reinhold's configuration files
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
         if exist(f,'file'),
@@ -776,6 +778,8 @@ if (strcmp(H.TYPE,'GDF') & isempty(H.EVENT.TYP))
                 end;
 		end;
         end;
+end;
+end;
 end;    
 
 
