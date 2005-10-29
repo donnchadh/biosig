@@ -20,8 +20,8 @@ function [HDR] = sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.16 $
-%	$Id: sclose.m,v 1.16 2005-09-16 13:43:31 schloegl Exp $
+%	$Revision: 1.17 $
+%	$Id: sclose.m,v 1.17 2005-10-29 17:58:13 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -76,23 +76,25 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
 
 	elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
          	tmp = floor((EndPos - HDR.HeadLen) / HDR.AS.bpb);  % calculate number of records
-                if ~isnan(tmp)
-                        if (HDR.NRec~=tmp)
-                                if ~any(HDR.FILE.PERMISSION=='z')
-                                        HDR.NRec=tmp;
-                                        fseek(HDR.FILE.FID,236,'bof');
-                                        if strcmp(HDR.TYPE,'GDF')
-                                                c=fwrite(HDR.FILE.FID,[HDR.NRec,0],'int32');
-                                        else	
-                                                fprintf(HDR.FILE.FID,'%-8i',HDR.NRec);
-                                        end;
-                                else    %% due to a limitation in zlib
-                                        fprintf(HDR.FILE.stderr,'ERROR SCLOSE: number-of-records-field (HDR.NRec) could not be updated in file %s.\n',HDR.FileName);
+                if isnan(tmp)
+                	tmp = 0; 
+                end;	
+                if (HDR.NRec~=tmp)
+                       if ~any(HDR.FILE.PERMISSION=='z')
+                               HDR.NRec=tmp;
+                               fseek(HDR.FILE.FID,236,'bof');
+                               if strcmp(HDR.TYPE,'GDF')
+                                        c=fwrite(HDR.FILE.FID,[HDR.NRec,0],'int32');
+                               else	
+                                        fprintf(HDR.FILE.FID,'%-8i',HDR.NRec);
                                 end;
+                        else    %% due to a limitation in zlib
+                                fprintf(HDR.FILE.stderr,'ERROR SCLOSE: number-of-records-field (HDR.NRec) could not be updated in file %s.\n',HDR.FileName);
                         end;
                 end;
                 
-                if strcmp(HDR.TYPE,'GDF') & isfield(HDR,'EVENT') & (HDR.NRec==tmp),
+                if strcmp(HDR.TYPE,'GDF') & isfield(HDR,'EVENT'),
+                        HDR.AS.EVENTTABLEPOS = HDR.HeadLen+HDR.AS.bpb*HDR.NRec;
 			len = [length(HDR.EVENT.POS),length(HDR.EVENT.TYP)]; 
                         EVENT.Version = 1;
                         if isfield(HDR.EVENT,'CHN') & isfield(HDR.EVENT,'DUR'), 
@@ -106,11 +108,6 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                                 fprintf(HDR.FILE.stderr,'Error SCLOSE-GDF: cannot write Event table, file %s not closed.\n',HDR.FileName);
 				return;
                         else
-				if HDR.NS>0,
-	                                HDR.AS.EVENTTABLEPOS = HDR.HeadLen+HDR.AS.bpb*HDR.NRec;
-				else	
-	                                HDR.AS.EVENTTABLEPOS = 256;
-				end;	
                                 status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*HDR.NRec,'bof');
                                 %status = fseek(HDR.FILE.FID,0,'eof');
                                 if ftell(HDR.FILE.FID)~=HDR.AS.EVENTTABLEPOS,
@@ -142,13 +139,13 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                 end;
 
         elseif strcmp(HDR.TYPE,'CFWB');
-                tmp = (EndPos-HDR.HeadLen)/HDR.AS.bpb;
+                tmp = (EndPos-HDR.HeadLen)/HDR.AS.bpb
                 if isnan(tmp), tmp=0; end;
-                if (tmp~=HDR.SPR);
+                if (tmp~=HDR.NRec);
                         if ~any(HDR.FILE.PERMISSION=='z')
-                                HDR.SPR = tmp;
-                                fseek(HDR.FILE.FID,15,-1);
-                                count = fwrite(HDR.FILE.FID,HDR.SPR,'int32');           % channels
+                                HDR.NRec = tmp;
+                                fseek(HDR.FILE.FID,14*4,-1);
+                                count = fwrite(HDR.FILE.FID,HDR.NRec,'int32');           % channels
                         else
                                 fprintf(HDR.FILE.stderr,'ERROR SCLOSE (CFWB): number-of-samples-field (HDR.SPR) could not be updated in file %s.\n',HDR.FileName);
                         end;

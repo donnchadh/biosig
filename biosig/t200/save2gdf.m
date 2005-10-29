@@ -27,7 +27,7 @@ function [HDR] = save2gdf(arg1,arg2,arg3);
 %   data	data samples
 %
 
-% 	$Id: save2gdf.m,v 1.5 2005-05-13 17:40:14 schloegl Exp $
+% 	$Id: save2gdf.m,v 1.6 2005-10-29 17:58:13 schloegl Exp $
 %	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>		
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -100,9 +100,11 @@ if isstruct(arg1),
 	        HDR.DigMax = max(data,[],1);
 		HDR.DigMin = min(data,[],1);
 	end; 
-        HDR.PhysMax = [1,HDR.DigMax]*HDR.Calib;
-	HDR.PhysMin = [1,HDR.DigMin]*HDR.Calib;
-	if isfield(HDR,'GDFTYP')
+	if strcmp(HDR.TYPE,'EVENT')
+                HDR.SampleRate = HDR.EVENT.SampleRate;
+        elseif isfield(HDR,'GDFTYP')
+                HDR.PhysMax = [1,HDR.DigMax]*HDR.Calib;
+        	HDR.PhysMin = [1,HDR.DigMin]*HDR.Calib;
     		%bits = ceil(log2(max(HDR.DigMax-HDR.DigMin+1))/8)*8;    % allows int8, int16, int24, int32, etc. 
     		bits1 = ceil(log2(HDR.DigMax-HDR.DigMin+1));
 	        [datatyp,limits,datatypes] = gdfdatatype(HDR.GDFTYP);

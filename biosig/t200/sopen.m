@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.124 $
-%	$Id: sopen.m,v 1.124 2005-10-23 19:34:02 schloegl Exp $
+%	$Revision: 1.125 $
+%	$Id: sopen.m,v 1.125 2005-10-29 17:58:12 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -575,26 +575,32 @@ end;
                                 tmp = strfind(lower(F3),'hz');
                                 if ~isempty(tmp), F3=F3(1:tmp-1); end;
 
+                                tmp = str2double(F1); 
+                                if isempty(tmp),tmp=NaN; end; 
                                 if strcmp(T1,'LP'), 
-                                        HDR.Filter.LowPass(k) =str2double(F1);
+                                        HDR.Filter.LowPass(k) = tmp;
                                 elseif strcmp(T1,'HP'), 
-                                        HDR.Filter.HighPass(k)=str2double(F1);
+                                        HDR.Filter.HighPass(k)= tmp;
                                 elseif strcmp(T1,'Notch'), 
-                                        HDR.Filter.Notch(k)   =str2double(F1);
+                                        HDR.Filter.Notch(k)   = tmp;
                                 end;
+                                tmp = str2double(F3); 
+                                if isempty(tmp),tmp=NaN; end; 
                                 if strcmp(T2,'LP'), 
-                                        HDR.Filter.LowPass(k) =str2double(F2);
+                                        HDR.Filter.LowPass(k) = tmp;
                                 elseif strcmp(T2,'HP'), 
-                                        HDR.Filter.HighPass(k)=str2double(F2);
+                                        HDR.Filter.HighPass(k)= tmp;
                                 elseif strcmp(T2,'Notch'), 
-                                        HDR.Filter.Notch(k)   =str2double(F2);
+                                        HDR.Filter.Notch(k)   = tmp;
                                 end;
+                                tmp = str2double(F3); 
+                                if isempty(tmp),tmp=NaN; end; 
                                 if strcmp(T3,'LP'), 
-                                        HDR.Filter.LowPass(k) =str2double(F3);
+                                        HDR.Filter.LowPass(k) = tmp;
                                 elseif strcmp(T3,'HP'), 
-                                        HDR.Filter.HighPass(k)=str2double(F3);
+                                        HDR.Filter.HighPass(k)= tmp;
                                 elseif strcmp(T3,'Notch'), 
-                                        HDR.Filter.Notch(k)   =str2double(F3);
+                                        HDR.Filter.Notch(k)   = tmp;
                                 end;
                                 %catch
                         %        fprintf(2,'Cannot interpret: %s\n',HDR.PreFilt(k,:));
@@ -628,9 +634,13 @@ end;
                 HDR.Calib = [HDR.Off'; diag(HDR.Cal)];
                 HDR.AS.endpos = HDR.FILE.size;
                 
-                if HDR.NRec == -1   % unknown record size, determine correct NRec
+
+                if (HDR.AS.endpos == HDR.HeadLen)
+                        HDR.NRec = 0; 
+                elseif HDR.NRec == -1   % unknown record size, determine correct NRec
                         HDR.NRec = floor((HDR.AS.endpos - HDR.HeadLen) / HDR.AS.bpb);
-                elseif  (HDR.NRec*HDR.AS.bpb) ~= (HDR.AS.endpos - HDR.HeadLen);
+                end
+                if  (HDR.NRec*HDR.AS.bpb) ~= (HDR.AS.endpos - HDR.HeadLen);
                         %if ~strcmp(HDR.VERSION(1:3),'GDF'),
                         if ~strcmp(HDR.TYPE,'GDF'),
                                 HDR.ErrNo= [16,HDR.ErrNo];
@@ -1003,7 +1013,7 @@ end;
                 end;
                 [tmp,HDR.THRESHOLD]=gdfdatatype(HDR.GDFTYP);
                 
-                if HDR.NS>0,	% header 2
+                if (HDR.NS>0),	% header 2
                         % Check all fields of Header2
                         if ~isfield(HDR,'Label')
                                 HDR.Label=setstr(32+zeros(HDR.NS,16));
@@ -1052,6 +1062,7 @@ end;
                                 if isfield(HDR,'Filter'),
                                         if isfield(HDR.Filter,'LowPass') & isfield(HDR.Filter,'HighPass') & isfield(HDR.Filter,'Notch'),
                                                 if any(length(HDR.Filter.LowPass) == [1,HDR.NS]) & any(length(HDR.Filter.HighPass) == [1,HDR.NS]) & any(length(HDR.Filter.Notch) == [1,HDR.NS])
+                                                        PreFilt = {};
                                                         for k = 1:HDR.NS,
                                                                 k1 = min(k,length(HDR.Filter.LowPass));
                                                                 k2 = min(k,length(HDR.Filter.HighPass));
@@ -1260,6 +1271,7 @@ end;
                         fprintf(HDR.FILE.stderr,'\t Solution(s): (1) define exactly HDR.NRec before calling SOPEN(HDR,"wz"); or (2) write to uncompressed file instead.\n');
                         return;
                 end;
+
                 if 1,
                         [HDR.FILE.FID,MESSAGE]=fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');          
                 elseif ~any(PERMISSION=='+') 
@@ -1425,7 +1437,7 @@ end;
                         fprintf(1,'Warning SOPEN (GDF/EDF/BDF)-WRITE: incorrect header length %i bytes\n',tmp);
                         %else   fprintf(1,'SOPEN (GDF/EDF/BDF) in write mode: header info stored correctly\n');
                 end;        
-                
+
         else % if arg2 is not 'r' or 'w'
                 fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF): Incorrect 2nd argument. \n');
         end;        
@@ -7405,6 +7417,12 @@ elseif strncmp(HDR.TYPE,'XML',3),
                                 k = k+1; 
                                 HDR.Label{k, 1} = [s,' '];
                         end;
+                        HDR.Patient.Id     = str2double(XML.patient.generalpatientdata.patientid);
+                        HDR.Patient.Age    = str2double(XML.patient.generalpatientdata.age.years);
+                        tmp    = XML.patient.generalpatientdata.sex;
+                        HDR.Patient.Sex    = strncmpi(tmp,'Male',1) + strncmpi(tmp,'Female',1)*2; 
+                        HDR.Patient.Weight = str2double(XML.patient.generalpatientdata.weight.kg);
+                        HDR.Patient.Height = str2double(XML.patient.generalpatientdata.height.cm);
                         
                         HDR.VERSION = HDR.XML.documentinfo.documentversion;
                         HDR.TYPE = HDR.XML.documentinfo.documenttype;
