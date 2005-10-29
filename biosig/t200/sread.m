@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.57 $
-%	$Id: sread.m,v 1.57 2005-08-30 20:16:20 schloegl Exp $
+%	$Revision: 1.58 $
+%	$Id: sread.m,v 1.58 2005-10-29 18:09:24 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -71,7 +71,7 @@ if isfield(HDR,'THRESHOLD')     % save THRESHOLD status (will be modified in BKR
         THRESHOLD = HDR.THRESHOLD; 
 end
 
-if 0, strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
+if (0), %strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF');
         if nargin<3,
                 [S,HDR] = sdfread(HDR, NoS );
         else
@@ -95,7 +95,9 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF') 
     	status = fseek(HDR.FILE.FID, fp, 'bof');
 
 	count  = 0;
-        if all(HDR.GDFTYP==HDR.GDFTYP(1)),
+        if HDR.NS==0,
+
+        elseif all(HDR.GDFTYP==HDR.GDFTYP(1)),
                 if (HDR.AS.spb*nb<=2^24), % faster access
                         S = [];
                         [s,c] = fread(HDR.FILE.FID,[HDR.AS.spb, nb],gdfdatatype(HDR.GDFTYP(1)));
@@ -207,7 +209,6 @@ elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ISHNE','Nicolet','RG64'}),
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
-
         maxsamples = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
 	S = []; count = 0;
 	while maxsamples>0,	
@@ -1346,7 +1347,7 @@ if ~HDR.FLAG.UCAL,
         % taking into account some specialities related to Octave sparse
         % data. 
 
-	if isempty(S),	% otherwise 2.1.64 could break below, 
+        if isempty(S),	% otherwise 2.1.64 could break below, 
 		if size(S,2)~=length(HDR.InChanSelect), 
 			fprintf(HDR.FILE.stderr,'Warning SREAD (%s): number of columns (%i) incorrect!\n',HDR.TYPE,size(S,2));
 		end;	
