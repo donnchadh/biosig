@@ -1,14 +1,16 @@
 function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 % QRSDETECT - detection of QRS-complexes
 %
-%   HDR = qrsdetect(fn,chan)
-%   HDR = qrsdetect(s,Fs)
+%   HDR = qrsdetect(fn,chan,Mode)
+%   HDR = qrsdetect(s,Fs,Mode)
 %
 % INPUT
-%   fn	filename
-%   chan channel number of ecg data
-%   s    ecg signal data 
-%   Fs   sample rate 
+%   fn	        filename
+%   chan        channel number of ecg data
+%   s           ecg signal data 
+%   Fs          sample rate 
+%   Mode        [optional]
+%               1: method [1] is used 
 % OUTPUT
 %   HDR.EVENT  fiducial points of qrs complexes	
 %
@@ -22,7 +24,7 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 %
 
 
-%	$Id: qrsdetect.m,v 1.2 2005-04-27 14:18:36 schloegl Exp $
+%	$Id: qrsdetect.m,v 1.3 2005-10-29 17:59:30 schloegl Exp $
 %	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -43,7 +45,7 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 
 
 chan = 0; 
-MODE = '';
+MODE = 1;       % default: 
 if (nargin==2) 
 	if isnumeric(arg2)
 		chan = arg2;
@@ -74,21 +76,28 @@ else
 	HDR = sclose(HDR);
 end;	
 
-ET = []; 
-for k = 1:size(s,2),
-	y  = processing({'ECG_envelope',HDR.SampleRate},s(:,k));
-	TH = quantile(y,.95);
-
-	POS = gettrigger(y,TH);	% fiducial point
-	
-	% difference between R-peak and fiducial point
-	[t,sz] = trigg(s(:,k),POS,-HDR.SampleRate,HDR.SampleRate);
-	[tmp,ix] = max(abs(mean(reshape(t,sz(2:3)),2)));
-	delay = HDR.SampleRate + 1 - ix;
-	
-	ET = [ET; [POS-delay, repmat([hex2dec('0501'),chan(k),0], size(POS,1),1)]];
+if MODE==1,     % QRS detection based on Hilbert transformation. For details see [1]
+        ET = []; 
+        for k = 1:size(s,2),
+                y  = processing({'ECG_envelope',HDR.SampleRate},s(:,k));
+                TH = quantile(y,.90);
+                
+                POS = gettrigger(y,TH);	% fiducial point
+                
+                % difference between R-peak and fiducial point
+                [t,sz] = trigg(s(:,k),POS,floor(-HDR.SampleRate),ceil(HDR.SampleRate));
+                [tmp,ix] = max(abs(mean(reshape(t,sz(2:3)),2)));
+                delay = HDR.SampleRate + 1 - ix;
+                
+                ET = [ET; [POS-delay, repmat([hex2dec('0501'),chan(k),0], size(POS,1),1)]];
+        end;
+else %if Mode== ???     % other QRS detection algorithms
+        
 end;
+
 [tmp,ix] = sort(ET(:,1));
+H2.T0 = HDR.T0; 
+H2.Patient = HDR.Patient;
 H2.EVENT.POS = ET(ix,1);
 H2.EVENT.TYP = ET(ix,2);
 H2.EVENT.CHN = ET(ix,3);
