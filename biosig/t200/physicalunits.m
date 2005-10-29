@@ -33,7 +33,7 @@ function [out] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.2 2005-10-23 19:10:41 schloegl Exp $
+%	$Id: physicalunits.m,v 1.3 2005-10-29 17:51:58 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -55,7 +55,7 @@ if ~BIOSIG_GLOBAL.ISLOADED;
         while ~feof(fid), 
 		if ~strncmp(line,'#',1),
 			N1 = N1 + 1;
-               		[n,v,s]=str2double(line);
+               		[n,v,s] = str2double(line);
                		n = n(~v);
                		DecimalFactor.Code(N1,1) = n(2);
                		DecimalFactor.Cal(N1,1) = n(1);
@@ -127,16 +127,20 @@ if isstruct(arg1)
 elseif isnumeric(arg1)
 	s = mod(arg1,32); 
 	n = bitand(arg1,2^16-32);
-	for k=1:length(n); 
-		t1 = BIOSIG_GLOBAL.DecimalFactor.Prefix{BIOSIG_GLOBAL.DecimalFactor.Code==s(k)};
+	for k = 1:length(n); 
+		t1 = BIOSIG_GLOBAL.DecimalFactor.Prefix{find(BIOSIG_GLOBAL.DecimalFactor.Code==s(k))};
 		t2 = BIOSIG_GLOBAL.Units.Symbol{BIOSIG_GLOBAL.Units.Code==n(k)};
 		PhysDim{k,1} = [t1,t2];
-	end;	
+	end;
 	out = strvcat(PhysDim);
 	
 elseif ischar(arg1) | iscell(arg1) 
-	arg1 = cellstr(arg1);
-	N    = length(arg1); 
+        if iscell(arg1)
+                N    = length(arg1); 
+        elseif ischar(arg1)     
+                N = size(arg1,1);
+                arg1 = cellstr(arg1);
+        end;
 	Code = zeros(N,1); 	% default value is 0 (unknown)
 	for k=1:N; 
 		unit = deblank(arg1{k});
@@ -161,6 +165,8 @@ elseif ischar(arg1) | iscell(arg1)
 		elseif strcmp(unit,'mV')
                		Code(k) = 4256 + 18;
 		elseif strcmp(unit,'uV')
+              		Code(k) = 4256 + 19;
+		elseif strcmp(unit,'µV')
               		Code(k) = 4256 + 19;
 		elseif strcmp(unit,'K')
               		Code(k) = 4384;
