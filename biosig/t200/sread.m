@@ -34,8 +34,8 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.58 $
-%	$Id: sread.m,v 1.58 2005-10-29 18:09:24 schloegl Exp $
+%	$Revision: 1.59 $
+%	$Id: sread.m,v 1.59 2005-11-02 17:01:04 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1077,7 +1077,6 @@ elseif strcmp(HDR.TYPE,'CTF'),
         
 elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
         if nargin>2,
-                STATUS = fseek(HDR.FILE.FID,HDR.SampleRate*HDR.AS.bpb,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         
