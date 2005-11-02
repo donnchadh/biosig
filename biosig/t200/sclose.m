@@ -20,8 +20,8 @@ function [HDR] = sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.17 $
-%	$Id: sclose.m,v 1.17 2005-10-29 17:58:13 schloegl Exp $
+%	$Revision: 1.18 $
+%	$Id: sclose.m,v 1.18 2005-11-02 17:02:19 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -94,7 +94,11 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                 end;
                 
                 if strcmp(HDR.TYPE,'GDF') & isfield(HDR,'EVENT'),
-                        HDR.AS.EVENTTABLEPOS = HDR.HeadLen+HDR.AS.bpb*HDR.NRec;
+                	if ~all([HDR.NS, HDR.NRec, HDR.AS.bpb]>0)
+                		HDR.AS.EVENTTABLEPOS = HDR.HeadLen; 
+                	else
+	                        HDR.AS.EVENTTABLEPOS = HDR.HeadLen+HDR.AS.bpb*HDR.NRec;
+	                end; 
 			len = [length(HDR.EVENT.POS),length(HDR.EVENT.TYP)]; 
                         EVENT.Version = 1;
                         if isfield(HDR.EVENT,'CHN') & isfield(HDR.EVENT,'DUR'), 
