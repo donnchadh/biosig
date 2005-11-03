@@ -33,7 +33,7 @@ function [out] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.4 2005-10-29 17:57:05 schloegl Exp $
+%	$Id: physicalunits.m,v 1.5 2005-11-03 15:18:32 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -144,7 +144,9 @@ elseif ischar(arg1) | iscell(arg1)
 	Code = zeros(N,1); 	% default value is 0 (unknown)
 	for k=1:N; 
 		unit = deblank(arg1{k});
-		if (unit(1)=='µ'), unit(1)='u'; end; 
+		if length(unit)>0,
+			if (unit(1)=='µ'), unit(1)='u'; end; 
+		end;
 		if 0,
 		
 		elseif strcmpi(unit,'-')	% dimensionless
