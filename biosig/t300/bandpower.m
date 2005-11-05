@@ -15,7 +15,7 @@ function bp = bandpower(s,arg2,arg3,arg4)
 %
 
 
-%	$Id: bandpower.m,v 1.2 2005-03-25 11:34:55 schloegl Exp $
+%	$Id: bandpower.m,v 1.3 2005-11-05 23:17:09 schloegl Exp $
 %	Copyright (c) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -59,12 +59,12 @@ tmp = s; tmp(isnan(tmp))=0;
 if 1, % FIR  
         for k=1:size(F,1),
                 B  = fir1(HDR.SampleRate,F(k,:)/HDR.SampleRate*2);
-                bp = [bp,log(filter(ones(W*HDR.SampleRate,1),W*HDR.SampleRate,[filter(B,1,tmp),filter(B,1,tmp)].^2 ))];
+                bp = [bp,log(filter(ones(W*HDR.SampleRate,1),W*HDR.SampleRate,filter(B,1,tmp).^2 ))];
         end;
 else
         for k=1:size(F,1),
-                [B1,A1] = butter(5,F(k,:)/HDR.SampleRate*2);
-                bp = [bp,log(filter(ones(W*HDR.SampleRate,1),W*HDR.SampleRate,[filter(B1,A1,tmp),filter(B2,A2,tmp)].^2 ))];
+                [B,A] = butter(5,F(k,:)/HDR.SampleRate*2);
+                bp = [bp,log(filter(ones(W*HDR.SampleRate,1),W*HDR.SampleRate,filter(B,A,tmp).^2 ))];
         end;
 end;
 
