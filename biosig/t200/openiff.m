@@ -4,11 +4,9 @@ function [IFF]=openiff(fid,LEN)
 % 
 % Use SOPEN instead of OPENIFF  
 % 
-% See also: fopen, SOPEN, 
+% See also: fopen, SOPEN
 %
 % References: 
-% [1] 
-% [2] 
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -17,33 +15,32 @@ function [IFF]=openiff(fid,LEN)
 % 
 % This program is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% MERTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 % GNU General Public License for more details.
 % 
 % You should have received a copy of the GNU General Public License
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.1 $
-%	$Id: openiff.m,v 1.1 2004-11-18 16:03:55 schloegl Exp $
-%	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: openiff.m,v 1.2 2005-11-05 19:27:08 schloegl Exp $
+%	Copyright (C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
-fprintf(2,'Warning: OPENIFF is in an experimental state and is most likely not useful to you.\n'); 
-fprintf(2,'\t Do not use it unless you are sure know what you do. At least you are warned!\n');
-
+FLAG.CLOSE = 0; 
+if ischar(fid)
+        fid = fopen(fid,'r');
+        FLAG.CLOSE = 1; 
+end;
 
 if nargin<2,
         LEN = 8;
 end;		
 
 IFF = [];
-c   = 1; 
 K   = 0; 
 K1  = 0; 
 
-COUNT = 0; 
 [tmp,c] = fread(fid,[1,4],'char');
 while ((LEN>0) | isnan(LEN)) & (c>0),	
         tag     = char(tmp);
@@ -52,38 +49,50 @@ while ((LEN>0) | isnan(LEN)) & (c>0),
         filepos = ftell(fid);
         LEN = LEN - 8; 
         
+%       fprintf(1,'tag: %s\tpos: %8i\tsize: %8i\n',tag,filepos,tagsize);
+        
         if 0, 
                 VAL = openiff(fid,tagsize);
         elseif strcmp(tag,'FORM')
-                [tmp,c] = fread(fid,[1,4],'char');
-                VAL = setfield(VAL,char(tmp),openiff(fid,tagsize-4));
+                [tmp,c] = fread(fid,[1,4],'char');tag,
+                VAL = setfield([],char(tmp),openiff(fid,tagsize-4));
         elseif strcmp(tag,'RIFF')
                 [tmp,c] = fread(fid,[1,4],'char');
-                VAL = setfield(VAL,char(tmp),openiff(fid,tagsize-4));
+                VAL = setfield([],char(tmp),openiff(fid,tagsize-4));
         elseif strcmp(tag,'MThd')
                 VAL.MThd = fread(fid,tagsize,'uchar');
                 VAL.MIDI = openiff(fid,NaN);
                 %LEN = NaN;
                 %VAL.MIDI = tmp;
         elseif strcmp(tag,'LIST')
-                [tmp,c] = fread(fid,[1,4],'char'); char(tmp),
-                VAL = setfield(VAL,char(tmp),openiff(fid,tagsize-4));
+                [tmp,c] = fread(fid,[1,4],'char'); 
+                VAL = setfield([],char(tmp),openiff(fid,tagsize-4));
         elseif strcmp(tag,'LIST')
                 VAL = openiff(fid,tagsize);
+        elseif strcmp(tag,'chan')
+                VAL = fread(fid,[1,tagsize/2],'uint16');
+        elseif strncmp(tag,'ep  ',4),
+                VAL = fread(fid,[1,tagsize/4],'uint32');
         elseif strcmp(tag,'hdrl')
-                tagsize,
-                [tmp,c] = fread(fid,[1,tagsize],'char')
-                VAL = openiff(fid,tagsize-4);
+                [tmp,c] = fread(fid,[1,4],'char');
+                VAL = setfield([],char(tmp),openiff(fid,tagsize-4));
         elseif strcmp(tag,'CAT ')
                 VAL = openiff(fid,tagsize);
         elseif strncmp(tag,'(c)',3)
                 tag = 'Copyright';
                 VAL = char(fread(fid,tagsize,'uchar')');
                 %VAL.CopyRight = char(VAL);
-        else		
-                VAL = fread(fid,tagsize,'uchar');
+        else
+                if 1, %tagsize<1024*2,
+                        VAL = fread(fid,tagsize,'uchar');
+                else
+			VAL = [];
+                        VAL.handle = ftell(fid);
+                        VAL.size = tagsize; 
+                        status = fseek(fid,tagsize,'cof');
+                end
         end;
-        
+	        
         if strcmp(tag(3:4),'dc')
                 K = K+1;
                 ix = (tag(1:2)-48)*[16;1]+1;
@@ -106,3 +115,6 @@ if ~isfield(IFF,'MThd'), % do not check MIDI files
         end;	
 end;
 
+if FLAG.CLOSE,
+        fclose(fid);
+end;

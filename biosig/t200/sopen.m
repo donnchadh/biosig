@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.125 $
-%	$Id: sopen.m,v 1.125 2005-10-29 17:58:12 schloegl Exp $
+%	$Revision: 1.126 $
+%	$Id: sopen.m,v 1.126 2005-11-05 19:27:08 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -922,12 +922,20 @@ end;
 			tmp = [HDR.Patient.Headsize(:);NaN;NaN;NaN]';
 			HDR.Patient.Headsize = HDR.Patient.Headsize(1:3); 
                 end;
+                if ~isfield(HDR,'ELEC')
+                        HDR.ELEC.XYZ = repmat(0,HDR.NS,3); 
+                        HDR.ELEC.GND = zeros(1,3); 
+                        HDR.ELEC.REF = zeros(1,3); 
+                end;
                 if ~isfield(HDR,'REC')
 			HDR.REC.LOC.RFC1876 = uint32([hex2dec('00292929'),48*36e5+2^31,15*36e5+2^31,35000]);
 		end
 		if ~isfield(HDR.REC.LOC,'RFC1876')	
 			tmp = HDR.REC.LOC;
 			HDR.REC.LOC.RFC1876 = [hex2dec('00292929'),tmp.Latitude*36e5,tmp.Longitude*36e5,tmp.Altitude*100];
+		end
+		if ~isfield(HDR.REC,'Impedance')	
+                        HDR.REC.Impedance = repmat(NaN,HDR.NS,1); 
 		end
                 HDR.ID.Equipment = [1,abs('BIOSIG ')];
                 if ~isfield(HDR.ID,'Lab')
@@ -1242,7 +1250,7 @@ end;
                 HDR.AS.bpb   = sum(ceil(HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)'));	% Bytes per Block
                 HDR.FILE.POS  = 0;
 
-                if HDR.VERSION>=1.9,	% do some header checks
+                if (HDR.VERSION>=1.9),	% do some header checks
 		if ~HDR.Patient.Sex,
                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF) WRITE: HDR.Patient.Sex is not defined.\n'); 
 		end;	
@@ -6679,75 +6687,57 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         
 elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
 
-        if 1, %try
-                % Read the first sample of the file with a mex function
-                % this also gives back header information, which is needed here
-                tmp = read_eep_cnt(HDR.FileName, 1, 1);
-
-                % convert the header information to BIOSIG standards
-                HDR.FILE.FID = 1;               % ?
-                HDR.FILE.POS = 0;
-                HDR.NS = tmp.nchan;             % number of channels
-                HDR.SampleRate = tmp.rate;      % sampling rate
-                HDR.NRec = 1;                   % it is always continuous data, therefore one record
-                HDR.FLAG.TRIGGERED = 0; 
-                HDR.SPR = tmp.nsample;          % total number of samples in the file
-                HDR.Dur = tmp.nsample/tmp.rate; % total duration in seconds
-                HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
-                HDR.Label = char(tmp.label);
-                HDR.PhysDim = 'uV';
-                HDR.AS.endpos = HDR.SPR;
-                HDR.Label = tmp.label;
-                
-        else %catch
-                fprintf(HDR.FILE.stderr,'Warning SOPEN (EEProbe): only experimental version. \n');
-
-                HDR.FILE.FID = fopen(HDR.FileName,'rb');
-                H = openiff(HDR.FILE.FID);
-                if isfield(H,'RIFF');
-                        HDR.FILE.OPEN = 1; 
-                        HDR.RIFF = H.RIFF;
-                        HDR.Label = {};
-                        HDR.PhysDim = {};
-                        if isfield(HDR.RIFF,'CNT');
-                                if isfield(HDR.RIFF.CNT,'eeph');
-				if ~isstruct(HDR.RIFF.CNT.eeph);
-                                        rest = char(HDR.RIFF.CNT.eeph');                        
-                                        while ~isempty(rest), 
-                                                [tline,rest] = strtok(rest,[10,13]);
-                                                if isempty(tline),
-                                                        
-                                                elseif strncmp(tline,'[Sampling Rate]',13)
-                                                        [tline,rest] = strtok(rest,[10,13]);
-                                                        [HDR.SampleRate,status] = str2double(tline);
-                                                elseif strncmp(tline,'[Samples]',7)
-                                                        [tline,rest] = strtok(rest,[10,13]);
-                                                        [HDR.SPR,status] = str2double(tline);
-                                                elseif strncmp(tline,'[Channels]',8)
-                                                        [tline,rest] = strtok(rest,[10,13]);
-                                                        [HDR.NS,status] = str2double(tline);
-                                                elseif strncmp(tline,'[Basic Channel Data]',16)
-                                                        while rest(2)==';'
-                                                                [tline,rest] = strtok(rest,[10,13]);
-                                                        end;
-                                                        k = 1; 
-                                                        while k<=HDR.NS,
-                                                                [tline,rest] = strtok(rest,[10,13]);
-                                                                [HDR.Label{k,1}, R] = strtok(tline,[9,10,13,32]);    
-                                                                [Dig , R]  = strtok(R,[9,10,13,32]);    
-                                                                [Phys, R]  = strtok(R,[9,10,13,32]);    
-                                                                HDR.Cal(k) = str2double(Phys)/str2double(Dig); 
-                                                                [HDR.PhysDim{k,1}, R] = strtok(R,[9,10,13,32]);    
-                                                                k = k + 1;
-                                                        end;
-                                                        HDR.Calib = [zeros(1,HDR.NS);diag(HDR.Cal)];
-                                                elseif strncmp(tline,'[History]',9)
-                                                else
-                                                end
-                                        end;
-                                end
-				end;
-                        end
+	HDR.FILE.FID = fopen(HDR.FileName,'rb');
+	H = openiff(HDR.FILE.FID);
+	if isfield(H,'RIFF');
+                HDR.FILE.OPEN = 1; 
+                HDR.RIFF = H.RIFF;
+                HDR.Label = {};
+                HDR.PhysDim = {};
+                HDR.SPR = inf; 
+                HDR.FILE.POS = 0; 
+                if ~isfield(HDR.RIFF,'CNT');
+                	HDR.TYPE = 'unknown'; 
+                elseif ~isfield(HDR.RIFF.CNT,'eeph');
+                	HDR.TYPE = 'unknown'; 
+                else	
+			s = char(HDR.RIFF.CNT.eeph');
+			field = '';
+			while ~isempty(s)
+				[line,s] = strtok(s,[10,13]); 
+				if strcmp(line,'[Sampling Rate]'); 
+					field = 'SampleRate';
+				elseif strcmp(line,'[Samples]'); 
+					field = 'SPR';
+				elseif strcmp(line,'[Channels]'); 
+					field = 'NS';
+				elseif strcmp(line,'[Basic Channel Data]'); 
+					k = 0; 
+					while (k<HDR.NS),     
+						[line,s] = strtok(s,[10,13]); 
+						if ~strncmp(line,';',1);
+							k = k+1;
+							[num,status,sa]=str2double(line);
+							HDR.Label{k} = sa{1};
+							HDR.PhysDim{k} = sa{4};
+							HDR.Cal(k) = num(2);%/num(3);
+						end;
+					end;	
+				elseif strncmp(line,';',1);      
+				elseif strncmp(line,'[',1);
+					field = '';      
+				elseif ~isempty(field);
+					[num,status,sa] = str2double(line);
+					if ~status,
+						HDR = setfield(HDR,field,num);     
+					end;	
+				end;     
+			end;	
+			HDR.Label = strvcat(HDR.Label); 
+			HDR.PhysDim = strvcat(HDR.PhysDim); 
+			
+			%HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal); 
+			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); % because SREAD uses READ_EEP_CNT.MEX 
                 end
         end
 
