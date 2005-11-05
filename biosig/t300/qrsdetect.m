@@ -24,7 +24,7 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 %
 
 
-%	$Id: qrsdetect.m,v 1.3 2005-10-29 17:59:30 schloegl Exp $
+%	$Id: qrsdetect.m,v 1.4 2005-11-05 23:35:03 schloegl Exp $
 %	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -96,8 +96,12 @@ else %if Mode== ???     % other QRS detection algorithms
 end;
 
 [tmp,ix] = sort(ET(:,1));
-H2.T0 = HDR.T0; 
-H2.Patient = HDR.Patient;
+if isfield(HDR,'T0')
+	H2.T0 = HDR.T0; 
+end;	
+if isfield(HDR,'Patient')
+	H2.Patient = HDR.Patient;
+end;	
 H2.EVENT.POS = ET(ix,1);
 H2.EVENT.TYP = ET(ix,2);
 H2.EVENT.CHN = ET(ix,3);
