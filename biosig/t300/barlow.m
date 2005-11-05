@@ -1,17 +1,17 @@
-function [ACTIVITY, MOBILITY, COMPLEXITY,m0,m1,m2] = hjorth(S,UC,A)
-%  HJORTH calculates ACTIVITY, MOBILITY, COMPLEXITY
+function [A,F,S]=barlow(S,UC,A)
+%  BARLOW calculates ACTIVITY, MOBILITY, COMPLEXITY
 %           
-%  [ACTIVITY, MOBILITY, COMPLEXITY] = hjorth(...)
+%  [Amplitude, Frequency, SPI] = barlow(...)
 %  
-%  [...] = hjorth(S,0)
+%  [...] = barlow(S,0)
 %       calculates stationary Hjorth parameter 
-%  [...] = hjorth(S,UC) with 0<UC<1,
+%  [...] = barlow(S,UC) with 0<UC<1,
 %       calculates time-varying Hjorth parameter using 
 %       exponential window 
-%  [...] = hjorth(S,N) with N>1,
+%  [...] = barlow(S,N) with N>1,
 %       calculates time-varying Hjorth parameter using 
 %       rectangulare window of length N
-%  [...] = hjorth(S,B,A) with B>=1 oder length(B)>1,
+%  [...] = barlow(S,B,A) with B>=1 oder length(B)>1,
 %       calulates time-varying Hjorth parameters using 
 %       transfer function B(z)/A(z) for windowing 
 %
@@ -21,12 +21,12 @@ function [ACTIVITY, MOBILITY, COMPLEXITY,m0,m1,m2] = hjorth(S,UC,A)
 %              
 %
 % REFERENCE(S):
-% [1] B. Hjorth, 
-%   Time Domain Descriptors and their Relation to particulare Model for Generation of EEG activity. 
-%   in G. Dolce, H. Kunkel: CEAN Computerized EEG Analysis, Gustav Fischer 1975, S.3-8. 
+% [1] Goncharova II, Barlow JS.
+%   Changes in EEG mean frequency and spectral purity during spontaneous alpha blocking.
+%   Electroencephalogr Clin Neurophysiol. 1990 Sep;76(3):197-204. 
 
-%	$Id: hjorth.m,v 1.2 2005-11-05 22:06:45 schloegl Exp $
-%	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>
+%	$Id: barlow.m,v 1.1 2005-11-05 22:06:45 schloegl Exp $
+%	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -46,9 +46,7 @@ function [ACTIVITY, MOBILITY, COMPLEXITY,m0,m1,m2] = hjorth(S,UC,A)
 
 [N,K] = size(S); 	% number of electrodes K, number of samples N
 
-%m0 = mean(sumsq(S,2));
 d0 = S;
-%m1 = mean(sumsq(diff(S,[],1),2));
 d1 = diff([zeros(1,K);S ],[],1);
 d2 = diff([zeros(1,K);d1],[],1);
 
@@ -72,25 +70,23 @@ else
         B = UC;    
 end;
 
+
 if ~UC,
-        m0 = mean(d0.^2);
-        m1 = mean(d1.^2);
-        m2 = mean(d2.^2);
+        m0 = mean(abs(d0));
+        m1 = mean(abs(d1));
+        m2 = mean(abs(d2));
 else
         if FLAG_ReplaceNaN;
                 d0(isnan(d0)) = 0;
                 d1(isnan(d1)) = 0;
                 d2(isnan(d2)) = 0;
         end;
-        m0 = filter(B,A,d0.^2)./filter(B,A,(~isnan(d0)).^2);
-        m1 = filter(B,A,d1.^2)./filter(B,A,(~isnan(d1)).^2);
-        m2 = filter(B,A,d2.^2)./filter(B,A,(~isnan(d2)).^2);
+        m0 = filter(B,A,abs(d0))./filter(B,A,(~isnan(d0)));
+        m1 = filter(B,A,abs(d1))./filter(B,A,(~isnan(d1)));
+        m2 = filter(B,A,abs(d2))./filter(B,A,(~isnan(d2)));
 end;
 
-ACTIVITY   = sqrt(m0);
-MOBILITY   = m1./m0; 
-tmp        = (m2./m1 - MOBILITY);
-COMPLEXITY = tmp;
-COMPLEXITY(tmp<0) = NaN;
-COMPLEXITY = sqrt(COMPLEXITY);
-MOBILITY   = sqrt(MOBILITY); 
+A = m0; 
+F = m1./m0; 
+S = (F.*F)./(m2.*A);
+
