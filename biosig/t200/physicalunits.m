@@ -1,4 +1,4 @@
-function [out] = physicalunits(arg1)
+function [out,scale] = physicalunits(arg1)
 % PHYSICALUNITS converts PhysDim inte PhysDimCode and vice versa
 % according to Annex A of FEF Vital Signs Format [1]
 %
@@ -11,6 +11,8 @@ function [out] = physicalunits(arg1)
 %   PhysDimCode = physicalunits(PhysDim); 
 %	converts descriptive units into Code for physical units. 
 %
+%   [..., scale] = physicalunits(...);
+%	scale contains the scaling factor of the decimal prefix 
 %
 % see also: SLOAD, SOPEN, doc/DecimalFactors.txt, doc/units.csv
 %
@@ -33,7 +35,7 @@ function [out] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.5 2005-11-03 15:18:32 schloegl Exp $
+%	$Id: physicalunits.m,v 1.6 2005-11-05 13:42:03 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -110,15 +112,15 @@ if isstruct(arg1)
 	
 	if 0, 
 	elseif  isfield(HDR,'PhysDim') &  isfield(HDR,'PhysDimCode')
-		Code = physicalunits(HDR.PhysDim);
+		[Code,scale] = physicalunits(HDR.PhysDim);
 		if ~isequal(Code(:),HDR.PhysDimCode(:))
 			warning('PhysDim and PhysDimCode differ');
 			[Code(:),HDR.PhysDimCode(:)]
 		end;		
 	elseif ~isfield(HDR,'PhysDim') &  isfield(HDR,'PhysDimCode')
-		HDR.PhysDim = physicalunits(HDR.PhysDimCode);
+		[HDR.PhysDim, scale] = physicalunits(HDR.PhysDimCode);
 	elseif  isfield(HDR,'PhysDim') % ~isfield(HDR,'PhysDimCode')
-		HDR.PhysDimCode = physicalunits(HDR.PhysDim);
+		[HDR.PhysDimCode,scale] = physicalunits(HDR.PhysDim);
 	elseif ~isfield(HDR,'PhysDim') & ~isfield(HDR,'PhysDimCode')
 		warning('Neither PhysDim nor PhysDimCode defined');
 	end;
@@ -127,10 +129,12 @@ if isstruct(arg1)
 elseif isnumeric(arg1)
 	s = mod(arg1,32); 
 	n = bitand(arg1,2^16-32);
+	scale = repmat(NaN,size(arg1));
 	for k = 1:length(n); 
-		t1 = BIOSIG_GLOBAL.DecimalFactor.Prefix{find(BIOSIG_GLOBAL.DecimalFactor.Code==s(k))};
+		t1 = BIOSIG_GLOBAL.DecimalFactor.Prefix{BIOSIG_GLOBAL.DecimalFactor.Code==s(k)};
 		t2 = BIOSIG_GLOBAL.Units.Symbol{BIOSIG_GLOBAL.Units.Code==n(k)};
 		PhysDim{k,1} = [t1,t2];
+		scale(k) = BIOSIG_GLOBAL.DecimalFactor.Cal(BIOSIG_GLOBAL.DecimalFactor.Code==s(k));
 	end;
 	out = strvcat(PhysDim);
 	
@@ -189,6 +193,10 @@ elseif ischar(arg1) | iscell(arg1)
 			end;	
                 end
         end;        
+	scale = repmat(NaN,size(Code));
+	for k = 1:numel(Code); 
+		scale(k) = BIOSIG_GLOBAL.DecimalFactor.Cal(BIOSIG_GLOBAL.DecimalFactor.Code==bitand(Code(k),31));
+	end;
         out = Code; 
         
 end;
