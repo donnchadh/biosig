@@ -1,4 +1,4 @@
-function [X] = heartratevariability(RRI)
+function [X] = heartratevariability(RRI,arg2)
 % HeartRateVariability Analysis according to [1]
 %
 % X = heartratevariability(RRI [,units])
@@ -17,7 +17,7 @@ function [X] = heartratevariability(RRI)
 %   units	time units e.g. 'ms' (default: 's')  
 %
 % OUTPUT
-%   X  		results as defined by [1]
+%   X  		struct containing the results as defined by [1]
 %
 %
 % see also: QRSDETECT, BERGER, EVENTCODES.TXT
@@ -29,7 +29,7 @@ function [X] = heartratevariability(RRI)
 %       European Heart Journal (1996) 17, 354-381. 
 
 
-%	$Id: heartratevariability.m,v 1.1 2005-11-04 10:45:38 schloegl Exp $
+%	$Id: heartratevariability.m,v 1.2 2005-11-05 23:36:29 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -56,11 +56,29 @@ if exist(RRI,'file');
 	RRI = sload(RRI); 
 end;
 end; 
+
+Fs = 1; 
+X.PhysDim = 's'; 
+if nargin>1,
+	if ischar(arg2)
+		X.PhysDim = arg2;
+	elseif isnumeric(arg2)
+		Fs = arg2;	
+	end; 
+end;
+
 	
 if isstruct(RRI)
         Fs0 = NaN; 
         if isfield(RRI,'EVENT')
-                EVENT = RRI.EVENT; 
+        	HDR = RRI; 
+                EVENT = HDR.EVENT; 
+		if isfield(HDR,'T0')
+			X.T0 = HDR.T0; 
+		end;	
+		if isfield(HDR,'Patient')
+			X.Patient = HDR.Patient;
+		end;	
         else
                 EVENT = RRI; 
         end;
@@ -86,26 +104,21 @@ if isstruct(RRI)
         NN = diff(on);         
         
 elseif ~any(diff(RRI)<0),	
-        on = RRI(:); 
+        on = RRI(:)/Fs; 
         NN = diff(on);
 	X.PhysDim = 's'; 
 else	
         NN = RRI(:); 
         on = [0;cumsum(NN)];
-	X.PhysDim = 's'; 
 end;
 
 %%%%%%%%  convert from any time unit into ms %%%%%%%%%%%%%%%%
-X.PhysDimCode = physicalunits(X.PhysDim); 
-PhysDim2 = 'ms';
-PhysDimCode2 = physicalunits(PhysDim2); 
-global 	BIOSIG_GLOBAL;
-t_scale = BIOSIG_GLOBAL.DecimalFactor.Cal(mod(X.PhysDimCode,32)==BIOSIG_GLOBAL.DecimalFactor.Code);	 
-t_scale = t_scale*BIOSIG_GLOBAL.DecimalFactor.Cal(mod(PhysDimCode2,32)==BIOSIG_GLOBAL.DecimalFactor.Code); 
+[PhysDimCode,scale1] = physicalunits(X.PhysDim); 
+X.PhysDim = 'ms';
+[X.PhysDimCode,scale2] = physicalunits(X.PhysDim); 
+t_scale = scale2./scale1;
 NN = NN/t_scale; 
 on = on/t_scale; 
-X.PhysDim = PhysDim2; 
-X.PhysDimCode = PhysDimCode2; 
 
 
 
@@ -155,8 +168,10 @@ pmax = 100;
 
 n = sum(~isnan(y));
 [FPE,AIC,BIC,SBC,MDL,CAT,PHI,optFPE,optAIC,optBIC,optSBC,optMDL,optCAT,optPHI]=selmo(pe/pe(1),n);
-X.mop = optBIC; 	% select model order 
-% X.mop = optAIC; 
+ 	% select model order 
+X.mop = optBIC;
+X.mop = optAIC; 
+X.mop = 15;
 [a,r] = arcext(mx,X.mop);
 [w,A,B,R,P,F,ip] = ar_spa(a,f0,pe(X.mop+1));
 ix = (imag(F)==0);
