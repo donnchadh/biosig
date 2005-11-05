@@ -22,7 +22,7 @@ function [IFF]=openiff(fid,LEN)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: openiff.m,v 1.2 2005-11-05 19:27:08 schloegl Exp $
+%	$Id: openiff.m,v 1.3 2005-11-05 20:46:17 schloegl Exp $
 %	Copyright (C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -49,7 +49,7 @@ while ((LEN>0) | isnan(LEN)) & (c>0),
         filepos = ftell(fid);
         LEN = LEN - 8; 
         
-%       fprintf(1,'tag: %s\tpos: %8i\tsize: %8i\n',tag,filepos,tagsize);
+%       fprintf(1,'tag: %6s\tpos: %8i\tsize: %8i\n',tag,filepos,tagsize);
         
         if 0, 
                 VAL = openiff(fid,tagsize);
@@ -58,7 +58,9 @@ while ((LEN>0) | isnan(LEN)) & (c>0),
                 VAL = setfield([],char(tmp),openiff(fid,tagsize-4));
         elseif strcmp(tag,'RIFF')
                 [tmp,c] = fread(fid,[1,4],'char');
-                VAL = setfield([],char(tmp),openiff(fid,tagsize-4));
+                %val = fread(fid,tagsize-4,'char');
+                val = openiff(fid,tagsize-4);
+                VAL = setfield([],char(tmp),val);
         elseif strcmp(tag,'MThd')
                 VAL.MThd = fread(fid,tagsize,'uchar');
                 VAL.MIDI = openiff(fid,NaN);
@@ -102,7 +104,10 @@ while ((LEN>0) | isnan(LEN)) & (c>0),
                 ix = (tag(1:2)-48)*[16;1]+1;
                 IFF.wb{K1,ix} = VAL;
         else
-                IFF = setfield(IFF,tag,VAL);
+                try,
+	                IFF = setfield(IFF,tag,VAL);
+                catch,
+                end;
         end;
         status = fseek(fid,filepos+tagsize0,'bof');
         LEN = LEN - tagsize0;
@@ -110,7 +115,7 @@ while ((LEN>0) | isnan(LEN)) & (c>0),
 end;
 
 if ~isfield(IFF,'MThd'), % do not check MIDI files
-        if (LEN ~= 0) & (c), 
+        if ((LEN ~= 0) & c), 
                 fprintf(2,'Warning OPENIFF: LEN=%i %i %i %i %s  %i\n',LEN,filepos,tagsize0,ftell(fid),char(tmp),c);
         end;	
 end;

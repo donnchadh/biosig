@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.126 $
-%	$Id: sopen.m,v 1.126 2005-11-05 19:27:08 schloegl Exp $
+%	$Revision: 1.127 $
+%	$Id: sopen.m,v 1.127 2005-11-05 20:46:17 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -6694,7 +6694,8 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
                 HDR.RIFF = H.RIFF;
                 HDR.Label = {};
                 HDR.PhysDim = {};
-                HDR.SPR = inf; 
+                HDR.SPR  = inf; 
+                HDR.NRec = 1; 
                 HDR.FILE.POS = 0; 
                 if ~isfield(HDR.RIFF,'CNT');
                 	HDR.TYPE = 'unknown'; 
@@ -6704,14 +6705,14 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
 			s = char(HDR.RIFF.CNT.eeph');
 			field = '';
 			while ~isempty(s)
-				[line,s] = strtok(s,[10,13]); 
-				if strcmp(line,'[Sampling Rate]'); 
+				[line,s] = strtok(s,[10,13]);
+				if strncmp(line,'[Sampling Rate]',15); 
 					field = 'SampleRate';
-				elseif strcmp(line,'[Samples]'); 
+				elseif strncmp(line,'[Samples]',9); 
 					field = 'SPR';
-				elseif strcmp(line,'[Channels]'); 
+				elseif strncmp(line,'[Channels]',10); 
 					field = 'NS';
-				elseif strcmp(line,'[Basic Channel Data]'); 
+				elseif strncmp(line,'[Basic Channel Data]',20); 
 					k = 0; 
 					while (k<HDR.NS),     
 						[line,s] = strtok(s,[10,13]); 
@@ -6749,13 +6750,13 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
                         tmp = fscanf(fid, '%f %d %s', 3);
                         if ~isempty(tmp)
                                 N = N + 1; 
-                                HDR.EVENT.POS(N,1) = tmp(1)*HDR.SampleRate;
-                                HDR.EVENT.TYP(N,1) = 0;
+                                HDR.EVENT.POS(N,1)  = round(tmp(1)*HDR.SampleRate);
+                                HDR.EVENT.TYP(N,1)  = 0;
                                 %HDR.EVENT.DUR(N,1) = 0;
                                 %HDR.EVENT.CHN(N,1) = 0;
                                 
-                                HDR.EVENT.TeegType{N,1}   = char(tmp(3:end));		% string
-                                HDR.EVENT.TYP(N,1) = str2double(HDR.EVENT.TeegType{N,1});		% numeric
+                                HDR.EVENT.TeegType{N,1} = char(tmp(3:end));
+                                HDR.EVENT.TYP(N,1)  = 1 + str2double(HDR.EVENT.TeegType{N,1});		% numeric
                         end
                 end
                 fclose(fid);
