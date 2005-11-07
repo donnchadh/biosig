@@ -14,19 +14,25 @@
 %       mvar
 %       mvaar
 %       tfmvar
-%   Stochastic EEG models 
-%       lumped
-%       kemp
+%   EEG 
+%       lumped model
+%       kemp's feedback loop model
+%	evoked potential 
+%	arspectrum
 %   EMG analysis
 %       Paynter
 %   ECG analysis
 %       processing 
+%	qrsdetect
+%	berger
 %       ecgbcorr
 %       qrscorr
 %       tvaar
+%	heartratevariability
 %   Others:
 %       Hjorth
 %       Bandpower
+%	Wackermann
 % 
 %
 % REFERENCES: 
@@ -35,8 +41,8 @@
 %
 %
 
-%	$Revision: 1.4 $
-%	$Id: Contents.m,v 1.4 2005-03-22 18:51:30 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: Contents.m,v 1.5 2005-11-07 15:44:05 schloegl Exp $
 %	Copyright (C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 

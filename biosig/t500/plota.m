@@ -44,9 +44,9 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%       $Revision: 1.37 $
-%	$Id: plota.m,v 1.37 2005-09-16 13:41:41 schloegl Exp $
+%	$Id: plota.m,v 1.38 2005-11-07 15:40:50 schloegl Exp $
 %	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>
+%       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -1210,7 +1210,7 @@ elseif strcmp(X.datatype,'EDF'),
         
 elseif strcmp(X.datatype,'confusion'),
         if nargin>1,
-                [kap,sd,H,z,OA,SA]=kappa(X.data);
+                [kap,sd,H,z,OA,SA,MI]=kappa(X.data);
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
                 fprintf(1,'Kappa = %5.3f %c %4.3f(%s)\tOverall Accuracy = %4.1f%%\n',kap,177,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
                 %disp([X.data,sum(X.data,2);sum(X.data,1),sum(X.data(:))])       
@@ -1224,7 +1224,7 @@ elseif strcmp(X.datatype,'confusion'),
                 fprintf(1,'%4.0f\t',sum(X.data,1));
                 fprintf(1,'| %4.0f\n\n',sum(X.data(:)));
         else
-                [kap,sd,H,z,OA,SA]=kappa(X.data);
+                [kap,sd,H,z,OA,SA,MI]=kappa(X.data);
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
                 fprintf(1,'Kappa = %5.3f %c %4.3f(%s)\tOverall Accuracy = %4.1f%%\n',kap,177,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
                 %disp([X.data,sum(X.data,2);sum(X.data,1),sum(X.data(:))])       
@@ -1328,6 +1328,13 @@ elseif strcmpi(X.datatype,'spectrum') | strcmp(X.datatype,'qualitycontrol'),
                 X.Impedance=5000; %5kOHM
         end;
         
+        if isfield(X,'Label')
+                Label = cellstr(X.Label); 
+        else
+                NS = size(X.AR,1);
+                Q.Label = [repmat('#',NS,1),int2str([1:NS]')];
+        end;        
+        
         [n,p] = size(X.AR);
         H=[]; F=[];
         for k=1:size(X.AR,1);
@@ -1335,26 +1342,31 @@ elseif strcmpi(X.datatype,'spectrum') | strcmp(X.datatype,'qualitycontrol'),
                 H(:,k)=h(:);F(:,k)=f(:);
         end;
         if strcmp(lower(Mode),'log')
-                semilogy(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*X.QUANT/sqrt(12*X.SampleRate),'k:',[0,X.SampleRate/2]',1e6*[1;1]*sqrt(4*310*138e-25*X.Impedance),'r');
+                h=semilogy(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*mean(X.QUANT)/sqrt(12*X.SampleRate),'k:',[0,X.SampleRate/2]',1e6*[1;1]*sqrt(4*310*138e-25*X.Impedance),'k');
                 ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim(1,:),X.samplerate_units));
-                
+                Label = [Label;{'Quantization'};{'Impedance'}]; 
+  
+
         elseif strcmp(lower(Mode),'log2')
                 semilogy(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.QUANT.^2/(12*X.SampleRate),'k:');
                 ylabel(sprintf('[%s]^2/%s',X.PhysDim(1,:),X.samplerate_units));
+                Label = [Label;{'Quantization'}]; 
                 
         elseif strcmp(lower(Mode),'lin')
                 plot(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*X.QUANT/sqrt(12*X.SampleRate),'k:');
                 ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim(1,:),X.samplerate_units));
+                Label = [Label;{'Quantization'}]; 
                 
         elseif strcmp(lower(Mode),'lin2')
                 plot(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.QUANT.^2/(12*X.SampleRate),'k:');
                 ylabel(sprintf('[%s]^2/%s',X.PhysDim(1,:),X.samplerate_units));
+                Label = [Label;{'Quantization'}]; 
         end;
         xlabel(sprintf('f [%s]',X.samplerate_units));
         if isfield(X,'Title'), title(X.Title);
         elseif isfield(X,'FileName'); tmp=X.FileName; tmp(tmp=='_')=' '; title(tmp); end
         H = X;
-        
+        legend(Label); 
         
 elseif strcmp(X.datatype,'SIESTA_HISTOGRAM')
         if nargin<2,
@@ -1895,7 +1907,125 @@ elseif strcmp(X.datatype,'Classifier')
                 plota(X,'MI',hf(4));
         end;
         
-elseif strcmp(X.datatype,'TSD_BCI8') 
+elseif strncmp(X.datatype,'TSD_BCI',7) & (nargin>1) & strcmpi(arg2,'TSD');
+        N = length(X.CL);
+        if N>2,
+                for k=1:N, 
+                        nf(k)=subplot(ceil(sqrt(N)),N/ceil(sqrt(N)),k); 
+                end;
+        end;
+        
+        if N==2, N=1; end;
+        for k=1:N,
+                if N>1,
+                        subplot(nf(k));
+                end;
+                h=plot(X.T,[X.MEAN1(:,k),X.MEAN2(:,k),X.SD1(:,k),X.SD2(:,k)]*[1,0,1,0,1,0; 0,1,0,1,0,1; 0,0,1,0,-1,0; 0,0,0,1,0,-1]);
+                set(h(1),'linewidth',2);
+                set(h(2),'linewidth',2);
+                mset(h(3:6),'linewidth',1);
+                mset(h([1,3,5]),'color','b');
+                mset(h([2,4,6]),'color','g');
+                ylabel('Average TSD');
+                v=axis;v(1:2)=[min(X.T),max(X.T)];axis(v);
+        end;
+        
+elseif strcmp(X.datatype,'TSD_BCI9') 
+                if nargin<2,
+                        clf;
+                        for k=1:6, 
+                                nf(k)=subplot(3,2,k); 
+                        end;
+                else
+                        nf=arg2;
+                end;
+                
+                fid = 1;
+                tix = X.tix(1);
+                N = length(X.CL);
+                c = (N-1)/N; 
+
+                fprintf(fid,'Error:                     %4.1f %% \n',100-X.ACC00(tix)*100);
+                fprintf(fid,'Accuracy:                  %4.1f %% \nspecific Accuracy:         ',X.ACC00(tix)*100);
+                [kap,sd,H,z,OA,SA,MI] = kappa(X.optCMX);
+                fprintf(fid,'%4.1f   ',SA*100);
+                fprintf(fid,'\nKappa:                     %4.2f ± %4.2f\n',X.KAP00(tix),X.Ksd00(tix));
+                fprintf(fid,'I(Wolpaw):                 %4.2f bit\n',wolpaw_entropy(X.ACC00(tix),N));
+                fprintf(fid,'I(Nykopp):                 %4.2f bit\n',X.R(tix));
+                fprintf(fid,'I(Continous):              SUM = %4.2f  [ ',sum(X.I(tix,:))*c);
+                fprintf(fid,'%4.2f   ',X.I(tix,:));
+                t = X.T; t(t<3.5)=NaN;
+                fprintf(fid,' ] \nSTMI:                      %4.2f  [ ',max([sum(X.I,2)]./[t-3])*c);
+                fprintf(fid,'   %4.2f',max(X.I./[t(:,ones(1,size(X.I,2)))-3]));
+                fprintf(fid,' ] \nSNR:                       ')
+                fprintf(fid,'%4.2f   ',X.SNR(tix,:));
+                fprintf(fid,'\ncorrelation (parametric):  ')
+                fprintf(fid,'%4.2f   ',X.r(tix,:));
+                fprintf(fid,'\nrank correlation:          ');
+%                fprintf(fid,'%4.2f   ',X.rankcorrelation(tix,:));
+                fprintf(fid,'\nAUC:                       ');
+                fprintf(fid,'%4.2f   ',X.AUC(tix,:));
+                fprintf(fid,'\n');
+                
+                
+                subplot(nf(1));
+                if ~isfield(X,'Labels')
+                        for k=1:length(X.CL),Labels{k}=int2str(X.CL(k));end;
+                else
+                        Labels = X.Labels; 
+                end;
+                %plota(X);
+                plot(X.T,100*[X.ACC00, X.KAP00])
+                axis([0,9,-20,100])
+                xlabel('time [s]')
+                title('Accuracy and Kappa')
+                legend({'Accuracy [%]','Kappa [%]'})
+                
+                subplot(nf(3));
+                plot(X.T,[sum(X.I,2)*c,X.R,wolpaw_entropy(X.ACC00,N)])
+                legend({'I_{continous}','I_{Nykopp}','I_{Wolpaw}'})
+                title('Mutual information')
+                ylabel('I [bit]');
+                xlabel('time [s]')
+                v=axis; axis([0,9,0,1.5]);
+                
+                subplot(nf(5));
+                plot(X.T,X.MEAN2)
+                hold on 
+                plot(X.T,X.MEAN1)
+                hold off
+                Title('average output of four one-vs-rest classifiers ')
+                ylabel('TSD')
+                xlabel('time [s]')
+                tmp = strvcat(Labels); 
+                legend(cellstr([tmp,repmat('(+)',size(tmp,1),1);tmp,repmat('(-)',size(tmp,1),1)]))
+                v=axis; axis([0,9,v(3:4)]);
+                
+                subplot(nf(2));
+                plot(X.T,X.AUC)
+                xlabel('time [s]')
+                ylabel('AUC [1]')
+                title('area-under-the-(ROC)-curve'); 
+                legend(Labels)
+                v=axis; axis([0,9,v(3:4)]);
+                
+                subplot(nf(4));
+                plot(X.T,[X.I,sum(X.I,2)*c,])
+                xlabel('time [s]')
+                ylabel('I [bit]');
+                title('Mutual Information of continous output'); 
+                legend([Labels,{'SUM'}])
+                v=axis; axis([0,9,0,1.5]);
+                
+                subplot(nf(6));
+                plot(X.T,X.r)
+                xlabel('time [s]')
+                ylabel('r [1]')
+                title('correlation coefficient (parametric)'); 
+                legend(Labels)
+                v=axis; axis([0,9,-.2,1]);
+                
+elseif strcmp(X.datatype,'TSD_BCI8')    % obsolote
         if ~isfield(X,'T');
                 X.T = [1:size(X.ACC00,1)]';
         end;
@@ -1908,7 +2038,7 @@ elseif strcmp(X.datatype,'TSD_BCI8')
         legend('Accuracy [%]','kappa ± s.d. [%]')
         xlabel('t [s]');
         
-elseif strcmp(X.datatype,'TSD_BCI7') 
+elseif strcmp(X.datatype,'TSD_BCI7')    % obsolete
         if (nargin>1) & strcmpi(arg2,'balken2');
                 %elseif strcmpi(X.datatype,'Balken_Diagramm'),
                 
@@ -2072,6 +2202,7 @@ elseif strcmp(X.datatype,'TSD_BCI7')
                         ylabel('correlation coefficient')        
                 end;
         end;        
+        
         
 elseif strcmp(X.datatype,'QRS_events'),
         ix = X.QRS_event;
