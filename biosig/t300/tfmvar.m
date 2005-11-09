@@ -5,9 +5,23 @@ function [M,SE,R] = tfmvar(s,TRIG,T,MOP,f,Fs)
 %
 % [R] = tfmvar(s,TRIG,T,MOP,f,Fs)
 % [M,SE,R] = tfmvar(s,TRIG,T,MOP,f,Fs)
+%
+% INPUT: 
+%  s    signal data (one channel per column) 
+%  TRIG trigger time points (in SAMPLES)
+%  T    windows definition; each column defines one window)
+%       T(1,:) and T(2,:) indicate start and end [in samples], respectivly  
+%  MOP  model order of the MVAR model   
+%  f    designated frequencies 
+%  Fs   sampling rate. 
+%
+% OUTPUT: 
 %     	M and SE contain the mean 
 %	and the standard error of the mean  
-%       of the following characteristics:
+%       of the following characteristic parameters. 
+%       The size of the parameters is defined by the number of channels,
+%       the number of windows the number of designated
+%       frequencies [size(s,2), size(T,1), length(f)] respectively. 
 %
 % univariate:
 %   S1		Autospectra
@@ -71,8 +85,8 @@ function [M,SE,R] = tfmvar(s,TRIG,T,MOP,f,Fs)
 % [7] Liang H., Ding M., Bressler S. L., On the Tracking of Dynamic Functional Relations in Monkey Cerebral Cortex, Neurocomputing, 2000
 % [8] Korzeniewska A., Manczak M., Kaminski M., Blinowska K. J., Kasicki S., Determination of Information Flow Direction Among Brain Structures By a Modified Directed Transfer Function (dDTF) Method, Journal of Neuroscience Methods 125, 2003
 
-%	$Revision: 1.3 $
-%	$Id: tfmvar.m,v 1.3 2005-09-10 20:57:22 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: tfmvar.m,v 1.4 2005-11-09 08:18:17 schloegl Exp $
 %	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
