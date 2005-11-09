@@ -85,8 +85,8 @@ function [M,SE,R] = tfmvar(s,TRIG,T,MOP,f,Fs)
 % [7] Liang H., Ding M., Bressler S. L., On the Tracking of Dynamic Functional Relations in Monkey Cerebral Cortex, Neurocomputing, 2000
 % [8] Korzeniewska A., Manczak M., Kaminski M., Blinowska K. J., Kasicki S., Determination of Information Flow Direction Among Brain Structures By a Modified Directed Transfer Function (dDTF) Method, Journal of Neuroscience Methods 125, 2003
 
-%	$Revision: 1.4 $
-%	$Id: tfmvar.m,v 1.4 2005-11-09 08:18:17 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: tfmvar.m,v 1.5 2005-11-09 10:25:42 schloegl Exp $
 %	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -152,6 +152,7 @@ R.M.logh   = zeros(sz);
 R.M.COH    = zeros(sz);
 R.M.coh    = zeros(sz);
 R.M.PDC    = zeros(sz);
+R.M.PDCF    = zeros(sz);
 R.M.DTF    = zeros(sz);
 R.M.pCOH   = zeros(sz);
 R.M.dDTF   = zeros(sz);
@@ -171,6 +172,7 @@ h     = zeros(sz);
 COH   = zeros(sz);
 coh   = zeros(sz);
 PDC   = zeros(sz);
+PDCF  = zeros(sz);
 DTF   = zeros(sz);
 pCOH  = zeros(sz);
 dDTF  = zeros(sz);
@@ -208,7 +210,7 @@ for k1 = 1:size(T,2),
         X.C = PE(:,MOP*size(S0,1)+(1:size(S0,1)))';
         X.datatype = 'MVAR';
         
-        [S,  h, PDC, COH, DTF, DC, pCOH, dDTF, ffDTF, pCOH2,coh] = mvfreqz(X.B,X.A,X.C,f,Fs);
+        [S,  h, PDC, COH, DTF, DC, pCOH, dDTF, ffDTF, pCOH2, PDCF, coh] = mvfreqz(X.B,X.A,X.C,f,Fs);
         
         R.M.phaseS(:,:,:,k1) = angle(S);
         R.M.phaseh(:,:,:,k1) = angle(h);
@@ -217,6 +219,7 @@ for k1 = 1:size(T,2),
         R.M.logS(:,:,:,k1)   = log(abs(S));
         R.M.logh(:,:,:,k1)   = log(abs(h));
         R.M.PDC(:,:,:,k1)    = PDC;
+        R.M.PDCF(:,:,:,k1)    = PDCF;
         R.M.COH(:,:,:,k1)    = abs(COH);
         R.M.coh(:,:,:,k1)    = abs(coh);
         R.M.iCOH(:,:,:,k1)   = imag(COH);
@@ -257,7 +260,7 @@ for k1 = 1:size(T,2),
                         X.C = PE(:,MOP*size(S0,1)+(1:size(S0,1)))';
                         X.datatype = 'MVAR';
                         
-                        [S(:,:,:,k2),  h(:,:,:,k2), PDC(:,:,:,k2), COH(:,:,:,k2), DTF(:,:,:,k2), DC(:,:,1,k2), pCOH(:,:,:,k2), dDTF(:,:,:,k2), ffDTF(:,:,:,k2), pCOH2(:,:,:,k2),coh(:,:,:,k2)] = mvfreqz(X.B,X.A,X.C,f,Fs);
+                        [S(:,:,:,k2),  h(:,:,:,k2), PDC(:,:,:,k2), COH(:,:,:,k2), DTF(:,:,:,k2), DC(:,:,1,k2), pCOH(:,:,:,k2), dDTF(:,:,:,k2), ffDTF(:,:,:,k2), pCOH2(:,:,:,k2),PDCF(:,:,:,k2), coh(:,:,:,k2)] = mvfreqz(X.B,X.A,X.C,f,Fs);
                         
                         AR(:,:,1,k2) = A; 
                         C(:,:,1,k2)  = X.C;
@@ -280,6 +283,7 @@ for k1 = 1:size(T,2),
                 [R.SE.logS(:,:,:,k1),   R.M.logS(:,:,:,k1)  ] = sem(log(abs(S)),4);
                 [R.SE.logh(:,:,:,k1),   R.M.logh(:,:,:,k1)  ] = sem(log(abs(h)),4);
                 [R.SE.PDC(:,:,:,k1),    R.M.PDC(:,:,:,k1)   ] = sem(PDC,4);
+                [R.SE.PDCF(:,:,:,k1),   R.M.PDCF(:,:,:,k1)  ] = sem(PDCF,4);
                 [R.SE.COH(:,:,:,k1),    R.M.COH(:,:,:,k1)   ] = sem(abs(COH),4);
                 [R.SE.coh(:,:,:,k1),    R.M.coh(:,:,:,k1)   ] = sem(abs(coh),4);
                 [R.SE.iCOH(:,:,:,k1),   R.M.iCOH(:,:,:,k1)  ] = sem(imag(COH),4);
