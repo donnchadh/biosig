@@ -1,6 +1,6 @@
 /*
 
-    $Id: main.c,v 1.2 2005-09-26 15:03:32 schloegl Exp $
+    $Id: main.c,v 1.3 2005-11-14 09:05:33 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -35,7 +35,7 @@
 #include <time.h>
 
 #include "biosig.h"
-#include "biosig.c"
+//#include "biosig.c"
 
 
 /****************************************************************************/
@@ -60,12 +60,13 @@ int main (int argc, char **argv)
 	currently, its used for testing SOPEN, SREAD, SWRITE, SEOF, STELL, SCLOSE, SSEEK
 */
 
-
 #define NELEM (1<<15)
 	unsigned k; 	
-    	short s[NELEM];
+    	short 	s[NELEM];
     	HDRTYPE HDR, HDR2;
-    	size_t count;
+    	HDRTYPE* hdr; 	
+    	size_t 	count;
+    	int	status;
 
 	if (argc < 2)  	{
 		fprintf(stderr,"Warning: Invalid number of arguments\n");
@@ -80,9 +81,8 @@ int main (int argc, char **argv)
 	HDR.Patient.Id = "test1";
 	HDR.TYPE = GDF; 
 
-/*
 	// OPEN and WRITE GDF FILE 
-     	HDR   = sopen(argv[1], HDR, "w");
+     	sopen(argv[1], &HDR, "w");
 
 	swrite(&s, NELEM/HDR.NS, &HDR);
 
@@ -91,15 +91,15 @@ int main (int argc, char **argv)
 		HDR.EVENT.TYP[k] = k+1;
 		HDR.EVENT.POS[k] = k*100;
 	};
-      	HDR = sclose(HDR);
+      	status = sclose(&HDR);
 
    	fprintf(stdout,"1-%i\t%i\t%i\t%i\t%u\t%u\n",sizeof(HDR.EVENT.TYP),sizeof(*HDR.EVENT.TYP),(int32_t)HDR.NRec,HDR.HeadLen,HDR.Dur[0],HDR.Dur[1]);
-*/
+
 	// READ GDF FILE 
-	HDR2 = sopen(argv[1], HDR2, "r");
+	sopen(argv[1], &HDR2, "r");
    	fprintf(stdout,"2-%i\t%i\t%i\t%i\t%u\t%u\n",HDR2.AS.bpb,HDR2.FILE.OPEN,(int32_t)HDR2.NRec,HDR2.HeadLen,HDR2.Dur[0],HDR2.Dur[1]);
 
-	while (!seof(HDR2)) {
+	while (!seof(&HDR2)) {
 		count = sread(&HDR2,10);
 //fprintf(stdout,"m1: %p\n",HDR2.data.block);
 	
@@ -117,9 +117,9 @@ if (count)
 fprintf(stdout,"+ %u\t %u\n", HDR2.FILE.POS,*(int16_t*)HDR2.AS.rawdata);	
 	count = sread(&HDR2,10);
    	fprintf(stdout,"3-%i\t%i\t%i\t%i\t%u\t%u\n",HDR2.AS.bpb,HDR2.AS.spb,(long)HDR2.NRec,HDR2.HeadLen,HDR2.Dur[0],HDR2.Dur[1]);
-	HDR2 = sclose(HDR2);
+	status = sclose(&HDR2);
 	
-      	return(0);
+      	return(status);
 
 };
 

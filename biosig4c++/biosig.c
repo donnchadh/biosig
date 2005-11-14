@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.16 2005-10-23 21:35:20 schloegl Exp $
+    $Id: biosig.c,v 1.17 2005-11-14 09:05:33 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -183,7 +183,7 @@ HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT)
 /****************************************************************************/
 /**                     SOPEN                                              **/
 /****************************************************************************/
-HDRTYPE sopen(const char* FileName, HDRTYPE HDR, const char* MODE)
+HDRTYPE* sopen(const char* FileName, HDRTYPE* hdr, const char* MODE)
 /*
 	MODE="r" 
 		reads file and returns HDR 
@@ -197,6 +197,7 @@ HDRTYPE sopen(const char* FileName, HDRTYPE HDR, const char* MODE)
 	const float	CNT_SETTINGS_NOTCH[] = {0.0, 50.0, 60.0}; 
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
 	const float	CNT_SETTINGS_HIGHPASS[] = {0.0/0.0, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
+    	HDRTYPE HDR;
 
     	int 		k,id;
     	size_t	 	count,len,pos;
@@ -212,6 +213,7 @@ HDRTYPE sopen(const char* FileName, HDRTYPE HDR, const char* MODE)
 		int	number_of_sections;
 	} SCP;
 
+	HDR = *hdr; 
 if (!strcmp(MODE,"r"))	
 {
 	HDR = init_default_hdr(HDR,0,0);	// initializes fields that may stay undefined during SOPEN 
@@ -224,7 +226,7 @@ if (!strcmp(MODE,"r"))
 
     	if (HDR.FILE.FID == NULL) 
     	{ 	fprintf(stdout,"ERROR %s not found\n",FileName);
-		return(HDR);
+		return(NULL);
     	}	    
     
     	/******** read 1st (fixed)  header  *******/	
@@ -605,7 +607,7 @@ if (!strcmp(MODE,"r"))
 	}
 	else {
 		fprintf(stderr,"Format (%i) of File %s not supported (yet)\n",HDR.TYPE,HDR.FileName); 
-		HDR = sclose(HDR); 
+		sclose(&HDR); 
 		exit(-1);  
 	}
 
@@ -771,13 +773,13 @@ else { // WRITE
 	}
 	else {
     	 	fprintf(stderr,"ERROR: Writing of format (%c) not supported\n",HDR.TYPE);
-		return(HDR); 
+		return(NULL); 
 	}
 
     	HDR.FILE.FID = fopen(FileName,"wb");
     	if (HDR.FILE.FID == NULL) 
     	{ 	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
-		return(HDR);
+		return(NULL);
     	}	    
     	fwrite(Header1,sizeof(char),HDR.HeadLen,HDR.FILE.FID);
 	HDR.FILE.OPEN = 2; 	     	
@@ -797,7 +799,8 @@ else { // WRITE
 		HDR.AS.bi[++k] = HDR.AS.bpb; 
 	}	
 
-	return(HDR);
+	*hdr = HDR; 
+	return(hdr);
 }  // end of SOPEN 
 
 
@@ -936,18 +939,19 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 /****************************************************************************/
 /**                     SEOF                                               **/
 /****************************************************************************/
-int seof(HDRTYPE HDR)
+int seof(HDRTYPE* hdr)
 {
-	return(HDR.FILE.POS >= HDR.NRec);
+	return(hdr->FILE.POS >= hdr->NRec);
 }
 
 
 /****************************************************************************/
 /**                     SREWIND                                            **/
 /****************************************************************************/
-int srewind(HDRTYPE* hdr)
+void srewind(HDRTYPE* hdr)
 {
-	return(sseek(hdr,0,SEEK_SET));
+	sseek(hdr,0,SEEK_SET);
+	return;
 }
 
 
@@ -979,17 +983,17 @@ int sseek(HDRTYPE* hdr, size_t offset, int whence)
 /****************************************************************************/
 /**                     STELL                                              **/
 /****************************************************************************/
-size_t stell(HDRTYPE HDR)
+size_t stell(HDRTYPE* hdr)
 {
 	size_t pos; 
 	
-	pos = ftell(HDR.FILE.FID);	
+	pos = ftell(hdr->FILE.FID);	
 	if (pos<0)
 		return(-1);
-	else if (pos != (HDR.FILE.POS * HDR.AS.bpb + HDR.HeadLen))
+	else if (pos != (hdr->FILE.POS * hdr->AS.bpb + hdr->HeadLen))
 		return(-1);
 	else 
-		return(HDR.FILE.POS);
+		return(hdr->FILE.POS);
 	
 }  // end of STELL
 
@@ -997,86 +1001,87 @@ size_t stell(HDRTYPE HDR)
 /****************************************************************************/
 /**                     SCLOSE                                             **/
 /****************************************************************************/
-HDRTYPE sclose(HDRTYPE HDR)
+int sclose(HDRTYPE* hdr)
 {
 	int32_t pos, k, len; 
 	char tmp[88]; 
 	char flag; 
 	
-	if ((HDR.NRec<0) & (HDR.FILE.OPEN>1))
-	if ((HDR.TYPE==GDF) | (HDR.TYPE==EDF) | (HDR.TYPE==BDF))
+	
+	if ((hdr->NRec<0) & (hdr->FILE.OPEN>1))
+	if ((hdr->TYPE==GDF) | (hdr->TYPE==EDF) | (hdr->TYPE==BDF))
 	{
 		// WRITE HDR.NRec 
-		pos = (ftell(HDR.FILE.FID)-HDR.HeadLen); 
-		if (HDR.NRec<0)
-		{	if (pos>0) 	HDR.NRec = pos/HDR.AS.bpb;
-			else		HDR.NRec = 0; 	
-			fseek(HDR.FILE.FID,236,SEEK_SET); 
-			if (HDR.TYPE==GDF)
-				fwrite(&HDR.NRec,sizeof(HDR.NRec),1,HDR.FILE.FID);
+		pos = (ftell(hdr->FILE.FID)-hdr->HeadLen); 
+		if (hdr->NRec<0)
+		{	if (pos>0) 	hdr->NRec = pos/hdr->AS.bpb;
+			else		hdr->NRec = 0; 	
+			fseek(hdr->FILE.FID,236,SEEK_SET); 
+			if (hdr->TYPE==GDF)
+				fwrite(&(hdr->NRec),sizeof(hdr->NRec),1,hdr->FILE.FID);
 			else {
-				len = sprintf(tmp,"%Li",HDR.NRec);
+				len = sprintf(tmp,"%Li",hdr->NRec);
 				if (len>8) fprintf(stderr,"Warning: NRec is (%s) to long.\n",tmp);  
-				fwrite(tmp,len,1,HDR.FILE.FID);
+				fwrite(tmp,len,1,hdr->FILE.FID);
 			}	
 		};	
 	
 		// WRITE EVENTTABLE 
-		if ((HDR.TYPE==GDF) & (HDR.EVENT.N>0)) {
-			fseek(HDR.FILE.FID, HDR.HeadLen + HDR.AS.bpb*HDR.NRec, SEEK_SET); 
-			flag = (HDR.EVENT.DUR != NULL) & (HDR.EVENT.CHN != NULL); 
+		if ((hdr->TYPE==GDF) & (hdr->EVENT.N>0)) {
+			fseek(hdr->FILE.FID, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
+			flag = (hdr->EVENT.DUR != NULL) & (hdr->EVENT.CHN != NULL); 
 			if (flag)   // any DUR or CHN is larger than 0 
-				for (k=0, flag=0; (k<HDR.EVENT.N) & !flag; k++)
-					flag |= HDR.EVENT.CHN[k] | HDR.EVENT.DUR[k];
+				for (k=0, flag=0; (k<hdr->EVENT.N) & !flag; k++)
+					flag |= hdr->EVENT.CHN[k] | hdr->EVENT.DUR[k];
 			tmp[0] = (flag ? 3 : 1);
-			memcpy(tmp+1, &HDR.EVENT.SampleRate, 3);
-			memcpy(tmp+4, &HDR.EVENT.N, 4);
-			fwrite(tmp, 8, 1, HDR.FILE.FID);
-			fwrite(HDR.EVENT.POS, sizeof(*HDR.EVENT.POS), HDR.EVENT.N, HDR.FILE.FID);
-			fwrite(HDR.EVENT.TYP, sizeof(*HDR.EVENT.TYP), HDR.EVENT.N, HDR.FILE.FID);
+			memcpy(tmp+1, &(hdr->EVENT.SampleRate), 3);
+			memcpy(tmp+4, &(hdr->EVENT.N), 4);
+			fwrite(tmp, 8, 1, hdr->FILE.FID);
+			fwrite(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
+			fwrite(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr->FILE.FID);
 			if (tmp[0]>1) {
-				fwrite(HDR.EVENT.CHN,sizeof(*HDR.EVENT.CHN),HDR.EVENT.N,HDR.FILE.FID);
-				fwrite(HDR.EVENT.DUR,sizeof(*HDR.EVENT.DUR),HDR.EVENT.N,HDR.FILE.FID);
+				fwrite(hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN),hdr->EVENT.N,hdr->FILE.FID);
+				fwrite(hdr->EVENT.DUR,sizeof(*hdr->EVENT.DUR),hdr->EVENT.N,hdr->FILE.FID);
 			}	
 		}
 	}		
 
-	fclose(HDR.FILE.FID);
-    	HDR.FILE.FID = 0;
+	fclose(hdr->FILE.FID);
+    	hdr->FILE.FID = 0;
 fprintf(stdout,"1\n");
-    	if (HDR.AS.rawdata != NULL)	
-        	free(HDR.AS.rawdata);
+    	if (hdr->AS.rawdata != NULL)	
+        	free(hdr->AS.rawdata);
 fprintf(stdout,"1\n");
-    	if (HDR.data.block != NULL)	
-        	free(HDR.data.block);
-        	HDR.data.size[0]=0;
-        	HDR.data.size[1]=0;
-fprintf(stdout,"1\n");
-
-    	if (HDR.CHANNEL != NULL)	
-        	free(HDR.CHANNEL);
-fprintf(stdout,"1\n");
-    	if (HDR.AS.bi != NULL)	
-        	free(HDR.AS.bi);
-fprintf(stdout,"1\n");
-    	if (HDR.AS.Header1 != NULL)	
-        	free(HDR.AS.Header1);
+    	if (hdr->data.block != NULL)	
+        	free(hdr->data.block);
+        	hdr->data.size[0]=0;
+        	hdr->data.size[1]=0;
 fprintf(stdout,"1\n");
 
-    	if (HDR.EVENT.POS != NULL)	
-        	free(HDR.EVENT.POS);
+    	if (hdr->CHANNEL != NULL)	
+        	free(hdr->CHANNEL);
 fprintf(stdout,"1\n");
-    	if (HDR.EVENT.TYP != NULL)	
-        	free(HDR.EVENT.TYP);
-    	if (HDR.EVENT.DUR != NULL)	
-        	free(HDR.EVENT.DUR);
-    	if (HDR.EVENT.CHN != NULL)	
-        	free(HDR.EVENT.CHN);
+    	if (hdr->AS.bi != NULL)	
+        	free(hdr->AS.bi);
+fprintf(stdout,"1\n");
+    	if (hdr->AS.Header1 != NULL)	
+        	free(hdr->AS.Header1);
+fprintf(stdout,"1\n");
+
+    	if (hdr->EVENT.POS != NULL)	
+        	free(hdr->EVENT.POS);
+fprintf(stdout,"1\n");
+    	if (hdr->EVENT.TYP != NULL)	
+        	free(hdr->EVENT.TYP);
+    	if (hdr->EVENT.DUR != NULL)	
+        	free(hdr->EVENT.DUR);
+    	if (hdr->EVENT.CHN != NULL)	
+        	free(hdr->EVENT.CHN);
         	
-        HDR.EVENT.N   = 0; 
-	HDR.FILE.OPEN = 0; 	     	
+        hdr->EVENT.N   = 0; 
+	hdr->FILE.OPEN = 0; 	     	
 
-    	return(HDR);
+    	return(0);
 };
 
 
