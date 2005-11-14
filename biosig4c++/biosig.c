@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.17 2005-11-14 09:05:33 schloegl Exp $
+    $Id: biosig.c,v 1.18 2005-11-14 11:01:09 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -82,7 +82,7 @@ size_t lcm(size_t A,size_t B)
 /****************************************************************************/
 /**                     INIT HDR                                           **/
 /****************************************************************************/
-HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT)
+HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 {
 /*
 	HDR is initialized, memory is allocated for 
@@ -91,6 +91,8 @@ HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT)
 	The purpose is to set the define all parameters at an initial step. 
 	No parameters must remain undefined.
  */
+	HDRTYPE* hdr = (HDRTYPE*)malloc(sizeof(HDRTYPE));
+
 	union {
 		uint32_t testword;
 		uint8_t  testbyte[sizeof(uint32_t)];
@@ -98,92 +100,96 @@ HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT)
     	int k,k1;
 
 	EndianTest.testword = 0x4a3b2c1d; 
-	HDR.FILE.LittleEndian = (EndianTest.testbyte[0]==0x1d); 
+	hdr->FILE.LittleEndian = (EndianTest.testbyte[0]==0x1d); 
 	
-	if  (!HDR.FILE.LittleEndian) {
+	if  (!hdr->FILE.LittleEndian) {
 		fprintf(stderr,"error: only little endian platforms are supported, yet.\n"); 
 		exit(-1); 
 	}	
 
+	hdr->FILE.OPEN = 0;
+	hdr->FILE.FID = 0;
 
-      	HDR.TYPE = GDF; 
-      	HDR.VERSION = 1.92; 
-      	HDR.AS.rawdata = malloc(10);
-      	HDR.NRec = -1; 
-      	HDR.NS = NS;	
-      	memset(HDR.AS.PID,32,81); 
-      	HDR.AS.RID = "GRAZ"; 
-	HDR.AS.bi = calloc(HDR.NS+1,sizeof(uint32_t));
-	HDR.data.size[0]=0; 
-	HDR.data.size[1]=0; 
-	HDR.data.block = malloc(410); 
-      	HDR.T0 = t_time2gdf_time(time(NULL));
-      	HDR.ID.Equipment = *(uint64_t*)&"b4c_0.20";
+	hdr->AS.Header1 = 0;
 
-	HDR.Patient.Name 	= "X";
-	HDR.Patient.Id 		= "X";
-	HDR.Patient.Birthday 	= Unknown;
-      	HDR.Patient.Medication 	= Unknown;
-      	HDR.Patient.DrugAbuse 	= Unknown;
-      	HDR.Patient.AlcoholAbuse= Unknown;
-      	HDR.Patient.Smoking 	= Unknown;
-      	HDR.Patient.Sex 	= Unknown;
-      	HDR.Patient.Handedness 	= Unknown;
-      	HDR.Patient.Impairment.Visual = Unknown;
-      	HDR.Patient.Weight 	= Unknown;
-      	HDR.Patient.Height 	= Unknown;
-      	HDR.Dur[0] = 1;
-      	HDR.Dur[1] = 1;
-	memset(&HDR.IPaddr,0,6);
+      	hdr->TYPE = GDF; 
+      	hdr->VERSION = 1.92; 
+      	hdr->AS.rawdata = malloc(10);
+      	hdr->NRec = -1; 
+      	hdr->NS = NS;	
+      	memset(hdr->AS.PID,32,81); 
+      	hdr->AS.RID = "GRAZ"; 
+	hdr->AS.bi = calloc(hdr->NS+1,sizeof(uint32_t));
+	hdr->data.size[0]=0; 
+	hdr->data.size[1]=0; 
+	hdr->data.block = malloc(410); 
+      	hdr->T0 = t_time2gdf_time(time(NULL));
+      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.20";
+
+	hdr->Patient.Name 	= "X";
+	hdr->Patient.Id 		= "X";
+	hdr->Patient.Birthday 	= Unknown;
+      	hdr->Patient.Medication 	= Unknown;
+      	hdr->Patient.DrugAbuse 	= Unknown;
+      	hdr->Patient.AlcoholAbuse= Unknown;
+      	hdr->Patient.Smoking 	= Unknown;
+      	hdr->Patient.Sex 	= Unknown;
+      	hdr->Patient.Handedness 	= Unknown;
+      	hdr->Patient.Impairment.Visual = Unknown;
+      	hdr->Patient.Weight 	= Unknown;
+      	hdr->Patient.Height 	= Unknown;
+      	hdr->Dur[0] = 1;
+      	hdr->Dur[1] = 1;
+	memset(&hdr->IPaddr,0,6);
       	for (k1=0; k1<3; k1++) {
-      		HDR.Patient.Headsize[k1] = Unknown;
-      		HDR.ELEC.REF[k1] = 0.0;
-      		HDR.ELEC.GND[k1] = 0.0;
+      		hdr->Patient.Headsize[k1] = Unknown;
+      		hdr->ELEC.REF[k1] = 0.0;
+      		hdr->ELEC.GND[k1] = 0.0;
       	}
-	HDR.LOC[0] = 0x00292929; 		
-	HDR.LOC[1] = 48*3600000+(1<<31); 	// latitude
-	HDR.LOC[2] = 15*3600000+(1<<31); 	// longitude 
-	HDR.LOC[3] = 35000; 	 	//altitude in centimeter above sea level
+	hdr->LOC[0] = 0x00292929; 		
+	hdr->LOC[1] = 48*3600000+(1<<31); 	// latitude
+	hdr->LOC[2] = 15*3600000+(1<<31); 	// longitude 
+	hdr->LOC[3] = 35000; 	 	//altitude in centimeter above sea level
 
-	HDR.FLAG.UCAL = 0; 		// un-calibration OFF (auto-scaling ON) 
-	HDR.FLAG.OVERFLOWDETECTION = 1; 		// overflow detection ON
+	hdr->FLAG.UCAL = 0; 		// un-calibration OFF (auto-scaling ON) 
+	hdr->FLAG.OVERFLOWDETECTION = 1; 		// overflow detection ON
 	
        	// define variable header 
-	HDR.CHANNEL = calloc(HDR.NS,sizeof(CHANNEL_TYPE));
-	for (k=0;k<HDR.NS;k++)	{
-	      	HDR.CHANNEL[k].Label     = "C4";
-	      	HDR.CHANNEL[k].Transducer= "EEG: Ag-AgCl electrodes";
-	      	HDR.CHANNEL[k].PhysDim   = "uV";
-	      	HDR.CHANNEL[k].PhysDimCode = 19+4256; // uV
-	      	HDR.CHANNEL[k].PhysMax   = +100;
-	      	HDR.CHANNEL[k].PhysMin   = -100;
-	      	HDR.CHANNEL[k].DigMax    = +2047;
-	      	HDR.CHANNEL[k].DigMin    = -2048;
-	      	HDR.CHANNEL[k].GDFTYP    = 3;	// int16 	
-	      	HDR.CHANNEL[k].SPR       = 1;	// one sample per block
-	      	HDR.CHANNEL[k].HighPass  = 0.16;
-	      	HDR.CHANNEL[k].LowPass   = 70.0;
-	      	HDR.CHANNEL[k].Notch     = 50;
-	      	HDR.CHANNEL[k].Impedance = 1.0/0.0;
-	      	for (k1=0; k1<3; HDR.CHANNEL[k].XYZ[k1++] = 0.0);
+	hdr->CHANNEL = calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+	for (k=0;k<hdr->NS;k++)	{
+	      	hdr->CHANNEL[k].Label     = "C4";
+	      	hdr->CHANNEL[k].Transducer= "EEG: Ag-AgCl electrodes";
+	      	hdr->CHANNEL[k].PhysDim   = "uV";
+	      	hdr->CHANNEL[k].PhysDimCode = 19+4256; // uV
+	      	hdr->CHANNEL[k].PhysMax   = +100;
+	      	hdr->CHANNEL[k].PhysMin   = -100;
+	      	hdr->CHANNEL[k].DigMax    = +2047;
+	      	hdr->CHANNEL[k].DigMin    = -2048;
+	      	hdr->CHANNEL[k].GDFTYP    = 3;	// int16 	
+	      	hdr->CHANNEL[k].SPR       = 1;	// one sample per block
+	      	hdr->CHANNEL[k].HighPass  = 0.16;
+	      	hdr->CHANNEL[k].LowPass   = 70.0;
+	      	hdr->CHANNEL[k].Notch     = 50;
+	      	hdr->CHANNEL[k].Impedance = 1.0/0.0;
+	      	for (k1=0; k1<3; hdr->CHANNEL[k].XYZ[k1++] = 0.0);
 	}      	
 
 	// define EVENT structure
-	HDR.EVENT.N = N_EVENT; 
-	HDR.EVENT.SampleRate = HDR.SampleRate; 
-	HDR.EVENT.POS = calloc(HDR.EVENT.N,sizeof(*HDR.EVENT.POS));
-	HDR.EVENT.TYP = calloc(HDR.EVENT.N,sizeof(*HDR.EVENT.TYP));
-	HDR.EVENT.DUR = calloc(HDR.EVENT.N,sizeof(*HDR.EVENT.DUR));
-	HDR.EVENT.CHN = calloc(HDR.EVENT.N,sizeof(*HDR.EVENT.CHN));
+	hdr->EVENT.N = N_EVENT; 
+	hdr->EVENT.SampleRate = hdr->SampleRate; 
+	hdr->EVENT.POS = calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
+	hdr->EVENT.TYP = calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
+	hdr->EVENT.DUR = calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.DUR));
+	hdr->EVENT.CHN = calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.CHN));
 	
-	return(HDR);
+	return(hdr);
 }
 
 
 /****************************************************************************/
 /**                     SOPEN                                              **/
 /****************************************************************************/
-HDRTYPE* sopen(const char* FileName, HDRTYPE* hdr, const char* MODE)
+HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 /*
 	MODE="r" 
 		reads file and returns HDR 
@@ -216,7 +222,8 @@ HDRTYPE* sopen(const char* FileName, HDRTYPE* hdr, const char* MODE)
 	HDR = *hdr; 
 if (!strcmp(MODE,"r"))	
 {
-	HDR = init_default_hdr(HDR,0,0);	// initializes fields that may stay undefined during SOPEN 
+	hdr = create_default_hdr(0,0);	// initializes fields that may stay undefined during SOPEN 
+	HDR = *hdr; 
 
 #ifdef ZLIB_H
 	HDR.FILE.FID = fopen(FileName,"rb");

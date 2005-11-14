@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.16 2005-11-14 09:05:33 schloegl Exp $
+% $Id: biosig.h,v 1.17 2005-11-14 11:01:09 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -211,9 +211,8 @@ typedef struct {
 /****************************************************************************/
 
 
-HDRTYPE init_default_hdr(HDRTYPE HDR, const unsigned NS, const unsigned N_EVENT);
-
-HDRTYPE* sopen(const char* FileName, HDRTYPE* hdr, const char* MODE);
+HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT);
+HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 int 	sclose(HDRTYPE* hdr);
 size_t 	sread(HDRTYPE* hdr, size_t nelem);
 size_t	swrite(const void *ptr, size_t nelem, HDRTYPE* hdr);

@@ -1,6 +1,6 @@
 /*
 
-    $Id: main.c,v 1.3 2005-11-14 09:05:33 schloegl Exp $
+    $Id: main.c,v 1.4 2005-11-14 11:01:09 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -77,26 +77,26 @@ int main (int argc, char **argv)
 	for (k=0; k<NELEM; s[k] = k++%1031);	
       
 	// write: define header
-	HDR = init_default_hdr(HDR,4,10);  // allocate memory for 4 channels, 10 events 
-	HDR.Patient.Id = "test1";
-	HDR.TYPE = GDF; 
+	hdr = create_default_hdr(4,10);  // allocate memory for 4 channels, 10 events 
+	hdr->Patient.Id = "test1";
+	hdr->TYPE = GDF; 
 
 	// OPEN and WRITE GDF FILE 
-     	sopen(argv[1], &HDR, "w");
+     	sopen(argv[1], "w", hdr);
 
-	swrite(&s, NELEM/HDR.NS, &HDR);
+	swrite(&s, NELEM/HDR.NS, hdr);
 
 	// define events before SCLOSE; 
-	for (k=0; k<HDR.EVENT.N; k++) {
-		HDR.EVENT.TYP[k] = k+1;
-		HDR.EVENT.POS[k] = k*100;
+	for (k=0; k<hdr->EVENT.N; k++) {
+		hdr->EVENT.TYP[k] = k+1;
+		hdr->EVENT.POS[k] = k*100;
 	};
-      	status = sclose(&HDR);
+      	status = sclose(hdr);
 
-   	fprintf(stdout,"1-%i\t%i\t%i\t%i\t%u\t%u\n",sizeof(HDR.EVENT.TYP),sizeof(*HDR.EVENT.TYP),(int32_t)HDR.NRec,HDR.HeadLen,HDR.Dur[0],HDR.Dur[1]);
+   	fprintf(stdout,"1-%i\t%i\t%i\t%i\t%u\t%u\n",sizeof(hdr->EVENT.TYP),sizeof(*hdr->EVENT.TYP),(int32_t)hdr->NRec,hdr->HeadLen,hdr->Dur[0],hdr->Dur[1]);
 
 	// READ GDF FILE 
-	sopen(argv[1], &HDR2, "r");
+	sopen(argv[1], "r", &HDR2);
    	fprintf(stdout,"2-%i\t%i\t%i\t%i\t%u\t%u\n",HDR2.AS.bpb,HDR2.FILE.OPEN,(int32_t)HDR2.NRec,HDR2.HeadLen,HDR2.Dur[0],HDR2.Dur[1]);
 
 	while (!seof(&HDR2)) {
