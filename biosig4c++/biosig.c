@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.18 2005-11-14 11:01:09 schloegl Exp $
+    $Id: biosig.c,v 1.19 2005-11-15 22:45:01 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -41,7 +41,7 @@
 #include <string.h>
 #include <time.h>
 
-//#include "biosig.h"
+#include "biosig.h"
 //#include "zlib.h"
 
 
@@ -113,7 +113,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->AS.Header1 = 0;
 
       	hdr->TYPE = GDF; 
-      	hdr->VERSION = 1.92; 
+      	hdr->VERSION = 1.93;
       	hdr->AS.rawdata = malloc(10);
       	hdr->NRec = -1; 
       	hdr->NS = NS;	
@@ -814,7 +814,7 @@ else { // WRITE
 /****************************************************************************/
 /**                     SREAD                                              **/
 /****************************************************************************/
-size_t sread(HDRTYPE *hdr, size_t nelem) {
+size_t 	sread(HDRTYPE* hdr, size_t nelem) {
 /* 
  *	reads NELEM blocks with HDR.AS.bpb BYTES each, 
  *	data is available in hdr->AS.rawdata
@@ -840,14 +840,10 @@ size_t sread(HDRTYPE *hdr, size_t nelem) {
 	hdr->FILE.POS += count;
 
 	// transfer RAW into BIOSIG data format 
-//fprintf(stdout,"sr1: %u %u %u %u %u %u\n",count,hdr->SPR,(int)hdr->NRec,hdr->NS,sizeof(biosig_data_type),hdr->SPR*count*hdr->NS*sizeof(biosig_data_type));
-fprintf(stdout,"%p %p %i \n",hdr->data.block,ptr,hdr->SPR*count*hdr->NS*sizeof(biosig_data_type));
 	hdr->data.block   = realloc(hdr->data.block, (hdr->SPR) * count * (hdr->NS) * sizeof(biosig_data_type));
-//fprintf(stdout,"%p %p\n",hdr->data.block,ptr);
 
 	hdr->data.size[0] = hdr->SPR*count;	// rows	
 	hdr->data.size[1] = hdr->NS;		// columns 
-//fprintf(stdout,"sr2: %u %u %u %u %u\n",count,hdr->SPR,count,hdr->NS,sizeof(biosig_data_type));
 	
 	for (k1=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
@@ -855,8 +851,6 @@ fprintf(stdout,"%p %p %i \n",hdr->data.block,ptr,hdr->SPR*count*hdr->NS*sizeof(b
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BYTE[GDFTYP];
 		int32_value = 0; 
-//fprintf(stdout,"sr3: %i %i %i %i %i\n",count,DIV,GDFTYP,SZ,seof(*hdr));
-
 
 		for (k4 = 0; k4 < count; k4++)
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
@@ -1055,29 +1049,22 @@ int sclose(HDRTYPE* hdr)
 
 	fclose(hdr->FILE.FID);
     	hdr->FILE.FID = 0;
-fprintf(stdout,"1\n");
     	if (hdr->AS.rawdata != NULL)	
         	free(hdr->AS.rawdata);
-fprintf(stdout,"1\n");
     	if (hdr->data.block != NULL)	
         	free(hdr->data.block);
         	hdr->data.size[0]=0;
         	hdr->data.size[1]=0;
-fprintf(stdout,"1\n");
 
     	if (hdr->CHANNEL != NULL)	
         	free(hdr->CHANNEL);
-fprintf(stdout,"1\n");
     	if (hdr->AS.bi != NULL)	
         	free(hdr->AS.bi);
-fprintf(stdout,"1\n");
     	if (hdr->AS.Header1 != NULL)	
         	free(hdr->AS.Header1);
-fprintf(stdout,"1\n");
 
     	if (hdr->EVENT.POS != NULL)	
         	free(hdr->EVENT.POS);
-fprintf(stdout,"1\n");
     	if (hdr->EVENT.TYP != NULL)	
         	free(hdr->EVENT.TYP);
     	if (hdr->EVENT.DUR != NULL)	

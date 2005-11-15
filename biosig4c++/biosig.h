@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.17 2005-11-14 11:01:09 schloegl Exp $
+% $Id: biosig.h,v 1.18 2005-11-15 22:45:01 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
