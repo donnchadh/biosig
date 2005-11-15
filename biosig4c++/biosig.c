@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.19 2005-11-15 22:45:01 schloegl Exp $
+    $Id: biosig.c,v 1.20 2005-11-15 23:10:35 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -610,10 +610,10 @@ if (!strcmp(MODE,"r"))
 	    	}
 		HDR.FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 
-		fprintf(stderr,"Support for Format SCP-ECG not completed.\n",HDR.TYPE,HDR.FileName); 
+		fprintf(stderr,"Error SOPEN(%s): Support for Format SCP-ECG not completed.\n",HDR.FileName);
 	}
 	else {
-		fprintf(stderr,"Format (%i) of File %s not supported (yet)\n",HDR.TYPE,HDR.FileName); 
+		fprintf(stderr,"Error SOPEN(%s): Support for Format SCP-ECG not completed.\n",HDR.FileName);
 		sclose(&HDR); 
 		exit(-1);  
 	}
@@ -759,10 +759,10 @@ else { // WRITE
 			len = sprintf(tmp,"%f",HDR.CHANNEL[k].PhysMax);
 			if (len>8) fprintf(stderr,"Warning: PhysMax (%s) of channel %i is to long.\n",tmp,k);  
 		     	memcpy(Header2+ 8*k + 112*HDR.NS,tmp,min(8,len));
-			len = sprintf(tmp,"%Li",HDR.CHANNEL[k].DigMin);
+			len = sprintf(tmp,"%f",HDR.CHANNEL[k].DigMin);
 			if (len>8) fprintf(stderr,"Warning: DigMin (%s) of channel %i is to long.\n",tmp,k);  
 		     	memcpy(Header2+ 8*k + 120*HDR.NS,tmp,min(8,len));
-			len = sprintf(tmp,"%Li",HDR.CHANNEL[k].DigMax);
+			len = sprintf(tmp,"%f",HDR.CHANNEL[k].DigMax);
 			if (len>8) fprintf(stderr,"Warning: DigMax (%s) of channel %i is to long.\n",tmp,k);  
 		     	memcpy(Header2+ 8*k + 128*HDR.NS,tmp,min(8,len));
 		     	
@@ -961,13 +961,13 @@ void srewind(HDRTYPE* hdr)
 /****************************************************************************/
 int sseek(HDRTYPE* hdr, size_t offset, int whence)
 {
-	size_t pos; 
+	size_t pos=0; 
 	
-	if    	(whence == SEEK_SET) 
+	if    	(whence < 0) 
 		pos = offset*hdr->AS.bpb+(hdr->HeadLen);
-	else if (whence == SEEK_CUR) 
+	else if (whence == 0) 
 		pos = hdr->FILE.POS + offset*hdr->AS.bpb;
-	else if (whence == SEEK_END) 
+	else if (whence > 0) 
 		pos = (hdr->NRec + offset)*hdr->AS.bpb;
 	
 	if ((pos < hdr->HeadLen) | (pos > hdr->NRec * hdr->AS.bpb))

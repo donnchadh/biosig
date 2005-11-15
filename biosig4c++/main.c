@@ -1,6 +1,6 @@
 /*
 
-    $Id: main.c,v 1.4 2005-11-14 11:01:09 schloegl Exp $
+    $Id: main.c,v 1.5 2005-11-15 23:10:35 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -116,7 +116,6 @@ fprintf(stdout,"5+ %u\t %u\n",HDR2.FILE.POS,*(int16_t*)HDR2.AS.rawdata);
 if (count)
 fprintf(stdout,"+ %u\t %u\n", HDR2.FILE.POS,*(int16_t*)HDR2.AS.rawdata);	
 	count = sread(&HDR2,10);
-   	fprintf(stdout,"3-%i\t%i\t%i\t%i\t%u\t%u\n",HDR2.AS.bpb,HDR2.AS.spb,(long)HDR2.NRec,HDR2.HeadLen,HDR2.Dur[0],HDR2.Dur[1]);
 	status = sclose(&HDR2);
 	
       	return(status);
