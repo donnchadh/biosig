@@ -1,6 +1,6 @@
 /*
 
-    $Id: main.c,v 1.6 2005-11-18 13:12:40 schloegl Exp $
+    $Id: main.c,v 1.7 2005-11-18 15:53:15 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -63,8 +63,7 @@ int main (int argc, char **argv)
 #define NELEM (1<<15)
 	unsigned k; 	
     	short 	s[NELEM];
-    	HDRTYPE HDR2;
-    	HDRTYPE* hdr; 	
+    	HDRTYPE *hdr,*hdr2; 	
     	size_t 	count;
     	int	status;
 
@@ -96,27 +95,34 @@ int main (int argc, char **argv)
    	fprintf(stdout,"1-%i\t%i\t%i\t%i\t%u\t%u\n",sizeof(hdr->EVENT.TYP),sizeof(*hdr->EVENT.TYP),(int32_t)hdr->NRec,hdr->HeadLen,hdr->Dur[0],hdr->Dur[1]);
 
 	// READ GDF FILE 
-	sopen(argv[1], "r", &HDR2);
-   	fprintf(stdout,"2-%i\t%i\t%i\t%i\t%u\t%u\n",HDR2.AS.bpb,HDR2.FILE.OPEN,(int32_t)HDR2.NRec,HDR2.HeadLen,HDR2.Dur[0],HDR2.Dur[1]);
+	hdr2 = sopen(argv[1], "r", NULL);
+	if (hdr2==NULL) return(-1); 
 
-	while (!seof(&HDR2)) {
-		count = sread(&HDR2,100,10);
-//fprintf(stdout,"m1: %p\n",HDR2.data.block);
+   	fprintf(stdout,"2-%u\t%i\t%i\t%i\t%u\t%u\n",hdr2->AS.bpb,hdr2->FILE.OPEN,(int32_t)hdr2->NRec,hdr2->HeadLen,hdr2->Dur[0],hdr2->Dur[1]);
+
 	
-//		fprintf(stdout,"+ %Lu\t %u\t %u\t %u %f %i\n",HDR2.NRec,count,HDR2.SPR,*(int16_t*)HDR2.AS.rawdata,HDR2.data.block[0],seof(HDR2));
+	for (k=0; !seof(hdr2); k+=10) {
+		count = sread(hdr2,k,10);
+//fprintf(stdout,"m1: %p\n",hdr2->data.block);
+	
+		fprintf(stdout,"+ %Lu\t %u\t %u\t %u %f %i\n",hdr2->NRec,count,hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata,hdr2->data.block[0],seof(hdr2));
 	}	
-	sseek(&HDR2,50,SEEK_SET);
-fprintf(stdout,"3+ %u\t %u\n",HDR2.FILE.POS,*(int16_t*)HDR2.AS.rawdata);	
-	srewind(&HDR2);
-fprintf(stdout,"4+ %u\t %u\n",HDR2.FILE.POS,*(int16_t*)HDR2.AS.rawdata);	
-	count = sread(&HDR2,50,10);
+	sseek(hdr2,50,SEEK_SET);
+fprintf(stdout,"3+ %u\t %u\n",hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata);	
+	srewind(hdr2);
+fprintf(stdout,"4+ %u\t %u\n",hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata);	
+	count = sread(hdr2,50,10);
+fprintf(stdout,"++ %i\t %u\t%i\t%i\t%i\t%i\n",hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata,count,hdr2->data.size[0],hdr2->data.size[1],hdr2->NS);	
+	hdr2->CHANNEL[0].OnOff = 0; 
+	count = sread(hdr2,50,10);
+fprintf(stdout,"++ %i\t %u\t%i\t%i\t%i\t%i\n",hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata,count,hdr2->data.size[0],hdr2->data.size[1],hdr2->NS);	
 if (count)
-fprintf(stdout,"5+ %u\t %u\n",HDR2.FILE.POS,*(int16_t*)HDR2.AS.rawdata);	
-	count = sread(&HDR2,60,10);
+fprintf(stdout,"5+ %u\t %u\n",hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata);	
+	count = sread(hdr2,60,10);
 if (count)
-fprintf(stdout,"+ %u\t %u\n", HDR2.FILE.POS,*(int16_t*)HDR2.AS.rawdata);	
-	count = sread(&HDR2,70,10);
-	status = sclose(&HDR2);
+fprintf(stdout,"+ %u\t %u\n", hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata);	
+	count = sread(hdr2,70,10);
+	status = sclose(hdr2);
 	
       	return(status);
 
