@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.21 2005-11-18 13:12:40 schloegl Exp $
+    $Id: biosig.c,v 1.22 2005-11-18 13:23:15 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -858,7 +858,6 @@ size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
 	if (CHptr->OnOff != 0) {
-		k2    += 1; 
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BYTE[GDFTYP];
@@ -921,6 +920,7 @@ size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
 			for (k3=0; k3 < DIV; k3++) 
 				hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
 		}
+		k2++;
 	}}
 
 	return(count);
@@ -938,6 +938,7 @@ size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HD
  *	reads NELEM blocks with HDR.AS.bpb BYTES each, 
  *	data is available in hdr->AS.rawdata
  */
+
 	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem,pos; 
 	int 			GDFTYP;
 	void*			ptr;
@@ -975,7 +976,6 @@ size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HD
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 	CHptr 	= hdr->CHANNEL+k1;
 	if (CHptr->OnOff != 0) {
-		k2    += 1; 
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BYTE[GDFTYP];
@@ -1039,6 +1039,7 @@ size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HD
 				*(channels_dest[k2] + k4*CHptr->SPR + k5 + k3) = sample_value; 
 				//hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
 		}
+		k2++;
 	}}
 
 	return(count);
