@@ -5,9 +5,11 @@ DEFINES       =
 CFLAGS        = -O2 -Wall $(DEFINES)
 INCPATH       = -I"."
 LINK          = gcc
-LFLAGS        = -Wl,-subsystem,console  # Windows
+#LFLAGS        = -Wl,-subsystem,console  # Windows
+LFLAGS        = -lm
 LIBS          =
-DEL_FILE      = del                     # Windows
+#DEL_FILE      = del                     # Windows
+DEL_FILE      = rm
 
 ####### Files
 
@@ -15,7 +17,8 @@ SOURCES       = biosig.c \
 		main.c 
 OBJECTS       = biosig.o \
 		main.o
-TARGET        = biosig.exe              # Windows
+TARGET        = biosig
+              # Windows
 
 ####### Build rules
 
