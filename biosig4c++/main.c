@@ -1,6 +1,6 @@
 /*
 
-    $Id: main.c,v 1.5 2005-11-15 23:10:35 schloegl Exp $
+    $Id: main.c,v 1.6 2005-11-18 13:12:40 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -63,7 +63,7 @@ int main (int argc, char **argv)
 #define NELEM (1<<15)
 	unsigned k; 	
     	short 	s[NELEM];
-    	HDRTYPE HDR, HDR2;
+    	HDRTYPE HDR2;
     	HDRTYPE* hdr; 	
     	size_t 	count;
     	int	status;
@@ -84,7 +84,7 @@ int main (int argc, char **argv)
 	// OPEN and WRITE GDF FILE 
      	sopen(argv[1], "w", hdr);
 
-	swrite(&s, NELEM/HDR.NS, hdr);
+	swrite(&s, NELEM/hdr->NS, hdr);
 
 	// define events before SCLOSE; 
 	for (k=0; k<hdr->EVENT.N; k++) {
@@ -100,7 +100,7 @@ int main (int argc, char **argv)
    	fprintf(stdout,"2-%i\t%i\t%i\t%i\t%u\t%u\n",HDR2.AS.bpb,HDR2.FILE.OPEN,(int32_t)HDR2.NRec,HDR2.HeadLen,HDR2.Dur[0],HDR2.Dur[1]);
 
 	while (!seof(&HDR2)) {
-		count = sread(&HDR2,10);
+		count = sread(&HDR2,100,10);
 //fprintf(stdout,"m1: %p\n",HDR2.data.block);
 	
 //		fprintf(stdout,"+ %Lu\t %u\t %u\t %u %f %i\n",HDR2.NRec,count,HDR2.SPR,*(int16_t*)HDR2.AS.rawdata,HDR2.data.block[0],seof(HDR2));
@@ -109,13 +109,13 @@ int main (int argc, char **argv)
 fprintf(stdout,"3+ %u\t %u\n",HDR2.FILE.POS,*(int16_t*)HDR2.AS.rawdata);	
 	srewind(&HDR2);
 fprintf(stdout,"4+ %u\t %u\n",HDR2.FILE.POS,*(int16_t*)HDR2.AS.rawdata);	
-	count = sread(&HDR2,10);
+	count = sread(&HDR2,50,10);
 if (count)
 fprintf(stdout,"5+ %u\t %u\n",HDR2.FILE.POS,*(int16_t*)HDR2.AS.rawdata);	
-	count = sread(&HDR2,10);
+	count = sread(&HDR2,60,10);
 if (count)
 fprintf(stdout,"+ %u\t %u\n", HDR2.FILE.POS,*(int16_t*)HDR2.AS.rawdata);	
-	count = sread(&HDR2,10);
+	count = sread(&HDR2,70,10);
 	status = sclose(&HDR2);
 	
       	return(status);

@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.18 2005-11-15 22:45:01 schloegl Exp $
+% $Id: biosig.h,v 1.19 2005-11-18 13:12:40 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -89,6 +89,7 @@ typedef double	 		biosig_data_type; // data type of internal format
 	This structure defines the header for each channel (variable header) 
 */
 typedef struct {
+	char		OnOff; 		// 
 	char* 		Label;		// Label of channel 
 	char* 		Transducer;	// transducer e.g. EEG: Ag-AgCl electrodes
 	char* 		PhysDim;	// physical dimension
@@ -214,7 +215,9 @@ typedef struct {
 HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT);
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 int 	sclose(HDRTYPE* hdr);
-size_t 	sread(HDRTYPE* hdr, size_t nelem);
+size_t 	sread(HDRTYPE* hdr, size_t start, size_t length);
+size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr); 
+
 size_t	swrite(const void *ptr, size_t nelem, HDRTYPE* hdr);
 int	seof(HDRTYPE* hdr);
 void	srewind(HDRTYPE* hdr);

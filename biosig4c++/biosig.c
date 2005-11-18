@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.20 2005-11-15 23:10:35 schloegl Exp $
+    $Id: biosig.c,v 1.21 2005-11-18 13:12:40 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -804,6 +804,7 @@ else { // WRITE
 		HDR.AS.bpb += GDFTYP_BYTE[HDR.CHANNEL[k].GDFTYP]*HDR.CHANNEL[k].SPR;			
 		HDR.SPR = lcm(HDR.SPR,HDR.CHANNEL[k].SPR);
 		HDR.AS.bi[++k] = HDR.AS.bpb; 
+		HDR.CHANNEL[k].OnOff = 1; 
 	}	
 
 	*hdr = HDR; 
@@ -812,26 +813,35 @@ else { // WRITE
 
 
 /****************************************************************************/
-/**                     SREAD                                              **/
+/**	SREAD                                                              **/
+/**        memory allocation is included,                                  **/  
+/**        data is returned in HDR.block.data and has size HDR.block.size  **/
 /****************************************************************************/
-size_t 	sread(HDRTYPE* hdr, size_t nelem) {
+size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
 /* 
  *	reads NELEM blocks with HDR.AS.bpb BYTES each, 
  *	data is available in hdr->AS.rawdata
  */
-	size_t			count,k1,k3,k4,k5,DIV,SZ; 
+	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem,pos; 
 	int 			GDFTYP;
 	void*			ptr;
 	CHANNEL_TYPE*		CHptr;
 	int32_t			int32_value;
 	biosig_data_type 	sample_value; 
 	
+	// check input segment 
+	pos = start*hdr->AS.bpb+(hdr->HeadLen);
+	if ((pos < hdr->HeadLen) | (pos > hdr->NRec * hdr->AS.bpb))
+		return(0);
+	else if (fseek(hdr->FILE.FID, pos, SEEK_SET))
+		return(0);
+	hdr->FILE.POS = (pos - hdr->HeadLen) / (hdr->AS.bpb); 	
 
 	// allocate AS.rawdata 	
-	hdr->AS.rawdata = realloc(hdr->AS.rawdata, (hdr->AS.bpb)*nelem);
+	hdr->AS.rawdata = realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
 
 	// limit reading to end of data block
-	nelem = max(min(nelem, hdr->NRec - hdr->FILE.POS),0);
+	nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
 
 	// read data	
 	count = fread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
@@ -845,8 +855,10 @@ size_t 	sread(HDRTYPE* hdr, size_t nelem) {
 	hdr->data.size[0] = hdr->SPR*count;	// rows	
 	hdr->data.size[1] = hdr->NS;		// columns 
 	
-	for (k1=0; k1<hdr->NS; k1++) {
+	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
+	if (CHptr->OnOff != 0) {
+		k2    += 1; 
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BYTE[GDFTYP];
@@ -907,13 +919,131 @@ size_t 	sread(HDRTYPE* hdr, size_t nelem) {
 
 			// resampling 1->DIV samples
 			for (k3=0; k3 < DIV; k3++) 
-				hdr->data.block[k1*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
+				hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
 		}
-	}
+	}}
 
 	return(count);
 
 }  // end of SREAD 
+
+
+/****************************************************************************/
+/**	SREAD2                                                             **/
+/**        memory allocation is not included,                              **/  
+/**        data is channel_dest                                            **/
+/****************************************************************************/
+size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr) {
+/* 
+ *	reads NELEM blocks with HDR.AS.bpb BYTES each, 
+ *	data is available in hdr->AS.rawdata
+ */
+	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem,pos; 
+	int 			GDFTYP;
+	void*			ptr;
+	CHANNEL_TYPE*		CHptr;
+	int32_t			int32_value;
+	biosig_data_type 	sample_value; 
+	
+
+	// check input segment 
+	pos = start*hdr->AS.bpb+(hdr->HeadLen);
+	if ((pos < hdr->HeadLen) | (pos > hdr->NRec * hdr->AS.bpb))
+		return(0);
+	else if (fseek(hdr->FILE.FID, pos, SEEK_SET))
+		return(0);
+	hdr->FILE.POS = (pos - hdr->HeadLen) / (hdr->AS.bpb); 	
+
+	// allocate AS.rawdata 	
+	hdr->AS.rawdata = realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
+
+	// limit reading to end of data block
+	nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
+
+	// read data	
+	count = fread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
+
+	// set position of file handle 
+	hdr->FILE.POS += count;
+
+	// transfer RAW into BIOSIG data format 
+	// hdr->data.block   = realloc(hdr->data.block, (hdr->SPR) * count * (hdr->NS) * sizeof(biosig_data_type));
+
+	hdr->data.size[0] = hdr->SPR*count;	// rows	
+	hdr->data.size[1] = hdr->NS;		// columns 
+	
+	for (k1=0,k2=0; k1<hdr->NS; k1++) {
+	CHptr 	= hdr->CHANNEL+k1;
+	if (CHptr->OnOff != 0) {
+		k2    += 1; 
+		DIV 	= hdr->SPR/CHptr->SPR; 
+		GDFTYP 	= CHptr->GDFTYP;
+		SZ  	= GDFTYP_BYTE[GDFTYP];
+		int32_value = 0; 
+
+		for (k4 = 0; k4 < count; k4++)
+		for (k5 = 0; k5 < CHptr->SPR; k5++) {
+
+			// get source address 	
+			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
+			
+			// mapping of raw data type to (biosig_data_type)
+			if (0); 
+			else if (GDFTYP==3)
+				sample_value = (biosig_data_type)(*(int16_t*)ptr); 
+			else if (GDFTYP==4)
+				sample_value = (biosig_data_type)(*(uint16_t*)ptr); 
+			else if (GDFTYP==16)
+				sample_value = (biosig_data_type)(*(float*)ptr); 
+			else if (GDFTYP==17)
+				sample_value = (biosig_data_type)(*(double*)ptr); 
+			else if (GDFTYP==0)
+				sample_value = (biosig_data_type)(*(char*)ptr); 
+			else if (GDFTYP==1)
+				sample_value = (biosig_data_type)(*(int8_t*)ptr); 
+			else if (GDFTYP==2)
+				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
+			else if (GDFTYP==5)
+				sample_value = (biosig_data_type)(*(int32_t*)ptr); 
+			else if (GDFTYP==6)
+				sample_value = (biosig_data_type)(*(uint32_t*)ptr); 
+			else if (GDFTYP==7)
+				sample_value = (biosig_data_type)(*(int64_t*)ptr); 
+			else if (GDFTYP==8)
+				sample_value = (biosig_data_type)(*(uint64_t*)ptr); 
+			else if (GDFTYP==255+24) {
+				int32_value = 0;
+				memcpy(&int32_value,ptr,3);
+				if (int32_value & 0x00800000)
+					int32_value |= 0xFF000000;
+				sample_value = (biosig_data_type)int32_value; 
+			}	
+			else if (GDFTYP==511+24) {
+				memcpy(&int32_value,ptr,3);
+				sample_value = (biosig_data_type)int32_value; 
+			}	
+			else {
+				fprintf(stderr,"Error SREAD: datatype %i not supported\n",GDFTYP);
+				exit(-1);
+			}
+
+			// overflow and saturation detection 
+			if ((hdr->FLAG.OVERFLOWDETECTION) && ((sample_value<=hdr->CHANNEL[k1].DigMin) || (sample_value>=hdr->CHANNEL[k1].DigMax)))
+				sample_value = 0.0/0.0; 
+
+			else if (!hdr->FLAG.UCAL)	// scaling 
+				sample_value = sample_value * CHptr->Cal + CHptr->Off;
+
+			// resampling 1->DIV samples
+			for (k3=0; k3 < DIV; k3++) 
+				*(channels_dest[k2] + k4*CHptr->SPR + k5 + k3) = sample_value; 
+				//hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
+		}
+	}}
+
+	return(count);
+
+}  // end of SREAD2 
 
 
 
@@ -1076,8 +1206,7 @@ int sclose(HDRTYPE* hdr)
 	hdr->FILE.OPEN = 0; 	     	
 
     	return(0);
-};
-
+}
 
 
 /****************************************************************************/
