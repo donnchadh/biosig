@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.23 2005-11-18 15:53:14 schloegl Exp $
+    $Id: biosig.c,v 1.24 2005-11-18 20:30:15 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -50,7 +50,7 @@ const int GDFTYP_BYTE[] = {1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8,
 
 /****************************************************************************/
 /**                                                                        **/
-/**                      INTERNAL FUNCTIONS                               **/
+/**                      INTERNAL FUNCTIONS                                **/
 /**                                                                        **/
 /****************************************************************************/
  
@@ -489,7 +489,7 @@ if (!strcmp(MODE,"r"))
 	    	tm_time.tm_hour = *(int32_t*)(Header1+28);
 	    	tm_time.tm_min  = *(int32_t*)(Header1+32);
 	    	tm_time.tm_sec  = *(double*) (Header1+36);
-    		hdr->T0 		= tm_time2gdf_time(&tm_time);
+    		hdr->T0 	= tm_time2gdf_time(&tm_time);
 	    	// = *(double*)(Header1+44);
 	    	hdr->NS   	= *(int32_t*)(Header1+52);
 	    	hdr->NRec	= *(int32_t*)(Header1+56);
@@ -551,9 +551,9 @@ if (!strcmp(MODE,"r"))
 		    	hdr->CHANNEL[k].PhysDim	= "uV";
 		    	hdr->CHANNEL[k].PhysDimCode = 4256+19;
 		    	hdr->CHANNEL[k].Cal	= *(float*)(Header2+k*75+59);
-		    	hdr->CHANNEL[k].Cal	*= *(float*)(Header2+k*75+71)/204.8;
+		    	hdr->CHANNEL[k].Cal    *= *(float*)(Header2+k*75+71)/204.8;
 		    	hdr->CHANNEL[k].Off	= *(float*)(Header2+k*75+47) * hdr->CHANNEL[k].Cal;
-		    	hdr->CHANNEL[k].HighPass	= CNT_SETTINGS_HIGHPASS[(uint8_t)Header2[64+k*75]];
+		    	hdr->CHANNEL[k].HighPass= CNT_SETTINGS_HIGHPASS[(uint8_t)Header2[64+k*75]];
 		    	hdr->CHANNEL[k].LowPass	= CNT_SETTINGS_LOWPASS[(uint8_t)Header2[65+k*75]];
 		    	hdr->CHANNEL[k].Notch	= CNT_SETTINGS_NOTCH[(uint8_t)Header1[682]];
 		}
@@ -803,36 +803,46 @@ else { // WRITE
 		hdr->CHANNEL[k].OnOff = 1; 
 		hdr->AS.bi[++k] = hdr->AS.bpb; 
 	}	
-fprintf(stdout,"SOPEN: %i\n",hdr->AS.bpb);
+
 	return(hdr);
 }  // end of SOPEN 
 
 
 /****************************************************************************/
 /**	SREAD                                                              **/
-/**        memory allocation is included,                                  **/  
-/**        data is returned in HDR.block.data and has size HDR.block.size  **/
 /****************************************************************************/
-size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
+size_t 	sread(HDRTYPE* hdr, int start, size_t length) {
 /* 
- *	reads NELEM blocks with HDR.AS.bpb BYTES each, 
- *	data is available in hdr->AS.rawdata
+ *	reads LENGTH blocks with HDR.AS.bpb BYTES each, 
+ *	rawdata is available in hdr->AS.rawdata
+ *      output data is available in hdr->data.block
+ *	size of output data is availabe in hdr->data.size
+ *
+ *	channel selection is controlled by hdr->CHANNEL[k}.OnOff
+ * 
+ *        start <0: read from current position
+ *             >=0: start reading from position start
+ *        length  : try to read length blocks
+ *
  */
-	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem,pos; 
+
+	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem; 
 	int 			GDFTYP;
 	void*			ptr;
 	CHANNEL_TYPE*		CHptr;
 	int32_t			int32_value;
 	biosig_data_type 	sample_value; 
 	
-	// check input segment 
-	pos = start*hdr->AS.bpb;
-	if ((pos < 0) | (pos > hdr->NRec * hdr->AS.bpb))
-		return(0);
-	else if (fseek(hdr->FILE.FID, pos, SEEK_SET))
-		return(0);
-	hdr->FILE.POS = pos / (hdr->AS.bpb); 	
 
+	// check reading segment 
+	if (start >= 0) {
+		if (start > hdr->NRec * hdr->AS.bpb)
+			return(0);
+		else if (fseek(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
+			return(0);
+		hdr->FILE.POS = start; 	
+	}
+	
 	// allocate AS.rawdata 	
 	hdr->AS.rawdata = realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
 
@@ -923,18 +933,25 @@ size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
 }  // end of SREAD 
 
 
+
 /****************************************************************************/
 /**	SREAD2                                                             **/
-/**        memory allocation is not included,                              **/  
-/**        data is channel_dest                                            **/
 /****************************************************************************/
-size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr) {
+size_t 	sread2(biosig_data_type** channels_dest, int start, size_t length, HDRTYPE* hdr) {
 /* 
- *	reads NELEM blocks with HDR.AS.bpb BYTES each, 
- *	data is available in hdr->AS.rawdata
+ *      no memory allocation is done 
+ *      data is moved into channel_dest
+ *	size of output data is availabe in hdr->data.size
+ *
+ *	channel selection is controlled by hdr->CHANNEL[k}.OnOff
+ * 
+ *      start <0: read from current position
+ *           >=0: start reading from position start
+ *      length  : try to read length blocks
+ *
  */
 
-	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem,pos; 
+	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem; 
 	int 			GDFTYP;
 	void*			ptr;
 	CHANNEL_TYPE*		CHptr;
@@ -942,20 +959,21 @@ size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HD
 	biosig_data_type 	sample_value; 
 	
 
-	// check input segment 
-	pos = start*hdr->AS.bpb;
-	if ((pos < 0) | (pos > hdr->NRec * hdr->AS.bpb))
-		return(0);
-	else if (fseek(hdr->FILE.FID, pos, SEEK_SET))
-		return(0);
-	hdr->FILE.POS = pos / (hdr->AS.bpb); 	
+	// check reading segment 
+	if (start >= 0) {
+		if (start > hdr->NRec * hdr->AS.bpb)
+			return(0);
+		else if (fseek(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
+			return(0);
+		hdr->FILE.POS = start; 	
+	}
 
 	// allocate AS.rawdata 	
 	hdr->AS.rawdata = realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
 
 	// limit reading to end of data block
 	nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
-fprintf(stdout,"SREAD2: %i\n",nelem);
+
 	// read data	
 	count = fread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
 
@@ -1082,7 +1100,7 @@ void srewind(HDRTYPE* hdr)
 
 
 /****************************************************************************/
-/**                     SSEEK                                             **/
+/**                     SSEEK                                              **/
 /****************************************************************************/
 int sseek(HDRTYPE* hdr, size_t offset, int whence)
 {

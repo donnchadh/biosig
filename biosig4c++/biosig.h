@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.19 2005-11-18 13:12:40 schloegl Exp $
+% $Id: biosig.h,v 1.20 2005-11-18 20:30:16 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -52,7 +52,13 @@ enum SCALE 	{No=1,    Yes=2,	Corrected=3};
 #define max(a,b)                        (((a) > (b)) ? (a) : (b))
 
 
-/*
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	biosig_data_type    data type of  internal data format 
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+typedef double	 		biosig_data_type;
+
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	Conversion of time formats between Unix and GDF format.
 
 	The default time format in BIOSIG uses a 64-bit fixed point format with 
@@ -69,9 +75,9 @@ enum SCALE 	{No=1,    Yes=2,	Corrected=3};
       	
       	The following macros define the conversions between the unix time and the 
       	GDF format. 
-*/
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+ 
 typedef int64_t 		gdf_time; // gdf time is represented in 64 bits
-typedef double	 		biosig_data_type; // data type of internal format
 #define t_time2gdf_time(t)	((gdf_time)floor(ldexp((t)/86400.0 + 719529, 32)))
 #define gdf_time2t_time(t)	((time_t)((ldexp((t),-32) - 719529) * 86400))
 #define tm_time2gdf_time(t) 	t_time2gdf_time(mktime(t))
@@ -215,8 +221,8 @@ typedef struct {
 HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT);
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 int 	sclose(HDRTYPE* hdr);
-size_t 	sread(HDRTYPE* hdr, size_t start, size_t length);
-size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr); 
+size_t 	sread(HDRTYPE* hdr, int start, size_t length);
+size_t 	sread2(biosig_data_type** channels_dest, int start, size_t length, HDRTYPE* hdr); 
 
 size_t	swrite(const void *ptr, size_t nelem, HDRTYPE* hdr);
 int	seof(HDRTYPE* hdr);
