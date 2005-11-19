@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.24 2005-11-18 20:30:15 schloegl Exp $
+    $Id: biosig.c,v 1.25 2005-11-19 02:32:36 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -72,6 +72,84 @@ size_t lcm(size_t A,size_t B)
 };
 
 
+#ifdef XXXX
+inline unt16_t l_endian_u16(unt16_t b)
+{
+	return (((b) & 0x00ff) << 8 | ((b) & 0xff00) >> 8); 
+} 
+
+inline int16_t l_endian_i16(int16_t b)
+{
+	return (((uint_16)(b) & 0x00ff) << 8 | (((uint_16)b) & 0xff00) >> 8); 
+} 
+
+inline unt16_t l_endian_u32(unt32_t b)
+{
+   	return ((((b) & 0xff000000) >> 24) | (((b) & 0x00ff0000) >>  8) | \
+        	(((b) & 0x0000ff00) <<  8) | (((b) & 0x000000ff) << 24)); 
+} 
+
+inline int16_t l_endian_i32(int32_t b)
+{
+  	return (((((uint32_t)b) & 0xff000000) >> 24) | ((((uint32_t)b) & 0x00ff0000) >>  8) | \
+		((((uint32_t)b) & 0x0000ff00) <<  8) | ((((uint32_t)b) & 0x000000ff) << 24)); 
+} 
+
+uint64_t l_endian_u64(uint64_t b)
+{	union { 
+		uint64 ll;
+		uint32 l[2]; 
+	} b1,b2;
+	b1.ll = b; 
+	b2.l[0] = b1.l[1];
+	b2.l[1] = b1.l[2];
+	return(b2.ll);
+} 
+int64_t l_endian_i64(int64_t b)
+{	union { 
+		uint64 ll;
+		uint32 l[2]; 
+	} b1,b2;
+	b1.ll = (uint64_t)b; 
+	b2.l[0] = b1.l[1];
+	b2.l[1] = b1.l[2];
+	return((int64_t)b2.ll);
+} 
+
+#else
+inline uint16_t l_endian_u16(uint16_t b)
+{
+	return(b);
+}
+
+inline int16_t l_endian_i16(int16_t b)
+{
+	return(b);
+}
+
+inline uint32_t l_endian_u32(uint32_t b)
+{
+	return(b);
+}
+
+inline int32_t l_endian_i32(int32_t b)
+{
+	return(b);
+}
+
+inline uint64_t l_endian_u64(uint64_t b)
+{
+	return(b);
+}
+
+inline int64_t l_endian_i64(int64_t b)
+{
+	return(b);
+}
+
+#endif 
+
+
 /****************************************************************************/
 /**                                                                        **/
 /**                     EXPORTED FUNCTIONS                                 **/
@@ -104,7 +182,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	
 	if  (!hdr->FILE.LittleEndian) {
 		fprintf(stderr,"error: only little endian platforms are supported, yet.\n"); 
-		exit(-1); 
+//		exit(-1); 
 	}	
 
 	hdr->FILE.OPEN = 0;
@@ -277,24 +355,24 @@ if (!strcmp(MODE,"r"))
     	if (hdr->TYPE == GDF) {
   	    	strncpy(tmp,(char*)Header1+3,5);
 	    	hdr->VERSION 	= atof(tmp);
-	    	hdr->NRec 	=  *( int64_t*) (Header1+236); 
-	    	hdr->Dur[0]  	=  *(uint32_t*) (Header1+244);
-	    	hdr->Dur[1]  	=  *(uint32_t*) (Header1+248); 
-	    	hdr->NS   	=  *(uint16_t*) (Header1+252); 
+	    	hdr->NRec 	= l_endian_i64( *( int64_t*) (Header1+236) ); 
+	    	hdr->Dur[0]  	= l_endian_u32( *(uint32_t*) (Header1+244) );
+	    	hdr->Dur[1]  	= l_endian_u32( *(uint32_t*) (Header1+248) ); 
+	    	hdr->NS   	= l_endian_u16( *(uint16_t*) (Header1+252) ); 
 	    	
 	    	if (hdr->VERSION > 1.90) { 
-		    	hdr->HeadLen 	= (*(uint16_t*) (Header1+184))<<8; 
+		    	hdr->HeadLen 	= l_endian_u16( *(uint16_t*) (Header1+184) )<<8; 
 	    		strncpy(hdr->AS.PID,Header1+8,66);
 	    		hdr->Patient.Id = strtok(hdr->AS.PID," ");
 	    		hdr->Patient.Name = strtok(NULL," ");
 	    		
 	    		hdr->Patient.Smoking      =  Header1[84]%4;
 	    		hdr->Patient.AlcoholAbuse = (Header1[84]>>2)%4;
-	    		hdr->Patient.DrugAbuse  	 = (Header1[84]>>4)%4;
+	    		hdr->Patient.DrugAbuse    = (Header1[84]>>4)%4;
 	    		hdr->Patient.Medication   = (Header1[84]>>8)%4;
 	    		hdr->Patient.Weight       =  Header1[85];
 	    		hdr->Patient.Height       =  Header1[86];
-	    		hdr->Patient.Sex       	 =  Header1[87]%4;
+	    		hdr->Patient.Sex       	  =  Header1[87]%4;
 	    		hdr->Patient.Handedness   = (Header1[87]>>2)%4;
 	    		hdr->Patient.Impairment.Visual = (Header1[87]>>4)%4;
 	
@@ -305,14 +383,26 @@ if (!strcmp(MODE,"r"))
 			else {
 				memcpy(&hdr->LOC, Header1+152, 16);
 			}
-			memcpy(&hdr->T0, Header1+168,8);
-			memcpy(&hdr->Patient.Birthday, Header1+176, 8);
 
-			memcpy(&hdr->ID.Equipment, Header1+192,6);
+			hdr->T0 		= l_endian_i64( *(int64_t*) (Header1+168) );
+			hdr->Patient.Birthday 	= l_endian_i64( *(int64_t*) (Header1+176) );
+			// memcpy(&hdr->T0, Header1+168,8);
+			// memcpy(&hdr->Patient.Birthday, Header1+176, 8);
+
+			hdr->ID.Equipment 	= l_endian_i64( *(int64_t*) (Header1+192) );
 			memcpy(&hdr->IPaddr, Header1+200,6);
-			memcpy(&hdr->Patient.Headsize, Header1+206,6);
-			memcpy(&hdr->ELEC.REF, Header1+212,12);
-			memcpy(&hdr->ELEC.GND, Header1+224,12);
+			hdr->Patient.Headsize[0]= l_endian_u16( *(uint16_t*)(Header1+206) );
+			hdr->Patient.Headsize[1]= l_endian_u16( *(uint16_t*)(Header1+208) );
+			hdr->Patient.Headsize[2]= l_endian_u16( *(uint16_t*)(Header1+210) );
+
+			//memcpy(&hdr->ELEC.REF, Header1+212,12);
+			//memcpy(&hdr->ELEC.GND, Header1+224,12);
+			hdr->ELEC.REF[0]   = (float)  l_endian_u32( *(uint32_t*)(Header1+ 212) );
+			hdr->ELEC.REF[1]   = (float)  l_endian_u32( *(uint32_t*)(Header1+ 216) );
+			hdr->ELEC.REF[2]   = (float)  l_endian_u32( *(uint32_t*)(Header1+ 220) );
+			hdr->ELEC.GND[0]   = (float)  l_endian_u32( *(uint32_t*)(Header1+ 212) );
+			hdr->ELEC.GND[1]   = (float)  l_endian_u32( *(uint32_t*)(Header1+ 216) );
+			hdr->ELEC.GND[2]   = (float)  l_endian_u32( *(uint32_t*)(Header1+ 220) );
 	    	}
 	    	else {
 	    		strncpy(hdr->AS.PID,Header1+8,80);
@@ -326,7 +416,7 @@ if (!strcmp(MODE,"r"))
 	    		tm_time.tm_mon  = atoi(strncpy(tmp,Header1+168+4,2)); 
 	    		tm_time.tm_year = atoi(strncpy(tmp,Header1+168,4)); 
 	    		hdr->T0 = t_time2gdf_time(mktime(&tm_time)); 
-		    	hdr->HeadLen 	= (*(uint64_t*) (Header1+184)); 
+		    	hdr->HeadLen 	= l_endian_u64( *(uint64_t*) (Header1+184) ); 
 	    	}
 
 	    	hdr->CHANNEL = calloc(hdr->NS,sizeof(CHANNEL_TYPE));
@@ -337,30 +427,33 @@ if (!strcmp(MODE,"r"))
 			//hdr->CHANNEL[k].Label  = (hdr->Header2 + 16*k);
 			//hdr->CHANNEL[k].Transducer  = (hdr->Header2 + 80*k + 16*hdr->NS);
 			//hdr->CHANNEL[k].PhysDim  = (hdr->Header2 + 8*k + 96*hdr->NS);
-			hdr->CHANNEL[k].PhysMin  = *(double*) (Header2+ 8*k + 104*hdr->NS);
-			hdr->CHANNEL[k].PhysMax  = *(double*) (Header2+ 8*k + 112*hdr->NS);
+			hdr->CHANNEL[k].PhysMin   = (double) l_endian_u64( *(uint64_t*) (Header2+ 8*k + 104*hdr->NS) );
+			hdr->CHANNEL[k].PhysMax   = (double) l_endian_u64( *(uint64_t*) (Header2+ 8*k + 112*hdr->NS) );
 
 			//hdr->CHANNEL[k].PreFilt = (hdr->Header2+ 68*k + 136*hdr->NS);
-			hdr->CHANNEL[k].SPR      = *(int32_t*) (Header2+ 4*k + 216*hdr->NS);
-			hdr->CHANNEL[k].GDFTYP   = *(int32_t*) (Header2+ 4*k + 220*hdr->NS);
+			hdr->CHANNEL[k].SPR      = l_endian_i32( *(int32_t*) (Header2+ 4*k + 216*hdr->NS) );
+			hdr->CHANNEL[k].GDFTYP   = l_endian_u16( *(uint16_t*) (Header2+ 4*k + 220*hdr->NS) );
 			if (hdr->VERSION<1.90) {
-				hdr->CHANNEL[k].DigMin   = (double)*(int64_t*)(Header2+ 8*k + 120*hdr->NS);
-				hdr->CHANNEL[k].DigMax   = (double)*(int64_t*)(Header2+ 8*k + 128*hdr->NS);
+				hdr->CHANNEL[k].DigMin   = (double) l_endian_i64( *(int64_t*)(Header2+ 8*k + 120*hdr->NS) );
+				hdr->CHANNEL[k].DigMax   = (double) l_endian_i64( *(int64_t*)(Header2+ 8*k + 128*hdr->NS) );
 			}	
 			else {
-				hdr->CHANNEL[k].PhysDimCode = *(uint16_t*)(Header2+ 2*k + 102*hdr->NS);
+				hdr->CHANNEL[k].PhysDimCode = l_endian_u16( *(uint16_t*)(Header2+ 2*k + 102*hdr->NS) );
 
-				hdr->CHANNEL[k].DigMin   = *(double*)(Header2+ 8*k + 120*hdr->NS);
-				hdr->CHANNEL[k].DigMax   = *(double*)(Header2+ 8*k + 128*hdr->NS);
-				hdr->CHANNEL[k].LowPass  = *(float*) (Header2+ 4*k + 204*hdr->NS);
-				hdr->CHANNEL[k].HighPass = *(float*) (Header2+ 4*k + 208*hdr->NS);
-				hdr->CHANNEL[k].Notch    = *(float*) (Header2+ 4*k + 212*hdr->NS);
-				memcpy(&hdr->CHANNEL[k].XYZ,Header2 + 4*k + 224*hdr->NS,12);
+				hdr->CHANNEL[k].DigMin   = (double) l_endian_u64( *(uint64_t*) (Header2+ 8*k + 120*hdr->NS) );
+				hdr->CHANNEL[k].DigMax   = (double) l_endian_u64( *(uint64_t*) (Header2+ 8*k + 128*hdr->NS) );
+				hdr->CHANNEL[k].LowPass  = (float)  l_endian_u32( *(uint32_t*) (Header2+ 4*k + 204*hdr->NS) );
+				hdr->CHANNEL[k].HighPass = (float)  l_endian_u32( *(uint32_t*) (Header2+ 4*k + 208*hdr->NS) );
+				hdr->CHANNEL[k].Notch    = (float)  l_endian_u32( *(uint32_t*) (Header2+ 4*k + 212*hdr->NS) );
+				hdr->CHANNEL[k].XYZ[0]   = (float)  l_endian_u32( *(uint32_t*) (Header2+ 4*k + 224*hdr->NS) );
+				hdr->CHANNEL[k].XYZ[1]   = (float)  l_endian_u32( *(uint32_t*) (Header2+ 4*k + 228*hdr->NS) );
+				hdr->CHANNEL[k].XYZ[2]   = (float)  l_endian_u32( *(uint32_t*) (Header2+ 4*k + 232*hdr->NS) );
+				//memcpy(&hdr->CHANNEL[k].XYZ,Header2 + 4*k + 224*hdr->NS,12);
 				hdr->CHANNEL[k].Impedance= ldexp(1.0, Header2[k + 236*hdr->NS]/8.0);
 			}
 
 			hdr->CHANNEL[k].Cal   	= (hdr->CHANNEL[k].PhysMax-hdr->CHANNEL[k].PhysMin)/(hdr->CHANNEL[k].DigMax-hdr->CHANNEL[k].DigMin);
-			hdr->CHANNEL[k].Off   	= hdr->CHANNEL[k].PhysMin- hdr->CHANNEL[k].Cal*hdr->CHANNEL[k].DigMin;
+			hdr->CHANNEL[k].Off   	=  hdr->CHANNEL[k].PhysMin-hdr->CHANNEL[k].Cal*hdr->CHANNEL[k].DigMin;
 
 		}
 		for (k=0, hdr->SPR=1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;k++) {
@@ -374,16 +467,25 @@ if (!strcmp(MODE,"r"))
 		fread(tmp,sizeof(char),8,hdr->FILE.FID);
 		hdr->EVENT.SampleRate = 0; 
 		memcpy(&hdr->EVENT.SampleRate,tmp+1,3);
-		memcpy(&hdr->EVENT.N,tmp+4,4);
-		hdr->EVENT.POS = realloc(hdr->EVENT.POS,hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
-		hdr->EVENT.TYP = realloc(hdr->EVENT.TYP,hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
-		fread(hdr->EVENT.POS,sizeof(*hdr->EVENT.POS),hdr->EVENT.N,hdr->FILE.FID);
-		fread(hdr->EVENT.TYP,sizeof(*hdr->EVENT.TYP),hdr->EVENT.N,hdr->FILE.FID);
+		hdr->EVENT.SampleRate = l_endian_u32(hdr->EVENT.SampleRate);
+		hdr->EVENT.N = l_endian_u32( *(uint32_t*) tmp + 4 );
+		hdr->EVENT.POS = realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
+		hdr->EVENT.TYP = realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
+		fread(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
+		fread(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr->FILE.FID);
+		for (k=0; k<hdr->EVENT.N; k++) {
+			hdr->EVENT.POS[k] = l_endian_u32(hdr->EVENT.POS[k]); 
+			hdr->EVENT.TYP[k] = l_endian_u16(hdr->EVENT.TYP[k]); 
+		}
 		if (tmp[0]>1) {
 			hdr->EVENT.DUR = realloc(hdr->EVENT.DUR,hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
 			hdr->EVENT.CHN = realloc(hdr->EVENT.CHN,hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
 			fread(hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN),hdr->EVENT.N,hdr->FILE.FID);
 			fread(hdr->EVENT.DUR,sizeof(*hdr->EVENT.DUR),hdr->EVENT.N,hdr->FILE.FID);
+			for (k=0; k<hdr->EVENT.N; k++) {
+				hdr->EVENT.DUR[k] = l_endian_u32(hdr->EVENT.DUR[k]); 
+				hdr->EVENT.CHN[k] = l_endian_u16(hdr->EVENT.CHN[k]); 
+			}
 		}
 		else {
 			hdr->EVENT.DUR = NULL;
@@ -458,41 +560,47 @@ if (!strcmp(MODE,"r"))
 	else if (hdr->TYPE==BKR) {
 	    	Header1 = realloc(Header1,1024);
 	    	count   = fread(Header1+256,1,1024-256,hdr->FILE.FID);
-	    	hdr->HeadLen 	= 1024; 
-		hdr->NS  	= *(uint16_t*) (Header1+2); 
-		hdr->SampleRate  = *(uint16_t*) (Header1+4); 
-		hdr->NRec  	= *(uint32_t*) (Header1+6); 
-		hdr->SPR  	= *(uint32_t*) (Header1+10); 
+	    	hdr->HeadLen 	 = 1024; 
+		hdr->NS  	 = l_endian_u16( *(uint16_t*) (Header1+2) ); 
+		hdr->SampleRate  = l_endian_u16( *(uint16_t*) (Header1+4) ); 
+		hdr->NRec   	 = l_endian_u32( *(uint32_t*) (Header1+6) ); 
+		hdr->SPR  	 = l_endian_u32( *(uint32_t*) (Header1+10) ); 
 		hdr->NRec 	*= hdr->SPR; 
-		hdr->SPR  	= 1; 
-		hdr->T0 		= Unknown;
+		hdr->SPR  	 = 1; 
+		hdr->T0 	 = Unknown;
 	    	/* extract more header information */
 	    	hdr->CHANNEL = realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS;k++)	{
-		    	hdr->CHANNEL[k].GDFTYP 	= 3; 
-		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
-		    	hdr->CHANNEL[k].LowPass	= *(float*)(Header1+22);
-		    	hdr->CHANNEL[k].HighPass	= *(float*)(Header1+26);
-		    	hdr->CHANNEL[k].Notch	= -1.0;
-		    	hdr->CHANNEL[k].PhysMax	= (double)*(uint16_t*)(Header1+14);
-		    	hdr->CHANNEL[k].DigMax	= (double)*(uint16_t*)(Header1+16);
-		    	hdr->CHANNEL[k].Cal	= ((double)hdr->CHANNEL[k].PhysMax)/hdr->CHANNEL[k].DigMax;
-		    	hdr->CHANNEL[k].Off	= 0.0;
+		    	hdr->CHANNEL[k].GDFTYP 	 = 3; 
+		    	hdr->CHANNEL[k].SPR 	 = 1; // *(int32_t*)(Header1+56);
+		    	*(uint32_t*)(Header1+22) = l_endian_u32(*(uint32_t*)Header1+22);
+		    	*(uint32_t*)(Header1+26) = l_endian_u32(*(uint32_t*)Header1+26);
+		    	hdr->CHANNEL[k].LowPass	 = *(float*)(Header1+22);
+		    	hdr->CHANNEL[k].HighPass = *(float*)(Header1+26);
+		    	hdr->CHANNEL[k].Notch	 = -1.0;
+		    	*(uint16_t*)(Header1+14) = l_endian_u16(*(uint16_t*)Header1+14);
+		    	*(uint16_t*)(Header1+16) = l_endian_u16(*(uint16_t*)Header1+16);
+		    	hdr->CHANNEL[k].PhysMax	 = (double)*(uint16_t*)(Header1+14);
+		    	hdr->CHANNEL[k].DigMax	 = (double)*(uint16_t*)(Header1+16);
+		    	hdr->CHANNEL[k].Cal	 =  ((double)hdr->CHANNEL[k].PhysMax)/hdr->CHANNEL[k].DigMax;
+		    	hdr->CHANNEL[k].Off	 = 0.0;
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// BKR does not support automated overflow and saturation detection
 	}
 	else if (hdr->TYPE==CFWB) {
+	    	*(uint64_t*)(Header1+8) = l_endian_u64(*(uint64_t*)Header1+8);
 	    	hdr->SampleRate  = *(double*) (Header1+8);
-	    	tm_time.tm_year = *(int32_t*)(Header1+16);
-	    	tm_time.tm_mon  = *(int32_t*)(Header1+20);
-	    	tm_time.tm_mday = *(int32_t*)(Header1+24);
-	    	tm_time.tm_hour = *(int32_t*)(Header1+28);
-	    	tm_time.tm_min  = *(int32_t*)(Header1+32);
+	    	tm_time.tm_year = l_endian_u32( *(int32_t*)(Header1+16) );
+	    	tm_time.tm_mon  = l_endian_u32( *(int32_t*)(Header1+20) );
+	    	tm_time.tm_mday = l_endian_u32( *(int32_t*)(Header1+24) );
+	    	tm_time.tm_hour = l_endian_u32( *(int32_t*)(Header1+28) );
+	    	tm_time.tm_min  = l_endian_u32( *(int32_t*)(Header1+32) );
+	    	*(uint64_t*)(Header1+36) = l_endian_u64(*(uint64_t*)Header1+36);
 	    	tm_time.tm_sec  = *(double*) (Header1+36);
     		hdr->T0 	= tm_time2gdf_time(&tm_time);
 	    	// = *(double*)(Header1+44);
-	    	hdr->NS   	= *(int32_t*)(Header1+52);
-	    	hdr->NRec	= *(int32_t*)(Header1+56);
+	    	hdr->NS   	= l_endian_u32( *(int32_t*)(Header1+52) );
+	    	hdr->NRec	= l_endian_u32( *(int32_t*)(Header1+56) );
 	    	//  	= *(int32_t*)(Header1+60);	// TimeChannel
 	    	//  	= *(int32_t*)(Header1+64);	// DataFormat
 
@@ -504,10 +612,14 @@ if (!strcmp(MODE,"r"))
 	    	
 	    	hdr->CHANNEL = realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS;k++)	{
-		    	hdr->CHANNEL[k].GDFTYP 	= CFWB_GDFTYP[*(int32_t*)(Header1+64)-1];
+		    	hdr->CHANNEL[k].GDFTYP 	= CFWB_GDFTYP[l_endian_u32(*(uint32_t*)(Header1+64))-1];
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	hdr->CHANNEL[k].Label	= Header2+k*96;
 		    	hdr->CHANNEL[k].PhysDim	= Header2+k*96+32;
+		    	*(uint64_t*)(Header2+k*96+64) = l_endian_u64(*(uint64_t*)Header2+k*96+64);
+		    	*(uint64_t*)(Header2+k*96+72) = l_endian_u64(*(uint64_t*)Header2+k*96+72);
+		    	*(uint64_t*)(Header2+k*96+80) = l_endian_u64(*(uint64_t*)Header2+k*96+80);
+		    	*(uint64_t*)(Header2+k*96+88) = l_endian_u64(*(uint64_t*)Header2+k*96+88);
 		    	hdr->CHANNEL[k].Cal	= *(double*)(Header2+k*96+64);
 		    	hdr->CHANNEL[k].Off	= *(double*)(Header2+k*96+72);
 		    	hdr->CHANNEL[k].PhysMax	= *(double*)(Header2+k*96+80);
@@ -532,9 +644,9 @@ if (!strcmp(MODE,"r"))
 	    	else if (tm_time.tm_year<100) 	tm_time.tm_year += 1900;
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
 		
-		hdr->NS  = *(uint16_t*) (Header1+370); 
+		hdr->NS  = l_endian_u16( *(uint16_t*) (Header1+370) ); 
 	    	hdr->HeadLen = 900+hdr->NS*75; 
-		hdr->SampleRate = *(uint16_t*) (Header1+376); 
+		hdr->SampleRate = l_endian_u16( *(uint16_t*) (Header1+376) ); 
 		hdr->SPR = 1; 
 #define _eventtablepos (*(uint32_t*)(Header1+886))
 		hdr->NRec = (_eventtablepos-hdr->HeadLen)/(hdr->NS*2);
@@ -550,6 +662,9 @@ if (!strcmp(MODE,"r"))
 		    	hdr->CHANNEL[k].Label	= Header2+k*75;
 		    	hdr->CHANNEL[k].PhysDim	= "uV";
 		    	hdr->CHANNEL[k].PhysDimCode = 4256+19;
+		    	*(uint32_t*)(Header2+k*75+59) = l_endian_u64(*(uint32_t*) (Header2+k*75+59) );
+		    	*(uint32_t*)(Header2+k*75+71) = l_endian_u64(*(uint32_t*) (Header2+k*75+71) );
+		    	*(uint32_t*)(Header2+k*75+47) = l_endian_u64(*(uint32_t*) (Header2+k*75+47) );
 		    	hdr->CHANNEL[k].Cal	= *(float*)(Header2+k*75+59);
 		    	hdr->CHANNEL[k].Cal    *= *(float*)(Header2+k*75+71)/204.8;
 		    	hdr->CHANNEL[k].Off	= *(float*)(Header2+k*75+47) * hdr->CHANNEL[k].Cal;
@@ -558,7 +673,7 @@ if (!strcmp(MODE,"r"))
 		    	hdr->CHANNEL[k].Notch	= CNT_SETTINGS_NOTCH[(uint8_t)Header1[682]];
 		}
 	    	/* extract more header information */
-	    	// eventtablepos = *(uint32_t*)(Header1+886);
+	    	// eventtablepos = l_endian_u32( *(uint32_t*) (Header1+886) );
 	    	fseek(hdr->FILE.FID,_eventtablepos,SEEK_SET);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	}
@@ -577,9 +692,9 @@ if (!strcmp(MODE,"r"))
 		pos = 6;
 		SCP.number_of_sections = (section_length-16)/10;
 	    	for (k=1; k<SCP.number_of_sections; k++) {
-			id  = (*(uint16_t*)(Header1+22+k*10));
-			len = (*(uint32_t*)(Header1+24+k*10));
-			pos = (*(uint32_t*)(Header1+28+k*10));
+			id  = l_endian_u16( *(uint16_t*) (Header1+22+k*10) );
+			len = l_endian_u32( *(uint32_t*) (Header1+24+k*10) );
+			pos = l_endian_u32( *(uint32_t*) (Header1+28+k*10) );
 			
 			if (id!=section_id)
 				fprintf(stderr,"Warning: ID's do not fit\n");
@@ -639,19 +754,40 @@ else { // WRITE
 
 	     	len = strlen(hdr->AS.RID);
 	     	memcpy(Header1+ 88,  hdr->AS.RID, min(len,80));
-		memcpy(Header1+152, &hdr->LOC, 16); 
-		memcpy(Header1+168, &hdr->T0, 8); 
-		memcpy(Header1+176, &hdr->Patient.Birthday, 8); 
-		*(uint16_t*)(Header1+184) = (hdr->HeadLen>>8)+(hdr->HeadLen%256>0); 
+		memcpy(Header1+152, &hdr->LOC, 16);  
+		*(uint32_t*) (Header1+152) = l_endian_u32( *(uint32_t*) (Header1+152) );
+		*(uint32_t*) (Header1+156) = l_endian_u32( *(uint32_t*) (Header1+156) );
+		*(uint32_t*) (Header1+160) = l_endian_u32( *(uint32_t*) (Header1+160) );
+		*(uint32_t*) (Header1+164) = l_endian_u32( *(uint32_t*) (Header1+164) );
+	
+		//memcpy(Header1+168, &hdr->T0, 8); 
+		*(uint64_t*) (Header1+168) = l_endian_u64(hdr->T0);
+		//memcpy(Header1+176, &hdr->Patient.Birthday, 8); 
+		*(uint64_t*) (Header1+176) = l_endian_u64(hdr->Patient.Birthday);
+		// *(uint16_t*)(Header1+184) = (hdr->HeadLen>>8)+(hdr->HeadLen%256>0); 
+		*(uint16_t*) (Header1+184) = l_endian_u16(hdr->HeadLen>>8); 
+		
 		memcpy(Header1+192, &hdr->ID.Equipment, 8);
 
 		memcpy(Header1+200, &hdr->IPaddr, 6);
 		memcpy(Header1+206, &hdr->Patient.Headsize, 6);
 		memcpy(Header1+212, &hdr->ELEC.REF, 12);
 		memcpy(Header1+224, &hdr->ELEC.GND, 12);
-		memcpy(Header1+236, &hdr->NRec, 8);
-		memcpy(Header1+244, &hdr->Dur, 8); 
-		memcpy(Header1+252, &hdr->NS, 2); 
+		*(uint32_t*) (Header1+212) = l_endian_u32( *(uint32_t*) (Header1+212) );
+		*(uint32_t*) (Header1+216) = l_endian_u32( *(uint32_t*) (Header1+216) );
+		*(uint32_t*) (Header1+220) = l_endian_u32( *(uint32_t*) (Header1+220) );
+		*(uint32_t*) (Header1+224) = l_endian_u32( *(uint32_t*) (Header1+224) );
+		*(uint32_t*) (Header1+228) = l_endian_u32( *(uint32_t*) (Header1+228) );
+		*(uint32_t*) (Header1+232) = l_endian_u32( *(uint32_t*) (Header1+232) );
+
+		//memcpy(Header1+236, &hdr->NRec, 8);
+		*(uint64_t*) (Header1+236) = l_endian_u64(hdr->NRec);
+		//memcpy(Header1+244, &hdr->Dur, 8); 
+		*(uint32_t*) (Header1+244) = l_endian_u32(hdr->Dur[0]);
+		*(uint32_t*) (Header1+248) = l_endian_u32(hdr->Dur[1]);
+		//memcpy(Header1+252, &hdr->NS, 2); 
+		*(uint16_t*) (Header1+252) = l_endian_u16(hdr->NS);
+
 	     	/* define HDR.Header2 
 	     	this requires checking the arguments in the fields of the struct HDR.CHANNEL
 	     	and filling in the bytes in HDR.Header2. 
@@ -667,19 +803,30 @@ else { // WRITE
 		     		memcpy(Header2+ 8*k + 96*hdr->NS,hdr->CHANNEL[k].PhysDim,min(len,8));
 		     	else {	
 		     		memcpy(Header2+ 6*k + 96*hdr->NS,hdr->CHANNEL[k].PhysDim,min(len,6));
-		     		memcpy(Header2+ 2*k +102*hdr->NS,&hdr->CHANNEL[k].PhysDimCode,2);
+		     		*(uint16_t*)(Header2+ 2*k +102*hdr->NS) = l_endian_u16(hdr->CHANNEL[k].PhysDimCode);
 			};
-		     	memcpy(Header2+ 8*k + 104*hdr->NS,&hdr->CHANNEL[k].PhysMin,8);
-		     	memcpy(Header2+ 8*k + 112*hdr->NS,&hdr->CHANNEL[k].PhysMax,8);
-		     	memcpy(Header2+ 8*k + 120*hdr->NS,&hdr->CHANNEL[k].DigMin,8);
-		     	memcpy(Header2+ 8*k + 128*hdr->NS,&hdr->CHANNEL[k].DigMax,8);
-		     	memcpy(Header2+ 4*k + 204*hdr->NS,&hdr->CHANNEL[k].LowPass,4);
-		     	memcpy(Header2+ 4*k + 208*hdr->NS,&hdr->CHANNEL[k].HighPass,4);
-		     	memcpy(Header2+ 4*k + 212*hdr->NS,&hdr->CHANNEL[k].Notch,4);
-		     	memcpy(Header2+ 4*k + 216*hdr->NS,&hdr->CHANNEL[k].SPR,4);
-		     	memcpy(Header2+ 4*k + 220*hdr->NS,&hdr->CHANNEL[k].GDFTYP,4);
-		     	memcpy(Header2+12*k + 224*hdr->NS,&hdr->CHANNEL[k].XYZ,12);
-	
+		     	memcpy(Header2 + 8*k + 104*hdr->NS, &hdr->CHANNEL[k].PhysMin, 8);
+		     	memcpy(Header2 + 8*k + 112*hdr->NS, &hdr->CHANNEL[k].PhysMax, 8);
+		     	memcpy(Header2 + 8*k + 120*hdr->NS, &hdr->CHANNEL[k].DigMin, 8);
+		     	memcpy(Header2 + 8*k + 128*hdr->NS, &hdr->CHANNEL[k].DigMax, 8);
+
+			*(uint64_t*) (Header2+ 8*k + 104*hdr->NS) = l_endian_u64(*(uint64_t*)(Header2+ 8*k + 104*hdr->NS));
+			*(uint64_t*) (Header2+ 8*k + 112*hdr->NS) = l_endian_u64(*(uint64_t*)(Header2+ 8*k + 112*hdr->NS));
+			*(uint64_t*) (Header2+ 8*k + 120*hdr->NS) = l_endian_u64(*(uint64_t*)(Header2+ 8*k + 120*hdr->NS));
+			*(uint64_t*) (Header2+ 8*k + 128*hdr->NS) = l_endian_u64(*(uint64_t*)(Header2+ 8*k + 128*hdr->NS));
+
+		     	*(uint32_t*) (Header2+ 4*k + 204*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].LowPass);
+		     	*(uint32_t*) (Header2+ 4*k + 208*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].HighPass);
+		     	*(uint32_t*) (Header2+ 4*k + 212*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].Notch);
+		     	*(uint32_t*) (Header2+ 4*k + 216*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].SPR);
+		     	*(uint32_t*) (Header2+ 4*k + 220*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].GDFTYP);
+
+		     	memcpy(Header2+12*k + 224*hdr->NS, &hdr->CHANNEL[k].XYZ,12);
+
+			*(uint32_t*)(Header2+ 4*k + 224*hdr->NS) = l_endian_u32(*(uint32_t*)(Header2+ 4*k + 224*hdr->NS));
+			*(uint32_t*)(Header2+ 4*k + 228*hdr->NS) = l_endian_u32(*(uint32_t*)(Header2+ 4*k + 228*hdr->NS));
+			*(uint32_t*)(Header2+ 4*k + 232*hdr->NS) = l_endian_u32(*(uint32_t*)(Header2+ 4*k + 232*hdr->NS));
+
 	     		Header2[k+236*hdr->NS] = ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
 		}
 	    	hdr->AS.bi = realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(int32_t));
@@ -1161,8 +1308,10 @@ int sclose(HDRTYPE* hdr)
 		{	if (pos>0) 	hdr->NRec = pos/hdr->AS.bpb;
 			else		hdr->NRec = 0; 	
 			fseek(hdr->FILE.FID,236,SEEK_SET); 
-			if (hdr->TYPE==GDF)
-				fwrite(&(hdr->NRec),sizeof(hdr->NRec),1,hdr->FILE.FID);
+			if (hdr->TYPE==GDF) {
+				*(uint64_t*)tmp = l_endian_u64(hdr->NRec);
+				fwrite(tmp,sizeof(hdr->NRec),1,hdr->FILE.FID);
+			}	
 			else {
 				len = sprintf(tmp,"%Li",hdr->NRec);
 				if (len>8) fprintf(stderr,"Warning: NRec is (%s) to long.\n",tmp);  
@@ -1178,8 +1327,8 @@ int sclose(HDRTYPE* hdr)
 				for (k=0, flag=0; (k<hdr->EVENT.N) & !flag; k++)
 					flag |= hdr->EVENT.CHN[k] | hdr->EVENT.DUR[k];
 			tmp[0] = (flag ? 3 : 1);
-			memcpy(tmp+1, &(hdr->EVENT.SampleRate), 3);
-			memcpy(tmp+4, &(hdr->EVENT.N), 4);
+			*(uint32_t*)(tmp+1) = l_endian_u32(hdr->EVENT.SampleRate);
+			*(uint32_t*)(tmp+4) = l_endian_u32(hdr->EVENT.N);
 			fwrite(tmp, 8, 1, hdr->FILE.FID);
 			fwrite(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
 			fwrite(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr->FILE.FID);
