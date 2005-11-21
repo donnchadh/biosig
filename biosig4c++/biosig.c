@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.26 2005-11-21 00:23:53 schloegl Exp $
+    $Id: biosig.c,v 1.27 2005-11-21 16:58:37 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -137,9 +137,13 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	EndianTest.testword = 0x4a3b2c1d; 
 	hdr->FILE.LittleEndian = (EndianTest.testbyte[0]==0x1d); 
 	
-	if  (!hdr->FILE.LittleEndian) {
-		fprintf(stderr,"warning: big endian platforms are not well tested, yet.\n"); 
-//		exit(-1); 
+	if  ((hdr->FILE.LittleEndian) && (__BYTE_ORDER == __BIG_ENDIAN))	{
+		fprintf(stderr,"Panic: mixed results on Endianity test.\n"); 
+		exit(-1); 
+	}		
+	if  ((!hdr->FILE.LittleEndian) && (__BYTE_ORDER == __LITTLE_ENDIAN))	{
+		fprintf(stderr,"Panic: mixed results on Endianity test.\n"); 
+		exit(-1); 
 	}	
 
 	hdr->FILE.OPEN = 0;
@@ -264,7 +268,8 @@ if (!strcmp(MODE,"r"))
 #endif
 
     	if (hdr->FILE.FID == NULL) 
-    	{ 	fprintf(stdout,"ERROR %s not found\n",FileName);
+    	{ 	
+    		free(hdr);    		
 		return(NULL);
     	}	    
     
@@ -424,6 +429,7 @@ if (!strcmp(MODE,"r"))
 			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
 			hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 		}	
+		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
 
 		// READ EVENTTABLE 
 		fseek(hdr->FILE.FID,hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
@@ -501,8 +507,16 @@ if (!strcmp(MODE,"r"))
 	    	count   = fread(Header2, 1, hdr->HeadLen-256, hdr->FILE.FID);
 		for (k=0; k<hdr->NS; k++)	{
 			hdr->CHANNEL[k].Label   = (Header2 + 16*k);
+			hdr->CHANNEL[k].Label[15]=0;//   hack
 			hdr->CHANNEL[k].Transducer  = (Header2 + 80*k + 16*hdr->NS);
+			hdr->CHANNEL[k].Transducer[79]=0;//   hack
+			
 			hdr->CHANNEL[k].PhysDim = (Header2 + 8*k + 96*hdr->NS);
+			tmp[8] = 0;
+			strncpy(tmp,Header2 + 8*k + 104*hdr->NS,8);
+			// PhysDim -> PhysDimCode belongs here 
+			hdr->CHANNEL[k].PhysDim[7]=0; //hack
+			
 			hdr->CHANNEL[k].PhysMin = atof(strncpy(tmp,Header2 + 8*k + 104*hdr->NS,8)); 
 			hdr->CHANNEL[k].PhysMax = atof(strncpy(tmp,Header2 + 8*k + 112*hdr->NS,8)); 
 			hdr->CHANNEL[k].DigMin  = atof(strncpy(tmp,Header2 + 8*k + 120*hdr->NS,8)); 
@@ -519,13 +533,20 @@ if (!strcmp(MODE,"r"))
 			}
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// EDF does not support automated overflow and saturation detection
+
+		for (k=0, hdr->SPR=1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;k++) {
+			hdr->AS.spb += hdr->CHANNEL[k].SPR;
+			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
+			hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
+		}	
+		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
 	}      	
 	else if (hdr->TYPE==BKR) {
 	    	Header1 = realloc(Header1,1024);
 	    	count   = fread(Header1+256,1,1024-256,hdr->FILE.FID);
 	    	hdr->HeadLen 	 = 1024; 
 		hdr->NS  	 = l_endian_u16( *(uint16_t*) (Header1+2) ); 
-		hdr->SampleRate  = l_endian_u16( *(uint16_t*) (Header1+4) ); 
+		hdr->SampleRate  = (double)l_endian_u16( *(uint16_t*) (Header1+4) ); 
 		hdr->NRec   	 = l_endian_u32( *(uint32_t*) (Header1+6) ); 
 		hdr->SPR  	 = l_endian_u32( *(uint32_t*) (Header1+10) ); 
 		hdr->NRec 	*= hdr->SPR; 
@@ -588,6 +609,7 @@ if (!strcmp(MODE,"r"))
 	}
 	else if (hdr->TYPE==CNT) {
 	    	Header1 = realloc(Header1,900);
+	    	hdr->VERSION = atof(Header1+8);
 	    	count   = fread(Header1+256,1,900-256,hdr->FILE.FID);
 	    	ptr_str = Header1+136;
     		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
@@ -973,13 +995,9 @@ size_t 	sread(HDRTYPE* hdr, int start, size_t length) {
 			else if (GDFTYP==4)
 				sample_value = (biosig_data_type)l_endian_u16(*(uint16_t*)ptr); 
 			else if (GDFTYP==16) 
-			{	*(uint32_t*)(ptr) = l_endian_u32(*(uint32_t*)(ptr));
-				sample_value = (biosig_data_type)(*(float*)ptr); 
-			}
+				sample_value = (biosig_data_type)(l_endian_f32(*(float*)(ptr)));
 			else if (GDFTYP==17) 
-			{	*(uint64_t*)(ptr) = l_endian_u64(*(uint64_t*)(ptr));
-				sample_value = (biosig_data_type)(*(double*)ptr); 
-			}
+				sample_value = (biosig_data_type)(l_endian_f64(*(double*)(ptr))); 
 			else if (GDFTYP==0)
 				sample_value = (biosig_data_type)(*(char*)ptr); 
 			else if (GDFTYP==1)
@@ -1098,13 +1116,9 @@ size_t 	sread2(biosig_data_type** channels_dest, int start, size_t length, HDRTY
 			else if (GDFTYP==4)
 				sample_value = (biosig_data_type)l_endian_u16(*(uint16_t*)ptr); 
 			else if (GDFTYP==16) 
-			{	*(uint32_t*)(ptr) = l_endian_u32(*(uint32_t*)(ptr));
-				sample_value = (biosig_data_type)(*(float*)ptr); 
-			}	
-			else if (GDFTYP==17)
-			{	*(uint64_t*)(ptr) = l_endian_u32(*(uint64_t*)(ptr));
-				sample_value = (biosig_data_type)(*(double*)ptr); 
-			}	
+				sample_value = (biosig_data_type)(l_endian_f32(*(float*)(ptr)));
+			else if (GDFTYP==17) 
+				sample_value = (biosig_data_type)(l_endian_f64(*(double*)(ptr))); 
 			else if (GDFTYP==0)
 				sample_value = (biosig_data_type)(*(char*)ptr); 
 			else if (GDFTYP==1)
