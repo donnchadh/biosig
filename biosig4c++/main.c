@@ -1,6 +1,6 @@
 /*
 
-    $Id: main.c,v 1.8 2005-11-21 00:23:53 schloegl Exp $
+    $Id: main.c,v 1.9 2005-11-21 16:59:15 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -62,78 +62,112 @@ int main (int argc, char **argv)
 #define NELEM (1<<15)
 	unsigned k; 	
     	short 	s[NELEM];
-    	HDRTYPE *hdr,*hdr2; 	
+    	HDRTYPE *hdr; 	
+    	CHANNEL_TYPE* cp; 
     	size_t 	count;
     	int	status;
-
+    	char 	help[] = "\n Usage of BIOSIG:\n\n\tbiosig -h\t\thelp - this text\n\tbiosig filename\t\tread file if available; if not available generate file\n\n\n";  
+	time_t  T0; 
+	struct tm t0; 
+	
 	if (argc < 2)  	{
 		fprintf(stderr,"Warning: Invalid number of arguments\n");
 		return(-1);
       	}	
-	
-	// initialize/generate signal 
-	for (k=0; k<NELEM; s[k] = l_endian_u16(k++%1031));	
-      
-	// write: define header
-	hdr = create_default_hdr(4,10);  // allocate memory for 4 channels, 10 events 
-	hdr->Patient.Id = "test1";
-	hdr->TYPE = GDF; 
 
-	// OPEN and WRITE GDF FILE 
-     	sopen(argv[1], "w", hdr);
-
-	swrite(&s, NELEM/hdr->NS, hdr);
-
-	// define events before SCLOSE; 
-	for (k=0; k<hdr->EVENT.N; k++) {
-		hdr->EVENT.TYP[k] = k+1;
-		hdr->EVENT.POS[k] = k*100;
-	};
-      	status = sclose(hdr);
-
-   	fprintf(stdout,"1-%i\t%i\t%i\t%i\t%u\t%u\n",sizeof(hdr->EVENT.TYP),sizeof(*hdr->EVENT.TYP),(int32_t)hdr->NRec,hdr->HeadLen,hdr->Dur[0],hdr->Dur[1]);
-
-	// READ GDF FILE 
-	hdr2 = sopen(argv[1], "r", NULL);
-	if (hdr2==NULL) return(-1); 
-
-	fprintf(stdout,"--%i\t%i\n", hdr2->FLAG.OVERFLOWDETECTION, hdr2->FLAG.UCAL);
-	hdr2->FLAG.OVERFLOWDETECTION = 0; 
-//	hdr2->FLAG.UCAL = 1;
-	fprintf(stdout,"--%i\t%i\n", hdr2->FLAG.OVERFLOWDETECTION, hdr2->FLAG.UCAL);
-   	fprintf(stdout,"2-%u\t%i\t%i\t%i\t%u\t%u\n",hdr2->AS.bpb,hdr2->FILE.OPEN,(int32_t)hdr2->NRec,hdr2->HeadLen,hdr2->Dur[0],hdr2->Dur[1]);
-	
-	for (k=0; k<hdr2->NS; k++) {
-		fprintf(stdout,"#%i: %f   %f\n",k,hdr2->CHANNEL[k].PhysMax,hdr2->CHANNEL[k].PhysMin);
-		fprintf(stdout,"#    %f   %f\n",hdr2->CHANNEL[k].DigMax,hdr2->CHANNEL[k].DigMin);
-		fprintf(stdout,"     %f   %f\n",hdr2->CHANNEL[k].Cal,hdr2->CHANNEL[k].Off);
+	if (!strncmp(argv[1],"-h",2)) {
+		fprintf(stdout,"%s",help); 
+		return(0); 
 	}
-	
-	for (k=0; !seof(hdr2); k+=10) {
-		count = sread(hdr2,k,10);
-//fprintf(stdout,"m1: %p\n",hdr2->data.block);
-	
-	}	
-	fprintf(stdout,"+ %Lu\t %u\t %u\t %u %f %i\n",hdr2->NRec,count,hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata,hdr2->data.block[0],seof(hdr2));
-	sseek(hdr2,50,SEEK_SET);
-fprintf(stdout,"3+ %u\t %u\n",hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata);	
-	srewind(hdr2);
-fprintf(stdout,"4+ %u\t %u\n",hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata);	
-	count = sread(hdr2,50,10);
-fprintf(stdout,"++ %i\t %u\t%i\t%i\t%i\t%i\n",hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata,count,hdr2->data.size[0],hdr2->data.size[1],hdr2->NS);	
-	hdr2->CHANNEL[0].OnOff = 0; 
-	count = sread(hdr2,50,10);
-fprintf(stdout,"++ %i\t %u\t%i\t%i\t%i\t%i\n",hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata,count,hdr2->data.size[0],hdr2->data.size[1],hdr2->NS);	
-if (count)
-fprintf(stdout,"5+ %u\t %u\n",hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata);	
-	count = sread(hdr2,60,10);
-if (count)
-fprintf(stdout,"+ %u\t %u\n", hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata);	
-	count = sread(hdr2,70,10);
-	status = sclose(hdr2);
-	
-      	return(status);
 
+	
+	// READ GDF FILE 
+	hdr = sopen(argv[1], "r", NULL);
+	if (hdr==NULL) 
+	{ 
+		// initialize/generate signal 
+		for (k=0; k<NELEM; s[k] = l_endian_u16(k++%1031));	
+      
+		// write: define header
+		hdr = create_default_hdr(4,10);  // allocate memory for 4 channels, 10 events 
+		hdr->Patient.Id = "test1";
+		hdr->TYPE = GDF; 
+		
+		t0.tm_year = 100; 
+		t0.tm_mon = 0; 
+		t0.tm_mday = 1; 
+		t0.tm_hour = 12; 
+		t0.tm_min = 0; 
+		t0.tm_sec = 0; 
+		hdr->Patient.Birthday = 0; //tm_time2gdf_time(&t0);
+
+		// OPEN and WRITE GDF FILE 
+	     	sopen(argv[1], "w", hdr);
+
+		swrite(&s, NELEM/hdr->NS, hdr);
+
+		// define events before SCLOSE; 
+		for (k=0; k<hdr->EVENT.N; k++) {
+			hdr->EVENT.TYP[k] = k+1;
+			hdr->EVENT.POS[k] = k*100;
+		};
+	      	status = sclose(hdr);
+	
+	   	fprintf(stdout,"1-%i\t%i\t%i\t%i\t%u\t%u\n",sizeof(hdr->EVENT.TYP),sizeof(*hdr->EVENT.TYP),(int32_t)hdr->NRec,hdr->HeadLen,hdr->Dur[0],hdr->Dur[1]);
+	   	
+	}
+	else 
+	{
+		fprintf(stdout,"FileName:\t%s\nType    :\t%i\nVersion:\t%4.2f\nHeadLen:\t%i\n",argv[1],hdr->TYPE,hdr->VERSION,hdr->HeadLen);
+		fprintf(stdout,"NS:\t%i\nSPR:\t%i\nNRec:\t%Li\nDuration[s]:\t%u/%u\nFs:\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
+		
+		T0 = gdf_time2t_time(hdr->T0);
+		fprintf(stdout,"Date/Time:\t%s\n",asctime(localtime(&T0))); 
+		//T0 = gdf_time2t_time(hdr->Patient.Birthday);
+		//fprintf(stdout,"Birthday:\t%s\n",asctime(localtime(&T0))); 
+		
+		fprintf(stdout,"Patient:\n\tName:\t%s\n\tId:\t%s\n\tWeigth:\t%i kg\n\tHeigth:\t%i cm\n\tAge:\t%4.1f y\n",hdr->Patient.Name,hdr->Patient.Id,hdr->Patient.Weight,hdr->Patient.Height,(hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32)); 
+		T0 = gdf_time2t_time(hdr->Patient.Birthday);
+		fprintf(stdout,"\tBirthday:\t%s\n",asctime(localtime(&T0))); 
+		fprintf(stdout,"EVENT:\n\tN:\t%i\n\tFs:\t%i\n\t\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
+		
+		fprintf(stdout,"--%i\t%i\n", hdr->FLAG.OVERFLOWDETECTION, hdr->FLAG.UCAL);
+		hdr->FLAG.OVERFLOWDETECTION = 0; 
+	//	hdr->FLAG.UCAL = 1;
+		fprintf(stdout,"--%i\t%i\n", hdr->FLAG.OVERFLOWDETECTION, hdr->FLAG.UCAL);
+	   	fprintf(stdout,"2-%u\t%i\t%i\t%i\t%u\t%u\n",hdr->AS.bpb,hdr->FILE.OPEN,(int32_t)hdr->NRec,hdr->HeadLen,hdr->Dur[0],hdr->Dur[1]);
+	
+		for (k=0; k<hdr->NS; k++) {
+			cp = hdr->CHANNEL+k; 
+			fprintf(stdout,"\n#%2i: %7s\t%s\t%s\t%i\t%5f\t%5f\t%5f\t%5f\t",k,cp->Label,cp->Transducer,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin);
+			fprintf(stdout,"%4.0f\t%4.0f\t%4.0f\t%5f Ohm",cp->LowPass,cp->HighPass,cp->Notch,cp->Impedance);
+		}
+	
+		for (k=0; !seof(hdr); k+=10) {
+			count = sread(hdr,k,10);
+//fprintf(stdout,"m1: %p\n",hdr->data.block);
+	
+		}	
+		fprintf(stdout,"\n\n+ %Lu\t %u\t %u\t %u %f %i\n",hdr->NRec,count,hdr->FILE.POS,*(int16_t*)hdr->AS.rawdata,hdr->data.block[0],seof(hdr));
+		sseek(hdr,50,SEEK_SET);
+fprintf(stdout,"3+ %u\t %u\n",hdr->FILE.POS,*(int16_t*)hdr->AS.rawdata);	
+		srewind(hdr);
+fprintf(stdout,"4+ %u\t %u\n",hdr->FILE.POS,*(int16_t*)hdr->AS.rawdata);	
+		count = sread(hdr,50,10);
+fprintf(stdout,"++ %i\t %u\t%i\t%i\t%i\t%i\n",hdr->FILE.POS,*(int16_t*)hdr->AS.rawdata,count,hdr->data.size[0],hdr->data.size[1],hdr->NS);	
+		hdr->CHANNEL[0].OnOff = 0; 
+		count = sread(hdr,50,10);
+fprintf(stdout,"++ %i\t %u\t%i\t%i\t%i\t%i\n",hdr->FILE.POS,*(int16_t*)hdr->AS.rawdata,count,hdr->data.size[0],hdr->data.size[1],hdr->NS);	
+if (count)
+fprintf(stdout,"5+ %u\t %u\n",hdr->FILE.POS,*(int16_t*)hdr->AS.rawdata);	
+		count = sread(hdr,60,10);
+if (count)
+fprintf(stdout,"+ %u\t %u\n", hdr->FILE.POS,*(int16_t*)hdr->AS.rawdata);	
+		count = sread(hdr,70,10);
+		status = sclose(hdr);
+	
+	}
+      	return(status);
 };
 
 
