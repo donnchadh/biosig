@@ -6,14 +6,20 @@ File(s):
     biosig.h	definition of biosig data structures	
     biosig.c	SOPEN, SREAD, SWRITE, SEOF, SCLOSE functions 
     main.c	demo how to use them 
+
 		
 Installation: 
 -------------
 # compilation 
-gcc -lm main.c 
+make 
 
+
+Execution:
+----------
 # generate test.gdf file 
-./a.out test.gdf     		
+./biosig test.gdf     		
+# if test.gdf exists, some header information is displayed
+./biosig test.gdf     		
 
 
 More information is available at http://biosig.sf.net/
