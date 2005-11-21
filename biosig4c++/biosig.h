@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.20 2005-11-18 20:30:16 schloegl Exp $
+% $Id: biosig.h,v 1.21 2005-11-21 00:23:53 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -36,10 +36,12 @@
 /**                                                                        **/
 /****************************************************************************/
 
-#include <inttypes.h>
 
 #ifndef __BIOSIG_H__
 #define __BIOSIG_H__
+
+#include <inttypes.h>
+#include <byteswap.h>
 
 	// list of file formats 
 enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP_ECG}; 
@@ -50,6 +52,29 @@ enum SCALE 	{No=1,    Yes=2,	Corrected=3};
 
 #define min(a,b)                        (((a) < (b)) ? (a) : (b))
 #define max(a,b)                        (((a) > (b)) ? (a) : (b))
+
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+
+#define l_endian_u16(x) bswap_16((uint16_t)(x))
+#define l_endian_u32(x) bswap_32((uint32_t)(x))
+#define l_endian_u64(x) bswap_64((uint64_t)(x))
+
+#define l_endian_i16(x) bswap_16((int16_t)(x))
+#define l_endian_i32(x) bswap_32((int32_t)(x))
+#define l_endian_i64(x) bswap_64((int64_t)(x))
+
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+
+#define l_endian_u16(x) (x)
+#define l_endian_u32(x) (x)
+#define l_endian_u64(x) (x)
+
+#define l_endian_i16(x) (x)
+#define l_endian_i32(x) (x)
+#define l_endian_i64(x) (x)
+	
+#endif 
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

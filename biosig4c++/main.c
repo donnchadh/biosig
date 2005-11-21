@@ -1,6 +1,6 @@
 /*
 
-    $Id: main.c,v 1.7 2005-11-18 15:53:15 schloegl Exp $
+    $Id: main.c,v 1.8 2005-11-21 00:23:53 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -35,7 +35,6 @@
 #include <time.h>
 
 #include "biosig.h"
-//#include "biosig.c"
 
 
 /****************************************************************************/
@@ -73,7 +72,7 @@ int main (int argc, char **argv)
       	}	
 	
 	// initialize/generate signal 
-	for (k=0; k<NELEM; s[k] = k++%1031);	
+	for (k=0; k<NELEM; s[k] = l_endian_u16(k++%1031));	
       
 	// write: define header
 	hdr = create_default_hdr(4,10);  // allocate memory for 4 channels, 10 events 
@@ -98,15 +97,24 @@ int main (int argc, char **argv)
 	hdr2 = sopen(argv[1], "r", NULL);
 	if (hdr2==NULL) return(-1); 
 
+	fprintf(stdout,"--%i\t%i\n", hdr2->FLAG.OVERFLOWDETECTION, hdr2->FLAG.UCAL);
+	hdr2->FLAG.OVERFLOWDETECTION = 0; 
+//	hdr2->FLAG.UCAL = 1;
+	fprintf(stdout,"--%i\t%i\n", hdr2->FLAG.OVERFLOWDETECTION, hdr2->FLAG.UCAL);
    	fprintf(stdout,"2-%u\t%i\t%i\t%i\t%u\t%u\n",hdr2->AS.bpb,hdr2->FILE.OPEN,(int32_t)hdr2->NRec,hdr2->HeadLen,hdr2->Dur[0],hdr2->Dur[1]);
-
+	
+	for (k=0; k<hdr2->NS; k++) {
+		fprintf(stdout,"#%i: %f   %f\n",k,hdr2->CHANNEL[k].PhysMax,hdr2->CHANNEL[k].PhysMin);
+		fprintf(stdout,"#    %f   %f\n",hdr2->CHANNEL[k].DigMax,hdr2->CHANNEL[k].DigMin);
+		fprintf(stdout,"     %f   %f\n",hdr2->CHANNEL[k].Cal,hdr2->CHANNEL[k].Off);
+	}
 	
 	for (k=0; !seof(hdr2); k+=10) {
 		count = sread(hdr2,k,10);
 //fprintf(stdout,"m1: %p\n",hdr2->data.block);
 	
-		fprintf(stdout,"+ %Lu\t %u\t %u\t %u %f %i\n",hdr2->NRec,count,hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata,hdr2->data.block[0],seof(hdr2));
 	}	
+	fprintf(stdout,"+ %Lu\t %u\t %u\t %u %f %i\n",hdr2->NRec,count,hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata,hdr2->data.block[0],seof(hdr2));
 	sseek(hdr2,50,SEEK_SET);
 fprintf(stdout,"3+ %u\t %u\n",hdr2->FILE.POS,*(int16_t*)hdr2->AS.rawdata);	
 	srewind(hdr2);
