@@ -27,7 +27,7 @@ function [HDR] = save2gdf(arg1,arg2,arg3);
 %   data	data samples
 %
 
-% 	$Id: save2gdf.m,v 1.6 2005-10-29 17:58:13 schloegl Exp $
+% 	$Id: save2gdf.m,v 1.7 2005-11-22 19:05:58 schloegl Exp $
 %	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>		
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -167,8 +167,12 @@ if isstruct(arg1),
 	        HDR.DigMax = digmax; %limits(:,2); %*ones(1,HDR.NS);
 	        HDR.DigMin = digmin; %limits(:,1); %*ones(1,HDR.NS);
 	        %fprintf(1,'Warning SAVE2GDF: overflow detection not implemented, yet.\n');
+                if isfield(HDR,'Calib') & ~isfield(HDR,'PhysMax');
+                        HDR.PhysMax = [1,HDR.DigMax]*HDR.Calib;
+                	HDR.PhysMin = [1,HDR.DigMin]*HDR.Calib;
+                end;
 	end;
-        
+
         HDR.FLAG.UCAL = 1;              % data is de-calibrated, no rescaling within SWRITE 
 	HDR.TYPE = 'GDF';
         if ~isfield(HDR,'Dur'); 
@@ -176,7 +180,6 @@ if isstruct(arg1),
                 HDR.SPR = 1; 
         end;
                 
-
         HDR = sopen(HDR,'w');
         if HDR.FILE.FID < 0,
                 fprintf(1,'Error SAVE2GDF: couldnot open file %s.\n',HDR.FileName);
