@@ -44,7 +44,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.38 2005-11-07 15:40:50 schloegl Exp $
+%	$Id: plota.m,v 1.39 2005-11-23 18:49:20 schloegl Exp $
 %	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -552,7 +552,8 @@ elseif strcmp(X.datatype,'MVAR-PDCF'),
                                 plot(f,squeeze(X.PDCF(k1,k2,:)));        
                                 axis([0,max(X.f),0,1])        
                         end;
-                end; tle('PDCF')
+                end; 
+                suptitle('PDCF');
         elseif (length(size(X.PDCF))==4) & (size(X.PDCF,4)==2),
                 M = size(X.PDCF,1);
                 for k1 = 1:M;
@@ -705,6 +706,14 @@ elseif strcmp(X.datatype,'MVAR'),
         if ~isfield(X,'C');
                 X.C=ones(K1,K1);
         end;
+        if isfield(X,'SampleRate'); 
+                Fs = X.SampleRate;
+        elseif nargin < 4,
+                Fs = pi*2;        
+        else
+                Fs = arg4;
+        end;
+
         if nargin<2,
                 Mode= 'DTF';
                 Fs  = 1;
@@ -717,19 +726,11 @@ elseif strcmp(X.datatype,'MVAR'),
         else
                 N=arg3;
         end;
-        if nargin<4
-                Fs=pi*2;        
-        else
-                Fs=arg4;
-        end;
         if all(size(N)==1)	
                 f = (1:N)/N/2*Fs;
         else
                 f = N;
                 N = length(N);
-        end;
-        if isfield(X,'SampleRate'); 
-                Fs=X.SampleRate;
         end;
         if isfield(X,'ElectrodeName'); 
                 if isstruct(X.ElectrodeName);
@@ -744,7 +745,9 @@ elseif strcmp(X.datatype,'MVAR'),
                         Label{k}=sprintf('#%02i',k);
                 end;
         end;
-        
+
+        [S,h,PDC,COH,DTF,DC,pCOH,dDTF,ffDTF, pCOH2, PDCF, coh]=mvfreqz(B,A,C,N,Fs);
+
         s = exp(i*2*pi*f/Fs);
         z = i*2*pi/Fs;
         
@@ -778,7 +781,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 
                 %PDCF(:,:,n,kk) = abs(atmp)./tmp2(ones(1,K1),:);
                 %PDC(:,:,n,kk)  = abs(atmp)./tmp1(ones(1,K1),:);
-                PDCF(:,:,n) = abs(atmp)./tmp2(ones(1,K1),:)	;
+                PDCF(:,:,n) = abs(atmp)./tmp2(ones(1,K1),:);
                 PDC(:,:,n)  = abs(atmp)./tmp1(ones(1,K1),:);
         end;
         
@@ -1022,7 +1025,7 @@ elseif 0, strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1',
 elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1 
         
         %GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
-        
+
         if nargin<2,
                 arg2 = 'logS1';
         end;
@@ -1040,7 +1043,7 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
         else
                 Y = arg4; 
         end;
-        
+
         gf = arg2;
         if ~isfield(X.M,gf)
                 warning('PLOTA TFMVAR_ALL: field %s is unknown\n',gf);
@@ -1345,7 +1348,6 @@ elseif strcmpi(X.datatype,'spectrum') | strcmp(X.datatype,'qualitycontrol'),
                 h=semilogy(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*mean(X.QUANT)/sqrt(12*X.SampleRate),'k:',[0,X.SampleRate/2]',1e6*[1;1]*sqrt(4*310*138e-25*X.Impedance),'k');
                 ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim(1,:),X.samplerate_units));
                 Label = [Label;{'Quantization'};{'Impedance'}]; 
-  
 
         elseif strcmp(lower(Mode),'log2')
                 semilogy(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.QUANT.^2/(12*X.SampleRate),'k:');
@@ -1951,7 +1953,7 @@ elseif strcmp(X.datatype,'TSD_BCI9')
                 fprintf(fid,'%4.1f   ',SA*100);
                 fprintf(fid,'\nKappa:                     %4.2f ± %4.2f\n',X.KAP00(tix),X.Ksd00(tix));
                 fprintf(fid,'I(Wolpaw):                 %4.2f bit\n',wolpaw_entropy(X.ACC00(tix),N));
-                fprintf(fid,'I(Nykopp):                 %4.2f bit\n',X.R(tix));
+                fprintf(fid,'I(Nykopp):                 %4.2f bit\n',X.I_Nykopp(tix));
                 fprintf(fid,'I(Continous):              SUM = %4.2f  [ ',sum(X.I(tix,:))*c);
                 fprintf(fid,'%4.2f   ',X.I(tix,:));
                 t = X.T; t(t<3.5)=NaN;
@@ -1982,7 +1984,7 @@ elseif strcmp(X.datatype,'TSD_BCI9')
                 legend({'Accuracy [%]','Kappa [%]'})
                 
                 subplot(nf(3));
-                plot(X.T,[sum(X.I,2)*c,X.R,wolpaw_entropy(X.ACC00,N)])
+                plot(X.T,[sum(X.I,2)*c,X.I_Nykopp(:),wolpaw_entropy(X.ACC00,N)])
                 legend({'I_{continous}','I_{Nykopp}','I_{Wolpaw}'})
                 title('Mutual information')
                 ylabel('I [bit]');

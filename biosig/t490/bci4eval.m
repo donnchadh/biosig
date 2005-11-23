@@ -45,8 +45,10 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %               X.I             mutual information for each class
 %               X.AUC           area-under-the-(ROC) curve for each class
 %               X.r             correlation coefficient (parametric) 
-%               X.rankcorrelation    rank correlation (non-parametric) 
-%        
+%               X.rankcorrelation    rank correlation (non-parametric)
+%               X.I_Nykopp      Nykopp's mutual information
+%               X.I_Wolpaw      Wolpaws mutual information 
+%
 %
 % see also: SUMSKIPNAN, PLOTA, BCI3EVAL
 %
@@ -61,7 +63,7 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %	http://ida.first.fraunhofer.de/projects/bci/competition/results/TR_BCI2003_III.pdf
 
 
-%    $Id: bci4eval.m,v 1.6 2005-10-23 21:02:25 schloegl Exp $
+%    $Id: bci4eval.m,v 1.7 2005-11-23 18:49:21 schloegl Exp $
 %    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -239,12 +241,12 @@ if M==sz(1),
         o.R     = zeros(size(CMX,1),1);
 
         for k   = 1:size(CMX,1),
-                [o.KAP00(k),o.Ksd00(k),h,z,o.ACC00(k),sa,o.R(k)] = kappa(squeeze(CMX(k,:,:)));            
+                [o.KAP00(k),o.Ksd00(k),h,z,o.ACC00(k),sa,o.I_Nykopp(k,1)] = kappa(squeeze(CMX(k,:,:)));            
         end;
         o.datatype = 'TSD_BCI9';  % useful for PLOTA
         [tmp,o.tix]=max([o.KAP00,o.R,sum(o.I,2),wolpaw_entropy(o.ACC00,M)]); 
         o.optCMX=squeeze(CMX(o.tix(1),:,:));%,length(CL)*[1,1]);
-        
+        o.I_wolpaw = wolpaw_entropy(o.ACC00,M)
         
 elseif sz(1)==1,
         
