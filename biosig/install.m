@@ -22,7 +22,7 @@
 %  you can excluded the path to NaN/*. The BIOSIG tools will still 
 %  work, but does not support the handling of NaN's.
 
-%	$Id: install.m,v 1.6 2005-10-29 18:03:58 schloegl Exp $
+%	$Id: install.m,v 1.7 2005-11-23 20:29:04 schloegl Exp $
 %	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -41,7 +41,6 @@ path([BIOSIG_HOME,'/biosig/t300/'],path);		% signal processing and feature extra
 path([BIOSIG_HOME,'/biosig/t400/'],path);		% classification
 path([BIOSIG_HOME,'/biosig/t490/'],path);		% evaluation criteria
 path([BIOSIG_HOME,'/biosig/t500/'],path);		% display and presentation
-%path([BIOSIG_HOME,'/biosig/t600/'],path);
 path([BIOSIG_HOME,'/biosig/viewer/'],path);		% viewer
 path([BIOSIG_HOME,'/biosig/viewer/utils'],path);	% viewer
 path([BIOSIG_HOME,'/biosig/viewer/help'],path);	% viewer
@@ -78,13 +77,18 @@ for k = 1:length(fun),
         end;
 end;
         
-if exist('OCTAVE_VERSION') > 2,	% OCTAVE
-        fun = {'bitand'};
+if exist('OCTAVE_VERSION','builtin'),	% OCTAVE
+        fun = {'bitand','regexp'};
         for k = 1:length(fun),
                 try,
                         bitand(5,7);
                 catch
                         unix('mkoctfile maybe-missing/bitand.cc');
+                end;
+                try,
+                        regexp('ABC','123ABCDEF');
+                catch
+                        unix('mkoctfile maybe-missing/regexp.cc');
                 end;
 
                 try,
