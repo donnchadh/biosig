@@ -1,22 +1,28 @@
-function [CC,Q,tsd,md]=findclassifier(D,TRIG,cl,T,t0,FUN)
-% FINDCLASSIFIER3
-%       is very similar to FINDCLASSIFIER1 but uses a different 
-%       criterion for selecting the time segment.
-% [CC,Q,TSD,MD]=findclassifier2(D,TRIG,Class,class_times,t_ref);
+function [CC,Q,tsd]=findclassifier(D,TRIG,cl,T,t0,FUN)
+% FINDCLASSIFIER
+%   identifies a reasonable classifier. In order to 
+%   validate the classifier, a trial-based leave-one-out-method is 
+%   used for cross-validation. Moreover several evaluation criteria
+%   are calculated. 
+%
+% [CC,Q,TSD] = findclassifier(D,TRIG,Class,class_times,t_ref,TYPE);
 %
 % D 	data, each row is one time point
 % TRIG	trigger time points
 % Class class information
 % class_times	classification times, combinations of times must be in one row 
 % t_ref	reference time for Class 0 (optional)
+% TYPE  determines the type of classifier (see HELP TEST_SC for complete list)
+%       the default value is 'LD3'
 %
-% CC 	contains LDA and MD classifiers
+% CC 	contains classifier
 % Q  	is a list of classification quality for each time of 'class_times'
-% TSD 	returns the LDA classification 
-% MD	returns the MD  classification 
+% TSD 	returns the discrimination 
 %
-% [CC,Q,TSD,MD]=findclassifier2(AR,find(trig>0.5)-257,~mod(1:80,2),reshape(1:14*128,16,14*8)');
+% Example: 
+%  [CC,Q,TSD]=findclassifier(d,find(trig>0.5)-257,~mod(1:80,2),reshape(1:14*128,16,14*8)');
 %
+% see also: TRAIN_SC, TEST_SC, BCI4EVAL
 %
 % Reference(s): 
 % [1] Schlögl A., Neuper C. Pfurtscheller G.
@@ -27,7 +33,7 @@ function [CC,Q,tsd,md]=findclassifier(D,TRIG,cl,T,t0,FUN)
 %	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003 
 
 
-%   $Id: findclassifier.m,v 1.2 2005-10-24 14:28:46 schloegl Exp $
+%   $Id: findclassifier.m,v 1.3 2005-11-23 18:50:24 schloegl Exp $
 %   Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -99,10 +105,15 @@ for k = 1:size(T,1),
                 KAPPA(k)  = r.kappa;
         end;
 end;	
-[maxQ(2),TI] = max(KAPPA.*t0); %d{K},
+[maxQ,TI] = max(KAPPA.*t0); %d{K},
 CC = cc{TI};
 CC.KAPPA = KAPPA;
 CC.TI = TI;
+
+if isnan(maxQ)
+	fprintf(2,'ERROR FINDCLASSIFIER: no valid classifier available.\n'); 
+	retrun; 
+end;	
 
 %% cross-validation with jackknife (trial-based leave-one-out-method)
 nc  = max(max(T))-min(min(T))+1;
