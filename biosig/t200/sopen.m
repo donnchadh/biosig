@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.127 $
-%	$Id: sopen.m,v 1.127 2005-11-05 20:46:17 schloegl Exp $
+%	$Revision: 1.128 $
+%	$Id: sopen.m,v 1.128 2005-11-24 21:03:29 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -402,6 +402,7 @@ end;
                                 HDR.Patient.Sex = any(sex(1)=='mM') + any(sex(1)=='Ff')*2;
                                 if (length(bd)==11),
 					HDR.Patient.Birthday = datevec(bd);
+					HDR.Patient.Birthday(4) = 12;
                                 end; 
                                 
                                 [chk, tmp] = strtok(HDR.RID,' ');
@@ -490,14 +491,16 @@ end;
                                 HDR.AS.SPR=ones(HDR.NS,1);
                                 HDR.ErrNo=[1028,HDR.ErrNo];
                         end;
-                else
+                elseif (HDR.NS>0)
                         if (ftell(HDR.FILE.FID)~=256),
                                 error('position error');
                         end;	 
                         HDR.Label      =  setstr(fread(HDR.FILE.FID,[16,HDR.NS],'uchar')');		
                         HDR.Transducer =  setstr(fread(HDR.FILE.FID,[80,HDR.NS],'uchar')');	
                         
-			if (HDR.VERSION < 1.9),
+                        if (HDR.NS<1),	% hack for a problem with Matlab 7.1.0.183 (R14) Service Pack 3
+                        		
+			elseif (HDR.VERSION < 1.9),
 	                        HDR.PhysDim    =  char(fread(HDR.FILE.FID,[ 8,HDR.NS],'uchar')');
 	                        HDR.PhysMin    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
 	                        HDR.PhysMax    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
@@ -509,6 +512,7 @@ end;
                                 HDR.PreFilt    =  char(fread(HDR.FILE.FID,[80,HDR.NS],'uchar')');	%	
                                 HDR.AS.SPR     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32')';	%	samples per data record
                                 HDR.GDFTYP     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32');	%	datatype
+
                         else
 	                        HDR.PhysDim    =  char(fread(HDR.FILE.FID,[6,HDR.NS],'uchar')');
 	                        HDR.PhysDimCode =      fread(HDR.FILE.FID,[HDR.NS,1],'uint16');
@@ -527,7 +531,38 @@ end;
                                 tmp            =       fread(HDR.FILE.FID,[HDR.NS, 1],'uint8');	%	datatype
                                 HDR.REC.Impedance = 2.^(tmp/8);
 			end;
+                end;
+                
+		if (HDR.NS>0)
                         HDR.THRESHOLD  = [HDR.DigMin,HDR.DigMax];       % automated overflow detection 
+	                if any(HDR.PhysMax==HDR.PhysMin), HDR.ErrNo=[1029,HDR.ErrNo]; end;	
+	                if any(HDR.DigMax ==HDR.DigMin ), HDR.ErrNo=[1030,HDR.ErrNo]; end;	
+	                HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
+	                HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
+	
+	                HDR.EDF.SampleRate = HDR.AS.SPR / HDR.Dur;
+	                HDR.SPR=1;
+	                for k=1:HDR.NS,
+	                        HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
+	                end;
+	                HDR.SampleRate = HDR.SPR/HDR.Dur;
+	                
+	                HDR.AS.spb = sum(HDR.AS.SPR);	% Samples per Block
+	                HDR.AS.bi  = [0;cumsum(HDR.AS.SPR(:))]; 
+	                HDR.AS.BPR = ceil(HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)'); 
+	                while any(HDR.AS.BPR ~= HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)');
+	                        fprintf(2,'\nError SOPEN (GDF/EDF/BDF): block configuration in file %s not supported.\n',HDR.FileName);
+	                end;
+	                HDR.AS.SAMECHANTYP = all(HDR.AS.BPR == (HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)')) & ~any(diff(HDR.GDFTYP)); 
+	                HDR.AS.bpb = sum(ceil(HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)'));	% Bytes per Block
+	                HDR.Calib  = [HDR.Off'; diag(HDR.Cal)];
+
+		else  % (if HDR.NS==0)
+			HDR.THRESHOLD = [];
+			HDR.AS.SPR = [];
+			HDR.Calib  = []; 
+			HDR.AS.bpb = 0; 
+			HDR.GDFTYP = [];
                 end;
 
                 if HDR.VERSION<1.9,
@@ -608,33 +643,9 @@ end;
                 end;
                 end
 
-                if any(HDR.PhysMax==HDR.PhysMin), HDR.ErrNo=[1029,HDR.ErrNo]; end;	
-                if any(HDR.DigMax ==HDR.DigMin ), HDR.ErrNo=[1030,HDR.ErrNo]; end;	
-                
-                HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
-                HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
-
-                HDR.EDF.SampleRate = HDR.AS.SPR / HDR.Dur;
-                HDR.SPR=1;
-                for k=1:HDR.NS,
-                        HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
-                end;
-                HDR.SampleRate = HDR.SPR/HDR.Dur;
-                
-                HDR.AS.spb = sum(HDR.AS.SPR);	% Samples per Block
-                HDR.AS.bi = [0;cumsum(HDR.AS.SPR(:))]; 
-                HDR.AS.BPR  = ceil(HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)'); 
-                while any(HDR.AS.BPR  ~= HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)');
-                        fprintf(2,'\nError SOPEN (GDF/EDF/BDF): block configuration in file %s not supported.\n',HDR.FileName);
-                end;
-                HDR.AS.SAMECHANTYP = all(HDR.AS.BPR == (HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)')) & ~any(diff(HDR.GDFTYP)); 
-                HDR.AS.bpb = sum(ceil(HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)'));	% Bytes per Block
+		% filesize, position of eventtable, headerlength, etc. 	
                 HDR.AS.EVENTTABLEPOS = -1;
-                
-                HDR.Calib = [HDR.Off'; diag(HDR.Cal)];
                 HDR.AS.endpos = HDR.FILE.size;
-                
-
                 if (HDR.AS.endpos == HDR.HeadLen)
                         HDR.NRec = 0; 
                 elseif HDR.NRec == -1   % unknown record size, determine correct NRec
@@ -791,7 +802,7 @@ end;
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF') 
                         HDR.VERSION = 1.25;     %% stable version 
-                        HDR.VERSION = 1.93;     %% testing 
+%                        HDR.VERSION = 1.93;     %% testing 
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
                 end;
@@ -1232,6 +1243,7 @@ end;
 		H1( 8+(1:length(HDR.PID))) = HDR.PID;
                 H1(88+(1:length(HDR.RID))) = HDR.RID;
                 %H1(185:192)=sprintf('%-8i',HDR.HeadLen);
+                HDR.AS.SPR = HDR.AS.SPR(1:HDR.NS);
                 HDR.AS.spb = sum(HDR.AS.SPR);	% Samples per Block
                 HDR.AS.bi  = [0;cumsum(HDR.AS.SPR)];
                 HDR.AS.BPR = ceil(HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)');
@@ -6745,6 +6757,7 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
         fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.trg']),'rt');
         if fid>0,
                 header = fgetl(fid);
+                header = fgetl(fid);
                 N = 0; 
                 while ~feof(fid),
                         tmp = fscanf(fid, '%f %d %s', 3);
@@ -6756,10 +6769,11 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
                                 %HDR.EVENT.CHN(N,1) = 0;
                                 
                                 HDR.EVENT.TeegType{N,1} = char(tmp(3:end));
-                                HDR.EVENT.TYP(N,1)  = 1 + str2double(HDR.EVENT.TeegType{N,1});		% numeric
+                                HDR.EVENT.TYP(N,1)  = str2double(HDR.EVENT.TeegType{N,1});		% numeric
                         end
                 end
                 fclose(fid);
+                HDR.TRIG = HDR.EVENT.POS(HDR.EVENT.TYP>0); 
         end;
         
                 
@@ -7690,7 +7704,7 @@ end;
 HDR = physicalunits(HDR); 
 
 % Calibration matrix
-if any(HDR.FILE.PERMISSION=='r') & ~isnan(HDR.NS);
+if any(HDR.FILE.PERMISSION=='r') & (HDR.NS>0);
         if isempty(ReRefMx)     % CHAN==0,
                 ReRefMx = eye(max(1,HDR.NS));
         end;

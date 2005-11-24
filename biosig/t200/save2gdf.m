@@ -27,7 +27,7 @@ function [HDR] = save2gdf(arg1,arg2,arg3);
 %   data	data samples
 %
 
-% 	$Id: save2gdf.m,v 1.7 2005-11-22 19:05:58 schloegl Exp $
+% 	$Id: save2gdf.m,v 1.8 2005-11-24 21:03:29 schloegl Exp $
 %	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>		
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -179,13 +179,15 @@ if isstruct(arg1),
                 HDR.Dur = 1/HDR.SampleRate;
                 HDR.SPR = 1; 
         end;
-                
+
         HDR = sopen(HDR,'w');
         if HDR.FILE.FID < 0,
                 fprintf(1,'Error SAVE2GDF: couldnot open file %s.\n',HDR.FileName);
                 return;
         end;
-        HDR = swrite(HDR,data(:,1:HDR.NS));  	% WRITE GDF FILE
+        if numel(data)>0,
+	        HDR = swrite(HDR,data(:,1:HDR.NS));  	% WRITE GDF FILE
+        end;
         HDR = sclose(HDR);
 
         % final test 
@@ -195,9 +197,9 @@ if isstruct(arg1),
     		HDR.FLAG.OVERFLOWDETECTION = 0; 
     		[y1,HDR] = sread(HDR,inf);
                 HDR = sclose(HDR);
-                if all(all((data==y1)|(isnan(data)&isnan(y1)))),
+                if all(all((data==y1) | (isnan(data) & isnan(y1)))),
                         fprintf(2,'SAVE2GDF: saving file %s OK.\n',HDR.FileName);
-                end;                        
+                end;
         catch
                 fprintf(2,'Error SAVE2GDF: saving file %s failed\n',HDR.FileName);
         end;
