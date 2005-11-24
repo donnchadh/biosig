@@ -27,7 +27,7 @@ function [HDR,data] = iopen(HDR,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: iopen.m,v 1.8 2005-10-13 21:40:24 schloegl Exp $
+%	$Id: iopen.m,v 1.9 2005-11-24 21:02:17 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -235,7 +235,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
  					fprintf(HDR.FILE.stderr,'Warning EXIF: invalid TIFF tag %s\n',char(s));
 	               		end;      
 	               		if ~strcmp(HDR.Endianity,H.Endianity)  
-	               		{HDR.Endianity;H.Endianity}
+	    %           		{HDR.Endianity;H.Endianity}
                	        	        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],H.Endianity);
 					fseek(HDR.FILE.FID,pos+4,'bof');
 					HDR.FILE.OPEN = 1; 
@@ -246,7 +246,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                                 nf = fread(HDR.FILE.FID,1,'uint16');
                                 if nf ~= 11;
  					fprintf(HDR.FILE.stderr,'Warning EXIF:  %i instead of 11  %i tags.\n',nf);
- 					if nf>11, return; end;
+% 					if nf>11, return; end;
 				end;	
                                 
                                 for k = 1:nf,
@@ -312,6 +312,34 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                                                 HDR.EXIF.GPS_IFDPointer = tmp;
                                         elseif tagid(k)==40965
                                                 HDR.EXIF.Interoperability_IFDPointer = tmp;
+
+                                        elseif tagid(k)==41985
+                                                HDR.EXIF.CostumRendered = tmp;
+                                        elseif tagid(k)==41986
+                                                HDR.EXIF.ExposureMode = tmp;
+                                        elseif tagid(k)==41987
+                                                HDR.EXIF.WhiteBalance = tmp;
+                                        elseif tagid(k)==41988
+                                                HDR.EXIF.DigitalZoomratio = tmp;
+                                        elseif tagid(k)==41989
+                                                HDR.EXIF.FocalLengthIn35mmFilm = tmp;
+                                        elseif tagid(k)==41990
+                                                HDR.EXIF.SceneCaptureType = tmp;
+                                        elseif tagid(k)==41991
+                                                HDR.EXIF.GainControl = tmp;
+                                        elseif tagid(k)==41992
+                                                HDR.EXIF.Contrast = tmp;
+                                        elseif tagid(k)==41993
+                                                HDR.EXIF.Saturation = tmp;
+                                        elseif tagid(k)==41994
+                                                HDR.EXIF.Sharpness = tmp;
+                                        elseif tagid(k)==41995
+                                                HDR.EXIF.DeviceSettingDescription = tmp;
+                                        elseif tagid(k)==41996
+                                                HDR.EXIF.SubjectDistanceRange = tmp;
+                                        elseif tagid(k)==42016
+                                                HDR.EXIF.imageUniqueID = tmp;
+
                                         elseif tagid(k)==hex2dec('c4a5')
                                                 HDR.EXIF.c4a5 = tmp';
 					else
