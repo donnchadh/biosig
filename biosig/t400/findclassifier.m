@@ -1,11 +1,18 @@
 function [CC,Q,tsd]=findclassifier(D,TRIG,cl,T,t0,FUN)
 % FINDCLASSIFIER
-%   identifies a reasonable classifier. In order to 
-%   validate the classifier, a trial-based leave-one-out-method is 
-%   used for cross-validation. Moreover several evaluation criteria
-%   are calculated. 
+%   identifies and validates a classifier. In order to 
+%   validate the classifier, a Leave-One(group)-Out-Method is 
+%   used for cross-validation. A group can be defined by a second 
+%   column in the vector "Class". Per default (if "Class" has only one column), 
+%   each trial is a single group, accordingly a trial-based LOOM is applied. 
+%   Moreover several evaluation criteria are calculated. 
 %
-% [CC,Q,TSD] = findclassifier(D,TRIG,Class,class_times,t_ref,TYPE);
+% By default, a Trial-based Leave-One-Out-Method is used for Crossvalidation     
+%       [CC,Q,TSD] = findclassifier(D,TRIG,Class,class_times,t_ref,TYPE);
+%
+% An K-fold cross-validation can be applied in this way: 
+%       ng = floor([0:length(Class)-1]'/length(Class)*K);
+%       [CC,Q,TSD] = findclassifier(D,TRIG,[Class,ng],class_times,t_ref,TYPE);
 %
 % D 	data, each row is one time point
 % TRIG	trigger time points
@@ -33,7 +40,7 @@ function [CC,Q,tsd]=findclassifier(D,TRIG,cl,T,t0,FUN)
 %	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003 
 
 
-%   $Id: findclassifier.m,v 1.3 2005-11-23 18:50:24 schloegl Exp $
+%   $Id: findclassifier.m,v 1.4 2005-11-28 17:36:16 schloegl Exp $
 %   Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -68,14 +75,27 @@ if any(rem(tmp,1) & ~isnan(cl)),
         return;
 end;
 if length(TRIG)~=length(cl);
-        fprintf(2,'number of Triggers do not match class information');
+        fprintf(2,'Warning FINDCLASSIFIER: number of Triggers do not match class information');
 end;
 
-cl = cl(:);
+if size(cl,1)~=length(TRIG);    
+        fprintf(2,'Warning FINDCLASSIFIER: Classlabels must be a column vector');
+        if length(TRIG)==size(cl,2),
+                cl = cl';
+        end;
+end;
+
 TRIG = TRIG(:);
-TRIG(isnan(cl))=[];
-cl(isnan(cl))=[];
+TRIG(any(isnan(cl),2))=[];
+cl(any(isnan(cl),2))=[];
+if size(cl,2)>1,
+        cl2 = cl(:,2);          % 2nd column contains the group definition, ( Leave-One (Group) - Out ) 
+        cl  = cl(:,1); 
+else
+        cl2 = [1:length(cl)]';  % each trial is a group (important for cross-validation); Trial-based LOOM  
+end;
 CL = unique(cl);
+CL2 = unique(cl2);
 [CL,iCL] = sort(CL);
 
 % add sufficient NaNs at the beginning and the end 
@@ -115,48 +135,39 @@ if isnan(maxQ)
 	retrun; 
 end;	
 
-%% cross-validation with jackknife (trial-based leave-one-out-method)
+%% cross-validation with jackknife (group-based leave-one-out-method)
 nc  = max(max(T))-min(min(T))+1;
 
-tsd  = repmat(nan,[nc*length(TRIG),length(CL)]);
-JKGD  = tsd;
-JKLL  = JKGD;
-MDA   = JKGD;
-%LDA   = JKGD;
-LDA2  = JKGD;
-LDA3  = JKGD;
-LDA4  = JKGD;
-tt    = MDA(:,1);
-IX = find(~isnan(cl(:)'));
-cc = CC; 
-for l = IX;1:length(cl);
-        c = find(cl(l)==CL);
-        t = TRIG(l)+T(CC.TI,:);
-        %t = t(t<=size(D,1));
-        
-        % decremental learning 
+tsd = repmat(nan,[nc*length(TRIG),length(CL)]);
+tt  = tsd(:,1);
+IX  = find(~isnan(cl(:)'));
+
+for l = 1:length(CL2);          % XV based on "Leave-One(group)-Out-Method" 
+        ix = find(cl2==CL2(l));         % identify members of l-th group 
+        t  = perm(TRIG(ix), T(CC.TI,:));        % get samples of test set
+
+        % decremental learning
         if ~isempty(strfind(CC.datatype,'statistical')), 
-                cc = untrain_sc(CC,c,D(t(:),:));
+                c  = repmat(cl(cl2==CL2(l))', size(T,2),1);     % classlabels of test set
+                cc = untrain_sc(CC,c(:),D(t(:),:));             % untraining test set
+                
         elseif ~isempty(strfind(CC.datatype,'svm')),
-                ix = IX; ix(l)=[];
-                t = perm(TRIG(ix),T(k,:));
-                c = repmat(cl(ix)',size(T,2),1);
-                cc = train_svm(D(t(:),:),c(:));                    
-        else  %if 1 % manual untraining of statistical classifier 
-                [tmp,tmpn] = covm(D(t(:),:),'E');
-                cc.MD 	= CC.MD;
-                cc.MD(c,:,:) = CC.MD(c,:,:)-reshape(tmp,[1,size(tmp)]);         
+                %ix = IX; ix(l)=[];
+                t  = perm(TRIG(cl2~=CL2(l)), T(CC.TI,:));       % samples of training set
+                c  = repmat(cl(cl2~=CL2(l))', size(T,2),1);     % classlabels of training set
+                cc = train_svm(D(t(:),:),c(:));                 % train classifier 
         end;
         
-        t = TRIG(l)+(min(min(T)):max(max(T)));
-        if any(~isnan(tt((l-1)*nc+1:l*nc)))
-                fprintf(2,'WARNING FINDCLASSIFIER#: overlapping segments\n',sum(~isnan(tt((l-1)*nc+1:l*nc))));
+        t  = perm(TRIG(cl2==CL2(l)), min(min(T)):max(max(T)));  % samples of evaluation set (l-th group) 
+        ix = perm((find(cl2==CL2(l))-1)*nc, 1:nc);              % save to ...     
+        if any(~isnan(tt(ix(:))))
+                fprintf(2,'WARNING FINDCLASSIFIER#: overlapping segments %i\n',sum(~isnan(tt(ix(:)))));
         end;
-        tt((l-1)*nc+1:l*nc)   = t;
+        tt(ix(:)) = t; 
         
-        r  = test_sc(cc,D(t(:),:),FUN);
-        tsd((l-1)*nc+1:l*nc,:) = r.output;
+        r = test_sc(cc,D(t(:),:),FUN);                          % evaluation of l-th group
+        tsd(ix(:),:) = r.output;                                % save results of l-th group
 end; 
 
-CC.TSD  = bci4eval(tsd, (0:length(cl)-1)'*nc,cl,1,nc);
+CC.TSD  = bci4eval(tsd, (0:length(cl)-1)'*nc, cl, 1, nc);
 
