@@ -12,9 +12,10 @@
 %   i686-pc-cygwin	2.1.42		OK
 %   i586-pc-linux-gnu   2.1.40		OK
 
-%	$Revision: 1.6 $
-%	$Id: demo3.m,v 1.6 2005-09-10 20:44:37 schloegl Exp $
-%	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.7 $
+%	$Id: demo3.m,v 1.7 2005-11-28 17:39:25 schloegl Exp $
+%	Copyright (C) 2000-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -41,8 +42,9 @@ cname = computer;
 
 % select file format 
 HDR.TYPE='GDF';
-HDR.TYPE='EDF';
+%HDR.TYPE='EDF';
 %HDR.TYPE='BDF'; 
+%HDR.TYPE='CFWB';
 
 % set Filename
 HDR.FileName = ['TEST_',VER([1,3]),cname(1:3),'.',HDR.TYPE];
@@ -91,10 +93,11 @@ HDR.Filter.Notch = [0,0,0,0,0];
 
 
 % define physical dimension
-HDR.PhysDim = ['uV ';'   ';'   ';'   ';'   '];
+HDR.PhysDim = strvcat({'uV';'mV';'%';'-  ';'-  '});
 
 t = [100:100:size(x,1)]';
-HDR = sopen(HDR,'wb');
+%HDR.NRec = 100;
+HDR = sopen(HDR,'w');
 %HDR.SIE.RAW = 0; % [default] channel data mode, one column is one channel 
 %HDR.SIE.RAW = 1; % switch to raw data mode, i.e. one column for one EDF-record
 HDR = swrite(HDR,x);
@@ -103,8 +106,14 @@ HDR.EVENT.POS = t;
 HDR.EVENT.TYP = t/100;
 HDR = sclose(HDR);
 
+
+%
 [s0,HDR0] = sload(HDR.FileName);	% test file 
 
-plot(s0-x)
+HDR0=sopen(HDR0.FileName,'r');
+[s0,HDR0]=sread(HDR0);
+HDR0=sclose(HDR0); 
+
+%plot(s0-x)
 
 
