@@ -63,7 +63,7 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %	http://ida.first.fraunhofer.de/projects/bci/competition/results/TR_BCI2003_III.pdf
 
 
-%    $Id: bci4eval.m,v 1.7 2005-11-23 18:49:21 schloegl Exp $
+%    $Id: bci4eval.m,v 1.8 2005-11-28 17:37:18 schloegl Exp $
 %    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -142,7 +142,7 @@ if (M==2) & (sz(1)==1),
         %o.SE2 = sqrt(v2)./o.N2;
     
         %%%%% Signal-to-Noise Ratio 
-        
+
         % intra-class variability
         vd = var([-X{1},X{2}],[],DIM);        
 
@@ -166,7 +166,9 @@ if (M==2) & (sz(1)==1),
         o.AUC = AUC'; 
 
         o.r = corrcoef(D,double(cl(:)));
-        o.rankcorrelation = corrcoef(D,double(cl(:)),'rank');
+
+        % o.rankcorrelation = corrcoef(D,double(cl(:)),'rank');         %
+        % is SLOW 
         
         for k=1:size(D,2),
                 [kap,sd,H,z,OA,SA] = kappa(cl(:),D(:,k)>0);
@@ -203,7 +205,7 @@ if M==sz(1),
                         o.Aprime   = x.Aprime;
                         o.dprime   = x.dprime;
                         o.r        = x.r; 
-                        o.rankcorrelation = x.rankcorrelation; 
+                        %o.rankcorrelation = x.rankcorrelation; % is slow
                         
                 else
                         o.ERR(:,k)      = x.ERR;
@@ -217,7 +219,7 @@ if M==sz(1),
                         o.Aprime(:,k)   = x.Aprime;
                         o.dprime(:,k)   = x.dprime;
                         o.r(:,k)        = x.r; 
-                        o.rankcorrelation(:,k) = x.rankcorrelation; 
+                        %o.rankcorrelation(:,k) = x.rankcorrelation; 
                 end;
         end;
         o.CL = CL'; 
@@ -244,9 +246,9 @@ if M==sz(1),
                 [o.KAP00(k),o.Ksd00(k),h,z,o.ACC00(k),sa,o.I_Nykopp(k,1)] = kappa(squeeze(CMX(k,:,:)));            
         end;
         o.datatype = 'TSD_BCI9';  % useful for PLOTA
-        [tmp,o.tix]=max([o.KAP00,o.R,sum(o.I,2),wolpaw_entropy(o.ACC00,M)]); 
-        o.optCMX=squeeze(CMX(o.tix(1),:,:));%,length(CL)*[1,1]);
-        o.I_wolpaw = wolpaw_entropy(o.ACC00,M)
+        [tmp,o.tix]= max([o.KAP00,o.R,sum(o.I,2),wolpaw_entropy(o.ACC00,M)]); 
+        o.optCMX   = squeeze(CMX(o.tix(1),:,:));%,length(CL)*[1,1]);
+        o.I_wolpaw = wolpaw_entropy(o.ACC00,M);
         
 elseif sz(1)==1,
         
