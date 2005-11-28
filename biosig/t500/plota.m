@@ -44,7 +44,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.39 2005-11-23 18:49:20 schloegl Exp $
+%	$Id: plota.m,v 1.40 2005-11-28 17:38:01 schloegl Exp $
 %	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -746,7 +746,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 end;
         end;
 
-        [S,h,PDC,COH,DTF,DC,pCOH,dDTF,ffDTF, pCOH2, PDCF, coh]=mvfreqz(B,A,C,N,Fs);
+        [S,h,PDC,COH,DTF,DC,pCOH,dDTF,ffDTF, pCOH2, PDCF, coh]=mvfreqz(X.B,X.A,X.C,N,Fs);
 
         s = exp(i*2*pi*f/Fs);
         z = i*2*pi/Fs;
@@ -1996,7 +1996,7 @@ elseif strcmp(X.datatype,'TSD_BCI9')
                 hold on 
                 plot(X.T,X.MEAN1)
                 hold off
-                Title('average output of four one-vs-rest classifiers ')
+                Title('average output of one-vs-rest classifiers')
                 ylabel('TSD')
                 xlabel('time [s]')
                 tmp = strvcat(Labels); 
