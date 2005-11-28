@@ -14,7 +14,7 @@
 %
 
 
-%	$Id: bench_biosig.m,v 1.1 2005-11-13 21:26:45 schloegl Exp $
+%	$Id: bench_biosig.m,v 1.2 2005-11-28 17:40:12 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -86,7 +86,10 @@ CC1 = findclassifier(bp,HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('300'))-1,HDR.Class
 CC1.TSD.T = CC1.TSD.T/HDR.SampleRate;
 K=K+1; jo{K}='findclassifier bp'; t(K)=toc 
 catch,end;
+
+
 CC2 = findclassifier(BARLOW,HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('300'))-1,HDR.Classlabel,reshape(1:1152,16,72)',[1:72]'>24,'LD3');
+
 CC2.TSD.T = CC2.TSD.T/HDR.SampleRate;
 K=K+1; jo{K}='findclassifier barlow'; t(K)=toc 
 CC3 = findclassifier(HJORTH,HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('300'))-1,HDR.Classlabel,reshape(1:1152,16,72)',[1:72]'>24,'LD3');
@@ -104,7 +107,9 @@ if exist('OCTAVE_VERSION','builtin');
 else
 	om = 'Matlab';
 end;	
-outfile = sprintf('bench_biosig1.6_%s_%s_%s.mrk',computer,om,version); 
+%outfile = sprintf('bench_biosig1.6_%s_%s_%s.mrk',computer,om,version); 
+%	BCI4EVAL and FINDCLASSIFIER have changed.
+outfile = sprintf('bench_biosig1.69_%s_%s_%s.mrk',computer,om,version); 
 
 try
 unix(['cat /proc/cpuinfo >"',outfile,'"'])
@@ -112,7 +117,7 @@ catch
 end;
 fid = fopen(outfile,'a'); 
 fprintf(fid,'\n\nDate:\t%s\n',date);
-fprintf(fid,'Revision:\t$Id: bench_biosig.m,v 1.1 2005-11-13 21:26:45 schloegl Exp $\n');
+fprintf(fid,'Revision:\t$Id: bench_biosig.m,v 1.2 2005-11-28 17:40:12 schloegl Exp $\n');
 fprintf(fid,'Computer:\t%s\nSoftware:\t%s\nVersion:\t%s\n',computer,om,version);
 
 tmp = [diff([0,t(:)']);t(:)']'; 
