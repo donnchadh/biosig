@@ -1,36 +1,35 @@
-function [signal,H] = sload(FILENAME,CHAN,MODE)
+function [signal,H] = sload(FILENAME,varargin)
 % SLOAD loads signal data of various data formats
 % 
-% Currently are the following data formats supported: 
-%    EDF, CNT, EEG, BDF, GDF, BKR, MAT(*), 
-%    PhysioNet (MIT-ECG), Poly5/TMS32, SMA, RDF, CFWB,
-%    Alpha-Trace, DEMG, SCP-ECG.
+% The list of supported formats is available here: 
+% http://bci.tugraz.at/~schloegl/biosig/TESTED
 %
+% [signal,header] = sload(FILENAME)
 % [signal,header] = sload(FILENAME,CHAN)
-%       reads selected (CHAN) channels
-%       if CHAN is 0, all channels are read 
-% [signal,header] = sload(FILENAME [,CHANNEL [,Fs]])
-% [signal,header] = sload(FILENAME [,CHANNEL [,MODE]])
-% FILENAME      name of file, or list of filenames
-% channel       list of selected channels
-%               default=0: loads all channels
-% Fs            force target samplerate Fs (only 
-%               integer and 256->100 conversion is supported) 
-% MODE          'UCAL'  uncalibrated data
-%               'OVERFLOWDETECTION:OFF' turns off automated overflow detection
+%       read selected channels in list CHAN
+%       CHAN=0 [default], reads all channels
 %
-% [signal,header] = sload(dir('f*.emg'), CHAN)
-% [signal,header] = sload('f*.emg', CHAN)
-%  	loads channels CHAN from all files 'f*.emg'
+% [signal,header] = sload(dir('f*.emg') ... )
+% [signal,header] = sload('f*.emg' ...)
+%  	loads all files 'f*.emg'
 %
+% [signal,header] = sload(..., PropertyName1,PropertyValue1,...)
+%  	PropertyName(s)		PropertyValue
+%	'UCAL'			-		data uncalibrated (not scaled)
+%	'OVERFLOWDETECTION'	'On'		[default] 
+%				'Off'		no overflow detection 
+%	'NUMBER_OF_NAN_IN_BREAK'   N		inserts N NaN's between two concatanated segments
+%						default: N=100
+%	'SampleRate'		Fs		target sampling rate (supports resampling)
+%	
 % see also: SVIEW, SOPEN, SREAD, SCLOSE, SAVE2BKR, TLOAD
 %
 % Reference(s):
 %
 
 
-%	$Revision: 1.58 $
-%	$Id: sload.m,v 1.58 2005-10-29 17:58:38 schloegl Exp $
+%	$Revision: 1.59 $
+%	$Id: sload.m,v 1.59 2005-11-29 08:58:20 schloegl Exp $
 %	Copyright (C) 1997-2005 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -50,9 +49,44 @@ function [signal,H] = sload(FILENAME,CHAN,MODE)
 % Boston, MA  02111-1307, USA.
 
 
-if nargin<2; CHAN=0; end;
-if nargin<3; MODE = ''; end;
+if length(varargin)<3; 
+	MODE = ''; 
+else	
+	MODE = varargin{2};
+end;
 
+CHAN = 0; STATE.UCAL = 0; 
+STATE.OVERFLOWDETECTION = 1; 
+STATE.NUMBER_OF_NAN_IN_BREAK = 100; 
+Fs = NaN; 
+k = 1; 
+while (k<length(varargin))
+	if isnumeric(varargin{k})
+		if (k==1), CHAN=varargin{k}; end;
+	elseif ~isempty(strfind(varargin{k},'UCAL'))
+		MODE = varargin{k}; 
+		STATE.UCAL = 1; 
+	elseif ~isempty(strfind(varargin{k},'OVERFLOWDETECTION:OFF'))
+		MODE = varargin{k}; 
+		STATE.OVERFLOWDETECTION = 0; 
+	elseif strcmpi(varargin{k},'OVERFLOWDETECTION')
+		if strcmpi(varargin{k+1},'on'); 
+			STATE.OVERFLOWDETECTION = 1;
+		elseif strcmpi(varargin{k+1},'off'); 
+			STATE.OVERFLOWDETECTION = 0;
+		elseif isnumeric(varargin{k+1})
+			STATE.OVERFLOWDETECTION = varargin{k+1};
+		end;			
+		k=k+1;
+	elseif strcmpi(varargin{k},'Number_of_nan_in_break')
+		STATE.NUMBER_OF_NAN_IN_BREAK = varargin{k+1};
+		k=k+1;
+	elseif strcmpi(varargin{k},'SampleRate')
+		Fs = varargin{k+1};
+		k=k+1;
+	end; 	
+	k=k+1;
+end;
 
 if (CHAN<1) | ~isfinite(CHAN),
         CHAN=0;
@@ -86,7 +120,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			f = FILENAME(k);
 		end	
 
-                [s,h] = sload(f,CHAN,MODE);
+                [s,h] = sload(f,varargin{:});
 		if k==1,
 			H = h;
 			signal = s;  
@@ -99,7 +133,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			end;
 
                         if size(s,2)==size(signal,2), %(H.NS == h.NS) 
-				signal = [signal; repmat(NaN,100,size(s,2)); s];
+				signal = [signal; repmat(NaN,STATE.NUMBER_OF_NAN_IN_BREAK,size(s,2)); s];
 				H.SegLen = [H.SegLen,size(signal,1)];
 			else
 				fprintf(2,'ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
@@ -159,21 +193,6 @@ end;
 
 
 %%%% start of single file section
-if nargin<3
-        MODE = '';
-end;
-if ~isnumeric(CHAN),
-        MODE = CHAN;
-        CHAN = 0; 
-end
-if isnumeric(MODE),
-        Fs  = MODE;
-else
-        Fs  = NaN;
-end;
-
-signal = [];
-
 H = getfiletype(FILENAME);
 if isempty(H),
 	fprintf(2,'Warning SLOAD: no file found\n');
@@ -182,7 +201,9 @@ else
 	% FILENAME can be fn.name struct, or HDR struct. 
 	FILENAME = H.FileName; 
 end;
-    
+H.FLAG.UCAL = STATE.UCAL;
+H.FLAG.OVERFLOWDETECTION = STATE.OVERFLOWDETECTION;
+
 if strncmp(H.TYPE,'IMAGE:',5)
 	[H,signal] = iopen(H);
 	if H.FILE.OPEN,
@@ -193,7 +214,7 @@ if strncmp(H.TYPE,'IMAGE:',5)
 	return;
 end;
 
-H = sopen(H,'r',CHAN,MODE);
+H = sopen(H,'r',CHAN);
 if 0,
         
 elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat','EEProbe-CNT','EEProbe-AVR'})); 
