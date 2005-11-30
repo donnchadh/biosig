@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.27 2005-11-21 16:58:37 schloegl Exp $
+    $Id: biosig.c,v 1.28 2005-11-30 16:32:22 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -71,10 +71,9 @@ size_t lcm(size_t A,size_t B)
 	return(A*B/gcd(A,B));
 };
 
-
+#if __BYTE_ORDER == __BIG_ENDIAN
 float l_endian_f32(float x) 
 {
-#if __BYTE_ORDER == __BIG_ENDIAN
 	union {
 		float f32;
 		uint32_t u32;
@@ -83,14 +82,10 @@ float l_endian_f32(float x)
 	b2 = b1; 
 	b2.u32 = bswap_32(b1.u32);
 	return(b2.f32);
-#elif __BYTE_ORDER == __LITTLE_ENDIAN
-	return(x); 
-#endif
 }
 
 double l_endian_f64(double x) 
 {
-#if __BYTE_ORDER == __BIG_ENDIAN
 	union {
 		double f64;
 		uint32_t u32[2];
@@ -100,11 +95,9 @@ double l_endian_f64(double x)
 	b2.u32[0] = bswap_32(b1.u32[1]);
 	b2.u32[1] = bswap_32(b1.u32[0]);
 	return(b2.f64);
-#elif __BYTE_ORDER == __LITTLE_ENDIAN
-	return(x); 
-#endif
-	
 }
+#endif
+
 
 
 /****************************************************************************/
@@ -313,7 +306,14 @@ if (!strcmp(MODE,"r"))
 	    	hdr->TYPE = PLEXON;
     	else if (!memcmp(Header1+16,"SCPECG",6))
 	    	hdr->TYPE = SCP_ECG;
-
+	else {
+		fprintf(stderr,"ERROR SOPEN(%s): unknown Format\n",FileName);
+		sclose(hdr); 
+		free(hdr); 
+		free(Header1);
+		return(NULL); 
+	}	
+	
     	if (hdr->TYPE == GDF) {
   	    	strncpy(tmp,(char*)Header1+3,5);
 	    	hdr->VERSION 	= atof(tmp);
@@ -467,7 +467,7 @@ if (!strcmp(MODE,"r"))
 	    	hdr->HeadLen 	= atoi(strncpy(tmp,Header1+184,8));
 	    	hdr->NRec 	= atoi(strncpy(tmp,Header1+236,8));
 	    	Dur 		= atoi(strncpy(tmp,Header1+244,8));
-	    	hdr->NS 		= atoi(strncpy(tmp,Header1+252,4));
+	    	hdr->NS		= atoi(strncpy(tmp,Header1+252,4));
 		if (!Dur)
 		{	
 			hdr->Dur[0] = Dur; 
@@ -573,7 +573,7 @@ if (!strcmp(MODE,"r"))
 	}
 	else if (hdr->TYPE==CFWB) {
 	    	*(uint64_t*)(Header1+8) = l_endian_u64(*(uint64_t*)Header1+8);
-	    	hdr->SampleRate  = *(double*) (Header1+8);
+	    	hdr->SampleRate = *(double*) (Header1+8);
 	    	tm_time.tm_year = l_endian_u32( *(int32_t*)(Header1+16) );
 	    	tm_time.tm_mon  = l_endian_u32( *(int32_t*)(Header1+20) );
 	    	tm_time.tm_mday = l_endian_u32( *(int32_t*)(Header1+24) );
@@ -595,7 +595,7 @@ if (!strcmp(MODE,"r"))
 		count   = fread(Header2,1,96*hdr->NS,hdr->FILE.FID);
 	    	
 	    	hdr->CHANNEL = realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
-		for (k=0; k<hdr->NS;k++)	{
+		for (k=0; k<hdr->NS; k++)	{
 		    	hdr->CHANNEL[k].GDFTYP 	= CFWB_GDFTYP[l_endian_u32(*(uint32_t*)(Header1+64))-1];
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	hdr->CHANNEL[k].Label	= Header2+k*96;
@@ -657,6 +657,14 @@ if (!strcmp(MODE,"r"))
 	}
 	
 	else if (hdr->TYPE==SCP_ECG) {
+		hdr = sopen_SCP_read(Header1,hdr);
+	}
+	
+	else if (hdr->TYPE==HL7aECG) {
+		hdr = sopen_HL7aECG_read(Header1,hdr);
+	}
+	
+	else if (0) { //(hdr->TYPE==SCP_ECG) {
 #define filesize (*(uint32_t*)(Header1+2))
 		// read whole file at once 
 		Header1 = realloc(Header1,filesize);
@@ -708,6 +716,7 @@ if (!strcmp(MODE,"r"))
 		exit(-1);  
 	}
 
+	hdr->AS.Header1 = Header1; 
 	fseek(hdr->FILE.FID, hdr->HeadLen, SEEK_SET); 
 	hdr->FILE.OPEN = 1;
 	hdr->FILE.POS  = 0;
@@ -806,6 +815,7 @@ else { // WRITE
 			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR;
 			hdr->AS.bi[++k] = hdr->AS.bpb; 
 		}	
+		hdr->AS.Header1 = Header1; 
 	}
     	else if ((hdr->TYPE==EDF) | (hdr->TYPE==BDF)) {	
 	     	hdr->HeadLen = (hdr->NS+1)*256;
@@ -890,6 +900,13 @@ else { // WRITE
 		     	memcpy(Header2+ 8*k + 216*hdr->NS,tmp,min(8,len));
 		     	hdr->CHANNEL[k].GDFTYP = ( (hdr->TYPE != BDF) ? 3 : 255+24);
 		}
+		hdr->AS.Header1 = Header1; 
+	}
+    	else if (hdr->TYPE==SCP_ECG) {	
+    		hdr = sopen_SCP_write(hdr);
+	}
+    	else if (hdr->TYPE==HL7aECG) {	
+    		hdr = sopen_HL7aECG_write(hdr);
 	}
 	else {
     	 	fprintf(stderr,"ERROR: Writing of format (%c) not supported\n",hdr->TYPE);
@@ -901,7 +918,7 @@ else { // WRITE
     	{ 	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
 		return(NULL);
     	}	    
-    	fwrite(Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
+    	fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
 	hdr->FILE.OPEN = 2; 	     	
 	hdr->FILE.POS  = 0; 	
 
@@ -909,7 +926,6 @@ else { // WRITE
 
 	// internal variables
 
-	hdr->AS.Header1 = Header1; 
 	hdr->AS.bi = realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	hdr->AS.bi[0] = 0;
 	for (k=0, hdr->SPR = 1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;) {

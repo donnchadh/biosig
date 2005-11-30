@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.21 2005-11-21 00:23:53 schloegl Exp $
+% $Id: biosig.h,v 1.22 2005-11-30 16:32:22 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -44,7 +44,7 @@
 #include <byteswap.h>
 
 	// list of file formats 
-enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP_ECG}; 
+enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP_ECG, HL7aECG}; 
 
 enum HANDEDNESS {Unknown=0, Right=1, Left=2, Equal=3}; 
 enum GENDER  	{male=1,  female=2};
@@ -74,6 +74,9 @@ enum SCALE 	{No=1,    Yes=2,	Corrected=3};
 #define l_endian_i32(x) (x)
 #define l_endian_i64(x) (x)
 	
+#define l_endian_f32(x) (x)
+#define l_endian_f64(x) (x)
+
 #endif 
 
 
@@ -103,10 +106,10 @@ typedef double	 		biosig_data_type;
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
  
 typedef int64_t 		gdf_time; // gdf time is represented in 64 bits
-#define t_time2gdf_time(t)	((gdf_time)floor(ldexp((t)/86400.0 + 719529, 32)))
+#define t_time2gdf_time(t)	((gdf_time)floor(ldexp((t)/86400.0 + 719529L, 32)))
 #define gdf_time2t_time(t)	((time_t)((ldexp((t),-32) - 719529) * 86400))
 #define tm_time2gdf_time(t) 	t_time2gdf_time(mktime(t))
-#define gdf_time2tm_time(t)	localtime(gdf_time2t_time(t))
+//#define gdf_time2tm_time(t)	localtime(gdf_time2t_time(t))
 #define	ntp_time2gdf_time(t)	((gdf_time)ldexp(ldexp((t),-32)/86400 + 719529 - 70,32))
 #define	gdf_time2ntp_time(t)	((int64_t)ldexp((ldexp((t),-32) - 719529 + 70) * 86400,32))
 
@@ -153,6 +156,7 @@ typedef struct {
 	enum FileFormat TYPE; 		// type of file format
 	float 		VERSION;	// GDF version number 
 	char* 		FileName;
+	
 	struct {
 		size_t 			size[2]; // size {rows, columns} of data block	
 		biosig_data_type* 	block; 	 // data block
@@ -238,6 +242,22 @@ typedef struct {
 
 /****************************************************************************/
 /**                                                                        **/
+/**                     INTERNAL FUNCTIONS                                 **/
+/**                                                                        **/
+/****************************************************************************/
+
+/*
+	These functions are for the converter between SCP to HL7aECG
+ */ 	 
+
+HDRTYPE* sopen_SCP_read     (char* Header, HDRTYPE* hdr);
+HDRTYPE* sopen_SCP_write    (HDRTYPE* hdr);
+HDRTYPE* sopen_HL7aECG_read (char* Header, HDRTYPE* hdr);
+HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr);
+
+
+/****************************************************************************/
+/**                                                                        **/
 /**                     EXPORTED FUNCTIONS                                 **/
 /**                                                                        **/
 /****************************************************************************/
@@ -254,7 +274,6 @@ int	seof(HDRTYPE* hdr);
 void	srewind(HDRTYPE* hdr);
 int 	sseek(HDRTYPE* hdr, size_t offset, int whence);
 size_t  stell(HDRTYPE* hdr);
-
 
 /****************************************************************************/
 /**                                                                        **/

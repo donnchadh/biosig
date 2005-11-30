@@ -1,6 +1,6 @@
 /*
 
-    $Id: main.c,v 1.9 2005-11-21 16:59:15 schloegl Exp $
+    $Id: main.c,v 1.10 2005-11-30 16:32:22 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -62,6 +62,7 @@ int main (int argc, char **argv)
 #define NELEM (1<<15)
 	unsigned k; 	
     	short 	s[NELEM];
+    	FILE	*fid; 
     	HDRTYPE *hdr; 	
     	CHANNEL_TYPE* cp; 
     	size_t 	count;
@@ -82,16 +83,22 @@ int main (int argc, char **argv)
 
 	
 	// READ GDF FILE 
-	hdr = sopen(argv[1], "r", NULL);
-	if (hdr==NULL) 
-	{ 
+	fid = fopen(argv[1], "r");
+	if (fid==NULL) // file does not exist 
+	{ 	
 		// initialize/generate signal 
 		for (k=0; k<NELEM; s[k] = l_endian_u16(k++%1031));	
       
 		// write: define header
 		hdr = create_default_hdr(4,10);  // allocate memory for 4 channels, 10 events 
 		hdr->Patient.Id = "test1";
-		hdr->TYPE = GDF; 
+
+	/*
+		define target file format 
+	 */
+		hdr->TYPE = GDF; 		// target file format is GDF
+//		hdr->TYPE = SCP_ECG; 		// target file format is SCP 
+//		hdr->TYPE = HL7aECG; 		// target file format is HL7aECG
 		
 		t0.tm_year = 100; 
 		t0.tm_mon = 0; 
@@ -118,6 +125,10 @@ int main (int argc, char **argv)
 	}
 	else 
 	{
+		fclose(fid); 
+		hdr = sopen(argv[1], "r", NULL);
+		if (hdr==NULL)	exit(-1);
+		
 		fprintf(stdout,"FileName:\t%s\nType    :\t%i\nVersion:\t%4.2f\nHeadLen:\t%i\n",argv[1],hdr->TYPE,hdr->VERSION,hdr->HeadLen);
 		fprintf(stdout,"NS:\t%i\nSPR:\t%i\nNRec:\t%Li\nDuration[s]:\t%u/%u\nFs:\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
 		

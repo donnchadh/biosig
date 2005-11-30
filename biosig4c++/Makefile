@@ -14,8 +14,10 @@ DEL_FILE      = rm
 ####### Files
 
 SOURCES       = biosig.c \
+		scp_hl7aecg.c \
 		main.c 
 OBJECTS       = biosig.o \
+		scp_hl7aecg.o \
 		main.o
 TARGET        = biosig
               # Windows
@@ -29,12 +31,12 @@ $(TARGET):  $(OBJECTS)
 	$(LINK) $(LFLAGS) -o "$(TARGET)" $(OBJECTS) $(LIBS)
 
 clean: 
-	-$(DEL_FILE) biosig.o main.o
+	-$(DEL_FILE) biosig.o scp_hl7aecg.o main.o
 
 ####### Compile
 
-biosig.o: biosig.c biosig.h
+biosig.o: biosig.c scp_hl7aecg.c biosig.h 
 	$(CC) -c $(CFLAGS) $(INCPATH) -o biosig.o biosig.c
 
-main.o: main.c biosig.h
+main.o: main.c scp_hl7aecg.c biosig.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o main.o main.c
