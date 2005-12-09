@@ -1,0 +1,27 @@
+
+
+The aim of this repository is providing a JAVA software library for biomedical signal processing. 
+This library is called "BioSig for Java" and is complementary to "BioSig for Octave and Matlab" 
+and "BioSig for C/C++".  
+
+
+The internal data structure should resemble the one for Octave/Matlab
+http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig/doc/header.txt
+and/or for C/C++ 
+http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig4c%2B%2B/biosig.h
+(see HDRTYPE and CHANNEL_TYPE)
+
+Encoding of Event/Markers/Annotations is available here: 
+http://bci.tugraz.at/~schloegl/matlab/eeg/EventCodes.html
+
+A list of supported data formats is available here: 
+http://bci.tugraz.at/~schloegl/biosig/TESTED
+
+
+
+
+
+    Copyright (C) 2005 Alois Schloegl <a.schloegl@ieee.org>
+    This function is part of the "BioSig for Java" repository 
+    (BioSig4Java) at http://biosig.sf.net/ 
+
