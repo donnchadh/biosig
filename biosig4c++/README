@@ -1,3 +1,21 @@
+Introduction:
+---------------
+
+The aim of this repository is providing a C/C++ software library for biomedical signal processing. 
+This library is called "BioSig for C/C++" and is complementary to "BioSig for Octave and Matlab".  
+
+The internal data structure should resemble the one for Octave/Matlab
+http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig/doc/header.txt
+and is defined in
+http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig4c%2B%2B/biosig.h
+(see HDRTYPE and CHANNEL_TYPE)
+
+Encoding of Event/Markers/Annotations is available here: 
+http://bci.tugraz.at/~schloegl/matlab/eeg/EventCodes.html
+
+A list of supported data formats is available here: 
+http://bci.tugraz.at/~schloegl/biosig/TESTED
+
 
 
 File(s): 
