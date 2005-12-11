@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.128 $
-%	$Id: sopen.m,v 1.128 2005-11-24 21:03:29 schloegl Exp $
+%	$Revision: 1.129 $
+%	$Id: sopen.m,v 1.129 2005-12-11 00:11:45 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -332,9 +332,9 @@ end;
                                 HDR.Dur = fread(HDR.FILE.FID,1,'float64');	% 8 Byte # duration of data record in sec
                         else
                                 tmp  = fread(HDR.FILE.FID,2,'uint32');  % 8 Byte # duration of data record in sec
-                                tmp1 = warning('off');
+                                %tmp1 = warning('off');
                                 HDR.Dur = tmp(1)./tmp(2);
-                                warning(tmp1);
+                                %warning(tmp1);
                         end;
                         tmp = fread(HDR.FILE.FID,2,'uint16');     % 4 Byte # of signals
                         HDR.NS = tmp(1);
@@ -542,7 +542,18 @@ end;
 	
 	                HDR.EDF.SampleRate = HDR.AS.SPR / HDR.Dur;
 	                HDR.SPR=1;
-	                for k=1:HDR.NS,
+	                if all(CHAN>0)
+		                chan = CHAN(:)';
+	                elseif (CHAN==0)
+	                	chan = 1:HDR.NS;
+	                	if strcmp(HDR.TYPE,'EDF')
+	                        if strcmp(HDR.reserved1(1:4),'EDF+')
+	                        	tmp = strmatch('EDF Annotations',HDR.Label);
+		                        chan(tmp)=[];
+		                end; 
+		                end;
+	                end;	
+	                for k=chan,
 	                        HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
 	                end;
 	                HDR.SampleRate = HDR.SPR/HDR.Dur;
@@ -785,10 +796,30 @@ end;
                         if length(HDR.EVENT.CodeDesc)<16;
                                 HDR.EVENT.TYP = TYP;
                         end;
+                        
+                elseif strcmp(HDR.TYPE,'BDF') & (length(strmatch('Status',HDR.Label))==1),
+                        % BDF: 
+
+                        tmp = strmatch('Status',HDR.Label);
+                        HDR.BDF.Status = tmp;
+
+                        status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bi(HDR.BDF.Status)*3,'bof');
+                        %t = fread(HDR.FILE.FID,[3,inf],'uint8',HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status)*3);
+                        t = fread(HDR.FILE.FID,inf,[int2str(HDR.AS.SPR(HDR.BDF.Status)*3),'*uchar=>float'],HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status)*3);
+                        t = reshape(double(t),3,length(t)/3)'*2.^[0;8;16];
+
+			ix1 = diff([0;bitand(t,2^16)]);	% start of epoch
+			ix2 = diff([0;bitand(t,255)]);	% labels 
+			
+			%HDR.BDF.ANNONS = t; 	% debugging information 
+                        %EVENTTABLE = repmat(0,sum(~~ix1)+sum(~~ix2),4);
+                        
+                        HDR.EVENT.POS = [find(ix1>0);find(ix2>0)];
+                        HDR.EVENT.TYP = [repmat(hex2dec('0300'),sum(ix1>0));bitand(t(ix2>0),255)];
                 end;
                 
                 status = fseek(HDR.FILE.FID, HDR.HeadLen, 'bof');
-                HDR.FILE.POS = 0;
+                HDR.FILE.POS  = 0;
                 HDR.FILE.OPEN = 1;
                 
                 %%% Event file stored in GDF-format
@@ -6697,10 +6728,33 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         HDR.SPR = HDR.AS.endpos;
         
         
-elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
-
-	HDR.FILE.FID = fopen(HDR.FileName,'rb');
-	H = openiff(HDR.FILE.FID);
+elseif strncmp(HDR.TYPE,'EEProbe',7),
+	if strcmp(HDR.TYPE,'EEProbe-CNT'),
+        if 0, %try 	
+                 % Read the first sample of the file with a mex function 	 
+                 % this also gives back header information, which is needed here 	 
+                 tmp = read_eep_cnt(HDR.FileName, 1, 1); 	 
+  	 
+                 % convert the header information to BIOSIG standards 	 
+                 HDR.FILE.FID = 1;               % ? 	 
+                 HDR.FILE.POS = 0; 	 
+                 HDR.NS = tmp.nchan;             % number of channels 	 
+                 HDR.SampleRate = tmp.rate;      % sampling rate 	 
+                 HDR.NRec = 1;                   % it is always continuous data, therefore one record 	 
+                 HDR.FLAG.TRIGGERED = 0; 	 
+                 HDR.SPR = tmp.nsample;          % total number of samples in the file 	 
+                 HDR.Dur = tmp.nsample/tmp.rate; % total duration in seconds 	 
+                 HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct? 	 
+                 HDR.Label = char(tmp.label); 	 
+                 HDR.PhysDim = 'uV'; 	 
+                 HDR.AS.endpos = HDR.SPR; 	 
+                 HDR.Label = tmp.label;
+                 H = [];
+        else %catch          
+        	 HDR.FILE.FID = fopen(HDR.FileName,'rb');
+		 H = openiff(HDR.FILE.FID);		
+        end;
+        
 	if isfield(H,'RIFF');
                 HDR.FILE.OPEN = 1; 
                 HDR.RIFF = H.RIFF;
@@ -6733,11 +6787,11 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
 							[num,status,sa]=str2double(line);
 							HDR.Label{k} = sa{1};
 							HDR.PhysDim{k} = sa{4};
-							HDR.Cal(k) = num(2);%/num(3);
+							HDR.Cal(k) = num(2)*num(3);
 						end;
 					end;	
 				elseif strncmp(line,';',1);      
-				elseif strncmp(line,'[',1);
+				elseif strncmp(line,'[',1);				
 					field = '';      
 				elseif ~isempty(field);
 					[num,status,sa] = str2double(line);
@@ -6753,59 +6807,71 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
 			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); % because SREAD uses READ_EEP_CNT.MEX 
                 end
         end
+	end;
 
-        fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.trg']),'rt');
-        if fid>0,
-                header = fgetl(fid);
-                header = fgetl(fid);
-                N = 0; 
-                while ~feof(fid),
-                        tmp = fscanf(fid, '%f %d %s', 3);
-                        if ~isempty(tmp)
-                                N = N + 1; 
-                                HDR.EVENT.POS(N,1)  = round(tmp(1)*HDR.SampleRate);
-                                HDR.EVENT.TYP(N,1)  = 0;
-                                %HDR.EVENT.DUR(N,1) = 0;
-                                %HDR.EVENT.CHN(N,1) = 0;
-                                
-                                HDR.EVENT.TeegType{N,1} = char(tmp(3:end));
-                                HDR.EVENT.TYP(N,1)  = str2double(HDR.EVENT.TeegType{N,1});		% numeric
-                        end
-                end
+	% read event file, if applicable 
+	fid = 0; 
+	if strcmp(HDR.TYPE,'EEProbe-TRG'),
+	        fid = fopen(HDR.FileName,'rt');
+        elseif strcmp(HDR.TYPE,'EEProbe-CNT')
+	        fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.trg']),'rt');
+	end;
+	if fid>0,
+                tmp = str2double(fgetl(fid));
+                if ~isnan(tmp(1))
+                	HDR.EVENT.SampleRate = 1/tmp(1); 
+	                N = 0; 
+	                while ~feof(fid),
+	                        tmp = fscanf(fid, '%f %d %s', 3);
+	                        if ~isempty(tmp)
+	                                N = N + 1; 
+	                                HDR.EVENT.POS(N,1)  = round(tmp(1)*HDR.EVENT.SampleRate);
+	                                HDR.EVENT.TYP(N,1)  = 0;
+	                                %HDR.EVENT.DUR(N,1) = 0;
+	                                %HDR.EVENT.CHN(N,1) = 0;
+	                                
+	                                HDR.EVENT.TeegType{N,1} = char(tmp(3:end));
+	                                HDR.EVENT.TYP(N,1)  = str2double(HDR.EVENT.TeegType{N,1});		% numeric
+	                        end
+	                end;
+	                HDR.EVENT.TYP(isnan(HDR.EVENT.TYP))=0;
+	                HDR.TRIG = HDR.EVENT.POS(HDR.EVENT.TYP>0); 
+	%                HDR.EVENT.POS = HDR.EVENT.POS(HDR.EVENT.TYP>0);
+	%                HDR.EVENT.TYP = HDR.EVENT.TYP(HDR.EVENT.TYP>0);
+	%                HDR.EVENT = rmfield(HDR.EVENT,'TeegType');
+		end;
                 fclose(fid);
-                HDR.TRIG = HDR.EVENT.POS(HDR.EVENT.TYP>0); 
         end;
-        
                 
-elseif strcmp(HDR.TYPE,'EEProbe-AVR'),
-        % it appears to be a EEProbe file with an averaged ERP
-        try
-                tmp = read_eep_avr(HDR.FileName);
-        catch
-                fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): Cannot open EEProbe-file, because read_eep_avr.mex not installed. \n');
-                fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): see http://www.smi.auc.dk/~roberto/eeprobe/\n');
-                return;
-        end
+	if strcmp(HDR.TYPE,'EEProbe-AVR'),
+	        % it appears to be a EEProbe file with an averaged ERP
+        	try
+        	        tmp = read_eep_avr(HDR.FileName);
+        	catch
+        	        fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): Cannot open EEProbe-file, because read_eep_avr.mex not installed. \n');
+        	        fprintf(HDR.FILE.stderr,'ERROR SOPEN (EEProbe): see http://www.smi.auc.dk/~roberto/eeprobe/\n');
+        	        return;
+	        end
 
-        % convert the header information to BIOSIG standards
-        HDR.FILE.FID = 1;               % ?
-        HDR.FILE.POS = 0;
-        HDR.NS = tmp.nchan;             % number of channels
-        HDR.SampleRate = tmp.rate;      % sampling rate
-        HDR.NRec  = 1;                   % it is an averaged ERP, therefore one record
-        HDR.SPR   = tmp.npnt;             % total number of samples in the file
-        HDR.Dur   = tmp.npnt/tmp.rate;    % total duration in seconds
-        HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
-        HDR.Label = char(tmp.label);
-        HDR.PhysDim   = 'uV';
-        HDR.FLAG.UCAL = 1;
-        HDR.FILE.POS  = 0; 
-        HDR.AS.endpos = HDR.SPR;
-        HDR.Label = tmp.label;
-        HDR.TriggerOffset = 0; 
+        	% convert the header information to BIOSIG standards
+	        HDR.FILE.FID = 1;               % ?
+        	HDR.FILE.POS = 0;
+	        HDR.NS = tmp.nchan;             % number of channels
+        	HDR.SampleRate = tmp.rate;      % sampling rate
+	        HDR.NRec  = 1;                   % it is an averaged ERP, therefore one record
+        	HDR.SPR   = tmp.npnt;             % total number of samples in the file
+	        HDR.Dur   = tmp.npnt/tmp.rate;    % total duration in seconds
+        	HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct?
+	        HDR.Label = char(tmp.label);
+	        HDR.PhysDim   = 'uV';
+	        HDR.FLAG.UCAL = 1;
+	        HDR.FILE.POS  = 0; 
+	        HDR.AS.endpos = HDR.SPR;
+	        HDR.Label = tmp.label;
+	        HDR.TriggerOffset = 0; 
         
-        HDR.EEP.data = tmp.data';
-        
+	        HDR.EEP.data = tmp.data';
+	end;        
         
 elseif strncmp(HDR.TYPE,'FIF',3),
         if any(exist('rawdata')==[3,6]),
@@ -6831,14 +6897,15 @@ elseif strncmp(HDR.TYPE,'FIF',3),
                 [HDR.MinMax,HDR.Cal] = rawdata('range');
                 [HDR.Label, type, number] = channames(HDR.FileName);
         
-                rawdata('goto', 0);
+                rawdata('goto',-inf);
                 [buf, status] = rawdata('next'); 
                 HDR.Dur = rawdata('t');
                 [HDR.NS,HDR.SPR] = size(buf);
+                HDR.NRec = 1; 
                 HDR.AS.bpb = HDR.NS * 2;
                 HDR.Calib = [zeros(1,HDR.NS);diag(HDR.Cal)]; 
                 
-                rawdata('goto', 0);
+                rawdata('goto', -inf);
                 HDR.FILE.POS = 0; 
                 HDR.FILE.OPEN = 1; 
                 FLAG_NUMBER_OF_OPEN_FIF_FILES = FLAG_NUMBER_OF_OPEN_FIF_FILES+1; 
@@ -7333,7 +7400,11 @@ elseif strcmp(HDR.TYPE,'ATF'),  % axon text file
         
 elseif strcmp(HDR.TYPE,'BIFF'),
 	try, 
-                [HDR.TFM.S,HDR.TFM.E] = xlsread(HDR.FileName,'Beat-To-Beat');
+		try
+	                [HDR.TFM.S,HDR.TFM.E] = xlsread(HDR.FileName,'Beat-To-Beat');
+                catch
+                        [HDR.TFM.S,HDR.TFM.E] = xlsread(HDR.FileName,'Beat-to-Beat');
+                end;
                 %if size(HDR.TFM.S,1)+1==size(HDR.TFM.E,1)
                 if ~isnan(HDR.TFM.S(1,1)) & ~isempty(HDR.TFM.E{1,1})
 		        fprintf('Warning: XLSREAD-BUG has occured in file %s.\n',HDR.FileName);
@@ -7343,6 +7414,7 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 HDR.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
                 %HDR.Patient.Name = [HDR.TFM.E{2,3},' ', HDR.TFM.E{2,4}];
                 HDR.Patient.Birthday = datevec(HDR.TFM.S(2,5)-1);
+                HDR.Patient.Birthday(4) = 12; 
                 HDR.Patient.Age = datevec(HDR.TFM.S(2,1)-HDR.TFM.S(2,5));
                 HDR.Patient.Sex = HDR.TFM.E{2,6};
                 HDR.Patient.Height = HDR.TFM.S(2,7);
@@ -7451,6 +7523,14 @@ elseif strncmp(HDR.TYPE,'XML',3),
                         return;
                 end;
                 end
+
+                try
+                	tmp=HDR.XML.componentOf.timepointEvent.componentOf.subjectAssignment.subject.trialSubject.subjectDemographicPerson.name; 
+                	HDR.Patient.Name = sprintf('%s, %s',tmp.family, tmp.given);
+		catch
+                end
+                
+                
                 
                 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
                 HDR.FILE.OPEN = 1;

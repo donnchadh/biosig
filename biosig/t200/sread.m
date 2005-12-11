@@ -34,8 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.59 $
-%	$Id: sread.m,v 1.59 2005-11-02 17:01:04 schloegl Exp $
+%	$Id: sread.m,v 1.60 2005-12-11 00:11:45 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -79,6 +78,70 @@ if (0), %strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'
         end;
         
 	
+elseif strcmp(HDR.TYPE,'BDF'),
+        if nargin==3,
+                HDR.FILE.POS = round(HDR.SampleRate*StartPos);
+        end;
+
+        nr     = min(HDR.NRec*HDR.SPR-HDR.FILE.POS, NoS*HDR.SampleRate);
+	S      = repmat(NaN,nr,length(HDR.InChanSelect)); 
+
+	block1 = floor(HDR.FILE.POS/HDR.SPR);
+	ix1    = HDR.FILE.POS- block1*HDR.SPR;	% starting sample (minus one) within 1st block 
+	nb     = ceil((HDR.FILE.POS+nr)/HDR.SPR)-block1;
+    	fp     = HDR.HeadLen + block1*HDR.AS.bpb;
+    	status = fseek(HDR.FILE.FID, fp, 'bof');
+
+	count  = 0;
+        if HDR.NS==0,
+
+        else
+                if (HDR.AS.spb*nb<=2^24), % faster access
+                        S = [];
+                        [s,c] = fread(HDR.FILE.FID,[3*HDR.AS.spb, nb],'uint8');
+                        s = reshape(2.^[0,8,16]*reshape(s(:),3,c/3),[HDR.AS.spb, nb]);
+                        c = c/3;
+                        for k = 1:length(HDR.InChanSelect),
+                               K = HDR.InChanSelect(k);
+                               S(:,k) = rs(reshape(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K)*nb,1),HDR.AS.SPR(K),HDR.SPR); 
+                        end;
+                        S = S(ix1+1:ix1+nr,:);
+                        count = nr;
+
+                        if HDR.FLAG.OVERFLOWDETECTION,  % BDF overflow detection is based on Status bit20
+	                        K = HDR.BDF.Status;
+        	                OVERFLOW = ~bitand(reshape(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K)*nb,1),2^19);
+        	                OVERFLOW = rs(OVERFLOW,HDR.AS.SPR(K),HDR.SPR);
+	                        OVERFLOW = OVERFLOW(ix1+1:ix1+nr,:);
+        	                S(OVERFLOW>0,:)=NaN; 
+        	        end;        
+                else
+                        S = zeros(nr,length(HDR.InChanSelect));
+                        while (count<nr);
+                                len   = ceil(min([(nr-count)/HDR.SPR,2^22/HDR.AS.spb]));
+                                [s,c] = fread(HDR.FILE.FID,[3*HDR.AS.spb, len],'uint8');
+                                s1    = zeros(HDR.SPR*c/(3*HDR.AS.spb),length(HDR.InChanSelect));
+                                for k = 1:length(HDR.InChanSelect), 
+                                        K = HDR.InChanSelect(k);
+                                        tmp = 2.^[0,8,16]*reshape(s(HDR.AS.bi(K)*3+1:HDR.AS.bi(K+1)*3,:),3,HDR.AS.SPR(K)*c/HDR.AS.spb);
+                                        s1(:,k) = rs(tmp',HDR.AS.SPR(K),HDR.SPR);
+                                end;
+	                        if HDR.FLAG.OVERFLOWDETECTION,  % BDF overflow detection is based on Status bit20
+		                        K = HDR.BDF.Status;
+                                        tmp = 2.^[0,8,16]*reshape(s(HDR.AS.bi(K)*3+1:HDR.AS.bi(K+1)*3,:),3,HDR.AS.SPR(K)*c/HDR.AS.spb);
+                                        OVERFLOW = rs(~bitand(tmp',2^19),HDR.AS.SPR(K),HDR.SPR);
+	        	                s1(OVERFLOW>0,:)=NaN; 
+	        	        end;        
+                                ix2   = min(nr-count, size(s1,1)-ix1);
+                                S(count+1:count+ix2,:) = s1(ix1+1:ix1+ix2,:);
+                                count = count+ix2;
+                                ix1   = 0; 
+                        end;	
+                end;
+                HDR.FILE.POS = HDR.FILE.POS + count;
+                S = S - 2^24*(S>=2^23);
+        end
+
 elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'ACQ'),
 	% experimental, might replace SDFREAD.M 
         if nargin==3,
@@ -1081,16 +1144,24 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
         end;
         
         nr = min(HDR.SampleRate*NoS, HDR.SPR-HDR.FILE.POS);
-        try
-                % it appears to be a EEProbe file with continuous EEG data
+	if exist('read_eep_cnt','file')==3,
                 tmp = read_eep_cnt(HDR.FileName, HDR.FILE.POS+1, HDR.FILE.POS+nr);
-                HDR.FILE.POS = HDR.FILE.POS + nr;
-                S = tmp.data(HDR.InChanSelect,:)';
-        catch
+                sz  = size(tmp);
+                S   = tmp.data(HDR.InChanSelect,:)';
+                clear tmp; 
+                if HDR.FLAG.UCAL,
+	                S = S*diag(1./HDR.Cal(HDR.InChanSelect));
+	        end;        
+                HDR.FILE.POS = HDR.FILE.POS + sz(2);
+
+        elseif exist('OCTAVE_VERSION','builtin')
+                fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): Reading EEProbe-file format is not supported.\n');
+                return;
+	else
                 fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): Cannot open EEProbe-file, because read_eep_cnt.mex not installed. \n');
                 fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): You can downlad it from http://www.smi.auc.dk/~roberto/eeprobe/\n');
+                return;
         end
-
         
 elseif strcmp(HDR.TYPE,'EEProbe-AVR'),
         if nargin>2,
