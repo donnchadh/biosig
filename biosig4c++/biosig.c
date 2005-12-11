@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.28 2005-11-30 16:32:22 schloegl Exp $
+    $Id: biosig.c,v 1.29 2005-12-11 00:48:30 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -159,14 +159,14 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
       	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.20";
 
 	hdr->Patient.Name 	= "X";
-	hdr->Patient.Id 		= "X";
+	hdr->Patient.Id 	= "X";
 	hdr->Patient.Birthday 	= Unknown;
-      	hdr->Patient.Medication 	= Unknown;
+      	hdr->Patient.Medication = Unknown;
       	hdr->Patient.DrugAbuse 	= Unknown;
       	hdr->Patient.AlcoholAbuse= Unknown;
       	hdr->Patient.Smoking 	= Unknown;
       	hdr->Patient.Sex 	= Unknown;
-      	hdr->Patient.Handedness 	= Unknown;
+      	hdr->Patient.Handedness = Unknown;
       	hdr->Patient.Impairment.Visual = Unknown;
       	hdr->Patient.Weight 	= Unknown;
       	hdr->Patient.Height 	= Unknown;
@@ -214,6 +214,8 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->EVENT.DUR = calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.DUR));
 	hdr->EVENT.CHN = calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.CHN));
 	
+	// initialize "Annotated ECG structure"
+	hdr->aECG = NULL; 
 	return(hdr);
 }
 
@@ -306,6 +308,10 @@ if (!strcmp(MODE,"r"))
 	    	hdr->TYPE = PLEXON;
     	else if (!memcmp(Header1+16,"SCPECG",6))
 	    	hdr->TYPE = SCP_ECG;
+    	else if (!memcmp(Header1,"<WORLD>",7))
+	    	hdr->TYPE = XML;
+    	else if (!memcmp(Header1,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>",38))
+	    	hdr->TYPE = XML;
 	else {
 		fprintf(stderr,"ERROR SOPEN(%s): unknown Format\n",FileName);
 		sclose(hdr); 
@@ -660,7 +666,7 @@ if (!strcmp(MODE,"r"))
 		hdr = sopen_SCP_read(Header1,hdr);
 	}
 	
-	else if (hdr->TYPE==HL7aECG) {
+	else if (hdr->TYPE==XML) {
 		hdr = sopen_HL7aECG_read(Header1,hdr);
 	}
 	
@@ -1327,6 +1333,8 @@ int sclose(HDRTYPE* hdr)
 
 	fclose(hdr->FILE.FID);
     	hdr->FILE.FID = 0;
+    	if (hdr->aECG != NULL)	
+        	free(hdr->aECG);
     	if (hdr->AS.rawdata != NULL)	
         	free(hdr->AS.rawdata);
     	if (hdr->data.block != NULL)	

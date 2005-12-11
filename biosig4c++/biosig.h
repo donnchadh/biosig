@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.22 2005-11-30 16:32:22 schloegl Exp $
+% $Id: biosig.h,v 1.23 2005-12-11 00:48:30 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -44,7 +44,7 @@
 #include <byteswap.h>
 
 	// list of file formats 
-enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP_ECG, HL7aECG}; 
+enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP_ECG, HL7aECG, XML}; 
 
 enum HANDEDNESS {Unknown=0, Right=1, Left=2, Equal=3}; 
 enum GENDER  	{male=1,  female=2};
@@ -121,7 +121,7 @@ typedef int64_t 		gdf_time; // gdf time is represented in 64 bits
 
 /*
 	This structure defines the header for each channel (variable header) 
-*/
+ */
 typedef struct {
 	char		OnOff; 		// 
 	char* 		Label;		// Label of channel 
@@ -148,6 +148,13 @@ typedef struct {
 	double		Off;		// bias 
 } CHANNEL_TYPE;
 
+
+/*
+	This structure defines the fields used for "Annotated ECG" 
+ */
+typedef struct {
+	char*		test;		// test field for annotated ECG
+} aECG_TYPE;
 
 /*
 	This structure defines the general (fixed) header  
@@ -237,6 +244,7 @@ typedef struct {
 		void*  		rawdata; 	// raw data block 
 	} AS; 	
 	CHANNEL_TYPE *CHANNEL;  
+	aECG_TYPE *aECG;
 } HDRTYPE;
 
 
