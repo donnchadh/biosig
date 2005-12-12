@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.129 $
-%	$Id: sopen.m,v 1.129 2005-12-11 00:11:45 schloegl Exp $
+%	$Revision: 1.130 $
+%	$Id: sopen.m,v 1.130 2005-12-12 21:32:17 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -750,6 +750,10 @@ end;
                         %       HDR.Cal(HDR.EDF.Annotations) = 1;
                         %       HDR.Off(HDR.EDF.Annotations) = 0;
                         %	HDR.Calib(:,tmp) = [];
+                        if isempty(ReRefMx)
+                        	ReRefMx = sparse(1:HDR.NS,1:HDR.NS,1);
+                        	ReRefMx(:,tmp)= [];
+                        end;	
                         
                         status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bi(HDR.EDF.Annotations)*2,'bof');
                         t = fread(HDR.FILE.FID,inf,[int2str(HDR.AS.SPR(HDR.EDF.Annotations)*2),'*uchar=>uchar'],HDR.AS.bpb-HDR.AS.SPR(HDR.EDF.Annotations)*2);
@@ -815,7 +819,7 @@ end;
                         %EVENTTABLE = repmat(0,sum(~~ix1)+sum(~~ix2),4);
                         
                         HDR.EVENT.POS = [find(ix1>0);find(ix2>0)];
-                        HDR.EVENT.TYP = [repmat(hex2dec('0300'),sum(ix1>0));bitand(t(ix2>0),255)];
+                        HDR.EVENT.TYP = [repmat(hex2dec('0300'),sum(ix1>0),1);bitand(t(ix2>0),255)];
                 end;
                 
                 status = fseek(HDR.FILE.FID, HDR.HeadLen, 'bof');
