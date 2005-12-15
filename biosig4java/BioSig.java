@@ -5,8 +5,8 @@
     (at your option) any later version.
 
 
-    $Id: BioSig.java,v 1.1 2005-12-15 13:06:10 schloegl Exp $
-    Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
+    $Id: BioSig.java,v 1.2 2005-12-15 15:16:29 schloegl Exp $
+    Copyright (C) 2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for Java" repository 
     (biosig4java) at http://biosig.sf.net/ 
 
@@ -16,46 +16,8 @@
 import java.io.*;
 
 public class BioSig {
-
-//  File f = new File (filename);
-
-	// identify type of file 
-
-      static class CHANNEL {
-	 boolean	OnOff; 		// 
-      	 String 	Label; 
-      	 String		Transducer;
-
-	 String		PhysDim;	// physical dimension
-	 int		PhysDimCode;	// code for physical dimension
-	//char* 	PreFilt;	// pre-filtering
-
-	float 		LowPass;	// lowpass filter
-	float 		HighPass;	// high pass
-	float 		Notch;		// notch filter
-	float[] 	XYZ = new float[3];		// electrode position
-	float 		Impedance;   	// in Ohm
-	
-	double 		PhysMin;	// physical minimum
-	double 		PhysMax;	// physical maximum
-	double 		DigMin;		// digital minimum
-	double	 	DigMax;		// digital maximum
-
-	int 		GDFTYP;		// data type
-	int 		SPR;		// samples per record (block)
-	
-	double		Cal;		// gain factor 
-	double		Off;		// bias       	 
-      }
-
-      static class EVENT {
-	 int		POS;	
-	 int		TYP;	
-	 int		CHN;	
-	 int		DUR;	
-      }
-      
-      static class HDRTYPE {
+    
+    static class HDRTYPE {
          int 	TYPE;
          float 	VERSION; 
          int	HeadLen; 
@@ -91,22 +53,56 @@ public class BioSig {
   	 int[][]	rawdata; 
 	
 	 EVENT[]	event; 	
-      }
+    }
 
 
-  	static HDRTYPE getfiletype (HDRTYPE HDR) {
-  		// identification of file format 
-		byte[] b = new byte[256];
-		String[] MagicKeys = {"0       ","GDF ","\255BIOSEMI", "SCP","XML"};
+    static class CHANNEL {
+	 boolean	OnOff; 		// 
+      	 String 	Label; 
+      	 String		Transducer;
+
+	 String		PhysDim;	// physical dimension
+	 int		PhysDimCode;	// code for physical dimension
+	//char* 	PreFilt;	// pre-filtering
+
+	float 		LowPass;	// lowpass filter
+	float 		HighPass;	// high pass
+	float 		Notch;		// notch filter
+	float[] 	XYZ = new float[3];		// electrode position
+	float 		Impedance;   	// in Ohm
+	
+	double 		PhysMin;	// physical minimum
+	double 		PhysMax;	// physical maximum
+	double 		DigMin;		// digital minimum
+	double	 	DigMax;		// digital maximum
+
+	int 		GDFTYP;		// data type
+	int 		SPR;		// samples per record (block)
+	
+	double		Cal;		// gain factor 
+	double		Off;		// bias       	 
+    }
+
+    static class EVENT {
+	 int		POS;	
+	 int		TYP;	
+	 int		CHN;	
+	 int		DUR;	
+    }
+     
+    static HDRTYPE getfiletype (HDRTYPE HDR) {
+  	// identification of file format 
+	byte[] b = new byte[256];
+	String[] MagicKeys = {"0       ","GDF ","\255BIOSEMI", "SCP","XML"};
 		
 
-		try {
-			HDR.fileIn.read(b); 
+	try {
+		HDR.fileIn.read(b); 
 	//	    ss = string(b); 
 /*
-	    if (compare(b{0:7},{'0',0,0,0,0,0,0,0 }) == null) {
-		    System.out.println("EDF");
-	    }
+	if (compare(b{0:7},{'0',0,0,0,0,0,0,0 }) == null) {
+		System.out.println("EDF");
+	}
 	    else if (compare(b,{'G','D','F',' ' }) == null) { 
 		    System.out.println("GDF");
 	    }    
@@ -128,7 +124,7 @@ public class BioSig {
   	}
   
 
-	public static HDRTYPE sopen (String[] args, String PERMISSION) {
+    	public static HDRTYPE sopen (String[] args, String PERMISSION) {
 		String FileName = args[0];
 
   		HDRTYPE HDR = new HDRTYPE(); 
@@ -139,6 +135,12 @@ public class BioSig {
 	  		HDR.fileIn = new FileInputStream (HDR.FileName);
   			HDR.FileOpen = 1;
 			HDR = getfiletype (HDR); 	
+			
+			
+/********* add your sopenReadSCP here  **********/ 
+
+/********* add your sopenReadHL7aECG here   **********/ 
+			
 		}
 		catch (Exception e) {
 			System.out.println("file " + HDR.FileName + " not found");
@@ -149,6 +151,11 @@ public class BioSig {
 		try {
 	  		HDR.fileOut = new FileOutputStream (HDR.FileName);
   			HDR.FileOpen = 2;
+
+/********* add your sopenWriteSCP here  **********/ 
+
+/********* add your sopenWriteHL7aECG here  *********/
+ 
 		}
 		catch (Exception e) {
 			System.out.println("file " + HDR.FileName + " not found");
