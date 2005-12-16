@@ -12,7 +12,7 @@ function [CC]=untrain_sc(CC,classlabel,x)
 %
 % see also: TEST_SC, COVM, LDBC2, LDBC3, LDBC4, MDBC, GDBC
 
-%	$Id: untrain_sc.m,v 1.1 2005-10-13 08:21:37 schloegl Exp $
+%	$Id: untrain_sc.m,v 1.2 2005-12-16 16:59:59 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -39,8 +39,8 @@ if strcmp(CC.datatype,'classifier:statistical');
         if all(classlabel==classlabel(1)),
                 [md,nn] = covm(x,'E');
                 k = find(CC.Labels==classlabel(1));
-                CC.MD(k,:,:) = CC.MD(k,:,:) - MD;
-                CC.NN(k,:,:) = CC.NN(k,:,:) - NN;
+                CC.MD(k,:,:) = CC.MD(k,:,:) - md;
+                CC.NN(k,:,:) = CC.NN(k,:,:) - nn;
         else
                 Labels = unique(classlabel(~isnan(classlabel)));
                 for k = 1:length(Labels),
@@ -51,7 +51,6 @@ if strcmp(CC.datatype,'classifier:statistical');
                         CC.NN(ix,:,:) = CC.NN(ix,:,:) - nn;
                 end
         end;
-        [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
 
 elseif strcmp(CC.datatype,'classifier:SVM');
         error('decremental learning not implemented for SVM (yet)');         
