@@ -44,7 +44,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.40 2005-11-28 17:38:01 schloegl Exp $
+%	$Id: plota.m,v 1.41 2005-12-16 20:05:27 schloegl Exp $
 %	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2217,10 +2217,10 @@ elseif strcmp(X.datatype,'AMARMA')
         if X.MOP(3)~=0, return; end; 
 	if (X.MOP(1)==1) & (size(X.AAR,2)==X.MOP(2)+1), 
 	        m0 = X.AAR(:,1)./(1-sum(X.AAR(:,2:end),2));
-		AAR = X.AAR(:,2:end); 
+	        ix_aar = 2:X.MOP(2)+1;
 	elseif (X.MOP(1)==0) & (size(X.AAR,2)==X.MOP(2)),
 		m0 = zeros(size(X.AAR,1),1);
-		AAR = X.AAR;
+	        ix_aar = 1:X.MOP(2);
 	else
 		return;
 	end;	 
@@ -2234,7 +2234,7 @@ elseif strcmp(X.datatype,'AMARMA')
 	if ~isempty(findstr(upper(arg3),'LF-BW')),	MODE = [MODE,6]; end;
 	if ~isempty(findstr(upper(arg3),'F0')),		MODE = [MODE,7]; end;
 	if ~isempty(findstr(upper(arg3),'F0+-B')),	MODE = [MODE,8]; end;
-	if ~isempty(findstr(upper(arg3),'ALL')),	MODE = [1,5,3,6]; end;
+	if ~isempty(findstr(upper(arg3),'ALL')),	MODE = [1,2,3,6]; end;
 
 	if nargin<4,
 		if any(MODE==4)
@@ -2281,8 +2281,8 @@ elseif strcmp(X.datatype,'AMARMA')
 		end;	
 		HHHH = ha;
 			
-                v = axis; v(2) = max(X.T); axis(v);
-                ylabel([X.Label,' [',deblank(X.PhysDim),']']);
+                v = axis; v(2) = max(X.T); v(3)=0; axis(v);
+		ylabel([X.Label,' [',deblank(X.PhysDim),']']);
 		hc= colorbar;
 		pos=get(gca,'position');
 		delete(hc);
@@ -2293,23 +2293,19 @@ elseif strcmp(X.datatype,'AMARMA')
                         legend('mean','RMS')
                 end;
 	end;        
-	
-	if (length(X.MOP)==3) & (X.MOP(1)==1),    
-		f0 = 1./m0;
-        elseif prod(size(arg2))<2,    
+
+	if prod(size(arg2))==1,    
 		f0 = repmat(arg2,size(X.AAR,1),1);
-	else
+	elseif prod(size(arg2))>1,    
 		f0 = arg2;
 	end;
 
 	if any(MODE==2)
-                %[w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,2:end),f0,X.PE);
-                [w,A,B,R,P,F,ip] = ar_spa(AAR,f0,X.PE);
+                [w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,ix_aar),f0,X.PE);
                 ix = (imag(F)==0);
 
 	elseif any(MODE==5) | any(MODE==6) | any(MODE==7) | any(MODE==8)	
-                %[w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,2:end),1);
-                [w,A,B,R,P,F,ip] = ar_spa(AAR,1);
+                [w,A,B,R,P,F,ip] = ar_spa(X.AAR(:,ix_aar),1,X.PE);
                 ix = (imag(F)==0);
 
 	end;
@@ -2324,7 +2320,6 @@ elseif strcmp(X.datatype,'AMARMA')
                 tmp(:,6) = tmp(:,3)./(tmp(:,1)-tmp(:,2));
                 tmp(:,7) = tmp(:,4)./(tmp(:,1)-tmp(:,2));
                 tmp(:,8) = sum(tmp(:,2:4),2);
-                
 
 		K = K + 1;
                 subplot(hf(K));
@@ -2335,7 +2330,6 @@ elseif strcmp(X.datatype,'AMARMA')
 		pos=get(gca,'position');
 		delete(hc);
 		set(gca,'position',pos);
-		
 
                 %ylabel(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
                 legend({'LF','HF','VLF+LF+HF','total'})
@@ -2368,7 +2362,7 @@ elseif strcmp(X.datatype,'AMARMA')
 	
 
                 %ylabel(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
-                legend({'LF (0.05-0.17Hz)','HF (0.17*f0-0.40*f0)'})
+                legend({'LF (0.05-0.15Hz)','HF (0.15*f0-0.40*f0)'})
 	end;        
                 
 	if any(MODE==3), 	
@@ -2378,8 +2372,8 @@ elseif strcmp(X.datatype,'AMARMA')
                 for l = 1:DN:N,  %N/2; [k,size(sdf),N],%length(AR);
                         k = ceil(l/DN);
                         % [h(:,k),F(:,k)] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',128,f0(l,1));
-                        %[h2(:,k),F3] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -AAR(l,:)]',[0:100]'/64,f0(l,1));
-                        [h2(:,k),F3] = freqz(sqrt(X.PE(l)/(2*pi*f0(l,1))),[1, -AAR(l,:)]',[0:100]'/64*50,f0(l,1));
+                        %[h2(:,k),F3] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,ix_aar)]',[0:100]'/64,f0(l,1));
+                        [h2(:,k),F3] = freqz(sqrt(X.PE(l)/(2*pi*f0(l,1))),[1, -X.AAR(l,ix_aar)]',[0:100]'/64,f0(l,1));
                         h2(find(F3>f0(l,1)/2),k)=NaN;
                 end;
         
