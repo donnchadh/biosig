@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.130 $
-%	$Id: sopen.m,v 1.130 2005-12-12 21:32:17 schloegl Exp $
+%	$Revision: 1.131 $
+%	$Id: sopen.m,v 1.131 2005-12-16 17:01:49 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -752,55 +752,39 @@ end;
                         %	HDR.Calib(:,tmp) = [];
                         if isempty(ReRefMx)
                         	ReRefMx = sparse(1:HDR.NS,1:HDR.NS,1);
-                        	ReRefMx(:,tmp)= [];
+                        	ReRefMx(:,tmp) = [];
                         end;	
                         
                         status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bi(HDR.EDF.Annotations)*2,'bof');
                         t = fread(HDR.FILE.FID,inf,[int2str(HDR.AS.SPR(HDR.EDF.Annotations)*2),'*uchar=>uchar'],HDR.AS.bpb-HDR.AS.SPR(HDR.EDF.Annotations)*2);
-                        HDR.EDF.ANNONS = t';
-                        lt = length(t);
-                        EVENTTABLE = repmat(0,lt/2,4);
-                        TeegType = repmat({''},lt/2,1);
-                        TeegDesc = TeegType; 
-                        N = 0; 
-                        ix = 1; 
-                        t = [t;' ']';
-                        FLAG.DUR = 0; 
-                        while ix < length(t),
-                                while (ix<=lt) & (t(ix)==0), ix = ix+1; end;
-                                ix1 = ix; 
-                                while (ix<=lt) & (t(ix)~=0), ix = ix+1; end;
-                                ix2 = ix; 
-                                if (ix < lt),
-                                        v = t(ix1:ix2-1);
-                                        [s1,v]=strtok(v,20);
-                                        s1(s1==21) = 0;
-                                        tmp=str2double(char(s1));
-                                        
-                                        [s2,v]=strtok(v,20);
-                                        [s3,v]=strtok(v,20);
-                                        
-                                        N = N+1;
-                                        EVENTTABLE(N,2) = tmp(1);
-                                        if length(tmp)>1,
-                                                EVENTTABLE(N,3) = tmp(2);
-                                                FLAG.DUR = 1; 
-                                        end;
-                                        TeegType{N} = char(s2);
-                                        TeegDesc{N} = char(s3);
-                                end;
-                        end;
-                        HDR.EVENT.TYP = ones(N,1);
-                        HDR.EVENT.POS = EVENTTABLE(1:N,2)*HDR.SampleRate;
-                        if FLAG.DUR, 
-                                HDR.EVENT.DUR = EVENTTABLE(1:N,3)*HDR.SampleRate;
-                                HDR.EVENT.CHN = zeros(N,1);
-                        end;
-                        [HDR.EVENT.CodeDesc,HDR.EVENT.CodeIndex,TYP] = unique(TeegType(1:N));
-                        if length(HDR.EVENT.CodeDesc)<16;
-                                HDR.EVENT.TYP = TYP;
-                        end;
+                        HDR.EDF.ANNONS = char(t');
                         
+                        N  = 0; 
+			[s,t] = strtok(HDR.EDF.ANNONS,0);
+    			while ~isempty(s)
+    				N  = N + 1; 
+    				ix = find(s==20);
+    				[s1,s2] = strtok(s(1:ix(1)-1),21);
+    				onset(N,1) = str2double(s1);
+   				tmp = str2double(s2(2:end));
+   				if  ~isempty(tmp)
+   					dur(N,1) = tmp; 	
+   				else 
+   					dur(N,1) = 0; 	
+   				end;
+    				TeegType{N} = char(s(ix(1)+1:end-1));
+				[s,t] = strtok(t,0);
+    			end;		
+                        HDR.EVENT.TYP = ones(N,1);
+                        HDR.EVENT.POS = round(onset * HDR.SampleRate);
+                        HDR.EVENT.DUR = dur * HDR.SampleRate;
+                        HDR.EVENT.CHN = zeros(N,1); 
+
+                        [HDR.EVENT.CodeDesc, CodeIndex, TYP] = unique(TeegType(1:N));
+                        if length(HDR.EVENT.CodeDesc) < 128;
+                                HDR.EVENT.TYP = TYP(:) - 1;
+                        end;
+
                 elseif strcmp(HDR.TYPE,'BDF') & (length(strmatch('Status',HDR.Label))==1),
                         % BDF: 
 
