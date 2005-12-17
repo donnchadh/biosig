@@ -44,8 +44,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.41 2005-12-16 20:05:27 schloegl Exp $
-%	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>
+%	$Id: plota.m,v 1.42 2005-12-17 16:20:42 schloegl Exp $
+%	Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -77,620 +77,8 @@ else
         return; 
 end;
 
-if strcmp(X.datatype,'MVAR-COHERENCE'),
-        fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
-        %fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
-        if length(size(X.COH))==3,
-                M = size(X.COH,1);
-                
-                if nargin<2,
-                        list2=1:size(X.COH,1);
-                        list1=1:size(X.COH,2);
-                        list3=1:size(X.COH,3);
-                else
-                        list2=arg2;
-                        list1=arg3;
-                        list3=arg4';
-                end;
-                for k1 = 1:length(list1);
-                        for k2 = 1:length(list2);
-                                s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
-                                tmp = abs(squeeze(X.COH(list2(k2),list1(k1),list3)));
-                                if isfield(X,'ci'),
-                                        if isfield(X,'p'),
-                                                h = plot(list3,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);        
-                                        else
-                                                h = plot(list3,[abs(tmp),tanh(atanh(tmp)+X.ci/(sqrt(X.N))),tanh(atanh(tmp)-X.ci/(sqrt(X.N)))]);  
-                                        end
-                                        set(h(2),'color',[0 0.8 1]);
-                                        set(h(3),'color',[0 0.8 1]);                     
-                                        set(h(1),'color',[0 0 1]);
-                                        axis([min(list3),max(list3),-0.5,1.2])
-                                else
-                                        area(list3,abs(tmp));
-                                        axis([min(list3),max(list3),0,1])
-                                end;
-                                if isfield(X,'ElectrodeName'),
-                                        if k1==1,
-                                                y=ylabel(X.ElectrodeName(list2(k2)));
-                                                set(y,'FontSize',6);
-                                        end;
-                                        if k2==1,
-                                                t = title(X.ElectrodeName(list1(k1)));
-                                                set(t,'FontSize',6);
-                                        end;
-                                end;                
-                                set(s,'FontSize',6); 
-                        end
-                end;
-                if exist('suptitle','file')
-                        suptitle('Ordinary coherence')
-                end;
-        elseif (length(size(X.COH))==4) & ((size(X.COH,4)==2) | (size(X.COH,4)==3)) ,
-                if nargin<2,
-                        list2=1:size(X.COH,1);
-                        list1=1:size(X.COH,2);
-                        list3=1:size(X.COH,3);
-                else
-                        list2=arg2;
-                        list1=arg3;
-                        list3=arg4';
-                end;
-                M = size(X.COH,1);
-                for k1 = 1:length(list1);
-                        for k2 = 1:length(list2);%k1:M;
-                                s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
-                                hold on
-                                if isfield(X,'U')
-                                        % with interval confidence and significant
-                                        % difference
-                                        tmp = abs(squeeze(X.COH(list2(k2),list1(k1),list3,1)));
-                                        tmpU = abs(squeeze(X.U(list2(k2),list1(k1),list3,1)));
-                                        tmpL = abs(squeeze(X.L(list2(k2),list1(k1),list3,1)));
-                                        h = plot(list3,[tmp,tmpU,tmpL]);
-                                        set(h(1),'color',[0.2 0.2 1]);
-                                        set(h(2),'color',[0.9 0.9 1]);
-                                        set(h(3),'color',[0.9 0.9 1]);   
-                                        
-                                        tmp = abs(squeeze(X.COH(list2(k2),list1(k1),list3,2)));
-                                        tmpU = abs(squeeze(X.U(list2(k2),list1(k1),list3,2)));
-                                        tmpL = abs(squeeze(X.L(list2(k2),list1(k1),list3,2)));
-                                        h = plot(list3,[tmp,tmpU,tmpL]);
-                                        set(h(1),'color',[0.2 0.8 0.2]);
-                                        set(h(2),'color',[0.8 1 0.8]);
-                                        set(h(3),'color',[0.8 1 0.8]);   
-                                        plot(list3,squeeze(X.DS(list1(k1),list2(k2),list3)),'.r')
-                                else
-                                        % 2 or 3 curves without ci
-                                        tmp = abs(squeeze(X.COH(list2(k2),list1(k1),list3,1)));
-                                        h = plot(list3,abs(tmp));
-                                        set(h(1),'color',[0 0 1]);  
-                                        tmp = abs(squeeze(X.COH(list2(k2),list1(k1),list3,2)));
-                                        h = plot(list3,abs(tmp));
-                                        set(h(1),'color',[0 1 0]); 
-                                        if (size(X.COH,4)==3)
-                                                tmp = abs(squeeze(X.COH(list2(k2),list1(k1),list3,3)));
-                                                h = plot(list3,abs(tmp));
-                                                set(h(1),'color',[1 0 0]);                                    
-                                        end
-                                end
-                                hold off
-                                axis([min(list3),max(list3),-0.2,1.0])
-                                if isfield(X,'ElectrodeName'),
-                                        if k1==1,
-                                                y=ylabel(X.ElectrodeName(list2(k2)));
-                                                set(y,'FontSize',6);
-                                        end;
-                                        if k2==1,
-                                                t = title(X.ElectrodeName(list1(k1)));
-                                                set(t,'FontSize',6);
-                                        end;
-                                end;
-                                set(s,'FontSize',6); 
-                        end;
-                end                           
-                if exist('suptitle','file')
-                        suptitle('Ordinary coherence')
-                end;
-        elseif length(size(X.COH))==4,
-                if nargin<2,
-                        list2=1:size(X.COH,1);
-                        list1=1:size(X.COH,2);
-                        list3=1:size(X.COH,3);
-                else
-                        list2=arg2;
-                        list1=arg3;
-                        list3=arg4';
-                end;
-                
-                M = size(X.COH,1);
-                for k1 = 1:length(list1);
-                        for k2 = 1:length(list2);
-                                s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
-                                tmp = abs(squeeze(X.COH(list2(k2),list1(k1),list3,:)));
-                                [a,b] = meshgrid(X.t,list3);
-                                mesh(a,b,abs(tmp));
-                                v = axis; v(5:6)=[0,1]; axis(v);
-                                xlabel('Time','FontSize',6);
-                                ylabel('Freq','FontSize',6);
-                                set(s,'FontSize',6);
-                                if isfield(X,'ElectrodeName'),
-                                        if k1==1,
-                                                y=ylabel(X.ElectrodeName(list2(k2)));
-                                                set(y,'FontSize',6);
-                                        end;
-                                        if k2==1,
-                                                t = title(X.ElectrodeName(list1(k1)));
-                                                set(t,'FontSize',6);
-                                        end;
-                                end;                  
-                        end;
-                end;
-                if exist('suptitle','file')
-                        suptitle('Time-varying Coherence')
-                end;
-                figure;
-                for k1 = 1:length(list1);
-                        for k2 = 1:length(list2);
-                                s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
-                                tmp = abs(squeeze(X.COH(list2(k2),list1(k1),list3,:)));
-                                imagesc(X.t,list3,tmp,[0 1]);
-                                axis([min(X.t) max(X.t) min(list3) max(list3)])
-                                xlabel('Time','FontSize',5);
-                                ylabel('Freq','FontSize',5);
-                                set(s,'YDir','normal','FontSize',5);
-                                c = colorbar;
-                                set(c,'FontSize',5);
-                                if isfield(X,'ElectrodeName'),
-                                        if k1==1,
-                                                y=ylabel(X.ElectrodeName(list2(k2)));
-                                                set(y,'FontSize',6);
-                                        end;
-                                        if k2==1,
-                                                t = title(X.ElectrodeName(list1(k1)));
-                                                set(t,'FontSize',6);
-                                        end;
-                                end;                  
-                        end
-                end
-                if exist('suptitle','file')
-                        suptitle('Time-varying Coherence')
-                end;                
-        elseif length(size(X.COH))==5,
-                if nargin<2,
-                        list2=1:size(X.COH,1);
-                        list1=1:size(X.COH,2);
-                        list3=1:size(X.COH,3);
-                else
-                        list2=arg2;
-                        list1=arg3;
-                        list3=arg4';
-                end;        
-                [M1,M2,M3,M4,M5] = size(X.COH);
-                load cmap;
-                for k1=1:length(list1)
-                        for k2=1:length(list2)
-                                colormap(cmap);
-                                s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
-                                tmp = abs(squeeze(X.DS(list2(k2),list1(k1),list3,:)));
-                                imagesc(tmp,[-1,1]);
-                                xlabel('Time','FontSize',5);
-                                ylabel('Freq','FontSize',5);
-                                set(s,'YDir','normal','FontSize',5);
-                                c = colorbar;
-                                set(c,'FontSize',5);
-                                if isfield(X,'ElectrodeName'),
-                                        if k1==1,
-                                                y=ylabel(X.ElectrodeName(list2(k2)));
-                                                set(y,'FontSize',6);
-                                        end;
-                                        if k2==1,
-                                                t = title(X.ElectrodeName(list1(k1)));
-                                                set(t,'FontSize',6);
-                                        end;
-                                end;                  
-                        end
-                end       
-                suptitle('Significane difference of time-varying Coherence')
-        end;
-        
-elseif strcmp(X.datatype,'MVAR-DTF'),
-        fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
-        if length(size(X.DTF))==3,
-                if nargin<2,
-                        list2=1:size(X.COH,1);
-                        list1=1:size(X.COH,2);
-                        list3=1:size(X.COH,3);
-                else
-                        list2=arg2;
-                        list1=arg3;
-                        list3=arg4';
-                end;          
-                M = size(X.DTF,1);
-                for k1=1:length(list1)
-                        for k2=1:length(list2)
-                                %if k1~=k2
-                                s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
-                                tmp = abs(squeeze(X.DTF(list2(k2),list1(k1),list3)));
-                                if isfield(X,'ci'),
-                                        if isfield(X,'p'),
-                                                h = plot(list3,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);        
-                                        else
-                                                h = plot(list3,[abs(tmp),tanh(atanh(tmp)+X.ci/(sqrt(X.N))),tanh(atanh(tmp)-X.ci/(sqrt(X.N)))]);  
-                                        end
-                                        set(h(2),'color',[0 0.8 1]);
-                                        set(h(3),'color',[0 0.8 1]);                     
-                                        set(h(1),'color',[0 0 1]);
-                                        axis([min(list3),max(list3),-0.5,1.2])
-                                else
-                                        area(list3,abs(tmp));
-                                        axis([min(list3),max(list3),0,1])
-                                end;
-                                set(s,'FontSize',6); 
-                                if isfield(X,'ElectrodeName'),
-                                        if k1==1,
-                                                y=ylabel(X.ElectrodeName(list2(k2)));
-                                                set(y,'FontSize',6);
-                                        end;
-                                        if k2==1,
-                                                t = title(X.ElectrodeName(list1(k1)));
-                                                set(t,'FontSize',6);
-                                        end;
-                                end;                      
-                                %end
-                        end;
-                end;
-                suptitle('DTF')    
-                
-        elseif (length(size(X.DTF))==4) & ((size(X.DTF,4)==2) | (size(X.DTF,4)==3)) ,
-                if nargin<2,
-                        list2=1:size(X.DTF,1);
-                        list1=1:size(X.DTF,2);
-                        list3=1:size(X.DTF,3);
-                else
-                        list2=arg2;
-                        list1=arg3;
-                        list3=arg4';
-                end;
-                M = size(X.DTF,1);
-                for k1 = 1:length(list1);
-                        for k2 = 1:length(list2);%k1:M;
-                                s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
-                                hold on
-                                if isfield(X,'U')
-                                        % with interval confidence and significant
-                                        % difference
-                                        tmp = abs(squeeze(X.DTF(list2(k2),list1(k1),list3,1)));
-                                        tmpU = abs(squeeze(X.U(list2(k2),list1(k1),list3,1)));
-                                        tmpL = abs(squeeze(X.L(list2(k2),list1(k1),list3,1)));
-                                        h = plot(list3,[tmp,tmpU,tmpL]);
-                                        set(h(1),'color',[0.2 0.2 1]);
-                                        set(h(2),'color',[0.9 0.9 1]);
-                                        set(h(3),'color',[0.9 0.9 1]);   
-                                        
-                                        tmp = abs(squeeze(X.DTF(list2(k2),list1(k1),list3,2)));
-                                        tmpU = abs(squeeze(X.U(list2(k2),list1(k1),list3,2)));
-                                        tmpL = abs(squeeze(X.L(list2(k2),list1(k1),list3,2)));
-                                        h = plot(list3,[tmp,tmpU,tmpL]);
-                                        set(h(1),'color',[0.2 0.8 0.2]);
-                                        set(h(2),'color',[0.8 1 0.8]);
-                                        set(h(3),'color',[0.8 1 0.8]);   
-                                        plot(list3,squeeze(X.DS(list1(k1),list2(k2),list3)),'.r')
-                                else
-                                        % 2 or 3 curves without ci
-                                        tmp = abs(squeeze(X.DTF(list2(k2),list1(k1),list3,1)));
-                                        h = plot(list3,abs(tmp));
-                                        set(h(1),'color',[0 0 1]);  
-                                        tmp = abs(squeeze(X.DTF(list2(k2),list1(k1),list3,2)));
-                                        h = plot(list3,abs(tmp));
-                                        set(h(1),'color',[0 1 0]); 
-                                        if (size(X.DTF,4)==3)
-                                                tmp = abs(squeeze(X.DTF(list2(k2),list1(k1),list3,3)));
-                                                h = plot(list3,abs(tmp));
-                                                set(h(1),'color',[1 0 0]);                                    
-                                        end
-                                end
-                                hold off
-                                axis([min(list3),max(list3),-0.2,1.5])
-                                if isfield(X,'ElectrodeName'),
-                                        if k1==1,
-                                                y=ylabel(X.ElectrodeName(list2(k2)));
-                                                set(y,'FontSize',6);
-                                        end;
-                                        if k2==1,
-                                                t = title(X.ElectrodeName(list1(k1)));
-                                                set(t,'FontSize',6);
-                                        end;
-                                end;
-                                set(s,'FontSize',6); 
-                        end;
-                end                           
-                suptitle(DTF')
-                
-        elseif length(size(X.DTF))==4,
-                if nargin<2,
-                        list1=1:size(X.DTF,1);
-                        list2=1:size(X.DTF,2);
-                        list3=1:size(X.DTF,3);
-                else
-                        list1=arg2;
-                        list2=arg3;
-                        list3=arg4';
-                end;
-                
-                M = size(X.DTF,1);
-                for k1 = 1:length(list1);
-                        for k2 = 1:length(list2);
-                                s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
-                                tmp = abs(squeeze(X.DTF(list2(k2),list1(k1),list3,:)));
-                                [a,b] = meshgrid(X.t,list3);
-                                mesh(a,b,abs(tmp));
-                                v = axis; v(5:6)=[0,1]; axis(v);
-                                xlabel('Time','FontSize',6);
-                                ylabel('Freq','FontSize',6);
-                                set(s,'FontSize',6);
-                                if isfield(X,'ElectrodeName'),
-                                        if k1==1,
-                                                y=ylabel(X.ElectrodeName(list2(k2)));
-                                                set(y,'FontSize',6);
-                                        end;
-                                        if k2==1,
-                                                t = title(X.ElectrodeName(list1(k1)));
-                                                set(t,'FontSize',6);
-                                        end;
-                                end;                
-                        end;
-                end;
-                suptitle('Time-varying DTF')
-                figure;
-                for k1 = 1:length(list1);
-                        for k2 = 1:length(list2);
-                                s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
-                                tmp = abs(squeeze(X.DTF(list2(k2),list1(k1),list3,:)));
-                                imagesc(X.t,list3,tmp,[0 1]);
-                                axis([min(X.t) max(X.t) min(list3) max(list3)])
-                                xlabel('Time','FontSize',5);
-                                ylabel('Freq','FontSize',5);
-                                set(s,'YDir','normal','FontSize',5);
-                                c = colorbar;
-                                set(c,'FontSize',5);
-                                if isfield(X,'ElectrodeName'),
-                                        if k1==1,
-                                                y=ylabel(X.ElectrodeName(list2(k2)));
-                                                set(y,'FontSize',6);
-                                        end;
-                                        if k2==1,
-                                                t = title(X.ElectrodeName(list1(k1)));
-                                                set(t,'FontSize',6);
-                                        end;
-                                end;                
-                                %end
-                        end
-                end
-                suptitle('Time-varying DTF')
-                
-        elseif length(size(X.DTF))==5,
-                [M1,M2,M3,M4,M5] = size(X.DTF);
-                load cmap;
-                for k1 = 1:length(list1);
-                        for k2 = 1:length(list2);
-                                colormap(cmap);
-                                s = subplot(length(list2),length(list1),k1+(k2-1)*length(list1));
-                                imagesc(squeeze(X.DS(list2(k2),list1(k1),:,:)),[-1,1]);
-                                xlabel('Time','FontSize',5);
-                                ylabel('Freq','FontSize',5);
-                                set(s,'YDir','normal','FontSize',5);
-                                c = colorbar;
-                                set(c,'FontSize',5);
-                                if isfield(X,'ElectrodeName'),
-                                        if k1==1,
-                                                y=ylabel(X.ElectrodeName(list2(k2)));
-                                                set(y,'FontSize',6);
-                                        end;
-                                        if k2==1,
-                                                t = title(X.ElectrodeName(list1(k1)));
-                                                set(t,'FontSize',6);
-                                        end;
-                                end;                    
-                        end
-                        
-                end        
-                suptitle('Significante difference of time-varying DTF')
-        end;    
-        
-elseif strcmp(X.datatype,'MVAR-PHASE'),
-        fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
-        if length(size(X.COH))==3,
-                M = size(X.COH,1);
-                for k1 = 1:M;
-                        for k2 = 1:M;
-                                subplot(M,M,k2+(k1-1)*M);
-                                plot(f,unwrap(squeeze(angle(X.COH(k1,k2,:))))*180/pi);        
-                                axis([0,max(X.f),-360,360])        
-                        end;
-                end;
-                suptitle('Phase')
-        elseif (length(size(X.COH))==4) & (size(X.COH,4)==2),
-                M = size(X.COH,1);
-                for k1 = 1:M;
-                        for k2 = k1:M;
-                                subplot(M,M,k2+(k1-1)*M);
-                                tmp = abs(squeeze(X.COH(k1,k2,:,1)));
-                                plot(X.f,unwrap(squeeze(angle(X.COH(k1,k2,:,1))))*180/pi,'b',X.f,unwrap(squeeze(angle(X.COH(k1,k2,:,2))))*180/pi,'g');        
-                                axis([0,max(X.f),-360,360])        
-                                if k1==1,
-                                        ylabel(X.ElectrodeName{k2});
-                                end;
-                                if k1==k2,
-                                        title(X.ElectrodeName{k2});
-                                end;
-                        end;
-                end;
-                suptitle('Phase')
-        elseif length(size(X.COH))==4,
-                M = size(X.COH,1);
-                for k1 = 1:M;
-                        for k2 = 1:M;
-                                subplot(M,M,k2+(k1-1)*M);
-                                plot(X.f,unwrap(squeeze(angle(X.COH(k1,k2,:))))*180/pi);        
-                                %plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);        
-                                mesh(abs(tmp))
-                                v = axis; v(5:6) = [-360,360]; axis(v);%axis([0,max(X.f),0,1])
-                        end;
-                end;
-                suptitle('timevarying phase')
-        end;
-        
-        
-elseif strcmp(X.datatype,'MVAR-PDCF'),
-        fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
-        if length(size(X.PDCF))==3,
-                M = size(X.PDCF,1);
-                for k1 = 1:M;
-                        for k2 = 1:M;
-                                subplot(M,M,k2+(k1-1)*M);
-                                plot(f,squeeze(X.PDCF(k1,k2,:)));        
-                                axis([0,max(X.f),0,1])        
-                        end;
-                end; 
-                suptitle('PDCF');
-        elseif (length(size(X.PDCF))==4) & (size(X.PDCF,4)==2),
-                M = size(X.PDCF,1);
-                for k1 = 1:M;
-                        for k2 = 1:M;
-                                subplot(M,M,k2+(k1-1)*M);
-                                tmp = abs(squeeze(X.PDCF(k1,k2,:,1)));
-                                plot(X.f,squeeze(X.PDCF(k1,k2,:,1)),'b',X.f,squeeze(X.PDCF(k1,k2,:,2)),'g');        
-                                axis([0,max(X.f),0,1])        
-                                if k1==1,
-                                        ylabel(X.ElectrodeName{k2});
-                                end;
-                                if 1==k2,
-                                        title(X.ElectrodeName{k1});
-                                end;
-                        end;
-                end;
-                suptitle('PDCF')
-        elseif length(size(X.PDCF))==4,
-                M = size(X.PDCF,1);
-                for k1 = 1:M;
-                        for k2 = 1:M;
-                                subplot(M,M,k2+(k1-1)*M);
-                                plot(X.f,squeeze(X.PDCF(k1,k2,:)));        
-                                %plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);        
-                                mesh(abs(tmp))
-                                v = axis; v(5:6)=[0,1]; axis(v);%axis([0,,,max(X.f),0,1])
-                        end;
-                end;
-                suptitle('time-varying PDCF')
-        end;
-        
-elseif strcmp(X.datatype,'MVAR-PDC'),
-        fprintf(2,'datatype "%s" is will become obsolete.\n\Use datatye = MVAR instead\n',X.datatype);
-        if length(size(X.PDC))==3,
-                M = size(X.PDC,1);
-                for k1 = 1:M;
-                        for k2 = 1:M;
-                                %if k1~=k2
-                                s = subplot(M,M,k2+(k1-1)*M);
-                                tmp = abs(squeeze(X.PDC(k1,k2,:)));
-                                if isfield(X,'ci'),
-                                        if isfield(X,'p'),
-                                                h = plot(X.f,[abs(tmp),tanh([atanh(tmp)*[1,1]+ones(size(tmp))*X.ci*sqrt(1/2/(min(X.N)-X.p))*[1,-1]])]);        
-                                        else
-                                                h = plot(X.f,[abs(tmp),tanh(atanh(tmp)+X.ci/(sqrt(X.N))),tanh(atanh(tmp)-X.ci/(sqrt(X.N)))]);  
-                                        end
-                                        set(h(2),'color',[0 0.8 1]);
-                                        set(h(3),'color',[0 0.8 1]);                     
-                                        set(h(1),'color',[0 0 1]);
-                                        axis([0,max(X.f),-0.5,1.2])
-                                else
-                                        area(X.f,abs(tmp));
-                                        axis([0,max(X.f),0,1])
-                                end;
-                                set(s,'FontSize',6); 
-                                %end
-                        end;
-                end;
-                suptitle('PDC') 
-        elseif (length(size(X.PDC))==4) & (size(X.PDC,4)==2),
-                M = size(X.PDC,1);
-                for k1 = 1:M;
-                        for k2 = 1:M;
-                                subplot(M,M,k2+(k1-1)*M);
-                                tmp = abs(squeeze(X.PDC(k1,k2,:,1)));
-                                plot(X.f,squeeze(X.PDC(k1,k2,:,1)),'b',X.f,squeeze(X.PDC(k1,k2,:,2)),'g');        
-                                axis([0,max(X.f),0,1])        
-                                if k1==1,
-                                        ylabel(X.ElectrodeName{k2});
-                                end;
-                                if 1==k2,
-                                        title(X.ElectrodeName{k1});
-                                end;
-                        end;
-                end;
-                suptitle('PDC')
-        elseif length(size(X.PDC))==4,
-                if nargin<2,
-                        list1=1:size(X.PDC,1);
-                        list2=1:size(X.PDC,2);
-                        list3=1:size(X.PDC,3);
-                else
-                        list1=arg2;
-                        list2=arg3;
-                        list3=arg4';
-                end;
-                
-                M = size(X.PDC,1);
-                for k1 = 1:length(list1);
-                        for k2 = 1:length(list2);
-                                s = subplot(length(list2),length(list1),k2+(k1-1)*length(list1));
-                                tmp = abs(squeeze(X.PDC(list1(k1),list2(k2),list3,:)));
-                                [a,b] = meshgrid(X.t,list3);
-                                mesh(a,b,abs(tmp));
-                                v = axis; v(5:6)=[0,1]; axis(v);
-                                xlabel('Time','FontSize',6);
-                                ylabel('Freq','FontSize',6);
-                                set(s,'FontSize',6);
-                        end;
-                end;
-                suptitle('Time-varying PDC')
-                figure;
-                for k1 = 1:length(list1);
-                        for k2 = 1:length(list2);
-                                s = subplot(length(list2),length(list1),k2+(k1-1)*length(list1));
-                                tmp = abs(squeeze(X.PDC(list1(k1),list2(k2),list3,:)));
-                                imagesc(X.t,list3,tmp,[0 1]);
-                                axis([min(X.t) max(X.t) min(list3) max(list3)])
-                                xlabel('Time','FontSize',5);
-                                ylabel('Freq','FontSize',5);
-                                set(s,'YDir','normal','FontSize',5);
-                                c = colorbar;
-                                set(c,'FontSize',5);
-                        end
-                end
-                suptitle('Time-varying PDC')
-                
-        elseif length(size(X.PDC))==5,
-                [M1,M2,M3,M4,M5] = size(X.PDC);
-                load cmap;
-                for m1=1:M1
-                        for m2=1:M2
-                                if m1 ~= m2
-                                        colormap(cmap);
-                                        s = subplot(M1,M1,m1+(m2-1)*M1);
-                                        imagesc(squeeze(X.DS(m1,m2,:,:)),[-1,1]);
-                                        xlabel('Time','FontSize',5);
-                                        ylabel('Freq','FontSize',5);
-                                        set(s,'YDir','normal','FontSize',5);
-                                        c = colorbar;
-                                        set(c,'FontSize',5);
-                                end
-                        end
-                end   
-                suptitle('Significane difference of time-varying PDC')
-        end; 
-        
+if 0, 
+
 elseif strcmp(X.datatype,'MVAR'),
         if ~isfield(X,'A') | ~isfield(X,'B'),
                 fprintf(2,'Error PLOTA: MVAR missing input data\n');
@@ -699,13 +87,12 @@ elseif strcmp(X.datatype,'MVAR'),
         
         [K1,K2] = size(X.A);
         p = K2/K1-1;
-        %a=ones(1,p+1);
         [K1,K2] = size(X.B);
         q = K2/K1-1;
-        %b=ones(1,q+1);
         if ~isfield(X,'C');
                 X.C=ones(K1,K1);
         end;
+
         if isfield(X,'SampleRate'); 
                 Fs = X.SampleRate;
         elseif nargin < 4,
@@ -721,18 +108,23 @@ elseif strcmp(X.datatype,'MVAR'),
         else
                 Mode = arg2;
         end;
+
         if nargin<3,
                 N=512;
         else
                 N=arg3;
         end;
+
         if all(size(N)==1)	
-                f = (1:N)/N/2*Fs;
+                f = (0:N)/(2*N)*Fs;
         else
                 f = N;
                 N = length(N);
         end;
-        if isfield(X,'ElectrodeName'); 
+
+        if isfield(X,'Label'); 
+		Label = cellstr(X.Label);
+        elseif isfield(X,'ElectrodeName'); 
                 if isstruct(X.ElectrodeName);
                         Label = X.ElectrodeName;
                 else
@@ -746,182 +138,94 @@ elseif strcmp(X.datatype,'MVAR'),
                 end;
         end;
 
-        [S,h,PDC,COH,DTF,DC,pCOH,dDTF,ffDTF, pCOH2, PDCF, coh]=mvfreqz(X.B,X.A,X.C,N,Fs);
+        [S,h,PDC,COH,DTF,DC,pCOH,dDTF,ffDTF, pCOH2, PDCF, coh]=mvfreqz(X.B,X.A,X.C,f,Fs);
 
-        s = exp(i*2*pi*f/Fs);
-        z = i*2*pi/Fs;
-        
-        h=zeros(K1,K1,N);
-        SP=zeros(K1,K1,N);
-        DTF=zeros(K1,K1,N);
-        COH=zeros(K1,K1,N);
-        COH2=zeros(K1,K1,N);
-        PDC=zeros(K1,K1,N);
-        PDCF=zeros(K1,K1,N);
-        invC=inv(X.C);
-        tmp1=zeros(1,K1);
-        tmp2=zeros(1,K1);
-        for n=1:N,
-                atmp = zeros(K1,K1);
-                for k = 1:p+1,
-                        atmp = atmp + X.A(:,k*K1+(1-K1:0))*exp(z*(k-1)*f(n));
-                end;        
-                btmp = zeros(K1,K2);
-                for k = 1:q+1,
-                        btmp = btmp + X.B(:,k*K1+(1-K1:0))*exp(z*(k-1)*f(n));
-                end;        
-                h(:,:,n) = atmp\btmp;        
-                S(:,:,n) = h(:,:,n)*X.C*h(:,:,n)';        
-                
-                for k1 = 1:K1,
-                        tmp = squeeze(atmp(:,k1));
-                        tmp1(k1) = sqrt(tmp'*tmp);
-                        tmp2(k1) = sqrt(tmp'*invC*tmp);
+	range = [0,1]; % default range 
+	if ~isempty(strfind(Mode,'Auto')),
+		if 0, 
+
+		elseif strcmpi(Mode,'AutoSpectrum'),    
+			R = abs(S);   
+			range = [min(R(:)),max(R(:))];
+			range = [1e-8,1e0];
+		else 
+			error(['unknown MVAR-parameter: ',arg2])    
+		end;	
+		M = size(S,1); 	      
+		K1 = ceil(sqrt(M)); 
+		K2 = ceil(M/K1); 
+                for k1=1:M;
+                        subplot(K1,K2,k1);
+                        semilogy(f,squeeze(R(k1,k1,:)));        
+                        axis([0,max(f),range]);
+                        ylabel(Label{k1});
                 end;
-                
-                %PDCF(:,:,n,kk) = abs(atmp)./tmp2(ones(1,K1),:);
-                %PDC(:,:,n,kk)  = abs(atmp)./tmp1(ones(1,K1),:);
-                PDCF(:,:,n) = abs(atmp)./tmp2(ones(1,K1),:);
-                PDC(:,:,n)  = abs(atmp)./tmp1(ones(1,K1),:);
+
+	else
+		if 0, 
+
+		elseif strcmpi(Mode,'Spectrum'),    
+			R = abs(S);   
+			range = [min(R(:)),max(R(:))];
+	    		range(1) = min(range(1),range(2)/100);
+			%range=[1e-2,1e2];			
+		elseif strcmpi(Mode,'Phase'),    
+		    R = zeros(size(S));   
+                   	for k1=1:K1;
+                    	for k2=1:K2;
+                                R(k1,k2,:) = unwrap(squeeze(angle(S(k1,k2,:))))*180/pi;        
+			end;
+			end;
+			range = [-180,180]*2;	
+			range = [min(R(:)),max(R(:))];
+		elseif strcmpi(Mode,'PDC'),    
+			R = PDC;   
+		elseif strcmpi(Mode,'Coherence') | strcmpi(Mode,'COH'),    
+			R = abs(COH); 
+		elseif strcmpi(Mode,'pCOH'),    
+			R = abs(pCOH); 
+		elseif strcmpi(Mode,'pCOH2'),    
+			R = abs(pCOH2); 
+		elseif strcmpi(Mode,'imagCOH'),    
+			R = imag(COH); 
+		elseif strcmpi(Mode,'coh'),    
+			R = coh; 
+		elseif strcmpi(Mode,'PDC'),    
+			R = PDC; 
+		elseif strcmpi(Mode,'PDCF'),    
+			R = PDCF; 
+		elseif strcmpi(Mode,'DTF'),    
+			R = DTF; 
+		elseif strcmpi(Mode,'dDTF'),    
+			R = dDTF; 
+		elseif strcmpi(Mode,'ffDTF'),
+			R = ffDTF; 
+		else 
+			error(['unknown MVAR-parameter: ',arg2])    
+		end;
+			      
+                for k1=1:K1;
+                        for k2=1:K2;
+                                subplot(K1,K2,k2+(k1-1)*K1);
+				if strcmpi(Mode,'Spectrum'),    
+                            		semilogy(f,squeeze(R(k1,k2,:)));       
+                                else
+					area(f,squeeze(R(k1,k2,:)));        
+                                end;
+				axis([0,max(f),range]);
+                                if k2==1;
+                                        ylabel(Label{k1});
+                                end;
+                                if k1==1;
+                                        title(Label{k2});
+                                end;
+                        end;
+                end;
+	end;
+        if exist('suptitle','file')
+                suptitle(Mode);
         end;
-        
-        if strcmpi(Mode,'Spectrum'),      
-                maxS=max(abs(S(:)));
-                minS=min(abs(S(:)));
-                for k1=1:K1;
-                        for k2=1:K2;
-                                subplot(K1,K2,k2+(k1-1)*K1);
-                                semilogy(f,squeeze(abs(S(k1,k2,:))));        
-                                axis([0,max(f),minS,maxS]);
-                                if k2==1;
-                                        ylabel(Label{k1});
-                                end;
-                                if k1==1;
-                                        title(Label{k2});
-                                end;
-                        end;
-                end;
-                if exist('suptitle','file')
-                        suptitle('Power spectrum')
-                end;
-                return;
-        elseif strcmpi(Mode,'Phase'),      
-                maxS=max(angle(S(:)));
-                minS=min(angle(S(:)));
-                figure(2); clf;
-                for k1=1:K1;
-                        for k2=1:K2;
-                                subplot(K1,K2,k2+(k1-1)*K1);
-                                plot(f,unwrap(squeeze(angle(S(k1,k2,:))))*180/pi);        
-                                axis([0,max(f),-360,360])        
-                                if k2==1;
-                                        ylabel(Label{k1});
-                                end;
-                                if k1==1;
-                                        title(Label{k2});
-                                end;
-                        end;
-                end;
-                if exist('suptitle','file')
-                        suptitle('phase')
-                end;
-                return;
-        elseif strcmpi(Mode,'PDC'),      
-                for k1=1:K1;
-                        for k2=1:K2;
-                                subplot(K1,K2,k2+(k1-1)*K1);
-                                area(f,squeeze(PDC(k1,k2,:)));        
-                                axis([0,max(f),0,1]);
-                                if k2==1;
-                                        ylabel(Label{k1});
-                                end;
-                                if k1==1;
-                                        title(Label{k2});
-                                end;
-                        end;
-                end;
-                if exist('suptitle','file')
-                        suptitle('partial directed coherence PDC');
-                end;
-                return;
-        elseif strcmpi(Mode,'PDCF'),      
-                for k1=1:K1;
-                        for k2=1:K2;
-                                subplot(K1,K2,k2+(k1-1)*K1);
-                                area(f,squeeze(PDCF(k1,k2,:)));        
-                                axis([0,max(f),0,1]);
-                                if k2==1;
-                                        ylabel(Label{k1});
-                                end;
-                                if k1==1;
-                                        title(Label{k2});
-                                end;
-                        end;
-                end;
-                if exist('suptitle','file')
-                        suptitle('partial directed coherence PDCF');
-                end;
-                return;
-        end;        
-        
-        DC = zeros(K1);
-        for k = 1:p,
-                DC = DC + X.A(:,k*K1+(1:K1)).^2;
-        end;
-        if strcmpi(Mode,'DC'),      
-                fprintf(2,'Warning PLOTA: DC not implemented yet.\n');
-                return;
-        end;        
-        
-        %%%%% directed transfer function
-        for k1=1:K1;
-                DEN=sqrt(sum(abs(h(k1,:,:)).^2,2));	        
-                for k2=1:K2;
-                        %COH2(k1,k2,:) = abs(S(k1,k2,:).^2)./(abs(S(k1,k1,:).*S(k2,k2,:)));
-                        COH(k1,k2,:) = abs(S(k1,k2,:))./sqrt(abs(S(k1,k1,:).*S(k2,k2,:)));
-                        %DTF(k1,k2,:) = sqrt(abs(h(k1,k2,:).^2))./DEN;	        
-                        DTF(k1,k2,:) = abs(h(k1,k2,:))./DEN;
-                end;
-        end;
-        
-        if strcmpi(Mode,'Coherence') | strcmpi(Mode,'COH');
-                for k1=1:K1;
-                        for k2=1:K2;
-                                subplot(K1,K2,k2+(k1-1)*K1);
-                                plot(f,squeeze(COH(k1,k2,:)));        
-                                axis([0,max(f),0,1])
-                                if k2==1;
-                                        ylabel(Label{k1});
-                                end;
-                                if k1==1;
-                                        title(Label{k2});
-                                end;
-                        end;
-                end;
-                if exist('suptitle','file')
-                        suptitle('Ordinary coherence')
-                end;
-                return;
-        elseif strcmpi(Mode,'DTF'),      
-                for k1=1:K1;
-                        for k2=1:K2;
-                                subplot(K1,K2,k2+(k1-1)*K1);
-                                area(f,squeeze(DTF(k1,k2,:)));        
-                                axis([0,max(f),0,1]);
-                                if k2==1;
-                                        ylabel(Label{k1});
-                                end;
-                                if k1==1;
-                                        title(Label{k2});
-                                end;
-                        end;
-                end;
-                if exist('suptitle','file')
-                        suptitle('directed transfer function DTF');        
-                end;
-                return;
-        end;        
-        
+	        
 elseif 0, strcmp(X.datatype,'TF-MVAR') & (nargin>1) %& ~any(strmatch(arg2,{'S1','logS1',})),
         
         %GF = {'C','DC','AR','PDC','DTF','dDTF','ffDTF','COH','pCOH','pCOH2','S','h','phaseS','phaseh','coh','logh','logS'};
