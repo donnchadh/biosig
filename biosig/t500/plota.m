@@ -5,6 +5,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 %
 % X.datatype determines type of data
 %    DATATYPE   Mode
+%   'MVAR'      'AutoSpectrum'
 %   'MVAR'      'SPECTRUM'
 %   'MVAR'      'Phase'
 %   'MVAR',	'COHERENCE'
@@ -44,7 +45,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.42 2005-12-17 16:20:42 schloegl Exp $
+%	$Id: plota.m,v 1.43 2005-12-18 00:32:51 schloegl Exp $
 %	Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -170,7 +171,7 @@ elseif strcmp(X.datatype,'MVAR'),
 	    		range(1) = min(range(1),range(2)/100);
 			%range=[1e-2,1e2];			
 		elseif strcmpi(Mode,'Phase'),    
-		    R = zeros(size(S));   
+			R = zeros(size(S));   
                    	for k1=1:K1;
                     	for k2=1:K2;
                                 R(k1,k2,:) = unwrap(squeeze(angle(S(k1,k2,:))))*180/pi;        
@@ -349,9 +350,21 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
         end;
 
         gf = arg2;
-        if ~isfield(X.M,gf)
-                warning('PLOTA TFMVAR_ALL: field %s is unknown\n',gf);
+        AUTO = ~isempty(strfind(lower(gf),'auto'));
+        if AUTO,
+        	gf = strrep(gf,'Auto','');
+        end;	
+        GF = strtok(gf);
+        if ~isfield(X.M,GF)
+                warning('PLOTA TFMVAR_ALL: field %s is unknown\n',GF);
         end;
+        MONO = strcmp(GF,'logS1') | strcmp(GF,'S1');
+        if strcmp(GF,'AR1') | strcmp(GF,'C1');
+        	MONO=1;
+        	f = 1:size(getfield(X.M,GF),2);
+        else
+        	f = X.F; 	
+        end;	
         
         %ClassList = {'left','right','foot','tongue'};
         
@@ -370,6 +383,12 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
         nc = ceil(M/nr);
         if 0, nargin>2,
                 hf = arg3;
+        elseif AUTO | MONO, 
+        	NR = ceil(sqrt(M)); 
+        	NC = ceil(M/NR); 
+                for k1 = 1:M,
+                                hf(k1) = subplot(NR,NC,k1);
+                end;                
         else
                 for k1 = 1:M,
                         for k2 = 1:M,
@@ -383,23 +402,34 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
                 [gf,r] = strtok(gf);
                 [t2,r] = strtok(r);
                 [t3,r] = strtok(r);
-                
+
                 ix = min(find(X.T==max(tmp)));
                 nix = [1:ix-1,ix+1:length(X.T)];
                 rix = repmat(ix,size(nix));
                 
                 m   = real(getfield(X.M,gf));
                 se  = real(getfield(X.SE,gf))*X.N;
-                x0  = m(:,:,:,nix)  - m(:,:,:,rix);
-                ci0 = se(:,:,:,nix) + se(:,:,:,rix);
+                if MONO,
+	                x0  = m(:,:,nix)  - m(:,:,rix);
+	                ci0 = se(:,:,nix) + se(:,:,rix);
+                else
+	                x0  = m(:,:,:,nix)  - m(:,:,:,rix);
+	                ci0 = se(:,:,:,nix) + se(:,:,:,rix);
+                end;
                 X.T = X.T(nix); 
+                
         elseif isempty(Y);
                 nix = 2:length(X.T);
                 X.T = X.T(nix); 
                 x0  = real(getfield(X.M,gf));
                 ci0 = getfield(X.SE,gf)*X.N;
-                x0  = x0(:,:,:,nix);
-                ci0 = ci0(:,:,:,nix);
+                if MONO,
+	                x0  = x0(:,:,nix);
+	                ci0 = ci0(:,:,nix);
+	        else        
+	                x0  = x0(:,:,:,nix);
+	                ci0 = ci0(:,:,:,nix);
+                end;
         else
                 nix = 2:length(X.T);
                 X.T = X.T(nix); 
@@ -408,7 +438,7 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
         end;
 
 
-        if strcmp(gf,'DC')
+        if strcmp(gf,'DC') | strcmp(gf,'C')
                 clim = [min(x0(:)),max(x0(:))];
                 caxis(clim);
                 cm = colormap;
@@ -434,18 +464,57 @@ elseif strcmp(X.datatype,'TF-MVAR')    % logS2 and S1
                                         colormap('default');
                                 end;
                                 
-                                h = semilogy(X.T,[x(:),ci(:)]*[1,1,1;0,-1,1]);
-                                %h = plot(X.T,[x(:),ci(:)]*[1,1,1;0,-1,1]);
+                                %h = semilogy(X.T,[x(:),ci(:)]*[1,1,1;0,-1,1]);
+                                h = plot(X.T,[x(:),ci(:)]*[1,1,1;0,-1,1]);
                                 set(h(1),'color',[0,0,1]);
                                 set(h(2),'color',[0.5,0.5,1]);
                                 set(h(3),'color',[0.5,0.5,1]);
-                                v  = axis; v(1)=min(X.T);v(2)=max(X.T);v(3)=0;axis(v);
+                                v  = axis; v(1)=min(X.T);v(2)=max(X.T);axis(v);
                                 axis([min(X.T),max(X.T),clim])
                                 %h  = imagesc(X.T,X.F,squeeze(x),clim);
                                 if k2==1, title(Label{k1}); end;
                                 if k1==1, ylabel(Label{k2});end;
                         end;
                 end;
+
+        elseif AUTO | MONO,
+                clim = [min(x0(:)),max(x0(:))];
+                caxis(clim);
+                cm = colormap;
+
+                for k1 = 1:M,
+                                subplot(hf(k1));
+                                if MONO,
+	                                x  = x0(k1,:,:);
+        	                        ci = ci0(k1,:,:);
+        	                else        
+	                                x  = x0(k1,k1,1:length(X.F),:);
+        	                        ci = ci0(k1,k1,1:length(X.F),:);
+                                end;
+                                if alpha < .5,
+                                        xc = 2 + round(62*(squeeze(x)-clim(1))/diff(clim));
+                                        sz = size(x);
+                                        %x = x(:);
+                                        bf = prod(size(x));
+                                        %xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
+                                        xc(abs(x) < (ci*tinv(1-alpha,X.N))) = 1;
+                                        %x(abs(x) < .5) = NaN;
+                                        %x = reshape(x,sz);
+                                        cm(1,:) = [1,1,1];
+                                        colormap(cm);
+                                else
+                                        xc = 1+round(63*(squeeze(x)-clim(1))/diff(clim));
+                                        colormap('default');
+                                end;
+                                x1 = reshape(cm(xc,1),size(xc));
+                                x2 = reshape(cm(xc,2),size(xc));
+                                x3 = reshape(cm(xc,3),size(xc));
+                                
+                                %h = imagesc(X.T,X.F,cat(3,x1,x2,x3)*diff(clim)+clim(1),clim);
+                                h = imagesc(X.T,f,cat(3,x1,x2,x3),clim);
+                                %h  = imagesc(X.T,X.F,squeeze(x),clim);
+                                ylabel(Label{k1});
+		end;	
         else
                 clim = [min(x0(:)),max(x0(:))];
                 caxis(clim);
