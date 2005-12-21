@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.29 2005-12-11 00:48:30 schloegl Exp $
+    $Id: biosig.c,v 1.30 2005-12-21 23:08:38 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -248,6 +248,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	char*		ptr_str;
 	struct tm 	tm_time; 
 	time_t		tt;
+	unsigned	EventChannel = 0;
 	struct	{
 		int	number_of_sections;
 	} SCP;
@@ -337,7 +338,7 @@ if (!strcmp(MODE,"r"))
 	    		hdr->Patient.Smoking      =  Header1[84]%4;
 	    		hdr->Patient.AlcoholAbuse = (Header1[84]>>2)%4;
 	    		hdr->Patient.DrugAbuse    = (Header1[84]>>4)%4;
-	    		hdr->Patient.Medication   = (Header1[84]>>8)%4;
+	    		hdr->Patient.Medication   = (Header1[84]>>6)%4;
 	    		hdr->Patient.Weight       =  Header1[85];
 	    		hdr->Patient.Height       =  Header1[86];
 	    		hdr->Patient.Sex       	  =  Header1[87]%4;
@@ -349,7 +350,7 @@ if (!strcmp(MODE,"r"))
 			*(uint32_t*)(Header1+164) = l_endian_u32( *(uint32_t*) (Header1+164) );
 			if (Header1[156]) {
 				hdr->LOC[0] = 0x00292929;
-				memcpy(&hdr->LOC[1], Header1+152, 12);
+				memcpy(&hdr->LOC[1], Header1+156, 12);
 			}
 			else {
 				*(uint32_t*) (Header1+152) = l_endian_u32(*(uint32_t*) (Header1+152));
@@ -534,16 +535,26 @@ if (!strcmp(MODE,"r"))
 			hdr->CHANNEL[k].GDFTYP  = ((hdr->TYPE!=BDF) ? 3 : 255+24); 
 			
 			//hdr->CHANNEL[k].PreFilt = (Header2+ 80*k + 136*hdr->NS);
-			if (strncmp(Header1+192,"EDF+",4)) {
+			if ((hdr->TYPE==EDF) & strncmp(Header1+192,"EDF+",4)) {
+				hdr->CHANNEL[k].OnOff = memcmp(hdr->CHANNEL[k].Label,"EDF Annotations",15);
+				EventChannel = k; 
 			// decode filter information into hdr->Filter.{Lowpass, Highpass, Notch}					
+			}	
+			else if (hdr->TYPE==BDF) {
+				hdr->CHANNEL[k].OnOff = strcmp(hdr->CHANNEL[k].Label,"Status");
+				EventChannel = k; 
+			}	
+			else	{
+				hdr->CHANNEL[k].OnOff = 1;
 			}
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// EDF does not support automated overflow and saturation detection
 
-		for (k=0, hdr->SPR=1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;k++) {
+		for (k=0, hdr->SPR=1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS; k++) {
 			hdr->AS.spb += hdr->CHANNEL[k].SPR;
-			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
-			hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
+			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;
+			if (hdr->CHANNEL[k].OnOff)
+				hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 		}	
 		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
 	}      	
@@ -574,6 +585,7 @@ if (!strcmp(MODE,"r"))
 		    	hdr->CHANNEL[k].DigMax	 = (double)*(uint16_t*)(Header1+16);
 		    	hdr->CHANNEL[k].Cal	 =  ((double)hdr->CHANNEL[k].PhysMax)/hdr->CHANNEL[k].DigMax;
 		    	hdr->CHANNEL[k].Off	 = 0.0;
+			hdr->CHANNEL[k].OnOff    = 1;
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// BKR does not support automated overflow and saturation detection
 	}
@@ -610,6 +622,7 @@ if (!strcmp(MODE,"r"))
 		    	hdr->CHANNEL[k].Off	= l_endian_f64(*(double*)(Header2+k*96+72));
 		    	hdr->CHANNEL[k].PhysMax	= l_endian_f64(*(double*)(Header2+k*96+80));
 		    	hdr->CHANNEL[k].PhysMin	= l_endian_f64(*(double*)(Header2+k*96+88));
+			hdr->CHANNEL[k].OnOff    = 1;
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// CFWB does not support automated overflow and saturation detection
 	}
@@ -655,6 +668,7 @@ if (!strcmp(MODE,"r"))
 		    	hdr->CHANNEL[k].HighPass= CNT_SETTINGS_HIGHPASS[(uint8_t)Header2[64+k*75]];
 		    	hdr->CHANNEL[k].LowPass	= CNT_SETTINGS_LOWPASS[(uint8_t)Header2[65+k*75]];
 		    	hdr->CHANNEL[k].Notch	= CNT_SETTINGS_NOTCH[(uint8_t)Header1[682]];
+			hdr->CHANNEL[k].OnOff    = 1;
 		}
 	    	/* extract more header information */
 	    	// eventtablepos = l_endian_u32( *(uint32_t*) (Header1+886) );
@@ -938,7 +952,6 @@ else { // WRITE
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
 		hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
 		hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
-		hdr->CHANNEL[k].OnOff = 1; 
 		hdr->AS.bi[++k] = hdr->AS.bpb; 
 	}	
 
