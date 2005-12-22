@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.131 $
-%	$Id: sopen.m,v 1.131 2005-12-16 17:01:49 schloegl Exp $
+%	$Revision: 1.132 $
+%	$Id: sopen.m,v 1.132 2005-12-22 13:10:34 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -821,7 +821,7 @@ end;
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF') 
                         HDR.VERSION = 1.25;     %% stable version 
-%                        HDR.VERSION = 1.93;     %% testing 
+                        HDR.VERSION = 1.93;     %% testing 
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
                 end;
@@ -1134,13 +1134,14 @@ end;
                                 tmp=min(8,size(HDR.PhysDim,2));
                                 HDR.PhysDim=[HDR.PhysDim(1:HDR.NS,1:tmp), setstr(32+zeros(HDR.NS,8-tmp))];
                         end;
+
                         HDR = physicalunits(HDR);
                         if ~all(HDR.PhysDimCode>0)
                                 fprintf(HDR.FILE.stderr,'Warning SOPEN: HDR.PhysDimCode of the following channel(s) is(are) not defined:\n');
                                 fprintf(HDR.FILE.stderr,'%i ',find(~HDR.PhysDimCode));  
                                 fprintf(HDR.FILE.stderr,'\n');
 			end; 	                        	
-                        
+			                        
                         if ~isfield(HDR,'PhysMin')
                                 if HDR.NS>0,
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.PhysMin not defined\n');
@@ -7683,10 +7684,7 @@ end;
 %	General Postprecessing for all formats of Header information 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% set FLAGS 
-HDR.FLAG.UCAL = ~isempty(strfind(MODE,'UCAL'));   % FLAG for UN-CALIBRATING
-HDR.FLAG.OVERFLOWDETECTION = isempty(strfind(upper(MODE),'OVERFLOWDETECTION:OFF'));
-%if ~isempty(strfind(upper(MODE),'OVERFLOWDETECTION:ON')) & ~isfield(HDR,'THRESHOLD'),
+% check consistency
 if HDR.FLAG.OVERFLOWDETECTION & ~isfield(HDR,'THRESHOLD'),
         fprintf(HDR.FILE.stderr,'Warning SOPEN: OVERFLOWDETECTION not supported because of missing THRESHOLD.\n');
 end;
