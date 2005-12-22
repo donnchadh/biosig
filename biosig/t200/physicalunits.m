@@ -35,7 +35,7 @@ function [out,scale] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.6 2005-11-05 13:42:03 schloegl Exp $
+%	$Id: physicalunits.m,v 1.7 2005-12-22 10:46:02 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -184,12 +184,19 @@ elseif ischar(arg1) | iscell(arg1)
 			for k1=1:length(BIOSIG_GLOBAL.DecimalFactor.Code)
 			for k2=1:length(BIOSIG_GLOBAL.Units.Code)
 			if strcmp(unit,[BIOSIG_GLOBAL.DecimalFactor.Prefix{k1},BIOSIG_GLOBAL.Units.Symbol{k2}])
-				ix = [ix,BIOSIG_GLOBAL.Units.Code(k2) + BIOSIG_GLOBAL.DecimalFactor.Code(k1)];
+				ix = [ix,BIOSIG_GLOBAL.Units.Code(k2) + BIOSIG_GLOBAL.DecimalFactor.Code(k1)]
 			end;
 			end;
 			end;
 			if length(ix)==1,
 				Code(k) = ix; 
+			elseif length(ix)>1,
+				ix = ix(~mod(ix,32));	% select those with no PreFix (code offset = 0) 
+				if length(ix)==1,
+					Code(k) = ix; 
+				else
+					warning('ambigous physical unit')
+				end; 	
 			end;	
                 end
         end;        
