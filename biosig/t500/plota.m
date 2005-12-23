@@ -45,7 +45,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.43 2005-12-18 00:32:51 schloegl Exp $
+%	$Id: plota.m,v 1.44 2005-12-23 10:53:15 schloegl Exp $
 %	Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -165,12 +165,12 @@ elseif strcmp(X.datatype,'MVAR'),
 	else
 		if 0, 
 
-		elseif strcmpi(Mode,'Spectrum'),    
+		elseif strcmpi(Mode,'Spectrum') | strcmpi(Mode,'logS'),    
 			R = abs(S);   
 			range = [min(R(:)),max(R(:))];
 	    		range(1) = min(range(1),range(2)/100);
 			%range=[1e-2,1e2];			
-		elseif strcmpi(Mode,'Phase'),    
+		elseif strcmpi(Mode,'Phase') | strcmpi(Mode,'phaseS') ,    
 			R = zeros(size(S));   
                    	for k1=1:K1;
                     	for k2=1:K2;
@@ -179,10 +179,22 @@ elseif strcmp(X.datatype,'MVAR'),
 			end;
 			range = [-180,180]*2;	
 			range = [min(R(:)),max(R(:))];
+		elseif strcmpi(Mode,'Phase') | strcmpi(Mode,'phaseh') ,    
+			R = zeros(size(h));   
+                   	for k1=1:K1;
+                    	for k2=1:K2;
+                                R(k1,k2,:) = unwrap(squeeze(angle(h(k1,k2,:))))*180/pi;        
+			end;
+			end;
+			range = [-180,180]*2;	
+			range = [min(R(:)),max(R(:))];
 		elseif strcmpi(Mode,'PDC'),    
 			R = PDC;   
 		elseif strcmpi(Mode,'Coherence') | strcmpi(Mode,'COH'),    
 			R = abs(COH); 
+		elseif strcmpi(Mode,'iCOH'),    
+			R = imag(COH); 
+			range = [-1,1];	
 		elseif strcmpi(Mode,'pCOH'),    
 			R = abs(pCOH); 
 		elseif strcmpi(Mode,'pCOH2'),    
@@ -190,7 +202,10 @@ elseif strcmp(X.datatype,'MVAR'),
 		elseif strcmpi(Mode,'imagCOH'),    
 			R = imag(COH); 
 		elseif strcmpi(Mode,'coh'),    
-			R = coh; 
+			R = abs(coh); 
+		elseif strcmpi(Mode,'icoh'),    
+			R = imag(coh); 
+			range = [-1,1];	
 		elseif strcmpi(Mode,'PDC'),    
 			R = PDC; 
 		elseif strcmpi(Mode,'PDCF'),    
@@ -208,7 +223,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 for k1=1:K1;
                         for k2=1:K2;
                                 subplot(K1,K2,k2+(k1-1)*K1);
-				if strcmpi(Mode,'Spectrum'),    
+				if strcmpi(Mode,'Spectrum') | strcmpi(Mode,'logS'),    
                             		semilogy(f,squeeze(R(k1,k2,:)));       
                                 else
 					area(f,squeeze(R(k1,k2,:)));        
