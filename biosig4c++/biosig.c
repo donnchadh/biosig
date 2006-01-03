@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.31 2006-01-02 13:13:44 schloegl Exp $
+    $Id: biosig.c,v 1.32 2006-01-03 08:29:56 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1251,15 +1251,15 @@ int sseek(HDRTYPE* hdr, size_t offset, int whence)
 	size_t pos=0; 
 	
 	if    	(whence < 0) 
-		pos = offset * hdr->AS.bpb;
+		pos = offset * hdr->AS.bpb; 
 	else if (whence == 0) 
-		pos = hdr->FILE.POS + offset * hdr->AS.bpb;
+		pos = (hdr->FILE.POS + offset) * hdr->AS.bpb;
 	else if (whence > 0) 
 		pos = (hdr->NRec + offset) * hdr->AS.bpb;
 	
-	if ((pos < 0) | (pos > hdr->NRec * hdr->AS.bpb))
+	if ((pos  < 0) | (pos > hdr->NRec * hdr->AS.bpb))
 		return(-1);
-	else if (fseek(hdr->FILE.FID, pos, SEEK_SET))
+	else if (fseek(hdr->FILE.FID, pos + hdr->HeadLen, SEEK_SET))
 		return(-1);
 
 	hdr->FILE.POS = pos / (hdr->AS.bpb); 	
