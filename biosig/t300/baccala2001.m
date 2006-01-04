@@ -18,7 +18,7 @@ function [A1,A2,A3,A4,A5] = baccala2001(list);
 %       Partial directed coherence: a new concept in neural structure determination.
 %       Biol Cybern. 2001 Jun;84(6):463-74. 
 
-%	$Id: baccala2001.m,v 1.2 2004-11-08 15:21:14 schloegl Exp $
+%	$Id: baccala2001.m,v 1.3 2006-01-04 22:07:56 schloegl Exp $
 %	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -65,12 +65,13 @@ A4 = [ .95*sqrt(2),0,0,0,0,            -.9025,0,0,0,.5; ...
 ];
 
 % Baccala et al. 2001, Fig 5
-A5 = [ .95*sqrt(2),0,0,0,0,            -.9025,0,0,0,0;  ...
-       .5,0,0,0,0,                     0,0,0,0,0;       ...
-       .1,0,0,0,0,                     0,.4,0,0,0;      ... 
+A5 = [[ .95*sqrt(2),0,0,0,0,            -.9025,0,0,0,0;  ...
+       -.5,0,0,0,0,                     0,0,0,0,0;       ...
+       0,0,0,0,0,                      0,.4,0,0,0;      ... 
        0,0,-.5,sqrt(2)/4,sqrt(2)/4,    0,0,0,0,0;       ... 
        0,0,0,-sqrt(2)/4,sqrt(2)/4,     0,0,0,0,0;       ... 
-];
+],zeros(5,10)];
+A5(3,16)=.1;
 
 if nargin==0, return; end; 
 
@@ -85,7 +86,7 @@ for k = list(:)',
         % Display PDC
         figure(F); F = F+1; 
         plota(X,'PDC',512,1);         
-        tmp = sprintf('Figure %ia in Baccala & Sameshima (2001)',k);
+        tmp = sprintf('PDC: Figure %ia in Baccala & Sameshimam (2001)',k);
         if exist('suptitle','file')
                 suptitle(tmp);        
         end;
@@ -93,7 +94,7 @@ for k = list(:)',
         % Display DTF
         figure(F); F = F+1; 
         plota(X,'DTF',512,1);         
-        tmp = sprintf('Figure %ib in Baccala & Sameshima (2001)',k);
+        tmp = sprintf('DTF: Figure %ib in Baccala & Sameshima (2001)',k);
         if exist('suptitle','file')
                 suptitle(tmp);        
         end;
