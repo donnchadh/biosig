@@ -85,8 +85,8 @@ function [M,SE,R] = tfmvar(s,TRIG,T,MOP,f,Fs)
 % [7] Liang H., Ding M., Bressler S. L., On the Tracking of Dynamic Functional Relations in Monkey Cerebral Cortex, Neurocomputing, 2000
 % [8] Korzeniewska A., Manczak M., Kaminski M., Blinowska K. J., Kasicki S., Determination of Information Flow Direction Among Brain Structures By a Modified Directed Transfer Function (dDTF) Method, Journal of Neuroscience Methods 125, 2003
 
-%	$Revision: 1.5 $
-%	$Id: tfmvar.m,v 1.5 2005-11-09 10:25:42 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: tfmvar.m,v 1.6 2006-01-07 23:48:34 schloegl Exp $
 %	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -108,7 +108,9 @@ function [M,SE,R] = tfmvar(s,TRIG,T,MOP,f,Fs)
 
 FLAG.SEM = 1; 
 
-R.datatype = 'TF-MVAR';
+R.datatype = 'TF-MVAR 2.0';	% C = PE(MOP+1)
+%R.datatype = 'TF-MVAR';	% SE = SE/N,  C = PE(MOP+1)'
+
 R.N = length(TRIG);
 R.T = (T(1,:)+T(2,:))/(2*Fs); 
 R.F = f; 
@@ -121,11 +123,11 @@ R.nan_ratio = zeros(1,size(T,2));
 
 sz = [m,length(f),size(T,2)];
 R.M.S1 = zeros(sz);
-R.M.logS1   = zeros(sz);
+R.M.logS1 = zeros(sz);
 
-sz(2)  = MOP;
+sz(2)   = MOP;
 R.M.AR1 = zeros(sz);
-sz(2)  = MOP+1;
+sz(2)   = MOP+1;
 R.M.C1  = zeros(sz);
 
 if FLAG.SEM,
@@ -133,11 +135,11 @@ if FLAG.SEM,
 end;
 
 sz    = [m,length(f),length(TRIG)];
-S1     = zeros(sz);
+S1    = zeros(sz);
 sz(2) = MOP;
-A1 = zeros(sz);
+A1    = zeros(sz);
 sz(2) = MOP+1;
-C1  = zeros(sz);
+C1    = zeros(sz);
 
 % multivariate 
 [N,m] = size(s);
@@ -152,7 +154,7 @@ R.M.logh   = zeros(sz);
 R.M.COH    = zeros(sz);
 R.M.coh    = zeros(sz);
 R.M.PDC    = zeros(sz);
-R.M.PDCF    = zeros(sz);
+R.M.PDCF   = zeros(sz);
 R.M.DTF    = zeros(sz);
 R.M.pCOH   = zeros(sz);
 R.M.dDTF   = zeros(sz);
@@ -164,7 +166,7 @@ R.M.C  = zeros(sz);
 sz(2)  = m*MOP;
 R.M.AR = zeros(sz);
 
-R.SE = R.M;
+R.SE  = R.M;
 
 sz    = [m,m,length(f),length(TRIG)];
 S     = zeros(sz);
@@ -179,10 +181,10 @@ dDTF  = zeros(sz);
 ffDTF = zeros(sz);
 pCOH2 = zeros(sz);
 sz(3) = 1;
-C  = zeros(sz);
-DC = zeros(sz);
+C     = zeros(sz);
+DC    = zeros(sz);
 sz(2) = m*MOP;
-AR = zeros(sz);
+AR    = zeros(sz);
 
 tic,
 for k1 = 1:size(T,2),
@@ -207,10 +209,10 @@ for k1 = 1:size(T,2),
         [A,RC,PE] = mvar(S0',MOP,5);
         X.A = [eye(size(S0,1)),-A];
         X.B = [eye(size(S0,1))];
-        X.C = PE(:,MOP*size(S0,1)+(1:size(S0,1)))';
+        X.C = PE(:,MOP*size(S0,1)+(1:size(S0,1)));
         X.datatype = 'MVAR';
         
-        [S,  h, PDC, COH, DTF, DC, pCOH, dDTF, ffDTF, pCOH2, PDCF, coh] = mvfreqz(X.B,X.A,X.C,f,Fs);
+        [S, h, PDC, COH, DTF, DC, pCOH, dDTF, ffDTF, pCOH2, PDCF, coh] = mvfreqz(X.B,X.A,X.C,f,Fs);
         
         R.M.phaseS(:,:,:,k1) = angle(S);
         R.M.phaseh(:,:,:,k1) = angle(h);
@@ -219,7 +221,7 @@ for k1 = 1:size(T,2),
         R.M.logS(:,:,:,k1)   = log(abs(S));
         R.M.logh(:,:,:,k1)   = log(abs(h));
         R.M.PDC(:,:,:,k1)    = PDC;
-        R.M.PDCF(:,:,:,k1)    = PDCF;
+        R.M.PDCF(:,:,:,k1)   = PDCF;
         R.M.COH(:,:,:,k1)    = abs(COH);
         R.M.coh(:,:,:,k1)    = abs(coh);
         R.M.iCOH(:,:,:,k1)   = imag(COH);
@@ -251,13 +253,13 @@ for k1 = 1:size(T,2),
                         
                         S1(:,:,k2) = H1; 
                         A1(:,:,k2) = AR1; 
-                        C1(:,:,k2)  = PE1;
+                        C1(:,:,k2) = PE1;
                         
                         % multivariate 
                         [A,RC,PE] = mvar(S0',MOP,5);
                         X.A = [eye(size(S0,1)),-A];
                         X.B = [eye(size(S0,1))];
-                        X.C = PE(:,MOP*size(S0,1)+(1:size(S0,1)))';
+                        X.C = PE(:,MOP*size(S0,1)+(1:size(S0,1)));
                         X.datatype = 'MVAR';
                         
                         [S(:,:,:,k2),  h(:,:,:,k2), PDC(:,:,:,k2), COH(:,:,:,k2), DTF(:,:,:,k2), DC(:,:,1,k2), pCOH(:,:,:,k2), dDTF(:,:,:,k2), ffDTF(:,:,:,k2), pCOH2(:,:,:,k2),PDCF(:,:,:,k2), coh(:,:,:,k2)] = mvfreqz(X.B,X.A,X.C,f,Fs);
@@ -298,8 +300,14 @@ for k1 = 1:size(T,2),
                 [R.SE.C(:,:,1,k1),      R.M.C(:,:,1,k1)     ] = sem(C,4);
                 
         end; 
-        %% In order to obtaine the standard error of the mean, 
+        %% In order to obtain the standard error of the mean, 
         %% this SE must be multiplied by N-1, with N = length(TRIG)
+end;
+
+%%%%% scaling of standard error 
+GF = fieldnames(R.SE);
+for k2=1:length(GF),
+      	R.SE = setfield(R.SE,GF{k2},getfield(R.SE,GF{k2})*(R.N-1));
 end;
 
 if any(R.nan_ratio),
