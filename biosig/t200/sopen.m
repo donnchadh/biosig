@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.132 $
-%	$Id: sopen.m,v 1.132 2005-12-22 13:10:34 schloegl Exp $
+%	$Revision: 1.133 $
+%	$Id: sopen.m,v 1.133 2006-01-10 09:40:36 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -704,18 +704,18 @@ end;
                         [HDR.EVENT.TYP,c2] = fread(HDR.FILE.FID,[EVENT.N,1],'uint16');
                         if EVENT.Version==1,
                                 if any([c1,c2]~=EVENT.N) | (HDR.AS.endpos~=HDR.AS.EVENTTABLEPOS+8+EVENT.N*6),
-                                        fprintf(2,'\nERROR SOPEN (GDF/EDF/BDF): Eventtable corrupted in file %s\n',HDR.FileName);
+                                        fprintf(2,'\nERROR SOPEN (GDF): Eventtable corrupted in file %s\n',HDR.FileName);
                                 end
                                 
                         elseif EVENT.Version==3,
                                 [HDR.EVENT.CHN,c3] = fread(HDR.FILE.FID,[EVENT.N,1],'uint16');
                                 [HDR.EVENT.DUR,c4] = fread(HDR.FILE.FID,[EVENT.N,1],'uint32');
                                 if any([c1,c2,c3,c4]~=EVENT.N) | (HDR.AS.endpos~=HDR.AS.EVENTTABLEPOS+8+EVENT.N*12),
-                                        fprintf(2,'\nERROR SOPEN (GDF/EDF/BDF): Eventtable corrupted in file %s\n',HDR.FileName);
+                                        fprintf(2,'\nERROR SOPEN (GDF): Eventtable corrupted in file %s\n',HDR.FileName);
                                 end
                                 
                         else
-                                fprintf(2,'\nWarning SOPEN (GDF/EDF/BDF): File %s corrupted (Eventtable version %i ).\n',HDR.FileName,EVENT.Version);
+                                fprintf(2,'\nWarning SOPEN (GDF): File %s corrupted (Eventtable version %i ).\n',HDR.FileName,EVENT.Version);
                         end;
                         HDR.AS.endpos = HDR.AS.EVENTTABLEPOS;   % set end of data block, might be important for SSEEK
                         
@@ -802,8 +802,10 @@ end;
 			%HDR.BDF.ANNONS = t; 	% debugging information 
                         %EVENTTABLE = repmat(0,sum(~~ix1)+sum(~~ix2),4);
                         
-                        HDR.EVENT.POS = [find(ix1>0);find(ix2>0)];
-                        HDR.EVENT.TYP = [repmat(hex2dec('0300'),sum(ix1>0),1);bitand(t(ix2>0),255)];
+                        POS = [find(ix1>0);find(ix2>0);find(ix1<0);find(ix2<0)];
+                        TYP = [repmat(hex2dec('0300'),sum(ix1>0),1);bitand(t(ix2>0),255);repmat(hex2dec('8300'),sum(ix1<0),1);bitand(t(ix2(2:end)<0),255)+2^15];
+                        [HDR.EVENT.POS,ix] = sort(POS);
+                        HDR.EVENT.TYP = TYP(ix);                         
                 end;
                 
                 status = fseek(HDR.FILE.FID, HDR.HeadLen, 'bof');
@@ -7742,7 +7744,7 @@ if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS)); 
 	HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS)); 
 
-	% convert EVENT.Version 1 to 3, currently used by GDF and alpha
+	% convert EVENT.Version 1 to 3, currently used by GDF, BDF and alpha
 	flag_remove = zeros(size(HDR.EVENT.TYP));        
 	types  = unique(HDR.EVENT.TYP);
 	for k1 = find(bitand(types(:)',hex2dec('8000')));
@@ -7750,6 +7752,7 @@ if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	        TYP1 = types(k1);
 	        ix0 = (HDR.EVENT.TYP==TYP0);
 	        ix1 = (HDR.EVENT.TYP==TYP1);
+
 	        if sum(ix0)==sum(ix1), 
 	                HDR.EVENT.DUR(ix0) = HDR.EVENT.POS(ix1) - HDR.EVENT.POS(ix0);
 	                flag_remove = flag_remove | (HDR.EVENT.TYP==TYP1);
