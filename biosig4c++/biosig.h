@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.23 2005-12-11 00:48:30 schloegl Exp $
+% $Id: biosig.h,v 1.24 2006-01-16 13:03:13 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -45,10 +45,6 @@
 
 	// list of file formats 
 enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP_ECG, HL7aECG, XML}; 
-
-enum HANDEDNESS {Unknown=0, Right=1, Left=2, Equal=3}; 
-enum GENDER  	{male=1,  female=2};
-enum SCALE 	{No=1,    Yes=2,	Corrected=3};
 
 #define min(a,b)                        (((a) < (b)) ? (a) : (b))
 #define max(a,b)                        (((a) > (b)) ? (a) : (b))
@@ -104,7 +100,6 @@ typedef double	 		biosig_data_type;
       	The following macros define the conversions between the unix time and the 
       	GDF format. 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
- 
 typedef int64_t 		gdf_time; // gdf time is represented in 64 bits
 #define t_time2gdf_time(t)	((gdf_time)floor(ldexp((t)/86400.0 + 719529L, 32)))
 #define gdf_time2t_time(t)	((time_t)((ldexp((t),-32) - 719529) * 86400))
@@ -112,6 +107,7 @@ typedef int64_t 		gdf_time; // gdf time is represented in 64 bits
 //#define gdf_time2tm_time(t)	localtime(gdf_time2t_time(t))
 #define	ntp_time2gdf_time(t)	((gdf_time)ldexp(ldexp((t),-32)/86400 + 719529 - 70,32))
 #define	gdf_time2ntp_time(t)	((int64_t)ldexp((ldexp((t),-32) - 719529 + 70) * 86400,32))
+
 
 /****************************************************************************/
 /**                                                                        **/
@@ -187,15 +183,15 @@ typedef struct {
 		uint8_t		Height;		// height in centimeter [cm] 0:unkown, 255: overflow 
 		gdf_time 	Birthday; 	// Birthday of Patient
 		uint16_t	Headsize[3]; 	// circumference, nasion-inion, left-right mastoid in millimeter; 
-		enum GENDER 	Sex; 	
-		enum HANDEDNESS Handedness;	
 		// Patient classification // 
-		enum SCALE 	Smoking;
-		enum SCALE 	AlcoholAbuse;
-		enum SCALE 	DrugAbuse;
-		enum SCALE 	Medication;
+		int	 	Sex;		// 0:Unknown, 1: Male, 2: Female 	
+		int		Handedness;	// 0:Unknown, 1: Right, 2: Left, 3: Equal
+		int		Smoking;	// 0:Unknown, 1: NO, 2: YES
+		int		AlcoholAbuse;	// 0:Unknown, 1: NO, 2: YES
+		int		DrugAbuse;	// 0:Unknown, 1: NO, 2: YES
+		int		Medication;	// 0:Unknown, 1: NO, 2: YES
 		struct {
-			enum SCALE Visual;
+			int 	Visual;		// 0:Unknown, 1: NO, 2: YES, 3: Corrected
 		} Impairment;
 	} Patient; 
 	
@@ -213,7 +209,7 @@ typedef struct {
 
 	//	EVENTTABLE 
 	struct {
-		uint32_t  	SampleRate;	// for converting POS and DUR into seconds 
+		double  	SampleRate;	// for converting POS and DUR into seconds 
 		uint32_t  	N;	// number of events
 		uint16_t 	*TYP;	// defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup
 		uint32_t 	*POS;	// starting position [in samples]
@@ -241,7 +237,7 @@ typedef struct {
 		uint32_t 	bpb;  		// total bytes per block
 		uint32_t 	*bi;
 		void* 		Header1; 
-		void*  		rawdata; 	// raw data block 
+		uint8_t*	rawdata; 	// raw data block 
 	} AS; 	
 	CHANNEL_TYPE *CHANNEL;  
 	aECG_TYPE *aECG;
@@ -281,7 +277,7 @@ size_t	swrite(const void *ptr, size_t nelem, HDRTYPE* hdr);
 int	seof(HDRTYPE* hdr);
 void	srewind(HDRTYPE* hdr);
 int 	sseek(HDRTYPE* hdr, size_t offset, int whence);
-size_t  stell(HDRTYPE* hdr);
+long int stell(HDRTYPE* hdr);
 
 /****************************************************************************/
 /**                                                                        **/

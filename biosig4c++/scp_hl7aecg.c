@@ -43,7 +43,7 @@ HDRTYPE* sopen_SCP_read(char* Header1, HDRTYPE* hdr) {
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
 				// hdr->aECG contains the fields of the annotated ECG
 */	
-	hdr->aECG = malloc(sizeof(aECG_TYPE));
+	hdr->aECG = (aECG_TYPE*) malloc(sizeof(aECG_TYPE));
 	
 	
 	return(hdr);	
@@ -79,7 +79,7 @@ HDRTYPE* sopen_HL7aECG_read(char* Header1, HDRTYPE* hdr) {
 				//		and hdr->TYPE = HL7aECG
 				// else hdr->aECG is NULL and hdr->TYPE stays XML
 */	
-	hdr->aECG = malloc(sizeof(aECG_TYPE));
+	hdr->aECG = (aECG_TYPE*) malloc(sizeof(aECG_TYPE));
 	
 
 

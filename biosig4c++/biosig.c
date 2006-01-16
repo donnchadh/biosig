@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.32 2006-01-03 08:29:56 schloegl Exp $
+    $Id: biosig.c,v 1.33 2006-01-16 13:03:13 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -146,35 +146,35 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 
       	hdr->TYPE = GDF; 
       	hdr->VERSION = 1.93;
-      	hdr->AS.rawdata = malloc(10);
+      	hdr->AS.rawdata = (uint8_t*) malloc(10);
       	hdr->NRec = -1; 
       	hdr->NS = NS;	
       	memset(hdr->AS.PID,32,81); 
       	hdr->AS.RID = "GRAZ"; 
-	hdr->AS.bi = calloc(hdr->NS+1,sizeof(uint32_t));
-	hdr->data.size[0]=0; 
-	hdr->data.size[1]=0; 
-	hdr->data.block = malloc(410); 
+	hdr->AS.bi = (uint32_t*)calloc(hdr->NS+1,sizeof(uint32_t));
+	hdr->data.size[0] = 0; 	// rows 
+	hdr->data.size[1] = 0;  // columns 
+	hdr->data.block = (biosig_data_type*)malloc(410); 
       	hdr->T0 = t_time2gdf_time(time(NULL));
       	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.20";
 
 	hdr->Patient.Name 	= "X";
 	hdr->Patient.Id 	= "X";
-	hdr->Patient.Birthday 	= Unknown;
-      	hdr->Patient.Medication = Unknown;
-      	hdr->Patient.DrugAbuse 	= Unknown;
-      	hdr->Patient.AlcoholAbuse= Unknown;
-      	hdr->Patient.Smoking 	= Unknown;
-      	hdr->Patient.Sex 	= Unknown;
-      	hdr->Patient.Handedness = Unknown;
-      	hdr->Patient.Impairment.Visual = Unknown;
-      	hdr->Patient.Weight 	= Unknown;
-      	hdr->Patient.Height 	= Unknown;
+	hdr->Patient.Birthday 	= (gdf_time)0;        // Unknown;
+      	hdr->Patient.Medication = 0;	// 0:Unknown, 1: NO, 2: YES
+      	hdr->Patient.DrugAbuse 	= 0;	// 0:Unknown, 1: NO, 2: YES
+      	hdr->Patient.AlcoholAbuse= 0;	// 0:Unknown, 1: NO, 2: YES
+      	hdr->Patient.Smoking 	= 0;	// 0:Unknown, 1: NO, 2: YES
+      	hdr->Patient.Sex 	= 0;	// 0:Unknown, 1: Male, 2: Female
+      	hdr->Patient.Handedness = 0;	// 0:Unknown, 1: Right, 2: Left, 3: Equal
+      	hdr->Patient.Impairment.Visual = 0;	// 0:Unknown, 1: NO, 2: YES, 3: Corrected
+      	hdr->Patient.Weight 	= 0;	// 0:Unknown
+      	hdr->Patient.Height 	= 0;	// 0:Unknown
       	hdr->Dur[0] = 1;
       	hdr->Dur[1] = 1;
 	memset(&hdr->IPaddr,0,6);
       	for (k1=0; k1<3; k1++) {
-      		hdr->Patient.Headsize[k1] = Unknown;
+      		hdr->Patient.Headsize[k1] = 0;        // Unknown;
       		hdr->ELEC.REF[k1] = 0.0;
       		hdr->ELEC.GND[k1] = 0.0;
       	}
@@ -187,7 +187,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->FLAG.OVERFLOWDETECTION = 1; 		// overflow detection ON
 	
        	// define variable header 
-	hdr->CHANNEL = calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+	hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	for (k=0;k<hdr->NS;k++)	{
 	      	hdr->CHANNEL[k].Label     = "C4";
 	      	hdr->CHANNEL[k].Transducer= "EEG: Ag-AgCl electrodes";
@@ -209,10 +209,10 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	// define EVENT structure
 	hdr->EVENT.N = N_EVENT; 
 	hdr->EVENT.SampleRate = hdr->SampleRate; 
-	hdr->EVENT.POS = calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
-	hdr->EVENT.TYP = calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
-	hdr->EVENT.DUR = calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.DUR));
-	hdr->EVENT.CHN = calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.CHN));
+	hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
+	hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
+	hdr->EVENT.DUR = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.DUR));
+	hdr->EVENT.CHN = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.CHN));
 	
 	// initialize "Annotated ECG structure"
 	hdr->aECG = NULL; 
@@ -239,6 +239,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	const float	CNT_SETTINGS_HIGHPASS[] = {0.0/0.0, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
 
     	int 		k,id;
+    	uint32_t	k32u; 
     	size_t	 	count,len,pos;
     	char 		tmp[81];
     	char 		cmd[256];
@@ -270,7 +271,7 @@ if (!strcmp(MODE,"r"))
     	}	    
     
     	/******** read 1st (fixed)  header  *******/	
- 	Header1 = malloc(256);
+ 	Header1 = (char*)malloc(256);
 /*#ifdef ZLIB_H
     	count   = gzread(hdr->FILE.FID,Header1,256);
 #else
@@ -392,8 +393,8 @@ if (!strcmp(MODE,"r"))
 		    	hdr->HeadLen 	= l_endian_u64( *(uint64_t*) (Header1+184) ); 
 	    	}
 
-	    	hdr->CHANNEL = calloc(hdr->NS,sizeof(CHANNEL_TYPE));
-	    	Header1 = realloc(Header1,hdr->HeadLen);
+	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+	    	Header1 = (char*)realloc(Header1,hdr->HeadLen);
 	    	Header2 = Header1+256; 
 	    	count   = fread(Header2, 1, hdr->HeadLen-256, hdr->FILE.FID);
 		for (k=0; k<hdr->NS;k++)	{
@@ -424,7 +425,7 @@ if (!strcmp(MODE,"r"))
 				hdr->CHANNEL[k].XYZ[1]   = l_endian_f32( *(float*) (Header2+ 4*k + 228*hdr->NS) );
 				hdr->CHANNEL[k].XYZ[2]   = l_endian_f32( *(float*) (Header2+ 4*k + 232*hdr->NS) );
 				//memcpy(&hdr->CHANNEL[k].XYZ,Header2 + 4*k + 224*hdr->NS,12);
-				hdr->CHANNEL[k].Impedance= ldexp(1.0, Header2[k + 236*hdr->NS]/8.0);
+				hdr->CHANNEL[k].Impedance= ldexp(1.0, Header2[k + 236*hdr->NS]/8);
 			}
 
 			hdr->CHANNEL[k].Cal   	= (hdr->CHANNEL[k].PhysMax-hdr->CHANNEL[k].PhysMin)/(hdr->CHANNEL[k].DigMax-hdr->CHANNEL[k].DigMin);
@@ -445,22 +446,22 @@ if (!strcmp(MODE,"r"))
 		memcpy(&hdr->EVENT.SampleRate,tmp+1,3);
 		hdr->EVENT.SampleRate = l_endian_u32(hdr->EVENT.SampleRate);
 		hdr->EVENT.N = l_endian_u32( *(uint32_t*) tmp + 4 );
-		hdr->EVENT.POS = realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
-		hdr->EVENT.TYP = realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
+		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
+		hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
 		fread(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
 		fread(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr->FILE.FID);
-		for (k=0; k<hdr->EVENT.N; k++) {
-			hdr->EVENT.POS[k] = l_endian_u32(hdr->EVENT.POS[k]); 
-			hdr->EVENT.TYP[k] = l_endian_u16(hdr->EVENT.TYP[k]); 
+		for (k32u=0; k32u < hdr->EVENT.N; k32u++) {
+			hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
+			hdr->EVENT.TYP[k32u] = l_endian_u16(hdr->EVENT.TYP[k32u]); 
 		}
 		if (tmp[0]>1) {
-			hdr->EVENT.DUR = realloc(hdr->EVENT.DUR,hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
-			hdr->EVENT.CHN = realloc(hdr->EVENT.CHN,hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
+			hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR,hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
+			hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN,hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
 			fread(hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN),hdr->EVENT.N,hdr->FILE.FID);
 			fread(hdr->EVENT.DUR,sizeof(*hdr->EVENT.DUR),hdr->EVENT.N,hdr->FILE.FID);
-			for (k=0; k<hdr->EVENT.N; k++) {
-				hdr->EVENT.DUR[k] = l_endian_u32(hdr->EVENT.DUR[k]); 
-				hdr->EVENT.CHN[k] = l_endian_u16(hdr->EVENT.CHN[k]); 
+			for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
+				hdr->EVENT.DUR[k32u] = l_endian_u32(hdr->EVENT.DUR[k32u]); 
+				hdr->EVENT.CHN[k32u] = l_endian_u16(hdr->EVENT.CHN[k32u]); 
 			}
 		}
 		else {
@@ -508,8 +509,8 @@ if (!strcmp(MODE,"r"))
 		    	}	
 		}
 
-	    	hdr->CHANNEL = calloc(hdr->NS,sizeof(CHANNEL_TYPE));
-	    	Header1 = realloc(Header1,hdr->HeadLen);
+	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+	    	Header1 = (char*) realloc(Header1,hdr->HeadLen);
 	    	Header2 = Header1+256; 
 	    	count   = fread(Header2, 1, hdr->HeadLen-256, hdr->FILE.FID);
 		for (k=0; k<hdr->NS; k++)	{
@@ -559,7 +560,7 @@ if (!strcmp(MODE,"r"))
 		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
 	}      	
 	else if (hdr->TYPE==BKR) {
-	    	Header1 = realloc(Header1,1024);
+	    	Header1 = (char*) realloc(Header1,1024);
 	    	count   = fread(Header1+256,1,1024-256,hdr->FILE.FID);
 	    	hdr->HeadLen 	 = 1024; 
 		hdr->NS  	 = l_endian_u16( *(uint16_t*) (Header1+2) ); 
@@ -568,9 +569,9 @@ if (!strcmp(MODE,"r"))
 		hdr->SPR  	 = l_endian_u32( *(uint32_t*) (Header1+10) ); 
 		hdr->NRec 	*= hdr->SPR; 
 		hdr->SPR  	 = 1; 
-		hdr->T0 	 = Unknown;
+		hdr->T0 	 = 0;        // Unknown;
 	    	/* extract more header information */
-	    	hdr->CHANNEL = realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
+	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS;k++)	{
 		    	hdr->CHANNEL[k].GDFTYP 	 = 3; 
 		    	hdr->CHANNEL[k].SPR 	 = 1; // *(int32_t*)(Header1+56);
@@ -598,7 +599,7 @@ if (!strcmp(MODE,"r"))
 	    	tm_time.tm_hour = l_endian_u32( *(int32_t*)(Header1+28) );
 	    	tm_time.tm_min  = l_endian_u32( *(int32_t*)(Header1+32) );
 	    	*(uint64_t*)(Header1+36) = l_endian_u64(*(uint64_t*)Header1+36);
-	    	tm_time.tm_sec  = *(double*) (Header1+36);
+	    	tm_time.tm_sec  = (int)*(double*) (Header1+36);
     		hdr->T0 	= tm_time2gdf_time(&tm_time);
 	    	// = *(double*)(Header1+44);
 	    	hdr->NS   	= l_endian_u32( *(int32_t*)(Header1+52) );
@@ -606,13 +607,13 @@ if (!strcmp(MODE,"r"))
 	    	//  	= *(int32_t*)(Header1+60);	// TimeChannel
 	    	//  	= *(int32_t*)(Header1+64);	// DataFormat
 
-	    	Header1 = realloc(Header1,68+96*hdr->NS);
+	    	Header1 = (char*) realloc(Header1,68+96*hdr->NS);
 	    	Header2 = Header1+96; 
 	    	hdr->HeadLen = 68+96*hdr->NS; 
 	    	fseek(hdr->FILE.FID,68,SEEK_SET);
 		count   = fread(Header2,1,96*hdr->NS,hdr->FILE.FID);
 	    	
-	    	hdr->CHANNEL = realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
+	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS; k++)	{
 		    	hdr->CHANNEL[k].GDFTYP 	= CFWB_GDFTYP[l_endian_u32(*(uint32_t*)(Header1+64))-1];
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
@@ -627,7 +628,7 @@ if (!strcmp(MODE,"r"))
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// CFWB does not support automated overflow and saturation detection
 	}
 	else if (hdr->TYPE==CNT) {
-	    	Header1 = realloc(Header1,900);
+	    	Header1 = (char*) realloc(Header1,900);
 	    	hdr->VERSION = atof(Header1+8);
 	    	count   = fread(Header1+256,1,900-256,hdr->FILE.FID);
 	    	ptr_str = Header1+136;
@@ -651,11 +652,11 @@ if (!strcmp(MODE,"r"))
 #define _eventtablepos (*(uint32_t*)(Header1+886))
 		hdr->NRec = (_eventtablepos-hdr->HeadLen)/(hdr->NS*2);
 		
-	    	Header1 = realloc(Header1,hdr->HeadLen);
+	    	Header1 = (char*) realloc(Header1,hdr->HeadLen);
 	    	Header2 = Header1+900; 
 	    	count   = fread(Header2,1,hdr->NS*75,hdr->FILE.FID);
 
-	    	hdr->CHANNEL = calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS;k++)	{
 		    	hdr->CHANNEL[k].GDFTYP 	= 3;
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
@@ -687,7 +688,7 @@ if (!strcmp(MODE,"r"))
 	else if (0) { //(hdr->TYPE==SCP_ECG) {
 #define filesize (*(uint32_t*)(Header1+2))
 		// read whole file at once 
-		Header1 = realloc(Header1,filesize);
+		Header1 = (char*) realloc(Header1,filesize);
 	    	count   = fread(Header1+256,1,filesize-256,hdr->FILE.FID);
 	    	
 #define section_crc 	(*(uint16_t*)(Header1+pos))
@@ -745,7 +746,7 @@ else { // WRITE
 
     	if (hdr->TYPE==GDF) {	
 	     	hdr->HeadLen = (hdr->NS+1)*256;
-	    	Header1 = malloc(hdr->HeadLen);
+	    	Header1 = (char*) malloc(hdr->HeadLen);
 	    	Header2 = Header1+256; 
 
 		memset(Header1,0,hdr->HeadLen);
@@ -825,9 +826,9 @@ else { // WRITE
 			*(float*) (Header2+ 4*k + 228*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].XYZ[1]);
 			*(float*) (Header2+ 4*k + 232*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].XYZ[2]);
 
-	     		Header2[k+236*hdr->NS] = ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
+	     		Header2[k+236*hdr->NS] = (uint8_t)ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
 		}
-	    	hdr->AS.bi = realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(int32_t));
+	    	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(int32_t));
 		hdr->AS.bi[0] = 0;
 		for (k=0, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;)
 		{
@@ -839,7 +840,7 @@ else { // WRITE
 	}
     	else if ((hdr->TYPE==EDF) | (hdr->TYPE==BDF)) {	
 	     	hdr->HeadLen = (hdr->NS+1)*256;
-	    	Header1 = malloc(hdr->HeadLen);
+	    	Header1 = (char*) malloc(hdr->HeadLen);
 	    	Header2 = Header1+256; 
 		if (hdr->TYPE==BDF) {	
 			Header1[0] = 255;
@@ -946,7 +947,7 @@ else { // WRITE
 
 	// internal variables
 
-	hdr->AS.bi = realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
+	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	hdr->AS.bi[0] = 0;
 	for (k=0, hdr->SPR = 1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;) {
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
@@ -979,7 +980,7 @@ size_t 	sread(HDRTYPE* hdr, int start, size_t length) {
 
 	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem; 
 	int 			GDFTYP;
-	void*			ptr;
+	uint8_t*		ptr;
 	CHANNEL_TYPE*		CHptr;
 	int32_t			int32_value;
 	biosig_data_type 	sample_value; 
@@ -995,7 +996,7 @@ size_t 	sread(HDRTYPE* hdr, int start, size_t length) {
 	}
 	
 	// allocate AS.rawdata 	
-	hdr->AS.rawdata = realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
+	hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
 
 	// limit reading to end of data block
 	nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
@@ -1007,7 +1008,7 @@ size_t 	sread(HDRTYPE* hdr, int start, size_t length) {
 	hdr->FILE.POS += count;
 
 	// transfer RAW into BIOSIG data format 
-	hdr->data.block   = realloc(hdr->data.block, (hdr->SPR) * count * (hdr->NS) * sizeof(biosig_data_type));
+	hdr->data.block   = (biosig_data_type*) realloc(hdr->data.block, (hdr->SPR) * count * (hdr->NS) * sizeof(biosig_data_type));
 
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
@@ -1100,7 +1101,7 @@ size_t 	sread2(biosig_data_type** channels_dest, int start, size_t length, HDRTY
 
 	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem; 
 	int 			GDFTYP;
-	void*			ptr;
+	uint8_t*		ptr;
 	CHANNEL_TYPE*		CHptr;
 	int32_t			int32_value;
 	biosig_data_type 	sample_value; 
@@ -1116,7 +1117,7 @@ size_t 	sread2(biosig_data_type** channels_dest, int start, size_t length, HDRTY
 	}
 
 	// allocate AS.rawdata 	
-	hdr->AS.rawdata = realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
+	hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
 
 	// limit reading to end of data block
 	nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
@@ -1169,11 +1170,11 @@ size_t 	sread2(biosig_data_type** channels_dest, int start, size_t length, HDRTY
 			else if (GDFTYP==8)
 				sample_value = (biosig_data_type)l_endian_u64(*(uint64_t*)ptr); 
 			else if (GDFTYP==255+24) {
-				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
+				int32_value = (*ptr) + (*(ptr+1)<<8) + (*(ptr+2)*(1<<16)); 
 				sample_value = (biosig_data_type)int32_value; 
 			}	
 			else if (GDFTYP==511+24) {
-				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
+				int32_value = (*ptr) + (*(ptr+1)<<8) + (*(ptr+2)<<16); 
 				sample_value = (biosig_data_type)int32_value; 
 			}	
 			else {
@@ -1271,7 +1272,7 @@ int sseek(HDRTYPE* hdr, size_t offset, int whence)
 /****************************************************************************/
 /**                     STELL                                              **/
 /****************************************************************************/
-size_t stell(HDRTYPE* hdr)
+long int stell(HDRTYPE* hdr)
 {
 	size_t pos; 
 	
@@ -1291,7 +1292,8 @@ size_t stell(HDRTYPE* hdr)
 /****************************************************************************/
 int sclose(HDRTYPE* hdr)
 {
-	int32_t pos, k, len; 
+	int32_t 	pos, k, len; 
+	uint32_t	k32u; 
 	char tmp[88]; 
 	char flag; 
 	
@@ -1321,22 +1323,22 @@ int sclose(HDRTYPE* hdr)
 			fseek(hdr->FILE.FID, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
 			flag = (hdr->EVENT.DUR != NULL) & (hdr->EVENT.CHN != NULL); 
 			if (flag)   // any DUR or CHN is larger than 0 
-				for (k=0, flag=0; (k<hdr->EVENT.N) & !flag; k++)
-					flag |= hdr->EVENT.CHN[k] | hdr->EVENT.DUR[k];
+				for (k32u=0, flag=0; (k32u<hdr->EVENT.N) & !flag; k++)
+					flag |= hdr->EVENT.CHN[k32u] | hdr->EVENT.DUR[k32u];
 			tmp[0] = (flag ? 3 : 1);
-			*(uint32_t*)(tmp+1) = l_endian_u32(hdr->EVENT.SampleRate);
+			*(uint32_t*)(tmp+1) = l_endian_f32(hdr->EVENT.SampleRate);
 			*(uint32_t*)(tmp+4) = l_endian_u32(hdr->EVENT.N);
 			fwrite(tmp, 8, 1, hdr->FILE.FID);
-			for (k=0; k<hdr->EVENT.N; k++) {
-				hdr->EVENT.POS[k] = l_endian_u32(hdr->EVENT.POS[k]); 
-				hdr->EVENT.TYP[k] = l_endian_u16(hdr->EVENT.TYP[k]); 
+			for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
+				hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
+				hdr->EVENT.TYP[k32u] = l_endian_u16(hdr->EVENT.TYP[k32u]); 
 			}
 			fwrite(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
 			fwrite(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr->FILE.FID);
 			if (tmp[0]>1) {
-				for (k=0; k<hdr->EVENT.N; k++) {
-					hdr->EVENT.DUR[k] = l_endian_u32(hdr->EVENT.DUR[k]); 
-					hdr->EVENT.CHN[k] = l_endian_u16(hdr->EVENT.CHN[k]); 
+				for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
+					hdr->EVENT.DUR[k32u] = l_endian_u32(hdr->EVENT.DUR[k32u]); 
+					hdr->EVENT.CHN[k32u] = l_endian_u16(hdr->EVENT.CHN[k32u]); 
 				}
 				fwrite(hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN),hdr->EVENT.N,hdr->FILE.FID);
 				fwrite(hdr->EVENT.DUR,sizeof(*hdr->EVENT.DUR),hdr->EVENT.N,hdr->FILE.FID);
