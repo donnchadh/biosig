@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.33 2006-01-16 13:03:13 schloegl Exp $
+    $Id: biosig.c,v 1.34 2006-01-16 21:33:57 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -478,8 +478,8 @@ if (!strcmp(MODE,"r"))
 	    	hdr->NS		= atoi(strncpy(tmp,Header1+252,4));
 		if (!Dur)
 		{	
-			hdr->Dur[0] = Dur; 
-			hdr->Dur[1] = 1; 
+			hdr->Dur[0] = lround(Dur*1e7); 
+			hdr->Dur[1] = 10000000L; 
 		}
     		tm_time.tm_sec  = atoi(strncpy(tmp,Header1+168+14,2)); 
     		tm_time.tm_min  = atoi(strncpy(tmp,Header1+168+11,2)); 
@@ -1292,7 +1292,7 @@ long int stell(HDRTYPE* hdr)
 /****************************************************************************/
 int sclose(HDRTYPE* hdr)
 {
-	int32_t 	pos, k, len; 
+	int32_t 	pos, len; 
 	uint32_t	k32u; 
 	char tmp[88]; 
 	char flag; 
@@ -1301,6 +1301,7 @@ int sclose(HDRTYPE* hdr)
 	if ((hdr->NRec<0) & (hdr->FILE.OPEN>1))
 	if ((hdr->TYPE==GDF) | (hdr->TYPE==EDF) | (hdr->TYPE==BDF))
 	{
+
 		// WRITE HDR.NRec 
 		pos = (ftell(hdr->FILE.FID)-hdr->HeadLen); 
 		if (hdr->NRec<0)
@@ -1323,7 +1324,7 @@ int sclose(HDRTYPE* hdr)
 			fseek(hdr->FILE.FID, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
 			flag = (hdr->EVENT.DUR != NULL) & (hdr->EVENT.CHN != NULL); 
 			if (flag)   // any DUR or CHN is larger than 0 
-				for (k32u=0, flag=0; (k32u<hdr->EVENT.N) & !flag; k++)
+				for (k32u=0, flag=0; (k32u<hdr->EVENT.N) & !flag; k32u++)
 					flag |= hdr->EVENT.CHN[k32u] | hdr->EVENT.DUR[k32u];
 			tmp[0] = (flag ? 3 : 1);
 			*(uint32_t*)(tmp+1) = l_endian_f32(hdr->EVENT.SampleRate);
