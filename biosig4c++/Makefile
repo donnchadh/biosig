@@ -1,10 +1,12 @@
 ####### Compiler, tools and options
 
-CC            = gcc
+#CC            = gcc
+CC            = g++
 DEFINES       = 
 CFLAGS        = -O2 -Wall $(DEFINES)
 INCPATH       = -I"."
-LINK          = gcc
+#LINK          = gcc
+LINK          = g++
 #LFLAGS        = -Wl,-subsystem,console  # Windows
 LFLAGS        = -lm
 LIBS          =
