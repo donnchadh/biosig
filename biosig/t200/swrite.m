@@ -18,8 +18,8 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.13 $
-%	$Id: swrite.m,v 1.13 2005-09-16 13:43:31 schloegl Exp $
+%	$Revision: 1.14 $
+%	$Id: swrite.m,v 1.14 2006-01-23 16:49:20 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -145,7 +145,7 @@ elseif strcmp(HDR.TYPE,'BKR'),
         %HDR.AS.endpos = HDR.AS.endpos + size(data,1);
         
         
-elseif strcmp(HDR.TYPE,'CFWB'),
+elseif strcmp(HDR.TYPE,'CFWB')
         count=0;
         if HDR.NS~=size(data,2) & HDR.NS==size(data,1),
                 fprintf(2,'SWRITE: number of channels fits number of rows. Transposed data\n');
@@ -163,8 +163,8 @@ elseif strcmp(HDR.TYPE,'CFWB'),
         else
                 count = fwrite(HDR.FILE.FID,data',gdfdatatype(HDR.GDFTYP));
         end;
-        if HDR.SPR==0, 
-                HDR.SPR=size(data,1);
+        if HDR.NRec==0, 
+                HDR.NRec=size(data,1);
         end;
         HDR.FILE.POS = HDR.FILE.POS + size(data,1);
         %HDR.AS.endpos = HDR.AS.endpos + size(data,1);
@@ -195,6 +195,32 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
 	if HDR.NS==0, 
                 HDR.NS=size(data,2);
         end;
+        
+        
+elseif strcmp(HDR.TYPE,'MIT')
+        count = 0;
+        if HDR.NS~=size(data,2) & HDR.NS==size(data,1),
+                fprintf(2,'SWRITE: number of channels do not fit number of columns but number of rows. Data transposed!?!\n');
+                data = data';
+        end
+        
+	if ~HDR.FLAG.UCAL,
+		data = data - HDR.Off(ones(size(data,1),1),:);
+		data = data * diag(1./HDR.Cal);
+	end;
+	if all(HDR.GDFTYP==3),
+                % Overflow detection
+                data(data>2^15-1)=  2^15-1;	
+                data(data<-2^15) = -2^15;
+                count = fwrite(HDR.FILE.FID,data','short');
+        else
+                fprintf(2,'ERROR SWRITE (MIT): datatype %i not supported\n',HDR.GDFTYP(1));
+        end;
+        if HDR.NRec==0, 
+                HDR.NRec=size(data,1);
+        end;
+        HDR.FILE.POS = HDR.FILE.POS + size(data,1);
+        
 
 else
         fprintf(2,'Error SWRITE: file type %s not supported \n',HDR.TYPE);

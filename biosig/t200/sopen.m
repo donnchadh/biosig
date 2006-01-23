@@ -47,9 +47,9 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.133 $
-%	$Id: sopen.m,v 1.133 2006-01-10 09:40:36 schloegl Exp $
-%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.134 $
+%	$Id: sopen.m,v 1.134 2006-01-23 16:49:20 schloegl Exp $
+%	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if isnan(str2double('1, 3'));
@@ -689,7 +689,6 @@ end;
                         end;
                 end;
                 
-                
                 if 0, 
                         
                 elseif strcmp(HDR.TYPE,'GDF') & (HDR.AS.EVENTTABLEPOS > 0),  
@@ -823,7 +822,7 @@ end;
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF') 
                         HDR.VERSION = 1.25;     %% stable version 
-                        HDR.VERSION = 1.93;     %% testing 
+%                        HDR.VERSION = 1.93;     %% testing 
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
                 end;
@@ -1238,7 +1237,6 @@ end;
                         HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
                 end;
                 
-                
                 %%%%%% generate Header 1, first 256 bytes 
                 HDR.HeadLen=(HDR.NS+1)*256;
                 %H1(1:8)=HDR.VERSION; %sprintf('%08i',HDR.VERSION);     % 8 Byte  Versionsnummer 
@@ -1633,7 +1631,6 @@ elseif strcmp(HDR.TYPE,'SCP'),	%
 		HDR.FILE.OPEN = 0; 
 		return;
 	end;	
-        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 	        
         
 elseif strcmp(HDR.TYPE,'EBS'),
@@ -4546,8 +4543,6 @@ elseif strcmp(HDR.TYPE,'MIT')
 	                end;
 	                HDR.AS.SampleRate = HDR.SampleRate*HDR.AS.SPR/d;
 	                HDR.SampleRate = HDR.SampleRate*HDR.SPR/d;
-	                
-			
 	                HDR.Dur = HDR.SPR/HDR.SampleRate;
 	
 	                if HDR.VERSION ==61,
@@ -4682,6 +4677,46 @@ elseif strcmp(HDR.TYPE,'MIT')
 				HDR.TYPE = 'native';
 			end; 
 		end;
+                
+        elseif any(HDR.FILE.PERMISSION=='w'),
+
+                fn = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hea']);
+                fid = fopen(fn,'wt','ieee-le');
+                        fprintf(fid, '%s %i %f %i %02i:%02i:%02i %02i/%02i/%04i',HDR.FILE.Name,HDR.NS,HDR.SampleRate,HDR.NRec*HDR.SPR,HDR.T0([4:6,3,2,1]));
+                       	if ~isfield(HDR,'GDFTYP')
+                                HDR.GDFTYP=repmat(3,1,HDR.NS);       % int16
+                        end; 
+                        for k = 1:HDR.NS,
+                        	if 0,
+                        	elseif HDR.GDFTYP(k)==2, 
+	                                HDR.MIT.dformat = 80; 
+                        	elseif HDR.GDFTYP(k)==3, 
+	                                HDR.MIT.dformat = 16; 
+	                        elseif HDR.GDFTYP(k)==4, 
+	                                HDR.MIT.dformat = 160; 
+	                        else 
+	                        	error('SOPEN (MIT write): dataformat not supported');
+	                        end;        
+                                ical = (HDR.DigMax(k)-HDR.DigMin(k))/(HDR.PhysMax(k)-HDR.PhysMin(k));
+                                off  = HDR.DigMin(k) - ical*HDR.PhysMin(k); 
+                                fprintf(fid,'\n%s %i %f(%f)',[HDR.FILE.Name,'.dat'],HDR.MIT.dformat,ical,off);
+
+                                if isfield(HDR,'PhysDim')
+	                                physdim = HDR.PhysDim(k,:); 
+	                                physdim(physdim<33) = [];  	% remove any whitespace
+	                                fprintf(fid,'/%s ',physdim);
+	                        end;        
+                                if isfield(HDR,'Label')
+	                                fprintf(fid,'%s ',HDR.Label(k,:));
+	                        end;        
+                        end;
+                fclose(fid);
+                HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
+                HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
+
+                HDR.FileName  = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dat']);
+                HDR.FILE.FID  = fopen(HDR.FileName,'wb','ieee-le');
+                HDR.FILE.OPEN = 2; 
         end;
 	        
 	

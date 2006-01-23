@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.17 $
-%	$Id: scpopen.m,v 1.17 2006-01-23 11:19:47 schloegl Exp $
+%	$Revision: 1.18 $
+%	$Id: scpopen.m,v 1.18 2006-01-23 16:49:20 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -529,8 +529,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         t  = (1:HDR.N) / HDR.SampleRate;
                                         S1 = zeros(HDR.N, HDR.NS);
                                         
-                                        
-                                        p = 1;
+                                        p  = 1;
                                         k2 = 1;
                                         pa = [HDR.SCP4.PA;NaN,NaN];
                                         flag = 1;
@@ -559,20 +558,22 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 end;
                                 
                                 if HDR.FLAG.ReferenceBeat,
+                                	tmp_data = HDR.SCP5.data*(HDR.SCP5.Cal/HDR.SCP6.Cal); 
                                         for k = find(~HDR.SCP4.type(:,1)'),
                                                 t1 = (HDR.SCP4.type(k,2):HDR.SCP4.type(k,4));
                                                 t0 = t1 - HDR.SCP4.type(k,3) + HDR.SCP4.fc0;
-                                                S2(t1,:) = S2(t1,:) + HDR.SCP5.data(t0,:)*(HDR.SCP5.Cal/HDR.SCP6.Cal); 
+                                                S2(t1,:) = S2(t1,:) + tmp_data(t0,:); 
                                         end;
                                 end;
-                                HDR.data = S2;
+	                        HDR.data  = S2;
+			        HDR.Calib = sparse(2:HDR.NS+1, 1:HDR.NS, HDR.SCP6.Cal);
                         end;
 
                 elseif section.ID==7, 
-                        HDR.SCP7.byte1 = fread(fid,1,'uint8');    
+                        HDR.SCP7.byte1   = fread(fid,1,'uint8');    
                         HDR.SCP7.Nspikes = fread(fid,1,'uint8');    
                         HDR.SCP7.meanPPI = fread(fid,1,'uint16');    
-                        HDR.SCP7.avePPI = fread(fid,1,'uint16');    
+                        HDR.SCP7.avePPI  = fread(fid,1,'uint16');    
                         
                         for k=1:HDR.SCP7.byte1,
                                 HDR.SCP7.RefBeat{k} = fread(fid,16,'uint8');    
