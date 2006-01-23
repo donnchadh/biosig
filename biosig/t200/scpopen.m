@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.16 $
-%	$Id: scpopen.m,v 1.16 2005-10-13 08:04:11 schloegl Exp $
+%	$Revision: 1.17 $
+%	$Id: scpopen.m,v 1.17 2006-01-23 11:19:47 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -251,7 +251,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 elseif (HDR.VERSION <= 1.3) & (HDR.Lead(k) > 99),
                                         HDR.Label{k} = 'manufacturer specific';
                                 elseif (HDR.VERSION >= 2.0) & (HDR.Lead(k) < 151),
-                                        HDR.Label{k} = HDR.LeadIdTable{HDR.Lead(k)};
+                                        HDR.Label{k} = LeadIdTable{HDR.Lead(k)};
                                 elseif (HDR.VERSION >= 2.0) & (HDR.Lead(k) > 199),
                                         HDR.Label{k} = 'manufacturer specific';
                                 else
@@ -506,7 +506,6 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 S2 = cumsum(S2);    
                         end;
                         
-                        S2 = S2 * SCP.Cal;
                         if section.ID==5,
                                 HDR.SCP5 = SCP;
                                 HDR.SCP5.data = S2;
@@ -563,7 +562,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         for k = find(~HDR.SCP4.type(:,1)'),
                                                 t1 = (HDR.SCP4.type(k,2):HDR.SCP4.type(k,4));
                                                 t0 = t1 - HDR.SCP4.type(k,3) + HDR.SCP4.fc0;
-                                                S2(t1,:) = S2(t1,:) + HDR.SCP5.data(t0,:); 
+                                                S2(t1,:) = S2(t1,:) + HDR.SCP5.data(t0,:)*(HDR.SCP5.Cal/HDR.SCP6.Cal); 
                                         end;
                                 end;
                                 HDR.data = S2;
@@ -659,7 +658,31 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
         HDR.SPR  = size(HDR.data,1);
         HDR.NRec = 1;
         HDR.AS.endpos = HDR.SPR;
+        
+        HDR.FILE.OPEN = 1; 
+        HDR.FILE.POS  = 0;
+        HDR.TYPE = 'native'; 
+else
+        section.ID      = 0;
+        section.Length  = -1;
+        section.Version = [1,3];
+        section.tmp     = zeros(1,6);
+        
+        for K = [0,1,3,6],
+                section.ID = K;
+                HDR.Section{k}=section; 
+                if 0,
+                elseif (K==0)
+                elseif (K==1)
+                elseif (K==3)
+                elseif (K==6)
+                end;
+        end;
+        
+                      
+        crc = 0; 
+        HDR.FILE.FID = fopen(HDR.FileName,'w'); 
+        fwrite(fid,crc,'int16');
+        fwrite(fid,0,  'int32');
+        fclose(HDR.FILE.FID); 
 end;
-HDR.FILE.OPEN = 1; 
-HDR.FILE.POS  = 0;
-HDR.TYPE = 'native'; 
