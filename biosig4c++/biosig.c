@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.34 2006-01-16 21:33:57 schloegl Exp $
+    $Id: biosig.c,v 1.35 2006-02-01 20:07:21 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -241,6 +241,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
     	int 		k,id;
     	uint32_t	k32u; 
     	size_t	 	count,len,pos;
+    	uint8_t 	buf[81];
     	char 		tmp[81];
     	char 		cmd[256];
     	double 		Dur; 
@@ -425,7 +426,7 @@ if (!strcmp(MODE,"r"))
 				hdr->CHANNEL[k].XYZ[1]   = l_endian_f32( *(float*) (Header2+ 4*k + 228*hdr->NS) );
 				hdr->CHANNEL[k].XYZ[2]   = l_endian_f32( *(float*) (Header2+ 4*k + 232*hdr->NS) );
 				//memcpy(&hdr->CHANNEL[k].XYZ,Header2 + 4*k + 224*hdr->NS,12);
-				hdr->CHANNEL[k].Impedance= ldexp(1.0, Header2[k + 236*hdr->NS]/8);
+				hdr->CHANNEL[k].Impedance= ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);
 			}
 
 			hdr->CHANNEL[k].Cal   	= (hdr->CHANNEL[k].PhysMax-hdr->CHANNEL[k].PhysMin)/(hdr->CHANNEL[k].DigMax-hdr->CHANNEL[k].DigMin);
@@ -440,12 +441,21 @@ if (!strcmp(MODE,"r"))
 		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
 
 		// READ EVENTTABLE 
-		fseek(hdr->FILE.FID,hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
-		fread(tmp,sizeof(char),8,hdr->FILE.FID);
+		fseek(hdr->FILE.FID, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
+		fread(buf, sizeof(uint8_t), 8, hdr->FILE.FID);
+
+fprintf(stdout,"\n%i ",buf[0]);
+fprintf(stdout,"%i ",buf[1]);
+fprintf(stdout,"%i ",buf[2]);
+fprintf(stdout,"%i \n",buf[3]);
+
+		hdr->EVENT.SampleRate = (float)(buf[1] + (buf[2]<<8) + (buf[3]<<16)); 
+/*
 		hdr->EVENT.SampleRate = 0; 
 		memcpy(&hdr->EVENT.SampleRate,tmp+1,3);
 		hdr->EVENT.SampleRate = l_endian_u32(hdr->EVENT.SampleRate);
-		hdr->EVENT.N = l_endian_u32( *(uint32_t*) tmp + 4 );
+*/
+		hdr->EVENT.N = l_endian_u32( *(uint32_t*) (buf + 4) );
 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
 		hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
 		fread(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
@@ -1204,7 +1214,6 @@ size_t 	sread2(biosig_data_type** channels_dest, int start, size_t length, HDRTY
 }  // end of SREAD2 
 
 
-
 /****************************************************************************/
 /**                     SWRITE                                             **/
 /****************************************************************************/
@@ -1294,6 +1303,7 @@ int sclose(HDRTYPE* hdr)
 {
 	int32_t 	pos, len; 
 	uint32_t	k32u; 
+	uint8_t 	buf[88]; 
 	char tmp[88]; 
 	char flag; 
 	
@@ -1301,7 +1311,6 @@ int sclose(HDRTYPE* hdr)
 	if ((hdr->NRec<0) & (hdr->FILE.OPEN>1))
 	if ((hdr->TYPE==GDF) | (hdr->TYPE==EDF) | (hdr->TYPE==BDF))
 	{
-
 		// WRITE HDR.NRec 
 		pos = (ftell(hdr->FILE.FID)-hdr->HeadLen); 
 		if (hdr->NRec<0)
@@ -1326,10 +1335,13 @@ int sclose(HDRTYPE* hdr)
 			if (flag)   // any DUR or CHN is larger than 0 
 				for (k32u=0, flag=0; (k32u<hdr->EVENT.N) & !flag; k32u++)
 					flag |= hdr->EVENT.CHN[k32u] | hdr->EVENT.DUR[k32u];
-			tmp[0] = (flag ? 3 : 1);
-			*(uint32_t*)(tmp+1) = l_endian_f32(hdr->EVENT.SampleRate);
-			*(uint32_t*)(tmp+4) = l_endian_u32(hdr->EVENT.N);
-			fwrite(tmp, 8, 1, hdr->FILE.FID);
+			buf[0] = (flag ? 3 : 1);
+			k32u   = lround(hdr->EVENT.SampleRate); 
+			buf[1] =  k32u      & 0x000000FF;
+			buf[2] = (k32u>>8 ) & 0x000000FF;
+			buf[3] = (k32u>>16) & 0x000000FF;
+			*(uint32_t*)(buf+4) = l_endian_u32(hdr->EVENT.N);
+			fwrite(buf, 8, 1, hdr->FILE.FID);
 			for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
 				hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
 				hdr->EVENT.TYP[k32u] = l_endian_u16(hdr->EVENT.TYP[k32u]); 
