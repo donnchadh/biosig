@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.35 2006-02-01 20:07:21 schloegl Exp $
+    $Id: biosig.c,v 1.36 2006-02-02 19:06:49 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -145,10 +145,11 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->AS.Header1 = 0;
 
       	hdr->TYPE = GDF; 
-      	hdr->VERSION = 1.93;
+      	hdr->VERSION = 1.94;
       	hdr->AS.rawdata = (uint8_t*) malloc(10);
       	hdr->NRec = -1; 
       	hdr->NS = NS;	
+	hdr->SampleRate = 4321.5;
       	memset(hdr->AS.PID,32,81); 
       	hdr->AS.RID = "GRAZ"; 
 	hdr->AS.bi = (uint32_t*)calloc(hdr->NS+1,sizeof(uint32_t));
@@ -444,18 +445,14 @@ if (!strcmp(MODE,"r"))
 		fseek(hdr->FILE.FID, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
 		fread(buf, sizeof(uint8_t), 8, hdr->FILE.FID);
 
-fprintf(stdout,"\n%i ",buf[0]);
-fprintf(stdout,"%i ",buf[1]);
-fprintf(stdout,"%i ",buf[2]);
-fprintf(stdout,"%i \n",buf[3]);
-
-		hdr->EVENT.SampleRate = (float)(buf[1] + (buf[2]<<8) + (buf[3]<<16)); 
-/*
-		hdr->EVENT.SampleRate = 0; 
-		memcpy(&hdr->EVENT.SampleRate,tmp+1,3);
-		hdr->EVENT.SampleRate = l_endian_u32(hdr->EVENT.SampleRate);
-*/
-		hdr->EVENT.N = l_endian_u32( *(uint32_t*) (buf + 4) );
+		if (hdr->VERSION < 1.94) {
+			hdr->EVENT.SampleRate = (float)buf[1] + (buf[2] + buf[3]*256.0)*256.0; 
+			hdr->EVENT.N = l_endian_u32( *(uint32_t*) (buf + 4) );
+		}	
+		else	{
+			hdr->EVENT.N = buf[1] + (buf[2] + buf[3]*256)*256; 
+			hdr->EVENT.SampleRate = l_endian_f32( *(float*) (buf + 4) );
+		}	
 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
 		hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
 		fread(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
@@ -760,7 +757,7 @@ else { // WRITE
 	    	Header2 = Header1+256; 
 
 		memset(Header1,0,hdr->HeadLen);
-	     	strcpy(Header1, "GDF 1.93");
+	     	sprintf(Header1,"GDF %4.2f",hdr->VERSION);
 	     	strncat(Header1+8, hdr->Patient.Id,   66);
 	     	strncat(Header1+8, " ",   66);
 	     	strncat(Header1+8, hdr->Patient.Name, 66);
@@ -1336,11 +1333,21 @@ int sclose(HDRTYPE* hdr)
 				for (k32u=0, flag=0; (k32u<hdr->EVENT.N) & !flag; k32u++)
 					flag |= hdr->EVENT.CHN[k32u] | hdr->EVENT.DUR[k32u];
 			buf[0] = (flag ? 3 : 1);
-			k32u   = lround(hdr->EVENT.SampleRate); 
-			buf[1] =  k32u      & 0x000000FF;
-			buf[2] = (k32u>>8 ) & 0x000000FF;
-			buf[3] = (k32u>>16) & 0x000000FF;
-			*(uint32_t*)(buf+4) = l_endian_u32(hdr->EVENT.N);
+			if (hdr->VERSION < 1.94) {
+				k32u   = lround(hdr->EVENT.SampleRate); 
+				buf[1] =  k32u      & 0x000000FF;
+	    			buf[2] = (k32u>>8 ) & 0x000000FF;
+				buf[3] = (k32u>>16) & 0x000000FF;
+				*(uint32_t*)(buf+4) = l_endian_u32(hdr->EVENT.N);
+			}
+			else {
+				k32u   = hdr->EVENT.N; 
+				buf[1] =  k32u      & 0x000000FF;
+	    			buf[2] = (k32u>>8 ) & 0x000000FF;
+				buf[3] = (k32u>>16) & 0x000000FF;
+				*(float*)(buf+4) = l_endian_f32(hdr->EVENT.SampleRate);
+			};
+			
 			fwrite(buf, 8, 1, hdr->FILE.FID);
 			for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
 				hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 

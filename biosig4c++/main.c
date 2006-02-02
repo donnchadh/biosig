@@ -1,6 +1,6 @@
 /*
 
-    $Id: main.c,v 1.11 2006-02-01 20:07:21 schloegl Exp $
+    $Id: main.c,v 1.12 2006-02-02 19:06:49 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -145,7 +145,7 @@ fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 		fprintf(stdout,"Patient:\n\tName:\t%s\n\tId:\t%s\n\tWeigth:\t%i kg\n\tHeigth:\t%i cm\n\tAge:\t%4.1f y\n",hdr->Patient.Name,hdr->Patient.Id,hdr->Patient.Weight,hdr->Patient.Height,(hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32)); 
 		T0 = gdf_time2t_time(hdr->Patient.Birthday);
 		fprintf(stdout,"\tBirthday:\t%s\n",asctime(localtime(&T0))); 
-		fprintf(stdout,"EVENT:\n\tN:\t%i\n\tFs:\t%i\n\t\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
+		fprintf(stdout,"EVENT:\n\tN:\t%i\n\tFs:\t%f\n\t\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
 		
 		fprintf(stdout,"--%i\t%i\n", hdr->FLAG.OVERFLOWDETECTION, hdr->FLAG.UCAL);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 
@@ -167,7 +167,7 @@ fprintf(stdout,"m1: %f %f %f %f\n",hdr->data.block[0],hdr->data.block[1],hdr->da
 //fprintf(stdout,"m1: %f %f %f %f\n",hdr->data.block[0],hdr->data.block[1],hdr->data.block[2],hdr->data.block[3]);
 	
 		}
-		fprintf(stdout,"\n\n+ %Lu\t %u\t %u\t %u %f %i\n",hdr->NRec,count,hdr->FILE.POS,*(int16_t*)hdr->AS.rawdata,hdr->data.block[0],seof(hdr));
+		fprintf(stdout,"\n\n+ %Lu\t %u\t %u\t %u %f %i\n",hdr->NRec,count,hdr->FILE.POS,l_endian_i16(*(int16_t*)hdr->AS.rawdata),hdr->data.block[0],seof(hdr));
 		sseek(hdr,50,SEEK_SET);
 fprintf(stdout,"3+ %u\t %u\n",hdr->FILE.POS,l_endian_i16(*(int16_t*)hdr->AS.rawdata));	
 		srewind(hdr);
