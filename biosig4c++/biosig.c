@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.36 2006-02-02 19:06:49 schloegl Exp $
+    $Id: biosig.c,v 1.37 2006-02-02 21:02:12 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -147,7 +147,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
       	hdr->TYPE = GDF; 
       	hdr->VERSION = 1.94;
       	hdr->AS.rawdata = (uint8_t*) malloc(10);
-      	hdr->NRec = -1; 
+      	hdr->NRec = 0; 
       	hdr->NS = NS;	
 	hdr->SampleRate = 4321.5;
       	memset(hdr->AS.PID,32,81); 
@@ -880,7 +880,7 @@ else { // WRITE
 	     	memcpy(Header1+184, tmp, len);
 	     	memcpy(Header1+192, "EDF+C  ", 5);
 
-		len = sprintf(tmp,"%Li",hdr->NRec);
+		len = sprintf(tmp,"%lu",hdr->NRec);
 		if (len>8) fprintf(stderr,"Warning: NRec is (%s) to long.\n",tmp);  
 	     	memcpy(Header1+236, tmp, len);
 
@@ -970,7 +970,7 @@ else { // WRITE
 /****************************************************************************/
 /**	SREAD                                                              **/
 /****************************************************************************/
-size_t 	sread(HDRTYPE* hdr, int start, size_t length) {
+size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
 /* 
  *	reads LENGTH blocks with HDR.AS.bpb BYTES each, 
  *	rawdata is available in hdr->AS.rawdata
@@ -1092,7 +1092,7 @@ size_t 	sread(HDRTYPE* hdr, int start, size_t length) {
 /****************************************************************************/
 /**	SREAD2                                                             **/
 /****************************************************************************/
-size_t 	sread2(biosig_data_type** channels_dest, int start, size_t length, HDRTYPE* hdr) {
+size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr) {
 /* 
  *      no memory allocation is done 
  *      data is moved into channel_dest
@@ -1253,9 +1253,9 @@ void srewind(HDRTYPE* hdr)
 /****************************************************************************/
 /**                     SSEEK                                              **/
 /****************************************************************************/
-int sseek(HDRTYPE* hdr, size_t offset, int whence)
+int sseek(HDRTYPE* hdr, long int offset, int whence)
 {
-	size_t pos=0; 
+	long int pos=0; 
 	
 	if    	(whence < 0) 
 		pos = offset * hdr->AS.bpb; 
@@ -1264,7 +1264,7 @@ int sseek(HDRTYPE* hdr, size_t offset, int whence)
 	else if (whence > 0) 
 		pos = (hdr->NRec + offset) * hdr->AS.bpb;
 	
-	if ((pos  < 0) | (pos > hdr->NRec * hdr->AS.bpb))
+	if ((pos < 0) | (pos > hdr->NRec * hdr->AS.bpb))
 		return(-1);
 	else if (fseek(hdr->FILE.FID, pos + hdr->HeadLen, SEEK_SET))
 		return(-1);
@@ -1319,7 +1319,7 @@ int sclose(HDRTYPE* hdr)
 				fwrite(tmp,sizeof(hdr->NRec),1,hdr->FILE.FID);
 			}	
 			else {
-				len = sprintf(tmp,"%Li",hdr->NRec);
+				len = sprintf(tmp,"%Lu",hdr->NRec);
 				if (len>8) fprintf(stderr,"Warning: NRec is (%s) to long.\n",tmp);  
 				fwrite(tmp,len,1,hdr->FILE.FID);
 			}	

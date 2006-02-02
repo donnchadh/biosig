@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.24 2006-01-16 13:03:13 schloegl Exp $
+% $Id: biosig.h,v 1.25 2006-02-02 21:02:12 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -168,7 +168,7 @@ typedef struct {
 	uint32_t 	HeadLen;	// length of header in bytes
 	uint16_t 	NS;		// number of channels
 	uint32_t 	SPR;		// samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR)
-	int64_t  	NRec;		// number of records/blocks -1 indicates length is unknown.	
+	uint64_t  	NRec;		// number of records/blocks -1 indicates length is unknown.	
 	uint32_t 	Dur[2];		// Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1] 
 	double 		SampleRate;	// Sampling rate
 	uint8_t 	IPaddr[6]; 	// IP address of recording device (if applicable)	
@@ -270,13 +270,13 @@ HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr);
 HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT);
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 int 	sclose(HDRTYPE* hdr);
-size_t 	sread(HDRTYPE* hdr, int start, size_t length);
-size_t 	sread2(biosig_data_type** channels_dest, int start, size_t length, HDRTYPE* hdr); 
+size_t 	sread(HDRTYPE* hdr, size_t start, size_t length);
+size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr); 
 
 size_t	swrite(const void *ptr, size_t nelem, HDRTYPE* hdr);
 int	seof(HDRTYPE* hdr);
 void	srewind(HDRTYPE* hdr);
-int 	sseek(HDRTYPE* hdr, size_t offset, int whence);
+int 	sseek(HDRTYPE* hdr, long int offset, int whence);
 long int stell(HDRTYPE* hdr);
 
 /****************************************************************************/
