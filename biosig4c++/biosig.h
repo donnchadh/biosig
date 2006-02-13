@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.25 2006-02-02 21:02:12 schloegl Exp $
+% $Id: biosig.h,v 1.26 2006-02-13 08:15:09 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -43,8 +43,14 @@
 #include <inttypes.h>
 #include <byteswap.h>
 
+
+
 	// list of file formats 
 enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP_ECG, HL7aECG, XML}; 
+
+
+#define NaN (0.0/0.0)	// used for encoding of missing values 
+#define INF (1.0/0.0)	// positive infinity
 
 #define min(a,b)                        (((a) < (b)) ? (a) : (b))
 #define max(a,b)                        (((a) > (b)) ? (a) : (b))
@@ -158,7 +164,7 @@ typedef struct {
 typedef struct {
 	enum FileFormat TYPE; 		// type of file format
 	float 		VERSION;	// GDF version number 
-	char* 		FileName;
+	const char* 	FileName;
 	
 	struct {
 		size_t 			size[2]; // size {rows, columns} of data block	

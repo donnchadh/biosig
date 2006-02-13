@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.37 2006-02-02 21:02:12 schloegl Exp $
+    $Id: biosig.c,v 1.38 2006-02-13 08:15:11 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -203,7 +203,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	      	hdr->CHANNEL[k].HighPass  = 0.16;
 	      	hdr->CHANNEL[k].LowPass   = 70.0;
 	      	hdr->CHANNEL[k].Notch     = 50;
-	      	hdr->CHANNEL[k].Impedance = 1.0/0.0;
+	      	hdr->CHANNEL[k].Impedance = INF;
 	      	for (k1=0; k1<3; hdr->CHANNEL[k].XYZ[k1++] = 0.0);
 	}      	
 
@@ -237,7 +237,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
     	const uint16_t	CFWB_GDFTYP[] = {17,16,3};  
 	const float	CNT_SETTINGS_NOTCH[] = {0.0, 50.0, 60.0}; 
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
-	const float	CNT_SETTINGS_HIGHPASS[] = {0.0/0.0, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
+	const float	CNT_SETTINGS_HIGHPASS[] = {NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
 
     	int 		k,id;
     	uint32_t	k32u; 
@@ -266,6 +266,7 @@ if (!strcmp(MODE,"r"))
 	hdr->FILE.FID = fopen(FileName,"rb");
 #endif
 
+	hdr->FileName = FileName; 
     	if (hdr->FILE.FID == NULL) 
     	{ 	
     		free(hdr);    		
@@ -685,6 +686,7 @@ if (!strcmp(MODE,"r"))
 	}
 	
 	else if (hdr->TYPE==SCP_ECG) {
+		fseek(hdr->FILE.FID,0,-1);
 		hdr = sopen_SCP_read(Header1,hdr);
 	}
 	
@@ -953,7 +955,6 @@ else { // WRITE
 }	// end of else 
 
 	// internal variables
-
 	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	hdr->AS.bi[0] = 0;
 	for (k=0, hdr->SPR = 1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;) {
@@ -1070,7 +1071,7 @@ size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
 
 			// overflow and saturation detection 
 			if ((hdr->FLAG.OVERFLOWDETECTION) && ((sample_value<=hdr->CHANNEL[k1].DigMin) || (sample_value>=hdr->CHANNEL[k1].DigMax)))
-				sample_value = 0.0/0.0; 
+				sample_value = NaN; 	// missing value 
 			else if (!hdr->FLAG.UCAL)	// scaling 
 				sample_value = sample_value * CHptr->Cal + CHptr->Off;
 
@@ -1191,7 +1192,7 @@ size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HD
 
 			// overflow and saturation detection 
 			if ((hdr->FLAG.OVERFLOWDETECTION) && ((sample_value<=hdr->CHANNEL[k1].DigMin) || (sample_value>=hdr->CHANNEL[k1].DigMax)))
-				sample_value = 0.0/0.0; 
+				sample_value = NaN; 	// missing value 
 
 			else if (!(hdr->FLAG.UCAL))	// scaling 
 				sample_value = sample_value * CHptr->Cal + CHptr->Off;
