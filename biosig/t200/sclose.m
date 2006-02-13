@@ -20,8 +20,8 @@ function [HDR] = sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.18 $
-%	$Id: sclose.m,v 1.18 2005-11-02 17:02:19 schloegl Exp $
+%	$Revision: 1.19 $
+%	$Id: sclose.m,v 1.19 2006-02-13 09:22:54 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -79,6 +79,7 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                 if isnan(tmp)
                 	tmp = 0; 
                 end;	
+
                 if (HDR.NRec~=tmp)
                        if ~any(HDR.FILE.PERMISSION=='z')
                                HDR.NRec=tmp;
@@ -92,7 +93,7 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                                 fprintf(HDR.FILE.stderr,'ERROR SCLOSE: number-of-records-field (HDR.NRec) could not be updated in file %s.\n',HDR.FileName);
                         end;
                 end;
-                
+
                 if strcmp(HDR.TYPE,'GDF') & isfield(HDR,'EVENT'),
                 	if ~all([HDR.NS, HDR.NRec, HDR.AS.bpb]>0)
                 		HDR.AS.EVENTTABLEPOS = HDR.HeadLen; 
@@ -107,12 +108,12 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
 					len = [len,length(HDR.EVENT.CHN),length(HDR.EVENT.DUR)];
                                 end;
                         end;
-                                 
+
                         if any(len~=len(1))
                                 fprintf(HDR.FILE.stderr,'Error SCLOSE-GDF: cannot write Event table, file %s not closed.\n',HDR.FileName);
 				return;
                         else
-                                status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*HDR.NRec,'bof');
+                                status  = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*HDR.NRec,'bof');
                                 %status = fseek(HDR.FILE.FID,0,'eof');
                                 if ftell(HDR.FILE.FID)~=HDR.AS.EVENTTABLEPOS,
                                         fprintf(HDR.FILE.stderr,'Warning SCLOSE-GDF: inconsistent GDF file\n');
@@ -120,13 +121,20 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
 				if ~isfield(HDR.EVENT,'SampleRate'), 
 					HDR.EVENT.SampleRate = HDR.SampleRate; 
 				end;
-				tmp = HDR.EVENT.SampleRate;
-				tmp = [EVENT.Version,mod(tmp,256),floor(mod(tmp,65536)/256),floor(tmp/65536)];
-					
+				
 				% write eventtable info: Version, SampleRate & length
-                                fwrite(HDR.FILE.FID,tmp,'uint8');  
-                                fwrite(HDR.FILE.FID,length(HDR.EVENT.POS),'uint32');
-
+				if (HDR.VERSION<1.94)
+					tmp = HDR.EVENT.SampleRate;
+					tmp = [EVENT.Version,mod(tmp,256),floor(mod(tmp,65536)/256),floor(tmp/65536)];
+	                                fwrite(HDR.FILE.FID,tmp,'uint8');  
+	                                fwrite(HDR.FILE.FID,length(HDR.EVENT.POS),'uint32');
+				else
+					tmp = length(HDR.EVENT.POS);
+					tmp = [EVENT.Version,mod(tmp,256),floor(mod(tmp,65536)/256),floor(tmp/65536)];
+	                                fwrite(HDR.FILE.FID,tmp,'uint8');  
+	                                fwrite(HDR.FILE.FID,HDR.EVENT.SampleRate,'float32');				
+				end;
+				
 				% write table 
                                 c1 = fwrite(HDR.FILE.FID,HDR.EVENT.POS,'uint32');
                                 c2 = fwrite(HDR.FILE.FID,HDR.EVENT.TYP,'uint16');

@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.134 $
-%	$Id: sopen.m,v 1.134 2006-01-23 16:49:20 schloegl Exp $
+%	$Revision: 1.135 $
+%	$Id: sopen.m,v 1.135 2006-02-13 09:22:53 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -693,12 +693,18 @@ end;
                         
                 elseif strcmp(HDR.TYPE,'GDF') & (HDR.AS.EVENTTABLEPOS > 0),  
                         status = fseek(HDR.FILE.FID, HDR.AS.EVENTTABLEPOS, 'bof');
-                        [EVENT.Version,c] = fread(HDR.FILE.FID,1,'char');
-                        HDR.EVENT.SampleRate = [1,256,65536]*fread(HDR.FILE.FID,3,'uint8');
+			if (HDR.VERSION<1.94),
+    		                [EVENT.Version,c] = fread(HDR.FILE.FID,1,'char');
+	                        HDR.EVENT.SampleRate = [1,256,65536]*fread(HDR.FILE.FID,3,'uint8');
+            		        [EVENT.N,c] = fread(HDR.FILE.FID,1,'uint32');
+			else %if HDR.VERSION<1.94,
+    		                [EVENT.Version,c] = fread(HDR.FILE.FID,1,'char');
+	                        HDR.EVENT.N = [1,256,65536]*fread(HDR.FILE.FID,3,'uint8');
+            		        [HDR.EVENT.SampleRate,c] = fread(HDR.FILE.FID,1,'float32');
+			end;	
                         if ~HDR.EVENT.SampleRate, % ... is not defined in GDF 1.24 or earlier
                                 HDR.EVENT.SampleRate = HDR.SampleRate; 
                         end;
-                        [EVENT.N,c] = fread(HDR.FILE.FID,1,'uint32');
                         [HDR.EVENT.POS,c1] = fread(HDR.FILE.FID,[EVENT.N,1],'uint32');
                         [HDR.EVENT.TYP,c2] = fread(HDR.FILE.FID,[EVENT.N,1],'uint16');
                         if EVENT.Version==1,
@@ -822,7 +828,7 @@ end;
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF') 
                         HDR.VERSION = 1.25;     %% stable version 
-%                        HDR.VERSION = 1.93;     %% testing 
+%                        HDR.VERSION = 1.94;     %% testing 
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
                 end;
@@ -7480,6 +7486,14 @@ elseif strcmp(HDR.TYPE,'BIFF'),
         end;
 
 
+elseif strncmp(HDR.TYPE,'XML',3),
+        if any(HDR.FILE.PERMISSION=='r'),
+		HDR = sxmlread(HDR); 	% experimental version for reading various xml files 
+	end;
+	if ~isfield(HDR,'Calib')
+		return;
+	end;	
+	
 elseif strncmp(HDR.TYPE,'XML',3),
         if any(HDR.FILE.PERMISSION=='r'),
                 fid = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
