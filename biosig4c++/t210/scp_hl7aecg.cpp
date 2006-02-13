@@ -9,14 +9,14 @@
 #include <sys/stat.h>
 #include <ctype.h>
 
-#include "biosig.h"
+#include "../biosig.h"
 
 #include "types.h"               // start specific by E.C. (SCP reader)
 #include "structures.h"
 static const U_int_S _NUM_SECTION=12U;		//consider first 11 sections of SCP
-static const bool add_filter=true;            // additional filtering gives better shape, but use with care
-int scp_decode(char*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO&, bool&);
-void remark(char*);
+static bool add_filter=true;            // additional filtering gives better shape, but use with care
+int scp_decode(HDRTYPE*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO&, bool&);
+//void remark(char*);
 //                                  end specific by E.C.
 
 /*
@@ -64,10 +64,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 	if( (section = (pointer_section *)malloc(sizeof(pointer_section)*_NUM_SECTION)) ==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
-	if (scp_decode(hdr->FileName, section, decode, record, textual, add_filter)) {
+	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
 		if ((decode.flag_lead.number==8) && decode.flag_lead.all_simultaneously) {
                         hdr->VERSION= 0.1*textual.des.analyzing.protocol_revision_number;     // store version as requested (float)
                         hdr->NS = 12;   // standard 12 leads only
@@ -103,6 +103,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
                         hdr->CHANNEL[9].Label="V4";
                         hdr->CHANNEL[10].Label="V5";
                         hdr->CHANNEL[11].Label="V6";    //  last lead
+			for (int i=0;i<hdr->NS;i++) {
+				hdr->CHANNEL[i].SPR = hdr->SPR;
+				hdr->CHANNEL[i].PhysDimCode = 4275; // physical unit "uV"	
+				hdr->CHANNEL[i].PhysDim     = "uV"; // physical unit "uV"	
+				hdr->CHANNEL[i].Cal         = 1000; // internal data conversion factor (AVM=1uV)
+				hdr->CHANNEL[i].Off         = 0;    // internal data conversion factor (AVM=1uV)
+				hdr->CHANNEL[i].OnOff       = ((i<2)|(i>5)); // only first eight channels are ON
+			}	
 			for (int i=0;i<hdr->SPR;i++)
 			{                             // data will be stored by row
 				hdr->data.block[i+hdr->SPR*0]=decode.Reconstructed[i];         // data returned is in microVolt
@@ -120,31 +128,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		                hdr->data.block[i+hdr->SPR*5]=hdr->data.block[i+hdr->SPR*1]-hdr->data.block[i+hdr->SPR*0]/2;
 			}
 
-                        hdr->CHANNEL[0].Cal=1000.0;     // internal data conversion factor (AVM=1uV)
-                        hdr->CHANNEL[1].Cal=1000.0;     // internal data conversion factor (AVM=1uV)
-                        hdr->CHANNEL[2].Cal=1000.0;     // internal data conversion factor (AVM=1uV)
-                        hdr->CHANNEL[3].Cal=1000.0;     // internal data conversion factor (AVM=1uV)
-                        hdr->CHANNEL[4].Cal=1000.0;     // internal data conversion factor (AVM=1uV)
-                        hdr->CHANNEL[5].Cal=1000.0;     // internal data conversion factor (AVM=1uV)
-                        hdr->CHANNEL[6].Cal=1000.0;     // internal data conversion factor (AVM=1uV)
-                        hdr->CHANNEL[7].Cal=1000.0;     // internal data conversion factor (AVM=1uV)
-                        hdr->CHANNEL[8].Cal=1000.0;     // internal data conversion factor (AVM=1uV)
-                        hdr->CHANNEL[9].Cal=1000.0;     // internal data conversion factor (AVM=1uV)
-                        hdr->CHANNEL[10].Cal=1000.0;     // internal data conversion factor (AVM=1uV)
-                        hdr->CHANNEL[11].Cal=1000.0;     // internal data conversion factor (AVM=1uV)
-
 		} else
 		{
-			remark("SCP_ECG: Sorry, at this time can only read 8 standard leads, recorded simultaneously!");
+			fprintf(stderr,"SCP_ECG: Sorry, at this time can only read 8 standard leads, recorded simultaneously!");
                         exit(2);
 		}
         }
 	return(hdr);
-}
-
-void remark(char* mess)
-{
-	printf("%s", mess);
 }
 
 HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {

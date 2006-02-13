@@ -71,7 +71,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // contribution of Stelios Sfakianakis <ssfak@ics.forth.gr>. see 'by SS' in the sources
 // contribution of Federico cantini <cantini@ifc.cnr.it>. see 'by FeC' in the sources
 
-void remark(char *string);
+//void remark(char *string);
 
 //      by E.C. 13.10.2003   part nedded to compile with gcc (Linux).
 //                           To compile with Borland C++ add the conditional define: WIN32.
@@ -121,6 +121,7 @@ using namespace std;
 //               FILE POINTERS
 FILE *in;
 
+#include "../biosig.h"
 #include "types.h"
 #include "structures.h"
 #include "codes.h"
@@ -251,7 +252,7 @@ void ReadByte(t1 &number)
 
 	if(dim!=0 && (num=(U_int_S*)mymalloc(dim))==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 	fread(num,dim,1,in);
@@ -269,15 +270,17 @@ void ReadByte(t1 &number)
 
 //                      MAIN
 
-int scp_decode(char *filename, pointer_section *info_sections, DATA_DECODE &info_decoding, DATA_RECORD &info_recording, DATA_INFO &info_textual, bool &add_filter)
+int scp_decode(HDRTYPE* hdr, pointer_section *info_sections, DATA_DECODE &info_decoding, DATA_RECORD &info_recording, DATA_INFO &info_textual, bool &add_filter)
 {
 	U_int_M CRC;
 	U_int_L pos;
 
-	if( (in = fopen(filename, "rb")) ==NULL)
+//	if( (in = fopen(filename, "rb")) ==NULL)
+	if ( (in = hdr->FILE.FID) ==NULL)
 	{
-		remark("Cannot open the file.");
-		remark(filename);
+		fprintf(stdout,"Cannot open the file %s.\n",hdr->FileName);
+//		remark("Cannot open the file.");
+//		remark(filename);
 		return FALSE;              // by E.C. 15.10.2003    now return FALSE
 	}
 
@@ -285,7 +288,7 @@ int scp_decode(char *filename, pointer_section *info_sections, DATA_DECODE &info
 	CRC=ReadCRC();
 	pos=_COUNT_BYTE;
 	ReadByte(_DIM_FILE);
-	if (CRC != 0xFFFF) Check_CRC(CRC,pos,_DIM_FILE-2U);  // by E.C. may 2004 CARDIOLINE 1.0
+//	if (CRC != 0xFFFF) Check_CRC(CRC,pos,_DIM_FILE-2U);  // by E.C. may 2004 CARDIOLINE 1.0
 	fseek(in, 0L, SEEK_SET);
 
 //mandatory sections
@@ -296,7 +299,7 @@ int scp_decode(char *filename, pointer_section *info_sections, DATA_DECODE &info
 //remark("after section 1");
 	sectionsOptional(info_sections,info_decoding,info_recording,info_textual);
 //remark("at end of sections");
-	fclose(in);
+//	fclose(in);
 
 	Decode_Data(info_sections,info_decoding,add_filter);
 	return TRUE;              // by E.C. 15.10.2003    now return TRUE
@@ -312,7 +315,7 @@ char *ReadString(char *temp_string, U_int_M num)
 {
 	if((temp_string=(char*)mymalloc(sizeof(char)*(num+2)))==NULL)    // by E.C. 26.02.2004 one more byte
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 
@@ -365,7 +368,7 @@ char *FindString(U_int_M max)
 
 	if((temp_string=(char*)mymalloc(sizeof(char)*(num+2)))==NULL)   // by E.C. one extra byte nedded
 	{                                                               // for later str_cat()
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 
@@ -543,7 +546,7 @@ a zero CRC if the data was correctly received.
 		return 1;
 	else
 	{
-		remark("Cannot read the file: BAD CRC.");
+		fprintf(stderr,"Cannot read the file: BAD CRC.");
 		exit(2);
 	}
 }//end Check_CRC
@@ -1021,7 +1024,7 @@ void section_1_5(demographic &ana)
 	num=strlen(data);
 	if(num!=0 && (ana.date_birth=(char*)mymalloc(num+1))==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 	strcpy(ana.date_birth,data);
@@ -1101,7 +1104,7 @@ void section_1_10(clinic &cli, U_int_M &dim)
 	{
 		if((cli.drug=(info_drug*)realloc(cli.drug,sizeof(info_drug)*(cli.number_drug+1)))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		ReadByte(cli.drug[cli.number_drug].table);
@@ -1133,7 +1136,7 @@ void section_1_10(clinic &cli, U_int_M &dim)
 			dim+=strlen(temp_string);
 			if((cli.text_drug=(char*)realloc(cli.text_drug,sizeof(char)*(dim+1)))==NULL)
 			{
-				remark("Not enough memory");  // no, exit //
+				fprintf(stderr,"Not enough memory");  // no, exit //
 				exit(2);
 			}
 			pos_char=cli.text_drug;
@@ -1180,7 +1183,7 @@ void section_1_13(clinic &cli, U_int_M &dim)
 	{
 		if((cli.diagnose=(numeric*)realloc(cli.diagnose,sizeof(numeric)*(cli.number_diagnose+1)))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		cli.diagnose[cli.number_diagnose].unit=cli.number_diagnose+1;
@@ -1190,7 +1193,7 @@ void section_1_13(clinic &cli, U_int_M &dim)
 		dim+=strlen(temp_string);
 		if((cli.text_diagnose=(char*)realloc(cli.text_diagnose,dim+1))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		pos_char=cli.text_diagnose;
@@ -1457,7 +1460,7 @@ void section_1_25(device &dev)
 	num=strlen(data);                                               // by E.C. may 2004
 	if(num!=0 && (dev.date_acquisition=(char*)mymalloc(num+1))==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 	strcpy(dev.date_acquisition,data);
@@ -1495,7 +1498,7 @@ void section_1_26(device &dev)
 	num=strlen(hour);                                               // by E.C. may 2004
 	if(num!=0 && (dev.time_acquisition=(char*)mymalloc(num+1))==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 	strcpy(dev.time_acquisition,hour);
@@ -1552,7 +1555,7 @@ void section_1_30(clinic &cli, U_int_M &dim)
 	{
 		if((cli.free_text=(numeric*)realloc(cli.free_text,sizeof(numeric)*(cli.number_text+1)))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		cli.free_text[cli.number_text].unit=cli.number_text+1;
@@ -1562,7 +1565,7 @@ void section_1_30(clinic &cli, U_int_M &dim)
 		dim+=strlen(temp_string);
 		if((cli.text_free_text=(char*)realloc(cli.text_free_text,dim+1))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		pos_char=cli.text_free_text;
@@ -1600,7 +1603,7 @@ void section_1_32(clinic &cli, U_int_M &dim, int_S version)
 		// second byte is the code
 		if((cli.medical_hystory=(numeric*)realloc(cli.medical_hystory,sizeof(numeric)*(cli.number_hystory+1)))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		ReadByte(pos);
@@ -1661,7 +1664,7 @@ void section_1_35(clinic &cli, U_int_M &dim)
 	{
 		if((cli.free_medical_hystory=(numeric*)realloc(cli.free_medical_hystory,sizeof(numeric)*(cli.number_free_hystory+1)))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		cli.free_medical_hystory[cli.number_free_hystory].unit=cli.number_free_hystory+1;
@@ -1671,7 +1674,7 @@ void section_1_35(clinic &cli, U_int_M &dim)
 		dim+=strlen(temp_string);
 		if((cli.text_free_medical_hystory=(char*)realloc(cli.text_free_medical_hystory,dim+1))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		pos_char=cli.text_free_medical_hystory;
@@ -1721,7 +1724,7 @@ void section_2(pointer_section info_sections,DATA_DECODE &data)
 	{
 		if((data.flag_Huffman=(U_int_M*)mymalloc(sizeof(U_int_M)*(nt+1)))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		data.flag_Huffman[0]=nt;
@@ -1735,12 +1738,12 @@ void section_2(pointer_section info_sections,DATA_DECODE &data)
 		fseek(in,filepos COMPAT,0);
 		if((ns*9)>dim || !ns)
 		{
-			remark("Cannot read data!!!");
+			fprintf(stderr,"Cannot read data!!!");
 			exit(2);
 		}
 		if(ns!=0 && (data.t_Huffman=(table_H*)mymalloc(sizeof(table_H)*ns))==NULL)         //array of 5 columns and ns rows
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		pos=0;
@@ -1762,14 +1765,14 @@ void section_2(pointer_section info_sections,DATA_DECODE &data)
 	{
 		if((data.flag_Huffman=(U_int_M*)mymalloc(sizeof(U_int_M)*2))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		data.flag_Huffman[0]=1;
 		data.flag_Huffman[1]=19;      //number of rows of the default Huffman table
 		if((data.t_Huffman=(table_H*)mymalloc(sizeof(table_H)*data.flag_Huffman[1]))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		InitHuffman(data.t_Huffman);
@@ -1807,7 +1810,7 @@ void section_3(pointer_section info_sections,DATA_DECODE &data, int_S version)
 
 	if(data.flag_lead.number!=0 && (data.data_lead=(lead*)mymalloc(sizeof(lead)*data.flag_lead.number))==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 	for(i=0;i<data.flag_lead.number;i++)
@@ -1840,7 +1843,7 @@ void section_4(pointer_section info_sections,DATA_DECODE &data,int_S version)
 	{
 		if(data.flag_Res.number!=0 && (data.data_subtraction=(Subtraction_Zone*)mymalloc(sizeof(Subtraction_Zone)*data.flag_Res.number))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		for(i=0;i<data.flag_Res.number;i++)
@@ -1855,7 +1858,7 @@ void section_4(pointer_section info_sections,DATA_DECODE &data,int_S version)
 	{
 		if(data.flag_Res.number!=0 && (data.data_protected=(Protected_Area*)mymalloc(sizeof(Protected_Area)*data.flag_Res.number))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		for(i=0;i<data.flag_Res.number;i++)
@@ -1892,7 +1895,7 @@ void section_5(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 	Skip(1);
 	if(data.flag_lead.number!=0 && (data.length_BdR0=(U_int_M*)mymalloc(sizeof(U_int_M)*data.flag_lead.number))==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 	dim=0;
@@ -1907,7 +1910,7 @@ void section_5(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 		dim*=sizeof(U_int_S);
 		if(dim!=0 && (data.samples_BdR0=(U_int_S*)mymalloc(dim))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		fread(data.samples_BdR0,sizeof(U_int_S),dim,in);
@@ -1919,7 +1922,7 @@ void section_5(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 		dim*=sizeof(int_L);
 		if(dim!=0 && (data.Median=(int_L*)mymalloc(dim))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		dim/=sizeof(int_L);
@@ -1956,7 +1959,7 @@ void section_6(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 	Skip(1);
 	if(data.flag_lead.number!=0 && (data.length_Res=(U_int_M*)mymalloc(sizeof(U_int_M)*data.flag_lead.number))==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 	dim=0;
@@ -1971,7 +1974,7 @@ void section_6(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 		dim*=sizeof(U_int_S);
 		if(dim!=0 && (data.samples_Res=(U_int_S*)mymalloc(dim))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		fread(data.samples_Res,sizeof(U_int_S),dim,in);
@@ -1983,7 +1986,7 @@ void section_6(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 		dim*=sizeof(int_L);
 		if(dim!=0 && (data.Residual=(int_L*)mymalloc(dim))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		dim/=sizeof(int_L);
@@ -2023,7 +2026,7 @@ void section_7(pointer_section info_sections ,DATA_RECORD &data, int_S version)
 	{
 		if(data.data_global.number!=0 && (data.data_BdR=(BdR_measurement*)mymalloc(sizeof(BdR_measurement)*data.data_global.number))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		for(i=0;i<data.data_global.number;i++)
@@ -2042,7 +2045,7 @@ void section_7(pointer_section info_sections ,DATA_RECORD &data, int_S version)
 	{
 		if(data.data_global.number_spike!=0 && (data.data_spike=(spike*)mymalloc(sizeof(spike)*data.data_global.number_spike))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		//spike time is in ms from the start of recording
@@ -2084,12 +2087,12 @@ void section_7(pointer_section info_sections ,DATA_RECORD &data, int_S version)
 		dim=info_sections.index+info_sections.length-filepos COMPAT+1;
 		if(data.data_global.number_QRS>dim)
 		{
-			remark("Error: Cannot extract these data!!!");
+			fprintf(stderr,"Error: Cannot extract these data!!!");
 			exit(2);                                      //necessary for ESAOTE and CARDIOLINE test files
 		} 
 		if(data.data_global.number_QRS!=0 && (data.type_BdR=(U_int_S*)mymalloc(sizeof(U_int_S)*data.data_global.number_QRS))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		for(i=0;i<data.data_global.number_QRS;i++)
@@ -2116,7 +2119,7 @@ void section_7(pointer_section info_sections ,DATA_RECORD &data, int_S version)
 		//warnig: this calculation is relative to the structure of STANDARD v2.0!
 		if(data.data_global.number_tag!=0 && (data.data_additional=(additional_measurement*)mymalloc(sizeof(additional_measurement)*data.data_global.number_tag))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		for(i=0;i<data.data_global.number_tag;i++)
@@ -2166,7 +2169,7 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 	num=strlen(dates);                                          // by E.C. may 2004
 	if(num!=0 && (data.flag_report.date=(char*)mymalloc(num+1))==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 	strcpy(data.flag_report.date,dates);
@@ -2183,7 +2186,7 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 	num=strlen(hour);                                              // by E.C. may 2004
 	if(num!=0 && (data.flag_report.time=(char*)mymalloc(num+1))==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 	strcpy(data.flag_report.time,hour);
@@ -2193,7 +2196,7 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 		fgetpos(in,&filepos);
 		if(data.flag_report.number!=0 && (data.text_dim=(numeric*)mymalloc(data.flag_report.number*sizeof(numeric)))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		dim=0;
@@ -2208,7 +2211,7 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 		fseek(in,filepos COMPAT,0);
 		if(dim!=0 && (data.text_report=(char*)mymalloc((dim+1)*sizeof(char)))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		c=data.text_report;
@@ -2243,7 +2246,7 @@ void section_10(pointer_section info_sections, DATA_RECORD &data, int_S version)
 	if(dim<6)      //no measures
 	{
 		if (version != 10) {
-			remark("Error: Cannot extract these data!!!");
+			fprintf(stderr,"Error: Cannot extract these data!!!");
 			exit(2);
 		}
 	}
@@ -2255,7 +2258,7 @@ void section_10(pointer_section info_sections, DATA_RECORD &data, int_S version)
 	{
 		if((data.lead_block=(lead_measurement_block*)mymalloc(data.header_lead.number_lead*sizeof(lead_measurement_block)))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		for(i=0;i<data.header_lead.number_lead;i++)
@@ -2393,7 +2396,7 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 	num=strlen(dates);                                      // by E.C. may 2004
 	if(num!=0 && (data.flag_statement.date=(char*)mymalloc(num+1))==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 	strcpy(data.flag_statement.date,dates);
@@ -2410,7 +2413,7 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 	num=strlen(hour);                                           // by E.C. may 2004
 	if(num!=0 && (data.flag_statement.time=(char*)mymalloc(num+1))==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 	strcpy(data.flag_statement.time,hour);
@@ -2421,7 +2424,7 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 		fgetpos(in,&filepos);
 		if(data.flag_statement.number!=0 && (data.data_statement=(statement_coded*)mymalloc(data.flag_statement.number*sizeof(statement_coded)))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		dim=0;
@@ -2447,7 +2450,7 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 		fseek(in,filepos COMPAT,0);
 		if(dim!=0 && (data.text_statement=(char*)mymalloc(dim))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		punt=data.text_statement;
@@ -2532,7 +2535,7 @@ TREE_NODE *Tree_Create(TREE_NODE *tree, U_int_M n_of_struct, table_H *table, U_i
 	//build the root
 	if((tree=(TREE_NODE *)mymalloc(sizeof(TREE_NODE)))==NULL)
 	{
-		remark("Not enough memory");  // no, exit //
+		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
 	tree->next_0=NULL;
@@ -2551,7 +2554,7 @@ TREE_NODE *Tree_Create(TREE_NODE *tree, U_int_M n_of_struct, table_H *table, U_i
 				{
 					if((temp->next_1=(TREE_NODE *)mymalloc(sizeof(TREE_NODE)))==NULL)
 					{
-						remark("Not enough memory");  // no, exit //
+						fprintf(stderr,"Not enough memory");  // no, exit //
 						exit(2);
 					}
 					temp->next_1->next_0=NULL;
@@ -2566,7 +2569,7 @@ TREE_NODE *Tree_Create(TREE_NODE *tree, U_int_M n_of_struct, table_H *table, U_i
 				{
 					if((temp->next_0=(TREE_NODE *)mymalloc(sizeof(TREE_NODE)))==NULL)
 					{
-						remark("Not enough memory");  // no, exit //
+						fprintf(stderr,"Not enough memory");  // no, exit //
 						exit(2);
 					}
 					temp->next_0->next_0=NULL;
@@ -2664,7 +2667,7 @@ void decompress(TREE_NODE *tree, U_int_S *raw_in, U_int_M &pos_in, U_int_M max_i
 				temp=temp->next_0;
 			if (temp==NULL)
 			{
-				remark("Tree overflow");
+				fprintf(stderr,"Tree overflow");
 				err=1;
 				break;
 			}
@@ -2761,7 +2764,7 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 			dim_B=data.flag_BdR0.number_samples*sizeof(int_L)*data.flag_lead.number;   //whole number of bytes
 			if(dim_B!=0 && (data.Median=(int_L*)mymalloc(dim_B))==NULL)
 			{
-				remark("Not enough memory");  // no, exit //
+				fprintf(stderr,"Not enough memory");  // no, exit //
 				exit(2);
 			}
 			Huffman(data.Median,data.length_BdR0,data.samples_BdR0,data.flag_BdR0.number_samples,data.flag_lead.number,data.t_Huffman,data.flag_Huffman);
@@ -2786,7 +2789,7 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 		number_samples_=data.flag_Res.number_samples;                //number of samples per lead after interpolation
 		if(dim_R_!=0 && (data.Residual=(int_L*)mymalloc(dim_R_))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		if(section[2].length && data.flag_Huffman[0])
@@ -2833,7 +2836,7 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 
 				if(dim_R_!=0 && (dati_Res_=(int_L*)mymalloc(dim_R_))==NULL)
 				{
-					remark("Not enough memory");  // no, exit //
+					fprintf(stderr,"Not enough memory");  // no, exit //
 					exit(2);
 				}
 				Interpolate(dati_Res_,data.Residual,data.flag_lead,data.data_lead,data.flag_Res,data.data_protected,number_samples_);
@@ -2846,7 +2849,7 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 
 		if(dim_R!=0 && (data.Reconstructed=(int_L*)mymalloc(dim_R))==NULL)
 		{
-			remark("Not enough memory");  // no, exit //
+			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
 		int dim_RR=dim_R/sizeof(int_L);       // by E.C. 15.10.2003   This to correct a trivial error

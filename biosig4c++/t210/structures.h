@@ -22,7 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #ifndef __STRUCTURES_H__
 #define __STRUCTURES_H__
-#include <sys\types.h>
+#include <sys/types.h>
 #include <time.h>
 #include "types.h"
 
