@@ -1,3 +1,27 @@
+/*
+
+    $Id: scp_hl7aecg.cpp,v 1.3 2006-02-20 16:26:50 schloegl Exp $
+    Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
+    This function is part of the "BioSig for C/C++" repository 
+    (biosig4c++) at http://biosig.sf.net/ 
+
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+ */
+
 
 
 
@@ -13,6 +37,7 @@
 
 #include "types.h"               // start specific by E.C. (SCP reader)
 #include "structures.h"
+#include "codes.h"
 static const U_int_S _NUM_SECTION=12U;		//consider first 11 sections of SCP
 static bool add_filter=true;            // additional filtering gives better shape, but use with care
 int scp_decode(HDRTYPE*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO&, bool&);
@@ -67,11 +92,62 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
+
 	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
-		if ((decode.flag_lead.number==8) && decode.flag_lead.all_simultaneously) {
+		if (1) {
+                        hdr->VERSION= 0.1*textual.des.analyzing.protocol_revision_number;     // store version as requested (float)
+                        hdr->NS = decode.flag_lead.number;
+			hdr->SPR= decode.flag_Res.number_samples;        // should be 5000
+			hdr->NRec = 1; 
+                        hdr->Dur[0]=10; hdr->Dur[1]=1;  // duration = 10 sec
+
+			if (decode.flag_BdR0.STM==0) hdr->SampleRate= hdr->SPR/10;  // should be 500
+			else  hdr->SampleRate=1000000.0/decode.flag_BdR0.STM;
+                        // acquisition time is the sum of the date and the time, converted to gdf_time
+                        hdr->T0=t_time2gdf_time(textual.dev.date_acquisition2+textual.dev.time_acquisition2);
+                        char buff[300];
+                        strcpy(buff, textual.ana.first_name);
+                        strcat(buff, ", ");
+                        strcat(buff, textual.ana.last_name);
+                        hdr->Patient.Name = buff;              // name is 'first name, last name'
+                        hdr->Patient.Id = textual.ana.ID;
+                        hdr->Patient.Birthday = t_time2gdf_time(textual.ana.date_birth2);
+
+                        hdr->CHANNEL = (CHANNEL_TYPE *) calloc(hdr->NS, sizeof(CHANNEL_TYPE));
+                        memset(hdr->CHANNEL, 0, hdr->NS * sizeof(CHANNEL_TYPE));  // blank area
+//			hdr->AS.rawdata = (uint8_t*)decode.Reconstructed; 
+                        hdr->data.size[0] = hdr->NS;
+                        hdr->data.size[1] = hdr->SPR;
+                        hdr->data.block = (biosig_data_type *) calloc(12 * hdr->SPR, sizeof(biosig_data_type));
+
+			for (int i=0;i<hdr->NS;i++) {
+				hdr->CHANNEL[i].SPR = hdr->SPR;
+				hdr->CHANNEL[i].PhysDimCode = 4275; // physical unit "uV"	
+				hdr->CHANNEL[i].PhysDim     = "uV"; // physical unit "uV"	
+				hdr->CHANNEL[i].Cal         = 1000; // internal data conversion factor (AVM=1uV)
+				hdr->CHANNEL[i].Off         = 0;    // internal data conversion factor (AVM=1uV)
+				hdr->CHANNEL[i].OnOff       = 1;    //((i<2)|(i>5)); // only first eight channels are ON
+				hdr->CHANNEL[i].Transducer  = ""; 
+				hdr->CHANNEL[i].GDFTYP      = 5;    // int32
+				
+				// these must be still defined //
+				hdr->CHANNEL[i].Label       = "";   //lead_identification[decode.data_lead[i].ID];
+				/*
+				hdr->CHANNEL[i].DigMax      = 
+				hdr->CHANNEL[i].DigMin      = 
+				hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
+				hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
+				*/
+			}	
+			for (int j=0;j<hdr->NS;j++)
+			for (int i=0;i<hdr->SPR;i++)
+				hdr->data.block[i+hdr->SPR*j]=decode.Reconstructed[i+j*decode.flag_Res.number_samples];
+		}
+		else if ((decode.flag_lead.number==8) && decode.flag_lead.all_simultaneously) {
                         hdr->VERSION= 0.1*textual.des.analyzing.protocol_revision_number;     // store version as requested (float)
                         hdr->NS = 12;   // standard 12 leads only
 			hdr->SPR=decode.flag_Res.number_samples;        // should be 5000
+			hdr->NRec = 1; 
                         hdr->Dur[0]=10; hdr->Dur[1]=1;  // duration = 10 sec
 			if (decode.flag_BdR0.STM==0) hdr->SampleRate= hdr->SPR/10;  // should be 500
 			else  hdr->SampleRate=1000000.0/decode.flag_BdR0.STM;
@@ -87,7 +163,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
                         hdr->CHANNEL = (CHANNEL_TYPE *) calloc(hdr->NS, sizeof(CHANNEL_TYPE));
                         memset(hdr->CHANNEL, 0, hdr->NS * sizeof(CHANNEL_TYPE));  // blank area
-                        hdr->data.size[0] = 12;
+                        hdr->data.size[0] = hdr->NS;
                         hdr->data.size[1] = hdr->SPR;
                         hdr->data.block = (biosig_data_type *) calloc(12 * hdr->SPR, sizeof(biosig_data_type));
 
@@ -109,8 +185,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 				hdr->CHANNEL[i].PhysDim     = "uV"; // physical unit "uV"	
 				hdr->CHANNEL[i].Cal         = 1000; // internal data conversion factor (AVM=1uV)
 				hdr->CHANNEL[i].Off         = 0;    // internal data conversion factor (AVM=1uV)
-				hdr->CHANNEL[i].OnOff       = ((i<2)|(i>5)); // only first eight channels are ON
+				hdr->CHANNEL[i].OnOff       = 1; //((i<2)|(i>5)); // only first eight channels are ON
+				hdr->CHANNEL[i].Transducer  = ""; 
+				hdr->CHANNEL[i].GDFTYP      = 5;    // int32
 			}	
+
+
 			for (int i=0;i<hdr->SPR;i++)
 			{                             // data will be stored by row
 				hdr->data.block[i+hdr->SPR*0]=decode.Reconstructed[i];         // data returned is in microVolt
