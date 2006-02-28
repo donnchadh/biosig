@@ -28,8 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.47 $
-%	$Id: getfiletype.m,v 1.47 2005-10-19 17:06:09 schloegl Exp $
+%	$Id: getfiletype.m,v 1.48 2006-02-28 17:52:26 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -132,7 +131,7 @@ else
 		if FLAG.FS3, 
 			FLAG.FS3=all((s(4:pos1_ascii10)>=32) & (s(4:pos1_ascii10)<128)); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
                 end; 
-		ss = char(s); 
+		ss = char(s);
                 if 0,
                 elseif all(s([1:2,155:156])==[207,0,0,0]);
                         HDR.TYPE='BKR';
@@ -195,6 +194,8 @@ else
                         HDR.TYPE='MFER';
                 elseif strcmp(ss(1:6),'@ MFR '); 
                         HDR.TYPE='MFER';
+                elseif all(s([4:7,14:19])==[232,3,12,0,0,0,0,0,0,0]); 
+                        HDR.TYPE='PathFinder710_HighResolutionECG';
                 elseif all(s([9:22])==[0,0,136,0,0,0,13,13,abs('SCPECG')]); 
                         HDR.TYPE='SCP';
                         HDR.VERSION = 1.3; 
@@ -220,7 +221,7 @@ else
                                         id = str2double(t2);
                                         k = k+1;
                                         HDR.EN1064.SCP_Name{k}    = t1;
-                                        HDR.EN1064.Code{k}        = id;
+                                        HDR.EN1064.Code(k)        = id;
                                         HDR.EN1064.Description{k} = deblank(t3);
                                         HDR.EN1064.MDC_ECG_LEAD{k}= t(ix3+13:end);
                                 end;
@@ -848,50 +849,6 @@ else
                         end;
                         HDR.TYPE = 'EVENTCODES';
 			
-                elseif ~isempty(findstr(ss,'### Vital Signs Units of Measurement'))
-                        fseek(fid,0,-1);
-                        line = fgetl(fid);
-                        N1 = 0; N2 = 0;
-                        while ~feof(fid),%length(line),
-				N2 = N2 + 1;
-				if ~strncmp(line,'#',1),
-					N1 = N1 + 1;
-					ix = mod(cumsum(line=='"'),2);
-					tmp = line; 
-					tmp(~~ix) = ' '; 
-					ix  = find(tmp==',');
-					if (length(ix)~=3)
-						fprintf(2,'Warning: line (%3i: %s) not valid\n',N2,line);
-					else
-						fprintf(2,'         line (%3i: %s) not valid\n',N2,line);
-						t1 = line(1:ix(1)-1);
-						t2 = line(ix(1)+1:ix(2)-1);
-						t3 = line(ix(2)+1:ix(3)-1);
-						t4 = line(ix(3)+1:end);
-						HDR.Table.UnitsOfMeasurement.Code(N1,1)   = max([NaN,str2double(t1)]);
-						HDR.Table.UnitsOfMeasurement.Symbol{N1,1} = char(t2(2:end-1));
-                        		end;
-                                end;	
-                                line = fgetl(fid);
-                        end;
-			
-                elseif ~isempty(findstr(ss,'### Table of Decimal Factors'))
-                        fseek(fid,0,-1);
-                        line = fgetl(fid);
-                        N1 = 0; N2 = 0; 
-                        while ~feof(fid),%length(line),
-				if ~strncmp(line,'#',1),
-					N1 = N1+1;
-                        		[n,v,s]=str2double(line);
-                        		HDR.Table.DecimalFactor.Code(N1,1) = n(cumsum(~v)==2);
-                        		HDR.Table.DecimalFactor.Cal(N1,1) = n(cumsum(~v)==1);
-                        		if any(v)
-	                        		HDR.Table.DecimalFactor.Name(N1,1) = s(~~v);
-	                        	end;
-                                end;	
-                                line = fgetl(fid);
-                        end;
-                        
                 else
                         HDR.TYPE='unknown';
 
@@ -966,6 +923,14 @@ else
                         HDR.FileName=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext(1),'H',HDR.FILE.Ext(3)]);
                         HDR.TYPE = 'RG64';
                         
+                elseif strcmpi([HDR.FILE.Name,'.',HDR.FILE.Ext],'alldata.bin')
+                	if exist(fullfile(HDR.FILE.Path,'alldata.bin'),'file')
+                	if exist(fullfile(HDR.FILE.Path,'lefttrain.events'),'file')
+                	if exist(fullfile(HDR.FILE.Path,'righttrain.events'),'file')
+                	if exist(fullfile(HDR.FILE.Path,'test.events'),'file')
+	                	HDR.TYPE = 'BCI2002b';
+                	end;end;end;end; 
+                        
                 elseif strcmpi(HDR.FILE.Ext,'txt') & (any(strfind(HDR.FILE.Path,'a34lkt')) | any(strfind(HDR.FILE.Path,'egl2ln'))) & any(strmatch(HDR.FILE.Name,{'Traindata_0','Traindata_1','Testdata'}))
                         HDR.TYPE = 'BCI2003_Ia+b';
                         
@@ -980,7 +945,8 @@ else
                         
                 elseif strcmpi(HDR.FILE.Ext,'shape_info')
                         
-                elseif strcmpi(HDR.FILE.Ext,'trg')
+                elseif strcmpi(HDR.FILE.Ext,'trg') & HDR.FLAG.ASCII
+                	HDR.TYPE = 'EEProbe-TRG';
                         
                 elseif strcmpi(HDR.FILE.Ext,'rej')
                         

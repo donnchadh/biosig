@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.135 $
-%	$Id: sopen.m,v 1.135 2006-02-13 09:22:53 schloegl Exp $
+%	$Revision: 1.136 $
+%	$Id: sopen.m,v 1.136 2006-02-28 17:52:26 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -5029,6 +5029,49 @@ elseif strcmp(HDR.TYPE,'MAT4') & any(HDR.FILE.PERMISSION=='r'),
         end;
         
         
+elseif strcmp(HDR.TYPE,'BCI2002b');
+        % BCI competition 2002, dataset b (EEG synchronized imagined movement task) provided by Allen Osman, University of Pennsylvania).
+        HDR.NS = 59; 
+        HDR.GDFTYP = 16; % float32
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path, 'alldata.bin'),[HDR.FILE.PERMISSION,'b'],'ieee-be');
+        	HDR.data = fread(HDR.FILE.FID,[HDR.NS,inf],'float32')';
+        	fclose(HDR.FILE.FID);
+        	HDR.SPR = size(HDR.data,1); 
+        	HDR.NRec = 1; 
+        	HDR.SampleRate = 100; % Hz 
+        	HDR.FILE.POS = 0;         	
+        	HDR.THRESHOLD = repmat([-125,124.93],HDR.NS,1)
+
+        	x1 = load(fullfile(HDR.FILE.Path, 'lefttrain.events'));
+        	x2 = load(fullfile(HDR.FILE.Path, 'righttrain.events'));
+        	x3 = load(fullfile(HDR.FILE.Path, 'test.events'));
+        	x  = [x1; x2; x3];
+        	HDR.EVENT.POS = x(:,1); 
+        	HDR.EVENT.TYP = (x(:,2)==5)*hex2dec('0301') + (x(:,2)==6)*hex2dec('0302') + (x(:,2)==7)*hex2dec('030f'); 
+        	
+        	HDR.TYPE = 'native'; 
+        	HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
+
+        	tmp = HDR.FILE.Path; 
+        	if tmp(1)~='/',
+        		tmp = fullfile(pwd,tmp); 
+        	end;
+        	while ~isempty(tmp) 
+        		if exist(fullfile(tmp,'sensorlocations.txt'))
+        			fid = fopen(fullfile(tmp,'sensorlocations.txt'));
+        			s = fread(fid,[1,inf],'char=>char'); 
+        			fclose(fid); 
+        			[NUM, STATUS,STRARRAY] = str2double(s); 
+        			HDR.Label = strvcat(STRARRAY(:,1));
+        			HDR.XYZ = NUM(:,2:4); 
+        			tmp = '';
+        		end;
+        		tmp = fileparts(tmp); 
+        	end; 
+	end;        
+
+        
 elseif strcmp(HDR.TYPE,'BCI2003_Ia+b');
         % BCI competition 2003, dataset 1a+b (Tuebingen)
         data = load('-ascii',HDR.FileName);
@@ -5098,14 +5141,42 @@ elseif strcmp(HDR.TYPE,'BCI2003_III');
 elseif strncmp(HDR.TYPE,'MAT',3),
         status = warning;
         warning('off');
-        tmp = load('-mat',HDR.FileName);
+        tmp = load('-mat',HDR.FileName)        ;
         warning(status);
+        
+        flag.bci2002a = isfield(tmp,'x') & isfield(tmp,'y') & isfield(tmp,'z') & isfield(tmp,'fs') & isfield(tmp,'elab'); 
+        if flag.bci2002a,
+        	flag.bci2002a = all(size(tmp.y) == [1501,27,516]); 
+        end; 
+        
         if isfield(tmp,'HDR')
                 HDR = tmp.HDR; 
                 if isfield(HDR,'data');
                         HDR.TYPE = 'native'; 
                 end; 
+
                 
+        elseif flag.bci2002a,
+        	[HDR.SPR, HDR.NS, HDR.NRec] = size(tmp.y); 
+       		HDR.Label = strvcat(tmp.elab);
+		HDR.SampleRate = tmp.fs; 
+		HDR.data  = reshape(permute(tmp.y,[1,3,2]),[HDR.SPR*HDR.NRec,HDR.NS]); 
+		HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
+		HDR.Transducer = repmat('Ag/AgCl electrodes',3,1);
+		HDR.Filter.Lowpass = 200; 
+		HDR.Filter.HighPass = 0.05; 
+		HDR.TYPE  = 'native';
+
+                HDR.FLAG.TRIGGERED = logical(1); 
+		HDR.EVENT.POS  = [0:HDR.NRec-1]'*HDR.SPR;
+		HDR.EVENT.TYP  = [(tmp.z==-1)*hex2dec('0301') + (tmp.z==1)*hex2dec('0302') + (tmp.z==0)*hex2dec('030f')]';
+		HDR.EVENT.POS(isnan(tmp.z)) = []; 
+		HDR.EVENT.TYP(isnan(tmp.z)) = []; 
+                HDR.Classlabel = mod(HDR.EVENT.TYP,256);
+                HDR.Classlabel(HDR.Classlabel==15) = NaN; % unknown/undefined cue
+                HDR.TRIG = HDR.EVENT.POS; 
+
+
         elseif isfield(tmp,'y'),		% Guger, Mueller, Scherer
                 HDR.NS = size(tmp.y,2);
                 HDR.NRec = 1; 
@@ -5215,7 +5286,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 		
                 
         elseif isfield(tmp,'run') & isfield(tmp,'trial') & isfield(tmp,'sample') & isfield(tmp,'signal') & isfield(tmp,'TargetCode');
-                HDR.INFO='BCI competition 2003, dataset 2a (Albany)'; 
+                HDR.INFO='BCI competition 2002/2003, dataset 2a (Albany)'; 
                 HDR.SampleRate = 160; 
                 HDR.NRec = 1; 
 		[HDR.SPR,HDR.NS]=size(tmp.signal);
@@ -7794,7 +7865,7 @@ if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS)); 
 
 	% convert EVENT.Version 1 to 3, currently used by GDF, BDF and alpha
-	flag_remove = zeros(size(HDR.EVENT.TYP));        
+	flag_remove = zeros(size(HDR.EVENT.TYP));
 	types  = unique(HDR.EVENT.TYP);
 	for k1 = find(bitand(types(:)',hex2dec('8000')));
 	        TYP0 = bitand(types(k1),hex2dec('7fff'));
