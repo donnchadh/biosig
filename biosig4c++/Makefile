@@ -1,3 +1,4 @@
+
 ####### Compiler, tools and options
 
 #CC            = gcc
@@ -16,15 +17,26 @@ DEL_FILE      = rm
 ####### Files
 
 SOURCES       = biosig.c \
-		scp_hl7aecg.c \
-		main.c 
+		t210/scp_hl7aecg.cpp \
+		t210/scp-decode.cpp \
+		demo.c \
+		scp2gdf.c 
 OBJECTS       = biosig.o \
-		scp_hl7aecg.o \
-		main.o
-TARGET        = biosig
+		t210/scp_hl7aecg.o \
+		t210/scp-decode.o \
+		scp2gdf.o \
+		demo.o 
+TARGET        = scp2gdf
               # Windows
 
 ####### Build rules
+
+#demo:
+#	g++ -o demo biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp demo.c
+#scp2gdf:
+#	g++ -o scp2gdf biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp scp2gdf.c
+
+
 
 first: all
 all: $(TARGET)
@@ -33,12 +45,20 @@ $(TARGET):  $(OBJECTS)
 	$(LINK) $(LFLAGS) -o "$(TARGET)" $(OBJECTS) $(LIBS)
 
 clean: 
-	-$(DEL_FILE) biosig.o scp_hl7aecg.o main.o
+	-$(DEL_FILE) *.o 
+	-$(DEL_FILE) t210/*.o 
+	-$(DEL_FILE) demo scp2gdf
 
 ####### Compile
 
-biosig.o: biosig.c scp_hl7aecg.c biosig.h 
-	$(CC) -c $(CFLAGS) $(INCPATH) -o biosig.o biosig.c
+#biosig.o: biosig.c scp_hl7aecg.c biosig.h 
+#biosig.o: biosig.c scp2gdf.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp 
+#	$(CC) $(CFLAGS) $(INCPATH) -o biosig.o biosig.c
 
-main.o: main.c scp_hl7aecg.c biosig.h
-	$(CC) -c $(CFLAGS) $(INCPATH) -o main.o main.c
+demo: biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp demo.c
+	$(CC) $(CFLAGS) -o demo biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp demo.c
+	
+scp2gdf: biosig.c scp2gdf.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp 
+	$(CC) $(CFLAGS) -o scp2gdf biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp scp2gdf.c
+	
+	
