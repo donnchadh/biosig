@@ -5,116 +5,147 @@
     (at your option) any later version.
 
 
-    $Id: BioSig.java,v 1.2 2005-12-15 15:16:29 schloegl Exp $
-    Copyright (C) 2005 Alois Schloegl <a.schloegl@ieee.org>
+    $Id: BioSig.java,v 1.3 2006-03-02 17:51:16 schloegl Exp $
+    Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for Java" repository 
     (biosig4java) at http://biosig.sf.net/ 
 
  */
 
 
+
+/*
+TODO 
+	conversion of LE to BE. support of byte swaping 
+*/
+
+
 import java.io.*;
 
 public class BioSig {
     
-    static class HDRTYPE {
-         int 	TYPE;
-         float 	VERSION; 
-         int	HeadLen; 
+	public class FileFormat {
+	    public static final int BDF 	= -1;
+	    public static final int EDF 	=  0;
+	    public static final int GDF 	=  1;
+	    public static final int SCP	 	=  2;
+	    public static final int XML 	=  3;
+	    public static final int XML_UTF8 	= 88;
+	}            
+	
+  
+// static enum Days { SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY,  FRIDAY, SATURDAY };
 
-         String FileName;
-         FileInputStream 	fileIn;
-         FileOutputStream 	fileOut;
-         int		FileOpen; 	//0: closed, 1: read, 2: write 
-  	 int		FilePos; 	// position of file handle        
+//enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP_ECG, HL7aECG, XML}; 
+  	static class HDRTYPE {
+         	int	TYPE;		// of type BioSig.FileFormat
+         	float 	VERSION; 
+         	int	HeadLen; 
 
-         double		T0; 	// start date and time - format might change
-         int		NS; 	// number of channels
-         int 		SPR;	// samples per record
-         int		NRec; 	// number of Records
-      	 int[]		Duration = new int[2];
-      	 double		SampleRate; 
+         	String 		FileName;
+         	InputStream 	fileIn;
+         	OutputStream 	fileOut;
+//         	RandomAccessFile 	fileIn;
+//         	RandomAccessFile 	fileOut;
+         	int		FileOpen; 	//0: closed, 1: read, 2: write 
+  	 	int		FilePos; 	// position of file handle        
+
+         	double		T0; 	// start date and time - format might change
+         	int		NS; 	// number of channels
+         	long 		SPR;	// samples per record
+         	long		NRec; 	// number of Records
+      	 	int[]		Duration = new int[2];
+      	 	double		SampleRate; 
       	 
-         double		patientBirthday; 	// date and time - format might change
-	 String		patientName; 
-	 String		patientID; 
-	 float		patientWeight;
-	 float		patientHeight;
-	 float[]	HeadSize;
-	 int		patientSex; 
-	 int		patientHandedness; 
+         	double		patientBirthday; 	// date and time - format might change
+	 	String		patientName; 
+	 	String		patientID; 
+	 	float		patientWeight;
+	 	float		patientHeight;
+	 	float[]	HeadSize;
+	 	int		patientSex; 
+	 	int		patientHandedness; 
 	 	
-         boolean	flagOverflowdetection; 
-         boolean	flagUCAL; 	// 0: calibrated, 1: un-calibrated
+         	boolean	flagOverflowdetection; 
+         	boolean	flagUCAL; 	// 0: calibrated, 1: un-calibrated
 
-  	 CHANNEL[]	channel;	
+  	 	CHANNEL[]	channel;	
 
-  	 double[][]	data; 
-  	 int[][]	rawdata; 
+  	 	double[][]	data; 
+  	 	int[][]	rawdata; 
 	
-	 EVENT[]	event; 	
-    }
+	 	EVENT[]	event; 	
+    	}
 
 
-    static class CHANNEL {
-	 boolean	OnOff; 		// 
-      	 String 	Label; 
-      	 String		Transducer;
+    	static class CHANNEL {
+	 	boolean		OnOff; 		// 
+      	 	String 		Label; 
+      	 	String		Transducer;
 
-	 String		PhysDim;	// physical dimension
-	 int		PhysDimCode;	// code for physical dimension
-	//char* 	PreFilt;	// pre-filtering
+	 	String		PhysDim;	// physical dimension
+	 	int		PhysDimCode;	// code for physical dimension
+		//char* 	PreFilt;	// pre-filtering
 
-	float 		LowPass;	// lowpass filter
-	float 		HighPass;	// high pass
-	float 		Notch;		// notch filter
-	float[] 	XYZ = new float[3];		// electrode position
-	float 		Impedance;   	// in Ohm
+		float 		LowPass;	// lowpass filter
+		float 		HighPass;	// high pass
+		float 		Notch;		// notch filter
+		float[] 	XYZ = new float[3];		// electrode position
+		float 		Impedance;   	// in Ohm
 	
-	double 		PhysMin;	// physical minimum
-	double 		PhysMax;	// physical maximum
-	double 		DigMin;		// digital minimum
-	double	 	DigMax;		// digital maximum
+		double 		PhysMin;	// physical minimum
+		double 		PhysMax;	// physical maximum
+		double 		DigMin;		// digital minimum
+		double	 	DigMax;		// digital maximum
 
-	int 		GDFTYP;		// data type
-	int 		SPR;		// samples per record (block)
+		int 		GDFTYP;		// data type
+		int 		SPR;		// samples per record (block)
 	
-	double		Cal;		// gain factor 
-	double		Off;		// bias       	 
-    }
+		double		Cal;		// gain factor 
+		double		Off;		// bias       	 
+    	}
 
-    static class EVENT {
-	 int		POS;	
-	 int		TYP;	
-	 int		CHN;	
-	 int		DUR;	
-    }
+    	static class EVENT {
+		int		POS;	
+		int		TYP;	
+		int		CHN;	
+		int		DUR;	
+    	}
      
-    static HDRTYPE getfiletype (HDRTYPE HDR) {
-  	// identification of file format 
-	byte[] b = new byte[256];
-	String[] MagicKeys = {"0       ","GDF ","\255BIOSEMI", "SCP","XML"};
+    	static HDRTYPE getfiletype (HDRTYPE HDR) {
+  		// identification of file format 
+		byte[] b = new byte[256];
 		
+		try {
+			HDR.fileIn.read(b); 
 
-	try {
-		HDR.fileIn.read(b); 
-	//	    ss = string(b); 
-/*
-	if (compare(b{0:7},{'0',0,0,0,0,0,0,0 }) == null) {
-		System.out.println("EDF");
-	}
-	    else if (compare(b,{'G','D','F',' ' }) == null) { 
-		    System.out.println("GDF");
-	    }    
-	    else if (compare(b,"BIOSEMI") == null) { 
-		    System.out.println("BDF");
-	    }    
-	    else
-		    System.out.println("unknown");
-	// do file type check 				
-*/
 
-			System.out.write(b);
+			HDR.VERSION = -1; 
+			if (new String(b,0,8).equals("0       ")) {
+				HDR.TYPE = BioSig.FileFormat.EDF;
+				HDR.VERSION = 0; 
+			}
+			else if (new String(b,0,3).equals("GDF")) {
+				HDR.TYPE = BioSig.FileFormat.GDF;
+				HDR.VERSION = Float.valueOf(new String(b,3,5)).floatValue();
+			}
+			else if (new String(b,1,7).equals("BIOSEMI") & (b[0]==-1)) {
+				HDR.TYPE = BioSig.FileFormat.BDF;
+				HDR.VERSION = -1; 
+			}
+			else if (new String(b,16,6).equals("SCPECG")) {
+				HDR.TYPE = BioSig.FileFormat.SCP;
+			}
+			else if (new String(b,0,38).equals("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")) {
+				HDR.TYPE = BioSig.FileFormat.XML_UTF8;
+			}
+			else if (new String(b,0,5).equals("<?xml")) {
+				HDR.TYPE = BioSig.FileFormat.XML;
+			}
+			else {
+			}
+
+//			System.out.write(b);
 
 		} 
 		catch (Exception e) {
@@ -129,12 +160,72 @@ public class BioSig {
 
   		HDRTYPE HDR = new HDRTYPE(); 
   		HDR.FileName = FileName; 
+		byte[] b = new byte[256];
+		int k; 
 	
 		if (PERMISSION.compareTo("r")==0) { 
 		try {
-	  		HDR.fileIn = new FileInputStream (HDR.FileName);
+	  		HDR.fileIn = new LittleEndianInputStream (HDR.FileName,"r");
+			HDR.fileIn.read(b); 
   			HDR.FileOpen = 1;
-			HDR = getfiletype (HDR); 	
+
+			HDR.VERSION = -1; 
+			if (new String(b,0,8).equals("0       ")) {
+				HDR.TYPE = BioSig.FileFormat.EDF;
+				HDR.VERSION = 0; 
+			}
+			else if (new String(b,0,3).equals("GDF")) {
+				HDR.TYPE = BioSig.FileFormat.GDF;
+				HDR.VERSION = Float.valueOf(new String(b,3,5)).floatValue();
+			}
+			else if (new String(b,1,7).equals("BIOSEMI") & (b[0]==-1)) {
+				HDR.TYPE = BioSig.FileFormat.BDF;
+				HDR.VERSION = -1; 
+			}
+			else if (new String(b,16,6).equals("SCPECG")) {
+				HDR.TYPE = BioSig.FileFormat.SCP;
+			}
+			else if (new String(b,0,38).equals("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")) {
+				HDR.TYPE = BioSig.FileFormat.XML_UTF8;
+			}
+			else if (new String(b,0,5).equals("<?xml")) {
+				HDR.TYPE = BioSig.FileFormat.XML;
+			}
+			else {
+			}
+
+//			System.out.write(b);
+
+			
+			switch (HDR.TYPE) { 	
+			case BioSig.FileFormat.BDF: 
+				System.out.println("BDF");
+				break;
+			case BioSig.FileFormat.EDF: 
+				System.out.println("EDF");
+				break;
+			case BioSig.FileFormat.GDF: 
+				HDR.fileIn.seek(236);
+				HDR.NRec = HDR.fileIn.readLong();
+				HDR.fileIn.seek(252);
+				HDR.NS = HDR.fileIn.readInt();
+
+				System.out.println(HDR.NS);
+				System.out.println(HDR.NRec);
+				break;
+			case BioSig.FileFormat.SCP: 
+				System.out.println("SCP");
+				break;
+			case BioSig.FileFormat.XML: 
+				System.out.println("XML");
+				break;
+			case BioSig.FileFormat.XML_UTF8: 
+				System.out.println("XML-UTF8");
+				break;
+			default:  
+				System.out.println("unknown fileformat");
+				break;
+			}
 			
 			
 /********* add your sopenReadSCP here  **********/ 
@@ -149,7 +240,7 @@ public class BioSig {
 		
 		else if (PERMISSION.compareTo("w")==0 ) { 
 		try {
-	  		HDR.fileOut = new FileOutputStream (HDR.FileName);
+	  		HDR.fileOut = new RandomAccessFile (HDR.FileName,"w");
   			HDR.FileOpen = 2;
 
 /********* add your sopenWriteSCP here  **********/ 
@@ -223,6 +314,7 @@ public class BioSig {
 		sclose(sopen(args,"r")); 
 		System.out.println(args[0]);
 	}
+
 }
 
 
