@@ -1,6 +1,6 @@
 /*
 
-    $Id: main.c,v 1.12 2006-02-02 19:06:49 schloegl Exp $
+    $Id: demo.c,v 1.1 2006-03-02 13:48:08 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -160,10 +160,12 @@ fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 		}
 	
 		count = sread(hdr,k,10);
-fprintf(stdout,"m1: %f %f %f %f\n",hdr->data.block[0],hdr->data.block[1],hdr->data.block[2],hdr->data.block[3]);
+fprintf(stdout,"\nm1: %f %f %f %f\n",hdr->data.block[0],hdr->data.block[1],hdr->data.block[2],hdr->data.block[3]);
 
 		for (k=0; !seof(hdr); k+=10) {
+//fprintf(stdout,"%i\t%i\t%i\tm2\n",hdr->FILE.POS,hdr->SPR,hdr->NRec);		
 			count = sread(hdr,k,10);
+//fprintf(stdout,"m3 [%i %i]\n",!seof(hdr),hdr->data.size[0],hdr->data.size[1] );		
 //fprintf(stdout,"m1: %f %f %f %f\n",hdr->data.block[0],hdr->data.block[1],hdr->data.block[2],hdr->data.block[3]);
 	
 		}
