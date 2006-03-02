@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.38 2006-02-13 08:15:11 schloegl Exp $
+    $Id: biosig.c,v 1.39 2006-03-02 11:10:25 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -45,7 +45,44 @@
 //#include "zlib.h"
 
 
-const int GDFTYP_BYTE[] = {1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8, 16};
+const int GDFTYP_BYTE[] = {
+	1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0,   /* 0  */ 
+	4, 8,16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 16 */ 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 32 */ 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 48 */ 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 64 */ 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    /* 128 */ 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2,    /* 256 */  
+	0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4,    /* 255+24 = bit24, 3 byte */ 
+	0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 6, 
+	0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 8, 
+	0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0,10, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    /* 384 */ 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2,    /* 512 */ 
+	0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4, 
+	0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 6, 
+	0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 8, 
+	0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0,10  };
 
 
 /****************************************************************************/
@@ -324,7 +361,7 @@ if (!strcmp(MODE,"r"))
 		free(Header1);
 		return(NULL); 
 	}	
-	
+
     	if (hdr->TYPE == GDF) {
   	    	strncpy(tmp,(char*)Header1+3,5);
 	    	hdr->VERSION 	= atof(tmp);
@@ -996,7 +1033,7 @@ size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
 
 	// check reading segment 
 	if (start >= 0) {
-		if (start > hdr->NRec * hdr->AS.bpb)
+		if (start > hdr->NRec)
 			return(0);
 		else if (fseek(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
 			return(0);
@@ -1011,6 +1048,8 @@ size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
 
 	// read data	
 	count = fread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
+	if (count<nelem)
+		fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem,hdr->FILE.POS,hdr->AS.bpb); 
 
 	// set position of file handle 
 	hdr->FILE.POS += count;
@@ -1117,7 +1156,7 @@ size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HD
 
 	// check reading segment 
 	if (start >= 0) {
-		if (start > hdr->NRec * hdr->AS.bpb)
+		if (start > hdr->NRec)
 			return(0);
 		else if (fseek(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
 			return(0);
@@ -1305,7 +1344,7 @@ int sclose(HDRTYPE* hdr)
 	char tmp[88]; 
 	char flag; 
 	
-	
+
 	if ((hdr->NRec<0) & (hdr->FILE.OPEN>1))
 	if ((hdr->TYPE==GDF) | (hdr->TYPE==EDF) | (hdr->TYPE==BDF))
 	{
@@ -1373,10 +1412,12 @@ int sclose(HDRTYPE* hdr)
         	free(hdr->aECG);
     	if (hdr->AS.rawdata != NULL)	
         	free(hdr->AS.rawdata);
-    	if (hdr->data.block != NULL)	
+
+    	if (hdr->data.block != NULL) {	
         	free(hdr->data.block);
         	hdr->data.size[0]=0;
         	hdr->data.size[1]=0;
+        }	
 
     	if (hdr->CHANNEL != NULL)	
         	free(hdr->CHANNEL);
