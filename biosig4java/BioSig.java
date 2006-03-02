@@ -5,7 +5,7 @@
     (at your option) any later version.
 
 
-    $Id: BioSig.java,v 1.3 2006-03-02 17:51:16 schloegl Exp $
+    $Id: BioSig.java,v 1.4 2006-03-02 17:57:58 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for Java" repository 
     (biosig4java) at http://biosig.sf.net/ 
@@ -43,10 +43,10 @@ public class BioSig {
          	int	HeadLen; 
 
          	String 		FileName;
-         	InputStream 	fileIn;
-         	OutputStream 	fileOut;
-//         	RandomAccessFile 	fileIn;
-//         	RandomAccessFile 	fileOut;
+//         	FileInputStream 	fileIn;
+//         	FileOutputStream 	fileOut;
+         	RandomAccessFile 	fileIn;
+         	RandomAccessFile 	fileOut;
          	int		FileOpen; 	//0: closed, 1: read, 2: write 
   	 	int		FilePos; 	// position of file handle        
 
@@ -165,7 +165,8 @@ public class BioSig {
 	
 		if (PERMISSION.compareTo("r")==0) { 
 		try {
-	  		HDR.fileIn = new LittleEndianInputStream (HDR.FileName,"r");
+	  		HDR.fileIn = new RandomAccessFile (HDR.FileName,"r");
+//	  		HDR.fileIn = new FileInputStream (HDR.FileName);
 			HDR.fileIn.read(b); 
   			HDR.FileOpen = 1;
 
