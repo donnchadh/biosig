@@ -4,13 +4,13 @@
 #CC            = gcc
 CC            = g++
 DEFINES       = 
-CFLAGS        = -O2 -Wall $(DEFINES)
-INCPATH       = -I"."
+CFLAGS        = #-O2 -Wall $(DEFINES)
+INCPATH       = "/usr/include/libxml2/"
 #LINK          = gcc
 LINK          = g++
 #LFLAGS        = -Wl,-subsystem,console  # Windows
 LFLAGS        = -lm
-LIBS          =
+LIBS          = "/usr/lib/libxml2"
 #DEL_FILE      = del                     # Windows
 DEL_FILE      = rm
 
@@ -32,9 +32,9 @@ TARGET        = scp2gdf
 ####### Build rules
 
 #demo:
-#	g++ -o demo biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp demo.c
+#	g++ -I "/usr/include/libxml2/" -o demo biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp demo.c
 #scp2gdf:
-#	g++ -o scp2gdf biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp scp2gdf.c
+#	g++ -I "/usr/include/libxml2/" -o scp2gdf biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp scp2gdf.c
 
 
 
@@ -53,12 +53,12 @@ clean:
 
 #biosig.o: biosig.c scp_hl7aecg.c biosig.h 
 #biosig.o: biosig.c scp2gdf.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp 
-#	$(CC) $(CFLAGS) $(INCPATH) -o biosig.o biosig.c
+#	$(CC) $(CFLAGS) -I $(INCPATH) -o biosig.o biosig.c
 
 demo: biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp demo.c
-	$(CC) $(CFLAGS) -o demo biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp demo.c
+	$(CC) $(CFLAGS) -I$(INCPATH) -o demo biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp demo.c
 	
 scp2gdf: biosig.c scp2gdf.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp 
-	$(CC) $(CFLAGS) -o scp2gdf biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp scp2gdf.c
+	$(CC) $(CFLAGS) -I$(INCPATH) -o scp2gdf biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp scp2gdf.c
 	
 	

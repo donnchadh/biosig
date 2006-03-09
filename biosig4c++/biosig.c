@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.39 2006-03-02 11:10:25 schloegl Exp $
+    $Id: biosig.c,v 1.40 2006-03-09 08:36:36 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -41,11 +41,16 @@
 #include <string.h>
 #include <time.h>
 
+#include <libxml/xmlIO.h>
+#include <libxml/parser.h>
+#include <libxml/xinclude.h>
+#include <libxml/tree.h>
+
 #include "biosig.h"
 //#include "zlib.h"
 
 
-const int GDFTYP_BYTE[] = {
+const int16_t GDFTYP_BYTE[] = {
 	1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0,   /* 0  */ 
 	4, 8,16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 16 */ 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 32 */ 
@@ -53,8 +58,8 @@ const int GDFTYP_BYTE[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 64 */ 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    /* 128 */ 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    /* 128 */ 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -275,6 +280,8 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	const float	CNT_SETTINGS_NOTCH[] = {0.0, 50.0, 60.0}; 
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
 	const float	CNT_SETTINGS_HIGHPASS[] = {NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
+
+	xmlDocPtr		XMLDOCPTR;
 
     	int 		k,id;
     	uint32_t	k32u; 
@@ -728,7 +735,13 @@ if (!strcmp(MODE,"r"))
 	}
 	
 	else if (hdr->TYPE==XML) {
+		fclose(hdr->FILE.FID); 
+
+		XMLDOCPTR = xmlReadFile (hdr->FileName,NULL,2048);
+/*
+					 
 		hdr = sopen_HL7aECG_read(Header1,hdr);
+*/
 	}
 	
 	else if (0) { //(hdr->TYPE==SCP_ECG) {
