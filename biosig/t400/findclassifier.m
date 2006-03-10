@@ -40,7 +40,7 @@ function [CC,Q,tsd]=findclassifier(D,TRIG,cl,T,t0,FUN)
 %	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003 
 
 
-%   $Id: findclassifier.m,v 1.4 2005-11-28 17:36:16 schloegl Exp $
+%   $Id: findclassifier.m,v 1.5 2006-03-10 14:53:25 schloegl Exp $
 %   Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -132,7 +132,7 @@ CC.TI = TI;
 
 if isnan(maxQ)
 	fprintf(2,'ERROR FINDCLASSIFIER: no valid classifier available.\n'); 
-	retrun; 
+	return; 
 end;	
 
 %% cross-validation with jackknife (group-based leave-one-out-method)
@@ -147,10 +147,20 @@ for l = 1:length(CL2);          % XV based on "Leave-One(group)-Out-Method"
         t  = perm(TRIG(ix), T(CC.TI,:));        % get samples of test set
 
         % decremental learning
-        if ~isempty(strfind(CC.datatype,'statistical')), 
+        if 0, ~isempty(strfind(CC.datatype,'statistical')), 
                 c  = repmat(cl(cl2==CL2(l))', size(T,2),1);     % classlabels of test set
                 cc = untrain_sc(CC,c(:),D(t(:),:));             % untraining test set
                 
+        elseif ~isempty(strfind(CC.datatype,'statistical')),
+                t  = perm(TRIG(cl2~=CL2(l)), T(CC.TI,:));       % samples of training set
+                c  = repmat(cl(cl2~=CL2(l))', size(T,2),1);     % classlabels of training set
+                cc = train_sc(D(t(:),:),c(:));                 % train classifier 
+
+        elseif ~isempty(strfind(CC.datatype,'svm:1vs1')),
+                t  = perm(TRIG(cl2~=CL2(l)), T(CC.TI,:));       % samples of training set
+                c  = repmat(cl(cl2~=CL2(l))', size(T,2),1);     % classlabels of training set
+                cc = train_svm11(D(t(:),:),c(:));                 % train classifier 
+
         elseif ~isempty(strfind(CC.datatype,'svm')),
                 %ix = IX; ix(l)=[];
                 t  = perm(TRIG(cl2~=CL2(l)), T(CC.TI,:));       % samples of training set
