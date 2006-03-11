@@ -1,7 +1,7 @@
 /*
 
-    $Id: biosig.c,v 1.40 2006-03-09 08:36:36 schloegl Exp $
-    Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
+    $Id: biosig.c,v 1.41 2006-03-11 23:17:28 schloegl Exp $
+    Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -45,6 +45,8 @@
 #include <libxml/parser.h>
 #include <libxml/xinclude.h>
 #include <libxml/tree.h>
+#include <libxml/xmlreader.h>
+
 
 #include "biosig.h"
 //#include "zlib.h"
@@ -281,7 +283,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
 	const float	CNT_SETTINGS_HIGHPASS[] = {NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
 
-	xmlDocPtr		XMLDOCPTR;
+	xmlDocPtr	XMLDOC;
 
     	int 		k,id;
     	uint32_t	k32u; 
@@ -357,16 +359,19 @@ if (!strcmp(MODE,"r"))
 	    	hdr->TYPE = PLEXON;
     	else if (!memcmp(Header1+16,"SCPECG",6))
 	    	hdr->TYPE = SCP_ECG;
-    	else if (!memcmp(Header1,"<WORLD>",7))
-	    	hdr->TYPE = XML;
-    	else if (!memcmp(Header1,"<?xml version=\"1.0\" encoding=\"UTF-8\"?>",38))
-	    	hdr->TYPE = XML;
-	else {
-		fprintf(stderr,"ERROR SOPEN(%s): unknown Format\n",FileName);
-		sclose(hdr); 
-		free(hdr); 
+    	else {
+		fclose(hdr->FILE.FID); 
 		free(Header1);
-		return(NULL); 
+
+		LIBXML_TEST_VERSION
+		XMLDOC = xmlParseFile(hdr->FileName);
+		if (XMLDOC != NULL)
+			hdr->TYPE = XML; 
+		else {
+			hdr->TYPE = unknown; 
+	//		sclose(hdr); 
+	//		free(hdr); 
+		}	
 	}	
 
     	if (hdr->TYPE == GDF) {
@@ -734,72 +739,57 @@ if (!strcmp(MODE,"r"))
 		hdr = sopen_SCP_read(Header1,hdr);
 	}
 	
-	else if (hdr->TYPE==XML) {
-		fclose(hdr->FILE.FID); 
+	else if (hdr->TYPE==XML) 
+	{
+		xmlTextReaderPtr reader;
+		xmlDocPtr doc; /* the resulting document tree */
+		int ret;
 
-		XMLDOCPTR = xmlReadFile (hdr->FileName,NULL,2048);
+		// XMLDOC is already defined; maybe this is sufficient 
+		// and the following XMLREADER functions are not needed
+
+    		
+//    		reader = xmlReaderForFile(hdr->FileName, NULL, XML_PARSE_DTDATTR | XML_PARSE_NOENT | XML_PARSE_DTDVALID); 
+    		reader = xmlReaderForFile(hdr->FileName, NULL, XML_PARSE_DTDATTR | XML_PARSE_NOENT); 
+    			// XML_PARSE_DTDVALID cannot be used in aECG 
+
+		if (reader != NULL) {
+		        ret = xmlTextReaderRead(reader);
+        		while (ret == 1) {
+//            			processNode(reader);
+            			ret = xmlTextReaderRead(reader);
+        		}
+        		if (ret != 0) {
+            			fprintf(stderr, "%s : failed to parse\n", hdr->FileName);
+        		}	
+        	/*
+		 * Once the document has been fully parsed check the validation results
+		 */
+			if (xmlTextReaderIsValid(reader) != 1) {
+	    			fprintf(stderr, "Document %s does not validate\n", hdr->FileName);
+			}
+		        xmlFreeTextReader(reader);
+		}
+    		/*
+    		 * Cleanup function for the XML library.
+    		 */
+		xmlCleanupParser();
+    		/*
+    		 * this is to debug memory for regression tests
+    		 */
+    		xmlMemoryDump();
+    		
+    		exit(0);
 /*
-					 
 		hdr = sopen_HL7aECG_read(Header1,hdr);
 */
 	}
 	
-	else if (0) { //(hdr->TYPE==SCP_ECG) {
-#define filesize (*(uint32_t*)(Header1+2))
-		// read whole file at once 
-		Header1 = (char*) realloc(Header1,filesize);
-	    	count   = fread(Header1+256,1,filesize-256,hdr->FILE.FID);
-	    	
-#define section_crc 	(*(uint16_t*)(Header1+pos))
-#define section_id 	(*(uint16_t*)(Header1+2+pos))
-#define section_length 	(*(uint32_t*)(Header1+4+pos))
-
-		// Section 0
-		pos = 6;
-		SCP.number_of_sections = (section_length-16)/10;
-	    	for (k=1; k<SCP.number_of_sections; k++) {
-			id  = l_endian_u16( *(uint16_t*) (Header1+22+k*10) );
-			len = l_endian_u32( *(uint32_t*) (Header1+24+k*10) );
-			pos = l_endian_u32( *(uint32_t*) (Header1+28+k*10) );
-			
-			if (id!=section_id)
-				fprintf(stderr,"Warning: ID's do not fit\n");
-			if (len!=section_length)
-				fprintf(stderr,"Warning: LEN's do not fit\n");
-
-	    		if (section_id==0) {
-	    		}
-	    		else if (section_id==1) {
-	    		}
-	    		else if (section_id==2) {
-	    		}
-	    		else if (section_id==3) {
-	    		}
-	    		else if (section_id==4) {
-	    		}
-	    		else if (section_id==5) {
-	    		}
-	    		else if (section_id==6) {
-	    		}
-	    		else if (section_id==7) {
-	    		}
-	    		else if (section_id==8) {
-	    		}
-	    	}
-		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
-
-		fprintf(stderr,"Error SOPEN(%s): Support for Format SCP-ECG not completed.\n",hdr->FileName);
+	else // if (hdr->TYPE==unknown) 
+	{
 	}
-	else {
-		fprintf(stderr,"Error SOPEN(%s): Support for Format SCP-ECG not completed.\n",hdr->FileName);
-		sclose(hdr); 
-		exit(-1);  
-	}
-
-	hdr->AS.Header1 = Header1; 
-	fseek(hdr->FILE.FID, hdr->HeadLen, SEEK_SET); 
-	hdr->FILE.OPEN = 1;
-	hdr->FILE.POS  = 0;
+	
+	
 }
 else { // WRITE
 
