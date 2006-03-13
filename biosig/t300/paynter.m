@@ -1,4 +1,4 @@
-function [B,A]=paynter(tau,fs,mode)
+function [B,A]=paynter(RC,fs,mode)
 % PAYNTER returns the filter coefficients for a Paynter Filter
 %   Usually, the filter is applied to the rectified electromyogram (EMG).
 %   Then, the output is amplitude-demodulated EMG 
@@ -10,19 +10,42 @@ function [B,A]=paynter(tau,fs,mode)
 %       [B,A]=paynter(tau,fs,'modified')
 %       [B,A]=paynter(tau,fs,'bessel-modified')
 %
-%       tau	time constant
-%       fs	sampling rate
+%       tau	time constant (in [s])
+%       fs	sampling rate (in [Hz])
 %
 %
 % REFERENCE(S):
 % [1] Platt, Ronald S., Eric A. Hajduk, Manuel Hulliger, and Paul A. Easton. 
-%    A modified Bessel filter for amplitude demodulation of respiratory electromyograms. 
-%    J. Appl. Physiol. 84(1): 378-388, 1998.
+%       A modified Bessel filter for amplitude demodulation of respiratory electromyograms. 
+%       J. Appl. Physiol. 84(1): 378-388, 1998.
+%       available online:  http://jap.physiology.org/cgi/content/full/84/1/378
+% [2] Gottlieb, G.L. and Agarwal. 
+%       Filtering of Electromyographic Signals. Am.J.Physical Medicine 49(3):142-146, 1970.
+% [3] Hopp, F.A., J.L. Seagard, and J.P. Kampine. 
+%     Comparison of four methods of averaging nerve activity. Am. J. Physiology 251:R700-R711, 1986.
+% [4] Bruce, E. N., M. D. Goldman, and J. Mead. 
+%       A digital computer technique for analyzing respiratory muscle EMGs. 
+%       J. Appl. Physiol. 43: 551-556, 1977 
+%       available online:  http://jap.physiology.org/cgi/content/abstract/43/3/551
 
-%	$Revision: 1.1 $
-%	$Id: paynter.m,v 1.1 2004-04-09 11:03:25 schloegl Exp $
-%	Copyright (C) 2000-2001, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: paynter.m,v 1.2 2006-03-13 09:46:42 schloegl Exp $
+%	Copyright (C) 2000, 2001, 2004, 2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+
+% This library is free software; you can redistribute it and/or
+% modify it under the terms of the GNU Library General Public
+% License as published by the Free Software Foundation; either
+% Version 2 of the License, or (at your option) any later version.
+%
+% This library is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+% Library General Public License for more details.
+%
+% You should have received a copy of the GNU Library General Public
+% License along with this library; if not, write to the
+% Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+% Boston, MA  02111-1307, USA.
 
 
 if nargin<3,
@@ -37,7 +60,6 @@ elseif mode(1:3)=='bes'
         mode='bes';
 end;
 
-RC=1/tau;
 if mode=='pay',
 	%[B,A]=bilinear(1,rev([1, 3.2*RC, 4*RC*RC, 3.2*RC^3]),fs);
 	[B,A]=bilinear(1,[1, 3.2*RC, 4*RC*RC, 3.2*RC^3],fs);
@@ -54,6 +76,4 @@ elseif mode=='bes'
 	B(7) = 1.9259308298786E-03;  A(7) = 4.0000000000000E+00
 	B(8) = 0;	A(8) = 1.0000000000000E+00
 end;
-
-
 
