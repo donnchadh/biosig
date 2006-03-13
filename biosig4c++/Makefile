@@ -4,13 +4,13 @@
 #CC            = gcc
 CC            = g++
 DEFINES       = 
-CFLAGS        = #-O2 -Wall $(DEFINES)
-INCPATH       = "/usr/include/libxml2/"
+CFLAGS        = -O2 -Wall $(DEFINES)
+INCPATH       = 'xml2-config --cflags'
 #LINK          = gcc
 LINK          = g++
 #LFLAGS        = -Wl,-subsystem,console  # Windows
-LFLAGS        = -lm
-LIBS          = "/usr/lib/libxml2"
+LFLAGS        = 'xml2-config --cflags'
+LIBS          = 
 #DEL_FILE      = del                     # Windows
 DEL_FILE      = rm
 
@@ -19,22 +19,24 @@ DEL_FILE      = rm
 SOURCES       = biosig.c \
 		t210/scp_hl7aecg.cpp \
 		t210/scp-decode.cpp \
+		sopen_hl7aecg.c \
 		demo.c \
 		scp2gdf.c 
 OBJECTS       = biosig.o \
 		t210/scp_hl7aecg.o \
 		t210/scp-decode.o \
+		sopen_hl7aecg.o \
 		scp2gdf.o \
 		demo.o 
-TARGET        = scp2gdf
+TARGET        = scp2gdf demo
               # Windows
 
 ####### Build rules
 
 #demo:
-#	g++ -I "/usr/include/libxml2/" -o demo biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp demo.c
+#	g++ -I /usr/include/libxml2/ biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp sopen_hl7aecg.c scp2gdf.c -L/usr/lib -lxml2 -lz -lm -o scp2gdf 
 #scp2gdf:
-#	g++ -I "/usr/include/libxml2/" -o scp2gdf biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp scp2gdf.c
+#	g++ -I /usr/include/libxml2/ biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp sopen_hl7aecg.c demo.c -L/usr/lib -lxml2 -lz -lm -o demo
 
 
 
@@ -52,13 +54,7 @@ clean:
 ####### Compile
 
 #biosig.o: biosig.c scp_hl7aecg.c biosig.h 
-#biosig.o: biosig.c scp2gdf.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp 
+#biosig.o: biosig.c scp2gdf.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp  sopen_hl7aecg.c 
 #	$(CC) $(CFLAGS) -I $(INCPATH) -o biosig.o biosig.c
-
-demo: biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp demo.c
-	$(CC) $(CFLAGS) -I$(INCPATH) -o demo biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp demo.c
-	
-scp2gdf: biosig.c scp2gdf.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp 
-	$(CC) $(CFLAGS) -I$(INCPATH) -o scp2gdf biosig.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp scp2gdf.c
 	
 	

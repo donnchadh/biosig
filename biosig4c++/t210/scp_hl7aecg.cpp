@@ -1,6 +1,6 @@
 /*
 
-    $Id: scp_hl7aecg.cpp,v 1.3 2006-02-20 16:26:50 schloegl Exp $
+    $Id: scp_hl7aecg.cpp,v 1.4 2006-03-13 11:17:36 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -33,11 +33,11 @@
 #include <sys/stat.h>
 #include <ctype.h>
 
+#include <libxml/tree.h>
+
 #include "../biosig.h"
 
-#include "types.h"               // start specific by E.C. (SCP reader)
 #include "structures.h"
-#include "codes.h"
 static const U_int_S _NUM_SECTION=12U;		//consider first 11 sections of SCP
 static bool add_filter=true;            // additional filtering gives better shape, but use with care
 int scp_decode(HDRTYPE*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO&, bool&);
@@ -218,36 +218,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 }
 
 HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
-/*
-	this function is a stub or placeholder and need to be defined in order to be useful. 
-	It will be called by the function SOPEN in "biosig.c"
-
-	Input: HDR structure
-		
-	Output: 
-		char* HDR.AS.Header1 	// contains the content which will be written to the file in SOPEN
-*/	
-	return(hdr);	
-	
-};
-
-HDRTYPE* sopen_HL7aECG_read(char* Header1, HDRTYPE* hdr) {	
-/*
-	this function is a stub or placeholder and need to be defined in order to be useful. 
-	It will be called by the function SOPEN in "biosig.c"
-
-	Input: 
-		char* Header1	// contains the file content
-		
-	Output: 
-		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
-*/	
-	
-	return(hdr);	
-};
-
-
-HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr) {	
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful. 
 	It will be called by the function SOPEN in "biosig.c"

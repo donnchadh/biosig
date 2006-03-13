@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.41 2006-03-11 23:17:28 schloegl Exp $
+    $Id: biosig.c,v 1.42 2006-03-13 11:17:34 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -35,16 +35,11 @@
 	
 */
 
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
-#include <libxml/xmlIO.h>
-#include <libxml/parser.h>
-#include <libxml/xinclude.h>
-#include <libxml/tree.h>
+
 #include <libxml/xmlreader.h>
 
 
@@ -186,7 +181,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->FILE.OPEN = 0;
 	hdr->FILE.FID = 0;
 
-	hdr->AS.Header1 = 0;
+	hdr->AS.Header1 = NULL;
 
       	hdr->TYPE = GDF; 
       	hdr->VERSION = 1.94;
@@ -283,7 +278,10 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
 	const float	CNT_SETTINGS_HIGHPASS[] = {NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
 
-	xmlDocPtr	XMLDOC;
+	/* XML related variables */
+	xmlTextReaderPtr reader;
+	xmlDocPtr doc; /* the resulting document tree */
+	int ret;
 
     	int 		k,id;
     	uint32_t	k32u; 
@@ -364,9 +362,27 @@ if (!strcmp(MODE,"r"))
 		free(Header1);
 
 		LIBXML_TEST_VERSION
-		XMLDOC = xmlParseFile(hdr->FileName);
-		if (XMLDOC != NULL)
+    		reader = xmlReaderForFile(hdr->FileName, NULL, XML_PARSE_DTDATTR | XML_PARSE_NOENT); 
+    			// XML_PARSE_DTDVALID cannot be used in aECG 
+
+		if (reader != NULL) {
+		        ret = xmlTextReaderRead(reader);
+        		while (ret == 1) {
+//            			processNode(reader);
+            			ret = xmlTextReaderRead(reader);
+        		}
+        		if (ret != 0) {
+            			fprintf(stderr, "%s : failed to parse\n", hdr->FileName);
+        		}	
+        	/*
+		 * Once the document has been fully parsed check the validation results
+		 */
+			if (xmlTextReaderIsValid(reader) != 1) {
+	    			fprintf(stderr, "Document %s does not validate\n", hdr->FileName);
+			}
+		        xmlFreeTextReader(reader);
 			hdr->TYPE = XML; 
+		}        
 		else {
 			hdr->TYPE = unknown; 
 	//		sclose(hdr); 
@@ -741,52 +757,14 @@ if (!strcmp(MODE,"r"))
 	
 	else if (hdr->TYPE==XML) 
 	{
-		xmlTextReaderPtr reader;
-		xmlDocPtr doc; /* the resulting document tree */
-		int ret;
 
-		// XMLDOC is already defined; maybe this is sufficient 
-		// and the following XMLREADER functions are not needed
+		hdr = sopen_HL7aECG_read(hdr);
 
-    		
-//    		reader = xmlReaderForFile(hdr->FileName, NULL, XML_PARSE_DTDATTR | XML_PARSE_NOENT | XML_PARSE_DTDVALID); 
-    		reader = xmlReaderForFile(hdr->FileName, NULL, XML_PARSE_DTDATTR | XML_PARSE_NOENT); 
-    			// XML_PARSE_DTDVALID cannot be used in aECG 
-
-		if (reader != NULL) {
-		        ret = xmlTextReaderRead(reader);
-        		while (ret == 1) {
-//            			processNode(reader);
-            			ret = xmlTextReaderRead(reader);
-        		}
-        		if (ret != 0) {
-            			fprintf(stderr, "%s : failed to parse\n", hdr->FileName);
-        		}	
-        	/*
-		 * Once the document has been fully parsed check the validation results
-		 */
-			if (xmlTextReaderIsValid(reader) != 1) {
-	    			fprintf(stderr, "Document %s does not validate\n", hdr->FileName);
-			}
-		        xmlFreeTextReader(reader);
-		}
-    		/*
-    		 * Cleanup function for the XML library.
-    		 */
-		xmlCleanupParser();
-    		/*
-    		 * this is to debug memory for regression tests
-    		 */
-    		xmlMemoryDump();
-    		
-    		exit(0);
-/*
-		hdr = sopen_HL7aECG_read(Header1,hdr);
-*/
 	}
 	
 	else // if (hdr->TYPE==unknown) 
 	{
+		fprintf(stdout,"unknown file format %s \n",hdr->FileName);
 	}
 	
 	
@@ -994,6 +972,7 @@ else { // WRITE
 
 }	// end of else 
 
+fprintf(stdout,"end of sopen is near\n");
 	// internal variables
 	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	hdr->AS.bi[0] = 0;
@@ -1003,6 +982,7 @@ else { // WRITE
 		hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 		hdr->AS.bi[++k] = hdr->AS.bpb; 
 	}	
+fprintf(stdout,"end of sopen is near\n");
 
 	return(hdr);
 }  // end of SOPEN 
@@ -1347,6 +1327,7 @@ int sclose(HDRTYPE* hdr)
 	char tmp[88]; 
 	char flag; 
 	
+fprintf(stdout,"db SCLOSE (0)\n"); 
 
 	if ((hdr->NRec<0) & (hdr->FILE.OPEN>1))
 	if ((hdr->TYPE==GDF) | (hdr->TYPE==EDF) | (hdr->TYPE==BDF))
@@ -1409,13 +1390,17 @@ int sclose(HDRTYPE* hdr)
 		}
 	}		
 
-	fclose(hdr->FILE.FID);
-    	hdr->FILE.FID = 0;
+	if (hdr->TYPE != XML) {
+		fclose(hdr->FILE.FID);
+    		hdr->FILE.FID = 0;
+    	}	
+fprintf(stdout,"db SCLOSE (1)\n"); 
     	if (hdr->aECG != NULL)	
         	free(hdr->aECG);
     	if (hdr->AS.rawdata != NULL)	
         	free(hdr->AS.rawdata);
 
+fprintf(stdout,"db SCLOSE (3)\n"); 
     	if (hdr->data.block != NULL) {	
         	free(hdr->data.block);
         	hdr->data.size[0]=0;
@@ -1428,6 +1413,7 @@ int sclose(HDRTYPE* hdr)
         	free(hdr->AS.bi);
     	if (hdr->AS.Header1 != NULL)	
         	free(hdr->AS.Header1);
+fprintf(stdout,"db SCLOSE (8)\n"); 
 
     	if (hdr->EVENT.POS != NULL)	
         	free(hdr->EVENT.POS);
@@ -1437,6 +1423,7 @@ int sclose(HDRTYPE* hdr)
         	free(hdr->EVENT.DUR);
     	if (hdr->EVENT.CHN != NULL)	
         	free(hdr->EVENT.CHN);
+fprintf(stdout,"db SCLOSE (10)\n"); 
         	
         hdr->EVENT.N   = 0; 
 	hdr->FILE.OPEN = 0; 	     	

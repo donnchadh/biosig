@@ -1,6 +1,6 @@
 /*
 
-    $Id: demo.c,v 1.1 2006-03-02 13:48:08 schloegl Exp $
+    $Id: demo.c,v 1.2 2006-03-13 11:18:34 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -82,7 +82,7 @@ int main (int argc, char **argv)
 	}
 
 	
-	// READ GDF FILE 
+	// READ FILE 
 	fid = fopen(argv[1], "r");
 	if (fid==NULL) // file does not exist 
 	{ 	
@@ -132,9 +132,8 @@ fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 		hdr = sopen(argv[1], "r", NULL);
 		if (hdr==NULL)	exit(-1);
 
-fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
-
 		fprintf(stdout,"FileName:\t%s\nType    :\t%i\nVersion:\t%4.2f\nHeadLen:\t%i\n",argv[1],hdr->TYPE,hdr->VERSION,hdr->HeadLen);
+
 		fprintf(stdout,"NS:\t%i\nSPR:\t%i\nNRec:\t%Li\nDuration[s]:\t%u/%u\nFs:\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
 		
 		T0 = gdf_time2t_time(hdr->T0);
@@ -158,7 +157,7 @@ fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 			fprintf(stdout,"\n#%2i: %7s\t%s\t%s\t%i\t%5f\t%5f\t%5f\t%5f\t",k,cp->Label,cp->Transducer,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin);
 			fprintf(stdout,"%4.0f\t%4.0f\t%4.0f\t%5f Ohm",cp->LowPass,cp->HighPass,cp->Notch,cp->Impedance);
 		}
-	
+/*
 		count = sread(hdr,k,10);
 fprintf(stdout,"\nm1: %f %f %f %f\n",hdr->data.block[0],hdr->data.block[1],hdr->data.block[2],hdr->data.block[3]);
 
@@ -186,6 +185,9 @@ fprintf(stdout,"5+ %u\t %u\n",hdr->FILE.POS,l_endian_i16(*(int16_t*)hdr->AS.rawd
 if (count)
 fprintf(stdout,"+ %u\t %u\n", hdr->FILE.POS,l_endian_i16(*(int16_t*)hdr->AS.rawdata));	
 		count = sread(hdr,70,10);
+	
+*/
+
 		status = sclose(hdr);
 	}
       	return(status);

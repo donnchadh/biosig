@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.26 2006-02-13 08:15:09 schloegl Exp $
+% $Id: biosig.h,v 1.27 2006-03-13 11:17:34 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -37,23 +37,26 @@
 /****************************************************************************/
 
 
+
 #ifndef __BIOSIG_H__
 #define __BIOSIG_H__
 
 #include <inttypes.h>
 #include <byteswap.h>
-
+#include <math.h>
+#include <time.h>
+#include <libxml/tree.h>
 
 
 	// list of file formats 
-enum FileFormat {ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP_ECG, HL7aECG, XML}; 
+enum FileFormat {unknown, ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF, MFER, NEX1, PLEXON, SCP_ECG, HL7aECG, XML}; 
 
 
 #define NaN (0.0/0.0)	// used for encoding of missing values 
 #define INF (1.0/0.0)	// positive infinity
 
-#define min(a,b)                        (((a) < (b)) ? (a) : (b))
-#define max(a,b)                        (((a) > (b)) ? (a) : (b))
+#define min(a,b)	(((a) < (b)) ? (a) : (b))
+#define max(a,b)	(((a) > (b)) ? (a) : (b))
 
 
 #if __BYTE_ORDER == __BIG_ENDIAN
@@ -156,6 +159,19 @@ typedef struct {
  */
 typedef struct {
 	char*		test;		// test field for annotated ECG
+	
+	// Eugenio suggested to include these fields 
+	float		diastolicBloodPressure;	
+	float		systolicBloodPressure;	
+	char*		MedicationDrugs;
+	char*		ReferringPhysician;
+	char*		Diagnosis;
+
+	float		HeartRate;	
+	float		P_wave[2]; 	// start and end 
+	float		QRS_wave[2]; 	// start and end 
+	float		T_wave[2]; 	// start and end 
+	float		P_QRS_T_axes[3];
 } aECG_TYPE;
 
 /*
@@ -262,7 +278,7 @@ typedef struct {
 
 HDRTYPE* sopen_SCP_read     (char* Header, HDRTYPE* hdr);
 HDRTYPE* sopen_SCP_write    (HDRTYPE* hdr);
-HDRTYPE* sopen_HL7aECG_read (char* Header, HDRTYPE* hdr);
+HDRTYPE* sopen_HL7aECG_read (HDRTYPE* hdr);
 HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr);
 
 
