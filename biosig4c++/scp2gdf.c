@@ -1,6 +1,6 @@
 /*
 
-    $Id: scp2gdf.c,v 1.1 2006-03-02 13:48:08 schloegl Exp $
+    $Id: scp2gdf.c,v 1.2 2006-03-16 15:48:36 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -32,7 +32,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #include "biosig.h"
 
@@ -60,7 +59,7 @@ int main (int argc, char **argv)
 */
 
 #define NELEM (1<<15)
-	unsigned k; 	
+	unsigned k,k1; 	
     	uint16_t 	s[NELEM];
     	FILE	*fid; 
     	HDRTYPE *hdr, hdr2; 
@@ -135,6 +134,9 @@ for (k=0; k<hdr->NS; k++) {
 fprintf(stdout,"GDF OPENED: SUCCESSFULLY\n");
 fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 
+		for (k1=0;k1<hdr->NRec*hdr->SPR*hdr->NS;k1++)
+			hdr->data.block[k1]=l_endian_f64(hdr->data.block[k1]);
+			
 		fwrite(hdr->data.block, sizeof(biosig_data_type),hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
 //		swrite(&s, NELEM/hdr->NS, hdr);
 fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));

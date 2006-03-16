@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.27 2006-03-13 11:17:34 schloegl Exp $
+% $Id: biosig.h,v 1.28 2006-03-16 15:48:36 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -68,6 +68,9 @@ enum FileFormat {unknown, ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF,
 #define l_endian_i16(x) bswap_16((int16_t)(x))
 #define l_endian_i32(x) bswap_32((int32_t)(x))
 #define l_endian_i64(x) bswap_64((int64_t)(x))
+
+double  l_endian_f32(double x); 
+double  l_endian_f64(double x); 
 
 #elif __BYTE_ORDER == __LITTLE_ENDIAN
 
