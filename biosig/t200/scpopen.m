@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.18 $
-%	$Id: scpopen.m,v 1.18 2006-01-23 16:49:20 schloegl Exp $
+%	$Revision: 1.19 $
+%	$Id: scpopen.m,v 1.19 2006-03-16 15:10:53 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -107,9 +107,12 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         elseif tmp==5, HDR.Patient.Age = HDR.Patient.Age/(365.25*24); %unit='h';
                                         else warning('units of age not specified');
                                         end;
-                                elseif (tag == 5) & any(field(1:4))
-                                        HDR.Patient.Birthday = [field(1:2)*[1;256],field(3:4),12,0,0];
-                                elseif (tag == 6) & any(field(1:3)),
+                                elseif (tag == 5) 
+                                	if any(field(1:4))
+                                        	HDR.Patient.Birthday = [field(1:2)*[1;256],field(3:4),12,0,0];
+                                        end;	
+                                elseif (tag == 6) 
+                                	if any(field(1:3)),
                                         HDR.Patient.Height = field(1:2)*[1;256];
                                         tmp = field(3);
                                         if tmp==1, % unit='cm';
@@ -117,7 +120,9 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         elseif tmp==3, HDR.Patient.Height = HDR.Patient.Height*0.1; %unit='mm';
                                         else warning('units of height not specified');
                                         end;
-                                elseif (tag == 7) & any(field(1:3)),
+                                        end;
+                                elseif (tag == 7) 
+                                	if any(field(1:3)),
                                         HDR.Patient.Weight = field(1:2)*[1;256];
                                         tmp = field(3);
                                         if tmp==1, % unit='kg';
@@ -125,6 +130,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         elseif tmp==3, HDR.Patient.Weight = HDR.Patient.Weight/2.2; %unit='pound';
                                         elseif tmp==4, HDR.Patient.Weight = HDR.Patient.Weight*0.0284; %unit='ounce';
                                         else warning('units of weight not specified');
+                                        end;
                                         end;
                                 elseif tag == 8,
                                         HDR.Patient.Sex = field;
@@ -240,7 +246,14 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                         LeadIdTable = [LeadIdTable;{'A1';'A2';'A3';'A4';'V8-cal';'V9-cal';'V8R-cal';'V9R-cal';'D-cal (cal for Nehb-Dorsal)';'A-cal (cal for Nehb-Anterior)';'J-cal (cal for Nehb-Inferior)'}];
                         %%%%% OBSOLETE
                         
-                        H = sopen('leadidtable_scpecg.txt');
+                        if ~exist('OCTAVE_VERSION','builtin')
+	                        H = sopen('leadidtable_scpecg.txt');
+	                else
+	                	tmp = which('sopen');
+	                	tmp = fileparts(tmp); 
+	                	tmp = fileparts(tmp); 
+	                        H = sopen(fullfile(tmp,'doc','leadidtable_scpecg.txt'));
+	                end;        
                         LeadIdTable = H.EN1064.SCP_Name(2:end)';
                         for k = 1:HDR.NS,
                                 if 0,
@@ -272,7 +285,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                         
                 elseif any(section.ID==[5,6]), 
                         SCP = [];
-                        SCP.Cal = fread(fid,1,'int16')/1e6;    
+                        SCP.Cal = fread(fid,1,'int16')/1e6;    % quant in nV, converted into mV
                         SCP.PhysDim = 'mV';
                         SCP.Dur = fread(fid,1,'int16');    
                         SCP.SampleRate = 1e6/SCP.Dur;
@@ -631,7 +644,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 ix  = fread(fid,1,'uint8');
                                 len = fread(fid,1,'uint16');
                                 tmp = fread(fid,[1,len],'uchar');    
-                                HDR.SCP8.Statement{k} = char(tmp);    
+                                HDR.SCP8.Statement{k,1} = char(tmp);    
                         end
                         
                 %elseif section.ID==9, 
