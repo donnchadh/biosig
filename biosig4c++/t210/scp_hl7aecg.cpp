@@ -1,6 +1,6 @@
 /*
 
-    $Id: scp_hl7aecg.cpp,v 1.4 2006-03-13 11:17:36 schloegl Exp $
+    $Id: scp_hl7aecg.cpp,v 1.5 2006-03-17 02:04:14 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -33,12 +33,10 @@
 #include <sys/stat.h>
 #include <ctype.h>
 
-#include <libxml/tree.h>
-
 #include "../biosig.h"
 
 #include "structures.h"
-static const U_int_S _NUM_SECTION=12U;		//consider first 11 sections of SCP
+static const U_int_S _NUM_SECTION=12U;	//consider first 11 sections of SCP
 static bool add_filter=true;            // additional filtering gives better shape, but use with care
 int scp_decode(HDRTYPE*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO&, bool&);
 //void remark(char*);
@@ -62,6 +60,7 @@ HDRTYPE* sopen_SCP_read(char* Header1, HDRTYPE* hdr) {
 	Output: 
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
 */	
+
 /*
 ---------------------------------------------------------------------------
 Copyright (C) 2006  Eugenio Cervesato.
@@ -115,7 +114,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
                         hdr->CHANNEL = (CHANNEL_TYPE *) calloc(hdr->NS, sizeof(CHANNEL_TYPE));
                         memset(hdr->CHANNEL, 0, hdr->NS * sizeof(CHANNEL_TYPE));  // blank area
-//			hdr->AS.rawdata = (uint8_t*)decode.Reconstructed; 
+			hdr->AS.rawdata = (uint8_t*)decode.Reconstructed; 
+			// hdr->AS.bpb, and hdr->AS.spb will be defined at the and of SOPEN
                         hdr->data.size[0] = hdr->NS;
                         hdr->data.size[1] = hdr->SPR;
                         hdr->data.block = (biosig_data_type *) calloc(12 * hdr->SPR, sizeof(biosig_data_type));

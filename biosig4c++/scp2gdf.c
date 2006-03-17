@@ -1,6 +1,6 @@
 /*
 
-    $Id: scp2gdf.c,v 1.2 2006-03-16 15:48:36 schloegl Exp $
+    $Id: scp2gdf.c,v 1.3 2006-03-17 02:04:13 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -59,8 +59,11 @@ int main (int argc, char **argv)
 */
 
 #define NELEM (1<<15)
-	unsigned k,k1; 	
+	unsigned k; 	
+	uint32_t 	k1;
     	uint16_t 	s[NELEM];
+    	uint8_t 	tmp;
+    	int32_t 	s32;
     	FILE	*fid; 
     	HDRTYPE *hdr, hdr2; 
     	CHANNEL_TYPE* cp; 
@@ -122,22 +125,25 @@ fprintf(stdout,"SCP CLOSED: SUCCESSFULLY\n");
 hdr->TYPE = GDF; 
 hdr->VERSION = 1.94;		
 for (k=0; k<hdr->NS; k++) {
-	hdr->CHANNEL[k].GDFTYP = 17; 
 	hdr->CHANNEL[k].DigMax = 1e4;
 	hdr->CHANNEL[k].DigMin = -1e4;
 	hdr->CHANNEL[k].PhysMax = 1e4;
 	hdr->CHANNEL[k].PhysMin = -1e4;
 }	
-
 		// OPEN and WRITE GDF FILE 
 	     	sopen(argv[2], "w", hdr);
-fprintf(stdout,"GDF OPENED: SUCCESSFULLY\n");
-fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 
-		for (k1=0;k1<hdr->NRec*hdr->SPR*hdr->NS;k1++)
-			hdr->data.block[k1]=l_endian_f64(hdr->data.block[k1]);
+#if __BYTE_ORDER == __BIG_ENDIAN
+		// fix endianity of the data
+		for (k1=0;k1<hdr->NRec*hdr->SPR*hdr->NS;k1++) 	{
+//			hdr->data.block[k1] = l_endian_f64(hdr->data.block[k1]);
+			*(int32_t*)(hdr->AS.rawdata+k1*4) = l_endian_i32(*(int32_t*)(hdr->AS.rawdata+k1*4));
+			}
+#endif 
 			
-		fwrite(hdr->data.block, sizeof(biosig_data_type),hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
+		fwrite(hdr->AS.rawdata, 4 ,hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
+fprintf(stdout,"data written\n");
+//		fwrite(hdr->data.block, sizeof(biosig_data_type),hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
 //		swrite(&s, NELEM/hdr->NS, hdr);
 fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 
