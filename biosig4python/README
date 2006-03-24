@@ -1,0 +1,55 @@
+Introduction:
+---------------
+
+The aim of this repository is providing a C/C++ software library for biomedical signal processing. 
+This library is called "BioSig for C/C++" and is complementary to "BioSig for Octave and Matlab".  
+
+The internal data structure should resemble the one for Octave/Matlab
+http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig/doc/header.txt
+and is defined in
+http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig4c%2B%2B/biosig.h
+(see HDRTYPE and CHANNEL_TYPE)
+
+Encoding of Event/Markers/Annotations is available here: 
+http://bci.tugraz.at/~schloegl/matlab/eeg/EventCodes.html
+
+A list of supported data formats is available here: 
+http://bci.tugraz.at/~schloegl/biosig/TESTED
+
+
+
+File(s): 
+-------------
+    README 	this file
+    biosig.h	definition of biosig data structures	
+    biosig.c	SOPEN, SREAD, SWRITE, SEOF, SCLOSE functions 
+    main.c	demo how to use them 
+
+		
+Installation: 
+-------------
+# compilation 
+make 
+
+
+Execution:
+----------
+# generate test.gdf file 
+./biosig test.gdf     		
+# if test.gdf exists, some header information is displayed
+./biosig test.gdf     		
+
+
+More information is available at http://biosig.sf.net/
+
+If you have any questions you can also contact the newsgroup 
+news://tu-graz.biosig on the server news.tu-graz.ac.at. 
+The archive is available at 
+http://newsarchive.tugraz.at/browse/tu-graz.biosig/ 
+
+
+
+    Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
+    This function is part of the "BioSig for C/C++" repository 
+    (BioSig4C++) at http://biosig.sf.net/ 
+
