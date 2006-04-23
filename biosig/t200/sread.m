@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.60 2005-12-11 00:11:45 schloegl Exp $
+%	$Id: sread.m,v 1.61 2006-04-23 01:26:02 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -96,7 +96,7 @@ elseif strcmp(HDR.TYPE,'BDF'),
         if HDR.NS==0,
 
         else
-                if (HDR.AS.spb*nb<=2^24), % faster access
+                if (HDR.AS.spb*nb<=2^22), % faster access
                         S = [];
                         [s,c] = fread(HDR.FILE.FID,[3*HDR.AS.spb, nb],'uint8');
                         s = reshape(2.^[0,8,16]*reshape(s(:),3,c/3),[HDR.AS.spb, nb]);
@@ -119,7 +119,7 @@ elseif strcmp(HDR.TYPE,'BDF'),
                         S = zeros(nr,length(HDR.InChanSelect));
                         while (count<nr);
                                 len   = ceil(min([(nr-count)/HDR.SPR,2^22/HDR.AS.spb]));
-                                [s,c] = fread(HDR.FILE.FID,[3*HDR.AS.spb, len],'uint8');
+                                [s,c] = fread(HDR.FILE.FID,[3*HDR.AS.spb, len],'uint8=>uint8');
                                 s1    = zeros(HDR.SPR*c/(3*HDR.AS.spb),length(HDR.InChanSelect));
                                 for k = 1:length(HDR.InChanSelect), 
                                         K = HDR.InChanSelect(k);
@@ -1339,8 +1339,8 @@ elseif strcmp(HDR.TYPE,'FIF'),
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
 
-        t1 = rawdata('goto', HDR.FILE.POS/HDR.SPR);
-        t2 = t1;
+        t1  = rawdata('goto', HDR.FILE.POS/HDR.SPR);
+        t2  = t1;
         dat = [];
         count = 0;
         status = 'ok';
@@ -1356,9 +1356,9 @@ elseif strcmp(HDR.TYPE,'FIF'),
                 t2 = rawdata('t');
         end
 
-        t = t1*HDR.SampleRate+1:t2*HDR.SampleRate;
+        t  = t1*HDR.SampleRate+1:t2*HDR.SampleRate;
         ix = (t>StartPos*HDR.SampleRate) & (t<=(StartPos+NoS)*HDR.SampleRate);
-        S = dat(ix,HDR.InChanSelect);
+        S  = dat(ix,HDR.InChanSelect);
         HDR.FILE.POS = t2*HDR.SampleRate;        
 
 elseif strcmp(HDR.TYPE,'EVENT'),
