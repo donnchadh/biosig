@@ -8,13 +8,13 @@
 %  BioSig4OctMat from http:/biosig.sf.net/
 %
 %  run bench_biosig and compare the results at other platforms  
-%   http://bci.tugraz.at/~schloegl/biosig/bench/
+%   http://hci.tugraz.at/schloegl/biosig/bench/
 % 
 %  Send your benchmark result to <a.schloegl@ieee.org>
 %
 
 
-%	$Id: bench_biosig.m,v 1.2 2005-11-28 17:40:12 schloegl Exp $
+%	$Id: bench_biosig.m,v 1.3 2006-04-23 03:15:15 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -37,7 +37,7 @@
 
 
 if ~exist('l1.gdf','file') % download test file if not available 
-        system('wget http://bci.tugraz.at/~schloegl/bci/bci7/l1.gdf');
+        system('wget http://hci.tugraz.at/schloegl/bci/bci7/l1.gdf');
 end; 
 
 tic; K=0; 
@@ -117,7 +117,7 @@ catch
 end;
 fid = fopen(outfile,'a'); 
 fprintf(fid,'\n\nDate:\t%s\n',date);
-fprintf(fid,'Revision:\t$Id: bench_biosig.m,v 1.2 2005-11-28 17:40:12 schloegl Exp $\n');
+fprintf(fid,'Revision:\t$Id: bench_biosig.m,v 1.3 2006-04-23 03:15:15 schloegl Exp $\n');
 fprintf(fid,'Computer:\t%s\nSoftware:\t%s\nVersion:\t%s\n',computer,om,version);
 
 tmp = [diff([0,t(:)']);t(:)']'; 
