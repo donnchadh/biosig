@@ -1,5 +1,5 @@
 function [kap,se,H,zscore,p0,SA,R]=kappa(d,c,kk);
-% kap	Cohen's kappa coefficient
+% KAPPA.M estimates Cohen's kappa coefficient 
 %
 % [kap,sd,H,z,OA,SA,MI] = kappa(d1,d2);
 % [kap,sd,H,z,OA,SA,MI] = kappa(H);
@@ -23,10 +23,12 @@ function [kap,se,H,zscore,p0,SA,R]=kappa(d,c,kk);
 % [4] Kraemer, H. C. (1982). Kappa coefficient. In S. Kotz and N. L. Johnson (Eds.), 
 %        Encyclopedia of Statistical Sciences. New York: John Wiley & Sons.
 % [5] http://ourworld.compuserve.com/homepages/jsuebersax/kappa.htm
+%
+%  
 
-%	$Revision: 1.6 $
-%	$Id: kappa.m,v 1.6 2005-10-24 15:12:51 schloegl Exp $
-%	Copyright (c) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.7 $
+%	$Id: kappa.m,v 1.7 2006-04-25 10:31:42 schloegl Exp $
+%	Copyright (c) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -118,14 +120,15 @@ sd  = sqrt((pe+pe*pe-px)/(N*(1-pe*pe)));
 se  = sqrt((p0+pe*pe-px)/N)/(1-pe);
 zscore = kap/se;
 
-
 if nargout<7, return; end; 
 
 % Nykopp's entropy
-pwi = sum(H,2)/N; 
-pwj = sum(H,1)/N; 
-pji = H./repmat(sum(H,2),1,size(H,2));
-pwj(pwj==0) = 1; 
-pji(pji==0) = 1; 
-R = - sumskipnan(pwj.*log2(pwj)) + sumskipnan(pwi'*(pji.*log2(pji)));
+pwi = sum(H,2)/N;                       % p(x_i)
+pwj = sum(H,1)/N;                       % p(y_j)
+pji = H./repmat(sum(H,2),1,size(H,2));  % p(y_j | x_i) 
+pwj(pwj==0) = 1;                        % make sure p*log2(p) is 0, this avoids NaN's 
+pji(pji==0) = 1;                        % make sure p*log2(p) is 0, this avoids NaN's 
+R   = - sum(pwj.*log2(pwj)) + sum(pwi'*(pji.*log2(pji)));
+
+
 

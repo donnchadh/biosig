@@ -45,8 +45,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.46 2006-04-06 16:41:11 schloegl Exp $
-%	Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>
+%	$Id: plota.m,v 1.47 2006-04-25 10:30:54 schloegl Exp $
+%	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -105,7 +105,6 @@ elseif strcmp(X.datatype,'MVAR'),
         if nargin<2,
                 Mode= 'DTF';
                 Fs  = 1;
-                f   = (0:128)/128*pi;
         else
                 Mode = arg2;
         end;
@@ -140,6 +139,7 @@ elseif strcmp(X.datatype,'MVAR'),
         end;
 
         [S,h,PDC,COH,DTF,DC,pCOH,dDTF,ffDTF, pCOH2, PDCF, coh]=mvfreqz(X.B,X.A,X.C,f,Fs);
+	dT = angle(S)./reshape(repmat(2*pi*f(:),[K1*K1,1]),[K1,K1,length(f)]);
 
         range = [0,1]; % default range
         if ~isempty(strfind(Mode,'Auto')),
@@ -216,6 +216,8 @@ elseif strcmp(X.datatype,'MVAR'),
                         R = dDTF;
                 elseif strcmpi(Mode,'ffDTF'),
                         R = ffDTF;
+                elseif strcmpi(Mode,'dT'),
+                        R = dT;
                 elseif strcmpi(Mode,'DCF1'),
                         R = S;
                         for k1=1:K1,
@@ -1787,7 +1789,8 @@ elseif strcmp(X.datatype,'AMARMA')
                 hf = arg4;
         end;
         if ~isfield(X,'T')
-                X.T = (0:size(X.AAR,1)-1);
+                X.T = (0:size(X.AAR,1)-1)';
+                X.xlabel = 'beats [1]';
         end;
 
         HHHH = [];
@@ -1810,9 +1813,9 @@ elseif strcmp(X.datatype,'AMARMA')
                 if isfield(X,'EVENT')
                         hold on
                         %text(X.EVENT.POS,repmat(sqrt(max(X.PE))*2,length(X.EVENT.POS),1),'r+');
-                        plot(X.EVENT.POS*[1,1],MM*[1.2,0;-.20,1],':k');
+                        plot(X.T(X.EVENT.POS)*[1,1],MM*[1.2,0;-.20,1],':k');
                         for k = 1:length(X.EVENT.POS),
-                                ha(k)=text(X.EVENT.POS(k),MM*[1;0],X.EVENT.Desc{k});
+                                ha(k)=text(X.T(X.EVENT.POS(k)),MM*[1;0],X.EVENT.Desc{k});
                                 set(ha(k),'VerticalAlignment','top');
                                 set(ha(k),'Rotation',90);
                         end;
@@ -1908,22 +1911,27 @@ elseif strcmp(X.datatype,'AMARMA')
                 DN = max(1,ceil(size(X.AAR,1)/1000)); %assume 1000 pixels
                 N  = size(X.AAR,1);
                 clear h h2 F3
+                h2 = repmat(NaN,101,length(1:DN:N));
+                t  = repmat(NaN,size(h2,1),1);
                 for l = 1:DN:N,  %N/2; [k,size(sdf),N],%length(AR);
                         k = ceil(l/DN);
                         % [h(:,k),F(:,k)] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,2:end)]',128,f0(l,1));
                         %[h2(:,k),F3] = freqz(sqrt(X.PE(l)/(2*pi*X.AAR(l,1))),[1, -X.AAR(l,ix_aar)]',[0:100]'/64,f0(l,1));
                         [h2(:,k),F3] = freqz(sqrt(X.PE(l)/(2*pi*f0(l,1))),[1, -X.AAR(l,ix_aar)]',[0:100]'/64,f0(l,1));
                         h2(find(F3>f0(l,1)/2),k)=NaN;
+                        t(k) = X.T(l);
                 end;
-
                 K = K + 1;
                 subplot(hf(K));
                 if 0;%FB{1}=='B';
-                        h=imagesc(X.T(1:DN:N),F3,2*log10(abs(h2(:,end:-1:1))));
+                        HHHH = imagesc(X.T(1:DN:N),F3,2*log10(abs(h2(:,end:-1:1))));
+                elseif 0;
+                        HHHH = imagesc(X.T(1:DN:N),F3,2*log10(abs(h2)));
                 else
-                        h=imagesc(X.T(1:DN:N),F3,2*log10(abs(h2)));
+                        HHHH = imagesc(t(~isnan(t)),F3,2*log10(abs(h2(:,~isnan(t)))));
                 end;
-                xlabel('beats');
+
+%                xlabel(X.xlabel);
                 ylabel('f [1/s]');
                 pos0 = get(gca,'position');
 
@@ -1936,6 +1944,22 @@ elseif strcmp(X.datatype,'AMARMA')
                 %pos2(1) = pos0(1) + pos0(3) + pos2(3)/2;
                 %pos2(3) = pos2(3)/2
                 %set(hc,'yticklabel',v,'position',pos2);
+
+                if 0,isfield(X,'EVENT')
+                        hold on
+                        %text(X.EVENT.POS,repmat(sqrt(max(X.PE))*2,length(X.EVENT.POS),1),'r+');
+                        plot(X.T(X.EVENT.POS)*[1,1],[1.6,0],':k');
+                        for k = 1:length(X.EVENT.POS),
+                                %[tmp,ix] = min(abs(t-X.EVENT.POS(k)));
+                                %plot(ix*[1,1],[1.6,0],':k');
+                                %plot(X.T(X.EVENT.POS(k))*[1,1],[1.6,0],':k');
+                                ha(k)=text(X.T(X.EVENT.POS(k)),0,X.EVENT.Desc{k});
+                                %ha(k)=text(ix,0,X.EVENT.Desc{k});
+                                set(ha(k),'VerticalAlignment','top');
+                                set(ha(k),'Rotation',90);
+                        end;
+                        hold off
+                end;
 
                 %set(gca,'position',pos0);
                 title(sprintf('%s [%s^2/%s]',deblank(X.Label),deblank(X.PhysDim),'s'));
@@ -1955,7 +1979,7 @@ elseif strcmp(X.datatype,'AMARMA')
                 K = K + 1;
                 ah=subplot(hf(K));
                 plot3(repmat(1:DN:ceil(N),128,1),F4,6+2*log10(abs(h)));
-                xlabel('beats');
+                xlabel(X.xlabel);
                 ylabel('f [1/s]');
                 zlabel(sprintf('%s [%s^2/%s]',X.Label,X.PhysDim,'s'));
                 v = get(ah,'zticklabel');
@@ -1995,7 +2019,7 @@ elseif strcmp(X.datatype,'AMARMA')
                 set(gca,'position',pos);
 
                 %legend('f0(LF)','bandwidth(LF)');
-                xlabel('time')
+                xlabel(X.xlabel);
                 ylabel('f [Hz]');
                 legend('f0(LF)','bandwidth(LF)');
                 drawnow
@@ -2024,6 +2048,8 @@ elseif strcmp(X.datatype,'AMARMA')
         end;
         h = HHHH;
 
+        
+        
 elseif strcmp(X.datatype,'REV'),
         if nargin<2
                 arg2=[];

@@ -39,13 +39,14 @@ function [X] = criteria4asyncbci(D0, TRIG, ONTIME ,Fs)
 %
 
 % References: 
-%    http://chil.rice.edu/byrne/psyc540/pdf/StanislawTodorov99.pdf
+%
 
 
-
-%    $Id: criteria4asyncbci.m,v 1.7 2005-10-23 21:01:09 schloegl Exp $
+%    $Id: criteria4asyncbci.m,v 1.8 2006-04-25 10:31:42 schloegl Exp $
 %    Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
+
+
 
 %    This program is free software; you can redistribute it and/or modify
 %    it under the terms of the GNU General Public License as published by
@@ -105,7 +106,7 @@ end;
 
 FLAG.CONTINOUS = M1>1; 
 if ~FLAG.CONTINOUS 
-        tmp = D0(~isnan(D0)); 
+        tmp = double(D0(~isnan(D0))); 
         FLAG.CONTINOUS  = ~all(round(tmp)==tmp);
 end;
 % classifies transducer output / applies threshold
@@ -143,12 +144,9 @@ else
 end;
 
         % signal detection theory applied on a sample-basis for multiple classes
-[KAP1, kapSD1, H, z] = kappa(STATE, D);
+[X.kappa, X.kapSD, H, z] = kappa(D(:), STATE(:));
 X.AS.H   = H; 					% confusion matrix 
-X.AS.H0  = H./(sum(H,2)*ones(1,size(H,2)));     % normalized by total time for each target state. 
-[KAP2, kapSD2] = kappa(X.AS.H0);
-X.AS.KAP = KAP2; % or KAP1 ?  
-X.AS.kapSD = kapSD2; % or kapSD1 ?  
+
 
 X.AS.AUC = NaN; 	
 if FLAG.CONTINOUS %any(size(D0,2)==[1,M])
