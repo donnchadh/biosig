@@ -16,8 +16,8 @@
 %     Shaker Verlag, Aachen, Germany, (ISBN3-8265-7640-3). 
 
 
-%	$Revision: 1.3 $
-%	$Id: demo2.m,v 1.3 2003-07-12 00:05:07 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: demo2.m,v 1.4 2006-04-25 09:51:29 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 
@@ -43,7 +43,8 @@ uc  = 30:5:80;
 % here, the data set III of the BCI competition 2003 is used. The data is available from  
 %     http://www.dpmi.tu-graz.ac.at/~schloegl/bci/competition2003/ (untriggered, raw data) 
 
-load s:\projects\bci\competition\dataset_BCIcomp1raw.mat
+%load s:\projects\bci\competition\dataset_BCIcomp1raw.mat
+load('/home/schloegl/projects/bci/competition/dataset_BCIcomp1raw.mat')
 cl = c1;
 Fs = 128;
 trigchan = 4;
@@ -60,8 +61,8 @@ if ~any(size(eegchan)==1)
 	eegchan=1:size(eegchan,2); 
 end;
 
-randn('state',0);
-a0 = getar0(S(:,eegchan),1:M0,1000,Fs/2);
+%randn('state',0);
+[a0,A0] = getar0(S(:,1:2),1:M0,1000,Fs/2);
 
 T  = reshape((1:1152),16,1152/16)';
 t0 = zeros(1152/16,1);
@@ -73,25 +74,11 @@ k  = 7;
 UC0= 2^(-uc(k)/8);
 
 % feature extraction for each chaannel
-ar = zeros(size(S,1),p*length(eegchan));
-e  = zeros(size(S,1),  length(eegchan));
 for ch = 1:length(eegchan),
-        [ar(:,(1-p:0)+p*ch),e(:,ch),REV(ch)] = aar(S(:,eegchan(ch)), [2,3], p, UC0, a0{p},[]);
+        [ar{ch},e,REV(ch)] = aar(S(:,eegchan(ch)), [2,3], p, UC0, a0{p},A0{p});
 end;
-C0 = covm(ar(~any(isnan(e),2),:),'E');
 
 % get classifier 
-[cc] = findclassifier1(ar,TRIG, cl,T,t0,3);
+[cc] = findclassifier1([cat(2,ar{:})],TRIG, cl,T,t0,3);
 
-% plta result
 plota(cc.MDA.TSD);
-
-% make classifier for future use 
-cc.Method = 'aar';
-cc.C0  = C0;
-cc.UC  = UC0;
-cc.p   = p;	% obsolete, just for backward compatibility
-cc.MOP = p;
-cc.REV = REV;
-cc.EEGCHAN = eegchan;
-
