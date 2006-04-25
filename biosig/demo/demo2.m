@@ -6,19 +6,24 @@
 %
 % References: 
 % [1} A. Schlögl, C. Keinrath, R. Scherer, G. Pfurtscheller,
-%     Information transfer of an EEG-based Bran-computer interface.
-%     Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003. 
+%       Information transfer of an EEG-based Bran-computer interface.
+%       Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003. 
 % [2} Schlögl A., Neuper C. Pfurtscheller G.
-%     Estimating the mutual information of an EEG-based Brain-Computer-Interface
-%     Biomedizinische Technik 47(1-2): 3-8, 2002
+%       Estimating the mutual information of an EEG-based Brain-Computer-Interface
+%       Biomedizinische Technik 47(1-2): 3-8, 2002
 % [3] Alois Schlögl (2000)
-%     The electroencephalogram and the adaptive autoregressive model: theory and applications
-%     Shaker Verlag, Aachen, Germany, (ISBN3-8265-7640-3). 
+%       The electroencephalogram and the adaptive autoregressive model: theory and applications
+%       Shaker Verlag, Aachen, Germany, (ISBN3-8265-7640-3). 
+% [4] A. Schlögl, J. Kronegg, J.E. Huggins, S. G. Mason.
+%       Evaluation criteria in BCI research.
+%       (Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller,
+%       Towards Brain-Computer Interfacing. MIT press (accepted)
 
 
-%	$Revision: 1.4 $
-%	$Id: demo2.m,v 1.4 2006-04-25 09:51:29 schloegl Exp $
-%	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.5 $
+%	$Id: demo2.m,v 1.5 2006-04-25 10:03:15 schloegl Exp $
+%	Copyright (C) 1999-2003,2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
 % This program is free software; you can redistribute it and/or
@@ -41,10 +46,13 @@ uc  = 30:5:80;
 
 % load EEG-data S and classlabels cl 
 % here, the data set III of the BCI competition 2003 is used. The data is available from  
-%     http://www.dpmi.tu-graz.ac.at/~schloegl/bci/competition2003/ (untriggered, raw data) 
+%     http://hci.tugraz.at/schloegl/bci/competition2003/ (untriggered, raw data) 
 
-%load s:\projects\bci\competition\dataset_BCIcomp1raw.mat
-load('/home/schloegl/projects/bci/competition/dataset_BCIcomp1raw.mat')
+fn = 'dataset_BCIcomp1raw.mat'; 
+if ~exist(fn,'file')
+        system('wget http://hci.tugraz.at/schloegl/bci/competition2003/dataset_BCIcomp1raw.mat');
+end;        
+load(fn);
 cl = c1;
 Fs = 128;
 trigchan = 4;
@@ -79,6 +87,7 @@ for ch = 1:length(eegchan),
 end;
 
 % get classifier 
-[cc] = findclassifier1([cat(2,ar{:})],TRIG, cl,T,t0,3);
+[cc] = findclassifier([cat(2,ar{:})],TRIG, cl,T,t0);
+cc.TSD.T = cc.TSD.T/Fs;
+plota(cc.TSD);
 
-plota(cc.MDA.TSD);
