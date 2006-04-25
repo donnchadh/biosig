@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.61 2006-04-23 01:26:02 schloegl Exp $
+%	$Id: sread.m,v 1.62 2006-04-25 10:29:41 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1438,10 +1438,10 @@ if ~HDR.FLAG.UCAL,
         else
                 % S = [ones(size(S,1),1),S]*HDR.Calib; 
                 % the following is the same as above but needs less memory. 
-                S = double(S) * HDR.Calib(2:end,:);
-		if issparse(S), S = full(S); end;
+                Calib = full(HDR.Calib); 
+                S = double(S) * Calib(2:end,:);
                 for k = 1:size(HDR.Calib,2),
-                        S(:,k) = S(:,k) + HDR.Calib(1,k);
+                        S(:,k) = S(:,k) + full(HDR.Calib(1,k));
                 end;
         end;
 end;
