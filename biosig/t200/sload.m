@@ -28,8 +28,8 @@ function [signal,H] = sload(FILENAME,varargin)
 %
 
 
-%	$Revision: 1.59 $
-%	$Id: sload.m,v 1.59 2005-11-29 08:58:20 schloegl Exp $
+%	$Revision: 1.60 $
+%	$Id: sload.m,v 1.60 2006-04-25 10:30:06 schloegl Exp $
 %	Copyright (C) 1997-2005 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -60,7 +60,7 @@ STATE.OVERFLOWDETECTION = 1;
 STATE.NUMBER_OF_NAN_IN_BREAK = 100; 
 Fs = NaN; 
 k = 1; 
-while (k<length(varargin))
+while (k<=length(varargin))
 	if isnumeric(varargin{k})
 		if (k==1), CHAN=varargin{k}; end;
 	elseif ~isempty(strfind(varargin{k},'UCAL'))
@@ -68,7 +68,7 @@ while (k<length(varargin))
 		STATE.UCAL = 1; 
 	elseif ~isempty(strfind(varargin{k},'OVERFLOWDETECTION:OFF'))
 		MODE = varargin{k}; 
-		STATE.OVERFLOWDETECTION = 0; 
+		STATE.OVERFLOWDETECTION = 0;
 	elseif strcmpi(varargin{k},'OVERFLOWDETECTION')
 		if strcmpi(varargin{k+1},'on'); 
 			STATE.OVERFLOWDETECTION = 1;
@@ -109,7 +109,6 @@ if any(FILENAME=='*')
         FILENAME=f([find(EOGix),find(~EOGix)]);
 end;        
 end;
-
 
 if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 	signal = [];
@@ -261,11 +260,16 @@ elseif strcmp(H.TYPE,'DAQ')
 elseif 0, strcmp(H.TYPE,'BIFF'),
 	try, 
                 [H.TFM.S,H.TFM.E] = xlsread(H.FileName,'Beat-To-Beat');
-                if size(H.TFM.S,1)+1==size(H.TFM.E,1),
+	        if size(H.TFM.S,1)+1==size(H.TFM.E,1),
                         H.TFM.S = [repmat(NaN,1,size(H.TFM.S,2));H.TFM.S];
                 end;
                 H.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
 	catch
+		try
+	                [H.TFM.S,H.TFM.E] = xlsread(H.FileName,'Beat-to-Beat');
+        	        H.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
+        	catch
+        	end;
 	end; 	
 
 	if strcmp(H.TYPE, 'TFM_EXCEL_Beat_to_Beat');
@@ -274,8 +278,8 @@ elseif 0, strcmp(H.TYPE,'BIFF'),
                         H.TFM.E(3,:) = [];    
                 end;
                 
-                H.Label   = strvcat(H.TFM.E(4,:)');
-                H.PhysDim = strvcat(H.TFM.E(5,:)');
+                H.Label   = strvcat(H.TFM.E{4,:});
+                H.PhysDim = strvcat(H.TFM.E{5,:});
            
                 H.TFM.S = H.TFM.S(6:end,:);
                 H.TFM.E = H.TFM.E(6:end,:);
@@ -801,6 +805,32 @@ if isempty(H.EVENT.TYP)
         end;
 end;
 end;
+        f=fullfile(H.FILE.Path,[H.FILE.Name,'.sel']);
+        if ~exist(f,'file'),
+                f=fullfile(H.FILE.Path,[H.FILE.Name,'.SEL']);
+        end
+        if exist(f,'file'),
+                fid = fopen(f,'r');
+		tmp = fread(fid,inf,'char');
+		fclose(fid);
+		[tmp,v] = str2double(char(tmp'));
+		if any(isnan(tmp)) |any(tmp~=ceil(tmp)) | any(tmp<0) | (any(tmp==0) & any(tmp>1))
+                        fprintf(2,'Warning SLOAD(GDF): corrupted SEL-file %s\n',f);
+                else
+                        if isfield(H,'Classlabel'), 
+                                n = length(H.Classlabel);
+                        else
+                                n = length(H.EVENT.TYP);
+                        end;
+                        
+                        H.ArtifactSelection = zeros(n,1);
+                        if all((tmp==0) | (tmp==1)) & (length(tmp)>1) & (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
+                                H.ArtifactSelection = logical(tmp);         
+                        else
+                                H.ArtifactSelection(tmp) = 1;         
+                        end;
+                end;
+        end;
 end;    
 
 
