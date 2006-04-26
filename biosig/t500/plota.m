@@ -45,7 +45,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.47 2006-04-25 10:30:54 schloegl Exp $
+%	$Id: plota.m,v 1.48 2006-04-26 08:44:48 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1256,6 +1256,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
                 end;
         end;
         drawnow;
+        h = ax; 
         %set(0,'DefaultTextInterpreter','none');  % Avoid having TeX interpretation in title string
         %suptitle(X.Title);
 
