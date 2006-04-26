@@ -8,14 +8,14 @@
 %  BioSig4OctMat from http:/biosig.sf.net/
 %
 %  run bench_biosig and compare the results at other platforms  
-%   http://hci.tugraz.at/schloegl/biosig/bench/
+%   http://bci.tugraz.at/~schloegl/biosig/bench/
 % 
 %  Send your benchmark result to <a.schloegl@ieee.org>
 %
 
 
-%	$Id: bench_biosig.m,v 1.4 2006-04-24 19:25:26 schloegl Exp $
-%	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: bench_biosig.m,v 1.5 2006-04-26 08:59:52 schloegl Exp $
+%	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -104,10 +104,12 @@ K=K+1; jo{K}='findclassifier Wackermann'; t(K)=toc
 
 if exist('OCTAVE_VERSION','builtin');
 	om = 'Octave'; 
-else
+elseif 1, 
 	om = 'Matlab';
+else
+	om = 'FreeMat';
 end;	
-outfile = sprintf('bench_biosig1.70_%s_%s_%s.mrk',computer,om,version); 
+outfile = sprintf('bench_biosig1.75+_%s_%s_%s.mrk',computer,om,version); 
 
 try
 unix(['cat /proc/cpuinfo >"',outfile,'"'])
@@ -115,7 +117,7 @@ catch
 end;
 fid = fopen(outfile,'a'); 
 fprintf(fid,'\n\nDate:\t%s\n',date);
-fprintf(fid,'Revision:\t$Id: bench_biosig.m,v 1.4 2006-04-24 19:25:26 schloegl Exp $\n');
+fprintf(fid,'Revision:\t$Id: bench_biosig.m,v 1.5 2006-04-26 08:59:52 schloegl Exp $\n');
 fprintf(fid,'Computer:\t%s\nSoftware:\t%s\nVersion:\t%s\n',computer,om,version);
 
 tmp = [diff([0,t(:)']);t(:)']'; 
