@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.62 2006-04-25 10:29:41 schloegl Exp $
+%	$Id: sread.m,v 1.63 2006-04-26 08:41:23 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -123,12 +123,12 @@ elseif strcmp(HDR.TYPE,'BDF'),
                                 s1    = zeros(HDR.SPR*c/(3*HDR.AS.spb),length(HDR.InChanSelect));
                                 for k = 1:length(HDR.InChanSelect), 
                                         K = HDR.InChanSelect(k);
-                                        tmp = 2.^[0,8,16]*reshape(s(HDR.AS.bi(K)*3+1:HDR.AS.bi(K+1)*3,:),3,HDR.AS.SPR(K)*c/HDR.AS.spb);
+                                        tmp = 2.^[0,8,16]*double(reshape(s(HDR.AS.bi(K)*3+1:HDR.AS.bi(K+1)*3,:),3,HDR.AS.SPR(K)*c/HDR.AS.bpb));
                                         s1(:,k) = rs(tmp',HDR.AS.SPR(K),HDR.SPR);
                                 end;
 	                        if HDR.FLAG.OVERFLOWDETECTION,  % BDF overflow detection is based on Status bit20
 		                        K = HDR.BDF.Status;
-                                        tmp = 2.^[0,8,16]*reshape(s(HDR.AS.bi(K)*3+1:HDR.AS.bi(K+1)*3,:),3,HDR.AS.SPR(K)*c/HDR.AS.spb);
+                                        tmp = 2.^[0,8,16]*double(reshape(s(HDR.AS.bi(K)*3+1:HDR.AS.bi(K+1)*3,:),3,HDR.AS.SPR(K)*c/HDR.AS.bpb));
                                         OVERFLOW = rs(~bitand(tmp',2^19),HDR.AS.SPR(K),HDR.SPR);
 	        	                s1(OVERFLOW>0,:)=NaN; 
 	        	        end;        
@@ -1424,7 +1424,8 @@ if ~HDR.FLAG.UCAL,
 		S = zeros(0,length(HDR.InChanSelect));
 	end;
 
-        if ~issparse(HDR.Calib); %exist('OCTAVE_VERSION')
+        %if ~issparse(HDR.Calib); %
+        if exist('OCTAVE_VERSION','builtin')
                 % force octave to do a sparse multiplication
                 % the difference is NaN*sparse(0) = 0 instead of NaN
                 % this is important for the automatic overflow detection
@@ -1438,8 +1439,7 @@ if ~HDR.FLAG.UCAL,
         else
                 % S = [ones(size(S,1),1),S]*HDR.Calib; 
                 % the following is the same as above but needs less memory. 
-                Calib = full(HDR.Calib); 
-                S = double(S) * Calib(2:end,:);
+                S = double(S) * HDR.Calib(2:end,:);
                 for k = 1:size(HDR.Calib,2),
                         S(:,k) = S(:,k) + full(HDR.Calib(1,k));
                 end;

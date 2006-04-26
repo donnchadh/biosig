@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.136 $
-%	$Id: sopen.m,v 1.136 2006-02-28 17:52:26 schloegl Exp $
+%	$Revision: 1.137 $
+%	$Id: sopen.m,v 1.137 2006-04-26 08:41:22 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -798,7 +798,7 @@ end;
 
                         status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bi(HDR.BDF.Status)*3,'bof');
                         %t = fread(HDR.FILE.FID,[3,inf],'uint8',HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status)*3);
-                        t = fread(HDR.FILE.FID,inf,[int2str(HDR.AS.SPR(HDR.BDF.Status)*3),'*uchar=>float'],HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status)*3);
+                        t = fread(HDR.FILE.FID,inf,[int2str(HDR.AS.SPR(HDR.BDF.Status)*3),'*uchar'],HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status)*3);
                         t = reshape(double(t),3,length(t)/3)'*2.^[0;8;16];
 
 			ix1 = diff([0;bitand(t,2^16)]);	% start of epoch
@@ -808,7 +808,7 @@ end;
                         %EVENTTABLE = repmat(0,sum(~~ix1)+sum(~~ix2),4);
                         
                         POS = [find(ix1>0);find(ix2>0);find(ix1<0);find(ix2<0)];
-                        TYP = [repmat(hex2dec('0300'),sum(ix1>0),1);bitand(t(ix2>0),255);repmat(hex2dec('8300'),sum(ix1<0),1);bitand(t(ix2(2:end)<0),255)+2^15];
+                        TYP = [repmat(hex2dec('0300'),sum(ix1>0),1);bitand(t(ix2>0),255);repmat(hex2dec('8300'),sum(ix1<0),1);bitand(t(ix2<0),255)+2^15];
                         [HDR.EVENT.POS,ix] = sort(POS);
                         HDR.EVENT.TYP = TYP(ix);                         
                 end;
@@ -5376,17 +5376,18 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 for k1 = 1:HDR.NS;
                         s = getfield(tmp.RAW_SIGNALS,HDR.Label{k1});
                         for k2 = 1:length(s);
-                                ix(k2,k1) = length(s{k2});   
+                                ix(k2,k1) = length(s{k2});
                         end;
                 end;
 		DIV = sum(ix,1);
                 HDR.TFM.DIV = round(max(DIV)./DIV);
+                HDR.TFM.ix  = ix; 
 		
                 HDR.data = repmat(NaN, max(HDR.TFM.DIV.*DIV), HDR.NS);
                 for k1 = 1:HDR.NS;
                         s = getfield(tmp.RAW_SIGNALS,HDR.Label{k1});
                         s2= rs(cat(2,s{:})',1,HDR.TFM.DIV(k1));
-			HDR.data(1:size(s2,1),k1) = s2; 
+			HDR.data(1:size(s2,1),k1) = s2; 	
                 end;
 		clear tmp s s2; 
 		HDR.EVENT.POS = cumsum(ix(:,min(find(HDR.TFM.DIV==1)))); 
@@ -7503,29 +7504,42 @@ elseif strcmp(HDR.TYPE,'ATF'),  % axon text file
         
 elseif strcmp(HDR.TYPE,'BIFF'),
 	try, 
+		NEW_INTERFACE=1; 
 		try
-	                [HDR.TFM.S,HDR.TFM.E] = xlsread(HDR.FileName,'Beat-To-Beat');
+	                [HDR.TFM.S,txt,HDR.TFM.E] = xlsread(HDR.FileName,'Beat-To-Beat');
                 catch
                         [HDR.TFM.S,HDR.TFM.E] = xlsread(HDR.FileName,'Beat-to-Beat');
+			NEW_INTERFACE=0; 
                 end;
-                %if size(HDR.TFM.S,1)+1==size(HDR.TFM.E,1)
-                if ~isnan(HDR.TFM.S(1,1)) & ~isempty(HDR.TFM.E{1,1})
+                if size(HDR.TFM.S,1)+1==size(HDR.TFM.E,1)
+                %if ~isnan(HDR.TFM.S(1,1)) & ~isempty(HDR.TFM.E{1,1})
 		        fprintf('Warning: XLSREAD-BUG has occured in file %s.\n',HDR.FileName);
                         HDR.TFM.S = [repmat(NaN,1,size(HDR.TFM.S,2));HDR.TFM.S];
                 end;
                 
                 HDR.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
                 %HDR.Patient.Name = [HDR.TFM.E{2,3},' ', HDR.TFM.E{2,4}];
-                HDR.Patient.Birthday = datevec(HDR.TFM.S(2,5)-1);
+                if strcmp(HDR.TFM.E(2,11),'2.2.9.0')
+	                HDR.Patient.Birthday = datevec(HDR.TFM.E(2,5),'dd.mm.yyyy');
+	                HDR.T0 = datevec(datenum(datevec(HDR.TFM.E{2,1},'dd.mm.yyyy')+HDR.TFM.E{2,2}));
+	        else        
+	                HDR.Patient.Birthday = datevec(HDR.TFM.E(2,5)-1);
+	                HDR.T0 = datevec(datenum('30-Dec-1899')+HDR.TFM.S(2,1)+HDR.TFM.S(2,2));
+	        end;        
                 HDR.Patient.Birthday(4) = 12; 
                 HDR.Patient.Age = datevec(HDR.TFM.S(2,1)-HDR.TFM.S(2,5));
                 HDR.Patient.Sex = HDR.TFM.E{2,6};
-                HDR.Patient.Height = HDR.TFM.S(2,7);
-                HDR.Patient.Weight = HDR.TFM.S(2,8);
-                HDR.Patient.Surface = HDR.TFM.S(2,9);
-                HDR.Patient.BMI = HDR.TFM.S(2,8)*HDR.TFM.S(2,7)^-2*1e4;
                 HDR.TFM.VERSION = HDR.TFM.E{2,11};
-                HDR.T0 = datevec(datenum('30-Dec-1899')+HDR.TFM.S(2,1)+HDR.TFM.S(2,2));
+		if NEW_INTERFACE; 
+	                HDR.Patient.Height = HDR.TFM.E{2,7};
+	                HDR.Patient.Weight = HDR.TFM.E{2,8};
+	                HDR.Patient.Surface = HDR.TFM.E{2,9};
+		else	        
+	                HDR.Patient.Height = HDR.TFM.S(2,7);
+	                HDR.Patient.Weight = HDR.TFM.S(2,8);
+	                HDR.Patient.Surface = HDR.TFM.S(2,9);
+	        end; 
+               	HDR.Patient.BMI = HDR.TFM.E{2,8}*HDR.TFM.E{2,7}^-2*1e4;
         catch
 	end; 	
 
