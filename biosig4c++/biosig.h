@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.28 2006-03-16 15:48:36 schloegl Exp $
+% $Id: biosig.h,v 1.29 2006-04-27 09:40:51 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -113,12 +113,12 @@ typedef double	 		biosig_data_type;
       	GDF format. 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 typedef int64_t 		gdf_time; // gdf time is represented in 64 bits
-#define t_time2gdf_time(t)	((gdf_time)floor(ldexp((t)/86400.0 + 719529L, 32)))
-#define gdf_time2t_time(t)	((time_t)((ldexp((t),-32) - 719529) * 86400))
+#define t_time2gdf_time(t)	((gdf_time)floor(ldexp(((double)(t))/86400.0 + 719529.0, 32)))
+#define gdf_time2t_time(t)	((time_t)((ldexp(((double)(t)),-32) - 719529) * 86400))
 #define tm_time2gdf_time(t) 	t_time2gdf_time(mktime(t))
 //#define gdf_time2tm_time(t)	localtime(gdf_time2t_time(t))
-#define	ntp_time2gdf_time(t)	((gdf_time)ldexp(ldexp((t),-32)/86400 + 719529 - 70,32))
-#define	gdf_time2ntp_time(t)	((int64_t)ldexp((ldexp((t),-32) - 719529 + 70) * 86400,32))
+#define	ntp_time2gdf_time(t)	((gdf_time)ldexp(ldexp(((double)(t)),-32)/86400 + 719529.0 - 70,32))
+#define	gdf_time2ntp_time(t)	((int64_t)ldexp((ldexp(((double)(t)),-32) - 719529.0 + 70) * 86400,32))
 
 
 /****************************************************************************/
