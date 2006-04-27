@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.137 $
-%	$Id: sopen.m,v 1.137 2006-04-26 08:41:22 schloegl Exp $
+%	$Revision: 1.138 $
+%	$Id: sopen.m,v 1.138 2006-04-27 18:35:08 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -7571,7 +7571,7 @@ elseif strcmp(HDR.TYPE,'BIFF'),
         end;
 
 
-elseif strncmp(HDR.TYPE,'XML',3),
+elseif 0; strncmp(HDR.TYPE,'XML',3),
         if any(HDR.FILE.PERMISSION=='r'),
 		HDR = sxmlread(HDR); 	% experimental version for reading various xml files 
 	end;
@@ -7661,6 +7661,85 @@ elseif strncmp(HDR.TYPE,'XML',3),
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS  = 0;
         end;
+        
+        
+elseif strcmp(HDR.TYPE,'ZIP'),
+        % extract content into temporary directory; 
+        HDR.ZIP.TEMPDIR = tempname;
+        mkdir(HDR.ZIP.TEMPDIR);
+        system(sprintf('unzip %s -d %s >NULL',HDR.FileName,HDR.ZIP.TEMPDIR));
+        fn = fullfile(HDR.ZIP.TEMPDIR,'content.xml');
+        if exist(fn,'file')
+                HDR.XML = xmltree(fn);
+                HDR.XML = convert(HDR.XML);
+        end;
+        fn = fullfile(HDR.ZIP.TEMPDIR,'META-INF/manifest.xml');
+        if exist(fn,'file')
+                XML = xmltree(fn);
+                HDR.Manifest = convert(XML);
+        end;
+        fn = fullfile(HDR.ZIP.TEMPDIR,'meta.xml');
+        if exist(fn,'file')
+                XML = xmltree(fn);
+                HDR.Meta = convert(XML);
+        end;
+        fn = fullfile(HDR.ZIP.TEMPDIR,'styles.xml');
+        if exist(fn,'file')
+                XML = xmltree(fn);
+                HDR.Styles = convert(XML);
+        end;
+        fn = fullfile(HDR.ZIP.TEMPDIR,'settings.xml');
+        if exist(fn,'file')
+                XML = xmltree(fn);
+                HDR.Settings = convert(XML);
+        end;
+
+        if 0,
+        elseif strncmp(HDR.ZIP.tmp(31:end),'mimetypeapplication/vnd.sun.xml.writer',38)
+        elseif strncmp(HDR.ZIP.tmp(31:end),'mimetypeapplication/vnd.sun.xml.calc',36)   % OpenOffice 1.x
+                HDR.table = HDR.XML.office_body.table_table;
+        elseif strncmp(HDR.ZIP.tmp(31:end),'mimetypeapplication/vnd.oasis.opendocument.spreadsheet',54)   % OpenOffice 2.0
+                HDR.table = HDR.XML.office_body.office_spreadsheet.table_table;
+        end;
+        
+        if isfield(HDR,'table'),
+                try
+                        for k0 = 1, %:length(HDR.table),
+                                strarray= {};
+                                c_table = HDR.table{k0};
+                                if ~isempty(c_table.table_table_row)
+                                        nr = length(c_table.table_table_row);
+                                        for k1 = 1:nr-1,
+                                                c_row = c_table.table_table_row{k1}.table_table_cell;
+                                                nc = length(c_row);
+                                                for k2 = 1:nc-1,
+                                                        strarray{k1,k2} = c_row{k2}.text_p;
+                                                end;
+                                        end;
+                                end;
+                                HDR.sa{k0} = strarray;
+                                HDR.data = repmat(NaN,size(strarray));
+                                for k1=1:size(HDR.data,1)
+                                        for k2=1:size(HDR.data,2)
+                                                tmp = strarray{k1,k2};
+                                                tmp(tmp==',')=='.';
+                                                if ~isempty(tmp)
+                                                        tmp = str2double(tmp)
+                                                end;
+                                                if prod(size(tmp))==1,
+                                                        HDR.data(k1,k2) = tmp;
+                                                else
+                                                        strarray{k1,k2},
+                                                end;
+                                        end;
+                                end;
+                        end;
+                catch;
+                end
+        end;
+
+        % remove temporary directory - could be moved to SCLOSE
+        [SUCCESS,MESSAGE,MESSAGEID] = rmdir(HDR.ZIP.TEMPDIR,'s');
         
         
 elseif strncmp(HDR.TYPE,'IMAGE:',6),
