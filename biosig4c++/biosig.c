@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.42 2006-03-13 11:17:34 schloegl Exp $
+    $Id: biosig.c,v 1.43 2006-04-28 17:20:58 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -278,10 +278,11 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
 	const float	CNT_SETTINGS_HIGHPASS[] = {NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
 
-	/* XML related variables */
+#ifdef __XML_XMLREADER_H__
 	xmlTextReaderPtr reader;
 	xmlDocPtr doc; /* the resulting document tree */
 	int ret;
+#endif
 
     	int 		k,id;
     	uint32_t	k32u; 
@@ -361,6 +362,7 @@ if (!strcmp(MODE,"r"))
 		fclose(hdr->FILE.FID); 
 		free(Header1);
 
+#ifdef __XML_XMLREADER_H__
 		LIBXML_TEST_VERSION
     		reader = xmlReaderForFile(hdr->FileName, NULL, XML_PARSE_DTDATTR | XML_PARSE_NOENT); 
     			// XML_PARSE_DTDVALID cannot be used in aECG 
@@ -383,7 +385,9 @@ if (!strcmp(MODE,"r"))
 		        xmlFreeTextReader(reader);
 			hdr->TYPE = XML; 
 		}        
-		else {
+		else
+#endif
+		{
 			hdr->TYPE = unknown; 
 	//		sclose(hdr); 
 	//		free(hdr); 
@@ -951,7 +955,9 @@ else { // WRITE
 		hdr->AS.Header1 = Header1; 
 	}
     	else if (hdr->TYPE==SCP_ECG) {	
+    		hdr->FileName = FileName;
     		hdr = sopen_SCP_write(hdr);
+
 	}
     	else if (hdr->TYPE==HL7aECG) {	
     		hdr = sopen_HL7aECG_write(hdr);
@@ -972,7 +978,6 @@ else { // WRITE
 
 }	// end of else 
 
-fprintf(stdout,"end of sopen is near\n");
 	// internal variables
 	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	hdr->AS.bi[0] = 0;
@@ -982,7 +987,6 @@ fprintf(stdout,"end of sopen is near\n");
 		hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 		hdr->AS.bi[++k] = hdr->AS.bpb; 
 	}	
-fprintf(stdout,"end of sopen is near\n");
 
 	return(hdr);
 }  // end of SOPEN 
@@ -1022,18 +1026,26 @@ size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
 			return(0);
 		hdr->FILE.POS = start; 	
 	}
+
+	if (hdr->TYPE != SCP_ECG) {	
+		// allocate AS.rawdata 	
+		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
+
+		// limit reading to end of data block
+		nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
+
+		// read data	
+		count = fread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
+		if (count<nelem)
+			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem,hdr->FILE.POS,hdr->AS.bpb); 
+	}
+	else 	{  // SCP format 
+		// hdr->AS.rawdata was defined in SOPEN	
+		count = hdr->SPR*hdr->NRec;
+		
+	}
 	
-	// allocate AS.rawdata 	
-	hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
-
-	// limit reading to end of data block
-	nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
-
-	// read data	
-	count = fread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
-	if (count<nelem)
-		fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem,hdr->FILE.POS,hdr->AS.bpb); 
-
+	
 	// set position of file handle 
 	hdr->FILE.POS += count;
 
@@ -1243,8 +1255,39 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
  */
 	size_t count; 
 
+
+//	fwrite(hdr->data.block, sizeof(biosig_data_type),hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
+
 	// write data 
 	count = fwrite((uint8_t*)ptr, hdr->AS.bpb, nelem, hdr->FILE.FID);
+
+
+/*
+	for (k1=0,k2=0; k1<hdr->NS; k1++) {
+	CHptr 	= hdr->CHANNEL+k1;
+	if (CHptr->OnOff != 0) {
+		DIV 	= hdr->SPR/CHptr->SPR; 
+		GDFTYP 	= CHptr->GDFTYP;
+		SZ  	= GDFTYP_BYTE[GDFTYP];
+		int32_value = 0; 
+
+		for (k4 = 0; k4 < count; k4++)
+		for (k5 = 0; k5 < CHptr->SPR; k5++) {
+
+			// get source address 	
+			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
+			
+			// mapping of raw data type to (biosig_data_type)
+			if (0); 
+			else if (GDFTYP==3)
+				sample_value = (biosig_data_type)l_endian_i16(*(int16_t*)ptr); 
+			else if (GDFTYP==4)
+			else ;
+		}
+		}
+	}
+	}	
+*/
 	
 	// set position of file handle 
 	(hdr->FILE.POS) += count; 

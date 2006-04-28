@@ -30,9 +30,9 @@
 
 #include "biosig.h"
 
-
-HDRTYPE* sopen_SCP_read(char* Header1, HDRTYPE* hdr) {	
 /*
+HDRTYPE* sopen_SCP_read(char* Header1, HDRTYPE* hdr) {	
+*
 	this function is a stub or placeholder and need to be defined in order to be useful. 
 	It will be called by the function SOPEN in "biosig.c"
 
@@ -42,16 +42,16 @@ HDRTYPE* sopen_SCP_read(char* Header1, HDRTYPE* hdr) {
 	Output: 
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
 				// hdr->aECG contains the fields of the annotated ECG
-*/	
-	hdr->aECG = (aECG_TYPE*) malloc(sizeof(aECG_TYPE));
 	
+	hdr->aECG = (aECG_TYPE*) malloc(sizeof(aECG_TYPE));
+*	
 	
 	return(hdr);	
 };
+*/
 
-
-HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {	
 /*
+HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {	
 	this function is a stub or placeholder and need to be defined in order to be useful. 
 	It will be called by the function SOPEN in "biosig.c"
 
@@ -60,10 +60,12 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		
 	Output: 
 		char* HDR.AS.Header1 	// contains the content which will be written to the file in SOPEN
-*/	
 	return(hdr);	
 	
 };
+*/
+
+
 
 HDRTYPE* sopen_HL7aECG_read(char* Header1, HDRTYPE* hdr) {	
 /*
@@ -79,10 +81,25 @@ HDRTYPE* sopen_HL7aECG_read(char* Header1, HDRTYPE* hdr) {
 				//		and hdr->TYPE = HL7aECG
 				// else hdr->aECG is NULL and hdr->TYPE stays XML
 */	
-	hdr->aECG = (aECG_TYPE*) malloc(sizeof(aECG_TYPE));
-	
 
+    xmlTextReaderPtr reader;
+    int ret;
 
+    reader = xmlNewTextReaderFilename(hdr->FileName);
+    if (reader != NULL) {
+        ret = xmlTextReaderRead(reader);
+        while (ret == 1) {
+//            processNode(reader);
+            ret = xmlTextReaderRead(reader);
+        }
+        xmlFreeTextReader(reader);
+        if (ret != 0) {
+            printf("%s : failed to parse\n", filename);
+        }
+    } else {
+        printf("Unable to open %s\n", filename);
+    }
+}
 
 
 	if (1) //successful 
