@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SCPECG_Writer.h"
 #include "Section1_Info.h"
 #include "ECGSignal_Info.h"
-#include "XMLECG_Parser.h"
+//#include "XMLECG_Parser.h"
 #include "SCP_Formatter.h"
 #ifndef VS_DEF
 #include <unistd.h>
