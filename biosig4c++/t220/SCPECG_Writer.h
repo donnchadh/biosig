@@ -22,11 +22,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // SCPECG_Writer.h
 */
 
+
+#if !defined SCPECG_WRITER
+#define SCPECG_WRITER 
+
+#include <inttypes.h>
 #ifndef VS_DEF
-#include "biosig.h"
+#include "../biosig.h"
 #else
-#include "biosig_vs.h"
+//#include "biosig_vs.h"
 #endif
+
 
 typedef struct SCPfile_head {
 	uint16_t	crc;         /* 16 bit crc */
@@ -68,3 +74,5 @@ typedef struct tag {
 	uint8_t   id;
 	uint16_t  len;
 } TAG;
+
+#endif

@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define ECGSIGNAL_INFO
 
 #ifndef VS_DEF
-#include "biosig.h"
+#include "../biosig.h"
 #else
 #include "biosig_vs.h"
 #endif

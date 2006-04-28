@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SECTION1_INFO
 
 #ifndef VS_DEF
-#include "biosig.h"
+#include "../biosig.h"
 #else
 #include "biosig_vs.h"
 #endif
@@ -50,10 +50,10 @@ public:
 	virtual ~cSection1_Info(void);
 
 public:
-	int8_t szLastName[64];
-	int8_t szFirstName[64];
-	int8_t szPatientID[64];
-	int8_t szSecondLastName[64];
+	char szLastName[64];
+	char szFirstName[64];
+	char szPatientID[64];
+	char szSecondLastName[64];
 	DATE DOB;
 	uint16_t wSCPECGRevNum;
 	uint16_t wHeight;
@@ -68,29 +68,29 @@ public:
 	uint16_t wDevID;
 	uint8_t bDevType;
 	uint8_t bManCode;
-	int8_t szModDesc[6];
+	char szModDesc[6];
 	uint8_t bSCPECGProtRevNum;
 	uint8_t bSCPECGProtCompLev;
 	uint8_t bLangSuppCode;
 	uint8_t bCapECGDev;
 	uint8_t bMainsFreq;
-	int8_t szAnalProgRevNum[25];
-	int8_t szSerNumAcqDev[25];
-	int8_t szAcqDevSystSW[25];
-	int8_t szSCPImplSW[25];
-	int8_t szAcqDevManuf[25];
-	int8_t szRefPhys[64];
-	int8_t szLCPhys[64];
-	int8_t szTechnician[64];
+	char szAnalProgRevNum[25];
+	char szSerNumAcqDev[25];
+	char szAcqDevSystSW[25];
+	char szSCPImplSW[25];
+	char szAcqDevManuf[25];
+	char szRefPhys[64];
+	char szLCPhys[64];
+	char szTechnician[64];
 	uint8_t bStatCode;
 	DATE DOA;
 	TIME TOA;
 	uint16_t wBaseLineFilter;
 	uint8_t bFilterBitMap;
-	int8_t szSeqNum[12];			// Suggested is 12, but we need to put more info in it
+	char szSeqNum[12];			// Suggested is 12, but we need to put more info in it
 	uint16_t wDateTimeZoneOffset;
 	uint16_t wDateTimeZoneIndex;
-	int8_t szDateTimeZoneDesc[25];
+	char szDateTimeZoneDesc[25];
 };
 
 #endif

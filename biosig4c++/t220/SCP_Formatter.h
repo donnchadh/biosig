@@ -22,11 +22,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // SCP_Formatter.h: interface for the cSCP_Formatter class.
 */
 
+#include "Section1_Info.h"
+#include "ECGSignal_Info.h"
+#include "SCPECG_Writer.h"
+
+
 #if !defined SCP_FORMATTER
 #define SCP_FORMATTER
 
 #ifndef VS_DEF
-#include "biosig.h"
+#include "../biosig.h"
 #else
 #include "biosig_vs.h"
 #endif
@@ -65,6 +70,7 @@ public:
 	cSCP_Formatter(void);
 	virtual ~cSCP_Formatter(void);
 	void  ResetInfo();
+/*
 	int16_t DoTheSCPFile(int8_t*);
 	int16_t SetLastName(int8_t*);
 	int16_t GetLastName(int8_t*);
@@ -74,6 +80,17 @@ public:
 	int16_t GetPatientID(int8_t*);
 	int16_t SetSecondLastName(int8_t*);
 	int16_t GetSecondLastName(int8_t*);
+*/
+	int16_t DoTheSCPFile(char*);
+	int16_t SetLastName(char*);
+	int16_t GetLastName(char*);
+	int16_t SetFirstName(char*);
+	int16_t GetFirstName(char*);
+	int16_t SetPatientID(char*);
+	int16_t GetPatientID(char*);
+	int16_t SetSecondLastName(char*);
+	int16_t GetSecondLastName(char*);
+
 	int16_t SetDateOfBirth(int16_t, int16_t, int16_t);
 	int16_t GetDateOfBirth(int16_t*, int16_t*, int16_t*);
 	int16_t SetHeight(int16_t);
@@ -86,18 +103,25 @@ public:
 	int16_t GetSBP(int16_t*);
 	int16_t SetDBP(int16_t);
 	int16_t GetDBP(int16_t*);
+/*
 	int16_t SetReferringPhysician(int8_t*);
 	int16_t GetReferringPhysician(int8_t*);
 	int16_t SetLastConfirmingPhys(int8_t*);
 	int16_t GetLastConfirmingPhys(int8_t*);
+*/
+	int16_t SetReferringPhysician(char*);
+	int16_t GetReferringPhysician(char*);
+	int16_t SetLastConfirmingPhys(char*);
+	int16_t GetLastConfirmingPhys(char*);
+
 	int16_t SetStatCode(int16_t);
 	int16_t GetStatCode(int16_t*);
 	int16_t SetDateOfAcquisition(int16_t, int16_t, int16_t);
 	int16_t GetDateOfAcquisition(int16_t*, int16_t*, int16_t*);
 	int16_t SetTimeOfAcquisition(int16_t, int16_t, int16_t);
 	int16_t GetTimeOfAcquisition(int16_t*, int16_t*, int16_t*);
-	int16_t SetSequenceNumber(int8_t*);
-	int16_t GetSequenceNumber(int8_t*);
+	int16_t SetSequenceNumber(char*);
+	int16_t GetSequenceNumber(char*);
 	int16_t SetTimeZone(int16_t);
 	int16_t GetTimeZone(int16_t*);
 	int16_t LoadXMLInfo(HDRTYPE*);
@@ -115,7 +139,7 @@ private:
 	//bool CreateSCPSection10(void);
 	bool CorrectSCPSection0(void);
 	bool CorrectSCPHeader(void);
-	bool WriteSCPFile(int8_t*);
+	bool WriteSCPFile(char*);
 	uint16_t CRCEvaluate(uint8_t*, uint32_t);
 	int16_t CRCCheck(uint8_t*, uint32_t);
 };
