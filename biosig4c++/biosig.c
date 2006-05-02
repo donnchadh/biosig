@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.43 2006-04-28 17:20:58 schloegl Exp $
+    $Id: biosig.c,v 1.44 2006-05-02 22:43:53 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -40,7 +40,7 @@
 #include <string.h>
 
 
-#include <libxml/xmlreader.h>
+//#include <libxml/xmlreader.h>
 
 
 #include "biosig.h"
@@ -196,7 +196,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.size[1] = 0;  // columns 
 	hdr->data.block = (biosig_data_type*)malloc(410); 
       	hdr->T0 = t_time2gdf_time(time(NULL));
-      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.20";
+      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.35";
 
 	hdr->Patient.Name 	= "X";
 	hdr->Patient.Id 	= "X";
@@ -956,6 +956,7 @@ else { // WRITE
 	}
     	else if (hdr->TYPE==SCP_ECG) {	
     		hdr->FileName = FileName;
+//		hdr->AS.Header1 = Header1; 
     		hdr = sopen_SCP_write(hdr);
 
 	}

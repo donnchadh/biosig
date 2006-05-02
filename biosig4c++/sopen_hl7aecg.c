@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.1 2006-03-13 11:17:34 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.2 2006-05-02 22:40:39 schloegl Exp $
     Copyright (C) 2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -26,8 +26,8 @@
 
 
 #include <stdio.h>             // system includes
-#include <libxml/tree.h>
-#include <libxml/xmlreader.h>
+//#include <libxml/tree.h>
+//#include <libxml/xmlreader.h>
 
 #include "biosig.h"
 
@@ -43,6 +43,7 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr) {
 	Output: 
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
 */	
+#ifdef __XML_XMLREADER_H__
 
 	xmlDocPtr	XMLDOC;
 	xmlTextReaderPtr reader;
@@ -76,7 +77,6 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr) {
 	      	for (k1=0; k1<3; hdr->CHANNEL[k].XYZ[k1++] = 0.0);
 	}      	
 	
-
 
 	LIBXML_TEST_VERSION;
 
@@ -124,6 +124,12 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr) {
 	
 	
 	return(hdr);	
+#else
+
+	fprintf(stdout,"BioSig: LIBXML2 missing\n");
+	return(NULL);	
+#endif
+
 };
 
 
