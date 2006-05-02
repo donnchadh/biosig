@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.1 2006-04-28 17:20:58 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.2 2006-05-02 22:42:53 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -23,6 +23,8 @@
  */
 
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "../biosig.h"
@@ -42,14 +44,11 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
 */	
 
-fprintf(stderr,"881\n");
 		cSCP_Formatter* SCP_Formatter = NULL;
-fprintf(stderr,"882\n");
   		SCP_Formatter = new cSCP_Formatter();
-fprintf(stderr,"883\n");
 		SCP_Formatter->ResetInfo();
-fprintf(stderr,"884\n");
 		if (hdr->aECG==NULL) {
+			fprintf(stderr,"Warning: No aECG info defined\n");
 			hdr->aECG = (aECG_TYPE*)malloc(sizeof(aECG_TYPE));
 			hdr->aECG->diastolicBloodPressure=0.0;				 
 			hdr->aECG->systolicBloodPressure=0.0;
@@ -67,24 +66,29 @@ fprintf(stderr,"884\n");
 			return (hdr);
 		}
 		
+
+
+		/* 
+		   Writing the file should be done by SOPEN 
+		   DoTheSCPFile should generate byte array in hdr->AS.Header1
+		
+		   filesize = ...;
+		   bytearray = malloc(filesize);
+
+		   generate bytearray from SCP_Formatter
+			errCode = SCP_Formatter->DoTheSCPFile(OutFile);
+
+		   hdr->HeadLen = filesize;
+		   hdr->AS.Header1 = bytearray;
+		*/
+
 		errCode = SCP_Formatter->DoTheSCPFile(OutFile);
 		if (errCode != 0) {
-			fprintf(stderr,"ERROR: Do the SCP file #%i\n",errCode);
-fprintf(stderr,"887a\n");
-			delete SCP_Formatter;
-fprintf(stderr,"887b\n");
-			return (hdr);	// Errors -1, -2, ..., -15. Problems in Outfile = NULL, structures not initialized or error during the creation of the SCP file.
+			fprintf(stderr,"ERROR: DoTheSCPFile #%i\n",errCode);
 		} 
-		else { 
-fprintf(stderr,"888\n");
-		    	delete SCP_Formatter;
-		}    	
-fprintf(stderr,"889\n");
-	    	return(hdr);    // this is a hack
 
-
-
-	return(hdr);
+	    	delete SCP_Formatter;
+		return(hdr);
 }
 
 
