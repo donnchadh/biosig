@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.2 2006-05-02 22:42:53 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.3 2006-05-03 08:56:53 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -32,6 +32,16 @@
 
 
 
+int16_t	Label_to_LeadIdCode(char* Label) {
+	// FIXME //  define functions for converting label to LeadIdCode 
+	int ret_val = 0;	//default: unspecified 
+	
+	 	
+	return(ret_val);
+}
+
+
+
 HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {	
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful. 
@@ -58,6 +68,9 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		char OutFile[2048];
 		int  errCode; 
 		strcpy(OutFile,hdr->FileName);
+		for (int k=0; k<hdr->NS; k++) {
+			hdr->CHANNEL[k].LeadIdCode = Label_to_LeadIdCode(hdr->CHANNEL[k].Label);
+		}	
 
 		errCode = SCP_Formatter->LoadXMLInfo(hdr);
 		if (errCode != 0) {

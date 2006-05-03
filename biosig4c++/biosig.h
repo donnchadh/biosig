@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.30 2006-05-02 22:37:47 schloegl Exp $
+% $Id: biosig.h,v 1.31 2006-05-03 08:56:52 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -134,6 +134,7 @@ typedef int64_t 		gdf_time; // gdf time is represented in 64 bits
 typedef struct {
 	char		OnOff; 		// 
 	char* 		Label;		// Label of channel 
+	uint16_t	LeadIdCode;	// Lead identification code 
 	char* 		Transducer;	// transducer e.g. EEG: Ag-AgCl electrodes
 	char* 		PhysDim;	// physical dimension
 	uint16_t	PhysDimCode;	// code for physical dimension
@@ -285,6 +286,7 @@ HDRTYPE* sopen_SCP_write    (HDRTYPE* hdr);
 HDRTYPE* sopen_HL7aECG_read (HDRTYPE* hdr);
 HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr);
 
+int16_t	Label_to_LeadIDCode(char* Label);
 
 /****************************************************************************/
 /**                                                                        **/

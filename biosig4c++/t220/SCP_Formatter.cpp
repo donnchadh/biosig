@@ -907,10 +907,10 @@ int16_t cSCP_Formatter::LoadXMLInfo(HDRTYPE* hdr)
 	// in SCP 2.0 only codes till 78 are the same, while from 86 on the codes are not defined, but we can
 	// assume the use of the same codes like manufacturer dependent codes
 	for (i = 0; i < ESI->bNumLead; i++) {
-		ESI->LeadR_codes[i] = i+1; //*hdr->CHANNEL[i].Label;
+		ESI->LeadR_codes[i] = hdr->CHANNEL[i].LeadIdCode; 
 	}
 	for (i = 0; i < hdr->NS; i++) {
-		ESI->LeadR[i] = (double*) &hdr->data.block[i * ESI->dwEndSampleR];
+		ESI->LeadR[i] = (double*) &hdr->data.block[i * ESI->dwEndSampleR];   // 1st sample of each channel
 	}
 	// No reference beat seems to be available in XML aECG
 	for (i = 0; i < hdr->NS; i++) {
