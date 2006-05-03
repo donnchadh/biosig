@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.1 2006-04-28 17:20:58 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.2 2006-05-03 13:10:12 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -24,6 +24,7 @@
 
 
 
+
 #include <stdio.h>             // system includes
 #include <stdlib.h>
 #include <string.h>
@@ -34,9 +35,8 @@
 
 #include "../biosig.h"
 
-#include "types.h"               // start specific by E.C. (SCP reader)
 #include "structures.h"
-static const U_int_S _NUM_SECTION=12U;		//consider first 11 sections of SCP
+static const U_int_S _NUM_SECTION=12U;	//consider first 11 sections of SCP
 static bool add_filter=true;            // additional filtering gives better shape, but use with care
 int scp_decode(HDRTYPE*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO&, bool&);
 //void remark(char*);
@@ -60,6 +60,7 @@ HDRTYPE* sopen_SCP_read(char* Header1, HDRTYPE* hdr) {
 	Output: 
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
 */	
+
 /*
 ---------------------------------------------------------------------------
 Copyright (C) 2006  Eugenio Cervesato.
@@ -90,11 +91,64 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
+
 	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
-		if ((decode.flag_lead.number==8) && decode.flag_lead.all_simultaneously) {
+		if (1) {
+                        hdr->VERSION= 0.1*textual.des.analyzing.protocol_revision_number;     // store version as requested (float)
+                        hdr->NS = decode.flag_lead.number;
+			hdr->SPR= decode.flag_Res.number_samples;        // should be 5000
+			hdr->NRec = 1; 
+                        hdr->Dur[0]=10; hdr->Dur[1]=1;  // duration = 10 sec
+
+			if (decode.flag_BdR0.STM==0) hdr->SampleRate= hdr->SPR/10;  // should be 500
+			else  hdr->SampleRate=1000000.0/decode.flag_BdR0.STM;
+                        // acquisition time is the sum of the date and the time, converted to gdf_time
+                        hdr->T0=t_time2gdf_time(textual.dev.date_acquisition2+textual.dev.time_acquisition2);
+                        char buff[300];
+                        strcpy(buff, textual.ana.first_name);
+                        strcat(buff, ", ");
+                        strcat(buff, textual.ana.last_name);
+                        hdr->Patient.Name = buff;              // name is 'first name, last name'
+                        hdr->Patient.Id = textual.ana.ID;
+                        hdr->Patient.Birthday = t_time2gdf_time(textual.ana.date_birth2);
+
+                        hdr->CHANNEL = (CHANNEL_TYPE *) calloc(hdr->NS, sizeof(CHANNEL_TYPE));
+                        memset(hdr->CHANNEL, 0, hdr->NS * sizeof(CHANNEL_TYPE));  // blank area
+			hdr->AS.rawdata = (uint8_t*)decode.Reconstructed; 
+			// hdr->AS.bpb, and hdr->AS.spb will be defined at the and of SOPEN
+                        hdr->data.size[0] = hdr->NS;
+                        hdr->data.size[1] = hdr->SPR;
+                        hdr->data.block = (biosig_data_type *) calloc(12 * hdr->SPR, sizeof(biosig_data_type));
+
+			for (int i=0;i<hdr->NS;i++) {
+				hdr->CHANNEL[i].SPR = hdr->SPR;
+				hdr->CHANNEL[i].PhysDimCode = 4275; // physical unit "uV"	
+				hdr->CHANNEL[i].PhysDim     = "uV"; // physical unit "uV"	
+				hdr->CHANNEL[i].Cal         = 1000; // internal data conversion factor (AVM=1uV)
+				hdr->CHANNEL[i].Off         = 0;    // internal data conversion factor (AVM=1uV)
+				hdr->CHANNEL[i].OnOff       = 1;    //((i<2)|(i>5)); // only first eight channels are ON
+				hdr->CHANNEL[i].Transducer  = ""; 
+				hdr->CHANNEL[i].GDFTYP      = 5;    // int32
+				
+				// these must be still defined //
+				hdr->CHANNEL[i].Label       = "";   //lead_identification[decode.data_lead[i].ID];
+				hdr->CHANNEL[i].LeadIdCode  = decode.data_lead[i].ID;
+				/*
+				hdr->CHANNEL[i].DigMax      = 
+				hdr->CHANNEL[i].DigMin      = 
+				hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
+				hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
+				*/
+			}	
+			for (int j=0;j<hdr->NS;j++)
+			for (int i=0;i<hdr->SPR;i++)
+				hdr->data.block[i+hdr->SPR*j]=decode.Reconstructed[i+j*decode.flag_Res.number_samples];
+		}
+		else if ((decode.flag_lead.number==8) && decode.flag_lead.all_simultaneously) {
                         hdr->VERSION= 0.1*textual.des.analyzing.protocol_revision_number;     // store version as requested (float)
                         hdr->NS = 12;   // standard 12 leads only
 			hdr->SPR=decode.flag_Res.number_samples;        // should be 5000
+			hdr->NRec = 1; 
                         hdr->Dur[0]=10; hdr->Dur[1]=1;  // duration = 10 sec
 			if (decode.flag_BdR0.STM==0) hdr->SampleRate= hdr->SPR/10;  // should be 500
 			else  hdr->SampleRate=1000000.0/decode.flag_BdR0.STM;
@@ -133,8 +187,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 				hdr->CHANNEL[i].Cal         = 1000; // internal data conversion factor (AVM=1uV)
 				hdr->CHANNEL[i].Off         = 0;    // internal data conversion factor (AVM=1uV)
 				hdr->CHANNEL[i].OnOff       = 1; //((i<2)|(i>5)); // only first eight channels are ON
-				hdr->CHANNEL[i].Transducer = ""; 
+				hdr->CHANNEL[i].Transducer  = ""; 
+				hdr->CHANNEL[i].GDFTYP      = 5;    // int32
 			}	
+
+
 			for (int i=0;i<hdr->SPR;i++)
 			{                             // data will be stored by row
 				hdr->data.block[i+hdr->SPR*0]=decode.Reconstructed[i];         // data returned is in microVolt
@@ -151,7 +208,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		                hdr->data.block[i+hdr->SPR*4]=hdr->data.block[i+hdr->SPR*0]-hdr->data.block[i+hdr->SPR*1]/2;
 		                hdr->data.block[i+hdr->SPR*5]=hdr->data.block[i+hdr->SPR*1]-hdr->data.block[i+hdr->SPR*0]/2;
 			}
-			hdr->NRec = 1; 
 
 		} else
 		{
@@ -161,5 +217,4 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
         }
 	return(hdr);
 }
-
 
