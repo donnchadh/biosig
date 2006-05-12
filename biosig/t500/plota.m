@@ -45,7 +45,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.48 2006-04-26 08:44:48 schloegl Exp $
+%	$Id: plota.m,v 1.49 2006-05-12 19:41:59 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -397,6 +397,7 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                         x0  = m(:,:,fidx,nix) - m(:,:,fidx,rix);
                         ci0 = sqrt(se(:,:,fidx,nix).^2 + se(:,:,fidx,rix).^2);
                 end;
+                x0(~isfinite(x0))=NaN;
                 clim = [-1,1]*max(abs(x0(:)));
                 if isfield(X,'SampleRate')
 	                type = [' - eventrelated with : ' , sprintf('%i - %i s', X.T(:,ix)/X.SampleRate) ];
@@ -414,6 +415,7 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                         x0  = x0(:,:,fidx,nix);
                         ci0 = ci0(:,:,fidx,nix);
                 end;
+                x0(~isfinite(x0))=NaN;
                 clim = [min(x0(:)),max(x0(:))];
 
         else
@@ -423,6 +425,7 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                 x0  = x0(:,:,fidx,nix);
                 ci0 = ci0(:,:,fidx,nix);
 
+                x0(~isfinite(x0))=NaN;
                 clim = [-1,1]*max(abs(x0(:)));
         end;
         XT = XT(:,nix);
@@ -1181,7 +1184,12 @@ elseif strcmp(X.datatype,'TSD1'),
 
 elseif strcmp(X.datatype,'MEAN+STD')
 
-        nchns = min(size(X.MEAN));  % Number of channels
+        if isfield(X,'MEAN');
+                sz = [size(X.MEAN),1];
+        elseif isfield(X,'SUM');
+                sz = [size(X.SUM),1];
+        end;
+        nchns = sz(2);  % Number of channels
 
         if nargin < 2
                 clf;
@@ -1190,8 +1198,11 @@ elseif strcmp(X.datatype,'MEAN+STD')
                 nf = arg2;  % Handles to subplots
         end;
         if isempty(nf)
-                for k = 1:nchns
-                        nf(k) = subplot(ceil(nchns/ceil(sqrt(nchns))),ceil(sqrt(nchns)),k);  % Handles to subplots
+                for k0 = 1:sz(3),
+                        if sz(3)>1, figure(k0); end;
+                        for k = 1:nchns
+                                nf(k0,k) = subplot(ceil(nchns/ceil(sqrt(nchns))),ceil(sqrt(nchns)),k);  % Handles to subplots
+                        end;
                 end;
         end;
 
@@ -1201,65 +1212,78 @@ elseif strcmp(X.datatype,'MEAN+STD')
                 end;
         end;
 
+        if (~isfield(X,'MEAN') | ~isfield(X,'STD')) %& isfield(X,'SUM') & isfield(X,'N') & isfield(X,'SSQ')
+                X.MEAN 	= X.SUM./X.N;			% mean
+                X.MSQ  	= X.SSQ./X.N;;			% mean square
+                X.RMS  	= sqrt(X.MSQ);			% root mean square
+                %X.SSQ0	= X.SSQ-X.SUM.*X.MEAN;		% sum square of mean removed
+                X.SSQ0	= X.SSQ - real(X.SUM).*real(X.MEAN) - imag(X.SUM).*imag(X.MEAN);	% sum square of mean removed
+                n1 	= max(X.N-1,0);			% in case of n=0 and n=1, the (biased) variance, STD and SEM are INF
+                X.VAR  	= X.SSQ0./n1;	     		% variance (unbiased)
+                X.STD  	= sqrt(X.VAR);		     	% standard deviation
+                X.SEM  	= sqrt(X.SSQ0./(X.N.*n1)); 	% standard error of the mean
+        end;
+
         if nargin>2
                 minmean = arg3;
                 maxmean = arg4;
                 maxstd  = arg5;
         else
-                minmean = floor(min(min(X.MEAN)));
-                maxmean = ceil(max(max(X.MEAN)));
-                maxstd = ceil(max(max(X.STD)));
+                minmean = floor(min(X.MEAN(:)));
+                maxmean = ceil(max(X.MEAN(:)));
+                maxstd  = ceil(max(X.STD(:)));
         end;
 
+        for k0 = 1:sz(3),
+                if sz(3)>1, figure(k0); end;
+                for k = 1:sz(2)  % For each channel
 
-        for k = 1:nchns  % For each channel
+                        subplot(nf(k0,k));
+                        [ax,h1,h2] = plotyy(X.T,X.MEAN(:,k,k0),X.T,X.STD(:,k,k0));
+                        drawnow;
+                        set(ax(1),'FontSize',8);
+                        set(ax(2),'FontSize',8);
 
-                subplot(nf(k));
-                [ax,h1,h2] = plotyy(X.T,X.MEAN(k,:),X.T,X.STD(k,:));
-                drawnow;
-                set(ax(1),'FontSize',8);
-                set(ax(2),'FontSize',8);
+                        % Sets the axes limits to avoid overlapping of the two functions
+                        set(ax(1),'YLim',[minmean-maxstd maxmean]);
+                        set(ax(2),'YLim',[0 -minmean+maxstd+maxmean]);
+                        set(ax,'XLim',[min(X.T) max(X.T)]);
 
-                % Sets the axes limits to avoid overlapping of the two functions
-                set(ax(1),'YLim',[minmean-maxstd maxmean]);
-                set(ax(2),'YLim',[0 -minmean+maxstd+maxmean]);
-                set(ax,'XLim',[min(X.T) max(X.T)]);
+                        set(ax,'YTickLabel',[]);
+                        set(ax,'YTick',[]);
 
-                set(ax,'YTickLabel',[]);
-                set(ax,'YTick',[]);
+                        % Label y1-axis (mean)
+                        temp = [floor(minmean/10) * 10 : 10 : ceil(maxmean/10) * 10];  % Label only ..., -20, -10, 0, 10, 20, 30, ...
+                        set(ax(1),'YTick',temp);
 
-                % Label y1-axis (mean)
-                temp = [floor(minmean/10) * 10 : 10 : ceil(maxmean/10) * 10];  % Label only ..., -20, -10, 0, 10, 20, 30, ...
-                set(ax(1),'YTick',temp);
+                        set(ax(1),'YTickLabel',temp);
 
-                set(ax(1),'YTickLabel',temp);
+                        % Label y2-axis (standard deviation)
+                        temp = [0 : 10 : ceil(maxstd/10) * 10];  % Label only 0, 10, 20, 30, ...
+                        set(ax(2),'YTick',temp);
 
-                % Label y2-axis (standard deviation)
-                temp = [0 : 10 : ceil(maxstd/10) * 10];  % Label only 0, 10, 20, 30, ...
-                set(ax(2),'YTick',temp);
+                        set(ax(2),'YTickLabel',temp);
 
-                set(ax(2),'YTickLabel',temp);
+                        % Label x-axis
 
-                % Label x-axis
+                        xlabel('Time (s)');
+                        grid on;
 
-                xlabel('Time (s)');
-                grid on;
-
-                if isfield(X,'Label')  % Print label of each channel (if such a label exists)
-                        if k <= length(X.Label)
-                                title(X.Label{k},'FontSize',8,'Interpreter','none');
+                        if isfield(X,'Label')  % Print label of each channel (if such a label exists)
+                                if k <= length(X.Label)
+                                        title(X.Label{k},'FontSize',8,'Interpreter','none');
+                                end;
                         end;
-                end;
 
-                if isfield(X,'trigger')  % Mark trigger
-                        line([X.T(X.trigger),X.T(X.trigger)],[minmean-maxstd,maxmean],'Color',[1 0 0]);
+                        if isfield(X,'trigger')  % Mark trigger
+                                line([X.T(X.trigger),X.T(X.trigger)],[minmean-maxstd,maxmean],'Color',[1 0 0]);
+                        end;
                 end;
         end;
         drawnow;
-        h = ax; 
+        h = ax;
         %set(0,'DefaultTextInterpreter','none');  % Avoid having TeX interpretation in title string
         %suptitle(X.Title);
-
 
 
 elseif strcmp(X.datatype,'CORRELATION_WITH_REFERENCE')
@@ -1747,6 +1771,13 @@ elseif strcmp(X.datatype,'TSD_BCI7')    % obsolete
                 end;
         end;
 
+
+elseif strcmp(X.datatype,'ERDS'),
+        if nargin==1,
+                plotaERDS(X)
+        elseif nargin==2,
+                plotaERDS(X,arg2)
+        end;
 
 elseif strcmp(X.datatype,'QRS_events'),
         ix = X.QRS_event;

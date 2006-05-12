@@ -13,7 +13,7 @@ function R = evoked_potential(fn,CHAN,t1,t2)
 % 
 %  The 
 
-%	$Id: evoked_potential.m,v 1.1 2005-08-24 13:35:23 schloegl Exp $
+%	$Id: evoked_potential.m,v 1.2 2006-05-12 19:41:59 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -39,18 +39,23 @@ function R = evoked_potential(fn,CHAN,t1,t2)
 if ~isfield(HDR,'TRIG') 
         error('trigger information is missing')
 end;        
-if ~isfield(HDR,'Classlabel')
+if ~isfield(HDR,'Classlabel');
         HDR.Classlabel = ones(size(HDR.TRIG)); 
 end;        
 
+if nargin<4,
+        t1 = 2; t2 = 4;
+end;
+%HDR.Classlabel = HDR.EVENT.TYP;
+%HDR.TRIG = HDR.EVENT.POS;
+
 R0 = []; se=[];m=[];
 CL = unique(HDR.Classlabel(:))';
-for cl = CL, 
-        t1 = 2; t2=4;
-        t = [t1*HDR.SampleRate:t2*HDR.SampleRate]/HDR.SampleRate;
-        [s,sz]= trigg(S,HDR.TRIG(HDR.Classlabel==cl),t1*HDR.SampleRate,t2*HDR.SampleRate); 
-        N(cl) = length(HDR.TRIG);
-        [se(:,:,cl),m(:,:,cl)] = sem(reshape(s,sz),3); 
+for cl = 1:length(CL), 
+        t  = [t1*HDR.SampleRate:t2*HDR.SampleRate]'/HDR.SampleRate;
+        [s,sz] = trigg(S,HDR.TRIG(HDR.Classlabel==CL(cl)),t1*HDR.SampleRate,t2*HDR.SampleRate); 
+        N(cl)  = length(HDR.TRIG);
+        [se(:,:,cl), m(:,:,cl)] = sem(reshape(s,sz),3); 
         RES = statistic(reshape(s,sz),3); 
         R0.SUM(:,:,cl) = RES.SUM';
         R0.N(:,:,cl) = RES.N';
@@ -60,11 +65,20 @@ R0.datatype = 'MEAN+STD';
 R0.T = t;
 %R0.trigger = 3*HDR.SampleRate; 
 
-R0.MEAN 	= R0.SUM./R0.N;			% mean 
-R0.SSQ0	= R0.SSQ - real(R0.SUM).*real(R0.MEAN) - imag(R0.SUM).*imag(R0.MEAN);	% sum square of mean removed
 R = R0; 
+if all(size(CHAN)>1), 
+elseif (CHAN==0)
+	R.Label = HDR.Label; 
+elseif all(CHAN>0) 
+	R.Label = HDR.Label(CHAN,:); 
+end;
 
-sz = size(R.SUM); 
+if nargout>0, return; end
+
+R0.MEAN = R0.SUM ./ R0.N;			% mean 
+R0.SSQ0	= R0.SSQ - real(R0.SUM).*real(R0.MEAN) - imag(R0.SUM).*imag(R0.MEAN);	% sum square of mean removed
+
+sz = [size(R.SUM),1];
 R.SUM = reshape(R.SUM,[sz(1),prod(sz(2:3))])'; 
 R.N   = reshape(R.N,  [sz(1),prod(sz(2:3))])'; 
 R.SSQ = reshape(R.SSQ,[sz(1),prod(sz(2:3))])'; 
@@ -99,7 +113,7 @@ for k=1:size(nf,1),
 	set(nf(k),'YLabel',HDR.Label(CHAN(k),:))
 end;	
 for k=1:size(nf,2),
-	set(nf(k),'Title',sprintf('Class #)
+%	set(nf(k),'Title',sprintf('Class #))
 end;	
 
 
