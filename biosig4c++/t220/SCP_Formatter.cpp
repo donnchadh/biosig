@@ -26,7 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SCPECG_Writer.h"
 #include "Section1_Info.h"
 #include "ECGSignal_Info.h"
-//#include "XMLECG_Parser.h"
 #include "SCP_Formatter.h"
 #ifndef VS_DEF
 #include <unistd.h>
@@ -75,7 +74,6 @@ void  cSCP_Formatter::ResetInfo()
 
 int16_t cSCP_Formatter::DoTheSCPFile(char* szFilePathName)
 {
-fprintf(stderr,"301\n");
 	if (szFilePathName == NULL)
 		return (-1);
 
@@ -109,11 +107,9 @@ fprintf(stderr,"301\n");
 		return (-13);
 	if (!CorrectSCPHeader())
 		return (-14);
-fprintf(stderr,"201\n");
 
 	if (!WriteSCPFile(szFilePathName))
 		return (-15);
-fprintf(stderr,"201\n");
 
 	return (0);
 }
@@ -728,7 +724,7 @@ int16_t cSCP_Formatter::GetTimeOfAcquisition(int16_t* hh, int16_t* mm, int16_t* 
 	return (0);
 }
 
-int16_t cSCP_Formatter::SetSequenceNumber(char* SeqNum)
+int16_t cSCP_Formatter::SetSequenceNumber(int8_t* SeqNum)
 {
 	if (SeqNum == NULL)
 		return (-1);
@@ -740,16 +736,16 @@ int16_t cSCP_Formatter::SetSequenceNumber(char* SeqNum)
 	if (S1I == NULL)
 		return (-2);
 
-	strncpy(S1I->szSeqNum, SeqNum, 11);
+	memcpy(S1I->szSeqNum, SeqNum, 11);
 	S1I->szSeqNum[11] = '\0';
 
-	if (strlen(SeqNum) > 11)
+	if (strlen((char*)SeqNum) > 11)
 		return (-3);
 	else
 		return (0);
 }
 
-int16_t cSCP_Formatter::GetSequenceNumber(char* SeqNum)
+int16_t cSCP_Formatter::GetSequenceNumber(int8_t* SeqNum)
 {
 	if (SeqNum == NULL)
 		return (-1);
@@ -759,7 +755,7 @@ int16_t cSCP_Formatter::GetSequenceNumber(char* SeqNum)
 	if (S1I == NULL)
 		return (-2);
 
-	strncpy(SeqNum, S1I->szSeqNum, 11);
+	memcpy(SeqNum, S1I->szSeqNum, 11);
 	SeqNum[11] = '\0';
 
 	return (0);
@@ -796,51 +792,49 @@ int16_t cSCP_Formatter::GetTimeZone(int16_t* TimeZone)
 	return (0);
 }
 
-int16_t cSCP_Formatter::LoadXMLInfo(HDRTYPE* hdr)
+int16_t cSCP_Formatter::LoadXMLInfo(HDRTYPE* XMLaECGParsedData)
 {
 	int16_t val1, val2;
 	uint16_t i;
 //	uint16_t k, j;
 
-
-
 	// Name should be provided by the XML parser in terms of first name, last name, second last name
-	strncpy(S1I->szFirstName, hdr->Patient.Name, min(strlen(hdr->Patient.Name),63));
+	strncpy(S1I->szFirstName, XMLaECGParsedData->Patient.Name, min(strlen(XMLaECGParsedData->Patient.Name),63));
 	S1I->szFirstName[63] = '\0';
-	strncpy(S1I->szLastName, hdr->Patient.Name, min(strlen(hdr->Patient.Name),63));
+	strncpy(S1I->szLastName, XMLaECGParsedData->Patient.Name, min(strlen(XMLaECGParsedData->Patient.Name),63));
 	S1I->szLastName[63] = '\0';
-	strncpy(S1I->szSecondLastName, hdr->Patient.Name, min(strlen(hdr->Patient.Name),63));
+	strncpy(S1I->szSecondLastName, XMLaECGParsedData->Patient.Name, min(strlen(XMLaECGParsedData->Patient.Name),63));
 	S1I->szSecondLastName[63] = '\0';
 
-	if (strlen(hdr->Patient.Id) != 0) { // In case len = 0 the PatID field will be written with "UNKNOWN"
-		strncpy(S1I->szPatientID, hdr->Patient.Id, min(strlen(hdr->Patient.Id),63));
+	if (strlen(XMLaECGParsedData->Patient.Id) != 0) { // In case len = 0 the PatID field will be written with "UNKNOWN"
+		strncpy(S1I->szPatientID, XMLaECGParsedData->Patient.Id, min(strlen(XMLaECGParsedData->Patient.Id),63));
 		S1I->szPatientID[63] = '\0';
 	}
 
-	time_t Birthday = gdf_time2t_time(hdr->Patient.Birthday);
+	time_t Birthday = gdf_time2t_time(XMLaECGParsedData->Patient.Birthday);
 	tm* Birthday_tm = gmtime(&Birthday);
 
 	S1I->DOB.dd = (uint8_t) Birthday_tm->tm_mday;
 	S1I->DOB.mm = (uint8_t) Birthday_tm->tm_mon + 1;
 	S1I->DOB.yyyy = (uint8_t) Birthday_tm->tm_year + 1900;
 
-	S1I->wHeight = (uint16_t) hdr->Patient.Height;
+	S1I->wHeight = (uint16_t) XMLaECGParsedData->Patient.Height;
 	//S1I->bHeightUnit is always cm
 
-	S1I->wWeight = (uint16_t) hdr->Patient.Weight;
+	S1I->wWeight = (uint16_t) XMLaECGParsedData->Patient.Weight;
 	//S1I->bWeightUnit is always Kg
 
-	if(hdr->Patient.Sex == 0)
+	if(XMLaECGParsedData->Patient.Sex == 0)
 		S1I->bSex = 0;	// Not Known
-	else if (hdr->Patient.Sex == 1)
+	else if (XMLaECGParsedData->Patient.Sex == 1)
 		S1I->bSex = 1;	// Male
-	else if (hdr->Patient.Sex == 2)
+	else if (XMLaECGParsedData->Patient.Sex == 2)
 		S1I->bSex = 2;	// Female
 	else
 		S1I->bSex = 9;	// Not specified
 
-	val1 = (uint16_t) hdr->aECG->systolicBloodPressure;
-	val2 = (uint16_t) hdr->aECG->diastolicBloodPressure;
+	val1 = (uint16_t) XMLaECGParsedData->aECG->systolicBloodPressure;
+	val2 = (uint16_t) XMLaECGParsedData->aECG->diastolicBloodPressure;
 
 	if (val1 < val2) {
 		S1I->wDBP = val1;
@@ -852,30 +846,30 @@ int16_t cSCP_Formatter::LoadXMLInfo(HDRTYPE* hdr)
 	}
 
 	// Info not provided by XML aECG
-	//S1I->wInstNum = (uint16_t) atoi(hdr->szRecAqrInstID);
-	//S1I->wDeptNum = (uint16_t) atoi(hdr->szRecAqrDeptID);
-	//strncpy(S1I->szAnalProgRevNum, hdr->szRecAnaProgRev, 24);
+	//S1I->wInstNum = (uint16_t) atoi(XMLaECGParsedData->szRecAqrInstID);
+	//S1I->wDeptNum = (uint16_t) atoi(XMLaECGParsedData->szRecAqrDeptID);
+	//strncpy(S1I->szAnalProgRevNum, XMLaECGParsedData->szRecAnaProgRev, 24);
 	//S1I->szAnalProgRevNum[24] = '\0';
-	//strncpy(S1I->szAcqDevSystSW, hdr->szRecAqrDevRev, 24);
+	//strncpy(S1I->szAcqDevSystSW, XMLaECGParsedData->szRecAqrDevRev, 24);
 	//S1I->szAcqDevSystSW[24] = '\0';
 
 	// Info not provided by XML aECG
-	//strncpy(S1I->szRefPhys, hdr->ReferringPhys, 63);
+	//strncpy(S1I->szRefPhys, XMLaECGParsedData->ReferringPhys, 63);
 	//S1I->szRefPhys[63] = '\0';
 	
-	strncpy(S1I->szTechnician, hdr->ID.Technician, min(strlen(hdr->ID.Technician),63));
+	strncpy(S1I->szTechnician, XMLaECGParsedData->ID.Technician, min(strlen(XMLaECGParsedData->ID.Technician),63));
 	S1I->szTechnician[63] = '\0';
 
 	// Info not provided by XML aECG
-	//S1I->wBaseLineFilter = hdr->BaseLineFilter;
-	//S1I->bFilterBitMap = (uint8_t) hdr->FilterBitMap;
+	//S1I->wBaseLineFilter = XMLaECGParsedData->BaseLineFilter;
+	//S1I->bFilterBitMap = (uint8_t) XMLaECGParsedData->FilterBitMap;
 	
 	// Info not provided by XML aECG
-	//S1I->bStatCode = (uint8_t) hdr->StatCode;
+	//S1I->bStatCode = (uint8_t) XMLaECGParsedData->StatCode;
 	//if (S1I->bStatCode > 10)
 	//	S1I->bStatCode = 0;
 
-	time_t AcquisitionDT = gdf_time2t_time(hdr->T0);
+	time_t AcquisitionDT = gdf_time2t_time(XMLaECGParsedData->T0);
 	tm* AcquisitionDT_tm = gmtime(&AcquisitionDT);
 
 	S1I->DOA.dd = (uint8_t) AcquisitionDT_tm->tm_mday;
@@ -886,72 +880,72 @@ int16_t cSCP_Formatter::LoadXMLInfo(HDRTYPE* hdr)
 	S1I->TOA.mm = (uint8_t) AcquisitionDT_tm->tm_min;
 	S1I->TOA.ss = (uint8_t) AcquisitionDT_tm->tm_sec;
 
-	ESI->dwEndSampleR = hdr->SPR;
+	ESI->dwEndSampleR = XMLaECGParsedData->SPR;
 	// LSB is assumed to be the same over all the stored leads
-	ESI->wAmplR = (uint16_t) hdr->CHANNEL[0].Cal;
-	ESI->wIntvR = (uint16_t) hdr->SampleRate;
+	ESI->wAmplR = (uint16_t) XMLaECGParsedData->CHANNEL[0].Cal;
+	ESI->wIntvR = (uint16_t) XMLaECGParsedData->SampleRate;
 	// No reference beat seems to be available in XML aECG
 	ESI->dwEndSampleA = 1;
 	// LSB is assumed to be 1 uV
 	ESI->wAmplA = 1;
-	ESI->wIntvA = (uint16_t) hdr->SampleRate;
+	ESI->wIntvA = (uint16_t) XMLaECGParsedData->SampleRate;
 
 	// max 15 leads are allowed
-	if(hdr->NS > 15)
+	if(XMLaECGParsedData->NS > 15)
 		return (-1);
 
-	ESI->bNumLead = (uint8_t) hdr->NS;
+	ESI->bNumLead = (uint8_t) XMLaECGParsedData->NS;
 
 	// Max 15 leads are supported
 	// Same lead codes are used between XML aECG and SCP-ECG ver. 2.0. This is not strictly correct because
 	// in SCP 2.0 only codes till 78 are the same, while from 86 on the codes are not defined, but we can
 	// assume the use of the same codes like manufacturer dependent codes
 	for (i = 0; i < ESI->bNumLead; i++) {
-		ESI->LeadR_codes[i] = hdr->CHANNEL[i].LeadIdCode; 
+		ESI->LeadR_codes[i] = *XMLaECGParsedData->CHANNEL[i].Label;
 	}
-	for (i = 0; i < hdr->NS; i++) {
-		ESI->LeadR[i] = (double*) &hdr->data.block[i * ESI->dwEndSampleR];   // 1st sample of each channel
+	for (i = 0; i < ESI->bNumLead; i++) {
+		ESI->LeadR[i] = (double*) &XMLaECGParsedData->data.size[i * ESI->dwEndSampleR];
 	}
 	// No reference beat seems to be available in XML aECG
-	for (i = 0; i < hdr->NS; i++) {
+	for (i = 0; i < ESI->bNumLead; i++) {
 		ESI->LeadA_codes[i] = 0;
 	}
-	for (i = 0; i < hdr->NS; i++) {
+	for (i = 0; i < ESI->bNumLead; i++) {
 		ESI->LeadA[i] = NULL;
 	}
 
 	// No global measurements, lead specific measurements or diagnosis are provided
-	//ESI->wPOn = hdr->GlobalMeas.P_onset;
-	//ESI->wPOff = hdr->GlobalMeas.P_end;
-	//ESI->wQRSOn = hdr->GlobalMeas.QRS_onset;
-	//ESI->wQRSOff = hdr->GlobalMeas.QRS_end;
-	//ESI->wTOff = hdr->GlobalMeas.T_end;
+	//ESI->wPOn = XMLaECGParsedData->GlobalMeas.P_onset;
+	//ESI->wPOff = XMLaECGParsedData->GlobalMeas.P_end;
+	//ESI->wQRSOn = XMLaECGParsedData->GlobalMeas.QRS_onset;
+	//ESI->wQRSOff = XMLaECGParsedData->GlobalMeas.QRS_end;
+	//ESI->wTOff = XMLaECGParsedData->GlobalMeas.T_end;
 
-	//ESI->wAverFiducial = hdr->GlobalMeas.QRS_onset;	// QRSOn
+	//ESI->wAverFiducial = XMLaECGParsedData->GlobalMeas.QRS_onset;	// QRSOn
 	//if (ESI->wAverFiducial == 0)
 	//	ESI->wAverFiducial = 100;
 
-	//ESI->wNoOfQRS = hdr->GlobalMeas.Num_Cpxs;
-	//ESI->pwTblQRSType = (uint16_t*) &hdr->GlobalMeas.QRS_type;
-	//ESI->pwTblQRSOn = (uint32_t*) &hdr->GlobalMeas.QRS_start_refbeat_sub;
-	//ESI->pwTblQRSOff = (uint32_t*) &hdr->GlobalMeas.QRS_end_refbeat_sub;
+	//ESI->wNoOfQRS = XMLaECGParsedData->GlobalMeas.Num_Cpxs;
+	//ESI->pwTblQRSType = (uint16_t*) &XMLaECGParsedData->GlobalMeas.QRS_type;
+	//ESI->pwTblQRSOn = (uint32_t*) &XMLaECGParsedData->GlobalMeas.QRS_start_refbeat_sub;
+	//ESI->pwTblQRSOff = (uint32_t*) &XMLaECGParsedData->GlobalMeas.QRS_end_refbeat_sub;
 	
-	//ESI->szInterpText = hdr->MeansMorfologia;
+	//ESI->szInterpText = XMLaECGParsedData->MeansMorfologia;
 
-	////ESI->wGlobMeas[0] = hdr->GlobalMeas.HR;
-	//ESI->wGlobMeas[1] = hdr->GlobalMeas.RR_median;
-	//ESI->wGlobMeas[2] = hdr->GlobalMeas.PQ_intv;
-	////ESI->wGlobMeas[3] = hdr->GlobalMeas.PP;
-	//ESI->wGlobMeas[4] = hdr->GlobalMeas.QRS_dur;
-	//ESI->wGlobMeas[5] = hdr->GlobalMeas.QT_intv;
-	//ESI->wGlobMeas[6] = hdr->GlobalMeas.QTc_intv;
-	//ESI->wGlobMeas[7] = hdr->GlobalMeas.P_axis;
-	//ESI->wGlobMeas[8] = hdr->GlobalMeas.QRS_axis;
-	//ESI->wGlobMeas[9] = hdr->GlobalMeas.STT_axis;
+	////ESI->wGlobMeas[0] = XMLaECGParsedData->GlobalMeas.HR;
+	//ESI->wGlobMeas[1] = XMLaECGParsedData->GlobalMeas.RR_median;
+	//ESI->wGlobMeas[2] = XMLaECGParsedData->GlobalMeas.PQ_intv;
+	////ESI->wGlobMeas[3] = XMLaECGParsedData->GlobalMeas.PP;
+	//ESI->wGlobMeas[4] = XMLaECGParsedData->GlobalMeas.QRS_dur;
+	//ESI->wGlobMeas[5] = XMLaECGParsedData->GlobalMeas.QT_intv;
+	//ESI->wGlobMeas[6] = XMLaECGParsedData->GlobalMeas.QTc_intv;
+	//ESI->wGlobMeas[7] = XMLaECGParsedData->GlobalMeas.P_axis;
+	//ESI->wGlobMeas[8] = XMLaECGParsedData->GlobalMeas.QRS_axis;
+	//ESI->wGlobMeas[9] = XMLaECGParsedData->GlobalMeas.STT_axis;
 
 	//for (k = 0; k < ESI->bNumLead; i++) {
 	//	for (j = 0; j < 31; j++) {
-	//		ESI->wLeadMeas[k][j] = ((int16_t*) &hdr->LeadMeas[k])[j * 2];
+	//		ESI->wLeadMeas[k][j] = ((int16_t*) &XMLaECGParsedData->LeadMeas[k])[j * 2];
 	//	}
 	//}
 
@@ -1558,14 +1552,12 @@ bool cSCP_Formatter::WriteSCPFile(char* szFilePathName)
 {
 	FILE*		fp;
 	uint32_t	len1;
-fprintf(stderr,"201\n");
 
 	fp = fopen(szFilePathName, "wb");
 	if (fp == NULL) {
 		free(TotalFile);
 		return (false);
 	}
-fprintf(stderr,"201\n");
 
 	len1 = 6 + lenSect0 + lenSect1 + lenSect3 + lenSect6;
 
@@ -1578,7 +1570,6 @@ fprintf(stderr,"201\n");
 
 	free(TotalFile);
 	fclose(fp);
-fprintf(stderr,"201\n");
 
 	return (true);
 }

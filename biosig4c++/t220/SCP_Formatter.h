@@ -120,8 +120,8 @@ public:
 	int16_t GetDateOfAcquisition(int16_t*, int16_t*, int16_t*);
 	int16_t SetTimeOfAcquisition(int16_t, int16_t, int16_t);
 	int16_t GetTimeOfAcquisition(int16_t*, int16_t*, int16_t*);
-	int16_t SetSequenceNumber(char*);
-	int16_t GetSequenceNumber(char*);
+	int16_t SetSequenceNumber(int8_t*);
+	int16_t GetSequenceNumber(int8_t*);
 	int16_t SetTimeZone(int16_t);
 	int16_t GetTimeZone(int16_t*);
 	int16_t LoadXMLInfo(HDRTYPE*);
