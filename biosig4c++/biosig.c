@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.44 2006-05-02 22:43:53 schloegl Exp $
+    $Id: biosig.c,v 1.45 2006-05-14 20:03:46 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -301,6 +301,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 		int	number_of_sections;
 	} SCP;
 
+
 if (!strcmp(MODE,"r"))	
 {
 	hdr = create_default_hdr(0,0);	// initializes fields that may stay undefined during SOPEN 
@@ -469,22 +470,32 @@ if (!strcmp(MODE,"r"))
 	    	Header1 = (char*)realloc(Header1,hdr->HeadLen);
 	    	Header2 = Header1+256; 
 	    	count   = fread(Header2, 1, hdr->HeadLen-256, hdr->FILE.FID);
-		for (k=0; k<hdr->NS;k++)	{
-			//hdr->CHANNEL[k].Label  = (hdr->Header2 + 16*k);
-			//hdr->CHANNEL[k].Transducer  = (hdr->Header2 + 80*k + 16*hdr->NS);
-			//hdr->CHANNEL[k].PhysDim  = (hdr->Header2 + 8*k + 96*hdr->NS);
+		for (k=0; k<hdr->NS; k++)	{
+			Header2[16*k + 15] = 0;
+			hdr->CHANNEL[k].Label   = (Header2 + 16*k);
+			Header2[16*hdr->NS + 80*k + 79] = 0;
+			hdr->CHANNEL[k].Transducer  = (Header2 + 16*hdr->NS + 80*k);
 			
 			hdr->CHANNEL[k].PhysMin = l_endian_f64( *(double*) (Header2+ 8*k + 104*hdr->NS) );
 			hdr->CHANNEL[k].PhysMax = l_endian_f64( *(double*) (Header2+ 8*k + 112*hdr->NS) );
 
-			//hdr->CHANNEL[k].PreFilt = (hdr->Header2+ 68*k + 136*hdr->NS);
 			hdr->CHANNEL[k].SPR     = l_endian_u32( *(uint32_t*) (Header2+ 4*k + 216*hdr->NS) );
 			hdr->CHANNEL[k].GDFTYP  = l_endian_u16( *(uint16_t*) (Header2+ 4*k + 220*hdr->NS) );
-			if (hdr->VERSION<1.90) {
+			if (hdr->VERSION < 1.90) {
+				Header2[96*hdr->NS + 16*k + 15] = 0;
+				hdr->CHANNEL[k].PhysDim = (Header2 + 96*hdr->NS + 8*k);
+				/* ###FIXME###
+				hdr->CHANNEL[k].PhysDimCode = 
+				hdr->CHANNEL[k].PreFilt = (hdr->Header2+ 68*k + 136*hdr->NS);
+				*/
+
 				hdr->CHANNEL[k].DigMin   = (double) l_endian_i64( *(int64_t*)(Header2+ 8*k + 120*hdr->NS) );
 				hdr->CHANNEL[k].DigMax   = (double) l_endian_i64( *(int64_t*)(Header2+ 8*k + 128*hdr->NS) );
 			}	
 			else {
+				/* ###FIXME###
+				hdr->CHANNEL[k].PhysDim = 
+				*/
 				hdr->CHANNEL[k].PhysDimCode = l_endian_u16( *(uint16_t*)(Header2+ 2*k + 102*hdr->NS) );
 
 				hdr->CHANNEL[k].DigMin   = l_endian_f64( *(double*)(Header2+ 8*k + 120*hdr->NS) );
@@ -779,7 +790,7 @@ else { // WRITE
 	     	hdr->HeadLen = (hdr->NS+1)*256;
 	    	Header1 = (char*) malloc(hdr->HeadLen);
 	    	Header2 = Header1+256; 
-
+fprintf(stdout,"102\n");
 		memset(Header1,0,hdr->HeadLen);
 	     	sprintf(Header1,"GDF %4.2f",hdr->VERSION);
 	     	strncat(Header1+8, hdr->Patient.Id,   66);
@@ -824,6 +835,7 @@ else { // WRITE
 		*(uint32_t*) (Header1+248) = l_endian_u32(hdr->Dur[1]);
 		//memcpy(Header1+252, &hdr->NS, 2); 
 		*(uint16_t*) (Header1+252) = l_endian_u16(hdr->NS);
+fprintf(stdout,"103\n");
 
 	     	/* define HDR.Header2 
 	     	this requires checking the arguments in the fields of the struct HDR.CHANNEL
@@ -967,6 +979,7 @@ else { // WRITE
     	 	fprintf(stderr,"ERROR: Writing of format (%c) not supported\n",hdr->TYPE);
 		return(NULL); 
 	}
+fprintf(stdout,"104\n");
 
     	hdr->FILE.FID = fopen(FileName,"wb");
     	if (hdr->FILE.FID == NULL) 
@@ -976,6 +989,7 @@ else { // WRITE
     	fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
 	hdr->FILE.OPEN = 2; 	     	
 	hdr->FILE.POS  = 0; 	
+fprintf(stdout,"105\n");
 
 }	// end of else 
 
