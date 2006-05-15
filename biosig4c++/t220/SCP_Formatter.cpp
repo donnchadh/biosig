@@ -895,6 +895,8 @@ int16_t cSCP_Formatter::LoadXMLInfo(HDRTYPE* XMLaECGParsedData)
 		return (-1);
 
 	ESI->bNumLead = (uint8_t) XMLaECGParsedData->NS;
+// Situations with number of leads simultaneouly recorded != total number of leads are not supported
+	ESI->bNumLeadSimultRecord = (uint8_t) XMLaECGParsedData->NS;
 
 	// Max 15 leads are supported
 	// Same lead codes are used between XML aECG and SCP-ECG ver. 2.0. This is not strictly correct because
@@ -904,7 +906,7 @@ int16_t cSCP_Formatter::LoadXMLInfo(HDRTYPE* XMLaECGParsedData)
 		ESI->LeadR_codes[i] = *XMLaECGParsedData->CHANNEL[i].Label;
 	}
 	for (i = 0; i < ESI->bNumLead; i++) {
-		ESI->LeadR[i] = (double*) &XMLaECGParsedData->data.size[i * ESI->dwEndSampleR];
+		ESI->LeadR[i] = XMLaECGParsedData->data.block + i*XMLaECGParsedData->data.size[0];
 	}
 	// No reference beat seems to be available in XML aECG
 	for (i = 0; i < ESI->bNumLead; i++) {
@@ -1347,9 +1349,9 @@ bool cSCP_Formatter::CreateSCPSection3()
 // Situations with not all the leads simultaneously recorded are not supported
 	if (!ESI->fLeadsAllSimultRecord)
 		return (false);
+
 // Situations number of leads simultaneouly recorded != total number of leads are not supported
-	if (ESI->bNumLeadSimultRecord != ESI->bNumLead)
-		return (false);
+	if (ESI->bNumLeadSimultRecord != ESI->bNumLead)		return (false);
 
 	bNum = 0;
 	if (ESI->fRefBeatUsedForCompr)
@@ -1463,6 +1465,9 @@ bool cSCP_Formatter::CreateSCPSection6()
 // Write the ECG samples (we assume to have max 15 leads)
 	for (i = 0; i < ESI->bNumLead; i++) {
 		for (num = 0; num < ESI->dwEndSampleR; num++) {
+		/* ##FIXME## this is a hack 
+			it would be best if this could be done within functions SWRITE (not defined yet)
+		*/ 
 			int16_t val = (int16_t) ESI->LeadR[i][num];
 			memcpy(&Sect6[len1], (int8_t*) &val, 2);
 			len1 += 2;
