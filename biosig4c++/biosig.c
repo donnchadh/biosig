@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.45 2006-05-14 20:03:46 schloegl Exp $
+    $Id: biosig.c,v 1.46 2006-05-15 09:49:21 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -790,7 +790,7 @@ else { // WRITE
 	     	hdr->HeadLen = (hdr->NS+1)*256;
 	    	Header1 = (char*) malloc(hdr->HeadLen);
 	    	Header2 = Header1+256; 
-fprintf(stdout,"102\n");
+
 		memset(Header1,0,hdr->HeadLen);
 	     	sprintf(Header1,"GDF %4.2f",hdr->VERSION);
 	     	strncat(Header1+8, hdr->Patient.Id,   66);
@@ -835,7 +835,6 @@ fprintf(stdout,"102\n");
 		*(uint32_t*) (Header1+248) = l_endian_u32(hdr->Dur[1]);
 		//memcpy(Header1+252, &hdr->NS, 2); 
 		*(uint16_t*) (Header1+252) = l_endian_u16(hdr->NS);
-fprintf(stdout,"103\n");
 
 	     	/* define HDR.Header2 
 	     	this requires checking the arguments in the fields of the struct HDR.CHANNEL
@@ -970,7 +969,6 @@ fprintf(stdout,"103\n");
     		hdr->FileName = FileName;
 //		hdr->AS.Header1 = Header1; 
     		hdr = sopen_SCP_write(hdr);
-
 	}
     	else if (hdr->TYPE==HL7aECG) {	
     		hdr = sopen_HL7aECG_write(hdr);
@@ -979,18 +977,22 @@ fprintf(stdout,"103\n");
     	 	fprintf(stderr,"ERROR: Writing of format (%c) not supported\n",hdr->TYPE);
 		return(NULL); 
 	}
-fprintf(stdout,"104\n");
 
-    	hdr->FILE.FID = fopen(FileName,"wb");
-    	if (hdr->FILE.FID == NULL) 
-    	{ 	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
-		return(NULL);
-    	}	    
-    	fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
-	hdr->FILE.OPEN = 2; 	     	
-	hdr->FILE.POS  = 0; 	
-fprintf(stdout,"105\n");
-
+	/* ##FIXME##
+		this is a hack. Currently, the SCP file is written within the DoTheSCPfile. 
+		Therefore it must not be written again.   
+	*/ 
+    	if (hdr->TYPE!=SCP_ECG)
+    	{
+    		hdr->FILE.FID = fopen(FileName,"wb");
+    		if (hdr->FILE.FID == NULL) 
+    		{ 	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
+			return(NULL);
+    		}	    
+    		fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
+		hdr->FILE.OPEN = 2; 	     	
+		hdr->FILE.POS  = 0;
+	};	 	
 }	// end of else 
 
 	// internal variables
@@ -1010,7 +1012,7 @@ fprintf(stdout,"105\n");
 /****************************************************************************/
 /**	SREAD                                                              **/
 /****************************************************************************/
-size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
+size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 /* 
  *	reads LENGTH blocks with HDR.AS.bpb BYTES each, 
  *	rawdata is available in hdr->AS.rawdata
@@ -1069,7 +1071,8 @@ size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
 
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
-	if (CHptr->OnOff != 0) {
+	if (1) //(CHptr->OnOff != 0) 
+	{
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BYTE[GDFTYP];
@@ -1123,7 +1126,6 @@ size_t 	sread(HDRTYPE* hdr, size_t start, size_t length) {
 				sample_value = NaN; 	// missing value 
 			else if (!hdr->FLAG.UCAL)	// scaling 
 				sample_value = sample_value * CHptr->Cal + CHptr->Off;
-
 			// resampling 1->DIV samples
 			for (k3=0; k3 < DIV; k3++) 
 				hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
@@ -1452,13 +1454,12 @@ fprintf(stdout,"db SCLOSE (0)\n");
 		fclose(hdr->FILE.FID);
     		hdr->FILE.FID = 0;
     	}	
-fprintf(stdout,"db SCLOSE (1)\n"); 
+
     	if (hdr->aECG != NULL)	
         	free(hdr->aECG);
     	if (hdr->AS.rawdata != NULL)	
         	free(hdr->AS.rawdata);
 
-fprintf(stdout,"db SCLOSE (3)\n"); 
     	if (hdr->data.block != NULL) {	
         	free(hdr->data.block);
         	hdr->data.size[0]=0;
@@ -1471,7 +1472,6 @@ fprintf(stdout,"db SCLOSE (3)\n");
         	free(hdr->AS.bi);
     	if (hdr->AS.Header1 != NULL)	
         	free(hdr->AS.Header1);
-fprintf(stdout,"db SCLOSE (8)\n"); 
 
     	if (hdr->EVENT.POS != NULL)	
         	free(hdr->EVENT.POS);
@@ -1481,7 +1481,6 @@ fprintf(stdout,"db SCLOSE (8)\n");
         	free(hdr->EVENT.DUR);
     	if (hdr->EVENT.CHN != NULL)	
         	free(hdr->EVENT.CHN);
-fprintf(stdout,"db SCLOSE (10)\n"); 
         	
         hdr->EVENT.N   = 0; 
 	hdr->FILE.OPEN = 0; 	     	
