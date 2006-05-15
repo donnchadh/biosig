@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.19 $
-%	$Id: scpopen.m,v 1.19 2006-03-16 15:10:53 schloegl Exp $
+%	$Revision: 1.20 $
+%	$Id: scpopen.m,v 1.20 2006-05-15 18:45:33 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -673,9 +673,10 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
         HDR.NRec = 1;
         HDR.AS.endpos = HDR.SPR;
         
-        HDR.FILE.OPEN = 1; 
+        HDR.FILE.OPEN = 0; 
         HDR.FILE.POS  = 0;
         HDR.TYPE = 'native'; 
+        fclose(HDR.FILE.FID);
 else
         section.ID      = 0;
         section.Length  = -1;
