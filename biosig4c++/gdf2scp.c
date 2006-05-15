@@ -1,6 +1,6 @@
 /*
 
-    $Id: gdf2scp.c,v 1.1 2006-04-28 18:06:29 schloegl Exp $
+    $Id: gdf2scp.c,v 1.2 2006-05-15 09:52:04 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -114,22 +114,31 @@ int main (int argc, char **argv)
 
 fprintf(stdout,"\nGDF OPENED: SUCCESSFULLY\n",ftell(hdr->FILE.FID));
 	
-//		count = sread(hdr,0,1);
-fprintf(stdout,"m1: %f %f %f %f\n",hdr->data.block[0],hdr->data.block[1],hdr->data.block[2],hdr->data.block[3]);
+		count = sread(hdr,0,hdr->NRec);
+fprintf(stdout,"m1: %i %f %f %f %f\n",count,hdr->data.block[0],hdr->data.block[1],hdr->data.block[2],hdr->data.block[3]);
 
 fprintf(stdout,"GDF CLOSED: SUCCESSFULLY\n");
 
+//		Must not be closed because fields in hdr must not be de-allocated 
 //		status = sclose(hdr);
-fprintf(stdout,"GDF CLOSED: SUCCESSFULLY\n");
+		if (hdr->FILE.OPEN)
+			fclose(hdr->FILE.FID);
+    			hdr->FILE.FID = 0;
+    		end;	
+
+
+//TODO: scaling 
 		
-hdr->TYPE = SCP_ECG; 
-		// OPEN and WRITE GDF FILE 
+		// OPEN and WRITE SCP FILE 
+		hdr->TYPE = SCP_ECG; 
 	     	sopen(argv[2], "w", hdr);
+
+fprintf(stdout,"SCP OPEN: SUCCESSFULLY\n");
 
 #if 0 //__BYTE_ORDER == __BIG_ENDIAN
 		// fix endianity of the data
 		for (k1=0;k1<hdr->NRec*hdr->SPR*hdr->NS;k1++) 	{
-//			hdr->data.block[k1] = l_endian_f64(hdr->data.block[k1]);
+			hdr->data.block[k1] = l_endian_f64(hdr->data.block[k1]);
 			*(int32_t*)(hdr->AS.rawdata+k1*4) = l_endian_i32(*(int32_t*)(hdr->AS.rawdata+k1*4));
 			}
 #endif 
@@ -138,9 +147,6 @@ hdr->TYPE = SCP_ECG;
 fprintf(stdout,"data written\n");
 //		fwrite(hdr->data.block, sizeof(biosig_data_type),hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
 //		swrite(&s, NELEM/hdr->NS, hdr);
-fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
-
-fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 	      	status = sclose(hdr);
 fprintf(stdout,"SCP CLOSED: SUCCESSFULLY\n");
 	
