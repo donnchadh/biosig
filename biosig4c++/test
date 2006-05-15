@@ -1,7 +1,7 @@
 #    Test suite for converter testing 
 #    
 #
-#    $Id: test,v 1.4 2006-05-02 19:12:42 schloegl Exp $
+#    $Id: test,v 1.5 2006-05-15 09:53:33 schloegl Exp $
 #    Copyright (C) 2006 Alois Schloegl <a.schloegl@ieee.org>
 #    This function is part of the "BioSig for C/C++" repository
 #    (biosig4c++) at http://biosig.sf.net/ 
@@ -10,17 +10,17 @@
 
 # load some data and display some header information
 #g++ -I /usr/include/libxml2/ biosig.c sopen_hl7aecg.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp t220/SCP_Formatter.cpp t220/Section1_Info.cpp t220/ECGSignal_Info.cpp t220/sopen_scp_write.c demo.c -L/usr/lib -lxml2 -lz -lm -o demo
-g++ biosig.c sopen_hl7aecg.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp t220/SCP_Formatter.cpp t220/Section1_Info.cpp t220/ECGSignal_Info.cpp t220/sopen_scp_write.c demo.c -o demo
+g++ biosig.c sopen_hl7aecg.c t210/sopen_scp_read.c t210/scp-decode.cpp t220/SCP_Formatter.cpp t220/Section1_Info.cpp t220/ECGSignal_Info.cpp t220/sopen_scp_write.c demo.c -o demo
 ./demo PFE103.scp
 
 
 # TEST SCP->GDF converter
 #g++ -I /usr/include/libxml2/ biosig.c sopen_hl7aecg.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp t220/SCPECG_Writer.h t220/SCP_Formatter.cpp t220/Section1_Info.cpp t220/ECGSignal_Info.cpp t220/sopen_scp_write.c scp2gdf.c -L/usr/lib -lxml2 -lz -lm -o scp2gdf
-g++ biosig.c sopen_hl7aecg.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp t220/SCPECG_Writer.h t220/SCP_Formatter.cpp t220/Section1_Info.cpp t220/ECGSignal_Info.cpp t220/sopen_scp_write.c scp2gdf.c -o scp2gdf
+g++ biosig.c sopen_hl7aecg.c t210/sopen_scp_read.c t210/scp-decode.cpp t220/SCPECG_Writer.h t220/SCP_Formatter.cpp t220/Section1_Info.cpp t220/ECGSignal_Info.cpp t220/sopen_scp_write.c scp2gdf.c -o scp2gdf
 ./scp2gdf PFE103.scp t5.gdf
 
 
 # TEST GDF->SCP converter
 #g++ -I /usr/include/libxml2/ biosig.c sopen_hl7aecg.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp t220/SCPECG_Writer.h t220/SCP_Formatter.cpp t220/Section1_Info.cpp t220/ECGSignal_Info.cpp t220/sopen_scp_write.c gdf2scp.c -L/usr/lib -lxml2 -lz -lm -o gdf2scp
-g++ biosig.c sopen_hl7aecg.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp t220/SCPECG_Writer.h t220/SCP_Formatter.cpp t220/Section1_Info.cpp t220/ECGSignal_Info.cpp t220/sopen_scp_write.c gdf2scp.c  -o gdf2scp
+g++ biosig.c sopen_hl7aecg.c t210/sopen_scp_read.c t210/scp-decode.cpp t220/SCPECG_Writer.h t220/SCP_Formatter.cpp t220/Section1_Info.cpp t220/ECGSignal_Info.cpp t220/sopen_scp_write.c gdf2scp.c  -o gdf2scp
 ./gdf2scp t5.gdf t5.scp
