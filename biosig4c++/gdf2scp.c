@@ -1,6 +1,6 @@
 /*
 
-    $Id: gdf2scp.c,v 1.2 2006-05-15 09:52:04 schloegl Exp $
+    $Id: gdf2scp.c,v 1.3 2006-05-15 09:57:02 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -121,10 +121,10 @@ fprintf(stdout,"GDF CLOSED: SUCCESSFULLY\n");
 
 //		Must not be closed because fields in hdr must not be de-allocated 
 //		status = sclose(hdr);
-		if (hdr->FILE.OPEN)
+		if (hdr->FILE.OPEN) {
 			fclose(hdr->FILE.FID);
     			hdr->FILE.FID = 0;
-    		end;	
+    		};	
 
 
 //TODO: scaling 
