@@ -1,6 +1,6 @@
 /*
 
-    $Id: scp2gdf.c,v 1.3 2006-03-17 02:04:13 schloegl Exp $
+    $Id: scp2gdf.c,v 1.4 2006-05-15 15:43:21 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -120,15 +120,19 @@ fprintf(stdout,"m1: %f %f %f %f\n",hdr->data.block[0],hdr->data.block[1],hdr->da
 fprintf(stdout,"SCP CLOSED: SUCCESSFULLY\n");
 
 //		status = sclose(hdr);
+		if (hdr->FILE.OPEN) {
+			fclose(hdr->FILE.FID);
+    			hdr->FILE.FID = 0;
+    		};	
 fprintf(stdout,"SCP CLOSED: SUCCESSFULLY\n");
 		
 hdr->TYPE = GDF; 
 hdr->VERSION = 1.94;		
 for (k=0; k<hdr->NS; k++) {
-	hdr->CHANNEL[k].DigMax = 1e4;
-	hdr->CHANNEL[k].DigMin = -1e4;
-	hdr->CHANNEL[k].PhysMax = 1e4;
-	hdr->CHANNEL[k].PhysMin = -1e4;
+	hdr->CHANNEL[k].DigMax = 1e9;	// int32 
+	hdr->CHANNEL[k].DigMin = -1e9;
+	hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+	hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 }	
 		// OPEN and WRITE GDF FILE 
 	     	sopen(argv[2], "w", hdr);
