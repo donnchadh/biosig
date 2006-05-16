@@ -1088,7 +1088,7 @@ bool cSCP_Formatter::CreateSCPSection1()
 	len1 += tg.len;
 
 // Tag 5 (len = 4)
-	tg.id = 5;
+	tg.id = 5;	
 	tg.len = 4;
 	memcpy(&Sect1[len1], (int8_t*) &tg, 3);
 	len1 += 3;

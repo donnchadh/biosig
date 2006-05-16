@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.46 2006-05-15 09:49:21 schloegl Exp $
+    $Id: biosig.c,v 1.47 2006-05-16 17:57:25 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -878,7 +878,7 @@ else { // WRITE
 			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR;
 			hdr->AS.bi[++k] = hdr->AS.bpb; 
 		}	
-		hdr->AS.Header1 = Header1; 
+		hdr->AS.Header1 = (uint8_t*)Header1; 
 	}
     	else if ((hdr->TYPE==EDF) | (hdr->TYPE==BDF)) {	
 	     	hdr->HeadLen = (hdr->NS+1)*256;
@@ -963,7 +963,7 @@ else { // WRITE
 		     	memcpy(Header2+ 8*k + 216*hdr->NS,tmp,min(8,len));
 		     	hdr->CHANNEL[k].GDFTYP = ( (hdr->TYPE != BDF) ? 3 : 255+24);
 		}
-		hdr->AS.Header1 = Header1; 
+		hdr->AS.Header1 = (uint8_t*)Header1; 
 	}
     	else if (hdr->TYPE==SCP_ECG) {	
     		hdr->FileName = FileName;
@@ -978,21 +978,15 @@ else { // WRITE
 		return(NULL); 
 	}
 
-	/* ##FIXME##
-		this is a hack. Currently, the SCP file is written within the DoTheSCPfile. 
-		Therefore it must not be written again.   
-	*/ 
-    	if (hdr->TYPE!=SCP_ECG)
-    	{
-    		hdr->FILE.FID = fopen(FileName,"wb");
-    		if (hdr->FILE.FID == NULL) 
-    		{ 	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
-			return(NULL);
-    		}	    
-    		fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
-		hdr->FILE.OPEN = 2; 	     	
-		hdr->FILE.POS  = 0;
-	};	 	
+	hdr->FILE.FID = fopen(FileName,"wb");
+	if (hdr->FILE.FID == NULL) 
+	{ 	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
+		return(NULL);
+    	}	    
+    	fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
+	hdr->FILE.OPEN = 2; 	     	
+	hdr->FILE.POS  = 0;
+
 }	// end of else 
 
 	// internal variables
@@ -1144,7 +1138,7 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 /****************************************************************************/
 /**	SREAD2                                                             **/
 /****************************************************************************/
-size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr) {
+size_t sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr) {
 /* 
  *      no memory allocation is done 
  *      data is moved into channel_dest
@@ -1387,8 +1381,6 @@ int sclose(HDRTYPE* hdr)
 	char tmp[88]; 
 	char flag; 
 	
-fprintf(stdout,"db SCLOSE (0)\n"); 
-
 	if ((hdr->NRec<0) & (hdr->FILE.OPEN>1))
 	if ((hdr->TYPE==GDF) | (hdr->TYPE==EDF) | (hdr->TYPE==BDF))
 	{

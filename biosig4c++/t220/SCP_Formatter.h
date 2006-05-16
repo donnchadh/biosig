@@ -126,21 +126,21 @@ public:
 	int16_t GetTimeZone(int16_t*);
 	int16_t LoadXMLInfo(HDRTYPE*);
 
-private:
-	bool CreateSCPFileHeaderDraft(void);
-	bool CreateSCPSection0Draft(void);
 	bool CreateSCPSection1(void);
 	bool CreateSCPSection3(void);
 	//bool CreateSCPSection4(void);
 	//bool CreateSCPSection5(void);
 	bool CreateSCPSection6(void);
+	uint16_t CRCEvaluate(uint8_t*, uint32_t);
+private:
+	bool CreateSCPFileHeaderDraft(void);
+	bool CreateSCPSection0Draft(void);
 	//bool CreateSCPSection7(void);
 	//bool CreateSCPSection8(void);
 	//bool CreateSCPSection10(void);
 	bool CorrectSCPSection0(void);
 	bool CorrectSCPHeader(void);
 	bool WriteSCPFile(char*);
-	uint16_t CRCEvaluate(uint8_t*, uint32_t);
 	int16_t CRCCheck(uint8_t*, uint32_t);
 };
 
