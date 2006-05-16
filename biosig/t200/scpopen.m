@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.20 $
-%	$Id: scpopen.m,v 1.20 2006-05-15 18:45:33 schloegl Exp $
+%	$Revision: 1.21 $
+%	$Id: scpopen.m,v 1.21 2006-05-16 17:16:30 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -36,6 +36,9 @@ HDR.FILE.FID = fid;
 if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ 
         HDR.FILE.CRC = fread(fid,1,'uint16');
         HDR.FILE.Length = fread(fid,1,'uint32');
+        if HDR.FILE.Length~=HDR.FILE.size,
+                fprintf(HDR.FILE.stderr,'Warning SCPOPEN: header information contains incorrect file size %i %i \n',HDR.FILE.Length,HDR.FILE.size);
+        end; 
 	HDR.data = [];
         
         DHT = [0,1,-1,2,-2,3,-3,4,-4,5,-5,6,-6,7,-7,8,-8,9,-9;0,1,5,3,11,7,23,15,47,31,95,63,191,127,383,255,767,511,1023]';
@@ -63,19 +66,35 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                 c   = c + 1;
         end;
         
-        K  = 0;
-        section.CRC = fread(fid,1,'uint16');
-        while ~feof(fid)
-                pos = ftell(fid);
+        section.CRC     = fread(fid,1,'uint16');
+        section.ID      = fread(fid,1,'uint16');
+        section.Length  = fread(fid,1,'uint32');
+        section.Version = fread(fid,[1,2],'uint8');
+        section.tmp     = fread(fid,[1,6],'uint8');
+        
+        NSections = (section.Length-16)/10;
+        for k = 1:NSections,
+                HDR.Block(k).id = fread(fid,1,'uint16');
+                HDR.Block(k).length = fread(fid,1,'uint32');
+                HDR.Block(k).startpos = fread(fid,1,'uint32');
+        end;
+
+        secList = find([HDR.Block.length]);
+        for K = secList(1:end),
+                if fseek(fid,HDR.Block(K).startpos,'bof');
+                        fprintf(HDR.FILE.stderr,'Warning SCPOPEN: section %i not available, although it is listed in Section 0\n',secList(K+1));
+                end;
+                section.CRC     = fread(fid,1,'uint16');
                 section.ID      = fread(fid,1,'uint16');
                 section.Length  = fread(fid,1,'uint32');
                 section.Version = fread(fid,[1,2],'uint8');
                 section.tmp     = fread(fid,[1,6],'uint8');
-                
-                K = K + 1;
-                HDR.Section{K} = section;
-                if section.ID==0, 
-                        for k = 1:((section.Length-16)/10),
+
+                HDR.SCP.Section{find(K==secList)} = section;
+                if (section.Length==0),
+                elseif section.ID==0, 
+                        NSections = (section.Length-16)/10;
+                        for k = 1:NSections,
                                 HDR.Block(k).id = fread(fid,1,'uint16');    
                                 HDR.Block(k).length = fread(fid,1,'uint32');    
                                 HDR.Block(k).startpos = fread(fid,1,'uint32');    
@@ -284,6 +303,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                         HDR.SCP4.pa = [0;tmp;HDR.N];   
                         
                 elseif any(section.ID==[5,6]), 
+
                         SCP = [];
                         SCP.Cal = fread(fid,1,'int16')/1e6;    % quant in nV, converted into mV
                         SCP.PhysDim = 'mV';
@@ -292,9 +312,10 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                         SCP.FLAG.DIFF = fread(fid,1,'uint8');    
                         SCP.FLAG.bimodal_compression = fread(fid,1,'uint8');    
 
-			if isnan(HDR.NS),
+                        if isnan(HDR.NS),
 				HDR.ERROR.status = -1; 
 				HDR.ERROR.message = sprintf('Error SCPOPEN: could not read %s\n',HDR.FileName);
+				fprintf(HDR.FILE.stderr,'Error SCPOPEN: could not read %s\n',HDR.FileName);
 				return;
 			end;
 			
@@ -664,9 +685,8 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
 		end;			
 		
                 %tmp = fread(fid,min(section.Length-16,1000),'uchar');    
-                
-                fseek(fid, pos+section.Length-2, -1);
-                section.CRC = fread(fid,1,'uint16');
+                %fseek(fid, pos+section.Length-2, -1);
+                %section.CRC = fread(fid,1,'uint16');
         end;
 
         HDR.SPR  = size(HDR.data,1);
