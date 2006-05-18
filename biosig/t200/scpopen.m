@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.22 $
-%	$Id: scpopen.m,v 1.22 2006-05-17 09:04:07 schloegl Exp $
+%	$Revision: 1.23 $
+%	$Id: scpopen.m,v 1.23 2006-05-18 06:42:13 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -78,10 +78,12 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                 HDR.Block(k).length = fread(fid,1,'uint32');
                 HDR.Block(k).startpos = fread(fid,1,'uint32');
         end;
+        
+%%[[HDR.Block.id];[HDR.Block.length];[HDR.Block.startpos]]'
 
         secList = find([HDR.Block.length]);
         for K = secList(1:end),
-                if fseek(fid,HDR.Block(K).startpos,'bof');
+                if fseek(fid,HDR.Block(K).startpos-1,'bof');
                         fprintf(HDR.FILE.stderr,'Warning SCPOPEN: section %i not available, although it is listed in Section 0\n',secList(K+1));
                 end;
                 section.CRC     = fread(fid,1,'uint16');
@@ -103,17 +105,19 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                 elseif section.ID==1,
                         tag = 0; 
                         k1  = 0;
-                        while tag~=255,
+                        Sect1Len = section.Length-16;
+                        while (tag~=255) & (Sect1Len>2),
                                 tag = fread(fid,1,'uchar');    
-                                len = fread(fid,1,'uint16');    
+                                len = fread(fid,1,'uint16');
+                                Sect1Len = Sect1Len - 3 - len; 
                                 field = fread(fid,[1,len],'uchar');
 
                                 if tag == 0,	
-                                        HDR.Patient.LastName = char(field);
+                                        HDR.Patient.Name = char(field);  %% LastName
                                 elseif tag == 1,
                                         HDR.Patient.FirstName = char(field);
                                 elseif tag == 2,
-                                        HDR.Patient.ID = char(field);
+                                        HDR.Patient.Id = char(field);
                                 elseif tag == 3,
                                         HDR.Patient.LastName2 = char(field);
                                 elseif tag == 4,
@@ -683,10 +687,6 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
 			HDR.ERROR.message = 'Error SCPOPEN: \n';
 			return;
 		end;			
-		
-                %tmp = fread(fid,min(section.Length-16,1000),'uchar');    
-                %fseek(fid, pos+section.Length-2, -1);
-                %section.CRC = fread(fid,1,'uint16');
         end;
 
         HDR.SPR  = size(HDR.data,1);
@@ -710,26 +710,52 @@ else    % writing SCP file
                 if K==0,
                         % SECTION 0
                         b = [SectIdHdr(1:10),'SCPECG', zeros(1,NSections*10)];
+
                 elseif K==1,
-
                         % SECTION 1
-                        b  = [SectIdHdr];
+                        b = [SectIdHdr];
                         % tag(1),len(1:2),field(1:len)
-                        b  = [b, 0, s2b(length(HDR.Patient.Name)), HDR.Patient.Name];
-                        b  = [b, 2, s2b(length(HDR.Patient.Id)), HDR.Patient.Id];
-                        %b  = [b, 4, s2b(3), s2b(HDR.Patient.Age),1];
-                        b  = [b, 5, s2b(4), s2b(HDR.Patient.Birthday(1)),HDR.Patient.Birthday(2:3)];
-                        b  = [b, 8, s2b(1), HDR.Patient.Sex];
-                        b  = [b,25, s2b(4), s2b(HDR.T0(1)),HDR.T0(2:3)];
-                        b  = [b,26, s2b(3), HDR.T0(4:6)];
-                        b  = [b,27, s2b(2), s2b(round(HDR.Filter.HighPass*100))];
-                        b  = [b,28, s2b(2), s2b(round(HDR.Filter.LowPass))];
-
-                        b  = [b,255, 0];	% terminator
+                        if isfield(HDR.Patient,'Name'),
+				b = [b, 0, s2b(length(HDR.Patient.Name)), HDR.Patient.Name];
+			end;	
+                        if isfield(HDR.Patient,'Id'),
+				b = [b, 2, s2b(length(HDR.Patient.Id)), HDR.Patient.Id];
+			end;
+                        if isfield(HDR.Patient,'Age'),
+				%b = [b, 4, s2b(3), s2b(HDR.Patient.Age),1];  %% use birthday instead
+			end;
+                        if isfield(HDR.Patient,'Birthday'),
+	                        b = [b, 5, s2b(4), s2b(HDR.Patient.Birthday(1)),HDR.Patient.Birthday(2:3)];
+			end;      
+                        if isfield(HDR.Patient,'Height'),
+                        	b = [b, 6, s2b(3), s2b(HDR.Patient.Height),1];
+                        end;	
+                        if isfield(HDR.Patient,'Weight'),
+                        	b = [b, 7, s2b(3), s2b(HDR.Patient.Weight),1];
+                        end;	
+                        if isfield(HDR.Patient,'Sex'),
+ 	                       	b = [b, 8, s2b(1), HDR.Patient.Sex];
+                        end;	
+                        if isfield(HDR.Patient,'Race'),
+ 	                       	b = [b, 9, s2b(1), HDR.Patient.Race];
+                        end;	
+                        if isfield(HDR.Patient,'BloodPressure'),
+                        	b = [b,11, s2b(2), s2b(HDR.Patient.BloodPressure.Diastolic)];
+                        	b = [b,12, s2b(2), s2b(HDR.Patient.BloodPressure.Systolic)];
+                        end;	
+                        b = [b,25, s2b(4), s2b(HDR.T0(1)),HDR.T0(2:3)];
+                        b = [b,26, s2b(3), HDR.T0(4:6)];
+                        if ~any(isnan(HDR.Filter.HighPass))
+	                        b = [b,27, s2b(2), s2b(round(HDR.Filter.HighPass(1)*100))];
+                        end; 
+                        if ~any(isnan(HDR.Filter.LowPass))
+	                	b = [b,28, s2b(2), s2b(round(HDR.Filter.LowPass(1)))];
+			end;
+                        b = [b,255, 0];	% terminator
 
                 elseif K==3,
                         % SECTION 3
-                        b  = [SectIdHdr,HDR.NS,4+HDR.NS*8];
+                        b = [SectIdHdr,HDR.NS,4+HDR.NS*8];
                         for k = 1:HDR.NS,
                                 b = [b, s4b(1), s4b(HDR.SPR*HDR.NRec), 0];
                         end;
@@ -738,17 +764,20 @@ else    % writing SCP file
                         % SECTION 6
                         [tmp,scale1] = physicalunits(HDR.PhysDim(1,:));
                         [tmp,scale2] = physicalunits('nV');
-                        b  = [SectIdHdr, s2b(round(scale1/scale2)), s2b(round(1e6/HDR.SampleRate)), 5, 0];
+                        b = [SectIdHdr, s2b(round(scale1/scale2)), s2b(round(1e6/HDR.SampleRate)), 5, 0];
                         for k = 1:HDR.NS,
                                 b = [b, s2b(HDR.SPR*HDR.NRec*2)];
                         end;
                         data = HDR.data(:);
                         data = data + (data<0)*2^16;
-                        tmp = s2b(data)';
-                        b  = [b,tmp(:)'];
+                        tmp  = s2b(data)';
+                        b = [b,tmp(:)'];
                 else
                         b = [];
                 end;
+                if mod(b,2), % align to multiple of 2-byte blocks
+                        b = [b,0];
+                end; 
                 if length(b>0)
                         if (length(b)<16), fprintf(HDR.FILE.stderr,'section header %i less then 16 bytes %i', K,length(b)); end;
                         b(3:4) = s2b(K);
@@ -760,13 +789,14 @@ else    % writing SCP file
                 % section 0 pointer field 
                 B(22+K*10+(1:2))  = s2b(K);
                 B(22+K*10+(3:6))  = s4b(length(b)); % length
-                B(22+K*10+(7:10)) = s4b(POS); % length
+                B(22+K*10+(7:10)) = s4b(POS+1); % length
                 POS = POS + length(b);
         end
         B(3:6) = s4b(POS);
 
+	B = B + (B<0)*256;	
         warning('CRC not computed ! ');
-        crc = 0; B(1:2)= s2b(crc);
+        crc = 0; B(1:2) = s2b(crc);
 
         %        fwrite(fid,crc,'int16');
         fwrite(fid,B,'uchar');
