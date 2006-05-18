@@ -1,7 +1,8 @@
 /*
 
-    $Id: biosig.c,v 1.47 2006-05-16 17:57:25 schloegl Exp $
+    $Id: biosig.c,v 1.48 2006-05-18 15:53:30 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
+		    
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
