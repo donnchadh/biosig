@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.6 2006-05-18 09:51:39 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.7 2006-05-18 15:39:07 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 #include "../biosig.h"
 #ifdef woF
 #include "SCP_Formatter.h"
@@ -40,6 +41,14 @@ int16_t	Label_to_LeadIdCode(char* Label) {
 	return(ret_val);
 };
 
+/*
+uint16_t crc_ccitt(uint8_t* ptr,uint32_t LEN)
+
+for (int k=0;k<LEN;k++)
+
+
+end;
+*/
 
 HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {	
 /*
@@ -56,7 +65,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	uint16_t*	ptr16;
 	int		curSect; 
 	uint32_t 	len; 
-	uint16_t 	crc; 
+	uint16_t 	crc, crc2; 
 	uint32_t	i; 
 
 	if (hdr->aECG==NULL) {
@@ -73,8 +82,11 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	char OutFile[2048];
 	int  errCode; 
 	strcpy(OutFile,hdr->FileName);
+	
+	uint8_t VERSION = round(hdr->VERSION*10); 	// implemented version number 
 	for (int k=0; k<hdr->NS; k++) {
-		hdr->CHANNEL[k].LeadIdCode = Label_to_LeadIdCode(hdr->CHANNEL[k].Label);
+		if (hdr->CHANNEL[k].LeadIdCode==0)
+			hdr->CHANNEL[k].LeadIdCode = Label_to_LeadIdCode(hdr->CHANNEL[k].Label);
 	}	
 
 #ifdef woF 
@@ -354,7 +366,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			for (i = 0; i < hdr->NS; i++) {
 				*(uint32_t*)(ptr+sectionStart+curSectLen) = l_endian_u32(1L);
 				*(uint32_t*)(ptr+sectionStart+curSectLen+4) = l_endian_u32(hdr->data.size[0]);
-				*(ptr+sectionStart+curSectLen+8) = (uint8_t)Label_to_LeadIdCode(hdr->CHANNEL[i].Label);
+				*(ptr+sectionStart+curSectLen+8) = (uint8_t)hdr->CHANNEL[i].LeadIdCode;
 				curSectLen += 9;
 			}
 
@@ -390,6 +402,14 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			// Bimodal/Non-bimodal
 			*(ptr+sectionStart+curSectLen++) = 0;
 
+
+			/* DATA COMPRESSION
+			    currently, no compression method is supported. In case of data compression, the
+			    data compression can happen here. 
+			    
+
+			*/
+			
 			// Fill the length block
 			//	numByteCompRhythm = ESI->dwEndSampleR * 2;
 			// Each sample is stored on 2 bytes for each of the 15 leads (we assume to have max 15 leads)
@@ -439,29 +459,30 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		// write to pointer field in Section 0 
 		*(uint16_t*)(ptr+curSect*10+6+16)   = l_endian_u16(curSect); // 
 		*(uint32_t*)(ptr+curSect*10+6+16+2) = l_endian_u32(curSectLen); // length
-		*(uint32_t*)(ptr+curSect*10+6+16+6) = l_endian_u32(sectionStart+1); // Section start
+		// Section start - must be odd. See EN1064:2005(E) Section 5.2.1 
+		*(uint32_t*)(ptr+curSect*10+6+16+6) = l_endian_u32(sectionStart+1); 
 
 		// write to Section ID Header
 		if (curSectLen>0)
 		{
 			*(int16_t*)(ptr+sectionStart+2) = l_endian_u16(curSect); 	// Section ID
 			*(uint32_t*)(ptr+sectionStart+4)= l_endian_u32(curSectLen); 	// section length->section header
-			ptr[sectionStart+8] 		= 20; 	// Section Version Number 
-			ptr[sectionStart+9] 		= 20; 	// Protocol Version Number
-			*(uint16_t*)(ptr+sectionStart)  = l_endian_u16(CRCEvaluate(ptr+sectionStart+2,curSectLen-2)); // compute CRC
+			ptr[sectionStart+8] 		= VERSION; 	// Section Version Number 
+			ptr[sectionStart+9] 		= VERSION; 	// Protocol Version Number
+			crc = CRCEvaluate(ptr+sectionStart+2,curSectLen-2); // compute CRC
+//			crc2 = crc_ccitt(ptr+sectionStart+2,curSectLen-2); // compute CRC
+			*(uint16_t*)(ptr+sectionStart)  = l_endian_u16(crc);
+			fprintf(stdout,"crc = %i \n",crc);
 		}	
 		sectionStart += curSectLen;	// offset for next section
 	}
 	
 	// compute crc and len and write to preamble 
 	*(uint32_t*)(ptr+2) = l_endian_u32(hdr->HeadLen); 
-	*(int16_t*)ptr      = l_endian_u16(CRCEvaluate(ptr+2,sectionStart-2)); 
+	crc = CRCEvaluate(ptr+2,sectionStart-2); 
+	*(int16_t*)ptr      = l_endian_u16(crc);
 	
-/*		errCode = SCP_Formatter->DoTheSCPFile(OutFile);
-		if (errCode != 0) {
-			fprintf(stderr,"ERROR: DoTheSCPFile #%i\n",errCode);
-		} 
-*/
+
 #ifdef woF		
     	delete SCP_Formatter;
 #endif

@@ -16,10 +16,12 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+$Id: crc4scp.c,v 1.2 2006-05-18 15:39:07 schloegl Exp $
 ---------------------------------------------------------------------------
 */
 
-#ifdef VS_DEF
+#ifdef _VCPP_DEF
 typedef unsigned __int64	uint64_t;
 typedef __int64			int64_t;
 typedef unsigned long		uint32_t;
