@@ -1,12 +1,14 @@
 #    Test suite for converter testing 
 #    
 #
-#    $Id: test,v 1.7 2006-05-16 18:20:37 schloegl Exp $
+#    $Id: test,v 1.8 2006-05-18 07:56:34 schloegl Exp $
 #    Copyright (C) 2006 Alois Schloegl <a.schloegl@ieee.org>
 #    This function is part of the "BioSig for C/C++" repository
 #    (biosig4c++) at http://biosig.sf.net/ 
 #
 #
+
+rm t5.scp gdf2scp scp2gdf demo
 
 # load some data and display some header information
 #g++ -I /usr/include/libxml2/ biosig.c sopen_hl7aecg.c t210/scp_hl7aecg.cpp t210/scp-decode.cpp t220/SCP_Formatter.cpp t220/Section1_Info.cpp t220/ECGSignal_Info.cpp t220/sopen_scp_write.c demo.c -L/usr/lib -lxml2 -lz -lm -o demo
