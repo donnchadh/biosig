@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.31 2006-05-03 08:56:52 schloegl Exp $
+% $Id: biosig.h,v 1.32 2006-05-18 07:54:57 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -41,12 +41,29 @@
 #ifndef __BIOSIG_H__
 #define __BIOSIG_H__
 
+#ifdef VS_DEF
+#include <math.h>
+#include <time.h>
+#define __BYTE_ORDER  __LITTLE_ENDIAN
+typedef unsigned __int64	uint64_t;
+typedef __int64			int64_t;
+typedef unsigned long		uint32_t;
+typedef long			int32_t;
+typedef unsigned short		uint16_t;
+typedef short			int16_t;
+typedef unsigned char		uint8_t;
+typedef char			int8_t;
+
+#else
+
 #include <inttypes.h>
 #include <byteswap.h>
 #include <math.h>
 #include <time.h>
 #include <stdio.h>
 //#include <libxml/tree.h>
+
+#endif
 
 
 	// list of file formats 
@@ -263,7 +280,7 @@ typedef struct {
 		uint32_t 	spb;		// total samples per block
 		uint32_t 	bpb;  		// total bytes per block
 		uint32_t 	*bi;
-		void* 		Header1; 
+		uint8_t*	Header1; 
 		uint8_t*	rawdata; 	// raw data block 
 	} AS; 	
 	CHANNEL_TYPE *CHANNEL;  
