@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.3 2006-05-15 15:18:13 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.4 2006-05-18 16:35:40 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -122,9 +122,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 			for (int i=0;i<hdr->NS;i++) {
 				hdr->CHANNEL[i].SPR = hdr->SPR;
-				hdr->CHANNEL[i].PhysDimCode = 4275; // physical unit "uV"	
-				hdr->CHANNEL[i].PhysDim     = "uV"; // physical unit "uV"	
-				hdr->CHANNEL[i].Cal         = 1e-3; // internal data conversion factor (AVM=1uV)
+				hdr->CHANNEL[i].PhysDimCode = 4276; // physical unit "uV"	
+				hdr->CHANNEL[i].PhysDim     = "nV"; // physical unit "uV"	
+				hdr->CHANNEL[i].Cal         = 1; // internal data conversion factor (AVM=1uV)
 				hdr->CHANNEL[i].Off         = 0;    // internal data conversion factor (AVM=1uV)
 				hdr->CHANNEL[i].OnOff       = 1;    //((i<2)|(i>5)); // only first eight channels are ON
 				hdr->CHANNEL[i].Transducer  = ""; 
@@ -142,7 +142,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 			}	
 			for (int j=0;j<hdr->NS;j++)
 			for (int i=0;i<hdr->SPR;i++)
-				hdr->data.block[i+hdr->SPR*j]=decode.Reconstructed[i+j*decode.flag_Res.number_samples]*(hdr->CHANNEL[j].Cal);
+				hdr->data.block[i+hdr->SPR*j]=decode.Reconstructed[i+j*decode.flag_Res.number_samples]*hdr->CHANNEL[j].Cal;
 		}
 		else if ((decode.flag_lead.number==8) && decode.flag_lead.all_simultaneously) {
                         hdr->VERSION= 0.1*textual.des.analyzing.protocol_revision_number;     // store version as requested (float)
