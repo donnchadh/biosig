@@ -11,10 +11,10 @@ http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig4c%2B%2B/biosig.h
 (see HDRTYPE and CHANNEL_TYPE)
 
 Encoding of Event/Markers/Annotations is available here: 
-http://bci.tugraz.at/~schloegl/matlab/eeg/EventCodes.html
+http://hci.tugraz.at/schloegl/matlab/eeg/EventCodes.html
 
 A list of supported data formats is available here: 
-http://bci.tugraz.at/~schloegl/biosig/TESTED
+http://hci.tugraz.at/schloegl/biosig/TESTED
 
 
 
@@ -23,21 +23,28 @@ File(s):
     README 	this file
     biosig.h	definition of biosig data structures	
     biosig.c	SOPEN, SREAD, SWRITE, SEOF, SCLOSE functions 
-    main.c	demo how to use them 
-
+    demo.c	demo how to use them 
+    t210/*	reading SCP file format 
+    t220/*      writing SCP file format 
+    test	script for compiling and testing 
 		
 Installation: 
 -------------
 # compilation 
-make 
+./test
 
 
 Execution:
 ----------
-# generate test.gdf file 
-./biosig test.gdf     		
 # if test.gdf exists, some header information is displayed
-./biosig test.gdf     		
+./demo test.gdf     		
+
+# converts a SCP source file into a GDF format (destination
+./scp2gdf PFE103.scp t5.gdf     		
+
+# converts a SCP source file into a GDF format (destination
+./gdf2scp t5.gdf t5.scp      		
+
 
 
 More information is available at http://biosig.sf.net/
@@ -48,8 +55,7 @@ The archive is available at
 http://newsarchive.tugraz.at/browse/tu-graz.biosig/ 
 
 
-
-    Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 
 
