@@ -1,6 +1,6 @@
 /*
 
-    $Id: scp2gdf.c,v 1.4 2006-05-15 15:43:21 schloegl Exp $
+    $Id: scp2gdf.c,v 1.5 2006-05-18 07:57:22 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -83,6 +83,8 @@ int main (int argc, char **argv)
 		return(0); 
 	}
 
+
+	/******* READ source file ***********/
 	
 		hdr = sopen(argv[1], "r", NULL);
 		if (hdr==NULL)	exit(-1);
@@ -125,6 +127,10 @@ fprintf(stdout,"SCP CLOSED: SUCCESSFULLY\n");
     			hdr->FILE.FID = 0;
     		};	
 fprintf(stdout,"SCP CLOSED: SUCCESSFULLY\n");
+
+
+	/******* Modify header for destination file ***********/
+
 		
 hdr->TYPE = GDF; 
 hdr->VERSION = 1.94;		
@@ -134,8 +140,9 @@ for (k=0; k<hdr->NS; k++) {
 	hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 	hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 }	
-		// OPEN and WRITE GDF FILE 
-	     	sopen(argv[2], "w", hdr);
+
+	/******* WRITE destination file ***********/
+		sopen(argv[2], "w", hdr);
 
 #if __BYTE_ORDER == __BIG_ENDIAN
 		// fix endianity of the data

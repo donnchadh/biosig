@@ -1,6 +1,6 @@
 /*
 
-    $Id: gdf2scp.c,v 1.3 2006-05-15 09:57:02 schloegl Exp $
+    $Id: gdf2scp.c,v 1.4 2006-05-18 07:57:22 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -64,14 +64,14 @@ int main (int argc, char **argv)
     	uint16_t 	s[NELEM];
     	uint8_t 	tmp;
     	int32_t 	s32;
-    	FILE	*fid; 
-    	HDRTYPE *hdr, hdr2; 
-    	CHANNEL_TYPE* cp; 
+    	FILE		*fid; 
+    	HDRTYPE 	*hdr, hdr2; 
+    	CHANNEL_TYPE* 	cp; 
     	size_t 	count;
-    	int	status;
-    	char 	help[] = "\n Usage of BIOSIG:\n\n\tbiosig -h\t\thelp - this text\n\tbiosig filename\t\tread file if available; if not available generate file\n\n\n";  
-	time_t  T0; 
-	struct tm t0; 
+    	int		status;
+    	char 		help[] = "\n Usage of BIOSIG:\n\n\tbiosig -h\t\thelp - this text\n\tbiosig filename\t\tread file if available; if not available generate file\n\n\n";  
+	time_t  	T0; 
+	struct tm 	t0; 
 	
 	if (argc < 2)  	{
 		fprintf(stderr,"Warning: Invalid number of arguments\n");
@@ -83,6 +83,7 @@ int main (int argc, char **argv)
 		return(0); 
 	}
 
+	/******* READ source file ***********/
 	
 		hdr = sopen(argv[1], "r", NULL);
 		if (hdr==NULL)	exit(-1);
@@ -127,10 +128,11 @@ fprintf(stdout,"GDF CLOSED: SUCCESSFULLY\n");
     		};	
 
 
-//TODO: scaling 
-		
-		// OPEN and WRITE SCP FILE 
+	/******* Modify header for destination file ***********/
 		hdr->TYPE = SCP_ECG; 
+		hdr->Patient.Name = "X";
+
+	/******* WRITE destination file ***********/
 	     	sopen(argv[2], "w", hdr);
 
 fprintf(stdout,"SCP OPEN: SUCCESSFULLY\n");
