@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.32 2006-05-18 07:54:57 schloegl Exp $
+% $Id: biosig.h,v 1.33 2006-05-18 09:34:19 schloegl Exp $
 % Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -304,6 +304,9 @@ HDRTYPE* sopen_HL7aECG_read (HDRTYPE* hdr);
 HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr);
 
 int16_t	Label_to_LeadIDCode(char* Label);
+
+uint16_t CRCEvaluate(uint8_t* datablock, uint32_t datalength);
+int16_t CRCCheck(uint8_t* datablock, uint32_t datalength);
 
 /****************************************************************************/
 /**                                                                        **/
