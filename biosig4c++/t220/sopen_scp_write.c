@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.7 2006-05-18 15:39:07 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.8 2006-05-19 17:40:55 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -29,9 +29,6 @@
 
 
 #include "../biosig.h"
-#ifdef woF
-#include "SCP_Formatter.h"
-#endif
 
 
 int16_t	Label_to_LeadIdCode(char* Label) {
@@ -61,13 +58,17 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	Output: 
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
 */	
-	uint8_t*	ptr;
+	uint8_t*	ptr; 	// pointer to memory mapping of the file layout
+	uint8_t*	PtrCurSect;	// point to current section 
 	uint16_t*	ptr16;
 	int		curSect; 
 	uint32_t 	len; 
 	uint16_t 	crc, crc2; 
 	uint32_t	i; 
-
+	uint32_t 	sectionStart; 
+	time_t 		T0;
+	tm* 		T0_tm;
+	
 	if (hdr->aECG==NULL) {
 		fprintf(stderr,"Warning: No aECG info defined\n");
 		hdr->aECG = (aECG_TYPE*)malloc(sizeof(aECG_TYPE));
@@ -83,7 +84,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	int  errCode; 
 	strcpy(OutFile,hdr->FileName);
 	
-	uint8_t VERSION = round(hdr->VERSION*10); 	// implemented version number 
+	uint8_t VERSION = (uint8_t)round(hdr->VERSION*10); 	// implemented version number 
 	for (int k=0; k<hdr->NS; k++) {
 		if (hdr->CHANNEL[k].LeadIdCode==0)
 			hdr->CHANNEL[k].LeadIdCode = Label_to_LeadIdCode(hdr->CHANNEL[k].Label);
@@ -105,7 +106,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 
 	int NSections = 12; 
 	// initialize section 0
-	uint32_t sectionStart = 6+16+NSections*10;
+	sectionStart = 6+16+NSections*10;
 	ptr = (uint8_t*)realloc(ptr,sectionStart); 
 	memset(ptr,0,sectionStart);
 	
@@ -123,12 +124,13 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			curSectLen = 16; // current section length
 			sectionStart = 6; 
 		
-			memcpy(ptr+sectionStart+10,"SCPECG",6); // reserved
+			memcpy(ptr+16,"SCPECG",6); // reserved
 			curSectLen += NSections*10;
 		}
 		else if (curSect==1)  // SECTION 1 
 		{
 			ptr = (uint8_t*)realloc(ptr,sectionStart+10000); 
+			PtrCurSect = ptr+sectionStart; 
 			curSectLen = 16; // current section length
 /*
 			// Tag 0 (max len = 64)
@@ -165,14 +167,13 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			
 
 			// Tag 5 (len = 4) 
-			time_t T0 = gdf_time2t_time(hdr->Patient.Birthday);
-			tm* T0_tm = gmtime(&T0);
-
+			T0 = gdf_time2t_time(hdr->Patient.Birthday);
+			T0_tm = gmtime(&T0);
 			*(ptr+sectionStart+curSectLen) = 5;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
-			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(T0_tm->tm_year+1900);// Year
-			*(ptr+sectionStart+curSectLen+5) = T0_tm->tm_mon + 1;	// Year
-			*(ptr+sectionStart+curSectLen+6) = T0_tm->tm_mday; 	// Year
+			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(T0_tm->tm_year+1900);// year
+			*(ptr+sectionStart+curSectLen+5) = (uint8_t)(T0_tm->tm_mon + 1);	// month
+			*(ptr+sectionStart+curSectLen+6) = (uint8_t)T0_tm->tm_mday; 	// day
 			curSectLen += 7; 
 
 			// Tag 6 (len = 3)   Height
@@ -180,37 +181,44 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(3);	// length
 			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(hdr->Patient.Height);	// value
 			*(ptr+sectionStart+curSectLen+5) = 1;	// cm
-			curSectLen += len+3; 
+			curSectLen += 6; 
 
 			// Tag 7 (len = 3)	Weight
 			*(ptr+sectionStart+curSectLen) = 7;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(3);	// length
 			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(hdr->Patient.Weight);	// value
 			*(ptr+sectionStart+curSectLen+5) = 1;	// kg
-			curSectLen += len+3; 
+			curSectLen += 6; 
 
 			// Tag 8 (len = 1)
 			*(ptr+sectionStart+curSectLen) = 8;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(1);	// length
 			*(ptr+sectionStart+curSectLen+3) = hdr->Patient.Sex;	// value
-			curSectLen += len+4; 
+			curSectLen += 4; 
 
 			// Tag 11 (len = 2)
 			*(ptr+sectionStart+curSectLen) = 11;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(2);	// length
 			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((uint16_t)hdr->aECG->diastolicBloodPressure);	// value
-			curSectLen += len+5; 
+			curSectLen += 5; 
 
 			// Tag 12 (len = 2)
 			*(ptr+sectionStart+curSectLen) = 12;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = 2;	// length
 			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = (uint16_t)hdr->aECG->systolicBloodPressure;	// value
-			curSectLen += len+5; 
+			curSectLen += 5; 
+
+			// Tag 14 (max len = 2 + 2 + 2 + 1 + 1 + 6 + 1 + 1 + 1 + 1 + 1 + 16 + 1 + 25 + 25 + 25 + 25 + 25)
+			// Total = 161 (max value)
+			*(ptr+sectionStart+curSectLen) = 14;	// tag
+			len = 42; // minimum length
+			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = len;	// length
+			memset(ptr+sectionStart+curSectLen+3,0,len);  // dummy value 
+			*(ptr+sectionStart+curSectLen+3+15) = VERSION;	// tag 14, byte 15
+			
+			curSectLen += len+3; 
 
 #ifdef woF 
-// Tag 14 (max len = 2 + 2 + 2 + 1 + 1 + 6 + 1 + 1 + 1 + 1 + 1 + 16 + 1 + 25 + 25 + 25 + 25 + 25)
-// Total = 161 (max value)
-			*(ptr+sectionStart+curSectLen) = 14;	// tag
 
 	tg.id = 14;
 	tg.len = 0;				// Temporary
@@ -292,21 +300,49 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			// Tag 25 (len = 4)
 			T0 = gdf_time2t_time(hdr->T0);
 			T0_tm = gmtime(&T0);
-
 			*(ptr+sectionStart+curSectLen) = 25;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
-			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(T0_tm->tm_year+1900);// Year
-			*(ptr+sectionStart+curSectLen+5) = T0_tm->tm_mon + 1;	// Month
-			*(ptr+sectionStart+curSectLen+6) = T0_tm->tm_mday; 	// Day
+			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((uint16_t)(T0_tm->tm_year+1900));// year
+			*(ptr+sectionStart+curSectLen+5) = (uint8_t)(T0_tm->tm_mon + 1);	// month
+			*(ptr+sectionStart+curSectLen+6) = (uint8_t)T0_tm->tm_mday; 	// day
 			curSectLen += 7; 
 
 			// Tag 26 (len = 3)
 			*(ptr+sectionStart+curSectLen) = 26;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = 3;	// length
-			*(ptr+sectionStart+curSectLen+3) = T0_tm->tm_hour;	// hour
-			*(ptr+sectionStart+curSectLen+4) = T0_tm->tm_min;	// minute
-			*(ptr+sectionStart+curSectLen+5) = T0_tm->tm_sec; 	// second
+			*(ptr+sectionStart+curSectLen+3) = (uint8_t)T0_tm->tm_hour;	// hour
+			*(ptr+sectionStart+curSectLen+4) = (uint8_t)T0_tm->tm_min;	// minute
+			*(ptr+sectionStart+curSectLen+5) = (uint8_t)T0_tm->tm_sec; 	// second
 			curSectLen += 6; 
+
+			if (hdr->NS>0)  {
+			// Tag 27 (len = 3) highpass filter 
+			*(ptr+sectionStart+curSectLen) = 27;	// tag
+			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = 2;	// length
+			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = (uint16_t)hdr->CHANNEL[1].HighPass;	// hour
+			curSectLen += 5; 
+
+			// Tag 28 (len = 3)  lowpass filter
+			*(ptr+sectionStart+curSectLen) = 28;	// tag
+			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = 2;	// length
+			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = (uint16_t)hdr->CHANNEL[1].LowPass;	// hour
+			curSectLen += 5; 
+
+			// Tag 29 (len = 1) filter bitmap
+			uint8_t bitmap = 0; 
+        		if (fabs(hdr->CHANNEL[1].LowPass-60.0)<0.01) 
+				bitmap = 1; 
+        		else if (fabs(hdr->CHANNEL[1].LowPass-50.0)<0.01) 
+				bitmap = 2;
+			else 
+				bitmap = 0; 		 
+			*(ptr+sectionStart+curSectLen) = 29;	// tag
+			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = 1;	// length			
+			*(ptr+sectionStart+curSectLen+3) = bitmap; 
+			curSectLen += 4; 
+
+			}
+
 #ifdef woF 
 // Tag 31 (max len = 12)
 	tg.id = 31;
@@ -331,7 +367,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			// Tag 255 (len = 0)
 			*(ptr+sectionStart+curSectLen) = 255;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(0);	// length
-			curSectLen += len+3; 
+			curSectLen += 3; 
 
 			// Evaluate the size and correct it if odd
 			if ((curSectLen % 2) != 0) {
@@ -352,6 +388,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
     		else if (curSect==3)  // SECTION 3 
 		{
 			ptr = (uint8_t*)realloc(ptr,sectionStart+16+2+9*hdr->NS+1); 
+			PtrCurSect = ptr+sectionStart; 
 			curSectLen = 16; // current section length
 
 			// Number of leads enclosed
@@ -385,6 +422,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		else if (curSect==6)  // SECTION 6 
 		{
 			ptr = (uint8_t*)realloc(ptr,sectionStart+16+6+2*hdr->NS+2*(hdr->data.size[0]*hdr->data.size[1])); 
+			PtrCurSect = ptr+sectionStart; 
 			curSectLen = 16; // current section length
 
 			// Create all the fields
@@ -460,11 +498,14 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		*(uint16_t*)(ptr+curSect*10+6+16)   = l_endian_u16(curSect); // 
 		*(uint32_t*)(ptr+curSect*10+6+16+2) = l_endian_u32(curSectLen); // length
 		// Section start - must be odd. See EN1064:2005(E) Section 5.2.1 
-		*(uint32_t*)(ptr+curSect*10+6+16+6) = l_endian_u32(sectionStart+1); 
 
 		// write to Section ID Header
 		if (curSectLen>0)
 		{
+			// Section 0: startpos in pointer field 
+			*(uint32_t*)(ptr+curSect*10+6+16+6) = l_endian_u32(sectionStart+1); 
+
+			// Section ID header (16 bytes)
 			*(int16_t*)(ptr+sectionStart+2) = l_endian_u16(curSect); 	// Section ID
 			*(uint32_t*)(ptr+sectionStart+4)= l_endian_u32(curSectLen); 	// section length->section header
 			ptr[sectionStart+8] 		= VERSION; 	// Section Version Number 
