@@ -1,7 +1,7 @@
 #    Test suite for converter testing 
 #    
 #
-#    $Id: test,v 1.9 2006-05-18 09:34:19 schloegl Exp $
+#    $Id: test,v 1.10 2006-05-19 18:45:23 schloegl Exp $
 #    Copyright (C) 2006 Alois Schloegl <a.schloegl@ieee.org>
 #    This function is part of the "BioSig for C/C++" repository
 #    (biosig4c++) at http://biosig.sf.net/ 
@@ -12,16 +12,18 @@ rm t5.scp gdf2scp scp2gdf demo
 
 # load some data and display some header information
 g++ biosig.c sopen_hl7aecg.c t210/sopen_scp_read.c t210/scp-decode.cpp t220/sopen_scp_write.c t220/crc4scp.c  demo.c -o demo
-./demo PFE103.scp
 
 
 # TEST SCP->GDF converter
 g++ biosig.c sopen_hl7aecg.c t210/sopen_scp_read.c t210/scp-decode.cpp t220/sopen_scp_write.c t220/crc4scp.c  scp2gdf.c -o scp2gdf
-./scp2gdf PFE103.scp t5.gdf
 
 
 # TEST GDF->SCP converter
 g++ biosig.c sopen_hl7aecg.c t210/sopen_scp_read.c t210/scp-decode.cpp t220/sopen_scp_write.c t220/crc4scp.c gdf2scp.c  -o gdf2scp
-./gdf2scp t5.gdf t5.scp
 
+
+./demo PFE103.scp
+./scp2gdf PFE103.scp t5.gdf
+./gdf2scp t5.gdf t5.scp
+./gdf2scp PFE103.scp t6.scp
 ./demo t5.scp
