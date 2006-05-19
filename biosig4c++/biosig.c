@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.48 2006-05-18 15:53:30 schloegl Exp $
+    $Id: biosig.c,v 1.49 2006-05-19 23:16:35 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -1053,10 +1053,8 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 	}
 	else 	{  // SCP format 
 		// hdr->AS.rawdata was defined in SOPEN	
-		count = hdr->SPR*hdr->NRec;
-		
+		count = hdr->NRec;
 	}
-	
 	
 	// set position of file handle 
 	hdr->FILE.POS += count;
@@ -1073,8 +1071,12 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 		SZ  	= GDFTYP_BYTE[GDFTYP];
 		int32_value = 0; 
 
+
+
 		for (k4 = 0; k4 < count; k4++)
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
+
+
 
 			// get source address 	
 			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
@@ -1170,6 +1172,23 @@ size_t sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDR
 		hdr->FILE.POS = start; 	
 	}
 
+	if (hdr->TYPE != SCP_ECG) {	
+		// allocate AS.rawdata 	
+		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
+
+		// limit reading to end of data block
+		nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
+
+		// read data	
+		count = fread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
+		if (count<nelem)
+			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem,hdr->FILE.POS,hdr->AS.bpb); 
+	}
+	else 	{  // SCP format 
+		// hdr->AS.rawdata was defined in SOPEN	
+		count = hdr->NRec;
+	}
+	
 	// allocate AS.rawdata 	
 	hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
 
