@@ -22,8 +22,8 @@ function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.23 $
-%	$Id: scpopen.m,v 1.23 2006-05-18 06:42:13 schloegl Exp $
+%	$Revision: 1.24 $
+%	$Id: scpopen.m,v 1.24 2006-05-19 17:43:31 schloegl Exp $
 %	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -106,17 +106,22 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                         tag = 0; 
                         k1  = 0;
                         Sect1Len = section.Length-16;
+                        ListOfRequiredTags = [2,14,25,26];
+                        ListOfRecommendedTags = [0,1,5,8,15,34];
                         while (tag~=255) & (Sect1Len>2),
-                                tag = fread(fid,1,'uchar');    
+                                tag = fread(fid,1,'uint8');
                                 len = fread(fid,1,'uint16');
                                 Sect1Len = Sect1Len - 3 - len; 
+%% [tag,len,Sect1Len],          %% DEBUGGING information
                                 field = fread(fid,[1,len],'uchar');
-
                                 if tag == 0,	
+                                        ListOfRecommendedTags(ListOfRecommendedTags==tag)=[];
                                         HDR.Patient.Name = char(field);  %% LastName
                                 elseif tag == 1,
+                                        ListOfRecommendedTags(ListOfRecommendedTags==tag)=[];
                                         HDR.Patient.FirstName = char(field);
                                 elseif tag == 2,
+                                        ListOfRequiredTags(find(ListOfRequiredTags==2))=[];
                                         HDR.Patient.Id = char(field);
                                 elseif tag == 3,
                                         HDR.Patient.LastName2 = char(field);
@@ -131,6 +136,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         else warning('units of age not specified');
                                         end;
                                 elseif (tag == 5) 
+                                        ListOfRecommendedTags(ListOfRecommendedTags==tag)=[];
                                 	if any(field(1:4))
                                         	HDR.Patient.Birthday = [field(1:2)*[1;256],field(3:4),12,0,0];
                                         end;	
@@ -156,6 +162,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         end;
                                         end;
                                 elseif tag == 8,
+                                        ListOfRecommendedTags(ListOfRecommendedTags==tag)=[];
                                         HDR.Patient.Sex = field;
                                 elseif tag == 9,
                                         HDR.Patient.Race = field;
@@ -173,9 +180,11 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 elseif tag == 13,
                                         HDR.Patient.Diagnosis = char(field);
                                 elseif tag == 14,
+                                        ListOfRequiredTags(ListOfRequiredTags==tag)=[];
                                         HDR.SCP1.AcquiringDeviceID = char(field);
                                         HDR.VERSION = field(15)/10;
                                 elseif tag == 15,
+                                        ListOfRecommendedTags(ListOfRecommendedTags==tag)=[];
                                         HDR.SCP1.AnalyisingDeviceID = char(field);
                                 elseif tag == 16,
                                         HDR.SCP1.AcquiringInstitution = char(field);
@@ -196,15 +205,26 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 elseif tag == 24,
                                         HDR.SCP1.Emergency = field;
                                 elseif tag == 25,
+                                        ListOfRequiredTags(ListOfRequiredTags==tag)=[];
                                         HDR.T0(1,1:3) = [field(1:2)*[1;256],field(3:4)];
                                 elseif tag == 26,
+                                        ListOfRequiredTags(ListOfRequiredTags==tag)=[];
                                         HDR.T0(1,4:6) = field(1:3);
                                 elseif tag == 27,
                                         HDR.Filter.HighPass = field(1:2)*[1;256]/100;
                                 elseif tag == 28,
                                         HDR.Filter.LowPass = field(1:2)*[1;256]/100;
-                                elseif tag == 28,
-                                        HDR.Filter.BitMap = field;
+                                elseif tag == 29,
+                                        if (field==0)
+                                                HDR.FILTER.Notch = NaN; 
+                                        elseif bitand(field,1)
+                                                HDR.FILTER.Notch = 60; % 60Hz Notch 
+                                        elseif bitand(field,2)
+                                                HDR.FILTER.Notch = 50; % 50Hz Notch 
+                                        elseif bitand(field,3)==0
+                                                HDR.FILTER.Notch = -1; % Notch Off
+                                        end;
+                                        HDR.SCP1.Filter.BitMap = field;
                                 elseif tag == 30,
                                         HDR.SCP1.FreeText = char(field);
                                 elseif tag == 31,
@@ -214,12 +234,23 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 elseif tag == 33,
                                         HDR.SCP1.ElectrodeConfigurationCodes = field;
                                 elseif tag == 34,
+                                        ListOfRecommendedTags(ListOfRecommendedTags==tag)=[];
                                         HDR.SCP1.Timezone = field;
                                 elseif tag == 35,
                                         HDR.SCP1.MedicalHistory = char(field);
                                 elseif tag == 255,
                                         % section terminator	
+                                else
+                                        fprintf(HDR.FILE.stderr,'Warning SCOPEN: unknown tag %i (section 1)\n',tag);
                                 end;
+                        end;
+                        if ~isempty(ListOfRequiredTags)
+                                fprintf(HDR.FILE.stderr,'Warning SCPOPEN: the following tags are required but missing in file %s\n',HDR.FileName);
+                                disp(ListOfRequiredTags);
+                        end;
+                        if ~isempty(ListOfRecommendedTags)
+                                fprintf(HDR.FILE.stderr,'Warning SCPOPEN: the following tags are recommended but missing in file %s\n',HDR.FileName);
+                                disp(ListOfRecommendedTags);
                         end;
                         
                 elseif section.ID==2, 	% Huffman tables 
@@ -728,10 +759,14 @@ else    % writing SCP file
 	                        b = [b, 5, s2b(4), s2b(HDR.Patient.Birthday(1)),HDR.Patient.Birthday(2:3)];
 			end;      
                         if isfield(HDR.Patient,'Height'),
+                        if ~isnan(HDR.Patient.Height),
                         	b = [b, 6, s2b(3), s2b(HDR.Patient.Height),1];
+                        end;
                         end;	
                         if isfield(HDR.Patient,'Weight'),
+                        if ~isnan(HDR.Patient.Weight),
                         	b = [b, 7, s2b(3), s2b(HDR.Patient.Weight),1];
+                        end;
                         end;	
                         if isfield(HDR.Patient,'Sex'),
  	                       	b = [b, 8, s2b(1), HDR.Patient.Sex];
@@ -743,6 +778,7 @@ else    % writing SCP file
                         	b = [b,11, s2b(2), s2b(HDR.Patient.BloodPressure.Diastolic)];
                         	b = [b,12, s2b(2), s2b(HDR.Patient.BloodPressure.Systolic)];
                         end;	
+                        b = [b, 14, s2b(42), zeros(1,42)];      %% Dummy Tag 14; 
                         b = [b,25, s2b(4), s2b(HDR.T0(1)),HDR.T0(2:3)];
                         b = [b,26, s2b(3), HDR.T0(4:6)];
                         if ~any(isnan(HDR.Filter.HighPass))
@@ -770,7 +806,7 @@ else    % writing SCP file
                         end;
                         data = HDR.data(:);
                         data = data + (data<0)*2^16;
-                        tmp  = s2b(data)';
+                        tmp  = s2b(round(data))';
                         b = [b,tmp(:)'];
                 else
                         b = [];
@@ -783,6 +819,7 @@ else    % writing SCP file
                         b(3:4) = s2b(K);
                         b(5:8) = s4b(length(b));
                         %b(1:2)= s4b(crc);
+                        b(1:2) = s2b(crcevaluate(b(3:end)));
                 end;
                 B = [B,b]; 
 
@@ -795,8 +832,7 @@ else    % writing SCP file
         B(3:6) = s4b(POS);
 
 	B = B + (B<0)*256;	
-        warning('CRC not computed ! ');
-        crc = 0; B(1:2) = s2b(crc);
+        B(1:2) = s2b(crcevaluate(B(3:end)));
 
         %        fwrite(fid,crc,'int16');
         fwrite(fid,B,'uchar');
