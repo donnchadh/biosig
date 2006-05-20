@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.8 2006-05-19 17:40:55 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.9 2006-05-20 19:16:19 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -38,14 +38,6 @@ int16_t	Label_to_LeadIdCode(char* Label) {
 	return(ret_val);
 };
 
-/*
-uint16_t crc_ccitt(uint8_t* ptr,uint32_t LEN)
-
-for (int k=0;k<LEN;k++)
-
-
-end;
-*/
 
 HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {	
 /*
@@ -68,23 +60,23 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	uint32_t 	sectionStart; 
 	time_t 		T0;
 	tm* 		T0_tm;
-	
+
 	if (hdr->aECG==NULL) {
 		fprintf(stderr,"Warning: No aECG info defined\n");
 		hdr->aECG = (aECG_TYPE*)malloc(sizeof(aECG_TYPE));
 		hdr->aECG->diastolicBloodPressure=0.0;				 
 		hdr->aECG->systolicBloodPressure=0.0;
 		hdr->aECG->MedicationDrugs="";
-		hdr->aECG->MedicationDrugs="";
-		hdr->aECG->MedicationDrugs="";
+		hdr->aECG->ReferringPhysician="";
+		hdr->aECG->Diagnosis="";
 		hdr->ID.Technician = "nobody";		 
 	} 	
 
 	char OutFile[2048];
 	int  errCode; 
 	strcpy(OutFile,hdr->FileName);
-	
-	uint8_t VERSION = (uint8_t)round(hdr->VERSION*10); 	// implemented version number 
+
+	uint8_t VERSION = 13; // (uint8_t)round(hdr->VERSION*10); // implemented version number 
 	for (int k=0; k<hdr->NS; k++) {
 		if (hdr->CHANNEL[k].LeadIdCode==0)
 			hdr->CHANNEL[k].LeadIdCode = Label_to_LeadIdCode(hdr->CHANNEL[k].Label);
@@ -100,8 +92,8 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		delete SCP_Formatter;
 		return (hdr);
 	}
-		
 #endif
+
 	ptr = (uint8_t*)hdr->AS.Header1;
 
 	int NSections = 12; 
@@ -214,7 +206,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			len = 42; // minimum length
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = len;	// length
 			memset(ptr+sectionStart+curSectLen+3,0,len);  // dummy value 
-			*(ptr+sectionStart+curSectLen+3+15) = VERSION;	// tag 14, byte 15
+			*(ptr+sectionStart+curSectLen+3+14) = VERSION;	// tag 14, byte 15
 			
 			curSectLen += len+3; 
 
@@ -513,7 +505,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			crc = CRCEvaluate(ptr+sectionStart+2,curSectLen-2); // compute CRC
 //			crc2 = crc_ccitt(ptr+sectionStart+2,curSectLen-2); // compute CRC
 			*(uint16_t*)(ptr+sectionStart)  = l_endian_u16(crc);
-			fprintf(stdout,"crc = %i \n",crc);
+//			fprintf(stdout,"crc = %i \n",crc);
 		}	
 		sectionStart += curSectLen;	// offset for next section
 	}
