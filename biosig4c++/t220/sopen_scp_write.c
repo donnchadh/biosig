@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.9 2006-05-20 19:16:19 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.10 2006-05-20 21:40:05 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -291,7 +291,8 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 #endif
 			// Tag 25 (len = 4)
 			T0 = gdf_time2t_time(hdr->T0);
-			T0_tm = gmtime(&T0);
+			T0_tm = localtime(&T0);
+
 			*(ptr+sectionStart+curSectLen) = 25;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
 			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((uint16_t)(T0_tm->tm_year+1900));// year

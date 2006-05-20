@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.34 2006-05-18 15:00:37 schloegl Exp $
+% $Id: biosig.h,v 1.35 2006-05-20 21:40:04 schloegl Exp $
 % Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -125,6 +125,7 @@ typedef double	 		biosig_data_type;
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 typedef int64_t 		gdf_time; // gdf time is represented in 64 bits
 #define t_time2gdf_time(t)	((gdf_time)floor(ldexp(((double)(t))/86400.0 + 719529.0, 32)))
+//#define t_time2gdf_time(t)	((gdf_time)floor(ldexp(difftime(t,0)/86400.0 + 719529.0, 32)))
 #define gdf_time2t_time(t)	((time_t)((ldexp(((double)(t)),-32) - 719529) * 86400))
 #define tm_time2gdf_time(t) 	t_time2gdf_time(mktime(t))
 //#define gdf_time2tm_time(t)	localtime(gdf_time2t_time(t))
@@ -188,6 +189,7 @@ typedef struct {
 	float		T_wave[2]; 	// start and end 
 	float		P_QRS_T_axes[3];
 } aECG_TYPE;
+
 
 /*
 	This structure defines the general (fixed) header  
@@ -291,10 +293,12 @@ typedef struct {
 	These functions are for the converter between SCP to HL7aECG
  */ 	 
 
-HDRTYPE* sopen_SCP_read     (char* Header, HDRTYPE* hdr);
+HDRTYPE* sopen_SCP_read     (HDRTYPE* hdr);
 HDRTYPE* sopen_SCP_write    (HDRTYPE* hdr);
 HDRTYPE* sopen_HL7aECG_read (HDRTYPE* hdr);
 HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr);
+
+size_t lcm(size_t A,size_t B); 
 
 int16_t	Label_to_LeadIDCode(char* Label);
 

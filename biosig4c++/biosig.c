@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.49 2006-05-19 23:16:35 schloegl Exp $
+    $Id: biosig.c,v 1.50 2006-05-20 21:40:04 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -195,7 +195,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->AS.bi = (uint32_t*)calloc(hdr->NS+1,sizeof(uint32_t));
 	hdr->data.size[0] = 0; 	// rows 
 	hdr->data.size[1] = 0;  // columns 
-	hdr->data.block = (biosig_data_type*)malloc(410); 
+	hdr->data.block = (biosig_data_type*)malloc(420); 
       	hdr->T0 = t_time2gdf_time(time(NULL));
       	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.35";
 
@@ -257,6 +257,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	
 	// initialize "Annotated ECG structure"
 	hdr->aECG = NULL; 
+	
 	return(hdr);
 }
 
@@ -316,17 +317,19 @@ if (!strcmp(MODE,"r"))
 	hdr->FileName = FileName; 
     	if (hdr->FILE.FID == NULL) 
     	{ 	
+    		fprintf(stderr,"Error SOPEN(READ); Cannot open file %s\n",FileName);
     		free(hdr);    		
 		return(NULL);
     	}	    
     
     	/******** read 1st (fixed)  header  *******/	
- 	Header1 = (char*)malloc(256);
+ 	Header1 = (char*)malloc(257);
 /*#ifdef ZLIB_H
     	count   = gzread(hdr->FILE.FID,Header1,256);
 #else
 */
     	count   = fread(Header1,1,256,hdr->FILE.FID);
+    	Header1[256]=0;
 //#endif
 	
     	if (0);
@@ -767,8 +770,17 @@ if (!strcmp(MODE,"r"))
 	}
 	
 	else if (hdr->TYPE==SCP_ECG) {
-		fseek(hdr->FILE.FID,0,-1);
-		hdr = sopen_SCP_read(Header1,hdr);
+		hdr->AS.Header1 = (uint8_t*)Header1; 
+		hdr->HeadLen 	= l_endian_u32(*(uint32_t*)(Header1+2));
+		hdr->AS.Header1 = (uint8_t*)realloc(hdr->AS.Header1,hdr->HeadLen);
+	    	count 	+= fread(hdr->AS.Header1+count, 1, hdr->HeadLen-count, hdr->FILE.FID);
+	    	uint16_t crc 	= CRCEvaluate(hdr->AS.Header1+2,hdr->HeadLen-2);
+
+	    	if ( l_endian_u16(*(uint16_t*)hdr->AS.Header1) != crc)
+	    	{
+	    		fprintf(stderr,"Warning SOPEN(SCP-READ): Bad CRC %x %x !\n",crc,*(uint16_t*)(hdr->AS.Header1));
+	    	}
+		hdr = sopen_SCP_read(hdr);
 	}
 	
 	else if (hdr->TYPE==XML) 
@@ -1461,16 +1473,19 @@ int sclose(HDRTYPE* hdr)
 			}	
 		}
 	}		
-
+// fprintf(stdout,"sclose: 01\n");
 	if (hdr->TYPE != XML) {
 		fclose(hdr->FILE.FID);
     		hdr->FILE.FID = 0;
     	}	
 
+// fprintf(stdout,"sclose: 02\n");
     	if (hdr->aECG != NULL)	
         	free(hdr->aECG);
+// fprintf(stdout,"sclose: 03\n");
     	if (hdr->AS.rawdata != NULL)	
         	free(hdr->AS.rawdata);
+// fprintf(stdout,"sclose: 04\n");
 
     	if (hdr->data.block != NULL) {	
         	free(hdr->data.block);
@@ -1478,13 +1493,17 @@ int sclose(HDRTYPE* hdr)
         	hdr->data.size[1]=0;
         }	
 
+// fprintf(stdout,"sclose: 05\n");
     	if (hdr->CHANNEL != NULL)	
         	free(hdr->CHANNEL);
+// fprintf(stdout,"sclose: 06\n");
     	if (hdr->AS.bi != NULL)	
         	free(hdr->AS.bi);
+// fprintf(stdout,"sclose: 07\n");
     	if (hdr->AS.Header1 != NULL)	
         	free(hdr->AS.Header1);
 
+// fprintf(stdout,"sclose: 08\n");
     	if (hdr->EVENT.POS != NULL)	
         	free(hdr->EVENT.POS);
     	if (hdr->EVENT.TYP != NULL)	
