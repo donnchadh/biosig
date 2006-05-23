@@ -27,7 +27,7 @@ function [HDR,data] = iopen(HDR,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: iopen.m,v 1.9 2005-11-24 21:02:17 schloegl Exp $
+%	$Id: iopen.m,v 1.10 2006-05-23 11:46:31 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -168,7 +168,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:IFS'),    % Ultrasound file format
 elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9), 
         GDFTYP = {'uint8','char','uint16','uint32','2*uint32','int8','uint8','int16','int32','2*int32','float32','float64'};
         GDFTYP = {'uint8','char','uint16','uint32','uint64','int8','uint8','int16','int32','int64','float32','float64'};
-	size = [1,1,2,4,8,1,1,2,4,8,4,8];
+	size0 = [1,1,2,4,8,1,1,2,4,8,4,8];
 	
         HDR.EXIF = [];
         HDR.JPEG = [];
@@ -255,10 +255,10 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                                         typ(k) = tmp(2);
                                         tmp = fread(HDR.FILE.FID,1,'uint32');
                                         count(k) = tmp(1);
-                                        if count(k)*size(typ(k))>4
+                                        if count(k)*size0(typ(k))>4
                                         	valoffset(k) = fread(HDR.FILE.FID,1,'uint32');
                                         else
-	                                        tmp = fread(HDR.FILE.FID,4/size(typ(k)),GDFTYP{typ(k)});
+	                                        tmp = fread(HDR.FILE.FID,4/size0(typ(k)),GDFTYP{typ(k)});
                                         	VAL{k} = tmp(1:count(k));
                                         end;
                                 end;
@@ -266,7 +266,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                                 if len>0, LEN = len; end; 
                                 HDR.EXIF.ResolutionUnit = 2; % default value
                                 for k = 1:nf, 
-                                        if count(k)*size(typ(k))>4
+                                        if count(k)*size0(typ(k))>4
 	                                        fseek(HDR.FILE.FID,pos+valoffset(k),'bof');
 	                                        if (typ(k)==5)
 	                                                tmp = fread(HDR.FILE.FID,[count(k),2],'int32');
