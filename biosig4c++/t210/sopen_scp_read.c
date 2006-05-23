@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.5 2006-05-20 21:54:35 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.6 2006-05-23 11:50:14 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -48,22 +48,6 @@ int scp_decode(HDRTYPE*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO
 */
 
 
-/*
-	SCP format internals 
-*/
-typedef struct {
-	struct {	
-		uint8_t	HUFFMAN;
-		uint8_t	DIFF;
-		uint8_t	BIMODAL;
-	} FLAG;
-        struct {
-                char* Tag14;	// only used for SCP2SCP conversion 
-        } Section1;
-} SCPECG_TYPE;
-
-
-
 
 HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {	
 /*
@@ -77,26 +61,6 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
 */	
 
-/*
----------------------------------------------------------------------------
-Copyright (C) 2006  Eugenio Cervesato.
-Developed at the Associazione per la Ricerca in Cardiologia - Pordenone - Italy,
-
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
-of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
----------------------------------------------------------------------------
-*/
 	struct pointer_section *section;
 	struct DATA_DECODE decode;
 	struct DATA_RECORD record;
@@ -110,28 +74,28 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	uint16_t*	ptr16;
 	int		curSect; 	// current section
 	uint32_t 	len; 
-	uint16_t 	crc, crc2; 
+	uint16_t 	crc; 
 	uint32_t	i,k1,k2,k3; 
+	size_t		curSectPos;
 	size_t 		sectionStart; 
 	time_t 		T0;
 	tm 		t0;
-	int 		_NUM_SECTION = 12;
+	int 		NSections = 12;
 	uint8_t		tag, VERSION;
-	size_t		curSectPos;
-	float HighPass, LowPass, Notch; 	// filter settings
-	uint8_t		FLAG_HUFFMAN = 0;		
-	uint8_t		FLAG_DIFF = 0;		
-	SCPECG_TYPE	SCP; 
+	float 		HighPass, LowPass, Notch; 	// filter settings
 
 
-if (AS_DECODE==0) 
-	/* Try direct conversion SCP->HDR to internal data structure
+	/* 
+	   Try direct conversion SCP->HDR to internal data structure
 		+ whole data is loaded once, then no further File I/O is needed. 
 		- currently Huffman and Bimodal compression is not supported. 
 	*/	
-{	
-	SCP.FLAG.HUFFMAN = 0; 
-	SCP.FLAG.DIFF = 0; 
+
+	if (hdr->aECG == NULL) hdr->aECG = (aECG_TYPE*)malloc(sizeof(aECG_TYPE));
+	hdr->aECG->FLAG.HUFFMAN  = 0; 
+	hdr->aECG->FLAG.DIFF     = 0; 
+	hdr->aECG->FLAG.REF_BEAT = 0; 
+	hdr->aECG->FLAG.BIMODAL  = 0;
 	
 	ptr = hdr->AS.Header1; 
 	hdr->NRec = 1; 
@@ -142,25 +106,23 @@ if (AS_DECODE==0)
 
 	/**** SECTION 0 ****/
 	len = *(uint32_t*)(PtrCurSect+4); 
-	_NUM_SECTION = (len-16)/10;
-	for (int K=0; K<_NUM_SECTION; K++)	{
+	NSections = (len-16)/10;
+	for (int K=0; K<NSections; K++)	{
 		curSect 	= l_endian_u16(*(uint16_t*)(ptr+6+16+K*10));
 		len 		= l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+2));
 		sectionStart 	= l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+6))-1;
 		
 		 /***** empty section *****/	
-		if ((len==0) || (sectionStart==0)) /* empty section */
-		{
-			continue; 			
-		}
+	if ((len==0) || (sectionStart==0)) continue;
 		
-		PtrCurSect 	= ptr+sectionStart;
-		crc 		= l_endian_u16(*(uint16_t*)(PtrCurSect)); 
+		PtrCurSect = ptr+sectionStart;
+		crc 	   = l_endian_u16(*(uint16_t*)(PtrCurSect)); 
 		if (curSect != l_endian_u16(*(uint16_t*)(PtrCurSect+2)))
 			fprintf(stderr,"Warning SOPEN(SCP-READ): Current Section No does not match field in sections (%i %i)\n",curSect,l_endian_u16(*(uint16_t*)(PtrCurSect+2))); 
 		if (len != l_endian_u32(*(uint32_t*)(PtrCurSect+4)))
 			fprintf(stderr,"Warning SOPEN(SCP-READ): length field in pointer section (%i) does not match length field in sections (%i %i)\n",K,len,l_endian_u32(*(uint32_t*)(PtrCurSect+4))); 
 
+// fprintf(stdout,"section %i \n",curSect); 
 		curSectPos = 16;
 			
 		/**** SECTION 0 ****/
@@ -174,6 +136,7 @@ if (AS_DECODE==0)
 			while ((*(PtrCurSect+curSectPos)!=255) | (*(uint16_t*)(PtrCurSect+curSectPos+1)!=0)) {
 				tag = *(PtrCurSect+curSectPos);
 				len = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+1));
+// fprintf(stdout," tag=%i len=%i\n",tag,len); 
 				curSectPos += 3; 
 				if (tag==0) {
 				}
@@ -181,6 +144,8 @@ if (AS_DECODE==0)
 				}
 				else if (tag==2) {
 					hdr->Patient.Id = (char*)(PtrCurSect+curSectPos);
+					if (!strcmp(hdr->Patient.Id,"UNKNOWN"))
+						hdr->Patient.Id = ""; 					
 				}
 				else if (tag==3) {
 				}
@@ -212,8 +177,29 @@ if (AS_DECODE==0)
 				else if (tag==13) {
 				}
 				else if (tag==14) {
-					VERSION = *(PtrCurSect+curSectPos+14);
-					hdr->VERSION = VERSION/10.0;
+					hdr->VERSION = *(PtrCurSect+curSectPos+14)/10.0;	// tag 14, byte 15
+					hdr->aECG->Section1.Tag14.INST_NUMBER = *(uint16_t*)(PtrCurSect+curSectPos);
+					hdr->aECG->Section1.Tag14.DEPT_NUMBER = *(uint16_t*)(PtrCurSect+curSectPos+2);
+					hdr->aECG->Section1.Tag14.DEVICE_ID   = *(uint16_t*)(PtrCurSect+curSectPos+4);
+					hdr->aECG->Section1.Tag14.DEVICE_TYPE = *(PtrCurSect+curSectPos+ 6);
+					hdr->aECG->Section1.Tag14.MANUF_CODE  = *(PtrCurSect+curSectPos+ 7);	// tag 14, byte 7 (MANUF_CODE has to be 255)
+					hdr->aECG->Section1.Tag14.MOD_DESC    = (char*)(PtrCurSect+curSectPos+8); 
+					hdr->aECG->Section1.Tag14.VERSION     = *(PtrCurSect+curSectPos+14);
+					hdr->aECG->Section1.Tag14.PROT_COMP_LEVEL = *(PtrCurSect+curSectPos+15); 	// tag 14, byte 15 (PROT_COMP_LEVEL has to be 0xA0 => level II)
+					hdr->aECG->Section1.Tag14.LANG_SUPP_CODE  = *(PtrCurSect+curSectPos+16);	// tag 14, byte 16 (LANG_SUPP_CODE has to be 0x00 => Ascii only, latin and 1-byte code)
+					hdr->aECG->Section1.Tag14.ECG_CAP_DEV     = *(PtrCurSect+curSectPos+17);	// tag 14, byte 17 (ECG_CAP_DEV has to be 0xD0 => Acquire, (No Analysis), Print and Store)
+					hdr->aECG->Section1.Tag14.MAINS_FREQ      = *(PtrCurSect+curSectPos+18);	// tag 14, byte 18 (MAINS_FREQ has to be 0: unspecified, 1: 50 Hz, 2: 60Hz)
+
+					hdr->aECG->Section1.Tag14.ANAL_PROG_REV_NUM = (char*)(PtrCurSect+curSectPos+36);
+					int tmp = strlen((char*)(PtrCurSect+curSectPos+36));					
+					hdr->aECG->Section1.Tag14.SERIAL_NUMBER_ACQ_DEV = (char*)(PtrCurSect+curSectPos+36+tmp+1);
+					tmp += strlen((char*)(PtrCurSect+curSectPos+36+tmp+1));					
+					hdr->aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID = (char*)(PtrCurSect+curSectPos+36+tmp+1);
+					tmp += strlen((char*)(PtrCurSect+curSectPos+36+tmp+1));					
+					hdr->aECG->Section1.Tag14.ACQ_DEV_SCP_SW = (char*)(PtrCurSect+curSectPos+36+tmp+1); 	// tag 14, byte 38 (SCP_IMPL_SW has to be "OpenECG XML-SCP 1.00")
+					tmp += strlen((char*)(PtrCurSect+curSectPos+36+tmp+1));
+					hdr->aECG->Section1.Tag14.ACQ_DEV_MANUF  = (char*)(PtrCurSect+curSectPos+36+tmp+1);	// tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer")
+
 				}
 				else if (tag==15) {
 				}
@@ -239,16 +225,16 @@ if (AS_DECODE==0)
 					t0.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 					t0.tm_mon  = *(PtrCurSect+curSectPos+2);
 					t0.tm_mday = *(PtrCurSect+curSectPos+3);
-					hdr->T0 = tm_time2gdf_time(&t0);
+					hdr->T0    = tm_time2gdf_time(&t0);
 				}
 				else if (tag==26) {
 					t0.tm_hour = *(PtrCurSect+curSectPos);
 					t0.tm_min  = *(PtrCurSect+curSectPos+1);
 					t0.tm_sec  = *(PtrCurSect+curSectPos+2);
-					hdr->T0 = tm_time2gdf_time(&t0);
+					hdr->T0    = tm_time2gdf_time(&t0);
 				}
 				else if (tag==27) {
-					HighPass = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))/100.0;
+					HighPass   = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))/100.0;
 				}
 				else if (tag==28) {
 					LowPass = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
@@ -264,8 +250,6 @@ if (AS_DECODE==0)
 					else if (bitmap & 0x01)
 						Notch = 50.0; 	// notch 50Hz
 				}
-				else if (tag==29) {
-				}
 				else if (tag==30) {
 				}
  				else if (tag==31) {
@@ -278,16 +262,17 @@ if (AS_DECODE==0)
 
 		/**** SECTION 2 ****/
 		else if (curSect==2)  {
-			AS_DECODE = 1; 
-			SCP.FLAG.HUFFMAN = 1; 
+			hdr->aECG->FLAG.HUFFMAN = 1; 
 		}
 
 		/**** SECTION 3 ****/
 		else if (curSect==3)  
 		{
 			hdr->NS = *(PtrCurSect+curSectPos);
-			curSectPos += 2;
-                        hdr->CHANNEL = (CHANNEL_TYPE *) calloc(hdr->NS, sizeof(CHANNEL_TYPE));
+			curSectPos++;
+			hdr->aECG->FLAG.REF_BEAT = (*(PtrCurSect+curSectPos) & 0x01);
+			curSectPos++;
+			hdr->CHANNEL = (CHANNEL_TYPE *) calloc(hdr->NS, sizeof(CHANNEL_TYPE));
                         memset(hdr->CHANNEL, 0, hdr->NS * sizeof(CHANNEL_TYPE));  // blank area
 
 			uint32_t startindex, endindex; 
@@ -307,12 +292,6 @@ if (AS_DECODE==0)
 				curSectPos += 9;
 			}
 
-			/* this is moved to SREAD
-                        hdr->data.size[0] = hdr->NS;
-                        hdr->data.size[1] = hdr->SPR;
-                        hdr->data.block = (biosig_data_type *) calloc(hdr->NS * hdr->SPR, sizeof(biosig_data_type));
-			*/
-			
 		}
 		/**** SECTION 4 ****/
 		else if (curSect==4)  {
@@ -326,9 +305,9 @@ if (AS_DECODE==0)
 		else if (curSect==6)  {
 			double Cal 		= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 			hdr->SampleRate 	= 1e6/l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
-			uint16_t 	GDFTYP 	= 5;	// int32  
-			SCP.FLAG.DIFF 		= *(PtrCurSect+curSectPos+4);		
-			SCP.FLAG.BIMODAL 	= *(PtrCurSect+curSectPos+5);
+			uint16_t 	GDFTYP 	= 5;	// int32: internal raw data type   
+			hdr->aECG->FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);		
+			hdr->aECG->FLAG.BIMODAL = *(PtrCurSect+curSectPos+5);
 			
 			len = 0; 
 			for (i=0; i < hdr->NS; i++) {
@@ -356,12 +335,12 @@ if (AS_DECODE==0)
 			int32_t* data = (int32_t*)hdr->AS.rawdata;
 			size_t ix; 			
 			
-			if (SCP.FLAG.HUFFMAN) 
+			if (hdr->aECG->FLAG.HUFFMAN) 
 			{
 			//	fprintf(stderr,"Warning SCOPEN(SCP-READ): huffman compression not supported.\n");
 				AS_DECODE = 1; 
 			}
-			if (SCP.FLAG.BIMODAL)
+			if (hdr->aECG->FLAG.BIMODAL)
 			{
 			//	fprintf(stderr,"Warning SCOPEN(SCP-READ): bimodal compression not supported (yet).\n");
 				AS_DECODE = 1; 
@@ -375,12 +354,12 @@ if (AS_DECODE==0)
 				}
 			}
 			
-			if (SCP.FLAG.DIFF==1)
+			if (hdr->aECG->FLAG.DIFF==1)
 				for (k1 = 0; k1 < hdr->NS; k1++)
 				for (k2 = 1, ix = k1*hdr->SPR; k2 < hdr->SPR; k2++, ix++)
 					data[ix] += data[ix-1];
 
-			else if (SCP.FLAG.DIFF==2)
+			else if (hdr->aECG->FLAG.DIFF==2)
 				for (k1 = 0; k1 < hdr->NS; k1++)
 				for (k2 = 2, ix = k1*hdr->SPR; k2 < hdr->SPR; k2++, ix++)
 					data[ix] += 2*data[ix-1] - data[ix-2];
@@ -412,15 +391,38 @@ if (AS_DECODE==0)
 	}	
 	hdr->Dur[0] = hdr->SPR;
 	hdr->Dur[1] = hdr->SampleRate;
-}
 
-else if (AS_DECODE!=0)	
+
+if (!(hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL))
+	return(hdr); 
+
+
+/*
+---------------------------------------------------------------------------
+Copyright (C) 2006  Eugenio Cervesato.
+Developed at the Associazione per la Ricerca in Cardiologia - Pordenone - Italy,
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+---------------------------------------------------------------------------
+*/
+
 	/* Fall back method: 
-		+ implements Huffman and Bimodal compression. 
+		+ implements Huffman, reference beat and Bimodal compression. 
 		- uses piece-wise file access
 		- defines intermediate data structure
 	*/	
-  	{
 	fprintf(stdout, "\nUse SCP_DECODE\n");
 	fseek(hdr->FILE.FID, 0, SEEK_SET);
 
@@ -443,6 +445,7 @@ else if (AS_DECODE!=0)
 			else  hdr->SampleRate=1000000.0/decode.flag_BdR0.STM;
                         // acquisition time is the sum of the date and the time, converted to gdf_time
                         hdr->T0=t_time2gdf_time(textual.dev.date_acquisition2+textual.dev.time_acquisition2);
+//fprintf(stdout,"\n",textual.dev.date_acquisition2+textual.dev.time_acquisition2);
                         char buff[300];
                         strcpy(buff, textual.ana.first_name);
                         strcat(buff, ", ");
@@ -559,7 +562,7 @@ else if (AS_DECODE!=0)
                         exit(2);
 		}
         }
-}
-return(hdr);
-}
+	return(hdr);
+};
+
 

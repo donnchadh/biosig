@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.10 2006-05-20 21:40:05 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.11 2006-05-23 11:50:14 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -31,12 +31,15 @@
 #include "../biosig.h"
 
 
+
+
 int16_t	Label_to_LeadIdCode(char* Label) {
 	// FIXME //  define functions for converting label to LeadIdCode 
 	int ret_val = 0;	//default: unspecified 
 	 	
 	return(ret_val);
 };
+
 
 
 HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {	
@@ -60,6 +63,16 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	uint32_t 	sectionStart; 
 	time_t 		T0;
 	tm* 		T0_tm;
+	
+
+	if ((hdr->VERSION!=1.3) && (hdr->VERSION!=2.0))  
+		fprintf(stderr,"Warning SOPEN (SCP-WRITE): Version %f not supported\n",hdr->VERSION);
+		
+	uint8_t VERSION = 20; // (uint8_t)round(hdr->VERSION*10); // implemented version number 
+	for (int k=0; k<hdr->NS; k++) {
+		if (hdr->CHANNEL[k].LeadIdCode==0)
+			hdr->CHANNEL[k].LeadIdCode = Label_to_LeadIdCode(hdr->CHANNEL[k].Label);
+	}	
 
 	if (hdr->aECG==NULL) {
 		fprintf(stderr,"Warning: No aECG info defined\n");
@@ -70,35 +83,38 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		hdr->aECG->ReferringPhysician="";
 		hdr->aECG->Diagnosis="";
 		hdr->ID.Technician = "nobody";		 
-	} 	
-
-	char OutFile[2048];
-	int  errCode; 
-	strcpy(OutFile,hdr->FileName);
-
-	uint8_t VERSION = 13; // (uint8_t)round(hdr->VERSION*10); // implemented version number 
-	for (int k=0; k<hdr->NS; k++) {
-		if (hdr->CHANNEL[k].LeadIdCode==0)
-			hdr->CHANNEL[k].LeadIdCode = Label_to_LeadIdCode(hdr->CHANNEL[k].Label);
-	}	
-
-#ifdef woF 
-	cSCP_Formatter* SCP_Formatter = NULL;
-	SCP_Formatter = new cSCP_Formatter();
-	SCP_Formatter->ResetInfo();
-	errCode = SCP_Formatter->LoadXMLInfo(hdr);
-	if (errCode != 0) {
-		fprintf(stderr,"ERROR: LoadXMLINFO #%i\n",errCode);
-		delete SCP_Formatter;
-		return (hdr);
 	}
-#endif
+
+	/* predefined values */
+	hdr->aECG->Section1.Tag14.INST_NUMBER 	= 0;		// tag 14, byte 1-2 
+	hdr->aECG->Section1.Tag14.DEPT_NUMBER 	= 0;		// tag 14, byte 3-4 
+	hdr->aECG->Section1.Tag14.DEVICE_ID 	= 0;		// tag 14, byte 5-6 
+	hdr->aECG->Section1.Tag14.DEVICE_TYPE 	= 0;		// tag 14, byte 7: 0: Cart, 1: System (or Host) 
+	hdr->aECG->Section1.Tag14.MANUF_CODE 	= 255;		// tag 14, byte 8 (MANUF_CODE has to be 255)
+	hdr->aECG->Section1.Tag14.MOD_DESC  	= "Cart1";	// tag 14, byte 9 (MOD_DESC has to be "Cart1")
+	hdr->aECG->Section1.Tag14.VERSION	= VERSION;	// tag 14, byte 15 (VERSION * 10)
+	hdr->aECG->Section1.Tag14.PROT_COMP_LEVEL = 0xA0;	// tag 14, byte 16 (PROT_COMP_LEVEL has to be 0xA0 => level II)
+	hdr->aECG->Section1.Tag14.LANG_SUPP_CODE  = 0x00;	// tag 14, byte 17 (LANG_SUPP_CODE has to be 0x00 => Ascii only, latin and 1-byte code)
+	hdr->aECG->Section1.Tag14.ECG_CAP_DEV 	= 0xD0;		// tag 14, byte 18 (ECG_CAP_DEV has to be 0xD0 => Acquire, (No Analysis), Print and Store)
+	hdr->aECG->Section1.Tag14.MAINS_FREQ  	= 0;		// tag 14, byte 19 (MAINS_FREQ has to be 0: unspecified, 1: 50 Hz, 2: 60Hz)
+	hdr->aECG->Section1.Tag14.ANAL_PROG_REV_NUM 	= "";
+	hdr->aECG->Section1.Tag14.SERIAL_NUMBER_ACQ_DEV = "";
+	hdr->aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID 	= "";
+	hdr->aECG->Section1.Tag14.ACQ_DEV_SCP_SW	= "OpenECG XML-SCP 1.00"; // tag 14, byte 38 (SCP_IMPL_SW has to be "OpenECG XML-SCP 1.00")
+	hdr->aECG->Section1.Tag14.ACQ_DEV_MANUF 	= "Manufacturer";	// tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer")
+
+	/*  */
+	hdr->aECG->FLAG.HUFFMAN = 0;
+	hdr->aECG->FLAG.REF_BEAT= 0;
+	hdr->aECG->FLAG.DIFF 	= 0;
+	hdr->aECG->FLAG.BIMODAL = 0;
+
 
 	ptr = (uint8_t*)hdr->AS.Header1;
 
 	int NSections = 12; 
 	// initialize section 0
-	sectionStart = 6+16+NSections*10;
+	sectionStart  = 6+16+NSections*10;
 	ptr = (uint8_t*)realloc(ptr,sectionStart); 
 	memset(ptr,0,sectionStart);
 	
@@ -143,6 +159,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			
 			// Tag 2 (max len = 64) Patient ID 
 			*(ptr+sectionStart+curSectLen) = 2;	// tag
+			if (!strlen(hdr->Patient.Id))	hdr->Patient.Id = "UNKNOWN"; 
 			len = strlen(hdr->Patient.Id) + 1;
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
 			strncpy((char*)ptr+sectionStart+curSectLen+3,hdr->Patient.Id,len);	// field
@@ -189,82 +206,74 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			curSectLen += 4; 
 
 			// Tag 11 (len = 2)
-			*(ptr+sectionStart+curSectLen) = 11;	// tag
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(2);	// length
-			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((uint16_t)hdr->aECG->diastolicBloodPressure);	// value
-			curSectLen += 5; 
-
+			if (hdr->aECG->diastolicBloodPressure>0.0) {
+				*(ptr+sectionStart+curSectLen) = 11;	// tag
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(2);	// length
+				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((uint16_t)hdr->aECG->diastolicBloodPressure);	// value
+				curSectLen += 5;
+			};
 			// Tag 12 (len = 2)
-			*(ptr+sectionStart+curSectLen) = 12;	// tag
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = 2;	// length
-			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = (uint16_t)hdr->aECG->systolicBloodPressure;	// value
-			curSectLen += 5; 
+			if (hdr->aECG->systolicBloodPressure>0.0) {
+				*(ptr+sectionStart+curSectLen) = 12;	// tag
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(2);	// length
+				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((uint16_t)hdr->aECG->systolicBloodPressure);	// value
+				curSectLen += 5;
+			};	 
 
 			// Tag 14 (max len = 2 + 2 + 2 + 1 + 1 + 6 + 1 + 1 + 1 + 1 + 1 + 16 + 1 + 25 + 25 + 25 + 25 + 25)
 			// Total = 161 (max value)
 			*(ptr+sectionStart+curSectLen) = 14;	// tag
-			len = 42; // minimum length
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = len;	// length
-			memset(ptr+sectionStart+curSectLen+3,0,len);  // dummy value 
-			*(ptr+sectionStart+curSectLen+3+14) = VERSION;	// tag 14, byte 15
+			//len = 41; 	// minimum length
+			//*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
+			memset(ptr+sectionStart+curSectLen+3,0,41);  // dummy value 
 			
-			curSectLen += len+3; 
+			curSectLen += 3; 
+			*(uint16_t*)(ptr+sectionStart+curSectLen)   = hdr->aECG->Section1.Tag14.INST_NUMBER;
+			*(uint16_t*)(ptr+sectionStart+curSectLen+2) = hdr->aECG->Section1.Tag14.DEPT_NUMBER;
+			*(uint16_t*)(ptr+sectionStart+curSectLen+4) = hdr->aECG->Section1.Tag14.DEVICE_ID;
+			*(ptr+sectionStart+curSectLen+ 6) = hdr->aECG->Section1.Tag14.DEVICE_TYPE;
+			*(ptr+sectionStart+curSectLen+ 7) = hdr->aECG->Section1.Tag14.MANUF_CODE;	// tag 14, byte 7 (MANUF_CODE has to be 255)
+			strncpy((char*)(ptr+sectionStart+curSectLen+8), hdr->aECG->Section1.Tag14.MOD_DESC, 6);	// tag 14, byte 7 (MOD_DESC has to be "Cart1")
+			*(ptr+sectionStart+curSectLen+14) = VERSION;		// tag 14, byte 14 (VERSION has to be 20)
+			*(ptr+sectionStart+curSectLen+14) = hdr->aECG->Section1.Tag14.VERSION;
+			*(ptr+sectionStart+curSectLen+15) = hdr->aECG->Section1.Tag14.PROT_COMP_LEVEL; 		// tag 14, byte 15 (PROT_COMP_LEVEL has to be 0xA0 => level II)
+			*(ptr+sectionStart+curSectLen+16) = hdr->aECG->Section1.Tag14.LANG_SUPP_CODE;		// tag 14, byte 16 (LANG_SUPP_CODE has to be 0x00 => Ascii only, latin and 1-byte code)
+			*(ptr+sectionStart+curSectLen+17) = hdr->aECG->Section1.Tag14.ECG_CAP_DEV;		// tag 14, byte 17 (ECG_CAP_DEV has to be 0xD0 => Acquire, (No Analysis), Print and Store)
+			*(ptr+sectionStart+curSectLen+18) = hdr->aECG->Section1.Tag14.MAINS_FREQ;		// tag 14, byte 18 (MAINS_FREQ has to be 0: unspecified, 1: 50 Hz, 2: 60Hz)
+			*(ptr+sectionStart+curSectLen+35) = strlen(hdr->aECG->Section1.Tag14.ANAL_PROG_REV_NUM)+1;		// tag 14, byte 34 => length of ANAL_PROG_REV_NUM + 1 = 1
+			uint16_t len1 = 36;
 
-#ifdef woF 
+			char* tmp; 
+			tmp = hdr->aECG->Section1.Tag14.ANAL_PROG_REV_NUM;	
+			len = min(25, strlen(tmp) + 1);
+			strncpy((char*)(ptr+sectionStart+curSectLen+len1), tmp, len);
+			len1 += len;
 
-	tg.id = 14;
-	tg.len = 0;				// Temporary
-	memcpy(bBufTmp, (int8_t*) &tg, 3);
-	lenTmp = 0;
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->wInstNum), 2);
-	lenTmp += 2;
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->wDeptNum), 2);
-	lenTmp += 2;
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->wDevID), 2);
-	lenTmp += 2;
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->bDevType), 1);
-	lenTmp += 1;
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->bManCode), 1);
-	lenTmp += 1;
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->szModDesc), 6);
-	lenTmp += 6;
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->bSCPECGProtRevNum), 1);
-	lenTmp += 1;
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->bSCPECGProtCompLev), 1);
-	lenTmp += 1;
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->bLangSuppCode), 1);
-	lenTmp += 1;
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->bCapECGDev), 1);
-	lenTmp += 1;
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->bMainsFreq), 1);
-	lenTmp += 1;
-	// Reserved area (16 bytes)
-	memset(&bBufTmp[3 + lenTmp], '\0', 16);
-	lenTmp += 16;
-	bUnit = (uint8_t) (strlen(S1I->szAnalProgRevNum) + 1);
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&bUnit), 1);
-	lenTmp += 1;
-	// (Max len = 25)
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->szAnalProgRevNum), ((0x00FF) & bUnit));
-	lenTmp += ((0x00FF) & bUnit);
-	// (Max len = 25)
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->szSerNumAcqDev), strlen(S1I->szSerNumAcqDev) + 1);
-	lenTmp += (strlen(S1I->szSerNumAcqDev) + 1);
-	// (Max len = 25)
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->szAcqDevSystSW), strlen(S1I->szAcqDevSystSW) + 1);
-	lenTmp += (strlen(S1I->szAcqDevSystSW) + 1);
-	// (Max len = 25)
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->szSCPImplSW), strlen(S1I->szSCPImplSW) + 1);
-	lenTmp += (strlen(S1I->szSCPImplSW) + 1);
-	// (Max len = 25)
-	memcpy(&bBufTmp[3 + lenTmp], (int8_t*)(&S1I->szAcqDevManuf), strlen(S1I->szAcqDevManuf) + 1);
-	lenTmp += (strlen(S1I->szAcqDevManuf) + 1);
+			tmp = hdr->aECG->Section1.Tag14.SERIAL_NUMBER_ACQ_DEV;	
+			len = min(25, strlen(tmp) + 1);
+			strncpy((char*)(ptr+sectionStart+curSectLen+len1), tmp, len);
+			len1 += len;
 
-	memcpy(&bBufTmp[1], (int8_t*)(&lenTmp), 2);
+			tmp = hdr->aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID;	
+			len = min(25, strlen(tmp) + 1);
+			strncpy((char*)(ptr+sectionStart+curSectLen+len1), tmp, len);
+			len1 += len;
 
-	memcpy(&Sect1[len1], (int8_t*)(&bBufTmp[0]), lenTmp + 3);
-	len1 += (lenTmp + 3);
+			tmp = hdr->aECG->Section1.Tag14.ACQ_DEV_SCP_SW;	
+			len = min(25, strlen(tmp) + 1);
+			strncpy((char*)(ptr+sectionStart+curSectLen+len1), tmp, len);
+			len1 += len;
 
+			tmp = hdr->aECG->Section1.Tag14.ACQ_DEV_MANUF;	
+			len = min(25, strlen(tmp) + 1);
+			strncpy((char*)(ptr+sectionStart+curSectLen+len1), tmp, len);
+			len1 += len;
+
+			*(uint16_t*)(ptr+sectionStart+curSectLen+1-3) = l_endian_u16(len1);	// length
+			curSectLen += len1; 
+
+#ifdef woF
+ 
 // Tag 20 (max len = 64)
 	tg.id = 20;
 	tg.len = strlen(S1I->szRefPhys) + 1;
@@ -513,7 +522,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	
 	// compute crc and len and write to preamble 
 	*(uint32_t*)(ptr+2) = l_endian_u32(hdr->HeadLen); 
-	crc = CRCEvaluate(ptr+2,sectionStart-2); 
+	crc = CRCEvaluate(ptr+2,hdr->HeadLen-2); 
 	*(int16_t*)ptr      = l_endian_u16(crc);
 	
 

@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.35 2006-05-20 21:40:04 schloegl Exp $
+% $Id: biosig.h,v 1.36 2006-05-23 11:50:14 schloegl Exp $
 % Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -188,7 +188,37 @@ typedef struct {
 	float		QRS_wave[2]; 	// start and end 
 	float		T_wave[2]; 	// start and end 
 	float		P_QRS_T_axes[3];
+
+	/***** SCP only fields *****/
+	struct {	
+		uint8_t	HUFFMAN;
+		uint8_t	REF_BEAT;
+		uint8_t	DIFF;
+		uint8_t	BIMODAL;
+	} FLAG;
+        struct {
+	        struct {
+			uint16_t INST_NUMBER;		// tag 14, byte 1-2 
+			uint16_t DEPT_NUMBER;		// tag 14, byte 3-4 
+			uint16_t DEVICE_ID;		// tag 14, byte 5-6 
+			uint8_t  DEVICE_TYPE;		// tag 14, byte 7: 0: Cart, 1: System (or Host) 
+			uint8_t MANUF_CODE;	// tag 14, byte 8 (MANUF_CODE has to be 255)
+			char*   MOD_DESC;		// tag 14, byte 9 (MOD_DESC has to be "Cart1")
+			uint8_t VERSION;		// tag 14, byte 15 (VERSION has to be 20)
+			uint8_t PROT_COMP_LEVEL;	// tag 14, byte 16 (PROT_COMP_LEVEL has to be 0xA0 => level II)
+			uint8_t LANG_SUPP_CODE;	// tag 14, byte 17 (LANG_SUPP_CODE has to be 0x00 => Ascii only, latin and 1-byte code)
+			uint8_t ECG_CAP_DEV;	// tag 14, byte 18 (ECG_CAP_DEV has to be 0xD0 => Acquire, (No Analysis), Print and Store)
+			uint8_t MAINS_FREQ;		// tag 14, byte 19 (MAINS_FREQ has to be 0: unspecified, 1: 50 Hz, 2: 60Hz)
+			//char[35-19] reserved;			
+			char* 	ANAL_PROG_REV_NUM;
+			char* 	SERIAL_NUMBER_ACQ_DEV;
+			char* 	ACQ_DEV_SYS_SW_ID;
+			char* 	ACQ_DEV_SCP_SW; 	// tag 14, byte 38 (SCP_IMPL_SW has to be "OpenECG XML-SCP 1.00")
+			char* 	ACQ_DEV_MANUF;		// tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer")
+        	} Tag14;
+        } Section1;
 } aECG_TYPE;
+
 
 
 /*
@@ -281,6 +311,7 @@ typedef struct {
 	CHANNEL_TYPE *CHANNEL;  
 	aECG_TYPE *aECG;
 } HDRTYPE;
+
 
 
 /****************************************************************************/

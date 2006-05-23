@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.50 2006-05-20 21:40:04 schloegl Exp $
+    $Id: biosig.c,v 1.51 2006-05-23 11:50:14 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -200,7 +200,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
       	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.35";
 
 	hdr->Patient.Name 	= "X";
-	hdr->Patient.Id 	= "X";
+	hdr->Patient.Id 	= "\0";
 	hdr->Patient.Birthday 	= (gdf_time)0;        // Unknown;
       	hdr->Patient.Medication = 0;	// 0:Unknown, 1: NO, 2: YES
       	hdr->Patient.DrugAbuse 	= 0;	// 0:Unknown, 1: NO, 2: YES
