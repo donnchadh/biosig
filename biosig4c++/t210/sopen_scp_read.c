@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.6 2006-05-23 11:50:14 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.7 2006-05-24 07:25:37 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -31,6 +31,7 @@
 #include <math.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <ctype.h>
 
 #include "../biosig.h"
@@ -77,9 +78,9 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 	uint16_t 	crc; 
 	uint32_t	i,k1,k2,k3; 
 	size_t		curSectPos;
-	size_t 		sectionStart; 
+	size_t 	sectionStart; 
 	time_t 		T0;
-	tm 		t0;
+	tm 		t0,t1;
 	int 		NSections = 12;
 	uint8_t		tag, VERSION;
 	float 		HighPass, LowPass, Notch; 	// filter settings
@@ -91,7 +92,18 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 		- currently Huffman and Bimodal compression is not supported. 
 	*/	
 
-	if (hdr->aECG == NULL) hdr->aECG = (aECG_TYPE*)malloc(sizeof(aECG_TYPE));
+	if (hdr->aECG == NULL) {
+		fprintf(stderr,"Warning: No aECG info defined\n");
+		hdr->aECG = (aECG_TYPE*)malloc(sizeof(aECG_TYPE));
+		hdr->aECG->diastolicBloodPressure=0.0;				 
+		hdr->aECG->systolicBloodPressure=0.0;
+		hdr->aECG->MedicationDrugs="\0";
+		hdr->aECG->ReferringPhysician="\0";
+		hdr->aECG->LatestConfirmingPhysician="\0";
+		hdr->aECG->Diagnosis="\0";
+		hdr->aECG->EmergencyLevel=0;
+		hdr->ID.Technician = "nobody";
+	}
 	hdr->aECG->FLAG.HUFFMAN  = 0; 
 	hdr->aECG->FLAG.DIFF     = 0; 
 	hdr->aECG->FLAG.REF_BEAT = 0; 
@@ -133,6 +145,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 		/**** SECTION 1 ****/
 		else if (curSect==1)  
 		{
+			hdr->Patient.Birthday = 0; 
 			while ((*(PtrCurSect+curSectPos)!=255) | (*(uint16_t*)(PtrCurSect+curSectPos+1)!=0)) {
 				tag = *(PtrCurSect+curSectPos);
 				len = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+1));
@@ -152,10 +165,13 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				else if (tag==4) {
 				}
 				else if (tag==5) {
-					t0.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-					t0.tm_mon  = *(PtrCurSect+curSectPos+2);
-					t0.tm_mday = *(PtrCurSect+curSectPos+3);
-					hdr->Patient.Birthday = tm_time2gdf_time(&t0);
+					t1.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+					t1.tm_mon  = *(PtrCurSect+curSectPos+2)-1;
+					t1.tm_mday = *(PtrCurSect+curSectPos+3);
+					t1.tm_hour = 12; 
+					t1.tm_min  = 0; 
+					t1.tm_sec  = 0; 
+					hdr->Patient.Birthday = tm_time2gdf_time(&t1);
 				}
 				else if (tag==6) {
 					hdr->Patient.Height = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
@@ -171,10 +187,13 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				else if (tag==10) {
 				}
 				else if (tag==11) {
+					hdr->aECG->diastolicBloodPressure = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 				}
 				else if (tag==12) {
+					hdr->aECG->systolicBloodPressure  = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 				}
 				else if (tag==13) {
+					hdr->aECG->Diagnosis = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==14) {
 					hdr->VERSION = *(PtrCurSect+curSectPos+14)/10.0;	// tag 14, byte 15
@@ -199,7 +218,6 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 					hdr->aECG->Section1.Tag14.ACQ_DEV_SCP_SW = (char*)(PtrCurSect+curSectPos+36+tmp+1); 	// tag 14, byte 38 (SCP_IMPL_SW has to be "OpenECG XML-SCP 1.00")
 					tmp += strlen((char*)(PtrCurSect+curSectPos+36+tmp+1));
 					hdr->aECG->Section1.Tag14.ACQ_DEV_MANUF  = (char*)(PtrCurSect+curSectPos+36+tmp+1);	// tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer")
-
 				}
 				else if (tag==15) {
 				}
@@ -212,32 +230,35 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				else if (tag==19) {
 				}
 				else if (tag==20) {
+					hdr->aECG->ReferringPhysician = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==21) {
+					hdr->aECG->MedicationDrugs = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==22) {
 				}
 				else if (tag==23) {
 				}
 				else if (tag==24) {
+					hdr->aECG->EmergencyLevel = *(PtrCurSect+curSectPos);
 				}
 				else if (tag==25) {
-					t0.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-					t0.tm_mon  = *(PtrCurSect+curSectPos+2);
+					t0.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos)-1900);
+					t0.tm_mon  = *(PtrCurSect+curSectPos+2)-1;
 					t0.tm_mday = *(PtrCurSect+curSectPos+3);
-					hdr->T0    = tm_time2gdf_time(&t0);
+					hdr->T0    = tm_time2gdf_time((&t0));
 				}
 				else if (tag==26) {
 					t0.tm_hour = *(PtrCurSect+curSectPos);
 					t0.tm_min  = *(PtrCurSect+curSectPos+1);
 					t0.tm_sec  = *(PtrCurSect+curSectPos+2);
-					hdr->T0    = tm_time2gdf_time(&t0);
+					hdr->T0    = tm_time2gdf_time((&t0));
 				}
 				else if (tag==27) {
 					HighPass   = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))/100.0;
 				}
 				else if (tag==28) {
-					LowPass = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+					LowPass    = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 				}
 				else if (tag==29) {
 					uint8_t bitmap = *(PtrCurSect+curSectPos);
@@ -247,7 +268,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 						Notch = -1;	// notch off
 					else if (bitmap & 0x01)
 						Notch = 60.0; 	// notch 60Hz
-					else if (bitmap & 0x01)
+					else if (bitmap & 0x02)
 						Notch = 50.0; 	// notch 50Hz
 				}
 				else if (tag==30) {
@@ -256,7 +277,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				}
 				else if (tag==32) {
 				}
-				curSectPos += len; 
+				curSectPos += len;
 			}
 		}
 
@@ -315,7 +336,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				hdr->CHANNEL[i].PhysDimCode = 4276; // physical unit "uV"	
 				hdr->CHANNEL[i].PhysDim     = "nV"; // physical unit "uV"	
 				hdr->CHANNEL[i].Cal 	    = Cal;
-				hdr->CHANNEL[i].Off         = 0;    // internal data conversion factor (AVM=1uV)
+				hdr->CHANNEL[i].Off         = 0;
 				hdr->CHANNEL[i].OnOff       = 1;    // 1: ON 0:OFF
 				hdr->CHANNEL[i].Transducer  = ""; 
 				hdr->CHANNEL[i].GDFTYP      = GDFTYP;  
@@ -434,6 +455,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
         }
 
 	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
+		hdr->AS.rawdata = (uint8_t*)decode.Reconstructed;
+	}	 
+
+#ifdef woF
 		if (1) {
                         hdr->VERSION= 0.1*textual.des.analyzing.protocol_revision_number;     // store version as requested (float)
                         hdr->NS = decode.flag_lead.number;
@@ -444,7 +469,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 			if (decode.flag_BdR0.STM==0) hdr->SampleRate= hdr->SPR/10;  // should be 500
 			else  hdr->SampleRate=1000000.0/decode.flag_BdR0.STM;
                         // acquisition time is the sum of the date and the time, converted to gdf_time
-                        hdr->T0=t_time2gdf_time(textual.dev.date_acquisition2+textual.dev.time_acquisition2);
+//                        hdr->T0=t_time2gdf_time(textual.dev.date_acquisition2+textual.dev.time_acquisition2);
 //fprintf(stdout,"\n",textual.dev.date_acquisition2+textual.dev.time_acquisition2);
                         char buff[300];
                         strcpy(buff, textual.ana.first_name);
@@ -452,15 +477,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
                         strcat(buff, textual.ana.last_name);
                         hdr->Patient.Name = buff;              // name is 'first name, last name'
                         hdr->Patient.Id = textual.ana.ID;
-                        hdr->Patient.Birthday = t_time2gdf_time(textual.ana.date_birth2);
+//                        hdr->Patient.Birthday = t_time2gdf_time(textual.ana.date_birth2);
 
                         hdr->CHANNEL = (CHANNEL_TYPE *) calloc(hdr->NS, sizeof(CHANNEL_TYPE));
                         memset(hdr->CHANNEL, 0, hdr->NS * sizeof(CHANNEL_TYPE));  // blank area
 			hdr->AS.rawdata = (uint8_t*)decode.Reconstructed; 
+
 			// hdr->AS.bpb, and hdr->AS.spb will be defined at the and of SOPEN
                         hdr->data.size[0] = hdr->NS;
                         hdr->data.size[1] = hdr->SPR;
                         hdr->data.block = (biosig_data_type *) calloc(12 * hdr->SPR, sizeof(biosig_data_type));
+
 
 			for (int i=0; i<hdr->NS; i++) {
 				hdr->CHANNEL[i].SPR 	    = hdr->SPR;
@@ -490,6 +517,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 			for (int i=0;i<hdr->SPR;i++)
 				hdr->data.block[i+hdr->SPR*j]=decode.Reconstructed[i+j*decode.flag_Res.number_samples]*hdr->CHANNEL[j].Cal;
 */
+
 		}
 		else if ((decode.flag_lead.number==8) && decode.flag_lead.all_simultaneously) {
                         hdr->VERSION= 0.1*textual.des.analyzing.protocol_revision_number;     // store version as requested (float)
@@ -562,6 +590,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
                         exit(2);
 		}
         }
+#endif
 	return(hdr);
 };
 

@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.11 2006-05-23 11:50:14 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.12 2006-05-24 07:25:37 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -65,7 +65,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	tm* 		T0_tm;
 	
 
-	if ((hdr->VERSION!=1.3) && (hdr->VERSION!=2.0))  
+	if ((fabs(hdr->VERSION - 1.3)<0.01) && (fabs(hdr->VERSION-2.0)<0.01))  
 		fprintf(stderr,"Warning SOPEN (SCP-WRITE): Version %f not supported\n",hdr->VERSION);
 		
 	uint8_t VERSION = 20; // (uint8_t)round(hdr->VERSION*10); // implemented version number 
@@ -79,10 +79,12 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		hdr->aECG = (aECG_TYPE*)malloc(sizeof(aECG_TYPE));
 		hdr->aECG->diastolicBloodPressure=0.0;				 
 		hdr->aECG->systolicBloodPressure=0.0;
-		hdr->aECG->MedicationDrugs="";
-		hdr->aECG->ReferringPhysician="";
-		hdr->aECG->Diagnosis="";
-		hdr->ID.Technician = "nobody";		 
+		hdr->aECG->MedicationDrugs="\0";
+		hdr->aECG->ReferringPhysician="\0";
+		hdr->aECG->LatestConfirmingPhysician="\0";
+		hdr->aECG->Diagnosis="\0";
+		hdr->aECG->EmergencyLevel=0;
+		hdr->ID.Technician = "nobody";
 	}
 
 	/* predefined values */
@@ -180,8 +182,8 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			T0_tm = gmtime(&T0);
 			*(ptr+sectionStart+curSectLen) = 5;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
-			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(T0_tm->tm_year+1900);// year
-			*(ptr+sectionStart+curSectLen+5) = (uint8_t)(T0_tm->tm_mon + 1);	// month
+			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(T0_tm->tm_year);// year
+			*(ptr+sectionStart+curSectLen+5) = (uint8_t)T0_tm->tm_mon + 1;	// month
 			*(ptr+sectionStart+curSectLen+6) = (uint8_t)T0_tm->tm_mday; 	// day
 			curSectLen += 7; 
 
@@ -218,6 +220,17 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(2);	// length
 				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((uint16_t)hdr->aECG->systolicBloodPressure);	// value
 				curSectLen += 5;
+			};	 
+
+			// Tag 13 (max len = 80)
+			hdr->aECG->Diagnosis="";
+			len = strlen(hdr->aECG->Diagnosis); 
+			if (len>0) {
+				*(ptr+sectionStart+curSectLen) = 13;	// tag
+				len = min(64,len+1);
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
+				strncpy((char*)(ptr+sectionStart+curSectLen+3),hdr->aECG->Diagnosis,len);
+				curSectLen += 3+len;
 			};	 
 
 			// Tag 14 (max len = 2 + 2 + 2 + 1 + 1 + 6 + 1 + 1 + 1 + 1 + 1 + 16 + 1 + 25 + 25 + 25 + 25 + 25)
@@ -272,32 +285,32 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1-3) = l_endian_u16(len1);	// length
 			curSectLen += len1; 
 
-#ifdef woF
- 
-// Tag 20 (max len = 64)
-	tg.id = 20;
-	tg.len = strlen(S1I->szRefPhys) + 1;
-	memcpy(&Sect1[len1], (int8_t*) &tg, 3);
-	len1 += 3;
-	memcpy(&Sect1[len1], S1I->szRefPhys, tg.len);
-	len1 += tg.len;
+			// Tag 20 (max len = 64 ) 
+			len = strlen(hdr->aECG->ReferringPhysician);
+			if (len>0) {
+				*(ptr+sectionStart+curSectLen) = 20;	// tag
+				len = min(64,len+1);
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
+				strncpy((char*)(ptr+sectionStart+curSectLen+3),hdr->aECG->ReferringPhysician,len);
+				curSectLen += 3+len;
+			};	 
 
-// Tag 21 (max len = 64)
-	tg.id = 21;
-	tg.len = strlen(S1I->szLCPhys) + 1;
-	memcpy(&Sect1[len1], (int8_t*) &tg, 3);
-	len1 += 3;
-	memcpy(&Sect1[len1], S1I->szLCPhys, tg.len);
-	len1 += tg.len;
+			// Tag 21 (max len = 64 )
+			len = strlen(hdr->aECG->MedicationDrugs); 
+			if (len>0) {
+				*(ptr+sectionStart+curSectLen) = 21;	// tag
+				len = min(64,len+1);
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
+				strncpy((char*)(ptr+sectionStart+curSectLen+3),hdr->aECG->MedicationDrugs,len);
+				curSectLen += 3+len;
+			};	 
 
-// Tag 24 (len = 1)
-	tg.id = 24;
-	tg.len = 1;
-	memcpy(&Sect1[len1], (int8_t*) &tg, 3);
-	len1 += 3;
-	memcpy(&Sect1[len1], (int8_t*)(&S1I->bStatCode), 1);
-	len1 += 1;
-#endif
+			// Tag 24 ( len = 1 ) 
+			*(ptr+sectionStart+curSectLen) = 24;	// tag
+			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(1);	// length
+			*(ptr+sectionStart+curSectLen+3) = hdr->aECG->EmergencyLevel;
+			curSectLen += 4;
+
 			// Tag 25 (len = 4)
 			T0 = gdf_time2t_time(hdr->T0);
 			T0_tm = localtime(&T0);

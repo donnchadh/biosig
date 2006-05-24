@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.36 2006-05-23 11:50:14 schloegl Exp $
+% $Id: biosig.h,v 1.37 2006-05-24 07:25:37 schloegl Exp $
 % Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -176,12 +176,13 @@ typedef struct {
 typedef struct {
 	char*		test;		// test field for annotated ECG
 	
-	// Eugenio suggested to include these fields 
 	float		diastolicBloodPressure;				
 	float		systolicBloodPressure;	
 	char*		MedicationDrugs;
 	char*		ReferringPhysician;
+	char*		LatestConfirmingPhysician;
 	char*		Diagnosis;
+	uint8_t		EmergencyLevel; // 0: routine 1-10: increased emergency level
 
 	float		HeartRate;	
 	float		P_wave[2]; 	// start and end 
