@@ -1,11 +1,12 @@
 function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
-% SCPOPEN reads SCP-ECG files 
+% SCPOPEN reads and writes SCP-ECG files 
 %
-% HDR = scpopen(Filename);
-%
-% HDR contains the Headerinformation and internal data
-%
-% see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
+% SCPOPEN is an auxillary function to SOPEN for 
+% opening of DICOM files for reading ECG waveform data
+% 
+% Use SCPOPEN instead of OPENDICOM  
+% 
+% See also: fopen, SOPEN, 
 
 
 % This program is free software; you can redistribute it and/or
@@ -22,12 +23,20 @@ function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.24 $
-%	$Id: scpopen.m,v 1.24 2006-05-19 17:43:31 schloegl Exp $
-%	(C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.25 $
+%	$Id: scpopen.m,v 1.25 2006-05-24 15:57:23 schloegl Exp $
+%	(C) 2004,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if nargin<2, CHAN=0; end;
+
+if isstruct(arg1) 
+        HDR=arg1; 
+        FILENAME=HDR.FileName;
+else
+        HDR.FileName=arg1;
+        fprintf(2,'Warning OPENDICOM: the use of OPENDICOM is discouraged (OPENDICOM might disappear); please use SOPEN instead.\n');
+end;
 
 VER = version;
 
@@ -733,7 +742,11 @@ else    % writing SCP file
 
 	NSections = 12;
         SectIdHdr = zeros(1,16); 
-	SectIdHdr(9:10) = 13; % Section and Protocol version number
+        VERSION = round(HDR.Version*10); 
+        if ~any(VERSION==[10,13,20])
+                fprintf(HDR.FILE.stderr,'Warning SCPOPEN(WRITE): unknown Version number %4.2f\n',HDR.Version);
+        end;
+	SectIdHdr(9:10) = VERSION; % Section and Protocol version number
 
         POS = 6; B = zeros(1,POS);
         for K = 0:NSections-1;
@@ -778,7 +791,7 @@ else    % writing SCP file
                         	b = [b,11, s2b(2), s2b(HDR.Patient.BloodPressure.Diastolic)];
                         	b = [b,12, s2b(2), s2b(HDR.Patient.BloodPressure.Systolic)];
                         end;	
-                        b = [b, 14, s2b(42), zeros(1,42)];      %% Dummy Tag 14; 
+                        b = [b,14, s2b(42), zeros(1,14), VERSION, zeros(1,42-15)];      %% Dummy Tag 14; 
                         b = [b,25, s2b(4), s2b(HDR.T0(1)),HDR.T0(2:3)];
                         b = [b,26, s2b(3), HDR.T0(4:6)];
                         if ~any(isnan(HDR.Filter.HighPass))
@@ -787,7 +800,7 @@ else    % writing SCP file
                         if ~any(isnan(HDR.Filter.LowPass))
 	                	b = [b,28, s2b(2), s2b(round(HDR.Filter.LowPass(1)))];
 			end;
-                        b = [b,255, 0];	% terminator
+                        b = [b,255, 0,0];	% terminator
 
                 elseif K==3,
                         % SECTION 3
@@ -820,13 +833,14 @@ else    % writing SCP file
                         b(5:8) = s4b(length(b));
                         %b(1:2)= s4b(crc);
                         b(1:2) = s2b(crcevaluate(b(3:end)));
+                        % section 0: startpos in pointer field 
+                        B(22+K*10+(7:10)) = s4b(POS+1); % length
                 end;
                 B = [B,b]; 
 
                 % section 0 pointer field 
                 B(22+K*10+(1:2))  = s2b(K);
                 B(22+K*10+(3:6))  = s4b(length(b)); % length
-                B(22+K*10+(7:10)) = s4b(POS+1); % length
                 POS = POS + length(b);
         end
         B(3:6) = s4b(POS);
