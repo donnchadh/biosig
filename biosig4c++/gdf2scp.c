@@ -1,6 +1,6 @@
 /*
 
-    $Id: gdf2scp.c,v 1.4 2006-05-18 07:57:22 schloegl Exp $
+    $Id: gdf2scp.c,v 1.5 2006-05-24 15:17:41 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -71,7 +71,7 @@ int main (int argc, char **argv)
     	int		status;
     	char 		help[] = "\n Usage of BIOSIG:\n\n\tbiosig -h\t\thelp - this text\n\tbiosig filename\t\tread file if available; if not available generate file\n\n\n";  
 	time_t  	T0; 
-	struct tm 	t0; 
+	tm* 		t0; 
 	
 	if (argc < 2)  	{
 		fprintf(stderr,"Warning: Invalid number of arguments\n");
@@ -92,7 +92,8 @@ int main (int argc, char **argv)
 		fprintf(stdout,"NS:\t%i\nSPR:\t%i\nNRec:\t%Li\nDuration[s]:\t%u/%u\nFs:\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
 		
 		T0 = gdf_time2t_time(hdr->T0);
-		fprintf(stdout,"Date/Time:\t%s\n",asctime(localtime(&T0))); 
+		fprintf(stdout,"Date/Time(local):\t%s\n",asctime(localtime(&T0))); 
+		fprintf(stdout,"Date/Time(GMT):\t%s\n",asctime(gmtime(&T0))); 
 		//T0 = gdf_time2t_time(hdr->Patient.Birthday);
 		//fprintf(stdout,"Birthday:\t%s\n",asctime(localtime(&T0))); 
 		
@@ -131,6 +132,10 @@ fprintf(stdout,"GDF CLOSED: SUCCESSFULLY\n");
 	/******* Modify header for destination file ***********/
 		hdr->TYPE = SCP_ECG; 
 		hdr->Patient.Name = "X";
+
+		T0 = gdf_time2t_time(hdr->Patient.Birthday);
+		t0 = gmtime(&T0);
+
 
 	/******* WRITE destination file ***********/
 	     	sopen(argv[2], "w", hdr);
