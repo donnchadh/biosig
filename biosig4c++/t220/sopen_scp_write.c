@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.12 2006-05-24 07:25:37 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.13 2006-05-24 15:54:35 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -75,18 +75,19 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	}	
 
 	if (hdr->aECG==NULL) {
-		fprintf(stderr,"Warning: No aECG info defined\n");
+		fprintf(stderr,"Warning SOPEN_SCP_WRITE: No aECG info defined\n");
 		hdr->aECG = (aECG_TYPE*)malloc(sizeof(aECG_TYPE));
 		hdr->aECG->diastolicBloodPressure=0.0;				 
 		hdr->aECG->systolicBloodPressure=0.0;
-		hdr->aECG->MedicationDrugs="\0";
-		hdr->aECG->ReferringPhysician="\0";
-		hdr->aECG->LatestConfirmingPhysician="\0";
-		hdr->aECG->Diagnosis="\0";
+		hdr->aECG->MedicationDrugs="/0";
+		hdr->aECG->ReferringPhysician="/0";
+		hdr->aECG->LatestConfirmingPhysician="/0";
+		hdr->aECG->Diagnosis="/0";
 		hdr->aECG->EmergencyLevel=0;
 		hdr->ID.Technician = "nobody";
 	}
 
+//fprintf(stdout,"SCP-Write: IIb %s\n",hdr->aECG->ReferringPhysician);
 	/* predefined values */
 	hdr->aECG->Section1.Tag14.INST_NUMBER 	= 0;		// tag 14, byte 1-2 
 	hdr->aECG->Section1.Tag14.DEPT_NUMBER 	= 0;		// tag 14, byte 3-4 
@@ -125,6 +126,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 
 		curSectLen = 0; // current section length
 		//ptr = (uint8_t*)realloc(ptr,sectionStart+curSectLen); 
+
 
 		if (curSect==0)  // SECTION 0 
 		{
@@ -176,36 +178,43 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			curSectLen += len+3; 
 */
 			
-
 			// Tag 5 (len = 4) 
-			T0 = gdf_time2t_time(hdr->Patient.Birthday);
-			T0_tm = gmtime(&T0);
-			*(ptr+sectionStart+curSectLen) = 5;	// tag
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
-			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(T0_tm->tm_year);// year
-			*(ptr+sectionStart+curSectLen+5) = (uint8_t)T0_tm->tm_mon + 1;	// month
-			*(ptr+sectionStart+curSectLen+6) = (uint8_t)T0_tm->tm_mday; 	// day
-			curSectLen += 7; 
+			if (hdr->Patient.Birthday > 0) {
+				T0 = gdf_time2t_time(hdr->Patient.Birthday);
+				T0_tm = gmtime(&T0);
+				*(ptr+sectionStart+curSectLen) = 5;	// tag
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
+				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(T0_tm->tm_year+1900);// year
+				*(ptr+sectionStart+curSectLen+5) = (uint8_t)T0_tm->tm_mon + 1;	// month
+				*(ptr+sectionStart+curSectLen+6) = (uint8_t)T0_tm->tm_mday; 	// day
+				curSectLen += 7;
+			} 
 
 			// Tag 6 (len = 3)   Height
-			*(ptr+sectionStart+curSectLen) = 6;	// tag
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(3);	// length
-			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(hdr->Patient.Height);	// value
-			*(ptr+sectionStart+curSectLen+5) = 1;	// cm
-			curSectLen += 6; 
+			if (hdr->Patient.Height>0.0) {
+				*(ptr+sectionStart+curSectLen) = 6;	// tag
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(3);	// length
+				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(hdr->Patient.Height);	// value
+				*(ptr+sectionStart+curSectLen+5) = 1;	// cm
+				curSectLen += 6;
+			}	 
 
 			// Tag 7 (len = 3)	Weight
-			*(ptr+sectionStart+curSectLen) = 7;	// tag
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(3);	// length
-			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(hdr->Patient.Weight);	// value
-			*(ptr+sectionStart+curSectLen+5) = 1;	// kg
-			curSectLen += 6; 
+			if (hdr->Patient.Weight>0.0) {
+				*(ptr+sectionStart+curSectLen) = 7;	// tag
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(3);	// length
+				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(hdr->Patient.Weight);	// value
+				*(ptr+sectionStart+curSectLen+5) = 1;	// kg
+				curSectLen += 6;
+			}	 
 
 			// Tag 8 (len = 1)
-			*(ptr+sectionStart+curSectLen) = 8;	// tag
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(1);	// length
-			*(ptr+sectionStart+curSectLen+3) = hdr->Patient.Sex;	// value
-			curSectLen += 4; 
+			if (hdr->Patient.Sex != 0) {
+				*(ptr+sectionStart+curSectLen) = 8;	// tag
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(1);	// length
+				*(ptr+sectionStart+curSectLen+3) = hdr->Patient.Sex;	// value
+				curSectLen += 4;
+			}	 
 
 			// Tag 11 (len = 2)
 			if (hdr->aECG->diastolicBloodPressure>0.0) {
@@ -538,12 +547,6 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	crc = CRCEvaluate(ptr+2,hdr->HeadLen-2); 
 	*(int16_t*)ptr      = l_endian_u16(crc);
 	
-
-#ifdef woF		
-    	delete SCP_Formatter;
-#endif
-
-
 	hdr->AS.Header1 = ptr; 
 	return(hdr);
 }
