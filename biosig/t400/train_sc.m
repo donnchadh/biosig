@@ -2,7 +2,21 @@ function [CC]=train_sc(D,classlabel,FUN)
 % Train statistical classifier
 % 
 %  CC = train_sc(D,classlabel)
-%       
+%  CC = train_sc(D,classlabel,TYPE)
+%
+%  The following classifier types are supported TYPE = 
+%    'MDA'    mahalanobis distance based classifier
+%    'MD2'    mahalanobis distance based classifier
+%    'MD3'    mahalanobis distance based classifier
+%    'GRB'    Gaussian radial basis function 
+%    'QDA'    quadratic discriminant analysis
+%    'LD2'    linear discriminant analysis (see LDBC2)
+%    'LD3'    linear discriminant analysis (see LDBC3)
+%    'LD4'    linear discriminant analysis (see LDBC4)
+%    'GDBC'   general distance based classifier
+%    'SVM','SVM1r'  support vector machines, one-vs-rest
+%    'SVM11'  support vector machines, one-vs-one + voting
+%              
 % CC is a statistical classifier, it contains basically the mean 
 % and the covariance of the data of each class. This information 
 % is incoded in the so-called "extended covariance matrices".  
@@ -12,7 +26,7 @@ function [CC]=train_sc(D,classlabel,FUN)
 %
 % see also: TEST_SC, COVM, LDBC2, LDBC3, LDBC4, MDBC, GDBC
 
-%	$Id: train_sc.m,v 1.3 2005-10-13 08:26:19 schloegl Exp $
+%	$Id: train_sc.m,v 1.4 2006-05-25 21:34:44 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -58,7 +72,9 @@ if isempty(strfind(lower(FUN),'svm'))
         elseif strcmpi(FUN,'LD4');
                 CC.weights = ldbc4(CC); 
         end;
-else
+elseif ~isempty(strfind(lower(FUN),'svm11'))
+        CC = train_svm11(D,classlabel);
+elseif ~isempty(strfind(lower(FUN),'svm'))
         CC = train_svm(D,classlabel);
         %CC = train_svm(D,classlabel,'SVM:LIB');
 end;
