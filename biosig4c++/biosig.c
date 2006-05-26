@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.51 2006-05-23 11:50:14 schloegl Exp $
+    $Id: biosig.c,v 1.52 2006-05-26 14:18:30 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -286,9 +286,9 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	int ret;
 #endif
 
-    	int 		k,id;
+    	int 		k;
     	uint32_t	k32u; 
-    	size_t	 	count,len,pos;
+    	size_t	 	count,len;
     	uint8_t 	buf[81];
     	char 		tmp[81];
     	char 		cmd[256];
@@ -299,9 +299,6 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	struct tm 	tm_time; 
 	time_t		tt;
 	unsigned	EventChannel = 0;
-	struct	{
-		int	number_of_sections;
-	} SCP;
 
 
 if (!strcmp(MODE,"r"))	
@@ -366,6 +363,9 @@ if (!strcmp(MODE,"r"))
     	else {
 		fclose(hdr->FILE.FID); 
 		free(Header1);
+
+
+fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(char*)(Header1+16));
 
 #ifdef __XML_XMLREADER_H__
 		LIBXML_TEST_VERSION
@@ -928,7 +928,7 @@ else { // WRITE
 	     	memcpy(Header1+184, tmp, len);
 	     	memcpy(Header1+192, "EDF+C  ", 5);
 
-		len = sprintf(tmp,"%lu",hdr->NRec);
+		len = sprintf(tmp,"%Lu",hdr->NRec);
 		if (len>8) fprintf(stderr,"Warning: NRec is (%s) to long.\n",tmp);  
 	     	memcpy(Header1+236, tmp, len);
 
@@ -1061,7 +1061,7 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 		// read data	
 		count = fread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
 		if (count<nelem)
-			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem,hdr->FILE.POS,hdr->AS.bpb); 
+			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem); 
 	}
 	else 	{  // SCP format 
 		// hdr->AS.rawdata was defined in SOPEN	
@@ -1194,7 +1194,7 @@ size_t sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDR
 		// read data	
 		count = fread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
 		if (count<nelem)
-			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem,hdr->FILE.POS,hdr->AS.bpb); 
+			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem); 
 	}
 	else 	{  // SCP format 
 		// hdr->AS.rawdata was defined in SOPEN	

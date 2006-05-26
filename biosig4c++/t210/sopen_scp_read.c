@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.7 2006-05-24 07:25:37 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.8 2006-05-26 14:18:30 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -72,18 +72,16 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 	uint8_t*	ptr; 	// pointer to memory mapping of the file layout
 	uint8_t*	PtrCurSect;	// point to current section 
 	uint8_t*	Ptr2datablock=NULL; 	// pointer to data block 
-	uint16_t*	ptr16;
 	int		curSect; 	// current section
 	uint32_t 	len; 
 	uint16_t 	crc; 
-	uint32_t	i,k1,k2,k3; 
+	uint32_t	i,k1,k2; 
 	size_t		curSectPos;
 	size_t 	sectionStart; 
-	time_t 		T0;
 	tm 		t0,t1;
 	int 		NSections = 12;
-	uint8_t		tag, VERSION;
-	float 		HighPass, LowPass, Notch; 	// filter settings
+	uint8_t		tag;
+	float 		HighPass=0, LowPass=1.0/0.0, Notch=-1; 	// filter settings
 
 
 	/* 
@@ -134,7 +132,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 		if (len != l_endian_u32(*(uint32_t*)(PtrCurSect+4)))
 			fprintf(stderr,"Warning SOPEN(SCP-READ): length field in pointer section (%i) does not match length field in sections (%i %i)\n",K,len,l_endian_u32(*(uint32_t*)(PtrCurSect+4))); 
 
-// fprintf(stdout,"section %i \n",curSect); 
+//fprintf(stdout,"section %i \n",curSect); 
 		curSectPos = 16;
 			
 		/**** SECTION 0 ****/
@@ -149,7 +147,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 			while ((*(PtrCurSect+curSectPos)!=255) | (*(uint16_t*)(PtrCurSect+curSectPos+1)!=0)) {
 				tag = *(PtrCurSect+curSectPos);
 				len = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+1));
-// fprintf(stdout," tag=%i len=%i\n",tag,len); 
+//fprintf(stdout," tag=%i len=%i\n",tag,len); 
 				curSectPos += 3; 
 				if (tag==0) {
 				}
@@ -305,7 +303,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 					
 				hdr->CHANNEL[i].SPR 	= endindex - startindex + 1;
 				hdr->SPR 		= lcm(hdr->SPR,hdr->CHANNEL[i].SPR);
-				hdr->CHANNEL[i].LeadIdCode = *(PtrCurSect+curSectPos+8);
+				hdr->CHANNEL[i].LeadIdCode =  *(PtrCurSect+curSectPos+8);
 				hdr->CHANNEL[i].Label 	= "";   //lead_identification(hdr->CHANNEL[i].LeadIdCode);
 				hdr->CHANNEL[i].LowPass = LowPass; 
 				hdr->CHANNEL[i].HighPass= HighPass; 
@@ -366,9 +364,8 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 			//	fprintf(stderr,"Warning SCOPEN(SCP-READ): bimodal compression not supported (yet).\n");
 				AS_DECODE = 1; 
 			}
-			
+if (AS_DECODE) continue;
 			for (k1 = 0; k1 < hdr->NS; k1++) {
-				size_t nBytes = *(uint16_t*)(PtrCurSect+curSectPos + 6 + k1*2);
 				for (k2 = 0; k2 < hdr->SPR; k2++) {
 					ix = (k2 + k1*hdr->SPR);
 					data[ix] = l_endian_i16(*(int16_t*)(Ptr2datablock+2*ix));
@@ -411,7 +408,9 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 		}
 	}	
 	hdr->Dur[0] = hdr->SPR;
-	hdr->Dur[1] = hdr->SampleRate;
+	if (hdr->SampleRate!=round(hdr->SampleRate))
+		fprintf(stderr,"Warning: SCP-OPEN Sampling rate (%f Hz) is not integer.\n",hdr->SampleRate);
+	hdr->Dur[1] = (uint32_t)hdr->SampleRate;
 
 
 if (!(hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL))

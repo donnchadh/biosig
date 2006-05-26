@@ -1,6 +1,6 @@
 /*
 
-    $Id: scp2gdf.c,v 1.5 2006-05-18 07:57:22 schloegl Exp $
+    $Id: scp2gdf.c,v 1.6 2006-05-26 14:18:30 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -60,18 +60,11 @@ int main (int argc, char **argv)
 
 #define NELEM (1<<15)
 	unsigned k; 	
-	uint32_t 	k1;
-    	uint16_t 	s[NELEM];
-    	uint8_t 	tmp;
-    	int32_t 	s32;
-    	FILE	*fid; 
-    	HDRTYPE *hdr, hdr2; 
+    	HDRTYPE *hdr; 
     	CHANNEL_TYPE* cp; 
-    	size_t 	count;
     	int	status;
     	char 	help[] = "\n Usage of BIOSIG:\n\n\tbiosig -h\t\thelp - this text\n\tbiosig filename\t\tread file if available; if not available generate file\n\n\n";  
 	time_t  T0; 
-	struct tm t0; 
 	
 	if (argc < 2)  	{
 		fprintf(stderr,"Warning: Invalid number of arguments\n");
