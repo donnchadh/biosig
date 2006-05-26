@@ -1,4 +1,4 @@
-function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
+function [HDR]=scpopen(arg1,CHAN,arg4,arg5,arg6)
 % SCPOPEN reads and writes SCP-ECG files 
 %
 % SCPOPEN is an auxillary function to SOPEN for 
@@ -23,8 +23,8 @@ function [HDR]=scpopen(HDR,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.25 $
-%	$Id: scpopen.m,v 1.25 2006-05-24 15:57:23 schloegl Exp $
+%	$Revision: 1.26 $
+%	$Id: scpopen.m,v 1.26 2006-05-26 07:39:11 schloegl Exp $
 %	(C) 2004,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -33,7 +33,7 @@ if nargin<2, CHAN=0; end;
 if isstruct(arg1) 
         HDR=arg1; 
         FILENAME=HDR.FileName;
-else
+elseif ischar(arg1); 
         HDR.FileName=arg1;
         fprintf(2,'Warning OPENDICOM: the use of OPENDICOM is discouraged (OPENDICOM might disappear); please use SOPEN instead.\n');
 end;
@@ -146,7 +146,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         end;
                                 elseif (tag == 5) 
                                         ListOfRecommendedTags(ListOfRecommendedTags==tag)=[];
-                                	if any(field(1:4))
+                                	if any(field(1:4)~=0)
                                         	HDR.Patient.Birthday = [field(1:2)*[1;256],field(3:4),12,0,0];
                                         end;	
                                 elseif (tag == 6) 
@@ -176,7 +176,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 elseif tag == 9,
                                         HDR.Patient.Race = field;
                                 elseif tag == 10,
-					if logical(field(1))
+					if (field(1)~=0)
 	                                        HDR.Patient.Medication = field;
 					else	
 	                                        HDR.Patient.Medication.Code = field(2:3);
@@ -293,6 +293,10 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                 elseif section.ID==3, 
                         HDR.NS = fread(fid,1,'char');
                         HDR.FLAG.Byte = fread(fid,1,'char');    
+                        if ~bitand(HDR.FLAG.Byte,4)
+                                fprintf(HDR.FILE.stdout,'Warning SCPOPEN: not all leads simultaneously recorded - this mode is not supported.\n');
+                        end;
+                                        
                         HDR.FLAG.ReferenceBeat = mod(HDR.FLAG.Byte,2);    
                         %HDR.NS = floor(mod(HDR.FLAG.Byte,128)/8);    
                         for k = 1:HDR.NS,
@@ -316,7 +320,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
 	                	tmp = fileparts(tmp); 
 	                	tmp = fileparts(tmp); 
 	                        H = sopen(fullfile(tmp,'doc','leadidtable_scpecg.txt'));
-	                end;        
+	                end;     
                         LeadIdTable = H.EN1064.SCP_Name(2:end)';
                         for k = 1:HDR.NS,
                                 if 0,
@@ -382,7 +386,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 end;
 				%S2 = S2(:,CHAN); 
         
-                        elseif 0, HDR.SCP2.NHT==19999,
+                        elseif HDR.SCP2.NHT==19999,
                                 HuffTab = DHT;
                                 for k = 1:HDR.NS,
                                         SCP.data{k} = fread(fid,SCP.SPR(k),'uint8');    
@@ -462,11 +466,11 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 
                                 
                         elseif (HDR.SCP2.NHT==19999), % alternative decoding algorithm. 
+                                warning('this branch is experimental - it might be broken')
                                 HuffTab = DHT;
                                 for k = 1:HDR.NS,
-                                        SCP.data{k} = fread(fid,SCP.SPR(k),'uint8');    
+                                        SCP.data{k} = fread(fid,SCP.SPR(k),'uint8');
                                 end;
-
                                 %for k = 1:HDR.NS,
                                 for k3 = 1:length(HDR.InChanSelect), k = HDR.InChanSelect(k3); %HDR.NS,
                                 %for k = CHAN(:)',
@@ -546,7 +550,10 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                                 S2=x(:,ones(1,k));
                                         elseif size(x,1)==size(S2,1),
                                                 S2(:,k) = x;
-					else
+                                        elseif 1,
+	                                        fprintf(HDR.FILE.stderr,'Error SCPOPEN: length=%i of channel %i different to length=%i of channel 1 \n',size(x,1),k,size(S2,1));
+                                                return;
+                                        else
 	                                        fprintf(HDR.FILE.stderr,'Error SCPOPEN: Huffman decoding failed (%i) \n',size(x,1));
 	    					HDR.data=S2;
 						return;
