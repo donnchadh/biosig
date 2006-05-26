@@ -22,12 +22,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __SCPTYPES_H__
 #define __SCPTYPES_H__
 
-#define int_S	char
-#define int_M	short int
-#define int_L	long
-#define U_int_S	unsigned char
-#define U_int_M	unsigned short int
-#define U_int_L	unsigned long
+#define int_S	int8_t
+#define int_M	int16_t
+#define int_L	int32_t
+#define U_int_S	uint8_t
+#define U_int_M	uint16_t
+#define U_int_L	uint32_t
 #define dec_S	float
 #define dec_M	double
 #define dec_L	long double
