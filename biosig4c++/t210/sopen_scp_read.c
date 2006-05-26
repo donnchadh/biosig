@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.8 2006-05-26 14:18:30 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.9 2006-05-26 14:45:11 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -109,13 +109,13 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 	
 	ptr = hdr->AS.Header1; 
 	hdr->NRec = 1; 
-        hdr->Dur[0]=10; hdr->Dur[1]=1;  // duration = 10 sec
+//        hdr->Dur[0]=10; hdr->Dur[1]=1;  // duration = 10 sec
 
 	sectionStart = 6;
 	PtrCurSect = ptr+sectionStart;	
 
 	/**** SECTION 0 ****/
-	len = *(uint32_t*)(PtrCurSect+4); 
+	len = l_endian_u32(*(uint32_t*)(PtrCurSect+4)); 
 	NSections = (len-16)/10;
 	for (int K=0; K<NSections; K++)	{
 		curSect 	= l_endian_u16(*(uint16_t*)(ptr+6+16+K*10));
@@ -132,7 +132,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 		if (len != l_endian_u32(*(uint32_t*)(PtrCurSect+4)))
 			fprintf(stderr,"Warning SOPEN(SCP-READ): length field in pointer section (%i) does not match length field in sections (%i %i)\n",K,len,l_endian_u32(*(uint32_t*)(PtrCurSect+4))); 
 
-//fprintf(stdout,"section %i \n",curSect); 
+//fprintf(stdout,"section %i out of %i \n",curSect,NSections); 
 		curSectPos = 16;
 			
 		/**** SECTION 0 ****/
@@ -195,9 +195,9 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				}
 				else if (tag==14) {
 					hdr->VERSION = *(PtrCurSect+curSectPos+14)/10.0;	// tag 14, byte 15
-					hdr->aECG->Section1.Tag14.INST_NUMBER = *(uint16_t*)(PtrCurSect+curSectPos);
-					hdr->aECG->Section1.Tag14.DEPT_NUMBER = *(uint16_t*)(PtrCurSect+curSectPos+2);
-					hdr->aECG->Section1.Tag14.DEVICE_ID   = *(uint16_t*)(PtrCurSect+curSectPos+4);
+					hdr->aECG->Section1.Tag14.INST_NUMBER = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+					hdr->aECG->Section1.Tag14.DEPT_NUMBER = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
+					hdr->aECG->Section1.Tag14.DEVICE_ID   = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+4));
 					hdr->aECG->Section1.Tag14.DEVICE_TYPE = *(PtrCurSect+curSectPos+ 6);
 					hdr->aECG->Section1.Tag14.MANUF_CODE  = *(PtrCurSect+curSectPos+ 7);	// tag 14, byte 7 (MANUF_CODE has to be 255)
 					hdr->aECG->Section1.Tag14.MOD_DESC    = (char*)(PtrCurSect+curSectPos+8); 
@@ -411,6 +411,7 @@ if (AS_DECODE) continue;
 	if (hdr->SampleRate!=round(hdr->SampleRate))
 		fprintf(stderr,"Warning: SCP-OPEN Sampling rate (%f Hz) is not integer.\n",hdr->SampleRate);
 	hdr->Dur[1] = (uint32_t)hdr->SampleRate;
+
 
 
 if (!(hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL))
