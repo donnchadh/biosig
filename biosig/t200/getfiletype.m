@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.48 2006-02-28 17:52:26 schloegl Exp $
+%	$Id: getfiletype.m,v 1.49 2006-06-02 22:00:23 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -508,7 +508,7 @@ else
                         
                 elseif strncmp(ss,'*3DSMAX_ASCIIEXPORT',19)
                         HDR.TYPE='ASE';
-                elseif strncmp(s,'999',3)
+                elseif strncmp(ss,'999',3)
                         HDR.TYPE='DXF-Ascii';
                 elseif all(s([1:4])==[32,32,48,10])
                         HDR.TYPE='DXF?';
