@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.52 2006-05-26 14:18:30 schloegl Exp $
+    $Id: biosig.c,v 1.53 2006-06-05 20:59:14 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -97,7 +97,8 @@ const int16_t GDFTYP_BYTE[] = {
 // greatest common divisor 
 size_t gcd(size_t A,size_t B) 
 {	size_t t; 
-	while (!B) {
+	if (A<B) {t=B; B=A; A=t;}; 
+	while (B) {
 		t = B; 
 		B = A%B;
 		A = t; 
@@ -200,7 +201,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
       	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.35";
 
 	hdr->Patient.Name 	= "X";
-	hdr->Patient.Id 	= "\0";
+	hdr->Patient.Id 	= "\0\0";
 	hdr->Patient.Birthday 	= (gdf_time)0;        // Unknown;
       	hdr->Patient.Medication = 0;	// 0:Unknown, 1: NO, 2: YES
       	hdr->Patient.DrugAbuse 	= 0;	// 0:Unknown, 1: NO, 2: YES
@@ -329,7 +330,23 @@ if (!strcmp(MODE,"r"))
     	Header1[256]=0;
 //#endif
 	
-    	if (0);
+	hdr->TYPE = unknown; 
+
+    	if (hdr->TYPE != unknown); 
+    	else if (l_endian_u32((*(uint32_t*)(Header1+2)>=30)) & l_endian_u32((*(uint32_t*)(Header1+2))<=42)) {
+    		hdr->VERSION    = l_endian_u32(*(uint32_t*)(Header1+2)); 
+    		uint32_t offset = l_endian_u32(*(uint32_t*)(Header1+6));
+    		hdr->HeadLen = offset; // length of fixed header  
+    		if      ((hdr->VERSION <34.0) & (offset== 150)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <35.0) & (offset== 164)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <36.0) & (offset== 326)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <37.0) & (offset== 886)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <38.0) & (offset==1894)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <41.0) & (offset==1896)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION>=41.0) & (offset==1944)) hdr->TYPE = ACQ;
+    	}	
+
+    	if (hdr->TYPE != unknown); 
     	else if (!memcmp(Header1+1,"BIOSEMI",7)) {
     		hdr->TYPE = BDF;
     		hdr->VERSION = -1; 
@@ -651,6 +668,113 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 		}	
 		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
 	}      	
+
+	else if (hdr->TYPE==ACQ) {
+		/* defined in http://biopac.com/AppNotes/app156FileFormat/FileFormat.htm */
+		hdr->NS   = l_endian_i16(*(int16_t*)(Header1+10));
+		hdr->SampleRate = 1000.0/l_endian_f64(*(double*)(Header1+16));
+		hdr->NRec = 1; 
+		hdr->SPR  = 1;
+
+		// add "per channel data section" 
+		if (hdr->VERSION<38.0)		// Version 3.0+
+			hdr->HeadLen += hdr->NS*122;
+		else if (hdr->VERSION<39.0)	// Version 3.7.0+
+			hdr->HeadLen += hdr->NS*252;
+		else 				// Version 3.7.3+
+			hdr->HeadLen += hdr->NS*254;
+			
+
+		hdr->HeadLen += 4;	
+		// read header up to nLenght and nID of foreign data section 
+	    	Header1 = (char*)realloc(Header1,hdr->HeadLen);
+	    	count   = fread(Header1+256, 1, hdr->HeadLen-256, hdr->FILE.FID);
+		uint32_t POS = hdr->HeadLen; 
+	    	
+		// read "foreign data section" and "per channel data types section"  
+		hdr->HeadLen += l_endian_u16(*(uint16_t*)(Header1+hdr->HeadLen-4));
+		hdr->HeadLen += 4*hdr->NS; 
+	    	Header1 = (char*)realloc(Header1,hdr->HeadLen+8);
+	    	count   = fread(Header1+POS, 1, hdr->HeadLen-POS, hdr->FILE.FID);
+		
+		// define channel specific header information
+		hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+		uint32_t* ACQ_NoSamples = (uint32_t*) calloc(hdr->NS,sizeof(uint32_t));
+		uint16_t CHAN; 
+    		POS = l_endian_u32(*(uint32_t*)(Header1+6));
+		for (k = 0; k < hdr->NS; k++)	{
+			CHAN = l_endian_u16(*(uint16_t*)(Header1+POS+4));
+			hdr->CHANNEL[k].Label   = (char*)(Header1+POS+6);
+			hdr->CHANNEL[k].Label[39]   = 0;  
+			hdr->CHANNEL[k].PhysDim = (char*)(Header1+POS+68);
+			hdr->CHANNEL[k].PhysDim[19] = 0;
+			hdr->CHANNEL[k].Off     = l_endian_f64(*(double*)(Header1+POS+52));
+			hdr->CHANNEL[k].Cal     = l_endian_f64(*(double*)(Header1+POS+60));
+
+			hdr->CHANNEL[k].SPR     = 1; 
+			if (hdr->VERSION >= 38.0) {
+				hdr->CHANNEL[k].SPR = l_endian_u16(*(uint16_t*)(Header1+POS+250));  // used here as Divider
+			}
+			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
+
+			ACQ_NoSamples[k] = l_endian_u32(*(uint32_t*)(Header1+POS+88));
+
+			POS += l_endian_u32(*(uint32_t*)(Header1+POS));
+		}
+		hdr->NRec /= hdr->SPR; 
+
+		/// foreign data section - skip 
+		POS += l_endian_u16(*(uint16_t*)(Header1+POS));
+		
+		size_t DataLen=0; 
+		for (k=0, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS; k++)	{
+			if (hdr->VERSION>=38.0)
+				hdr->CHANNEL[k].SPR = hdr->SPR/hdr->CHANNEL[k].SPR;  // convert DIVIDER into SPR
+
+			switch (l_endian_u16(*(uint16_t*)(Header1+POS+2)))
+			{
+			case 1: 
+				hdr->CHANNEL[k].GDFTYP = 17;  // double
+				hdr->AS.bpb += hdr->CHANNEL[k].SPR<<3;
+				DataLen += ACQ_NoSamples[k]<<3; 
+				break;   
+			case 2: 
+				hdr->CHANNEL[k].GDFTYP = 3;   // int
+				hdr->AS.bpb += hdr->CHANNEL[k].SPR<<1;
+				DataLen += ACQ_NoSamples[k]<<1; 
+				break;
+			default:
+				fprintf(stderr,"ERROR SOPEN(ACQ-READ): invalid type in channel %i.\n",k);	
+			};
+			hdr->AS.spb += hdr->CHANNEL[k].SPR;
+			POS +=4; 
+		}
+		free(ACQ_NoSamples);		
+/*  ### FIXME ### 
+	reading Marker section
+		
+		fseek(hdr->FILE.FID,hdr->HeadLen+DataLen,-1); // start of markers header section
+	    	POS     = hdr->HeadLen; 
+	    	count   = fread(Header1+POS, 1, 8, hdr->FILE.FID);
+	    	size_t LengthMarkerItemSection = (l_endian_u32(*(uint32_t*)(Header1+POS)));
+
+	    	hdr->EVENT.N = (l_endian_u32(*(uint32_t*)(Header1+POS+4)));
+	    	Header1 = (char*)realloc(Header1,hdr->HeadLen+8+LengthMarkerItemSection);
+	    	POS    += 8; 
+	    	count   = fread(Header1+POS, 1, LengthMarkerItemSection, hdr->FILE.FID);
+		 
+		hdr->EVENT.TYP = (uint16_t*)calloc(hdr->EVENT.N,2); 
+		hdr->EVENT.POS = (uint32_t*)calloc(hdr->EVENT.N,4);
+		for (k=0; k<hdr->EVENT.N; k++)
+		{
+fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);		
+			hdr->EVENT.POS[k] = l_endian_u32(*(uint32_t*)(Header1+POS));
+			POS += 12 + l_endian_u16(*(uint16_t*)(Header1+POS+10));
+		} 
+*/
+		fseek(hdr->FILE.FID,hdr->HeadLen,-1); 
+	}      	
+
 	else if (hdr->TYPE==BKR) {
 	    	Header1 = (char*) realloc(Header1,1024);
 	    	count   = fread(Header1+256,1,1024-256,hdr->FILE.FID);
@@ -682,6 +806,7 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// BKR does not support automated overflow and saturation detection
 	}
+
 	else if (hdr->TYPE==CFWB) {
 	    	*(uint64_t*)(Header1+8) = l_endian_u64(*(uint64_t*)Header1+8);
 	    	hdr->SampleRate = *(double*) (Header1+8);
@@ -690,7 +815,7 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 	    	tm_time.tm_mday = l_endian_u32( *(int32_t*)(Header1+24) );
 	    	tm_time.tm_hour = l_endian_u32( *(int32_t*)(Header1+28) );
 	    	tm_time.tm_min  = l_endian_u32( *(int32_t*)(Header1+32) );
-	    	*(uint64_t*)(Header1+36) = l_endian_u64(*(uint64_t*)Header1+36);
+	    	*(uint64_t*)(Header1+36) = l_endian_u64(*(uint64_t*)(Header1+36));
 	    	tm_time.tm_sec  = (int)*(double*) (Header1+36);
     		hdr->T0 	= tm_time2gdf_time(&tm_time);
 	    	// = *(double*)(Header1+44);
