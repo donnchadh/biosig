@@ -23,8 +23,8 @@ function [HDR]=scpopen(arg1,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.27 $
-%	$Id: scpopen.m,v 1.27 2006-06-03 12:45:16 schloegl Exp $
+%	$Revision: 1.28 $
+%	$Id: scpopen.m,v 1.28 2006-06-06 10:23:00 schloegl Exp $
 %	(C) 2004,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -728,11 +728,35 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                 %elseif section.ID==9, 
                 %        HDR.SCP9.byte1 = fread(fid,1,'uint8');    
                         
-                %elseif section.ID==10, 
-                %        HDR.SCP10.byte1 = fread(fid,1,'uint8');    
+                elseif section.ID==10, 
+                        tmp = fread(fid,2,'uint16');
+                        HDR.SCP10.NumberOfLeads = tmp(1);
+                        HDR.SCP10.ManufacturerCode = tmp(2);
+                        for k = []; 1:HDR.SCP10.NumberOfLeads,
+                                tmp = fread(fid,2,'uint16')
+                                LeadId = tmp(1); 
+                                LeadLen = tmp(2); 
+                                tmp = fread(fid,LeadLen/2,'uint16');    
+                                HDR.SCP10.LeadId(k)=LeadId; 
+                                HDR.SCP10.LeadLen(k)=LeadLen; 
+                                HDR.SCP10.Measurements{k}=tmp; 
+                        end;
                         
-                %elseif section.ID==11, 
-                        
+                elseif section.ID==11, 
+                        bytes = fread(fid,11,'uint8');    
+                        HDR.SCP11.T0 = [bytes(2)*256+bytes(3), bytes(4:8)];
+                        HDR.SCP11.Confirmed = bytes(1);
+                        HDR.SCP11.NumberOfStatements = bytes(9);
+                        for k = 1:HDR.SCP11.NumberOfStatements,
+                                SeqNo = fread(fid,1,'uint8');
+                                len11 = fread(fid,1,'uint16');
+                                typeID = fread(fid,1,'uint8');
+                                Statement = fread(fid,len11-1,'uint8');
+                                HDR.SCP11.Statement.SeqNo(k) = SeqNo;         
+                                HDR.SCP11.Statement.len11(k) = len11;         
+                                HDR.SCP11.Statement.typeID(k) = typeID;         
+                                HDR.SCP11.Statement.Statement{k} = Statement;         
+                        end;
                 end;
                 
 		if ~section.Length,
@@ -841,6 +865,7 @@ else    % writing SCP file
                         % SECTION 6
                         [tmp,scale1] = physicalunits(HDR.PhysDim(1,:));
                         [tmp,scale2] = physicalunits('nV');
+                        %%% ### FIXME ###: Scaling not correct 
                         b = [SectIdHdr, s2b(round(scale1/scale2)), s2b(round(1e6/HDR.SampleRate)), 5, 0];
                         for k = 1:HDR.NS,
                                 b = [b, s2b(HDR.SPR*HDR.NRec*2)];
@@ -878,8 +903,8 @@ else    % writing SCP file
         %        fwrite(fid,crc,'int16');
         fwrite(fid,B,'uchar');
         fclose(fid); 
-end;
-end;  %% scpopen
+end
+end  %% scpopen
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -888,19 +913,19 @@ end;  %% scpopen
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function b2 = s2b(i);
+function b2 = s2b(i)
 	% converts 16bit into 2 bytes
 	b2 = [bitand(i,255),bitand(bitshift(i,-8),255)];
-end;	%%%%% s2b %%%%%
+end	%%%%% s2b %%%%%
 
 
-function b4 = s4b(i);
+function b4 = s4b(i)
 	% converts 32 bit into 4 bytes
 	b4 = [s2b(bitand(i,2^16-1)),s2b(bitand(bitshift(i,-16),2^16-1)) ];
-end;	%%%%% s4b %%%%%
+end	%%%%% s4b %%%%%
 
 
-function crc16 = crc16eval(D);
+function crc16 = crc16eval(D)
 % CRC16EVAL cyclic redundancy check with the polynomiaL x^16+x^12+x^5+1  
 % i.e. CRC-CCITT http://en.wikipedia.org/wiki/Crc16 
 
@@ -922,4 +947,6 @@ function crc16 = crc16eval(D);
 	end;
 	crc16 = crchi*256+crclo;
 	
-end;	%%%%% crc16eval %%%%%
+end	%%%%% crc16eval %%%%%
+
+
