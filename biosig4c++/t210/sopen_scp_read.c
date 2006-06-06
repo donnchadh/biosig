@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.9 2006-05-26 14:45:11 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.10 2006-06-06 20:56:13 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -95,7 +95,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 		hdr->aECG = (aECG_TYPE*)malloc(sizeof(aECG_TYPE));
 		hdr->aECG->diastolicBloodPressure=0.0;				 
 		hdr->aECG->systolicBloodPressure=0.0;
-		hdr->aECG->MedicationDrugs="\0";
+		hdr->aECG->MedicationDrugs = "\0";
 		hdr->aECG->ReferringPhysician="\0";
 		hdr->aECG->LatestConfirmingPhysician="\0";
 		hdr->aECG->Diagnosis="\0";
@@ -126,7 +126,10 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 	if ((len==0) || (sectionStart==0)) continue;
 		
 		PtrCurSect = ptr+sectionStart;
-		crc 	   = l_endian_u16(*(uint16_t*)(PtrCurSect)); 
+		crc 	   = l_endian_u16(*(uint16_t*)(PtrCurSect));
+		uint16_t tmpcrc = CRCEvaluate((uint8_t*)(PtrCurSect+2),len-2); 
+		if (crc != tmpcrc)
+			fprintf(stderr,"Warning SOPEN(SCP-READ): faulty CRC in section %i: crc=%x, %x\n",curSect,crc,tmpcrc);
 		if (curSect != l_endian_u16(*(uint16_t*)(PtrCurSect+2)))
 			fprintf(stderr,"Warning SOPEN(SCP-READ): Current Section No does not match field in sections (%i %i)\n",curSect,l_endian_u16(*(uint16_t*)(PtrCurSect+2))); 
 		if (len != l_endian_u32(*(uint32_t*)(PtrCurSect+4)))
