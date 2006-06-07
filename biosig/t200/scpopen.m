@@ -23,8 +23,8 @@ function [HDR]=scpopen(arg1,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.29 $
-%	$Id: scpopen.m,v 1.29 2006-06-06 20:54:34 schloegl Exp $
+%	$Revision: 1.30 $
+%	$Id: scpopen.m,v 1.30 2006-06-07 07:46:14 schloegl Exp $
 %	(C) 2004,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -877,10 +877,17 @@ else    % writing SCP file
 
                 elseif K==6,
                         % SECTION 6
+                        Cal = full(HDR.Calib(2:end,:)); Cal = Cal - diag(diag(Cal)); 
+                        if any(Cal(:))
+                                fprintf(HDR.FILE.stderr,'Calibration is not a diagonal matrix.\n\tThis can result in incorrect scalings.\n'); 
+                        end;
+                        Cal = full(diag(HDR.Calib(2:end,:)));
+                        if any(Cal~=Cal(1)), 
+                                fprintf(HDR.FILE.stderr,'scaling information is not equal for all channels; \n\tThis is not supported by SCP and can result in incorrect scalings.\n'); 
+                        end;
                         [tmp,scale1] = physicalunits(HDR.PhysDim(1,:));
                         [tmp,scale2] = physicalunits('nV');
-                        %%% ### FIXME ###: Scaling not correct 
-                        b = [SectIdHdr, s2b(round(scale1/scale2)), s2b(round(1e6/HDR.SampleRate)), 0, 0];
+                        b = [SectIdHdr, s2b(round(Cal(1)*scale1/scale2)), s2b(round(1e6/HDR.SampleRate)), 0, 0];
                         for k = 1:HDR.NS,
                                 b = [b, s2b(HDR.SPR*HDR.NRec*2)];
                         end;
@@ -909,13 +916,13 @@ else    % writing SCP file
                 B(22+K*10+(3:6)) = s4b(length(b)); % length
                 POS = POS + length(b);
         end
-        B(3:6) = s4b(POS);
-        B(7:8) = s2b(crc16eval(B(7:22+NSections*10)));  % CRC of Section 0
+        B(3:6) = s4b(POS);      % length of file
+        B(7:8) = s2b(crc16eval(B(9:22+NSections*10)));  % CRC of Section 0
 
         B(1:2) = s2b(crc16eval(B(3:end)));
 
         %        fwrite(fid,crc,'int16');
-        fwrite(fid,B,'uchar');
+        count = fwrite(fid,B,'uchar');
         fclose(fid); 
 end
 end  %% scpopen
