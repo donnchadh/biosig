@@ -23,8 +23,8 @@ function [HDR]=scpopen(arg1,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.30 $
-%	$Id: scpopen.m,v 1.30 2006-06-07 07:46:14 schloegl Exp $
+%	$Revision: 1.31 $
+%	$Id: scpopen.m,v 1.31 2006-06-07 13:34:30 schloegl Exp $
 %	(C) 2004,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -850,8 +850,17 @@ else    % writing SCP file
                         end;
                         
                         %% Tag 14
-                        tag14.ProgramRevisionNumber = 'BioSig4OctMat v 1.76+';	
-                        t14 = [zeros(1,14), VERSION, hex2dec('A0'), 0, hex2dec('D0'), zeros(1,35-18), length(tag14.ProgramRevisionNumber),tag14.ProgramRevisionNumber,zeros(1,6)];
+                        tag14.AnalyzingProgramRevisionNumber = ['',0];
+                        tag14.SerialNumberAcqDevice = ['',0];
+                        tag14.AcqDeviceSystemSoftware = ['',0];
+                        tag14.SCPImplementationSoftware = ['BioSig4OctMat v 1.76+',0];	
+                        tag14.ManufactureAcqDevice = ['',0];	
+                        t14 = [zeros(1,35), length(tag14.AnalyzingProgramRevisionNumber),tag14.AnalyzingProgramRevisionNumber,tag14.SerialNumberAcqDevice,tag14.AcqDeviceSystemSoftware,tag14.SCPImplementationSoftware,tag14.ManufactureAcqDevice];
+                        t14(8)  = 255;  % Manufacturer
+                        %%% ### FIXME ###  t14(9:14) = % cardiograph model
+                        t14(15) = VERSION;        % Version
+                        t14(16) = hex2dec('A0');  % Demographics and ECG rhythm data" (if we had also the reference beats we should change it in 0xC0).
+                        t14(18) = hex2dec('D0');  % Capabilities of the ECG Device: 0xD0 (acquire, print and store). 
                         b   = [b, 14, s2b(length(t14)), t14];
                          
                         b = [b, 25, s2b(4), s2b(HDR.T0(1)),HDR.T0(2:3)];
@@ -898,10 +907,10 @@ else    % writing SCP file
                 else
                         b = [];
                 end;
-                if mod(b,2), % align to multiple of 2-byte blocks
-                        b = [b,0];
-                end; 
                 if (length(b)>0)
+                        if mod(length(b),2), % align to multiple of 2-byte blocks
+                                b = [b,0];
+                        end;
                         if (length(b)<16), fprintf(HDR.FILE.stderr,'section header %i less then 16 bytes %i', K,length(b)); end;
                         b(3:4) = s2b(K);
                         b(5:8) = s4b(length(b));
