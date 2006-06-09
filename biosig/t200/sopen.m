@@ -47,8 +47,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.138 $
-%	$Id: sopen.m,v 1.138 2006-04-27 18:35:08 schloegl Exp $
+%	$Revision: 1.139 $
+%	$Id: sopen.m,v 1.139 2006-06-09 16:23:54 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -859,17 +859,20 @@ end;
                 end;
                 if ~isfield(HDR.Patient,'Sex')
 			HDR.Patient.Sex = 0; 
+                elseif isnumeric(HDR.Patient.Sex)
+                        ;       % nothing to be done
 		elseif strcmpi(HDR.Patient.Sex,'m') | strcmpi(HDR.Patient.Sex,'male')
 			HDR.Patient.Sex = 1; 
 		elseif strcmpi(HDR.Patient.Sex,'f') | strcmpi(HDR.Patient.Sex,'female')
 			HDR.Patient.Sex = 2; 
-                elseif isnumeric(HDR.Patient.Sex)	
                 else
 			HDR.Patient.Sex = 0; 
                 end;
                 
                 if ~isfield(HDR.Patient,'Handedness')
 			HDR.Patient.Handedness = 0; 
+                elseif isnumeric(HDR.Patient.Handedness)
+                        ;       % nothing to be done
 		elseif strcmpi(HDR.Patient.Handedness,'r') | strcmpi(HDR.Patient.Handedness,'right')
 			HDR.Patient.Handedness = 1; 
 		elseif strcmpi(HDR.Patient.Handedness,'l') | strcmpi(HDR.Patient.Handedness,'left')
@@ -879,6 +882,8 @@ end;
                 end;
                 if ~isfield(HDR.Patient,'Impairment.Visual')
                         HDR.Patient.Impairment.Visual = 0;
+                elseif isnumeric(HDR.Patient.Impairment.Visual)
+                        ;       % nothing to be done
                 elseif strcmpi(HDR.Patient.Impairment.Visual,'NO') | strcmpi(HDR.Patient.Impairment.Visual,'NO')
                         HDR.Patient.Impairment.Visual = 1;
                 elseif strcmpi(HDR.Patient.Impairment.Visual,'Y') | strcmpi(HDR.Patient.Impairment.Visual,'YES')
@@ -891,6 +896,8 @@ end;
                 end;
                 if ~isfield(HDR.Patient,'Smoking')
                         HDR.Patient.Smoking = 0;
+                elseif isnumeric(HDR.Patient.Smoking)
+                        ;       % nothing to be done
                 elseif strcmpi(HDR.Patient.Smoking,'NO') | strcmpi(HDR.Patient.Smoking,'NO')
                         HDR.Patient.Smoking = 1;
                 elseif strcmpi(HDR.Patient.Smoking,'Y') | strcmpi(HDR.Patient.Smoking,'YES')
@@ -901,6 +908,8 @@ end;
                 end;
                 if ~isfield(HDR.Patient,'AlcoholAbuse')
                         HDR.Patient.AlcoholAbuse = 0;
+                elseif isnumeric(HDR.Patient.AlcoholAbuse)
+                        ;       % nothing to be done
                 elseif strcmpi(HDR.Patient.AlcoholAbuse,'NO') | strcmpi(HDR.Patient.AlcoholAbuse,'NO')
                         HDR.Patient.AlcoholAbuse = 1;
                 elseif strcmpi(HDR.Patient.AlcoholAbuse,'Y') | strcmpi(HDR.Patient.AlcoholAbuse,'YES')
@@ -911,6 +920,8 @@ end;
                 end;
                 if ~isfield(HDR.Patient,'DrugAbuse')
                         HDR.Patient.DrugAbuse = 0;
+                elseif isnumeric(HDR.Patient.DrubAbuse)
+                        ;       % nothing to be done
                 elseif strcmpi(HDR.Patient.DrugAbuse,'NO') | strcmpi(HDR.Patient.DrugAbuse,'NO')
                         HDR.Patient.DrugAbuse = 1;
                 elseif strcmpi(HDR.Patient.DrugAbuse,'Y') | strcmpi(HDR.Patient.DrugAbuse,'YES')
@@ -921,6 +932,8 @@ end;
                 end;
                 if ~isfield(HDR.Patient,'Medication')
                         HDR.Patient.Medication = 0;
+                elseif isnumeric(HDR.Patient.Medication)
+                        ;       % nothing to be done
                 elseif strcmpi(HDR.Patient.Medication,'NO') | strcmpi(HDR.Patient.Medication,'NO')
                         HDR.Patient.Medication = 1;
                 elseif strcmpi(HDR.Patient.Medication,'Y') | strcmpi(HDR.Patient.Medication,'YES')
@@ -3305,7 +3318,7 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                         [tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
                 end;
                 
-		if strncmpi(tmp,'AIF',3),
+		if strncmpi(char(tmp),'AIF',3),
                         if HDR.AIF.SSND.tagsize~=HDR.SPR*HDR.AS.bpb,
                                 fprintf(HDR.FILE.stderr,'Warning SOPEN AIF: Number of samples do not fit %i vs %i\n',tmp,HDR.SPR);
                         end;
@@ -3411,7 +3424,7 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                         HDR.Off = 0;
                         HDR.Cal = 2^(1-8*ceil(HDR.Bits/8));
                         if HDR.Bits<=8,
-                                HDR.GDFTYP = 'uchar'; 
+                                HDR.GDFTYP = 'uint8'; 
                                 HDR.Off =  1;
                                 %HDR.Cal = HDR.Cal*2;
                         elseif HDR.Bits<=16,
@@ -7571,96 +7584,13 @@ elseif strcmp(HDR.TYPE,'BIFF'),
         end;
 
 
-elseif 0; strncmp(HDR.TYPE,'XML',3),
+elseif strncmp(HDR.TYPE,'XML',3),
         if any(HDR.FILE.PERMISSION=='r'),
-		HDR = sxmlread(HDR); 	% experimental version for reading various xml files 
+		HDR = openxml(HDR); 	% experimental version for reading various xml files 
 	end;
 	if ~isfield(HDR,'Calib')
 		return;
 	end;	
-	
-elseif strncmp(HDR.TYPE,'XML',3),
-        if any(HDR.FILE.PERMISSION=='r'),
-                fid = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
-                if strcmp(HDR.TYPE,'XML-UTF16'),
-                        magic = char(fread(fid,1,'uint16'));
-                        HDR.XML = char(fread(fid,[1,inf],'uint16'));
-                elseif strcmp(HDR.TYPE,'XML-UTF8'),
-                        HDR.XML = char(fread(fid,[1,inf],'char'));
-                end;
-                fclose(fid);
-                HDR.FILE.FID = fid;
-                if 1, try,
-                        XML = xmltree(HDR.XML);
-                        XML = convert(XML);
-                        HDR.XML  =  XML; 
-			HDR.TYPE = 'XML';
-                catch
-                        fprintf(HDR.FILE.stderr,'ERROR SOPEN (XML): XML-toolbox missing or invalid XML file.\n');
-                        return;
-                end;
-                end;
-		
-		
-                try,    % SierraECG  1.03  *.open.xml from PHILIPS
-                        HDR.SampleRate = str2double(HDR.XML.dataacquisition.signalcharacteristics.samplingrate);
-                        HDR.NS  = str2double(HDR.XML.dataacquisition.signalcharacteristics.numberchannelsvalid);
-                        HDR.Cal = str2double(HDR.XML.reportinfo.reportgain.amplitudegain.overallgain);
-                        HDR.PhysDim = 'uV';
-                        HDR.Filter.HighPass = str2double(HDR.XML.reportinfo.reportbandwidth.highpassfiltersetting);
-                        HDR.Filter.LowPass  = str2double(HDR.XML.reportinfo.reportbandwidth.lowpassfiltersetting);
-                        HDR.Filter.Notch    = str2double(HDR.XML.reportinfo.reportbandwidth.notchfiltersetting);
-                        
-                        t = HDR.XML.reportinfo.reportformat.waveformformat.mainwaveformformat;
-                        k = 0; 
-                        HDR.Label=[];
-                        while ~isempty(t),
-                                [s,t] = strtok(t,' ');
-                                k = k+1; 
-                                HDR.Label{k, 1} = [s,' '];
-                        end;
-                        HDR.Patient.Id     = str2double(XML.patient.generalpatientdata.patientid);
-                        HDR.Patient.Age    = str2double(XML.patient.generalpatientdata.age.years);
-                        tmp    = XML.patient.generalpatientdata.sex;
-                        HDR.Patient.Sex    = strncmpi(tmp,'Male',1) + strncmpi(tmp,'Female',1)*2; 
-                        HDR.Patient.Weight = str2double(XML.patient.generalpatientdata.weight.kg);
-                        HDR.Patient.Height = str2double(XML.patient.generalpatientdata.height.cm);
-                        
-                        HDR.VERSION = HDR.XML.documentinfo.documentversion;
-                        HDR.TYPE = HDR.XML.documentinfo.documenttype;
-                catch
-                        
-                try,    % FDA-XML Format
-                        tmp   = HDR.XML.component.series.derivation;
-                        if isfield(tmp,'Series');
-                                tmp = tmp.Series.component.sequenceSet.component;
-                        else    % Dovermed.CO.IL version of format
-                                tmp = tmp.derivedSeries.component.sequenceSet.component;
-                        end;
-                        HDR.NS = length(tmp)-1;
-                        HDR.NRec = 1; 
-                        HDR.Cal = 1;
-                        HDR.PhysDim = ' ';
-                        HDR.SampleRate = 1;
-                        HDR.TYPE = 'XML-FDA';     % that's an FDA XML file 
-                catch
-                        fprintf(HDR.FILE.stderr,'Warning SOPEN (XML): File %s is not supported.\n',HDR.FileName);
-                        return;
-                end;
-                end
-
-                try
-                	tmp=HDR.XML.componentOf.timepointEvent.componentOf.subjectAssignment.subject.trialSubject.subjectDemographicPerson.name; 
-                	HDR.Patient.Name = sprintf('%s, %s',tmp.family, tmp.given);
-		catch
-                end
-                
-                
-                
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
-                HDR.FILE.OPEN = 1;
-                HDR.FILE.POS  = 0;
-        end;
         
         
 elseif strcmp(HDR.TYPE,'ZIP'),
@@ -7670,28 +7600,33 @@ elseif strcmp(HDR.TYPE,'ZIP'),
         system(sprintf('unzip %s -d %s >NULL',HDR.FileName,HDR.ZIP.TEMPDIR));
         fn = fullfile(HDR.ZIP.TEMPDIR,'content.xml');
         if exist(fn,'file')
-                HDR.XML = xmltree(fn);
-                HDR.XML = convert(HDR.XML);
+                H1.FileName = fn; 
+                H1.FILE.Permission = 'r'; 
+                HDR.Content = openxml(H1);
         end;
         fn = fullfile(HDR.ZIP.TEMPDIR,'META-INF/manifest.xml');
         if exist(fn,'file')
-                XML = xmltree(fn);
-                HDR.Manifest = convert(XML);
+                H1.FileName = fn; 
+                H1.FILE.Permission = 'r'; 
+                HDR.manifest = openxml(H1);
         end;
         fn = fullfile(HDR.ZIP.TEMPDIR,'meta.xml');
         if exist(fn,'file')
-                XML = xmltree(fn);
-                HDR.Meta = convert(XML);
+                H1.FileName = fn; 
+                H1.FILE.Permission = 'r'; 
+                HDR.Meta = openxml(H1);
         end;
         fn = fullfile(HDR.ZIP.TEMPDIR,'styles.xml');
         if exist(fn,'file')
-                XML = xmltree(fn);
-                HDR.Styles = convert(XML);
+                H1.FileName = fn; 
+                H1.FILE.Permission = 'r'; 
+                HDR.Styles = openxml(H1);
         end;
         fn = fullfile(HDR.ZIP.TEMPDIR,'settings.xml');
         if exist(fn,'file')
-                XML = xmltree(fn);
-                HDR.Settings = convert(XML);
+                H1.FileName = fn; 
+                H1.FILE.Permission = 'r'; 
+                HDR.Settings = openxml(H1);
         end;
 
         if 0,
@@ -7749,6 +7684,7 @@ elseif strncmp(HDR.TYPE,'IMAGE:',6),
 
 
 elseif strcmp(HDR.TYPE,'unknown'),
+        if ~isfield(HDR.FLAG,'ASCII'); HDR.FLAG.ASCII = 0; end; 
         if HDR.FLAG.ASCII, 
         	s = HDR.s; 
                 if strcmpi(HDR.FILE.Ext,'DAT') 
@@ -7983,7 +7919,7 @@ if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	HDR.EVENT.DUR = HDR.EVENT.DUR(~flag_remove);
 end;	
 
-HDR = physicalunits(HDR); 
+[HDR,scale] = physicalunits(HDR); 
 
 % Calibration matrix
 if any(HDR.FILE.PERMISSION=='r') & (HDR.NS>0);
