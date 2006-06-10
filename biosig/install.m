@@ -22,7 +22,7 @@
 %  you can excluded the path to NaN/*. The BIOSIG tools will still 
 %  work, but does not support the handling of NaN's.
 
-%	$Id: install.m,v 1.9 2006-06-10 12:29:35 schloegl Exp $
+%	$Id: install.m,v 1.10 2006-06-10 12:46:37 schloegl Exp $
 %	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -87,12 +87,12 @@ if exist('OCTAVE_VERSION','builtin'),	% OCTAVE
                 try,
                         xmlstruct('<xml>v<b>v</xml>');
                 catch
-                        unix('mkoctfile maybe-missing/__xmldata__.c');
+                        unix(['mkoctfile ',BIOSIG_HOME,'/maybe-missing/__xmldata__.cc']);
                 end;
                 try,
                         bitand(5,7);
                 catch
-                        unix('mkoctfile maybe-missing/bitand.cc');
+                        unix(['mkoctfile ',BIOSIG_HOME,'/maybe-missing/bitand.cc']);
                 end;
                 try,
                         x = which(fun{k});
@@ -111,7 +111,7 @@ else
         try,
                 xmlstruct('<xml>v<b>v</xml>');
         catch
-                unix('mex maybe-missing/xmldata.c');
+                unix(['mex ',BIOSIG_HOME,'/maybe-missing/bitand.cc']);
         end;
 end;
 
