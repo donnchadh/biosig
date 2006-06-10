@@ -22,16 +22,17 @@
 %  you can excluded the path to NaN/*. The BIOSIG tools will still 
 %  work, but does not support the handling of NaN's.
 
-%	$Id: install.m,v 1.7 2005-11-23 20:29:04 schloegl Exp $
+%	$Id: install.m,v 1.8 2006-06-10 10:00:57 schloegl Exp $
 %	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
-if exist('OCTAVE_VERSION')
-        BIOSIG_HOME = pwd;	%
-else
-        tmp = which('biosig_installer'); 
-        [BIOSIG_HOME,f,e] = fileparts(tmp);
-end;
+BIOSIG_HOME = pwd;	%
+if exist('t200','dir')
+	% install.m may reside in .../biosig/ or above (...)
+        [BIOSIG_HOME,f,e] = fileparts(BIOSIG_HOME);
+elseif exist('biosig','dir')
+end; 
+
 path([BIOSIG_HOME,'/biosig/'],path);			% 
 path([BIOSIG_HOME,'/biosig/demo/'],path);		% demos
 path([BIOSIG_HOME,'/biosig/doc/'],path);		% docus, Eventtable etc. 
@@ -41,9 +42,12 @@ path([BIOSIG_HOME,'/biosig/t300/'],path);		% signal processing and feature extra
 path([BIOSIG_HOME,'/biosig/t400/'],path);		% classification
 path([BIOSIG_HOME,'/biosig/t490/'],path);		% evaluation criteria
 path([BIOSIG_HOME,'/biosig/t500/'],path);		% display and presentation
-path([BIOSIG_HOME,'/biosig/viewer/'],path);		% viewer
-path([BIOSIG_HOME,'/biosig/viewer/utils'],path);	% viewer
-path([BIOSIG_HOME,'/biosig/viewer/help'],path);	% viewer
+
+if ~exist('OCTAVE_VERSION','builtin'),	
+	path([BIOSIG_HOME,'/biosig/viewer/'],path);		% viewer
+	path([BIOSIG_HOME,'/biosig/viewer/utils'],path);	% viewer
+	path([BIOSIG_HOME,'/biosig/viewer/help'],path);	% viewer
+end;
 
 path([BIOSIG_HOME,'/tsa/'],path);		%  Time Series Analysis
 % some users might get confused by this
@@ -81,6 +85,11 @@ if exist('OCTAVE_VERSION','builtin'),	% OCTAVE
         fun = {'bitand','regexp'};
         for k = 1:length(fun),
                 try,
+                        xmlstruct('<xml>v<b>v</xml>');
+                catch
+                        unix('mkoctfile maybe-missing/__xmldata__.cc');
+                end;
+                try,
                         bitand(5,7);
                 catch
                         unix('mkoctfile maybe-missing/bitand.cc');
@@ -104,6 +113,12 @@ if exist('OCTAVE_VERSION','builtin'),	% OCTAVE
 	if any(size(sparse(5,4))<0)
         	fprintf(2,'Warning: Size of Sparse does not work\n')
 	end;
+else
+        try,
+                xmlstruct('<xml>v<b>v</xml>');
+        catch
+                unix('mex maybe-missing/__xmldata__.cc');
+        end;
 end;
 
 % test of installation 
