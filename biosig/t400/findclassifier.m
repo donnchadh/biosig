@@ -1,4 +1,4 @@
-function [CC,Q,tsd]=findclassifier(D,TRIG,cl,T,t0,FUN)
+function [CC,Q,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
 % FINDCLASSIFIER
 %   identifies and validates a classifier. In order to 
 %   validate the classifier, a Leave-One(group)-Out-Method is 
@@ -40,7 +40,7 @@ function [CC,Q,tsd]=findclassifier(D,TRIG,cl,T,t0,FUN)
 %	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003 
 
 
-%   $Id: findclassifier.m,v 1.5 2006-03-10 14:53:25 schloegl Exp $
+%   $Id: findclassifier.m,v 1.6 2006-06-23 15:20:21 schloegl Exp $
 %   Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -62,7 +62,11 @@ function [CC,Q,tsd]=findclassifier(D,TRIG,cl,T,t0,FUN)
 CC =[]; Q = [];tsd=[];md=[];
 
 if nargin<6,
-        FUN='LD3';
+        MODE.TYPE='LD3';
+elseif ischar(MODE);
+        tmp = MODE; 
+        clear MODE
+        MODE.TYPE = tmp; 
 end;
 if nargin>4,
         if isempty(t0),
@@ -120,10 +124,11 @@ for k = 1:size(T,1),
                         d = [d; D(t(:),:)];
                         c = [c; repmat(CL(l),prod(size(t)),1)];
                 end;
-                cc{k} = train_sc(d,c,FUN); 
-                r  = test_sc(cc{k},d,FUN,c);
+                cc{k} = train_sc(d,c,MODE); 
+                r  = test_sc(cc{k},d,MODE,c);
                 KAPPA(k)  = r.kappa;
         end;
+        fprintf(2,'search for segment: %i-%i kappa=%4.2f\n',T(k,1),T(k,end),KAPPA(k));
 end;	
 [maxQ,TI] = max(KAPPA.*t0); %d{K},
 CC = cc{TI};
@@ -146,26 +151,28 @@ for l = 1:length(CL2);          % XV based on "Leave-One(group)-Out-Method"
         ix = find(cl2==CL2(l));         % identify members of l-th group 
         t  = perm(TRIG(ix), T(CC.TI,:));        % get samples of test set
 
+        fprintf(1,'\nLOOM (%i/%i):',l, length(CL2));
         % decremental learning
         if 0, ~isempty(strfind(CC.datatype,'statistical')), 
                 c  = repmat(cl(cl2==CL2(l))', size(T,2),1);     % classlabels of test set
                 cc = untrain_sc(CC,c(:),D(t(:),:));             % untraining test set
                 
-        elseif ~isempty(strfind(CC.datatype,'statistical')),
+        elseif 1, %~isempty(strfind(CC.datatype,'statistical')),
                 t  = perm(TRIG(cl2~=CL2(l)), T(CC.TI,:));       % samples of training set
                 c  = repmat(cl(cl2~=CL2(l))', size(T,2),1);     % classlabels of training set
-                cc = train_sc(D(t(:),:),c(:));                 % train classifier 
+                cc = train_sc(D(t(:),:),c(:),MODE);             % train classifier 
 
         elseif ~isempty(strfind(CC.datatype,'svm:1vs1')),
                 t  = perm(TRIG(cl2~=CL2(l)), T(CC.TI,:));       % samples of training set
                 c  = repmat(cl(cl2~=CL2(l))', size(T,2),1);     % classlabels of training set
-                cc = train_svm11(D(t(:),:),c(:));                 % train classifier 
+                cc = train_svm11(D(t(:),:),c(:));               % train classifier 
 
         elseif ~isempty(strfind(CC.datatype,'svm')),
                 %ix = IX; ix(l)=[];
                 t  = perm(TRIG(cl2~=CL2(l)), T(CC.TI,:));       % samples of training set
                 c  = repmat(cl(cl2~=CL2(l))', size(T,2),1);     % classlabels of training set
                 cc = train_svm(D(t(:),:),c(:));                 % train classifier 
+
         end;
         
         t  = perm(TRIG(cl2==CL2(l)), min(min(T)):max(max(T)));  % samples of evaluation set (l-th group) 
@@ -175,7 +182,12 @@ for l = 1:length(CL2);          % XV based on "Leave-One(group)-Out-Method"
         end;
         tt(ix(:)) = t; 
         
-        r = test_sc(cc,D(t(:),:),FUN);                          % evaluation of l-th group
+        if ~isempty(strfind(CC.datatype,'svm:lib:1vs1')),
+                c = repmat(cl(cl2==CL2(l))', size(t,1), 1);              % classlabels of test set
+                r = test_sc(cc,D(t(:),:),MODE,c(:));                    % evaluation of l-th group
+        else
+                r = test_sc(cc,D(t(:),:),MODE);                    % evaluation of l-th group
+        end;
         tsd(ix(:),:) = r.output;                                % save results of l-th group
 end; 
 

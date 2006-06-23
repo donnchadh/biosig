@@ -23,7 +23,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % 
 % see also: MDBC, GDBC, LDBC2, LDBC3, LDBC4, TRAIN_SC, TRAIN_SVM
 
-%	$Id: test_sc.m,v 1.5 2006-05-25 21:35:30 schloegl Exp $
+%	$Id: test_sc.m,v 1.6 2006-06-23 15:20:21 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -54,9 +54,23 @@ if 0,
 elseif strcmp(CC.datatype,'classifier:svm:lib:1vs1');
         d = test_svm11(CC, D, classlabel); 
         
+elseif strcmp(CC.datatype,'classifier:svm:lib:rbf');
+        ix = any(isnan([D,classlabel]),2);
+        D(ix,:) = [];
+        classlabel(ix,:) = [];
+
+        [cl, accuracy] = svmpredict(classlabel, D, CC.model);   %Use the classifier
+
+        %Create a pseudo tsd matrix for bci4eval
+        d = zeros(size(cl,1), CC.model.nr_class);
+        for i = 1:size(cl,1)
+                d(i,(cl(i)))=1;
+        end
+        
 elseif isfield(CC,'weights'); %strcmpi(t2,'svm') | (strcmpi(t2,'statistical') & strncmpi(t3,'ld',2)) ;
-        % linear classifiers 
-        d = [ones(size(D,1),1), D] * CC.weights;
+        % linear classifiers like: LDA, SVM, LPM 
+        % d = [ones(size(D,1),1), D] * CC.weights;
+        d = D * CC.weights(2:end,:) + CC.weights(1);
         
 elseif strcmp(t2,'statistical');
         if isempty(mode)
@@ -98,5 +112,5 @@ R.classlabel = cl;
 
 if nargin>3,
         tmp = CC.Labels(cl(~isnan(cl)));
-        [R.kappa,sd,R.H,z,R.ACC] = kappa(classlabel(:),tmp(:));
+        [R.kappa,R.sd,R.H,z,R.ACC] = kappa(classlabel(:),tmp(:));
 end;
