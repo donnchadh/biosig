@@ -40,7 +40,7 @@ function [CC,Q,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
 %	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003 
 
 
-%   $Id: findclassifier.m,v 1.6 2006-06-23 15:20:21 schloegl Exp $
+%   $Id: findclassifier.m,v 1.7 2006-06-23 18:31:21 schloegl Exp $
 %   Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -128,7 +128,7 @@ for k = 1:size(T,1),
                 r  = test_sc(cc{k},d,MODE,c);
                 KAPPA(k)  = r.kappa;
         end;
-        fprintf(2,'search for segment: %i-%i kappa=%4.2f\n',T(k,1),T(k,end),KAPPA(k));
+%        fprintf(2,'search for segment: %i-%i kappa=%4.2f\n',T(k,1),T(k,end),KAPPA(k));
 end;	
 [maxQ,TI] = max(KAPPA.*t0); %d{K},
 CC = cc{TI};
@@ -151,7 +151,7 @@ for l = 1:length(CL2);          % XV based on "Leave-One(group)-Out-Method"
         ix = find(cl2==CL2(l));         % identify members of l-th group 
         t  = perm(TRIG(ix), T(CC.TI,:));        % get samples of test set
 
-        fprintf(1,'\nLOOM (%i/%i):',l, length(CL2));
+%        fprintf(1,'\nX-V (%i/%i):',l, length(CL2));
         % decremental learning
         if 0, ~isempty(strfind(CC.datatype,'statistical')), 
                 c  = repmat(cl(cl2==CL2(l))', size(T,2),1);     % classlabels of test set
