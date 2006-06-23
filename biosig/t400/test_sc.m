@@ -23,7 +23,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % 
 % see also: MDBC, GDBC, LDBC2, LDBC3, LDBC4, TRAIN_SC, TRAIN_SVM
 
-%	$Id: test_sc.m,v 1.6 2006-06-23 15:20:21 schloegl Exp $
+%	$Id: test_sc.m,v 1.7 2006-06-23 18:31:55 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -74,28 +74,28 @@ elseif isfield(CC,'weights'); %strcmpi(t2,'svm') | (strcmpi(t2,'statistical') & 
         
 elseif strcmp(t2,'statistical');
         if isempty(mode)
-                mode = upper(t3); 
+                mode.TYPE = upper(t3); 
         end;
-        if strcmpi(mode,'LD2'),
+        if strcmpi(mode.TYPE,'LD2'),
                 d = ldbc2(CC.MD,D);
-        elseif strcmpi(mode,'LD3');
+        elseif strcmpi(mode.TYPE,'LD3');
                 d = ldbc3(CC.MD,D);
-        elseif strcmpi(mode,'LD4');
+        elseif strcmpi(mode.TYPE,'LD4');
                 d = ldbc4(CC.MD,D);
-        elseif strcmpi(mode,'MDA');
+        elseif strcmpi(mode.TYPE,'MDA');
                 d = -(mdbc(CC.MD,D).^2);
-        elseif strcmpi(mode,'MD2');
+        elseif strcmpi(mode.TYPE,'MD2');
                 d = -mdbc(CC.MD,D);
-        elseif strcmpi(mode,'GDBC');
+        elseif strcmpi(mode.TYPE,'GDBC');
                 [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
                 d = exp(-MDBC{7}/2);
-        elseif strcmpi(mode,'MD3');
+        elseif strcmpi(mode.TYPE,'MD3');
                 [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
-                d = -GDBC;
-        elseif strcmpi(mode,'QDA');     
+                d = GDBC;
+        elseif strcmpi(mode.TYPE,'QDA');     
                 [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
                 d = MDBC{4};
-        elseif strcmpi(mode,'GRB');     % Gaussian RBF
+        elseif strcmpi(mode.TYPE,'GRB');     % Gaussian RBF
                 d = exp(-mdbc(CC.MD,D)/2);
         end;
         
