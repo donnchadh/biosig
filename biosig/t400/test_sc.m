@@ -23,7 +23,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % 
 % see also: MDBC, GDBC, LDBC2, LDBC3, LDBC4, TRAIN_SC, TRAIN_SVM
 
-%	$Id: test_sc.m,v 1.7 2006-06-23 18:31:55 schloegl Exp $
+%	$Id: test_sc.m,v 1.8 2006-06-26 08:17:39 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -69,8 +69,11 @@ elseif strcmp(CC.datatype,'classifier:svm:lib:rbf');
         
 elseif isfield(CC,'weights'); %strcmpi(t2,'svm') | (strcmpi(t2,'statistical') & strncmpi(t3,'ld',2)) ;
         % linear classifiers like: LDA, SVM, LPM 
-        % d = [ones(size(D,1),1), D] * CC.weights;
-        d = D * CC.weights(2:end,:) + CC.weights(1);
+        %d = [ones(size(D,1),1), D] * CC.weights;
+        d = repmat(NaN,size(D,1),size(CC.weights,2));
+        for k = 1:size(CC.weights,2),
+                d(:,k) = D * CC.weights(2:end,k) + CC.weights(1,k);
+        end;        
         
 elseif strcmp(t2,'statistical');
         if isempty(mode)
