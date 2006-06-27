@@ -20,9 +20,9 @@ function [GDBC,kap,acc,H,MDBC]=gdbc(ECM,Y,CL)
 %  [1] J. Bortz, Statistik für Sozialwissenschaftler, 5. Auflage, Springer (1999).  
 %
 
-%	$Revision: 1.5 $
-%	$Id: gdbc.m,v 1.5 2005-03-07 16:12:45 schloegl Exp $
-%	Copyright (c) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.6 $
+%	$Id: gdbc.m,v 1.6 2006-06-27 12:43:31 schloegl Exp $
+%	Copyright (c) 1999-2004,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -51,6 +51,10 @@ if length(NC)<3,
 
 	elseif isfield(ECM,'COV') & isfield(ECM,'NN')
     		ECM = ECM.COV./ECM.NN; 
+    		NC  = size(ECM);
+        
+	elseif isfield(ECM,'MD') & isfield(ECM,'NN')
+    		ECM = ECM.MD./ECM.NN; 
     		NC  = size(ECM);
         
         elseif isstruct(ECM),
