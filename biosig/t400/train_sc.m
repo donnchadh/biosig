@@ -5,24 +5,28 @@ function [CC]=train_sc(D,classlabel,MODE)
 %  CC = train_sc(D,classlabel,MODE)
 %
 %  The following classifier types are supported MODE.TYPE
-%    'MDA'    mahalanobis distance based classifier
-%    'MD2'    mahalanobis distance based classifier
-%    'MD3'    mahalanobis distance based classifier
-%    'GRB'    Gaussian radial basis function 
-%    'QDA'    quadratic discriminant analysis
-%    'LD2'    linear discriminant analysis (see LDBC2)
-%    'LD3'    linear discriminant analysis (see LDBC3)
-%    'LD4'    linear discriminant analysis (see LDBC4)
-%    'GDBC'   general distance based classifier
+%    'MDA'    mahalanobis distance based classifier [1]
+%    'MD2'    mahalanobis distance based classifier [1]
+%    'MD3'    mahalanobis distance based classifier [1]
+%    'GRB'    Gaussian radial basis function     [1]
+%    'QDA'    quadratic discriminant analysis    [1]
+%    'LD2'    linear discriminant analysis (see LDBC2) [1]
+%    'LD3'    linear discriminant analysis (see LDBC3) [1]
+%    'LD4'    linear discriminant analysis (see LDBC4) [1]
+%    'GDBC'   general distance based classifier  [1]
+%    'LDA/GSVD'   LDA based on Generalized Singulare Value Decomposition [2,3]
+%    'LD2/GSVD'   LDA based on Generalized Singulare Value Decomposition [2,3]
+%    'LD3/GSVD'   LDA based on Generalized Singulare Value Decomposition [2,3]
+%    'LD4/GSVD'   LDA based on Generalized Singulare Value Decomposition [2,3]
 %    'SVM','SVM1r'  support vector machines, one-vs-rest
-%               MODE.c_value = 
+%               MODE.hyperparameters.c_value = 
 %    'SVM11'  support vector machines, one-vs-one + voting
-%               MODE.c_value = 
+%               MODE.hyperparameters.c_value = 
 %    'RBF'    Support Vector Machines with RBF Kernel
-%               MODE.c_value = 
-%               MODE.gamma = 
+%               MODE.hyperparameters.c_value = 
+%               MODE.hyperparameters.gamma = 
 %    'LPM'    Linear Programming Machine
-%               MODE.c_value = 
+%               MODE.hyperparameters.c_value = 
 %
 % 
 % CC contains the model parameters of a classifier. Some time ago,     
@@ -34,14 +38,15 @@ function [CC]=train_sc(D,classlabel,MODE)
 % see also: TEST_SC, COVM, LDBC2, LDBC3, LDBC4, MDBC, GDBC
 %
 % References: 
-%
-%
-%
-%
-%
+% [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
+%       John Wiley & Sons, 2001. 
+% [2] Peg Howland and Haesun Park,
+%       Generalizing Discriminant Analysis Using the Generalized Singular Value Decomposition
+%       IEEE Transactions on Pattern Analysis and Machine Intelligence, 26(8), 2004.
+% [3] http://www-static.cc.gatech.edu/~kihwan23/face_recog_gsvd.htm
 %
 
-%	$Id: train_sc.m,v 1.6 2006-06-27 12:46:39 schloegl Exp $
+%	$Id: train_sc.m,v 1.7 2006-06-27 13:28:23 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -126,9 +131,11 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'rbf'))
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
 
 
-elseif ~isempty(strfind(lower(MODE.TYPE),'lda/gsvd'))
-	% Peg Howland and Haesun Park, 2004. 
-        % http://www-static.cc.gatech.edu/~kihwan23/face_recog_gsvd.htm
+elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
+	% [1] Peg Howland and Haesun Park, 2004. 
+        %       Generalizing Discriminant Analysis Using the Generalized Singular Value Decomposition
+        %       IEEE Transactions on Pattern Analysis and Machine Intelligence, 26(8), 2004.
+        % [3] http://www-static.cc.gatech.edu/~kihwan23/face_recog_gsvd.htm
 
         Hw = zeros(size(D)); 
 	m0 = mean(D); 
@@ -141,10 +148,11 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'lda/gsvd'))
         [P,R,Q] = svd([Hb;Hw],0);
 	t = rank(R);
 
+        clear Hw Hb mu; 
         %[size(D);size(P);size(Q);size(R)]
         R = R(1:t,1:t);
-%        P = P(1:size(D,1),1:t); 
-%        Q = Q(1:t,:);
+        %P = P(1:size(D,1),1:t); 
+        %Q = Q(1:t,:);
         [U,E,W] = svd(P(1:size(D,1),1:t),0);
         %[size(U);size(E);size(W)]
         clear U E P;  
@@ -152,7 +160,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'lda/gsvd'))
         G = Q(1:t,:)'*[R\W];
         %G = G(:,1:t);  % not needed 
         
-        CC = train_sc(D*G,classlabel,'LD3');
+        CC = train_sc(D*G,classlabel,MODE.TYPE(1:find(MODE.TYPE=='/')));
         CC.G = G; 
         CC.weights = [CC.weights(1,:); G*CC.weights(2:end,:)];
         CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
@@ -315,10 +323,10 @@ else          % Linear and Quadratic statistical classifiers
         end;        
         if strcmpi(MODE.TYPE,'LD2');
                 CC.weights = ldbc2(CC); 
-        elseif strcmpi(MODE.TYPE,'LD3');
-                CC.weights = ldbc3(CC); 
         elseif strcmpi(MODE.TYPE,'LD4');
                 CC.weights = ldbc4(CC); 
+        else %if strcmpi(MODE.TYPE,'LD3');
+                CC.weights = ldbc3(CC); 
         end;
     
 end;
