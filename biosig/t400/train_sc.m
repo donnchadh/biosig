@@ -32,7 +32,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 % CC contains the model parameters of a classifier. Some time ago,     
 % CC was a statistical classifier containing the mean 
 % and the covariance of the data of each class (encoded in the 
-%  so-called "extended covariance matrices). Nowadays, also other 
+%  so-called "extended covariance matrices". Nowadays, also other 
 % classifiers are supported. 
 %
 % see also: TEST_SC, COVM, LDBC2, LDBC3, LDBC4, MDBC, GDBC
@@ -44,9 +44,13 @@ function [CC]=train_sc(D,classlabel,MODE)
 %       Generalizing Discriminant Analysis Using the Generalized Singular Value Decomposition
 %       IEEE Transactions on Pattern Analysis and Machine Intelligence, 26(8), 2004.
 % [3] http://www-static.cc.gatech.edu/~kihwan23/face_recog_gsvd.htm
-%
+% [4] Jieping Ye, Ravi Janardan, Cheong Hee Park, Haesun Park
+%       A new optimization criterion for generalized discriminant analysis
+%       on undersampled problems.
+%       The Third IEEE International Conference on Data Mining, Melbourne, Florida, USA
+%       November 19 - 22, 2003
 
-%	$Id: train_sc.m,v 1.7 2006-06-27 13:28:23 schloegl Exp $
+%	$Id: train_sc.m,v 1.8 2006-06-27 17:18:49 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
