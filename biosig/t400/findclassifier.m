@@ -1,15 +1,11 @@
-function [CC,Q,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
+function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
 % FINDCLASSIFIER
-%   identifies and validates a classifier. In order to 
-%   validate the classifier, a Leave-One(group)-Out-Method is 
-%   used for cross-validation. A group can be defined by a second 
-%   column in the vector "Class". Per default (if "Class" has only one column), 
-%   each trial is a single group, accordingly a trial-based LOOM is applied. 
-%   Moreover several evaluation criteria are calculated. 
+%   identifies and validates a classifier of a BCI systems [1-3]. 
+%   Several evaluation criteria are obtained [4]. Several Cross-validation 
+%   procedures are supported. 
 %
 % By default, a Trial-based Leave-One-Out-Method is used for Crossvalidation     
 %       [CC,Q,TSD] = findclassifier(D,TRIG,Class,class_times,t_ref,TYPE);
-%
 % An K-fold cross-validation can be applied in this way: 
 %       ng = floor([0:length(Class)-1]'/length(Class)*K);
 %       [CC,Q,TSD] = findclassifier(D,TRIG,[Class,ng],class_times,t_ref,TYPE);
@@ -20,10 +16,10 @@ function [CC,Q,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
 % class_times	classification times, combinations of times must be in one row 
 % t_ref	reference time for Class 0 (optional)
 % TYPE  determines the type of classifier (see HELP TEST_SC for complete list)
-%       the default value is 'LD3'
+%       the default method is 'LD3'
 %
-% CC 	contains classifier
-% Q  	is a list of classification quality for each time of 'class_times'
+% CC 	contains the classifier and the validation results
+% Q  	is a list of classification quality for each time segment (as defined by 'class_times')
 % TSD 	returns the discrimination 
 %
 % Example: 
@@ -32,16 +28,22 @@ function [CC,Q,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
 % see also: TRAIN_SC, TEST_SC, BCI4EVAL
 %
 % Reference(s): 
-% [1] Schlögl A., Neuper C. Pfurtscheller G.
+% [1] Schlögl A, Neuper C, Pfurtscheller G
 % 	Estimating the mutual information of an EEG-based Brain-Computer-Interface
 %  	Biomedizinische Technik 47(1-2): 3-8, 2002.
-% [2] A. Schlögl, C. Keinrath, R. Scherer, G. Pfurtscheller,
+% [2] Schlögl A, Keinrath C, Scherer R, Pfurtscheller G,
 %	Information transfer of an EEG-based Bran-computer interface.
 %	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003 
+% [3] Schlögl A, Lee FY, Bischof H, Pfurtscheller G
+%	Characterization of Four-Class Motor Imagery EEG Data for the BCI-Competition 2005.
+%	Journal of neural engineering 2 (2005) 4, S. L14-L22
+% [4] Schlögl A, Kronegg J, Huggins JE, Mason SG;
+%	Evaluation criteria in BCI research.
+%	(Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller;
+%	Towards Brain-Computer Interfacing, MIT press (accepted)
 
-
-%   $Id: findclassifier.m,v 1.7 2006-06-23 18:31:21 schloegl Exp $
-%   Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%   $Id: findclassifier.m,v 1.8 2006-06-27 12:49:48 schloegl Exp $
+%   Copyright (C) 1999-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -119,18 +121,19 @@ KAPPA = repmat(NaN,size(t0));
 for k = 1:size(T,1),
         if t0(k),
                 c = []; d = [];
-                for l = 1:length(CL), 
-                        t = perm(TRIG(cl==CL(l)),T(k,:));
+                for k1 = 1:length(CL), 
+                        t = perm(TRIG(cl==CL(k1)),T(k,:));
                         d = [d; D(t(:),:)];
-                        c = [c; repmat(CL(l),prod(size(t)),1)];
+                        c = [c; repmat(CL(k1),prod(size(t)),1)];
                 end;
                 cc{k} = train_sc(d,c,MODE); 
-                r  = test_sc(cc{k},d,MODE,c);
+                r     = test_sc(cc{k},d,MODE,c);
                 KAPPA(k)  = r.kappa;
         end;
-%        fprintf(2,'search for segment: %i-%i kappa=%4.2f\n',T(k,1),T(k,end),KAPPA(k));
+%        fprintf(1,'search for segment: %i-%i kappa=%4.2f\n',T(k,1),T(k,end),KAPPA(k));
 end;	
-[maxQ,TI] = max(KAPPA.*t0); %d{K},
+[maxQ,TI] = max(KAPPA.*(t0~=0)); %d{K},
+%[maxQ,TI] = max(q.*(t0~=0)); %d{K},
 CC = cc{TI};
 CC.KAPPA = KAPPA;
 CC.TI = TI;
@@ -143,7 +146,12 @@ end;
 %% cross-validation with jackknife (group-based leave-one-out-method)
 nc  = max(max(T))-min(min(T))+1;
 
-tsd = repmat(nan,[nc*length(TRIG),length(CL)]);
+M = length(CL);
+if isfield(CC,'weights') & (M==2),
+        % For a 2-class problem and a linear classifier, only 1 Discriminant is needed
+        M = 1; 
+end;
+tsd = repmat(nan,[nc*length(TRIG),M]);
 tt  = tsd(:,1);
 IX  = find(~isnan(cl(:)'));
 
@@ -182,14 +190,17 @@ for l = 1:length(CL2);          % XV based on "Leave-One(group)-Out-Method"
         end;
         tt(ix(:)) = t; 
         
-        if ~isempty(strfind(CC.datatype,'svm:lib:1vs1')),
-                c = repmat(cl(cl2==CL2(l))', size(t,1), 1);              % classlabels of test set
-                r = test_sc(cc,D(t(:),:),MODE,c(:));                    % evaluation of l-th group
+        if ~isempty(strfind(CC.datatype,'svm:lib:1vs1')) | ~isempty(strfind(CC.datatype,'svm:lib:rbf')),
+                c = repmat(cl(cl2==CL2(l))', size(t,1), 1);     % classlabels of test set
+                r = test_sc(cc,D(t(:),:),MODE,c(:));            % evaluation of l-th group
         else
-                r = test_sc(cc,D(t(:),:),MODE);                    % evaluation of l-th group
+                r = test_sc(cc,D(t(:),:),MODE);                 % evaluation of l-th group
         end;
-        tsd(ix(:),:) = r.output;                                % save results of l-th group
+        tsd(ix(:),1:M) = r.output(:,1:M);                                % save results of l-th group
 end; 
 
+if (M~=length(CL));
+        tsd = [tsd,-tsd];
+end;
 CC.TSD  = bci4eval(tsd, (0:length(cl)-1)'*nc, cl, 1, nc);
 
