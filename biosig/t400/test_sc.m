@@ -9,7 +9,8 @@ function [R]=test_sc(CC,D,mode,classlabel)
 %       R.ACC   Classification accuracy 
 %       R.H     Confusion matrix 
 %
-%  The following classifier types are provide 
+%  The same classifier as in TRAIN_SC are supported. If a statistical 
+% classifier is used, TYPE can be used to modify the classifier. 
 %    TYPE = 'MDA'    mahalanobis distance based classifier
 %    TYPE = 'MD2'    mahalanobis distance based classifier
 %    TYPE = 'MD3'    mahalanobis distance based classifier
@@ -19,12 +20,11 @@ function [R]=test_sc(CC,D,mode,classlabel)
 %    TYPE = 'LD3'    linear discriminant analysis (see LDBC3)
 %    TYPE = 'LD4'    linear discriminant analysis (see LDBC4)
 %    TYPE = 'GDBC'   general distance based classifier
-%    TYPE = 'SVM'    support vector machines
 % 
-% see also: MDBC, GDBC, LDBC2, LDBC3, LDBC4, TRAIN_SC, TRAIN_SVM
+% see also: TRAIN_SC, MDBC, GDBC, LDBC2, LDBC3, LDBC4, 
 
-%	$Id: test_sc.m,v 1.8 2006-06-26 08:17:39 schloegl Exp $
-%	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: test_sc.m,v 1.9 2006-06-27 12:48:04 schloegl Exp $
+%	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -51,21 +51,16 @@ if ~strcmp(t1,'classifier'), return; end;
 
 if 0, 
         
-elseif strcmp(CC.datatype,'classifier:svm:lib:1vs1');
-        d = test_svm11(CC, D, classlabel); 
-        
-elseif strcmp(CC.datatype,'classifier:svm:lib:rbf');
-        ix = any(isnan([D,classlabel]),2);
-        D(ix,:) = [];
-        classlabel(ix,:) = [];
-
+elseif strcmp(CC.datatype,'classifier:svm:lib:1vs1') | strcmp(CC.datatype,'classifier:svm:lib:rbf');
+        %d = test_svm11(CC, D, classlabel); 
         [cl, accuracy] = svmpredict(classlabel, D, CC.model);   %Use the classifier
 
         %Create a pseudo tsd matrix for bci4eval
         d = zeros(size(cl,1), CC.model.nr_class);
         for i = 1:size(cl,1)
-                d(i,(cl(i)))=1;
+                tsd(i,(cl(i)))=1;
         end
+        
         
 elseif isfield(CC,'weights'); %strcmpi(t2,'svm') | (strcmpi(t2,'statistical') & strncmpi(t3,'ld',2)) ;
         % linear classifiers like: LDA, SVM, LPM 
@@ -75,36 +70,36 @@ elseif isfield(CC,'weights'); %strcmpi(t2,'svm') | (strcmpi(t2,'statistical') & 
                 d(:,k) = D * CC.weights(2:end,k) + CC.weights(1,k);
         end;        
         
+        
 elseif strcmp(t2,'statistical');
         if isempty(mode)
                 mode.TYPE = upper(t3); 
         end;
         if strcmpi(mode.TYPE,'LD2'),
-                d = ldbc2(CC.MD,D);
+                d = ldbc2(CC,D);
         elseif strcmpi(mode.TYPE,'LD3');
-                d = ldbc3(CC.MD,D);
+                d = ldbc3(CC,D);
         elseif strcmpi(mode.TYPE,'LD4');
-                d = ldbc4(CC.MD,D);
+                d = ldbc4(CC,D);
         elseif strcmpi(mode.TYPE,'MDA');
-                d = -(mdbc(CC.MD,D).^2);
+                d = -(mdbc(CC,D).^2);
         elseif strcmpi(mode.TYPE,'MD2');
-                d = -mdbc(CC.MD,D);
+                d = -mdbc(CC,D);
         elseif strcmpi(mode.TYPE,'GDBC');
-                [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
+                [GDBC,kap,acc,H,MDBC] = gdbc(CC,D);
                 d = exp(-MDBC{7}/2);
         elseif strcmpi(mode.TYPE,'MD3');
-                [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
+                [GDBC,kap,acc,H,MDBC] = gdbc(CC,D);
                 d = GDBC;
         elseif strcmpi(mode.TYPE,'QDA');     
-                [GDBC,kap,acc,H,MDBC] = gdbc(CC.MD,D);
+                [GDBC,kap,acc,H,MDBC] = gdbc(CC,D);
                 d = MDBC{4};
         elseif strcmpi(mode.TYPE,'GRB');     % Gaussian RBF
-                d = exp(-mdbc(CC.MD,D)/2);
+                d = exp(-mdbc(CC,D)/2);
         end;
-        
 else
-        fprintf(2,'Error TEST_SC: unknown classifier\n'); 
-        return; 
+        fprintf(2,'Error TEST_SC: unknown classifier\n');
+        return;
 end;
 
 [tmp,cl] = max(d,[],2);
