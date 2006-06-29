@@ -5,27 +5,29 @@ function [CC]=train_sc(D,classlabel,MODE)
 %  CC = train_sc(D,classlabel,MODE)
 %
 %  The following classifier types are supported MODE.TYPE
-%    'MDA'    mahalanobis distance based classifier [1]
-%    'MD2'    mahalanobis distance based classifier [1]
-%    'MD3'    mahalanobis distance based classifier [1]
-%    'GRB'    Gaussian radial basis function     [1]
-%    'QDA'    quadratic discriminant analysis    [1]
-%    'LD2'    linear discriminant analysis (see LDBC2) [1]
-%    'LD3'    linear discriminant analysis (see LDBC3) [1]
-%    'LD4'    linear discriminant analysis (see LDBC4) [1]
-%    'GDBC'   general distance based classifier  [1]
-%    'LDA/GSVD'   LDA based on Generalized Singulare Value Decomposition [2,3]
-%    'LD2/GSVD'   LDA based on Generalized Singulare Value Decomposition [2,3]
-%    'LD3/GSVD'   LDA based on Generalized Singulare Value Decomposition [2,3]
-%    'LD4/GSVD'   LDA based on Generalized Singulare Value Decomposition [2,3]
+%    'MDA'      mahalanobis distance based classifier [1]
+%    'MD2'      mahalanobis distance based classifier [1]
+%    'MD3'      mahalanobis distance based classifier [1]
+%    'GRB'      Gaussian radial basis function     [1]
+%    'QDA'      quadratic discriminant analysis    [1]
+%    'LD2'      linear discriminant analysis (see LDBC2) [1]
+%    'LD3'      linear discriminant analysis (see LDBC3) [1]
+%    'LD4'      linear discriminant analysis (see LDBC4) [1]
+%    'GDBC'     general distance based classifier  [1]
+%    'LDA/GSVD' LDA based on Generalized Singulare Value Decomposition [2,3]
+%    'LD2/GSVD' LDA based on Generalized Singulare Value Decomposition [2,3]
+%    'LD3/GSVD' LDA based on Generalized Singulare Value Decomposition [2,3]
+%    'LD4/GSVD' LDA based on Generalized Singulare Value Decomposition [2,3]
+%    ''         statistical classifier, requires Mode argument in TEST_SC	
+%    '/GSVD'	GSVD and statistical classifier, requires Mode argument in TEST_SC	
 %    'SVM','SVM1r'  support vector machines, one-vs-rest
 %               MODE.hyperparameters.c_value = 
-%    'SVM11'  support vector machines, one-vs-one + voting
+%    'SVM11'    support vector machines, one-vs-one + voting
 %               MODE.hyperparameters.c_value = 
-%    'RBF'    Support Vector Machines with RBF Kernel
+%    'RBF'      Support Vector Machines with RBF Kernel
 %               MODE.hyperparameters.c_value = 
 %               MODE.hyperparameters.gamma = 
-%    'LPM'    Linear Programming Machine
+%    'LPM'      Linear Programming Machine
 %               MODE.hyperparameters.c_value = 
 %
 % 
@@ -50,7 +52,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %       The Third IEEE International Conference on Data Mining, Melbourne, Florida, USA
 %       November 19 - 22, 2003
 
-%	$Id: train_sc.m,v 1.8 2006-06-27 17:18:49 schloegl Exp $
+%	$Id: train_sc.m,v 1.9 2006-06-29 06:57:26 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -93,6 +95,9 @@ sz = size(D);
 if sz(1)~=length(classlabel),
         error('length of data and classlabel does not fit');
 end;
+if ~isfield(MODE,'hyperparameter')
+        MODE.hyperparameter = [];
+end
 
 
 if 0, 
@@ -101,17 +106,17 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'lpm'))
         % linear programming machine 
         % CPLEX optimizer: ILOG solver, ilog cplex 6.5 reference manual http://www.ilog.com
         MODE.TYPE = 'LPM';
-        if ~isfield(MODE,'c_value')
-                MODE.c_value = 1; 
+        if ~isfield(MODE.hyperparameter,'c_value')
+                MODE.hyperparameter.c_value = 1; 
         end
 
         M = length(CC.Labels);
         if M==2, M=1; end;   % For a 2-class problem, only 1 Discriminant is needed 
         for k = 1:M,
-                LPM = train_LPM(D,(classlabel==CC.Labels(k)),'C',MODE.c_value);
+                LPM = train_LPM(D,(classlabel==CC.Labels(k)),'C',MODE.hyperparameter.c_value);
                 CC.weights(:,k) = [-LPM.b; LPM.w(:)];
         end;
-        CC.hyperparameters.c_value = MODE.c_value; 
+        CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
 
         
@@ -122,15 +127,15 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'rbf'))
         else
                 error('No SVM training algorithm available. Install LibSVM for Matlab.\n');
         end;
-        if ~isfield(MODE,'gamma')
-                MODE.gamma = 1; 
-        end;
-        if ~isfield(MODE,'c_value')
-                MODE.c_value = 1; 
+        if ~isfield(MODE.hyperparameter,'gamma')
+                MODE.hyperparameter.gamma = 1; 
         end
-        CC.options = sprintf('-c %g -t 2 -g %g', MODE.c_value, MODE.gamma);  %use RBF kernel, set C, set gamma
-        CC.hyperparameters.c_value = MODE.c_value; 
-        CC.hyperparameters.gamma = MODE.gamma; 
+        if ~isfield(MODE.hyperparameter,'c_value')
+                MODE.hyperparameter.c_value = 1; 
+        end
+        CC.options = sprintf('-c %g -t 2 -g %g', MODE.hyperparameter.c_value, MODE.hyperparameter.gamma);  %use RBF kernel, set C, set gamma
+        CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
+        CC.hyperparameters.gamma = MODE.hyperparameter.gamma; 
         CC.model = svmtrain(classlabel, D, CC.options);    % Call the training mex File     
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
 
@@ -220,13 +225,13 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'sparse_lda'))
         
 elseif ~isempty(strfind(lower(MODE.TYPE),'svm11'))
         % 1-versus-1 scheme 
-        if ~isfield(MODE,'c_value')
-                MODE.c_value = 1; 
+        if ~isfield(MODE.hyperparameter,'c_value')
+                MODE.hyperparameter.c_value = 1; 
         end
-        %CC = train_svm11(D,classlabel,MODE.c_value);
+        %CC = train_svm11(D,classlabel,MODE.hyperparameter.c_value);
 
-        CC.options=sprintf('-c %g -t 0',MODE.c_value);  %use linear kernel, set C
-        CC.hyperparameters.c_value = MODE.c_value; 
+        CC.options=sprintf('-c %g -t 0',MODE.hyperparameter.c_value);  %use linear kernel, set C
+        CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
 
         CC.model = svmtrain(classlabel, D, CC.options);    % Call the training mex File
 
@@ -235,8 +240,8 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm11'))
 
 
 elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
-        if ~isfield(MODE,'c_value')
-                MODE.c_value = 1; 
+        if ~isfield(MODE.hyperparameter,'c_value')
+                MODE.hyperparameter.c_value = 1; 
         end
         if any(MODE.TYPE==':'),
                 % nothing to be done
@@ -265,10 +270,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
                         if isfield(MODE,'options')
                                 CC.options = MODE.options;
                         else
-                                if ~isfield(MODE,'c_value')
-                                        MODE.c_value = 1;
-                                end;
-                                CC.options = sprintf('-s 0 -c %f -t 0 -d 1', MODE.c_value);      % C-SVC, C=1, linear kernel, degree = 1,
+                                CC.options = sprintf('-s 0 -c %f -t 0 -d 1', MODE.hyperparameter.c_value);      % C-SVC, C=1, linear kernel, degree = 1,
                         end;
                         model = svmtrain(cl, D, CC.options);    % C-SVC, C=1, linear kernel, degree = 1,
                         w = -cl(1) * model.SVs' * model.sv_coef;  %Calculate decision hyperplane weight vector
@@ -276,34 +278,22 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
                         Bias = -model.rho * cl(1);
 
                 elseif strcmp(MODE.TYPE, 'SVM:OSU');
-                        if ~isfield(MODE,'c_value')
-                                MODE.c_value = 1;
-                        end;
-                        [AlphaY, SVs, Bias, Parameters, nSV, nLabel] = mexSVMTrain(D', cl', [0 1 1 1 MODE.c_value]);    % Linear Kernel, C=1; degree=1, c-SVM
+                        [AlphaY, SVs, Bias, Parameters, nSV, nLabel] = mexSVMTrain(D', cl', [0 1 1 1 MODE.hyperparameter.c_value]);    % Linear Kernel, C=1; degree=1, c-SVM
                         w = -SVs * AlphaY'*cl(1);  %Calculate decision hyperplane weight vector
                         % ensure correct sign of weight vector and Bias according to class label
                         Bias = -Bias * cl(1);
 
                 elseif strcmp(MODE.TYPE, 'SVM:LOO');
-                        if ~isfield(MODE,'c_value')
-                                MODE.c_value = 1;
-                        end;
-                        [a, Bias, g, inds, inde, indw]  = svcm_train(D, cl, MODE.c_value); % C = 1;
+                        [a, Bias, g, inds, inde, indw]  = svcm_train(D, cl, MODE.hyperparameter.c_value); % C = 1;
                         w = D(inds,:)' * (a(inds).*cl(inds)) ;
 
                 elseif strcmp(MODE.TYPE, 'SVM:Gunn');
-                        if ~isfield(MODE,'c_value')
-                                MODE.c_value = 1;
-                        end;
-                        [nsv, alpha, Bias,svi]  = svc(center(D), cl, 1, MODE.c_value); % linear kernel, C = 1;
+                        [nsv, alpha, Bias,svi]  = svc(center(D), cl, 1, MODE.hyperparameter.c_value); % linear kernel, C = 1;
                         w = D(svi,:)' * alpha(svi) * cl(1);
                         Bias = mean(D*w);
 
                 elseif strcmp(MODE.TYPE, 'SVM:KM');
-                        if ~isfield(MODE,'c_value')
-                                MODE.c_value = 1;
-                        end;
-                        [xsup,w1,Bias,inds,timeps,alpha] = svmclass(D, cl, MODE.c_value, 1, 'poly', 1); % C = 1;
+                        [xsup,w1,Bias,inds,timeps,alpha] = svmclass(D, cl, MODE.hyperparameter.c_value, 1, 'poly', 1); % C = 1;
                         w = -D(inds,:)' * w1;
 
                 else
@@ -314,7 +304,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
                 CC.weights(1,k) = -Bias;
                 CC.weights(2:end,k) = w;
         end;
-        CC.hyperparameters.c_value = MODE.c_value; 
+        CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
 
 
@@ -329,7 +319,7 @@ else          % Linear and Quadratic statistical classifiers
                 CC.weights = ldbc2(CC); 
         elseif strcmpi(MODE.TYPE,'LD4');
                 CC.weights = ldbc4(CC); 
-        else %if strcmpi(MODE.TYPE,'LD3');
+        elseif strncmpi(MODE.TYPE,'LD3',2);
                 CC.weights = ldbc3(CC); 
         end;
     
