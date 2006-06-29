@@ -23,7 +23,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % 
 % see also: TRAIN_SC, MDBC, GDBC, LDBC2, LDBC3, LDBC4, 
 
-%	$Id: test_sc.m,v 1.9 2006-06-27 12:48:04 schloegl Exp $
+%	$Id: test_sc.m,v 1.10 2006-06-29 06:57:54 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -49,6 +49,8 @@ end;
 [t3,t] = strtok(t,':');
 if ~strcmp(t1,'classifier'), return; end; 
 
+POS1 = strfind(CC.datatype,'/gsvd');
+
 if 0, 
         
 elseif strcmp(CC.datatype,'classifier:svm:lib:1vs1') | strcmp(CC.datatype,'classifier:svm:lib:rbf');
@@ -71,6 +73,12 @@ elseif isfield(CC,'weights'); %strcmpi(t2,'svm') | (strcmpi(t2,'statistical') & 
         end;        
         
         
+elseif ~isempty(POS1)	% GSVD
+	CC.datatype = CC.datatype(1:POS1(1)-1);
+	r = test_sc(CC,D*CC.G);
+	d = r.output; 
+
+
 elseif strcmp(t2,'statistical');
         if isempty(mode)
                 mode.TYPE = upper(t3); 
