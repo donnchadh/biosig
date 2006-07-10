@@ -42,7 +42,7 @@ function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
 %	(Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller;
 %	Towards Brain-Computer Interfacing, MIT press (accepted)
 
-%   $Id: findclassifier.m,v 1.8 2006-06-27 12:49:48 schloegl Exp $
+%   $Id: findclassifier.m,v 1.9 2006-07-10 15:06:24 schloegl Exp $
 %   Copyright (C) 1999-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -126,7 +126,7 @@ for k = 1:size(T,1),
                         d = [d; D(t(:),:)];
                         c = [c; repmat(CL(k1),prod(size(t)),1)];
                 end;
-                cc{k} = train_sc(d,c,MODE); 
+                cc{k} = train_sc(d,c,MODE);
                 r     = test_sc(cc{k},d,MODE,c);
                 KAPPA(k)  = r.kappa;
         end;
@@ -147,10 +147,6 @@ end;
 nc  = max(max(T))-min(min(T))+1;
 
 M = length(CL);
-if isfield(CC,'weights') & (M==2),
-        % For a 2-class problem and a linear classifier, only 1 Discriminant is needed
-        M = 1; 
-end;
 tsd = repmat(nan,[nc*length(TRIG),M]);
 tt  = tsd(:,1);
 IX  = find(~isnan(cl(:)'));
@@ -170,17 +166,6 @@ for l = 1:length(CL2);          % XV based on "Leave-One(group)-Out-Method"
                 c  = repmat(cl(cl2~=CL2(l))', size(T,2),1);     % classlabels of training set
                 cc = train_sc(D(t(:),:),c(:),MODE);             % train classifier 
 
-        elseif ~isempty(strfind(CC.datatype,'svm:1vs1')),
-                t  = perm(TRIG(cl2~=CL2(l)), T(CC.TI,:));       % samples of training set
-                c  = repmat(cl(cl2~=CL2(l))', size(T,2),1);     % classlabels of training set
-                cc = train_svm11(D(t(:),:),c(:));               % train classifier 
-
-        elseif ~isempty(strfind(CC.datatype,'svm')),
-                %ix = IX; ix(l)=[];
-                t  = perm(TRIG(cl2~=CL2(l)), T(CC.TI,:));       % samples of training set
-                c  = repmat(cl(cl2~=CL2(l))', size(T,2),1);     % classlabels of training set
-                cc = train_svm(D(t(:),:),c(:));                 % train classifier 
-
         end;
         
         t  = perm(TRIG(cl2==CL2(l)), min(min(T)):max(max(T)));  % samples of evaluation set (l-th group) 
@@ -199,8 +184,5 @@ for l = 1:length(CL2);          % XV based on "Leave-One(group)-Out-Method"
         tsd(ix(:),1:M) = r.output(:,1:M);                                % save results of l-th group
 end; 
 
-if (M~=length(CL));
-        tsd = [tsd,-tsd];
-end;
 CC.TSD  = bci4eval(tsd, (0:length(cl)-1)'*nc, cl, 1, nc);
 

@@ -14,12 +14,8 @@ function [CC]=train_sc(D,classlabel,MODE)
 %    'LD3'      linear discriminant analysis (see LDBC3) [1]
 %    'LD4'      linear discriminant analysis (see LDBC4) [1]
 %    'GDBC'     general distance based classifier  [1]
-%    'LDA/GSVD' LDA based on Generalized Singulare Value Decomposition [2,3]
-%    'LD2/GSVD' LDA based on Generalized Singulare Value Decomposition [2,3]
-%    'LD3/GSVD' LDA based on Generalized Singulare Value Decomposition [2,3]
-%    'LD4/GSVD' LDA based on Generalized Singulare Value Decomposition [2,3]
 %    ''         statistical classifier, requires Mode argument in TEST_SC	
-%    '/GSVD'	GSVD and statistical classifier, requires Mode argument in TEST_SC	
+%    '/GSVD'	GSVD and statistical classifier [2,3]
 %    'SVM','SVM1r'  support vector machines, one-vs-rest
 %               MODE.hyperparameters.c_value = 
 %    'SVM11'    support vector machines, one-vs-one + voting
@@ -52,7 +48,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %       The Third IEEE International Conference on Data Mining, Melbourne, Florida, USA
 %       November 19 - 22, 2003
 
-%	$Id: train_sc.m,v 1.9 2006-06-29 06:57:26 schloegl Exp $
+%	$Id: train_sc.m,v 1.10 2006-07-10 15:06:24 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -147,6 +143,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
         % [3] http://www-static.cc.gatech.edu/~kihwan23/face_recog_gsvd.htm
 
         Hw = zeros(size(D)); 
+        Hb = [];
 	m0 = mean(D); 
 	for k = 1:length(CC.Labels)
 		ix = find(classlabel==CC.Labels(k));
@@ -169,10 +166,14 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
         G = Q(1:t,:)'*[R\W];
         %G = G(:,1:t);  % not needed 
         
-        CC = train_sc(D*G,classlabel,MODE.TYPE(1:find(MODE.TYPE=='/')));
+        CC = train_sc(D*G,classlabel,MODE.TYPE(1:find(MODE.TYPE=='/')-1));
         CC.G = G; 
-        CC.weights = [CC.weights(1,:); G*CC.weights(2:end,:)];
-        CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+        if isfield(CC,'weights')
+                CC.weights = [CC.weights(1,:); G*CC.weights(2:end,:)];
+                CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+        else
+                CC.datatype = [CC.datatype,'/gsvd'];
+        end;
 
 
 elseif ~isempty(strfind(lower(MODE.TYPE),'sparse_lda'))
@@ -245,10 +246,10 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
         end
         if any(MODE.TYPE==':'),
                 % nothing to be done
-        elseif exist('mexSVMTrain','file')==3,
-                MODE.TYPE = 'SVM:OSU';
         elseif exist('SVMTrain','file')==3,
                 MODE.TYPE = 'SVM:LIB';
+        elseif exist('mexSVMTrain','file')==3,
+                MODE.TYPE = 'SVM:OSU';
         elseif exist('svcm_train','file')==2,
                 MODE.TYPE = 'SVM:LOO';
         elseif exist('svmclass','file')==2,
@@ -314,13 +315,67 @@ else          % Linear and Quadratic statistical classifiers
         CC.NN = CC.MD;
         for k = 1:length(CC.Labels),
                 [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
-        end;        
-        if strcmpi(MODE.TYPE,'LD2');
-                CC.weights = ldbc2(CC); 
-        elseif strcmpi(MODE.TYPE,'LD4');
-                CC.weights = ldbc4(CC); 
-        elseif strncmpi(MODE.TYPE,'LD3',2);
-                CC.weights = ldbc3(CC); 
         end;
-    
+
+        ECM = CC.MD./CC.NN;
+        NC  = size(ECM);
+        if strncmpi(MODE.TYPE,'LD',2);
+
+                if NC(1)==2, NC(1)=1; end;                % linear two class problem needs only one discriminant
+                CC.weights = repmat(NaN,NC(2),NC(1));     % memory allocation
+                type = MODE.TYPE(3)-'0';
+
+                ECM0 = squeeze(sum(ECM,1));  %decompose ECM
+                [M0,sd,COV0,xc,N,R2] = decovm(ECM0);
+                for k = 1:NC(1);
+                        ecm = squeeze(ECM(k,:,:));
+                        [M1,sd,COV1,xc,N1,R2] = decovm(ECM0-ecm);
+                        [M2,sd,COV2,xc,N2,R2] = decovm(ecm);
+                        switch (type)
+                                case 2          % LD2
+                                        w = (COV1+COV2)\(M2'-M1')*2;
+                                case 4          % LD4
+                                        w = (COV1*N1+COV2*N2)\((M2'-M1')*(N1+N2));
+                                otherwise       % LD3, LDA
+                                        w = COV0\(M2'-M1')*2;
+                        end
+                        w0    = -M0*w;
+                        CC.weights(:,k) = [w0; w];
+                end;
+        else
+                c  = size(ECM,2);
+                ECM0 = sum(ECM,1);
+                nn = ECM0(1,1,1);	% number of samples in training set for class k
+                XC = squeeze(ECM0(1,:,:))/nn;		% normalize correlation matrix
+                M  = XC(1,2:NC(2));		% mean
+                S  = XC(2:NC(2),2:NC(2)) - M'*M;% covariance matrix
+                %M  = M/nn; S=S/(nn-1);
+                ICOV0 = inv(S);
+                ICOV1 = zeros(size(S));
+                for k = 1:NC(1);
+                        %[M,sd,S,xc,N] = decovm(ECM{k});  %decompose ECM
+                        %c  = size(ECM,2);
+                        nn = ECM(k,1,1);	% number of samples in training set for class k
+                        XC = squeeze(ECM(k,:,:))/nn;		% normalize correlation matrix
+                        M  = XC(1,2:NC(2));		% mean
+                        S  = XC(2:NC(2),2:NC(2)) - M'*M;% covariance matrix
+                        %M  = M/nn; S=S/(nn-1);
+
+                        %ICOV(1) = ICOV(1) + (XC(2:NC(2),2:NC(2)) - )/nn
+
+                        CC.M{k} = M;
+                        CC.IR{k} = [-M;eye(NC(2)-1)]*inv(S)*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean
+                        CC.IR0{k} = [-M;eye(NC(2)-1)]*ICOV0*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean
+                        d = NC(2)-1;
+                        CC.logSF(k)  = log(nn) - d/2*log(2*pi) - det(S)/2;
+                        CC.logSF2(k) = -2*log(nn/sum(ECM(:,1,1)));
+                        CC.logSF3(k) = d*log(2*pi) + log(det(S));
+                        CC.logSF4(k) = log(det(S)) + 2*log(nn);
+                        CC.logSF5(k) = log(det(S));
+                        CC.logSF6(k) = log(det(S)) - 2*log(nn/sum(ECM(:,1,1)));
+                        CC.logSF7(k) = log(det(S)) + d*log(2*pi) - 2*log(nn/sum(ECM(:,1,1)));
+                        CC.SF(k) = nn/sqrt((2*pi)^d * det(S));
+                        %CC.datatype='LLBC';
+                end;
+        end;
 end;

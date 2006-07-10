@@ -22,8 +22,12 @@ function [R]=test_sc(CC,D,mode,classlabel)
 %    TYPE = 'GDBC'   general distance based classifier
 % 
 % see also: TRAIN_SC, MDBC, GDBC, LDBC2, LDBC3, LDBC4, 
+%
+% References: 
+% [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
+%       John Wiley & Sons, 2001. 
 
-%	$Id: test_sc.m,v 1.10 2006-06-29 06:57:54 schloegl Exp $
+%	$Id: test_sc.m,v 1.11 2006-07-10 15:06:24 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -60,7 +64,7 @@ elseif strcmp(CC.datatype,'classifier:svm:lib:1vs1') | strcmp(CC.datatype,'class
         %Create a pseudo tsd matrix for bci4eval
         d = zeros(size(cl,1), CC.model.nr_class);
         for i = 1:size(cl,1)
-                tsd(i,(cl(i)))=1;
+                d(i,(cl(i))) = 1;
         end
         
         
@@ -71,7 +75,10 @@ elseif isfield(CC,'weights'); %strcmpi(t2,'svm') | (strcmpi(t2,'statistical') & 
         for k = 1:size(CC.weights,2),
                 d(:,k) = D * CC.weights(2:end,k) + CC.weights(1,k);
         end;        
-        
+        if size(CC.weights,2)==1,
+                d = [d, -d];
+        end;
+
         
 elseif ~isempty(POS1)	% GSVD
 	CC.datatype = CC.datatype(1:POS1(1)-1);
@@ -83,27 +90,65 @@ elseif strcmp(t2,'statistical');
         if isempty(mode)
                 mode.TYPE = upper(t3); 
         end;
-        if strcmpi(mode.TYPE,'LD2'),
+        D = [ones(size(D,1),1),D];  % add 1-column
+
+        if 0, 
+        elseif strcmpi(mode.TYPE,'LD2'),
                 d = ldbc2(CC,D);
         elseif strcmpi(mode.TYPE,'LD3');
                 d = ldbc3(CC,D);
         elseif strcmpi(mode.TYPE,'LD4');
                 d = ldbc4(CC,D);
         elseif strcmpi(mode.TYPE,'MDA');
-                d = -(mdbc(CC,D).^2);
+                for k = 1:length(CC.IR);
+                        d(:,k) = -sum((D*CC.IR{k}).*D,2); % calculate distance of each data point to each class
+                end;
         elseif strcmpi(mode.TYPE,'MD2');
-                d = -mdbc(CC,D);
+                for k = 1:length(CC.IR);
+                        d(:,k) = sum((D*CC.IR{k}).*D,2); % calculate distance of each data point to each class
+                end;
+                d = -sqrt(d);
         elseif strcmpi(mode.TYPE,'GDBC');
-                [GDBC,kap,acc,H,MDBC] = gdbc(CC,D);
-                d = exp(-MDBC{7}/2);
+                for k = 1:length(CC.IR);
+                        d(:,k) = sum((D*CC.IR{k}).*D,2) + CC.logSF7(k); % calculate distance of each data point to each class
+                end;
+                d = exp(-d/2);
         elseif strcmpi(mode.TYPE,'MD3');
-                [GDBC,kap,acc,H,MDBC] = gdbc(CC,D);
-                d = GDBC;
+                for k = 1:length(CC.IR);
+                        d(:,k) = sum((D*CC.IR{k}).*D,2) + CC.logSF7(k); % calculate distance of each data point to each class
+                end;
+                d = exp(-d/2);
+                d = d./repmat(sum(d,2),1,size(d,2));  % Zuordungswahrscheinlichkeit [1], p.601, equ (18.39)
         elseif strcmpi(mode.TYPE,'QDA');     
-                [GDBC,kap,acc,H,MDBC] = gdbc(CC,D);
-                d = MDBC{4};
+                for k = 1:length(CC.IR);
+                        % [1] (18.33) QCF - quadratic classification function  
+                        d(:,k) = -(sum((D*CC.IR{k}).*D,2) - CC.logSF5(k)); 
+                end;
         elseif strcmpi(mode.TYPE,'GRB');     % Gaussian RBF
-                d = exp(-mdbc(CC,D)/2);
+                for k = 1:length(CC.IR);
+                        d(:,k) = sum((D*CC.IR{k}).*D,2); % calculate distance of each data point to each class
+                end;
+                d = exp(-sqrt(d)/2);
+        elseif strcmpi(mode.TYPE,'GRB2');     % Gaussian RBF
+                for k = 1:length(CC.IR);
+                        d(:,k) = sum((D*CC.IR{k}).*D,2); % calculate distance of each data point to each class
+                end;
+                d = exp(-d);
+        elseif strcmpi(mode.TYPE,'MQU');     % Multiquadratic 
+                for k = 1:length(CC.IR);
+                        d(:,k) = sum((D*CC.IR{k}).*D,2); % calculate distance of each data point to each class
+                end;
+                d = -sqrt(1+d);
+        elseif strcmpi(mode.TYPE,'IMQ');     % Inverse Multiquadratic 
+                for k = 1:length(CC.IR);
+                        d(:,k) = sum((D*CC.IR{k}).*D,2); % calculate distance of each data point to each class
+                end;
+                d = (1+d).^(-1/2);
+        elseif strcmpi(mode.TYPE,'Cauchy');     % Cauchy RBF
+                for k = 1:length(CC.IR);
+                        d(:,k) = sum((D*CC.IR{k}).*D,2); % calculate distance of each data point to each class
+                end;
+                d = 1./(1+d);
         end;
 else
         fprintf(2,'Error TEST_SC: unknown classifier\n');
