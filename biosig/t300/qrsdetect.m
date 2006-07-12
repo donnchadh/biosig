@@ -11,6 +11,7 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 %   Fs          sample rate 
 %   Mode        [optional]
 %               1: method [1] is used 
+%		2: method [2] is used	
 % OUTPUT
 %   HDR.EVENT  fiducial points of qrs complexes	
 %
@@ -19,13 +20,14 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 %
 % Reference(s):
 % [1] M.-E. Nygards, L. Sörnmo, Delineation of the QRS complex using the envelope of the e.c.g
-%         Med. & Biol. Eng. & Comput., 1983, 21, 538-547.
-%
+%       Med. & Biol. Eng. & Comput., 1983, 21, 538-547.
+% [2] V. Afonso, W. Tompkins, T. Nguyen, and S. Luo, "ECG beat detection using filter banks,"
+% 	IEEE Trans. Biomed. Eng. 46(2):192-202, Feb. 1999.
 %
 
 
-%	$Id: qrsdetect.m,v 1.4 2005-11-05 23:35:03 schloegl Exp $
-%	Copyright (C) 2000-2003 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: qrsdetect.m,v 1.5 2006-07-12 19:22:53 schloegl Exp $
+%	Copyright (C) 2000-2003,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -76,24 +78,32 @@ else
 	HDR = sclose(HDR);
 end;	
 
-if MODE==1,     % QRS detection based on Hilbert transformation. For details see [1]
-        ET = []; 
-        for k = 1:size(s,2),
-                y  = processing({'ECG_envelope',HDR.SampleRate},s(:,k));
-                TH = quantile(y,.90);
-                
+ET = [];
+for k = 1:size(s,2),
+	if 0,
+
+        elseif MODE==2,     % QRS detection based on Afonso et al. 1999
+                POS = nqrsdetect(s(:,k),HDR.SampleRate);
+
+        elseif MODE==1,     % QRS detection based on Hilbert transformation. For details see [1]
+                y   = processing({'ECG_envelope',HDR.SampleRate},s(:,k));
+                TH  = quantile(y,.90);
+
                 POS = gettrigger(y,TH);	% fiducial point
-                
-                % difference between R-peak and fiducial point
-                [t,sz] = trigg(s(:,k),POS,floor(-HDR.SampleRate),ceil(HDR.SampleRate));
-                [tmp,ix] = max(abs(mean(reshape(t,sz(2:3)),2)));
-                delay = HDR.SampleRate + 1 - ix;
-                
-                ET = [ET; [POS-delay, repmat([hex2dec('0501'),chan(k),0], size(POS,1),1)]];
+
+        else %if Mode== ???     % other QRS detection algorithms
+		fprintf(2,'Error QRSDETECT: Mode=%i not supported',Mode);
+		return; 
         end;
-else %if Mode== ???     % other QRS detection algorithms
-        
+
+        % difference between R-peak and fiducial point
+        [t,sz] = trigg(s(:,k),POS,floor(-HDR.SampleRate),ceil(HDR.SampleRate));
+        [tmp,ix] = max(abs(mean(reshape(t,sz(2:3)),2)));
+        delay = HDR.SampleRate + 1 - ix;
+
+        ET = [ET; [POS-delay, repmat([hex2dec('0501'),chan(k),0], size(POS,1),1)]];
 end;
+
 
 [tmp,ix] = sort(ET(:,1));
 if isfield(HDR,'T0')
