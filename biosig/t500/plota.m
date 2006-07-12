@@ -1,6 +1,11 @@
 function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % PLOTA plots all kind of data types
 %
+% PLOTA(Labels,'ELPOS')
+%       displays 2-D location of EEG channels described by Labels
+% PLOTA(Labels,'ELPOS3')
+%       displays 3-D location of EEG channels described by Labels
+%
 % PLOTA(X [,Mode])
 %
 % X.datatype determines type of data
@@ -45,7 +50,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.49 2006-05-12 19:41:59 schloegl Exp $
+%	$Id: plota.m,v 1.50 2006-07-12 19:41:59 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -64,13 +69,32 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 h = [];
+if nargin>1,
+        if strncmpi(arg2,'ELPOS',5),
+                if isfield(X,'ELEC'),
+                        if isfield(X.ELEC,'XYZ'),
+                                H = X; X=[];
+                                X.XYZ = H.ELEC.XYZ; 
+                                X.Label = H.Label; 
+                                X.datatype = upper(arg2); 
+                        end;
+                elseif ~isstruct(X)
+                        tmp = X; X=[]; 
+                        X.Label = cellstr(tmp);
+                        for k = 1:length(X.Label)
+                                [X.XYZ(k,:),code] = elpos3(X.Label{k});
+                                X.datatype = upper(arg2); 
+                        end;
+                end;
+                clf;
+        end;
+end;
+
 if isfield(X,'datatype');
 elseif isfield(X,'TYPE');
         if strcmp(X.TYPE,'EVENT')
-                ix = find(X.EVENT.TYP==hex2dec('0501'));
-                if ~isempty(ix)
+                if any(X.EVENT.TYP==hex2dec('0501'));
                         X.datatype = 'QRS_events';
-                        X.QRS_event = X.EVENT.POS(ix) / X.EVENT.SampleRate;
                         H = X;
                 end
         end;
@@ -341,6 +365,8 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                 for k1 = 1:M,
                         Label{k1}=['# ',int2str(k1)];
                 end;
+        elseif ischar(X.Label),
+                Label = cellstr(X.Label);
         else
                 Label = X.Label;
         end;
@@ -1496,7 +1522,6 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         tix = X.tix(1);
         N = length(X.CL);
         c = (N-1)/N;
-        xlim = [0,7];
 
 
         fprintf(fid,'Error:		     %4.1f %% \n',100-X.ACC00(tix)*100);
@@ -1523,15 +1548,16 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         fprintf(fid,'%4.2f   ',X.AUC(tix,:));
         fprintf(fid,'\n');
 
-
+        xlim = [min(0,X.T(1)),max(7,X.T(end))];
+        
         subplot(nf(1));
         if ~isfield(X,'Labels')
-                for k=1:length(X.CL),Labels{k}=int2str(X.CL(k));end;
+                for k = 1:length(X.CL), Labels{k}=int2str(X.CL(k)); end;
         else
                 Labels = X.Labels;
         end;
         %plota(X);
-        plot(X.T,100*[X.ACC00, X.KAP00])
+        plot(X.T, 100*[X.ACC00, X.KAP00])
         axis([xlim,-20,100])
         xlabel('time [s]')
         title('Accuracy and Kappa')
@@ -1593,6 +1619,7 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         legend(Labels)
         v=axis; axis([xlim,-.2,1]);
 
+        
 elseif strcmp(X.datatype,'TSD_BCI8')    % obsolote
         if ~isfield(X,'T');
                 X.T = [1:size(X.ACC00,1)]';
@@ -1779,14 +1806,31 @@ elseif strcmp(X.datatype,'ERDS'),
                 plotaERDS(X,arg2)
         end;
 
+
 elseif strcmp(X.datatype,'QRS_events'),
-        ix = X.QRS_event;
-        l =length(ix);
-        semilogy((ix(1:l-1)+ix(2:l))/2,diff(ix));
+        ix0 = find(X.EVENT.TYP==hex2dec('0501'));
+        if ~isempty(ix0)
+                CHAN = unique(X.EVENT.CHN(ix0));
+        end
+        if (length(CHAN)==1)
+                ix = X.EVENT.POS(ix0) / X.EVENT.SampleRate;
+                if nargin<2,
+                        semilogy((ix(1:end-1)+ix(2:end))/2,diff(ix));
+                else
+                        semilogy((ix(1:end-1)+ix(2:end))/2,diff(ix),arg2);
+                end;
+        else
+                for k = 1:length(CHAN),
+                        ix = find(X.EVENT.CHN(ix0)==CHAN(k));
+                        ix = X.EVENT.POS(ix0(ix)) / X.EVENT.SampleRate;
+                        semilogy((ix(1:end-1)+ix(2:end))/2,diff(ix));
+                        hold on;
+                end;
+                hold off;
+        end;
 
-
+        
 elseif strcmp(X.datatype,'AMARMA')
-
         if X.MOP(3)~=0, return; end;
         if (X.MOP(1)==1) & (size(X.AAR,2)==X.MOP(2)+1),
                 m0 = X.AAR(:,1)./(1-sum(X.AAR(:,2:end),2));
@@ -2080,6 +2124,21 @@ elseif strcmp(X.datatype,'AMARMA')
         end;
         h = HHHH;
 
+        
+        
+elseif strcmp(X.datatype,'ELPOS'),
+        plot(X.XYZ(:,1),X.XYZ(:,2),'x');
+        for k = 1:size(X.XYZ,1);
+                text(X.XYZ(k,1),X.XYZ(k,2),X.Label{k});
+        end;
+        h = X; 
+        
+elseif strcmp(X.datatype,'ELPOS3'),
+        plot3(X.XYZ(:,1),X.XYZ(:,2),X.XYZ(:,3),'x');
+        for k = 1:size(X.XYZ,1);
+                text(X.XYZ(k,1),X.XYZ(k,2),X.XYZ(k,3),X.Label{k});
+        end;
+        h = X; 
         
         
 elseif strcmp(X.datatype,'REV'),

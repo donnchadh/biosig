@@ -6,8 +6,8 @@ function [argout,s]=sview(s,arg2),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.14 $
-%	$Id: sview.m,v 1.14 2005-10-23 19:39:18 schloegl Exp $ 
+%	$Revision: 1.15 $
+%	$Id: sview.m,v 1.15 2006-07-12 19:41:59 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -30,14 +30,15 @@ if nargin<2,
 else
         H=arg2; 
 end;
+
 if ischar(s) | iscell(s),
         if nargin<2,
                 [s,H] = sload(s);
-		CHAN = 1:size(s,2); 
+		CHAN  = 1:size(s,2); 
         else
-		CHAN = H; 
+		CHAN  = H;
                 [s,H] = sload(s,CHAN);
-                CHAN = 1:size(s,2);        
+%                CHAN  = 1:size(s,2);      
         end;
 	
 elseif isstruct(s)
@@ -116,8 +117,12 @@ end;
 
 if ~isfield(H,'Label'),
         LEG = '';
+elseif all(size(CHAN>1))
+        LEG = 'rereferenced';
+elseif all(CHAN>0)
+        LEG = H.Label(CHAN,:);
 elseif size(H.Label,1)<H.NS,
-        LEG = H.Label;
+      	LEG = H.Label;
 else
         LEG = H.Label(CHAN,:);
 end;
@@ -125,10 +130,9 @@ end;
 t = detrend(s); t = t(:); 
 t(isnan(t))=median(t);
 dd = max(t)-min(t);
+dd = 300;
 %dd = max(std(s))*5;
-s = zscore(s); dd = 20; % 
-%dd=300;
-
+ s = zscore(s); dd = 20; % 
 H.AS.TIMECHAN = strmatch('Time',H.Label);
 FLAG.tmp = (length(H.FILE)==1) & ~isempty(H.AS.TIMECHAN);
 if FLAG.tmp,
@@ -181,14 +185,16 @@ if H.NS==1,
 else
         plot(t(:),((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)),'-');
 end;
+%box('off'); 
 
 ix = find(EVENT.POS>0 & EVENT.POS<=length(t));
 if isfield(EVENT,'Desc') & ~isempty(ix) %& ~exist('OCTAVE_VERSION','builtin')
-	ix2 = find((EVENT.POS>0) & (EVENT.POS<=length(t)) & (EVENT.DUR>0));
+	ix2 = find((EVENT.POS>0) & (EVENT.POS<=length(t))); % & (EVENT.DUR>0));
         v = axis;
         hold on;
         N  = length(EVENT.POS);
         plot([1;1]*t(EVENT.POS(ix))',v(3:4),':k');
+        if length(EVENT.DUR)==length(EVENT.POS),
         for k=1:length(ix2),
 		x = t(EVENT.POS(ix2(k))+[0,EVENT.DUR(ix2(k))])';
 		y = v(3:4);
@@ -199,6 +205,7 @@ if isfield(EVENT,'Desc') & ~isempty(ix) %& ~exist('OCTAVE_VERSION','builtin')
 			set(ha,'FaceAlpha',.5);
 			set(ha,'EdgeAlpha',.5);
 		end;
+        end;
         end;
 	for k=1:length(ix),
                 txt = EVENT.Desc{ix(k)}; 
