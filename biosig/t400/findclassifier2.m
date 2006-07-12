@@ -27,8 +27,9 @@ function [CC,Q,tsd,md]=findclassifier2(D,TRIG,cl,T,t0,SWITCH)
 %	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003 
 
 
-%   Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Id: findclassifier2.m,v 1.4 2005-02-08 14:47:27 schloegl Exp $
+%   $Id: findclassifier2.m,v 1.5 2006-07-12 19:48:13 schloegl Exp $
+%   Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
 % This program is free software; you can redistribute it and/or
@@ -44,6 +45,10 @@ function [CC,Q,tsd,md]=findclassifier2(D,TRIG,cl,T,t0,SWITCH)
 % You should have received a copy of the GNU General Public License
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+
+warning('this function is obsolete and replaced by FINDCLASSIFIER');
+
 
 tsd=[];md=[];
 
@@ -67,7 +72,7 @@ end;
 cl = cl(:);
 CL = unique(cl(~isnan(cl)));
 
-CL = sort(CL);
+[CL,iCL] = sort(CL);
 TRIG = TRIG(:);
 if ~all(D(:,1)==1)
         %        D1=[ones(size(D,1)-1,1),diff(D)];
@@ -118,7 +123,7 @@ for k = 1:size(T,1),
                 ix(tmp) = NaN; %NC(1)+1;	% not classified; any value but not 1:length(MD)
                 ix(~tmp) = CL(ix(~tmp));
                 tmp = histo3([ix;CL(:)]);
-                cmx2(tmp.X,l) = tmp.H-1;            
+                cmx2(iCL(tmp.X),l) = tmp.H-1;            
         end;
         CMX(k,:,:)   = cmx;
         CC.KAPPA(k)  = kappa(cmx);
@@ -273,6 +278,7 @@ for l = find(~isnan(cl(:)'));1:length(cl);
         
         d = ldbc3(cc,D(t,:));
         LDA3(:,:,l) = d;
+        size(LDA3),
         [tmp,LD3IX(:,l)] = max(d,[],2);
         
         d = ldbc4(cc,D(t,:));
@@ -380,8 +386,8 @@ for k = 1:length(CL),
         o = bci3eval(jkd(:,(cl~=k)&~isnan(cl)),jkd(:,cl==k),2);
         CC.GRB.TSD{k}  = o;
         CC.GRB.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,(cl~=k)&~isnan(cl)),[],2)))/2;
-        [sum0,n0,ssq0]=sumskipnan(jkd(:,cl==k),2);
-        [sum1,n1,ssq1]=sumskipnan(jkd(:,(cl~=k)&~isnan(cl)),2);
+        [sum0,n0,ssq0] = sumskipnan(jkd(:,cl==k),2);
+        [sum1,n1,ssq1] = sumskipnan(jkd(:,(cl~=k)&~isnan(cl)),2);
         s0  = (ssq0-sum0.*sum0./n0)./(n0-1);
         s1  = (ssq1-sum1.*sum1./n1)./(n1-1);
         s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
@@ -392,8 +398,8 @@ for k = 1:length(CL),
         o = bci3eval(jkd(:,(cl~=k)&~isnan(cl)),jkd(:,cl==k),2);
         CC.LLH.TSD{k}  = o;
         CC.LLH.I0(:,k) = log2(2*var(jkd,[],2)./(var(jkd(:,cl==k),[],2) + var(jkd(:,(cl~=k)&~isnan(cl)),[],2)))/2;
-        [sum0,n0,ssq0]=sumskipnan(jkd(:,cl==k),2);
-        [sum1,n1,ssq1]=sumskipnan(jkd(:,(cl~=k)&~isnan(cl)),2);
+        [sum0,n0,ssq0] = sumskipnan(jkd(:,cl==k),2);
+        [sum1,n1,ssq1] = sumskipnan(jkd(:,(cl~=k)&~isnan(cl)),2);
         s0  = (ssq0-sum0.*sum0./n0)./(n0-1);
         s1  = (ssq1-sum1.*sum1./n1)./(n1-1);
         s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);

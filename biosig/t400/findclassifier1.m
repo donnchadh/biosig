@@ -27,7 +27,7 @@ function [CC,Q,tsd,md]=findclassifier1(D,TRIG,cl,T,t0,SWITCH)
 
 
 %   Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Id: findclassifier1.m,v 1.10 2004-04-14 16:03:41 schloegl Exp $
+%	$Id: findclassifier1.m,v 1.11 2006-07-12 19:48:13 schloegl Exp $
 
 
 % This program is free software; you can redistribute it and/or
@@ -44,11 +44,14 @@ function [CC,Q,tsd,md]=findclassifier1(D,TRIG,cl,T,t0,SWITCH)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
+
+warning('this function is obsolete and replaced by FINDCLASSIFIER');
+
+
 tsd=[];md=[];
 
 if nargin<6,
         SWITCH=0;
-        
 end;
 if nargin>4,
         if isempty(t0),
@@ -97,7 +100,7 @@ for k = 1:size(T,1),
         %[Q(k),d{k}] = qcmahal({C0r,C{k,:}});
         [CC.QC(k),d{k}] = qcmahal({C{k,:}});
         lnQ(k) = mean(log(d{k}(~eye(length(d{k})))));
-        for l = 1:length(CL), 
+        for l = 1:length(CL),
                 t = perm(TRIG(cl==CL(l)),T(k,:));
                 %t = t(t<=size(D,1));
                 [tmp] = mdbc({C{k,:}},D(t(:),:));
@@ -290,7 +293,7 @@ if 0,
         tmp2 = stat2(d(:,cl==CL(2)),2);       
         CC.LDA.TSD=stat2res(tmp1,tmp2);
         CC.LDA.TSD.ERR=1/2-mean(sign([-d(:,cl==CL(1)),d(:,cl==CL(2))]),2)/2;
-elseif bitand(SWITCH,1),        
+elseif bitand(SWITCH,1),
         CC.LDA.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
 end;
 
@@ -311,12 +314,12 @@ SNR = 2*s./(s0+s1); % this is SNR+1
 CC.MDA.I   = log2(SNR)/2;
 CC.MDA.SNR = SNR - 1;
 if 0,
-        clear tmp1 tmp2; 
+        clear tmp1 tmp2;
         tmp1 = stat2(d(:,cl==CL(1)),2);       
         tmp2 = stat2(d(:,cl==CL(2)),2);       
         CC.MDA.TSD=stat2res(tmp1,tmp2);
         CC.MDA.TSD.ERR=1/2-mean(sign([-d(:,cl==CL(1)),d(:,cl==CL(2))]),2)/2;
-elseif bitand(SWITCH,1),        
+elseif bitand(SWITCH,1),
         CC.MDA.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
 end;
 
@@ -337,12 +340,12 @@ SNR = 2*s./(s0+s1); % this is SNR+1
 CC.MD2.I   = log2(SNR)/2;
 CC.MD2.SNR = SNR - 1;
 if 0,
-        clear tmp1 tmp2; 
+        clear tmp1 tmp2;
         tmp1 = stat2(d(:,cl==CL(1)),2);       
         tmp2 = stat2(d(:,cl==CL(2)),2);       
         CC.MD2.TSD=stat2res(tmp1,tmp2);
         CC.MD2.TSD.ERR=1/2-mean(sign([-d(:,cl==CL(1)),d(:,cl==CL(2))]),2)/2;
-elseif bitand(SWITCH,1),        
+elseif bitand(SWITCH,1),
         CC.MD2.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
 end;
 
@@ -379,12 +382,14 @@ s   = (ssq0+ssq1-(sum0+sum1).*(sum0+sum1)./(n0+n1))./(n0+n1-1);
 SNR = 2*s./(s0+s1); % this is SNR+1 
 CC.MLL.I   = log2(SNR)/2;
 CC.MLL.SNR = SNR - 1;
-if 0,        clear tmp1 tmp2; 
+if 0,
+	clear tmp1 tmp2;
         tmp1 = stat2(d(:,cl==CL(1)),2);       
         tmp2 = stat2(d(:,cl==CL(2)),2);       
         CC.MLL.TSD=stat2res(tmp1,tmp2);
         CC.MLL.TSD.ERR=mean(sign([-d(:,cl==CL(1)),d(:,cl==CL(2))]),2)/2+1/2;
-elseif bitand(SWITCH,1),        CC.MLL.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
+elseif bitand(SWITCH,1),
+        CC.MLL.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
 end;
 
 d = exp(-JKD1/2)-exp(-JKD2/2);
@@ -409,6 +414,7 @@ if 0,
         tmp2 = stat2(d(:,cl==CL(2)),2);       
         CC.GRB.TSD=stat2res(tmp1,tmp2);
         CC.GRB.TSD.ERR=1/2-mean(sign([-d(:,cl==CL(1)),d(:,cl==CL(2))]),2)/2;
-elseif bitand(SWITCH,1),        CC.GRB.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
+elseif bitand(SWITCH,1),
+        CC.GRB.TSD=bci3eval(d(:,cl==CL(1)),d(:,cl==CL(2)),2);
 end;
 
