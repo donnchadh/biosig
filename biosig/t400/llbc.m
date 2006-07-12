@@ -19,8 +19,8 @@ function [LogLik,ix,x]=llbc(ECM,Y,Mode)
 % 
 % see also: DECOVM, ECOVM.M, R2.M, MDBC, LDBC
 
-%	$Revision: 1.2 $
-%	$Id: llbc.m,v 1.2 2003-07-24 10:27:31 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: llbc.m,v 1.3 2006-07-12 19:43:09 schloegl Exp $
 %	Copyright (c) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This program is free software; you can redistribute it and/or
@@ -36,6 +36,10 @@ function [LogLik,ix,x]=llbc(ECM,Y,Mode)
 % You should have received a copy of the GNU General Public License
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+
+warning('this function is obsolete and replaced by TRAIN_SC and TEST_SC');
+
 
 NC=size(ECM);
 if length(NC)<3, 
@@ -77,6 +81,8 @@ for k = 1:NC(1);
 	d = c-1;
 	x.logSF(k) = log(nn) - d/2*log(2*pi) - det(S)/2;
 	x.logSF2(k)= log(nn) - d/2*log(2*pi) - log(det(S))/2;
+	x.logSF3(k)= d*log(2*pi) + log(det(S));
+        x.logSF4(k)= log(det(S)) + 2*log(nn);
 	x.SF(k) = nn/sqrt((2*pi)^d * det(S));
 	x.datatype='LLBC';
 end;
@@ -88,7 +94,8 @@ else
         LogLik=zeros(size(Y,1),NC(1)); %alllocate memory
         for k = 1:NC(1);  
                 MDBC = sum((Y*x.IR{k}).*Y,2); % calculate distance of each data point to each class
-    		LogLik(:,k) = x.logSF2(k) - MDBC/2;
+    		% LogLik(:,k) = x.logSF2(k) - MDBC/2;
+    		LogLik(:,k) = MDBC + x.logSF4(k);
 	end;
         
         if nargout>=2,

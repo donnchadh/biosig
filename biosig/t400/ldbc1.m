@@ -18,8 +18,8 @@ function [LDBC,ix]=ldbc(ECM,Y)
 % 
 % see also: DECOVM, R2, MDBC, LDBC
 
-%	$Revision: 1.1 $
-%	$Id: ldbc1.m,v 1.1 2004-10-13 14:35:52 schloegl Exp $
+%	$Revision: 1.2 $
+%	$Id: ldbc1.m,v 1.2 2006-07-12 19:43:09 schloegl Exp $
 %	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -36,6 +36,10 @@ function [LDBC,ix]=ldbc(ECM,Y)
 % You should have received a copy of the GNU General Public License
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+
+warning('this function is obsolete and replaced by TRAIN_SC and TEST_SC');
+
 
 NC=size(ECM);
 if length(NC)<3, 
@@ -63,22 +67,13 @@ end;
 
 C0 = zeros(NC(2));
 for k = 1:NC(1);
-        %[M,sd,S,xc,N] = decovm(ECM{k});  %decompose ECM
-        c  = size(ECM{k},2);
-        nn = ECM{k}(1,1);	% number of samples in training set for class k
-        XC = ECM{k}/nn;		% normalize correlation matrix
-        M  = XC(1,2:c);		% mean 
-        S{k}  = XC(2:c,2:c) - M'*M;% covariance matrix
-        C0 = C0 + ECM{k};
-        m{k}=M;
-        %M  = M/nn; S=S/(nn-1);
-        %IR{k} = [-M;eye(NC(2)-1)]*inv(S)*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean 
+        [M{k},sd,S{k},xc,N] = decovm(ECM{k});  %decompose ECM
 end;
-[M0,sd,COV0,xc,N,R2] = decovm(C0);
 
 K=1;
 for k = 1:NC(1);
 for l = k+1:NC(1);
+        cl(K,:) = [k,l];
         [M0,sd,COV0,xc,N,R2] = decovm(ECM{k}+ECM{l});
         w     = COV0\(m{l}'-m{k}');
         w0    = -M0*w;
@@ -91,5 +86,4 @@ if nargin<2,
         LDBC = LDC;	% inverse correlation matrix
 else
         LDBC = Y*LDC;
-        
 end;

@@ -20,8 +20,8 @@ function [GDBC,kap,acc,H,MDBC]=gdbc(ECM,Y,CL)
 %  [1] J. Bortz, Statistik für Sozialwissenschaftler, 5. Auflage, Springer (1999).  
 %
 
-%	$Revision: 1.6 $
-%	$Id: gdbc.m,v 1.6 2006-06-27 12:43:31 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: gdbc.m,v 1.7 2006-07-12 19:43:09 schloegl Exp $
 %	Copyright (c) 1999-2004,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -38,6 +38,10 @@ function [GDBC,kap,acc,H,MDBC]=gdbc(ECM,Y,CL)
 % You should have received a copy of the GNU General Public License
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+
+warning('this function is obsolete and replaced by TRAIN_SC and TEST_SC');
+
 
 NC = size(ECM);
 if length(NC)<3,
@@ -129,7 +133,7 @@ end;
 if nargin<2,
         GDBC = x;	% inverse correlation matrix
 else
-        LogLik=zeros(size(Y,1),NC(1)); %alllocate memory
+        LogLik= zeros(size(Y,1),NC(1)); %alllocate memory
         for k = 1:NC(1);  
                 MDBC{1}(:,k) = sum((Y*x.IR{k}).*Y,2); % calculate distance of each data point to each class
                 % LogLik(:,k) = x.logSF2(k) - MDBC/2;

@@ -18,8 +18,8 @@ function [LDBC,ix]=ldbc(ECM,Y)
 % 
 % see also: LDBC1, DECOVM, R2, MDBC
 
-%	$Revision: 1.3 $
-%	$Id: ldbc.m,v 1.3 2004-10-13 14:35:52 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: ldbc.m,v 1.4 2006-07-12 19:43:09 schloegl Exp $
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -36,6 +36,10 @@ function [LDBC,ix]=ldbc(ECM,Y)
 % You should have received a copy of the GNU General Public License
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+
+warning('this function is obsolete and replaced by TRAIN_SC and TEST_SC');
+
 
 NC=size(ECM);
 if length(NC)<3, 
@@ -77,25 +81,26 @@ end;
 [M0,sd,COV0,xc,N,R2] = decovm(C0);
 
 K=1;
+cl = [];
 for k = 1:NC(1);
 for l = k+1:NC(1);
+        cl(K,:) = [k,l];
 	w     = COV0\(m{l}'-m{k}');
 	w0    = -M0*w;
         LDC(:,K) = [w0; w];
         K=K+1;
 end;
 end;
+for k = 1:NC(1);
+        W(:,k)=(cl(:,2)==k)-(cl(:,1)==k);
+end;
 
 if nargin<2,
         LDBC = LDC;	% inverse correlation matrix
 else
-        LDBC=zeros(size(Y,1),size(LDC,2)); %allocate memory
-        %for k = 1:size(LDC,2);  
-                %MDBC(:,k) = sqrt(sum((Y*IR{k}).*Y,2)); % calculate distance of each data point to each class
-        %end;
-        LDBC = Y*LDC;
-        
-        %if nargout>1,
-        %        [LDBC,ix] = min(LDBC,[],2);
-        %end;
+        if nargout>1,
+                [LDBC,ix] = max(Y*LDC,[],2);
+        else
+                LDBC = Y*LDC;
+        end;
 end;

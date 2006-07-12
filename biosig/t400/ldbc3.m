@@ -24,7 +24,7 @@ function [LDBC,ix]=ldbc3(ECM,Y)
 % 
 % see also: COVM, MDBC, LDBC, LDBC2, LDBC3, LDBC4, TRAIN_SC, TEST_SC
 
-%	$Id: ldbc3.m,v 1.4 2005-10-13 07:56:55 schloegl Exp $
+%	$Id: ldbc3.m,v 1.5 2006-07-12 19:43:09 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -41,6 +41,10 @@ function [LDBC,ix]=ldbc3(ECM,Y)
 % You should have received a copy of the GNU General Public License
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+
+warning('this function is obsolete and replaced by TRAIN_SC and TEST_SC');
+
 
 NC = size(ECM);
 if length(NC)<3,

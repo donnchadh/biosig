@@ -22,8 +22,8 @@ function [MDBC,ix]=mdbc(ECM,Y)
 % REFERENCE(S):
 % P. C. Mahalanobis, Proc. Natl. Institute of Science of India, 2, 49, (1936)
 
-%	$Revision: 1.3 $
-%	$Id: mdbc.m,v 1.3 2003-11-06 16:36:11 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: mdbc.m,v 1.4 2006-07-12 19:43:09 schloegl Exp $
 %	Copyright (c) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This program is free software; you can redistribute it and/or
@@ -39,6 +39,10 @@ function [MDBC,ix]=mdbc(ECM,Y)
 % You should have received a copy of the GNU General Public License
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+
+warning('this function is obsolete and replaced by TRAIN_SC and TEST_SC');
+
 
 NC=size(ECM);
 if length(NC)<3, 
@@ -64,7 +68,7 @@ if nargin>1,
         end;
 end;
 
-if 0,	% after a discussion with Carmen Vidaurre, we found out together, 
+if 1,	% after a discussion with Carmen Vidaurre, we found out together, 
         % that the following procedure is equivalent to the one below. 
         % Therefore, the simplier version is used as default. 
         for k = 1:NC(1);
@@ -75,7 +79,7 @@ if 0,	% after a discussion with Carmen Vidaurre, we found out together,
                 M  = XC(1,2:c);		% mean 
                 S  = XC(2:c,2:c) - M'*M;% covariance matrix
                 %M  = M/nn; S=S/(nn-1);
-                IR{k} = [-M;eye(NC(2)-1)]*inv(S)*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean 
+                IR{k}  = [-M;eye(NC(2)-1)]*inv(S)*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean 
                 %x.logSF{k} = -(nn*log(2*pi) + det(S))/2;
                 %x.logSF2{k} = -(nn*log(2*pi) + log(det(S)))/2;
                 %x.SF{k} = sqrt((2*pi)^nn*det(S));
@@ -93,11 +97,11 @@ else
         MDBC = zeros(size(Y,1),NC(1)); %allocate memory
         for k = 1:NC(1);  
                 MDBC(:,k) = sum((Y*IR{k}).*Y,2); % calculate distance of each data point to each class
-	end;
-        
-	MDBC = sqrt(MDBC);
+        end;
+        MDBC = sqrt(MDBC);
+
         if nargout==2,
                 [MDBC,ix] = min(MDBC,[],2);
-		ix(isnan(MDBC)) = NC(1)+1;	% not classified
+                ix(isnan(MDBC)) = NaN; %NC(1)+1;	% not classified; any value but not 1:length(MD)
         end;
 end;
