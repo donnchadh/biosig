@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.63 2006-04-26 08:41:23 schloegl Exp $
+%	$Id: sread.m,v 1.64 2006-07-31 11:55:00 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1326,6 +1326,9 @@ elseif strcmp(HDR.TYPE,'XML-FDA'),   % FDA-XML Format
         S  = HDR.data(HDR.FILE.POS+(1:nr),:);
         HDR.FILE.POS = HDR.FILE.POS + nr;
 
+% using XML4MAT instead of XMLTREE
+% str2double(HDR.XML0{end}.component{1}.series{end}.derivation{:}.derivedSeries{5}.component{1}.sequenceSet{5}.component{1}.sequence{2}.value{3}.digits)'
+
         
 elseif strcmp(HDR.TYPE,'FIF'),
         % some parts of this code are from Robert Oostenveld, 
@@ -1364,7 +1367,7 @@ elseif strcmp(HDR.TYPE,'FIF'),
 elseif strcmp(HDR.TYPE,'EVENT'),
         s = [];        
 
-elseif strcmp(HDR.TYPE,'IMAGE:',6),
+elseif strncmp(HDR.TYPE,'IMAGE:',6),
 	% forward call to IREAD
         HDR = iread(HDR);
 	return;
@@ -1425,21 +1428,21 @@ if ~HDR.FLAG.UCAL,
 	end;
 
         %if ~issparse(HDR.Calib); %
-        if exist('OCTAVE_VERSION','builtin')
+        if 1, % exist('OCTAVE_VERSION','builtin')
                 % force octave to do a sparse multiplication
                 % the difference is NaN*sparse(0) = 0 instead of NaN
                 % this is important for the automatic overflow detection
 		Calib = HDR.Calib;
-		tmp   = double(S);
+		tmp   = S;
                 S     = zeros(size(S,1),size(Calib,2));   % memory allocation
                 for k = 1:size(Calib,2),
                         chan = find(Calib(2:end,k));
-                        S(:,k) = tmp(:,chan) * Calib(1+chan,k) + Calib(1,k);
+                        S(:,k) = double(tmp(:,chan)) * full(Calib(1+chan,k)) + Calib(1,k);
                 end;
         else
                 % S = [ones(size(S,1),1),S]*HDR.Calib; 
                 % the following is the same as above but needs less memory. 
-                S = double(S) * HDR.Calib(2:end,:);
+                S = full(double(S) * HDR.Calib(2:end,:));
                 for k = 1:size(HDR.Calib,2),
                         S(:,k) = S(:,k) + full(HDR.Calib(1,k));
                 end;
