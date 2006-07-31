@@ -40,7 +40,7 @@ function QRS=nqrsdetect(S,fs);
 
 S=S(:);
 S=full(S);
-N=fs;   %Filter order
+N=round(fs);   %Filter order
 %---------------------------------------
 %Replaces filter bank in [1]
 Bw=5.6;     %filter bandwidth
