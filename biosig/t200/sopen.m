@@ -23,6 +23,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 %
 % MODE  'UCAL'  uncalibrated data
 %       'OVERFLOWDETECTION:OFF' turns off automated overflow detection
+%       '32bit' for NeuroScan CNT files reading 4-byte integer data
 %       Several options can be concatenated within MODE. 
 %
 % HDR contains the Headerinformation and internal data
@@ -47,8 +48,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.139 $
-%	$Id: sopen.m,v 1.139 2006-06-09 16:23:54 schloegl Exp $
+%	$Revision: 1.140 $
+%	$Id: sopen.m,v 1.140 2006-08-02 14:13:54 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1527,7 +1528,12 @@ elseif strcmp(HDR.TYPE,'BKR'),
         
 elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'})
         if any(HDR.FILE.PERMISSION=='r');
-                [HDR,H1,h2] = cntopen(HDR);
+                if isempty(strfind(MODE,'32'))
+                        [HDR,H1,h2] = cntopen(HDR);
+                else
+                        [HDR,H1,h2] = cntopen(HDR,'32bit');
+                end;
+
                 if HDR.GDFTYP==3,       
                         % support of OVERFLOWDETECTION
                        HDR.THRESHOLD = repmat([-2^15,2^15-1],HDR.NS,1);
@@ -5154,7 +5160,7 @@ elseif strcmp(HDR.TYPE,'BCI2003_III');
 elseif strncmp(HDR.TYPE,'MAT',3),
         status = warning;
         warning('off');
-        tmp = load('-mat',HDR.FileName)        ;
+        tmp = load('-MAT',HDR.FileName);
         warning(status);
         
         flag.bci2002a = isfield(tmp,'x') & isfield(tmp,'y') & isfield(tmp,'z') & isfield(tmp,'fs') & isfield(tmp,'elab'); 
@@ -5409,6 +5415,25 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
                 HDR.TYPE  = 'native'; 
                 HDR.NRec  = 1; 
+
+                
+        elseif isfield(tmp,'EEG');	% EEGLAB file format 
+                HDR.SPR         = tmp.EEG.pnts;
+                HDR.NS          = tmp.EEG.nbchan;
+                HDR.NRec        = tmp.EEG.trials;
+                HDR.SampleRate  = tmp.EEG.srate;
+                HDR.ELECPOS.XYZ = [[tmp.EEG.chanlocs.X]',[tmp.EEG.chanlocs.Y]',[tmp.EEG.chanlocs.Z]'];
+                HDR.Labels      = {tmp.EEG.chanlocs.labels}';
+                if ischar(tmp.EEG.data) & exist(tmp.EEG.data,'file')
+                        fid = fopen(tmp.EEG.data,'r','ieee-le');
+                        HDR.data = fread(fid,[HDR.SPR*HDR.NS*HDR.NRec],'float32');
+                        fclose(fid);
+                        HDR.data = reshape(permute(reshape(HDR.data,[HDR.SPR,HDR.NS,HDR.NRec]),[1,3,2]),[HDR.SPR*HDR.NRec,HDR.NS]);
+                end;
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
+                HDR.EVENT.POS = [0:HDR.NRec-1]'*HDR.SPR-1;
+                HDR.EVENT.TYP = repmat(hex2dec('0300'),HDR.NRec,1); 
+                HDR.TYPE = 'native'; 
 
                 
         elseif isfield(tmp,'eeg');	% Scherer
