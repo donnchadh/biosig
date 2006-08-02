@@ -3,8 +3,8 @@
 %
 % Copyright (C) 2003, 2004 by Alois Schloegl <a.schloegl@ieee.org>
 % WWW: http://biosig.sf.net/
-% $Revision: 1.6 $ 
-% $Id: Contents.m,v 1.6 2004-12-04 19:05:21 schloegl Exp $
+% $Revision: 1.7 $ 
+% $Id: Contents.m,v 1.7 2006-08-02 10:07:07 schloegl Exp $
 % This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % LICENSE:
@@ -40,9 +40,11 @@
 %	demo4	Demonstrates how the generate an BKR file
 %	demo5	Demonstrates how the generate an WAV file
 %       demo6   transfer functions of lumped circuit model
+%       demo7   simulations for MVAR estimates        
 %       scptest tests loading routine of SCP-ECG data
-% 	
+% 	bench_biosig    benchmark test based on BioSig4OctMat
 % 
+%
 % T100: [Data Acquistion] 
 % ---------------------------------------------
 % 
@@ -70,29 +72,39 @@
 % 	EEG2HIST	calculates histogram
 % 	GETTRIGGER	gets trigger points
 % 	TRIGG		extract fixed-length trials around trigger points	
-%	detect_muscle	detection of muscle artefacts using a inverse filter
+%	DETECT_MUSCLE	detection of muscle artefacts using an inverse filter
+%       REGRESS_EOG     reduce EOG artifacts with regression analysis 
+%       REMOVE5060HZ    methods for removing line interference
 % 
 % 
 % T300: Signal Processing and Feature extraction
 % ---------------------------------------------
+%    general: 
 % 	processing	general framework for blockwise-dataprocessing
-% 	getar0		initial AAR parameters
-%	QRScorr		correctiong of QRS-detection
-%	ECTBcorr	correction of Ectopic beat effect
+%    EEG: 
+%       BARLOW          Barlow parameters 
+%       HJORTH          Hjorth parameters 
+% 	WACKERMANN      Wackermann parameters
+%       EVOKED_POTENTIAL        EP estimation
 %	TFMVAR		time-frequency multivariate autoregressive modelling
 % 	LUMPED          Lumped Circuit model for the EEG alpha rhythm
-%       paynter         Paynter filter for Amplitude demodulation of EMG
-% 	
+%    EMG:
+%       PAYNTER         Paynter filter for Amplitude demodulation of EMG
+%    ECG: 
+%       QRSDETECT       QRS-Detection methods 
+%       BERGER          resampling of HRV data
+%       HEARTRATEVARIABILITY    estimates various HRV parameters
+%	QRScorr		correctiong of QRS-detection
+%	ECTBcorr	correction of Ectopic beat effect
+%       TVAAR           Time-varying AAR estimation 
+%
 % 
 % T400: Classification, Single Trial Analysis, Statistics,
 % ---------------------------------------------
-% 	LDBC		linear discriminant analysis
-% 	MDBC		mahalanobis distance based classifier
-% 	LLBC		log-likelihood based classifier
 % 	DECOVM		decomposes an "extended" covariance matrix	
-% 	GETCLASSIFIER	estimates classifier from labelled data
-% 	FINDCLASSIFIER1	obtains classifier includeding performance test. 
-% 	
+% 	TRAIN_SC	estimates classifier from labelled data
+% 	TEST_SC         applies classifier to test data 
+% 	FINDCLASSIFIER	obtains classifier includeding performance test. 
 % 
 % T490: Evaluation criteria
 % ---------------------------------------------
@@ -111,7 +123,8 @@
 % 	PLOTA		general plot functions for various data structures
 %	SVIEW		simple signal viewer 
 %       ELPOS           2-D electrode positions
-%       ELPOS3          3-D electrode positions	
+%       ELPOS3          3-D electrode positions
+	
 % 
 %
 % T550: Topographic Mapping, 3-dimensional display
