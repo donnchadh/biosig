@@ -1,4 +1,4 @@
-function [CNT,h,e]=cntopen(arg1,arg3,arg4,arg5,arg6)
+function [CNT,h,e]=cntopen(arg1,arg2,arg3,arg4,arg5,arg6)
 % CNTOPEN opens neuroscan files (but does not read the data). 
 % However, it is recommended to use SOPEN instead of CNTOPEN.
 % For loading whole Neuroscan data files, use SLOAD. 
@@ -6,8 +6,8 @@ function [CNT,h,e]=cntopen(arg1,arg3,arg4,arg5,arg6)
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
 
-%	$Revision: 1.35 $
-%	$Id: cntopen.m,v 1.35 2005-10-13 08:01:42 schloegl Exp $
+%	$Revision: 1.36 $
+%	$Id: cntopen.m,v 1.36 2006-08-02 14:14:35 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -25,7 +25,7 @@ function [CNT,h,e]=cntopen(arg1,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-
+if nargin<2, arg2=''; end; 
 if isstruct(arg1),
 	CNT=arg1;
 	if CNT.FILE.OPEN,
@@ -310,7 +310,8 @@ else    % new header
         h.scaletoolx2       = fread(fid,1,'float');
         h.scaletooly2       = fread(fid,1,'float');
         h.port              = fread(fid,1,'short');
-        h.numsamples        = fread(fid,1,'uint32');	%%%
+%        h.numsamples        = fread(fid,1,'uint32');	%%%
+        h.numsamples        = fread(fid,1,'float32');	%%%
 
         h.filterflag        = fread(fid,1,'char');	%%%
         h.lowcutoff         = fread(fid,1,'float');	%%%
@@ -530,6 +531,8 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
         %CNT.SPR    = h.pnts;
         CNT.NRec   = h.compsweeps;
         %disp([h.eventtablepos,CNT.HeadLen,CNT.NS,h.pnts,CNT.NRec,CNT.SampleRate,h.type,CNT.CNT.minor_revision])
+        %disp([CNT.NS,h.pnts,h.compsweeps,h.numsamples,h.type,CNT.CNT.minor_revision])
+        CNT.CNT.h = h; 
         
         if (CNT.CNT.minor_revision==8),
                 CNT.GDFTYP = 3; %'int16';
@@ -541,13 +544,20 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
         else
                 fprintf(CNT.FILE.stderr,'Warning CNTOPEN: EEG-Format Minor-Revision %i not tested.\n',CNT.CNT.minor_revision);
         end;
-        if 0, %h.type==184
+
+        if ~isempty(strfind(arg2,'32')),        % force 32 bit
+                % if h.type==184
                 CNT.GDFTYP = 5; %'int32';
                 CNT.AS.bpb = CNT.NS*4;	% Bytes per Block
         else
                 CNT.GDFTYP = 3; %'int16';
                 CNT.AS.bpb = CNT.NS*2;	% Bytes per Block
         end;
+
+        if h.eventtablepos>CNT.FILE.size,
+                warning('CNTOPEN: eventtablepos %i after end of file %i: \n',h.eventtablepos,CNT.FILE.size);
+        end; 
+        
 	CNT.AS.spb = CNT.NS;	% Samples per Block
 	CNT.AS.EVENTTABLEPOS = h.eventtablepos;
 	if h.eventtablepos>CNT.FILE.size,
