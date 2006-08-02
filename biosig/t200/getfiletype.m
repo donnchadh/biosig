@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.49 2006-06-02 22:00:23 schloegl Exp $
+%	$Id: getfiletype.m,v 1.50 2006-08-02 14:12:55 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -791,10 +791,13 @@ else
                         HDR.ZIP.filename = char(s(31:min(c,30+HDR.ZIP.LengthFileName)));
                         HDR.ZIP.LengthExtra = s(29:30)*[1;256];
                         HDR.HeadLen = 30 + HDR.ZIP.LengthFileName + HDR.ZIP.LengthExtra;
-                        HDR.tmp = char(s);
+                        HDR.ZIP.tmp = char(s);
                         HDR.ZIP.Extra = s(31+HDR.ZIP.LengthFileName:min(c,HDR.HeadLen));
-                        if strncmp(ss(31:end),'mimetypeapplication/vnd.sun.xml.writer',38)
+                        if 1, 
+                        elseif strncmp(ss(31:end),'mimetypeapplication/vnd.sun.xml.writer',38)
                                 HDR.TYPE='SWX';
+                        elseif strncmp(ss(31:end),'mimetypeapplication/vnd.oasis.opendocument.spreadsheet',38)
+                                HDR.TYPE='ODS';
                         end;
                 elseif strncmp(ss,'ZYXEL',5); 
                         HDR.TYPE='ZYXEL';
@@ -902,6 +905,9 @@ else
                                 HDR.TYPE='MIT';
                                 [tmp,tmp1,tmp2] = fileparts(tmp.name);
                                 HDR.FILE.Ext = tmp2(2:end);
+                        end
+                        if isempty(tmp), 
+                                tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.set']));      % EEGLAB file
                         end
                         if isempty(tmp), 
                                 tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.vhdr']));
