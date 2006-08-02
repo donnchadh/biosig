@@ -28,8 +28,8 @@ function [signal,H] = sload(FILENAME,varargin)
 %
 
 
-%	$Revision: 1.60 $
-%	$Id: sload.m,v 1.60 2006-04-25 10:30:06 schloegl Exp $
+%	$Revision: 1.61 $
+%	$Id: sload.m,v 1.61 2006-08-02 14:15:32 schloegl Exp $
 %	Copyright (C) 1997-2005 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -49,7 +49,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Boston, MA  02111-1307, USA.
 
 
-if length(varargin)<3; 
+if length(varargin)<2; 
 	MODE = ''; 
 else	
 	MODE = varargin{2};
@@ -213,7 +213,7 @@ if strncmp(H.TYPE,'IMAGE:',5)
 	return;
 end;
 
-H = sopen(H,'r',CHAN);
+H = sopen(H,'r',CHAN,MODE);
 if 0,
         
 elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat','EEProbe-CNT','EEProbe-AVR'})); 
@@ -775,63 +775,63 @@ if ~isempty(strfind(upper(MODE),'TSD'));
 end;
 
 
-if strcmp(H.TYPE,'GDF') 
-if isfield(H.EVENT,'TYP')
-if isempty(H.EVENT.TYP)
-        %%%%% if possible, load Reinhold's configuration files
-        f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
-        if exist(f,'file'),
-                try
-                        x = load(f,'header');
-                catch; 
-                        x=[];
-                end; 
-		if isfield(x,'header'),
-                if isfield(x.header,'Paradigm')
-                        fprintf(2,'Warning SLOAD (GDF): Obsolete feature is used (header information loaded from MAT-file %s).\n',H.FileName);
-                        fprintf(2,'This feature will be removed in future. Contact <a.schloegl@ieee.org> if you need this.\n ');  
-	                H.BCI.Paradigm = x.header.Paradigm;
-    		        if isfield(H.BCI.Paradigm,'TriggerTiming');
-    		                H.TriggerOffset = H.BCI.Paradigm.TriggerTiming;
-            		elseif isfield(H.BCI.Paradigm,'TriggerOnset');
-                    		H.TriggerOffset = H.BCI.Paradigm.TriggerOnset;
-            		end;
+if strcmp(H.TYPE,'GDF')
+        if isfield(H.EVENT,'TYP')
+                if isempty(H.EVENT.TYP)
+                        %%%%% if possible, load Reinhold's configuration files
+                        f = fullfile(H.FILE.Path, [H.FILE.Name,'.mat']);
+                        if exist(f,'file'),
+                                try
+                                        x = load(f,'header');
+                                catch;
+                                        x=[];
+                                end;
+                                if isfield(x,'header'),
+                                        if isfield(x.header,'Paradigm')
+                                                fprintf(2,'Warning SLOAD (GDF): Obsolete feature is used (header information loaded from MAT-file %s).\n',H.FileName);
+                                                fprintf(2,'This feature will be removed in future. Contact <a.schloegl@ieee.org> if you need this.\n ');
+                                                H.BCI.Paradigm = x.header.Paradigm;
+                                                if isfield(H.BCI.Paradigm,'TriggerTiming');
+                                                        H.TriggerOffset = H.BCI.Paradigm.TriggerTiming;
+                                                elseif isfield(H.BCI.Paradigm,'TriggerOnset');
+                                                        H.TriggerOffset = H.BCI.Paradigm.TriggerOnset;
+                                                end;
 
-                        if isfield(H,'Classlabel') & isempty(H.Classlabel),
-                                H.Classlabel = x.header.Paradigm.Classlabel;
+                                                if isfield(H,'Classlabel') & isempty(H.Classlabel),
+                                                        H.Classlabel = x.header.Paradigm.Classlabel;
+                                                end;
+                                        end;
+                                end;
                         end;
                 end;
-		end;
         end;
-end;
-end;
         f=fullfile(H.FILE.Path,[H.FILE.Name,'.sel']);
         if ~exist(f,'file'),
-                f=fullfile(H.FILE.Path,[H.FILE.Name,'.SEL']);
+                f = fullfile(H.FILE.Path,[H.FILE.Name,'.SEL']);
         end
         if exist(f,'file'),
                 fid = fopen(f,'r');
-		tmp = fread(fid,inf,'char');
-		fclose(fid);
-		[tmp,v] = str2double(char(tmp'));
-		if any(isnan(tmp)) |any(tmp~=ceil(tmp)) | any(tmp<0) | (any(tmp==0) & any(tmp>1))
+                tmp = fread(fid,inf,'char');
+                fclose(fid);
+                [tmp,v] = str2double(char(tmp'));
+                if any(isnan(tmp)) |any(tmp~=ceil(tmp)) | any(tmp<0) | (any(tmp==0) & any(tmp>1))
                         fprintf(2,'Warning SLOAD(GDF): corrupted SEL-file %s\n',f);
                 else
-                        if isfield(H,'Classlabel'), 
+                        if isfield(H,'Classlabel'),
                                 n = length(H.Classlabel);
                         else
                                 n = length(H.EVENT.TYP);
                         end;
-                        
+
                         H.ArtifactSelection = zeros(n,1);
                         if all((tmp==0) | (tmp==1)) & (length(tmp)>1) & (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
-                                H.ArtifactSelection = logical(tmp);         
+                                H.ArtifactSelection = logical(tmp);
                         else
-                                H.ArtifactSelection(tmp) = 1;         
+                                H.ArtifactSelection(tmp) = 1;
                         end;
                 end;
         end;
-end;    
+end;
 
 
 % resampling 
