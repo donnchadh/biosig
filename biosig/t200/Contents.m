@@ -1,51 +1,6 @@
 % BIOSIG/T200 contains Matlab/Octave functions to access various biosignal dataformats
 % For simiplicity we call all supported files "Biosig"-files.  
-% Currently, the following formats are are supported:
-%    SIGNALS (1-Dim)
-%	AIFF/C	Apple's audio interchange format 
-%	ACQ	Biopac ACQ format 
-%	ADI/CFWB Chart (translated binary) format from ADInstruments
-%	alpha	alpha trace 
-%	BDF	Biosemi data format (EDF with 24bit integers)
-%	BKR	Dept for Medical informatics, University of Technology Graz
-%	BV	Brainvision
-%     	CNT	Neuroscan (continous data)
-%	CTF-MEG	CTF System
-%	DEMG	DelSys Inc.
-%	EDF+	European Data Format
-%       EEG	Neuroscan (triggered data)
-%       EGI	Format from Electrical Geodesics
-%	EEProbe	ANT Software
-%	FIFF	NeuroMag FIF format
-%	GDF	General data format (EDF different datatypes)
-%	ISHNE	The ISHNE Holter Standard Output File Format
-%	MFER	medical waveform format encoding rules
-%	MIT/ECG	PhysioNet data format
-%	SCP-ECG	Standard Communication Protocol - Computer-assisted electrocardiography
-%	ISHNE	The ISHNE Holter Standard Output File Format
-%	Poly5/TMS32 Format used for recordings with the Porti-system and the PortiLab software
-%	RDF	EPRSS Data Format
-%	Sierra ECG 1.03	Philips XML format for ECG data
-%	SMA	Snap-Master file format
-%	SND/AU	Next/SUN sound file
-%	WAV	Audio, Microsoft's PCM data format
-%
-%    IMAGES (2-Dim)
-%	BMP
-%	FITS
-%	PNM (PBMA, PGMA, PPMA, PBMB, PGMB, PPMB) 	
-%	TIFF
-%	XPM
-%
-%    MESHES (3-Dim)
-%	OFF
-%	POLY
-%	SMF
-%	VTK	
-%	VRML
-%
-%    MATRICES
-%	MatrixMarket (MM)
+% For the the list of supported formats see the references below. 
 %
 %
 % A united interface is provided for all data formats:
@@ -77,17 +32,12 @@
 %	GDFDATATYP
 %	
 %
-% Other functions from earlier projects are included, 
-% but they might become obsolete in future. 
-% 
-%
 % REFERENCES: 
-% [1] http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/eeg/
+% [1] http://hci.tugraz.at/~schloegl/biosig/
 % [2] http://biosig.sf.net/
 %
 
-%	$Revision: 1.18 $
-%	$Id: Contents.m,v 1.18 2005-06-04 22:19:05 schloegl Exp $
-%	CopyLeft (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: Contents.m,v 1.19 2006-08-02 14:27:52 schloegl Exp $
+%	CopyLeft (c) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
