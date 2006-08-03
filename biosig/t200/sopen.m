@@ -48,8 +48,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.140 $
-%	$Id: sopen.m,v 1.140 2006-08-02 14:13:54 schloegl Exp $
+%	$Revision: 1.141 $
+%	$Id: sopen.m,v 1.141 2006-08-03 10:21:29 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2095,7 +2095,7 @@ elseif strcmp(HDR.TYPE,'ACQ'),
         % --------   Variable Header        
         
         % --------   Per Channel data section 
-        HDR.Labels = char(zeros(HDR.NS,40));
+        HDR.Label = char(zeros(HDR.NS,40));
         HDR.Off = zeros(HDR.NS,1);
         HDR.Cal = ones(HDR.NS,1);
         HDR.ChanHeaderLen = zeros(HDR.NS,1);
@@ -5423,7 +5423,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.NRec        = tmp.EEG.trials;
                 HDR.SampleRate  = tmp.EEG.srate;
                 HDR.ELECPOS.XYZ = [[tmp.EEG.chanlocs.X]',[tmp.EEG.chanlocs.Y]',[tmp.EEG.chanlocs.Z]'];
-                HDR.Labels      = {tmp.EEG.chanlocs.labels}';
+                HDR.Label       = strvcat({tmp.EEG.chanlocs.labels});
                 if ischar(tmp.EEG.data) & exist(tmp.EEG.data,'file')
                         fid = fopen(tmp.EEG.data,'r','ieee-le');
                         HDR.data = fread(fid,[HDR.SPR*HDR.NS*HDR.NRec],'float32');
@@ -5431,8 +5431,18 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.data = reshape(permute(reshape(HDR.data,[HDR.SPR,HDR.NS,HDR.NRec]),[1,3,2]),[HDR.SPR*HDR.NRec,HDR.NS]);
                 end;
                 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
-                HDR.EVENT.POS = [0:HDR.NRec-1]'*HDR.SPR-1;
-                HDR.EVENT.TYP = repmat(hex2dec('0300'),HDR.NRec,1); 
+
+                % trial onset and offset event
+                HDR.EVENT.POS = [[0:HDR.NRec-1]'*HDR.SPR+1;[1:HDR.NRec]'*HDR.SPR]];      
+                HDR.EVENT.TYP = [repmat(hex2dec('0300'),HDR.NRec,1);repmat(hex2dec('8300'),HDR.NRec,1)];   
+                
+                % cue event 
+                if isfield(tmp.EEG,'xmin')
+                        offset = tmp.EEG.xmin*HDR.SampleRate;
+                        HDR.EVENT.POS = [HDR.EVENT.POS; [0:HDR.NRec-1]'*HDR.SPR - offset];      % timing of cue
+                        HDR.EVENT.TYP = [HDR.EVENT.TYP; repmat(hex2dec('0301'),HDR.NRec,1)]; % this is a hack because info on true classlabels is not available
+                end;
+                % HDR.debugging_info = tmp.EEG;
                 HDR.TYPE = 'native'; 
 
                 
@@ -5441,7 +5451,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.NS=size(tmp.eeg,2);
                 HDR.NRec = 1; 
                 if ~isfield(tmp,'SampleRate')
-                        %fprintf(HDR.FILE.stderr,['Samplerate not known in ',HDR.FileName,'. 125Hz is chosen']);
+                        % fprintf(HDR.FILE.stderr,['Samplerate not known in ',HDR.FileName,'. 125Hz is chosen']);
                         HDR.SampleRate=125;
                 else
                         HDR.SampleRate=tmp.SampleRate;
