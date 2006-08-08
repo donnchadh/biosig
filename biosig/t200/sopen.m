@@ -48,8 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.141 $
-%	$Id: sopen.m,v 1.141 2006-08-03 10:21:29 schloegl Exp $
+%	$Id: sopen.m,v 1.142 2006-08-08 07:18:52 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2531,6 +2530,16 @@ elseif strcmp(HDR.TYPE,'SND'),
         end;
         HDR.FILE.POS = 0;
         HDR.NRec = 1;
+        
+        
+elseif 0, strcmp(HDR.TYPE,'Delta'),
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
+        if any(HDR.FILE.PERMISSION=='r'),		%%%%% READ 
+                tmp = fread(HDR.FILE.FID,[1,768],'uint8'); 
+                HDR.Patient.Id = char(tmp(314:314+80));
+                
+                fclose(HDR.FILE.FID);
+        end;
         
         
 elseif strncmp(HDR.TYPE,'EEG-1100',8),
@@ -5422,7 +5431,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.NS          = tmp.EEG.nbchan;
                 HDR.NRec        = tmp.EEG.trials;
                 HDR.SampleRate  = tmp.EEG.srate;
-                HDR.ELECPOS.XYZ = [[tmp.EEG.chanlocs.X]',[tmp.EEG.chanlocs.Y]',[tmp.EEG.chanlocs.Z]'];
+                HDR.ELEC.XYZ    = [[tmp.EEG.chanlocs.X]',[tmp.EEG.chanlocs.Y]',[tmp.EEG.chanlocs.Z]'];
                 HDR.Label       = strvcat({tmp.EEG.chanlocs.labels});
                 if ischar(tmp.EEG.data) & exist(tmp.EEG.data,'file')
                         fid = fopen(tmp.EEG.data,'r','ieee-le');
@@ -5433,7 +5442,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
 
                 % trial onset and offset event
-                HDR.EVENT.POS = [[0:HDR.NRec-1]'*HDR.SPR+1;[1:HDR.NRec]'*HDR.SPR]];      
+                HDR.EVENT.POS = [ [0:HDR.NRec-1]'*HDR.SPR+1; [1:HDR.NRec]'*HDR.SPR ];
                 HDR.EVENT.TYP = [repmat(hex2dec('0300'),HDR.NRec,1);repmat(hex2dec('8300'),HDR.NRec,1)];   
                 
                 % cue event 

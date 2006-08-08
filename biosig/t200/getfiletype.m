@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.50 2006-08-02 14:12:55 schloegl Exp $
+%	$Id: getfiletype.m,v 1.51 2006-08-08 07:18:53 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -189,6 +189,8 @@ else
                         HDR.VERSION = ss(11:16);
                 elseif strncmp(ss,'GALILEO EEG TRACE FILE',22)     % Galilea EEG (from ESAOTE, EBNeuro spa) 
                         HDR.TYPE='GTF';
+                elseif strcmp(ss(3:11),'COHERENCE') & strcmp(ss(43+[1:length(HDR.FILE.Name)]),HDR.FILE.Name); 
+                        HDR.TYPE='Delta';
                         
                 elseif strcmp(ss(1:8),'@  MFER '); 
                         HDR.TYPE='MFER';
