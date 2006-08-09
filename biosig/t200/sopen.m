@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.142 2006-08-08 07:18:52 schloegl Exp $
+%	$Id: sopen.m,v 1.143 2006-08-09 08:38:42 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -752,9 +752,6 @@ end;
                         % EDF+: 
                         tmp = strmatch('EDF Annotations',HDR.Label);
                         HDR.EDF.Annotations = tmp;
-                        %       HDR.Cal(HDR.EDF.Annotations) = 1;
-                        %       HDR.Off(HDR.EDF.Annotations) = 0;
-                        %	HDR.Calib(:,tmp) = [];
                         if isempty(ReRefMx)
                         	ReRefMx = sparse(1:HDR.NS,1:HDR.NS,1);
                         	ReRefMx(:,tmp) = [];
@@ -790,6 +787,52 @@ end;
                                 HDR.EVENT.TYP = TYP(:) - 1;
                         end;
 
+
+                elseif strcmp(HDR.TYPE,'EDF') & (length(strmatch('ANNOTATION',HDR.Label))==1),
+                        % EEG from Delta/NihonKohden converted into EDF: 
+                        tmp = strmatch('ANNOTATION',HDR.Label);
+                        HDR.EDF.Annotations = tmp;
+                        FLAG.ANNONS = 1; % valid         
+                        
+                        status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bi(HDR.EDF.Annotations)*2,'bof');
+                        t = fread(HDR.FILE.FID,inf,[int2str(HDR.AS.SPR(HDR.EDF.Annotations)*2),'*uchar=>uchar'],HDR.AS.bpb-HDR.AS.SPR(HDR.EDF.Annotations)*2);
+                        t = reshape(t,HDR.AS.SPR(HDR.EDF.Annotations)*2,HDR.NRec)'; 
+                        t = t(any(t,2),1:max(find(any(t,1))));
+                        HDR.EDF.ANNONS = char(t);
+
+                        N = 0;
+                        [t,r] = strtok(char(reshape(t',[1,prod(size(t))])),[0,64]);
+                        while ~isempty(r),
+                                [m,r] = strtok(r,[0,64]);
+                                tb = char([t(1:4),32,t(5:6),32,t(7:8),32,t(9:10),32,t(11:12),32,t(13:end)]);
+                                [ta, status] = str2double(tb);
+                                t1 = datenum(ta);
+                                
+                                if any(status),
+                                        FLAG.ANNONS = 0; % invalid         
+                                elseif strcmp(char(m),'TEST');
+                                        t0 = t1;
+                                elseif ((length(m)==1) & ~isnan(t1-t0)),
+                                        N = N+1;
+                                        HDR.EVENT.POS(N,1) = t1;
+                                        HDR.EVENT.TYP(N,1) = abs(m);
+                                else
+                                        FLAG.ANNONS = 0; % invalid         
+                                end;
+                                [t,r] = strtok(r,[0,64]);
+                        end;
+                        HDR.EVENT.POS = round((HDR.EVENT.POS-t0)*(HDR.SampleRate*3600*24))+2;
+
+                        if FLAG.ANNONS;
+                                % decoding was successful
+                                if isempty(ReRefMx)
+                                        % do not return annotations in signal matrix 
+                                        ReRefMx = sparse(1:HDR.NS,1:HDR.NS,1);
+                                        ReRefMx(:,HDR.EDF.Annotations) = [];
+                                end;
+                        end;
+
+                        
                 elseif strcmp(HDR.TYPE,'BDF') & (length(strmatch('Status',HDR.Label))==1),
                         % BDF: 
 
@@ -2532,15 +2575,33 @@ elseif strcmp(HDR.TYPE,'SND'),
         HDR.NRec = 1;
         
         
-elseif 0, strcmp(HDR.TYPE,'Delta'),
-        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
+elseif strcmp(HDR.TYPE,'Delta'),
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-be');
         if any(HDR.FILE.PERMISSION=='r'),		%%%%% READ 
-                tmp = fread(HDR.FILE.FID,[1,768],'uint8'); 
-                HDR.Patient.Id = char(tmp(314:314+80));
+                warning('Support for Delta/NihonKohden Format is not implemented yet. ')
+                HDR.HeadLen = hex2dec('304'); 
+                HDR.H1 = fread(HDR.FILE.FID,[1,HDR.HeadLen],'uint8'); 
+                HDR.Patient.Id = char(HDR.H1(314:314+80));
+
+                if 0,
+                        HDR.NS   = 36;
+                        HDR.SampleRate = 256;
+                        HDR.NRec = 1;
+                        HDR.SPR  = 137216;
+                        HDR.data = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],'int16');
+                        HDR.EventTablePos = HDR.NRec*HDR.SPR*HDR.NS*2+HDR.HeadLen;
+                end;
+                tmp = fread(HDR.FILE.FID,[1,inf],'uint8');
+
+                %%%%% identify events
+                %ix = [strfind(char(HDR.ev),'TEST'),
+                ix = strfind(char(tmp),'trigger');
+                HDR.EVENT.TYP = tmp(ix-4)';
+                HDR.EVENT.POS = [tmp(ix-12)',tmp(ix-11)',tmp(ix-10)',tmp(ix-9)']*(256.^[0:3]');
                 
                 fclose(HDR.FILE.FID);
         end;
-        
+
         
 elseif strncmp(HDR.TYPE,'EEG-1100',8),
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
@@ -5169,7 +5230,7 @@ elseif strcmp(HDR.TYPE,'BCI2003_III');
 elseif strncmp(HDR.TYPE,'MAT',3),
         status = warning;
         warning('off');
-        tmp = load('-MAT',HDR.FileName);
+        tmp = load('-mat',HDR.FileName);
         warning(status);
         
         flag.bci2002a = isfield(tmp,'x') & isfield(tmp,'y') & isfield(tmp,'z') & isfield(tmp,'fs') & isfield(tmp,'elab'); 
@@ -5177,7 +5238,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         	flag.bci2002a = all(size(tmp.y) == [1501,27,516]); 
         end; 
         
-        if isfield(tmp,'HDR')
+        if isfield(tmp,'HDR'),
                 HDR = tmp.HDR; 
                 if isfield(HDR,'data');
                         HDR.TYPE = 'native'; 
@@ -5314,7 +5375,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 		
                 
         elseif isfield(tmp,'run') & isfield(tmp,'trial') & isfield(tmp,'sample') & isfield(tmp,'signal') & isfield(tmp,'TargetCode');
-                HDR.INFO='BCI competition 2002/2003, dataset 2a (Albany)'; 
+                HDR.INFO = 'BCI competition 2002/2003, dataset 2a (Albany)'; 
                 HDR.SampleRate = 160; 
                 HDR.NRec = 1; 
 		[HDR.SPR,HDR.NS]=size(tmp.signal);
@@ -7975,6 +8036,9 @@ if any(HDR.FILE.PERMISSION=='r') & (HDR.NS>0);
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN: to many channels (%i) required, only %i channels available.\n',size(ReRefMx,1),HDR.NS);
                 HDR = sclose(HDR);
                 return;
+        end;
+        if ~isfield(HDR,'Calib')
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
         end;
         HDR.Calib = HDR.Calib*sparse([ReRefMx; zeros(HDR.NS-sz(1),sz(2))]);
         
