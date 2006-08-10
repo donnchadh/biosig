@@ -18,6 +18,16 @@ function [X] = heartratevariability(RRI,arg2)
 %
 % OUTPUT
 %   X  		struct containing the results as defined by [1]
+%   X.meanRR      meanRR = meanNN
+%   X.SDRR		standard deviaation of RR intervales
+%   X.RMSSD       rmsSD = SDSD
+%     NN50count1
+%     NN50count2
+%     NN50count
+%	pNN50
+%	SD1		width of Poincaré plot; equivalent to sqrt(2)*RMSSD [2]
+%	SD2		length of Poincaré plot; i.e. 2SDRR²+SDSD²/2 [2]
+%	r_RR 		correlation coefficient [2]
 %
 %
 % see also: QRSDETECT, BERGER, EVENTCODES.TXT
@@ -27,9 +37,11 @@ function [X] = heartratevariability(RRI,arg2)
 %       Standards of Measurement, physilogcial interpretation and clinical use.  
 %       Taskforce of the European Society for Cardiology and the North Americal Society of Pacing and Electrophysiology.         
 %       European Heart Journal (1996) 17, 354-381. 
+% [2] M. Brennan, M.Palaniswami, P. Kamen
+%	Do Existing Measures of Poincaré Plot Geometriy Reflect Nonlinear Features of Heart Rate Variablilty
+%	IEEE Trans Biomedical Eng. 48(11),2001, 
 
-
-%	$Id: heartratevariability.m,v 1.2 2005-11-05 23:36:29 schloegl Exp $
+%	$Id: heartratevariability.m,v 1.3 2006-08-10 15:28:20 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -112,6 +124,12 @@ else
         on = [0;cumsum(NN)];
 end;
 
+if nargout<1,
+	% scatterplot for testing of the distribution 
+	plot(RRI(1:end-1),RRI(2:end),'x');drawnow;
+	return;
+end;
+
 %%%%%%%%  convert from any time unit into ms %%%%%%%%%%%%%%%%
 [PhysDimCode,scale1] = physicalunits(X.PhysDim); 
 X.PhysDim = 'ms';
@@ -121,17 +139,24 @@ NN = NN/t_scale;
 on = on/t_scale; 
 
 
-
 X.datatype = 'HeartRateVariability'; 
 
 %%%%%%%%% time domain parameters %%%%%%%%%%%%%%%%%%%%
 X.meanNN   = mean(NN); 
 X.SDNN     = std(NN); 
-X.RMSSD    = rms(diff(NN));
+X.RMSSD    = rms(diff(NN));  % SDSD
 X.NN50count1 = sum(-diff(NN)>0.050/t_scale);
 X.NN50count2 = sum( diff(NN)>0.050/t_scale);
 X.NN50count  = sum(abs(diff(NN))>0.050/t_scale);
 X.pNN50    = X.NN50count/sum(~isnan(NN)); 
+
+
+g = acovf(center(NN(:)'),2)
+X.SD1 	= sqrt(g(1)-g(2));
+X.SD2 	= sqrt(g(1)+g(2));
+X.SD1 	= sqrt(g(1)-g(2));
+X.r_RR	= g(2)/g(1);
+
 
 
 t   = round(NN * 128)/128; 
@@ -143,7 +168,7 @@ X.HRVindex128 = HIS.N/max(HIS.H);
 %X.SDNNindex = 0; 
 
 %SDNNindex
-%SDSD
+%SDSD  = RMSSD
 
 
 %%%%%%% AR-based spectrum  analysis %%%%%%%%%%%%%
@@ -173,32 +198,47 @@ X.mop = optBIC;
 X.mop = optAIC; 
 X.mop = 15;
 [a,r] = arcext(mx,X.mop);
-[w,A,B,R,P,F,ip] = ar_spa(a,f0,pe(X.mop+1));
-ix = (imag(F)==0);
 
-ixVLF = ((w>=0)  & (w<.04)); F1 = real(F); F1(~ixVLF)= NaN;
-ixLF  = (w>=.04) & (w<=.15); F2 = real(F); F2(~ixLF) = NaN;
-ixHF  = (w>.15)  & (w<=.4) ; F3 = real(F); F3(~ixHF) = NaN;               
+[h,f] = freqz(1,[1,-a],256,f0);
+ix = f<0.04;
+X.VLF = trapz(f(ix),abs(h(ix)).^2);
+ix = (f>0.04) & (f<0.15);
+X.LF = trapz(f(ix),abs(h(ix)).^2);
+ix = (f>0.15) & (f<0.40);
+X.HF = trapz(f(ix),abs(h(ix)).^2);
+ix = (f>0.15) & (f<0.40);
+X.TotalPower = trapz(f,abs(h).^2);
 
 
-X.VLF = sumskipnan(F1,2); 
-X.LF  = sumskipnan(F2,2); 
-X.HF  = sumskipnan(F3,2); 
-X.TotalPower = sumskipnan(real(F),2);
+if 0, 
+	% spectral decomposition method
+	[w,A,B,R,P,F,ip] = ar_spa(a,f0,pe(X.mop+1));
+	ix = (imag(F)==0);
+
+	ixVLF = ((w>=0)  & (w<.04)); F1 = real(F); F1(~ixVLF)= NaN;
+	ixLF  = (w>=.04) & (w<=.15); F2 = real(F); F2(~ixLF) = NaN;
+	ixHF  = (w>.15)  & (w<=.4) ; F3 = real(F); F3(~ixHF) = NaN;               
+
+	X.VLF = sumskipnan(F1,2); 
+	X.LF  = sumskipnan(F2,2); 
+	X.HF  = sumskipnan(F3,2); 
+	X.TotalPower = sumskipnan(real(F),2);
+
+	% center frequencies
+		% mean based on amplitude
+	X.VLF_f0 = sumskipnan(w(ixVLF).*A(ixVLF))/sum(A(ixVLF));
+	X.LF_f0 = sumskipnan(w(ixLF).*A(ixLF))/sum(A(ixLF));
+	X.HF_f0 = sumskipnan(w(ixHF).*A(ixHF))/sum(A(ixHF));
+		% mean based on power
+	%X.VLF_f0 = sumskipnan(w(ixVLF).*F1(ixVLF))/sum(F1(ixVLF));
+	%X.LF_f0 = sumskipnan(w(ixLF).*F2(ixLF))/sum(F2(ixLF));
+	%X.HF_f0 = sumskipnan(w(ixHF).*F3(ixHF))/sum(F3(ixHF));
+
+end;
+
 X.LFHFratio = X.LF./X.HF; 
-                
 X.LFnu = X.LF./(X.TotalPower-X.VLF);
 X.HFnu = X.HF./(X.TotalPower-X.VLF);
-
-% center frequencies
-	% mean based on amplitude
-X.VLF_f0 = sumskipnan(w(ixVLF).*A(ixVLF))/sum(A(ixVLF));
-X.LF_f0 = sumskipnan(w(ixLF).*A(ixLF))/sum(A(ixLF));
-X.HF_f0 = sumskipnan(w(ixHF).*A(ixHF))/sum(A(ixHF));
-	% mean based on power
-%X.VLF_f0 = sumskipnan(w(ixVLF).*F1(ixVLF))/sum(F1(ixVLF));
-%X.LF_f0 = sumskipnan(w(ixLF).*F2(ixLF))/sum(F2(ixLF));
-%X.HF_f0 = sumskipnan(w(ixHF).*F3(ixHF))/sum(F3(ixHF));
 
 %%%%%%% FFT-based spectrum  analysis %%%%%%%%%%%%%
 % currently not implemented 
