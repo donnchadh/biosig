@@ -30,14 +30,15 @@
 %	CNTOPEN
 %	SDFERROR
 %	GDFDATATYP
-%	
+%       PHYSICALUNITS
+%       LEADIDCODEXYZ        
 %
 % REFERENCES: 
 % [1] http://hci.tugraz.at/~schloegl/biosig/
 % [2] http://biosig.sf.net/
 %
 
-%	$Id: Contents.m,v 1.19 2006-08-02 14:27:52 schloegl Exp $
+%	$Id: Contents.m,v 1.20 2006-08-10 07:10:40 schloegl Exp $
 %	CopyLeft (c) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
