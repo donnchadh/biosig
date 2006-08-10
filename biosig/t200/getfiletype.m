@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.51 2006-08-08 07:18:53 schloegl Exp $
+%	$Id: getfiletype.m,v 1.52 2006-08-10 13:40:58 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1010,42 +1010,50 @@ else
                         
                 elseif strcmpi(HDR.FILE.Ext,'vabs')
                                                 
-                elseif strcmpi(HDR.FILE.Ext,'bni')        %%% Nicolet files 
-                        HDR = getfiletype(fullfile(HDR.FILE.Path, [HDR.FILE.Name '.eeg']));
+                elseif strcmpi(HDR.FILE.Ext,'bni')        %%% Nicolet files
+                        tmp = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.eeg']);  % nicolet
+                        if exist(tmp,'file'),      % Nicolet
+                                HDR = getfiletype(tmp);
+                        end
                         
-                elseif strcmpi(HDR.FILE.Ext,'eeg')        %%% Nicolet files 
-                        fn = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.bni']);
-                        if exist(fn, 'file')
-                                fid = fopen(fn,'r','ieee-le');
-                                HDR.Header = char(fread(fid,[1,inf],'uchar'));
-                                fclose(fid);
+                elseif strcmpi(HDR.FILE.Ext,'eeg')      
+                        tmp = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.vhdr']);  % brainvision header file 
+                        if exist(tmp,'file'),          % brain vision
+                                HDR = getfiletype(tmp);
+                        else
+                                fn = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.bni']);   % nicolet 
+                                if exist(fn, 'file')
+                                        fid = fopen(fn,'r','ieee-le');
+                                        HDR.Header = char(fread(fid,[1,inf],'uchar'));
+                                        fclose(fid);
+                                end;
+                                fn = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.eeg']);
+                                if exist(fn,'file')
+                                        HDR.FileName = fn;
+                                        fid = fopen(HDR.FileName,'r','ieee-le');
+                                        status = fseek(fid,-4,'eof');
+                                        if status,
+                                                fprintf(2,'Error GETFILETYPE: file %s\n',HDR.FileName);
+                                                return;
+                                        end
+                                        datalen = fread(fid,1,'uint32');
+                                        status  = fseek(fid,datalen,'bof');
+                                        HDR.Header = char(fread(fid,[1,inf],'uchar'));
+                                        fclose(fid);
+                                end;
+                                pos_rate = strfind(HDR.Header,'Rate =');
+                                pos_nch  = strfind(HDR.Header,'NchanFile =');
+                                if ~isempty(pos_rate) & ~isempty(pos_nch),
+                                        HDR.SampleRate = str2double(HDR.Header(pos_rate + (6:9)));
+                                        HDR.NS = str2double(HDR.Header(pos_nch +(11:14)));
+                                        HDR.SPR = datalen/(2*HDR.NS);
+                                        HDR.AS.endpos = HDR.SPR;
+                                        HDR.GDFTYP = 3; % int16;
+                                        HDR.HeadLen = 0;
+                                        HDR.TYPE = 'Nicolet';
+                                end;
                         end;
-                        if exist(HDR.FileName, 'file')
-                                fid = fopen(HDR.FileName,'r','ieee-le');
-                                status = fseek(fid,-4,'eof');
-				if status,
-					fprintf(2,'Error GETFILETYPE: file %s\n',HDR.FileName); 
-					return; 
-				end
-                                datalen = fread(fid,1,'uint32');
-                                status  = fseek(fid,datalen,'bof');
-                                HDR.Header = char(fread(fid,[1,inf],'uchar'));
-                                fclose(fid);
-                        end;
-                        pos_rate = strfind(HDR.Header,'Rate =');
-                        pos_nch  = strfind(HDR.Header,'NchanFile =');
-                        
-                        if ~isempty(pos_rate) & ~isempty(pos_nch),
-                                HDR.SampleRate = str2double(HDR.Header(pos_rate + (6:9)));
-                                HDR.NS = str2double(HDR.Header(pos_nch +(11:14)));
-                                HDR.SPR = datalen/(2*HDR.NS);
-                                HDR.AS.endpos = HDR.SPR;
-                                HDR.GDFTYP = 3; % int16;
-                                HDR.HeadLen = 0; 
-                                HDR.TYPE = 'Nicolet';  
-                        end;
-                        
-                        
+
                 elseif strcmpi(HDR.FILE.Ext,'fif')
                         HDR.TYPE = 'FIF';	% Neuromag MEG data (company is now part of 4D Neuroimaging)
                         
