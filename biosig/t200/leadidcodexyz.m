@@ -27,7 +27,7 @@ function [HDR] = leadidcodexyz(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: leadidcodexyz.m,v 1.1 2006-08-10 07:10:40 schloegl Exp $
+%	$Id: leadidcodexyz.m,v 1.2 2006-08-10 13:30:27 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -93,7 +93,7 @@ elseif isstruct(arg1)
         end;
         tmp.flag2 = isfield(HDR,'LeadIdCode');
 
-        if ~tmp.flag1 | ~tmp.flag2,
+        if (~tmp.flag1 | ~tmp.flag2),
                 for k = 1:HDR.NS;
                         ix = strmatch(upper(deblank(HDR.Label(k,:))),BIOSIG_GLOBAL.Label);
                         if (length(ix)==1),
@@ -108,7 +108,7 @@ elseif isstruct(arg1)
                                 HDR.LeadIdCode(k,1) = LeadIdCode;
                         end;
                         if ~tmp.flag1
-                                HDR.ELEX.XYZ(k,1:3) = XYZ;
+                                HDR.ELEC.XYZ(k,1:3) = XYZ;
                         end;
                 end;
         end;
