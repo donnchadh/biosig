@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.145 2006-08-11 17:08:55 schloegl Exp $
+%	$Id: sopen.m,v 1.146 2006-08-11 23:04:43 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -4522,12 +4522,11 @@ elseif strcmp(HDR.TYPE,'MIT')
 	                                        
 	                                end;
 	                        end;
-	                        HDR.Label(k,1:length(z)+1) = [z,' ']; 
+	                        HDR.Label{k} = strtok(z,[9,10,13,32]);
 	                end;
 	                
 	                HDR.MIT.gain(HDR.MIT.gain==0) = 200;    % default gain 
 	                HDR.Calib = sparse([HDR.MIT.zerovalue; eye(HDR.NS)]*diag(1./HDR.MIT.gain(:)));
-	                HDR.Label = char(HDR.Label);
 	                
 	                z = char(fread(fid,[1,inf],'char'));
 	                ix1 = [strfind(upper(z),'AGE:')+4, strfind(upper(z),'AGE>:')+5];
