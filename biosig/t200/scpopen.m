@@ -23,8 +23,8 @@ function [HDR]=scpopen(arg1,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.31 $
-%	$Id: scpopen.m,v 1.31 2006-06-07 13:34:30 schloegl Exp $
+%	$Revision: 1.32 $
+%	$Id: scpopen.m,v 1.32 2006-08-11 23:03:49 schloegl Exp $
 %	(C) 2004,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -320,33 +320,18 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                         end;
                         HDR.N = max(HDR.LeadPos(:))-min(HDR.LeadPos(:))+1;
                         
-                        %%%%% OBSOLETE
-                        LeadIdTable = {'I';'II';'V1';'V2';'V3';'V4';'V5';'V6';'V7';'V2R';'V3R';'V4R';'V5R';'V6R';'V7R';'X';'Y';'Z';'CC5';'CM5';'left arm';'right arm';'left leg';'fI';'fE';'fC';'fA';'fM';'fF';'fH'};
-                        LeadIdTable = [LeadIdTable;{'I-cal';'II-cal';'V1-cal';'V2-cal';'V3-cal';'V4-cal';'V5-cal';'V6-cal';'V7-cal';'V2R-cal';'V3R-cal';'V4R-cal';'V5R-cal';'V6R-cal';'V7R-cal';'X-cal';'Y-cal';'Z-cal'}];
-                        LeadIdTable = [LeadIdTable;{'CC5-cal';'CM5-cal';'Left Arm-cal';'Right Arm-cal';'Left Leg-cal';'I-cal';'E-cal';'C-cal';'A-cal';'M-cal';'F-cal';'H-cal';'III';'aVR';'aVL';'aVF';'-aVR';'V8';'V9';'V8R';'V9R'}];
-                        LeadIdTable = [LeadIdTable;{'D (Nehb-Dorsal)';'A (Nehb-Anterior)';'J (Nehb-Inferior)';'Defibrillator Lead: anterior lateral';'Exernal Pacing Lead: anterior-posterior'}];
-                        LeadIdTable = [LeadIdTable;{'A1';'A2';'A3';'A4';'V8-cal';'V9-cal';'V8R-cal';'V9R-cal';'D-cal (cal for Nehb-Dorsal)';'A-cal (cal for Nehb-Anterior)';'J-cal (cal for Nehb-Inferior)'}];
-                        %%%%% OBSOLETE
                         
-                        if ~exist('OCTAVE_VERSION','builtin')
-	                        H = sopen('leadidtable_scpecg.txt');
-	                else
-	                	tmp = which('sopen');
-	                	tmp = fileparts(tmp); 
-	                	tmp = fileparts(tmp); 
-	                        H = sopen(fullfile(tmp,'doc','leadidtable_scpecg.txt'));
-	                end;     
-                        LeadIdTable = H.EN1064.SCP_Name(2:end)';
+                        HDR = leadidcodexyz(HDR);
                         for k = 1:HDR.NS,
                                 if 0,
                                 elseif (HDR.LeadIdCode(k)==0),
                                         HDR.Label{k} = 'unspecified lead';
                                 elseif (HDR.VERSION <= 1.3) & (HDR.LeadIdCode(k) < 86),
-                                        HDR.Label{k} = LeadIdTable{HDR.LeadIdCode(k)};
+                                %        HDR.Label{k} = H.Label(H.LeadIdCode==HDR.LeadIdCode(k));
                                 elseif (HDR.VERSION <= 1.3) & (HDR.LeadIdCode(k) > 99),
                                         HDR.Label{k} = 'manufacturer specific';
                                 elseif (HDR.VERSION >= 2.0) & (HDR.LeadIdCode(k) < 151),
-                                        HDR.Label{k} = LeadIdTable{HDR.LeadIdCode(k)};
+                                %        HDR.Label{k} = H.Label(H.LeadIdCode==HDR.LeadIdCode(k));
                                 elseif (HDR.VERSION >= 2.0) & (HDR.LeadIdCode(k) > 199),
                                         HDR.Label{k} = 'manufacturer specific';
                                 else
