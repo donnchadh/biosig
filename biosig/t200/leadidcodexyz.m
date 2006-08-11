@@ -27,7 +27,7 @@ function [HDR] = leadidcodexyz(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: leadidcodexyz.m,v 1.2 2006-08-10 13:30:27 schloegl Exp $
+%	$Id: leadidcodexyz.m,v 1.3 2006-08-11 16:18:42 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -84,9 +84,12 @@ if nargin<1,
         HDR.ELEC.XYZ = BIOSIG_GLOBAL.XYZ; 
         HDR.TYPE = 'ELPOS'; 
         
-elseif isstruct(arg1)
-        % electrode code and position
-        HDR = arg1; 
+else    % electrode code and position
+        if isstruct(arg1)
+                HDR = arg1; 
+        else
+                HDR.Label = arg1; 
+        end; 
         tmp.flag1 = isfield(HDR,'ELEC');
         if tmp.flag1,
                 tmp.flag1 = isfield(HDR.ELEC,'XYZ');
@@ -94,8 +97,9 @@ elseif isstruct(arg1)
         tmp.flag2 = isfield(HDR,'LeadIdCode');
 
         if (~tmp.flag1 | ~tmp.flag2),
-                for k = 1:HDR.NS;
-                        ix = strmatch(upper(deblank(HDR.Label(k,:))),BIOSIG_GLOBAL.Label);
+                HDR.Label = cellstr(HDR.Label); 
+                for k = 1:length(HDR.Label);
+                        ix = strmatch(upper(deblank(HDR.Label{k})),BIOSIG_GLOBAL.Label);
                         if (length(ix)==1),
                                 LeadIdCode = BIOSIG_GLOBAL.LeadIdCode(ix);
                                 XYZ = BIOSIG_GLOBAL.XYZ(ix,:);
