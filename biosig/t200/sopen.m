@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.143 2006-08-09 08:38:42 schloegl Exp $
+%	$Id: sopen.m,v 1.144 2006-08-11 16:23:32 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -870,8 +870,13 @@ end;
                 if strcmp(HDR.TYPE,'EDF')
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF') 
-                        HDR.VERSION = 1.25;     %% stable version 
-%                        HDR.VERSION = 1.94;     %% testing 
+                        if ~isfield(HDR,'VERSION'),
+                                HDR.VERSION = 1.25;     %% stable version 
+                        elseif (HDR.VERSION<1.30)
+                                HDR.VERSION = 1.25;     %% stable version 
+                        else
+                                HDR.VERSION = 1.99;     %% testing 
+                        end;        
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
                 end;
@@ -1776,7 +1781,6 @@ elseif strcmp(HDR.TYPE,'rhdE'),
                 H1 = fread(HDR.FILE.FID,[1,inf],'uchar')';
         end;
         fclose(HDR.FILE.FID);
-        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         
         
 elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
@@ -1925,7 +1929,6 @@ elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
         fid = fopen(fullfile(HDR.FILE.Path,'cal_res'),PERMISSION);
         if fid < 0,
                 fprintf(HDR.FILE.stderr,'Warning SOPEN alpha-trace: could not open CAL_RES. Data is uncalibrated.\n');
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 HDR.FLAG.UCAL = 1; 
         else
 		k = 0; 
@@ -2290,7 +2293,6 @@ elseif strcmp(HDR.TYPE,'ALICE4'),
         HDR.SPR = size(HDR.data,1);
 
         HDR.NRec = 1; 
-        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         HDR.FLAG.UCAL = 1; 
         HDR.TYPE  = 'native';
         HDR.FILE.POS = 0;
@@ -2583,7 +2585,7 @@ elseif strcmp(HDR.TYPE,'Delta'),
                 HDR.H1 = fread(HDR.FILE.FID,[1,HDR.HeadLen],'uint8'); 
                 HDR.Patient.Id = char(HDR.H1(314:314+80));
 
-                if 0,
+                if 1,
                         HDR.NS   = 36;
                         HDR.SampleRate = 256;
                         HDR.NRec = 1;
@@ -2713,7 +2715,6 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
 	x    = reshape(s4(13:6:1932,:),32,HDR.NRec*HDR.Dur);
 	Cal  = Sens(x(1:HDR.NS,:)+1)'/4;
 	HDR.data  = HDR.data.*Cal(ceil((1:HDR.SampleRate*HDR.NRec*HDR.Dur)/HDR.SampleRate),:);
-        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 	HDR.PhysDim = 'uV';
 
                 
@@ -3060,7 +3061,6 @@ elseif strcmp(HDR.TYPE,'MIDI') | strcmp(HDR.TYPE,'RMID') ,
                         end;
                         [tmp,c] = fread(HDR.FILE.FID,[1,4],'char');
 		end;
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 
                 HDR.FILE.POS = 0;
                 HDR.FILE.OPEN = 1;
@@ -4056,7 +4056,6 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         HDR.AS.endpos = (HDR.AS.endpos-HDR.HeadLen)/HDR.AS.bpb;
         HDR.Dur = 1/HDR.SampleRate;
         HDR.NRec = 1;
-        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 
         if ~isfield(HDR,'SMA')
                 HDR.SMA.EVENT_CHANNEL= 1;
@@ -4147,7 +4146,6 @@ elseif strcmp(HDR.TYPE,'RDF'),  % UCSD ERPSS acqusition software DIGITIZE
         HDR.SPR = block_size;
         HDR.AS.bpb = HDR.SPR*HDR.NS*2;
         HDR.Dur = HDR.SPR/HDR.SampleRate;
-	HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         
         
 elseif strcmp(HDR.TYPE,'LABVIEW'),
@@ -5140,7 +5138,6 @@ elseif strcmp(HDR.TYPE,'BCI2002b');
         	HDR.EVENT.TYP = (x(:,2)==5)*hex2dec('0301') + (x(:,2)==6)*hex2dec('0302') + (x(:,2)==7)*hex2dec('030f'); 
         	
         	HDR.TYPE = 'native'; 
-        	HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
 
         	tmp = HDR.FILE.Path; 
         	if tmp(1)~='/',
@@ -5153,7 +5150,7 @@ elseif strcmp(HDR.TYPE,'BCI2002b');
         			fclose(fid); 
         			[NUM, STATUS,STRARRAY] = str2double(s); 
         			HDR.Label = strvcat(STRARRAY(:,1));
-        			HDR.XYZ = NUM(:,2:4); 
+        			HDR.ELEC.XYZ = NUM(:,2:4); 
         			tmp = '';
         		end;
         		tmp = fileparts(tmp); 
@@ -5194,7 +5191,6 @@ elseif strcmp(HDR.TYPE,'BCI2003_Ia+b');
         HDR.data = reshape(permute(reshape(data, [HDR.NRec, HDR.SPR, HDR.NS]),[2,1,3]),[HDR.SPR*HDR.NRec,HDR.NS]);
         HDR.TYPE = 'native'; 
         HDR.FILE.POS = 0; 
-        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         
         
 elseif strcmp(HDR.TYPE,'BCI2003_III');
@@ -5223,7 +5219,6 @@ elseif strcmp(HDR.TYPE,'BCI2003_III');
         sz = [HDR.NS, HDR.SPR, HDR.NRec];
         HDR.data = reshape(permute(reshape(HDR.data,sz([2,1,3])),[2,1,3]),sz(1),sz(2)*sz(3))';
         HDR.TYPE = 'native'; 
-        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         HDR.FILE.POS = 0; 
                 
                 
@@ -5250,7 +5245,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
        		HDR.Label = strvcat(tmp.elab);
 		HDR.SampleRate = tmp.fs; 
 		HDR.data  = reshape(permute(tmp.y,[1,3,2]),[HDR.SPR*HDR.NRec,HDR.NS]); 
-		HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
 		HDR.Transducer = repmat('Ag/AgCl electrodes',3,1);
 		HDR.Filter.Lowpass = 200; 
 		HDR.Filter.HighPass = 0.05; 
@@ -5301,7 +5295,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 				HDR.Classlabel = repmat(NaN,size(tmp.X,1),1);
 			end;	
 			HDR.Cal   = 1; 
-			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 		else
 		
 		end;
@@ -5482,7 +5475,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 		HDR.EVENT.POS = cumsum(ix(:,min(find(HDR.TFM.DIV==1)))); 
 		HDR.EVENT.TYP = repmat(1,size(HDR.EVENT.POS)); 
                 HDR.TFM.SampleRate = HDR.SampleRate./HDR.TFM.DIV; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
                 HDR.TYPE  = 'native'; 
                 HDR.NRec  = 1; 
 
@@ -5500,7 +5492,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         fclose(fid);
                         HDR.data = reshape(permute(reshape(HDR.data,[HDR.SPR,HDR.NS,HDR.NRec]),[1,3,2]),[HDR.SPR*HDR.NRec,HDR.NS]);
                 end;
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
 
                 % trial onset and offset event
                 HDR.EVENT.POS = [ [0:HDR.NRec-1]'*HDR.SPR+1; [1:HDR.NRec]'*HDR.SPR ];
@@ -5666,7 +5657,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.SPR = size(HDR.data,1);
                 HDR.Dur = HDR.SPR/HDR.SampleRate;
                 HDR.TYPE  = 'native'; 
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 clear tmp; 
                 
                 
@@ -5818,9 +5808,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 end;
                 if ~isfield(HDR,'SPR');
                         HDR.SPR = size(HDR.data,1);
-                end;
-                if ~isfield(HDR,'Calib');
-                        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                 end;
                 if ~isfield(HDR.FILE,'POS');
                         HDR.FILE.POS = 0;
@@ -6441,7 +6428,6 @@ elseif strcmp(HDR.TYPE,'PLEXON'),
                 CH = find(HDR.PLX.adcount>0);
                 if isempty(ReRefMx) & any(CH) & (max(CH)<150),
                         HDR.NS = max(CH); 
-                        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
                         HDR.Label = HDR.Label(1:HDR.NS,:);
                 end;
         end;			
@@ -6799,9 +6785,9 @@ elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
         fid = fopen(HDR.FileName,'rt');
         if fid>0,
                 while ~feof(fid),
-                        s = fgetl(fid);
-                        if strncmp(s,'Mk',2),
-                                [N,s] = strtok(s(3:end),'=');
+                        u = fgetl(fid);
+                        if strncmp(u,'Mk',2),
+                                [N,s] = strtok(u(3:end),'=');
                                 ix = find(s==',');
                                 ix(length(ix)+1)=length(s)+1;
                                 N = str2double(N);
@@ -6811,8 +6797,12 @@ elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
                                 HDR.EVENT.CHN(N,1) = str2double(s(ix(4)+1:ix(5)-1));
                                 HDR.EVENT.TeegType{N,1} = s(2:ix(1)-1);
                                 HDR.EVENT.TeegDesc{N,1} = s(ix(1)+1:ix(2)-1);
+                                if strncmp(u,'Mk1=New Segment,',16),
+                                        t = s(ix(5)+1:end); 
+                                        HDR.T0 = str2double(char([t(1:4),32,t(5:6),32,t(7:8),32,t(9:10),32,t(11:12),32,t(13:14)])); 
+                                end; 
                         end;
-                end
+                end;
                 fclose(fid);
                 HDR.TYPE = 'EVENT';
         end
@@ -6882,7 +6872,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         % convert the header information to BIOSIG standards
         HDR.NS = str2double(HDR.BV.NumberOfChannels);
         HDR.SampleRate = 1e6/str2double(HDR.BV.SamplingInterval);      % sampling rate in Hz
-        if UCAL & ~strncmp(HDR.BV.BinaryFormat,'IEEE_FLOAT',10),
+        if ~UCAL & ~strncmp(HDR.BV.BinaryFormat,'IEEE_FLOAT',10),
                 fprintf(2,'Warning SOPEN (BV): missing calibration values\n');
                 HDR.FLAG.UCAL = 1; 
         end;
@@ -6909,6 +6899,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         H = sopen(fullfile(HDR.FILE.Path, HDR.BV.MarkerFile),'rt');
         if strcmp(H.TYPE,'EVENT');
                 HDR.EVENT = H.EVENT; 
+                HDR.T0    = H.T0; 
         end; 
 
         %open data file 
@@ -7685,7 +7676,6 @@ elseif strcmp(HDR.TYPE,'BIFF'),
 		end;
 		HDR.NRec = 1;
 		HDR.THRESHOLD  = repmat([0,NaN],HDR.NS,1); 	% Underflow Detection 
-		HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
         end;
 
 
@@ -7901,7 +7891,8 @@ elseif strcmp(HDR.TYPE,'unknown'),
                                 HDR.Label = strvcat(STRARRAY(:,4));
                                 HDR.CHAN  = NUM(:,1); 
                                 Phi       = NUM(:,2)/180*pi; 
-                                Theta     = NUM(:,3)*pi;
+                                %Theta     = asin(NUM(:,3)); 
+                                Theta     = NUM(:,3);
                                 HDR.ELEC.XYZ = [sin(Theta).*sin(Phi),sin(Theta).*cos(Phi),cos(Theta)]; 
 	                        HDR.TYPE  = 'ELPOS'; 
                         end;
@@ -7941,12 +7932,15 @@ end;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % check consistency
-if HDR.FLAG.OVERFLOWDETECTION & ~isfield(HDR,'THRESHOLD'),
-        fprintf(HDR.FILE.stderr,'Warning SOPEN: OVERFLOWDETECTION not supported because of missing THRESHOLD.\n');
+if HDR.FLAG.OVERFLOWDETECTION & ~isfield(HDR,'THRESHOLD') & ~strcmp(HDR.TYPE,'EVENT'),
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: Automated OVERFLOWDETECTION not supported because of missing THRESHOLD.\n');
 end;
 
-% identify type of signal
+% identify type of signal, complete header information
 if HDR.NS>0,
+        [HDR,scale] = physicalunits(HDR); % complete information n PhysDim, and PhysDimCode
+        HDR = leadidcodexyz(HDR); % complete information on  LeadIdCode and Electrode positions of EEG channels.
+
         if ~isfield(HDR,'Label')	
                 HDR.Label = [repmat('#',HDR.NS,1),int2str([1:HDR.NS]')];
         elseif isempty(HDR.Label)	
@@ -8023,8 +8017,6 @@ if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	HDR.EVENT.CHN = HDR.EVENT.CHN(~flag_remove);
 	HDR.EVENT.DUR = HDR.EVENT.DUR(~flag_remove);
 end;	
-
-[HDR,scale] = physicalunits(HDR); 
 
 % Calibration matrix
 if any(HDR.FILE.PERMISSION=='r') & (HDR.NS>0);
