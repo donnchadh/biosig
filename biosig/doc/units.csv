@@ -1,14 +1,14 @@
 ### Vital Signs Units of Measurement
 # prEN ISO 11073-10101 (Nov 2003)
-# Health Informatics - Point-of-care medical device communications - Part 10101:Nomenclature
-# (ISO/DIS 11073-10101:2003)
+# ISO/IEEE 11073-10101:2004
+# Health Informatics - Point-of-care medical device communications - Part 10101: Nomenclature
+# p.62-75. Table A.6.3: Vital signs units of measurements 
 #
 # CEN/TC251/PT40 2001	
 # File Exchange Format for Vital Signs - Annex A 
-# Table A.4.3: Table of Decimal Factors
 #
-# $Id: units.csv,v 1.2 2005-12-22 10:44:55 schloegl Exp $
-# Copyright (C) 2005 Alois Schloegl <a.schloegl@ieee.org>
+# $Id: units.csv,v 1.3 2006-08-11 16:11:22 schloegl Exp $
+# Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 # This file is part of the biosig project http://biosig.sf.net/
 #
 #
@@ -250,7 +250,7 @@
 6176,"mmHg %-1","- ratio of paO2 to FIO2","millimetre(s) of mercury per percent"
 6208,"Pa %-1","- ratio of paO2 to FIO2","<magnitude> pascal per percent"
 6016,"dyne s m-2 cm-5","- Pulmonary/ Systemic Vascular Resistance Index","dyne seconds per square meter per centimetre to the power of 5"
-### units with no standardized code
+### private: units with no standardized code
 65504,"T",,"<magnitude> Tesla" 
 #
 #
