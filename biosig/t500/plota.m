@@ -50,7 +50,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.50 2006-07-12 19:41:59 schloegl Exp $
+%	$Id: plota.m,v 1.51 2006-08-11 16:26:35 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -71,32 +71,30 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 h = [];
 if nargin>1,
         if strncmpi(arg2,'ELPOS',5),
-                if isfield(X,'ELEC'),
-                        if isfield(X.ELEC,'XYZ'),
-                                H = X; X=[];
-                                X.XYZ = H.ELEC.XYZ; 
-                                X.Label = H.Label; 
-                                X.datatype = upper(arg2); 
-                        end;
-                elseif ~isstruct(X)
+                if ~isstruct(X),
                         tmp = X; X=[]; 
                         X.Label = cellstr(tmp);
-                        for k = 1:length(X.Label)
-                                [X.XYZ(k,:),code] = elpos3(X.Label{k});
-                                X.datatype = upper(arg2); 
-                        end;
                 end;
+                X.datatype = upper(arg2);
                 clf;
         end;
 end;
 
 if isfield(X,'datatype');
+
 elseif isfield(X,'TYPE');
         if strcmp(X.TYPE,'EVENT')
                 if any(X.EVENT.TYP==hex2dec('0501'));
                         X.datatype = 'QRS_events';
                         H = X;
                 end
+                
+        elseif strcmp(X.TYPE,'ELPOS')
+                if isfield(X,'ELEC') & isfield(X,'Label');
+                        if isfield(X.ELEC,'XYZ');
+                                X.datatype = 'ELPOS'; 
+                        end;
+                end;
         end;
 else
         return;
@@ -163,7 +161,7 @@ elseif strcmp(X.datatype,'MVAR'),
         end;
 
         [S,h,PDC,COH,DTF,DC,pCOH,dDTF,ffDTF, pCOH2, PDCF, coh]=mvfreqz(X.B,X.A,X.C,f,Fs);
-	dT = angle(S)./reshape(repmat(2*pi*f(:),[K1*K1,1]),[K1,K1,length(f)]);
+	dT = angle(S)./reshape(repmat(2*pi*f(:)',[K1*K1,1]),[K1,K1,length(f)]);
 
         range = [0,1]; % default range
         if ~isempty(strfind(Mode,'Auto')),
@@ -2124,20 +2122,36 @@ elseif strcmp(X.datatype,'AMARMA')
         end;
         h = HHHH;
 
-        
-        
-elseif strcmp(X.datatype,'ELPOS'),
-        plot(X.XYZ(:,1),X.XYZ(:,2),'x');
-        for k = 1:size(X.XYZ,1);
-                text(X.XYZ(k,1),X.XYZ(k,2),X.Label{k});
+
+elseif strcmp(X.datatype,'ELPOS2'),
+        X = leadidcodexyz(X)
+        XYZ = X.ELEC.XYZ; 
+        Label = cellstr(X.Label); 
+        ix = find(X.LeadIdCode>=0)';
+        x = XYZ(:,1); 
+        y = XYZ(:,2); 
+        R = sqrt(sum(XYZ.^2,2));
+        Theta = acos(XYZ(:,3)./R)./sqrt(sum(XYZ(:,1:2).^2,2)); 
+        x = x.*Theta;
+        y = y.*Theta;
+        plot(x,y,'x',x(ix),y(ix),'ro');
+        for k=1:length(Label); %ix(:)',
+                text(x(k),y(k),[int2str(k),': ',Label{k}]);
         end;
+        set(gca,'xtick',0,'ytick',0)
         h = X; 
-        
-elseif strcmp(X.datatype,'ELPOS3'),
-        plot3(X.XYZ(:,1),X.XYZ(:,2),X.XYZ(:,3),'x');
-        for k = 1:size(X.XYZ,1);
-                text(X.XYZ(k,1),X.XYZ(k,2),X.XYZ(k,3),X.Label{k});
+               
+
+elseif strncmp(X.datatype,'ELPOS',5),
+        X = leadidcodexyz(X)
+        XYZ = X.ELEC.XYZ; 
+        Label = cellstr(X.Label); 
+        ix = find(X.LeadIdCode>0)';
+        plot3(XYZ(:,1),XYZ(:,2),XYZ(:,3),'x',XYZ(ix,1),XYZ(ix,2),XYZ(ix,3),'ro');
+        for k=1:length(Label); %ix(:)',
+                text(XYZ(k,1),XYZ(k,2),XYZ(k,3),[int2str(k),': ',Label{k}]);
         end;
+        set(gca,'xtick',0,'ytick',0)
         h = X; 
         
         
