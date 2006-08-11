@@ -27,7 +27,7 @@ function [HDR] = leadidcodexyz(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: leadidcodexyz.m,v 1.3 2006-08-11 16:18:42 schloegl Exp $
+%	$Id: leadidcodexyz.m,v 1.4 2006-08-11 16:35:21 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -116,7 +116,5 @@ else    % electrode code and position
                         end;
                 end;
         end;
-else
-        error('invalid input argument: must be HDR struct');
 end;
 
