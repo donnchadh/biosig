@@ -2,19 +2,9 @@
 % DEMO3 is part of the biosig-toolbox
 %    and it tests also Matlab/Octave for its correctness. 
 % 
-%  computer	version 		test
-%            MATLAB
-%   PCWIN	5.3.0.10183 (R11)	OK
-%   PCWIN	6.5.0.180913a (R13)	OK
-%   LNX86	5.3.0.10183 (R11)	OK
-%   LNX86	6.5.0.180913a (R13)	OK
-% 	     OCTAVE
-%   i686-pc-cygwin	2.1.42		OK
-%   i586-pc-linux-gnu   2.1.40		OK
 
-%	$Revision: 1.7 $
-%	$Id: demo3.m,v 1.7 2005-11-28 17:39:25 schloegl Exp $
-%	Copyright (C) 2000-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: demo3.m,v 1.8 2006-08-11 17:10:52 schloegl Exp $
+%	Copyright (C) 2000-2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -67,11 +57,12 @@ HDR.T0 = clock;
 HDR.NS = size(x,2);
 
 % Duration of one block in seconds
-HDR.Dur = 1;
+HDR.Dur = 0.2;
 
 % Samples within 1 block
-%HDR.SPR = [100;100;100;100;100];	% samples per block;
-HDR.EDF.SampleRate = [100;100;100;100;100];	% samples per block;
+%HDR.AS.SPR = [20;20;20;20;];	% samples per block;
+HDR.EDF.SampleRate = [1000;100;200;100;20];	% samples per block;
+HDR.SampleRate = 1000;   
 
 % channel identification, max 80 char. per channel
 HDR.Label=['chan 1  ';'chan 2  ';'chan 3  ';'chan 4  ';'chan 5  '];
@@ -97,9 +88,11 @@ HDR.PhysDim = strvcat({'uV';'mV';'%';'-  ';'-  '});
 
 t = [100:100:size(x,1)]';
 %HDR.NRec = 100;
+HDR.VERSION = 2.0; 
 HDR = sopen(HDR,'w');
 %HDR.SIE.RAW = 0; % [default] channel data mode, one column is one channel 
 %HDR.SIE.RAW = 1; % switch to raw data mode, i.e. one column for one EDF-record
+
 HDR = swrite(HDR,x);
 
 HDR.EVENT.POS = t;
