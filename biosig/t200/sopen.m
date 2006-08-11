@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.144 2006-08-11 16:23:32 schloegl Exp $
+%	$Id: sopen.m,v 1.145 2006-08-11 17:08:55 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -699,7 +699,7 @@ end;
             		        [EVENT.N,c] = fread(HDR.FILE.FID,1,'uint32');
 			else %if HDR.VERSION<1.94,
     		                [EVENT.Version,c] = fread(HDR.FILE.FID,1,'char');
-	                        HDR.EVENT.N = [1,256,65536]*fread(HDR.FILE.FID,3,'uint8');
+	                        EVENT.N = [1,256,65536]*fread(HDR.FILE.FID,3,'uint8');
             		        [HDR.EVENT.SampleRate,c] = fread(HDR.FILE.FID,1,'float32');
 			end;	
                         if ~HDR.EVENT.SampleRate, % ... is not defined in GDF 1.24 or earlier
@@ -1350,21 +1350,9 @@ end;
                 HDR.FILE.POS  = 0;
 
                 if (HDR.VERSION>=1.9),	% do some header checks
-		if ~HDR.Patient.Sex,
-                        fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF) WRITE: HDR.Patient.Sex is not defined.\n'); 
-		end;	
-		if ~HDR.Patient.Handedness,
-                        fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF) WRITE: HDR.Patient.Handedness is not defined.\n'); 
-		end;	
-		if datenum([1900,1,1,0,0,0])>datenum(HDR.Patient.Birthday),
-                        fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF) WRITE: HDR.Patient.Birthday is not correctly defined.\n'); 
-		end;	
-		if any(isnan(HDR.REC.Impedance(:))),
-                        fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF) WRITE: HDR.REC.Impedance not correctly defined.\n'); 
-		end;	
-		if any(isnan(HDR.ELEC.XYZ(:))),
-                        fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF) WRITE: HDR.ELEC.XYZ not correctly defined.\n'); 
-		end;	
+                        if datenum([1850,1,1,0,0,0])>datenum(HDR.Patient.Birthday),
+                                fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF) WRITE: HDR.Patient.Birthday is not correctly defined.\n');
+                        end;
 		elseif (HDR.VERSION == 0)
                         if sum(HDR.AS.bpb)>61440;
                                 fprintf(HDR.FILE.stderr,'\nWarning SOPEN (EDF): One block exceeds 61440 bytes.\n')
