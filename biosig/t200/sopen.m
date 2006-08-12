@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.146 2006-08-11 23:04:43 schloegl Exp $
+%	$Id: sopen.m,v 1.147 2006-08-12 19:57:25 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -7680,6 +7680,8 @@ elseif strcmp(HDR.TYPE,'ZIP'),
         HDR.ZIP.TEMPDIR = tempname;
         mkdir(HDR.ZIP.TEMPDIR);
         system(sprintf('unzip %s -d %s >NULL',HDR.FileName,HDR.ZIP.TEMPDIR));
+
+	H1 = [];
         fn = fullfile(HDR.ZIP.TEMPDIR,'content.xml');
         if exist(fn,'file')
                 H1.FileName = fn; 
@@ -7755,6 +7757,15 @@ elseif strcmp(HDR.TYPE,'ZIP'),
                 end
         end;
 
+	if isempty(H1),
+	        fn = dir(HDR.ZIP.TEMPDIR);
+        	fn = fn(~[fn.isdir]);
+        	if (length(fn)==1)
+        		HDR = sopen(fullfile(HDR.ZIP.TEMPDIR,fn(1).name)); 
+        		return;
+		end;
+	end;
+	
         % remove temporary directory - could be moved to SCLOSE
         [SUCCESS,MESSAGE,MESSAGEID] = rmdir(HDR.ZIP.TEMPDIR,'s');
         
