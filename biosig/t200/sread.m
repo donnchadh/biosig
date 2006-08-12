@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.64 2006-07-31 11:55:00 schloegl Exp $
+%	$Id: sread.m,v 1.65 2006-08-12 19:38:42 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1369,7 +1369,7 @@ elseif strcmp(HDR.TYPE,'EVENT'),
 
 elseif strncmp(HDR.TYPE,'IMAGE:',6),
 	% forward call to IREAD
-        HDR = iread(HDR);
+        [S,HDR] = iread(HDR);
 	return;
 
 else
