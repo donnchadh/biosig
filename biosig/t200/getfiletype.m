@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.52 2006-08-10 13:40:58 schloegl Exp $
+%	$Id: getfiletype.m,v 1.53 2006-08-12 19:35:11 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1070,6 +1070,10 @@ else
                                 HDR.EVENT.WSCORETYP = x(:,2);
                                 HDR.TYPE = 'WCORE_EVENT';
                         end;
+
+                elseif strcmpi(HDR.FILE.Ext,'hgt') & (rem(sqrt(HDR.FILE.size/2),1)==0)
+                	HDR.TYPE = 'IMAGE:HGT'; 
+                        
                 end;
         end;
         

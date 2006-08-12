@@ -20,9 +20,11 @@ function [data,HDR] = iread(HDR,CHAN,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: iread.m,v 1.4 2005-10-13 21:40:24 schloegl Exp $
+%	$Id: iread.m,v 1.5 2006-08-12 19:35:11 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+
+
 
 if 0, 
 
@@ -191,6 +193,10 @@ elseif strcmp(HDR.TYPE,'IMAGE:FITS'),
 
 	end;
 	end;
+
+
+elseif strcmp(HDR.TYPE,'IMAGE:HGT'),
+	data = fread(HDR.FILE.FID,HDR.IMAGE.Size,'int16')'; 
 
 
 elseif strcmp(HDR.TYPE,'IMAGE:TIFF'),
