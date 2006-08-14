@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.147 2006-08-12 19:57:25 schloegl Exp $
+%	$Id: sopen.m,v 1.148 2006-08-14 14:56:17 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -5648,9 +5648,9 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 
                 
         elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.5x data format
-                HDR.FILE.POS = 0; 
+                HDR.FILE.POS = 0;
                 if isa(tmp.P_C_S,'data'), %isfield(tmp.P_C_S,'version'); % without BS.analyze	
-                        if any(tmp.P_C_S.Version==[1.02, 1.5, 1.52]),
+                        if any(tmp.P_C_S.Version==[1.02, 1.5, 1.52, 3.00]),
                         else
                                 fprintf(HDR.FILE.stderr,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.Version);
                         end;
@@ -5660,14 +5660,15 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.SampleRate      = tmp.P_C_S.SamplingFrequency;
                         HDR.gBS.Attribute   = tmp.P_C_S.Attribute;
                         HDR.gBS.AttributeName = tmp.P_C_S.AttributeName;
-                        HDR.Label = tmp.P_C_S.ChannelName;
+                        HDR.Label 	    = tmp.P_C_S.ChannelName;
                         HDR.gBS.EpochingSelect = tmp.P_C_S.EpochingSelect;
                         HDR.gBS.EpochingName = tmp.P_C_S.EpochingName;
+			HDR.ELEC.XYZ = [tmp.P_C_S.XPosition; tmp.P_C_S.YPosition; tmp.P_C_S.ZPosition]';
 
                         HDR.data = double(tmp.P_C_S.Data);
                         
                 else %if isfield(tmp.P_C_S,'Version'),	% with BS.analyze software, ML6.5
-                        if any(tmp.P_C_S.version==[1.02, 1.5, 1.52]),
+                        if any(tmp.P_C_S.version==[1.02, 1.5, 1.52, 3.00]),
                         else
                                 fprintf(HDR.FILE.stderr,'Warning: PCS-Version is %4.2f.\n',tmp.P_C_S.version);
                         end;        
@@ -5677,22 +5678,23 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.SampleRate      = tmp.P_C_S.samplingfrequency;
                         HDR.gBS.Attribute   = tmp.P_C_S.attribute;
                         HDR.gBS.AttributeName = tmp.P_C_S.attributename;
-                        HDR.Label = tmp.P_C_S.channelname;
+                        HDR.Label 	    = tmp.P_C_S.channelname;
                         HDR.gBS.EpochingSelect = tmp.P_C_S.epochingselect;
                         HDR.gBS.EpochingName = tmp.P_C_S.epochingname;
+			HDR.ELEC.XYZ = [tmp.P_C_S.xposition; tmp.P_C_S.yposition; tmp.P_C_S.zposition]';
                         
                         HDR.data = double(tmp.P_C_S.data);
                 end;
-                tmp = []; % clear memory
+                tmp = []; % free some memory
 
-                sz     = size(HDR.data);
+                sz       = size(HDR.data);
                 HDR.NRec = sz(1);
                 HDR.SPR  = sz(2);
                 HDR.Dur  = sz(2)/HDR.SampleRate;
                 HDR.NS   = sz(3);
                 HDR.FLAG.TRIGGERED = HDR.NRec>1;
                 
-                HDR.data  = reshape(permute(HDR.data,[2,1,3]),[sz(1)*sz(2),sz(3)]);
+                HDR.data = reshape(permute(HDR.data,[2,1,3]),[sz(1)*sz(2),sz(3)]);
 
                 % Selection of trials with artifacts
                 ch = strmatch('ARTIFACT',HDR.gBS.AttributeName);
@@ -5706,6 +5708,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 map(strmatch('EOG',HDR.gBS.EpochingName))=hex2dec('0101');
                 map(strmatch('MUSKEL',HDR.gBS.EpochingName))=hex2dec('0103');
                 map(strmatch('MUSCLE',HDR.gBS.EpochingName))=hex2dec('0103');
+
                 map(strmatch('ELECTRODE',HDR.gBS.EpochingName))=hex2dec('0105');
 
                 map(strmatch('SLEEPSTAGE1',HDR.gBS.EpochingName))=hex2dec('0411');
