@@ -1,10 +1,15 @@
 ### Table of Decimal Factors
+# prEN ISO 11073-10101 (Nov 2003)
+# Health Informatics - Point-of-care medical device communications - Part 10101:Nomenclature
+# (ISO/DIS 11073-10101:2003)
+# Table A.6.1: Table of Decimal Factors
+#
 # CEN/TC251/PT40 2001	
 # File Exchange Format for Vital Signs - Annex A 
 # Table A.4.1: Table of Decimal Factors
 #
-# $Id: DecimalFactors.txt,v 1.2 2005-10-23 19:10:41 schloegl Exp $
-# Copyright (C) 2005 Alois Schloegl <a.schloegl@ieee.org>
+# $Id: DecimalFactors.txt,v 1.3 2006-08-16 17:10:17 schloegl Exp $
+# Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 # This file is part of the biosig project http://biosig.sf.net/
 #
 #Name	Magnitude	Code Offset	Prefix
