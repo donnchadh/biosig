@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.148 2006-08-14 14:56:17 schloegl Exp $
+%	$Id: sopen.m,v 1.149 2006-08-17 13:38:37 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -554,7 +554,9 @@ end;
 		                end;
 	                end;	
 	                for k=chan,
-	                        HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
+                                if (HDR.AS.SPR(k)>0)
+                                        HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
+                                end;
 	                end;
 	                HDR.SampleRate = HDR.SPR/HDR.Dur;
 	                
@@ -747,6 +749,14 @@ end;
                         if any(ArtifactSelection), % define only if necessary
                                 HDR.ArtifactSelection = ArtifactSelection; 
                         end;
+			if (HDR.VERSION>1.94),  % decode non-equidistant sampling
+                                ix = find(HDR.EVENT.TYP==hex2dec('7fff'));
+                                if ~isempty(ix),
+                                        HDR.EVENT.VAL = repmat(NaN,size(HDR.EVENT.TYP));
+                                        HDR.EVENT.VAL(ix) = HDR.EVENT.DUR(ix); 
+                                        HDR.EVENT.DUR(ix) = NaN; 
+                                end;
+                        end;
                         
                 elseif strcmp(HDR.TYPE,'EDF') & (length(strmatch('EDF Annotations',HDR.Label))==1),
                         % EDF+: 
@@ -831,8 +841,8 @@ end;
                                         ReRefMx(:,HDR.EDF.Annotations) = [];
                                 end;
                         end;
-
                         
+
                 elseif strcmp(HDR.TYPE,'BDF') & (length(strmatch('Status',HDR.Label))==1),
                         % BDF: 
 
@@ -871,7 +881,7 @@ end;
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF') 
                         if ~isfield(HDR,'VERSION'),
-                                HDR.VERSION = 1.25;     %% stable version 
+                                HDR.VERSION = 1.99;     %% stable version 
                         elseif (HDR.VERSION<1.30)
                                 HDR.VERSION = 1.25;     %% stable version 
                         else
@@ -968,7 +978,7 @@ end;
                 end;
                 if ~isfield(HDR.Patient,'DrugAbuse')
                         HDR.Patient.DrugAbuse = 0;
-                elseif isnumeric(HDR.Patient.DrubAbuse)
+                elseif isnumeric(HDR.Patient.DrugAbuse)
                         ;       % nothing to be done
                 elseif strcmpi(HDR.Patient.DrugAbuse,'NO') | strcmpi(HDR.Patient.DrugAbuse,'NO')
                         HDR.Patient.DrugAbuse = 1;
@@ -1025,10 +1035,12 @@ end;
                         HDR.ELEC.GND = zeros(1,3); 
                         HDR.ELEC.REF = zeros(1,3); 
                 end;
+                tmp = uint32([hex2dec('00292929'),48*36e5+2^31,15*36e5+2^31,35000]);
                 if ~isfield(HDR,'REC')
-			HDR.REC.LOC.RFC1876 = uint32([hex2dec('00292929'),48*36e5+2^31,15*36e5+2^31,35000]);
-		end
-		if ~isfield(HDR.REC.LOC,'RFC1876')	
+			HDR.REC.LOC.RFC1876 = tmp; 
+                elseif ~isfield(HDR.REC,'LOC');
+			HDR.REC.LOC.RFC1876 = tmp; 
+                elseif ~isfield(HDR.REC.LOC,'RFC1876')	
 			tmp = HDR.REC.LOC;
 			HDR.REC.LOC.RFC1876 = [hex2dec('00292929'),tmp.Latitude*36e5,tmp.Longitude*36e5,tmp.Altitude*100];
 		end
@@ -1298,17 +1310,22 @@ end;
                         end;
                         
                 end;	% header 2
-                
+
                 HDR.SPR = 1;
                 for k=1:HDR.NS,
-                        HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
+                        if (HDR.AS.SPR(k)>0)
+                                HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
+                        end;
                 end;
                 
                 %%%%%% generate Header 1, first 256 bytes 
                 HDR.HeadLen=(HDR.NS+1)*256;
                 %H1(1:8)=HDR.VERSION; %sprintf('%08i',HDR.VERSION);     % 8 Byte  Versionsnummer 
 		sex = 'XMF';
-		if ~HDR.Patient.Birthday(1), bd = 'X';
+		if isempty(HDR.Patient.Birthday), bd = 'X';
+                        HDR.Patient.Birthday = zeros(1,6);
+                elseif (~HDR.Patient.Birthday), bd = 'X';
+                        HDR.Patient.Birthday = zeros(1,6);
 		else bd=datestr(datenum(HDR.Patient.Birthday),'dd-mmm-yyyy');
 		end;
                 if HDR.VERSION == -1,

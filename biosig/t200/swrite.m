@@ -18,8 +18,8 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.14 $
-%	$Id: swrite.m,v 1.14 2006-01-23 16:49:20 schloegl Exp $
+%	$Revision: 1.15 $
+%	$Id: swrite.m,v 1.15 2006-08-17 13:38:37 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -47,7 +47,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         
         if 0, HDR.SIE.RAW,
                 if sum(HDR.AS.SPR)~=size(data,1)
-                        fprintf(2,'Warning EDFWRITE: datasize must fit to the Headerinfo %i %i %i\n',HDR.AS.spb,size(data));
+                        fprintf(2,'Warning SWRITE: datasize must fit to the Headerinfo %i %i %i\n',HDR.AS.spb,size(data));
                         fprintf(2,'Define the Headerinformation correctly.\n',HDR.AS.spb,size(data));
                 end;
                 D = data; 
@@ -65,11 +65,13 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 NRec = size(data,1)/HDR.SPR; 
                 D = repmat(NaN,sum(HDR.AS.SPR),NRec);
                 for k = 1:HDR.NS;
-                        D(HDR.AS.bi(k)+1:HDR.AS.bi(k+1),:) = rs(reshape(data(:,k),HDR.SPR,NRec),HDR.SPR/HDR.AS.SPR(k),1);
+                        if HDR.AS.SPR(k)>0,
+                                D(HDR.AS.bi(k)+1:HDR.AS.bi(k+1),:) = rs(reshape(data(:,k),HDR.SPR,NRec),HDR.SPR/HDR.AS.SPR(k),1);
+                        end;
                 end;
         end;
 	GDFTYP = HDR.GDFTYP(1);
-	if ~exist('OCTAVE_FORGE','builtin')
+	if ~exist('OCTAVE_VERSION','builtin')
 	        count = fwrite(HDR.FILE.FID,D,gdfdatatype(GDFTYP));
 	else
 		if GDFTYP<256,

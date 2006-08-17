@@ -1,7 +1,7 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004-2005 Alois Schloegl <a.schloegl@ieee.org>
-# $Id: eventcodes.txt,v 1.1 2005-10-19 17:06:09 schloegl Exp $
+# $Id: eventcodes.txt,v 1.2 2006-08-17 13:38:36 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -121,9 +121,41 @@
 0x0010	condition 16
 0x0011	condition 17
 0x0012	condition 18
+0x0013	condition 19
+0x0014	condition 20
+0x0015	condition 21
+0x0016	condition 22
+0x0017	condition 23
+0x0018	condition 24
+0x0019	condition 25
+0x001a	condition 26
 0x0020	condition 32
+0x0033	condition 51
+0x0034	condition 52
+0x0035	condition 53
+0x0036	condition 54
+0x0037	condition 55
+0x0038	condition 56
+0x0039	condition 57
+0x003a	condition 58
+0x003b	condition 59
+0x003c	condition 60
+0x003d	condition 61
+0x003e	condition 62
+0x003f	condition 63
 0x0040	condition 64
+0x0041	condition 65
+0x0042	condition 66
+0x0046	condition 70
+0x0051	condition 81
+0x0052	condition 82
+0x0053	condition 83
+0x005b	condition 91
+0x005c	condition 92
+0x005d	condition 93
 0x0060	condition 96
+0x0063	condition 99
 0x0080	condition 128
-#
-
+### 0x7f__      special codes
+0x07ff  non-equidistant sampleing value
+# 

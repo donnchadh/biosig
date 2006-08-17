@@ -1,5 +1,5 @@
 function [S,HDR] = sread(HDR,NoS,StartPos)
-% SREAD loads selected seconds of a signal file
+% SREAD loads selected segments of signal file
 %
 % [S,HDR] = sread(HDR [,NoS [,StartPos]] )
 % NoS       Number of seconds, default = 1 (second)
@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.65 2006-08-12 19:38:42 schloegl Exp $
+%	$Id: sread.m,v 1.66 2006-08-17 13:38:37 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -157,7 +157,7 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF') 
     	fp     = HDR.HeadLen + block1*HDR.AS.bpb;
     	status = fseek(HDR.FILE.FID, fp, 'bof');
 
-	count  = 0;
+        count  = 0;
         if HDR.NS==0,
 
         elseif all(HDR.GDFTYP==HDR.GDFTYP(1)),
@@ -166,20 +166,26 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF') 
                         [s,c] = fread(HDR.FILE.FID,[HDR.AS.spb, nb],gdfdatatype(HDR.GDFTYP(1)));
                         for k = 1:length(HDR.InChanSelect),
                                K = HDR.InChanSelect(k);
-                               S(:,k) = rs(reshape(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K)*nb,1),HDR.AS.SPR(K),HDR.SPR); 
+                               if (HDR.AS.SPR(K)>0)
+                                       S(:,k) = rs(reshape(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K)*nb,1),HDR.AS.SPR(K),HDR.SPR);
+                               else
+                                       S(:,k) = NaN;
+                               end;
                         end;
                         S = S(ix1+1:ix1+nr,:);
                         count = nr;
                 else
-                        S = zeros(nr,length(HDR.InChanSelect));
+                        S = repmat(NaN,[nr,length(HDR.InChanSelect)]);
                         while (count<nr);
                                 len   = ceil(min([(nr-count)/HDR.SPR,2^22/HDR.AS.spb]));
                                 [s,c] = fread(HDR.FILE.FID,[HDR.AS.spb, len],gdfdatatype(HDR.GDFTYP(1)));
                                 s1    = zeros(HDR.SPR*c/HDR.AS.spb,length(HDR.InChanSelect));
                                 for k = 1:length(HDR.InChanSelect), 
                                         K = HDR.InChanSelect(k);
-                                        tmp = reshape(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K)*c/HDR.AS.spb,1);
-                                        s1(:,k) = rs(tmp,HDR.AS.SPR(K),HDR.SPR);
+                                        if (HDR.AS.SPR(K)>0)
+                                                tmp = reshape(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K)*c/HDR.AS.spb,1);
+                                                s1(:,k) = rs(tmp,HDR.AS.SPR(K),HDR.SPR);
+                                        end;
                                 end;
                                 ix2   = min(nr-count, size(s1,1)-ix1);
                                 S(count+1:count+ix2,:) = s1(ix1+1:ix1+ix2,:);
@@ -187,11 +193,10 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF') 
                                 ix1   = 0; 
                         end;	
                 end;
-                HDR.FILE.POS = HDR.FILE.POS + count;
         else
                 fprintf(2,'SREAD (GDF): different datatypes - this might take some time.\n');
                 
-                S = zeros(nr,length(HDR.InChanSelect));
+                S = repmat(NaN,[nr,length(HDR.InChanSelect)]);
                 while (count<nr);
                         s = [];
                         for k=1:length(HDR.AS.TYP),
@@ -199,19 +204,34 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF') 
                                 s = [s;s0];
                         end;
                         
-                        s1    = zeros(HDR.SPR,length(HDR.InChanSelect));
+                        s1    = repmat(NaN,[HDR.SPR,length(HDR.InChanSelect)]);
                         for k = 1:length(HDR.InChanSelect), 
                                 K = HDR.InChanSelect(k);
-                                s1(:,k) = rs(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K),HDR.SPR);
+                                if (HDR.AS.SPR(K)>0)
+                                        s1(:,k) = rs(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K),HDR.SPR);
+                                end;
                         end;
                         ix2   = min(nr-count, size(s1,1)-ix1);
                         S(count+1:count+ix2,:) = s1(ix1+1:ix1+ix2,:);
                         count = count+HDR.SPR;
                         ix1   = 0; 
                 end;	
-                HDR.FILE.POS = HDR.FILE.POS + count;
         end;
-
+        if strcmp(HDR.TYPE,'GDF')       % read non-equidistant sampling channels of GDF2.0 format
+                if (HDR.VERSION>1.94) & isfield(HDR.EVENT,'VAL'),
+                        for k = 1:length(HDR.InChanSelect), 
+                                ch = HDR.InChanSelect(k);
+                                if (HDR.AS.SPR(ch)==0),
+                                        ix = find(~isnan(HDR.EVENT.VAL) & (HDR.EVENT.CHN==ch));
+                                        pix= HDR.EVENT.POS(ix)-HDR.FILE.POS;
+                                        ix1= find((pix > 0) & (pix <= count));
+                                        S(pix(ix1),k)=HDR.EVENT.VAL(ix(ix1));
+                                end;
+                        end;
+                end;
+        end
+        HDR.FILE.POS = HDR.FILE.POS + count;
+        
         
 elseif strmatch(HDR.TYPE,{'BKR'}),
         if nargin==3,

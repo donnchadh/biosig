@@ -3,7 +3,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.20 2006-06-07 07:59:21 schloegl Exp $
+$Id: header.txt,v 1.21 2006-08-17 13:38:36 schloegl Exp $
 Copyright (C) Alois Schloegl 2003-2005 <a.schloegl@ieee.org>
 
 
@@ -54,6 +54,8 @@ HDR.EVENT 	# two versions are possible. Version 1:
     EVENT.TYP		uint16		Type of event/marker/annotation according to table biosig/t200/eventcodes.txt 
     EVENT.CHN		uint16		associated channel; is zero if event applies to no specific or all channels
     EVENT.DUR		uint32		event duration in samples
+    EVENT.VAL		(*)		use for sparse (non-equidistant) sample values). The type corresponds to GDFTYP of the respective channel. 
+                                        and must not exceed 32 bits (4 bytes). Currently, only integer types are supported. 
 		# [OPTIONAL]
     EVENT.CodeDesc	text		description of Eventtypes
     EVENT.CodeIndex	int		corresponding index 

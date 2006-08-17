@@ -20,8 +20,8 @@ function [HDR] = sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.19 $
-%	$Id: sclose.m,v 1.19 2006-02-13 09:22:54 schloegl Exp $
+%	$Revision: 1.20 $
+%	$Id: sclose.m,v 1.20 2006-08-17 13:38:37 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -102,6 +102,32 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
 	                end; 
 			len = [length(HDR.EVENT.POS),length(HDR.EVENT.TYP)]; 
                         EVENT.Version = 1;
+                        if isfield(HDR.EVENT,'VAL')
+                                if isempty(HDR.EVENT.DUR)
+                                        HDR.EVENT.DUR = zeros(size(HDR.EVENT.TYP));
+                                end;
+                                ix = ~isnan(HDR.EVENT.VAL);
+                                tmp = unique(HDR.EVENT.CHN(ix));tmp=tmp(~isnan(tmp));
+                                if any(HDR.AS.SPR(tmp))
+                                        fprintf(2,'Warning SCLOSE: Sparse sampling value for non-sparse channels not allowed. The following channel(s) is(are) affected: '); 
+                                        fprintf(2,'%i',tmp(HDR.AS.SPR(tmp)>0));
+                                        fprintf(2,'.  Samples are removed.\n')
+                                        ix0 = repmat(0>1,size(HDR.EVENT.POS)); % initialize index with logical(0)
+                                        for k = 1:length(tmp),
+                                                if (HDR.AS.SPR(tmp)>0),
+                                                        ix0 = ix0 | (HDR.EVENT.CHN==tmp(k));
+                                                end;
+                                        end;
+                                        HDR.EVENT.POS = HDR.EVENT.POS(~ix0); 
+                                        HDR.EVENT.TYP = HDR.EVENT.TYP(~ix0); 
+                                        HDR.EVENT.CHN = HDR.EVENT.CHN(~ix0); 
+                                        HDR.EVENT.DUR = HDR.EVENT.DUR(~ix0); 
+                                        HDR.EVENT.VAL = HDR.EVENT.VAL(~ix0); 
+                                        ix = ~isnan(HDR.EVENT.VAL);
+                                end;
+                                HDR.EVENT.TYP(ix) = hex2dec('7fff');
+                                HDR.EVENT.DUR(ix) = HDR.EVENT.VAL(ix);
+                        end;
                         if isfield(HDR.EVENT,'CHN') & isfield(HDR.EVENT,'DUR'), 
                                 if any(HDR.EVENT.CHN) | any(HDR.EVENT.DUR),
                                         EVENT.Version = 3;
@@ -196,7 +222,11 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
         end;
 end;
 
-if strcmp(HDR.TYPE,'FIF') & HDR.FILE.OPEN;
+if 0,
+elseif strcmp(HDR.TYPE,'ZIP')
+        [SUCCESS,MESSAGE,MESSAGEID] = rmdir(HDR.ZIP.TEMPDIR,'s');
+
+elseif strcmp(HDR.TYPE,'FIF') & HDR.FILE.OPEN;
         global FLAG_NUMBER_OF_OPEN_FIF_FILES
         rawdata('close');
         HDR.FILE.OPEN = 0;
