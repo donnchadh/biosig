@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.149 2006-08-17 13:38:37 schloegl Exp $
+%	$Id: sopen.m,v 1.150 2006-08-17 16:03:38 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -749,15 +749,17 @@ end;
                         if any(ArtifactSelection), % define only if necessary
                                 HDR.ArtifactSelection = ArtifactSelection; 
                         end;
-			if (HDR.VERSION>1.94),  % decode non-equidistant sampling
-                                ix = find(HDR.EVENT.TYP==hex2dec('7fff'));
-                                if ~isempty(ix),
-                                        HDR.EVENT.VAL = repmat(NaN,size(HDR.EVENT.TYP));
-                                        HDR.EVENT.VAL(ix) = HDR.EVENT.DUR(ix); 
-                                        HDR.EVENT.DUR(ix) = NaN; 
+                        % decode non-equidistant sampling
+                        ix = find(HDR.EVENT.TYP==hex2dec('7fff'));
+                        if ~isempty(ix),
+                                if (HDR.VERSION<1.90), 
+                                        warning('non-equidistant sampling not definded for GDF v1.x')
                                 end;
+                                HDR.EVENT.VAL = repmat(NaN,size(HDR.EVENT.TYP));
+                                HDR.EVENT.VAL(ix) = HDR.EVENT.DUR(ix);
+                                HDR.EVENT.DUR(ix) = NaN;
                         end;
-                        
+
                 elseif strcmp(HDR.TYPE,'EDF') & (length(strmatch('EDF Annotations',HDR.Label))==1),
                         % EDF+: 
                         tmp = strmatch('EDF Annotations',HDR.Label);
@@ -905,7 +907,7 @@ end;
 			HDR.Patient.Sex = 0; 
 			HDR.Patient.Handedness = 0; 
 			HDR.Patient.Birthday = zeros(1,6);
-			HDR.Patient.Headsize = [NaN,NaN,NaN]; 
+			HDR.Patient.Headsize = [NaN, NaN, NaN]; 
                         HDR.Patient.Weight = 0;
                         HDR.Patient.Height = 0;
                 end;

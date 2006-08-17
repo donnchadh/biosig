@@ -20,8 +20,8 @@ function [HDR] = sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.20 $
-%	$Id: sclose.m,v 1.20 2006-08-17 13:38:37 schloegl Exp $
+%	$Revision: 1.21 $
+%	$Id: sclose.m,v 1.21 2006-08-17 16:03:39 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -100,21 +100,42 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                 	else
 	                        HDR.AS.EVENTTABLEPOS = HDR.HeadLen+HDR.AS.bpb*HDR.NRec;
 	                end; 
-			len = [length(HDR.EVENT.POS),length(HDR.EVENT.TYP)]; 
-                        EVENT.Version = 1;
                         if isfield(HDR.EVENT,'VAL')
+                                % handling of sparse (non-equidistant) sampling values
                                 if isempty(HDR.EVENT.DUR)
                                         HDR.EVENT.DUR = zeros(size(HDR.EVENT.TYP));
                                 end;
-                                ix = ~isnan(HDR.EVENT.VAL);
-                                tmp = unique(HDR.EVENT.CHN(ix));tmp=tmp(~isnan(tmp));
-                                if any(HDR.AS.SPR(tmp))
-                                        fprintf(2,'Warning SCLOSE: Sparse sampling value for non-sparse channels not allowed. The following channel(s) is(are) affected: '); 
-                                        fprintf(2,'%i',tmp(HDR.AS.SPR(tmp)>0));
-                                        fprintf(2,'.  Samples are removed.\n')
-                                        ix0 = repmat(0>1,size(HDR.EVENT.POS)); % initialize index with logical(0)
+                                if (HDR.VERSION<1.90)
+                                        fprintf(2,'Warning SCLOSE: GDF v2.0 or higher required for storing sparse samples but version is only %4.2f.\n',HDR.VERSION); 
+                                        ix0 = ~isnan(HDR.EVENT.VAL);
+                                        HDR.EVENT.POS = HDR.EVENT.POS(~ix0); 
+                                        HDR.EVENT.TYP = HDR.EVENT.TYP(~ix0); 
+                                        HDR.EVENT.CHN = HDR.EVENT.CHN(~ix0); 
+                                        HDR.EVENT.DUR = HDR.EVENT.DUR(~ix0); 
+                                        HDR.EVENT = rmfield(HDR.EVENT,'VAL'); 
+                                end;
+	                end; 
+                        if isfield(HDR.EVENT,'VAL')
+                                ix  = find(~isnan(HDR.EVENT.VAL));
+                                tmp = unique(HDR.EVENT.CHN(ix));
+                                
+                                flag.invalid = 0;
+                                if (~all(HDR.EVENT.CHN(ix) > 0))
+                                        flag.invalid = 1;
+                                        fprintf(2,'Warning SCLOSE: Sparse sampling values without valid channel. Samples are not stored.\n');
+                                        tmp = tmp(tmp > 0);
+                                end;
+                                if any(HDR.GDFTYP(tmp) > 6)
+                                        fprintf(2,'Warning SCLOSE: Sparse sampling values must be of type integer using no more than 32 bits. Data is converted to uint32.\n');
+                                end;
+
+                                if any(HDR.AS.SPR(tmp)) | flag.invalid,
+                                        fprintf(2,'Warning SCLOSE: Sparse sampling value for non-sparse channels not allowed. The following channel(s) is(are) affected: ');
+                                        fprintf(2,'%i', tmp(HDR.AS.SPR(tmp)>0) );
+                                        fprintf(2,'.  Samples are not stored.\n')
+                                        ix0 = ~isnan(HDR.EVENT.VAL) & ~(HDR.EVENT.CHN>0); % initialize index with logical(0)
                                         for k = 1:length(tmp),
-                                                if (HDR.AS.SPR(tmp)>0),
+                                                if (HDR.AS.SPR(tmp(k))>0),
                                                         ix0 = ix0 | (HDR.EVENT.CHN==tmp(k));
                                                 end;
                                         end;
@@ -125,9 +146,14 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                                         HDR.EVENT.VAL = HDR.EVENT.VAL(~ix0); 
                                         ix = ~isnan(HDR.EVENT.VAL);
                                 end;
+                                
+                                % prepare for storing 
                                 HDR.EVENT.TYP(ix) = hex2dec('7fff');
                                 HDR.EVENT.DUR(ix) = HDR.EVENT.VAL(ix);
                         end;
+
+                        len = [length(HDR.EVENT.POS),length(HDR.EVENT.TYP)]; 
+                        EVENT.Version = 1;
                         if isfield(HDR.EVENT,'CHN') & isfield(HDR.EVENT,'DUR'), 
                                 if any(HDR.EVENT.CHN) | any(HDR.EVENT.DUR),
                                         EVENT.Version = 3;
