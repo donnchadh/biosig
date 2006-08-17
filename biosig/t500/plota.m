@@ -50,7 +50,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.51 2006-08-11 16:26:35 schloegl Exp $
+%	$Id: plota.m,v 1.52 2006-08-17 16:06:44 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -455,7 +455,16 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
         XT = XT(:,nix);
 
         tmp = diff(XT);
-        if any(tmp-tmp(1))
+        if isempty(tmp)
+                X.A = [eye(size(X.M.AR,1)), -X.M.AR];
+                X.B = eye(size(X.M.AR,1));
+                X.C = X.M.C;
+                % X.SampleRate = 2*max(X.F); 
+                X.datatype='MVAR'; 
+                plota(X,arg2); 
+                warning('single time segment not implemented, yet. ')
+                return;
+        elseif any(tmp-tmp(1))
                 warning('time scale is not equidistant - xlabels are incorrect')
         end;
 
