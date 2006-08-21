@@ -27,7 +27,7 @@ function [HDR] = leadidcodexyz(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: leadidcodexyz.m,v 1.6 2006-08-14 14:52:22 schloegl Exp $
+%	$Id: leadidcodexyz.m,v 1.7 2006-08-21 16:50:20 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -145,7 +145,7 @@ else    % electrode code and position
                 	for k = 1:NS;
 	                        ix = strmatch(upper(deblank(HDR.Label{k})),BIOSIG_GLOBAL.Label,'exact');
         	                if (length(ix)==1),
-                	                LeadIdCode = BIOSIG_GLOBAL.LeadIdCode(ix)
+                	                LeadIdCode = BIOSIG_GLOBAL.LeadIdCode(ix);
                         	        XYZ = BIOSIG_GLOBAL.XYZ(ix,:);
                         	else	
                                 	LeadIdCode = 0;
