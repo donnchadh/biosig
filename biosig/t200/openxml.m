@@ -1,5 +1,5 @@
-function [HDR]=sxmlopen(HDR,CHAN,arg4,arg5,arg6)
-% SXMLOPEN reads XML files and tries to extract biosignal data
+function [HDR]=openxml(arg1,CHAN,arg4,arg5,arg6)
+% OPENXML reads XML files and tries to extract biosignal data
 %
 % This is an auxilary function to SOPEN. 
 % Use SOPEN instead of OPENXML.
@@ -27,13 +27,19 @@ function [HDR]=sxmlopen(HDR,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: openxml.m,v 1.1 2006-06-09 16:23:54 schloegl Exp $
+%	$Id: openxml.m,v 1.2 2006-08-21 16:39:54 schloegl Exp $
 %	(C) 2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
+if ischar(arg1); 
+        HDR.FileName = arg1; 
+        HDR.FILE.PERMISSION = 'r'; 
+else
+        HDR = arg1; 
+end;         
 
-if strncmp(HDR.TYPE,'XML',3),
-        if any(HDR.FILE.PERMISSION=='r'),
+%if strncmp(HDR.TYPE,'XML',3),
+%        if any(HDR.FILE.PERMISSION=='r'),
                 fid = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
                 if strcmp(HDR.TYPE,'XML-UTF16'),
                         magic = char(fread(fid,1,'uint16'));
@@ -45,17 +51,17 @@ if strncmp(HDR.TYPE,'XML',3),
                 HDR.FILE.FID = fid;
                 
 
-                if ~exist('xmlstruct')
+                if 0, ~exist('xmlstruct')
                         warning('XML toolbox missing')
                 end;
-                if 1, try,
+                %if 0, 
+                try,
                         HDR.XMLstruct = xmlstruct(HDR.XML,'sub');
                         HDR.XMLlist   = xmlstruct(HDR.XML);
-                        return;
                 catch        
-                        
+                end;
+
                 try
-                        
                         XML = xmltree(HDR.XML);
                         XML = convert(XML);
                         HDR.XML  =  XML; 
@@ -64,47 +70,51 @@ if strncmp(HDR.TYPE,'XML',3),
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN (XML): XML-toolbox missing or invalid XML file.\n');
                         return;
                 end;
-                end;
-                end;
-		
-                try,    % SierraECG  1.03  *.open.xml from PHILIPS
-                        HDR.SampleRate = str2double(HDR.XML.dataacquisition.signalcharacteristics.samplingrate);
-                        HDR.NS  = str2double(HDR.XML.dataacquisition.signalcharacteristics.numberchannelsvalid);
-                        HDR.Cal = str2double(HDR.XML.reportinfo.reportgain.amplitudegain.overallgain);
-                        HDR.PhysDim = 'uV';
-                        HDR.Filter.HighPass = str2double(HDR.XML.reportinfo.reportbandwidth.highpassfiltersetting);
-                        HDR.Filter.LowPass  = str2double(HDR.XML.reportinfo.reportbandwidth.lowpassfiltersetting);
-                        HDR.Filter.Notch    = str2double(HDR.XML.reportinfo.reportbandwidth.notchfiltersetting);
+
+                tmp = fieldnames(HDR.XML);
+                if any(strmatch('PatientDemographics',tmp)) & any(strmatch('TestDemographics',tmp)) & any(strmatch('RestingECGMeasurements',tmp)) & any(strmatch('Diagnosis',tmp)) & any(strmatch('Waveform',tmp)),
+                        % GE-Marquette FDA-XML   MAC5000 
                         
-                        t = HDR.XML.reportinfo.reportformat.waveformformat.mainwaveformformat;
-                        k = 0; 
-                        HDR.Label=[];
-                        while ~isempty(t),
-                                [s,t] = strtok(t,' ');
-                                k = k+1; 
-                                HDR.Label{k, 1} = [s,' '];
+                        HDR.Patient.ID = HDR.XML.PatientDemographics.PatientID;
+                        tmp = HDR.XML.PatientDemographics.Gender;
+                        HDR.Patient.Sex = 2*(upper(tmp(1))=='F') + (upper(tmp(1))=='M');
+                        HDR.Patient.Name = [HDR.XML.PatientDemographics.PatientLastName,', ',HDR.XML.PatientDemographics.PatientFirstName];
+
+                        tmp = HDR.XML.TestDemographics.AcquisitionDate; 
+                        tmp(tmp=='-') = ' '; 
+                        HDR.T0([3,2,1])=str2double(tmp);
+                        tmp = HDR.XML.TestDemographics.AcquisitionTime; 
+                        tmp(tmp==':') = ' '; 
+                        HDR.T0(4:6) = str2double(tmp);
+
+                        HDR.NS = str2double(HDR.XML.Waveform.NumberofLeads);
+                        HDR.SampleRate = str2double(HDR.XML.Waveform.SampleBase); 
+                        HDR.Filter.LowPass  = str2double(HDR.XML.Waveform.LowPassFilter)*ones(1,HDR.NS);
+                        HDR.Filter.HighPass = str2double(HDR.XML.Waveform.HighPassFilter)*ones(1,HDR.NS);
+                        HDR.Filter.Notch    = str2double(HDR.XML.Waveform.ACFilter)*ones(1,HDR.NS);
+
+                        HDR.NRec = 1; 
+                        HDR.SPR = 1;
+                        for k = 1:HDR.NS,
+                                CH = HDR.XML.Waveform.LeadData{k};
+                                HDR.AS.SPR(k)  = str2double(CH.LeadSampleCountTotal);
+                                HDR.SPR        = lcm(HDR.SPR,HDR.AS.SPR(k));
+                                HDR.Cal(k)     = str2double(CH.LeadAmplitudeUnitsPerBit);
+                                HDR.PhysDim{k} = CH.LeadAmplitudeUnits;
+                                HDR.Label{k}   = CH.LeadID;
+                        
+                                % data decoding not implemented yet;         
+                                % HDR.data(:,k) = rs(decode(CH.WaveFormData),HDR.AS.SPR,HDR.SPR) %
                         end;
-                        HDR.Patient.Id     = str2double(HDR.XML.patient.generalpatientdata.patientid);
-                        tmp    = HDR.XML.patient.generalpatientdata.age;
-                        if isfield(tmp,'years'),
-	                        HDR.Patient.Age    = str2double(tmp.years);
-			end
-			if isfield(tmp,'dateofbirth')
-				tmp = tmp.dateofbirth; 
-				tmp(tmp=='-')=' ';
-				HDR.Patient.Birthday([6,5,4]) = str2double(tmp);
-			end;
+                        fprintf(2,'Warning: decoding of WaveFormData of MAC5000 XML file not implemented.');
+                        HDR.data = zeros(HDR.SPR*HDR.NRec,HDR.NS); 
                         
-                        tmp    = HDR.XML.patient.generalpatientdata.sex;
-                        HDR.Patient.Sex    = strncmpi(tmp,'Male',1) + strncmpi(tmp,'Female',1)*2; 
-                        HDR.Patient.Weight = str2double(HDR.XML.patient.generalpatientdata.weight.kg);
-                        HDR.Patient.Height = str2double(HDR.XML.patient.generalpatientdata.height.cm);
+                        %HDR.TYPE = 'XML-FDA';     % that's an FDA XML file
+                        HDR.TYPE = 'native'; 
+
                         
-                        HDR.VERSION = HDR.XML.documentinfo.documentversion;
-                        HDR.TYPE = HDR.XML.documentinfo.documenttype;
-                catch
-                        
-                try,    % FDA-XML Format
+                elseif any(strmatch('component',tmp))
+                          % FDA-XML Format
                         tmp   = HDR.XML.component.series.derivation;
                         if isfield(tmp,'Series');
                                 tmp = tmp.Series.component.sequenceSet.component;
@@ -117,9 +127,64 @@ if strncmp(HDR.TYPE,'XML',3),
                         HDR.PhysDim = ' ';
                         HDR.SampleRate = 1;
                         HDR.TYPE = 'XML-FDA';     % that's an FDA XML file 
-                catch
-                
-                try 	% GE Case8000 stress ECG
+
+                        
+                elseif any(strmatch('dataacquisition',tmp)) & any(strmatch('reportinfo',tmp)) & any(strmatch('patient',tmp)) & any(strmatch('documentinfo',tmp)),
+                        % SierraECG  1.03  *.open.xml from PHILIPS
+                        HDR.SampleRate = str2double(HDR.XML.dataacquisition.signalcharacteristics.samplingrate);
+                        HDR.NS  = str2double(HDR.XML.dataacquisition.signalcharacteristics.numberchannelsvalid);
+                        HDR.Cal = str2double(HDR.XML.reportinfo.reportgain.amplitudegain.overallgain);
+                        HDR.PhysDim = 'uV';
+                        HDR.Filter.HighPass = str2double(HDR.XML.reportinfo.reportbandwidth.highpassfiltersetting);
+                        HDR.Filter.LowPass  = str2double(HDR.XML.reportinfo.reportbandwidth.lowpassfiltersetting);
+                        HDR.Filter.Notch    = str2double(HDR.XML.reportinfo.reportbandwidth.notchfiltersetting);
+
+                        t = HDR.XML.reportinfo.reportformat.waveformformat.mainwaveformformat;
+                        k = 0;
+                        HDR.Label=[];
+                        while ~isempty(t),
+                                [s,t] = strtok(t,' ');
+                                k = k+1;
+                                HDR.Label{k, 1} = [s,' '];
+                        end;
+                        HDR.Patient.Id     = str2double(HDR.XML.patient.generalpatientdata.patientid);
+                        tmp    = HDR.XML.patient.generalpatientdata.age;
+                        if isfield(tmp,'years'),
+                                HDR.Patient.Age    = str2double(tmp.years);
+                        end
+                        if isfield(tmp,'dateofbirth')
+                                tmp = tmp.dateofbirth;
+                                tmp(tmp=='-')=' ';
+                                HDR.Patient.Birthday([6,5,4]) = str2double(tmp);
+                        end;
+
+                        tmp    = HDR.XML.patient.generalpatientdata.sex;
+                        HDR.Patient.Sex    = strncmpi(tmp,'Male',1) + strncmpi(tmp,'Female',1)*2;
+                        HDR.Patient.Weight = str2double(HDR.XML.patient.generalpatientdata.weight.kg);
+                        HDR.Patient.Height = str2double(HDR.XML.patient.generalpatientdata.height.cm);
+
+                        HDR.VERSION = HDR.XML.documentinfo.documentversion;
+                        HDR.TYPE = HDR.XML.documentinfo.documenttype;
+
+
+                elseif any(strmatch('component',tmp)) & any(strmatch('reportinfo',tmp)) & any(strmatch('patient',tmp)) & any(strmatch('documentinfo',tmp)),
+                           % FDA-XML Format
+                        tmp   = HDR.XML.component.series.derivation;
+                        if isfield(tmp,'Series');
+                                tmp = tmp.Series.component.sequenceSet.component;
+                        else    % Dovermed.CO.IL version of format
+                                tmp = tmp.derivedSeries.component.sequenceSet.component;
+                        end;
+                        HDR.NS = length(tmp)-1;
+                        HDR.NRec = 1; 
+                        HDR.Cal = 1;
+                        HDR.PhysDim = ' ';
+                        HDR.SampleRate = 1;
+                        HDR.TYPE = 'XML-FDA';     % that's an FDA XML file 
+
+
+                elseif any(strmatch('StripData',tmp)) & any(strmatch('ClinicalInfo',tmp)) & any(strmatch('PatientInfo',tmp)) & any(strmatch('ArrhythmiaData',tmp)),
+                        % GE Case8000 stress ECG
 
                 	HDR.SampleRate = str2double(HDR.XML.StripData.SampleRate);
                 	tmp = HDR.XML.ClinicalInfo.ObservationDateTime; 
@@ -160,23 +225,22 @@ if strncmp(HDR.TYPE,'XML',3),
                 	HDR.SPR  = size(HDR.data,1); 
                 	HDR.Calib = sparse(2:HDR.NS,1:HDR.NS,1); 
                 	HDR.FLAG.UCAL = 1; 
-                catch
+
+                else
                         fprintf(HDR.FILE.stderr,'Warning SOPEN (XML): File %s is not supported.\n',HDR.FileName);
                         return;
-                end;
-                end;
                 end
 
+                
                 try
                 	tmp=HDR.XML.componentOf.timepointEvent.componentOf.subjectAssignment.subject.trialSubject.subjectDemographicPerson.name; 
                 	HDR.Patient.Name = sprintf('%s, %s',tmp.family, tmp.given);
 		catch
-                end
-                
+                end;        
                 
                 
                 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS  = 0;
-        end;
-end;
+%        end;
+%end;
