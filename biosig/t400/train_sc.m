@@ -16,6 +16,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %    'GDBC'     general distance based classifier  [1]
 %    ''         statistical classifier, requires Mode argument in TEST_SC	
 %    '/GSVD'	GSVD and statistical classifier [2,3]
+%    'SLDA'     sparse LDA 
 %    'SVM','SVM1r'  support vector machines, one-vs-rest
 %               MODE.hyperparameters.c_value = 
 %    'SVM11'    support vector machines, one-vs-one + voting
@@ -25,6 +26,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %               MODE.hyperparameters.gamma = 
 %    'LPM'      Linear Programming Machine
 %               MODE.hyperparameters.c_value = 
+%    'REG'      regression analysis;    
 %
 % 
 % CC contains the model parameters of a classifier. Some time ago,     
@@ -41,14 +43,20 @@ function [CC]=train_sc(D,classlabel,MODE)
 % [2] Peg Howland and Haesun Park,
 %       Generalizing Discriminant Analysis Using the Generalized Singular Value Decomposition
 %       IEEE Transactions on Pattern Analysis and Machine Intelligence, 26(8), 2004.
+%       dx.doi.org/10.1109/TPAMI.2004.46
 % [3] http://www-static.cc.gatech.edu/~kihwan23/face_recog_gsvd.htm
 % [4] Jieping Ye, Ravi Janardan, Cheong Hee Park, Haesun Park
 %       A new optimization criterion for generalized discriminant analysis
 %       on undersampled problems.
 %       The Third IEEE International Conference on Data Mining, Melbourne, Florida, USA
 %       November 19 - 22, 2003
+% [5] J.D. Tebbens and P.Schlesinger (2006), 
+%       Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
+%       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
 
-%	$Id: train_sc.m,v 1.10 2006-07-10 15:06:24 schloegl Exp $
+ 
+
+%	$Id: train_sc.m,v 1.11 2006-08-21 16:51:11 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -136,22 +144,40 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'rbf'))
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
 
 
+elseif ~isempty(strfind(lower(MODE.TYPE),'reg'))
+        % regression analysis, kann handle sparse data, too. 
+        % Q: equivalent to LDA? 
+        M = length(CC.Labels); 
+        if M==2, M==1; end;
+        CC.weights = repmat(NaN,size(D,2)+1,M);
+        for k = 1:M,
+                CC.weights(:,k) = [ones(size(D,1),1),D]\[(classlabel==CC.Labels(k))*2-1];
+	end;
+        if diff(size(D))>0,
+                CC.weights = sparse(CC.weights); 
+        end;
+        CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+
+
 elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
-	% [1] Peg Howland and Haesun Park, 2004. 
+	% [2] Peg Howland and Haesun Park, 2004. 
         %       Generalizing Discriminant Analysis Using the Generalized Singular Value Decomposition
         %       IEEE Transactions on Pattern Analysis and Machine Intelligence, 26(8), 2004.
+        %       dx.doi.org/10.1109/TPAMI.2004.46
         % [3] http://www-static.cc.gatech.edu/~kihwan23/face_recog_gsvd.htm
 
-        Hw = zeros(size(D)); 
+        Hw = zeros(size(D)+[length(CC.Labels),0]); 
         Hb = [];
 	m0 = mean(D); 
-	for k = 1:length(CC.Labels)
+        K = length(CC.Labels); 
+	for k = 1:K,
 		ix = find(classlabel==CC.Labels(k));
 		N(k) = length(ix); 
-		[Hw(ix,:), mu(k,:)] = center(D(ix,:));
-		Hb(k,:) = sqrt(N(k))*(mu(k,:)-m0);
+		[Hw(ix,:), mu] = center(D(ix,:));
+		%Hb(k,:) = sqrt(N(k))*(mu(k,:)-m0);
+		Hw(size(D,1)+k,:) = sqrt(N(k))*(mu-m0);  % Hb(k,:)
 	end;
-        [P,R,Q] = svd([Hb;Hw],0);
+        [P,R,Q] = svd(Hw,'econ');
 	t = rank(R);
 
         clear Hw Hb mu; 
@@ -163,9 +189,14 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
         %[size(U);size(E);size(W)]
         clear U E P;  
         %[size(Q);size(R);size(W)]
-        G = Q(1:t,:)'*[R\W];
+        
+        %G = Q(1:t,:)'*[R\W'];
+        G = Q(:,1:t)*[R\W'];   % this works as well and needs only 'econ'-SVD
         %G = G(:,1:t);  % not needed 
         
+        % do not use this, gives very bad results for Medline database
+        %G = G(:,1:K); this seems to be a typo in [2] and [3].
+
         CC = train_sc(D*G,classlabel,MODE.TYPE(1:find(MODE.TYPE=='/')-1));
         CC.G = G; 
         if isfield(CC,'weights')
@@ -178,8 +209,25 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
 
 elseif ~isempty(strfind(lower(MODE.TYPE),'sparse_lda'))
 	% J.D. Tebbens and P.Schlesinger, Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
-			 
-	% X = D';
+
+        warning('The use of SPARSE-LDA is experimental and not well tested.'); 
+        G  = sparse([],[],[],size(D,1),length(CC.Labels),size(D,1));
+        gg = classlabel;
+        for k = 1:size(G,1),
+                G(k,gg(k)) = 1; 
+        end;
+        test = [];
+        Gtest= [];
+        tol  = 1e-10;
+        par  = str2double(MODE.TYPE(end)); 
+        if (par==0)
+                warning('SparseLDA: par=0 not recommended.')
+        end;
+        [CC.slda] = train_lda_sparse(D,G,test,Gtest,par,tol);
+        CC.datatype = 'classifier:slda';
+
+        return; 
+        % X = D';
 	[n,p] = size(D);
 	g = length(CL); 
 	
@@ -246,7 +294,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
         end
         if any(MODE.TYPE==':'),
                 % nothing to be done
-        elseif exist('SVMTrain','file')==3,
+        elseif exist('svmtrain','file')==3,
                 MODE.TYPE = 'SVM:LIB';
         elseif exist('mexSVMTrain','file')==3,
                 MODE.TYPE = 'SVM:OSU';
@@ -261,7 +309,6 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
         end;
 
         %%CC = train_svm(D,classlabel,MODE);
-
         M = length(CC.Labels);
         if M==2, M=1; end;
         CC.weights = repmat(NaN, sz(2)+1, M);
@@ -274,15 +321,15 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
                                 CC.options = sprintf('-s 0 -c %f -t 0 -d 1', MODE.hyperparameter.c_value);      % C-SVC, C=1, linear kernel, degree = 1,
                         end;
                         model = svmtrain(cl, D, CC.options);    % C-SVC, C=1, linear kernel, degree = 1,
-                        w = -cl(1) * model.SVs' * model.sv_coef;  %Calculate decision hyperplane weight vector
+                        w = cl(1) * model.SVs' * model.sv_coef;  %Calculate decision hyperplane weight vector
                         % ensure correct sign of weight vector and Bias according to class label
-                        Bias = -model.rho * cl(1);
+                        Bias = model.rho * cl(1);
 
                 elseif strcmp(MODE.TYPE, 'SVM:OSU');
                         [AlphaY, SVs, Bias, Parameters, nSV, nLabel] = mexSVMTrain(D', cl', [0 1 1 1 MODE.hyperparameter.c_value]);    % Linear Kernel, C=1; degree=1, c-SVM
-                        w = -SVs * AlphaY'*cl(1);  %Calculate decision hyperplane weight vector
+                        w = SVs * AlphaY'*cl(1);  %Calculate decision hyperplane weight vector
                         % ensure correct sign of weight vector and Bias according to class label
-                        Bias = -Bias * cl(1);
+                        Bias = Bias * cl(1);
 
                 elseif strcmp(MODE.TYPE, 'SVM:LOO');
                         [a, Bias, g, inds, inde, indw]  = svcm_train(D, cl, MODE.hyperparameter.c_value); % C = 1;
@@ -349,8 +396,14 @@ else          % Linear and Quadratic statistical classifiers
                 XC = squeeze(ECM0(1,:,:))/nn;		% normalize correlation matrix
                 M  = XC(1,2:NC(2));		% mean
                 S  = XC(2:NC(2),2:NC(2)) - M'*M;% covariance matrix
+                
+                [v,d]=eig(S);               
+                U0 = v(diag(d)==0,:);
+                CC.iS2 = U0*U0';  
+                
                 %M  = M/nn; S=S/(nn-1);
                 ICOV0 = inv(S);
+                CC.iS0 = ICOV0; 
                 ICOV1 = zeros(size(S));
                 for k = 1:NC(1);
                         %[M,sd,S,xc,N] = decovm(ECM{k});  %decompose ECM
