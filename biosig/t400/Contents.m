@@ -3,12 +3,6 @@
 % TRAIN_SC      train classifier
 % TEST_SC       test  classifier
 % UNTRAIN_SC	decremental training of classifier (depre
-% LDBC	linear discriminant based classifier for two classes
-% LDBC2, LDBC3, LDBC4	three variants of linear discriminant 
-%	analysis for many classes
-% MDBC	mahalanobis distance based classifier 
-% LLBC	log-likelihood based classifier 
-% GDBC  general distance-based classifier 
 % FC0   generates classifier from "asychronous" data
 % FINDCLASSIFIER generates BCI classifier [1-3]
 %
@@ -18,6 +12,7 @@
 %
 %  helper function%
 % PERM	permutations of indices in trials 
+% TRAIN_LDA_SPARSE sparse LDA classifier
 %
 % see also: NaN/COVM, 
 %
@@ -40,7 +35,7 @@
 %       (Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R. Müller;
 %       Towards Brain-Computer Interfacing, MIT press (accepted).
 
-%	$Id: Contents.m,v 1.5 2006-06-27 13:32:25 schloegl Exp $
+%	$Id: Contents.m,v 1.6 2006-08-22 17:45:37 schloegl Exp $
 %	Copyright (c) 1997-2005,2006 by Alois Schloegl
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
