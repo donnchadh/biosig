@@ -16,7 +16,8 @@ function [CC]=train_sc(D,classlabel,MODE)
 %    'GDBC'     general distance based classifier  [1]
 %    ''         statistical classifier, requires Mode argument in TEST_SC	
 %    '/GSVD'	GSVD and statistical classifier [2,3]
-%    'SLDA'     sparse LDA 
+%    'SLDA0'    sparse LDA (par=0) [5]
+%    'SLDA1'    sparse LDA (par=1) [5]
 %    'SVM','SVM1r'  support vector machines, one-vs-rest
 %               MODE.hyperparameters.c_value = 
 %    'SVM11'    support vector machines, one-vs-one + voting
@@ -56,7 +57,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 
  
 
-%	$Id: train_sc.m,v 1.11 2006-08-21 16:51:11 schloegl Exp $
+%	$Id: train_sc.m,v 1.12 2006-08-22 17:16:43 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -148,12 +149,12 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'reg'))
         % regression analysis, kann handle sparse data, too. 
         % Q: equivalent to LDA? 
         M = length(CC.Labels); 
-        if M==2, M==1; end;
+        %if M==2, M==1; end;
         CC.weights = repmat(NaN,size(D,2)+1,M);
         for k = 1:M,
                 CC.weights(:,k) = [ones(size(D,1),1),D]\[(classlabel==CC.Labels(k))*2-1];
 	end;
-        if diff(size(D))>0,
+        if size(D,2)>size(D,1),
                 CC.weights = sparse(CC.weights); 
         end;
         CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
@@ -177,8 +178,12 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
 		%Hb(k,:) = sqrt(N(k))*(mu(k,:)-m0);
 		Hw(size(D,1)+k,:) = sqrt(N(k))*(mu-m0);  % Hb(k,:)
 	end;
-        [P,R,Q] = svd(Hw,'econ');
-	t = rank(R);
+        try
+                [P,R,Q] = svd(Hw,'econ');
+        catch
+                [P,R,Q] = svd(Hw,0);
+        end; 
+        t = rank(R);
 
         clear Hw Hb mu; 
         %[size(D);size(P);size(Q);size(R)]
@@ -207,23 +212,19 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
         end;
 
 
-elseif ~isempty(strfind(lower(MODE.TYPE),'sparse_lda'))
-	% J.D. Tebbens and P.Schlesinger, Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
+elseif ~isempty(strfind(lower(MODE.TYPE),'slda'))
+        % [5] J.D. Tebbens and P.Schlesinger (2006), 
+        %       Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
+        %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
 
         warning('The use of SPARSE-LDA is experimental and not well tested.'); 
         G  = sparse([],[],[],size(D,1),length(CC.Labels),size(D,1));
-        gg = classlabel;
-        for k = 1:size(G,1),
-                G(k,gg(k)) = 1; 
+        for k = 1:size(G,2),
+                G(classlabel==CC.Labels(k),k) = 1; 
         end;
-        test = [];
-        Gtest= [];
         tol  = 1e-10;
         par  = str2double(MODE.TYPE(end)); 
-        if (par==0)
-                warning('SparseLDA: par=0 not recommended.')
-        end;
-        [CC.slda] = train_lda_sparse(D,G,test,Gtest,par,tol);
+        [CC.slda] = train_lda_sparse(D,G,par,tol);
         CC.datatype = 'classifier:slda';
 
         return; 
@@ -321,15 +322,15 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
                                 CC.options = sprintf('-s 0 -c %f -t 0 -d 1', MODE.hyperparameter.c_value);      % C-SVC, C=1, linear kernel, degree = 1,
                         end;
                         model = svmtrain(cl, D, CC.options);    % C-SVC, C=1, linear kernel, degree = 1,
-                        w = cl(1) * model.SVs' * model.sv_coef;  %Calculate decision hyperplane weight vector
+                        w = -cl(1) * model.SVs' * model.sv_coef;  %Calculate decision hyperplane weight vector
                         % ensure correct sign of weight vector and Bias according to class label
-                        Bias = model.rho * cl(1);
+                        Bias = -model.rho * cl(1);
 
                 elseif strcmp(MODE.TYPE, 'SVM:OSU');
                         [AlphaY, SVs, Bias, Parameters, nSV, nLabel] = mexSVMTrain(D', cl', [0 1 1 1 MODE.hyperparameter.c_value]);    % Linear Kernel, C=1; degree=1, c-SVM
-                        w = SVs * AlphaY'*cl(1);  %Calculate decision hyperplane weight vector
+                        w = -SVs * AlphaY'*cl(1);  %Calculate decision hyperplane weight vector
                         % ensure correct sign of weight vector and Bias according to class label
-                        Bias = Bias * cl(1);
+                        Bias = -Bias * cl(1);
 
                 elseif strcmp(MODE.TYPE, 'SVM:LOO');
                         [a, Bias, g, inds, inde, indw]  = svcm_train(D, cl, MODE.hyperparameter.c_value); % C = 1;
@@ -368,7 +369,7 @@ else          % Linear and Quadratic statistical classifiers
         NC  = size(ECM);
         if strncmpi(MODE.TYPE,'LD',2);
 
-                if NC(1)==2, NC(1)=1; end;                % linear two class problem needs only one discriminant
+                %if NC(1)==2, NC(1)=1; end;                % linear two class problem needs only one discriminant
                 CC.weights = repmat(NaN,NC(2),NC(1));     % memory allocation
                 type = MODE.TYPE(3)-'0';
 

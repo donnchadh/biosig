@@ -27,7 +27,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
 
-%	$Id: test_sc.m,v 1.11 2006-07-10 15:06:24 schloegl Exp $
+%	$Id: test_sc.m,v 1.12 2006-08-22 17:16:43 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -64,7 +64,7 @@ elseif strcmp(CC.datatype,'classifier:svm:lib:1vs1') | strcmp(CC.datatype,'class
         %Create a pseudo tsd matrix for bci4eval
         d = zeros(size(cl,1), CC.model.nr_class);
         for i = 1:size(cl,1)
-                d(i,(cl(i))) = 1;
+                d(i,cl(i)) = 1;
         end
         
         
@@ -86,6 +86,38 @@ elseif ~isempty(POS1)	% GSVD
 	d = r.output; 
 
 
+elseif strcmp(t2,'slda');       % sparse_LDA
+        % modified code of LDA_SPARSE.M and CLASSIFS.M from J. Tebbens
+
+        n = size(D,1); 
+        g = size(CC.slda.M1,1);
+        nu = size(CC.slda.C1,2);
+        Z = triu(ones(nu,nu));
+        d = zeros(n,g-1);
+        tsd = repmat(n,g);
+        for i = 1:n,
+                if isfield(CC.slda,'X'), % par=0
+                        x2 = D(i,:)*CC.slda.X';
+                else            % par = 1;
+                        x2 = D(i,:);
+                end;
+                P0  = CC.slda.M1-x2(ones(g,1),:);
+                PM  = P0-P0/n;
+                tmp = PM*CC.slda.C1;
+                P1  = (tmp).^2;
+                tsd(i,:)=-tmp';
+                [Y,I] = min(P1*Z);
+                %     pred(i,:) = I;
+                d(i,:) = I;
+        end;
+        
+        tmp = sparse(size(d,1),length(CC.Labels));
+        for k=1:length(CC.Labels),
+                tmp(find(d==k),k) = 1;
+        end; 
+        d = tmp; 
+        %d = tsd;
+        
 elseif strcmp(t2,'statistical');
         if isempty(mode)
                 mode.TYPE = upper(t3); 
@@ -156,12 +188,12 @@ else
 end;
 
 [tmp,cl] = max(d,[],2);
+cl = CC.Labels(cl); 
 cl(isnan(tmp)) = NaN; 
 
 R.output = d; 
 R.classlabel = cl; 
 
 if nargin>3,
-        tmp = CC.Labels(cl(~isnan(cl)));
-        [R.kappa,R.sd,R.H,z,R.ACC] = kappa(classlabel(:),tmp(:));
+        [R.kappa,R.sd,R.H,z,R.ACC] = kappa(classlabel(:),cl(:));
 end;
