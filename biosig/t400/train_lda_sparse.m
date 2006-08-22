@@ -17,7 +17,7 @@ function [CC] = train_lda_sparse(X,G,par,tol)
 % Copyright (C) by J. Duintjer Tebbens, 18.7.2006
 % Modified for the use with Matlab6.5 by A. Schlögl, 22.Aug.2006
 %
-%	$Id: train_lda_sparse.m,v 1.1 2006-08-22 17:16:43 schloegl Exp $
+%	$Id: train_lda_sparse.m,v 1.2 2006-08-22 17:25:53 schloegl Exp $
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -46,7 +46,8 @@ end
 Dtild = spdiags(nj'.^(-1),[0],g,g);
 Xtild = X*X';
 Xtild1 = Xtild*ones(n,1);
-help = ones(n,1)*Xtild1'/n - (spfrob(Xtild)/n)^2*ones(n,n);
+%help = ones(n,1)*Xtild1'/n - (spfrob(Xtild)/n)^2*ones(n,n);
+help = ones(n,1)*Xtild1'/n - sum(Xtild(find(Xtild)).^2)/(n^2)*ones(n,n); % modified by A.S. 
 matrix = Xtild - Xtild1*ones(1,n)/n - help;
 % eliminate non-symmetry of matrix due to rounding error:
 matrix = (matrix+matrix')/2;
