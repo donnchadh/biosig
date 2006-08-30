@@ -6,8 +6,8 @@ function [argout,s]=sview(s,arg2),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.15 $
-%	$Id: sview.m,v 1.15 2006-07-12 19:41:59 schloegl Exp $ 
+%	$Revision: 1.16 $
+%	$Id: sview.m,v 1.16 2006-08-30 17:58:52 schloegl Exp $ 
 %	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -46,7 +46,7 @@ elseif isstruct(s)
 	CHAN = 1:size(s,2);
         
 elseif isnumeric(s) & (length(H.InChanSelect)==size(s,2))
-        CHAN = 1:size(s,2);        
+        CHAN = 1:size(s,2);
         H.Label = H.Label(H.InChanSelect,:);
 else    
         return;
@@ -66,7 +66,7 @@ if isfield(H,'IMAGE');
         argout=H;
         return;
 
-elseif strcmp(H.TYPE,'ELPOS') | (isfield(H,'ELEC') & strncmpi(arg2,'ELPOS',5));
+elseif ischar(arg2) & (strcmp(H.TYPE,'ELPOS') | (isfield(H,'ELEC') & strncmpi(arg2,'ELPOS',5)));
 	XYZ = H.ELEC.XYZ;
 	K = 1:size(XYZ,1); 
 		
@@ -117,33 +117,33 @@ end;
 
 if ~isfield(H,'Label'),
         LEG = '';
-elseif all(size(CHAN>1))
+elseif all(size(CHAN)>1)
         LEG = 'rereferenced';
 elseif all(CHAN>0)
         LEG = H.Label(CHAN,:);
 elseif size(H.Label,1)<H.NS,
       	LEG = H.Label;
 else
-        LEG = H.Label(CHAN,:);
+        LEG = H.Label{CHAN};
 end;
 
 t = detrend(s); t = t(:); 
 t(isnan(t))=median(t);
 dd = max(t)-min(t);
-dd = 300;
-%dd = max(std(s))*5;
- s = zscore(s); dd = 20; % 
-H.AS.TIMECHAN = strmatch('Time',H.Label);
-FLAG.tmp = (length(H.FILE)==1) & ~isempty(H.AS.TIMECHAN);
+dd = 1000; s=center(s); 
+dd = max(std(s))*5;
+s = zscore(s); dd = 20; % 
+H.AS.TIMECHAN = [strmatch('Time',H.Label);strmatch('Zeit',H.Label)];
+FLAG.tmp = (length(H.FILE)==1) & (prod(size(H.AS.TIMECHAN))==1);
 if FLAG.tmp,
         % this construct is necessary for compatibility with Octave and Matlab 5.3
-        FLAG.tmp = any(H.AS.TIMECHAN==H.InChanSelect),
+        FLAG.tmp = any(H.AS.TIMECHAN==H.InChanSelect);
 end;
 
 if FLAG.tmp,
         t = s(:,H.AS.TIMECHAN);
         s(:,H.AS.TIMECHAN) = NaN;
-        X_Label = [H.Label(H.AS.TIMECHAN,:),' [',H.PhysDim(H.AS.TIMECHAN,:),']'];
+        X_Label = [H.Label(H.AS.TIMECHAN,:),' [',H.PhysDim{H.AS.TIMECHAN},']'];
 elseif isnan(H.SampleRate)
         t = (1:size(s,1))';
         X_Label = 'samples';
@@ -186,6 +186,7 @@ else
         plot(t(:),((s+(ones(size(s,1),1)*(1:size(s,2)))*dd/(-2)+4*dd)),'-');
 end;
 %box('off'); 
+
 
 ix = find(EVENT.POS>0 & EVENT.POS<=length(t));
 if isfield(EVENT,'Desc') & ~isempty(ix) %& ~exist('OCTAVE_VERSION','builtin')
@@ -253,7 +254,7 @@ title([tmp, ' generated with BIOSIG tools for Octave and Matlab(R)']);
 xlabel(X_Label);
 PhysDim = '';
 if ~isempty(H.PhysDim),
-        PhysDim = deblank(H.PhysDim(CHAN(1),:));
+        PhysDim = deblank(H.PhysDim{CHAN(1)});
 end;
 ylabel(sprintf('Amplitude [%s]',PhysDim));
 
