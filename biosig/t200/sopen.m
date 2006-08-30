@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.150 2006-08-17 16:03:38 schloegl Exp $
+%	$Id: sopen.m,v 1.151 2006-08-30 17:58:18 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1136,14 +1136,18 @@ end;
                 if (HDR.NS>0),	% header 2
                         % Check all fields of Header2
                         if ~isfield(HDR,'Label')
-                                HDR.Label=setstr(32+zeros(HDR.NS,16));
+                                HDR.Label = repmat(' ',HDR.NS,16);
                                 if HDR.NS>0,
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.Label not defined\n');
                                 end;
-                        else
-                                tmp = min(16,size(HDR.Label,2));
-                                HDR.Label = [HDR.Label(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,16-tmp))];
+                        end; 
+                        HDR.Label = strvcat(HDR.Label);
+                        if size(HDR.Label,1) < HDR.NS,
+                                HDR.Label = [HDR.Label;repmat(' ',HDR.NS-size(HDR.Label,1),size(HDR.Label,2))];
                         end;
+                        tmp = min(16,size(HDR.Label,2));
+                        HDR.Label = [HDR.Label(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,16-tmp))];
+                        
                         if ~isfield(HDR,'Transducer')
                                 HDR.Transducer=setstr(32+zeros(HDR.NS,80));
                         else
@@ -5238,6 +5242,16 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         if flag.bci2002a,
         	flag.bci2002a = all(size(tmp.y) == [1501,27,516]); 
         end; 
+        flag.tfm = isfield(tmp,'HRV') | isfield(tmp,'BPV') | isfield(tmp,'BPVsBP');    % TFM BeatToBeat Matlab export 
+        if flag.tfm & isfield(tmp,'HRV'),
+                flag.tfm = (isfield(tmp.HRV,'HF_RRI') & isfield(tmp.HRV,'LF_RRI') & isfield(tmp.HRV,'PSD_RRI') & isfield(tmp.HRV,'VLF_RRI')); 
+        end
+        if flag.tfm & isfield(tmp,'BPV'),
+                flag.tfm = flag.tfm + 2*((isfield(tmp.BPV,'HF_dBP') & isfield(tmp.BPV,'LF_dBP') & isfield(tmp.BPV,'PSD_dBP') & isfield(tmp.BPV,'VLF_dBP'))); 
+        end
+        if flag.tfm & isfield(tmp,'BPVsBP'),
+                flag.tfm = flag.tfm + 4*((isfield(tmp.BPVsBP,'HF_sBP') & isfield(tmp.BPVsBP,'LF_sBP') & isfield(tmp.BPVsBP,'PSD_sBP') & isfield(tmp.BPVsBP,'VLF_sBP'))); 
+        end; 
         
         if isfield(tmp,'HDR'),
                 HDR = tmp.HDR; 
@@ -5456,7 +5470,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.TYPE = 'native'; 
                 
                 
-        elseif isfield(tmp,'RAW_SIGNALS')    % TFM Matlab export 
+        elseif isfield(tmp,'RAW_SIGNALS')    % TFM RAW Matlab export 
                 HDR.Label = fieldnames(tmp.RAW_SIGNALS);
                 HDR.NS = length(HDR.Label); 
                 HDR.SampleRate = 1000; 
@@ -5483,8 +5497,69 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.TFM.SampleRate = HDR.SampleRate./HDR.TFM.DIV; 
                 HDR.TYPE  = 'native'; 
                 HDR.NRec  = 1; 
-
                 
+                
+        elseif isfield(tmp,'BeatToBeat')    % TFM BeatToBeat Matlab export 
+                HDR.Label = fieldnames(tmp.BeatToBeat);
+                HDR.NS = length(HDR.Label); 
+                HDR.SampleRate = NaN;
+                ix = []; 
+                for k1 = 1:HDR.NS,
+                        tmp2 = getfield(tmp.BeatToBeat,HDR.Label{k1});
+                        HDR.data(:,k1)=cat(2,tmp2{:})'; 
+                        for k2 = 1:length(tmp2); 
+                                if (k1==1),
+                                        ix(k2) = length(tmp2{k2}); 
+                                elseif ix(k2) ~= length(tmp2{k2}),
+                                        fprintf(2,'Warning TFM BeatToBeat Import: length (%i!=%i) of segment %i:%i does not fit \n',length(tmp2{k2}),ix(k2),k1,k2);
+                                end;        
+                        end; 
+                        if length(ix)~=length(tmp2)
+                                fprintf(2,'Warning TFM BeatToBeat Import: number of segments (%i!=%1) in channel %i do not fit \n',length(tmp2),length(ix),k1);
+                        end;
+                end;
+                HDR.EVENT.POS = [1;cumsum(ix(:))];
+                HDR.EVENT.TYP = repmat(1,size(HDR.EVENT.POS)); 
+                HDR.PhysDim = repmat({''},HDR.NS,1); 
+                HDR.NRec = 1; 
+                HDR.TYPE = 'native'; 
+                
+                
+        elseif flag.tfm,   % other TFM BeatToBeat Matlab export 
+                HDR.NS = 0; 
+                HDR.Label = {};
+                if bitand(flag.tfm,1)
+                        f = fieldnames(tmp.HRV);
+                        for k1 = 1:length(f),
+                                tmp2 = getfield(tmp.HRV,f{k1});
+                                HDR.data(:,HDR.NS + k1)=cat(2,tmp2{:})';
+                        end;
+                        HDR.Label = [HDR.Label;f];
+                        HDR.NS = HDR.NS + length(f); 
+                end;
+                if bitand(flag.tfm,2)
+                        f = fieldnames(tmp.BPV);
+                        for k1 = 1:length(f),
+                                tmp2 = getfield(tmp.BPV,f{k1});
+                                HDR.data(:,HDR.NS + k1)=cat(2,tmp2{:})';
+                        end;
+                        HDR.Label = [HDR.Label;f];
+                        HDR.NS = HDR.NS + length(f); 
+                end;
+                if bitand(flag.tfm,3)
+                        f = fieldnames(tmp.BPVsBP);
+                        for k1 = 1:length(f),
+                                tmp2 = getfield(tmp.BPVsBP,f{k1});
+                                HDR.data(:,HDR.NS + k1)=cat(2,tmp2{:})';
+                        end;
+                        HDR.Label = [HDR.Label;f];
+                        HDR.NS = HDR.NS + length(f); 
+                end;
+                HDR.PhysDim = repmat({''},HDR.NS,1); 
+                HDR.NRec = 1; 
+                HDR.TYPE = 'native'; 
+                
+        
         elseif isfield(tmp,'EEG');	% EEGLAB file format 
                 HDR.SPR         = tmp.EEG.pnts;
                 HDR.NS          = tmp.EEG.nbchan;
@@ -7667,8 +7742,8 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                         HDR.TFM.E(3,:) = [];    
                 end;
                 
-                HDR.Label   = strvcat(HDR.TFM.E{4,:});
-                HDR.PhysDim = strvcat(HDR.TFM.E{5,:});
+                HDR.Label   = HDR.TFM.E(4,:)';
+                HDR.PhysDim = HDR.TFM.E(5,:)';
            
                 HDR.TFM.S = HDR.TFM.S(6:end,:);
                 HDR.TFM.E = HDR.TFM.E(6:end,:);
@@ -7683,6 +7758,8 @@ elseif strcmp(HDR.TYPE,'BIFF'),
 			HDR.TFM.S = HDR.TFM.S(:,CHAN);
 			HDR.TFM.E = HDR.TFM.E(:,CHAN);
 		end;
+                HDR.Label = HDR.Label(1:HDR.NS); 
+                HDR.PhysDim = HDR.PhysDim(1:HDR.NS); 
 		HDR.NRec = 1;
 		HDR.THRESHOLD  = repmat([0,NaN],HDR.NS,1); 	% Underflow Detection 
         end;
@@ -7966,18 +8043,19 @@ if HDR.NS>0,
         elseif isempty(HDR.Label)	
                 HDR.Label = [repmat('#',HDR.NS,1),int2str([1:HDR.NS]')];
         else
-                HDR.Label = strvcat(HDR.Label);
+                %HDR.Label = strvcat(HDR.Label);
         end;
         HDR.CHANTYP = repmat(' ',1,HDR.NS);
         tmp = HDR.NS-size(HDR.Label,1);
         %HDR.Label = [HDR.Label(1:HDR.NS,:);repmat(' ',max(0,tmp),size(HDR.Label,2))];
-        tmp = reshape(lower([[HDR.Label(1:min(HDR.NS,size(HDR.Label,1)),:);repmat(' ',max(0,tmp),size(HDR.Label,2))],repmat(' ',HDR.NS,1)])',1,HDR.NS*(size(HDR.Label,2)+1));
-        HDR.CHANTYP(ceil([strfind(tmp,'eeg'),strfind(tmp,'meg')]/(size(HDR.Label,2)+1))) = 'E'; 
-        HDR.CHANTYP(ceil([strfind(tmp,'emg')]/(size(HDR.Label,2)+1))) = 'M'; 
-        HDR.CHANTYP(ceil([strfind(tmp,'eog')]/(size(HDR.Label,2)+1))) = 'O'; 
-        HDR.CHANTYP(ceil([strfind(tmp,'ecg'),strfind(tmp,'ekg')]/(size(HDR.Label,2)+1))) = 'C'; 
-        HDR.CHANTYP(ceil([strfind(tmp,'air'),strfind(tmp,'resp')]/(size(HDR.Label,2)+1))) = 'R'; 
-        HDR.CHANTYP(ceil([strfind(tmp,'trig')]/(size(HDR.Label,2)+1))) = 'T'; 
+        Label = strvcat(HDR.Label); 
+        tmp = reshape(lower([[Label(1:min(HDR.NS,size(Label,1)),:);repmat(' ',max(0,tmp),size(Label,2))],repmat(' ',HDR.NS,1)])',1,HDR.NS*(size(Label,2)+1));
+        HDR.CHANTYP(ceil([strfind(tmp,'eeg'),strfind(tmp,'meg')]/(size(Label,2)+1))) = 'E'; 
+        HDR.CHANTYP(ceil([strfind(tmp,'emg')]/(size(Label,2)+1))) = 'M'; 
+        HDR.CHANTYP(ceil([strfind(tmp,'eog')]/(size(Label,2)+1))) = 'O'; 
+        HDR.CHANTYP(ceil([strfind(tmp,'ecg'),strfind(tmp,'ekg')]/(size(Label,2)+1))) = 'C'; 
+        HDR.CHANTYP(ceil([strfind(tmp,'air'),strfind(tmp,'resp')]/(size(Label,2)+1))) = 'R'; 
+        HDR.CHANTYP(ceil([strfind(tmp,'trig')]/(size(Label,2)+1))) = 'T'; 
 end;
 
 % add trigger information for triggered data
