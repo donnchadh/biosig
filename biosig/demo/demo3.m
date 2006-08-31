@@ -3,7 +3,7 @@
 %    and it tests also Matlab/Octave for its correctness. 
 % 
 
-%	$Id: demo3.m,v 1.9 2006-08-17 13:38:37 schloegl Exp $
+%	$Id: demo3.m,v 1.10 2006-08-31 17:30:50 schloegl Exp $
 %	Copyright (C) 2000-2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -61,7 +61,7 @@ HDR.Dur = 0.2;
 
 % Samples within 1 block
 %HDR.AS.SPR = [20;20;20;20;];	% samples per block;
-HDR.EDF.SampleRate = [1000;100;200;100;20;0];	% samples per block;
+HDR.AS.SampleRate = [1000;100;200;100;20;0];	% samplerate of each channel
 HDR.SampleRate = 1000;   
 
 % channel identification, max 80 char. per channel
@@ -97,16 +97,14 @@ HDR = swrite(HDR,x);
 
 HDR.EVENT.POS = t;
 HDR.EVENT.TYP = t/100;
-HDR.EVENT.CHN = repmat(NaN,size(t));
+HDR.EVENT.CHN = repmat(0,size(t));
 HDR.EVENT.VAL = repmat(NaN,size(t));
 ix = 6; 
-HDR.EVENT.TYP(ix) = hex2dec('7fff'); 
 HDR.EVENT.CHN(ix) = 6; 
-HDR.EVENT.VAL(ix) = 373; 
+HDR.EVENT.VAL(ix) = 373; % HDR.EVENT.TYP(ix) becomes 0x7fff
 ix = 8; 
-HDR.EVENT.TYP(ix) = hex2dec('7fff'); 
 HDR.EVENT.CHN(ix) = 5; % not valid because #5 is not sparse sampleing
-HDR.EVENT.VAL(ix) = 373; 
+HDR.EVENT.VAL(ix) = 374; 
 
 HDR = sclose(HDR);
 

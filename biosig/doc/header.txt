@@ -3,7 +3,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.21 2006-08-17 13:38:36 schloegl Exp $
+$Id: header.txt,v 1.22 2006-08-31 17:30:49 schloegl Exp $
 Copyright (C) Alois Schloegl 2003-2005 <a.schloegl@ieee.org>
 
 
@@ -125,6 +125,7 @@ HDR.AS		# provides some internal information
     AS.bpb				bytes per block
     AS.spb				samples per block
     AS.bi				cumulative index
+    AS.SampleRate                       samplerate of each channel 
     AS.EVENTTABLEPOS                    position of eventtable   
 
 
