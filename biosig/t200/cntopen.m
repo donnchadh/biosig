@@ -6,8 +6,8 @@ function [CNT,h,e]=cntopen(arg1,arg2,arg3,arg4,arg5,arg6)
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
 
-%	$Revision: 1.36 $
-%	$Id: cntopen.m,v 1.36 2006-08-02 14:14:35 schloegl Exp $
+%	$Revision: 1.37 $
+%	$Id: cntopen.m,v 1.37 2006-08-31 18:24:11 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -413,7 +413,7 @@ CNT.Scale2=h.ampsensitivity;
 CNT.ChanTyp=zeros(CNT.NS,1);
 %CNT.ChanTyp(h.trigchnl)=
 CNT.HeadLen = 900 + 75*CNT.NS;
-CNT.PhysDim = 'µV';
+CNT.PhysDim = repmat({'µV'},HDR.NS,1);
 
 % Scan4.3->Edit->Overall Setup->Amplifier->Notch->Off/50Hz/60Hz
 tmp = [0,50,60]; 

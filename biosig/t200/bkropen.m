@@ -5,7 +5,7 @@ function [BKR,s]=bkropen(arg1,arg3,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Id: bkropen.m,v 1.32 2005-10-03 13:15:30 schloegl Exp $
+%	$Id: bkropen.m,v 1.33 2006-08-31 18:24:11 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -143,7 +143,7 @@ if any(BKR.FILE.PERMISSION=='r'),
 	BKR.Cal=BKR.PhysMax/BKR.DigMax;
 	BKR.Off=zeros(BKR.NS,1);
         BKR.Calib = sparse(2:BKR.NS+1,1:BKR.NS,BKR.Cal,BKR.NS+1,BKR.NS);
-        BKR.PhysDim = repmat('µV',BKR.NS,1);
+        BKR.PhysDim = repmat({'µV'},BKR.NS,1);
 	tmp=sprintf('LowPass %4.1f Hz; HighPass %4.1f Hz; Notch ?',BKR.Filter.LowPass,BKR.Filter.HighPass);
 	BKR.PreFilt=tmp; %ones(BKR.NS,1)*[tmp 32+zeros(1,80-length(tmp))];
 	BKR.Filter.Notch    = nan; %h.notchfilter;
@@ -328,9 +328,9 @@ if any(BKR.FILE.PERMISSION=='r'),
         if length(BKR.TRIG)~=length(BKR.Classlabel),
                 % hack to deal with BCI22 data
                 fprintf(2,'Warning BKROPEN: Number of triggers (%i) and number of Classlabels (%i) do not fit\n',length(BKR.TRIG),length(BKR.Classlabel));
-%                BKR.TRIG = [];
-%                BKR.Classlabel = [];
-%                BKR.ArtifactSelection = [];
+                BKR.TRIG = [];
+                BKR.Classlabel = [];
+                BKR.ArtifactSelection = [];
         end;
 
         

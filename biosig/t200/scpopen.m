@@ -23,8 +23,8 @@ function [HDR]=scpopen(arg1,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.32 $
-%	$Id: scpopen.m,v 1.32 2006-08-11 23:03:49 schloegl Exp $
+%	$Revision: 1.33 $
+%	$Id: scpopen.m,v 1.33 2006-08-31 18:24:11 schloegl Exp $
 %	(C) 2004,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -599,7 +599,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                         elseif section.ID==6,
                                 HDR.SCP6 = SCP;
                                 HDR.SampleRate = SCP.SampleRate;
-                                HDR.PhysDim = repmat(HDR.SCP6.PhysDim,HDR.NS,1);
+                                HDR.PhysDim = repmat({HDR.SCP6.PhysDim},HDR.NS,1);
                                 HDR.data = S2;
                                 
                                 if HDR.SCP6.FLAG.bimodal_compression,
@@ -835,11 +835,11 @@ else    % writing SCP file
                         end;
                         
                         %% Tag 14
-                        tag14.AnalyzingProgramRevisionNumber = ['',0];
-                        tag14.SerialNumberAcqDevice = ['',0];
-                        tag14.AcqDeviceSystemSoftware = ['',0];
-                        tag14.SCPImplementationSoftware = ['BioSig4OctMat v 1.76+',0];	
-                        tag14.ManufactureAcqDevice = ['',0];	
+                        tag14.AnalyzingProgramRevisionNumber = ['',char(0)];
+                        tag14.SerialNumberAcqDevice = ['',char(0)];
+                        tag14.AcqDeviceSystemSoftware = ['',char(0)];
+                        tag14.SCPImplementationSoftware = ['BioSig4OctMat v 1.76+',char(0)];	
+                        tag14.ManufactureAcqDevice = ['',char(0)];	
                         t14 = [zeros(1,35), length(tag14.AnalyzingProgramRevisionNumber),tag14.AnalyzingProgramRevisionNumber,tag14.SerialNumberAcqDevice,tag14.AcqDeviceSystemSoftware,tag14.SCPImplementationSoftware,tag14.ManufactureAcqDevice];
                         t14(8)  = 255;  % Manufacturer
                         %%% ### FIXME ###  t14(9:14) = % cardiograph model
@@ -879,7 +879,7 @@ else    % writing SCP file
                         if any(Cal~=Cal(1)), 
                                 fprintf(HDR.FILE.stderr,'scaling information is not equal for all channels; \n\tThis is not supported by SCP and can result in incorrect scalings.\n'); 
                         end;
-                        [tmp,scale1] = physicalunits(HDR.PhysDim(1,:));
+                        [tmp,scale1] = physicalunits(HDR.PhysDim{1});
                         [tmp,scale2] = physicalunits('nV');
                         b = [SectIdHdr, s2b(round(Cal(1)*scale1/scale2)), s2b(round(1e6/HDR.SampleRate)), 0, 0];
                         for k = 1:HDR.NS,

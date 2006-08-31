@@ -264,7 +264,7 @@ Data.HDR.PhysMin(pos_Min_false,:) = Data.HDR.PhysMin(pos_Min_false,:)*(-1);
 Data.HDR.PhysMax(pos_Max_false,:) = Data.HDR.PhysMax(pos_Max_false,:)*(-1);
 
 if ~isfield(Data.HDR,'PhysDim')
-    Data.HDR.PhysDim = '';
+    Data.HDR.PhysDim = {''};
 end
 
 if ~isfield(Data.HDR,'Label')
@@ -531,9 +531,9 @@ function drawplot(numb_channel,only_plot)
         
         if only_plot == 0
             if size(Data.HDR.PhysDim) > 1
-                text_dim = Data.HDR.PhysDim(b,:);
+                text_dim = Data.HDR.PhysDim{b};
             else
-                text_dim = Data.HDR.PhysDim;
+                text_dim = Data.HDR.PhysDim{1};
             end  
             text_dim = deblank(text_dim);
             
@@ -658,9 +658,9 @@ if numb_channel > 8
 end
 
 if size(Data.HDR.PhysDim) > 1
-    text_dim = Data.HDR.PhysDim(b,:);
+    text_dim = Data.HDR.PhysDim{b};
 else
-    text_dim = Data.HDR.PhysDim;
+    text_dim = Data.HDR.PhysDim{1};
 end  
 text_dim = deblank(text_dim);
 text_label = deblank(Data.Channel{b,1});

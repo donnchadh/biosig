@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.152 2006-08-31 17:56:57 schloegl Exp $
+%	$Id: sopen.m,v 1.153 2006-08-31 18:24:11 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -8082,6 +8082,9 @@ if HDR.NS>0,
         else
                 %HDR.Label = strvcat(HDR.Label);
         end;
+        if ischar(HDR.PhysDim)
+                HDR.PhysDim = cellstr(HDR.PhysDim); 
+        end; 
         HDR.CHANTYP = repmat(' ',1,HDR.NS);
         tmp = HDR.NS-size(HDR.Label,1);
         %HDR.Label = [HDR.Label(1:HDR.NS,:);repmat(' ',max(0,tmp),size(HDR.Label,2))];
