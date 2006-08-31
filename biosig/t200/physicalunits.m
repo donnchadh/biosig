@@ -35,7 +35,7 @@ function [out,scale] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.8 2005-12-22 11:03:23 schloegl Exp $
+%	$Id: physicalunits.m,v 1.9 2006-08-31 17:55:09 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -136,7 +136,7 @@ elseif isnumeric(arg1)
 		PhysDim{k,1} = [t1,t2];
 		scale(k) = BIOSIG_GLOBAL.DecimalFactor.Cal(BIOSIG_GLOBAL.DecimalFactor.Code==s(k));
 	end;
-	out = strvcat(PhysDim);
+	out = PhysDim;
 	
 elseif ischar(arg1) | iscell(arg1) 
         if iscell(arg1)
