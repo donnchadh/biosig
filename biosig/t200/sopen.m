@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.151 2006-08-30 17:58:18 schloegl Exp $
+%	$Id: sopen.m,v 1.152 2006-08-31 17:56:57 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -540,7 +540,7 @@ end;
 	                HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
 	                HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
 	
-	                HDR.EDF.SampleRate = HDR.AS.SPR / HDR.Dur;
+	                HDR.AS.SampleRate = HDR.AS.SPR / HDR.Dur;
 	                HDR.SPR=1;
 	                if all(CHAN>0)
 		                chan = CHAN(:)';
@@ -670,7 +670,11 @@ end;
                                 HDR.ErrNo= [16,HDR.ErrNo];
                                 tmp = HDR.NRec; 
                                 HDR.NRec = floor((HDR.AS.endpos - HDR.HeadLen) / HDR.AS.bpb);
-                                fprintf(2,'\nWarning SOPEN (GDF/EDF/BDF): filesize (%i) of %s does not fit headerinformation (NRec = %i not %i)\n',HDR.AS.endpos,HDR.FileName,tmp,HDR.NRec);
+                                if tmp~=HDR.NRec,
+                                        fprintf(2,'\nWarning SOPEN (EDF/BDF): filesize (%i) of %s does not fit headerinformation (NRec = %i not %i).\n',HDR.AS.endpos,HDR.FileName,tmp,HDR.NRec);
+                                else
+                                        fprintf(2,'\nWarning: incomplete data block appended (ignored) in file %s.\n',HDR.FileName);
+                                end
                         else
                                 HDR.AS.EVENTTABLEPOS = HDR.HeadLen + HDR.AS.bpb*HDR.NRec;
                         end;
@@ -1083,17 +1087,17 @@ end;
                         HDR.AS.SPR = NaN;
                 end;
                 if ~isfield(HDR,'EDF')
-                        HDR.EDF.SampleRate = repmat(HDR.SampleRate,HDR.NS,1);
+                        HDR.AS.SampleRate = repmat(HDR.SampleRate,HDR.NS,1);
                 elseif ~isfield(HDR.EDF,'SampleRate')
-                        HDR.EDF.SampleRate = repmat(HDR.SampleRate,HDR.NS,1);
+                        HDR.AS.SampleRate = repmat(HDR.SampleRate,HDR.NS,1);
                 end;
                 
                 if ~HDR.NS,
-                elseif ~isnan(HDR.Dur) & any(isnan(HDR.AS.SPR)) & ~any(isnan(HDR.EDF.SampleRate))
-                        HDR.AS.SPR = HDR.EDF.SampleRate * HDR.Dur;
-                elseif ~isnan(HDR.Dur) & ~any(isnan(HDR.AS.SPR)) & any(isnan(HDR.EDF.SampleRate))
+                elseif ~isnan(HDR.Dur) & any(isnan(HDR.AS.SPR)) & ~any(isnan(HDR.AS.SampleRate))
+                        HDR.AS.SPR = HDR.AS.SampleRate * HDR.Dur;
+                elseif ~isnan(HDR.Dur) & ~any(isnan(HDR.AS.SPR)) & any(isnan(HDR.AS.SampleRate))
                         HDR.SampleRate = HDR.Dur * HDR.AS.SPR;
-                elseif isnan(HDR.Dur) & ~any(isnan(HDR.AS.SPR)) & ~any(isnan(HDR.EDF.SampleRate))
+                elseif isnan(HDR.Dur) & ~any(isnan(HDR.AS.SPR)) & ~any(isnan(HDR.AS.SampleRate))
                         HDR.Dur = HDR.AS.SPR ./ HDR.SampleRate;
                         if all(HDR.Dur(1)==HDR.Dur)
                                 HDR.Dur = HDR.Dur(1);
@@ -1101,7 +1105,7 @@ end;
                                 fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF): SPR and SampleRate do not fit\n');
                                 [HDR.AS.SPR,HDR.SampleRate,HDR.Dur]
                         end;
-                elseif ~isnan(HDR.Dur) & ~any(isnan(HDR.AS.SPR)) & ~any(isnan(HDR.EDF.SampleRate))
+                elseif ~isnan(HDR.Dur) & ~any(isnan(HDR.AS.SPR)) & ~any(isnan(HDR.AS.SampleRate))
                         %% thats ok, 
                 else
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN (GDF/EDF/BDF): more than 1 of HDR.Dur, HDR.SampleRate, HDR.AS.SPR undefined.\n');
@@ -1629,7 +1633,7 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'})
                 if ~isfield(HDR,'Label')
                         HDR.Label = int2str((1:HDR.NS)');
                 elseif iscell(HDR.Label),
-                        HDR.Label = cat(1,HDR.Label);
+                        HDR.Label = strvcat(HDR.Label);
                 end;
                 if size(HDR.Label,2)>10,
                         HDR.Label = HDR.Label(:,1:10);
@@ -2151,22 +2155,20 @@ elseif strcmp(HDR.TYPE,'ACQ'),
         % --------   Variable Header        
         
         % --------   Per Channel data section 
-        HDR.Label = char(zeros(HDR.NS,40));
         HDR.Off = zeros(HDR.NS,1);
         HDR.Cal = ones(HDR.NS,1);
         HDR.ChanHeaderLen = zeros(HDR.NS,1);
-        HDR.PhysDim = char(zeros(HDR.NS,20));
         offset = ftell(HDR.FILE.FID); 
         for k = 1:HDR.NS;
                 fseek(HDR.FILE.FID,offset+sum(HDR.ChanHeaderLen),'bof');
                 HDR.ChanHeaderLen(k) = fread(HDR.FILE.FID,1,'uint32');
                 HDR.ChanSel(k) = fread(HDR.FILE.FID,1,'int16');
-                HDR.Label(k,1:40) = fread(HDR.FILE.FID,[1,40],'char');
+                HDR.Label{k} = char(fread(HDR.FILE.FID,[1,40],'char'));
                 rgbColor = fread(HDR.FILE.FID,4,'int8');
                 DispChan = fread(HDR.FILE.FID,2,'int8');
                 HDR.Off(k) = fread(HDR.FILE.FID,1,'float64');
                 HDR.Cal(k) = fread(HDR.FILE.FID,1,'float64');
-                HDR.PhysDim(k,1:20) = fread(HDR.FILE.FID,[1,20],'char');
+                HDR.PhysDim{k} = char(fread(HDR.FILE.FID,[1,20],'char'));
                 HDR.ACQ.BufLength(k) = fread(HDR.FILE.FID,1,'int32');
                 HDR.AmpGain(k) = fread(HDR.FILE.FID,1,'float64');
                 HDR.AmpOff(k) = fread(HDR.FILE.FID,1,'float64');
@@ -2186,8 +2188,6 @@ elseif strcmp(HDR.TYPE,'ACQ'),
                         HDR.ACQ.VertPrecision(k) = fread(HDR.FILE.FID,1,'uint16');
                 end;
         end;
-        HDR.Label = char(HDR.Label);
-        HDR.PhysDim = char(HDR.PhysDim);
         HDR.Calib = [HDR.Off(:).';diag(HDR.Cal)];
         HDR.SPR = HDR.ACQ.VarSampleDiv(1);
         for k = 2:length(HDR.ACQ.VarSampleDiv);
@@ -2291,7 +2291,7 @@ elseif strcmp(HDR.TYPE,'ALICE4'),
         HDR.Patient.Sex  = char(s(185));
         HDR.Patient.Date = char(s(187:194));
         [H2,c] = fread(HDR.FILE.FID,[118,HDR.NS],'char');
-        HDR.Label = char(H2(1:12,:)');
+        HDR.Label = cellstr(char(H2(1:12,:)'));
         HDR.HeadLen = ftell(HDR.FILE.FID);
         HDR.AS.bpb = HDR.NS*HDR.SampleRate + 5; 
         [a,count] = fread(HDR.FILE.FID,[HDR.AS.bpb,floor((HDR.FILE.size-HDR.HeadLen)/HDR.AS.bpb)],'uint8');
@@ -2449,8 +2449,6 @@ elseif strcmp(HDR.TYPE,'RigSys'),       % thanks to  J. Chen
         HDR.data  = HDR.data(1:HDR.AS.endpos,:);
         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Gain(:)./16384);
 
-        HDR.Label    = strvcat(HDR.Label);
-        HDR.PhysDim  = strvcat(HDR.PhysDim);
         HDR.FILE.POS = 0; 
         HDR.TYPE     = 'native';
 
@@ -2469,7 +2467,7 @@ elseif strcmp(HDR.TYPE,'SND'),
                 HDR.FILE.TYPE = fread(HDR.FILE.FID,1,'uint32');
                 HDR.SampleRate = fread(HDR.FILE.FID,1,'uint32');
                 HDR.NS = fread(HDR.FILE.FID,1,'uint32');
-		HDR.Label = repmat(' ',HDR.NS,1);
+		HDR.Label = repmat({' '},HDR.NS,1);
                 [tmp,count] = fread(HDR.FILE.FID, [1,HDR.HeadLen-24],'char');
                 HDR.INFO = setstr(tmp);
                 
@@ -3423,7 +3421,7 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                 % define Calib: implements S = (S+.5)*HDR.Cal - HDR.Off;
                 HDR.Calib = [repmat(.5,1,HDR.NS);eye(HDR.NS)] * diag(repmat(HDR.Cal,1,HDR.NS));
                 HDR.Calib(1,:) = HDR.Calib(1,:) - HDR.Off;
-		HDR.Label = repmat(' ',HDR.NS,1);
+		HDR.Label = repmat({' '},HDR.NS,1);
 
                 HDR.FILE.POS = 0;
                 HDR.FILE.OPEN = 1;
@@ -3672,9 +3670,8 @@ elseif strcmp(HDR.TYPE,'EGI'),
         end;
         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
         HDR.PhysDim = 'uV';
-        HDR.Label = char(zeros(HDR.NS,5));
         for k=1:HDR.NS,
-                HDR.Label(k,:)=sprintf('# %3i',k);
+                HDR.Label{k}=sprintf('# %3i',k);
         end;
         
         HDR.categories = 0;
@@ -3767,8 +3764,8 @@ elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
         status = fseek(HDR.FILE.FID,256,'bof');
         %%%%% Y-Header %%%%%
         for k = 1:HDR.NS,
-                HDR.Label(k,1:7) = fread(HDR.FILE.FID,[1,7],'char');
-                HDR.PhysDim(k,1:7) = fread(HDR.FILE.FID,[1,7],'char');
+                HDR.Label{k} = char(fread(HDR.FILE.FID,[1,7],'char'));
+                HDR.PhysDim{k} = char(fread(HDR.FILE.FID,[1,7],'char'));
                 HDR.Off(1,k) = fread(HDR.FILE.FID,1,'float');
                 HDR.Cal(1,k) = fread(HDR.FILE.FID,1,'float');
                 HDR.PhysMax(1,k) = fread(HDR.FILE.FID,1,'float');
@@ -3882,12 +3879,11 @@ elseif strcmp(HDR.TYPE,'WG1'),
 		HDR.Cal = repmat(NaN,HDR.NS,1);
 		HDR.ChanSelect = repmat(NaN,HDR.NS,1);
                 for k=1:HDR.NS,
-                        Label(k,1:8) = fread(HDR.FILE.FID,[1,8],'char');
+                        HDR.Label{k} = char(fread(HDR.FILE.FID,[1,8],'char'));
                         HDR.Cal(k,1) = fread(HDR.FILE.FID,1,'uint32')/1000;
                         tmp = fread(HDR.FILE.FID,[1,2],'uint16');
                         HDR.ChanSelect(k) = tmp(1)+1;
                 end;
-		HDR.Label = char(Label);
 		HDR.Calib = sparse(2:HDR.NS+1,HDR.ChanSelect,HDR.Cal);
 
                 status = fseek(HDR.FILE.FID,7*256,'bof');
@@ -4025,7 +4021,7 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
                         [tmp,line] = strtok(line,'=');
                         for k=1:HDR.NS,	
                                 [tmp,line] = strtok(line,[' ,',delim]);
-                                HDR.Label(k,1:length(tmp)) = char(tmp);
+                                HDR.Label{k,1} = char(tmp);
                         end;
                 end
                 if 0,strncmp('"CHANNEL.LABEL$[]"',line,18)
@@ -4085,7 +4081,7 @@ elseif strcmp(HDR.TYPE,'RDF'),  % UCSD ERPSS acqusition software DIGITIZE
         HDR.SampleRate  = fread(HDR.FILE.FID,1,'uint16');
         status = fseek(HDR.FILE.FID,580,-1);
         tmp = fread(HDR.FILE.FID,[8,HDR.NS],'char');
-        HDR.Label = char(tmp');
+        HDR.Label = cellstr(char(tmp'));
         
         cnt = 0;
         ev_cnt = 0;
@@ -4331,7 +4327,7 @@ elseif strcmp(HDR.TYPE,'DDF'),
                         for k = 1:HDR.NS,
                                 fread(HDR.FILE.FID,1,'uint16')	% number of bytes in this hedader
                                 fread(HDR.FILE.FID,1,'uint16')	% channel type 0: analog, 1: digital, 2: counter
-                                HDR.Label = setstr(fread(HDR.FILE.FID,[24,16],'char')');	% 
+                                HDR.Label = cellstr(char(fread(HDR.FILE.FID,[24,16],'char')'));	% 
                                 tmp = fread(HDR.FILE.FID,1,'uint16')	% dataformat 0 UINT, 1: INT
                                 HDR.GDFTYP(k) = 3 + (~tmp);
                                 HDR.Cal(k) = fread(HDR.FILE.FID,1,'double');	% 
@@ -4365,8 +4361,6 @@ elseif strcmp(HDR.TYPE,'DDF'),
                                 HDR.Label{k} = [tmp,' '];		% channel name 
                                 fseek(HDR.FILE.FID,filepos+taglen,'bof');
                         end;
-                        HDR.PhysDim = strvcat(HDR.PhysDim);	% channel unit
-                        HDR.Label   = strvcat(HDR.Label);		% channel name 
                         
                         % channel header
                         for k = 1:HDR.NS,
@@ -5159,7 +5153,7 @@ elseif strcmp(HDR.TYPE,'BCI2002b');
         			s = fread(fid,[1,inf],'char=>char'); 
         			fclose(fid); 
         			[NUM, STATUS,STRARRAY] = str2double(s); 
-        			HDR.Label = strvcat(STRARRAY(:,1));
+        			HDR.Label = STRARRAY(:,1);
         			HDR.ELEC.XYZ = NUM(:,2:4); 
         			tmp = '';
         		end;
@@ -5254,15 +5248,39 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         end; 
         
         if isfield(tmp,'HDR'),
+                H = HDR; 
                 HDR = tmp.HDR; 
+                HDR.FILE = H.FILE; 
+                HDR.FileName = H.FileName; 
                 if isfield(HDR,'data');
                         HDR.TYPE = 'native'; 
+                end; 
+                if ~isfield(HDR,'FLAG')
+                        HDR.FLAG.OVERFLOWDETECTION=0; 
+                end; 
+                if ~isfield(HDR.FLAG,'UCAL')
+                        HDR.FLAG.UCAL = 0; 
+                end; 
+                if ~isfield(HDR.FLAG,'TRIGGERED')
+                        HDR.FLAG.TRIGGERED=0; 
+                end; 
+                if ~isfield(HDR,'SampleRate')
+                        HDR.SampleRate = NaN; 
+                end; 
+                if ~isfield(HDR,'EVENT')
+                        HDR.EVENT.POS = []; 
+                        HDR.EVENT.TYP = []; 
+                        HDR.EVENT.CHN = []; 
+                        HDR.EVENT.DUR = []; 
+                end; 
+                if ~isfield(HDR,'PhysDim') & ~isfield(HDR,'PhysDimCode')
+                        HDR.PhysDimCode = zeros(HDR.NS,1); 
                 end; 
 
                 
         elseif flag.bci2002a,
         	[HDR.SPR, HDR.NS, HDR.NRec] = size(tmp.y); 
-       		HDR.Label = strvcat(tmp.elab);
+       		HDR.Label = tmp.elab;
 		HDR.SampleRate = tmp.fs; 
 		HDR.data  = reshape(permute(tmp.y,[1,3,2]),[HDR.SPR*HDR.NRec,HDR.NS]); 
 		HDR.Transducer = repmat('Ag/AgCl electrodes',3,1);
@@ -5566,7 +5584,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.NRec        = tmp.EEG.trials;
                 HDR.SampleRate  = tmp.EEG.srate;
                 HDR.ELEC.XYZ    = [[tmp.EEG.chanlocs.X]',[tmp.EEG.chanlocs.Y]',[tmp.EEG.chanlocs.Z]'];
-                HDR.Label       = strvcat({tmp.EEG.chanlocs.labels});
+                HDR.Label       = tmp.EEG.chanlocs.labels;
                 if ischar(tmp.EEG.data) & exist(tmp.EEG.data,'file')
                         fid = fopen(tmp.EEG.data,'r','ieee-le');
                         HDR.data = fread(fid,[HDR.SPR*HDR.NS*HDR.NRec],'float32');
@@ -5610,7 +5628,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.Label = {'C3'; 'C4'; 'P3'; 'P4'; 'O1'; 'O2'; 'EOG'};                               
                         HDR.SampleRate = 250; 
                         HDR.FLAG.TRIGGERED  = 1; 
-                        HDR.DUR = 10; 
+                        HDR.Dur = 10; 
                         HDR.SPR = 2500;
                         HDR.FILTER.LowPass  = 0.1;
                         HDR.FILTER.HighPass = 100; 
@@ -6053,8 +6071,8 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                         HDR.AS.bpb = HDR.NS * 2;
                 end;
                 for k = 1:HDR.NS,
-                        HDR.Label(k,:) = fread(HDR.FILE.FID,[1, CHANNEL_TITLE_LEN],'char');   
-                        HDR.PhysDim(k,:) = fread(HDR.FILE.FID,[1, UNITS_LEN],'char');   
+                        HDR.Label{k} = fread(HDR.FILE.FID,[1, CHANNEL_TITLE_LEN],'char');   
+                        HDR.PhysDim{k} = fread(HDR.FILE.FID,[1, UNITS_LEN],'char');   
                         HDR.Cal(k,1) = fread(HDR.FILE.FID,1,'double');   
                         HDR.Off(k,1) = fread(HDR.FILE.FID,1,'double');   
                         HDR.PhysMax(1,k) = fread(HDR.FILE.FID,1,'double');   
@@ -6634,7 +6652,7 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
                 for k=1:HDR.NS,
                         chandata = fgetl(HDR.FILE.FID);			% 18
                         [tmp,chandata] = strtok(chandata,' ,;:');  
-                        HDR.Label(k,1:length(tmp)) = tmp;
+                        HDR.Label{k} = tmp;
                         [tmp,chandata] = strtok(chandata,' ,;:');  
                         HDR.Cal(k) = str2double(tmp);  
                         
@@ -7097,8 +7115,6 @@ elseif strncmp(HDR.TYPE,'EEProbe',7),
 					end;	
 				end;     
 			end;	
-			HDR.Label = strvcat(HDR.Label); 
-			HDR.PhysDim = strvcat(HDR.PhysDim); 
 			
 			%HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal); 
 			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); % because SREAD uses READ_EEP_CNT.MEX 
@@ -7277,7 +7293,7 @@ elseif strncmp(HDR.TYPE,'TRI',3),
                         HDR.ELEC.CHAN(k,1) = fread(HDR.FILE.FID,1,'ushort');	
                 end;
                 fclose(HDR.FILE.FID);
-                HDR.Label = strvcat(Label);
+                HDR.Label = Label;
                 HDR.TYPE = 'ELPOS'; 
         end
         
@@ -7319,7 +7335,7 @@ elseif strcmp(HDR.TYPE,'STX'),
         if any(HDR.FILE.PERMISSION=='r'),
                 fid = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'t'],'ieee-le');
                 FileInfo = fread(fid,20,'char');
-                HDR.Label = fread(fid,50,'char');
+                HDR.Label = {char(fread(fid,[1,50],'char'))};
                 tmp = fread(fid,6,'int');
                 HDR.NRec = tmp(1);
 		HDR.SPR = 1; 
@@ -7699,69 +7715,88 @@ elseif strcmp(HDR.TYPE,'BIFF'),
 	try, 
 		NEW_INTERFACE=1; 
 		try
-	                [HDR.TFM.S,txt,HDR.TFM.E] = xlsread(HDR.FileName,'Beat-To-Beat');
+	                [TFM.S,txt,TFM.E] = xlsread(HDR.FileName,'Beat-To-Beat');
                 catch
-                        [HDR.TFM.S,HDR.TFM.E] = xlsread(HDR.FileName,'Beat-to-Beat');
+                        [TFM.S,TFM.E] = xlsread(HDR.FileName,'Beat-to-Beat');
 			NEW_INTERFACE=0; 
                 end;
-                if size(HDR.TFM.S,1)+1==size(HDR.TFM.E,1)
-                %if ~isnan(HDR.TFM.S(1,1)) & ~isempty(HDR.TFM.E{1,1})
+                if size(TFM.S,1)+1==size(TFM.E,1)
+                %if ~isnan(TFM.S(1,1)) & ~isempty(TFM.E{1,1})
 		        fprintf('Warning: XLSREAD-BUG has occured in file %s.\n',HDR.FileName);
-                        HDR.TFM.S = [repmat(NaN,1,size(HDR.TFM.S,2));HDR.TFM.S];
+                        TFM.S = [repmat(NaN,1,size(TFM.S,2));TFM.S];
                 end;
+                HDR.TFM = TFM; 
                 
                 HDR.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
-                %HDR.Patient.Name = [HDR.TFM.E{2,3},' ', HDR.TFM.E{2,4}];
-                if strcmp(HDR.TFM.E(2,11),'2.2.9.0')
-	                HDR.Patient.Birthday = datevec(HDR.TFM.E(2,5),'dd.mm.yyyy');
-	                HDR.T0 = datevec(datenum(datevec(HDR.TFM.E{2,1},'dd.mm.yyyy')+HDR.TFM.E{2,2}));
-	        else        
-	                HDR.Patient.Birthday = datevec(HDR.TFM.E(2,5)-1);
-	                HDR.T0 = datevec(datenum('30-Dec-1899')+HDR.TFM.S(2,1)+HDR.TFM.S(2,2));
+                %HDR.Patient.Name = [TFM.E{2,3},' ', TFM.E{2,4}];
+                TFM.VERSION = TFM.E{2,11};
+                if str2double(TFM.VERSION(1:3))>=2.2,
+	                HDR.Patient.Birthday = datevec(TFM.E(2,5),'dd.mm.yyyy');
+	                HDR.T0 = datevec(datenum(datevec(TFM.E{2,1},'dd.mm.yyyy')+TFM.E{2,2}));
+                else
+	                HDR.Patient.Birthday = datevec(TFM.E(2,5)-1);
+	                HDR.T0 = datevec(datenum('30-Dec-1899')+TFM.S(2,1)+TFM.S(2,2));
 	        end;        
                 HDR.Patient.Birthday(4) = 12; 
-                HDR.Patient.Age = datevec(HDR.TFM.S(2,1)-HDR.TFM.S(2,5));
-                HDR.Patient.Sex = HDR.TFM.E{2,6};
-                HDR.TFM.VERSION = HDR.TFM.E{2,11};
+                HDR.Patient.Age = (datenum(HDR.T0)-datenum(HDR.Patient.Birthday))/365.25; % datevec(TFM.S(2,1)-TFM.S(2,5));
+                HDR.Patient.Sex = TFM.E{2,6};
 		if NEW_INTERFACE; 
-	                HDR.Patient.Height = HDR.TFM.E{2,7};
-	                HDR.Patient.Weight = HDR.TFM.E{2,8};
-	                HDR.Patient.Surface = HDR.TFM.E{2,9};
+	                HDR.Patient.Height = TFM.E{2,7};
+	                HDR.Patient.Weight = TFM.E{2,8};
+	                HDR.Patient.Surface = TFM.E{2,9};
 		else	        
-	                HDR.Patient.Height = HDR.TFM.S(2,7);
-	                HDR.Patient.Weight = HDR.TFM.S(2,8);
-	                HDR.Patient.Surface = HDR.TFM.S(2,9);
+	                HDR.Patient.Height = TFM.S(2,7);
+	                HDR.Patient.Weight = TFM.S(2,8);
+	                HDR.Patient.Surface = TFM.S(2,9);
 	        end; 
-               	HDR.Patient.BMI = HDR.TFM.E{2,8}*HDR.TFM.E{2,7}^-2*1e4;
+               	HDR.Patient.BMI = TFM.E{2,8}*TFM.E{2,7}^-2*1e4;
         catch
 	end; 	
 
         if strcmp(HDR.TYPE, 'TFM_EXCEL_Beat_to_Beat');
-                if ~isempty(strfind(HDR.TFM.E{3,1},'---'))
-                        HDR.TFM.S(3,:) = [];    
-                        HDR.TFM.E(3,:) = [];    
+                if ~isempty(strfind(TFM.E{3,1},'---'))
+                        TFM.S(3,:) = [];    
+                        TFM.E(3,:) = [];    
                 end;
                 
-                HDR.Label   = HDR.TFM.E(4,:)';
-                HDR.PhysDim = HDR.TFM.E(5,:)';
+                HDR.Label   = TFM.E(4,:)';
+                HDR.PhysDim = TFM.E(5,:)';
+                if strcmp(HDR.Label{3},'RRI') & strcmp(HDR.PhysDim{3},'[%]')
+                        %%%% bug in TFM software ? 
+                        HDR.PhysDim{3} = '[ms]';
+                end;
+                for k=1:length(HDR.PhysDim),
+                        HDR.PhysDim{k} = HDR.PhysDim{k}(2:end-1); % remove brackets []
+                        % convert units 
+                        if strcmp('dyne*s/cm^5',HDR.PhysDim{k})
+                                HDR.PhysDim{k} = 'dyn s cm-5'; 
+                        elseif strcmp('dyne*s*m²/cm^5',HDR.PhysDim{k})
+                                HDR.PhysDim{k} = 'dyne s m-2 cm-5'; 
+                        elseif strcmp('l/(min*m²)',HDR.PhysDim{k})
+                                HDR.PhysDim{k} = 'l min-1 m-2'; 
+                        elseif strcmp('ml/m²',HDR.PhysDim{k})
+                                %HDR.PhysDim{k} = ''; 
+                        elseif strcmp('l/min',HDR.PhysDim{k})
+                                HDR.PhysDim{k} = 'l min-1'; 
+                        end;
+                end;
            
-                HDR.TFM.S = HDR.TFM.S(6:end,:);
-                HDR.TFM.E = HDR.TFM.E(6:end,:);
+                TFM.S = TFM.S(6:end,:);
+                TFM.E = TFM.E(6:end,:);
 		
-                ix = find(isnan(HDR.TFM.S(:,2)) & ~isnan(HDR.TFM.S(:,1)));
-                HDR.EVENT.Desc = HDR.TFM.E(ix,2);
+                ix = find(isnan(TFM.S(:,2)) & ~isnan(TFM.S(:,1)));
+                HDR.EVENT.Desc = TFM.E(ix,2);
                 HDR.EVENT.POS  = ix(:);
                 HDR.EVENT.TYP  = zeros(size(HDR.EVENT.POS));
                 
-		[HDR.SPR,HDR.NS] = size(HDR.TFM.S);
-                if any(CHAN),
-			HDR.TFM.S = HDR.TFM.S(:,CHAN);
-			HDR.TFM.E = HDR.TFM.E(:,CHAN);
-		end;
+		[HDR.SPR,HDR.NS] = size(TFM.S);
                 HDR.Label = HDR.Label(1:HDR.NS); 
                 HDR.PhysDim = HDR.PhysDim(1:HDR.NS); 
 		HDR.NRec = 1;
 		HDR.THRESHOLD  = repmat([0,NaN],HDR.NS,1); 	% Underflow Detection 
+                HDR.data = TFM.S; 
+                HDR.TYPE = 'native'; 
+                HDR.FILE.POS = 0; 
         end;
 
 
@@ -8039,9 +8074,11 @@ if HDR.NS>0,
         HDR = leadidcodexyz(HDR); % complete information on  LeadIdCode and Electrode positions of EEG channels.
 
         if ~isfield(HDR,'Label')	
-                HDR.Label = [repmat('#',HDR.NS,1),int2str([1:HDR.NS]')];
+                HDR.Label = cellstr([repmat('#',HDR.NS,1),int2str([1:HDR.NS]')]);
         elseif isempty(HDR.Label)	
-                HDR.Label = [repmat('#',HDR.NS,1),int2str([1:HDR.NS]')];
+                HDR.Label = cellstr([repmat('#',HDR.NS,1),int2str([1:HDR.NS]')]);
+        elseif ischar(HDR.Label)
+                HDR.Label = cellstr(HDR.Label); 
         else
                 %HDR.Label = strvcat(HDR.Label);
         end;
