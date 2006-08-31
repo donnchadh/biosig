@@ -224,7 +224,6 @@ Data.Total_length_sec = Data.Total_length_samples / max(Data.HDR.SampleRate);
 Data.ShowSamples = min(1000,Data.Total_length_samples);
 
 Data.NS = Data.HDR.NS;
-size_NS = Data.HDR.NS;
 
 exist_PhysMin = isfield(Data.HDR,'PhysMin');
 exist_PhysMax = isfield(Data.HDR,'PhysMax');
@@ -237,10 +236,10 @@ else
 end
 
 if size_Min(1) == 0
-    Data.HDR.PhysMin = [ones(1,size_NS)*(-999)]';
+    Data.HDR.PhysMin = [ones(1,Data.HDR.NS)*(-999)]';
 else
-    if size_Min(1) < size_NS
-        Data.HDR.PhysMin = [ones(1,size_NS)*-999]';
+    if size_Min(1) < Data.HDR.NS
+        Data.HDR.PhysMin = [ones(1,Data.HDR.NS)*-999]';
     end
 end
 
@@ -252,9 +251,9 @@ else
 end
 
 if size_Max(1) == 0
-    Data.HDR.PhysMax = [ones(1,size_NS)*(999)]';
+    Data.HDR.PhysMax = [ones(1,Data.HDR.NS)*(999)]';
 else
-    if size_Max(1) < size_NS
+    if size_Max(1) < Data.HDR.NS
         Data.HDR.PhysMax = abs(Data.HDR.PhysMin);
     end
 end
@@ -269,41 +268,27 @@ if ~isfield(Data.HDR,'PhysDim')
 end
 
 if ~isfield(Data.HDR,'Label')
-    Data.HDR.Label = [''];
+        Data.HDR.Label = {};
 end
 
-size_label = size(Data.HDR.Label);
-Data.NS_max = size_NS;
-Data.Channel = cell(size_NS,2);
+if ischar(Data.HDR.Label)
+        Data.HDR.Label = cellstr(Data.HDR.Label);
+end;
+size_label = length(Data.HDR.Label);
+Data.NS_max = Data.HDR.NS;
+Data.Channel = cell(Data.HDR.NS,2);
 
-if size_label(1) <= 1
-    for i = 1 : size_NS
-        text = ['Channel ' int2str(i)];
-        if i <= Data.NS_max
-            Data.Channel{i,1} = text;
-            Data.Channel{i,2} = i;
-        end
-        Data.allChannel{i,1} = text;
-    end
-else
-    for i = 1 : size_NS
-        text = Data.HDR.Label(i,:);
-        if ischar(text)
-            if i <= Data.NS_max
-                Data.Channel{i,1} = text;
-                Data.Channel{i,2} = i;
-            end
-            Data.allChannel{i,1} = text;
-        else
-            text = ['Channel ' int2str(i)];
-            if i <= Data.NS_max
-                Data.Channel{i,1} = text;
-                Data.Channel{i,2} = i;
-            end
-            Data.allChannel{i,1} = text;
-        end
-    end
-end
+if size_label == 1
+        Data.HDR.Label = repmat(Data.HDR.Label,Data.HDR.NS,1);
+elseif size_label < Data.HDR.NS,
+        for i = size_label+1 : Data.HDR.NS,
+                Data.HDR.Label{i} = ['Channel ' int2str(i)];
+        end;
+end;
+Data.Channel = Data.HDR.Label(:);
+Data.Channel(:,2) = num2cell([1:Data.HDR.NS]');
+Data.allChannel = Data.HDR.Label(:);
+
 
 Data.ShowChannelmax = 4;
 set(findobj('Tag','numb_act_channels'),'String',min(size(Data.Channel,1),Data.ShowChannelmax));
@@ -2093,7 +2078,7 @@ else
     numb_showplots = abs(pos_channel-Data.Patch.selChannel)+1;
     act_showplots = pos_channel1 - startchannel + 1; 
     act_showplots = act_showplots(find(act_showplots > 0));
-    if numb_showplots == Data.NS_max
+    if numb_showplots == Data.HDR.NS
         pos_channel1 = 0;
     end
     for z = 1:numb_showplots
