@@ -1,9 +1,5 @@
 function [signal,H] = sload(FILENAME,varargin)
 % SLOAD loads signal data of various data formats
-% 
-% The list of supported formats is available here: 
-% http://bci.tugraz.at/~schloegl/biosig/TESTED
-%
 % [signal,header] = sload(FILENAME)
 % [signal,header] = sload(FILENAME,CHAN)
 %       read selected channels in list CHAN
@@ -22,15 +18,26 @@ function [signal,H] = sload(FILENAME,varargin)
 %						default: N=100
 %	'SampleRate'		Fs		target sampling rate (supports resampling)
 %	
+% The list of supported formats is available here: 
+% http://bci.tugraz.at/~schloegl/biosig/TESTED
+%
+%    SLOAD loads all the data (of the selected channels)
+%    at once. In case of large data files, This can be 
+%    a problem. Instead, You can use 
+%       HDR = sopen(FILENAME,'r');
+%       [s,HDR]=sread(HDR,duration_segment1); 
+%       [s,HDR]=sread(HDR,duration_segment2); 
+%       ....
+%       [s,HDR]=sread(HDR,duration_segmentM); 
+%       HDR = sclose(HDR); 
+%
 % see also: SVIEW, SOPEN, SREAD, SCLOSE, SAVE2BKR, TLOAD
 %
 % Reference(s):
-%
 
 
-%	$Revision: 1.61 $
-%	$Id: sload.m,v 1.61 2006-08-02 14:15:32 schloegl Exp $
-%	Copyright (C) 1997-2005 by Alois Schloegl 
+%	$Id: sload.m,v 1.62 2006-09-01 10:09:26 schloegl Exp $
+%	Copyright (C) 1997-2006 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -47,7 +54,6 @@ function [signal,H] = sload(FILENAME,varargin)
 % License along with this library; if not, write to the
 % Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 % Boston, MA  02111-1307, USA.
-
 
 if length(varargin)<2; 
 	MODE = ''; 
@@ -130,6 +136,14 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			if ~isnan(h.SampleRate) & (H.SampleRate ~= h.SampleRate),
 				fprintf(2,'Warning SLOAD: sampling rates of multiple files differ %i!=%i.\n',H.SampleRate, h.SampleRate);
 			end;
+                        if ~isequal(H.Label,h.Label) | ~isequal(H.PhysDimCode,h.PhysDimCode),
+				fprintf(2,'Warning SLOAD: Labels of multiple files differ! \n');
+                                for k1 = 1:h.NS,
+                                        if (H.Label{k1}~=h.Label{k1}) | (H.PhysDimCode(k1)~=h.PhysDimCode(k1)),
+                                                fprintf(2,'#%02i:  %s | %s | (%i)%s | (%i)%s\n', H.Label{k1},h.Label{k1}, H.PhysDimCode(k1),H.PhysDim{k1},h.PhysDimCode(k1),h.PhysDim{k1});
+                                        end;
+                                end;
+                        end;
 
                         if size(s,2)==size(signal,2), %(H.NS == h.NS) 
 				signal = [signal; repmat(NaN,STATE.NUMBER_OF_NAN_IN_BREAK,size(s,2)); s];
@@ -213,6 +227,7 @@ if strncmp(H.TYPE,'IMAGE:',5)
 	return;
 end;
 
+signal = [];
 H = sopen(H,'r',CHAN,MODE);
 if 0,
         
@@ -223,6 +238,10 @@ elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat
         
 elseif strncmp(H.TYPE,'EVENT',5)
         signal = H.EVENT;
+        
+
+elseif strncmp(H.TYPE,'ELPOS',5)
+        signal = H.ELEC.XYZ;
         
 
 elseif strcmp(H.TYPE,'DAQ')
