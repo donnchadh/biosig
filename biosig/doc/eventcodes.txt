@@ -1,7 +1,7 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004-2005 Alois Schloegl <a.schloegl@ieee.org>
-# $Id: eventcodes.txt,v 1.2 2006-08-17 13:38:36 schloegl Exp $
+# $Id: eventcodes.txt,v 1.3 2006-09-01 10:28:44 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -41,7 +41,13 @@
 0x0302	Right - cue onset (BCI experiment)
 0x0303	Foot - cue onset (BCI experiment)
 0x0304	Tongue - cue onset (BCI experiment)
+0x0305  class5 - cue onset
 0x0306	Down - cue onset (BCI experiment)
+0x0307  class7 - cue onset
+0x0308  class8 - cue onset
+0x0309  class9 - cue onset
+0x030A  class10 - cue onset
+0x030B  class11 - cue onset
 0x030C	Up - cue onset (BCI experiment)
 0x030D	Feedback (continuous) - onset (BCI experiment)
 0x030E	Feedback (discrete) - onset (BCI experiment)
