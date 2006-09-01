@@ -20,8 +20,8 @@ function [HDR] = sclose(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.21 $
-%	$Id: sclose.m,v 1.21 2006-08-17 16:03:39 schloegl Exp $
+%	$Revision: 1.22 $
+%	$Id: sclose.m,v 1.22 2006-09-01 10:20:11 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -203,7 +203,7 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                 end;
 
         elseif strcmp(HDR.TYPE,'CFWB');
-                tmp = (EndPos-HDR.HeadLen)/HDR.AS.bpb
+                tmp = (EndPos-HDR.HeadLen)/HDR.AS.bpb;
                 if isnan(tmp), tmp=0; end;
                 if (tmp~=HDR.NRec);
                         if ~any(HDR.FILE.PERMISSION=='z')
