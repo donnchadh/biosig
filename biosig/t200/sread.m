@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.66 2006-08-17 13:38:37 schloegl Exp $
+%	$Id: sread.m,v 1.67 2006-09-01 10:12:35 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -103,7 +103,11 @@ elseif strcmp(HDR.TYPE,'BDF'),
                         c = c/3;
                         for k = 1:length(HDR.InChanSelect),
                                K = HDR.InChanSelect(k);
-                               S(:,k) = rs(reshape(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K)*nb,1),HDR.AS.SPR(K),HDR.SPR); 
+                               if (HDR.AS.SPR(K)>0)
+                                       S(:,k) = rs(reshape(s(HDR.AS.bi(K)+1:HDR.AS.bi(K+1),:),HDR.AS.SPR(K)*nb,1),HDR.AS.SPR(K),HDR.SPR);
+                               else
+                                       S(:,k) = NaN;
+                               end;
                         end;
                         S = S(ix1+1:ix1+nr,:);
                         count = nr;
@@ -124,7 +128,11 @@ elseif strcmp(HDR.TYPE,'BDF'),
                                 for k = 1:length(HDR.InChanSelect), 
                                         K = HDR.InChanSelect(k);
                                         tmp = 2.^[0,8,16]*double(reshape(s(HDR.AS.bi(K)*3+1:HDR.AS.bi(K+1)*3,:),3,HDR.AS.SPR(K)*c/HDR.AS.bpb));
-                                        s1(:,k) = rs(tmp',HDR.AS.SPR(K),HDR.SPR);
+                                        if (HDR.AS.SPR(K)>0)
+                                                s1(:,k) = rs(tmp',HDR.AS.SPR(K),HDR.SPR);
+                                        else
+                                                s1(:,k) = NaN;
+                                        end;
                                 end;
 	                        if HDR.FLAG.OVERFLOWDETECTION,  % BDF overflow detection is based on Status bit20
 		                        K = HDR.BDF.Status;
@@ -247,24 +255,6 @@ elseif strmatch(HDR.TYPE,{'BKR'}),
         end;
         THRESHOLD(HDR.AS.TRIGCHAN,:)=NaN; % do not apply overflow detection for Trigger channel 
 
-        
-elseif 0, strcmp(HDR.TYPE,'ACQ'),   % OBSOLETE: use of same branch than EDF/GDF
-        if nargin==3,
-                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
-                HDR.FILE.POS = HDR.SampleRate*StartPos;
-        end;
-        count = 0;
-        if all(HDR.GDFTYP==HDR.GDFTYP(1)) & all(HDR.AS.SPR==HDR.AS.SPR(1)),
-                [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP(1)));
-        elseif all(HDR.GDFTYP==HDR.GDFTYP(1)),
-                [S,count] = fread(HDR.FILE.FID,[HDR.AS.spb,HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP(1)));
-        else
-                S = zeros(length(HDR.InChanSelect),0);
-                fprintf(HDR.FILE.stderr,'Warning SREAD (ACQ): interleaved format not supported (yet).\n');
-        end;
-        S = S(HDR.InChanSelect,:)';
-        HDR.FILE.POS = HDR.FILE.POS + count/HDR.AS.spb;
-        
         
 elseif strmatch(HDR.TYPE,{'AIF','SND','WAV'})
         if nargin==3,
@@ -1277,13 +1267,6 @@ elseif strcmp(HDR.TYPE,'ATF');
         S = HDR.ATF.NUM;
         
         
-elseif strcmp(HDR.TYPE,'TFM_EXCEL_Beat_to_Beat'); 
-        if nargin>2,
-		fprintf(HDR.FILE.stderr,'Warning SREAD (TFM-EXCEL): only one input argument supported.\n');
-        end;
-	S = HDR.TFM.S; 
-
-
 elseif strcmp(HDR.TYPE,'WG1'),   %walter-graphtek
 	% code from Robert Reijntjes, Amsterdam, NL 
 	% modified by Alois Schloegl 19. Feb 2005 
