@@ -24,6 +24,7 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %		If group is empty [default], each trial gets a different number; 
 %		Accordingly, a trial-based leave-on-out-method (LOOM) is used, 
 %		for computing the standard error. 
+%               
 %
 %
 % OUTPUT: 
@@ -67,7 +68,7 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %
 %  The standard error is calculated with a jackknife-method,
 %  based on LEAVE-ONE-TRIAL-OUT. Therefore, the SE need to be 
-%  rescaled, depending on the needs. 
+%  rescaled, depending on the needs [10,11]. 
 %     SE 
 %	standard error of the mean from the bootstrap results 
 %	This has usually no common meaning (pretty much useless). 
@@ -99,9 +100,13 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 % [8] Korzeniewska A., Manczak M., Kaminski M., Blinowska K. J., Kasicki S., Determination of Information Flow Direction Among Brain Structures By a Modified Directed Transfer Function (dDTF) Method, Journal of Neuroscience Methods 125, 2003
 % [9] A. Schl\"ogl, Comparison of Multivariate Autoregressive Estimators. Signal processing, Elsevier B.V. (in press). 
 %       available at http://dx.doi.org/doi:10.1016/j.sigpro.2005.11.007
+%
+% [10] http://www.physics.utah.edu/~detar/phycs6730/handouts/jackknife/jackknife/jackknife.html
+% [11] http://www-stat.stanford.edu/~susan/courses/s208/node16.html
 
-%	$Revision: 1.7 $
-%	$Id: tfmvar.m,v 1.7 2006-08-08 07:59:42 schloegl Exp $
+
+%	$Revision: 1.8 $
+%	$Id: tfmvar.m,v 1.8 2006-09-01 10:40:17 schloegl Exp $
 %	Copyright (C) 2004,2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -151,8 +156,8 @@ if size(cl,1)~=length(TRIG);
 end;
 
 TRIG = TRIG(:);
-TRIG(any(isnan(cl),2))=[];
-cl(any(isnan(cl),2))=[];
+TRIG = TRIG(~any(isnan(cl),2));
+cl   = cl(~any(isnan(cl),2),:   );
 if size(cl,2)>1,
         cl2 = cl(:,2);          % 2nd column contains the group definition, ( Leave-One (Group) - Out ) 
         cl  = cl(:,1); 
@@ -207,6 +212,8 @@ R.M.pCOH   = zeros(sz);
 R.M.dDTF   = zeros(sz);
 R.M.ffDTF  = zeros(sz);
 R.M.pCOH2  = zeros(sz);
+sz(3)  = MOP;
+R.M.A  = zeros(sz);     
 sz(3)  = 1;
 R.M.DC = zeros(sz);
 R.M.C  = zeros(sz);
@@ -220,7 +227,7 @@ for k0 = 1:length(CL);
 	R{k0} = r;
 	ix0 = find(cl==CL(k0));	
 	trig = TRIG(ix0);
-       	CL2 = unique(cl2(ix0)); 
+       	CL2 = unique(cl2(ix0));
 	R{k0}.N = length(CL2); 
      	
 tic;
@@ -275,7 +282,7 @@ for k1 = 1:size(T,2),
         R{k0}.M.DC(:,:,1,k1)     = DC;
         R{k0}.M.C(:,:,1,k1)      = X.C;
         
-        if FLAG.SEM,
+        if (length(CL2)>1),  % jackknife resampling. 
         
 		sz    = [m,m,length(f),length(CL2)];
 		S     = zeros(sz);
@@ -376,7 +383,7 @@ end; 	%for k1
 %%%%% scaling of standard error 
 GF = fieldnames(R{k0}.SE);
 for k2=1:length(GF),
-      	R{k0}.SE = setfield(R{k0}.SE,GF{k2},getfield(R{k0}.SE,GF{k2})*(R{k0}.N-1));
+      	R{k0}.SE = setfield(R{k0}.SE,GF{k2},getfield(R{k0}.SE,GF{k2})*sqrt((R{k0}.N-1)*(length(CL2)-1)));
 end;
 
 if any(R{k0}.nan_ratio),
