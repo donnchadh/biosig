@@ -21,13 +21,13 @@ function [R]=test_sc(CC,D,mode,classlabel)
 %    TYPE = 'LD4'    linear discriminant analysis (see LDBC4)
 %    TYPE = 'GDBC'   general distance based classifier
 % 
-% see also: TRAIN_SC, MDBC, GDBC, LDBC2, LDBC3, LDBC4, 
+% see also: TRAIN_SC
 %
 % References: 
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
 
-%	$Id: test_sc.m,v 1.12 2006-08-22 17:16:43 schloegl Exp $
+%	$Id: test_sc.m,v 1.13 2006-09-01 17:23:14 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -93,7 +93,7 @@ elseif strcmp(t2,'slda');       % sparse_LDA
         g = size(CC.slda.M1,1);
         nu = size(CC.slda.C1,2);
         Z = triu(ones(nu,nu));
-        d = zeros(n,g-1);
+        d = zeros(n,nu);
         tsd = repmat(n,g);
         for i = 1:n,
                 if isfield(CC.slda,'X'), % par=0
@@ -101,21 +101,21 @@ elseif strcmp(t2,'slda');       % sparse_LDA
                 else            % par = 1;
                         x2 = D(i,:);
                 end;
-                P0  = CC.slda.M1-x2(ones(g,1),:);
+                P0  = x2(ones(g,1),:)-CC.slda.M1;
                 PM  = P0-P0/n;
                 tmp = PM*CC.slda.C1;
                 P1  = (tmp).^2;
-                tsd(i,:)=-tmp';
+%                tsd(i,:)=tmp';
                 [Y,I] = min(P1*Z);
                 %     pred(i,:) = I;
                 d(i,:) = I;
         end;
         
         tmp = sparse(size(d,1),length(CC.Labels));
-        for k=1:length(CC.Labels),
-                tmp(find(d==k),k) = 1;
+        for k = 1:length(CC.Labels)-1,
+                tmp(find(d(:,k)==k),k) = 1;
         end; 
-        d = tmp; 
+        R.tmp = tmp; 
         %d = tsd;
         
 elseif strcmp(t2,'statistical');
@@ -126,11 +126,50 @@ elseif strcmp(t2,'statistical');
 
         if 0, 
         elseif strcmpi(mode.TYPE,'LD2'),
-                d = ldbc2(CC,D);
+                %d = ldbc2(CC,D);
+                ECM = CC.MD./CC.NN; 
+                NC = size(ECM); 
+                ECM0 = squeeze(sum(ECM,1));  %decompose ECM
+                [M0,sd,COV0,xc,N,R2] = decovm(ECM0);
+                for k = 1:NC(1);
+                        ecm = squeeze(ECM(k,:,:));
+                        [M1,sd,COV1,xc,N,R2] = decovm(ECM0-ecm);
+                        [M2,sd,COV2,xc,N,R2] = decovm(ecm);
+                        w     = (COV1+COV2)\(M2'-M1')*2;
+                        w0    = -M0*w;
+                        W(:,k) = [w0; w];
+                end;
+                d = D*W;
         elseif strcmpi(mode.TYPE,'LD3');
-                d = ldbc3(CC,D);
+                %d = ldbc3(CC,D);
+                ECM = CC.MD./CC.NN; 
+                NC = size(ECM); 
+                ECM0 = squeeze(sum(ECM,1));  %decompose ECM
+                [M0,sd,COV0,xc,N,R2] = decovm(ECM0);
+                for k = 1:NC(1);
+                        ecm = squeeze(ECM(k,:,:));
+                        [M1,sd,COV1,xc,N,R2] = decovm(ECM0-ecm);
+                        [M2,sd,COV2,xc,N,R2] = decovm(ecm);
+                        w     = COV0\(M2'-M1')*2;
+                        w0    = -M0*w;
+                        W(:,k) = [w0; w];
+                end;
+                d = D*W;
         elseif strcmpi(mode.TYPE,'LD4');
-                d = ldbc4(CC,D);
+                %d = ldbc4(CC,D);
+                ECM = CC.MD./CC.NN; 
+                NC = size(ECM); 
+                ECM0 = squeeze(sum(ECM,1));  %decompose ECM
+                [M0,sd,COV0,xc,N,R2] = decovm(ECM0);
+                for k = 1:NC(1);
+                        ecm = squeeze(ECM(k,:,:));
+                        [M1,sd,COV1,xc,N1,R2] = decovm(ECM0-ecm);
+                        [M2,sd,COV2,xc,N2,R2] = decovm(ecm);
+                        w     = (COV1*N1+COV2*N2)\((M2'-M1')*(N1+N2));
+                        w0    = -M0*w;
+                        W(:,k) = [w0; w];
+                end;
+                d = D*W;
         elseif strcmpi(mode.TYPE,'MDA');
                 for k = 1:length(CC.IR);
                         d(:,k) = -sum((D*CC.IR{k}).*D,2); % calculate distance of each data point to each class
