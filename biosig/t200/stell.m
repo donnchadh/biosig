@@ -11,7 +11,7 @@ function [POS,HDR] = stell(HDR)
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
 
-%	$Id: stell.m,v 1.14 2005-06-08 15:45:43 schloegl Exp $
+%	$Id: stell.m,v 1.15 2006-09-04 09:36:35 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -35,7 +35,7 @@ if strmatch(HDR.TYPE,{'CTF'}),
 elseif strmatch(HDR.TYPE,{'BKR','ISHNE','CNT','EEG','AVG','MIT','RG64','LABVIEW','Nicolet','EGI','SMA','SND','WAV','AIF','CFWB','DEMG','alpha','BCI2000'}),
 	POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
 
-elseif strmatch(HDR.TYPE,{'ACQ','EDF','BDF','GDF','RDF','SIGIF','BVbinmul','BVbinvec','BVascii','EEProbe-CNT','EEProbe-AVR','FIF','native','MFER','TMS32','WG1'}),
+elseif strmatch(HDR.TYPE,{'ACQ','EDF','BDF','EPL','GDF','RDF','SIGIF','BVbinmul','BVbinvec','BVascii','EEProbe-CNT','EEProbe-AVR','FIF','native','MFER','TMS32','WG1'}),
 	POS = HDR.FILE.POS;
 	
 else

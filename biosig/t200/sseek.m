@@ -8,7 +8,7 @@ function [HDR]=sseek(HDR,offset,origin)
 %
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
-%	$Id: sseek.m,v 1.14 2005-06-08 15:45:43 schloegl Exp $
+%	$Id: sseek.m,v 1.15 2006-09-04 09:36:35 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -37,7 +37,7 @@ end;
 
 if origin == -1, 
         HDR.FILE.POS = offset;
-        if strmatch(HDR.TYPE,{'ACQ','BDF','EDF','GDF','MFER','SCP','native','TMS32','WG1'}),
+        if strmatch(HDR.TYPE,{'ACQ','BDF','EDF','GDF','EPL','MFER','SCP','native','TMS32','WG1'}),
 	elseif HDR.FILE.FID>2,
                 POS = HDR.HeadLen+HDR.AS.bpb*offset;
                 if POS~=ceil(POS),  % for alpha format
@@ -49,7 +49,7 @@ if origin == -1,
         
 elseif origin == 0, 
         HDR.FILE.POS = HDR.FILE.POS + offset;
-        if strmatch(HDR.TYPE,{'ACQ','BDF','EDF','GDF','MFER','SCP','native','TMS32','WG1'}),
+        if strmatch(HDR.TYPE,{'ACQ','BDF','EDF','GDF','EPL','MFER','SCP','native','TMS32','WG1'}),
 	elseif HDR.FILE.FID>2,
                 POS = HDR.AS.bpb*offset;
                 if POS~=ceil(POS),  % for alpha format
@@ -63,8 +63,13 @@ elseif origin == 1,
 	if 0, %strmatch(HDR.TYPE,{}),
 		HDR.FILE.POS = HDR.NRec+offset;
 		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.AS.bpb*offset,1);
-	elseif strmatch(HDR.TYPE,{'ACQ',BDF','EDF','GDF'}),
-		POS = HDR.NRec*HDR.SPR+offset;
+	elseif strmatch(HDR.TYPE,{'ACQ','BDF','EDF','GDF','EPL'}),
+		HDR.FILE.POS = HDR.NRec*HDR.SPR+offset;
+                if HDR.FILE.POS < 0, 
+                        HDR.FILE.POS = 0; 
+                elseif HDR.FILE.POS > HDR.NRec*HDR.SPR, 
+                        HDR.FILE.POS = HDR.NRec*HDR.SPR; 
+                end;
 	elseif strmatch(HDR.TYPE,{'CTF','Nicolet'}),
 		POS = HDR.AS.endpos+offset*HDR.AS.bpb;
 		HDR.FILE.status = fseek(HDR.FILE.FID,POS,-1);

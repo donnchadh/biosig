@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.153 2006-08-31 18:24:11 schloegl Exp $
+%	$Id: sopen.m,v 1.154 2006-09-04 09:36:35 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -470,9 +470,9 @@ end;
                         end;
                         h2=char(h2);
                         
-                        HDR.Label      =            h2(:,idx1(1)+1:idx1(2));
-                        HDR.Transducer =            h2(:,idx1(2)+1:idx1(3));
-                        HDR.PhysDim    =            h2(:,idx1(3)+1:idx1(4));
+                        HDR.Label      =    cellstr(h2(:,idx1(1)+1:idx1(2)));
+                        HDR.Transducer =    cellstr(h2(:,idx1(2)+1:idx1(3)));
+                        HDR.PhysDim    =    cellstr(h2(:,idx1(3)+1:idx1(4)));
                         HDR.PhysMin    = str2double(h2(:,idx1(4)+1:idx1(5)));
                         HDR.PhysMax    = str2double(h2(:,idx1(5)+1:idx1(6)));
                         HDR.DigMin     = str2double(h2(:,idx1(6)+1:idx1(7)));
@@ -495,8 +495,8 @@ end;
                         if (ftell(HDR.FILE.FID)~=256),
                                 error('position error');
                         end;	 
-                        HDR.Label      =  setstr(fread(HDR.FILE.FID,[16,HDR.NS],'uchar')');		
-                        HDR.Transducer =  setstr(fread(HDR.FILE.FID,[80,HDR.NS],'uchar')');	
+                        HDR.Label      =  cellstr(char(fread(HDR.FILE.FID,[16,HDR.NS],'uchar')'));		
+                        HDR.Transducer =  cellstr(char(fread(HDR.FILE.FID,[80,HDR.NS],'uchar')'));	
                         
                         if (HDR.NS<1),	% hack for a problem with Matlab 7.1.0.183 (R14) Service Pack 3
                         		
@@ -849,7 +849,7 @@ end;
                         end;
                         
 
-                elseif strcmp(HDR.TYPE,'BDF') & (length(strmatch('Status',HDR.Label))==1),
+                elseif strcmp(HDR.TYPE,'BDF') & any(strmatch('Status',HDR.Label)),
                         % BDF: 
 
                         tmp = strmatch('Status',HDR.Label);
@@ -870,6 +870,11 @@ end;
                         TYP = [repmat(hex2dec('0300'),sum(ix1>0),1);bitand(t(ix2>0),255);repmat(hex2dec('8300'),sum(ix1<0),1);bitand(t(ix2<0),255)+2^15];
                         [HDR.EVENT.POS,ix] = sort(POS);
                         HDR.EVENT.TYP = TYP(ix);                         
+
+                elseif strcmp(HDR.TYPE,'BDF') & ~any(strmatch('Status',HDR.Label)),
+                        HDR.FLAG.OVERFLOWDETECTION = 0; 
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN(BDF): File %s does not contain Status Channel - overflowdetection not supported!\n',HDR.FileName);
+                        
                 end;
                 
                 status = fseek(HDR.FILE.FID, HDR.HeadLen, 'bof');
@@ -1086,9 +1091,9 @@ end;
                 if ~isfield(HDR.AS,'SPR')
                         HDR.AS.SPR = NaN;
                 end;
-                if ~isfield(HDR,'EDF')
+                if ~isfield(HDR,'AS')
                         HDR.AS.SampleRate = repmat(HDR.SampleRate,HDR.NS,1);
-                elseif ~isfield(HDR.EDF,'SampleRate')
+                elseif ~isfield(HDR.AS,'SampleRate')
                         HDR.AS.SampleRate = repmat(HDR.SampleRate,HDR.NS,1);
                 end;
                 
@@ -1140,24 +1145,25 @@ end;
                 if (HDR.NS>0),	% header 2
                         % Check all fields of Header2
                         if ~isfield(HDR,'Label')
-                                HDR.Label = repmat(' ',HDR.NS,16);
+                                HDR.Label = repmat({''},HDR.NS,16);
                                 if HDR.NS>0,
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.Label not defined\n');
                                 end;
                         end; 
-                        HDR.Label = strvcat(HDR.Label);
-                        if size(HDR.Label,1) < HDR.NS,
-                                HDR.Label = [HDR.Label;repmat(' ',HDR.NS-size(HDR.Label,1),size(HDR.Label,2))];
+                        Label = strvcat(HDR.Label);     % local copy of HDR.Label
+                        if size(Label,1) < HDR.NS,
+                                Label = [Label;repmat(' ',HDR.NS-size(Label,1),size(Label,2))];
                         end;
-                        tmp = min(16,size(HDR.Label,2));
-                        HDR.Label = [HDR.Label(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,16-tmp))];
+                        tmp = min(16,size(Label,2));
+                        Label = [Label(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,16-tmp))];
                         
                         if ~isfield(HDR,'Transducer')
-                                HDR.Transducer=setstr(32+zeros(HDR.NS,80));
-                        else
-                                tmp=min(80,size(HDR.Transducer,2));
-                                HDR.Transducer=[HDR.Transducer(1:HDR.NS,1:tmp), setstr(32+zeros(HDR.NS,80-tmp))];
-                        end;
+                                HDR.Transducer=repmat({''},HDR.NS,1); %setstr(32+zeros(HDR.NS,80));
+                        end; 
+                        Transducer = strvcat(HDR.Transducer) % local copy of HDR.Transducer
+                        tmp        = min(80,size(Transducer,2));
+                        Transducer = [Transducer(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,80-tmp))];
+
                         if ~isfield(HDR,'Filter')
                                 HDR.Filter.LowPass = repmat(NaN,1,HDR.NS); 
                                 HDR.Filter.HighPass = repmat(NaN,1,HDR.NS); 
@@ -1211,19 +1217,22 @@ end;
 				HDR.PhysDimCode = HDR.PhysDimCode(1:HDR.NS);
 			end;	
                         if ~isfield(HDR,'PhysDim')
-                                HDR.PhysDim=char(32+zeros(HDR.NS,8));
+                                HDR.PhysDim=repmat({''},HDR.NS,1); %char(32+zeros(HDR.NS,8));
                                 if HDR.NS>0,
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.PhysDim not defined\n');
                                 end;
                         else
-                                if size(HDR.PhysDim,1)==0,
-                                        HDR.PhysDim = repmat(' ',HDR.NS,1);
+                                if length(HDR.PhysDim)==0,
+                                        HDR.PhysDim = repmat({''},HDR.NS,1);
                                 elseif size(HDR.PhysDim,1)<HDR.NS,
                                         HDR.PhysDim = repmat(HDR.PhysDim,HDR.NS,1);
+                                elseif size(HDR.PhysDim,1)>HDR.NS,
+                                        HDR.PhysDim = HDR.PhysDim(1:HDR.NS); 
                                 end;
-                                tmp=min(8,size(HDR.PhysDim,2));
-                                HDR.PhysDim=[HDR.PhysDim(1:HDR.NS,1:tmp), setstr(32+zeros(HDR.NS,8-tmp))];
                         end;
+                        PhysDim = strvcat(HDR.PhysDim); % local copy 
+                        tmp=min(8,size(PhysDim,2));
+                        PhysDim=[PhysDim(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,8-tmp))];
 
                         HDR = physicalunits(HDR);
                         if ~all(HDR.PhysDimCode>0)
@@ -1458,7 +1467,11 @@ end;
                         H1(168+(1:16))=sprintf('%02i.%02i.%02i%02i:%02i:%02i',floor(rem(HDR.T0([3 2 1 4 5 6]),100)));
                         H1(185:192)=sprintf('%-8i',HDR.HeadLen);
                         H1(237:244)=sprintf('%-8i',HDR.NRec);
-                        H1(245:252)=sprintf('%-8i',HDR.Dur);
+                        if HDR.Dur~=round(HDR.Dur),
+                                H1(245:252)=sprintf('%-8f',HDR.Dur);
+                        else
+                                H1(245:252)=sprintf('%-8i',HDR.Dur);
+                        end
                         H1(253:256)=sprintf('%-4i',HDR.NS);
                         H1(abs(H1)==0)=char(32); 
                         c=fwrite(HDR.FILE.FID,abs(H1),'uchar');
@@ -1499,9 +1512,9 @@ end;
                                 idx2=HDR.NS*idx1;
                                 h2=setstr(32*ones(HDR.NS,256));
                                 size(h2);
-                                h2(:,idx1(1)+1:idx1(2))=HDR.Label;
-                                h2(:,idx1(2)+1:idx1(3))=HDR.Transducer;
-                                h2(:,idx1(3)+1:idx1(4))=HDR.PhysDim;
+                                h2(:,idx1(1)+1:idx1(2))=Label;
+                                h2(:,idx1(2)+1:idx1(3))=Transducer;
+                                h2(:,idx1(3)+1:idx1(4))=PhysDim;
                                 %h2(:,idx1(4)+1:idx1(5))=sPhysMin;
                                 %h2(:,idx1(5)+1:idx1(6))=sPhysMax;
                                 h2(:,idx1(4)+1:idx1(5))=sPhysMin;
@@ -1515,10 +1528,10 @@ end;
                                         fwrite(HDR.FILE.FID,abs(h2(:,idx1(k)+1:idx1(k+1)))','uchar');
                                 end;
                         else
-                                fwrite(HDR.FILE.FID, abs(HDR.Label)','uchar');
-                                fwrite(HDR.FILE.FID, abs(HDR.Transducer)','uchar');
+                                fwrite(HDR.FILE.FID, abs(Label)','uchar');
+                                fwrite(HDR.FILE.FID, abs(Transducer)','uchar');
                                 if (HDR.VERSION<1.9),
-	                                fwrite(HDR.FILE.FID, abs(HDR.PhysDim)','uchar');
+	                                fwrite(HDR.FILE.FID, abs(PhysDim)','uchar');
 	                                fwrite(HDR.FILE.FID, HDR.PhysMin,'float64');
 	                                fwrite(HDR.FILE.FID, HDR.PhysMax,'float64');
 
@@ -1534,7 +1547,7 @@ end;
                                         fwrite(HDR.FILE.FID, HDR.GDFTYP,'uint32');
 	                                fwrite(HDR.FILE.FID,32*ones(32,HDR.NS),'char');
                                 else
-	                                fwrite(HDR.FILE.FID, abs(HDR.PhysDim(:,1:6))','uchar');
+	                                fwrite(HDR.FILE.FID, abs(PhysDim(:,1:6))','uchar');
 	                                fwrite(HDR.FILE.FID, HDR.PhysDimCode,'uint16');
 	                                fwrite(HDR.FILE.FID, HDR.PhysMin,'float64');
 	                                fwrite(HDR.FILE.FID, HDR.PhysMax,'float64');
@@ -1696,6 +1709,48 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'})
                         fprintf(HDR.FILE.stderr,'Error SOPEN CNT-Write: Headersize does not fit\n');
                 end;
         end;
+        
+        
+elseif strcmp(HDR.TYPE,'EPL'),		%
+        % 32 channels
+        % 250 Hz sampling rate
+        % amplifier band pass 0.01-100 Hz
+        % gain 50,000
+        %         There's a header (the length is 512 bytes) in the .raw file to describe the
+        % experiment and recording parameters, in ascii format.  And the actual data were
+        % conitnuous recording in binary format.  The first 512 bytes (256 words) of the
+        % data is a "mark track" storing event numbers and so on.  Each channel has 512
+        % bytes of data with a 12-bit precision.  The data points are written in
+        % multiplexed order so that the 1st point from the 1st channel is followed by the
+        % 1st point from the 2nd channel and so on through all the channel, and then the
+        % 2nd point from each channel is recorded.
+
+        fid = fopen([HDR.FILE.Name,'.log.LOG'],[HDR.FILE.PERMISSION,'b'],'ieee-le');
+        HDR.EPL.event = fread(fid,32,'uint32'); 
+        fclose(fid); 
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: Implementing EPL format not well tested, yet.\n');
+        HDR.EPL.H1 = fread(HDR.FILE.FID,[1,32],'uint32'); 
+        HDR.NS     = HDR.EPL.H1(2); 
+        HDR.Label  = cellstr(char(fread(HDR.FILE.FID,[4,32],'char')')); 
+        HDR.EPL.H2 = char(fread(HDR.FILE.FID,[1,256],'char')); 
+        ix = strfind(HDR.EPL.H2,' '); 
+        %HDR.Patient.Name = HDR.EPL.H2(1:ix(2)); % do not support clear text name  
+        tmp = str2double(HDR.EPL.H2(ix(2)+1:ix(3)-1),'/'); % dd/mm/yy format 
+        HDR.T0(1:3)= tmp([3,2,1]) + [2000,0,0]; 
+        HDR.HeadLen= ftell(HDR.FILE.FID); 
+        HDR.SPR    = 256; 
+        HDR.AS.bpb = HDR.NS*2*(HDR.SPR+8); 
+        HDR.NRec   = (HDR.FILE.size-HDR.HeadLen)/HDR.AS.bpb; 
+        HDR.SampleRate = 250; 
+        HDR.Filter.HighPass = 0.01; 
+        HDR.Filter.LowPass  = 100; 
+        HDR.Cal = 50000;     
+        HDR.FLAG.UCAL = 1;      
+        warning('SOPEN (EPL): data is not calibrated.'); 
+        HDR.Dur = HDR.SPR/HDR.SampleRate; 
+        HDR.FILE.POS = 0; 
+        HDR.FILE.OPEN = 1; 
         
         
 elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
@@ -5283,7 +5338,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
        		HDR.Label = tmp.elab;
 		HDR.SampleRate = tmp.fs; 
 		HDR.data  = reshape(permute(tmp.y,[1,3,2]),[HDR.SPR*HDR.NRec,HDR.NS]); 
-		HDR.Transducer = repmat('Ag/AgCl electrodes',3,1);
+		HDR.Transducer = repmat({'Ag/AgCl electrodes'},3,1);
 		HDR.Filter.Lowpass = 200; 
 		HDR.Filter.HighPass = 0.05; 
 		HDR.TYPE  = 'native';
@@ -6064,15 +6119,15 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                         HDR.GDFTYP = 17; %'float64';
                         HDR.AS.bpb = HDR.NS * 8;
                 elseif tmp == 2, 
-                        HDR.GDFTYP = '16; %float32';
+                        HDR.GDFTYP = '16'; %'float32';
                         HDR.AS.bpb = HDR.NS * 4;
                 elseif tmp == 3, 
                         HDR.GDFTYP = 3; %'int16';
                         HDR.AS.bpb = HDR.NS * 2;
                 end;
                 for k = 1:HDR.NS,
-                        HDR.Label{k} = fread(HDR.FILE.FID,[1, CHANNEL_TITLE_LEN],'char');   
-                        HDR.PhysDim{k} = fread(HDR.FILE.FID,[1, UNITS_LEN],'char');   
+                        HDR.Label{k,1} = char(fread(HDR.FILE.FID,[1, CHANNEL_TITLE_LEN],'char'));   
+                        HDR.PhysDim{k,1} = char(fread(HDR.FILE.FID,[1, UNITS_LEN],'char'));   
                         HDR.Cal(k,1) = fread(HDR.FILE.FID,1,'double');   
                         HDR.Off(k,1) = fread(HDR.FILE.FID,1,'double');   
                         HDR.PhysMax(1,k) = fread(HDR.FILE.FID,1,'double');   
@@ -6141,29 +6196,28 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 HDR.PhysMax = repmat(NaN,HDR.NS,1);
                 HDR.PhysMin = repmat(NaN,HDR.NS,1);
                 if ~isfield(HDR,'Cal'),
-                        fprintf(HDR.FILE.stderr,'Warning SOPEN-W CFWB: undefined scaling factor\n');			
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN-W CFWB: undefined scaling factor - assume HDR.Cal=1.\n');			
                         HDR.Cal = ones(HDR.NS,1);
                 end;
                 if ~isfield(HDR,'Off'),
-                        fprintf(HDR.FILE.stderr,'Warning SOPEN-W CFWB: undefined offset\n');			
+                        fprintf(HDR.FILE.stderr,'Warning SOPEN-W CFWB: undefined offset - assume HDR.Off=0.\n');			
                         HDR.Off = zeros(HDR.NS,1);
                 end;
                 if ~isfield(HDR,'Label'),
                         for k = 1:HDR.NS,
                                 Label{k} = sprintf('channel %i',k);
                         end;
-                        HDR.Label = strvcat(Label);
                 elseif iscell(HDR.Label)
                         for k = 1:min(HDR.NS,length(HDR.Label)),
                                 HDR.Label{k}= [HDR.Label{k},' ']; 
                         end;
-                        HDR.Label = strvcat(HDR.Label);
                 end;
-                HDR.Label = [HDR.Label,char(repmat(32,size(HDR.Label,1),max(0,CHANNEL_TITLE_LEN-size(HDR.Label,2))))];
-                HDR.Label = [HDR.Label;char(repmat(32,max(0,HDR.NS-size(HDR.Label,1)),size(HDR.Label,2)))];
+                Label = strvcat(HDR.Label);  % local copy of Label 
+                Label = [Label, char(repmat(32,size(Label,1),max(0,CHANNEL_TITLE_LEN-size(Label,2))))];
+                Label = [Label; char(repmat(32,max(0,HDR.NS-size(Label,1)),size(Label,2)))];
                 
                 if ~isfield(HDR,'PhysDim'),
-                        HDR.PhysDim = char(repmat(32,HDR.NS,UNITS_LEN));
+                        HDR.PhysDim = repmat({''},HDR.NS,1); 
                 end;
                 
                 if size(HDR.PhysDim,1)==1,
@@ -6173,10 +6227,10 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                         for k = 1:length(HDR.PhysDim),
                                 HDR.PhysDim{k} = [HDR.PhysDim{k},' ']; 
                         end;
-                        HDR.PhysDim = strvcat(HDR.PhysDim);
                 end
-                HDR.PhysDim = [HDR.PhysDim, setstr(repmat(32,size(HDR.PhysDim,1),max(0,UNITS_LEN-size(HDR.PhysDim,2))))];
-                HDR.PhysDim = [HDR.PhysDim; setstr(repmat(32,max(0,HDR.NS-size(HDR.PhysDim,1)),size(HDR.PhysDim,2)))];
+                PhysDim = strvcat(HDR.PhysDim);     %local copy 
+                PhysDim = [PhysDim, char(repmat(32,size(PhysDim,1),max(0,UNITS_LEN-size(PhysDim,2))))];
+                PhysDim = [PhysDim; char(repmat(32,max(0,HDR.NS-size(PhysDim,1)),size(PhysDim,2)))];
                 
                 %%%%% write fixed header
                 HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
@@ -6201,8 +6255,8 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 
                 %%%%% write channel header
                 for k = 1:HDR.NS,
-                        fwrite(HDR.FILE.FID,HDR.Label(k,1:32),'char');
-                        fwrite(HDR.FILE.FID,setstr(HDR.PhysDim(k,1:32)),'char');
+                        fwrite(HDR.FILE.FID,Label(k,1:32),'char');
+                        fwrite(HDR.FILE.FID,PhysDim(k,1:32),'char');
                         fwrite(HDR.FILE.FID,[HDR.Cal(k),HDR.Off(k)],'double');
                         fwrite(HDR.FILE.FID,[HDR.PhysMax(k),HDR.PhysMin(k)],'double');
                 end;
@@ -6213,8 +6267,6 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                 end;
         end;
         HDR.Calib = [HDR.Off';speye(HDR.NS)]*sparse(1:HDR.NS,1:HDR.NS,HDR.Cal);
-        HDR.Label = setstr(HDR.Label);
-        HDR.PhysDim = setstr(HDR.PhysDim);
         
         HDR.HeadLen = ftell(HDR.FILE.FID);
         HDR.FILE.POS = 0; 
@@ -8086,10 +8138,11 @@ if HDR.NS>0,
                 HDR.PhysDim = cellstr(HDR.PhysDim); 
         end; 
         HDR.CHANTYP = repmat(' ',1,HDR.NS);
-        tmp = HDR.NS-size(HDR.Label,1);
+        tmp = HDR.NS-length(HDR.Label);
         %HDR.Label = [HDR.Label(1:HDR.NS,:);repmat(' ',max(0,tmp),size(HDR.Label,2))];
-        Label = strvcat(HDR.Label); 
+        Label = strvcat(HDR.Label);
         tmp = reshape(lower([[Label(1:min(HDR.NS,size(Label,1)),:);repmat(' ',max(0,tmp),size(Label,2))],repmat(' ',HDR.NS,1)])',1,HDR.NS*(size(Label,2)+1));
+        
         HDR.CHANTYP(ceil([strfind(tmp,'eeg'),strfind(tmp,'meg')]/(size(Label,2)+1))) = 'E'; 
         HDR.CHANTYP(ceil([strfind(tmp,'emg')]/(size(Label,2)+1))) = 'M'; 
         HDR.CHANTYP(ceil([strfind(tmp,'eog')]/(size(Label,2)+1))) = 'O'; 

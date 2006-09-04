@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.67 2006-09-01 10:12:35 schloegl Exp $
+%	$Id: sread.m,v 1.68 2006-09-04 09:36:35 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -293,6 +293,26 @@ elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ISHNE','Nicolet','RG64'}),
     		end;
         end;
 	HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+
+
+elseif strcmp(HDR.TYPE,'EPL'),
+        if nargin==3,
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        startblock = floor(HDR.FILE.POS/HDR.SPR);
+        STATUS   = fseek(HDR.FILE.FID, HDR.HeadLen + startblock*HDR.AS.bpb, 'bof'); % fseek needed because HDR.FILE.POS can be changed by SSEEK
+        curblock = startblock;
+        endpos   = min(HDR.FILE.POS+NoS*HDR.SampleRate, HDR.NRec*HDR.SPR);
+
+        S = repmat(NaN,endpos-startblock*HDR.SPR,length(HDR.InChanSelect)); 
+        while ceil(curblock) < (endpos/HDR.SPR),
+                marktrack = fread(HDR.FILE.FID, 256, 'uint16');  
+                datablock = fread(HDR.FILE.FID, [HDR.NS,HDR.SPR], 'int16');
+                S(curblock * HDR.SPR - startblock*HDR.SPR + (1:HDR.SPR),:) = datablock(HDR.InChanSelect,:)'; 
+                curblock  = curblock + 1; 
+        end;
+        S = S(HDR.FILE.POS-startblock*HDR.SPR+1:endpos-startblock*HDR.SPR,:); 
+        HDR.FILE.POS = HDR.FILE.POS + size(S,1);
 
 
 elseif strcmp(HDR.TYPE,'SMA'),
