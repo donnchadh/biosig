@@ -27,7 +27,7 @@ function [HDR]=openxml(arg1,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: openxml.m,v 1.2 2006-08-21 16:39:54 schloegl Exp $
+%	$Id: openxml.m,v 1.3 2006-09-05 14:04:00 schloegl Exp $
 %	(C) 2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -54,11 +54,9 @@ end;
                 if 0, ~exist('xmlstruct')
                         warning('XML toolbox missing')
                 end;
-                %if 0, 
-                try,
+                if 0, 
                         HDR.XMLstruct = xmlstruct(HDR.XML,'sub');
                         HDR.XMLlist   = xmlstruct(HDR.XML);
-                catch        
                 end;
 
                 try
@@ -103,13 +101,11 @@ end;
                                 HDR.PhysDim{k} = CH.LeadAmplitudeUnits;
                                 HDR.Label{k}   = CH.LeadID;
                         
-                                % data decoding not implemented yet;         
-                                % HDR.data(:,k) = rs(decode(CH.WaveFormData),HDR.AS.SPR,HDR.SPR) %
+                                t = radix64d(CH.WaveFormData); 
+                                t = 256*t(2:2:end) + t(1:2:end);
+                                t = t - (t>=(2^15))*(2^16);
+                                HDR.data(:,k) = t(:); 
                         end;
-                        fprintf(2,'Warning: decoding of WaveFormData of MAC5000 XML file not implemented.');
-                        HDR.data = zeros(HDR.SPR*HDR.NRec,HDR.NS); 
-                        
-                        %HDR.TYPE = 'XML-FDA';     % that's an FDA XML file
                         HDR.TYPE = 'native'; 
 
                         
@@ -124,7 +120,7 @@ end;
                         HDR.NS = length(tmp)-1;
                         HDR.NRec = 1; 
                         HDR.Cal = 1;
-                        HDR.PhysDim = ' ';
+                        HDR.PhysDim = {' '};
                         HDR.SampleRate = 1;
                         HDR.TYPE = 'XML-FDA';     % that's an FDA XML file 
 
@@ -134,14 +130,14 @@ end;
                         HDR.SampleRate = str2double(HDR.XML.dataacquisition.signalcharacteristics.samplingrate);
                         HDR.NS  = str2double(HDR.XML.dataacquisition.signalcharacteristics.numberchannelsvalid);
                         HDR.Cal = str2double(HDR.XML.reportinfo.reportgain.amplitudegain.overallgain);
-                        HDR.PhysDim = 'uV';
+                        HDR.PhysDim = {'uV'};
                         HDR.Filter.HighPass = str2double(HDR.XML.reportinfo.reportbandwidth.highpassfiltersetting);
                         HDR.Filter.LowPass  = str2double(HDR.XML.reportinfo.reportbandwidth.lowpassfiltersetting);
                         HDR.Filter.Notch    = str2double(HDR.XML.reportinfo.reportbandwidth.notchfiltersetting);
 
                         t = HDR.XML.reportinfo.reportformat.waveformformat.mainwaveformformat;
                         k = 0;
-                        HDR.Label=[];
+                        HDR.Label={};
                         while ~isempty(t),
                                 [s,t] = strtok(t,' ');
                                 k = k+1;
@@ -178,7 +174,7 @@ end;
                         HDR.NS = length(tmp)-1;
                         HDR.NRec = 1; 
                         HDR.Cal = 1;
-                        HDR.PhysDim = ' ';
+                        HDR.PhysDim = {' '};
                         HDR.SampleRate = 1;
                         HDR.TYPE = 'XML-FDA';     % that's an FDA XML file 
 
@@ -244,3 +240,59 @@ end;
                 HDR.FILE.POS  = 0;
 %        end;
 %end;
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%  Auxillary functions 
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+function y = radix64d(x);
+% RADIX64D - decoding of radix64 encoded sequence
+
+
+% This program is free software; you can redistribute it and/or
+% modify it under the terms of the GNU General Public License
+% as published by the Free Software Foundation; either version 2
+% of the License, or (at your option) any later version.
+% 
+% This program is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU General Public License for more details.
+% 
+% You should have received a copy of the GNU General Public License
+% along with this program; if not, write to the Free Software
+% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+%	$Id: openxml.m,v 1.3 2006-09-05 14:04:00 schloegl Exp $
+%	(C) 2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+
+
+global BIOSIG_GLOBAL
+
+if ~isfield(BIOSIG_GLOBAL,'R64E');
+	BIOSIG_GLOBAL.R64E = ['A':'Z','a':'z','0':'9','+','/'];
+	BIOSIG_GLOBAL.R64D = zeros(256,1)-1;
+	for k = 1:length(BIOSIG_GLOBAL.R64E),
+		BIOSIG_GLOBAL.R64D(BIOSIG_GLOBAL.R64E(k)) = k-1; 
+	end;
+end; 
+
+% http://www.faqs.org/rfcs/rfc2440.html
+
+t = BIOSIG_GLOBAL.R64D(x);
+t = [t(t>=0); zeros(3,1)];
+N = floor(length(t)/4);
+t = reshape(bitand(t(1:N*4),2^6-1),4,N);
+
+y(1,:) = bitshift(t(1,:),2)         + bitshift(t(2,:),-4);
+y(2,:) = bitshift(mod(t(2,:),16),4) + bitshift(t(3,:),-2); 
+y(3,:) = bitshift(mod(t(3,:),4),6)  + t(4,:);
+ 
+y = y(:)';
+y = y(1:end-sum(x=='=')); % remove possible pad characters
+
