@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.154 2006-09-04 09:36:35 schloegl Exp $
+%	$Id: sopen.m,v 1.155 2006-09-05 12:13:49 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1711,23 +1711,7 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'})
         end;
         
         
-elseif strcmp(HDR.TYPE,'EPL'),		%
-        % 32 channels
-        % 250 Hz sampling rate
-        % amplifier band pass 0.01-100 Hz
-        % gain 50,000
-        %         There's a header (the length is 512 bytes) in the .raw file to describe the
-        % experiment and recording parameters, in ascii format.  And the actual data were
-        % conitnuous recording in binary format.  The first 512 bytes (256 words) of the
-        % data is a "mark track" storing event numbers and so on.  Each channel has 512
-        % bytes of data with a 12-bit precision.  The data points are written in
-        % multiplexed order so that the 1st point from the 1st channel is followed by the
-        % 1st point from the 2nd channel and so on through all the channel, and then the
-        % 2nd point from each channel is recorded.
-
-        fid = fopen([HDR.FILE.Name,'.log.LOG'],[HDR.FILE.PERMISSION,'b'],'ieee-le');
-        HDR.EPL.event = fread(fid,32,'uint32'); 
-        fclose(fid); 
+elseif strcmp(HDR.TYPE,'EPL'),        % San Diego EPL system
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         fprintf(HDR.FILE.stderr,'Warning SOPEN: Implementing EPL format not well tested, yet.\n');
         HDR.EPL.H1 = fread(HDR.FILE.FID,[1,32],'uint32'); 
@@ -1745,13 +1729,29 @@ elseif strcmp(HDR.TYPE,'EPL'),		%
         HDR.SampleRate = 250; 
         HDR.Filter.HighPass = 0.01; 
         HDR.Filter.LowPass  = 100; 
-        HDR.Cal = 50000;     
+        HDR.Cal    = 50000;     
+        HDR.Calib  = sparse(2:HDR.NS+1,1:HDR.NS,1/50000);
+        HDR.PhysDim= 'uV'; 
         HDR.FLAG.UCAL = 1;      
         warning('SOPEN (EPL): data is not calibrated.'); 
-        HDR.Dur = HDR.SPR/HDR.SampleRate; 
-        HDR.FILE.POS = 0; 
+        HDR.Dur    = HDR.SPR/HDR.SampleRate; 
+        HDR.FILE.POS  = 0; 
         HDR.FILE.OPEN = 1; 
-        
+
+%         %%%### Open Issue: reading of markers and events ### 
+        fprintf(HDR.FILE.stdout,'Warning SOPEN (EPL): reading of marker and event information currently not supported.\n'); 
+%
+%         % read mark track
+%         [HDR.EPL.ev2, count] = fread(HDR.FILE.FID,inf,'256*uint16=>uint16',HDR.NS*HDR.SPR*2);
+%         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+% 
+%         % read log file
+%         fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.log']),[HDR.FILE.PERMISSION,'b'],'ieee-le');
+%         if (fid>0),
+%                 HDR.EPL.ev1= fread(fid,inf,'uint16');
+%                 fclose(fid);
+%         end;
+
         
 elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.Endianity);
