@@ -35,7 +35,7 @@ function [out,scale] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.9 2006-08-31 17:55:09 schloegl Exp $
+%	$Id: physicalunits.m,v 1.10 2006-09-08 16:33:39 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -115,7 +115,7 @@ if isstruct(arg1)
 		[Code,scale] = physicalunits(HDR.PhysDim);
 		if ~isequal(Code(:),HDR.PhysDimCode(:))
 			warning('PhysDim and PhysDimCode differ');
-			[Code(:),HDR.PhysDimCode(:)]
+			Code(:)',HDR.PhysDimCode(:)'
 		end;		
 	elseif ~isfield(HDR,'PhysDim') &  isfield(HDR,'PhysDimCode')
 		[HDR.PhysDim, scale] = physicalunits(HDR.PhysDimCode);
@@ -151,9 +151,14 @@ elseif ischar(arg1) | iscell(arg1)
 		if length(unit)>0,
 			if (unit(1)=='µ'), unit(1)='u'; end; 
 		end;
-		if 0,
+                
+                % this lookup table contains first the most widely used
+                % physical units 
+                if 0,
 		
 		elseif strcmpi(unit,'-')	% dimensionless
+               		Code(k) = 512;
+		elseif strcmpi(unit,'1')	% dimensionless
                		Code(k) = 512;
 		elseif strcmpi(unit,'percent')
                		Code(k) = 544;
@@ -165,8 +170,14 @@ elseif ischar(arg1) | iscell(arg1)
                		Code(k) = 768;
 		elseif strcmp(unit,'Hz')
               		Code(k) = 2496;
+		elseif strcmp(unit,'l/(min*m²)')
+              		Code(k) = 2848;
+		elseif strcmp(unit,'l/min')
+              		Code(k) = 3072;
 		elseif strcmp(unit,'mmHg')
               		Code(k) = 3872;
+		elseif strcmp(unit,'dyne*s/cm^5')
+              		Code(k) = 4128;
 		elseif strcmp(unit,'V')
                		Code(k) = 4256;
 		elseif strcmp(unit,'mV')
@@ -179,7 +190,15 @@ elseif ischar(arg1) | iscell(arg1)
               		Code(k) = 4416;
 		elseif strcmp(unit,'°C')
               		Code(k) = 6048;
-              	else 
+		elseif strcmp(unit,'dyne*s*m²/cm^5')
+              		Code(k) = 65440;
+		elseif strcmp(unit,'l/m²')
+              		Code(k) = 65472;
+		elseif strcmp(unit,'ml/m²')
+              		Code(k) = 65472+18;
+                else 
+                        % this is the general method to determine the
+                        % Physical Dimension's code 
 	       		ix = [];
 			for k1=1:length(BIOSIG_GLOBAL.DecimalFactor.Code)
 			for k2=1:length(BIOSIG_GLOBAL.Units.Code)
