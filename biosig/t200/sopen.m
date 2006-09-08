@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.155 2006-09-05 12:13:49 schloegl Exp $
+%	$Id: sopen.m,v 1.156 2006-09-08 16:32:51 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1714,8 +1714,8 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'})
 elseif strcmp(HDR.TYPE,'EPL'),        % San Diego EPL system
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         fprintf(HDR.FILE.stderr,'Warning SOPEN: Implementing EPL format not well tested, yet.\n');
-        HDR.EPL.H1 = fread(HDR.FILE.FID,[1,32],'uint32'); 
-        HDR.NS     = HDR.EPL.H1(2); 
+        HDR.EPL.H1 = fread(HDR.FILE.FID,[1,64],'uint16'); 
+        HDR.NS     = HDR.EPL.H1(3); 
         HDR.Label  = cellstr(char(fread(HDR.FILE.FID,[4,32],'char')')); 
         HDR.EPL.H2 = char(fread(HDR.FILE.FID,[1,256],'char')); 
         ix = strfind(HDR.EPL.H2,' '); 
@@ -1726,31 +1726,45 @@ elseif strcmp(HDR.TYPE,'EPL'),        % San Diego EPL system
         HDR.SPR    = 256; 
         HDR.AS.bpb = HDR.NS*2*(HDR.SPR+8); 
         HDR.NRec   = (HDR.FILE.size-HDR.HeadLen)/HDR.AS.bpb; 
-        HDR.SampleRate = 250; 
+        HDR.SampleRate = 1e5/HDR.EPL.H1(10);
+	HDR.Cal    = HDR.EPL.H1(6)*HDR.EPL.H1(7)*10;
+	HDR.PhysDim= 'uV'; 	
+	if (HDR.Cal==0) 
+		HDR.Cal = 1/50000; 
+		HDR.FLAG.UCAL = 1; 
+		fprintf(HDR.FILE.stderr,'Warning SOPEN (EPL): calibration information in file %s is missing. Assume Gain=50000.\n',HDR.FileName); 
+	end;
+        HDR.Calib  = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
+	HDR.delay  = HDR.EPL.H1(8)*1e-3; 
+	HDR.EPL.cprecis = HDR.EPL.H1(19); 	%channel precision*256.pts
         HDR.Filter.HighPass = 0.01; 
         HDR.Filter.LowPass  = 100; 
-        HDR.Cal    = 50000;     
-        HDR.Calib  = sparse(2:HDR.NS+1,1:HDR.NS,1/50000);
-        HDR.PhysDim= 'uV'; 
-        HDR.FLAG.UCAL = 1;      
-        warning('SOPEN (EPL): data is not calibrated.'); 
         HDR.Dur    = HDR.SPR/HDR.SampleRate; 
         HDR.FILE.POS  = 0; 
         HDR.FILE.OPEN = 1; 
 
-%         %%%### Open Issue: reading of markers and events ### 
-        fprintf(HDR.FILE.stdout,'Warning SOPEN (EPL): reading of marker and event information currently not supported.\n'); 
-%
-%         % read mark track
-%         [HDR.EPL.ev2, count] = fread(HDR.FILE.FID,inf,'256*uint16=>uint16',HDR.NS*HDR.SPR*2);
-%         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
-% 
-%         % read log file
-%         fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.log']),[HDR.FILE.PERMISSION,'b'],'ieee-le');
-%         if (fid>0),
-%                 HDR.EPL.ev1= fread(fid,inf,'uint16');
-%                 fclose(fid);
-%         end;
+        fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.log']),[HDR.FILE.PERMISSION,'b'],'ieee-le');
+        if (fid>0),
+                % read log file
+                ev1 = fread(fid,[4,inf],'uint16')';
+                fclose(fid);
+                ev1(:,2) = ev1(:,2:3)*[2^16;1];
+                ev1(:,3) = floor(ev1(:,4)/256);
+                ev1(:,4) = rem(ev1(:,4),256);
+                HDR.EPL.ev1   = ev1;
+                HDR.EVENT.POS = ev1(ev1(:,1)<2^15,2);
+                HDR.EVENT.TYP = ev1(ev1(:,1)<2^15,1);
+        else
+                fprintf(HDR.FILE.stderr,'Warning SOPEN (EPL): log-file not found, use the mark track for reading the event information - some Event positions might be off by 1 sample\n'.\n');
+                % read mark track
+                fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+                [ev2, count] = fread(HDR.FILE.FID,inf,'256*uint16=>uint16',HDR.NS*HDR.SPR*2);
+                fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+
+                ev2(1:256:end)= 0;     % remove the "record number" (1st word of each segment) from the "mark track"
+                HDR.EVENT.POS = find((ev2>0) & (ev2<2^15));      % identify all events, remove deleted events (i.e. high bit ='1')
+                HDR.EVENT.TYP = ev2(HDR.EVENT.POS);
+        end;
 
         
 elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
@@ -7779,9 +7793,10 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 end;
                 HDR.TFM = TFM; 
                 
-                HDR.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
+                HDR.TYPE = 'TFM_EXCEL_Beat_to_Beat';
                 %HDR.Patient.Name = [TFM.E{2,3},' ', TFM.E{2,4}];
-                TFM.VERSION = TFM.E{2,11};
+                ix = 1; while ~strncmp(TFM.E{1,ix},'Build',5); ix=ix+1; end;
+                TFM.VERSION = TFM.E{2,ix};
                 if str2double(TFM.VERSION(1:3))>=2.2,
 	                HDR.Patient.Birthday = datevec(TFM.E(2,5),'dd.mm.yyyy');
 	                HDR.T0 = datevec(datenum(datevec(TFM.E{2,1},'dd.mm.yyyy')+TFM.E{2,2}));
@@ -7791,7 +7806,16 @@ elseif strcmp(HDR.TYPE,'BIFF'),
 	        end;        
                 HDR.Patient.Birthday(4) = 12; 
                 HDR.Patient.Age = (datenum(HDR.T0)-datenum(HDR.Patient.Birthday))/365.25; % datevec(TFM.S(2,1)-TFM.S(2,5));
-                HDR.Patient.Sex = TFM.E{2,6};
+                gender = TFM.E{2,6};
+                if isnumeric(gender)
+                        HDR.Patient.Sex = gender; 
+                elseif strncmpi(gender,'M',1)
+                        HDR.Patient.Sex = 1; 
+                elseif strncmpi(gender,'F',1)
+                        HDR.Patient.Sex = 2; 
+                else
+                        HDR.Patient.Sex = 0; 
+                end; 
 		if NEW_INTERFACE; 
 	                HDR.Patient.Height = TFM.E{2,7};
 	                HDR.Patient.Weight = TFM.E{2,8};
@@ -7814,23 +7838,12 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 HDR.Label   = TFM.E(4,:)';
                 HDR.PhysDim = TFM.E(5,:)';
                 if strcmp(HDR.Label{3},'RRI') & strcmp(HDR.PhysDim{3},'[%]')
-                        %%%% bug in TFM software ? 
+                        %%%% correct bug in file (due to bug in TFM
+                        %%%% software
                         HDR.PhysDim{3} = '[ms]';
                 end;
                 for k=1:length(HDR.PhysDim),
                         HDR.PhysDim{k} = HDR.PhysDim{k}(2:end-1); % remove brackets []
-                        % convert units 
-                        if strcmp('dyne*s/cm^5',HDR.PhysDim{k})
-                                HDR.PhysDim{k} = 'dyn s cm-5'; 
-                        elseif strcmp('dyne*s*m²/cm^5',HDR.PhysDim{k})
-                                HDR.PhysDim{k} = 'dyne s m-2 cm-5'; 
-                        elseif strcmp('l/(min*m²)',HDR.PhysDim{k})
-                                HDR.PhysDim{k} = 'l min-1 m-2'; 
-                        elseif strcmp('ml/m²',HDR.PhysDim{k})
-                                %HDR.PhysDim{k} = ''; 
-                        elseif strcmp('l/min',HDR.PhysDim{k})
-                                HDR.PhysDim{k} = 'l min-1'; 
-                        end;
                 end;
            
                 TFM.S = TFM.S(6:end,:);
@@ -8117,7 +8130,7 @@ end;
 
 % check consistency
 if HDR.FLAG.OVERFLOWDETECTION & ~isfield(HDR,'THRESHOLD') & ~strcmp(HDR.TYPE,'EVENT'),
-        fprintf(HDR.FILE.stderr,'Warning SOPEN: Automated OVERFLOWDETECTION not supported because of missing THRESHOLD.\n');
+        fprintf(HDR.FILE.stderr,'Warning SOPEN: Automated OVERFLOWDETECTION not supported - check yourself for saturation artifacts.\n');
 end;
 
 % identify type of signal, complete header information
@@ -8195,8 +8208,9 @@ if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	        if sum(ix0)==sum(ix1), 
 	                HDR.EVENT.DUR(ix0) = HDR.EVENT.POS(ix1) - HDR.EVENT.POS(ix0);
 	                flag_remove = flag_remove | (HDR.EVENT.TYP==TYP1);
-	        else 
-	                fprintf(2,'Warning SOPEN: number of event onset (TYP=%s) and event offset (TYP=%s) differ\n',dec2hex(TYP0),dec2hex(TYP1));
+                else 
+	                fprintf(2,'Warning SOPEN: number of event onset (TYP=%s) and event offset (TYP=%s) differ\n',dec2hex(double(TYP0)),dec2hex(double(TYP1)));
+                        %% double(.) operator needed because Matlab6.5 can not fix fix(uint16(..))
 	        end;
 	end
 	if any(HDR.EVENT.DUR<0)
