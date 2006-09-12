@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.156 2006-09-08 16:32:51 schloegl Exp $
+%	$Id: sopen.m,v 1.157 2006-09-12 06:21:44 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1158,9 +1158,9 @@ end;
                         Label = [Label(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,16-tmp))];
                         
                         if ~isfield(HDR,'Transducer')
-                                HDR.Transducer=repmat({''},HDR.NS,1); %setstr(32+zeros(HDR.NS,80));
+                                HDR.Transducer=repmat({' '},HDR.NS,1); %setstr(32+zeros(HDR.NS,80));
                         end; 
-                        Transducer = strvcat(HDR.Transducer) % local copy of HDR.Transducer
+                        Transducer = strvcat(HDR.Transducer); % local copy of HDR.Transducer
                         tmp        = min(80,size(Transducer,2));
                         Transducer = [Transducer(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,80-tmp))];
 
@@ -1728,10 +1728,10 @@ elseif strcmp(HDR.TYPE,'EPL'),        % San Diego EPL system
         HDR.NRec   = (HDR.FILE.size-HDR.HeadLen)/HDR.AS.bpb; 
         HDR.SampleRate = 1e5/HDR.EPL.H1(10);
 	HDR.Cal    = HDR.EPL.H1(6)*HDR.EPL.H1(7)*10;
-	HDR.PhysDim= 'uV'; 	
+	HDR.PhysDim= repmat({'uV'},HDR.NS,1); 	
 	if (HDR.Cal==0) 
 		HDR.Cal = 1/50000; 
-		HDR.FLAG.UCAL = 1; 
+		HDR.FLAG.OVERFLOWDETECTION = 0; 
 		fprintf(HDR.FILE.stderr,'Warning SOPEN (EPL): calibration information in file %s is missing. Assume Gain=50000.\n',HDR.FileName); 
 	end;
         HDR.Calib  = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
@@ -7791,21 +7791,13 @@ elseif strcmp(HDR.TYPE,'BIFF'),
 		        fprintf('Warning: XLSREAD-BUG has occured in file %s.\n',HDR.FileName);
                         TFM.S = [repmat(NaN,1,size(TFM.S,2));TFM.S];
                 end;
-                HDR.TFM = TFM; 
-                
+                HDR.TFM = TFM;
+
                 HDR.TYPE = 'TFM_EXCEL_Beat_to_Beat';
                 %HDR.Patient.Name = [TFM.E{2,3},' ', TFM.E{2,4}];
                 ix = 1; while ~strncmp(TFM.E{1,ix},'Build',5); ix=ix+1; end;
                 TFM.VERSION = TFM.E{2,ix};
-                if str2double(TFM.VERSION(1:3))>=2.2,
-	                HDR.Patient.Birthday = datevec(TFM.E(2,5),'dd.mm.yyyy');
-	                HDR.T0 = datevec(datenum(datevec(TFM.E{2,1},'dd.mm.yyyy')+TFM.E{2,2}));
-                else
-	                HDR.Patient.Birthday = datevec(TFM.E(2,5)-1);
-	                HDR.T0 = datevec(datenum('30-Dec-1899')+TFM.S(2,1)+TFM.S(2,2));
-	        end;        
-                HDR.Patient.Birthday(4) = 12; 
-                HDR.Patient.Age = (datenum(HDR.T0)-datenum(HDR.Patient.Birthday))/365.25; % datevec(TFM.S(2,1)-TFM.S(2,5));
+                
                 gender = TFM.E{2,6};
                 if isnumeric(gender)
                         HDR.Patient.Sex = gender; 
@@ -7817,6 +7809,8 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                         HDR.Patient.Sex = 0; 
                 end; 
 		if NEW_INTERFACE; 
+                        HDR.Patient.Birthday = datevec(TFM.E{2,5},'dd.mm.yyyy');
+	                HDR.T0 = datevec(datenum(datevec(TFM.E{2,1},'dd.mm.yyyy')+TFM.E{2,2}));
 	                HDR.Patient.Height = TFM.E{2,7};
 	                HDR.Patient.Weight = TFM.E{2,8};
 	                HDR.Patient.Surface = TFM.E{2,9};
@@ -7824,8 +7818,12 @@ elseif strcmp(HDR.TYPE,'BIFF'),
 	                HDR.Patient.Height = TFM.S(2,7);
 	                HDR.Patient.Weight = TFM.S(2,8);
 	                HDR.Patient.Surface = TFM.S(2,9);
+	                HDR.Patient.Birthday = datevec(datenum('30-Dec-1899')+TFM.S(2,5));
+	                HDR.T0 = datevec(datenum('30-Dec-1899')+TFM.S(2,1)+TFM.S(2,2));
 	        end; 
-               	HDR.Patient.BMI = TFM.E{2,8}*TFM.E{2,7}^-2*1e4;
+               	HDR.Patient.BMI = HDR.Patient.Weight * HDR.Patient.Height^-2 * 1e4;
+                HDR.Patient.Birthday(4) = 12; 
+                HDR.Patient.Age = (datenum(HDR.T0)-datenum(HDR.Patient.Birthday))/365.25; 
         catch
 	end; 	
 
