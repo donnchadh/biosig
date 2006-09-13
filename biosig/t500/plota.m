@@ -17,7 +17,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 %   'MVAR'      'DTF'
 %   'MVAR'      'PDC'
 %   'TF-MVAR'	Time-frequency MVAR analysis
-%		e.g. plota(X, 'PDC', hf, [,alpha]);	%
+%		e.g. plota(X, 'PDC', alpha [, Y]);	%
 %
 %   'MEAN+STD'
 %       plota(X,hf,minmean,maxmean,maxstd [,trigger])
@@ -50,7 +50,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.52 2006-08-17 16:06:44 schloegl Exp $
+%	$Id: plota.m,v 1.53 2006-09-13 18:23:27 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -352,7 +352,7 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                 nix(1) = 0; 		% hack to remove reference segment
                 nix = logical(nix); 
         end;
-        nix(1) = logical(0); 		% hack to remove reference segment
+%        nix(1) = logical(0); 		% hack to remove reference segment
         nix = logical(nix); 
 
         M   = size(X.M.AR,1);
@@ -456,8 +456,8 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
 
         tmp = diff(XT);
         if isempty(tmp)
-                X.A = [eye(size(X.M.AR,1)), -X.M.AR];
-                X.B = eye(size(X.M.AR,1));
+                X.A = [eye(size(X.M.A,1)), -X.M.A];
+                X.B = eye(size(X.M.A,1));
                 X.C = X.M.C;
                 % X.SampleRate = 2*max(X.F); 
                 X.datatype='MVAR'; 
@@ -983,7 +983,82 @@ elseif strcmp(X.datatype,'SIESTA_HISTOGRAM')
         plota(H,'log+');
         suptitle(X.filename);
 
-elseif strcmp(X.datatype,'HISTOGRAM')
+        
+elseif strcmp(X.datatype,'qc:histo')
+        if nargin<2,
+                yscale = 'log+';
+        else
+                yscale = arg2;
+        end;
+        if nargin<3,
+                chansel = 0;
+        else
+                chansel = arg3;
+        end;
+        if chansel<=0,
+                chansel = 1:X.NS;
+        end;
+
+        N = ceil(sqrt(length(chansel)));
+        for K = chansel;
+                t = X.HIS.X(:,min(K,size(X.HIS.X,2)));
+                h = X.HIS.H(:,K);
+                t =t(h>0); 
+                h =h(h>0); 
+                if isfield(X,'Threshold'),
+                        MaxMin=X.Threshold(K,:);
+                        MaxMin=[max(MaxMin),min(MaxMin)];
+                else
+                        MaxMin=[max(t) min(t)];
+                end;
+                sd2 = X.RES.VAR(K); 
+                mu  = X.RES.MEAN(K); 
+                dT  = X.RES.QUANT(K); 
+                
+                if strcmp(yscale,'lin '),
+                        subplot(ceil(size(X.H,2)/N),N,K);
+                        plot(t,[h],'-');
+                elseif strcmp(yscale,'lin+'),
+                        subplot(ceil(size(X.H,2)/N),N,K);
+                        tmp=max(h)/2;
+                        tmp=sum(h)/sqrt(2*pi*sd2)*dT/2;
+                        %plot(t,[h],'-',t,exp(-(t-mu).^2./sd2/2)./sqrt(2*pi*sd2).*sum(h),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx' );
+                        plot(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+                        v=axis; v=[MaxMin(2) MaxMin(1) 1 max(h)]; axis(v);
+                elseif strcmp(yscale,'log ') | strcmp(yscale,'log'),
+                        subplot(ceil(length(chansel)/N),N,K);
+                        tmp = sqrt(sum(h)/sqrt(2*pi*sd2)*dT);
+                        semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT]);
+                elseif strcmp(yscale,'log+'),
+                        subplot(ceil(length(chansel)/N),N,K);
+                        tmp = sqrt(sum(h(h>0))/sqrt(2*pi*sd2)*dT);
+                        semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h(h>0))*dT],'-',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+                        v=axis; v=[v(1:2) 1 max(h)]; axis(v);
+                elseif strcmp(yscale,'qq'),
+                        subplot(ceil(length(chansel)/N),N,K);
+                        tmp=.5;sum(h)/2;
+                        plot(cumsum(h)/sum(h),normcdf(t,mu,sqrt(sd2)),'xb',[0,1],[0,1],'-c');
+                elseif strcmp(yscale,'csum'),
+                        subplot(ceil(length(chansel)/N),N,K);
+                        tmp=.5;sum(h)/2;
+                        plot(t,cumsum(h)/sum(h),'-',t,normcdf(t,mu,sqrt(sd2)),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+                        v=axis; v(1:2)=[MaxMin(2)+0.1*diff(MaxMin) MaxMin(1)-0.1*diff(MaxMin)]; axis(v);
+                elseif strcmp(yscale,'CDF'),
+                        %subplot(ceil(size(X.H,2)/N),N,K);
+                        tmp=sum(h)/2;
+                        plot([X.X(1,:)-eps;X.X],[zeros(1,size(X.H,2));cumsum(X.H,1)]./X.N(ones(size(X.X,1)+1,1),:),'-');
+                        t = [t(1)-eps;t];
+                        v = axis; v(3:4) = [0,1]; axis(v);
+                elseif strcmp(yscale,'stacked'),
+                        bar(t,h,'stacked');
+                end;
+                title(X.Label{K});
+                %xlabel(X.PhysDim{K});
+        end;
+        
+        
+elseif strcmp(X.datatype,'HISTOGRAM') | strcmp(X.datatype,'qc:histo')
+        
         if nargin<3,
                 chansel=0;
         else
@@ -996,7 +1071,7 @@ elseif strcmp(X.datatype,'HISTOGRAM')
         end;
 
         if ~isfield(X,'N');
-                X.N = full(sum(X.H,1));
+                X.N = sumskipnan(full(X.H),1);
         end;
 
         if chansel<=0,
@@ -1010,9 +1085,9 @@ elseif strcmp(X.datatype,'HISTOGRAM')
                 %HISTO=hist2pdf(HISTO);
                 h = X.H(:,K);
 
-                mu = (t'*h)/X.N(K);%sumskipnan(repmat(t,size(h)./size(t)).*h,1)./sumskipnan(h,1);
+                mu = (t(h>0)'*h(h>0))/X.N(K);%sumskipnan(repmat(t,size(h)./size(t)).*h,1)./sumskipnan(h,1);
                 x  = t-mu; %(repmat(t,size(h)./size(t))-repmat(mu,size(h)./size(mu)));
-                sd2= sumskipnan(x.*x.*h,1)./X.N(K);
+                sd2= sumskipnan((x(h>0).^2).*h(h>0),1)./X.N(K);
 
                 [tmp,tmp2]=find(h>0);
 
@@ -1046,13 +1121,13 @@ elseif strcmp(X.datatype,'HISTOGRAM')
                         subplot(ceil(size(X.H,2)/N),N,K);
                         tmp = diff(t);
                         dT  = min(tmp(tmp>0));
-                        tmp = sqrt(sum(h)/sqrt(2*pi*sd2)*dT);
+                        tmp = sqrt(sum(h(h>0))/sqrt(2*pi*sd2)*dT);
                         %semilogy(t,[h]+.01,'-',t,exp(-(t*ones(size(mu))-ones(size(t))*mu).^2./(ones(size(t))*sd2)/2)./(ones(size(t))*(sqrt(2*pi*sd2)./sum(h))),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         %semilogy(t,[h]+.01,'-',t,exp(-(t(:,ones(size(mu)))-mu(ones(size(t)),:)).^2./sd2(ones(size(t)),:)/2)./sqrt(2*pi*sd2(ones(size(t)),:)).*(ones(size(t))*sum(h)),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         %semilogy(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
-                        semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT],'-',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
-                        v=axis; v=[MaxMin(2)+0.1*diff(MaxMin) MaxMin(1)-0.1*diff(MaxMin) 1 max(h)]; axis(v);
-                        %v=axis; v=[v(1:2) 1 max(h)]; axis(v);
+                        semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h(h>0))*dT],'-',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+%                        v=axis; v=[MaxMin(2)+0.1*diff(MaxMin) MaxMin(1)-0.1*diff(MaxMin) 1 max(h)]; axis(v);
+                        v=axis; v=[v(1:2) 1 max(h)]; axis(v);
                 elseif strcmp(yscale,'qq'),
                         subplot(ceil(size(X.H,2)/N),N,K);
                         tmp=.5;sum(h)/2;
