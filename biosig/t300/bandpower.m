@@ -1,6 +1,6 @@
 function bp = bandpower(s,arg2,arg3,arg4)
 % BANDPOWER calculation 
-%       bpX = bandpower(X,Fs, bands, smoothing)
+%       log10bp = bandpower(X,Fs, bands, smoothing)
 %  
 % INPUT:
 %    X          raw data, one channel per column
@@ -11,12 +11,15 @@ function bp = bandpower(s,arg2,arg3,arg4)
 %    smoothing  length of smoothing window in seconds. The default value is 1 [s] 
 % 
 % OUTPUT:
-%    bpX        is bandpower of X 
-%
+%    log10bp    is log10(bandpower) of X.
+%       the order of the features is 
+%       [f1(#1), f1(#2),...,f1(#n), f2(#1),...,f2(#n),...,fm(#1),...,fm(#n)]
+%       First, the first frequency band of all channels, is followed by
+%       the the second band of all channels, until the last 
+%       last f-band of all channels 
 
-
-%	$Id: bandpower.m,v 1.3 2005-11-05 23:17:09 schloegl Exp $
-%	Copyright (c) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: bandpower.m,v 1.4 2006-09-15 08:09:40 schloegl Exp $
+%	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
