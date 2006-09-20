@@ -28,7 +28,13 @@ function [X] = heartratevariability(RRI,arg2)
 %	SD1		width of Poincaré plot; equivalent to sqrt(2)*RMSSD [2]
 %	SD2		length of Poincaré plot; i.e. 2SDRR²+SDSD²/2 [2]
 %	r_RR 		correlation coefficient [2]
-%
+%   X.VLF               power of very low frequency band (< 0.04 Hz)
+%   X.LF                power of low frequency band (0.04-0.15 Hz)
+%   X.HF                power of high low frequency band (0.15-0.4 Hz)
+%   X.TotalPower        power of high low frequency band (0.15-0.4 Hz)
+%   X.LFHFratio         LF/HF-ratio
+%   X.LFnu              normalized units of LF power (0.04-0.15 Hz)
+%   X.HFnu              normalized units of HF power  (0.15-0.4 Hz)
 %
 % see also: QRSDETECT, BERGER, EVENTCODES.TXT
 %
@@ -41,7 +47,7 @@ function [X] = heartratevariability(RRI,arg2)
 %	Do Existing Measures of Poincaré Plot Geometriy Reflect Nonlinear Features of Heart Rate Variablilty?
 %	IEEE Trans Biomedical Eng. 48(11),2001, 
 
-%	$Id: heartratevariability.m,v 1.4 2006-09-20 12:31:30 schloegl Exp $
+%	$Id: heartratevariability.m,v 1.5 2006-09-20 12:46:44 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -157,8 +163,6 @@ X.SD2 	= sqrt(g(1)+g(2));
 X.SD1 	= sqrt(g(1)-g(2));
 X.r_RR	= g(2)/g(1);
 
-
-
 t   = round(NN * 128)/128; 
 HIS = histo3(t(:)); 
 X.HRVindex128 = HIS.N/max(HIS.H); 
@@ -209,33 +213,6 @@ ix = (f>0.15) & (f<0.40);
 X.HF = trapz(f(ix),abs(h(ix)).^2);
 ix = (f>0.15) & (f<0.40);
 X.TotalPower = trapz(f,abs(h).^2);
-
-
-if 0, 
-	% spectral decomposition method
-	[w,A,B,R,P,F,ip] = ar_spa(a,f0,pe(X.mop+1));
-	ix = (imag(F)==0);
-
-	ixVLF = ((w>=0)  & (w<.04)); F1 = real(F); F1(~ixVLF)= NaN;
-	ixLF  = (w>=.04) & (w<=.15); F2 = real(F); F2(~ixLF) = NaN;
-	ixHF  = (w>.15)  & (w<=.4) ; F3 = real(F); F3(~ixHF) = NaN;               
-
-	X.VLF = sumskipnan(F1,2); 
-	X.LF  = sumskipnan(F2,2); 
-	X.HF  = sumskipnan(F3,2); 
-	X.TotalPower = sumskipnan(real(F),2);
-
-	% center frequencies
-		% mean based on amplitude
-	X.VLF_f0 = sumskipnan(w(ixVLF).*A(ixVLF))/sum(A(ixVLF));
-	X.LF_f0 = sumskipnan(w(ixLF).*A(ixLF))/sum(A(ixLF));
-	X.HF_f0 = sumskipnan(w(ixHF).*A(ixHF))/sum(A(ixHF));
-		% mean based on power
-	%X.VLF_f0 = sumskipnan(w(ixVLF).*F1(ixVLF))/sum(F1(ixVLF));
-	%X.LF_f0 = sumskipnan(w(ixLF).*F2(ixLF))/sum(F2(ixLF));
-	%X.HF_f0 = sumskipnan(w(ixHF).*F3(ixHF))/sum(F3(ixHF));
-
-end;
 
 X.LFHFratio = X.LF./X.HF; 
 X.LFnu = X.LF./(X.TotalPower-X.VLF);
