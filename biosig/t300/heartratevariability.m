@@ -38,10 +38,10 @@ function [X] = heartratevariability(RRI,arg2)
 %       Taskforce of the European Society for Cardiology and the North Americal Society of Pacing and Electrophysiology.         
 %       European Heart Journal (1996) 17, 354-381. 
 % [2] M. Brennan, M.Palaniswami, P. Kamen
-%	Do Existing Measures of Poincaré Plot Geometriy Reflect Nonlinear Features of Heart Rate Variablilty
+%	Do Existing Measures of Poincaré Plot Geometriy Reflect Nonlinear Features of Heart Rate Variablilty?
 %	IEEE Trans Biomedical Eng. 48(11),2001, 
 
-%	$Id: heartratevariability.m,v 1.3 2006-08-10 15:28:20 schloegl Exp $
+%	$Id: heartratevariability.m,v 1.4 2006-09-20 12:31:30 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -136,7 +136,7 @@ X.PhysDim = 'ms';
 [X.PhysDimCode,scale2] = physicalunits(X.PhysDim); 
 t_scale = scale2./scale1;
 NN = NN/t_scale; 
-on = on/t_scale; 
+on = on/t_scale;
 
 
 X.datatype = 'HeartRateVariability'; 
@@ -151,7 +151,7 @@ X.NN50count  = sum(abs(diff(NN))>0.050/t_scale);
 X.pNN50    = X.NN50count/sum(~isnan(NN)); 
 
 
-g = acovf(center(NN(:)'),2)
+g = acovf(center(NN(:)'),2);
 X.SD1 	= sqrt(g(1)-g(2));
 X.SD2 	= sqrt(g(1)+g(2));
 X.SD1 	= sqrt(g(1)-g(2));
@@ -182,24 +182,25 @@ elseif 0,
 	f0= 1/(m*t_scale)
 else
 	f0 = 4; 
-	[hrv,y] = berger(on*t_scale,f0); % resampleing 
+        [hrv,y] = berger(on*t_scale,f0); % resampleing 
 	[y,m] = center(y/t_scale); 
 end;
 
 pmax = 100; 	
-	% choose levinson-durbin or Burg algorithm 
-[mx,pe]=durlev(acovf(y(:)',pmax)); 
+% choose levinson-durbin or Burg algorithm 
+[mx,pe]=durlev(acovf(y(:)',pmax));
 %[mx,pe]=lattice(y(:)',pmax); 
 
 n = sum(~isnan(y));
 [FPE,AIC,BIC,SBC,MDL,CAT,PHI,optFPE,optAIC,optBIC,optSBC,optMDL,optCAT,optPHI]=selmo(pe/pe(1),n);
- 	% select model order 
+X.mops = [optFPE,optAIC,optBIC,optSBC,optMDL,optCAT,optPHI]; 
+% select model order 
 X.mop = optBIC;
 X.mop = optAIC; 
 X.mop = 15;
 [a,r] = arcext(mx,X.mop);
 
-[h,f] = freqz(1,[1,-a],256,f0);
+[h,f] = freqz(sqrt(pe(X.mop+1)/f0),[1,-a],256,f0);
 ix = f<0.04;
 X.VLF = trapz(f(ix),abs(h(ix)).^2);
 ix = (f>0.04) & (f<0.15);
