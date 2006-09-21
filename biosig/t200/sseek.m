@@ -1,15 +1,17 @@
 function [HDR]=sseek(HDR,offset,origin)
 % SSEEK repositions file position indicator
-% [HDR]=sseek(HDR,offset,origin)
+%  HDR = sseek(HDR,offset,origin)
 %
-% The meaning of "offset" and "origin" differs for different formats. 
-% 	EDF: number of (EDF) records. 
-%	BKR: number of samplepoints	
+%  offset       number of samples relative to origin
+%  origin
+%        -1,'bof':   begin of file 
+%         0,'cof':   current file position 
+%        +1,'eof':   end of file 
 %
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
-%	$Id: sseek.m,v 1.15 2006-09-04 09:36:35 schloegl Exp $
-%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: sseek.m,v 1.16 2006-09-21 07:55:40 schloegl Exp $
+%	(C) 1997-2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
