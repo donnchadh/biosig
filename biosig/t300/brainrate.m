@@ -1,33 +1,42 @@
 function [br,sef90,sef95] = brainrate(s,Fs,UC,A)
-%  BRAINRATE estimates single coefficient parameters according to [1] 
+% BRAINRATE estimates the weighted mean frequency according to [1] 
+%  Other (similar) parameters are the spectral edge frequency or
+%  the Hjorth's Mobility parameter or Barlow's center frequency.   
 %           
 %  [BRAINRATE, SEF90, SEF95] = brainrate(...)
 %  
 %  [...] = brainrate(S,Fs,0)
 %       calculates stationary brainrate parameter 
-%  [...] = hjorth(S,Fs,UC) with 0<UC<1,
+%  [...] = brainrate(S,Fs,UC) with 0<UC<1,
 %       calculates time-varying brainrate parameter using 
 %       exponential window 
-%  [...] = hjorth(S,Fs,N) with N>1,
+%  [...] = brainrate(S,Fs,N) with N>1,
 %       calculates time-varying brainrate parameter using 
 %       rectangulare window of length N
-%  [...] = hjorth(S,Fs,B,A) with B>=1 oder length(B)>1,
+%  [...] = brainrate(S,Fs,B,A) with B>=1 oder length(B)>1,
 %       calulates time-varying brainrate parameters using
 %       transfer function B(z)/A(z) for windowing
 %
-%       S       data (each channel is a column)
-%       UC      update coefficient 
-%       B,A     filter coefficients (window function)
-%            
+% Input: 
+%	S	data (each channel is a column)
+%	UC	update coefficient 
+%	B,A	filter coefficients (window function)
+%
+% Output: 
+%	BRAINRATE	weighted mean frequency [1] 
+% 	SEF90	spectral edge frequency (power below SEF90 is 90% of total power)        
+% 	SEF95	spectral edge frequency (power below SEF95 is 95% of total power)        
+%
+% see also: HJORTH, BARLOW 
 %
 % REFERENCE(S):
 % [1] Nada Pop-Jordanova and Jordan Pop-Jordanov
 %     Spectrum-weighted EEG frequency ("Brainrate") as a quantitative 
 %     indicator of arousal 
 
-%	$Id: brainrate.m,v 1.1 2006-09-25 16:55:36 schloegl Exp $
+%	$Id: brainrate.m,v 1.2 2006-09-25 17:15:34 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
-%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
