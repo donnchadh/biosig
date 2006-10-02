@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.157 2006-09-12 06:21:44 schloegl Exp $
+%	$Id: sopen.m,v 1.158 2006-10-02 14:33:08 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -470,9 +470,9 @@ end;
                         end;
                         h2=char(h2);
                         
-                        HDR.Label      =    cellstr(h2(:,idx1(1)+1:idx1(2)));
-                        HDR.Transducer =    cellstr(h2(:,idx1(2)+1:idx1(3)));
-                        HDR.PhysDim    =    cellstr(h2(:,idx1(3)+1:idx1(4)));
+                        HDR.Label      =            h2(:,idx1(1)+1:idx1(2));
+                        HDR.Transducer =            h2(:,idx1(2)+1:idx1(3));
+                        HDR.PhysDim    =            h2(:,idx1(3)+1:idx1(4));
                         HDR.PhysMin    = str2double(h2(:,idx1(4)+1:idx1(5)));
                         HDR.PhysMax    = str2double(h2(:,idx1(5)+1:idx1(6)));
                         HDR.DigMin     = str2double(h2(:,idx1(6)+1:idx1(7)));
@@ -495,8 +495,8 @@ end;
                         if (ftell(HDR.FILE.FID)~=256),
                                 error('position error');
                         end;	 
-                        HDR.Label      =  cellstr(char(fread(HDR.FILE.FID,[16,HDR.NS],'uchar')'));		
-                        HDR.Transducer =  cellstr(char(fread(HDR.FILE.FID,[80,HDR.NS],'uchar')'));	
+                        HDR.Label      =  char(fread(HDR.FILE.FID,[16,HDR.NS],'uchar')');		
+                        HDR.Transducer =  char(fread(HDR.FILE.FID,[80,HDR.NS],'uchar')');	
                         
                         if (HDR.NS<1),	% hack for a problem with Matlab 7.1.0.183 (R14) Service Pack 3
                         		
@@ -1144,18 +1144,27 @@ end;
                 
                 if (HDR.NS>0),	% header 2
                         % Check all fields of Header2
-                        if ~isfield(HDR,'Label')
-                                HDR.Label = repmat({''},HDR.NS,16);
-                                if HDR.NS>0,
-                                        fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.Label not defined\n');
-                                end;
+                        Label = repmat(' ',HDR.NS,16); 
+                        if isfield(HDR,'Label')
+                                if ischar(HDR.Label)
+                                        sz = min([HDR.NS,16],size(HDR.Label)); 
+                                        Label(1:sz(1),1:sz(2)) = HDR.Label(1:sz(1),1:sz(2));
+                                elseif iscell(HDR.Label)
+                                        for k=1:length(HDR.Label)
+                                                tmp = [HDR.Label{k},' ']; 
+                                                sz = min(16,length(tmp)); 
+                                                Label(k,1:sz)=tmp(1:sz);
+                                        end; 
+                                end; 
+                        else
+                                fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.Label not defined\n');
                         end; 
-                        Label = strvcat(HDR.Label);     % local copy of HDR.Label
-                        if size(Label,1) < HDR.NS,
-                                Label = [Label;repmat(' ',HDR.NS-size(Label,1),size(Label,2))];
-                        end;
-                        tmp = min(16,size(Label,2));
-                        Label = [Label(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,16-tmp))];
+%                         Label = strvcat(HDR.Label);     % local copy of HDR.Label
+%                         if size(Label,1) < HDR.NS,
+%                                 Label = [Label;repmat(' ',HDR.NS-size(Label,1),size(Label,2))];
+%                         end;
+%                         tmp = min(16,size(Label,2));
+%                         Label = [Label(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,16-tmp))];
                         
                         if ~isfield(HDR,'Transducer')
                                 HDR.Transducer=repmat({' '},HDR.NS,1); %setstr(32+zeros(HDR.NS,80));
@@ -1217,7 +1226,7 @@ end;
 				HDR.PhysDimCode = HDR.PhysDimCode(1:HDR.NS);
 			end;	
                         if ~isfield(HDR,'PhysDim')
-                                HDR.PhysDim=repmat({''},HDR.NS,1); %char(32+zeros(HDR.NS,8));
+                                HDR.PhysDim=repmat({' '},HDR.NS,1); %char(32+zeros(HDR.NS,8));
                                 if HDR.NS>0,
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.PhysDim not defined\n');
                                 end;
@@ -1716,7 +1725,7 @@ elseif strcmp(HDR.TYPE,'EPL'),        % San Diego EPL system
         fprintf(HDR.FILE.stderr,'Warning SOPEN: Implementing EPL format not well tested, yet.\n');
         HDR.EPL.H1 = fread(HDR.FILE.FID,[1,64],'uint16'); 
         HDR.NS     = HDR.EPL.H1(3); 
-        HDR.Label  = cellstr(char(fread(HDR.FILE.FID,[4,32],'char')')); 
+        HDR.Label  = char(fread(HDR.FILE.FID,[4,32],'char')'); 
         HDR.EPL.H2 = char(fread(HDR.FILE.FID,[1,256],'char')); 
         ix = strfind(HDR.EPL.H2,' '); 
         %HDR.Patient.Name = HDR.EPL.H2(1:ix(2)); % do not support clear text name  
@@ -2360,7 +2369,7 @@ elseif strcmp(HDR.TYPE,'ALICE4'),
         HDR.Patient.Sex  = char(s(185));
         HDR.Patient.Date = char(s(187:194));
         [H2,c] = fread(HDR.FILE.FID,[118,HDR.NS],'char');
-        HDR.Label = cellstr(char(H2(1:12,:)'));
+        HDR.Label = char(H2(1:12,:)');
         HDR.HeadLen = ftell(HDR.FILE.FID);
         HDR.AS.bpb = HDR.NS*HDR.SampleRate + 5; 
         [a,count] = fread(HDR.FILE.FID,[HDR.AS.bpb,floor((HDR.FILE.size-HDR.HeadLen)/HDR.AS.bpb)],'uint8');
@@ -4149,8 +4158,7 @@ elseif strcmp(HDR.TYPE,'RDF'),  % UCSD ERPSS acqusition software DIGITIZE
         status = fseek(HDR.FILE.FID,552,-1);
         HDR.SampleRate  = fread(HDR.FILE.FID,1,'uint16');
         status = fseek(HDR.FILE.FID,580,-1);
-        tmp = fread(HDR.FILE.FID,[8,HDR.NS],'char');
-        HDR.Label = cellstr(char(tmp'));
+        HDR.Label = char(fread(HDR.FILE.FID,[8,HDR.NS],'char')');
         
         cnt = 0;
         ev_cnt = 0;
@@ -4396,7 +4404,7 @@ elseif strcmp(HDR.TYPE,'DDF'),
                         for k = 1:HDR.NS,
                                 fread(HDR.FILE.FID,1,'uint16')	% number of bytes in this hedader
                                 fread(HDR.FILE.FID,1,'uint16')	% channel type 0: analog, 1: digital, 2: counter
-                                HDR.Label = cellstr(char(fread(HDR.FILE.FID,[24,16],'char')'));	% 
+                                HDR.Label = char(fread(HDR.FILE.FID,[24,16],'char')');	% 
                                 tmp = fread(HDR.FILE.FID,1,'uint16')	% dataformat 0 UINT, 1: INT
                                 HDR.GDFTYP(k) = 3 + (~tmp);
                                 HDR.Cal(k) = fread(HDR.FILE.FID,1,'double');	% 
@@ -7296,6 +7304,38 @@ elseif strncmp(HDR.TYPE,'FIF',3),
         end
         
         
+elseif strncmp(HDR.TYPE,'WINEEG',3),
+        if any(HDR.FILE.PERMISSION=='r'),
+        	fprintf(HDR.FILE.stderr,'Warning SOPEN (WINEEG): this is still under developement.\n');  
+                HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
+                % HDR.FILE.OPEN = 1;
+                HDR.FILE.POS = 0;
+		HDR.EEG.H1   = fread(HDR.FILE.FID,[1,1152],'uint8'); 
+                fseek(HDR.FILE.FID,0,'bof'); 
+		HDR.EEG.H1u16  = fread(HDR.FILE.FID,[1,1152/2],'uint16'); 
+		tmp = HDR.EEG.H1(197:218); tmp(tmp==47) = ' '; tmp(tmp==0) = ' '; tmp(tmp==':') = ' ';  
+		[n,v,s] = str2double(char(tmp));
+		HDR.T0  = n([3,2,1,4,5,6]);
+		HDR.NS  = HDR.EEG.H1(3:4)*[1;256]; 
+		HDR.SampleRate = HDR.EEG.H1(5:6)*[1;256]; 
+		HDR.EEG.H2  = fread(HDR.FILE.FID,[64,HDR.NS],'uint8')'; 
+                fseek(HDR.FILE.FID,1152,'bof'); 
+		HDR.EEG.H2f32 = fread(HDR.FILE.FID,[64/4,HDR.NS],'float')'; 
+		HDR.Label   = char(HDR.EEG.H2(:,1:4));
+                %HDR.FLAG.UCAL = 1; 
+                HDR.Cal     = HDR.EEG.H2f32(:,7); 
+		HDR.PhysDim = repmat({'uV'},HDR.NS,1);
+		
+                HDR.HeadLen = ftell(HDR.FILE.FID); 
+		HDR.SPR     = floor((HDR.FILE.size-HDR.HeadLen)/(HDR.NS*2));
+		HDR.NRec    = 1; 
+                
+		HDR.data    = fread(HDR.FILE.FID,[HDR.NS,inf],'int16')'; 
+		HDR.TYPE    = 'native'; 
+		fclose(HDR.FILE.FID);
+        end;
+        
+        
 elseif strncmp(HDR.TYPE,'FS3',3),
         if any(HDR.FILE.PERMISSION=='r'),
                 HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-be');
@@ -8001,6 +8041,83 @@ elseif strcmp(HDR.TYPE,'unknown'),
                                 HDR.ELEC.XYZ  = NUM(:,3:5); 
                                 HDR.TYPE  = 'ELPOS'; 
                         end;
+                        return;
+
+                        
+                elseif strncmp(s,'Header',6);  % NIRS - Hitachi ETG 4000
+                        fid = fopen(HDR.FileName,'rt'); 
+                        HDR.s = fread(fid,[1,inf],'char=>char'); 
+                        fclose(fid);
+                        [t,s] = strtok(HDR.s,[10,13]); 
+                        HDR.VERSION = -1;
+                        while ((t(1)<'0') | (t(1)>'9'))
+                                [NUM, STATUS,STRARRAY] = str2double(t,9); 
+                                if 0
+                                elseif strncmp(t,'File Version',12)
+                                        HDR.VERSION = NUM(2);
+                                elseif strncmp(t,'Name',4)
+                                        HDR.Patient.ID  = STRARRAY{2};
+                                elseif strncmp(t,'Sex',3)
+                                        HDR.Patient.Sex = strncmpi(STRARRAY{2},'M',1)+strncmpi(STRARRAY{2},'F',1)*2;
+                                elseif strncmp(t,'Age',3)
+                                        if STATUS(2)
+                                                tmp = STRARRAY{2};
+                                                if (lower(tmp(end))=='y')
+                                                        tmp = tmp(1:end-1); 
+                                                end;
+                                                HDR.Patient.Age = str2double(tmp);
+                                        else
+                                                HDR.Patient.Age = NUM(2);
+                                        end
+                                elseif strncmp(t,'Date',4),
+                                        tmp = STRARRAY{2}; 
+                                        tmp((tmp==47) | (tmp==':')) = ' ';
+                                        tmp = str2double(tmp); 
+                                        HDR.T0(1:length(tmp)) = tmp; 
+                                elseif strncmp(t,'HPF[Hz]',7)
+                                        HDR.Filter.HighPass = NUM(2);         
+                                elseif strncmp(t,'LPF[Hz]',7)
+                                        HDR.Filter.LowPass = NUM(2);         
+                                elseif strncmp(t,'Analog Gain',11)
+                                        HDR.ETG4000.aGain = NUM(2:end);         
+                                elseif strncmp(t,'Digital Gain',12)
+                                        HDR.ETG4000.dGain = NUM(2:end);         
+                                elseif strncmp(t,'Sampling Period[s]',12)
+                                        HDR.SampleRate = 1./NUM(2);
+                                elseif strncmp(t,'Probe',5)
+                                        HDR.Label = STRARRAY(2:end);
+                                        HDR.AS.TIMECHAN = strmatch('Time',HDR.Label);
+                                end; 
+                                [t,s] = strtok(s,[10,13]); 
+                        end
+                        if (HDR.VERSION~=1.06)
+                                fprintf(HDR.FILE.stdout,'SOPEN (ETG4000): Version %f has not been tested.\n',HDR.VERSION); 
+                        end;
+                        fprintf(1,'Please wait - conversion takes some time'); 
+                        [NUM, STATUS, STRARRAY] = str2double([t,s]);
+                        if ~isempty(HDR.AS.TIMECHAN)
+                                for k = 1:size(NUM,1),
+                                        [num,status,sa] = str2double(STRARRAY{k,HDR.AS.TIMECHAN+1},': ');
+                                        NUM(k,HDR.AS.TIMECHAN+1) = num*[3600;60;1];
+                                end;
+                        end;
+                        fprintf(1,' - FINISHED\n'); 
+                        ix = ~isnan(NUM(:,1));
+                        HDR.data = NUM(ix,2:end); 
+                        HDR.TYPE = 'native'; 
+                        [HDR.SPR, HDR.NS] = size(HDR.data); 
+                        HDR.NRec = 1; 
+                        HDR.FILE.POS = 0; 
+                        %HDR.Cal = aGain.*dGain; 
+                        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
+                        HDR.PhysDimCode = zeros(HDR.NS,1);
+                        HDR.PhysDim = physicalunits(HDR.PhysDimCode); 
+                        % EVENTS
+                        evchan = strmatch('Mark',HDR.Label); 
+                        HDR.EVENT.POS = find(HDR.data(:,evchan));
+                        HDR.EVENT.TYP = HDR.data(HDR.EVENT.POS,evchan);
+                        HDR.EVENT.TYP(2:2:end) = HDR.EVENT.TYP(2:2:end)+hex2dec('8000'); 
+
                         
                 elseif strncmp(s,'NumberPositions',15) & strcmpi(HDR.FILE.Ext,'elc');  % Polhemus 
                         K = 0; 
@@ -8027,6 +8144,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                                 end
                                 [tline, s] = strtok(s, [10,13]);
                         end;
+                        return;
                         
                 elseif strncmp(s,'Site',4) & strcmpi(HDR.FILE.Ext,'txt'); 
                         [line1, s] = strtok(s, [10,13]); 
@@ -8044,6 +8162,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                                 HDR.ELEC.XYZ = NUM(:,2:4); 
                                 HDR.TYPE  = 'ELPOS'; 
                         end;
+                        return;
                         
                 elseif strcmpi(HDR.FILE.Ext,'elp')
                         [line1,s]=strtok(s,[10,13]);
@@ -8068,6 +8187,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                                         HDR.TYPE = 'ELPOS'; 
                                 end;
                         end;
+                        return;
                         
                 elseif strcmpi(HDR.FILE.Ext,'ced')
                         [line1,s]=strtok(char(s),[10,13]);
@@ -8078,6 +8198,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                                 HDR.ELEC.CHAN = NUM(:,1); 
                                 HDR.TYPE  = 'ELPOS'; 
                         end;
+                        return;
                         
                 elseif (strcmpi(HDR.FILE.Ext,'loc') | strcmpi(HDR.FILE.Ext,'locs'))
 %                        [line1,s]=strtok(char(s),[10,13]);
@@ -8091,6 +8212,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                                 HDR.ELEC.XYZ = [sin(Theta).*sin(Phi),sin(Theta).*cos(Phi),cos(Theta)]; 
 	                        HDR.TYPE  = 'ELPOS'; 
                         end;
+                        return;
                         
                 elseif strcmpi(HDR.FILE.Ext,'sfp')
                         [NUM, STATUS,STRARRAY] = str2double(char(s));
@@ -8099,6 +8221,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                                 HDR.ELEC.XYZ = NUM(:,2:4); 
                                 HDR.TYPE     = 'ELPOS'; 
                         end;
+                        return;
 
                 elseif strcmpi(HDR.FILE.Ext,'xyz')
                         [NUM, STATUS,STRARRAY] = str2double(char(s));
@@ -8108,12 +8231,12 @@ elseif strcmp(HDR.TYPE,'unknown'),
                                 HDR.ELEC.XYZ = NUM(:,2:4); 
                                 HDR.TYPE     = 'ELPOS'; 
                         end;
+                        return;
         	end;
 	else
 		%HDR.ERROR.message = sprintf('ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
 		%fprintf(HDR.FILE.stderr,'ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
         end; 
-        return;
         
 else
         %fprintf(HDR.FILE.stderr,'SOPEN does not support your data format yet. Contact <a.schloegl@ieee.org> if you are interested in this feature.\n');
@@ -8136,7 +8259,7 @@ if HDR.NS>0,
         [HDR,scale] = physicalunits(HDR); % complete information n PhysDim, and PhysDimCode
         HDR = leadidcodexyz(HDR); % complete information on  LeadIdCode and Electrode positions of EEG channels.
 
-        if ~isfield(HDR,'Label')	
+        if ~isfield(HDR,'Label')
                 HDR.Label = cellstr([repmat('#',HDR.NS,1),int2str([1:HDR.NS]')]);
         elseif isempty(HDR.Label)	
                 HDR.Label = cellstr([repmat('#',HDR.NS,1),int2str([1:HDR.NS]')]);
