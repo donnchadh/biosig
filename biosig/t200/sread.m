@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.69 2006-09-08 16:31:44 schloegl Exp $
+%	$Id: sread.m,v 1.70 2006-10-03 14:13:27 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -58,6 +58,8 @@ if (nargin==3)
         %        fprintf(HDR.FILE.stderr,'Warning SREAD: StartPos yields non-integer position\n');
                 StartPos = round(tmp)/HDR.SampleRate;
         end;
+else
+        StartPos = HDR.FILE.POS; 
 end;
 
 tmp = HDR.SampleRate*NoS;
@@ -65,19 +67,28 @@ if tmp ~= round(tmp),
         %fprintf(HDR.FILE.stderr,'Warning SREAD: NoS yields non-integer position [%f, %f]\n',NoS,HDR.SampleRate);
         NoS = round(tmp)/HDR.SampleRate;
 end;
+
+% define HDR.out.EVENT. This is used by EEGLAB. 
+ix = (HDR.EVENT.POS >= StartPos) & (HDR.EVENT.POS <= StartPos+NoS); 
+HDR.out.EVENT.POS = HDR.EVENT.POS(ix)-StartPos;
+HDR.out.EVENT.TYP = HDR.EVENT.TYP(ix);
+if isfield(HDR.EVENT,'CHN')
+        if ~isempty(HDR.EVENT.CHN)
+                HDR.out.EVENT.CHN = HDR.EVENT.CHN(ix);
+        end;
+end;
+if isfield(HDR.EVENT,'DUR')
+        if ~isempty(HDR.EVENT.DUR)
+                HDR.out.EVENT.DUR = HDR.EVENT.DUR(ix);
+        end;
+end;
+
 STATUS = 0; 
 if isfield(HDR,'THRESHOLD')     % save THRESHOLD status (will be modified in BKR);
         THRESHOLD = HDR.THRESHOLD; 
 end
 
-if (0), %strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF');
-        if nargin<3,
-                [S,HDR] = sdfread(HDR, NoS );
-        else
-                [S,HDR] = sdfread(HDR, NoS ,StartPos);
-        end;
-        
-	
+if 0, 
 elseif strcmp(HDR.TYPE,'BDF'),
         if nargin==3,
                 HDR.FILE.POS = round(HDR.SampleRate*StartPos);
@@ -1188,7 +1199,7 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
                 fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): You can downlad it from http://www.smi.auc.dk/~roberto/eeprobe/\n');
                 return;
         end
-        
+       
 elseif strcmp(HDR.TYPE,'EEProbe-AVR'),
         if nargin>2,
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -1467,3 +1478,6 @@ if ~HDR.FLAG.UCAL,
                 end;
         end;
 end;
+
+
+
