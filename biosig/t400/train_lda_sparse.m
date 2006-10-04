@@ -17,7 +17,7 @@ function [CC] = train_lda_sparse(X,G,par,tol)
 % Copyright (C) by J. Duintjer Tebbens, 18.7.2006
 % Modified for the use with Matlab6.5 by A. Schlögl, 22.Aug.2006
 %
-%	$Id: train_lda_sparse.m,v 1.2 2006-08-22 17:25:53 schloegl Exp $
+%	$Id: train_lda_sparse.m,v 1.3 2006-10-04 16:22:06 schloegl Exp $
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -38,7 +38,7 @@ function [CC] = train_lda_sparse(X,G,par,tol)
 %p = length(X(1,:));n = length(X(:,1));g = length(G(1,:));
 G = sparse(G);
 [n,p]=size(X); 
-g = size(G,2); 
+g = size(G,2);
 
 for j=1:g
         nj(j) = norm(G(:,j))^2;
@@ -47,21 +47,25 @@ Dtild = spdiags(nj'.^(-1),[0],g,g);
 Xtild = X*X';
 Xtild1 = Xtild*ones(n,1);
 %help = ones(n,1)*Xtild1'/n - (spfrob(Xtild)/n)^2*ones(n,n);
-help = ones(n,1)*Xtild1'/n - sum(Xtild(find(Xtild)).^2)/(n^2)*ones(n,n); % modified by A.S. 
+[r,c,s] = find(Xtild);
+help = ones(n,1)*Xtild1'/n - sum(s.^2)/(n^2)*ones(n,n); % modified by A.S. 
 matrix = Xtild - Xtild1*ones(1,n)/n - help;
 % eliminate non-symmetry of matrix due to rounding error:
 matrix = (matrix+matrix')/2;
 [V0,S] = eig(matrix);
 % [s,I] = sort(diag(S),'descend');
 [s,I] = sort(-diag(S)); s = -s; 
-cc = 0;
-for j=1:n
-        if s(n-j+1) < tol
-                cc = cc + 1;
-        else
-                break
-        end
-end
+
+% cc = 0;
+% for j=1:n
+%         if s(n-j+1) < tol
+%                 cc = cc + 1;
+%         else
+%                 break
+%         end
+% end
+cc = sum(s<tol);
+
 count = n-cc;
 V1 = V0(:,I(1:count));
 D1inv = diag(s(1:count).^(-1.0));
@@ -81,11 +85,11 @@ if flag ~= 0
         'eigs did not converge'
 end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Step (4)
-for j=1:g-1
+for j=1:g-1,
         C(:,j) = EV(:,I(j))/norm(EV(:,I(j)));
 end
 cc = 0;
-for j=1:g-1
+for j=1:g-1,
         if (1-s(j))<tol
                 cc = cc+1;
                 V2(:,j) = EV(:,I(j));
@@ -103,6 +107,7 @@ if cc > 0
                 C(:,j) = Q*V0(:,I(j));
         end
 end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Step (5)
 C1 = help2*Dhalf*C;
 trafo(:,1:g-1) = X'*C1 - (X'*ones(n,1))*(ones(1,n)*C1/n);
