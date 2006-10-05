@@ -17,7 +17,7 @@ function [CC] = train_lda_sparse(X,G,par,tol)
 % Copyright (C) by J. Duintjer Tebbens, 18.7.2006
 % Modified for the use with Matlab6.5 by A. Schlögl, 22.Aug.2006
 %
-%	$Id: train_lda_sparse.m,v 1.3 2006-10-04 16:22:06 schloegl Exp $
+%	$Id: train_lda_sparse.m,v 1.4 2006-10-05 13:50:08 schloegl Exp $
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -114,6 +114,7 @@ trafo(:,1:g-1) = X'*C1 - (X'*ones(n,1))*(ones(1,n)*C1/n);
 for j=1:g-1
         trafo(:,j) = trafo(:,j)/norm(trafo(:,j));
 end
+CC.trafo = trafo; 
 
 if par == 0
 %    X2 = full(test*X');

@@ -57,7 +57,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 
  
 
-%	$Id: train_sc.m,v 1.12 2006-08-22 17:16:43 schloegl Exp $
+%	$Id: train_sc.m,v 1.13 2006-10-05 13:50:08 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -180,9 +180,9 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
 	end;
         try
                 [P,R,Q] = svd(Hw,'econ');
-        catch
+        catch   % needed because SVD(..,'econ') not supported in Matlab 6.x
                 [P,R,Q] = svd(Hw,0);
-        end; 
+        end;
         t = rank(R);
 
         clear Hw Hb mu; 
@@ -212,7 +212,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
         end;
 
 
-elseif ~isempty(strfind(lower(MODE.TYPE),'slda'))
+elseif ~isempty(strfind(lower(MODE.TYPE),'sparse'))
         % [5] J.D. Tebbens and P.Schlesinger (2006), 
         %       Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
         %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
@@ -224,54 +224,18 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'slda'))
         end;
         tol  = 1e-10;
         par  = str2double(MODE.TYPE(end)); 
-        [CC.slda] = train_lda_sparse(D,G,par,tol);
+        G    = train_lda_sparse(D,G,par,tol);
         CC.datatype = 'classifier:slda';
+        POS1 = find(MODE.TYPE=='/'); 
+        CC = train_sc(D*G.trafo,classlabel,MODE.TYPE(1:POS1(1)-1));
+        CC.G = G.trafo; 
+        if isfield(CC,'weights')
+                CC.weights = [CC.weights(1,:); CC.G*CC.weights(2:end,:)];
+                CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+        else
+                CC.datatype = [CC.datatype,'/sparse'];
+        end;
 
-        return; 
-        % X = D';
-	[n,p] = size(D);
-	g = length(CL); 
-	
-		G = sparse(n,g);
-		for k = 1:g 
-			M(k,:) = mean(D(:,classlabel==CL(k)),2)';
-			G(find(classlabel==CL(k)),k) = 1; 
-		end; 
-	% step1 
-		mu = mean(D,2);
-		CC = covm(D','M');
-		X1 = CC * ones(n,1);
-		
-		tmp1 = -ones(n,1)*X1'/n + sum(CC(:)); 
-		CC   = CC - X1*ones(1,n)/n + tmp1;   
-		
-		[v,d]= eig(CC); 
-		[D1,ix] = diag(d);
-		D1 = diag(D1);  
-		V1 = v(:,ix); 
-		clear v d; 
-		
-	% step2 
-		B1 = (G*M*D - G*M*mu*ones(1,p) + tmp1)*V1*inv(D1);
-
-	% step3 
-		[v2,d2]=eigs(B1'*B1);
-		[tmp,ix]=sort(-abs(diag(d2)));
-		%V2 = v2(:,ix(1:g-1))* ;
-		
-		%eigs % eig 
-
-	% step4b 
-
-	% step4b 
-		%eig
-
-	% step5 
-		D*(V1*(D.^(-1/2)) - ones(n,1)*(ones(1,n)*V1*(D.^(-1/2))/n));
-
-        warning('sparse LDA not ready (yet)');
-        CC.weights = zeros(size(D,2)+1,1);
-                
         
 elseif ~isempty(strfind(lower(MODE.TYPE),'svm11'))
         % 1-versus-1 scheme 

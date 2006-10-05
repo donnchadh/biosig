@@ -27,7 +27,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
 
-%	$Id: test_sc.m,v 1.13 2006-09-01 17:23:14 schloegl Exp $
+%	$Id: test_sc.m,v 1.14 2006-10-05 13:50:08 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -53,7 +53,7 @@ end;
 [t3,t] = strtok(t,':');
 if ~strcmp(t1,'classifier'), return; end; 
 
-POS1 = strfind(CC.datatype,'/gsvd');
+POS1 = [strfind(CC.datatype,'/gsvd'),strfind(CC.datatype,'/sparse')];
 
 if 0, 
         
@@ -80,44 +80,12 @@ elseif isfield(CC,'weights'); %strcmpi(t2,'svm') | (strcmpi(t2,'statistical') & 
         end;
 
         
-elseif ~isempty(POS1)	% GSVD
-	CC.datatype = CC.datatype(1:POS1(1)-1);
+elseif ~isempty(POS1)	% GSVD & sparse
+	CC.datatype = CC.datatype(1:POS1(1)-1)
 	r = test_sc(CC,D*CC.G);
 	d = r.output; 
 
 
-elseif strcmp(t2,'slda');       % sparse_LDA
-        % modified code of LDA_SPARSE.M and CLASSIFS.M from J. Tebbens
-
-        n = size(D,1); 
-        g = size(CC.slda.M1,1);
-        nu = size(CC.slda.C1,2);
-        Z = triu(ones(nu,nu));
-        d = zeros(n,nu);
-        tsd = repmat(n,g);
-        for i = 1:n,
-                if isfield(CC.slda,'X'), % par=0
-                        x2 = D(i,:)*CC.slda.X';
-                else            % par = 1;
-                        x2 = D(i,:);
-                end;
-                P0  = x2(ones(g,1),:)-CC.slda.M1;
-                PM  = P0-P0/n;
-                tmp = PM*CC.slda.C1;
-                P1  = (tmp).^2;
-%                tsd(i,:)=tmp';
-                [Y,I] = min(P1*Z);
-                %     pred(i,:) = I;
-                d(i,:) = I;
-        end;
-        
-        tmp = sparse(size(d,1),length(CC.Labels));
-        for k = 1:length(CC.Labels)-1,
-                tmp(find(d(:,k)==k),k) = 1;
-        end; 
-        R.tmp = tmp; 
-        %d = tsd;
-        
 elseif strcmp(t2,'statistical');
         if isempty(mode)
                 mode.TYPE = upper(t3); 
