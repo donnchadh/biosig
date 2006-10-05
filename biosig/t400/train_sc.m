@@ -15,9 +15,9 @@ function [CC]=train_sc(D,classlabel,MODE)
 %    'LD4'      linear discriminant analysis (see LDBC4) [1]
 %    'GDBC'     general distance based classifier  [1]
 %    ''         statistical classifier, requires Mode argument in TEST_SC	
-%    '/GSVD'	GSVD and statistical classifier [2,3]
-%    'SLDA0'    sparse LDA (par=0) [5]
-%    'SLDA1'    sparse LDA (par=1) [5]
+%    '###/GSVD'	GSVD and statistical classifier [2,3], 
+%    '###/sparse'  sparse  [5] 
+%               '###' must be 'LDA' or any other classifier 
 %    'SVM','SVM1r'  support vector machines, one-vs-rest
 %               MODE.hyperparameters.c_value = 
 %    'SVM11'    support vector machines, one-vs-one + voting
@@ -54,10 +54,9 @@ function [CC]=train_sc(D,classlabel,MODE)
 % [5] J.D. Tebbens and P.Schlesinger (2006), 
 %       Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
 %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
-
  
 
-%	$Id: train_sc.m,v 1.13 2006-10-05 13:50:08 schloegl Exp $
+%	$Id: train_sc.m,v 1.14 2006-10-05 16:13:56 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -217,14 +216,12 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'sparse'))
         %       Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
         %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
 
-        warning('The use of SPARSE-LDA is experimental and not well tested.'); 
         G  = sparse([],[],[],size(D,1),length(CC.Labels),size(D,1));
         for k = 1:size(G,2),
                 G(classlabel==CC.Labels(k),k) = 1; 
         end;
         tol  = 1e-10;
-        par  = str2double(MODE.TYPE(end)); 
-        G    = train_lda_sparse(D,G,par,tol);
+        G    = train_lda_sparse(D,G,1,tol);
         CC.datatype = 'classifier:slda';
         POS1 = find(MODE.TYPE=='/'); 
         CC = train_sc(D*G.trafo,classlabel,MODE.TYPE(1:POS1(1)-1));
