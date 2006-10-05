@@ -56,7 +56,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
  
 
-%	$Id: train_sc.m,v 1.14 2006-10-05 16:13:56 schloegl Exp $
+%	$Id: train_sc.m,v 1.15 2006-10-05 21:38:12 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -124,26 +124,6 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'lpm'))
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
 
         
-elseif ~isempty(strfind(lower(MODE.TYPE),'rbf'))
-        % Martin Hieden's RBF-SVM        
-        if exist('svmpredict','file')==3,
-                MODE.TYPE = 'SVM:LIB:RBF';
-        else
-                error('No SVM training algorithm available. Install LibSVM for Matlab.\n');
-        end;
-        if ~isfield(MODE.hyperparameter,'gamma')
-                MODE.hyperparameter.gamma = 1; 
-        end
-        if ~isfield(MODE.hyperparameter,'c_value')
-                MODE.hyperparameter.c_value = 1; 
-        end
-        CC.options = sprintf('-c %g -t 2 -g %g', MODE.hyperparameter.c_value, MODE.hyperparameter.gamma);  %use RBF kernel, set C, set gamma
-        CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
-        CC.hyperparameters.gamma = MODE.hyperparameter.gamma; 
-        CC.model = svmtrain(classlabel, D, CC.options);    % Call the training mex File     
-        CC.datatype = ['classifier:',lower(MODE.TYPE)];
-
-
 elseif ~isempty(strfind(lower(MODE.TYPE),'reg'))
         % regression analysis, kann handle sparse data, too. 
         % Q: equivalent to LDA? 
@@ -216,24 +196,62 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'sparse'))
         %       Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
         %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
 
-        G  = sparse([],[],[],size(D,1),length(CC.Labels),size(D,1));
-        for k = 1:size(G,2),
+        warning('sparse LDA is sensitive to linear transformations')
+        M = length(CC.Labels); 
+        G  = sparse([],[],[],size(D,1),M,size(D,1));
+        for k = 1:M,
                 G(classlabel==CC.Labels(k),k) = 1; 
         end;
         tol  = 1e-10;
+
+        % pre-whitening
+        [D,r,m]=zscore(D,1); 
+        CC.prewhite = sparse(2:sz(2)+1,1:sz(2),r,sz(2)+1,sz(2),2*sz(2)); 
+        CC.prewhite(1,:) = -m.*r; 
+
         G    = train_lda_sparse(D,G,1,tol);
         CC.datatype = 'classifier:slda';
         POS1 = find(MODE.TYPE=='/'); 
-        CC = train_sc(D*G.trafo,classlabel,MODE.TYPE(1:POS1(1)-1));
-        CC.G = G.trafo; 
+        %G = v(:,1:size(G.trafo,2)).*G.trafo; 
+        %CC.weights = s * CC.weights(2:end,:) + sparse(1,1:M,CC.weights(1,:),sz(2)+1,M); 
+        G  = G.trafo; 
+        CC = train_sc(D*G,classlabel,MODE.TYPE(1:POS1(1)-1));
+        %CC.G = diag(v)*G; 
+        CC.G = G; 
         if isfield(CC,'weights')
-                CC.weights = [CC.weights(1,:); CC.G*CC.weights(2:end,:)];
+                CC.weights = [CC.weights(1,:); G*CC.weights(2:end,:)];
                 CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
         else
                 CC.datatype = [CC.datatype,'/sparse'];
         end;
 
         
+elseif ~isempty(strfind(lower(MODE.TYPE),'rbf'))
+        % Martin Hieden's RBF-SVM        
+        if exist('svmpredict','file')==3,
+                MODE.TYPE = 'SVM:LIB:RBF';
+        else
+                error('No SVM training algorithm available. Install LibSVM for Matlab.\n');
+        end;
+        if ~isfield(MODE.hyperparameter,'gamma')
+                MODE.hyperparameter.gamma = 1; 
+        end
+        if ~isfield(MODE.hyperparameter,'c_value')
+                MODE.hyperparameter.c_value = 1; 
+        end
+        CC.options = sprintf('-c %g -t 2 -g %g', MODE.hyperparameter.c_value, MODE.hyperparameter.gamma);  %use RBF kernel, set C, set gamma
+        CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
+        CC.hyperparameters.gamma = MODE.hyperparameter.gamma; 
+
+        % pre-whitening
+        [D,r,m]=zscore(D,1); 
+        CC.prewhite = sparse(2:sz(2)+1,1:sz(2),r,sz(2)+1,sz(2),2*sz(2)); 
+        CC.prewhite(1,:) = -m.*r; 
+
+        CC.model = svmtrain(classlabel, D, CC.options);    % Call the training mex File     
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+
+
 elseif ~isempty(strfind(lower(MODE.TYPE),'svm11'))
         % 1-versus-1 scheme 
         if ~isfield(MODE.hyperparameter,'c_value')
@@ -244,8 +262,13 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm11'))
         CC.options=sprintf('-c %g -t 0',MODE.hyperparameter.c_value);  %use linear kernel, set C
         CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
 
-        CC.model = svmtrain(classlabel, D, CC.options);    % Call the training mex File
+        % pre-whitening
+        [D,r,m]=zscore(D,1); 
+        CC.prewhite = sparse(2:sz(2)+1,1:sz(2),r,sz(2)+1,sz(2),2*sz(2)); 
+        CC.prewhite(1,:) = -m.*r; 
 
+        CC.model = svmtrain(classlabel, D, CC.options);    % Call the training mex File
+        
         FUN = 'SVM:LIB:1vs1';
         CC.datatype = ['classifier:',lower(FUN)];
 
@@ -274,6 +297,12 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
         M = length(CC.Labels);
         if M==2, M=1; end;
         CC.weights = repmat(NaN, sz(2)+1, M);
+
+        % pre-whitening
+        [D,r,m]=zscore(D,1); 
+        s = sparse(2:sz(2)+1,1:sz(2),r,sz(2)+1,sz(2),2*sz(2)); 
+        s(1,:) = -m.*r; 
+        
         for k = 1:M,
                 cl = sign((classlabel~=CC.Labels(k))-.5);
                 if strcmp(MODE.TYPE, 'SVM:LIB');
@@ -298,7 +327,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
                         w = D(inds,:)' * (a(inds).*cl(inds)) ;
 
                 elseif strcmp(MODE.TYPE, 'SVM:Gunn');
-                        [nsv, alpha, Bias,svi]  = svc(center(D), cl, 1, MODE.hyperparameter.c_value); % linear kernel, C = 1;
+                        [nsv, alpha, Bias,svi]  = svc(D, cl, 1, MODE.hyperparameter.c_value); % linear kernel, C = 1;
                         w = D(svi,:)' * alpha(svi) * cl(1);
                         Bias = mean(D*w);
 
@@ -314,6 +343,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
                 CC.weights(1,k) = -Bias;
                 CC.weights(2:end,k) = w;
         end;
+        CC.weights = s * CC.weights(2:end,:) + sparse(1,1:M,CC.weights(1,:),sz(2)+1,M); % include pre-whitening transformation
         CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
 

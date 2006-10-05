@@ -27,7 +27,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
 
-%	$Id: test_sc.m,v 1.14 2006-10-05 13:50:08 schloegl Exp $
+%	$Id: test_sc.m,v 1.15 2006-10-05 21:38:12 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -53,12 +53,18 @@ end;
 [t3,t] = strtok(t,':');
 if ~strcmp(t1,'classifier'), return; end; 
 
+if isfield(CC,'prewhite')
+        D = D*CC.prewhite(2:end,:) + CC.prewhite(ones(size(D,1),1),:);
+        CC = rmfield(CC,'prewhite');
+end;
+
 POS1 = [strfind(CC.datatype,'/gsvd'),strfind(CC.datatype,'/sparse')];
 
-if 0, 
-        
+
+if 0,
+
 elseif strcmp(CC.datatype,'classifier:svm:lib:1vs1') | strcmp(CC.datatype,'classifier:svm:lib:rbf');
-        %d = test_svm11(CC, D, classlabel); 
+        
         [cl, accuracy] = svmpredict(classlabel, D, CC.model);   %Use the classifier
 
         %Create a pseudo tsd matrix for bci4eval
@@ -81,8 +87,8 @@ elseif isfield(CC,'weights'); %strcmpi(t2,'svm') | (strcmpi(t2,'statistical') & 
 
         
 elseif ~isempty(POS1)	% GSVD & sparse
-	CC.datatype = CC.datatype(1:POS1(1)-1)
-	r = test_sc(CC,D*CC.G);
+	CC.datatype = CC.datatype(1:POS1(1)-1);
+        r = test_sc(CC,D*CC.G);
 	d = r.output; 
 
 
