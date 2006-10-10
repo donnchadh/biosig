@@ -27,7 +27,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
 
-%	$Id: test_sc.m,v 1.15 2006-10-05 21:38:12 schloegl Exp $
+%	$Id: test_sc.m,v 1.16 2006-10-10 20:25:30 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -60,7 +60,6 @@ end;
 
 POS1 = [strfind(CC.datatype,'/gsvd'),strfind(CC.datatype,'/sparse')];
 
-
 if 0,
 
 elseif strcmp(CC.datatype,'classifier:svm:lib:1vs1') | strcmp(CC.datatype,'classifier:svm:lib:rbf');
@@ -87,9 +86,9 @@ elseif isfield(CC,'weights'); %strcmpi(t2,'svm') | (strcmpi(t2,'statistical') & 
 
         
 elseif ~isempty(POS1)	% GSVD & sparse
-	CC.datatype = CC.datatype(1:POS1(1)-1);
+        CC.datatype = CC.datatype(1:POS1(1)-1);
         r = test_sc(CC,D*CC.G);
-	d = r.output; 
+        d = r.output; 
 
 
 elseif strcmp(t2,'statistical');

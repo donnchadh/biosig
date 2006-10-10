@@ -17,7 +17,7 @@ function [CC] = train_lda_sparse(X,G,par,tol)
 % Copyright (C) by J. Duintjer Tebbens, 18.7.2006
 % Modified for the use with Matlab6.5 by A. Schlögl, 22.Aug.2006
 %
-%	$Id: train_lda_sparse.m,v 1.4 2006-10-05 13:50:08 schloegl Exp $
+%	$Id: train_lda_sparse.m,v 1.5 2006-10-10 20:25:30 schloegl Exp $
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -46,9 +46,7 @@ end
 Dtild = spdiags(nj'.^(-1),[0],g,g);
 Xtild = X*X';
 Xtild1 = Xtild*ones(n,1);
-%help = ones(n,1)*Xtild1'/n - (spfrob(Xtild)/n)^2*ones(n,n);
-[r,c,s] = find(Xtild);
-help = ones(n,1)*Xtild1'/n - sum(s.^2)/(n^2)*ones(n,n); % modified by A.S. 
+help = ones(n,1)*Xtild1'/n - (ones(1,n)*Xtild'*ones(n,1))/(n^2); 
 matrix = Xtild - Xtild1*ones(1,n)/n - help;
 % eliminate non-symmetry of matrix due to rounding error:
 matrix = (matrix+matrix')/2;
@@ -56,14 +54,6 @@ matrix = (matrix+matrix')/2;
 % [s,I] = sort(diag(S),'descend');
 [s,I] = sort(-diag(S)); s = -s; 
 
-% cc = 0;
-% for j=1:n
-%         if s(n-j+1) < tol
-%                 cc = cc + 1;
-%         else
-%                 break
-%         end
-% end
 cc = sum(s<tol);
 
 count = n-cc;
@@ -77,10 +67,23 @@ M1 = Dtild*G'*Xtild;
 B1 = (G*(M1*(speye(n)-1/n))-help)*help2;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Step (3)
 opts.issym = 1;opts.isreal = 1;opts.disp = 0;
-[V0,S,flag] = eigs(B1'*B1,g-1,'lm',opts);
-EV = Dhalfinv*V0;
+%if 0, 
+try,
+        [V0,S,flag] = eigs(B1'*B1,g-1,'lm',opts);
+        EV = Dhalfinv*V0;
+        [s,I] = sort(-diag(S)); s = -s; 
+        %else
+catch
+        % needed as long as eigs is not supported by Octave
+        [V0,S] = eig(B1'*B1);
+        flag   = 0;
+        [s,I]  = sort(-diag(S)); s = -s(I(1:g-1));
+        EV = Dhalfinv * V0(:,I(1:g-1));
+        I = 1:g-1;
+end;
+%EV = Dhalfinv*V0;
 %[s,I] = sort((diag(S)),'descend');
-[s,I] = sort(-diag(S)); s = -s; 
+%[s,I] = sort(-diag(S)); s = -s; 
 if flag ~= 0
         'eigs did not converge'
 end

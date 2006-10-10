@@ -56,7 +56,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
  
 
-%	$Id: train_sc.m,v 1.15 2006-10-05 21:38:12 schloegl Exp $
+%	$Id: train_sc.m,v 1.16 2006-10-10 20:25:30 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -204,11 +204,6 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'sparse'))
         end;
         tol  = 1e-10;
 
-        % pre-whitening
-        [D,r,m]=zscore(D,1); 
-        CC.prewhite = sparse(2:sz(2)+1,1:sz(2),r,sz(2)+1,sz(2),2*sz(2)); 
-        CC.prewhite(1,:) = -m.*r; 
-
         G    = train_lda_sparse(D,G,1,tol);
         CC.datatype = 'classifier:slda';
         POS1 = find(MODE.TYPE=='/'); 
@@ -216,7 +211,6 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'sparse'))
         %CC.weights = s * CC.weights(2:end,:) + sparse(1,1:M,CC.weights(1,:),sz(2)+1,M); 
         G  = G.trafo; 
         CC = train_sc(D*G,classlabel,MODE.TYPE(1:POS1(1)-1));
-        %CC.G = diag(v)*G; 
         CC.G = G; 
         if isfield(CC,'weights')
                 CC.weights = [CC.weights(1,:); G*CC.weights(2:end,:)];
@@ -314,7 +308,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
                         model = svmtrain(cl, D, CC.options);    % C-SVC, C=1, linear kernel, degree = 1,
                         w = -cl(1) * model.SVs' * model.sv_coef;  %Calculate decision hyperplane weight vector
                         % ensure correct sign of weight vector and Bias according to class label
-                        Bias = -model.rho * cl(1);
+                        Bias  = -model.rho * cl(1);
 
                 elseif strcmp(MODE.TYPE, 'SVM:OSU');
                         [AlphaY, SVs, Bias, Parameters, nSV, nLabel] = mexSVMTrain(D', cl', [0 1 1 1 MODE.hyperparameter.c_value]);    % Linear Kernel, C=1; degree=1, c-SVM
