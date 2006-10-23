@@ -1,7 +1,7 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004-2005 Alois Schloegl <a.schloegl@ieee.org>
-# $Id: eventcodes.txt,v 1.3 2006-09-01 10:28:44 schloegl Exp $
+# $Id: eventcodes.txt,v 1.4 2006-10-23 08:57:20 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -55,16 +55,18 @@
 0x0311	Beep (accustic stimulus, BCI experiment)
 0x0312	Cross on screen (BCI experiment)
 0x0313	Flashing light
-#0x031B - 0x037f reserved for ASCII characters #27-#127
+#0x031b - 0x037f reserved for ASCII characters #27-#127
 0x0381	target hit, task successful, correct classification
 0x0382	target missed, task not reached, incorrect classification
 0x03ff	Rejection of whole trial
-### 0x040_	Sleep-related Respiratory Events
+### 0x040_	Respiratory Events
 0x0401	Obstructive Apnea/Hypopnea Event (OAHE) 
 0x0402	Respiratory Effort Related Arousal (RERA)
 0x0403	Central Apnea/Hypopnea Event (CAHE)
 0x0404	Cheyne-Stokes Breathing (CSB)
 0x0405	Sleep Hypoventilation 
+0x040e  (time of) maximum inspiration 
+0x040f	Start of inspiration, (end of expiration) 
 ### 0x041_	Sleep stages according to Rechtschaffen&Kales
 0x0410	Wake
 0x0411	Stage 1
