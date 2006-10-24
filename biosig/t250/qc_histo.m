@@ -1,9 +1,9 @@
 function HDR = qc_histo(fn,arg2)
 % QC_HISTO performs quality control using histogram and entropy analysis
 %
-%  R = qc_histo(filename); 
+%  R = qc_histo(filename [,CHAN]); 
 %
-%
+%  plota(R); displays the result as in [1]
 %
 % References: 
 % [1] A. Schlögl, B. Kemp, T. Penzel, D. Kunz, S.-L. Himanen, A. Värri, G. Dorffner, G. Pfurtscheller.
@@ -12,7 +12,7 @@ function HDR = qc_histo(fn,arg2)
 %       http://dx.doi.org/10.1016/S1388-2457(99)00172-8
 
 
-%  $Id: qc_histo.m,v 1.1 2006-09-13 17:18:00 schloegl Exp $ 
+%  $Id: qc_histo.m,v 1.2 2006-10-24 16:25:14 schloegl Exp $ 
 %  Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %  This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -38,6 +38,8 @@ if nargin<2,
 elseif ~isnumeric(arg2)
         CHAN=0;
         MODE=arg2;
+else 
+        CHAN = arg2; 
 end;
 
 HDR = sopen(fn,'r',CHAN,MODE); 
