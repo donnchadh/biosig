@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.158 2006-10-02 14:33:08 schloegl Exp $
+%	$Id: sopen.m,v 1.159 2006-10-24 16:24:27 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -731,7 +731,7 @@ end;
                         HDR.AS.endpos = HDR.AS.EVENTTABLEPOS;   % set end of data block, might be important for SSEEK
                         
                         % Classlabels according to 
-                        % http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig/t200/eventcodes.txt
+                        % http://biosig.cvs.sourceforge.net/*checkout*/biosig/biosig/doc/eventcodes.txt
                         if (length(HDR.EVENT.TYP)>0)
                                 ix = (HDR.EVENT.TYP>hex2dec('0300')) & (HDR.EVENT.TYP<hex2dec('030d'));
                                 ix = ix | ((HDR.EVENT.TYP>=hex2dec('0320')) & (HDR.EVENT.TYP<=hex2dec('037f')));
@@ -6317,25 +6317,25 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
                 HDR.Patient.Birthday = fread(HDR.FILE.FID,3,'int16');		
                 %HDR.Surname = fread(HDR.FILE.FID,40,'char')		
                 Date = fread(HDR.FILE.FID,[1,3],'int16');		
-                Date2 = fread(HDR.FILE.FID,[1,3],'int16');		
+                Date2= fread(HDR.FILE.FID,[1,3],'int16');		
                 Time = fread(HDR.FILE.FID,[1,3],'int16');		
                 HDR.T0 = [Date([3,2,1]),Time];
                 HDR.NS = fread(HDR.FILE.FID,1,'int16');		
                 HDR.Lead.Specification = fread(HDR.FILE.FID,12,'int16');		
                 HDR.Lead.Quality = fread(HDR.FILE.FID,12,'int16');		
                 AmplitudeResolution = fread(HDR.FILE.FID,12,'int16');
-                if any(HDR.Lead.AmplitudeResolution(HDR.NS+1:12)~=-9)
+                if any(AmplitudeResolution(HDR.NS+1:12)~=-9)
                         fprintf(HDR.FILE.stderr,'Warning: AmplitudeResolution and Number of Channels %i do not fit.\n',HDR.NS);
                         fclose(HDR.FILE.FID); 
                         HDR.FILE.FID = -1;	
                 end;
                 
-                HDR.PacemakerCode = fread(HDR.FILE.FID,1,'int16');		
-                HDR.TypeOfRecorder = fread(HDR.FILE.FID,40,'char');		
+                HDR.ISHNE.PacemakerCode = fread(HDR.FILE.FID,1,'int16');		
+                HDR.ISHNE.TypeOfRecorder = fread(HDR.FILE.FID,40,'char');		
                 HDR.SampleRate = fread(HDR.FILE.FID,1,'int16');		
-                HDR.Proprietary_of_ECG = fread(HDR.FILE.FID,80,'char');		
-                HDR.Copyright = fread(HDR.FILE.FID,80,'char');		
-                HDR.reserved1 = fread(HDR.FILE.FID,80,'char');		
+                HDR.ISHNE.Proprietary_of_ECG = fread(HDR.FILE.FID,80,'char');		
+                HDR.ISHNE.Copyright = fread(HDR.FILE.FID,80,'char');		
+                HDR.ISHNE.reserved1 = fread(HDR.FILE.FID,80,'char');		
                 if ftell(HDR.FILE.FID)~=HDR.offset_variable_length_block,
                         fprintf(HDR.FILE.stderr,'ERROR: length of fixed header does not fit %i %i \n',ftell(HDR.FILE.FID),HDR.offset_variable_length_block);
                         fclose(HDR.FILE.FID); 
@@ -6350,11 +6350,10 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
                         return;
                 end;
                 
-                HDR.Cal = eye(AmplitudeResolution(HDR.InChanSelect))/1000;
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
-                HDR.PhysDim = 'uV';
+                HDR.Calib  = sparse(2:HDR.NS+1,1:HDR.NS,AmplitudeResolution/1000,HDR.NS+1,HDR.NS);
+                HDR.PhysDim= 'uV';
                 HDR.AS.bpb = 2*HDR.NS;
-                HDR.GDFTYP = 'int16';
+                HDR.GDFTYP = 3; % 'int16'
                 HDR.AS.endpos = 8+2+512+HDR.variable_length_block+HDR.NS*2*HDR.SPR;
                 HDR.FLAG.TRIGGERED = 0;	% Trigger Flag
                 
@@ -7025,22 +7024,56 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                 elseif flag==4,        
                         [t1,r] = strtok(tline,'=');
                         [t2,r] = strtok(r, ['=',char([10,13])]);
-                        ix = [find(t2==','),length(t2)];
                         [chan, stat1] = str2double(t1(3:end));
-                        HDR.Label{chan,1} = [t2(1:ix(1)-1),' '];
+                        ix = [find(t2==','),length(t2)+1];
+                        tmp = [t2(1:ix(1)-1),' '];
+                        ix2 = strfind(tmp,'\1'); 
+                        for k=length(ix2):-1:1,  % replace '\1' with comma
+                                tmp = [tmp(1:ix2(k)-1),',',tmp(ix2(k)+2:end)]; 
+                        end;                                 
+                        HDR.Label{chan,1} = tmp;
                         HDR.BV.reference{chan,1} = t2(ix(1)+1:ix(2)-1);
-                        [v, stat] = str2double(t2(ix(2)+1:end));          % in microvolt
+                        [v, stat] = str2double(t2(ix(2)+1:ix(3)-1));          % in microvolt
                         if (prod(size(v))==1) & ~any(stat)
                                 HDR.Cal(chan) = v;                                
                         else
                                 UCAL = 1; 
                                 HDR.Cal(chan) = 1;
                         end;
+                        tmp = t2(ix(3)+1:end);
+                        if isequal(tmp,char([194,'µV'])), 
+                                tmp = tmp(2:3); 
+                        elseif isempty(tmp),
+                                tmp = 'µV';
+                        end; 
+                        HDR.PhysDim{chan,1} = tmp; 
                 elseif flag==5,   
                         [t1,r] = strtok(tline,'=');
                         chan = str2double(t1(3:end));
                         [v, stat] = str2double(r(2:end));
                         HDR.ELPOS(chan,:) = v;
+                elseif (flag>=7) & (flag<8),   
+                        if flag==7, 
+                                if tline(1)=='#',
+                                        flag = 7.1;
+                                end; 
+                        elseif flag==7.1,
+                                if (tline(1)<'0')|(tline(1)>'9'),
+                                        flag = 7.2; % stop 
+                                else
+                                        [n,v,s] = str2double(tline(19:end)); 
+                                        ch = n(1); 
+                                        HDR.Label{ch} = tline(7:18);
+                                        HDR.Cal(ch) = n(2);
+                                        if v(3),
+                                                HDR.PhysDim{ch} = s{3}(strncmp(s{3},char(194),1)+1:end);
+                                        end; 
+                                        HDR.Filter.LowPass(ch) = n(3+(v(3)~=0)); 
+                                        HDR.Filter.HighPass(ch)= n(4+(v(3)~=0)); 
+                                        HDR.Filter.Notch(ch)   = strcmpi(s{5+(v(3)~=0)},'on'); 
+                                end;
+                        end; 
+                        
                 end
         end
         fclose(fid);
@@ -7048,17 +7081,9 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         % convert the header information to BIOSIG standards
         HDR.NS = str2double(HDR.BV.NumberOfChannels);
         HDR.SampleRate = 1e6/str2double(HDR.BV.SamplingInterval);      % sampling rate in Hz
-        if ~UCAL & ~strncmp(HDR.BV.BinaryFormat,'IEEE_FLOAT',10),
-                fprintf(2,'Warning SOPEN (BV): missing calibration values\n');
-                HDR.FLAG.UCAL = 1; 
-        end;
         HDR.NRec = 1;                   % it is a continuous datafile, therefore one record
         HDR.Calib = [zeros(1,HDR.NS) ; diag(HDR.Cal)];  % is this correct?
-        HDR.PhysDim = 'uV';
         HDR.FLAG.TRIGGERED = 0; 
-        HDR.Filter.LowPass = repmat(NaN,HDR.NS,1);
-        HDR.Filter.HighPass = repmat(NaN,HDR.NS,1);
-        HDR.Filter.Notch = repmat(NaN,HDR.NS,1);
         
         if strncmpi(HDR.BV.BinaryFormat, 'int_16',6)
                 HDR.GDFTYP = 'int16'; 
@@ -8323,8 +8348,8 @@ if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	for k1 = find(bitand(types(:)',hex2dec('8000')));
 	        TYP0 = bitand(types(k1),hex2dec('7fff'));
 	        TYP1 = types(k1);
-	        ix0 = (HDR.EVENT.TYP==TYP0);
-	        ix1 = (HDR.EVENT.TYP==TYP1);
+	        ix0  = (HDR.EVENT.TYP==TYP0);
+	        ix1  = (HDR.EVENT.TYP==TYP1);
 
 	        if sum(ix0)==sum(ix1), 
 	                HDR.EVENT.DUR(ix0) = HDR.EVENT.POS(ix1) - HDR.EVENT.POS(ix0);
@@ -8336,7 +8361,7 @@ if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	end
 	if any(HDR.EVENT.DUR<0)
 	        fprintf(2,'Warning SOPEN: EVENT ONSET later than EVENT OFFSET\n',dec2hex(TYP0),dec2hex(TYP1));
-	        HDR.EVENT.DUR(:) = 0
+	        %HDR.EVENT.DUR(:) = 0
 	end;
 	HDR.EVENT.TYP = HDR.EVENT.TYP(~flag_remove);
 	HDR.EVENT.POS = HDR.EVENT.POS(~flag_remove);
