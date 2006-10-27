@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.70 2006-10-03 14:13:27 schloegl Exp $
+%	$Id: sread.m,v 1.71 2006-10-27 16:00:48 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -295,10 +295,10 @@ elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ISHNE','Nicolet','RG64'}),
         end;
         maxsamples = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
 	S = []; count = 0;
-	while maxsamples>0,	
-    		[s,c]  = fread(HDR.FILE.FID,[HDR.NS,min(2^16,maxsamples)], gdfdatatype(HDR.GDFTYP));
+	while maxsamples>0,
+    		[s,c]  = fread(HDR.FILE.FID,[HDR.NS,min(2^20,maxsamples)], gdfdatatype(HDR.GDFTYP));
 		count = count + c;
-		maxsamples = maxsamples - c/HDR.NS;
+		maxsamples = maxsamples - c;
         	if c,
             		S = [S;s(HDR.InChanSelect,:)'];
     		end;
