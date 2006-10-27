@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.160 2006-10-27 16:00:48 schloegl Exp $
+%	$Id: sopen.m,v 1.161 2006-10-27 16:16:55 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -6314,7 +6314,7 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
                 HDR.Patient.Id  = char(fread(HDR.FILE.FID,[1,20],'char'));		
                 HDR.Patient.Sex = fread(HDR.FILE.FID,1,'int16');		
                 HDR.Patient.Race = fread(HDR.FILE.FID,1,'int16');		
-                HDR.Patient.Birthday = fread(HDR.FILE.FID,[1,3],'int16');		
+                HDR.Patient.Birthday([3:-1:1,4:6]) = [fread(HDR.FILE.FID,[1,3],'int16'),12,0,0];		
                 %HDR.Patient.Surname  = char(fread(HDR.FILE.FID,40,'char')'); 
                 Date = fread(HDR.FILE.FID,[1,3],'int16');		
                 Date2= fread(HDR.FILE.FID,[1,3],'int16');		
@@ -6339,10 +6339,11 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
                         HDR.SampleRate = 1; 
                 end; 
                 HDR.ISHNE.Proprietary_of_ECG = char(fread(HDR.FILE.FID,[1,80],'char'));		
-                HDR.ISHNE.Copyright = char(fread(HDR.FILE.FID,[1,80],'char'));		
-                HDR.ISHNE.reserved1 = char(fread(HDR.FILE.FID,[1,80],'char'));		
+                HDR.ISHNE.Copyright = char(fread(HDR.FILE.FID,[1,80],'char'));
+                HDR.ISHNE.reserved1 = char(fread(HDR.FILE.FID,[1,80],'char'));
                 if ftell(HDR.FILE.FID) ~= HDR.offset_variable_length_block,
                         fprintf(HDR.FILE.stderr,'ERROR: length of fixed header does not fit %i %i \n',ftell(HDR.FILE.FID),HDR.offset_variable_length_block);
+                        HDR.ISHNE.reserved2 = char(fread(HDR.FILE.FID,[1,max(0,HDR.offset_variable_length_block-ftell(HDR.FILE.FID))],'char'));
                         fseek(HDR.FILE.FID,HDR.offset_variable_length_block,'bof'); 
                 end;
                 HDR.VariableHeader=fread(HDR.FILE.FID,[1,HDR.variable_length_block],'char');	
