@@ -33,8 +33,10 @@ function [br,sef90,sef95] = brainrate(s,Fs,UC,A)
 % [1] Nada Pop-Jordanova and Jordan Pop-Jordanov
 %     Spectrum-weighted EEG frequency ("Brainrate") as a quantitative 
 %     indicator of arousal 
+%     Contributions, Sec. Biol. Med. Sci., MASA, XXVI, 2, p. 35–42 (2005)
+%     ISSN 0351–3254, UDK: 616.831-073.97
 
-%	$Id: brainrate.m,v 1.2 2006-09-25 17:15:34 schloegl Exp $
+%	$Id: brainrate.m,v 1.3 2006-11-02 14:04:55 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
