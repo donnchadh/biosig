@@ -6,8 +6,8 @@ function [CNT,h,e]=cntopen(arg1,arg2,arg3,arg4,arg5,arg6)
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
 
-%	$Revision: 1.38 $
-%	$Id: cntopen.m,v 1.38 2006-10-08 21:41:07 schloegl Exp $
+%	$Revision: 1.39 $
+%	$Id: cntopen.m,v 1.39 2006-11-03 14:33:21 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -391,10 +391,11 @@ CNT.Patient.State=char(h.state');	%
 CNT.Session.Label=char(h.label');	%	
 CNT.Date=char(h.date');	%	
 CNT.Time=char(h.time');	%	
-%% data format MM-DD-YYYY
-%CNT.T0 = [str2double(CNT.Date(7:length(CNT.Date))),str2double(CNT.Date(1:2)),str2double(CNT.Date(4:5)),str2double(CNT.Time(1:2)),str2double(CNT.Time(4:5)),str2double(CNT.Time(7:8))];
-%% data format DD-MM-YYYY
-CNT.T0 = [str2double(CNT.Date(7:length(CNT.Date))),str2double(CNT.Date(4:5)),str2double(CNT.Date(1:2)),str2double(CNT.Time(1:2)),str2double(CNT.Time(4:5)),str2double(CNT.Time(7:8))];
+if any(CNT.Date=='/') & ~any(CNT.Date=='-') & ~any(CNT.Date=='.'),	%% data format MM/DD/YYYY
+	CNT.T0 = [str2double(CNT.Date(7:length(CNT.Date))),str2double(CNT.Date(1:2)),str2double(CNT.Date(4:5)),str2double(CNT.Time(1:2)),str2double(CNT.Time(4:5)),str2double(CNT.Time(7:8))];
+else %if ~any(CNT.Date=='/'),	%% data format DD-MM-YYYY or DD.MM.YYYY 
+	CNT.T0 = [str2double(CNT.Date(7:length(CNT.Date))),str2double(CNT.Date(4:5)),str2double(CNT.Date(1:2)),str2double(CNT.Time(1:2)),str2double(CNT.Time(4:5)),str2double(CNT.Time(7:8))];
+end;
 % check year
 if     CNT.T0(1) > 99,
 elseif CNT.T0(1) > 80, 	CNT.T0(1) = CNT.T0(1) + 1900;
@@ -402,7 +403,7 @@ else			CNT.T0(1) = CNT.T0(1) + 2000;
 end;
 % check day & month
 if CNT.T0(2)>12,
-        fprintf(2, 'Warning CNTOPEN: month and day might be mixed up %i-%i-%i-%i-%i-%i \n',CNT.T0);
+        fprintf(2, 'Warning CNTOPEN: month and day were mixed up %i-%i-%i-%i-%i-%i \n',CNT.T0);
         CNT.T0(2:3) = CNT.T0([3,2]);
 end;
 
@@ -410,8 +411,6 @@ CNT.NS = h.nchannels;	%
 CNT.SampleRate=h.rate;	% D-to-A rate	
 CNT.Scale=h.scale;	% scale factor for calibration
 CNT.Scale2=h.ampsensitivity;
-CNT.ChanTyp=zeros(CNT.NS,1);
-%CNT.ChanTyp(h.trigchnl)=
 CNT.HeadLen = 900 + 75*CNT.NS;
 CNT.PhysDim = repmat({'µV'},CNT.NS,1);
 
