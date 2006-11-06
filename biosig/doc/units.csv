@@ -7,7 +7,7 @@
 # CEN/TC251/PT40 2001	
 # File Exchange Format for Vital Signs - Annex A 
 #
-# $Id: units.csv,v 1.4 2006-09-08 16:34:39 schloegl Exp $
+# $Id: units.csv,v 1.5 2006-11-06 17:07:24 schloegl Exp $
 # Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 # This file is part of the biosig project http://biosig.sf.net/
 #
@@ -181,7 +181,7 @@
 ,,"ML2I-1T-3 (electric potential)",
 4256,"V",,"<magnitude> volt(s)"
 ,,"ML2I-2T-3 (electric resistance)",
-4288,"W",,"<magnitude> ohm(s)"
+4288,"Ohm",,"<magnitude> ohm(s)"
 ,,"ML3I-2T-3 (electrical resistivity)",
 4320,"Wm",,"<magnitude> ohm metre(s)"
 ,,"I2T4M-1L-2 (electrical capacitance)",
