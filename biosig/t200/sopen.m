@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.161 2006-10-27 16:16:55 schloegl Exp $
+%	$Id: sopen.m,v 1.162 2006-11-07 16:28:23 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -7061,7 +7061,13 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                                 end; 
                         elseif flag==7.1,
                                 if (tline(1)<'0')|(tline(1)>'9'),
-                                        flag = 7.2; % stop 
+                                	if ~isempty(strfind(tline,'Impedance')); 
+                                		ix1 = find(tline=='['); 
+                                		ix2 = find(tline==']'); 
+                                		Zunit = tline(ix1+1:ix2-1);
+                                		[Zcode,Zscale]=physicalunits(Zunit);
+                                        	flag = 7.2; % stop 
+                                        end;
                                 else
                                         [n,v,s] = str2double(tline(19:end)); 
                                         ch = n(1); 
@@ -7070,31 +7076,40 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                                         if v(3),
                                                 HDR.PhysDim{ch} = s{3}(strncmp(s{3},char(194),1)+1:end);
                                         end; 
-                                        HDR.Filter.LowPass(ch) = n(3+(v(3)~=0)); 
-                                        HDR.Filter.HighPass(ch)= n(4+(v(3)~=0)); 
+                                        HDR.Filter.LowPass(ch) = n(4+(v(3)~=0)); % High Cut Off [Hz]
+                                        HDR.Filter.HighPass(ch)= 1/(2*pi*n(3+(v(3)~=0))); % Low Cut Off [s]: f = 1/(2.pi.tau)
                                         HDR.Filter.Notch(ch)   = strcmpi(s{5+(v(3)~=0)},'on'); 
                                 end;
+                        elseif flag==7.2,
+                        	[n,v,s]=str2double(tline,[': ',9]); 
+                        	ch = strmatch(s{1},HDR.Label); 
+                        	if ~isempty(strfind(tline,'Out of Range!'))
+                        		n(2) = Inf; 
+                       		end; 
+                        	if any(ch),
+	                        	HDR.REC.Impedance(ch,1) = n(2)*Zscale;
+                        	end; 
                         end; 
-                        
-                end
-        end
+                end;
+        end;
         fclose(fid);
 
         % convert the header information to BIOSIG standards
         HDR.NS = str2double(HDR.BV.NumberOfChannels);
         HDR.SampleRate = 1e6/str2double(HDR.BV.SamplingInterval);      % sampling rate in Hz
-        HDR.NRec = 1;                   % it is a continuous datafile, therefore one record
+        HDR.NRec  = 1;                   % it is a continuous datafile, therefore one record
         HDR.Calib = [zeros(1,HDR.NS) ; diag(HDR.Cal)];  % is this correct?
         HDR.FLAG.TRIGGERED = 0; 
         
         if strncmpi(HDR.BV.BinaryFormat, 'int_16',6)
-                HDR.GDFTYP = 'int16'; 
+                HDR.GDFTYP = 3; % 'int16'; 
                 HDR.AS.bpb = HDR.NS * 2; 
+                HDR.THRESHOLD = repmat([-2^15,2^15-1],HDR.NS,1);
         elseif strncmpi(HDR.BV.BinaryFormat, 'ieee_float_32',13)
-                HDR.GDFTYP = 'float32'; 
+                HDR.GDFTYP = 16; % 'float32'; 
                 HDR.AS.bpb = HDR.NS * 4; 
         elseif strncmpi(HDR.BV.BinaryFormat, 'ieee_float_64',13)
-                HDR.GDFTYP = 'float64'; 
+                HDR.GDFTYP = 17; % 'float64'; 
                 HDR.AS.bpb = HDR.NS * 8; 
         end
         
@@ -7475,7 +7490,6 @@ elseif strcmp(HDR.TYPE,'STX'),
 		
 		tmp = fread(fid,5,'long');
 		HDR.HeadLen = 116;
-
 		
                 fclose(HDR.FILE.FID);
         end
