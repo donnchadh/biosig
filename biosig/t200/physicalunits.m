@@ -19,7 +19,9 @@ function [out,scale] = physicalunits(arg1)
 % Reference(s): 
 % [1] CEN/TC251/PT40 (2001)	
 % 	File Exchange Format for Vital Signs - Annex A 
-
+% [2] The Unified Code for Units of Measure (UCUM)
+% 	http://aurora.regenstrief.org/UCUM/ucum.html
+	
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -35,7 +37,7 @@ function [out,scale] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.10 2006-09-08 16:33:39 schloegl Exp $
+%	$Id: physicalunits.m,v 1.11 2006-11-07 16:24:33 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -50,6 +52,7 @@ if ~BIOSIG_GLOBAL.ISLOADED;
 	[p,f,e]=fileparts(f); 
 	[p,f,e]=fileparts(p); 
 	
+	%%%---------- Load Decimal factors ------------%%%
 	BIOSIG_GLOBAL.ISLOADED = 0 ; 
 	fid  = fopen(fullfile(p,'doc','DecimalFactors.txt'),'r');
         line = fgetl(fid);
@@ -72,6 +75,7 @@ if ~BIOSIG_GLOBAL.ISLOADED;
 	fclose(fid);
 	BIOSIG_GLOBAL.DecimalFactor = DecimalFactor;
 
+	%%%---------- Physical units ------------%%%
 	fid = fopen(fullfile(p,'doc','units.csv'));
         line = fgetl(fid);
         N1 = 0; N2 = 0;
@@ -102,6 +106,34 @@ if ~BIOSIG_GLOBAL.ISLOADED;
         end;
 	fclose(fid);
 	BIOSIG_GLOBAL.Units = UnitsOfMeasurement;
+
+	%%%---------- Load x73-UCUM Table ------------%%%
+	fid=fopen('IEEEandUCUM.1b.txt','rt');
+	if fid>1,
+		r = char(fread(fid,[1,inf],'char')); 
+		fclose(fid);
+		while strncmp(r,'#',1)
+			[line,r] = strtok(r,[10,13]); 
+		end;
+		K1 = 1; 
+		[line,r] = strtok(r,[10,13]);
+		while ~isempty(r),
+			ix = [0,find(line == 9),length(line)+1]; % tab
+			for K2 = 1:length(ix)-2, 
+				if ix(K2)+2>ix(K2+1)-2,
+					tab{K1,K2} = ' ';	
+				else	
+					tab{K1,K2} = line(ix(K2)+2:ix(K2+1)-2); 
+				end; 	
+			end;
+			K2 = length(ix)-1; 
+			tab{K1,6} = str2double(line(ix(K2)+1:ix(K2+1)-1));
+			 
+			[line,r] = strtok(r,[10,13]);
+			K1 = K1+1; 
+		end;
+		BIOSIG_GLOBAL.x73_UCUM = tab;
+	end; 	
 
 	BIOSIG_GLOBAL.ISLOADED = 1;
 end; 
@@ -184,6 +216,8 @@ elseif ischar(arg1) | iscell(arg1)
                		Code(k) = 4256 + 18;
 		elseif strcmp(unit,'uV')
               		Code(k) = 4256 + 19;
+		elseif strcmp(unit,'Ohm')
+               		Code(k) = 4288;
 		elseif strcmp(unit,'K')
               		Code(k) = 4384;
 		elseif strcmp(unit,'°F')
@@ -207,6 +241,23 @@ elseif ischar(arg1) | iscell(arg1)
 			end;
 			end;
 			end;
+
+			%%%%% usis x73-UCUM table, col 3 and 4 %%%%
+			ix2 = []; 
+			ix3 = []; 
+			if isfield(BIOSIG_GLOBAL,'x73_UCUM')
+			for k1=1:length(BIOSIG_GLOBAL.DecimalFactor.Code)
+			for k2=1:size(BIOSIG_GLOBAL.x73_UCUM,1)
+			if strcmpi(unit,[BIOSIG_GLOBAL.DecimalFactor.Prefix{k1},BIOSIG_GLOBAL.x73_UCUM{k2,3}])
+				ix2 = [ix2,BIOSIG_GLOBAL.x73_UCUM{k2,6} + BIOSIG_GLOBAL.DecimalFactor.Code(k1)];
+			end;
+			if strcmpi(unit,[BIOSIG_GLOBAL.DecimalFactor.Prefix{k1},BIOSIG_GLOBAL.x73_UCUM{k2,4}])
+				ix3 = [ix3,BIOSIG_GLOBAL.x73_UCUM{k2,6} + BIOSIG_GLOBAL.DecimalFactor.Code(k1)];
+			end;
+			end;
+			end;
+			end; 
+
 			if length(ix)==1,
 				Code(k) = ix; 
 			elseif length(ix)>1,
@@ -216,8 +267,12 @@ elseif ischar(arg1) | iscell(arg1)
 				else
 					warning('ambigous physical unit')
 				end; 	
+			elseif length(ix2)==1,
+				Code(k) = ix2; 
+			elseif length(ix3)==1,
+				Code(k) = ix3; 
 			end;	
-                end
+                end;
         end;        
 	scale = repmat(NaN,size(Code));
 	for k = 1:numel(Code); 
