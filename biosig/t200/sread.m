@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.71 2006-10-27 16:00:48 schloegl Exp $
+%	$Id: sread.m,v 1.72 2006-11-09 19:05:45 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1220,11 +1220,14 @@ elseif strcmp(HDR.TYPE,'BrainVision'),   %Brainvision
                         end;
                         
                         nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
-                        [dat, count] = fread(HDR.FILE.FID, [HDR.NS, nr], HDR.GDFTYP);
-                        
-                        % rename and transpose the data
-                        S = dat(HDR.InChanSelect,:)';
-                        HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+                        S = []; 
+                        count = 0; 
+                        while (count<nr),
+                        	[s,c] = fread(HDR.FILE.FID, [HDR.NS, min(nr-count,floor(2^24/HDR.NS))], gdfdatatype(HDR.GDFTYP));
+                        	S = [S; s(HDR.InChanSelect,:)'];
+                        	count = count + c/HDR.NS; 
+			end; 
+                        HDR.FILE.POS = HDR.FILE.POS + count;
                         
                 elseif strncmpi(HDR.BV.DataOrientation, 'vectorized',6),
                         S = [];
@@ -1233,7 +1236,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),   %Brainvision
                         count = 0; 
                         for chan = 1:length(HDR.InChanSelect);
                                 STATUS = fseek(HDR.FILE.FID, HDR.HeadLen + HDR.FILE.POS + HDR.AS.bpb*HDR.SPR*(chan-1)/HDR.NS, 'bof');
-                                [s,count] = fread(HDR.FILE.FID, [nr,1], HDR.GDFTYP);
+                                [s,count] = fread(HDR.FILE.FID, [nr,1], gdfdatatype(HDR.GDFTYP));
                                 if count ~= nr,
                                         fprintf(2,'ERROR READ BV-bin-vec: \n');
                                         return;
@@ -1432,12 +1435,14 @@ elseif isfield(HDR,'THRESHOLD') & HDR.FLAG.OVERFLOWDETECTION,
         ix = (S~=S);
         for k=1:length(HDR.InChanSelect),
                 TH = THRESHOLD(HDR.InChanSelect(k),:);
-                ix(:,k) = (S(:,k)<=TH(1)) | (S(:,k)>=TH(2));
+                %ix(:,k) = (S(:,k)<=TH(1)) | (S(:,k)>=TH(2));
+                ix = (S(:,k)<=TH(1)) | (S(:,k)>=TH(2));
+                S(ix,k)=NaN;
         end
         if exist('double','builtin')
                 S = double(S);
         end;
-        S(ix>0) = NaN;
+%        S(ix>0) = NaN;
 elseif HDR.FLAG.OVERFLOWDETECTION,
         % no HDR.THRESHOLD defined
 elseif isfield(HDR,'THRESHOLD'),
