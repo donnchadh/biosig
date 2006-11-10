@@ -17,6 +17,8 @@ function [signal,H] = sload(FILENAME,varargin)
 %	'NUMBER_OF_NAN_IN_BREAK'   N		inserts N NaN's between two concatanated segments
 %						default: N=100
 %	'SampleRate'		Fs		target sampling rate (supports resampling)
+%	'EOG_CORRECTION'	'On'		uses two-channel regression analysis - if possible 
+%				'Off'		no correction of EOG artifacts [default]
 %	
 % The list of supported formats is available here: 
 % http://bci.tugraz.at/~schloegl/biosig/TESTED
@@ -36,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.62 2006-09-01 10:09:26 schloegl Exp $
+%	$Id: sload.m,v 1.63 2006-11-10 15:35:37 schloegl Exp $
 %	Copyright (C) 1997-2006 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -61,9 +63,11 @@ else
 	MODE = varargin{2};
 end;
 
-CHAN = 0; STATE.UCAL = 0; 
+CHAN = 0; 
+STATE.UCAL = 0; 
 STATE.OVERFLOWDETECTION = 1; 
 STATE.NUMBER_OF_NAN_IN_BREAK = 100; 
+STATE.EOG_CORRECTION = 0 ; 
 Fs = NaN; 
 k = 1; 
 while (k<=length(varargin))
@@ -71,7 +75,15 @@ while (k<=length(varargin))
 		if (k==1), CHAN=varargin{k}; end;
 	elseif ~isempty(strfind(varargin{k},'UCAL'))
 		MODE = varargin{k}; 
-		STATE.UCAL = 1; 
+		if strcmpi(varargin{k+1},'on'); 
+			STATE.UCAL = 1; 
+			k=k+1;
+		elseif strcmpi(varargin{k+1},'off'); 
+			STATE.UCAL = 0; 
+			k=k+1;
+		else
+			STATE.UCAL = 1; 
+		end; 
 	elseif ~isempty(strfind(varargin{k},'OVERFLOWDETECTION:OFF'))
 		MODE = varargin{k}; 
 		STATE.OVERFLOWDETECTION = 0;
@@ -82,6 +94,15 @@ while (k<=length(varargin))
 			STATE.OVERFLOWDETECTION = 0;
 		elseif isnumeric(varargin{k+1})
 			STATE.OVERFLOWDETECTION = varargin{k+1};
+		end;			
+		k=k+1;
+	elseif strcmpi(varargin{k},'EOG_CORRECTION')
+		if strcmpi(varargin{k+1},'on'); 
+			STATE.EOG_CORRECTION = 1;
+		elseif strcmpi(varargin{k+1},'off'); 
+			STATE.EOG_CORRECTION = 0;
+		elseif isnumeric(varargin{k+1})
+			STATE.EOG_CORRECTION = varargin{k+1};
 		end;			
 		k=k+1;
 	elseif strcmpi(varargin{k},'Number_of_nan_in_break')
@@ -216,6 +237,7 @@ else
 end;
 H.FLAG.UCAL = STATE.UCAL;
 H.FLAG.OVERFLOWDETECTION = STATE.OVERFLOWDETECTION;
+H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
 
 if strncmp(H.TYPE,'IMAGE:',5)
 	[H,signal] = iopen(H);
@@ -228,6 +250,33 @@ if strncmp(H.TYPE,'IMAGE:',5)
 end;
 
 signal = [];
+%%%%%%%%%% --------- EOG CORRECTION -------------- %%%%%%
+if H.FLAG.EOG_CORRECTION,
+try
+        h = get_bbci_regress_eog(H.FileName); 
+
+	% generate correction matrix 
+	if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | (any(CHAN<0) & (numel(CHAN)>1));
+	        ReRefMx = CHAN; 
+	        CHAN = find(any(CHAN,2));
+	elseif all(CHAN>0),
+		if any(diff(CHAN)<=0),
+		%	fprintf(HDR.FILE.FID,'Warning SOPEN: CHAN-argument not sorted - header information like Labels might not correspond to data.\n');
+		end;	
+	        ReRefMx = sparse(CHAN,1:length(CHAN),1,h.NS,length(CHAN));
+	else    
+	        ReRefMx = sparse(CHAN,1:length(CHAN),1); 
+	end
+        CHAN = h.REGRESS.r0*ReRefMx;
+catch,
+	H.FLAG.EOG_CORRECTION = 0; 
+end;
+end; 
+if H.FLAG.EOG_CORRECTION ~= STATE.EOG_CORRECTION, 
+	fprintf(2, 'Warning: EOG correction not supported for this file (%s)!\n',H.FileName); 
+end; 	
+
+%%%%%%%%%%%%%%% --------- Load single file ------------%%%%%%%%%%%
 H = sopen(H,'r',CHAN,MODE);
 if 0,
         
