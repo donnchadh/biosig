@@ -1,7 +1,7 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
-# Copyright (C) 2004-2005 Alois Schloegl <a.schloegl@ieee.org>
-# $Id: eventcodes.txt,v 1.4 2006-10-23 08:57:20 schloegl Exp $
+# Copyright (C) 2004,2005,2006 Alois Schloegl <a.schloegl@ieee.org>
+# $Id: eventcodes.txt,v 1.5 2006-11-10 14:32:45 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -77,6 +77,29 @@
 ### 0x042_	Sleep
 0x0420	Lights on 
 #0x8420	Lights off
+### 0x043_ 	Eye movements
+0x0430	close
+#0x8430	open
+0x0431	left
+0x0432	right
+0x0433	up
+0x0434	down
+0x0435	horizontal
+0x0436	vertical
+0x0437	rotation (clockwise)
+0x0438	rotation (counterclockwise)
+0x0439	blinks
+### 0x044_ 	muscle activity (for checking on EEG artifacts)
+0x0441	left hand
+0x0442	right hand
+0x0443	head
+0x0444	tongue
+0x0445	chewing 
+0x0446	biting 
+0x0447	foot
+%0x0448	foot (right)
+0x0449	arm 
+0x044a	arm (right)
 ### 0x050_	ECG events
 0x0501	ecg:Fiducial point of QRS complex
 0x0502	ecg:P-wave
@@ -165,5 +188,7 @@
 0x0063	condition 99
 0x0080	condition 128
 ### 0x7f__      special codes
-0x07ff  non-equidistant sampleing value
+0x7ffe	start of a new segment (after a break)
+0x7fff  non-equidistant sampling value
 # 
+
