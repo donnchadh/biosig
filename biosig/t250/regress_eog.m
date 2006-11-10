@@ -3,8 +3,11 @@ function [R,S] = regress_eog(D,ny,nx)
 %  correcting EOG artifacts in EEG recordings.
 %  
 %  The correction of a single record is obtained like this:      
-%   [R,S2] = regress_eog(filename, el, ol)
-%   [R,S2] = regress_eog(S1, el, ol)
+%   [R,S2] = regress_eog(S1, EL, OL)
+%   [R,S2] = regress_eog(filename, EL, OL)
+%   [R,S2] = regress_eog(filename)
+%	OL = IDENTIFY_EOG_CHANNELS(filename)
+%	EL are all remaining channels
 %       
 %  Correction matrix is obtained through
 %   [R] = regress_eog(covm(S1,'E'), EL, OL)
@@ -19,13 +22,13 @@ function [R,S] = regress_eog(D,ny,nx)
 %  R    rereferencing matrix for correction artifacts with regression analysis
 %  S2   corrected EEG-signal      
 %
-% see also: SAVE2BKR
+% see also: IDENTIFY_EOG_CHANNELS, SLOAD
 %
 % Reference(s):
-% [1] A. Schlögl and G. Pfurtscheller,
-%    EOG and ECG minimization based on regression analysis, Technical Report - SIESTA, 1997.
-%    available online: http://www.dpmi.tu-graz.ac.at/%7Eschloegl/publications/Eog_min.pdf
-
+% [1] Schlogl A, Keinrath C, Zimmermann D, Scherer R, Leeb R, Pfurtscheller G. 
+%	A fully automated correction method of EOG artifacts in EEG recordings.
+%	Clin Neurophysiol. 2006 Nov 4;
+% 	http://dx.doi.org/10.1016/j.clinph.2006.09.003
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -41,8 +44,8 @@ function [R,S] = regress_eog(D,ny,nx)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.5 $
-%	$Id: regress_eog.m,v 1.5 2005-01-04 11:04:13 schloegl Exp $
+%	$Revision: 1.6 $
+%	$Id: regress_eog.m,v 1.6 2006-11-10 15:28:48 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -50,6 +53,12 @@ function [R,S] = regress_eog(D,ny,nx)
 if ischar(D),
         [D,H] = sload(D);
         C = covm(D,'E');
+        if (nargin<3)
+        	nx = identify_eog_channels(H); 
+       	end; 
+        if (nargin<2)
+               	ny = find(~any(nx,2)); 
+       	end; 
         
 elseif size(D,1)==size(D,2)
         C = D; 
@@ -68,7 +77,6 @@ R.Mode = 0; % correction without mean
 a = speye(H.NS+1);
 if size(nx,1)==1,  % list of noise channel 
         nx  = nx(:);
-        
 else    % noise channels are defined through rereferencing (e.g. bipoloar channels)
         tmp = H.NS+(1:size(nx,2)); 
         a(2:size(nx,1)+1,tmp+1) = nx;
@@ -77,7 +85,6 @@ else    % noise channels are defined through rereferencing (e.g. bipoloar channe
         end; 
         C   = a'*C*a; 
         nx  = tmp';
-        
 end;
 ny = ny(:);
 
