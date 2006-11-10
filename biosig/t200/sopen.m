@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.162 2006-11-07 16:28:23 schloegl Exp $
+%	$Id: sopen.m,v 1.163 2006-11-10 15:38:15 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -6961,23 +6961,28 @@ elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
         %read event file 
         fid = fopen(HDR.FileName,'rt');
         if fid>0,
+        	NoSegs = 0;  
                 while ~feof(fid),
                         u = fgetl(fid);
                         if strncmp(u,'Mk',2),
                                 [N,s] = strtok(u(3:end),'=');
                                 ix = find(s==',');
-                                ix(length(ix)+1)=length(s)+1;
+                                ix(length(ix)+1) = length(s)+1;
                                 N = str2double(N);
                                 HDR.EVENT.POS(N,1) = str2double(s(ix(2)+1:ix(3)-1));
                                 HDR.EVENT.TYP(N,1) = 0;
                                 HDR.EVENT.DUR(N,1) = str2double(s(ix(3)+1:ix(4)-1));
                                 HDR.EVENT.CHN(N,1) = str2double(s(ix(4)+1:ix(5)-1));
                                 HDR.EVENT.TeegType{N,1} = s(2:ix(1)-1);
-                                HDR.EVENT.TeegDesc{N,1} = s(ix(1)+1:ix(2)-1);
-                                if strncmp(u,'Mk1=New Segment,',16),
+                                HDR.EVENT.Desc{N,1} = s(ix(1)+1:ix(2)-1);
+                                if strncmp('New Segment',s(2:ix(1)-1),4); 
                                         t = s(ix(5)+1:end); 
-                                        HDR.T0 = str2double(char([t(1:4),32,t(5:6),32,t(7:8),32,t(9:10),32,t(11:12),32,t(13:14)])); 
+                                        NoSegs = NoSegs+1; 
+                                        HDR.EVENT.Segments{NoSegs}.T0 = str2double(char([t(1:4),32,t(5:6),32,t(7:8),32,t(9:10),32,t(11:12),32,t(13:14)])); 
+                                        HDR.EVENT.Segments{NoSegs}.Start = HDR.EVENT.POS(N); 
+	                                HDR.EVENT.TYP(N,1) = hex2dec('7ffe');
                                 end; 
+                                HDR.T0 = HDR.EVENT.Segments{1}.T0; 
                         end;
                 end;
                 fclose(fid);
@@ -7049,11 +7054,14 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                                 tmp = 'µV';
                         end; 
                         HDR.PhysDim{chan,1} = tmp; 
+                        
                 elseif flag==5,   
-                        [t1,r] = strtok(tline,'=');
-                        chan = str2double(t1(3:end));
-                        [v, stat] = str2double(r(2:end));
-                        HDR.ELPOS(chan,:) = v;
+                	% Coordinates: <R>,<theta>,<phi>
+                        tline(tline=='=')=',';
+                        v = str2double(tline(3:end));
+                        chan = v(1); R=v(2); Theta = v(3)*pi/180; Phi = v(4)*pi/180; 
+                        HDR.ELEC.XYZ(chan,:) = R*[sin(Theta).*cos(Phi),sin(Theta).*sin(Phi),cos(Theta)]; 
+                        
                 elseif (flag>=7) & (flag<8),   
                         if flag==7, 
                                 if tline(1)=='#',
@@ -7065,24 +7073,25 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                                 		ix1 = find(tline=='['); 
                                 		ix2 = find(tline==']'); 
                                 		Zunit = tline(ix1+1:ix2-1);
-                                		[Zcode,Zscale]=physicalunits(Zunit);
+                                		[Zcode,Zscale] = physicalunits(Zunit);
                                         	flag = 7.2; % stop 
                                         end;
                                 else
-                                        [n,v,s] = str2double(tline(19:end)); 
-                                        ch = n(1); 
+                                        %[n,v,s] = str2double(tline(19:end)); 
+                                        [n,v,s] = str2double(tline); 
+                                        ch = n(1);
                                         HDR.Label{ch} = tline(7:18);
-                                        HDR.Cal(ch) = n(2);
+                                        HDR.Cal(ch) = n(4);
                                         if v(3),
-                                                HDR.PhysDim{ch} = s{3}(strncmp(s{3},char(194),1)+1:end);
+                                                HDR.PhysDim{ch} = s{5}(strncmp(s{5},char(194),1)+1:end);
                                         end; 
-                                        HDR.Filter.LowPass(ch) = n(4+(v(3)~=0)); % High Cut Off [Hz]
-                                        HDR.Filter.HighPass(ch)= 1/(2*pi*n(3+(v(3)~=0))); % Low Cut Off [s]: f = 1/(2.pi.tau)
-                                        HDR.Filter.Notch(ch)   = strcmpi(s{5+(v(3)~=0)},'on'); 
+                                        HDR.Filter.HighPass(ch)= 1/(2*pi*n(5+(v(3)~=0))); % Low Cut Off [s]: f = 1/(2.pi.tau)
+                                        HDR.Filter.LowPass(ch) = n(6+(v(3)~=0)); % High Cut Off [Hz]
+                                        HDR.Filter.Notch(ch)   = strcmpi(s{7+(v(3)~=0)},'on'); 
                                 end;
                         elseif flag==7.2,
                         	[n,v,s]=str2double(tline,[': ',9]); 
-                        	ch = strmatch(s{1},HDR.Label); 
+                        	ch = strmatch(s{1},HDR.Label);
                         	if ~isempty(strfind(tline,'Out of Range!'))
                         		n(2) = Inf; 
                        		end; 
@@ -7157,7 +7166,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                 end;
         end
         HDR.SPR = HDR.AS.endpos;
-        
+
         
 elseif strncmp(HDR.TYPE,'EEProbe',7),
 	if strcmp(HDR.TYPE,'EEProbe-CNT'),
