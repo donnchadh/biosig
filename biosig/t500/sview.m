@@ -1,4 +1,4 @@
-function [argout,s]=sview(s,arg2),
+function [argout,s]=sview(s,varargin),
 % SVIEW - a simple signal viewer 
 %    SVIEW(filename)
 %    SVIEW(HDR)
@@ -6,9 +6,8 @@ function [argout,s]=sview(s,arg2),
 %
 % See also: SLOAD 
 
-%	$Revision: 1.16 $
-%	$Id: sview.m,v 1.16 2006-08-30 17:58:52 schloegl Exp $ 
-%	Copyright (c) 2004 by Alois Schlögl <a.schloegl@ieee.org>	
+%	$Id: sview.m,v 1.17 2006-11-10 14:30:40 schloegl Exp $ 
+%	Copyright (c) 2004,2006 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -25,21 +24,16 @@ function [argout,s]=sview(s,arg2),
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-if nargin<2, 
-	arg2='';
+if length(varargin),
+        H=varargin{1}; 
+        arg2=varargin{1}; 
 else
-        H=arg2; 
+	arg2==0;         
 end;
 
 if ischar(s) | iscell(s),
-        if nargin<2,
-                [s,H] = sload(s);
-		CHAN  = 1:size(s,2); 
-        else
-		CHAN  = H;
-                [s,H] = sload(s,CHAN);
-%                CHAN  = 1:size(s,2);      
-        end;
+	[s,H] = sload(s,varargin{:});
+	CHAN = 1:size(s,2);
 	
 elseif isstruct(s)
         [s,H] = sload(s);
