@@ -22,7 +22,7 @@
 %  you can excluded the path to NaN/*. The BIOSIG tools will still 
 %  work, but does not support the handling of NaN's.
 
-%	$Id: install.m,v 1.10 2006-06-10 12:46:37 schloegl Exp $
+%	$Id: install.m,v 1.11 2006-11-15 15:07:15 schloegl Exp $
 %	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -50,8 +50,10 @@ if ~exist('OCTAVE_VERSION','builtin'),
 end;
 
 path([BIOSIG_HOME,'/tsa/'],path);		%  Time Series Analysis
+path([BIOSIG_HOME,'/tsa/inst/'],path);		%  Time Series Analysis
 % some users might get confused by this
 path([BIOSIG_HOME,'/NaN/'],path);		%  Statistics analysis for missing data
+path([BIOSIG_HOME,'/NaN/inst/'],path);		%  Statistics analysis for missing data
 
 if exist([BIOSIG_HOME,'/biosig/eeglab/'],'dir'),
 	path([BIOSIG_HOME,'/biosig/eeglab/'],path);
