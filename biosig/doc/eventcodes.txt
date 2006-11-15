@@ -1,7 +1,7 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004,2005,2006 Alois Schloegl <a.schloegl@ieee.org>
-# $Id: eventcodes.txt,v 1.5 2006-11-10 14:32:45 schloegl Exp $
+# $Id: eventcodes.txt,v 1.6 2006-11-15 15:49:24 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -94,8 +94,8 @@
 0x0442	right hand
 0x0443	head
 0x0444	tongue
-0x0445	chewing 
-0x0446	biting 
+0x0445	swallowing
+0x0446	biting, chewing, teeth griding 
 0x0447	foot
 %0x0448	foot (right)
 0x0449	arm 
