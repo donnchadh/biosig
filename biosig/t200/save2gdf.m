@@ -27,7 +27,7 @@ function [HDR] = save2gdf(arg1,arg2,arg3);
 %   data	data samples
 %
 
-% 	$Id: save2gdf.m,v 1.8 2005-11-24 21:03:29 schloegl Exp $
+% 	$Id: save2gdf.m,v 1.9 2006-11-20 10:16:23 schloegl Exp $
 %	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>		
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -81,6 +81,10 @@ if isstruct(arg1),
                 elseif HDR.NS==size(data,1),
                         warning('data is transposed\n');
                         data = data';
+                elseif HDR.NS==size(data,2)+1,
+                	HDR.NS = size(data,2); 
+                        %warning('data is transposed\n');
+                        %data = data';
                 else
                         fprintf(2,'HDR.NS=%i is not equal number of data columns %i\n',HDR.NS,size(data,2));
                         return;
@@ -244,5 +248,4 @@ for k=1:length(infile);
                 HDR.FileName = fullfile(HDR.FILE.Path,[HDR.FILE.Name,Ext]);
         end;
         HDR=save2gdf(HDR,data);
-        
 end;

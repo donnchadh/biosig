@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.163 2006-11-10 15:38:15 schloegl Exp $
+%	$Id: sopen.m,v 1.164 2006-11-20 10:16:23 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -399,7 +399,11 @@ end;
                                 [sex, tmp] = strtok(tmp,' ');
                                 [bd, tmp] = strtok(tmp,' ');
                                 [HDR.Patient.Name, tmp] = strtok(tmp,' ');
-                                HDR.Patient.Sex = any(sex(1)=='mM') + any(sex(1)=='Ff')*2;
+                                if length(sex)>0,
+	                                HDR.Patient.Sex = any(sex(1)=='mM') + any(sex(1)=='Ff')*2;
+	                        else
+	                        	HDR.Patient.Sex = 0; % unknown 
+	                        end; 
                                 if (length(bd)==11),
 					HDR.Patient.Birthday = datevec(bd);
 					HDR.Patient.Birthday(4) = 12;
@@ -1150,7 +1154,7 @@ end;
                                         sz = min([HDR.NS,16],size(HDR.Label)); 
                                         Label(1:sz(1),1:sz(2)) = HDR.Label(1:sz(1),1:sz(2));
                                 elseif iscell(HDR.Label)
-                                        for k=1:length(HDR.Label)
+                                        for k=1:min(HDR.NS,length(HDR.Label))
                                                 tmp = [HDR.Label{k},' ']; 
                                                 sz = min(16,length(tmp)); 
                                                 Label(k,1:sz)=tmp(1:sz);
@@ -1165,7 +1169,7 @@ end;
 %                         end;
 %                         tmp = min(16,size(Label,2));
 %                         Label = [Label(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,16-tmp))];
-                        
+
                         if ~isfield(HDR,'Transducer')
                                 HDR.Transducer=repmat({' '},HDR.NS,1); %setstr(32+zeros(HDR.NS,80));
                         end; 
@@ -1183,21 +1187,21 @@ end;
                                 elseif (numel(HDR.Filter.LowPass)==1)
                                         HDR.Filter.LowPass = repmat(HDR.Filter.LowPass,1,HDR.NS); 
                                 elseif (numel(HDR.Filter.LowPass)~=HDR.NS)
-                                        fprintf(HDR.FILE.stderr,'SOPEN (GDF) WRITE: HDR.Filter.LowPass has incorrrect number of field!\n')
+                                        fprintf(HDR.FILE.stderr,'SOPEN (GDF) WRITE: HDR.Filter.LowPass has incorrrect number of fields!\n')
                                 end;
                                 if ~isfield(HDR.Filter,'HighPass')
                                         HDR.Filter.HighPass = repmat(NaN,1,HDR.NS); 
                                 elseif (numel(HDR.Filter.HighPass)==1)
                                         HDR.Filter.HighPass = repmat(HDR.Filter.HighPass,1,HDR.NS); 
                                 elseif (numel(HDR.Filter.HighPass)~=HDR.NS)
-                                        fprintf(HDR.FILE.stderr,'SOPEN (GDF) WRITE: HDR.Filter.HighPass has incorrrect number of field!\n')
+                                        fprintf(HDR.FILE.stderr,'SOPEN (GDF) WRITE: HDR.Filter.HighPass has incorrrect number of fields!\n')
                                 end;
                                 if ~isfield(HDR.Filter,'Notch')
                                         HDR.Filter.Notch = repmat(NaN,1,HDR.NS); 
                                 elseif (numel(HDR.Filter.Notch)==1)
                                         HDR.Filter.Notch = repmat(HDR.Filter.Notch,1,HDR.NS); 
                                 elseif (numel(HDR.Filter.Notch)~=HDR.NS)
-                                        fprintf(HDR.FILE.stderr,'SOPEN (GDF) WRITE: HDR.Filter.Notch has incorrrect number of field!\n')
+                                        fprintf(HDR.FILE.stderr,'SOPEN (GDF) WRITE: HDR.Filter.Notch has incorrrect number of fields!\n')
                                 end;
                         end;
                         if ~isfield(HDR,'PreFilt')
@@ -1225,23 +1229,28 @@ end;
                         if isfield(HDR,'PhysDimCode')
 				HDR.PhysDimCode = HDR.PhysDimCode(1:HDR.NS);
 			end;	
+                        PhysDim = char(32+zeros(HDR.NS,8));
                         if ~isfield(HDR,'PhysDim')
-                                HDR.PhysDim=repmat({' '},HDR.NS,1); %char(32+zeros(HDR.NS,8));
+                                HDR.PhysDim=repmat({' '},HDR.NS,1);
+	                        PhysDim = char(32+zeros(HDR.NS,8));
                                 if HDR.NS>0,
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.PhysDim not defined\n');
                                 end;
                         else
                                 if length(HDR.PhysDim)==0,
-                                        HDR.PhysDim = repmat({''},HDR.NS,1);
+                                        HDR.PhysDim = repmat({' '},HDR.NS,1);
                                 elseif size(HDR.PhysDim,1)<HDR.NS,
                                         HDR.PhysDim = repmat(HDR.PhysDim,HDR.NS,1);
                                 elseif size(HDR.PhysDim,1)>HDR.NS,
                                         HDR.PhysDim = HDR.PhysDim(1:HDR.NS); 
                                 end;
+	                        PhysDim = strvcat(HDR.PhysDim); % local copy 
+	                        if size(PhysDim,1)~=HDR.NS,
+		                        PhysDim = char(32+zeros(HDR.NS,8));
+				end; 	                        
                         end;
-                        PhysDim = strvcat(HDR.PhysDim); % local copy 
-                        tmp=min(8,size(PhysDim,2));
-                        PhysDim=[PhysDim(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,8-tmp))];
+                        tmp = min(8,size(PhysDim,2));
+                        PhysDim = [PhysDim(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,8-tmp))];
 
                         HDR = physicalunits(HDR);
                         if ~all(HDR.PhysDimCode>0)
@@ -1534,7 +1543,7 @@ end;
                                 h2(:,idx1(9)+1:idx1(10))=reshape(sprintf('%-8i',HDR.AS.SPR)',8,HDR.NS)';
                                 h2(abs(h2)==0)=char(32);
                                 for k=1:length(H2idx);
-                                        fwrite(HDR.FILE.FID,abs(h2(:,idx1(k)+1:idx1(k+1)))','uchar');
+                                        c=fwrite(HDR.FILE.FID,abs(h2(:,idx1(k)+1:idx1(k+1)))','uchar');
                                 end;
                         else
                                 fwrite(HDR.FILE.FID, abs(Label)','uchar');
@@ -1556,29 +1565,29 @@ end;
                                         fwrite(HDR.FILE.FID, HDR.GDFTYP,'uint32');
 	                                fwrite(HDR.FILE.FID,32*ones(32,HDR.NS),'char');
                                 else
-	                                fwrite(HDR.FILE.FID, abs(PhysDim(:,1:6))','uchar');
-	                                fwrite(HDR.FILE.FID, HDR.PhysDimCode,'uint16');
-	                                fwrite(HDR.FILE.FID, HDR.PhysMin,'float64');
-	                                fwrite(HDR.FILE.FID, HDR.PhysMax,'float64');
+	                                fwrite(HDR.FILE.FID, abs(PhysDim(1:HDR.NS,1:6))','uchar');
+	                                fwrite(HDR.FILE.FID, HDR.PhysDimCode(1:HDR.NS),'uint16');
+	                                fwrite(HDR.FILE.FID, HDR.PhysMin(1:HDR.NS),'float64');
+	                                fwrite(HDR.FILE.FID, HDR.PhysMax(1:HDR.NS),'float64');
 
-                                        fwrite(HDR.FILE.FID, HDR.DigMin, 'float64');
-                                        fwrite(HDR.FILE.FID, HDR.DigMax, 'float64');
+                                        fwrite(HDR.FILE.FID, HDR.DigMin(1:HDR.NS), 'float64');
+                                        fwrite(HDR.FILE.FID, HDR.DigMax(1:HDR.NS), 'float64');
                                         
-                                        fwrite(HDR.FILE.FID, abs(HDR.PreFilt(:,1:68))','uchar');
-                                        fwrite(HDR.FILE.FID, HDR.Filter.LowPass,'float32');
-                                        fwrite(HDR.FILE.FID, HDR.Filter.HighPass,'float32');
-                                        fwrite(HDR.FILE.FID, HDR.Filter.Notch,'float32');
-                                        fwrite(HDR.FILE.FID, HDR.AS.SPR,'uint32');
-                                        fwrite(HDR.FILE.FID, HDR.GDFTYP,'uint32');
-                                        fwrite(HDR.FILE.FID, HDR.ELEC.XYZ','float32');
-                                        fwrite(HDR.FILE.FID, max(0,min(255,round(log2(HDR.REC.Impedance)*8)')),'uint8');
+                                        fwrite(HDR.FILE.FID, abs(HDR.PreFilt(1:HDR.NS,1:68))','uchar');
+                                        fwrite(HDR.FILE.FID, HDR.Filter.LowPass(1:HDR.NS),'float32');
+                                        fwrite(HDR.FILE.FID, HDR.Filter.HighPass(1:HDR.NS),'float32');
+                                        fwrite(HDR.FILE.FID, HDR.Filter.Notch(1:HDR.NS),'float32');
+                                        fwrite(HDR.FILE.FID, HDR.AS.SPR(1:HDR.NS),'uint32');
+                                        fwrite(HDR.FILE.FID, HDR.GDFTYP(1:HDR.NS),'uint32');
+                                        fwrite(HDR.FILE.FID, HDR.ELEC.XYZ(1:HDR.NS,:)','float32');
+                                        fwrite(HDR.FILE.FID, max(0,min(255,round(log2(HDR.REC.Impedance(1:HDR.NS))*8)')),'uint8');
                                         fwrite(HDR.FILE.FID,32*ones(32-13,HDR.NS),'char');
 				end;
                         end;
                 end;
                 tmp = ftell(HDR.FILE.FID);
                 if tmp ~= (256 * (HDR.NS+1)) 
-                        fprintf(1,'Warning SOPEN (GDF/EDF/BDF)-WRITE: incorrect header length %i bytes\n',tmp);
+                        fprintf(1,'Warning SOPEN (GDF/EDF/BDF)-WRITE: incorrect header length %i vs. %i bytes\n',tmp, 256*(HDR.NS+1) );
                         %else   fprintf(1,'SOPEN (GDF/EDF/BDF) in write mode: header info stored correctly\n');
                 end;        
 
