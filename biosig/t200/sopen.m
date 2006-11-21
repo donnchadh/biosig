@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.164 2006-11-20 10:16:23 schloegl Exp $
+%	$Id: sopen.m,v 1.165 2006-11-21 11:29:04 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -6996,7 +6996,12 @@ elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
                 end;
                 fclose(fid);
                 HDR.TYPE = 'EVENT';
-        end
+
+                tmp = which('sopen'); %%% used for BBCI
+                if exist(fullfile(fileparts(tmp),'bv2biosig_events.m'),'file'); 
+                	HDR = bv2biosig_events(HDR); 
+                end; 
+        end; 
 
         
 elseif strcmp(HDR.TYPE,'BrainVision'),
@@ -7876,6 +7881,28 @@ elseif strcmp(HDR.TYPE,'ATF'),  % axon text file
         end
 
         
+elseif strncmp(HDR.TYPE,'CSE',3),  % axon text file 
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
+                HDR.HeadLen = 3000; 
+		HDR.H1   = fread(HDR.FILE.FID,HDR.HeadLen,'char');
+		HDR.data = fread(HDR.FILE.FID,[3,inf],'int16')'; 
+		[HDR.SPR, HDR.NS] = size(HDR.data); 
+		HDR.NRec = 1; 
+
+%		% reconstruction of transitions not fixed. 
+%		d = diff([zeros(1,HDR.NS);HDR.data],[],1); 
+%		e = -sign(d)*2^16; 
+%		e(abs(d) <= 2^15) = 0; 
+%		%HDR.data = HDR.data + cumsum(e); 
+		
+		fclose(HDR.FILE.FID);
+		HDR.TYPE = 'native'; 
+		HDR.LeadIdCode = repmat(0,HDR.NS,1);
+		HDR.FILE.POS = 0; 
+	end; 
+
+
 elseif strcmp(HDR.TYPE,'BIFF'),
 	try, 
 		NEW_INTERFACE=1; 
@@ -8258,6 +8285,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                                 HDR.TYPE  = 'ELPOS'; 
                         end;
                         return;
+                        
                         
                 elseif (strcmpi(HDR.FILE.Ext,'loc') | strcmpi(HDR.FILE.Ext,'locs'))
 %                        [line1,s]=strtok(char(s),[10,13]);

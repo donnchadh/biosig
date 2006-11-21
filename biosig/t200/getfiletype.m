@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.53 2006-08-12 19:35:11 schloegl Exp $
+%	$Id: getfiletype.m,v 1.54 2006-11-21 11:29:05 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -874,6 +874,11 @@ else
                                 HDR.s = char(s);
                                 s = HDR.s; 
                         end; 
+                        s = s(1:3000); 
+                        if all((s==32) | ((s>='0') & (s<='9'))) & strcmpi(HDR.FILE.Ext,'DCD');
+                        	HDR.HeadLen = 3000; 
+                        	HDR.TYPE = 'CSE-database';
+                        end; 	
                 end;
         end;
         fclose(fid);
@@ -1024,7 +1029,7 @@ else
                                 fn = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.bni']);   % nicolet 
                                 if exist(fn, 'file')
                                         fid = fopen(fn,'r','ieee-le');
-                                        HDR.Header = char(fread(fid,[1,inf],'uchar'));
+                                        HDR.Header = char(fread(fid,[1,1e6],'uchar'));
                                         fclose(fid);
                                 end;
                                 fn = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.eeg']);
@@ -1038,7 +1043,7 @@ else
                                         end
                                         datalen = fread(fid,1,'uint32');
                                         status  = fseek(fid,datalen,'bof');
-                                        HDR.Header = char(fread(fid,[1,inf],'uchar'));
+                                        HDR.Header = char(fread(fid,[1,1e6],'uchar'));
                                         fclose(fid);
                                 end;
                                 pos_rate = strfind(HDR.Header,'Rate =');
