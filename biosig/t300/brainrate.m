@@ -36,7 +36,7 @@ function [br,sef90,sef95] = brainrate(s,Fs,UC,A)
 %     Contributions, Sec. Biol. Med. Sci., MASA, XXVI, 2, p. 35–42 (2005)
 %     ISSN 0351–3254, UDK: 616.831-073.97
 
-%	$Id: brainrate.m,v 1.3 2006-11-02 14:04:55 schloegl Exp $
+%	$Id: brainrate.m,v 1.4 2006-11-22 13:51:42 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -59,7 +59,7 @@ function [br,sef90,sef95] = brainrate(s,Fs,UC,A)
 [N,K] = size(s); 	% number of electrodes K, number of samples N
 MOP = 15; 		% order of autoregressive model 
 
-if nargin<2, 
+if nargin<3, 
         UC = 0; 
 end;
 if nargin<3;
