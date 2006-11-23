@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.63 2006-11-10 15:35:37 schloegl Exp $
+%	$Id: sload.m,v 1.64 2006-11-23 09:53:05 schloegl Exp $
 %	Copyright (C) 1997-2006 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -252,6 +252,7 @@ end;
 signal = [];
 %%%%%%%%%% --------- EOG CORRECTION -------------- %%%%%%
 if H.FLAG.EOG_CORRECTION,
+CHAN0 = CHAN; % backup;
 try
         h = get_bbci_regress_eog(H.FileName); 
 
@@ -264,20 +265,35 @@ try
 		%	fprintf(HDR.FILE.FID,'Warning SOPEN: CHAN-argument not sorted - header information like Labels might not correspond to data.\n');
 		end;	
 	        ReRefMx = sparse(CHAN,1:length(CHAN),1,h.NS,length(CHAN));
-	else    
-	        ReRefMx = sparse(CHAN,1:length(CHAN),1); 
+	else %if (CHAN==0)    
+		ReRefMx = []; 
 	end
-        CHAN = h.REGRESS.r0*ReRefMx;
+	if ~isempty(ReRefMx),
+	        CHAN = h.REGRESS.r0*ReRefMx;
+	else
+	        CHAN = h.REGRESS.r0;
+	end;         
 catch,
+	fprintf(H.FILE.stderr,'Error: SLOAD (EOG_CORRECTION): %s\n',lasterr); 
 	H.FLAG.EOG_CORRECTION = 0; 
+	CHAN = CHAN0; %restore original config
 end;
 end; 
-if H.FLAG.EOG_CORRECTION ~= STATE.EOG_CORRECTION, 
-	fprintf(2, 'Warning: EOG correction not supported for this file (%s)!\n',H.FileName); 
-end; 	
 
 %%%%%%%%%%%%%%% --------- Load single file ------------%%%%%%%%%%%
 H = sopen(H,'r',CHAN,MODE);
+if H.FLAG.EOG_CORRECTION ~= STATE.EOG_CORRECTION, 
+	fprintf(2, 'Warning: EOG correction not supported for this file (%s)!\n',H.FileName); 
+end; 	
+if STATE.EOG_CORRECTION,
+if h.NS~=H.NS,
+	fprintf(2, 'Error: (EOG correction).Number of channels differ! (%i!=%i)\n',H.NS,h.NS); 
+end; 	
+if ~isequal(H.Label,h.Label)
+	fprintf(2, 'Warning: (EOG correction). Channel labels do not fit! \n'); 
+end; 
+end;
+
 if 0,
         
 elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat','EEProbe-CNT','EEProbe-AVR'})); 
