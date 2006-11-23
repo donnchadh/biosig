@@ -56,7 +56,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
  
 
-%	$Id: train_sc.m,v 1.16 2006-10-10 20:25:30 schloegl Exp $
+%	$Id: train_sc.m,v 1.17 2006-11-23 09:47:57 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -88,12 +88,12 @@ if sz(1)~=length(classlabel),
         error('length of data and classlabel does not fit');
 end;
 
+[CC.Labels] = unique(classlabel);
+
 % remove all NaN's
 ix = any(isnan([D,classlabel]),2);
 D(ix,:)=[];
 classlabel(ix,:)=[];
-
-[CC.Labels] = unique(classlabel);
 
 sz = size(D);
 if sz(1)~=length(classlabel),
@@ -349,7 +349,7 @@ else          % Linear and Quadratic statistical classifiers
         for k = 1:length(CC.Labels),
                 [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
         end;
-
+save matlab_trainsc
         ECM = CC.MD./CC.NN;
         NC  = size(ECM);
         if strncmpi(MODE.TYPE,'LD',2);

@@ -49,7 +49,7 @@ else
         end;
 
         if any(isnan(XCN(:))),
-	        error('DECOVM: Extended Covariance Matrix must not contain NaN''s');
+	        warning('DECOVM: Extended Covariance Matrix should not contain NaN''s');
 	end;
         if det(XCN)<0,
                 warning('DECOVM: Extended Covariance Matrix must be non-negative definite');
