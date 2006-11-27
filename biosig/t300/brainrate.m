@@ -36,7 +36,7 @@ function [br,sef90,sef95] = brainrate(s,Fs,UC,A)
 %     Contributions, Sec. Biol. Med. Sci., MASA, XXVI, 2, p. 35–42 (2005)
 %     ISSN 0351–3254, UDK: 616.831-073.97
 
-%	$Id: brainrate.m,v 1.4 2006-11-22 13:51:42 schloegl Exp $
+%	$Id: brainrate.m,v 1.5 2006-11-27 14:10:38 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -88,25 +88,29 @@ end;
 s = center(s,1);
 for k2=1:K,
 	if ~UC,
-		a = lattice(s(:,k2)',MOP); 	
+		[a,r,pe] = lattice(s(:,k2)',MOP); 	
 	else
 		X = tvaar(s(:,k2)',MOP,UC); 
 		X = tvaar(s(:,k2)',X);
 		a = X.AAR;  
+		pe= X.PE; 
 	end;
 
+	
+	fi = [2:4:18];	% f_i list of center frequencies
 	for k1 = 1:size(a,1),
-		f = .1:.1:20; 
-		h = freqz(1,[1,-a(k1,:)],f,Fs); 
-		h2= abs(h).^2; 
-		br(k1,k2) = sum(f.*h2)/sum(h2); 
-		sef90(k1,k2) = f(min(find(h2>=.90*h2(end)))); 
-		sef95(k1,k2) = f(min(find(h2>=.95*h2(end)))); 
+		%h = freqz(sqrt(pe(k1)/Fs),[1,-a(k1,:)],f,Fs); 
+		% scaling not important because relative spectral distribution is used
+		h = freqz(1,[1,-a(k1,:)],fi,Fs); 
+		h2= abs(h); 
+		br(k1,k2) = sum(fi.*h2)/sum(h2); 
 	end; 
+
 
 	if 0,nargout>1,
 	for k1 = 1:size(a,1),
 		f = (0:256)/512*Fs; 
+		%h = freqz(sqrt(pe(k1)/Fs),[1,-a(k1,:)],f,Fs); 
 		h = freqz(1,[1,-a(k1,:)],f,Fs); 
 		h2= cumsum(abs(h2).^2); 
 		sef90(k1,k2) = f(min(find(h2>=.90*h2(end)))); 
