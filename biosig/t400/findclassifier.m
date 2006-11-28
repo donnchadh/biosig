@@ -42,7 +42,7 @@ function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
 %	(Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller;
 %	Towards Brain-Computer Interfacing, MIT press (accepted)
 
-%   $Id: findclassifier.m,v 1.9 2006-07-10 15:06:24 schloegl Exp $
+%   $Id: findclassifier.m,v 1.10 2006-11-28 08:38:58 schloegl Exp $
 %   Copyright (C) 1999-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -137,6 +137,7 @@ end;
 CC = cc{TI};
 CC.KAPPA = KAPPA;
 CC.TI = TI;
+CC.TC = T(TI,:);
 
 if isnan(maxQ)
 	fprintf(2,'ERROR FINDCLASSIFIER: no valid classifier available.\n'); 
@@ -185,4 +186,4 @@ for l = 1:length(CL2);          % XV based on "Leave-One(group)-Out-Method"
 end; 
 
 CC.TSD  = bci4eval(tsd, (0:length(cl)-1)'*nc, cl, 1, nc);
-
+CC.TSD.T = CC.TSD.T - 1 + min(T(:));
