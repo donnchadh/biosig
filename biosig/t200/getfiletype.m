@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.54 2006-11-21 11:29:05 schloegl Exp $
+%	$Id: getfiletype.m,v 1.55 2006-12-12 10:21:04 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -868,14 +868,15 @@ else
 
                 if strcmp(HDR.TYPE,'unknown')
                         frewind(fid);
-                        s = fread(fid,[1,1e5],'uint8');
+                        [s,len] = fread(fid,[1,1e5],'uint8');
                         HDR.FLAG.ASCII = all((s>=32) | (s==9) | (s==10) | (s==13));
                         if HDR.FLAG.ASCII,
                                 HDR.s = char(s);
                                 s = HDR.s; 
                         end; 
-                        s = s(1:3000); 
-                        if all((s==32) | ((s>='0') & (s<='9'))) & strcmpi(HDR.FILE.Ext,'DCD');
+                        
+                        if all((s==32) | ((s>='0') & (s<='9'))) & strcmpi(HDR.FILE.Ext,'DCD') & (len>=3000);
+	                        s = s(1:3000); 
                         	HDR.HeadLen = 3000; 
                         	HDR.TYPE = 'CSE-database';
                         end; 	
