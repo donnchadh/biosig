@@ -28,10 +28,9 @@ function [H,HDR]=eeg2hist(FILENAME,CHAN);
 % [4] A. Schlögl, Time Series Analysis toolbox for Matlab. 1996-2003
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/tsa/
 
-%	$Revision: 1.3 $
-% 	$Id: eeg2hist.m,v 1.3 2003-02-01 15:23:18 schloegl Exp $
-%       Version 0.92        16 Jan 2003
+% 	$Id: eeg2hist.m,v 1.4 2006-12-22 15:08:59 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -53,7 +52,7 @@ function [H,HDR]=eeg2hist(FILENAME,CHAN);
 if nargin<2, CHAN=0; end; 
 
 
-HDR = eegopen(FILENAME,'r',CHAN,'UCAL');	% open EEG file in uncalibrated mode (no scaling of the data)
+HDR = sopen(FILENAME,'r',CHAN,'UCAL');	% open EEG file in uncalibrated mode (no scaling of the data)
 if HDR.FILE.FID<0,
         fprintf(2,'EEG2HIST: couldnot open file %s.\n',FILENAME); 
         return;
@@ -64,7 +63,7 @@ if CHAN<1, CHAN=1:HDR.NS; end;
 H.datatype='HISTOGRAM';
 
 if strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'CNT') | strcmp(HDR.TYPE,'EEG'),
-        [s,HDR]=eegread(HDR);
+        [s,HDR]=sread(HDR);
         
         H.H = zeros(2^16,HDR.NS);
         for l = 1:HDR.NS,
@@ -80,7 +79,7 @@ if strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'CNT') | strcmp(HDR.TYPE,'EEG'),
 
         
 elseif strcmp(HDR.TYPE,'BDF'),
-        [s,HDR] = eegread(HDR);
+        [s,HDR] = sread(HDR);
         
         H.H = sparse(2^24,HDR.NS);
         for l = 1:HDR.NS,
@@ -128,5 +127,5 @@ else
 end;
 H.N = sum(H.H);
 
-HDR=eegclose(HDR);
+HDR = sclose(HDR);
 
