@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.165 2006-11-21 11:29:04 schloegl Exp $
+%	$Id: sopen.m,v 1.166 2006-12-22 15:10:02 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -104,7 +104,12 @@ else
         HDR.FILE.PERMISSION = PERMISSION; 
 end;
 
-if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | (any(CHAN<0) & (numel(CHAN)>1));
+LABELS = {}; 
+if iscell(CHAN),
+	LABELS = CHAN; 
+	CHAN = 0; 
+	ReRefMx = []; 
+elseif all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | (any(CHAN<0) & (numel(CHAN)>1));
         ReRefMx = CHAN; 
         CHAN = find(any(CHAN,2));
 elseif all(CHAN>0),
@@ -7120,7 +7125,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         % convert the header information to BIOSIG standards
         HDR.NS = str2double(HDR.BV.NumberOfChannels);
         HDR.SampleRate = 1e6/str2double(HDR.BV.SamplingInterval);      % sampling rate in Hz
-        HDR.NRec  = 1;                   % it is a continuous datafile, therefore one record
+        HDR.NRec  = 1;		% it is a continuous datafile, therefore one record
         HDR.Calib = [zeros(1,HDR.NS) ; diag(HDR.Cal)];  % is this correct?
         HDR.FLAG.TRIGGERED = 0; 
         
@@ -7136,7 +7141,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                 HDR.AS.bpb = HDR.NS * 8; 
         end
         
-        %read event file 
+        % read event file 
         H = sopen(fullfile(HDR.FILE.Path, HDR.BV.MarkerFile),'rt');
         if strcmp(H.TYPE,'EVENT');
                 HDR.EVENT = H.EVENT; 
@@ -7366,6 +7371,85 @@ elseif strncmp(HDR.TYPE,'FIF',3),
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): NeuroMag FIFF access functions not available. \n');
                 fprintf(HDR.FILE.stderr,'\tOnline available at: http://www.kolumbus.fi/kuutela/programs/meg-pd/ \n');
                 return;
+	end;        
+        
+elseif strcmp(HDR.TYPE,'FLT'),
+        if any(HDR.FILE.PERMISSION=='r'),
+        	% read header
+
+		fid = fopen([HDR.FileName,'.hdr'],'rt'); 	
+		[r,c] = fread(fid,[1,inf],'char'); 
+		fclose(fid); 
+
+		r = char(r); 
+		HDR.SampleRate = 1;
+		while ~isempty(r),
+			[t,r]=strtok(r,[10,13]); 
+			[tok,left]=strtok(t,'=');
+			num = str2double(left(2:end));
+			if 0
+			elseif strcmp(tok,'type'),
+				type = num; 
+				if type<10; 
+					HDR.Endianity='ieee-be'; 
+				else	
+					HDR.Endianity='ieee-le'; 
+				end; 	
+				switch mod(type,10)
+				case 1,
+					HDR.GDFTYP = 1;
+				case 2,
+					HDR.GDFTYP = 3;
+				case 3,
+					HDR.GDFTYP = 5;
+				case 4,
+					HDR.GDFTYP = 16;
+				case 5,
+					HDR.GDFTYP = 17;
+				otherwise
+					fprintf(HDR.FILE.stderr,'Error SOPEN(FLT): type %i not supported',type); 	
+				end; 	
+			elseif strcmp(tok,'number_of_samples'),
+				HDR.SPR = num;
+				HDR.NRec = 1; 
+			elseif strcmp(tok,'number_of_channels'),
+				HDR.NS = num;
+			elseif strcmp(tok,'measurement_day'),
+				if any((left=='.'))
+					left(left=='.')=' '; 
+					[HDR.T0([3,2,1]),v,sa]=str2double(left(2:end));
+				elseif any((left=='.'))
+					left(left=='.')=' '; 
+					[HDR.T0([1:3]),v,sa]=str2double(left(2:end));
+				end; 	
+			elseif strcmp(tok,'measurement_time'),
+				left(left==':')=' '; 
+				[HDR.T0(4:6),v,sa]=str2double(left(2:end));
+			elseif strcmp(tok,'sampling_unit'),
+			elseif strcmp(tok,'sampling_exponent'),
+				HDR.SampleRate = HDR.SampleRate * (10^-num); 
+			elseif strcmp(tok,'sampling_step'),
+				HDR.SampleRate = HDR.SampleRate/num; 
+			elseif strcmp(tok,'parameter_of_channels'),
+				[tch,r]=strtok(r,'}'); 
+				while ~isempty(tch),
+					[tline,tch] = strtok(tch,[10,13]); 
+					if isempty(tline),
+					elseif tline(1)>33,
+						[n,v,sa]=str2double(tline);
+						HDR.Label{n(1)+1}=sa{4}; 
+					end
+				end; 	
+			end; 
+		end; 
+
+        	% read data
+		HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.Endianity); 	
+		HDR.HeadLen  = 0; 
+                HDR.FILE.POS = 0; 
+                HDR.FILE.OPEN= 1; 
+                HDR.AS.endpos= HDR.SPR*HDR.NRec; 
+                HDR.PhysDim  = repmat({'fT'},HDR.NS,1);
         end
         
         

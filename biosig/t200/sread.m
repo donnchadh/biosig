@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.72 2006-11-09 19:05:45 schloegl Exp $
+%	$Id: sread.m,v 1.73 2006-12-22 15:10:02 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -288,7 +288,7 @@ elseif strmatch(HDR.TYPE,{'AIF','SND','WAV'})
         end;
 
         
-elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ISHNE','Nicolet','RG64'}),
+elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','FLT','ISHNE','Nicolet','RG64'}),
         if nargin==3,
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -296,7 +296,7 @@ elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ISHNE','Nicolet','RG64'}),
         maxsamples = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
 	S = []; count = 0;
 	while maxsamples>0,
-    		[s,c]  = fread(HDR.FILE.FID,[HDR.NS,min(2^20,maxsamples)], gdfdatatype(HDR.GDFTYP));
+    		[s,c]  = fread(HDR.FILE.FID,[HDR.NS,min(2^24/HDR.NS,maxsamples)], gdfdatatype(HDR.GDFTYP));
 		count = count + c;
 		maxsamples = maxsamples - c;
         	if c,

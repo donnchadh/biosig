@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.55 2006-12-12 10:21:04 schloegl Exp $
+%	$Id: getfiletype.m,v 1.56 2006-12-22 15:10:02 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -926,6 +926,12 @@ else
                         if ~isempty(tmp), 
                                 HDR = getfiletype(tmp);
                         end
+                        
+                elseif strcmpi(HDR.FILE.Ext,'flt') & exist([HDR.FileName,'.hdr'],'file'); 
+                        HDR.TYPE = 'FLT'; % ET-MEG format
+                elseif strcmpi(HDR.FILE.Ext,'hdr') & exist(fullfile(HDR.FILE.Path,HDR.FILE.Name),'file'); 
+                        HDR.TYPE = 'FLT'; % ET-MEG format
+                        HDR.FileName = fullfile(HDR.FILE.Path,HDR.FILE.Name); 
                         
                 elseif strcmpi(HDR.FILE.Ext,'rhf'),
                         HDR.FileName=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
