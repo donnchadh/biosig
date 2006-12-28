@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.166 2006-12-22 15:10:02 schloegl Exp $
+%	$Id: sopen.m,v 1.167 2006-12-28 15:01:51 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -543,7 +543,16 @@ end;
                 end;
                 
 		if (HDR.NS>0)
-                        HDR.THRESHOLD  = [HDR.DigMin,HDR.DigMax];       % automated overflow detection 
+			if ~isfield(HDR,'THRESHOLD')
+	                        HDR.THRESHOLD  = [HDR.DigMin,HDR.DigMax];       % automated overflow detection 
+	                        if (HDR.VERSION == 0) & HDR.FLAG.OVERFLOWDETECTION,   % in case of EDF and OVERFLOWDETECTION
+	                        	fprintf(2,'WARNING SOPEN(EDF): Physical Max/Min values of EDF data are not necessarily defining the dynamic range.\n'); 
+	                        	fprintf(2,'   Hence, OVERFLOWDETECTION might not work correctly. See also EEG2HIST and read \n'); 
+	                        	fprintf(2,'   http://dx.doi.org/10.1016/S1388-2457(99)00172-8 (A. Schlögl et al. Quality Control ... Clin. Neurophysiol. 1999, Dec; 110(12): 2165 - 2170).\n'); 
+	                        	fprintf(2,'   A copy is available here, too: http://www.dpmi.tugraz.at/schloegl/publications/neurophys1999_2165.pdf \n'); 
+				end;
+			end; 
+
 	                if any(HDR.PhysMax==HDR.PhysMin), HDR.ErrNo=[1029,HDR.ErrNo]; end;	
 	                if any(HDR.DigMax ==HDR.DigMin ), HDR.ErrNo=[1030,HDR.ErrNo]; end;	
 	                HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
@@ -807,10 +816,8 @@ end;
                         HDR.EVENT.DUR = dur * HDR.SampleRate;
                         HDR.EVENT.CHN = zeros(N,1); 
 
-                        [HDR.EVENT.CodeDesc, CodeIndex, TYP] = unique(TeegType(1:N));
-                        if length(HDR.EVENT.CodeDesc) < 128;
-                                HDR.EVENT.TYP = TYP(:) - 1;
-                        end;
+			HDR.EVENT.TeegType = TeegType; 
+                        [HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP] = unique(TeegType(1:N));
 
 
                 elseif strcmp(HDR.TYPE,'EDF') & (length(strmatch('ANNOTATION',HDR.Label))==1),
@@ -1632,9 +1639,15 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'})
                         [HDR,H1,h2] = cntopen(HDR,'32bit');
                 end;
 
-                if HDR.GDFTYP==3,       
-                        % support of OVERFLOWDETECTION
-                       HDR.THRESHOLD = repmat([-2^15,2^15-1],HDR.NS,1);
+                % support of OVERFLOWDETECTION
+                if ~isfield(HDR,'THRESHOLD'),
+                	if HDR.FLAG.OVERFLOWDETECTION,
+	                       fprintf(2,'WARNING SOPEN(CNT): OVERFLOWDETECTION might not work correctly. See also EEG2HIST and read \n'); 
+        	               fprintf(2,'   http://dx.doi.org/10.1016/S1388-2457(99)00172-8 (A. Schlögl et al. Quality Control ... Clin. Neurophysiol. 1999, Dec; 110(12): 2165 - 2170).\n'); 
+        	               fprintf(2,'   A copy is available here, too: http://www.dpmi.tugraz.at/schloegl/publications/neurophys1999_2165.pdf \n'); 
+        	        end;        
+			[datatyp,limits,datatypes,numbits,GDFTYP]=gdfdatatype(HDR.GDFTYP);
+			HDR.THRESHOLD = repmat(limits,HDR.NS,1);
                 end; 
                 
         elseif any(HDR.FILE.PERMISSION=='w');
@@ -1980,7 +1993,9 @@ elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
                 end;
                 [datatyp, limits, datatypes] = gdfdatatype(HDR.GDFTYP);
                 % THRESHOLD for Overflow detection
-                HDR.THRESHOLD = repmat(limits, HDR.NS, 1);
+                if ~isfield(HDR,'THRESHOLD')
+ 	               HDR.THRESHOLD = repmat(limits, HDR.NS, 1);
+ 	        end;        
 		HDR.NRec = 1; 
 
 		% channel-specific settings
@@ -2787,7 +2802,9 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
         HDR.Bits = 8; 
         HDR.GDFTYP = repmat(1,HDR.NS,1);
         HDR.TYPE = 'native'; 
-        HDR.THRESHOLD = repmat([-127,127],HDR.NS,1);    % support of overflow detection
+        if ~isfield(HDR.THRESHOLD'),
+	        HDR.THRESHOLD = repmat([-127,127],HDR.NS,1);    % support of overflow detection
+	end;         
         HDR.FILE.POS = 0; 
         HDR.Label = HDR.Label(1:HDR.NS,:);
         
@@ -5223,8 +5240,10 @@ elseif strcmp(HDR.TYPE,'BCI2002b');
         	HDR.NRec = 1; 
         	HDR.SampleRate = 100; % Hz 
         	HDR.FILE.POS = 0;         	
-        	HDR.THRESHOLD = repmat([-125,124.93],HDR.NS,1)
-
+        	if ~isfield(HDR,'THRESHOLD')
+	        	HDR.THRESHOLD = repmat([-125,124.93],HDR.NS,1)
+		end; 
+		
         	x1 = load(fullfile(HDR.FILE.Path, 'lefttrain.events'));
         	x2 = load(fullfile(HDR.FILE.Path, 'righttrain.events'));
         	x3 = load(fullfile(HDR.FILE.Path, 'test.events'));
@@ -7132,7 +7151,9 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         if strncmpi(HDR.BV.BinaryFormat, 'int_16',6)
                 HDR.GDFTYP = 3; % 'int16'; 
                 HDR.AS.bpb = HDR.NS * 2; 
-                HDR.THRESHOLD = repmat([-2^15,2^15-1],HDR.NS,1);
+                if ~isfield(HDR,'THRESHOLD'),
+	                HDR.THRESHOLD = repmat([-2^15,2^15-1],HDR.NS,1);
+	        end;         
         elseif strncmpi(HDR.BV.BinaryFormat, 'ieee_float_32',13)
                 HDR.GDFTYP = 16; % 'float32'; 
                 HDR.AS.bpb = HDR.NS * 4; 
