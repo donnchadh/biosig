@@ -50,7 +50,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.53 2006-09-13 18:23:27 schloegl Exp $
+%	$Id: plota.m,v 1.54 2006-12-28 15:06:50 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -192,6 +192,9 @@ elseif strcmp(X.datatype,'MVAR'),
                         range = [min(R(:)),max(R(:))];
                         range(1) = min(range(1),range(2)/100);
                         %range=[1e-2,1e2];
+                elseif strcmpi(Mode,'iSpectrum'),
+                        R = imag(S);
+                        range = [min(R(:)),max(R(:))];
                 elseif strcmpi(Mode,'Phase') | strcmpi(Mode,'phaseS') ,
                         R = zeros(size(S));
                         for k1=1:K1;
@@ -330,7 +333,7 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                 gf = strrep(gf,'Auto','');
         end;
         GF = strtok(gf);
-        if ~isfield(X.M,GF)
+	if ~isfield(X.M,GF)
                 warning('PLOTA TFMVAR_ALL: field %s is unknown\n',GF);
         end;
         MONO = strcmp(GF,'logS1') | strcmp(GF,'S1');
@@ -395,6 +398,7 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                 Xnormfactor = X.N;
         else
                 Xnormfactor = 1;
+                Ynormfactor = 1;
         end;
 
 	type = ''; 
@@ -559,8 +563,8 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                                         sz = size(x);
                                         %x = x(:);
                                         bf = prod(size(x));
-                                        %xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
-                                        xc(abs(x) <= (ci*tinv(1-alpha/2,X.N))) = 1;
+                                        xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
+                                        %xc(abs(x) <= (ci*tinv(1-alpha/2,X.N))) = 1;
                                         %x(abs(x) < .5) = NaN;
                                         %x = reshape(x,sz);
                                         cm(1,:) = [1,1,1];
@@ -863,7 +867,10 @@ elseif strcmpi(X.datatype,'spectrum') | strcmp(X.datatype,'qualitycontrol'),
                 Mode='log';
         end;
 
-        if strcmp(X.datatype,'qualitycontrol'),
+       if iscell(X.PhysDim),
+              X.PhysDim = strvcat(X.PhysDim);
+       end;
+       if strcmp(X.datatype,'qualitycontrol'),
                 fprintf(1,'\n  [%s]',X.PhysDim(1,:));
                 fprintf(1,'\t#%02i',1:size(X.AR,1));
                 fprintf(1,'\nMEAN  ');
@@ -996,24 +1003,36 @@ elseif strcmp(X.datatype,'qc:histo')
                 chansel = arg3;
         end;
         if chansel<=0,
-                chansel = 1:X.NS;
+                chansel = 1:size(X.HIS.H,2);
         end;
 
+	figure(1);
         N = ceil(sqrt(length(chansel)));
         for K = chansel;
                 t = X.HIS.X(:,min(K,size(X.HIS.X,2)));
                 h = X.HIS.H(:,K);
-                t =t(h>0); 
-                h =h(h>0); 
-                if isfield(X,'Threshold'),
+
+                t = t(h>0);
+                h = h(h>0); 
+
+                if isfield(X,'THRESHOLD'),
+                        MaxMin=X.THRESHOLD(K,[2,1]);
+                elseif isfield(X,'Threshold'),
                         MaxMin=X.Threshold(K,:);
                         MaxMin=[max(MaxMin),min(MaxMin)];
                 else
                         MaxMin=[max(t) min(t)];
                 end;
-                sd2 = X.RES.VAR(K); 
-                mu  = X.RES.MEAN(K); 
-                dT  = X.RES.QUANT(K); 
+		h2 = h;
+		h2((t>min(MaxMin)) & (t<max(MaxMin)))=NaN; 
+
+		R.N 	= sumskipnan(h,1);
+		R.SUM 	= sumskipnan(h.*t,1);
+		R.SSQ 	= sumskipnan(h.*t.*t);
+		mu	= R.SUM./R.N;
+		R.SSQ0  = R.SSQ-R.SUM.*mu;		% sum square of mean removed
+		sd2  	= R.SSQ0./max(R.N-1,0);	     	% variance (unbiased) 
+                dT  	= min(diff(t,[],1));		% QUANT
                 
                 if strcmp(yscale,'lin '),
                         subplot(ceil(size(X.H,2)/N),N,K);
@@ -1023,17 +1042,17 @@ elseif strcmp(X.datatype,'qc:histo')
                         tmp=max(h)/2;
                         tmp=sum(h)/sqrt(2*pi*sd2)*dT/2;
                         %plot(t,[h],'-',t,exp(-(t-mu).^2./sd2/2)./sqrt(2*pi*sd2).*sum(h),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx' );
-                        plot(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
-                        v=axis; v=[MaxMin(2) MaxMin(1) 1 max(h)]; axis(v);
+                        plot(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,'c',t,h2+.01,'r',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+                        v=axis; v=[MaxMin(2) MaxMin(1) 1 max(X.HIS.H(:))]; axis(v);
                 elseif strcmp(yscale,'log ') | strcmp(yscale,'log'),
                         subplot(ceil(length(chansel)/N),N,K);
                         tmp = sqrt(sum(h)/sqrt(2*pi*sd2)*dT);
-                        semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT]);
+                        semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,h2+.01]);
                 elseif strcmp(yscale,'log+'),
                         subplot(ceil(length(chansel)/N),N,K);
                         tmp = sqrt(sum(h(h>0))/sqrt(2*pi*sd2)*dT);
-                        semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h(h>0))*dT],'-',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
-                        v=axis; v=[v(1:2) 1 max(h)]; axis(v);
+                        semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h(h>0))*dT,h2+.01],'-',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+                        v=axis; v=[v(1:2) 1 max(X.HIS.H(:))]; axis(v);
                 elseif strcmp(yscale,'qq'),
                         subplot(ceil(length(chansel)/N),N,K);
                         tmp=.5;sum(h)/2;
@@ -1041,12 +1060,19 @@ elseif strcmp(X.datatype,'qc:histo')
                 elseif strcmp(yscale,'csum'),
                         subplot(ceil(length(chansel)/N),N,K);
                         tmp=.5;sum(h)/2;
-                        plot(t,cumsum(h)/sum(h),'-',t,normcdf(t,mu,sqrt(sd2)),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+			h2 = cumsum(h); 
+			h2((t>min(MaxMin)) & (t<max(MaxMin)))=NaN; 
+                        plot(t,cumsum(h)/sum(h),'-',t,normcdf(t,mu,sqrt(sd2)),'c',t,h2,'r',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         v=axis; v(1:2)=[MaxMin(2)+0.1*diff(MaxMin) MaxMin(1)-0.1*diff(MaxMin)]; axis(v);
                 elseif strcmp(yscale,'CDF'),
-                        %subplot(ceil(size(X.H,2)/N),N,K);
-                        tmp=sum(h)/2;
-                        plot([X.X(1,:)-eps;X.X],[zeros(1,size(X.H,2));cumsum(X.H,1)]./X.N(ones(size(X.X,1)+1,1),:),'-');
+                        subplot(ceil(length(chansel)/N),N,K);
+                        tmp= sum(h)/2;
+			cdf = cumsum(h)/sum(h); 
+			h2 = cdf; 
+			h2((t>min(MaxMin)) & (t<max(MaxMin)))=NaN; 
+			plot(t,cdf,'-b',t,h2,'-r',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',ones(1,7)/2,'-+g',MaxMin,.5,'rx',[min(t),max(t)],[0,1],'bx'); 
+			grid on; 
+                        %plot([X.X(1,:)-eps;X.X],[zeros(1,size(X.H,2));cumsum(X.H,1)]./X.N(ones(size(X.X,1)+1,1),:),'-');
                         t = [t(1)-eps;t];
                         v = axis; v(3:4) = [0,1]; axis(v);
                 elseif strcmp(yscale,'stacked'),
@@ -1055,6 +1081,76 @@ elseif strcmp(X.datatype,'qc:histo')
                 title(X.Label{K});
                 %xlabel(X.PhysDim{K});
         end;
+        if iscell(X.PhysDim),
+               X.PhysDim = strvcat(X.PhysDim);
+        end;
+       	X.RES = hist2res(X); %this uses the scaling 
+
+                fprintf(1,'\n  [%s]',X.PhysDim(1,:));
+                fprintf(1,'\nMEAN:');
+                fprintf(1,'\t%+7.3f',X.RES.MEAN);
+                fprintf(1,'\nRMS:');
+                fprintf(1,'\t%+7.3f',X.RES.RMS);
+                fprintf(1,'\nSTD:');
+                fprintf(1,'\t%+7.3f',X.RES.STD);
+                fprintf(1,'\nQuant:');
+                fprintf(1,'\t%+7.3f',X.RES.QUANT);
+                fprintf(1,'\nEntropy [bit]:\n');
+                fprintf(1,'\t%+4.1f',X.RES.ENTROPY);
+                fprintf(1,'\nRatio of lost samples [%%]:\n');
+                fprintf(1,'\t%6.3f',X.RES.ratio_lost*100);
+                fprintf(1,'\n\n');
+
+        if ~isfield(X,'AR')
+        	return; 
+       	end; 
+        fprintf(1,'\t#%02i',1:size(X.AR,1));
+        [n,p] = size(X.AR);
+        H=[]; F=[];
+        for k=1:size(X.AR,1);
+                [h,f] = freqz(sqrt(X.PE(k,size(X.AR,2)+1)/(X.SampleRate*2*pi)),ar2poly(X.AR(k,:)),(0:64*p)/(128*p)*X.SampleRate',X.SampleRate);
+                H(:,k)=h(:);F(:,k)=f(:);
+        end;
+        Mode ='log';
+        if ~isfield(X,'Impedance')
+        	X.Impedance = 5000; 
+        	warning('Impedance not available assume 5kOhm');
+        end; 
+        if ~isfield(X,'samplerate_units')
+		X.samplerate_units = 'Hz';
+	end;
+	if ~isfield(X,'Label')
+		Label = [repmat('ch ',n,1);int2str([1:n]')];
+	else
+		Label = X.Label;	
+	end;
+	
+	figure(2);
+        if strcmp(lower(Mode),'log')
+                h=semilogy(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*mean(X.RES.QUANT)/sqrt(12*X.SampleRate),'k:',[0,X.SampleRate/2]',1e6*[1;1]*sqrt(4*310*138e-25*X.Impedance),'k');
+                ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim(1,:),X.samplerate_units));
+                Label = [Label;{'Quantization'};{'Impedance'}];
+
+        elseif strcmp(lower(Mode),'log2')
+                semilogy(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.RES.QUANT.^2/(12*X.SampleRate),'k:');
+                ylabel(sprintf('[%s]^2/%s',X.PhysDim(1,:),X.samplerate_units));
+                Label = [Label;{'Quantization'}];
+
+        elseif strcmp(lower(Mode),'lin')
+                plot(F,abs(H),'-',[0,X.SampleRate/2]',[1;1]*X.RES.QUANT/sqrt(12*X.SampleRate),'k:');
+                ylabel(sprintf('%s/[%s]^{1/2}',X.PhysDim(1,:),X.samplerate_units));
+                Label = [Label;{'Quantization'}];
+
+        elseif strcmp(lower(Mode),'lin2')
+                plot(F,real(H).^2+imag(H).^2,'-',[0,X.SampleRate/2]',[1;1]*X.RES.QUANT.^2/(12*X.SampleRate),'k:');
+                ylabel(sprintf('[%s]^2/%s',X.PhysDim(1,:),X.samplerate_units));
+                Label = [Label;{'Quantization'}];
+        end;
+        xlabel(sprintf('f [%s]',X.samplerate_units));
+        if isfield(X,'Title'), title(X.Title);
+        elseif isfield(X,'FileName'); tmp=X.FileName; tmp(tmp=='_')=' '; title(tmp); end
+        H = X;
+        legend(Label);
         
         
 elseif strcmp(X.datatype,'HISTOGRAM') | strcmp(X.datatype,'qc:histo')
@@ -1104,28 +1200,28 @@ elseif strcmp(X.datatype,'HISTOGRAM') | strcmp(X.datatype,'qc:histo')
                 elseif strcmp(yscale,'lin+'),
                         subplot(ceil(size(X.H,2)/N),N,K);
                         tmp = diff(t);
-                        dT  = 1;min(tmp(tmp>0));
+                        dQ  = 1;min(tmp(tmp>0));
                         tmp=max(h)/2;
-                        tmp=sum(h)/sqrt(2*pi*sd2)*dT/2;
+                        tmp=sum(h)/sqrt(2*pi*sd2)*dQ/2;
                         %plot(t,[h],'-',t,exp(-(t-mu).^2./sd2/2)./sqrt(2*pi*sd2).*sum(h),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx' );
-                        plot(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+                        plot(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dQ,'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         v=axis; v=[MaxMin(2) MaxMin(1) 1 max(h)]; axis(v);
                 elseif strcmp(yscale,'log ') | strcmp(yscale,'log'),
                         subplot(ceil(size(X.H,2)/N),N,K);
                         tmp = diff(t);
-                        dT  = min(tmp(tmp>0));
-                        tmp = sqrt(sum(h)/sqrt(2*pi*sd2)*dT);
+                        dQ  = min(tmp(tmp>0));
+                        tmp = sqrt(sum(h)/sqrt(2*pi*sd2)*dQ);
                         %semilogy(t,[h],'-')
-                        semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT]);
+                        semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dQ]);
                 elseif strcmp(yscale,'log+'),
                         subplot(ceil(size(X.H,2)/N),N,K);
                         tmp = diff(t);
-                        dT  = min(tmp(tmp>0));
-                        tmp = sqrt(sum(h(h>0))/sqrt(2*pi*sd2)*dT);
+                        dQ  = min(tmp(tmp>0));
+                        tmp = sqrt(sum(h(h>0))/sqrt(2*pi*sd2)*dQ);
                         %semilogy(t,[h]+.01,'-',t,exp(-(t*ones(size(mu))-ones(size(t))*mu).^2./(ones(size(t))*sd2)/2)./(ones(size(t))*(sqrt(2*pi*sd2)./sum(h))),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         %semilogy(t,[h]+.01,'-',t,exp(-(t(:,ones(size(mu)))-mu(ones(size(t)),:)).^2./sd2(ones(size(t)),:)/2)./sqrt(2*pi*sd2(ones(size(t)),:)).*(ones(size(t))*sum(h)),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
-                        %semilogy(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
-                        semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h(h>0))*dT],'-',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+                        %semilogy(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dQ,'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+                        semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h(h>0))*dQ],'-',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
 %                        v=axis; v=[MaxMin(2)+0.1*diff(MaxMin) MaxMin(1)-0.1*diff(MaxMin) 1 max(h)]; axis(v);
                         v=axis; v=[v(1:2) 1 max(h)]; axis(v);
                 elseif strcmp(yscale,'qq'),
@@ -1169,7 +1265,7 @@ elseif strcmp(X.datatype,'DBI-EPs'),
                 se=sd./sqrt(X.RES(k).N);
 
                 h=plot(X.t,[mu(:),sd(:),se(:)]*[1,1,1,1,1;-1,1,0,0,0;0,0,-1,1,0],arg2);
-                set(h(5),'linewidth',2);
+                set(h(5),'linewidQh',2);
                 set(h(1),'color',[0,.75,.75]);
                 set(h(2),'color',[0,.75,.75]);
                 set(h(3),'color',[.5,.5,1]);
@@ -1272,7 +1368,7 @@ elseif strcmp(X.datatype,'STAT2'),
         se=sd./sqrt(X.N);
 
         h=plot(t,[mu(:),sd(:),se(:)]*[1,1,1,1,1;0,-1,1,0,0;0,0,0,-1,1],arg2);
-        set(h(1),'linewidth',2);
+        set(h(1),'linewidQh',2);
         tmp=get(h(1),'color');
         set(h(2),'color',1-(1-tmp)/2);
         set(h(3),'color',1-(1-tmp)/2);
@@ -1285,7 +1381,7 @@ elseif strcmp(X.datatype,'TSD1'),
                 arg2='b';
         end;
         h=plot(X.t,[X.mu,X.sd]*[1,1,1;0,-1,1],arg2);
-        set(h(1),'linewidth',2);
+        set(h(1),'linewidQh',2);
         hold on
         h=plot(X.TI(:),1,'.k');
 
@@ -1553,7 +1649,7 @@ elseif strcmp(X.datatype,'Classifier')
                 hold off
                 grid on;
                 v=axis; v(3:4)=[0,1]; axis(v);
-                set(h(end),'linewidth',2)
+                set(h(end),'linewidQh',2)
                 ylabel('MI [bit]');
                 xlabel('time t [s]');
                 if ~isempty(LEG)
@@ -1581,16 +1677,32 @@ elseif strncmp(X.datatype,'TSD_BCI',7) & (nargin>1) & strcmpi(arg2,'TSD');
                         subplot(nf(k));
                 end;
                 h=plot(X.T,[X.MEAN1(:,k),X.MEAN2(:,k),X.SD1(:,k),X.SD2(:,k)]*[1,0,1,0,1,0; 0,1,0,1,0,1; 0,0,1,0,-1,0; 0,0,0,1,0,-1]);
-                set(h(1),'linewidth',2);
-                set(h(2),'linewidth',2);
-                mset(h(3:6),'linewidth',1);
+                set(h(1),'linewidQh',2);
+                set(h(2),'linewidQh',2);
+                mset(h(3:6),'linewidQh',1);
                 mset(h([1,3,5]),'color','b');
                 mset(h([2,4,6]),'color','g');
                 ylabel('Average TSD');
                 v=axis;v(1:2)=[min(X.T),max(X.T)];axis(v);
         end;
 
-elseif strcmp(X.datatype,'TSD_BCI9')
+
+elseif isfield(X,'TSD') 
+	if isfield(X.TSD,'datatype') 
+	if strcmp(X.TSD.datatype,'TSD_BCI9')
+		nf = plota(X.TSD);
+		for k=1:length(nf)
+			subplot(nf(k)); 
+			hold on; 
+			v=axis; 
+			plot([X.TC;X.TC],[.9;1]*v(4)*ones(1,length(X.TC)),'k-')
+			hold off; 
+		end;
+	end; 
+	end; 
+
+
+elseif strcmp(X.datatype,'TSD_BCI9')  
         if nargin<2,
                 clf;
                 for k=1:6,
@@ -1613,24 +1725,26 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         fprintf(fid,'\nKappa:		     %4.2f ± %4.2f\n',X.KAP00(tix),X.Ksd00(tix));
         fprintf(fid,'I(Wolpaw):		 %4.2f bit\n',wolpaw_entropy(X.ACC00(tix),N));
         fprintf(fid,'I(Nykopp):		 %4.2f bit\n',X.I_Nykopp(tix));
-        fprintf(fid,'I(Continous):	      SUM = %4.2f  [ ',sum(X.I(tix,:))*c);
-        fprintf(fid,'%4.2f   ',X.I(tix,:));
-        t = X.T; t(t<3.5)=NaN;
-        fprintf(fid,' ] \nSTMI:		      %4.2f  [ ',max([sum(X.I,2)]./[t-3])*c);
-        fprintf(fid,'   %4.2f',max(X.I./[t(:,ones(1,size(X.I,2)))-3]));
-        fprintf(fid,' ] \nSNR:		       ')
-        fprintf(fid,'%4.2f   ',X.SNR(tix,:));
-        fprintf(fid,'\ncorrelation (parametric):  ')
-        fprintf(fid,'%4.2f   ',X.r(tix,:));
-        fprintf(fid,'\nrank correlation:	  ');
+        if isfield(X,'I'),
+	        fprintf(fid,'I(Continous):	      SUM = %4.2f  [ ',sumskipnan(X.I(tix,:))*c);
+        	fprintf(fid,'%4.2f   ',X.I(tix,:));
+        	t = X.T; t(t<.5)=NaN;
+        	fprintf(fid,' ] \nSTMI:		      %4.2f  [ ',max([sum(X.I,2)]./t)*c);
+        	fprintf(fid,'   %4.2f',max(X.I./[t(:,ones(1,size(X.I,2)))-3]));
+        	fprintf(fid,' ] \nSNR:		       ')
+        	fprintf(fid,'%4.2f   ',X.SNR(tix,:));
+        	fprintf(fid,'\ncorrelation (parametric):  ')
+        	fprintf(fid,'%4.2f   ',X.r(tix,:));
+        	fprintf(fid,'\nrank correlation:	  ');
+	        fprintf(fid,'\nAUC:		       ');
+	        fprintf(fid,'%4.2f   ',X.AUC(tix,:));
+	        fprintf(fid,'\n');
+        end; 
         if isfield(X,'rankcorrelation');
                 fprintf(fid,'%4.2f   ',X.rankcorrelation(tix,:));
         end;
-        fprintf(fid,'\nAUC:		       ');
-        fprintf(fid,'%4.2f   ',X.AUC(tix,:));
-        fprintf(fid,'\n');
 
-        xlim = [min(0,X.T(1)),max(7,X.T(end))];
+        xlim = [min(0,X.T(1)),max(X.T(end))];
         
         subplot(nf(1));
         if ~isfield(X,'Labels')
@@ -1668,8 +1782,9 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         else
                 subplot(nf(5));
                 t = X.T;
-                t(t < 3.5)=NaN;
-                plot(X.T,[sum(X.I,2)*c,X.I_Nykopp(:),wolpaw_entropy(X.ACC00,N)]./repmat(t-3,1,3))
+                %t(t < 3.5)=NaN;
+                t(t < 0.5)=NaN;
+                plot(X.T,[sum(X.I,2)*c,X.I_Nykopp(:),wolpaw_entropy(X.ACC00,N)]./repmat(t,1,3))
                 legend({'STMI_{C}','STMI_{N}','STMI_{W}'})
                 title('Steepness of Mutual information')
                 ylabel('STMI [bit/s]');
@@ -1700,7 +1815,8 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         title('correlation coefficient (parametric)');
         legend(Labels)
         v=axis; axis([xlim,-.2,1]);
-
+	h = nf;
+	
         
 elseif strcmp(X.datatype,'TSD_BCI8')    % obsolote
         if ~isfield(X,'T');
@@ -1814,7 +1930,7 @@ elseif strcmp(X.datatype,'TSD_BCI7')    % obsolete
                         h=plot(X.T,[X.I0,X.I]);
                         grid on;
                         v=axis; v(3:4)=[0,1]; axis(v);
-                        set(h(end),'linewidth',2)
+                        set(h(end),'linewidQh',2)
                         ylabel('MI [bit]');
                         xlabel('time t [s]');
                         LEG=[];
@@ -1849,9 +1965,9 @@ elseif strcmp(X.datatype,'TSD_BCI7')    % obsolete
                 else
                         h=plot(t,[X.M1(:),X.M2(:),X.SD1(:),X.SD2(:)]*[1,0,0,0; 0,1,0,0; 1,0,1,0; 1,0,-1,0; 0,1,0,1; 0,1,0,-1]','b',t([1,length(t)]),[0,0],'k');
                 end;
-                set(h(1),'linewidth',2);
-                set(h(2),'linewidth',2);
-                set(h(7),'linewidth',2);
+                set(h(1),'linewidQh',2);
+                set(h(2),'linewidQh',2);
+                set(h(7),'linewidQh',2);
                 set(h(2),'color','g');
                 set(h(5),'color','g');
                 set(h(6),'color','g');
@@ -2160,7 +2276,7 @@ elseif strcmp(X.datatype,'AMARMA')
                 w2 = w; w2(~ixLF) = NaN;
 
                 HHHH = mean(mean(B2,2).*f0);
-                fprintf(1,'Mean LF Bandwidth %f\n',HHHH);
+                fprintf(1,'Mean LF BandwidQh %f\n',HHHH);
 
                 K = K + 1;
                 subplot(hf(K));
@@ -2176,10 +2292,10 @@ elseif strcmp(X.datatype,'AMARMA')
                 delete(hc);
                 set(gca,'position',pos);
 
-                %legend('f0(LF)','bandwidth(LF)');
+                %legend('f0(LF)','bandwidQh(LF)');
                 xlabel(X.xlabel);
                 ylabel('f [Hz]');
-                legend('f0(LF)','bandwidth(LF)');
+                legend('f0(LF)','bandwidQh(LF)');
                 drawnow
 
         end;
@@ -2208,7 +2324,7 @@ elseif strcmp(X.datatype,'AMARMA')
 
 
 elseif strcmp(X.datatype,'ELPOS2'),
-        X = leadidcodexyz(X)
+        X = leadidcodexyz(X);
         XYZ = X.ELEC.XYZ; 
         Label = cellstr(X.Label); 
         ix = find(X.LeadIdCode>=0)';
@@ -2227,7 +2343,7 @@ elseif strcmp(X.datatype,'ELPOS2'),
                
 
 elseif strncmp(X.datatype,'ELPOS',5),
-        X = leadidcodexyz(X)
+        X = leadidcodexyz(X);
         XYZ = X.ELEC.XYZ; 
         Label = cellstr(X.Label); 
         ix = find(X.LeadIdCode>0)';

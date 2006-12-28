@@ -7,9 +7,14 @@
 % DEMO5	  % Demonstrates how to generate an WAV file
 % demo6   % lumped circuit model 
 % demo7   % Multivariate autoregressive parameters              
-%
+% DEMO8   % overflow detection based on [1]	
+% 
+% REFERENCES: 
+% [1] A. Schlögl, B. Kemp, T. Penzel, D. Kunz, S.-L. Himanen,A. Värri, G. Dorffner, G. Pfurtscheller.
+%   Quality Control of polysomnographic Sleep Data by Histogram and EntropyAnalysis. %   Clin. Neurophysiol. 1999, Dec; 110(12): 2165 - 2170.%   http://dH.doi.org/10.1016/S1388-2457(99)00172-8
 
-% $Id: Contents.m,v 1.7 2005-11-28 17:39:25 schloegl Exp $
+
+% $Id: Contents.m,v 1.8 2006-12-28 15:06:50 schloegl Exp $
 % Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 % This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -36,6 +41,7 @@ DEMO4	  % Demonstrates how the generate an BKR file
 DEMO5	  % Demonstrates how the generate an WAV file
 demo6     % lumped circuit model 
 demo7     % Multivariate autoregressive parameters              
+demo8     % overflow detection based on [1]	
 
     % This test was applied for the OPENECG programming contest. 
 SCPTEST.M % test of SCP-ECG files can be accessed. 

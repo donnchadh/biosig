@@ -39,12 +39,36 @@ function [R]=hist2res(H,fun)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: hist2res.m,v 1.1 2006-11-07 16:25:44 schloegl Exp $
+%	$Id: hist2res.m,v 1.2 2006-12-28 15:06:50 schloegl Exp $
 %	Copyright (c) 1996-2002,2006 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
-if ~strcmp(H.datatype,'HISTOGRAM')
+if strcmp(H.datatype,'HISTOGRAM')
+
+elseif strcmp(H.datatype,'qc:histo')
+	HDR = H; 
+	TH  = H.THRESHOLD;
+	HIS = H.HIS; 
+
+	% remove overflowing samples
+	HIS.N = sumskipnan(HIS.H); 
+	for k = 1:size(HIS.H,2);
+		t = HIS.X(:,min(k,size(HIS.X,2))); 
+		HIS.H((t<=TH(k,1)) | (t>=TH(k,2)),k) = 0; 
+	end; 
+	Nnew = sumskipnan(HIS.H); 
+	R.ratio_lost = 1-Nnew./HIS.N;
+	HIS.N = Nnew; 
+	  
+	% scale into physical values
+	if H.FLAG.UCAL,
+		HIS.X = [ones(size(HIS.X,1),1),repmat(HIS.X,1,size(HIS.H,2)./size(HIS.X,2))]*H.Calib;
+	end; 	
+	
+	H = HIS; 
+
+else
         fprintf(2,'ERROR: arg1 is not a histogram\n');
         return;
 end;
@@ -96,8 +120,10 @@ R.KURTOSIS = R.CM4./(R.VAR.^2)-3;
 R.MAD = sumskipnan(H.H.*abs(x),1)./R.N; % mean absolute deviation
 
 H.PDF = H.H./H.N(ones(size(H.H,1),1),:);
+status=warning('off'); 
 R.ENTROPY = -sumskipnan(H.PDF.*log2(H.PDF),1);
-R.QUANT = min(diff(H.X,[],1));
+warning(status); 
+R.QUANT = repmat(min(diff(H.X,[],1)),1,size(H.H,2)/size(H.X,2));
 
 if ~isempty(fun),
         fun=upper(fun);
