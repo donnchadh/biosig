@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.64 2006-11-23 09:53:05 schloegl Exp $
+%	$Id: sload.m,v 1.65 2006-12-28 15:03:27 schloegl Exp $
 %	Copyright (C) 1997-2006 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -249,51 +249,64 @@ if strncmp(H.TYPE,'IMAGE:',5)
 	return;
 end;
 
-signal = [];
 %%%%%%%%%% --------- EOG CORRECTION -------------- %%%%%%
 if H.FLAG.EOG_CORRECTION,
-CHAN0 = CHAN; % backup;
 try
-        h = get_bbci_regress_eog(H.FileName); 
-
-	% generate correction matrix 
-	if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | (any(CHAN<0) & (numel(CHAN)>1));
-	        ReRefMx = CHAN; 
-	        CHAN = find(any(CHAN,2));
-	elseif all(CHAN>0),
-		if any(diff(CHAN)<=0),
-		%	fprintf(HDR.FILE.FID,'Warning SOPEN: CHAN-argument not sorted - header information like Labels might not correspond to data.\n');
-		end;	
-	        ReRefMx = sparse(CHAN,1:length(CHAN),1,h.NS,length(CHAN));
-	else %if (CHAN==0)    
-		ReRefMx = []; 
-	end
-	if ~isempty(ReRefMx),
-	        CHAN = h.REGRESS.r0*ReRefMx;
-	else
-	        CHAN = h.REGRESS.r0;
-	end;         
+        h = get_bbci_regress_eog(H.FileName);
 catch,
 	fprintf(H.FILE.stderr,'Error: SLOAD (EOG_CORRECTION): %s\n',lasterr); 
 	H.FLAG.EOG_CORRECTION = 0; 
-	CHAN = CHAN0; %restore original config
 end;
 end; 
 
 %%%%%%%%%%%%%%% --------- Load single file ------------%%%%%%%%%%%
-H = sopen(H,'r',CHAN,MODE);
-if H.FLAG.EOG_CORRECTION ~= STATE.EOG_CORRECTION, 
-	fprintf(2, 'Warning: EOG correction not supported for this file (%s)!\n',H.FileName); 
-end; 	
-if STATE.EOG_CORRECTION,
-if h.NS~=H.NS,
-	fprintf(2, 'Error: (EOG correction).Number of channels differ! (%i!=%i)\n',H.NS,h.NS); 
-end; 	
-if ~isequal(H.Label,h.Label)
-	fprintf(2, 'Warning: (EOG correction). Channel labels do not fit! \n'); 
-end; 
-end;
+signal = [];
+H = sopen(H,'r',0,MODE);
 
+if ~isnan(H.NS),
+%------ ignore 'NaC'-channels
+NS=size(H.Calib,2);
+SelMx = speye(NS); 
+ch = 1:NS; ch(strmatch('NaC',H.Label))=[];
+if length(ch)<NS,
+	fprintf(2,'Warning SLOAD: Some NaC channels have been removed %s\n',H.FileName); 
+end; 
+SelMx = SelMx(:,ch); 
+H.Calib = H.Calib*SelMx; 
+
+% generate correction matrix 
+if H.FLAG.EOG_CORRECTION, 
+	H.Calib = H.Calib*h.REGRESS.r0; 
+	if ~isequal(H.Label(ch),h.Label)
+		fprintf(2, 'Warning SLOAD (EOG correction): Channel labels in %s do not fit with arti* recording!\n',H.FileName); 
+	end; 
+elseif STATE.EOG_CORRECTION, 
+	fprintf(2, 'Warning: EOG correction not supported for this file (%s)!\n',H.FileName); 
+end; 
+
+
+%----- generate HDR.Calib -----
+if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | (any(CHAN<0) & (numel(CHAN)>1));
+        ReRefMx = CHAN; 
+        CHAN = find(any(CHAN,2));
+elseif all(CHAN>0),
+	if any(diff(CHAN)<=0),
+	%	fprintf(HDR.FILE.FID,'Warning SOPEN: CHAN-argument not sorted - header information like Labels might not correspond to data.\n');
+	end;	
+        ReRefMx = sparse(CHAN,1:length(CHAN),1,H.NS,length(CHAN));
+else %if (CHAN==0)    
+	ReRefMx = []; 
+end
+if ~isempty(ReRefMx),
+	%[size(H.Calib),size(SelMx),size(h.REGRESS.r0),size(ReRefMx)] 
+	ReRefMx = [ReRefMx(1:min(size(ReRefMx,1),size(H.Calib,2)),:); zeros(max(0,size(H.Calib,2)-size(ReRefMx,1)),size(ReRefMx,2))]; 
+	H.Calib = H.Calib*ReRefMx; 
+end; 	
+
+H.InChanSelect = find(any(H.Calib(2:end,:),2));
+H.Calib = H.Calib([1;1+H.InChanSelect(:)],:);
+end;
+	
 if 0,
         
 elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat','EEProbe-CNT','EEProbe-AVR'})); 
@@ -303,11 +316,12 @@ elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat
         
 elseif strncmp(H.TYPE,'EVENT',5)
         signal = H.EVENT;
+        return; 
         
 
 elseif strncmp(H.TYPE,'ELPOS',5)
         signal = H.ELEC.XYZ;
-        
+	return; 
 
 elseif strcmp(H.TYPE,'DAQ')
 	fprintf(1,'Loading a matlab DAQ data file - this can take a while.\n');
@@ -917,6 +931,13 @@ if strcmp(H.TYPE,'GDF')
         end;
 end;
 
+	if isfield(H.EVENT,'TYP')
+	% include NaN at "New Segment" in order to prevent spruious correlation
+		ix = H.EVENT.POS(find(H.EVENT.TYP==hex2dec('7ffe')))-1; 
+		signal(ix(ix>0),:)=NaN;    % mark 'New Segment' with NaN 
+	end; 	
+end; 
+
 
 % resampling 
 if ~isnan(Fs) & (H.SampleRate~=Fs);
@@ -945,3 +966,9 @@ if ~isnan(Fs) & (H.SampleRate~=Fs);
         end;                
 end;
 
+ratiomissing = mean(isnan(signal)); 
+if any(ratiomissing>.1)
+	fprintf(2,'Warning SLOAD: ratio of missing samples exceeds 10%% in file %s.\n',H.FileName);
+	ix = find(ratiomissing); 
+	fprintf(1,'#%3i:  %4.1f%%\n',[ix;ratiomissing(ix)*100])
+end;	
