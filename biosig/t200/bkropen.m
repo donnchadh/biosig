@@ -5,8 +5,8 @@ function [BKR,s]=bkropen(arg1,arg3,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Id: bkropen.m,v 1.33 2006-08-31 18:24:11 schloegl Exp $
-%	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: bkropen.m,v 1.34 2006-12-28 15:23:39 schloegl Exp $
+%	Copyright (c) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -165,8 +165,7 @@ if any(BKR.FILE.PERMISSION=='r'),
         if BKR.FLAG.ref(4), BKR.FLAG.REFERENCE = 'WGT'; end;
                 
         % THRESHOLD for Overflow detection
-        BKR.SIE.THRESHOLD = -(2^15);
-	BKR.AS.endpos = (BKR.FILE.size-BKR.HeadLen)/BKR.AS.bpb;
+        BKR.AS.endpos = (BKR.FILE.size-BKR.HeadLen)/BKR.AS.bpb;
 
         BKR.data = fread(fid,[BKR.NS,inf],'int16')';
 	fclose(fid);
@@ -211,7 +210,9 @@ if any(BKR.FILE.PERMISSION=='r'),
                                 BKR.Bits = x.header.Setup.Bits;
                                 [datatyp, limits, datatypes] = gdfdatatype(BKR.Bits+255);
                                 % THRESHOLD for Overflow detection
-                                BKR.THRESHOLD = repmat(limits, BKR.NS, 1);
+                                if ~isfield(BKR,'THRESHOLD')
+	                                BKR.THRESHOLD = repmat(limits, BKR.NS, 1);
+	                        end;         
                         end;
                 end;
                 if isfield(x.header,'Result') & isfield(x.header.Result,'Classlabel'),
