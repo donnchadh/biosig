@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.56 2006-12-22 15:10:02 schloegl Exp $
+%	$Id: getfiletype.m,v 1.57 2006-12-29 17:40:49 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -114,6 +114,8 @@ else
         end;
 
         if c,
+		ss = char(s);
+		
                 %%%% file type check based on magic numbers %%%
 		tmp = 256.^[0:3]*reshape(s(1:20),4,5);
 		mat4.flag = (c>20) & (tmp(5)<256) & (tmp(5)>1) & (tmp(1)<4053) & any(s(13)==[0,1]) & any(tmp(4)==[0,1]);
@@ -131,7 +133,13 @@ else
 		if FLAG.FS3, 
 			FLAG.FS3=all((s(4:pos1_ascii10)>=32) & (s(4:pos1_ascii10)<128)); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
                 end; 
-		ss = char(s);
+
+                FLAG.IS_UFF = strncmp(ss,['    -1',repmat(' ',1,80-6)],80); 
+                if FLAG.IS_UFF, 
+                	K = strfind(ss(81:161),'    '); K = min(K);
+                	FLAG.IS_UFF = (K<4) & any(s(81)==[10,13]) & any(s(79+K)==[10,13]); 
+                end; 
+
                 if 0,
                 elseif all(s([1:2,155:156])==[207,0,0,0]);
                         HDR.TYPE='BKR';
@@ -340,6 +348,10 @@ else
                 elseif any(s(4)==(2:7)) & all(s(1:3)==0); % [int32] 2...7
                         HDR.TYPE='EGI';
                         
+                elseif FLAG.IS_UFF,
+                	K = strfind(ss(81:161),'    ')+80; K = K(1); 
+                        HDR.TYPE=['UFF',deblank(ss(K+[0:6]))];
+
                 elseif all(s(1:4)==hex2dec(reshape('AFFEDADA',2,4)')');        % Walter Graphtek
                         HDR.TYPE='WG1';
                         HDR.Endianity = 'ieee-le';

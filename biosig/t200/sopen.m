@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.167 2006-12-28 15:01:51 schloegl Exp $
+%	$Id: sopen.m,v 1.168 2006-12-29 17:40:49 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -3923,6 +3923,56 @@ elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
         fclose(HDR.FILE.FID);
         
         
+elseif strcmp(HDR.TYPE,'UFF5b'),	% implementation of this format is not finished yet.
+        if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ 
+	        HDR.FILE.FID = fopen(HDR.FileName,'rt');
+	        fclose(HDR.FILE.FID);
+	end;         
+        
+elseif strcmp(HDR.TYPE,'UFF58b'),	% implementation of this format is not finished yet.
+        if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ 
+	        HDR.FILE.FID = fopen(HDR.FileName,'r','ieee-le');
+	        tline = fgetl(HDR.FILE.FID); 	% line 1
+	        tline = fgetl(HDR.FILE.FID); 	% line 2
+		if strncmp(tline,'    58b     1     1',19) 
+                       	HDR.Endianity = 'vax';
+		elseif strncmp(tline,'    58b     1     2',19) 
+                       	HDR.Endianity = 'ieee-le';
+                       	HDR.GDFTYP = 16; 
+		elseif strncmp(tline,'    58b     2     2',19) 
+                       	HDR.Endianity = 'ieee-be';
+		elseif 0, strncmp(tline,'    58b     1     3',19) 
+                      	HDR.Endianity = 'ibm370';
+                else
+                       	HDR.Endianity = ''; % not supported;
+                       	fprintf(HDR.FILE.stderr,'ERROR SOPEN(UFF): binary format (IBM370, DEC/VMS) not supported, yet.'); 
+                       	fclose(fid); 
+                       	return; 
+		end; 		        
+		[HDR.UFF.NoLines,v,str] = str2double(tline(20:31)); 
+		[HDR.UFF.NoBytes,v,str] = str2double(tline(32:43)); 
+	        for k = 1:HDR.UFF.NoLines, 
+	        	tline = fgetl(HDR.FILE.FID);  %line k+2
+	        	if strncmp(tline,'NONE',4)
+	        	elseif strncmp(tline,'@',1)
+	        	elseif strcmp(tline([3,7,13,16]),'--::')
+	        		HDR.T0 = datevec(datenum(tline));
+	        	else	
+	        	end;
+	        end; 
+	        HDR.HeadLen = ftell(HDR.FILE.FID); 	
+	        if ~strcmp(HDR.Endianity,'ieee-le')
+		        fclose(HDR.FILE.FID);
+		        HDR.FILE.FID = fopen(HDR.FileName,'r',HDR.Endianity);
+	    	    	fseek(HDR.FILE.FID,HDR.HeadLen,'bof'); 
+	        end; 
+	        HDR.data = fread(HDR.FILE.FID,[2,HDR.UFF.NoBytes/8],'float32')'
+	        HDR.Calib = [1;sqrt(-1)];
+	        fclose(HDR.FILE.FID);
+	        fprintf(HDR.FILE.stderr, 'WARNING SOPEN(UFF58): support for UFF58 format not complete.\n');
+	end;         
+
+        
 elseif strcmp(HDR.TYPE,'WFT'),	% implementation of this format is not finished yet.
         
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
@@ -3966,8 +4016,7 @@ elseif strcmp(HDR.TYPE,'WFT'),	% implementation of this format is not finished y
         
         
 elseif strcmp(HDR.TYPE,'WG1'),
-
-        if ~isempty(findstr([HDR.FILE.PERMISSION,'b'],'r')),		%%%%% READ 
+        if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ 
                 HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.Endianity);
                 
                 HDR.VERSION = dec2hex(fread(HDR.FILE.FID,1,'uint32')); 
