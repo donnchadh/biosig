@@ -50,7 +50,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.54 2006-12-28 15:06:50 schloegl Exp $
+%	$Id: plota.m,v 1.55 2007-01-02 15:18:57 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -573,7 +573,7 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                                         xc = 1+round(63*(squeeze(x)-clim(1))/diff(clim));
                                         colormap('default');
                                 end;
-xc(xc~=xc)=1;
+				xc(xc~=xc)=1;
 
                                 x1 = reshape(cm(xc,1),size(xc));
                                 x2 = reshape(cm(xc,2),size(xc));
@@ -1009,22 +1009,26 @@ elseif strcmp(X.datatype,'qc:histo')
 	figure(1);
         N = ceil(sqrt(length(chansel)));
         for K = chansel;
-                t = X.HIS.X(:,min(K,size(X.HIS.X,2)));
                 h = X.HIS.H(:,K);
-
-                t = t(h>0);
-                h = h(h>0); 
-
+                if ~isfield(X,'Calib');
+	                t = X.HIS.X(:,min(K,size(X.HIS.X,2)));
+        	else
+        	        t = X.HIS.X(:,min(K,size(X.HIS.X,2)))*X.Calib(K+1,K)+X.Calib(1,K);
+                end;
                 if isfield(X,'THRESHOLD'),
-                        MaxMin=X.THRESHOLD(K,[2,1]);
-                elseif isfield(X,'Threshold'),
+	                if ~isfield(X,'Calib');
+	                        MaxMin=X.THRESHOLD(K,[2,1]);
+	                else        
+	                        MaxMin=X.THRESHOLD(K,[2,1])*X.Calib(K+1,K)+X.Calib(1,K);
+			end; 
+                elseif isfield(X,'Threshold'),	%%% will become OBSOLETE 
                         MaxMin=X.Threshold(K,:);
                         MaxMin=[max(MaxMin),min(MaxMin)];
                 else
                         MaxMin=[max(t) min(t)];
                 end;
 		h2 = h;
-		h2((t>min(MaxMin)) & (t<max(MaxMin)))=NaN; 
+		h2(~xor(t>min(MaxMin),t<max(MaxMin)))=NaN; 
 
 		R.N 	= sumskipnan(h,1);
 		R.SUM 	= sumskipnan(h.*t,1);
@@ -1032,7 +1036,9 @@ elseif strcmp(X.datatype,'qc:histo')
 		mu	= R.SUM./R.N;
 		R.SSQ0  = R.SSQ-R.SUM.*mu;		% sum square of mean removed
 		sd2  	= R.SSQ0./max(R.N-1,0);	     	% variance (unbiased) 
-                dT  	= min(diff(t,[],1));		% QUANT
+                dT  	= min(abs(diff(t,[],1)));		% QUANT
+                xrange  = [min(t(h>0)),max(t(h>0))]; 
+                xrange  = xrange + [-1,1]*diff(xrange)/2;
                 
                 if strcmp(yscale,'lin '),
                         subplot(ceil(size(X.H,2)/N),N,K);
@@ -1043,7 +1049,7 @@ elseif strcmp(X.datatype,'qc:histo')
                         tmp=sum(h)/sqrt(2*pi*sd2)*dT/2;
                         %plot(t,[h],'-',t,exp(-(t-mu).^2./sd2/2)./sqrt(2*pi*sd2).*sum(h),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx' );
                         plot(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,'c',t,h2+.01,'r',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
-                        v=axis; v=[MaxMin(2) MaxMin(1) 1 max(X.HIS.H(:))]; axis(v);
+                        v=axis; v=[xrange 1 max(X.HIS.H(:))]; axis(v);
                 elseif strcmp(yscale,'log ') | strcmp(yscale,'log'),
                         subplot(ceil(length(chansel)/N),N,K);
                         tmp = sqrt(sum(h)/sqrt(2*pi*sd2)*dT);
@@ -1052,7 +1058,7 @@ elseif strcmp(X.datatype,'qc:histo')
                         subplot(ceil(length(chansel)/N),N,K);
                         tmp = sqrt(sum(h(h>0))/sqrt(2*pi*sd2)*dT);
                         semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h(h>0))*dT,h2+.01],'-',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
-                        v=axis; v=[v(1:2) 1 max(X.HIS.H(:))]; axis(v);
+                        v=axis; v=[xrange 1 max(X.HIS.H(:))]; axis(v);
                 elseif strcmp(yscale,'qq'),
                         subplot(ceil(length(chansel)/N),N,K);
                         tmp=.5;sum(h)/2;
@@ -1066,9 +1072,9 @@ elseif strcmp(X.datatype,'qc:histo')
                         v=axis; v(1:2)=[MaxMin(2)+0.1*diff(MaxMin) MaxMin(1)-0.1*diff(MaxMin)]; axis(v);
                 elseif strcmp(yscale,'CDF'),
                         subplot(ceil(length(chansel)/N),N,K);
-                        tmp= sum(h)/2;
+                        tmp = sum(h)/2;
 			cdf = cumsum(h)/sum(h); 
-			h2 = cdf; 
+			h2  = cdf; 
 			h2((t>min(MaxMin)) & (t<max(MaxMin)))=NaN; 
 			plot(t,cdf,'-b',t,h2,'-r',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',ones(1,7)/2,'-+g',MaxMin,.5,'rx',[min(t),max(t)],[0,1],'bx'); 
 			grid on; 
@@ -1078,15 +1084,22 @@ elseif strcmp(X.datatype,'qc:histo')
                 elseif strcmp(yscale,'stacked'),
                         bar(t,h,'stacked');
                 end;
-                title(X.Label{K});
-                %xlabel(X.PhysDim{K});
+                if isfield(X,'Label');
+	                title(X.Label{K});
+                end; 
+                if isfield(X,'PhysDim');
+                	xlabel(['[',X.PhysDim{K},']']);
+                end; 	
         end;
         if iscell(X.PhysDim),
-               X.PhysDim = strvcat(X.PhysDim);
+%               X.PhysDim = strvcat(X.PhysDim);
         end;
        	X.RES = hist2res(X); %this uses the scaling 
 
-                fprintf(1,'\n  [%s]',X.PhysDim(1,:));
+                fprintf(1,'\nLabel:');
+                fprintf(1,'\t%7s',X.Label{:});
+                fprintf(1,'\nUnits:');
+                fprintf(1,'\t[%5s]',X.PhysDim{:});
                 fprintf(1,'\nMEAN:');
                 fprintf(1,'\t%+7.3f',X.RES.MEAN);
                 fprintf(1,'\nRMS:');

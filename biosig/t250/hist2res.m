@@ -39,7 +39,7 @@ function [R]=hist2res(H,fun)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: hist2res.m,v 1.2 2006-12-28 15:06:50 schloegl Exp $
+%	$Id: hist2res.m,v 1.3 2007-01-02 15:18:56 schloegl Exp $
 %	Copyright (c) 1996-2002,2006 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -55,7 +55,7 @@ elseif strcmp(H.datatype,'qc:histo')
 	HIS.N = sumskipnan(HIS.H); 
 	for k = 1:size(HIS.H,2);
 		t = HIS.X(:,min(k,size(HIS.X,2))); 
-		HIS.H((t<=TH(k,1)) | (t>=TH(k,2)),k) = 0; 
+		HIS.H(xor(t<=min(TH(k,:)), t>=max(TH(k,:))),k) = 0; 
 	end; 
 	Nnew = sumskipnan(HIS.H); 
 	R.ratio_lost = 1-Nnew./HIS.N;
@@ -65,9 +65,7 @@ elseif strcmp(H.datatype,'qc:histo')
 	if H.FLAG.UCAL,
 		HIS.X = [ones(size(HIS.X,1),1),repmat(HIS.X,1,size(HIS.H,2)./size(HIS.X,2))]*H.Calib;
 	end; 	
-	
 	H = HIS; 
-
 else
         fprintf(2,'ERROR: arg1 is not a histogram\n');
         return;
@@ -124,6 +122,9 @@ status=warning('off');
 R.ENTROPY = -sumskipnan(H.PDF.*log2(H.PDF),1);
 warning(status); 
 R.QUANT = repmat(min(diff(H.X,[],1)),1,size(H.H,2)/size(H.X,2));
+R.MAX = max(H.X); 
+R.MIN = min(H.X); 
+R.RANGE = R.MAX-R.MIN;
 
 if ~isempty(fun),
         fun=upper(fun);

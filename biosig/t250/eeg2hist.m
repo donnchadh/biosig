@@ -30,7 +30,7 @@ function [HDR]=eeg2hist(FILENAME,CHAN);
 % [4] A. Schlögl, Time Series Analysis toolbox for Matlab. 1996-2003
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/tsa/
 
-% 	$Id: eeg2hist.m,v 1.5 2006-12-28 15:06:50 schloegl Exp $
+% 	$Id: eeg2hist.m,v 1.6 2007-01-02 15:18:56 schloegl Exp $
 %	Copyright (C) 2002,2003,2006 by Alois Schloegl <a.schloegl@ieee.org>		
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -134,8 +134,9 @@ elseif (strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') |  strcmp(HDR.TYPE,'ACQ'
                 k=k+NoBlks; 
         end; % WHILE     
         tmp = find(any(H.H,2));
-        H.X = (tmp-2^15-1); 	%int16
-        H.H = H.H(tmp,:);
+        H.X = [-2^15:2^15-1]'; 
+        % (tmp-2^15-1); 	%int16
+        %H.H = H.H(tmp,:);
         
 elseif ~strcmp(HDR.TYPE,'unknown')
 	[s,HDR]=sread(HDR); 
@@ -146,30 +147,30 @@ end;
 HDR = sclose(HDR);
 
 %%% complete histogram and display it 
-H.N = sum(H.H);
+H.N = sumskipnan(H.H);
 %H.X = [ones(size(H.X,1),1),repmat(H.X,1,length(CHAN))]*HDR.Calib; 	%int16
 
         N=ceil(sqrt(size(H.H,2)));
         for K = 1:size(H.H,2);
-                t = H.X(:,min(K,size(H.X,2)));
+                t = H.X(:,min(K,size(H.X,2)))*HDR.Calib(K+1,K)+HDR.Calib(1,K);
                 h = H.H(:,K);
 
-                mu = (t(h>0)'*h(h>0))/H.N(K);%sumskipnan(repmat(t,size(h)./size(t)).*h,1)./sumskipnan(h,1);
-                x  = t-mu; %(repmat(t,size(h)./size(t))-repmat(mu,size(h)./size(mu)));
-                sd2= sumskipnan((x(h>0).^2).*h(h>0),1)./H.N(K);
-
-                [tmp,tmp2]=find(h>0);
+                mu = sumskipnan(t.*h)/H.N(K);
+                x  = t-mu; 
+                sd2= sumskipnan((x.^2).*h)./H.N(K);
 
                 if 0, 
                 elseif isfield(HDR,'THRESHOLD'),
-                        MaxMin=HDR.THRESHOLD(K,[2,1]);
+                        MaxMin=HDR.THRESHOLD(K,[2,1])*HDR.Calib(K+1,K)+HDR.Calib(1,K);
 		else                
-                        MaxMin=t([max(tmp) min(tmp)])';
+                        MaxMin=t([max(t) min(t)])';
                 end;
-MaxMin,
+                xrange = [min(t(h>0)),max(t(h>0))]; 
+                xrange = xrange + [-1,1]*diff(xrange)/2;
+ 
                 a(K)= subplot(ceil(size(H.H,2)/N),N,K);
                 tmp = diff(t);
-                dQ  = min(tmp(tmp>0));
+                dQ  = min(tmp(abs(tmp)>eps));
                 tmp = sqrt(sum(h(h>0))/sqrt(2*pi*sd2)*dQ);
 
 		h2 = h; 
@@ -177,7 +178,8 @@ MaxMin,
 
                 semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h(h>0))*dQ],'-',t,h2+.01,'r',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                 %v=axis; v=[v(1:2) 1 max(h)]; axis(v);
-                v=axis; v=[MaxMin([2,1]) 1-eps max(h)]; axis(v);
+                v=axis; v=[xrange 1-eps max(h)]; axis(v);
+                title(HDR.Label{K});
 	end; 
 
 fprintf(1,'\nEEG2HIST:>Now You can modify the thresholds with mouse clicks.'); 
@@ -192,7 +194,7 @@ if MODE,
 		v=axis; 
 		K = find(a==gca); 
                 %min(K,size(H.X,2))
-                t = H.X(:,min(K,size(H.X,2)));
+                t = H.X(:,min(K,size(H.X,2)))*HDR.Calib(K+1,K)+HDR.Calib(1,K);
                 %HISTO=hist2pdf(HISTO);
                 h = H.H(:,K);
 
@@ -202,9 +204,10 @@ if MODE,
 		tmp((t>min(MaxMin)) & (t<max(MaxMin)))=NaN; 
                 semilogy(t,[h+.01],'b-',t,tmp+.01,'-r');
                 ix = sort(MaxMin);
-		HDR.THRESHOLD(K,1:2) = ix(1:2);
+		HDR.THRESHOLD(K,1:2) = (ix(1:2)-HDR.Calib(1,K))/HDR.Calib(K+1,K);
 		K0 = K; 
                 v=[v(1:2) 1-eps max(h)]; axis(v);
+                title(HDR.Label{K});
 	end; 		
 end; 
 fprintf(1,' <FINISHED>\n'); 
