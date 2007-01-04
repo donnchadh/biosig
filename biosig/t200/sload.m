@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.65 2006-12-28 15:03:27 schloegl Exp $
+%	$Id: sload.m,v 1.66 2007-01-04 13:39:42 schloegl Exp $
 %	Copyright (C) 1997-2006 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -252,7 +252,7 @@ end;
 %%%%%%%%%% --------- EOG CORRECTION -------------- %%%%%%
 if H.FLAG.EOG_CORRECTION,
 try
-        h = get_bbci_regress_eog(H.FileName);
+        h = get_regress_eog(H.FileName);
 catch,
 	fprintf(H.FILE.stderr,'Error: SLOAD (EOG_CORRECTION): %s\n',lasterr); 
 	H.FLAG.EOG_CORRECTION = 0; 
@@ -265,47 +265,46 @@ H = sopen(H,'r',0,MODE);
 
 if ~isnan(H.NS),
 %------ ignore 'NaC'-channels
-NS=size(H.Calib,2);
-SelMx = speye(NS); 
-ch = 1:NS; ch(strmatch('NaC',H.Label))=[];
-if length(ch)<NS,
-	fprintf(2,'Warning SLOAD: Some NaC channels have been removed %s\n',H.FileName); 
-end; 
-SelMx = SelMx(:,ch); 
-H.Calib = H.Calib*SelMx; 
-
-% generate correction matrix 
-if H.FLAG.EOG_CORRECTION, 
-	H.Calib = H.Calib*h.REGRESS.r0; 
-	if ~isequal(H.Label(ch),h.Label)
-		fprintf(2, 'Warning SLOAD (EOG correction): Channel labels in %s do not fit with arti* recording!\n',H.FileName); 
+	NS = size(H.Calib,2);
+	SelMx = speye(NS); 
+	ch = 1:NS; ch(strmatch('NaC',H.Label))=[];
+	if length(ch)<NS,
+		fprintf(2,'Warning SLOAD: Some NaC channels have been removed %s\n',H.FileName); 
 	end; 
-elseif STATE.EOG_CORRECTION, 
-	fprintf(2, 'Warning: EOG correction not supported for this file (%s)!\n',H.FileName); 
-end; 
+	SelMx = SelMx(:,ch); 
+	H.Calib = H.Calib*SelMx; 
 
+	% generate correction matrix 
+	if H.FLAG.EOG_CORRECTION, 
+		H.Calib = H.Calib*h.REGRESS.r0; 
+		if ~isequal(H.Label(ch),h.Label)
+			fprintf(2, 'Warning SLOAD (EOG correction): Channel labels in %s do not fit with arti* recording!\n',H.FileName); 
+		end; 
+	elseif STATE.EOG_CORRECTION, 
+		fprintf(2, 'Warning: EOG correction not supported for this file (%s)!\n',H.FileName); 
+	end; 
 
-%----- generate HDR.Calib -----
-if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | (any(CHAN<0) & (numel(CHAN)>1));
-        ReRefMx = CHAN; 
-        CHAN = find(any(CHAN,2));
-elseif all(CHAN>0),
-	if any(diff(CHAN)<=0),
-	%	fprintf(HDR.FILE.FID,'Warning SOPEN: CHAN-argument not sorted - header information like Labels might not correspond to data.\n');
-	end;	
-        ReRefMx = sparse(CHAN,1:length(CHAN),1,H.NS,length(CHAN));
-else %if (CHAN==0)    
-	ReRefMx = []; 
+	%----- generate HDR.Calib -----
+	if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | (any(CHAN<0) & (numel(CHAN)>1));
+        	ReRefMx = CHAN; 
+        	CHAN = find(any(CHAN,2));
+	elseif all(CHAN>0),
+		if any(diff(CHAN)<=0),
+		%	fprintf(HDR.FILE.FID,'Warning SOPEN: CHAN-argument not sorted - header information like Labels might not correspond to data.\n');
+		end;	
+        	ReRefMx = sparse(CHAN,1:length(CHAN),1,H.NS,length(CHAN));
+	else %if (CHAN==0)    
+		ReRefMx = []; 
+	end
+	if ~isempty(ReRefMx),
+		%[size(H.Calib),size(SelMx),size(h.REGRESS.r0),size(ReRefMx)] 
+		ReRefMx = [ReRefMx(1:min(size(ReRefMx,1),size(H.Calib,2)),:); zeros(max(0,size(H.Calib,2)-size(ReRefMx,1)),size(ReRefMx,2))]; 
+		H.Calib = H.Calib*ReRefMx; 
+	end; 	
+
+	H.InChanSelect = find(any(H.Calib(2:end,:),2));
+	H.Calib = H.Calib([1;1+H.InChanSelect(:)],:);
 end
-if ~isempty(ReRefMx),
-	%[size(H.Calib),size(SelMx),size(h.REGRESS.r0),size(ReRefMx)] 
-	ReRefMx = [ReRefMx(1:min(size(ReRefMx,1),size(H.Calib,2)),:); zeros(max(0,size(H.Calib,2)-size(ReRefMx,1)),size(ReRefMx,2))]; 
-	H.Calib = H.Calib*ReRefMx; 
-end; 	
-
-H.InChanSelect = find(any(H.Calib(2:end,:),2));
-H.Calib = H.Calib([1;1+H.InChanSelect(:)],:);
-end;
 	
 if 0,
         
@@ -366,7 +365,8 @@ elseif 0, strcmp(H.TYPE,'BIFF'),
 		try
 	                [H.TFM.S,H.TFM.E] = xlsread(H.FileName,'Beat-to-Beat');
         	        H.TYPE = 'TFM_EXCEL_Beat_to_Beat'; 
-        	catch
+        	catch 
+			0; 
         	end;
 	end; 	
 
@@ -931,12 +931,12 @@ if strcmp(H.TYPE,'GDF')
         end;
 end;
 
-	if isfield(H.EVENT,'TYP')
-	% include NaN at "New Segment" in order to prevent spruious correlation
-		ix = H.EVENT.POS(find(H.EVENT.TYP==hex2dec('7ffe')))-1; 
-		signal(ix(ix>0),:)=NaN;    % mark 'New Segment' with NaN 
-	end; 	
-end; 
+
+if isfield(H.EVENT,'TYP')
+% include NaN at "New Segment" in order to prevent spruious correlation
+	ix = H.EVENT.POS(find(H.EVENT.TYP==hex2dec('7ffe')))-1; 
+	signal(ix(ix>0),:)=NaN;    % mark 'New Segment' with NaN 
+end; 	
 
 
 % resampling 
