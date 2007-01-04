@@ -13,7 +13,28 @@ function chEOG=identify_eog_channels(fn);
 % Reference(s):
 % [1] Schlogl A, Keinrath C, Zimmermann D, Scherer R, Leeb R, Pfurtscheller G. 
 %	A fully automated correction method of EOG artifacts in EEG recordings.
-%	Clin Neurophysiol. 2006 Nov 4;
+%	Clin Neurophysiol. 2007 Jan;118(1):98-104. Epub 2006 Nov 7.
+% 	http://dx.doi.org/10.1016/j.clinph.2006.09.003
+%       http://www.dpmi.tugraz.at/~schloegl/publications/schloegl2007eog.pdf
+
+%	$Id: identify_eog_channels.m,v 1.2 2007-01-04 09:45:39 schloegl Exp $
+%	Copyright (C) 2006,2007 by Alois Schloegl 
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+
+% This library is free software; you can redistribute it and/or
+% modify it under the terms of the GNU Library General Public
+% License as published by the Free Software Foundation; either
+% Version 2 of the License, or (at your option) any later version.
+%
+% This library is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+% Library General Public License for more details.
+%
+% You should have received a copy of the GNU Library General Public
+% License along with this library; if not, write to the
+% Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+% Boston, MA  02111-1307, USA.
 
 
 if ischar(fn), 
@@ -46,8 +67,10 @@ h3 = strmatch('eoghp',lower(HDR.Label));
 h4 = strmatch('eoghn',lower(HDR.Label));
 
 g = [g1;g2;g3]; 
-v = [v1,v2,v3,v4,v0];
-h = [h1,h2,h3,h4,h0];
+v = [v1,v2,v3,v4];
+if isempty(v), v=v0; end; 
+h = [h1,h2,h3,h4];
+if isempty(h), h=h0; end; 
 if length(g)==3,
 	chEOG = sparse([g1,g2,g2,g3],[1,1,2,2],[1,-1,1-1],HDR.NS,2);
 elseif length(g)==2,
@@ -70,5 +93,5 @@ else
 end; 
 
 if size(chEOG,2)<2, 
-	warning('EOG missing')
+	warning('EOG channels are missing, or were not recognized'); 
 end; 
