@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.168 2006-12-29 17:40:49 schloegl Exp $
+%	$Id: sopen.m,v 1.169 2007-01-06 21:37:40 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -7585,8 +7585,32 @@ elseif strncmp(HDR.TYPE,'FS4',3),
                 tmp = fread(HDR.FILE.FID,[4*HDR.FACE.N,3],'uint8')*(2.^[16;8;1]);
                 HDR.FACES = reshape(tmp,4,HDR.FACE.N)';
                 fclose(HDR.FILE.FID);
-        end
+        end;
         
+        
+elseif strncmp(HDR.TYPE,'GEO:STL:BIN',11),
+	% http://en.wikipedia.org/wiki/STL_%28file_format%29
+	% http://www.fastscan3d.com/download/samples/engineering.html
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,HDR.FILE.PERMISSION,HDR.Endianity);
+                HDR.H1 = char(fread(HDR.FILE.FID,[1,80],'char'));
+                tmp = HDR.H1(53:72); tmp(tmp==':')=' ';
+                HDR.T0(2) = strmatch(tmp(1:3),['Jan';'Feb';'Mar';'Apr';'May';'Jun';'Jul';'Aug';'Sep';'Oct';'Nov';'Dec']);
+                HDR.T0([3:6,1]) = str2double(tmp(5:end));
+                N = fread(HDR.FILE.FID,1,'int32');
+                HDR.HeadLen = ftell(HDR.FILE.FID);
+                if HDR.FILE.size~=HDR.HeadLen+N*50;
+                	fprintf(HDR.FILE.stderr,'WARNING SOPEN(STL): size of file %s does not fit to header information\n',HDR.FILE.Name);
+                end;
+                HDR.STL.DAT = fread(HDR.FILE.FID,[12,inf],'12*float32',2)';
+                fseek(HDR.FILE.FID,80+4+12*4,-1);
+                HDR.STL.ATT = fread(HDR.FILE.FID,[1,inf],'uint16',12*4)';
+                fclose(HDR.FILE.FID);
+                if N~=size(HDR.STL.DAT,1)
+                	fprintf(HDR.FILE.stderr,'WARNING SOPEN(STL): number of elements do not fit. Maybe file %s is corrupted!',HDR.FILE.Name);
+                end;
+	end;
+	        
         
 elseif strncmp(HDR.TYPE,'TRI',3),
         if any(HDR.FILE.PERMISSION=='r'),
