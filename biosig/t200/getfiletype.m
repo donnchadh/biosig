@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.57 2006-12-29 17:40:49 schloegl Exp $
+%	$Id: getfiletype.m,v 1.58 2007-01-06 21:39:38 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -468,8 +468,25 @@ else
                 elseif all(s(2:6)==[134,1,0,2,0]) & any(s(1)==[162:164]); 	% SCAN *.TRI file 
                         HDR.TYPE='TRI';
                         
+                elseif strncmp(ss,'3D Geometry File Format ',24); % Rhino Model file 
+                        HDR.TYPE='GEO:3DM';  
+                elseif strncmp(ss,'Iges ',5); 
+                        HDR.TYPE='GEO:IGES';
+                elseif strncmp(ss,'solid',5); 
+                        HDR.TYPE='GEO:STL:ASCII';
+                elseif strncmp(ss,'STL binary file',15) & (HDR.FILE.size==(s(81:84)*256.^[3:-1:0]')*50+84); 
+                        HDR.TYPE='GEO:STL:BIN';
+			HDR.Endianity='ieee-be';                       
+                elseif strncmp(ss,'STL binary file',15) & (HDR.FILE.size==(s(81:84)*256.^[0:3]')*50+84); 
+                        HDR.TYPE='GEO:STL:BIN';
+			HDR.Endianity='ieee-le';
+                elseif strncmp(ss,'PLY',3); 	% Polygon file format 
+                	% http://local.wasp.uwa.edu.au/~pbourke/dataformats/ply/
+                	% http://en.wikipedia.org/wiki/PLY_%28file_format%29
+                        HDR.TYPE='GEO:PLY';
+                        
                 elseif all(s(1:16)==[162 134 1 0 0 0 1 0 205 204 76 63 0 0 192 63]); 
-                        HDR.TYPE='3DD';
+                        HDR.TYPE='GEO:3DD';
 
                 elseif all((s(1:4)*(2.^[24;16;8;1]))==1229801286); 	% GE 5.X format image 
                         HDR.TYPE='5.X';
@@ -701,8 +718,10 @@ else
                         HDR.TYPE='LNK';
                         tmp = fread(fid,inf,'char');
                         HDR.LNK=[s,tmp'];
+                elseif all(s(1:111)==[0,0,1,186,68,0,4,0,4,1,1,137,195,248,0,0,1,187,0,18,128,196,225,0,225,127,185,224,232,184,192,32,189,224,58,191,224,2,0,0,1,191,7,212,80,0,0,0,0,84,47,0,0,0,0,0,255,255,255,255,255,0,0,0,0,0,64,16,0,0,0,0,74,86,67,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]);
+                        HDR.TYPE='MOVIE:MOD';
                 elseif all(s(1:3)==[0,0,1])	
-                        HDR.TYPE='MPG2MOV';
+                        HDR.TYPE='MOVIE:MPG2MOV';
                 elseif strcmp(ss([3:5,7]),'-lh-'); 
                         HDR.TYPE='LZH';
                 elseif strcmp(ss([3:5,7]),'-lz-'); 
