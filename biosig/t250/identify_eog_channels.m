@@ -1,4 +1,4 @@
-function chEOG=identify_eog_channels(fn); 
+function chEOG=identify_eog_channels(fn,x); 
 % IDENTIFY_EOG_CHANNELS returns bipolar EOG channels for 
 %  correcting of EOG artifacts using regression analysis
 % 
@@ -8,7 +8,13 @@ function chEOG=identify_eog_channels(fn);
 % The sparsity ensures that missing samples of unrelated channels 
 % do not affect the data.  
 %
-% see also: REGRESS_EOG, SLOAD
+%  [...] = IDENTIFY_EOG_CHANNELS(filename) 
+%  [...] = IDENTIFY_EOG_CHANNELS(HDR) 
+%	filename or HDR struct can be used
+%  [...] = IDENTIFY_EOG_CHANNELS(...,'x') 
+%     looks for EOG channels whos Label start with x
+%
+% see also: GET_REGRESS_EOG, SLOAD
 %
 % Reference(s):
 % [1] Schlogl A, Keinrath C, Zimmermann D, Scherer R, Leeb R, Pfurtscheller G. 
@@ -17,7 +23,7 @@ function chEOG=identify_eog_channels(fn);
 % 	http://dx.doi.org/10.1016/j.clinph.2006.09.003
 %       http://www.dpmi.tugraz.at/~schloegl/publications/schloegl2007eog.pdf
 
-%	$Id: identify_eog_channels.m,v 1.2 2007-01-04 09:45:39 schloegl Exp $
+%	$Id: identify_eog_channels.m,v 1.3 2007-01-13 00:58:55 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -54,19 +60,33 @@ g2 = strmatch('EOG-central',lower(HDR.Label));
 g3 = strmatch('EOG-right',lower(HDR.Label));
 
 % berlin
-v1 = strmatch('eogv1',lower(HDR.Label));
-v2 = strmatch('eogv2',lower(HDR.Label));
-v0 = strmatch('eogv',lower(HDR.Label));
-v3 = strmatch('eogvp',lower(HDR.Label));
-v4 = strmatch('eogvn',lower(HDR.Label));
+if nargin<2,
+	v1 = strmatch('eogv1',lower(HDR.Label));
+	v2 = strmatch('eogv2',lower(HDR.Label));
+	v0 = strmatch('eogv',lower(HDR.Label));
+	v3 = strmatch('eogvp',lower(HDR.Label));
+	v4 = strmatch('eogvn',lower(HDR.Label));
 
-h1 = strmatch('eogh1',lower(HDR.Label));
-h2 = strmatch('eogh2',lower(HDR.Label));
-h0 = strmatch('eogh' ,lower(HDR.Label));
-h3 = strmatch('eoghp',lower(HDR.Label));
-h4 = strmatch('eoghn',lower(HDR.Label));
+	h1 = strmatch('eogh1',lower(HDR.Label));
+	h2 = strmatch('eogh2',lower(HDR.Label));
+	h0 = strmatch('eogh' ,lower(HDR.Label));
+	h3 = strmatch('eoghp',lower(HDR.Label));
+	h4 = strmatch('eoghn',lower(HDR.Label));
+else
+	v1 = [];
+	v2 = [];
+	v0 = [];
+	v3 = strmatch('xeogvp',lower(HDR.Label));
+	v4 = strmatch('xeogvn',lower(HDR.Label));
 
-g = [g1;g2;g3]; 
+	h1 = [];
+	h2 = [];
+	h0 = [];
+	h3 = strmatch('xeoghp',lower(HDR.Label));
+	h4 = strmatch('xeoghn',lower(HDR.Label));
+end;
+
+g = [g1;g2;g3];
 v = [v1,v2,v3,v4];
 if isempty(v), v=v0; end; 
 h = [h1,h2,h3,h4];
@@ -78,14 +98,14 @@ elseif length(g)==2,
 else 
 	c = (length(v)>0);  
 	sz2 = (length(v)>0) + (length(h)>0);  
-	if length(v), 
+	if length(v)==1, 
 		chEOG = sparse(v,c,1,HDR.NS,sz2); 
 	elseif length(v)==2, 
 		chEOG = sparse(v,[c,c],[1,-1],HDR.NS,sz2); 
 	else 
 		chEOG = 0; 
 	end;
-	if length(h), 
+	if length(h)==1, 
 		chEOG = chEOG+sparse(h,1+c,1,HDR.NS,1+c); 
 	elseif length(h)==2, 
 		chEOG = chEOG+sparse(h,[1,1]+c,[1,-1],HDR.NS,1+c); 
