@@ -15,7 +15,7 @@ function HDR=bv2biosig_events(EVENT)
 % 
 
 
-%	$Id: bv2biosig_events.m,v 1.1 2007-01-10 16:16:56 schloegl Exp $
+%	$Id: bv2biosig_events.m,v 1.2 2007-01-13 00:55:02 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -106,6 +106,38 @@ for k1 = 1:length(HDR.EVENT.Desc)
         elseif strcmp(tmp,'Arme bewegen')
         	HDR.EVENT.TYP(k1) = hex2dec('0449'); 
 
+        elseif strncmp(tmp,'S',1) & strncmp(HDR.FILE.Name,'arteRegis',4)
+        	n = str2double(tmp(2:end)); 
+		if n==11,	% EMG left
+		       	HDR.EVENT.TYP(k1) = hex2dec('0441'); 
+		elseif n==12,	% EMG right
+	        	HDR.EVENT.TYP(k1) = hex2dec('0442'); 
+		elseif n==13,	% EMG (foot)
+	        	HDR.EVENT.TYP(k1) = hex2dec('0447'); 
+        	elseif n==1,	% Augen (left)
+	        	HDR.EVENT.TYP(k1) = hex2dec('0431'); 
+		elseif n==2,	% Augen (right)
+	        	HDR.EVENT.TYP(k1) = hex2dec('0432'); 
+		elseif n==3,	% Augen oben
+	        	HDR.EVENT.TYP(k1) = hex2dec('0433');
+		elseif n==4,	% Augen unten
+	        	HDR.EVENT.TYP(k1) = hex2dec('0434');
+		elseif n==5,	% blinzeln
+	        	HDR.EVENT.TYP(k1) = hex2dec('0439');
+		elseif n==6,	% Augen zu & entspannen
+	        	HDR.EVENT.TYP(k1) = hex2dec('0430');
+		elseif n==7,	% Augen offen & entspannen
+%	        	HDR.EVENT.TYP(k1) = hex2dec('8430');
+		elseif n==8,	% beissen
+	        	HDR.EVENT.TYP(k1) = hex2dec('0446');
+		elseif n==9,	% kopf bewegen
+	        	HDR.EVENT.TYP(k1) = hex2dec('0443');
+		elseif n==10,	% ende der aktion
+	        	HDR.EVENT.TYP(k1) = bitxor(hex2dec('8000'),HDR.EVENT.TYP(k1-1)); 
+        	else
+	        	HDR.EVENT.TYP(k1) = n; 
+		end;
+		
         elseif strncmp(tmp,'S',1)
         	n = str2double(tmp(2:end)); 
 		if n==11,	% hit (left)
@@ -130,7 +162,7 @@ for k1 = 1:length(HDR.EVENT.Desc)
         	
         elseif strcmp(tmp,'s') | strcmp(tmp,'stop') | strcmp(tmp,'stopp'),
         	HDR.EVENT.TYP(k1) = bitxor(hex2dec('8000'),HDR.EVENT.TYP(k1-1)); 
-        	
+
         elseif ~isempty(tmp)
         	[n,v,s] = str2double(tmp(2:end)); 
         	if (length(n)==1) & (~v)
