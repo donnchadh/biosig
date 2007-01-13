@@ -1,4 +1,4 @@
-function h0=get_regress_eog(fn)
+function [h0, s01] = get_regress_eog(fn,arg2)
 % GET_REGRESS_EOG tries to obtain the regression coefficients
 %    for EOG correction. This function tries to find the 
 %    data with EOG movement in an automated way. Some heuristics 
@@ -9,7 +9,7 @@ function h0=get_regress_eog(fn)
 %
 % See also: SLOAD, IDENTIFY_EOG_CHANNELS, BV2BIOSIG_EVENTS, REGRESS_EOG 
 
-%	$Id: get_regress_eog.m,v 1.1 2007-01-04 10:24:09 schloegl Exp $
+%	$Id: get_regress_eog.m,v 1.2 2007-01-13 00:57:30 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -52,23 +52,26 @@ function h0=get_regress_eog(fn)
 	% load EOG artefacts data
         [s00,h0] = sload(feog);
         
-        % define EOG channels
-        eogchan = identify_eog_channels(h0); 
-        % remove EOG channels for list of corrected channels
+	if nargin==1,
+	        % define EOG channels
+	        eogchan = identify_eog_channels(h0); 
+	else
+	        % define xEOG channels
+	        eogchan = identify_eog_channels(h0,arg2); 
+	end;
+       	% remove EOG channels for list of corrected channels
 	chan = find(~any(eogchan,2)); 
 
+		
 	if strcmp(LAB_ID,'BBCI'),                
-	        %%%% convert BV (BBCI) events into BioSig Event-Codes
-        	% h0 = bv2biosig_events(h0);         
-
 	        % find eye movements in BBCI recordings
         	%ix1 = min([strmatch('Augen',h0.EVENT.Desc);strmatch('augen',h0.EVENT.Desc)]);
 	        ix1 = min(find(bitand(hex2dec('7ff0'),h0.EVENT.TYP)==hex2dec('0430'))); % first eye movement
         	%ix2 = min(strmatch('blinzeln',h0.EVENT.Desc)+1); 
 	        ix2 = max(find(bitand(2^15-1,h0.EVENT.TYP)==hex2dec('0439'))); % end of blinks
-	                
+
 	        % extract segment with large eye movements/EOG artifacts
-	        s00 = s00(h0.EVENT.POS(ix1):h0.EVENT.POS(ix2),:); 
+	        s00 = s00(h0.EVENT.POS(ix1):h0.EVENT.POS(ix2)+h0.EVENT.DUR(ix2),:); 
 	end;
 	        
         % regression analysis - compute correction coefficients. 
@@ -80,8 +83,7 @@ function h0=get_regress_eog(fn)
 
         if ~isempty(zeog),
 		eogchan = [eogchan,zeog(:)];
-        	[h0.REGRESS,s01] = regress_eog(s00(h0.EVENT.POS(ix1):h0.EVENT.POS(ix2),:),chan,eogchan); 
-	end; 
-	       
-
+        	[h0.REGRESS,s01] = regress_eog(s00,chan,eogchan); 
+	end
 	
+		
