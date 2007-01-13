@@ -3,7 +3,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 %
 % [S,HDR] = sread(HDR [,NoS [,StartPos]] )
 % NoS       Number of seconds, default = 1 (second)
-% StartPos  Starting position, if not provided the following data is read continously from the EDF file. 
+% StartPos  Starting position, if not provided the following data is read continously from the file. 
 %                    no reposition of file pointer is performed
 %
 % HDR=sopen(Filename,'r',CHAN);
@@ -34,7 +34,7 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.73 2006-12-22 15:10:02 schloegl Exp $
+%	$Id: sread.m,v 1.74 2007-01-13 01:02:04 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -288,7 +288,7 @@ elseif strmatch(HDR.TYPE,{'AIF','SND','WAV'})
         end;
 
         
-elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','FLT','ISHNE','Nicolet','RG64'}),
+elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Nicolet','RG64'}),
         if nargin==3,
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;

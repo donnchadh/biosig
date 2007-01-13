@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.169 2007-01-06 21:37:40 schloegl Exp $
+%	$Id: sopen.m,v 1.170 2007-01-13 01:02:04 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -7399,6 +7399,7 @@ elseif strncmp(HDR.TYPE,'EEProbe',7),
         
 	        HDR.EEP.data = tmp.data';
 	end;        
+
         
 elseif strncmp(HDR.TYPE,'FIF',3),
         if any(exist('rawdata')==[3,6]),
@@ -7443,19 +7444,20 @@ elseif strncmp(HDR.TYPE,'FIF',3),
                 return;
 	end;        
         
-elseif strcmp(HDR.TYPE,'FLT'),
+
+elseif strcmp(HDR.TYPE,'ET-MEG'),
         if any(HDR.FILE.PERMISSION=='r'),
         	% read header
 
-		fid = fopen([HDR.FileName,'.hdr'],'rt'); 	
+		fid = fopen([HDR.FileName],'rt'); 	
 		[r,c] = fread(fid,[1,inf],'char'); 
 		fclose(fid); 
 
 		r = char(r); 
 		HDR.SampleRate = 1;
 		while ~isempty(r),
-			[t,r]=strtok(r,[10,13]); 
-			[tok,left]=strtok(t,'=');
+			[t,r] = strtok(r,[10,13]); 
+			[tok,left] = strtok(t,'=');
 			num = str2double(left(2:end));
 			if 0
 			elseif strcmp(tok,'type'),
@@ -7501,25 +7503,66 @@ elseif strcmp(HDR.TYPE,'FLT'),
 			elseif strcmp(tok,'sampling_step'),
 				HDR.SampleRate = HDR.SampleRate/num; 
 			elseif strcmp(tok,'parameter_of_channels'),
-				[tch,r]=strtok(r,'}'); 
-				while ~isempty(tch),
-					[tline,tch] = strtok(tch,[10,13]); 
-					if isempty(tline),
-					elseif tline(1)>33,
-						[n,v,sa]=str2double(tline);
-						HDR.Label{n(1)+1}=sa{4}; 
-					end
+				[tch_channel,r]=strtok(r,'}'); 
+			elseif strcmp(tok,'parameter_of_sensors'),
+				[tch_sensors,r]=strtok(r,'}'); 
+			elseif strcmp(tok,'parameter_of_groups'),
+				[tch_groups,r]=strtok(r,'}'); 
+			elseif strcmp(tok,'parameter_of_modules'),
+				[tch_modules,r]=strtok(r,'}'); 
+			end;
+		end;
+		
+		[tline,tch] = strtok(tch_groups,[10,13]); 
+		N = 0; 
+		while ~isempty(tline),
+			if tline(1)>33,
+				[n,v,sa]=str2double(tline);
+				PhysDim_Group{n(1)} = sa{4}; 
+			end
+			[tline,tch] = strtok(tch,[10,13]); 
+		end; 	
+
+		[tline,tch] = strtok(tch_channel,[10,13]); 
+		while ~isempty(tline),
+			if tline(1)>33,
+				[n,v,sa]=str2double(tline);
+				HDR.Label{n(1)+1} = sa{4}; 
+				if n(8)>0,
+					HDR.PhysDim{n(1)+1} = PhysDim_Group{n(8)}; 
+				else
 				end; 	
-			end; 
-		end; 
+			end
+			[tline,tch] = strtok(tch,[10,13]); 
+		end; 	
+
+		N = 0; 
+		[tline,tch] = strtok(tch_sensors,[10,13]); 
+		while ~isempty(tline),
+			[n1,v1,sa1] = str2double(tline);
+			if strncmp(sa1{2},'A',1),
+				[tline,tch] = strtok(tch,[10,13]); 
+				[n2,v2,sa2] = str2double(tline);
+				N = N + 1; 
+				if strcmp([sa1{2},'S'], sa2{2});
+					HDR.ELEC.XYZ(N,:) = (n1(5:7)+n2(5:7))/2;
+				else
+					HDR.ELEC.XYZ(N,:) = n1(5:7);
+				end; 	
+			else
+				N = N + 1; 
+				HDR.ELEC.XYZ(N,:) = n1(5:7);
+			end;
+			[tline,tch] = strtok(tch,[10,13]); 
+		end;
 
         	% read data
-		HDR.FILE.FID = fopen(HDR.FileName,'rb',HDR.Endianity); 	
+		HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.FILE.Name),'rb',HDR.Endianity); 	
 		HDR.HeadLen  = 0; 
                 HDR.FILE.POS = 0; 
                 HDR.FILE.OPEN= 1; 
                 HDR.AS.endpos= HDR.SPR*HDR.NRec; 
-                HDR.PhysDim  = repmat({'fT'},HDR.NS,1);
+                HDR.AS.bpb = sum(ceil(HDR.NS*GDFTYP_BYTE(HDR.GDFTYP+1)'));	% Bytes per Block
         end
         
         

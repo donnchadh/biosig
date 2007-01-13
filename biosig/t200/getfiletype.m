@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.58 2007-01-06 21:39:38 schloegl Exp $
+%	$Id: getfiletype.m,v 1.59 2007-01-13 01:02:04 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -151,6 +151,8 @@ else
                         HDR.TYPE = 'BrainVision';
                 elseif strncmp(ss,'Brain Vision Data Exchange Marker File',38); 
                         HDR.TYPE = 'BrainVision_MarkerFile';
+                elseif strncmp(ss,'[Header]',8); 
+                        HDR.TYPE='ET-MEG';
                 elseif strncmp(ss,'0       ',8); 
                         HDR.TYPE='EDF';
                 elseif all(s(1:8)==[255,abs('BIOSEMI')]); 
@@ -959,10 +961,14 @@ else
                         end
                         
                 elseif strcmpi(HDR.FILE.Ext,'flt') & exist([HDR.FileName,'.hdr'],'file'); 
-                        HDR.TYPE = 'FLT'; % ET-MEG format
+                        HDR.TYPE = 'ET-MEG'; % ET-MEG format
+                        HDR.FileName = [HDR.FileName,'.hdr'];
+                elseif strcmpi(HDR.FILE.Ext,'int') & exist([HDR.FileName,'.hdr'],'file'); 
+                        HDR.TYPE = 'ET-MEG'; % ET-MEG format
+                        HDR.FileName = [HDR.FileName,'.hdr'];
                 elseif strcmpi(HDR.FILE.Ext,'hdr') & exist(fullfile(HDR.FILE.Path,HDR.FILE.Name),'file'); 
-                        HDR.TYPE = 'FLT'; % ET-MEG format
-                        HDR.FileName = fullfile(HDR.FILE.Path,HDR.FILE.Name); 
+                        HDR.TYPE = 'ET-MEG'; % ET-MEG format
+                        %HDR.FileName = fullfile(HDR.FILE.Path,HDR.FILE.Name); 
                         
                 elseif strcmpi(HDR.FILE.Ext,'rhf'),
                         HDR.FileName=fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.',HDR.FILE.Ext]);
