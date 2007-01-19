@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.170 2007-01-13 01:02:04 schloegl Exp $
+%	$Id: sopen.m,v 1.171 2007-01-19 22:13:26 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -7069,11 +7069,6 @@ elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
                 end;
                 fclose(fid);
                 HDR.TYPE = 'EVENT';
-
-                tmp = which('sopen'); %%% used for BBCI
-                if exist(fullfile(fileparts(tmp),'bv2biosig_events.m'),'file'); 
-                	HDR = bv2biosig_events(HDR); 
-                end; 
         end; 
 
         
@@ -7216,6 +7211,11 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         if strcmp(H.TYPE,'EVENT');
                 HDR.EVENT = H.EVENT; 
                 HDR.T0    = H.T0; 
+
+                tmp = which('sopen'); %%% used for BBCI
+                if exist(fullfile(fileparts(tmp),'bv2biosig_events.m'),'file'); 
+                	HDR = bv2biosig_events(HDR); 
+                end; 
         end; 
 
         %open data file 
@@ -7556,6 +7556,22 @@ elseif strcmp(HDR.TYPE,'ET-MEG'),
 			[tline,tch] = strtok(tch,[10,13]); 
 		end;
 
+		if HDR.GDFTYP < 10,
+			% read scaling information
+			ix = strfind([HDR.FILE.Name,'.'],'.');
+			fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name(1:ix-1),'.calib.txt']),'r'); 
+			c   = fread(fid,[1,inf],'char=>char'); fclose(fid);
+			[n1,v1,sa1] = str2double(c); 
+			%fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name(1:ix-1),'.calib2.txt']),'r');
+			%c  = fread(fid,[1,inf],'char'); fclose(fid); 
+			%[n2,v2,sa2] = str2double(c); 
+			%HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,(n2(4:131,5).*n1(4:131,3)./n2(4:131,4))./100);
+			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,n1(4:131,3)*1e-13*(2^-12));
+			HDR.PhysDim = repmat({'T'},HDR.NS,1);
+		else
+			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+		end;	
+		
         	% read data
 		HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.FILE.Name),'rb',HDR.Endianity); 	
 		HDR.HeadLen  = 0; 
