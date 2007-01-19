@@ -1,15 +1,25 @@
 function [h0, s01] = get_regress_eog(fn,arg2)
 % GET_REGRESS_EOG tries to obtain the regression coefficients
-%    for EOG correction. This function tries to find the 
-%    data with EOG movement in an automated way. Some heuristics 
-%    is used, which is based on lab-specific standards. 
+%    for EOG correction. According to [1], some extra recordings 
+%    with large eye movements (i.e. EOG artifacts) are needed. 
+%    GET_REGRESS_EOG tries to identify this data. 
+% 
+%    Some heuristics is used, which is based on lab-specific standards. 
+%    If your data is not supported, contact <a.schloegl@ieee.org>
 % 
 % Warning: this is a utility function used by biosig. do not use it 
 % directly, unless you know what you are doing. At least you are warned. 
 %
 % See also: SLOAD, IDENTIFY_EOG_CHANNELS, BV2BIOSIG_EVENTS, REGRESS_EOG 
+%
+% Reference(s):
+% [1] Schlogl A, Keinrath C, Zimmermann D, Scherer R, Leeb R, Pfurtscheller G. 
+%	A fully automated correction method of EOG artifacts in EEG recordings.
+%	Clin Neurophysiol. 2007 Jan;118(1):98-104. Epub 2006 Nov 7.
+% 	http://dx.doi.org/10.1016/j.clinph.2006.09.003
+%       http://www.dpmi.tugraz.at/~schloegl/publications/schloegl2007eog.pdf
 
-%	$Id: get_regress_eog.m,v 1.2 2007-01-13 00:57:30 schloegl Exp $
+%	$Id: get_regress_eog.m,v 1.3 2007-01-19 15:54:58 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -27,6 +37,12 @@ function [h0, s01] = get_regress_eog(fn,arg2)
 
 	[p,f,e]=fileparts(fn); 
 
+	%%%=== search for eye-movement recordings (in order to obtain clean EOG artifacts) ===%%%
+	%	an heuristic approach is to support lab-specific standards
+	% 	currently, the convention of the GrazBCI and the BBCI Lab are supported
+	%
+	%
+	
 	f0 = dir(fullfile(p,'arte*.vhdr')); % BBCI files 
 	LAB_ID = 'BBCI'; 
 	if length(f0)==1,
@@ -65,25 +81,33 @@ function [h0, s01] = get_regress_eog(fn,arg2)
 		
 	if strcmp(LAB_ID,'BBCI'),                
 	        % find eye movements in BBCI recordings
-        	%ix1 = min([strmatch('Augen',h0.EVENT.Desc);strmatch('augen',h0.EVENT.Desc)]);
-	        ix1 = min(find(bitand(hex2dec('7ff0'),h0.EVENT.TYP)==hex2dec('0430'))); % first eye movement
-        	%ix2 = min(strmatch('blinzeln',h0.EVENT.Desc)+1); 
-	        ix2 = max(find(bitand(2^15-1,h0.EVENT.TYP)==hex2dec('0439'))); % end of blinks
+
+        	tmp = bitand(2^15-1,h0.EVENT.TYP);
+		tmp = find((tmp > hex2dec('0430')) & (tmp<=hex2dec('0439')));
+		ix1 = min(tmp); 
+		ix2 = max(tmp); 
 
 	        % extract segment with large eye movements/EOG artifacts
 	        s00 = s00(h0.EVENT.POS(ix1):h0.EVENT.POS(ix2)+h0.EVENT.DUR(ix2),:); 
 	end;
-	        
+
         % regression analysis - compute correction coefficients. 
+        
         [h0.REGRESS, s01] = regress_eog(s00,chan,eogchan); 
 
-	zeog = []; 
-	% ICA analysis for identifying the third EOG component (?)
-	%  zeog should contain the additional EOG component(s) 
+        if 0, 
+        	%%% if you have a method that can identify an additional EOG component, 
+        	%%% (maybe ICA or something else) this should go in here. 
+        
+        	echan = []; % select EEG channels for ICA analysis
+		ochan = find(any(eogchan,2)); % include global average EOG into ICA analysis
+		rx  = sparse([eogchan(:);echan(:)],[ones(size(ochan(:)));echan(:)+1],1,HDR.NS,length(echan)+1); 
 
-        if ~isempty(zeog),
-		eogchan = [eogchan,zeog(:)];
+		% identify the third EOG component, using perhaps ICA or something else
+		%  zeog should contain the additional EOG component(s) 
+		%  zeog = ica(s01*rx, ... );   % identify additional EOG component 
+		
+		eogchan = [eogchan, rx*zeog(:)];
         	[h0.REGRESS,s01] = regress_eog(s00,chan,eogchan); 
 	end
 	
-		
