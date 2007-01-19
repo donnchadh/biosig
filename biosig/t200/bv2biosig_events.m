@@ -1,6 +1,7 @@
 function HDR=bv2biosig_events(EVENT)
-% BV2BIOSIG_EVENTS converts BrainVision marker information into BioSig Event codes 
+% BV2BIOSIG_EVENTS converts VMRK marker information BioSig Event codes. 
 %  according to biosig/doc/eventcodes.txt. 
+%  Currently, the convention of the BerlinBCI is implemented and supported. 
 %
 %  HDR = bv2biosig_events(arg1)   
 %
@@ -13,9 +14,9 @@ function HDR=bv2biosig_events(EVENT)
 %  For your data, you can check this with this command: 
 %  HDR.EVENT.Desc(HDR.EVENT.TYP==0) 
 % 
+% see also: doc/eventcodes.txt
 
-
-%	$Id: bv2biosig_events.m,v 1.2 2007-01-13 00:55:02 schloegl Exp $
+%	$Id: bv2biosig_events.m,v 1.3 2007-01-19 15:52:25 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -33,6 +34,7 @@ function HDR=bv2biosig_events(EVENT)
 % License along with this library; if not, write to the
 % Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 % Boston, MA  02111-1307, USA.
+
 
 HDR.EVENT.Desc = []; 
 if isfield(EVENT,'EVENT')
@@ -54,6 +56,19 @@ if isfield(HDR.EVENT,'TeegType')
 	HDR.EVENT.TYP(ix)=hex2dec('7ffe'); 
 end; 
 
+if ~isfield(HDR,'NS')
+	HDR.NS = NaN; 
+end; 
+if ~isfield(HDR,'Label'),
+	HDR.Label = remat({' '},min(HDR.NS,128),1);
+end; 
+
+FLAG_SEASON2_RAWDATA = 0; 
+if (HDR.NS==128)
+	tmp = strvcat(HDR.Label);
+	FLAG_SEASON2_RAWDATA = isequal(tmp(1:64,1:end-1),tmp(65:128,2:end)) & all(tmp(65:128,1)=='x');
+end; 
+	
 for k1 = 1:length(HDR.EVENT.Desc)
 	tmp = HDR.EVENT.Desc{k1};
 	%HDR.TRIG = HDR.EVENT.POS(HDR.EVENT.TYP<10); 
@@ -106,8 +121,9 @@ for k1 = 1:length(HDR.EVENT.Desc)
         elseif strcmp(tmp,'Arme bewegen')
         	HDR.EVENT.TYP(k1) = hex2dec('0449'); 
 
-        elseif strncmp(tmp,'S',1) & strncmp(HDR.FILE.Name,'arteRegis',4)
-        	n = str2double(tmp(2:end)); 
+% encoding der season2-arte* rawdata records
+        elseif strncmp(tmp,'S',1) & FLAG_SEASON2_RAWDATA, %strncmp(HDR.FILE.Name,'arteRegis',4)
+        	n = str2double(tmp(2:end));
 		if n==11,	% EMG left
 		       	HDR.EVENT.TYP(k1) = hex2dec('0441'); 
 		elseif n==12,	% EMG right
@@ -127,7 +143,7 @@ for k1 = 1:length(HDR.EVENT.Desc)
 		elseif n==6,	% Augen zu & entspannen
 	        	HDR.EVENT.TYP(k1) = hex2dec('0430');
 		elseif n==7,	% Augen offen & entspannen
-%	        	HDR.EVENT.TYP(k1) = hex2dec('8430');
+	        	HDR.EVENT.TYP(k1) = hex2dec('8430');
 		elseif n==8,	% beissen
 	        	HDR.EVENT.TYP(k1) = hex2dec('0446');
 		elseif n==9,	% kopf bewegen
@@ -137,7 +153,8 @@ for k1 = 1:length(HDR.EVENT.Desc)
         	else
 	        	HDR.EVENT.TYP(k1) = n; 
 		end;
-		
+
+% hits and misses, feedback		
         elseif strncmp(tmp,'S',1)
         	n = str2double(tmp(2:end)); 
 		if n==11,	% hit (left)
@@ -159,7 +176,8 @@ for k1 = 1:length(HDR.EVENT.Desc)
         	else
 	        	HDR.EVENT.TYP(k1) = n; 
 		end; 
-        	
+
+% end of segment        	
         elseif strcmp(tmp,'s') | strcmp(tmp,'stop') | strcmp(tmp,'stopp'),
         	HDR.EVENT.TYP(k1) = bitxor(hex2dec('8000'),HDR.EVENT.TYP(k1-1)); 
 
@@ -205,7 +223,7 @@ if any(HDR.EVENT.DUR~=1)
 end; 
 
 % convert from Type1 into Type3 table.
-if 1, % ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),  
+if 0, % ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),  
 	HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS)); 
 	HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS)); 
 

@@ -1,7 +1,7 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004,2005,2006 Alois Schloegl <a.schloegl@ieee.org>
-# $Id: eventcodes.txt,v 1.6 2006-11-15 15:49:24 schloegl Exp $
+# $Id: eventcodes.txt,v 1.7 2007-01-19 15:52:25 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -78,8 +78,7 @@
 0x0420	Lights on 
 #0x8420	Lights off
 ### 0x043_ 	Eye movements
-0x0430	close
-#0x8430	open
+0x0430	close eyes (and relax)
 0x0431	left
 0x0432	right
 0x0433	up
@@ -89,6 +88,7 @@
 0x0437	rotation (clockwise)
 0x0438	rotation (counterclockwise)
 0x0439	blinks
+0x043f	open eyes (and relax)
 ### 0x044_ 	muscle activity (for checking on EEG artifacts)
 0x0441	left hand
 0x0442	right hand
