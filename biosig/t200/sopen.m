@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.171 2007-01-19 22:13:26 schloegl Exp $
+%	$Id: sopen.m,v 1.172 2007-01-24 17:41:39 schloegl Exp $
 %	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -6194,6 +6194,65 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
         end;
 
         
+elseif strcmp(HDR.TYPE,'BioSig'),
+	% this code should match HDR2ASCII in order to do ASCII2HDR 
+        if any(HDR.FILE.PERMISSION=='r'),
+        	fid = fopen(HDR.FileName,'r'); 
+        	s = fread(fid,[1,inf],'char=>char');
+        	fclose(fid); 
+        	ix1 = strfind(s,'[Channel Header]');
+        	ix2 = strfind(s,'[Event Table]');
+        	
+        	HDR.H1 = s(1:ix1-1);
+         	HDR.H2 = s(ix1:ix2-1);
+        	HDR.H3 = s(ix2-1:end);
+ 
+ 		%%%%%%%%%% fixed header
+        	HDR.H1(HDR.H1=='=') = 9; 
+        	[n,v,s]=str2double(HDR.H1,9);
+        	HDR.SampleRate = n(strmatch('SamplingRate',s(:,1)),2);
+        	HDR.NS = n(strmatch('NumberOfChannels',s(:,1)),2);
+        	HDR.TYPE = s(strmatch('FORMAT',s(:,1)),2);
+        	HDR.FileName = s(strmatch('Filename',s(:,1)),2);
+        	
+ 		%%%%%%%%%% variable header
+ 		s = HDR.H2;
+ 		[tline,s] = strtok(s,[10,13]);
+ 		[tline,s] = strtok(s,[10,13]);
+        	[n,v,s]=str2double(s,9,[10,13]);
+        	HDR.Label = s(:,3)'; 
+        	HDR.LeadIdCode = n(:,2); 
+        	HDR.AS.SampleRate = n(:,4); 
+        	HDR.THRESHOLD = n(:,6:7); 
+        	HDR.Off = n(:,8); 
+        	HDR.Cal = n(:,9); 
+        	HDR.PhysDim = s(:,10)'; 
+        	HDR.Filter.HighPass = n(:,11); 
+        	HDR.Filter.LowPass = n(:,12); 
+        	HDR.Filter.Notch = n(:,13); 
+        	HDR.REC.Impedance = n(:,14)*1000; 
+        	HDR.ELEC.XYZ = n(:,15:17); 
+ 		
+ 		%%%%%%%%%% event table 
+ 		s = HDR.H3;
+ 		tline = [];
+ 		while ~strncmp(tline,'NumberOfEvents',14);
+	 		[tline,s] = strtok(s,[10,13]);
+	 	end; 
+        	[p,v]=strtok(tline,'=');
+        	N = str2double(v); 
+        	if ~v,
+        		n = zeros(0,4);
+        	else
+	        	[n,v,s]=str2double(s,9,[10,13]);
+	        end; 	
+        	HDR.EVENT.TYP = n(:,1); 
+        	HDR.EVENT.POS = n(:,2); 
+        	HDR.EVENT.CHN = n(:,3); 
+        	HDR.EVENT.DUR = n(:,4); 
+       end;
+
+        
 elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADInstruments. 
         CHANNEL_TITLE_LEN = 32;
         UNITS_LEN = 32;
@@ -7110,6 +7169,9 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                         if ~isempty(t2),
                                 HDR.BV = setfield(HDR.BV,t1,t2);
                         end;
+                        if strcmp(t1,'NumberOfChannels')
+                        	HDR.NS = str2double(t2); 
+                        end; 	
                 elseif flag==4,        
                         [t1,r] = strtok(tline,'=');
                         [t2,r] = strtok(r, ['=',char([10,13])]);
@@ -7162,14 +7224,16 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                                         %[n,v,s] = str2double(tline(19:end)); 
                                         [n,v,s] = str2double(tline); 
                                         ch = n(1);
-                                        HDR.Label{ch} = tline(7:18);
-                                        HDR.Cal(ch) = n(4);
-                                        if v(3),
-                                                HDR.PhysDim{ch} = s{5}(strncmp(s{5},char(194),1)+1:end);
-                                        end; 
-                                        HDR.Filter.HighPass(ch)= 1/(2*pi*n(5+(v(3)~=0))); % Low Cut Off [s]: f = 1/(2.pi.tau)
-                                        HDR.Filter.LowPass(ch) = n(6+(v(3)~=0)); % High Cut Off [Hz]
-                                        HDR.Filter.Notch(ch)   = strcmpi(s{7+(v(3)~=0)},'on'); 
+                                        if ch>0,
+	                                        HDR.Label{ch} = tline(7:18);
+        	                                HDR.Cal(ch) = n(4);
+        	                                if v(3),
+        	                                        HDR.PhysDim{ch} = s{5}(strncmp(s{5},char(194),1)+1:end);
+        	                                end; 
+        	                                HDR.Filter.HighPass(ch)= 1/(2*pi*n(5+(v(3)~=0))); % Low Cut Off [s]: f = 1/(2.pi.tau)
+        	                                HDR.Filter.LowPass(ch) = n(6+(v(3)~=0)); % High Cut Off [Hz]
+        	                                HDR.Filter.Notch(ch)   = strcmpi(s{7+(v(3)~=0)},'on'); 
+        	                         end;        
                                 end;
                         elseif flag==7.2,
                         	[n,v,s]=str2double(tline,[': ',9]); 
@@ -7561,7 +7625,7 @@ elseif strcmp(HDR.TYPE,'ET-MEG'),
 			ix = strfind([HDR.FILE.Name,'.'],'.');
 			fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name(1:ix-1),'.calib.txt']),'r'); 
 			c   = fread(fid,[1,inf],'char=>char'); fclose(fid);
-			[n1,v1,sa1] = str2double(c); 
+			[n1,v1,sa1] = str2double(c,9,[10,13]);
 			%fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name(1:ix-1),'.calib2.txt']),'r');
 			%c  = fread(fid,[1,inf],'char'); fclose(fid); 
 			%[n2,v2,sa2] = str2double(c); 

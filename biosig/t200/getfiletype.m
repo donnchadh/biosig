@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.59 2007-01-13 01:02:04 schloegl Exp $
+%	$Id: getfiletype.m,v 1.60 2007-01-24 17:41:39 schloegl Exp $
 %	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -153,6 +153,8 @@ else
                         HDR.TYPE = 'BrainVision_MarkerFile';
                 elseif strncmp(ss,'[Header]',8); 
                         HDR.TYPE='ET-MEG';
+                elseif strncmp(ss,'[BioSig Header]',13); 
+                        HDR.TYPE='BioSig';
                 elseif strncmp(ss,'0       ',8); 
                         HDR.TYPE='EDF';
                 elseif all(s(1:8)==[255,abs('BIOSEMI')]); 
