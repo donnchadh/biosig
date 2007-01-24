@@ -1,8 +1,8 @@
 function [CC] = train_lda_sparse(X,G,par,tol)
 % Linear Discriminant Analysis for the Small Sample Size Problem as described in
-% Algorithm 1 on page 14 of J. Duintjer Tebbens, P. Schlesinger: 'Improving
-% Implementation of Linear Discriminant Analysis for the Small Sample Size
-% Problem'.
+% Algorithm 1 of J. Duintjer Tebbens, P. Schlesinger: 'Improving
+% Implementation of Linear Discriminant Analysis for the High Dimension/Small Sample Size
+% Problem', to appear in Computational Statistics and Data Analysis in 2007. 
 % Input:
 %               X                 ......       (sparse) training data matrix
 %               G                 ......       group coding matrix of the training data
@@ -14,10 +14,21 @@ function [CC] = train_lda_sparse(X,G,par,tol)
 %               err               ......       Wrong classification rate (in %)
 %               trafo             ......       LDA transformation vectors
 %
-% Copyright (C) by J. Duintjer Tebbens, 18.7.2006
+% Reference(s): 
+% J. Duintjer Tebbens, P. Schlesinger: 'Improving
+% Implementation of Linear Discriminant Analysis for the High Dimension/Small Sample Size
+% Problem', to appear in Computational Statistics and Data Analysis in
+% 2007. 
+%
+% Copyright (C) by J. Duintjer Tebbens, Institute of Computer Science of the Academy of Sciences of the Czech Republic,
+% Pod Vodarenskou vezi 2, 182 07 Praha 8 Liben, 18.July.2006. 
+% This work was supported by the Program Information Society under project
+% 1ET400300415.
+%
+%
 % Modified for the use with Matlab6.5 by A. Schlögl, 22.Aug.2006
 %
-%	$Id: train_lda_sparse.m,v 1.5 2006-10-10 20:25:30 schloegl Exp $
+%	$Id: train_lda_sparse.m,v 1.6 2007-01-24 15:59:03 schloegl Exp $
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
