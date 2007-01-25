@@ -1,7 +1,7 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004,2005,2006 Alois Schloegl <a.schloegl@ieee.org>
-# $Id: eventcodes.txt,v 1.7 2007-01-19 15:52:25 schloegl Exp $
+# $Id: eventcodes.txt,v 1.8 2007-01-25 09:20:49 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -16,16 +16,16 @@
 0x0107	artifact:50/60 Hz mains interference
 0x0108	artifact:breathing
 0x0109	artifact:pulse
-0x010a  artifact:EOG (slow, small amplitudes)
+0x010a	artifact:EOG (slow, small amplitudes)
 #0x010f calibration 
 ### 0x011_	EEG patterns
 0x0111	eeg:Sleep spindles
 0x0112	eeg:K-complexes
 0x0113	eeg:Saw-tooth waves
-0x0114  eeg:Idling EEG - eyes open
-0x0115  eeg:Idling EEG - eyes closed
+0x0114	eeg:Idling EEG - eyes open
+0x0115	eeg:Idling EEG - eyes closed
 0x0116	eeg:spike
-0x0117  eeg:seizure
+0x0117	eeg:seizure
 ### 0x012_	Evoked potentials
 0x0121	VEP: visual EP
 0x0122	AEP: auditory EP
@@ -43,15 +43,15 @@
 0x0304	Tongue - cue onset (BCI experiment)
 0x0305  class5 - cue onset
 0x0306	Down - cue onset (BCI experiment)
-0x0307  class7 - cue onset
-0x0308  class8 - cue onset
-0x0309  class9 - cue onset
-0x030A  class10 - cue onset
-0x030B  class11 - cue onset
+0x0307	class7 - cue onset
+0x0308	class8 - cue onset
+0x0309	class9 - cue onset
+0x030A	class10 - cue onset
+0x030B	class11 - cue onset
 0x030C	Up - cue onset (BCI experiment)
 0x030D	Feedback (continuous) - onset (BCI experiment)
 0x030E	Feedback (discrete) - onset (BCI experiment)
-0x030F  cue unknown/undefined (used for BCI competition) 
+0x030F	cue unknown/undefined (used for BCI competition) 
 0x0311	Beep (accustic stimulus, BCI experiment)
 0x0312	Cross on screen (BCI experiment)
 0x0313	Flashing light
@@ -65,7 +65,7 @@
 0x0403	Central Apnea/Hypopnea Event (CAHE)
 0x0404	Cheyne-Stokes Breathing (CSB)
 0x0405	Sleep Hypoventilation 
-0x040e  (time of) maximum inspiration 
+0x040e	(time of) maximum inspiration 
 0x040f	Start of inspiration, (end of expiration) 
 ### 0x041_	Sleep stages according to Rechtschaffen&Kales
 0x0410	Wake
@@ -78,28 +78,28 @@
 0x0420	Lights on 
 #0x8420	Lights off
 ### 0x043_ 	Eye movements
-0x0430	close eyes (and relax)
-0x0431	left
-0x0432	right
-0x0433	up
-0x0434	down
-0x0435	horizontal
-0x0436	vertical
+#0x0430	[obsolote] merged with 0x0115
+0x0431	eyes left
+0x0432	eyes right
+0x0433	eyes up
+0x0434	eyes down
+0x0435	horizontal eye movement
+0x0436	vertical eye movement
 0x0437	rotation (clockwise)
 0x0438	rotation (counterclockwise)
-0x0439	blinks
-0x043f	open eyes (and relax)
+0x0439	eye blinks
+#0x043f	[obsolote] merged with 0x0114
 ### 0x044_ 	muscle activity (for checking on EEG artifacts)
-0x0441	left hand
-0x0442	right hand
-0x0443	head
-0x0444	tongue
+0x0441	left hand movement
+0x0442	right hand movement
+0x0443	head movement
+0x0444	tongue movement
 0x0445	swallowing
 0x0446	biting, chewing, teeth griding 
-0x0447	foot
-%0x0448	foot (right)
-0x0449	arm 
-0x044a	arm (right)
+0x0447	foot movement
+%0x0448	foot (right) movement
+0x0449	arm movement
+0x044a	arm (right) movement
 ### 0x050_	ECG events
 0x0501	ecg:Fiducial point of QRS complex
 0x0502	ecg:P-wave

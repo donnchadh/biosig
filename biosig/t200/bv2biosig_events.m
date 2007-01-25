@@ -16,7 +16,7 @@ function HDR=bv2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bv2biosig_events.m,v 1.3 2007-01-19 15:52:25 schloegl Exp $
+%	$Id: bv2biosig_events.m,v 1.4 2007-01-25 09:20:52 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -95,9 +95,9 @@ for k1 = 1:length(HDR.EVENT.Desc)
         elseif strcmpi(tmp,'augen unten') | strcmpi(tmp,'augen runter')		
         	HDR.EVENT.TYP(k1) = hex2dec('0434');
         elseif strcmpi(tmp,'augen offen')	
-        	HDR.EVENT.TYP(k1) = hex2dec('8430');
+        	HDR.EVENT.TYP(k1) = hex2dec('0114');
         elseif strcmpi(tmp,'augen zu')	
-        	HDR.EVENT.TYP(k1) = hex2dec('0430');
+        	HDR.EVENT.TYP(k1) = hex2dec('0115');
         elseif strcmp(tmp,'blinzeln')	
         	HDR.EVENT.TYP(k1) = hex2dec('0439'); 
 
@@ -141,9 +141,9 @@ for k1 = 1:length(HDR.EVENT.Desc)
 		elseif n==5,	% blinzeln
 	        	HDR.EVENT.TYP(k1) = hex2dec('0439');
 		elseif n==6,	% Augen zu & entspannen
-	        	HDR.EVENT.TYP(k1) = hex2dec('0430');
+	        	HDR.EVENT.TYP(k1) = hex2dec('0115');
 		elseif n==7,	% Augen offen & entspannen
-	        	HDR.EVENT.TYP(k1) = hex2dec('8430');
+	        	HDR.EVENT.TYP(k1) = hex2dec('0114');
 		elseif n==8,	% beissen
 	        	HDR.EVENT.TYP(k1) = hex2dec('0446');
 		elseif n==9,	% kopf bewegen
@@ -223,7 +223,7 @@ if any(HDR.EVENT.DUR~=1)
 end; 
 
 % convert from Type1 into Type3 table.
-if 0, % ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),  
+if 1, % ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),  
 	HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS)); 
 	HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS)); 
 
