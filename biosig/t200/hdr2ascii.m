@@ -1,6 +1,5 @@
 function [argout,H1,h2] = hdr2ascii(source,dest)
 % HDR2ASCII converts the header information into ASCII text. 
-%    The output is displayed to standard output
 %
 %   HDR2ASCII(HDR [, ...]);
 %	converts file header HDR 
@@ -28,7 +27,7 @@ function [argout,H1,h2] = hdr2ascii(source,dest)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: hdr2ascii.m,v 1.1 2007-01-24 17:02:07 schloegl Exp $
+%	$Id: hdr2ascii.m,v 1.2 2007-02-01 15:52:47 schloegl Exp $
 %	(C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -36,12 +35,12 @@ if nargin<2,
 	if isstruct(source) 
 		HDR = source; 
 	elseif ischar(source)
-		HDR = sopen(source); 
+		HDR = sopen(source);
 		HDR = sclose(HDR); 
 	else
 		'not implemented yet',
 	end;	
-	dest = tempname; 
+	dest = [tempname,'.dlm']; 
 elseif isstruct(source) & ischar(dest); 
 	HDR = source; 
 elseif ischar(source) & ischar(dest); 
@@ -54,6 +53,10 @@ end;
 
 if nargin>1,
 	fid = fopen(dest,'wt'); 
+	if fid<0,
+		fprintf(2,'ERROR HDR2ASCII: could not open file %s\n',dest);
+		return; 
+	end; 
 else
 	fid = 1; 
 end; 
@@ -61,15 +64,28 @@ end;
 
 %%%%%%%%% FIXED HEADER %%%%%%%%%%%%%%		
 fprintf(fid,'[BioSig Header]\n\n'); 
+fprintf(fid,'Version=0.10\n',dest); 
+fprintf(fid,'generated=%04i-%02i-%02i %02i:%02i:%2.0f\n',datevec(now)); 
+if fid>2;
+	fprintf(fid,'\n;This is a TAB-delimiter file. When you edit this file, make sure not to corrupt the TABs ASCII(9)!\n\n'); 
+	fprintf(fid,'ThisFile=%s\n',dest); 
+end; 
 
+
+fprintf(fid,'\n[Fixed Header]\n'); 
 fprintf(fid,'Filename=%s\n',HDR.FileName); 
+fprintf(fid,'Format=%s\n',HDR.TYPE); 
+fprintf(fid,'SizeOfFile=%i\n',HDR.FILE.size); 
 fprintf(fid,'NumberOfChannels=%i\n',HDR.NS); 
 fprintf(fid,'SamplingRate=%i\n',HDR.SampleRate); 
 fprintf(fid,'Number_of_Samples=%i\n',HDR.NRec*HDR.SPR); 
-fprintf(fid,'RecordingDateTime=%i-%i-%i %i:%i:%i\n',HDR.T0); 
+fprintf(fid,'RecordingDateTime=%04i-%02i-%02i %02i:%02i:%06.3f\n',HDR.T0); 
 
 
 %%%%%%%% CHANNEL DATA %%%%%%%%%%%%%%%
+if ~isfield(HDR,'AS')
+	HDR.AS.SampleRate = repmat(HDR.SampleRate,HDR.NS,1); 
+end;
 if ~isfield(HDR.AS,'SampleRate')
 	HDR.AS.SampleRate = repmat(HDR.SampleRate,HDR.NS,1); 
 end;
@@ -82,11 +98,21 @@ end;
 if ~isfield(HDR,'PhysDimCode')
 	HDR.PhysDimCode = physicalunits(HDR.PhysDim); 
 end;
+if ~isfield(HDR,'LeadIdCode')
+	HDR = leadidcodexyz(HDR); 
+end;
 if ~isfield(HDR,'REC')
 	HDR.REC.Impedance = repmat(NaN,HDR.NS,1); 
 end;
 if ~isfield(HDR.REC,'Impedance')
 	HDR.REC.Impedance = repmat(NaN,HDR.NS,1); 
+end;
+if ~isfield(HDR,'Off')
+	HDR.Off = zeros(HDR.NS,1); 
+end;
+if ~isfield(HDR,'Cal')
+	HDR.Cal = ones(HDR.NS,1); 
+	HDR.Cal(HDR.InChanSelect) = diag(HDR.Calib(2:end,:));
 end;
 if length(HDR.Filter.HighPass)==1,
 	HDR.Filter.HighPass = repmat(HDR.Filter.HighPass,HDR.NS,1); 
@@ -94,33 +120,51 @@ end;
 if length(HDR.Filter.LowPass)==1,
 	HDR.Filter.LowPass = repmat(HDR.Filter.LowPass,HDR.NS,1); 
 end;
+if length(HDR.Filter.Notch)==1,
+	HDR.Filter.Notch = repmat(HDR.Filter.Notch,HDR.NS,1); 
+end;
 
 PhysDim = physicalunits(HDR.PhysDimCode); 
-fprintf(fid,'\n[Channel Header]\nNo\tLabel    \tfs [Hz]\tdtype\tTH-\tTH+\tOffset     \tCalib    \tPhys.Dim.\tHP [Hz]\tLP [Hz]\tNotch\tImpedance[kOhm]\t       X\t      Y\t       Z\n'); 
-for k = 1:HDR.NS,
+fprintf(fid,'\n[Channel Header]\n#No\tLeadId\tLabel    \tfs [Hz]\tdtype\tTH-\tTH+\tOffset     \tCalib    \tPhys.Dim.\tHP [Hz]\tLP [Hz]\tNotch\tImpedance[kOhm]\t       X\t      Y\t       Z\n'); 
+for k = 1:HDR.NS;
 	Label = HDR.Label{k};
 	Z = HDR.REC.Impedance(k)/1000; 
 	gdftyp = gdfdatatype(HDR.GDFTYP(min(length(HDR.GDFTYP),k))); 
 	Label(Label==9)=' '; % replace TAB's because TAB's are used as field delimiter
-	fprintf(fid,'#%3i\t%9s\t%6.1f\t%s\t%i\t%i\t%6e\t%6e\t%s\t%6.6f\t%5.1f\t%i\t%5.1f\t%f\t%f\t%f\n',k,Label,HDR.AS.SampleRate(k),gdftyp,HDR.THRESHOLD(k,1:2),full(HDR.Calib([1,k+1],k)),PhysDim{k},HDR.Filter.HighPass(k),HDR.Filter.LowPass(k),HDR.Filter.Notch(k),Z,HDR.ELEC.XYZ(k,:)); 
+	fprintf(fid,'%3i\t%i\t%9s\t%6.1f\t%s\t%i\t%i\t%6e\t%6e\t%s\t%6.6f\t%5.1f\t%i\t%5.1f\t%f\t%f\t%f\n',k,HDR.LeadIdCode(k),Label,HDR.AS.SampleRate(k),gdftyp,HDR.THRESHOLD(k,1:2),HDR.Off(k),HDR.Cal(k),PhysDim{k},HDR.Filter.HighPass(k),HDR.Filter.LowPass(k),HDR.Filter.Notch(k),Z,HDR.ELEC.XYZ(k,:)); 
 end;
 
 
 %%%%%%%%%% EVENTTABLE %%%%%%%%%%%%%%%55
-fprintf(fid,'\n[Event Table]\nTYP\tPOS'); 
+fprintf(fid,'\n[Event Table]\n'); 
+fprintf(fid,'NumberOfEvents=%i\n   TYP\t   POS ',length(HDR.EVENT.POS)); 
 if isfield(HDR.EVENT,'CHN')
 	fprintf(fid,'\tCHN\tDUR'); 
 end; 
-fprintf(fid,'\nNumberOfEvents=%i\n',length(HDR.EVENT.POS)); 
+fprintf(fid,'\tDescription\n'); 
 
-if length(HDR.EVENT.POS),
-	if ~isfield(HDR.EVENT,'CHN')
-		fprintf(fid,'0x%04x\t%7i\t%i\t%i\n',[HDR.EVENT.TYP,HDR.EVENT.POS]'); 
-	elseif isempty(HDR.EVENT.CHN)
-		fprintf(fid,'0x%04x\t%7i\t%i\t%i\n',[HDR.EVENT.TYP,HDR.EVENT.POS]'); 
-	else
-		fprintf(fid,'0x%04x\t%7i\t%i\t%i\n',[HDR.EVENT.TYP,HDR.EVENT.POS,HDR.EVENT.CHN,HDR.EVENT.DUR]'); 
+% use global to improve speed
+global BIOSIG_GLOBAL;
+if ~isfield(BIOSIG_GLOBAL,'ISLOADED_EVENTCODES')
+	BIOSIG_GLOBAL.ISLOADED_EVENTCODES=0;
+end; 
+if ~BIOSIG_GLOBAL.ISLOADED_EVENTCODES,
+	H=sopen('eventcodes.txt');sclose(H); 
+	BIOSIG_GLOBAL.EVENT = H.EVENT;
+end;
+	
+for k = 1:length(HDR.EVENT.POS);
+	fprintf(fid,'0x%04x\t%7i',[HDR.EVENT.TYP(k),HDR.EVENT.POS(k)]'); 
+	if isfield(HDR.EVENT,'CHN')
+	if ~isempty(HDR.EVENT.CHN)
+		fprintf(fid,'\t%i\t%i',[HDR.EVENT.CHN(k),HDR.EVENT.DUR(k)]'); 
+	end;
 	end; 
+	ix = find(HDR.EVENT.TYP(k)==BIOSIG_GLOBAL.EVENT.CodeIndex);
+	if length(ix)==1,
+		fprintf(fid,'\t%s',BIOSIG_GLOBAL.EVENT.CodeDesc{ix});
+	end; 
+	fprintf(fid,'\n');
 end; 
 
 if fid>2,
