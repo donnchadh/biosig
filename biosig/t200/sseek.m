@@ -10,8 +10,8 @@ function [HDR]=sseek(HDR,offset,origin)
 %
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
-%	$Id: sseek.m,v 1.16 2006-09-21 07:55:40 schloegl Exp $
-%	(C) 1997-2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: sseek.m,v 1.17 2007-02-01 15:47:38 schloegl Exp $
+%	(C) 1997-2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -76,7 +76,7 @@ elseif origin == 1,
 		POS = HDR.AS.endpos+offset*HDR.AS.bpb;
 		HDR.FILE.status = fseek(HDR.FILE.FID,POS,-1);
 		HDR.FILE.POS = (POS-HDR.HeadLen)/HDR.AS.bpb;
-	elseif strmatch(HDR.TYPE,{'BKR','ISHNE','RG64','MIT','LABVIEW','SMA','BVbinmul','BCI2000'}),
+	elseif strmatch(HDR.TYPE,{'AINF','BKR','ET-MEG','ISHNE','RG64','MIT','LABVIEW','SMA','BVbinmul','BCI2000'}),
 		HDR.FILE.POS = HDR.AS.endpos+offset;
 		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.AS.bpb*offset,1);
 	elseif strmatch(HDR.TYPE,{'CNT','EEG','AVG','EGI','SND','WAV','AIF','CFWB','DEMG'}),

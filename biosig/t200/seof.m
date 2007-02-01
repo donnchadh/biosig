@@ -21,8 +21,8 @@ function [status]=seof(HDR)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: seof.m,v 1.14 2005-06-08 15:45:43 schloegl Exp $
-%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: seof.m,v 1.15 2007-02-01 15:47:38 schloegl Exp $
+%	(C) 1997-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -37,7 +37,7 @@ if strmatch(HDR.TYPE,{'CTF','RDF','EEG','AVG','SIGIF'}),
 elseif strmatch(HDR.TYPE,{'RG64','LABVIEW','Nicolet','BVbinmul','BVbinvec','BVascii'}),
 	status = (HDR.FILE.POS >= (HDR.AS.endpos-HDR.HeadLen));
 
-elseif strmatch(HDR.TYPE,{'ACQ','BKR','CNT','CTF','EDF','BDF','GDF','MIT','SMA','CFWB','DEMG','EEProbe-CNT','EEProbe-AVR','MFER','alpha','native','SCP','BCI2000','TMS32','WG1'}),
+elseif strmatch(HDR.TYPE,{'ACQ','AINF','BDF','BKR','CNT','CTF','EDF','ET-MEG','GDF','MIT','SMA','CFWB','DEMG','EEProbe-CNT','EEProbe-AVR','MFER','alpha','native','SCP','BCI2000','TMS32','WG1'}),
 	status = (HDR.FILE.POS >= HDR.SPR*HDR.NRec);
 
 elseif strmatch(HDR.TYPE,{'EGI'}),

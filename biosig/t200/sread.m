@@ -1,4 +1,4 @@
-function [S,HDR] = sread(HDR,NoS,StartPos)
+function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % SREAD loads selected segments of signal file
 %
 % [S,HDR] = sread(HDR [,NoS [,StartPos]] )
@@ -34,11 +34,12 @@ function [S,HDR] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.74 2007-01-13 01:02:04 schloegl Exp $
-%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: sread.m,v 1.75 2007-02-01 15:47:38 schloegl Exp $
+%	(C) 1997-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 S = [];
+time = []; 
 
 if nargin<2, 
         NoS = inf; 
@@ -252,7 +253,29 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF') 
         HDR.FILE.POS = HDR.FILE.POS + count;
         
         
-elseif strmatch(HDR.TYPE,{'BKR'}),
+elseif strcmp(HDR.TYPE,'AINF'),
+        if nargin==3,
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*StartPos*2*(HDR.NS+2),'bof');        
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+
+        %[S,count] = fread(HDR.FILE.FID,[HDR.NS+2,HDR.SampleRate*NoS],'int16');
+        nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
+        S  = []; 
+	time = [];
+        count = 0; 
+        while (count<nr),
+               	[s,c] = fread(HDR.FILE.FID, [HDR.NS+2, min(nr-count,floor(2^24/HDR.NS))], 'int16');
+		if nargout>2,
+			time  = [time; [s(1:2,:)'+2^16*(s(1:2,:)'<0)]*(2.^[16;0])];
+		end;	
+               	S = [S; s(2+HDR.InChanSelect,:)'];
+              	count = count + c/(HDR.NS+2); 
+	end; 
+        HDR.FILE.POS = HDR.FILE.POS + count;
+        
+        
+elseif strcmp(HDR.TYPE,'BKR'),
         if nargin==3,
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -1382,16 +1405,20 @@ elseif strcmp(HDR.TYPE,'FIF'),
         status = 'ok';
         
         while (t2<(StartPos + NoS)) & ~strcmp(status,'eof'),
-                [buf, status] = rawdata('next'); 
-                if ~strcmp(status, 'ok')
-                        error('error reading selected data from fif-file');
-                else
+                [buf, status] = rawdata('next');
+                if 0
+                elseif strcmp(status, 'ok')
                         count = count + size(buf,2);
                         dat = [dat; buf(HDR.InChanSelect,:)'];
+                elseif strcmp(status, 'eof')
+                elseif strcmp(status, 'skip')
+                elseif strcmp(status, 'error')
+                        error('error reading selected data from fif-file');
+                else
+                        error('undefined status code return from RAWDATA(FIF-file)');
                 end
                 t2 = rawdata('t');
         end
-
         t  = t1*HDR.SampleRate+1:t2*HDR.SampleRate;
         ix = (t>StartPos*HDR.SampleRate) & (t<=(StartPos+NoS)*HDR.SampleRate);
         S  = dat(ix,HDR.InChanSelect);

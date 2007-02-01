@@ -28,8 +28,8 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.60 2007-01-24 17:41:39 schloegl Exp $
-%	(C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: getfiletype.m,v 1.61 2007-02-01 15:47:37 schloegl Exp $
+%	(C) 2004,2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if ischar(arg1),
@@ -153,6 +153,8 @@ else
                         HDR.TYPE = 'BrainVision_MarkerFile';
                 elseif strncmp(ss,'[Header]',8); 
                         HDR.TYPE='ET-MEG';
+                elseif all(s(1:4)==0) & strcmp(HDR.FILE.Ext,'raw')  & exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.ainf']),'file'); 
+                        HDR.TYPE='AINF';
                 elseif strncmp(ss,'[BioSig Header]',13); 
                         HDR.TYPE='BioSig';
                 elseif strncmp(ss,'0       ',8); 
@@ -1006,6 +1008,9 @@ else
                         
                 elseif strcmpi(HDR.FILE.Ext,'trg') & HDR.FLAG.ASCII
                 	HDR.TYPE = 'EEProbe-TRG';
+                        
+                elseif strcmpi(HDR.FILE.Ext,'ainf') & HDR.FLAG.ASCII & exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.raw']),'file')
+                	HDR.TYPE = 'AINF';
                         
                 elseif strcmpi(HDR.FILE.Ext,'rej')
                         

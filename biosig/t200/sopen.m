@@ -48,8 +48,8 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.172 2007-01-24 17:41:39 schloegl Exp $
-%	(C) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: sopen.m,v 1.173 2007-02-01 15:47:38 schloegl Exp $
+%	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if isnan(str2double('1, 3'));
@@ -5405,7 +5405,14 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         if flag.tfm & isfield(tmp,'BPVsBP'),
                 flag.tfm = flag.tfm + 4*((isfield(tmp.BPVsBP,'HF_sBP') & isfield(tmp.BPVsBP,'LF_sBP') & isfield(tmp.BPVsBP,'PSD_sBP') & isfield(tmp.BPVsBP,'VLF_sBP'))); 
         end; 
-        
+        flag.bbci = isfield(tmp,'bbci') & isfield(tmp,'nfo');
+        if flag.bbci
+        	flag.bbci = isfield(tmp,'mnt') & isfield(tmp,'mrk') & isfield(tmp,'dat') & isfield(tmp,'fs_orig') & isfield(tmp,'mrk_orig'); 
+        	if ~(flag.bbci),
+        		warning('identification of bbci data may be not correct');
+        	end; 	
+	end; 
+	
         if isfield(tmp,'HDR'),
                 H = HDR; 
                 HDR = tmp.HDR; 
@@ -5436,6 +5443,42 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.PhysDimCode = zeros(HDR.NS,1); 
                 end; 
 
+                
+        elseif flag.bbci,
+        	f = fieldnames(tmp);
+        	HDR.SampleRate = tmp.nfo.fs; 
+        	HDR.NRec = tmp.nfo.nEpochs; 
+        	HDR.SPR = tmp.nfo.T;
+        	HDR.Label = tmp.dat.clab';
+		if isfield(tmp,'mrk_orig'),
+			HDR.EVENT.POS = round([tmp.mrk_orig.pos]./[tmp.mrk_orig.fs]*tmp.mrk.fs)';
+			HDR.EVENT.Desc = {tmp.mrk_orig.desc};
+			HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
+			HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS));
+			HDR.EVENT.DUR = ones(size(HDR.EVENT.POS));
+			HDR = bv2biosig_events(HDR);
+ 		elseif isfield(tmp,'mrk');
+	        	HDR.EVENT.POS = tmp.mrk.pos';
+        		HDR.EVENT.TYP = tmp.mrk.toe';
+	        	if isfield(tmp.mrk,'toe')
+		        	HDR.Classlabel = tmp.mrk.toe;
+		        end; 	
+		end;
+        	HDR.NS = length(HDR.Label); 
+        	HDR.Cal = tmp.dat.resolution; 
+        	if (CHAN==0), CHAN=1:HDR.NS; end; 
+%        	HDR.data = repmat(NaN,HDR.SPR*HDR.NRec,HDR.NS);
+        	for k = 1:length(CHAN),
+        		HDR.data(:,CHAN(k)) = getfield(tmp,['ch',int2str(CHAN(k))]); 
+        	end
+		[tmp0,HDR.THRESHOLD,tmp1,HDR.bits,HDR.GDFTYP]=gdfdatatype(class(tmp.ch1));
+        	HDR.THRESHOLD = repmat(HDR.THRESHOLD,HDR.NS,1); 
+		
+        	HDR.TYPE = 'native'; 
+        	HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
+		HDR.PhysDimCode = repmat(4275,HDR.NS,1);
+		HDR.PhysDim = repmat('uV',HDR.NS,1);
+		
                 
         elseif flag.bci2002a,
         	[HDR.SPR, HDR.NS, HDR.NRec] = size(tmp.y); 
@@ -6200,10 +6243,11 @@ elseif strcmp(HDR.TYPE,'BioSig'),
         	fid = fopen(HDR.FileName,'r'); 
         	s = fread(fid,[1,inf],'char=>char');
         	fclose(fid); 
+        	ix0 = strfind(s,'[Fixed Header]');
         	ix1 = strfind(s,'[Channel Header]');
         	ix2 = strfind(s,'[Event Table]');
         	
-        	HDR.H1 = s(1:ix1-1);
+        	HDR.H1 = s(ix0:ix1-1);
          	HDR.H2 = s(ix1:ix2-1);
         	HDR.H3 = s(ix2-1:end);
  
@@ -6962,6 +7006,45 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
                 end;
         end;
         
+elseif strcmp(HDR.TYPE,'AINF'),
+        if any(HDR.FILE.PERMISSION=='r'),
+        	%%%% read header %%%%
+                fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.ainf']),'rt');
+                s   = char(fread(fid,[1,inf],'char')); 
+                fclose(fid); 
+		[tline,s] = strtok(s,[10,13]); 
+		while strncmp(tline,'#',1)                              
+ 			[tline,s]=strtok(s,[10,13]);
+ 			[t,r]=strtok(tline,[9,10,13,' #:=']);
+ 			if strcmp(t,'sfreq'),
+	 			[t,r]=strtok(r,[9,10,13,' #:=']);
+ 				HDR.SampleRate = str2double(t);
+ 			end; 	
+		end;             
+		[n,v,sa]  = str2double([tline,s]); 
+		HDR.NS    = max(n(:,1)); 
+		for k = 1:HDR.NS,
+			HDR.Label{k} = [sa{k,2},' ',sa{k,3}];
+		end;
+		HDR.Cal   = [n(:,4).*n(:,5)]; 
+				
+		%%%% read data %%%%
+                HDR.FILE.FID  = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.raw']),HDR.FILE.PERMISSION,'ieee-be');
+		fseek(HDR.FILE.FID,0,'eof');
+		HDR.FILE.size = ftell(HDR.FILE.FID);
+		fseek(HDR.FILE.FID,0,'bof');
+		
+                HDR.GDFTYP = 3; 
+                HDR.AS.bpb = HDR.NS*2+4; 
+                HDR.SPR = floor(HDR.FILE.size/HDR.AS.bpb);
+                HDR.NRec = 1; 
+                HDR.FILE.POS = 0; 
+                HDR.AS.endpos = HDR.SPR;
+                HDR.HeadLen = 0; 
+		HDR.PhysDimCode = zeros(HDR.NS,1);
+        end;
+
+        
 elseif strcmp(HDR.TYPE,'CTF'),
         if any(HDR.FILE.PERMISSION=='r'),
                 HDR.FILE.FID  = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.res4']),HDR.FILE.PERMISSION,'ieee-be');
@@ -7471,12 +7554,13 @@ elseif strncmp(HDR.TYPE,'FIF',3),
 			FLAG_NUMBER_OF_OPEN_FIF_FILES = 0;
 		end;	    
                 if ~any(FLAG_NUMBER_OF_OPEN_FIF_FILES==[0,1])
-                        fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): number of open FIF files must be zero or one\n\t Perhaps, you forgot to SCLOSE(HDR) the previous FIF-file.\n');
-                        return;
+                        fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): number of open FIF files should be zero or one\n\t Perhaps, you forgot to SCLOSE(HDR) the previous FIF-file.\n');
+                        %return;
                 end;
 
                 try
                         rawdata('any',HDR.FileName);  % opens file 
+	                FLAG_NUMBER_OF_OPEN_FIF_FILES = 1; 
                 catch
                         tmp = which('rawdata');
                         [p,f,e]=fileparts(tmp);
@@ -7500,8 +7584,9 @@ elseif strncmp(HDR.TYPE,'FIF',3),
                 rawdata('goto', -inf);
                 HDR.FILE.POS = 0; 
                 HDR.FILE.OPEN = 1; 
-                FLAG_NUMBER_OF_OPEN_FIF_FILES = FLAG_NUMBER_OF_OPEN_FIF_FILES+1; 
-                
+                HDR.PhysDimCode = zeros(HDR.NS,1); 
+                HDR = rmfield(HDR,'PhysDim'); 
+
         else
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): NeuroMag FIFF access functions not available. \n');
                 fprintf(HDR.FILE.stderr,'\tOnline available at: http://www.kolumbus.fi/kuutela/programs/meg-pd/ \n');
@@ -7586,7 +7671,6 @@ elseif strcmp(HDR.TYPE,'ET-MEG'),
 			end
 			[tline,tch] = strtok(tch,[10,13]); 
 		end; 	
-
 		[tline,tch] = strtok(tch_channel,[10,13]); 
 		while ~isempty(tline),
 			if tline(1)>33,
@@ -7631,7 +7715,6 @@ elseif strcmp(HDR.TYPE,'ET-MEG'),
 			%[n2,v2,sa2] = str2double(c); 
 			%HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,(n2(4:131,5).*n1(4:131,3)./n2(4:131,4))./100);
 			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,n1(4:131,3)*1e-13*(2^-12));
-			HDR.PhysDim = repmat({'T'},HDR.NS,1);
 		else
 			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 		end;	
@@ -7642,7 +7725,7 @@ elseif strcmp(HDR.TYPE,'ET-MEG'),
                 HDR.FILE.POS = 0; 
                 HDR.FILE.OPEN= 1; 
                 HDR.AS.endpos= HDR.SPR*HDR.NRec; 
-                HDR.AS.bpb = sum(ceil(HDR.NS*GDFTYP_BYTE(HDR.GDFTYP+1)'));	% Bytes per Block
+                HDR.AS.bpb   = 2*HDR.NS;		% Bytes per Block
         end
         
         
