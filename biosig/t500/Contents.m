@@ -13,8 +13,7 @@
 % REFERENCES: 
 %
 
-%	$Revision: 1.2 $
-%	$Id: Contents.m,v 1.2 2004-02-21 14:52:47 schloegl Exp $
+%	$Id: Contents.m,v 1.3 2007-02-03 21:36:16 schloegl Exp $
 %	Copyright (c) 1997-2004 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/

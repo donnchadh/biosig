@@ -13,9 +13,8 @@ function [YX,code]=elpos(Label);
 %   for Electroencephalography according to the International 10-20 system.
 %   CEN/TC251/PT-40 (2001)
 
-%	$Revision: 1.1 $
-%	$Id: elpos.m,v 1.1 2004-02-13 17:19:53 schloegl Exp $
-%	Copyright (c) 1997, 1998, 2004 by Alois Schloegl
+%	$Id: elpos.m,v 1.2 2007-02-03 21:33:45 schloegl Exp $
+%	Copyright (c) 1997,1998,2004,2007 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -35,38 +34,38 @@ function [YX,code]=elpos(Label);
 % Boston, MA  02111-1307, USA.
 
 
-
-load electrode.mat;
+tmp = leadidcodexyz('Fp1');   % make sure BIOSIG_GLOBAL.XYZ is loaded 
+global BIOSIG_GLOBAL
 
 if nargin<1,
         Label='';
 end
 [nr,nc]=size(Label);
 code=zeros(nr,1);
-YX=100*ones(nr,2);
+XYZ = BIOSIG_GLOBAL.XYZ;
+Phi   = atan(XYZ(:,1)./XYZ(:,2))*180/pi;
+Theta = acos(XYZ(:,3)./sqrt(sum(XYZ.^2,2)));
+xy  = Theta.*exp(i*angle(XYZ*[1;i;0]))*180/pi; 
 
-N=77;
 for k=1:nr;
-for l=1:102;%size(Electrode.Theta,2), 
-	if strcmp(upper(deblank(Label(k,:))),upper(Electrode.Acronym{l}))
+for l=1:length(BIOSIG_GLOBAL.Label),
+	if strcmp(upper(deblank(Label(k,:))),upper(BIOSIG_GLOBAL.Label{l}))
 		code(k)=l;
-		YX(k,:)=real(Electrode.Theta(l).*exp(i*pi/180*Electrode.Phi(l))*[1 -i]);
 break;
-	end;
+	end;	
 end;
 end;
 
 K=code(code>0)';
-xy=Electrode.Theta(1:N).*exp(i*pi/180*Electrode.Phi(1:N));
 
 T=0:.001:2*pi;
-R=110;
+R=180/pi*2;
 plot(real(xy),imag(xy),'x',real(xy(K)),imag(xy(K)),'ro',R*sin(T),R*cos(T),'b-',-R+R/10*sin(-T/2),10*cos(-T/2),'b-',10*sin(T/2)+R,10*cos(T/2),'b-',[-10 0 10],[R R+10 R],'b-');
-%for k=K,text(real(xy(k)),imag(xy(k)),Electrode.Acronym{k});end;
-%for k=[1:77 87 88 94 95]; text(real(xy(k)),imag(xy(k)),Electrode.Acronym{k});end;
-for k=[1:77]; text(real(xy(k)),imag(xy(k)),Electrode.Acronym{k});end;
-%plot(YX,'ro');
+for k=1:size(XYZ,1), 
+	if all(~isnan(XYZ(k,:))),
+		text(real(xy(k)),imag(xy(k)),BIOSIG_GLOBAL.Label{k});
+	end;
+end;
 set(gca,'xtick',0,'ytick',0,'xticklabel','','yticklabel','')
 
-return;
 
