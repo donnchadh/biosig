@@ -27,14 +27,16 @@ function [HDR] = leadidcodexyz(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: leadidcodexyz.m,v 1.8 2006-08-30 17:57:32 schloegl Exp $
-%	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: leadidcodexyz.m,v 1.9 2007-02-05 14:54:48 schloegl Exp $
+%	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
 
 
 global BIOSIG_GLOBAL;
+% BIOSIG_GLOBAL=0; %%% used for debugging, only. 
+
 if ~isfield(BIOSIG_GLOBAL,'ISLOADED_XYZ')
 	BIOSIG_GLOBAL.ISLOADED_XYZ = 0 ; 
 end; 
@@ -68,7 +70,6 @@ if ~BIOSIG_GLOBAL.ISLOADED_XYZ;
         end;
         N1 = N;
 
-
         % load table 
         fid = fopen(fullfile(p,'doc','elecpos.txt'),'r');
         t = char(fread(fid,[1,inf],'char'));
@@ -90,7 +91,7 @@ if ~BIOSIG_GLOBAL.ISLOADED_XYZ;
         end;
         Phi   = Phi(:)  *pi/180;
         Theta = Theta(:)*pi/180;
-        
+
         
         % loading is done only once. 
         BIOSIG_GLOBAL.XYZ = [sin(Theta).*cos(Phi), sin(Theta).*sin(Phi), cos(Theta)];
@@ -98,7 +99,6 @@ if ~BIOSIG_GLOBAL.ISLOADED_XYZ;
         BIOSIG_GLOBAL.Label        = Labels;
         BIOSIG_GLOBAL.Description  = Description;
         BIOSIG_GLOBAL.MDC_ECG_LEAD = MDC_ECG_LEAD;
-
 
         BIOSIG_GLOBAL.ISLOADED_XYZ = 1;
 end; 
@@ -139,7 +139,7 @@ else    % electrode code and position
 
                 if tmp.flag3,
 	                if ~tmp.flag1,
-        	               HDR.ELEC.LOC   = repmat(NaN,NS,3);
+        	               HDR.ELEC.XYZ   = repmat(NaN,NS,3);
 	        	end;
                 	if ~tmp.flag2,
                        		HDR.LeadIdCode = repmat(NaN,NS,1);
@@ -151,7 +151,7 @@ else    % electrode code and position
                         	        XYZ = BIOSIG_GLOBAL.XYZ(ix,:);
                         	else	
                                 	LeadIdCode = 0;
-	                                XYZ = [0,0,0]; 
+	                                XYZ = [NaN,NaN,NaN]; 
         	                end;
 
                 	        if ~tmp.flag1,
@@ -169,7 +169,7 @@ else    % electrode code and position
         	                if (length(ix)==1),
 	                                HDR.Label{k} = BIOSIG_GLOBAL.Label{ix};
 		                        if ~tmp.flag1,
-        		                        HDR.ELEC.LOC(k,1:3) = BIOSIG_GLOBAL.XYZ(ix,1:3);
+        		                        HDR.ELEC.XYZ(k,1:3) = BIOSIG_GLOBAL.XYZ(ix,1:3);
                 		        end;
                		        else
                		        	HDR.Label{k} = ['#',int2str(k)];
