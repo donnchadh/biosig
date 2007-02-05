@@ -6,8 +6,8 @@
 # CEN/TC251/PT40 2001	
 # File Exchange Format for Vital Signs - Annex A 
 #
-# $Id: elecpos.txt,v 1.1 2006-08-10 07:10:39 schloegl Exp $
-# Copyright (C) 2006 Alois Schloegl <a.schloegl@ieee.org>
+# $Id: elecpos.txt,v 1.2 2007-02-05 14:39:23 schloegl Exp $
+# Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 # This file is part of the biosig project http://biosig.sf.net/
 #
 #Code	Label	Phi	Theta
@@ -74,10 +74,17 @@
 1238	PO4	 298.0	  76.8
 1241	PO7	 234.0	  90.0
 1246	PO8	 306.0	  90.0
+#### T7,T8,P7,P8 of the 10-10 system correspond to T3,T4,T5,T6 of the 10-20 System, respectively. 
+#### for details see http://butler.cc.tut.fi/%7Emalmivuo/bem/bembook/13/13.htm#03
 1249	T3	 180.0	  90.0
+1249	T7	 180.0	  90.0
 1254	T4	   0.0	  90.0
+1254	T8	   0.0	  90.0
 1257	T5	 216.0	  90.0
+1257	P7	 216.0	  90.0
 1262	T6	 324.0	  90.0
+1262	P8	 324.0	  90.0
+#
 1265	T9	 180.0	 112.5
 1270	T10	   0.0	 112.5
 1273	TP7	 198.0	  90.0
