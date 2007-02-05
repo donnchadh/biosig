@@ -22,7 +22,7 @@
 %  you can excluded the path to NaN/*. The BIOSIG tools will still 
 %  work, but does not support the handling of NaN's.
 
-%	$Id: install.m,v 1.13 2007-02-05 19:44:42 schloegl Exp $
+%	$Id: install.m,v 1.14 2007-02-05 20:04:50 schloegl Exp $
 %	Copyright (C) 2003-2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -33,47 +33,47 @@ if exist('t200','dir')
 elseif exist('biosig','dir')
 end; 
 
-path([BIOSIG_HOME,'/biosig/'],path);			% 
-path([BIOSIG_HOME,'/biosig/demo/'],path);		% demos
-path([BIOSIG_HOME,'/biosig/doc/'],path);		% docus, Eventtable etc. 
-path([BIOSIG_HOME,'/biosig/t200/'],path);		% dataformat
-path([BIOSIG_HOME,'/biosig/t250/'],path);		% trigger and quality control
-path([BIOSIG_HOME,'/biosig/t300/'],path);		% signal processing and feature extraction
-path([BIOSIG_HOME,'/biosig/t400/'],path);		% classification
-path([BIOSIG_HOME,'/biosig/t450/'],path);		% statistics, false discovery rates
-path([BIOSIG_HOME,'/biosig/t490/'],path);		% evaluation criteria
-path([BIOSIG_HOME,'/biosig/t500/'],path);		% display and presentation
-path([BIOSIG_HOME,'/biosig/t501/'],path);		% visualization ofcoupling analysis
+path([BIOSIG_HOME,'/biosig'],path);			% 
+path([BIOSIG_HOME,'/biosig/demo'],path);		% demos
+path([BIOSIG_HOME,'/biosig/doc'],path);		% docus, Eventtable etc. 
+path([BIOSIG_HOME,'/biosig/t200'],path);		% dataformat
+path([BIOSIG_HOME,'/biosig/t250'],path);		% trigger and quality control
+path([BIOSIG_HOME,'/biosig/t300'],path);		% signal processing and feature extraction
+path([BIOSIG_HOME,'/biosig/t400'],path);		% classification
+path([BIOSIG_HOME,'/biosig/t450'],path);		% statistics, false discovery rates
+path([BIOSIG_HOME,'/biosig/t490'],path);		% evaluation criteria
+path([BIOSIG_HOME,'/biosig/t500'],path);		% display and presentation
+path([BIOSIG_HOME,'/biosig/t501'],path);		% visualization ofcoupling analysis
 
 if ~exist('OCTAVE_VERSION','builtin'),	
-	path([BIOSIG_HOME,'/biosig/viewer/'],path);		% viewer
+	path([BIOSIG_HOME,'/biosig/viewer'],path);		% viewer
 	path([BIOSIG_HOME,'/biosig/viewer/utils'],path);	% viewer
 	path([BIOSIG_HOME,'/biosig/viewer/help'],path);	% viewer
 end;
 
-path([BIOSIG_HOME,'/tsa/'],path);		%  Time Series Analysis
-path([BIOSIG_HOME,'/tsa/inst/'],path);		%  Time Series Analysis
+path([BIOSIG_HOME,'/tsa'],path);		%  Time Series Analysis
+path([BIOSIG_HOME,'/tsa/inst'],path);		%  Time Series Analysis
 % some users might get confused by this
-path([BIOSIG_HOME,'/NaN/'],path);		%  Statistics analysis for missing data
-path([BIOSIG_HOME,'/NaN/inst/'],path);		%  Statistics analysis for missing data
+path([BIOSIG_HOME,'/NaN'],path);		%  Statistics analysis for missing data
+path([BIOSIG_HOME,'/NaN/inst'],path);		%  Statistics analysis for missing data
 
-if exist([BIOSIG_HOME,'/biosig/eeglab/'],'dir'),
-	path([BIOSIG_HOME,'/biosig/eeglab/'],path);
+if exist([BIOSIG_HOME,'/biosig/eeglab'],'dir'),
+	path([BIOSIG_HOME,'/biosig/eeglab'],path);
 end;
-if exist([BIOSIG_HOME,'/eeglab/'],'dir'),
-	path([BIOSIG_HOME,'/eeglab/'],path);
+if exist([BIOSIG_HOME,'/eeglab'],'dir'),
+	path([BIOSIG_HOME,'/eeglab'],path);
 end;
 %%% NONFREE %%%
 if exist([BIOSIG_HOME,'/biosig/NONFREE/EEProbe'],'dir'),
-	path(path,[BIOSIG_HOME,'/biosig/NONFREE/EEProbe/']);	% Robert Oostenveld's MEX-files to access EEProbe data
+	path(path,[BIOSIG_HOME,'/biosig/NONFREE/EEProbe']);	% Robert Oostenveld's MEX-files to access EEProbe data
 end;
-if exist([BIOSIG_HOME,'/biosig/NONFREE/meg-pd-1.2-4/'],'dir'),
-        path(path,[BIOSIG_HOME,'/biosig/NONFREE/meg-pd-1.2-4/']);	% Kimmo Uutela's library to access FIF data
+if exist([BIOSIG_HOME,'/biosig/NONFREE/meg-pd-1.2-4'],'dir'),
+        path(path,[BIOSIG_HOME,'/biosig/NONFREE/meg-pd-1.2-4']);	% Kimmo Uutela's library to access FIF data
 end;
 
 ver = version; 
 if (str2double(ver(1:3))<7.0)
-	path(path,[BIOSIG_HOME,'/maybe-missing/']);
+	path(path,[BIOSIG_HOME,'/maybe-missing']);
 end
 
 % test of installation 
