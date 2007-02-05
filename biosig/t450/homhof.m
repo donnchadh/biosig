@@ -1,9 +1,9 @@
-function [t]=ttestC(z);
+function [AaH,pwert]=homhof(p,k,alpha,u);
 %
-%The function [t]=ttestC(z) is a subfunction in the main-function fdp.m.
-%For help use the main-function.
-% klassische Einstichproben t-Test
-% Formeln von Kropf S.55
+%The function[AaH,pwert] = homhof(p,k,alpha,u)) is a subfunction in the main-function fdp.m.
+%Use the main-function for help.
+%
+%Erweiterung von Holm für u=1,2,3... nach Hommel und Hoffmann (1987)
 %
 %
 %Copyright (C) 2006 by Claudia Hemmelmann <claudia.hemmelmann@mti.uni-jena.de>
@@ -11,6 +11,7 @@ function [t]=ttestC(z);
 %University of Jena
 %This work was supported by DFG Project VO 683/2-1
 %This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%
 %
 %%***
 % This library is free software; you can redistribute it and/or
@@ -30,10 +31,22 @@ function [t]=ttestC(z);
 %
 %--------------------------------------------------------------------------
 
- [n,k]=size(z);
-   zquer1=sum(z,1)/n;
-   %zquer=mean(z);
-   s1=sqrt(sum((z-ones(n,1)*zquer1).^2,1)/(n-1));
-	%s=std(z);
-	%t=sqrt(n)*zquer./s;
-	t=sqrt(n)*zquer1./s1;
+
+
+ AaH=0;
+ pwert=zeros(k,1);
+ 
+ % t-Test für Einstichprobenfall
+ 
+ c=[ones(1,u+1)*(u+1)*alpha/k, (u+1)*alpha./[k-1:-1:u+1]];
+ 
+ for j=1:k
+    if p(j)>=c(j),
+       AaH = j-1;
+       return;
+    end;
+    if j==k,
+       AaH = k;
+       return;
+    end;
+ end; 

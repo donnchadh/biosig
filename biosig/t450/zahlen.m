@@ -1,9 +1,6 @@
-function [t]=ttestC(z);
-%
-%The function [t]=ttestC(z) is a subfunction in the main-function fdp.m.
+% M1-1 Zufallszahlen aus dem Intervall [1,N]
+% The function [g] = zahlen(M,N) is a subfunction in the main-function fdp.m.
 %For help use the main-function.
-% klassische Einstichproben t-Test
-% Formeln von Kropf S.55
 %
 %
 %Copyright (C) 2006 by Claudia Hemmelmann <claudia.hemmelmann@mti.uni-jena.de>
@@ -30,10 +27,31 @@ function [t]=ttestC(z);
 %
 %--------------------------------------------------------------------------
 
- [n,k]=size(z);
-   zquer1=sum(z,1)/n;
-   %zquer=mean(z);
-   s1=sqrt(sum((z-ones(n,1)*zquer1).^2,1)/(n-1));
-	%s=std(z);
-	%t=sqrt(n)*zquer./s;
-	t=sqrt(n)*zquer1./s1;
+
+
+function [g]=zahlen(M,N);
+if  M<N/2
+
+g=ceil(N*rand(1,M));
+
+g=unique(g);
+
+l=size(g,2);
+while l<M
+g1=ceil(N*rand(1,M-l));
+g=union(g1,g);l=size(g,2);
+end;
+
+else
+M=N-M;
+g=ceil(N*rand(1,M));
+
+g=unique(g);
+
+l=size(g,2);
+while l<M
+g1=ceil(N*rand(1,M-l));
+g=union(g1,g);l=size(g,2);
+end;
+g=setdiff([1:N],g);
+end;

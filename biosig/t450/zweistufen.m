@@ -13,8 +13,9 @@ function  [AaH,pup,adpval]= zweistufen(psu,indexsu,k,alpha)
 %	high-dimensional EEG data.
 %	J Neurosci Methods. 2005 Mar 30;142(2):209-17.
 %
+% [2]
 %
-% Copyright (C) 2006 Claudia Hemmelmann <c.hemmelmann@imsid.uni-jena.de>
+% Copyright (C) 2006 Claudia Hemmelmann <claudia.hemmelmann@mti.uni-jena.de>
 % Adapted by A Schloegl <a.schloegl@ieee.org> Dec 2006 
 %
 %***

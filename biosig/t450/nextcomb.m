@@ -1,9 +1,7 @@
-function [t]=ttestC(z);
+function [a,y]=nextcomb(y,N,k);
 %
-%The function [t]=ttestC(z) is a subfunction in the main-function fdp.m.
+%The function[a,y] = nextcomb(y,N,k) is a subfunction in the main-function fdp.m.
 %For help use the main-function.
-% klassische Einstichproben t-Test
-% Formeln von Kropf S.55
 %
 %
 %Copyright (C) 2006 by Claudia Hemmelmann <claudia.hemmelmann@mti.uni-jena.de>
@@ -11,6 +9,7 @@ function [t]=ttestC(z);
 %University of Jena
 %This work was supported by DFG Project VO 683/2-1
 %This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%
 %
 %%***
 % This library is free software; you can redistribute it and/or
@@ -30,10 +29,21 @@ function [t]=ttestC(z);
 %
 %--------------------------------------------------------------------------
 
- [n,k]=size(z);
-   zquer1=sum(z,1)/n;
-   %zquer=mean(z);
-   s1=sqrt(sum((z-ones(n,1)*zquer1).^2,1)/(n-1));
-	%s=std(z);
-	%t=sqrt(n)*zquer./s;
-	t=sqrt(n)*zquer1./s1;
+
+[u,j]=max(([y(2:k),N+1]-y(1:k))>ones(1,k));
+%j=suche(1);
+
+%suche=y+ones(1,k);
+%for j=1:k
+%i=find(y==suche(j));
+%if isempty(i),break;end;
+%end;
+%j
+a=0;
+if u==0
+a=1;return;
+end;
+
+y(j)=y(j)+1;
+y(1:j-1)=[1:j-1];
+

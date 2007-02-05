@@ -51,9 +51,10 @@ function [pval, z] = u_test (x, y, alt)
     print_usage ();
   end
 
-  if (~ (isvector (x) && isvector (y)))
-    error ('u_test: both x and y must be vectors');
-  end
+  %modified for Matlab
+%  if (~ (isvector (x) && isvector (y)))
+%    error ('u_test: both x and y must be vectors');
+%  end
 
   n_x  = length (x);
   n_y  = length (y);

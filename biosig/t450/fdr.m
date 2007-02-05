@@ -1,11 +1,11 @@
-function [AaH,O] = fdr(Input,n1,samp,varargin)
+function [O] = fdr(Input,n1,samp,varargin)
 %
 % The function FDR performs different multiple test procedures for 
 % controlling the false discovery rate (FDR). 
 % 
-% function [AaH,O] = fdr(Input,n1,samp) returns the number of rejected hypotheses (AaH),
-% the the indices of the rejected hypotheses (O(:,1)), the adjusted p-values
-% (O(:,2)) and the unadjusted p-values (O(:,3)) for the procedure of Benjamini
+% function [O] = fdr(Input,n1,samp) returns the number of rejected hypotheses,
+% the rank (O(:,1)), the indices of the rejected hypotheses (O(:,2)), the adjusted p-values
+% (O(:,3)) and the unadjusted p-values (O(:,4)) for the procedure of Benjamini
 % and Yekutieli (1995) with the significance level alpha=0.05.
 %
 %----------
@@ -28,7 +28,7 @@ function [AaH,O] = fdr(Input,n1,samp,varargin)
 %    Parameter        Value
 %
 %     'test'         Value for single sample
-%    		      'ttest'               to compute the t-Test
+%    		          'ttest'               to compute the t-Test
 %                                           assumption : normal(gaussian) distribution   
 %                     'wilcox'              to compute the Wilcoxen signed rank test
 %                                           assumption : symmetrical distribution
@@ -59,9 +59,9 @@ function [AaH,O] = fdr(Input,n1,samp,varargin)
 %               '<'                "the values of group 1 are smaller than the values of group 2" (one-sided test)    
 %
 %---
-%      'proc'        'BH' (the default)     chooses the Benjamini Hochberg procedure
-%                    'BL'                   chooses the Benjamini Lui procedure
-%                    'BKY'                  chooses the Benjamini Krieger Yekutieli procedur
+%      'proc'        'BH' (the default)     chooses the procedure of Benjamini and Hochberg (1995)
+%                    'BL'                   chooses the procedure of Benjamini and Liu (2001)
+%                    'BKY'                  chooses the procedure of Benjamini, Krieger and Yekutieli (2001)
 %---
 %      'alpha'       0.05 (the default)    significance level
 %                     for a other value: 0<alpha<=0.2
@@ -69,11 +69,10 @@ function [AaH,O] = fdr(Input,n1,samp,varargin)
 %
 % OUTPUT
 %
-% [AaH,O] = fdr(Input,n1,samp) returns the number of rejected hypotheses (AaH),
-% the the indices of the rejected hypotheses (O(:,1)), the adjusted p-values
-% (O(:,2)) and the unadjusted p-values (O(:,3)).
+% [O] = fdr(Input,n1,samp) returns the rank (O(:,1)), 
+% the indices of the rejected hypotheses (O(:,2)), 
+% the adjusted p-values (O(:,3)) and the unadjusted p-values (O(:,4)).
 %
-%data matrix O; O = [pup, adpval, ps]
 %-----------
 %
 % REFERENCES:
@@ -86,8 +85,8 @@ function [AaH,O] = fdr(Input,n1,samp,varargin)
 %	J Neurosci Methods. 2004 Oct 15;139(1):111-20. 
 %
 %
-% Copyright (C) 2006 Claudia Hemmelmann <c.hemmelmann@imsid.uni-jena.de>
-% Adapted by A Schloegl <a.schloegl@ieee.org> Dec 2006 
+% Copyright (C) 2006,2007 Claudia Hemmelmann <claudia.hemmelmann@mti.uni-jena.de>
+% Adapted by A Schloegl <a.schloegl@ieee.org> 2006,2007 
 %
 %***
 % This library is free software; you can redistribute it and/or
@@ -112,10 +111,10 @@ function [AaH,O] = fdr(Input,n1,samp,varargin)
 
 if nargin < 3 %check the required input of completeness
 	error('stats:fdrin:TooFewInputs', ...
-	      'fdri requires at least three input arguments: X; n1; samp .');
+	      'fdr requires at least three input arguments: X; n1; samp .');
 end %if
 
-[n,k]=size(Input); %Dimension of the data matrix I
+[n,k]=size(Input); %Dimension of the data matrix Input
 
 %Initialisation t
 t = zeros(1,k);
@@ -135,11 +134,15 @@ end%if
 % required input argument samp; use 'single','paired','indept'
 switch samp %choose the kind of sample; required input arument
     case 'single' %single sample
+        sampout = 'single sample';
+        
         if n1 == n
          else
          error('For single sample must be n1 = n');
         end%if
     case 'paired' %paired sample
+        sampout = 'paired sample';
+        
         ncheck1 = n/2;
         ncheck2 = floor(ncheck1);
         if ncheck2 - ncheck1 == 0
@@ -152,6 +155,8 @@ switch samp %choose the kind of sample; required input arument
         error('For paired sample must be n1 = n/2;');
         end%if
     case 'indept' %independent sample
+        sampout = 'independent sample';
+        
         if n1 < n
         else
             error('For independent sample must be n1 < n');
@@ -196,8 +201,11 @@ testChoices = {'ttest' 'wilcox' 'sign'};
 if strcmp(samp ,'single')       %for single sample
 	switch test           %choose test   
 	  case 'ttest'        %t-Test
+          testout = 't-test';
   	  case 'wilcox'       %Wilcoxen signed rank test
+          testout = 'Wilcoxen signed rank test';
       case 'sign'         %sign test
+          testout = 'sign test';
       otherwise
           error('stats:fdrin:Unknowntest', ...
           'The ''test'' parameter value must be ''ttest'' , ''wilcox'' or ''stest'' for single sample .');
@@ -205,8 +213,11 @@ if strcmp(samp ,'single')       %for single sample
 elseif strcmp(samp,'paired')  % for paired sample
    	switch test          %choose test  
     	 case 'ttest'    %t-Test
+             testout = 't-test';
     	 case 'wilcox'   %Wilcoxen signed rank test
+             testout = 'Wilcoxen signed rank test';
     	 case 'sign'     %sign test
+             testout = 'sign test';
          otherwise
           error('stats:fdrin:Unknowntest', ...
           'The ''test'' parameter value must be ''ttest'', '' wilcox'' or ''sign'' for paired sample .');
@@ -214,20 +225,22 @@ elseif strcmp(samp,'paired')  % for paired sample
 else    % for independent sample
         switch test %choose test
 	 case 'ttest'        %t-Test 
+         testout = 't-test';
 	 case 'wilcox'       %Wilcoxen rank sum test
+         testout = 'Wilcoxen-Man-Whitney-Test';
      otherwise
           error('stats:fdrin:Unknowntest', ...
-          'The ''test'' parameter value must be ''ttest'', or ''wilcox'' for independent sample .');
+          'The ''test'' parameter value must be ''ttest'' or ''wilcox'' for independent sample .');
      end %switch test indept
 end %if samp
 
 switch tail  %choose tail
    case '>' %one-sided test with X > Y
-    
+    tailout = 'one-sided (>)';
    case '~=' %two-sided test with X unequal Y, the default value
-    
+    tailout = 'two-sided';
    case '<' %one-sided test with X < Y
-    
+    tailout = 'one-sided (<)';
    otherwise
         error('ts:fdrin:Unknowntail', [...
            'The ''tail'' parameter value must be ''>'' for one-sided test with X > Y,', ...
@@ -237,12 +250,15 @@ end %switch tail
 
 switch proc       % choose procedure
    case 'BH'         % Benjamini Hochberg procedure
+       procout = 'procedure of Benjamini and Hochberg (1995)';
    case 'BL'         % Benjamini Lui procedure
+       procout = 'procedure of Benjamini and Liu (2001)';
    case 'BKY'        % Benjamini Krieger Yekutieli procedure
+       procout = 'procedure of Benjamini, Krieger and Yekutieli (2001)';
    otherwise
         error('ts:fdrin:Unknownproc', [...
-            'The ''proc'' parameter value must be ''BH'' for Benjamini Hochberg,', ...
-            ' ''BL'' for Benjamini Lui or ''BKY'' for Benjamini Krieger Yekutieli.']);
+            'The ''proc'' parameter value must be ''BH'' for Benjamini and Hochberg,', ...
+            ' ''BL'' for Benjamini and Liu or ''BKY'' for Benjamini, Krieger and Yekutieli.']);
 end %switch proc
 
 %check alpha 0<alpha<=0.5
@@ -293,7 +309,7 @@ if strcmp(samp,'single')       %for single sample
           end;%for
    	end %switch test sing
 elseif strcmp(samp,'paired')  %for paired sample
-   switch test          %chose test  
+   switch test            
     	 case 'ttest'    %t-Test
 	   t=ttestC(X-Y); 
            FG=n1-1;
@@ -353,12 +369,31 @@ switch proc
 end %switch proc
 
 
-%Output
+%Output%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %--------------------------------------------------------------------------
 
+disp(sprintf('The following parameters have been used: '));
+disp(sprintf('sample size: %g, (group 1: %g)',n,n1));
+disp(sprintf('number of hypotheses: %g',k));
+disp(sprintf('kind of sample: %s',sampout));
+disp(sprintf('univariate test: %s',testout));
+disp(sprintf('tail: %s',tailout));
+disp(sprintf('multiple test procedure: %s',procout));
+disp(sprintf('significance level alpha: %1.3f',alpha));
+
+disp(sprintf('\nResult:'));
+disp(sprintf('\nnumber of rejected hypotheses: %g',AaH));
+disp(sprintf('\nOutputmatrix'));
+
+rangzahl=[1:1:AaH]';
 format short g
-O = [pup', adpval', psd(1:AaH)'];
+O = [rangzahl, pup', adpval', psd(1:AaH)'];
+
+disp(sprintf('\nrank \t component \t p-values (adjusted) \t p-value (unadjusted)'));    
+for ausg_O=1:AaH,
+    disp(sprintf('%g\t\t',squeeze(O(ausg_O,:)))); 
+     
+end;
 
 
-
-%end function[AaH,O] = fdr(Input,n1,samp,varargin)
+%end function[O] = fdr(Input,n1,samp,varargin)

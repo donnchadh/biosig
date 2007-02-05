@@ -53,9 +53,10 @@ function [pval, b, n] = signtest (x, y, alpha, alt)
   	alpha=.05; 
   end; 
 
-  if (~ (isvector (x) && isvector (y) && (length (x) == length (y))))
-    error ('sign_test: x and y must be vectors of the same length');
-  end
+  %modified for Matlab
+  %if (~ (isvector (x) && isvector (y) && (length (x) == length (y))))
+  %  error ('sign_test: x and y must be vectors of the same length');
+  %end
 
   n   = length (x);
   x   = reshape (x, 1, n);

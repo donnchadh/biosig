@@ -47,9 +47,10 @@ function [pval, z] = wilcoxon_test (x, y, alpha, alt)
     error;
   end
 
-  if (~ (isvector (x) && isvector (y) && (length (x) == length (y))))
-    error ('wilcoxon_test: x and y must be vectors of the same length');
-  end
+  %modified for Matlab
+%  if (~ (isvector (x) && isvector (y) && (length (x) == length (y))))
+%    error ('wilcoxon_test: x and y must be vectors of the same length');
+%  end
 
   n = length (x);
   %x = reshape (x, 1, n); % modified by CH <c.hemmelmann@imsid.uni-jena.de>

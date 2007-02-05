@@ -14,7 +14,7 @@ function [AaH,pup,adpval] = bh95(psu,indexsu,k,alpha);
 %
 % [2]
 %
-% Copyright (C) 2006 Claudia Hemmelmann <c.hemmelmann@imsid.uni-jena.de>
+% Copyright (C) 2006 Claudia Hemmelmann <claudia.hemmelmann@mti.uni-jena.de>
 % Adapted by A Schloegl <a.schloegl@ieee.org> Dec 2006 
 %
 %***

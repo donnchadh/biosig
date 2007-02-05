@@ -13,10 +13,9 @@ function [AaH,pup,adpval] = bl01(psd,indexsd,k,alpha);
 %	high-dimensional EEG data.
 %	J Neurosci Methods. 2005 Mar 30;142(2):209-17.
 %
-% [2]
 %
-% Copyright (C) 2006 Claudia Hemmelmann <c.hemmelmann@imsid.uni-jena.de>
-% Adapted by A Schloegl <a.schloegl@ieee.org> Dec 2006 
+% Copyright (C) 2006,2007 Claudia Hemmelmann <claudia.hemmelmann@mti.uni-jena.de>
+% Adapted by A Schloegl <a.schloegl@ieee.org> 2006,2007 
 %
 %***
 % This library is free software; you can redistribute it and/or

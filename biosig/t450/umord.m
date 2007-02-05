@@ -1,9 +1,6 @@
-function [t]=ttestC(z);
-%
-%The function [t]=ttestC(z) is a subfunction in the main-function fdp.m.
+function [zahl,U]=umord(X,m)
+%The function [zahl,U] = umord(X,m) is a subfunction in the main-function fdp.m.
 %For help use the main-function.
-% klassische Einstichproben t-Test
-% Formeln von Kropf S.55
 %
 %
 %Copyright (C) 2006 by Claudia Hemmelmann <claudia.hemmelmann@mti.uni-jena.de>
@@ -30,10 +27,18 @@ function [t]=ttestC(z);
 %
 %--------------------------------------------------------------------------
 
- [n,k]=size(z);
-   zquer1=sum(z,1)/n;
-   %zquer=mean(z);
-   s1=sqrt(sum((z-ones(n,1)*zquer1).^2,1)/(n-1));
-	%s=std(z);
-	%t=sqrt(n)*zquer./s;
-	t=sqrt(n)*zquer1./s1;
+[n,p]=size(X);
+
+C=rand(1,n);
+[B,C]=sort(C,2);
+
+%C(1:m)
+v=ismember([1:n],C(1:m));
+twos = pow2(n-1:-1:0);
+zahl = sum(v .* twos(ones(1,1),:),2);
+
+
+for j=1:n
+U(j,:)=X(C(j),:); 
+end;
+%Y
