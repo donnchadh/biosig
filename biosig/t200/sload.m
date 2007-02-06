@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.66 2007-01-04 13:39:42 schloegl Exp $
+%	$Id: sload.m,v 1.67 2007-02-06 15:45:56 schloegl Exp $
 %	Copyright (C) 1997-2006 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -306,10 +306,16 @@ if ~isnan(H.NS),
 	H.Calib = H.Calib([1;1+H.InChanSelect(:)],:);
 end
 	
+	
 if 0,
         
 elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat','EEProbe-CNT','EEProbe-AVR'})); 
-        [signal,H] = sread(H);
+        signal = [];
+        while ~seof(H),
+	        [s,H] = sread(H,100);
+	        %fprintf('%i/%i\n',stell(H),H.SPR*H.NRec);
+	        signal=[signal;s];
+	end;        
         H = sclose(H);
 
         

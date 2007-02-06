@@ -16,7 +16,7 @@ function HDR=bv2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bv2biosig_events.m,v 1.4 2007-01-25 09:20:52 schloegl Exp $
+%	$Id: bv2biosig_events.m,v 1.5 2007-02-06 15:45:55 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -60,13 +60,14 @@ if ~isfield(HDR,'NS')
 	HDR.NS = NaN; 
 end; 
 if ~isfield(HDR,'Label'),
-	HDR.Label = remat({' '},min(HDR.NS,128),1);
+	HDR.Label = repmat({' '},min(HDR.NS,128),1);
 end; 
 
-FLAG_SEASON2_RAWDATA = 0; 
+FLAG_SEASON2_ARTERAWDATA = 0; 
 if (HDR.NS==128)
 	tmp = strvcat(HDR.Label);
-	FLAG_SEASON2_RAWDATA = isequal(tmp(1:64,1:end-1),tmp(65:128,2:end)) & all(tmp(65:128,1)=='x');
+	FLAG_SEASON2_ARTERAWDATA = isequal(tmp(1:64,1:end-1),tmp(65:128,2:end)) & all(tmp(65:128,1)=='x');
+	FLAG_SEASON2_ARTERAWDATA = FLAG_SEASON2_ARTERAWDATA & strncmp(HDR.FILE.Name,'arte',4);
 end; 
 	
 for k1 = 1:length(HDR.EVENT.Desc)
@@ -122,7 +123,7 @@ for k1 = 1:length(HDR.EVENT.Desc)
         	HDR.EVENT.TYP(k1) = hex2dec('0449'); 
 
 % encoding der season2-arte* rawdata records
-        elseif strncmp(tmp,'S',1) & FLAG_SEASON2_RAWDATA, %strncmp(HDR.FILE.Name,'arteRegis',4)
+        elseif strncmp(tmp,'S',1) & FLAG_SEASON2_ARTERAWDATA, 
         	n = str2double(tmp(2:end));
 		if n==11,	% EMG left
 		       	HDR.EVENT.TYP(k1) = hex2dec('0441'); 
@@ -148,14 +149,15 @@ for k1 = 1:length(HDR.EVENT.Desc)
 	        	HDR.EVENT.TYP(k1) = hex2dec('0446');
 		elseif n==9,	% kopf bewegen
 	        	HDR.EVENT.TYP(k1) = hex2dec('0443');
-		elseif n==10,	% ende der aktion
+		elseif any(n==[10,100])	% ende der aktion
 	        	HDR.EVENT.TYP(k1) = bitxor(hex2dec('8000'),HDR.EVENT.TYP(k1-1)); 
         	else
 	        	HDR.EVENT.TYP(k1) = n; 
 		end;
 
 % hits and misses, feedback		
-        elseif strncmp(tmp,'S',1)
+        elseif strncmp(tmp,'S',1) | strncmp(tmp,'R',1) 
+        	HDR.EVENT.CHN(k1) = (tmp(1)=='R')*64+1;  %%% hack to distinguish Player 1 and 2 in SEASON2 data
         	n = str2double(tmp(2:end)); 
 		if n==11,	% hit (left)
 		       	HDR.EVENT.TYP(k1) = hex2dec('0381'); 
@@ -171,7 +173,7 @@ for k1 = 1:length(HDR.EVENT.Desc)
 	        	HDR.EVENT.TYP(k1) = hex2dec('830d');
 		elseif n==60,	% feedback onset
 	        	HDR.EVENT.TYP(k1) = hex2dec('030d'); 
-		elseif any(n==[4,5,7])
+		elseif 0, any(n==[4,5,7]) %%% ignore these 
 	        	HDR.EVENT.TYP(k1) = NaN; 
         	else
 	        	HDR.EVENT.TYP(k1) = n; 
@@ -204,7 +206,9 @@ if isfield(HDR.EVENT,'POS');
 	HDR.EVENT.POS = HDR.EVENT.POS(~flag_remove);
 	HDR.EVENT.CHN = HDR.EVENT.CHN(~flag_remove);
 	HDR.EVENT.DUR = HDR.EVENT.DUR(~flag_remove);
-	HDR.EVENT.TeegType = HDR.EVENT.TeegType(~flag_remove);
+	if isfield(HDR.EVENT,'TeegType');
+		HDR.EVENT.TeegType = HDR.EVENT.TeegType(~flag_remove);
+	end;	
 	HDR.EVENT.Desc = HDR.EVENT.Desc(~flag_remove);
 
        	ix1 = find(HDR.EVENT.TYP<10);
@@ -224,7 +228,7 @@ end;
 
 % convert from Type1 into Type3 table.
 if 1, % ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),  
-	HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS)); 
+	% HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS)); 
 	HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS)); 
 
 	% convert EVENT.Version 1 to 3, currently used by GDF, BDF and alpha
@@ -243,7 +247,7 @@ if 1, % ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
                 	
                 else 
 	                fprintf(2,'Warning BV2BIOSIG_EVENT: number of event onset (TYP=%s) and event offset (TYP=%s) differ (%i-%i)\n',dec2hex(double(TYP0)),dec2hex(double(TYP1)),sum(ix0),sum(ix1));
-                        %% double(.) operator needed because Matlab6.5 can not fix fix(uint16(..))
+                        %% double(.) operator needed because Matlab6.5 can not fix(uint16(..))
 	        end;
 	end;
 	if any(HDR.EVENT.DUR<0)
@@ -254,6 +258,9 @@ if 1, % ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	HDR.EVENT.POS = HDR.EVENT.POS(~flag_remove);
 	HDR.EVENT.CHN = HDR.EVENT.CHN(~flag_remove);
 	HDR.EVENT.DUR = HDR.EVENT.DUR(~flag_remove);
-	HDR.EVENT.TeegType = HDR.EVENT.TeegType(~flag_remove);
+	if isfield(HDR.EVENT,'TeegType');
+		HDR.EVENT.TeegType = HDR.EVENT.TeegType(~flag_remove);
+	end;	
+	%HDR.EVENT.TeegType = HDR.EVENT.TeegType(~flag_remove);
 	HDR.EVENT.Desc = HDR.EVENT.Desc(~flag_remove);
 end;	

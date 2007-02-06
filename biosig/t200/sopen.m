@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.173 2007-02-01 15:47:38 schloegl Exp $
+%	$Id: sopen.m,v 1.174 2007-02-06 15:45:56 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -6256,7 +6256,7 @@ elseif strcmp(HDR.TYPE,'BioSig'),
         	[n,v,s]=str2double(HDR.H1,9);
         	HDR.SampleRate = n(strmatch('SamplingRate',s(:,1)),2);
         	HDR.NS = n(strmatch('NumberOfChannels',s(:,1)),2);
-        	HDR.TYPE = s(strmatch('FORMAT',s(:,1)),2);
+        	HDR.TYPE = s(strmatch('Format',s(:,1)),2);
         	HDR.FileName = s(strmatch('Filename',s(:,1)),2);
         	
  		%%%%%%%%%% variable header
