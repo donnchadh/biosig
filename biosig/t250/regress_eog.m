@@ -18,7 +18,11 @@ function [R,S] = regress_eog(D,ny,nx)
 %  EL   list of eeg channels: those channels will be corrected   
 %  OL   eog/ecg channels. 
 %       if OL is a vector, it represents the list of noise channels 
-%       if OL is a matrix, OL references the noise channels 
+%       if OL is a matrix, OL derives the noise channels through rereferencing. 
+%          This is useful if the EOG is recorded monopolar, but the bipolar EOG 
+%          should be used for for artefact reduction (because the global EEG should remain), 
+%          One can define OL = sparse([23,24,25,26],[1,1,2,2],[1,-1,1,-1]) 
+%	   resulting in two noise channels defined as bipolar channels #23-#24 and #25-#26
 %  R    rereferencing matrix for correction artifacts with regression analysis
 %  S2   corrected EEG-signal      
 %
@@ -27,8 +31,9 @@ function [R,S] = regress_eog(D,ny,nx)
 % Reference(s):
 % [1] Schlogl A, Keinrath C, Zimmermann D, Scherer R, Leeb R, Pfurtscheller G. 
 %	A fully automated correction method of EOG artifacts in EEG recordings.
-%	Clin Neurophysiol. 2006 Nov 4;
+%	Clin Neurophysiol. 2007 Jan;118(1):98-104. Epub 2006 Nov 7.
 % 	http://dx.doi.org/10.1016/j.clinph.2006.09.003
+%       http://www.dpmi.tugraz.at/~schloegl/publications/schloegl2007eog.pdf
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -44,9 +49,9 @@ function [R,S] = regress_eog(D,ny,nx)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.6 $
-%	$Id: regress_eog.m,v 1.6 2006-11-10 15:28:48 schloegl Exp $
-%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.7 $
+%	$Id: regress_eog.m,v 1.7 2007-02-06 09:22:14 schloegl Exp $
+%	(C) 1997-2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -83,8 +88,8 @@ else    % noise channels are defined through rereferencing (e.g. bipoloar channe
         if rank(full(nx)) < size(nx,2),
                 fprintf(2,'Warning REGRESS_EOG: referencing matrix is singular! \n');
         end; 
-        C   = a'*C*a; 
-        nx  = tmp';
+        C  = a'*C*a;
+        nx = tmp';
 end;
 ny = ny(:);
 
