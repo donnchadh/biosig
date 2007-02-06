@@ -11,11 +11,16 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % X.datatype determines type of data
 %    DATATYPE   Mode
 %   'MVAR'      'AutoSpectrum'
-%   'MVAR'      'SPECTRUM'
+%   'MVAR'      'SPECTRUM','logS'
+%   'MVAR'      'logH'
 %   'MVAR'      'Phase'
 %   'MVAR',	'COHERENCE'
+%   'MVAR'      'iCOH'	imaginary coherence
+%   'MVAR'      'iSpectrum'	imaginary part of spectrum
 %   'MVAR'      'DTF'
 %   'MVAR'      'PDC'
+%   'MVAR'      'dDTF'
+%   'MVAR'      'ffDTF'
 %   'TF-MVAR'	Time-frequency MVAR analysis
 %		e.g. plota(X, 'PDC', alpha [, Y]);	%
 %
@@ -50,7 +55,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.55 2007-01-02 15:18:57 schloegl Exp $
+%	$Id: plota.m,v 1.56 2007-02-06 09:17:12 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -192,6 +197,11 @@ elseif strcmp(X.datatype,'MVAR'),
                         range = [min(R(:)),max(R(:))];
                         range(1) = min(range(1),range(2)/100);
                         %range=[1e-2,1e2];
+                elseif strcmpi(Mode,'logh'),
+                        R = abs(h);
+                        range = [min(R(:)),max(R(:))];
+                        range(1) = min(range(1),range(2)/100);
+                        %range=[1e-2,1e2];
                 elseif strcmpi(Mode,'iSpectrum'),
                         R = imag(S);
                         range = [min(R(:)),max(R(:))];
@@ -275,7 +285,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 for k1=1:K1;
                         for k2=1:K2;
                                 subplot(K1,K2,k2+(k1-1)*K1);
-                                if strcmpi(Mode,'Spectrum') | strcmpi(Mode,'logS'),
+                                if strcmpi(Mode,'logS'),
                                         semilogy(f,squeeze(R(k1,k2,:)));
                                 else
                                         area(f,squeeze(R(k1,k2,:)));
@@ -611,24 +621,24 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
 	        end;        
 
 
-                                if alpha < .5,
-                                        xc = 2 + round(62*(squeeze(x)-clim(1))/diff(clim));
+                if alpha < .5,
+                	xc = 2 + round(62*(squeeze(x)-clim(1))/diff(clim));
 
-                                        %x = x(:);
-                                        bf = prod(size(x));
-                                        %xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
-                                        xc(abs(x) <= (ci*tinv(1-alpha/2,X.N))) = 1;
-                                        %x(abs(x) < .5) = NaN;
-                                        cm(1,:) = [1,1,1];
-                                        colormap(cm);
-                                else
-                                        xc = 1+round(63*(squeeze(x)-clim(1))/diff(clim));
-                                        colormap('default');
-                                end;
-xc(xc~=xc)=1;
-                                x1 = reshape(cm(xc,1),size(xc));
-                                x2 = reshape(cm(xc,2),size(xc));
-                                x3 = reshape(cm(xc,3),size(xc));
+                        %x = x(:);
+                        bf = prod(size(x));
+                        %xc(abs(x) < (ci*norminv(1-alpha/(2*bf)))) = 1;
+                        xc(abs(x) <= (ci*tinv(1-alpha/2,X.N))) = 1;
+                        %x(abs(x) < .5) = NaN;
+                        cm(1,:) = [1,1,1];
+                        colormap(cm);
+                else
+                        xc = 1+round(63*(squeeze(x)-clim(1))/diff(clim));
+                        colormap('default');
+                end;
+		xc(xc~=xc)=1;
+                x1 = reshape(cm(xc,1),size(xc));
+                x2 = reshape(cm(xc,2),size(xc));
+                x3 = reshape(cm(xc,3),size(xc));
 
                                 
                 % cat(3,x1,x2,x3) enthält das Bild, wobei es die Dimension
@@ -1006,9 +1016,10 @@ elseif strcmp(X.datatype,'qc:histo')
                 chansel = 1:size(X.HIS.H,2);
         end;
 
-	figure(1);
         N = ceil(sqrt(length(chansel)));
-        for K = chansel;
+        Ny= ceil(length(chansel)/N);
+        for k = 1:length(chansel);
+        	K = chansel(k); 
                 h = X.HIS.H(:,K);
                 if ~isfield(X,'Calib');
 	                t = X.HIS.X(:,min(K,size(X.HIS.X,2)));
@@ -1041,37 +1052,49 @@ elseif strcmp(X.datatype,'qc:histo')
                 xrange  = xrange + [-1,1]*diff(xrange)/2;
                 
                 if strcmp(yscale,'lin '),
-                        subplot(ceil(size(X.H,2)/N),N,K);
+                        subplot(Ny,N,k);
                         plot(t,[h],'-');
                 elseif strcmp(yscale,'lin+'),
-                        subplot(ceil(size(X.H,2)/N),N,K);
+                        subplot(Ny,N,k);
+                        plot(t,[h],'-');
+                elseif strcmp(yscale,'lin+'),
+                        subplot(Ny,N,k);
                         tmp=max(h)/2;
                         tmp=sum(h)/sqrt(2*pi*sd2)*dT/2;
                         %plot(t,[h],'-',t,exp(-(t-mu).^2./sd2/2)./sqrt(2*pi*sd2).*sum(h),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx' );
                         plot(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,'c',t,h2+.01,'r',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         v=axis; v=[xrange 1 max(X.HIS.H(:))]; axis(v);
+                elseif strcmp(yscale,'stem'),
+                        subplot(Ny,N,k);
+                        tmp=max(h)/2;
+                        tmp=sum(h)/sqrt(2*pi*sd2)*dT/2;
+                        stem(t(h>0),h(h>0),'+');
+                        hold on
+                        plot(t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,'c',t,h2+.01,'r',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
+                        hold off
+                        v=axis; v=[xrange 1 max(X.HIS.H(:))]; axis(v);
                 elseif strcmp(yscale,'log ') | strcmp(yscale,'log'),
-                        subplot(ceil(length(chansel)/N),N,K);
+                        subplot(Ny,N,k);
                         tmp = sqrt(sum(h)/sqrt(2*pi*sd2)*dT);
                         semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dT,h2+.01]);
                 elseif strcmp(yscale,'log+'),
-                        subplot(ceil(length(chansel)/N),N,K);
+                        subplot(Ny,N,k);
                         tmp = sqrt(sum(h(h>0))/sqrt(2*pi*sd2)*dT);
                         semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h(h>0))*dT,h2+.01],'-',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         v=axis; v=[xrange 1 max(X.HIS.H(:))]; axis(v);
                 elseif strcmp(yscale,'qq'),
-                        subplot(ceil(length(chansel)/N),N,K);
+                        subplot(Ny,N,k);
                         tmp=.5;sum(h)/2;
                         plot(cumsum(h)/sum(h),normcdf(t,mu,sqrt(sd2)),'xb',[0,1],[0,1],'-c');
                 elseif strcmp(yscale,'csum'),
-                        subplot(ceil(length(chansel)/N),N,K);
+                        subplot(Ny,N,k);
                         tmp=.5;sum(h)/2;
 			h2 = cumsum(h); 
 			h2((t>min(MaxMin)) & (t<max(MaxMin)))=NaN; 
                         plot(t,cumsum(h)/sum(h),'-',t,normcdf(t,mu,sqrt(sd2)),'c',t,h2,'r',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         v=axis; v(1:2)=[MaxMin(2)+0.1*diff(MaxMin) MaxMin(1)-0.1*diff(MaxMin)]; axis(v);
                 elseif strcmp(yscale,'CDF'),
-                        subplot(ceil(length(chansel)/N),N,K);
+                        subplot(Ny,N,k);
                         tmp = sum(h)/2;
 			cdf = cumsum(h)/sum(h); 
 			h2  = cdf; 
