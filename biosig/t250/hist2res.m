@@ -39,7 +39,7 @@ function [R]=hist2res(H,fun)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: hist2res.m,v 1.3 2007-01-02 15:18:56 schloegl Exp $
+%	$Id: hist2res.m,v 1.4 2007-02-06 09:21:09 schloegl Exp $
 %	Copyright (c) 1996-2002,2006 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -48,7 +48,11 @@ if strcmp(H.datatype,'HISTOGRAM')
 
 elseif strcmp(H.datatype,'qc:histo')
 	HDR = H; 
-	TH  = H.THRESHOLD;
+	if isfield(H,'THRESHOLD'),
+		TH  = H.THRESHOLD;
+	else
+		TH = repmat([-inf,inf],HDR.NS,1); 
+	end;
 	HIS = H.HIS; 
 
 	% remove overflowing samples
@@ -63,6 +67,10 @@ elseif strcmp(H.datatype,'qc:histo')
 	  
 	% scale into physical values
 	if H.FLAG.UCAL,
+		%t = HIS.X;
+		%for k=1:length(HDR.InChanSelect),
+		%	HIS.X(:,k) = t(:,min(size(t,2),k))*HDR.Calib(k+1,k)+HDR.Calib(1,k);
+		%end;
 		HIS.X = [ones(size(HIS.X,1),1),repmat(HIS.X,1,size(HIS.H,2)./size(HIS.X,2))]*H.Calib;
 	end; 	
 	H = HIS; 
