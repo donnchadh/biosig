@@ -27,7 +27,7 @@ function [HDR] = leadidcodexyz(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: leadidcodexyz.m,v 1.9 2007-02-05 14:54:48 schloegl Exp $
+%	$Id: leadidcodexyz.m,v 1.10 2007-02-09 15:18:17 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -146,6 +146,17 @@ else    % electrode code and position
 	        	end;
                 	for k = 1:NS;
 	                        ix = strmatch(upper(deblank(HDR.Label{k})),BIOSIG_GLOBAL.Label,'exact');
+	                        if length(ix)==2,
+	                        	%%%%% THIS IS A HACK %%%%%
+	                        	%% solve ambiguity for 'A1','A2'; could be EEG or ECG
+	                        	if sum(HDR.LeadIdCode(1:k)>=996)>sum(HDR.LeadIdCode(1:k)<996)
+	                        		%% majority are EEG electrodes,
+	                        		ix = ix(find(BIOSIG_GLOBAL.LeadIdCode(ix)>996));
+	                        	else	
+	                        		%% majority are ECG electrodes,
+	                        		ix = ix(find(BIOSIG_GLOBAL.LeadIdCode(ix)<996));
+	                        	end;
+	                        end; 	
         	                if (length(ix)==1),
                 	                LeadIdCode = BIOSIG_GLOBAL.LeadIdCode(ix);
                         	        XYZ = BIOSIG_GLOBAL.XYZ(ix,:);
