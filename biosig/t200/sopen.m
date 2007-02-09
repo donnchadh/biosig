@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.174 2007-02-06 15:45:56 schloegl Exp $
+%	$Id: sopen.m,v 1.175 2007-02-09 16:15:56 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -5412,7 +5412,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         		warning('identification of bbci data may be not correct');
         	end; 	
 	end; 
-	
+
         if isfield(tmp,'HDR'),
                 H = HDR; 
                 HDR = tmp.HDR; 
@@ -5443,9 +5443,41 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.PhysDimCode = zeros(HDR.NS,1); 
                 end; 
 
-                
+        
+        elseif isfield(tmp,'mnt') & isfield(tmp,'mrk') & isfield(tmp,'cnt')                
+        	HDR.SampleRate = tmp.cnt.fs; 
+        	HDR.NRec = 1;
+        	HDR.Label = tmp.cnt.clab';
+        	HDR.EVENT.POS = tmp.mrk.pos';
+        	if isfield(tmp.mrk,'className')
+        		HDR.EVENT.CodeDesc = tmp.mrk.className;
+        	end; 	
+        	if isfield(tmp.mrk,'y')
+        		[t,HDR.Classlabel] = max(tmp.mrk.y,[],1);
+        		HDR.EVENT.TYP = HDR.Classlabel(:);
+        	elseif isfield(tmp.mrk,'toe')
+        		HDR.EVENT.TYP = tmp.mrk.toe';
+	        	HDR.Classlabel = tmp.mrk.toe;
+        	else
+        		HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
+	        end; 	
+        	HDR.data  = tmp.cnt.x; 
+        	[HDR.SPR,HDR.NS] = size(HDR.data);
+		if (CHAN==0), CHAN=1:HDR.NS; end; 
+       		[tmp0,HDR.THRESHOLD,tmp1,HDR.bits,HDR.GDFTYP] = gdfdatatype(class(HDR.data));
+        	HDR.THRESHOLD = repmat(HDR.THRESHOLD,HDR.NS,1); 
+        	HDR.TYPE  = 'native'; 
+        	HDR.PhysDimCode = repmat(4275,HDR.NS,1);
+		HDR.PhysDim = repmat('uV',HDR.NS,1);
+
+		if isfield(tmp.cnt,'hdr')
+			% BNI header 
+			HDR.H1 = tmp.cnt.hdr;
+			HDR = bni2hdr(HDR); 
+		end;
+        
+        
         elseif flag.bbci,
-        	f = fieldnames(tmp);
         	HDR.SampleRate = tmp.nfo.fs; 
         	HDR.NRec = tmp.nfo.nEpochs; 
         	HDR.SPR = tmp.nfo.T;
@@ -5461,7 +5493,10 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 	        	HDR.EVENT.POS = tmp.mrk.pos';
         		HDR.EVENT.TYP = tmp.mrk.toe';
 	        	if isfield(tmp.mrk,'toe')
+	        		HDR.EVENT.TYP = tmp.mrk.toe';
 		        	HDR.Classlabel = tmp.mrk.toe;
+	        	else
+	        		HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
 		        end; 	
 		end;
         	HDR.NS = length(HDR.Label); 
@@ -6796,6 +6831,28 @@ elseif strcmp(HDR.TYPE,'PLEXON'),
 
         
 elseif strcmp(HDR.TYPE,'Nicolet'),
+	fid = fopen(fullfile(HDR.FILE.Path,HDR.FILE.Name,'.bni'),'rt');
+	HDR.H1 = char(fread(fid,[1,inf],'char=>char')); 
+	fclose(fid);
+	HDR = bni2hdr(HDR);
+	HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.FILE.Name,'.eeg'),'r','ieee-le');
+        status = fseek(HDR.FILE.FID,-4,'eof');
+	if status,
+		fprintf(2,'Error GETFILETYPE: file %s\n',HDR.FileName);
+		return;
+	end
+	datalen = fread(fid,1,'uint32');
+        status  = fseek(fid,datalen,'bof');
+        HDR.H2  = char(fread(fid,[1,1e6],'uchar'));
+        status  = fseek(HDR.FILE.FID,0,'bof');
+	HDR.SPR = datalen/(2*HDR.NS);
+	HDR.NRec   = 1; 
+	HDR.AS.endpos = HDR.SPR;
+	HDR.GDFTYP = 3; % int16;
+	HDR.HeadLen = 0;
+		
+        
+elseif 0,  strcmp(HDR.TYPE,'Nicolet'),  %%%%% OBSOLETE? %%%%%%%
         if any(HDR.FILE.PERMISSION=='r'),
                 HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 if HDR.FILE.FID<0,

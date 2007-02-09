@@ -27,7 +27,7 @@ function [argout,H1,h2] = hdr2ascii(source,dest)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: hdr2ascii.m,v 1.2 2007-02-01 15:52:47 schloegl Exp $
+%	$Id: hdr2ascii.m,v 1.3 2007-02-09 16:15:56 schloegl Exp $
 %	(C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -117,6 +117,9 @@ end;
 if length(HDR.Filter.HighPass)==1,
 	HDR.Filter.HighPass = repmat(HDR.Filter.HighPass,HDR.NS,1); 
 end;
+if length(HDR.Cal)==1,
+	HDR.Cal = repmat(HDR.Cal,HDR.NS,1); 
+end;
 if length(HDR.Filter.LowPass)==1,
 	HDR.Filter.LowPass = repmat(HDR.Filter.LowPass,HDR.NS,1); 
 end;
@@ -156,13 +159,17 @@ end;
 for k = 1:length(HDR.EVENT.POS);
 	fprintf(fid,'0x%04x\t%7i',[HDR.EVENT.TYP(k),HDR.EVENT.POS(k)]'); 
 	if isfield(HDR.EVENT,'CHN')
-	if ~isempty(HDR.EVENT.CHN)
-		fprintf(fid,'\t%i\t%i',[HDR.EVENT.CHN(k),HDR.EVENT.DUR(k)]'); 
-	end;
+		if ~isempty(HDR.EVENT.CHN)
+			fprintf(fid,'\t%i\t%i',[HDR.EVENT.CHN(k),HDR.EVENT.DUR(k)]'); 
+		end;
 	end; 
-	ix = find(HDR.EVENT.TYP(k)==BIOSIG_GLOBAL.EVENT.CodeIndex);
-	if length(ix)==1,
-		fprintf(fid,'\t%s',BIOSIG_GLOBAL.EVENT.CodeDesc{ix});
+	if isfield(HDR.EVENT,'CodeDesc');
+		fprintf(fid,'\t%s',HDR.EVENT.CodeDesc{HDR.EVENT.TYP(k)});
+	else
+		ix = find(HDR.EVENT.TYP(k)==BIOSIG_GLOBAL.EVENT.CodeIndex);
+		if length(ix)==1,
+			fprintf(fid,'\t%s',BIOSIG_GLOBAL.EVENT.CodeDesc{ix});
+		end; 
 	end; 
 	fprintf(fid,'\n');
 end; 
