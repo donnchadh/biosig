@@ -16,10 +16,9 @@ function [HDR] = ssave(FILENAME,DATA,TYPE,Fs,bits)
 % see also: SSAVE, SOPEN, SWRITE, SCLOSE, doc/README
 %
 
-% $Revision: 1.3 $
-% $Id: ssave.m,v 1.3 2004-06-10 21:16:12 schloegl Exp $
-% Copyright (C) 2003-2004 by Alois Schloegl <a.schloegl@ieee.org>	
-# This file is part of the biosig project http://biosig.sf.net/
+% $Id: ssave.m,v 1.4 2007-02-24 21:40:35 schloegl Exp $
+% Copyright (C) 2003,2004,2007 by Alois Schloegl <a.schloegl@ieee.org>	
+% This file is part of the biosig project http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -39,18 +38,18 @@ function [HDR] = ssave(FILENAME,DATA,TYPE,Fs,bits)
 
 
 if isstruct(FILENAME),
-        HDR=FILENAME;
+        HDR = FILENAME;
         if isfield(HDR,'FileName'),
-                FILENAME=HDR.FileName;
+                FILENAME = HDR.FileName;
         else
                 fprintf(2,'Error SSAVE: missing FileName.\n');	
                 return; 
         end;
 else
-        HDR.FileName = HDR;
+        HDR.FileName = FILENAME;
         HDR.TYPE = TYPE; 	% type of data format
         HDR.SampleRate = Fs; 
-        HDR.bits = bits;
+   	[datatyp,limits,datatypes,HDR.bits,HDR.GDFTYP] = gdfdatatype(bits);
 end;
 
 if (nargin > 1),
@@ -62,7 +61,7 @@ if (nargin > 1),
 end;
 
 % Convert EVENT into WSCORE event format
-if all([HDR.EVENT.N, length(HDR.EVENT.POS), length(HDR.EVENT.TYP)]),
+if all([length(HDR.EVENT.POS), length(HDR.EVENT.TYP)]),
 	p = which('sopen'); [p,H,e] = fileparts(p);
 	H = sload(fullfile(p,'eventcodes.txt'));
 

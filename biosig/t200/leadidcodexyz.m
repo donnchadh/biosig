@@ -27,7 +27,7 @@ function [HDR] = leadidcodexyz(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: leadidcodexyz.m,v 1.10 2007-02-09 15:18:17 schloegl Exp $
+%	$Id: leadidcodexyz.m,v 1.11 2007-02-24 21:40:35 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -65,7 +65,8 @@ if ~BIOSIG_GLOBAL.ISLOADED_XYZ;
                         Labels{N,1}	  = t1;
                         Code(N,1)         = id;
                         Description{N,1}  = deblank(t3);
-                        MDC_ECG_LEAD{N,1} = t(ix3+13:end);
+                        %MDC_ECG_LEAD{N,1} = t(ix3+13:end)
+                        MDC_ECG_LEAD{N,1} = t(ix3:end);
                 end;
         end;
         N1 = N;
@@ -128,24 +129,29 @@ else    % electrode code and position
         tmp.flag3 = isfield(HDR,'Label');
 
         if (~tmp.flag1 | ~tmp.flag2 | ~tmp.flag3),
-        	if tmp.flag3;
+        	if 0, 
+        	elseif tmp.flag3,
                         if ischar(HDR.Label)
                                 HDR.Label = cellstr(HDR.Label);
                         end;
 	                NS = length(HDR.Label); 
-	        else
+	        elseif tmp.flag2,
 	        	NS = length(HDR.LeadIdCode); 
+        	elseif isfield(HDR,'NS')
+        		NS = HDR.NS;
+        		HDR.LeadIdCode = zeros(1,HDR.NS);
 	        end;      
 
                 if tmp.flag3,
 	                if ~tmp.flag1,
-        	               HDR.ELEC.XYZ   = repmat(NaN,NS,3);
+				HDR.ELEC.XYZ   = repmat(NaN,NS,3);
 	        	end;
                 	if ~tmp.flag2,
                        		HDR.LeadIdCode = repmat(NaN,NS,1);
 	        	end;
                 	for k = 1:NS;
 	                        ix = strmatch(upper(deblank(HDR.Label{k})),BIOSIG_GLOBAL.Label,'exact');
+
 	                        if length(ix)==2,
 	                        	%%%%% THIS IS A HACK %%%%%
 	                        	%% solve ambiguity for 'A1','A2'; could be EEG or ECG
@@ -157,6 +163,7 @@ else    % electrode code and position
 	                        		ix = ix(find(BIOSIG_GLOBAL.LeadIdCode(ix)<996));
 	                        	end;
 	                        end; 	
+
         	                if (length(ix)==1),
                 	                LeadIdCode = BIOSIG_GLOBAL.LeadIdCode(ix);
                         	        XYZ = BIOSIG_GLOBAL.XYZ(ix,:);

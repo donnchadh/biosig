@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.175 2007-02-09 16:15:56 schloegl Exp $
+%	$Id: sopen.m,v 1.176 2007-02-24 21:40:35 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1102,11 +1102,14 @@ end;
                         HDR.SampleRate = NaN;
                 end;
                 if ~isfield(HDR,'AS')
-                        HDR.AS.SPR = NaN;
+                        HDR.AS.SPR = repmat(NaN,1,HDR.NS);
                 end;
                 if ~isfield(HDR.AS,'SPR')
-                        HDR.AS.SPR = NaN;
+                        HDR.AS.SPR = repmat(NaN,1,HDR.NS);
                 end;
+                if isfield(HDR,'SPR')
+                        HDR.AS.SPR(isnan(HDR.AS.SPR)) = HDR.SPR;
+       	        end;        
                 if ~isfield(HDR,'AS')
                         HDR.AS.SampleRate = repmat(HDR.SampleRate,HDR.NS,1);
                 elseif ~isfield(HDR.AS,'SampleRate')
@@ -1303,6 +1306,9 @@ end;
                         else
                                 HDR.DigMax=HDR.DigMax(1:HDR.NS);
                         end;
+	                HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
+	                HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
+
 			flag = isfield(HDR,'ELEC');	
 			if flag,
 				flag = isfield(HDR.ELEC,'XYZ');
@@ -6314,7 +6320,7 @@ elseif strcmp(HDR.TYPE,'BioSig'),
  		
  		%%%%%%%%%% event table 
  		s = HDR.H3;
- 		tline = [];
+ 		tline = '';
  		while ~strncmp(tline,'NumberOfEvents',14);
 	 		[tline,s] = strtok(s,[10,13]);
 	 	end; 

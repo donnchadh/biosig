@@ -37,7 +37,7 @@ function [out,scale] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.11 2006-11-07 16:24:33 schloegl Exp $
+%	$Id: physicalunits.m,v 1.12 2007-02-24 21:40:35 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -49,12 +49,12 @@ if ~isfield(BIOSIG_GLOBAL,'ISLOADED')
 end; 
 if ~BIOSIG_GLOBAL.ISLOADED; 
 	f=which('getfiletype.m'); 	% identify path to biosig
-	[p,f,e]=fileparts(f); 
-	[p,f,e]=fileparts(p); 
+	[p,f,e]=fileparts(f);
+	[p,f,e]=fileparts(p);
 	
 	%%%---------- Load Decimal factors ------------%%%
 	BIOSIG_GLOBAL.ISLOADED = 0 ; 
-	fid  = fopen(fullfile(p,'doc','DecimalFactors.txt'),'r');
+	[fid,msg]  = fopen(fullfile(p,'doc','DecimalFactors.txt'),'rt','ieee-le');
         line = fgetl(fid);
         N1   = 0; N2 = 0; 
         while ~feof(fid), 

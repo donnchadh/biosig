@@ -27,7 +27,7 @@ function [argout,H1,h2] = hdr2ascii(source,dest)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: hdr2ascii.m,v 1.3 2007-02-09 16:15:56 schloegl Exp $
+%	$Id: hdr2ascii.m,v 1.4 2007-02-24 21:40:35 schloegl Exp $
 %	(C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -75,7 +75,7 @@ end;
 fprintf(fid,'\n[Fixed Header]\n'); 
 fprintf(fid,'Filename=%s\n',HDR.FileName); 
 fprintf(fid,'Format=%s\n',HDR.TYPE); 
-fprintf(fid,'SizeOfFile=%i\n',HDR.FILE.size); 
+if isfield(HDR.FILE,'size'), fprintf(fid,'SizeOfFile=%i\n',HDR.FILE.size); end;
 fprintf(fid,'NumberOfChannels=%i\n',HDR.NS); 
 fprintf(fid,'SamplingRate=%i\n',HDR.SampleRate); 
 fprintf(fid,'Number_of_Samples=%i\n',HDR.NRec*HDR.SPR); 
@@ -152,7 +152,7 @@ if ~isfield(BIOSIG_GLOBAL,'ISLOADED_EVENTCODES')
 	BIOSIG_GLOBAL.ISLOADED_EVENTCODES=0;
 end; 
 if ~BIOSIG_GLOBAL.ISLOADED_EVENTCODES,
-	H=sopen('eventcodes.txt');sclose(H); 
+	H=sopen('eventcodes.txt'); sclose(H); 
 	BIOSIG_GLOBAL.EVENT = H.EVENT;
 end;
 	
