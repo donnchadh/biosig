@@ -16,7 +16,7 @@ function HDR=bv2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bv2biosig_events.m,v 1.5 2007-02-06 15:45:55 schloegl Exp $
+%	$Id: bv2biosig_events.m,v 1.6 2007-03-05 16:18:27 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -66,9 +66,10 @@ end;
 FLAG_SEASON2_ARTERAWDATA = 0; 
 if (HDR.NS==128)
 	tmp = strvcat(HDR.Label);
+	tmp(55:56,4) = 'f';
 	FLAG_SEASON2_ARTERAWDATA = isequal(tmp(1:64,1:end-1),tmp(65:128,2:end)) & all(tmp(65:128,1)=='x');
 	FLAG_SEASON2_ARTERAWDATA = FLAG_SEASON2_ARTERAWDATA & strncmp(HDR.FILE.Name,'arte',4);
-end; 
+end;
 	
 for k1 = 1:length(HDR.EVENT.Desc)
 	tmp = HDR.EVENT.Desc{k1};
@@ -246,7 +247,7 @@ if 1, % ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
                 elseif 0, 
                 	
                 else 
-	                fprintf(2,'Warning BV2BIOSIG_EVENT: number of event onset (TYP=%s) and event offset (TYP=%s) differ (%i-%i)\n',dec2hex(double(TYP0)),dec2hex(double(TYP1)),sum(ix0),sum(ix1));
+	                fprintf(2,'Warning BV2BIOSIG_EVENT: number of event onset (TYP=%s) and event offset (TYP=%s) differ (%i-%i) in %s\n',dec2hex(double(TYP0)),dec2hex(double(TYP1)),sum(ix0),sum(ix1),HDR.FileName);
                         %% double(.) operator needed because Matlab6.5 can not fix(uint16(..))
 	        end;
 	end;
