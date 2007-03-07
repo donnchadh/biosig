@@ -1,6 +1,6 @@
-function bp = bandpower(s,arg2,arg3,arg4)
+function bp = bandpower(s,arg2,arg3,arg4,mode)
 % BANDPOWER calculation 
-%       log10bp = bandpower(X,Fs, bands, smoothing)
+%       log10bp = bandpower(X, Fs, bands, smoothing, mode)
 %  
 % INPUT:
 %    X          raw data, one channel per column
@@ -8,7 +8,9 @@ function bp = bandpower(s,arg2,arg3,arg4)
 %    bands      each row has two elements indicating the lower and upper frequency 
 %               default value is [10,12;16,24] indicating two bands of
 %               10-12 and 16-24 Hz. 
-%    smoothing  length of smoothing window in seconds. The default value is 1 [s] 
+%    smoothing  length of smoothing window in seconds. The default value is 1 [s]
+%    mode       mode == 1 uses FIR filter, mode == 2 uses butterworth IIR filter
+%               the default value is 1
 % 
 % OUTPUT:
 %    log10bp    is log10(bandpower) of X.
@@ -18,8 +20,8 @@ function bp = bandpower(s,arg2,arg3,arg4)
 %       the the second band of all channels, until the last 
 %       last f-band of all channels 
 
-%	$Id: bandpower.m,v 1.4 2006-09-15 08:09:40 schloegl Exp $
-%	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: bandpower.m,v 1.5 2007-03-07 15:52:50 schloegl Exp $
+%	Copyright (C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -56,15 +58,18 @@ if nargin<4
 else
         W = arg4;
 end;
+if nargin<5
+    mode = 1;
+end;
 
 bp = [];
 tmp = s; tmp(isnan(tmp))=0;         
-if 1, % FIR  
+if mode == 1  % FIR  
         for k=1:size(F,1),
                 B  = fir1(HDR.SampleRate,F(k,:)/HDR.SampleRate*2);
                 bp = [bp,log(filter(ones(W*HDR.SampleRate,1),W*HDR.SampleRate,filter(B,1,tmp).^2 ))];
         end;
-else
+elseif mode == 2  % Butterworth order 5
         for k=1:size(F,1),
                 [B,A] = butter(5,F(k,:)/HDR.SampleRate*2);
                 bp = [bp,log(filter(ones(W*HDR.SampleRate,1),W*HDR.SampleRate,filter(B,A,tmp).^2 ))];
