@@ -18,8 +18,8 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.15 $
-%	$Id: swrite.m,v 1.15 2006-08-17 13:38:37 schloegl Exp $
+%	$Revision: 1.16 $
+%	$Id: swrite.m,v 1.16 2007-03-07 14:00:43 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -223,6 +223,20 @@ elseif strcmp(HDR.TYPE,'MIT')
         end;
         HDR.FILE.POS = HDR.FILE.POS + size(data,1);
         
+        
+elseif strcmp(HDR.TYPE,'ET-MEG')
+	count = fwrite(HDR.FILE.FID,data',gdfdatatype(HDR.GDFTYP));
+        HDR.FILE.POS = HDR.FILE.POS + size(data,1);
+        if ~(HDR.NS>0)
+		HDR.NS = size(data,2);
+		HDR.FILE.OPEN = 3;
+	end;		
+        if (HDR.FILE.POS~=HDR.NRec*HDR.SPR)
+		HDR.SPR = size(data,1);
+		HDR.FILE.OPEN = 3;
+	end;		
+        
+	        
 
 else
         fprintf(2,'Error SWRITE: file type %s not supported \n',HDR.TYPE);
