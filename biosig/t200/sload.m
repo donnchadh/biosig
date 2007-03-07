@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.67 2007-02-06 15:45:56 schloegl Exp $
+%	$Id: sload.m,v 1.68 2007-03-07 15:38:00 schloegl Exp $
 %	Copyright (C) 1997-2006 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -115,9 +115,6 @@ while (k<=length(varargin))
 	k=k+1;
 end;
 
-if (CHAN<1) | ~isfinite(CHAN),
-        CHAN=0;
-end;
 
 %%% resolve wildcards %%%
 if ischar(FILENAME) 
@@ -127,7 +124,7 @@ if any(FILENAME=='*')
         EOGix = zeros(1,length(f));
         for k = 1:length(f);
                 f(k).name = fullfile(p,f(k).name);
-                [p,g,e]=fileparts(f(k).name);
+                [p,g,e]   = fileparts(f(k).name);
                 lg = length(g);
                 if (lg>2) & strcmp(upper(g(lg+(-2:0))),'EOG')
                         EOGix(k) = 1;
@@ -285,10 +282,10 @@ if ~isnan(H.NS),
 	end; 
 
 	%----- generate HDR.Calib -----
-	if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | (any(CHAN<0) & (numel(CHAN)>1));
+	if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | any(CHAN<0) | (any(CHAN==0) & (numel(CHAN)>1));
         	ReRefMx = CHAN; 
         	CHAN = find(any(CHAN,2));
-	elseif all(CHAN>0),
+	elseif all(CHAN>0) & all(floor(CHAN)==CHAN), 
 		if any(diff(CHAN)<=0),
 		%	fprintf(HDR.FILE.FID,'Warning SOPEN: CHAN-argument not sorted - header information like Labels might not correspond to data.\n');
 		end;	
@@ -310,11 +307,15 @@ end
 if 0,
         
 elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat','EEProbe-CNT','EEProbe-AVR'})); 
-        signal = [];
+        signal = repmat(NaN,H.SPR*H.NRec,size(H.Calib,2));
+	k1 = 0;
         while ~seof(H),
 	        [s,H] = sread(H,100);
+		k2 = size(s,1);
+		signal(k1+1:k1+k2,:)=s;
+		k1 = k1+k2;
 	        %fprintf('%i/%i\n',stell(H),H.SPR*H.NRec);
-	        signal=[signal;s];
+	        %signal=[signal;s];
 	end;        
         H = sclose(H);
 
