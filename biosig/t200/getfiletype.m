@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.62 2007-02-09 16:15:56 schloegl Exp $
+%	$Id: getfiletype.m,v 1.63 2007-03-07 15:36:42 schloegl Exp $
 %	(C) 2004,2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -153,6 +153,9 @@ else
                         HDR.TYPE = 'BrainVision_MarkerFile';
                 elseif strncmp(ss,'[Header]',8); 
                         HDR.TYPE='ET-MEG';
+                elseif all(256.^[0:3]*reshape(s(1:80),[4,20])==[0,16,32,32,512,536,1,1,1048,412,1,1,1460,80,32,1,4020,76,128,128]); 
+                        HDR.TYPE='ET-MEG:SQD';
+                        HDR.Endianity = 'ieee-le';
                 elseif all(s(1:4)==0) & strcmp(HDR.FILE.Ext,'raw')  & exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.ainf']),'file'); 
                         HDR.TYPE='AINF';
                 elseif strncmp(ss,'[BioSig Header]',13); 
@@ -161,7 +164,6 @@ else
                         HDR.TYPE='EDF';
                 elseif all(s(1:8)==[255,abs('BIOSEMI')]); 
                         HDR.TYPE='BDF';
-                        
                 elseif strncmp(ss,'GDF',3); 
                         HDR.TYPE='GDF';
                 elseif strncmp(ss,'EBS',3); 
@@ -969,6 +971,9 @@ else
                 elseif strcmpi(HDR.FILE.Ext,'flt') & exist([HDR.FileName,'.hdr'],'file'); 
                         HDR.TYPE = 'ET-MEG'; % ET-MEG format
                         HDR.FileName = [HDR.FileName,'.hdr'];
+                elseif strcmpi(HDR.FILE.Ext,'bin') & exist([HDR.FileName,'.hdr'],'file'); 
+                        HDR.TYPE = 'ET-MEG'; % ET-MEG format
+                        HDR.FileName = [HDR.FileName,'.hdr'];
                 elseif strcmpi(HDR.FILE.Ext,'int') & exist([HDR.FileName,'.hdr'],'file'); 
                         HDR.TYPE = 'ET-MEG'; % ET-MEG format
                         HDR.FileName = [HDR.FileName,'.hdr'];
@@ -1041,6 +1046,10 @@ else
                         HDR.TYPE = 'SXI';
                 elseif strcmpi(HDR.FILE.Ext,'sxi')
                         HDR.TYPE = 'SXI';
+                elseif strcmpi(HDR.FILE.Ext,'nxa')
+                        HDR.TYPE = 'NXA';
+                elseif strcmpi(HDR.FILE.Ext,'nxe')
+                        HDR.TYPE = 'NXA';
                         
                 elseif strcmpi(HDR.FILE.Ext,'ent')
 			HDR.TYPE = 'XLTEK-EVENT';		
