@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.1 2007-03-07 14:00:43 schloegl Exp $
+%	$Id: fltopen.m,v 1.2 2007-03-16 13:26:20 schloegl Exp $
 %	Copyright (c) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -48,11 +48,18 @@ if any(HDR.FILE.PERMISSION=='r'),
 	r = char(r); 
 	HDR.H1 = r;
 	HDR.SampleRate = 1;
+	FLAG.BioSig = 0; FLAG.LockBioSig = 0;
 	while ~isempty(r),
 		[t,r] = strtok(r,[10,13]); 
 		[tok,left] = strtok(t,'=');
 		num = str2double(left(2:end));
 		if 0
+		elseif strncmp(tok,'*',1),
+		elseif strcmp(tok,'name'),
+			if ~FLAG.LockBioSig,
+				FLAG.BioSig = ~isempty(strfind(left,'created by BioSig'));
+				FLAG.LockBioSig = 1; 
+			end;	
 		elseif strcmp(tok,'type'),
 			type = num; 
 			if type<10; 
@@ -74,10 +81,8 @@ if any(HDR.FILE.PERMISSION=='r'),
 			otherwise
 				fprintf(HDR.FILE.stderr,'Error SOPEN(FLT): type %i not supported',type); 	
 			end; 	
-			%%% FIXME %%%
-			if strcmpi(HDR.FILE.Name(end+[-2:0]),'flt')
-				HDR.GDFTYP=16;
-			else %if strcmpi(HDR.FILE.Name(end+[-2:0]),'flt')
+
+			if ~FLAG.BioSig & ~strcmpi(HDR.FILE.Name(end+[-2:0]),'flt')
 				HDR.GDFTYP=3;
 			end;
 		elseif strcmp(tok,'number_of_samples'),
@@ -106,12 +111,13 @@ if any(HDR.FILE.PERMISSION=='r'),
 		elseif strcmp(tok,'parameter_of_sensors'),
 			[tch_sensors,r]=strtok(r,'}'); 
 		elseif strcmp(tok,'parameter_of_groups'),
-			[tch_groups,r]=strtok(r,'}'); 
+			[tch_groups,r]=strtok(r,'}');
 		elseif strcmp(tok,'parameter_of_modules'),
 			[tch_modules,r]=strtok(r,'}'); 
+		else		
 		end;
 	end;
-	
+
 	[tline,tch] = strtok(tch_groups,[10,13]); 
 	N = 0; 
 	while ~isempty(tline),
@@ -153,13 +159,14 @@ if any(HDR.FILE.PERMISSION=='r'),
 		[tline,tch] = strtok(tch,[10,13]); 
 	end;
 	if HDR.GDFTYP < 10,
+		FLAG = HDR.FLAG; % backup
 		HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 		HDR.FLAG.UCAL = 1; % default: no calibration information 
 		% read scaling information
 		ix  = strfind([HDR.FILE.Name,'.'],'.');
-		fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name(1:ix-1),'.calib.txt']),'r'); 
+		fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.calib.txt']),'r'); 
 		if fid < 0,
-			fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name(1:ix(2)-1),'.flt.calib.txt']),'r'); 
+			fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name(1:ix(1)-1),'.calib.txt']),'r'); 
 		end; 
 		if fid>0,
 			c   = fread(fid,[1,inf],'char=>char'); fclose(fid);
@@ -169,17 +176,22 @@ if any(HDR.FILE.PERMISSION=='r'),
 			%[n2,v2,sa2] = str2double(c); 
 			%HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,(n2(4:131,5).*n1(4:131,3)./n2(4:131,4))./100);
 			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,n1(4:131,3)*1e-13*(2^-12));
-			HDR.FLAG.UCAL = 0; % with calibration information
+			HDR.FLAG = FLAG; % restore
 		end
 	else 	
 		HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 	end
+	if ~isfield(HDR,'PhysDim') & ~isfield(HDR,'PhysDimCode') 
+		HDR.PhysDimCode = zeros(HDR.NS,1); 
+	end; 	
 		
 	% read data
 	HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.FILE.Name),'rb',HDR.Endianity);
+	if HDR.FILE.FID>0,
+		HDR.FILE.OPEN= 1; 
+	end;
 	HDR.HeadLen  = 0; 
 	HDR.FILE.POS = 0; 
-	HDR.FILE.OPEN= 1; 
 	HDR.AS.endpos= HDR.SPR*HDR.NRec; 
 	HDR.AS.bpb   = 2*HDR.NS;		% Bytes per Block
 
@@ -239,20 +251,32 @@ else
 
 		%%%%%%%%% FIXED HEADER %%%%%%%%%%%%%%		
 		fprintf(fid,'[Header]\n'); 
-		fprintf(fid,'Version=2.10\nid=1\n'); 
+		fprintf(fid,'Version=2.1\nid=1\n'); 
 		fprintf(fid,'name=created by BioSig for Octave and Matlab http://biosig.sf.net/\n'); 
-		fprintf(fid,'comment=\n'); 
+		fprintf(fid,'comment=just for testing, some features are not supported, yet\n'); 
 
-		fprintf(fid,'\n[Dataformat]\nversion=1.0\nid=1\nname=ET-MEG double data format\n'); 
+		fprintf(fid,'\n[Dataformat]\n'); 
+		fprintf(fid,'* data types : HP-UX data\n');
+		fprintf(fid,'*               1=(1 byte int)    2=(2 byte int)    3=(4 byte int)\n');
+		fprintf(fid,'*               4=(4 byte float)  5=(8 byte float)  6=(ASCII)\n');
+		fprintf(fid,'*              LINUX data\n');
+		fprintf(fid,'*              11=(1 byte int)   12=(2 byte int)   13=(4 byte int)\n');
+		fprintf(fid,'*              14=(4 byte float) 15=(8 byte float) 16=(ASCII)\n');
+		fprintf(fid,'version=1.0\nid=1\nname=ET-MEG double data format\n'); 
 		fprintf(fid,'type=14\n'); HDR.GDFTYP=16; % float32
 		if isfield(HDR,'data')
 			[HDR.SPR,HDR.NS]=size(HDR.data);
 			HDR.NRec = 1;
 		end;	
-		fprintf(fid,'Number_of_Samples=%i\n',HDR.NRec*HDR.SPR); 
+		fprintf(fid,'number_of_samples=%i\n',HDR.NRec*HDR.SPR); 
 
 		fprintf(fid,'\n[Measurement]\nversion=0.0\nlaboratory_name=ET_HvH\n'); 
-		fprintf(fid,'measurement_day=%i.%i.%i\n',HDR.T0([3,2,1])); 
+		fprintf(fid,'*\n* Antialiasing-Filter\n*\n');
+		for k = 0:7,
+			fprintf(fid,'* Unit %i (Channels %3i-%3i): not available \n',k,k*16+[0,15]);
+		end;
+
+		fprintf(fid,'*\nmeasurement_day=%i.%i.%i\n',HDR.T0([3,2,1])); 
 		fprintf(fid,'measurement_time=%i:%i:%i\n',HDR.T0(4:6));
 		fprintf(fid,'sampling_unit=s\n'); 
 		e = floor(log10(1/HDR.SampleRate));
@@ -261,13 +285,50 @@ else
 		 
 		fprintf(fid,'\n[System]\nversion=0.0\n'); 
 		fprintf(fid,'number_of_channels=%i\n',HDR.NS); 
-		fprintf(fid,'SamplingRate=%i\n',HDR.SampleRate); 
+		%fprintf(fid,'SamplingRate=%i\n',HDR.SampleRate); 
 
 
-		%%% ### FIXME ###
-		fprintf(fid,'parameter_of_channels={\n* * * here is something missing * * *\n}\n'); 
-
-		fprintf(fid,'\n* * * some more is missing * * *\n'); 
+		fprintf(fid,'*---------------------------------------------------------------\n');
+		fprintf(fid,'*seq id   u name              calib grd grd_name  grp  n_sensors\n');
+		fprintf(fid,'*---------------------------------------------------------------\n');
+		fprintf(fid,'parameter_of_channels={\n');
+		for k=1:HDR.NS,
+			fprintf(fid,'%04i  %04i 1 %-16s 1.000  1  ####      0000   1\n',k-1,k-1,HDR.Label{k});
+			fprintf(fid,'        %04i 1.000000 * CH%i\n',k-1,k-1);
+		end;
+		
+		fprintf(fid,'}\n\nnumber_of_sensors=%i\n',HDR.NS);
+		fprintf(fid,'*----------------------------------------------------------------------------------------\n');
+		fprintf(fid,'*id  name     type mod    x         y         z         a         b         c        area\n');
+		fprintf(fid,'*----------------------------------------------------------------------------------------\n');
+		fprintf(fid,'parameter_of_sensors={\n');
+		for k=1:HDR.NS,
+			fprintf(fid,'%04i CH%-08i  1 0000  %8.5f  %8.5f  %8.5f  %8.5f  %8.5f  %8.5f  %11.9f\n',k-1,k-1,HDR.ELEC.XYZ(k,1:3),[NaN,NaN,NaN,NaN]);
+		end;
+		
+		fprintf(fid,'}\n\nnumber_of_groups= 11\n');
+		fprintf(fid,'*----------------------------------------\n');
+		fprintf(fid,'*id  u name             unit   exp  calib\n');
+		fprintf(fid,'*----------------------------------------\n');
+		fprintf(fid,'parameter_of_groups={\n');
+		fprintf(fid,'0001 1 ET-Mag_80WH      T      0    1.000\n');
+		fprintf(fid,'0002 1 ET-AxGrd_80WH    T      0    1.000\n');
+		fprintf(fid,'0003 1 ET-PlGrd_80WH    T      0    1.000\n');
+		fprintf(fid,'0004 1 ET-Mag_RefCh     T      0    1.000\n');
+		fprintf(fid,'0005 1 ET-AxGrd_RefCh   T      0    1.000\n');
+		fprintf(fid,'0006 1 ET-PlGrd_RefCh   T      0    1.000\n');
+		fprintf(fid,'0007 1 Trigger          V      0    1.000\n');
+		fprintf(fid,'0008 1 EEG              V      0    1.000\n');
+		fprintf(fid,'0009 1 ECG              V      0    1.000\n');
+		fprintf(fid,'0010 1 Etc              V      0    1.000\n');
+		fprintf(fid,'0011 0 Null_Channel     V      0    1.000\n}\n');
+		fprintf(fid,'\nnumber_of_modules=2\n');
+		fprintf(fid,'*-------------------------------------------------------------------------\n');
+		fprintf(fid,'*id  name          x      y      z      a      b      c      unit exp name\n');
+		fprintf(fid,'*-------------------------------------------------------------------------\n');
+		fprintf(fid,'parameter_of_modules={\n');
+		fprintf(fid,'0000 Magnetic      0.000  0.000  0.000  0.000  0.000  0.000  1.000 0 m\n');
+		fprintf(fid,'0007 Electric      0.000  0.000  0.000  0.000  0.000  0.000  1.000 0 m\n}\n');
 
 	end;
 	fclose(fid);
