@@ -34,7 +34,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.75 2007-02-01 15:47:38 schloegl Exp $
+%	$Id: sread.m,v 1.76 2007-03-16 13:26:58 schloegl Exp $
 %	(C) 1997-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -238,14 +238,14 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF') 
                 end;	
         end;
         if strcmp(HDR.TYPE,'GDF')       % read non-equidistant sampling channels of GDF2.0 format
-                if (HDR.VERSION>1.94) & isfield(HDR.EVENT,'VAL'),
+                if (HDR.VERSION>1.94) %& isfield(HDR.EVENT,'VAL'),
                         for k = 1:length(HDR.InChanSelect), 
                                 ch = HDR.InChanSelect(k);
                                 if (HDR.AS.SPR(ch)==0),
-                                        ix = find(~isnan(HDR.EVENT.VAL) & (HDR.EVENT.CHN==ch));
+                                        ix = find((HDR.EVENT.TYP==hex2dec('7fff')) & (HDR.EVENT.CHN==ch));
                                         pix= HDR.EVENT.POS(ix)-HDR.FILE.POS;
                                         ix1= find((pix > 0) & (pix <= count));
-                                        S(pix(ix1),k)=HDR.EVENT.VAL(ix(ix1));
+                                        S(pix(ix1),k)=HDR.EVENT.DUR(ix(ix1));
                                 end;
                         end;
                 end;
@@ -316,14 +316,21 @@ elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Nicolet','
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
+        if any(HDR.GDFTYP==[1:6,16,17]);
+        	% preserve data type
+		DT = ['*',gdfdatatype(HDR.GDFTYP)];
+	else
+		% convert to double
+		DT = [gdfdatatype(HDR.GDFTYP)];
+        end;
         maxsamples = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
 	S = []; count = 0;
 	while maxsamples>0,
-    		[s,c]  = fread(HDR.FILE.FID,[HDR.NS,min(2^24/HDR.NS,maxsamples)], gdfdatatype(HDR.GDFTYP));
+    		[s,c] = fread(HDR.FILE.FID,[HDR.NS,min(2^24/HDR.NS,maxsamples)], DT);
 		count = count + c;
 		maxsamples = maxsamples - c;
         	if c,
-            		S = [S;s(HDR.InChanSelect,:)'];
+            		S = [S; s(HDR.InChanSelect,:)'];
     		end;
         end;
 	HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
