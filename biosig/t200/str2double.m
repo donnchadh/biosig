@@ -69,8 +69,8 @@ function [num,status,strarray] = str2double(s,cdelim,rdelim,ddelim)
 %% along with this program; if not, write to the Free Software
 %% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%%	$Revision: 1.1 $
-%%	$Id: str2double.m,v 1.1 2007-02-06 15:45:56 schloegl Exp $
+%%	$Revision: 1.2 $
+%%	$Id: str2double.m,v 1.2 2007-03-21 09:51:10 schloegl Exp $
 %%	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %%      This function is part of Octave-Forge http://octave.sourceforge.net/
 
@@ -140,9 +140,10 @@ if isnumeric(s)
 	end;
 end;
 
+num = [];
+status = 0;
+strarray = {};
 if isempty(s),
-        num = [];
-        status = 0;
         return;
 
 elseif iscell(s),

@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.177 2007-03-07 14:02:46 schloegl Exp $
+%	$Id: sopen.m,v 1.178 2007-03-21 09:51:10 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -777,9 +777,9 @@ end;
                                 if (HDR.VERSION<1.90), 
                                         warning('non-equidistant sampling not definded for GDF v1.x')
                                 end;
+		        	% the following is redundant information %
                                 HDR.EVENT.VAL = repmat(NaN,size(HDR.EVENT.TYP));
                                 HDR.EVENT.VAL(ix) = HDR.EVENT.DUR(ix);
-                                HDR.EVENT.DUR(ix) = NaN;
                         end;
 
                 elseif strcmp(HDR.TYPE,'EDF') & (length(strmatch('EDF Annotations',HDR.Label))==1),
@@ -6322,8 +6322,10 @@ elseif strcmp(HDR.TYPE,'BioSig'),
         	[n,v,s]=str2double(HDR.H1,9);
         	HDR.SampleRate = n(strmatch('SamplingRate',s(:,1)),2);
         	HDR.NS = n(strmatch('NumberOfChannels',s(:,1)),2);
-        	HDR.TYPE = s(strmatch('Format',s(:,1)),2);
-        	HDR.FileName = s(strmatch('Filename',s(:,1)),2);
+        	HDR.SPR = n(strmatch('Number_of_Samples',s(:,1)),2);
+        	HDR.NRec = 1;
+        	HDR.TYPE = s{strmatch('Format',s(:,1)),2};
+        	HDR.FileName = s{strmatch('Filename',s(:,1)),2};
         	
  		%%%%%%%%%% variable header
  		s = HDR.H2;
@@ -6333,6 +6335,7 @@ elseif strcmp(HDR.TYPE,'BioSig'),
         	HDR.Label = s(:,3)'; 
         	HDR.LeadIdCode = n(:,2); 
         	HDR.AS.SampleRate = n(:,4); 
+        	[datatyp,limits,datatypes,numbits,HDR.GDFTYP]=gdfdatatype(s(:,5));
         	HDR.THRESHOLD = n(:,6:7); 
         	HDR.Off = n(:,8); 
         	HDR.Cal = n(:,9); 
@@ -6349,17 +6352,26 @@ elseif strcmp(HDR.TYPE,'BioSig'),
  		while ~strncmp(tline,'NumberOfEvents',14);
 	 		[tline,s] = strtok(s,[10,13]);
 	 	end; 
-        	[p,v]=strtok(tline,'=');
-        	N = str2double(v); 
-        	if ~v,
-        		n = zeros(0,4);
-        	else
-	        	[n,v,s]=str2double(s,9,[10,13]);
-	        end; 	
-        	HDR.EVENT.TYP = n(:,1); 
-        	HDR.EVENT.POS = n(:,2); 
-        	HDR.EVENT.CHN = n(:,3); 
-        	HDR.EVENT.DUR = n(:,4); 
+        	[p,v] = strtok(tline,'=');
+        	[p,v] = strtok(v,'=');
+        	N  = str2double(p);
+        	ET = repmat(NaN,N,4);
+ 		[tline,s] = strtok(s,[10,13]);
+		for k = 1:N,
+	 		[tline,s] = strtok(s,[10,13]);
+	 		[typ,tline] = strtok(tline,[9,10,13]);
+	 		ET(k,1)   = hex2dec(typ(3:end));
+	        	[n,v,st]  = str2double(tline,[9]);
+	        	ET(k,2:4) = n(1:3);
+	        end;
+        	HDR.EVENT.TYP = ET(:,1); 
+        	HDR.EVENT.POS = ET(:,2); 
+        	HDR.EVENT.CHN = ET(:,3); 
+        	HDR.EVENT.DUR = ET(:,4); 
+        	% the following is redundant information %
+		HDR.EVENT.VAL = repmat(NaN,N,1); 
+        	ix = find(HDR.EVENT.TYP==hex2dec('7fff'));
+        	HDR.EVENT.VAL(ix)=HDR.EVENT.DUR(ix);
        end;
 
         
@@ -7310,7 +7322,8 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                 return;
         end; 
         tline = fgetl(fid);
-        HDR.BV = [];
+        HDR.BV.SkipLines = 0; 
+        HDR.BV.SkipColumns = 0; 
         UCAL = 0; 
         flag = 1; 
         while ~feof(fid), 
@@ -7323,6 +7336,8 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                         flag = 2;     
                 elseif strncmp(tline,'[Binary Infos]',14)
                         flag = 3;     
+                elseif strncmp(tline,'[ASCII Infos]',13)
+                        flag = 3;
                 elseif strncmp(tline,'[Channel Infos]',14)
                         flag = 4;     
                 elseif strncmp(tline,'[Coordinates]',12)
@@ -7336,12 +7351,16 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                         
                 elseif any(flag==[2,3]),
                         [t1,r] = strtok(tline,'=');
-                        [t2,r] = strtok(r,['=,',char([10,13])]);
-                        if ~isempty(t2),
+                        [t2,r] = strtok(r,['=',char([10,13])]);
+                        [n2,v2,s2] = str2double(t2); 
+                        if isempty(n2),
+                        elseif isnan(n2)
                                 HDR.BV = setfield(HDR.BV,t1,t2);
+                        else
+                                HDR.BV = setfield(HDR.BV,t1,n2);
                         end;
                         if strcmp(t1,'NumberOfChannels')
-                        	HDR.NS = str2double(t2); 
+                        	HDR.NS = n2; 
                         end; 	
                 elseif flag==4,        
                         [t1,r] = strtok(tline,'=');
@@ -7421,13 +7440,13 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         fclose(fid);
 
         % convert the header information to BIOSIG standards
-        HDR.NS = str2double(HDR.BV.NumberOfChannels);
-        HDR.SampleRate = 1e6/str2double(HDR.BV.SamplingInterval);      % sampling rate in Hz
+        HDR.SampleRate = 1e6/HDR.BV.SamplingInterval;      % sampling rate in Hz
         HDR.NRec  = 1;		% it is a continuous datafile, therefore one record
         HDR.Calib = [zeros(1,HDR.NS) ; diag(HDR.Cal)];  % is this correct?
         HDR.FLAG.TRIGGERED = 0; 
-        
-        if strncmpi(HDR.BV.BinaryFormat, 'int_16',6)
+
+        if ~isfield(HDR.BV,'BinaryFormat')
+        elseif strncmpi(HDR.BV.BinaryFormat, 'int_16',6)
                 HDR.GDFTYP = 3; % 'int16'; 
                 HDR.AS.bpb = HDR.NS * 2; 
                 if ~isfield(HDR,'THRESHOLD'),
@@ -7465,7 +7484,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN BV: could not open file %s\n',fullfile(HDR.FILE.Path,HDR.BV.DataFile));
                 return;
         end;
-        
+
         HDR.FILE.OPEN= 1; 
         HDR.FILE.POS = 0; 
         HDR.HeadLen  = 0; 
@@ -7475,16 +7494,27 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                 fseek(HDR.FILE.FID,0,'bof');
                 HDR.AS.endpos = HDR.AS.endpos/HDR.AS.bpb;
                 
-        elseif strncmpi(HDR.BV.DataFormat, 'ascii',5)  
-                s = char(sread(HDR.FILE.FID,inf,'char')');
-                s(s==',')='.';
+        elseif strncmpi(HDR.BV.DataFormat, 'ASCII',5)  
+       		while (HDR.BV.SkipLines>0),
+       			fgetl(HDR.FILE.FID);
+       			HDR.BV.SkipLines = HDR.BV.SkipLines-1;
+        	end;
+                s = char(fread(HDR.FILE.FID,inf,'char')');
+                fclose(HDR.FILE.FID);
+        	if isfield(HDR.BV,'DecimalSymbol')
+	                s(s==HDR.BV.DecimalSymbol)='.';
+	        end;        
                 [tmp,status] = str2double(s);
+       		if (HDR.BV.SkipColumns>0),
+       			tmp = tmp(:,HDR.BV.SkipColumns+1:end); 
+       		end;
                 if strncmpi(HDR.BV.DataOrientation, 'multiplexed',6),
-                        HDR.BV.data = tmp;
+                        HDR.data = tmp;
                 elseif strncmpi(HDR.BV.DataOrientation, 'vectorized',6),
-                        HDR.BV.data = tmp';
+                        HDR.data = tmp';
                 end
-                HDR.AS.endpos = size(HDR.BV.data,1);
+		HDR.TYPE = 'native';
+                HDR.AS.endpos = size(HDR.data,1);
                 if ~any(HDR.NS ~= size(tmp));
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN BV-ascii: number of channels inconsistency\n');
                 end;
@@ -7673,7 +7703,6 @@ elseif strncmp(HDR.TYPE,'FIF',3),
                 HDR.FILE.POS = 0; 
                 HDR.FILE.OPEN = 1; 
                 HDR.PhysDimCode = zeros(HDR.NS,1); 
-                HDR = rmfield(HDR,'PhysDim'); 
 
         else
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN (FIF): NeuroMag FIFF access functions not available. \n');
