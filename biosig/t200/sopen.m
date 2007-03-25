@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.178 2007-03-21 09:51:10 schloegl Exp $
+%	$Id: sopen.m,v 1.179 2007-03-25 21:13:02 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -8406,31 +8406,31 @@ elseif strcmp(HDR.TYPE,'ZIP'),
         fn = fullfile(HDR.ZIP.TEMPDIR,'content.xml');
         if exist(fn,'file')
                 H1.FileName = fn; 
-                H1.FILE.Permission = 'r'; 
+                H1.FILE.PERMISSION = 'r'; 
                 HDR.Content = openxml(H1);
         end;
         fn = fullfile(HDR.ZIP.TEMPDIR,'META-INF/manifest.xml');
         if exist(fn,'file')
                 H1.FileName = fn; 
-                H1.FILE.Permission = 'r'; 
+                H1.FILE.PERMISSION = 'r'; 
                 HDR.manifest = openxml(H1);
         end;
         fn = fullfile(HDR.ZIP.TEMPDIR,'meta.xml');
         if exist(fn,'file')
                 H1.FileName = fn; 
-                H1.FILE.Permission = 'r'; 
+                H1.FILE.PERMISSION = 'r'; 
                 HDR.Meta = openxml(H1);
         end;
         fn = fullfile(HDR.ZIP.TEMPDIR,'styles.xml');
         if exist(fn,'file')
                 H1.FileName = fn; 
-                H1.FILE.Permission = 'r'; 
+                H1.FILE.PERMISSION = 'r'; 
                 HDR.Styles = openxml(H1);
         end;
         fn = fullfile(HDR.ZIP.TEMPDIR,'settings.xml');
         if exist(fn,'file')
                 H1.FileName = fn; 
-                H1.FILE.Permission = 'r'; 
+                H1.FILE.PERMISSION = 'r'; 
                 HDR.Settings = openxml(H1);
         end;
 
