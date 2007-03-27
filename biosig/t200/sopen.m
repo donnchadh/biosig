@@ -48,7 +48,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.179 2007-03-25 21:13:02 schloegl Exp $
+%	$Id: sopen.m,v 1.180 2007-03-27 16:17:32 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -7361,6 +7361,8 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                         end;
                         if strcmp(t1,'NumberOfChannels')
                         	HDR.NS = n2; 
+                        elseif strcmpi(t1,'SamplingInterval')
+                        	HDR.BV.SamplingInterval = n2; 
                         end; 	
                 elseif flag==4,        
                         [t1,r] = strtok(tline,'=');
@@ -7402,7 +7404,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                                         flag = 7.1;
                                 end; 
                         elseif flag==7.1,
-                                if (tline(1)<'0')|(tline(1)>'9'),
+                                if (tline(1)<'0') | (tline(1)>'9'),
                                 	if ~isempty(strfind(tline,'Impedance')); 
                                 		ix1 = find(tline=='['); 
                                 		ix2 = find(tline==']'); 
@@ -7412,7 +7414,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                                         end;
                                 else
                                         %[n,v,s] = str2double(tline(19:end)); 
-                                        [n,v,s] = str2double(tline); 
+                                        [n,v,s] = str2double(tline);
                                         ch = n(1);
                                         if ch>0,
 	                                        HDR.Label{ch} = tline(7:18);
@@ -7424,6 +7426,9 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         	                                HDR.Filter.LowPass(ch) = n(6+(v(3)~=0)); % High Cut Off [Hz]
         	                                HDR.Filter.Notch(ch)   = strcmpi(s{7+(v(3)~=0)},'on'); 
         	                         end;        
+        	                         if ch==HDR.NS,
+        	                         	flag=7.3;
+        	                         end;	
                                 end;
                         elseif flag==7.2,
                         	[n,v,s]=str2double(tline,[': ',9]); 
@@ -7461,14 +7466,20 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         end
         
         % read event file 
-        H = sopen(fullfile(HDR.FILE.Path, HDR.BV.MarkerFile),'rt');
-        if strcmp(H.TYPE,'EVENT');
-                HDR.EVENT = H.EVENT; 
-                HDR.T0    = H.T0; 
+        tmp = fullfile(HDR.FILE.Path, HDR.BV.MarkerFile);
+        if ~exist(tmp,'file')
+	        tmp = fullfile(HDR.FILE.Path, [HDR.FILE.Name,'.vmrk']);
+	end;         
+        if exist(tmp,'file')
+	        H = sopen(tmp,'rt');
+        	if strcmp(H.TYPE,'EVENT');
+        	        HDR.EVENT = H.EVENT; 
+        	        HDR.T0    = H.T0; 
 
-                tmp = which('sopen'); %%% used for BBCI
-                if exist(fullfile(fileparts(tmp),'bv2biosig_events.m'),'file'); 
-                	HDR = bv2biosig_events(HDR); 
+        	        tmp = which('sopen'); %%% used for BBCI
+        	        if exist(fullfile(fileparts(tmp),'bv2biosig_events.m'),'file'); 
+        	        	HDR = bv2biosig_events(HDR); 
+        	        end; 	
                 end; 
         end; 
 
@@ -7480,6 +7491,10 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         end;
 
         HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),PERMISSION,'ieee-le');
+        if HDR.FILE.FID < 0,
+        	HDR.BV.DataFile = [HDR.FILE.Name,'.dat'];
+	        HDR.FILE.FID    = fopen(fullfile(HDR.FILE.Path,HDR.BV.DataFile),PERMISSION,'ieee-le');
+	end;        
         if HDR.FILE.FID < 0,
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN BV: could not open file %s\n',fullfile(HDR.FILE.Path,HDR.BV.DataFile));
                 return;
