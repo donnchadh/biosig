@@ -12,24 +12,23 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 %		usually, the eye movements are stored in a different file	
 %   Mode	'REG'	[default] regression with one or two bipolar EOG channels
 %		'REG+CAR' regression and common average reference
-%			removes 2 bipolar + avergaged monopolar EOG
+%			removes 2 bipolar + averaged monopolar EOG
 %		'REG+PCA' regression and PCA, 
 %			removes 3 "EOG" components
-%		'REG+ICA' regression + ICA
-%			removes 3 "EOG" components
-%		'PCA-k'	removes the k-largest PCA components (k must be a positive integer)
+%		'REG+ICA' regression + ICA [3]
+%			removes 3 "EOG" components 
+%		'PCA-k'	removes the k-largest PCA components, k must be a positive integer
+%		'ICA-k'	removes the k-largest ICA components [3], k must be a positive integer
 %		'msec'	same as PCA-3, modified (without averaging) MSEC method [2]
 %		'bf-'	beamformer, assume zero-activity reference electrode
 %		'bf+'	beamformer, take into account activity of reference electrode 
 %	The following modifiers can be combined with any of the above	
+%		'FILT###-###Hz  filtering between ### and ### Hz. ### must be numeric
+%		'Fs=###Hz'  downsampling to ### Hz, ### must be numeric 
 %		'x'  	2nd player of season2 data
-%		'f16','+f16'	 FIR filter 1-6hz
-%		'fft16','+fft16' FFT filter 1-6hz
-%		'-f16'	turn filter off 
 %
 % OUTPUT:
 %   hdr.regress.r0 	correction coefficients
-% 
 % 
 %    Some heuristics is used, which is based on lab-specific standards. 
 %    If your data is not supported, contact <a.schloegl@ieee.org>
@@ -48,8 +47,9 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 % [2] Berg P, Scherg M.
 %	A multiple source approach to the correction of eye artifacts.
 %	Electroencephalogr Clin Neurophysiol. 1994 Mar;90(3):229-41.
+% [3] JADE algorithm, Jean-François Cardoso.
 
-%	$Id: get_regress_eog.m,v 1.5 2007-03-22 13:06:18 schloegl Exp $
+%	$Id: get_regress_eog.m,v 1.6 2007-03-29 12:28:09 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -57,8 +57,6 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
 % Version 2 of the License, or (at your option) any later version.
-
-
 
 	% extract information from BBCI data for EOG correction
 	if nargin<3,
@@ -118,7 +116,6 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 		end;
 		
 	        % find eye movements in BBCI recordings
-
         	tmp = bitand(2^15-1,h0.EVENT.TYP);
 		tmp = find((tmp > hex2dec('0430')) & (tmp<=hex2dec('0439')));
 		ix1 = min(tmp); 
@@ -146,14 +143,41 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 		FLAG.PCA = 3;
 	end;
 	
-	% 	filtering the data should improve the estimated        
-	FLAG.FILTER_FFT16 = ~isempty(strfind(Mode,'fft16'));
-	FLAG.FILTER_16 = ~isempty(strfind(Mode,'f16'));
-	if FLAG.FILTER_16,	
-	        b = fir1(h0.SampleRate,[1,6]/h0.SampleRate*2); a=1;
-	end;
 	FLAG.REG = ~isempty(strfind(upper(Mode),'REG'));
         
+	% downsampling 
+	ix1 = strfind(upper(Mode),'FS=');
+	if ~isempty(ix1),
+		ix2 = strfind(upper(Mode(ix1:end)),'HZ');
+		Fs  = Mode(ix1+3:ix1+ix2-2);
+		Fs  = str2double(Fs);
+		if length(Fs)==1 & isfinite(Fs),
+			s00 = rs(s00,h0.SampleRate,Fs);
+			h0.SampleRate = Fs; 
+		else
+			fprintf(2,'Warning GET_REGRESS_EOG: Fs="%s" could not be decoded. No filter is applied\n',tmp);
+		end;	
+	end;
+
+	% filter data  
+	ix1 = strfind(Mode,'FILT');
+	if ~isempty(ix1),
+		ix2 = strfind(upper(Mode(ix1:end)),'HZ');
+		tmp = Mode(ix1+4:ix1+ix2-2);
+		tmp((tmp=='-')|(tmp=='='))=' ';
+		B   = str2double(tmp);
+		if (length(B)==2) & all(isfinite(B))
+			FLAG.Filter = B; 
+			tmp = center(s00,1); tmp(isnan(tmp)) = 0;
+		        tmp = fft(tmp); f=[0:size(s00,1)-1]*h0.SampleRate/size(s00,1);
+		        w   = ((f>B(1)) & (f<B(2))) | ((f>h0.SampleRate-B(2)) & (f<h0.SampleRate-B(1)));
+		        tmp(~w,:) = 0;
+		        s00 = real(ifft(tmp));
+		else
+			fprintf(2,'Warning GET_REGRESS_EOG: Filter="%s" could not be decoded. No filter is applied\n',tmp);
+		end;			
+	end;
+		
 	%%%%% define EEG and EOG channels %%%%%
 	CHANTYP = repmat(' ',h0.NS,1);
 	CHANTYP([(h0.LeadIdCode>=996) & (h0.LeadIdCode<=1302)])='E'; % EEG
@@ -164,17 +188,39 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 	        eogchan = eogchan([65:128,1:64],:);
 	end;
 
-	% filter data  
+	%%%%% #### OBSOLETE:START ####
+	% 	filtering the data should improve the estimated        
+	FLAG.FILTER_FFT16 = ~isempty(strfind(Mode,'fft16'));
+	FLAG.FILTER_16 = ~isempty(strfind(Mode,'f16'));
+	FLAG.FILTER_FFT0140 = ~isempty(strfind(Mode,'fft0140'));
+	FLAG.FILTER_100Hz0140 = ~isempty(strfind(Mode,'100Hz0140'));
+
 	if 0,
+	elseif FLAG.FILTER_100Hz0140 | FLAG.FILTER_FFT0140,
+		if FLAG.FILTER_100Hz0140,
+			s00 = rs(s00,h0.SampleRate,100);
+			h0.SampleRate = 100; 
+		end;
+		tmp = center(s00,1); tmp(isnan(tmp)) = 0;
+	        tmp = fft(tmp); f=[0:size(s00,1)-1]*h0.SampleRate/size(s00,1);
+	        w = ((f>.1) & (f<40)) | ((f>h0.SampleRate-40) & (f<h0.SampleRate-.1));
+	        tmp(~w,:) = 0;
+	        s00 = real(ifft(tmp));
+	        warning('use of FLAG=0140 is obsolete. Use FILT0.1-40Hz instead.');
+
 	elseif FLAG.FILTER_FFT16,
 		tmp = center(s00,1); tmp(isnan(tmp)) = 0;
 	        tmp = fft(tmp); f=[0:size(s00,1)-1]*h0.SampleRate/size(s00,1);
 	        w = ((f>1) & (f<6)) | ((f>h0.SampleRate-6) & (f<h0.SampleRate-1));
 	        tmp(~w,:) = 0;
 	        s00 = real(ifft(tmp));
+	        warning('use of FLAG=FFT16 is obsolete. Use FILT1-6Hz instead.');
+
 	elseif FLAG.FILTER_16,
 	        s00 = filter(b,a,s00);
+	        warning('use of FLAG=F16 is obsolete. Use FILT1-6Hz instead.');
 	end;        
+	%%%%% #### OBSOLETE:END ####
 
 	%%%%% identify EOG components %%%%%	
 	if 0,
