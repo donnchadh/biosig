@@ -14,7 +14,7 @@ function HDR=bdf2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bdf2biosig_events.m,v 1.1 2007-03-07 14:01:44 schloegl Exp $
+%	$Id: bdf2biosig_events.m,v 1.2 2007-03-30 15:19:28 schloegl Exp $
 %	Copyright (C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -54,24 +54,36 @@ status_channel = strmatch('Status',HDR.Label);
 if strcmp(HDR.TYPE,'BDF')
 
 elseif isfield(HDR,'data')
-                        tmp = strmatch('Status',HDR.Label);
-                        HDR.BDF.Status = tmp;
+	tmp = strmatch('Status',HDR.Label);
+	HDR.BDF.Status = tmp;
 end; 
 
 t = HDR.BDF.ANNONS;
 
 ix1 = diff(double([0;bitand(t,2^16)]));	% start of epoch
-ix2 = diff(double([0;bitand(t,255)]));	% labels 
-			
+ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels 
 
-% EVENTTABLE = repmat(0,sum(~~ix1)+sum(~~ix2),4);
-                        
-POS = [find(ix1>0);find(ix2>0);find(ix1<0);find(ix2<0)];
-%TYP = [repmat(hex2dec('0300'),sum(ix1>0),1);bitand(t(ix2>0),255);repmat(hex2dec('8300'),sum(ix1<0),1);bitand(t(ix2<0),255)+2^15];
-TYP = [repmat(hex2dec('0300'),sum(ix1>0),1); bitand(t(ix2>0),255); repmat(hex2dec('8300'),sum(find(ix1<0)-1),1); bitor(bitand(t(find(ix2<0)-1),255),2^15)];
+
+% defines mapping of the BDF-status channel to BioSig event codes 			
+switch 1,
+case 1,
+	% this is the default decoding
+	% epoching information is derived from bit17
+	% only lower 8 bits are supported
+	POS = [find(ix1>0);find(ix2>0);find(ix1<0);find(ix2<0)];
+	TYP = [repmat(hex2dec('0300'),sum(ix1>0),1); bitand(t(ix2>0),255); repmat(hex2dec('8300'),sum(find(ix1<0)-1),1); bitor(bitand(t(find(ix2<0)-1),255),2^15)];
+case 2,
+	% suggested decoding if standardized event codes (according to 
+	% .../biosig/doc/eventcodes.txt) are used  
+	POS = [find(ix2>0)];
+	TYP = [bitand(t(ix2>0),2^16-1)];
+case 99,
+	% not recommended, because it could break some functionality in BioSig 
+	POS = [find(ix2>0);find(ix2<0)];
+	TYP = [bitand(t(ix2>0),2^16-1); bitor(bitand(t(find(ix2<0)-1),2^16-1),2^15)];
+end;
+
 [HDR.EVENT.POS,ix] = sort(POS);
 HDR.EVENT.TYP = TYP(ix);
-
-
 
 
