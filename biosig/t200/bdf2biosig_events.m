@@ -14,7 +14,7 @@ function HDR=bdf2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bdf2biosig_events.m,v 1.2 2007-03-30 15:19:28 schloegl Exp $
+%	$Id: bdf2biosig_events.m,v 1.3 2007-04-03 08:23:37 schloegl Exp $
 %	Copyright (C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -82,8 +82,19 @@ case 99,
 	POS = [find(ix2>0);find(ix2<0)];
 	TYP = [bitand(t(ix2>0),2^16-1); bitor(bitand(t(find(ix2<0)-1),2^16-1),2^15)];
 end;
-
 [HDR.EVENT.POS,ix] = sort(POS);
 HDR.EVENT.TYP = TYP(ix);
 
 
+%%%% BDF Trigger and status 
+t = bitand(HDR.BDF.ANNONS,hex2dec('00ffff')); 
+ix = diff(double([0;t]));
+HDR.BDF.Trigger.POS = find(ix);
+HDR.BDF.Trigger.TYP = t(POS); 			
+
+t = bitand(bitshift(HDR.BDF.ANNONS,-16),hex2dec('00ff')); 
+ix = diff(double([0;t]));
+HDR.BDF.Status.POS = find(ix);
+HDR.BDF.Status.TYP = t(POS); 			
+
+HDR.BDF.ANNONS = []; 	% not needed anymore, saves memory
