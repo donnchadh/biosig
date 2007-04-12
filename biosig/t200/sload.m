@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.68 2007-03-07 15:38:00 schloegl Exp $
+%	$Id: sload.m,v 1.69 2007-04-12 13:41:37 schloegl Exp $
 %	Copyright (C) 1997-2006 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -249,7 +249,7 @@ end;
 %%%%%%%%%% --------- EOG CORRECTION -------------- %%%%%%
 if H.FLAG.EOG_CORRECTION,
 try
-        h = get_regress_eog(H.FileName);
+        h = get_regress_eog(H.FileName,'REG fft16');
 catch,
 	fprintf(H.FILE.stderr,'Error: SLOAD (EOG_CORRECTION): %s\n',lasterr); 
 	H.FLAG.EOG_CORRECTION = 0; 
@@ -311,12 +311,15 @@ elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat
 	k1 = 0;
         while ~seof(H),
 	        [s,H] = sread(H,100);
-		k2 = size(s,1);
-		signal(k1+1:k1+k2,:)=s;
-		k1 = k1+k2;
-	        %fprintf('%i/%i\n',stell(H),H.SPR*H.NRec);
-	        %signal=[signal;s];
-	end;        
+	        if 1,
+			k2 = size(s,1);
+			signal(k1+1:k1+k2,:)=s;
+			k1 = k1+k2;
+		else
+		         %fprintf('%i/%i\n',stell(H),H.SPR*H.NRec);
+		        signal=[signal;s];
+		end;        
+	end;      
         H = sclose(H);
 
         
@@ -923,11 +926,10 @@ if strcmp(H.TYPE,'GDF')
                         fprintf(2,'Warning SLOAD(GDF): corrupted SEL-file %s\n',f);
                 else
                         if isfield(H,'Classlabel'),
-                                n = length(H.Classlabel);
+                                n = length(H.TRIG);
                         else
                                 n = length(H.EVENT.TYP);
                         end;
-
                         H.ArtifactSelection = zeros(n,1);
                         if all((tmp==0) | (tmp==1)) & (length(tmp)>1) & (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
                                 H.ArtifactSelection = logical(tmp);
@@ -956,6 +958,9 @@ if ~isnan(Fs) & (H.SampleRate~=Fs);
                 if isfield(H.EVENT,'DUR');
                         H.EVENT.DUR = H.EVENT.DUR/H.SampleRate*Fs;
                 end;
+                if isfield(H,'TRIG');
+                        H.TRIG = H.TRIG/H.SampleRate*Fs;
+                end;
                 H.SampleRate = Fs;
         elseif tmp2,
                 x = load('resample_matrix.mat');
@@ -967,12 +972,16 @@ if ~isnan(Fs) & (H.SampleRate~=Fs);
                 if isfield(H.EVENT,'DUR');
                         H.EVENT.DUR = H.EVENT.DUR/H.SampleRate*Fs;
                 end;
+                if isfield(H,'TRIG');
+                        H.TRIG = H.TRIG/H.SampleRate*Fs;
+                end;
                 H.SampleRate = Fs;
         else 
                 fprintf(2,'Warning SLOAD: resampling %f Hz to %f Hz not implemented.\n',H.SampleRate,Fs);
         end;                
 end;
 
+return; 
 ratiomissing = mean(isnan(signal)); 
 if any(ratiomissing>.1)
 	fprintf(2,'Warning SLOAD: ratio of missing samples exceeds 10%% in file %s.\n',H.FileName);
