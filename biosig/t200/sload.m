@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.69 2007-04-12 13:41:37 schloegl Exp $
+%	$Id: sload.m,v 1.70 2007-04-12 15:36:40 schloegl Exp $
 %	Copyright (C) 1997-2006 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -913,24 +913,19 @@ if strcmp(H.TYPE,'GDF')
                         end;
                 end;
         end;
-        f=fullfile(H.FILE.Path,[H.FILE.Name,'.sel']);
-        if ~exist(f,'file'),
-                f = fullfile(H.FILE.Path,[H.FILE.Name,'.SEL']);
+
+        fid=fopen(fullfile(H.FILE.Path,[H.FILE.Name,'.sel']),'r');
+        if fid<0,
+	        fid=fopen(fullfile(H.FILE.Path,[H.FILE.Name,'.SEL']),'r');
         end
-        if exist(f,'file'),
-                fid = fopen(f,'r');
-                tmp = fread(fid,inf,'char');
+        if fid>0,
+                tmp = fread(fid,[1,inf],'*char');
                 fclose(fid);
-                [tmp,v] = str2double(char(tmp'));
+                [tmp,v] = str2double(tmp);
                 if any(isnan(tmp)) |any(tmp~=ceil(tmp)) | any(tmp<0) | (any(tmp==0) & any(tmp>1))
                         fprintf(2,'Warning SLOAD(GDF): corrupted SEL-file %s\n',f);
-                else
-                        if isfield(H,'Classlabel'),
-                                n = length(H.TRIG);
-                        else
-                                n = length(H.EVENT.TYP);
-                        end;
-                        H.ArtifactSelection = zeros(n,1);
+		else                        
+                        H.ArtifactSelection = zeros(length(H.TRIG),1);
                         if all((tmp==0) | (tmp==1)) & (length(tmp)>1) & (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
                                 H.ArtifactSelection = logical(tmp);
                         else
@@ -942,7 +937,7 @@ end;
 
 
 if isfield(H.EVENT,'TYP')
-% include NaN at "New Segment" in order to prevent spruious correlation
+% include NaN at "New Segment" in order to prevent spurious correlation
 	ix = H.EVENT.POS(find(H.EVENT.TYP==hex2dec('7ffe')))-1; 
 	signal(ix(ix>0),:)=NaN;    % mark 'New Segment' with NaN 
 end; 	
