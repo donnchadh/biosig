@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.63 2007-03-07 15:36:42 schloegl Exp $
+%	$Id: getfiletype.m,v 1.64 2007-04-27 15:08:37 schloegl Exp $
 %	(C) 2004,2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -39,6 +39,8 @@ elseif isfield(arg1,'name')
 	HDR.FILE = arg1; 
 elseif isfield(arg1,'FileName')
         HDR = arg1;
+else
+	error('input argument not supported');
 end;
 if ~isfield(HDR,'FILE')
         HDR.FILE.PERMISSION='r';
@@ -73,6 +75,14 @@ if exist(HDR.FileName,'dir')
 	        end;
         elseif exist(fullfile(HDR.FileName,'alpha.alp'),'file')
                 HDR.FileName = fullfile(HDR.FileName,'rawhead');
+
+        elseif exist(fullfile(HDR.FileName,'patient.txt'),'file') & exist(fullfile(HDR.FileName,'datafiles.txt'),'file')
+        	% Freiburg Prediction Contest
+        	% https://epilepsy.uni-freiburg.de/seizure-prediction-workshop-2007/prediction-contest/data-download
+		HDR.FILE.Path = HDR.FileName;
+		HDR.FILE.Name = 'patient.txt';
+		HDR.FileName = fullfile(HDR.FILE.Path,'patient.txt');
+
         else
     		HDR.TYPE = 'DIR'; 
     		return; 
@@ -104,11 +114,11 @@ else
         
 	fseek(fid,0,'bof');
         
-        [s,c] = fread(fid,256,'uchar');
+        [s,c] = fread(fid,1024,'uchar');
         if (c == 0),
-                s = repmat(0,1,256-c);
+                s = repmat(0,1,1024-c);
         elseif (c < 256),
-                s = [s', repmat(0,1,256-c)];
+                s = [s', repmat(0,1,1024-c)];
         else
                 s = s';
         end;
@@ -427,6 +437,23 @@ else
                         
                 elseif strfind(ss,'ALPHA-TRACE-MEDICAL');
                         HDR.TYPE='alpha';
+                        
+                elseif strncmp(ss,'SamplingRate=',13) & strcmp(HDR.FILE.Name,'patient'),
+                	% Freiburg Prediction Contest
+	        	% https://epilepsy.uni-freiburg.de/seizure-prediction-workshop-2007/prediction-contest/data-download
+			HDR.FEPI.PatientFile = fullfile(HDR.FILE.Path,'patient.txt');
+			fid2 = fopen(fullfile(HDR.FILE.Path,'datafiles.txt'),'r');
+			if fid2>0,
+		        	HDR.TYPE = 'FEPI3';
+		        	HDR.H1 = ss;
+				k = 0; 
+				while ~feof(fid2)
+					tmp = fgetl(fid2); 
+					k = k+1;
+					HDR.FEPI.ListOfDataFiles{k,1} = tmp;
+				end;	
+				fclose(fid2);
+		        end; 	
                         
                 elseif strfind(ss,'W1N10936.');
                         ss(1:20),

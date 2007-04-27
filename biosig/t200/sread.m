@@ -34,7 +34,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.76 2007-03-16 13:26:58 schloegl Exp $
+%	$Id: sread.m,v 1.77 2007-04-27 15:08:37 schloegl Exp $
 %	(C) 1997-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1277,6 +1277,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),   %Brainvision
                 end;
         
         elseif strncmpi(HDR.BV.DataFormat, 'ascii',5)  
+	        %%%% OBSOLETE: supported by 'native' %%%%
                 if nargin>2,
                         HDR.FILE.POS = HDR.SampleRate*StartPos;
                 end;
@@ -1325,6 +1326,28 @@ elseif strcmp(HDR.TYPE,'ATF');
                 [HDR.ATF.NUM,status,HDR.ATF.STR] = str2double(char(t));
         end;
         S = HDR.ATF.NUM;
+        
+        
+elseif strcmp(HDR.TYPE,'FEPI3'); 
+        if nargin==3,
+                HDR.FILE.POS = HDR.SampleRate*StartPos;
+        end;
+        Duration = min(NoS*HDR.SampleRate,(HDR.AS.endpos-HDR.FILE.POS));
+
+	S = repmat(NaN,Duration,length(HDR.InChanSelect));
+	ix = find([HDR.FEPI.SEG(:,2) > HDR.FILE.POS] & [HDR.FEPI.SEG(:,1) <= HDR.FILE.POS+Duration]);
+	for k = 1:length(ix),
+		fid = fopen(fullfile(HDR.FILE.Path,[HDR.FEPI.ListOfDataFiles{k},'.bin']));
+		if k==1,
+			fseek(fid,(HDR.FILE.POS-HDR.FEPI.SEG(ix(k),1))*2*HDR.NS,-1);
+		end;	
+		data= fread(fid,[HDR.NS,inf],'int16')'; 
+		ix1 = HDR.FEPI.SEG(ix(k),1)-HDR.FEPI.SEG(ix(1),1);
+		ix2 = min(size(data,1),Duration+HDR.FILE.POS-HDR.FEPI.SEG(ix(k),1)+1);
+	        S(ix1+1:ix1+ix2,:) = data(1:ix2,HDR.InChanSelect);
+		fclose(fid); 
+	end; 
+	HDR.FILE.POS = HDR.FILE.POS+Duration; 
         
         
 elseif strcmp(HDR.TYPE,'WG1'),   %walter-graphtek
