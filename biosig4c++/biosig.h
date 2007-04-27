@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.37 2006-05-24 07:25:37 schloegl Exp $
+% $Id: biosig.h,v 1.38 2007-04-27 08:48:10 schloegl Exp $
 % Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -62,9 +62,32 @@ typedef char			int8_t;
 #include <stdio.h>
 //#include <libxml/tree.h>
 
-
 #if __BYTE_ORDER == __BIG_ENDIAN
+/* use byteswap macros from the host system, hopefully optimized ones ;-) */
 #include <byteswap.h>
+
+#ifndef _BYTESWAP_H
+/* define our own version - needed for Max OS X*/
+#define bswap_16(x)   \
+	((((x) & 0xff00) >> 8) | (((x) & 0x00ff) << 8))
+
+#define bswap_32(x)   \
+	 ((((x) & 0xff000000) >> 24) \
+        | (((x) & 0x00ff0000) >> 8)  \
+	| (((x) & 0x0000ff00) << 8)  \
+	| (((x) & 0x000000ff) << 24))
+
+#define bswap_64(x) \
+      	 ((((x) & 0xff00000000000000ull) >> 56)	\
+      	| (((x) & 0x00ff000000000000ull) >> 40)	\
+      	| (((x) & 0x0000ff0000000000ull) >> 24)	\
+      	| (((x) & 0x000000ff00000000ull) >> 8)	\
+      	| (((x) & 0x00000000ff000000ull) << 8)	\
+      	| (((x) & 0x0000000000ff0000ull) << 24)	\
+      	| (((x) & 0x000000000000ff00ull) << 40)	\
+      	| (((x) & 0x00000000000000ffull) << 56))
+#endif  // _BYTESWAP_H
+
 #define l_endian_u16(x) bswap_16((uint16_t)(x))
 #define l_endian_u32(x) bswap_32((uint32_t)(x))
 #define l_endian_u64(x) bswap_64((uint64_t)(x))
@@ -84,7 +107,7 @@ double  l_endian_f64(double x);
 #define l_endian_f32(x) (x)
 #define l_endian_f64(x) (x)
 
-#endif 
+#endif // __BYTE_ORDER
 
 
 	// list of file formats 
