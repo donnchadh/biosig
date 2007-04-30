@@ -8,7 +8,7 @@
 #     CEN/TC 251 2005-07 prEN1064:2005/A1 
 # [4] 64_e_stm_ver22.pdf EN1064:2005+A1:2007(E) Table 5 - Lead Identification Codes
 #
-#	$Id: leadidtable_scpecg.txt,v 1.2 2007-04-30 10:03:24 schloegl Exp $
+#	$Id: leadidtable_scpecg.txt,v 1.3 2007-04-30 10:10:53 schloegl Exp $
 #	(C) 2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 #    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 #
@@ -106,7 +106,7 @@ VR 	88 	VR, nonaugmented voltage, vector of RA 		MDC_ECG_LEAD_VR
 VL 	89 	VL, nonaugmented voltage, vector of LA 		MDC_ECG_LEAD_VL
 VF 	90 	VF, nonaugmented voltage, vector of LL 		MDC_ECG_LEAD_VF
 MCL	91 	Modified chest lead (left arm indifferent) 	MDC_ECG_LEAD_MCL
-MCL1 	p2 	MCL, per V1 placement 				MDC_ECG_LEAD_MCL1
+MCL1 	92 	MCL, per V1 placement 				MDC_ECG_LEAD_MCL1
 MCL2	93 	MCL, per V2 placement 				MDC_ECG_LEAD_MCL2
 MCL3	94 	MCL, per V3 placement 				MDC_ECG_LEAD_MCL3
 MCL4	95 	MCL, per V4 placement 				MDC_ECG_LEAD_MCL4
@@ -145,7 +145,7 @@ AB1 	127 	AB1 (auxiliary bipolar lead #1) 		MDC_ECG_LEAD_AB1
 AB2 	128 	AB2 (auxiliary bipolar lead #2) 		MDC_ECG_LEAD_AB2
 AB3 	129 	AB3 (auxiliary bipolar lead #3) 		MDC_ECG_LEAD_AB3
 AB4 	130 	AB4 (auxiliary bipolar lead #4) 		MDC_ECG_LEAD_AB4
-ES 	131 	EASI™ ES5) 					MDC_ECG_LEAD_ES
+ES 	131 	EASI ES 					MDC_ECG_LEAD_ES
 AS 	132 	EASI AS 					MDC_ECG_LEAD_AS
 AI 	133 	EASI AI 					MDC_ECG_LEAD_AI
 S 	134 	EASI upper sternum lead 			MDC_ECG_LEAD_S
