@@ -27,7 +27,7 @@ function [HDR] = leadidcodexyz(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: leadidcodexyz.m,v 1.11 2007-02-24 21:40:35 schloegl Exp $
+%	$Id: leadidcodexyz.m,v 1.12 2007-04-30 10:03:25 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -35,7 +35,7 @@ function [HDR] = leadidcodexyz(arg1)
 
 
 global BIOSIG_GLOBAL;
-% BIOSIG_GLOBAL=0; %%% used for debugging, only. 
+ BIOSIG_GLOBAL=0; %%% used for debugging, only. 
 
 if ~isfield(BIOSIG_GLOBAL,'ISLOADED_XYZ')
 	BIOSIG_GLOBAL.ISLOADED_XYZ = 0 ; 
@@ -58,6 +58,9 @@ if ~BIOSIG_GLOBAL.ISLOADED_XYZ;
                 if ~length(t)
                 elseif ~strncmp(t,'#',1)    
                 	ix3 = strfind(t,'MDC_ECG_LEAD_');
+                	if isempty(ix3)
+                		ix3 = length(t)+1;
+                	end
                         [t1,t2] = strtok(t(1:ix3-1),[9,32]);
                         [t2,t3] = strtok(t2,[9,32]);
                         id = str2double(t2);
@@ -162,6 +165,8 @@ else    % electrode code and position
 	                        		%% majority are ECG electrodes,
 	                        		ix = ix(find(BIOSIG_GLOBAL.LeadIdCode(ix)<996));
 	                        	end;
+	                        elseif isempty(ix)	
+		                        ix = strmatch(deblank(HDR.Label{k}),BIOSIG_GLOBAL.MDC_ECG_LEAD,'exact');
 	                        end; 	
 
         	                if (length(ix)==1),
