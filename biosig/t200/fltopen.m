@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.2 2007-03-16 13:26:20 schloegl Exp $
+%	$Id: fltopen.m,v 1.3 2007-05-04 07:34:40 schloegl Exp $
 %	Copyright (c) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -34,7 +34,9 @@ else
         HDR.FILE.Name = file;
         HDR.FILE.Path = pfad;
         HDR.FILE.Ext  = FileExt(2:length(FileExt));
-	HDR.FILE.PERMISSION=='r';
+	HDR.FILE.PERMISSION = 'r';
+	HDR.FILE.stdout = 1; 
+	HDR.FILE.stderr = 2; 
 end;
 
 
