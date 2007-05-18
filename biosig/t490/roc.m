@@ -1,22 +1,24 @@
-function [SEN,SPEC,d,ACC,AREA]=roc(d,c,color);
-% ROC receiver operator curve
-% [SEN, SPEC, TH, ACC, AREA]=roc(d,c);
+function [SEN,SPEC,d,ACC,AREA,YI,c]=roc(d,c,color);
+% ROC receiver operator curve and derived statistics.
+% [...] = roc(d,c);
 % d     DATA
 % c     CLASS, vector with 0 and 1 
 % 
-% function [SEN, SPEC, TH, ACC]=roc(d1,d0);
+% [...]=roc(d1,d0);
 % d1    DATA of class 1 
 % d2    DATA of class 0
-% 
+% % [SEN, SPEC, TH, ACC, AUC,Yi,idx]=roc(...);
 % OUTPUT:
 % SEN     sensitivity
 % SPEC    specificity
 % TH      Threshold
 % ACC     accuracy
-% AREA    area under ROC curve
+% AUC     area under ROC curve
+% Yi 	  max(SEN+SPEC-1), Youden index 
+% c	  TH(c) is the threshold that maximizes Yi 
 
-%	$Id: roc.m,v 1.3 2007-05-18 10:34:10 schloegl Exp $
-%	Copyright (c) 1997-2003,2005 by  Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: roc.m,v 1.4 2007-05-18 10:56:01 schloegl Exp $
+%	Copyright (c) 1997-2003,2005,2007 by  Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % This library is free software; you can redistribute it and/or
@@ -84,7 +86,7 @@ SEN = TP./(TP+FN);
 SPEC= TN./(TN+FP);
 ACC = (TP+TN)./(TP+TN+FP+FN);
 
-SEN = [FN TP TN FP SEN SPEC ACC D];
+% SEN = [FN TP TN FP SEN SPEC ACC D];
 
 %fill(TN/sum(x==0),FN/sum(x==1),'b');
 %SEN=SEN(tmp,:);
@@ -97,7 +99,11 @@ plot(FPR*100,TPR*100,color);
 %plot(FP*100,TP*100,color);
 % fill([1; FP],[0;TP],'c');
 
-%ylabel('true positive [%]');
-%xlabel('false positive [%]');
+%ylabel('Sensitivity (true positive ratio) [%]');
+%xlabel('1-Specificity (false positive ratio) [%]');
 
+% area under the ROC curve
 AREA = -diff(FPR)' * (TPR(1:end-1)+TPR(2:end))/2;
+
+% Youden index
+[YI,c] = max(SEN+SPEC-1);
