@@ -15,7 +15,7 @@ function [SEN,SPEC,d,ACC,AREA]=roc(d,c,color);
 % ACC     accuracy
 % AREA    area under ROC curve
 
-%	$Id: roc.m,v 1.2 2005-04-29 14:32:04 schloegl Exp $
+%	$Id: roc.m,v 1.3 2007-05-18 10:34:10 schloegl Exp $
 %	Copyright (c) 1997-2003,2005 by  Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -38,7 +38,7 @@ function [SEN,SPEC,d,ACC,AREA]=roc(d,c,color);
 
 % Problem : Wenn die Schwellwerte mehrfach vorkommen, kann es zu Ambiguiten kommen, welche sich auf die AUC auswirken.
 
-MODE = all(size(d)==size(c)) & all(all((c==1) | (c==0)));
+MODE = all(size(d)==size(c)) & all(all((c==1) | (c==0)))
 d=d(:);
 c=c(:);
         
