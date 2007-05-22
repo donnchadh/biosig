@@ -22,8 +22,8 @@ function [IFF]=openiff(fid,LEN)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: openiff.m,v 1.3 2005-11-05 20:46:17 schloegl Exp $
-%	Copyright (C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: openiff.m,v 1.4 2007-05-22 15:48:21 schloegl Exp $
+%	Copyright (C) 2004,2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -51,11 +51,13 @@ while ((LEN>0) | isnan(LEN)) & (c>0),
         
 %       fprintf(1,'tag: %6s\tpos: %8i\tsize: %8i\n',tag,filepos,tagsize);
         
-        if 0, 
+        if 0,
                 VAL = openiff(fid,tagsize);
         elseif strcmp(tag,'FORM')
                 [tmp,c] = fread(fid,[1,4],'char');tag,
                 VAL = setfield([],char(tmp),openiff(fid,tagsize-4));
+        elseif 0,strcmp(tag,'RIFF')
+                VAL = openiff(fid,tagsize);
         elseif strcmp(tag,'RIFF')
                 [tmp,c] = fread(fid,[1,4],'char');
                 %val = fread(fid,tagsize-4,'char');
@@ -66,32 +68,46 @@ while ((LEN>0) | isnan(LEN)) & (c>0),
                 VAL.MIDI = openiff(fid,NaN);
                 %LEN = NaN;
                 %VAL.MIDI = tmp;
-        elseif strcmp(tag,'LIST')
-                [tmp,c] = fread(fid,[1,4],'char'); 
+ 
+        elseif strcmp(tag,'LIST');	% CNT_RIFF (EEP 3.1)
+                [tmp,c] = fread(fid,[1,4],'char');
                 VAL = setfield([],char(tmp),openiff(fid,tagsize-4));
-        elseif strcmp(tag,'LIST')
-                VAL = openiff(fid,tagsize);
-        elseif strcmp(tag,'chan')
+
+        elseif strcmp(tag,'chan')	% CNT_RIFF (EEP 3.1)
                 VAL = fread(fid,[1,tagsize/2],'uint16');
-        elseif strncmp(tag,'ep  ',4),
+        elseif strcmp(tag,'info')	% CNT_RIFF (EEP 3.1)
+                VAL = fread(fid,[1,tagsize],'*char');
+        elseif strcmp(tag,'eeph')	% CNT_RIFF (EEP 3.1)
+                VAL = fread(fid,[1,tagsize],'*char');
+        elseif strncmp(tag,'ep  ',4),	% CNT_RIFF (EEP 3.1) 
                 VAL = fread(fid,[1,tagsize/4],'uint32');
         elseif strcmp(tag,'hdrl')
                 [tmp,c] = fread(fid,[1,4],'char');
                 VAL = setfield([],char(tmp),openiff(fid,tagsize-4));
+
         elseif strcmp(tag,'CAT ')
                 VAL = openiff(fid,tagsize);
+
+        elseif strcmp(tag,'data')
+        %        LEN = fread(fid,1,'uint32');
+                VAL = fread(fid,[1,LEN],'*uint8');
+                %[tmp,c] = fread(fid,[1,4],'*char');
+                %LEN = fread(fid,1,'int32');
+                %VAL.data = fread(fid,LEN,'uint8');
+                %VAL = openiff(fid,tagsize);
         elseif strncmp(tag,'(c)',3)
                 tag = 'Copyright';
                 VAL = char(fread(fid,tagsize,'uchar')');
                 %VAL.CopyRight = char(VAL);
         else
-                if 1, %tagsize<1024*2,
+                if 0,tagsize<1024*2,
                         VAL = fread(fid,tagsize,'uchar');
                 else
 			VAL = [];
                         VAL.handle = ftell(fid);
                         VAL.size = tagsize; 
                         status = fseek(fid,tagsize,'cof');
+                        if status, return; end;
                 end
         end;
 	        
@@ -104,10 +120,10 @@ while ((LEN>0) | isnan(LEN)) & (c>0),
                 ix = (tag(1:2)-48)*[16;1]+1;
                 IFF.wb{K1,ix} = VAL;
         else
-                try,
-	                IFF = setfield(IFF,tag,VAL);
-                catch,
-                end;
+                %try,
+	                IFF = setfield(IFF,deblank(tag),VAL);
+                %catch,
+                %end;
         end;
         status = fseek(fid,filepos+tagsize0,'bof');
         LEN = LEN - tagsize0;
