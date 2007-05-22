@@ -23,10 +23,17 @@ function INI = tvaar(signal,arg2,arg3,arg4)
 %   X.AAR estimated AAR parameters
 %   X.E   prediction error, residuum, 
 %   X.PE  time-varying variance of residual process
+% 
+% REFERENCES: 
+% [1] Schlögl A.(2000)
+%   The electroencephalogram and the adaptive autoregressive model: theory and applications
+%   Shaker Verlag, Aachen, Germany,(ISBN3-8265-7640-3). 
+% [2] Schlögl A, Lee FY, Bischof H, Pfurtscheller G
+%   Characterization of Four-Class Motor Imagery EEG Data for the BCI-Competition 2005.
+%   Journal of neural engineering 2 (2005) 4, S. L14-L22
 
-
-%	$Id: tvaar.m,v 1.3 2007-03-21 16:51:39 schloegl Exp $
-%	Copyright (c) 2003-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%  	$Id: tvaar.m,v 1.4 2007-05-22 07:30:20 schloegl Exp $
+%	Copyright (c) 2003-2004,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
