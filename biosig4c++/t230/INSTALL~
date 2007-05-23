@@ -1,0 +1,32 @@
+
+
+0. install and build Xerces-C 2.7 source distribution (normally I
+install it to /usr/local)
+
+1. download XQilla cvs with commands
+
+   cvs -d:pserver:anonymous@cvs.sourceforge.net:/cvsroot/xqilla login
+
+   cvs -z3 -d:pserver:anonymous@cvs.sourceforge.net:/cvsroot/xqilla co -P xqilla
+
+to appropiate directory (I use /usr/local/src;)
+
+2. run ./configure --with-xerces "path to Xerces source root"
+
+3. If your flex/lex does not understand Unicode, then enter
+xqilla/src/lexer directory and touch all cpp, hpp and h files
+(only one should be touched but I don't remember which one;) to
+prevent make calling flex. Actually a regular user doesn't need
+to rebuild these files (see details at pathan 2 building
+instructions).
+
+4. make/make install xqilla
+
+5. check that library path in my sample's Makefile points to
+correct location of libxerces and libxqilla.
+
+[just in case] Please note that linking depends on the library
+order in linker command line. I forgot that this is normal with
+gcc and it was an unpleasant surprise for me;)
+
+Hope that these help.
