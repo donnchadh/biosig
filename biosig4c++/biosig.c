@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.53 2006-06-05 20:59:14 schloegl Exp $
+    $Id: biosig.c,v 1.54 2007-05-23 20:37:58 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -187,7 +187,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 
       	hdr->TYPE = GDF; 
       	hdr->VERSION = 1.94;
-      	hdr->AS.rawdata = (uint8_t*) malloc(10);
+      	hdr->AS.rawdata = (uint8_t*) malloc(0);
       	hdr->NRec = 0; 
       	hdr->NS = NS;	
 	hdr->SampleRate = 4321.5;
@@ -196,7 +196,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->AS.bi = (uint32_t*)calloc(hdr->NS+1,sizeof(uint32_t));
 	hdr->data.size[0] = 0; 	// rows 
 	hdr->data.size[1] = 0;  // columns 
-	hdr->data.block = (biosig_data_type*)malloc(420); 
+	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = t_time2gdf_time(time(NULL));
       	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.35";
 
@@ -301,13 +301,15 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	time_t		tt;
 	unsigned	EventChannel = 0;
 
+	if (hdr==NULL)
+	hdr = create_default_hdr(0,0);	// initializes fields that may stay undefined during SOPEN 
 
 if (!strcmp(MODE,"r"))	
 {
-	hdr = create_default_hdr(0,0);	// initializes fields that may stay undefined during SOPEN 
+#undef ZLIB_H   
 
 #ifdef ZLIB_H
-	hdr->FILE.FID = fopen(FileName,"rb");
+	hdr->FILE.FID = fzopen(FileName,"rb");
 #else
 	hdr->FILE.FID = fopen(FileName,"rb");
 #endif
@@ -322,13 +324,12 @@ if (!strcmp(MODE,"r"))
     
     	/******** read 1st (fixed)  header  *******/	
  	Header1 = (char*)malloc(257);
-/*#ifdef ZLIB_H
+#ifdef ZLIB_H
     	count   = gzread(hdr->FILE.FID,Header1,256);
 #else
-*/
     	count   = fread(Header1,1,256,hdr->FILE.FID);
     	Header1[256]=0;
-//#endif
+#endif
 	
 	hdr->TYPE = unknown; 
 
@@ -377,6 +378,8 @@ if (!strcmp(MODE,"r"))
 	    	hdr->TYPE = PLEXON;
     	else if (!memcmp(Header1+16,"SCPECG",6))
 	    	hdr->TYPE = SCP_ECG;
+	else if (!memcmp(Header1,"<?xml version",13))   //Elias
+		hdr->TYPE = HL7aECG;                       //Elias
     	else {
 		fclose(hdr->FILE.FID); 
 		free(Header1);
@@ -908,18 +911,16 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr = sopen_SCP_read(hdr);
 	}
 	
-	else if (hdr->TYPE==XML) 
+	else if (hdr->TYPE==HL7aECG) 
 	{
-
 		hdr = sopen_HL7aECG_read(hdr);
-
 	}
 	
 	else // if (hdr->TYPE==unknown) 
 	{
 		fprintf(stdout,"unknown file format %s \n",hdr->FileName);
 	}
-	
+	hdr->AS.Header1 = (uint8_t*)Header1; 
 	
 }
 else { // WRITE
@@ -1105,10 +1106,10 @@ else { // WRITE
 	}
     	else if (hdr->TYPE==SCP_ECG) {	
     		hdr->FileName = FileName;
-//		hdr->AS.Header1 = Header1; 
     		hdr = sopen_SCP_write(hdr);
 	}
     	else if (hdr->TYPE==HL7aECG) {	
+   		hdr->FileName = FileName;
     		hdr = sopen_HL7aECG_write(hdr);
 	}
 	else {
@@ -1116,14 +1117,16 @@ else { // WRITE
 		return(NULL); 
 	}
 
-	hdr->FILE.FID = fopen(FileName,"wb");
-	if (hdr->FILE.FID == NULL) 
-	{ 	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
+	if(hdr->TYPE != HL7aECG){
+	    	hdr->FILE.FID = fopen(FileName,"wb");
+		if (hdr->FILE.FID == NULL){
+		     	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
 		return(NULL);
-    	}	    
-    	fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
-	hdr->FILE.OPEN = 2; 	     	
-	hdr->FILE.POS  = 0;
+		}
+		fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
+		hdr->FILE.OPEN = 2;
+		hdr->FILE.POS  = 0;
+	}
 
 }	// end of else 
 
@@ -1176,7 +1179,7 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 		hdr->FILE.POS = start; 	
 	}
 
-	if (hdr->TYPE != SCP_ECG) {	
+	if (hdr->TYPE != SCP_ECG && hdr->TYPE != HL7aECG) {	
 		// allocate AS.rawdata 	
 		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
 
@@ -1650,4 +1653,5 @@ int sclose(HDRTYPE* hdr)
 /**                               EOF                                      **/
 /**                                                                        **/
 /****************************************************************************/
+
 // big-endian platforms
