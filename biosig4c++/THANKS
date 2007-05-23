@@ -6,4 +6,5 @@ Eugenio Cervesato
 	reading of SCP-ECG format
 Franco Chiarugi 
 	writing of SCP-ECG format
-	
+Elias 
+	read/write support of HL7aECG format	

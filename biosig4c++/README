@@ -26,6 +26,7 @@ File(s):
     demo.c	demo how to use them 
     t210/*	reading SCP file format 
     t220/*      writing SCP file format 
+    t230/*      support of HL7aECG file format 
     Makefile	script for compiling and testing 
 		
 Installation: 
@@ -39,12 +40,14 @@ Execution:
 # if test.gdf exists, some header information is displayed
 ./demo test.gdf     		
 
-# converts a SCP source file into a GDF format (destination
-./scp2gdf PFE103.scp t5.gdf     		
+# converts a data file into a GDF format (destination
+./save2gdf PFE103.scp t5.gdf     		
 
-# converts a SCP source file into a GDF format (destination
-./gdf2scp t5.gdf t5.scp      		
+# converts a data file into a SCP format (destination
+./save2scp t5.gdf t5.scp      		
 
+# converts a data file into a HL7aECG format (destination
+./save2aecg t5.gdf t5.hl7      		
 
 
 More information is available at http://biosig.sf.net/
@@ -55,7 +58,7 @@ The archive is available at
 http://newsarchive.tugraz.at/browse/tu-graz.biosig/ 
 
 
-    Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 
 
