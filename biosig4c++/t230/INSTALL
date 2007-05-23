@@ -1,3 +1,11 @@
+For users of Debian Linux or derived distributions: 
+
+install libxerces27-dev with 
+    sudo apt-get install libxerces27-dev 
+    
+
+
+Otherwise
 
 
 0. install and build Xerces-C 2.7 source distribution (normally I
