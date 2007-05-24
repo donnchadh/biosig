@@ -1,8 +1,8 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.3 2007-05-23 20:43:24 schloegl Exp $
-    Copyright (C) 2006 Alois Schloegl <a.schloegl@ieee.org>
-    Copyright (C) 2007 Elias 
+    $Id: sopen_hl7aecg.c,v 1.4 2007-05-24 09:29:25 schloegl Exp $
+    Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -238,93 +238,8 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 	else
 	    fprintf(stderr, "%s : failed to parse\n", hdr->FileName);
 
-#ifdef __XML_XMLREADER_H__
-
-        xmlDocPtr	XMLDOC;
-	xmlTextReaderPtr reader;
-	int	ret;
-	int	k,k1;
-
-
-	hdr->NS = 8;
-	hdr->SampleRate = 500; 
-	hdr->NRec = 1; 
-	hdr->SPR  = 5000; 
-	hdr->Dur[0] = 10; 
-	hdr->Dur[1] = 1; 
-      	hdr->T0 = t_time2gdf_time(time(NULL));
-	hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
-	for (k=0;k<hdr->NS;k++)	{
-	      	hdr->CHANNEL[k].Label     = "C4";
-	      	hdr->CHANNEL[k].Transducer= "EEG: Ag-AgCl electrodes";
-	      	hdr->CHANNEL[k].PhysDim   = "uV";
-	      	hdr->CHANNEL[k].PhysDimCode = 19+4256; // uV
-	      	hdr->CHANNEL[k].PhysMax   = +100;
-	      	hdr->CHANNEL[k].PhysMin   = -100;
-	      	hdr->CHANNEL[k].DigMax    = +2047;
-	      	hdr->CHANNEL[k].DigMin    = -2048;
-	      	hdr->CHANNEL[k].GDFTYP    = 3;	// int16
-	      	hdr->CHANNEL[k].SPR       = 1;	// one sample per block
-	      	hdr->CHANNEL[k].HighPass  = 0.16;
-	      	hdr->CHANNEL[k].LowPass   = 70.0;
-	      	hdr->CHANNEL[k].Notch     = 50;
-	      	hdr->CHANNEL[k].Impedance = INF;
-	      	for (k1=0; k1<3; hdr->CHANNEL[k].XYZ[k1++] = 0.0);
-	}
-
-
-	LIBXML_TEST_VERSION;
-
-
-	// Parser API
-	XMLDOC = xmlParseFile(hdr->FileName);
-
-
-	// Reader API 
-		reader = xmlReaderForFile(hdr->FileName, NULL, XML_PARSE_DTDATTR | XML_PARSE_NOENT); 
-		// XML_PARSE_DTDVALID cannot be used in aECG 
-
-		if (reader != NULL) {
-		        ret = xmlTextReaderRead(reader);
-        		while (ret == 1) {
-//            			processNode(reader);
-            			ret = xmlTextReaderRead(reader);
-        		}
-        		if (ret != 0) {
-            			fprintf(stderr, "%s : failed to parse\n", hdr->FileName);
-        		}	
-        	/*
-		 * Once the document has been fully parsed check the validation results
-		 */
-			if (xmlTextReaderIsValid(reader) != 1) {
-	    			fprintf(stderr, "Document %s does not validate\n", hdr->FileName);
-			}
-		        xmlFreeTextReader(reader);
-			hdr->TYPE = XML;
-		}
-
-
-
-    		/*
-    		 * Cleanup function for the XML library.
-    		 */
-		xmlCleanupParser();
-    		/*
-    		 * this is to debug memory for regression tests
-    		 */
-    		xmlMemoryDump();
-		
-
-	fprintf(stdout,"XML: sopen_HL7aECG_read\n");
-	
-	
-	return(hdr);	
-#else
 	return(hdr);
 
-//	fprintf(stdout,"BioSig: LIBXML2 missing\n");
-//	return(NULL);	
-#endif
 };
 
 
@@ -663,12 +578,12 @@ HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr){
 	sequence->LinkEndChild(sequenceValue);
 
 	valueHead = new TiXmlElement("origin");
-	valueHead->SetDoubleAttribute("value", hdr->CHANNEL[i].Off);
+	valueHead->SetDoubleAttribute("value", hdr->CHANNEL[i].Off*PhysDimScale(hdr->CHANNEL[i].PhysDimCode)*1e6);
 	valueHead->SetAttribute("unit", "uV");
 	sequenceValue->LinkEndChild(valueHead);
 
 	valueIncrement = new TiXmlElement("scale");
-	valueIncrement->SetDoubleAttribute("value", hdr->CHANNEL[i].Cal);
+	valueIncrement->SetDoubleAttribute("value", hdr->CHANNEL[i].Cal*PhysDimScale(hdr->CHANNEL[i].PhysDimCode)*1e6);
 	valueIncrement->SetAttribute("unit", "uV");
 	sequenceValue->LinkEndChild(valueIncrement);
 

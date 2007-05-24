@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.13 2006-05-24 15:54:35 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.14 2007-05-24 09:29:25 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -63,6 +63,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	uint32_t 	sectionStart; 
 	time_t 		T0;
 	tm* 		T0_tm;
+	double 		AVM; 
 	
 
 	if ((fabs(hdr->VERSION - 1.3)<0.01) && (fabs(hdr->VERSION-2.0)<0.01))  
@@ -450,8 +451,15 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			curSectLen = 16; // current section length
 
 			// Create all the fields
-			// AVM
-			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)hdr->CHANNEL[0].Cal);
+			// Amplitude Value Multiplier (AMV)
+			// check for physical dimension and adjust scaling factor to "nV"
+			AVM = hdr->CHANNEL[0].Cal*1e9*PhysDimScale(hdr->CHANNEL[0].PhysDimCode);
+			for (i = 1; i < hdr->NS; i++) {
+				// check whether all channels have the same scaling factor
+				if (AVM != hdr->CHANNEL[i].Cal*1e9*PhysDimScale(hdr->CHANNEL[i].PhysDimCode))
+					fprintf(stderr,"Warning SOPEN (SCP-WRITE): scaling factors differ between channels. Scaling factor of 1st channel is used.\n");
+			};	
+			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)AVM);
 			curSectLen += 2;
 
 			// Sample interval
