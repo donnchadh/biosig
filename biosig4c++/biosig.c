@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.55 2007-05-24 09:24:17 schloegl Exp $
+    $Id: biosig.c,v 1.56 2007-05-24 09:30:02 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -159,7 +159,7 @@ double PhysDimScale(uint16_t PhysDimCode)
 	  1e-1, 1e-2, 1e-3, 1e-6, 1e-9, 1e-12, 1e-15, 1e-18, 
 	  1e-21,1e-24,NaN,  NaN,  NaN,  NaN,   NaN,   NaN }; 
 
-	return (scale(PhysDimCode & 0x001f)); 
+	return (scale[PhysDimCode & 0x001f]); 
 }
 
 /****************************************************************************/
