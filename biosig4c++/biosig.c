@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.54 2007-05-23 20:37:58 schloegl Exp $
+    $Id: biosig.c,v 1.55 2007-05-24 09:24:17 schloegl Exp $
     Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -140,6 +140,27 @@ double l_endian_f64(double x)
 #endif
 
 
+double PhysDimScale(uint16_t PhysDimCode)
+{	
+/* scale of physical units as defined in 
+ prEN ISO 11073-10101 (Nov 2003)
+ Health Informatics - Point-of-care medical device communications - Part 10101:Nomenclature
+ (ISO/DIS 11073-10101:2003)
+ Table A.6.1: Table of Decimal Factors
+
+ CEN/TC251/PT40 2001	
+ File Exchange Format for Vital Signs - Annex A 
+ Table A.4.1: Table of Decimal Factors	const double scale[32] =
+*/
+
+	const double scale[32] =
+	{ 1e0,  1e1,  1e2,  1e3,  1e6,  1e9,   1e12,  1e15,
+	  1e18, 1e21, 1e24, NaN,  NaN,  NaN,   NaN,   NaN, 
+	  1e-1, 1e-2, 1e-3, 1e-6, 1e-9, 1e-12, 1e-15, 1e-18, 
+	  1e-21,1e-24,NaN,  NaN,  NaN,  NaN,   NaN,   NaN }; 
+
+	return (scale(PhysDimCode & 0x001f)); 
+}
 
 /****************************************************************************/
 /**                                                                        **/
@@ -1119,6 +1140,7 @@ else { // WRITE
 
 	if(hdr->TYPE != HL7aECG){
 	    	hdr->FILE.FID = fopen(FileName,"wb");
+	    	hdr->FileName = FileName; 
 		if (hdr->FILE.FID == NULL){
 		     	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
 		return(NULL);
