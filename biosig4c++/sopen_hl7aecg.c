@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.4 2007-05-24 09:29:25 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.5 2007-05-24 10:10:32 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -201,15 +201,15 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		    hdr->CHANNEL[i].Off  = atof(channel.FirstChild("value").FirstChild("origin").Element()->Attribute("value"));
 		    
 		    for(unsigned int j=0; j<hdr->SPR; ++j){
-			data[j] = l_endian_i16((int16_t)atoi(vector[j].c_str()));
+			data[j] = atoi(vector[j].c_str());
 			if(data[j] > hdr->CHANNEL[i].DigMax){
 			    hdr->CHANNEL[i].DigMax = data[j];
-			    hdr->CHANNEL[i].PhysMax = data[j]*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
 			}
 			if(data[j] < hdr->CHANNEL[i].DigMin){
 			    hdr->CHANNEL[i].DigMin = data[j];
-			    hdr->CHANNEL[i].PhysMin = data[j]*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
 			}
+		    	hdr->CHANNEL[i].PhysMax = hdr->CHANNEL[i].DigMax*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
+		    	hdr->CHANNEL[i].PhysMin = hdr->CHANNEL[i].DigMin*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
 		    }
 		    
 		    hdr->CHANNEL[i].PhysDim = "uV";           //Hardcoded
