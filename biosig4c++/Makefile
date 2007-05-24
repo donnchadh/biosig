@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.11 2007-05-23 20:37:58 schloegl Exp $
+###  $Id: Makefile,v 1.12 2007-05-24 10:19:12 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -24,7 +24,6 @@ DEL_FILE      = rm
 
 SOURCES       = biosig.h \
 		biosig.c \
-		sopen_hl7aecg.c \
 		XMLParser/tinyxml.h \
 		XMLParser/tinyxml.cpp \
 		XMLParser/tinyxmlparser.cpp \
@@ -36,13 +35,13 @@ SOURCES       = biosig.h \
 		t210/scp-decode.cpp \
 		t220/sopen_scp_write.c \
 		t220/crc4scp.c  \
+		t230/sopen_hl7aecg.c \
 		scp2gdf.c \
 		demo.c \
 		gdf2scp.c \
 		PFE103.scp
 
 OBJECTS       = biosig.o \
-		sopen_hl7aecg.o \
 		XMLParser/tinyxml.o \
 		XMLParser/tinyxmlparser.o \
 		XMLParser/tinyxmlerror.o \
@@ -50,11 +49,12 @@ OBJECTS       = biosig.o \
 		t210/sopen_scp_read.o \
 		t210/scp-decode.o \
 		t220/sopen_scp_write.o \
-		t220/crc4scp.o
+		t220/crc4scp.o \
+		t230/sopen_hl7aecg.o 
 
 # TARGET        = scp2gdf demo gdf2scp t5.scp t6.scp
               # Windows
-TARGET        = save2gdf save2aecg save2scp 
+TARGET        = save2gdf save2aecg save2scp demo
 
 first: all
 all: $(TARGET)
@@ -100,6 +100,6 @@ t5.scp: t5.gdf gdf2scp
 t6.scp: PFE103.scp scp2gdf
 	./scp2gdf PFE103.scp t6.scp
 aecg: aECG/448b.xml save2gdf
-		./save2scp  aECG/448b.xml 448b.scp
-		./save2gdf  aECG/448b.xml 448b.gdf
-		./save2aecg aECG/448b.xml 448b.hl7
+	./save2scp  aECG/448b.xml 448b.scp
+	./save2gdf  aECG/448b.xml 448b.gdf
+	./save2aecg aECG/448b.xml 448b.hl7

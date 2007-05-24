@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.5 2007-05-24 10:10:32 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.1 2007-05-24 10:17:30 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -30,12 +30,10 @@
 #include <vector>
 #include <string>
 #include <sstream>
-//#include <libxml/tree.h>
-//#include <libxml/xmlreader.h>
 
-#include "biosig.h"
-#include "XMLParser/tinyxml.h"
-#include "XMLParser/Tokenizer.h"
+#include "../biosig.h"
+#include "../XMLParser/tinyxml.h"
+#include "../XMLParser/Tokenizer.h"
 
 HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 /*
