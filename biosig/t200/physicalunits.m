@@ -37,7 +37,7 @@ function [out,scale] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.13 2007-06-04 08:41:55 schloegl Exp $
+%	$Id: physicalunits.m,v 1.14 2007-06-04 15:07:59 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -152,7 +152,7 @@ if isstruct(arg1)
 	elseif ~isfield(HDR,'PhysDim') &  isfield(HDR,'PhysDimCode')
 		[HDR.PhysDim, scale] = physicalunits(HDR.PhysDimCode);
 	elseif  isfield(HDR,'PhysDim') % ~isfield(HDR,'PhysDimCode')
-		[Code,scale] = physicalunits(HDR.PhysDim);
+		[HDR.PhysDimCode,scale] = physicalunits(HDR.PhysDim);
 	elseif ~isfield(HDR,'PhysDim') & ~isfield(HDR,'PhysDimCode')
 		warning('Neither PhysDim nor PhysDimCode defined');
 	end;
@@ -177,6 +177,7 @@ elseif ischar(arg1) | iscell(arg1)
                 N = size(arg1,1);
                 arg1 = cellstr(arg1);
         end;
+        j = 1:length(arg1);
 	[arg1,i,j] = unique(arg1);
 	Code = zeros(length(arg1),1); 	% default value is 0 (unknown)
 	for k=1:length(arg1); 
