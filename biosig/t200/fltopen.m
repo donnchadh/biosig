@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.4 2007-06-04 09:50:17 schloegl Exp $
+%	$Id: fltopen.m,v 1.5 2007-06-04 13:07:43 schloegl Exp $
 %	Copyright (c) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -197,8 +197,23 @@ if any(HDR.FILE.PERMISSION=='r'),
 	end;
 	HDR.HeadLen  = 0; 
 	HDR.FILE.POS = 0; 
-	HDR.AS.endpos= HDR.SPR*HDR.NRec; 
-	HDR.AS.bpb   = 2*HDR.NS;		% Bytes per Block
+
+	fseek(HDR.FILE.FID,0,'eof'); 
+	HDR.FILE.size = ftell(HDR.FILE.FID); 
+	fseek(HDR.FILE.FID,0,'bof'); 
+        [datatyp,limits,datatypes,numbits,GDFTYP]=gdfdatatype(HDR.GDFTYP);
+	HDR.AS.bpb    = HDR.NS*numbits/8;
+	HDR.AS.endpos = HDR.FILE.size/HDR.AS.bpb;
+        
+        if (HDR.AS.bpb*HDR.NRec*HDR.SPR) ~= HDR.FILE.size,
+        	fprintf(HDR.FILE.stderr,'Warning SOPEN(ET-MEG): size of file does not fit to header information\n');
+        	fprintf(HDR.FILE.stderr,'\tFile:\t%s\n',fullfile(HDR.FILE.Path,HDR.FILE.Name));
+        	fprintf(HDR.FILE.stderr,'\tFilesize:\t%i is not %i bytes\n',HDR.FILE.size,HDR.AS.bpb*HDR.NRec*HDR.SPR);
+        	fprintf(HDR.FILE.stderr,'\tSamples:\t%i\n',HDR.NRec*HDR.SPR);
+        	fprintf(HDR.FILE.stderr,'\tChannels:\t%i\n',HDR.NS);
+        	fprintf(HDR.FILE.stderr,'\tDatatype:\t%s\n',datatyp);
+        	HDR.SPR = floor(HDR.AS.endpos/HDR.NRec);
+        end;	
 
 else
 	fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hdr']),'wt');
@@ -340,6 +355,7 @@ else
 
 	HDR.FILE.FID  = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name]),'wb','ieee-le');
 	HDR.FILE.OPEN = 2;
+	HDR.HeadLen   = 0; 
 
 end;
 
