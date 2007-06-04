@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.5 2007-06-04 13:07:43 schloegl Exp $
+%	$Id: fltopen.m,v 1.6 2007-06-04 14:04:32 schloegl Exp $
 %	Copyright (c) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -137,11 +137,8 @@ if any(HDR.FILE.PERMISSION=='r'),
 		[n,v,sa]=str2double(tline);
 		if length(n)>8,
 			HDR.Label{n(1)+1} = sa{4}; 
-			if n(8)>0,
-				HDR.PhysDim{n(1)+1} = PhysDim_Group{n(8)+1}; 
-			else
-			end; 	
-		end
+			HDR.PhysDim{n(1)+1} = PhysDim_Group{n(8)+1}; 
+		end;
 		[tline,tch] = strtok(tch,[10,13]); 
 	end; 	
 	N = 0; 
