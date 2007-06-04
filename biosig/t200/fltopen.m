@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.6 2007-06-04 14:04:32 schloegl Exp $
+%	$Id: fltopen.m,v 1.7 2007-06-04 15:13:55 schloegl Exp $
 %	Copyright (c) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -85,7 +85,8 @@ if any(HDR.FILE.PERMISSION=='r'),
 			end; 	
 
 			if ~FLAG.BioSig & ~strcmpi(HDR.FILE.Name(end+[-2:0]),'flt')
-				HDR.GDFTYP=3;
+			% this heuristic becomes obsolete: replaced by file size check
+			%	HDR.GDFTYP=3;
 			end;
 		elseif strcmp(tok,'number_of_samples'),
 			HDR.SPR = num;
@@ -94,6 +95,7 @@ if any(HDR.FILE.PERMISSION=='r'),
 			HDR.NS = num;
 		elseif strcmp(tok,'number_of_groups'),
 			number_of_groups = num;
+			PhysDim_Group = repmat({'?'},num,1);
 		elseif strcmp(tok,'measurement_day'),
 			if any((left=='.'))
 				left(left=='.')=' '; 
@@ -128,6 +130,7 @@ if any(HDR.FILE.PERMISSION=='r'),
 		if tline(1)>=32,
 			[n,v,sa]=str2double(tline);
 			PhysDim_Group{n(1)+1} = sa{4};
+			Cal_Group(n(1)+1) = n(6)*10.^n(5);
 		end
 		[tline,tch] = strtok(tch,[10,13]); 
 	end; 	
@@ -138,9 +141,11 @@ if any(HDR.FILE.PERMISSION=='r'),
 		if length(n)>8,
 			HDR.Label{n(1)+1} = sa{4}; 
 			HDR.PhysDim{n(1)+1} = PhysDim_Group{n(8)+1}; 
+			HDR.Cal(n(1)+1) = Cal_Group(n(8)+1); 
 		end;
 		[tline,tch] = strtok(tch,[10,13]); 
 	end; 	
+
 	N = 0; 
 	[tline,tch] = strtok(tch_sensors,[10,13]); 
 	while ~isempty(tline),
@@ -160,9 +165,10 @@ if any(HDR.FILE.PERMISSION=='r'),
 		end;
 		[tline,tch] = strtok(tch,[10,13]); 
 	end;
+	
+	HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
 	if HDR.GDFTYP < 10,
 		FLAG = HDR.FLAG; % backup
-		HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 		HDR.FLAG.UCAL = 1; % default: no calibration information 
 		% read scaling information
 		ix  = strfind([HDR.FILE.Name,'.'],'.');
@@ -180,8 +186,6 @@ if any(HDR.FILE.PERMISSION=='r'),
 			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,n1(4:131,3)*1e-13*(2^-12));
 			HDR.FLAG = FLAG; % restore
 		end
-	else 	
-		HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
 	end
 	if ~isfield(HDR,'PhysDim') & ~isfield(HDR,'PhysDimCode') 
 		HDR.PhysDimCode = zeros(HDR.NS,1); 
@@ -202,6 +206,21 @@ if any(HDR.FILE.PERMISSION=='r'),
 	HDR.AS.bpb    = HDR.NS*numbits/8;
 	HDR.AS.endpos = HDR.FILE.size/HDR.AS.bpb;
         
+	% check file size
+        if (HDR.AS.bpb*HDR.NRec*HDR.SPR) ~= HDR.FILE.size,
+        	% heuristic: try different data type
+        	HDR.GDFTYP = 3; 
+	        [datatyp,limits,datatypes,numbits,GDFTYP]=gdfdatatype(HDR.GDFTYP);
+		HDR.AS.bpb    = HDR.NS*numbits/8;
+		HDR.AS.endpos = HDR.FILE.size/HDR.AS.bpb;
+        end;
+        if (HDR.AS.bpb*HDR.NRec*HDR.SPR) ~= HDR.FILE.size,
+        	% heuristic: try different data type
+        	HDR.GDFTYP = 16; 
+	        [datatyp,limits,datatypes,numbits,GDFTYP]=gdfdatatype(HDR.GDFTYP);
+		HDR.AS.bpb    = HDR.NS*numbits/8;
+		HDR.AS.endpos = HDR.FILE.size/HDR.AS.bpb;
+        end;
         if (HDR.AS.bpb*HDR.NRec*HDR.SPR) ~= HDR.FILE.size,
         	fprintf(HDR.FILE.stderr,'Warning SOPEN(ET-MEG): size of file does not fit to header information\n');
         	fprintf(HDR.FILE.stderr,'\tFile:\t%s\n',fullfile(HDR.FILE.Path,HDR.FILE.Name));
