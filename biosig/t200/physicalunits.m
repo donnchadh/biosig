@@ -37,7 +37,7 @@ function [out,scale] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.12 2007-02-24 21:40:35 schloegl Exp $
+%	$Id: physicalunits.m,v 1.13 2007-06-04 08:41:55 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -152,7 +152,7 @@ if isstruct(arg1)
 	elseif ~isfield(HDR,'PhysDim') &  isfield(HDR,'PhysDimCode')
 		[HDR.PhysDim, scale] = physicalunits(HDR.PhysDimCode);
 	elseif  isfield(HDR,'PhysDim') % ~isfield(HDR,'PhysDimCode')
-		[HDR.PhysDimCode,scale] = physicalunits(HDR.PhysDim);
+		[Code,scale] = physicalunits(HDR.PhysDim);
 	elseif ~isfield(HDR,'PhysDim') & ~isfield(HDR,'PhysDimCode')
 		warning('Neither PhysDim nor PhysDimCode defined');
 	end;
@@ -177,8 +177,9 @@ elseif ischar(arg1) | iscell(arg1)
                 N = size(arg1,1);
                 arg1 = cellstr(arg1);
         end;
-	Code = zeros(N,1); 	% default value is 0 (unknown)
-	for k=1:N; 
+	[arg1,i,j] = unique(arg1);
+	Code = zeros(length(arg1),1); 	% default value is 0 (unknown)
+	for k=1:length(arg1); 
 		unit = deblank(arg1{k});
 		if length(unit)>0,
 			if (unit(1)=='µ'), unit(1)='u'; end; 
@@ -273,7 +274,9 @@ elseif ischar(arg1) | iscell(arg1)
 				Code(k) = ix3; 
 			end;	
                 end;
+                
         end;        
+        Code  = Code(j); 
 	scale = repmat(NaN,size(Code));
 	for k = 1:numel(Code); 
 		scale(k) = BIOSIG_GLOBAL.DecimalFactor.Cal(BIOSIG_GLOBAL.DecimalFactor.Code==bitand(Code(k),31));
