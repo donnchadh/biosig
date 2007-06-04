@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.3 2007-05-04 07:34:40 schloegl Exp $
+%	$Id: fltopen.m,v 1.4 2007-06-04 09:50:17 schloegl Exp $
 %	Copyright (c) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -63,11 +63,11 @@ if any(HDR.FILE.PERMISSION=='r'),
 				FLAG.LockBioSig = 1; 
 			end;	
 		elseif strcmp(tok,'type'),
-			type = num; 
+			type = num(1); 
 			if type<10; 
-				HDR.Endianity='ieee-be'; 
+				HDR.Endianity = 'ieee-be'; 
 			else	
-				HDR.Endianity='ieee-le'; 
+				HDR.Endianity = 'ieee-le'; 
 			end; 	
 			switch mod(type,10)
 			case 1,
@@ -92,6 +92,8 @@ if any(HDR.FILE.PERMISSION=='r'),
 			HDR.NRec = 1; 
 		elseif strcmp(tok,'number_of_channels'),
 			HDR.NS = num;
+		elseif strcmp(tok,'number_of_groups'),
+			number_of_groups = num;
 		elseif strcmp(tok,'measurement_day'),
 			if any((left=='.'))
 				left(left=='.')=' '; 
@@ -123,19 +125,20 @@ if any(HDR.FILE.PERMISSION=='r'),
 	[tline,tch] = strtok(tch_groups,[10,13]); 
 	N = 0; 
 	while ~isempty(tline),
-		if tline(1)>33,
+		if tline(1)>=32,
 			[n,v,sa]=str2double(tline);
-			PhysDim_Group{n(1)} = sa{4}; 
+			PhysDim_Group{n(1)+1} = sa{4};
 		end
 		[tline,tch] = strtok(tch,[10,13]); 
 	end; 	
+
 	[tline,tch] = strtok(tch_channel,[10,13]); 
 	while ~isempty(tline),
-		if tline(1)>33,
-			[n,v,sa]=str2double(tline);
+		[n,v,sa]=str2double(tline);
+		if length(n)>8,
 			HDR.Label{n(1)+1} = sa{4}; 
 			if n(8)>0,
-				HDR.PhysDim{n(1)+1} = PhysDim_Group{n(8)}; 
+				HDR.PhysDim{n(1)+1} = PhysDim_Group{n(8)+1}; 
 			else
 			end; 	
 		end
