@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.7 2007-06-04 15:13:55 schloegl Exp $
+%	$Id: fltopen.m,v 1.8 2007-06-05 14:40:27 schloegl Exp $
 %	Copyright (c) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -51,17 +51,31 @@ if any(HDR.FILE.PERMISSION=='r'),
 	HDR.H1 = r;
 	HDR.SampleRate = 1;
 	FLAG.BioSig = 0; FLAG.LockBioSig = 0;
+	HDR.FLT = [];
 	while ~isempty(r),
 		[t,r] = strtok(r,[10,13]); 
 		[tok,left] = strtok(t,'=');
 		num = str2double(left(2:end));
 		if 0
 		elseif strncmp(tok,'*',1),
+		elseif strncmp(tok,'[',1),
+			Section.Name = strtok(tok,[10,13,'[]']);
+
+		elseif strcmp(tok,'version'),
+			tmp.version = strtok(left,[10,13,'=']);
+			HDR.FLT = setfield(HDR.FLT,Section.Name,tmp);
+			
 		elseif strcmp(tok,'name'),
 			if ~FLAG.LockBioSig,
 				FLAG.BioSig = ~isempty(strfind(left,'created by BioSig'));
 				FLAG.LockBioSig = 1; 
 			end;	
+		elseif strcmp(tok,'name_of_data_file'),
+			tmp = strtok(left,[10,13,'=']);
+			if exist(fullfile(HDR.FILE.Path,tmp)),
+				HDR.FLT.datafile = tmp; 
+			end;
+
 		elseif strcmp(tok,'type'),
 			type = num(1); 
 			if type<10; 
@@ -114,12 +128,16 @@ if any(HDR.FILE.PERMISSION=='r'),
 			HDR.SampleRate = HDR.SampleRate/num; 
 		elseif strcmp(tok,'parameter_of_channels'),
 			[tch_channel,r]=strtok(r,'}'); 
+			HDR.FLT.tch_channels = tch_channel;
 		elseif strcmp(tok,'parameter_of_sensors'),
 			[tch_sensors,r]=strtok(r,'}'); 
+			HDR.FLT.tch_sensors = tch_sensors;
 		elseif strcmp(tok,'parameter_of_groups'),
 			[tch_groups,r]=strtok(r,'}');
+			HDR.FLT.tch_groups = tch_groups;
 		elseif strcmp(tok,'parameter_of_modules'),
 			[tch_modules,r]=strtok(r,'}'); 
+			HDR.FLT.tch_modules = tch_modules;
 		else		
 		end;
 	end;
@@ -142,6 +160,8 @@ if any(HDR.FILE.PERMISSION=='r'),
 			HDR.Label{n(1)+1} = sa{4}; 
 			HDR.PhysDim{n(1)+1} = PhysDim_Group{n(8)+1}; 
 			HDR.Cal(n(1)+1) = Cal_Group(n(8)+1); 
+			HDR.FLT.grd_name{n(1)+1} = sa{7};
+			HDR.FLT.grp(n(1)+1) = n(8);
 		end;
 		[tline,tch] = strtok(tch,[10,13]); 
 	end; 	
@@ -192,16 +212,31 @@ if any(HDR.FILE.PERMISSION=='r'),
 	end; 	
 		
 	% read data
-	HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.FILE.Name),'rb',HDR.Endianity);
+	HDR.FILE.FID = -1; 
+	if isfield(HDR.FLT,'datafile')
+		fn = fullfile(HDR.FILE.Path,HDR.FLT.datafile);
+		HDR.FILE.FID = fopen(fn,'rb',HDR.Endianity);
+		if HDR.FILE.FID<0
+			[p,f,e]=fileparts(HDR.FLT.datafile);
+			fn = fullfile(HDR.FILE.Path,f);
+			HDR.FILE.FID = fopen(fn,'rb',HDR.Endianity);
+		end; 	
+	else
+		fn = fullfile(HDR.FILE.Path,HDR.FILE.Name);
+		HDR.FILE.FID = fopen(fn,'rb',HDR.Endianity);
+	end; 	
+
 	if HDR.FILE.FID>0,
-		HDR.FILE.OPEN= 1; 
+		HDR.FILE.OPEN=1; 
+		fseek(HDR.FILE.FID,0,'eof'); 
+		HDR.FILE.size = ftell(HDR.FILE.FID); 
+		fseek(HDR.FILE.FID,0,'bof'); 
+	else 
+		fprintf(HDR.FILE.stderr,'Warning SOPEN(FLT): Binary data file %s not found!\n',fn); 		
 	end;
 	HDR.HeadLen  = 0; 
 	HDR.FILE.POS = 0; 
 
-	fseek(HDR.FILE.FID,0,'eof'); 
-	HDR.FILE.size = ftell(HDR.FILE.FID); 
-	fseek(HDR.FILE.FID,0,'bof'); 
         [datatyp,limits,datatypes,numbits,GDFTYP]=gdfdatatype(HDR.GDFTYP);
 	HDR.AS.bpb    = HDR.NS*numbits/8;
 	HDR.AS.endpos = HDR.FILE.size/HDR.AS.bpb;
@@ -284,12 +319,18 @@ else
 		end;
 
 		PhysDim = physicalunits(HDR.PhysDimCode); 
+		if ~isfield(HDR,'FLT'); HDR.FLT = []; end; 
 
 		%%%%%%%%% FIXED HEADER %%%%%%%%%%%%%%		
 		fprintf(fid,'[Header]\n'); 
-		fprintf(fid,'Version=2.1\nid=1\n'); 
+		if 0, isfield(HDR.FLT,'version')
+			fprintf(fid,'version=%s\nid=1\n',HDR.FLT.version); 
+		else	
+			fprintf(fid,'version=2.1\nid=1\n'); 
+		end; 
 		fprintf(fid,'name=created by BioSig for Octave and Matlab http://biosig.sf.net/\n'); 
 		fprintf(fid,'comment=just for testing, some features are not supported, yet\n'); 
+		fprintf(fid,'name_of_data_file=%s\n',HDR.FILE.Name); 
 
 		fprintf(fid,'\n[Dataformat]\n'); 
 		fprintf(fid,'* data types : HP-UX data\n');
@@ -312,8 +353,8 @@ else
 			fprintf(fid,'* Unit %i (Channels %3i-%3i): not available \n',k,k*16+[0,15]);
 		end;
 
-		fprintf(fid,'*\nmeasurement_day=%i.%i.%i\n',HDR.T0([3,2,1])); 
-		fprintf(fid,'measurement_time=%i:%i:%i\n',HDR.T0(4:6));
+		fprintf(fid,'*\nmeasurement_day=%02i.%02i.%04i\n',HDR.T0([3,2,1])); 
+		fprintf(fid,'measurement_time=%02i:%02i:%02i\n',HDR.T0(4:6));
 		fprintf(fid,'sampling_unit=s\n'); 
 		e = floor(log10(1/HDR.SampleRate));
 		fprintf(fid,'sampling_exponent=%i\n',e); 
@@ -327,49 +368,72 @@ else
 		fprintf(fid,'*---------------------------------------------------------------\n');
 		fprintf(fid,'*seq id   u name              calib grd grd_name  grp  n_sensors\n');
 		fprintf(fid,'*---------------------------------------------------------------\n');
-		fprintf(fid,'parameter_of_channels={\n');
-		for k=1:HDR.NS,
-			fprintf(fid,'%04i  %04i 1 %-16s 1.000  1  ####      0000   1\n',k-1,k-1,HDR.Label{k});
-			fprintf(fid,'        %04i 1.000000 * CH%i\n',k-1,k-1);
+		fprintf(fid,'parameter_of_channels={');
+		if isfield(HDR.FLT,'tch_channels')
+			% write original channel header 
+			fprintf(fid,'%s',HDR.FLT.tch_channels); 
+		else
+			SW = isfield(HDR.FLT,'grp') & isfield(HDR.FLT,'grd_name'); 
+			fprintf(fid,'\n'); 
+			for k=1:HDR.NS,
+				if SW,
+					fprintf(fid,'%04i  %04i 1 %-16s 1.000  1  %s      %04i   1\n',k-1,k-1,HDR.Label{k},HDR.FLT.grd_name{k},HDR.FLT.grp(k));
+				else	
+					fprintf(fid,'%04i  %04i 1 %-16s 1.000  1  ####      0000   1\n',k-1,k-1,HDR.Label{k});
+				end;
+				fprintf(fid,'        %04i 1.000000 * CH%i\n',k-1,k-1);
+			end; 	
 		end;
 		
 		fprintf(fid,'}\n\nnumber_of_sensors=%i\n',HDR.NS);
 		fprintf(fid,'*----------------------------------------------------------------------------------------\n');
 		fprintf(fid,'*id  name     type mod    x         y         z         a         b         c        area\n');
 		fprintf(fid,'*----------------------------------------------------------------------------------------\n');
-		fprintf(fid,'parameter_of_sensors={\n');
-		for k=1:HDR.NS,
-			fprintf(fid,'%04i CH%-08i  1 0000  %8.5f  %8.5f  %8.5f  %8.5f  %8.5f  %8.5f  %11.9f\n',k-1,k-1,HDR.ELEC.XYZ(k,1:3),[NaN,NaN,NaN,NaN]);
+		fprintf(fid,'parameter_of_sensors={');
+		if isfield(HDR.FLT,'tch_sensors'); 
+			fprintf(fid,'%s',HDR.FLT.tch_sensors); 
+		else
+			fprintf(fid,'\n');
+			for k=1:HDR.NS,
+				fprintf(fid,'%04i CH%-08i  1 0000  %8.5f  %8.5f  %8.5f  %8.5f  %8.5f  %8.5f  %11.9f\n',k-1,k-1,HDR.ELEC.XYZ(k,1:3),[NaN,NaN,NaN,NaN]);
+			end;
 		end;
-		
+		 	
 		fprintf(fid,'}\n\nnumber_of_groups= 11\n');
 		fprintf(fid,'*----------------------------------------\n');
 		fprintf(fid,'*id  u name             unit   exp  calib\n');
 		fprintf(fid,'*----------------------------------------\n');
-		fprintf(fid,'parameter_of_groups={\n');
-		fprintf(fid,'0001 1 ET-Mag_80WH      T      0    1.000\n');
-		fprintf(fid,'0002 1 ET-AxGrd_80WH    T      0    1.000\n');
-		fprintf(fid,'0003 1 ET-PlGrd_80WH    T      0    1.000\n');
-		fprintf(fid,'0004 1 ET-Mag_RefCh     T      0    1.000\n');
-		fprintf(fid,'0005 1 ET-AxGrd_RefCh   T      0    1.000\n');
-		fprintf(fid,'0006 1 ET-PlGrd_RefCh   T      0    1.000\n');
-		fprintf(fid,'0007 1 Trigger          V      0    1.000\n');
-		fprintf(fid,'0008 1 EEG              V      0    1.000\n');
-		fprintf(fid,'0009 1 ECG              V      0    1.000\n');
-		fprintf(fid,'0010 1 Etc              V      0    1.000\n');
-		fprintf(fid,'0011 0 Null_Channel     V      0    1.000\n}\n');
+		fprintf(fid,'parameter_of_groups={');
+		if isfield(HDR.FLT,'tch_groups')
+			fprintf(fid,'%s',HDR.FLT.tch_groups); 
+		else
+			fprintf(fid,'\n0001 1 ET-Mag_80WH      T      0    1.000\n');
+			fprintf(fid,'0002 1 ET-AxGrd_80WH    T      0    1.000\n');
+			fprintf(fid,'0003 1 ET-PlGrd_80WH    T      0    1.000\n');
+			fprintf(fid,'0004 1 ET-Mag_RefCh     T      0    1.000\n');
+			fprintf(fid,'0005 1 ET-AxGrd_RefCh   T      0    1.000\n');
+			fprintf(fid,'0006 1 ET-PlGrd_RefCh   T      0    1.000\n');
+			fprintf(fid,'0007 1 Trigger          V      0    1.000\n');
+			fprintf(fid,'0008 1 EEG              V      0    1.000\n');
+			fprintf(fid,'0009 1 ECG              V      0    1.000\n');
+			fprintf(fid,'0010 1 Etc              V      0    1.000\n');
+			fprintf(fid,'0011 0 Null_Channel     V      0    1.000\n');
+		end;	
+		fprintf(fid,'}\n');
 		fprintf(fid,'\nnumber_of_modules=2\n');
 		fprintf(fid,'*-------------------------------------------------------------------------\n');
 		fprintf(fid,'*id  name          x      y      z      a      b      c      unit exp name\n');
 		fprintf(fid,'*-------------------------------------------------------------------------\n');
-		fprintf(fid,'parameter_of_modules={\n');
-		fprintf(fid,'0000 Magnetic      0.000  0.000  0.000  0.000  0.000  0.000  1.000 0 m\n');
-		fprintf(fid,'0007 Electric      0.000  0.000  0.000  0.000  0.000  0.000  1.000 0 m\n}\n');
-
+		fprintf(fid,'parameter_of_modules={');
+		if isfield(HDR.FLT,'tch_modules')
+			fprintf(fid,'%s',HDR.FLT.tch_modules); 
+		else			fprintf(fid,'\n0000 Magnetic      0.000  0.000  0.000  0.000  0.000  0.000  1.000 0 m\n');
+			fprintf(fid,'0007 Electric      0.000  0.000  0.000  0.000  0.000  0.000  1.000 0 m\n}\n');
+		end;
 	end;
 	fclose(fid);
 
-	HDR.FILE.FID  = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name]),'wb','ieee-le');
+	HDR.FILE.FID  = fopen(fullfile(HDR.FILE.Path,HDR.FILE.Name),'wb','ieee-le');
 	HDR.FILE.OPEN = 2;
 	HDR.HeadLen   = 0; 
 
