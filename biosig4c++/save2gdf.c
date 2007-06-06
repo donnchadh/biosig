@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.2 2007-05-24 10:21:22 schloegl Exp $
+    $Id: save2gdf.c,v 1.3 2007-06-06 16:13:38 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "biosig.h"
 
 int main(int argc, char **argv){
@@ -33,17 +34,61 @@ int main(int argc, char **argv){
     CHANNEL_TYPE* 	cp; 
     size_t 	count;
     time_t  	T0; 
+    char 	*source, *dest; 
+    enum FileFormat TARGET_TYPE=GDF; 		// type of file format
 	
-    if (argc < 2)  	{
-	fprintf(stderr,"Warning: Invalid number of arguments\n");
+    if (argc < 2)
+    {
+	fprintf(stderr,"save2gdf: missing file argument\n");
+	fprintf(stdout,"usage: save2gdf SOURCE DEST\n");
 	return(-1);
+    } 
+    else if (argv[1][0]=='-')
+    {
+    	if (!strcmp(argv[1],"-v") | !strcmp(argv[1],"--version") )
+    	{
+		fprintf(stdout,"save2gdf (biosig4c++) 0.40+\n");
+		fprintf(stdout,"Written by Alois Schloegl and others\n\n");
+		fprintf(stdout,"This is free software.\n");
+		return(0);
+	}	
+    	else if (!strcmp(argv[1],"-h") | !strcmp(argv[1],"--help") )
+    	{
+		fprintf(stdout,"usage: save2gdf SOURCE DEST\n");
+		fprintf(stdout,"usage: save2gdf [OPTION]\n\n");
+		fprintf(stdout,"usage: save2gdf [OPTION] SOURCE DEST\n");
+		fprintf(stdout,"   -v, --version\n\tprints version information\n");
+		fprintf(stdout,"   -h, --help   \n\tprints this information\n");
+		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
+		fprintf(stdout,"\tFMT must represent and valid target file format\n"); 
+		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG(EN1064), GDF, EDF\n"); 
+		fprintf(stdout,"\n\n");
+		return(0);
+	}	
+    	else if (!strcmp(argv[1],"-f=GDF"))
+		TARGET_TYPE=GDF;
+    	else if (!strcmp(argv[1],"-f=EDF"))
+		TARGET_TYPE=EDF;
+    	else if (!strncmp(argv[1],"-f=HL7",6) )
+		TARGET_TYPE=HL7aECG;
+    	else if (!strncmp(argv[1],"-f=SCP",6))
+		TARGET_TYPE=SCP_ECG;
+		
+    	if (argc==2) return(0);
+    	source = argv[2]; 
+    	dest   = argv[3]; 
     }
+    else 
+    {
+	source = argv[1]; 
+    	dest   = argv[2]; 
+    }	    
     
-    hdr = sopen(argv[1], "r", NULL);
+    hdr = sopen(source, "r", NULL);
     
     if (hdr==NULL)exit(-1);
 
-    fprintf(stderr,"FileName:\t%s\nType    :\t%i\nVersion:\t%4.2f\nHeadLen:\t%i\n",argv[1],hdr->TYPE,hdr->VERSION,hdr->HeadLen);
+    fprintf(stderr,"FileName:\t%s\nType    :\t%i\nVersion:\t%4.2f\nHeadLen:\t%i\n",source,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
     fprintf(stderr,"NS:\t%i\nSPR:\t%i\nNRec:\t%Li\nDuration[s]:\t%u/%u\nFs:\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
 
     T0 = gdf_time2t_time(hdr->T0);
@@ -61,7 +106,7 @@ int main(int argc, char **argv){
 	//	hdr->FLAG.UCAL = 1;
     fprintf(stdout,"--%i\t%i\n", hdr->FLAG.OVERFLOWDETECTION, hdr->FLAG.UCAL);
     fprintf(stdout,"2-%u\t%i\t%i\t%i\t%u\t%u\n",hdr->AS.bpb,hdr->FILE.OPEN,(int32_t)hdr->NRec,hdr->HeadLen,hdr->Dur[0],hdr->Dur[1]);
-*/	
+*/
     for (int k=0; k<hdr->NS; k++) {
 	cp = hdr->CHANNEL+k; 
 	fprintf(stdout,"\n#%2i: %7s\t%s\t%s\t%i\t%5f\t%5f\t%5f\t%5f\t%5f\t",k,cp->Label,cp->Transducer,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin,cp->Cal);
@@ -80,26 +125,21 @@ int main(int argc, char **argv){
 	hdr->FILE.FID = 0;
     }
 
-    hdr->TYPE = SCP_ECG;
-    hdr->TYPE = HL7aECG;
-    hdr->TYPE = GDF;
-    hdr = sopen(argv[2], "w", hdr);
+    hdr->TYPE = TARGET_TYPE;
+    hdr = sopen(dest, "w", hdr);
     fprintf(stderr,"File %s : sopen-write\n", hdr->FileName);
-
+    if ( (hdr->TYPE != SCP_ECG) & (hdr->TYPE != HL7aECG) ) /* SCP_ECG and HL7aECG write data during SOPEN */
+    {	
 #if __BYTE_ORDER == __BIG_ENDIAN
-		// fix endianity of the data
-		for (k1=0;k1<hdr->NRec*hdr->SPR*hdr->NS;k1++) 	{
-//			hdr->data.block[k1] = l_endian_f64(hdr->data.block[k1]);
-			*(int32_t*)(hdr->AS.rawdata+k1*4) = l_endian_i32(*(int32_t*)(hdr->AS.rawdata+k1*4));
-			}
+	// fix endianity of the data
+	for (k1=0;k1<hdr->NRec*hdr->SPR*hdr->NS;k1++) 	{
+		//   hdr->data.block[k1] = l_endian_f64(hdr->data.block[k1]);
+		*(int32_t*)(hdr->AS.rawdata+k1*4) = l_endian_i32(*(int32_t*)(hdr->AS.rawdata+k1*4));
+	}
 #endif 
-			
-		fwrite(hdr->AS.rawdata, 4 ,hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
-fprintf(stdout,"data written\n");
-//		fwrite(hdr->data.block, sizeof(biosig_data_type),hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
-//		swrite(&s, NELEM/hdr->NS, hdr);
-fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
-
+	// write data 
+	fwrite(hdr->AS.rawdata, 4 ,hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
+    }
     sclose(hdr);
     free(hdr);
 }
