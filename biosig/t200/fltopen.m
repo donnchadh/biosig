@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.8 2007-06-05 14:40:27 schloegl Exp $
+%	$Id: fltopen.m,v 1.9 2007-06-07 06:43:41 schloegl Exp $
 %	Copyright (c) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -426,7 +426,7 @@ else
 		fprintf(fid,'*-------------------------------------------------------------------------\n');
 		fprintf(fid,'parameter_of_modules={');
 		if isfield(HDR.FLT,'tch_modules')
-			fprintf(fid,'%s',HDR.FLT.tch_modules); 
+			fprintf(fid,'%s}\n',HDR.FLT.tch_modules); 
 		else			fprintf(fid,'\n0000 Magnetic      0.000  0.000  0.000  0.000  0.000  0.000  1.000 0 m\n');
 			fprintf(fid,'0007 Electric      0.000  0.000  0.000  0.000  0.000  0.000  1.000 0 m\n}\n');
 		end;
