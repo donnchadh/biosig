@@ -32,22 +32,26 @@ File(s):
 Installation: 
 -------------
 # compilation 
-./test
-
+run make
 
 Execution:
 ----------
 # if test.gdf exists, some header information is displayed
 ./demo test.gdf     		
 
+# help and usage information 
+./save2gdf -h
+
 # converts a data file into a GDF format (destination
 ./save2gdf PFE103.scp t5.gdf     		
 
 # converts a data file into a SCP format (destination
 ./save2scp t5.gdf t5.scp      		
+./save2gdf -f=SCP t5.gdf t5.scp      		
 
 # converts a data file into a HL7aECG format (destination
 ./save2aecg t5.gdf t5.hl7      		
+./save2gdf -f=HL7aECG t5.gdf t5.scp      		
 
 
 More information is available at http://biosig.sf.net/
