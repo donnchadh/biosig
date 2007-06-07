@@ -1,7 +1,7 @@
 /*
 
-    $Id: biosig.c,v 1.56 2007-05-24 09:30:02 schloegl Exp $
-    Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
+    $Id: biosig.c,v 1.57 2007-06-07 18:59:02 schloegl Exp $
+    Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -85,7 +85,53 @@ const int16_t GDFTYP_BYTE[] = {
 	0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4, 
 	0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 6, 
 	0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 8, 
-	0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0,10  };
+	0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0,10};
+
+
+const char *LEAD_ID_TABLE[] = { "unspecified",
+	"I","II","V1","V2","V3","V4","V5","V6",
+	"V7","V2R","V1","V2","V3","V4","V5","V6",
+	"V7","V2R","V3R","V4R","V5R","V6R","V7R","X",
+	"Y","Z","CC5","CM5","LA","RA","LL","fI",
+	"fE","fC","fA","fM","fF","fH","dI",
+	"dII","dV1","dV2","dV3","dV4","dV5",
+	"dV6","dV7","dV2R","dV3R","dV4R","dV5R",
+	"dV6R","dV7R","dX","dY","dZ","dCC5","dCM5",
+	"dLA","dRA","dLL","dfI","dfE","dfC","dfA",
+	"dfM","dfF","dfH","III","aVR","aVL","aVF",
+	"aVRneg","V8","V9","V8R","V9R","D","A","J",
+	"Defib","Extern","A1","A2","A3","A4","dV8",
+	"dV9","dV8R","dV9R","dD","dA","dJ","Chest",
+	"V","VR","VL","VF","MCL","MCL1","MCL2","MCL3",
+	"MCL4","MCL5","MCL6","CC","CC1","CC2","CC3",
+	"CC4","CC6","CC7","CM","CM1","CM2","CM3","CM4",
+	"CM6","dIII","daVR","daVL","daVF","daVRneg","dChest",
+	"dV","dVR","dVL","dVF","CM7","CH5","CS5","CB5","CR5",
+	"ML","AB1","AB2","AB3","AB4","ES","AS","AI","S",
+	"dDefib","dExtern","dA1","dA2","dA3","dA4","dMCL1",
+	"dMCL2","dMCL3","dMCL4","dMCL5","dMCL6","RL","CV5RL",
+	"CV6LL","CV6LU","V10","dMCL","dCC","dCC1","dCC2",
+	"dCC3","dCC4","dCC6","dCC7","dCM","dCM1","dCM2",
+	"dCM3","dCM4","dCM6","dCM7","dCH5","dCS5","dCB5",
+	"dCR5","dML","dAB1","dAB2","dAB3","dAB4","dES",
+	"dAS","dAI","dS","dRL","dCV5RL","dCV6LL","dCV6LU","dV10"
+/*   EEG Leads - non consecutive index 
+	,"NZ","FPZ","AFZ","FZ","FCZ","CZ","CPZ","PZ",
+	"POZ","OZ","IZ","FP1","FP2","F1","F2","F3","F4",
+	"F5","F6","F7","F8","F9","F10","FC1","FC2","FC3",
+	"FC4","FC5","FC6","FT7","FT8","FT9","FT10","C1",
+	"C2","C3","C4","C5","C6","CP1","CP2","CP3","CP4",
+	"CP5","CP6","P1","P2","P3","P4","P5","P6","P9",
+	"P10","O1","O2","AF3","AF4","AF7","AF8","PO3",
+	"PO4","PO7","PO8","T3","T7","T4","T8","T5","P7",
+	"T6","P8","T9","T10","TP7","TP8","TP9","TP10",
+	"A1","A2","T1","T2","PG1","PG2","SP1","SP2",
+	"E0","EL1","EL2","EL3","EL4","EL5","EL6","EL7",
+	"ER1","ER2","ER3","ER4","ER5","ER6","ER7","ELL",
+	"ERL","ELA","ELB","ERA","ERB"
+*/
+	};
+
 
 
 /****************************************************************************/
@@ -308,7 +354,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	int ret;
 #endif
 
-    	int 		k;
+    	int 		k,k1;
     	uint32_t	k32u; 
     	size_t	 	count,len;
     	uint8_t 	buf[81];
@@ -930,6 +976,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    		fprintf(stderr,"Warning SOPEN(SCP-READ): Bad CRC %x %x !\n",crc,*(uint16_t*)(hdr->AS.Header1));
 	    	}
 		hdr = sopen_SCP_read(hdr);
+		for (k=0; k<hdr->NS; k++) {	
+			k1 = hdr->CHANNEL[k].LeadIdCode;
+			if (k1>0) hdr->CHANNEL[k].Label = (char*)LEAD_ID_TABLE[k1];
+		}    	
 	}
 	
 	else if (hdr->TYPE==HL7aECG) 
@@ -952,6 +1002,7 @@ else { // WRITE
 	    	Header2 = Header1+256; 
 
 		memset(Header1,0,hdr->HeadLen);
+		hdr->VERSION = 1.94;
 	     	sprintf(Header1,"GDF %4.2f",hdr->VERSION);
 	     	strncat(Header1+8, hdr->Patient.Id,   66);
 	     	strncat(Header1+8, " ",   66);
