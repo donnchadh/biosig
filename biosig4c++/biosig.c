@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.57 2007-06-07 18:59:02 schloegl Exp $
+    $Id: biosig.c,v 1.58 2007-06-07 19:15:28 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -347,12 +347,6 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	const float	CNT_SETTINGS_NOTCH[] = {0.0, 50.0, 60.0}; 
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
 	const float	CNT_SETTINGS_HIGHPASS[] = {NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
-
-#ifdef __XML_XMLREADER_H__
-	xmlTextReaderPtr reader;
-	xmlDocPtr doc; /* the resulting document tree */
-	int ret;
-#endif
 
     	int 		k,k1;
     	uint32_t	k32u; 
