@@ -37,7 +37,7 @@ function [out,scale] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.15 2007-06-14 06:55:44 schloegl Exp $
+%	$Id: physicalunits.m,v 1.16 2007-06-14 12:47:12 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -156,6 +156,7 @@ if isstruct(arg1)
 	elseif ~isfield(HDR,'PhysDim') & ~isfield(HDR,'PhysDimCode')
 		HDR.PhysDimCode = zeros(HDR.NS,1); 
 		HDR.PhysDim = repmat({'?'},HDR.NS,1); 
+		scale = ones(HDR.NS,1); 
 		fprintf(HDR.FILE.stderr,'Neither PhysDim nor PhysDimCode defined in file %s\n',HDR.FileName);
 	end;
 	out = HDR;	
