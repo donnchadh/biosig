@@ -36,8 +36,8 @@ function [HDR] = save2bkr(arg1,arg2,arg3);
 %
 % see also: EEGCHKHDR, REGRESS_EOG, SLOAD
 
-%	$Revision: 1.22 $
-% 	$Id: save2bkr.m,v 1.22 2004-07-07 11:34:30 schloegl Exp $
+%	$Revision: 1.23 $
+% 	$Id: save2bkr.m,v 1.23 2007-06-14 06:56:36 schloegl Exp $
 %	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -149,7 +149,12 @@ else
         end;
 end;
 
-if isstr(arg1), 
+if 0,
+elseif exist(arg1,'file')
+	inpath='';
+	infile.name=arg1;
+        outfile = arg2;
+elseif exist(arg1,'dir')	
         inpath = fileparts(arg1);
         infile = dir(arg1);	% input  file 
         if isempty(infile)
@@ -341,7 +346,7 @@ for k=1:length(infile);
         
         % add event channel 
         if isfield(HDR,'EVENT')
-                if HDR.EVENT.N <= 0,
+                if ~length(HDR.EVENT.TYP),
                 elseif 0,
                         % TypeList = unique(HDR.EVENT.TYP); but ignores NaN's
                         [sY ,idx] = sort(HDR.EVENT.TYP(:));
