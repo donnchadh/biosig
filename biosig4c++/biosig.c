@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.58 2007-06-07 19:15:28 schloegl Exp $
+    $Id: biosig.c,v 1.59 2007-06-15 10:10:48 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -970,6 +970,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    		fprintf(stderr,"Warning SOPEN(SCP-READ): Bad CRC %x %x !\n",crc,*(uint16_t*)(hdr->AS.Header1));
 	    	}
 		hdr = sopen_SCP_read(hdr);
+
 		for (k=0; k<hdr->NS; k++) {	
 			k1 = hdr->CHANNEL[k].LeadIdCode;
 			if (k1>0) hdr->CHANNEL[k].Label = (char*)LEAD_ID_TABLE[k1];
@@ -1051,13 +1052,14 @@ else { // WRITE
 		     	memcpy(Header2+16*k,hdr->CHANNEL[k].Label,min(len,16));
 		     	len = strlen(hdr->CHANNEL[k].Transducer);
 		     	memcpy(Header2+80*k + 16*hdr->NS,hdr->CHANNEL[k].Transducer,min(len,80));
-		     	len = strlen(hdr->CHANNEL[k].PhysDim);
+		     	len = ((hdr->CHANNEL[k].PhysDim==NULL) ? 0 : strlen(hdr->CHANNEL[k].PhysDim));
 		     	if (hdr->VERSION<1.9)
 		     		memcpy(Header2+ 8*k + 96*hdr->NS,hdr->CHANNEL[k].PhysDim,min(len,8));
 		     	else {	
 		     		memcpy(Header2+ 6*k + 96*hdr->NS,hdr->CHANNEL[k].PhysDim,min(len,6));
-		     		*(uint16_t*)(Header2+ 2*k +102*hdr->NS) = l_endian_u16(hdr->CHANNEL[k].PhysDimCode);
+		     		*(uint16_t*)(Header2+ 2*k+102*hdr->NS) = l_endian_u16(hdr->CHANNEL[k].PhysDimCode);
 			};
+
 		     	*(double*)(Header2 + 8*k + 104*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMin);
 		     	*(double*)(Header2 + 8*k + 112*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMax);
 		     	*(double*)(Header2 + 8*k + 120*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].DigMin);
