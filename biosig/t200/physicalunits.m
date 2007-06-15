@@ -37,7 +37,7 @@ function [out,scale] = physicalunits(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.16 2007-06-14 12:47:12 schloegl Exp $
+%	$Id: physicalunits.m,v 1.17 2007-06-15 07:57:44 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -140,7 +140,7 @@ end;
 
 
 if isstruct(arg1) 
-	HDR = arg1; 
+	HDR = arg1;
 	
 	if 0, 
 	elseif  isfield(HDR,'PhysDim') &  isfield(HDR,'PhysDimCode')
@@ -148,7 +148,7 @@ if isstruct(arg1)
 		if ~isequal(Code(:),HDR.PhysDimCode(:))
 			warning('PhysDim and PhysDimCode differ');
 			Code(:)',HDR.PhysDimCode(:)'
-		end;		
+		end;
 	elseif ~isfield(HDR,'PhysDim') &  isfield(HDR,'PhysDimCode')
 		[HDR.PhysDim, scale] = physicalunits(HDR.PhysDimCode);
 	elseif  isfield(HDR,'PhysDim') % ~isfield(HDR,'PhysDimCode')
@@ -174,25 +174,30 @@ elseif isnumeric(arg1)
 	out = PhysDim;
 	
 elseif ischar(arg1) | iscell(arg1) 
-        if iscell(arg1)
+	if iscell(arg1)
                 N    = length(arg1); 
         elseif ischar(arg1)     
                 N = size(arg1,1);
                 arg1 = cellstr(arg1);
         end;
         j = 1:length(arg1);
-	[arg1,i,j] = unique(arg1);
+        VER = version; 
+        if (str2double(VER(1:3)) > 2.1)
+		[arg1,i,j] = unique(arg1);
+	end; 	
 	Code = zeros(length(arg1),1); 	% default value is 0 (unknown)
 	for k=1:length(arg1); 
 		unit = deblank(arg1{k});
 		if length(unit)>0,
 			if (unit(1)=='µ'), unit(1)='u'; end; 
+		else 
+
 		end;
                 
                 % this lookup table contains first the most widely used
                 % physical units 
-                if 0,
-		
+                if ~length(unit),
+			Code(k) = 0;
 		elseif strcmpi(unit,'-')	% dimensionless
                		Code(k) = 512;
 		elseif strcmpi(unit,'1')	% dimensionless
