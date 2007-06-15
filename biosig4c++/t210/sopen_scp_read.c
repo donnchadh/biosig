@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.11 2007-05-24 10:20:48 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.12 2007-06-15 08:39:00 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -345,8 +345,8 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				len += l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+i*2));
 
 				// ### these values should represent the true saturation values ###//
-				hdr->CHANNEL[i].DigMax      = 2^15-1;
-				hdr->CHANNEL[i].DigMin      = -2^15;
+				hdr->CHANNEL[i].DigMax      = ldexp(1.0,24)-1;
+				hdr->CHANNEL[i].DigMin      = ldexp(-1.0,24);
 				hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
 				hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
 			}
