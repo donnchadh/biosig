@@ -79,7 +79,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define TRUE 1
 #define FALSE 0
 // Insert by FeC
-#if defined(__Cygwin__)
+#if defined(__CYGWIN__)
 #define COMPAT
 #include <stdio.h>
 void ultoa(unsigned int x, char *s, int base)
