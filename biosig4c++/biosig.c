@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.59 2007-06-15 10:10:48 schloegl Exp $
+    $Id: biosig.c,v 1.60 2007-06-16 21:49:31 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -133,7 +133,6 @@ const char *LEAD_ID_TABLE[] = { "unspecified",
 	};
 
 
-
 /****************************************************************************/
 /**                                                                        **/
 /**                      INTERNAL FUNCTIONS                                **/
@@ -186,9 +185,7 @@ double l_endian_f64(double x)
 #endif
 
 
-double PhysDimScale(uint16_t PhysDimCode)
-{	
-/* scale of physical units as defined in 
+/* physical units are defined in 
  prEN ISO 11073-10101 (Nov 2003)
  Health Informatics - Point-of-care medical device communications - Part 10101:Nomenclature
  (ISO/DIS 11073-10101:2003)
@@ -199,6 +196,75 @@ double PhysDimScale(uint16_t PhysDimCode)
  Table A.4.1: Table of Decimal Factors	const double scale[32] =
 */
 
+char* PhysDimTable[4096];   
+void InitPhysDimTable()
+{
+	/* 
+		Initializes PhysDimTable (must not be modified by any other instance)	
+	*/	
+
+	/* 	needs to run only once	*/	
+	static int FLAG = 0; 
+	if (FLAG) return; 	
+
+
+	/* load table from file units.csv */
+# define SIZE_OF_UNITS_FILE (11082)
+	FILE* fid; 
+	long int TableLen=SIZE_OF_UNITS_FILE;
+	char Table[SIZE_OF_UNITS_FILE+1];
+	char *line, *tok1, *tok2;
+	int k; 	
+
+	for (k=0; k<4096; PhysDimTable[k++]="\0");
+	fid = fopen("units.csv","r");
+	if (fid==NULL)
+		fprintf(stderr,"Error: units.csv file not found.\n");	
+
+	// get file size
+	fseek(fid,0,SEEK_END);
+	TableLen = ftell(fid);
+	if (TableLen>SIZE_OF_UNITS_FILE)
+		fprintf(stderr,"Warning: allocated TABLE_SIZE too small (%li %i).\n",TableLen,SIZE_OF_UNITS_FILE);
+	
+	// read file
+	fseek(fid,0,SEEK_SET);
+	TableLen = fread(Table, sizeof(char), min(TableLen,SIZE_OF_UNITS_FILE), fid);
+	Table[TableLen]=0;
+	if (TableLen!=SIZE_OF_UNITS_FILE)
+		fprintf(stderr,"Warning: units.csv was modified.\n");
+	fclose(fid);
+
+	// parse file units.csv
+	line = strtok(Table,"\n\r");	// read 1st line 
+	while (line!=NULL)
+	{
+		if (line[0]==0) ;
+		else if (line[0]=='#') ;
+		else if (line[0]==',') ;
+		else {
+			tok1= line;
+			for (k=0; line[k]!=','; k++); // find comma ,
+			line[k]=0; 
+			while (line[k]!='\"') k++;	// find 1st double quote "
+			tok2 = line+k+1;
+			for (k++; line[k]!='\"'; k++);	// find 2nd double quote "
+			line[k]=0; 
+			PhysDimTable[atoi(tok1)>>5] = tok2;
+		}	
+		line = strtok(NULL,"\n\r");	// read next line
+	}
+	FLAG = 1; 
+}
+		
+const char* PhysDimFactor[] = {
+	"","da","h","k","M","G","T","P","E","Z","Y","#","#","#","#","#",
+	"d","c","m","u","n","p","f","a","z","y","#","#","#","#","#","#"};
+
+double PhysDimScale(uint16_t PhysDimCode)
+{	
+// converting PhysDimCode -> scaling factor
+
 	const double scale[32] =
 	{ 1e0,  1e1,  1e2,  1e3,  1e6,  1e9,   1e12,  1e15,
 	  1e18, 1e21, 1e24, NaN,  NaN,  NaN,   NaN,   NaN, 
@@ -206,6 +272,36 @@ double PhysDimScale(uint16_t PhysDimCode)
 	  1e-21,1e-24,NaN,  NaN,  NaN,  NaN,   NaN,   NaN }; 
 
 	return (scale[PhysDimCode & 0x001f]); 
+}
+
+char* PhysDim(uint16_t PhysDimCode, char* PhysDim)
+{	
+// converting PhysDimCode -> PhysDim
+	PhysDim = strcpy(PhysDim,PhysDimFactor[PhysDimCode & 0x1f]);
+	PhysDim = strcat(PhysDim,PhysDimTable[PhysDimCode>>5]);
+	return(PhysDim);
+
+}
+
+uint16_t PhysDimCode(char* PhysDim0)
+{	
+// converting PhysDim -> PhysDimCode
+	/* converts Physical dimension into 16 bit code */
+	if (PhysDim0==NULL) return(0);
+	if (!strlen(PhysDim0)) return(0);
+	
+	uint16_t Code, k1, k2;
+	char s[80];
+	
+	// greedy search - check all codes 0..65535
+	for (k1=0; k1<32;   k1++)
+	if (PhysDimScale(k1)>0.0)  // exclude NaN
+	for (k2=0; k2<4096; k2++)
+	{
+		Code = k2<<5+k1;
+		if (strcmp(PhysDim0, PhysDim(Code,s))) return(Code); 
+	}
+	return(0);
 }
 
 /****************************************************************************/
@@ -298,9 +394,10 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
        	// define variable header 
 	hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	for (k=0;k<hdr->NS;k++)	{
-	      	hdr->CHANNEL[k].Label     = "C4";
+	      	hdr->CHANNEL[k].Label     = "";
+	      	hdr->CHANNEL[k].LeadIdCode= 0;
 	      	hdr->CHANNEL[k].Transducer= "EEG: Ag-AgCl electrodes";
-	      	hdr->CHANNEL[k].PhysDim   = "uV";
+	      	hdr->CHANNEL[k].PhysDim   = "uV";	// ### OBSOLETE ###
 	      	hdr->CHANNEL[k].PhysDimCode = 19+4256; // uV
 	      	hdr->CHANNEL[k].PhysMax   = +100;
 	      	hdr->CHANNEL[k].PhysMin   = -100;
@@ -362,6 +459,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	time_t		tt;
 	unsigned	EventChannel = 0;
 
+	InitPhysDimTable();
 	if (hdr==NULL)
 	hdr = create_default_hdr(0,0);	// initializes fields that may stay undefined during SOPEN 
 
@@ -567,10 +665,11 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 			hdr->CHANNEL[k].SPR     = l_endian_u32( *(uint32_t*) (Header2+ 4*k + 216*hdr->NS) );
 			hdr->CHANNEL[k].GDFTYP  = l_endian_u16( *(uint16_t*) (Header2+ 4*k + 220*hdr->NS) );
 			if (hdr->VERSION < 1.90) {
-				Header2[96*hdr->NS + 16*k + 15] = 0;
-				hdr->CHANNEL[k].PhysDim = (Header2 + 96*hdr->NS + 8*k);
-				/* ###FIXME###
-				hdr->CHANNEL[k].PhysDimCode = 
+				strncpy(tmp, Header2 + 96*hdr->NS + 8*k, 8);
+				hdr->CHANNEL[k].PhysDimCode = PhysDimCode(tmp);
+				/*
+				hdr->CHANNEL[k].PhysDim = (Header2 + 96*hdr->NS + 8*k);  // ### OBSOLETE ###
+				/ ###FIXME###
 				hdr->CHANNEL[k].PreFilt = (hdr->Header2+ 68*k + 136*hdr->NS);
 				*/
 
@@ -578,10 +677,9 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 				hdr->CHANNEL[k].DigMax   = (double) l_endian_i64( *(int64_t*)(Header2+ 8*k + 128*hdr->NS) );
 			}	
 			else {
-				/* ###FIXME###
-				hdr->CHANNEL[k].PhysDim = 
-				*/
 				hdr->CHANNEL[k].PhysDimCode = l_endian_u16( *(uint16_t*)(Header2+ 2*k + 102*hdr->NS) );
+				// ###FIXME### 
+				// hdr->CHANNEL[k].PhysDim  = PhysDim(hdr->CHANNEL[k].PhysDimCode,hdr->CHANNEL[k].PhysDim);
 
 				hdr->CHANNEL[k].DigMin   = l_endian_f64( *(double*)(Header2+ 8*k + 120*hdr->NS) );
 				hdr->CHANNEL[k].DigMax   = l_endian_f64( *(double*)(Header2+ 8*k + 128*hdr->NS) );
@@ -692,11 +790,13 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 			hdr->CHANNEL[k].Transducer  = (Header2 + 80*k + 16*hdr->NS);
 			hdr->CHANNEL[k].Transducer[79]=0;//   hack
 			
+			/* OBSOLETE 
 			hdr->CHANNEL[k].PhysDim = (Header2 + 8*k + 96*hdr->NS);
-			tmp[8] = 0;
-			strncpy(tmp,Header2 + 8*k + 104*hdr->NS,8);
-			// PhysDim -> PhysDimCode belongs here 
 			hdr->CHANNEL[k].PhysDim[7]=0; //hack
+			*/
+			// PhysDim -> PhysDimCode belongs here 
+			strncpy(tmp,Header2 + 8*k + 96*hdr->NS,8);
+			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(tmp);
 			
 			hdr->CHANNEL[k].PhysMin = atof(strncpy(tmp,Header2 + 8*k + 104*hdr->NS,8)); 
 			hdr->CHANNEL[k].PhysMax = atof(strncpy(tmp,Header2 + 8*k + 112*hdr->NS,8)); 
@@ -770,8 +870,12 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 			CHAN = l_endian_u16(*(uint16_t*)(Header1+POS+4));
 			hdr->CHANNEL[k].Label   = (char*)(Header1+POS+6);
 			hdr->CHANNEL[k].Label[39]   = 0;  
+			strncpy(tmp,Header1+POS+68,20);
+			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(tmp);
+			// PhysDim is OBSOLETE  
 			hdr->CHANNEL[k].PhysDim = (char*)(Header1+POS+68);
 			hdr->CHANNEL[k].PhysDim[19] = 0;
+			
 			hdr->CHANNEL[k].Off     = l_endian_f64(*(double*)(Header1+POS+52));
 			hdr->CHANNEL[k].Cal     = l_endian_f64(*(double*)(Header1+POS+60));
 
@@ -899,7 +1003,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].GDFTYP 	= CFWB_GDFTYP[l_endian_u32(*(uint32_t*)(Header1+64))-1];
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	hdr->CHANNEL[k].Label	= Header2+k*96;
-		    	hdr->CHANNEL[k].PhysDim	= Header2+k*96+32;
+		    	hdr->CHANNEL[k].PhysDim	= Header2+k*96+32;  // OBSOLETE
+			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(Header2+k*96+32);
 		    	hdr->CHANNEL[k].Cal	= l_endian_f64(*(double*)(Header2+k*96+64));
 		    	hdr->CHANNEL[k].Off	= l_endian_f64(*(double*)(Header2+k*96+72));
 		    	hdr->CHANNEL[k].PhysMax	= l_endian_f64(*(double*)(Header2+k*96+80));
@@ -942,7 +1047,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].GDFTYP 	= 3;
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	hdr->CHANNEL[k].Label	= Header2+k*75;
-		    	hdr->CHANNEL[k].PhysDim	= "uV";
+		    	hdr->CHANNEL[k].PhysDim	= "uV";	// OBSOLETE
 		    	hdr->CHANNEL[k].PhysDimCode = 4256+19;
 		    	hdr->CHANNEL[k].Cal	= l_endian_f32(*(float*)(Header2+k*75+59));
 		    	hdr->CHANNEL[k].Cal    *= l_endian_f32(*(float*)(Header2+k*75+71))/204.8;
@@ -1051,13 +1156,15 @@ else { // WRITE
 		     	len = strlen(hdr->CHANNEL[k].Label);
 		     	memcpy(Header2+16*k,hdr->CHANNEL[k].Label,min(len,16));
 		     	len = strlen(hdr->CHANNEL[k].Transducer);
-		     	memcpy(Header2+80*k + 16*hdr->NS,hdr->CHANNEL[k].Transducer,min(len,80));
-		     	len = ((hdr->CHANNEL[k].PhysDim==NULL) ? 0 : strlen(hdr->CHANNEL[k].PhysDim));
+
+		     	memcpy(Header2+80*k + 16*hdr->NS, hdr->CHANNEL[k].Transducer, min(len,80));
+		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
+		     	len = strlen(tmp);
 		     	if (hdr->VERSION<1.9)
-		     		memcpy(Header2+ 8*k + 96*hdr->NS,hdr->CHANNEL[k].PhysDim,min(len,8));
-		     	else {	
-		     		memcpy(Header2+ 6*k + 96*hdr->NS,hdr->CHANNEL[k].PhysDim,min(len,6));
-		     		*(uint16_t*)(Header2+ 2*k+102*hdr->NS) = l_endian_u16(hdr->CHANNEL[k].PhysDimCode);
+		     		memcpy(Header2+ 8*k + 96*hdr->NS, tmp, min(len,8));
+		     	else {
+		     		memcpy(Header2+ 6*k + 96*hdr->NS, tmp, min(len,6));
+		     		*(uint16_t*)(Header2+ 2*k + 102*hdr->NS) = l_endian_u16(hdr->CHANNEL[k].PhysDimCode);
 			};
 
 		     	*(double*)(Header2 + 8*k + 104*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMin);
@@ -1142,9 +1249,10 @@ else { // WRITE
 		     	len = strlen(hdr->CHANNEL[k].Transducer);
 			if (len>80) fprintf(stderr,"Warning: Transducer (%s) of channel %i is to long.\n",hdr->CHANNEL[k].Transducer,k);  
 		     	memcpy(Header2+80*k + 16*hdr->NS,hdr->CHANNEL[k].Transducer,min(len,80));
-		     	len = strlen(hdr->CHANNEL[k].PhysDim);
-			if (len>8) fprintf(stderr,"Warning: Physical Dimension (%s) of channel %i is to long.\n",hdr->CHANNEL[k].PhysDim,k);  
-		     	memcpy(Header2+ 8*k + 96*hdr->NS,hdr->CHANNEL[k].PhysDim,min(len,8));
+		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
+		     	len = strlen(tmp);
+			if (len>8) fprintf(stderr,"Warning: Physical Dimension (%s) of channel %i is to long.\n",tmp,k);  
+		     	memcpy(Header2+ 8*k + 96*hdr->NS,tmp,min(len,8));
 	
 			len = sprintf(tmp,"%f",hdr->CHANNEL[k].PhysMin);
 			if (len>8) fprintf(stderr,"Warning: PhysMin (%s) of channel %i is to long.\n",tmp,k);  
