@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.3 2007-06-06 16:13:38 schloegl Exp $
+    $Id: save2gdf.c,v 1.4 2007-06-17 19:57:30 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -65,14 +65,20 @@ int main(int argc, char **argv){
 		fprintf(stdout,"\n\n");
 		return(0);
 	}	
-    	else if (!strcmp(argv[1],"-f=GDF"))
-		TARGET_TYPE=GDF;
-    	else if (!strcmp(argv[1],"-f=EDF"))
-		TARGET_TYPE=EDF;
-    	else if (!strncmp(argv[1],"-f=HL7",6) )
-		TARGET_TYPE=HL7aECG;
-    	else if (!strncmp(argv[1],"-f=SCP",6))
-		TARGET_TYPE=SCP_ECG;
+    	else if (!strncmp(argv[1],"-f=",3))
+    	{ 	if (!strcmp(argv[1],"-f=GDF"))
+			TARGET_TYPE=GDF;
+    		else if (!strcmp(argv[1],"-f=EDF"))
+			TARGET_TYPE=EDF;
+    		else if (!strncmp(argv[1],"-f=HL7",6) )
+			TARGET_TYPE=HL7aECG;
+    		else if (!strncmp(argv[1],"-f=SCP",6))
+			TARGET_TYPE=SCP_ECG;
+		else {
+			fprintf(stderr,"format %s not supported.\n",argv[1]);
+			return(-1);
+		}	
+	}
 		
     	if (argc==2) return(0);
     	source = argv[2]; 
@@ -132,7 +138,7 @@ int main(int argc, char **argv){
     {	
 #if __BYTE_ORDER == __BIG_ENDIAN
 	// fix endianity of the data
-	for (k1=0;k1<hdr->NRec*hdr->SPR*hdr->NS;k1++) 	{
+	for (uint32_t k1=0; k1<hdr->NRec*hdr->SPR*hdr->NS; k1++) 	{
 		//   hdr->data.block[k1] = l_endian_f64(hdr->data.block[k1]);
 		*(int32_t*)(hdr->AS.rawdata+k1*4) = l_endian_i32(*(int32_t*)(hdr->AS.rawdata+k1*4));
 	}
