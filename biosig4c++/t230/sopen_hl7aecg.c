@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.1 2007-05-24 10:17:30 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.2 2007-06-18 07:54:21 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -34,6 +34,9 @@
 #include "../biosig.h"
 #include "../XMLParser/tinyxml.h"
 #include "../XMLParser/Tokenizer.h"
+
+
+extern const char *LEAD_ID_TABLE[];  // 
 
 HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 /*
@@ -155,31 +158,11 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		    const char *code = channel.FirstChild("code").Element()->Attribute("code");
 		    
 		    hdr->CHANNEL[i].Label = strdup(code);
-
-		    if(!strcmp(code+13, "I"))
-			hdr->CHANNEL[i].LeadIdCode = 1;
-		    else if(!strcmp(code+13, "II"))
-			hdr->CHANNEL[i].LeadIdCode = 2;
-		    else if(!strcmp(code+13, "III"))
-			hdr->CHANNEL[i].LeadIdCode = 61;
-		    else if(!strcmp(code+13, "AVR"))
-			hdr->CHANNEL[i].LeadIdCode = 62;
-		    else if(!strcmp(code+13, "AVL"))
-			hdr->CHANNEL[i].LeadIdCode = 63;
-		    else if(!strcmp(code+13, "AVF"))
-			hdr->CHANNEL[i].LeadIdCode = 64;
-		    else if(!strcmp(code+13, "V1"))
-			hdr->CHANNEL[i].LeadIdCode = 3;
-		    else if(!strcmp(code+13, "V2"))
-			hdr->CHANNEL[i].LeadIdCode = 4;
-		    else if(!strcmp(code+13, "V3"))
-			hdr->CHANNEL[i].LeadIdCode = 5;
-		    else if(!strcmp(code+13, "V4"))
-			hdr->CHANNEL[i].LeadIdCode = 6;
-		    else if(!strcmp(code+13, "V5"))
-			hdr->CHANNEL[i].LeadIdCode = 7;
-		    else if(!strcmp(code+13, "V6"))
-			hdr->CHANNEL[i].LeadIdCode = 8;
+		    
+		    hdr->CHANNEL[i].LeadIdCode = 0;
+		    for (int k=0; k<184; k++)
+		    	if(!strcmp(code+13, LEAD_ID_TABLE[k]))
+				hdr->CHANNEL[i].LeadIdCode = k;
 
 		    hdr->CHANNEL[i].Transducer = "EEG: Ag-AgCl electrodes";
 //		    hdr->CHANNEL[k].Transducer = (Header2 + 16*hdr->NS + 80*k);
@@ -251,6 +234,7 @@ HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr){
 	Output: 
 		char* HDR.AS.Header1 	// contains the content which will be written to the file in SOPEN
 */	
+    char tmp[80];	
     TiXmlDocument doc;
     
     TiXmlDeclaration* decl = new TiXmlDeclaration("1.0", "UTF-8", "");
@@ -529,44 +513,10 @@ HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr){
 
 	sequenceCode = new TiXmlElement("code");
 	
-	switch(hdr->CHANNEL[i].LeadIdCode){
-	    case 1:
-		sequenceCode->SetAttribute("code", "MDC_ECG_LEAD_I");
-		break;
-	    case 2:
-		sequenceCode->SetAttribute("code", "MDC_ECG_LEAD_II");
-		break;
-	    case 61:
-		sequenceCode->SetAttribute("code", "MDC_ECG_LEAD_III");
-		break;
-	    case 62:
-		sequenceCode->SetAttribute("code", "MDC_ECG_LEAD_AVR");
-		break;
-	    case 63:
-		sequenceCode->SetAttribute("code", "MDC_ECG_LEAD_AVL");
-		break;
-	    case 64:
-		sequenceCode->SetAttribute("code", "MDC_ECG_LEAD_AVF");
-		break;
-	    case 3:
-		sequenceCode->SetAttribute("code", "MDC_ECG_LEAD_V1");
-		break;
-	    case 4:
-		sequenceCode->SetAttribute("code", "MDC_ECG_LEAD_V2");
-		break;
-	    case 5:
-		sequenceCode->SetAttribute("code", "MDC_ECG_LEAD_V3");
-		break;
-	    case 6:
-		sequenceCode->SetAttribute("code", "MDC_ECG_LEAD_V4");
-		break;
-	    case 7:
-		sequenceCode->SetAttribute("code", "MDC_ECG_LEAD_V5");
-		break;
-	    case 8:
-		sequenceCode->SetAttribute("code", "MDC_ECG_LEAD_V6");
-		break;
-	}
+	strcpy(tmp,"MDC_ECG_LEAD_");
+	strcat(tmp,LEAD_ID_TABLE[hdr->CHANNEL[i].LeadIdCode]);	
+	sequenceCode->SetAttribute("code", tmp);
+
 	sequenceCode->SetAttribute("codeSystem", "2.16.840.1.113883.6.24");
 	sequenceCode->SetAttribute("codeSystemName", "MDC");
 	sequence->LinkEndChild(sequenceCode);
