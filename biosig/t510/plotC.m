@@ -13,7 +13,7 @@ function plotC(input_struct)
 %   input_struct ... Input structure (as obtained by the calculation functions)
 
 % Copyright by Clemens Brunner
-% $Revision: 1.1 $ $Date: 2007-06-19 08:38:38 $
+% $Revision: 1.1 $ $Date: 2007-06-19 09:14:15 $
 % E-Mail: clemens.brunner@tugraz.at
 
 % This program is free software; you can redistribute it and/or modify it
