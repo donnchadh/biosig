@@ -4,7 +4,7 @@ function HDR=openeep(HDR,arg2,arg3,arg4,arg5,arg6)
 %
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
-%	$Id: openeep.m,v 1.2 2007-06-21 13:38:55 schloegl Exp $
+%	$Id: openeep.m,v 1.3 2007-06-21 14:16:48 schloegl Exp $
 %	Copyright (c) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -58,7 +58,7 @@ if strcmp(HDR.TYPE,'EEProbe-CNT'),
 							k = k+1;
 							[num,status,sa]=str2double(line);
 							HDR.Label{k} = sa{1};
-							HDR.PhysDim{k} = sa{4};
+							HDR.PhysDim{k,1} = sa{4};
 							HDR.Cal(k) = num(2)*num(3);
 						end;
 					end;	
