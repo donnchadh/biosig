@@ -18,8 +18,8 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.16 $
-%	$Id: swrite.m,v 1.16 2007-03-07 14:00:43 schloegl Exp $
+%	$Revision: 1.17 $
+%	$Id: swrite.m,v 1.17 2007-06-21 12:44:45 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -36,7 +36,9 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 return;
         end;        
         if ~HDR.FLAG.UCAL,
-                fprintf(HDR.FILE.stderr,'Warning SWRITE(GDF): FLAG.UCAL not set - data must be correctly scaled.\n');
+	   	data = data - repmat(HDR.PhysMin,size(data,1),1);
+	   	data = data * spdiag((HDR.DigMax-HDR.DigMin)./(HDR.PhysMax-HDR.PhysMin));  % scale Phys->Dig
+	   	data = data + repmat(HDR.DigMin,size(data,1),1);
         end;
 
         if ~any(HDR.GDFTYP(1)==[16,17,18]),
