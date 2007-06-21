@@ -34,7 +34,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.79 2007-06-21 12:43:22 schloegl Exp $
+%	$Id: sread.m,v 1.80 2007-06-21 13:36:53 schloegl Exp $
 %	(C) 1997-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -45,8 +45,8 @@ if nargin<2,
         NoS = inf; 
 end;
 
-if NoS<0,
-        fprintf(HDR.FILE.stderr,'Error SREAD: NoS must be non-negative\n');
+if ~isnumeric(NoS) | (NoS<0),
+        fprintf(HDR.FILE.stderr,'Error SREAD: NoS must be non-negative number\n');
         return;
 end;
 if (nargin==3) 
@@ -65,7 +65,7 @@ end;
 
 tmp = HDR.SampleRate*NoS;
 if tmp ~= round(tmp),
-        %fprintf(HDR.FILE.stderr,'Warning SREAD: NoS yields non-integer position [%f, %f]\n',NoS,HDR.SampleRate);
+        fprintf(HDR.FILE.stderr,'Warning SREAD: NoS yields non-integer position [%f, %f]\n',NoS,HDR.SampleRate);
         NoS = round(tmp)/HDR.SampleRate;
 end;
 
@@ -1210,7 +1210,7 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         
-        nr = min(HDR.SampleRate*NoS, HDR.SPR-HDR.FILE.POS);
+        nr = min(HDR.SampleRate*NoS, HDR.SPR*HDR.NRec-HDR.FILE.POS);
 	if exist('read_eep_cnt','file')==3,
                 tmp = read_eep_cnt(HDR.FileName, HDR.FILE.POS+1, HDR.FILE.POS+nr);
                 sz  = size(tmp.data);
