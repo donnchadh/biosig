@@ -53,7 +53,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.182 2007-05-22 15:48:20 schloegl Exp $
+%	$Id: sopen.m,v 1.183 2007-06-21 12:51:00 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -562,7 +562,11 @@ end;
 	                if any(HDR.DigMax ==HDR.DigMin ), HDR.ErrNo=[1030,HDR.ErrNo]; end;	
 	                HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
 	                HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
-	
+			if any(~isfinite(HDR.Cal)),
+                        	fprintf(2,'WARNING SOPEN(GDF/BDF/EDF): Scaling factor is not defined in following channels:\n');
+                        	find(~isfinite(HDR.Cal))', 
+			end;
+			
 	                HDR.AS.SampleRate = HDR.AS.SPR / HDR.Dur;
 	                HDR.SPR=1;
 	                if all(CHAN>0)
@@ -1499,12 +1503,16 @@ end;
                         H1(168+(1:16))=sprintf('%02i.%02i.%02i%02i:%02i:%02i',floor(rem(HDR.T0([3 2 1 4 5 6]),100)));
                         H1(185:192)=sprintf('%-8i',HDR.HeadLen);
                         H1(237:244)=sprintf('%-8i',HDR.NRec);
-                        if HDR.Dur~=round(HDR.Dur),
-                                H1(245:252)=sprintf('%-8f',HDR.Dur);
-                        else
-                                H1(245:252)=sprintf('%-8i',HDR.Dur);
-                        end
-                        H1(253:256)=sprintf('%-4i',HDR.NS);
+			tmp = sprintf('%-8f',HDR.Dur);
+                        H1(245:252)=tmp(1:8);
+                        if length(tmp)~=8, 
+                        	tmp = str2double(tmp);
+                        	tmp = (HDR.Dur-tmp)/HDR.Dur; 
+                        	if abs(tmp)>1e-10,
+	                        	fprintf(HDR.FILE.stderr,'Warning SOPEN(EDF write): Duration field truncated, error %e (%s instead of %-8f),\n',tmp,H1(245:252),HDR.Dur);
+	                        end; 	
+                        end;
+	                        H1(253:256)=sprintf('%-4i',HDR.NS);
                         H1(abs(H1)==0)=char(32); 
                         c=fwrite(HDR.FILE.FID,abs(H1),'uchar');
                 end;
@@ -1539,6 +1547,12 @@ end;
                                                 end;
                                         end;
                                 end;
+                                c1 = str2double(cellstr(sPhysMax));
+                                c2 = str2double(cellstr(sPhysMin));
+                                e = ((HDR.PhysMax-HDR.PhysMin)'-(c1-c2))./(HDR.PhysMax-HDR.PhysMin)';
+                                if any(abs(e)>1e-8)
+	                                fprintf(HDR.FILE.stderr,'Warning SOPEN (EDF-Write): relative scaling error is %e (due to roundoff in PhysMax/Min)\n',max(abs(e)))
+                                end
                                 
                                 idx1=cumsum([0 H2idx]);
                                 idx2=HDR.NS*idx1;
@@ -7597,7 +7611,7 @@ elseif strncmp(HDR.TYPE,'FIF',3),
 
 elseif strcmp(HDR.TYPE,'ET-MEG'),
 	HDR = fltopen(HDR);	
-        
+
 
 elseif strcmp(HDR.TYPE,'ET-MEG:SQD'),
         if any(HDR.FILE.PERMISSION=='r'),
@@ -8337,6 +8351,37 @@ elseif strcmp(HDR.TYPE,'FEPI3'), 	% Freiburg epileptic seizure prediction Contes
 	end; 
 
 
+elseif strcmp(HDR.TYPE,'nakamura'),
+	% Nakamura data set
+	fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.chn']),'r');
+	s = char(fread(fid,[1,inf],'char')); 
+	fclose(fid);
+	[tmp1,tmp2,HDR.Label]=str2double(s); 
+	HDR.NS = length(HDR.Label); 
+	
+	fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.log']),'r');
+	s = char(fread(fid,[1,inf],'char')); 
+	fclose(fid);
+	[n,v,sa]=str2double(s); 
+	HDR.NRec = size(n,1); 
+	
+	fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dm6']),'r','ieee-le');
+	[s,count] = fread(fid,[1,inf],'float'); 
+	fclose(fid);
+	HDR.SPR  = count/(HDR.NS*HDR.NRec);
+	HDR.SampleRate = 200; 
+	HDR.data = reshape(permute(reshape(s(1:HDR.SPR*HDR.NS*HDR.NRec),[HDR.SPR,HDR.NS,HDR.NRec]),[1,3,2]),[HDR.SPR*HDR.NRec,HDR.NS]); 
+	HDR.FLAG.TRIGGERED = 1; 
+	HDR.TYPE = 'native'; 
+	HDR.FILE.POS = 0; 
+	HDR.EVENT.POS = [0:HDR.NRec-1]'*HDR.SPR+1; 
+	HDR.EVENT.TYP = n(:,11);
+	%%% ###FIXME###
+	HDR.PhysDimCode = 512+zeros(1,HDR.NS); % normalized, dimensionless
+	% HDR.PhysDim
+	% HDR.Calib
+
+
 elseif strcmp(HDR.TYPE,'BIFF'),
 	try, 
 		NEW_INTERFACE=1; 
@@ -8777,8 +8822,8 @@ end;
 
 % identify type of signal, complete header information
 if HDR.NS>0,
-        [HDR,scale] = physicalunits(HDR); % complete information n PhysDim, and PhysDimCode
-        HDR = leadidcodexyz(HDR); % complete information on  LeadIdCode and Electrode positions of EEG channels.
+        HDR = physicalunits(HDR); % complete information on PhysDim, and PhysDimCode
+        HDR = leadidcodexyz(HDR); % complete information on LeadIdCode and Electrode positions of EEG channels.
 
         if ~isfield(HDR,'Label')
                 HDR.Label = cellstr([repmat('#',HDR.NS,1),int2str([1:HDR.NS]')]);
