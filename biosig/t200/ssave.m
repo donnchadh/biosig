@@ -1,4 +1,4 @@
-function [HDR] = ssave(FILENAME,DATA,TYPE,Fs,bits)
+function [HDR] = ssave(FILENAME,DATA,TYPE,Fs,gdftyp)
 % SSAVE saves signal data in various data formats
 % 
 % Currently are the following data formats supported: 
@@ -16,7 +16,7 @@ function [HDR] = ssave(FILENAME,DATA,TYPE,Fs,bits)
 % see also: SSAVE, SOPEN, SWRITE, SCLOSE, doc/README
 %
 
-% $Id: ssave.m,v 1.4 2007-02-24 21:40:35 schloegl Exp $
+% $Id: ssave.m,v 1.5 2007-06-21 12:46:15 schloegl Exp $
 % Copyright (C) 2003,2004,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 % This file is part of the biosig project http://biosig.sf.net/
 
@@ -49,13 +49,31 @@ else
         HDR.FileName = FILENAME;
         HDR.TYPE = TYPE; 	% type of data format
         HDR.SampleRate = Fs; 
-   	[datatyp,limits,datatypes,HDR.bits,HDR.GDFTYP] = gdfdatatype(bits);
 end;
 
 if (nargin > 1),
 	[HDR.SPR, HDR.NS] = size(DATA);
-	
-	HDR = sopen(HDR,'wb');
+	if (strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF')) & (~isfield(HDR,'DigMax') | ~isfield(HDR,'DigMin') |~isfield(HDR,'PhysMax') | ~isfield(HDR,'PhysMin'))
+		HDR.PhysMax = max(DATA,[],1);
+		HDR.PhysMin = min(DATA,[],1);
+		ix = find(HDR.PhysMax == HDR.PhysMin);
+		HDR.PhysMin(ix) = HDR.PhysMin(ix) - 1;
+		if strcmp(HDR.TYPE,'BDF')
+		   	[datatyp,HDR.THRESHOLD,datatypes,HDR.bits,HDR.GDFTYP] = gdfdatatype(511+24*ones(HDR.NS,1));
+		   	HDR.DigMax = HDR.THRESHOLD(:,2)';
+		   	HDR.DigMin = HDR.THRESHOLD(:,1)';
+		elseif strcmp(HDR.TYPE,'EDF')
+		   	[datatyp,HDR.THRESHOLD,datatypes,HDR.bits,HDR.GDFTYP] = gdfdatatype(3*ones(HDR.NS,1));
+		   	HDR.DigMax = HDR.THRESHOLD(:,2)';
+		   	HDR.DigMin = HDR.THRESHOLD(:,1)';
+		elseif strcmp(HDR.TYPE,'GDF')
+		   	[datatyp,HDR.THRESHOLD,datatypes,HDR.bits,HDR.GDFTYP] = gdfdatatype(16*ones(HDR.NS,1));
+			HDR.DigMax = HDR.PhysMax;
+			HDR.DigMin = HDR.PhysMin;
+		end; 
+	end;    	
+
+	HDR = sopen(HDR,'w');
 	HDR = swrite(HDR,DATA);
 	HDR = sclose(HDR);
 end;
