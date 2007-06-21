@@ -4,7 +4,7 @@ function HDR=openeep(HDR,arg2,arg3,arg4,arg5,arg6)
 %
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
-%	$Id: openeep.m,v 1.1 2007-05-22 15:48:21 schloegl Exp $
+%	$Id: openeep.m,v 1.2 2007-06-21 13:38:55 schloegl Exp $
 %	Copyright (c) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -23,6 +23,7 @@ function HDR=openeep(HDR,arg2,arg3,arg4,arg5,arg6)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 if strcmp(HDR.TYPE,'EEProbe-CNT'),
+
        	HDR.FILE.FID = fopen(HDR.FileName,'rb');
 	H = openiff(HDR.FILE.FID);		
         
@@ -81,12 +82,15 @@ if strcmp(HDR.TYPE,'EEProbe-CNT'),
 			% decode data block
 			HDR.SPR = H.RIFF.CNT.LIST.raw3.ep(1);
 			HDR.NRec = length(H.RIFF.CNT.LIST.raw3.ep)-1;
+try
+	%%% ### FIXME ### %%%
+	%%% decoding of data block
+	%%% this is work in progress. 
 			HDR.EEP.epoch_length = H.RIFF.CNT.LIST.raw3.ep(1);
 			HDR.EEP.epoch_start  = [H.RIFF.CNT.LIST.raw3.ep(2:end),length(H.RIFF.CNT.LIST.raw3.data)];
-			n = [HDR.EEP.epoch_length,length(H.RIFF.CNT.LIST.raw3.chan)]
-dec2bin(double(HDR.RIFF.CNT.LIST.raw3.data(HDR.EEP.epoch_start(1:end-1)+1)),8)
+			n = [HDR.EEP.epoch_length,length(H.RIFF.CNT.LIST.raw3.chan)];
+%dec2bin(double(HDR.RIFF.CNT.LIST.raw3.data(HDR.EEP.epoch_start(1:end-1)+1)),8)
 			%n=n([2,1]);
-				
 			accu  = zeros(1,HDR.NS); 
 			for k = 1:HDR.NRec,
 				ix1 = HDR.EEP.epoch_start(k)+1;
@@ -96,7 +100,7 @@ dec2bin(double(HDR.RIFF.CNT.LIST.raw3.data(HDR.EEP.epoch_start(1:end-1)+1)),8)
 			for ch= 1:HDR.NS,
 				ix1 = ceil(ix1);	
 				byte1 = H.RIFF.CNT.LIST.raw3.data(HDR.EEP.epoch_start(k)+ix1);
-				meth  = double(bitshift(byte1,-4))
+				meth  = double(bitshift(byte1,-4));
 
 				if any(meth==[1:3])
 					nbits = bitand(bytes(1),15);
@@ -174,6 +178,7 @@ dec2bin(double(HDR.RIFF.CNT.LIST.raw3.data(HDR.EEP.epoch_start(1:end-1)+1)),8)
 						end;
 						y(k1)=a;
 					end; 
+					error('####');
 					fprintf(HDR.FILE.stderr,'Warning SOPEN(EEProbe): decompression method %i not implemented\n',meth);
 				elseif meth==0,
 					y = bytes(ix1+(1:2:HDR.SPR*2));
@@ -187,7 +192,8 @@ dec2bin(double(HDR.RIFF.CNT.LIST.raw3.data(HDR.EEP.epoch_start(1:end-1)+1)),8)
 					ix1 = ix1 + 1 + 4 * HDR.SPR;
 				else 
 					y = repmat(NaN,HDR.SPR,1);
-					fprintf(HDR.FILE.stderr,'ERROR SOPEN(EEProbe): decompression method %i not supported\n',double(meth));
+					%fprintf(HDR.FILE.stderr,'ERROR SOPEN(EEProbe): decompression method %i not supported\n',double(meth));
+					error(sprintf('EEProbe: decompression method %i not supported\n',double(meth))); 
 				end;
 				
 				if any(meth==[1,9]);
@@ -209,9 +215,11 @@ dec2bin(double(HDR.RIFF.CNT.LIST.raw3.data(HDR.EEP.epoch_start(1:end-1)+1)),8)
 				HDR.data(HDR.SPR*(k-1)+1:HDR.SPR*k,H.RIFF.CNT.LIST.raw3.chan(ch)+1) = y;
 			end;
 			end; 		
-						
-			%HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal); 
+			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal); 
+			HDR.TYPE = 'native'; 
+catch
 			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); % because SREAD uses READ_EEP_CNT.MEX 
+end; 			
                 end
         end
 	end;
