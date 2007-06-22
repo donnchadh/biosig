@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.60 2007-06-16 21:49:31 schloegl Exp $
+    $Id: biosig.c,v 1.61 2007-06-22 21:02:29 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -1055,7 +1055,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].HighPass= CNT_SETTINGS_HIGHPASS[(uint8_t)Header2[64+k*75]];
 		    	hdr->CHANNEL[k].LowPass	= CNT_SETTINGS_LOWPASS[(uint8_t)Header2[65+k*75]];
 		    	hdr->CHANNEL[k].Notch	= CNT_SETTINGS_NOTCH[(uint8_t)Header1[682]];
-			hdr->CHANNEL[k].OnOff    = 1;
+			hdr->CHANNEL[k].OnOff   = 1;
 		}
 	    	/* extract more header information */
 	    	// eventtablepos = l_endian_u32( *(uint32_t*) (Header1+886) );
@@ -1251,6 +1251,7 @@ else { // WRITE
 		     	memcpy(Header2+80*k + 16*hdr->NS,hdr->CHANNEL[k].Transducer,min(len,80));
 		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
 		     	len = strlen(tmp);
+fprintf(stdout,"#%02i: PhysDim=%s\n",k,tmp);		     	
 			if (len>8) fprintf(stderr,"Warning: Physical Dimension (%s) of channel %i is to long.\n",tmp,k);  
 		     	memcpy(Header2+ 8*k + 96*hdr->NS,tmp,min(len,8));
 	
@@ -1310,11 +1311,12 @@ else { // WRITE
 	// internal variables
 	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	hdr->AS.bi[0] = 0;
-	for (k=0, hdr->SPR = 1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;) {
+	for (k=0, hdr->SPR = 1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;k++) {
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
 		hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
 		hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
-		hdr->AS.bi[++k] = hdr->AS.bpb; 
+		hdr->AS.bi[k+1] = hdr->AS.bpb; 
+//fprintf(stdout,"-: %i %i %i\n",hdr->AS.bi[k],hdr->CHANNEL[k].GDFTYP,GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]);		
 	}	
 
 	return(hdr);
@@ -1388,12 +1390,8 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 		SZ  	= GDFTYP_BYTE[GDFTYP];
 		int32_value = 0; 
 
-
-
 		for (k4 = 0; k4 < count; k4++)
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
-
-
 
 			// get source address 	
 			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
@@ -1601,41 +1599,192 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 /* 
  *	writes NELEM blocks with HDR.AS.bpb BYTES each, 
  */
-	size_t count; 
+	size_t			count,k1,k2,k3,k4,k5,DIV,SZ; 
+	int 			GDFTYP;
+	CHANNEL_TYPE*		CHptr;
+	biosig_data_type 	sample_value; 
+	union {	
+		int8_t i8;
+		uint8_t u8;
+		int16_t i16;
+		uint16_t u16;
+		int32_t i32;
+		uint32_t u32;
+		int64_t i64;
+		uint64_t u64;
+	} val;
 
 
 //	fwrite(hdr->data.block, sizeof(biosig_data_type),hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
 
 	// write data 
+
+#ifdef FALSE
 	count = fwrite((uint8_t*)ptr, hdr->AS.bpb, nelem, hdr->FILE.FID);
 
+#else
 
-/*
-	for (k1=0,k2=0; k1<hdr->NS; k1++) {
+#define MAX_INT8   ((int8_t)0x7f)
+#define MIN_INT8   ((int8_t)0x80)
+#define MAX_UINT8  ((uint8_t)0xff)
+#define MIN_UINT8  ((uint8_t)0)
+#define MAX_INT16  ((int16_t)0x7fff)
+#define MIN_INT16  ((int16_t)0x8000)
+#define MAX_UINT16 ((uint16_t)0xffff)
+#define MIN_UINT16 ((uint16_t)0)
+#define MAX_INT24  ((int32_t)0x007fffff)
+#define MIN_INT24  ((int32_t)0xff800000)
+#define MAX_UINT24 ((uint32_t)0x00ffffff)
+#define MIN_UINT24 ((uint32_t)0)
+#define MAX_INT32  ((int32_t)0x7fffffff)
+#define MIN_INT32  ((int32_t)0x80000000)
+#define MAX_UINT32 ((uint32_t)0xffffffff)
+#define MIN_UINT32 ((uint32_t)0)
+#define MAX_INT64  (ldexp(1.0,63)-1.0)
+#define MIN_INT64  (-ldexp(1.0,63))
+#define MAX_UINT64 ((uint64_t)0xffffffffffffffff)
+#define MIN_UINT64 ((uint64_t)0)
+
+	hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata, hdr->AS.bpb*hdr->NRec);
+
+	for (k1=0, k2=0; k1<hdr->NS; k1++) {
+
 	CHptr 	= hdr->CHANNEL+k1;
 	if (CHptr->OnOff != 0) {
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BYTE[GDFTYP];
-		int32_value = 0; 
 
-		for (k4 = 0; k4 < count; k4++)
+		for (k4 = 0; k4 < hdr->NRec; k4++)
+		{
+//fprintf(stdout,"\n=4: %i %i %i %i %i %i %i %i\n",k1,k2,k4,hdr->AS.bpb,hdr->AS.bi[k1],hdr->AS.bi[k1+1],SZ,GDFTYP);
+
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
+
+//fprintf(stdout,"\n=5: %i %i %i 	\n",k1,k5,k4);
+
+			for (k3=0, sample_value=0; k3 < DIV; k3++) 
+				sample_value += hdr->data.block[k1*count*hdr->SPR + k4*CHptr->SPR + k5 + k3]; 
+
+			sample_value /= DIV;
+			 	
+//fprintf(stdout,"\n=6: %i %i %i %i\n",k1,k5,k4,sample_value);
+
+			if (!hdr->FLAG.UCAL)	// scaling 
+				sample_value = (sample_value - CHptr->Off) / CHptr->Cal;
 
 			// get source address 	
 			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
 			
+//fprintf(stdout,"=3: %6i %i %i %i %i %i %i %i %i %i\n",k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ,k1,k2,k3,k4,k5,hdr->NS,hdr->AS.bpb,k1*count*hdr->SPR + k4*CHptr->SPR + k5 + k3,k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ);
+
 			// mapping of raw data type to (biosig_data_type)
 			if (0); 
-			else if (GDFTYP==3)
-				sample_value = (biosig_data_type)l_endian_i16(*(int16_t*)ptr); 
-			else if (GDFTYP==4)
-			else ;
+
+			else if (GDFTYP==3) {
+				if      (sample_value > MAX_INT16) val.i16 = MAX_INT16;
+				else if (sample_value < MIN_INT16) val.i16 = MIN_INT16;
+				else     val.i16 = (int16_t) sample_value;
+				*(int16_t*)ptr = l_endian_i16(val.i16); 
+//	fprintf(stdout,"5+: %i %i\n",*(int16_t*)ptr,*((int16_t*)ptr+1));				
+			}
+
+			else if (GDFTYP==4) {
+				if      (sample_value > MAX_UINT16) val.u16 = MAX_UINT16;
+				else if (sample_value < MIN_UINT16) val.u16 = MIN_UINT16;
+				else     val.u16 = (uint16_t) sample_value;
+				*(uint16_t*)ptr = l_endian_u16(val.u16); 
+			}
+
+			else if (GDFTYP==16) 
+				*(float*)ptr  = l_endian_f32((float)sample_value); 
+
+			else if (GDFTYP==17) 
+				*(double*)ptr = l_endian_f64((double)sample_value);
+
+			else if (GDFTYP==0) {
+				if      (sample_value > MAX_INT8) val.i8 = MAX_INT8;
+				else if (sample_value < MIN_INT8) val.i8 = MIN_INT8;
+				else     val.i8 = (int8_t) sample_value;
+				*(int8_t*)ptr = val.i8; 
+			}
+			else if (GDFTYP==1) {
+				if      (sample_value > MAX_INT8) val.i8 = MAX_INT8;
+				else if (sample_value < MIN_INT8) val.i8 = MIN_INT8;
+				else     val.i8 = (int8_t) sample_value;
+				*(int8_t*)ptr = val.i8; 
+			}
+			else if (GDFTYP==2) {
+				if      (sample_value > MAX_UINT8) val.u8 = MAX_UINT8;
+				else if (sample_value < MIN_UINT8) val.u8 = MIN_UINT8;
+				else     val.u8 = (uint8_t) sample_value;
+				*(uint8_t*)ptr = val.u8; 
+			}
+			else if (GDFTYP==5) {
+				if      (sample_value > ldexp(1.0,31)-1) val.i32 = MAX_INT32;
+				else if (sample_value < ldexp(-1.0,31)) val.i32 = MIN_INT32;
+				else     val.i32 = (int32_t) sample_value;
+				*(int32_t*)ptr = l_endian_i32(val.i32); 
+
+//	fprintf(stdout,"5+: %i %i\n",*(int32_t*)ptr,*((int32_t*)ptr+1));				
+			}
+			else if (GDFTYP==6) {
+				if      (sample_value > ldexp(1.0,32)-1.0) val.u32 = MAX_UINT32;
+				else if (sample_value < 0.0) val.u32 = MIN_UINT32;
+				else     val.u32 = (uint32_t) sample_value;
+				*(uint32_t*)ptr = l_endian_u32(val.u32); 
+			}
+
+			else if (GDFTYP==7) {
+				if      (sample_value > ldexp(1.0,63)-1.0) val.i64 = MAX_INT64;
+				else if (sample_value < -ldexp(1.0,63)) val.i64 = MIN_INT64;
+				else     val.i64 = (int64_t) sample_value;
+				*(int64_t*)ptr = l_endian_i64(val.i64); 
+			}
+
+			else if (GDFTYP==8) {
+				if      (sample_value > ldexp(1.0,64)-1.0) val.u64 = (uint64_t)(-1);
+				else if (sample_value < 0.0) val.u64 = 0;
+				else     val.u64 = (uint64_t) sample_value;
+				*(uint64_t*)ptr = l_endian_u64(val.u64); 
+			}
+
+			else if (GDFTYP==255+24) {
+				if      (sample_value > MAX_INT24) val.i32 = MAX_INT24;
+				else if (sample_value < MIN_INT24) val.i32 = MIN_INT24;
+				else     val.i32 = (int32_t) sample_value;
+				*(uint8_t*)ptr = (uint8_t)(val.i32 & 0x000000ff); 
+				*((uint8_t*)ptr+1) = (uint8_t)((val.i32>>8) & 0x000000ff); 
+				*((uint8_t*)ptr+2) = (uint8_t)((val.i32>>16) & 0x000000ff); 
+			}	
+
+			else if (GDFTYP==511+24) {
+				if      (sample_value > MAX_UINT24) val.i32 = MAX_UINT24;
+				else if (sample_value < MIN_UINT24) val.i32 = MIN_UINT24;
+				else     val.i32 = (int32_t) sample_value;
+				*(uint8_t*)ptr     =  val.i32 & 0x000000ff; 
+				*((uint8_t*)ptr+1) = (uint8_t)((val.i32>>8) & 0x000000ff); 
+				*((uint8_t*)ptr+2) = (uint8_t)((val.i32>>16) & 0x000000ff); 
+			}
+
+			else {
+				fprintf(stderr,"Error SWRITE: datatype %i not supported\n", GDFTYP);
+				exit(-1);
+			}
 		}
 		}
 	}
 	}	
-*/
+
+fprintf(stdout,"=: %i %i %i \n",hdr->AS.bpb, hdr->NRec, GDFTYP);
+for (int k=0;k<hdr->NS;k++)
+fprintf(stdout," %5i %4i %4i %4i %4i \n",k,*(hdr->AS.rawdata+k*5000),*(hdr->AS.rawdata+k*5001),*(hdr->AS.rawdata+k*5002),*(hdr->AS.rawdata+k*5003));
+
+	count = fwrite((uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb, hdr->NRec, hdr->FILE.FID);
+
+#endif
+
+fprintf(stdout,"===222--------\n");
 	
 	// set position of file handle 
 	(hdr->FILE.POS) += count; 
