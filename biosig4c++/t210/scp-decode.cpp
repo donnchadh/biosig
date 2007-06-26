@@ -1,4 +1,8 @@
 /*
+    $Id: scp-decode.cpp,v 1.4 2007-06-26 18:07:05 schloegl Exp $
+    This function is part of the "BioSig for C/C++" repository 
+    (biosig4c++) at http://biosig.sf.net/ 
+
 ---------------------------------------------------------------------------
 Copyright (C) 2006  Eugenio Cervesato.
 Developed at the Associazione per la Ricerca in Cardiologia - Pordenone - Italy,
@@ -81,33 +85,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // Insert by FeC
 #if defined(__CYGWIN__)
 #define COMPAT
-#include <stdio.h>
-void ultoa(unsigned int x, char *s, int base)
-{
-	if (base==10) sprintf(s, "%u", x);         // by E.C. 08.02.2006. Only for base=10.
-        else  sprintf(s, "%s", "err");             // uses standard call
-}
 #elif defined(WIN32)
 #define COMPAT
 // Insert by SS
 #elif defined(__FreeBSD__)
 #define COMPAT
-#include <sstream>
-#include <iomanip>
-void ultoa(unsigned int x, char *s, int base)
-{
-	std::ostringstream ss;
-	ss << std::setbase(base) << x;
-        strcpy(s, ss.str().c_str());
-}
 #else
 #define COMPAT .__pos
 #include <stdio.h>
-void ultoa(unsigned int x, char *s, int base)
-{
-	if (base==10) sprintf(s, "%u", x);         // by E.C. 08.02.2006. Only for base=10.
-        else  sprintf(s, "%s", "err");             // uses standard call
-}
 #endif
 
 //______________________________________________________________________________
@@ -1017,10 +1002,8 @@ void section_1_5(demographic &ana)
 	ReadByte(a);
 	ReadByte(m);
 	ReadByte(g);
-	ultoa(g,data,10);
-	strcat(data,_month[m].sentence);
-	ultoa(a,temp,10);
-	strcat(data,temp);
+
+	sprintf(data,"%u%s%u",g,_month[m].sentence,a);
 	num=strlen(data);
 	if(num!=0 && (ana.date_birth=(char*)mymalloc(num+1))==NULL)
 	{
@@ -1453,10 +1436,8 @@ void section_1_25(device &dev)
 	ReadByte(a);
 	ReadByte(m);
 	ReadByte(g);
-	ultoa(g,data,10);
-	strcat(data,_month[m].sentence);
-	ultoa(a,temp,10);
-	strcat(data,temp);
+	
+	sprintf(data,"%u%s%u",g,_month[m].sentence,a);
 	num=strlen(data);                                               // by E.C. may 2004
 	if(num!=0 && (dev.date_acquisition=(char*)mymalloc(num+1))==NULL)
 	{
@@ -1488,13 +1469,8 @@ void section_1_26(device &dev)
 	ReadByte(h);
 	ReadByte(m);
 	ReadByte(s);
-	ultoa(h,hour,10);
-	strcat(hour,":");
-	ultoa(m,temp,10);
-	strcat(hour,temp);
-	strcat(hour,":");
-	ultoa(s,temp,10);
-	strcat(hour,temp);
+	
+	sprintf(hour,"%u:%u:%u",h,m,s);
 	num=strlen(hour);                                               // by E.C. may 2004
 	if(num!=0 && (dev.time_acquisition=(char*)mymalloc(num+1))==NULL)
 	{
@@ -2162,10 +2138,8 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 	ReadByte(a);
 	ReadByte(m);
 	ReadByte(g);
-	ultoa(g,dates,10);
-	strcat(dates,_month[m].sentence);
-	ultoa(a,temp,10);
-	strcat(dates,temp);
+	
+	sprintf(dates,"%u%s%u",g,_month[m].sentence,a);
 	num=strlen(dates);                                          // by E.C. may 2004
 	if(num!=0 && (data.flag_report.date=(char*)mymalloc(num+1))==NULL)
 	{
@@ -2176,13 +2150,8 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 	ReadByte(h);
 	ReadByte(m);
 	ReadByte(s);
-	ultoa(h,hour,10);
-	strcat(hour,":");
-	ultoa(m,temp,10);
-	strcat(hour,temp);
-	strcat(hour,":");
-	ultoa(s,temp,10);
-	strcat(hour,temp);
+	
+	sprintf(hour,"%u:%u:%u",h,m,s);
 	num=strlen(hour);                                              // by E.C. may 2004
 	if(num!=0 && (data.flag_report.time=(char*)mymalloc(num+1))==NULL)
 	{
@@ -2389,10 +2358,8 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 	ReadByte(a);
 	ReadByte(m);
 	ReadByte(g);
-	ultoa(g,dates,10);
-	strcat(dates,_month[m].sentence);
-	ultoa(a,temp,10);
-	strcat(dates,temp);
+	
+	sprintf(dates,"%u%s%u",g,_month[m].sentence,a);
 	num=strlen(dates);                                      // by E.C. may 2004
 	if(num!=0 && (data.flag_statement.date=(char*)mymalloc(num+1))==NULL)
 	{
@@ -2403,13 +2370,8 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 	ReadByte(h);
 	ReadByte(m);
 	ReadByte(s);
-	ultoa(h,hour,10);
-	strcat(hour,":");
-	ultoa(m,temp,10);
-	strcat(hour,temp);
-	strcat(hour,":");
-	ultoa(s,temp,10);
-	strcat(hour,temp);
+	
+	sprintf(hour,"%u:%u:%u",h,m,s);	
 	num=strlen(hour);                                           // by E.C. may 2004
 	if(num!=0 && (data.flag_statement.time=(char*)mymalloc(num+1))==NULL)
 	{
