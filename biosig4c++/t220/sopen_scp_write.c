@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.15 2007-06-26 20:46:16 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.16 2007-06-26 20:47:59 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -459,7 +459,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 				// check whether all channels have the same scaling factor
 				avm = hdr->CHANNEL[i].Cal*1e9*PhysDimScale(hdr->CHANNEL[i].PhysDimCode);
 				if (abs((AVM - avm)/AVM)>1e-14)
-					fprintf(stderr,"Warning SOPEN (SCP-WRITE): scaling factors differ between channels. Scaling factor of 1st channel is used %e.\n",avm2);
+					fprintf(stderr,"Warning SOPEN (SCP-WRITE): scaling factors differ between channels. Scaling factor of 1st channel is used.\n");
 			};	
 			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)AVM);
 			curSectLen += 2;
