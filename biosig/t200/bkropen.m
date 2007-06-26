@@ -5,7 +5,7 @@ function [BKR,s]=bkropen(arg1,arg3,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Id: bkropen.m,v 1.34 2006-12-28 15:23:39 schloegl Exp $
+%	$Id: bkropen.m,v 1.35 2007-06-26 09:26:13 schloegl Exp $
 %	Copyright (c) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -66,8 +66,8 @@ if any(BKR.FILE.PERMISSION=='r'),
 	BKR.SPR         = fread(fid,1,'uint32');	%	4 Byte	10	Anzahl Samples per Trial
 	BKR.PhysMax     = fread(fid,1,'ushort');	%	2 Byte	14	Kalibrierspannung	
 	BKR.DigMax      = fread(fid,1,'ushort');	%	2 Byte	16	Kalibrierwert
-	BKR.Label       = fread(fid,4,'char');	        %	4 Byte	18	Elektrodencode
-	BKR.Label       = char(BKR.Label)';
+	Label           = fread(fid,[1,4],'char');	%	4 Byte	18	Elektrodencode
+	BKR.Label 	= repmat({char(Label)},BKR.NS,1); 
 	BKR.Filter.LowPass      = fread(fid,1, FLOAT);	%	4 Byte	22	untere Eckfrequenz
 	BKR.Filter.HighPass     = fread(fid,1, FLOAT);	%	4 Byte	26	obere Eckfrequenz
 	BKR.BKR.sref=fread(fid,1, ULONG);	%	4 Byte	30	Startzeitpunkt Referenz in Samples
