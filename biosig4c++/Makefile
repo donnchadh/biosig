@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.13 2007-06-15 15:22:22 schloegl Exp $
+###  $Id: Makefile,v 1.14 2007-06-26 23:59:58 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -95,15 +95,33 @@ clean:
 
 test: PFE103.scp save2gdf
 	./save2gdf -f=GDF PFE103.scp t1.gdf
+	./save2gdf -f=EDF PFE103.scp t1.edf
+	./save2gdf -f=EDF PFE103.scp t1.bdf
 	./save2gdf -f=SCP PFE103.scp t1.scp
 	./save2gdf -f=HL7 PFE103.scp t1.hl7
 	./save2gdf -f=GDF t1.gdf t1.gdf.gdf
+	./save2gdf -f=EDF t1.gdf t1.gdf.edf
+	./save2gdf -f=BDF t1.gdf t1.gdf.bdf
 	./save2gdf -f=SCP t1.gdf t1.gdf.scp
 	./save2gdf -f=HL7 t1.gdf t1.gdf.hl7
+	./save2gdf -f=GDF t1.edf t1.edf.gdf
+	./save2gdf -f=EDF t1.edf t1.edf.edf
+	./save2gdf -f=BDF t1.edf t1.edf.bdf
+	./save2gdf -f=SCP t1.edf t1.edf.scp
+	./save2gdf -f=HL7 t1.edf t1.edf.hl7
+	./save2gdf -f=GDF t1.bdf t1.bdf.gdf
+	./save2gdf -f=EDF t1.bdf t1.bdf.edf
+	./save2gdf -f=BDF t1.bdf t1.bdf.bdf
+	./save2gdf -f=SCP t1.bdf t1.bdf.scp
+	./save2gdf -f=HL7 t1.bdf t1.bdf.hl7
 	./save2gdf -f=GDF t1.scp t1.scp.gdf
+	./save2gdf -f=EDF t1.scp t1.scp.edf
+	./save2gdf -f=BDF t1.scp t1.scp.bdf
 	./save2gdf -f=SCP t1.scp t1.scp.scp
 	./save2gdf -f=HL7 t1.scp t1.scp.hl7
 	./save2gdf -f=GDF t1.hl7 t1.hl7.gdf
+	./save2gdf -f=EDF t1.hl7 t1.hl7.edf
+	./save2gdf -f=BDF t1.hl7 t1.hl7.bdf
 	./save2gdf -f=SCP t1.hl7 t1.hl7.scp
 	./save2gdf -f=HL7 t1.hl7 t1.hl7.hl7
 
