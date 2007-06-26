@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.14 2007-05-24 09:29:25 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.15 2007-06-26 20:46:16 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -455,9 +455,11 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			// check for physical dimension and adjust scaling factor to "nV"
 			AVM = hdr->CHANNEL[0].Cal*1e9*PhysDimScale(hdr->CHANNEL[0].PhysDimCode);
 			for (i = 1; i < hdr->NS; i++) {
+				double avm; 
 				// check whether all channels have the same scaling factor
-				if (AVM != hdr->CHANNEL[i].Cal*1e9*PhysDimScale(hdr->CHANNEL[i].PhysDimCode))
-					fprintf(stderr,"Warning SOPEN (SCP-WRITE): scaling factors differ between channels. Scaling factor of 1st channel is used.\n");
+				avm = hdr->CHANNEL[i].Cal*1e9*PhysDimScale(hdr->CHANNEL[i].PhysDimCode);
+				if (abs((AVM - avm)/AVM)>1e-14)
+					fprintf(stderr,"Warning SOPEN (SCP-WRITE): scaling factors differ between channels. Scaling factor of 1st channel is used %e.\n",avm2);
 			};	
 			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)AVM);
 			curSectLen += 2;
@@ -491,7 +493,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			// Fill the data block with the ECG samples
 			ptr16 = (uint16_t*)(ptr+sectionStart+curSectLen);
 			for (i = 0; i < (hdr->data.size[0]*hdr->data.size[1]); i++) {
-				*(ptr16+i) = l_endian_u16((uint16_t)(hdr->data.block[i]));
+				*(ptr16+i) = l_endian_u16((int16_t)(hdr->data.block[i]));
 				curSectLen += 2;
 				/* ##FIXME## this is a hack 
 					it would be best if this could be done within functions SWRITE (not defined yet)
