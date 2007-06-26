@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.61 2007-06-22 21:02:29 schloegl Exp $
+    $Id: biosig.c,v 1.62 2007-06-26 23:50:48 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -36,6 +36,7 @@
 	
 */
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -196,7 +197,7 @@ double l_endian_f64(double x)
  Table A.4.1: Table of Decimal Factors	const double scale[32] =
 */
 
-char* PhysDimTable[4096];   
+char* PhysDimTable[2048];   
 void InitPhysDimTable()
 {
 	/* 
@@ -216,7 +217,7 @@ void InitPhysDimTable()
 	char *line, *tok1, *tok2;
 	int k; 	
 
-	for (k=0; k<4096; PhysDimTable[k++]="\0");
+	for (k=0; k<2048; PhysDimTable[k++]="\0");
 	fid = fopen("units.csv","r");
 	if (fid==NULL)
 		fprintf(stderr,"Error: units.csv file not found.\n");	
@@ -292,14 +293,15 @@ uint16_t PhysDimCode(char* PhysDim0)
 	
 	uint16_t Code, k1, k2;
 	char s[80];
-	
+
 	// greedy search - check all codes 0..65535
 	for (k1=0; k1<32;   k1++)
 	if (PhysDimScale(k1)>0.0)  // exclude NaN
-	for (k2=0; k2<4096; k2++)
+	for (k2=0; k2<2048; k2++)
 	{
-		Code = k2<<5+k1;
-		if (strcmp(PhysDim0, PhysDim(Code,s))) return(Code); 
+		Code = (k2<<5) + k1;
+		PhysDim(Code,s);
+		if (!strcmp(PhysDim0, s)) return(Code); 
 	}
 	return(0);
 }
@@ -397,7 +399,6 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	      	hdr->CHANNEL[k].Label     = "";
 	      	hdr->CHANNEL[k].LeadIdCode= 0;
 	      	hdr->CHANNEL[k].Transducer= "EEG: Ag-AgCl electrodes";
-	      	hdr->CHANNEL[k].PhysDim   = "uV";	// ### OBSOLETE ###
 	      	hdr->CHANNEL[k].PhysDimCode = 19+4256; // uV
 	      	hdr->CHANNEL[k].PhysMax   = +100;
 	      	hdr->CHANNEL[k].PhysMin   = -100;
@@ -665,10 +666,13 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 			hdr->CHANNEL[k].SPR     = l_endian_u32( *(uint32_t*) (Header2+ 4*k + 216*hdr->NS) );
 			hdr->CHANNEL[k].GDFTYP  = l_endian_u16( *(uint16_t*) (Header2+ 4*k + 220*hdr->NS) );
 			if (hdr->VERSION < 1.90) {
-				strncpy(tmp, Header2 + 96*hdr->NS + 8*k, 8);
-				hdr->CHANNEL[k].PhysDimCode = PhysDimCode(tmp);
+				strncpy(hdr->CHANNEL[k].PhysDim, Header2 + 8*k + 96*hdr->NS,8);
+				hdr->CHANNEL[k].PhysDim[8] = 0; // remove trailing blanks
+				for (int k1=7; (k1>0) & !isalnum(hdr->CHANNEL[k].PhysDim[k1]); k1--)
+					hdr->CHANNEL[k].PhysDim[k1] = 0;
+
+				hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
 				/*
-				hdr->CHANNEL[k].PhysDim = (Header2 + 96*hdr->NS + 8*k);  // ### OBSOLETE ###
 				/ ###FIXME###
 				hdr->CHANNEL[k].PreFilt = (hdr->Header2+ 68*k + 136*hdr->NS);
 				*/
@@ -678,8 +682,7 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 			}	
 			else {
 				hdr->CHANNEL[k].PhysDimCode = l_endian_u16( *(uint16_t*)(Header2+ 2*k + 102*hdr->NS) );
-				// ###FIXME### 
-				// hdr->CHANNEL[k].PhysDim  = PhysDim(hdr->CHANNEL[k].PhysDimCode,hdr->CHANNEL[k].PhysDim);
+				PhysDim(hdr->CHANNEL[k].PhysDimCode,hdr->CHANNEL[k].PhysDim);
 
 				hdr->CHANNEL[k].DigMin   = l_endian_f64( *(double*)(Header2+ 8*k + 120*hdr->NS) );
 				hdr->CHANNEL[k].DigMax   = l_endian_f64( *(double*)(Header2+ 8*k + 128*hdr->NS) );
@@ -795,8 +798,12 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 			hdr->CHANNEL[k].PhysDim[7]=0; //hack
 			*/
 			// PhysDim -> PhysDimCode belongs here 
-			strncpy(tmp,Header2 + 8*k + 96*hdr->NS,8);
-			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(tmp);
+			strncpy(hdr->CHANNEL[k].PhysDim,Header2 + 8*k + 96*hdr->NS,8);
+			hdr->CHANNEL[k].PhysDim[8] = 0; // remove trailing blanks
+			for (int k1=7; (k1>0) & !isalnum(hdr->CHANNEL[k].PhysDim[k1]); k1--)
+				hdr->CHANNEL[k].PhysDim[k1] = 0;
+
+			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
 			
 			hdr->CHANNEL[k].PhysMin = atof(strncpy(tmp,Header2 + 8*k + 104*hdr->NS,8)); 
 			hdr->CHANNEL[k].PhysMax = atof(strncpy(tmp,Header2 + 8*k + 112*hdr->NS,8)); 
@@ -872,10 +879,11 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 			hdr->CHANNEL[k].Label[39]   = 0;  
 			strncpy(tmp,Header1+POS+68,20);
 			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(tmp);
-			// PhysDim is OBSOLETE  
+			/* PhysDim is OBSOLETE  
 			hdr->CHANNEL[k].PhysDim = (char*)(Header1+POS+68);
 			hdr->CHANNEL[k].PhysDim[19] = 0;
-			
+			*/
+			//strncpy(hdr->CHANNEL[k].PhysDim,(char*)(Header1+POS+68),20);
 			hdr->CHANNEL[k].Off     = l_endian_f64(*(double*)(Header1+POS+52));
 			hdr->CHANNEL[k].Cal     = l_endian_f64(*(double*)(Header1+POS+60));
 
@@ -1003,7 +1011,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].GDFTYP 	= CFWB_GDFTYP[l_endian_u32(*(uint32_t*)(Header1+64))-1];
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	hdr->CHANNEL[k].Label	= Header2+k*96;
-		    	hdr->CHANNEL[k].PhysDim	= Header2+k*96+32;  // OBSOLETE
+		    	//hdr->CHANNEL[k].PhysDim	= Header2+k*96+32;  // OBSOLETE
+		    	//strncpy(hdr->CHANNEL[k].PhysDim,Header2+k*96+32,16);
 			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(Header2+k*96+32);
 		    	hdr->CHANNEL[k].Cal	= l_endian_f64(*(double*)(Header2+k*96+64));
 		    	hdr->CHANNEL[k].Off	= l_endian_f64(*(double*)(Header2+k*96+72));
@@ -1047,8 +1056,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].GDFTYP 	= 3;
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	hdr->CHANNEL[k].Label	= Header2+k*75;
-		    	hdr->CHANNEL[k].PhysDim	= "uV";	// OBSOLETE
-		    	hdr->CHANNEL[k].PhysDimCode = 4256+19;
+		    	//hdr->CHANNEL[k].PhysDim	= "uV";	// OBSOLETE
+		    	//strcpy(hdr->CHANNEL[k].PhysDim,"uV");
+			hdr->CHANNEL[k].PhysDimCode = 4256+19;
 		    	hdr->CHANNEL[k].Cal	= l_endian_f32(*(float*)(Header2+k*75+59));
 		    	hdr->CHANNEL[k].Cal    *= l_endian_f32(*(float*)(Header2+k*75+71))/204.8;
 		    	hdr->CHANNEL[k].Off	= l_endian_f32(*(float*)(Header2+k*75+47)) * hdr->CHANNEL[k].Cal;
@@ -1071,9 +1081,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	uint16_t crc 	= CRCEvaluate(hdr->AS.Header1+2,hdr->HeadLen-2);
 
 	    	if ( l_endian_u16(*(uint16_t*)hdr->AS.Header1) != crc)
-	    	{
 	    		fprintf(stderr,"Warning SOPEN(SCP-READ): Bad CRC %x %x !\n",crc,*(uint16_t*)(hdr->AS.Header1));
-	    	}
+
 		hdr = sopen_SCP_read(hdr);
 
 		for (k=0; k<hdr->NS; k++) {	
@@ -1092,9 +1101,24 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		fprintf(stdout,"unknown file format %s \n",hdr->FileName);
 	}
 	hdr->AS.Header1 = (uint8_t*)Header1; 
+	for (k=0; k<hdr->NS; k++) {	
+		// set HDR.PhysDim
+		k1 = hdr->CHANNEL[k].PhysDimCode;
+		if (k1>0)
+			PhysDim(k1,hdr->CHANNEL[k].PhysDim);
+		else 
+			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
+		fprintf(stdout,"--- %i %s\n",hdr->CHANNEL[k].PhysDimCode,hdr->CHANNEL[k].PhysDim);
+	}    	
 	
 }
 else { // WRITE
+
+	for (k=0; k<hdr->NS; k++) {	
+		// set HDR.PhysDim
+		k1 = hdr->CHANNEL[k].PhysDimCode;
+		if (k1>0) PhysDim(k1,hdr->CHANNEL[k].PhysDim);
+	}    	
 
     	if (hdr->TYPE==GDF) {	
 	     	hdr->HeadLen = (hdr->NS+1)*256;
@@ -1151,7 +1175,7 @@ else { // WRITE
 	     	this requires checking the arguments in the fields of the struct HDR.CHANNEL
 	     	and filling in the bytes in HDR.Header2. 
 	     	*/
-		for (k=0;k<hdr->NS;k++)
+		for (k=0; k<hdr->NS; k++)
 		{
 		     	len = strlen(hdr->CHANNEL[k].Label);
 		     	memcpy(Header2+16*k,hdr->CHANNEL[k].Label,min(len,16));
@@ -1160,10 +1184,11 @@ else { // WRITE
 		     	memcpy(Header2+80*k + 16*hdr->NS, hdr->CHANNEL[k].Transducer, min(len,80));
 		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
 		     	len = strlen(tmp);
+
 		     	if (hdr->VERSION<1.9)
-		     		memcpy(Header2+ 8*k + 96*hdr->NS, tmp, min(len,8));
+		     		memcpy(Header2+ 8*k + 96*hdr->NS, tmp, 8);
 		     	else {
-		     		memcpy(Header2+ 6*k + 96*hdr->NS, tmp, min(len,6));
+		     		memcpy(Header2+ 6*k + 96*hdr->NS, tmp, 6);
 		     		*(uint16_t*)(Header2+ 2*k + 102*hdr->NS) = l_endian_u16(hdr->CHANNEL[k].PhysDimCode);
 			};
 
@@ -1251,8 +1276,7 @@ else { // WRITE
 		     	memcpy(Header2+80*k + 16*hdr->NS,hdr->CHANNEL[k].Transducer,min(len,80));
 		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
 		     	len = strlen(tmp);
-fprintf(stdout,"#%02i: PhysDim=%s\n",k,tmp);		     	
-			if (len>8) fprintf(stderr,"Warning: Physical Dimension (%s) of channel %i is to long.\n",tmp,k);  
+		     	if (len>8) fprintf(stderr,"Warning: Physical Dimension (%s) of channel %i is to long.\n",tmp,k);  
 		     	memcpy(Header2+ 8*k + 96*hdr->NS,tmp,min(len,8));
 	
 			len = sprintf(tmp,"%f",hdr->CHANNEL[k].PhysMin);
@@ -1614,15 +1638,7 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 		uint64_t u64;
 	} val;
 
-
-//	fwrite(hdr->data.block, sizeof(biosig_data_type),hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
-
 	// write data 
-
-#ifdef FALSE
-	count = fwrite((uint8_t*)ptr, hdr->AS.bpb, nelem, hdr->FILE.FID);
-
-#else
 
 #define MAX_INT8   ((int8_t)0x7f)
 #define MIN_INT8   ((int8_t)0x80)
@@ -1640,8 +1656,8 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 #define MIN_INT32  ((int32_t)0x80000000)
 #define MAX_UINT32 ((uint32_t)0xffffffff)
 #define MIN_UINT32 ((uint32_t)0)
-#define MAX_INT64  (ldexp(1.0,63)-1.0)
-#define MIN_INT64  (-ldexp(1.0,63))
+#define MAX_INT64  ((uint64_t)(ldexp(1.0,63)-1.0))
+#define MIN_INT64  ((int64_t)(-ldexp(1.0,63)))
 #define MAX_UINT64 ((uint64_t)0xffffffffffffffff)
 #define MIN_UINT64 ((uint64_t)0)
 
@@ -1655,29 +1671,20 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BYTE[GDFTYP];
 
-		for (k4 = 0; k4 < hdr->NRec; k4++)
-		{
-//fprintf(stdout,"\n=4: %i %i %i %i %i %i %i %i\n",k1,k2,k4,hdr->AS.bpb,hdr->AS.bi[k1],hdr->AS.bi[k1+1],SZ,GDFTYP);
-
+		for (k4 = 0; k4 < hdr->NRec; k4++) {
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
-
-//fprintf(stdout,"\n=5: %i %i %i 	\n",k1,k5,k4);
 
 			for (k3=0, sample_value=0; k3 < DIV; k3++) 
 				sample_value += hdr->data.block[k1*count*hdr->SPR + k4*CHptr->SPR + k5 + k3]; 
 
 			sample_value /= DIV;
 			 	
-//fprintf(stdout,"\n=6: %i %i %i %i\n",k1,k5,k4,sample_value);
-
 			if (!hdr->FLAG.UCAL)	// scaling 
 				sample_value = (sample_value - CHptr->Off) / CHptr->Cal;
 
 			// get source address 	
 			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
 			
-//fprintf(stdout,"=3: %6i %i %i %i %i %i %i %i %i %i\n",k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ,k1,k2,k3,k4,k5,hdr->NS,hdr->AS.bpb,k1*count*hdr->SPR + k4*CHptr->SPR + k5 + k3,k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ);
-
 			// mapping of raw data type to (biosig_data_type)
 			if (0); 
 
@@ -1686,7 +1693,6 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 				else if (sample_value < MIN_INT16) val.i16 = MIN_INT16;
 				else     val.i16 = (int16_t) sample_value;
 				*(int16_t*)ptr = l_endian_i16(val.i16); 
-//	fprintf(stdout,"5+: %i %i\n",*(int16_t*)ptr,*((int16_t*)ptr+1));				
 			}
 
 			else if (GDFTYP==4) {
@@ -1725,8 +1731,6 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 				else if (sample_value < ldexp(-1.0,31)) val.i32 = MIN_INT32;
 				else     val.i32 = (int32_t) sample_value;
 				*(int32_t*)ptr = l_endian_i32(val.i32); 
-
-//	fprintf(stdout,"5+: %i %i\n",*(int32_t*)ptr,*((int32_t*)ptr+1));				
 			}
 			else if (GDFTYP==6) {
 				if      (sample_value > ldexp(1.0,32)-1.0) val.u32 = MAX_UINT32;
@@ -1736,9 +1740,12 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 			}
 
 			else if (GDFTYP==7) {
-				if      (sample_value > ldexp(1.0,63)-1.0) val.i64 = MAX_INT64;
-				else if (sample_value < -ldexp(1.0,63)) val.i64 = MIN_INT64;
-				else     val.i64 = (int64_t) sample_value;
+				if      (sample_value > ldexp(1.0,63)-1.0) 
+					val.i64 = MAX_INT64;
+				else if (sample_value < -ldexp(1.0,63)) 
+					val.i64 = MIN_INT64;
+				else     
+					val.i64 = (int64_t) sample_value;
 				*(int64_t*)ptr = l_endian_i64(val.i64); 
 			}
 
@@ -1776,16 +1783,8 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 	}
 	}	
 
-fprintf(stdout,"=: %i %i %i \n",hdr->AS.bpb, hdr->NRec, GDFTYP);
-for (int k=0;k<hdr->NS;k++)
-fprintf(stdout," %5i %4i %4i %4i %4i \n",k,*(hdr->AS.rawdata+k*5000),*(hdr->AS.rawdata+k*5001),*(hdr->AS.rawdata+k*5002),*(hdr->AS.rawdata+k*5003));
-
 	count = fwrite((uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb, hdr->NRec, hdr->FILE.FID);
 
-#endif
-
-fprintf(stdout,"===222--------\n");
-	
 	// set position of file handle 
 	(hdr->FILE.POS) += count; 
 
