@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.39 2007-05-24 09:24:17 schloegl Exp $
+% $Id: biosig.h,v 1.40 2007-06-27 08:16:48 schloegl Exp $
 % Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -127,7 +127,10 @@ enum FileFormat {unknown, ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF,
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 typedef double	 		biosig_data_type;
 
-
+extern const char *LEAD_ID_TABLE[];
+char* PhysDim(uint16_t PhysDimCode, char *PhysDim);
+uint16_t PhysDimCode(char* PhysDim0);
+ 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	Conversion of time formats between Unix and GDF format.
 
@@ -170,7 +173,7 @@ typedef struct {
 	char* 		Label;		// Label of channel 
 	uint16_t	LeadIdCode;	// Lead identification code 
 	char* 		Transducer;	// transducer e.g. EEG: Ag-AgCl electrodes
-	char* 		PhysDim;	// physical dimension
+	char 		PhysDim[21];	// physical dimension
 	uint16_t	PhysDimCode;	// code for physical dimension
 	//char* 	PreFilt;	// pre-filtering
 
