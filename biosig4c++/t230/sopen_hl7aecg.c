@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.2 2007-06-18 07:54:21 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.3 2007-06-27 09:13:09 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -35,9 +35,6 @@
 #include "../XMLParser/tinyxml.h"
 #include "../XMLParser/Tokenizer.h"
 
-
-extern const char *LEAD_ID_TABLE[];  // 
-
 HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful.
@@ -49,7 +46,9 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 	Output: 
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
 */
+	char tmp[80]; 
 	TiXmlDocument doc(hdr->FileName);
+
 	if(doc.LoadFile()){
 	    TiXmlHandle hDoc(&doc);
 	    TiXmlHandle aECG = hDoc.FirstChild("AnnotatedECG");
@@ -192,10 +191,10 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		    	hdr->CHANNEL[i].PhysMax = hdr->CHANNEL[i].DigMax*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
 		    	hdr->CHANNEL[i].PhysMin = hdr->CHANNEL[i].DigMin*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
 		    }
-		    
-		    hdr->CHANNEL[i].PhysDim = "uV";           //Hardcoded
-		    hdr->CHANNEL[i].PhysDimCode = 4256+19;    //Hardcoded
-
+		    /* Physical units */ 
+		    strncpy(tmp, channel.FirstChild("value").FirstChild("origin").Element()->Attribute("unit"),20);
+ 		    hdr->CHANNEL[i].PhysDimCode = PhysDimCode(tmp);
+ 		    
 		    hdr->CHANNEL[i].LowPass  = LowPass;
 		    hdr->CHANNEL[i].HighPass = HighPass;
 		    hdr->CHANNEL[i].Notch    = Notch;
@@ -210,7 +209,7 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		}
 		hdr->SampleRate *= hdr->SPR;
 		hdr->SampleRate = hdr->SPR/hdr->SampleRate;
-		
+
 		hdr->FLAG.OVERFLOWDETECTION = 0;
 	    }else{
 		fprintf(stderr, "%s : failed to parse\n", hdr->FileName);
@@ -525,14 +524,17 @@ HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr){
 	sequenceValue->SetAttribute("xsi:type", "SLIST_PQ");
 	sequence->LinkEndChild(sequenceValue);
 
+	// store physical unit in tmp 
+	PhysDim(hdr->CHANNEL[i].PhysDimCode,tmp); 
+
 	valueHead = new TiXmlElement("origin");
-	valueHead->SetDoubleAttribute("value", hdr->CHANNEL[i].Off*PhysDimScale(hdr->CHANNEL[i].PhysDimCode)*1e6);
-	valueHead->SetAttribute("unit", "uV");
+	valueHead->SetDoubleAttribute("value", hdr->CHANNEL[i].Off);
+	valueHead->SetAttribute("unit", tmp);
 	sequenceValue->LinkEndChild(valueHead);
 
 	valueIncrement = new TiXmlElement("scale");
-	valueIncrement->SetDoubleAttribute("value", hdr->CHANNEL[i].Cal*PhysDimScale(hdr->CHANNEL[i].PhysDimCode)*1e6);
-	valueIncrement->SetAttribute("unit", "uV");
+	valueIncrement->SetDoubleAttribute("value", hdr->CHANNEL[i].Cal);
+	valueIncrement->SetAttribute("unit", tmp);
 	sequenceValue->LinkEndChild(valueIncrement);
 
 	TiXmlElement *valueDigits = new TiXmlElement("digits");
