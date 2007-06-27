@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.62 2007-06-26 23:50:48 schloegl Exp $
+    $Id: biosig.c,v 1.63 2007-06-27 09:23:09 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -134,6 +134,7 @@ const char *LEAD_ID_TABLE[] = { "unspecified",
 	};
 
 
+
 /****************************************************************************/
 /**                                                                        **/
 /**                      INTERNAL FUNCTIONS                                **/
@@ -198,16 +199,11 @@ double l_endian_f64(double x)
 */
 
 char* PhysDimTable[2048];   
-void InitPhysDimTable()
+int InitPhysDimTable()
 {
 	/* 
 		Initializes PhysDimTable (must not be modified by any other instance)	
 	*/	
-
-	/* 	needs to run only once	*/	
-	static int FLAG = 0; 
-	if (FLAG) return; 	
-
 
 	/* load table from file units.csv */
 # define SIZE_OF_UNITS_FILE (11082)
@@ -255,7 +251,7 @@ void InitPhysDimTable()
 		}	
 		line = strtok(NULL,"\n\r");	// read next line
 	}
-	FLAG = 1; 
+	return(1);  
 }
 		
 const char* PhysDimFactor[] = {
@@ -275,13 +271,16 @@ double PhysDimScale(uint16_t PhysDimCode)
 	return (scale[PhysDimCode & 0x001f]); 
 }
 
-char* PhysDim(uint16_t PhysDimCode, char* PhysDim)
+char* PhysDim(uint16_t PhysDimCode, char *PhysDim)
 {	
-// converting PhysDimCode -> PhysDim
-	PhysDim = strcpy(PhysDim,PhysDimFactor[PhysDimCode & 0x1f]);
-	PhysDim = strcat(PhysDim,PhysDimTable[PhysDimCode>>5]);
-	return(PhysDim);
+	// converting PhysDimCode -> PhysDim
 
+	static int INIT_FLAG = 0; 
+	if (!INIT_FLAG) INIT_FLAG = InitPhysDimTable();	/* Init PhysDimTable once*/	
+
+	strcpy(PhysDim,PhysDimFactor[PhysDimCode & 0x1f]);
+	strcat(PhysDim,PhysDimTable[PhysDimCode>>5]);
+	return(PhysDim);
 }
 
 uint16_t PhysDimCode(char* PhysDim0)
@@ -295,13 +294,14 @@ uint16_t PhysDimCode(char* PhysDim0)
 	char s[80];
 
 	// greedy search - check all codes 0..65535
-	for (k1=0; k1<32;   k1++)
+	for (k1=0; k1<32; k1++)
 	if (PhysDimScale(k1)>0.0)  // exclude NaN
 	for (k2=0; k2<2048; k2++)
 	{
 		Code = (k2<<5) + k1;
 		PhysDim(Code,s);
-		if (!strcmp(PhysDim0, s)) return(Code); 
+		if (!strncmp(PhysDim0, s, strlen(PhysDim0))) 
+			return(Code); 
 	}
 	return(0);
 }
@@ -460,7 +460,6 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	time_t		tt;
 	unsigned	EventChannel = 0;
 
-	InitPhysDimTable();
 	if (hdr==NULL)
 	hdr = create_default_hdr(0,0);	// initializes fields that may stay undefined during SOPEN 
 
@@ -793,16 +792,11 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 			hdr->CHANNEL[k].Transducer  = (Header2 + 80*k + 16*hdr->NS);
 			hdr->CHANNEL[k].Transducer[79]=0;//   hack
 			
-			/* OBSOLETE 
-			hdr->CHANNEL[k].PhysDim = (Header2 + 8*k + 96*hdr->NS);
-			hdr->CHANNEL[k].PhysDim[7]=0; //hack
-			*/
-			// PhysDim -> PhysDimCode belongs here 
+			// PhysDim -> PhysDimCode 
 			strncpy(hdr->CHANNEL[k].PhysDim,Header2 + 8*k + 96*hdr->NS,8);
 			hdr->CHANNEL[k].PhysDim[8] = 0; // remove trailing blanks
 			for (int k1=7; (k1>0) & !isalnum(hdr->CHANNEL[k].PhysDim[k1]); k1--)
 				hdr->CHANNEL[k].PhysDim[k1] = 0;
-
 			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
 			
 			hdr->CHANNEL[k].PhysMin = atof(strncpy(tmp,Header2 + 8*k + 104*hdr->NS,8)); 
@@ -1108,7 +1102,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			PhysDim(k1,hdr->CHANNEL[k].PhysDim);
 		else 
 			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
-		fprintf(stdout,"--- %i %s\n",hdr->CHANNEL[k].PhysDimCode,hdr->CHANNEL[k].PhysDim);
 	}    	
 	
 }
