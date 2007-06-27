@@ -24,9 +24,9 @@ function [HDR,A] = artifact_selection(fn,t1,t2)
 %
 % see also: TLOAD, SLOAD, SOPEN,  
 
-%	$Revision: 1.5 $
-% 	$Id: artifact_selection.m,v 1.5 2005-03-04 18:06:44 schloegl Exp $
-%	Copyright (c) 2004-2005 by Alois Schloegl <a.schloegl@ieee.org>
+%	$Revision: 1.6 $
+% 	$Id: artifact_selection.m,v 1.6 2007-06-27 14:03:34 schloegl Exp $
+%	Copyright (c) 2004-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -66,9 +66,11 @@ elseif iscell(fn)
 		else	
 			if isfield(h.EVENT,'SampleRate')
 				if isfield(HDR.EVENT,'SampleRate')
+					if ~isnan(h.EVENT.SampleRate),
 					if HDR.EVENT.SampleRate ~= h.EVENT.SampleRate,
 						eventmatrix(:,[1,4]) = eventmatrix(:,[1,4])*HDR.EVENT.SampleRate/h.EVENT.SampleRate;
 					end	
+					end
 				else
 					HDR.SampleRate = h.SampleRate;
 				end;	 
@@ -121,7 +123,6 @@ A.EVENT.TYP = [ones(length(ix),1); -ones(length(ix),1); 0];			% onset = +1, offs
 [A.EVENT.POS, ix2] = sort(A.EVENT.POS);		%  sort the positions
 A.EVENT.TYP = A.EVENT.TYP(ix2);		
 
-
 % check each trial for an artifact. 
 TRIG = [HDR.TRIG(:);inf];
 ix1 = 1; ix2 = 1; a = 0; k=0;
@@ -130,6 +131,7 @@ P2 = A.EVENT.POS(ix2);
 P3 = TRIG(ix1)+ti(2);
 while (ix1<=length(HDR.TRIG)) & (ix2<length(A.EVENT.POS))
 	k = k+1;
+	%[P1,P2,P3]
 	if P1<=P2, 
 		SEL(ix1) = (P3>P2) | a;
 		%fprintf(1,'%6i\t',-1,k,a, ix1,ix2,P1,P2,P3,SEL(ix1));
