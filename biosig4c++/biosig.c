@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.63 2007-06-27 09:23:09 schloegl Exp $
+    $Id: biosig.c,v 1.64 2007-06-27 14:31:32 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -267,7 +267,7 @@ double PhysDimScale(uint16_t PhysDimCode)
 	  1e18, 1e21, 1e24, NaN,  NaN,  NaN,   NaN,   NaN, 
 	  1e-1, 1e-2, 1e-3, 1e-6, 1e-9, 1e-12, 1e-15, 1e-18, 
 	  1e-21,1e-24,NaN,  NaN,  NaN,  NaN,   NaN,   NaN }; 
-
+//fprintf(stdout,"\nPhysDimScale: %i\n",PhysDimCode,scale[PhysDimCode & 0x001f]);
 	return (scale[PhysDimCode & 0x001f]); 
 }
 
@@ -1179,9 +1179,9 @@ else { // WRITE
 		     	len = strlen(tmp);
 
 		     	if (hdr->VERSION<1.9)
-		     		memcpy(Header2+ 8*k + 96*hdr->NS, tmp, 8);
+		     		memcpy(Header2+ 8*k + 96*hdr->NS, tmp, min(8,len));
 		     	else {
-		     		memcpy(Header2+ 6*k + 96*hdr->NS, tmp, 6);
+		     		memcpy(Header2+ 6*k + 96*hdr->NS, tmp, min(6,len));
 		     		*(uint16_t*)(Header2+ 2*k + 102*hdr->NS) = l_endian_u16(hdr->CHANNEL[k].PhysDimCode);
 			};
 
