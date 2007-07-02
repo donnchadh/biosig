@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.16 2007-06-26 20:47:59 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.17 2007-07-02 13:53:34 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -334,7 +334,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 
 			// Tag 26 (len = 3)
 			*(ptr+sectionStart+curSectLen) = 26;	// tag
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = 3;	// length
+			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(3);	// length
 			*(ptr+sectionStart+curSectLen+3) = (uint8_t)T0_tm->tm_hour;	// hour
 			*(ptr+sectionStart+curSectLen+4) = (uint8_t)T0_tm->tm_min;	// minute
 			*(ptr+sectionStart+curSectLen+5) = (uint8_t)T0_tm->tm_sec; 	// second
@@ -343,13 +343,13 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			if (hdr->NS>0)  {
 			// Tag 27 (len = 3) highpass filter 
 			*(ptr+sectionStart+curSectLen) = 27;	// tag
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = 2;	// length
+			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(2);	// length
 			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = (uint16_t)hdr->CHANNEL[1].HighPass;	// hour
 			curSectLen += 5; 
 
 			// Tag 28 (len = 3)  lowpass filter
 			*(ptr+sectionStart+curSectLen) = 28;	// tag
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = 2;	// length
+			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(2);	// length
 			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = (uint16_t)hdr->CHANNEL[1].LowPass;	// hour
 			curSectLen += 5; 
 
@@ -362,7 +362,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			else 
 				bitmap = 0; 		 
 			*(ptr+sectionStart+curSectLen) = 29;	// tag
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = 1;	// length			
+			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(1);	// length			
 			*(ptr+sectionStart+curSectLen+3) = bitmap; 
 			curSectLen += 4; 
 
