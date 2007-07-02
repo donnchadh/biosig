@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.5 2007-06-26 23:56:20 schloegl Exp $
+    $Id: save2gdf.c,v 1.6 2007-07-02 14:06:30 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -121,7 +121,6 @@ int main(int argc, char **argv){
     }
     fprintf(stderr,"\nm1: %d %d %d %d\n",*((int16_t *)hdr->AS.rawdata),*((int16_t *)hdr->AS.rawdata+2),*(int16_t *)(hdr->AS.rawdata+4),*(int16_t *)(hdr->AS.rawdata+6));
 
-    fprintf(stderr,"\nFile %s read successfully %i\n",hdr->FileName,ftell(hdr->FILE.FID));
     hdr->FLAG.OVERFLOWDETECTION = 0;
     hdr->FLAG.UCAL = 1;
     
@@ -131,6 +130,7 @@ int main(int argc, char **argv){
 	fclose(hdr->FILE.FID);
 	hdr->FILE.FID = 0;
     }
+    fprintf(stderr,"\nFile %s read successfully %i\n",hdr->FileName,ftell(hdr->FILE.FID));
 
    /********************************* 
    	Write data 
@@ -191,18 +191,11 @@ int main(int argc, char **argv){
 	}
     
     hdr = sopen(dest, "w", hdr);
-    fprintf(stderr,"File %s : sopen-write\n", hdr->FileName);
+    fprintf(stdout,"File %s : sopen-write\n", hdr->FileName);
     if ( (hdr->TYPE != SCP_ECG) & (hdr->TYPE != HL7aECG) ) /* SCP_ECG and HL7aECG write data during SOPEN */
     {	
-#if __BYTE_ORDER == __BIG_ENDIAN
-	// fix endianity of the data
-	for (uint32_t k1=0; k1<hdr->NRec*hdr->SPR*hdr->NS; k1++) 	{
-		//   hdr->data.block[k1] = l_endian_f64(hdr->data.block[k1]);
-		*(int32_t*)(hdr->AS.rawdata+k1*4) = l_endian_i32(*(int32_t*)(hdr->AS.rawdata+k1*4));
-	}
-#endif 
 	// write data 
-	//fwrite(hdr->AS.rawdata, 4 ,hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
+	// write(hdr->AS.rawdata, 4 ,hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
 	swrite(hdr->AS.rawdata, hdr->NRec*hdr->SPR*hdr->NS, hdr);
     }
     sclose(hdr);
