@@ -1,6 +1,6 @@
 /*
 
-    $Id: demo.c,v 1.2 2006-03-13 11:18:34 schloegl Exp $
+    $Id: demo.c,v 1.3 2007-07-03 10:59:24 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -61,7 +61,7 @@ int main (int argc, char **argv)
 
 #define NELEM (1<<15)
 	unsigned k; 	
-    	uint16_t 	s[NELEM];
+    	biosig_data_type 	s[NELEM];
     	FILE	*fid; 
     	HDRTYPE *hdr; 	
     	CHANNEL_TYPE* cp; 
@@ -87,7 +87,7 @@ int main (int argc, char **argv)
 	if (fid==NULL) // file does not exist 
 	{ 	
 		// initialize/generate signal 
-		for (k=0; k<NELEM; s[k] = l_endian_u16(k % 1031),k++);	
+		for (k=0; k<NELEM; s[k] = (k % 1031),k++);	
       
 		// write: define header
 		hdr = create_default_hdr(4,10);  // allocate memory for 4 channels, 10 events 
@@ -112,7 +112,7 @@ int main (int argc, char **argv)
 	     	sopen(argv[1], "w", hdr);
 fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 
-		swrite(&s, NELEM/hdr->NS, hdr);
+		swrite(s, NELEM/hdr->NS, hdr);
 fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 
 		// define events before SCLOSE; 
@@ -128,7 +128,6 @@ fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 	}
 	else 
 	{
-		fclose(fid); 
 		hdr = sopen(argv[1], "r", NULL);
 		if (hdr==NULL)	exit(-1);
 
@@ -142,6 +141,7 @@ fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 		//fprintf(stdout,"Birthday:\t%s\n",asctime(localtime(&T0))); 
 		
 		fprintf(stdout,"Patient:\n\tName:\t%s\n\tId:\t%s\n\tWeigth:\t%i kg\n\tHeigth:\t%i cm\n\tAge:\t%4.1f y\n",hdr->Patient.Name,hdr->Patient.Id,hdr->Patient.Weight,hdr->Patient.Height,(hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32)); 
+		fprintf(stdout,"\tGender:\t%i\n",hdr->Patient.Sex); 
 		T0 = gdf_time2t_time(hdr->Patient.Birthday);
 		fprintf(stdout,"\tBirthday:\t%s\n",asctime(localtime(&T0))); 
 		fprintf(stdout,"EVENT:\n\tN:\t%i\n\tFs:\t%f\n\t\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
@@ -154,7 +154,7 @@ fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 	
 		for (k=0; k<hdr->NS; k++) {
 			cp = hdr->CHANNEL+k; 
-			fprintf(stdout,"\n#%2i: %7s\t%s\t%s\t%i\t%5f\t%5f\t%5f\t%5f\t",k,cp->Label,cp->Transducer,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin);
+			fprintf(stdout,"\n#%2i: %7s\t%s\t%s\t%i\t%5f\t%5f\t%5f\t%5f\t%5f\t",k,cp->Label,cp->Transducer,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin,cp->Cal);
 			fprintf(stdout,"%4.0f\t%4.0f\t%4.0f\t%5f Ohm",cp->LowPass,cp->HighPass,cp->Notch,cp->Impedance);
 		}
 /*
@@ -190,6 +190,8 @@ fprintf(stdout,"+ %u\t %u\n", hdr->FILE.POS,l_endian_i16(*(int16_t*)hdr->AS.rawd
 
 		status = sclose(hdr);
 	}
+	/* clean up */
+	free(hdr); 
       	return(status);
 };
 
