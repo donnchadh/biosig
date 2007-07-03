@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.65 2007-07-02 08:23:20 schloegl Exp $
+    $Id: biosig.c,v 1.66 2007-07-03 10:58:12 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -1529,7 +1529,9 @@ else { // WRITE
 		     	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
 		return(NULL);
 		}
-		fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
+		if(hdr->TYPE != SCP_ECG){
+			fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
+		}	
 		hdr->FILE.OPEN = 2;
 		hdr->FILE.POS  = 0;
 	}
@@ -1823,14 +1825,15 @@ size_t sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDR
 /****************************************************************************/
 /**                     SWRITE                                             **/
 /****************************************************************************/
-size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
+size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 /* 
  *	writes NELEM blocks with HDR.AS.bpb BYTES each, 
  */
+	void*			ptr;
 	size_t			count,k1,k2,k3,k4,k5,DIV,SZ; 
 	int 			GDFTYP;
 	CHANNEL_TYPE*		CHptr;
-	biosig_data_type 	sample_value; 
+	biosig_data_type 	sample_value, iCal, iOff; 
 	union {	
 		int8_t i8;
 		uint8_t u8;
@@ -1865,8 +1868,22 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 #define MAX_UINT64 ((uint64_t)0xffffffffffffffff)
 #define MIN_UINT64 ((uint64_t)0)
 
-	hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata, hdr->AS.bpb*hdr->NRec);
 
+	if (hdr->TYPE == HL7aECG)  // do nothing. 
+		return(1); 	
+
+	if (hdr->TYPE != SCP_ECG)  // memory allocation for SCP is done in SOPEN_SCP_WRITE Section 6	
+	{
+		ptr = realloc(hdr->AS.rawdata, hdr->AS.bpb*hdr->NRec);
+		if (ptr==NULL) {
+			fprintf(stderr,"memory allocation failed.\n");
+			exit(-1);
+		}	
+		else 	 
+			hdr->AS.rawdata = (uint8_t*)ptr; 
+	}
+
+	
 	for (k1=0, k2=0; k1<hdr->NS; k1++) {
 
 	CHptr 	= hdr->CHANNEL+k1;
@@ -1874,17 +1891,19 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BYTE[GDFTYP];
+		iCal	= 1/CHptr->Cal;
+		iOff	= CHptr->DigMin - CHptr->Off*iCal;
 
 		for (k4 = 0; k4 < hdr->NRec; k4++) {
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
 
 			for (k3=0, sample_value=0; k3 < DIV; k3++) 
-				sample_value += hdr->data.block[k1*count*hdr->SPR + k4*CHptr->SPR + k5 + k3]; 
+				sample_value += data[k1*nelem*hdr->SPR + k4*CHptr->SPR + k5 + k3]; 
 
 			sample_value /= DIV;
 			 	
 			if (!hdr->FLAG.UCAL)	// scaling 
-				sample_value = (sample_value - CHptr->Off) / CHptr->Cal;
+				sample_value = sample_value*iCal + iOff;
 
 			// get source address 	
 			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
@@ -1987,8 +2006,11 @@ size_t swrite(const void *ptr, size_t nelem, HDRTYPE* hdr) {
 	}
 	}	
 
-	count = fwrite((uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb, hdr->NRec, hdr->FILE.FID);
-
+	if (hdr->TYPE != SCP_ECG) {
+		// for SCP: writing to file is done in SCLOSE	
+		count = fwrite((uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb, hdr->NRec, hdr->FILE.FID);
+	}
+	
 	// set position of file handle 
 	(hdr->FILE.POS) += count; 
 
@@ -2130,19 +2152,35 @@ int sclose(HDRTYPE* hdr)
 			}	
 		}
 	}		
-// fprintf(stdout,"sclose: 01\n");
+	if (hdr->TYPE==SCP_ECG)
+	{
+		uint16_t 	crc; 
+		uint8_t*	ptr; 	// pointer to memory mapping of the file layout
+		// compute crc and len and write to preamble 
+		ptr = hdr->AS.Header1; 
+		*(uint32_t*)(ptr+2) = l_endian_u32(hdr->HeadLen); 
+		crc = CRCEvaluate(ptr+2,hdr->HeadLen-2); 
+		*(int16_t*)ptr      = l_endian_u16(crc);
+		fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
+fprintf(stdout,"sclose: 00\n");
+	}
+
+fprintf(stdout,"sclose: 01\n");
 	if (hdr->TYPE != XML) {
 		fclose(hdr->FILE.FID);
     		hdr->FILE.FID = 0;
     	}	
 
-// fprintf(stdout,"sclose: 02\n");
+//fprintf(stdout,"sclose: 02\n");
     	if (hdr->aECG != NULL)	
         	free(hdr->aECG);
 // fprintf(stdout,"sclose: 03\n");
-    	if (hdr->AS.rawdata != NULL)	
+    	if ((hdr->AS.rawdata != NULL) & (hdr->TYPE != SCP_ECG)) 
+    	{	// for SCP: hdr->AS.rawdata is part of hdr.AS.Header1 
         	free(hdr->AS.rawdata);
-// fprintf(stdout,"sclose: 04\n");
+        }	
+
+//fprintf(stdout,"sclose: 04\n");
 
     	if (hdr->data.block != NULL) {	
         	free(hdr->data.block);

@@ -1,7 +1,7 @@
 /*
 %
-% $Id: biosig.h,v 1.40 2007-06-27 08:16:48 schloegl Exp $
-% Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
+% $Id: biosig.h,v 1.41 2007-07-03 10:58:12 schloegl Exp $
+% Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
 % 
@@ -127,6 +127,7 @@ enum FileFormat {unknown, ACQ, BKR, BDF, CFWB, CNT, DEMG, EDF, EVENT, FLAC, GDF,
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 typedef double	 		biosig_data_type;
 
+extern const int16_t GDFTYP_BYTE[];
 extern const char *LEAD_ID_TABLE[];
 char* PhysDim(uint16_t PhysDimCode, char *PhysDim);
 uint16_t PhysDimCode(char* PhysDim0);
@@ -377,7 +378,7 @@ int 	sclose(HDRTYPE* hdr);
 size_t 	sread(HDRTYPE* hdr, size_t start, size_t length);
 size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr); 
 
-size_t	swrite(const void *ptr, size_t nelem, HDRTYPE* hdr);
+size_t  swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr);
 int	seof(HDRTYPE* hdr);
 void	srewind(HDRTYPE* hdr);
 int 	sseek(HDRTYPE* hdr, long int offset, int whence);

@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.6 2007-07-02 14:06:30 schloegl Exp $
+    $Id: save2gdf.c,v 1.7 2007-07-03 10:58:12 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -130,13 +130,14 @@ int main(int argc, char **argv){
 	fclose(hdr->FILE.FID);
 	hdr->FILE.FID = 0;
     }
-    fprintf(stderr,"\nFile %s read successfully %i\n",hdr->FileName,ftell(hdr->FILE.FID));
+    fprintf(stderr,"\nFile %s read successfully %i %f\n",hdr->FileName,ftell(hdr->FILE.FID),hdr->data.block[0]);
 
    /********************************* 
    	Write data 
    *********************************/
 
     	hdr->TYPE = TARGET_TYPE;
+if (0) {
     	// header conditioning
 	double PhysMax = hdr->data.block[0];
 	double PhysMin = hdr->data.block[0];
@@ -154,20 +155,29 @@ int main(int argc, char **argv){
 		 	if (hdr->CHANNEL[k].PhysMin > hdr->data.block[k*N+k1])
 		 		hdr->CHANNEL[k].PhysMin = hdr->data.block[k*N+k1];   		
 		}
-		
-		if (hdr->TYPE==SCP_ECG) {
+
+		if (0)
+		 	;
+		else if (hdr->TYPE==SCP_ECG) {
+/*			
+fprintf(stdout,"SOPEN-SCP-W2: #%i %e\n",k,hdr->CHANNEL[k].Cal);
+			hdr->CHANNEL[k].Cal *= PhysDimScale(hdr->CHANNEL[k].PhysDimCode)*1e9; 
+fprintf(stdout,"SOPEN-SCP-W3: #%i %e\n",k,hdr->CHANNEL[k].Cal);
+			hdr->CHANNEL[k].PhysDimCode = 4276; //PhysDimCode("nV"); 
+fprintf(stdout,"SOPEN-SCP-W4: %i.\n",k);
 			if (PhysMax < hdr->CHANNEL[k].PhysMax)
 		 		PhysMax = hdr->CHANNEL[k].PhysMax;   		
 			if (PhysMin > hdr->CHANNEL[k].PhysMin)
-		 		PhysMax = hdr->CHANNEL[k].PhysMax;   		
+		 		PhysMin = hdr->CHANNEL[k].PhysMin;   		
+*/
     		}
 		else if (hdr->TYPE==EDF)	{
 			hdr->CHANNEL[k].DigMax = ldexp(1.0,15)-1.0; 
 			hdr->CHANNEL[k].DigMin = ldexp(-1.0,15); 
     		}
 		else if (hdr->TYPE==BDF) {
-			hdr->CHANNEL[k].DigMax = ldexp(1.0,23)-1.0; 
-			hdr->CHANNEL[k].DigMin = ldexp(-1.0,23); 
+			hdr->CHANNEL[k].DigMax = ldexp(1.0,20)-1.0; 
+			hdr->CHANNEL[k].DigMin = ldexp(-1.0,20); 
     		}
     		else if (hdr->TYPE==GDF) {
     			// ### Phys/Dig/Max/Min depend on GDFTYP
@@ -176,27 +186,31 @@ int main(int argc, char **argv){
 			hdr->CHANNEL[k].DigMin = hdr->CHANNEL[k].PhysMin; 
     		}
 	}
+	
 	double Cal1 = PhysMax/(ldexp(1.0,15)-1.0);
 	double Cal2 = PhysMin/ldexp(-1.0,15);
 	double Cal = (Cal1 > Cal2 ? Cal1 : Cal2);
     	for (int k=0; k<hdr->NS; k++) {
-		if (hdr->TYPE==SCP_ECG) {
-			hdr->CHANNEL[k].Cal = Cal;
+		if (0)
+		; 
+		else if (hdr->TYPE==SCP_ECG) {
+/*			hdr->CHANNEL[k].Cal = Cal;
 			hdr->CHANNEL[k].Off = 0.0;
-		}
+*/		}
 		else {
 			hdr->CHANNEL[k].Cal = (hdr->CHANNEL[k].PhysMax-hdr->CHANNEL[k].PhysMin)/(hdr->CHANNEL[k].DigMax-hdr->CHANNEL[k].DigMin);
 			hdr->CHANNEL[k].Off =  hdr->CHANNEL[k].PhysMin-hdr->CHANNEL[k].Cal * hdr->CHANNEL[k].DigMin;
 		}
 	}
-    
+}
     hdr = sopen(dest, "w", hdr);
     fprintf(stdout,"File %s : sopen-write\n", hdr->FileName);
-    if ( (hdr->TYPE != SCP_ECG) & (hdr->TYPE != HL7aECG) ) /* SCP_ECG and HL7aECG write data during SOPEN */
+    //if ( (hdr->TYPE != SCP_ECG) & (hdr->TYPE != HL7aECG) ) /* SCP_ECG and HL7aECG write data during SOPEN */
     {	
 	// write data 
 	// write(hdr->AS.rawdata, 4 ,hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
-	swrite(hdr->AS.rawdata, hdr->NRec*hdr->SPR*hdr->NS, hdr);
+    fprintf(stdout,"save2gdf swrite \n", hdr->FileName);
+	swrite(hdr->data.block, hdr->NRec, hdr);
     }
     sclose(hdr);
     free(hdr);
