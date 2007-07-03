@@ -1,7 +1,11 @@
 /*
-    $Id: scp-decode.cpp,v 1.4 2007-06-26 18:07:05 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.5 2007-07-03 10:31:00 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
+
+Modifications by Alois Schloegl 
+    Jun 2007: replaced ultoa with sprintf	
+    Jul 2007: do not multiply - because multiplication is done outside
 
 ---------------------------------------------------------------------------
 Copyright (C) 2006  Eugenio Cervesato.
@@ -1882,7 +1886,8 @@ void section_5(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 	}
 	if(sez2)
 	{
-		data.flag_BdR0.number_samples=(U_int_L)data.flag_BdR0.length*1000L/(U_int_L)data.flag_BdR0.STM;           //number di campioni per elettrodo
+		//data.flag_BdR0.number_samples=(U_int_L)data.flag_BdR0.length*1000L/(U_int_L)data.flag_BdR0.STM;           //number di campioni per elettrodo
+		data.flag_BdR0.number_samples=(U_int_L)data.flag_BdR0.length/(U_int_L)data.flag_BdR0.STM;           //number di campioni per elettrodo
 		dim*=sizeof(U_int_S);
 		if(dim!=0 && (data.samples_BdR0=(U_int_S*)mymalloc(dim))==NULL)
 		{
@@ -2452,6 +2457,7 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 //                      MULTIPLICATION BY AVM
 void Multiply(int_L *dati, U_int_L num, U_int_M AVM)
 {
+	// ### OBSOLETE ###
 	U_int_L i;
 
 	for(i=0;i<num;i++)
@@ -2741,7 +2747,7 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 		}
 		if(data.flag_BdR0.encoding)
 			Differences(data.Median,data.flag_BdR0,data.flag_lead.number);
-		Multiply(data.Median,data.flag_BdR0.number_samples*data.flag_lead.number,data.flag_BdR0.AVM);
+		// Multiply(data.Median,data.flag_BdR0.number_samples*data.flag_lead.number,data.flag_BdR0.AVM);
 	}//end if
 
 	//Decode rhythm data
@@ -2807,7 +2813,9 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 				//dim_R modifies
 			}
 		}
-		Multiply(data.Residual,data.flag_Res.number_samples*data.flag_lead.number,data.flag_Res.AVM);
+fprintf(stdout,"-scpdecode 1: %i %i %i %i\n",data.Residual[0],data.flag_Res.number_samples,data.flag_lead.number,data.flag_Res.AVM);
+		// Multiply(data.Residual,data.flag_Res.number_samples*data.flag_lead.number,data.flag_Res.AVM);
+fprintf(stdout,"-scpdecode 2: %i\n",data.Residual[0]);
 
 		if(dim_R!=0 && (data.Reconstructed=(int_L*)mymalloc(dim_R))==NULL)
 		{
@@ -2817,6 +2825,7 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 		int dim_RR=dim_R/sizeof(int_L);       // by E.C. 15.10.2003   This to correct a trivial error
 		for(t=0;t<dim_RR;t++)                 // of array overflow!!
 			data.Reconstructed[t]=data.Residual[t];   // by E.C. 19.02.2004: first copy rhythm then add the reference beat
+fprintf(stdout,"-scpdecode 3: %i\n",data.Reconstructed[0]);
 		if(section[3].length && section[5].length && data.flag_lead.subtraction)
 		{
 			DoAdd(data.Reconstructed,data.Residual,data.flag_Res,data.Median,data.flag_BdR0,data.data_subtraction,data.flag_lead,data.data_lead);
@@ -2835,6 +2844,7 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 			else add_filter=false;
 		}
 		else add_filter=false;
+fprintf(stdout,"-scpdecode 4: %i\n",data.Reconstructed[0]);
 	}
 }
 
