@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.66 2007-07-03 10:58:12 schloegl Exp $
+    $Id: biosig.c,v 1.67 2007-07-03 15:39:45 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -405,55 +405,7 @@ int InitPhysDimTable()
 	for (k=0; k<2048; PhysDimTable[k++]="\0");
 	for (k=0; _physdim[k].idx<0xffff; k++) {
 		PhysDimTable[_physdim[k].idx>>5] = _physdim[k].PhysDimDesc;
-//		fprintf(stdout,"%i %i %s \n",k,_physdim[k].idx,_physdim[k].PhysDimDesc); 
 	}	
-
-	// ### OBSOLETE ??? ###
-if (0) {
-	/* load table from file units.csv */
-# define SIZE_OF_UNITS_FILE (11082)
-	FILE* fid; 
-	long int TableLen=SIZE_OF_UNITS_FILE;
-	char Table[SIZE_OF_UNITS_FILE+1];
-	char *line, *tok1, *tok2;
-	fid = fopen("units.csv","r");
-	if (fid==NULL)
-		fprintf(stderr,"Error: units.csv file not found.\n");	
-
-	// get file size
-	fseek(fid,0,SEEK_END);
-	TableLen = ftell(fid);
-	if (TableLen>SIZE_OF_UNITS_FILE)
-		fprintf(stderr,"Warning: allocated TABLE_SIZE too small (%li %i).\n",TableLen,SIZE_OF_UNITS_FILE);
-	
-	// read file
-	fseek(fid,0,SEEK_SET);
-	TableLen = fread(Table, sizeof(char), min(TableLen,SIZE_OF_UNITS_FILE), fid);
-	Table[TableLen]=0;
-	if (TableLen!=SIZE_OF_UNITS_FILE)
-		fprintf(stderr,"Warning: units.csv was modified.\n");
-	fclose(fid);
-
-	// parse file units.csv
-	line = strtok(Table,"\n\r");	// read 1st line 
-	while (line!=NULL)
-	{
-		if (line[0]==0) ;
-		else if (line[0]=='#') ;
-		else if (line[0]==',') ;
-		else {
-			tok1= line;
-			for (k=0; line[k]!=','; k++); // find comma ,
-			line[k]=0; 
-			while (line[k]!='\"') k++;	// find 1st double quote "
-			tok2 = line+k+1;
-			for (k++; line[k]!='\"'; k++);	// find 2nd double quote "
-			line[k]=0; 
-			PhysDimTable[atoi(tok1)>>5] = tok2;
-		}	
-		line = strtok(NULL,"\n\r");	// read next line
-	}
-}
 	return(1);  
 }
 		
@@ -493,7 +445,7 @@ uint16_t PhysDimCode(char* PhysDim0)
 	if (PhysDim0==NULL) return(0);
 	if (!strlen(PhysDim0)) return(0);
 	
-	uint16_t Code, k1, k2;
+	uint16_t k1, k2;
 	char s[80];
 
 	// greedy search - check all codes 0..65535
@@ -505,15 +457,6 @@ uint16_t PhysDimCode(char* PhysDim0)
 		if (!strncmp(PhysDim0, s, strlen(PhysDim0))) 
 			return(_physdim[k2].idx+k1); 
 	}
-/*
-	for (k2=0; k2<2048; k2++)
-	{
-		Code = (k2<<5) + k1;
-		PhysDim(Code,s);
-		if (!strncmp(PhysDim0, s, strlen(PhysDim0))) 
-			return(Code); 
-	}
-*/
 	return(0);
 }
 
@@ -938,7 +881,7 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 			hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
 			hdr->EVENT.TYP[k32u] = l_endian_u16(hdr->EVENT.TYP[k32u]); 
 		}
-		if (tmp[0]>1) {
+		if (buf[0]>1) {
 			hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR,hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
 			hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN,hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
 			fread(hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN),hdr->EVENT.N,hdr->FILE.FID);
@@ -2009,6 +1952,19 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	if (hdr->TYPE != SCP_ECG) {
 		// for SCP: writing to file is done in SCLOSE	
 		count = fwrite((uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb, hdr->NRec, hdr->FILE.FID);
+	}	
+	else { 
+		count = 1; 	
+		if (hdr->aECG->Section5.Length>0) {
+			// compute CRC for Section 5
+			uint16_t crc = CRCEvaluate(hdr->aECG->Section5.StartPtr+2,hdr->aECG->Section5.Length-2); // compute CRC
+			*(uint16_t*)(hdr->aECG->Section5.StartPtr) = l_endian_u16(crc);
+		}	
+		if (hdr->aECG->Section6.Length>0) {
+			// compute CRC for Section 6
+			uint16_t crc = CRCEvaluate(hdr->aECG->Section6.StartPtr+2,hdr->aECG->Section6.Length-2); // compute CRC
+			*(uint16_t*)(hdr->aECG->Section6.StartPtr) = l_endian_u16(crc);
+		}	
 	}
 	
 	// set position of file handle 
@@ -2092,8 +2048,8 @@ int sclose(HDRTYPE* hdr)
 	char tmp[88]; 
 	char flag; 
 	
-	if ((hdr->NRec<0) & (hdr->FILE.OPEN>1))
-	if ((hdr->TYPE==GDF) | (hdr->TYPE==EDF) | (hdr->TYPE==BDF))
+//	if ((hdr->NRec<0) & (hdr->FILE.OPEN>1))
+	if ((hdr->FILE.OPEN>1) & ((hdr->TYPE==GDF) | (hdr->TYPE==EDF) | (hdr->TYPE==BDF)))
 	{
 		// WRITE HDR.NRec 
 		pos = (ftell(hdr->FILE.FID)-hdr->HeadLen); 
@@ -2142,7 +2098,7 @@ int sclose(HDRTYPE* hdr)
 			}
 			fwrite(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
 			fwrite(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr->FILE.FID);
-			if (tmp[0]>1) {
+			if (buf[0]>1) {
 				for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
 					hdr->EVENT.DUR[k32u] = l_endian_u32(hdr->EVENT.DUR[k32u]); 
 					hdr->EVENT.CHN[k32u] = l_endian_u16(hdr->EVENT.CHN[k32u]); 
@@ -2152,7 +2108,7 @@ int sclose(HDRTYPE* hdr)
 			}	
 		}
 	}		
-	if (hdr->TYPE==SCP_ECG)
+	else if ((hdr->FILE.OPEN>1) & (hdr->TYPE==SCP_ECG))
 	{
 		uint16_t 	crc; 
 		uint8_t*	ptr; 	// pointer to memory mapping of the file layout
@@ -2162,25 +2118,33 @@ int sclose(HDRTYPE* hdr)
 		crc = CRCEvaluate(ptr+2,hdr->HeadLen-2); 
 		*(int16_t*)ptr      = l_endian_u16(crc);
 		fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
-fprintf(stdout,"sclose: 00\n");
+fprintf(stdout,"\nsclose: 00\n");
 	}
 
-fprintf(stdout,"sclose: 01\n");
+fprintf(stdout,"\nbiosig.c:sclose EOF?=%i %i\n",ftell(hdr->FILE.FID),ferror(hdr->FILE.FID));
+fprintf(stdout,"\nsclose: 01 %i %x %x %x %x\n",hdr->FILE.OPEN,&(hdr->FILE.FID),hdr->AS.Header1,hdr->AS.rawdata,hdr->aECG);
+
 	if (hdr->TYPE != XML) {
-		fclose(hdr->FILE.FID);
+		fprintf(stdout,"attempt to close file\n");
+		int status = fclose(hdr->FILE.FID);
+		if (status) fprintf(stderr,"biosig.c:sclose Error closing file\n");
     		hdr->FILE.FID = 0;
     	}	
 
-//fprintf(stdout,"sclose: 02\n");
+fprintf(stdout,"sclose: 02\n");
+
     	if (hdr->aECG != NULL)	
         	free(hdr->aECG);
-// fprintf(stdout,"sclose: 03\n");
+
+fprintf(stdout,"sclose: 03\n");
+
     	if ((hdr->AS.rawdata != NULL) & (hdr->TYPE != SCP_ECG)) 
     	{	// for SCP: hdr->AS.rawdata is part of hdr.AS.Header1 
+fprintf(stdout,"sclose: 03b\n");
         	free(hdr->AS.rawdata);
         }	
 
-//fprintf(stdout,"sclose: 04\n");
+fprintf(stdout,"sclose: 04\n");
 
     	if (hdr->data.block != NULL) {	
         	free(hdr->data.block);
@@ -2188,17 +2152,17 @@ fprintf(stdout,"sclose: 01\n");
         	hdr->data.size[1]=0;
         }	
 
-// fprintf(stdout,"sclose: 05\n");
+fprintf(stdout,"sclose: 05\n");
     	if (hdr->CHANNEL != NULL)	
         	free(hdr->CHANNEL);
-// fprintf(stdout,"sclose: 06\n");
+fprintf(stdout,"sclose: 06\n");
     	if (hdr->AS.bi != NULL)	
         	free(hdr->AS.bi);
-// fprintf(stdout,"sclose: 07\n");
+fprintf(stdout,"sclose: 07\n");
     	if (hdr->AS.Header1 != NULL)	
         	free(hdr->AS.Header1);
 
-// fprintf(stdout,"sclose: 08\n");
+fprintf(stdout,"sclose: 08\n");
     	if (hdr->EVENT.POS != NULL)	
         	free(hdr->EVENT.POS);
     	if (hdr->EVENT.TYP != NULL)	

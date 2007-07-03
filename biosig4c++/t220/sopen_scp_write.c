@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.18 2007-07-03 10:58:17 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.19 2007-07-03 15:39:46 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -105,6 +105,9 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	hdr->aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID 	= "";
 	hdr->aECG->Section1.Tag14.ACQ_DEV_SCP_SW	= "OpenECG XML-SCP 1.00"; // tag 14, byte 38 (SCP_IMPL_SW has to be "OpenECG XML-SCP 1.00")
 	hdr->aECG->Section1.Tag14.ACQ_DEV_MANUF 	= "Manufacturer";	// tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer")
+
+	hdr->aECG->Section5.Length = 0; 
+	hdr->aECG->Section6.Length = 0; 
 
 	/*  */
 	hdr->aECG->FLAG.HUFFMAN = 0;
@@ -442,12 +445,16 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		}
 		else if (curSect==5)  // SECTION 5 
 		{
+			curSectLen = 0; // current section length
+			hdr->aECG->Section5.StartPtr = ptr+sectionStart; 
+			hdr->aECG->Section5.Length = curSectLen; 
 		}
 		else if (curSect==6)  // SECTION 6 
 		{
+			uint16_t GDFTYP = 3; 
+			size_t SZ = GDFTYP_BYTE[GDFTYP];
 			for (i = 0; i < hdr->NS; i++) 
-				hdr->CHANNEL[i].GDFTYP = 3; 
-			size_t SZ = GDFTYP_BYTE[hdr->CHANNEL[0].GDFTYP];
+				hdr->CHANNEL[i].GDFTYP = GDFTYP; 
 			ptr = (uint8_t*)realloc(ptr,sectionStart+16+6+2*hdr->NS+SZ*(hdr->data.size[0]*hdr->data.size[1])); 
 
 			PtrCurSect = ptr+sectionStart; 
@@ -459,7 +466,6 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			AVM = hdr->CHANNEL[0].Cal*1e9*PhysDimScale(hdr->CHANNEL[0].PhysDimCode);
 			for (i = 1; i < hdr->NS; i++) {
 				double avm;
-				hdr->CHANNEL[i].GDFTYP = 3; 
 				// check whether all channels have the same scaling factor
 				avm = hdr->CHANNEL[i].Cal*1e9*PhysDimScale(hdr->CHANNEL[i].PhysDimCode);
 				if (abs((AVM - avm)/AVM)>1e-14)
@@ -508,6 +514,8 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			}
 
 			memset(ptr+sectionStart+10,0,6); // reserved
+			hdr->aECG->Section6.StartPtr = ptr+sectionStart; 
+			hdr->aECG->Section6.Length = curSectLen; 
 		}
 		else if (curSect==7)  // SECTION 7 
 		{

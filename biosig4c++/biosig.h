@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.41 2007-07-03 10:58:12 schloegl Exp $
+% $Id: biosig.h,v 1.42 2007-07-03 15:39:45 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -245,6 +245,14 @@ typedef struct {
 			char* 	ACQ_DEV_MANUF;		// tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer")
         	} Tag14;
         } Section1;
+        struct {
+        	uint8_t* StartPtr;
+        	size_t	 Length;
+        } Section5;
+        struct {
+        	uint8_t* StartPtr;
+        	size_t	 Length;
+        } Section6;
 } aECG_TYPE;
 
 
@@ -335,7 +343,7 @@ typedef struct {
 		uint32_t 	*bi;
 		uint8_t*	Header1; 
 		uint8_t*	rawdata; 	// raw data block 
-	} AS; 	
+	} AS;
 	CHANNEL_TYPE *CHANNEL;  
 	aECG_TYPE *aECG;
 } HDRTYPE;
