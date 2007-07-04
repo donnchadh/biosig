@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.67 2007-07-03 15:39:45 schloegl Exp $
+    $Id: biosig.c,v 1.68 2007-07-04 22:05:04 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -517,7 +517,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.size[1] = 0;  // columns 
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = t_time2gdf_time(time(NULL));
-      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.35";
+      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.42";
 
 	hdr->Patient.Name 	= "X";
 	hdr->Patient.Id 	= "\0\0";
@@ -661,10 +661,10 @@ if (!strcmp(MODE,"r"))
     	}	
 
     	if (hdr->TYPE != unknown); 
-    	else if (!memcmp(Header1+1,"BIOSEMI",7)) {
+    	else if (!memcmp(Header1+1,"BIOSEMI",7) & (Header1[0]==-1)) {
     		hdr->TYPE = BDF;
     		hdr->VERSION = -1; 
-    	}	
+    	}
     	else if ((Header1[0]==(char)207) & (!Header1[1]) & (!Header1[154]) & (!Header1[155]))
 	    	hdr->TYPE = BKR;
     	else if (!memcmp(Header1,"CFWB\1\0\0\0",8))
@@ -676,7 +676,7 @@ if (!strcmp(MODE,"r"))
     	else if (!memcmp(Header1,"0       ",8)) {
 	    	hdr->TYPE = EDF;
 	    	hdr->VERSION = 0; 
-	}    	
+	}
     	else if (!memcmp(Header1,"fLaC",4))
 	    	hdr->TYPE = FLAC;
     	else if (!memcmp(Header1,"GDF",3))
@@ -696,9 +696,6 @@ if (!strcmp(MODE,"r"))
     	else {
 		fclose(hdr->FILE.FID); 
 		free(Header1);
-
-
-fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(char*)(Header1+16));
 
 #ifdef __XML_XMLREADER_H__
 		LIBXML_TEST_VERSION
@@ -863,9 +860,13 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 
 		// READ EVENTTABLE 
 		fseek(hdr->FILE.FID, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
-		fread(buf, sizeof(uint8_t), 8, hdr->FILE.FID);
+		int c = fread(buf, sizeof(uint8_t), 8, hdr->FILE.FID);
 
-		if (hdr->VERSION < 1.94) {
+		if (c<8) {
+			hdr->EVENT.SampleRate = hdr->SampleRate; 
+			hdr->EVENT.N = 0;
+		}	
+		else if (hdr->VERSION < 1.94) {
 			hdr->EVENT.SampleRate = (float)buf[1] + (buf[2] + buf[3]*256.0)*256.0; 
 			hdr->EVENT.N = l_endian_u32( *(uint32_t*) (buf + 4) );
 		}	
@@ -873,7 +874,8 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 			hdr->EVENT.N = buf[1] + (buf[2] + buf[3]*256)*256; 
 			hdr->EVENT.SampleRate = l_endian_f32( *(float*) (buf + 4) );
 		}	
-		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
+
+ 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
 		hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
 		fread(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
 		fread(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr->FILE.FID);
@@ -986,7 +988,7 @@ fprintf(stdout,"SOPEN(READ); File %s is of TYPE %i %s\n",FileName,hdr->TYPE,(cha
 				hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 		}	
 		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
-	}      	
+		}      	
 
 	else if (hdr->TYPE==ACQ) {
 		/* defined in http://biopac.com/AppNotes/app156FileFormat/FileFormat.htm */
@@ -1826,9 +1828,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			hdr->AS.rawdata = (uint8_t*)ptr; 
 	}
 
-	
 	for (k1=0, k2=0; k1<hdr->NS; k1++) {
-
 	CHptr 	= hdr->CHANNEL+k1;
 	if (CHptr->OnOff != 0) {
 		DIV 	= hdr->SPR/CHptr->SPR; 
@@ -1957,13 +1957,13 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		count = 1; 	
 		if (hdr->aECG->Section5.Length>0) {
 			// compute CRC for Section 5
-			uint16_t crc = CRCEvaluate(hdr->aECG->Section5.StartPtr+2,hdr->aECG->Section5.Length-2); // compute CRC
-			*(uint16_t*)(hdr->aECG->Section5.StartPtr) = l_endian_u16(crc);
+			uint16_t crc = CRCEvaluate(hdr->AS.Header1 + hdr->aECG->Section5.StartPtr+2,hdr->aECG->Section5.Length-2); // compute CRC
+			*(uint16_t*)(hdr->AS.Header1 + hdr->aECG->Section5.StartPtr) = l_endian_u16(crc);
 		}	
 		if (hdr->aECG->Section6.Length>0) {
 			// compute CRC for Section 6
-			uint16_t crc = CRCEvaluate(hdr->aECG->Section6.StartPtr+2,hdr->aECG->Section6.Length-2); // compute CRC
-			*(uint16_t*)(hdr->aECG->Section6.StartPtr) = l_endian_u16(crc);
+			uint16_t crc = CRCEvaluate(hdr->AS.Header1 + hdr->aECG->Section6.StartPtr+2,hdr->aECG->Section6.Length-2); // compute CRC
+			*(uint16_t*)(hdr->AS.Header1 + hdr->aECG->Section6.StartPtr) = l_endian_u16(crc);
 		}	
 	}
 	
@@ -2090,7 +2090,6 @@ int sclose(HDRTYPE* hdr)
 				buf[3] = (k32u>>16) & 0x000000FF;
 				*(float*)(buf+4) = l_endian_f32(hdr->EVENT.SampleRate);
 			};
-			
 			fwrite(buf, 8, 1, hdr->FILE.FID);
 			for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
 				hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
@@ -2118,11 +2117,7 @@ int sclose(HDRTYPE* hdr)
 		crc = CRCEvaluate(ptr+2,hdr->HeadLen-2); 
 		*(int16_t*)ptr      = l_endian_u16(crc);
 		fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
-fprintf(stdout,"\nsclose: 00\n");
 	}
-
-fprintf(stdout,"\nbiosig.c:sclose EOF?=%i %i\n",ftell(hdr->FILE.FID),ferror(hdr->FILE.FID));
-fprintf(stdout,"\nsclose: 01 %i %x %x %x %x\n",hdr->FILE.OPEN,&(hdr->FILE.FID),hdr->AS.Header1,hdr->AS.rawdata,hdr->aECG);
 
 	if (hdr->TYPE != XML) {
 		fprintf(stdout,"attempt to close file\n");
@@ -2131,20 +2126,13 @@ fprintf(stdout,"\nsclose: 01 %i %x %x %x %x\n",hdr->FILE.OPEN,&(hdr->FILE.FID),h
     		hdr->FILE.FID = 0;
     	}	
 
-fprintf(stdout,"sclose: 02\n");
-
     	if (hdr->aECG != NULL)	
         	free(hdr->aECG);
 
-fprintf(stdout,"sclose: 03\n");
-
     	if ((hdr->AS.rawdata != NULL) & (hdr->TYPE != SCP_ECG)) 
     	{	// for SCP: hdr->AS.rawdata is part of hdr.AS.Header1 
-fprintf(stdout,"sclose: 03b\n");
         	free(hdr->AS.rawdata);
         }	
-
-fprintf(stdout,"sclose: 04\n");
 
     	if (hdr->data.block != NULL) {	
         	free(hdr->data.block);
@@ -2152,17 +2140,17 @@ fprintf(stdout,"sclose: 04\n");
         	hdr->data.size[1]=0;
         }	
 
-fprintf(stdout,"sclose: 05\n");
+// fprintf(stdout,"sclose: 05\n");
     	if (hdr->CHANNEL != NULL)	
         	free(hdr->CHANNEL);
-fprintf(stdout,"sclose: 06\n");
+// fprintf(stdout,"sclose: 06\n");
     	if (hdr->AS.bi != NULL)	
         	free(hdr->AS.bi);
-fprintf(stdout,"sclose: 07\n");
+// fprintf(stdout,"sclose: 07\n");
     	if (hdr->AS.Header1 != NULL)	
         	free(hdr->AS.Header1);
 
-fprintf(stdout,"sclose: 08\n");
+// fprintf(stdout,"sclose: 08\n");
     	if (hdr->EVENT.POS != NULL)	
         	free(hdr->EVENT.POS);
     	if (hdr->EVENT.TYP != NULL)	
@@ -2171,9 +2159,11 @@ fprintf(stdout,"sclose: 08\n");
         	free(hdr->EVENT.DUR);
     	if (hdr->EVENT.CHN != NULL)	
         	free(hdr->EVENT.CHN);
+// fprintf(stdout,"sclose: 09\n");
         	
         hdr->EVENT.N   = 0; 
 	hdr->FILE.OPEN = 0; 	     	
+// fprintf(stdout,"sclose: 10\n");
 
     	return(0);
 }
