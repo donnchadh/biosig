@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.19 2007-07-03 15:39:46 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.20 2007-07-04 22:04:00 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -130,6 +130,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		curSectLen = 0; // current section length
 		//ptr = (uint8_t*)realloc(ptr,sectionStart+curSectLen); 
 
+fprintf(stdout,"Section %i %x\n",curSect,ptr);
 
 		if (curSect==0)  // SECTION 0 
 		{
@@ -144,8 +145,11 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		}
 		else if (curSect==1)  // SECTION 1 
 		{
+fprintf(stdout,"Section %i %x\n",curSect,ptr);
 			ptr = (uint8_t*)realloc(ptr,sectionStart+10000); 
+fprintf(stdout,"Section %i %x %x\n",curSect,ptr,sectionStart);
 			PtrCurSect = ptr+sectionStart; 
+fprintf(stdout,"Section %i %x %x\n",curSect,ptr,sectionStart);
 			curSectLen = 16; // current section length
 /*
 			// Tag 0 (max len = 64)
@@ -172,6 +176,8 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			strncpy((char*)ptr+sectionStart+curSectLen+3,hdr->Patient.Id,len);	// field
 			curSectLen += len+3; 
 
+fprintf(stdout,"Section %i Len %i %x\n",curSect,curSectLen,sectionStart);
+
 			// Tag 3 (max len = 64) Second Last Name 
 /*
 			*(ptr+sectionStart+curSectLen) = 3;	// tag
@@ -180,11 +186,14 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			strncpy(ptr+sectionStart+curSectLen+3,hdr->Patient.Name,len);	// field
 			curSectLen += len+3; 
 */
-			
+
 			// Tag 5 (len = 4) 
-			if (hdr->Patient.Birthday > 0) {
+			if ((hdr->Patient.Birthday) > 0) {
+fprintf(stdout,"Section %i Tag %Li %Li %i %e\n",curSect,hdr->T0,hdr->Patient.Birthday,T0,ldexp(T0,-32));
 				T0 = gdf_time2t_time(hdr->Patient.Birthday);
+fprintf(stdout,"Section %i Tag +2%i %Li %e %e\n",curSect,4,hdr->Patient.Birthday,T0,ldexp(T0,-32));
 				T0_tm = gmtime(&T0);
+fprintf(stdout,"Section %i Tag +2%i %s\n",curSect,4,asctime(localtime(&T0)));
 				*(ptr+sectionStart+curSectLen) = 5;	// tag
 				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
 				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(T0_tm->tm_year+1900);// year
@@ -425,7 +434,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 // Situations with not all the leads simultaneously recorded are not supported
 // Situations number of leads simultaneouly recorded != total number of leads are not supported
 // We assume hat all the leads are recorded simultaneously
-			*(ptr+sectionStart+curSectLen++) = hdr->NS<<3 | 0x04;
+			*(ptr+sectionStart+curSectLen++) = (hdr->NS<<3) | 0x04;
 
 			for (i = 0; i < hdr->NS; i++) {
 				*(uint32_t*)(ptr+sectionStart+curSectLen) = l_endian_u32(1L);
@@ -446,7 +455,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		else if (curSect==5)  // SECTION 5 
 		{
 			curSectLen = 0; // current section length
-			hdr->aECG->Section5.StartPtr = ptr+sectionStart; 
+			hdr->aECG->Section5.StartPtr = sectionStart; 
 			hdr->aECG->Section5.Length = curSectLen; 
 		}
 		else if (curSect==6)  // SECTION 6 
@@ -500,8 +509,8 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			}
 
 			// Prepare filling the data block with the ECG samples by SWRITE
-			free(hdr->AS.rawdata);
-			hdr->AS.rawdata = PtrCurSect+16+6+2*hdr->NS;
+			// free(hdr->AS.rawdata);
+			// hdr->AS.rawdata = PtrCurSect+16+6+2*hdr->NS;
 			curSectLen += SZ*(hdr->data.size[0]*hdr->data.size[1]);
 
 			//AVM = hdr->CHANNEL[0].Cal*1e-9/PhysDimScale(hdr->CHANNEL[0].PhysDimCode);
@@ -514,7 +523,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			}
 
 			memset(ptr+sectionStart+10,0,6); // reserved
-			hdr->aECG->Section6.StartPtr = ptr+sectionStart; 
+			hdr->aECG->Section6.StartPtr = sectionStart; 
 			hdr->aECG->Section6.Length = curSectLen; 
 		}
 		else if (curSect==7)  // SECTION 7 
@@ -554,15 +563,23 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			crc = CRCEvaluate(ptr+sectionStart+2,curSectLen-2); // compute CRC
 //			crc2 = crc_ccitt(ptr+sectionStart+2,curSectLen-2); // compute CRC
 			*(uint16_t*)(ptr+sectionStart)  = l_endian_u16(crc);
-//			fprintf(stdout,"crc = %i \n",crc);
+//			fprintf(stdout,"crc = %i %i \n",crc,curSect);
 		}	
 		sectionStart += curSectLen;	// offset for next section
 	}
 	
+	// Prepare filling the data block with the ECG samples by SWRITE
+//	free(hdr->AS.rawdata);
+	hdr->AS.rawdata = ptr+hdr->aECG->Section6.StartPtr+16+6+2*hdr->NS;
+
+fprintf(stdout,"SOPEN SCP SWRITE mem %x.\n",hdr->AS.rawdata);
+
 	// compute crc and len and write to preamble 
-	*(uint32_t*)(ptr+2) = l_endian_u32(hdr->HeadLen); 
+	/*
+	*(uint32_t*)(ptr+2) = l_endian_u32(hdr->); 
 	crc = CRCEvaluate(ptr+2,hdr->HeadLen-2); 
 	*(int16_t*)ptr      = l_endian_u16(crc);
+	*/
 	
 	hdr->AS.Header1 = ptr; 
 	return(hdr);

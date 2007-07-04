@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.42 2007-07-03 15:39:45 schloegl Exp $
+% $Id: biosig.h,v 1.43 2007-07-04 22:04:00 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -153,7 +153,7 @@ uint16_t PhysDimCode(char* PhysDim0);
 typedef int64_t 		gdf_time; // gdf time is represented in 64 bits
 #define t_time2gdf_time(t)	((gdf_time)floor(ldexp(((double)(t))/86400.0 + 719529.0, 32)))
 //#define t_time2gdf_time(t)	((gdf_time)floor(ldexp(difftime(t,0)/86400.0 + 719529.0, 32)))
-#define gdf_time2t_time(t)	((time_t)((ldexp(((double)(t)),-32) - 719529) * 86400))
+#define gdf_time2t_time(t)	((time_t)((ldexp((double)(t),-32) - 719529) * 86400))
 #define tm_time2gdf_time(t) 	t_time2gdf_time(mktime(t))
 //#define gdf_time2tm_time(t)	localtime(gdf_time2t_time(t))
 #define	ntp_time2gdf_time(t)	((gdf_time)ldexp(ldexp(((double)(t)),-32)/86400 + 719529.0 - 70,32))
@@ -246,11 +246,11 @@ typedef struct {
         	} Tag14;
         } Section1;
         struct {
-        	uint8_t* StartPtr;
+        	size_t   StartPtr;
         	size_t	 Length;
         } Section5;
         struct {
-        	uint8_t* StartPtr;
+        	size_t   StartPtr;
         	size_t	 Length;
         } Section6;
 } aECG_TYPE;
