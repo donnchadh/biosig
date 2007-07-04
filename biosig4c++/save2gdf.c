@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.7 2007-07-03 10:58:12 schloegl Exp $
+    $Id: save2gdf.c,v 1.8 2007-07-04 22:01:46 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -31,20 +31,19 @@
 int main(int argc, char **argv){
     
     HDRTYPE 	*hdr; 
+    HDRTYPE 	HDR; 
     CHANNEL_TYPE* 	cp; 
     size_t 	count;
-    time_t  	T0; 
+    uint16_t 	numopt = 0;
+    time_t  	T0;
     char 	*source, *dest; 
     enum FileFormat TARGET_TYPE=GDF; 		// type of file format
 	
-    if (argc < 2)
-    {
-	fprintf(stderr,"save2gdf: missing file argument\n");
-	fprintf(stdout,"usage: save2gdf SOURCE DEST\n");
-	return(-1);
-    } 
+    if (argc<2)
+    	;
     else if (argv[1][0]=='-')
     {
+	numopt++;
     	if (!strcmp(argv[1],"-v") | !strcmp(argv[1],"--version") )
     	{
 		fprintf(stdout,"save2gdf (biosig4c++) 0.42+\n");
@@ -55,6 +54,8 @@ int main(int argc, char **argv){
     	else if (!strcmp(argv[1],"-h") | !strcmp(argv[1],"--help") )
     	{
 		fprintf(stdout,"usage: save2gdf SOURCE DEST\n");
+		fprintf(stdout,"usage: save2gdf SOURCE \n");
+		fprintf(stdout,"    reads file only.\n");
 		fprintf(stdout,"usage: save2gdf [OPTION]\n\n");
 		fprintf(stdout,"usage: save2gdf [OPTION] SOURCE DEST\n");
 		fprintf(stdout,"   -v, --version\n\tprints version information\n");
@@ -82,19 +83,23 @@ int main(int argc, char **argv){
 		}	
 	}
 		
-    	if (argc==2) return(0);
-    	source = argv[2]; 
-    	dest   = argv[3]; 
     }
-    else 
-    {
-	source = argv[1]; 
-    	dest   = argv[2]; 
-    }	    
+	dest = NULL;
+    	switch (argc - numopt) {
+    	case 1:
+		fprintf(stderr,"save2gdf: missing file argument\n");
+		fprintf(stdout,"usage: save2gdf [options] SOURCE DEST\n");
+		return(-1);
+    	case 3:
+    		dest   = argv[numopt+2]; 
+    	case 2:
+	    	source = argv[numopt+1]; 
+    	}	
+
     
     hdr = sopen(source, "r", NULL);
     
-    if (hdr==NULL)exit(-1);
+    if (hdr==NULL) exit(-1);
     fprintf(stderr,"FileName:\t%s\nType    :\t%i\nVersion:\t%4.2f\nHeadLen:\t%i\n",source,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
     fprintf(stderr,"NS:\t%i\nSPR:\t%i\nNRec:\t%Li\nSpB:\t%i\nDuration[s]:\t%u/%u\nFs:\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->AS.bpb,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
 
@@ -126,11 +131,19 @@ int main(int argc, char **argv){
     
     count = sread(hdr, 0, hdr->NRec);
 
+//    sclose(hdr);	
     if (hdr->FILE.OPEN){
 	fclose(hdr->FILE.FID);
 	hdr->FILE.FID = 0;
     }
-    fprintf(stderr,"\nFile %s read successfully %i %f\n",hdr->FileName,ftell(hdr->FILE.FID),hdr->data.block[0]);
+
+    fprintf(stdout,"\nFile %s read successfully %i\n",hdr->FileName,hdr->EVENT.N);
+
+	if (dest==NULL) {
+		sclose(hdr);
+		free(hdr);
+		return(0);
+	}
 
    /********************************* 
    	Write data 
@@ -203,13 +216,13 @@ fprintf(stdout,"SOPEN-SCP-W4: %i.\n",k);
 		}
 	}
 }
+
     hdr = sopen(dest, "w", hdr);
     fprintf(stdout,"File %s : sopen-write\n", hdr->FileName);
     //if ( (hdr->TYPE != SCP_ECG) & (hdr->TYPE != HL7aECG) ) /* SCP_ECG and HL7aECG write data during SOPEN */
     {	
 	// write data 
 	// write(hdr->AS.rawdata, 4 ,hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
-    fprintf(stdout,"save2gdf swrite \n", hdr->FileName);
 	swrite(hdr->data.block, hdr->NRec, hdr);
     }
     sclose(hdr);
