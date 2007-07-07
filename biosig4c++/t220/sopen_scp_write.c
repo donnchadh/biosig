@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.20 2007-07-04 22:04:00 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.21 2007-07-07 01:05:22 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -57,12 +57,12 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	uint8_t*	PtrCurSect;	// point to current section 
 	int		curSect; 
 	uint32_t 	len; 
-	uint16_t 	crc; 
+	uint16_t 	crc,t16a,t16b; 
 	uint32_t	i; 
 	uint32_t 	sectionStart; 
 	time_t 		T0;
 	tm* 		T0_tm;
-	double 		AVM; 
+	double 		AVM, avm; 
 	
 
 	if ((fabs(hdr->VERSION - 1.3)<0.01) && (fabs(hdr->VERSION-2.0)<0.01))  
@@ -130,7 +130,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		curSectLen = 0; // current section length
 		//ptr = (uint8_t*)realloc(ptr,sectionStart+curSectLen); 
 
-fprintf(stdout,"Section %i %x\n",curSect,ptr);
+// fprintf(stdout,"Section %i %x\n",curSect,ptr);
 
 		if (curSect==0)  // SECTION 0 
 		{
@@ -145,11 +145,11 @@ fprintf(stdout,"Section %i %x\n",curSect,ptr);
 		}
 		else if (curSect==1)  // SECTION 1 
 		{
-fprintf(stdout,"Section %i %x\n",curSect,ptr);
+// fprintf(stdout,"Section %i %x\n",curSect,ptr);
 			ptr = (uint8_t*)realloc(ptr,sectionStart+10000); 
-fprintf(stdout,"Section %i %x %x\n",curSect,ptr,sectionStart);
+// fprintf(stdout,"Section %i %x %x\n",curSect,ptr,sectionStart);
 			PtrCurSect = ptr+sectionStart; 
-fprintf(stdout,"Section %i %x %x\n",curSect,ptr,sectionStart);
+// fprintf(stdout,"Section %i %x %x\n",curSect,ptr,sectionStart);
 			curSectLen = 16; // current section length
 /*
 			// Tag 0 (max len = 64)
@@ -176,7 +176,7 @@ fprintf(stdout,"Section %i %x %x\n",curSect,ptr,sectionStart);
 			strncpy((char*)ptr+sectionStart+curSectLen+3,hdr->Patient.Id,len);	// field
 			curSectLen += len+3; 
 
-fprintf(stdout,"Section %i Len %i %x\n",curSect,curSectLen,sectionStart);
+// fprintf(stdout,"Section %i Len %i %x\n",curSect,curSectLen,sectionStart);
 
 			// Tag 3 (max len = 64) Second Last Name 
 /*
@@ -189,11 +189,11 @@ fprintf(stdout,"Section %i Len %i %x\n",curSect,curSectLen,sectionStart);
 
 			// Tag 5 (len = 4) 
 			if ((hdr->Patient.Birthday) > 0) {
-fprintf(stdout,"Section %i Tag %Li %Li %i %e\n",curSect,hdr->T0,hdr->Patient.Birthday,T0,ldexp(T0,-32));
+// fprintf(stdout,"Section %i Tag %Li %Li %i %e\n",curSect,hdr->T0,hdr->Patient.Birthday,T0,ldexp(T0,-32));
 				T0 = gdf_time2t_time(hdr->Patient.Birthday);
-fprintf(stdout,"Section %i Tag +2%i %Li %e %e\n",curSect,4,hdr->Patient.Birthday,T0,ldexp(T0,-32));
+// fprintf(stdout,"Section %i Tag +2%i %Li %e %e\n",curSect,4,hdr->Patient.Birthday,T0,ldexp(T0,-32));
 				T0_tm = gmtime(&T0);
-fprintf(stdout,"Section %i Tag +2%i %s\n",curSect,4,asctime(localtime(&T0)));
+// fprintf(stdout,"Section %i Tag +2%i %s\n",curSect,4,asctime(localtime(&T0)));
 				*(ptr+sectionStart+curSectLen) = 5;	// tag
 				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
 				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(T0_tm->tm_year+1900);// year
@@ -409,14 +409,6 @@ fprintf(stdout,"Section %i Tag +2%i %s\n",curSect,4,asctime(localtime(&T0)));
 			if ((curSectLen % 2) != 0) {
 				*(ptr+sectionStart+curSectLen++) = 0; 
 			}
-
-//			if (!SCP_Formatter->CreateSCPSection1())
-//				fprintf(stderr,"Error Creating Section 1\n");
-
-//			curSectLen = SCP_Formatter->lenSect1;
-//			ptr = (uint8_t*)realloc(ptr,sectionStart+curSectLen); 
-
-//			memcpy(ptr+sectionStart+16,SCP_Formatter->Sect1+16,curSectLen-16);	
 		}
 		else if (curSect==2)  // SECTION 2 
 		{
@@ -430,7 +422,7 @@ fprintf(stdout,"Section %i Tag +2%i %s\n",curSect,4,asctime(localtime(&T0)));
 			// Number of leads enclosed
 			*(ptr+sectionStart+curSectLen++) = hdr->NS;
 
-// Situations with reference beat subtraction are not supported
+// ### Situations with reference beat subtraction are not supported
 // Situations with not all the leads simultaneously recorded are not supported
 // Situations number of leads simultaneouly recorded != total number of leads are not supported
 // We assume hat all the leads are recorded simultaneously
@@ -471,22 +463,27 @@ fprintf(stdout,"Section %i Tag +2%i %s\n",curSect,4,asctime(localtime(&T0)));
 
 			// Create all the fields
 			// Amplitude Value Multiplier (AMV)
-			// check for physical dimension and adjust scaling factor to "nV"
-			AVM = hdr->CHANNEL[0].Cal*1e9*PhysDimScale(hdr->CHANNEL[0].PhysDimCode);
-			for (i = 1; i < hdr->NS; i++) {
-				double avm;
+			for (i = 0; i < hdr->NS; i++) {
+				// check for physical dimension and adjust scaling factor to "nV"
+				avm = hdr->CHANNEL[i].Cal * 1e9 * PhysDimScale(hdr->CHANNEL[i].PhysDimCode);
 				// check whether all channels have the same scaling factor
-				avm = hdr->CHANNEL[i].Cal*1e9*PhysDimScale(hdr->CHANNEL[i].PhysDimCode);
+				if (i==0) AVM=avm; 
 				if (abs((AVM - avm)/AVM)>1e-14)
 					fprintf(stderr,"Warning SOPEN (SCP-WRITE): scaling factors differ between channels. Scaling factor of 1st channel is used.\n");
-// fprintf(stdout,"SCP-WRITE: scaling factors %e.\n",AVM);
 			};
 			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)AVM);
+			avm = l_endian_u16(*(uint16_t*)(ptr+sectionStart+curSectLen));
 			curSectLen += 2;
+			if (abs((AVM - avm)/AVM)>1e-14)
+				fprintf(stderr,"Warning SOPEN (SCP-WRITE): Scaling factor has been truncated (%f instead %f).\n",avm,AVM);
 
 			// Sample interval
-			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)(1e6/hdr->SampleRate));
+			AVM = 1e6/hdr->SampleRate;
+			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)AVM);
+			avm = l_endian_u16(*(uint16_t*)(ptr+sectionStart+curSectLen));
 			curSectLen += 2;
+			if (abs((AVM - avm)/AVM)>1e-14)
+				fprintf(stderr,"Warning SOPEN (SCP-WRITE): Sampling interval has been truncated (%f instead %f us).\n",avm,AVM);
 
 			// Diff used
 			*(ptr+sectionStart+curSectLen++) = 0;
@@ -501,10 +498,12 @@ fprintf(stdout,"Section %i Tag +2%i %s\n",curSect,4,asctime(localtime(&T0)));
 			*/
 			
 			// Fill the length block
-			//	numByteCompRhythm = ESI->dwEndSampleR * 2;
-			// Each sample is stored on 2 bytes for each of the 15 leads (we assume to have max 15 leads)
 			for (i = 0; i < hdr->NS; i++) {
 				*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)hdr->data.size[0]*2);
+				avm = l_endian_u16(*(uint16_t*)(ptr+sectionStart+curSectLen));
+				AVM = hdr->data.size[0]*2;
+				if (abs((AVM - avm)/AVM)>1e-14)
+					fprintf(stderr,"Warning SOPEN (SCP-WRITE): Block length truncated (%f instead %f us).\n",avm,AVM);
 				curSectLen += 2;
 			}
 
@@ -512,9 +511,6 @@ fprintf(stdout,"Section %i Tag +2%i %s\n",curSect,4,asctime(localtime(&T0)));
 			// free(hdr->AS.rawdata);
 			// hdr->AS.rawdata = PtrCurSect+16+6+2*hdr->NS;
 			curSectLen += SZ*(hdr->data.size[0]*hdr->data.size[1]);
-
-			//AVM = hdr->CHANNEL[0].Cal*1e-9/PhysDimScale(hdr->CHANNEL[0].PhysDimCode);
-			AVM = hdr->CHANNEL[0].Cal;//*1e-9/PhysDimScale(hdr->CHANNEL[0].PhysDimCode);
 
 			// Evaluate the size and correct it if odd
 			if ((curSectLen % 2) != 0) {
@@ -561,25 +557,13 @@ fprintf(stdout,"Section %i Tag +2%i %s\n",curSect,4,asctime(localtime(&T0)));
 			ptr[sectionStart+8] 		= VERSION; 	// Section Version Number 
 			ptr[sectionStart+9] 		= VERSION; 	// Protocol Version Number
 			crc = CRCEvaluate(ptr+sectionStart+2,curSectLen-2); // compute CRC
-//			crc2 = crc_ccitt(ptr+sectionStart+2,curSectLen-2); // compute CRC
 			*(uint16_t*)(ptr+sectionStart)  = l_endian_u16(crc);
-//			fprintf(stdout,"crc = %i %i \n",crc,curSect);
 		}	
 		sectionStart += curSectLen;	// offset for next section
 	}
 	
 	// Prepare filling the data block with the ECG samples by SWRITE
-//	free(hdr->AS.rawdata);
 	hdr->AS.rawdata = ptr+hdr->aECG->Section6.StartPtr+16+6+2*hdr->NS;
-
-fprintf(stdout,"SOPEN SCP SWRITE mem %x.\n",hdr->AS.rawdata);
-
-	// compute crc and len and write to preamble 
-	/*
-	*(uint32_t*)(ptr+2) = l_endian_u32(hdr->); 
-	crc = CRCEvaluate(ptr+2,hdr->HeadLen-2); 
-	*(int16_t*)ptr      = l_endian_u16(crc);
-	*/
 	
 	hdr->AS.Header1 = ptr; 
 	return(hdr);

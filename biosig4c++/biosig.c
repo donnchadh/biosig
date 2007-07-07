@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.68 2007-07-04 22:05:04 schloegl Exp $
+    $Id: biosig.c,v 1.69 2007-07-07 01:05:21 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -560,6 +560,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	      	hdr->CHANNEL[k].DigMin    = -2048;
 	      	hdr->CHANNEL[k].GDFTYP    = 3;	// int16 	
 	      	hdr->CHANNEL[k].SPR       = 1;	// one sample per block
+	      	hdr->CHANNEL[k].OnOff     = 1;
 	      	hdr->CHANNEL[k].HighPass  = 0.16;
 	      	hdr->CHANNEL[k].LowPass   = 70.0;
 	      	hdr->CHANNEL[k].Notch     = 50;
@@ -1817,8 +1818,9 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	if (hdr->TYPE == HL7aECG)  // do nothing. 
 		return(1); 	
 
-	if (hdr->TYPE != SCP_ECG)  // memory allocation for SCP is done in SOPEN_SCP_WRITE Section 6	
-	{
+	if (hdr->TYPE == SCP_ECG)  // memory allocation for SCP is done in SOPEN_SCP_WRITE Section 6	
+		hdr->AS.rawdata = hdr->AS.Header1 + hdr->aECG->Section6.StartPtr+16+6+2*hdr->NS;
+	else {
 		ptr = realloc(hdr->AS.rawdata, hdr->AS.bpb*hdr->NRec);
 		if (ptr==NULL) {
 			fprintf(stderr,"memory allocation failed.\n");
@@ -1830,12 +1832,14 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 	for (k1=0, k2=0; k1<hdr->NS; k1++) {
 	CHptr 	= hdr->CHANNEL+k1;
+	// if (1) { /////CHptr->OnOff != 0) {
 	if (CHptr->OnOff != 0) {
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BYTE[GDFTYP];
 		iCal	= 1/CHptr->Cal;
-		iOff	= CHptr->DigMin - CHptr->Off*iCal;
+		//iOff	= CHptr->DigMin - CHptr->PhysMin*iCal;
+		iOff	= -CHptr->Off*iCal;
 
 		for (k4 = 0; k4 < hdr->NRec; k4++) {
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
@@ -1846,7 +1850,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			sample_value /= DIV;
 			 	
 			if (!hdr->FLAG.UCAL)	// scaling 
-				sample_value = sample_value*iCal + iOff;
+				sample_value = sample_value * iCal + iOff;
 
 			// get source address 	
 			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
@@ -1966,6 +1970,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			*(uint16_t*)(hdr->AS.Header1 + hdr->aECG->Section6.StartPtr) = l_endian_u16(crc);
 		}	
 	}
+fprintf(stdout,"\nm4: %d %d %d %d\n",*((int16_t *)hdr->AS.rawdata),*((int16_t *)hdr->AS.rawdata+2),*(int16_t *)(hdr->AS.rawdata+4),*(int16_t *)(hdr->AS.rawdata+6));
 	
 	// set position of file handle 
 	(hdr->FILE.POS) += count; 

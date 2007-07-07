@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.3 2007-06-27 09:13:09 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.4 2007-07-07 01:05:22 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -528,12 +528,14 @@ HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr){
 	PhysDim(hdr->CHANNEL[i].PhysDimCode,tmp); 
 
 	valueHead = new TiXmlElement("origin");
-	valueHead->SetDoubleAttribute("value", hdr->CHANNEL[i].Off);
+	// valueHead->SetDoubleAttribute("value", hdr->CHANNEL[i].Off);
+	valueHead->SetDoubleAttribute("value", 0);
 	valueHead->SetAttribute("unit", tmp);
 	sequenceValue->LinkEndChild(valueHead);
 
 	valueIncrement = new TiXmlElement("scale");
-	valueIncrement->SetDoubleAttribute("value", hdr->CHANNEL[i].Cal);
+	// valueIncrement->SetDoubleAttribute("value", hdr->CHANNEL[i].Cal);
+	valueIncrement->SetDoubleAttribute("value", 1);
 	valueIncrement->SetAttribute("unit", tmp);
 	sequenceValue->LinkEndChild(valueIncrement);
 

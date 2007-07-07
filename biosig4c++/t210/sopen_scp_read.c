@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.13 2007-06-27 09:40:29 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.14 2007-07-07 01:05:22 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -309,6 +309,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				hdr->SPR 		= lcm(hdr->SPR,hdr->CHANNEL[i].SPR);
 				hdr->CHANNEL[i].LeadIdCode =  *(PtrCurSect+curSectPos+8);
 				hdr->CHANNEL[i].Label 	= "";   //lead_identification(hdr->CHANNEL[i].LeadIdCode);
+				//hdr->CHANNEL[i].Label   = LEAD_ID_TABLE[hdr->CHANNEL[i].LeadIdCode];
 				hdr->CHANNEL[i].LowPass = LowPass; 
 				hdr->CHANNEL[i].HighPass= HighPass; 
 				hdr->CHANNEL[i].Notch 	= Notch; 
@@ -336,16 +337,17 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 			for (i=0; i < hdr->NS; i++) {
 				hdr->CHANNEL[i].SPR 	    = hdr->SPR;
 				hdr->CHANNEL[i].PhysDimCode = 4276; // PhysDimCode("nV") physical unit "nV" 	
-				hdr->CHANNEL[i].Cal 	    = Cal;
+				hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("mV") physical unit "mV" 	
+				hdr->CHANNEL[i].Cal 	    = Cal*1e-3;
 				hdr->CHANNEL[i].Off         = 0;
 				hdr->CHANNEL[i].OnOff       = 1;    // 1: ON 0:OFF
-				hdr->CHANNEL[i].Transducer  = ""; 
+				hdr->CHANNEL[i].Transducer  = "";
 				hdr->CHANNEL[i].GDFTYP      = GDFTYP;  
 				len += l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+i*2));
 
 				// ### these values should represent the true saturation values ###//
-				hdr->CHANNEL[i].DigMax      = ldexp(1.0,24)-1;
-				hdr->CHANNEL[i].DigMin      = ldexp(-1.0,24);
+				hdr->CHANNEL[i].DigMax      = ldexp(1.0,20)-1;
+				hdr->CHANNEL[i].DigMin      = ldexp(-1.0,20);
 				hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
 				hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
 			}

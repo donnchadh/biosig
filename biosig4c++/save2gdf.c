@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.8 2007-07-04 22:01:46 schloegl Exp $
+    $Id: save2gdf.c,v 1.9 2007-07-07 01:05:21 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -31,7 +31,6 @@
 int main(int argc, char **argv){
     
     HDRTYPE 	*hdr; 
-    HDRTYPE 	HDR; 
     CHANNEL_TYPE* 	cp; 
     size_t 	count;
     uint16_t 	numopt = 0;
@@ -121,13 +120,15 @@ int main(int argc, char **argv){
 
     for (int k=0; k<hdr->NS; k++) {
 	cp = hdr->CHANNEL+k; 
-	fprintf(stdout,"\n#%2i: %7s\t%s\t%s\t%i\t%5f\t%5f\t%5f\t%5f\t%5f\t",k,cp->Label,cp->Transducer,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin,cp->Cal);
+/*	fprintf(stdout,"\n#%2i: %7s\t%s\t%s\t%i\t%5f\t%5f\t%5f\t%5f\t%5f\t",k,cp->Label,cp->Transducer,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin,cp->Cal);
 	fprintf(stderr,"\n%4.0f\t%4.0f\t%4.0f\t%5f Ohm",cp->LowPass,cp->HighPass,cp->Notch,cp->Impedance);
+*/
+	fprintf(stdout,"\n#%2i: %7s\t%5f %5f %s\t%i\t%5f\t%5f\t%5f\t%5f\t",k,cp->Label,cp->Cal,cp->Off,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin);
     }
-    fprintf(stderr,"\nm1: %d %d %d %d\n",*((int16_t *)hdr->AS.rawdata),*((int16_t *)hdr->AS.rawdata+2),*(int16_t *)(hdr->AS.rawdata+4),*(int16_t *)(hdr->AS.rawdata+6));
+    fprintf(stdout,"\nm1: %d %d %d %d\n",*((int16_t *)hdr->AS.rawdata),*((int16_t *)hdr->AS.rawdata+2),*(int16_t *)(hdr->AS.rawdata+4),*(int16_t *)(hdr->AS.rawdata+6));
 
     hdr->FLAG.OVERFLOWDETECTION = 0;
-    hdr->FLAG.UCAL = 1;
+    hdr->FLAG.UCAL = 0;
     
     count = sread(hdr, 0, hdr->NRec);
 
@@ -202,7 +203,7 @@ fprintf(stdout,"SOPEN-SCP-W4: %i.\n",k);
 	
 	double Cal1 = PhysMax/(ldexp(1.0,15)-1.0);
 	double Cal2 = PhysMin/ldexp(-1.0,15);
-	double Cal = (Cal1 > Cal2 ? Cal1 : Cal2);
+	double Cal  = (Cal1 > Cal2 ? Cal1 : Cal2);
     	for (int k=0; k<hdr->NS; k++) {
 		if (0)
 		; 
@@ -216,10 +217,8 @@ fprintf(stdout,"SOPEN-SCP-W4: %i.\n",k);
 		}
 	}
 }
-
     hdr = sopen(dest, "w", hdr);
     fprintf(stdout,"File %s : sopen-write\n", hdr->FileName);
-    //if ( (hdr->TYPE != SCP_ECG) & (hdr->TYPE != HL7aECG) ) /* SCP_ECG and HL7aECG write data during SOPEN */
     {	
 	// write data 
 	// write(hdr->AS.rawdata, 4 ,hdr->NRec*hdr->SPR*hdr->NS, hdr->FILE.FID);
