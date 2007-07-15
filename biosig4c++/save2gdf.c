@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.9 2007-07-07 01:05:21 schloegl Exp $
+    $Id: save2gdf.c,v 1.10 2007-07-15 21:13:55 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -110,14 +110,8 @@ int main(int argc, char **argv){
     fprintf(stderr,"Patient:\n\tName:\t%s\n\tId:\t%s\n\tWeigth:\t%i kg\n\tHeigth:\t%i cm\n\tAge:\t%4.1f y\n",hdr->Patient.Name,hdr->Patient.Id,hdr->Patient.Weight,hdr->Patient.Height,(hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32)); 
     T0 = gdf_time2t_time(hdr->Patient.Birthday);
     fprintf(stderr,"\tBirthday:\t%s\n",asctime(localtime(&T0))); 
-    fprintf(stdout,"EVENT:\n\tN:\t%i\n\tFs:\t%f\n\t\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
+    fprintf(stdout,"EVENT:\n\tN:\t%i\n\tFs:\t%f\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
 		
-    fprintf(stdout,"--%i\t%i\n", hdr->FLAG.OVERFLOWDETECTION, hdr->FLAG.UCAL);
-    hdr->FLAG.OVERFLOWDETECTION = 0; 
-	//	hdr->FLAG.UCAL = 1;
-    fprintf(stdout,"--%i\t%i\n", hdr->FLAG.OVERFLOWDETECTION, hdr->FLAG.UCAL);
-    fprintf(stdout,"2-%u\t%i\t%i\t%i\t%u\t%u\n",hdr->AS.bpb,hdr->FILE.OPEN,(int32_t)hdr->NRec,hdr->HeadLen,hdr->Dur[0],hdr->Dur[1]);
-
     for (int k=0; k<hdr->NS; k++) {
 	cp = hdr->CHANNEL+k; 
 /*	fprintf(stdout,"\n#%2i: %7s\t%s\t%s\t%i\t%5f\t%5f\t%5f\t%5f\t%5f\t",k,cp->Label,cp->Transducer,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin,cp->Cal);
@@ -128,7 +122,7 @@ int main(int argc, char **argv){
     fprintf(stdout,"\nm1: %d %d %d %d\n",*((int16_t *)hdr->AS.rawdata),*((int16_t *)hdr->AS.rawdata+2),*(int16_t *)(hdr->AS.rawdata+4),*(int16_t *)(hdr->AS.rawdata+6));
 
     hdr->FLAG.OVERFLOWDETECTION = 0;
-    hdr->FLAG.UCAL = 0;
+    hdr->FLAG.UCAL = 1;
     
     count = sread(hdr, 0, hdr->NRec);
 
@@ -151,7 +145,39 @@ int main(int argc, char **argv){
    *********************************/
 
     	hdr->TYPE = TARGET_TYPE;
-if (0) {
+
+	size_t N=hdr->NRec*hdr->SPR;
+    	for (int k=0; k<hdr->NS; k++) {
+		double PhysMax = hdr->data.block[k*N];
+		double PhysMin = hdr->data.block[k*N];
+		/* Maximum and Minimum for channel k */ 
+		for (uint32_t k1=1; k1<N; k1++) {
+			if (PhysMax < hdr->data.block[k*N+k1])
+			 	PhysMax = hdr->data.block[k*N+k1];
+		 	if (PhysMin > hdr->data.block[k*N+k1])
+		 		PhysMin = hdr->data.block[k*N+k1];   		
+		}
+
+	    	if ((hdr->FLAG.UCAL == 1) && (hdr->TYPE==GDF))
+		{
+			/* heuristic to determine optimal data type */
+			if ((PhysMax <= 127) && (PhysMin >= -128))
+		    		hdr->CHANNEL[k].GDFTYP = 1;
+			else if ((PhysMax <= 255.0) && (PhysMin >= 0.0))
+			    	hdr->CHANNEL[k].GDFTYP = 2;
+			else if ((PhysMax <= ldexp(1.0,15)-1.0) && (PhysMin >= ldexp(-1.0,15)))
+		    		hdr->CHANNEL[k].GDFTYP = 3;
+			else if ((PhysMax <= ldexp(1.0,16)-1.0) && (PhysMin >= 0.0))
+			    	hdr->CHANNEL[k].GDFTYP = 4;
+			else if ((PhysMax <= ldexp(1.0,31)-1.0) && (PhysMin >= ldexp(-1.0,31)))
+		    		hdr->CHANNEL[k].GDFTYP = 5;
+			else if ((PhysMax <= ldexp(1.0,32)-1.0) && (PhysMin >= 0.0))
+		    		hdr->CHANNEL[k].GDFTYP = 6;
+		}    		
+	}
+	
+
+if (0) { // ### MAYBE OBSOLETE ### 
     	// header conditioning
 	double PhysMax = hdr->data.block[0];
 	double PhysMin = hdr->data.block[0];
@@ -217,6 +243,7 @@ fprintf(stdout,"SOPEN-SCP-W4: %i.\n",k);
 		}
 	}
 }
+
     hdr = sopen(dest, "w", hdr);
     fprintf(stdout,"File %s : sopen-write\n", hdr->FileName);
     {	
