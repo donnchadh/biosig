@@ -1,17 +1,23 @@
-function [Y,RRI]=berger(RRI,Fs)
+function [Y,RRI] = berger(RRI,Fs)
 % Resampling with the Berger algorithm
 % [HRV,RRI] = berger(RRI, Fs)
 % [HRV,RRI] = berger(ONSET, Fs)
+% [HRV,RRI] = berger(HDR)
 % 
 % RRI 	R-to-R interval 
 % ONSET onset time QRS-complex
 % Fs	target sampling rate
+% HDR	header struct as defined by SOPEN, SLOAD. HDR.EVENT must contain the QRS events
 % HRV 	heart rate variability sampled with Fs
 % RRI	R-to-R interval sampled with Fs
 %
+% Reference(s):
+% [1] Berger RD, Akselrod S, Gordon D, Cohen RJ. 
+%    An efficient algorithm for spectral analysis of heart rate variability.
+%    IEEE Trans Biomed Eng. 1986 Sep;33(9):900-4.
 
-%       $Id: berger.m,v 1.2 2005-07-19 10:40:31 schloegl Exp $
-%	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%       $Id: berger.m,v 1.3 2007-07-16 17:33:56 schloegl Exp $
+%	Copyright (c) 1997-2005, 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
