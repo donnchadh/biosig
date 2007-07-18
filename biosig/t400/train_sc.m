@@ -13,6 +13,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %    'LD2'      linear discriminant analysis (see LDBC2) [1]
 %    'LD3'      linear discriminant analysis (see LDBC3) [1]
 %    'LD4'      linear discriminant analysis (see LDBC4) [1]
+%    'LD5'      another LDA (motivated by CSP)
 %    'GDBC'     general distance based classifier  [1]
 %    ''         statistical classifier, requires Mode argument in TEST_SC	
 %    '###/GSVD'	GSVD and statistical classifier [2,3], 
@@ -56,7 +57,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
  
 
-%	$Id: train_sc.m,v 1.17 2006-11-23 09:47:57 schloegl Exp $
+%	$Id: train_sc.m,v 1.18 2007-07-18 09:38:33 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -74,7 +75,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-if nargin<3, MODE = ''; end;
+if nargin<3, MODE = 'LDA'; end;
 if ischar(MODE) 
         tmp = MODE; 
         clear MODE; 
@@ -88,7 +89,8 @@ if sz(1)~=length(classlabel),
         error('length of data and classlabel does not fit');
 end;
 
-[CC.Labels] = unique(classlabel);
+%CC.Labels = unique(classlabel);
+CC.Labels = 1:max(classlabel);
 
 % remove all NaN's
 ix = any(isnan([D,classlabel]),2);
@@ -117,7 +119,8 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'lpm'))
         M = length(CC.Labels);
         if M==2, M=1; end;   % For a 2-class problem, only 1 Discriminant is needed 
         for k = 1:M,
-                LPM = train_LPM(D,(classlabel==CC.Labels(k)),'C',MODE.hyperparameter.c_value);
+                %LPM = train_LPM(D,(classlabel==CC.Labels(k)),'C',MODE.hyperparameter.c_value);
+                LPM = train_LPM(D',(classlabel'==CC.Labels(k)));
                 CC.weights(:,k) = [-LPM.b; LPM.w(:)];
         end;
         CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
@@ -349,7 +352,7 @@ else          % Linear and Quadratic statistical classifiers
         for k = 1:length(CC.Labels),
                 [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
         end;
-save matlab_trainsc
+
         ECM = CC.MD./CC.NN;
         NC  = size(ECM);
         if strncmpi(MODE.TYPE,'LD',2);
@@ -366,11 +369,13 @@ save matlab_trainsc
                         [M2,sd,COV2,xc,N2,R2] = decovm(ecm);
                         switch (type)
                                 case 2          % LD2
-                                        w = (COV1+COV2)\(M2'-M1')*2;
+                                        w = (COV1+COV2)\(M2-M1)'*2;
                                 case 4          % LD4
-                                        w = (COV1*N1+COV2*N2)\((M2'-M1')*(N1+N2));
+                                        w = (COV1*N1+COV2*N2)\((M2-M1)'*(N1+N2));
+                                case 5          % LD5
+                                        w = COV2\(M2-M1)';
                                 otherwise       % LD3, LDA
-                                        w = COV0\(M2'-M1')*2;
+                                        w = COV0\(M2-M1)'*2;
                         end
                         w0    = -M0*w;
                         CC.weights(:,k) = [w0; w];
