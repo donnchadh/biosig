@@ -20,9 +20,9 @@
 %       Towards Brain-Computer Interfacing. MIT press (accepted)
 
 
-%	$Revision: 1.5 $
-%	$Id: demo2.m,v 1.5 2006-04-25 10:03:15 schloegl Exp $
-%	Copyright (C) 1999-2003,2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.6 $
+%	$Id: demo2.m,v 1.6 2007-07-18 09:35:48 schloegl Exp $
+%	Copyright (C) 1999-2003,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -69,25 +69,25 @@ if ~any(size(eegchan)==1)
 	eegchan=1:size(eegchan,2); 
 end;
 
-%randn('state',0);
-[a0,A0] = getar0(S(:,1:2),1:M0,1000,Fs/2);
+MODE.T  = reshape((1:1152),16,1152/16)';	% define segments 
+MODE.WIN = MODE.T(:,1) > 3*Fs/8+1;	        % valid segments for building classifier
+MODE.MOP = [0,3,0];				% order of AAR model
+MODE.UC  = 2^(-(7+5)*5/8);			% update coefficient of AAR model 
 
-T  = reshape((1:1152),16,1152/16)';
-t0 = zeros(1152/16,1);
-t0(25:72) = 1;
-t0 = logical(t0);
-
-p  = 3;
-k  = 7;
-UC0= 2^(-uc(k)/8);
-
-% feature extraction for each chaannel
+% estimate AAR model parameters
+a2 = [];
 for ch = 1:length(eegchan),
-        [ar{ch},e,REV(ch)] = aar(S(:,eegchan(ch)), [2,3], p, UC0, a0{p},A0{p});
-end;
+	X = tvaar(S(:,eegchan(ch)),MODE.MOP,MODE.UC); % 1st run used to get reasonable initial values 
+       	X = tvaar(S(:,eegchan(ch)),X);		% AAR estimation
+       	a2 = [a2,X.AAR]; 
+end; 
 
 % get classifier 
-[cc] = findclassifier([cat(2,ar{:})],TRIG, cl,T,t0);
+[cc] = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN);
+cc.TSD.T = cc.TSD.T/Fs;
+plota(cc.TSD);
+
+[cc] = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN,'LD5');
 cc.TSD.T = cc.TSD.T/Fs;
 plota(cc.TSD);
 
