@@ -14,7 +14,7 @@ function HDR=bdf2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bdf2biosig_events.m,v 1.4 2007-07-18 12:34:29 schloegl Exp $
+%	$Id: bdf2biosig_events.m,v 1.5 2007-07-18 12:49:34 schloegl Exp $
 %	Copyright (C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -80,7 +80,7 @@ case 2,
 case 99,
 	% not recommended, because it could break some functionality in BioSig 
 	POS = [find(ix2>0);find(ix2<0)];
-	TYP = [bitand(t(ix2>0),2^16-1); bitor(bitand(t(find(ix2<0)-1),2^16-1),2^15)];
+	TYP = [bitand(t(ix2>0),2^16-1); bitor(bitand(t(ix2<0),2^16-1),2^15)];
 end;
 [HDR.EVENT.POS,ix] = sort(POS);
 HDR.EVENT.TYP = TYP(ix);
