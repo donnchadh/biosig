@@ -14,7 +14,7 @@ function HDR=bdf2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bdf2biosig_events.m,v 1.5 2007-07-18 12:49:34 schloegl Exp $
+%	$Id: bdf2biosig_events.m,v 1.6 2007-07-18 15:35:31 schloegl Exp $
 %	Copyright (C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -71,7 +71,7 @@ case 1,
 	% epoching information is derived from bit17
 	% only lower 8 bits are supported
 	POS = [find(ix1>0);find(ix2>0);find(ix1<0);find(ix2<0)];
-	TYP = [repmat(hex2dec('0300'),sum(ix1>0),1); bitand(t(ix2>0),255); repmat(hex2dec('8300'),sum(ix1<0),1); bitor(bitand(t(ix2<0),255),2^15)];
+	TYP = [repmat(hex2dec('0300'),sum(ix1>0),1); bitand(t(ix2>0),255); repmat(hex2dec('8300'),sum(ix1<0),1); bitor(bitand(t(find(ix2<0)-1),255),2^15)];
 case 2,
 	% suggested decoding if standardized event codes (according to 
 	% .../biosig/doc/eventcodes.txt) are used  
@@ -80,7 +80,7 @@ case 2,
 case 99,
 	% not recommended, because it could break some functionality in BioSig 
 	POS = [find(ix2>0);find(ix2<0)];
-	TYP = [bitand(t(ix2>0),2^16-1); bitor(bitand(t(ix2<0),2^16-1),2^15)];
+ 	TYP = [bitand(t(ix2>0),2^16-1); bitor(bitand(t(find(ix2<0)-1),2^16-1),2^15)];
 end;
 [HDR.EVENT.POS,ix] = sort(POS);
 HDR.EVENT.TYP = TYP(ix);
@@ -97,4 +97,4 @@ ix = diff(double([0;t]));
 HDR.BDF.Status.POS = find(ix);
 HDR.BDF.Status.TYP = t(POS); 			
 
-HDR.BDF.ANNONS = []; 	% not needed anymore, saves memory
+%HDR.BDF.ANNONS = []; 	% not needed anymore, saves memory
