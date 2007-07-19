@@ -27,7 +27,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
 
-%	$Id: test_sc.m,v 1.17 2007-07-19 15:07:24 schloegl Exp $
+%	$Id: test_sc.m,v 1.18 2007-07-19 15:39:58 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -65,7 +65,7 @@ if 0,
 elseif strcmp(CC.datatype,'classifier:csp')
 	d = (D*CC.csp_w).^2;
 	d = filtfilt(CC.FiltB,CC.FiltA,(D*CC.csp_w).^2);
-	R = test_sc(CC.CSP,d);	% LDA classifier of 
+	R = test_sc(CC.CSP,log(d));	% LDA classifier of 
 	d = R.output; 
 	cl= R.classlabel; 
 

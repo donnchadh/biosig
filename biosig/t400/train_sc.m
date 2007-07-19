@@ -63,7 +63,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
  
 
-%	$Id: train_sc.m,v 1.19 2007-07-19 15:08:16 schloegl Exp $
+%	$Id: train_sc.m,v 1.20 2007-07-19 15:39:58 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -366,7 +366,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'csp'))
 	CC.FiltB = ones(CC.FiltA,1); 
 	d   = filtfilt(CC.FiltB,CC.FiltA,(D*W).^2);
 	CC.csp_w = W; 
-	CC.CSP = train_sc(log10(d),classlabel);	
+	CC.CSP = train_sc(log(d),classlabel);	
 
 
 else          % Linear and Quadratic statistical classifiers 
