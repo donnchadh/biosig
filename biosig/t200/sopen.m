@@ -53,7 +53,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.183 2007-06-21 12:51:00 schloegl Exp $
+%	$Id: sopen.m,v 1.184 2007-07-19 08:12:31 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -878,11 +878,11 @@ end;
                         % BDF: 
 
                         tmp = strmatch('Status',HDR.Label);
-                        HDR.BDF.Status = tmp;
+                        HDR.BDF.Status.Channel = tmp;
 
-                        status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bi(HDR.BDF.Status)*3,'bof');
-                        %t = fread(HDR.FILE.FID,[3,inf],'uint8',HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status)*3);
-                        t = fread(HDR.FILE.FID,inf,[int2str(HDR.AS.SPR(HDR.BDF.Status)*3),'*uchar'],HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status)*3);
+                        status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bi(HDR.BDF.Status.Channel)*3,'bof');
+                        %t = fread(HDR.FILE.FID,[3,inf],'uint8',HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status.Channel)*3);
+                        t = fread(HDR.FILE.FID,inf,[int2str(HDR.AS.SPR(HDR.BDF.Status.Channel)*3),'*uchar'],HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status.Channel)*3);
                         HDR.BDF.ANNONS = reshape(double(t),3,length(t)/3)'*2.^[0;8;16];
 			HDR = bdf2biosig_events(HDR); 
 
@@ -1252,6 +1252,10 @@ end;
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.PhysDim not defined\n');
                                 end;
                         else
+                        	if iscell(HDR.PhysDim),  
+                        		% make column 
+                        		HDR.PhysDim = HDR.PhysDim(:); 
+                        	end;  
                                 if length(HDR.PhysDim)==0,
                                         HDR.PhysDim = repmat({' '},HDR.NS,1);
                                 elseif size(HDR.PhysDim,1)<HDR.NS,
@@ -5870,9 +5874,9 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 end;
                 if isfield(HDR,'data'),
                 	HDR.data = reshape(permute(reshape(HDR.data,[HDR.SPR,HDR.NS,HDR.NRec]),[1,3,2]),[HDR.SPR*HDR.NRec,HDR.NS]);
-                        HDR.BDF.Status = strmatch('Status',HDR.Label,'exact');
-                        if length(HDR.BDF.Status),
-	                	HDR.BDF.ANNONS = uint32(HDR.data(:,HDR.BDF.Status)); 
+                        HDR.BDF.Status.Channel = strmatch('Status',HDR.Label,'exact');
+                        if length(HDR.BDF.Status.Channel),
+	                	HDR.BDF.ANNONS = uint32(HDR.data(:,HDR.BDF.Status.Channel)); 
 	                end;
 		end; 
 		if isfield(HDR.BDF,'ANNONS'),
@@ -8358,12 +8362,21 @@ elseif strcmp(HDR.TYPE,'nakamura'),
 	fclose(fid);
 	[tmp1,tmp2,HDR.Label]=str2double(s); 
 	HDR.NS = length(HDR.Label); 
-	
+	for k=1:HDR.NS
+		HDR.Label{k} = sprintf('#%02i: %s',k,HDR.Label{k}); 
+	end; 
+		
 	fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.log']),'r');
 	s = char(fread(fid,[1,inf],'char')); 
 	fclose(fid);
-	[n,v,sa]=str2double(s); 
-	HDR.NRec = size(n,1); 
+	[n,v,sa]    = str2double(s);
+	HDR.NRec    = size(n,1);
+	HDR.LOG.num = n(:,3:2:end); 
+	HDR.LOG.str = sa(:,2:2:end); 
+	styIDX = strmatch('sty',sa(1,:),'exact')+1;	% stimulus type
+	stmIDX = strmatch('sttm',sa(1,:),'exact')+1;	% stimulus time 
+	rtyIDX = strmatch('rty',sa(1,:),'exact')+1;	% response type
+	rtmIDX = strmatch('rstm',sa(1,:),'exact')+1;	% response time
 	
 	fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dm6']),'r','ieee-le');
 	[s,count] = fread(fid,[1,inf],'float'); 
@@ -8374,7 +8387,7 @@ elseif strcmp(HDR.TYPE,'nakamura'),
 	HDR.FLAG.TRIGGERED = 1; 
 	HDR.TYPE = 'native'; 
 	HDR.FILE.POS = 0; 
-	HDR.EVENT.POS = [0:HDR.NRec-1]'*HDR.SPR+1; 
+	HDR.EVENT.POS = [0:HDR.NRec-1]'*HDR.SPR+n(:,rtyIDX); 
 	HDR.EVENT.TYP = n(:,11);
 	%%% ###FIXME###
 	HDR.PhysDimCode = 512+zeros(1,HDR.NS); % normalized, dimensionless
