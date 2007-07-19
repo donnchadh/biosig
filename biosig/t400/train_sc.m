@@ -11,9 +11,13 @@ function [CC]=train_sc(D,classlabel,MODE)
 %    'GRB'      Gaussian radial basis function     [1]
 %    'QDA'      quadratic discriminant analysis    [1]
 %    'LD2'      linear discriminant analysis (see LDBC2) [1]
+%               MODE.hyperparameters.gamma = 
 %    'LD3'      linear discriminant analysis (see LDBC3) [1]
+%               MODE.hyperparameters.gamma = 
 %    'LD4'      linear discriminant analysis (see LDBC4) [1]
+%               MODE.hyperparameters.gamma = 
 %    'LD5'      another LDA (motivated by CSP)
+%               MODE.hyperparameters.gamma = 
 %    'GDBC'     general distance based classifier  [1]
 %    ''         statistical classifier, requires Mode argument in TEST_SC	
 %    '###/GSVD'	GSVD and statistical classifier [2,3], 
@@ -28,7 +32,9 @@ function [CC]=train_sc(D,classlabel,MODE)
 %               MODE.hyperparameters.gamma = 
 %    'LPM'      Linear Programming Machine
 %               MODE.hyperparameters.c_value = 
-%    'REG'      regression analysis;    
+%    'REG'      regression analysis;
+%    'CSP'	CommonSpatialPattern is very experimental and just a hack
+%		uses a smoothing window of 50 samples.     
 %
 % 
 % CC contains the model parameters of a classifier. Some time ago,     
@@ -57,7 +63,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
  
 
-%	$Id: train_sc.m,v 1.18 2007-07-18 09:38:33 schloegl Exp $
+%	$Id: train_sc.m,v 1.19 2007-07-19 15:08:16 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -345,6 +351,24 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
 
 
+elseif ~isempty(strfind(lower(MODE.TYPE),'csp'))
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+        CC.MD = repmat(NaN,[length(CC.Labels),sz(2)+[1,1]]);
+        CC.NN = CC.MD;
+        for k = 1:length(CC.Labels),
+                [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
+        end;
+        ECM = CC.MD./CC.NN;
+        NC  = size(ECM);
+	W   = csp(ECM,'CSP3');
+	%%% ### This is a hack ###
+	CC.FiltA = 50; 
+	CC.FiltB = ones(CC.FiltA,1); 
+	d   = filtfilt(CC.FiltB,CC.FiltA,(D*W).^2);
+	CC.csp_w = W; 
+	CC.CSP = train_sc(log10(d),classlabel);	
+
+
 else          % Linear and Quadratic statistical classifiers 
         CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
         CC.MD = repmat(NaN,[length(CC.Labels),sz(2)+[1,1]]);
@@ -369,14 +393,18 @@ else          % Linear and Quadratic statistical classifiers
                         [M2,sd,COV2,xc,N2,R2] = decovm(ecm);
                         switch (type)
                                 case 2          % LD2
-                                        w = (COV1+COV2)\(M2-M1)'*2;
+                                        cov = (COV1+COV2)/2;
                                 case 4          % LD4
-                                        w = (COV1*N1+COV2*N2)\((M2-M1)'*(N1+N2));
+                                        cov = (COV1*N1+COV2*N2)/(N1+N2);
                                 case 5          % LD5
-                                        w = COV2\(M2-M1)';
+                                        cov = COV2;
                                 otherwise       % LD3, LDA
-                                        w = COV0\(M2-M1)'*2;
+                                        cov = COV0/2; 
                         end
+	        	if isfield(MODE.hyperparameter,'gamma')
+	        		cov = cov + mean(diag(cov))*eye(size(cov))*MODE.hyperparameter.gamma;
+        		end	
+                        w = cov\(M2-M1)';
                         w0    = -M0*w;
                         CC.weights(:,k) = [w0; w];
                 end;
