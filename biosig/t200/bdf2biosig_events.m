@@ -14,7 +14,7 @@ function HDR=bdf2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bdf2biosig_events.m,v 1.7 2007-07-19 08:12:31 schloegl Exp $
+%	$Id: bdf2biosig_events.m,v 1.8 2007-07-19 13:30:21 schloegl Exp $
 %	Copyright (C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -63,24 +63,61 @@ t = HDR.BDF.ANNONS;
 ix1 = diff(double([0;bitand(t,2^16)]));	% start of epoch
 ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels 
 
-
 % defines mapping of the BDF-status channel to BioSig event codes 			
-switch 1,
-case 1,
-	% this is the default decoding
+switch 4,    % determines default decoding
+case 1,	%% ## OBSOLETE - just for backword compatibility %% 
 	% epoching information is derived from bit17
 	% only lower 8 bits are supported
 	POS = [find(ix1>0);find(ix2>0);find(ix1<0);find(ix2<0)];
 	TYP = [repmat(hex2dec('0300'),sum(ix1>0),1); bitand(t(ix2>0),255); repmat(hex2dec('8300'),sum(ix1<0),1); bitor(bitand(t(find(ix2<0)-1),255),2^15)];
-case 2,
+
+case 2, %% ## OBSOLETE - just for backword compatibility %% 
 	% suggested decoding if standardized event codes (according to 
 	% .../biosig/doc/eventcodes.txt) are used  
 	POS = [find(ix2>0)];
 	TYP = [bitand(t(ix2>0),2^16-1)];
+	
+case 3,
+	% the status word is decoded only if bit17=0. 
+	% raising and falling edges are considered
+	t = bitand(HDR.BDF.ANNONS,2^16-1);
+	t(~~bitand(HDR.BDF.ANNONS,2^16)) = 0; 
+	ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels 
+	POS = [find(ix2)];
+ 	TYP = [t(ix2>0); t(find(ix2<0)-1)+hex2dec('8000')];
+		
+case 4,
+	% the status word is decoded only if bit17=0. 
+	% only raising edges are considered
+	t = bitand(HDR.BDF.ANNONS,2^16-1);
+	t(~~bitand(HDR.BDF.ANNONS,2^16)) = 0; 
+	ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels 
+	POS = [find(ix2>0)];
+	TYP = [t(ix2>0)];
+		
+case 5,
+	% the status word is decoded only if bit17=0. 
+	% raising and falling edges are considered
+	t = bitand(HDR.BDF.ANNONS,255);			% only bit1-8 are considered, useful if bit9-16 are open/undefined
+	t(~~bitand(HDR.BDF.ANNONS,2^16)) = 0; 
+	ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels 
+	POS = [find(ix2)];
+ 	TYP = [t(ix2>0); t(find(ix2<0)-1)+hex2dec('8000')];
+		
+case 6,
+	% the status word is decoded only if bit17=0. 
+	% only raising edges are considered
+	t = bitand(HDR.BDF.ANNONS,255);			% only bit1-8 are considered, useful if bit9-16 are open/undefined
+	t(~~bitand(HDR.BDF.ANNONS,2^16)) = 0; 
+	ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels 
+	POS = [find(ix2>0)];
+	TYP = [t(ix2>0)];
+		
 case 99,
 	% not recommended, because it could break some functionality in BioSig 
 	POS = [find(ix2>0);find(ix2<0)];
  	TYP = [bitand(t(ix2>0),2^16-1); bitor(bitand(t(find(ix2<0)-1),2^16-1),2^15)];
+
 end;
 [HDR.EVENT.POS,ix] = sort(POS);
 HDR.EVENT.TYP = TYP(ix);
@@ -97,4 +134,4 @@ ix = diff(double([0;t]));
 HDR.BDF.Status.POS = find(ix);
 HDR.BDF.Status.TYP = t(HDR.BDF.Status.POS); 			
 
-HDR.BDF.ANNONS = []; 	% not needed anymore, saves memory
+%HDR.BDF.ANNONS = []; 	% not needed anymore, saves memory
