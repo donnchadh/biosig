@@ -36,7 +36,7 @@ function [br,sef90,sef95] = brainrate(s,Fs,UC,A)
 %     Contributions, Sec. Biol. Med. Sci., MASA, XXVI, 2, p. 35–42 (2005)
 %     ISSN 0351–3254, UDK: 616.831-073.97
 
-%	$Id: brainrate.m,v 1.5 2006-11-27 14:10:38 schloegl Exp $
+%	$Id: brainrate.m,v 1.6 2007-07-20 10:55:58 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -62,7 +62,6 @@ MOP = 15; 		% order of autoregressive model
 if nargin<3, 
         UC = 0; 
 end;
-if nargin<3;
         if UC==0,
 		br = size(1,K); 
 		sef90 = size(1,K); 
@@ -81,12 +80,10 @@ if nargin<3;
 		sef90 = size(N,K); 
 		sef95 = size(N,K); 
         end;
-else
-        B = UC;    
-end;
+
 
 s = center(s,1);
-for k2=1:K,
+for k2 = 1:K,
 	if ~UC,
 		[a,r,pe] = lattice(s(:,k2)',MOP); 	
 	else
@@ -95,7 +92,6 @@ for k2=1:K,
 		a = X.AAR;  
 		pe= X.PE; 
 	end;
-
 	
 	fi = [2:4:18];	% f_i list of center frequencies
 	for k1 = 1:size(a,1),
@@ -106,15 +102,14 @@ for k2=1:K,
 		br(k1,k2) = sum(fi.*h2)/sum(h2); 
 	end; 
 
-
-	if 0,nargout>1,
-	for k1 = 1:size(a,1),
-		f = (0:256)/512*Fs; 
-		%h = freqz(sqrt(pe(k1)/Fs),[1,-a(k1,:)],f,Fs); 
-		h = freqz(1,[1,-a(k1,:)],f,Fs); 
-		h2= cumsum(abs(h2).^2); 
-		sef90(k1,k2) = f(min(find(h2>=.90*h2(end)))); 
-		sef95(k1,k2) = f(min(find(h2>=.95*h2(end)))); 
-	end; 
+	if nargout>1,
+		for k1 = 1:size(a,1),
+			f = (0:256)/512*Fs; 
+			h = freqz(1,[1,-a(k1,:)],f,Fs); 
+			h2= cumsum(real(h.*conj(h)),2);
+			plot(f,[abs(h2);h]); 
+			sef90(k1,k2) = f(min(find(h2>=.90*h2(end)))); 
+			sef95(k1,k2) = f(min(find(h2>=.95*h2(end)))); 
+		end; 
 	end; 
 end;
