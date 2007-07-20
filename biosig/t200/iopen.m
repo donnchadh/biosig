@@ -27,7 +27,7 @@ function [HDR,data] = iopen(HDR,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: iopen.m,v 1.11 2006-08-12 19:35:11 schloegl Exp $
+%	$Id: iopen.m,v 1.12 2007-07-20 19:40:51 schloegl Exp $
 %	(C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -203,10 +203,7 @@ elseif strcmp(HDR.TYPE,'IMAGE:EXIF') | strncmp(HDR.TYPE,'IMAGE:JPG',9),
                                         HDR.JPEG.C4{1} = tmp;
                                 end;
                         elseif (tag == hex2dec('FFDA'))       % JPEG field: start of scan
-                            
-        
-elseif strcmp(HDR.TYPE,'IMAGE:JPG'),  
-    HDR.JPEG.SOS = fread(HDR.FILE.FID,10,'uint8');
+			    	HDR.JPEG.SOS = fread(HDR.FILE.FID,10,'uint8');
                         elseif (tag == hex2dec('FFDB'))       % EXIF field: Quantization Table 
                                 tmp = fread(HDR.FILE.FID,[65,3],'uint8');
                                 if isfield(HDR.JPEG,'DQT');
