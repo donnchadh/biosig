@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.69 2007-07-07 01:05:21 schloegl Exp $
+    $Id: biosig.c,v 1.70 2007-07-20 23:03:00 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -161,6 +161,9 @@ size_t lcm(size_t A,size_t B)
 
 #if __BYTE_ORDER == __BIG_ENDIAN
 float l_endian_f32(float x) 
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+float b_endian_f32(float x) 
+#endif
 {
 	union {
 		float f32;
@@ -172,7 +175,11 @@ float l_endian_f32(float x)
 	return(b2.f32);
 }
 
+#if __BYTE_ORDER == __BIG_ENDIAN
 double l_endian_f64(double x) 
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+double b_endian_f64(double x) 
+#endif
 {
 	union {
 		double f64;
@@ -184,7 +191,6 @@ double l_endian_f64(double x)
 	b2.u32[1] = bswap_32(b1.u32[0]);
 	return(b2.f64);
 }
-#endif
 
 
 /* physical units are defined in 
@@ -422,7 +428,7 @@ double PhysDimScale(uint16_t PhysDimCode)
 	  1e18, 1e21, 1e24, NaN,  NaN,  NaN,   NaN,   NaN, 
 	  1e-1, 1e-2, 1e-3, 1e-6, 1e-9, 1e-12, 1e-15, 1e-18, 
 	  1e-21,1e-24,NaN,  NaN,  NaN,  NaN,   NaN,   NaN }; 
-//fprintf(stdout,"\nPhysDimScale: %i\n",PhysDimCode,scale[PhysDimCode & 0x001f]);
+
 	return (scale[PhysDimCode & 0x001f]); 
 }
 
@@ -584,6 +590,147 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 
 
 /****************************************************************************/
+/**                     GETFILETYPE                                        **/
+/****************************************************************************/
+HDRTYPE* getfiletype(HDRTYPE* hdr)
+/*
+	input:
+		hdr->AS.Header1 contains first block up to 256 bytes 
+		hdr->TYPE must be unknown, otherwise no FileFormat evaluation is performed
+	output:
+		hdr->TYPE	file format
+		hdr->VERSION	is defined for some selected formats e.g. ACQ, EDF, BDF, GDF
+ */
+{
+
+	uint8_t *Header1 = hdr->AS.Header1;
+	uint32_t U32 = l_endian_u32(*(uint32_t*)(Header1+2)); 
+
+    	if (hdr->TYPE != unknown)
+    		return(hdr); 
+
+    	else if ((U32>=30) & (U32<=42)) {
+    		hdr->VERSION = (float)U32; 
+    		U32 = l_endian_u32(*(uint32_t*)(Header1+6));
+    		if      ((hdr->VERSION <34.0) & (U32 == 150)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <35.0) & (U32 == 164)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <36.0) & (U32 == 326)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <37.0) & (U32 == 886)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <38.0) & (U32 ==1894)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <41.0) & (U32 ==1896)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION>=41.0) & (U32 ==1944)) hdr->TYPE = ACQ;
+	    	if (hdr->TYPE == ACQ) {
+    			hdr->HeadLen = U32; // length of fixed header  
+    			return(hdr);
+    		}
+    	}
+
+	const uint8_t MAGIC_NUMBER_FEF1[] = {67,69,78,13,10,0x1a,4,0x84};
+	const uint8_t MAGIC_NUMBER_FEF2[] = {67,69,78,0x13,0x10,0x1a,4,0x84};
+	const uint8_t MAGIC_NUMBER_TIFF_l32[] = {73,73,42,0};
+	const uint8_t MAGIC_NUMBER_TIFF_b32[] = {77,77,0,42};
+	const uint8_t MAGIC_NUMBER_TIFF_l64[] = {73,73,43,0,8,0,0,0};
+	const uint8_t MAGIC_NUMBER_TIFF_b64[] = {77,77,0,43,0,8,0,0};
+	const uint8_t MAGIC_NUMBER_DICOM[]    = {8,0,5,0,10,0,0,0,73,83,79,95,73,82,32,49,48,48};
+	
+    	if (hdr->TYPE != unknown)
+       		return(hdr); 
+    	else if (!memcmp(Header1+20,"ACR-NEMA",8))
+	    	hdr->TYPE = ACR_NEMA;
+    	else if (!memcmp(Header1+1,"BIOSEMI",7) & (Header1[0]==255)) {
+    		hdr->TYPE = BDF;
+    		hdr->VERSION = -1; 
+    	}
+    	else if ((Header1[0]==207) & (!Header1[1]) & (!Header1[154]) & (!Header1[155]))
+	    	hdr->TYPE = BKR;
+        else if (!memcmp(Header1,"Brain Vision Data Exchange Header File",38))
+                hdr->TYPE = BrainVision;
+    	else if (!memcmp(Header1,"CFWB\1\0\0\0",8))
+	    	hdr->TYPE = CFWB;
+    	else if (!memcmp(Header1,"Version 3.0",11))
+	    	hdr->TYPE = CNT;
+    	else if (!memcmp(Header1,"DEMG",4))
+	    	hdr->TYPE = DEMG;
+    	else if (!memcmp(Header1+128,"DICM",4))
+	    	hdr->TYPE = DICOM;
+    	else if (!memcmp(Header1, MAGIC_NUMBER_DICOM,18))
+	    	hdr->TYPE = DICOM;
+    	else if (!memcmp(Header1+12, MAGIC_NUMBER_DICOM,18))
+	    	hdr->TYPE = DICOM;
+    	else if (!memcmp(Header1+12, MAGIC_NUMBER_DICOM,8))
+	    	hdr->TYPE = DICOM;
+    	else if (!memcmp(Header1,"0       ",8)) {
+	    	hdr->TYPE = EDF;
+	    	hdr->VERSION = 0; 
+	}
+    	else if (!memcmp(Header1,MAGIC_NUMBER_FEF1,8) | !memcmp(Header1,MAGIC_NUMBER_FEF2,8)) {
+	    	hdr->TYPE = FEF;
+		char tmp[9];
+		strncpy(tmp,(char*)hdr->AS.Header1+8,8);
+		hdr->VERSION = atof(tmp);
+    	}
+    	else if (!memcmp(Header1,"fLaC",4))
+	    	hdr->TYPE = FLAC;
+    	else if (!memcmp(Header1,"GDF",3))
+	    	hdr->TYPE = GDF; 
+    	else if (!memcmp(Header1,"GIF87a",6))
+	    	hdr->TYPE = GIF; 
+    	else if (!memcmp(Header1,"GIF89a",6))
+	    	hdr->TYPE = GIF; 
+    	else if (!memcmp(Header1,"@  MFER ",8))
+	    	hdr->TYPE = MFER;
+    	else if (!memcmp(Header1,"@ MFR ",6))
+	    	hdr->TYPE = MFER;
+    	else if (!memcmp(Header1,"MThd\0\0\0\1\0",9))
+	    	hdr->TYPE = MIDI;
+    	else if (!memcmp(Header1,"NEX1",4))
+	    	hdr->TYPE = NEX1;
+    	else if (!memcmp(Header1,"PLEX",4))
+	    	hdr->TYPE = PLEXON;
+    	else if (!memcmp(Header1,"RIFF",4)) {
+	    	hdr->TYPE = RIFF;
+	    	if (!memcmp(Header1+8,"WAVE",4))
+	    		hdr->TYPE = WAV;
+	    	if (!memcmp(Header1+8,"AIF",3))
+	    		hdr->TYPE = AIFF;
+	    	if (!memcmp(Header1+8,"AVI ",4))
+	    		hdr->TYPE = AVI;
+	}    	
+    	else if (!memcmp(Header1+16,"SCPECG",6)) {
+	    	hdr->TYPE = SCP_ECG;
+    		if (!memcmp(Header1+8,"\0\0\136\0\0\0\13\13",8)) 
+		    	hdr->VERSION = 1.3;
+    		else if (!memcmp(Header1+8,"\0\0",2)) 
+		    	hdr->VERSION = -1.0;
+		else    	
+		    	hdr->VERSION = -2.0;
+	}    	
+    	else if (!memcmp(Header1,"\"Snap-Master Data File\"",24))
+	    	hdr->TYPE = SMA;
+	else if (!memcmp(Header1,MAGIC_NUMBER_TIFF_l32,4))
+		hdr->TYPE = TIFF;
+	else if (!memcmp(Header1,MAGIC_NUMBER_TIFF_b32,4))
+		hdr->TYPE = TIFF;
+	else if (!memcmp(Header1,MAGIC_NUMBER_TIFF_l64,8))
+		hdr->TYPE = TIFF;
+	else if (!memcmp(Header1,MAGIC_NUMBER_TIFF_b64,8))
+		hdr->TYPE = TIFF;
+	else if (!memcmp(Header1,"#VRML",5))
+		hdr->TYPE = VRML;                    
+	else if (!memcmp(Header1,"# vtk DataFile Version ",23)) {
+		hdr->TYPE = VTK;
+		char tmp[4];
+		strncpy(tmp,(char*)hdr->AS.Header1+23,3);
+		hdr->VERSION = atof(tmp);
+	}	
+	else if (!memcmp(Header1,"<?xml version",13))
+		hdr->TYPE = HL7aECG;                    
+    	
+	return(hdr); 
+}
+
+
+/****************************************************************************/
 /**                     SOPEN                                              **/
 /****************************************************************************/
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
@@ -644,93 +791,20 @@ if (!strcmp(MODE,"r"))
     	count   = fread(Header1,1,256,hdr->FILE.FID);
     	Header1[256]=0;
 #endif
-	
+
+	/* determine file format */
 	hdr->TYPE = unknown; 
+	hdr->AS.Header1 = (uint8_t*)Header1; 	
+	hdr  = getfiletype(hdr);
 
-    	if (hdr->TYPE != unknown); 
-    	else if (l_endian_u32((*(uint32_t*)(Header1+2)>=30)) & l_endian_u32((*(uint32_t*)(Header1+2))<=42)) {
-    		hdr->VERSION    = l_endian_u32(*(uint32_t*)(Header1+2)); 
-    		uint32_t offset = l_endian_u32(*(uint32_t*)(Header1+6));
-    		hdr->HeadLen = offset; // length of fixed header  
-    		if      ((hdr->VERSION <34.0) & (offset== 150)) hdr->TYPE = ACQ;  
-    		else if ((hdr->VERSION <35.0) & (offset== 164)) hdr->TYPE = ACQ;  
-    		else if ((hdr->VERSION <36.0) & (offset== 326)) hdr->TYPE = ACQ;  
-    		else if ((hdr->VERSION <37.0) & (offset== 886)) hdr->TYPE = ACQ;  
-    		else if ((hdr->VERSION <38.0) & (offset==1894)) hdr->TYPE = ACQ;  
-    		else if ((hdr->VERSION <41.0) & (offset==1896)) hdr->TYPE = ACQ;  
-    		else if ((hdr->VERSION>=41.0) & (offset==1944)) hdr->TYPE = ACQ;
-    	}	
-
-    	if (hdr->TYPE != unknown); 
-    	else if (!memcmp(Header1+1,"BIOSEMI",7) & (Header1[0]==-1)) {
-    		hdr->TYPE = BDF;
-    		hdr->VERSION = -1; 
-    	}
-    	else if ((Header1[0]==(char)207) & (!Header1[1]) & (!Header1[154]) & (!Header1[155]))
-	    	hdr->TYPE = BKR;
-    	else if (!memcmp(Header1,"CFWB\1\0\0\0",8))
-	    	hdr->TYPE = CFWB;
-    	else if (!memcmp(Header1,"Version 3.0",11))
-	    	hdr->TYPE = CNT;
-    	else if (!memcmp(Header1,"DEMG",4))
-	    	hdr->TYPE = DEMG;
-    	else if (!memcmp(Header1,"0       ",8)) {
-	    	hdr->TYPE = EDF;
-	    	hdr->VERSION = 0; 
-	}
-    	else if (!memcmp(Header1,"fLaC",4))
-	    	hdr->TYPE = FLAC;
-    	else if (!memcmp(Header1,"GDF",3))
-	    	hdr->TYPE = GDF; 
-    	else if (!memcmp(Header1,"@  MFER ",8))
-	    	hdr->TYPE = MFER;
-    	else if (!memcmp(Header1,"@ MFR ",6))
-	    	hdr->TYPE = MFER;
-    	else if (!memcmp(Header1,"NEX1",4))
-	    	hdr->TYPE = NEX1;
-    	else if (!memcmp(Header1,"PLEX",4))
-	    	hdr->TYPE = PLEXON;
-    	else if (!memcmp(Header1+16,"SCPECG",6))
-	    	hdr->TYPE = SCP_ECG;
-	else if (!memcmp(Header1,"<?xml version",13))   //Elias
-		hdr->TYPE = HL7aECG;                       //Elias
-    	else {
-		fclose(hdr->FILE.FID); 
-		free(Header1);
-
-#ifdef __XML_XMLREADER_H__
-		LIBXML_TEST_VERSION
-    		reader = xmlReaderForFile(hdr->FileName, NULL, XML_PARSE_DTDATTR | XML_PARSE_NOENT); 
-    			// XML_PARSE_DTDVALID cannot be used in aECG 
-
-		if (reader != NULL) {
-		        ret = xmlTextReaderRead(reader);
-        		while (ret == 1) {
-//            			processNode(reader);
-            			ret = xmlTextReaderRead(reader);
-        		}
-        		if (ret != 0) {
-            			fprintf(stderr, "%s : failed to parse\n", hdr->FileName);
-        		}	
-        	/*
-		 * Once the document has been fully parsed check the validation results
-		 */
-			if (xmlTextReaderIsValid(reader) != 1) {
-	    			fprintf(stderr, "Document %s does not validate\n", hdr->FileName);
-			}
-		        xmlFreeTextReader(reader);
-			hdr->TYPE = XML; 
-		}        
-		else
-#endif
-		{
-			hdr->TYPE = unknown; 
-	//		sclose(hdr); 
-	//		free(hdr); 
-		}	
+    	if (hdr->TYPE == unknown) {
+		fprintf(stdout,"ERROR BIOSIG SOPEN(read): Format of file %s unknown\n",hdr->FileName);
+    		fclose(hdr->FILE.FID);
+    		free(hdr->AS.Header1);
+    		free(hdr);
+		return(NULL);
 	}	
-
-    	if (hdr->TYPE == GDF) {
+	else if (hdr->TYPE == GDF) {
   	    	strncpy(tmp,(char*)Header1+3,5);
 	    	hdr->VERSION 	= atof(tmp);
 	    	hdr->NRec 	= l_endian_i64( *( int64_t*) (Header1+236) ); 
@@ -774,7 +848,7 @@ if (!strcmp(MODE,"r"))
 			hdr->ID.Equipment 	= l_endian_i64( *(int64_t*) (Header1+192) );
 			memcpy(&hdr->IPaddr, Header1+200,6);
 			hdr->Patient.Headsize[0]= l_endian_u16( *(uint16_t*)(Header1+206) );
-			hdr->Patient.Headsize[1]= l_endian_u16( *(uint16_t*)(Header1+208) );
+				hdr->Patient.Headsize[1]= l_endian_u16( *(uint16_t*)(Header1+208) );
 			hdr->Patient.Headsize[2]= l_endian_u16( *(uint16_t*)(Header1+210) );
 
 			//memcpy(&hdr->ELEC.REF, Header1+212,12);
@@ -1247,11 +1321,16 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr = sopen_HL7aECG_read(hdr);
 	}
 	
-	else // if (hdr->TYPE==unknown) 
+	else 
 	{
-		fprintf(stdout,"unknown file format %s \n",hdr->FileName);
+		fprintf(stdout,"ERROR BIOSIG SOPEN(READ): Format of file %s not supported\n",hdr->FileName);
+    		fclose(hdr->FILE.FID);
+    		free(hdr->AS.Header1);
+    		free(hdr);
+		return(NULL);
 	}
-	hdr->AS.Header1 = (uint8_t*)Header1; 
+
+	hdr->AS.Header1 = (uint8_t*)Header1; 	
 	for (k=0; k<hdr->NS; k++) {	
 		// set HDR.PhysDim
 		k1 = hdr->CHANNEL[k].PhysDimCode;
@@ -1473,7 +1552,7 @@ else { // WRITE
 	    	hdr->FileName = FileName; 
 		if (hdr->FILE.FID == NULL){
 		     	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
-		return(NULL);
+			return(NULL);
 		}
 		if(hdr->TYPE != SCP_ECG){
 			fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
@@ -1492,7 +1571,6 @@ else { // WRITE
 		hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
 		hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 		hdr->AS.bi[k+1] = hdr->AS.bpb; 
-//fprintf(stdout,"-: %i %i %i\n",hdr->AS.bi[k],hdr->CHANNEL[k].GDFTYP,GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]);		
 	}	
 
 	return(hdr);
