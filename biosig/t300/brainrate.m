@@ -36,7 +36,7 @@ function [br,sef90,sef95] = brainrate(s,Fs,UC,A)
 %     Contributions, Sec. Biol. Med. Sci., MASA, XXVI, 2, p. 35–42 (2005)
 %     ISSN 0351–3254, UDK: 616.831-073.97
 
-%	$Id: brainrate.m,v 1.6 2007-07-20 10:55:58 schloegl Exp $
+%	$Id: brainrate.m,v 1.7 2007-07-20 12:39:17 schloegl Exp $
 %	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -87,8 +87,8 @@ for k2 = 1:K,
 	if ~UC,
 		[a,r,pe] = lattice(s(:,k2)',MOP); 	
 	else
-		X = tvaar(s(:,k2)',MOP,UC); 
-		X = tvaar(s(:,k2)',X);
+		X = tvaar(s(:,k2),MOP,UC); 
+		X = tvaar(s(:,k2),X);
 		a = X.AAR;  
 		pe= X.PE; 
 	end;
