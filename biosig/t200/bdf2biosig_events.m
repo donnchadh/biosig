@@ -14,7 +14,7 @@ function HDR=bdf2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bdf2biosig_events.m,v 1.9 2007-07-20 15:33:19 schloegl Exp $
+%	$Id: bdf2biosig_events.m,v 1.10 2007-07-23 07:20:17 schloegl Exp $
 %	Copyright (C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -65,13 +65,13 @@ ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels
 
 % defines mapping of the BDF-status channel to BioSig event codes 			
 switch 1,    % determines default decoding
-case 1,	%% ## OBSOLETE - just for backword compatibility %% 
+case 1,	
 	% epoching information is derived from bit17
 	% only lower 8 bits are supported
 	POS = [find(ix1>0);find(ix2>0);find(ix1<0);find(ix2<0)];
 	TYP = [repmat(hex2dec('7ffe'),sum(ix1>0),1); bitand(t(ix2>0),255); repmat(hex2dec('fffe'),sum(ix1<0),1); bitor(bitand(t(find(ix2<0)-1),255),2^15)];
 
-case 2, %% ## OBSOLETE - just for backword compatibility %% 
+case 2, 
 	% suggested decoding if standardized event codes (according to 
 	% .../biosig/doc/eventcodes.txt) are used  
 	POS = [find(ix2>0)];
