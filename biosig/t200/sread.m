@@ -34,7 +34,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.82 2007-07-19 08:25:37 schloegl Exp $
+%	$Id: sread.m,v 1.83 2007-07-23 10:28:09 schloegl Exp $
 %	(C) 1997-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -96,10 +96,8 @@ elseif strcmp(HDR.TYPE,'BDF'),
         end;
 
         nr     = min(HDR.NRec*HDR.SPR-HDR.FILE.POS, NoS*HDR.SampleRate);
-	S      = repmat(NaN,nr,length(HDR.InChanSelect)); 
-
 	block1 = floor(HDR.FILE.POS/HDR.SPR);
-	ix1    = HDR.FILE.POS- block1*HDR.SPR;	% starting sample (minus one) within 1st block 
+	ix1    = HDR.FILE.POS - block1*HDR.SPR;	% starting sample (minus one) within 1st block 
 	nb     = ceil((HDR.FILE.POS+nr)/HDR.SPR)-block1;
     	fp     = HDR.HeadLen + block1*HDR.AS.bpb;
     	status = fseek(HDR.FILE.FID, fp, 'bof');
@@ -109,7 +107,7 @@ elseif strcmp(HDR.TYPE,'BDF'),
 
         else
                 if (HDR.AS.spb*nb<=2^22), % faster access
-                        S = [];
+			S  = repmat(NaN,HDR.SPR*nb,length(HDR.InChanSelect)); 
                         [s,c] = fread(HDR.FILE.FID,[3*HDR.AS.spb, nb],'uint8');
                         s = reshape(2.^[0,8,16]*reshape(s(:),3,c/3),[HDR.AS.spb, nb]);
                         c = c/3;
@@ -132,7 +130,7 @@ elseif strcmp(HDR.TYPE,'BDF'),
         	                S(OVERFLOW>0,:)=NaN; 
         	        end;        
                 else
-                        S = zeros(nr,length(HDR.InChanSelect));
+			S      = repmat(NaN,nr,length(HDR.InChanSelect)); 
                         while (count<nr);
                                 len   = ceil(min([(nr-count)/HDR.SPR,2^22/HDR.AS.spb]));
                                 [s,c] = fread(HDR.FILE.FID,[3*HDR.AS.spb, len],'uint8=>uint8');
