@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.15 2007-06-27 14:23:52 schloegl Exp $
+###  $Id: Makefile,v 1.16 2007-07-24 13:40:19 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -52,14 +52,12 @@ OBJECTS       = biosig.o \
 		t220/crc4scp.o \
 		t230/sopen_hl7aecg.o 
 
-# TARGET        = scp2gdf demo gdf2scp t5.scp t6.scp
-              # Windows
-TARGET        = save2gdf save2aecg save2scp demo
+TARGET        = save2gdf demo
 
 first: all
 all: $(TARGET)
 
-%.o : %.c %.cpp %.h 
+%.o: %.c %.cpp %.h biosig.h 
 	$(CC) -S $(CFLAGS) -c $(.SOURCE)  
 
 
@@ -70,21 +68,20 @@ all: $(TARGET)
 
 demo:   demo.c $(OBJECTS)
 	$(CC) $(CFLAGS) $(OBJECTS) demo.c -o demo 
-scp2gdf: scp2gdf.c $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) scp2gdf.c -o scp2gdf 
-gdf2scp: gdf2scp.c $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) gdf2scp.c -o gdf2scp 
 save2gdf: save2gdf.c $(OBJECTS)
 	$(CC) $(CFLAGS) $(OBJECTS) save2gdf.c -o save2gdf 
-save2aecg: save2aecg.c $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) save2aecg.c -o save2aecg 
-save2scp: save2scp.c $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) save2scp.c -o save2scp
+mex:  mexBiosig.c $(OBJECTS) 
+	mkoctfile --mex mexBiosig.c $(OBJECTS)
+oct:  octBiosig.c $(OBJECTS) 
+	mkoctfile octBiosig.c $(OBJECTS)
 
 
 clean:
 	-$(DEL_FILE) *.o
+	-$(DEL_FILE) *.mex
+	-$(DEL_FILE) *.oct
 	-$(DEL_FILE) t210/*.o
+	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp*
 	-$(DEL_FILE) t220/*.o
 	-$(DEL_FILE) t230/*.o
 	-$(DEL_FILE) XMLParser/*.o
@@ -99,29 +96,29 @@ test: PFE103.scp save2gdf
 	./save2gdf -f=BDF PFE103.scp t1.bdf
 	./save2gdf -f=SCP PFE103.scp t1.scp
 	./save2gdf -f=HL7 PFE103.scp t1.hl7
-	./save2gdf -f=GDF t1.gdf t1.gdf.gdf
-	./save2gdf -f=EDF t1.gdf t1.gdf.edf
-	./save2gdf -f=BDF t1.gdf t1.gdf.bdf
-	./save2gdf -f=SCP t1.gdf t1.gdf.scp
-	./save2gdf -f=HL7 t1.gdf t1.gdf.hl7
-	./save2gdf -f=GDF t1.edf t1.edf.gdf
-	./save2gdf -f=EDF t1.edf t1.edf.edf
-	./save2gdf -f=BDF t1.edf t1.edf.bdf
-	./save2gdf -f=SCP t1.edf t1.edf.scp
-	./save2gdf -f=HL7 t1.edf t1.edf.hl7
-	./save2gdf -f=GDF t1.bdf t1.bdf.gdf
-	./save2gdf -f=EDF t1.bdf t1.bdf.edf
-	./save2gdf -f=BDF t1.bdf t1.bdf.bdf
-	./save2gdf -f=SCP t1.bdf t1.bdf.scp
-	./save2gdf -f=HL7 t1.bdf t1.bdf.hl7
-	./save2gdf -f=GDF t1.scp t1.scp.gdf
-	./save2gdf -f=EDF t1.scp t1.scp.edf
-	./save2gdf -f=BDF t1.scp t1.scp.bdf
-	./save2gdf -f=SCP t1.scp t1.scp.scp
-	./save2gdf -f=HL7 t1.scp t1.scp.hl7
-	./save2gdf -f=GDF t1.hl7 t1.hl7.gdf
-	./save2gdf -f=EDF t1.hl7 t1.hl7.edf
-	./save2gdf -f=BDF t1.hl7 t1.hl7.bdf
-	./save2gdf -f=SCP t1.hl7 t1.hl7.scp
-	./save2gdf -f=HL7 t1.hl7 t1.hl7.hl7
+	./save2gdf -f=GDF t1.gdf t2.gdf.gdf
+	./save2gdf -f=EDF t1.gdf t2.gdf.edf
+	./save2gdf -f=BDF t1.gdf t2.gdf.bdf
+	./save2gdf -f=SCP t1.gdf t2.gdf.scp
+	./save2gdf -f=HL7 t1.gdf t2.gdf.hl7
+	./save2gdf -f=GDF t1.edf t2.edf.gdf
+	./save2gdf -f=EDF t1.edf t2.edf.edf
+	./save2gdf -f=BDF t1.edf t2.edf.bdf
+	./save2gdf -f=SCP t1.edf t2.edf.scp
+	./save2gdf -f=HL7 t1.edf t2.edf.hl7
+	./save2gdf -f=GDF t1.bdf t2.bdf.gdf
+	./save2gdf -f=EDF t1.bdf t2.bdf.edf
+	./save2gdf -f=BDF t1.bdf t2.bdf.bdf
+	./save2gdf -f=SCP t1.bdf t2.bdf.scp
+	./save2gdf -f=HL7 t1.bdf t2.bdf.hl7
+	./save2gdf -f=GDF t1.scp t2.scp.gdf
+	./save2gdf -f=EDF t1.scp t2.scp.edf
+	./save2gdf -f=BDF t1.scp t2.scp.bdf
+	./save2gdf -f=SCP t1.scp t2.scp.scp
+	./save2gdf -f=HL7 t1.scp t2.scp.hl7
+	./save2gdf -f=GDF t1.hl7 t2.hl7.gdf
+	./save2gdf -f=EDF t1.hl7 t2.hl7.edf
+	./save2gdf -f=BDF t1.hl7 t2.hl7.bdf
+	./save2gdf -f=SCP t1.hl7 t2.hl7.scp
+	./save2gdf -f=HL7 t1.hl7 t2.hl7.hl7
 
