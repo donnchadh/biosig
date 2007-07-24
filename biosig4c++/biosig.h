@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.44 2007-07-20 23:03:00 schloegl Exp $
+% $Id: biosig.h,v 1.45 2007-07-24 08:22:36 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -93,7 +93,7 @@ typedef char			int8_t;
 #define l_endian_i16(x) bswap_16((int16_t)(x))
 #define l_endian_i32(x) bswap_32((int32_t)(x))
 #define l_endian_i64(x) bswap_64((int64_t)(x))
-double  l_endian_f32(double x); 
+float   l_endian_f32(float x); 
 double  l_endian_f64(double x); 
 
 #define b_endian_u16(x) (x)
@@ -121,7 +121,7 @@ double  l_endian_f64(double x);
 #define b_endian_i16(x) bswap_16((int16_t)(x))
 #define b_endian_i32(x) bswap_32((int32_t)(x))
 #define b_endian_i64(x) bswap_64((int64_t)(x))
-double  b_endian_f32(double x); 
+float   b_endian_f32(float x); 
 double  b_endian_f64(double x); 
 
 #endif /* __BYTE_ORDER */
