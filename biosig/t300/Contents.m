@@ -6,8 +6,9 @@
 %       baccala2001
 %       mvar
 %       mvfilter
+%	mvfreqz
 %   Time-varying Autoregressive spectral estimation  
-%       aar
+%       aar, amarma
 %       tfar
 %	tvaar	wrapper for AAR estimators
 %   Time-varying Multivariate Autoregressive Analysis
@@ -22,14 +23,16 @@
 %   EMG analysis
 %       Paynter
 %   ECG analysis
-%       processing 
 %	qrsdetect
 %	berger
 %       ecgbcorr
 %       qrscorr
 %       tvaar
 %	heartratevariability
+%   SaO2 - Oxygen saturation
+%	desatur
 %   Others:
+%	Brainrate (including SEF90, SEF95)
 %       Hjorth
 %       Bandpower
 %	Wackermann
@@ -41,8 +44,7 @@
 %
 %
 
-%	$Revision: 1.5 $
-%	$Id: Contents.m,v 1.5 2005-11-07 15:44:05 schloegl Exp $
-%	Copyright (C) 1997-2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: Contents.m,v 1.6 2007-07-26 13:32:01 schloegl Exp $
+%	Copyright (C) 1997-2004,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
