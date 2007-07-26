@@ -34,7 +34,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.83 2007-07-23 10:28:09 schloegl Exp $
+%	$Id: sread.m,v 1.84 2007-07-26 15:15:30 schloegl Exp $
 %	(C) 1997-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -145,7 +145,7 @@ elseif strcmp(HDR.TYPE,'BDF'),
                                         end;
                                 end;
 	                        if HDR.FLAG.OVERFLOWDETECTION,  % BDF overflow detection is based on Status bit20
-		                        K = HDR.BDF.Status;
+		                        K = HDR.BDF.Status.Channel;
                                         tmp = 2.^[0,8,16]*double(reshape(s(HDR.AS.bi(K)*3+1:HDR.AS.bi(K+1)*3,:),3,HDR.AS.SPR(K)*c/HDR.AS.bpb));
                                         OVERFLOW = rs(~bitand(tmp',2^19),HDR.AS.SPR(K),HDR.SPR);
 	        	                s1(OVERFLOW>0,:)=NaN; 
