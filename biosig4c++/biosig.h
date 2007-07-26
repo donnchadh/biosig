@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.45 2007-07-24 08:22:36 schloegl Exp $
+% $Id: biosig.h,v 1.46 2007-07-26 00:54:36 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -86,41 +86,42 @@ typedef char			int8_t;
       	| (((x) & 0x00000000000000ffull) << 56))
 #endif  /* _BYTESWAP_H */
 
+
 #if __BYTE_ORDER == __BIG_ENDIAN
-#define l_endian_u16(x) bswap_16((uint16_t)(x))
-#define l_endian_u32(x) bswap_32((uint32_t)(x))
-#define l_endian_u64(x) bswap_64((uint64_t)(x))
-#define l_endian_i16(x) bswap_16((int16_t)(x))
-#define l_endian_i32(x) bswap_32((int32_t)(x))
-#define l_endian_i64(x) bswap_64((int64_t)(x))
+#define l_endian_u16(x) ((uint16_t)bswap_16((uint16_t)(x)))
+#define l_endian_u32(x) ((uint32_t)bswap_32((uint32_t)(x)))
+#define l_endian_u64(x) ((uint64_t)bswap_64((uint64_t)(x)))
+#define l_endian_i16(x) ((int16_t)bswap_16((int16_t)(x)))
+#define l_endian_i32(x) ((int32_t)bswap_32((int32_t)(x)))
+#define l_endian_i64(x) ((int64_t)bswap_64((int64_t)(x)))
 float   l_endian_f32(float x); 
 double  l_endian_f64(double x); 
 
-#define b_endian_u16(x) (x)
-#define b_endian_u32(x) (x)
-#define b_endian_u64(x) (x)
-#define b_endian_i16(x) (x)
-#define b_endian_i32(x) (x)
-#define b_endian_i64(x) (x)
-#define b_endian_f32(x) (x)
-#define b_endian_f64(x) (x)
+#define b_endian_u16(x) ((uint16_t)(x))
+#define b_endian_u32(x) ((uint32_t)(x))
+#define b_endian_u64(x) ((uint64_t)(x))
+#define b_endian_i16(x) ((int16_t)(x))
+#define b_endian_i32(x) ((int32_t)(x))
+#define b_endian_i64(x) ((int64_t)(x))
+#define b_endian_f32(x) ((float)(x))
+#define b_endian_f64(x) ((double)(x))
 
 #elif __BYTE_ORDER == __LITTLE_ENDIAN
-#define l_endian_u16(x) (x)
-#define l_endian_u32(x) (x)
-#define l_endian_u64(x) (x)
-#define l_endian_i16(x) (x)
-#define l_endian_i32(x) (x)
-#define l_endian_i64(x) (x)
-#define l_endian_f32(x) (x)
-#define l_endian_f64(x) (x)
+#define l_endian_u16(x) ((uint16_t)(x))
+#define l_endian_u32(x) ((uint32_t)(x))
+#define l_endian_u64(x) ((uint64_t)(x))
+#define l_endian_i16(x) ((int16_t)(x))
+#define l_endian_i32(x) ((int32_t)(x))
+#define l_endian_i64(x) ((int64_t)(x))
+#define l_endian_f32(x) ((float)(x))
+#define l_endian_f64(x) ((double)(x))
 
-#define b_endian_u16(x) bswap_16((uint16_t)(x))
-#define b_endian_u32(x) bswap_32((uint32_t)(x))
-#define b_endian_u64(x) bswap_64((uint64_t)(x))
-#define b_endian_i16(x) bswap_16((int16_t)(x))
-#define b_endian_i32(x) bswap_32((int32_t)(x))
-#define b_endian_i64(x) bswap_64((int64_t)(x))
+#define b_endian_u16(x) ((uint16_t)bswap_16((uint16_t)(x)))
+#define b_endian_u32(x) ((uint32_t)bswap_32((uint32_t)(x)))
+#define b_endian_u64(x) ((uint64_t)bswap_64((uint64_t)(x)))
+#define b_endian_i16(x) ((int16_t)bswap_16((int16_t)(x)))
+#define b_endian_i32(x) ((int32_t)bswap_32((int32_t)(x)))
+#define b_endian_i64(x) ((int64_t)bswap_64((int64_t)(x)))
 float   b_endian_f32(float x); 
 double  b_endian_f64(double x); 
 

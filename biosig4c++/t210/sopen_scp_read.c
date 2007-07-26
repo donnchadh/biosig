@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.14 2007-07-07 01:05:22 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.15 2007-07-26 00:54:36 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -108,7 +108,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 	hdr->aECG->FLAG.BIMODAL  = 0;
 	
 	ptr = hdr->AS.Header1; 
-	hdr->NRec = 1; 
+	hdr->NRec = 1;
 //        hdr->Dur[0]=10; hdr->Dur[1]=1;  // duration = 10 sec
 
 	sectionStart = 6;
@@ -135,7 +135,6 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 		if (len != l_endian_u32(*(uint32_t*)(PtrCurSect+4)))
 			fprintf(stderr,"Warning SOPEN(SCP-READ): length field in pointer section (%i) does not match length field in sections (%i %i)\n",K,len,l_endian_u32(*(uint32_t*)(PtrCurSect+4))); 
 
-//fprintf(stdout,"section %i out of %i \n",curSect,NSections); 
 		curSectPos = 16;
 			
 		/**** SECTION 0 ****/
@@ -150,7 +149,6 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 			while ((*(PtrCurSect+curSectPos)!=255) | (*(uint16_t*)(PtrCurSect+curSectPos+1)!=0)) {
 				tag = *(PtrCurSect+curSectPos);
 				len = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+1));
-//fprintf(stdout," tag=%i len=%i\n",tag,len); 
 				curSectPos += 3; 
 				if (tag==0) {
 				}
@@ -459,7 +457,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
 		hdr->AS.rawdata = (uint8_t*)decode.Reconstructed;
+#ifdef __BIG_ENDIAN
+		/* Endian conversion is done in SCP_DECODE and SREAD.
+		in order to avoid special case in SREAD, the conversion is reverted here */
+		int32_t *ptr32 = (int32_t*)hdr->AS.rawdata;
+		for (i=0; i < hdr->SPR*hdr->NS; i++)
+			*(ptr32+i) = l_endian_i32(*(ptr32+i));
+#endif
 	}	 
 	return(hdr);
 
 };
+
