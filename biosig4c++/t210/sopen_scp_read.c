@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.15 2007-07-26 00:54:36 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.16 2007-07-26 01:16:05 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -416,8 +416,7 @@ if (AS_DECODE) continue;
 
 
 
-if (!(hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL))
-	return(hdr); 
+    if (hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL) {
 
 
 /*
@@ -457,6 +456,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
 		hdr->AS.rawdata = (uint8_t*)decode.Reconstructed;
+	}
+    }	 // end of fall back method 
+		
 #ifdef __BIG_ENDIAN
 		/* Endian conversion is done in SCP_DECODE and SREAD.
 		in order to avoid special case in SREAD, the conversion is reverted here */
@@ -464,7 +466,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		for (i=0; i < hdr->SPR*hdr->NS; i++)
 			*(ptr32+i) = l_endian_i32(*(ptr32+i));
 #endif
-	}	 
 	return(hdr);
 
 };
