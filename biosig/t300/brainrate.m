@@ -1,26 +1,20 @@
-function [br,sef90,sef95] = brainrate(s,Fs,UC,A)
+function [br,sef90,sef95,br2] = brainrate(s,Fs,UC,A)
 % BRAINRATE estimates the weighted mean frequency according to [1] 
 %  Other (similar) parameters are the spectral edge frequency or
 %  the Hjorth's Mobility parameter or Barlow's center frequency.   
 %           
 %  [BRAINRATE, SEF90, SEF95] = brainrate(...)
 %  
+%  [...] = brainrate(S,Fs)
 %  [...] = brainrate(S,Fs,0)
-%       calculates stationary brainrate parameter 
+%       calculate stationary brainrate parameter 
 %  [...] = brainrate(S,Fs,UC) with 0<UC<1,
 %       calculates time-varying brainrate parameter using 
 %       exponential window 
-%  [...] = brainrate(S,Fs,N) with N>1,
-%       calculates time-varying brainrate parameter using 
-%       rectangulare window of length N
-%  [...] = brainrate(S,Fs,B,A) with B>=1 oder length(B)>1,
-%       calulates time-varying brainrate parameters using
-%       transfer function B(z)/A(z) for windowing
-%
+% 
 % Input: 
 %	S	data (each channel is a column)
-%	UC	update coefficient 
-%	B,A	filter coefficients (window function)
+%	UC	update coefficient (0<UC<1) 
 %
 % Output: 
 %	BRAINRATE	weighted mean frequency [1] 
@@ -36,8 +30,8 @@ function [br,sef90,sef95] = brainrate(s,Fs,UC,A)
 %     Contributions, Sec. Biol. Med. Sci., MASA, XXVI, 2, p. 35–42 (2005)
 %     ISSN 0351–3254, UDK: 616.831-073.97
 
-%	$Id: brainrate.m,v 1.7 2007-07-20 12:39:17 schloegl Exp $
-%	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
+%	$Id: brainrate.m,v 1.8 2007-07-26 07:36:56 schloegl Exp $
+%	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>
 %	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -60,27 +54,25 @@ function [br,sef90,sef95] = brainrate(s,Fs,UC,A)
 MOP = 15; 		% order of autoregressive model 
 
 if nargin<3, 
-        UC = 0; 
-end;
-        if UC==0,
+	UC = 0; 
+	B = []; 
+elseif nargin==3
+	if UC==0,
 		br = size(1,K); 
 		sef90 = size(1,K); 
 		sef95 = size(1,K); 
-        elseif UC>=1,
-                B = ones(1,UC);
-                A = UC;
+	elseif (UC>0) & (UC<1),
+		B = UC; 
+		A = [1, UC-1];
 		br = size(N,K); 
 		sef90 = size(N,K); 
-		sef95 = size(N,K); 
-        elseif UC<1,
-                FLAG_ReplaceNaN = 1;
-                B = UC; 
-                A = [1, UC-1];
-		br = size(N,K); 
-		sef90 = size(N,K); 
-		sef95 = size(N,K); 
-        end;
-
+		sef95 = size(N,K);
+	else
+		fprintf(2,'ERROR BrainRate: update coefficient UC(%f) is outside of interval ]0,1[\n',UC); 
+		br =[]; sef90=[]; sef95=[];
+		return; 	 
+	end;
+end; 
 
 s = center(s,1);
 for k2 = 1:K,
@@ -107,7 +99,6 @@ for k2 = 1:K,
 			f = (0:256)/512*Fs; 
 			h = freqz(1,[1,-a(k1,:)],f,Fs); 
 			h2= cumsum(real(h.*conj(h)),2);
-			plot(f,[abs(h2);h]); 
 			sef90(k1,k2) = f(min(find(h2>=.90*h2(end)))); 
 			sef95(k1,k2) = f(min(find(h2>=.95*h2(end)))); 
 		end; 
