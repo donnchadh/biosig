@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.4 2007-07-07 01:05:22 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.5 2007-07-28 22:04:55 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -143,7 +143,7 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		hdr->SPR = 1;
 
 		hdr->AS.rawdata = (uint8_t *)malloc(hdr->SPR);
-		int16_t *data;
+		int32_t *data;
 		
 		hdr->SampleRate = atof(channels.FirstChild("component").FirstChild("sequence").FirstChild("value").FirstChild("increment").Element()->Attribute("value"));
 		
@@ -167,30 +167,31 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 //		    hdr->CHANNEL[k].Transducer = (Header2 + 16*hdr->NS + 80*k);
 
 		    hdr->CHANNEL[i].GDFTYP = 3;	// int16
+		    hdr->CHANNEL[i].GDFTYP = 5;	// int32
 
 		    std::vector<std::string> vector;
 		    stringtokenizer(vector, channel.FirstChild("value").FirstChild("digits").Element()->GetText());
 
 		    hdr->CHANNEL[i].SPR = vector.size();
 		    hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[i].SPR);
-		    hdr->AS.rawdata = (uint8_t *)realloc(hdr->AS.rawdata, 2*(i+1)*hdr->NS*hdr->SPR*hdr->NRec);
+		    hdr->AS.rawdata = (uint8_t *)realloc(hdr->AS.rawdata, 4*(i+1)*hdr->NS*hdr->SPR*hdr->NRec);
 
-		    data = (int16_t *)hdr->AS.rawdata+(i*hdr->SPR);
+		    data = (int32_t*)(hdr->AS.rawdata + 4*i*(hdr->SPR));
 
 		    hdr->CHANNEL[i].Cal  = atof(channel.FirstChild("value").FirstChild("scale").Element()->Attribute("value"));
 		    hdr->CHANNEL[i].Off  = atof(channel.FirstChild("value").FirstChild("origin").Element()->Attribute("value"));
 		    
-		    for(unsigned int j=0; j<hdr->SPR; ++j){
+		    for(unsigned int j=0; j<hdr->SPR; ++j) {
 			data[j] = atoi(vector[j].c_str());
-			if(data[j] > hdr->CHANNEL[i].DigMax){
+			if(data[j] > hdr->CHANNEL[i].DigMax) {
 			    hdr->CHANNEL[i].DigMax = data[j];
 			}
 			if(data[j] < hdr->CHANNEL[i].DigMin){
 			    hdr->CHANNEL[i].DigMin = data[j];
 			}
-		    	hdr->CHANNEL[i].PhysMax = hdr->CHANNEL[i].DigMax*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
-		    	hdr->CHANNEL[i].PhysMin = hdr->CHANNEL[i].DigMin*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
 		    }
+		    hdr->CHANNEL[i].PhysMax = hdr->CHANNEL[i].DigMax*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
+		    hdr->CHANNEL[i].PhysMin = hdr->CHANNEL[i].DigMin*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
 		    /* Physical units */ 
 		    strncpy(tmp, channel.FirstChild("value").FirstChild("origin").Element()->Attribute("unit"),20);
  		    hdr->CHANNEL[i].PhysDimCode = PhysDimCode(tmp);
@@ -208,7 +209,7 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 //		    for(int k1=0; k1<3; hdr->CHANNEL[index].XYZ[k1++] = 0.0);
 		}
 		hdr->SampleRate *= hdr->SPR;
-		hdr->SampleRate = hdr->SPR/hdr->SampleRate;
+		hdr->SampleRate  = hdr->SPR/hdr->SampleRate;
 
 		hdr->FLAG.OVERFLOWDETECTION = 0;
 	    }else{
@@ -224,6 +225,18 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 
 
 HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr){
+	size_t k;
+	for (k=0; k<hdr->NS; k++) {
+		hdr->CHANNEL[k].GDFTYP = 5; //int32
+	}
+	hdr->SPR *= hdr->NRec;
+	hdr->NRec = 1; 
+	hdr->FILE.OPEN=2;
+	return(hdr);
+};
+
+
+HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful. 
 	It will be called by the function SOPEN in "biosig.c"
@@ -233,6 +246,7 @@ HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr){
 	Output: 
 		char* HDR.AS.Header1 	// contains the content which will be written to the file in SOPEN
 */	
+
     char tmp[80];	
     TiXmlDocument doc;
     
@@ -528,14 +542,14 @@ HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr){
 	PhysDim(hdr->CHANNEL[i].PhysDimCode,tmp); 
 
 	valueHead = new TiXmlElement("origin");
-	// valueHead->SetDoubleAttribute("value", hdr->CHANNEL[i].Off);
-	valueHead->SetDoubleAttribute("value", 0);
+	valueHead->SetDoubleAttribute("value", hdr->CHANNEL[i].Off);
+	// valueHead->SetDoubleAttribute("value", 0);
 	valueHead->SetAttribute("unit", tmp);
 	sequenceValue->LinkEndChild(valueHead);
 
 	valueIncrement = new TiXmlElement("scale");
-	// valueIncrement->SetDoubleAttribute("value", hdr->CHANNEL[i].Cal);
-	valueIncrement->SetDoubleAttribute("value", 1);
+	valueIncrement->SetDoubleAttribute("value", hdr->CHANNEL[i].Cal);
+	//valueIncrement->SetDoubleAttribute("value", 1);
 	valueIncrement->SetAttribute("unit", tmp);
 	sequenceValue->LinkEndChild(valueIncrement);
 
@@ -545,7 +559,8 @@ HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr){
 	std::stringstream digitsStream;
 	
 	for(unsigned int j=0; j<hdr->CHANNEL[i].SPR; ++j)
-	    digitsStream << hdr->data.block[hdr->SPR*i + j] << " ";
+	    digitsStream << (*(int32_t*)(hdr->AS.rawdata + hdr->AS.bi[i] + j*GDFTYP_BYTE[hdr->CHANNEL[i].GDFTYP])) << " ";
+//	    digitsStream << hdr->data.block[hdr->SPR*i + j] << " ";
 
 	digitsText = new TiXmlText(digitsStream.str().c_str());
 	valueDigits->LinkEndChild(digitsText);

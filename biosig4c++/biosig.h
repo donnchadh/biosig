@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.46 2007-07-26 00:54:36 schloegl Exp $
+% $Id: biosig.h,v 1.47 2007-07-28 22:04:55 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -397,6 +397,7 @@ HDRTYPE* sopen_SCP_read     (HDRTYPE* hdr);
 HDRTYPE* sopen_SCP_write    (HDRTYPE* hdr);
 HDRTYPE* sopen_HL7aECG_read (HDRTYPE* hdr);
 HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr);
+HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr);
 
 size_t lcm(size_t A,size_t B); 
 

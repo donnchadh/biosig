@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.70 2007-07-20 23:03:00 schloegl Exp $
+    $Id: biosig.c,v 1.71 2007-07-28 22:04:55 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -1540,7 +1540,13 @@ else { // WRITE
 	}
     	else if (hdr->TYPE==HL7aECG) {	
    		hdr->FileName = FileName;
-    		hdr = sopen_HL7aECG_write(hdr);
+		for (k=0; k<hdr->NS; k++) {
+			hdr->CHANNEL[k].GDFTYP = 5; //int32: internal datatype 
+		}
+		hdr->SPR *= hdr->NRec;
+		hdr->NRec = 1; 
+		hdr->FILE.OPEN=2;
+
 	}
 	else {
     	 	fprintf(stderr,"ERROR: Writing of format (%c) not supported\n",hdr->TYPE);
@@ -1566,13 +1572,12 @@ else { // WRITE
 	// internal variables
 	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	hdr->AS.bi[0] = 0;
-	for (k=0, hdr->SPR = 1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;k++) {
+	for (k=0, hdr->SPR = 1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS; k++) {
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
 		hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
 		hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 		hdr->AS.bi[k+1] = hdr->AS.bpb; 
 	}	
-
 	return(hdr);
 }  // end of SOPEN 
 
@@ -1624,7 +1629,7 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 		if (count<nelem)
 			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem); 
 	}
-	else 	{  // SCP format 
+	else 	{  // SCP_ECG & HL7aECG format 
 		// hdr->AS.rawdata was defined in SOPEN	
 		count = hdr->NRec;
 	}
@@ -1652,6 +1657,9 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 			
 			// mapping of raw data type to (biosig_data_type)
 			if (0); 
+			else if ((GDFTYP==3) && (hdr->TYPE==HL7aECG))
+				/* no endian conversion needed */
+				sample_value = (biosig_data_type)(int16_t)(*(int16_t*)ptr); 
 			else if (GDFTYP==3)
 				sample_value = (biosig_data_type)l_endian_i16(*(int16_t*)ptr); 
 			else if (GDFTYP==4)
@@ -1666,6 +1674,8 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 				sample_value = (biosig_data_type)(*(int8_t*)ptr); 
 			else if (GDFTYP==2)
 				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
+			else if ((GDFTYP==5) && (hdr->TYPE==HL7aECG))
+				sample_value = (biosig_data_type)(int32_t)(*(int32_t*)ptr); 
 			else if (GDFTYP==5)
 				sample_value = (biosig_data_type)l_endian_i32(*(int32_t*)ptr); 
 			else if (GDFTYP==6)
@@ -1893,8 +1903,6 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 #define MIN_UINT64 ((uint64_t)0)
 
 
-	if (hdr->TYPE == HL7aECG)  // do nothing. 
-		return(1); 	
 
 	if (hdr->TYPE == SCP_ECG)  // memory allocation for SCP is done in SOPEN_SCP_WRITE Section 6	
 		hdr->AS.rawdata = hdr->AS.Header1 + hdr->aECG->Section6.StartPtr+16+6+2*hdr->NS;
@@ -1910,8 +1918,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 	for (k1=0, k2=0; k1<hdr->NS; k1++) {
 	CHptr 	= hdr->CHANNEL+k1;
-	// if (1) { /////CHptr->OnOff != 0) {
-	if (CHptr->OnOff != 0) {
+	if (1) { /////CHptr->OnOff != 0) {
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BYTE[GDFTYP];
@@ -1921,8 +1928,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 		for (k4 = 0; k4 < hdr->NRec; k4++) {
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
-
-			for (k3=0, sample_value=0; k3 < DIV; k3++) 
+    			for (k3=0, sample_value=0; k3 < DIV; k3++) 
 				sample_value += data[k1*nelem*hdr->SPR + k4*CHptr->SPR + k5 + k3]; 
 
 			sample_value /= DIV;
@@ -1940,7 +1946,10 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				if      (sample_value > MAX_INT16) val.i16 = MAX_INT16;
 				else if (sample_value < MIN_INT16) val.i16 = MIN_INT16;
 				else     val.i16 = (int16_t) sample_value;
-				*(int16_t*)ptr = l_endian_i16(val.i16); 
+				if (hdr->TYPE==HL7aECG)
+					*(int16_t*)ptr = val.i16; 
+				else	
+					*(int16_t*)ptr = l_endian_i16(val.i16); 
 			}
 
 			else if (GDFTYP==4) {
@@ -1978,7 +1987,10 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				if      (sample_value > ldexp(1.0,31)-1) val.i32 = MAX_INT32;
 				else if (sample_value < ldexp(-1.0,31)) val.i32 = MIN_INT32;
 				else     val.i32 = (int32_t) sample_value;
-				*(int32_t*)ptr = l_endian_i32(val.i32); 
+				if (hdr->TYPE==HL7aECG)
+					*(int32_t*)ptr = val.i32; 
+				else	
+					*(int32_t*)ptr = l_endian_i16(val.i32); 
 			}
 			else if (GDFTYP==6) {
 				if      (sample_value > ldexp(1.0,32)-1.0) val.u32 = MAX_UINT32;
@@ -2037,18 +2049,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	}	
 	else { 
 		count = 1; 	
-		if (hdr->aECG->Section5.Length>0) {
-			// compute CRC for Section 5
-			uint16_t crc = CRCEvaluate(hdr->AS.Header1 + hdr->aECG->Section5.StartPtr+2,hdr->aECG->Section5.Length-2); // compute CRC
-			*(uint16_t*)(hdr->AS.Header1 + hdr->aECG->Section5.StartPtr) = l_endian_u16(crc);
-		}	
-		if (hdr->aECG->Section6.Length>0) {
-			// compute CRC for Section 6
-			uint16_t crc = CRCEvaluate(hdr->AS.Header1 + hdr->aECG->Section6.StartPtr+2,hdr->aECG->Section6.Length-2); // compute CRC
-			*(uint16_t*)(hdr->AS.Header1 + hdr->aECG->Section6.StartPtr) = l_endian_u16(crc);
-		}	
 	}
-fprintf(stdout,"\nm4: %d %d %d %d\n",*((int16_t *)hdr->AS.rawdata),*((int16_t *)hdr->AS.rawdata+2),*(int16_t *)(hdr->AS.rawdata+4),*(int16_t *)(hdr->AS.rawdata+6));
 	
 	// set position of file handle 
 	(hdr->FILE.POS) += count; 
@@ -2194,12 +2195,27 @@ int sclose(HDRTYPE* hdr)
 	{
 		uint16_t 	crc; 
 		uint8_t*	ptr; 	// pointer to memory mapping of the file layout
+
+		if (hdr->aECG->Section5.Length>0) {
+			// compute CRC for Section 5
+			uint16_t crc = CRCEvaluate(hdr->AS.Header1 + hdr->aECG->Section5.StartPtr+2,hdr->aECG->Section5.Length-2); // compute CRC
+			*(uint16_t*)(hdr->AS.Header1 + hdr->aECG->Section5.StartPtr) = l_endian_u16(crc);
+		}	
+		if (hdr->aECG->Section6.Length>0) {
+			// compute CRC for Section 6
+			uint16_t crc = CRCEvaluate(hdr->AS.Header1 + hdr->aECG->Section6.StartPtr+2,hdr->aECG->Section6.Length-2); // compute CRC
+			*(uint16_t*)(hdr->AS.Header1 + hdr->aECG->Section6.StartPtr) = l_endian_u16(crc);
+		}	
 		// compute crc and len and write to preamble 
 		ptr = hdr->AS.Header1; 
 		*(uint32_t*)(ptr+2) = l_endian_u32(hdr->HeadLen); 
 		crc = CRCEvaluate(ptr+2,hdr->HeadLen-2); 
 		*(int16_t*)ptr      = l_endian_u16(crc);
 		fwrite(hdr->AS.Header1,sizeof(char),hdr->HeadLen,hdr->FILE.FID);
+	}		
+	else if ((hdr->FILE.OPEN>1) & (hdr->TYPE==HL7aECG))
+	{
+		hdr = sclose_HL7aECG_write(hdr);
 	}
 
 	if (hdr->TYPE != XML) {
