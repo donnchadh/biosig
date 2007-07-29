@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.71 2007-07-28 22:04:55 schloegl Exp $
+    $Id: biosig.c,v 1.72 2007-07-29 11:55:23 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -893,7 +893,8 @@ if (!strcmp(MODE,"r"))
 			if (hdr->VERSION < 1.90) {
 				strncpy(hdr->CHANNEL[k].PhysDim, Header2 + 8*k + 96*hdr->NS,8);
 				hdr->CHANNEL[k].PhysDim[8] = 0; // remove trailing blanks
-				for (int k1=7; (k1>0) & !isalnum(hdr->CHANNEL[k].PhysDim[k1]); k1--)
+				int k1;
+				for (k1=7; (k1>0) & !isalnum(hdr->CHANNEL[k].PhysDim[k1]); k1--)
 					hdr->CHANNEL[k].PhysDim[k1] = 0;
 
 				hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
@@ -1026,7 +1027,8 @@ if (!strcmp(MODE,"r"))
 			// PhysDim -> PhysDimCode 
 			strncpy(hdr->CHANNEL[k].PhysDim,Header2 + 8*k + 96*hdr->NS,8);
 			hdr->CHANNEL[k].PhysDim[8] = 0; // remove trailing blanks
-			for (int k1=7; (k1>0) & !isalnum(hdr->CHANNEL[k].PhysDim[k1]); k1--)
+			int k1;			
+			for (k1=7; (k1>0) & !isalnum(hdr->CHANNEL[k].PhysDim[k1]); k1--)
 				hdr->CHANNEL[k].PhysDim[k1] = 0;
 			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
 			
@@ -1575,8 +1577,9 @@ else { // WRITE
 	for (k=0, hdr->SPR = 1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS; k++) {
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
 		hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
-		hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 		hdr->AS.bi[k+1] = hdr->AS.bpb; 
+		if (hdr->CHANNEL[k].SPR>0)  // ignore sparse channels
+			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
 	}	
 	return(hdr);
 }  // end of SOPEN 
@@ -1642,7 +1645,13 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
-	if (1) //(CHptr->OnOff != 0) 
+	//(CHptr->OnOff != 0) 
+	if (hdr->CHANNEL[k1].SPR==0)
+	{	// sparsly sampled channels are stored in event table
+		for (k5 = 0; k5 < hdr->SPR*hdr->NRec; k5++)
+			hdr->data.block[k2*count*hdr->SPR + k5] = NaN;
+	}
+	else 
 	{
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
@@ -1918,7 +1927,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 	for (k1=0, k2=0; k1<hdr->NS; k1++) {
 	CHptr 	= hdr->CHANNEL+k1;
-	if (1) { /////CHptr->OnOff != 0) {
+	if (CHptr->SPR > 0) { /////CHptr->OnOff != 0) {
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BYTE[GDFTYP];
