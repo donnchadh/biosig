@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.5 2007-07-03 10:31:00 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.6 2007-07-29 21:41:48 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -245,7 +245,6 @@ void ReadByte(t1 &number)
 		exit(2);
 	}
 	fread(num,dim,1,in);
-
 	number=0;
 	_COUNT_BYTE+=dim;
 
@@ -264,12 +263,9 @@ int scp_decode(HDRTYPE* hdr, pointer_section *info_sections, DATA_DECODE &info_d
 	U_int_M CRC;
 	U_int_L pos;
 
-//	if( (in = fopen(filename, "rb")) ==NULL)
-	if ( (in = hdr->FILE.FID) ==NULL)
+	if( (in = fopen(hdr->FileName, "rb")) == NULL)
 	{
 		fprintf(stdout,"Cannot open the file %s.\n",hdr->FileName);
-//		remark("Cannot open the file.");
-//		remark(filename);
 		return FALSE;              // by E.C. 15.10.2003    now return FALSE
 	}
 
@@ -2813,9 +2809,7 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 				//dim_R modifies
 			}
 		}
-fprintf(stdout,"-scpdecode 1: %i %i %i %i\n",data.Residual[0],data.flag_Res.number_samples,data.flag_lead.number,data.flag_Res.AVM);
 		// Multiply(data.Residual,data.flag_Res.number_samples*data.flag_lead.number,data.flag_Res.AVM);
-fprintf(stdout,"-scpdecode 2: %i\n",data.Residual[0]);
 
 		if(dim_R!=0 && (data.Reconstructed=(int_L*)mymalloc(dim_R))==NULL)
 		{
@@ -2825,7 +2819,7 @@ fprintf(stdout,"-scpdecode 2: %i\n",data.Residual[0]);
 		int dim_RR=dim_R/sizeof(int_L);       // by E.C. 15.10.2003   This to correct a trivial error
 		for(t=0;t<dim_RR;t++)                 // of array overflow!!
 			data.Reconstructed[t]=data.Residual[t];   // by E.C. 19.02.2004: first copy rhythm then add the reference beat
-fprintf(stdout,"-scpdecode 3: %i\n",data.Reconstructed[0]);
+
 		if(section[3].length && section[5].length && data.flag_lead.subtraction)
 		{
 			DoAdd(data.Reconstructed,data.Residual,data.flag_Res,data.Median,data.flag_BdR0,data.data_subtraction,data.flag_lead,data.data_lead);
@@ -2844,7 +2838,6 @@ fprintf(stdout,"-scpdecode 3: %i\n",data.Reconstructed[0]);
 			else add_filter=false;
 		}
 		else add_filter=false;
-fprintf(stdout,"-scpdecode 4: %i\n",data.Reconstructed[0]);
 	}
 }
 

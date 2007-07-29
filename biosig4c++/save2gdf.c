@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.10 2007-07-15 21:13:55 schloegl Exp $
+    $Id: save2gdf.c,v 1.11 2007-07-29 21:41:47 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -126,19 +126,29 @@ int main(int argc, char **argv){
     
     count = sread(hdr, 0, hdr->NRec);
 
-//    sclose(hdr);	
-    if (hdr->FILE.OPEN){
-	fclose(hdr->FILE.FID);
-	hdr->FILE.FID = 0;
-    }
+    fprintf(stdout,"\nFile %s read successfully %i %i\n",hdr->FileName,hdr->EVENT.N,hdr->SPR);
 
-    fprintf(stdout,"\nFile %s read successfully %i\n",hdr->FileName,hdr->EVENT.N);
+//    fprintf(stdout,"%i\t%i\n", hdr->data.block[0], hdr->data.block[hdr->SPR]);
+//    fprintf(stdout,"%i\t%i\n", hdr->data.block[1], hdr->data.block[hdr->SPR+1]);
 
 	if (dest==NULL) {
 		sclose(hdr);
 		free(hdr);
 		return(0);
 	}
+
+    if (hdr->FILE.OPEN){
+#ifdef ZLIB_H
+	gzclose(hdr->FILE.FID);
+#else
+	fclose(hdr->FILE.FID);
+#endif
+	hdr->FILE.FID = 0;
+	free(hdr->AS.Header1);
+	hdr->AS.Header1 = NULL;
+    }
+
+    fprintf(stdout,"\nFile %s closed \n",hdr->FileName);
 
    /********************************* 
    	Write data 
@@ -150,6 +160,7 @@ int main(int argc, char **argv){
     	for (int k=0; k<hdr->NS; k++) {
 		double PhysMax = hdr->data.block[k*N];
 		double PhysMin = hdr->data.block[k*N];
+    fprintf(stdout,"\nFile %s closed %i\n",hdr->FileName,k);
 		/* Maximum and Minimum for channel k */ 
 		for (uint32_t k1=1; k1<N; k1++) {
 			if (PhysMax < hdr->data.block[k*N+k1])
@@ -243,6 +254,7 @@ fprintf(stdout,"SOPEN-SCP-W4: %i.\n",k);
 		}
 	}
 }
+    fprintf(stdout,"File %s : -sopen-write\n", hdr->FileName);
 
     hdr = sopen(dest, "w", hdr);
     fprintf(stdout,"File %s : sopen-write\n", hdr->FileName);

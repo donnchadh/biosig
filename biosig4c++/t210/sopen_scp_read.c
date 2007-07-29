@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.16 2007-07-26 01:16:05 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.17 2007-07-29 21:41:48 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -446,7 +446,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		- defines intermediate data structure
 	*/	
 	fprintf(stdout, "\nUse SCP_DECODE\n");
-	fseek(hdr->FILE.FID, 0, SEEK_SET);
 
         if( (section = (pointer_section *)malloc(sizeof(pointer_section)*_NUM_SECTION)) ==NULL)
         {

@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.18 2007-07-29 09:29:21 schloegl Exp $
+###  $Id: Makefile,v 1.19 2007-07-29 21:45:07 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -50,7 +50,8 @@ OBJECTS       = biosig.o \
 		t210/scp-decode.o \
 		t220/sopen_scp_write.o \
 		t220/crc4scp.o \
-		t230/sopen_hl7aecg.o 
+		t230/sopen_hl7aecg.o \
+		/usr/lib/libz.so
 
 TARGET        = save2gdf demo
 
@@ -81,11 +82,12 @@ clean:
 	-$(DEL_FILE) *.mex
 	-$(DEL_FILE) *.oct
 	-$(DEL_FILE) t210/*.o
-	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp*
 	-$(DEL_FILE) t220/*.o
 	-$(DEL_FILE) t230/*.o
 	-$(DEL_FILE) XMLParser/*.o
 	-$(DEL_FILE) demo t5.scp t6.scp save2gdf
+
+	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp*
 
 
 ####### Testing ########

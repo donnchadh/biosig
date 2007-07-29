@@ -1,6 +1,6 @@
 /*
 
-    $Id: demo.c,v 1.3 2007-07-03 10:59:24 schloegl Exp $
+    $Id: demo.c,v 1.4 2007-07-29 21:41:47 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -110,17 +110,14 @@ int main (int argc, char **argv)
 
 		// OPEN and WRITE GDF FILE 
 	     	sopen(argv[1], "w", hdr);
-fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 
 		swrite(s, NELEM/hdr->NS, hdr);
-fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 
 		// define events before SCLOSE; 
 		for (k=0; k<hdr->EVENT.N; k++) {
 			hdr->EVENT.TYP[k] = k+1;
 			hdr->EVENT.POS[k] = k*100;
 		};
-fprintf(stdout,"** %i\n",ftell(hdr->FILE.FID));
 	      	status = sclose(hdr);
 	
 	   	fprintf(stdout,"1-%i\t%i\t%i\t%i\t%u\t%u\n",sizeof(hdr->EVENT.TYP),sizeof(*hdr->EVENT.TYP),(int32_t)hdr->NRec,hdr->HeadLen,hdr->Dur[0],hdr->Dur[1]);

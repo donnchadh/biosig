@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.47 2007-07-28 22:04:55 schloegl Exp $
+% $Id: biosig.h,v 1.48 2007-07-29 21:41:47 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -58,8 +58,10 @@ typedef char			int8_t;
 #endif
 
 #include <math.h>
-#include <time.h>
 #include <stdio.h>
+#include <time.h>
+// use of ZLIB is experimental, currently it's use is not recommended. At least you are warned.
+// #include <zlib.h>  
 
 /* use byteswap macros from the host system, hopefully optimized ones ;-) */
 #include <byteswap.h>
@@ -136,11 +138,12 @@ enum FileFormat {
 	CDF, CFWB, CNT, 
 	DICOM, DEMG, EDF, EEProbe, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, 
-	GIF, HL7aECG, JPEG, 
+	GIF, GZIP, HL7aECG, JPEG, 
 	Matlab, MFER, MIDI, NetCDF, NEX1, OGG, 
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, SMA, SND, SVG, SXI,    
-	TIFF, VRML, VTK, WAV, WMF, XML, XPM
+	TIFF, VRML, VTK, WAV, WMF, XML, XPM,
+	Z, ZIP
 }; 
 
 
@@ -359,7 +362,11 @@ typedef struct {
 	} FLAG; 
 
 	struct {	/* File specific data  */
+#ifdef ZLIB_H
+		gzFile		FID;
+#else
 		FILE* 		FID;		/* file handle  */
+#endif
 		size_t 		POS;		/* current reading/writing position [in blocks] */
 		uint8_t		OPEN; 		/* 0: closed, 1:read, 2: write */
 		uint8_t		LittleEndian;
