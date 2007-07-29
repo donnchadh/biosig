@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.17 2007-07-29 09:16:47 schloegl Exp $
+###  $Id: Makefile,v 1.18 2007-07-29 09:29:21 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -89,7 +89,7 @@ clean:
 
 
 ####### Testing ########
-test: PFE103.scp save2scp save2hl7aecg save2gdf
+test: PFE103.scp save2scp save2aecg save2gdf
 	./save2gdf     	PFE103.scp t3.gdf
 	./save2scp     	PFE103.scp t3.scp
 	./save2aecg 	PFE103.scp t3.hl7
@@ -109,6 +109,7 @@ test3: PFE103.scp save2gdf
 	./save2gdf -f=BDF PFE103.scp t1.bdf
 	./save2gdf -f=SCP PFE103.scp t1.scp
 	./save2gdf -f=HL7 PFE103.scp t1.hl7
+
 	./save2gdf -f=GDF t1.gdf t2.gdf.gdf
 	./save2gdf -f=EDF t1.gdf t2.gdf.edf
 	./save2gdf -f=BDF t1.gdf t2.gdf.bdf
