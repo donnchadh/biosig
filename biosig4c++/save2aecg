@@ -1,0 +1,2 @@
+#conversion into HL7aECG data format
+./save2gdf -f=HL7 $1 $2

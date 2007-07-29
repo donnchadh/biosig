@@ -1,0 +1,2 @@
+### conversion into SCP-ECG (EN1064) standard
+./save2gdf -f=SCP $1 $2
