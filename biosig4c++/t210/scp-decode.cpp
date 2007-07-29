@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.6 2007-07-29 21:41:48 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.7 2007-07-29 21:56:32 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -284,7 +284,7 @@ int scp_decode(HDRTYPE* hdr, pointer_section *info_sections, DATA_DECODE &info_d
 //remark("after section 1");
 	sectionsOptional(info_sections,info_decoding,info_recording,info_textual);
 //remark("at end of sections");
-//	fclose(in);
+	fclose(in);
 
 	Decode_Data(info_sections,info_decoding,add_filter);
 	return TRUE;              // by E.C. 15.10.2003    now return TRUE
