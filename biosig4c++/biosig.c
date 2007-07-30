@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.73 2007-07-29 21:41:47 schloegl Exp $
+    $Id: biosig.c,v 1.74 2007-07-30 10:51:05 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -338,8 +338,8 @@ const struct PhysDimIdx
 	{ 4320 ,  "Wm" },
 	{ 4352 ,  "F" },
 	{ 4384 ,  "K" },
-	{ 6048 ,  "°C" },
-	{ 4416 ,  "°F" },
+	{ 6048 ,  "\xB0\x43" },	//°C
+	{ 4416 ,  "\xB0\x46" }, //°F
 	{ 4448 ,  "K W-1" },
 	{ 4480 ,  "cd" },
 	{ 4512 ,  "osmole" },
@@ -1697,20 +1697,24 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 	biosig_data_type 	sample_value; 
 	
 
-	// check reading segment 
-	if (start >= 0) {
-		if (start > hdr->NRec)
-			return(0);
-#ifdef ZLIB_H
-		else if (gzseek(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
-#else 
-		else if (fseek(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
-#endif
-			return(0);
-		hdr->FILE.POS = start; 	
-	}
-
 	if (hdr->TYPE != SCP_ECG && hdr->TYPE != HL7aECG) {	
+		// check reading segment 
+		if (start >= 0) {
+			if (start > hdr->NRec) 
+			{
+				return(0);
+			}	
+#ifdef ZLIB_H
+			else if (gzseek(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
+#else 
+			else if (fseek(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
+#endif
+			{
+				return(0);
+			}
+			hdr->FILE.POS = start; 	
+		}
+
 		// allocate AS.rawdata 	
 		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
 
@@ -2146,7 +2150,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	}
 	}	
 
-	if (hdr->TYPE != SCP_ECG) {
+	if (hdr->TYPE != SCP_ECG  && hdr->TYPE != HL7aECG) {
 		// for SCP: writing to file is done in SCLOSE	
 #ifdef ZLIB_H
 		count = gzwrite(hdr->FILE.FID, (uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb * hdr->NRec);
@@ -2364,12 +2368,13 @@ int sclose(HDRTYPE* hdr)
 		fwrite(hdr->AS.Header1, sizeof(char), hdr->HeadLen, hdr->FILE.FID);
 #endif
 	}		
-	else if ((hdr->FILE.OPEN>1) & (hdr->TYPE==HL7aECG))
+	else if ((hdr->FILE.OPEN>1) && (hdr->TYPE==HL7aECG))
 	{
 		hdr = sclose_HL7aECG_write(hdr);
+		hdr->FILE.OPEN = 0; 
 	}
 
-	if (hdr->TYPE != XML) {
+	if (hdr->FILE.OPEN > 0) {
 		fprintf(stdout,"attempt to close file\n");
 #ifdef ZLIB_H
 		int status = gzclose(hdr->FILE.FID);

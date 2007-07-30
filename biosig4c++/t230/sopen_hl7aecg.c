@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.5 2007-07-28 22:04:55 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.6 2007-07-30 10:51:05 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -163,10 +163,7 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		    	if(!strcmp(code+13, LEAD_ID_TABLE[k]))
 				hdr->CHANNEL[i].LeadIdCode = k;
 
-		    hdr->CHANNEL[i].Transducer = "EEG: Ag-AgCl electrodes";
-//		    hdr->CHANNEL[k].Transducer = (Header2 + 16*hdr->NS + 80*k);
-
-		    hdr->CHANNEL[i].GDFTYP = 3;	// int16
+		    hdr->CHANNEL[i].Transducer = " ";
 		    hdr->CHANNEL[i].GDFTYP = 5;	// int32
 
 		    std::vector<std::string> vector;
@@ -176,13 +173,11 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		    hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[i].SPR);
 		    hdr->AS.rawdata = (uint8_t *)realloc(hdr->AS.rawdata, 4*(i+1)*hdr->NS*hdr->SPR*hdr->NRec);
 
+		    /* read data samples */	
 		    data = (int32_t*)(hdr->AS.rawdata + 4*i*(hdr->SPR));
-
-		    hdr->CHANNEL[i].Cal  = atof(channel.FirstChild("value").FirstChild("scale").Element()->Attribute("value"));
-		    hdr->CHANNEL[i].Off  = atof(channel.FirstChild("value").FirstChild("origin").Element()->Attribute("value"));
-		    
 		    for(unsigned int j=0; j<hdr->SPR; ++j) {
 			data[j] = atoi(vector[j].c_str());
+			/* get Min/Max */
 			if(data[j] > hdr->CHANNEL[i].DigMax) {
 			    hdr->CHANNEL[i].DigMax = data[j];
 			}
@@ -190,8 +185,14 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 			    hdr->CHANNEL[i].DigMin = data[j];
 			}
 		    }
+		    /* scaling factors */ 
+		    hdr->CHANNEL[i].Cal  = atof(channel.FirstChild("value").FirstChild("scale").Element()->Attribute("value"));
+		    hdr->CHANNEL[i].Off  = atof(channel.FirstChild("value").FirstChild("origin").Element()->Attribute("value"));
+		    hdr->CHANNEL[i].DigMax += 1;
+		    hdr->CHANNEL[i].DigMin -= 1;
 		    hdr->CHANNEL[i].PhysMax = hdr->CHANNEL[i].DigMax*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
 		    hdr->CHANNEL[i].PhysMin = hdr->CHANNEL[i].DigMin*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
+
 		    /* Physical units */ 
 		    strncpy(tmp, channel.FirstChild("value").FirstChild("origin").Element()->Attribute("unit"),20);
  		    hdr->CHANNEL[i].PhysDimCode = PhysDimCode(tmp);

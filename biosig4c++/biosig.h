@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.48 2007-07-29 21:41:47 schloegl Exp $
+% $Id: biosig.h,v 1.49 2007-07-30 10:51:05 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -62,6 +62,7 @@ typedef char			int8_t;
 #include <time.h>
 // use of ZLIB is experimental, currently it's use is not recommended. At least you are warned.
 // #include <zlib.h>  
+#undef ZLIB_H
 
 /* use byteswap macros from the host system, hopefully optimized ones ;-) */
 #include <byteswap.h>
