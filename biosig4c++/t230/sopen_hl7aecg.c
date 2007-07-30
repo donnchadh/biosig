@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.6 2007-07-30 10:51:05 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.7 2007-07-30 23:26:32 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -357,11 +357,7 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     char time[19];
     T0 = gdf_time2t_time(hdr->Patient.Birthday);
     t0 = localtime(&T0);
-    sprintf(time, "%4d%2d%2d%2d%2d%2d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec);
-    fprintf(stderr, "%4d%2d%2d%2d%2d%2d.000\n\n\n\n", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec);
-    for(int i=0; i<18; ++i)
-	if(time[i] == ' ')
-	    time[i] = '0';
+    sprintf(time, "%04d%02d%02d%02d%02d%02d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec);
 
     TiXmlElement *subjectDemographicPersonBirthtime = new TiXmlElement("birthTime");
     subjectDemographicPersonBirthtime->SetAttribute("value", strdup(time));
