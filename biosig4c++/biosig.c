@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.74 2007-07-30 10:51:05 schloegl Exp $
+    $Id: biosig.c,v 1.75 2007-07-30 16:21:02 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -127,7 +127,7 @@ const char *LEAD_ID_TABLE[] = { "unspecified",
 	"ER1","ER2","ER3","ER4","ER5","ER6","ER7","ELL",
 	"ERL","ELA","ELB","ERA","ERB"
 */
-	};
+	NULL };  // stop marker 
 
 
 
@@ -1418,6 +1418,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			PhysDim(k1,hdr->CHANNEL[k].PhysDim);
 		else 
 			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
+
+		// set HDR.PhysDimCode
+		if (hdr->CHANNEL[k].LeadIdCode == 0)
+			for (k1=0; LEAD_ID_TABLE[k1] != NULL; k1++)
+				if (!strcmp(hdr->CHANNEL[k].Label, LEAD_ID_TABLE[k1]))
+					hdr->CHANNEL[k].LeadIdCode = k1;
+				else if (!strcmp(hdr->CHANNEL[k].Label+13, LEAD_ID_TABLE[k1]))
+					hdr->CHANNEL[k].LeadIdCode = k1;
 	}    	
 	
 }
