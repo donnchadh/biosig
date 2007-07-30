@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.75 2007-07-30 16:21:02 schloegl Exp $
+    $Id: biosig.c,v 1.76 2007-07-30 23:24:14 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -127,7 +127,7 @@ const char *LEAD_ID_TABLE[] = { "unspecified",
 	"ER1","ER2","ER3","ER4","ER5","ER6","ER7","ELL",
 	"ERL","ELA","ELB","ERA","ERB"
 */
-	NULL };  // stop marker 
+	, NULL };  // stop marker 
 
 
 
@@ -766,7 +766,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	unsigned	EventChannel = 0;
 
 	if (hdr==NULL)
-	hdr = create_default_hdr(0,0);	// initializes fields that may stay undefined during SOPEN 
+		hdr = create_default_hdr(0,0);	// initializes fields that may stay undefined during SOPEN 
 
 if (!strcmp(MODE,"r"))	
 {
@@ -1264,45 +1264,46 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 
 	else if (hdr->TYPE==CFWB) {
-	    	*(uint64_t*)(Header1+8) = l_endian_u64(*(uint64_t*)Header1+8);
-	    	hdr->SampleRate = *(double*) (Header1+8);
-	    	tm_time.tm_year = l_endian_u32( *(int32_t*)(Header1+16) );
-	    	tm_time.tm_mon  = l_endian_u32( *(int32_t*)(Header1+20) );
-	    	tm_time.tm_mday = l_endian_u32( *(int32_t*)(Header1+24) );
-	    	tm_time.tm_hour = l_endian_u32( *(int32_t*)(Header1+28) );
-	    	tm_time.tm_min  = l_endian_u32( *(int32_t*)(Header1+32) );
-	    	*(uint64_t*)(Header1+36) = l_endian_u64(*(uint64_t*)(Header1+36));
-	    	tm_time.tm_sec  = (int)*(double*) (Header1+36);
+	    	hdr->SampleRate = 1/l_endian_f64(*(double*)(Header1+8));
+	    	tm_time.tm_year = l_endian_u32(*(uint32_t*)(Header1+16));
+	    	tm_time.tm_mon  = l_endian_u32(*(uint32_t*)(Header1+20));
+	    	tm_time.tm_mday = l_endian_u32(*(uint32_t*)(Header1+24));
+	    	tm_time.tm_hour = l_endian_u32(*(uint32_t*)(Header1+28));
+	    	tm_time.tm_min  = l_endian_u32(*(uint32_t*)(Header1+32));
+	    	tm_time.tm_sec  = l_endian_f64(*(double*)(Header1+36));
     		hdr->T0 	= tm_time2gdf_time(&tm_time);
 	    	// = *(double*)(Header1+44);
-	    	hdr->NS   	= l_endian_u32( *(int32_t*)(Header1+52) );
-	    	hdr->NRec	= l_endian_u32( *(int32_t*)(Header1+56) );
+	    	hdr->NS   	= l_endian_u32( *(uint32_t*)(Header1+52));
+	    	hdr->NRec	= l_endian_u32( *(uint32_t*)(Header1+56));
 	    	//  	= *(int32_t*)(Header1+60);	// TimeChannel
 	    	//  	= *(int32_t*)(Header1+64);	// DataFormat
 
-	    	Header1 = (char*) realloc(Header1,68+96*hdr->NS);
-	    	Header2 = Header1+96; 
-	    	hdr->HeadLen = 68+96*hdr->NS; 
+	    	hdr->HeadLen = 68 + hdr->NS*96; 
+	    	Header1 = (char*)realloc(Header1,hdr->HeadLen);
+	    	Header2 = Header1+68; 
 #ifdef ZLIB_H
 	    	gzseek(hdr->FILE.FID, 68, SEEK_SET);
-	    	count   = gzread(hdr->FILE.FID, Header2, 96*hdr->NS);
+	    	count   = gzread(hdr->FILE.FID, Header2, hdr->HeadLen-68);
 #else
 	    	fseek(hdr->FILE.FID, 68, SEEK_SET);
-		count   = fread(Header2, 1, 96*hdr->NS, hdr->FILE.FID);
+		count   = fread(Header2, 1, hdr->HeadLen-68, hdr->FILE.FID);
 #endif
-	    	
+
+		int GDFTYP = l_endian_u32(*(uint32_t*)(Header1+64));
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS; k++)	{
-		    	hdr->CHANNEL[k].GDFTYP 	= CFWB_GDFTYP[l_endian_u32(*(uint32_t*)(Header1+64))-1];
+		    	hdr->CHANNEL[k].GDFTYP 	= CFWB_GDFTYP[GDFTYP-1];
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	hdr->CHANNEL[k].Label	= Header2+k*96;
 		    	//hdr->CHANNEL[k].PhysDim	= Header2+k*96+32;  // OBSOLETE
-		    	//strncpy(hdr->CHANNEL[k].PhysDim,Header2+k*96+32,16);
-			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(Header2+k*96+32);
+		    	strncpy(hdr->CHANNEL[k].PhysDim,Header2+k*96+32,16);
+			//hdr->CHANNEL[k].PhysDimCode = PhysDimCode(Header2+k*96+32);
 		    	hdr->CHANNEL[k].Cal	= l_endian_f64(*(double*)(Header2+k*96+64));
 		    	hdr->CHANNEL[k].Off	= l_endian_f64(*(double*)(Header2+k*96+72));
 		    	hdr->CHANNEL[k].PhysMax	= l_endian_f64(*(double*)(Header2+k*96+80));
 		    	hdr->CHANNEL[k].PhysMin	= l_endian_f64(*(double*)(Header2+k*96+88));
+		    	hdr->CHANNEL[k].DigMax	= (hdr->CHANNEL[k].PhysMax - hdr->CHANNEL[k].Off) / hdr->CHANNEL[k].Cal; 
+		    	hdr->CHANNEL[k].DigMin	= (hdr->CHANNEL[k].PhysMin - hdr->CHANNEL[k].Off) / hdr->CHANNEL[k].Cal; 
 			hdr->CHANNEL[k].OnOff    = 1;
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// CFWB does not support automated overflow and saturation detection
@@ -1421,11 +1422,17 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 		// set HDR.PhysDimCode
 		if (hdr->CHANNEL[k].LeadIdCode == 0)
-			for (k1=0; LEAD_ID_TABLE[k1] != NULL; k1++)
-				if (!strcmp(hdr->CHANNEL[k].Label, LEAD_ID_TABLE[k1]))
-					hdr->CHANNEL[k].LeadIdCode = k1;
-				else if (!strcmp(hdr->CHANNEL[k].Label+13, LEAD_ID_TABLE[k1]))
-					hdr->CHANNEL[k].LeadIdCode = k1;
+		if (!strncmp(hdr->CHANNEL[k].Label, "MDC_ECG_LEAD_", 13)) {
+			// MDC_ECG_LEAD_* 
+			for (k1=0; !strcmp(hdr->CHANNEL[k].Label+13, LEAD_ID_TABLE[k1]) && LEAD_ID_TABLE[k1] != NULL; k1++); 
+			if (LEAD_ID_TABLE[k1] != NULL)	
+				hdr->CHANNEL[k].LeadIdCode = k1;
+		}
+		else {
+			for (k1=0; !strcmp(hdr->CHANNEL[k].Label, LEAD_ID_TABLE[k1]) && LEAD_ID_TABLE[k1] != NULL; k1++); 
+			if (LEAD_ID_TABLE[k1] != NULL)	
+				hdr->CHANNEL[k].LeadIdCode = k1;
+		}
 	}    	
 	
 }
@@ -1437,7 +1444,57 @@ else { // WRITE
 		if (k1>0) PhysDim(k1,hdr->CHANNEL[k].PhysDim);
 	}    	
 
-    	if (hdr->TYPE==GDF) {	
+    	if (hdr->TYPE==CFWB) {	
+	     	hdr->HeadLen = 68 + hdr->NS*96;
+	    	Header1 = (char*) malloc(hdr->HeadLen);
+	    	Header2 = Header1+68; 
+		memset(Header1,0,hdr->HeadLen);
+	    	memcpy(Header1,"CFWB\1\0\0\0",8);
+	    	*(double*)(Header1+8) = l_endian_f64(1/hdr->SampleRate);
+		
+		tt = gdf_time2t_time(hdr->T0); 
+		struct tm *t = localtime(&tt);
+    		*(int32_t*)(Header1+16) = l_endian_u32(t->tm_year);
+	    	*(int32_t*)(Header1+20) = l_endian_u32(t->tm_mon);
+	    	*(int32_t*)(Header1+24) = l_endian_u32(t->tm_mday);
+	    	*(int32_t*)(Header1+28) = l_endian_u32(t->tm_hour);
+	    	*(int32_t*)(Header1+32) = l_endian_u32(t->tm_min);
+	    	*(double*)(Header1+36)  = l_endian_f64(t->tm_sec);
+	    	*(double*)(Header1+44)  = l_endian_f64(0.0);	// pretrigger time 
+	    	*(int32_t*)(Header1+52) = l_endian_u32(hdr->NS);
+	    	hdr->NRec *= hdr->SPR; hdr->SPR = 1;
+	    	*(int32_t*)(Header1+56)	= l_endian_u32(hdr->NRec); // number of samples 
+	    	*(int32_t*)(Header1+60)	= l_endian_i32(0);	// 1: time channel
+	    	int GDFTYP = 1; 
+		for (k=0; k<hdr->NS; k++) {
+			if (hdr->CHANNEL[k].GDFTYP>3)
+				GDFTYP = 2;
+		}
+	    	*(int32_t*)(Header1+64)	= l_endian_i32(GDFTYP);	// 1: double, 2: float, 3:short
+		
+		for (k=0; k<hdr->NS; k++) {
+	    		hdr->CHANNEL[k].SPR = 1;
+			hdr->CHANNEL[k].GDFTYP = CFWB_GDFTYP[GDFTYP-1];
+			const char *tmpstr;
+			if (hdr->CHANNEL[k].LeadIdCode)
+				tmpstr = LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode];
+			else
+				tmpstr = hdr->CHANNEL[k].Label;
+		     	len = strlen(tmpstr);
+		     	memcpy(Header2+96*k, tmpstr, min(len,32));
+
+		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
+		     	len = strlen(tmp);
+		     	memcpy(Header2+96*k+32, tmp, min(len,32));
+			
+			*(double*)(Header2+96*k+64) = l_endian_f64(hdr->CHANNEL[k].Cal);
+			*(double*)(Header2+96*k+72) = l_endian_f64(hdr->CHANNEL[k].Off);
+			*(double*)(Header2+96*k+80) = l_endian_f64(hdr->CHANNEL[k].PhysMax);
+			*(double*)(Header2+96*k+88) = l_endian_f64(hdr->CHANNEL[k].PhysMin);
+		}
+		hdr->AS.Header1 = (uint8_t*)Header1; 
+	}
+    	else if (hdr->TYPE==GDF) {	
 	     	hdr->HeadLen = (hdr->NS+1)*256;
 	    	Header1 = (char*) malloc(hdr->HeadLen);
 	    	Header2 = Header1+256; 
@@ -1494,8 +1551,13 @@ else { // WRITE
 	     	*/
 		for (k=0; k<hdr->NS; k++)
 		{
-		     	len = strlen(hdr->CHANNEL[k].Label);
-		     	memcpy(Header2+16*k,hdr->CHANNEL[k].Label,min(len,16));
+			const char *tmpstr;
+			if (hdr->CHANNEL[k].LeadIdCode)
+				tmpstr = LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode];
+			else
+				tmpstr = hdr->CHANNEL[k].Label;
+		     	len = strlen(tmpstr);
+		     	memcpy(Header2+16*k,tmpstr,min(len,16));
 		     	len = strlen(hdr->CHANNEL[k].Transducer);
 
 		     	memcpy(Header2+80*k + 16*hdr->NS, hdr->CHANNEL[k].Transducer, min(len,80));
@@ -1585,9 +1647,14 @@ else { // WRITE
 	     	
 		for (k=0;k<hdr->NS;k++)
 		{
-		     	len = strlen(hdr->CHANNEL[k].Label);
+			const char *tmpstr;
+			if (hdr->CHANNEL[k].LeadIdCode)
+				tmpstr = LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode];
+			else
+				tmpstr = hdr->CHANNEL[k].Label;
+		     	len = strlen(tmpstr);
 			if (len>16) fprintf(stderr,"Warning: Label (%s) of channel %i is to long.\n",hdr->CHANNEL[k].Label,k);  
-		     	memcpy(Header2+16*k,hdr->CHANNEL[k].Label,min(len,16));
+		     	memcpy(Header2+16*k,tmpstr,min(len,16));
 		     	len = strlen(hdr->CHANNEL[k].Transducer);
 			if (len>80) fprintf(stderr,"Warning: Transducer (%s) of channel %i is to long.\n",hdr->CHANNEL[k].Transducer,k);  
 		     	memcpy(Header2+80*k + 16*hdr->NS,hdr->CHANNEL[k].Transducer,min(len,80));
@@ -2024,7 +2091,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	else {
 		ptr = realloc(hdr->AS.rawdata, hdr->AS.bpb*hdr->NRec);
 		if (ptr==NULL) {
-			fprintf(stderr,"memory allocation failed.\n");
+			fprintf(stderr,"memory allocation failed (%i %i).\n",hdr->AS.bpb,hdr->NRec);
 			exit(-1);
 		}	
 		else 	 
