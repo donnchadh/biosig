@@ -3,7 +3,7 @@
 %    and it tests also Matlab/Octave for its correctness. 
 % 
 
-%	$Id: demo3.m,v 1.10 2006-08-31 17:30:50 schloegl Exp $
+%	$Id: demo3.m,v 1.11 2007-07-30 09:51:17 schloegl Exp $
 %	Copyright (C) 2000-2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -22,9 +22,10 @@
 % Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 % Boston, MA  02111-1307, USA.
 
-x = randn(10000,5)+(1:1e4)'*ones(1,5); % test data
-x = (1:1e4)'*ones(1,5)/1000; % test data
-x = reshape(mod(1:5e4,100),5,1e4)';
+x = randn(10000,6)+(1:1e4)'*ones(1,6); % test data
+x = (1:1e4)'*ones(1,6)/1000; % test data
+x = reshape(mod(1:6e4,100),6,1e4)'; x(:,6)=NaN;
+
 clear HDR;
 
 VER   = version;
@@ -35,9 +36,10 @@ HDR.TYPE='GDF';
 %HDR.TYPE='EDF';
 %HDR.TYPE='BDF'; 
 %HDR.TYPE='CFWB';
+%HDR.TYPE='CNT';
 
 % set Filename
-HDR.FileName = ['TEST_',VER([1,3]),cname(1:3),'.',HDR.TYPE];
+HDR.FileName = ['TEST_',VER([1,3]),cname(1:3),'_e1.',HDR.TYPE];
 
 % person identification, max 80 char
 HDR.Patient.ID = 'P0000';	
@@ -54,7 +56,7 @@ HDR.RID = 'recording identification';
 HDR.T0 = clock;	
 
 % number of channels
-HDR.NS = size(x,2)+1;
+HDR.NS = size(x,2);
 
 % Duration of one block in seconds
 HDR.Dur = 0.2;
@@ -97,14 +99,17 @@ HDR = swrite(HDR,x);
 
 HDR.EVENT.POS = t;
 HDR.EVENT.TYP = t/100;
+if 1, 
 HDR.EVENT.CHN = repmat(0,size(t));
+HDR.EVENT.DUR = repmat(1,size(t));
 HDR.EVENT.VAL = repmat(NaN,size(t));
-ix = 6; 
+ix = 6:5:60; 
 HDR.EVENT.CHN(ix) = 6; 
-HDR.EVENT.VAL(ix) = 373; % HDR.EVENT.TYP(ix) becomes 0x7fff
+HDR.EVENT.VAL(ix) = 373+round(100*rand(size(ix))); % HDR.EVENT.TYP(ix) becomes 0x7fff
 ix = 8; 
 HDR.EVENT.CHN(ix) = 5; % not valid because #5 is not sparse sampleing
 HDR.EVENT.VAL(ix) = 374; 
+end; 
 
 HDR = sclose(HDR);
 
