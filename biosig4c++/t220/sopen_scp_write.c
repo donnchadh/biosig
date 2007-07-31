@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.21 2007-07-07 01:05:22 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.22 2007-07-31 20:16:08 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -57,7 +57,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	uint8_t*	PtrCurSect;	// point to current section 
 	int		curSect; 
 	uint32_t 	len; 
-	uint16_t 	crc,t16a,t16b; 
+	uint16_t 	crc; 
 	uint32_t	i; 
 	uint32_t 	sectionStart; 
 	time_t 		T0;
@@ -463,18 +463,19 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 
 			// Create all the fields
 			// Amplitude Value Multiplier (AMV)
-			for (i = 0; i < hdr->NS; i++) {
+			i = 0;			
+			AVM = hdr->CHANNEL[i].Cal * 1e9 * PhysDimScale(hdr->CHANNEL[i].PhysDimCode);
+			for (i = 1; i < hdr->NS; i++) {
 				// check for physical dimension and adjust scaling factor to "nV"
 				avm = hdr->CHANNEL[i].Cal * 1e9 * PhysDimScale(hdr->CHANNEL[i].PhysDimCode);
 				// check whether all channels have the same scaling factor
-				if (i==0) AVM=avm; 
-				if (abs((AVM - avm)/AVM)>1e-14)
+				if (fabs((AVM - avm)/AVM) > 1e-14)
 					fprintf(stderr,"Warning SOPEN (SCP-WRITE): scaling factors differ between channels. Scaling factor of 1st channel is used.\n");
 			};
 			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)AVM);
 			avm = l_endian_u16(*(uint16_t*)(ptr+sectionStart+curSectLen));
 			curSectLen += 2;
-			if (abs((AVM - avm)/AVM)>1e-14)
+			if (fabs((AVM - avm)/AVM)>1e-14)
 				fprintf(stderr,"Warning SOPEN (SCP-WRITE): Scaling factor has been truncated (%f instead %f).\n",avm,AVM);
 
 			// Sample interval
@@ -482,7 +483,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)AVM);
 			avm = l_endian_u16(*(uint16_t*)(ptr+sectionStart+curSectLen));
 			curSectLen += 2;
-			if (abs((AVM - avm)/AVM)>1e-14)
+			if (fabs((AVM - avm)/AVM)>1e-14)
 				fprintf(stderr,"Warning SOPEN (SCP-WRITE): Sampling interval has been truncated (%f instead %f us).\n",avm,AVM);
 
 			// Diff used
@@ -502,7 +503,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 				*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)hdr->data.size[0]*2);
 				avm = l_endian_u16(*(uint16_t*)(ptr+sectionStart+curSectLen));
 				AVM = hdr->data.size[0]*2;
-				if (abs((AVM - avm)/AVM)>1e-14)
+				if (fabs((AVM - avm)/AVM)>1e-14)
 					fprintf(stderr,"Warning SOPEN (SCP-WRITE): Block length truncated (%f instead %f us).\n",avm,AVM);
 				curSectLen += 2;
 			}
