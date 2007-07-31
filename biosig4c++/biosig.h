@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.49 2007-07-30 10:51:05 schloegl Exp $
+% $Id: biosig.h,v 1.50 2007-07-31 20:18:27 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -62,7 +62,6 @@ typedef char			int8_t;
 #include <time.h>
 // use of ZLIB is experimental, currently it's use is not recommended. At least you are warned.
 // #include <zlib.h>  
-#undef ZLIB_H
 
 /* use byteswap macros from the host system, hopefully optimized ones ;-) */
 #include <byteswap.h>
@@ -129,6 +128,30 @@ float   b_endian_f32(float x);
 double  b_endian_f64(double x); 
 
 #endif /* __BYTE_ORDER */
+
+
+/* 
+	macros for file access: use ZLIB (if available) or STDIO
+ */
+#ifdef ZLIB_H
+#define FOPEN(a,b)      gzopen(a,b)
+#define FSEEK(a,b,c)    gzseek(a,b,c)
+#define FREAD(m,r,c,f)  gzread(f,m,(r)*(c))
+#define FWRITE(m,r,c,f) gzwrite(f,m,(r)*(c))
+#define FTELL(f)        gztell(f)
+#define FCLOSE(f)       gzclose(f)
+#define GETC(f)         gzgetc(f)
+#define FEOF(f)         gzeof(f)
+#else
+#define FOPEN(a,b)      fopen(a,b)
+#define FSEEK(a,b,c)    fseek(a,b,c)
+#define FREAD(m,r,c,f)  fread(m,r,c,f)
+#define FWRITE(m,r,c,f) fwrite(m,r,c,f)
+#define FTELL(f)        ftell(f)
+#define FCLOSE(f)       fclose(f)
+#define GETC(f)         fgetc(f)
+#define FEOF(f)         feof(f)
+#endif
 
 
 	/* list of file formats */

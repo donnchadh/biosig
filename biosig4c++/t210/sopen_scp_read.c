@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.18 2007-07-29 21:56:32 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.19 2007-07-31 20:18:27 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -21,8 +21,6 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
  */
-
-
 
 
 #include <stdio.h>             // system includes
@@ -446,11 +444,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		- defines intermediate data structure
 	*/	
 
-#ifdef ZLIB_H
-	gzclose(hdr->FILE.FID); 
-#else
-	fclose(hdr->FILE.FID); 
-#endif
+	FCLOSE(hdr->FILE.FID); 
 	hdr->FILE.OPEN = 0; 	
 	
 	fprintf(stdout, "\nUse SCP_DECODE\n");

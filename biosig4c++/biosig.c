@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.76 2007-07-30 23:24:14 schloegl Exp $
+    $Id: biosig.c,v 1.77 2007-07-31 20:18:27 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -726,6 +726,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	}	
 	else if (!memcmp(Header1,MAGIC_NUMBER_Z,3))
 		hdr->TYPE = Z;
+	else if (!memcmp(Header1,MAGIC_NUMBER_ZIP,sizeof(MAGIC_NUMBER_ZIP)))
+		hdr->TYPE = ZIP;
 	else if (!memcmp(Header1,"<?xml version",13))
 		hdr->TYPE = HL7aECG;                    
     	
@@ -770,11 +772,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 
 if (!strcmp(MODE,"r"))	
 {
-#ifdef ZLIB_H
-	hdr->FILE.FID = gzopen(FileName,"rb");
-#else
-	hdr->FILE.FID = fopen(FileName,"rb");
-#endif
+	hdr->FILE.FID = FOPEN(FileName,"rb");
 	hdr->FileName = FileName; 
     	if (hdr->FILE.FID == NULL) 
     	{ 	
@@ -785,11 +783,7 @@ if (!strcmp(MODE,"r"))
     
     	/******** read 1st (fixed)  header  *******/	
  	Header1 = (char*)malloc(257);
-#ifdef ZLIB_H
-    	count   = gzread(hdr->FILE.FID,Header1,256);
-#else
-    	count   = fread(Header1,1,256,hdr->FILE.FID);
-#endif
+    	count   = FREAD(Header1,1,256,hdr->FILE.FID);
     	Header1[256] = 0;
 
 	/* determine file format */
@@ -800,11 +794,7 @@ if (!strcmp(MODE,"r"))
 
     	if (hdr->TYPE == unknown) {
 		fprintf(stdout,"ERROR BIOSIG SOPEN(read): Format of file %s unknown\n",hdr->FileName);
-#ifdef ZLIB_H
-    		gzclose(hdr->FILE.FID);
-#else
-    		fclose(hdr->FILE.FID);
-#endif
+    		FCLOSE(hdr->FILE.FID);
     		free(hdr->AS.Header1);
     		free(hdr);
 		return(NULL);
@@ -884,11 +874,8 @@ if (!strcmp(MODE,"r"))
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	    	Header1 = (char*)realloc(Header1,hdr->HeadLen);
 	    	Header2 = Header1+256; 
-#ifdef ZLIB_H
-	    	count   = gzread(hdr->FILE.FID, Header2, hdr->HeadLen-256);
-#else
-	    	count   = fread(Header2, 1, hdr->HeadLen-256, hdr->FILE.FID);
-#endif
+	    	count   = FREAD(Header2, 1, hdr->HeadLen-256, hdr->FILE.FID);
+
 		for (k=0; k<hdr->NS; k++)	{
 			Header2[16*k + 15] = 0;
 			hdr->CHANNEL[k].Label   = (Header2 + 16*k);
@@ -946,13 +933,9 @@ if (!strcmp(MODE,"r"))
 
 		// READ EVENTTABLE 
 		int c;
-#ifdef ZLIB_H
-		gzseek(hdr->FILE.FID, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
-		c = gzread(hdr->FILE.FID, buf, sizeof(uint8_t) * 8);
-#else
-		fseek(hdr->FILE.FID, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
-		c = fread(buf, sizeof(uint8_t), 8, hdr->FILE.FID);
-#endif
+		FSEEK(hdr->FILE.FID, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
+		c = FREAD(buf, sizeof(uint8_t), 8, hdr->FILE.FID);
+
 		if (c<8) {
 			hdr->EVENT.SampleRate = hdr->SampleRate; 
 			hdr->EVENT.N = 0;
@@ -968,13 +951,9 @@ if (!strcmp(MODE,"r"))
 
  		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
 		hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
-#ifdef ZLIB_H
-		gzread(hdr->FILE.FID, hdr->EVENT.POS, sizeof(*hdr->EVENT.POS)*hdr->EVENT.N);
-		gzread(hdr->FILE.FID, hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP)*hdr->EVENT.N);
-#else
-		fread(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
-		fread(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr->FILE.FID);
-#endif
+		FREAD(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
+		FREAD(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr->FILE.FID);
+
 		for (k32u=0; k32u < hdr->EVENT.N; k32u++) {
 			hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
 			hdr->EVENT.TYP[k32u] = l_endian_u16(hdr->EVENT.TYP[k32u]); 
@@ -982,13 +961,9 @@ if (!strcmp(MODE,"r"))
 		if (buf[0]>1) {
 			hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR,hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
 			hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN,hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
-#ifdef ZLIB_H
-			gzread(hdr->FILE.FID,hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN)*hdr->EVENT.N);
-			gzread(hdr->FILE.FID,hdr->EVENT.DUR,sizeof(*hdr->EVENT.DUR)*hdr->EVENT.N);
-#else
-			fread(hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN),hdr->EVENT.N,hdr->FILE.FID);
-			fread(hdr->EVENT.DUR,sizeof(*hdr->EVENT.DUR),hdr->EVENT.N,hdr->FILE.FID);
-#endif
+			FREAD(hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN),hdr->EVENT.N,hdr->FILE.FID);
+			FREAD(hdr->EVENT.DUR,sizeof(*hdr->EVENT.DUR),hdr->EVENT.N,hdr->FILE.FID);
+
 			for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
 				hdr->EVENT.DUR[k32u] = l_endian_u32(hdr->EVENT.DUR[k32u]); 
 				hdr->EVENT.CHN[k32u] = l_endian_u16(hdr->EVENT.CHN[k32u]); 
@@ -1042,11 +1017,8 @@ if (!strcmp(MODE,"r"))
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	    	Header1 = (char*) realloc(Header1,hdr->HeadLen);
 	    	Header2 = Header1+256; 
-#ifdef ZLIB_H
-	    	count   = gzread(hdr->FILE.FID, Header2, hdr->HeadLen-256);
-#else
-	    	count   = fread(Header2, 1, hdr->HeadLen-256, hdr->FILE.FID);
-#endif
+	    	count   = FREAD(Header2, 1, hdr->HeadLen-256, hdr->FILE.FID);
+
 		for (k=0; k<hdr->NS; k++)	{
 			hdr->CHANNEL[k].Label   = (Header2 + 16*k);
 			hdr->CHANNEL[k].Label[15]=0;//   hack FIXME
@@ -1115,22 +1087,14 @@ if (!strcmp(MODE,"r"))
 		hdr->HeadLen += 4;	
 		// read header up to nLenght and nID of foreign data section 
 	    	Header1 = (char*)realloc(Header1,hdr->HeadLen);
-#ifdef ZLIB_H
-	    	count   = gzread(hdr->FILE.FID, Header1+256, hdr->HeadLen-256);
-#else
-	    	count   = fread(Header1+256, 1, hdr->HeadLen-256, hdr->FILE.FID);
-#endif
+	    	count   = FREAD(Header1+256, 1, hdr->HeadLen-256, hdr->FILE.FID);
 		uint32_t POS = hdr->HeadLen; 
 	    	
 		// read "foreign data section" and "per channel data types section"  
 		hdr->HeadLen += l_endian_u16(*(uint16_t*)(Header1+hdr->HeadLen-4));
 		hdr->HeadLen += 4*hdr->NS; 
 	    	Header1 = (char*)realloc(Header1,hdr->HeadLen+8);
-#ifdef ZLIB_H
-	    	count   = gzread(hdr->FILE.FID, Header1+POS, hdr->HeadLen-POS);
-#else
-	    	count   = fread(Header1+POS, 1, hdr->HeadLen-POS, hdr->FILE.FID);
-#endif
+	    	count   = FREAD(Header1+POS, 1, hdr->HeadLen-POS, hdr->FILE.FID);
 		
 		// define channel specific header information
 		hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
@@ -1138,6 +1102,7 @@ if (!strcmp(MODE,"r"))
 		uint16_t CHAN; 
     		POS = l_endian_u32(*(uint32_t*)(Header1+6));
 		for (k = 0; k < hdr->NS; k++)	{
+			hdr->CHANNEL[k].Transducer  = "";
 			CHAN = l_endian_u16(*(uint16_t*)(Header1+POS+4));
 			hdr->CHANNEL[k].Label   = (char*)(Header1+POS+6);
 			hdr->CHANNEL[k].Label[39]   = 0;  
@@ -1220,20 +1185,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			POS += 12 + l_endian_u16(*(uint16_t*)(Header1+POS+10));
 		} 
 */
-#ifdef ZLIB_H
-		gzseek(hdr->FILE.FID, hdr->HeadLen, SEEK_SET); 
-#else
-		fseek(hdr->FILE.FID, hdr->HeadLen, SEEK_SET); 
-#endif
+		FSEEK(hdr->FILE.FID, hdr->HeadLen, SEEK_SET); 
 	}      	
 
 	else if (hdr->TYPE==BKR) {
 	    	Header1 = (char*) realloc(Header1,1024);
-#ifdef ZLIB_H
-	    	count   = gzread(hdr->FILE.FID, Header1+256, 1024-256);
-#else
-	    	count   = fread(Header1+256,1,1024-256,hdr->FILE.FID);
-#endif
+	    	count   = FREAD(Header1+256,1,1024-256,hdr->FILE.FID);
+
 	    	hdr->HeadLen 	 = 1024; 
 		hdr->NS  	 = l_endian_u16( *(uint16_t*) (Header1+2) ); 
 		hdr->SampleRate  = (double)l_endian_u16( *(uint16_t*) (Header1+4) ); 
@@ -1245,6 +1203,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	/* extract more header information */
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS;k++)	{
+			hdr->CHANNEL[k].Transducer  = "";
 		    	hdr->CHANNEL[k].GDFTYP 	 = 3; 
 		    	hdr->CHANNEL[k].SPR 	 = 1; // *(int32_t*)(Header1+56);
 		    	*(uint32_t*)(Header1+22) = l_endian_u32(*(uint32_t*)Header1+22);
@@ -1270,7 +1229,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	tm_time.tm_mday = l_endian_u32(*(uint32_t*)(Header1+24));
 	    	tm_time.tm_hour = l_endian_u32(*(uint32_t*)(Header1+28));
 	    	tm_time.tm_min  = l_endian_u32(*(uint32_t*)(Header1+32));
-	    	tm_time.tm_sec  = l_endian_f64(*(double*)(Header1+36));
+	    	tm_time.tm_sec  = (int)l_endian_f64(*(double*)(Header1+36));
     		hdr->T0 	= tm_time2gdf_time(&tm_time);
 	    	// = *(double*)(Header1+44);
 	    	hdr->NS   	= l_endian_u32( *(uint32_t*)(Header1+52));
@@ -1281,17 +1240,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->HeadLen = 68 + hdr->NS*96; 
 	    	Header1 = (char*)realloc(Header1,hdr->HeadLen);
 	    	Header2 = Header1+68; 
-#ifdef ZLIB_H
-	    	gzseek(hdr->FILE.FID, 68, SEEK_SET);
-	    	count   = gzread(hdr->FILE.FID, Header2, hdr->HeadLen-68);
-#else
-	    	fseek(hdr->FILE.FID, 68, SEEK_SET);
-		count   = fread(Header2, 1, hdr->HeadLen-68, hdr->FILE.FID);
-#endif
-
+	    	if (count<=hdr->HeadLen)
+			count = FREAD(Header1+count, 1, hdr->HeadLen-count, hdr->FILE.FID);
+		else 	
+	    		FSEEK(hdr->FILE.FID, hdr->HeadLen, SEEK_SET);
+		
 		int GDFTYP = l_endian_u32(*(uint32_t*)(Header1+64));
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS; k++)	{
+			hdr->CHANNEL[k].Transducer  = "";
 		    	hdr->CHANNEL[k].GDFTYP 	= CFWB_GDFTYP[GDFTYP-1];
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	hdr->CHANNEL[k].Label	= Header2+k*96;
@@ -1311,11 +1268,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	else if (hdr->TYPE==CNT) {
 	    	Header1 = (char*) realloc(Header1,900);
 	    	hdr->VERSION = atof(Header1+8);
-#ifdef ZLIB_H
-	    	count   = gzread(hdr->FILE.FID, Header1+256, 900-256);
-#else
-	    	count   = fread(Header1+256,1,900-256,hdr->FILE.FID);
-#endif
+	    	count   = FREAD(Header1+256,1,900-256,hdr->FILE.FID);
+
 	    	ptr_str = Header1+136;
     		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
 	    	ptr_str = Header1+137;
@@ -1339,14 +1293,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		
 	    	Header1 = (char*) realloc(Header1,hdr->HeadLen);
 	    	Header2 = Header1+900; 
-#ifdef ZLIB_H
-	    	count   = gzread(hdr->FILE.FID, Header2, hdr->NS*75);
-#else
-	    	count   = fread(Header2,1,hdr->NS*75,hdr->FILE.FID);
-#endif
+	    	count   = FREAD(Header2,1,hdr->NS*75,hdr->FILE.FID);
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS;k++)	{
+			hdr->CHANNEL[k].Transducer  = "";
 		    	hdr->CHANNEL[k].GDFTYP 	= 3;
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	hdr->CHANNEL[k].Label	= Header2+k*75;
@@ -1361,13 +1312,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].Notch	= CNT_SETTINGS_NOTCH[(uint8_t)Header1[682]];
 			hdr->CHANNEL[k].OnOff   = 1;
 		}
+
 	    	/* extract more header information */
 	    	// eventtablepos = l_endian_u32( *(uint32_t*) (Header1+886) );
-#ifdef ZLIB_H
-	    	gzseek(hdr->FILE.FID, 68, SEEK_SET);
-#else
-	    	fseek(hdr->FILE.FID, 68, SEEK_SET);
-#endif
+	    	FSEEK(hdr->FILE.FID, 68, SEEK_SET);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	}
 	
@@ -1375,11 +1323,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->AS.Header1 = (uint8_t*)Header1; 
 		hdr->HeadLen 	= l_endian_u32(*(uint32_t*)(Header1+2));
 		hdr->AS.Header1 = (uint8_t*)realloc(hdr->AS.Header1,hdr->HeadLen);
-#ifdef ZLIB_H
-	    	count += gzread(hdr->FILE.FID, hdr->AS.Header1+count, hdr->HeadLen-count);
-#else
-	    	count += fread(hdr->AS.Header1+count, 1, hdr->HeadLen-count, hdr->FILE.FID);
-#endif
+	    	count += FREAD(hdr->AS.Header1+count, 1, hdr->HeadLen-count, hdr->FILE.FID);
 	    	uint16_t crc 	= CRCEvaluate(hdr->AS.Header1+2,hdr->HeadLen-2);
 
 	    	if ( l_endian_u16(*(uint16_t*)hdr->AS.Header1) != crc)
@@ -1401,11 +1345,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	else 
 	{
 		fprintf(stdout,"ERROR BIOSIG SOPEN(READ): Format %i of file %s not supported\n",hdr->TYPE,hdr->FileName);
-#ifdef ZLIB_H
-    		gzclose(hdr->FILE.FID);
-#else
-    		fclose(hdr->FILE.FID);
-#endif
+    		FCLOSE(hdr->FILE.FID);
     		free(hdr->AS.Header1);
     		free(hdr);
 		return(NULL);
@@ -1558,8 +1498,8 @@ else { // WRITE
 				tmpstr = hdr->CHANNEL[k].Label;
 		     	len = strlen(tmpstr);
 		     	memcpy(Header2+16*k,tmpstr,min(len,16));
-		     	len = strlen(hdr->CHANNEL[k].Transducer);
 
+		     	len = strlen(hdr->CHANNEL[k].Transducer);
 		     	memcpy(Header2+80*k + 16*hdr->NS, hdr->CHANNEL[k].Transducer, min(len,80));
 		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
 		     	len = strlen(tmp);
@@ -1709,22 +1649,18 @@ else { // WRITE
 	}
 
 	if(hdr->TYPE != HL7aECG){
-#ifdef ZLIB_H
-	    	hdr->FILE.FID = gzopen(FileName,"wb");
+#ifdef ZLIB_H	
+	    	hdr->FILE.FID = FOPEN(FileName,"wb0");  // no compression
 #else
-	    	hdr->FILE.FID = fopen(FileName,"wb");
-#endif
+	    	hdr->FILE.FID = FOPEN(FileName,"wb");
+#endif 
 	    	hdr->FileName = FileName; 
 		if (hdr->FILE.FID == NULL){
 		     	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
 			return(NULL);
 		}
 		if(hdr->TYPE != SCP_ECG){
-#ifdef ZLIB_H
-			gzwrite(hdr->FILE.FID, hdr->AS.Header1,sizeof(char) * hdr->HeadLen);
-#else
-			fwrite(hdr->AS.Header1, sizeof(char), hdr->HeadLen, hdr->FILE.FID);
-#endif
+			FWRITE(hdr->AS.Header1, sizeof(char), hdr->HeadLen, hdr->FILE.FID);
 		}	
 		hdr->FILE.OPEN = 2;
 		hdr->FILE.POS  = 0;
@@ -1779,11 +1715,7 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 			{
 				return(0);
 			}	
-#ifdef ZLIB_H
-			else if (gzseek(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
-#else 
-			else if (fseek(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
-#endif
+			else if (FSEEK(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
 			{
 				return(0);
 			}
@@ -1797,11 +1729,7 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 		nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
 
 		// read data	
-#ifdef ZLIB_H
-	    	count = gzread(hdr->FILE.FID, hdr->AS.rawdata, hdr->AS.bpb * nelem);
-#else
-		count = fread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
-#endif
+		count = FREAD(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
 		if (count<nelem)
 			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem); 
 	}
@@ -1928,11 +1856,7 @@ size_t sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDR
 	if (start >= 0) {
 		if (start > hdr->NRec)
 			return(0);
-#ifdef ZLIB_H
-		else if (gzseek(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
-#else 
-		else if (fseek(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
-#endif
+		else if (FSEEK(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
 			return(0);
 		hdr->FILE.POS = start; 	
 	}
@@ -1944,12 +1868,8 @@ size_t sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDR
 		// limit reading to end of data block
 		nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
 
-		// read data	
-#ifdef ZLIB_H
-	    	count = gzread(hdr->FILE.FID, hdr->AS.rawdata, hdr->AS.bpb * nelem);
-#else
-		count = fread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
-#endif
+		// read data
+		count = FREAD(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr->FILE.FID);
 		if (count<nelem)
 			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem); 
 	}
@@ -2091,7 +2011,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	else {
 		ptr = realloc(hdr->AS.rawdata, hdr->AS.bpb*hdr->NRec);
 		if (ptr==NULL) {
-			fprintf(stderr,"memory allocation failed (%i %i).\n",hdr->AS.bpb,hdr->NRec);
+			fprintf(stderr,"memory allocation failed .\n");
 			exit(-1);
 		}	
 		else 	 
@@ -2227,11 +2147,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 	if (hdr->TYPE != SCP_ECG  && hdr->TYPE != HL7aECG) {
 		// for SCP: writing to file is done in SCLOSE	
-#ifdef ZLIB_H
-		count = gzwrite(hdr->FILE.FID, (uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb * hdr->NRec);
-#else
-		count = fwrite((uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb, hdr->NRec, hdr->FILE.FID);
-#endif
+		count = FWRITE((uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb, hdr->NRec, hdr->FILE.FID);
 	}	
 	else { 
 		count = 1; 	
@@ -2269,7 +2185,7 @@ void srewind(HDRTYPE* hdr)
 /****************************************************************************/
 int sseek(HDRTYPE* hdr, long int offset, int whence)
 {
-	long int pos=0; 
+	size_t pos=0; 
 	
 	if    	(whence < 0) 
 		pos = offset * hdr->AS.bpb; 
@@ -2280,11 +2196,7 @@ int sseek(HDRTYPE* hdr, long int offset, int whence)
 	
 	if ((pos < 0) | (pos > hdr->NRec * hdr->AS.bpb))
 		return(-1);
-#ifdef ZLIB_H
-	else if (gzseek(hdr->FILE.FID, pos + hdr->HeadLen, SEEK_SET))
-#else
-	else if (fseek(hdr->FILE.FID, pos + hdr->HeadLen, SEEK_SET))
-#endif
+	else if (FSEEK(hdr->FILE.FID, pos + hdr->HeadLen, SEEK_SET))
 		return(-1);
 
 	hdr->FILE.POS = pos / (hdr->AS.bpb); 	
@@ -2300,11 +2212,7 @@ long int stell(HDRTYPE* hdr)
 {
 	size_t pos; 
 	
-#ifdef ZLIB_H
-	pos = gztell(hdr->FILE.FID);	
-#else
-	pos = ftell(hdr->FILE.FID);	
-#endif
+	pos = FTELL(hdr->FILE.FID);	
 	if (pos<0)
 		return(-1);
 	else if (pos != (hdr->FILE.POS * hdr->AS.bpb + hdr->HeadLen))
@@ -2330,46 +2238,26 @@ int sclose(HDRTYPE* hdr)
 	if ((hdr->FILE.OPEN>1) & ((hdr->TYPE==GDF) | (hdr->TYPE==EDF) | (hdr->TYPE==BDF)))
 	{
 		// WRITE HDR.NRec 
-#ifdef ZLIB_H
-		pos = (gztell(hdr->FILE.FID)-hdr->HeadLen); 
-#else
-		pos = (ftell(hdr->FILE.FID)-hdr->HeadLen); 
-#endif
+		pos = (FTELL(hdr->FILE.FID)-hdr->HeadLen); 
 		if (hdr->NRec<0)
 		{	if (pos>0) 	hdr->NRec = pos/hdr->AS.bpb;
 			else		hdr->NRec = 0; 	
-#ifdef ZLIB_H
 			/* ### FIXME : gzseek supports only forward seek */
-			gzseek(hdr->FILE.FID,236,SEEK_SET); 
-#else
-			fseek(hdr->FILE.FID,236,SEEK_SET); 
-#endif
+			FSEEK(hdr->FILE.FID,236,SEEK_SET); 
 			if (hdr->TYPE==GDF) {
 				*(uint64_t*)tmp = l_endian_u64(hdr->NRec);
-#ifdef ZLIB_H
-				gzwrite(hdr->FILE.FID,tmp,sizeof(hdr->NRec));
-#else
-				fwrite(tmp,sizeof(hdr->NRec),1,hdr->FILE.FID);
-#endif
-			}	
+				FWRITE(tmp,sizeof(hdr->NRec),1,hdr->FILE.FID);
+			}
 			else {
 				len = sprintf(tmp,"%Lu",hdr->NRec);
 				if (len>8) fprintf(stderr,"Warning: NRec is (%s) to long.\n",tmp);  
-#ifdef ZLIB_H
-				gzwrite(hdr->FILE.FID,tmp,len);
-#else
-				fwrite(tmp,len,1,hdr->FILE.FID);
-#endif
-			}	
-		};	
+				FWRITE(tmp,len,1,hdr->FILE.FID);
+			}
+		}
 	
 		// WRITE EVENTTABLE 
 		if ((hdr->TYPE==GDF) & (hdr->EVENT.N>0)) {
-#ifdef ZLIB_H
-			gzseek(hdr->FILE.FID, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
-#else
-			fseek(hdr->FILE.FID, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
-#endif
+			FSEEK(hdr->FILE.FID, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
 			flag = (hdr->EVENT.DUR != NULL) & (hdr->EVENT.CHN != NULL); 
 			if (flag)   // any DUR or CHN is larger than 0 
 				for (k32u=0, flag=0; (k32u<hdr->EVENT.N) & !flag; k32u++)
@@ -2393,27 +2281,16 @@ int sclose(HDRTYPE* hdr)
 				hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
 				hdr->EVENT.TYP[k32u] = l_endian_u16(hdr->EVENT.TYP[k32u]); 
 			}
-#ifdef ZLIB_H
-			gzwrite(hdr->FILE.FID, buf, 8);
-			gzwrite(hdr->FILE.FID, hdr->EVENT.POS, sizeof(*hdr->EVENT.POS) * hdr->EVENT.N);
-			gzwrite(hdr->FILE.FID, hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP) * hdr->EVENT.N);
-#else
-			fwrite(buf, 8, 1, hdr->FILE.FID);
-			fwrite(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
-			fwrite(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr->FILE.FID);
-#endif
+			FWRITE(buf, 8, 1, hdr->FILE.FID);
+			FWRITE(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr->FILE.FID);
+			FWRITE(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr->FILE.FID);
 			if (buf[0]>1) {
 				for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
 					hdr->EVENT.DUR[k32u] = l_endian_u32(hdr->EVENT.DUR[k32u]); 
 					hdr->EVENT.CHN[k32u] = l_endian_u16(hdr->EVENT.CHN[k32u]); 
 				}
-#ifdef ZLIB_H
-				gzwrite(hdr->FILE.FID, hdr->EVENT.CHN, sizeof(*hdr->EVENT.CHN)*hdr->EVENT.N);
-				gzwrite(hdr->FILE.FID, hdr->EVENT.DUR, sizeof(*hdr->EVENT.DUR)*hdr->EVENT.N);
-#else
-				fwrite(hdr->EVENT.CHN, sizeof(*hdr->EVENT.CHN), hdr->EVENT.N,hdr->FILE.FID);
-				fwrite(hdr->EVENT.DUR, sizeof(*hdr->EVENT.DUR), hdr->EVENT.N,hdr->FILE.FID);
-#endif
+				FWRITE(hdr->EVENT.CHN, sizeof(*hdr->EVENT.CHN), hdr->EVENT.N,hdr->FILE.FID);
+				FWRITE(hdr->EVENT.DUR, sizeof(*hdr->EVENT.DUR), hdr->EVENT.N,hdr->FILE.FID);
 			}	
 		}
 	}		
@@ -2437,11 +2314,7 @@ int sclose(HDRTYPE* hdr)
 		*(uint32_t*)(ptr+2) = l_endian_u32(hdr->HeadLen); 
 		crc = CRCEvaluate(ptr+2,hdr->HeadLen-2); 
 		*(int16_t*)ptr      = l_endian_u16(crc);
-#ifdef ZLIB_H
-		gzwrite(hdr->FILE.FID, hdr->AS.Header1, sizeof(char)*hdr->HeadLen);
-#else
-		fwrite(hdr->AS.Header1, sizeof(char), hdr->HeadLen, hdr->FILE.FID);
-#endif
+		FWRITE(hdr->AS.Header1, sizeof(char), hdr->HeadLen, hdr->FILE.FID);
 	}		
 	else if ((hdr->FILE.OPEN>1) && (hdr->TYPE==HL7aECG))
 	{
@@ -2451,11 +2324,7 @@ int sclose(HDRTYPE* hdr)
 
 	if (hdr->FILE.OPEN > 0) {
 		fprintf(stdout,"attempt to close file\n");
-#ifdef ZLIB_H
-		int status = gzclose(hdr->FILE.FID);
-#else
-		int status = fclose(hdr->FILE.FID);
-#endif
+		int status = FCLOSE(hdr->FILE.FID);
 		if (status) fprintf(stderr,"biosig.c:sclose Error closing file\n");
     		hdr->FILE.FID = 0;
     	}	
