@@ -34,7 +34,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.84 2007-07-26 15:15:30 schloegl Exp $
+%	$Id: sread.m,v 1.85 2007-07-31 00:21:12 schloegl Exp $
 %	(C) 1997-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -314,7 +314,7 @@ elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Nicolet','
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
-        if any(HDR.GDFTYP==[1:6,16,17]);
+        if any(HDR.GDFTYP==[1:6,16]);
         	% preserve data type
 		DT = ['*',gdfdatatype(HDR.GDFTYP)];
 	else
