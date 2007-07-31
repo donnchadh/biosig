@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.22 2007-07-31 20:16:08 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.23 2007-07-31 21:05:25 schloegl Exp $
     Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -507,6 +507,12 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 					fprintf(stderr,"Warning SOPEN (SCP-WRITE): Block length truncated (%f instead %f us).\n",avm,AVM);
 				curSectLen += 2;
 			}
+
+			/* data in channel multiplexed order */
+			for (i = 0; i < hdr->NS; i++) {
+				hdr->CHANNEL[i].SPR *= hdr->NRec; 
+			};
+			hdr->NRec = 1; 
 
 			// Prepare filling the data block with the ECG samples by SWRITE
 			// free(hdr->AS.rawdata);
