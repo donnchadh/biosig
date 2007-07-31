@@ -2,12 +2,13 @@ function [Y,RRI] = berger(RRI,Fs)
 % Resampling with the Berger algorithm
 % [HRV,RRI] = berger(RRI, Fs)
 % [HRV,RRI] = berger(ONSET, Fs)
-% [HRV,RRI] = berger(HDR)
+% [HRV,RRI] = berger(HDR, Fs)
 % 
 % RRI 	R-to-R interval 
 % ONSET onset time QRS-complex
 % Fs	target sampling rate
-% HDR	header struct as defined by SOPEN, SLOAD. HDR.EVENT must contain the QRS events
+% HDR	header struct as defined by SOPEN, SLOAD. 
+% 	HDR.EVENT must contain the QRS events
 % HRV 	heart rate variability sampled with Fs
 % RRI	R-to-R interval sampled with Fs
 %
@@ -16,7 +17,7 @@ function [Y,RRI] = berger(RRI,Fs)
 %    An efficient algorithm for spectral analysis of heart rate variability.
 %    IEEE Trans Biomed Eng. 1986 Sep;33(9):900-4.
 
-%       $Id: berger.m,v 1.3 2007-07-16 17:33:56 schloegl Exp $
+%       $Id: berger.m,v 1.4 2007-07-31 14:06:24 schloegl Exp $
 %	Copyright (c) 1997-2005, 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -44,8 +45,6 @@ if isstruct(RRI)
         end;
         if isfield(EVENT,'SampleRate')
                 Fs0 = EVENT.SampleRate; 
-        elseif isfield(RRI.SampleRate)
-                Fs0 = RRI.EVENT.SampleRate; 
         else    
                 warning('Invalid input argument causes unknown source sampleing rate.');
         end;
