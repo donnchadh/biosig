@@ -1,7 +1,6 @@
-% DEMO 1 - identifies QRS-complexes
+% DEMO 1 - identifies QRS-complexes and computes HRV parameters 
 
-%	$Revision: 1.5 $
-%	$Id: demo1.m,v 1.5 2005-03-01 15:00:23 schloegl Exp $
+%	$Id: demo1.m,v 1.6 2007-07-31 14:07:06 schloegl Exp $
 %	Copyright (C) 2000-2003, 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -45,12 +44,14 @@ HDR = sclose(HDR);
 
 % QRS-Detection
 H2 = qrsdetect(s,HDR.SampleRate);
-
+% resampling to 4 Hz using the Berger algorithm 
+[HRV,RRI] = berger(H2,4)
+% compute HRV parameters 
+[X] = heartratevariability(H2);
 
 % Extract QRS-info according to BIOSIG/T200/EVENTCODES.TXT
 idx = find(H2.EVENT.TYP == hex2dec('0501'));
 qrsindex = H2.EVENT.POS(idx)/H2.EVENT.SampleRate; 
-
 
 % displays detection
 subplot(211)
@@ -62,3 +63,4 @@ subplot(212)
 semilogy((qrsindex(1:end-1)+qrsindex(2:end))/2,diff(qrsindex));
 ylabel('RRI [s]');
 xlabel('time t[s]');
+
