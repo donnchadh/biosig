@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.51 2007-08-01 13:33:17 schloegl Exp $
+% $Id: biosig.h,v 1.52 2007-08-01 22:09:06 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -60,7 +60,12 @@ typedef char			int8_t;
 #include <math.h>
 #include <stdio.h>
 #include <time.h>
-// use of ZLIB is experimental, currently it's use is not recommended. At least you are warned.
+/* 
+	Including ZLIB enables reading gzipped files (they are decompressed on-the-fly)  
+	The output files are zipped, too. 
+	Currently, this is in an experimental state. 
+	First tests were already successful.  
+ */
 #include <zlib.h>  
 
 /* use byteswap macros from the host system, hopefully optimized ones ;-) */
@@ -128,30 +133,6 @@ float   b_endian_f32(float x);
 double  b_endian_f64(double x); 
 
 #endif /* __BYTE_ORDER */
-
-
-/* 
-	macros for file access: use ZLIB (if available) or STDIO
- */
-#ifdef ZLIB_H
-#define FOPEN(a,b)      gzopen(a,b)
-#define FSEEK(a,b,c)    gzseek(a,b,c)
-#define FREAD(m,r,c,f)  gzread(f,m,(r)*(c))/(r)
-#define FWRITE(m,r,c,f) gzwrite(f,m,(r)*(c))/(r)
-#define FTELL(f)        gztell(f)
-#define FCLOSE(f)       gzclose(f)
-#define GETC(f)         gzgetc(f)
-#define FEOF(f)         gzeof(f)
-#else
-#define FOPEN(a,b)      fopen(a,b)
-#define FSEEK(a,b,c)    fseek(a,b,c)
-#define FREAD(m,r,c,f)  fread(m,r,c,f)
-#define FWRITE(m,r,c,f) fwrite(m,r,c,f)
-#define FTELL(f)        ftell(f)
-#define FCLOSE(f)       fclose(f)
-#define GETC(f)         fgetc(f)
-#define FEOF(f)         feof(f)
-#endif
 
 
 	/* list of file formats */
@@ -387,13 +368,13 @@ typedef struct {
 
 	struct {	/* File specific data  */
 #ifdef ZLIB_H
-		gzFile		FID;
-#else
-		FILE* 		FID;		/* file handle  */
+		gzFile		gzFID;
 #endif
+		FILE* 		FID;		/* file handle  */
 		size_t 		POS;		/* current reading/writing position [in blocks] */
 		uint8_t		OPEN; 		/* 0: closed, 1:read, 2: write */
 		uint8_t		LittleEndian;
+		uint8_t		COMPRESSION;   /* 0: no compression 9: best compression */
 	} FILE; 
 
 	/*	internal variables (not public)  */
@@ -419,6 +400,17 @@ typedef struct {
 /**                     INTERNAL FUNCTIONS                                 **/
 /**                                                                        **/
 /****************************************************************************/
+
+/*
+        file access wrapper: use ZLIB (if available) or STDIO
+ */ 	 
+
+HDRTYPE* 	FOPEN(HDRTYPE* hdr, char* mode );
+int 		FCLOSE(HDRTYPE* hdr);
+size_t 		FREAD( void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
+size_t 		FWRITE(void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
+int 		FSEEK(HDRTYPE* hdr, long offset, int whence );
+long 		FTELL(HDRTYPE* hdr);
 
 /*
 	These functions are for the converter between SCP to HL7aECG
