@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.77 2007-07-31 20:18:27 schloegl Exp $
+    $Id: biosig.c,v 1.78 2007-08-01 13:33:34 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -772,7 +772,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 
 if (!strcmp(MODE,"r"))	
 {
-	hdr->FILE.FID = FOPEN(FileName,"rb");
+	hdr->FILE.FID = FOPEN(FileName,MODE);
 	hdr->FileName = FileName; 
     	if (hdr->FILE.FID == NULL) 
     	{ 	
@@ -1320,9 +1320,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 	
 	else if (hdr->TYPE==SCP_ECG) {
-		hdr->AS.Header1 = (uint8_t*)Header1; 
 		hdr->HeadLen 	= l_endian_u32(*(uint32_t*)(Header1+2));
-		hdr->AS.Header1 = (uint8_t*)realloc(hdr->AS.Header1,hdr->HeadLen);
+		Header1         = (char*)realloc(Header1,hdr->HeadLen);
+		hdr->AS.Header1 = (uint8_t*)Header1; 
 	    	count += FREAD(hdr->AS.Header1+count, 1, hdr->HeadLen-count, hdr->FILE.FID);
 	    	uint16_t crc 	= CRCEvaluate(hdr->AS.Header1+2,hdr->HeadLen-2);
 
@@ -1405,10 +1405,14 @@ else { // WRITE
 	    	hdr->NRec *= hdr->SPR; hdr->SPR = 1;
 	    	*(int32_t*)(Header1+56)	= l_endian_u32(hdr->NRec); // number of samples 
 	    	*(int32_t*)(Header1+60)	= l_endian_i32(0);	// 1: time channel
-	    	int GDFTYP = 1; 
+
+	    	int GDFTYP = 3; // 1:double, 2:float, 3: int16; see CFWB_GDFTYP too. 
 		for (k=0; k<hdr->NS; k++) {
-			if (hdr->CHANNEL[k].GDFTYP>3)
-				GDFTYP = 2;
+			/* if int16 is not sufficient, use float or double */
+			if (hdr->CHANNEL[k].GDFTYP>16)
+				GDFTYP = 1;	// double 
+			else if (hdr->CHANNEL[k].GDFTYP>3)
+				GDFTYP = 2;	// float 
 		}
 	    	*(int32_t*)(Header1+64)	= l_endian_i32(GDFTYP);	// 1: double, 2: float, 3:short
 		
@@ -1650,7 +1654,10 @@ else { // WRITE
 
 	if(hdr->TYPE != HL7aECG){
 #ifdef ZLIB_H	
-	    	hdr->FILE.FID = FOPEN(FileName,"wb0");  // no compression
+		strcpy(tmp,FileName);
+		strcat(tmp,".gz");
+		hdr->FILE.FID = FOPEN(tmp,"wb0");  // 0: no compression
+		// hdr->FILE.FID = FOPEN(FileName,MODE);  // 0: no compression
 #else
 	    	hdr->FILE.FID = FOPEN(FileName,"wb");
 #endif 
@@ -1712,13 +1719,9 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 		// check reading segment 
 		if (start >= 0) {
 			if (start > hdr->NRec) 
-			{
 				return(0);
-			}	
-			else if (FSEEK(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
-			{
+			else if (FSEEK(hdr->FILE.FID, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET)<0)
 				return(0);
-			}
 			hdr->FILE.POS = start; 	
 		}
 
@@ -2005,10 +2008,8 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 #define MIN_UINT64 ((uint64_t)0)
 
 
-
-	if (hdr->TYPE == SCP_ECG)  // memory allocation for SCP is done in SOPEN_SCP_WRITE Section 6	
-		hdr->AS.rawdata = hdr->AS.Header1 + hdr->aECG->Section6.StartPtr+16+6+2*hdr->NS;
-	else {
+	if (hdr->TYPE != SCP_ECG)  // memory allocation for SCP is done in SOPEN_SCP_WRITE Section 6	
+	{
 		ptr = realloc(hdr->AS.rawdata, hdr->AS.bpb*hdr->NRec);
 		if (ptr==NULL) {
 			fprintf(stderr,"memory allocation failed .\n");
@@ -2034,13 +2035,13 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				sample_value += data[k1*nelem*hdr->SPR + k4*CHptr->SPR + k5 + k3]; 
 
 			sample_value /= DIV;
-			 	
+
 			if (!hdr->FLAG.UCAL)	// scaling 
 				sample_value = sample_value * iCal + iOff;
 
 			// get source address 	
 			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
-			
+
 			// mapping of raw data type to (biosig_data_type)
 			if (0); 
 
@@ -2332,7 +2333,7 @@ int sclose(HDRTYPE* hdr)
     	if (hdr->aECG != NULL)	
         	free(hdr->aECG);
 
-    	if ((hdr->AS.rawdata != NULL) & (hdr->TYPE != SCP_ECG)) 
+    	if ((hdr->AS.rawdata != NULL) && (hdr->TYPE != SCP_ECG)) 
     	{	// for SCP: hdr->AS.rawdata is part of hdr.AS.Header1 
         	free(hdr->AS.rawdata);
         }	
@@ -2342,7 +2343,6 @@ int sclose(HDRTYPE* hdr)
         	hdr->data.size[0]=0;
         	hdr->data.size[1]=0;
         }	
-
 // fprintf(stdout,"sclose: 05\n");
     	if (hdr->CHANNEL != NULL)	
         	free(hdr->CHANNEL);

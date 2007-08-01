@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.50 2007-07-31 20:18:27 schloegl Exp $
+% $Id: biosig.h,v 1.51 2007-08-01 13:33:17 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -61,7 +61,7 @@ typedef char			int8_t;
 #include <stdio.h>
 #include <time.h>
 // use of ZLIB is experimental, currently it's use is not recommended. At least you are warned.
-// #include <zlib.h>  
+#include <zlib.h>  
 
 /* use byteswap macros from the host system, hopefully optimized ones ;-) */
 #include <byteswap.h>
@@ -136,8 +136,8 @@ double  b_endian_f64(double x);
 #ifdef ZLIB_H
 #define FOPEN(a,b)      gzopen(a,b)
 #define FSEEK(a,b,c)    gzseek(a,b,c)
-#define FREAD(m,r,c,f)  gzread(f,m,(r)*(c))
-#define FWRITE(m,r,c,f) gzwrite(f,m,(r)*(c))
+#define FREAD(m,r,c,f)  gzread(f,m,(r)*(c))/(r)
+#define FWRITE(m,r,c,f) gzwrite(f,m,(r)*(c))/(r)
 #define FTELL(f)        gztell(f)
 #define FCLOSE(f)       gzclose(f)
 #define GETC(f)         gzgetc(f)
