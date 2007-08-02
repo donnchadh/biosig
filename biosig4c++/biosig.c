@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.79 2007-08-01 22:09:06 schloegl Exp $
+    $Id: biosig.c,v 1.80 2007-08-02 19:05:31 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -469,11 +469,11 @@ uint16_t PhysDimCode(char* PhysDim0)
 	If ZLIB is availabe, HDR.FILE.COMPRESSION tells
 	whether STDIO or ZLIB is used. 
  */
-
-HDRTYPE* FOPEN(HDRTYPE* hdr,char* mode ) {
+int errnum;
+HDRTYPE* FOPEN(HDRTYPE* hdr, char* mode) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
-	hdr->FILE.gzFID = gzopen(hdr->FileName,mode);
+	hdr->FILE.gzFID = gzopen(hdr->FileName, mode);
 	else	
 #endif
 	hdr->FILE.FID = fopen(hdr->FileName,mode);
@@ -483,7 +483,7 @@ HDRTYPE* FOPEN(HDRTYPE* hdr,char* mode ) {
 int FCLOSE(HDRTYPE* hdr) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
-	return(gzclose(hdr->FILE.gzFID));
+		return(gzclose(hdr->FILE.gzFID));  
 	else	
 #endif
 	return(fclose(hdr->FILE.FID));
@@ -491,8 +491,8 @@ int FCLOSE(HDRTYPE* hdr) {
 
 size_t FREAD(void* ptr, size_t size, size_t nmemb, HDRTYPE* hdr) {
 #ifdef ZLIB_H
-	if (hdr->FILE.COMPRESSION)
-	return(gzread(hdr->FILE.gzFID, ptr, size*nmemb)/size);
+	if (hdr->FILE.COMPRESSION>0)
+		return(gzread(hdr->FILE.gzFID, ptr, size * nmemb)/size);
 	else	
 #endif
 	return(fread(ptr, size, nmemb, hdr->FILE.FID));
@@ -510,6 +510,9 @@ size_t FWRITE(void* ptr, size_t size, size_t nmemb, HDRTYPE* hdr) {
 
 int FSEEK(HDRTYPE* hdr, long offset, int whence) {
 #ifdef ZLIB_H
+	if (whence>0)
+		fprintf(stdout,"### Warning SEEK_END is not supported but used in gzseek/FSEEK\n");
+
 	if (hdr->FILE.COMPRESSION)
 	return(gzseek(hdr->FILE.gzFID,offset,whence));
 	else	
@@ -524,6 +527,18 @@ long FTELL(HDRTYPE* hdr) {
 	else	
 #endif
 	return(ftell(hdr->FILE.FID));
+}
+
+int FERROR(HDRTYPE* hdr) {
+#ifdef ZLIB_H
+	if (hdr->FILE.COMPRESSION) {
+		const char *tmp = gzerror(hdr->FILE.gzFID,&errnum);
+		fprintf(stderr,"GZERROR: %i %s \n",errnum, tmp);
+		return(errnum);
+	}
+	else	
+#endif
+	return(ferror(hdr->FILE.FID));
 }
 
 
@@ -585,7 +600,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.size[1] = 0;  // columns 
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = t_time2gdf_time(time(NULL));
-      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.42";
+      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.45";
 
 	hdr->Patient.Name 	= "X";
 	hdr->Patient.Id 	= "\0\0";
@@ -742,8 +757,10 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = GIF; 
     	else if (!memcmp(Header1,"GIF89a",6))
 	    	hdr->TYPE = GIF; 
-	else if (!memcmp(Header1,MAGIC_NUMBER_GZIP,3))
+	else if (!memcmp(Header1,MAGIC_NUMBER_GZIP,3))  {
 		hdr->TYPE = GZIP;
+		hdr->FILE.COMPRESSION = 1; 
+	}	
     	else if (!memcmp(Header1,"@  MFER ",8))
 	    	hdr->TYPE = MFER;
     	else if (!memcmp(Header1,"@ MFR ",6))
@@ -856,9 +873,7 @@ if (!strncmp(MODE,"r",1))
 	hdr->TYPE = unknown; 
 	hdr->AS.Header1 = (uint8_t*)Header1; 	
 
-fprintf(stdout,"%i %i %i %i %i %i\n",hdr->TYPE,GDF,SCP_ECG,HL7aECG,unknown,Header1[0]);
 	hdr  = getfiletype(hdr);
-fprintf(stdout,"%i %i %i %i %i %i\n",hdr->TYPE,GDF,SCP_ECG,HL7aECG,unknown);
 
     	if (hdr->TYPE == unknown) {
 		fprintf(stdout,"ERROR BIOSIG SOPEN(read): Format of file %s unknown\n",hdr->FileName);
@@ -870,20 +885,24 @@ fprintf(stdout,"%i %i %i %i %i %i\n",hdr->TYPE,GDF,SCP_ECG,HL7aECG,unknown);
         else if (hdr->TYPE == GZIP) {
                 fclose(hdr->FILE.FID);
 #ifdef ZLIB_H
-                hdr->FILE.gzFID = gzopen(FileName,"rb");
-                //hdr->FILE.gzFID = gzdopen(hdr->FILE.FID,"rb");
-                count   = gzread(hdr->FILE.gzFID,Header1,256);
-        fprintf(stdout,"Compression2: %i %i %i %i\n",hdr->TYPE,hdr->FILE.COMPRESSION,GDF,GZIP);
+                hdr->FILE.COMPRESSION = 1;
+                hdr = FOPEN(hdr,"rb0");
+FERROR(hdr);
+                if (hdr->FILE.gzFID != NULL)
+	        	fprintf(stderr,"could not open gzip file %s\n",FileName);          
+FERROR(hdr);
+                count = FREAD(hdr->AS.Header1,1,256,hdr);
                 hdr  = getfiletype(hdr);
-        fprintf(stdout,"Compression3: %i %i %i %i\n",hdr->TYPE,hdr->FILE.COMPRESSION,GDF,GZIP);
-                hdr->FILE.COMPRESSION=1;
+                if (hdr->TYPE == GZIP)
+		        fprintf(stderr,"Warning: gzip file %s is not decompressed on the fly. (zLib %s)\n",hdr->FileName,zlibVersion());
 #else
-                fprintf(stdout,"Not linked with ZLIB - GZIP files not supported\n");
+                fprintf(stdout,"Error: save2gdf is not linked with zlib. On-The-Fly-Decompression is not supported.\n");
+    		free(hdr->AS.Header1);
+    		free(hdr);
+		return(NULL);
 #endif
         }
 
-fprintf(stdout,"%i %i %i %i %i %i\n",hdr->TYPE,GDF,SCP_ECG,HL7aECG,unknown);
-	
 	if (hdr->TYPE == GDF) {
   	    	strncpy(tmp,(char*)Header1+3,5);
 	    	hdr->VERSION 	= atof(tmp);
@@ -1150,7 +1169,7 @@ fprintf(stdout,"%i %i %i %i %i %i\n",hdr->TYPE,GDF,SCP_ECG,HL7aECG,unknown);
 				hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 		}	
 		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
-		}      	
+	}      	
 
 	else if (hdr->TYPE==ACQ) {
 		/* defined in http://biopac.com/AppNotes/app156FileFormat/FileFormat.htm */
@@ -1425,7 +1444,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	{
 		hdr = sopen_HL7aECG_read(hdr);
 	}
-	
 	else 
 	{
 		fprintf(stdout,"ERROR BIOSIG SOPEN(READ): Format %i of file %s not supported\n",hdr->TYPE,hdr->FileName);
@@ -1752,13 +1770,32 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		}
 		
 	    	hdr->FileName = FileName; 
-		if (hdr->FILE.FID == NULL){
+		if (!hdr->FILE.COMPRESSION && hdr->FILE.FID == NULL ){
 		     	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
 			return(NULL);
 		}
+#ifdef ZLIB_H	
+		if (hdr->FILE.COMPRESSION && hdr->FILE.gzFID == NULL ){
+		     	fprintf(stderr,"ERROR: Unable to open gzip file %s \n",FileName);
+			return(NULL);
+		}
+#endif
 		if(hdr->TYPE != SCP_ECG){
 			FWRITE(hdr->AS.Header1, sizeof(char), hdr->HeadLen, hdr);
 		}	
+
+ /*
+errnum = FCLOSE(hdr); 
+fprintf(stderr,"121 ERR=%i ",errnum); FERROR(hdr); 
+hdr = FOPEN(hdr,"wb");
+fprintf(stderr,"122 "); FERROR(hdr); 
+count = FREAD(Header1,1,256,hdr);
+fprintf(stdout,"Compression2: %i %i %i %i %i %i %i %i %i %i\n",count,hdr->TYPE,hdr->FILE.COMPRESSION,GDF,GZIP,CFWB,SCP_ECG,HL7aECG,EDF,BDF);
+hdr  = getfiletype(hdr);
+FCLOSE(hdr); 
+exit(0);
+*/
+
 		hdr->FILE.OPEN = 2;
 		hdr->FILE.POS  = 0;
 	}
@@ -2333,17 +2370,19 @@ int sclose(HDRTYPE* hdr)
 		if (hdr->NRec<0)
 		{	if (pos>0) 	hdr->NRec = pos/hdr->AS.bpb;
 			else		hdr->NRec = 0; 	
-			/* ### FIXME : gzseek supports only forward seek */
-			FSEEK(hdr,236,SEEK_SET); 
 			if (hdr->TYPE==GDF) {
 				*(uint64_t*)tmp = l_endian_u64(hdr->NRec);
-				FWRITE(tmp,sizeof(hdr->NRec),1,hdr);
+				len = sizeof(hdr->NRec);
 			}
 			else {
 				len = sprintf(tmp,"%Lu",hdr->NRec);
 				if (len>8) fprintf(stderr,"Warning: NRec is (%s) to long.\n",tmp);  
-				FWRITE(tmp,len,1,hdr);
 			}
+			/* ### FIXME : gzseek supports only forward seek */
+			if (hdr->FILE.COMPRESSION>0)
+				fprintf(stderr,"Warning: writing NRec in gz-file requires gzseek which may not be supported.\n");
+			FSEEK(hdr,236,SEEK_SET); 
+			FWRITE(tmp,len,1,hdr);
 		}
 	
 		// WRITE EVENTTABLE 
