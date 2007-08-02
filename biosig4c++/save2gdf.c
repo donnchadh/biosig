@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.12 2007-07-31 20:24:32 schloegl Exp $
+    $Id: save2gdf.c,v 1.13 2007-08-02 09:57:42 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -33,71 +33,83 @@ int main(int argc, char **argv){
     HDRTYPE 	*hdr; 
     CHANNEL_TYPE* 	cp; 
     size_t 	count;
-    uint16_t 	numopt = 0;
+    uint16_t 	numopt = 0, k;
     time_t  	T0;
     char 	*source, *dest; 
     enum FileFormat TARGET_TYPE=GDF; 		// type of file format
+    int		COMPRESSION_LEVEL=0;
 	
     if (argc<2)
     	;
-    else if (argv[1][0]=='-')
+    else 
     {
-	numopt++;
-    	if (!strcmp(argv[1],"-v") | !strcmp(argv[1],"--version") )
+    	for (k=1; k<argc && argv[k][0]=='-'; k++)
+    	if (!strcmp(argv[k],"-v") | !strcmp(argv[k],"--version") )
     	{
-		fprintf(stdout,"save2gdf (biosig4c++) 0.42+\n");
+		fprintf(stdout,"save2gdf (biosig4c++) 0.45+\n");
 		fprintf(stdout,"Written by Alois Schloegl and others\n\n");
 		fprintf(stdout,"This is free software.\n");
-		return(0);
 	}	
-    	else if (!strcmp(argv[1],"-h") | !strcmp(argv[1],"--help") )
+    	else if (!strcmp(argv[k],"-h") | !strcmp(argv[k],"--help") )
     	{
-		fprintf(stdout,"usage: save2gdf SOURCE DEST\n");
-		fprintf(stdout,"usage: save2gdf SOURCE \n");
-		fprintf(stdout,"    reads file only.\n");
-		fprintf(stdout,"usage: save2gdf [OPTION]\n\n");
-		fprintf(stdout,"usage: save2gdf [OPTION] SOURCE DEST\n");
+		fprintf(stdout,"usage: save2gdf [OPTIONS] SOURCE DEST\n");
+		fprintf(stdout,"  SOURCE is the source file \n");
+		fprintf(stdout,"  DEST is the destination file \n");
+		fprintf(stdout,"  Supported OPTIONS are:\n");
 		fprintf(stdout,"   -v, --version\n\tprints version information\n");
 		fprintf(stdout,"   -h, --help   \n\tprints this information\n");
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
 		fprintf(stdout,"\tFMT must represent and valid target file format\n"); 
 		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG(EN1064), GDF, EDF, BDF\n"); 
+		fprintf(stdout,"   -z=#, compression level \n");
+		fprintf(stdout,"\t#=0 no compression; #=9 best compression\n");
 		fprintf(stdout,"\n\n");
 		return(0);
 	}	
-    	else if (!strncmp(argv[1],"-f=",3))
-    	{ 	if (!strcmp(argv[1],"-f=GDF"))
+    	else if (!strncmp(argv[k],"-z",3))  	{
+		COMPRESSION_LEVEL = 1;  
+		if (strlen(argv[k])>3) {
+	    		COMPRESSION_LEVEL = argv[k][3]-48;
+	    		if (COMPRESSION_LEVEL<0 || COMPRESSION_LEVEL>9)
+				fprintf(stderr,"Error %s: Invalid Compression Level %s\n",argv[0],argv[k]); 
+    		}   
+	}	
+    	else if (!strncmp(argv[k],"-f=",3))  	{
+    	 	if (!strcmp(argv[k],"-f=GDF"))
 			TARGET_TYPE=GDF;
-    		else if (!strcmp(argv[1],"-f=EDF"))
+    		else if (!strcmp(argv[k],"-f=EDF"))
 			TARGET_TYPE=EDF;
-    		else if (!strcmp(argv[1],"-f=BDF"))
+    		else if (!strcmp(argv[k],"-f=BDF"))
 			TARGET_TYPE=BDF;
-    		else if (!strncmp(argv[1],"-f=HL7",6) )
+    		else if (!strncmp(argv[k],"-f=HL7",6) )
 			TARGET_TYPE=HL7aECG;
-    		else if (!strncmp(argv[1],"-f=SCP",6))
+    		else if (!strncmp(argv[k],"-f=SCP",6))
 			TARGET_TYPE=SCP_ECG;
-    		else if (!strncmp(argv[1],"-f=CFWB",6))
+    		else if (!strncmp(argv[k],"-f=CFWB",6))
 			TARGET_TYPE=CFWB;
 		else {
 			fprintf(stderr,"format %s not supported.\n",argv[1]);
 			return(-1);
 		}	
 	}
+	numopt = k-1;	
 		
     }
+
+	source = NULL;
 	dest = NULL;
     	switch (argc - numopt) {
     	case 1:
 		fprintf(stderr,"save2gdf: missing file argument\n");
 		fprintf(stdout,"usage: save2gdf [options] SOURCE DEST\n");
-		return(-1);
+		fprintf(stdout," for more details see also save2gdf --help \n");
+		exit(-1);
     	case 3:
     		dest   = argv[numopt+2]; 
     	case 2:
 	    	source = argv[numopt+1]; 
     	}	
 
-    
 	hdr = sopen(source, "r", NULL);
     
 	if (hdr==NULL) exit(-1);
@@ -125,10 +137,10 @@ int main(int argc, char **argv){
 
 	hdr->FLAG.OVERFLOWDETECTION = 0;
 	hdr->FLAG.UCAL = 1;
-    
+
 	count = sread(hdr, 0, hdr->NRec);
 
-	fprintf(stdout,"\nFile %s read successfully %i %i %i\n",hdr->FileName,hdr->EVENT.N,hdr->SPR,hdr->NS);
+	fprintf(stdout,"\nFile %s read successfully %i\n",hdr->FileName,hdr->EVENT.N);
 	if (dest==NULL) {
 		sclose(hdr);
 		free(hdr);
@@ -136,7 +148,12 @@ int main(int argc, char **argv){
 	}
 
 	if (hdr->FILE.OPEN){
-		FCLOSE(hdr->FILE.FID);
+#ifdef ZLIB_H
+		if (hdr->FILE.COMPRESSION) 
+		gzclose(hdr->FILE.gzFID); 
+    		else
+#endif
+		fclose(hdr->FILE.FID); 
 		hdr->FILE.FID = 0;
 		free(hdr->AS.Header1);
 		hdr->AS.Header1 = NULL;
@@ -150,11 +167,12 @@ int main(int argc, char **argv){
     	hdr->TYPE = TARGET_TYPE;
 	if (hdr->TYPE==GDF || hdr->TYPE==CFWB) {
 		size_t N = hdr->NRec*hdr->SPR;
-    		for (int k=0; k<hdr->NS; k++) {
+    		for (k=0; k<hdr->NS; k++) {
 			double MaxValue = hdr->data.block[k*N];
 			double MinValue = hdr->data.block[k*N];
 			/* Maximum and Minimum for channel k */ 
 			for (uint32_t k1=1; k1<N; k1++) {
+//fprintf(stdout,"101 %i %i\n",k,k1);
 				if (MaxValue < hdr->data.block[k*N+k1])
 			 		MaxValue = hdr->data.block[k*N+k1];
 		 		if (MinValue > hdr->data.block[k*N+k1])
@@ -182,8 +200,14 @@ int main(int argc, char **argv){
 	}
 
 	/* write file */
-	hdr = sopen(dest, "w", hdr);
+fprintf(stdout,"101\n");
+	hdr->FILE.COMPRESSION=COMPRESSION_LEVEL;
+	hdr = sopen(dest, "wb", hdr);  // no compression 
+fprintf(stdout,"102\n");
+	// hdr = sopen(dest, "wb1", hdr);  // compression 
 	swrite(hdr->data.block, hdr->NRec, hdr);
+fprintf(stdout,"103\n");
     	sclose(hdr);
+fprintf(stdout,"104\n");
     	free(hdr);
 }
