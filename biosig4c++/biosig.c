@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.80 2007-08-02 19:05:31 schloegl Exp $
+    $Id: biosig.c,v 1.81 2007-08-02 19:38:26 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -855,9 +855,10 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 
 if (!strncmp(MODE,"r",1))	
 {
-	hdr->FILE.FID = fopen(FileName,"rb");
 	hdr->FileName = FileName; 
-    	if (hdr->FILE.FID == NULL) 
+        hdr->FILE.COMPRESSION = 1;   	// use zlib if available
+	hdr = FOPEN(hdr,"rb");
+    	if (hdr->FILE.gzFID == NULL) 
     	{ 	
     		fprintf(stderr,"Error SOPEN(READ); Cannot open file %s\n",FileName);
     		free(hdr);    		
@@ -866,7 +867,7 @@ if (!strncmp(MODE,"r",1))
     
     	/******** read 1st (fixed)  header  *******/	
  	Header1 = (char*)malloc(257);
-    	count   = fread(Header1,1,256,hdr->FILE.FID);
+    	count   = FREAD(Header1,1,256,hdr);
     	Header1[256] = 0;
 
 	/* determine file format */
@@ -877,31 +878,11 @@ if (!strncmp(MODE,"r",1))
 
     	if (hdr->TYPE == unknown) {
 		fprintf(stdout,"ERROR BIOSIG SOPEN(read): Format of file %s unknown\n",hdr->FileName);
-    		fclose(hdr->FILE.FID);
+    		FCLOSE(hdr);
     		free(hdr->AS.Header1);
     		free(hdr);
 		return(NULL);
 	}	
-        else if (hdr->TYPE == GZIP) {
-                fclose(hdr->FILE.FID);
-#ifdef ZLIB_H
-                hdr->FILE.COMPRESSION = 1;
-                hdr = FOPEN(hdr,"rb0");
-FERROR(hdr);
-                if (hdr->FILE.gzFID != NULL)
-	        	fprintf(stderr,"could not open gzip file %s\n",FileName);          
-FERROR(hdr);
-                count = FREAD(hdr->AS.Header1,1,256,hdr);
-                hdr  = getfiletype(hdr);
-                if (hdr->TYPE == GZIP)
-		        fprintf(stderr,"Warning: gzip file %s is not decompressed on the fly. (zLib %s)\n",hdr->FileName,zlibVersion());
-#else
-                fprintf(stdout,"Error: save2gdf is not linked with zlib. On-The-Fly-Decompression is not supported.\n");
-    		free(hdr->AS.Header1);
-    		free(hdr);
-		return(NULL);
-#endif
-        }
 
 	if (hdr->TYPE == GDF) {
   	    	strncpy(tmp,(char*)Header1+3,5);
@@ -1783,18 +1764,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if(hdr->TYPE != SCP_ECG){
 			FWRITE(hdr->AS.Header1, sizeof(char), hdr->HeadLen, hdr);
 		}	
-
- /*
-errnum = FCLOSE(hdr); 
-fprintf(stderr,"121 ERR=%i ",errnum); FERROR(hdr); 
-hdr = FOPEN(hdr,"wb");
-fprintf(stderr,"122 "); FERROR(hdr); 
-count = FREAD(Header1,1,256,hdr);
-fprintf(stdout,"Compression2: %i %i %i %i %i %i %i %i %i %i\n",count,hdr->TYPE,hdr->FILE.COMPRESSION,GDF,GZIP,CFWB,SCP_ECG,HL7aECG,EDF,BDF);
-hdr  = getfiletype(hdr);
-FCLOSE(hdr); 
-exit(0);
-*/
 
 		hdr->FILE.OPEN = 2;
 		hdr->FILE.POS  = 0;
