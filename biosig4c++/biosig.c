@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.81 2007-08-02 19:38:26 schloegl Exp $
+    $Id: biosig.c,v 1.82 2007-08-03 15:30:16 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -472,15 +472,21 @@ uint16_t PhysDimCode(char* PhysDim0)
 int errnum;
 HDRTYPE* FOPEN(HDRTYPE* hdr, char* mode) {
 #ifdef ZLIB_H
-	if (hdr->FILE.COMPRESSION)
+	if (hdr->FILE.COMPRESSION) 
+	{
 	hdr->FILE.gzFID = gzopen(hdr->FileName, mode);
-	else	
+	hdr->FILE.OPEN = (hdr->FILE.gzFID != NULL); 
+	} else	
 #endif
+	{ 
 	hdr->FILE.FID = fopen(hdr->FileName,mode);
+	hdr->FILE.OPEN = (hdr->FILE.FID != NULL); 
+	} 
 	return(hdr);
 }
 
 int FCLOSE(HDRTYPE* hdr) {
+	hdr->FILE.OPEN = 0; 
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
 		return(gzclose(hdr->FILE.gzFID));  
@@ -507,6 +513,33 @@ size_t FWRITE(void* ptr, size_t size, size_t nmemb, HDRTYPE* hdr) {
 	return(fwrite(ptr, size, nmemb, hdr->FILE.FID));
 }
 
+int FPRINTF(HDRTYPE* hdr, const char *format, va_list arg) {
+#ifdef ZLIB_H
+	if (hdr->FILE.COMPRESSION)
+	return(gzprintf(hdr->FILE.gzFID,format, arg));
+	else	
+#endif
+	return(fprintf(hdr->FILE.FID,format, arg));
+}
+
+
+int FPUTC(int c, HDRTYPE* hdr) {
+#ifdef ZLIB_H
+	if (hdr->FILE.COMPRESSION)
+	return(gzputc(hdr->FILE.FID,c));
+	else	
+#endif
+	return(fputc(c,hdr->FILE.FID));
+}
+
+char* FGETS(char *str, int n, HDRTYPE* hdr) {
+#ifdef ZLIB_H
+	if (hdr->FILE.COMPRESSION)
+	return(gzgets(hdr->FILE.gzFID, str, n));
+	else	
+#endif
+	return(fgets(str,n,hdr->FILE.FID));
+}
 
 int FSEEK(HDRTYPE* hdr, long offset, int whence) {
 #ifdef ZLIB_H
@@ -855,10 +888,20 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 
 if (!strncmp(MODE,"r",1))	
 {
+ 	Header1 = (char*)malloc(257);
+    	Header1[256] = 0;
+	hdr->AS.Header1 = (uint8_t*)Header1; 	
+	hdr->TYPE = unknown; 
+
 	hdr->FileName = FileName; 
-        hdr->FILE.COMPRESSION = 1;   	// use zlib if available
-	hdr = FOPEN(hdr,"rb");
+	// check for gzip because on-the-fly decompression might not be implemented
+        hdr->FILE.COMPRESSION = 1;   	
+        hdr = FOPEN(hdr,"rb");
+#ifdef ZLIB_H
     	if (hdr->FILE.gzFID == NULL) 
+#else
+    	if (hdr->FILE.FID == NULL) 
+#endif
     	{ 	
     		fprintf(stderr,"Error SOPEN(READ); Cannot open file %s\n",FileName);
     		free(hdr);    		
@@ -866,18 +909,11 @@ if (!strncmp(MODE,"r",1))
     	}	    
     
     	/******** read 1st (fixed)  header  *******/	
- 	Header1 = (char*)malloc(257);
     	count   = FREAD(Header1,1,256,hdr);
-    	Header1[256] = 0;
-
-	/* determine file format */
-	hdr->TYPE = unknown; 
-	hdr->AS.Header1 = (uint8_t*)Header1; 	
-
 	hdr  = getfiletype(hdr);
-
+    	
     	if (hdr->TYPE == unknown) {
-		fprintf(stdout,"ERROR BIOSIG SOPEN(read): Format of file %s unknown\n",hdr->FileName);
+		fprintf(stdout,"ERROR BIOSIG SOPEN(read): Format of file %s not supported\n",hdr->FileName);
     		FCLOSE(hdr);
     		free(hdr->AS.Header1);
     		free(hdr);
@@ -1106,8 +1142,13 @@ if (!strncmp(MODE,"r",1))
 		for (k=0; k<hdr->NS; k++)	{
 			hdr->CHANNEL[k].Label   = (Header2 + 16*k);
 			hdr->CHANNEL[k].Label[15]=0;//   hack FIXME
+			for (k1=14; isspace(hdr->CHANNEL[k].Label[k1]) && k1; k1--)
+				hdr->CHANNEL[k].Label[k1]='\0';		// deblank
+
 			hdr->CHANNEL[k].Transducer  = (Header2 + 80*k + 16*hdr->NS);
 			hdr->CHANNEL[k].Transducer[79]=0;//   hack  FIXME
+			for (k1=78; isspace(hdr->CHANNEL[k].Transducer[k1]) && k1; k1--)
+				hdr->CHANNEL[k].Transducer[k1]='\0'; 	// deblank
 			
 			// PhysDim -> PhysDimCode 
 			strncpy(hdr->CHANNEL[k].PhysDim,Header2 + 8*k + 96*hdr->NS,8);
@@ -1447,12 +1488,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		if (hdr->CHANNEL[k].LeadIdCode == 0)
 		if (!strncmp(hdr->CHANNEL[k].Label, "MDC_ECG_LEAD_", 13)) {
 			// MDC_ECG_LEAD_* 
-			for (k1=0; !strcmp(hdr->CHANNEL[k].Label+13, LEAD_ID_TABLE[k1]) && LEAD_ID_TABLE[k1] != NULL; k1++); 
+			for (k1=0; strcmp(hdr->CHANNEL[k].Label+13, LEAD_ID_TABLE[k1]) && LEAD_ID_TABLE[k1] != NULL; k1++); 
 			if (LEAD_ID_TABLE[k1] != NULL)	
 				hdr->CHANNEL[k].LeadIdCode = k1;
 		}
 		else {
-			for (k1=0; !strcmp(hdr->CHANNEL[k].Label, LEAD_ID_TABLE[k1]) && LEAD_ID_TABLE[k1] != NULL; k1++); 
+			for (k1=0; strcmp(hdr->CHANNEL[k].Label, LEAD_ID_TABLE[k1]) && LEAD_ID_TABLE[k1] != NULL; k1++); 
 			if (LEAD_ID_TABLE[k1] != NULL)	
 				hdr->CHANNEL[k].LeadIdCode = k1;
 		}
@@ -1680,27 +1721,31 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			else
 				tmpstr = hdr->CHANNEL[k].Label;
 		     	len = strlen(tmpstr);
-			if (len>16) fprintf(stderr,"Warning: Label (%s) of channel %i is to long.\n",hdr->CHANNEL[k].Label,k);  
+			if (len>15) 
+			//fprintf(stderr,"Warning: Label (%s) of channel %i is to long.\n",hdr->CHANNEL[k].Label,k);  
+		     	fprintf(stderr,"Warning: Label of channel %i is to long (%i>16).\n",k, len);  
 		     	memcpy(Header2+16*k,tmpstr,min(len,16));
 		     	len = strlen(hdr->CHANNEL[k].Transducer);
-			if (len>80) fprintf(stderr,"Warning: Transducer (%s) of channel %i is to long.\n",hdr->CHANNEL[k].Transducer,k);  
+			if (len>80) 
+			//fprintf(stderr,"Warning: Transducer (%s) of channel %i is to long.\n",hdr->CHANNEL[k].Transducer,k);  
+		     	fprintf(stderr,"Warning: Transducer of channel %i is to long (%i>80).\n",k, len);  
 		     	memcpy(Header2+80*k + 16*hdr->NS,hdr->CHANNEL[k].Transducer,min(len,80));
 		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
 		     	len = strlen(tmp);
-		     	if (len>8) fprintf(stderr,"Warning: Physical Dimension (%s) of channel %i is to long.\n",tmp,k);  
+		     	if (len>8) fprintf(stderr,"Warning: Physical Dimension (%s) of channel %i is to long (%i>8).\n",tmp,k,len);  
 		     	memcpy(Header2+ 8*k + 96*hdr->NS,tmp,min(len,8));
 	
 			len = sprintf(tmp,"%f",hdr->CHANNEL[k].PhysMin);
-			if (len>8) fprintf(stderr,"Warning: PhysMin (%s) of channel %i is to long.\n",tmp,k);  
+			if (len>8) fprintf(stderr,"Warning: PhysMin (%s) of channel %i is to long (%i>8).\n",tmp,k,len);  
 		     	memcpy(Header2+ 8*k + 104*hdr->NS,tmp,min(8,len));
 			len = sprintf(tmp,"%f",hdr->CHANNEL[k].PhysMax);
-			if (len>8) fprintf(stderr,"Warning: PhysMax (%s) of channel %i is to long.\n",tmp,k);  
+			if (len>8) fprintf(stderr,"Warning: PhysMax (%s) of channel %i is to long(%i>8).\n",tmp,k,len);  
 		     	memcpy(Header2+ 8*k + 112*hdr->NS,tmp,min(8,len));
 			len = sprintf(tmp,"%f",hdr->CHANNEL[k].DigMin);
-			if (len>8) fprintf(stderr,"Warning: DigMin (%s) of channel %i is to long.\n",tmp,k);  
+			if (len>8) fprintf(stderr,"Warning: DigMin (%s) of channel %i is to long(%i>8).\n",tmp,k,len);  
 		     	memcpy(Header2+ 8*k + 120*hdr->NS,tmp,min(8,len));
 			len = sprintf(tmp,"%f",hdr->CHANNEL[k].DigMax);
-			if (len>8) fprintf(stderr,"Warning: DigMax (%s) of channel %i is to long.\n",tmp,k);  
+			if (len>8) fprintf(stderr,"Warning: DigMax (%s) of channel %i is to long(%i>8).\n",tmp,k,len);  
 		     	memcpy(Header2+ 8*k + 128*hdr->NS,tmp,min(8,len));
 		     	
 			if (hdr->CHANNEL[k].Notch>0)		     	
@@ -1710,7 +1755,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		     	memcpy(Header2+ 80*k + 136*hdr->NS,tmp,min(80,len));
 		     	
 			len = sprintf(tmp,"%i",hdr->CHANNEL[k].SPR);
-			if (len>8) fprintf(stderr,"Warning: SPR (%s) of channel %i is to long.\n",tmp,k);  
+			if (len>8) fprintf(stderr,"Warning: SPR (%s) of channel %i is to long (%i)>8.\n",tmp,k,len);  
 		     	memcpy(Header2+ 8*k + 216*hdr->NS,tmp,min(8,len));
 		     	hdr->CHANNEL[k].GDFTYP = ( (hdr->TYPE != BDF) ? 3 : 255+24);
 		}
@@ -1735,22 +1780,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		return(NULL); 
 	}
 
+    	hdr->FileName = FileName; 
 	if(hdr->TYPE != HL7aECG){
-#ifdef ZLIB_H	
-		if (hdr->FILE.COMPRESSION) {
-			strcpy(tmp,FileName);
-			strcat(tmp,".gz");
-			hdr->FILE.gzFID = gzopen(tmp,"wb");  // 0: no compression
-			// hdr->FILE.FID = FOPEN(FileName,MODE);  // 0: no compression
-		}
-		else
-#endif 
-		{
-		    	hdr->FILE.FID = fopen(FileName,"wb");
-			hdr->FILE.COMPRESSION=0;
-		}
+	    	hdr = FOPEN(hdr,"wb");
 		
-	    	hdr->FileName = FileName; 
 		if (!hdr->FILE.COMPRESSION && hdr->FILE.FID == NULL ){
 		     	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
 			return(NULL);
