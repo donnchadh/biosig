@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.13 2007-08-02 09:57:42 schloegl Exp $
+    $Id: save2gdf.c,v 1.14 2007-08-03 15:32:25 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -35,7 +35,7 @@ int main(int argc, char **argv){
     size_t 	count;
     uint16_t 	numopt = 0, k;
     time_t  	T0;
-    char 	*source, *dest; 
+    char 	*source, *dest, tmp[1024]; 
     enum FileFormat TARGET_TYPE=GDF; 		// type of file format
     int		COMPRESSION_LEVEL=0;
 	
@@ -60,19 +60,23 @@ int main(int argc, char **argv){
 		fprintf(stdout,"   -h, --help   \n\tprints this information\n");
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
 		fprintf(stdout,"\tFMT must represent and valid target file format\n"); 
-		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG(EN1064), GDF, EDF, BDF\n"); 
+		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG(EN1064), GDF, EDF, BDF, CFWB\n"); 
 		fprintf(stdout,"   -z=#, compression level \n");
 		fprintf(stdout,"\t#=0 no compression; #=9 best compression\n");
 		fprintf(stdout,"\n\n");
 		return(0);
 	}	
     	else if (!strncmp(argv[k],"-z",3))  	{
+#ifdef ZLIB_H
 		COMPRESSION_LEVEL = 1;  
 		if (strlen(argv[k])>3) {
 	    		COMPRESSION_LEVEL = argv[k][3]-48;
 	    		if (COMPRESSION_LEVEL<0 || COMPRESSION_LEVEL>9)
-				fprintf(stderr,"Error %s: Invalid Compression Level %s\n",argv[0],argv[k]); 
+				fprintf(stderr,"Error %s: Invalid Compression Level %c\n",argv[0],argv[k]); 
     		}   
+#else
+	     	fprintf(stderr,"Warning: option -z (compression) not supported. zlib not linked.\n");
+#endif 
 	}	
     	else if (!strncmp(argv[k],"-f=",3))  	{
     	 	if (!strcmp(argv[k],"-f=GDF"))
@@ -131,7 +135,7 @@ int main(int argc, char **argv){
 /*	fprintf(stdout,"\n#%2i: %7s\t%s\t%s\t%i\t%5f\t%5f\t%5f\t%5f\t%5f\t",k,cp->Label,cp->Transducer,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin,cp->Cal);
 	fprintf(stderr,"\n%4.0f\t%4.0f\t%4.0f\t%5f Ohm",cp->LowPass,cp->HighPass,cp->Notch,cp->Impedance);
 */
-		fprintf(stdout,"\n#%2i: %7s\t%5f %5f %s\t%i\t%5f\t%5f\t%5f\t%5f",k,cp->Label,cp->Cal,cp->Off,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin);
+		fprintf(stdout,"\n#%2i: %3i %7s\t%5f %5f %s\t%i\t%5f\t%5f\t%5f\t%5f",k,cp->LeadIdCode,cp->Label,cp->Cal,cp->Off,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin);
 	}
 	fprintf(stdout,"\nm1: %d %d %d %d\n",*((int16_t *)hdr->AS.rawdata),*((int16_t *)hdr->AS.rawdata+2),*(int16_t *)(hdr->AS.rawdata+4),*(int16_t *)(hdr->AS.rawdata+6));
 
@@ -148,12 +152,7 @@ int main(int argc, char **argv){
 	}
 
 	if (hdr->FILE.OPEN){
-#ifdef ZLIB_H
-		if (hdr->FILE.COMPRESSION) 
-		gzclose(hdr->FILE.gzFID); 
-    		else
-#endif
-		fclose(hdr->FILE.FID); 
+		FCLOSE(hdr); 
 		hdr->FILE.FID = 0;
 		free(hdr->AS.Header1);
 		hdr->AS.Header1 = NULL;
@@ -165,6 +164,10 @@ int main(int argc, char **argv){
    *********************************/
 
     	hdr->TYPE = TARGET_TYPE;
+	hdr->FILE.COMPRESSION=COMPRESSION_LEVEL;
+	if (COMPRESSION_LEVEL>0 || hdr->TYPE==HL7aECG)	
+		fprintf(stderr,"Warning: currently on-the-fly compression is not supported for HL7aECG"); 
+
 	if (hdr->TYPE==GDF || hdr->TYPE==CFWB) {
 		size_t N = hdr->NRec*hdr->SPR;
     		for (k=0; k<hdr->NS; k++) {
@@ -172,7 +175,6 @@ int main(int argc, char **argv){
 			double MinValue = hdr->data.block[k*N];
 			/* Maximum and Minimum for channel k */ 
 			for (uint32_t k1=1; k1<N; k1++) {
-//fprintf(stdout,"101 %i %i\n",k,k1);
 				if (MaxValue < hdr->data.block[k*N+k1])
 			 		MaxValue = hdr->data.block[k*N+k1];
 		 		if (MinValue > hdr->data.block[k*N+k1])
@@ -200,14 +202,12 @@ int main(int argc, char **argv){
 	}
 
 	/* write file */
-fprintf(stdout,"101\n");
-	hdr->FILE.COMPRESSION=COMPRESSION_LEVEL;
-	hdr = sopen(dest, "wb", hdr);  // no compression 
-fprintf(stdout,"102\n");
-	// hdr = sopen(dest, "wb1", hdr);  // compression 
+	strcpy(tmp,dest);
+	if (hdr->FILE.COMPRESSION)  // add .gz extension to filename  
+		strcat(tmp,".gz");
+
+	hdr = sopen(tmp, "wb", hdr);
 	swrite(hdr->data.block, hdr->NRec, hdr);
-fprintf(stdout,"103\n");
     	sclose(hdr);
-fprintf(stdout,"104\n");
     	free(hdr);
 }
