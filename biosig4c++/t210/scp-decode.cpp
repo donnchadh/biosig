@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.8 2007-08-04 20:11:31 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.9 2007-08-04 21:57:23 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -110,12 +110,12 @@ using namespace std;
 //______________________________________________________________________________
 //               FILE POINTERS
 
-HDRTYPE* in; 
-
 #include "../biosig.h"
 #include "types.h"
 #include "structures.h"
 #include "codes.h"
+
+HDRTYPE* in; 
 
 //---------------------------------------------------------------------------
 static U_int_L _COUNT_BYTE=1UL;                  // counter of bytes read
