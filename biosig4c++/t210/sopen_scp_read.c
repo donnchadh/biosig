@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.20 2007-08-01 22:09:09 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.21 2007-08-04 23:10:15 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -444,10 +444,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		- defines intermediate data structure
 	*/	
 
-	FCLOSE(hdr); 
-	hdr->FILE.OPEN = 0; 	
-	
-	fprintf(stdout, "\nUse SCP_DECODE\n");
+	fprintf(stdout, "\nUse SCP_DECODE (Huffman=%i RefBeat=%i Bimodal=%i)\n",hdr->aECG->FLAG.HUFFMAN, hdr->aECG->FLAG.REF_BEAT, hdr->aECG->FLAG.BIMODAL);
 
         if( (section = (pointer_section *)malloc(sizeof(pointer_section)*_NUM_SECTION)) ==NULL)
         {

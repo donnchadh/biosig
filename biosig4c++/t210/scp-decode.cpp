@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.9 2007-08-04 21:57:23 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.10 2007-08-04 23:10:15 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -265,16 +265,19 @@ int scp_decode(HDRTYPE* hdr, pointer_section *info_sections, DATA_DECODE &info_d
 	U_int_M CRC;
 	U_int_L pos;
 
-	in = FOPEN(hdr,"rb");
-	int flag = (!in->FILE.COMPRESSION && in->FILE.FID == NULL);
-#ifdef ZLIB_H
-	flag = flag || (in->FILE.COMPRESSION && in->FILE.gzFID == NULL); 
-#endif 	
+	if (hdr->FILE.OPEN) {
+		FSEEK(hdr,0,SEEK_SET);
+	}
+	else 	
+		hdr = FOPEN(hdr,"rb");
+
+	if (!hdr->FILE.OPEN)
 	{
 		fprintf(stdout,"Cannot open the file %s.\n",hdr->FileName);
 		return FALSE;              // by E.C. 15.10.2003    now return FALSE
 	}
 
+	in = hdr;
 	_COUNT_BYTE=1UL;
 	CRC=ReadCRC();
 	pos=_COUNT_BYTE;
