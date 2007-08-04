@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.82 2007-08-03 15:30:16 schloegl Exp $
+    $Id: biosig.c,v 1.83 2007-08-04 20:11:30 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -532,6 +532,15 @@ int FPUTC(int c, HDRTYPE* hdr) {
 	return(fputc(c,hdr->FILE.FID));
 }
 
+int FGETC(HDRTYPE* hdr) {
+#ifdef ZLIB_H
+	if (hdr->FILE.COMPRESSION)
+	return(gzgetc(hdr->FILE.gzFID));
+	else	
+#endif
+	return(fgetc(hdr->FILE.FID));
+}
+
 char* FGETS(char *str, int n, HDRTYPE* hdr) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
@@ -543,7 +552,7 @@ char* FGETS(char *str, int n, HDRTYPE* hdr) {
 
 int FSEEK(HDRTYPE* hdr, long offset, int whence) {
 #ifdef ZLIB_H
-	if (whence>0)
+	if (whence==SEEK_END)
 		fprintf(stdout,"### Warning SEEK_END is not supported but used in gzseek/FSEEK\n");
 
 	if (hdr->FILE.COMPRESSION)
@@ -560,6 +569,29 @@ long FTELL(HDRTYPE* hdr) {
 	else	
 #endif
 	return(ftell(hdr->FILE.FID));
+}
+
+int FGETPOS(HDRTYPE* hdr, fpos_t *pos) {
+#ifdef ZLIB_H
+	if (hdr->FILE.COMPRESSION) {
+		z_off_t p = gztell(hdr->FILE.gzFID);
+		if (p<0) return(-1); 
+		else {
+			pos->__pos = p;	// ugly hack but working
+			return(0);
+		}	
+	} else	
+#endif
+	return(fgetpos(hdr->FILE.FID, pos));
+}
+
+int FEOF(HDRTYPE* hdr) {
+#ifdef ZLIB_H
+	if (hdr->FILE.COMPRESSION)
+	return(gzeof(hdr->FILE.gzFID));
+	else	
+#endif
+	return(feof(hdr->FILE.FID));
 }
 
 int FERROR(HDRTYPE* hdr) {

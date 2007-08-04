@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.52 2007-08-01 22:09:06 schloegl Exp $
+% $Id: biosig.h,v 1.53 2007-08-04 20:11:30 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -407,10 +407,16 @@ typedef struct {
 
 HDRTYPE* 	FOPEN(HDRTYPE* hdr, char* mode );
 int 		FCLOSE(HDRTYPE* hdr);
-size_t 		FREAD( void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
+size_t 		FREAD(void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
 size_t 		FWRITE(void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
-int 		FSEEK(HDRTYPE* hdr, long offset, int whence );
-long 		FTELL(HDRTYPE* hdr);
+int             FPRINTF(HDRTYPE* hdr, const char *format, ...);
+int             FPUTC(int c, HDRTYPE* hdr);
+int 		FGETC(HDRTYPE* hdr);
+char*           FGETS(char *str, int n, HDRTYPE* hdr);
+int             FSEEK(HDRTYPE* hdr, long offset, int whence );
+long            FTELL(HDRTYPE* hdr);
+int 		FGETPOS(HDRTYPE* hdr, fpos_t *pos);
+int             FERROR(HDRTYPE* hdr);
 
 /*
 	These functions are for the converter between SCP to HL7aECG

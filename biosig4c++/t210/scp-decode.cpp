@@ -1,11 +1,12 @@
 /*
-    $Id: scp-decode.cpp,v 1.7 2007-07-29 21:56:32 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.8 2007-08-04 20:11:31 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
 Modifications by Alois Schloegl 
     Jun 2007: replaced ultoa with sprintf	
     Jul 2007: do not multiply - because multiplication is done outside
+    Aug 2007: On-The-Fly-Decompression using ZLIB
 
 ---------------------------------------------------------------------------
 Copyright (C) 2006  Eugenio Cervesato.
@@ -108,7 +109,8 @@ using namespace std;
 
 //______________________________________________________________________________
 //               FILE POINTERS
-FILE *in;
+
+HDRTYPE* in; 
 
 #include "../biosig.h"
 #include "types.h"
@@ -244,7 +246,7 @@ void ReadByte(t1 &number)
 		fprintf(stderr,"Not enough memory");  // no, exit //
 		exit(2);
 	}
-	fread(num,dim,1,in);
+	FREAD(num,dim,1,in);
 	number=0;
 	_COUNT_BYTE+=dim;
 
@@ -263,7 +265,11 @@ int scp_decode(HDRTYPE* hdr, pointer_section *info_sections, DATA_DECODE &info_d
 	U_int_M CRC;
 	U_int_L pos;
 
-	if( (in = fopen(hdr->FileName, "rb")) == NULL)
+	in = FOPEN(hdr,"rb");
+	int flag = (!in->FILE.COMPRESSION && in->FILE.FID == NULL);
+#ifdef ZLIB_H
+	flag = flag || (in->FILE.COMPRESSION && in->FILE.gzFID == NULL); 
+#endif 	
 	{
 		fprintf(stdout,"Cannot open the file %s.\n",hdr->FileName);
 		return FALSE;              // by E.C. 15.10.2003    now return FALSE
@@ -274,7 +280,7 @@ int scp_decode(HDRTYPE* hdr, pointer_section *info_sections, DATA_DECODE &info_d
 	pos=_COUNT_BYTE;
 	ReadByte(_DIM_FILE);
 //	if (CRC != 0xFFFF) Check_CRC(CRC,pos,_DIM_FILE-2U);  // by E.C. may 2004 CARDIOLINE 1.0
-	fseek(in, 0L, SEEK_SET);
+	FSEEK(in, 0L, SEEK_SET);
 
 //mandatory sections
 //remark("before section 0");
@@ -284,7 +290,7 @@ int scp_decode(HDRTYPE* hdr, pointer_section *info_sections, DATA_DECODE &info_d
 //remark("after section 1");
 	sectionsOptional(info_sections,info_decoding,info_recording,info_textual);
 //remark("at end of sections");
-	fclose(in);
+	FCLOSE(in);
 
 	Decode_Data(info_sections,info_decoding,add_filter);
 	return TRUE;              // by E.C. 15.10.2003    now return TRUE
@@ -309,7 +315,7 @@ char *ReadString(char *temp_string, U_int_M num)
 
 	_COUNT_BYTE+=num;
 
-	fread(temp_string,sizeof(char),num,in);
+	FREAD(temp_string,sizeof(char),num,in);
 	if (temp_string[num-1]!='\0')
 		temp_string[num]='\0';
 
@@ -341,15 +347,15 @@ char *FindString(U_int_M max)
 	if(!max)
 		return "";
 
-	fgetpos(in,&filepos);
+	FGETPOS(in,&filepos);
 	do
 	{
-		c=getc(in);
+		c=FGETC(in);
 		++num;
 	}
 	while(c!='\0' && num<max);
 
-	fseek(in,filepos COMPAT,0);
+	FSEEK(in,filepos COMPAT,0);
 
 	if((temp_string=(char*)mymalloc(sizeof(char)*(num+2)))==NULL)   // by E.C. one extra byte nedded
 	{                                                               // for later str_cat()
@@ -362,7 +368,7 @@ char *FindString(U_int_M max)
 
 	_COUNT_BYTE+=num;
 
-	fread(temp_string,sizeof(char),num,in);
+	FREAD(temp_string,sizeof(char),num,in);
 	if (temp_string[num-1]!='\0')
 		temp_string[num]='\0';
 
@@ -373,7 +379,7 @@ void Skip(U_int_M num)
 //skip num bytes from the stream
 {
 	if(num>0U)
-		fseek(in,num,1U);
+		FSEEK(in,num,1U);
 	_COUNT_BYTE+=num;
 }//end Skip
 
@@ -505,10 +511,10 @@ a zero CRC if the data was correctly received.
 
 	CRCLO=0xFF;
 	CRCHI=0xFF;
-	fseek(in,pos-1,0U);
+	FSEEK(in,pos-1,0U);
 	for(i=1;i<=length;i++)
 	{
-		A=getc(in);
+		A=FGETC(in);
 		A^=CRCHI;
 		A^=(A>>4);
 		CRCHI=CRCLO;
@@ -546,7 +552,7 @@ U_int_L ID_section(U_int_L pos, int_S &version)
 	Skip(2U);
 	ReadByte(dim);
 	if (CRC != 0xFFFF) Check_CRC(CRC,pos+2,dim-2);  // by E.C. may 2004 CARDIOLINE 1.0
-	fseek(in,pos+7L,0);
+	FSEEK(in,pos+7L,0);
 	ReadByte(version);                   // by E.C. may 2004  store the version number
 	Skip(7U);
 
@@ -631,7 +637,7 @@ void sectionsOptional(pointer_section *section, DATA_DECODE &block1, DATA_RECORD
 						{
 							if((block3.des.acquiring.protocol_revision_number>10) && section[6].length)      // by E.C. 27.02.2004 whole section to be included in {} !
 							{
-								fseek(in,section[6].index+22,0);
+								FSEEK(in,section[6].index+22,0);
 								ReadByte(bimodal);
 								block1.flag_Res.bimodal=bimodal;
 							}
@@ -680,7 +686,7 @@ void section_0(pointer_section *info, int size_max)
 	U_int_S i;
 	int_S version;
 
-	fseek(in,6L,0);
+	FSEEK(in,6L,0);
 	pos=ID_section(7L, version)+7L; //length + offset
 	_COUNT_BYTE=7L+16L;
 
@@ -818,7 +824,7 @@ void section_1(pointer_section info_sections, DATA_INFO &inf)
 	int_S version;
 
 	_COUNT_BYTE=info_sections.index;
-	fseek(in,info_sections.index-1,0);
+	FSEEK(in,info_sections.index-1,0);
 	ID_section(info_sections.index, version);
 
 	Init_S1(inf);
@@ -1196,8 +1202,8 @@ void section_1_14(descriptive &des)
 	fpos_t filepos, filepos_iniz;
 
 	ReadByte(dim);
-	fgetpos(in,&filepos);
-	fgetpos(in,&filepos_iniz);    // by E.C. may 2004 ESAOTE    save to reposition at the end of this section
+	FGETPOS(in,&filepos);
+	FGETPOS(in,&filepos_iniz);    // by E.C. may 2004 ESAOTE    save to reposition at the end of this section
 	dim_to_skip=dim;
 	dim+=filepos COMPAT;
 	ReadByte(des.acquiring.institution_number);
@@ -1253,17 +1259,17 @@ void section_1_14(descriptive &des)
 	else
 		des.acquiring.analysing_program_revision_number=ReadString(des.acquiring.analysing_program_revision_number=NULL,i);
 
-	fgetpos(in,&filepos);
+	FGETPOS(in,&filepos);
 	des.acquiring.serial_number_device=FindString(dim-filepos COMPAT);
 	if ((des.acquiring.protocol_revision_number==10) || (des.acquiring.protocol_revision_number==11))
 													 // by E.C. may 2004 CARDIOLINE 1.0 & ESAOTE 1.1
-		fseek(in,filepos_iniz COMPAT +dim_to_skip,0);   //  reposition file pointer
+		FSEEK(in,filepos_iniz COMPAT +dim_to_skip,0);   //  reposition file pointer
 	else {
-		fgetpos(in,&filepos);
+		FGETPOS(in,&filepos);
 		des.acquiring.device_system_software=FindString(dim-filepos COMPAT);
-		fgetpos(in,&filepos);
+		FGETPOS(in,&filepos);
 		des.acquiring.device_SCP_implementation_software=FindString(dim-filepos COMPAT);
-		fgetpos(in,&filepos);
+		FGETPOS(in,&filepos);
 		des.acquiring.manifacturer_trade_name=FindString(dim-filepos COMPAT);
 	}
 }//end section_1_14
@@ -1277,7 +1283,7 @@ void section_1_15(descriptive &des)
 	fpos_t filepos;
 
 	ReadByte(dim);
-	fgetpos(in,&filepos);
+	FGETPOS(in,&filepos);
 	dim+=filepos COMPAT;
 	ReadByte(des.analyzing.institution_number);
 	ReadByte(des.analyzing.department_number);
@@ -1333,13 +1339,13 @@ void section_1_15(descriptive &des)
 	else
 		des.analyzing.analysing_program_revision_number=ReadString(des.analyzing.analysing_program_revision_number=NULL,i);
 
-	fgetpos(in,&filepos);
+	FGETPOS(in,&filepos);
 	des.analyzing.serial_number_device=FindString(dim-filepos COMPAT);
-	fgetpos(in,&filepos);
+	FGETPOS(in,&filepos);
 	des.analyzing.device_system_software=FindString(dim-filepos COMPAT);
-	fgetpos(in,&filepos);
+	FGETPOS(in,&filepos);
 	des.analyzing.device_SCP_implementation_software=FindString(dim-filepos COMPAT);
-	fgetpos(in,&filepos);
+	FGETPOS(in,&filepos);
 	des.analyzing.manifacturer_trade_name=FindString(dim-filepos COMPAT);
 }//end section_1_15
 
@@ -1691,7 +1697,7 @@ void section_2(pointer_section info_sections,DATA_DECODE &data)
 	int_S version;
 
 	_COUNT_BYTE=info_sections.index;
-	fseek(in,info_sections.index-1,0);
+	FSEEK(in,info_sections.index-1,0);
 	ID_section(info_sections.index, version);
 	dim=info_sections.length-16;
 
@@ -1704,14 +1710,14 @@ void section_2(pointer_section info_sections,DATA_DECODE &data)
 			exit(2);
 		}
 		data.flag_Huffman[0]=nt;
-		fgetpos(in,&filepos);
+		FGETPOS(in,&filepos);
 		for(i=1;i<=data.flag_Huffman[0];i++)
 		{
 			ReadByte(data.flag_Huffman[i]);
 			ns+=data.flag_Huffman[i];
 			Skip(9*data.flag_Huffman[i]);
 		}
-		fseek(in,filepos COMPAT,0);
+		FSEEK(in,filepos COMPAT,0);
 		if((ns*9)>dim || !ns)
 		{
 			fprintf(stderr,"Cannot read data!!!");
@@ -1765,7 +1771,7 @@ void section_3(pointer_section info_sections,DATA_DECODE &data, int_S version)
 	int_S version_loc;
 
 	_COUNT_BYTE=info_sections.index;
-	fseek(in,info_sections.index-1,0);
+	FSEEK(in,info_sections.index-1,0);
 	ID_section(info_sections.index, version_loc);
 
 	ReadByte(data.flag_lead.number);
@@ -1809,7 +1815,7 @@ void section_4(pointer_section info_sections,DATA_DECODE &data,int_S version)
 	int_S version_loc;
 
 	_COUNT_BYTE=info_sections.index;
-	fseek(in,info_sections.index-1,0);
+	FSEEK(in,info_sections.index-1,0);
 	ID_section(info_sections.index, version_loc);
 
 	ReadByte(data.flag_BdR0.length);
@@ -1860,7 +1866,7 @@ void section_5(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 	int_S version;
 
 	_COUNT_BYTE=info_sections.index;
-	fseek(in,info_sections.index-1,0);
+	FSEEK(in,info_sections.index-1,0);
 	ID_section(info_sections.index, version);
 
 	ReadByte(data.flag_BdR0.AVM);
@@ -1890,7 +1896,7 @@ void section_5(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
-		fread(data.samples_BdR0,sizeof(U_int_S),dim,in);
+		FREAD(data.samples_BdR0,sizeof(U_int_S),dim,in);
 	}
 	else
 	{
@@ -1925,7 +1931,7 @@ void section_6(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 	int_S version;
 
 	_COUNT_BYTE=info_sections.index;
-	fseek(in,info_sections.index-1,0);
+	FSEEK(in,info_sections.index-1,0);
 	ID_section(info_sections.index, version);
 
 	ReadByte(data.flag_Res.AVM);
@@ -1954,7 +1960,7 @@ void section_6(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
-		fread(data.samples_Res,sizeof(U_int_S),dim,in);
+		FREAD(data.samples_Res,sizeof(U_int_S),dim,in);
 	}
 	else
 	{
@@ -1990,7 +1996,7 @@ void section_7(pointer_section info_sections ,DATA_RECORD &data, int_S version)
 	int_L length_eval;
 
 	_COUNT_BYTE=info_sections.index;
-	fseek(in,info_sections.index-1,0);
+	FSEEK(in,info_sections.index-1,0);
 	ID_section(info_sections.index, version_loc);
 
 	ReadByte(data.data_global.number);
@@ -2060,7 +2066,7 @@ void section_7(pointer_section info_sections ,DATA_RECORD &data, int_S version)
 	ReadByte(data.data_global.number_QRS);
 	if(Look(_special,0,3,data.data_global.number_QRS)<0)
 	{
-		fgetpos(in,&filepos);                         //necessary for ESAOTE and CARDIOLINE test files
+		FGETPOS(in,&filepos);                         //necessary for ESAOTE and CARDIOLINE test files
 		dim=info_sections.index+info_sections.length-filepos COMPAT+1;
 		if(data.data_global.number_QRS>dim)
 		{
@@ -2130,7 +2136,7 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 	int_S version;
 
 	_COUNT_BYTE=info_sections.index;
-	fseek(in,info_sections.index-1,0);
+	FSEEK(in,info_sections.index-1,0);
 	ID_section(info_sections.index, version);
 
 	ReadByte(data.flag_report.type);
@@ -2163,7 +2169,7 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 	ReadByte(data.flag_report.number);
 	if(data.flag_report.number)
 	{
-		fgetpos(in,&filepos);
+		FGETPOS(in,&filepos);
 		if(data.flag_report.number!=0 && (data.text_dim=(numeric*)mymalloc(data.flag_report.number*sizeof(numeric)))==NULL)
 		{
 			fprintf(stderr,"Not enough memory");  // no, exit //
@@ -2178,7 +2184,7 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 			dim+=data.text_dim[i].value;
 			Skip(data.text_dim[i].value);
 		}
-		fseek(in,filepos COMPAT,0);
+		FSEEK(in,filepos COMPAT,0);
 		if(dim!=0 && (data.text_report=(char*)mymalloc((dim+1)*sizeof(char)))==NULL)
 		{
 			fprintf(stderr,"Not enough memory");  // no, exit //
@@ -2208,7 +2214,7 @@ void section_10(pointer_section info_sections, DATA_RECORD &data, int_S version)
 	int_S version_loc;
 
 	_COUNT_BYTE=info_sections.index;
-	fseek(in,info_sections.index-1,0);
+	FSEEK(in,info_sections.index-1,0);
 	ID_section(info_sections.index, version_loc);
 
 	ReadByte(data.header_lead.number_lead);
@@ -2350,7 +2356,7 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 	int_S version;
 
 	_COUNT_BYTE=info_sections.index;
-	fseek(in,info_sections.index-1,0);
+	FSEEK(in,info_sections.index-1,0);
 	ID_section(info_sections.index, version);
 
 	ReadByte(data.flag_statement.type);
@@ -2384,7 +2390,7 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 	ReadByte(data.flag_statement.number); //number of expressions
 	if(!data.flag_statement.number)
 	{
-		fgetpos(in,&filepos);
+		FGETPOS(in,&filepos);
 		if(data.flag_statement.number!=0 && (data.data_statement=(statement_coded*)mymalloc(data.flag_statement.number*sizeof(statement_coded)))==NULL)
 		{
 			fprintf(stderr,"Not enough memory");  // no, exit //
@@ -2402,7 +2408,7 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 			{
 				for(j=1;j<(data.data_statement[i].length-1);j++)
 				{
-					c=getc(in);
+					c=FGETC(in);
 					if(c=='\0')
 						++data.data_statement[i].number_field;
 				}
@@ -2410,7 +2416,7 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 			else
 				Skip(data.data_statement[i].length-1);
 		}
-		fseek(in,filepos COMPAT,0);
+		FSEEK(in,filepos COMPAT,0);
 		if(dim!=0 && (data.text_statement=(char*)mymalloc(dim))==NULL)
 		{
 			fprintf(stderr,"Not enough memory");  // no, exit //
