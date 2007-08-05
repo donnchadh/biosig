@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.22 2007-08-02 18:41:22 schloegl Exp $
+###  $Id: Makefile,v 1.23 2007-08-05 08:45:26 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -96,11 +96,11 @@ clean:
 
 
 ####### Testing ########
-test: PFE103.scp save2scp save2aecg save2gdf gztest
+test: PFE103.scp save2scp save2aecg save2gdf
 	cp PFE103.scp   t0.xxx
-	./save2gdf     	t0.xxx t3.gdf
-	./save2scp     	t0.xxx t3.scp
-	./save2aecg 	t0.xxx t3.hl7
+	./save2gdf      t0.xxx t3.gdf
+	./save2scp   	t0.xxx t3.scp
+	./save2aecg  	t0.xxx t3.hl7
 	./save2gdf 	t3.gdf t3.gdf.gdf
 	./save2gdf 	t3.scp t3.scp.gdf
 	./save2gdf 	t3.hl7 t3.hl7.gdf
@@ -110,61 +110,77 @@ test: PFE103.scp save2scp save2aecg save2gdf gztest
 	./save2aecg 	t3.gdf t3.gdf.hl7
 	./save2aecg 	t3.scp t3.scp.hl7
 	./save2aecg 	t3.hl7 t3.hl7.hl7
-	./gztest        t3.hl7
+	# test for on-the-fly compression and decompression 
+	./save2gdf   -z t0.xxx t4.gdf
+	./save2scp   -z t0.xxx t4.scp
+	./save2aecg  -z	t0.xxx t4.hl7
+	./save2gdf 	t4.gdf.gz t4.gdf.gdf
+	./save2gdf 	t4.scp.gz t4.scp.gdf
+	./save2scp 	t4.gdf.gz t4.gdf.scp
+	./save2scp 	t4.scp.gz t4.scp.scp
+	./save2aecg 	t4.gdf.gz t4.gdf.hl7
+	./save2aecg 	t4.scp.gz t4.scp.hl7
 
 zip: PFE103.scp save2gdf
+	# test for on-the-fly compression and decompression 
 	cp PFE103.scp   t0.xxx
+	# on-the-fly compression of output file 
 	./save2gdf -z -f=GDF t0.xxx t1.gdf
 	./save2gdf -z -f=EDF t0.xxx t1.edf
 	./save2gdf -z -f=BDF t0.xxx t1.bdf
 	./save2gdf -z -f=SCP t0.xxx t1.scp
 	./save2gdf -z -f=HL7 t0.xxx t1.hl7
 	./save2gdf -z -f=CFW t0.xxx t1.cfw
-	./save2gdf -z -f=GDF t1.gdf.gz t1.gdf.gdf.gz
-	./save2gdf    -f=GDF t1.gdf.gz t1.gdf.gdf
-
+	gzip t0.xxx
+	# on-the-fly decompression of input file 
+	./save2gdf -f=GDF t0.xxx.gz t1.gdf
+	./save2gdf -f=EDF t0.xxx.gz t1.edf
+	./save2gdf -f=BDF t0.xxx.gz t1.bdf
+	./save2gdf -f=SCP t0.xxx.gz t1.scp
+	./save2gdf -f=HL7 t0.xxx.gz t1.hl7
+	./save2gdf -f=CFW t0.xxx.gz t1.cfw
 
 test6: PFE103.scp save2gdf
 	cp PFE103.scp   t0.xxx
-	./save2gdf -f=GDF t0.xxx t1.gdf
-	./save2gdf -f=EDF t0.xxx t1.edf
-	./save2gdf -f=BDF t0.xxx t1.bdf
-	./save2gdf -f=SCP t0.xxx t1.scp
-	./save2gdf -f=HL7 t0.xxx t1.hl7
-	./save2gdf -f=CFW t0.xxx t1.cfw
-	./save2gdf -f=GDF t1.gdf t2.gdf.gdf
-	./save2gdf -f=EDF t1.gdf t2.gdf.edf
-	./save2gdf -f=BDF t1.gdf t2.gdf.bdf
-	./save2gdf -f=SCP t1.gdf t2.gdf.scp
-	./save2gdf -f=HL7 t1.gdf t2.gdf.hl7
-	./save2gdf -f=CFW t1.gdf t2.gdf.cfw
-	./save2gdf -f=GDF t1.edf t2.edf.gdf
-	./save2gdf -f=EDF t1.edf t2.edf.edf
-	./save2gdf -f=BDF t1.edf t2.edf.bdf
-	./save2gdf -f=SCP t1.edf t2.edf.scp
-	./save2gdf -f=HL7 t1.edf t2.edf.hl7
-	./save2gdf -f=CFW t1.edf t2.edf.cfw
-	./save2gdf -f=GDF t1.bdf t2.bdf.gdf
-	./save2gdf -f=EDF t1.bdf t2.bdf.edf
-	./save2gdf -f=BDF t1.bdf t2.bdf.bdf
-	./save2gdf -f=SCP t1.bdf t2.bdf.scp
-	./save2gdf -f=HL7 t1.bdf t2.bdf.hl7
-	./save2gdf -f=CFW t1.bdf t2.bdf.cfw
-	./save2gdf -f=GDF t1.scp t2.scp.gdf
-	./save2gdf -f=EDF t1.scp t2.scp.edf
-	./save2gdf -f=BDF t1.scp t2.scp.bdf
-	./save2gdf -f=SCP t1.scp t2.scp.scp
-	./save2gdf -f=HL7 t1.scp t2.scp.hl7
-	./save2gdf -f=CFW t1.scp t2.scp.cfw
+	./save2gdf -z -f=GDF t0.xxx t1.gdf
+	./save2gdf -z -f=EDF t0.xxx t1.edf
+	./save2gdf -z -f=BDF t0.xxx t1.bdf
+	./save2gdf -z -f=SCP t0.xxx t1.scp
+	./save2gdf -z -f=HL7 t0.xxx t1.hl7   # -z not supported for HL7
+	./save2gdf -z -f=CFW t0.xxx t1.cfw
+	./save2gdf -f=GDF t1.gdf.gz t2.gdf.gdf
+	./save2gdf -f=EDF t1.gdf.gz t2.gdf.edf
+	./save2gdf -f=BDF t1.gdf.gz t2.gdf.bdf
+	./save2gdf -f=SCP t1.gdf.gz t2.gdf.scp
+	./save2gdf -f=HL7 t1.gdf.gz t2.gdf.hl7
+	./save2gdf -f=CFW t1.gdf.gz t2.gdf.cfw
+	./save2gdf -f=GDF t1.edf.gz t2.edf.gdf
+	./save2gdf -f=EDF t1.edf.gz t2.edf.edf
+	./save2gdf -f=BDF t1.edf.gz t2.edf.bdf
+	./save2gdf -f=SCP t1.edf.gz t2.edf.scp
+	./save2gdf -f=HL7 t1.edf.gz t2.edf.hl7
+	./save2gdf -f=CFW t1.edf.gz t2.edf.cfw
+	./save2gdf -f=GDF t1.bdf.gz t2.bdf.gdf
+	./save2gdf -f=EDF t1.bdf.gz t2.bdf.edf
+	./save2gdf -f=BDF t1.bdf.gz t2.bdf.bdf
+	./save2gdf -f=SCP t1.bdf.gz t2.bdf.scp
+	./save2gdf -f=HL7 t1.bdf.gz t2.bdf.hl7
+	./save2gdf -f=CFW t1.bdf.gz t2.bdf.cfw
+	./save2gdf -f=GDF t1.scp.gz t2.scp.gdf
+	./save2gdf -f=EDF t1.scp.gz t2.scp.edf
+	./save2gdf -f=BDF t1.scp.gz t2.scp.bdf
+	./save2gdf -f=SCP t1.scp.gz t2.scp.scp
+	./save2gdf -f=HL7 t1.scp.gz t2.scp.hl7
+	./save2gdf -f=CFW t1.scp.gz t2.scp.cfw
 	./save2gdf -f=GDF t1.hl7 t2.hl7.gdf
 	./save2gdf -f=EDF t1.hl7 t2.hl7.edf
 	./save2gdf -f=BDF t1.hl7 t2.hl7.bdf
 	./save2gdf -f=SCP t1.hl7 t2.hl7.scp
 	./save2gdf -f=HL7 t1.hl7 t2.hl7.hl7
 	./save2gdf -f=CFW t1.hl7 t2.hl7.cfw
-	./save2gdf -f=GDF t1.cfw t2.cfw.gdf
-	./save2gdf -f=EDF t1.cfw t2.cfw.edf
-	./save2gdf -f=BDF t1.cfw t2.cfw.bdf
-	./save2gdf -f=SCP t1.cfw t2.cfw.scp
-	./save2gdf -f=HL7 t1.cfw t2.cfw.hl7
+	./save2gdf -f=GDF t1.cfw.gz t2.cfw.gdf
+	./save2gdf -f=EDF t1.cfw.gz t2.cfw.edf
+	./save2gdf -f=BDF t1.cfw.gz t2.cfw.bdf
+	./save2gdf -f=SCP t1.cfw.gz t2.cfw.scp
+	./save2gdf -f=HL7 t1.cfw.gz t2.cfw.hl7
 
