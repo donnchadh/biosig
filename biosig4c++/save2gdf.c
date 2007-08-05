@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.14 2007-08-03 15:32:25 schloegl Exp $
+    $Id: save2gdf.c,v 1.15 2007-08-05 08:41:27 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -117,34 +117,37 @@ int main(int argc, char **argv){
 	hdr = sopen(source, "r", NULL);
     
 	if (hdr==NULL) exit(-1);
-	fprintf(stdout,"FileName:\t%s\nType    :\t%i\nVersion:\t%4.2f\nHeadLen:\t%i\n",source,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
-	fprintf(stdout,"NS:\t%i\nSPR:\t%i\nNRec:\t%Li\nSpB:\t%i\nDuration[s]:\t%u/%u\nFs:\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->AS.bpb,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
+	if (dest==NULL) {
+		/* display header information */
+		fprintf(stdout,"FileName:\t%s\nType    :\t%i\nVersion:\t%4.2f\nHeadLen:\t%i\n",source,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
+		fprintf(stdout,"NS:\t%i\nSPR:\t%i\nNRec:\t%Li\nSpB:\t%i\nDuration[s]:\t%u/%u\nFs:\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->AS.bpb,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
 
-	T0 = gdf_time2t_time(hdr->T0);
-	fprintf(stdout,"Date/Time:\t%s\n",asctime(localtime(&T0))); 
+		T0 = gdf_time2t_time(hdr->T0);
+		fprintf(stdout,"Date/Time:\t%s\n",asctime(localtime(&T0))); 
 		//T0 = gdf_time2t_time(hdr->Patient.Birthday);
 		//fprintf(stdout,"Birthday:\t%s\n",asctime(localtime(&T0)));
 
-	fprintf(stdout,"Patient:\n\tName:\t%s\n\tId:\t%s\n\tWeigth:\t%i kg\n\tHeigth:\t%i cm\n\tAge:\t%4.1f y\n",hdr->Patient.Name,hdr->Patient.Id,hdr->Patient.Weight,hdr->Patient.Height,(hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32)); 
-	T0 = gdf_time2t_time(hdr->Patient.Birthday);
-	fprintf(stdout,"\tBirthday:\t%s\n",asctime(localtime(&T0))); 
-	fprintf(stdout,"EVENT:\n\tN:\t%i\n\tFs:\t%f\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
+		fprintf(stdout,"Patient:\n\tName:\t%s\n\tId:\t%s\n\tWeigth:\t%i kg\n\tHeigth:\t%i cm\n\tAge:\t%4.1f y\n",hdr->Patient.Name,hdr->Patient.Id,hdr->Patient.Weight,hdr->Patient.Height,(hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32)); 
+		T0 = gdf_time2t_time(hdr->Patient.Birthday);
+		fprintf(stdout,"\tBirthday:\t%s\n",asctime(localtime(&T0))); 
+		fprintf(stdout,"EVENT:\n\tN:\t%i\n\tFs:\t%f\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
 
-	for (int k=0; k<hdr->NS; k++) {
-		cp = hdr->CHANNEL+k; 
+		for (int k=0; k<hdr->NS; k++) {
+			cp = hdr->CHANNEL+k; 
 /*	fprintf(stdout,"\n#%2i: %7s\t%s\t%s\t%i\t%5f\t%5f\t%5f\t%5f\t%5f\t",k,cp->Label,cp->Transducer,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin,cp->Cal);
 	fprintf(stderr,"\n%4.0f\t%4.0f\t%4.0f\t%5f Ohm",cp->LowPass,cp->HighPass,cp->Notch,cp->Impedance);
 */
-		fprintf(stdout,"\n#%2i: %3i %7s\t%5f %5f %s\t%i\t%5f\t%5f\t%5f\t%5f",k,cp->LeadIdCode,cp->Label,cp->Cal,cp->Off,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin);
+			fprintf(stdout,"\n#%2i: %3i %7s\t%5f %5f %s\t%i\t%5f\t%5f\t%5f\t%5f",k,cp->LeadIdCode,cp->Label,cp->Cal,cp->Off,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin);
+		}
+		fprintf(stdout,"\nm1: %d %d %d %d\n",*((int16_t *)hdr->AS.rawdata),*((int16_t *)hdr->AS.rawdata+2),*(int16_t *)(hdr->AS.rawdata+4),*(int16_t *)(hdr->AS.rawdata+6));
 	}
-	fprintf(stdout,"\nm1: %d %d %d %d\n",*((int16_t *)hdr->AS.rawdata),*((int16_t *)hdr->AS.rawdata+2),*(int16_t *)(hdr->AS.rawdata+4),*(int16_t *)(hdr->AS.rawdata+6));
 
 	hdr->FLAG.OVERFLOWDETECTION = 0;
 	hdr->FLAG.UCAL = 1;
 
 	count = sread(hdr, 0, hdr->NRec);
 
-	fprintf(stdout,"\nFile %s read successfully %i\n",hdr->FileName,hdr->EVENT.N);
+	fprintf(stdout,"File %s read successfully.\n",hdr->FileName);
 	if (dest==NULL) {
 		sclose(hdr);
 		free(hdr);
@@ -165,8 +168,10 @@ int main(int argc, char **argv){
 
     	hdr->TYPE = TARGET_TYPE;
 	hdr->FILE.COMPRESSION=COMPRESSION_LEVEL;
-	if (COMPRESSION_LEVEL>0 || hdr->TYPE==HL7aECG)	
-		fprintf(stderr,"Warning: currently on-the-fly compression is not supported for HL7aECG"); 
+	if (COMPRESSION_LEVEL>0 && hdr->TYPE==HL7aECG)	{
+		fprintf(stderr,"Warning: on-the-fly compression (%i) is not supported for HL7aECG.\n",COMPRESSION_LEVEL); 
+		hdr->FILE.COMPRESSION = 0;
+	}
 
 	if (hdr->TYPE==GDF || hdr->TYPE==CFWB) {
 		size_t N = hdr->NRec*hdr->SPR;
