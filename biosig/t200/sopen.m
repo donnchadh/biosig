@@ -53,7 +53,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.184 2007-07-19 08:12:31 schloegl Exp $
+%	$Id: sopen.m,v 1.185 2007-08-06 15:16:31 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -415,7 +415,12 @@ end;
 	                        	HDR.Patient.Sex = 0; % unknown 
 	                        end; 
                                 if (length(bd)==11),
-					HDR.Patient.Birthday = datevec(bd);
+                                	HDR.Patient.Birthday = zeros(1,6); 
+                                	bd(bd=='-') = ' '; 
+                                	[n,v,s]=str2double(bd);
+					HDR.Patient.Birthday(1) = n(3);
+					HDR.Patient.Birthday(2) = strmatch(lower(s{2}),{'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'});
+					HDR.Patient.Birthday(3) = n(1);
 					HDR.Patient.Birthday(4) = 12;
                                 end; 
                                 
