@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.21 2007-08-04 23:10:15 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.22 2007-08-06 15:24:26 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -89,7 +89,6 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 	*/	
 
 	if (hdr->aECG == NULL) {
-		fprintf(stderr,"Warning: No aECG info defined\n");
 		hdr->aECG = (aECG_TYPE*)malloc(sizeof(aECG_TYPE));
 		hdr->aECG->diastolicBloodPressure=0.0;				 
 		hdr->aECG->systolicBloodPressure=0.0;
@@ -304,8 +303,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				hdr->CHANNEL[i].SPR 	= endindex - startindex + 1;
 				hdr->SPR 		= lcm(hdr->SPR,hdr->CHANNEL[i].SPR);
 				hdr->CHANNEL[i].LeadIdCode =  *(PtrCurSect+curSectPos+8);
-				hdr->CHANNEL[i].Label 	= "";   //lead_identification(hdr->CHANNEL[i].LeadIdCode);
-				//hdr->CHANNEL[i].Label   = LEAD_ID_TABLE[hdr->CHANNEL[i].LeadIdCode];
+				hdr->CHANNEL[i].Label[0]= 0;
 				hdr->CHANNEL[i].LowPass = LowPass; 
 				hdr->CHANNEL[i].HighPass= HighPass; 
 				hdr->CHANNEL[i].Notch 	= Notch; 
@@ -337,7 +335,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				hdr->CHANNEL[i].Cal 	    = Cal*1e-3;
 				hdr->CHANNEL[i].Off         = 0;
 				hdr->CHANNEL[i].OnOff       = 1;    // 1: ON 0:OFF
-				hdr->CHANNEL[i].Transducer  = "";
+				hdr->CHANNEL[i].Transducer[0] = '\0';
 				hdr->CHANNEL[i].GDFTYP      = GDFTYP;  
 				len += l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+i*2));
 

@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.53 2007-08-04 20:11:30 schloegl Exp $
+% $Id: biosig.h,v 1.54 2007-08-06 15:24:26 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -58,6 +58,7 @@ typedef char			int8_t;
 #endif
 
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <time.h>
 /* 
@@ -66,7 +67,7 @@ typedef char			int8_t;
 	Currently, this is in an experimental state. 
 	First tests were already successful.  
  */
-#include <zlib.h>  
+#include <zlib.h>
 
 /* use byteswap macros from the host system, hopefully optimized ones ;-) */
 #include <byteswap.h>
@@ -207,12 +208,15 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 /*
 	This structure defines the header for each channel (variable header) 
  */
+#define MAX_LENGTH_LABEL 	40 
+#define MAX_LENGTH_TRANSDUCER 	80
+#define MAX_LENGTH_PHYSDIM 	20
 typedef struct {
 	char		OnOff; 		
-	char* 		Label;		/* Label of channel */
+	char		Label[MAX_LENGTH_LABEL+1]; 	/* Label of channel */
 	uint16_t	LeadIdCode;	/* Lead identification code */ 
-	char* 		Transducer;	/* transducer e.g. EEG: Ag-AgCl electrodes */
-	char 		PhysDim[21];	/* physical dimension */
+	char 		Transducer[MAX_LENGTH_TRANSDUCER+1];	/* transducer e.g. EEG: Ag-AgCl electrodes */
+	char 		PhysDim[MAX_LENGTH_PHYSDIM+1];	/* physical dimension */
 	uint16_t	PhysDimCode;	/* code for physical dimension */
 	/* char* 	PreFilt;	// pre-filtering */
 
@@ -430,7 +434,6 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr);
 
 size_t lcm(size_t A,size_t B); 
 
-int16_t	Label_to_LeadIDCode(char* Label);
 double PhysDimScale(uint16_t PhysDimCode);
 
 uint16_t CRCEvaluate(uint8_t* datablock, uint32_t datalength);
@@ -443,6 +446,7 @@ int16_t CRCCheck(uint8_t* datablock, uint32_t datalength);
 /****************************************************************************/
 
 
+HDRTYPE* getfiletype(HDRTYPE* hdr);
 HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT);
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 int 	sclose(HDRTYPE* hdr);

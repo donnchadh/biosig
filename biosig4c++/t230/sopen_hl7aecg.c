@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.7 2007-07-30 23:26:32 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.8 2007-08-06 15:24:26 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -156,14 +156,8 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 
 		    const char *code = channel.FirstChild("code").Element()->Attribute("code");
 		    
-		    hdr->CHANNEL[i].Label = strdup(code);
-		    
-		    hdr->CHANNEL[i].LeadIdCode = 0;
-		    for (int k=0; k<184; k++)
-		    	if(!strcmp(code+13, LEAD_ID_TABLE[k]))
-				hdr->CHANNEL[i].LeadIdCode = k;
-
-		    hdr->CHANNEL[i].Transducer = " ";
+		    strncpy(hdr->CHANNEL[i].Label,code,min(40,MAX_LENGTH_LABEL));
+		    hdr->CHANNEL[i].Transducer[0] = '\0';
 		    hdr->CHANNEL[i].GDFTYP = 5;	// int32
 
 		    std::vector<std::string> vector;
@@ -564,6 +558,7 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     }
 
     doc.SaveFile(hdr->FileName);
+//    doc.SaveFile(hdr);
 
     return(hdr);
 };

@@ -1,7 +1,7 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.23 2007-07-31 21:05:25 schloegl Exp $
-    Copyright (C) 2005-2006 Alois Schloegl <a.schloegl@ieee.org>
+    $Id: sopen_scp_write.c,v 1.24 2007-08-06 15:24:26 schloegl Exp $
+    Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -26,21 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-
 #include "../biosig.h"
-
-
-
-
-int16_t	Label_to_LeadIdCode(char* Label) {
-	// FIXME //  define functions for converting label to LeadIdCode 
-	int ret_val = 0;	//default: unspecified 
-	 	
-	return(ret_val);
-};
-
-
 
 HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {	
 /*
@@ -69,11 +55,6 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		fprintf(stderr,"Warning SOPEN (SCP-WRITE): Version %f not supported\n",hdr->VERSION);
 		
 	uint8_t VERSION = 20; // (uint8_t)round(hdr->VERSION*10); // implemented version number 
-	for (int k=0; k<hdr->NS; k++) {
-		if (hdr->CHANNEL[k].LeadIdCode==0)
-			hdr->CHANNEL[k].LeadIdCode = Label_to_LeadIdCode(hdr->CHANNEL[k].Label);
-	}	
-
 	if (hdr->aECG==NULL) {
 		fprintf(stderr,"Warning SOPEN_SCP_WRITE: No aECG info defined\n");
 		hdr->aECG = (aECG_TYPE*)malloc(sizeof(aECG_TYPE));
@@ -425,7 +406,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 // ### Situations with reference beat subtraction are not supported
 // Situations with not all the leads simultaneously recorded are not supported
 // Situations number of leads simultaneouly recorded != total number of leads are not supported
-// We assume hat all the leads are recorded simultaneously
+// We assume all the leads are recorded simultaneously
 			*(ptr+sectionStart+curSectLen++) = (hdr->NS<<3) | 0x04;
 
 			for (i = 0; i < hdr->NS; i++) {
