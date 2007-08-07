@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.22 2007-08-06 15:24:26 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.23 2007-08-07 07:52:57 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -104,7 +104,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 	hdr->aECG->FLAG.REF_BEAT = 0; 
 	hdr->aECG->FLAG.BIMODAL  = 0;
 	
-	ptr = hdr->AS.Header1; 
+	ptr = hdr->AS.Header; 
 	hdr->NRec = 1;
 //        hdr->Dur[0]=10; hdr->Dur[1]=1;  // duration = 10 sec
 

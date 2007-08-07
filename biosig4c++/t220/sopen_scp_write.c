@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.24 2007-08-06 15:24:26 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.25 2007-08-07 07:52:57 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -97,7 +97,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	hdr->aECG->FLAG.BIMODAL = 0;
 
 
-	ptr = (uint8_t*)hdr->AS.Header1;
+	ptr = (uint8_t*)hdr->AS.Header;
 
 	int NSections = 12; 
 	// initialize section 0
@@ -553,7 +553,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 	// Prepare filling the data block with the ECG samples by SWRITE
 	hdr->AS.rawdata = ptr+hdr->aECG->Section6.StartPtr+16+6+2*hdr->NS;
 	
-	hdr->AS.Header1 = ptr; 
+	hdr->AS.Header = ptr; 
 	return(hdr);
 }
 

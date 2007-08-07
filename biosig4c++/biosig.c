@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.84 2007-08-06 15:24:25 schloegl Exp $
+    $Id: biosig.c,v 1.85 2007-08-07 07:52:56 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -633,6 +633,8 @@ int FERROR(HDRTYPE* hdr) {
 /****************************************************************************/
 /**                     INIT HDR                                           **/
 /****************************************************************************/
+#define Header1 ((char*)hdr->AS.Header) 
+
 HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 {
 /*
@@ -665,7 +667,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->FILE.OPEN = 0;
 	hdr->FILE.FID = 0;
 
-	hdr->AS.Header1 = NULL;
+	hdr->AS.Header = NULL;
 
       	hdr->TYPE = GDF; 
       	hdr->VERSION = 1.94;
@@ -760,7 +762,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
  */
 {
 
-	uint8_t *Header1 = hdr->AS.Header1;
+//	uint8_t *Header1 = hdr->AS.Header1;
 	uint32_t U32 = l_endian_u32(*(uint32_t*)(Header1+2)); 
 
     	if (hdr->TYPE != unknown)
@@ -797,7 +799,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
        		return(hdr); 
     	else if (!memcmp(Header1+20,"ACR-NEMA",8))
 	    	hdr->TYPE = ACR_NEMA;
-    	else if (!memcmp(Header1+1,"BIOSEMI",7) & (Header1[0]==255)) {
+    	else if (!memcmp(Header1+1,"BIOSEMI",7) & (Header1[0]==-1)) {
     		hdr->TYPE = BDF;
     		hdr->VERSION = -1; 
     	}
@@ -884,7 +886,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	else if (!memcmp(Header1,"# vtk DataFile Version ",23)) {
 		hdr->TYPE = VTK;
 		char tmp[4];
-		strncpy(tmp,(char*)hdr->AS.Header1+23,3);
+		strncpy(tmp,(char*)Header1+23,3);
 		hdr->VERSION = atof(tmp);
 	}	
 	else if (!memcmp(Header1,MAGIC_NUMBER_Z,3))
@@ -923,7 +925,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
     	char 		tmp[81];
     	char 		cmd[256];
     	double 		Dur; 
-	char* 		Header1;
+//	char* 		Header1;
 	char* 		Header2;
 	char*		ptr_str;
 	struct tm 	tm_time; 
@@ -935,9 +937,8 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 
 if (!strncmp(MODE,"r",1))	
 {
- 	hdr->AS.Header1 = (uint8_t*)malloc(257);
-    	hdr->AS.Header1[256] = 0;
-	Header1 = (char*)hdr->AS.Header1; 	
+ 	hdr->AS.Header = (uint8_t*)malloc(257);
+    	Header1[256] = 0;
 	hdr->TYPE = unknown; 
 
 	hdr->FileName = FileName; 
@@ -951,40 +952,40 @@ if (!strncmp(MODE,"r",1))
     	}	    
     
     	/******** read 1st (fixed)  header  *******/	
-    	count   = FREAD(hdr->AS.Header1,1,256,hdr);
+    	count   = FREAD(Header1,1,256,hdr);
 	hdr  = getfiletype(hdr);
     	
     	if (hdr->TYPE == unknown) {
 		fprintf(stdout,"ERROR BIOSIG SOPEN(read): Format of file %s not supported\n",hdr->FileName);
     		FCLOSE(hdr);
-    		free(hdr->AS.Header1);
+    		free(Header1);
     		free(hdr);
 		return(NULL);
 	}	
 
 	if (hdr->TYPE == GDF) {
-  	    	strncpy(tmp,(char*)hdr->AS.Header1+3,5);
+  	    	strncpy(tmp,(char*)Header1+3,5);
 	    	hdr->VERSION 	= atof(tmp);
-	    	hdr->NRec 	= l_endian_i64( *( int64_t*) (hdr->AS.Header1+236) ); 
-	    	hdr->Dur[0]  	= l_endian_u32( *(uint32_t*) (hdr->AS.Header1+244) );
-	    	hdr->Dur[1]  	= l_endian_u32( *(uint32_t*) (hdr->AS.Header1+248) ); 
-	    	hdr->NS   	= l_endian_u16( *(uint16_t*) (hdr->AS.Header1+252) ); 
+	    	hdr->NRec 	= l_endian_i64( *( int64_t*) (Header1+236) ); 
+	    	hdr->Dur[0]  	= l_endian_u32( *(uint32_t*) (Header1+244) );
+	    	hdr->Dur[1]  	= l_endian_u32( *(uint32_t*) (Header1+248) ); 
+	    	hdr->NS   	= l_endian_u16( *(uint16_t*) (Header1+252) ); 
 	    	
 	    	if (hdr->VERSION > 1.90) { 
-		    	hdr->HeadLen 	= l_endian_u16( *(uint16_t*) (hdr->AS.Header1+184) )<<8; 
-	    		strncpy(hdr->AS.PID,(const char*)hdr->AS.Header1+8,66);
+		    	hdr->HeadLen 	= l_endian_u16( *(uint16_t*) (Header1+184) )<<8; 
+	    		strncpy(hdr->AS.PID,(const char*)Header1+8,66);
 	    		hdr->Patient.Id = strtok(hdr->AS.PID," ");
 	    		hdr->Patient.Name = strtok(NULL," ");
 	    		
-	    		hdr->Patient.Smoking      =  hdr->AS.Header1[84]%4;
-	    		hdr->Patient.AlcoholAbuse = (hdr->AS.Header1[84]>>2)%4;
-	    		hdr->Patient.DrugAbuse    = (hdr->AS.Header1[84]>>4)%4;
-	    		hdr->Patient.Medication   = (hdr->AS.Header1[84]>>6)%4;
-	    		hdr->Patient.Weight       =  hdr->AS.Header1[85];
-	    		hdr->Patient.Height       =  hdr->AS.Header1[86];
-	    		hdr->Patient.Sex       	  =  hdr->AS.Header1[87]%4;
-	    		hdr->Patient.Handedness   = (hdr->AS.Header1[87]>>2)%4;
-	    		hdr->Patient.Impairment.Visual = (hdr->AS.Header1[87]>>4)%4;
+	    		hdr->Patient.Smoking      =  Header1[84]%4;
+	    		hdr->Patient.AlcoholAbuse = (Header1[84]>>2)%4;
+	    		hdr->Patient.DrugAbuse    = (Header1[84]>>4)%4;
+	    		hdr->Patient.Medication   = (Header1[84]>>6)%4;
+	    		hdr->Patient.Weight       =  Header1[85];
+	    		hdr->Patient.Height       =  Header1[86];
+	    		hdr->Patient.Sex       	  =  Header1[87]%4;
+	    		hdr->Patient.Handedness   = (Header1[87]>>2)%4;
+	    		hdr->Patient.Impairment.Visual = (Header1[87]>>4)%4;
 	
 			*(uint32_t*)(Header1+156) = l_endian_u32( *(uint32_t*) (Header1+156) );
 			*(uint32_t*)(Header1+160) = l_endian_u32( *(uint32_t*) (Header1+160) );
@@ -1042,9 +1043,9 @@ if (!strncmp(MODE,"r",1))
 	    	}
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
-	    	hdr->AS.Header1 = (uint8_t*)realloc(hdr->AS.Header1,hdr->HeadLen);
-	    	Header1 = (char*)hdr->AS.Header1; 
-	    	Header2 = (char*)hdr->AS.Header1+256; 
+	    	hdr->AS.Header = (uint8_t*)realloc(Header1,hdr->HeadLen);
+//	    	Header1 = (char*)hdr->AS.Header1; 
+	    	Header2 = (char*)Header1+256; 
 	    	count   = FREAD(Header2, 1, hdr->HeadLen-256, hdr);
 
 		for (k=0; k<hdr->NS; k++)	{
@@ -1184,8 +1185,7 @@ if (!strncmp(MODE,"r",1))
 		}
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
-	    	hdr->AS.Header1 = (uint8_t*) realloc(hdr->AS.Header1,hdr->HeadLen);
-	    	Header1 = (char*)hdr->AS.Header1; 
+	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
 	    	Header2 = (char*)Header1+256; 
 	    	count   = FREAD(Header2, 1, hdr->HeadLen-256, hdr);
 
@@ -1259,23 +1259,23 @@ if (!strncmp(MODE,"r",1))
 
 		hdr->HeadLen += 4;	
 		// read header up to nLenght and nID of foreign data section 
-	    	hdr->AS.Header1 = (uint8_t*) realloc(hdr->AS.Header1,hdr->HeadLen);
-	    	count   = FREAD(hdr->AS.Header1+256, 1, hdr->HeadLen-256, hdr);
+	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
+	    	count   = FREAD(Header1+256, 1, hdr->HeadLen-256, hdr);
 		uint32_t POS = hdr->HeadLen; 
 	    	
 		// read "foreign data section" and "per channel data types section"  
-		hdr->HeadLen += l_endian_u16(*(uint16_t*)(hdr->AS.Header1+hdr->HeadLen-4));
+		hdr->HeadLen += l_endian_u16(*(uint16_t*)(Header1+hdr->HeadLen-4));
 		hdr->HeadLen += 4*hdr->NS; 
-	    	hdr->AS.Header1 = (uint8_t*)realloc(hdr->AS.Header1,hdr->HeadLen+8);
-	    	count   = FREAD(hdr->AS.Header1+POS, 1, hdr->HeadLen-POS, hdr);
+	    	hdr->AS.Header = (uint8_t*)realloc(Header1,hdr->HeadLen+8);
+	    	count   = FREAD(Header1+POS, 1, hdr->HeadLen-POS, hdr);
 		
 		// define channel specific header information
 		hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 		uint32_t* ACQ_NoSamples = (uint32_t*) calloc(hdr->NS,sizeof(uint32_t));
 		uint16_t CHAN; 
-    		POS = l_endian_u32(*(uint32_t*)(hdr->AS.Header1+6));
+    		POS = l_endian_u32(*(uint32_t*)(Header1+6));
 		for (k = 0; k < hdr->NS; k++)	{
-	    		Header2 = (char*)hdr->AS.Header1+POS;
+	    		Header2 = (char*)Header1+POS;
 			hdr->CHANNEL[k].Transducer[0] = '\0';
 			CHAN = l_endian_u16(*(uint16_t*)(Header2+4));
 			strncpy(hdr->CHANNEL[k].Label,Header2+6,min(MAX_LENGTH_LABEL,40));
@@ -1309,7 +1309,7 @@ if (!strncmp(MODE,"r",1))
 			if (hdr->VERSION>=38.0)
 				hdr->CHANNEL[k].SPR = hdr->SPR/hdr->CHANNEL[k].SPR;  // convert DIVIDER into SPR
 
-			switch (l_endian_u16(*(uint16_t*)(hdr->AS.Header1+POS+2)))
+			switch (l_endian_u16(*(uint16_t*)(Header1+POS+2)))
 			{
 			case 1: 
 				hdr->CHANNEL[k].GDFTYP = 17;  // double
@@ -1362,8 +1362,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}      	
 
 	else if (hdr->TYPE==BKR) {
-	    	hdr->AS.Header1 = (uint8_t*)realloc(hdr->AS.Header1, hdr->HeadLen);
-	    	Header1 = (char*)hdr->AS.Header1;
+	    	hdr->AS.Header = (uint8_t*)realloc(Header1, hdr->HeadLen);
 	    	count   = FREAD(Header1+256,1,1024-256,hdr);
 	    	hdr->HeadLen 	 = 1024; 
 		hdr->NS  	 = l_endian_u16( *(uint16_t*) (Header1+2) ); 
@@ -1408,16 +1407,16 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	//  	= *(int32_t*)(Header1+64);	// DataFormat
 
 	    	hdr->HeadLen = 68 + hdr->NS*96; 
-	    	hdr->AS.Header1 = (uint8_t*)realloc(hdr->AS.Header1,hdr->HeadLen);
+	    	hdr->AS.Header = (uint8_t*)realloc(Header1,hdr->HeadLen);
 	    	if (count<=hdr->HeadLen)
-			count = FREAD(hdr->AS.Header1+count, 1, hdr->HeadLen-count, hdr);
+			count = FREAD(Header1+count, 1, hdr->HeadLen-count, hdr);
 		else 	
 	    		FSEEK(hdr, hdr->HeadLen, SEEK_SET);
 		
-		int GDFTYP = l_endian_u32(*(uint32_t*)(hdr->AS.Header1+64));
+		int GDFTYP = l_endian_u32(*(uint32_t*)(Header1+64));
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS; k++)	{
-		    	Header2 = (char*)hdr->AS.Header1+68+k*96; 
+		    	Header2 = (char*)Header1+68+k*96; 
 			hdr->CHANNEL[k].Transducer[0] = '\0';
 		    	hdr->CHANNEL[k].GDFTYP 	= CFWB_GDFTYP[GDFTYP-1];
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
@@ -1434,15 +1433,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// CFWB does not support automated overflow and saturation detection
 	}
 	else if (hdr->TYPE==CNT) {
-	    	hdr->AS.Header1 = (uint8_t*)realloc(hdr->AS.Header1,900);
-	    	hdr->VERSION = atof((char*)hdr->AS.Header1+8);
-	    	count   = FREAD(hdr->AS.Header1+256,1,900-256,hdr);
+	    	hdr->AS.Header = (uint8_t*)realloc(Header1,900);
+	    	hdr->VERSION = atof((char*)Header1+8);
+	    	count   = FREAD(Header1+256,1,900-256,hdr);
 
-	    	ptr_str = (char*)hdr->AS.Header1+136;
+	    	ptr_str = (char*)Header1+136;
     		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
-	    	ptr_str = (char*)hdr->AS.Header1+137;
+	    	ptr_str = (char*)Header1+137;
 	    	hdr->Patient.Handedness = (ptr_str[0]=='r')*2 + (ptr_str[0]=='R')*2 + (ptr_str[0]=='L') + (ptr_str[0]=='l');
-	    	Header2 = (char*)hdr->AS.Header1+255;
+	    	Header2 = (char*)Header1+255;
     		tm_time.tm_sec  = atoi(strncpy(tmp,Header2+16,2)); 
     		tm_time.tm_min  = atoi(strncpy(tmp,Header2+13,2)); 
     		tm_time.tm_hour = atoi(strncpy(tmp,Header2+10,2)); 
@@ -1460,13 +1459,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 #define _eventtablepos (*(uint32_t*)(Header1+886))
 		hdr->NRec = (_eventtablepos-hdr->HeadLen)/(hdr->NS*2);
 		
-	    	hdr->AS.Header1 = (uint8_t*) realloc(hdr->AS.Header1,hdr->HeadLen);
-	    	Header2 = (char*)hdr->AS.Header1+900; 
+	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
+	    	Header2 = (char*)Header1+900; 
 	    	count   = FREAD(Header2,1,hdr->NS*75,hdr);
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS;k++)	{
-		    	Header2 = (char*)hdr->AS.Header1+900+k*75; 
+		    	Header2 = (char*)Header1+900+k*75; 
 			hdr->CHANNEL[k].Transducer[0] = '\0';
 		    	hdr->CHANNEL[k].GDFTYP 	= 3;
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
@@ -1488,13 +1487,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 	
 	else if (hdr->TYPE==SCP_ECG) {
-		hdr->HeadLen 	= l_endian_u32(*(uint32_t*)(Header1+2));
-		hdr->AS.Header1 = (uint8_t*)realloc(hdr->AS.Header1,hdr->HeadLen);
-	    	count += FREAD(hdr->AS.Header1+count, 1, hdr->HeadLen-count, hdr);
-	    	uint16_t crc 	= CRCEvaluate(hdr->AS.Header1+2,hdr->HeadLen-2);
+		hdr->HeadLen   = l_endian_u32(*(uint32_t*)(hdr->AS.Header+2));
+		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
+	    	count += FREAD(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
+	    	uint16_t crc   = CRCEvaluate(hdr->AS.Header+2,hdr->HeadLen-2);
 
-	    	if ( l_endian_u16(*(uint16_t*)hdr->AS.Header1) != crc)
-	    		fprintf(stderr,"Warning SOPEN(SCP-READ): Bad CRC %x %x !\n",crc,*(uint16_t*)(hdr->AS.Header1));
+	    	if ( l_endian_u16(*(uint16_t*)hdr->AS.Header) != crc)
+	    		fprintf(stderr,"Warning SOPEN(SCP-READ): Bad CRC %x %x !\n",crc,*(uint16_t*)(Header1));
 
 		hdr = sopen_SCP_read(hdr);
 	}
@@ -1507,7 +1506,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	{
 		fprintf(stdout,"ERROR BIOSIG SOPEN(READ): Format %i of file %s not supported\n",hdr->TYPE,hdr->FileName);
     		FCLOSE(hdr);
-    		free(hdr->AS.Header1);
+    		free(Header1);
     		free(hdr);
 		return(NULL);
 	}
@@ -1538,8 +1537,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	}
 //	/* release   
-	free(hdr->AS.Header1); 
-	hdr->AS.Header1 = NULL; 
+	free(hdr->AS.Header); 
+	hdr->AS.Header = NULL; 
 //	*/	
 	
 }
@@ -1553,8 +1552,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
     	if (hdr->TYPE==CFWB) {	
 	     	hdr->HeadLen = 68 + hdr->NS*96;
-	    	Header1 = (char*) malloc(hdr->HeadLen);
-	    	Header2 = Header1+68; 
+	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
+	    	Header2 = (char*)Header1+68; 
 		memset(Header1,0,hdr->HeadLen);
 	    	memcpy(Header1,"CFWB\1\0\0\0",8);
 	    	*(double*)(Header1+8) = l_endian_f64(1/hdr->SampleRate);
@@ -1603,12 +1602,12 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			*(double*)(Header2+96*k+80) = l_endian_f64(hdr->CHANNEL[k].PhysMax);
 			*(double*)(Header2+96*k+88) = l_endian_f64(hdr->CHANNEL[k].PhysMin);
 		}
-		hdr->AS.Header1 = (uint8_t*)Header1; 
+//		Header1 = (uint8_t*)Header1; 
 	}
     	else if (hdr->TYPE==GDF) {	
 	     	hdr->HeadLen = (hdr->NS+1)*256;
-	    	Header1 = (char*) malloc(hdr->HeadLen);
-	    	Header2 = Header1+256; 
+	    	hdr->AS.Header = (uint8_t*) malloc(hdr->HeadLen);
+	    	Header2 = (char*)Header1+256; 
 
 		memset(Header1,0,hdr->HeadLen);
 		hdr->VERSION = 1.99;
@@ -1707,12 +1706,12 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR;
 			hdr->AS.bi[++k] = hdr->AS.bpb; 
 		}	
-		hdr->AS.Header1 = (uint8_t*)Header1; 
+//		hdr->AS.Header1 = (uint8_t*)Header1; 
 	}
     	else if ((hdr->TYPE==EDF) | (hdr->TYPE==BDF)) {	
 	     	hdr->HeadLen = (hdr->NS+1)*256;
-	    	Header1 = (char*) malloc(hdr->HeadLen);
-	    	Header2 = Header1+256; 
+	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
+	    	Header2 = (char*)Header1+256; 
 		memset(Header1,' ',hdr->HeadLen);
 		if (hdr->TYPE==BDF) {	
 			Header1[0] = 255;
@@ -1800,7 +1799,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		     	memcpy(Header2+ 8*k + 216*hdr->NS,tmp,min(8,len));
 		     	hdr->CHANNEL[k].GDFTYP = ( (hdr->TYPE != BDF) ? 3 : 255+24);
 		}
-		hdr->AS.Header1 = (uint8_t*)Header1; 
+//		hdr->AS.Header1 = (uint8_t*)Header1; 
 	}
     	else if (hdr->TYPE==SCP_ECG) {	
     		hdr->FileName = FileName;
@@ -1836,7 +1835,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		}
 #endif
 		if(hdr->TYPE != SCP_ECG){
-			FWRITE(hdr->AS.Header1, sizeof(char), hdr->HeadLen, hdr);
+			FWRITE(Header1, sizeof(char), hdr->HeadLen, hdr);
 		}	
 
 		hdr->FILE.OPEN = 2;
@@ -2474,20 +2473,20 @@ int sclose(HDRTYPE* hdr)
 
 		if (hdr->aECG->Section5.Length>0) {
 			// compute CRC for Section 5
-			uint16_t crc = CRCEvaluate(hdr->AS.Header1 + hdr->aECG->Section5.StartPtr+2,hdr->aECG->Section5.Length-2); // compute CRC
-			*(uint16_t*)(hdr->AS.Header1 + hdr->aECG->Section5.StartPtr) = l_endian_u16(crc);
+			uint16_t crc = CRCEvaluate(hdr->AS.Header + hdr->aECG->Section5.StartPtr+2,hdr->aECG->Section5.Length-2); // compute CRC
+			*(uint16_t*)(hdr->AS.Header + hdr->aECG->Section5.StartPtr) = l_endian_u16(crc);
 		}	
 		if (hdr->aECG->Section6.Length>0) {
 			// compute CRC for Section 6
-			uint16_t crc = CRCEvaluate(hdr->AS.Header1 + hdr->aECG->Section6.StartPtr+2,hdr->aECG->Section6.Length-2); // compute CRC
-			*(uint16_t*)(hdr->AS.Header1 + hdr->aECG->Section6.StartPtr) = l_endian_u16(crc);
+			uint16_t crc = CRCEvaluate(hdr->AS.Header + hdr->aECG->Section6.StartPtr+2,hdr->aECG->Section6.Length-2); // compute CRC
+			*(uint16_t*)(hdr->AS.Header + hdr->aECG->Section6.StartPtr) = l_endian_u16(crc);
 		}	
 		// compute crc and len and write to preamble 
-		ptr = hdr->AS.Header1; 
+		ptr = hdr->AS.Header; 
 		*(uint32_t*)(ptr+2) = l_endian_u32(hdr->HeadLen); 
 		crc = CRCEvaluate(ptr+2,hdr->HeadLen-2); 
 		*(int16_t*)ptr      = l_endian_u16(crc);
-		FWRITE(hdr->AS.Header1, sizeof(char), hdr->HeadLen, hdr);
+		FWRITE(hdr->AS.Header, sizeof(char), hdr->HeadLen, hdr);
 	}		
 	else if ((hdr->FILE.OPEN>1) && (hdr->TYPE==HL7aECG))
 	{
@@ -2521,8 +2520,8 @@ int sclose(HDRTYPE* hdr)
     	if (hdr->AS.bi != NULL)	
         	free(hdr->AS.bi);
 // fprintf(stdout,"sclose: 07\n");
-    	if (hdr->AS.Header1 != NULL)	
-        	free(hdr->AS.Header1);
+    	if (hdr->AS.Header != NULL)	
+        	free(hdr->AS.Header);
 
 // fprintf(stdout,"sclose: 08\n");
     	if (hdr->EVENT.POS != NULL)	

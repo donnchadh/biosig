@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.54 2007-08-06 15:24:26 schloegl Exp $
+% $Id: biosig.h,v 1.55 2007-08-07 07:52:56 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -388,7 +388,7 @@ typedef struct {
 		uint32_t 	spb;		/* total samples per block */
 		uint32_t 	bpb;  		/* total bytes per block */
 		uint32_t 	*bi;
-		uint8_t*	Header1; 
+		uint8_t*	Header; 
 		uint8_t*	rawdata; 	/* raw data block */ 
 	} AS;
 	
