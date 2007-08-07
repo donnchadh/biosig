@@ -53,7 +53,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.185 2007-08-06 15:16:31 schloegl Exp $
+%	$Id: sopen.m,v 1.186 2007-08-07 10:34:58 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -3834,10 +3834,10 @@ elseif strcmp(HDR.TYPE,'EGI'),
         
         if any(HDR.VERSION==[2,4,6]),
                 HDR.SPR  = fread(HDR.FILE.FID, 1 ,'int32');
-                HDR.EVENT.N = fread(HDR.FILE.FID,1,'int16');
+                HDR.EGI.N = fread(HDR.FILE.FID,1,'int16');
                 HDR.NRec = 1;
                 HDR.FLAG.TRIGGERED = logical(0); 
-                HDR.AS.spb = HDR.NS;
+                HDR.AS.spb = HDR.NS+HDR.EGI.N;
                 HDR.AS.endpos = HDR.SPR;
                 HDR.Dur = 1/HDR.SampleRate;
         elseif any(HDR.VERSION==[3,5,7]),
@@ -3850,9 +3850,9 @@ elseif strcmp(HDR.TYPE,'EGI'),
                 end
                 HDR.NRec = fread(HDR.FILE.FID,1,'int16');
                 HDR.SPR  = fread(HDR.FILE.FID,1,'int32');
-                HDR.EVENT.N = fread(HDR.FILE.FID,1,'int16');
+                HDR.EGI.N = fread(HDR.FILE.FID,1,'int16');
                 HDR.FLAG.TRIGGERED = logical(1); 
-                HDR.AS.spb = HDR.SPR*(HDR.NS+HDR.EVENT.N);
+                HDR.AS.spb = HDR.SPR*(HDR.NS+HDR.EGI.N);
                 HDR.AS.endpos = HDR.NRec;
                 HDR.Dur = HDR.SPR/HDR.SampleRate;
         else
@@ -3862,26 +3862,40 @@ elseif strcmp(HDR.TYPE,'EGI'),
         
         % get datatype from version number
         if any(HDR.VERSION==[2,3]),
-                HDR.GDFTYP = 'int16';
-                HDR.AS.bpb = HDR.AS.spb*2;
+                HDR.GDFTYP = 3; % 'int16';
         elseif any(HDR.VERSION==[4,5]),
-                HDR.GDFTYP = 'float32';
-                HDR.AS.bpb = HDR.AS.spb*4;
+                HDR.GDFTYP = 16; % 'float32';
         elseif any(HDR.VERSION==[6,7]),
-                HDR.GDFTYP = 'float64';
-                HDR.AS.bpb = HDR.AS.spb*8;
+                HDR.GDFTYP = 17; % 'float64';
         else
                 error('Unknown data format');
         end
-        HDR.AS.bpb = HDR.AS.bpb + 6*HDR.FLAG.TRIGGERED;
+        HDR.AS.bpb = HDR.AS.spb*GDFTYP_BYTE(HDR.GDFTYP+1) + 6*HDR.FLAG.TRIGGERED;
         
-        tmp = fread(HDR.FILE.FID,[4,HDR.EVENT.N],'uchar');
-        HDR.EGI.eventcode = reshape(tmp,[4,HDR.EVENT.N])';
-        HDR.EVENT.TYP = HDR.EGI.eventcode*(2.^[24;16;8;0]);
+        tmp = fread(HDR.FILE.FID,[4,HDR.EGI.N],'uchar');
+        HDR.EGI.eventcode = reshape(tmp,[4,HDR.EGI.N])';
+        HDR.EVENT.DescCode = HDR.EGI.eventcode*(2.^[24;16;8;0]);
         
-        HDR.HeadLen = ftell(HDR.FILE.FID);
-        HDR.FILE.POS= 0;
+        HDR.HeadLen   = ftell(HDR.FILE.FID);
+        HDR.FILE.POS  = 0;
 	HDR.FILE.OPEN = 1; 
+	
+	% extract event information 
+        if HDR.FLAG.TRIGGERED,
+        	fprintf(stdout,'Warning: reading EVENT information of triggered EGI data not fully supported (yet)\n'); 
+        	fprintf(stdout,'Contact a.schloegl@ieee.org if you need this.\n'); 
+        else
+		fseek(HDR.FILE.FID,HDR.HeadLen + HDR.NS*GDFTYP_BYTE(HDR.GDFTYP+1),'bof');
+		typ = [int2str(HDR.EGI.N),'*',gdfdatatype(HDR.GDFTYP),'=>',gdfdatatype(HDR.GDFTYP)];
+		[s,count] = fread(HDR.FILE.FID,inf, typ, HDR.NS*GDFTYP_BYTE(HDR.GDFTYP+1));
+
+		s = reshape(s, HDR.EGI.N, length(s)/HDR.EGI.N)'; 
+                if (HDR.EGI.N > 0),
+			[HDR.EVENT.POS,HDR.EVENT.CHN,HDR.EVENT.TYP] = find(s);
+	                HDR.EVENT.DUR = ones(size(HDR.EVENT.POS)); 
+                end
+	end;
+        HDR.HeadLen = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
 
 
 elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
