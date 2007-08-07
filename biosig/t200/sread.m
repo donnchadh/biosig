@@ -34,7 +34,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.86 2007-08-06 15:20:04 schloegl Exp $
+%	$Id: sread.m,v 1.87 2007-08-07 10:35:17 schloegl Exp $
 %	(C) 1997-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -49,7 +49,7 @@ if ~isnumeric(NoS) | (NoS<0),
         fprintf(HDR.FILE.stderr,'Error SREAD: NoS must be non-negative number\n');
         return;
 end;
-if (nargin==3) 
+if (nargin>=3) 
         if (StartPos<0),
                 fprintf(HDR.FILE.stderr,'Error SREAD: StartPos must be non-negative\n');
                 return;
@@ -60,7 +60,7 @@ if (nargin==3)
                 StartPos = round(tmp)/HDR.SampleRate;
         end;
 else
-        StartPos = HDR.FILE.POS; 
+        StartPos = HDR.FILE.POS/HDR.SampleRate; 
 end;
 
 tmp = HDR.SampleRate*NoS;
@@ -70,7 +70,7 @@ if tmp ~= round(tmp),
 end;
 
 % define HDR.out.EVENT. This is used by EEGLAB. 
-ix = (HDR.EVENT.POS >= StartPos) & (HDR.EVENT.POS <= StartPos+NoS); 
+ix = (HDR.EVENT.POS >= StartPos*HDR.SampleRate) & (HDR.EVENT.POS <= (StartPos+NoS)*HDR.SampleRate); 
 HDR.out.EVENT.POS = HDR.EVENT.POS(ix)-StartPos;
 HDR.out.EVENT.TYP = HDR.EVENT.TYP(ix);
 if isfield(HDR.EVENT,'CHN')
@@ -367,7 +367,6 @@ elseif strcmp(HDR.TYPE,'SMA'),
         HDR.SMA.events = diff(sign([HDR.Filter.T0',S(HDR.SMA.EVENT_CHANNEL,:)]-HDR.SMA.EVENT_THRESH))>0;
         HDR.EVENT.POS = find(HDR.SMA.events);
         HDR.EVENT.TYP = HDR.SMA.events(HDR.EVENT.POS);
-        HDR.EVENT.N = length(HDR.EVENT.POS);
         
         if size(S,2) > 0,
                 HDR.Filter.T0 = S(HDR.SMA.EVENT_CHANNEL,size(S,2))';
@@ -611,31 +610,26 @@ elseif strcmp(HDR.TYPE,'EGI'),
                         SegmentCatIndex(HDR.FILE.POS+i) = fread(HDR.FILE.FID,1,'uint16');
                         SegmentStartTime(HDR.FILE.POS+i) = fread(HDR.FILE.FID,1,'uint32');
                         
-                        [s,count] = fread(HDR.FILE.FID, [HDR.NS + HDR.EVENT.N, HDR.SPR], HDR.GDFTYP);
-                        tmp = (HDR.NS + HDR.EVENT.N) * HDR.SPR;
+                        [s,count] = fread(HDR.FILE.FID, [HDR.NS + HDR.EGI.N, HDR.SPR], gdfdatatype(HDR.GDFTYP));
+                        tmp = (HDR.NS + HDR.EGI.N) * HDR.SPR;
 	                if isfinite(tmp) & (count < tmp),
                                 fprintf(HDR.FILE.stderr,'Warning SREAD EGI: only %i out of %i samples read\n',count,tmp);
                         end;
                         HDR.FILE.POS = HDR.FILE.POS + count/tmp;
                         
-                        if (HDR.EVENT.N > 0),
+                        if (HDR.EGI.N > 0),
                                 [HDR.EVENT.POS,HDR.EVENT.CHN,HDR.EVENT.TYP] = find(s(HDR.NS+1:size(s,1),:)');
-                                HDR.EVENT.N = length(HDR.EVENT.POS);
+	                        HDR.EVENT.DUR = ones(size(HDR.EVENT.POS)); 
                         end 
                         S((i-1)*HDR.SPR + (1:size(s,2)),:) = s(HDR.InChanSelect,:)';
                 end;
         else
-                [S,count] = fread(HDR.FILE.FID,[HDR.NS + HDR.EVENT.N, HDR.SampleRate*NoS],HDR.GDFTYP);
-                tmp = (HDR.NS + HDR.EVENT.N) * HDR.SampleRate * NoS;
+                [S,count] = fread(HDR.FILE.FID,[HDR.NS + HDR.EGI.N, HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP));
+                tmp = HDR.SampleRate * NoS;
                 if isfinite(tmp) & (count < tmp),
                         fprintf(HDR.FILE.stderr,'Warning SREAD EGI: only %i out of %i samples read\n',count,tmp);
                 end;
-                HDR.FILE.POS = HDR.FILE.POS + round(count/(HDR.NS + HDR.EVENT.N));
-                
-                if (HDR.EVENT.N > 0),
-                        [HDR.EVENT.POS,HDR.EVENT.CHN,HDR.EVENT.TYP] = find(S(HDR.NS+1:size(S,1),:)');
-                        HDR.EVENT.N = length(HDR.EVENT.POS);
-                end 
+                HDR.FILE.POS = HDR.FILE.POS + round(count/(HDR.NS + HDR.EGI.N));
                 S = S(HDR.InChanSelect,:)';
         end;
         
