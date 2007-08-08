@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.86 2007-08-08 13:15:40 schloegl Exp $
+    $Id: biosig.c,v 1.87 2007-08-08 16:26:10 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -790,7 +790,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     		}
     	}
 
-	const uint8_t MAGIC_NUMBER_FEF1[] = {67,69,78,13,10,0x1a,4,0x84};
+ 	const uint8_t MAGIC_NUMBER_FEF1[] = {67,69,78,13,10,0x1a,4,0x84};
 	const uint8_t MAGIC_NUMBER_FEF2[] = {67,69,78,0x13,0x10,0x1a,4,0x84};
 	const uint8_t MAGIC_NUMBER_GZIP[] = {31,139,8};
 	const uint8_t MAGIC_NUMBER_Z[]    = {31,157,144};
@@ -904,8 +904,18 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	else if (!memcmp(Header1,MAGIC_NUMBER_ZIP,sizeof(MAGIC_NUMBER_ZIP)))
 		hdr->TYPE = ZIP;
 	else if (!memcmp(Header1,"<?xml version",13))
-		hdr->TYPE = HL7aECG;                    
-    	
+		hdr->TYPE = HL7aECG;
+	else if ( (l_endian_u32(*(uint32_t*)Header1) & 0x00FFFFFFL) == 0x00BFBBEFL  
+		&& !memcmp(Header1+3,"<?xml version",13))
+		hdr->TYPE = HL7aECG;	// UTF8
+	else if (*(uint16_t*)Header1[0]==0xFFFE) 
+	{	hdr->TYPE = XML; // UTF16 BigEndian 
+		hdr->FILE.LittleEndian = 0;
+    	}
+	else if (*(uint16_t*)Header1[0]==0xFEFF) 
+	{	hdr->TYPE = XML; // UTF16 LittleEndian 
+		hdr->FILE.LittleEndian = 1;
+    	}
 	return(hdr); 
 }
 
