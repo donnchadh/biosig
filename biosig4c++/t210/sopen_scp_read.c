@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.23 2007-08-07 07:52:57 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.24 2007-08-08 13:15:05 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -372,12 +372,12 @@ if (AS_DECODE) continue;
 			
 			if (hdr->aECG->FLAG.DIFF==1)
 				for (k1 = 0; k1 < hdr->NS; k1++)
-				for (k2 = 1, ix = k1*hdr->SPR; k2 < hdr->SPR; k2++, ix++)
+				for (ix = k1*hdr->SPR+1; ix < (k1+1)*hdr->SPR; ix++)
 					data[ix] += data[ix-1];
 
 			else if (hdr->aECG->FLAG.DIFF==2)
 				for (k1 = 0; k1 < hdr->NS; k1++)
-				for (k2 = 2, ix = k1*hdr->SPR; k2 < hdr->SPR; k2++, ix++)
+				for (ix = k1*hdr->SPR+2; ix < (k1+1)*hdr->SPR; ix++)
 					data[ix] += 2*data[ix-1] - data[ix-2];
 			
 			curSectPos += 6 + 2*hdr->NS + len;
