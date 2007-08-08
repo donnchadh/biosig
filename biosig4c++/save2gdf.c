@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.16 2007-08-07 07:52:56 schloegl Exp $
+    $Id: save2gdf.c,v 1.17 2007-08-08 13:15:40 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -38,6 +38,7 @@ int main(int argc, char **argv){
     char 	*source, *dest, tmp[1024]; 
     enum FileFormat TARGET_TYPE=GDF; 		// type of file format
     int		COMPRESSION_LEVEL=0;
+    int		status; 
 	
     if (argc<2)
     	;
@@ -115,7 +116,8 @@ int main(int argc, char **argv){
     	}	
 
 	hdr = sopen(source, "r", NULL);
-
+	if (status=serror()) exit(status); 
+	
 	if (hdr==NULL) exit(-1);
 	if (dest==NULL) 
 	{
@@ -142,20 +144,21 @@ int main(int argc, char **argv){
 
 		for (int k=0; k<hdr->NS; k++) {
 			cp = hdr->CHANNEL+k; 
-			fprintf(stdout,"\n#%2i: %3i %7s\t%5f %5f %s\t%i\t%5f\t%5f\t%5f\t%5f",k,cp->LeadIdCode,cp->Label,cp->Cal,cp->Off,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin);
+			fprintf(stdout,"\n#%2i: %3i %7s\t%5f %5f %s\t%i\t%5f\t%5f\t%5f\t%5f\t%i(%i bytes)",k,cp->LeadIdCode,cp->Label,cp->Cal,cp->Off,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin,cp->GDFTYP,GDFTYP_BYTE[cp->GDFTYP]);
 		}
 	}
 
 	hdr->FLAG.OVERFLOWDETECTION = 0;
 	hdr->FLAG.UCAL = 1;
-
+	
 	count = sread(hdr, 0, hdr->NRec);
+	if (status=serror()) exit(status); 
 
-	fprintf(stdout,"\nFile %s read successfully.\n",hdr->FileName);
+	fprintf(stdout,"\nFile %s read successfully [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
 	if (dest==NULL) {
 		sclose(hdr);
 		free(hdr);
-		return(0);
+		exit(serror());
 	}
 
 	if (hdr->FILE.OPEN){
@@ -207,6 +210,8 @@ int main(int argc, char **argv){
 		    		hdr->CHANNEL[k].GDFTYP = 5;
 			else if ((MaxValue <= ldexp(1.0,32)-1.0) && (MinValue >= 0.0))
 		    		hdr->CHANNEL[k].GDFTYP = 6;
+
+	    		hdr->CHANNEL[k].GDFTYP = 5;
 		}
 	}
 
@@ -216,7 +221,13 @@ int main(int argc, char **argv){
 		strcat(tmp,".gz");
 
 	hdr = sopen(tmp, "wb", hdr);
+	if (status=serror()) exit(status); 
+
+	fprintf(stdout,"\nFile %s opened. %i %i \n",hdr->FileName,hdr->AS.bpb,hdr->NS);
+
 	swrite(hdr->data.block, hdr->NRec, hdr);
+	if (status=serror()) exit(status); 
     	sclose(hdr);
     	free(hdr);
+	exit(serror()); 
 }

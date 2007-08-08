@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.55 2007-08-07 07:52:56 schloegl Exp $
+% $Id: biosig.h,v 1.56 2007-08-08 13:15:40 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -29,6 +29,29 @@
 	Currently, the GDF-Header is defined. 
    
 */
+
+/****************************************************************************/
+/**                                                                        **/
+/**                CONSTANTS                      **/
+/**                                                                        **/
+/****************************************************************************/
+
+
+
+#define B4C_NO_ERROR 		 0
+#define B4C_FORMAT_UNKNOWN 	-1
+#define B4C_FORMAT_UNSUPPORTED 	-2
+#define B4C_CANNOT_OPEN_FILE 	-3
+#define B4C_CANNOT_WRITE_FILE 	-4
+#define B4C_INSUFFICIENT_MEMORY	-5
+#define B4C_ENDIAN_PROBLEM	-6
+#define B4C_CRC_ERROR		-7
+#define B4C_DATATYPE_UNSUPPORTED 	-8
+#define B4C_SCLOSE_FAILED 	-9
+#define B4C_UNSPECIFIC_ERROR 	-127
+
+
+
 
 /****************************************************************************/
 /**                                                                        **/
@@ -142,7 +165,7 @@ enum FileFormat {
 	ABF, ACQ, ACR_NEMA, AIFC, AIFF, alpha, AU, ASF, AVI,
 	BKR, BCI2000, BDF, BMP, BrainVision, 
 	CDF, CFWB, CNT, 
-	DICOM, DEMG, EDF, EEProbe, EVENT, EXIF, 
+	DICOM, DEMG, EDF, EEProbe, EGI, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, 
 	GIF, GZIP, HL7aECG, JPEG, 
 	Matlab, MFER, MIDI, NetCDF, NEX1, OGG, 
@@ -389,7 +412,7 @@ typedef struct {
 		uint32_t 	bpb;  		/* total bytes per block */
 		uint32_t 	*bi;
 		uint8_t*	Header; 
-		uint8_t*	rawdata; 	/* raw data block */ 
+		uint8_t*	rawdata; 	/* raw data block */
 	} AS;
 	
 	CHANNEL_TYPE *CHANNEL;  
@@ -458,6 +481,7 @@ int	seof(HDRTYPE* hdr);
 void	srewind(HDRTYPE* hdr);
 int 	sseek(HDRTYPE* hdr, long int offset, int whence);
 long int stell(HDRTYPE* hdr);
+int 	serror();
 
 /****************************************************************************/
 /**                                                                        **/

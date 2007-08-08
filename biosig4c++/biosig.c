@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.85 2007-08-07 07:52:56 schloegl Exp $
+    $Id: biosig.c,v 1.86 2007-08-08 13:15:40 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -485,6 +485,10 @@ int strcmpi(const char* str1, const char* str2)
 	whether STDIO or ZLIB is used. 
  */
 int errnum;
+int B4C_STATUS  = 0;
+int B4C_ERRNUM  = 0;
+char* B4C_ERRMSG= 0;
+
 HDRTYPE* FOPEN(HDRTYPE* hdr, char* mode) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION) 
@@ -656,11 +660,13 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->FILE.LittleEndian = (EndianTest.testbyte[0]==0x1d); 
 	
 	if  ((hdr->FILE.LittleEndian) && (__BYTE_ORDER == __BIG_ENDIAN))	{
-		fprintf(stderr,"Panic: mixed results on Endianity test.\n"); 
+		B4C_ERRNUM = B4C_ENDIAN_PROBLEM;
+		B4C_ERRMSG = "Panic: mixed results on Endianity test.";
 		exit(-1); 
 	}		
 	if  ((!hdr->FILE.LittleEndian) && (__BYTE_ORDER == __LITTLE_ENDIAN))	{
-		fprintf(stderr,"Panic: mixed results on Endianity test.\n"); 
+		B4C_ERRNUM = B4C_ENDIAN_PROBLEM;
+		B4C_ERRMSG = "Panic: mixed results on Endianity test.";
 		exit(-1); 
 	}	
 
@@ -825,6 +831,10 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = EDF;
 	    	hdr->VERSION = 0; 
 	}
+    	else if (!memcmp(Header1,"\0\0\0",3) && Header1[3]>1 && Header1[3]<8) {
+	    	hdr->TYPE = EGI;
+	    	hdr->VERSION = Header1[3];
+    	}
     	else if (!memcmp(Header1,MAGIC_NUMBER_FEF1,8) | !memcmp(Header1,MAGIC_NUMBER_FEF2,8)) {
 	    	hdr->TYPE = FEF;
 		char tmp[9];
@@ -930,8 +940,9 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	char*		ptr_str;
 	struct tm 	tm_time; 
 	time_t		tt;
-	unsigned	EventChannel = 0;
-
+	unsigned	EventChannel = 0, GDFTYP;
+	uint16_t	EGI_LENGTH_CODETABLE;	// specific for EGI format 
+	
 	if (hdr==NULL)
 		hdr = create_default_hdr(0,0);	// initializes fields that may stay undefined during SOPEN 
 
@@ -946,8 +957,9 @@ if (!strncmp(MODE,"r",1))
         hdr = FOPEN(hdr,"rb");
     	if (!hdr->FILE.OPEN) 
     	{ 	
-    		fprintf(stderr,"Error SOPEN(READ); Cannot open file %s\n",FileName);
-    		free(hdr);    		
+    		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
+    		B4C_ERRMSG = "Error SOPEN(READ); Cannot open file.";		
+    		free(hdr);   
 		return(NULL);
     	}	    
     
@@ -956,7 +968,8 @@ if (!strncmp(MODE,"r",1))
 	hdr  = getfiletype(hdr);
     	
     	if (hdr->TYPE == unknown) {
-		fprintf(stdout,"ERROR BIOSIG SOPEN(read): Format of file %s not supported\n",hdr->FileName);
+    		B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
+    		B4C_ERRMSG = "ERROR BIOSIG SOPEN(read): Dataformat Format not known.\n";		
     		FCLOSE(hdr);
     		free(Header1);
     		free(hdr);
@@ -1046,7 +1059,7 @@ if (!strncmp(MODE,"r",1))
 	    	hdr->AS.Header = (uint8_t*)realloc(Header1,hdr->HeadLen);
 //	    	Header1 = (char*)hdr->AS.Header1; 
 	    	Header2 = (char*)Header1+256; 
-	    	count   = FREAD(Header2, 1, hdr->HeadLen-256, hdr);
+	    	count   += FREAD(Header2, 1, hdr->HeadLen-256, hdr);
 
 		for (k=0; k<hdr->NS; k++)	{
 			strncpy(hdr->CHANNEL[k].Label,Header2 + 16*k,min(16,MAX_LENGTH_LABEL));
@@ -1187,7 +1200,7 @@ if (!strncmp(MODE,"r",1))
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
 	    	Header2 = (char*)Header1+256; 
-	    	count   = FREAD(Header2, 1, hdr->HeadLen-256, hdr);
+	    	count  += FREAD(Header2, 1, hdr->HeadLen-256, hdr);
 
 		for (k=0; k<hdr->NS; k++)	{
 			strncpy(hdr->CHANNEL[k].Label,Header2 + 16*k,min(MAX_LENGTH_LABEL,16));
@@ -1260,14 +1273,14 @@ if (!strncmp(MODE,"r",1))
 		hdr->HeadLen += 4;	
 		// read header up to nLenght and nID of foreign data section 
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
-	    	count   = FREAD(Header1+256, 1, hdr->HeadLen-256, hdr);
+	    	count  += FREAD(Header1+256, 1, hdr->HeadLen-256, hdr);
 		uint32_t POS = hdr->HeadLen; 
 	    	
 		// read "foreign data section" and "per channel data types section"  
 		hdr->HeadLen += l_endian_u16(*(uint16_t*)(Header1+hdr->HeadLen-4));
 		hdr->HeadLen += 4*hdr->NS; 
 	    	hdr->AS.Header = (uint8_t*)realloc(Header1,hdr->HeadLen+8);
-	    	count   = FREAD(Header1+POS, 1, hdr->HeadLen-POS, hdr);
+	    	count  += FREAD(Header1+POS, 1, hdr->HeadLen-POS, hdr);
 		
 		// define channel specific header information
 		hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
@@ -1322,7 +1335,8 @@ if (!strncmp(MODE,"r",1))
 				DataLen += ACQ_NoSamples[k]<<1; 
 				break;
 			default:
-				fprintf(stderr,"ERROR SOPEN(ACQ-READ): invalid type in channel %i.\n",k);	
+				B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
+				B4C_ERRMSG = "SOPEN(ACQ-READ): invalid channel type.";	
 			};
 			hdr->AS.spb += hdr->CHANNEL[k].SPR;
 			POS +=4; 
@@ -1363,7 +1377,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	else if (hdr->TYPE==BKR) {
 	    	hdr->AS.Header = (uint8_t*)realloc(Header1, hdr->HeadLen);
-	    	count   = FREAD(Header1+256,1,1024-256,hdr);
+	    	count   += FREAD(Header1+256,1,1024-256,hdr);
 	    	hdr->HeadLen 	 = 1024; 
 		hdr->NS  	 = l_endian_u16( *(uint16_t*) (Header1+2) ); 
 		hdr->SampleRate  = (double)l_endian_u16( *(uint16_t*) (Header1+4) ); 
@@ -1409,7 +1423,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->HeadLen = 68 + hdr->NS*96; 
 	    	hdr->AS.Header = (uint8_t*)realloc(Header1,hdr->HeadLen);
 	    	if (count<=hdr->HeadLen)
-			count = FREAD(Header1+count, 1, hdr->HeadLen-count, hdr);
+			count += FREAD(Header1+count, 1, hdr->HeadLen-count, hdr);
 		else 	
 	    		FSEEK(hdr, hdr->HeadLen, SEEK_SET);
 		
@@ -1435,7 +1449,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	else if (hdr->TYPE==CNT) {
 	    	hdr->AS.Header = (uint8_t*)realloc(Header1,900);
 	    	hdr->VERSION = atof((char*)Header1+8);
-	    	count   = FREAD(Header1+256,1,900-256,hdr);
+	    	count  += FREAD(Header1+count,1,900-count,hdr);
 
 	    	ptr_str = (char*)Header1+136;
     		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
@@ -1461,7 +1475,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
 	    	Header2 = (char*)Header1+900; 
-	    	count   = FREAD(Header2,1,hdr->NS*75,hdr);
+	    	count  += FREAD(Header2,1,hdr->NS*75,hdr);
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS;k++)	{
@@ -1485,6 +1499,84 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	FSEEK(hdr, 68, SEEK_SET);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	}
+	else if (hdr->TYPE==EGI) {
+		// BigEndian 
+	    	hdr->VERSION  	= b_endian_u32(*(uint32_t*)Header1);
+    		if      (hdr->VERSION==2 || hdr->VERSION==3)	GDFTYP = 3;	//int32
+    		else if (hdr->VERSION==4 || hdr->VERSION==5)	GDFTYP = 16;	//float
+    		else if (hdr->VERSION==6 || hdr->VERSION==7)	GDFTYP = 17;	// double
+	    	tm_time.tm_year = b_endian_u16(*(uint16_t*)(Header1+4));
+	    	tm_time.tm_mon  = b_endian_u16(*(uint16_t*)(Header1+6));
+	    	tm_time.tm_mday = b_endian_u16(*(uint16_t*)(Header1+8));
+	    	tm_time.tm_hour = b_endian_u16(*(uint16_t*)(Header1+10));
+	    	tm_time.tm_min  = b_endian_u16(*(uint16_t*)(Header1+12));
+	    	tm_time.tm_sec  = b_endian_u16(*(uint16_t*)(Header1+14));
+	    	// tm_time.tm_sec  = b_endian_u32(*(uint32_t*)(Header1+16))/1000; // not supported by tm_time
+	    	hdr->T0 = tm_time2gdf_time(&tm_time);
+	    	hdr->SampleRate = b_endian_u16(*(uint16_t*)(Header1+20));
+    		hdr->Dur[0] 	= 1;
+    		hdr->Dur[1] 	= b_endian_u16(*(uint16_t*)(Header1+20));
+	    	hdr->NS         = b_endian_u16(*(uint16_t*)(Header1+22));
+	    	uint16_t  Gain  = b_endian_u16(*(uint16_t*)(Header1+24));
+	    	uint16_t  Bits  = b_endian_u16(*(uint16_t*)(Header1+26));
+	    	uint16_t PhysMax= b_endian_u16(*(uint16_t*)(Header1+28));
+fprintf(stdout,"EGI: gain=%i bits=%i",Gain,Bits); 	    	
+	    	size_t POS; 
+	    	if (hdr->AS.Header[3] & 0x01)
+	    	{ 	// Version 3,5,7
+	    		POS = 32; 
+	    		for (k=0; k < b_endian_u16(*(uint16_t*)(Header1+30)); k++)
+	    			POS += *(Header1+POS);	// skip EGI categories 
+
+			if (POS > count-8) {
+				hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,POS+8);
+				count += FREAD(hdr->AS.Header,1,POS+8-count,hdr);
+			}
+
+	    		hdr->NRec= b_endian_u16(*(uint16_t*)(Header1+POS));
+	    		hdr->SPR = b_endian_u32(*(uint32_t*)(Header1+POS+2));
+	    		EGI_LENGTH_CODETABLE = b_endian_u16(*(uint16_t*)(Header1+POS+6));	// EGI.N
+	    		POS += 8; 
+	    	}
+	    	else
+	    	{ 	// Version 2,4,6
+	    		hdr->NRec = b_endian_u32(*(uint32_t*)(Header1+30));
+	    		EGI_LENGTH_CODETABLE = b_endian_u16(*(uint16_t*)(Header1+34));	// EGI.N
+	    		hdr->SPR  = 1;
+	    		/* see also end-of-sopen  
+	    		hdr->AS.spb = hdr->SPR+EGI_LENGTH_CODETABLE ;
+		    	hdr->AS.bpb = (hdr->NS + EGI_LENGTH_CODETABLE)*GDFTYP_BYTE[hdr->CHANNEL[0].GDFTYP];
+		    	*/    
+		    	POS = 36; 
+	    	}
+		POS += 4*EGI_LENGTH_CODETABLE;	    	// skip event codes
+		hdr->HeadLen = POS; 
+		FSEEK(hdr,hdr->HeadLen,SEEK_SET);
+		hdr->FILE.POS  = 0;
+
+		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+	    	for (k=0; k<hdr->NS; k++) {
+    			hdr->CHANNEL[k].GDFTYP = GDFTYP;
+	    		hdr->CHANNEL[k].PhysDimCode = 4275;  // "uV"
+	    		sprintf(hdr->CHANNEL[k].Label,"# %03i",k);  
+	    		hdr->CHANNEL[k].Cal     = PhysMax/ldexp(1,Bits);
+	    		hdr->CHANNEL[k].Off     = 0;
+	    		hdr->CHANNEL[k].SPR     = hdr->SPR;
+		    	if (Bits && PhysMax) {
+		    		hdr->CHANNEL[k].PhysMax = PhysMax;
+		    		hdr->CHANNEL[k].PhysMin = -PhysMax;
+	    			hdr->CHANNEL[k].DigMax  = ldexp(1,Bits);
+	    			hdr->CHANNEL[k].DigMin  = ldexp(-1,Bits);
+	    		} 
+	    		else {	
+/*	    		hdr->CHANNEL[k].PhysMax = PhysMax;
+	    		hdr->CHANNEL[k].PhysMin = -PhysMax;
+	    		hdr->CHANNEL[k].DigMax  = ldexp(1,Bits);
+	    		hdr->CHANNEL[k].DigMin  = ldexp(-1,Bits);
+*/	    		hdr->CHANNEL[k].Cal     = 1.0;
+	    		}
+	    	}  
+	}
 	
 	else if (hdr->TYPE==SCP_ECG) {
 		hdr->HeadLen   = l_endian_u32(*(uint32_t*)(hdr->AS.Header+2));
@@ -1492,9 +1584,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	count += FREAD(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
 	    	uint16_t crc   = CRCEvaluate(hdr->AS.Header+2,hdr->HeadLen-2);
 
-	    	if ( l_endian_u16(*(uint16_t*)hdr->AS.Header) != crc)
-	    		fprintf(stderr,"Warning SOPEN(SCP-READ): Bad CRC %x %x !\n",crc,*(uint16_t*)(Header1));
-
+	    	if ( l_endian_u16(*(uint16_t*)hdr->AS.Header) != crc) {
+	    		B4C_ERRNUM = B4C_CRC_ERROR;
+	    		B4C_ERRMSG = "Warning SOPEN(SCP-READ): Bad CRC!";
+		}
 		hdr = sopen_SCP_read(hdr);
 	}
 	
@@ -1504,7 +1597,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 	else 
 	{
-		fprintf(stdout,"ERROR BIOSIG SOPEN(READ): Format %i of file %s not supported\n",hdr->TYPE,hdr->FileName);
+    		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+    		B4C_ERRMSG = "ERROR BIOSIG SOPEN(READ): data format is not supported";		
     		FCLOSE(hdr);
     		free(Header1);
     		free(hdr);
@@ -1536,11 +1630,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			strcpy(hdr->CHANNEL[k].Label,LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode]);
 
 	}
-//	/* release   
-	free(hdr->AS.Header); 
-	hdr->AS.Header = NULL; 
-//	*/	
-	
 }
 else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 {
@@ -1816,7 +1905,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 	}
 	else {
-    	 	fprintf(stderr,"ERROR: Writing of format (%c) not supported\n",hdr->TYPE);
+		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+		B4C_ERRMSG = "ERROR: Writing of format not supported\n"; 
 		return(NULL); 
 	}
 
@@ -1825,12 +1915,14 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    	hdr = FOPEN(hdr,"wb");
 		
 		if (!hdr->FILE.COMPRESSION && hdr->FILE.FID == NULL ){
-		     	fprintf(stderr,"ERROR: Unable to open file %s \n",FileName);
+			B4C_ERRNUM = B4C_CANNOT_WRITE_FILE;
+			B4C_ERRMSG = "ERROR: Unable to open file for writing.\n"; 
 			return(NULL);
 		}
 #ifdef ZLIB_H	
 		if (hdr->FILE.COMPRESSION && hdr->FILE.gzFID == NULL ){
-		     	fprintf(stderr,"ERROR: Unable to open gzip file %s \n",FileName);
+			B4C_ERRNUM = B4C_CANNOT_WRITE_FILE;
+			B4C_ERRMSG = "ERROR: Unable to open file for writing.\n"; 
 			return(NULL);
 		}
 #endif
@@ -1849,11 +1941,17 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	hdr->AS.bi[0] = 0;
 	for (k=0, hdr->SPR = 1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS; k++) {
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
-		hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
+		hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR;			
 		hdr->AS.bi[k+1] = hdr->AS.bpb; 
 		if (hdr->CHANNEL[k].SPR>0)  // ignore sparse channels
 			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
-	}	
+//fprintf(stdout,"-#-#: %i %i\n",k,hdr->AS.bpb);			
+	}
+	if (hdr->TYPE==EGI) {
+		hdr->AS.bpb += EGI_LENGTH_CODETABLE * GDFTYP_BYTE[GDFTYP];
+		if (hdr->AS.Header[3] & 0x01)	// triggered  
+			hdr->AS.bpb += 6;
+	}
 	return(hdr);
 }  // end of SOPEN 
 
@@ -1886,14 +1984,12 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 
 	if (hdr->TYPE != SCP_ECG && hdr->TYPE != HL7aECG) {	
 		// check reading segment 
-		if (start >= 0) {
-			if (start > hdr->NRec) 
-				return(0);
-			else if (FSEEK(hdr, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET)<0)
-				return(0);
-			hdr->FILE.POS = start; 	
-		}
-
+		if (start < 0 || start > hdr->NRec) 
+			return(0);
+		else if (FSEEK(hdr, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET)<0)
+			return(0);
+		hdr->FILE.POS = start; 	
+		
 		// allocate AS.rawdata 	
 		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
 
@@ -1975,7 +2071,8 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 				sample_value = (biosig_data_type)int32_value; 
 			}	
 			else {
-				fprintf(stderr,"Error SREAD: datatype %i not supported\n",GDFTYP);
+				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
+				B4C_ERRMSG = "Error SREAD: datatype not supported";
 				exit(-1);
 			}
 
@@ -2104,8 +2201,9 @@ size_t sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDR
 				sample_value = (biosig_data_type)int32_value; 
 			}	
 			else {
-				fprintf(stderr,"Error SREAD: datatype %i not supported\n",GDFTYP);
-				exit(-1);
+				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
+				B4C_ERRMSG = "READ: datatype not supported";
+ 				exit(-1);
 			}
 
 			// overflow and saturation detection 
@@ -2181,7 +2279,8 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	{
 		ptr = realloc(hdr->AS.rawdata, hdr->AS.bpb*hdr->NRec);
 		if (ptr==NULL) {
-			fprintf(stderr,"memory allocation failed .\n");
+			B4C_ERRNUM = B4C_INSUFFICIENT_MEMORY;
+			B4C_ERRMSG = "SWRITE: memory allocation failed.";
 			exit(-1);
 		}	
 		else 	 
@@ -2307,7 +2406,8 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			}
 
 			else {
-				fprintf(stderr,"Error SWRITE: datatype %i not supported\n", GDFTYP);
+				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
+				B4C_ERRMSG = "SWRITE: datatype not supported";
 				exit(-1);
 			}
 		}
@@ -2496,8 +2596,7 @@ int sclose(HDRTYPE* hdr)
 
 	if (hdr->FILE.OPEN > 0) {
 		int status = FCLOSE(hdr);
-		if (status) fprintf(stderr,"biosig.c:sclose Error closing file\n");
-    		hdr->FILE.FID = 0;
+		if (status) FERROR(hdr);
     	}	
 
     	if (hdr->aECG != NULL)	
@@ -2541,6 +2640,15 @@ int sclose(HDRTYPE* hdr)
     	return(0);
 }
 
+
+int serror() {
+	int status = B4C_ERRNUM; 
+	if (status) {
+		fprintf(stderr,"ERROR %i: %s\n",B4C_ERRNUM,B4C_ERRMSG);
+		B4C_ERRNUM = 0;
+	}
+	return(status);
+}
 
 /****************************************************************************/
 /**                                                                        **/
