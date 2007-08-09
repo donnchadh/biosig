@@ -22,7 +22,7 @@
 %  you can excluded the path to NaN/*. The BIOSIG tools will still 
 %  work, but does not support the handling of NaN's.
 
-%	$Id: install.m,v 1.15 2007-03-25 20:01:36 schloegl Exp $
+%	$Id: install.m,v 1.16 2007-08-09 20:06:07 schloegl Exp $
 %	Copyright (C) 2003-2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -57,12 +57,6 @@ path([BIOSIG_HOME,'/tsa/inst'],path);		%  Time Series Analysis
 path([BIOSIG_HOME,'/NaN'],path);		%  Statistics analysis for missing data
 path([BIOSIG_HOME,'/NaN/inst'],path);		%  Statistics analysis for missing data
 
-if exist([BIOSIG_HOME,'/biosig/eeglab'],'dir'),
-	path([BIOSIG_HOME,'/biosig/eeglab'],path);
-end;
-if exist([BIOSIG_HOME,'/eeglab'],'dir'),
-	path([BIOSIG_HOME,'/eeglab'],path);
-end;
 %%% NONFREE %%%
 if exist([BIOSIG_HOME,'/biosig/NONFREE/EEProbe'],'dir'),
 	path(path,[BIOSIG_HOME,'/biosig/NONFREE/EEProbe']);	% Robert Oostenveld's MEX-files to access EEProbe data
@@ -73,7 +67,7 @@ end;
 
 ver = version; 
 if (str2double(ver(1:3))<7.0)
-	path(path,[BIOSIG_HOME,'/maybe-missing']);
+	path(path,[BIOSIG_HOME,'/biosig/maybe-missing']);
 end
 
 % test of installation 
