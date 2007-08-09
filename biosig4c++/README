@@ -4,7 +4,10 @@ Introduction:
 The aim of this repository is providing a C/C++ software library for biomedical signal processing. 
 This library is called "BioSig for C/C++" and is complementary to "BioSig for Octave and Matlab".  
 
-The internal data structure should resemble the one for Octave/Matlab
+The most important application is a converter between different file formats, 
+including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, CWFB.
+
+The internal data structure resemble the header structure similar 
 http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig/doc/header.txt
 and is defined in
 http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig4c%2B%2B/biosig.h
@@ -13,9 +16,8 @@ http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig4c%2B%2B/biosig.h
 Encoding of Event/Markers/Annotations is available here: 
 http://hci.tugraz.at/schloegl/matlab/eeg/EventCodes.html
 
-A list of supported data formats is available here: 
+The latest list of supported data formats is available here: 
 http://hci.tugraz.at/schloegl/biosig/TESTED
-
 
 
 File(s): 
@@ -23,16 +25,35 @@ File(s):
     README 	this file
     biosig.h	definition of biosig data structures	
     biosig.c	SOPEN, SREAD, SWRITE, SEOF, SCLOSE functions 
-    demo.c	demo how to use them 
+    demo.c	demo how to use them
+    save2gdf.c	converter between various file formats.
     t210/*	reading SCP file format 
     t220/*      writing SCP file format 
     t230/*      support of HL7aECG file format 
+    test0/*	scripts and functions for testing
     Makefile	script for compiling and testing 
+    
 		
-Installation: 
+Compilation: 
 -------------
-# compilation 
-run make
+# Linux 
+you need g++ and make. Running make compiles the converter
+$make<CR>
+
+# Cygwin
+install g++, make (optionally zlib) and compile it. 
+
+# Other platforms (Windows, MGwin, MacOSX, Solaris, etc. )
+Not tested (yet). Let me know about successful compilations, 
+or tell me what changes are needed.   
+
+
+Binary Install:
+----------------
+Precompiled binaries might be available here:
+http://www.openecg.net/SCP_aECG_Converter.htm 
+
+
 
 Execution:
 ----------
@@ -51,7 +72,20 @@ Execution:
 
 # converts a data file into a HL7aECG format (destination
 ./save2aecg t5.gdf t5.hl7      		
-./save2gdf -f=HL7aECG t5.gdf t5.scp      		
+./save2gdf -f=HL7aECG t5.gdf t5.hl7
+
+
+
+Known issues (v0.46): 
+---------------------
+Some SCP files (with high data compression) can cause segmentation 
+faults. As a workaround to this problem, we suggest using 
+BioSig4OctMat in combination with Octave or Matlab. BioSig4OctMat 
+supports (currently) a wider range of SCP files, at it can be used to 
+convert them (using save2gdf.m) into GDF format. 
+Then, these GDF files can be converted into HL7aECG using the converter 
+from BioSig4C++. 
+
 
 
 More information is available at http://biosig.sf.net/
