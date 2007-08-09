@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.17 2007-08-08 13:15:40 schloegl Exp $
+    $Id: save2gdf.c,v 1.18 2007-08-09 14:10:12 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -73,7 +73,7 @@ int main(int argc, char **argv){
 		if (strlen(argv[k])>3) {
 	    		COMPRESSION_LEVEL = argv[k][3]-48;
 	    		if (COMPRESSION_LEVEL<0 || COMPRESSION_LEVEL>9)
-				fprintf(stderr,"Error %s: Invalid Compression Level %c\n",argv[0],argv[k]); 
+				fprintf(stderr,"Error %s: Invalid Compression Level %s\n",argv[0],argv[k]); 
     		}   
 #else
 	     	fprintf(stderr,"Warning: option -z (compression) not supported. zlib not linked.\n");
@@ -116,7 +116,7 @@ int main(int argc, char **argv){
     	}	
 
 	hdr = sopen(source, "r", NULL);
-	if (status=serror()) exit(status); 
+	if ((status=serror())) exit(status); 
 	
 	if (hdr==NULL) exit(-1);
 	if (dest==NULL) 
@@ -152,7 +152,7 @@ int main(int argc, char **argv){
 	hdr->FLAG.UCAL = 1;
 	
 	count = sread(hdr, 0, hdr->NRec);
-	if (status=serror()) exit(status); 
+	if ((status=serror())) exit(status); 
 
 	fprintf(stdout,"\nFile %s read successfully [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
 	if (dest==NULL) {
@@ -210,8 +210,6 @@ int main(int argc, char **argv){
 		    		hdr->CHANNEL[k].GDFTYP = 5;
 			else if ((MaxValue <= ldexp(1.0,32)-1.0) && (MinValue >= 0.0))
 		    		hdr->CHANNEL[k].GDFTYP = 6;
-
-	    		hdr->CHANNEL[k].GDFTYP = 5;
 		}
 	}
 
@@ -221,12 +219,12 @@ int main(int argc, char **argv){
 		strcat(tmp,".gz");
 
 	hdr = sopen(tmp, "wb", hdr);
-	if (status=serror()) exit(status); 
+	if ((status=serror())) exit(status); 
 
 	fprintf(stdout,"\nFile %s opened. %i %i \n",hdr->FileName,hdr->AS.bpb,hdr->NS);
 
 	swrite(hdr->data.block, hdr->NRec, hdr);
-	if (status=serror()) exit(status); 
+	if ((status=serror())) exit(status); 
     	sclose(hdr);
     	free(hdr);
 	exit(serror()); 
