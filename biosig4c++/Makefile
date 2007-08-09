@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.23 2007-08-05 08:45:26 schloegl Exp $
+###  $Id: Makefile,v 1.24 2007-08-09 19:26:30 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -53,7 +53,7 @@ OBJECTS       = biosig.o \
 		t230/sopen_hl7aecg.o \
 		/usr/lib/libz.so
 
-TARGET        = save2gdf demo save2aecg save2scp gztest
+TARGET        = save2gdf demo save2aecg save2scp 
 
 first: all
 all: $(TARGET)
@@ -71,6 +71,8 @@ demo:   demo.c $(OBJECTS)
 	$(CC) $(CFLAGS) $(OBJECTS) demo.c -o demo 
 save2gdf: save2gdf.c $(OBJECTS)
 	$(CC) $(CFLAGS) $(OBJECTS) save2gdf.c -o save2gdf 
+test_scp_decode: test0/test_scp_decode.c $(OBJECTS)
+	$(CC) $(CFLAGS) $(OBJECTS) test0/test_scp_decode.c -o test_scp_decode 
 gztest: test0/gztest.c $(OBJECTS)
 	$(CC) $(CFLAGS) $(OBJECTS) test0/gztest.c -o gztest
 mex:  mexBiosig.c $(OBJECTS) 
@@ -97,7 +99,8 @@ clean:
 
 ####### Testing ########
 test: PFE103.scp save2scp save2aecg save2gdf
-	cp PFE103.scp   t0.xxx
+#	cp PFE103.scp   t0.xxx
+	cp Exa01.xml   t0.xxx
 	./save2gdf      t0.xxx t3.gdf
 	./save2scp   	t0.xxx t3.scp
 	./save2aecg  	t0.xxx t3.hl7
@@ -141,7 +144,8 @@ zip: PFE103.scp save2gdf
 	./save2gdf -f=CFW t0.xxx.gz t1.cfw
 
 test6: PFE103.scp save2gdf
-	cp PFE103.scp   t0.xxx
+#	cp PFE103.scp   t0.xxx
+	cp Exa01.xml   t0.xxx
 	./save2gdf -z -f=GDF t0.xxx t1.gdf
 	./save2gdf -z -f=EDF t0.xxx t1.edf
 	./save2gdf -z -f=BDF t0.xxx t1.bdf
