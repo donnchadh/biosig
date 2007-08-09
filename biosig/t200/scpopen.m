@@ -2,9 +2,9 @@ function [HDR]=scpopen(arg1,CHAN,arg4,arg5,arg6)
 % SCPOPEN reads and writes SCP-ECG files 
 %
 % SCPOPEN is an auxillary function to SOPEN for 
-% opening of DICOM files for reading ECG waveform data
+% opening of SCP-ECG files for reading ECG waveform data
 % 
-% Use SCPOPEN instead of OPENDICOM  
+% Use SOPEN instead of SCPOPEN  
 % 
 % See also: fopen, SOPEN, 
 
@@ -23,8 +23,8 @@ function [HDR]=scpopen(arg1,CHAN,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.33 $
-%	$Id: scpopen.m,v 1.33 2006-08-31 18:24:11 schloegl Exp $
+%	$Revision: 1.34 $
+%	$Id: scpopen.m,v 1.34 2007-08-09 15:18:25 schloegl Exp $
 %	(C) 2004,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -35,7 +35,7 @@ if isstruct(arg1)
         FILENAME=HDR.FileName;
 elseif ischar(arg1); 
         HDR.FileName=arg1;
-        fprintf(2,'Warning OPENDICOM: the use of OPENDICOM is discouraged (OPENDICOM might disappear); please use SOPEN instead.\n');
+        fprintf(2,'Warning SCPOPEN: the use of SCPOPEN is discouraged; please use SOPEN instead.\n');
 end;
 
 VER = version;
@@ -574,7 +574,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
 				%S2 = S2(:,CHAN); 
                                 
                         elseif HDR.SCP2.NHT~=19999,
-                                fprintf(HDR.FILE.stderr,'Warning SOPEN SCP-ECG: user specified Huffman Table not supported\n');
+                                fprintf(HDR.FILE.stderr,'Error SOPEN SCP-ECG: user specified Huffman Table not supported\n');
                                 HDR.SCP = SCP;
                                 return;
                                 
@@ -642,7 +642,10 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         S2 = S1;
                                 end;
                                 
-                                if HDR.FLAG.ReferenceBeat,
+                                if HDR.FLAG.ReferenceBeat & ~isfield(HDR,'SCP5') 
+	                                fprintf(HDR.FILE.stderr,'Warning SOPEN SCP-ECG: Flag ReferenceBeat set, but no section 5 (containing the reference beat) is available\n');
+                                elseif HDR.FLAG.ReferenceBeat,
+
                                 	tmp_data = HDR.SCP5.data*(HDR.SCP5.Cal/HDR.SCP6.Cal); 
                                         for k = find(~HDR.SCP4.type(:,1)'),
                                                 t1 = (HDR.SCP4.type(k,2):HDR.SCP4.type(k,4));
@@ -956,7 +959,7 @@ function crc16 = crc16eval(D)
 	crc16ltab = hex2dec(reshape(t,2,length(t)/2)');
 
 	for k = 1:length(D),
-		ix = bitxor(crchi,D(k))+1;
+		ix = double(bitxor(crchi,D(k)))+1;
 		crchi = bitxor(crclo,crc16htab(ix));
 		crclo = crc16ltab(ix);
 	end;
