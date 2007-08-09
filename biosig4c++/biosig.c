@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.87 2007-08-08 16:26:10 schloegl Exp $
+    $Id: biosig.c,v 1.88 2007-08-09 13:12:06 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -2371,7 +2371,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				if (hdr->TYPE==HL7aECG)
 					*(int32_t*)ptr = val.i32; 
 				else	
-					*(int32_t*)ptr = l_endian_i16(val.i32); 
+					*(int32_t*)ptr = l_endian_i32(val.i32); 
 			}
 			else if (GDFTYP==6) {
 				if      (sample_value > ldexp(1.0,32)-1.0) val.u32 = MAX_UINT32;
