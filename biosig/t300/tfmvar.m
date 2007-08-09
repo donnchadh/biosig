@@ -61,6 +61,8 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %   AR		MVAR parameters
 %   C		covariance matrix of the innovation process	
 %   DC		directed granger causality [2,3,5,6]
+%   GGC		Geweke's Granger Causality (not quite the same as in [12,13]
+%   Af		Frequency transform of A(z)
 %
 % [R] = tfmvar(s,TRIG,T,MOP,f,Fs)
 %   R is a struct containing M and SE as well as a few more 
@@ -100,14 +102,16 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 % [8] Korzeniewska A., Manczak M., Kaminski M., Blinowska K. J., Kasicki S., Determination of Information Flow Direction Among Brain Structures By a Modified Directed Transfer Function (dDTF) Method, Journal of Neuroscience Methods 125, 2003
 % [9] A. Schl\"ogl, Comparison of Multivariate Autoregressive Estimators. Signal processing, Elsevier B.V. (in press). 
 %       available at http://dx.doi.org/doi:10.1016/j.sigpro.2005.11.007
-%
 % [10] http://www.physics.utah.edu/~detar/phycs6730/handouts/jackknife/jackknife/jackknife.html
 % [11] http://www-stat.stanford.edu/~susan/courses/s208/node16.html
+% [12] Geweke J., 1982. J.Am.Stat.Assoc., 77, 304-313.
+% [13] Bressler S.L., Richter C.G., Chen Y., Ding M. (2007)
+%	Cortical fuctional network organization from autoregressive modelling of loal field potential oscillations.
+%	Statistics in Medicine, doi: 10.1002/sim.2935 
 
-
-%	$Revision: 1.8 $
-%	$Id: tfmvar.m,v 1.8 2006-09-01 10:40:17 schloegl Exp $
-%	Copyright (C) 2004,2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.9 $
+%	$Id: tfmvar.m,v 1.9 2007-08-09 20:08:57 schloegl Exp $
+%	Copyright (C) 2004,2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -196,7 +200,7 @@ C1    = zeros(sz);
 sz = [m,m,length(f),size(T,2)];
 R.M.S = zeros(sz);
 R.M.h = zeros(sz);
-R.M.iY = zeros(sz);
+%R.M.iY = zeros(sz);
 R.M.ih = zeros(sz);
 R.M.dT = zeros(sz);
 R.M.phaseS = zeros(sz);
@@ -212,6 +216,8 @@ R.M.pCOH   = zeros(sz);
 R.M.dDTF   = zeros(sz);
 R.M.ffDTF  = zeros(sz);
 R.M.pCOH2  = zeros(sz);
+R.M.GGC  = zeros(sz);
+R.M.Af  = zeros(sz);
 sz(3)  = MOP;
 R.M.A  = zeros(sz);     
 sz(3)  = 1;
@@ -256,7 +262,7 @@ for k1 = 1:size(T,2),
         X.C = PE(:,MOP*size(S0,1)+(1:size(S0,1)));
         X.datatype = 'MVAR';
         
-        [S, h, PDC, COH, DTF, DC, pCOH, dDTF, ffDTF, pCOH2, PDCF, coh] = mvfreqz(X.B,X.A,X.C,f,Fs);
+        [S, h, PDC, COH, DTF, DC, pCOH, dDTF, ffDTF, pCOH2, PDCF, coh,GGC,Af] = mvfreqz(X.B,X.A,X.C,f,Fs);
 
 	R{k0}.M.dT(:,:,:,k1)     = angle(S)./reshape(repmat(2*pi*f(:),[m*m,1]),[m,m,length(f)]);
         R{k0}.M.phaseS(:,:,:,k1) = angle(S);
@@ -264,7 +270,7 @@ for k1 = 1:size(T,2),
         R{k0}.M.S(:,:,:,k1)      = S;   % power spectra
         R{k0}.M.h(:,:,:,k1)      = h;   % complex amplitude spectra (auto- and cross-spectra)
         R{k0}.M.ih(:,:,:,k1)     = imag(h);   % complex amplitude spectra (auto- and cross-spectra)
-        R{k0}.M.iY(:,:,:,k1)     = h.*repmat(sqrtm(X.C/(2*pi*Fs)),[1,1,length(f)]);   % complex amplitude spectra (auto- and cross-spectra)
+%        R{k0}.M.iY(:,:,:,k1)     = h.*repmat(sqrtm(X.C/(2*pi*Fs)),[1,1,length(f)]);   % complex amplitude spectra (auto- and cross-spectra)
         R{k0}.M.logS(:,:,:,k1)   = log(abs(S));
         R{k0}.M.logh(:,:,:,k1)   = log(abs(h));
         R{k0}.M.PDC(:,:,:,k1)    = PDC;
@@ -278,6 +284,8 @@ for k1 = 1:size(T,2),
         R{k0}.M.dDTF(:,:,:,k1)   = dDTF;
         R{k0}.M.ffDTF(:,:,:,k1)  = ffDTF;
         R{k0}.M.pCOH2(:,:,:,k1)  = pCOH2;
+        R{k0}.M.GGC(:,:,:,k1)    = GGC;
+        R{k0}.M.Af(:,:,:,k1)     = Af;
         R{k0}.M.AR(:,:,1,k1)     = A;
         R{k0}.M.DC(:,:,1,k1)     = DC;
         R{k0}.M.C(:,:,1,k1)      = X.C;
@@ -329,9 +337,9 @@ for k1 = 1:size(T,2),
                         X.C = PE(:,MOP*size(S0,1)+(1:size(S0,1)));
                         X.datatype = 'MVAR';
                         
-                        [S(:,:,:,k2),  h(:,:,:,k2), PDC(:,:,:,k2), COH(:,:,:,k2), DTF(:,:,:,k2), DC(:,:,1,k2), pCOH(:,:,:,k2), dDTF(:,:,:,k2), ffDTF(:,:,:,k2), pCOH2(:,:,:,k2),PDCF(:,:,:,k2), coh(:,:,:,k2)] = mvfreqz(X.B,X.A,X.C,f,Fs);
+                        [S(:,:,:,k2),  h(:,:,:,k2), PDC(:,:,:,k2), COH(:,:,:,k2), DTF(:,:,:,k2), DC(:,:,1,k2), pCOH(:,:,:,k2), dDTF(:,:,:,k2), ffDTF(:,:,:,k2), pCOH2(:,:,:,k2),PDCF(:,:,:,k2), coh(:,:,:,k2), GGC(:,:,:,k2), Af(:,:,:,k2)] = mvfreqz(X.B,X.A,X.C,f,Fs);
 
-                        Y(:,:,:,k1)  = h(:,:,:,k2).*repmat(sqrtm(X.C/(2*pi*Fs)),[1,1,length(f)]);   % complex amplitude spectra (auto- and cross-spectra)
+%                        Y(:,:,:,k1)  = h(:,:,:,k2).*repmat(sqrtm(X.C/(2*pi*Fs)),[1,1,length(f)]);   % complex amplitude spectra (auto- and cross-spectra)
 
                         AR(:,:,1,k2) = A;
                         C(:,:,1,k2)  = X.C;
@@ -349,12 +357,13 @@ for k1 = 1:size(T,2),
                 [R{k0}.SE.dT(:,:,:,k1),     R{k0}.M.dT(:,:,:,k1)]     = sem(angle(S)./permute(reshape(repmat(2*pi*f(:)',[m*m*length(CL2),1]),[m,m,length(CL2),length(f)]),[1,2,4,3]),4);
                 [R{k0}.SE.phaseS(:,:,:,k1), R{k0}.M.phaseS(:,:,:,k1)] = sem(angle(S),4);
                 [R{k0}.SE.phaseh(:,:,:,k1), R{k0}.M.phaseh(:,:,:,k1)] = sem(angle(h),4);
-                [R{k0}.SE.iY(:,:,:,k1),     R{k0}.M.iY(:,:,:,k1)]     = sem(imag(Y),4);
+%                [R{k0}.SE.iY(:,:,:,k1),     R{k0}.M.iY(:,:,:,k1)]     = sem(imag(Y),4);
                 [R{k0}.SE.ih(:,:,:,k1),     R{k0}.M.ih(:,:,:,k1)]     = sem(imag(h),4);
                 [R{k0}.SE.dT1(:,:,:,k1),    R{k0}.M.dT1(:,:,:,k1)]    = sem(angle(coh)./permute(reshape(repmat(2*pi*f(:)',[m*m*length(CL2),1]),[m,m,length(CL2),length(f)]),[1,2,4,3]),4);
                 [R{k0}.SE.phaseS1(:,:,:,k1),R{k0}.M.phaseS1(:,:,:,k1)]= sem(angle(coh),4);
                 [R{k0}.SE.phaseS2(:,:,:,k1),R{k0}.M.phaseS2(:,:,:,k1)]= sem(angle(COH),4);  % for testing: should be same than phaseS
                 [R{k0}.SE.S(:,:,:,k1),      R{k0}.M.S(:,:,:,k1)     ] = sem(S,4);
+                [R{k0}.SE.iSpectrum(:,:,:,k1),      R{k0}.M.iSpectrum(:,:,:,k1)     ] = sem(imag(S),4);
                 [R{k0}.SE.h(:,:,:,k1),      R{k0}.M.h(:,:,:,k1)     ] = sem(h,4);
                 [R{k0}.SE.logS(:,:,:,k1),   R{k0}.M.logS(:,:,:,k1)  ] = sem(log(abs(S)),4);
                 [R{k0}.SE.logh(:,:,:,k1),   R{k0}.M.logh(:,:,:,k1)  ] = sem(log(abs(h)),4);
@@ -369,6 +378,8 @@ for k1 = 1:size(T,2),
                 [R{k0}.SE.dDTF(:,:,:,k1),   R{k0}.M.dDTF(:,:,:,k1)  ] = sem(dDTF,4);
                 [R{k0}.SE.ffDTF(:,:,:,k1),  R{k0}.M.ffDTF(:,:,:,k1) ] = sem(ffDTF,4);
                 [R{k0}.SE.pCOH2(:,:,:,k1),  R{k0}.M.pCOH2(:,:,:,k1) ] = sem(pCOH2,4);
+                [R{k0}.SE.GGC(:,:,:,k1),    R{k0}.M.GGC(:,:,:,k1)   ] = sem(GGC,4);
+                [R{k0}.SE.Af(:,:,:,k1),     R{k0}.M.Af(:,:,:,k1)    ] = sem(abs(Af),4);
                 [R{k0}.SE.AR(:,:,1,k1),     R{k0}.M.AR(:,:,1,k1)    ] = sem(AR,4);
                 [R{k0}.SE.DC(:,:,1,k1),     R{k0}.M.DC(:,:,1,k1)    ] = sem(DC,4);
                 [R{k0}.SE.C(:,:,1,k1),      R{k0}.M.C(:,:,1,k1)     ] = sem(C,4);

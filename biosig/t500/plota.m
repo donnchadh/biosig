@@ -26,7 +26,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 %
 %   'MEAN+STD'
 %       plota(X,hf,minmean,maxmean,maxstd [,trigger])
-%       arg1 ... R
+%       arg1 ... R	
 %       arg2 ... hf (handles to figures)
 %       arg3 ... minmean (minimum of mean)
 %       arg4 ... maxmean (maximum of mean)
@@ -55,8 +55,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.56 2007-02-06 09:17:12 schloegl Exp $
-%	Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
+%	$Id: plota.m,v 1.57 2007-08-09 20:08:57 schloegl Exp $
+%	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -165,8 +165,20 @@ elseif strcmp(X.datatype,'MVAR'),
                 end;
         end;
 
-        [S,h,PDC,COH,DTF,DC,pCOH,dDTF,ffDTF, pCOH2, PDCF, coh]=mvfreqz(X.B,X.A,X.C,f,Fs);
-	dT = angle(S)./reshape(repmat(2*pi*f(:)',[K1*K1,1]),[K1,K1,length(f)]);
+        if strcmpi(Mode,'Eigen'),
+		[S, Serr, per, tau, exctn, lambda] = armode2(-X.A(:,K1+1:end), X.C);
+		[per(1,:)',Fs./per(1,:)',tau(1,:)'/Fs,exctn',lambda]
+		return;
+	end; 
+
+        [S,h,PDC,COH,DTF,DC,pCOH,dDTF,ffDTF, pCOH2, PDCF, coh, GGC, Af]=mvfreqz(X.B,X.A,X.C,f,Fs);
+        Phase = zeros(size(h));
+        for k1=1:K1;
+        for k2=1:K2;
+        	Phase(k1,k2,:) = unwrap(squeeze(angle(S(k1,k2,:))))*180/pi;
+        end;
+        end;
+	dT = Phase./reshape(repmat(360*f(:)',[K1*K1,1]),[K1,K1,length(f)]);
 
         range = [0,1]; % default range
         if ~isempty(strfind(Mode,'Auto')),
@@ -205,6 +217,9 @@ elseif strcmp(X.datatype,'MVAR'),
                 elseif strcmpi(Mode,'iSpectrum'),
                         R = imag(S);
                         range = [min(R(:)),max(R(:))];
+                elseif strcmpi(Mode,'rSpectrum'),
+                        R = real(S);
+                        range = [min(R(:)),max(R(:))];
                 elseif strcmpi(Mode,'Phase') | strcmpi(Mode,'phaseS') ,
                         R = zeros(size(S));
                         for k1=1:K1;
@@ -241,8 +256,22 @@ elseif strcmp(X.datatype,'MVAR'),
                 elseif strcmpi(Mode,'icoh'),
                         R = imag(coh);
                         range = [-1,1];
-                elseif strcmpi(Mode,'PDC'),
-                        R = PDC;
+                elseif strcmpi(Mode,'GGC'),
+                        R = log10(GGC);
+                        range = [min(R(:)),max(R(:))];
+                        range = [1,max(R(:))];
+                elseif strcmpi(Mode,'Af'),
+                        R = abs(Af);
+                        for k=1:size(R,1),
+                        	R(k,k,:)=NaN;
+                        end; 	
+                        range = [min(R(:)),max(R(:))].*[.9,2]
+                        %range = [[.001,1]*max(R(:))]
+                        R = abs(Af);
+                elseif strcmpi(Mode,'Af1'),
+                        R = log10(abs(Af))+3;
+                        range = [min(R(:)),max(R(:))]
+                        %range = [[.001,1]*max(R(:))]
                 elseif strcmpi(Mode,'PDCF'),
                         R = PDCF;
                 elseif strcmpi(Mode,'DTF'),
@@ -253,6 +282,8 @@ elseif strcmp(X.datatype,'MVAR'),
                         R = ffDTF;
                 elseif strcmpi(Mode,'dT'),
                         R = dT;
+                        tmp = dT(isfinite(dT(:)));
+                        range = [min(tmp(:)),max(tmp(:))]
                 elseif strcmpi(Mode,'DCF1'),
                         R = S;
                         for k1=1:K1,
@@ -285,7 +316,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 for k1=1:K1;
                         for k2=1:K2;
                                 subplot(K1,K2,k2+(k1-1)*K1);
-                                if strcmpi(Mode,'logS'),
+                                if strcmpi(Mode,'logS') %| strcmpi(Mode,'Af'),
                                         semilogy(f,squeeze(R(k1,k2,:)));
                                 else
                                         area(f,squeeze(R(k1,k2,:)));
@@ -343,7 +374,14 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                 gf = strrep(gf,'Auto','');
         end;
         GF = strtok(gf);
-	if ~isfield(X.M,GF)
+	if strcmpi(arg2,'Eigen'),
+		[K1,K2] = size(X.M.AR);
+		Fs = X.SampleRate;
+		[S, Serr, per, tau, exctn, lambda] = armode2(-X.M.AR(:,K1+1:end), X.M.C);
+		fprintf(1,'Periode [s]\tf0 [Hz]    \ttau [s] \texcitation [?]\tlambda\n')
+		fprintf(1,'%8.3f\t%8.3f\t%8.3f\t%8.3f\t%8.3f\n',[per(1,:)',Fs./per(1,:)',tau(1,:)'/Fs,exctn',lambda]');
+		return;	
+	elseif ~isfield(X.M,GF)
                 warning('PLOTA TFMVAR_ALL: field %s is unknown\n',GF);
         end;
         MONO = strcmp(GF,'logS1') | strcmp(GF,'S1');
@@ -365,7 +403,7 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                 nix(1) = 0; 		% hack to remove reference segment
                 nix = logical(nix); 
         end;
-%        nix(1) = logical(0); 		% hack to remove reference segment
+        nix(1) = logical(0); 		% hack to remove reference segment
         nix = logical(nix); 
 
         M   = size(X.M.AR,1);
@@ -470,13 +508,41 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
 
         tmp = diff(XT);
         if isempty(tmp)
-                X.A = [eye(size(X.M.A,1)), -X.M.A];
+        	sz = size(X.M.A);
+                X.A = [eye(sz(1)), -reshape(X.M.A,[sz(1),sz(2)*sz(3)])];
                 X.B = eye(size(X.M.A,1));
                 X.C = X.M.C;
                 % X.SampleRate = 2*max(X.F); 
                 X.datatype='MVAR'; 
-                plota(X,arg2); 
-                warning('single time segment not implemented, yet. ')
+
+                m = getfield(X.M,arg2);
+                se = getfield(X.SE,arg2);
+		if strmatch(upper(arg2),{'PDC','DTF','COH','ICOH','PCOH'})
+			range = [0,.4];
+		elseif strcmpi(arg2,'Af')
+			tmp=m;
+			for k=1:size(m,1),
+				tmp(k,k,:)=NaN;
+			end; 	
+	                range=[min(tmp(:)-se(:)),max(tmp(:)+se(:))]
+		else		
+	                range=[min(m(:)),max(m(:))];
+	        end;         
+                for k1=1:sz(1),
+                for k2=1:sz(2),
+                	subplot(sz(1),sz(2),(k1-1)*sz(2)+k2);
+                	%area(X.F,squeeze(m(k1,k2,:)));
+                	errorbar(X.F,squeeze(m(k1,k2,:)),squeeze(se(k1,k2,:)));
+                	axis([min(X.F),max(X.F),range])
+                	%set(gca,'YLIM',range);
+                	if isfield(X,'Label')
+	                	if k2==1, ylabel(X.Label{k1}); end; 
+        	        	if k1==1, title(X.Label{k2}); end;
+        	        end;
+                end;
+                end; 
+                H = X; 
+                fprintf(2,'Warning PLOTA: single time segment not implemented, yet.\n');
                 return;
         elseif any(tmp-tmp(1))
                 warning('time scale is not equidistant - xlabels are incorrect')
@@ -1252,13 +1318,17 @@ elseif strcmp(X.datatype,'HISTOGRAM') | strcmp(X.datatype,'qc:histo')
                 elseif strcmp(yscale,'log+'),
                         subplot(ceil(size(X.H,2)/N),N,K);
                         tmp = diff(t);
-                        dQ  = min(tmp(tmp>0));
+                        if any(tmp>0)
+	                        dQ = min(tmp(tmp>0));
+	                else 
+	                	dQ = 1;
+	                end;	        
                         tmp = sqrt(sum(h(h>0))/sqrt(2*pi*sd2)*dQ);
                         %semilogy(t,[h]+.01,'-',t,exp(-(t*ones(size(mu))-ones(size(t))*mu).^2./(ones(size(t))*sd2)/2)./(ones(size(t))*(sqrt(2*pi*sd2)./sum(h))),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         %semilogy(t,[h]+.01,'-',t,exp(-(t(:,ones(size(mu)))-mu(ones(size(t)),:)).^2./sd2(ones(size(t)),:)/2)./sqrt(2*pi*sd2(ones(size(t)),:)).*(ones(size(t))*sum(h)),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         %semilogy(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dQ,'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h(h>0))*dQ],'-',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
-%                        v=axis; v=[MaxMin(2)+0.1*diff(MaxMin) MaxMin(1)-0.1*diff(MaxMin) 1 max(h)]; axis(v);
+                        v=axis; v=[MaxMin(2)+0.1*diff(MaxMin)-eps MaxMin(1)-0.1*diff(MaxMin)+eps 1 max(h)]; axis(v);
                         v=axis; v=[v(1:2) 1 max(h)]; axis(v);
                 elseif strcmp(yscale,'qq'),
                         subplot(ceil(size(X.H,2)/N),N,K);
@@ -2376,6 +2446,19 @@ elseif strcmp(X.datatype,'ELPOS2'),
         end;
         set(gca,'xtick',0,'ytick',0)
         h = X; 
+        if nargin>2,
+        	c = arg3;
+        	c = ceil(c*10); 
+        	for k1=1:size(c,1),
+        	for k2=1:size(c,2),
+        		%%%% FIXME: Add 2D or 3D connections %%
+        		if c(k1,k2)>0,
+	        		e= line(x([k1,k2]),y([k1,k2]));
+        			set(e,'linewidth',c(k1,k2)); 
+        		end;	
+        	end;
+        	end;
+        end;	
                
 
 elseif strncmp(X.datatype,'ELPOS',5),
@@ -2389,6 +2472,19 @@ elseif strncmp(X.datatype,'ELPOS',5),
         end;
         set(gca,'xtick',0,'ytick',0)
         h = X; 
+        if nargin>2,
+        	c = arg3;
+        	c = ceil(c*10); 
+        	for k1=1:size(c,1),
+        	for k2=1:size(c,2),
+        		%%%% FIXME: Add 2D or 3D connections %%
+        		if c(k1,k2)>0,
+	        		e= line(XYZ([k1,k2],1),XYZ([k1,k2],2),XYZ([k1,k2],3));
+        			set(e,'linewidth',c(k1,k2)); 
+        		end;	
+        	end;
+        	end;
+        end;	
         
         
 elseif strcmp(X.datatype,'REV'),
