@@ -8,9 +8,10 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 %   hdr = get_regress_eog(file, Mode)
 % 
 % INPUT: 
-%   file	filename which should be corrected
-%		usually, the eye movements are stored in a different file	
-%   Mode	'REG'	[default] regression with one or two bipolar EOG channels
+%   file	filename which should be corrected.
+%		usually, the eye movements are stored in a different file.
+%    		Some lab-specific heuristics is used to identify the file with the eye movements.
+%   Mode	'REG'	[default] regression with one or two bipolar EOG channels [1]
 %		'REG+CAR' regression and common average reference
 %			removes 2 bipolar + averaged monopolar EOG
 %		'REG+PCA' regression and PCA, 
@@ -19,22 +20,26 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 %			removes 3 "EOG" components 
 %		'PCA-k'	removes the k-largest PCA components, k must be a positive integer
 %		'ICA-k'	removes the k-largest ICA components [3], k must be a positive integer
+%       	others like 'NGCA-k','TDSEP-k','TDSEP3-k','TDSEP1','FFDIAG'
 %		'msec'	same as PCA-3, modified (without averaging) MSEC method [2]
 %		'bf-'	beamformer, assume zero-activity reference electrode
 %		'bf+'	beamformer, take into account activity of reference electrode 
+%		'Hurst'	ICA components selected by the method of[5]
+%		'Joyce2004' [6]
+%		'Barbati2004' [7]	
+%
 %	The following modifiers can be combined with any of the above	
-%		'FILT###-###Hz  filtering between ### and ### Hz. ### must be numeric
+%		'FILT###-###Hz'  filtering between ### and ### Hz. ### must be numeric
 %		'Fs=###Hz'  downsampling to ### Hz, ### must be numeric 
 %		'x'  	2nd player of season2 data
 %
 % OUTPUT:
-%   hdr.regress.r0 	correction coefficients
-% 
-%    Some heuristics is used, which is based on lab-specific standards. 
-%    If your data is not supported, contact <a.schloegl@ieee.org>
-% 
-% Warning: this is a utility function used by biosig. do not use it 
-% directly, unless you know what you are doing. At least you are warned. 
+%   hdr.REGRESS.r0 	correction coefficients
+%
+%   The EOG correction will be applied to the channels CHAN with any of these commands: 
+%   	HDR = sopen(file,'r',hdr.REGRESS.r0(:,CHAN)); [s,HDR]=sread(HDR); HDR=sclose(HDR);
+%   	[s,HDR] = sload(file,hdr.REGRESS.r0(:,CHAN)); 
+%   	[s,HDR] = sload(file,CHAN,'EOG_CORRECTION','ON'); 
 %
 % See also: SLOAD, IDENTIFY_EOG_CHANNELS, BV2BIOSIG_EVENTS, REGRESS_EOG 
 %
@@ -48,8 +53,19 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 %	A multiple source approach to the correction of eye artifacts.
 %	Electroencephalogr Clin Neurophysiol. 1994 Mar;90(3):229-41.
 % [3] JADE algorithm, Jean-François Cardoso.
+% [4] Boudet S., Peyrodie L., P Gallois, C Vasseur, 
+% 	Filtering by optimal projectsion and application to automatic artifact removal from EEG
+% 	Signal Processing 87 (2007) 1987-1992. 
+% [5] Vorobyov and Cichocki (2002)
+%	Blind noise reduction for multisensory signals using ICA and subspace 
+%	filtering, with application to EEG analysis.
+%	Biol Cybern. 2002 Apr;86(4):293-303.
+% [6] C.A. Joyce, I.F. Gorodnitsky, M.Kutas
+%	Automated removal of eye movement and blink artifats from EEG data using blind component separation.
+%	Psychobiology, 41 (2004), 313-325
+% [7] Barbati et al (2004) 
 
-%	$Id: get_regress_eog.m,v 1.6 2007-03-29 12:28:09 schloegl Exp $
+%	$Id: get_regress_eog.m,v 1.7 2007-08-09 20:01:49 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -93,12 +109,19 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 		LAB_ID = 'GrazBCI'; 
 		if length(f0)==1,
 			feog = fullfile(p,'EOG',f0.name);
+		else 	
+			f0 = dir(fullfile(p,'*03.bkr')); % Graz BCI files 
+			LAB_ID = 'Graz22'; 
+			if length(f0)==1,
+				feog = fullfile(p,f0.name);
+				eegchan = 1:22;
+			end
 		end; 	
 	end
 
 	if length(f0)<1,
-		fprintf('error: no artefact file found\n'); 
-		return; 
+		feog = fn; 
+		fprintf('error: no artefact file found. Use specified file.\n'); 
 	end
 	if length(f0)>1,
 		fprintf('error: more than one artefact file found!\n'); 
@@ -108,13 +131,22 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 
 	% load eye movement calibration data
         [s00,h0] = sload(feog);
-
+	s0 = s00;
+		
 	FLAG.SEASON2DATA_PLAYER2 = 0;
 	if strcmp(LAB_ID,'BBCI'),
 		if ~isempty(strfind(Mode,'x'))	%%%% this is a hack for the SEASON2DATASET
 			FLAG.SEASON2DATA_PLAYER2 = 1;
 		end;
-		
+
+		% resting EEG with eyes open 
+		ix = find([h0.EVENT.TYP==hex2dec('0114')] | [h0.EVENT.TYP==hex2dec('0115')]);
+		r00 = [];
+		for k=1:length(ix),
+			r00 = [r00; s00(h0.EVENT.POS(ix(k))+(0:h0.EVENT.DUR(ix(k))),:)];
+		end; 
+			        
+				
 	        % find eye movements in BBCI recordings
         	tmp = bitand(2^15-1,h0.EVENT.TYP);
 		tmp = find((tmp > hex2dec('0430')) & (tmp<=hex2dec('0439')));
@@ -123,11 +155,40 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 
 	        % extract segment with large eye movements/EOG artifacts
 	        s00 = s00(h0.EVENT.POS(ix1):h0.EVENT.POS(ix2)+h0.EVENT.DUR(ix2),:); 
-	        
+
 	        if size(s00,1)<h0.SampleRate*10,
 	        	fprintf(2,'WARNING GET_REGRESS_EOG: in %s no eye movements identified\n',h0.FileName);
 	        end;
+	else 
+		r00 = [];         
 	end;
+
+	FLAG.HURST = ~isempty(strfind(Mode,'HURST')); % Vorobyov and Cichocki (2002)
+	FLAG.AFOP = ~isempty(strfind(Mode,'AFOP')); % Boudet et al 2007
+	FLAG.FOP  = ~FLAG.AFOP & ~isempty(strfind(Mode,'FOP')); % Boudet et al 2007
+	FLAG.TDSEP1 = ~isempty(strfind(Mode,'TDSEP1'));
+	FLAG.TDSEP2 = ~isempty(strfind(Mode,'TDSEP2'));
+	FLAG.FFDIAG = ~isempty(strfind(Mode,'FFDIAG'));
+	FLAG.Joyce = ~isempty(strfind(Mode,'JOYCE'));
+	FLAG.Barbati = ~isempty(strfind(Mode,'BARBATI'));
+
+	ix = strfind(Mode,'NGCA-');
+	FLAG.NGCA = ~isempty(ix);
+	if FLAG.NGCA,
+		FLAG.NGCA = str2double(strtok(Mode(ix+5:end),' '));
+	end;	
+
+	ix = strfind(Mode,'TDSEP3-');
+	FLAG.TDSEP3 = ~isempty(ix);
+	if FLAG.TDSEP3,
+		FLAG.TDSEP3 = str2double(strtok(Mode(ix+7:end),' '));
+	end;	
+
+	ix = strfind(Mode,'TDSEP-');
+	FLAG.TDSEP = ~isempty(ix);
+	if FLAG.TDSEP,
+		FLAG.TDSEP = str2double(strtok(Mode(ix+6:end),' '));
+	end;	
 
 	ix = strfind(Mode,'ICA-');
 	FLAG.ICA = ~isempty(ix);
@@ -181,50 +242,47 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 	%%%%% define EEG and EOG channels %%%%%
 	CHANTYP = repmat(' ',h0.NS,1);
 	CHANTYP([(h0.LeadIdCode>=996) & (h0.LeadIdCode<=1302)])='E'; % EEG
- 	eogchan = identify_eog_channels(h0); 
+	if strcmp(LAB_ID, 'Graz22');
+		CHANTYP(1:22)='E';
+	end;	
+ 	eogchan = identify_eog_channels(h0);
         CHANTYP(any(eogchan,2)) = 'O';	% EOG
       	if FLAG.SEASON2DATA_PLAYER2,	
 	        CHANTYP = CHANTYP([65:128,1:64]);
 	        eogchan = eogchan([65:128,1:64],:);
 	end;
 
-	%%%%% #### OBSOLETE:START ####
-	% 	filtering the data should improve the estimated        
-	FLAG.FILTER_FFT16 = ~isempty(strfind(Mode,'fft16'));
-	FLAG.FILTER_16 = ~isempty(strfind(Mode,'f16'));
-	FLAG.FILTER_FFT0140 = ~isempty(strfind(Mode,'fft0140'));
-	FLAG.FILTER_100Hz0140 = ~isempty(strfind(Mode,'100Hz0140'));
-
-	if 0,
-	elseif FLAG.FILTER_100Hz0140 | FLAG.FILTER_FFT0140,
-		if FLAG.FILTER_100Hz0140,
-			s00 = rs(s00,h0.SampleRate,100);
-			h0.SampleRate = 100; 
-		end;
-		tmp = center(s00,1); tmp(isnan(tmp)) = 0;
-	        tmp = fft(tmp); f=[0:size(s00,1)-1]*h0.SampleRate/size(s00,1);
-	        w = ((f>.1) & (f<40)) | ((f>h0.SampleRate-40) & (f<h0.SampleRate-.1));
-	        tmp(~w,:) = 0;
-	        s00 = real(ifft(tmp));
-	        warning('use of FLAG=0140 is obsolete. Use FILT0.1-40Hz instead.');
-
-	elseif FLAG.FILTER_FFT16,
-		tmp = center(s00,1); tmp(isnan(tmp)) = 0;
-	        tmp = fft(tmp); f=[0:size(s00,1)-1]*h0.SampleRate/size(s00,1);
-	        w = ((f>1) & (f<6)) | ((f>h0.SampleRate-6) & (f<h0.SampleRate-1));
-	        tmp(~w,:) = 0;
-	        s00 = real(ifft(tmp));
-	        warning('use of FLAG=FFT16 is obsolete. Use FILT1-6Hz instead.');
-
-	elseif FLAG.FILTER_16,
-	        s00 = filter(b,a,s00);
-	        warning('use of FLAG=F16 is obsolete. Use FILT1-6Hz instead.');
-	end;        
-	%%%%% #### OBSOLETE:END ####
+	if isempty(strfind(upper(Mode),'MSEC1'))
+		% MSEC,MSEC2 [default]
+		CHAN = find((CHANTYP=='E') | (CHANTYP=='O'));
+	else  % MSEC1 
+		CHAN = find(CHANTYP=='E');
+	end;
+	chan = CHAN;
+        nc   = length(CHAN); 
 
 	%%%%% identify EOG components %%%%%	
 	if 0,
 	
+	elseif FLAG.AFOP,
+		error('Mode AFOP not supported');
+	
+	elseif FLAG.FOP,
+		% Optimal Projection (Boudet et al, 2007)
+		chan = find(CHANTYP=='E' | CHANTYP=='O');
+	        RES.FOP.w = [];  	
+		try
+		        [P,D] = eig(covm(r00(:,chan),'D'),covm(s00(:,chan),'D'));
+		        TH = 0.3; % Boudet et al. 2007, p 1989. 
+		        eogchan = sparse(chan,1:length(chan),1,h0.NS,length(chan))*P(:,diag(D)<TH);
+		        if size(eogchan,2)>5,
+		        	eogchan=eogchan(:,1:5); 
+		        end;
+		        RES.FOP.w = eogchan;  	
+	        catch
+	        	eogchan = [];
+	        end;
+
 	elseif ~isempty(strfind(Mode,'bf-'))	
 		% beamformer approach
 		T = load('EOG_DIPOLS3'); 	% load lead field matrix
@@ -261,27 +319,155 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 			eogchan = eogchan([h0.NS/2+1:h0.NS,1:h0.NS/2],:);
 		end;
 
-	elseif (FLAG.PCA>0) | (FLAG.ICA>0),
-		% identify channels used for PCA
-		if isempty(strfind(upper(Mode),'MSEC1'))
-			% MSEC,MSEC2 [default]
-			chan = find((CHANTYP=='E') | (CHANTYP=='O'));
-		else  % MSEC1 
-			chan = find(CHANTYP=='E');
-		end;
-	        nc      = length(chan); 
-	        chan    = sparse(chan,1:nc,1,h0.NS,nc)*(eye(nc) - 1/nc); % Common Average Reference (CAR)
+	elseif ~isempty(strfind(Mode,'JOYCE'))
+		CHAN    = find(CHANTYP=='E');
+	        chan    = sparse(CHAN,1:length(CHAN),1,h0.NS,length(CHAN));
 		r       = [chan,eogchan];  % CAR and bipolar EOG
+		tmp = s00(~any(isnan(s00),2),:);
 
-		tmp = s00*r; 
-		tmp = tmp(~any(isnan(tmp),2),:); 
+		sel = round(.15*h0.SampleRate);
+		meth = 'TDSEP0';
+		W1 = bss(tmp*[chan, eogchan],meth,[],sel);
+		W2 = bss(tmp*[chan,-eogchan],meth,[],sel);
+
+		% step 2
+		c1 = corrcoef(tmp*[chan, eogchan]*W1,tmp*[chan, -eogchan]*W2);
+		[sel2,ix]=find(c1 < -0.5);
+
+		% step 3
+		c2 = corrcoef(s00*eogchan,s00*[chan, eogchan]*W1);
+		sel3 = find(any(abs(c2)>.3));
+		
+		% step 4
+		c3 = rms(diff(s00*[chan, eogchan]*W1(:,sel3),[],1));
+		sel4 = find(c3 < 0.2 * 500 / h0.SampleRate); 	
+		sel2',sel3,sel4,
+		sel = unique([sel2(:)',sel3(sel4)]);
+		FLAG.Joyce.C1 = c1;
+		FLAG.Joyce.C2 = c2;
+		FLAG.Joyce.C3 = c3;
+
+		eogchan = [chan, eogchan]*W1(:,sel); 
+
+	elseif (FLAG.PCA>0) | (FLAG.ICA>0) | (FLAG.NGCA>0) | (FLAG.TDSEP>0) |(FLAG.TDSEP1>0) | (FLAG.TDSEP2>0) | (FLAG.TDSEP3>0) | (FLAG.HURST) | (FLAG.FFDIAG),
+		% identify channels used for PCA
+
 		if FLAG.PCA,
+		        chan    = sparse(chan,1:nc,1,h0.NS,nc)*(eye(nc) - 1/nc); % Common Average Reference (CAR)
+			r       = [chan,eogchan];  % CAR and bipolar EOG
+			tmp = s00*r; 
+			tmp = tmp(~any(isnan(tmp),2),:); 
+			
 			[u,s,ochan] = svds(tmp, FLAG.PCA); % get k (i.e. FLAG.PCA) largests PCA's
-		elseif FLAG.ICA
+			eogchan = r*ochan;
+			RES.PCA.w = eogchan; 
+			
+		elseif FLAG.ICA,
+		        chan    = sparse(chan,1:nc,1,h0.NS,nc)*(eye(nc) - 1/nc); % Common Average Reference (CAR)
+			r       = [chan,eogchan];  % CAR and bipolar EOG
+			tmp = s00*r; 
+			tmp = tmp(~any(isnan(tmp),2),:); 
+
 			[A] = jade(tmp', FLAG.ICA); % get k (i.e. FLAG.PCA) largests PCA's
 			ochan = pinv(A)';
+			eogchan = r*ochan;
+			
+		elseif FLAG.HURST,
+		        chan    = sparse(chan,1:nc,1,h0.NS,nc)*(eye(nc) - 1/nc); % Common Average Reference (CAR)
+			r       = [chan,eogchan];  % CAR and bipolar EOG
+			tmp = s00*r; 
+			tmp = tmp(~any(isnan(tmp),2),:); 
+
+			[A] = jade(tmp', min(20,size(tmp,1))); 
+			U = pinv(A)';
+			H = hurst(s0*r*U);
+			ix = find((H>=.58) & (H<=0.64));
+			eogchan = r*U(:,ix);
+
+		elseif FLAG.NGCA,	% NonGaussian Component Analysis
+			% full rank required
+			par.nbng = FLAG.NGCA;
+		        chan = sparse(chan,1:nc,1,h0.NS,nc); 
+			tmp = s00*chan; 
+			tmp = tmp(~any(isnan(tmp),2),:); 
+			[ngmatrix, projdata, signalmatrix] = NGCA(tmp',par);
+			eogchan = chan*ngmatrix;
+
+		elseif FLAG.FFDIAG,	% 
+		        chan = sparse(chan,1:nc,1,h0.NS,nc); 
+			tmp = s00*chan; 
+			tmp = tmp(~any(isnan(tmp),2),:); 
+			
+			sel = 0:round(.15*h0.SampleRate);
+			C= zeros(nc,nc,length(sel));
+			for k= 1:length(sel)
+			    C(:,:,k)= tdCorr(tmp', sel(k));
+			end
+			[W,d] = ffdiag2(C);
+			W = (W./repmat(sqrt(sum(W.*W,2)),1,nc))';
+			[tmp,ix]=sort(-rms(s00*chan*W,1));
+			eogchan = chan*W(:,ix(1:3));
+
+		elseif FLAG.TDSEP,	% 
+		        chan = sparse(chan,1:nc,1,h0.NS,nc)*(eye(nc) - 1/nc); % Common Average Reference (CAR)
+			tmp = s00*chan; 
+			tmp = tmp(~any(isnan(tmp),2),:); 
+
+			sel = round([0,1,2,3,5,10,20]/256*h0.SampleRate);
+			%%%  DO NOT USE
+			[W,d] = tdsep(tmp',sel);
+			eogchan = chan*W(1:3,:)';
+
+		elseif FLAG.TDSEP1,	% 
+		        chan1= sparse(chan,1:nc,1,h0.NS,nc);
+			tmp = s00*chan1; 
+			tmp = tmp(~any(isnan(tmp),2),:); 
+			sel = 0:round(.15*h0.SampleRate);
+			W   = tdsep0(tmp',sel);
+			iW  = inv(W); 
+			[h0.REGRESS, s01] = regress_eog(s00,chan,eogchan); 
+
+			for k = 1:size(W,2),
+				phi(k) = subspace(h0.REGRESS.b0(2:3,:)',iW(:,k));
+			end; 	
+			[phi,ix] = sort(phi); 
+			eogchan = chan1*W(ix(1:3),:)';
+			
+		elseif FLAG.TDSEP2,	% 
+		        chan1= sparse(chan,1:nc,1,h0.NS,nc);
+			tmp = s00*chan1; 
+			tmp = tmp(~any(isnan(tmp),2),:); 
+			sel = 0:round(.15*h0.SampleRate);
+			W   = tdsep0(tmp',sel);
+			iW  = inv(W); 
+			[h0.REGRESS, s01] = regress_eog(s00,chan,eogchan); 
+
+			c  = [];
+			ix = [];
+			P = eye(length(chan)); 
+			for k0 = 1:3, 
+				for k = 1:size(W,2),
+					phi(k) = subspace(P*h0.REGRESS.b0(2:3,:)',P*iW(:,k));
+				end; 	
+				[sp,ix(k0)] = min(phi);
+				w = iW(:,ix);
+				c = [c,iW(:,ix)]; 
+				P = P*[eye(nc)-w*inv(w'*w)*w'];
+			end; 	 
+			eogchan = chan1*W(ix,:)';
+			
+		elseif FLAG.TDSEP3,	% 
+			% full rank required
+		        chan    = sparse(chan,1:nc,1,h0.NS,nc); 
+			r       = [chan,eogchan];  % CAR and bipolar EOG
+			tmp = s00*chan; 
+			tmp = tmp(~any(isnan(tmp),2),:); 
+
+			sel = round([0,1,2,3,5,10,20]/256*h0.SampleRate);
+			[y,W,d] = tdsep3(tmp',sel);
+			eogchan = chan*W(1:3,:)';
 		end;
-		eogchan = r*ochan;
+		 
 		 
 	elseif FLAG.REG, %REGRESSION
 	        % define xEOG channels
@@ -295,7 +481,7 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 
        	% remove EOG channels for list of corrected channels
 	% chan = 1:h0.NS;
-	chan = find(CHANTYP=='E'); 
+	chan = find(CHANTYP=='E');
         % regression analysis - compute correction coefficients. 
 	[h0.REGRESS, s01] = regress_eog(s00,chan,eogchan); 
 	h0.REGRESS.FLAG = FLAG;	
