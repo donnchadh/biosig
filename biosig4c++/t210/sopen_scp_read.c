@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.24 2007-08-08 13:15:05 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.25 2007-08-13 20:18:25 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -80,6 +80,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 	int 		NSections = 12;
 	uint8_t		tag;
 	float 		HighPass=0, LowPass=1.0/0.0, Notch=-1; 	// filter settings
+	float 		Cal5=0,Cal6=0;
 
 
 	/* 
@@ -317,11 +318,12 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 
 		/**** SECTION 5 ****/
 		else if (curSect==5)  {
+			Cal5 			= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 		}
 
 		/**** SECTION 6 ****/
 		else if (curSect==6)  {
-			double Cal 		= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+			Cal6 			= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 			hdr->SampleRate 	= 1e6/l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			uint16_t 	GDFTYP 	= 5;	// int32: internal raw data type   
 			hdr->aECG->FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);		
@@ -330,9 +332,8 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 			len = 0; 
 			for (i=0; i < hdr->NS; i++) {
 				hdr->CHANNEL[i].SPR 	    = hdr->SPR;
-				hdr->CHANNEL[i].PhysDimCode = 4276; // PhysDimCode("nV") physical unit "nV" 	
-				hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("mV") physical unit "mV" 	
-				hdr->CHANNEL[i].Cal 	    = Cal*1e-3;
+				hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV"
+				hdr->CHANNEL[i].Cal 	    = Cal6*1e-3;
 				hdr->CHANNEL[i].Off         = 0;
 				hdr->CHANNEL[i].OnOff       = 1;    // 1: ON 0:OFF
 				hdr->CHANNEL[i].Transducer[0] = '\0';
@@ -453,6 +454,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
 		hdr->AS.rawdata = (uint8_t*)decode.Reconstructed;
 	}
+
+	for (i=0; i < hdr->NS; i++) {
+		hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV" 	
+		hdr->CHANNEL[i].Cal 	    = 1e-3;
+		hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
+		hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
+	}
+
     }	 // end of fall back method 
 		
 #ifdef __BIG_ENDIAN

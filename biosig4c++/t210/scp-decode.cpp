@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.11 2007-08-13 12:31:40 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.12 2007-08-13 20:18:25 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -2461,11 +2461,11 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 //                      MULTIPLICATION BY AVM
 void Multiply(int_L *dati, U_int_L num, U_int_M AVM)
 {
-	// ### OBSOLETE ###
 	U_int_L i;
 
+
 	for(i=0;i<num;i++)
-		dati[i]=dati[i]*AVM/1000;       // by E.C. 26.02.2004    convert in microVolt
+		dati[i]=dati[i]*AVM;   // AS 2007: scale in nV - no round of errors
 }//end Multiply
 
 //______________________________________________________________________________
@@ -2751,7 +2751,8 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 		}
 		if(data.flag_BdR0.encoding)
 			Differences(data.Median,data.flag_BdR0,data.flag_lead.number);
-		// Multiply(data.Median,data.flag_BdR0.number_samples*data.flag_lead.number,data.flag_BdR0.AVM);
+
+		Multiply(data.Median,data.flag_BdR0.number_samples*data.flag_lead.number,data.flag_BdR0.AVM);
 	}//end if
 
 	//Decode rhythm data
@@ -2817,7 +2818,7 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 				//dim_R modifies
 			}
 		}
-		// Multiply(data.Residual,data.flag_Res.number_samples*data.flag_lead.number,data.flag_Res.AVM);
+		Multiply(data.Residual,data.flag_Res.number_samples*data.flag_lead.number,data.flag_Res.AVM);
 
 		if(dim_R!=0 && (data.Reconstructed=(int_L*)mymalloc(dim_R))==NULL)
 		{
