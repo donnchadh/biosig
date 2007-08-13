@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.10 2007-08-04 23:10:15 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.11 2007-08-13 12:31:40 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -1891,8 +1891,7 @@ void section_5(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 	}
 	if(sez2)
 	{
-		//data.flag_BdR0.number_samples=(U_int_L)data.flag_BdR0.length*1000L/(U_int_L)data.flag_BdR0.STM;           //number di campioni per elettrodo
-		data.flag_BdR0.number_samples=(U_int_L)data.flag_BdR0.length/(U_int_L)data.flag_BdR0.STM;           //number di campioni per elettrodo
+		data.flag_BdR0.number_samples=(U_int_L)data.flag_BdR0.length*1000L/(U_int_L)data.flag_BdR0.STM;           //number di campioni per elettrodo
 		dim*=sizeof(U_int_S);
 		if(dim!=0 && (data.samples_BdR0=(U_int_S*)mymalloc(dim))==NULL)
 		{
