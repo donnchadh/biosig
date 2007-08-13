@@ -76,15 +76,12 @@ Execution:
 
 
 
-Known issues (v0.46): 
+Known issues: 
 ---------------------
-Some SCP files (with high data compression) can cause segmentation 
-faults. As a workaround to this problem, we suggest using 
-BioSig4OctMat in combination with Octave or Matlab. BioSig4OctMat 
-supports (currently) a wider range of SCP files, at it can be used to 
-convert them (using save2gdf.m) into GDF format. 
-Then, these GDF files can be converted into HL7aECG using the converter 
-from BioSig4C++. 
+Some SCP files (with high data compression) are converted 
+differently in Biosig4C++ and Biosig4OctMat (up to 20% r.m.s.). 
+Currently, it is not clear which yields "more correct" results.   
+
 
 
 
