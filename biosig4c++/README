@@ -76,15 +76,6 @@ Execution:
 
 
 
-Known issues: 
----------------------
-Some SCP files (with high data compression) are converted 
-differently in Biosig4C++ and Biosig4OctMat (up to 20% r.m.s.). 
-Currently, it is not clear which yields "more correct" results.   
-
-
-
-
 More information is available at http://biosig.sf.net/
 
 If you have any questions you can also contact the newsgroup 
