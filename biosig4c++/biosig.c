@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.88 2007-08-09 13:12:06 schloegl Exp $
+    $Id: biosig.c,v 1.89 2007-08-14 10:21:14 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -512,6 +512,15 @@ int FCLOSE(HDRTYPE* hdr) {
 	else	
 #endif
 	return(fclose(hdr->FILE.FID));
+}
+
+int FFLUSH(HDRTYPE* hdr) {
+#ifdef ZLIB_H
+	if (hdr->FILE.COMPRESSION)
+		return(gzflush(hdr->FILE.gzFID,Z_FINISH));  
+	else	
+#endif
+	return(fflush(hdr->FILE.FID));
 }
 
 size_t FREAD(void* ptr, size_t size, size_t nmemb, HDRTYPE* hdr) {

@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.56 2007-08-08 13:15:40 schloegl Exp $
+% $Id: biosig.h,v 1.57 2007-08-14 10:21:14 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -434,6 +434,7 @@ typedef struct {
 
 HDRTYPE* 	FOPEN(HDRTYPE* hdr, char* mode );
 int 		FCLOSE(HDRTYPE* hdr);
+int 		FFLUSH(HDRTYPE* hdr);
 size_t 		FREAD(void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
 size_t 		FWRITE(void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
 int             FPRINTF(HDRTYPE* hdr, const char *format, ...);
