@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.8 2007-08-06 15:24:26 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.9 2007-08-14 10:22:23 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -41,7 +41,7 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 	It will be called by the function SOPEN in "biosig.c"
 
 	Input: 
-		char* Header1	// contains the file content
+		char* Header	// contains the file content
 		
 	Output: 
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
@@ -95,7 +95,8 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		    fprintf(stderr,"Error: name\n");
 		
 		TiXmlElement *birthday = demographic.FirstChild("birthTime").Element();
-		if(birthday){
+		//if(birthday){
+		if(0){
 		    T0 = (char *)birthday->Attribute("value");
 		    T0[14] = '\0';
 		    t0->tm_sec = atoi(T0+12);
@@ -208,11 +209,11 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 
 		hdr->FLAG.OVERFLOWDETECTION = 0;
 	    }else{
-		fprintf(stderr, "%s : failed to parse\n", hdr->FileName);
+		fprintf(stderr, "%s : failed to parse (2)\n", hdr->FileName);
 	    }
 	}
 	else
-	    fprintf(stderr, "%s : failed to parse\n", hdr->FileName);
+	    fprintf(stderr, "%s : failed to parse (1)\n", hdr->FileName);
 
 	return(hdr);
 
@@ -239,7 +240,7 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
 	Input: HDR structure
 		
 	Output: 
-		char* HDR.AS.Header1 	// contains the content which will be written to the file in SOPEN
+		char* HDR.AS.Header 	// contains the content which will be written to the file in SOPEN
 */	
 
     char tmp[80];	
