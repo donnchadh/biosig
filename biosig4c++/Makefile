@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.24 2007-08-09 19:26:30 schloegl Exp $
+###  $Id: Makefile,v 1.25 2007-08-14 21:55:04 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -79,6 +79,43 @@ mex:  mexBiosig.c $(OBJECTS)
 	mkoctfile --mex mexBiosig.c $(OBJECTS)
 oct:  octBiosig.c $(OBJECTS) 
 	mkoctfile octBiosig.c $(OBJECTS)
+/tmp/t1.scp:
+	wget  -q -P/tmp http://www.openecg.net/ECGsamples.zip
+	wget  -q -P/tmp http://www.openecg.net/ECGsamplesc.zip
+	unzip -u /tmp/ECGsamples.zip "scp*.zip" -d /tmp
+	unzip -u /tmp/ECGsamplesc.zip "scp*.zip" -d /tmp
+	mkdir -p /tmp/scp/high
+	mkdir -p /tmp/scp/highc
+	mkdir -p /tmp/scp/redred
+	mkdir -p /tmp/scp/redredc
+	unzip -u /tmp/scp_high.zip -d /tmp/scp/high
+	unzip -u /tmp/scp_highc.zip -d /tmp/scp/highc
+	unzip -u /tmp/scp_redred.zip -d /tmp/scp/redred
+	unzip -u /tmp/scp_redredc.zip -d /tmp/scp/redredc
+	rm -rf /tmp/ECGsamples*.zip 
+	rm -rf /tmp/scp*.zip 
+	cp /tmp/scp/highc/PFE103c.scp /tmp/t1.scp
+testscp: save2gdf /tmp/t1.scp
+	# test converting SCP data
+	./save2gdf -f=HL7 /tmp/t1.scp /tmp/t1.scp.hl7
+	./save2gdf -f=GDF /tmp/t1.scp /tmp/t1.scp.gdf
+	./save2gdf -f=HL7 /tmp/t1.scp.gdf /tmp/t1.scp.gdf.hl7
+	./save2gdf -f=GDF /tmp/t1.scp.hl7 /tmp/t1.scp.hl7.gdf
+	./save2gdf -f=SCP /tmp/t1.scp.gdf.hl7 /tmp/t1.scp.gdf.hl7.scp
+	./save2gdf -f=SCP /tmp/t1.scp.hl7.gdf /tmp/t1.scp.hl7.gdf.scp
+/tmp/t1.hl7:
+	wget -q -P/tmp http://hl7.org/library/committees/rcrim/annecg/aECG%20Release%201%20Schema%20and%20Example%2Ezip
+	unzip -u "/tmp/aECG Release 1 Schema and Example.zip"  -d /tmp
+	cp "/tmp/2003-12 Schema/example/Example aECG.xml" /tmp/t1.hl7
+testhl7: save2gdf /tmp/t1.hl7
+	# test converting HL7aECG data
+	./save2gdf -f=GDF /tmp/t1.hl7 /tmp/t1.hl7.gdf
+	./save2gdf -f=SCP /tmp/t1.hl7 /tmp/t1.hl7.scp
+	./save2gdf -f=GDF /tmp/t1.hl7.scp /tmp/t1.hl7.scp.gdf
+	./save2gdf -f=SCP /tmp/t1.hl7.gdf /tmp/t1.hl7.gdf.scp
+	./save2gdf -f=HL7 /tmp/t1.hl7.scp.gdf /tmp/t1.hl7.scp.gdf.hl7
+	./save2gdf -f=HL7 /tmp/t1.hl7.gdf.scp /tmp/t1.hl7.gdf.scp.hl7
+
 
 # for backward compatibility 
 save2scp: save2gdf
@@ -94,13 +131,13 @@ clean:
 	-$(DEL_FILE) t230/*.o
 	-$(DEL_FILE) XMLParser/*.o
 	-$(DEL_FILE) demo t5.scp t6.scp save2gdf gztest
-	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.*.gz *.fil
+	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.*.gz *.fil /tmp/t1.*
 
 
 ####### Testing ########
 test: PFE103.scp save2scp save2aecg save2gdf
-#	cp PFE103.scp   t0.xxx
-	cp Exa01.xml   t0.xxx
+	cp PFE103.scp   t0.xxx
+#	cp Exa01.xml   t0.xxx
 	./save2gdf      t0.xxx t3.gdf
 	./save2scp   	t0.xxx t3.scp
 	./save2aecg  	t0.xxx t3.hl7
