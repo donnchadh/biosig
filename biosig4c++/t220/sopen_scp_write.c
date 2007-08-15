@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.26 2007-08-15 19:50:09 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.27 2007-08-15 21:11:15 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -137,12 +137,12 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			if (hdr->Patient.Name != NULL) {
 				*(ptr+sectionStart+curSectLen) = 0;	// tag
 				len = strlen(hdr->Patient.Name) + 1;
-				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = len;	// length
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
 				strncpy((char*)ptr+sectionStart+curSectLen+3,hdr->Patient.Name,len);	// field
 				curSectLen += len+3; 
 			}
 			else
-				fprintf(stderr,"Warning SOPEN-SCP-WRITE: PatientName is undefined\n");
+				fprintf(stderr,"Warning SOPEN-SCP-WRITE: Section1 Tag0: PatientName is undefined\n");
 
 			// Tag 1 (max len = 64) Firstname 
 /*
@@ -163,7 +163,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 				curSectLen += len+3;
 			}	 
 			else
-				fprintf(stderr,"Warning SOPEN-SCP-WRITE: Patient.Id is undefined\n");
+				fprintf(stderr,"Warning SOPEN-SCP-WRITE: Section 1 Tag 2: Patient.Id is undefined\n");
 
 // fprintf(stdout,"Section %i Len %i %x\n",curSect,curSectLen,sectionStart);
 
