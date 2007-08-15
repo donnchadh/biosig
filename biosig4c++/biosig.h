@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.57 2007-08-14 10:21:14 schloegl Exp $
+% $Id: biosig.h,v 1.58 2007-08-15 09:10:45 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -32,12 +32,12 @@
 
 /****************************************************************************/
 /**                                                                        **/
-/**                CONSTANTS                      **/
+/**                CONSTANTS and Global variables                          **/
 /**                                                                        **/
 /****************************************************************************/
 
 
-
+// for error handling 
 #define B4C_NO_ERROR 		 0
 #define B4C_FORMAT_UNKNOWN 	-1
 #define B4C_FORMAT_UNSUPPORTED 	-2
@@ -50,6 +50,8 @@
 #define B4C_SCLOSE_FAILED 	-9
 #define B4C_UNSPECIFIC_ERROR 	-127
 
+extern int   B4C_ERRNUM;
+extern char* B4C_ERRMSG;
 
 
 
@@ -456,6 +458,7 @@ HDRTYPE* sopen_HL7aECG_read (HDRTYPE* hdr);
 HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr);
 HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr);
 
+size_t gcd(size_t A,size_t B);
 size_t lcm(size_t A,size_t B); 
 
 double PhysDimScale(uint16_t PhysDimCode);

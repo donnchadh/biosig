@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.25 2007-08-13 20:18:25 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.26 2007-08-15 09:10:47 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -80,7 +80,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 	int 		NSections = 12;
 	uint8_t		tag;
 	float 		HighPass=0, LowPass=1.0/0.0, Notch=-1; 	// filter settings
-	float 		Cal5=0,Cal6=0;
+	uint16_t	Cal5=0,Cal6=0;
 
 
 	/* 
@@ -319,6 +319,10 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 		/**** SECTION 5 ****/
 		else if (curSect==5)  {
 			Cal5 			= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+			double Fs5	 	= 1e6/l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
+			/*
+			FLAG5.DIFF 	= *(PtrCurSect+curSectPos+4);		
+			*/
 		}
 
 		/**** SECTION 6 ****/
@@ -451,13 +455,27 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
                 exit(2);
         }
 
+	// greatest common divisor of scaling from section 5 and 6
+	uint16_t g = 1; 	
+	if      (Cal5==0 && Cal6 >1) g = Cal6;
+	else if (Cal5 >1 && Cal6==0) g = Cal5;
+	else if (Cal5 >1 && Cal6 >1) g = gcd(Cal5,Cal6);
+
 	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
+		if (g>1)
+			for (i=0; i < hdr->NS * hdr->SPR * hdr->NRec; ++i)
+				decode.Reconstructed[i] /= g;
 		hdr->AS.rawdata = (uint8_t*)decode.Reconstructed;
+	}
+	else { 
+		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
+		B4C_ERRMSG = "SCP-DECODE can not read file"; 
+		return(hdr);
 	}
 
 	for (i=0; i < hdr->NS; i++) {
 		hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV" 	
-		hdr->CHANNEL[i].Cal 	    = 1e-3;
+		hdr->CHANNEL[i].Cal 	    = g*1e-3;
 		hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
 		hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
 	}
