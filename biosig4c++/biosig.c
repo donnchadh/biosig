@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.90 2007-08-15 19:50:08 schloegl Exp $
+    $Id: biosig.c,v 1.91 2007-08-15 22:00:30 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -779,15 +779,14 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
  */
 {
 
-//	uint8_t *Header1 = hdr->AS.Header1;
-	uint32_t U32 = l_endian_u32(*(uint32_t*)(Header1+2)); 
+	uint32_t U32 = l_endian_u32(*(uint32_t*)(hdr->AS.Header+2)); 
 
-    	if (hdr->TYPE != unknown)
+    	if (hdr->TYPE != unknown) 
     		return(hdr); 
-
+		
     	else if ((U32>=30) & (U32<=42)) {
     		hdr->VERSION = (float)U32; 
-    		U32 = l_endian_u32(*(uint32_t*)(Header1+6));
+    		U32 = l_endian_u32(*(uint32_t*)(hdr->AS.Header+6));
     		if      ((hdr->VERSION <34.0) & (U32 == 150)) hdr->TYPE = ACQ;  
     		else if ((hdr->VERSION <35.0) & (U32 == 164)) hdr->TYPE = ACQ;  
     		else if ((hdr->VERSION <36.0) & (U32 == 326)) hdr->TYPE = ACQ;  
@@ -811,16 +810,16 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	const uint8_t MAGIC_NUMBER_TIFF_l64[] = {73,73,43,0,8,0,0,0};
 	const uint8_t MAGIC_NUMBER_TIFF_b64[] = {77,77,0,43,0,8,0,0};
 	const uint8_t MAGIC_NUMBER_DICOM[]    = {8,0,5,0,10,0,0,0,73,83,79,95,73,82,32,49,48,48};
-	
+
     	if (hdr->TYPE != unknown)
        		return(hdr); 
     	else if (!memcmp(Header1+20,"ACR-NEMA",8))
 	    	hdr->TYPE = ACR_NEMA;
-    	else if (!memcmp(Header1+1,"BIOSEMI",7) & (Header1[0]==-1)) {
+    	else if (!memcmp(Header1+1,"BIOSEMI",7) && (hdr->AS.Header[0]==0xff)) {
     		hdr->TYPE = BDF;
     		hdr->VERSION = -1; 
     	}
-    	else if ((Header1[0]==207) & (!Header1[1]) & (!Header1[154]) & (!Header1[155]))
+    	else if ((*(uint16_t*)hdr->AS.Header==l_endian_u16(207)) && (*(uint16_t*)(hdr->AS.Header+154)>0))
 	    	hdr->TYPE = BKR;
         else if (!memcmp(Header1,"Brain Vision Data Exchange Header File",38))
                 hdr->TYPE = BrainVision;
@@ -842,14 +841,14 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = EDF;
 	    	hdr->VERSION = 0; 
 	}
-    	else if (!memcmp(Header1,"\0\0\0",3) && Header1[3]>1 && Header1[3]<8) {
+    	else if (!memcmp(Header1,"\0\0\0",3) && hdr->AS.Header[3]>1 && hdr->AS.Header[3]<8) {
 	    	hdr->TYPE = EGI;
-	    	hdr->VERSION = Header1[3];
+	    	hdr->VERSION = hdr->AS.Header[3];
     	}
     	else if (!memcmp(Header1,MAGIC_NUMBER_FEF1,8) | !memcmp(Header1,MAGIC_NUMBER_FEF2,8)) {
 	    	hdr->TYPE = FEF;
 		char tmp[9];
-		strncpy(tmp,(char*)Header1+8,8);
+		strncpy(tmp,(char*)hdr->AS.Header+8,8);
 		hdr->VERSION = atof(tmp);
     	}
     	else if (!memcmp(Header1,"fLaC",4))
@@ -919,11 +918,11 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	else if ( (l_endian_u32(*(uint32_t*)Header1) & 0x00FFFFFFL) == 0x00BFBBEFL  
 		&& !memcmp(Header1+3,"<?xml version",13))
 		hdr->TYPE = HL7aECG;	// UTF8
-	else if (*(uint16_t*)Header1[0]==0xFFFE) 
+	else if (*(uint16_t*)Header1[0]==l_endian_u16(0xFFFE)) 
 	{	hdr->TYPE = XML; // UTF16 BigEndian 
 		hdr->FILE.LittleEndian = 0;
     	}
-	else if (*(uint16_t*)Header1[0]==0xFEFF) 
+	else if (*(uint16_t*)Header1[0]==l_endian_u16(0xFEFF)) 
 	{	hdr->TYPE = XML; // UTF16 LittleEndian 
 		hdr->FILE.LittleEndian = 1;
     	}
@@ -963,7 +962,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	time_t		tt;
 	unsigned	EventChannel = 0, GDFTYP;
 	uint16_t	EGI_LENGTH_CODETABLE;	// specific for EGI format 
-	
+
 	if (hdr==NULL)
 		hdr = create_default_hdr(0,0);	// initializes fields that may stay undefined during SOPEN 
 
@@ -986,6 +985,7 @@ if (!strncmp(MODE,"r",1))
     
     	/******** read 1st (fixed)  header  *******/	
     	count   = FREAD(Header1,1,256,hdr);
+	
 	hdr  = getfiletype(hdr);
     	
     	if (hdr->TYPE == unknown) {
@@ -998,7 +998,7 @@ if (!strncmp(MODE,"r",1))
 	}	
 
 	if (hdr->TYPE == GDF) {
-  	    	strncpy(tmp,(char*)Header1+3,5);
+      	    	strncpy(tmp,(char*)Header1+3,5);
 	    	hdr->VERSION 	= atof(tmp);
 	    	hdr->NRec 	= l_endian_i64( *( int64_t*) (Header1+236) ); 
 	    	hdr->Dur[0]  	= l_endian_u32( *(uint32_t*) (Header1+244) );
@@ -1541,7 +1541,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	uint16_t  Gain  = b_endian_u16(*(uint16_t*)(Header1+24));
 	    	uint16_t  Bits  = b_endian_u16(*(uint16_t*)(Header1+26));
 	    	uint16_t PhysMax= b_endian_u16(*(uint16_t*)(Header1+28));
-fprintf(stdout,"EGI: gain=%i bits=%i",Gain,Bits); 	    	
 	    	size_t POS; 
 	    	if (hdr->AS.Header[3] & 0x01)
 	    	{ 	// Version 3,5,7
