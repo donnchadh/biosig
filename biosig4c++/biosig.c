@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.89 2007-08-14 10:21:14 schloegl Exp $
+    $Id: biosig.c,v 1.90 2007-08-15 19:50:08 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -487,7 +487,8 @@ int strcmpi(const char* str1, const char* str2)
 int errnum;
 int B4C_STATUS  = 0;
 int B4C_ERRNUM  = 0;
-char* B4C_ERRMSG= 0;
+char* B4C_ERRMSG;
+
 
 HDRTYPE* FOPEN(HDRTYPE* hdr, char* mode) {
 #ifdef ZLIB_H
@@ -690,7 +691,8 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
       	hdr->NRec = 0; 
       	hdr->NS = NS;	
 	hdr->SampleRate = 4321.5;
-      	memset(hdr->AS.PID,32,81); 
+      	memset(hdr->AS.PID,32,MAX_LENGTH_PID); 
+      	hdr->AS.PID[MAX_LENGTH_PID]=0;
       	hdr->AS.RID = "GRAZ"; 
 	hdr->AS.bi = (uint32_t*)calloc(hdr->NS+1,sizeof(uint32_t));
 	hdr->data.size[0] = 0; 	// rows 
@@ -699,8 +701,8 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
       	hdr->T0 = t_time2gdf_time(time(NULL));
       	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.45";
 
-	hdr->Patient.Name 	= "X";
-	hdr->Patient.Id 	= "\0\0";
+	hdr->Patient.Name 	= NULL; 
+	hdr->Patient.Id 	= NULL; 
 	hdr->Patient.Birthday 	= (gdf_time)0;        // Unknown;
       	hdr->Patient.Medication = 0;	// 0:Unknown, 1: NO, 2: YES
       	hdr->Patient.DrugAbuse 	= 0;	// 0:Unknown, 1: NO, 2: YES
@@ -1213,8 +1215,8 @@ if (!strncmp(MODE,"r",1))
 		    		tm_time.tm_min  = 0; 
 		    		tm_time.tm_hour = 12; 
 		    		hdr->Patient.Birthday = t_time2gdf_time(mktime(&tm_time));
-		    	}	
-		}
+		    	}
+		}    	
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
@@ -1607,12 +1609,22 @@ fprintf(stdout,"EGI: gain=%i bits=%i",Gain,Bits);
 	    		B4C_ERRNUM = B4C_CRC_ERROR;
 	    		B4C_ERRMSG = "Warning SOPEN(SCP-READ): Bad CRC!";
 		}
-		hdr = sopen_SCP_read(hdr);
+		sopen_SCP_read(hdr);
+    		if (serror()) { 
+	    		free(Header1);
+    			free(hdr);
+    			return(NULL);
+    		}	
 	}
 	
 	else if (hdr->TYPE==HL7aECG) 
 	{
-		hdr = sopen_HL7aECG_read(hdr);
+		sopen_HL7aECG_read(hdr);
+    		if (serror()) { 
+	    		free(Header1);
+    			free(hdr);
+    			return(NULL);
+    		}	
 	}
 	else 
 	{
@@ -1720,9 +1732,15 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		memset(Header1,0,hdr->HeadLen);
 		hdr->VERSION = 1.99;
 	     	sprintf(Header1,"GDF %4.2f",hdr->VERSION);
-	     	strncat(Header1+8, hdr->Patient.Id,   66);
+		if (hdr->Patient.Id!=NULL) 
+	     		strncat(Header1+8, hdr->Patient.Id,   66);
+		else     	
+		     	strncat(Header1+8, "X", 66);
 	     	strncat(Header1+8, " ",   66);
-	     	strncat(Header1+8, hdr->Patient.Name, 66);
+		if (hdr->Patient.Name!=NULL) 
+		     	strncat(Header1+8, hdr->Patient.Name, 66);
+		else     	
+		     	strncat(Header1+8, "X", 66);
 
 	     	Header1[84] = (hdr->Patient.Smoking%4) + ((hdr->Patient.AlcoholAbuse%4)<<2) + ((hdr->Patient.DrugAbuse%4)<<4) + ((hdr->Patient.Medication%4)<<6);
 	     	Header1[85] =  hdr->Patient.Weight;
@@ -1911,7 +1929,12 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	}
     	else if (hdr->TYPE==SCP_ECG) {	
     		hdr->FileName = FileName;
-    		hdr = sopen_SCP_write(hdr);
+    		sopen_SCP_write(hdr);
+    		if (serror()) { 
+	    		free(Header1);
+    			free(hdr);
+    			return(NULL);
+    		}	
 	}
     	else if (hdr->TYPE==HL7aECG) {	
    		hdr->FileName = FileName;

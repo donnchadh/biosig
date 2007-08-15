@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.58 2007-08-15 09:10:45 schloegl Exp $
+% $Id: biosig.h,v 1.59 2007-08-15 19:50:09 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -236,6 +236,7 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 #define MAX_LENGTH_LABEL 	40 
 #define MAX_LENGTH_TRANSDUCER 	80
 #define MAX_LENGTH_PHYSDIM 	20
+#define MAX_LENGTH_PID	 	80
 typedef struct {
 	char		OnOff; 		
 	char		Label[MAX_LENGTH_LABEL+1]; 	/* Label of channel */
@@ -408,7 +409,7 @@ typedef struct {
 
 	/*	internal variables (not public)  */
 	struct {
-		char 		PID[81];	/* patient identification */
+		char 		PID[MAX_LENGTH_PID+1];	/* patient identification */
 		char* 		RID;		/* recording identification */ 
 		uint32_t 	spb;		/* total samples per block */
 		uint32_t 	bpb;  		/* total bytes per block */

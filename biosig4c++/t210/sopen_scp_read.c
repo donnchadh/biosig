@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.26 2007-08-15 09:10:47 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.27 2007-08-15 19:50:09 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -149,8 +149,10 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				len = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+1));
 				curSectPos += 3; 
 				if (tag==0) {
+					hdr->Patient.Name = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==1) {
+//					hdr->Patient.FirstName = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==2) {
 					hdr->Patient.Id = (char*)(PtrCurSect+curSectPos);

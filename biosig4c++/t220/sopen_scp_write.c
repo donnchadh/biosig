@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.25 2007-08-07 07:52:57 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.26 2007-08-15 19:50:09 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -132,30 +132,38 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			PtrCurSect = ptr+sectionStart; 
 // fprintf(stdout,"Section %i %x %x\n",curSect,ptr,sectionStart);
 			curSectLen = 16; // current section length
-/*
+
 			// Tag 0 (max len = 64)
-			*(ptr+sectionStart+curSectLen) = 0;	// tag
-			len = strlen(hdr->Patient.Name) + 1;
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = len;	// length
-			strncpy((char*)ptr+sectionStart+curSectLen+3,hdr->Patient.Name,len);	// field
-			curSectLen += len+3; 
-*/			
+			if (hdr->Patient.Name != NULL) {
+				*(ptr+sectionStart+curSectLen) = 0;	// tag
+				len = strlen(hdr->Patient.Name) + 1;
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = len;	// length
+				strncpy((char*)ptr+sectionStart+curSectLen+3,hdr->Patient.Name,len);	// field
+				curSectLen += len+3; 
+			}
+			else
+				fprintf(stderr,"Warning SOPEN-SCP-WRITE: PatientName is undefined\n");
+
 			// Tag 1 (max len = 64) Firstname 
 /*
 			*(ptr+sectionStart+curSectLen) = 1;	// tag
 			len = strlen(hdr->Patient.Name) + 1;
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
-			strncpy(ptr+sectionStart+curSectLen+3,hdr->Patient.Name,len);	// field
+			strncpy((char*)ptr+sectionStart+curSectLen+3,hdr->Patient.Name,len);	// field
 			curSectLen += len+3; 
-*/
-			
+*/	
+		
 			// Tag 2 (max len = 64) Patient ID 
-			*(ptr+sectionStart+curSectLen) = 2;	// tag
-			if (!strlen(hdr->Patient.Id))	hdr->Patient.Id = "UNKNOWN"; 
-			len = strlen(hdr->Patient.Id) + 1;
-			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
-			strncpy((char*)ptr+sectionStart+curSectLen+3,hdr->Patient.Id,len);	// field
-			curSectLen += len+3; 
+			if (hdr->Patient.Id != NULL) {
+				*(ptr+sectionStart+curSectLen) = 2;	// tag
+				// if (!strlen(hdr->Patient.Id))	hdr->Patient.Id = "UNKNOWN"; 
+				len = strlen(hdr->Patient.Id) + 1;
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
+				strncpy((char*)ptr+sectionStart+curSectLen+3,hdr->Patient.Id,len);	// field
+				curSectLen += len+3;
+			}	 
+			else
+				fprintf(stderr,"Warning SOPEN-SCP-WRITE: Patient.Id is undefined\n");
 
 // fprintf(stdout,"Section %i Len %i %x\n",curSect,curSectLen,sectionStart);
 
@@ -172,9 +180,9 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			if ((hdr->Patient.Birthday) > 0) {
 // fprintf(stdout,"Section %i Tag %Li %Li %i %e\n",curSect,hdr->T0,hdr->Patient.Birthday,T0,ldexp(T0,-32));
 				T0 = gdf_time2t_time(hdr->Patient.Birthday);
-// fprintf(stdout,"Section %i Tag +2%i %Li %e %e\n",curSect,4,hdr->Patient.Birthday,T0,ldexp(T0,-32));
+// fprintf(stdout,"Section %i Tag %+2i %Li %e \n",curSect,4,hdr->Patient.Birthday,T0*ldexp(T0,-32));
 				T0_tm = gmtime(&T0);
-// fprintf(stdout,"Section %i Tag +2%i %s\n",curSect,4,asctime(localtime(&T0)));
+// fprintf(stdout,"Section %i Tag %+2i %s\n",curSect,4,asctime(localtime(&T0)));
 				*(ptr+sectionStart+curSectLen) = 5;	// tag
 				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
 				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(T0_tm->tm_year+1900);// year
@@ -443,7 +451,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 			curSectLen = 16; // current section length
 
 			// Create all the fields
-			// Amplitude Value Multiplier (AMV)
+			// Amplitude Value Multiplier (AVM)
 			i = 0;			
 			AVM = hdr->CHANNEL[i].Cal * 1e9 * PhysDimScale(hdr->CHANNEL[i].PhysDimCode);
 			for (i = 1; i < hdr->NS; i++) {

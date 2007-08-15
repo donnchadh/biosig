@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.9 2007-08-14 10:22:23 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.10 2007-08-15 19:50:09 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -89,14 +89,15 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		demographic = demographic.FirstChild("subjectDemographicPerson");
 
 		TiXmlElement *name = demographic.FirstChild("name").Element();
-		if(name)
+		// ### FIXME: name is always NULL ##
+		if (name)
 		    hdr->Patient.Name = strdup(name->GetText());
-		else
-		    fprintf(stderr,"Error: name\n");
+		else 
+		    fprintf(stderr,"Error: Patient Name could not be read.\n");
 		
 		TiXmlElement *birthday = demographic.FirstChild("birthTime").Element();
-		//if(birthday){
-		if(0){
+		// ### FIXME: does not read data
+		if(birthday){
 		    T0 = (char *)birthday->Attribute("value");
 		    T0[14] = '\0';
 		    t0->tm_sec = atoi(T0+12);
@@ -327,11 +328,12 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     trialSubjectDemographicPerson->SetAttribute("determinerCode", "INSTANCE");
     trialSubject->LinkEndChild(trialSubjectDemographicPerson);
 
-    TiXmlElement *subjectDemographicPersonName = new TiXmlElement("name");
-    TiXmlText *nameText = new TiXmlText(hdr->Patient.Name);
-    subjectDemographicPersonName->LinkEndChild(nameText);
-    trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonName);
-
+    if (hdr->Patient.Name!=NULL) {	
+	TiXmlElement *subjectDemographicPersonName = new TiXmlElement("name");
+    	TiXmlText *nameText = new TiXmlText(hdr->Patient.Name);
+    	subjectDemographicPersonName->LinkEndChild(nameText);
+    	trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonName);
+    }
     TiXmlElement *subjectDemographicPersonGender = new TiXmlElement("administrativeGenderCode");
     if(hdr->Patient.Sex == 1){
 	subjectDemographicPersonGender->SetAttribute("code", "M");
