@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.18 2007-08-09 14:10:12 schloegl Exp $
+    $Id: save2gdf.c,v 1.19 2007-08-15 20:05:11 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -32,12 +32,13 @@ int main(int argc, char **argv){
     
     HDRTYPE 	*hdr; 
     CHANNEL_TYPE* 	cp; 
-    size_t 	count;
-    uint16_t 	numopt = 0, k;
+    size_t 	count, k, k1;
+    uint16_t 	numopt = 0;
     time_t  	T0;
     char 	*source, *dest, tmp[1024]; 
     enum FileFormat TARGET_TYPE=GDF; 		// type of file format
     int		COMPRESSION_LEVEL=0;
+    int		VERBOSE_LEVEL=-1;
     int		status; 
 	
     if (argc<2)
@@ -64,6 +65,7 @@ int main(int argc, char **argv){
 		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG(EN1064), GDF, EDF, BDF, CFWB\n"); 
 		fprintf(stdout,"   -z=#, compression level \n");
 		fprintf(stdout,"\t#=0 no compression; #=9 best compression\n");
+		fprintf(stdout,"   -VERBOSE=#, verbosity level #\n\t0=silent, 9=debugging");
 		fprintf(stdout,"\n\n");
 		return(0);
 	}	
@@ -78,7 +80,10 @@ int main(int argc, char **argv){
 #else
 	     	fprintf(stderr,"Warning: option -z (compression) not supported. zlib not linked.\n");
 #endif 
-	}	
+	}
+    	else if (!strncmp(argv[k],"-VERBOSE",3))  	{
+	    	VERBOSE_LEVEL = argv[k][strlen(argv[k])-1]-48;
+	}
     	else if (!strncmp(argv[k],"-f=",3))  	{
     	 	if (!strcmp(argv[k],"-f=GDF"))
 			TARGET_TYPE=GDF;
@@ -114,13 +119,20 @@ int main(int argc, char **argv){
     	case 2:
 	    	source = argv[numopt+1]; 
     	}	
+//	if (dest==NULL ) VERBOSE_LEVEL=2; // default 
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"111\n");
 
 	hdr = sopen(source, "r", NULL);
 	if ((status=serror())) exit(status); 
 	
 	if (hdr==NULL) exit(-1);
-	if (dest==NULL) 
-	{
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"112\n");
+	if (VERBOSE_LEVEL<0) VERBOSE_LEVEL=2; // default 
+
+	if (VERBOSE_LEVEL) {
+	//if (0) {
+		if (VERBOSE_LEVEL>3) {
 		/* display header information */
 		fprintf(stdout,"FileName:\t%s\nType    :\t%i\nVersion:\t%4.2f\nHeadLen:\t%i\n",source,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
 		fprintf(stdout,"NS:\t%i\nSPR:\t%i\nNRec:\t%Li\nDuration[s]:\t%u/%u\nFs:\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
@@ -130,8 +142,12 @@ int main(int argc, char **argv){
 		fprintf(stdout,"Date/Time:\t%s\n",asctime(localtime(&T0))); 
 		//T0 = gdf_time2t_time(hdr->Patient.Birthday);
 		//fprintf(stdout,"Birthday:\t%s\n",asctime(localtime(&T0)));
-
-		fprintf(stdout,"Patient:\n\tName:\t%s\n\tId:\t%s\n\tWeigth:\t%i kg\n\tHeigth:\t%i cm\n\tAge:\t%4.1f y\n",hdr->Patient.Name,hdr->Patient.Id,hdr->Patient.Weight,hdr->Patient.Height,(hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32)); 
+		}
+		
+		if (VERBOSE_LEVEL>1) {
+		fprintf(stdout,"PID:\t|%s|\nPatient:\n",hdr->AS.PID);
+		fprintf(stdout,"\tName:\t%s\n",hdr->Patient.Name); 
+		fprintf(stdout,"\tId:\t%s\n\tWeigth:\t%i kg\n\tHeigth:\t%i cm\n\tAge:\t%4.1f y\n",hdr->Patient.Id,hdr->Patient.Weight,hdr->Patient.Height,(hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32)); 
 		T0 = gdf_time2t_time(hdr->Patient.Birthday);
 		fprintf(stdout,"\tGender:\t"); 
 		if (hdr->Patient.Sex==1)
@@ -141,33 +157,45 @@ int main(int argc, char **argv){
 		else 
 			fprintf(stdout,"unknown\n"); 
 		fprintf(stdout,"\tBirthday:\t%s",asctime(localtime(&T0))); 
-
+		}
+		
+		if (VERBOSE_LEVEL>2) {
+		fprintf(stdout,"\nCHAN#  LeadId Label\tCal\tOff\tPhysDim PhysDimCode PhysMax  PhysMin DigMax DigMin GDFTYP (Bytes)");
 		for (int k=0; k<hdr->NS; k++) {
 			cp = hdr->CHANNEL+k; 
 			fprintf(stdout,"\n#%2i: %3i %7s\t%5f %5f %s\t%i\t%5f\t%5f\t%5f\t%5f\t%i(%i bytes)",k,cp->LeadIdCode,cp->Label,cp->Cal,cp->Off,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin,cp->GDFTYP,GDFTYP_BYTE[cp->GDFTYP]);
+		}
 		}
 	}
 
 	hdr->FLAG.OVERFLOWDETECTION = 0;
 	hdr->FLAG.UCAL = 1;
 	
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"121\n");
 	count = sread(hdr, 0, hdr->NRec);
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"129\n");
 	if ((status=serror())) exit(status); 
 
 	fprintf(stdout,"\nFile %s read successfully [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
+	fprintf(stdout,"\n %f,%f.\n",hdr->FileName,hdr->data.block[3*hdr->SPR],hdr->data.block[4*hdr->SPR]);
 	if (dest==NULL) {
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"131\n");
 		sclose(hdr);
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"137\n");
 		free(hdr);
 		exit(serror());
 	}
 
 	if (hdr->FILE.OPEN){
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"132\n");
 		FCLOSE(hdr); 
 		hdr->FILE.FID = 0;
 		free(hdr->AS.Header);
 		hdr->AS.Header = NULL;
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"138\n");
 	}
 	fprintf(stdout,"\nFile %s closed \n",hdr->FileName);
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"139\n");
 
    /********************************* 
    	Write data 
@@ -180,23 +208,32 @@ int main(int argc, char **argv){
 		hdr->FILE.COMPRESSION = 0;
 	}
 
-	if (hdr->TYPE==GDF || hdr->TYPE==CFWB) {
-		size_t N = hdr->NRec*hdr->SPR;
-    		for (k=0; k<hdr->NS; k++) {
-			double MaxValue = hdr->data.block[k*N];
-			double MinValue = hdr->data.block[k*N];
-			/* Maximum and Minimum for channel k */ 
-			for (uint32_t k1=1; k1<N; k1++) {
-				if (MaxValue < hdr->data.block[k*N+k1])
-			 		MaxValue = hdr->data.block[k*N+k1];
-		 		if (MinValue > hdr->data.block[k*N+k1])
-		 			MinValue = hdr->data.block[k*N+k1];
-			}
-	    		if (!hdr->FLAG.UCAL) {
-	    			MaxValue = (MaxValue - hdr->CHANNEL[k].Off)/hdr->CHANNEL[k].Cal;
-	    			MinValue = (MinValue - hdr->CHANNEL[k].Off)/hdr->CHANNEL[k].Cal;
-	    		}
+	double PhysMaxValue0 = hdr->data.block[0];
+	double PhysMinValue0 = hdr->data.block[0];
+	double val; 
+	size_t N = hdr->NRec*hdr->SPR;
+    	for (k=0; k<hdr->NS; k++) {
+		double MaxValue = hdr->data.block[k*N];
+		double MinValue = hdr->data.block[k*N];
+		/* Maximum and Minimum for channel k */ 
+		for (k1=1; k1<N; k1++) {
+			if (MaxValue < hdr->data.block[k*N+k1])
+		 		MaxValue = hdr->data.block[k*N+k1];
+	 		if (MinValue > hdr->data.block[k*N+k1])
+	 			MinValue = hdr->data.block[k*N+k1];
+		}
+		if (!hdr->FLAG.UCAL) {
+			MaxValue = (MaxValue - hdr->CHANNEL[k].Off)/hdr->CHANNEL[k].Cal;
+			MinValue = (MinValue - hdr->CHANNEL[k].Off)/hdr->CHANNEL[k].Cal;
+		}
+		val = MaxValue*hdr->CHANNEL[k].Cal+hdr->CHANNEL[k].Off;		
+		if (PhysMaxValue0 < val)
+			PhysMaxValue0 = val;
+		val = MinValue*hdr->CHANNEL[k].Cal+hdr->CHANNEL[k].Off;		
+ 		if (PhysMinValue0 > MinValue)
+ 			PhysMinValue0 = MinValue;
 
+		if (hdr->TYPE==GDF || hdr->TYPE==CFWB) {
 			/* heuristic to determine optimal data type */
 			if ((MaxValue <= 127) && (MinValue >= -128))
 		    		hdr->CHANNEL[k].GDFTYP = 1;
@@ -212,20 +249,37 @@ int main(int argc, char **argv){
 		    		hdr->CHANNEL[k].GDFTYP = 6;
 		}
 	}
+	if (0) //(hdr->TYPE==SCP_ECG && !hdr->FLAG.UCAL) 
+	    	for (k=0; k<hdr->NS; k++) {
+	    		hdr->CHANNEL[k].GDFTYP = 3;
+	    		hdr->CHANNEL[k].PhysMax = max(PhysMaxValue0,-PhysMinValue0);
+	    		hdr->CHANNEL[k].PhysMin = -hdr->CHANNEL[k].PhysMax;
+	    		hdr->CHANNEL[k].Cal = ceil(hdr->CHANNEL[k].PhysMax/(ldexp(1.0,15)-1));
+	    		hdr->CHANNEL[k].Off = 0.0;
+	    		hdr->CHANNEL[k].DigMax = hdr->CHANNEL[k].PhysMax/hdr->CHANNEL[k].Cal;
+	    		hdr->CHANNEL[k].DigMin = -hdr->CHANNEL[k].DigMax;
+		}
 
 	/* write file */
 	strcpy(tmp,dest);
 	if (hdr->FILE.COMPRESSION)  // add .gz extension to filename  
 		strcat(tmp,".gz");
 
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"211\n");
 	hdr = sopen(tmp, "wb", hdr);
 	if ((status=serror())) exit(status); 
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"221\n");
 
 	fprintf(stdout,"\nFile %s opened. %i %i \n",hdr->FileName,hdr->AS.bpb,hdr->NS);
 
 	swrite(hdr->data.block, hdr->NRec, hdr);
-	if ((status=serror())) exit(status); 
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"231\n");
+	if (status=serror()) { 
+		free(hdr);
+		exit(status); 
+    	}	
     	sclose(hdr);
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"241\n");
     	free(hdr);
 	exit(serror()); 
 }
