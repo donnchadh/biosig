@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.25 2007-08-14 21:55:04 schloegl Exp $
+###  $Id: Makefile,v 1.26 2007-08-15 19:48:07 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -11,7 +11,8 @@
 #CC            = gcc
 CC            = g++
 DEFINES       =
-CFLAGS        = -O2 -Wall $(DEFINES)
+#CFLAGS        = -O2 -Wall $(DEFINES)
+CFLAGS        =  $(DEFINES)
 INCPATH       =
 #LINK          = gcc
 LINK          = g++
@@ -53,7 +54,7 @@ OBJECTS       = biosig.o \
 		t230/sopen_hl7aecg.o \
 		/usr/lib/libz.so
 
-TARGET        = save2gdf demo save2aecg save2scp 
+TARGET        = save2gdf demo save2aecg save2scp test_scp_decode
 
 first: all
 all: $(TARGET)
@@ -72,7 +73,8 @@ demo:   demo.c $(OBJECTS)
 save2gdf: save2gdf.c $(OBJECTS)
 	$(CC) $(CFLAGS) $(OBJECTS) save2gdf.c -o save2gdf 
 test_scp_decode: test0/test_scp_decode.c $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) test0/test_scp_decode.c -o test_scp_decode 
+	$(CC) $(CFLAGS) $(OBJECTS) test0/test_scp_decode.c -o test_scp_decode
+	./test_scp_decode ~/data/test/scp/highc/P120N00c.scp
 gztest: test0/gztest.c $(OBJECTS)
 	$(CC) $(CFLAGS) $(OBJECTS) test0/gztest.c -o gztest
 mex:  mexBiosig.c $(OBJECTS) 
@@ -94,27 +96,41 @@ oct:  octBiosig.c $(OBJECTS)
 	unzip -u /tmp/scp_redredc.zip -d /tmp/scp/redredc
 	rm -rf /tmp/ECGsamples*.zip 
 	rm -rf /tmp/scp*.zip 
-	cp /tmp/scp/highc/PFE103c.scp /tmp/t1.scp
+	cp /tmp/scp/high/PFE103.scp /tmp/t1.scp
 testscp: save2gdf /tmp/t1.scp
 	# test converting SCP data
 	./save2gdf -f=HL7 /tmp/t1.scp /tmp/t1.scp.hl7
+	./save2gdf -f=GDF /tmp/t1.scp.hl7 /tmp/t1.scp.hl7.gdf
+	./save2gdf -f=SCP /tmp/t1.scp.hl7.gdf /tmp/t1.scp.hl7.gdf.scp
+	./save2gdf -f=GDF /tmp/t1.scp.hl7.gdf.scp /tmp/t1.scp.hl7.gdf.scp.gdf
+	./save2gdf -f=HL7 /tmp/t1.scp.hl7.gdf.scp.gdf /tmp/t1.scp.hl7.gdf.scp.gdf.hl7
+	./save2gdf -f=SCP /tmp/t1.scp.hl7.gdf.scp.gdf.hl7 /tmp/t1.scp.hl7.gdf.scp.gdf.hl7.scp
 	./save2gdf -f=GDF /tmp/t1.scp /tmp/t1.scp.gdf
 	./save2gdf -f=HL7 /tmp/t1.scp.gdf /tmp/t1.scp.gdf.hl7
-	./save2gdf -f=GDF /tmp/t1.scp.hl7 /tmp/t1.scp.hl7.gdf
 	./save2gdf -f=SCP /tmp/t1.scp.gdf.hl7 /tmp/t1.scp.gdf.hl7.scp
-	./save2gdf -f=SCP /tmp/t1.scp.hl7.gdf /tmp/t1.scp.hl7.gdf.scp
+	./save2gdf -f=HL7 /tmp/t1.scp.gdf.hl7.scp /tmp/t1.scp.gdf.hl7.scp.hl7
+	./save2gdf -f=GDF /tmp/t1.scp.gdf.hl7.scp.hl7 /tmp/t1.scp.gdf.hl7.scp.hl7.gdf
+	./save2gdf -f=SCP /tmp/t1.scp.gdf.hl7.scp.hl7.gdf /tmp/t1.scp.gdf.hl7.scp.hl7.gdf.scp
 /tmp/t1.hl7:
 	wget -q -P/tmp http://hl7.org/library/committees/rcrim/annecg/aECG%20Release%201%20Schema%20and%20Example%2Ezip
 	unzip -u "/tmp/aECG Release 1 Schema and Example.zip"  -d /tmp
 	cp "/tmp/2003-12 Schema/example/Example aECG.xml" /tmp/t1.hl7
+	rm -rf "/tmp/aECG Release 1 Schema and Example.zip"
+	rm -rf "/tmp/2003-12 Schema"
 testhl7: save2gdf /tmp/t1.hl7
 	# test converting HL7aECG data
 	./save2gdf -f=GDF /tmp/t1.hl7 /tmp/t1.hl7.gdf
+	./save2gdf -f=SCP /tmp/t1.hl7.gdf /tmp/t1.hl7.gdf.scp
+	./save2gdf -f=HL7 /tmp/t1.hl7.gdf.scp /tmp/t1.hl7.gdf.scp.hl7
+	./save2gdf -f=SCP /tmp/t1.hl7.gdf.scp.hl7 /tmp/t1.hl7.gdf.scp.hl7.scp
+	./save2gdf -f=GDF /tmp/t1.hl7.gdf.scp.hl7.scp /tmp/t1.hl7.gdf.scp.hl7.scp.gdf
+	./save2gdf -f=HL7 /tmp/t1.hl7.gdf.scp.hl7.scp.gdf /tmp/t1.hl7.gdf.scp.hl7.scp.gdf.hl7
 	./save2gdf -f=SCP /tmp/t1.hl7 /tmp/t1.hl7.scp
 	./save2gdf -f=GDF /tmp/t1.hl7.scp /tmp/t1.hl7.scp.gdf
-	./save2gdf -f=SCP /tmp/t1.hl7.gdf /tmp/t1.hl7.gdf.scp
 	./save2gdf -f=HL7 /tmp/t1.hl7.scp.gdf /tmp/t1.hl7.scp.gdf.hl7
-	./save2gdf -f=HL7 /tmp/t1.hl7.gdf.scp /tmp/t1.hl7.gdf.scp.hl7
+	./save2gdf -f=GDF /tmp/t1.hl7.scp.gdf.hl7 /tmp/t1.hl7.scp.gdf.hl7.gdf
+	./save2gdf -f=SCP /tmp/t1.hl7.scp.gdf.hl7.gdf /tmp/t1.hl7.scp.gdf.hl7.gdf.scp
+	./save2gdf -f=HL7 /tmp/t1.hl7.scp.gdf.hl7.gdf.scp /tmp/t1.hl7.scp.gdf.hl7.gdf.scp.hl7
 
 
 # for backward compatibility 
@@ -130,7 +146,7 @@ clean:
 	-$(DEL_FILE) t220/*.o
 	-$(DEL_FILE) t230/*.o
 	-$(DEL_FILE) XMLParser/*.o
-	-$(DEL_FILE) demo t5.scp t6.scp save2gdf gztest
+	-$(DEL_FILE) demo t5.scp t6.scp save2gdf gztest test_scp_decode
 	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.*.gz *.fil /tmp/t1.*
 
 
