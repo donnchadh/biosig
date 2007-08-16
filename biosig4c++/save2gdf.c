@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.19 2007-08-15 20:05:11 schloegl Exp $
+    $Id: save2gdf.c,v 1.20 2007-08-16 10:35:27 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -81,7 +81,7 @@ int main(int argc, char **argv){
 	     	fprintf(stderr,"Warning: option -z (compression) not supported. zlib not linked.\n");
 #endif 
 	}
-    	else if (!strncmp(argv[k],"-VERBOSE",3))  	{
+    	else if (!strncmp(argv[k],"-VERBOSE",2))  	{
 	    	VERBOSE_LEVEL = argv[k][strlen(argv[k])-1]-48;
 	}
     	else if (!strncmp(argv[k],"-f=",3))  	{
@@ -121,18 +121,18 @@ int main(int argc, char **argv){
     	}	
 //	if (dest==NULL ) VERBOSE_LEVEL=2; // default 
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"111\n");
+	if (VERBOSE_LEVEL<0) VERBOSE_LEVEL=1; // default 
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[111] SAVE2GDF started\n");
 
 	hdr = sopen(source, "r", NULL);
 	if ((status=serror())) exit(status); 
 	
 	if (hdr==NULL) exit(-1);
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"112\n");
-	if (VERBOSE_LEVEL<0) VERBOSE_LEVEL=2; // default 
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
 	if (VERBOSE_LEVEL) {
 	//if (0) {
-		if (VERBOSE_LEVEL>3) {
+		if (VERBOSE_LEVEL>2) {
 		/* display header information */
 		fprintf(stdout,"FileName:\t%s\nType    :\t%i\nVersion:\t%4.2f\nHeadLen:\t%i\n",source,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
 		fprintf(stdout,"NS:\t%i\nSPR:\t%i\nNRec:\t%Li\nDuration[s]:\t%u/%u\nFs:\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
@@ -144,11 +144,10 @@ int main(int argc, char **argv){
 		//fprintf(stdout,"Birthday:\t%s\n",asctime(localtime(&T0)));
 		}
 		
-		if (VERBOSE_LEVEL>1) {
+		if (VERBOSE_LEVEL>0) {
 		fprintf(stdout,"PID:\t|%s|\nPatient:\n",hdr->AS.PID);
 		fprintf(stdout,"\tName:\t%s\n",hdr->Patient.Name); 
 		fprintf(stdout,"\tId:\t%s\n\tWeigth:\t%i kg\n\tHeigth:\t%i cm\n\tAge:\t%4.1f y\n",hdr->Patient.Id,hdr->Patient.Weight,hdr->Patient.Height,(hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32)); 
-		T0 = gdf_time2t_time(hdr->Patient.Birthday);
 		fprintf(stdout,"\tGender:\t"); 
 		if (hdr->Patient.Sex==1)
 			fprintf(stdout,"male\n"); 
@@ -156,10 +155,13 @@ int main(int argc, char **argv){
 			fprintf(stdout,"female\n"); 
 		else 
 			fprintf(stdout,"unknown\n"); 
-		fprintf(stdout,"\tBirthday:\t%s",asctime(localtime(&T0))); 
+		T0 = gdf_time2t_time(hdr->Patient.Birthday);
+		fprintf(stdout,"\tBirthday        :\t%s",asctime(localtime(&T0))); 
+		T0 = gdf_time2t_time(hdr->T0);
+		fprintf(stdout,"\tStartOfRecording:\t%s",asctime(localtime(&T0))); 
 		}
 		
-		if (VERBOSE_LEVEL>2) {
+		if (VERBOSE_LEVEL>1) {
 		fprintf(stdout,"\nCHAN#  LeadId Label\tCal\tOff\tPhysDim PhysDimCode PhysMax  PhysMin DigMax DigMin GDFTYP (Bytes)");
 		for (int k=0; k<hdr->NS; k++) {
 			cp = hdr->CHANNEL+k; 
@@ -171,32 +173,31 @@ int main(int argc, char **argv){
 	hdr->FLAG.OVERFLOWDETECTION = 0;
 	hdr->FLAG.UCAL = 1;
 	
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"121\n");
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[121]\n");
 	count = sread(hdr, 0, hdr->NRec);
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"129\n");
 	if ((status=serror())) exit(status); 
 
-	fprintf(stdout,"\nFile %s read successfully [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
-	fprintf(stdout,"\n %f,%f.\n",hdr->FileName,hdr->data.block[3*hdr->SPR],hdr->data.block[4*hdr->SPR]);
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stdout,"\n[129] SREAD on %s successful [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
+//	fprintf(stdout,"\n %f,%f.\n",hdr->FileName,hdr->data.block[3*hdr->SPR],hdr->data.block[4*hdr->SPR]);
 	if (dest==NULL) {
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"131\n");
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[131] going for SCLOSE\n");
 		sclose(hdr);
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"137\n");
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[137] SCLOSE finished\n");
 		free(hdr);
 		exit(serror());
 	}
 
 	if (hdr->FILE.OPEN){
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"132\n");
 		FCLOSE(hdr); 
 		hdr->FILE.FID = 0;
 		free(hdr->AS.Header);
 		hdr->AS.Header = NULL;
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"138\n");
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[138] file closed\n");
 	}
-	fprintf(stdout,"\nFile %s closed \n",hdr->FileName);
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"139\n");
-
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stdout,"\n[139] File %s closed \n",hdr->FileName);
+	
    /********************************* 
    	Write data 
    *********************************/
@@ -265,21 +266,20 @@ int main(int argc, char **argv){
 	if (hdr->FILE.COMPRESSION)  // add .gz extension to filename  
 		strcat(tmp,".gz");
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"211\n");
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[211]\n");
 	hdr = sopen(tmp, "wb", hdr);
 	if ((status=serror())) exit(status); 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"221\n");
-
-	fprintf(stdout,"\nFile %s opened. %i %i \n",hdr->FileName,hdr->AS.bpb,hdr->NS);
+	if (VERBOSE_LEVEL>8)
+		fprintf(stdout,"\n[221] File %s opened. %i %i \n",hdr->FileName,hdr->AS.bpb,hdr->NS);
 
 	swrite(hdr->data.block, hdr->NRec, hdr);
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"231\n");
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[231] SWRITE finishes\n");
 	if (status=serror()) { 
 		free(hdr);
 		exit(status); 
     	}	
     	sclose(hdr);
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"241\n");
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[241] SCLOSE finished\n");
     	free(hdr);
 	exit(serror()); 
 }
