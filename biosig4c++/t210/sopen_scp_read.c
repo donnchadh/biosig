@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.30 2007-08-16 14:53:26 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.31 2007-08-16 15:00:56 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -76,19 +76,10 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 	uint32_t	i,k1,k2; 
 	size_t		curSectPos;
 	size_t 	sectionStart; 
-	tm 		t0,t1;
 	int 		NSections = 12;
 	uint8_t		tag;
 	float 		HighPass=0, LowPass=1.0/0.0, Notch=-1; 	// filter settings
 	uint16_t	Cal5=0,Cal6=0;
-
-	t0.tm_year = 0; 
-	t0.tm_mon  = 0; 
-	t0.tm_mday = 0; 
-	t0.tm_hour = 0; 
-	t0.tm_min  = 0; 
-	t0.tm_sec  = 0; 
-	t0.tm_isdst  = -1; // daylight savings time - unknown 
 
 	/* 
 	   Try direct conversion SCP->HDR to internal data structure
@@ -150,7 +141,17 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 		/**** SECTION 1 ****/
 		else if (curSect==1)  
 		{
+			struct tm t0,t1;
+			t0.tm_year = 0; 
+			t0.tm_mon  = 0; 
+			t0.tm_mday = 0; 
+			t0.tm_hour = 0; 
+			t0.tm_min  = 0; 
+			t0.tm_sec  = 0; 
+			t0.tm_isdst  = -1; // daylight savings time - unknown 
+			hdr->T0    = 0; 
 			hdr->Patient.Birthday = 0; 
+
 			while ((*(PtrCurSect+curSectPos)!=255) | (*(uint16_t*)(PtrCurSect+curSectPos+1)!=0)) {
 				tag = *(PtrCurSect+curSectPos);
 				len = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+1));
@@ -253,13 +254,11 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 					t0.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))-1900;
 					t0.tm_mon  = (*(PtrCurSect+curSectPos+2)) - 1;
 					t0.tm_mday = *(PtrCurSect+curSectPos+3);
-					hdr->T0    = tm_time2gdf_time(&t0);
 				}
 				else if (tag==26) {
 					t0.tm_hour = *(PtrCurSect+curSectPos);
 					t0.tm_min  = *(PtrCurSect+curSectPos+1);
 					t0.tm_sec  = *(PtrCurSect+curSectPos+2);
-					hdr->T0    = tm_time2gdf_time(&t0);
 				}
 				else if (tag==27) {
 					HighPass   = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))/100.0;
@@ -286,6 +285,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				}
 				curSectPos += len;
 			}
+			hdr->T0    = tm_time2gdf_time(&t0);
 		}
 
 		/**** SECTION 2 ****/
