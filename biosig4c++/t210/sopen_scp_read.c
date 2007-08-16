@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.28 2007-08-16 10:33:57 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.29 2007-08-16 14:20:10 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -243,7 +243,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 					hdr->aECG->EmergencyLevel = *(PtrCurSect+curSectPos);
 				}
 				else if (tag==25) {
-					t0.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos)-1900);
+					t0.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))-1900;
 					t0.tm_mon  = *(PtrCurSect+curSectPos+2)-1;
 					t0.tm_mday = *(PtrCurSect+curSectPos+3);
 					hdr->T0    = tm_time2gdf_time((&t0));
