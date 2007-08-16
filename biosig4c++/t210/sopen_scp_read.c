@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.29 2007-08-16 14:20:10 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.30 2007-08-16 14:53:26 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -82,6 +82,13 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 	float 		HighPass=0, LowPass=1.0/0.0, Notch=-1; 	// filter settings
 	uint16_t	Cal5=0,Cal6=0;
 
+	t0.tm_year = 0; 
+	t0.tm_mon  = 0; 
+	t0.tm_mday = 0; 
+	t0.tm_hour = 0; 
+	t0.tm_min  = 0; 
+	t0.tm_sec  = 0; 
+	t0.tm_isdst  = -1; // daylight savings time - unknown 
 
 	/* 
 	   Try direct conversion SCP->HDR to internal data structure
@@ -244,15 +251,15 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				}
 				else if (tag==25) {
 					t0.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))-1900;
-					t0.tm_mon  = *(PtrCurSect+curSectPos+2)-1;
+					t0.tm_mon  = (*(PtrCurSect+curSectPos+2)) - 1;
 					t0.tm_mday = *(PtrCurSect+curSectPos+3);
-					hdr->T0    = tm_time2gdf_time((&t0));
+					hdr->T0    = tm_time2gdf_time(&t0);
 				}
 				else if (tag==26) {
 					t0.tm_hour = *(PtrCurSect+curSectPos);
 					t0.tm_min  = *(PtrCurSect+curSectPos+1);
 					t0.tm_sec  = *(PtrCurSect+curSectPos+2);
-					hdr->T0    = tm_time2gdf_time((&t0));
+					hdr->T0    = tm_time2gdf_time(&t0);
 				}
 				else if (tag==27) {
 					HighPass   = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))/100.0;
