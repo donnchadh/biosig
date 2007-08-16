@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.27 2007-08-15 19:50:09 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.28 2007-08-16 10:33:57 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -157,20 +157,20 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				else if (tag==2) {
 					hdr->Patient.Id = (char*)(PtrCurSect+curSectPos);
 					if (!strcmp(hdr->Patient.Id,"UNKNOWN"))
-						hdr->Patient.Id = ""; 					
+						hdr->Patient.Id = NULL;
 				}
 				else if (tag==3) {
 				}
 				else if (tag==4) {
 				}
 				else if (tag==5) {
-					t1.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+					t1.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))-1900;
 					t1.tm_mon  = *(PtrCurSect+curSectPos+2)-1;
 					t1.tm_mday = *(PtrCurSect+curSectPos+3);
 					t1.tm_hour = 12; 
-					t1.tm_min  = 0; 
-					t1.tm_sec  = 0; 
-					t1.tm_isdst = -1; // daylight saving time: unknown
+					t1.tm_min  =  0; 
+					t1.tm_sec  =  0; 
+					t1.tm_isdst= -1; // daylight saving time: unknown
 					hdr->Patient.Birthday = tm_time2gdf_time(&t1);
 				}
 				else if (tag==6) {
