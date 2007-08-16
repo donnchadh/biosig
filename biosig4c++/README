@@ -75,6 +75,22 @@ Execution:
 ./save2gdf -f=HL7aECG t5.gdf t5.hl7
 
 
+Development & Testing:
+----------------------
+There are several testing functions included. 
+The following commands test the converter and should finish without errors.  
+	make test 
+	make testhl7
+	make testscp
+	make test6
+
+The Octave/Matlab script 
+	test0/test01.m 
+tests whether the various data formats give the same results 
+or whether some conversion error has been included.  
+
+
+
 
 More information is available at http://biosig.sf.net/
 
