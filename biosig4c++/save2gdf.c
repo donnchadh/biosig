@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.20 2007-08-16 10:35:27 schloegl Exp $
+    $Id: save2gdf.c,v 1.21 2007-08-16 12:45:12 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -134,31 +134,37 @@ int main(int argc, char **argv){
 	//if (0) {
 		if (VERBOSE_LEVEL>2) {
 		/* display header information */
-		fprintf(stdout,"FileName:\t%s\nType    :\t%i\nVersion:\t%4.2f\nHeadLen:\t%i\n",source,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
-		fprintf(stdout,"NS:\t%i\nSPR:\t%i\nNRec:\t%Li\nDuration[s]:\t%u/%u\nFs:\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
+		fprintf(stdout,"FileName:\t%s\nType    :\t%i\nVersion :\t%4.2f\nHeadLen :\t%i\n",source,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
+		fprintf(stdout,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nDuration[s]:\t%u/%u\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
 		fprintf(stdout,"Events/Annotations:\t%i\n",hdr->EVENT.N); 
-
-		T0 = gdf_time2t_time(hdr->T0);
-		fprintf(stdout,"Date/Time:\t%s\n",asctime(localtime(&T0))); 
-		//T0 = gdf_time2t_time(hdr->Patient.Birthday);
-		//fprintf(stdout,"Birthday:\t%s\n",asctime(localtime(&T0)));
 		}
 		
 		if (VERBOSE_LEVEL>0) {
-		fprintf(stdout,"PID:\t|%s|\nPatient:\n",hdr->AS.PID);
-		fprintf(stdout,"\tName:\t%s\n",hdr->Patient.Name); 
-		fprintf(stdout,"\tId:\t%s\n\tWeigth:\t%i kg\n\tHeigth:\t%i cm\n\tAge:\t%4.1f y\n",hdr->Patient.Id,hdr->Patient.Weight,hdr->Patient.Height,(hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32)); 
-		fprintf(stdout,"\tGender:\t"); 
+		fprintf(stdout,"\nPID:\t|%s|\nPatient:\n",hdr->AS.PID);
+		fprintf(stdout,"\tName            : %s\n",hdr->Patient.Name); 
+		float age = (hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32); 
+		fprintf(stdout,"\tId              : %s\n",hdr->Patient.Id); 
+		if (hdr->Patient.Height)
+			fprintf(stdout,"\tHeight          : %i cm\n",hdr->Patient.Height); 
+		if (hdr->Patient.Height)
+			fprintf(stdout,"\tWeight          : %i kg\n",hdr->Patient.Weight); 
+			
+		fprintf(stdout,"\tGender          : "); 
 		if (hdr->Patient.Sex==1)
 			fprintf(stdout,"male\n"); 
 		else if (hdr->Patient.Sex==2)
 			fprintf(stdout,"female\n"); 
 		else 
 			fprintf(stdout,"unknown\n"); 
-		T0 = gdf_time2t_time(hdr->Patient.Birthday);
-		fprintf(stdout,"\tBirthday        :\t%s",asctime(localtime(&T0))); 
+		if (hdr->Patient.Birthday) {
+			T0 = gdf_time2t_time(hdr->Patient.Birthday);
+			fprintf(stdout,"\tAge             : %4.1f years\n\tBirthday        : %s",age,asctime(localtime(&T0)));
+		}
+		else
+			fprintf(stdout,"\tAge             : ----\n\tBirthday        : unknown\n");
+			 
 		T0 = gdf_time2t_time(hdr->T0);
-		fprintf(stdout,"\tStartOfRecording:\t%s",asctime(localtime(&T0))); 
+		fprintf(stdout,"\tStartOfRecording: %s",asctime(localtime(&T0))); 
 		}
 		
 		if (VERBOSE_LEVEL>1) {
