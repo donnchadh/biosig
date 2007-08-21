@@ -27,7 +27,7 @@ function [HDR] = save2gdf(arg1,arg2,arg3);
 %   data	data samples
 %
 
-% 	$Id: save2gdf.m,v 1.9 2006-11-20 10:16:23 schloegl Exp $
+% 	$Id: save2gdf.m,v 1.10 2007-08-21 09:24:07 schloegl Exp $
 %	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>		
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -86,7 +86,7 @@ if isstruct(arg1),
                         %warning('data is transposed\n');
                         %data = data';
                 else
-                        fprintf(2,'HDR.NS=%i is not equal number of data columns %i\n',HDR.NS,size(data,2));
+                        fprintf(2,'HDR.NS=%i is not equal to number of data columns %i\n',HDR.NS,size(data,2));
                         return;
                 end;				
         else
@@ -94,6 +94,7 @@ if isstruct(arg1),
         end;
 
         % THRESHOLD, GDFTYP -> Phys/Dig/Min/Max
+        if HDR.NS,
 	if isfield(HDR,'THRESHOLD') 
 		HDR.DigMax  = HDR.THRESHOLD(1:HDR.NS,2)';
 		HDR.DigMin  = HDR.THRESHOLD(1:HDR.NS,1)';
@@ -103,6 +104,7 @@ if isstruct(arg1),
 
 	        HDR.DigMax = max(data,[],1);
 		HDR.DigMin = min(data,[],1);
+	end; 
 	end; 
 	if strcmp(HDR.TYPE,'EVENT')
                 HDR.SampleRate = HDR.EVENT.SampleRate;
