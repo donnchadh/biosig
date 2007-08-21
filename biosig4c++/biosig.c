@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.91 2007-08-15 22:00:30 schloegl Exp $
+    $Id: biosig.c,v 1.92 2007-08-21 13:52:38 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -200,7 +200,6 @@ double b_endian_f64(double x)
  Table A.4.1: Table of Decimal Factors	const double scale[32] =
 */
 
-char* PhysDimTable[2048];   
 const struct PhysDimIdx 
 	{
 		uint16_t idx;
@@ -396,34 +395,26 @@ const struct PhysDimIdx
 	{ 65504 ,  "T" },
 	{ 0xffff ,  "end-of-table" },
 };
-
-int InitPhysDimTable()
-{
-	/* 
-		Initializes PhysDimTable (must not be modified by any other instance)	
-	*/	
-
-	int k; 
-	for (k=0; k<2048; PhysDimTable[k++]="\0");
-	for (k=0; _physdim[k].idx<0xffff; k++) {
-		PhysDimTable[_physdim[k].idx>>5] = _physdim[k].PhysDimDesc;
-	}	
-	return(1);  
-}
 		
 const char* PhysDimFactor[] = {
-	"","da","h","k","M","G","T","P","E","Z","Y","#","#","#","#","#",
-	"d","c","m","u","n","p","f","a","z","y","#","#","#","#","#","#"};
+	"","da","h","k","M","G","T","P",	//  0..7
+	"E","Z","Y","#","#","#","#","#",	//  8..15
+	"d","c","m","\xB5","n","p","f","a",	// 16..23
+	"z","y","#","#","#","#","#","#",	// 24..31
+	"u"	//hack for "µ" = "u"		// 32
+	};
 
 double PhysDimScale(uint16_t PhysDimCode)
 {	
 // converting PhysDimCode -> scaling factor
 
-	const double scale[32] =
-	{ 1e0,  1e1,  1e2,  1e3,  1e6,  1e9,   1e12,  1e15,
-	  1e18, 1e21, 1e24, NaN,  NaN,  NaN,   NaN,   NaN, 
-	  1e-1, 1e-2, 1e-3, 1e-6, 1e-9, 1e-12, 1e-15, 1e-18, 
-	  1e-21,1e-24,NaN,  NaN,  NaN,  NaN,   NaN,   NaN }; 
+	const double scale[33] =
+	{ 1e+0, 1e+1, 1e+2, 1e+3, 1e+6, 1e+9,  1e+12, 1e+15,	//  0..7 
+	  1e+18,1e+21,1e+24,NaN,  NaN,  NaN,   NaN,   NaN, 	//  8..15
+	  1e-1, 1e-2, 1e-3, 1e-6, 1e-9, 1e-12, 1e-15, 1e-18, 	// 16..23
+	  1e-21,1e-24,NaN,  NaN,  NaN,  NaN,   NaN,   NaN,	// 24..31
+	  1e-6	// hack for "µ" = "u" 				// 32
+	  }; 
 
 	return (scale[PhysDimCode & 0x001f]); 
 }
@@ -432,11 +423,14 @@ char* PhysDim(uint16_t PhysDimCode, char *PhysDim)
 {	
 	// converting PhysDimCode -> PhysDim
 
-	static int INIT_FLAG = 0; 
-	if (!INIT_FLAG) INIT_FLAG = InitPhysDimTable();	/* Init PhysDimTable once*/	
+	strcpy(PhysDim,PhysDimFactor[PhysDimCode & 0x001F]);
 
-	strcpy(PhysDim,PhysDimFactor[PhysDimCode & 0x1f]);
-	strcat(PhysDim,PhysDimTable[PhysDimCode>>5]);
+	PhysDimCode &= ~0x001F; 
+	for (uint16_t k=0; _physdim[k].idx<0xffff; k++)
+	if (PhysDimCode == _physdim[k].idx) {
+		strcat(PhysDim,_physdim[k].PhysDimDesc);
+		break;
+	}
 	return(PhysDim);
 }
 
@@ -449,15 +443,21 @@ uint16_t PhysDimCode(char* PhysDim0)
 	
 	uint16_t k1, k2;
 	char s[80];
+	char *s1;
 
 	// greedy search - check all codes 0..65535
-	for (k1=0; k1<32; k1++)
-	if (PhysDimScale(k1)>0.0)  // exclude NaN
-	for (k2=0; _physdim[k2].idx < 0xffff; k2++) {
+	for (k1=0; k1<33; k1++)
+	if (!strncmp(PhysDimFactor[k1],PhysDim0,strlen(PhysDimFactor[k1])) && PhysDimScale(k1)>0.0) 
+	{ 	// exclude if beginning of PhysDim0 differs from PhysDimFactor and if NaN 
 		strcpy(s, PhysDimFactor[k1]);
-		strcat(s, _physdim[k2].PhysDimDesc);
-		if (!strncmp(PhysDim0, s, strlen(PhysDim0))) 
-			return(_physdim[k2].idx+k1); 
+		s1 = s+strlen(s);
+		for (k2=0; _physdim[k2].idx < 0xffff; k2++) {
+			strcpy(s1, _physdim[k2].PhysDimDesc);
+			if (!strncmp(PhysDim0, s, strlen(PhysDim0))) {
+		 		if (k1==32) k1 = 19;		// hack for "µ" = "u"
+				return(_physdim[k2].idx+k1);
+			}	 
+		}
 	}
 	return(0);
 }
@@ -477,6 +477,10 @@ int strcmpi(const char* str1, const char* str2)
 	return(r); 	 	
 }
 
+int errnum;
+int B4C_STATUS  = 0;
+int B4C_ERRNUM  = 0;
+char* B4C_ERRMSG;
 
 /*
 	Interface for mixed use of ZLIB and STDIO 
@@ -484,12 +488,6 @@ int strcmpi(const char* str1, const char* str2)
 	If ZLIB is availabe, HDR.FILE.COMPRESSION tells
 	whether STDIO or ZLIB is used. 
  */
-int errnum;
-int B4C_STATUS  = 0;
-int B4C_ERRNUM  = 0;
-char* B4C_ERRMSG;
-
-
 HDRTYPE* FOPEN(HDRTYPE* hdr, char* mode) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION) 
