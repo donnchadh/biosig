@@ -53,7 +53,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.186 2007-08-07 10:34:58 schloegl Exp $
+%	$Id: sopen.m,v 1.187 2007-08-22 15:05:42 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -208,7 +208,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         
         HDR.ErrNo = 0; 
         HANDEDNESS = {'unknown','right','left','equal'}; 
-        GENDER  = {'unknown','male','female'};
+        GENDER  = {'X','Male','Female'};
         SCALE13 = {'unknown','no','yes'};
         SCALE14 = {'unknown','no','yes','corrected'};
                 
@@ -273,7 +273,7 @@ end;
                                 tmp = abs(H1(86:87)); tmp(tmp==0) = NaN; tmp(tmp==255) = inf;
 				HDR.Patient.Weight = tmp(1);
 				HDR.Patient.Height = tmp(2);
-				HDR.Patient.Sex = GENDER{bitand(H1(88),3)+1};
+				HDR.Patient.Sex = bitand(H1(88),3); %GENDER{bitand(H1(88),3)+1};
 				HDR.Patient.Handedness = HANDEDNESS{bitand(floor(H1(88)/4),3)+1};
                                 HDR.Patient.Impairment.Visual = SCALE14{bitand(floor(H1(88)/16),3)+1};
                                 if H1(156)>0, 
@@ -569,7 +569,9 @@ end;
 	                HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
 			if any(~isfinite(HDR.Cal)),
                         	fprintf(2,'WARNING SOPEN(GDF/BDF/EDF): Scaling factor is not defined in following channels:\n');
-                        	find(~isfinite(HDR.Cal))', 
+                        	find(~isfinite(HDR.Cal))',
+                        	HDR.Cal(~isfinite(HDR.Cal))=1; 
+                        	HDR.FLAG.UCAL = 1;  
 			end;
 			
 	                HDR.AS.SampleRate = HDR.AS.SPR / HDR.Dur;
@@ -1385,7 +1387,6 @@ end;
                 %%%%%% generate Header 1, first 256 bytes 
                 HDR.HeadLen=(HDR.NS+1)*256;
                 %H1(1:8)=HDR.VERSION; %sprintf('%08i',HDR.VERSION);     % 8 Byte  Versionsnummer 
-		sex = 'XMF';
 		if isempty(HDR.Patient.Birthday), bd = 'X';
                         HDR.Patient.Birthday = zeros(1,6);
                 elseif (~HDR.Patient.Birthday), bd = 'X';
@@ -1394,11 +1395,11 @@ end;
 		end;
                 if HDR.VERSION == -1,
                         H1 = [255,'BIOSEMI',repmat(32,1,248)];
-			HDR.PID = [HDR.Patient.Id,' ',sex(HDR.Patient.Sex+1),' ',bd,' ',HDR.Patient.Name];
+			HDR.PID = [HDR.Patient.Id,' ',GENDER{HDR.Patient.Sex+1}(1),' ',bd,' ',HDR.Patient.Name];
 			HDR.RID = ['Startdate ',datestr(HDR.T0,'dd-mmm-yyyy')];
                 elseif HDR.VERSION == 0,
 			H1 = ['0       ',repmat(32,1,248)]; 
-			HDR.PID = [HDR.Patient.Id,' ',sex(HDR.Patient.Sex+1),' ',bd,' ',HDR.Patient.Name];
+			HDR.PID = [HDR.Patient.Id,' ',GENDER{HDR.Patient.Sex+1}(1),' ',bd,' ',HDR.Patient.Name];
 			HDR.RID = ['Startdate ',datestr(datenum(HDR.T0),'dd-mmm-yyyy')];
                 elseif HDR.VERSION > 0,
                         tmp = sprintf('%5.2f',HDR.VERSION);
@@ -1558,7 +1559,7 @@ end;
                                 end;
                                 c1 = str2double(cellstr(sPhysMax));
                                 c2 = str2double(cellstr(sPhysMin));
-                                e = ((HDR.PhysMax-HDR.PhysMin)'-(c1-c2))./(HDR.PhysMax-HDR.PhysMin)';
+                                e = ((HDR.PhysMax(:)-HDR.PhysMin(:))-(c1-c2))./(HDR.PhysMax(:)-HDR.PhysMin(:));
                                 if any(abs(e)>1e-8)
 	                                fprintf(HDR.FILE.stderr,'Warning SOPEN (EDF-Write): relative scaling error is %e (due to roundoff in PhysMax/Min)\n',max(abs(e)))
                                 end
@@ -1843,6 +1844,7 @@ elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
         
 elseif strcmp(HDR.TYPE,'SCP'),	%
         HDR = scpopen(HDR,CHAN);
+        HDR.GDFTYP = repmat(5,1,HDR.NS);
 	if HDR.ERROR.status,
 		fclose(HDR.FILE.FID);
 		HDR.FILE.OPEN = 0; 
@@ -2059,7 +2061,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
 	if isfield(HDR.alpha,'s_info')
         %       HDR.Patient.Name = [HDR.alpha.s_info.LastName,', ',HDR.alpha.s_info.FirstName];
                 HDR.Patient.Sex  = HDR.alpha.s_info.Gender;
-                HDR.Patient.Sex  = HDR.alpha.s_info.Handedness;
+                HDR.Patient.Handedness  = HDR.alpha.s_info.Handedness;
                 tmp = HDR.alpha.s_info.BirthDay;
                 tmp(tmp=='.')=' ';
                 t0 = str2double(tmp);
@@ -3831,14 +3833,14 @@ elseif strcmp(HDR.TYPE,'EGI'),
         
         HDR.categories = 0;
         HDR.EGI.catname= {};
-        
+
         if any(HDR.VERSION==[2,4,6]),
-                HDR.SPR  = fread(HDR.FILE.FID, 1 ,'int32');
+                HDR.NRec  = fread(HDR.FILE.FID, 1 ,'int32');
                 HDR.EGI.N = fread(HDR.FILE.FID,1,'int16');
-                HDR.NRec = 1;
+                HDR.SPR = 1;
                 HDR.FLAG.TRIGGERED = logical(0); 
                 HDR.AS.spb = HDR.NS+HDR.EGI.N;
-                HDR.AS.endpos = HDR.SPR;
+                HDR.AS.endpos = HDR.SPR*HDR.NRec;
                 HDR.Dur = 1/HDR.SampleRate;
         elseif any(HDR.VERSION==[3,5,7]),
                 HDR.EGI.categories = fread(HDR.FILE.FID,1,'uint16');
@@ -3853,7 +3855,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
                 HDR.EGI.N = fread(HDR.FILE.FID,1,'int16');
                 HDR.FLAG.TRIGGERED = logical(1); 
                 HDR.AS.spb = HDR.SPR*(HDR.NS+HDR.EGI.N);
-                HDR.AS.endpos = HDR.NRec;
+                HDR.AS.endpos = HDR.NRec*HDR.SPR;
                 HDR.Dur = HDR.SPR/HDR.SampleRate;
         else
                 fprintf(HDR.FILE.stderr,'Invalid EGI version %i\n',HDR.VERSION);
@@ -3871,7 +3873,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
                 error('Unknown data format');
         end
         HDR.AS.bpb = HDR.AS.spb*GDFTYP_BYTE(HDR.GDFTYP+1) + 6*HDR.FLAG.TRIGGERED;
-        
+
         tmp = fread(HDR.FILE.FID,[4,HDR.EGI.N],'uchar');
         HDR.EGI.eventcode = reshape(tmp,[4,HDR.EGI.N])';
         HDR.EVENT.DescCode = HDR.EGI.eventcode*(2.^[24;16;8;0]);
@@ -3895,7 +3897,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
 	                HDR.EVENT.DUR = ones(size(HDR.EVENT.POS)); 
                 end
 	end;
-        HDR.HeadLen = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+        fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
 
 
 elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
