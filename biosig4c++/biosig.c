@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.92 2007-08-21 13:52:38 schloegl Exp $
+    $Id: biosig.c,v 1.93 2007-08-22 15:11:28 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -1770,12 +1770,15 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		*(float*) (Header1+228) = l_endian_f32(hdr->ELEC.GND[1]);
 		*(float*) (Header1+232) = l_endian_f32(hdr->ELEC.GND[2]);
 
-		//memcpy(Header1+236, &hdr->NRec, 8);
 		*(uint64_t*) (Header1+236) = l_endian_u64(hdr->NRec);
-		//memcpy(Header1+244, &hdr->Dur, 8); 
+		/* Duration is expressed as an fraction of integers */ 
+		if (ceil(hdr->SampleRate)!=hdr->SampleRate)
+			fprintf(stderr,"Warning SOPEN(GDF write): Fraction of Duration rounded from %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,hdr->Dur[0],hdr->Dur[1]);
+		hdr->Dur[0] = hdr->SPR;
+		hdr->Dur[1] = hdr->SampleRate;
+		fprintf(stdout,"\n SOPEN(GDF write): %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,hdr->Dur[0],hdr->Dur[1]);
 		*(uint32_t*) (Header1+244) = l_endian_u32(hdr->Dur[0]);
 		*(uint32_t*) (Header1+248) = l_endian_u32(hdr->Dur[1]);
-		//memcpy(Header1+252, &hdr->NS, 2); 
 		*(uint16_t*) (Header1+252) = l_endian_u16(hdr->NS);
 
 	     	/* define HDR.Header2 
@@ -2689,10 +2692,68 @@ int serror() {
 	return(status);
 }
 
+
+int hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSE_LEVEL)
+{
+	CHANNEL_TYPE* 	cp; 
+	time_t  	T0;
+
+	if (VERBOSE_LEVEL>2) {
+		/* display header information */
+		fprintf(fid,"FileName:\t%s\nType    :\t%i\nVersion :\t%4.2f\nHeadLen :\t%i\n",hdr->FileName,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
+		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nDuration[s]:\t%u/%u\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
+		fprintf(fid,"Events/Annotations:\t%i\n",hdr->EVENT.N); 
+	}
+		
+	if (VERBOSE_LEVEL>0) {
+		/* demographic information */
+		fprintf(fid,"\n[FIXED HEADER]");
+		fprintf(fid,"\nPID:\t|%s|\nPatient:\n",hdr->AS.PID);
+		fprintf(fid,"\tName            : %s\n",hdr->Patient.Name); 
+		float age = (hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32); 
+		fprintf(fid,"\tId              : %s\n",hdr->Patient.Id); 
+		if (hdr->Patient.Height)
+			fprintf(fid,"\tHeight          : %i cm\n",hdr->Patient.Height); 
+		if (hdr->Patient.Height)
+			fprintf(stdout,"\tWeight          : %i kg\n",hdr->Patient.Weight); 
+			
+		fprintf(fid,"\tGender          : "); 
+		if (hdr->Patient.Sex==1)
+			fprintf(fid,"male\n"); 
+		else if (hdr->Patient.Sex==2)
+			fprintf(fid,"female\n"); 
+		else 
+			fprintf(fid,"unknown\n"); 
+		if (hdr->Patient.Birthday) {
+			T0 = gdf_time2t_time(hdr->Patient.Birthday);
+			fprintf(fid,"\tAge             : %4.1f years\n\tBirthday        : %s",age,asctime(localtime(&T0)));
+		}
+		else
+			fprintf(fid,"\tAge             : ----\n\tBirthday        : unknown\n");
+			 
+		T0 = gdf_time2t_time(hdr->T0);
+		fprintf(fid,"\tStartOfRecording: %s",asctime(localtime(&T0))); 
+	}
+		
+	if (VERBOSE_LEVEL>1) {
+		/* channel settings */ 
+		fprintf(fid,"\n[CHANNEL HEADER]");
+		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin");
+		for (int k=0; k<hdr->NS; k++) {
+			cp = hdr->CHANNEL+k; 
+			fprintf(fid,"\n#%2i: %3i %7s\t%5.1f %2i  %5f %5f %s\t%5f\t%5f\t%5f\t%5f",
+				k,cp->LeadIdCode,cp->Label,cp->SPR * hdr->SampleRate/hdr->SPR,
+				cp->GDFTYP, cp->Cal, cp->Off, cp->PhysDim, 
+				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin);
+		}
+		fprintf(fid,"\n\n");
+	}
+} 	/* end of HDR2ASCII */
+
+
 /****************************************************************************/
 /**                                                                        **/
 /**                               EOF                                      **/
 /**                                                                        **/
 /****************************************************************************/
 
-// big-endian platforms

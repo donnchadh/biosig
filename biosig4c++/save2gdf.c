@@ -1,11 +1,11 @@
 /*
 
-    $Id: save2gdf.c,v 1.21 2007-08-16 12:45:12 schloegl Exp $
+    $Id: save2gdf.c,v 1.22 2007-08-22 15:11:28 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
-
+ 
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,37 +31,38 @@
 int main(int argc, char **argv){
     
     HDRTYPE 	*hdr; 
-    CHANNEL_TYPE* 	cp; 
-    size_t 	count, k, k1;
+    size_t 	count, k1;
     uint16_t 	numopt = 0;
-    time_t  	T0;
     char 	*source, *dest, tmp[1024]; 
     enum FileFormat TARGET_TYPE=GDF; 		// type of file format
     int		COMPRESSION_LEVEL=0;
     int		VERBOSE_LEVEL=-1;
-    int		status; 
+    int		status, k; 
 	
     if (argc<2)
     	;
     else 
     {
     	for (k=1; k<argc && argv[k][0]=='-'; k++)
-    	if (!strcmp(argv[k],"-v") | !strcmp(argv[k],"--version") )
+    	if (!strcmp(argv[k],"-v") || !strcmp(argv[k],"--version") )
     	{
-		fprintf(stdout,"save2gdf (biosig4c++) 0.45+\n");
+		fprintf(stdout,"save2gdf (BioSig4C++) v0.48+\n");
 		fprintf(stdout,"Written by Alois Schloegl and others\n\n");
-		fprintf(stdout,"This is free software.\n");
+		fprintf(stdout,"This program is free software; you can redistribute it and/or modify\n");
+		fprintf(stdout,"it under the terms of the GNU General Public License as published by\n");
+		fprintf(stdout,"the Free Software Foundation; either version 2 of the License, or\n");
+		fprintf(stdout,"(at your option) any later version.\n");
 	}	
-    	else if (!strcmp(argv[k],"-h") | !strcmp(argv[k],"--help") )
+    	else if (!strcmp(argv[k],"-h") || !strcmp(argv[k],"--help") )
     	{
-		fprintf(stdout,"usage: save2gdf [OPTIONS] SOURCE DEST\n");
+		fprintf(stdout,"\nusage: save2gdf [OPTIONS] SOURCE DEST\n");
 		fprintf(stdout,"  SOURCE is the source file \n");
 		fprintf(stdout,"  DEST is the destination file \n");
 		fprintf(stdout,"  Supported OPTIONS are:\n");
 		fprintf(stdout,"   -v, --version\n\tprints version information\n");
 		fprintf(stdout,"   -h, --help   \n\tprints this information\n");
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
-		fprintf(stdout,"\tFMT must represent and valid target file format\n"); 
+		fprintf(stdout,"\tFMT must represent a valid target file format\n"); 
 		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG(EN1064), GDF, EDF, BDF, CFWB\n"); 
 		fprintf(stdout,"   -z=#, compression level \n");
 		fprintf(stdout,"\t#=0 no compression; #=9 best compression\n");
@@ -121,7 +122,7 @@ int main(int argc, char **argv){
     	}	
 //	if (dest==NULL ) VERBOSE_LEVEL=2; // default 
 
-	if (VERBOSE_LEVEL<0) VERBOSE_LEVEL=1; // default 
+	if (VERBOSE_LEVEL<0) VERBOSE_LEVEL=3; // default 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[111] SAVE2GDF started\n");
 
 	hdr = sopen(source, "r", NULL);
@@ -130,51 +131,7 @@ int main(int argc, char **argv){
 	if (hdr==NULL) exit(-1);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
-	if (VERBOSE_LEVEL) {
-	//if (0) {
-		if (VERBOSE_LEVEL>2) {
-		/* display header information */
-		fprintf(stdout,"FileName:\t%s\nType    :\t%i\nVersion :\t%4.2f\nHeadLen :\t%i\n",source,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
-		fprintf(stdout,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nDuration[s]:\t%u/%u\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
-		fprintf(stdout,"Events/Annotations:\t%i\n",hdr->EVENT.N); 
-		}
-		
-		if (VERBOSE_LEVEL>0) {
-		fprintf(stdout,"\nPID:\t|%s|\nPatient:\n",hdr->AS.PID);
-		fprintf(stdout,"\tName            : %s\n",hdr->Patient.Name); 
-		float age = (hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32); 
-		fprintf(stdout,"\tId              : %s\n",hdr->Patient.Id); 
-		if (hdr->Patient.Height)
-			fprintf(stdout,"\tHeight          : %i cm\n",hdr->Patient.Height); 
-		if (hdr->Patient.Height)
-			fprintf(stdout,"\tWeight          : %i kg\n",hdr->Patient.Weight); 
-			
-		fprintf(stdout,"\tGender          : "); 
-		if (hdr->Patient.Sex==1)
-			fprintf(stdout,"male\n"); 
-		else if (hdr->Patient.Sex==2)
-			fprintf(stdout,"female\n"); 
-		else 
-			fprintf(stdout,"unknown\n"); 
-		if (hdr->Patient.Birthday) {
-			T0 = gdf_time2t_time(hdr->Patient.Birthday);
-			fprintf(stdout,"\tAge             : %4.1f years\n\tBirthday        : %s",age,asctime(localtime(&T0)));
-		}
-		else
-			fprintf(stdout,"\tAge             : ----\n\tBirthday        : unknown\n");
-			 
-		T0 = gdf_time2t_time(hdr->T0);
-		fprintf(stdout,"\tStartOfRecording: %s",asctime(localtime(&T0))); 
-		}
-		
-		if (VERBOSE_LEVEL>1) {
-		fprintf(stdout,"\nCHAN#  LeadId Label\tCal\tOff\tPhysDim PhysDimCode PhysMax  PhysMin DigMax DigMin GDFTYP (Bytes)");
-		for (int k=0; k<hdr->NS; k++) {
-			cp = hdr->CHANNEL+k; 
-			fprintf(stdout,"\n#%2i: %3i %7s\t%5f %5f %s\t%i\t%5f\t%5f\t%5f\t%5f\t%i(%i bytes)",k,cp->LeadIdCode,cp->Label,cp->Cal,cp->Off,cp->PhysDim,cp->PhysDimCode,cp->PhysMax,cp->PhysMin,cp->DigMax,cp->DigMin,cp->GDFTYP,GDFTYP_BYTE[cp->GDFTYP]);
-		}
-		}
-	}
+	hdr2ascii(hdr,stdout,VERBOSE_LEVEL);	
 
 	hdr->FLAG.OVERFLOWDETECTION = 0;
 	hdr->FLAG.UCAL = 1;
@@ -280,7 +237,7 @@ int main(int argc, char **argv){
 
 	swrite(hdr->data.block, hdr->NRec, hdr);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[231] SWRITE finishes\n");
-	if (status=serror()) { 
+	if ((status=serror())) { 
 		free(hdr);
 		exit(status); 
     	}	

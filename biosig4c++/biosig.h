@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.59 2007-08-15 19:50:09 schloegl Exp $
+% $Id: biosig.h,v 1.60 2007-08-22 15:11:28 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -37,7 +37,7 @@
 /****************************************************************************/
 
 
-// for error handling 
+/* for error handling */ 
 #define B4C_NO_ERROR 		 0
 #define B4C_FORMAT_UNKNOWN 	-1
 #define B4C_FORMAT_UNSUPPORTED 	-2
@@ -480,13 +480,13 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 int 	sclose(HDRTYPE* hdr);
 size_t 	sread(HDRTYPE* hdr, size_t start, size_t length);
 size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr); 
-
 size_t  swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr);
 int	seof(HDRTYPE* hdr);
 void	srewind(HDRTYPE* hdr);
 int 	sseek(HDRTYPE* hdr, long int offset, int whence);
 long int stell(HDRTYPE* hdr);
 int 	serror();
+int	hdr2ascii(HDRTYPE* hdr,FILE *fid, int verbosity);
 
 /****************************************************************************/
 /**                                                                        **/
