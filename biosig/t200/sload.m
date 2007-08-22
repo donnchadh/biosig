@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.70 2007-04-12 15:36:40 schloegl Exp $
+%	$Id: sload.m,v 1.71 2007-08-22 15:02:36 schloegl Exp $
 %	Copyright (C) 1997-2006 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -919,11 +919,13 @@ if strcmp(H.TYPE,'GDF')
 	        fid=fopen(fullfile(H.FILE.Path,[H.FILE.Name,'.SEL']),'r');
         end
         if fid>0,
-                tmp = fread(fid,[1,inf],'*char');
+                [tmp,c] = fread(fid,[1,inf],'char');
                 fclose(fid);
-                [tmp,v] = str2double(tmp);
-                if any(isnan(tmp)) |any(tmp~=ceil(tmp)) | any(tmp<0) | (any(tmp==0) & any(tmp>1))
-                        fprintf(2,'Warning SLOAD(GDF): corrupted SEL-file %s\n',f);
+                [tmp,v,sa] = str2double(tmp);
+                if isempty(sa{1})
+                        H.ArtifactSelection = repmat(1~=0,length(H.TRIG),1);
+                elseif any(isnan(tmp)) |any(tmp~=ceil(tmp)) | any(tmp<0) | (any(tmp==0) & any(tmp>1))
+                        fprintf(2,'Warning SLOAD(GDF): corrupted SEL-file %s\n',fullfile(H.FILE.Path,[H.FILE.Name,'.sel']));
 		else                        
                         H.ArtifactSelection = zeros(length(H.TRIG),1);
                         if all((tmp==0) | (tmp==1)) & (length(tmp)>1) & (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
