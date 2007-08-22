@@ -1,36 +1,33 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.28 2007-08-22 15:10:49 schloegl Exp $
+###  $Id: Makefile,v 1.29 2007-08-22 22:25:36 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
 ###
 ##############################################################
 
-#CC            = gcc
+
 CC            = g++
+CXX           = g++
 DEFINES       =
 CFLAGS        = -O2 -Wall $(DEFINES)
 INCPATH       =
 #LINK          = gcc
 LINK          = g++
 #LFLAGS        = -Wl,-subsystem,console  # Windows
-LFLAGS        = -lz 			 # zlib
+LFLAGS        = -lz 			# zlib
 LIBS          = 
 #DEL_FILE      = del                     # Windows
 DEL_FILE      = rm
 
 
-SOURCES       = biosig.h \
-		biosig.c \
-		XMLParser/tinyxml.h \
+SOURCES       = biosig.c \
 		XMLParser/tinyxml.cpp \
 		XMLParser/tinyxmlparser.cpp \
-		XMLParser/tinyxmlerror \
-		XMLParser/tinystr.h \
+		XMLParser/tinyxmlerror.cpp \
 		XMLParser/tinystr.cpp \
-		XMLParser/Tokenizer.h \
 		t210/sopen_scp_read.c \
 		t210/scp-decode.cpp \
 		t220/sopen_scp_write.c \
@@ -54,8 +51,11 @@ TARGET        = save2gdf demo save2aecg save2scp
 first: all
 all: $(TARGET)
 
-%.o: %.c %.cpp %.h biosig.h
-	$(CC) -S $(CFLAGS) -c $(.SOURCE)  
+biosig.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t230/sopen_hl7aecg.o save2gdf.o: biosig.h
+
+%.o:  %.c %.cpp  %.h 
+	$(CXX) -S $(CFLAGS)  -c $(.SOURCE)  
+
 
 ####### Compile and link #########
 
@@ -63,20 +63,30 @@ all: $(TARGET)
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(OBJECTS) $(LIBS) $(TARGET)
 
 demo:   demo.c $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) $(LFLAGS) demo.c -o demo 
+	$(CXX) $(CFLAGS) $(OBJECTS) $(LFLAGS) demo.c -o demo 
 save2gdf: save2gdf.c $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) $(LFLAGS) save2gdf.c -o save2gdf 
+	$(CXX) $(CFLAGS) $(OBJECTS) $(LFLAGS) save2gdf.c -o save2gdf 
 mex:  mexBiosig.c $(OBJECTS) 
-#	mex mexBiosig.c $(OBJECTS) $(LFLAGS)
-#	mex mexBiosig.c biosig.o XMLParser/tinyxml.o XMLParser/tinyxmlparser.o XMLParser/tinyxmlerror.o XMLParser/tinystr.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t220/crc4scp.o t230/sopen_hl7aecg.o  -lz
-#	mkoctfile --mex mexBiosig.c $(OBJECTS)
-	mkoctfile --mex mexBiosig.c $(OBJECTS) $(LFLAGS)
+#	mex mexSLOAD.cpp $(OBJECTS) $(LFLAGS)
+#	mex mexSLOAD.cpp biosig.o XMLParser/tinyxml.o XMLParser/tinyxmlparser.o XMLParser/tinyxmlerror.o XMLParser/tinystr.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t220/crc4scp.o t230/sopen_hl7aecg.o  -lz
+#	mkoctfile --mex mexSLOAD.cpp $(OBJECTS)
+#	mkoctfile2.9  $(LFLAGS) -v -g --mex mexSLOAD.cpp $(OBJECTS)
+	mkoctfile2.9 -lz -v -g --mex mexSLOAD.cpp biosig.o XMLParser/tinyxml.o XMLParser/tinyxmlparser.o XMLParser/tinyxmlerror.o XMLParser/tinystr.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t220/crc4scp.o t230/sopen_hl7aecg.o
 oct:  octBiosig.c $(OBJECTS) 
-	mkoctfile mexBiosig.c $(OBJECTS) $(LFLAGS)
+	mkoctfile2.9 mexSLOAD.cpp $(OBJECTS) $(LFLAGS)
 
 # for backward compatibility 
 save2scp: save2gdf
 save2aecg: save2gdf
+
+distclean:
+	-$(DEL_FILE) *.o
+	-$(DEL_FILE) *.mex
+	-$(DEL_FILE) *.oct
+	-$(DEL_FILE) t210/*.o
+	-$(DEL_FILE) t220/*.o
+	-$(DEL_FILE) t230/*.o
+	-$(DEL_FILE) XMLParser/*.o
 
 clean:
 	-$(DEL_FILE) *.o
@@ -92,7 +102,7 @@ clean:
 
 ####### Testing ########
 
-/tmp/t1.scp:
+/tmp/t1.scp: 
 	# scp example data sets
 	wget  -q -P/tmp http://www.openecg.net/ECGsamples.zip
 	wget  -q -P/tmp http://www.openecg.net/ECGsamplesc.zip
@@ -109,6 +119,7 @@ clean:
 	rm -rf /tmp/ECGsamples*.zip 
 	rm -rf /tmp/scp*.zip 
 	cp /tmp/scp/redred/PFE103.scp /tmp/t1.scp
+	touch /tmp/t1.scp
 
 /tmp/t1.hl7:
 	# HL7aECG example data set
@@ -117,6 +128,7 @@ clean:
 	cp "/tmp/2003-12 Schema/example/Example aECG.xml" /tmp/t1.hl7
 	rm -rf "/tmp/aECG Release 1 Schema and Example.zip"
 	rm -rf "/tmp/2003-12 Schema"
+	touch /tmp/t1.hl7
 
 testscp: save2gdf /tmp/t1.scp
 	# test converting SCP data
@@ -172,7 +184,7 @@ zip: /tmp/t1.scp save2gdf
 	./save2gdf -z -f=SCP /tmp/t1.scp t1.scp
 	./save2gdf -z -f=HL7 /tmp/t1.scp t1.hl7
 	./save2gdf -z -f=CFW /tmp/t1.scp t1.cfw
-	gzip /tmp/t1.scp 
+	gzip -c /tmp/t1.scp >/tmp/t1.scp.gz 
 	# on-the-fly decompression of input file 
 	./save2gdf -f=GDF /tmp/t1.scp.gz t1.gdf
 	./save2gdf -f=EDF /tmp/t1.scp.gz t1.edf
