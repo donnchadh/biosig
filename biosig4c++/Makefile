@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.27 2007-08-16 14:06:21 schloegl Exp $
+###  $Id: Makefile,v 1.28 2007-08-22 15:10:49 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -16,8 +16,8 @@ INCPATH       =
 #LINK          = gcc
 LINK          = g++
 #LFLAGS        = -Wl,-subsystem,console  # Windows
-LFLAGS        =
-LIBS          =
+LFLAGS        = -lz 			 # zlib
+LIBS          = 
 #DEL_FILE      = del                     # Windows
 DEL_FILE      = rm
 
@@ -47,10 +47,9 @@ OBJECTS       = biosig.o \
 		t210/scp-decode.o \
 		t220/sopen_scp_write.o \
 		t220/crc4scp.o \
-		t230/sopen_hl7aecg.o \
-		/usr/lib/libz.so
+		t230/sopen_hl7aecg.o
 
-TARGET        = save2gdf demo save2aecg save2scp
+TARGET        = save2gdf demo save2aecg save2scp 
 
 first: all
 all: $(TARGET)
@@ -58,20 +57,22 @@ all: $(TARGET)
 %.o: %.c %.cpp %.h biosig.h
 	$(CC) -S $(CFLAGS) -c $(.SOURCE)  
 
-
 ####### Compile and link #########
 
 #$(TARGET):  $(OBJECTS) 
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(OBJECTS) $(LIBS) $(TARGET)
 
 demo:   demo.c $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) demo.c -o demo 
+	$(CC) $(CFLAGS) $(OBJECTS) $(LFLAGS) demo.c -o demo 
 save2gdf: save2gdf.c $(OBJECTS)
-	$(CC) $(CFLAGS) $(OBJECTS) save2gdf.c -o save2gdf 
+	$(CC) $(CFLAGS) $(OBJECTS) $(LFLAGS) save2gdf.c -o save2gdf 
 mex:  mexBiosig.c $(OBJECTS) 
-	mkoctfile --mex mexBiosig.c $(OBJECTS)
+#	mex mexBiosig.c $(OBJECTS) $(LFLAGS)
+#	mex mexBiosig.c biosig.o XMLParser/tinyxml.o XMLParser/tinyxmlparser.o XMLParser/tinyxmlerror.o XMLParser/tinystr.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t220/crc4scp.o t230/sopen_hl7aecg.o  -lz
+#	mkoctfile --mex mexBiosig.c $(OBJECTS)
+	mkoctfile --mex mexBiosig.c $(OBJECTS) $(LFLAGS)
 oct:  octBiosig.c $(OBJECTS) 
-	mkoctfile octBiosig.c $(OBJECTS)
+	mkoctfile mexBiosig.c $(OBJECTS) $(LFLAGS)
 
 # for backward compatibility 
 save2scp: save2gdf
