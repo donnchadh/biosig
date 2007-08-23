@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.10 2007-08-15 19:50:09 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.11 2007-08-23 13:25:26 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -89,14 +89,30 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		demographic = demographic.FirstChild("subjectDemographicPerson");
 
 		TiXmlElement *name = demographic.FirstChild("name").Element();
-		// ### FIXME: name is always NULL ##
 		if (name)
 		    hdr->Patient.Name = strdup(name->GetText());
-		else 
-		    fprintf(stderr,"Error: Patient Name could not be read.\n");
+//		else 
+//		    fprintf(stderr,"Error: Patient Name could not be read.\n");
+
+		/* non-standard fields height and weight */
+		TiXmlElement *weight = demographic.FirstChild("weight").Element();
+		if (weight) {
+		    uint16_t code = PhysDimCode(strcpy(tmp,weight->Attribute("unit")));	
+		    if ((code & 0xFFE0) != 1728) 
+		    	fprintf(stderr,"Warning: incorrect weight unit (%s)\n",weight->Attribute("unit"));	
+		    else 	// convert to kilogram
+			hdr->Patient.Weight = uint8_t(atof(weight->Attribute("value"))*PhysDimScale(code)*1e-3);  
+		}
+		TiXmlElement *height = demographic.FirstChild("height").Element();
+		if (height) {
+		    uint16_t code = PhysDimCode(strcpy(tmp,height->Attribute("unit")));	
+		    if ((code & 0xFFE0) != 1280) //(strcmp("cm",height->Attribute("unit")))
+		    	fprintf(stderr,"Warning: incorrect height unit (%s) %i \n",height->Attribute("unit"),code);	
+		    else	// convert to centimeter
+			hdr->Patient.Height = uint8_t(atof(height->Attribute("value"))*PhysDimScale(code)*1e+2);
+		}
 		
 		TiXmlElement *birthday = demographic.FirstChild("birthTime").Element();
-		// ### FIXME: does not read data
 		if(birthday){
 		    T0 = (char *)birthday->Attribute("value");
 		    T0[14] = '\0';
@@ -114,8 +130,8 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 
 		    hdr->Patient.Birthday = tm_time2gdf_time(t0);
 		}
-		else
-		    fprintf(stderr,"Error: birthday\n");
+//		else
+//		    fprintf(stderr,"Error: birthday\n");
 		
 		TiXmlElement *sex = demographic.FirstChild("administrativeGenderCode").Element();
 		if(sex){
@@ -295,7 +311,7 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     rootComponentOf->SetAttribute("contextConductionInd", "true");
     root->LinkEndChild(rootComponentOf);
     
-    TiXmlElement *timePointEvent = new TiXmlElement("timePointEvent");
+    TiXmlElement *timePointEvent = new TiXmlElement("timepointEvent");
     timePointEvent->SetAttribute("classCode", "CTTEVENT");
     timePointEvent->SetAttribute("moodCode", "EVN");
     rootComponentOf->LinkEndChild(timePointEvent);
@@ -319,9 +335,11 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     trialSubject->SetAttribute("classCode", "RESBJ");
     subject->LinkEndChild(trialSubject);
     
-    TiXmlElement *trialSubjectId = new TiXmlElement("id");
-    trialSubjectId->SetAttribute("extension", "008");
-    trialSubject->LinkEndChild(trialSubjectId);
+    if (hdr->Patient.Id!=NULL) {	
+    	TiXmlElement *trialSubjectId = new TiXmlElement("id");
+    	trialSubjectId->SetAttribute("extension", hdr->Patient.Id);
+    	trialSubject->LinkEndChild(trialSubjectId);
+    }
 
     TiXmlElement *trialSubjectDemographicPerson = new TiXmlElement("subjectDemographicPerson");
     trialSubjectDemographicPerson->SetAttribute("classCode", "PSN");
@@ -351,14 +369,30 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     subjectDemographicPersonGender->SetAttribute("codeSystemName", "AdministrativeGender");
     trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonGender);
 
-    char time[19];
     T0 = gdf_time2t_time(hdr->Patient.Birthday);
     t0 = localtime(&T0);
-    sprintf(time, "%04d%02d%02d%02d%02d%02d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec);
+    sprintf(tmp, "%04d%02d%02d%02d%02d%02d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec);
 
     TiXmlElement *subjectDemographicPersonBirthtime = new TiXmlElement("birthTime");
-    subjectDemographicPersonBirthtime->SetAttribute("value", strdup(time));
+    subjectDemographicPersonBirthtime->SetAttribute("value", strdup(tmp));
     trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonBirthtime);
+
+	/* write non-standard fields height and weight */
+    if (hdr->Patient.Weight) {
+    	sprintf(tmp,"%i",hdr->Patient.Weight); 
+    	TiXmlElement *subjectDemographicPersonWeight = new TiXmlElement("weight");
+    	subjectDemographicPersonWeight->SetAttribute("value", strdup(tmp));
+    	subjectDemographicPersonWeight->SetAttribute("unit", "kg");
+    	trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonWeight);
+    }
+    if (hdr->Patient.Height) {	
+    	sprintf(tmp,"%i",hdr->Patient.Height); 
+    	TiXmlElement *subjectDemographicPersonHeight = new TiXmlElement("height");
+    	subjectDemographicPersonHeight->SetAttribute("value", strdup(tmp));
+    	subjectDemographicPersonHeight->SetAttribute("unit", "cm");
+    	trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonHeight);
+    }
+
 
     TiXmlElement *subjectAssignmentComponentOf = new TiXmlElement("componentOf");
     subjectAssignmentComponentOf->SetAttribute("typeCode", "COMP");
