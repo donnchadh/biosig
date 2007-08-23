@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.93 2007-08-22 15:11:28 schloegl Exp $
+    $Id: biosig.c,v 1.94 2007-08-23 13:28:46 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -453,7 +453,7 @@ uint16_t PhysDimCode(char* PhysDim0)
 		s1 = s+strlen(s);
 		for (k2=0; _physdim[k2].idx < 0xffff; k2++) {
 			strcpy(s1, _physdim[k2].PhysDimDesc);
-			if (!strncmp(PhysDim0, s, strlen(PhysDim0))) {
+			if (!strcmp(PhysDim0, s)) {
 		 		if (k1==32) k1 = 19;		// hack for "µ" = "u"
 				return(_physdim[k2].idx+k1);
 			}	 
@@ -1729,8 +1729,14 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		memset(Header1,0,hdr->HeadLen);
 		hdr->VERSION = 1.99;
 	     	sprintf(Header1,"GDF %4.2f",hdr->VERSION);
-		if (hdr->Patient.Id!=NULL) 
+	     	
+		if (hdr->Patient.Id!=NULL) {
+			for (k=0; hdr->Patient.Id[k]; k++)
+				if (isspace(hdr->Patient.Id[k]))
+					hdr->Patient.Id[k] = '_';
+					
 	     		strncat(Header1+8, hdr->Patient.Id,   66);
+		} 
 		else     	
 		     	strncat(Header1+8, "X", 66);
 	     	strncat(Header1+8, " ",   66);
