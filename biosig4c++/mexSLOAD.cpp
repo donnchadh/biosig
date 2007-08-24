@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.1 2007-08-22 22:26:56 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.2 2007-08-24 22:21:57 schloegl Exp $
     Copyright (C) 2007 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -41,7 +41,7 @@ void mexFunction(
 	size_t 		count;
 	time_t 		T0;
 	char 		FileName[1024];  
-	int 		status, VERBOSE_LEVEL = 9; 
+	int 		status, VERBOSE_LEVEL = 1; 
 	
 	mexPrintf("\nHello world! [nlhs=%i nrhs=%i]\n",nlhs,nrhs);
 	mexPrintf("This is mexSLOAD, it is currently in an experimental state!\n");
@@ -71,14 +71,32 @@ void mexFunction(
 
 			hdr2ascii(hdr,stdout,1);	
 
-			nlhs = 1;
+			if (nlhs>1) {
+				uint16_t numfields;
+				mxArray *HDR, *tmp;
+				void* ptr;
+				const char *fnames[] = {"TYPE","NS","SPR","NRec","SampleRate","FileName","FILE","Patient",NULL};
+				for (numfields=0; fnames[numfields++] != 0; );
+				plhs[1] = mxCreateStructMatrix(1, 1, --numfields, fnames);
+				HDR = plhs[1];
+				tmp = mxCreateNumericMatrix(1,1,mxUINT16_CLASS,mxREAL);
+				mxSetField(HDR,1,"NS",tmp);
+				ptr = mxGetData(tmp);
+				*(uint16_t*)ptr = hdr->NS;
+
+/*
+				tmp = mxCreateNumericMatrix(1,1,mxUINT32_CLASS,mxREAL);
+				*(uint32_t*)mxGetData(tmp) = hdr->SPR;
+				mxSetField(HDR,1,"SPR",tmp);
+				tmp = mxCreateNumericMatrix(1,1,mxUINT64_CLASS,mxREAL);
+				*(uint64_t*)mxGetData(tmp) = hdr->NRec;
+				mxSetField(HDR,1,"NRec",tmp);
+*/
+			}	
+
 			plhs[0] = mxCreateDoubleMatrix(hdr->SPR * hdr->NRec, hdr->NS, mxREAL);
-			hdr->data.block = (biosig_data_type*) mxCalloc(hdr->SPR * hdr->NRec * hdr->NS, sizeof(biosig_data_type));
-			mxSetPr(plhs[0],hdr->data.block);
-/*			
-			plhs = (mxArray**)mxCalloc(nlhs,sizeof(mxArray*));
-			plhs[0] = mxCreateDoubleMatrix(0, 0, mxREAL);
-*/			
+			hdr->data.block = mxGetPr(plhs[0]);
+
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
 			hdr->FLAG.OVERFLOWDETECTION = 0;
