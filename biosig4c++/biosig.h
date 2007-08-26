@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.60 2007-08-22 15:11:28 schloegl Exp $
+% $Id: biosig.h,v 1.61 2007-08-26 20:39:16 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -473,12 +473,11 @@ int16_t CRCCheck(uint8_t* datablock, uint32_t datalength);
 /**                                                                        **/
 /****************************************************************************/
 
-
 HDRTYPE* getfiletype(HDRTYPE* hdr);
 HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT);
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 int 	sclose(HDRTYPE* hdr);
-size_t 	sread(HDRTYPE* hdr, size_t start, size_t length);
+size_t	sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr);
 size_t 	sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr); 
 size_t  swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr);
 int	seof(HDRTYPE* hdr);

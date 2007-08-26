@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.94 2007-08-23 13:28:46 schloegl Exp $
+    $Id: biosig.c,v 1.95 2007-08-26 20:39:16 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -2007,14 +2007,18 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 /****************************************************************************/
 /**	SREAD                                                              **/
 /****************************************************************************/
-size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
+size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) {
 /* 
  *	reads LENGTH blocks with HDR.AS.bpb BYTES each, 
  *	rawdata is available in hdr->AS.rawdata
  *      output data is available in hdr->data.block
  *	size of output data is availabe in hdr->data.size
  *
- *	channel selection is controlled by hdr->CHANNEL[k}.OnOff
+ *	data is a pointer to a memory array to write the data. 
+ *	if data is NULL, memory is allocated and the pointer is returned 
+ *	in hdr->data.block. 
+ *
+ *	channel selection is controlled by hdr->CHANNEL[k].OnOff
  * 
  *        start <0: read from current position
  *             >=0: start reading from position start
@@ -2044,7 +2048,7 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 		// limit reading to end of data block
 		nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
 
-		// read data	
+		// read data
 		count = FREAD(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr);
 		if (count<nelem)
 			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem); 
@@ -2058,13 +2062,16 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 	hdr->FILE.POS += count;
 
 	// transfer RAW into BIOSIG data format 
-	hdr->data.block   = (biosig_data_type*) realloc(hdr->data.block, (hdr->SPR) * count * (hdr->NS) * sizeof(biosig_data_type));
-
+	if (data==NULL)
+		data = (biosig_data_type*) malloc(hdr->SPR * count * hdr->NS * sizeof(biosig_data_type));
+	hdr->data.block = data; 
+//	hdr->data.block = (biosig_data_type*) realloc(hdr->data.block, (hdr->SPR) * count * (hdr->NS) * sizeof(biosig_data_type));
+		
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
 	//(CHptr->OnOff != 0) 
 	if (hdr->CHANNEL[k1].SPR==0)
-	{	// sparsly sampled channels are stored in event table
+	{	// sparsely sampled channels are stored in event table
 		for (k5 = 0; k5 < hdr->SPR*hdr->NRec; k5++)
 			hdr->data.block[k2*count*hdr->SPR + k5] = NaN;
 	}
@@ -2149,11 +2156,14 @@ size_t sread(HDRTYPE* hdr, size_t start, size_t length) {
 /****************************************************************************/
 size_t sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr) {
 /* 
+ *	this function will become OBSOLETE. 
+ *
+ *
  *      no memory allocation is done 
  *      data is moved into channel_dest
  *	size of output data is availabe in hdr->data.size
  *
- *	channel selection is controlled by hdr->CHANNEL[k}.OnOff
+ *	channel selection is controlled by hdr->CHANNEL[k].OnOff
  * 
  *      start <0: read from current position
  *           >=0: start reading from position start
@@ -2655,11 +2665,15 @@ int sclose(HDRTYPE* hdr)
         	free(hdr->AS.rawdata);
         }	
 
+/*
     	if (hdr->data.block != NULL) {	
         	free(hdr->data.block);
-        	hdr->data.size[0]=0;
-        	hdr->data.size[1]=0;
-        }	
+       	}
+       	hdr->data.size[0]=0;
+       	hdr->data.size[1]=0;
+*/
+
+
 // fprintf(stdout,"sclose: 05\n");
     	if (hdr->CHANNEL != NULL)	
         	free(hdr->CHANNEL);

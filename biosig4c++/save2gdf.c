@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.22 2007-08-22 15:11:28 schloegl Exp $
+    $Id: save2gdf.c,v 1.23 2007-08-26 20:39:16 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -122,7 +122,7 @@ int main(int argc, char **argv){
     	}	
 //	if (dest==NULL ) VERBOSE_LEVEL=2; // default 
 
-	if (VERBOSE_LEVEL<0) VERBOSE_LEVEL=3; // default 
+	if (VERBOSE_LEVEL<0) VERBOSE_LEVEL=1; // default 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[111] SAVE2GDF started\n");
 
 	hdr = sopen(source, "r", NULL);
@@ -137,7 +137,10 @@ int main(int argc, char **argv){
 	hdr->FLAG.UCAL = 1;
 	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[121]\n");
-	count = sread(hdr, 0, hdr->NRec);
+//	count = sread(hdr, 0, hdr->NRec);
+	count = sread(NULL, 0, hdr->NRec, hdr);
+	biosig_data_type* data = hdr->data.block;
+
 	if ((status=serror())) exit(status); 
 
 	if (VERBOSE_LEVEL>8) 
@@ -148,6 +151,7 @@ int main(int argc, char **argv){
 		sclose(hdr);
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[137] SCLOSE finished\n");
 		free(hdr);
+		free(data);
 		exit(serror());
 	}
 
@@ -235,7 +239,7 @@ int main(int argc, char **argv){
 	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"\n[221] File %s opened. %i %i \n",hdr->FileName,hdr->AS.bpb,hdr->NS);
 
-	swrite(hdr->data.block, hdr->NRec, hdr);
+	swrite(data, hdr->NRec, hdr);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[231] SWRITE finishes\n");
 	if ((status=serror())) { 
 		free(hdr);
