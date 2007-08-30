@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.3 2007-08-26 20:39:16 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.4 2007-08-30 12:30:38 schloegl Exp $
     Copyright (C) 2007 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -74,6 +74,11 @@ void mexFunction(
 
 
 			if (nlhs>1) {
+				char* mexFileName = (char*)mxMalloc(strlen(hdr->FileName)+1); 
+				mxArray *mexNS    = mxCreateNumericMatrix(2,1,mxUINT16_CLASS,mxREAL);
+				mxArray *mexSPR   = mxCreateNumericMatrix(2,1,mxUINT32_CLASS,mxREAL);
+				mxArray *mexNRec  = mxCreateNumericMatrix(2,1,mxUINT64_CLASS,mxREAL);
+
 if (VERBOSE_LEVEL>8) mexPrintf("[200]\n");
 				uint16_t numfields;
 				mxArray *HDR, *tmp;
@@ -82,18 +87,20 @@ if (VERBOSE_LEVEL>8) mexPrintf("[200]\n");
 				for (numfields=0; fnames[numfields++] != 0; );
 				plhs[1] = mxCreateStructMatrix(1, 1, --numfields, fnames);
 				HDR = plhs[1];
-				tmp = mxCreateNumericMatrix(1,1,mxUINT16_CLASS,mxREAL);
-				memcpy(mxGetData(tmp),&(hdr->NS),sizeof(hdr->NS));
-				mxSetField(HDR,1,"NS",tmp);
 
-				tmp = mxCreateNumericMatrix(1,1,mxUINT32_CLASS,mxREAL);
-				memcpy(mxGetData(tmp),&(hdr->SPR),sizeof(hdr->SPR));
-				mxSetField(HDR,1,"SPR",tmp);
+mexPrintf("[221] %x %x %i\n",tmp,mxGetData(tmp),4); 
+//				memcpy(mxGetData(mexNS),&(hdr->NS),2);
+mexPrintf("[221] %x\n",HDR); 
+				mxSetFieldByNumber(HDR,1,2,mexNS);
 
-				tmp = mxCreateNumericMatrix(1,1,mxUINT64_CLASS,mxREAL);
-				memcpy(mxGetData(tmp),&(hdr->NRec),sizeof(hdr->NRec));
-				mxSetField(HDR,1,"NRec",tmp);
 
+				memcpy(mxGetData(mexSPR),&(hdr->SPR),4);
+//				mxSetFieldByNumber(HDR,1,3,mexSPR);
+
+				memcpy(mxGetData(mexNRec),&(hdr->NRec),8);
+//				mxSetFieldByNumber(HDR,1,4,mexNRec);
+
+//
 if (VERBOSE_LEVEL>8) mexPrintf("[205]\n");
 /*
 				tmp = mxCreateNumericMatrix(1,1,mxUINT32_CLASS,mxREAL);
@@ -110,8 +117,8 @@ if (VERBOSE_LEVEL>8) mexPrintf("[205]\n");
 
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
-			hdr->FLAG.OVERFLOWDETECTION = 0;
-			hdr->FLAG.UCAL = 1;
+			hdr->FLAG.OVERFLOWDETECTION = 1;
+			hdr->FLAG.UCAL = 0;
 	
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[121]\n");
 
@@ -127,18 +134,5 @@ if (VERBOSE_LEVEL>8) mexPrintf("[205]\n");
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[137] SCLOSE finished\n");
 		}
 	}
-/*		
-	nlhs = 1; 	
-	plhs = (mxArray*)mxCalloc(sizeof(mxArray*), nlhs);
-	for (k=0; k<nrhs; k++)
-	{
-		plhs[k] = mxCreateNumericMatrix(k+1, k+2, mxDOUBLE_CLASS, mxREAL);
-	}	
-	
-	mxAddField(pm, fieldname)
-	mxRemoveField, 
-	mxSetFieldByNumber
-	mxSetPr(plhs[0], hdr->data.block);
-*/
 };
 
