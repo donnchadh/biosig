@@ -1,6 +1,6 @@
 %%% Octave script for testing BioSig4C++:SAVE2GDF 
 
-%	$Id: test01.m,v 1.2 2007-08-16 13:13:53 schloegl Exp $
+%	$Id: test01.m,v 1.3 2007-08-30 12:41:17 schloegl Exp $
 %	Copyright (c) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -23,7 +23,7 @@ cd ..
 
 [s,m]=unix('make'); %% compile save2gdf
 if (s>0), 
-	fprintf(stdout,'this script must be started from within .../biosig4c++/test0/ directory!\n'); 
+	fprintf(1,'this script must be started from within .../biosig4c++/test0/ directory!\n'); 
 end; 	
 [s,m]=unix('make testhl7');  %% run test for HL7 file 
 [s,m]=unix('make testscp');  %% run test for SCP file
