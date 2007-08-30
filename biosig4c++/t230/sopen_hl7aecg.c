@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.11 2007-08-23 13:25:26 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.12 2007-08-30 10:55:18 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -22,8 +22,6 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
  */
-
-
 
 
 #include <stdio.h>             // system includes
@@ -66,18 +64,19 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 
 		struct tm *t0 = (struct tm *)malloc(sizeof(struct tm));
 		T0[14] = '\0';
-		t0->tm_sec = atoi(T0+12);
+		// ### ?FIXME?: compensate local time and DST in mktime used in tm_time2gdf_time below 
+		t0->tm_sec  = atoi(T0+12)-timezone;	
 		T0[12] = '\0';
-		t0->tm_min = atoi(T0+10);
+		t0->tm_min  = atoi(T0+10);
 		T0[10] = '\0';
 		t0->tm_hour = atoi(T0+8);
-		T0[8] = '\0';
+		T0[8]  = '\0';
 		t0->tm_mday = atoi(T0+6);
-		T0[6] = '\0';
-		t0->tm_mon = atoi(T0+4)-1;
-		T0[4] = '\0';
+		T0[6]  = '\0';
+		t0->tm_mon  = atoi(T0+4)-1;
+		T0[4]  = '\0';
 		t0->tm_year = atoi(T0)-1900;
-
+		t0->tm_gmtoff = 0;
  		hdr->T0 = tm_time2gdf_time(t0);
 
 		TiXmlHandle demographic = aECG.FirstChild("componentOf").FirstChild("timepointEvent").FirstChild("componentOf").FirstChild("subjectAssignment").FirstChild("subject").FirstChild("trialSubject");
@@ -106,7 +105,7 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		TiXmlElement *height = demographic.FirstChild("height").Element();
 		if (height) {
 		    uint16_t code = PhysDimCode(strcpy(tmp,height->Attribute("unit")));	
-		    if ((code & 0xFFE0) != 1280) //(strcmp("cm",height->Attribute("unit")))
+		    if ((code & 0xFFE0) != 1280) 
 		    	fprintf(stderr,"Warning: incorrect height unit (%s) %i \n",height->Attribute("unit"),code);	
 		    else	// convert to centimeter
 			hdr->Patient.Height = uint8_t(atof(height->Attribute("value"))*PhysDimScale(code)*1e+2);
@@ -115,6 +114,9 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		TiXmlElement *birthday = demographic.FirstChild("birthTime").Element();
 		if(birthday){
 		    T0 = (char *)birthday->Attribute("value");
+		    if (T0==NULL) T0=strdup(birthday->GetText());  // workaround for reading two different formats 
+		}
+		if (strlen(T0)>14) {
 		    T0[14] = '\0';
 		    t0->tm_sec = atoi(T0+12);
 		    T0[12] = '\0';
@@ -287,7 +289,11 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     
     char timelow[19], timehigh[19];
     time_t T0 = gdf_time2t_time(hdr->T0);
-    struct tm *t0 = localtime(&T0);
+    struct tm *t0 = gmtime(&T0);
+    t0->tm_sec += timezone; 
+    mktime(t0);
+//    t0->tm_gmtoff=0;
+
     sprintf(timelow, "%4d%2d%2d%2d%2d%2d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec);
     sprintf(timehigh, "%4d%2d%2d%2d%2d%2d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec+hdr->SPR/((int)hdr->SampleRate));
     for(int i=0; i<18; ++i){
@@ -370,7 +376,7 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonGender);
 
     T0 = gdf_time2t_time(hdr->Patient.Birthday);
-    t0 = localtime(&T0);
+    t0 = gmtime(&T0);
     sprintf(tmp, "%04d%02d%02d%02d%02d%02d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec);
 
     TiXmlElement *subjectDemographicPersonBirthtime = new TiXmlElement("birthTime");
