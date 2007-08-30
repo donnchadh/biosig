@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.96 2007-08-30 12:23:42 schloegl Exp $
+    $Id: biosig.c,v 1.97 2007-08-30 16:05:27 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -917,11 +917,11 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	else if ( (l_endian_u32(*(uint32_t*)Header1) & 0x00FFFFFFL) == 0x00BFBBEFL  
 		&& !memcmp(Header1+3,"<?xml version",13))
 		hdr->TYPE = HL7aECG;	// UTF8
-	else if (*(uint16_t*)Header1[0]==l_endian_u16(0xFFFE)) 
+	else if (*(uint16_t*)Header1==l_endian_u16(0xFFFE)) 
 	{	hdr->TYPE = XML; // UTF16 BigEndian 
 		hdr->FILE.LittleEndian = 0;
     	}
-	else if (*(uint16_t*)Header1[0]==l_endian_u16(0xFEFF)) 
+	else if (*(uint16_t*)Header1==l_endian_u16(0xFEFF)) 
 	{	hdr->TYPE = XML; // UTF16 LittleEndian 
 		hdr->FILE.LittleEndian = 1;
     	}
@@ -1828,11 +1828,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    		B4C_ERRMSG = "Warning SOPEN(SCP-READ): Bad CRC!";
 		}
 		sopen_SCP_read(hdr);
-    		if (serror()) { 
-	    		free(Header1);
-    			free(hdr);
-    			return(NULL);
-    		}	
+		serror();
 	}
 	
 	else if (hdr->TYPE==HL7aECG) 
