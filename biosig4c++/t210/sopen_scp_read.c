@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.31 2007-08-16 15:00:56 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.32 2007-08-30 12:23:42 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -151,7 +151,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 			t0.tm_isdst  = -1; // daylight savings time - unknown 
 			hdr->T0    = 0; 
 			hdr->Patient.Birthday = 0; 
-
+ 
 			while ((*(PtrCurSect+curSectPos)!=255) | (*(uint16_t*)(PtrCurSect+curSectPos+1)!=0)) {
 				tag = *(PtrCurSect+curSectPos);
 				len = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+1));
@@ -179,6 +179,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 					t1.tm_min  =  0; 
 					t1.tm_sec  =  0; 
 					t1.tm_isdst= -1; // daylight saving time: unknown
+//					t1.tm_gmtoff  =  0; 
 					hdr->Patient.Birthday = tm_time2gdf_time(&t1);
 				}
 				else if (tag==6) {
@@ -204,7 +205,8 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 					hdr->aECG->Diagnosis = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==14) {
-					hdr->VERSION = *(PtrCurSect+curSectPos+14)/10.0;	// tag 14, byte 15
+					memcpy(hdr->aECG->Section1.tag14,PtrCurSect+curSectPos,40);
+					//hdr->VERSION = *(PtrCurSect+curSectPos+14)/10.0;	// tag 14, byte 15
 					hdr->aECG->Section1.Tag14.INST_NUMBER = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 					hdr->aECG->Section1.Tag14.DEPT_NUMBER = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 					hdr->aECG->Section1.Tag14.DEVICE_ID   = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+4));
@@ -228,6 +230,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 					hdr->aECG->Section1.Tag14.ACQ_DEV_MANUF  = (char*)(PtrCurSect+curSectPos+36+tmp+1);	// tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer")
 				}
 				else if (tag==15) {
+					memcpy(hdr->aECG->Section1.tag15,PtrCurSect+curSectPos,40);
 				}
 				else if (tag==16) {
 				}
@@ -283,8 +286,21 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				}
 				else if (tag==32) {
 				}
+				else if (tag==33) {
+				}
+				else if (tag==34) {
+					int16_t tzmin = l_endian_i16(*(int16_t*)(PtrCurSect+curSectPos));
+					if (tzmin != 0x7fff)
+						if (abs(tzmin)<=780) 
+							t0.tm_min += tzmin;
+						else 
+							fprintf(stderr,"Warning SOPEN(SCP-READ): invalid time zone (Section 1, Tag34)\n");
+					//fprintf(stdout,"SOPEN(SCP-READ): tzmin = %i %x \n",tzmin,tzmin);
+				}
 				curSectPos += len;
 			}
+//			t0.tm_gmtoff = 60*tzminutes;
+			t0.tm_isdst = -1;
 			hdr->T0    = tm_time2gdf_time(&t0);
 		}
 
@@ -328,8 +344,8 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 		/**** SECTION 5 ****/
 		else if (curSect==5)  {
 			Cal5 			= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-			double Fs5	 	= 1e6/l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			/*
+			double Fs5	 	= 1e6/l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			FLAG5.DIFF 	= *(PtrCurSect+curSectPos+4);		
 			*/
 		}

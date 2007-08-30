@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.95 2007-08-26 20:39:16 schloegl Exp $
+    $Id: biosig.c,v 1.96 2007-08-30 12:23:42 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -697,14 +697,15 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.size[1] = 0;  // columns 
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = t_time2gdf_time(time(NULL));
-      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.45";
+      	hdr->tzmin = 0; 
+      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.50";
 
 	hdr->Patient.Name 	= NULL; 
 	hdr->Patient.Id 	= NULL; 
 	hdr->Patient.Birthday 	= (gdf_time)0;        // Unknown;
       	hdr->Patient.Medication = 0;	// 0:Unknown, 1: NO, 2: YES
       	hdr->Patient.DrugAbuse 	= 0;	// 0:Unknown, 1: NO, 2: YES
-      	hdr->Patient.AlcoholAbuse= 0;	// 0:Unknown, 1: NO, 2: YES
+      	hdr->Patient.AlcoholAbuse=0;	// 0:Unknown, 1: NO, 2: YES
       	hdr->Patient.Smoking 	= 0;	// 0:Unknown, 1: NO, 2: YES
       	hdr->Patient.Sex 	= 0;	// 0:Unknown, 1: Male, 2: Female
       	hdr->Patient.Handedness = 0;	// 0:Unknown, 1: Right, 2: Left, 3: Equal
@@ -949,7 +950,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
     	int 		k,k1;
     	uint32_t	k32u; 
     	size_t	 	count,len;
-    	uint8_t 	buf[81];
+    	uint8_t 	buf[128];
     	char 		tmp[81];
     	char 		cmd[256];
     	double 		Dur; 
@@ -1070,7 +1071,8 @@ if (!strncmp(MODE,"r",1))
 	    		tm_time.tm_mday = atoi(strncpy(tmp,Header1+168+6,2)); 
 	    		tm_time.tm_mon  = atoi(strncpy(tmp,Header1+168+4,2)); 
 	    		tm_time.tm_year = atoi(strncpy(tmp,Header1+168,4)); 
-	    		hdr->T0 = t_time2gdf_time(mktime(&tm_time)); 
+	    		tm_time.tm_gmtoff = 0;
+			hdr->T0 = t_time2gdf_time(mktime(&tm_time)); 
 		    	hdr->HeadLen 	= l_endian_u64( *(uint64_t*) (Header1+184) ); 
 	    	}
 
@@ -1195,6 +1197,7 @@ if (!strncmp(MODE,"r",1))
     		tm_time.tm_mon  = atoi(strncpy(tmp,Header1+168+3,2)); 
     		tm_time.tm_year = atoi(strncpy(tmp,Header1+168+6,2)); 
     		tm_time.tm_year+= (tm_time.tm_year<85)*100;
+    		tm_time.tm_gmtoff = 0;
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
 
 		if (!strncmp(Header1+192,"EDF+",4)) {
@@ -1432,6 +1435,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	tm_time.tm_hour = l_endian_u32(*(uint32_t*)(Header1+28));
 	    	tm_time.tm_min  = l_endian_u32(*(uint32_t*)(Header1+32));
 	    	tm_time.tm_sec  = (int)l_endian_f64(*(double*)(Header1+36));
+    		tm_time.tm_gmtoff = 0;
     		hdr->T0 	= tm_time2gdf_time(&tm_time);
 	    	// = *(double*)(Header1+44);
 	    	hdr->NS   	= l_endian_u32( *(uint32_t*)(Header1+52));
@@ -1481,6 +1485,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		tm_time.tm_mday = atoi(strncpy(tmp,Header2,2)); 
     		tm_time.tm_mon  = atoi(strncpy(tmp,Header2+3,2)); 
     		tm_time.tm_year = atoi(strncpy(tmp,Header2+6,2)); 
+    		tm_time.tm_gmtoff = 0;
 	    	if (tm_time.tm_year<=80)    	tm_time.tm_year += 2000;
 	    	else if (tm_time.tm_year<100) 	tm_time.tm_year += 1900;
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
@@ -1531,6 +1536,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	tm_time.tm_min  = b_endian_u16(*(uint16_t*)(Header1+12));
 	    	tm_time.tm_sec  = b_endian_u16(*(uint16_t*)(Header1+14));
 	    	// tm_time.tm_sec  = b_endian_u32(*(uint32_t*)(Header1+16))/1000; // not supported by tm_time
+    		tm_time.tm_gmtoff = 0;
 	    	hdr->T0 = tm_time2gdf_time(&tm_time);
 	    	hdr->SampleRate = b_endian_u16(*(uint16_t*)(Header1+20));
     		hdr->Dur[0] 	= 1;
@@ -1596,6 +1602,221 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	}  
 	}
 	
+    	else if (hdr->TYPE==MFER) {	
+		uint8_t gdftyp; 
+		fprintf(stderr,"Warning SOPEN(MFER): support for MFER format under construction\n"); 
+    		// sopen_MFER_read(hdr);
+    		int curPos = 0; 
+    		FSEEK(hdr,0,SEEK_SET);
+		while (!FEOF(hdr)) {
+		
+			uint8_t tag;
+			int32_t len, val64=0;
+			uint32_t val32=0, chan=-1; 
+			int8_t tmplen;
+			uint8_t FLAG_MFER_LITTLE_ENDIAN=0; 
+			/* TAG */ 
+			int sz=FREAD(&tag,1,1,hdr);
+			curPos += sz;
+			if (tag==63) {
+				/* CONTEXT */ 
+				curPos += FREAD(buf,1,1,hdr);
+				chan = buf[0] & 0x7f;
+				while (buf[0] & 0x80) {
+					curPos += FREAD(buf,1,1,hdr);
+					chan    = (chan<<7) + (buf[0] & 0x7f);
+				}
+				//curPos += FREAD(buf,1,1,hdr);
+			}
+				/* LENGTH */ 
+			curPos += FREAD(&tmplen,1,1,hdr);
+			if ((tag==63) && (tmplen==0x80))
+				len = -1; //Infinite Length
+			else if (tmplen & 0x80) {
+				tmplen &= 0x7f;
+				len     = 0; 
+				curPos += FREAD(&buf,1,tmplen,hdr);
+				k = 0; 
+				while (k<tmplen)
+					len = (len<<8) + (buf[k++] & 0x7f);
+			}
+			else
+				len = tmplen;
+			
+			/* VALUE */ 
+//fprintf(stdout,"MFER: tag=%3i chan=%2i len=%i %3i curPos=%i %i\n",tag,chan,tmplen,len,curPos,FTELL(hdr));
+			if (tag==0) {
+				curPos += FREAD(&val64,1,len,hdr);
+			}	
+			else if (tag==1) {
+				// Endianity 
+				FREAD(&FLAG_MFER_LITTLE_ENDIAN,1,1,hdr);
+				if (len!=1) fprintf(stderr,"warning MFER tag1 incorrect length %i!=1\n",len); 
+					FSEEK(hdr,len-1,SEEK_CUR); 
+				curPos+=len; 	
+			}	
+			else if (tag==2) {
+				// Version
+				uint8_t v[3];
+				if (len!=3) fprintf(stderr,"warning MFER tag2 incorrect length %i!=3\n",len); 
+				curPos += FREAD(&v,1,3,hdr);
+				hdr->VERSION = v[0] + (v[1]<10 ? v[1]/10.0 : (v[1]<100 ? v[1]/100.0 : v[1]/1000.0)); 
+			}	
+			else if (tag==3) {
+				// character code 
+				char v[17];
+				if (len>16) fprintf(stderr,"warning MFER tag2 incorrect length %i>16\n",len); 
+				curPos += FREAD(&v,1,len,hdr);
+				v[len]  = 0; 
+			}	
+			else if (tag==4) {
+				// SPR
+				if (len>4) fprintf(stderr,"warning MFER tag4 incorrect length %i>4\n",len); 
+				curPos += FREAD(&val32,1,len,hdr);
+				if (FLAG_MFER_LITTLE_ENDIAN)
+					hdr->SPR = (uint32_t)val32; 
+				else
+					hdr->SPR = (uint32_t)b_endian_u32(val32 >> (sizeof(val32)-len));
+			}	
+			else if (tag==5) {
+				// NS
+				if (len>4) fprintf(stderr,"warning MFER tag5 incorrect length %i>4\n",len); 
+				curPos += FREAD(&val32,1,len,hdr);
+				if (FLAG_MFER_LITTLE_ENDIAN)
+					hdr->NS = (uint16_t) val32; 
+				else 
+					hdr->NS = (uint16_t) b_endian_u32(val32 >> (sizeof(val32)-len));
+				hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+			}	
+			else if (tag==6) {
+				// NRec
+				if (len>4) fprintf(stderr,"warning MFER tag6 incorrect length %i>4\n",len); 
+				curPos += FREAD((uint8_t*)&val32,1,len,hdr);
+				if (FLAG_MFER_LITTLE_ENDIAN)
+					hdr->NRec = val32;
+				else
+					hdr->NRec = b_endian_u32(val32 >> (sizeof(val32)-len));
+			}	
+			else if (tag==8) {
+				// NRec
+				uint8_t TypeOfWaveForm8[2];
+				uint16_t TypeOfWaveForm;
+				if (len>2) fprintf(stderr,"warning MFER tag6 incorrect length %i>2\n",len); 
+				curPos += FREAD(&TypeOfWaveForm8,1,len,hdr);
+				if (len==1) 
+					TypeOfWaveForm = TypeOfWaveForm8[0];
+				else 
+					TypeOfWaveForm = TypeOfWaveForm8[0]<<8 + TypeOfWaveForm8[1];
+			}
+			else if (tag==10) {
+				// GDFTYP
+				if (len!=1) fprintf(stderr,"warning MFER tag10 incorrect length %i!=1\n",len); 
+				curPos += FREAD(&gdftyp,1,1,hdr);
+				if 	(gdftyp==0)	gdftyp=3; // int16
+				else if (gdftyp==1)	gdftyp=4; // uint16
+				else if (gdftyp==2)	gdftyp=5; // int32
+				else if (gdftyp==3)	gdftyp=2; // uint8
+				else if (gdftyp==4)	gdftyp=4; // bit16
+				else if (gdftyp==5)	gdftyp=1; // int8
+				else if (gdftyp==6)	gdftyp=6; // uint32
+				else if (gdftyp==7)	gdftyp=16; // float32
+				else if (gdftyp==8)	gdftyp=17; // float64
+				else if (gdftyp==9)	gdftyp=4; // 8 bit AHA compression 
+			}	
+			else if (tag==11) {
+				// Fs
+				if (len>6) fprintf(stderr,"warning MFER tag11 incorrect length %i>6\n",len); 
+				uint8_t tag11[2];
+				double  fval; 
+				val32   = 0; 
+				curPos += FREAD(&tag11,1,2,hdr);
+				curPos += FREAD(&val32,1,len-2,hdr);
+				if (FLAG_MFER_LITTLE_ENDIAN)
+					fval = (double) val32; 
+				else
+					fval = b_endian_u64(val32 >> (4-len-(-2)));
+				
+				hdr->SampleRate = fval*pow(10.0, tag11[1]);
+				if (tag11[0]==1)  // s
+					hdr->SampleRate = 1.0/hdr->SampleRate;
+			}	
+			else if (tag==63) {
+				uint8_t tag2=-1, len2=-1; 
+//fprintf(stdout,"tag=%i (len=%i) \n",tag,len); 
+
+				count = 0; 
+				while ((count<len) && !(len<0 && len2==0 && tag2==0)){ 
+					curPos += FREAD(&tag2,1,1,hdr);
+					curPos += FREAD(&len2,1,1,hdr);
+//fprintf(stdout,"MFER: tag=%3i chan=%2i len=%-4i tag2=%3i len2=%3i curPos=%i %i count=%4i\n",tag,chan,len,tag2,len2,curPos,FTELL(hdr),count);
+					if (len<0 && len2==0 && tag2==0) continue; 
+
+					count += (2+len2);
+					curPos += FREAD(&buf,1,len2,hdr);
+					if (tag2==9)	//leadname 
+						if (len2==1)
+							hdr->CHANNEL[chan].LeadIdCode = buf[0]; 
+						else if (len2==2)
+							hdr->CHANNEL[chan].LeadIdCode = 0; 
+						else if (len2<=32)
+							strncpy(hdr->CHANNEL[chan].Label,(char*)buf,len2); 
+					else {
+						FSEEK(hdr,len2,SEEK_CUR); 
+						curPos += len2;
+					}
+					
+/*					else if (tag2==0x0b)	// sampling interval 
+					;
+					else if (tag2==0x0c)	// sensitivity 
+					;
+					else if (tag2==0x0c)	// block length
+					;
+*/
+				}
+//fprintf(stdout,"399 -done 63\n"); 
+			}
+/*
+			else if (tag==129) {
+				// Patient Name 
+				curPos += FREAD(hdr->Patient.Name,len,1,hdr);
+			}	
+			else if (tag==130) {
+				// Patient Id 
+				curPos += FREAD(hdr->Patient.Id,len,1,hdr);
+			}	
+*/
+			else if (tag==133) {
+				// Patient Id 
+				uint8_t tmp9[11];
+				curPos += FREAD(&tmp9,1,len,hdr);
+		    		tm_time.tm_year = *(uint16_t*)tmp9; 
+		    		tm_time.tm_mon  = tmp9[2]; 
+		    		tm_time.tm_mday = tmp9[3]; 
+		    		tm_time.tm_hour = tmp9[4]; 
+		    		tm_time.tm_min  = tmp9[5]; 
+		    		tm_time.tm_sec  = tmp9[6]; 
+	    			tm_time.tm_gmtoff = 0;
+				hdr->T0  = t_time2gdf_time(mktime(&tm_time)); 
+		    		hdr->T0 += (*(uint16_t*)(tmp9+7) * 1e+3 + *(uint16_t*)(tmp9+9)) * ldexp(1.0,32) / (24*3600e6); 
+			}
+			else	{ 	
+		    		curPos += len; 
+		    		FSEEK(hdr,len,SEEK_CUR);
+//fprintf(stdout,"tag=%i (len)%i) not supported\n",tag,len); 
+		    		//FSEEK(hdr,curPos,SEEK_SET);
+		    	}	
+//fprintf(stdout,"tag%i len%i done\n",tag,len); 
+
+		    	if (curPos != FTELL(hdr))
+		    		fprintf(stdout,"positions differ %i %i \n",curPos,FTELL(hdr));
+				
+	 	}
+	 	for (k=1; k<hdr->NS; k++) {
+	 		hdr->CHANNEL[k].SPR = hdr->SPR; 
+	 		hdr->CHANNEL[k].GDFTYP = gdftyp; 
+	 	}
+	 	hdr2ascii(hdr,stdout,4); 
+	}
 	else if (hdr->TYPE==SCP_ECG) {
 		hdr->HeadLen   = l_endian_u32(*(uint32_t*)(hdr->AS.Header+2));
 		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
@@ -1676,7 +1897,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    	*(double*)(Header1+8) = l_endian_f64(1/hdr->SampleRate);
 		
 		tt = gdf_time2t_time(hdr->T0); 
-		struct tm *t = localtime(&tt);
+		struct tm *t = gmtime(&tt);
     		*(int32_t*)(Header1+16) = l_endian_u32(t->tm_year);
 	    	*(int32_t*)(Header1+20) = l_endian_u32(t->tm_mon);
 	    	*(int32_t*)(Header1+24) = l_endian_u32(t->tm_mday);
@@ -1854,20 +2075,20 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	}
 
 		tt = gdf_time2t_time(hdr->Patient.Birthday); 
-		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",localtime(&tt));
+		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",gmtime(&tt));
 		else strcpy(tmp,"X");	
 		sprintf(cmd,"%s %c %s %s",hdr->Patient.Id,GENDER[hdr->Patient.Sex],tmp,hdr->Patient.Name);
 	     	memcpy(Header1+8, cmd, strlen(cmd));
 	     	
 		tt = gdf_time2t_time(hdr->T0); 
-		if (hdr->T0>1) strftime(tmp,81,"%d-%b-%Y",localtime(&tt));
+		if (hdr->T0>1) strftime(tmp,81,"%d-%b-%Y",gmtime(&tt));
 		else strcpy(tmp,"X");	
 		len = sprintf(cmd,"Startdate %s X X ",tmp);
 	     	memcpy(Header1+88, cmd, len);
 	     	memcpy(Header1+88+len, &hdr->ID.Equipment, 8);
-	     	
+	     
 		tt = gdf_time2t_time(hdr->T0); 
-		strftime(tmp,81,"%d.%m.%y%H:%M:%S",localtime(&tt));
+		strftime(tmp,81,"%d.%m.%y%H:%M:%S",gmtime(&tt));
 	     	memcpy(Header1+168, tmp, 16);
 
 		len = sprintf(tmp,"%i",hdr->HeadLen);
@@ -2562,7 +2783,6 @@ int sclose(HDRTYPE* hdr)
 	char tmp[88]; 
 	char flag; 
 	
-//	if ((hdr->NRec<0) & (hdr->FILE.OPEN>1))
 	if ((hdr->FILE.OPEN>1) & ((hdr->TYPE==GDF) | (hdr->TYPE==EDF) | (hdr->TYPE==BDF)))
 	{
 		// WRITE HDR.NRec 
@@ -2703,6 +2923,9 @@ int sclose(HDRTYPE* hdr)
 }
 
 
+/****************************************************************************/
+/**                     SERROR                                             **/
+/****************************************************************************/
 int serror() {
 	int status = B4C_ERRNUM; 
 	if (status) {
@@ -2713,12 +2936,24 @@ int serror() {
 }
 
 
+/****************************************************************************/
+/**                     HDR2ASCII                                          **/
+/**	displaying header information                                      **/ 
+/****************************************************************************/
 int hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSE_LEVEL)
 {
 	CHANNEL_TYPE* 	cp; 
 	time_t  	T0;
 
-	if (VERBOSE_LEVEL>2) {
+	if (VERBOSE_LEVEL==7) {
+		T0 = gdf_time2t_time(hdr->T0);
+		char tmp[60];
+		strftime(tmp, 59, "%x %X %Z", gmtime(&T0));
+		fprintf(fid,"\tStartOfRecording: %s\n",tmp); 
+		return(0);
+	}
+		
+	if (VERBOSE_LEVEL>1) {
 		/* display header information */
 		fprintf(fid,"FileName:\t%s\nType    :\t%i\nVersion :\t%4.2f\nHeadLen :\t%i\n",hdr->FileName,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
 		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nDuration[s]:\t%u/%u\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
@@ -2746,13 +2981,15 @@ int hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSE_LEVEL)
 			fprintf(fid,"unknown\n"); 
 		if (hdr->Patient.Birthday) {
 			T0 = gdf_time2t_time(hdr->Patient.Birthday);
-			fprintf(fid,"\tAge             : %4.1f years\n\tBirthday        : %s",age,asctime(localtime(&T0)));
+			fprintf(fid,"\tAge             : %4.1f years\n\tBirthday        : %s",age,asctime(gmtime(&T0)));
 		}
 		else
 			fprintf(fid,"\tAge             : ----\n\tBirthday        : unknown\n");
 			 
 		T0 = gdf_time2t_time(hdr->T0);
-		fprintf(fid,"\tStartOfRecording: %s",asctime(localtime(&T0))); 
+		char tmp[60];
+		strftime(tmp, 59, "%x %X %Z", gmtime(&T0));
+		fprintf(fid,"\tStartOfRecording: %s\n",tmp); 
 	}
 		
 	if (VERBOSE_LEVEL>1) {
@@ -2767,6 +3004,28 @@ int hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSE_LEVEL)
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin);
 		}
 		fprintf(fid,"\n\n");
+	}
+		
+	if (VERBOSE_LEVEL>3) {
+		if (hdr->aECG) {
+			fprintf(stdout,"Insitution Number: %i\n",hdr->aECG->Section1.Tag14.INST_NUMBER);
+			fprintf(stdout,"DeptartmentNumber: %i\n",hdr->aECG->Section1.Tag14.DEPT_NUMBER);
+			fprintf(stdout,"Device Id        : %i\n",hdr->aECG->Section1.Tag14.DEVICE_ID);
+			fprintf(stdout,"Device Type      : %i\n",hdr->aECG->Section1.Tag14.DEVICE_TYPE);
+			fprintf(stdout,"Manufacture code : %i\n",hdr->aECG->Section1.Tag14.MANUF_CODE);
+			fprintf(stdout,"MOD_DESC         : %i\n",hdr->aECG->Section1.Tag14.MOD_DESC); 
+			fprintf(stdout,"Version          : %i\n",hdr->aECG->Section1.Tag14.VERSION);
+			fprintf(stdout,"ProtCompLevel    : %i\n",hdr->aECG->Section1.Tag14.PROT_COMP_LEVEL);
+			fprintf(stdout,"LangSuppCode     : %i\n",hdr->aECG->Section1.Tag14.LANG_SUPP_CODE);
+			fprintf(stdout,"ECG_CAP_DEV      : %i\n",hdr->aECG->Section1.Tag14.ECG_CAP_DEV);
+			fprintf(stdout,"Mains Frequency  : %i\n",hdr->aECG->Section1.Tag14.MAINS_FREQ);
+
+			fprintf(stdout,"ANAL_PROG_REV_NUM    : %s\n",hdr->aECG->Section1.Tag14.ANAL_PROG_REV_NUM);
+			fprintf(stdout,"SERIAL_NUMBER_ACQ_DEV: %s\n",hdr->aECG->Section1.Tag14.SERIAL_NUMBER_ACQ_DEV);
+			fprintf(stdout,"ACQ_DEV_SYS_SW_ID    : %i\n",hdr->aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID);
+			fprintf(stdout,"ACQ_DEV_SCP_SW       : %i\n",hdr->aECG->Section1.Tag14.ACQ_DEV_SCP_SW);
+			fprintf(stdout,"ACQ_DEV_MANUF        : %i\n",hdr->aECG->Section1.Tag14.ACQ_DEV_MANUF);
+		}
 	}
 } 	/* end of HDR2ASCII */
 

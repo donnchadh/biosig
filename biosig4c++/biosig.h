@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.61 2007-08-26 20:39:16 schloegl Exp $
+% $Id: biosig.h,v 1.62 2007-08-30 12:23:42 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -215,11 +215,11 @@ uint16_t PhysDimCode(char* PhysDim0);
       	GDF format. 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
-#define t_time2gdf_time(t)	((gdf_time)floor(ldexp(((double)(t))/86400.0 + 719529.0, 32)))
+#define t_time2gdf_time(t)	((gdf_time)round(ldexp(((double)(t))/86400.0 + 719529.0, 32)))
 /* #define t_time2gdf_time(t)	((gdf_time)floor(ldexp(difftime(t,0)/86400.0 + 719529.0, 32)))  */
 #define gdf_time2t_time(t)	((time_t)((ldexp((double)(t),-32) - 719529) * 86400))
 #define tm_time2gdf_time(t) 	t_time2gdf_time(mktime(t))
-/* #define gdf_time2tm_time(t)	localtime(gdf_time2t_time(t)) */
+/* #define gdf_time2tm_time(t)	gmtime(gdf_time2t_time(t)) */
 #define	ntp_time2gdf_time(t)	((gdf_time)ldexp(ldexp(((double)(t)),-32)/86400 + 719529.0 - 70,32))
 #define	gdf_time2ntp_time(t)	((int64_t)ldexp((ldexp(((double)(t)),-32) - 719529.0 + 70) * 86400,32))
 
@@ -293,6 +293,7 @@ typedef struct {
 		uint8_t	BIMODAL;
 	} FLAG;
         struct {
+		uint8_t tag14[41],tag15[41];
 	        struct {
 			uint16_t INST_NUMBER;		/* tag 14, byte 1-2  */
 			uint16_t DEPT_NUMBER;		/* tag 14, byte 3-4  */
@@ -305,13 +306,13 @@ typedef struct {
 			uint8_t LANG_SUPP_CODE;		/* tag 14, byte 17 (LANG_SUPP_CODE has to be 0x00 => Ascii only, latin and 1-byte code) */
 			uint8_t ECG_CAP_DEV;		/* tag 14, byte 18 (ECG_CAP_DEV has to be 0xD0 => Acquire, (No Analysis), Print and Store) */
 			uint8_t MAINS_FREQ;		/* tag 14, byte 19 (MAINS_FREQ has to be 0: unspecified, 1: 50 Hz, 2: 60Hz) */
-			/* char[35-19] reserved; */			
+			char 	reserved[22]; 		/* char[35-19] reserved; */			
 			char* 	ANAL_PROG_REV_NUM;
 			char* 	SERIAL_NUMBER_ACQ_DEV;
 			char* 	ACQ_DEV_SYS_SW_ID;
 			char* 	ACQ_DEV_SCP_SW; 	/* tag 14, byte 38 (SCP_IMPL_SW has to be "OpenECG XML-SCP 1.00") */
 			char* 	ACQ_DEV_MANUF;		/* tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer") */
-        	} Tag14;
+        	} Tag14, Tag15; 
         } Section1;
         struct {
         	size_t   StartPtr;
@@ -347,6 +348,7 @@ typedef struct {
 	uint8_t 	IPaddr[6]; 	/* IP address of recording device (if applicable) */
 	uint32_t  	LOC[4];		/* location of recording according to RFC1876 */
 	gdf_time 	T0; 		/* starttime of recording */
+	int16_t 	tzmin; 		/* time zone (minutes of difference to UTC */
 
 	/* Patient specific information */
 	struct {

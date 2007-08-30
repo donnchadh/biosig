@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.27 2007-08-15 21:11:15 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.28 2007-08-30 12:23:42 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -126,11 +126,8 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 		}
 		else if (curSect==1)  // SECTION 1 
 		{
-// fprintf(stdout,"Section %i %x\n",curSect,ptr);
 			ptr = (uint8_t*)realloc(ptr,sectionStart+10000); 
-// fprintf(stdout,"Section %i %x %x\n",curSect,ptr,sectionStart);
 			PtrCurSect = ptr+sectionStart; 
-// fprintf(stdout,"Section %i %x %x\n",curSect,ptr,sectionStart);
 			curSectLen = 16; // current section length
 
 			// Tag 0 (max len = 64)
@@ -163,7 +160,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 				curSectLen += len+3;
 			}	 
 			else
-				fprintf(stderr,"Warning SOPEN-SCP-WRITE: Section 1 Tag 2: Patient.Id is undefined\n");
+				fprintf(stderr,"Warning SOPEN-SCP-WRITE: Section1 Tag2: Patient.Id is undefined\n");
 
 // fprintf(stdout,"Section %i Len %i %x\n",curSect,curSectLen,sectionStart);
 
@@ -178,16 +175,14 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 
 			// Tag 5 (len = 4) 
 			if ((hdr->Patient.Birthday) > 0) {
-// fprintf(stdout,"Section %i Tag %Li %Li %i %e\n",curSect,hdr->T0,hdr->Patient.Birthday,T0,ldexp(T0,-32));
-				T0 = gdf_time2t_time(hdr->Patient.Birthday);
-// fprintf(stdout,"Section %i Tag %+2i %Li %e \n",curSect,4,hdr->Patient.Birthday,T0*ldexp(T0,-32));
+				T0    = gdf_time2t_time(hdr->Patient.Birthday);
 				T0_tm = gmtime(&T0);
-// fprintf(stdout,"Section %i Tag %+2i %s\n",curSect,4,asctime(localtime(&T0)));
+
 				*(ptr+sectionStart+curSectLen) = 5;	// tag
 				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
 				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(T0_tm->tm_year+1900);// year
-				*(ptr+sectionStart+curSectLen+5) = (uint8_t)T0_tm->tm_mon + 1;	// month
-				*(ptr+sectionStart+curSectLen+6) = (uint8_t)T0_tm->tm_mday; 	// day
+				*(ptr+sectionStart+curSectLen+5) = (uint8_t)(T0_tm->tm_mon + 1);	// month
+				*(ptr+sectionStart+curSectLen+6) = (uint8_t)(T0_tm->tm_mday); 	// day
 				curSectLen += 7;
 			} 
 
@@ -323,7 +318,7 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 
 			// Tag 25 (len = 4)
 			T0 = gdf_time2t_time(hdr->T0);
-			T0_tm = localtime(&T0);
+			T0_tm = gmtime(&T0);
 
 			*(ptr+sectionStart+curSectLen) = 25;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
@@ -368,34 +363,22 @@ HDRTYPE* sopen_SCP_write(HDRTYPE* hdr) {
 
 			}
 
-#ifdef woF 
-// Tag 31 (max len = 12)
-	tg.id = 31;
-	tg.len = strlen(S1I->szSeqNum) + 1;
-	memcpy(&Sect1[len1], (int8_t*) &tg, 3);
-	len1 += 3;
-	memcpy(&Sect1[len1], S1I->szSeqNum, tg.len);
-	len1 += tg.len;
+			// Tag 34 (len = 5)
+			*(ptr+sectionStart+curSectLen) = 34;	// tag
+			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(5);	// length
+			// FIXME: compensation for daylight saving time not included
+			//*(int16_t*)(ptr+sectionStart+curSectLen+3) = 0; 
+			*(int16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_i16((int16_t)round(-timezone/60));
+			//*(int16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((int16_t)round(T0_tm->tm_gmtoff/60));
+			curSectLen += 8; 
 
-// Tag 34 (max len = 29)
-	tg.id = 34;
-	tg.len = 4 + strlen(S1I->szDateTimeZoneDesc) + 1;
-	memcpy(&Sect1[len1], (int8_t*) &tg, 3);
-	len1 += 3;
-	memcpy(&Sect1[len1], (int8_t*)(&S1I->wDateTimeZoneOffset), 2);
-	len1 += 2;
-	memcpy(&Sect1[len1], (int8_t*)(&S1I->wDateTimeZoneIndex), 2);
-	len1 += 2;
-	memcpy(&Sect1[len1], S1I->szDateTimeZoneDesc, strlen(S1I->szDateTimeZoneDesc) + 1);
-	len1 += (strlen(S1I->szDateTimeZoneDesc) + 1);
-#endif
 			// Tag 255 (len = 0)
 			*(ptr+sectionStart+curSectLen) = 255;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(0);	// length
 			curSectLen += 3; 
 
 			// Evaluate the size and correct it if odd
-			if ((curSectLen % 2) != 0) {
+			if (curSectLen & 1) {
 				*(ptr+sectionStart+curSectLen++) = 0; 
 			}
 		}

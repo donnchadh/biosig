@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.23 2007-08-26 20:39:16 schloegl Exp $
+    $Id: save2gdf.c,v 1.24 2007-08-30 12:23:42 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -125,6 +125,7 @@ int main(int argc, char **argv){
 	if (VERBOSE_LEVEL<0) VERBOSE_LEVEL=1; // default 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[111] SAVE2GDF started\n");
 
+	tzset();
 	hdr = sopen(source, "r", NULL);
 	if ((status=serror())) exit(status); 
 	
