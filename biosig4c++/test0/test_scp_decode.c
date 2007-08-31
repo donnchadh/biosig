@@ -1,6 +1,6 @@
 /*
 
-    $Id: test_scp_decode.c,v 1.1 2007-08-09 19:26:31 schloegl Exp $
+    $Id: test_scp_decode.c,v 1.2 2007-08-31 13:18:15 schloegl Exp $
     Copyright (C) 2007 Eugenio Cervesato
     Modified by Alois Schloegl 
 		    
@@ -57,17 +57,16 @@ int main(int argc, char* argv[])
                return 2;
         }
         hdr->FileName=argv[1];
-        if( (in = fopen(hdr->FileName, "rb")) ==NULL) 
-        {
-		fprintf(stderr,"couldnot open file %s\n",hdr->FileName); 	
-	        return 1;
-       	}
-  	hdr->FILE.FID = in;
+        hdr->FILE.OPEN=0; 
+        hdr->FILE.COMPRESSION=0; 
         scp_decode(hdr, section, decode, record, textual, add_filter);
 
-        for (int i=0;i<decode.flag_Res.number_samples;i++)
-        	int x=decode.Reconstructed[i];         // data returned is in microVolt -> DATA CONSINSTENT
-
+        for (int i=0;i<decode.flag_Res.number_samples;i+=2500)
+        for (int k=0;k<8;k+=3) 
+	{
+        	int x=decode.Reconstructed[i+k*5000];         // data returned is in microVolt -> DATA CONSINSTENT
+        	fprintf(stdout,"%i %i %i\n",i,k,x); 
+	}
        	return(0);
 }
 

@@ -1,6 +1,6 @@
 /*
 
-    $Id: gztest.c,v 1.1 2007-08-02 18:42:53 schloegl Exp $
+    $Id: gztest.c,v 1.2 2007-08-31 13:18:15 schloegl Exp $
     Copyright (C) 2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -28,7 +28,8 @@
 
 int main(int argc, char **argv){
     
-    HDRTYPE 	*hdr; 
+
+    HDRTYPE 	HDR, *hdr; 
     CHANNEL_TYPE* 	cp; 
     size_t 	count;
     uint16_t 	numopt = 0, k;
@@ -41,12 +42,26 @@ int main(int argc, char **argv){
 
 	source=argv[1];
 
-	hdr->FILE.COMPRESSION = 1; 
+	hdr = &HDR; 
+	hdr->TYPE = unknown; 
+	hdr->FILE.COMPRESSION = 0; 
 	hdr->FileName = source; 
 	hdr = FOPEN(hdr,"rb");
 	count = FREAD(mem,1,100000,hdr);
+	hdr->AS.Header1 = mem;
+	hdr = getfiletype(hdr);  
 	FCLOSE(hdr); 
+fprintf(stdout,"1: %s %i %i %i %i %i %i %i %i \n",hdr->FileName, count,hdr->TYPE,unknown,GDF,GZIP,SCP_ECG,HL7aECG,BDF);
 	
+	hdr->FILE.COMPRESSION = 0; 
+	hdr->FileName = source; 
+	hdr = FOPEN(hdr,"rb");
+	count = FREAD(mem,1,100000,hdr);
+	hdr->AS.Header1 = mem;
+	hdr = getfiletype(hdr);  
+	FCLOSE(hdr); 
+fprintf(stdout,"2: %s %i %i %i %i %i %i %i %i \n",hdr->FileName, count,hdr->TYPE,unknown,GDF,GZIP,SCP_ECG,HL7aECG,BDF);
+/*	
 	hdr->FILE.COMPRESSION = 0; 
 	hdr->FileName = "out0.fil"; 
 	hdr = FOPEN(hdr,"wb");
@@ -70,5 +85,5 @@ int main(int argc, char **argv){
 		count = FWRITE(mem,1,count,hdr);
 		FCLOSE(hdr);
 	}	 
-
+*/
 }
