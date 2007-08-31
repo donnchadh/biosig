@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.12 2007-08-13 20:18:25 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.13 2007-08-31 14:19:18 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -540,8 +540,9 @@ a zero CRC if the data was correctly received.
 		return 1;
 	else
 	{
-		fprintf(stderr,"Cannot read the file: BAD CRC.");
-		exit(2);
+		fprintf(stderr,"Cannot read the file: BAD CRC.\n");
+//		exit(2);
+		return 0;
 	}
 }//end Check_CRC
 

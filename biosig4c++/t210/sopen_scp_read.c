@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.32 2007-08-30 12:23:42 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.33 2007-08-31 14:19:18 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -113,18 +113,21 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 	/**** SECTION 0 ****/
 	len = l_endian_u32(*(uint32_t*)(PtrCurSect+4)); 
 	NSections = (len-16)/10;
-	for (int K=0; K<NSections; K++)	{
+	for (int K=1; K<NSections; K++)	{
 		curSect 	= l_endian_u16(*(uint16_t*)(ptr+6+16+K*10));
 		len 		= l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+2));
 		sectionStart 	= l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+6))-1;
+
+	if (VERBOSE_LEVEL>8)
+		fprintf(stdout,"SCP Section %i %i len=%i secStart=%i HeaderLength=%i\n",K,curSect,len,sectionStart,hdr->HeadLen);
 		
 		 /***** empty section *****/	
-	if ((len==0) || (sectionStart==0)) continue;
+	if (len==0) continue;
 		
 		PtrCurSect = ptr+sectionStart;
 		crc 	   = l_endian_u16(*(uint16_t*)(PtrCurSect));
 		uint16_t tmpcrc = CRCEvaluate((uint8_t*)(PtrCurSect+2),len-2); 
-		if (crc != tmpcrc)
+		if ((crc != 0xffff) && (crc != tmpcrc))
 			fprintf(stderr,"Warning SOPEN(SCP-READ): faulty CRC in section %i: crc=%x, %x\n",curSect,crc,tmpcrc);
 		if (curSect != l_endian_u16(*(uint16_t*)(PtrCurSect+2)))
 			fprintf(stderr,"Warning SOPEN(SCP-READ): Current Section No does not match field in sections (%i %i)\n",curSect,l_endian_u16(*(uint16_t*)(PtrCurSect+2))); 
@@ -151,11 +154,19 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 			t0.tm_isdst  = -1; // daylight savings time - unknown 
 			hdr->T0    = 0; 
 			hdr->Patient.Birthday = 0; 
+			uint32_t len1; 
  
-			while ((*(PtrCurSect+curSectPos)!=255) | (*(uint16_t*)(PtrCurSect+curSectPos+1)!=0)) {
+			while (*(PtrCurSect+curSectPos) < 255) {
 				tag = *(PtrCurSect+curSectPos);
-				len = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+1));
-				curSectPos += 3; 
+				len1 = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+1));
+				if (VERBOSE_LEVEL>8)
+					fprintf(stdout,"SCP(r): Section 1 Tag %i Len %i\n",tag,len1);
+				
+				curSectPos += 3;
+				if (curSectPos+len1 > len) {
+					fprintf(stdout,"Warning SCP(read): section 1 corrupted (exceeds file length)\n");
+			break;
+				} 	 
 				if (tag==0) {
 					hdr->Patient.Name = (char*)(PtrCurSect+curSectPos);
 				}
@@ -297,7 +308,9 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 							fprintf(stderr,"Warning SOPEN(SCP-READ): invalid time zone (Section 1, Tag34)\n");
 					//fprintf(stdout,"SOPEN(SCP-READ): tzmin = %i %x \n",tzmin,tzmin);
 				}
-				curSectPos += len;
+				else {
+				}
+				curSectPos += len1;
 			}
 //			t0.tm_gmtoff = 60*tzminutes;
 			t0.tm_isdst = -1;
@@ -323,8 +336,9 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 			for (i = 0, hdr->SPR=1; i < hdr->NS; i++) {
 				startindex = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos));
 				endindex   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+4));
+				//  ### FIXME ### if channels are not simultaneously recorded //
 				if (startindex != 1)
-					fprintf(stderr,"Warning SCOPEN(SCP-READ): starting sample not 1 but %x\n",startindex);
+					fprintf(stderr,"Warning SCPOPEN(SCP-READ): starting sample not 1 but %x\n",startindex);
 					
 				hdr->CHANNEL[i].SPR 	= endindex - startindex + 1;
 				hdr->SPR 		= lcm(hdr->SPR,hdr->CHANNEL[i].SPR);
@@ -353,6 +367,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 		/**** SECTION 6 ****/
 		else if (curSect==6)  {
 			Cal6 			= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+			// integer division could avoid spurious non-integer results. Would this solve the problem ?  
 			hdr->SampleRate 	= 1e6/l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			uint16_t 	GDFTYP 	= 5;	// int32: internal raw data type   
 			hdr->aECG->FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);		
@@ -384,12 +399,12 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 			
 			if (hdr->aECG->FLAG.HUFFMAN) 
 			{
-			//	fprintf(stderr,"Warning SCOPEN(SCP-READ): huffman compression not supported.\n");
+			//	fprintf(stderr,"Warning SCPOPEN(SCP-READ): huffman compression not supported.\n");
 				AS_DECODE = 1; 
 			}
 			if (hdr->aECG->FLAG.BIMODAL)
 			{
-			//	fprintf(stderr,"Warning SCOPEN(SCP-READ): bimodal compression not supported (yet).\n");
+			//	fprintf(stderr,"Warning SCPOPEN(SCP-READ): bimodal compression not supported (yet).\n");
 				AS_DECODE = 1; 
 			}
 if (AS_DECODE) continue;
@@ -437,13 +452,12 @@ if (AS_DECODE) continue;
 	}	
 	hdr->Dur[0] = hdr->SPR;
 	if (hdr->SampleRate!=round(hdr->SampleRate))
-		fprintf(stderr,"Warning: SCP-OPEN Sampling rate (%f Hz) is not integer.\n",hdr->SampleRate);
+		fprintf(stderr,"Warning SCP-OPEN Sampling rate (%f Hz) is not integer.\n",hdr->SampleRate);
 	hdr->Dur[1] = (uint32_t)hdr->SampleRate;
 
 
 
     if (hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL) {
-
 
 /*
 ---------------------------------------------------------------------------
