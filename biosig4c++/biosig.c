@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.97 2007-08-30 16:05:27 schloegl Exp $
+    $Id: biosig.c,v 1.98 2007-08-31 14:15:41 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -481,6 +481,7 @@ int errnum;
 int B4C_STATUS  = 0;
 int B4C_ERRNUM  = 0;
 char* B4C_ERRMSG;
+int VERBOSE_LEVEL = -1; 
 
 /*
 	Interface for mixed use of ZLIB and STDIO 
@@ -1829,8 +1830,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 		sopen_SCP_read(hdr);
 		serror();
-	}
-	
+/* 
+		if (serror()) {
+			serror();
+	                free(Header1); 	 
+	                free(hdr); 	 
+	                return(NULL); 	 
+		}
+*/
+	}	
 	else if (hdr->TYPE==HL7aECG) 
 	{
 		sopen_HL7aECG_read(hdr);

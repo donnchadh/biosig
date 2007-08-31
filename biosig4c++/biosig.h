@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.62 2007-08-30 12:23:42 schloegl Exp $
+% $Id: biosig.h,v 1.63 2007-08-31 14:15:41 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -52,6 +52,7 @@
 
 extern int   B4C_ERRNUM;
 extern char* B4C_ERRMSG;
+extern int   VERBOSE_LEVEL; 
 
 
 

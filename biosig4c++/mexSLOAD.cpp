@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.4 2007-08-30 12:30:38 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.5 2007-08-31 14:15:41 schloegl Exp $
     Copyright (C) 2007 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -42,8 +42,9 @@ void mexFunction(
 	size_t 		count;
 	time_t 		T0;
 	char 		FileName[1024];  
-	int 		status, VERBOSE_LEVEL = 9; 
+	int 		status; 
 	
+	VERBOSE_LEVEL = 2; 
 	mexPrintf("\nHello world! [nlhs=%i nrhs=%i]\n",nlhs,nrhs);
 	mexPrintf("This is mexSLOAD, it is currently in an experimental state!\n");
 	for (k=0; k<nrhs; k++)
