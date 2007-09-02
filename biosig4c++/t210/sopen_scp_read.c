@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.33 2007-08-31 14:19:18 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.34 2007-09-02 22:06:03 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -332,13 +332,14 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 			hdr->CHANNEL = (CHANNEL_TYPE *) calloc(hdr->NS, sizeof(CHANNEL_TYPE));
                         memset(hdr->CHANNEL, 0, hdr->NS * sizeof(CHANNEL_TYPE));  // blank area
 
-			uint32_t startindex, endindex; 
+			uint32_t startindex, startindex0, endindex; 
+			startindex0 = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos));
 			for (i = 0, hdr->SPR=1; i < hdr->NS; i++) {
 				startindex = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos));
 				endindex   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+4));
 				//  ### FIXME ### if channels are not simultaneously recorded //
-				if (startindex != 1)
-					fprintf(stderr,"Warning SCPOPEN(SCP-READ): starting sample not 1 but %x\n",startindex);
+				if (startindex != startindex0)
+					fprintf(stderr,"Warning SCP(read): starting sample %i of #%i differ to %x in #1\n",startindex,i,startindex0);
 					
 				hdr->CHANNEL[i].SPR 	= endindex - startindex + 1;
 				hdr->SPR 		= lcm(hdr->SPR,hdr->CHANNEL[i].SPR);
@@ -349,7 +350,6 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				hdr->CHANNEL[i].Notch 	= Notch; 
 				curSectPos += 9;
 			}
-
 		}
 		/**** SECTION 4 ****/
 		else if (curSect==4)  {
