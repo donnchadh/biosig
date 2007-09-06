@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.98 2007-08-31 14:15:41 schloegl Exp $
+    $Id: biosig.c,v 1.99 2007-09-06 23:32:20 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -956,12 +956,12 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
     	char 		cmd[256];
     	double 		Dur; 
 //	char* 		Header1;
-	char* 		Header2;
+	char* 		Header2=NULL;
 	char*		ptr_str;
 	struct tm 	tm_time; 
 	time_t		tt;
-	unsigned	EventChannel = 0, GDFTYP;
-	uint16_t	EGI_LENGTH_CODETABLE;	// specific for EGI format 
+	unsigned	EventChannel = 0, GDFTYP=0;
+	uint16_t	EGI_LENGTH_CODETABLE=0;	// specific for EGI format 
 
 	if (hdr==NULL)
 		hdr = create_default_hdr(0,0);	// initializes fields that may stay undefined during SOPEN 
@@ -1451,7 +1451,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		else 	
 	    		FSEEK(hdr, hdr->HeadLen, SEEK_SET);
 		
-		int GDFTYP = l_endian_u32(*(uint32_t*)(Header1+64));
+		GDFTYP = l_endian_u32(*(uint32_t*)(Header1+64));
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS; k++)	{
 		    	Header2 = (char*)Header1+68+k*96; 
@@ -1543,7 +1543,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		hdr->Dur[0] 	= 1;
     		hdr->Dur[1] 	= b_endian_u16(*(uint16_t*)(Header1+20));
 	    	hdr->NS         = b_endian_u16(*(uint16_t*)(Header1+22));
-	    	uint16_t  Gain  = b_endian_u16(*(uint16_t*)(Header1+24));
+	    	// uint16_t  Gain  = b_endian_u16(*(uint16_t*)(Header1+24));
 	    	uint16_t  Bits  = b_endian_u16(*(uint16_t*)(Header1+26));
 	    	uint16_t PhysMax= b_endian_u16(*(uint16_t*)(Header1+28));
 	    	size_t POS; 
@@ -1604,22 +1604,26 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 	
     	else if (hdr->TYPE==MFER) {	
-		uint8_t gdftyp; 
+		uint8_t gdftyp = 3; 
 		fprintf(stderr,"Warning SOPEN(MFER): support for MFER format under construction\n"); 
     		// sopen_MFER_read(hdr);
     		int curPos = 0; 
+		uint8_t tag= 0;
+		uint8_t FLAG_MFER_LITTLE_ENDIAN=0; 
     		FSEEK(hdr,0,SEEK_SET);
 		while (!FEOF(hdr)) {
 		
-			uint8_t tag;
-			int32_t len, val64=0;
-			uint32_t val32=0, chan=-1; 
-			int8_t tmplen;
-			uint8_t FLAG_MFER_LITTLE_ENDIAN=0; 
+			int32_t  val64=0;
+			uint32_t len, val32=0, chan=-1; 
+			uint8_t tmplen;
+
 			/* TAG */ 
 			int sz=FREAD(&tag,1,1,hdr);
 			curPos += sz;
-			if (tag==63) {
+
+			if (tag==255) 
+				break;
+			else if (tag==63) {
 				/* CONTEXT */ 
 				curPos += FREAD(buf,1,1,hdr);
 				chan = buf[0] & 0x7f;
@@ -1627,16 +1631,19 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					curPos += FREAD(buf,1,1,hdr);
 					chan    = (chan<<7) + (buf[0] & 0x7f);
 				}
-				//curPos += FREAD(buf,1,1,hdr);
 			}
-				/* LENGTH */ 
+			
+			/* LENGTH */ 
 			curPos += FREAD(&tmplen,1,1,hdr);
-			if ((tag==63) && (tmplen==0x80))
-				len = -1; //Infinite Length
+			char FlagInfiniteLength = 0; 
+			if ((tag==63) && (tmplen==0x80)) {
+				FlagInfiniteLength = -1; //Infinite Length
+				len = 0; 
+			}	
 			else if (tmplen & 0x80) {
 				tmplen &= 0x7f;
-				len     = 0; 
 				curPos += FREAD(&buf,1,tmplen,hdr);
+				len = 0; 
 				k = 0; 
 				while (k<tmplen)
 					len = (len<<8) + (buf[k++] & 0x7f);
@@ -1644,8 +1651,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else
 				len = tmplen;
 			
+			if (VERBOSE_LEVEL==9)
+				fprintf(stdout,"MFER: tag=%3i chan=%2i len=%i %3i curPos=%i %i\n",tag,chan,tmplen,len,curPos,FTELL(hdr));
+
 			/* VALUE */ 
-//fprintf(stdout,"MFER: tag=%3i chan=%2i len=%i %3i curPos=%i %i\n",tag,chan,tmplen,len,curPos,FTELL(hdr));
 			if (tag==0) {
 				curPos += FREAD(&val64,1,len,hdr);
 			}	
@@ -1675,7 +1684,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (len>4) fprintf(stderr,"warning MFER tag4 incorrect length %i>4\n",len); 
 				curPos += FREAD(&val32,1,len,hdr);
 				if (FLAG_MFER_LITTLE_ENDIAN)
-					hdr->SPR = (uint32_t)val32; 
+					hdr->SPR = l_endian_u32(val32); 
 				else
 					hdr->SPR = (uint32_t)b_endian_u32(val32 >> (sizeof(val32)-len));
 			}	
@@ -1684,9 +1693,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (len>4) fprintf(stderr,"warning MFER tag5 incorrect length %i>4\n",len); 
 				curPos += FREAD(&val32,1,len,hdr);
 				if (FLAG_MFER_LITTLE_ENDIAN)
-					hdr->NS = (uint16_t) val32; 
+					hdr->NS = l_endian_u32(val32); 
 				else 
-					hdr->NS = (uint16_t) b_endian_u32(val32 >> (sizeof(val32)-len));
+					hdr->NS = b_endian_u32(val32 >> (sizeof(val32) - len));
 				hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 			}	
 			else if (tag==6) {
@@ -1694,7 +1703,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (len>4) fprintf(stderr,"warning MFER tag6 incorrect length %i>4\n",len); 
 				curPos += FREAD((uint8_t*)&val32,1,len,hdr);
 				if (FLAG_MFER_LITTLE_ENDIAN)
-					hdr->NRec = val32;
+					hdr->NRec = l_endian_u32(val32);
 				else
 					hdr->NRec = b_endian_u32(val32 >> (sizeof(val32)-len));
 			}	
@@ -1723,6 +1732,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				else if (gdftyp==7)	gdftyp=16; // float32
 				else if (gdftyp==8)	gdftyp=17; // float64
 				else if (gdftyp==9)	gdftyp=4; // 8 bit AHA compression 
+				else			gdftyp=3;
 			}	
 			else if (tag==11) {
 				// Fs
@@ -1733,9 +1743,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				curPos += FREAD(&tag11,1,2,hdr);
 				curPos += FREAD(&val32,1,len-2,hdr);
 				if (FLAG_MFER_LITTLE_ENDIAN)
-					fval = (double) val32; 
+					fval = (double) l_endian_u32(val32); 
 				else
-					fval = b_endian_u64(val32 >> (4-len-(-2)));
+					fval = (double) b_endian_u64(val32 >> (4-len-(-2)));
 				
 				hdr->SampleRate = fval*pow(10.0, tag11[1]);
 				if (tag11[0]==1)  // s
@@ -1743,13 +1753,16 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}	
 			else if (tag==63) {
 				uint8_t tag2=-1, len2=-1; 
-//fprintf(stdout,"tag=%i (len=%i) \n",tag,len); 
+				if (VERBOSE_LEVEL==9)
+					fprintf(stdout,"tag=%i (len=%i) \n",tag,len); 
 
 				count = 0; 
-				while ((count<len) && !(len<0 && len2==0 && tag2==0)){ 
+				while ((count<len) && !(FlagInfiniteLength && len2==0 && tag2==0)){ 
 					curPos += FREAD(&tag2,1,1,hdr);
 					curPos += FREAD(&len2,1,1,hdr);
-//fprintf(stdout,"MFER: tag=%3i chan=%2i len=%-4i tag2=%3i len2=%3i curPos=%i %i count=%4i\n",tag,chan,len,tag2,len2,curPos,FTELL(hdr),count);
+					if (VERBOSE_LEVEL==9)
+						fprintf(stdout,"MFER: tag=%3i chan=%2i len=%-4i tag2=%3i len2=%3i curPos=%i %i count=%4i\n",tag,chan,len,tag2,len2,curPos,FTELL(hdr),count);
+				
 					if (len<0 && len2==0 && tag2==0) continue; 
 
 					count += (2+len2);
@@ -1774,7 +1787,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					;
 */
 				}
-//fprintf(stdout,"399 -done 63\n"); 
 			}
 /*
 			else if (tag==129) {
@@ -1798,21 +1810,21 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    		tm_time.tm_sec  = tmp9[6]; 
 	    			tm_time.tm_gmtoff = 0;
 				hdr->T0  = t_time2gdf_time(mktime(&tm_time)); 
-		    		hdr->T0 += (*(uint16_t*)(tmp9+7) * 1e+3 + *(uint16_t*)(tmp9+9)) * ldexp(1.0,32) / (24*3600e6); 
+		    		hdr->T0 += (uint64_t) ( (*(uint16_t*)(tmp9+7) * 1e+3 + *(uint16_t*)(tmp9+9)) * ldexp(1.0,32) / (24*3600e6) ); 
 			}
 			else	{ 	
 		    		curPos += len; 
 		    		FSEEK(hdr,len,SEEK_CUR);
-//fprintf(stdout,"tag=%i (len)%i) not supported\n",tag,len); 
+				if (VERBOSE_LEVEL==9)
+					fprintf(stdout,"tag=%i (len=%i) not supported\n",tag,len); 
 		    		//FSEEK(hdr,curPos,SEEK_SET);
 		    	}	
-//fprintf(stdout,"tag%i len%i done\n",tag,len); 
 
 		    	if (curPos != FTELL(hdr))
 		    		fprintf(stdout,"positions differ %i %i \n",curPos,FTELL(hdr));
 				
 	 	}
-	 	for (k=1; k<hdr->NS; k++) {
+	 	for (k=0; k<hdr->NS; k++) {
 	 		hdr->CHANNEL[k].SPR = hdr->SPR; 
 	 		hdr->CHANNEL[k].GDFTYP = gdftyp; 
 	 	}
@@ -2006,7 +2018,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (ceil(hdr->SampleRate)!=hdr->SampleRate)
 			fprintf(stderr,"Warning SOPEN(GDF write): Fraction of Duration rounded from %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,hdr->Dur[0],hdr->Dur[1]);
 		hdr->Dur[0] = hdr->SPR;
-		hdr->Dur[1] = hdr->SampleRate;
+		hdr->Dur[1] = (uint32_t)hdr->SampleRate;
 		fprintf(stdout,"\n SOPEN(GDF write): %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,hdr->Dur[0],hdr->Dur[1]);
 		*(uint32_t*) (Header1+244) = l_endian_u32(hdr->Dur[0]);
 		*(uint32_t*) (Header1+248) = l_endian_u32(hdr->Dur[1]);
@@ -3031,6 +3043,7 @@ int hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSE_LEVEL)
 			fprintf(stdout,"ACQ_DEV_MANUF        : %i\n",hdr->aECG->Section1.Tag14.ACQ_DEV_MANUF);
 		}
 	}
+	return(0);
 } 	/* end of HDR2ASCII */
 
 
