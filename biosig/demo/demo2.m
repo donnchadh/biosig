@@ -20,8 +20,8 @@
 %       Towards Brain-Computer Interfacing. MIT press (accepted)
 
 
-%	$Revision: 1.6 $
-%	$Id: demo2.m,v 1.6 2007-07-18 09:35:48 schloegl Exp $
+%	$Revision: 1.7 $
+%	$Id: demo2.m,v 1.7 2007-09-06 13:23:20 schloegl Exp $
 %	Copyright (C) 1999-2003,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -87,7 +87,28 @@ end;
 cc.TSD.T = cc.TSD.T/Fs;
 plota(cc.TSD);
 
-[cc] = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN,'LD5');
-cc.TSD.T = cc.TSD.T/Fs;
-plota(cc.TSD);
+m = {'LDA','NBC','aNBC','LD2','LD3','LD4','LD5','MDA','MD2','MD3','GRB','QDA','GDBC','LDA3/GSVD','SVM','REG'};
+for k = 1:length(m);
+	cc = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN, m{k});
+	fprintf(1,'%s\t%s\n',m{k},cc.datatype);
+	plota(cc.TSD);	
+	suptitle(m{k});
+end; 
+
+MODE.TYPE = 'LD3';
+for k = 0:10,
+	MODE.hyperparameter.gamma=k/10;
+	cc = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN, MODE);
+	fprintf(1,'gamma=%f\t%s\n',MODE.hyperparameter.gamma,cc.datatype);	plota(cc.TSD);
+end; 
+
+	cc = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN, 'CSP');
+	fprintf(1,'%s\n',cc.datatype);	plota(cc.TSD);
+
+	[b,a] = butter(5,[7,30]/Fs*2);
+	s = S(:,eegchan);
+	s(isnan(s))=0; 
+	cc = findclassifier(filter(b,a,s), TRIG, cl, MODE.T, MODE.WIN, 'CSP');
+	fprintf(1,'%s\n',cc.datatype);	plota(cc.TSD);
+
 

@@ -34,7 +34,9 @@ function [CC]=train_sc(D,classlabel,MODE)
 %               MODE.hyperparameters.c_value = 
 %    'REG'      regression analysis;
 %    'CSP'	CommonSpatialPattern is very experimental and just a hack
-%		uses a smoothing window of 50 samples.     
+%		uses a smoothing window of 50 samples.
+%    'NBC'	Naive Bayesian Classifier [6]     
+%    'aNBC'	Augmented Naive Bayesian Classifier [6]     
 %
 % 
 % CC contains the model parameters of a classifier. Some time ago,     
@@ -61,10 +63,11 @@ function [CC]=train_sc(D,classlabel,MODE)
 % [5] J.D. Tebbens and P.Schlesinger (2006), 
 %       Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
 %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
- 
+% [6] H. Zhang, The optimality of Naive Bayes, 
+%	 http://www.cs.unb.ca/profs/hzhang/publications/FLAIRS04ZhangH.pdf
 
-%	$Id: train_sc.m,v 1.20 2007-07-19 15:39:58 schloegl Exp $
-%	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: train_sc.m,v 1.21 2007-09-06 13:23:19 schloegl Exp $
+%	Copyright (C) 2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -113,6 +116,23 @@ end
 
 
 if 0, 
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'nbc'))	
+	%%%% Naive Bayesian Classifier. 
+	if ~isempty(strfind(lower(MODE.TYPE),'anbc'))
+		%%%% Augmented Naive Bayesian classifier. 
+		[CC.V,L] = eig(covm(D,'M')); 
+		D = D*CC.V;
+	else 
+		CC.V = eye(size(D,2)); 		
+	end; 
+        for k = 1:length(CC.Labels),
+                [d,CC.MEAN(k,:)] = center(D(classlabel==CC.Labels(k),:),1);
+                [CC.VAR(k,:),CC.N(k,:)] = sumskipnan(d.^2,1);  
+        end;
+        CC.VAR = CC.VAR./max(CC.N-1,0); 
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+
 
 elseif ~isempty(strfind(lower(MODE.TYPE),'lpm'))
         % linear programming machine 

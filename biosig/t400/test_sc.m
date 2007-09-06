@@ -27,7 +27,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
 
-%	$Id: test_sc.m,v 1.18 2007-07-19 15:39:58 schloegl Exp $
+%	$Id: test_sc.m,v 1.19 2007-09-06 13:23:19 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -61,6 +61,29 @@ end;
 POS1 = [strfind(CC.datatype,'/gsvd'),strfind(CC.datatype,'/sparse')];
 
 if 0,
+
+
+elseif strcmp(CC.datatype,'classifier:nbc')
+	%%%% Naive Bayesian Classifier %%%%
+        d = repmat(NaN,size(D,1),size(CC.MEAN,1));
+	for k = 1:size(CC.MEAN,1)
+		z = (D - CC.MEAN(repmat(k,size(D,1),1),:)).^2 ./ (CC.VAR(repmat(k,size(D,1),1),:));
+		z = z + log(CC.VAR(repmat(k,size(D,1),1),:)); % + log(2*pi);
+		d(:,k) = sum(-z/2, 2) + log(mean(CC.N(k,:)));
+	end; 
+	d = exp(d-log(mean(sum(CC.N,1)))-log(2*pi)/2);
+
+
+elseif strcmp(CC.datatype,'classifier:anbc')
+	%%%% Augmented Naive Bayesian Classifier %%%%
+        d = repmat(NaN,size(D,1),size(CC.MEAN,1));
+	for k = 1:size(CC.MEAN,1)
+		z = (D*CC.V - CC.MEAN(repmat(k,size(D,1),1),:)).^2 ./ (CC.VAR(repmat(k,size(D,1),1),:));
+		z = z + log(CC.VAR(repmat(k,size(D,1),1),:)); % + log(2*pi);
+		d(:,k) = sum(-z/2, 2) + log(mean(CC.N(k,:)));
+	end; 
+	d = exp(d-log(mean(sum(CC.N,1)))-log(2*pi)/2);
+
 
 elseif strcmp(CC.datatype,'classifier:csp')
 	d = (D*CC.csp_w).^2;
