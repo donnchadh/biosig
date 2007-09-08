@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.99 2007-09-06 23:32:20 schloegl Exp $
+    $Id: biosig.c,v 1.100 2007-09-08 09:51:06 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -186,6 +186,73 @@ double b_endian_f64(double x)
 	b2.u32[0] = bswap_32(b1.u32[1]);
 	b2.u32[1] = bswap_32(b1.u32[0]);
 	return(b2.f64);
+}
+
+/**************************************************
+    CSWAP conditional swap
+    	swapping is controlled by global variable FLAG_SWAP 
+ **************************************************/
+char FLAG_SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 
+int16_t cswap_i16(int16_t x)
+{	
+	if (FLAG_SWAP) return(bswap_16(x));
+	else return(x);
+}
+uint16_t cswap_u16(uint16_t x)
+{	
+	if (FLAG_SWAP) return(bswap_16(x));
+	else return(x);
+}
+int32_t cswap_i32(int32_t x)
+{	
+	if (FLAG_SWAP) return(bswap_32(x));
+	else return(x);
+}
+uint32_t cswap_u32(uint32_t x)
+{	
+	if (FLAG_SWAP) return(bswap_32(x));
+	else return(x);
+}
+int64_t cswap_i64(int64_t x)
+{	
+	if (FLAG_SWAP) return(bswap_64(x));
+	else return(x);
+}
+uint64_t cswap_u64(uint64_t x)
+{	
+	if (FLAG_SWAP) return(bswap_64(x));
+	else return(x);
+}
+float cswap_f32(float x)
+{	
+	if (FLAG_SWAP) return(bswap_32(x));
+	else return(x);
+}
+double cswap_f64(double x)
+{	
+	if (FLAG_SWAP) return(bswap_32(x));
+	else return(x);
+}
+void* mfer_swap8b(uint8_t *buf, int8_t len) 
+{	
+	if (VERBOSE_LEVEL==9)
+	fprintf(stdout,"swap=%i len=%i %2x%2x%2x%2x%2x%2x%2x%2x\n",FLAG_SWAP, len, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7]); 
+	
+	if (FLAG_SWAP) 
+		*(uint64_t*)buf = bswap_64(*(uint64_t*)buf) >> (8-len)*8; 
+	else {	
+#if __BYTE_ORDER == __BIG_ENDIAN
+		*(uint64_t*)buf >>= (8-len)*8;
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+		uint8_t c = (buf[len-1] & 0x80 ? 0xff : 0);
+		for (int k=len; k<8; buf[k++]=c);
+#endif
+	}
+
+	if (VERBOSE_LEVEL==9)
+	fprintf(stdout,"%2x%2x%2x%2x%2x%2x%2x%2x %i %f\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],*(uint64_t*)buf,*(double*)buf); 
+
+	return(buf); 
 }
 
 
@@ -990,7 +1057,7 @@ if (!strncmp(MODE,"r",1))
     	
     	if (hdr->TYPE == unknown) {
     		B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
-    		B4C_ERRMSG = "ERROR BIOSIG SOPEN(read): Dataformat Format not known.\n";		
+    		B4C_ERRMSG = "ERROR BIOSIG SOPEN(read): Dataformat Format not known.\n";
     		FCLOSE(hdr);
     		free(Header1);
     		free(hdr);
@@ -1604,24 +1671,35 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 	
     	else if (hdr->TYPE==MFER) {	
-		uint8_t gdftyp = 3; 
+		// MFER101E-2003, Table 5, p.18-19
+    		/* ###  FIXME: some units are not encoded */  	
+    		const uint16_t MFER_PhysDimCodeTable[30] = {
+    			4256, 3872, 3840, 3904,    0,	// Volt, mmHg, Pa, mmH2O, mmHg/S
+    			3808, 3776,  544, 6048, 2528,	// dyne, N, %, °C, 1/min 
+    			4264, 4288, 4160,    0, 4032,	// 1/s, Ohm, A, rpm, W
+    			   0, 1731, 3968, 6016,    0,	// dB, kg, J, dyne s m-2 cm-5, ?
+    			3040, 3072, 4480,    0,    0,	// L/s, L/min, cd
+    			   0,    0,    0,    0,    0,	// 
+		};
+		FLAG_SWAP = ( __BYTE_ORDER == __LITTLE_ENDIAN);
+
+		uint8_t gdftyp = 3; 	// default: int16
+		uint8_t UnitCode=0; 
+		double Cal = 1.0, Off = 0.0; 
 		fprintf(stderr,"Warning SOPEN(MFER): support for MFER format under construction\n"); 
     		// sopen_MFER_read(hdr);
-    		int curPos = 0; 
-		uint8_t tag= 0;
 		uint8_t FLAG_MFER_LITTLE_ENDIAN=0; 
-    		FSEEK(hdr,0,SEEK_SET);
+		/* TAG */ 
+		uint8_t tag= hdr->AS.Header[0];
+    		FSEEK(hdr,1,SEEK_SET);
+    		int curPos = 1; 
 		while (!FEOF(hdr)) {
 		
 			int32_t  val64=0;
 			uint32_t len, val32=0, chan=-1; 
 			uint8_t tmplen;
 
-			/* TAG */ 
-			int sz=FREAD(&tag,1,1,hdr);
-			curPos += sz;
-
-			if (tag==255) 
+			if (tag==255)  
 				break;
 			else if (tag==63) {
 				/* CONTEXT */ 
@@ -1646,17 +1724,18 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				len = 0; 
 				k = 0; 
 				while (k<tmplen)
-					len = (len<<8) + (buf[k++] & 0x7f);
+					len = (len<<8) + buf[k++];
 			}
 			else
 				len = tmplen;
 			
-			if (VERBOSE_LEVEL==9)
+			if (VERBOSE_LEVEL==9) 
 				fprintf(stdout,"MFER: tag=%3i chan=%2i len=%i %3i curPos=%i %i\n",tag,chan,tmplen,len,curPos,FTELL(hdr));
 
 			/* VALUE */ 
 			if (tag==0) {
-				curPos += FREAD(&val64,1,len,hdr);
+				if (len!=1) fprintf(stderr,"warning MFER tag0 incorrect length %i!=1\n",len); 
+				curPos += FREAD(buf,1,len,hdr);
 			}	
 			else if (tag==1) {
 				// Endianity 
@@ -1664,6 +1743,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (len!=1) fprintf(stderr,"warning MFER tag1 incorrect length %i!=1\n",len); 
 					FSEEK(hdr,len-1,SEEK_CUR); 
 				curPos+=len; 	
+				FLAG_SWAP = (( __BYTE_ORDER == __LITTLE_ENDIAN) && !FLAG_MFER_LITTLE_ENDIAN) 
+					 || (( __BYTE_ORDER == __BIG_ENDIAN   ) &&  FLAG_MFER_LITTLE_ENDIAN); 
 			}	
 			else if (tag==2) {
 				// Version
@@ -1682,33 +1763,29 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (tag==4) {
 				// SPR
 				if (len>4) fprintf(stderr,"warning MFER tag4 incorrect length %i>4\n",len); 
-				curPos += FREAD(&val32,1,len,hdr);
-				if (FLAG_MFER_LITTLE_ENDIAN)
-					hdr->SPR = l_endian_u32(val32); 
-				else
-					hdr->SPR = (uint32_t)b_endian_u32(val32 >> (sizeof(val32)-len));
+				curPos += FREAD(buf,1,len,hdr);
+				hdr->SPR = *(int64_t*) mfer_swap8b(buf, len); 
 			}	
 			else if (tag==5) {
 				// NS
 				if (len>4) fprintf(stderr,"warning MFER tag5 incorrect length %i>4\n",len); 
-				curPos += FREAD(&val32,1,len,hdr);
-				if (FLAG_MFER_LITTLE_ENDIAN)
-					hdr->NS = l_endian_u32(val32); 
-				else 
-					hdr->NS = b_endian_u32(val32 >> (sizeof(val32) - len));
-				hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+				curPos += FREAD(buf,1,len,hdr);
+				hdr->NS = *(int64_t*) mfer_swap8b(buf, len); 
+				hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL, hdr->NS*sizeof(CHANNEL_TYPE));
+				for (k=0; k<hdr->NS; k++) {
+					hdr->CHANNEL[k].SPR = 0; 
+					hdr->CHANNEL[k].PhysDimCode = 0; 
+					hdr->CHANNEL[k].Cal = 0; 
+				}
 			}	
 			else if (tag==6) {
 				// NRec
 				if (len>4) fprintf(stderr,"warning MFER tag6 incorrect length %i>4\n",len); 
-				curPos += FREAD((uint8_t*)&val32,1,len,hdr);
-				if (FLAG_MFER_LITTLE_ENDIAN)
-					hdr->NRec = l_endian_u32(val32);
-				else
-					hdr->NRec = b_endian_u32(val32 >> (sizeof(val32)-len));
+				curPos += FREAD(buf,1,len,hdr);
+				hdr->NRec = *(int64_t*) mfer_swap8b(buf, len); 
 			}	
 			else if (tag==8) {
-				// NRec
+				// Type of Waveform
 				uint8_t TypeOfWaveForm8[2];
 				uint16_t TypeOfWaveForm;
 				if (len>2) fprintf(stderr,"warning MFER tag6 incorrect length %i>2\n",len); 
@@ -1716,7 +1793,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (len==1) 
 					TypeOfWaveForm = TypeOfWaveForm8[0];
 				else 
-					TypeOfWaveForm = TypeOfWaveForm8[0]<<8 + TypeOfWaveForm8[1];
+					TypeOfWaveForm = cswap_u16(*(uint16_t*)TypeOfWaveForm8);
 			}
 			else if (tag==10) {
 				// GDFTYP
@@ -1731,25 +1808,61 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				else if (gdftyp==6)	gdftyp=6; // uint32
 				else if (gdftyp==7)	gdftyp=16; // float32
 				else if (gdftyp==8)	gdftyp=17; // float64
-				else if (gdftyp==9)	gdftyp=4; // 8 bit AHA compression 
+				else if (gdftyp==9)	gdftyp=2; // 8 bit AHA compression 
 				else			gdftyp=3;
 			}	
 			else if (tag==11) {
 				// Fs
 				if (len>6) fprintf(stderr,"warning MFER tag11 incorrect length %i>6\n",len); 
-				uint8_t tag11[2];
 				double  fval; 
-				val32   = 0; 
-				curPos += FREAD(&tag11,1,2,hdr);
-				curPos += FREAD(&val32,1,len-2,hdr);
-				if (FLAG_MFER_LITTLE_ENDIAN)
-					fval = (double) l_endian_u32(val32); 
-				else
-					fval = (double) b_endian_u64(val32 >> (4-len-(-2)));
+				curPos += FREAD(buf,1,len,hdr);
+				fval = *(int64_t*) mfer_swap8b(buf+2, len-2); 
 				
-				hdr->SampleRate = fval*pow(10.0, tag11[1]);
-				if (tag11[0]==1)  // s
+				hdr->SampleRate = fval*pow(10.0, (int8_t)buf[1]);
+				if (buf[0]==1)  // s
 					hdr->SampleRate = 1.0/hdr->SampleRate;
+			}	
+			else if (tag==12) {
+				// sampling resolution 
+				if (len>6) fprintf(stderr,"warning MFER tag12 incorrect length %i>6\n",len); 
+				val32   = 0;
+				int8_t  v8; 
+				curPos += FREAD(&UnitCode,1,1,hdr);
+				curPos += FREAD(&v8,1,1,hdr);
+				curPos += FREAD(buf,1,len-2,hdr);
+				Cal = *(int64_t*) mfer_swap8b(buf, len-2); 
+				Cal *= pow(10.0,v8); 
+			}	
+			else if (tag==13) {
+				if (len>8) fprintf(stderr,"warning MFER tag13 incorrect length %i>8\n",len); 
+				curPos += FREAD(&buf,1,len,hdr);
+				if      (gdftyp == 1) Off = ( int8_t)buf[0];
+				else if (gdftyp == 2) Off = (uint8_t)buf[0];
+				else if (gdftyp == 3) Off = cswap_i16(*( int16_t*)buf);
+				else if (gdftyp == 4) Off = cswap_u16(*(uint16_t*)buf);
+				else if (gdftyp == 5) Off = cswap_i32(*( int32_t*)buf);
+				else if (gdftyp == 6) Off = cswap_u32(*(uint32_t*)buf);
+				else if (gdftyp == 7) Off = cswap_i64(*( int64_t*)buf);
+				else if (gdftyp == 8) Off = cswap_u64(*(uint64_t*)buf);
+				else if (gdftyp ==16) Off = cswap_f32(*(   float*)buf);
+				else if (gdftyp ==17) Off = cswap_f64(*(  double*)buf);
+			}	
+			else if (tag==23) {
+				// manufacturer information 
+				if (len>128) fprintf(stderr,"warning MFER tag23 incorrect length %i>128\n",len); 
+				FREAD(buf,1,max(128,len),hdr);
+				FSEEK(hdr,max(0,len-128),SEEK_CUR);
+				curPos += len; 
+			}	
+			else if (tag==30) {
+				// data block 
+				if (!gdftyp)
+					fprintf(stderr,"Error SOPEN(MFER-r): data type is not defined (%i)\n",gdftyp); 
+
+				//hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,); 
+				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,len); 
+				hdr->HeadLen    = curPos;
+				curPos += FREAD(hdr->AS.rawdata,1,len,hdr); 
 			}	
 			else if (tag==63) {
 				uint8_t tag2=-1, len2=-1; 
@@ -1763,46 +1876,107 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					if (VERBOSE_LEVEL==9)
 						fprintf(stdout,"MFER: tag=%3i chan=%2i len=%-4i tag2=%3i len2=%3i curPos=%i %i count=%4i\n",tag,chan,len,tag2,len2,curPos,FTELL(hdr),count);
 				
-					if (len<0 && len2==0 && tag2==0) continue; 
+					if (FlagInfiniteLength && len2==0 && tag2==0) break; 
 
-					count += (2+len2);
+					count  += (2+len2);
 					curPos += FREAD(&buf,1,len2,hdr);
-					if (tag2==9)	//leadname 
+					if (tag2==4) {
+						// SPR
+						if (len>4) fprintf(stderr,"warning MFER tag63-4 incorrect length %i>4\n",len2); 
+						hdr->CHANNEL[chan].SPR = *(int64_t*) mfer_swap8b(buf, len2); 
+					}	
+					else if (tag2==9)	//leadname 
 						if (len2==1)
 							hdr->CHANNEL[chan].LeadIdCode = buf[0]; 
 						else if (len2==2)
 							hdr->CHANNEL[chan].LeadIdCode = 0; 
 						else if (len2<=32)
 							strncpy(hdr->CHANNEL[chan].Label,(char*)buf,len2); 
+
+					else if (tag2==0x0b) {	// sampling interval 
+						if (len>6) fprintf(stderr,"warning MFER tag11 incorrect length %i>6\n",len); 
+						double  fval; 
+						fval = *(int64_t*) mfer_swap8b(buf+2, len2-2); 
+						
+						fval *= pow(10.0, buf[1]);
+						if (buf[0]==1)  // s
+							fval = 1.0/fval;
+
+						hdr->CHANNEL[chan].SPR = hdr->SPR * fval / hdr->SampleRate;	
+					}
+					else if (tag2==0x0c)	// sensitivity 
+					{
+						// sampling resolution 
+						if (len>6) fprintf(stderr,"warning MFER tag12 incorrect length %i>6\n",len); 
+						hdr->CHANNEL[chan].PhysDimCode = MFER_PhysDimCodeTable[UnitCode];
+						double cal = *(int64_t*) mfer_swap8b(buf+2, len2-2); 
+						hdr->CHANNEL[chan].Cal = cal * pow(10.0,(int8_t)buf[1]); 
+					}
+/*					else if (tag2==0x0c)	// block length
+					;
+*/
 					else {
 						FSEEK(hdr,len2,SEEK_CUR); 
 						curPos += len2;
+						if (VERBOSE_LEVEL==9)
+							fprintf(stdout,"tag=63-%i (len=%i) not supported\n",tag,len); 
 					}
 					
-/*					else if (tag2==0x0b)	// sampling interval 
-					;
-					else if (tag2==0x0c)	// sensitivity 
-					;
-					else if (tag2==0x0c)	// block length
-					;
-*/
 				}
+			}	
+			else if (tag==65) {
+				// event table  
+				curPos += FREAD(buf,1,len,hdr);
+				if (len>2) {
+					hdr->EVENT.N++;
+					hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS,hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
+					hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP,hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
+					hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR,hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
+					hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN,hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
+
+					hdr->EVENT.CHN[hdr->EVENT.N] = 0;
+					hdr->EVENT.TYP[hdr->EVENT.N] = cswap_u16(*(uint16_t*)(buf));
+					hdr->EVENT.POS[hdr->EVENT.N] = cswap_u32(*(uint32_t*)(buf+2));
+					if (len>6)
+						hdr->EVENT.DUR[hdr->EVENT.N] = cswap_u32(*(uint32_t*)(buf+6));
+					else	
+						hdr->EVENT.DUR[hdr->EVENT.N] = 0;
+				}		
 			}
 /*
+			### FIXME ###
 			else if (tag==129) {
 				// Patient Name 
-				curPos += FREAD(hdr->Patient.Name,len,1,hdr);
+				curPos += FREAD(hdr->Patient.Name,1,len,hdr);
 			}	
 			else if (tag==130) {
 				// Patient Id 
-				curPos += FREAD(hdr->Patient.Id,len,1,hdr);
+				curPos += FREAD(hdr->Patient.Id,1,len,hdr);
 			}	
 */
+			else if (tag==131) {
+				// Patient Age 
+				if (len!=7) fprintf(stderr,"warning MFER tag131 incorrect length %i!=7\n",len); 
+				curPos += FREAD(buf,1,len,hdr);
+				tm_time.tm_year = cswap_u16(*(uint16_t*)(buf+3));
+		    		tm_time.tm_mon  = buf[5]; 
+		    		tm_time.tm_mday = buf[6]; 
+		    		tm_time.tm_hour = 12; 
+		    		tm_time.tm_min  = 0; 
+		    		tm_time.tm_sec  = 0; 
+	    			tm_time.tm_gmtoff = 0;
+				hdr->Patient.Birthday  = t_time2gdf_time(mktime(&tm_time)); 
+				//hdr->Patient.Age = buf[0] + cswap_u16(*(uint16_t*)(buf+1))/365.25;
+			}	
+			else if (tag==132) {
+				// Patient Sex 
+				if (len!=1) fprintf(stderr,"warning MFER tag132 incorrect length %i!=1\n",len); 
+				curPos += FREAD(&hdr->Patient.Sex,1,len,hdr);
+			}	
 			else if (tag==133) {
-				// Patient Id 
 				uint8_t tmp9[11];
-				curPos += FREAD(&tmp9,1,len,hdr);
-		    		tm_time.tm_year = *(uint16_t*)tmp9; 
+				curPos += FREAD(tmp9,1,len,hdr);
+				tm_time.tm_year = cswap_u16(*(uint16_t*)tmp9);
 		    		tm_time.tm_mon  = tmp9[2]; 
 		    		tm_time.tm_mday = tmp9[3]; 
 		    		tm_time.tm_hour = tmp9[4]; 
@@ -1810,25 +1984,30 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    		tm_time.tm_sec  = tmp9[6]; 
 	    			tm_time.tm_gmtoff = 0;
 				hdr->T0  = t_time2gdf_time(mktime(&tm_time)); 
-		    		hdr->T0 += (uint64_t) ( (*(uint16_t*)(tmp9+7) * 1e+3 + *(uint16_t*)(tmp9+9)) * ldexp(1.0,32) / (24*3600e6) ); 
+				// add milli- and micro-seconds
+				hdr->T0 += (uint64_t) ( (cswap_u16(*(uint16_t*)(tmp9+7)) * 1e+3 + cswap_u16(*(uint16_t*)(tmp9+9))) * ldexp(1.0,32) / (24*3600e6) );
 			}
 			else	{ 	
 		    		curPos += len; 
 		    		FSEEK(hdr,len,SEEK_CUR);
 				if (VERBOSE_LEVEL==9)
 					fprintf(stdout,"tag=%i (len=%i) not supported\n",tag,len); 
-		    		//FSEEK(hdr,curPos,SEEK_SET);
 		    	}	
 
 		    	if (curPos != FTELL(hdr))
 		    		fprintf(stdout,"positions differ %i %i \n",curPos,FTELL(hdr));
 				
+			/* TAG */ 
+			int sz=FREAD(&tag,1,1,hdr);
+			curPos += sz;
 	 	}
 	 	for (k=0; k<hdr->NS; k++) {
-	 		hdr->CHANNEL[k].SPR = hdr->SPR; 
+	 		if (!hdr->CHANNEL[k].PhysDimCode) hdr->CHANNEL[k].PhysDimCode = MFER_PhysDimCodeTable[UnitCode]; 
+	 		if (hdr->CHANNEL[k].Cal==0.0) hdr->CHANNEL[k].Cal = Cal;
+	 		hdr->CHANNEL[k].Off = Off * hdr->CHANNEL[k].Cal;
+	 		if (!hdr->CHANNEL[k].SPR) hdr->CHANNEL[k].SPR = hdr->SPR; 
 	 		hdr->CHANNEL[k].GDFTYP = gdftyp; 
 	 	}
-	 	hdr2ascii(hdr,stdout,4); 
 	}
 	else if (hdr->TYPE==SCP_ECG) {
 		hdr->HeadLen   = l_endian_u32(*(uint32_t*)(hdr->AS.Header+2));
@@ -1858,7 +2037,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    		free(Header1);
     			free(hdr);
     			return(NULL);
-    		}	
+    		}
+		FLAG_SWAP = 0; 	
 	}
 	else 
 	{
@@ -2327,8 +2507,32 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 			
 			// mapping of raw data type to (biosig_data_type)
 			if (0); 
+			else if (GDFTYP==3)
+				sample_value = (biosig_data_type)cswap_i16(*(int16_t*)ptr); 
+			else if (GDFTYP==4)
+				sample_value = (biosig_data_type)cswap_u16(*(uint16_t*)ptr); 
+			else if (GDFTYP==16) 
+				sample_value = (biosig_data_type)(cswap_f32(*(float*)(ptr)));
+			else if (GDFTYP==17) 
+				sample_value = (biosig_data_type)(cswap_f64(*(double*)(ptr))); 
+			else if (GDFTYP==0)
+				sample_value = (biosig_data_type)(*(char*)ptr); 
+			else if (GDFTYP==1)
+				sample_value = (biosig_data_type)(*(int8_t*)ptr); 
+			else if (GDFTYP==2)
+				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
+			else if (GDFTYP==5)
+				sample_value = (biosig_data_type)cswap_i32(*(int32_t*)ptr); 
+			else if (GDFTYP==6)
+				sample_value = (biosig_data_type)cswap_u32(*(uint32_t*)ptr); 
+			else if (GDFTYP==7)
+				sample_value = (biosig_data_type)cswap_i64(*(int64_t*)ptr); 
+			else if (GDFTYP==8)
+				sample_value = (biosig_data_type)cswap_u64(*(uint64_t*)ptr); 
+/*
+			else if (1); 
 			else if ((GDFTYP==3) && (hdr->TYPE==HL7aECG))
-				/* no endian conversion needed */
+				// no endian conversion needed //
 				sample_value = (biosig_data_type)(int16_t)(*(int16_t*)ptr); 
 			else if (GDFTYP==3)
 				sample_value = (biosig_data_type)l_endian_i16(*(int16_t*)ptr); 
@@ -2354,6 +2558,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 				sample_value = (biosig_data_type)l_endian_i64(*(int64_t*)ptr); 
 			else if (GDFTYP==8)
 				sample_value = (biosig_data_type)l_endian_u64(*(uint64_t*)ptr); 
+*/
 			else if (GDFTYP==255+24) {
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
 				sample_value = (biosig_data_type)int32_value; 
@@ -3018,6 +3223,7 @@ int hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSE_LEVEL)
 				k,cp->LeadIdCode,cp->Label,cp->SPR * hdr->SampleRate/hdr->SPR,
 				cp->GDFTYP, cp->Cal, cp->Off, cp->PhysDim, 
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin);
+			//fprintf(fid,"\t %3i", cp->SPR);
 		}
 		fprintf(fid,"\n\n");
 	}
