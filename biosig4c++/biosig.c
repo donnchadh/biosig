@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.100 2007-09-08 09:51:06 schloegl Exp $
+    $Id: biosig.c,v 1.101 2007-09-08 19:49:33 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -238,16 +238,22 @@ void* mfer_swap8b(uint8_t *buf, int8_t len)
 	if (VERBOSE_LEVEL==9)
 	fprintf(stdout,"swap=%i len=%i %2x%2x%2x%2x%2x%2x%2x%2x\n",FLAG_SWAP, len, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7]); 
 	
-	if (FLAG_SWAP) 
-		*(uint64_t*)buf = bswap_64(*(uint64_t*)buf) >> (8-len)*8; 
-	else {	
+	typedef uint64_t iType; 
 #if __BYTE_ORDER == __BIG_ENDIAN
-		*(uint64_t*)buf >>= (8-len)*8;
+        if (FLAG_SWAP) {
+                for (int k=len; k < sizeof(iType); buf[k++]=0);
+                *(iType*)buf = bswap_64(*(iType*)buf); 
+        }
+        else
+                *(iType*)buf >>= (sizeof(iType)-len)*8;
+
 #elif __BYTE_ORDER == __LITTLE_ENDIAN
-		uint8_t c = (buf[len-1] & 0x80 ? 0xff : 0);
-		for (int k=len; k<8; buf[k++]=c);
+        if (FLAG_SWAP)
+                *(iType*)buf = bswap_64(*(iType*)buf) >> (sizeof(iType)-len)*8; 
+        else
+		for (int k=len; k < sizeof(iType); buf[k++]=0);
+
 #endif
-	}
 
 	if (VERBOSE_LEVEL==9)
 	fprintf(stdout,"%2x%2x%2x%2x%2x%2x%2x%2x %i %f\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],*(uint64_t*)buf,*(double*)buf); 
@@ -2021,6 +2027,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 		sopen_SCP_read(hdr);
 		serror();
+
+    		if (hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL) 
+			FLAG_SWAP = 0; // no swapping if SCP-DECODE was used
 /* 
 		if (serror()) {
 			serror();
@@ -2529,41 +2538,13 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 				sample_value = (biosig_data_type)cswap_i64(*(int64_t*)ptr); 
 			else if (GDFTYP==8)
 				sample_value = (biosig_data_type)cswap_u64(*(uint64_t*)ptr); 
-/*
-			else if (1); 
-			else if ((GDFTYP==3) && (hdr->TYPE==HL7aECG))
-				// no endian conversion needed //
-				sample_value = (biosig_data_type)(int16_t)(*(int16_t*)ptr); 
-			else if (GDFTYP==3)
-				sample_value = (biosig_data_type)l_endian_i16(*(int16_t*)ptr); 
-			else if (GDFTYP==4)
-				sample_value = (biosig_data_type)l_endian_u16(*(uint16_t*)ptr); 
-			else if (GDFTYP==16) 
-				sample_value = (biosig_data_type)(l_endian_f32(*(float*)(ptr)));
-			else if (GDFTYP==17) 
-				sample_value = (biosig_data_type)(l_endian_f64(*(double*)(ptr))); 
-			else if (GDFTYP==0)
-				sample_value = (biosig_data_type)(*(char*)ptr); 
-			else if (GDFTYP==1)
-				sample_value = (biosig_data_type)(*(int8_t*)ptr); 
-			else if (GDFTYP==2)
-				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
-			else if ((GDFTYP==5) && (hdr->TYPE==HL7aECG))
-				sample_value = (biosig_data_type)(int32_t)(*(int32_t*)ptr); 
-			else if (GDFTYP==5)
-				sample_value = (biosig_data_type)l_endian_i32(*(int32_t*)ptr); 
-			else if (GDFTYP==6)
-				sample_value = (biosig_data_type)l_endian_u32(*(uint32_t*)ptr); 
-			else if (GDFTYP==7)
-				sample_value = (biosig_data_type)l_endian_i64(*(int64_t*)ptr); 
-			else if (GDFTYP==8)
-				sample_value = (biosig_data_type)l_endian_u64(*(uint64_t*)ptr); 
-*/
 			else if (GDFTYP==255+24) {
+				// assume LITTLE_ENDIAN platform
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
 				sample_value = (biosig_data_type)int32_value; 
 			}	
 			else if (GDFTYP==511+24) {
+				// assume LITTLE_ENDIAN platform
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
 				sample_value = (biosig_data_type)int32_value; 
 			}	
@@ -2590,142 +2571,6 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	return(count);
 
 }  // end of SREAD 
-
-
-
-/****************************************************************************/
-/**	SREAD2                                                             **/
-/****************************************************************************/
-size_t sread2(biosig_data_type** channels_dest, size_t start, size_t length, HDRTYPE* hdr) {
-/* 
- *	this function will become OBSOLETE. 
- *
- *
- *      no memory allocation is done 
- *      data is moved into channel_dest
- *	size of output data is availabe in hdr->data.size
- *
- *	channel selection is controlled by hdr->CHANNEL[k].OnOff
- * 
- *      start <0: read from current position
- *           >=0: start reading from position start
- *      length  : try to read length blocks
- *
- */
-
-	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem; 
-	int 			GDFTYP;
-	uint8_t*		ptr;
-	CHANNEL_TYPE*		CHptr;
-	int32_t			int32_value;
-	biosig_data_type 	sample_value; 
-	
-
-	// check reading segment 
-	if (start >= 0) {
-		if (start > hdr->NRec)
-			return(0);
-		else if (FSEEK(hdr, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET))
-			return(0);
-		hdr->FILE.POS = start; 	
-	}
-
-	if (hdr->TYPE != SCP_ECG) {	
-		// allocate AS.rawdata 	
-		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
-
-		// limit reading to end of data block
-		nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
-
-		// read data
-		count = FREAD(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr);
-		if (count<nelem)
-			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem); 
-	}
-	else 	{  // SCP format 
-		// hdr->AS.rawdata was defined in SOPEN	
-		count = hdr->NRec;
-	}
-	
-
-	// set position of file handle 
-	hdr->FILE.POS += count;
-
-	// transfer RAW into BIOSIG data format 
-	// hdr->data.block   = realloc(hdr->data.block, (hdr->SPR) * count * (hdr->NS) * sizeof(biosig_data_type));
-
-	for (k1=0,k2=0; k1<hdr->NS; k1++) {
-	CHptr 	= hdr->CHANNEL+k1;
-	if (CHptr->OnOff != 0) {
-		DIV 	= hdr->SPR/CHptr->SPR; 
-		GDFTYP 	= CHptr->GDFTYP;
-		SZ  	= GDFTYP_BYTE[GDFTYP];
-		int32_value = 0; 
-
-		for (k4 = 0; k4 < count; k4++)
-		for (k5 = 0; k5 < CHptr->SPR; k5++) {
-
-			// get source address 	
-			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
-			
-			// mapping of raw data type to (biosig_data_type)
-			if (0); 
-			else if (GDFTYP==3)
-				sample_value = (biosig_data_type)l_endian_i16(*(int16_t*)ptr); 
-			else if (GDFTYP==4)
-				sample_value = (biosig_data_type)l_endian_u16(*(uint16_t*)ptr); 
-			else if (GDFTYP==16) 
-				sample_value = (biosig_data_type)(l_endian_f32(*(float*)(ptr)));
-			else if (GDFTYP==17) 
-				sample_value = (biosig_data_type)(l_endian_f64(*(double*)(ptr))); 
-			else if (GDFTYP==0)
-				sample_value = (biosig_data_type)(*(char*)ptr); 
-			else if (GDFTYP==1)
-				sample_value = (biosig_data_type)(*(int8_t*)ptr); 
-			else if (GDFTYP==2)
-				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
-			else if (GDFTYP==5)
-				sample_value = (biosig_data_type)l_endian_i32(*(int32_t*)ptr); 
-			else if (GDFTYP==6)
-				sample_value = (biosig_data_type)l_endian_u32(*(uint32_t*)ptr); 
-			else if (GDFTYP==7)
-				sample_value = (biosig_data_type)l_endian_i64(*(int64_t*)ptr); 
-			else if (GDFTYP==8)
-				sample_value = (biosig_data_type)l_endian_u64(*(uint64_t*)ptr); 
-			else if (GDFTYP==255+24) {
-				int32_value = (*ptr) + (*(ptr+1)<<8) + (*(ptr+2)*(1<<16)); 
-				sample_value = (biosig_data_type)int32_value; 
-			}	
-			else if (GDFTYP==511+24) {
-				int32_value = (*ptr) + (*(ptr+1)<<8) + (*(ptr+2)<<16); 
-				sample_value = (biosig_data_type)int32_value; 
-			}	
-			else {
-				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
-				B4C_ERRMSG = "READ: datatype not supported";
- 				exit(-1);
-			}
-
-			// overflow and saturation detection 
-			if ((hdr->FLAG.OVERFLOWDETECTION) && ((sample_value<=hdr->CHANNEL[k1].DigMin) || (sample_value>=hdr->CHANNEL[k1].DigMax)))
-				sample_value = NaN; 	// missing value 
-
-			else if (!(hdr->FLAG.UCAL))	// scaling 
-				sample_value = sample_value * CHptr->Cal + CHptr->Off;
-
-			// resampling 1->DIV samples
-			for (k3=0; k3 < DIV; k3++) 
-				*(channels_dest[k2] + k4*CHptr->SPR + k5 + k3) = sample_value; 
-				//hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
-		}
-		k2++;
-	}}
-	hdr->data.size[0] = hdr->SPR*count;	// rows	
-	hdr->data.size[1] = k2;			// columns 
-
-	return(count);
-
-}  // end of SREAD2 
 
 
 /****************************************************************************/

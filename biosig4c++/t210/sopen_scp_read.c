@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.34 2007-09-02 22:06:03 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.35 2007-09-08 19:49:33 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -337,7 +337,6 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 			for (i = 0, hdr->SPR=1; i < hdr->NS; i++) {
 				startindex = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos));
 				endindex   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+4));
-				//  ### FIXME ### if channels are not simultaneously recorded //
 				if (startindex != startindex0)
 					fprintf(stderr,"Warning SCP(read): starting sample %i of #%i differ to %x in #1\n",startindex,i,startindex0);
 					
@@ -360,7 +359,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 			Cal5 			= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 			/*
 			double Fs5	 	= 1e6/l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
-			FLAG5.DIFF 	= *(PtrCurSect+curSectPos+4);		
+			FLAG5.DIFF 	= *(PtrCurSect+curSectPos+4);
 			*/
 		}
 
@@ -521,13 +520,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
     }	 // end of fall back method 
 		
-#ifdef __BIG_ENDIAN
-		/* Endian conversion is done in SCP_DECODE and SREAD.
-		in order to avoid special case in SREAD, the conversion is reverted here */
-		int32_t *ptr32 = (int32_t*)hdr->AS.rawdata;
-		for (i=0; i < hdr->SPR*hdr->NS; i++)
-			*(ptr32+i) = l_endian_i32(*(ptr32+i));
-#endif
 	return(hdr);
 
 };
