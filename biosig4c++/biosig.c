@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.101 2007-09-08 19:49:33 schloegl Exp $
+    $Id: biosig.c,v 1.102 2007-09-10 13:48:42 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -235,8 +235,8 @@ double cswap_f64(double x)
 }
 void* mfer_swap8b(uint8_t *buf, int8_t len) 
 {	
-	if (VERBOSE_LEVEL==9)
-	fprintf(stdout,"swap=%i len=%i %2x%2x%2x%2x%2x%2x%2x%2x\n",FLAG_SWAP, len, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7]); 
+//	if (VERBOSE_LEVEL==9)
+//	fprintf(stdout,"swap=%i len=%i %2x%2x%2x%2x%2x%2x%2x%2x\n",FLAG_SWAP, len, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7]); 
 	
 	typedef uint64_t iType; 
 #if __BYTE_ORDER == __BIG_ENDIAN
@@ -255,8 +255,8 @@ void* mfer_swap8b(uint8_t *buf, int8_t len)
 
 #endif
 
-	if (VERBOSE_LEVEL==9)
-	fprintf(stdout,"%2x%2x%2x%2x%2x%2x%2x%2x %i %f\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],*(uint64_t*)buf,*(double*)buf); 
+//	if (VERBOSE_LEVEL==9)
+//	fprintf(stdout,"%2x%2x%2x%2x%2x%2x%2x%2x %i %f\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],*(uint64_t*)buf,*(double*)buf); 
 
 	return(buf); 
 }
@@ -763,19 +763,19 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
       	hdr->NRec = 0; 
       	hdr->NS = NS;	
 	hdr->SampleRate = 4321.5;
-      	memset(hdr->AS.PID,32,MAX_LENGTH_PID); 
-      	hdr->AS.PID[MAX_LENGTH_PID]=0;
-      	hdr->AS.RID = "GRAZ"; 
+      	hdr->Patient.Id[0]=0;
+      	strcpy(hdr->ID.Recording,"00000000"); 
 	hdr->AS.bi = (uint32_t*)calloc(hdr->NS+1,sizeof(uint32_t));
 	hdr->data.size[0] = 0; 	// rows 
 	hdr->data.size[1] = 0;  // columns 
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = t_time2gdf_time(time(NULL));
       	hdr->tzmin = 0; 
-      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.50";
+      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.52";
 
-	hdr->Patient.Name 	= NULL; 
-	hdr->Patient.Id 	= NULL; 
+	hdr->Patient.Name[0] 	= 0; 
+	//hdr->Patient.Name 	= NULL; 
+	//hdr->Patient.Id[0] 	= 0; 
 	hdr->Patient.Birthday 	= (gdf_time)0;        // Unknown;
       	hdr->Patient.Medication = 0;	// 0:Unknown, 1: NO, 2: YES
       	hdr->Patient.DrugAbuse 	= 0;	// 0:Unknown, 1: NO, 2: YES
@@ -800,7 +800,8 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->LOC[3] = 35000; 	 	//altitude in centimeter above sea level
 
 	hdr->FLAG.UCAL = 0; 		// un-calibration OFF (auto-scaling ON) 
-	hdr->FLAG.OVERFLOWDETECTION = 1; 		// overflow detection ON
+	hdr->FLAG.OVERFLOWDETECTION = 1; 	// overflow detection ON
+	hdr->FLAG.ANONYMOUS = 0; 	// 1: no personal names are processed 
 	
        	// define variable header 
 	hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
@@ -1080,10 +1081,15 @@ if (!strncmp(MODE,"r",1))
 	    	
 	    	if (hdr->VERSION > 1.90) { 
 		    	hdr->HeadLen 	= l_endian_u16( *(uint16_t*) (Header1+184) )<<8; 
-	    		strncpy(hdr->AS.PID,(const char*)Header1+8,66);
-	    		hdr->Patient.Id = strtok(hdr->AS.PID," ");
-	    		hdr->Patient.Name = strtok(NULL," ");
-	    		
+fprintf(stdout,"[201] % i |%s|\n",strlen((const char*)Header1+8),(const char*)Header1+8);
+	    		strncpy(hdr->Patient.Id,(const char*)Header1+8,min(66,MAX_LENGTH_PID));
+	    		strncpy(hdr->ID.Recording,(const char*)Header1+88,min(80,MAX_LENGTH_RID));
+	    		strtok(hdr->Patient.Id," ");
+	    		char *tmpptr = strtok(NULL," ");
+	    		if (!hdr->FLAG.ANONYMOUS) {
+		    		strncpy(hdr->Patient.Name,tmpptr,Header1+8-tmpptr);
+		    	}	
+		    		
 	    		hdr->Patient.Smoking      =  Header1[84]%4;
 	    		hdr->Patient.AlcoholAbuse = (Header1[84]>>2)%4;
 	    		hdr->Patient.DrugAbuse    = (Header1[84]>>4)%4;
@@ -1135,9 +1141,13 @@ if (!strncmp(MODE,"r",1))
 		    	}
 	    	}
 	    	else if (hdr->VERSION > 0.0) {
-	    		strncpy(hdr->AS.PID,Header1+8,80);
-	    		hdr->Patient.Id = strtok(hdr->AS.PID," ");
-	    		hdr->Patient.Name = strtok(NULL," ");
+	    		strncpy(hdr->Patient.Id,Header1+8,min(80,MAX_LENGTH_PID));
+	    		strncpy(hdr->ID.Recording,(const char*)Header1+88,min(80,MAX_LENGTH_RID));
+	    		strtok(hdr->Patient.Id," ");
+	    		char *tmpptr = strtok(NULL," ");
+	    		if (!hdr->FLAG.ANONYMOUS) {
+		    		strncpy(hdr->Patient.Name,tmpptr,Header1+8-tmpptr);
+		    	}	
 	    		
 	    		tm_time.tm_sec  = atoi(strncpy(tmp,Header1+168+12,2)); 
 	    		tm_time.tm_min  = atoi(strncpy(tmp,Header1+168+10,2)); 
@@ -1253,7 +1263,8 @@ if (!strncmp(MODE,"r",1))
 		}	
     	}
     	else if ((hdr->TYPE == EDF) | (hdr->TYPE == BDF))	{
-    		strncpy(hdr->AS.PID,Header1+8,80);
+    		strncpy(hdr->Patient.Id,Header1+8,min(MAX_LENGTH_PID,80));
+    		strncpy(hdr->ID.Recording,(const char*)Header1+88,min(80,MAX_LENGTH_RID));
 
 	    	hdr->HeadLen 	= atoi(strncpy(tmp,Header1+184,8));
 	    	hdr->NRec 	= atoi(strncpy(tmp,Header1+236,8));
@@ -1275,11 +1286,14 @@ if (!strncmp(MODE,"r",1))
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
 
 		if (!strncmp(Header1+192,"EDF+",4)) {
-	    		hdr->Patient.Id  = strtok(hdr->AS.PID," ");
+	    		strtok(hdr->Patient.Id," ");
 	    		ptr_str = strtok(NULL," ");
 	    		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
 	    		ptr_str = strtok(NULL," ");	// birthday
-	    		hdr->Patient.Name= strtok(NULL," ");
+	    		char *tmpptr = strtok(NULL," ");
+	    		if (!hdr->FLAG.ANONYMOUS) {
+		    		strncpy(hdr->Patient.Name,tmpptr,Header1+8-tmpptr);
+		    	}	
 
 			if (strlen(ptr_str)==11) {
 		    		tm_time.tm_mday = atoi(strtok(ptr_str,"-")); 
@@ -1854,7 +1868,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				else if (gdftyp ==17) Off = cswap_f64(*(  double*)buf);
 			}	
 			else if (tag==23) {
-				// manufacturer information 
+				// manufacturer information: "Manufacturer^model^version number^serial number"
 				if (len>128) fprintf(stderr,"warning MFER tag23 incorrect length %i>128\n",len); 
 				FREAD(buf,1,max(128,len),hdr);
 				FSEEK(hdr,max(0,len-128),SEEK_CUR);
@@ -1865,15 +1879,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (!gdftyp)
 					fprintf(stderr,"Error SOPEN(MFER-r): data type is not defined (%i)\n",gdftyp); 
 
-				//hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,); 
 				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,len); 
 				hdr->HeadLen    = curPos;
 				curPos += FREAD(hdr->AS.rawdata,1,len,hdr); 
 			}	
 			else if (tag==63) {
 				uint8_t tag2=-1, len2=-1; 
-				if (VERBOSE_LEVEL==9)
-					fprintf(stdout,"tag=%i (len=%i) \n",tag,len); 
 
 				count = 0; 
 				while ((count<len) && !(FlagInfiniteLength && len2==0 && tag2==0)){ 
@@ -1949,17 +1960,28 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 						hdr->EVENT.DUR[hdr->EVENT.N] = 0;
 				}		
 			}
-/*
-			### FIXME ###
+
 			else if (tag==129) {
-				// Patient Name 
-				curPos += FREAD(hdr->Patient.Name,1,len,hdr);
+				if (0) //(!hdr->FLAG.ANONYMOUS)
+					curPos += FREAD(hdr->Patient.Name,1,len,hdr);
+				else 	{
+					FSEEK(hdr,len,SEEK_CUR); 
+					curPos += len; 
+				}		
 			}	
+
 			else if (tag==130) {
 				// Patient Id 
-				curPos += FREAD(hdr->Patient.Id,1,len,hdr);
+				if (len>64) fprintf(stderr,"warning MFER tag131 incorrect length %i>64\n",len); 
+				if (len>MAX_LENGTH_PID) {
+					FREAD(hdr->Patient.Id,1,MAX_LENGTH_PID,hdr);
+					FSEEK(hdr,MAX_LENGTH_PID-len,SEEK_CUR);
+					curPos += len;
+				}	
+				else
+					curPos += FREAD(hdr->Patient.Id,1,len,hdr);
 			}	
-*/
+
 			else if (tag==131) {
 				// Patient Age 
 				if (len!=7) fprintf(stderr,"warning MFER tag131 incorrect length %i!=7\n",len); 
@@ -2025,11 +2047,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    		B4C_ERRNUM = B4C_CRC_ERROR;
 	    		B4C_ERRMSG = "Warning SOPEN(SCP-READ): Bad CRC!";
 		}
-		sopen_SCP_read(hdr);
+
+		FLAG_SWAP = (sopen_SCP_read(hdr)==0);	// no swapping if SCP-DECODE was used
 		serror();
 
-    		if (hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL) 
-			FLAG_SWAP = 0; // no swapping if SCP-DECODE was used
 /* 
 		if (serror()) {
 			serror();
@@ -2145,7 +2166,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			*(double*)(Header2+96*k+80) = l_endian_f64(hdr->CHANNEL[k].PhysMax);
 			*(double*)(Header2+96*k+88) = l_endian_f64(hdr->CHANNEL[k].PhysMin);
 		}
-//		Header1 = (uint8_t*)Header1; 
 	}
     	else if (hdr->TYPE==GDF) {	
 	     	hdr->HeadLen = (hdr->NS+1)*256;
@@ -2156,17 +2176,17 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		hdr->VERSION = 1.99;
 	     	sprintf(Header1,"GDF %4.2f",hdr->VERSION);
 	     	
-		if (hdr->Patient.Id!=NULL) {
+		if (strlen(hdr->Patient.Id) > 0) {
 			for (k=0; hdr->Patient.Id[k]; k++)
 				if (isspace(hdr->Patient.Id[k]))
 					hdr->Patient.Id[k] = '_';
 					
-	     		strncat(Header1+8, hdr->Patient.Id,   66);
+	     		strncat(Header1+8, hdr->Patient.Id, 66);
 		} 
 		else     	
 		     	strncat(Header1+8, "X", 66);
 	     	strncat(Header1+8, " ",   66);
-		if (hdr->Patient.Name!=NULL) 
+		if (!hdr->FLAG.ANONYMOUS && (hdr->Patient.Name!=NULL)) 
 		     	strncat(Header1+8, hdr->Patient.Name, 66);
 		else     	
 		     	strncat(Header1+8, "X", 66);
@@ -2176,8 +2196,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	Header1[86] =  hdr->Patient.Height;
 	     	Header1[87] = (hdr->Patient.Sex%4) + ((hdr->Patient.Handedness%4)<<2) + ((hdr->Patient.Impairment.Visual%4)<<4);
 
-	     	len = strlen(hdr->AS.RID);
-	     	memcpy(Header1+ 88,  hdr->AS.RID, min(len,80));
+	     	len = strlen(hdr->ID.Recording);
+	     	memcpy(Header1+ 88,  hdr->ID.Recording, min(len,80));
 		memcpy(Header1+152, &hdr->LOC, 16);  
 		*(uint32_t*) (Header1+152) = l_endian_u32( *(uint32_t*) (Header1+152) );
 		*(uint32_t*) (Header1+156) = l_endian_u32( *(uint32_t*) (Header1+156) );
@@ -2282,7 +2302,12 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		tt = gdf_time2t_time(hdr->Patient.Birthday); 
 		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",gmtime(&tt));
 		else strcpy(tmp,"X");	
-		sprintf(cmd,"%s %c %s %s",hdr->Patient.Id,GENDER[hdr->Patient.Sex],tmp,hdr->Patient.Name);
+		
+		if (0) //(!hdr->FLAG.ANONYMOUS)
+			sprintf(cmd,"%s %c %s %s",hdr->Patient.Id,GENDER[hdr->Patient.Sex],tmp,hdr->Patient.Name);
+		else	
+			sprintf(cmd,"%s %c %s X",hdr->Patient.Id,GENDER[hdr->Patient.Sex],tmp);
+			
 	     	memcpy(Header1+8, cmd, strlen(cmd));
 	     	
 		tt = gdf_time2t_time(hdr->T0); 
@@ -2934,7 +2959,7 @@ int sclose(HDRTYPE* hdr)
 	}		
 	else if ((hdr->FILE.OPEN>1) && (hdr->TYPE==HL7aECG))
 	{
-		hdr = sclose_HL7aECG_write(hdr);
+		sclose_HL7aECG_write(hdr);
 		hdr->FILE.OPEN = 0; 
 	}
 
@@ -3028,11 +3053,13 @@ int hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSE_LEVEL)
 		
 	if (VERBOSE_LEVEL>0) {
 		/* demographic information */
-		fprintf(fid,"\n[FIXED HEADER]");
-		fprintf(fid,"\nPID:\t|%s|\nPatient:\n",hdr->AS.PID);
-		fprintf(fid,"\tName            : %s\n",hdr->Patient.Name); 
+		fprintf(fid,"\n[FIXED HEADER]\n");
+//		fprintf(fid,"\nPID:\t|%s|\nPatient:\n",hdr->AS.PID);
+		fprintf(fid,"Recording:\n\tID              : %s\n",hdr->ID.Recording);
+		fprintf(fid,"Patient:\n\tID              : |%s|\n",hdr->Patient.Id); 
+		if (hdr->Patient.Name!=NULL)
+			fprintf(fid,"\tName            : %s\n",hdr->Patient.Name); 
 		float age = (hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32); 
-		fprintf(fid,"\tId              : %s\n",hdr->Patient.Id); 
 		if (hdr->Patient.Height)
 			fprintf(fid,"\tHeight          : %i cm\n",hdr->Patient.Height); 
 		if (hdr->Patient.Height)
@@ -3076,7 +3103,7 @@ int hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSE_LEVEL)
 	if (VERBOSE_LEVEL>3) {
 		if (hdr->aECG) {
 			fprintf(stdout,"Insitution Number: %i\n",hdr->aECG->Section1.Tag14.INST_NUMBER);
-			fprintf(stdout,"DeptartmentNumber: %i\n",hdr->aECG->Section1.Tag14.DEPT_NUMBER);
+			fprintf(stdout,"DepartmentNumber : %i\n",hdr->aECG->Section1.Tag14.DEPT_NUMBER);
 			fprintf(stdout,"Device Id        : %i\n",hdr->aECG->Section1.Tag14.DEVICE_ID);
 			fprintf(stdout,"Device Type      : %i\n",hdr->aECG->Section1.Tag14.DEVICE_TYPE);
 			fprintf(stdout,"Manufacture code : %i\n",hdr->aECG->Section1.Tag14.MANUF_CODE);

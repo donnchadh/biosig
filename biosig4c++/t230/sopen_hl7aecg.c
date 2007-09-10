@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.12 2007-08-30 10:55:18 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.13 2007-09-10 13:48:43 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -33,7 +33,7 @@
 #include "../XMLParser/tinyxml.h"
 #include "../XMLParser/Tokenizer.h"
 
-HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
+int sopen_HL7aECG_read(HDRTYPE* hdr){
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful.
 	It will be called by the function SOPEN in "biosig.c"
@@ -51,7 +51,12 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 	    TiXmlHandle hDoc(&doc);
 	    TiXmlHandle aECG = hDoc.FirstChild("AnnotatedECG");
 	    if(aECG.Element()){
-		hdr->AS.RID = strdup(aECG.FirstChild("id").Element()->Attribute("root"));
+	    	char *strtmp = strdup(aECG.FirstChild("id").Element()->Attribute("root"));
+	    	size_t len = strlen(strtmp); 
+	    	if (len>MAX_LENGTH_RID)	
+			fprintf(stdout,"Warning HL7aECG(read): length of Recording ID exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
+		strncpy(hdr->ID.Recording,strtmp,min(len,MAX_LENGTH_RID));
+		free(strtmp); 
 
 		TiXmlHandle effectiveTime = aECG.FirstChild("effectiveTime");
 
@@ -77,21 +82,34 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		T0[4]  = '\0';
 		t0->tm_year = atoi(T0)-1900;
 		t0->tm_gmtoff = 0;
+		t0->tm_isdst  = -1;
  		hdr->T0 = tm_time2gdf_time(t0);
 
 		TiXmlHandle demographic = aECG.FirstChild("componentOf").FirstChild("timepointEvent").FirstChild("componentOf").FirstChild("subjectAssignment").FirstChild("subject").FirstChild("trialSubject");
 
 		TiXmlElement *id = demographic.FirstChild("id").Element();
-		if(id)
-		    hdr->Patient.Id = strdup(id->Attribute("extension"));
-		
-		demographic = demographic.FirstChild("subjectDemographicPerson");
+		if(id) {
+			const char* tmpstr = id->Attribute("extension");
+			size_t len = strlen(tmpstr); 
+			if (len>MAX_LENGTH_PID)
+				fprintf(stdout,"Warning HL7aECG(read): length of Patient Id exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
+		    	strncpy(hdr->Patient.Id,tmpstr,MAX_LENGTH_PID);
+		}    
 
-		TiXmlElement *name = demographic.FirstChild("name").Element();
-		if (name)
-		    hdr->Patient.Name = strdup(name->GetText());
-//		else 
-//		    fprintf(stderr,"Error: Patient Name could not be read.\n");
+		if (!hdr->FLAG.ANONYMOUS) 
+		{
+			demographic = demographic.FirstChild("subjectDemographicPerson");
+		
+			TiXmlElement *name = demographic.FirstChild("name").Element();
+			if (name) {
+				size_t len = strlen(name->GetText());
+				if (len>MAX_LENGTH_NAME)
+					fprintf(stdout,"Warning HL7aECG(read): length of Patient Name exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
+				strncpy(hdr->Patient.Name, name->GetText(), MAX_LENGTH_NAME);
+			}	
+			else
+				fprintf(stderr,"Warning: Patient Name could not be read.\n");
+		}		
 
 		/* non-standard fields height and weight */
 		TiXmlElement *weight = demographic.FirstChild("weight").Element();
@@ -114,7 +132,7 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 		TiXmlElement *birthday = demographic.FirstChild("birthTime").Element();
 		if(birthday){
 		    T0 = (char *)birthday->Attribute("value");
-		    if (T0==NULL) T0=strdup(birthday->GetText());  // workaround for reading two different formats 
+		    if (T0==NULL) T0=(char *)birthday->GetText();  // workaround for reading two different formats 
 		}
 		if (strlen(T0)>14) {
 		    T0[14] = '\0';
@@ -234,12 +252,12 @@ HDRTYPE* sopen_HL7aECG_read(HDRTYPE* hdr){
 	else
 	    fprintf(stderr, "%s : failed to parse (1)\n", hdr->FileName);
 
-	return(hdr);
+	return(0);
 
 };
 
 
-HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr){
+int sopen_HL7aECG_write(HDRTYPE* hdr){
 	size_t k;
 	for (k=0; k<hdr->NS; k++) {
 		hdr->CHANNEL[k].GDFTYP = 5; //int32
@@ -247,11 +265,11 @@ HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr){
 	hdr->SPR *= hdr->NRec;
 	hdr->NRec = 1; 
 	hdr->FILE.OPEN=2;
-	return(hdr);
+	return(0);
 };
 
 
-HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
+int sclose_HL7aECG_write(HDRTYPE* hdr){
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful. 
 	It will be called by the function SOPEN in "biosig.c"
@@ -276,9 +294,9 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     root->SetAttribute("classCode", "OBS");
     root->SetAttribute("moodCode", "EVN");
     doc.LinkEndChild(root);
-    
+
     TiXmlElement *rootid = new TiXmlElement("id");
-    rootid->SetAttribute("root", hdr->AS.RID);
+    rootid->SetAttribute("root", strdup(hdr->ID.Recording));
     root->LinkEndChild(rootid);
 	
     TiXmlElement *rootCode = new TiXmlElement("code");
@@ -341,7 +359,7 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     trialSubject->SetAttribute("classCode", "RESBJ");
     subject->LinkEndChild(trialSubject);
     
-    if (hdr->Patient.Id!=NULL) {	
+    if (strlen(hdr->Patient.Id)>0) {	
     	TiXmlElement *trialSubjectId = new TiXmlElement("id");
     	trialSubjectId->SetAttribute("extension", hdr->Patient.Id);
     	trialSubject->LinkEndChild(trialSubjectId);
@@ -352,12 +370,15 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     trialSubjectDemographicPerson->SetAttribute("determinerCode", "INSTANCE");
     trialSubject->LinkEndChild(trialSubjectDemographicPerson);
 
-    if (hdr->Patient.Name!=NULL) {	
+    if (strlen(hdr->Patient.Name)>0)
+    if (!hdr->FLAG.ANONYMOUS) 
+    {	
 	TiXmlElement *subjectDemographicPersonName = new TiXmlElement("name");
     	TiXmlText *nameText = new TiXmlText(hdr->Patient.Name);
     	subjectDemographicPersonName->LinkEndChild(nameText);
     	trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonName);
     }
+    
     TiXmlElement *subjectDemographicPersonGender = new TiXmlElement("administrativeGenderCode");
     if(hdr->Patient.Sex == 1){
 	subjectDemographicPersonGender->SetAttribute("code", "M");
@@ -380,21 +401,21 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     sprintf(tmp, "%04d%02d%02d%02d%02d%02d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec);
 
     TiXmlElement *subjectDemographicPersonBirthtime = new TiXmlElement("birthTime");
-    subjectDemographicPersonBirthtime->SetAttribute("value", strdup(tmp));
+    subjectDemographicPersonBirthtime->SetAttribute("value", tmp);
     trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonBirthtime);
 
 	/* write non-standard fields height and weight */
     if (hdr->Patient.Weight) {
     	sprintf(tmp,"%i",hdr->Patient.Weight); 
     	TiXmlElement *subjectDemographicPersonWeight = new TiXmlElement("weight");
-    	subjectDemographicPersonWeight->SetAttribute("value", strdup(tmp));
+    	subjectDemographicPersonWeight->SetAttribute("value", tmp);
     	subjectDemographicPersonWeight->SetAttribute("unit", "kg");
     	trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonWeight);
     }
     if (hdr->Patient.Height) {	
     	sprintf(tmp,"%i",hdr->Patient.Height); 
     	TiXmlElement *subjectDemographicPersonHeight = new TiXmlElement("height");
-    	subjectDemographicPersonHeight->SetAttribute("value", strdup(tmp));
+    	subjectDemographicPersonHeight->SetAttribute("value", tmp);
     	subjectDemographicPersonHeight->SetAttribute("unit", "cm");
     	trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonHeight);
     }
@@ -603,5 +624,5 @@ HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr){
     doc.SaveFile(hdr->FileName);
 //    doc.SaveFile(hdr);
 
-    return(hdr);
+    return(0);
 };

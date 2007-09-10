@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.64 2007-09-08 19:49:33 schloegl Exp $
+% $Id: biosig.h,v 1.65 2007-09-10 13:48:42 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -237,7 +237,9 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 #define MAX_LENGTH_LABEL 	40 
 #define MAX_LENGTH_TRANSDUCER 	80
 #define MAX_LENGTH_PHYSDIM 	20
-#define MAX_LENGTH_PID	 	80
+#define MAX_LENGTH_PID	 	80      // length of Patient ID: MFER<65, GDF<67, EDF/BDF<81, etc. 
+#define MAX_LENGTH_RID		80	// length of Recording ID: EDF,GDF,BDF<80, HL7 ?  	
+#define MAX_LENGTH_NAME 	128	// max length of personal name: MFER<=128
 typedef struct {
 	char		OnOff; 		
 	char		Label[MAX_LENGTH_LABEL+1]; 	/* Label of channel */
@@ -353,8 +355,9 @@ typedef struct {
 
 	/* Patient specific information */
 	struct {
-		char*		Name;		/* not recommended because of privacy protection  */
-		char*		Id;		/* identification code as used in hospital  */
+		char		Name[MAX_LENGTH_NAME+1]; /* because for privacy protection it is by default not supported, support is turned on with FLAG.ANONYMOUS */
+//		char*		Name;/* because for privacy protection it is by default not supported, support is turned on with FLAG.ANONYMOUS */
+		char		Id[MAX_LENGTH_PID+1];	/* patient identification, identification code as used in hospital  */
 		uint8_t		Weight;		/* weight in kilograms [kg] 0:unkown, 255: overflow  */
 		uint8_t		Height;		/* height in centimeter [cm] 0:unkown, 255: overflow  */
 		gdf_time 	Birthday; 	/* Birthday of Patient */
@@ -369,13 +372,22 @@ typedef struct {
 		struct {
 			int 	Visual;		/* 0:Unknown, 1: NO, 2: YES, 3: Corrected */
 		} Impairment;
+		
 	} Patient; 
 	
 	struct {
+		char		Recording[MAX_LENGTH_RID+1]; 	/* HL7, EDF, GDF, BDF replaces HDR.AS.RID */
 		char* 		Technician; 	
 		char* 		Hospital; 	
 		uint64_t 	Equipment; 	/* identfies this software */
-	} ID; 
+/*	currently not supported. see 
+		SCP: section1, tag14, 
+		MFER: tag23:  "Manufacturer^model^version number^serial number"
+		char 		EquipmentManufacturer[20];
+		char		EquipmentModel[20]; 
+		char		EquipmentSerialNumber[20];
+*/
+	} ID;
 
 	/* position of electrodes; see also HDR.CHANNEL[k].XYZ */
 	struct {
@@ -397,6 +409,7 @@ typedef struct {
 	struct {	/* flags */
 		char		OVERFLOWDETECTION; 	/* overflow & saturation detection 0: OFF, !=0 ON */
 		char		UCAL; 		/* UnCalibration  0: scaling  !=0: NO scaling - raw data return  */
+		char		ANONYMOUS; 	/* 1: anonymous mode, no personal names are processed */ 
 	} FLAG; 
 
 	struct {	/* File specific data  */
@@ -412,8 +425,8 @@ typedef struct {
 
 	/*	internal variables (not public)  */
 	struct {
-		char 		PID[MAX_LENGTH_PID+1];	/* patient identification */
-		char* 		RID;		/* recording identification */ 
+//		char 		PID[MAX_LENGTH_PID+1];	/* use HDR.Patient.Id instead */
+//		char* 		RID;		/* recording identification */ 
 		uint32_t 	spb;		/* total samples per block */
 		uint32_t 	bpb;  		/* total bytes per block */
 		uint32_t 	*bi;
@@ -456,11 +469,11 @@ int             FERROR(HDRTYPE* hdr);
 	These functions are for the converter between SCP to HL7aECG
  */ 	 
 
-HDRTYPE* sopen_SCP_read     (HDRTYPE* hdr);
-HDRTYPE* sopen_SCP_write    (HDRTYPE* hdr);
-HDRTYPE* sopen_HL7aECG_read (HDRTYPE* hdr);
-HDRTYPE* sopen_HL7aECG_write(HDRTYPE* hdr);
-HDRTYPE* sclose_HL7aECG_write(HDRTYPE* hdr);
+int sopen_SCP_read     (HDRTYPE* hdr);
+int sopen_SCP_write    (HDRTYPE* hdr);
+int sopen_HL7aECG_read (HDRTYPE* hdr);
+int sopen_HL7aECG_write(HDRTYPE* hdr);
+int sclose_HL7aECG_write(HDRTYPE* hdr);
 
 size_t gcd(size_t A,size_t B);
 size_t lcm(size_t A,size_t B); 

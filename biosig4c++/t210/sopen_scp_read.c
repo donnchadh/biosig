@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.35 2007-09-08 19:49:33 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.36 2007-09-10 13:48:43 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -48,7 +48,7 @@ int scp_decode(HDRTYPE*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO
 
 
 
-HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {	
+int sopen_SCP_read(HDRTYPE* hdr) {	
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful. 
 	It will be called by the function SOPEN in "biosig.c"
@@ -161,22 +161,27 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				len1 = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+1));
 				if (VERBOSE_LEVEL>8)
 					fprintf(stdout,"SCP(r): Section 1 Tag %i Len %i\n",tag,len1);
-				
+
 				curSectPos += 3;
 				if (curSectPos+len1 > len) {
 					fprintf(stdout,"Warning SCP(read): section 1 corrupted (exceeds file length)\n");
 			break;
 				} 	 
 				if (tag==0) {
-					hdr->Patient.Name = (char*)(PtrCurSect+curSectPos);
-				}
+					if (!hdr->FLAG.ANONYMOUS)
+						strncpy(hdr->Patient.Name, (char*)(PtrCurSect+curSectPos),min(len1,MAX_LENGTH_NAME));
+				}		
 				else if (tag==1) {
 //					hdr->Patient.FirstName = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==2) {
-					hdr->Patient.Id = (char*)(PtrCurSect+curSectPos);
-					if (!strcmp(hdr->Patient.Id,"UNKNOWN"))
-						hdr->Patient.Id = NULL;
+					if (len1>MAX_LENGTH_PID) {
+						fprintf(stdout,"Warning SCP(read): length of Patient Id (section1 tag2) exceeds %i>%i\n",len1,MAX_LENGTH_PID); 
+					}	
+					strncpy(hdr->Patient.Id,(char*)(PtrCurSect+curSectPos),min(len1,MAX_LENGTH_PID));
+
+					if (!strcmp(hdr->Patient.Id,"UNKNOWN")) 
+						hdr->Patient.Id[0] = 0;
 				}
 				else if (tag==3) {
 				}
@@ -207,7 +212,7 @@ HDRTYPE* sopen_SCP_read(HDRTYPE* hdr) {
 				else if (tag==10) {
 				}
 				else if (tag==11) {
-					hdr->aECG->diastolicBloodPressure = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+ 					hdr->aECG->diastolicBloodPressure = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 				}
 				else if (tag==12) {
 					hdr->aECG->systolicBloodPressure  = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
@@ -456,7 +461,10 @@ if (AS_DECODE) continue;
 
 
 
-    if (hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL) {
+    	if (!hdr->aECG->FLAG.HUFFMAN && !hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) 
+    		return(0); 
+    		
+ //    	if (hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL) {
 
 /*
 ---------------------------------------------------------------------------
@@ -508,7 +516,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	else { 
 		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
 		B4C_ERRMSG = "SCP-DECODE can not read file"; 
-		return(hdr);
+		return(0);
 	}
 
 	for (i=0; i < hdr->NS; i++) {
@@ -517,10 +525,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
 		hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
 	}
-
-    }	 // end of fall back method 
+	 // end of fall back method 
+	return(1);
 		
-	return(hdr);
 
 };
 
