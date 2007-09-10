@@ -1,6 +1,6 @@
 /*
 
-    $Id: demo.c,v 1.4 2007-07-29 21:41:47 schloegl Exp $
+    $Id: demo.c,v 1.5 2007-09-10 13:50:34 schloegl Exp $
     Copyright (C) 2000,2005 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -91,7 +91,7 @@ int main (int argc, char **argv)
       
 		// write: define header
 		hdr = create_default_hdr(4,10);  // allocate memory for 4 channels, 10 events 
-		hdr->Patient.Id = "test1";
+		strcpy(hdr->Patient.Id,"test1");
 
 	/*
 		define target file format 
