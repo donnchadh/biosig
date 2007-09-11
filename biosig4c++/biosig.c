@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.102 2007-09-10 13:48:42 schloegl Exp $
+    $Id: biosig.c,v 1.103 2007-09-11 13:15:57 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -472,21 +472,21 @@ const struct PhysDimIdx
 const char* PhysDimFactor[] = {
 	"","da","h","k","M","G","T","P",	//  0..7
 	"E","Z","Y","#","#","#","#","#",	//  8..15
-	"d","c","m","\xB5","n","p","f","a",	// 16..23
+	"d","c","m","u","n","p","f","a",	// 16..23
 	"z","y","#","#","#","#","#","#",	// 24..31
-	"u"	//hack for "Âµ" = "u"		// 32
+	"\xB5"	//hack for "µ" = "u"		// 32
 	};
 
 double PhysDimScale(uint16_t PhysDimCode)
 {	
 // converting PhysDimCode -> scaling factor
 
-	const double scale[33] =
+	const double scale[] =
 	{ 1e+0, 1e+1, 1e+2, 1e+3, 1e+6, 1e+9,  1e+12, 1e+15,	//  0..7 
 	  1e+18,1e+21,1e+24,NaN,  NaN,  NaN,   NaN,   NaN, 	//  8..15
 	  1e-1, 1e-2, 1e-3, 1e-6, 1e-9, 1e-12, 1e-15, 1e-18, 	// 16..23
 	  1e-21,1e-24,NaN,  NaN,  NaN,  NaN,   NaN,   NaN,	// 24..31
-	  1e-6	// hack for "Âµ" = "u" 				// 32
+	  1e-6	// hack for "µ" = "u" 				// 32
 	  }; 
 
 	return (scale[PhysDimCode & 0x001f]); 
@@ -1710,11 +1710,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		// sopen_MFER_read(hdr);
 		uint8_t FLAG_MFER_LITTLE_ENDIAN=0; 
 		/* TAG */ 
-		uint8_t tag= hdr->AS.Header[0];
+		uint8_t tag = hdr->AS.Header[0];
     		FSEEK(hdr,1,SEEK_SET);
     		int curPos = 1; 
 		while (!FEOF(hdr)) {
-		
 			int32_t  val64=0;
 			uint32_t len, val32=0, chan=-1; 
 			uint8_t tmplen;
@@ -1876,9 +1875,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}	
 			else if (tag==30) {
 				// data block 
-				if (!gdftyp)
-					fprintf(stderr,"Error SOPEN(MFER-r): data type is not defined (%i)\n",gdftyp); 
-
 				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,len); 
 				hdr->HeadLen    = curPos;
 				curPos += FREAD(hdr->AS.rawdata,1,len,hdr); 
@@ -2029,13 +2025,29 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			int sz=FREAD(&tag,1,1,hdr);
 			curPos += sz;
 	 	}
+		hdr->FLAG.OVERFLOWDETECTION = 0; 	// overflow detection OFF - not supported
 	 	for (k=0; k<hdr->NS; k++) {
 	 		if (!hdr->CHANNEL[k].PhysDimCode) hdr->CHANNEL[k].PhysDimCode = MFER_PhysDimCodeTable[UnitCode]; 
 	 		if (hdr->CHANNEL[k].Cal==0.0) hdr->CHANNEL[k].Cal = Cal;
 	 		hdr->CHANNEL[k].Off = Off * hdr->CHANNEL[k].Cal;
 	 		if (!hdr->CHANNEL[k].SPR) hdr->CHANNEL[k].SPR = hdr->SPR; 
 	 		hdr->CHANNEL[k].GDFTYP = gdftyp; 
-	 	}
+	 		if (gdftyp<16)
+	 			if (gdftyp & 0x01) {
+		 			hdr->CHANNEL[k].DigMax = ldexp( 1.0,GDFTYP_BYTE[gdftyp]*8-1) - 1.0; 
+		 			hdr->CHANNEL[k].DigMin = ldexp(-1.0,GDFTYP_BYTE[gdftyp]*8-1); 
+	 			}	
+	 			else {	
+	 				hdr->CHANNEL[k].DigMax = ldexp( 1.0,GDFTYP_BYTE[gdftyp]*8); 
+		 			hdr->CHANNEL[k].DigMin = 0.0; 
+	 			}	
+	 		else {	
+	 			hdr->CHANNEL[k].DigMax =  INF; 
+		 		hdr->CHANNEL[k].DigMin = -INF; 
+	 		}
+	 		hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
+	 		hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
+	 	}	
 	}
 	else if (hdr->TYPE==SCP_ECG) {
 		hdr->HeadLen   = l_endian_u32(*(uint32_t*)(hdr->AS.Header+2));
@@ -2584,6 +2596,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 				sample_value = NaN; 	// missing value 
 			else if (!hdr->FLAG.UCAL)	// scaling 
 				sample_value = sample_value * CHptr->Cal + CHptr->Off;
+
 			// resampling 1->DIV samples
 			for (k3=0; k3 < DIV; k3++) 
 				hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
