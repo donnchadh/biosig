@@ -23,9 +23,8 @@ function [HDR]=mwfopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
         HDR.FILE.OPEN= 0; 
 
-%	$Revision: 1.3 $
-%	$Id: mwfopen.m,v 1.3 2004-05-02 11:00:02 schloegl Exp $
-%	(C) 2004 by Alois Schloegl
+%	$Id: mwfopen.m,v 1.4 2007-09-11 13:47:05 schloegl Exp $
+%	(C) 2004,2007 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -65,8 +64,8 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
         HDR.FRAME.N = 0; 
         count = 1;
         %while count>0, %~feof(HDR.FILE.FID)
+        tag = fread(HDR.FILE.FID,1,'uchar');
         while ~feof(HDR.FILE.FID)
-                tag = fread(HDR.FILE.FID,1,'uchar');
                 len = fread(HDR.FILE.FID,1,'char');
                 %fprintf(1,'[%i] Tag %i: (%i)\n',ftell(HDR.FILE.FID),tag,len);
 
@@ -167,7 +166,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         HDR.NRec = tmp;
                                 
                 elseif tag==7;
-                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'uchar')
+                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'uchar');
                         HDR.Pointer = tmp*256.^[0:len-1]';
                         
                 elseif tag==8;
@@ -204,7 +203,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 HDR.GDFTYP = 5;
                                 HDR.AS.bps = 4;
                         elseif tmp==3;	% uint8
-                                HDR.GDFTYP = 3;
+                                HDR.GDFTYP = 2;
                                 HDR.AS.bps = 1;
                         elseif tmp==4;	% 16bit status
                                 HDR.GDFTYP = 4;
@@ -437,16 +436,18 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                 elseif tag==65;     % Events
                         N = HDR.EVENT.N + 1;
                         HDR.EVENT.N = N;
-                        [HDR.EVENT.TYP(N),count] = fread(HDR.FILE.FID,1,'uint16');
+			for k=1:N,                        
+                        [HDR.EVENT.TYP(k),count] = fread(HDR.FILE.FID,1,'uint16');
                         if len>5,
-                                [HDR.EVENT.POS(N),count] = fread(HDR.FILE.FID,1,'uint32');
+                                [HDR.EVENT.POS(k),count] = fread(HDR.FILE.FID,1,'uint32');
                         end;
                         if len>9,
-                                [HDR.EVENT.DUR(N),count] = fread(HDR.FILE.FID,1,'uint32');
+                                [HDR.EVENT.DUR(k),count] = fread(HDR.FILE.FID,1,'uint32');
                         end;
                         if len>10,
-                                [HDR.EVENT.Desc{N},count] = fread(HDR.FILE.FID,len-10,'char');
+                                [HDR.EVENT.Desc{k},count] = fread(HDR.FILE.FID,len-10,'char');
                         end;
+                        end; 
                         
                 elseif tag==67;     % Sample Skew
                         [tmp,count] = fread(HDR.FILE.FID,1,'int16');
@@ -481,7 +482,8 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                 % fprintf(1,'[%i %i] Tag %i: (%i)\n',ftell(HDR.FILE.FID),count,tag,len);
                 %                        count = 1;
                 %                        pause
-        end;
+                tag = fread(HDR.FILE.FID,1,'uchar');
+       end;
 
         HDR.HeadLen = ftell(HDR.FILE.FID);
         HDR.FILE.POS  = 0; 
