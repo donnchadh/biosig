@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.5 2007-08-31 14:15:41 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.6 2007-09-11 15:44:42 schloegl Exp $
     Copyright (C) 2007 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -44,7 +44,7 @@ void mexFunction(
 	char 		FileName[1024];  
 	int 		status; 
 	
-	VERBOSE_LEVEL = 2; 
+	VERBOSE_LEVEL = 4; 
 	mexPrintf("\nHello world! [nlhs=%i nrhs=%i]\n",nlhs,nrhs);
 	mexPrintf("This is mexSLOAD, it is currently in an experimental state!\n");
 	for (k=0; k<nrhs; k++)
@@ -66,13 +66,12 @@ void mexFunction(
 			mexPrintf("IsChar[%i,%i]\n\t%s\n",mxGetM(prhs[k]),mxGetN(prhs[k]),FileName);
 
 			hdr = sopen(FileName, "r", NULL);
-			if ((status=serror())) exit(status); 
+			if ((status=serror())) return; 
 	
-			if (hdr==NULL) exit(-1);
+			if (hdr==NULL) return;
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
-			hdr2ascii(hdr,stdout,1);	
-
+			hdr2ascii(hdr,stdout,4);	
 
 			if (nlhs>1) {
 				char* mexFileName = (char*)mxMalloc(strlen(hdr->FileName)+1); 
@@ -89,11 +88,10 @@ if (VERBOSE_LEVEL>8) mexPrintf("[200]\n");
 				plhs[1] = mxCreateStructMatrix(1, 1, --numfields, fnames);
 				HDR = plhs[1];
 
-mexPrintf("[221] %x %x %i\n",tmp,mxGetData(tmp),4); 
+mexPrintf("[221] %x %x %i\n",tmp,mxGetData(tmp),4);
 //				memcpy(mxGetData(mexNS),&(hdr->NS),2);
-mexPrintf("[221] %x\n",HDR); 
+mexPrintf("[221] %x\n",HDR);
 				mxSetFieldByNumber(HDR,1,2,mexNS);
-
 
 				memcpy(mxGetData(mexSPR),&(hdr->SPR),4);
 //				mxSetFieldByNumber(HDR,1,3,mexSPR);
@@ -105,10 +103,10 @@ mexPrintf("[221] %x\n",HDR);
 if (VERBOSE_LEVEL>8) mexPrintf("[205]\n");
 /*
 				tmp = mxCreateNumericMatrix(1,1,mxUINT32_CLASS,mxREAL);
-				memcpy(mxGetData(tmp),hdr->SPR);
+				//memcpy(mxGetData(tmp),hdr->SPR);
 				mxSetField(HDR,1,"SPR",tmp);
 				tmp = mxCreateNumericMatrix(1,1,mxUINT64_CLASS,mxREAL);
-				*(uint64_t*)mxGetData(tmp) = hdr->NRec;
+				//*(uint64_t*)mxGetData(tmp) = hdr->NRec;
 				mxSetField(HDR,1,"NRec",tmp);
 */
 			}	
@@ -118,13 +116,13 @@ if (VERBOSE_LEVEL>8) mexPrintf("[205]\n");
 
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
-			hdr->FLAG.OVERFLOWDETECTION = 1;
+			hdr->FLAG.OVERFLOWDETECTION = (hdr->TYPE!=MFER);
 			hdr->FLAG.UCAL = 0;
 	
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[121]\n");
 
 			count = sread(mxGetPr(plhs[0]), 0, hdr->NRec, hdr);
-			if ((status=serror())) exit(status); 
+			if ((status=serror())) return;  
 
 			if (VERBOSE_LEVEL>8) 
 				fprintf(stdout,"\n[129] SREAD on %s successful [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
