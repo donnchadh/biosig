@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.13 2007-08-31 14:19:18 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.14 2007-09-13 12:32:28 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -114,8 +114,12 @@ using namespace std;
 #include "types.h"
 #include "structures.h"
 #include "codes.h"
-
-HDRTYPE* in; 
+//     the following define is private of Eugenio Cervesato. Please other readers ignore it!
+#ifdef CPPBUILDER3
+#include "CPPBUILDER3.h"  // inside are definitions needed to run on C++Builder GUI as a standalone module and bypass ZLIB
+#endif
+//     end of private define.
+HDRTYPE* in;
 
 //---------------------------------------------------------------------------
 static U_int_L _COUNT_BYTE=1UL;                  // counter of bytes read
@@ -205,7 +209,7 @@ void            section_1_255();                                //read tag 255 o
 void            section_2(pointer_section,DATA_DECODE&);        //read section 2
 void            section_3(pointer_section,DATA_DECODE&, int_S version); //read section 3
 void            section_4(pointer_section,DATA_DECODE&, int_S version); //read section 4
-void            section_5(pointer_section,DATA_DECODE&,bool);   //read section 5
+bool            section_5(pointer_section,DATA_DECODE&,bool);   //read section 5
 void            section_6(pointer_section,DATA_DECODE&,bool);   //read section 6
 void            section_7(pointer_section,DATA_RECORD&, int_S version); //read section 7
 void            section_8(pointer_section,DATA_INFO&);          //read section 8
@@ -286,13 +290,9 @@ int scp_decode(HDRTYPE* hdr, pointer_section *info_sections, DATA_DECODE &info_d
 	FSEEK(in, 0L, SEEK_SET);
 
 //mandatory sections
-//remark("before section 0");
 	section_0(info_sections, _DIM_FILE);                 // by E.C. may 2004 check file size
-//remark("after section 0");
 	section_1(info_sections[1],info_textual);
-//remark("after section 1");
 	sectionsOptional(info_sections,info_decoding,info_recording,info_textual);
-//remark("at end of sections");
 	FCLOSE(in);
 
 	Decode_Data(info_sections,info_decoding,add_filter);
@@ -651,7 +651,7 @@ void sectionsOptional(pointer_section *section, DATA_DECODE &block1, DATA_RECORD
 						}
 						break;
 				case 5: if(section[i].length)
-							section_5(section[i],block1,section[2].length);       //type 0 median beat
+							if (!section_5(section[i],block1,section[2].length)) section[i].length=0 ;       //type 0 median beat
 						break;
 				case 6: if(section[i].length)
 							section_6(section[i],block1,section[2].length);       //rhythm compressed data
@@ -1862,7 +1862,7 @@ void section_4(pointer_section info_sections,DATA_DECODE &data,int_S version)
 //                              section 5
 //______________________________________________________________________________
 
-void section_5(pointer_section info_sections,DATA_DECODE &data, bool sez2)
+bool section_5(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 {
 	U_int_M i;
 	U_int_L t, dim;
@@ -1890,6 +1890,7 @@ void section_5(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 		ReadByte(data.length_BdR0[i]);     //number of samples (2 bytes each) for each lead
 		dim+=data.length_BdR0[i];
 	}
+        if (data.flag_BdR0.length==0) return false;      // by E.C. 12/09/2007
 	if(sez2)
 	{
 		data.flag_BdR0.number_samples=(U_int_L)data.flag_BdR0.length*1000L/(U_int_L)data.flag_BdR0.STM;           //number di campioni per elettrodo
@@ -1920,6 +1921,7 @@ void section_5(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 				data.Median[t]|=0xFFFF0000;
 		}
 	}
+        return true;
 }//end section_5
 
 //______________________________________________________________________________
@@ -2067,6 +2069,7 @@ void section_7(pointer_section info_sections ,DATA_RECORD &data, int_S version)
 	}
 // End of F.C. insertion
 	ReadByte(data.data_global.number_QRS);
+        if (data.data_global.number_QRS==29999) return;    // by E.C.  12/09/2007
 	if(Look(_special,0,3,data.data_global.number_QRS)<0)
 	{
 		FGETPOS(in,&filepos);                         //necessary for ESAOTE and CARDIOLINE test files
@@ -2225,8 +2228,8 @@ void section_10(pointer_section info_sections, DATA_RECORD &data, int_S version)
 	if(dim<6)      //no measures
 	{
 		if (version != 10) {
-			fprintf(stderr,"Error: Cannot extract these data!!!");
-			exit(2);
+			fprintf(stderr,"Error: no measures or cannot extract section 10 data!!!");
+			return;       // by E.C. 12/09/2007
 		}
 	}
 	n1=(dim>>1)-2;
@@ -2691,11 +2694,11 @@ void decompress(TREE_NODE *tree, U_int_S *raw_in, U_int_M &pos_in, U_int_M max_i
 		if (j==max_out) break;        // by E.C. may 2004
 	} //end while
 	pos_in=maxIN;          // by E.C. 23.02.2004: align for safety
-	max_out=j;             //                     flows here anyhow!
-	if (max_out>4900) {
-		max_out=5000;                           // by E.C. may 2004 ESAOTE
-		pos_out=(pos_out+100)/max_out*max_out;  // align pointer
-	}
+//	max_out=j;             //                     flows here anyhow!
+//	if (max_out>4900) {
+//		max_out=5000;                           // by E.C. may 2004 ESAOTE
+//		pos_out=(pos_out+100)/max_out*max_out;  // align pointer
+//	}
 }//end decompress
 
 //data.data_BdR0 , data.length_BdR0 , data.samples_BdR0 , data.flag_BdR0.number_samples , data.flag_lead.number , data.t_Huffman , data.flag_Huffman
@@ -2970,7 +2973,7 @@ void Interpolate(int_L *raw_out, int_L *raw_in, f_lead flag_L, lead *marker_A, f
 			}
 		}//for nz
 		pos_in=sample_Huff*(ne+1);      // by E.C. 19.02.2004  align, never mind!!
-		pos_out=(pos_out+100)/5000*5000;     // by E.C. may 2004  for testing purposes only
+//		pos_out=(pos_out+100)/5000*5000;     // by E.C. may 2004  for testing purposes only
 	}//for ne
 }//end Interpolate
 
