@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.25 2007-08-31 14:15:41 schloegl Exp $
+    $Id: save2gdf.c,v 1.26 2007-09-13 12:51:53 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -97,8 +97,10 @@ int main(int argc, char **argv){
 			TARGET_TYPE=SCP_ECG;
     		else if (!strncmp(argv[k],"-f=CFWB",6))
 			TARGET_TYPE=CFWB;
+    		else if (!strncmp(argv[k],"-f=MFER",6))
+			TARGET_TYPE=MFER;
 		else {
-			fprintf(stderr,"format %s not supported.\n",argv[1]);
+			fprintf(stderr,"format %s not supported.\n",argv[k]);
 			return(-1);
 		}	
 	}
@@ -234,6 +236,9 @@ int main(int argc, char **argv){
 		strcat(tmp,".gz");
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[211]\n");
+
+	hdr->FLAG.ANONYMOUS = 1; 	// no personal names are processed 
+
 	hdr = sopen(tmp, "wb", hdr);
 	if ((status=serror())) exit(status); 
 	if (VERBOSE_LEVEL>8)
@@ -245,7 +250,8 @@ int main(int argc, char **argv){
 		free(hdr);
 		exit(status); 
     	}	
-    	sclose(hdr);
+
+	sclose(hdr);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[241] SCLOSE finished\n");
     	free(hdr);
 	exit(serror()); 

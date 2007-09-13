@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.65 2007-09-10 13:48:42 schloegl Exp $
+% $Id: biosig.h,v 1.66 2007-09-13 12:51:53 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -240,6 +240,7 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 #define MAX_LENGTH_PID	 	80      // length of Patient ID: MFER<65, GDF<67, EDF/BDF<81, etc. 
 #define MAX_LENGTH_RID		80	// length of Recording ID: EDF,GDF,BDF<80, HL7 ?  	
 #define MAX_LENGTH_NAME 	128	// max length of personal name: MFER<=128
+#define MAX_LENGTH_MANUF 	128	// max length of manufacturer field: MFER<128
 typedef struct {
 	char		OnOff; 		
 	char		Label[MAX_LENGTH_LABEL+1]; 	/* Label of channel */
@@ -296,7 +297,7 @@ typedef struct {
 		uint8_t	BIMODAL;
 	} FLAG;
         struct {
-		uint8_t tag14[41],tag15[41];
+		//uint8_t tag14[41],tag15[41];
 	        struct {
 			uint16_t INST_NUMBER;		/* tag 14, byte 1-2  */
 			uint16_t DEPT_NUMBER;		/* tag 14, byte 3-4  */
@@ -379,14 +380,21 @@ typedef struct {
 		char		Recording[MAX_LENGTH_RID+1]; 	/* HL7, EDF, GDF, BDF replaces HDR.AS.RID */
 		char* 		Technician; 	
 		char* 		Hospital; 	
-		uint64_t 	Equipment; 	/* identfies this software */
-/*	currently not supported. see 
-		SCP: section1, tag14, 
-		MFER: tag23:  "Manufacturer^model^version number^serial number"
+		uint64_t 	Equipment; 	/* identifies this software */
+		struct {
+			/* see 
+				SCP: section1, tag14, 
+				MFER: tag23:  "Manufacturer^model^version number^serial number"
+			*/	
+			char	_field[MAX_LENGTH_MANUF+1];	/* buffer */
+			char*	Name;  
+			char*	Model;
+			char*	Version;
+			char*	SerialNumber;
+		} Manufacturer;  
 		char 		EquipmentManufacturer[20];
 		char		EquipmentModel[20]; 
 		char		EquipmentSerialNumber[20];
-*/
 	} ID;
 
 	/* position of electrodes; see also HDR.CHANNEL[k].XYZ */

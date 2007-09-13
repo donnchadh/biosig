@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.36 2007-09-10 13:48:43 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.37 2007-09-13 12:51:53 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -221,7 +221,21 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					hdr->aECG->Diagnosis = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==14) {
-					memcpy(hdr->aECG->Section1.tag14,PtrCurSect+curSectPos,40);
+					if (len1>80)
+						fprintf(stderr,"Warning SCP(r): length of tag14 %i>40\n",len1);
+					memcpy(hdr->ID.Manufacturer._field,(char*)PtrCurSect+curSectPos,min(len1,MAX_LENGTH_MANUF));
+					hdr->ID.Manufacturer._field[min(len1,MAX_LENGTH_MANUF)] = 0;
+					hdr->ID.Manufacturer.Model = hdr->ID.Manufacturer._field+8;  
+					hdr->ID.Manufacturer.Version = hdr->ID.Manufacturer._field+36;  
+					int tmp = strlen(hdr->ID.Manufacturer.Version)+1;
+					hdr->ID.Manufacturer.SerialNumber = hdr->ID.Manufacturer.Version+tmp;
+					tmp += strlen(hdr->ID.Manufacturer.Version+tmp)+1;	// skip SW ID
+					tmp += strlen(hdr->ID.Manufacturer.Version+tmp)+1;	// skip SW
+					tmp += strlen(hdr->ID.Manufacturer.Version+tmp)+1;	// skip SW
+					hdr->ID.Manufacturer.Name = hdr->ID.Manufacturer.Version+tmp;
+					
+					/* might become obsolete */					
+					//memcpy(hdr->aECG->Section1.tag14,PtrCurSect+curSectPos,40);
 					//hdr->VERSION = *(PtrCurSect+curSectPos+14)/10.0;	// tag 14, byte 15
 					hdr->aECG->Section1.Tag14.INST_NUMBER = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 					hdr->aECG->Section1.Tag14.DEPT_NUMBER = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
@@ -229,14 +243,14 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					hdr->aECG->Section1.Tag14.DEVICE_TYPE = *(PtrCurSect+curSectPos+ 6);
 					hdr->aECG->Section1.Tag14.MANUF_CODE  = *(PtrCurSect+curSectPos+ 7);	// tag 14, byte 7 (MANUF_CODE has to be 255)
 					hdr->aECG->Section1.Tag14.MOD_DESC    = (char*)(PtrCurSect+curSectPos+8); 
-					hdr->aECG->Section1.Tag14.VERSION     = *(PtrCurSect+curSectPos+14);
+					hdr->aECG->Section1.Tag14.VERSION     = *(PtrCurSect+curSectPos+14)/10.0;
 					hdr->aECG->Section1.Tag14.PROT_COMP_LEVEL = *(PtrCurSect+curSectPos+15); 	// tag 14, byte 15 (PROT_COMP_LEVEL has to be 0xA0 => level II)
 					hdr->aECG->Section1.Tag14.LANG_SUPP_CODE  = *(PtrCurSect+curSectPos+16);	// tag 14, byte 16 (LANG_SUPP_CODE has to be 0x00 => Ascii only, latin and 1-byte code)
 					hdr->aECG->Section1.Tag14.ECG_CAP_DEV     = *(PtrCurSect+curSectPos+17);	// tag 14, byte 17 (ECG_CAP_DEV has to be 0xD0 => Acquire, (No Analysis), Print and Store)
 					hdr->aECG->Section1.Tag14.MAINS_FREQ      = *(PtrCurSect+curSectPos+18);	// tag 14, byte 18 (MAINS_FREQ has to be 0: unspecified, 1: 50 Hz, 2: 60Hz)
 
 					hdr->aECG->Section1.Tag14.ANAL_PROG_REV_NUM = (char*)(PtrCurSect+curSectPos+36);
-					int tmp = strlen((char*)(PtrCurSect+curSectPos+36));					
+					tmp = strlen((char*)(PtrCurSect+curSectPos+36));					
 					hdr->aECG->Section1.Tag14.SERIAL_NUMBER_ACQ_DEV = (char*)(PtrCurSect+curSectPos+36+tmp+1);
 					tmp += strlen((char*)(PtrCurSect+curSectPos+36+tmp+1));					
 					hdr->aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID = (char*)(PtrCurSect+curSectPos+36+tmp+1);
@@ -246,7 +260,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					hdr->aECG->Section1.Tag14.ACQ_DEV_MANUF  = (char*)(PtrCurSect+curSectPos+36+tmp+1);	// tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer")
 				}
 				else if (tag==15) {
-					memcpy(hdr->aECG->Section1.tag15,PtrCurSect+curSectPos,40);
+					//memcpy(hdr->aECG->Section1.tag15,PtrCurSect+curSectPos,40);
 				}
 				else if (tag==16) {
 				}

@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.103 2007-09-11 13:15:57 schloegl Exp $
+    $Id: biosig.c,v 1.104 2007-09-13 12:51:53 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -653,12 +653,11 @@ char* FGETS(char *str, int n, HDRTYPE* hdr) {
 
 int FSEEK(HDRTYPE* hdr, long offset, int whence) {
 #ifdef ZLIB_H
+	if (hdr->FILE.COMPRESSION) {
 	if (whence==SEEK_END)
-		fprintf(stdout,"### Warning SEEK_END is not supported but used in gzseek/FSEEK\n");
-
-	if (hdr->FILE.COMPRESSION)
+		fprintf(stdout,"Warning SEEK_END is not supported but used in gzseek/FSEEK.\nThis can cause undefined behaviour.\n");
 	return(gzseek(hdr->FILE.gzFID,offset,whence));
-	else	
+	} else	
 #endif
 	return(fseek(hdr->FILE.FID,offset,whence));
 }
@@ -772,6 +771,11 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
       	hdr->T0 = t_time2gdf_time(time(NULL));
       	hdr->tzmin = 0; 
       	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.52";
+      	hdr->ID.Manufacturer._field[0]    = 0;
+      	hdr->ID.Manufacturer.Name         = " ";
+      	hdr->ID.Manufacturer.Model        = " ";
+      	hdr->ID.Manufacturer.Version      = " ";
+      	hdr->ID.Manufacturer.SerialNumber = " ";
 
 	hdr->Patient.Name[0] 	= 0; 
 	//hdr->Patient.Name 	= NULL; 
@@ -1081,7 +1085,6 @@ if (!strncmp(MODE,"r",1))
 	    	
 	    	if (hdr->VERSION > 1.90) { 
 		    	hdr->HeadLen 	= l_endian_u16( *(uint16_t*) (Header1+184) )<<8; 
-fprintf(stdout,"[201] % i |%s|\n",strlen((const char*)Header1+8),(const char*)Header1+8);
 	    		strncpy(hdr->Patient.Id,(const char*)Header1+8,min(66,MAX_LENGTH_PID));
 	    		strncpy(hdr->ID.Recording,(const char*)Header1+88,min(80,MAX_LENGTH_RID));
 	    		strtok(hdr->Patient.Id," ");
@@ -1706,8 +1709,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		uint8_t gdftyp = 3; 	// default: int16
 		uint8_t UnitCode=0; 
 		double Cal = 1.0, Off = 0.0; 
-		fprintf(stderr,"Warning SOPEN(MFER): support for MFER format under construction\n"); 
-    		// sopen_MFER_read(hdr);
 		uint8_t FLAG_MFER_LITTLE_ENDIAN=0; 
 		/* TAG */ 
 		uint8_t tag = hdr->AS.Header[0];
@@ -1794,7 +1795,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				for (k=0; k<hdr->NS; k++) {
 					hdr->CHANNEL[k].SPR = 0; 
 					hdr->CHANNEL[k].PhysDimCode = 0; 
-					hdr->CHANNEL[k].Cal = 0; 
+					hdr->CHANNEL[k].Cal = 1.0; 
 				}
 			}	
 			else if (tag==6) {
@@ -1827,7 +1828,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				else if (gdftyp==6)	gdftyp=6; // uint32
 				else if (gdftyp==7)	gdftyp=16; // float32
 				else if (gdftyp==8)	gdftyp=17; // float64
-				else if (gdftyp==9)	gdftyp=2; // 8 bit AHA compression 
+				else if (gdftyp==9)	//gdftyp=2; // 8 bit AHA compression
+					fprintf(stdout,"Warning: MFER compressed format not supported\n");   
 				else			gdftyp=3;
 			}	
 			else if (tag==11) {
@@ -1865,20 +1867,26 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				else if (gdftyp == 8) Off = cswap_u64(*(uint64_t*)buf);
 				else if (gdftyp ==16) Off = cswap_f32(*(   float*)buf);
 				else if (gdftyp ==17) Off = cswap_f64(*(  double*)buf);
-			}	
+			}
 			else if (tag==23) {
 				// manufacturer information: "Manufacturer^model^version number^serial number"
 				if (len>128) fprintf(stderr,"warning MFER tag23 incorrect length %i>128\n",len); 
-				FREAD(buf,1,max(128,len),hdr);
-				FSEEK(hdr,max(0,len-128),SEEK_CUR);
-				curPos += len; 
-			}	
+				FREAD(hdr->ID.Manufacturer._field,1,max(MAX_LENGTH_MANUF,len),hdr);
+				FSEEK(hdr,max(0,len-MAX_LENGTH_MANUF),SEEK_CUR);
+				curPos += len;
+				for (k=0; isprint(hdr->ID.Manufacturer._field[k]) && (k<MAX_LENGTH_MANUF); k++);
+				hdr->ID.Manufacturer._field[k] = 0; 
+				hdr->ID.Manufacturer.Name = strtok(hdr->ID.Manufacturer._field,"^");  
+				hdr->ID.Manufacturer.Model = strtok(NULL,"^");  
+				hdr->ID.Manufacturer.Version = strtok(NULL,"^");  
+				hdr->ID.Manufacturer.SerialNumber = strtok(NULL,"^");  
+			}
 			else if (tag==30) {
 				// data block 
 				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,len); 
 				hdr->HeadLen    = curPos;
-				curPos += FREAD(hdr->AS.rawdata,1,len,hdr); 
-			}	
+				curPos += FREAD(hdr->AS.rawdata,1,len,hdr);
+			}
 			else if (tag==63) {
 				uint8_t tag2=-1, len2=-1; 
 
@@ -1906,7 +1914,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 						else if (len2<=32)
 							strncpy(hdr->CHANNEL[chan].Label,(char*)buf,len2); 
 
-					else if (tag2==0x0b) {	// sampling interval 
+					else if (tag2==12) {	// sampling interval 
 						if (len>6) fprintf(stderr,"warning MFER tag11 incorrect length %i>6\n",len); 
 						double  fval; 
 						fval = *(int64_t*) mfer_swap8b(buf+2, len2-2); 
@@ -1917,7 +1925,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 						hdr->CHANNEL[chan].SPR = hdr->SPR * fval / hdr->SampleRate;	
 					}
-					else if (tag2==0x0c)	// sensitivity 
+					else if (tag2==13)	// sensitivity 
 					{
 						// sampling resolution 
 						if (len>6) fprintf(stderr,"warning MFER tag12 incorrect length %i>6\n",len); 
@@ -1936,6 +1944,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					}
 					
 				}
+			}	
+			else if (tag==64) {
+				// preamble  
+				fprintf(stdout,"Preamble: pos=%i|",curPos); 
+				curPos += FREAD(tmp,1,len,hdr);
+				for (k=0; k<len; k++)
+					fprintf(stdout,"%c",tmp[k]); 
+				fprintf(stdout,"|\n"); 
 			}	
 			else if (tag==65) {
 				// event table  
@@ -1958,7 +1974,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}
 
 			else if (tag==129) {
-				if (0) //(!hdr->FLAG.ANONYMOUS)
+				if (!hdr->FLAG.ANONYMOUS)
 					curPos += FREAD(hdr->Patient.Name,1,len,hdr);
 				else 	{
 					FSEEK(hdr,len,SEEK_CUR); 
@@ -2028,7 +2044,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// overflow detection OFF - not supported
 	 	for (k=0; k<hdr->NS; k++) {
 	 		if (!hdr->CHANNEL[k].PhysDimCode) hdr->CHANNEL[k].PhysDimCode = MFER_PhysDimCodeTable[UnitCode]; 
-	 		if (hdr->CHANNEL[k].Cal==0.0) hdr->CHANNEL[k].Cal = Cal;
+	 		if (hdr->CHANNEL[k].Cal==1.0) hdr->CHANNEL[k].Cal = Cal;
 	 		hdr->CHANNEL[k].Off = Off * hdr->CHANNEL[k].Cal;
 	 		if (!hdr->CHANNEL[k].SPR) hdr->CHANNEL[k].SPR = hdr->SPR; 
 	 		hdr->CHANNEL[k].GDFTYP = gdftyp; 
@@ -2060,7 +2076,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    		B4C_ERRMSG = "Warning SOPEN(SCP-READ): Bad CRC!";
 		}
 
-		FLAG_SWAP = (sopen_SCP_read(hdr)==0);	// no swapping if SCP-DECODE was used
+		if (sopen_SCP_read(hdr)==0);	// no swapping if SCP-DECODE was used
+			FLAG_SWAP = ( __BYTE_ORDER == __BIG_ENDIAN);
+			
 		serror();
 
 /* 
@@ -2124,7 +2142,9 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		// set HDR.PhysDim
 		k1 = hdr->CHANNEL[k].PhysDimCode;
 		if (k1>0) PhysDim(k1,hdr->CHANNEL[k].PhysDim);
-	}    	
+	}
+	if (!strlen(hdr->Patient.Id))
+		strcpy(hdr->Patient.Id,"00000000"); 
 
     	if (hdr->TYPE==CFWB) {	
 	     	hdr->HeadLen = 68 + hdr->NS*96;
@@ -2315,7 +2335,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",gmtime(&tt));
 		else strcpy(tmp,"X");	
 		
-		if (0) //(!hdr->FLAG.ANONYMOUS)
+		if (!hdr->FLAG.ANONYMOUS)
 			sprintf(cmd,"%s %c %s %s",hdr->Patient.Id,GENDER[hdr->Patient.Sex],tmp,hdr->Patient.Name);
 		else	
 			sprintf(cmd,"%s %c %s X",hdr->Patient.Id,GENDER[hdr->Patient.Sex],tmp);
@@ -2394,16 +2414,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		     	memcpy(Header2+ 8*k + 216*hdr->NS,tmp,min(8,len));
 		     	hdr->CHANNEL[k].GDFTYP = ( (hdr->TYPE != BDF) ? 3 : 255+24);
 		}
-//		hdr->AS.Header1 = (uint8_t*)Header1; 
-	}
-    	else if (hdr->TYPE==SCP_ECG) {	
-    		hdr->FileName = FileName;
-    		sopen_SCP_write(hdr);
-    		if (serror()) { 
-	    		free(Header1);
-    			free(hdr);
-    			return(NULL);
-    		}	
 	}
     	else if (hdr->TYPE==HL7aECG) {	
    		hdr->FileName = FileName;
@@ -2414,6 +2424,183 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		hdr->NRec = 1; 
 		hdr->FILE.OPEN=2;
 
+	}
+    	else if (hdr->TYPE==MFER) {	
+    		uint8_t tag; 
+    		size_t  len, curPos=0; 
+    		hdr->FileName  = FileName;
+	     	hdr->HeadLen   = 32+128+3*6+3 +80000;
+	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
+		memset(Header1, ' ', hdr->HeadLen);
+		
+		fprintf(stderr,"Warning SOPEN(MFER): write support for MFER format under construction\n"); 
+		// tag 64: preamble 
+		// Header1[curPos] = 64; 
+		// len =32;
+		curPos = 34; 
+		strncpy(Header1,"@  MFER                                ",curPos);
+		// Header1[curPos+1] = len; 
+		// curPos = len+2; 
+
+		// tag 23: Manufacturer 
+		tag = 23;
+		Header1[curPos] = tag; 
+		strcpy(Header1+curPos+2,hdr->ID.Manufacturer.Name);
+		if (hdr->ID.Manufacturer.Model != NULL) {
+			strcat(Header1+curPos+2,"^");
+			strcat(Header1+curPos+2,hdr->ID.Manufacturer.Model);
+		}	
+		if (hdr->ID.Manufacturer.Version != NULL) {
+			strcat(Header1+curPos+2,"^");
+			strcat(Header1+curPos+2,hdr->ID.Manufacturer.Version);
+		}	
+		if (hdr->ID.Manufacturer.SerialNumber!=NULL) {
+			strcat(Header1+curPos+2,"^");
+			strcat(Header1+curPos+2,hdr->ID.Manufacturer.SerialNumber);
+		}	
+		len = strlen(Header1+curPos+2); 
+		Header1[curPos] = tag; 
+		if (len<128) {
+			Header1[curPos+1] = len;
+			curPos += len+2;
+		} else if (len <= 0xffff) {
+			Header1[curPos+1] = sizeof(uint16_t);
+			*(uint16_t*)(Header1+curPos+2) = b_endian_u16(len);
+			curPos += len+1+1+2;
+		} else 	 
+			fprintf(stderr,"Warning MFER(W) Tag23 (manufacturer) to long len=%i>128\n",len); 	
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"Write MFER: tag=%i,len%i,curPos=%i\n",tag,len,curPos); 	
+
+		// tag 1: Endianity 
+		// use default BigEndianity		
+		 
+		// tag 4: SPR 
+		tag = 4;
+		len = sizeof(uint32_t);
+		Header1[curPos++] = tag; 
+		Header1[curPos++] = len; 
+		*(uint32_t*)(Header1+curPos) = b_endian_u32(hdr->SPR); 
+		curPos += len; 
+
+		// tag 5: NS 
+		tag = 5;
+		len = sizeof(uint16_t);
+		Header1[curPos++] = tag; 
+		Header1[curPos++] = len; 
+		*(uint16_t*)(Header1+curPos) = b_endian_u16(hdr->NS); 
+		curPos += len; 
+
+		// tag 6: NRec 
+		tag = 6;
+		len = sizeof(uint32_t);
+		Header1[curPos++] = tag; 
+		Header1[curPos++] = len; 
+		*(uint32_t*)(Header1+curPos) = b_endian_u32(hdr->NRec); 
+		curPos += len; 
+
+		// tag 8: Waveform: unidentified 
+		tag = 8;
+		len = sizeof(uint8_t);
+		Header1[curPos++] = tag; 
+		Header1[curPos++] = len; 
+		*(Header1+curPos) = 0; // unidentified 
+		curPos += len; 
+
+		// tag 129: Patient Name  
+		if (!hdr->FLAG.ANONYMOUS) {
+			tag = 129;
+			len = strlen(hdr->Patient.Name);
+			Header1[curPos++] = tag; 
+			Header1[curPos++] = len; 
+			strcpy(Header1+curPos,hdr->Patient.Name); 
+			curPos += len;
+		}
+
+		// tag 130: Patient Id  
+		tag = 130;
+		len = strlen(hdr->Patient.Id);
+		Header1[curPos++] = tag; 
+		Header1[curPos++] = len; 
+		strcpy(Header1+curPos,hdr->Patient.Id); 
+		curPos += len; 
+
+		// tag 131: Patient Age  
+		tag = 131;
+		len = 7;
+		tt = gdf_time2t_time(hdr->T0); 
+		struct tm *t = gmtime(&tt);
+		Header1[curPos++] = tag; 
+		Header1[curPos++] = len; 
+		*(Header1+curPos) = (uint8_t)((hdr->T0 - hdr->Patient.Birthday)/365.25); 
+		double tmpf64 = (hdr->T0 - hdr->Patient.Birthday); 
+		tmpf64 -= 365.25*floor(tmpf64/365.25);
+		*(uint16_t*)(Header1+curPos+1) = b_endian_u16((uint16_t)tmpf64); 
+		*(uint16_t*)(Header1+curPos+3) = b_endian_u16(t->tm_year); 
+		*(Header1+curPos+5) = (t->tm_mon); 
+		*(Header1+curPos+6) = (t->tm_mday); 
+		curPos += len; 
+
+		// tag 132: Patient Sex  
+		tag = 132;
+		Header1[curPos]   = tag; 
+		Header1[curPos+1] = 1; 
+		Header1[curPos+2] = hdr->Patient.Sex; 
+		curPos += 3; 
+
+
+		// tag  9: LeadId
+		// tag 10: gdftyp
+		// tag 11: SampleRate
+		// tag 12: Cal
+		// tag 13: Off
+		hdr->HeadLen = curPos; 		
+		// tag 63: channel-specific settings
+		
+		tag = 63; 
+		for (size_t ch=0; ch<hdr->NS; k++) {
+		 	// FIXME: this is broken 
+			len = 0; 
+			Header1[curPos++] = tag; 
+			if (ch<128)
+				Header1[curPos++] = ch;
+			else {
+				Header1[curPos++] = (ch >> 7) | 0x80;
+				Header1[curPos++] = (ch && 0x7f);
+			}
+			// tag1  9: LeadId
+			size_t ix = curPos; 
+			size_t len1 = 0; 
+			Header1[ix++] = 9;
+			if (hdr->CHANNEL[ch].LeadIdCode>0) {
+				Header1[ix++] = 1;
+				Header1[ix++] = hdr->CHANNEL[ch].LeadIdCode;
+			} else {	
+				len1 = strlen(hdr->CHANNEL[ch].Label);
+				Header1[ix++] = len1;
+				strcpy(Header1+ ix, hdr->CHANNEL[ch].Label);
+			}
+			// tag1 10: gdftyp
+			// tag1 11: SampleRate
+			// tag1 12: Cal
+			// tag1 13: Off
+
+			len += len1+ix-curPos;
+			*(Header1+curPos) = len;  
+			curPos += len+curPos; 
+		} 
+		// tag 30: data
+
+	}
+    	else if (hdr->TYPE==SCP_ECG) {	
+    		hdr->FileName = FileName;
+    		sopen_SCP_write(hdr);
+    		if (serror()) { 
+	    		free(Header1);
+    			free(hdr);
+    			return(NULL);
+    		}	
 	}
 	else {
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
@@ -3069,7 +3256,11 @@ int hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSE_LEVEL)
 		fprintf(fid,"\n[FIXED HEADER]\n");
 //		fprintf(fid,"\nPID:\t|%s|\nPatient:\n",hdr->AS.PID);
 		fprintf(fid,"Recording:\n\tID              : %s\n",hdr->ID.Recording);
-		fprintf(fid,"Patient:\n\tID              : |%s|\n",hdr->Patient.Id); 
+		fprintf(fid,"Manufacturer:\n\tName            : %s\n",hdr->ID.Manufacturer.Name);
+		fprintf(fid,"\tModel           : %s\n",hdr->ID.Manufacturer.Model);
+		fprintf(fid,"\tVersion         : %s\n",hdr->ID.Manufacturer.Version);
+		fprintf(fid,"\tSerialNumber    : %s\n",hdr->ID.Manufacturer.SerialNumber);
+		fprintf(fid,"Patient:\n\tID              : %s\n",hdr->Patient.Id); 
 		if (hdr->Patient.Name!=NULL)
 			fprintf(fid,"\tName            : %s\n",hdr->Patient.Name); 
 		float age = (hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32); 
