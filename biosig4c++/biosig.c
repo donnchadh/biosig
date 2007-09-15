@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.105 2007-09-15 19:49:11 schloegl Exp $
+    $Id: biosig.c,v 1.106 2007-09-15 22:08:40 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -191,8 +191,8 @@ double b_endian_f64(double x)
 
 void* mfer_swap8b(uint8_t *buf, int8_t len, char FLAG_SWAP) 
 {	
-//	if (VERBOSE_LEVEL==9)
-//	fprintf(stdout,"swap=%i len=%i %2x%2x%2x%2x%2x%2x%2x%2x\n",FLAG_SWAP, len, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7]); 
+	if (VERBOSE_LEVEL==9) 
+		fprintf(stdout,"swap=%i %i %i \nlen=%i %2x%2x%2x%2x%2x%2x%2x%2x\n",FLAG_SWAP, __BYTE_ORDER, __LITTLE_ENDIAN, len, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7]); 
 	
 	typedef uint64_t iType; 
 #if __BYTE_ORDER == __BIG_ENDIAN
@@ -211,8 +211,8 @@ void* mfer_swap8b(uint8_t *buf, int8_t len, char FLAG_SWAP)
 
 #endif
 
-//	if (VERBOSE_LEVEL==9)
-//	fprintf(stdout,"%2x%2x%2x%2x%2x%2x%2x%2x %i %f\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],*(uint64_t*)buf,*(double*)buf); 
+	if (VERBOSE_LEVEL==9)	
+		fprintf(stdout,"%2x%2x%2x%2x%2x%2x%2x%2x %i %f\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],*(uint64_t*)buf,*(double*)buf); 
 
 	return(buf); 
 }
@@ -1718,14 +1718,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}	
 			else if (tag==1) {
 				// Endianity 
-				FREAD(&buf,1,1,hdr);
 				if (len!=1) fprintf(stderr,"warning MFER tag1 incorrect length %i!=1\n",len); 
 					FSEEK(hdr,len-1,SEEK_CUR); 
-				curPos += len;
+				curPos += FREAD(buf,1,1,hdr);
 				if      ( __BYTE_ORDER == __LITTLE_ENDIAN)
-					hdr->FLAG.SWAP = !buf[0];
-				else if ( __BYTE_ORDER == __BIG_ENDIAN);
-					hdr->FLAG.SWAP =  buf[0];
+					hdr->FLAG.SWAP =  !buf[0];
+				else if ( __BYTE_ORDER == __BIG_ENDIAN)
+					hdr->FLAG.SWAP =   buf[0];
 			}
 			else if (tag==2) {
 				// Version
@@ -1733,7 +1732,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (len!=3) fprintf(stderr,"warning MFER tag2 incorrect length %i!=3\n",len); 
 				curPos += FREAD(&v,1,3,hdr);
 				hdr->VERSION = v[0] + (v[1]<10 ? v[1]/10.0 : (v[1]<100 ? v[1]/100.0 : v[1]/1000.0)); 
-			}	
+				}	
 			else if (tag==3) {
 				// character code 
 				char v[17];
@@ -1887,14 +1886,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 						if (len>4) fprintf(stderr,"warning MFER tag63-4 incorrect length %i>4\n",len2); 
 						hdr->CHANNEL[chan].SPR = *(int64_t*) mfer_swap8b(buf, len2, hdr->FLAG.SWAP); 
 					}	
-					else if (tag2==9)	//leadname 
+					else if (tag2==9) {	//leadname 
 						if (len2==1)
 							hdr->CHANNEL[chan].LeadIdCode = buf[0]; 
 						else if (len2==2)
 							hdr->CHANNEL[chan].LeadIdCode = 0; 
 						else if (len2<=32)
 							strncpy(hdr->CHANNEL[chan].Label,(char*)buf,len2); 
-
+					}
 					else if (tag2==12) {	// sampling interval 
 						if (len>6) fprintf(stderr,"warning MFER tag11 incorrect length %i>6\n",len); 
 						double  fval; 
@@ -2414,6 +2413,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		hdr->SPR *= hdr->NRec;
 		hdr->NRec = 1; 
 		hdr->FILE.OPEN=2;
+    		hdr->FLAG.SWAP = 0; 
 
 	}
     	else if (hdr->TYPE==MFER) {	
@@ -2423,6 +2423,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	hdr->HeadLen   = 32+128+3*6+3 +80000;
 	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
 		memset(Header1, ' ', hdr->HeadLen);
+
+		hdr->FLAG.SWAP = ( __BYTE_ORDER == __LITTLE_ENDIAN);   // default of MFER is BigEndian
 		
 		fprintf(stderr,"Warning SOPEN(MFER): write support for MFER format under construction\n"); 
 		// tag 64: preamble 
@@ -2938,10 +2940,10 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				if      (sample_value > MAX_INT16) val.i16 = MAX_INT16;
 				else if (sample_value < MIN_INT16) val.i16 = MIN_INT16;
 				else     val.i16 = (int16_t) sample_value;
-				if (hdr->TYPE==HL7aECG)
+				if (!hdr->FLAG.SWAP)
 					*(int16_t*)ptr = val.i16; 
 				else	
-					*(int16_t*)ptr = l_endian_i16(val.i16); 
+					*(int16_t*)ptr = bswap_16(val.i16); 
 			}
 
 			else if (GDFTYP==4) {
@@ -2979,10 +2981,10 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				if      (sample_value > ldexp(1.0,31)-1) val.i32 = MAX_INT32;
 				else if (sample_value < ldexp(-1.0,31)) val.i32 = MIN_INT32;
 				else     val.i32 = (int32_t) sample_value;
-				if (hdr->TYPE==HL7aECG)
+				if (!hdr->FLAG.SWAP)
 					*(int32_t*)ptr = val.i32; 
 				else	
-					*(int32_t*)ptr = l_endian_i32(val.i32); 
+					*(int32_t*)ptr = bswap_32(val.i32); 
 			}
 			else if (GDFTYP==6) {
 				if      (sample_value > ldexp(1.0,32)-1.0) val.u32 = MAX_UINT32;
