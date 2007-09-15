@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.66 2007-09-13 12:51:53 schloegl Exp $
+% $Id: biosig.h,v 1.67 2007-09-15 19:49:11 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -190,7 +190,7 @@ enum FileFormat {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	biosig_data_type    data type of  internal data format 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-typedef double	 		biosig_data_type;
+typedef double biosig_data_type;
 
 extern const int16_t GDFTYP_BYTE[];
 extern const char *LEAD_ID_TABLE[];
@@ -418,6 +418,7 @@ typedef struct {
 		char		OVERFLOWDETECTION; 	/* overflow & saturation detection 0: OFF, !=0 ON */
 		char		UCAL; 		/* UnCalibration  0: scaling  !=0: NO scaling - raw data return  */
 		char		ANONYMOUS; 	/* 1: anonymous mode, no personal names are processed */ 
+		char		SWAP; 	        /* 1: endian swapping is needed */ 
 	} FLAG; 
 
 	struct {	/* File specific data  */
