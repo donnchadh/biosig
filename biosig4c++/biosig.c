@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.106 2007-09-15 22:08:40 schloegl Exp $
+    $Id: biosig.c,v 1.107 2007-09-17 20:03:15 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -418,11 +418,12 @@ const struct PhysDimIdx
 	{ 5984 ,  "cmH2O %-1" },
 	{ 6176 ,  "mmHg %-1" },
 	{ 6208 ,  "Pa %-1" },
+	{ 6432 ,  "dB" },
 	{ 6016 ,  "dyne s m-2 cm-5" },
-	{ 65440 ,  "dyne s m2 cm-5" },
-	{ 65472 ,  "l m-2" },
-	{ 65504 ,  "T" },
-	{ 0xffff ,  "end-of-table" },
+	{65440 ,  "dyne s m2 cm-5" },
+	{65472 ,  "l m-2" },
+	{65504 ,  "T" },
+	{0xffff ,  "end-of-table" },
 };
 		
 const char* PhysDimFactor[] = {
@@ -1658,7 +1659,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     			4256, 3872, 3840, 3904,    0,	// Volt, mmHg, Pa, mmH2O, mmHg/S
     			3808, 3776,  544, 6048, 2528,	// dyne, N, %, °C, 1/min 
     			4264, 4288, 4160,    0, 4032,	// 1/s, Ohm, A, rpm, W
-    			   0, 1731, 3968, 6016,    0,	// dB, kg, J, dyne s m-2 cm-5, ?
+    			6432, 1731, 3968, 6016,    0,	// dB, kg, J, dyne s m-2 cm-5, ?
     			3040, 3072, 4480,    0,    0,	// L/s, L/min, cd
     			   0,    0,    0,    0,    0,	// 
 		};
@@ -1674,8 +1675,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		FSEEK(hdr,1,SEEK_SET);
     		int curPos = 1; 
 		while (!FEOF(hdr)) {
-			int32_t  val64=0;
-			uint32_t len, val32=0, chan=-1; 
+			uint32_t len, val32=0;
+			int32_t  chan=-1; 
 			uint8_t tmplen;
 
 			if (tag==255)  
@@ -1713,12 +1714,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 			/* VALUE */ 
 			if (tag==0) {
-				if (len!=1) fprintf(stderr,"warning MFER tag0 incorrect length %i!=1\n",len); 
+				if (len!=1) fprintf(stderr,"Warning MFER tag0 incorrect length %i!=1\n",len); 
 				curPos += FREAD(buf,1,len,hdr);
 			}	
 			else if (tag==1) {
 				// Endianity 
-				if (len!=1) fprintf(stderr,"warning MFER tag1 incorrect length %i!=1\n",len); 
+				if (len!=1) fprintf(stderr,"Warning MFER tag1 incorrect length %i!=1\n",len); 
 					FSEEK(hdr,len-1,SEEK_CUR); 
 				curPos += FREAD(buf,1,1,hdr);
 				if      ( __BYTE_ORDER == __LITTLE_ENDIAN)
@@ -1729,26 +1730,26 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (tag==2) {
 				// Version
 				uint8_t v[3];
-				if (len!=3) fprintf(stderr,"warning MFER tag2 incorrect length %i!=3\n",len); 
+				if (len!=3) fprintf(stderr,"Warning MFER tag2 incorrect length %i!=3\n",len); 
 				curPos += FREAD(&v,1,3,hdr);
 				hdr->VERSION = v[0] + (v[1]<10 ? v[1]/10.0 : (v[1]<100 ? v[1]/100.0 : v[1]/1000.0)); 
 				}	
 			else if (tag==3) {
 				// character code 
 				char v[17];
-				if (len>16) fprintf(stderr,"warning MFER tag2 incorrect length %i>16\n",len); 
+				if (len>16) fprintf(stderr,"Warning MFER tag2 incorrect length %i>16\n",len); 
 				curPos += FREAD(&v,1,len,hdr);
 				v[len]  = 0; 
 			}	
 			else if (tag==4) {
 				// SPR
-				if (len>4) fprintf(stderr,"warning MFER tag4 incorrect length %i>4\n",len); 
+				if (len>4) fprintf(stderr,"Warning MFER tag4 incorrect length %i>4\n",len); 
 				curPos += FREAD(buf,1,len,hdr);
 				hdr->SPR = *(int64_t*) mfer_swap8b(buf, len, hdr->FLAG.SWAP); 
 			}	
 			else if (tag==5) {
 				// NS
-				if (len>4) fprintf(stderr,"warning MFER tag5 incorrect length %i>4\n",len); 
+				if (len>4) fprintf(stderr,"Warning MFER tag5 incorrect length %i>4\n",len); 
 				curPos += FREAD(buf,1,len,hdr);
 				hdr->NS = *(int64_t*) mfer_swap8b(buf, len, hdr->FLAG.SWAP); 
 				hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL, hdr->NS*sizeof(CHANNEL_TYPE));
@@ -1760,7 +1761,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}	
 			else if (tag==6) {
 				// NRec
-				if (len>4) fprintf(stderr,"warning MFER tag6 incorrect length %i>4\n",len); 
+				if (len>4) fprintf(stderr,"Warning MFER tag6 incorrect length %i>4\n",len); 
 				curPos += FREAD(buf,1,len,hdr);
 				hdr->NRec = *(int64_t*) mfer_swap8b(buf, len, hdr->FLAG.SWAP); 
 			}	
@@ -1768,7 +1769,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				// Type of Waveform
 				uint8_t TypeOfWaveForm8[2];
 				uint16_t TypeOfWaveForm;
-				if (len>2) fprintf(stderr,"warning MFER tag6 incorrect length %i>2\n",len); 
+				if (len>2) fprintf(stderr,"Warning MFER tag8 incorrect length %i>2\n",len); 
 				curPos += FREAD(&TypeOfWaveForm8,1,len,hdr);
 				if (len==1) 
 					TypeOfWaveForm = TypeOfWaveForm8[0];
@@ -1796,7 +1797,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}	
 			else if (tag==11) {
 				// Fs
-				if (len>6) fprintf(stderr,"warning MFER tag11 incorrect length %i>6\n",len); 
+				if (len>6) fprintf(stderr,"Warning MFER tag11 incorrect length %i>6\n",len); 
 				double  fval; 
 				curPos += FREAD(buf,1,len,hdr);
 				fval = *(int64_t*) mfer_swap8b(buf+2, len-2, hdr->FLAG.SWAP); 
@@ -1807,7 +1808,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}	
 			else if (tag==12) {
 				// sampling resolution 
-				if (len>6) fprintf(stderr,"warning MFER tag12 incorrect length %i>6\n",len); 
+				if (len>6) fprintf(stderr,"Warning MFER tag12 incorrect length %i>6\n",len); 
 				val32   = 0;
 				int8_t  v8; 
 				curPos += FREAD(&UnitCode,1,1,hdr);
@@ -1815,9 +1816,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				curPos += FREAD(buf,1,len-2,hdr);
 				Cal = *(int64_t*) mfer_swap8b(buf, len-2, hdr->FLAG.SWAP); 
 				Cal *= pow(10.0,v8); 
+				if (!MFER_PhysDimCodeTable[UnitCode]) 
+					fprintf(stderr,"Warning MFER: unsupported physical unit (code=%i)\n", UnitCode); 
 			}	
 			else if (tag==13) {
-				if (len>8) fprintf(stderr,"warning MFER tag13 incorrect length %i>8\n",len); 
+				if (len>8) fprintf(stderr,"Warning MFER tag13 incorrect length %i>8\n",len); 
 				curPos += FREAD(&buf,1,len,hdr);
 				if      (gdftyp == 1) Off = ( int8_t)buf[0];
 				else if (gdftyp == 2) Off = (uint8_t)buf[0];
@@ -1850,15 +1853,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}
 			else if (tag==23) {
 				// manufacturer information: "Manufacturer^model^version number^serial number"
-				if (len>128) fprintf(stderr,"warning MFER tag23 incorrect length %i>128\n",len); 
+				if (len>128) fprintf(stderr,"Warning MFER tag23 incorrect length %i>128\n",len); 
 				FREAD(hdr->ID.Manufacturer._field,1,max(MAX_LENGTH_MANUF,len),hdr);
 				FSEEK(hdr,max(0,len-MAX_LENGTH_MANUF),SEEK_CUR);
 				curPos += len;
 				for (k=0; isprint(hdr->ID.Manufacturer._field[k]) && (k<MAX_LENGTH_MANUF); k++);
-				hdr->ID.Manufacturer._field[k] = 0; 
-				hdr->ID.Manufacturer.Name = strtok(hdr->ID.Manufacturer._field,"^");  
-				hdr->ID.Manufacturer.Model = strtok(NULL,"^");  
-				hdr->ID.Manufacturer.Version = strtok(NULL,"^");  
+				hdr->ID.Manufacturer._field[k]    = 0; 
+				hdr->ID.Manufacturer.Name         = strtok(hdr->ID.Manufacturer._field,"^");  
+				hdr->ID.Manufacturer.Model        = strtok(NULL,"^");  
+				hdr->ID.Manufacturer.Version      = strtok(NULL,"^");  
 				hdr->ID.Manufacturer.SerialNumber = strtok(NULL,"^");  
 			}
 			else if (tag==30) {
@@ -1868,7 +1871,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				curPos += FREAD(hdr->AS.rawdata,1,len,hdr);
 			}
 			else if (tag==63) {
-				uint8_t tag2=-1, len2=-1; 
+				uint8_t tag2=255, len2=255; 
 
 				count = 0; 
 				while ((count<len) && !(FlagInfiniteLength && len2==0 && tag2==0)){ 
@@ -1883,7 +1886,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					curPos += FREAD(&buf,1,len2,hdr);
 					if (tag2==4) {
 						// SPR
-						if (len>4) fprintf(stderr,"warning MFER tag63-4 incorrect length %i>4\n",len2); 
+						if (len2>4) fprintf(stderr,"Warning MFER tag63-4 incorrect length %i>4\n",len2); 
 						hdr->CHANNEL[chan].SPR = *(int64_t*) mfer_swap8b(buf, len2, hdr->FLAG.SWAP); 
 					}	
 					else if (tag2==9) {	//leadname 
@@ -1893,9 +1896,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 							hdr->CHANNEL[chan].LeadIdCode = 0; 
 						else if (len2<=32)
 							strncpy(hdr->CHANNEL[chan].Label,(char*)buf,len2); 
+						else
+							fprintf(stderr,"Warning MFER tag63-9 incorrect length %i>32\n",len2); 
 					}
-					else if (tag2==12) {	// sampling interval 
-						if (len>6) fprintf(stderr,"warning MFER tag11 incorrect length %i>6\n",len); 
+					else if (tag2==11) {	// sampling resolution 
+						if (len2>6) fprintf(stderr,"Warning MFER tag63-11 incorrect length %i>6\n",len2); 
 						double  fval; 
 						fval = *(int64_t*) mfer_swap8b(buf+2, len2-2, hdr->FLAG.SWAP); 
 						
@@ -1905,10 +1910,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 						hdr->CHANNEL[chan].SPR = hdr->SPR * fval / hdr->SampleRate;	
 					}
-					else if (tag2==13)	// sensitivity 
-					{
-						// sampling resolution 
-						if (len>6) fprintf(stderr,"warning MFER tag12 incorrect length %i>6\n",len); 
+					else if (tag2==12) {	// sensitivity 
+						if (len2>6) 
+							fprintf(stderr,"Warning MFER tag63-12 incorrect length %i>6\n", len2); 
+						if (!MFER_PhysDimCodeTable[UnitCode]) 
+							fprintf(stderr,"Warning MFER: unsupported physical unit (code=%i)\n", UnitCode); 
+
 						hdr->CHANNEL[chan].PhysDimCode = MFER_PhysDimCodeTable[UnitCode];
 						double cal = *(int64_t*) mfer_swap8b(buf+2, len2-2, hdr->FLAG.SWAP); 
 						hdr->CHANNEL[chan].Cal = cal * pow(10.0,(int8_t)buf[1]); 
@@ -1971,7 +1978,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 			else if (tag==130) {
 				// Patient Id 
-				if (len>64) fprintf(stderr,"warning MFER tag131 incorrect length %i>64\n",len); 
+				if (len>64) fprintf(stderr,"Warning MFER tag131 incorrect length %i>64\n",len); 
 				if (len>MAX_LENGTH_PID) {
 					FREAD(hdr->Patient.Id,1,MAX_LENGTH_PID,hdr);
 					FSEEK(hdr,MAX_LENGTH_PID-len,SEEK_CUR);
@@ -1983,7 +1990,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 			else if (tag==131) {
 				// Patient Age 
-				if (len!=7) fprintf(stderr,"warning MFER tag131 incorrect length %i!=7\n",len); 
+				if (len!=7) fprintf(stderr,"Warning MFER tag131 incorrect length %i!=7\n",len); 
 				curPos += FREAD(buf,1,len,hdr);
 				tm_time.tm_year = *(uint16_t*)(buf+3);
 				if (hdr->FLAG.SWAP) tm_time.tm_year = bswap_16(tm_time.tm_year);
@@ -1998,7 +2005,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}	
 			else if (tag==132) {
 				// Patient Sex 
-				if (len!=1) fprintf(stderr,"warning MFER tag132 incorrect length %i!=1\n",len); 
+				if (len!=1) fprintf(stderr,"Warning MFER tag132 incorrect length %i!=1\n",len); 
 				curPos += FREAD(&hdr->Patient.Sex,1,len,hdr);
 			}	
 			else if (tag==133) {
