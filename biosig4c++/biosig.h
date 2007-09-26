@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.67 2007-09-15 19:49:11 schloegl Exp $
+% $Id: biosig.h,v 1.68 2007-09-26 07:54:03 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -51,7 +51,7 @@
 #define B4C_UNSPECIFIC_ERROR 	-127
 
 extern int   B4C_ERRNUM;
-extern char* B4C_ERRMSG;
+extern const char *B4C_ERRMSG;
 extern int   VERBOSE_LEVEL; 
 
 
@@ -94,6 +94,7 @@ typedef char			int8_t;
 	First tests were already successful.  
  */
 #include <zlib.h>
+//#include <bz2lib.h>
 
 /* use byteswap macros from the host system, hopefully optimized ones ;-) */
 #include <byteswap.h>
@@ -166,7 +167,7 @@ double  b_endian_f64(double x);
 enum FileFormat {
 	unknown, 
 	ABF, ACQ, ACR_NEMA, AIFC, AIFF, alpha, AU, ASF, AVI,
-	BKR, BCI2000, BDF, BMP, BrainVision, 
+	BKR, BCI2000, BDF, BMP, BrainVision, BZ2, 
 	CDF, CFWB, CNT, 
 	DICOM, DEMG, EDF, EEProbe, EGI, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, 
@@ -175,8 +176,8 @@ enum FileFormat {
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, SMA, SND, SVG, SXI,    
 	TIFF, VRML, VTK, WAV, WMF, XML, XPM,
-	Z, ZIP
-}; 
+	Z, ZIP, ZIP2
+};
 
 
 #define NaN (0.0/0.0)	/* used for encoding of missing values */ 
@@ -425,6 +426,9 @@ typedef struct {
 #ifdef ZLIB_H
 		gzFile		gzFID;
 #endif
+#ifdef _BZLIB_H
+//		BZFILE*		bzFID;
+#endif
 		FILE* 		FID;		/* file handle  */
 		size_t 		POS;		/* current reading/writing position [in blocks] */
 		uint8_t		OPEN; 		/* 0: closed, 1:read, 2: write */
@@ -486,6 +490,7 @@ int sclose_HL7aECG_write(HDRTYPE* hdr);
 
 size_t gcd(size_t A,size_t B);
 size_t lcm(size_t A,size_t B); 
+//long lcm(long A, long B); 
 
 double PhysDimScale(uint16_t PhysDimCode);
 

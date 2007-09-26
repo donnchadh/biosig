@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.107 2007-09-17 20:03:15 schloegl Exp $
+    $Id: biosig.c,v 1.108 2007-09-26 07:54:03 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -231,8 +231,8 @@ void* mfer_swap8b(uint8_t *buf, int8_t len, char FLAG_SWAP)
 
 const struct PhysDimIdx 
 	{
-		uint16_t idx;
-		char*	PhysDimDesc;
+		const uint16_t	idx;
+		const char*	PhysDimDesc;
 	} _physdim[] = 	{
 	{ 0 ,  "?" },
 	{ 512 ,  "-" },
@@ -366,8 +366,8 @@ const struct PhysDimIdx
 	{ 4320 ,  "Wm" },
 	{ 4352 ,  "F" },
 	{ 4384 ,  "K" },
-	{ 6048 ,  "\xB0\x43" },	//Â°C
-	{ 4416 ,  "\xB0\x46" }, //Â°F
+	{ 6048 ,  "\xB0\x43" },	//°C
+	{ 4416 ,  "\xB0\x46" }, //°F
 	{ 4448 ,  "K W-1" },
 	{ 4480 ,  "cd" },
 	{ 4512 ,  "osmole" },
@@ -510,7 +510,7 @@ int strcmpi(const char* str1, const char* str2)
 int errnum;
 int B4C_STATUS  = 0;
 int B4C_ERRNUM  = 0;
-char* B4C_ERRMSG;
+const char *B4C_ERRMSG;
 int VERBOSE_LEVEL = -1; 
 
 /*
@@ -814,12 +814,11 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
  */
 {
 
+    	hdr->TYPE = unknown; 
+		
 	uint32_t U32 = l_endian_u32(*(uint32_t*)(hdr->AS.Header+2)); 
 
-    	if (hdr->TYPE != unknown) 
-    		return(hdr); 
-		
-    	else if ((U32>=30) & (U32<=42)) {
+    	if ((U32>=30) & (U32<=42)) {
     		hdr->VERSION = (float)U32; 
     		U32 = l_endian_u32(*(uint32_t*)(hdr->AS.Header+6));
     		if      ((hdr->VERSION <34.0) & (U32 == 150)) hdr->TYPE = ACQ;  
@@ -839,7 +838,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	const uint8_t MAGIC_NUMBER_FEF2[] = {67,69,78,0x13,0x10,0x1a,4,0x84};
 	const uint8_t MAGIC_NUMBER_GZIP[] = {31,139,8};
 	const uint8_t MAGIC_NUMBER_Z[]    = {31,157,144};
-	const uint8_t MAGIC_NUMBER_ZIP[]  = {80,75,3,4};
+	// const uint8_t MAGIC_NUMBER_ZIP[]  = {80,75,3,4};
 	const uint8_t MAGIC_NUMBER_TIFF_l32[] = {73,73,42,0};
 	const uint8_t MAGIC_NUMBER_TIFF_b32[] = {77,77,0,42};
 	const uint8_t MAGIC_NUMBER_TIFF_l64[] = {73,73,43,0,8,0,0,0};
@@ -847,7 +846,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	const uint8_t MAGIC_NUMBER_DICOM[]    = {8,0,5,0,10,0,0,0,73,83,79,95,73,82,32,49,48,48};
 
     	if (hdr->TYPE != unknown)
-       		return(hdr); 
+      		return(hdr); 
     	else if (!memcmp(Header1+20,"ACR-NEMA",8))
 	    	hdr->TYPE = ACR_NEMA;
     	else if (!memcmp(Header1+1,"BIOSEMI",7) && (hdr->AS.Header[0]==0xff)) {
@@ -858,6 +857,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = BKR;
         else if (!memcmp(Header1,"Brain Vision Data Exchange Header File",38))
                 hdr->TYPE = BrainVision;
+    	else if (!memcmp(Header1,"BZh91",5))
+	    	hdr->TYPE = BZ2;
     	else if (!memcmp(Header1,"CFWB\1\0\0\0",8))
 	    	hdr->TYPE = CFWB;
     	else if (!memcmp(Header1,"Version 3.0",11))
@@ -876,7 +877,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = EDF;
 	    	hdr->VERSION = 0; 
 	}
-    	else if (!memcmp(Header1,"\0\0\0",3) && hdr->AS.Header[3]>1 && hdr->AS.Header[3]<8) {
+    	else if ((b_endian_u32(*(uint32_t*)Header1) > 1) && (b_endian_u32(*(uint32_t*)Header1) < 8)) {
 	    	hdr->TYPE = EGI;
 	    	hdr->VERSION = hdr->AS.Header[3];
     	}
@@ -896,14 +897,15 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = GIF; 
 	else if (!memcmp(Header1,MAGIC_NUMBER_GZIP,3))  {
 		hdr->TYPE = GZIP;
-		hdr->FILE.COMPRESSION = 1; 
+//		hdr->FILE.COMPRESSION = 1; 
 	}	
     	else if (!memcmp(Header1,"@  MFER ",8))
 	    	hdr->TYPE = MFER;
     	else if (!memcmp(Header1,"@ MFR ",6))
 	    	hdr->TYPE = MFER;
-    	else if (!memcmp(Header1,"MThd\0\0\0\1\0",9))
+/*    	else if (!memcmp(Header1,"MThd\000\000\000\001\000",9))
 	    	hdr->TYPE = MIDI;
+*/
     	else if (!memcmp(Header1,"NEX1",4))
 	    	hdr->TYPE = NEX1;
     	else if (!memcmp(Header1,"PLEX",4))
@@ -917,11 +919,11 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	if (!memcmp(Header1+8,"AVI ",4))
 	    		hdr->TYPE = AVI;
 	}    	
-    	else if (!memcmp(Header1+16,"SCPECG",6)) {
+    	else if (!memcmp(hdr->AS.Header+16,"SCPECG",6)) {
 	    	hdr->TYPE = SCP_ECG;
-    		if (!memcmp(Header1+8,"\0\0\136\0\0\0\13\13",8)) 
+    		if (!memcmp(hdr->AS.Header+8,"\0\0\136\0\0\0\13\13",8)) 
 		    	hdr->VERSION = 1.3;
-    		else if (!memcmp(Header1+8,"\0\0",2)) 
+    		else if (!memcmp(hdr->AS.Header+8,"\0\0",2)) 
 		    	hdr->VERSION = -1.0;
 		else    	
 		    	hdr->VERSION = -2.0;
@@ -946,8 +948,12 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	}	
 	else if (!memcmp(Header1,MAGIC_NUMBER_Z,3))
 		hdr->TYPE = Z;
-	else if (!memcmp(Header1,MAGIC_NUMBER_ZIP,sizeof(MAGIC_NUMBER_ZIP)))
+	else if (!strncmp(Header1,"PK\003\004",4))
 		hdr->TYPE = ZIP;
+	else if (!strncmp(Header1,"PK\005\006",4))
+		hdr->TYPE = ZIP;
+	else if (!strncmp(Header1,"ZIP2",4))
+		hdr->TYPE = ZIP2;
 	else if (!memcmp(Header1,"<?xml version",13))
 		hdr->TYPE = HL7aECG;
 	else if ( (l_endian_u32(*(uint32_t*)Header1) & 0x00FFFFFFL) == 0x00BFBBEFL  
@@ -1010,10 +1016,9 @@ if (!strncmp(MODE,"r",1))
 	hdr->TYPE = unknown; 
 
 	hdr->FileName = FileName; 
-        hdr->FILE.COMPRESSION = 1;   	
+        hdr->FILE.COMPRESSION = 0;   	
         hdr = FOPEN(hdr,"rb");
-    	if (!hdr->FILE.OPEN) 
-    	{ 	
+    	if (!hdr->FILE.OPEN) { 	
     		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
     		B4C_ERRMSG = "Error SOPEN(READ); Cannot open file.";		
     		free(hdr);   
@@ -1021,10 +1026,28 @@ if (!strncmp(MODE,"r",1))
     	}	    
     
     	/******** read 1st (fixed)  header  *******/	
-    	count   = FREAD(Header1,1,256,hdr);
-	
-	hdr  = getfiletype(hdr);
+    	count = FREAD(Header1,1,256,hdr);
+	hdr   = getfiletype(hdr);
     	
+    	if (hdr->TYPE == GZIP) {
+#ifdef ZLIB_H
+    		FCLOSE(hdr); 
+	        hdr->FILE.COMPRESSION = 1;   	
+	        // hdr->FILE.gzFID = gzdopen(hdr->FILE.FID,"rb"); // FIXME
+        	hdr= FOPEN(hdr,"rb");
+	    	if (!hdr->FILE.OPEN) { 	
+    			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+	    		B4C_ERRMSG = "Error SOPEN(GZREAD); Cannot open file.";		
+    			free(hdr);   
+			return(NULL);
+    		}	    
+	    	count = FREAD(Header1,1,256,hdr);
+		hdr   = getfiletype(hdr);
+#else 
+		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+    		B4C_ERRMSG = "Error SOPEN(READ); *.gz file not supported because not linked with zlib.";
+#endif
+    	}
     	if (hdr->TYPE == unknown) {
     		B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
     		B4C_ERRMSG = "ERROR BIOSIG SOPEN(read): Dataformat Format not known.\n";
@@ -1466,7 +1489,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].GDFTYP 	 = 3; 
 		    	hdr->CHANNEL[k].SPR 	 = 1; // *(int32_t*)(Header1+56);
 		    	hdr->CHANNEL[k].LowPass	 = l_endian_f32(*(float*)(Header1+22));
-		    	hdr->CHANNEL[k].HighPass = l_endian_f32(*(float*)(Header1+26));
+		    	 hdr->CHANNEL[k].HighPass = l_endian_f32(*(float*)(Header1+26));
 		    	hdr->CHANNEL[k].Notch	 = -1.0;  // unknown 
 		    	hdr->CHANNEL[k].PhysMax	 = (double)l_endian_u16(*(uint16_t*)(Header1+14));
 		    	hdr->CHANNEL[k].DigMax	 = (double)l_endian_u16(*(uint16_t*)(Header1+16));
