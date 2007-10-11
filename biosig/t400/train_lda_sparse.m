@@ -2,7 +2,7 @@ function [CC] = train_lda_sparse(X,G,par,tol)
 % Linear Discriminant Analysis for the Small Sample Size Problem as described in
 % Algorithm 1 of J. Duintjer Tebbens, P. Schlesinger: 'Improving
 % Implementation of Linear Discriminant Analysis for the High Dimension/Small Sample Size
-% Problem', to appear in Computational Statistics and Data Analysis in 2007. 
+% Problem', Computational Statistics and Data Analysis, vol. 52, no. 1, pp. 423-437, 2007.  
 % Input:
 %               X                 ......       (sparse) training data matrix
 %               G                 ......       group coding matrix of the training data
@@ -17,8 +17,8 @@ function [CC] = train_lda_sparse(X,G,par,tol)
 % Reference(s): 
 % J. Duintjer Tebbens, P. Schlesinger: 'Improving
 % Implementation of Linear Discriminant Analysis for the High Dimension/Small Sample Size
-% Problem', to appear in Computational Statistics and Data Analysis in
-% 2007. 
+% Problem', Computational Statistics and Data Analysis, vol. 52, no. 1, 
+% pp. 423-437, 2007.
 %
 % Copyright (C) by J. Duintjer Tebbens, Institute of Computer Science of the Academy of Sciences of the Czech Republic,
 % Pod Vodarenskou vezi 2, 182 07 Praha 8 Liben, 18.July.2006. 
@@ -28,7 +28,7 @@ function [CC] = train_lda_sparse(X,G,par,tol)
 %
 % Modified for the use with Matlab6.5 by A. Schlögl, 22.Aug.2006
 %
-%	$Id: train_lda_sparse.m,v 1.6 2007-01-24 15:59:03 schloegl Exp $
+%	$Id: train_lda_sparse.m,v 1.7 2007-10-11 09:39:39 schloegl Exp $
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -142,4 +142,3 @@ else
         CC.C1 = trafo; 
         CC.M1 = Dtild*G'*X;
 end
-
