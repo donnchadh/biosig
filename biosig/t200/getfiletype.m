@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.64 2007-04-27 15:08:37 schloegl Exp $
+%	$Id: getfiletype.m,v 1.65 2007-10-16 13:54:00 schloegl Exp $
 %	(C) 2004,2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -334,6 +334,8 @@ else
                 elseif all(s([1:4])==[0,0,106,26]); 
                         HDR.TYPE='ESPS';
                         HDR.Endianity = 'ieee-le';
+                elseif strncmp(ss,'|CF,',4)
+                        HDR.TYPE='FAMOS';
                 elseif strcmp(ss([1:15]),'IMA_ADPCM_Sound'); 
                         HDR.TYPE='IMA ADPCM';
                 elseif all(s([1:8])==[abs('NIST_1A'),0]); 
@@ -965,14 +967,46 @@ else
                 %%% this is the file type check based on the file extionsion, only.  
                 if 0, 
                         
+                elseif exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dm6']),'file') & exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.chn']),'file') & exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.log']),'file'), 
+                	% Nakamura dataset from S. Bressler
+                	HDR.TYPE='nakamura';
+                	
+                        
+                elseif strcmpi(HDR.FILE.Ext,'HEA'), 
                         % MIT-ECG / Physiobank format
-                elseif strcmpi(HDR.FILE.Ext,'HEA'), HDR.TYPE='MIT';
+                	HDR.TYPE='MIT';
 
-			% Physiobank annotation files 
 		elseif length(HDR.FILE.Ext) & strmatch(HDR.FILE.Ext,{'16a','abp','al','apn','ari','atr','atr-','ecg','pap','ple','qrs','qrsc','sta','stb','stc'},'exact'),  
+			% Physiobank annotation files 
 			HDR.TYPE='MIT-ATR';
 			
                 elseif strcmpi(HDR.FILE.Ext,'DAT') 
+			if HDR.FLAG.ASCII,
+				ix = find(HDR.s(1:120)==10);
+				if (length(ix) > 3)
+					line = HDR.s(1:ix(1)-1);
+					[n,v,sa] = str2double(line);
+					HDR.SampleRate = 1000/n(1);
+					%HDR.EVENT.POS = n([2,4])/1000*HDR.SampleRate;
+					%HDR.EVENT.DUR = (n([3,5])-n([2,4]))/1000*HDR.SampleRate;
+					%HDR.EVENT.TYP = [hex2dec('502');hex2dec('503');hex2dec('506')];
+					line = HDR.s(ix(1)+1:ix(2)-1);
+					[n,v,sa] = str2double(line);
+					HDR.Patient.Sex = strncmpi(sa{3},'M',1) + strncmpi(sa{3},'F',1)*2;
+					HDR.Patient.Age = n(4); 
+					line = HDR.s(ix(2)+1:ix(3)-1);
+					[n,v,sa] = str2double(line);
+					line = HDR.s(ix(3)+1:ix(4)-1);
+
+					HDR.HeadLen = ix(4);
+					fid = fopen(HDR.FileName,'r');
+		                        [HDR.data,len] = fread(fid,[1,1e7],'uint8');
+					fclose(fid); 
+					HDR.TYPE = 'CinC2007Challenge';
+					return; 
+				end
+			end
+		
                         tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hea']));
                         if isempty(tmp), 
                                 tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.HEA']));

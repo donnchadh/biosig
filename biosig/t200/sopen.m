@@ -53,7 +53,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.187 2007-08-22 15:05:42 schloegl Exp $
+%	$Id: sopen.m,v 1.188 2007-10-16 13:54:00 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1363,7 +1363,12 @@ end;
                         HDR.DigMax(ix) = 1; 
                         HDR.DigMin(ix) = 0; 
                         
-                        if ~isfield(HDR.AS,'SPR')
+                        if 0, isfield(HDR.AS,'SampleRate')
+                        	HDR.AS.SPR = HDR.AS.SampleRate(1:HDR.NS)/HDR.SampleRate * HDR.SPR;
+                        	if any(HDR.AS.SPR~=ceil(HDR.AS.SPR)),
+                                        fprintf('Warning SOPEN (GDF/EDF/BDF)-W: HDR.AS.SPR is not integer\n');
+                                end;         
+                        elseif ~isfield(HDR.AS,'SPR')
                                 if HDR.NS>0,
                                         fprintf('Warning SOPEN (GDF/EDF/BDF)-W: HDR.AS.SPR not defined\n');
                                 end;
@@ -1378,9 +1383,9 @@ end;
                 end;	% header 2
 
                 HDR.SPR = 1;
-                for k=1:HDR.NS,
+                for k = 1:HDR.NS,
                         if (HDR.AS.SPR(k)>0)
-                                HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
+				HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
                         end;
                 end;
                 
@@ -5450,6 +5455,7 @@ elseif strcmp(HDR.TYPE,'BCI2003_III');
 elseif strncmp(HDR.TYPE,'MAT',3),
         status = warning;
         warning('off');
+        tmp = whos('-file',HDR.FileName); 
         tmp = load('-mat',HDR.FileName);
         warning(status);
         
@@ -5517,6 +5523,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         	if isfield(tmp.mrk,'y')
         		[t,HDR.Classlabel] = max(tmp.mrk.y,[],1);
         		HDR.EVENT.TYP = HDR.Classlabel(:);
+        		HDR.TRIG = tmp.mrk.pos';
         	elseif isfield(tmp.mrk,'toe')
         		HDR.EVENT.TYP = tmp.mrk.toe';
 	        	HDR.Classlabel = tmp.mrk.toe;
@@ -5537,7 +5544,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 			HDR.H1 = tmp.cnt.hdr;
 			HDR = bni2hdr(HDR); 
 		end;
-        
+
         
         elseif flag.bbci,
         	HDR.SampleRate = tmp.nfo.fs; 
@@ -5682,7 +5689,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.TYPE = 'native'; 
                 clear tmp; 
 		
-                
+        
         elseif isfield(tmp,'Signal') & isfield(tmp,'Flashing') & isfield(tmp,'StimulusCode')
                 HDR.INFO = 'BCI competition 2005, dataset II (Albany)'; 
                 HDR.SampleRate = 240; 
@@ -7612,8 +7619,21 @@ elseif strncmp(HDR.TYPE,'FIF',3),
                 HDR.SampleRate = rawdata('sf');
                 HDR.AS.endpos = rawdata('samples');
                 [HDR.MinMax,HDR.Cal] = rawdata('range');
-                [HDR.Label, type, number] = channames(HDR.FileName);
-        
+                [HDR.Label, cIDX, number] = channames(HDR.FileName);
+                if (sum(cIDX==1)==122) 
+                	tmp = 'NM122coildef.mat';
+                	if exist(tmp,'file'), 
+                		load(tmp);
+                		HDR.ELEC.XYZ = VM(ceil([1:122]/2),:);
+                	end;	
+                elseif (sum(cIDX==1)==306) 
+                	tmp = 'NM306coildef.mat';
+	                if exist(tmp,'file'), 
+                		load(tmp);
+                		HDR.ELEC.XYZ = VM(ceil([1:306]/3),:);
+                	end;
+        	end; 
+        	
                 rawdata('goto',-inf);
                 [buf, status] = rawdata('next'); 
                 HDR.Dur = rawdata('t');
@@ -7633,6 +7653,18 @@ elseif strncmp(HDR.TYPE,'FIF',3),
                 return;
 	end;        
         
+
+elseif strcmp(HDR.TYPE,'CinC2007Challenge')
+	ix = find(HDR.s==10); 
+	d = str2double(HDR.data(ix(4)+1:end));	
+	HDR.data = d(:,7:end);
+	HDR.TYPE = 'native';
+	[HDR.SPR,HDR.NS]=size(HDR.data); 
+	HDR.NRec = 1; 
+	HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+	%%% FIXME 
+	% HDR.ELEC.XYZ
+	% HDR.PhysDimCode
 
 elseif strcmp(HDR.TYPE,'ET-MEG'),
 	HDR = fltopen(HDR);	
