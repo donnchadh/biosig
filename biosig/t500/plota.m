@@ -55,7 +55,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.57 2007-08-09 20:08:57 schloegl Exp $
+%	$Id: plota.m,v 1.58 2007-10-16 14:36:29 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -171,7 +171,7 @@ elseif strcmp(X.datatype,'MVAR'),
 		return;
 	end; 
 
-        [S,h,PDC,COH,DTF,DC,pCOH,dDTF,ffDTF, pCOH2, PDCF, coh, GGC, Af]=mvfreqz(X.B,X.A,X.C,f,Fs);
+        [S,h,PDC,COH,DTF,DC,pCOH,dDTF,ffDTF, pCOH2, PDCF, coh, GGC, Af, GPDC, GGC2]=mvfreqz(X.B,X.A,X.C,f,Fs);
         Phase = zeros(size(h));
         for k1=1:K1;
         for k2=1:K2;
@@ -240,17 +240,17 @@ elseif strcmp(X.datatype,'MVAR'),
                         range = [min(R(:)),max(R(:))];
                 elseif strcmpi(Mode,'PDC'),
                         R = PDC;
+                elseif strcmpi(Mode,'GPDC'),
+                        R = GPDC;
                 elseif strcmpi(Mode,'Coherence') | strcmpi(Mode,'COH'),
                         R = abs(COH);
-                elseif strcmpi(Mode,'iCOH'),
+                elseif strcmpi(Mode,'iCOH') | strcmpi(Mode,'imagCOH'),
                         R = imag(COH);
                         range = [-1,1];
                 elseif strcmpi(Mode,'pCOH'),
                         R = abs(pCOH);
                 elseif strcmpi(Mode,'pCOH2'),
                         R = abs(pCOH2);
-                elseif strcmpi(Mode,'imagCOH'),
-                        R = imag(COH);
                 elseif strcmpi(Mode,'coh'),
                         R = abs(coh);
                 elseif strcmpi(Mode,'icoh'),
@@ -259,14 +259,19 @@ elseif strcmp(X.datatype,'MVAR'),
                 elseif strcmpi(Mode,'GGC'),
                         R = log10(GGC);
                         range = [min(R(:)),max(R(:))];
-                        range = [1,max(R(:))];
+                        range = [.1,max(R(:))];
+                elseif strcmpi(Mode,'GGC2'),
+                        R = (GGC2);
+                        range = [min(R(:)),max(R(:))]
+                        %range = [.1,max(R(:))];
                 elseif strcmpi(Mode,'Af'),
                         R = abs(Af);
                         for k=1:size(R,1),
-                        	R(k,k,:)=NaN;
+%                        	R(k,k,:)=NaN;
                         end; 	
                         range = [min(R(:)),max(R(:))].*[.9,2]
                         %range = [[.001,1]*max(R(:))]
+                        range = [0,max(R(:))];
                         R = abs(Af);
                 elseif strcmpi(Mode,'Af1'),
                         R = log10(abs(Af))+3;
@@ -1564,12 +1569,13 @@ elseif strcmp(X.datatype,'MEAN+STD')
 
                         % Label y1-axis (mean)
                         temp = [floor(minmean/10) * 10 : 10 : ceil(maxmean/10) * 10];  % Label only ..., -20, -10, 0, 10, 20, 30, ...
+                        temp = [0:5]/5*(maxmean-minmean)+minmean; % [floor(minmean/10) * 10 : 10 : ceil(maxmean/10) * 10];  % Label only ..., -20, -10, 0, 10, 20, 30, ...
                         set(ax(1),'YTick',temp);
 
                         set(ax(1),'YTickLabel',temp);
 
                         % Label y2-axis (standard deviation)
-                        temp = [0 : 10 : ceil(maxstd/10) * 10];  % Label only 0, 10, 20, 30, ...
+                        temp = [0 : 5] * ceil(maxstd/5);  % Label only 0, 10, 20, 30, ...
                         set(ax(2),'YTick',temp);
 
                         set(ax(2),'YTickLabel',temp);

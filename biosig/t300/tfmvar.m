@@ -109,8 +109,8 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %	Cortical fuctional network organization from autoregressive modelling of loal field potential oscillations.
 %	Statistics in Medicine, doi: 10.1002/sim.2935 
 
-%	$Revision: 1.9 $
-%	$Id: tfmvar.m,v 1.9 2007-08-09 20:08:57 schloegl Exp $
+%	$Revision: 1.10 $
+%	$Id: tfmvar.m,v 1.10 2007-10-16 14:36:30 schloegl Exp $
 %	Copyright (C) 2004,2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -211,6 +211,7 @@ R.M.COH    = zeros(sz);
 R.M.coh    = zeros(sz);
 R.M.PDC    = zeros(sz);
 R.M.PDCF   = zeros(sz);
+R.M.GPDC   = zeros(sz);
 R.M.DTF    = zeros(sz);
 R.M.pCOH   = zeros(sz);
 R.M.dDTF   = zeros(sz);
@@ -262,7 +263,7 @@ for k1 = 1:size(T,2),
         X.C = PE(:,MOP*size(S0,1)+(1:size(S0,1)));
         X.datatype = 'MVAR';
         
-        [S, h, PDC, COH, DTF, DC, pCOH, dDTF, ffDTF, pCOH2, PDCF, coh,GGC,Af] = mvfreqz(X.B,X.A,X.C,f,Fs);
+        [S, h, PDC, COH, DTF, DC, pCOH, dDTF, ffDTF, pCOH2, PDCF, coh, GGC, Af, GPDC] = mvfreqz(X.B,X.A,X.C,f,Fs);
 
 	R{k0}.M.dT(:,:,:,k1)     = angle(S)./reshape(repmat(2*pi*f(:),[m*m,1]),[m,m,length(f)]);
         R{k0}.M.phaseS(:,:,:,k1) = angle(S);
@@ -337,7 +338,7 @@ for k1 = 1:size(T,2),
                         X.C = PE(:,MOP*size(S0,1)+(1:size(S0,1)));
                         X.datatype = 'MVAR';
                         
-                        [S(:,:,:,k2),  h(:,:,:,k2), PDC(:,:,:,k2), COH(:,:,:,k2), DTF(:,:,:,k2), DC(:,:,1,k2), pCOH(:,:,:,k2), dDTF(:,:,:,k2), ffDTF(:,:,:,k2), pCOH2(:,:,:,k2),PDCF(:,:,:,k2), coh(:,:,:,k2), GGC(:,:,:,k2), Af(:,:,:,k2)] = mvfreqz(X.B,X.A,X.C,f,Fs);
+                        [S(:,:,:,k2),  h(:,:,:,k2), PDC(:,:,:,k2), COH(:,:,:,k2), DTF(:,:,:,k2), DC(:,:,1,k2), pCOH(:,:,:,k2), dDTF(:,:,:,k2), ffDTF(:,:,:,k2), pCOH2(:,:,:,k2),PDCF(:,:,:,k2), coh(:,:,:,k2), GGC(:,:,:,k2), Af(:,:,:,k2), GPDC(:,:,:,k2)] = mvfreqz(X.B,X.A,X.C,f,Fs);
 
 %                        Y(:,:,:,k1)  = h(:,:,:,k2).*repmat(sqrtm(X.C/(2*pi*Fs)),[1,1,length(f)]);   % complex amplitude spectra (auto- and cross-spectra)
 
