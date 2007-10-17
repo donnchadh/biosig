@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.110 2007-10-17 15:06:03 schloegl Exp $
+    $Id: biosig.c,v 1.111 2007-10-17 19:47:14 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -1256,8 +1256,10 @@ if (!strncmp(MODE,"r",1))
     	}
     	else if ((hdr->TYPE == EDF) | (hdr->TYPE == BDF))	{
     		strncpy(hdr->Patient.Id,Header1+8,min(MAX_LENGTH_PID,80));
-    		strncpy(hdr->ID.Recording,(const char*)Header1+88,min(80,MAX_LENGTH_RID));
-
+    		memcpy(hdr->ID.Recording,Header1+88,min(80,MAX_LENGTH_RID));
+		hdr->ID.Recording[MAX_LENGTH_RID]=0;
+fprintf(stdout,"[101]: %s\n      %s\n",hdr->Patient.Id,hdr->ID.Recording);
+		
 	    	hdr->HeadLen 	= atoi(strncpy(tmp,Header1+184,8));
 	    	hdr->NRec 	= atoi(strncpy(tmp,Header1+236,8));
 	    	Dur 		= atoi(strncpy(tmp,Header1+244,8));
@@ -1267,37 +1269,51 @@ if (!strncmp(MODE,"r",1))
 			hdr->Dur[0] = lround(Dur*1e7); 
 			hdr->Dur[1] = 10000000L; 
 		}
-    		tm_time.tm_sec  = atoi(strncpy(tmp,Header1+168+14,2)); 
-    		tm_time.tm_min  = atoi(strncpy(tmp,Header1+168+11,2)); 
-    		tm_time.tm_hour = atoi(strncpy(tmp,Header1+168+8,2)); 
-    		tm_time.tm_mday = atoi(strncpy(tmp,Header1+168,2)); 
-    		tm_time.tm_mon  = atoi(strncpy(tmp,Header1+168+3,2)); 
-    		tm_time.tm_year = atoi(strncpy(tmp,Header1+168+6,2)); 
-    		tm_time.tm_year+= (tm_time.tm_year<85)*100;
+		memset(tmp,0,5); 	
+		strncpy(tmp,Header1+168+14,2); 
+    		tm_time.tm_sec  = atoi(tmp); 
+    		strncpy(tmp,Header1+168+11,2);
+    		tm_time.tm_min  = atoi(tmp);
+    		strncpy(tmp,Header1+168+8,2); 
+    		tm_time.tm_hour = atoi(tmp);
+    		strncpy(tmp,Header1+168,2); 
+    		tm_time.tm_mday = atoi(tmp);
+    		strncpy(tmp,Header1+168+3,2); 
+    		tm_time.tm_mon  = atoi(tmp)-1;
+    		strncpy(tmp,Header1+168+6,2); 
+    		tm_time.tm_year = atoi(tmp); 
+    		tm_time.tm_year+= (tm_time.tm_year < 85 ? 100 : 0);
     		tm_time.tm_gmtoff = 0;
-		hdr->T0 = tm_time2gdf_time(&tm_time); 
 
 		if (!strncmp(Header1+192,"EDF+",4)) {
 	    		strtok(hdr->Patient.Id," ");
 	    		ptr_str = strtok(NULL," ");
 	    		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
-	    		ptr_str = strtok(NULL," ");	// birthday
+	    		ptr_str = strtok(NULL," ");	// startdate
 	    		char *tmpptr = strtok(NULL," ");
 	    		if (!hdr->FLAG.ANONYMOUS) {
-		    		strncpy(hdr->Patient.Name,tmpptr,Header1+8-tmpptr);
+		    		strcpy(hdr->Patient.Name,tmpptr);
 		    	}	
-
 			if (strlen(ptr_str)==11) {
-		    		tm_time.tm_mday = atoi(strtok(ptr_str,"-")); 
+				struct tm t1;
+		    		t1.tm_mday = atoi(strtok(ptr_str,"-")); 
 		    		strcpy(tmp,strtok(NULL,"-"));
-		    		tm_time.tm_year = atoi(strtok(NULL,"-"))-1900; 
-		    		tm_time.tm_mon  = !strcmp(tmp,"Feb")+!strcmp(tmp,"Mar")*2+!strcmp(tmp,"Apr")*3+!strcmp(tmp,"May")*4+!strcmp(tmp,"Jun")*5+!strcmp(tmp,"Jul")*6+!strcmp(tmp,"Aug")*7+!strcmp(tmp,"Sep")*8+!strcmp(tmp,"Oct")*9+!strcmp(tmp,"Nov")*10+!strcmp(tmp,"Dec")*11;
-		    		tm_time.tm_sec  = 0; 
-		    		tm_time.tm_min  = 0; 
-		    		tm_time.tm_hour = 12; 
-		    		hdr->Patient.Birthday = t_time2gdf_time(mktime(&tm_time));
+		    		t1.tm_year = atoi(strtok(NULL,"-")) - 1900; 
+		    		t1.tm_mon  = !strcmp(tmp,"Feb")+!strcmp(tmp,"Mar")*2+!strcmp(tmp,"Apr")*3+!strcmp(tmp,"May")*4+!strcmp(tmp,"Jun")*5+!strcmp(tmp,"Jul")*6+!strcmp(tmp,"Aug")*7+!strcmp(tmp,"Sep")*8+!strcmp(tmp,"Oct")*9+!strcmp(tmp,"Nov")*10+!strcmp(tmp,"Dec")*11;
+		    		t1.tm_sec  = 0; 
+		    		t1.tm_min  = 0; 
+		    		t1.tm_hour = 12; 
+		    		hdr->Patient.Birthday = t_time2gdf_time(mktime(&t1));
 		    	}
+
+	    		strtok(hdr->ID.Recording," ");
+	    		ptr_str = strtok(NULL," ");
+	    		tm_time.tm_mday = atoi(strtok(ptr_str,"-")); 
+	    		strcpy(tmp,strtok(NULL,"-"));
+	    		tm_time.tm_year = atoi(strtok(NULL,"-")) - 1900; 
+	    		tm_time.tm_mon  = !strcmp(tmp,"Feb")+!strcmp(tmp,"Mar")*2+!strcmp(tmp,"Apr")*3+!strcmp(tmp,"May")*4+!strcmp(tmp,"Jun")*5+!strcmp(tmp,"Jul")*6+!strcmp(tmp,"Aug")*7+!strcmp(tmp,"Sep")*8+!strcmp(tmp,"Oct")*9+!strcmp(tmp,"Nov")*10+!strcmp(tmp,"Dec")*11;
 		}    	
+		hdr->T0 = tm_time2gdf_time(&tm_time); 
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
@@ -1509,8 +1525,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	else if (hdr->TYPE==CFWB) {
 	    	hdr->SampleRate = 1/l_endian_f64(*(double*)(Header1+8));
-	    	tm_time.tm_year = l_endian_u32(*(uint32_t*)(Header1+16));
-	    	tm_time.tm_mon  = l_endian_u32(*(uint32_t*)(Header1+20));
+	    	tm_time.tm_year = l_endian_u32(*(uint32_t*)(Header1+16)-1900);
+	    	tm_time.tm_mon  = l_endian_u32(*(uint32_t*)(Header1+20)-1);
 	    	tm_time.tm_mday = l_endian_u32(*(uint32_t*)(Header1+24));
 	    	tm_time.tm_hour = l_endian_u32(*(uint32_t*)(Header1+28));
 	    	tm_time.tm_min  = l_endian_u32(*(uint32_t*)(Header1+32));
@@ -1563,7 +1579,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		tm_time.tm_min  = atoi(strncpy(tmp,Header2+13,2)); 
     		tm_time.tm_hour = atoi(strncpy(tmp,Header2+10,2)); 
     		tm_time.tm_mday = atoi(strncpy(tmp,Header2,2)); 
-    		tm_time.tm_mon  = atoi(strncpy(tmp,Header2+3,2)); 
+    		tm_time.tm_mon  = atoi(strncpy(tmp,Header2+3,2)-1); 
     		tm_time.tm_year = atoi(strncpy(tmp,Header2+6,2)); 
     		tm_time.tm_gmtoff = 0;
 	    	if (tm_time.tm_year<=80)    	tm_time.tm_year += 2000;
@@ -1609,8 +1625,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		if      (hdr->VERSION==2 || hdr->VERSION==3)	GDFTYP = 3;	//int32
     		else if (hdr->VERSION==4 || hdr->VERSION==5)	GDFTYP = 16;	//float
     		else if (hdr->VERSION==6 || hdr->VERSION==7)	GDFTYP = 17;	// double
-	    	tm_time.tm_year = b_endian_u16(*(uint16_t*)(Header1+4));
-	    	tm_time.tm_mon  = b_endian_u16(*(uint16_t*)(Header1+6));
+	    	tm_time.tm_year = b_endian_u16(*(uint16_t*)(Header1+4) - 1900);
+	    	tm_time.tm_mon  = b_endian_u16(*(uint16_t*)(Header1+6) - 1);
 	    	tm_time.tm_mday = b_endian_u16(*(uint16_t*)(Header1+8));
 	    	tm_time.tm_hour = b_endian_u16(*(uint16_t*)(Header1+10));
 	    	tm_time.tm_min  = b_endian_u16(*(uint16_t*)(Header1+12));
@@ -2024,7 +2040,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				curPos += FREAD(buf,1,len,hdr);
 				tm_time.tm_year = *(uint16_t*)(buf+3);
 				if (hdr->FLAG.SWAP) tm_time.tm_year = bswap_16(tm_time.tm_year);
-		    		tm_time.tm_mon  = buf[5]; 
+		    		tm_time.tm_year-= 1900;
+		    		tm_time.tm_mon  = buf[5]-1; 
 		    		tm_time.tm_mday = buf[6]; 
 		    		tm_time.tm_hour = 12; 
 		    		tm_time.tm_min  = 0; 
@@ -2042,7 +2059,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				curPos += FREAD(buf,1,len,hdr);
 				tm_time.tm_year = *(uint16_t*)buf;
 				if (hdr->FLAG.SWAP) tm_time.tm_year = bswap_16(tm_time.tm_year);
-		    		tm_time.tm_mon  = buf[2]; 
+				tm_time.tm_year-= 1900;
+		    		tm_time.tm_mon  = buf[2] - 1; 
 		    		tm_time.tm_mday = buf[3]; 
 		    		tm_time.tm_hour = buf[4]; 
 		    		tm_time.tm_min  = buf[5]; 
@@ -2183,8 +2201,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		
 		tt = gdf_time2t_time(hdr->T0); 
 		struct tm *t = gmtime(&tt);
-    		*(int32_t*)(Header1+16) = l_endian_u32(t->tm_year);
-	    	*(int32_t*)(Header1+20) = l_endian_u32(t->tm_mon);
+    		*(int32_t*)(Header1+16) = l_endian_u32(t->tm_year+1900);
+	    	*(int32_t*)(Header1+20) = l_endian_u32(t->tm_mon+1);
 	    	*(int32_t*)(Header1+24) = l_endian_u32(t->tm_mday);
 	    	*(int32_t*)(Header1+28) = l_endian_u32(t->tm_hour);
 	    	*(int32_t*)(Header1+32) = l_endian_u32(t->tm_min);
@@ -2273,7 +2291,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (hdr->VERSION<1.90) { 
 			tt = gdf_time2t_time(hdr->T0); 
 			struct tm *t = gmtime(&tt);
-			sprintf(tmp,"%04i%02i%02i%02i%02i%02i00",t->tm_year+1900,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
+			sprintf(tmp,"%04i%02i%02i%02i%02i%02i00",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
 			memcpy(Header1+168,tmp,max(strlen(tmp),16));
 			*(uint32_t*) (Header1+184) = l_endian_u32(hdr->HeadLen);
 
@@ -2590,8 +2608,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		double tmpf64 = (hdr->T0 - hdr->Patient.Birthday); 
 		tmpf64 -= 365.25*floor(tmpf64/365.25);
 		*(uint16_t*)(Header1+curPos+1) = b_endian_u16((uint16_t)tmpf64); 
-		*(uint16_t*)(Header1+curPos+3) = b_endian_u16(t->tm_year); 
-		*(Header1+curPos+5) = (t->tm_mon); 
+		*(uint16_t*)(Header1+curPos+3) = b_endian_u16(t->tm_year+1900); 
+		*(Header1+curPos+5) = (t->tm_mon+1); 
 		*(Header1+curPos+6) = (t->tm_mday); 
 		curPos += len; 
 
