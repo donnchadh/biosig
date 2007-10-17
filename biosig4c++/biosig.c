@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.108 2007-09-26 07:54:03 schloegl Exp $
+    $Id: biosig.c,v 1.109 2007-10-17 14:36:16 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -714,7 +714,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->AS.Header = NULL;
 
       	hdr->TYPE = GDF; 
-      	hdr->VERSION = 1.94;
+      	hdr->VERSION = 1.99;
       	hdr->AS.rawdata = (uint8_t*) malloc(0);
       	hdr->NRec = 0; 
       	hdr->NS = NS;	
@@ -2219,61 +2219,79 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			*(double*)(Header2+96*k+88) = l_endian_f64(hdr->CHANNEL[k].PhysMin);
 		}
 	}
-    	else if (hdr->TYPE==GDF) {	
+    	else if (hdr->TYPE==GDF || hdr->TYPE==GDF1) {	
 	     	hdr->HeadLen = (hdr->NS+1)*256;
 	    	hdr->AS.Header = (uint8_t*) malloc(hdr->HeadLen);
 	    	Header2 = (char*)Header1+256; 
 
 		memset(Header1,0,hdr->HeadLen);
 		hdr->VERSION = 1.99;
+		if (hdr->TYPE==GDF1)	hdr->VERSION = 1.25;
 	     	sprintf(Header1,"GDF %4.2f",hdr->VERSION);
 	     	
+		uint16_t maxlen=66; 
+		if (hdr->VERSION<1.90) maxlen=80;
 		if (strlen(hdr->Patient.Id) > 0) {
 			for (k=0; hdr->Patient.Id[k]; k++)
 				if (isspace(hdr->Patient.Id[k]))
 					hdr->Patient.Id[k] = '_';
 					
-	     		strncat(Header1+8, hdr->Patient.Id, 66);
+	     		strncat(Header1+8, hdr->Patient.Id, maxlen);
 		} 
 		else     	
-		     	strncat(Header1+8, "X", 66);
-	     	strncat(Header1+8, " ",   66);
+		     	strncat(Header1+8, "X", maxlen);
+	     	strncat(Header1+8, " ", maxlen);
 		if (!hdr->FLAG.ANONYMOUS && (hdr->Patient.Name!=NULL)) 
-		     	strncat(Header1+8, hdr->Patient.Name, 66);
+		     	strncat(Header1+8, hdr->Patient.Name, maxlen);
 		else     	
-		     	strncat(Header1+8, "X", 66);
+		     	strncat(Header1+8, "X", maxlen);
 
-	     	Header1[84] = (hdr->Patient.Smoking%4) + ((hdr->Patient.AlcoholAbuse%4)<<2) + ((hdr->Patient.DrugAbuse%4)<<4) + ((hdr->Patient.Medication%4)<<6);
-	     	Header1[85] =  hdr->Patient.Weight;
-	     	Header1[86] =  hdr->Patient.Height;
-	     	Header1[87] = (hdr->Patient.Sex%4) + ((hdr->Patient.Handedness%4)<<2) + ((hdr->Patient.Impairment.Visual%4)<<4);
-
+		if (hdr->VERSION>1.90) { 
+	     		Header1[84] = (hdr->Patient.Smoking%4) + ((hdr->Patient.AlcoholAbuse%4)<<2) + ((hdr->Patient.DrugAbuse%4)<<4) + ((hdr->Patient.Medication%4)<<6);
+	     		Header1[85] =  hdr->Patient.Weight;
+	     		Header1[86] =  hdr->Patient.Height;
+	     		Header1[87] = (hdr->Patient.Sex%4) + ((hdr->Patient.Handedness%4)<<2) + ((hdr->Patient.Impairment.Visual%4)<<4);
+		}
+		
 	     	len = strlen(hdr->ID.Recording);
 	     	memcpy(Header1+ 88,  hdr->ID.Recording, min(len,80));
-		memcpy(Header1+152, &hdr->LOC, 16);  
-		*(uint32_t*) (Header1+152) = l_endian_u32( *(uint32_t*) (Header1+152) );
-		*(uint32_t*) (Header1+156) = l_endian_u32( *(uint32_t*) (Header1+156) );
-		*(uint32_t*) (Header1+160) = l_endian_u32( *(uint32_t*) (Header1+160) );
-		*(uint32_t*) (Header1+164) = l_endian_u32( *(uint32_t*) (Header1+164) );
-	
-		//memcpy(Header1+168, &hdr->T0, 8); 
-		*(uint64_t*) (Header1+168) = l_endian_u64(hdr->T0);
-		//memcpy(Header1+176, &hdr->Patient.Birthday, 8); 
-		*(uint64_t*) (Header1+176) = l_endian_u64(hdr->Patient.Birthday);
-		// *(uint16_t*)(Header1+184) = (hdr->HeadLen>>8)+(hdr->HeadLen%256>0); 
-		*(uint16_t*) (Header1+184) = l_endian_u16(hdr->HeadLen>>8); 
+		if (hdr->VERSION>1.90) { 
+			memcpy(Header1+152, &hdr->LOC, 16);  
+			*(uint32_t*) (Header1+152) = l_endian_u32( *(uint32_t*) (Header1+152) );
+			*(uint32_t*) (Header1+156) = l_endian_u32( *(uint32_t*) (Header1+156) );
+			*(uint32_t*) (Header1+160) = l_endian_u32( *(uint32_t*) (Header1+160) );
+			*(uint32_t*) (Header1+164) = l_endian_u32( *(uint32_t*) (Header1+164) );
+		}
 		
-		memcpy(Header1+192, &hdr->ID.Equipment, 8);
+		if (hdr->VERSION<1.90) { 
+			tt = gdf_time2t_time(hdr->T0); 
+			struct tm *t = gmtime(&tt);
+			sprintf(tmp,"%04i%02i%02i%02i%02i%02i00",t->tm_year,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
+			memcpy(Header1+168,tmp,max(strlen(tmp),16));
+			*(uint32_t*) (Header1+184) = l_endian_u32(hdr->HeadLen);
 
-		memcpy(Header1+200, &hdr->IPaddr, 6);
-		memcpy(Header1+206, &hdr->Patient.Headsize, 6);
-		*(float*) (Header1+212) = l_endian_f32(hdr->ELEC.REF[0]);
-		*(float*) (Header1+216) = l_endian_f32(hdr->ELEC.REF[1]);
-		*(float*) (Header1+220) = l_endian_f32(hdr->ELEC.REF[2]);
-		*(float*) (Header1+224) = l_endian_f32(hdr->ELEC.GND[0]);
-		*(float*) (Header1+228) = l_endian_f32(hdr->ELEC.GND[1]);
-		*(float*) (Header1+232) = l_endian_f32(hdr->ELEC.GND[2]);
-
+			memcpy(Header1+192, &hdr->ID.Equipment, 8);
+			// FIXME: 200: LabId, 208 TechId, 216, Serial No // 
+		}
+		else {
+			//memcpy(Header1+168, &hdr->T0, 8); 
+			*(uint64_t*) (Header1+168) = l_endian_u64(hdr->T0);
+			//memcpy(Header1+176, &hdr->Patient.Birthday, 8); 
+			*(uint64_t*) (Header1+176) = l_endian_u64(hdr->Patient.Birthday);
+			// *(uint16_t*)(Header1+184) = (hdr->HeadLen>>8)+(hdr->HeadLen%256>0); 
+			*(uint32_t*) (Header1+184) = l_endian_u32(hdr->HeadLen>>8);
+		
+			memcpy(Header1+192, &hdr->ID.Equipment, 8);
+			memcpy(Header1+200, &hdr->IPaddr, 6);
+			memcpy(Header1+206, &hdr->Patient.Headsize, 6);
+			*(float*) (Header1+212) = l_endian_f32(hdr->ELEC.REF[0]);
+			*(float*) (Header1+216) = l_endian_f32(hdr->ELEC.REF[1]);
+			*(float*) (Header1+220) = l_endian_f32(hdr->ELEC.REF[2]);
+			*(float*) (Header1+224) = l_endian_f32(hdr->ELEC.GND[0]);
+			*(float*) (Header1+228) = l_endian_f32(hdr->ELEC.GND[1]);
+			*(float*) (Header1+232) = l_endian_f32(hdr->ELEC.GND[2]);
+		}
+		
 		*(uint64_t*) (Header1+236) = l_endian_u64(hdr->NRec);
 		/* Duration is expressed as an fraction of integers */ 
 		if (ceil(hdr->SampleRate)!=hdr->SampleRate)
@@ -2303,8 +2321,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		     	memcpy(Header2+80*k + 16*hdr->NS, hdr->CHANNEL[k].Transducer, min(len,80));
 		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
 		     	len = strlen(tmp);
-
-		     	if (hdr->VERSION<1.9)
+		     	if (hdr->VERSION < 1.9)
 		     		memcpy(Header2+ 8*k + 96*hdr->NS, tmp, min(8,len));
 		     	else {
 		     		memcpy(Header2+ 6*k + 96*hdr->NS, tmp, min(6,len));
@@ -2313,20 +2330,26 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 		     	*(double*)(Header2 + 8*k + 104*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMin);
 		     	*(double*)(Header2 + 8*k + 112*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMax);
-		     	*(double*)(Header2 + 8*k + 120*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].DigMin);
-		     	*(double*)(Header2 + 8*k + 128*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].DigMax);
+		     	if (hdr->VERSION < 1.9) {
+			     	*(int64_t*)(Header2 + 8*k + 120*hdr->NS)   = l_endian_i64(hdr->CHANNEL[k].DigMin);
+			     	*(int64_t*)(Header2 + 8*k + 128*hdr->NS)   = l_endian_i64(hdr->CHANNEL[k].DigMax);
+			     	// FIXME // memcpy(Header2 + 80*k + 136*hdr->NS,hdr->CHANNEL[k].PreFilt,max(80,strlen(hdr->CHANNEL[k].PreFilt)));
+			}     	
+			else {
+			     	*(double*)(Header2 + 8*k + 120*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].DigMin);
+			     	*(double*)(Header2 + 8*k + 128*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].DigMax);
+			     	*(float*) (Header2+ 4*k + 204*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].LowPass);
+			     	*(float*) (Header2+ 4*k + 208*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].HighPass);
+			     	*(float*) (Header2+ 4*k + 212*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].Notch);
 
-		     	*(float*) (Header2+ 4*k + 204*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].LowPass);
-		     	*(float*) (Header2+ 4*k + 208*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].HighPass);
-		     	*(float*) (Header2+ 4*k + 212*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].Notch);
+				*(float*) (Header2+ 4*k + 224*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].XYZ[0]);
+				*(float*) (Header2+ 4*k + 228*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].XYZ[1]);
+				*(float*) (Header2+ 4*k + 232*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].XYZ[2]);
+
+	     			Header2[k+236*hdr->NS] = (uint8_t)ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
+		     	}
 		     	*(uint32_t*) (Header2+ 4*k + 216*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].SPR);
 		     	*(uint32_t*) (Header2+ 4*k + 220*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].GDFTYP);
-
-			*(float*) (Header2+ 4*k + 224*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].XYZ[0]);
-			*(float*) (Header2+ 4*k + 228*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].XYZ[1]);
-			*(float*) (Header2+ 4*k + 232*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].XYZ[2]);
-
-	     		Header2[k+236*hdr->NS] = (uint8_t)ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
 		}
 	    	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(int32_t));
 		hdr->AS.bi[0] = 0;

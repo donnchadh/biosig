@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.68 2007-09-26 07:54:03 schloegl Exp $
+% $Id: biosig.h,v 1.69 2007-10-17 14:36:16 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -170,7 +170,7 @@ enum FileFormat {
 	BKR, BCI2000, BDF, BMP, BrainVision, BZ2, 
 	CDF, CFWB, CNT, 
 	DICOM, DEMG, EDF, EEProbe, EGI, EVENT, EXIF, 
-	FAMOS, FEF, FITS, FLAC, GDF, 
+	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GZIP, HL7aECG, JPEG, 
 	Matlab, MFER, MIDI, NetCDF, NEX1, OGG, 
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 

@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.26 2007-09-13 12:51:53 schloegl Exp $
+    $Id: save2gdf.c,v 1.27 2007-10-17 14:36:16 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -87,6 +87,8 @@ int main(int argc, char **argv){
     	else if (!strncmp(argv[k],"-f=",3))  	{
     	 	if (!strcmp(argv[k],"-f=GDF"))
 			TARGET_TYPE=GDF;
+    		else if (!strcmp(argv[k],"-f=GDF1"))
+			TARGET_TYPE=GDF1;
     		else if (!strcmp(argv[k],"-f=EDF"))
 			TARGET_TYPE=EDF;
     		else if (!strcmp(argv[k],"-f=BDF"))
