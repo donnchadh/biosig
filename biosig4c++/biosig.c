@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.109 2007-10-17 14:36:16 schloegl Exp $
+    $Id: biosig.c,v 1.110 2007-10-17 15:06:03 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -1133,13 +1133,20 @@ if (!strncmp(MODE,"r",1))
 	    		if (!hdr->FLAG.ANONYMOUS) {
 		    		strncpy(hdr->Patient.Name,tmpptr,Header1+8-tmpptr);
 		    	}	
-	    		
-	    		tm_time.tm_sec  = atoi(strncpy(tmp,Header1+168+12,2)); 
-	    		tm_time.tm_min  = atoi(strncpy(tmp,Header1+168+10,2)); 
-	    		tm_time.tm_hour = atoi(strncpy(tmp,Header1+168+8,2)); 
-	    		tm_time.tm_mday = atoi(strncpy(tmp,Header1+168+6,2)); 
-	    		tm_time.tm_mon  = atoi(strncpy(tmp,Header1+168+4,2)); 
-	    		tm_time.tm_year = atoi(strncpy(tmp,Header1+168,4)); 
+
+			memset(tmp,0,5);
+			strncpy(tmp,Header1+168+12,2); 	    		 
+	    		tm_time.tm_sec  = atoi(tmp); 
+			strncpy(tmp,Header1+168+10,2);	    		 
+	    		tm_time.tm_min  = atoi(tmp); 
+			strncpy(tmp,Header1+168+ 8,2);	    		 
+	    		tm_time.tm_hour = atoi(tmp); 
+			strncpy(tmp,Header1+168+ 6,2);	    		 
+	    		tm_time.tm_mday = atoi(tmp); 
+			strncpy(tmp,Header1+168+ 4,2);	    		 
+	    		tm_time.tm_mon  = atoi(tmp)-1;
+			strncpy(tmp,Header1+168   ,4);	    		 
+	    		tm_time.tm_year = atoi(tmp)-1900; 
 	    		tm_time.tm_gmtoff = 0;
 			hdr->T0 = t_time2gdf_time(mktime(&tm_time)); 
 		    	hdr->HeadLen 	= l_endian_u64( *(uint64_t*) (Header1+184) ); 
@@ -2266,7 +2273,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (hdr->VERSION<1.90) { 
 			tt = gdf_time2t_time(hdr->T0); 
 			struct tm *t = gmtime(&tt);
-			sprintf(tmp,"%04i%02i%02i%02i%02i%02i00",t->tm_year,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
+			sprintf(tmp,"%04i%02i%02i%02i%02i%02i00",t->tm_year+1900,t->tm_mon,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
 			memcpy(Header1+168,tmp,max(strlen(tmp),16));
 			*(uint32_t*) (Header1+184) = l_endian_u32(hdr->HeadLen);
 
