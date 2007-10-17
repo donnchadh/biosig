@@ -1,6 +1,5 @@
 /*
-
-    $Id: biosig.c,v 1.111 2007-10-17 19:47:14 schloegl Exp $
+    $Id: biosig.c,v 1.112 2007-10-17 20:47:03 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -1258,7 +1257,6 @@ if (!strncmp(MODE,"r",1))
     		strncpy(hdr->Patient.Id,Header1+8,min(MAX_LENGTH_PID,80));
     		memcpy(hdr->ID.Recording,Header1+88,min(80,MAX_LENGTH_RID));
 		hdr->ID.Recording[MAX_LENGTH_RID]=0;
-fprintf(stdout,"[101]: %s\n      %s\n",hdr->Patient.Id,hdr->ID.Recording);
 		
 	    	hdr->HeadLen 	= atoi(strncpy(tmp,Header1+184,8));
 	    	hdr->NRec 	= atoi(strncpy(tmp,Header1+236,8));
@@ -1294,6 +1292,7 @@ fprintf(stdout,"[101]: %s\n      %s\n",hdr->Patient.Id,hdr->ID.Recording);
 	    		if (!hdr->FLAG.ANONYMOUS) {
 		    		strcpy(hdr->Patient.Name,tmpptr);
 		    	}	
+fprintf(stdout,"[404] %i %s\n",strlen(ptr_str),ptr_str);		
 			if (strlen(ptr_str)==11) {
 				struct tm t1;
 		    		t1.tm_mday = atoi(strtok(ptr_str,"-")); 
@@ -1304,6 +1303,8 @@ fprintf(stdout,"[101]: %s\n      %s\n",hdr->Patient.Id,hdr->ID.Recording);
 		    		t1.tm_min  = 0; 
 		    		t1.tm_hour = 12; 
 		    		hdr->Patient.Birthday = t_time2gdf_time(mktime(&t1));
+fprintf(stdout,"[404] %s\n",asctime(&t1));		
+
 		    	}
 
 	    		strtok(hdr->ID.Recording," ");
@@ -1525,12 +1526,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	else if (hdr->TYPE==CFWB) {
 	    	hdr->SampleRate = 1/l_endian_f64(*(double*)(Header1+8));
-	    	tm_time.tm_year = l_endian_u32(*(uint32_t*)(Header1+16)-1900);
-	    	tm_time.tm_mon  = l_endian_u32(*(uint32_t*)(Header1+20)-1);
-	    	tm_time.tm_mday = l_endian_u32(*(uint32_t*)(Header1+24));
-	    	tm_time.tm_hour = l_endian_u32(*(uint32_t*)(Header1+28));
-	    	tm_time.tm_min  = l_endian_u32(*(uint32_t*)(Header1+32));
-	    	tm_time.tm_sec  = (int)l_endian_f64(*(double*)(Header1+36));
+	    	tm_time.tm_year = l_endian_i32(*(int32_t*)(Header1+16)) - 1900;
+	    	tm_time.tm_mon  = l_endian_i32(*(int32_t*)(Header1+20)) - 1;
+	    	tm_time.tm_mday = l_endian_i32(*(int32_t*)(Header1+24));
+	    	tm_time.tm_hour = l_endian_i32(*(int32_t*)(Header1+28));
+	    	tm_time.tm_min  = l_endian_i32(*(int32_t*)(Header1+32));
+	    	tm_time.tm_sec  = l_endian_f64(*(double*) (Header1+36));
     		tm_time.tm_gmtoff = 0;
     		hdr->T0 	= tm_time2gdf_time(&tm_time);
 	    	// = *(double*)(Header1+44);
@@ -2201,16 +2202,16 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		
 		tt = gdf_time2t_time(hdr->T0); 
 		struct tm *t = gmtime(&tt);
-    		*(int32_t*)(Header1+16) = l_endian_u32(t->tm_year+1900);
-	    	*(int32_t*)(Header1+20) = l_endian_u32(t->tm_mon+1);
-	    	*(int32_t*)(Header1+24) = l_endian_u32(t->tm_mday);
-	    	*(int32_t*)(Header1+28) = l_endian_u32(t->tm_hour);
-	    	*(int32_t*)(Header1+32) = l_endian_u32(t->tm_min);
-	    	*(double*)(Header1+36)  = l_endian_f64(t->tm_sec);
-	    	*(double*)(Header1+44)  = l_endian_f64(0.0);	// pretrigger time 
-	    	*(int32_t*)(Header1+52) = l_endian_u32(hdr->NS);
+    		*(uint32_t*)(Header1+16) = l_endian_u32(t->tm_year + 1900);
+	    	*(uint32_t*)(Header1+20) = l_endian_u32(t->tm_mon + 1);
+	    	*(uint32_t*)(Header1+24) = l_endian_u32(t->tm_mday);
+	    	*(uint32_t*)(Header1+28) = l_endian_u32(t->tm_hour);
+	    	*(uint32_t*)(Header1+32) = l_endian_u32(t->tm_min);
+	    	*(double*) (Header1+36)  = l_endian_f64(t->tm_sec);
+	    	*(double*) (Header1+44)  = l_endian_f64(0.0);	// pretrigger time 
+	    	*(uint32_t*)(Header1+52) = l_endian_u32(hdr->NS);
 	    	hdr->NRec *= hdr->SPR; hdr->SPR = 1;
-	    	*(int32_t*)(Header1+56)	= l_endian_u32(hdr->NRec); // number of samples 
+	    	*(uint32_t*)(Header1+56)	= l_endian_u32(hdr->NRec); // number of samples 
 	    	*(int32_t*)(Header1+60)	= l_endian_i32(0);	// 1: time channel
 
 	    	int GDFTYP = 3; // 1:double, 2:float, 3: int16; see CFWB_GDFTYP too. 
@@ -2403,6 +2404,11 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",gmtime(&tt));
 		else strcpy(tmp,"X");	
 		
+		if (strlen(hdr->Patient.Id) > 0) 
+			for (k=0; hdr->Patient.Id[k]; k++)
+				if (isspace(hdr->Patient.Id[k]))
+					hdr->Patient.Id[k] = '_';
+
 		if (!hdr->FLAG.ANONYMOUS)
 			sprintf(cmd,"%s %c %s %s",hdr->Patient.Id,GENDER[hdr->Patient.Sex],tmp,hdr->Patient.Name);
 		else	
