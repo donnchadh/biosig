@@ -109,8 +109,8 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %	Cortical fuctional network organization from autoregressive modelling of loal field potential oscillations.
 %	Statistics in Medicine, doi: 10.1002/sim.2935 
 
-%	$Revision: 1.10 $
-%	$Id: tfmvar.m,v 1.10 2007-10-16 14:36:30 schloegl Exp $
+%	$Revision: 1.11 $
+%	$Id: tfmvar.m,v 1.11 2007-10-17 09:20:39 schloegl Exp $
 %	Copyright (C) 2004,2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -276,6 +276,7 @@ for k1 = 1:size(T,2),
         R{k0}.M.logh(:,:,:,k1)   = log(abs(h));
         R{k0}.M.PDC(:,:,:,k1)    = PDC;
         R{k0}.M.PDCF(:,:,:,k1)   = PDCF;
+        R{k0}.M.GPDC(:,:,:,k1)   = GPDC;
         R{k0}.M.COH(:,:,:,k1)    = abs(COH);
         R{k0}.M.coh(:,:,:,k1)    = abs(coh);
         R{k0}.M.iCOH(:,:,:,k1)   = imag(COH);
@@ -370,6 +371,7 @@ for k1 = 1:size(T,2),
                 [R{k0}.SE.logh(:,:,:,k1),   R{k0}.M.logh(:,:,:,k1)  ] = sem(log(abs(h)),4);
                 [R{k0}.SE.PDC(:,:,:,k1),    R{k0}.M.PDC(:,:,:,k1)   ] = sem(PDC,4);
                 [R{k0}.SE.PDCF(:,:,:,k1),   R{k0}.M.PDCF(:,:,:,k1)  ] = sem(PDCF,4);
+                [R{k0}.SE.GPDC(:,:,:,k1),   R{k0}.M.GPDC(:,:,:,k1)  ] = sem(GPDC,4);
                 [R{k0}.SE.COH(:,:,:,k1),    R{k0}.M.COH(:,:,:,k1)   ] = sem(abs(COH),4);
                 [R{k0}.SE.coh(:,:,:,k1),    R{k0}.M.coh(:,:,:,k1)   ] = sem(abs(coh),4);
                 [R{k0}.SE.iCOH(:,:,:,k1),   R{k0}.M.iCOH(:,:,:,k1)  ] = sem(imag(COH),4);
