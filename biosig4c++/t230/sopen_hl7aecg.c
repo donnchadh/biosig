@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.13 2007-09-10 13:48:43 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.14 2007-10-19 09:56:59 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This function is part of the "BioSig for C/C++" repository 
@@ -81,7 +81,9 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 		t0->tm_mon  = atoi(T0+4)-1;
 		T0[4]  = '\0';
 		t0->tm_year = atoi(T0)-1900;
+#ifndef __sparc__
 		t0->tm_gmtoff = 0;
+#endif
 		t0->tm_isdst  = -1;
  		hdr->T0 = tm_time2gdf_time(t0);
 

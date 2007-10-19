@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.69 2007-10-17 14:36:16 schloegl Exp $
+% $Id: biosig.h,v 1.70 2007-10-19 09:56:57 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -61,11 +61,9 @@ extern int   VERBOSE_LEVEL;
 /**                 DEFINITIONS, TYPEDEFS AND MACROS                       **/
 /**                                                                        **/
 /****************************************************************************/
-
-
-
 #ifndef __BIOSIG_H__
 #define __BIOSIG_H__
+
 
 #ifdef _VCPP_DEF
 #define __BYTE_ORDER  __LITTLE_ENDIAN
@@ -96,8 +94,16 @@ typedef char			int8_t;
 #include <zlib.h>
 //#include <bz2lib.h>
 
+
+#ifdef  __sparc__
+#define __BIG_ENDIAN  	1234
+#define __LITTLE_ENDIAN 4321
+#define __BYTE_ORDER 	__BIG_ENDIAN
+#else
 /* use byteswap macros from the host system, hopefully optimized ones ;-) */
 #include <byteswap.h>
+#endif 
+
 
 #ifndef _BYTESWAP_H
 /* define our own version - needed for Max OS X*/

@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.112 2007-10-17 20:47:03 schloegl Exp $
+    $Id: biosig.c,v 1.113 2007-10-19 09:56:57 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -633,7 +633,11 @@ int FGETPOS(HDRTYPE* hdr, fpos_t *pos) {
 		z_off_t p = gztell(hdr->FILE.gzFID);
 		if (p<0) return(-1); 
 		else {
+#ifdef __sparc__
+			*pos = p;
+#else
 			pos->__pos = p;	// ugly hack but working
+#endif
 			return(0);
 		}	
 	} else	
@@ -1146,7 +1150,9 @@ if (!strncmp(MODE,"r",1))
 	    		tm_time.tm_mon  = atoi(tmp)-1;
 			strncpy(tmp,Header1+168   ,4);	    		 
 	    		tm_time.tm_year = atoi(tmp)-1900; 
+#ifndef __sparc__
 	    		tm_time.tm_gmtoff = 0;
+#endif
 			hdr->T0 = t_time2gdf_time(mktime(&tm_time)); 
 		    	hdr->HeadLen 	= l_endian_u64( *(uint64_t*) (Header1+184) ); 
 	    	}
@@ -1281,7 +1287,9 @@ if (!strncmp(MODE,"r",1))
     		strncpy(tmp,Header1+168+6,2); 
     		tm_time.tm_year = atoi(tmp); 
     		tm_time.tm_year+= (tm_time.tm_year < 85 ? 100 : 0);
-    		tm_time.tm_gmtoff = 0;
+#ifndef __sparc__
+	    		tm_time.tm_gmtoff = 0;
+#endif
 
 		if (!strncmp(Header1+192,"EDF+",4)) {
 	    		strtok(hdr->Patient.Id," ");
@@ -1532,7 +1540,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	tm_time.tm_hour = l_endian_i32(*(int32_t*)(Header1+28));
 	    	tm_time.tm_min  = l_endian_i32(*(int32_t*)(Header1+32));
 	    	tm_time.tm_sec  = l_endian_f64(*(double*) (Header1+36));
-    		tm_time.tm_gmtoff = 0;
+#ifndef __sparc__
+			tm_time.tm_gmtoff = 0;
+#endif
     		hdr->T0 	= tm_time2gdf_time(&tm_time);
 	    	// = *(double*)(Header1+44);
 	    	hdr->NS   	= l_endian_u32( *(uint32_t*)(Header1+52));
@@ -1582,7 +1592,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		tm_time.tm_mday = atoi(strncpy(tmp,Header2,2)); 
     		tm_time.tm_mon  = atoi(strncpy(tmp,Header2+3,2)-1); 
     		tm_time.tm_year = atoi(strncpy(tmp,Header2+6,2)); 
-    		tm_time.tm_gmtoff = 0;
+#ifndef __sparc__
+			tm_time.tm_gmtoff = 0;
+#endif
 	    	if (tm_time.tm_year<=80)    	tm_time.tm_year += 2000;
 	    	else if (tm_time.tm_year<100) 	tm_time.tm_year += 1900;
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
@@ -1633,7 +1645,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	tm_time.tm_min  = b_endian_u16(*(uint16_t*)(Header1+12));
 	    	tm_time.tm_sec  = b_endian_u16(*(uint16_t*)(Header1+14));
 	    	// tm_time.tm_sec  = b_endian_u32(*(uint32_t*)(Header1+16))/1000; // not supported by tm_time
-    		tm_time.tm_gmtoff = 0;
+#ifndef __sparc__
+			tm_time.tm_gmtoff = 0;
+#endif
 	    	hdr->T0 = tm_time2gdf_time(&tm_time);
 	    	hdr->SampleRate = b_endian_u16(*(uint16_t*)(Header1+20));
     		hdr->Dur[0] 	= 1;
@@ -2047,7 +2061,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    		tm_time.tm_hour = 12; 
 		    		tm_time.tm_min  = 0; 
 		    		tm_time.tm_sec  = 0; 
-	    			tm_time.tm_gmtoff = 0;
+#ifndef __sparc__
+					tm_time.tm_gmtoff = 0;
+#endif
 				hdr->Patient.Birthday  = t_time2gdf_time(mktime(&tm_time)); 
 				//hdr->Patient.Age = buf[0] + cswap_u16(*(uint16_t*)(buf+1))/365.25;
 			}	
@@ -2066,7 +2082,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    		tm_time.tm_hour = buf[4]; 
 		    		tm_time.tm_min  = buf[5]; 
 		    		tm_time.tm_sec  = buf[6]; 
-	    			tm_time.tm_gmtoff = 0;
+#ifndef __sparc__
+					tm_time.tm_gmtoff = 0;
+#endif
 				hdr->T0  = t_time2gdf_time(mktime(&tm_time)); 
 				// add milli- and micro-seconds
 				if (hdr->FLAG.SWAP) 

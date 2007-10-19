@@ -1,12 +1,12 @@
 /*
-    $Id: scp-decode.cpp,v 1.14 2007-09-13 12:32:28 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.15 2007-10-19 09:56:59 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
 Modifications by Alois Schloegl 
     Jun 2007: replaced ultoa with sprintf	
-    Jul 2007: do not multiply - because multiplication is done outside
     Aug 2007: On-The-Fly-Decompression using ZLIB
+    Oct 2007: Consider SunOS/SPARC platform 
 
 ---------------------------------------------------------------------------
 Copyright (C) 2006  Eugenio Cervesato.
@@ -94,6 +94,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define COMPAT
 // Insert by SS
 #elif defined(__FreeBSD__)
+#define COMPAT
+#elif defined(__sparc__)
 #define COMPAT
 #else
 #define COMPAT .__pos
