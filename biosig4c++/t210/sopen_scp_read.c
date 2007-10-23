@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.38 2007-10-23 15:41:04 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.39 2007-10-23 20:26:13 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <float.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -36,7 +37,7 @@
 
 #include "structures.h"
 static const U_int_S _NUM_SECTION=12U;	//consider first 11 sections of SCP
-static bool add_filter=true;            // additional filtering gives better shape, but use with care
+static bool add_filter=true;             // additional filtering gives better shape, but use with care
 int scp_decode(HDRTYPE*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO&, bool&);
 
 
@@ -73,6 +74,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	uint8_t		tag;
 	float 		HighPass=0, LowPass=1.0/0.0, Notch=-1; 	// filter settings
 	uint16_t	Cal5=0,Cal6=0;
+	uint16_t 	dT_us = 1000; 	// sampling interval in microseconds
 
 	/* 
 	   Try direct conversion SCP->HDR to internal data structure
@@ -98,7 +100,6 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	
 	ptr = hdr->AS.Header; 
 	hdr->NRec = 1;
-//        hdr->Dur[0]=10; hdr->Dur[1]=1;  // duration = 10 sec
 
 	sectionStart = 6;
 	PtrCurSect = ptr+sectionStart;	
@@ -236,7 +237,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					hdr->aECG->Section1.Tag14.DEVICE_TYPE = *(PtrCurSect+curSectPos+ 6);
 					hdr->aECG->Section1.Tag14.MANUF_CODE  = *(PtrCurSect+curSectPos+ 7);	// tag 14, byte 7 (MANUF_CODE has to be 255)
 					hdr->aECG->Section1.Tag14.MOD_DESC    = (char*)(PtrCurSect+curSectPos+8); 
-					hdr->aECG->Section1.Tag14.VERSION     = *(PtrCurSect+curSectPos+14)/10.0;
+					hdr->aECG->Section1.Tag14.VERSION     = *(PtrCurSect+curSectPos+14);
 					hdr->aECG->Section1.Tag14.PROT_COMP_LEVEL = *(PtrCurSect+curSectPos+15); 	// tag 14, byte 15 (PROT_COMP_LEVEL has to be 0xA0 => level II)
 					hdr->aECG->Section1.Tag14.LANG_SUPP_CODE  = *(PtrCurSect+curSectPos+16);	// tag 14, byte 16 (LANG_SUPP_CODE has to be 0x00 => Ascii only, latin and 1-byte code)
 					hdr->aECG->Section1.Tag14.ECG_CAP_DEV     = *(PtrCurSect+curSectPos+17);	// tag 14, byte 17 (ECG_CAP_DEV has to be 0xD0 => Acquire, (No Analysis), Print and Store)
@@ -378,9 +379,9 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		/**** SECTION 6 ****/
 		else if (curSect==6)  {
 			Cal6 			= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-			// integer division could avoid spurious non-integer results. Would this solve the problem ?  
-			hdr->SampleRate 	= 1e6/l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
-			uint16_t 	GDFTYP 	= 5;	// int32: internal raw data type   
+			dT_us	 		= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
+			hdr->SampleRate 	= 1e6/dT_us;
+			uint16_t gdftyp 	= 5;	// int32: internal raw data type   
 			hdr->aECG->FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);		
 			hdr->aECG->FLAG.BIMODAL = *(PtrCurSect+curSectPos+5);
 			
@@ -392,7 +393,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				hdr->CHANNEL[i].Off         = 0;
 				hdr->CHANNEL[i].OnOff       = 1;    // 1: ON 0:OFF
 				hdr->CHANNEL[i].Transducer[0] = '\0';
-				hdr->CHANNEL[i].GDFTYP      = GDFTYP;  
+				hdr->CHANNEL[i].GDFTYP      = gdftyp;  
 				len += l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+i*2));
 
 				// ### these values should represent the true saturation values ###//
@@ -408,6 +409,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			data = (int32_t*)hdr->AS.rawdata;
 			size_t ix; 			
 			
+
 			if (hdr->aECG->FLAG.HUFFMAN) 
 			{
 			//	fprintf(stderr,"Warning SCPOPEN(SCP-READ): huffman compression not supported.\n");
@@ -461,12 +463,8 @@ if (AS_DECODE) continue;
 		else {
 		}
 	}	
-	hdr->Dur[0] = hdr->SPR;
-	if (hdr->SampleRate!=round(hdr->SampleRate))
-		fprintf(stderr,"Warning SCP-OPEN Sampling rate (%f Hz) is not integer.\n",hdr->SampleRate);
-	hdr->Dur[1] = (uint32_t)hdr->SampleRate;
-
-
+	hdr->Dur[0] = hdr->SPR * dT_us; 
+	hdr->Dur[1] = 1000000L; 
 
     	if (!hdr->aECG->FLAG.HUFFMAN && !hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) 
     		return(0); 
@@ -517,8 +515,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	decode.Reconstructed = data; 
 	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
 		if (g>1)
-			for (i=0; i < hdr->NS * hdr->SPR * hdr->NRec; ++i)
+			for (i=0; i < hdr->NS * hdr->SPR * hdr->NRec; ++i) {
 				data[i] /= g;
+			}	
+		hdr->FLAG.SWAP  = 0;
 	}
 	else { 
 		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
