@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.16 2007-10-23 09:01:57 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.17 2007-10-23 15:41:04 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -601,7 +601,7 @@ void sectionsOptional(pointer_section *section, DATA_DECODE &block1, DATA_RECORD
 	block1.length_Res=NULL;
 	block1.samples_Res=NULL;
 	block1.Residual=NULL;
-	block1.Reconstructed=NULL;
+//	block1.Reconstructed=NULL;
 	block2.data_spike=NULL;
 	block2.type_BdR=NULL;
 	block2.data_BdR=NULL;
@@ -2807,18 +2807,11 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 			exit(2);
 		}
 		if(section[2].length && data.flag_Huffman[0])
-		{
 			Huffman(data.Residual,data.length_Res,data.samples_Res,data.flag_Res.number_samples,data.flag_lead.number,data.t_Huffman,data.flag_Huffman);
-			dim_R=data.flag_Res.number_samples*sizeof(int_L)*data.flag_lead.number;   //number of bytes of all leads before interpolation (also, data.flag_Res.number_samples has been changed to the number of samples from HUffman)
-			free(data.samples_Res);
-			free(data.length_Res);
-		}
-		else
-		{
-			dim_R=data.flag_Res.number_samples*sizeof(int_L)*data.flag_lead.number;	//number of bytes of all leads before interpolation (alse, data.flag_Res.number_samples is the number of samples of each lead)
-			free(data.samples_Res);
-			free(data.length_Res);
-		}
+
+		dim_R=data.flag_Res.number_samples*sizeof(int_L)*data.flag_lead.number;   //number of bytes of all leads before interpolation (also, data.flag_Res.number_samples has been changed to the number of samples from HUffman)
+		free(data.samples_Res);
+		free(data.length_Res);
 
 		if(data.flag_Res.encoding)
 		Differences(data.Residual,data.flag_Res,data.flag_lead.number);
@@ -2861,11 +2854,16 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 		}
 		Multiply(data.Residual,data.flag_Res.number_samples*data.flag_lead.number,data.flag_Res.AVM);
 
+/* AS 2007-10-23: for some (unknown) reason, sometimes the memory allocation has the wrong size
+	doing the memory allocation in sopen_scp_read does it correctly. 
+	Number of files with SegFaults is reduced by 3.  
+	
 		if(dim_R!=0 && (data.Reconstructed=(int_L*)mymalloc(dim_R))==NULL)
 		{
 			fprintf(stderr,"Not enough memory");  // no, exit //
 			exit(2);
 		}
+*/
 		int dim_RR=dim_R/sizeof(int_L);       // by E.C. 15.10.2003   This to correct a trivial error
 		for(t=0;t<dim_RR;t++)                 // of array overflow!!
 			data.Reconstructed[t]=data.Residual[t];   // by E.C. 19.02.2004: first copy rhythm then add the reference beat

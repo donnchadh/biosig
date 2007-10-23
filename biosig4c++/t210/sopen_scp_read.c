@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.37 2007-09-13 12:51:53 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.38 2007-10-23 15:41:04 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -38,14 +38,6 @@
 static const U_int_S _NUM_SECTION=12U;	//consider first 11 sections of SCP
 static bool add_filter=true;            // additional filtering gives better shape, but use with care
 int scp_decode(HDRTYPE*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO&, bool&);
-//void remark(char*);
-//                                  end specific by E.C.
-
-/*
-	These functions are stubs (placeholder) and need to be defined. 
-
-*/
-
 
 
 int sopen_SCP_read(HDRTYPE* hdr) {	
@@ -70,6 +62,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	uint8_t*	ptr; 	// pointer to memory mapping of the file layout
 	uint8_t*	PtrCurSect;	// point to current section 
 	uint8_t*	Ptr2datablock=NULL; 	// pointer to data block 
+	int32_t* 	data;		// point to rawdata
 	int		curSect; 	// current section
 	uint32_t 	len; 
 	uint16_t 	crc; 
@@ -412,7 +405,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			Ptr2datablock   = (PtrCurSect+curSectPos + 6 + hdr->NS*2);   // pointer for huffman decoder
 			hdr->AS.rawdata = (uint8_t*)malloc(4*hdr->NS*hdr->SPR*hdr->NRec); 
 
-			int32_t* data = (int32_t*)hdr->AS.rawdata;
+			data = (int32_t*)hdr->AS.rawdata;
 			size_t ix; 			
 			
 			if (hdr->aECG->FLAG.HUFFMAN) 
@@ -521,11 +514,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	else if (Cal5 >1 && Cal6==0) g = Cal5;
 	else if (Cal5 >1 && Cal6 >1) g = gcd(Cal5,Cal6);
 
+	decode.Reconstructed = data; 
 	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
 		if (g>1)
 			for (i=0; i < hdr->NS * hdr->SPR * hdr->NRec; ++i)
-				decode.Reconstructed[i] /= g;
-		hdr->AS.rawdata = (uint8_t*)decode.Reconstructed;
+				data[i] /= g;
 	}
 	else { 
 		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
