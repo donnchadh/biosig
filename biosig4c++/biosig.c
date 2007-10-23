@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.113 2007-10-19 09:56:57 schloegl Exp $
+    $Id: biosig.c,v 1.114 2007-10-23 08:58:30 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -27,8 +27,8 @@
 	reading and writing of GDF files is demonstrated 
 	
 	Features: 
-	- reading and writing of EDF, BDF and GDF2.0pre files 
-	- reading of GDF1.x, BKR, CFWB, CNT files 
+	- reading and writing of EDF, BDF, GDF1, GDF2, CWFB, HL7aECG, SCP files 
+	- reading of ACQ, BKR, CNT, EGI, MFER files 
 	
 	implemented functions: 
 	- SOPEN, SREAD, SWRITE, SCLOSE, SEOF, SSEEK, STELL, SREWIND 
@@ -36,6 +36,7 @@
 */
 
 #include <ctype.h>
+#include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1074,7 +1075,7 @@ if (!strncmp(MODE,"r",1))
 	    		strncpy(hdr->ID.Recording,(const char*)Header1+88,min(80,MAX_LENGTH_RID));
 	    		strtok(hdr->Patient.Id," ");
 	    		char *tmpptr = strtok(NULL," ");
-	    		if (!hdr->FLAG.ANONYMOUS) {
+	    		if ((!hdr->FLAG.ANONYMOUS) && (tmpptr != NULL)) {
 		    		strncpy(hdr->Patient.Name,tmpptr,Header1+8-tmpptr);
 		    	}	
 		    		
@@ -1130,10 +1131,12 @@ if (!strncmp(MODE,"r",1))
 	    	}
 	    	else if (hdr->VERSION > 0.0) {
 	    		strncpy(hdr->Patient.Id,Header1+8,min(80,MAX_LENGTH_PID));
-	    		strncpy(hdr->ID.Recording,(const char*)Header1+88,min(80,MAX_LENGTH_RID));
+	    		hdr->Patient.Id[min(80,MAX_LENGTH_PID)] = 0;
+			strncpy(hdr->ID.Recording,(const char*)Header1+88,min(80,MAX_LENGTH_RID));
+	    		hdr->ID.Recording[min(80,MAX_LENGTH_RID)] = 0;
 	    		strtok(hdr->Patient.Id," ");
 	    		char *tmpptr = strtok(NULL," ");
-	    		if (!hdr->FLAG.ANONYMOUS) {
+	    		if ((!hdr->FLAG.ANONYMOUS) && (tmpptr != NULL)) {
 		    		strncpy(hdr->Patient.Name,tmpptr,Header1+8-tmpptr);
 		    	}	
 
@@ -1264,22 +1267,13 @@ if (!strncmp(MODE,"r",1))
     		memcpy(hdr->ID.Recording,Header1+88,min(80,MAX_LENGTH_RID));
 		hdr->ID.Recording[MAX_LENGTH_RID]=0;
 		
-	    	hdr->HeadLen 	= atoi(strncpy(tmp,Header1+184,8));
-	    	hdr->NRec 	= atoi(strncpy(tmp,Header1+236,8));
-	    	Dur 		= atoi(strncpy(tmp,Header1+244,8));
-	    	hdr->NS		= atoi(strncpy(tmp,Header1+252,4));
-		if (!Dur)
-		{	
-			hdr->Dur[0] = lround(Dur*1e7); 
-			hdr->Dur[1] = 10000000L; 
-		}
-		memset(tmp,0,5); 	
+		memset(tmp,0,9); 	
 		strncpy(tmp,Header1+168+14,2); 
     		tm_time.tm_sec  = atoi(tmp); 
     		strncpy(tmp,Header1+168+11,2);
     		tm_time.tm_min  = atoi(tmp);
     		strncpy(tmp,Header1+168+8,2); 
-    		tm_time.tm_hour = atoi(tmp);
+    		tm_time.tm_hour = atoi(tmp); 
     		strncpy(tmp,Header1+168,2); 
     		tm_time.tm_mday = atoi(tmp);
     		strncpy(tmp,Header1+168+3,2); 
@@ -1288,8 +1282,23 @@ if (!strncmp(MODE,"r",1))
     		tm_time.tm_year = atoi(tmp); 
     		tm_time.tm_year+= (tm_time.tm_year < 85 ? 100 : 0);
 #ifndef __sparc__
-	    		tm_time.tm_gmtoff = 0;
+    		tm_time.tm_gmtoff = 0;
 #endif
+	    	hdr->NS		= atoi(strncpy(tmp,Header1+252,4));
+	    	hdr->HeadLen	= atoi(strncpy(tmp,Header1+184,8));
+	    	hdr->NRec	= atoi(strncpy(tmp,Header1+236,8));
+	    	Dur		= atof(strncpy(tmp,Header1+244,8));
+		double dtmp1, dtmp2;
+		dtmp2 = modf(Dur, &dtmp1); 
+		// approximate real with rational number 
+		if (fabs(dtmp2) < DBL_EPSILON) {
+			hdr->Dur[0] = lround(Dur); 
+			hdr->Dur[1] = 1; 
+		}
+		else {
+			hdr->Dur[1] = lround(1.0 / dtmp2 ); 
+			hdr->Dur[0] = lround(1.0 + dtmp1 * hdr->Dur[1]); 
+		}		
 
 		if (!strncmp(Header1+192,"EDF+",4)) {
 	    		strtok(hdr->Patient.Id," ");
@@ -1297,10 +1306,9 @@ if (!strncmp(MODE,"r",1))
 	    		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
 	    		ptr_str = strtok(NULL," ");	// startdate
 	    		char *tmpptr = strtok(NULL," ");
-	    		if (!hdr->FLAG.ANONYMOUS) {
+	    		if ((!hdr->FLAG.ANONYMOUS) && (tmpptr != NULL)) {
 		    		strcpy(hdr->Patient.Name,tmpptr);
 		    	}	
-fprintf(stdout,"[404] %i %s\n",strlen(ptr_str),ptr_str);		
 			if (strlen(ptr_str)==11) {
 				struct tm t1;
 		    		t1.tm_mday = atoi(strtok(ptr_str,"-")); 
@@ -1311,8 +1319,6 @@ fprintf(stdout,"[404] %i %s\n",strlen(ptr_str),ptr_str);
 		    		t1.tm_min  = 0; 
 		    		t1.tm_hour = 12; 
 		    		hdr->Patient.Birthday = t_time2gdf_time(mktime(&t1));
-fprintf(stdout,"[404] %s\n",asctime(&t1));		
-
 		    	}
 
 	    		strtok(hdr->ID.Recording," ");
@@ -1521,7 +1527,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].GDFTYP 	 = 3; 
 		    	hdr->CHANNEL[k].SPR 	 = 1; // *(int32_t*)(Header1+56);
 		    	hdr->CHANNEL[k].LowPass	 = l_endian_f32(*(float*)(Header1+22));
-		    	 hdr->CHANNEL[k].HighPass = l_endian_f32(*(float*)(Header1+26));
+		    	hdr->CHANNEL[k].HighPass = l_endian_f32(*(float*)(Header1+26));
 		    	hdr->CHANNEL[k].Notch	 = -1.0;  // unknown 
 		    	hdr->CHANNEL[k].PhysMax	 = (double)l_endian_u16(*(uint16_t*)(Header1+14));
 		    	hdr->CHANNEL[k].DigMax	 = (double)l_endian_u16(*(uint16_t*)(Header1+16));
@@ -1969,7 +1975,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 						if (buf[0]==1)  // s
 							fval = 1.0/fval;
 
-						hdr->CHANNEL[chan].SPR = hdr->SPR * fval / hdr->SampleRate;	
+						hdr->CHANNEL[chan].SPR = lround(hdr->SPR * fval / hdr->SampleRate);
 					}
 					else if (tag2==12) {	// sensitivity 
 						if (len2>6) 
@@ -2340,8 +2346,18 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		/* Duration is expressed as an fraction of integers */ 
 		if (ceil(hdr->SampleRate)!=hdr->SampleRate)
 			fprintf(stderr,"Warning SOPEN(GDF write): Fraction of Duration rounded from %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,hdr->Dur[0],hdr->Dur[1]);
-		hdr->Dur[0] = hdr->SPR;
-		hdr->Dur[1] = (uint32_t)hdr->SampleRate;
+		Dur = hdr->SPR/hdr->SampleRate;
+		double dtmp1, dtmp2;
+		dtmp2 = modf(Dur, &dtmp1);
+		// approximate real with rational number 
+		if (fabs(dtmp2) < DBL_EPSILON) {
+			hdr->Dur[0] = lround(Dur); 
+			hdr->Dur[1] = 1; 
+		}
+		else {   
+			hdr->Dur[1] = lround(1.0 / dtmp2 ); 
+			hdr->Dur[0] = lround(1.0 + dtmp1 * hdr->Dur[1]); 
+		}		
 		fprintf(stdout,"\n SOPEN(GDF write): %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,hdr->Dur[0],hdr->Dur[1]);
 		*(uint32_t*) (Header1+244) = l_endian_u32(hdr->Dur[0]);
 		*(uint32_t*) (Header1+248) = l_endian_u32(hdr->Dur[1]);
@@ -2351,8 +2367,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	this requires checking the arguments in the fields of the struct HDR.CHANNEL
 	     	and filling in the bytes in HDR.Header2. 
 	     	*/
-		for (k=0; k<hdr->NS; k++)
-		{
+		for (k=0; k<hdr->NS; k++) {
 			const char *tmpstr;
 			if (hdr->CHANNEL[k].LeadIdCode)
 				tmpstr = LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode];
@@ -2707,13 +2722,13 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	if(hdr->TYPE != HL7aECG){
 	    	hdr = FOPEN(hdr,"wb");
 		
-		if (!hdr->FILE.COMPRESSION && hdr->FILE.FID == NULL ){
+		if (!hdr->FILE.COMPRESSION && (hdr->FILE.FID == NULL) ){
 			B4C_ERRNUM = B4C_CANNOT_WRITE_FILE;
 			B4C_ERRMSG = "ERROR: Unable to open file for writing.\n"; 
 			return(NULL);
 		}
 #ifdef ZLIB_H	
-		if (hdr->FILE.COMPRESSION && hdr->FILE.gzFID == NULL ){
+		else if (hdr->FILE.COMPRESSION && (hdr->FILE.gzFID == NULL) ){
 			B4C_ERRNUM = B4C_CANNOT_WRITE_FILE;
 			B4C_ERRMSG = "ERROR: Unable to open file for writing.\n"; 
 			return(NULL);
@@ -2736,9 +2751,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
 		hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR;			
 		hdr->AS.bi[k+1] = hdr->AS.bpb; 
-		if (hdr->CHANNEL[k].SPR>0)  // ignore sparse channels
+		if (hdr->CHANNEL[k].SPR > 0)  // ignore sparse channels
 			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
-//fprintf(stdout,"-#-#: %i %i\n",k,hdr->AS.bpb);			
 	}
 	if (hdr->TYPE==EGI) {
 		hdr->AS.bpb += EGI_LENGTH_CODETABLE * GDFTYP_BYTE[GDFTYP];
@@ -2816,13 +2830,12 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
 	//(CHptr->OnOff != 0) 
-	if (hdr->CHANNEL[k1].SPR==0)
-	{	// sparsely sampled channels are stored in event table
+	if (hdr->CHANNEL[k1].SPR==0) {	
+		// sparsely sampled channels are stored in event table
 		for (k5 = 0; k5 < hdr->SPR*hdr->NRec; k5++)
 			hdr->data.block[k2*count*hdr->SPR + k5] = NaN;
 	}
-	else 
-	{
+	else {
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BYTE[GDFTYP];
