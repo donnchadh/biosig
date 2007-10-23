@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.15 2007-10-19 09:56:59 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.16 2007-10-23 09:01:57 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -82,11 +82,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 //void remark(char *string);
 
+// #define WITH_OBSOLETE_PARTS 
+
+
 //      by E.C. 13.10.2003   part nedded to compile with gcc (Linux).
 //                           To compile with Borland C++ add the conditional define: WIN32.
 //                           In porting, I nedded to adapt fseek() and write a custom ultoa()
 #define TRUE 1
 #define FALSE 0
+
+#ifdef WITH_OBSOLETE_PARTS
+
 // Insert by FeC
 #if defined(__CYGWIN__)
 #define COMPAT
@@ -101,6 +107,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define COMPAT .__pos
 #include <stdio.h>
 #endif
+
+#endif
+
+#define COMPAT
 
 //______________________________________________________________________________
 
@@ -168,6 +178,8 @@ bool            Check_CRC(U_int_M,U_int_L,U_int_L);     // CRC check
 U_int_L         ID_section(U_int_L, int_S &version);              //read section ID header
 void            section_0(pointer_section*, int size_max);                    //read section 0
 void            sectionsOptional(pointer_section*,DATA_DECODE&,DATA_RECORD&,DATA_INFO&);       //handles optional sections
+
+#ifdef WITH_OBSOLETE_PARTS
 void            Init_S1(DATA_INFO &inf);
 void            section_1(pointer_section,DATA_INFO&);    //read section 1 data
 void            section_1_0(demographic&);                        //read tag 0 of section 1
@@ -208,15 +220,16 @@ void            section_1_34(device&);
 void            section_1_35(clinic&,U_int_M&);
 void            section_1_();                                   //skip tags of the manufacturer of the section 1
 void            section_1_255();                                //read tag 255 of section 1
+void            section_7(pointer_section,DATA_RECORD&, int_S version); //read section 7
+void            section_8(pointer_section,DATA_INFO&);          //read section 8
+void            section_10(pointer_section,DATA_RECORD&, int_S version); //read section 10
+void            section_11(pointer_section,DATA_INFO&);         //read section 11
+#endif
 void            section_2(pointer_section,DATA_DECODE&);        //read section 2
 void            section_3(pointer_section,DATA_DECODE&, int_S version); //read section 3
 void            section_4(pointer_section,DATA_DECODE&, int_S version); //read section 4
 bool            section_5(pointer_section,DATA_DECODE&,bool);   //read section 5
 void            section_6(pointer_section,DATA_DECODE&,bool);   //read section 6
-void            section_7(pointer_section,DATA_RECORD&, int_S version); //read section 7
-void            section_8(pointer_section,DATA_INFO&);          //read section 8
-void            section_10(pointer_section,DATA_RECORD&, int_S version); //read section 10
-void            section_11(pointer_section,DATA_INFO&);         //read section 11
 
 //______________________________________________________________________________
 void            Decode_Data(pointer_section*,DATA_DECODE&,bool&);
@@ -253,6 +266,7 @@ void ReadByte(t1 &number)
 		exit(2);
 	}
 	FREAD(num,dim,1,in);
+	//*num = *(U_int_S*)(in->AS.Header+_COUNT_BYTE);
 	number=0;
 	_COUNT_BYTE+=dim;
 
@@ -293,7 +307,9 @@ int scp_decode(HDRTYPE* hdr, pointer_section *info_sections, DATA_DECODE &info_d
 
 //mandatory sections
 	section_0(info_sections, _DIM_FILE);                 // by E.C. may 2004 check file size
+#ifdef WITH_OBSOLETE_PARTS
 	section_1(info_sections[1],info_textual);
+#endif
 	sectionsOptional(info_sections,info_decoding,info_recording,info_textual);
 	FCLOSE(in);
 
@@ -303,6 +319,7 @@ int scp_decode(HDRTYPE* hdr, pointer_section *info_sections, DATA_DECODE &info_d
 //______________________________________________________________________________
 //                           COMPUTATIONAL FUNCTIONS
 
+#ifdef WITH_OBSOLETE_PARTS
 //------------------------------STRINGS----------------------------------------
 char *ReadString(char *temp_string, U_int_M num)
 //read a string from the stream.
@@ -347,12 +364,13 @@ char *FindString(U_int_M max)
 {
 	char *temp_string, c;
 	U_int_M num=0;
-	fpos_t filepos;
+	//fpos_t
+	long filepos;
 
 	if(!max)
 		return "";
 
-	FGETPOS(in,&filepos);
+	filepos = FTELL(in); //FGETPOS(in,&filepos);
 	do
 	{
 		c=FGETC(in);
@@ -379,6 +397,7 @@ char *FindString(U_int_M max)
 
 	return temp_string;
 }//end FindString
+#endif
 
 void Skip(U_int_M num)
 //skip num bytes from the stream
@@ -658,6 +677,7 @@ void sectionsOptional(pointer_section *section, DATA_DECODE &block1, DATA_RECORD
 				case 6: if(section[i].length)
 							section_6(section[i],block1,section[2].length);       //rhythm compressed data
 						break;
+#ifdef WITH_OBSOLETE_PARTS
 				case 7: if(section[i].length)
 							section_7(section[i],block2,block3.des.acquiring.protocol_revision_number);       //global measurements
 						break;
@@ -670,6 +690,7 @@ void sectionsOptional(pointer_section *section, DATA_DECODE &block1, DATA_RECORD
 				case 11:if(section[i].length)          //universal ECG interpretative statements
 				//			section_11(section[i],block3);
 						break;
+#endif
 			}//end switch
 		++i;
 	}//end while
@@ -724,6 +745,8 @@ void section_0(pointer_section *info, int size_max)
 		}//end else
 	}//end while
 }//end section_0
+
+#ifdef WITH_OBSOLETE_PARTS
 
 //______________________________________________________________________________
 //                              section 1
@@ -1205,11 +1228,13 @@ void section_1_14(descriptive &des)
 	U_int_M dim, dim_to_skip;
 	U_int_S i, mask, code_;
 	int_M pos;
-	fpos_t filepos, filepos_iniz;
+	//fpos_t filepos, filepos_iniz;
+	long filepos, filepos_iniz;
 
 	ReadByte(dim);
-	FGETPOS(in,&filepos);
-	FGETPOS(in,&filepos_iniz);    // by E.C. may 2004 ESAOTE    save to reposition at the end of this section
+	filepos = FTELL(in); //FGETPOS(in,&filepos);
+	//FGETPOS(in,&filepos_iniz);    // by E.C. may 2004 ESAOTE    save to reposition at the end of this section
+	filepos_iniz=filepos;
 	dim_to_skip=dim;
 	dim+=filepos COMPAT;
 	ReadByte(des.acquiring.institution_number);
@@ -1265,17 +1290,17 @@ void section_1_14(descriptive &des)
 	else
 		des.acquiring.analysing_program_revision_number=ReadString(des.acquiring.analysing_program_revision_number=NULL,i);
 
-	FGETPOS(in,&filepos);
+	filepos = FTELL(in); //FGETPOS(in,&filepos);
 	des.acquiring.serial_number_device=FindString(dim-filepos COMPAT);
 	if ((des.acquiring.protocol_revision_number==10) || (des.acquiring.protocol_revision_number==11))
 													 // by E.C. may 2004 CARDIOLINE 1.0 & ESAOTE 1.1
 		FSEEK(in,filepos_iniz COMPAT +dim_to_skip,0);   //  reposition file pointer
 	else {
-		FGETPOS(in,&filepos);
+		filepos = FTELL(in); //FGETPOS(in,&filepos);
 		des.acquiring.device_system_software=FindString(dim-filepos COMPAT);
-		FGETPOS(in,&filepos);
+		filepos = FTELL(in); //FGETPOS(in,&filepos);
 		des.acquiring.device_SCP_implementation_software=FindString(dim-filepos COMPAT);
-		FGETPOS(in,&filepos);
+		filepos = FTELL(in); //FGETPOS(in,&filepos);
 		des.acquiring.manifacturer_trade_name=FindString(dim-filepos COMPAT);
 	}
 }//end section_1_14
@@ -1286,10 +1311,11 @@ void section_1_15(descriptive &des)
 	U_int_M dim;
 	U_int_S i, mask, code_;
 	int_M pos;
-	fpos_t filepos;
+	//fpos_t filepos;
+	long filepos;
 
 	ReadByte(dim);
-	FGETPOS(in,&filepos);
+	filepos = FTELL(in); //FGETPOS(in,&filepos);
 	dim+=filepos COMPAT;
 	ReadByte(des.analyzing.institution_number);
 	ReadByte(des.analyzing.department_number);
@@ -1345,13 +1371,13 @@ void section_1_15(descriptive &des)
 	else
 		des.analyzing.analysing_program_revision_number=ReadString(des.analyzing.analysing_program_revision_number=NULL,i);
 
-	FGETPOS(in,&filepos);
+	filepos = FTELL(in); //FGETPOS(in,&filepos);
 	des.analyzing.serial_number_device=FindString(dim-filepos COMPAT);
-	FGETPOS(in,&filepos);
+	filepos = FTELL(in); //FGETPOS(in,&filepos);
 	des.analyzing.device_system_software=FindString(dim-filepos COMPAT);
-	FGETPOS(in,&filepos);
+	filepos = FTELL(in); //FGETPOS(in,&filepos);
 	des.analyzing.device_SCP_implementation_software=FindString(dim-filepos COMPAT);
-	FGETPOS(in,&filepos);
+	filepos = FTELL(in); //FGETPOS(in,&filepos);
 	des.analyzing.manifacturer_trade_name=FindString(dim-filepos COMPAT);
 }//end section_1_15
 
@@ -1689,6 +1715,7 @@ void section_1_255()
 
 	ReadByte(dim);
 }//end section_1_255
+#endif 
 
 //______________________________________________________________________________
 //                              section 2
@@ -1699,7 +1726,8 @@ void section_2(pointer_section info_sections,DATA_DECODE &data)
 //cannot read the dummy Huffman table
 {
 	U_int_M nt, i, j, ns=0, pos, dim;
-	fpos_t filepos;
+	//fpos_t filepos;
+	long filepos;
 	int_S version;
 
 	_COUNT_BYTE=info_sections.index;
@@ -1716,7 +1744,7 @@ void section_2(pointer_section info_sections,DATA_DECODE &data)
 			exit(2);
 		}
 		data.flag_Huffman[0]=nt;
-		FGETPOS(in,&filepos);
+		filepos = FTELL(in); //FGETPOS(in,&filepos);
 		for(i=1;i<=data.flag_Huffman[0];i++)
 		{
 			ReadByte(data.flag_Huffman[i]);
@@ -1990,6 +2018,8 @@ void section_6(pointer_section info_sections,DATA_DECODE &data, bool sez2)
 	}
 }//end section_6
 
+#ifdef WITH_OBSOLETE_PARTS
+
 //______________________________________________________________________________
 //                              section 7
 //______________________________________________________________________________
@@ -1998,7 +2028,8 @@ void section_7(pointer_section info_sections ,DATA_RECORD &data, int_S version)
 {
 	U_int_M i, j, dim;
 	U_int_S lung;
-	fpos_t filepos;
+	//fpos_t filepos;
+	long filepos;
 	int_S version_loc;
 	int_L length_eval;
 
@@ -2074,7 +2105,7 @@ void section_7(pointer_section info_sections ,DATA_RECORD &data, int_S version)
         if (data.data_global.number_QRS==29999) return;    // by E.C.  12/09/2007
 	if(Look(_special,0,3,data.data_global.number_QRS)<0)
 	{
-		FGETPOS(in,&filepos);                         //necessary for ESAOTE and CARDIOLINE test files
+		filepos = FTELL(in); //FGETPOS(in,&filepos);                         //necessary for ESAOTE and CARDIOLINE test files
 		dim=info_sections.index+info_sections.length-filepos COMPAT+1;
 		if(data.data_global.number_QRS>dim)
 		{
@@ -2140,7 +2171,8 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 	U_int_S m, g, h, s, i;
 	U_int_M a, num, dim;
 	char dates[18], temp[18], hour[9], *temp_string, *c;
-	fpos_t filepos;
+	//fpos_t filepos;
+	long filepos;
 	int_S version;
 
 	_COUNT_BYTE=info_sections.index;
@@ -2177,7 +2209,7 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 	ReadByte(data.flag_report.number);
 	if(data.flag_report.number)
 	{
-		FGETPOS(in,&filepos);
+		filepos = FTELL(in); //FGETPOS(in,&filepos);
 		if(data.flag_report.number!=0 && (data.text_dim=(numeric*)mymalloc(data.flag_report.number*sizeof(numeric)))==NULL)
 		{
 			fprintf(stderr,"Not enough memory");  // no, exit //
@@ -2360,7 +2392,8 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 	U_int_S m, g, h, s, i, j;
 	U_int_M a, num, dim;
 	char dates[8], temp[18], hour[9], *temp_string, *punt, c;
-	fpos_t filepos;
+	//fpos_t filepos;
+	long filepos;
 	int_S version;
 
 	_COUNT_BYTE=info_sections.index;
@@ -2398,7 +2431,7 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 	ReadByte(data.flag_statement.number); //number of expressions
 	if(!data.flag_statement.number)
 	{
-		FGETPOS(in,&filepos);
+		filepos = FTELL(in); //FGETPOS(in,&filepos);
 		if(data.flag_statement.number!=0 && (data.data_statement=(statement_coded*)mymalloc(data.flag_statement.number*sizeof(statement_coded)))==NULL)
 		{
 			fprintf(stderr,"Not enough memory");  // no, exit //
@@ -2458,6 +2491,8 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 		}//end for
 	}//end if
 }//end section_11
+
+#endif 
 
 //______________________________________________________________________________
 //                              CALCULATIONS
