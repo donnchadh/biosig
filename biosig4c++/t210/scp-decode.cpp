@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.17 2007-10-23 15:41:04 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.18 2007-10-25 20:06:30 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -7,6 +7,8 @@ Modifications by Alois Schloegl
     Jun 2007: replaced ultoa with sprintf	
     Aug 2007: On-The-Fly-Decompression using ZLIB
     Oct 2007: Consider SunOS/SPARC platform 
+    	      obsolete code sections marked, this reduced SegFault from 18 to 1.
+    	      
 
 ---------------------------------------------------------------------------
 Copyright (C) 2006  Eugenio Cervesato.
@@ -176,10 +178,10 @@ bool            Check_CRC(U_int_M,U_int_L,U_int_L);     // CRC check
 //______________________________________________________________________________
 
 U_int_L         ID_section(U_int_L, int_S &version);              //read section ID header
-void            section_0(pointer_section*, int size_max);                    //read section 0
 void            sectionsOptional(pointer_section*,DATA_DECODE&,DATA_RECORD&,DATA_INFO&);       //handles optional sections
 
 #ifdef WITH_OBSOLETE_PARTS
+void            section_0(pointer_section*, int size_max);                    //read section 0
 void            Init_S1(DATA_INFO &inf);
 void            section_1(pointer_section,DATA_INFO&);    //read section 1 data
 void            section_1_0(demographic&);                        //read tag 0 of section 1
@@ -266,7 +268,7 @@ void ReadByte(t1 &number)
 		exit(2);
 	}
 	FREAD(num,dim,1,in);
-	//*num = *(U_int_S*)(in->AS.Header+_COUNT_BYTE);
+	// *num = *(U_int_S*)(in->AS.Header+_COUNT_BYTE);
 	number=0;
 	_COUNT_BYTE+=dim;
 
@@ -280,7 +282,7 @@ void ReadByte(t1 &number)
 
 //                      MAIN
 
-int scp_decode(HDRTYPE* hdr, pointer_section *info_sections, DATA_DECODE &info_decoding, DATA_RECORD &info_recording, DATA_INFO &info_textual, bool &add_filter)
+int scp_decode(HDRTYPE* hdr, pointer_section *section, DATA_DECODE &decode, DATA_RECORD &info_recording, DATA_INFO &info_textual, bool &add_filter)
 {
 	U_int_M CRC;
 	U_int_L pos;
@@ -306,14 +308,30 @@ int scp_decode(HDRTYPE* hdr, pointer_section *info_sections, DATA_DECODE &info_d
 	FSEEK(in, 0L, SEEK_SET);
 
 //mandatory sections
-	section_0(info_sections, _DIM_FILE);                 // by E.C. may 2004 check file size
 #ifdef WITH_OBSOLETE_PARTS
+	section_0(info_sections, _DIM_FILE);                 // by E.C. may 2004 check file size
 	section_1(info_sections[1],info_textual);
+
+	sectionsOptional(section,decode,info_recording,info_textual);
+#else 
+
+	if (section[2].length>0)	
+		section_2(section[2],decode);       //HUFFMAN
+	if (section[3].length>0)	
+		section_3(section[3],decode,hdr->aECG->Section1.Tag14.VERSION);      //lead
+	if(section[4].length) 
+		section_4(section[4],decode,hdr->aECG->Section1.Tag15.VERSION);       // fiducial locations
+	if(section[5].length)
+		if (!section_5(section[5],decode,section[2].length)) 
+			section[5].length=0 ;       //type 0 median beat
+	if(section[6].length)
+		section_6(section[6],decode,section[2].length);       //rhythm compressed data
+
 #endif
-	sectionsOptional(info_sections,info_decoding,info_recording,info_textual);
+ 
 	FCLOSE(in);
 
-	Decode_Data(info_sections,info_decoding,add_filter);
+	Decode_Data(section,decode,add_filter);
 	return TRUE;              // by E.C. 15.10.2003    now return TRUE
 }
 //______________________________________________________________________________
@@ -584,6 +602,7 @@ U_int_L ID_section(U_int_L pos, int_S &version)
 	return dim;
 }//end ID_section
 
+
 void sectionsOptional(pointer_section *section, DATA_DECODE &block1, DATA_RECORD &block2, DATA_INFO &block3)
 //handles optional sections
 {
@@ -677,7 +696,9 @@ void sectionsOptional(pointer_section *section, DATA_DECODE &block1, DATA_RECORD
 				case 6: if(section[i].length)
 							section_6(section[i],block1,section[2].length);       //rhythm compressed data
 						break;
+
 #ifdef WITH_OBSOLETE_PARTS
+
 				case 7: if(section[i].length)
 							section_7(section[i],block2,block3.des.acquiring.protocol_revision_number);       //global measurements
 						break;
@@ -699,6 +720,8 @@ void sectionsOptional(pointer_section *section, DATA_DECODE &block1, DATA_RECORD
 //______________________________________________________________________________
 //                                sections
 //______________________________________________________________________________
+
+#ifdef WITH_OBSOLETE_PARTS
 
 //______________________________________________________________________________
 //                              section 0
@@ -745,8 +768,6 @@ void section_0(pointer_section *info, int size_max)
 		}//end else
 	}//end while
 }//end section_0
-
-#ifdef WITH_OBSOLETE_PARTS
 
 //______________________________________________________________________________
 //                              section 1

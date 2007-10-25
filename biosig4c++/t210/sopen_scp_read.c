@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.39 2007-10-23 20:26:13 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.40 2007-10-25 20:06:30 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -53,7 +53,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
 */	
 
-	struct pointer_section *section;
+	struct pointer_section section[_NUM_SECTION];
 	struct DATA_DECODE decode;
 	struct DATA_RECORD record;
 	struct DATA_INFO textual;
@@ -69,7 +69,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	uint16_t 	crc; 
 	uint32_t	i,k1,k2; 
 	size_t		curSectPos;
-	size_t 	sectionStart; 
+	size_t 		sectionStart; 
 	int 		NSections = 12;
 	uint8_t		tag;
 	float 		HighPass=0, LowPass=1.0/0.0, Notch=-1; 	// filter settings
@@ -93,10 +93,52 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		hdr->aECG->EmergencyLevel=0;
 		hdr->ID.Technician = "nobody";
 	}
+	hdr->aECG->Section1.Tag14.VERSION = 0; // acquiring.protocol_revision_number 
+	hdr->aECG->Section1.Tag15.VERSION = 0; // analyzing.protocol_revision_number
 	hdr->aECG->FLAG.HUFFMAN  = 0; 
 	hdr->aECG->FLAG.DIFF     = 0; 
 	hdr->aECG->FLAG.REF_BEAT = 0; 
 	hdr->aECG->FLAG.BIMODAL  = 0;
+	
+#ifndef EXPERIMENTAL
+	decode.length_BdR0 = NULL; 	
+	decode.samples_BdR0= NULL;
+	decode.length_Res  = NULL;
+	decode.samples_Res = NULL;
+	decode.t_Huffman=NULL;
+	decode.flag_Huffman=NULL;
+	decode.data_lead=NULL;
+	decode.data_protected=NULL;
+	decode.data_subtraction=NULL;
+	decode.length_BdR0=NULL;
+	decode.samples_BdR0=NULL;
+	decode.Median=NULL;
+	decode.length_Res=NULL;
+	decode.samples_Res=NULL;
+	decode.Residual=NULL;
+	decode.Reconstructed=NULL;
+
+	//variables inizialization
+	decode.flag_lead.number=0;
+	decode.flag_lead.subtraction=0;
+	decode.flag_lead.all_simultaneously=0;
+	decode.flag_lead.number_simultaneously=0;
+
+	decode.flag_BdR0.length=0;
+	decode.flag_BdR0.fcM=0;
+	decode.flag_BdR0.AVM=0;
+	decode.flag_BdR0.STM=0;
+	decode.flag_BdR0.number_samples=0;
+	decode.flag_BdR0.encoding=0;
+
+	decode.flag_Res.AVM=0;
+	decode.flag_Res.STM=0;
+	decode.flag_Res.number=0;
+	decode.flag_Res.number_samples=0;
+	decode.flag_Res.encoding=0;
+	decode.flag_Res.bimodal=0;
+	decode.flag_Res.decimation_factor=0;
+#endif 
 	
 	ptr = hdr->AS.Header; 
 	hdr->NRec = 1;
@@ -107,16 +149,23 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	/**** SECTION 0 ****/
 	len = l_endian_u32(*(uint32_t*)(PtrCurSect+4)); 
 	NSections = (len-16)/10;
+	section[0].ID	  = 0; 	
+	section[0].length = len; 	
+	section[0].index  = 6+16;
 	for (int K=1; K<NSections; K++)	{
 		curSect 	= l_endian_u16(*(uint16_t*)(ptr+6+16+K*10));
 		len 		= l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+2));
 		sectionStart 	= l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+6))-1;
-
+		if (K < _NUM_SECTION) {
+			section[K].ID	  = curSect; 	
+			section[K].length = len; 	
+			section[K].index  = sectionStart+1;
+		}
+		 	
 	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"SCP Section %i %i len=%i secStart=%i HeaderLength=%i\n",K,curSect,len,sectionStart,hdr->HeadLen);
 		
-		 /***** empty section *****/	
-	if (len==0) continue;
+	if (len==0) continue;	 /***** empty section *****/
 		
 		PtrCurSect = ptr+sectionStart;
 		crc 	   = l_endian_u16(*(uint16_t*)(PtrCurSect));
@@ -127,6 +176,9 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			fprintf(stderr,"Warning SOPEN(SCP-READ): Current Section No does not match field in sections (%i %i)\n",curSect,l_endian_u16(*(uint16_t*)(PtrCurSect+2))); 
 		if (len != l_endian_u32(*(uint32_t*)(PtrCurSect+4)))
 			fprintf(stderr,"Warning SOPEN(SCP-READ): length field in pointer section (%i) does not match length field in sections (%i %i)\n",K,len,l_endian_u32(*(uint32_t*)(PtrCurSect+4))); 
+
+		uint8_t versionSection  = *(ptr+sectionStart+8);
+		uint8_t versionProtocol = *(ptr+sectionStart+9);
 
 		curSectPos = 16;
 			
@@ -255,6 +307,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				}
 				else if (tag==15) {
 					//memcpy(hdr->aECG->Section1.tag15,PtrCurSect+curSectPos,40);
+					hdr->aECG->Section1.Tag15.VERSION     = *(PtrCurSect+curSectPos+14);
 				}
 				else if (tag==16) {
 				}
@@ -327,7 +380,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			}
 //			t0.tm_gmtoff = 60*tzminutes;
 			t0.tm_isdst = -1;
-			hdr->T0    = tm_time2gdf_time(&t0);
+			hdr->T0     = tm_time2gdf_time(&t0);
 		}
 
 		/**** SECTION 2 ****/
@@ -375,16 +428,17 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			FLAG5.DIFF 	= *(PtrCurSect+curSectPos+4);
 			*/
 		}
-
+		
 		/**** SECTION 6 ****/
 		else if (curSect==6)  {
+
 			Cal6 			= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 			dT_us	 		= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			hdr->SampleRate 	= 1e6/dT_us;
 			uint16_t gdftyp 	= 5;	// int32: internal raw data type   
 			hdr->aECG->FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);		
 			hdr->aECG->FLAG.BIMODAL = *(PtrCurSect+curSectPos+5);
-			
+
 			len = 0; 
 			for (i=0; i < hdr->NS; i++) {
 				hdr->CHANNEL[i].SPR 	    = hdr->SPR;
@@ -401,14 +455,13 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				hdr->CHANNEL[i].DigMin      = ldexp(-1.0,20);
 				hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
 				hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
+				
 			}
-
 			Ptr2datablock   = (PtrCurSect+curSectPos + 6 + hdr->NS*2);   // pointer for huffman decoder
 			hdr->AS.rawdata = (uint8_t*)malloc(4*hdr->NS*hdr->SPR*hdr->NRec); 
 
 			data = (int32_t*)hdr->AS.rawdata;
 			size_t ix; 			
-			
 
 			if (hdr->aECG->FLAG.HUFFMAN) 
 			{
@@ -500,24 +553,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 	fprintf(stdout, "\nUse SCP_DECODE (Huffman=%i RefBeat=%i Bimodal=%i)\n",hdr->aECG->FLAG.HUFFMAN, hdr->aECG->FLAG.REF_BEAT, hdr->aECG->FLAG.BIMODAL);
 
-        if( (section = (pointer_section *)malloc(sizeof(pointer_section)*_NUM_SECTION)) ==NULL)
-        {
-                fprintf(stderr,"Not enough memory");  // no, exit //
-                exit(2);
-        }
-
 	// greatest common divisor of scaling from section 5 and 6
 	uint16_t g = 1; 	
 	if      (Cal5==0 && Cal6 >1) g = Cal6;
 	else if (Cal5 >1 && Cal6==0) g = Cal5;
 	else if (Cal5 >1 && Cal6 >1) g = gcd(Cal5,Cal6);
+	
+	textual.des.acquiring.protocol_revision_number = hdr->aECG->Section1.Tag14.VERSION;
+	textual.des.analyzing.protocol_revision_number = hdr->aECG->Section1.Tag15.VERSION; 
 
+	decode.flag_Res.bimodal = (hdr->aECG->Section1.Tag14.VERSION>10 ? hdr->aECG->FLAG.BIMODAL : 0);  
 	decode.Reconstructed = data; 
+
 	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
 		if (g>1)
-			for (i=0; i < hdr->NS * hdr->SPR * hdr->NRec; ++i) {
+			for (i=0; i < hdr->NS * hdr->SPR * hdr->NRec; ++i)
 				data[i] /= g;
-			}	
 		hdr->FLAG.SWAP  = 0;
 	}
 	else { 
@@ -525,7 +576,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		B4C_ERRMSG = "SCP-DECODE can not read file"; 
 		return(0);
 	}
-
+	
 	for (i=0; i < hdr->NS; i++) {
 		hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV" 	
 		hdr->CHANNEL[i].Cal 	    = g*1e-3;
