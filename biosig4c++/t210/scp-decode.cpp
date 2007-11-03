@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.18 2007-10-25 20:06:30 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.19 2007-11-03 00:11:40 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -92,25 +92,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //                           In porting, I nedded to adapt fseek() and write a custom ultoa()
 #define TRUE 1
 #define FALSE 0
-
-#ifdef WITH_OBSOLETE_PARTS
-
-// Insert by FeC
-#if defined(__CYGWIN__)
-#define COMPAT
-#elif defined(WIN32)
-#define COMPAT
-// Insert by SS
-#elif defined(__FreeBSD__)
-#define COMPAT
-#elif defined(__sparc__)
-#define COMPAT
-#else
-#define COMPAT .__pos
-#include <stdio.h>
-#endif
-
-#endif
 
 #define COMPAT
 
@@ -2752,11 +2733,11 @@ void decompress(TREE_NODE *tree, U_int_S *raw_in, U_int_M &pos_in, U_int_M max_i
 		if (j==max_out) break;        // by E.C. may 2004
 	} //end while
 	pos_in=maxIN;          // by E.C. 23.02.2004: align for safety
-//	max_out=j;             //                     flows here anyhow!
-//	if (max_out>4900) {
-//		max_out=5000;                           // by E.C. may 2004 ESAOTE
-//		pos_out=(pos_out+100)/max_out*max_out;  // align pointer
-//	}
+	max_out=j;             //                     flows here anyhow!
+	if (max_out>4900) {
+		max_out=5000;                           // by E.C. may 2004 ESAOTE
+		pos_out=(pos_out+100)/max_out*max_out;  // align pointer
+	}
 }//end decompress
 
 //data.data_BdR0 , data.length_BdR0 , data.samples_BdR0 , data.flag_BdR0.number_samples , data.flag_lead.number , data.t_Huffman , data.flag_Huffman
@@ -2853,9 +2834,9 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 //number_samples_ = samples of the reconstructed signal
 
 				data.flag_Res.number_samples=number_samples_;     //number of samples per lead
-				number_samples_=dim_R/sizeof(int_L)/data.flag_lead.number;
+				number_samples_=dim_R/(sizeof(int_L)*data.flag_lead.number);
 				dim_R=dim_R_;
-				dim_R_=dim_R/sizeof(int_L)*sizeof(dec_S);
+				dim_R_=(dim_R/sizeof(int_L))*sizeof(dec_S)*2;
 
 //dim_R_ = number of bytes of decimated signal (4 bytes (int_L) )
 //number_samples_ = samples of the decimated signal
@@ -2867,13 +2848,18 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 					fprintf(stderr,"Not enough memory");  // no, exit //
 					exit(2);
 				}
+fprintf(stdout,"[409] %i %i %i %i \n",dim_R,dim_R_,sizeof(dec_S),number_samples_);
+fprintf(stdout,"[409] %li %li %li %li %li \n",data.flag_lead.number,data.flag_Res);
 				Interpolate(dati_Res_,data.Residual,data.flag_lead,data.data_lead,data.flag_Res,data.data_protected,number_samples_);
+fprintf(stdout,"[410] \n");
 				DoFilter(data.Residual,dati_Res_,data.flag_Res,data.flag_lead,data.data_lead,data.data_protected,data.data_subtraction);
+fprintf(stdout,"[411] \n");
 				free(dati_Res_);
 				//dim_R modifies
 			}
 		}
 		Multiply(data.Residual,data.flag_Res.number_samples*data.flag_lead.number,data.flag_Res.AVM);
+fprintf(stdout,"[412] \n");
 
 /* AS 2007-10-23: for some (unknown) reason, sometimes the memory allocation has the wrong size
 	doing the memory allocation in sopen_scp_read does it correctly. 
@@ -2889,6 +2875,7 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 		for(t=0;t<dim_RR;t++)                 // of array overflow!!
 			data.Reconstructed[t]=data.Residual[t];   // by E.C. 19.02.2004: first copy rhythm then add the reference beat
 
+fprintf(stdout,"[413] \n");
 		if(section[3].length && section[5].length && data.flag_lead.subtraction)
 		{
 			DoAdd(data.Reconstructed,data.Residual,data.flag_Res,data.Median,data.flag_BdR0,data.data_subtraction,data.flag_lead,data.data_lead);
@@ -3029,7 +3016,7 @@ void Interpolate(int_L *raw_out, int_L *raw_in, f_lead flag_L, lead *marker_A, f
 			}
 		}//for nz
 		pos_in=sample_Huff*(ne+1);      // by E.C. 19.02.2004  align, never mind!!
-//		pos_out=(pos_out+100)/5000*5000;     // by E.C. may 2004  for testing purposes only
+		pos_out=(pos_out+100)/5000*5000;     // by E.C. may 2004  for testing purposes only
 	}//for ne
 }//end Interpolate
 
