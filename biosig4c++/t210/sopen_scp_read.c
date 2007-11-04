@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.42 2007-11-03 00:17:55 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.43 2007-11-04 01:49:06 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -145,11 +145,14 @@ struct en1064_t {
         } Section3;
         struct {
         	uint16_t len_ms, fiducial_sample, N;
+       		uint32_t SPR;
         	struct { 
-        		uint16_t btype;
-        		uint32_t start;
-        		uint32_t fiduc;
-        		uint32_t end;
+        		uint16_t btyp;
+        		uint32_t SB;
+        		uint32_t fcM;
+        		uint32_t SE;
+        		uint32_t QB;
+        		uint32_t QE;
         	} *beat;
         } Section4;
         struct {
@@ -270,7 +273,7 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 		++k1;
 		// else // internal node	
 	}
-fprintf(stdout,"%i %i %i %i \n",k1,k2,8*inlen,outlen);
+//fprintf(stdout,"%i %i %i %i \n",k1,k2,8*inlen,outlen);
 	return(0);
 };
 #endif 
@@ -697,14 +700,21 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			en1064.Section4.len_ms	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 			en1064.Section4.fiducial_sample	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			en1064.Section4.N	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+4));
+			en1064.Section4.SPR	= hdr->SPR/4;
 
 			curSectPos += 6;
 			for (i=0; i < en1064.Section4.N; i++) {
-				en1064.Section4.beat[i].btype = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-				en1064.Section4.beat[i].start = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+2));
-				en1064.Section4.beat[i].fiduc = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+6));
-				en1064.Section4.beat[i].end   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+10));
+				en1064.Section4.beat[i].btyp = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+				en1064.Section4.beat[i].SB   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+2));
+				en1064.Section4.beat[i].fcM   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+6));
+				en1064.Section4.beat[i].SE   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+10));
 				curSectPos += 14;
+			}	
+			for (i=0; i < en1064.Section4.N; i++) {
+				en1064.Section4.beat[i].QB   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos));
+				en1064.Section4.beat[i].QE   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+4));
+				curSectPos += 8;
+				en1064.Section4.SPR += en1064.Section4.beat[i].QE-en1064.Section4.beat[i].QB-1;
 			}	
 		}
 
@@ -769,6 +779,8 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			hdr->SampleRate 	= 1e6/dT_us;
 			hdr->aECG->FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);		
 			hdr->aECG->FLAG.BIMODAL = *(PtrCurSect+curSectPos+5);
+			
+			typeof(hdr->SPR) SPR  = ( en1064.FLAG.BIMODAL ? en1064.Section4.SPR : hdr->SPR);  
 
 			Ptr2datablock   = (PtrCurSect+curSectPos + 6 + hdr->NS*2);   // pointer for huffman decoder
 			len = 0;  
@@ -781,7 +793,6 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				hdr->CHANNEL[i].OnOff       = 1;    // 1: ON 0:OFF
 				hdr->CHANNEL[i].Transducer[0] = '\0';
 				hdr->CHANNEL[i].GDFTYP      = gdftyp;  
-				len += l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+i*2));
 
 				// ### these values should represent the true saturation values ###//
 				hdr->CHANNEL[i].DigMax      = ldexp(1.0,20)-1;
@@ -794,46 +805,52 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					DecodeHuffman(HTrees, Huffman, Ptr2datablock, en1064.Section6.inlen[i], data + i*hdr->SPR, hdr->SPR);
 				} 
 				else {
-					for (k1=0; k1 < hdr->SPR; k1++) 
-						ix = i*hdr->SPR + k1;
-						data[ix] = l_endian_i16(*(int16_t*)(Ptr2datablock + 2*ix));
+					for (k1=0, ix = i*hdr->SPR; k1 < SPR; k1++)
+						data[ix+k1] = l_endian_i16(*(int16_t*)(Ptr2datablock + len + 2*k1));
 				}
+				len += l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+i*2));
+
+				if (hdr->aECG->FLAG.DIFF==1) {
+					for (ix = i*hdr->SPR+1; ix < i*hdr->SPR+SPR; ix++)
+						data[ix] += data[ix-1];
+				}		
+				else if (hdr->aECG->FLAG.DIFF==2) {
+					for (ix = i*hdr->SPR+2; ix < i*hdr->SPR+SPR; ix++)
+						data[ix] += 2*data[ix-1] - data[ix-2];
+				}	
+
+				if (hdr->aECG->FLAG.BIMODAL) {
+					ix = i*hdr->SPR;		// memory offset
+					k1 = en1064.Section4.SPR-1; 	// SPR of decimated data 
+					k2 = hdr->SPR;			// SPR of sample data
+					uint32_t k3 = en1064.Section4.N-1; // # of protected zones 
+					uint8_t  k4 = 4;		// decimation factor 
+					do {
+						--k2;
+						data[ix + k2] = data[ix+k1];
+						if (k2 > en1064.Section4.beat[k3].QE) { // outside protected zone 
+							if (--k4==0) {k4=4; --k1;};	
+						}
+						else {	// inside protected zone 
+							--k1;
+							if (k2==en1064.Section4.beat[k3].QB) --k3;
+						}
+					} while (k2>0);
+				}
+			
+				if (en1064.FLAG.REF_BEAT) {
+//					for (ix = en1064.Section4.beat[i].SB; ix < en1064.Section4.beat[i].SE; ix++) 
+					for (ix = 0; ix < en1064.Section5.Length; ix++) 
+					for (i=0; i < en1064.Section4.N; i++) 
+					if (en1064.Section4.beat[i].btyp==0)
+						data[en1064.Section4.beat[i].SB+ix] += en1064.Section5.datablock[ix];	
+				}
+
 			}
 
 			en1064.Section6.datablock = data; 
 			hdr->FLAG.SWAP  = 0;
 
-			if (hdr->aECG->FLAG.HUFFMAN) 
-			{
-			//	fprintf(stderr,"Warning SCPOPEN(SCP-READ): huffman compression not supported.\n");
-				AS_DECODE = 0; 
-			}
-			if (hdr->aECG->FLAG.BIMODAL)
-			{
-			//	fprintf(stderr,"Warning SCPOPEN(SCP-READ): bimodal compression not supported (yet).\n");
-				AS_DECODE = 1; 
-			}
-/*
-if (AS_DECODE) continue;
-			for (k1 = 0; k1 < hdr->NS; k1++) {
-				for (k2 = 0; k2 < hdr->SPR; k2++) {
-					ix = (k2 + k1*hdr->SPR);
-					data[ix] = l_endian_i16(*(int16_t*)(Ptr2datablock+2*ix));
-				}
-			}
-*/			
-			if (hdr->aECG->FLAG.DIFF==1) {
-				for (k1 = 0; k1 < hdr->NS; k1++) {
-					for (ix = k1*hdr->SPR+1; ix < (k1+1)*hdr->SPR; ix++)
-						data[ix] += data[ix-1];
-				}		
-			}
-			else if (hdr->aECG->FLAG.DIFF==2) {
-				for (k1 = 0; k1 < hdr->NS; k1++) {
-					for (ix = k1*hdr->SPR+2; ix < (k1+1)*hdr->SPR; ix++)
-						data[ix] += 2*data[ix-1] - data[ix-2];
-				}	
-			}
 			curSectPos += 6 + 2*hdr->NS + len;
 		}
 
@@ -879,8 +896,8 @@ if (AS_DECODE) continue;
 	if (en1064.Section6.inlen != NULL) 	free(en1064.Section6.inlen);
 //	if (en1064.Section6.datablock != NULL) 	free(en1064.Section6.datablock);
 
-//    	if (!hdr->aECG->FLAG.HUFFMAN && !hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) return(0); 
-    	if (!hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) return(0); 
+//    	if (!hdr->aECG->FLAG.HUFFMAN && !hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) 
+	    	return(0); 
     		
  //    	if (hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL) {
 
