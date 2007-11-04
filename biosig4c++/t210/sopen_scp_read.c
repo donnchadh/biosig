@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.43 2007-11-04 01:49:06 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.44 2007-11-04 02:03:39 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -841,9 +841,9 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				if (en1064.FLAG.REF_BEAT) {
 //					for (ix = en1064.Section4.beat[i].SB; ix < en1064.Section4.beat[i].SE; ix++) 
 					for (ix = 0; ix < en1064.Section5.Length; ix++) 
-					for (i=0; i < en1064.Section4.N; i++) 
+					for (k1=0; k1 < en1064.Section4.N; k1++) 
 					if (en1064.Section4.beat[i].btyp==0)
-						data[en1064.Section4.beat[i].SB+ix] += en1064.Section5.datablock[ix];	
+						data[i*hdr->SPR + en1064.Section4.beat[k1].SB+ix] += en1064.Section5.datablock[i*en1064.Section5.Length+ix];	
 				}
 
 			}
@@ -923,6 +923,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 	/* Fall back method: 
+
+
+
+
+
 		+ implements Huffman, reference beat and Bimodal compression. 
 		- uses piece-wise file access
 		- defines intermediate data structure
