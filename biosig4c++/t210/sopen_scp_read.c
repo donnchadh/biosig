@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.44 2007-11-04 02:03:39 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.45 2007-11-05 15:37:57 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -8,7 +8,7 @@
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
+    the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
@@ -21,6 +21,15 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
  */
+
+
+// #define EXPERIMENTAL    // use experimental version of decompressing Huffman, Bimodal, reference beat  
+/*
+	the experimental version needs a few more thinks: 
+	- huffman decoding does not seem to work, yet
+
+	- validation and testing  
+*/
 
 
 #include <stdio.h>             // system includes
@@ -189,10 +198,10 @@ htree_t* makeTree(huffman_t HT) {
 	htree_t* node;
 	for (k1=0; k1<HT.NCT; k1++) {
 		node = T; 
-		for (k2=0; k2<HT.Table[k1].CodeLength; k2++) {
-//		for (k2=HT.Table[k1].CodeLength; k2>0; k2--) {
-			if ((HT.Table[k1].BaseCode>>k2) & 0x01) {
-//			if ((HT.Table[k1].BaseCode>>(HT.Table[k1].CodeLength-k2)) & 0x01) {
+//fprintf(stdout,"%2i\t %2i %2i %2i %4i %5li\n",k1,HT.Table[k1].PrefixLength,HT.Table[k1].CodeLength,HT.Table[k1].TableModeSwitch,HT.Table[k1].BaseValue,HT.Table[k1].BaseCode);
+		uint32_t bc = HT.Table[k1].BaseCode;
+		for (k2=0; k2<HT.Table[k1].CodeLength; k2++, bc>>=1) {
+			if (bc & 0x01) {
 				if (node->child1==NULL) node->child1 = newNode();
 				node = node->child1;
 			}
@@ -226,7 +235,7 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 		r = k1 % 8; 
 		i = k1 / 8;
 		if (!node->idxTable) {
-			if (indata[i] & (1<<r)) {
+			if (indata[i] & (1<<(7-r))) {
 				if (node->child1 != NULL)
 					node = node->child1;
 				else {
@@ -256,12 +265,16 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 				// switch Huffman Code 
 				ActualTable = TableEntry.BaseValue;
 			else if (dlen) {
-				// no compression 
-				for (k3=0,acc=0; k3*8-r < dlen; k3++)
-					acc += (uint32_t)indata[i+k3] << (k3*8);
+				// no compression
+				acc = 0;  //(uint32_t)(indata[i]%(1<<r)); 
+				for (k3=0; k3*8-r >= dlen; k3++)
+					acc = (acc<<8)+(uint32_t)indata[i+k3];
 				
-				outdata[k2++] = acc >> r; 
+				outdata[k2] = (acc >> (k3*8 - r - dlen)) & ((1L << dlen) - 1L) ; 
+				if (outdata[k2]>0x00007fff)
+					outdata[k2] |= 0xffff0000;
 				k1 += dlen; 
+				++k2;
 			}
 			else {
 				// lookup Huffman Table 
@@ -271,9 +284,7 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 			node = HTrees[ActualTable];
 		}
 		++k1;
-		// else // internal node	
 	}
-//fprintf(stdout,"%i %i %i %i \n",k1,k2,8*inlen,outlen);
 	return(0);
 };
 #endif 
@@ -652,6 +663,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 						Huffman[k2].Table[k1].BaseValue  = l_endian_i16(*(int16_t*)(PtrCurSect+curSectPos+3));  
 						Huffman[k2].Table[k1].BaseCode   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+5));  
 						curSectPos += 9;
+fprintf(stdout,"HT%i %i\t %i %i %i %i %li\n ",k2,k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode);
 					}
 					HTrees[k2] = makeTree(Huffman[k2]);
 				}
@@ -706,7 +718,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			for (i=0; i < en1064.Section4.N; i++) {
 				en1064.Section4.beat[i].btyp = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 				en1064.Section4.beat[i].SB   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+2));
-				en1064.Section4.beat[i].fcM   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+6));
+				en1064.Section4.beat[i].fcM  = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+6));
 				en1064.Section4.beat[i].SE   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+10));
 				curSectPos += 14;
 			}	
@@ -724,7 +736,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			en1064.Section5.AVM	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 			en1064.Section5.dT_us	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			en1064.Section5.DIFF 	= *(PtrCurSect+curSectPos+4);
-					
+
 			if (en1064.Section5.Length==0) 
 				en1064.FLAG.REF_BEAT = 0;
 			else {
@@ -742,7 +754,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 						for (k1=0; k1<en1064.Section5.Length; k1++)
 							en1064.Section5.datablock[i*en1064.Section5.Length+k1] = l_endian_i16(*(int16_t*)(Ptr2datablock + 2*(i*en1064.Section5.Length + k1)));
 					}
-					Ptr2datablock += en1064.Section5.inlen[i]; 
+					Ptr2datablock += en1064.Section5.inlen[i];
 				}	
 				size_t ix;
 				data = en1064.Section5.datablock;
@@ -777,9 +789,9 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			Cal6 			= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 			dT_us	 		= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			hdr->SampleRate 	= 1e6/dT_us;
-			hdr->aECG->FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);		
+			hdr->aECG->FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);
 			hdr->aECG->FLAG.BIMODAL = *(PtrCurSect+curSectPos+5);
-			
+
 			typeof(hdr->SPR) SPR  = ( en1064.FLAG.BIMODAL ? en1064.Section4.SPR : hdr->SPR);  
 
 			Ptr2datablock   = (PtrCurSect+curSectPos + 6 + hdr->NS*2);   // pointer for huffman decoder
@@ -788,7 +800,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			for (i=0; i < hdr->NS; i++) {
 				hdr->CHANNEL[i].SPR 	    = hdr->SPR;
 				hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV"
-				hdr->CHANNEL[i].Cal 	    = Cal6*1e-3;
+				hdr->CHANNEL[i].Cal 	    = Cal6 * 1e-3;
 				hdr->CHANNEL[i].Off         = 0;
 				hdr->CHANNEL[i].OnOff       = 1;    // 1: ON 0:OFF
 				hdr->CHANNEL[i].Transducer[0] = '\0';
@@ -806,18 +818,26 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				} 
 				else {
 					for (k1=0, ix = i*hdr->SPR; k1 < SPR; k1++)
-						data[ix+k1] = l_endian_i16(*(int16_t*)(Ptr2datablock + len + 2*k1));
+						data[ix+k1] = l_endian_i16(*(int16_t*)(Ptr2datablock + 2*k1));
 				}
-				len += l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+i*2));
+				len += en1064.Section6.inlen[i];
+				Ptr2datablock += en1064.Section6.inlen[i]; 
+
+#ifdef EXPERIMENTAL
+				if (hdr->aECG->FLAG.BIMODAL || en1064.FLAG.REF_BEAT) { 	
+					AS_DECODE = 1; 
+//					continue; 
+				}
+#endif 
 
 				if (hdr->aECG->FLAG.DIFF==1) {
-					for (ix = i*hdr->SPR+1; ix < i*hdr->SPR+SPR; ix++)
+					for (ix = i*hdr->SPR+1; ix < i*hdr->SPR + SPR; ix++)
 						data[ix] += data[ix-1];
 				}		
 				else if (hdr->aECG->FLAG.DIFF==2) {
-					for (ix = i*hdr->SPR+2; ix < i*hdr->SPR+SPR; ix++)
+					for (ix = i*hdr->SPR+2; ix < i*hdr->SPR + SPR; ix++)
 						data[ix] += 2*data[ix-1] - data[ix-2];
-				}	
+				}
 
 				if (hdr->aECG->FLAG.BIMODAL) {
 					ix = i*hdr->SPR;		// memory offset
@@ -839,11 +859,23 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				}
 			
 				if (en1064.FLAG.REF_BEAT) {
+					uint16_t g = 1; 	
+					if      (Cal5==0 && Cal6 >1) g = Cal6;
+					else if (Cal5 >1 && Cal6==0) g = Cal5;
+					else if (Cal5 >1 && Cal6 >1) g = gcd(Cal5,Cal6);
+
+					hdr->CHANNEL[i].Cal = g/Cal6;
+					hdr->CHANNEL[i].PhysMax = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
+					hdr->CHANNEL[i].PhysMin = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
+
 //					for (ix = en1064.Section4.beat[i].SB; ix < en1064.Section4.beat[i].SE; ix++) 
 					for (ix = 0; ix < en1064.Section5.Length; ix++) 
 					for (k1=0; k1 < en1064.Section4.N; k1++) 
-					if (en1064.Section4.beat[i].btyp==0)
-						data[i*hdr->SPR + en1064.Section4.beat[k1].SB+ix] += en1064.Section5.datablock[i*en1064.Section5.Length+ix];	
+					if (en1064.Section4.beat[i].btyp==0) {
+						size_t ix1 = i*hdr->SPR + en1064.Section4.beat[k1].SB - en1064.Section4.beat[k1].fcM + ix;						
+						data[ix1]  = data[ix1]*Cal6+en1064.Section5.datablock[i*en1064.Section5.Length+ix]*Cal5;
+						data[ix1] /= g; 
+					}
 				}
 
 			}
@@ -896,8 +928,13 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	if (en1064.Section6.inlen != NULL) 	free(en1064.Section6.inlen);
 //	if (en1064.Section6.datablock != NULL) 	free(en1064.Section6.datablock);
 
-//    	if (!hdr->aECG->FLAG.HUFFMAN && !hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) 
-	    	return(0); 
+//   	if (!hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) return(0); 
+
+#ifdef EXPERIMENTAL
+		return(0); 
+#else 
+
+   	if (!hdr->aECG->FLAG.HUFFMAN && !hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) return(0); 
     		
  //    	if (hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL) {
 
@@ -967,7 +1004,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	}
 	 // end of fall back method 
 	return(1);
-		
-
+#endif 
 };
 
