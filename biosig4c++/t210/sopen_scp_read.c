@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.45 2007-11-05 15:37:57 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.46 2007-11-05 22:01:44 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -23,7 +23,8 @@
  */
 
 
-// #define EXPERIMENTAL    // use experimental version of decompressing Huffman, Bimodal, reference beat  
+// 
+#define EXPERIMENTAL    // use experimental version of decompressing Huffman, Bimodal, reference beat  
 /*
 	the experimental version needs a few more thinks: 
 	- huffman decoding does not seem to work, yet
@@ -191,6 +192,18 @@ htree_t* newNode() {
 	return(T);
 }
 
+/* check Huffman tree */
+int checkTree(htree_t *T) {
+	int v,v1,v2,v3; 
+	
+	v1 = (T->child0 == NULL) && (T->child0 == NULL) && (T->idxTable > 0);
+	v2 = (T->idxTable == 0) && (T->child0 != NULL) && checkTree(T->child0);
+	v3 = (T->idxTable == 0) && (T->child1 != NULL) && checkTree(T->child1);
+	v = v1 || v2 || v3;
+	if (!v) fprintf(stderr,"Warning: Invalid Node in Huffman Tree: %i %p %p\n",T->idxTable,T->child0,T->child1);
+	return(v);
+}
+
 /* convert Huffman Table into a Huffman tree */
 htree_t* makeTree(huffman_t HT) {
 	uint16_t k1,k2;
@@ -201,7 +214,7 @@ htree_t* makeTree(huffman_t HT) {
 //fprintf(stdout,"%2i\t %2i %2i %2i %4i %5li\n",k1,HT.Table[k1].PrefixLength,HT.Table[k1].CodeLength,HT.Table[k1].TableModeSwitch,HT.Table[k1].BaseValue,HT.Table[k1].BaseCode);
 		uint32_t bc = HT.Table[k1].BaseCode;
 		for (k2=0; k2<HT.Table[k1].CodeLength; k2++, bc>>=1) {
-			if (bc & 0x01) {
+			if (bc & 0x00000001) {
 				if (node->child1==NULL) node->child1 = newNode();
 				node = node->child1;
 			}
@@ -231,9 +244,11 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 
 	k1=0, k2=0;
 	node = HTrees[ActualTable];
+	r = 0; i = 0;
 	while ((k1 < inlen*8) && (k2 < outlen)) {
 		r = k1 % 8; 
 		i = k1 / 8;
+
 		if (!node->idxTable) {
 			if (indata[i] & (1<<(7-r))) {
 				if (node->child1 != NULL)
@@ -253,11 +268,13 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 					return(-1);
 				}	
 			}	
+		++k1;
 		}
 
+		r = k1 % 8; 
+		i = k1 / 8;
 
 		if (node->idxTable) {
-//fprintf(stdout,"%i %i %i %i %i %i %i \n",i,r,k1,k2,8*inlen,outlen,node->idxTable);
 			// leaf of tree reached
 			table_t TableEntry = HuffmanTables[ActualTable].Table[node->idxTable - 1]; 
 			dlen = TableEntry.PrefixLength - TableEntry.CodeLength;
@@ -267,12 +284,12 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 			else if (dlen) {
 				// no compression
 				acc = 0;  //(uint32_t)(indata[i]%(1<<r)); 
-				for (k3=0; k3*8-r >= dlen; k3++)
+				for (k3=0; k3*8-r < dlen; k3++)
 					acc = (acc<<8)+(uint32_t)indata[i+k3];
 				
 				outdata[k2] = (acc >> (k3*8 - r - dlen)) & ((1L << dlen) - 1L) ; 
-				if (outdata[k2]>0x00007fff)
-					outdata[k2] |= 0xffff0000;
+				if (outdata[k2] >= (1<<dlen-1))
+					outdata[k2] -= 1<<dlen;
 				k1 += dlen; 
 				++k2;
 			}
@@ -282,8 +299,8 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 			}
 			// reset node to root
 			node = HTrees[ActualTable];
+//if (k2<3) fprintf(stdout,"%i %i %i %i %i %li %li %li \n",i,r,k1,k2,node->idxTable,dlen,acc,outdata[k2-1]);
 		}
-		++k1;
 	}
 	return(0);
 };
@@ -647,6 +664,8 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				Huffman[0].NCT   = 19;
 				Huffman[0].Table = DefaultTable;
 				HTrees [0] = makeTree(Huffman[0]);
+				if (!checkTree(HTrees[0]))
+					fprintf(stderr,"Warning: invalid Huffman Tree\n");
 			}
 			else {
 				en1064.FLAG.HUFFMAN = NHT; 
@@ -663,9 +682,11 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 						Huffman[k2].Table[k1].BaseValue  = l_endian_i16(*(int16_t*)(PtrCurSect+curSectPos+3));  
 						Huffman[k2].Table[k1].BaseCode   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+5));  
 						curSectPos += 9;
-fprintf(stdout,"HT%i %i\t %i %i %i %i %li\n ",k2,k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode);
+//fprintf(stdout,"HT%i %i\t %i %i %i %i %li\n ",k2,k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode);
 					}
 					HTrees[k2] = makeTree(Huffman[k2]);
+					if (!checkTree(HTrees[k2]))
+						fprintf(stderr,"Warning: invalid Huffman Tree\n");
 				}
 			}
 		}
@@ -813,9 +834,8 @@ fprintf(stdout,"HT%i %i\t %i %i %i %i %li\n ",k2,k1,Huffman[k2].Table[k1].Prefix
 				hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
 				
 				en1064.Section6.inlen[i]    = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+2*i));
-				if (en1064.FLAG.HUFFMAN) {
+				if (en1064.FLAG.HUFFMAN)
 					DecodeHuffman(HTrees, Huffman, Ptr2datablock, en1064.Section6.inlen[i], data + i*hdr->SPR, hdr->SPR);
-				} 
 				else {
 					for (k1=0, ix = i*hdr->SPR; k1 < SPR; k1++)
 						data[ix+k1] = l_endian_i16(*(int16_t*)(Ptr2datablock + 2*k1));
@@ -826,7 +846,7 @@ fprintf(stdout,"HT%i %i\t %i %i %i %i %li\n ",k2,k1,Huffman[k2].Table[k1].Prefix
 #ifdef EXPERIMENTAL
 				if (hdr->aECG->FLAG.BIMODAL || en1064.FLAG.REF_BEAT) { 	
 					AS_DECODE = 1; 
-//					continue; 
+					continue; 
 				}
 #endif 
 
@@ -930,13 +950,15 @@ fprintf(stdout,"HT%i %i\t %i %i %i %i %li\n ",k2,k1,Huffman[k2].Table[k1].Prefix
 
 //   	if (!hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) return(0); 
 
-#ifdef EXPERIMENTAL
-		return(0); 
-#else 
 
-   	if (!hdr->aECG->FLAG.HUFFMAN && !hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) return(0); 
+#ifdef EXPERIMENTAL
+//		return(0); 
+//#else 
+
+//   	if (!hdr->aECG->FLAG.HUFFMAN && !hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) return(0); 
+   	if (!hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) return(0); 
     		
- //    	if (hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL) {
+//    	if (hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL) {
 
 /*
 ---------------------------------------------------------------------------
@@ -996,6 +1018,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		return(0);
 	}
 	
+fprintf(stdout,"\ndata2: ");
+for (int k=0;k<8;k++) fprintf(stdout,"%i %i %i\n",data[k*hdr->SPR],data[k*hdr->SPR+1],data[k*hdr->SPR+2]);
+
 	for (i=0; i < hdr->NS; i++) {
 		hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV" 	
 		hdr->CHANNEL[i].Cal 	    = g*1e-3;
