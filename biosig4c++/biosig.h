@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.70 2007-10-19 09:56:57 schloegl Exp $
+% $Id: biosig.h,v 1.71 2007-11-07 11:59:37 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -48,6 +48,7 @@
 #define B4C_CRC_ERROR		-7
 #define B4C_DATATYPE_UNSUPPORTED 	-8
 #define B4C_SCLOSE_FAILED 	-9
+#define B4C_DECOMPRESSION_FAILED -10
 #define B4C_UNSPECIFIC_ERROR 	-127
 
 extern int   B4C_ERRNUM;

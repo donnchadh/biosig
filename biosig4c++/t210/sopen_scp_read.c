@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.46 2007-11-05 22:01:44 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.47 2007-11-07 11:59:39 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -23,11 +23,12 @@
  */
 
 
-// 
-#define EXPERIMENTAL    // use experimental version of decompressing Huffman, Bimodal, reference beat  
+//
+#define WITH_SCP_DECODE    // use experimental version of decompressing Huffman, Bimodal, reference beat  
+
 /*
 	the experimental version needs a few more thinks: 
-	- huffman decoding does not seem to work, yet
+	- Bimodal and RefBeat decoding do not work yet
 
 	- validation and testing  
 */
@@ -340,7 +341,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	int 		NSections = 12;
 	uint8_t		tag;
 	float 		HighPass=0, LowPass=1.0/0.0, Notch=-1; 	// filter settings
-	uint16_t	Cal5=0,Cal6=0;
+	uint16_t	Cal5=0, Cal6=0, Cal0;	// scaling coefficients 
 	uint16_t 	dT_us = 1000; 	// sampling interval in microseconds
 
 	/* 
@@ -367,7 +368,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	hdr->aECG->FLAG.REF_BEAT = 0; 
 	hdr->aECG->FLAG.BIMODAL  = 0;
 	
-#ifndef EXPERIMENTAL
+#ifdef WITH_SCP_DECODE
 	decode.length_BdR0 = NULL; 	
 	decode.samples_BdR0= NULL;
 	decode.length_Res  = NULL;
@@ -728,12 +729,12 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		}
 		/**** SECTION 4 ****/
 		else if (curSect==4)  {
-			en1064.Section4.beat	= (typeof(en1064.Section4.beat))malloc(hdr->NS*sizeof(*en1064.Section4.beat));
-
 			en1064.Section4.len_ms	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 			en1064.Section4.fiducial_sample	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			en1064.Section4.N	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+4));
 			en1064.Section4.SPR	= hdr->SPR/4;
+
+			en1064.Section4.beat	= (typeof(en1064.Section4.beat))malloc(en1064.Section4.N*sizeof(*en1064.Section4.beat));
 
 			curSectPos += 6;
 			for (i=0; i < en1064.Section4.N; i++) {
@@ -748,6 +749,10 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				en1064.Section4.beat[i].QE   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+4));
 				curSectPos += 8;
 				en1064.Section4.SPR += en1064.Section4.beat[i].QE-en1064.Section4.beat[i].QB-1;
+// fprintf(stdout,"Sec4: %i %i %li %li %li %li %li\n",i,en1064.Section4.beat[i].btyp,en1064.Section4.beat[i].SB,en1064.Section4.beat[i].fcM,en1064.Section4.beat[i].SE,en1064.Section4.beat[i].QB,en1064.Section4.beat[i].QE);  
+			}	
+			if (en1064.Section4.len_ms==0) {
+				en1064.FLAG.REF_BEAT = 0;
 			}	
 		}
 
@@ -758,9 +763,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			en1064.Section5.dT_us	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			en1064.Section5.DIFF 	= *(PtrCurSect+curSectPos+4);
 
-			if (en1064.Section5.Length==0) 
-				en1064.FLAG.REF_BEAT = 0;
-			else {
+			if (en1064.FLAG.REF_BEAT) {
 				en1064.Section5.Length  = 1000L * en1064.Section4.len_ms / en1064.Section5.dT_us; // hdr->SPR;
 				en1064.Section5.inlen	= (typeof(en1064.Section5.inlen))malloc(hdr->NS*sizeof(*en1064.Section5.inlen));
 				en1064.Section5.datablock = (int32_t*)malloc(4 * hdr->NS * en1064.Section5.Length); 
@@ -808,20 +811,31 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			en1064.FLAG.BIMODAL     = *(PtrCurSect+curSectPos+5);
 
 			Cal6 			= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-			dT_us	 		= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
-			hdr->SampleRate 	= 1e6/dT_us;
+			en1064.Section6.dT_us	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			hdr->aECG->FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);
 			hdr->aECG->FLAG.BIMODAL = *(PtrCurSect+curSectPos+5);
 
+			if ((section[5].length>4) &&  en1064.Section5.dT_us) 
+				dT_us = en1064.Section5.dT_us;
+			else 	
+				dT_us = en1064.Section6.dT_us;
+			hdr->SampleRate 	= 1e6/dT_us; 
+
 			typeof(hdr->SPR) SPR  = ( en1064.FLAG.BIMODAL ? en1064.Section4.SPR : hdr->SPR);  
 
-			Ptr2datablock   = (PtrCurSect+curSectPos + 6 + hdr->NS*2);   // pointer for huffman decoder
+			if      (Cal5==0 && Cal6 >0) Cal0 = Cal6;
+			else if (Cal5 >0 && Cal6==0) Cal0 = Cal5;
+			else if (Cal5 >0 && Cal6 >0) Cal0 = gcd(Cal5,Cal6);
+			uint16_t cal5 = Cal5/Cal0; 
+			uint16_t cal6 = Cal6/Cal0; 
+//fprintf(stdout,"CAL: %i %i %i %i %i\n",Cal5,Cal6,Cal0,cal5,cal6); 
+			Ptr2datablock = (PtrCurSect+curSectPos + 6 + hdr->NS*2);   // pointer for huffman decoder
 			len = 0;  
 			size_t ix; 			
 			for (i=0; i < hdr->NS; i++) {
 				hdr->CHANNEL[i].SPR 	    = hdr->SPR;
 				hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV"
-				hdr->CHANNEL[i].Cal 	    = Cal6 * 1e-3;
+				hdr->CHANNEL[i].Cal 	    = Cal0 * 1e-3;
 				hdr->CHANNEL[i].Off         = 0;
 				hdr->CHANNEL[i].OnOff       = 1;    // 1: ON 0:OFF
 				hdr->CHANNEL[i].Transducer[0] = '\0';
@@ -843,13 +857,6 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				len += en1064.Section6.inlen[i];
 				Ptr2datablock += en1064.Section6.inlen[i]; 
 
-#ifdef EXPERIMENTAL
-				if (hdr->aECG->FLAG.BIMODAL || en1064.FLAG.REF_BEAT) { 	
-					AS_DECODE = 1; 
-					continue; 
-				}
-#endif 
-
 				if (hdr->aECG->FLAG.DIFF==1) {
 					for (ix = i*hdr->SPR+1; ix < i*hdr->SPR + SPR; ix++)
 						data[ix] += data[ix-1];
@@ -859,7 +866,19 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 						data[ix] += 2*data[ix-1] - data[ix-2];
 				}
 
+				if (hdr->aECG->FLAG.BIMODAL || en1064.FLAG.REF_BEAT) { 	
+//				if (hdr->aECG->FLAG.BIMODAL) {
+//				if (hdr->aECG->FLAG.REF_BEAT {
+					/*	this is experimental work
+						Bimodal and RefBeat decompression are under development. 
+						"continue" ignores code below 
+						AS_DECODE=1 will call later SCP-DECODE instead  
+					*/ 	
+					AS_DECODE = 1; continue; 
+				}
+
 				if (hdr->aECG->FLAG.BIMODAL) {
+					// ### FIXME ### 
 					ix = i*hdr->SPR;		// memory offset
 					k1 = en1064.Section4.SPR-1; 	// SPR of decimated data 
 					k2 = hdr->SPR;			// SPR of sample data
@@ -867,37 +886,30 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					uint8_t  k4 = 4;		// decimation factor 
 					do {
 						--k2;
-						data[ix + k2] = data[ix+k1];
+						data[ix + k2] = data[ix + k1];
 						if (k2 > en1064.Section4.beat[k3].QE) { // outside protected zone 
-							if (--k4==0) {k4=4; --k1;};	
+							if (--k4==0) {k4=4; --k1; };
 						}
 						else {	// inside protected zone 
 							--k1;
-							if (k2==en1064.Section4.beat[k3].QB) --k3;
+							if (k2<en1064.Section4.beat[k3].QB) {--k3; k4=4;};
 						}
-					} while (k2>0);
+					} while (k2 && (k1>=0));
 				}
 			
 				if (en1064.FLAG.REF_BEAT) {
-					uint16_t g = 1; 	
-					if      (Cal5==0 && Cal6 >1) g = Cal6;
-					else if (Cal5 >1 && Cal6==0) g = Cal5;
-					else if (Cal5 >1 && Cal6 >1) g = gcd(Cal5,Cal6);
-
-					hdr->CHANNEL[i].Cal = g/Cal6;
-					hdr->CHANNEL[i].PhysMax = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
-					hdr->CHANNEL[i].PhysMin = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
-
-//					for (ix = en1064.Section4.beat[i].SB; ix < en1064.Section4.beat[i].SE; ix++) 
-					for (ix = 0; ix < en1064.Section5.Length; ix++) 
-					for (k1=0; k1 < en1064.Section4.N; k1++) 
-					if (en1064.Section4.beat[i].btyp==0) {
-						size_t ix1 = i*hdr->SPR + en1064.Section4.beat[k1].SB - en1064.Section4.beat[k1].fcM + ix;						
-						data[ix1]  = data[ix1]*Cal6+en1064.Section5.datablock[i*en1064.Section5.Length+ix]*Cal5;
-						data[ix1] /= g; 
+					/* Add reference beats */
+					// ### FIXME ### 
+					for (k1 = 0; k1 < en1064.Section4.N; k1++) {
+						if (en1064.Section4.beat[k1].btyp == 0)
+						for (ix = 0; ix < en1064.Section5.Length; ix++) {
+							int32_t ix1 = en1064.Section4.beat[k1].SB - en1064.Section4.beat[k1].fcM + ix;
+							int32_t ix2 = i*hdr->SPR + ix1;
+							if ((en1064.Section4.beat[k1].btyp==0) && (ix1 >= 0) && (ix1 < hdr->SPR))
+								data[ix2] = data[ix2] * cal6 + en1064.Section5.datablock[i*en1064.Section5.Length+ix] * cal5;
+						}
 					}
 				}
-
 			}
 
 			en1064.Section6.datablock = data; 
@@ -908,6 +920,84 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 
 		/**** SECTION 7 ****/
 		else if (curSect==7)  {
+			uint16_t N_QRS = *(uint8_t*)(PtrCurSect+curSectPos)-1;
+			uint8_t  N_PaceMaker = *(uint8_t*)(PtrCurSect+curSectPos+1);
+			uint16_t RRI = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
+			uint16_t PPI = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+4));
+			curSectPos += 6;
+			size_t curSectPos0 = curSectPos; // backup of pointer 
+			
+			// skip data on QRS measurements 
+			/*
+			// ### FIXME ### 
+			It seems that the P,QRS, and T wave events can not be reconstructed 
+			because they refer to the reference beat and not to the overall signal data.  	
+			Maybe Section 4 information need to be used. However, EN1064 does not mention this.
+			
+			hdr->EVENT.POS = (uint32_t*)realloc(hdr->EVENT.POS, (hdr->EVENT.N+5*N_QRS+N_PaceMaker)*sizeof(*hdr->EVENT.POS));
+			hdr->EVENT.TYP = (uint16_t*)realloc(hdr->EVENT.TYP, (hdr->EVENT.N+5*N_QRS+N_PaceMaker)*sizeof(*hdr->EVENT.TYP));
+			hdr->EVENT.DUR = (uint32_t*)realloc(hdr->EVENT.DUR, (hdr->EVENT.N+5*N_QRS+N_PaceMaker)*sizeof(*hdr->EVENT.DUR));
+			hdr->EVENT.CHN = (uint16_t*)realloc(hdr->EVENT.CHN, (hdr->EVENT.N+5*N_QRS+N_PaceMaker)*sizeof(*hdr->EVENT.CHN));
+			for (i=0; i < 5*N_QRS; i++) {
+				hdr->EVENT.DUR[hdr->EVENT.N+i] = 0;
+				hdr->EVENT.CHN[hdr->EVENT.N+i] = 0;
+			}
+			for (i=0; i < 5*N_QRS; i+=5) {
+				uint8_t typ = *(PtrCurSect+curSectPos+i);
+				hdr->EVENT.TYP[hdr->EVENT.N]   = 0x0502;
+				hdr->EVENT.TYP[hdr->EVENT.N+1] = 0x8502;
+				hdr->EVENT.TYP[hdr->EVENT.N+2] = 0x0503;
+				hdr->EVENT.TYP[hdr->EVENT.N+3] = 0x8503;
+				hdr->EVENT.TYP[hdr->EVENT.N+4] = 0x8506;
+				hdr->EVENT.POS[hdr->EVENT.N]   = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos0));
+				hdr->EVENT.POS[hdr->EVENT.N+1] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos0+2));
+				hdr->EVENT.POS[hdr->EVENT.N+2] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos0+4));
+				hdr->EVENT.POS[hdr->EVENT.N+3] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos0+6));
+				hdr->EVENT.POS[hdr->EVENT.N+4] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos0+8));
+				hdr->EVENT.N+= 5;
+				curSectPos0 += 16;
+			}
+			*/
+			curSectPos += N_QRS*16;
+				// pace maker information is stored in sparse sampling channel
+			if (N_PaceMaker>0) {
+				hdr->EVENT.POS = (uint32_t*)realloc(hdr->EVENT.POS, (hdr->EVENT.N+N_PaceMaker)*sizeof(*hdr->EVENT.POS));
+				hdr->EVENT.TYP = (uint16_t*)realloc(hdr->EVENT.TYP, (hdr->EVENT.N+N_PaceMaker)*sizeof(*hdr->EVENT.TYP));
+				hdr->EVENT.DUR = (uint32_t*)realloc(hdr->EVENT.DUR, (hdr->EVENT.N+N_PaceMaker)*sizeof(*hdr->EVENT.DUR));
+				hdr->EVENT.CHN = (uint16_t*)realloc(hdr->EVENT.CHN, (hdr->EVENT.N+N_PaceMaker)*sizeof(*hdr->EVENT.CHN));
+				/* add pacemaker channel */
+				hdr->CHANNEL = (CHANNEL_TYPE *) realloc(hdr->CHANNEL,(++hdr->NS)*sizeof(CHANNEL_TYPE));
+				i = hdr->NS;
+				hdr->CHANNEL[i].SPR 	    = 0;    // sparse event channel 
+				hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV"
+				hdr->CHANNEL[i].Cal 	    = 1;
+				hdr->CHANNEL[i].Off         = 0;
+				hdr->CHANNEL[i].OnOff       = 1;    // 1: ON 0:OFF
+				strcpy(hdr->CHANNEL[i].Transducer,"Pacemaker");
+				hdr->CHANNEL[i].GDFTYP      = 3;  
+
+				// ### these values should represent the true saturation values ###//
+				hdr->CHANNEL[i].DigMax      = ldexp(1.0,15)-1;
+				hdr->CHANNEL[i].DigMin      = ldexp(-1.0,15);
+				hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
+				hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
+			}
+			// skip pacemaker spike measurements  
+			for (i=0; i < N_PaceMaker; i++) {
+				++hdr->EVENT.N;
+				hdr->EVENT.TYP[hdr->EVENT.N] = 0x7fff;
+				hdr->EVENT.CHN[hdr->EVENT.N] = hdr->NS;
+				hdr->EVENT.POS[hdr->EVENT.N] = round(l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))*hdr->SampleRate*1e-3);
+				hdr->EVENT.DUR[hdr->EVENT.N] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
+				curSectPos += 4;
+			}
+			// skip pacemaker spike information section  
+			curSectPos += N_PaceMaker*6;
+			
+			// QRS type information 
+			N_QRS = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+			curSectPos += 2;
+
 		}
 
 		/**** SECTION 8 ****/
@@ -942,23 +1032,16 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	}	
 
 	if (en1064.Section3.lead != NULL) 	free(en1064.Section3.lead);
-//	if (en1064.Section4.beat != NULL) 	free(en1064.Section4.beat);
+	if (en1064.Section4.beat != NULL) 	free(en1064.Section4.beat);
 	if (en1064.Section5.inlen != NULL) 	free(en1064.Section5.inlen);
-//	if (en1064.Section5.datablock != NULL) 	free(en1064.Section5.datablock);
+	if (en1064.Section5.datablock != NULL) 	free(en1064.Section5.datablock);
 	if (en1064.Section6.inlen != NULL) 	free(en1064.Section6.inlen);
 //	if (en1064.Section6.datablock != NULL) 	free(en1064.Section6.datablock);
 
-//   	if (!hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) return(0); 
 
-
-#ifdef EXPERIMENTAL
-//		return(0); 
-//#else 
-
-//   	if (!hdr->aECG->FLAG.HUFFMAN && !hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) return(0); 
-   	if (!hdr->aECG->FLAG.REF_BEAT && !hdr->aECG->FLAG.BIMODAL) return(0); 
+   	if (AS_DECODE==0) return(0); 
     		
-//    	if (hdr->aECG->FLAG.HUFFMAN || hdr->aECG->FLAG.REF_BEAT || hdr->aECG->FLAG.BIMODAL) {
+#ifdef WITH_SCP_DECODE
 
 /*
 ---------------------------------------------------------------------------
@@ -994,12 +1077,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 	fprintf(stdout, "\nUse SCP_DECODE (Huffman=%i RefBeat=%i Bimodal=%i)\n",hdr->aECG->FLAG.HUFFMAN, hdr->aECG->FLAG.REF_BEAT, hdr->aECG->FLAG.BIMODAL);
 
-	// greatest common divisor of scaling from section 5 and 6
-	uint16_t g = 1; 	
-	if      (Cal5==0 && Cal6 >1) g = Cal6;
-	else if (Cal5 >1 && Cal6==0) g = Cal5;
-	else if (Cal5 >1 && Cal6 >1) g = gcd(Cal5,Cal6);
-	
 	textual.des.acquiring.protocol_revision_number = hdr->aECG->Section1.Tag14.VERSION;
 	textual.des.analyzing.protocol_revision_number = hdr->aECG->Section1.Tag15.VERSION; 
 
@@ -1007,9 +1084,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	decode.Reconstructed    = (int32_t*) hdr->AS.rawdata; 
 
 	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
-		if (g>1)
+		if (Cal0>1)
 			for (i=0; i < hdr->NS * hdr->SPR * hdr->NRec; ++i)
-				data[i] /= g;
+				data[i] /= Cal0;
 		hdr->FLAG.SWAP  = 0;
 	}
 	else { 
@@ -1018,15 +1095,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		return(0);
 	}
 	
-fprintf(stdout,"\ndata2: ");
-for (int k=0;k<8;k++) fprintf(stdout,"%i %i %i\n",data[k*hdr->SPR],data[k*hdr->SPR+1],data[k*hdr->SPR+2]);
-
-	for (i=0; i < hdr->NS; i++) {
-		hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV" 	
-		hdr->CHANNEL[i].Cal 	    = g*1e-3;
-		hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
-		hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
-	}
 	 // end of fall back method 
 	return(1);
 #endif 
