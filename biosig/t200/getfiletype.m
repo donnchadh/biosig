@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.65 2007-10-16 13:54:00 schloegl Exp $
+%	$Id: getfiletype.m,v 1.66 2007-11-07 16:42:26 schloegl Exp $
 %	(C) 2004,2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -226,15 +226,28 @@ else
                         HDR.TYPE='MFER';
                 elseif all(s([4:7,14:19])==[232,3,12,0,0,0,0,0,0,0]); 
                         HDR.TYPE='PathFinder710_HighResolutionECG';
+
+                elseif all(s([9:14,23:34])==[0,0,136,0,0,0,0,0,136,0,0,0,7,0,0,0,1,0]) 
+                        HDR.TYPE='SCP';
+                        HDR.keycode = s(1:34); 
+                        HDR.VERSION = s(15)/10; 
+                elseif all(s([9:14,23:34])==[0,0,146,0,0,0,0,0,146,0,0,0,7,0,0,0,1,0]) 
+                        HDR.TYPE='SCP';
+                        HDR.keycode = s(1:34); 
+                        HDR.VERSION = s(15)/10; 
                 elseif all(s([9:22])==[0,0,136,0,0,0,13,13,abs('SCPECG')]); 
                         HDR.TYPE='SCP';
+                        HDR.keycode = s(1:34); 
                         HDR.VERSION = 1.3; 
                 elseif all(s([9:10,17:22])==[0,0,abs('SCPECG')]); 
                         HDR.TYPE='SCP';
+                        HDR.keycode = s(1:34); 
                         HDR.VERSION = -1; 
                 elseif all(s(17:22)==abs('SCPECG')); 
                         HDR.TYPE='SCP';
+                        HDR.keycode = s(1:34); 
                         HDR.VERSION = -2; 
+
                 elseif strncmp(ss,'# EN1064 Lead Identification Table of the SCP-ECG format',6); 
                         HDR.TYPE='EN1064:LeadId';
                         tmp = fread(fid,[1,inf],'char'); 
@@ -983,7 +996,11 @@ else
                 elseif strcmpi(HDR.FILE.Ext,'DAT') 
 			if HDR.FLAG.ASCII,
 				ix = find(HDR.s(1:120)==10);
-				if (length(ix) > 3)
+				ix1 = strfind(HDR.s(1:120),'Andrews & Herzberg (1985)');
+				
+				if (length(ix1)>0)
+					HDR.TYPE = 'AndrewsHerzberg1985';
+				elseif (length(ix) > 3)
 					line = HDR.s(1:ix(1)-1);
 					[n,v,sa] = str2double(line);
 					HDR.SampleRate = 1000/n(1);

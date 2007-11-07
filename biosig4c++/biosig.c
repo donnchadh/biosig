@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.114 2007-10-23 08:58:30 schloegl Exp $
+    $Id: biosig.c,v 1.115 2007-11-07 16:42:02 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This function is part of the "BioSig for C/C++" repository 
@@ -22,7 +22,7 @@
 
  */
 
-/* 
+/* M
 
 	reading and writing of GDF files is demonstrated 
 	
@@ -925,14 +925,21 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	}    	
     	else if (!memcmp(hdr->AS.Header+16,"SCPECG",6)) {
 	    	hdr->TYPE = SCP_ECG;
-    		if (!memcmp(hdr->AS.Header+8,"\0\0\136\0\0\0\13\13",8)) 
-		    	hdr->VERSION = 1.3;
-    		else if (!memcmp(hdr->AS.Header+8,"\0\0",2)) 
-		    	hdr->VERSION = -1.0;
-		else    	
-		    	hdr->VERSION = -2.0;
+	    	hdr->VERSION = *(hdr->AS.Header+14);
 	}    	
-    	else if (!memcmp(Header1,"\"Snap-Master Data File\"",24))
+	else if (  ( (*(uint32_t*)(hdr->AS.Header+10)==l_endian_u32(0x00000088))
+		   ||(*(uint32_t*)(hdr->AS.Header+10)==l_endian_u32(0x00000092))
+		   )
+		&& (*(uint32_t*)(hdr->AS.Header+24)==*(uint32_t*)(hdr->AS.Header+10))
+		&& (*(uint16_t*)(hdr->AS.Header+ 8)==l_endian_u16(0x0000))
+		&& (*(uint16_t*)(hdr->AS.Header+22)==l_endian_u16(0x0000))
+		&& (*(uint32_t*)(hdr->AS.Header+28)==l_endian_u32(0x00000007))
+		&& (*(uint16_t*)(hdr->AS.Header+32)==l_endian_u16(0x0001))
+		) {
+	    	hdr->TYPE = SCP_ECG;
+	    	hdr->VERSION = *(hdr->AS.Header+14);
+	}    	
+	else if (!memcmp(Header1,"\"Snap-Master Data File\"",24))
 	    	hdr->TYPE = SMA;
 	else if (!memcmp(Header1,MAGIC_NUMBER_TIFF_l32,4))
 		hdr->TYPE = TIFF;
@@ -1726,7 +1733,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     			4256, 3872, 3840, 3904,    0,	// Volt, mmHg, Pa, mmH2O, mmHg/S
     			3808, 3776,  544, 6048, 2528,	// dyne, N, %, °C, 1/min 
     			4264, 4288, 4160,    0, 4032,	// 1/s, Ohm, A, rpm, W
-    			6432, 1731, 3968, 6016,    0,	// dB, kg, J, dyne s m-2 cm-5, ?
+    			6432, 1731, 3968, 6016,    0,	// dB, kg, J, dyne s m-2 cm-5, l
     			3040, 3072, 4480,    0,    0,	// L/s, L/min, cd
     			   0,    0,    0,    0,    0,	// 
 		};
@@ -2148,8 +2155,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 
 		sopen_SCP_read(hdr);
-		hdr->FLAG.SWAP = 0; 	// no swapping if SCP-DECODE was used
 		serror();
+		hdr->FLAG.SWAP = 0; 	// no swapping
 
 /* 
 		if (serror()) {
@@ -3013,8 +3020,8 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 #define MIN_UINT64 ((uint64_t)0)
 
 
-	if (hdr->TYPE != SCP_ECG)  // memory allocation for SCP is done in SOPEN_SCP_WRITE Section 6	
-	{
+	if (hdr->TYPE != SCP_ECG) // memory allocation for SCP is done in SOPEN_SCP_WRITE Section 6	
+	{ 
 		ptr = realloc(hdr->AS.rawdata, hdr->AS.bpb*hdr->NRec);
 		if (ptr==NULL) {
 			B4C_ERRNUM = B4C_INSUFFICIENT_MEMORY;
@@ -3485,12 +3492,17 @@ int hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSE_LEVEL)
 			fprintf(stdout,"LangSuppCode     : %i\n",hdr->aECG->Section1.Tag14.LANG_SUPP_CODE);
 			fprintf(stdout,"ECG_CAP_DEV      : %i\n",hdr->aECG->Section1.Tag14.ECG_CAP_DEV);
 			fprintf(stdout,"Mains Frequency  : %i\n",hdr->aECG->Section1.Tag14.MAINS_FREQ);
-
+/*
 			fprintf(stdout,"ANAL_PROG_REV_NUM    : %s\n",hdr->aECG->Section1.Tag14.ANAL_PROG_REV_NUM);
 			fprintf(stdout,"SERIAL_NUMBER_ACQ_DEV: %s\n",hdr->aECG->Section1.Tag14.SERIAL_NUMBER_ACQ_DEV);
 			fprintf(stdout,"ACQ_DEV_SYS_SW_ID    : %i\n",hdr->aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID);
 			fprintf(stdout,"ACQ_DEV_SCP_SW       : %i\n",hdr->aECG->Section1.Tag14.ACQ_DEV_SCP_SW);
 			fprintf(stdout,"ACQ_DEV_MANUF        : %i\n",hdr->aECG->Section1.Tag14.ACQ_DEV_MANUF);
+*/
+			fprintf(stdout,"Compression  HUFFMAN : %i\n",hdr->aECG->FLAG.HUFFMAN);
+			fprintf(stdout,"Compression  REF-BEAT: %i\n",hdr->aECG->FLAG.REF_BEAT);		
+			fprintf(stdout,"Compression  BIMODAL : %i\n",hdr->aECG->FLAG.BIMODAL);		
+			fprintf(stdout,"Compression  DIFF    : %i\n",hdr->aECG->FLAG.DIFF);		
 		}
 	}
 	return(0);
