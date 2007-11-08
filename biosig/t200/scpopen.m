@@ -9,24 +9,23 @@ function [HDR]=scpopen(arg1,CHAN,arg4,arg5,arg6)
 % See also: fopen, SOPEN, 
 
 
-% This program is free software; you can redistribute it and/or
-% modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
-% of the License, or (at your option) any later version.
-% 
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-% 
-% You should have received a copy of the GNU General Public License
-% along with this program; if not, write to the Free Software
-% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+%	$Id: scpopen.m,v 1.35 2007-11-08 21:33:54 schloegl Exp $
+%	(C) 2004,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BioSig-toolbox http://biosig.sf.net/
+%
+%    BioSig is free software: you can redistribute it and/or modify
+%    it under the terms of the GNU General Public License as published by
+%    the Free Software Foundation, either version 3 of the License, or
+%    (at your option) any later version.
+%
+%    BioSig is distributed in the hope that it will be useful,
+%    but WITHOUT ANY WARRANTY; without even the implied warranty of
+%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%    GNU General Public License for more details.
+%
+%    You should have received a copy of the GNU General Public License
+%    along with BioSig. If not, see <http://www.gnu.org/licenses/>.
 
-%	$Revision: 1.34 $
-%	$Id: scpopen.m,v 1.34 2007-08-09 15:18:25 schloegl Exp $
-%	(C) 2004,2006 by Alois Schloegl <a.schloegl@ieee.org>	
-%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if nargin<2, CHAN=0; end;
 
@@ -59,6 +58,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
         
         DHT = [0,1,-1,2,-2,3,-3,4,-4,5,-5,6,-6,7,-7,8,-8,9,-9;0,1,5,3,11,7,23,15,47,31,95,63,191,127,383,255,767,511,1023]';
         prefix  = [1,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10,10];
+	PrefixLength = prefix; 
 
         %PREFIX = [0,4,5,12,13,28,29,60,61,124,125,252,253,508,509,1020,1021,1022,1023];
         PREFIX  = [0,4,5,12,13,28,29,60,61,124,125,252,253,508,509,1020,1021,1022,1023]'.*2.^[32-prefix]';
@@ -89,13 +89,14 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
         section.tmp     = fread(fid,[1,6],'uint8');
         
         NSections = (section.Length-16)/10;
-        for k = 1:NSections,
+        for k = 1:NSections-2,
                 HDR.Block(k).id = fread(fid,1,'uint16');
                 HDR.Block(k).length = fread(fid,1,'uint32');
                 HDR.Block(k).startpos = fread(fid,1,'uint32')-1;
 
 %% [HDR.Block(k).id ,length(tmpbytes), HDR.Block(k).length, HDR.Block(k).length+HDR.Block(k).startpos]                
-                tmpcrc = crc16eval(tmpbytes(HDR.Block(k).startpos+3:HDR.Block(k).startpos+HDR.Block(k).length));
+		%% FIXME: instead of min(...,FileSize) a warning or error message should be reported 
+                tmpcrc = crc16eval(tmpbytes(HDR.Block(k).startpos+3:min(HDR.Block(k).startpos+HDR.Block(k).length,HDR.FILE.size)));
                 if (HDR.Block(k).length>0)
                 if (tmpcrc~=(tmpbytes(HDR.Block(k).startpos+(1:2))'*[1;256]))
                 	fprintf(HDR.FILE.stderr,'Warning SCPOPEN: faulty CRC %04x in section %i\n',tmpcrc,k-1);
@@ -105,6 +106,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
         
 %%[[HDR.Block.id];[HDR.Block.length];[HDR.Block.startpos]]'
 
+	%% TODO: Section handling is somehow a mess 	
         secList = find([HDR.Block.length]);
         for K = secList(1:end),
                 if fseek(fid,HDR.Block(K).startpos,'bof');
@@ -114,7 +116,12 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                 section.ID      = fread(fid,1,'uint16');
                 section.Length  = fread(fid,1,'uint32');
                 section.Version = fread(fid,[1,2],'uint8');
-                section.tmp     = fread(fid,[1,6],'uint8');
+                section.tmp     = fread(fid,[1,6],'uint8'); 
+	
+		if (section.ID+1 ~= K) 
+			fprintf(HDR.FILE.stderr, 'Warning SCPOPEN: ID in section %i is %i\n',K-1,section.ID);
+			section.ID = K-1;	%% HACK: fixes incorrect
+		end; 	 
 
                 HDR.SCP.Section{find(K==secList)} = section;
                 if (section.Length==0),
@@ -264,6 +271,8 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         HDR.SCP1.MedicalHistory = char(field);
                                 elseif tag == 255,
                                         % section terminator	
+                                elseif tag >= 200,
+                                	% manufacturer specific - not standardized 
                                 else
                                         fprintf(HDR.FILE.stderr,'Warning SCOPEN: unknown tag %i (section 1)\n',tag);
                                 end;
@@ -287,22 +296,28 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
 			end;
                         k3 = 0;
                         for k1 = 1:NHT,
+                        	HT1 = zeros(HDR.SCP2.NCT,5);
                                 for k2 = 1:HDR.SCP2.NCT,
                                 	tmp = fread(fid,3,'uint8') ;
-                                        HDR.SCP2.prefix = tmp(1);
-                                        HDR.SCP2.codelength = tmp(2);
-                                        HDR.SCP2.TableModeSwitch = tmp(3);
-                                        tmp(4) = fread(fid,1,'int16');    
-                                        tmp(5) = fread(fid,1,'uint32');    
-                                	k3 = k3 + 1;
-				        HT(k3,:) = [tmp']; 
+                                        HDR.SCP2.prefix = tmp(1);	% PrefixLength
+                                        HDR.SCP2.codelength = tmp(2);	% CodeLength
+                                        HDR.SCP2.TableModeSwitch = tmp(3);	
+                                        tmp(4) = fread(fid,1,'int16');  % BaseValue   
+                                        tmp(5) = fread(fid,1,'uint32'); % BaseCode    
+                                	k3 = k3   + 1;
+				        HT (k3,:) = [tmp']; 
+				        HT1(k2,:) = [tmp']; 
                                 end;
+                                HDR.SCP2.HTree{k1} = makeTree(HT1);
+                                HDR.SCP2.HTs{k1} = HT1;
 			end;
 			if HDR.SCP2.NHT~=19999,
 				HDR.SCP2.HT = HT;
 			else
 				tmp = size(HT19999,1);
 				HDR.SCP2.HT = [ones(tmp,1),[1:tmp]',HT19999];
+                                HDR.SCP2.HTree{1} = makeTree(HT19999);
+                                HDR.SCP2.HTs{1} = HT19999;
 			end;
 
                 elseif section.ID==3, 
@@ -319,7 +334,11 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 HDR.LeadIdCode(k,1) = fread(fid,1,'uint8');    
                         end;
                         HDR.N = max(HDR.LeadPos(:))-min(HDR.LeadPos(:))+1;
-                        
+                        HDR.AS.SPR = HDR.LeadPos(:,2)-HDR.LeadPos(:,1)+1;
+                        HDR.SPR = HDR.AS.SPR(1);  
+			for k = 2:HDR.NS
+				HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k)); 
+			end; 	                        
                         
                         HDR = leadidcodexyz(HDR);
                         for k = 1:HDR.NS,
@@ -376,6 +395,9 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 HDR.FLAG.DIFF = SCP.FLAG.DIFF;
                                 HDR.FLAG.bimodal_compression = SCP.FLAG.bimodal_compression;
                                 HDR.data = [];
+                                outlen = HDR.SPR; 
+                        else 
+                        	outlen = 1000* HDR.SCP4.L/SCP.Dur;         
                         end;
 
                         if ~isfield(HDR,'SCP2'),
@@ -386,6 +408,32 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 end;
 				%S2 = S2(:,CHAN); 
         
+                        elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) & (HDR.SCP2.prefix==0), 
+				codelength = HDR.SCP2.HT(1,4);
+                                if (codelength==16)
+                                        S2 = fread(fid,[HDR.N,HDR.NS],'int16');  
+                                elseif (codelength==8)
+                                        S2 = fread(fid,[HDR.N,HDR.NS],'int8');  
+                                else
+                                        fprintf(HDR.FILE.stderr,'Warning SCPOPEN: codelength %i is not supported yet.',codelength);
+                                        fprintf(HDR.FILE.stderr,' Contact <a.schloegl@ieee.org>\n');
+                                        return;
+                                end;
+				%S2 = S2(:,CHAN); 
+                                
+                        elseif 1,HDR.SCP2.NHT~=19999;
+                        	%% User specific Huffman table 
+                        	%% a more elegant Huffman decoder is used here %%
+                                for k = 1:HDR.NS,
+                                        SCP.data{k} = fread(fid,SCP.SPR(k),'uint8');    
+                                end;
+                                S2 = repmat(NaN,outlen,length(HDR.InChanSelect)); 
+                                for k3 = 1:length(HDR.InChanSelect), k = HDR.InChanSelect(k3); %HDR.NS,
+					outdata  = DecodeHuffman(HDR.SCP2.HTree,HDR.SCP2.HTs,SCP.data{k},outlen);
+					S2(:,k3) = outdata; 
+				end;
+				accu=0;  	
+
                         elseif HDR.SCP2.NHT==19999,
                                 HuffTab = DHT;
                                 for k = 1:HDR.NS,
@@ -560,20 +608,8 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         end;
                                 end;
                                         
-                        elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) & (HDR.SCP2.prefix==0), 
-				codelength = HDR.SCP2.HT(1,4);
-                                if (codelength==16)
-                                        S2 = fread(fid,[HDR.N,HDR.NS],'int16');  
-                                elseif (codelength==8)
-                                        S2 = fread(fid,[HDR.N,HDR.NS],'int8');  
-                                else
-                                        fprintf(HDR.FILE.stderr,'Warning SCPOPEN: codelength %i is not supported yet.',codelength);
-                                        fprintf(HDR.FILE.stderr,' Contact <a.schloegl@ieee.org>\n');
-                                        return;
-                                end;
-				%S2 = S2(:,CHAN); 
-                                
                         elseif HDR.SCP2.NHT~=19999,
+                        	%% OBSOLETE %%
                                 fprintf(HDR.FILE.stderr,'Error SOPEN SCP-ECG: user specified Huffman Table not supported\n');
                                 HDR.SCP = SCP;
                                 return;
@@ -601,8 +637,12 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 HDR.SampleRate = SCP.SampleRate;
                                 HDR.PhysDim = repmat({HDR.SCP6.PhysDim},HDR.NS,1);
                                 HDR.data = S2;
-                                
-                                if HDR.SCP6.FLAG.bimodal_compression,
+
+                                if HDR.FLAG.bimodal_compression,
+                                	%% FIXME: THIS IS A HACK - DO NOT KNOW WHETHER IT IS CORRECT. 
+                                %	HDR.FLAG.bimodal_compression = isfield(HDR,'SCP5') & isfield(HDR,'SCP4');
+				end; 
+                                if HDR.FLAG.bimodal_compression,
                                         F = HDR.SCP5.SampleRate/HDR.SCP6.SampleRate;
                                         HDR.SampleRate = HDR.SCP5.SampleRate;
                                         HDR.FLAG.F = F;
@@ -618,6 +658,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         k2 = 1;
                                         pa = [HDR.SCP4.PA;NaN,NaN];
                                         flag = 1;
+                                        %% FIXME: accu undefined ##
                                         for k1 = 1:HDR.N,
                                                 if k1 == pa(p,2)+1,
                                                         flag = 1;
@@ -922,7 +963,7 @@ else    % writing SCP file
         count = fwrite(fid,B,'uchar');
         fclose(fid); 
 end
-end  %% scpopen
+%end  %% scpopen
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -934,14 +975,108 @@ end  %% scpopen
 function b2 = s2b(i)
 	% converts 16bit into 2 bytes
 	b2 = [bitand(i,255),bitand(bitshift(i,-8),255)];
-end	%%%%% s2b %%%%%
+	return; 
+end;	%%%%% s2b %%%%%
 
 
 function b4 = s4b(i)
 	% converts 32 bit into 4 bytes
 	b4 = [s2b(bitand(i,2^16-1)),s2b(bitand(bitshift(i,-16),2^16-1)) ];
+	return; 
 end	%%%%% s4b %%%%%
 
+
+function T = makeSubTree(T,bc,len,val)
+	if (len==0)
+		T.idxTable = val;
+		return 
+	end; 
+if 1,
+	b = bitand(bc,1)+1;
+	if ~isfield(T,'branch') T.branch = {[],[]}; end;
+	T.branch{b} = makeSubTree(T.branch{b},bitshift(bc,-1),len-1,val);
+else 
+	if bitand(bc,1)
+		if ~isfield(T,'node1'),T.node1 = []; end;  
+		T.node1 = makeSubTree(T.node1,bitshift(bc,-1),len-1,val);
+	else
+		if ~isfield(T,'node0'),T.node0 = []; end;  
+		T.node0 = makeSubTree(T.node0,bitshift(bc,-1),len-1,val); 
+	end; 
+end,
+	return; 
+end	%%%%% makeSubTree %%%%%
+
+function T = makeTree(HT)
+	T = []; 
+	for k1 = 1:size(HT,1)
+		for k2 = 1:HT(k1,1) % CodeLength
+			T = makeSubTree(T,HT(k1,5),HT(k1,1),k1); 
+		end;  
+	end; 
+%save matlab T,pause
+	return; 
+end	%%%%% makeTree %%%%%
+
+function outdata = DecodeHuffman(HTrees,HTs,indata,outlen)
+	ActualTable = 1; 
+	k1 = 1; r=0; 
+	k2 = 0; 
+
+	outdata = repmat(NaN,outlen,1); 
+	Node    = HTrees{ActualTable}; 
+	while ((k1*8+r <= 8*length(indata)) && (k2<outlen))
+		if ~isfield(Node,'idxTable')
+			r = r+1; if (r>8), k1=k1+1; r=1; end;
+if 1,
+			b = bitand(bitshift(indata(k1),r-8),1)+1;
+			if ~isempty(Node.branch{b})
+				Node = Node.branch{b};
+			else 
+				fprintf(2,'Warning SCPOPEN: empty node in Huffman table\n');
+			end; 		 
+else
+			if bitand(bitshift(indata(k1),r-8),1)
+				if isfield(Node,'node1') 
+					Node = Node.node1;
+				else 
+					fprintf(2,'Warning SCPOPEN: empty node in Huffman table\n');
+				end; 		 
+			else 	 
+				if isfield(Node,'node0') 
+					Node = Node.node0; 
+				else 
+					fprintf(2,'Warning SCPOPEN: empty node in Huffman table\n');
+				end; 
+			end; 		
+end;
+		end; 
+
+		if isfield(Node,'idxTable')
+			TableEntry = HTs{ActualTable}(Node.idxTable,:);
+			dlen = TableEntry(2)-TableEntry(1); 
+			if (~TableEntry(3))
+				ActualTable = TableEntry(4); 
+			elseif (dlen~=0) 
+				acc = 0;
+				for k3 = 1:dlen,
+					r = r+1; if (r>8), k1=k1+1; r=1; end;
+					acc = 2*acc + bitand(bitshift(indata(k1),r-8), 1);
+				end;
+				if (acc>=bitshift(1,dlen-1))
+					acc = acc - bitshift(1,dlen);  
+				end; 	
+				k2 = k2+1;
+				outdata(k2) = acc; 
+			else
+				k2 = k2+1;
+				outdata(k2)=TableEntry(4);
+			end;
+			Node = HTrees{ActualTable}; 
+		end;
+	end;
+	return; 
+end; %%%%%%%% DecodeHuffman %%%%%%%%%
 
 function crc16 = crc16eval(D)
 % CRC16EVAL cyclic redundancy check with the polynomiaL x^16+x^12+x^5+1  
