@@ -1,25 +1,24 @@
 /*
 
-    $Id: save2gdf.c,v 1.27 2007-10-17 14:36:16 schloegl Exp $
+    $Id: save2gdf.c,v 1.28 2007-11-08 14:43:15 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
-    This function is part of the "BioSig for C/C++" repository 
+    This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
  
 
-    This program is free software; you can redistribute it and/or modify
+    BioSig is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
+    the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
+    BioSig is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+    along with BioSig. If not, see <http://www.gnu.org/licenses/>.
 
  */
 
@@ -62,7 +61,7 @@ int main(int argc, char **argv){
 		fprintf(stdout,"   -h, --help   \n\tprints this information\n");
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
 		fprintf(stdout,"\tFMT must represent a valid target file format\n"); 
-		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG(EN1064), GDF, EDF, BDF, CFWB\n"); 
+		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF (v2), GDF1 (v1), EDF, BDF, CFWB\n"); 
 		fprintf(stdout,"   -z=#, compression level \n");
 		fprintf(stdout,"\t#=0 no compression; #=9 best compression\n");
 		fprintf(stdout,"   -VERBOSE=#, verbosity level #\n\t0=silent, 9=debugging");
@@ -145,11 +144,15 @@ int main(int argc, char **argv){
 	count = sread(NULL, 0, hdr->NRec, hdr);
 	biosig_data_type* data = hdr->data.block;
 
+ fprintf(stdout,"[122] UCAL=%i %e %e %e \n",hdr->FLAG.UCAL,data[100],data[110],data[500+hdr->SPR]);
+	
 	if ((status=serror())) exit(status); 
 
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stdout,"\n[129] SREAD on %s successful [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
+
 //	fprintf(stdout,"\n %f,%f.\n",hdr->FileName,hdr->data.block[3*hdr->SPR],hdr->data.block[4*hdr->SPR]);
+
 	if (dest==NULL) {
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[131] going for SCLOSE\n");
 		sclose(hdr);
@@ -180,8 +183,8 @@ int main(int argc, char **argv){
 		hdr->FILE.COMPRESSION = 0;
 	}
 
-	double PhysMaxValue0 = hdr->data.block[0];
-	double PhysMinValue0 = hdr->data.block[0];
+	double PhysMaxValue0 = -INF; //hdr->data.block[0];
+	double PhysMinValue0 = +INF; //hdr->data.block[0];
 	double val; 
 	size_t N = hdr->NRec*hdr->SPR;
     	for (k=0; k<hdr->NS; k++) {
@@ -202,8 +205,8 @@ int main(int argc, char **argv){
 		if (PhysMaxValue0 < val)
 			PhysMaxValue0 = val;
 		val = MinValue*hdr->CHANNEL[k].Cal+hdr->CHANNEL[k].Off;		
- 		if (PhysMinValue0 > MinValue)
- 			PhysMinValue0 = MinValue;
+ 		if (PhysMinValue0 > val)
+ 			PhysMinValue0 = val;
 
 		if (hdr->TYPE==GDF || hdr->TYPE==CFWB) {
 			/* heuristic to determine optimal data type */
@@ -220,6 +223,7 @@ int main(int argc, char **argv){
 			else if ((MaxValue <= ldexp(1.0,32)-1.0) && (MinValue >= 0.0))
 		    		hdr->CHANNEL[k].GDFTYP = 6;
 		}
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"#%3i %i [%f %f][%f %f]\n",k,hdr->CHANNEL[k].GDFTYP,MinValue,MaxValue,PhysMinValue0,PhysMaxValue0);
 	}
 	if (0) //(hdr->TYPE==SCP_ECG && !hdr->FLAG.UCAL) 
 	    	for (k=0; k<hdr->NS; k++) {

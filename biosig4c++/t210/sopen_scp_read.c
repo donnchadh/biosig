@@ -1,24 +1,23 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.47 2007-11-07 11:59:39 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.48 2007-11-08 14:43:16 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
-    This function is part of the "BioSig for C/C++" repository 
+
+    This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
-
-    This program is free software; you can redistribute it and/or modify
+    BioSig is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
+    the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
+    BioSig is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+    along with BioSig. If not, see <http://www.gnu.org/licenses/>.
 
  */
 
@@ -255,7 +254,7 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 				if (node->child1 != NULL)
 					node = node->child1;
 				else {
-					B4C_ERRMSG = "Empty node in Huffman table! Do not what to!\n";
+					B4C_ERRMSG = "Empty node in Huffman table! Do not know what to do !\n";
 					B4C_ERRNUM = B4C_DECOMPRESSION_FAILED;					
 					return(-1);
 				}	
@@ -264,12 +263,12 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 				if (node->child0 != NULL)
 					node = node->child0;
 				else {
-					B4C_ERRMSG = "Empty node in Huffman table! Do not what to!\n";
+					B4C_ERRMSG = "Empty node in Huffman table! Do not know what to do !\n";
 					B4C_ERRNUM = B4C_DECOMPRESSION_FAILED;					
 					return(-1);
 				}	
 			}	
-		++k1;
+			++k1;
 		}
 
 		r = k1 % 8; 
@@ -683,7 +682,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 						Huffman[k2].Table[k1].BaseValue  = l_endian_i16(*(int16_t*)(PtrCurSect+curSectPos+3));  
 						Huffman[k2].Table[k1].BaseCode   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+5));  
 						curSectPos += 9;
-//fprintf(stdout,"HT%i %i\t %i %i %i %i %li\n ",k2,k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode);
+// fprintf(stdout,"HT%i %i\t %i %i %i %i %li\n ",k2,k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode);
 					}
 					HTrees[k2] = makeTree(Huffman[k2]);
 					if (!checkTree(HTrees[k2]))
