@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.48 2007-11-08 14:43:16 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.49 2007-11-09 15:08:22 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -419,15 +419,25 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	section[0].ID	  = 0; 	
 	section[0].length = len; 	
 	section[0].index  = 6+16;
+	for (int K=1; K<_NUM_SECTION; K++){
+		section[K].ID	  = K; 	
+		section[K].length = 0; 	
+		section[K].index  = 0;
+	}
 	for (int K=1; K<NSections; K++)	{
-		curSect 	= l_endian_u16(*(uint16_t*)(ptr+6+16+K*10));
-		len 		= l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+2));
-		sectionStart 	= l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+6))-1;
-		if (K < _NUM_SECTION) {
-			section[K].ID	  = curSect; 	
-			section[K].length = len; 	
-			section[K].index  = sectionStart+1;
+		curSect      = l_endian_u16(*(uint16_t*)(ptr+6+16+K*10));
+		len 	     = l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+2));
+		sectionStart = l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+6))-1;
+		if (curSect < _NUM_SECTION) {
+			section[curSect].ID	= curSect; 	
+			section[curSect].length = len; 	
+			section[curSect].index  = sectionStart+1;
 		}
+	}
+	for (int K=1; K<NSections; K++)	{
+		curSect      = section[K].ID; 	
+		len          = section[K].length; 	
+		sectionStart = section[K].index-1;
 		 	
 	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"SCP Section %i %i len=%i secStart=%i HeaderLength=%i\n",K,curSect,len,sectionStart,hdr->HeadLen);
@@ -748,7 +758,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				en1064.Section4.beat[i].QE   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+4));
 				curSectPos += 8;
 				en1064.Section4.SPR += en1064.Section4.beat[i].QE-en1064.Section4.beat[i].QB-1;
-// fprintf(stdout,"Sec4: %i %i %li %li %li %li %li\n",i,en1064.Section4.beat[i].btyp,en1064.Section4.beat[i].SB,en1064.Section4.beat[i].fcM,en1064.Section4.beat[i].SE,en1064.Section4.beat[i].QB,en1064.Section4.beat[i].QE);  
+// fprintf(stdout,"Sec4: %i %i %li %li %li %li %li\n",i,en1064.Section4.beat[i].btyp,en1064.Section4.beat[i].SB,en1064.Section4.beat[i].fcM,en1064.Section4.beat[i].SE,en1064.Section4.beat[i].QB,en1064.Section4.beat[i].QE);
 			}	
 			if (en1064.Section4.len_ms==0) {
 				en1064.FLAG.REF_BEAT = 0;
@@ -762,7 +772,13 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			en1064.Section5.dT_us	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			en1064.Section5.DIFF 	= *(PtrCurSect+curSectPos+4);
 
-			if (en1064.FLAG.REF_BEAT) {
+			if (!section[4].length)
+				fprintf(stderr,"Warning SCPOPEN: Section 4 needed but not defined\n");
+			// Currently this section is not supported, because it is handled in SCP-DECODE
+			//if (0) {
+			if (en1064.FLAG.REF_BEAT && section[4].length) {
+				// FIXME: if Section 4 is not defined -> (possible) SegFault
+				if (section[4].length)
 				en1064.Section5.Length  = 1000L * en1064.Section4.len_ms / en1064.Section5.dT_us; // hdr->SPR;
 				en1064.Section5.inlen	= (typeof(en1064.Section5.inlen))malloc(hdr->NS*sizeof(*en1064.Section5.inlen));
 				en1064.Section5.datablock = (int32_t*)malloc(4 * hdr->NS * en1064.Section5.Length); 
@@ -827,7 +843,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			else if (Cal5 >0 && Cal6 >0) Cal0 = gcd(Cal5,Cal6);
 			uint16_t cal5 = Cal5/Cal0; 
 			uint16_t cal6 = Cal6/Cal0; 
-//fprintf(stdout,"CAL: %i %i %i %i %i\n",Cal5,Cal6,Cal0,cal5,cal6); 
+
 			Ptr2datablock = (PtrCurSect+curSectPos + 6 + hdr->NS*2);   // pointer for huffman decoder
 			len = 0;  
 			size_t ix; 			
