@@ -27,6 +27,7 @@ File(s):
     biosig.c	SOPEN, SREAD, SWRITE, SEOF, SCLOSE functions 
     demo.c	demo how to use them
     save2gdf.c	converter between various file formats.
+    mexSLOAD.cpp is a MEX-File for loading data in Octave and Matab. 
     t210/*	reading SCP file format 
     t220/*      writing SCP file format 
     t230/*      support of HL7aECG file format 
@@ -38,7 +39,8 @@ Compilation:
 -------------
 # Linux 
 you need g++ and make. Running make compiles the converter
-$make<CR>
+  make
+  make mex
 
 # Cygwin
 install g++, make (optionally zlib) and compile it. 
@@ -75,6 +77,21 @@ Execution:
 ./save2gdf -f=HL7aECG t5.gdf t5.hl7
 
 
+Open Issue(s) of the SCP-ECG <-> HL7aECG converter:
+---------------------------------------------------
+The following fields of SCP-ECG are not converted to HL7. 
+= Mandatory fields (prEN1064:2007 p.18, chp 5.4.3.1) not propagated to HL7:  
+- time zone information, (tag34, section 1)
+- "ID of acquiring device" (tag14, section 1)
+= "Highly recommended" fields (prEN1064:2007 p.18, chp 5.4.3.1) not propagated to HL7:  
+- "ID of analysing device", Patient first name, 
+= Other fields of the SCP-ECG standard, 
+- section 1: blood pressure, medication, etc
+- section 4 (QRS location), 7 (global measurements), 8-11 (interpretative statements)
+The following fields of HL7aECG are not converted to SCP-ECG.
+- study, treatment group, clinical trial, clinical trial protocol, trial sponsor, investigator etc. 
+
+
 Development & Testing:
 ----------------------
 There are several testing functions included. 
@@ -97,7 +114,7 @@ More information is available at http://biosig.sf.net/
 If you have any questions you can also contact the newsgroup 
 news://tu-graz.biosig on the server news.tu-graz.ac.at. 
 The archive is available at 
-http://newsarchive.tugraz.at/browse/tu-graz.biosig/ 
+http://newsarchiv.tugraz.at/browse/tu-graz.biosig/ 
 
 
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
