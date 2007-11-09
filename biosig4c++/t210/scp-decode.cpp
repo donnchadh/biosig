@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.19 2007-11-03 00:11:40 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.20 2007-11-09 15:09:27 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -18,7 +18,7 @@ Copyright and comments follow.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
-as published by the Free Software Foundation; either version 2
+as published by the Free Software Foundation; either version 3
 of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
@@ -224,6 +224,7 @@ void *mymalloc(size_t size)            // by E.C. 07.11.2003    this is a workar
 //        char buff[30];               // this problem should be fixed next!
 //        ultoa(size, buff, 10);       // used for debug purposes, shows the size
 //        remark(buff);
+//	fprintf(stdout,"MYMEMALLOC: %i\n",size);
 //        void *res=malloc(size*2);      // this way each time a doubled memory is requested. And it works!!
 	void *res=malloc(size);
 	return res;
@@ -300,12 +301,12 @@ int scp_decode(HDRTYPE* hdr, pointer_section *section, DATA_DECODE &decode, DATA
 		section_2(section[2],decode);       //HUFFMAN
 	if (section[3].length>0)	
 		section_3(section[3],decode,hdr->aECG->Section1.Tag14.VERSION);      //lead
-	if(section[4].length) 
+	if (section[4].length) 
 		section_4(section[4],decode,hdr->aECG->Section1.Tag15.VERSION);       // fiducial locations
-	if(section[5].length)
+	if (section[5].length)
 		if (!section_5(section[5],decode,section[2].length)) 
 			section[5].length=0 ;       //type 0 median beat
-	if(section[6].length)
+	if (section[6].length)
 		section_6(section[6],decode,section[2].length);       //rhythm compressed data
 
 #endif
@@ -2848,18 +2849,13 @@ void Decode_Data(pointer_section *section, DATA_DECODE &data, bool &add_filter)
 					fprintf(stderr,"Not enough memory");  // no, exit //
 					exit(2);
 				}
-fprintf(stdout,"[409] %i %i %i %i \n",dim_R,dim_R_,sizeof(dec_S),number_samples_);
-fprintf(stdout,"[409] %li %li %li %li %li \n",data.flag_lead.number,data.flag_Res);
 				Interpolate(dati_Res_,data.Residual,data.flag_lead,data.data_lead,data.flag_Res,data.data_protected,number_samples_);
-fprintf(stdout,"[410] \n");
 				DoFilter(data.Residual,dati_Res_,data.flag_Res,data.flag_lead,data.data_lead,data.data_protected,data.data_subtraction);
-fprintf(stdout,"[411] \n");
 				free(dati_Res_);
 				//dim_R modifies
 			}
 		}
 		Multiply(data.Residual,data.flag_Res.number_samples*data.flag_lead.number,data.flag_Res.AVM);
-fprintf(stdout,"[412] \n");
 
 /* AS 2007-10-23: for some (unknown) reason, sometimes the memory allocation has the wrong size
 	doing the memory allocation in sopen_scp_read does it correctly. 
@@ -2875,7 +2871,6 @@ fprintf(stdout,"[412] \n");
 		for(t=0;t<dim_RR;t++)                 // of array overflow!!
 			data.Reconstructed[t]=data.Residual[t];   // by E.C. 19.02.2004: first copy rhythm then add the reference beat
 
-fprintf(stdout,"[413] \n");
 		if(section[3].length && section[5].length && data.flag_lead.subtraction)
 		{
 			DoAdd(data.Reconstructed,data.Residual,data.flag_Res,data.Median,data.flag_BdR0,data.data_subtraction,data.flag_lead,data.data_lead);
