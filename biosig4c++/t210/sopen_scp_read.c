@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.49 2007-11-09 15:08:22 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.50 2007-11-12 21:15:06 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -22,8 +22,7 @@
  */
 
 
-//
-#define WITH_SCP_DECODE    // use experimental version of decompressing Huffman, Bimodal, reference beat  
+// #define WITHOUT_SCP_DECODE    // use SCP-DECODE if needed, Bimodal, reference beat  
 
 /*
 	the experimental version needs a few more thinks: 
@@ -48,11 +47,12 @@
 #include "structures.h"
 static const U_int_S _NUM_SECTION=12U;	//consider first 11 sections of SCP
 static bool add_filter=true;             // additional filtering gives better shape, but use with care
+
+#ifndef WITHOUT_SCP_DECODE
 int scp_decode(HDRTYPE*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO&, bool&);
+#endif
 
 // Huffman Tables         	
-#define HUFFMAN_H
-#ifdef HUFFMAN_H
 uint16_t NHT; 	/* number of Huffman tables */
 struct table_t {
 	uint8_t PrefixLength;
@@ -211,7 +211,6 @@ htree_t* makeTree(huffman_t HT) {
 	htree_t* node;
 	for (k1=0; k1<HT.NCT; k1++) {
 		node = T; 
-//fprintf(stdout,"%2i\t %2i %2i %2i %4i %5li\n",k1,HT.Table[k1].PrefixLength,HT.Table[k1].CodeLength,HT.Table[k1].TableModeSwitch,HT.Table[k1].BaseValue,HT.Table[k1].BaseCode);
 		uint32_t bc = HT.Table[k1].BaseCode;
 		for (k2=0; k2<HT.Table[k1].CodeLength; k2++, bc>>=1) {
 			if (bc & 0x00000001) {
@@ -299,13 +298,10 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 			}
 			// reset node to root
 			node = HTrees[ActualTable];
-//if (k2<3) fprintf(stdout,"%i %i %i %i %i %li %li %li \n",i,r,k1,k2,node->idxTable,dlen,acc,outdata[k2-1]);
 		}
 	}
 	return(0);
 };
-#endif 
-
 
 
 int sopen_SCP_read(HDRTYPE* hdr) {	
@@ -320,18 +316,11 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
 */	
 
-	struct pointer_section section[_NUM_SECTION];
-	struct DATA_DECODE decode;
-	struct DATA_RECORD record;
-	struct DATA_INFO textual;
-	bool AS_DECODE = 0; 
-
-
 	uint8_t*	ptr; 	// pointer to memory mapping of the file layout
 	uint8_t*	PtrCurSect;	// point to current section 
 	uint8_t*	Ptr2datablock=NULL; 	// pointer to data block 
 	int32_t* 	data;		// point to rawdata
-	int		curSect; 	// current section
+	uint16_t	curSect=0; 	// current section
 	uint32_t 	len; 
 	uint16_t 	crc; 
 	uint32_t	i,k1,k2; 
@@ -367,7 +356,13 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	hdr->aECG->FLAG.REF_BEAT = 0; 
 	hdr->aECG->FLAG.BIMODAL  = 0;
 	
-#ifdef WITH_SCP_DECODE
+#ifndef WITHOUT_SCP_DECODE
+	struct pointer_section section[_NUM_SECTION];
+	struct DATA_DECODE decode;
+	struct DATA_RECORD record;
+	struct DATA_INFO textual;
+	bool   AS_DECODE = 0; 
+
 	decode.length_BdR0 = NULL; 	
 	decode.samples_BdR0= NULL;
 	decode.length_Res  = NULL;
@@ -415,35 +410,36 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 
 	/**** SECTION 0 ****/
 	len = l_endian_u32(*(uint32_t*)(PtrCurSect+4)); 
-	NSections = (len-16)/10;
+	NSections = min((len-16)/10,_NUM_SECTION);
+
 	section[0].ID	  = 0; 	
 	section[0].length = len; 	
 	section[0].index  = 6+16;
-	for (int K=1; K<_NUM_SECTION; K++){
+	for (int K=1; K<_NUM_SECTION; K++) {
 		section[K].ID	  = K; 	
 		section[K].length = 0; 	
 		section[K].index  = 0;
 	}
+
 	for (int K=1; K<NSections; K++)	{
-		curSect      = l_endian_u16(*(uint16_t*)(ptr+6+16+K*10));
-		len 	     = l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+2));
-		sectionStart = l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+6))-1;
-		if (curSect < _NUM_SECTION) {
-			section[curSect].ID	= curSect; 	
-			section[curSect].length = len; 	
-			section[curSect].index  = sectionStart+1;
+		// this is needed because fields are not always sorted
+		curSect = l_endian_u32(*(uint32_t*)(ptr+6+16+K*10)); 
+		if (curSect < NSections) {
+			section[curSect].ID 	= curSect; 	
+			section[curSect].length = l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+2)); 	
+			section[curSect].index  = l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+6))-1;
 		}
 	}
+
 	for (int K=1; K<NSections; K++)	{
-		curSect      = section[K].ID; 	
-		len          = section[K].length; 	
-		sectionStart = section[K].index-1;
-		 	
+		curSect           = section[K].ID;
+		len		  = section[K].length;
+		sectionStart 	  = section[K].index;
+
 	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"SCP Section %i %i len=%i secStart=%i HeaderLength=%i\n",K,curSect,len,sectionStart,hdr->HeadLen);
-		
+
 	if (len==0) continue;	 /***** empty section *****/
-		
 		PtrCurSect = ptr+sectionStart;
 		crc 	   = l_endian_u16(*(uint16_t*)(PtrCurSect));
 		uint16_t tmpcrc = CRCEvaluate((uint8_t*)(PtrCurSect+2),len-2); 
@@ -458,28 +454,28 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		uint8_t versionProtocol = *(ptr+sectionStart+9);
 
 		curSectPos = 16;
-			
+
 		/**** SECTION 0 ****/
 		if (curSect==0)  
 		{
 		}		
-				
+
 		/**** SECTION 1 ****/
 		else if (curSect==1)  
 		{
 			struct tm t0,t1;
-			t0.tm_year = 0; 
-			t0.tm_mon  = 0; 
-			t0.tm_mday = 0; 
-			t0.tm_hour = 0; 
-			t0.tm_min  = 0; 
-			t0.tm_sec  = 0; 
-			t0.tm_isdst  = -1; // daylight savings time - unknown 
-			hdr->T0    = 0; 
-			hdr->Patient.Birthday = 0; 
-			uint32_t len1; 
+			t0.tm_year = 0;
+			t0.tm_mon  = 0;
+			t0.tm_mday = 0;
+			t0.tm_hour = 0;
+			t0.tm_min  = 0;
+			t0.tm_sec  = 0;
+			t0.tm_isdst= -1; // daylight savings time - unknown 
+			hdr->T0    = 0;
+			hdr->Patient.Birthday = 0;
+			uint32_t len1;
  
-			while (*(PtrCurSect+curSectPos) < 255) {
+ 			while (*(PtrCurSect+curSectPos) < 255) {
 				tag = *(PtrCurSect+curSectPos);
 				len1 = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+1));
 				if (VERBOSE_LEVEL>8)
@@ -690,9 +686,8 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 						Huffman[k2].Table[k1].CodeLength = *(PtrCurSect+curSectPos+1);  
 						Huffman[k2].Table[k1].TableModeSwitch = *(PtrCurSect+curSectPos+2);  
 						Huffman[k2].Table[k1].BaseValue  = l_endian_i16(*(int16_t*)(PtrCurSect+curSectPos+3));  
-						Huffman[k2].Table[k1].BaseCode   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+5));  
+						Huffman[k2].Table[k1].BaseCode   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+5));
 						curSectPos += 9;
-// fprintf(stdout,"HT%i %i\t %i %i %i %i %li\n ",k2,k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode);
 					}
 					HTrees[k2] = makeTree(Huffman[k2]);
 					if (!checkTree(HTrees[k2]))
@@ -758,7 +753,6 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				en1064.Section4.beat[i].QE   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+4));
 				curSectPos += 8;
 				en1064.Section4.SPR += en1064.Section4.beat[i].QE-en1064.Section4.beat[i].QB-1;
-// fprintf(stdout,"Sec4: %i %i %li %li %li %li %li\n",i,en1064.Section4.beat[i].btyp,en1064.Section4.beat[i].SB,en1064.Section4.beat[i].fcM,en1064.Section4.beat[i].SE,en1064.Section4.beat[i].QB,en1064.Section4.beat[i].QE);
 			}	
 			if (en1064.Section4.len_ms==0) {
 				en1064.FLAG.REF_BEAT = 0;
@@ -772,13 +766,14 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			en1064.Section5.dT_us	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			en1064.Section5.DIFF 	= *(PtrCurSect+curSectPos+4);
 
-			if (!section[4].length)
-				fprintf(stderr,"Warning SCPOPEN: Section 4 needed but not defined\n");
-			// Currently this section is not supported, because it is handled in SCP-DECODE
-			//if (0) {
-			if (en1064.FLAG.REF_BEAT && section[4].length) {
-				// FIXME: if Section 4 is not defined -> (possible) SegFault
-				if (section[4].length)
+			if (!section[4].length) {
+				if (en1064.Section3.lead != NULL) free(en1064.Section3.lead);
+				if (en1064.Section4.beat != NULL) free(en1064.Section4.beat);
+				B4C_ERRMSG = "ERROR SCPOPEN: Section 4 needed but not defined";
+				B4C_ERRNUM = -10;
+				return(-1); 
+			}
+			else if (en1064.FLAG.REF_BEAT) {
 				en1064.Section5.Length  = 1000L * en1064.Section4.len_ms / en1064.Section5.dT_us; // hdr->SPR;
 				en1064.Section5.inlen	= (typeof(en1064.Section5.inlen))malloc(hdr->NS*sizeof(*en1064.Section5.inlen));
 				en1064.Section5.datablock = (int32_t*)malloc(4 * hdr->NS * en1064.Section5.Length); 
@@ -801,14 +796,14 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					for (k1 = 0; k1 < hdr->NS; k1++)
 					for (ix = k1*en1064.Section5.Length+1; ix < (k1+1)*en1064.Section5.Length; ix++)
 						data[ix] += data[ix-1];
-	
+
 				else if (en1064.Section5.DIFF==2)
 					for (k1 = 0; k1 < hdr->NS; k1++)
 					for (ix = k1*en1064.Section5.Length+2; ix < (k1+1)*en1064.Section5.Length; ix++)
 						data[ix] += 2*data[ix-1] - data[ix-2];
 			}
 		}
-		
+
 		/**** SECTION 6 ****/
 		else if (curSect==6)  {
 
@@ -856,7 +851,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				hdr->CHANNEL[i].Transducer[0] = '\0';
 				hdr->CHANNEL[i].GDFTYP      = gdftyp;  
 
-				// ### these values should represent the true saturation values ###//
+				// ### these values should represent the true saturation values ### //
 				hdr->CHANNEL[i].DigMax      = ldexp(1.0,20)-1;
 				hdr->CHANNEL[i].DigMin      = ldexp(-1.0,20);
 				hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
@@ -881,6 +876,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 						data[ix] += 2*data[ix-1] - data[ix-2];
 				}
 
+#ifndef WITHOUT_SCP_DECODE
 				if (hdr->aECG->FLAG.BIMODAL || en1064.FLAG.REF_BEAT) { 	
 //				if (hdr->aECG->FLAG.BIMODAL) {
 //				if (hdr->aECG->FLAG.REF_BEAT {
@@ -891,6 +887,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					*/ 	
 					AS_DECODE = 1; continue; 
 				}
+#endif
 
 				if (hdr->aECG->FLAG.BIMODAL) {
 					// ### FIXME ### 
@@ -1053,11 +1050,9 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	if (en1064.Section6.inlen != NULL) 	free(en1064.Section6.inlen);
 //	if (en1064.Section6.datablock != NULL) 	free(en1064.Section6.datablock);
 
-
+#ifndef WITHOUT_SCP_DECODE
    	if (AS_DECODE==0) return(0); 
     		
-#ifdef WITH_SCP_DECODE
-
 /*
 ---------------------------------------------------------------------------
 Copyright (C) 2006  Eugenio Cervesato.
