@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.50 2007-11-12 21:15:06 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.51 2007-11-13 16:06:59 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -355,6 +355,8 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	hdr->aECG->FLAG.DIFF     = 0; 
 	hdr->aECG->FLAG.REF_BEAT = 0; 
 	hdr->aECG->FLAG.BIMODAL  = 0;
+
+	en1064.Section4.len_ms	 = 0;
 	
 #ifndef WITHOUT_SCP_DECODE
 	struct pointer_section section[_NUM_SECTION];
@@ -765,17 +767,19 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			en1064.Section5.AVM	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
 			en1064.Section5.dT_us	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
 			en1064.Section5.DIFF 	= *(PtrCurSect+curSectPos+4);
-
-			if (!section[4].length) {
-				if (en1064.Section3.lead != NULL) free(en1064.Section3.lead);
-				if (en1064.Section4.beat != NULL) free(en1064.Section4.beat);
-				B4C_ERRMSG = "ERROR SCPOPEN: Section 4 needed but not defined";
-				B4C_ERRNUM = -10;
-				return(-1); 
+			en1064.Section5.Length  = 1000.0 * en1064.Section4.len_ms / en1064.Section5.dT_us; // hdr->SPR;
+			en1064.Section5.inlen	= (typeof(en1064.Section5.inlen))malloc(hdr->NS*sizeof(*en1064.Section5.inlen));
+			for (i=0; i < hdr->NS; i++) {
+				en1064.Section5.inlen[i] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+2*i));
+				if (!section[4].length && (en1064.Section5.Length<en1064.Section5.inlen[i]))
+					en1064.Section5.Length = en1064.Section5.inlen[i];
 			}
-			else if (en1064.FLAG.REF_BEAT) {
-				en1064.Section5.Length  = 1000L * en1064.Section4.len_ms / en1064.Section5.dT_us; // hdr->SPR;
-				en1064.Section5.inlen	= (typeof(en1064.Section5.inlen))malloc(hdr->NS*sizeof(*en1064.Section5.inlen));
+			if (!section[4].length && en1064.FLAG.HUFFMAN) {
+				 en1064.Section5.Length *= 5; // decompressed data might need more space 
+				 fprintf(stderr,"Warning SCPOPEN: Section 4 not defined - size of Sec5 can be only guessed (%i allocated)\n",en1064.Section5.Length);
+			}
+
+			if (en1064.FLAG.REF_BEAT) {
 				en1064.Section5.datablock = (int32_t*)malloc(4 * hdr->NS * en1064.Section5.Length); 
 
 				Ptr2datablock           = (PtrCurSect+curSectPos+6+2*hdr->NS);
