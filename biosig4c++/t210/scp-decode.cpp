@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.20 2007-11-09 15:09:27 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.21 2007-11-15 14:04:57 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -84,7 +84,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 //void remark(char *string);
 
-// #define WITH_OBSOLETE_PARTS 
+// 
+#define WITH_OBSOLETE_PARTS 
 
 
 //      by E.C. 13.10.2003   part nedded to compile with gcc (Linux).
@@ -291,8 +292,8 @@ int scp_decode(HDRTYPE* hdr, pointer_section *section, DATA_DECODE &decode, DATA
 
 //mandatory sections
 #ifdef WITH_OBSOLETE_PARTS
-	section_0(info_sections, _DIM_FILE);                 // by E.C. may 2004 check file size
-	section_1(info_sections[1],info_textual);
+	section_0(section, _DIM_FILE);                 // by E.C. may 2004 check file size
+	section_1(section[1],info_textual);
 
 	sectionsOptional(section,decode,info_recording,info_textual);
 #else 
@@ -576,7 +577,7 @@ U_int_L ID_section(U_int_L pos, int_S &version)
 	CRC=ReadCRC();
 	Skip(2U);
 	ReadByte(dim);
-	if (CRC != 0xFFFF) Check_CRC(CRC,pos+2,dim-2);  // by E.C. may 2004 CARDIOLINE 1.0
+//	if (CRC != 0xFFFF) Check_CRC(CRC,pos+2,dim-2);  // by E.C. may 2004 CARDIOLINE 1.0
 	FSEEK(in,pos+7L,0);
 	ReadByte(version);                   // by E.C. may 2004  store the version number
 	Skip(7U);
@@ -680,7 +681,7 @@ void sectionsOptional(pointer_section *section, DATA_DECODE &block1, DATA_RECORD
 						break;
 
 #ifdef WITH_OBSOLETE_PARTS
-
+/*
 				case 7: if(section[i].length)
 							section_7(section[i],block2,block3.des.acquiring.protocol_revision_number);       //global measurements
 						break;
@@ -693,6 +694,7 @@ void sectionsOptional(pointer_section *section, DATA_DECODE &block1, DATA_RECORD
 				case 11:if(section[i].length)          //universal ECG interpretative statements
 				//			section_11(section[i],block3);
 						break;
+*/
 #endif
 			}//end switch
 		++i;
