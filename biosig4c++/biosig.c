@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.116 2007-11-08 14:43:15 schloegl Exp $
+    $Id: biosig.c,v 1.117 2007-11-15 14:03:02 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -20,7 +20,7 @@
 
  */
 
-/* M
+/*
 
 	reading and writing of GDF files is demonstrated 
 	
@@ -729,7 +729,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = t_time2gdf_time(time(NULL));
       	hdr->tzmin = 0; 
-      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.52";
+      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.53";
       	hdr->ID.Manufacturer._field[0]    = 0;
       	hdr->ID.Manufacturer.Name         = " ";
       	hdr->ID.Manufacturer.Model        = " ";
@@ -846,6 +846,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	const uint8_t MAGIC_NUMBER_TIFF_l64[] = {73,73,43,0,8,0,0,0};
 	const uint8_t MAGIC_NUMBER_TIFF_b64[] = {77,77,0,43,0,8,0,0};
 	const uint8_t MAGIC_NUMBER_DICOM[]    = {8,0,5,0,10,0,0,0,73,83,79,95,73,82,32,49,48,48};
+	uint32_t MAGIC_EN1064_Section0Length  = l_endian_u32(*(uint32_t*)(hdr->AS.Header+10));
 
     	if (hdr->TYPE != unknown)
       		return(hdr); 
@@ -921,22 +922,71 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	if (!memcmp(Header1+8,"AVI ",4))
 	    		hdr->TYPE = AVI;
 	}    	
-    	else if (!memcmp(hdr->AS.Header+16,"SCPECG",6)) {
+	
+	// general SCP 
+	else if (  ( MAGIC_EN1064_Section0Length    >  120)   
+		&& ( MAGIC_EN1064_Section0Length    <  250)   
+		&& ((MAGIC_EN1064_Section0Length%10)== 6)   
+		&& (*(uint16_t*)(hdr->AS.Header+ 8) == 0x0000)
+		&& (*(uint32_t*)(hdr->AS.Header+10) == *(uint32_t*)(hdr->AS.Header+24))
+		&& (  (!memcmp(hdr->AS.Header+16,"SCPECG\0\0",8)) 
+		   || (*(uint64_t*)(hdr->AS.Header+16) == 0)
+		   )
+		&& (*(uint32_t*)(hdr->AS.Header+28) == l_endian_u32(0x00000007))
+		&& (*(uint16_t*)(hdr->AS.Header+32) == l_endian_u16(0x0001))
+		) {	
 	    	hdr->TYPE = SCP_ECG;
 	    	hdr->VERSION = *(hdr->AS.Header+14);
 	}    	
-	else if (  ( (*(uint32_t*)(hdr->AS.Header+10)==l_endian_u32(0x00000088))
-		   ||(*(uint32_t*)(hdr->AS.Header+10)==l_endian_u32(0x00000092))
-		   )
-		&& (*(uint32_t*)(hdr->AS.Header+24)==*(uint32_t*)(hdr->AS.Header+10))
-		&& (*(uint16_t*)(hdr->AS.Header+ 8)==l_endian_u16(0x0000))
-		&& (*(uint16_t*)(hdr->AS.Header+22)==l_endian_u16(0x0000))
-		&& (*(uint32_t*)(hdr->AS.Header+28)==l_endian_u32(0x00000007))
-		&& (*(uint16_t*)(hdr->AS.Header+32)==l_endian_u16(0x0001))
+	// special SCP files - header is strange, files can be decoded 	
+	else if (  (*(uint32_t*)(hdr->AS.Header+10) == l_endian_u32(136))
+		&& (*(uint16_t*)(hdr->AS.Header+ 8) == 0x0000)
+		&& (  (!memcmp(hdr->AS.Header+14,"\x0A\x01\x25\x01\x99\x01\xE7\x49\0\0",10)) 
+		   || (!memcmp(hdr->AS.Header+14,"\x0A\x00\x90\x80\0\0\x78\x80\0\0",10)) 
+		   || (!memcmp(hdr->AS.Header+14,"\x0A\xCD\xCD\xCD\xCD\xCD\xCD\xCD\0\0",10))
+		   ) 
+		&& (*(uint32_t*)(hdr->AS.Header+24) == l_endian_u16(136))
+		&& (*(uint32_t*)(hdr->AS.Header+28) == l_endian_u16(0x0007))
+		&& (*(uint16_t*)(hdr->AS.Header+32) == l_endian_u16(0x0001))
+		)  {
+	    	hdr->TYPE = SCP_ECG;
+	    	hdr->VERSION = -2;
+	}    	
+	else if (  (*(uint32_t*)(hdr->AS.Header+10) == l_endian_u32(136))
+		&& (*(uint16_t*)(hdr->AS.Header+ 8) == 0x0000)
+		&& (*(uint8_t*) (hdr->AS.Header+14) == 0x0A)
+		&& (*(uint8_t*) (hdr->AS.Header+15) == 0x0B)
+		&& (*(uint32_t*)(hdr->AS.Header+16) == 0)
+		&& (*(uint32_t*)(hdr->AS.Header+20) == 0)
+		&& (*(uint32_t*)(hdr->AS.Header+24) == 0)
+		&& (*(uint32_t*)(hdr->AS.Header+28) == 0)
+		&& (*(uint16_t*)(hdr->AS.Header+32) == l_endian_u16(0x0001))
 		) {
 	    	hdr->TYPE = SCP_ECG;
-	    	hdr->VERSION = *(hdr->AS.Header+14);
+	    	hdr->VERSION = -3;
 	}    	
+
+	// special SCP files - header is strange, files cannot be decoded 	
+	else if (  (*(uint32_t*)(hdr->AS.Header+10) == l_endian_u32(136))
+		&& (*(uint16_t*)(hdr->AS.Header+ 8) == 0x0000)
+		&& (*(uint16_t*)(hdr->AS.Header+14) == l_endian_u16(0x0b0b))
+		&& (!memcmp(hdr->AS.Header+16,"x06SCPECG",7)) 
+		)  {  
+	    	hdr->TYPE = SCP_ECG;
+	    	hdr->VERSION = -1;
+	}    	
+	else if (  (*(uint32_t*)(hdr->AS.Header+10) == l_endian_u32(136))
+		&& (*(uint16_t*)(hdr->AS.Header+ 8) == 0x0000)
+		&& (*(uint16_t*)(hdr->AS.Header+14) == l_endian_u16(0x0d0d))
+		&& (!memcmp(hdr->AS.Header+16,"SCPEGC\0\0",8)) 
+		&& (*(uint32_t*)(hdr->AS.Header+24) == l_endian_u16(136))
+		&& (*(uint32_t*)(hdr->AS.Header+28) == l_endian_u16(0x0007))
+		&& (*(uint16_t*)(hdr->AS.Header+32) == l_endian_u16(0x0001))
+		)  {
+	    	hdr->TYPE = SCP_ECG;
+	    	hdr->VERSION = -4;
+	}    	
+
 	else if (!memcmp(Header1,"\"Snap-Master Data File\"",24))
 	    	hdr->TYPE = SMA;
 	else if (!memcmp(Header1,MAGIC_NUMBER_TIFF_l32,4))
@@ -3017,10 +3067,10 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 #define MAX_UINT64 ((uint64_t)0xffffffffffffffff)
 #define MIN_UINT64 ((uint64_t)0)
 
-
-	if (hdr->TYPE != SCP_ECG) // memory allocation for SCP is done in SOPEN_SCP_WRITE Section 6	
-	{ 
-		ptr = realloc(hdr->AS.rawdata, hdr->AS.bpb*hdr->NRec);
+	size_t sz = hdr->AS.bpb*hdr->NRec;
+	if ((sz>0) && (hdr->TYPE != SCP_ECG)) { 
+	// memory allocation for SCP is done in SOPEN_SCP_WRITE Section 6	
+		ptr = realloc(hdr->AS.rawdata, sz);
 		if (ptr==NULL) {
 			B4C_ERRNUM = B4C_INSUFFICIENT_MEMORY;
 			B4C_ERRMSG = "SWRITE: memory allocation failed.";

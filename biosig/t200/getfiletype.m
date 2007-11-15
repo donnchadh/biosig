@@ -28,7 +28,7 @@ function [HDR] = getfiletype(arg1)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.66 2007-11-07 16:42:26 schloegl Exp $
+%	$Id: getfiletype.m,v 1.67 2007-11-15 14:06:16 schloegl Exp $
 %	(C) 2004,2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -125,6 +125,7 @@ else
 
         if c,
 		ss = char(s);
+                HDR.keycode = s(1:34); 
 		
                 %%%% file type check based on magic numbers %%%
 		tmp = 256.^[0:3]*reshape(s(1:20),4,5);
@@ -227,26 +228,33 @@ else
                 elseif all(s([4:7,14:19])==[232,3,12,0,0,0,0,0,0,0]); 
                         HDR.TYPE='PathFinder710_HighResolutionECG';
 
-                elseif all(s([9:14,23:34])==[0,0,136,0,0,0,0,0,136,0,0,0,7,0,0,0,1,0]) 
-                        HDR.TYPE='SCP';
-                        HDR.keycode = s(1:34); 
+		%% general SCP 
+                elseif all(s([9,10,12:14,17:24,26:34])==[0,0,0,0,0,abs('SCPECG'),0,0,0,0,0,7,0,0,0,1,0]) & (s(11)==s(25)); 
+                        HDR.TYPE = 'SCP';
                         HDR.VERSION = s(15)/10; 
-                elseif all(s([9:14,23:34])==[0,0,146,0,0,0,0,0,146,0,0,0,7,0,0,0,1,0]) 
-                        HDR.TYPE='SCP';
-                        HDR.keycode = s(1:34); 
+                elseif all(s([9,10,12:14,17:24,26:34])==[0,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,7,0,0,0,1,0]) & (s(11)==s(25)); 
+                        HDR.TYPE = 'SCP';
                         HDR.VERSION = s(15)/10; 
-                elseif all(s([9:22])==[0,0,136,0,0,0,13,13,abs('SCPECG')]); 
-                        HDR.TYPE='SCP';
-                        HDR.keycode = s(1:34); 
-                        HDR.VERSION = 1.3; 
-                elseif all(s([9:10,17:22])==[0,0,abs('SCPECG')]); 
-                        HDR.TYPE='SCP';
-                        HDR.keycode = s(1:34); 
+
+		%% special SCP
+                elseif all(s([9:23])==[0,0,136,0,0,0, 13,13, 6,abs('SCPECG')]); 
+                        HDR.TYPE = 'SCP';
                         HDR.VERSION = -1; 
-                elseif all(s(17:22)==abs('SCPECG')); 
-                        HDR.TYPE='SCP';
-                        HDR.keycode = s(1:34); 
+                elseif all(s([9:34])==[0,0,136,0,0,0, 10,205,205,205,205,205,205,205,0,0, 136,0,0,0,7,0,0,0,1,0]); 
+                        HDR.TYPE = 'SCP';
                         HDR.VERSION = -2; 
+                elseif all(s([9:34])==[0,0,136,0,0,0, 10,11, 0,0,0,0,0,0,0,0, 0,0,0,0, 0,0,0,0, 1,0]); 
+                        HDR.TYPE = 'SCP';
+                        HDR.VERSION = -3; 
+                elseif all(s([9:34])==[0,0,136,0,0,0, 13,13, abs('SCPEGC'),0,0, 136,0,0,0, 7,0,0,0, 1,0]); 
+                        HDR.TYPE = 'SCP';
+                        HDR.VERSION = -4; 
+                elseif all(s([9:34])==[0,0,136,0,0,0, 10,0, 144,128,0,0,120,128,0,0, 136,0,0,0, 7,0,0,0, 1,0]); 
+                        HDR.TYPE = 'SCP';
+                        HDR.VERSION = -5; 
+                elseif all(s([9:34])==[0,0,136,0,0,0, 10,11, 37,1,153,1,231,73 ,0,0, 136,0,0,0, 7,0,0,0, 1,0]); 
+                        HDR.TYPE = 'SCP';
+                        HDR.VERSION = -6; 
 
                 elseif strncmp(ss,'# EN1064 Lead Identification Table of the SCP-ECG format',6); 
                         HDR.TYPE='EN1064:LeadId';
