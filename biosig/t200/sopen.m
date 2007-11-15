@@ -53,7 +53,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.188 2007-10-16 13:54:00 schloegl Exp $
+%	$Id: sopen.m,v 1.189 2007-11-15 14:07:08 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -160,9 +160,6 @@ if ~isfield(HDR,'NS');
 end;
 if ~isfield(HDR,'SampleRate');
         HDR.SampleRate = NaN; 
-end;
-if 0, ~isfield(HDR,'Label');
-        HDR.Label = []; 
 end;
 if ~isfield(HDR,'PhysDim');
 %        HDR.PhysDim = ''; 
@@ -552,6 +549,7 @@ end;
 			end;
                 end;
                 
+                HDR.SPR=1;
 		if (HDR.NS>0)
 			if ~isfield(HDR,'THRESHOLD')
 	                        HDR.THRESHOLD  = [HDR.DigMin,HDR.DigMax];       % automated overflow detection 
@@ -575,7 +573,6 @@ end;
 			end;
 			
 	                HDR.AS.SampleRate = HDR.AS.SPR / HDR.Dur;
-	                HDR.SPR=1;
 	                if all(CHAN>0)
 		                chan = CHAN(:)';
 	                elseif (CHAN==0)
@@ -607,9 +604,10 @@ end;
 		else  % (if HDR.NS==0)
 			HDR.THRESHOLD = [];
 			HDR.AS.SPR = [];
-			HDR.Calib  = []; 
+			HDR.Calib  = zeros(1,0); 
 			HDR.AS.bpb = 0; 
 			HDR.GDFTYP = [];
+			HDR.Label  = {};
                 end;
 
                 if HDR.VERSION<1.9,
@@ -4109,7 +4107,8 @@ elseif strcmp(HDR.TYPE,'WG1'),
                         tmp = fread(HDR.FILE.FID,[1,2],'uint16');
                         HDR.ChanSelect(k) = tmp(1)+1;
                 end;
-		HDR.Calib = sparse(2:HDR.NS+1,HDR.ChanSelect,HDR.Cal);
+		%HDR.Calib = sparse(2:HDR.NS+1,HDR.ChanSelect,HDR.Cal);
+		HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
 
                 status = fseek(HDR.FILE.FID,7*256,'bof');
                 HDR.WG1.neco1 = fread(HDR.FILE.FID,1,'uint32');
@@ -7654,14 +7653,34 @@ elseif strncmp(HDR.TYPE,'FIF',3),
 	end;        
         
 
+elseif strcmp(HDR.TYPE,'AndrewsHerzberg1985')
+	s = HDR.s; 
+	ix1 = find((s==10) | (s==13)); % line breaks
+	ix2 = find(s>'@');	% letters
+	ix3 = []; 
+	for k=2:length(ix1)
+		if any(s(ix1(k-1)+1:ix1(k))>64) & (s(ix1(k-1)+1)==' ')
+			ix3 = [ix3,k-1];
+			HDR.Label{length(ix3)} = s(ix1(k-1)+1:ix1(k)-1);
+			t = str2double(s(ix1(k-2)+1:ix1(k-1)-1));
+			if length(t)>1, t=t(2); end; 
+			HDR.AS.SPR(length(ix3)) = t; 
+		end;	 	
+	end; 
+	ix3 = [ix3,length(ix1)];
+	for k=1:length(ix3)-1
+		t = str2double(s(ix1(ix3(k)+2)+1:ix1(ix3(k+1)-1)))';
+		HDR.data{k} = t(1:HDR.AS.SPR(k)); 	
+	end; 
+	
 elseif strcmp(HDR.TYPE,'CinC2007Challenge')
 	ix = find(HDR.s==10); 
-	d = str2double(HDR.data(ix(4)+1:end));	
+	d  = str2double(HDR.data(ix(4)+1:end));	
 	HDR.data = d(:,7:end);
 	HDR.TYPE = 'native';
-	[HDR.SPR,HDR.NS]=size(HDR.data); 
+	[HDR.SPR,HDR.NS] = size(HDR.data); 
 	HDR.NRec = 1; 
-	HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+	HDR.Calib= sparse(2:HDR.NS+1,1:HDR.NS,1);
 	%%% FIXME 
 	% HDR.ELEC.XYZ
 	% HDR.PhysDimCode

@@ -34,7 +34,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Id: sread.m,v 1.87 2007-08-07 10:35:17 schloegl Exp $
+%	$Id: sread.m,v 1.88 2007-11-15 14:07:09 schloegl Exp $
 %	(C) 1997-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -88,6 +88,7 @@ STATUS = 0;
 if isfield(HDR,'THRESHOLD')     % save THRESHOLD status (will be modified in BKR);
         THRESHOLD = HDR.THRESHOLD; 
 end
+FLAG_CALIB_DONE = 0; 
 
 if 0, 
 elseif strcmp(HDR.TYPE,'BDF'),
@@ -174,10 +175,8 @@ elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF') 
 	nb     = ceil((HDR.FILE.POS+nr)/HDR.SPR)-block1;
     	fp     = HDR.HeadLen + block1*HDR.AS.bpb;
     	status = fseek(HDR.FILE.FID, fp, 'bof');
-
         count  = 0;
         if HDR.NS==0,
-
         elseif all(HDR.GDFTYP==HDR.GDFTYP(1)),
                 if (HDR.AS.spb*nb<=2^24), % faster access
                         S = [];
@@ -610,7 +609,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
                         SegmentCatIndex(HDR.FILE.POS+i) = fread(HDR.FILE.FID,1,'uint16');
                         SegmentStartTime(HDR.FILE.POS+i) = fread(HDR.FILE.FID,1,'uint32');
                         
-                        [s,count] = fread(HDR.FILE.FID, [HDR.NS + HDR.EGI.N, HDR.SPR], gdfdatatype(HDR.GDFTYP));
+                        [s,count] = fread(HDR.FILE.FID, [HDR.NS + HDR.EGI.N, HDR.SPR*HDR.NRec], gdfdatatype(HDR.GDFTYP));
                         tmp = (HDR.NS + HDR.EGI.N) * HDR.SPR;
 	                if isfinite(tmp) & (count < tmp),
                                 fprintf(HDR.FILE.stderr,'Warning SREAD EGI: only %i out of %i samples read\n',count,tmp);
@@ -745,9 +744,9 @@ elseif strcmp(HDR.TYPE,'native') | strcmp(HDR.TYPE,'SCP'),
         end;
 
         nr = min(round(HDR.SampleRate * NoS), size(HDR.data,1) - HDR.FILE.POS);
-        S  = HDR.data(HDR.FILE.POS + (1:nr), :);
+	S = HDR.data(HDR.FILE.POS+1:HDR.FILE.POS+nr,:);
         HDR.FILE.POS = HDR.FILE.POS + nr;
-
+%	FLAG_CALIB_DONE = 1; 
         
 elseif strcmp(HDR.TYPE,'NEX'),
         %% hack: read NEX data once, and transform into "native"
@@ -1353,16 +1352,20 @@ elseif strcmp(HDR.TYPE,'WG1'),   %walter-graphtek
     	fp     = HDR.HeadLen + floor(HDR.FILE.POS/HDR.SPR)*HDR.AS.bpb;
     	status = fseek(HDR.FILE.FID, fp, 'bof');
 
-        nr     = min(HDR.AS.endpos-HDR.FILE.POS, NoS*HDR.SampleRate);
+        nr     = min(HDR.AS.endpos-HDR.FILE.POS, NoS*HDR.SampleRate)
 	S      = repmat(NaN,nr,length(HDR.InChanSelect)); 
 	count  = 0;
         endloop= 0;
-        [offset,c] = fread(HDR.FILE.FID, HDR.WG1.szOffset, 'int32');
+        c = 1; 
+        offset = 0; 
     	while ~endloop & (c>0) & (offset(1)~=(hex2dec('AEAE5555')-2^32)) & (count<nr);
+	        [offset,c] = fread(HDR.FILE.FID, HDR.WG1.szOffset, 'int32');
 		[databuf,c] = fread(HDR.FILE.FID,[HDR.WG1.szBlock,HDR.NS+HDR.WG1.szExtra],'uint8');
             	dt = HDR.WG1.conv(databuf(:,1:HDR.NS)+1);
             	if any(dt(:)==HDR.WG1.unknownNr),
-            	    	fprintf(HDR.FILE.stderr,'Error SREAD (WG1): error in reading datastream');
+            		%dt(dt==HDR.WG1.unknownNr) = NaN; 
+            		dt(:) = NaN; 
+            	    	%fprintf(HDR.FILE.stderr,'Warning SREAD (WG1): error in reading datastream');
             	end;
 		dt(1,:) = dt(1,:) + offset(1:HDR.NS)';
 		dt = cumsum(dt,1);
@@ -1377,8 +1380,6 @@ elseif strcmp(HDR.TYPE,'WG1'),   %walter-graphtek
                         endloop = ~isempty(strfind(databuf(:,HDR.NS+k)',[85,85,174,174]));
                         k = k+1; 
                 end;
-                
-	        [offset,c] = fread(HDR.FILE.FID, HDR.WG1.szOffset, 'int32');
 	end;	
 	%S = S(1:count,:);
 	HDR.FILE.POS = HDR.FILE.POS + count;
@@ -1503,7 +1504,6 @@ if ~HDR.FLAG.UCAL,
         % perform the previous function more efficiently and
         % taking into account some specialities related to Octave sparse
         % data. 
-
         if isempty(S),	% otherwise 2.1.64 could break below, 
 		if size(S,2)~=length(HDR.InChanSelect), 
 			fprintf(HDR.FILE.stderr,'Warning SREAD (%s): number of columns (%i) incorrect!\n',HDR.TYPE,size(S,2));
@@ -1512,13 +1512,15 @@ if ~HDR.FLAG.UCAL,
 	end;
 
         %if ~issparse(HDR.Calib); %
-        if 1, % exist('OCTAVE_VERSION','builtin')
+        if FLAG_CALIB_DONE, 
+        elseif 1, % exist('OCTAVE_VERSION','builtin')
                 % force octave to do a sparse multiplication
                 % the difference is NaN*sparse(0) = 0 instead of NaN
                 % this is important for the automatic overflow detection
 		Calib = HDR.Calib;
 		tmp   = S;
                 S     = zeros(size(S,1),size(Calib,2));   % memory allocation
+
                 for k = 1:size(Calib,2),
                         chan = find(Calib(2:end,k));
                         S(:,k) = double(tmp(:,chan)) * full(Calib(1+chan,k)) + Calib(1,k);
