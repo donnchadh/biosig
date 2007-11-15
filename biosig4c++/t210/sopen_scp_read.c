@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.51 2007-11-13 16:06:59 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.52 2007-11-15 14:04:26 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -303,6 +303,24 @@ int DecodeHuffman(htree_t *HTrees[], huffman_t *HuffmanTables, uint8_t* indata, 
 	return(0);
 };
 
+void deallocEN1064(en1064_t en1064) {	
+	/* free allocated memory */ 
+	if (en1064.FLAG.HUFFMAN) {
+		for (size_t k1=0; k1<en1064.FLAG.HUFFMAN; k1++) {
+		 	if (NHT!=19999) free(Huffman[k1].Table);
+		 	freeTree(HTrees[k1]); 
+		} 
+		free(Huffman);
+		free(HTrees); 
+	}	
+
+	if (en1064.Section3.lead != NULL) 	free(en1064.Section3.lead);
+	if (en1064.Section4.beat != NULL) 	free(en1064.Section4.beat);
+	if (en1064.Section5.inlen != NULL) 	free(en1064.Section5.inlen);
+	if (en1064.Section5.datablock != NULL) 	free(en1064.Section5.datablock);
+	if (en1064.Section6.inlen != NULL) 	free(en1064.Section6.inlen);
+//	if (en1064.Section6.datablock != NULL) 	free(en1064.Section6.datablock);
+}
 
 int sopen_SCP_read(HDRTYPE* hdr) {	
 /*
@@ -405,7 +423,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 #endif 
 	
 	ptr = hdr->AS.Header; 
-	hdr->NRec = 1;
+	hdr->NRec = 0;
 
 	sectionStart = 6;
 	PtrCurSect = ptr+sectionStart;	
@@ -672,7 +690,11 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				Huffman[0].NCT   = 19;
 				Huffman[0].Table = DefaultTable;
 				HTrees [0] = makeTree(Huffman[0]);
-				if (!checkTree(HTrees[0]))
+				k2 = 0; 
+				if (VERBOSE_LEVEL==9)
+					for (k1=0; k1<Huffman[k2].NCT; k1++) 
+					fprintf(stdout,"%3i: %2i %2i %1i %3li %6li \n",k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode); 
+				if (!checkTree(HTrees[0])) // ### OPTIONAL, not needed ###
 					fprintf(stderr,"Warning: invalid Huffman Tree\n");
 			}
 			else {
@@ -690,10 +712,15 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 						Huffman[k2].Table[k1].BaseValue  = l_endian_i16(*(int16_t*)(PtrCurSect+curSectPos+3));  
 						Huffman[k2].Table[k1].BaseCode   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+5));
 						curSectPos += 9;
+						if (VERBOSE_LEVEL==9)
+							fprintf(stdout,"%3i %3i: %2i %2i %1i %3li %6li \n",k2,k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode);
 					}
 					HTrees[k2] = makeTree(Huffman[k2]);
-					if (!checkTree(HTrees[k2]))
-						fprintf(stderr,"Warning: invalid Huffman Tree\n");
+					if (!checkTree(HTrees[k2])) {
+						B4C_ERRMSG = "Warning: invalid Huffman Tree\n";
+						B4C_ERRNUM = B4C_DECOMPRESSION_FAILED; 
+						// AS_DECODE = 2; // forced use of SCP-DECODE 
+					}
 				}
 			}
 		}
@@ -786,6 +813,10 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				for (i=0; i < hdr->NS; i++) {
 					en1064.Section5.inlen[i] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+2*i));
 					if (en1064.FLAG.HUFFMAN) {
+						if (B4C_ERRNUM) {
+							deallocEN1064(en1064);
+							return(-1);
+						}
 						DecodeHuffman(HTrees, Huffman, Ptr2datablock, en1064.Section5.inlen[i], en1064.Section5.datablock + en1064.Section5.Length*i, en1064.Section5.Length);
 					}
 					else {
@@ -810,6 +841,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 
 		/**** SECTION 6 ****/
 		else if (curSect==6)  {
+			hdr->NRec = 1;
 
 			en1064.Section6.inlen	= (typeof(en1064.Section6.inlen))malloc(hdr->NS*sizeof(*en1064.Section6.inlen));
 			uint16_t gdftyp 	= 5;	// int32: internal raw data type   
@@ -861,9 +893,18 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
 				hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
 				
+#ifndef WITHOUT_SCP_DECODE
+//				if (AS_DECODE > 0) continue; 
+#endif
+
 				en1064.Section6.inlen[i]    = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+2*i));
-				if (en1064.FLAG.HUFFMAN)
+				if (en1064.FLAG.HUFFMAN) {
+					if (B4C_ERRNUM) {
+						deallocEN1064(en1064);
+						return(-1);
+					}
 					DecodeHuffman(HTrees, Huffman, Ptr2datablock, en1064.Section6.inlen[i], data + i*hdr->SPR, hdr->SPR);
+				}
 				else {
 					for (k1=0, ix = i*hdr->SPR; k1 < SPR; k1++)
 						data[ix+k1] = l_endian_i16(*(int16_t*)(Ptr2datablock + 2*k1));
@@ -1038,21 +1079,8 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	hdr->Dur[1] = 1000000L; 
 
 	/* free allocated memory */ 
-	if (en1064.FLAG.HUFFMAN) {
-		for (k1=0; k1<en1064.FLAG.HUFFMAN; k1++) {
-		 	if (NHT!=19999) free(Huffman[k1].Table);
-		 	freeTree(HTrees[k1]); 
-		} 
-		free(Huffman);
-		free(HTrees); 
-	}	
+	deallocEN1064(en1064);	
 
-	if (en1064.Section3.lead != NULL) 	free(en1064.Section3.lead);
-	if (en1064.Section4.beat != NULL) 	free(en1064.Section4.beat);
-	if (en1064.Section5.inlen != NULL) 	free(en1064.Section5.inlen);
-	if (en1064.Section5.datablock != NULL) 	free(en1064.Section5.datablock);
-	if (en1064.Section6.inlen != NULL) 	free(en1064.Section6.inlen);
-//	if (en1064.Section6.datablock != NULL) 	free(en1064.Section6.datablock);
 
 #ifndef WITHOUT_SCP_DECODE
    	if (AS_DECODE==0) return(0); 
