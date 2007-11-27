@@ -9,7 +9,7 @@ function [center,radius]=sphfit(vc)
 % center  1x3 vector denoting the center
 % radius  scalar denoting the radius 
 
-%  $Id: sphfit.m,v 1.1 2007-02-05 16:26:27 schloegl Exp $ 
+%  $Id: sphfit.m,v 1.2 2007-11-27 10:47:45 schloegl Exp $ 
 %  Copyright (C) 2003,2004 Guido Nolte
 %  Adapted by Alois Schloegl 
 %  This function is part of the BioSig project
@@ -31,7 +31,7 @@ radius_0=mean(sqrt(vcx(:,1).^2+vcx(:,2).^2+vcx(:,3).^2));
 alpha=1;
 err_0=costfun(vc,center_0,radius_0);
 
-for k=1:5;
+for k=1:50;
     
     [center_new,radius_new]=lm1step(vc,center_0,radius_0,alpha);
     
