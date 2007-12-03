@@ -1,19 +1,22 @@
-function [kap,se,H,zscore,p0,SA,R]=kappa(d,c,kk);
-% KAPPA.M estimates Cohen's kappa coefficient 
+function [kap,se,H,z,p0,SA,R]=kappa(d,c,kk);
+% KAPPA estimates Cohen's kappa coefficient
+%   and related statistics 
 %
-% [kap,sd,H,z,OA,SA,MI] = kappa(d1,d2);
-% [kap,sd,H,z,OA,SA,MI] = kappa(H);
+% [kap,sd,H,z,ACC,sACC,MI] = kappa(d1,d2);
+% [kap,sd,H,z,ACC,sACC,MI] = kappa(H);
+% X = kappa(...);
 %
 % d1    data of scorer 1 
 % d2    data of scorer 2 
 %
 % kap	Cohen's kappa coefficient point
 % se	standard error of the kappa estimate
-% H	data scheme (Concordance matrix or confusion matrix)
+% H	Concordance matrix, i.e. confusion matrix
 % z	z-score
-% OA	overall agreement 
-% SA	specific agreement 
+% ACC	overall agreement (accuracy) 
+% sACC	specific accuracy 
 % MI 	Mutual information or transfer information (in [bits])
+% X 	is a struct containing all the fields above
 %
 % Reference(s):
 % [1] Cohen, J. (1960). A coefficient of agreement for nominal scales. Educational and Psychological Measurement, 20, 37-46.
@@ -26,8 +29,8 @@ function [kap,se,H,zscore,p0,SA,R]=kappa(d,c,kk);
 %
 %  
 
-%	$Revision: 1.7 $
-%	$Id: kappa.m,v 1.7 2006-04-25 10:31:42 schloegl Exp $
+%	$Revision: 1.8 $
+%	$Id: kappa.m,v 1.8 2007-12-03 19:19:49 schloegl Exp $
 %	Copyright (c) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -48,27 +51,22 @@ function [kap,se,H,zscore,p0,SA,R]=kappa(d,c,kk);
 %
 
 if nargin>1,
-	if (isa(d,'double') | isa(d,'single')) & any(rem(d,1)) 
-        	fprintf(2,'Error %s: class information is not integer\n',mfilename);
-		return;
-	end;
-	if (isa(c,'double') | isa(c,'single')) & any(rem(c,1)) 
-        	fprintf(2,'Error %s: class information is not integer\n',mfilename);
-		return;
-	end;
-        
         [dr,dc] = size(d);
     	[cr,cc] = size(c);
 
+	[X.Label,i,j]=unique([d(:);c(:)]); 
+	c = j(1+numel(d):end); 
+	d = j(1:numel(d)); 
+	
+
     	N  = min(cr,dr); % number of examples
+    	N  = sum(isfinite(d) & isfinite(c));
     	ku = max([d;c]); % upper range
     	kl = min([d;c]); % lower range
     
 	
     	if (nargin<3),
-            	d = d-kl+1;	% minimum element is 1;
-            	c = c-kl+1;	%
-            	kk= ku-kl+1;  	% maximum element
+            	kk = length(X.Label);  	% maximum element
     	else
             	if kk<ku;  	% maximum element
                     	fprintf(2,'Error KAPPA: some element is larger than arg3(%i)\n',kk);
@@ -92,8 +90,8 @@ if nargin>1,
     		end;
 	end;
 else
-	tmp = min(size(d));
-    	H = d(1:tmp,1:tmp);
+	X.Label = 1:min(size(d));
+    	H = d(X.Label,X.Label);
     	% if size(H,1)==size(H,2);	
 	N = sum(sum(H));
     	% end;
@@ -118,9 +116,9 @@ sd  = sqrt((pe+pe*pe-px)/(N*(1-pe*pe)));
 
 %standard error 
 se  = sqrt((p0+pe*pe-px)/N)/(1-pe);
-zscore = kap/se;
+z = kap/se;
 
-if nargout<7, return; end; 
+if ((1 < nargout) & (nargout<7)) return; end; 
 
 % Nykopp's entropy
 pwi = sum(H,2)/N;                       % p(x_i)
@@ -130,5 +128,13 @@ pwj(pwj==0) = 1;                        % make sure p*log2(p) is 0, this avoids 
 pji(pji==0) = 1;                        % make sure p*log2(p) is 0, this avoids NaN's 
 R   = - sum(pwj.*log2(pwj)) + sum(pwi'*(pji.*log2(pji)));
 
+if (nargout>1) return; end; 
 
-
+X.kappa = kap; 
+X.kappa_se = se; 
+X.H = H;
+X.z = z; 
+X.ACC = p0; 
+X.sACC = SA;
+X.MI = R;
+kap = X;  
