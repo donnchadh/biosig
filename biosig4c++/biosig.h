@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.72 2007-11-08 14:43:15 schloegl Exp $
+% $Id: biosig.h,v 1.73 2007-12-03 19:23:22 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -65,6 +65,12 @@ extern int   VERBOSE_LEVEL;
 #define __BIOSIG_H__
 
 
+#ifdef  __sparc__
+#define __BIG_ENDIAN  	 4321
+#define __LITTLE_ENDIAN  1234
+#define __BYTE_ORDER 	__BIG_ENDIAN
+#endif 
+
 #ifdef _VCPP_DEF
 #define __BYTE_ORDER  __LITTLE_ENDIAN
 typedef unsigned __int64	uint64_t;
@@ -95,11 +101,7 @@ typedef char			int8_t;
 //#include <bz2lib.h>
 
 
-#ifdef  __sparc__
-#define __BIG_ENDIAN  	1234
-#define __LITTLE_ENDIAN 4321
-#define __BYTE_ORDER 	__BIG_ENDIAN
-#else
+#ifdef __linux__
 /* use byteswap macros from the host system, hopefully optimized ones ;-) */
 #include <byteswap.h>
 #endif 
@@ -147,7 +149,7 @@ double  l_endian_f64(double x);
 #define b_endian_f32(x) ((float)(x))
 #define b_endian_f64(x) ((double)(x))
 
-#elif __BYTE_ORDER == __LITTLE_ENDIAN
+#elif __BYTE_ORDER==__LITTLE_ENDIAN
 #define l_endian_u16(x) ((uint16_t)(x))
 #define l_endian_u32(x) ((uint32_t)(x))
 #define l_endian_u64(x) ((uint64_t)(x))
@@ -167,6 +169,85 @@ float   b_endian_f32(float x);
 double  b_endian_f64(double x); 
 
 #endif /* __BYTE_ORDER */
+
+
+#ifndef __sparc__
+// if misaligned data words can be handled 
+#define leu16p(i) l_endian_u16(*(uint16_t*)(i))
+#define lei16p(i) l_endian_i16(*( int16_t*)(i))
+#define leu32p(i) l_endian_u32(*(uint32_t*)(i))
+#define lei32p(i) l_endian_i32(*( int32_t*)(i))
+#define leu64p(i) l_endian_u64(*(uint64_t*)(i))
+#define lei64p(i) l_endian_i64(*( int64_t*)(i))
+#define lef32p(i) l_endian_f32(*(float*)(i))
+#define lef64p(i) l_endian_f64(*(double*)(i))
+
+#define beu16p(i) b_endian_u16(*(uint16_t*)(i))
+#define bei16p(i) b_endian_i16(*( int16_t*)(i))
+#define beu32p(i) b_endian_u32(*(uint32_t*)(i))
+#define bei32p(i) b_endian_i32(*( int32_t*)(i))
+#define beu64p(i) b_endian_u64(*(uint64_t*)(i))
+#define bei64p(i) b_endian_i64(*( int64_t*)(i))
+#define bef32p(i) b_endian_f32(*(float*)(i))
+#define bef64p(i) b_endian_f64(*(double*)(i))
+
+#define leu16a(i,r) (*(uint16_t*)r = l_endian_u16(i))
+#define lei16a(i,r) (*( int16_t*)r = l_endian_i16(i))
+#define leu32a(i,r) (*(uint32_t*)r = l_endian_u32(i))
+#define lei32a(i,r) (*( int32_t*)r = l_endian_i32(i))
+#define leu64a(i,r) (*(uint64_t*)r = l_endian_u64(i))
+#define lei64a(i,r) (*( int64_t*)r = l_endian_i64(i))
+#define lef32a(i,r) (*(uint32_t*)r = l_endian_f32(i))
+#define lef64a(i,r) (*(uint64_t*)r = l_endian_f64(i))
+
+#define beu16a(i,r) (*(uint16_t*)r = b_endian_u16(i))
+#define bei16a(i,r) (*( int16_t*)r = b_endian_i16(i))
+#define beu32a(i,r) (*(uint32_t*)r = b_endian_u32(i))
+#define bei32a(i,r) (*( int32_t*)r = b_endian_i32(i))
+#define beu64a(i,r) (*(uint64_t*)r = b_endian_u64(i))
+#define bei64a(i,r) (*( int64_t*)r = b_endian_i64(i))
+#define bef32a(i,r) (*(uint32_t*)r = b_endian_f32(i))
+#define bef64a(i,r) (*(uint64_t*)r = b_endian_f64(i))
+
+#else
+/*    SPARC: missing alignment must be explicitly handled     */ 
+uint16_t leu16p(uint8_t* i);
+int16_t  lei16p(uint8_t* i);
+uint32_t leu32p(uint8_t* i);
+int32_t  lei32p(uint8_t* i);
+uint64_t leu64p(uint8_t* i);
+int64_t  lei64p(uint8_t* i);
+float    lef32p(uint8_t* i);
+double   lef64p(uint8_t* i);
+
+uint16_t beu16p(uint8_t* i);
+int16_t  bei16p(uint8_t* i);
+uint32_t beu32p(uint8_t* i);
+int32_t  bei32p(uint8_t* i);
+uint64_t beu64p(uint8_t* i);
+int64_t  bei64p(uint8_t* i);
+float    bef32p(uint8_t* i);
+double   bef64p(uint8_t* i);
+
+uint16_t leu16a(uint16_t i, uint8_t* r);
+int16_t  lei16a( int16_t i, uint8_t* r);
+uint32_t leu32a(uint32_t i, uint8_t* r);
+int32_t  lei32a( int32_t i, uint8_t* r);
+uint64_t leu64a(uint64_t i, uint8_t* r);
+int64_t  lei64a( int64_t i, uint8_t* r);
+float    lef32a(   float i, uint8_t* r);
+double   lef64a(  double i, uint8_t* r);
+
+uint16_t beu16a(uint16_t i, uint8_t* r);
+int16_t  bei16a( int16_t i, uint8_t* r);
+uint32_t beu32a(uint32_t i, uint8_t* r);
+int32_t  bei32a( int32_t i, uint8_t* r);
+uint64_t beu64a(uint64_t i, uint8_t* r);
+int64_t  bei64a( int64_t i, uint8_t* r);
+float    bef32a(   float i, uint8_t* r);
+double   bef64a(  double i, uint8_t* r);
+
+#endif
 
 
 	/* list of file formats */
@@ -364,7 +445,7 @@ typedef struct {
 	/* Patient specific information */
 	struct {
 		char		Name[MAX_LENGTH_NAME+1]; /* because for privacy protection it is by default not supported, support is turned on with FLAG.ANONYMOUS */
-//		char*		Name;/* because for privacy protection it is by default not supported, support is turned on with FLAG.ANONYMOUS */
+//		char*		Name;	/* because for privacy protection it is by default not supported, support is turned on with FLAG.ANONYMOUS */
 		char		Id[MAX_LENGTH_PID+1];	/* patient identification, identification code as used in hospital  */
 		uint8_t		Weight;		/* weight in kilograms [kg] 0:unkown, 255: overflow  */
 		uint8_t		Height;		/* height in centimeter [cm] 0:unkown, 255: overflow  */
@@ -486,7 +567,7 @@ int             FERROR(HDRTYPE* hdr);
 
 /*
 	These functions are for the converter between SCP to HL7aECG
- */ 	 
+ */
 
 int sopen_SCP_read     (HDRTYPE* hdr);
 int sopen_SCP_write    (HDRTYPE* hdr);

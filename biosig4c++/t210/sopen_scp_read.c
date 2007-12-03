@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.52 2007-11-15 14:04:26 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.53 2007-12-03 19:23:24 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -429,7 +429,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	PtrCurSect = ptr+sectionStart;	
 
 	/**** SECTION 0 ****/
-	len = l_endian_u32(*(uint32_t*)(PtrCurSect+4)); 
+	len = leu32p(PtrCurSect+4); 
 	NSections = min((len-16)/10,_NUM_SECTION);
 
 	section[0].ID	  = 0; 	
@@ -443,11 +443,11 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 
 	for (int K=1; K<NSections; K++)	{
 		// this is needed because fields are not always sorted
-		curSect = l_endian_u32(*(uint32_t*)(ptr+6+16+K*10)); 
+		curSect = leu32p(ptr+6+16+K*10); 
 		if (curSect < NSections) {
 			section[curSect].ID 	= curSect; 	
-			section[curSect].length = l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+2)); 	
-			section[curSect].index  = l_endian_u32(*(uint32_t*)(ptr+6+16+K*10+6))-1;
+			section[curSect].length = leu32p(ptr+6+16+K*10+2); 	
+			section[curSect].index  = leu32p(ptr+6+16+K*10+6)-1;
 		}
 	}
 
@@ -461,14 +461,14 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 
 	if (len==0) continue;	 /***** empty section *****/
 		PtrCurSect = ptr+sectionStart;
-		crc 	   = l_endian_u16(*(uint16_t*)(PtrCurSect));
+		crc 	   = leu16p(PtrCurSect);
 		uint16_t tmpcrc = CRCEvaluate((uint8_t*)(PtrCurSect+2),len-2); 
 		if ((crc != 0xffff) && (crc != tmpcrc))
 			fprintf(stderr,"Warning SOPEN(SCP-READ): faulty CRC in section %i: crc=%x, %x\n",curSect,crc,tmpcrc);
-		if (curSect != l_endian_u16(*(uint16_t*)(PtrCurSect+2)))
-			fprintf(stderr,"Warning SOPEN(SCP-READ): Current Section No does not match field in sections (%i %i)\n",curSect,l_endian_u16(*(uint16_t*)(PtrCurSect+2))); 
-		if (len != l_endian_u32(*(uint32_t*)(PtrCurSect+4)))
-			fprintf(stderr,"Warning SOPEN(SCP-READ): length field in pointer section (%i) does not match length field in sections (%i %i)\n",K,len,l_endian_u32(*(uint32_t*)(PtrCurSect+4))); 
+		if (curSect != leu16p(PtrCurSect+2))
+			fprintf(stderr,"Warning SOPEN(SCP-READ): Current Section No does not match field in sections (%i %i)\n",curSect,leu16p(PtrCurSect+2)); 
+		if (len != leu32p(PtrCurSect+4))
+			fprintf(stderr,"Warning SOPEN(SCP-READ): length field in pointer section (%i) does not match length field in sections (%i %i)\n",K,len,leu32p(PtrCurSect+4)); 
 
 		uint8_t versionSection  = *(ptr+sectionStart+8);
 		uint8_t versionProtocol = *(ptr+sectionStart+9);
@@ -497,7 +497,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
  
  			while (*(PtrCurSect+curSectPos) < 255) {
 				tag = *(PtrCurSect+curSectPos);
-				len1 = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+1));
+				len1 = leu16p(PtrCurSect+curSectPos+1);
 				if (VERBOSE_LEVEL>8)
 					fprintf(stdout,"SCP(r): Section 1 Tag %i Len %i\n",tag,len1);
 
@@ -527,7 +527,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				else if (tag==4) {
 				}
 				else if (tag==5) {
-					t1.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))-1900;
+					t1.tm_year = leu16p(PtrCurSect+curSectPos)-1900;
 					t1.tm_mon  = *(PtrCurSect+curSectPos+2)-1;
 					t1.tm_mday = *(PtrCurSect+curSectPos+3);
 					t1.tm_hour = 12; 
@@ -538,10 +538,10 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					hdr->Patient.Birthday = tm_time2gdf_time(&t1);
 				}
 				else if (tag==6) {
-					hdr->Patient.Height = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+					hdr->Patient.Height = leu16p(PtrCurSect+curSectPos);
 				}
 				else if (tag==7) {
-					hdr->Patient.Weight = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+					hdr->Patient.Weight = leu16p(PtrCurSect+curSectPos);
 				}
 				else if (tag==8) {
 					hdr->Patient.Sex = *(PtrCurSect+curSectPos);
@@ -551,10 +551,10 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				else if (tag==10) {
 				}
 				else if (tag==11) {
- 					hdr->aECG->diastolicBloodPressure = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+ 					hdr->aECG->diastolicBloodPressure = leu16p(PtrCurSect+curSectPos);
 				}
 				else if (tag==12) {
-					hdr->aECG->systolicBloodPressure  = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+					hdr->aECG->systolicBloodPressure  = leu16p(PtrCurSect+curSectPos);
 				}
 				else if (tag==13) {
 					hdr->aECG->Diagnosis = (char*)(PtrCurSect+curSectPos);
@@ -576,9 +576,9 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					/* might become obsolete */					
 					//memcpy(hdr->aECG->Section1.tag14,PtrCurSect+curSectPos,40);
 					//hdr->VERSION = *(PtrCurSect+curSectPos+14)/10.0;	// tag 14, byte 15
-					hdr->aECG->Section1.Tag14.INST_NUMBER = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-					hdr->aECG->Section1.Tag14.DEPT_NUMBER = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
-					hdr->aECG->Section1.Tag14.DEVICE_ID   = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+4));
+					hdr->aECG->Section1.Tag14.INST_NUMBER = leu16p(PtrCurSect+curSectPos);
+					hdr->aECG->Section1.Tag14.DEPT_NUMBER = leu16p(PtrCurSect+curSectPos+2);
+					hdr->aECG->Section1.Tag14.DEVICE_ID   = leu16p(PtrCurSect+curSectPos+4);
 					hdr->aECG->Section1.Tag14.DEVICE_TYPE = *(PtrCurSect+curSectPos+ 6);
 					hdr->aECG->Section1.Tag14.MANUF_CODE  = *(PtrCurSect+curSectPos+ 7);	// tag 14, byte 7 (MANUF_CODE has to be 255)
 					hdr->aECG->Section1.Tag14.MOD_DESC    = (char*)(PtrCurSect+curSectPos+8); 
@@ -624,7 +624,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					hdr->aECG->EmergencyLevel = *(PtrCurSect+curSectPos);
 				}
 				else if (tag==25) {
-					t0.tm_year = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))-1900;
+					t0.tm_year = leu16p(PtrCurSect+curSectPos)-1900;
 					t0.tm_mon  = (*(PtrCurSect+curSectPos+2)) - 1;
 					t0.tm_mday = *(PtrCurSect+curSectPos+3);
 				}
@@ -634,10 +634,10 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					t0.tm_sec  = *(PtrCurSect+curSectPos+2);
 				}
 				else if (tag==27) {
-					HighPass   = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))/100.0;
+					HighPass   = leu16p(PtrCurSect+curSectPos)/100.0;
 				}
 				else if (tag==28) {
-					LowPass    = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+					LowPass    = leu16p(PtrCurSect+curSectPos);
 				}
 				else if (tag==29) {
 					uint8_t bitmap = *(PtrCurSect+curSectPos);
@@ -659,7 +659,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				else if (tag==33) {
 				}
 				else if (tag==34) {
-					int16_t tzmin = l_endian_i16(*(int16_t*)(PtrCurSect+curSectPos));
+					int16_t tzmin = lei16p(PtrCurSect+curSectPos);
 					if (tzmin != 0x7fff)
 						if (abs(tzmin)<=780) 
 							t0.tm_min += tzmin;
@@ -681,7 +681,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			hdr->aECG->FLAG.HUFFMAN = 1; 
 			en1064.FLAG.HUFFMAN = 1; 
 
-			NHT = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+			NHT = leu16p(PtrCurSect+curSectPos);
 			curSectPos += 2;
 			if (NHT==19999) {
 				en1064.FLAG.HUFFMAN = 1; 
@@ -693,7 +693,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				k2 = 0; 
 				if (VERBOSE_LEVEL==9)
 					for (k1=0; k1<Huffman[k2].NCT; k1++) 
-					fprintf(stdout,"%3i: %2i %2i %1i %3li %6li \n",k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode); 
+					fprintf(stdout,"%3i: %2i %2i %1i %3i %6u \n",k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode); 
 				if (!checkTree(HTrees[0])) // ### OPTIONAL, not needed ###
 					fprintf(stderr,"Warning: invalid Huffman Tree\n");
 			}
@@ -701,7 +701,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				en1064.FLAG.HUFFMAN = NHT; 
 				Huffman = (huffman_t*)malloc(NHT*sizeof(huffman_t));
 				for (k2=0; k2<NHT; k2++) {
-					Huffman[k2].NCT   = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+					Huffman[k2].NCT   = leu16p(PtrCurSect+curSectPos);
 					curSectPos += 2;
 					Huffman[k2].Table = (typeof(Huffman[k2].Table))malloc(Huffman[k2].NCT * sizeof(*Huffman[k2].Table));
 					HTrees      = (htree_t**)malloc(Huffman[k2].NCT*sizeof(htree_t*));
@@ -709,11 +709,11 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 						Huffman[k2].Table[k1].PrefixLength = *(PtrCurSect+curSectPos);  
 						Huffman[k2].Table[k1].CodeLength = *(PtrCurSect+curSectPos+1);  
 						Huffman[k2].Table[k1].TableModeSwitch = *(PtrCurSect+curSectPos+2);  
-						Huffman[k2].Table[k1].BaseValue  = l_endian_i16(*(int16_t*)(PtrCurSect+curSectPos+3));  
-						Huffman[k2].Table[k1].BaseCode   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+5));
+						Huffman[k2].Table[k1].BaseValue  = lei16p(PtrCurSect+curSectPos+3);  
+						Huffman[k2].Table[k1].BaseCode   = leu32p(PtrCurSect+curSectPos+5);
 						curSectPos += 9;
 						if (VERBOSE_LEVEL==9)
-							fprintf(stdout,"%3i %3i: %2i %2i %1i %3li %6li \n",k2,k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode);
+							fprintf(stdout,"%3i %3i: %2i %2i %1i %3i %6u \n",k2,k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode);
 					}
 					HTrees[k2] = makeTree(Huffman[k2]);
 					if (!checkTree(HTrees[k2])) {
@@ -742,10 +742,10 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			en1064.Section3.lead = (typeof(en1064.Section3.lead))malloc(hdr->NS*sizeof(*en1064.Section3.lead));
 
 			uint32_t startindex0; 
-			startindex0 = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos));
+			startindex0 = leu32p(PtrCurSect+curSectPos);
 			for (i = 0, hdr->SPR=1; i < hdr->NS; i++) {
-				en1064.Section3.lead[i].start = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos));
-				en1064.Section3.lead[i].end   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+4));
+				en1064.Section3.lead[i].start = leu32p(PtrCurSect+curSectPos);
+				en1064.Section3.lead[i].end   = leu32p(PtrCurSect+curSectPos+4);
 
 				hdr->CHANNEL[i].SPR 	= en1064.Section3.lead[i].end - en1064.Section3.lead[i].start + 1;
 				hdr->SPR 		= lcm(hdr->SPR,hdr->CHANNEL[i].SPR);
@@ -762,24 +762,24 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		}
 		/**** SECTION 4 ****/
 		else if (curSect==4)  {
-			en1064.Section4.len_ms	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-			en1064.Section4.fiducial_sample	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
-			en1064.Section4.N	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+4));
+			en1064.Section4.len_ms	= leu16p(PtrCurSect+curSectPos);
+			en1064.Section4.fiducial_sample	= leu16p(PtrCurSect+curSectPos+2);
+			en1064.Section4.N	= leu16p(PtrCurSect+curSectPos+4);
 			en1064.Section4.SPR	= hdr->SPR/4;
 
 			en1064.Section4.beat	= (typeof(en1064.Section4.beat))malloc(en1064.Section4.N*sizeof(*en1064.Section4.beat));
 
 			curSectPos += 6;
 			for (i=0; i < en1064.Section4.N; i++) {
-				en1064.Section4.beat[i].btyp = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-				en1064.Section4.beat[i].SB   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+2));
-				en1064.Section4.beat[i].fcM  = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+6));
-				en1064.Section4.beat[i].SE   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+10));
+				en1064.Section4.beat[i].btyp = leu16p(PtrCurSect+curSectPos);
+				en1064.Section4.beat[i].SB   = leu32p(PtrCurSect+curSectPos+2);
+				en1064.Section4.beat[i].fcM  = leu32p(PtrCurSect+curSectPos+6);
+				en1064.Section4.beat[i].SE   = leu32p(PtrCurSect+curSectPos+10);
 				curSectPos += 14;
 			}	
 			for (i=0; i < en1064.Section4.N; i++) {
-				en1064.Section4.beat[i].QB   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos));
-				en1064.Section4.beat[i].QE   = l_endian_u32(*(uint32_t*)(PtrCurSect+curSectPos+4));
+				en1064.Section4.beat[i].QB   = leu32p(PtrCurSect+curSectPos);
+				en1064.Section4.beat[i].QE   = leu32p(PtrCurSect+curSectPos+4);
 				curSectPos += 8;
 				en1064.Section4.SPR += en1064.Section4.beat[i].QE-en1064.Section4.beat[i].QB-1;
 			}	
@@ -790,14 +790,14 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 
 		/**** SECTION 5 ****/
 		else if (curSect==5)  {
-			Cal5 			= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-			en1064.Section5.AVM	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-			en1064.Section5.dT_us	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
+			Cal5 			= leu16p(PtrCurSect+curSectPos);
+			en1064.Section5.AVM	= leu16p(PtrCurSect+curSectPos);
+			en1064.Section5.dT_us	= leu16p(PtrCurSect+curSectPos+2);
 			en1064.Section5.DIFF 	= *(PtrCurSect+curSectPos+4);
-			en1064.Section5.Length  = 1000.0 * en1064.Section4.len_ms / en1064.Section5.dT_us; // hdr->SPR;
+			en1064.Section5.Length  = (1000L * en1064.Section4.len_ms) / en1064.Section5.dT_us; // hdr->SPR;
 			en1064.Section5.inlen	= (typeof(en1064.Section5.inlen))malloc(hdr->NS*sizeof(*en1064.Section5.inlen));
 			for (i=0; i < hdr->NS; i++) {
-				en1064.Section5.inlen[i] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+2*i));
+				en1064.Section5.inlen[i] = leu16p(PtrCurSect+curSectPos+6+2*i);
 				if (!section[4].length && (en1064.Section5.Length<en1064.Section5.inlen[i]))
 					en1064.Section5.Length = en1064.Section5.inlen[i];
 			}
@@ -811,7 +811,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 
 				Ptr2datablock           = (PtrCurSect+curSectPos+6+2*hdr->NS);
 				for (i=0; i < hdr->NS; i++) {
-					en1064.Section5.inlen[i] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+2*i));
+					en1064.Section5.inlen[i] = leu16p(PtrCurSect+curSectPos+6+2*i);
 					if (en1064.FLAG.HUFFMAN) {
 						if (B4C_ERRNUM) {
 							deallocEN1064(en1064);
@@ -821,7 +821,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					}
 					else {
 						for (k1=0; k1<en1064.Section5.Length; k1++)
-							en1064.Section5.datablock[i*en1064.Section5.Length+k1] = l_endian_i16(*(int16_t*)(Ptr2datablock + 2*(i*en1064.Section5.Length + k1)));
+							en1064.Section5.datablock[i*en1064.Section5.Length+k1] = lei16p(Ptr2datablock + 2*(i*en1064.Section5.Length + k1));
 					}
 					Ptr2datablock += en1064.Section5.inlen[i];
 				}	
@@ -848,16 +848,16 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			hdr->AS.rawdata = (uint8_t*)malloc(4 * hdr->NS * hdr->SPR * hdr->NRec); 
 			data = (int32_t*)hdr->AS.rawdata;
 
-			en1064.Section6.AVM	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-			en1064.Section6.dT_us	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
+			en1064.Section6.AVM	= leu16p(PtrCurSect+curSectPos);
+			en1064.Section6.dT_us	= leu16p(PtrCurSect+curSectPos+2);
 			hdr->SampleRate 	= 1e6/en1064.Section6.dT_us;
 			en1064.Section6.DIFF 	= *(PtrCurSect+curSectPos+4);
 			en1064.FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);
 			en1064.Section6.BIMODAL = *(PtrCurSect+curSectPos+5);
 			en1064.FLAG.BIMODAL     = *(PtrCurSect+curSectPos+5);
 
-			Cal6 			= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
-			en1064.Section6.dT_us	= l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
+			Cal6 			= leu16p(PtrCurSect+curSectPos);
+			en1064.Section6.dT_us	= leu16p(PtrCurSect+curSectPos+2);
 			hdr->aECG->FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);
 			hdr->aECG->FLAG.BIMODAL = *(PtrCurSect+curSectPos+5);
 
@@ -897,7 +897,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 //				if (AS_DECODE > 0) continue; 
 #endif
 
-				en1064.Section6.inlen[i]    = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+6+2*i));
+				en1064.Section6.inlen[i]    = leu16p(PtrCurSect+curSectPos+6+2*i);
 				if (en1064.FLAG.HUFFMAN) {
 					if (B4C_ERRNUM) {
 						deallocEN1064(en1064);
@@ -907,7 +907,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				}
 				else {
 					for (k1=0, ix = i*hdr->SPR; k1 < SPR; k1++)
-						data[ix+k1] = l_endian_i16(*(int16_t*)(Ptr2datablock + 2*k1));
+						data[ix+k1] = lei16p(Ptr2datablock + 2*k1);
 				}
 				len += en1064.Section6.inlen[i];
 				Ptr2datablock += en1064.Section6.inlen[i]; 
@@ -979,8 +979,8 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		else if (curSect==7)  {
 			uint16_t N_QRS = *(uint8_t*)(PtrCurSect+curSectPos)-1;
 			uint8_t  N_PaceMaker = *(uint8_t*)(PtrCurSect+curSectPos+1);
-			uint16_t RRI = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
-			uint16_t PPI = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+4));
+			uint16_t RRI = leu16p(PtrCurSect+curSectPos+2);
+			uint16_t PPI = leu16p(PtrCurSect+curSectPos+4);
 			curSectPos += 6;
 			size_t curSectPos0 = curSectPos; // backup of pointer 
 			
@@ -1006,11 +1006,11 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				hdr->EVENT.TYP[hdr->EVENT.N+2] = 0x0503;
 				hdr->EVENT.TYP[hdr->EVENT.N+3] = 0x8503;
 				hdr->EVENT.TYP[hdr->EVENT.N+4] = 0x8506;
-				hdr->EVENT.POS[hdr->EVENT.N]   = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos0));
-				hdr->EVENT.POS[hdr->EVENT.N+1] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos0+2));
-				hdr->EVENT.POS[hdr->EVENT.N+2] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos0+4));
-				hdr->EVENT.POS[hdr->EVENT.N+3] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos0+6));
-				hdr->EVENT.POS[hdr->EVENT.N+4] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos0+8));
+				hdr->EVENT.POS[hdr->EVENT.N]   = leu16p(PtrCurSect+curSectPos0);
+				hdr->EVENT.POS[hdr->EVENT.N+1] = leu16p(PtrCurSect+curSectPos0+2);
+				hdr->EVENT.POS[hdr->EVENT.N+2] = leu16p(PtrCurSect+curSectPos0+4);
+				hdr->EVENT.POS[hdr->EVENT.N+3] = leu16p(PtrCurSect+curSectPos0+6);
+				hdr->EVENT.POS[hdr->EVENT.N+4] = leu16p(PtrCurSect+curSectPos0+8);
 				hdr->EVENT.N+= 5;
 				curSectPos0 += 16;
 			}
@@ -1044,15 +1044,15 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				++hdr->EVENT.N;
 				hdr->EVENT.TYP[hdr->EVENT.N] = 0x7fff;
 				hdr->EVENT.CHN[hdr->EVENT.N] = hdr->NS;
-				hdr->EVENT.POS[hdr->EVENT.N] = round(l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos))*hdr->SampleRate*1e-3);
-				hdr->EVENT.DUR[hdr->EVENT.N] = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos+2));
+				hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(leu16p(PtrCurSect+curSectPos)*hdr->SampleRate*1e-3);
+				hdr->EVENT.DUR[hdr->EVENT.N] = leu16p(PtrCurSect+curSectPos+2);
 				curSectPos += 4;
 			}
 			// skip pacemaker spike information section  
 			curSectPos += N_PaceMaker*6;
 			
 			// QRS type information 
-			N_QRS = l_endian_u16(*(uint16_t*)(PtrCurSect+curSectPos));
+			N_QRS = leu16p(PtrCurSect+curSectPos);
 			curSectPos += 2;
 
 		}
