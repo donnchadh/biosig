@@ -27,8 +27,8 @@ function [HDR] = save2gdf(arg1,arg2,arg3);
 %   data	data samples
 %
 
-% 	$Id: save2gdf.m,v 1.10 2007-08-21 09:24:07 schloegl Exp $
-%	Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>		
+% 	$Id: save2gdf.m,v 1.11 2007-12-04 14:09:28 schloegl Exp $
+%	Copyright (C) 2003-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>		
 %       This file is part of the biosig project http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -94,6 +94,9 @@ if isstruct(arg1),
         end;
 
         % THRESHOLD, GDFTYP -> Phys/Dig/Min/Max
+	if isa(data,'single') & strncmp(version,'6',1)
+		data = double(data);
+	end;	
         if HDR.NS,
 	if isfield(HDR,'THRESHOLD') 
 		HDR.DigMax  = HDR.THRESHOLD(1:HDR.NS,2)';
@@ -106,6 +109,10 @@ if isstruct(arg1),
 		HDR.DigMin = min(data,[],1);
 	end; 
 	end; 
+
+	HDR.TYPE = 'GDF';
+	HDR.VERSION = 1.25;
+        HDR.FLAG.UCAL = 1;              % data is de-calibrated, no rescaling within SWRITE 
 	if strcmp(HDR.TYPE,'EVENT')
                 HDR.SampleRate = HDR.EVENT.SampleRate;
         elseif isfield(HDR,'GDFTYP')
@@ -129,7 +136,8 @@ if isstruct(arg1),
 		digmin = HDR.DigMin; 
 
     		bits = ceil(log2(max(digmax-digmin+1)));        % allows any bit-depth
-	        if min(dQ)<1,    GDFTYP = 16;  	% float32
+	        if (min(dQ)<1) & (HDR.VERSION>1.9),	GDFTYP = 16;  	% float32
+	        elseif min(dQ)<1, GDFTYP = 5;  	% int32
 		elseif bits==8,  GDFTYP = 1;	% int8
 	        elseif bits==16, GDFTYP = 3;	% int16
 	        elseif bits==32, GDFTYP = 5;	% int32
@@ -148,39 +156,51 @@ if isstruct(arg1),
 		% HDR.PhysMax = [1,digmax]*HDR.Calib; %max(data,[],1); %gives max of the whole matrix
 	        % HDR.PhysMin = [1,digmin]*HDR.Calib; %min(data,[],1); %gives max of the whole matrix
 	        [datatyp,limits,datatypes] = gdfdatatype(HDR.GDFTYP);
-	        c0 = 0; 
-	        while any(digmin'<limits(:,1)),
-	                c = 2^ceil(log2(max(limits(:,1)-digmin')))
-	                digmin = digmin + c;
-	                digmax = digmax + c;
-	                c0 = c0 + c;
-	        end;
-	        while any(digmax'>limits(:,2)),
-	                c = 2^ceil(log2(max(digmax'-limits(:,2))))
-	                digmin = digmin - c;
-	                digmax = digmax - c;
-	                c0 = c0 - c;
-	        end;
-	        while any(digmin'<limits(:,1)),
-	                c = 2^ceil(log2(max(limits(:,1)-digmin')))
-	                digmin = digmin + c;
-	                digmax = digmax + c;
-	                c0 = c0 + c;
-	        end;
+		if 1, 
+			% here, the data is forced to a different data type
+			% this is useful if data is float
+			% this can cause round-off errors    
+		        HDR.DigMin = limits(:,1)'; 
+		        HDR.DigMax = limits(:,2)'; 
+		        HDR.FLAG.UCAL = 0;   % data is calibrated, rescaling within SWRITE 
+	
+		else
+			% here, the data is of integer type
+			% no round of errors occur. 
+			
+		        c0 = 0; 
+		        while any(digmin'<limits(:,1)),
+	        	        c = 2^ceil(log2(max(limits(:,1)-digmin')))
+	                	digmin = digmin + c;
+	        	        digmax = digmax + c;
+		                c0 = c0 + c;
+		        end;
+	        	while any(digmax'>limits(:,2)),
+		                c = 2^ceil(log2(max(digmax'-limits(:,2))))
+		                digmin = digmin - c;
+	                	digmax = digmax - c;
+		                c0 = c0 - c;
+	        	end;
+		        while any(digmin'<limits(:,1)),
+		                c = 2^ceil(log2(max(limits(:,1)-digmin')))
+	                	digmin = digmin + c;
+		                digmax = digmax + c;
+	        	        c0 = c0 + c;
+		        end;
 
-                data = data + c0;
+                	data = data + c0;
+		        
+		        HDR.DigMax = digmax; %limits(:,2); %*ones(1,HDR.NS);
+		        HDR.DigMin = digmin; %limits(:,1); %*ones(1,HDR.NS);
 	        
-	        HDR.DigMax = digmax; %limits(:,2); %*ones(1,HDR.NS);
-	        HDR.DigMin = digmin; %limits(:,1); %*ones(1,HDR.NS);
-	        %fprintf(1,'Warning SAVE2GDF: overflow detection not implemented, yet.\n');
-                if isfield(HDR,'Calib') & ~isfield(HDR,'PhysMax');
-                        HDR.PhysMax = [1,HDR.DigMax]*HDR.Calib;
-                	HDR.PhysMin = [1,HDR.DigMin]*HDR.Calib;
-                end;
+		        %fprintf(1,'Warning SAVE2GDF: overflow detection not implemented, yet.\n');
+	                if isfield(HDR,'Calib') & ~isfield(HDR,'PhysMax');
+                	        HDR.PhysMax = [1,HDR.DigMax]*HDR.Calib;
+        	        	HDR.PhysMin = [1,HDR.DigMin]*HDR.Calib;
+	                end;
+	        end; 
 	end;
 
-        HDR.FLAG.UCAL = 1;              % data is de-calibrated, no rescaling within SWRITE 
-	HDR.TYPE = 'GDF';
         if ~isfield(HDR,'Dur'); 
                 HDR.Dur = 1/HDR.SampleRate;
                 HDR.SPR = 1; 
@@ -230,7 +250,7 @@ for k=1:length(infile);
 	if isfield(HDR,'EDF')
 	if isfield(HDR.EDF,'Annotations')        
 	if ~isempty(HDR.EDF.Annotations)
-    		fprintf(2,'Warning SAVE2GDF: EDF+ not fully supported yet.\n'); 
+    		fprintf(2,'Warning SAVE2GDF: Annotations in EDF+ are not fully supported.\n'); 
 	end;
 	end;
 	end;
