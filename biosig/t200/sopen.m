@@ -53,7 +53,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: sopen.m,v 1.189 2007-11-15 14:07:08 schloegl Exp $
+%	$Id: sopen.m,v 1.190 2007-12-04 14:08:43 schloegl Exp $
 %	(C) 1997-2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -560,7 +560,6 @@ end;
 	                        	fprintf(2,'   A copy is available here, too: http://www.dpmi.tugraz.at/schloegl/publications/neurophys1999_2165.pdf \n'); 
 				end;
 			end; 
-
 	                if any(HDR.PhysMax==HDR.PhysMin), HDR.ErrNo=[1029,HDR.ErrNo]; end;	
 	                if any(HDR.DigMax ==HDR.DigMin ), HDR.ErrNo=[1030,HDR.ErrNo]; end;	
 	                HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
@@ -1594,7 +1593,7 @@ end;
 	                                fwrite(HDR.FILE.FID, HDR.PhysMin,'float64');
 	                                fwrite(HDR.FILE.FID, HDR.PhysMax,'float64');
 
-	                                if exist('OCTAVE_VERSION','builtin'),  % Octave does not support INT64 yet. 
+	                                if exist('OCTAVE_VERSION','builtin'),  % Octave does not support INT64 yet.
 	                                        fwrite(HDR.FILE.FID, [HDR.DigMin(:),-(HDR.DigMin(:)<0)]','int32');
 	                                        fwrite(HDR.FILE.FID, [HDR.DigMax(:),-(HDR.DigMax(:)<0)]','int32');
 	                                else
@@ -4109,6 +4108,7 @@ elseif strcmp(HDR.TYPE,'WG1'),
                 end;
 		%HDR.Calib = sparse(2:HDR.NS+1,HDR.ChanSelect,HDR.Cal);
 		HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
+		HDR.PhysDimCode = zeros(HDR.NS,1); 
 
                 status = fseek(HDR.FILE.FID,7*256,'bof');
                 HDR.WG1.neco1 = fread(HDR.FILE.FID,1,'uint32');
@@ -5458,6 +5458,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         tmp = load('-mat',HDR.FileName);
         warning(status);
         
+	HDR.FILE.FID = 0; 
         flag.bci2002a = isfield(tmp,'x') & isfield(tmp,'y') & isfield(tmp,'z') & isfield(tmp,'fs') & isfield(tmp,'elab'); 
         if flag.bci2002a,
         	flag.bci2002a = all(size(tmp.y) == [1501,27,516]); 
@@ -5479,7 +5480,11 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         		warning('identification of bbci data may be not correct');
         	end; 	
 	end; 
-
+        flag.fieldtrip = isfield(tmp,'data');
+        if flag.fieldtrip,
+         	flag.fieldtrip = isfield(tmp.data,'cfg') & isfield(tmp.data,'hdr') & isfield(tmp.data,'label') & isfield(tmp.data,'fsample'); 
+	end; 
+	
         if isfield(tmp,'HDR'),
                 H = HDR; 
                 HDR = tmp.HDR; 
@@ -5883,6 +5888,45 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.TYPE = 'native'; 
                 
         
+        elseif flag.fieldtrip,
+        	HDR.Label = tmp.data.label; 
+        	if isfield(tmp.data,'fsample'); 
+	        	HDR.SampleRate = tmp.data.fsample;
+	        else
+	        	HDR.SampleRate = tmp.data.hdr.Fs;
+	        end; 	 
+        	HDR.data = cat(2,tmp.data.trial{:})';
+        	[HDR.NRec,HDR.NS] = size(HDR.data);
+        	HDR.SPR = 1; 
+		HDR.DigMax = double(max(HDR.data)); 
+		HDR.DigMin = double(min(HDR.data)); 
+		HDR.PhysMax = HDR.DigMax;
+		HDR.PhysMin = HDR.DigMin;
+        	HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+        	HDR.PhysDimCode = zeros(HDR.NS,1);  
+        	numtrials = length(tmp.data.trial); 
+        	tlen = zeros(numtrials,1); 
+        	for k=1:numtrials,
+        		tlen(k) = size(tmp.data.trial{k},2); 
+        	end; 	
+		HDR.EVENT.TYP = repmat(hex2dec('7ffe'),length(tmp.data.trial),1);          	
+		HDR.EVENT.POS = 1+cumsum(tlen);          	
+		HDR.EVENT.DUR = tlen; 
+		HDR.EVENT.CHN = zeros(numtrials,1);         	
+        	HDR.TYPE = 'native';
+        	HDR.FILE.POS = 0; 
+
+		fid = -1; % fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.rej']),'r'); 
+		if fid>0,
+			%% FIXME: *.rej info not used. 
+			t = fread(fid,[1,inf],'char'); 
+			fclose(fid); 
+			t = char(t); 
+			t(t=='-') = ' '; 
+			[n,v,t]=str2double(t); 
+		end;         	
+        	
+
         elseif isfield(tmp,'EEG');	% EEGLAB file format 
                 HDR.SPR         = tmp.EEG.pnts;
                 HDR.NS          = tmp.EEG.nbchan;
@@ -7890,12 +7934,55 @@ elseif strcmp(HDR.TYPE,'STX'),
         end
 
 
-elseif strcmp(HDR.TYPE,'ABF'), 
+elseif strcmp(HDR.TYPE,'ABF2'), 
+        fprintf(HDR.FILE.stderr,'Warning: SOPEN (ABF2) is very experimental.\n');	
+        if any(HDR.FILE.PERMISSION=='r'),
+                HDR.FILE.FID = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
+                HDR.ABF.ID = char(fread(HDR.FILE.FID,[1,4],'char'));
+                HDR.Version = fread(HDR.FILE.FID,1,'uint32');
+                HDR.HeadLen = fread(HDR.FILE.FID,1,'uint32');
+                HDR.ABF.StartDate = fread(HDR.FILE.FID,1,'uint32');
+                HDR.ABF.StartTimeMS = fread(HDR.FILE.FID,1,'uint32');
+                HDR.ABF.StopWatchTime = fread(HDR.FILE.FID,1,'uint32');
+                HDR.ABF.FLAGS = fread(HDR.FILE.FID,4,'uint16');
+                HDR.ABF.FileCRC = fread(HDR.FILE.FID,1,'uint32');
+                HDR.ABF.FileGUID= fread(HDR.FILE.FID,16,'uint8');
+                HDR.ABF.VersionIndex = fread(HDR.FILE.FID,5,'uint32');
+		NSections1 = 8;
+		NSections2= 0;
+                if strcmp(HDR.TYPE,'ABF2'),
+			NSections2 = 10;
+		end; 	 
+		for k=1:NSections1+NSections2;,
+                	HDR.Section{k}.BlockIndex = fread(HDR.FILE.FID,1,'int32');
+	                HDR.Section{k}.Bytes      = fread(HDR.FILE.FID,1,'int32');
+        	        HDR.Section{k}.NumEntries = fread(HDR.FILE.FID,1,'int32');
+		end;
+
+		%% read various sections 
+		for k=1:NSections1+NSections2,
+			if (HDR.Section{k}.BlockIndex)
+	       	        	fseek(HDR.FILE.FID,HDR.Section{k}.BlockIndex * 512,'bof');
+	       	        	
+		       	        if (NSections2>0) & (k==1), % StringsSection
+		       	        	
+	       		        elseif (NSections2>0) & (k==10), % StringsSection
+	       	        		HDR.ABF.StringSection = char(fread(HDR.FILE.FID,[1,HDR.Section{k}.NumEntries*HDR.Section{k}.Bytes],'char')); 
+	       	        	end;
+	       	        end;
+	        end; 		
+		fseek(HDR.FILE.FID,HDR.HeadLen,'bof'); 
+        end
+
+
+elseif strncmp(HDR.TYPE,'ABF',3), 
         fprintf(HDR.FILE.stderr,'Warning: SOPEN (ABF) is still experimental.\n');	
         if any(HDR.FILE.PERMISSION=='r'),
                 HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'t'],'ieee-le');
-                HDR.ABF.ID = fread(HDR.FILE.FID,1,'uint32');
-                HDR.Version = fread(HDR.FILE.FID,1,'float32');
+                HDR.ABF.ID = char(fread(HDR.FILE.FID,[1,4],'char'));
+                %HDR.ABF.ID = fread(HDR.FILE.FID,1,'uint32');
+                %HDR.Version = fread(HDR.FILE.FID,1,'float32');
+                HDR.Version = fread(HDR.FILE.FID,1,'uint32');
                 HDR.ABF.Mode = fread(HDR.FILE.FID,1,'uint16');
                 HDR.AS.endpos = fread(HDR.FILE.FID,1,'uint32');
                 HDR.ABF.NumPoinstsIgnored = fread(HDR.FILE.FID,1,'uint16');
@@ -7907,7 +7994,7 @@ elseif strcmp(HDR.TYPE,'ABF'),
                 elseif HDR.T0(1)<100, HDR.T0(1)=HDR.T0(1)+1900;
                 end;
                 
-                HDR.ABF.HeaderVersion = fread(HDR.FILE.FID,1,'float32');
+                HDR.ABF.HeaderVersion = fread(HDR.FILE.FID,1,'float');
 		if HDR.ABF.HeaderVersion>=1.6,
 			HDR.HeadLen = 1394+6144+654;
 		else
