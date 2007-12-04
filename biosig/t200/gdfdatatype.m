@@ -24,7 +24,7 @@ function [datatyp,limits,datatypes,numbits,GDFTYP] = gdfdatatype(GDFTYP)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: gdfdatatype.m,v 1.9 2005-08-24 13:06:25 schloegl Exp $
+%	$Id: gdfdatatype.m,v 1.10 2007-12-04 13:56:50 schloegl Exp $
 %	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -103,7 +103,7 @@ for k=1:length(GDFTYP),
                 nbits = 16; 
         elseif GDFTYP(k)==5
                 datatyp=('int32');
-                limit = [-2^32,2^32-1,-2^32];        
+                limit = [-2^31,2^31-1,-2^31];        
                 nbits = 32; 
         elseif GDFTYP(k)==6
                 datatyp=('uint32');
@@ -119,11 +119,11 @@ for k=1:length(GDFTYP),
                 nbits = 64; 
         elseif GDFTYP(k)==16
                 datatyp=('float32');
-                limit = [-inf,inf,NaN];        
+                limit = [-(2-2^-23)*2^127,(2-2^-23)*2^127,NaN];        
                 nbits = 32; 
         elseif GDFTYP(k)==17
                 datatyp=('float64');
-                limit = [-inf,inf,NaN];        
+                limit = [-realmax,realmax,NaN];        
                 nbits = 64; 
         elseif GDFTYP(k)==18
                 datatyp=('float128');
