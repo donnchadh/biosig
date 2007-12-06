@@ -18,8 +18,7 @@ function [HDR]=swrite(HDR,data)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-%	$Revision: 1.18 $
-%	$Id: swrite.m,v 1.18 2007-07-30 09:50:16 schloegl Exp $
+%	$Id: swrite.m,v 1.19 2007-12-06 08:47:25 schloegl Exp $
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -37,7 +36,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         end;        
         if ~HDR.FLAG.UCAL,
 	   	data = data - repmat(HDR.PhysMin(:)',size(data,1),1);
-	   	data = data * spdiag((HDR.DigMax-HDR.DigMin)./(HDR.PhysMax-HDR.PhysMin));  % scale Phys->Dig
+	   	data = data * sparse(1:HDR.NS,1:HDR.NS,(HDR.DigMax-HDR.DigMin)./(HDR.PhysMax-HDR.PhysMin));  % scale Phys->Dig
 	   	data = data + repmat(HDR.DigMin(:)',size(data,1),1);
         end;
 
@@ -61,10 +60,10 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
                 % fill missing data with NaN
                 tmp = rem(size(data,1),HDR.SPR);
 		if tmp,
-			fprintf(HDR.FILE.stderr,'Warning SWRITE: %i NaNs added to complete data block.\n',tmp);
+			fprintf(HDR.FILE.stderr,'Warning SWRITE: %i NaNs added to complete data block.\n',HDR.SPR-tmp);
 	                data = [data;repmat(HDR.THRESHOLD(1,3),HDR.SPR-tmp,size(data,2))];
 		end;	
-                NRec = size(data,1)/HDR.SPR; 
+                NRec = size(data,1)/HDR.SPR;
                 D = repmat(NaN,sum(HDR.AS.SPR),NRec);
                 for k = 1:HDR.NS;
                         if HDR.AS.SPR(k)>0,
