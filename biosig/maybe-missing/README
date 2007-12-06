@@ -31,10 +31,10 @@ ranksum		(see u_test)
 regexp.cc	Octave w/o Octave-forge
 signtest.m	Matlab w/o statistics toolbox
 sparse.m	Octave w/o Octave-forge
+spdiag.m	Matlab 2007b and higher
 speye.m		Octave 2.1
 strcmpi.m	Octave w/o Octave-forge
 strfind		Matlab <= 5.x, Octave w/o latest Octave-forge
-strmatch.m	Octave w/o Octave-forge
 strcmpi.m	Octave w/o Octave-forge
 strncmp.m	Octave w/o Octave-forge
 strncmpi.m	Octave w/o Octave-forge
