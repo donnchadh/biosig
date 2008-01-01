@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.73 2007-12-03 19:23:22 schloegl Exp $
+% $Id: biosig.h,v 1.74 2008-01-01 20:27:08 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -97,6 +97,7 @@ typedef char			int8_t;
 	Currently, this is in an experimental state. 
 	First tests were already successful.  
  */
+ 
 #include <zlib.h>
 //#include <bz2lib.h>
 
@@ -590,6 +591,7 @@ int16_t CRCCheck(uint8_t* datablock, uint32_t datalength);
 /**                                                                        **/
 /****************************************************************************/
 
+HDRTYPE* nullhdr();
 HDRTYPE* getfiletype(HDRTYPE* hdr);
 HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT);
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);

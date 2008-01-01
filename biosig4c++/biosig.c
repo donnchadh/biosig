@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.118 2007-12-03 19:23:21 schloegl Exp $
+    $Id: biosig.c,v 1.119 2008-01-01 20:27:08 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -1225,6 +1225,12 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 		hdr->FILE.LittleEndian = 1;
     	}
 	return(hdr); 
+}
+
+
+// the null HDR: needed for Python //
+HDRTYPE* nullhdr() {
+	return((HDRTYPE*)NULL);
 }
 
 
@@ -3731,7 +3737,7 @@ int serror() {
 /**                     HDR2ASCII                                          **/
 /**	displaying header information                                      **/ 
 /****************************************************************************/
-int hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSE_LEVEL)
+int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 {
 	CHANNEL_TYPE* 	cp; 
 	time_t  	T0;
