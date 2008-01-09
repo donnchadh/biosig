@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.15 2007-11-08 14:43:16 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.16 2008-01-09 18:18:26 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -134,7 +134,10 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 		    T0 = (char *)birthday->Attribute("value");
 		    if (T0==NULL) T0=(char *)birthday->GetText();  // workaround for reading two different formats 
 		}
-		if (strlen(T0)>14) {
+
+		if (T0==NULL) 
+			;
+		else if (strlen(T0)>14) {
 		    T0[14] = '\0';
 		    t0->tm_sec = atoi(T0+12);
 		    T0[12] = '\0';
@@ -155,7 +158,10 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 		
 		TiXmlElement *sex = demographic.FirstChild("administrativeGenderCode").Element();
 		if(sex){
-		    if(!strcmp(sex->Attribute("code"),"F"))
+
+		    if (sex->Attribute("code")==NULL)
+			hdr->Patient.Sex = 0;
+		    else if(!strcmp(sex->Attribute("code"),"F"))
 			hdr->Patient.Sex = 2;
 		    else if(!strcmp(sex->Attribute("code"),"M"))
 			hdr->Patient.Sex = 1;
@@ -164,7 +170,7 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 		}else{
 		    hdr->Patient.Sex = 0;
 		}
-		
+
 		int LowPass=0, HighPass=0, Notch=0;
 		TiXmlHandle channels = aECG.FirstChild("component").FirstChild("series").FirstChild("component").FirstChild("sequenceSet");
 		TiXmlHandle variables = aECG.FirstChild("component").FirstChild("series");
@@ -202,8 +208,14 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 		    stringtokenizer(vector, channel.FirstChild("value").FirstChild("digits").Element()->GetText());
 
 		    hdr->CHANNEL[i].SPR = vector.size();
-		    hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[i].SPR);
-		    hdr->AS.rawdata = (uint8_t *)realloc(hdr->AS.rawdata, 4*(i+1)*hdr->NS*hdr->SPR*hdr->NRec);
+		    if (i==0) {
+		    	hdr->SPR = hdr->CHANNEL[i].SPR;
+			hdr->AS.rawdata = (uint8_t *)realloc(hdr->AS.rawdata, 4*(i+1)*hdr->NS*hdr->SPR*hdr->NRec);
+		    }
+		    else if (hdr->SPR != hdr->CHANNEL[i].SPR) {
+			fprintf(stderr,"Error: number of samples %i of #%i differ from %i in #0.\n",hdr->CHANNEL[i].SPR,i+1,hdr->SPR,1);
+			exit(-5);
+		    }	
 
 		    /* read data samples */	
 		    data = (int32_t*)(hdr->AS.rawdata + 4*i*(hdr->SPR));
@@ -241,8 +253,12 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 //		    hdr->CHANNEL[i].Impedance = INF;
 //		    for(int k1=0; k1<3; hdr->CHANNEL[index].XYZ[k1++] = 0.0);
 		}
+// hdr2ascii(hdr,stdout,2);
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[320] \n");	
 		hdr->SampleRate *= hdr->SPR;
 		hdr->SampleRate  = hdr->SPR/hdr->SampleRate;
+
 
 		hdr->FLAG.OVERFLOWDETECTION = 0;
 	    }else{
