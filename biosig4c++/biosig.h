@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.74 2008-01-01 20:27:08 schloegl Exp $
+% $Id: biosig.h,v 1.75 2008-01-10 21:41:01 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -576,9 +576,8 @@ int sopen_HL7aECG_read (HDRTYPE* hdr);
 int sopen_HL7aECG_write(HDRTYPE* hdr);
 int sclose_HL7aECG_write(HDRTYPE* hdr);
 
-size_t gcd(size_t A,size_t B);
-size_t lcm(size_t A,size_t B); 
-//long lcm(long A, long B); 
+uint32_t gcd(uint32_t A, uint32_t B);
+uint32_t lcm(uint32_t A, uint32_t B);
 
 double PhysDimScale(uint16_t PhysDimCode);
 

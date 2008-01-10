@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.119 2008-01-01 20:27:08 schloegl Exp $
+    $Id: biosig.c,v 1.120 2008-01-10 21:41:01 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -136,7 +136,7 @@ const char *LEAD_ID_TABLE[] = { "unspecified",
 /****************************************************************************/
  
 // greatest common divisor 
-size_t gcd(size_t A,size_t B) 
+uint32_t gcd(uint32_t A, uint32_t B)
 {	size_t t; 
 	if (A<B) {t=B; B=A; A=t;}; 
 	while (B) {
@@ -147,10 +147,17 @@ size_t gcd(size_t A,size_t B)
 	return(A);
 };
 
-// least common multiple
-size_t lcm(size_t A,size_t B) 
-{
-	return(A*B/gcd(A,B));
+// least common multiple - used for obtaining the common HDR.SPR
+uint32_t lcm(uint32_t A, uint32_t B)
+{	
+	// return(A*(B/gcd(A,B)) with overflow detection 
+	uint64_t A64 = A;
+	A64 *= B/gcd(A,B);
+	if (A64 > 0x00000000ffffffffllu) {
+		fprintf(stderr,"Error: HDR.SPR=LCM(%i,%i) overflows and does not fit into uint32.\n",A,B);
+		exit(-4);
+	}
+	return((uint32_t)A64);
 };
 
 #if __BYTE_ORDER == __BIG_ENDIAN
