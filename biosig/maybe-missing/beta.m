@@ -1,4 +1,7 @@
-%% Copyright (C) 2008 Alois Schloegl 
+%% Copyright (C) 2008 Alois Schloegl
+%% $Id: beta.m,v 1.3 2008-01-17 16:19:33 schloegl Exp $
+%% This function is part of BioSig http://biosig.sf.net 
+%% Originally, it was part of Octave. It was modified for the use with FreeMat
 %%
 %% This is free software; you can redistribute it and/or modify it
 %% under the terms of the GNU General Public License as published by

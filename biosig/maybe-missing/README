@@ -4,8 +4,8 @@ The functions in this directory are a "must have". They are provided,
 in case they are not installed in your system.
 It is sufficient to include this directory at the end of the path. 
 
-%	Copyright (C) 2004,2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>
-%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+% Copyright (C) 2004,2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
+% This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
 function   	missing in 
@@ -13,6 +13,7 @@ function   	missing in
 all.m		FreeMat 3.5
 any.m		FreeMat 3.5
 beta.m		FreeMat 3.5
+bilinear.m	FreeMat 3.5
 binocdf.m	Matlab w/o statistics toolbox
 bitand.cc	Octave < 2.1.60(?) w/o Octave-forge
 bitshift.m	Octave < 2.1.60(?) w/o Octave-forge
@@ -21,6 +22,7 @@ datestr.m	Octave w/o Octave-forge
 datevec.m	Octave w/o Octave-forge
 diff.m		FreeMat 3.5
 eye.m		FreeMat 3.5
+filter.m	FreeMat 3.5
 findstr.m	FreeMat 3.5
 fix.m		FreeMat 3.5
 freqz.m		Matlab w/o signal processing toolbox 
@@ -37,8 +39,9 @@ length.m	FreeMat 3.5
 logit.m         Matlab
 probit.m        Matlab
 numel.m		Octave 2.1.50
+poly.m		FreeMat 3.5
 rat.m		Octave w/o Octave-forge
-ranksum		(see u_test)
+ranksum.m	(see u_test)
 regexp.cc	Octave w/o Octave-forge
 sign.m		FreeMat 3.5
 signtest.m	Matlab w/o statistics toolbox
@@ -47,7 +50,7 @@ spdiag.m	Matlab 2007b and higher
 speye.m		Octave 2.1
 sqrt.m		FreeMat 3.5
 strcmpi.m	Octave w/o Octave-forge
-strfind		Matlab <= 5.x, Octave w/o latest Octave-forge, FreeMat
+strfind.m	Matlab <= 5.x, Octave w/o latest Octave-forge, FreeMat
 strcmpi.m	Octave w/o Octave-forge
 strncmp.m	Octave w/o Octave-forge
 strncmpi.m	Octave w/o Octave-forge
