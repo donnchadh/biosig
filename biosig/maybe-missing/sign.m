@@ -22,7 +22,7 @@
 function y = sign(x);
 
 	y = (x>0)-(x<0);
-
+	y(isnan(x))=NaN;
 end
 
 
