@@ -28,7 +28,9 @@ full.m		Octave 2.1
 interp1		Octave w/o Octave forge
 ischar		Octave 2.1.50
 isdir.m		Octave < 2.1.60(?) w/o Octave-forge
+isfield.m	FreeMat 3.5
 isscalar.m	Matlab 
+isstruct.m	FreeMat 3.5
 isvector.m	Matlab 
 length.m	FreeMat 3.5
 logit.m         Matlab
@@ -51,6 +53,7 @@ strncmpi.m	Octave w/o Octave-forge
 strtok.m	Octave w/o Octave-forge
 strvcat.m	Octave w/o Octave-forge
 ctranspose.m 	Octave <= 2.9.9
+trace.m		FreeMat 3.5
 transpose.m 	Octave <= 2.9.9
 u_test.m 	instead of ranksum (missing in Matlab w/o statistics toolbox)
 xmlstruct.m	reads XML data
