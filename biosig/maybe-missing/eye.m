@@ -1,4 +1,4 @@
-%% Copyright (C) 2007 Alois Schloegl 
+%% Copyright (C) 2008 Alois Schloegl 
 %%
 %% This program is free software; you can redistribute it and/or modify
 %% it under the terms of the GNU General Public License as published by
@@ -14,8 +14,8 @@
 %% along with this program; if not, write to the Free Software
 %% Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-%% eye (f)
-%%    returns identity matrix 
+%% eye(N)
+%%    returns identity matrix of size NxN 
 %% 
 %% eye function, needed for FreeMat 3.5
 

@@ -1,4 +1,4 @@
-%% Copyright (C) 2007 Alois Schloegl 
+%% Copyright (C) 2008 Alois Schloegl 
 %%
 %% This program is free software; you can redistribute it and/or modify
 %% it under the terms of the GNU General Public License as published by
@@ -17,13 +17,16 @@
 %% diff(x [,p[,DIM]])
 %%    returns length argument 
 %% 
-%% length, needed for FreeMat 3.5
+%% diff, needed for FreeMat 3.5
 
 function y = diff(x,p,DIM);
 
-	if nargin<2,
-		p = 1; 
-	end;
+	if nargin<2, p = 1; end;
+	if isempty(p) p=1; end; 
+	if (p~=1) 
+		fprintf(stderr,'Error: Only 1st order difference (p=1) is supported');
+		return();
+	end; 	
 	
 	if nargin<3,
 		DIM = []; 
@@ -36,7 +39,7 @@ function y = diff(x,p,DIM);
 
 	if (DIM==1)
 		y= x(2:end,:)-x(1:end-1,:);
-	elseif (DIM==1)
+	elseif (DIM==2)
 		y= x(:,2:end)-x(:,1:end-1);
 	end;  			
 end
