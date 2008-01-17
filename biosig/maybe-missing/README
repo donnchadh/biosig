@@ -37,6 +37,7 @@ isstruct.m	FreeMat 3.5
 isvector.m	Matlab 
 length.m	FreeMat 3.5
 logit.m         Matlab
+lower.m		FreeMat 3.5
 probit.m        Matlab
 numel.m		Octave 2.1.50
 poly.m		FreeMat 3.5
@@ -60,6 +61,7 @@ ctranspose.m 	Octave <= 2.9.9
 trace.m		FreeMat 3.5
 transpose.m 	Octave <= 2.9.9
 u_test.m 	instead of ranksum (missing in Matlab w/o statistics toolbox)
+upper.m		FreeMat 3.5
 xmlstruct.m	reads XML data
 __xmldata__.cc	OCT function used my xmlstruct (broken?, obsolete)
 xmldata.c	MEX function used by xmlstruct
