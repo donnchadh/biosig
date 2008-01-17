@@ -17,7 +17,7 @@
 %% trace(f)
 %%    trace of matrix f 
 
-function t = trace(x);
+function y = trace(x);
   	[nr, nc] = size(x);
   	if (nr == 1 || nc == 1)
     		y = x(1);
