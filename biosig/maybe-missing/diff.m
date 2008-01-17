@@ -24,8 +24,8 @@ function y = diff(x,p,DIM);
 	if nargin<2, p = 1; end;
 	if isempty(p) p=1; end; 
 	if (p~=1) 
-		fprintf(stderr,'Error: Only 1st order difference (p=1) is supported');
-		return();
+		fprintf(1,'Error: Only 1st order difference (p=1) is supported');
+		return;
 	end; 	
 	
 	if nargin<3,
