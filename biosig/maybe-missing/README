@@ -29,6 +29,7 @@ interp1		Octave w/o Octave forge
 ischar		Octave 2.1.50
 isdir.m		Octave < 2.1.60(?) w/o Octave-forge
 isfield.m	FreeMat 3.5
+isfinite.m	FreeMat 3.5
 isscalar.m	Matlab 
 isstruct.m	FreeMat 3.5
 isvector.m	Matlab 
