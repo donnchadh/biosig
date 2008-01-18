@@ -10,19 +10,10 @@ function [IFF]=openiff(fid,LEN)
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
-% 
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-% 
-% You should have received a copy of the GNU General Public License
-% along with this program; if not, write to the Free Software
-% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: openiff.m,v 1.4 2007-05-22 15:48:21 schloegl Exp $
+%	$Id: openiff.m,v 1.5 2008-01-18 09:28:13 schloegl Exp $
 %	Copyright (C) 2004,2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -41,7 +32,7 @@ IFF = [];
 K   = 0; 
 K1  = 0; 
 
-[tmp,c] = fread(fid,[1,4],'char');
+[tmp,c] = fread(fid,[1,4],'uint8');
 while ((LEN>0) | isnan(LEN)) & (c>0),	
         tag     = char(tmp);
         tagsize = fread(fid,1,'uint32');        % which size 
@@ -54,13 +45,13 @@ while ((LEN>0) | isnan(LEN)) & (c>0),
         if 0,
                 VAL = openiff(fid,tagsize);
         elseif strcmp(tag,'FORM')
-                [tmp,c] = fread(fid,[1,4],'char');tag,
+                [tmp,c] = fread(fid,[1,4],'uint8');tag,
                 VAL = setfield([],char(tmp),openiff(fid,tagsize-4));
         elseif 0,strcmp(tag,'RIFF')
                 VAL = openiff(fid,tagsize);
         elseif strcmp(tag,'RIFF')
-                [tmp,c] = fread(fid,[1,4],'char');
-                %val = fread(fid,tagsize-4,'char');
+                [tmp,c] = fread(fid,[1,4],'uint8');
+                %val = fread(fid,tagsize-4,'uint8');
                 val = openiff(fid,tagsize-4);
                 VAL = setfield([],char(tmp),val);
         elseif strcmp(tag,'MThd')
@@ -70,7 +61,7 @@ while ((LEN>0) | isnan(LEN)) & (c>0),
                 %VAL.MIDI = tmp;
  
         elseif strcmp(tag,'LIST');	% CNT_RIFF (EEP 3.1)
-                [tmp,c] = fread(fid,[1,4],'char');
+                [tmp,c] = fread(fid,[1,4],'uint8');
                 VAL = setfield([],char(tmp),openiff(fid,tagsize-4));
 
         elseif strcmp(tag,'chan')	% CNT_RIFF (EEP 3.1)
@@ -82,7 +73,7 @@ while ((LEN>0) | isnan(LEN)) & (c>0),
         elseif strncmp(tag,'ep  ',4),	% CNT_RIFF (EEP 3.1) 
                 VAL = fread(fid,[1,tagsize/4],'uint32');
         elseif strcmp(tag,'hdrl')
-                [tmp,c] = fread(fid,[1,4],'char');
+                [tmp,c] = fread(fid,[1,4],'uint8');
                 VAL = setfield([],char(tmp),openiff(fid,tagsize-4));
 
         elseif strcmp(tag,'CAT ')
@@ -127,7 +118,7 @@ while ((LEN>0) | isnan(LEN)) & (c>0),
         end;
         status = fseek(fid,filepos+tagsize0,'bof');
         LEN = LEN - tagsize0;
-        [tmp,c] = fread(fid,[1,4],'char');
+        [tmp,c] = fread(fid,[1,4],'uint8');
 end;
 
 if ~isfield(IFF,'MThd'), % do not check MIDI files

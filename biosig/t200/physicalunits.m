@@ -25,20 +25,11 @@ function [out,scale] = physicalunits(arg1)
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
-% 
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-% 
-% You should have received a copy of the GNU General Public License
-% along with this program; if not, write to the Free Software
-% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: physicalunits.m,v 1.17 2007-06-15 07:57:44 schloegl Exp $
-%	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: physicalunits.m,v 1.18 2008-01-18 09:28:13 schloegl Exp $
+%	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -82,7 +73,7 @@ if ~BIOSIG_GLOBAL.ISLOADED;
         while ~feof(fid),
 		N2 = N2 + 1;
 		if ~strncmp(line,'#',1),
-			ix = mod(cumsum(line=='"'),2);
+			ix = mod(cumsum(line==char(34)),2); %% " 
 			tmp = line; 
 			tmp(~~ix) = ' '; 
 			ix  = find(tmp==',');
@@ -110,7 +101,7 @@ if ~BIOSIG_GLOBAL.ISLOADED;
 	%%%---------- Load x73-UCUM Table ------------%%%
 	fid=fopen('IEEEandUCUM.1b.txt','rt');
 	if fid>1,
-		r = char(fread(fid,[1,inf],'char')); 
+		r = char(fread(fid,[1,inf],'uint8')); 
 		fclose(fid);
 		while strncmp(r,'#',1)
 			[line,r] = strtok(r,[10,13]); 
@@ -182,7 +173,8 @@ elseif ischar(arg1) | iscell(arg1)
         end;
         j = 1:length(arg1);
         VER = version; 
-        if (str2double(VER(1:3)) > 2.1)
+        if (str2double(VER(1:3)) > 4)
+        	% FIXME does still not work for Octave 2.9.9
 		[arg1,i,j] = unique(arg1);
 	end; 	
 	Code = zeros(length(arg1),1); 	% default value is 0 (unknown)

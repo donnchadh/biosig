@@ -11,31 +11,27 @@ function [HDR] = leadidcodexyz(arg1)
 % Reference(s): 
 % [1] CEN/TC251/PT40 (2001)	
 % 	File Exchange Format for Vital Signs - Annex A 
+%
+% Birbaumer, N. (2006). Brain-computer-interface research: Coming of age. Clinical Neurophysiology, 117:479–83. 
+%  http://www.acns.org/pdfs/ACFDD46.pdf. 
+% ACNS (2006). Guidelines for standard electrode position nomenclature. American Clinical
+% Neurophysiology Society. http://www.acns.org/pdfs/ACFDD46.pdf.
 
-
+% 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
-% 
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-% 
-% You should have received a copy of the GNU General Public License
-% along with this program; if not, write to the Free Software
-% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: leadidcodexyz.m,v 1.12 2007-04-30 10:03:25 schloegl Exp $
-%	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: leadidcodexyz.m,v 1.13 2008-01-18 09:28:13 schloegl Exp $
+%	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
 
 
 global BIOSIG_GLOBAL;
- BIOSIG_GLOBAL=0; %%% used for debugging, only. 
+% BIOSIG_GLOBAL=[]; %%% used for debugging, only. 
 
 if ~isfield(BIOSIG_GLOBAL,'ISLOADED_XYZ')
 	BIOSIG_GLOBAL.ISLOADED_XYZ = 0 ; 
@@ -49,7 +45,7 @@ if ~BIOSIG_GLOBAL.ISLOADED_XYZ;
 
         N = 0;
         fid = fopen(fullfile(p,'doc','leadidtable_scpecg.txt'),'r');
-        s = char(fread(fid,[1,inf],'char')); 
+        s = char(fread(fid,[1,inf],'uint8')); 
         fclose(fid);
         
         Code = repmat(NaN, 200, 1); Phi = Code; Theta = Code;
@@ -76,7 +72,7 @@ if ~BIOSIG_GLOBAL.ISLOADED_XYZ;
 
         % load table 
         fid = fopen(fullfile(p,'doc','elecpos.txt'),'r');
-        t = char(fread(fid,[1,inf],'char'));
+        t = char(fread(fid,[1,inf],'uint8'));
         fclose(fid);
 
         % extract table information       
@@ -99,6 +95,8 @@ if ~BIOSIG_GLOBAL.ISLOADED_XYZ;
         
         % loading is done only once. 
         BIOSIG_GLOBAL.XYZ = [sin(Theta).*cos(Phi), sin(Theta).*sin(Phi), cos(Theta)];
+        BIOSIG_GLOBAL.Phi          = Phi*180/pi;
+        BIOSIG_GLOBAL.Theta        = Theta*180/pi;
         BIOSIG_GLOBAL.LeadIdCode   = Code;
         BIOSIG_GLOBAL.Label        = Labels;
         BIOSIG_GLOBAL.Description  = Description;
@@ -128,6 +126,9 @@ else    % electrode code and position
         if tmp.flag1,
                 tmp.flag1 = isfield(HDR.ELEC,'XYZ');
         end;
+        if tmp.flag1,
+                tmp.flag1 = any(HDR.ELEC.XYZ(:));
+        end;
         tmp.flag2 = isfield(HDR,'LeadIdCode');
         tmp.flag3 = isfield(HDR,'Label');
 
@@ -148,6 +149,8 @@ else    % electrode code and position
                 if tmp.flag3,
 	                if ~tmp.flag1,
 				HDR.ELEC.XYZ   = repmat(NaN,NS,3);
+				HDR.ELEC.Phi   = repmat(NaN,NS,1);
+				HDR.ELEC.Theta = repmat(NaN,NS,1);
 	        	end;
                 	if ~tmp.flag2,
                        		HDR.LeadIdCode = repmat(NaN,NS,1);
@@ -170,20 +173,15 @@ else    % electrode code and position
 	                        end; 	
 
         	                if (length(ix)==1),
-                	                LeadIdCode = BIOSIG_GLOBAL.LeadIdCode(ix);
-                        	        XYZ = BIOSIG_GLOBAL.XYZ(ix,:);
-                        	else	
-                                	LeadIdCode = 0;
-	                                XYZ = [NaN,NaN,NaN]; 
+	                	        if ~tmp.flag1,
+        	                	        HDR.ELEC.XYZ(k,1:3) = BIOSIG_GLOBAL.XYZ(ix,:);
+                	        	        HDR.ELEC.Phi(k)   = BIOSIG_GLOBAL.Phi(ix);
+                        		        HDR.ELEC.Theta(k) = BIOSIG_GLOBAL.Theta(ix);
+                        		end;
+                	        	if ~tmp.flag2,
+                                		HDR.LeadIdCode(k,1) = BIOSIG_GLOBAL.LeadIdCode(ix);
+	                        	end;
         	                end;
-
-                	        if ~tmp.flag1,
-                        	        HDR.ELEC.XYZ(k,1:3) = XYZ;
-                        	end;
-
-                        	if ~tmp.flag2,
-                                	HDR.LeadIdCode(k,1) = LeadIdCode;
-	                        end;
                         end;
                 else
                        	HDR.Label = cell(NS,1);
@@ -193,6 +191,8 @@ else    % electrode code and position
 	                                HDR.Label{k} = BIOSIG_GLOBAL.Label{ix};
 		                        if ~tmp.flag1,
         		                        HDR.ELEC.XYZ(k,1:3) = BIOSIG_GLOBAL.XYZ(ix,1:3);
+        		                        HDR.ELEC.Phi(k,1)   = BIOSIG_GLOBAL.Phi(ix);
+        		                        HDR.ELEC.Theta(k,1) = BIOSIG_GLOBAL.Theta(ix);
                 		        end;
                		        else
                		        	HDR.Label{k} = ['#',int2str(k)];

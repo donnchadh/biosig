@@ -20,23 +20,14 @@ function LDR = openldr(FN,PERMISSION,Mode,arg4,arg5,arg6)
 %		sum of negative weights becomes -1
 %
 
-%	$Revision: 1.1 $
-%	$Id: openldr.m,v 1.1 2003-02-01 15:03:46 schloegl Exp $
-%	Copyright (C) 1997-2003 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: openldr.m,v 1.2 2008-01-18 09:28:13 schloegl Exp $
+%	Copyright (C) 1997-2003,2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the  License, or (at your option) any later version.
-% 
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-% 
-% You should have received a copy of the GNU General Public License
-% along with this program; if not, write to the Free Software
-% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 if nargin<2, PERMISSION=''; end;
@@ -143,16 +134,16 @@ if any(PERMISSION=='w');
         end;
         
 	% write line 2: out-labels
-        fwrite(fid,32+zeros(12,1),'char');
+        fwrite(fid,32+zeros(12,1),'uint8');
         %fprintf(fid,'%c',abs(' ')*ones(12,1));
 	for k = 1:sz(2),
-                fwrite(fid,abs(LDR.Label_Out(k,1:12)),'char');
+                fwrite(fid,abs(LDR.Label_Out(k,1:12)),'uint8');
         end;
         
         % write lines 3+: in-labels and weights
         for k = 1:sz(1),
                 fprintf(fid,'\n');
-                fwrite(fid,abs(LDR.Label_In(k,1:12)),'char');
+                fwrite(fid,abs(LDR.Label_In(k,1:12)),'uint8');
                 fprintf(fid,'%12.5f',LDR.RR(k,:));
         end;
         fclose(fid);

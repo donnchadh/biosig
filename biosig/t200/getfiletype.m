@@ -16,20 +16,11 @@ function [HDR] = getfiletype(arg1)
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
-% 
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-% 
-% You should have received a copy of the GNU General Public License
-% along with this program; if not, write to the Free Software
-% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: getfiletype.m,v 1.67 2007-11-15 14:06:16 schloegl Exp $
-%	(C) 2004,2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: getfiletype.m,v 1.68 2008-01-18 09:28:13 schloegl Exp $
+%	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if ischar(arg1),
@@ -114,7 +105,7 @@ else
         
 	fseek(fid,0,'bof');
         
-        [s,c] = fread(fid,1024,'uchar');
+        [s,c] = fread(fid,1024,'uint8');
         if (c == 0),
                 s = repmat(0,1,1024-c);
         elseif (c < 256),
@@ -258,7 +249,7 @@ else
 
                 elseif strncmp(ss,'# EN1064 Lead Identification Table of the SCP-ECG format',6); 
                         HDR.TYPE='EN1064:LeadId';
-                        tmp = fread(fid,[1,inf],'char'); 
+                        tmp = fread(fid,[1,inf],'uint8'); 
                         s = char([s(:);tmp(:)])';
                         fclose(fid);
                         k = 0; 
@@ -657,7 +648,7 @@ else
                         HDR.TYPE='XML-UTF8';
 
                 elseif strncmp(ss,'ABF',3)
-                        HDR.TYPE = 'ABF';
+                        HDR.TYPE = ss(1:4);
                 elseif strncmp(ss,'CLPX',3)
                         HDR.TYPE = 'ABF';
                 elseif strncmp(ss,'FTCX',3)
@@ -776,7 +767,7 @@ else
                         HDR.Endianity = 'ieee-be';
                 elseif all(s(1:20)==['L',0,0,0,1,20,2,0,0,0,0,0,192,0,0,0,0,0,0,70])
                         HDR.TYPE='LNK';
-                        tmp = fread(fid,inf,'char');
+                        tmp = fread(fid,inf,'uint8');
                         HDR.LNK=[s,tmp'];
                 elseif all(s(1:111)==[0,0,1,186,68,0,4,0,4,1,1,137,195,248,0,0,1,187,0,18,128,196,225,0,225,127,185,224,232,184,192,32,189,224,58,191,224,2,0,0,1,191,7,212,80,0,0,0,0,84,47,0,0,0,0,0,255,255,255,255,255,0,0,0,0,0,64,16,0,0,0,0,74,86,67,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]);
                         HDR.TYPE='MOVIE:MOD';

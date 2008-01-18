@@ -9,23 +9,14 @@ function [HDR]=scpopen(arg1,CHAN,arg4,arg5,arg6)
 % See also: fopen, SOPEN, 
 
 
-%	$Id: scpopen.m,v 1.35 2007-11-08 21:33:54 schloegl Exp $
-%	(C) 2004,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: scpopen.m,v 1.36 2008-01-18 09:28:13 schloegl Exp $
+%	(C) 2004,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BioSig-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
 %    it under the terms of the GNU General Public License as published by
 %    the Free Software Foundation, either version 3 of the License, or
 %    (at your option) any later version.
-%
-%    BioSig is distributed in the hope that it will be useful,
-%    but WITHOUT ANY WARRANTY; without even the implied warranty of
-%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-%    GNU General Public License for more details.
-%
-%    You should have received a copy of the GNU General Public License
-%    along with BioSig. If not, see <http://www.gnu.org/licenses/>.
-
 
 if nargin<2, CHAN=0; end;
 
@@ -88,11 +79,20 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
         section.Version = fread(fid,[1,2],'uint8');
         section.tmp     = fread(fid,[1,6],'uint8');
         
-        NSections = (section.Length-16)/10;
-        for k = 1:NSections-2,
-                HDR.Block(k).id = fread(fid,1,'uint16');
-                HDR.Block(k).length = fread(fid,1,'uint32');
-                HDR.Block(k).startpos = fread(fid,1,'uint32')-1;
+        NSections = min(12,(section.Length-16)/10);
+        for k = 1:NSections,
+                HDR.Block(k).id = k; 
+                HDR.Block(k).length = 0; 
+                HDR.Block(k).startpos = -1;
+        end;
+	for K = 1:NSections,
+                k = fread(fid,1,'uint16');
+		len = fread(fid,1,'uint32');
+		pos = fread(fid,1,'uint32');
+		if ((k > 0) & (k < NSections))
+                HDR.Block(k).id = k; 
+                HDR.Block(k).length = len; 
+                HDR.Block(k).startpos = pos-1;
 
 %% [HDR.Block(k).id ,length(tmpbytes), HDR.Block(k).length, HDR.Block(k).length+HDR.Block(k).startpos]                
 		%% FIXME: instead of min(...,FileSize) a warning or error message should be reported 
@@ -102,11 +102,13 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                 	fprintf(HDR.FILE.stderr,'Warning SCPOPEN: faulty CRC %04x in section %i\n',tmpcrc,k-1);
                 end;
                 end;
+		end;
         end;
         
 %%[[HDR.Block.id];[HDR.Block.length];[HDR.Block.startpos]]'
-
-	%% TODO: Section handling is somehow a mess 	
+	
+	% default values - in case Section 6 is missing  
+	HDR.NS = 0; HDR.SPR = 0; HDR.NRec = 0; HDR.Calib = zeros(1,0); 
         secList = find([HDR.Block.length]);
         for K = secList(1:end),
                 if fseek(fid,HDR.Block(K).startpos,'bof');
@@ -118,11 +120,6 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                 section.Version = fread(fid,[1,2],'uint8');
                 section.tmp     = fread(fid,[1,6],'uint8'); 
 	
-		if (section.ID+1 ~= K) 
-			fprintf(HDR.FILE.stderr, 'Warning SCPOPEN: ID in section %i is %i\n',K-1,section.ID);
-			section.ID = K-1;	%% HACK: fixes incorrect
-		end; 	 
-
                 HDR.SCP.Section{find(K==secList)} = section;
                 if (section.Length==0),
                 elseif section.ID==0, 
@@ -321,8 +318,8 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
 			end;
 
                 elseif section.ID==3, 
-                        HDR.NS = fread(fid,1,'char');
-                        HDR.FLAG.Byte = fread(fid,1,'char');    
+                        HDR.NS = fread(fid,1,'uint8');
+                        HDR.FLAG.Byte = fread(fid,1,'uint8');    
                         if ~bitand(HDR.FLAG.Byte,4)
                                 fprintf(HDR.FILE.stdout,'Warning SCPOPEN: not all leads simultaneously recorded - this mode is not supported.\n');
                         end;
@@ -358,7 +355,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 end;
                         end;
                         HDR.Label = strvcat(HDR.Label);
-                        
+
                 elseif section.ID==4, 
                         HDR.SCP4.L = fread(fid,1,'int16');    
                         HDR.SCP4.fc0 = fread(fid,1,'int16');    
@@ -376,7 +373,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                         SCP.PhysDim = 'mV';
                         SCP.Dur = fread(fid,1,'int16');    
                         SCP.SampleRate = 1e6/SCP.Dur;
-                        SCP.FLAG.DIFF = fread(fid,1,'uint8');    
+                        SCP.FLAG.DIFF  = fread(fid,1,'uint8');    
                         SCP.FLAG.bimodal_compression = fread(fid,1,'uint8');    
 
                         if isnan(HDR.NS),
@@ -389,15 +386,18 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
 			if CHAN==0, CHAN = 1:HDR.NS; end;
                         SCP.SPR = fread(fid,HDR.NS,'uint16');
 			HDR.InChanSelect = CHAN; 
-                        
+
                         if section.ID==6,
                                 HDR.HeadLen = ftell(fid);
                                 HDR.FLAG.DIFF = SCP.FLAG.DIFF;
                                 HDR.FLAG.bimodal_compression = SCP.FLAG.bimodal_compression;
                                 HDR.data = [];
                                 outlen = HDR.SPR; 
+			        HDR.Calib = sparse(2:HDR.NS+1, 1:HDR.NS, SCP.Cal);
+                        elseif isfield(HDR,'SCP4') %% HACK: do no know whether it is correct  
+                        	outlen = floor(1000*HDR.SCP4.L/SCP.Dur);
                         else 
-                        	outlen = 1000* HDR.SCP4.L/SCP.Dur;         
+                        	outlen = inf;
                         end;
 
                         if ~isfield(HDR,'SCP2'),
@@ -421,17 +421,23 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 end;
 				%S2 = S2(:,CHAN); 
                                 
-                        elseif 1,HDR.SCP2.NHT~=19999;
+                        elseif 1, HDR.SCP2.NHT~=19999;
                         	%% User specific Huffman table 
                         	%% a more elegant Huffman decoder is used here %%
                                 for k = 1:HDR.NS,
                                         SCP.data{k} = fread(fid,SCP.SPR(k),'uint8');    
                                 end;
-                                S2 = repmat(NaN,outlen,length(HDR.InChanSelect)); 
+%                                S2 = repmat(NaN,outlen,length(HDR.InChanSelect));
+                                clear S2;  
+                                sz = inf;
                                 for k3 = 1:length(HDR.InChanSelect), k = HDR.InChanSelect(k3); %HDR.NS,
-					outdata  = DecodeHuffman(HDR.SCP2.HTree,HDR.SCP2.HTs,SCP.data{k},outlen);
-					S2(:,k3) = outdata; 
+					outdata{k3} = DecodeHuffman(HDR.SCP2.HTree,HDR.SCP2.HTs,SCP.data{k},outlen);
+					sz = min(sz,length(outdata{k3}));
 				end;
+				
+                                for k3 = 1:length(HDR.InChanSelect), k = HDR.InChanSelect(k3); %HDR.NS,
+                                	S2(:,k) = outdata{k3}(1:sz);
+                                end; 	 
 				accu=0;  	
 
                         elseif HDR.SCP2.NHT==19999,
@@ -641,11 +647,16 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 if HDR.FLAG.bimodal_compression,
                                 	%% FIXME: THIS IS A HACK - DO NOT KNOW WHETHER IT IS CORRECT. 
                                 %	HDR.FLAG.bimodal_compression = isfield(HDR,'SCP5') & isfield(HDR,'SCP4');
+                                	HDR.FLAG.bimodal_compression = isfield(HDR,'SCP4');
 				end; 
                                 if HDR.FLAG.bimodal_compression,
-                                        F = HDR.SCP5.SampleRate/HDR.SCP6.SampleRate;
-                                        HDR.SampleRate = HDR.SCP5.SampleRate;
-                                        HDR.FLAG.F = F;
+					if isfield(HDR,'SCP5')
+	                                        F = HDR.SCP5.SampleRate/HDR.SCP6.SampleRate;
+        	                                HDR.SampleRate = HDR.SCP5.SampleRate;
+                	                        HDR.FLAG.F = F;
+					else
+                	                        HDR.FLAG.F = 1;
+					end;
                                         
                                         tmp=[HDR.SCP4.PA(:,1);HDR.LeadPos(1,2)]-[1;HDR.SCP4.PA(:,2)+1];
                                         if ~all(tmp==floor(tmp))
@@ -659,6 +670,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         pa = [HDR.SCP4.PA;NaN,NaN];
                                         flag = 1;
                                         %% FIXME: accu undefined ##
+					accu = 0;
                                         for k1 = 1:HDR.N,
                                                 if k1 == pa(p,2)+1,
                                                         flag = 1;
@@ -695,7 +707,6 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                         end;
                                 end;
 	                        HDR.data  = S2;
-			        HDR.Calib = sparse(2:HDR.NS+1, 1:HDR.NS, HDR.SCP6.Cal);
                         end;
 
                 elseif section.ID==7, 
@@ -1023,7 +1034,11 @@ function outdata = DecodeHuffman(HTrees,HTs,indata,outlen)
 	k1 = 1; r=0; 
 	k2 = 0; 
 
-	outdata = repmat(NaN,outlen,1); 
+	if ((outlen>0) && isfinite(outlen))
+		outdata = repmat(NaN,outlen,1);
+	else 	
+		outdata = [0;0];  %% make it a column vector
+	end; 	 
 	Node    = HTrees{ActualTable}; 
 	while ((k1*8+r <= 8*length(indata)) && (k2<outlen))
 		if ~isfield(Node,'idxTable')

@@ -10,24 +10,15 @@ function [HDR]=mwfopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
-% 
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-% 
-% You should have received a copy of the GNU General Public License
-% along with this program; if not, write to the Free Software
-% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-        HDR.FILE.OPEN= 0; 
 
-%	$Id: mwfopen.m,v 1.4 2007-09-11 13:47:05 schloegl Exp $
-%	(C) 2004,2007 by Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Id: mwfopen.m,v 1.5 2008-01-18 09:28:13 schloegl Exp $
+%	(C) 2004,2007,2008 by Alois Schloegl <a.schloegl@ieee.orgA	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
+
+HDR.FILE.OPEN= 0; 
 
 if nargin<1, PERMISSION='rb'; end;
 if ischar(HDR)
@@ -66,7 +57,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
         %while count>0, %~feof(HDR.FILE.FID)
         tag = fread(HDR.FILE.FID,1,'uchar');
         while ~feof(HDR.FILE.FID)
-                len = fread(HDR.FILE.FID,1,'char');
+                len = fread(HDR.FILE.FID,1,'uint8');
                 %fprintf(1,'[%i] Tag %i: (%i)\n',ftell(HDR.FILE.FID),tag,len);
 
                 if (len < 0) | (len > 127),
@@ -75,17 +66,17 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         %len = 256.^[0:l-1]*len;        
                         len = 256.^[l-1:-1:0]*len;
                 end;
-                % tmp = fread(HDR.FILE.FID,[1,len],'char');
+                % tmp = fread(HDR.FILE.FID,[1,len],'uint8');
                 % fprintf(1,'[%i] Tag %i: (%i)\n',ftell(HDR.FILE.FID),tag,len);
                 
                 if 0,
-                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'char');
+                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'uint8');
                         
                 elseif tag==0; 
-                        [tmp,count] = fread(HDR.FILE.FID,[1,1],'char');
+                        [tmp,count] = fread(HDR.FILE.FID,[1,1],'uint8');
                         
                 elseif tag==1;
-                        [tmp,count] = fread(HDR.FILE.FID,[1,1],'char');
+                        [tmp,count] = fread(HDR.FILE.FID,[1,1],'uint8');
                         if 0, 
                         elseif (tmp==0) & strcmp(HDR.Endianity,'ieee-le'),
                                 tmp = ftell(HDR.FILE.FID);
@@ -103,11 +94,11 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         end;
                         
                 elseif tag==2;
-                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'char');
+                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'uint8');
                         HDR.Version = tmp;
                         
                 elseif tag==3;
-                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'char');
+                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'uint8');
                         HDR.tag03 = tmp;
                         
                 elseif tag==4;          % channel number
@@ -364,7 +355,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         elseif len<128,
                                 while len,
                                         tag2 = fread(HDR.FILE.FID,1,'uchar');
-                                        len2 = fread(HDR.FILE.FID,1,'char');
+                                        len2 = fread(HDR.FILE.FID,1,'uint8');
                                         len = len - 2 - len2; 
                                         if 0, 
                                         elseif (tag2 == 4), 
@@ -411,7 +402,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 tag2 = 1; len2=1;
                                 while (tag2 | len2),
                                         tag2 = fread(HDR.FILE.FID,1,'uchar');
-                                        len2 = fread(HDR.FILE.FID,1,'char');
+                                        len2 = fread(HDR.FILE.FID,1,'uint8');
                                         %% this part is not tested yet
                                         fprintf(1,'\t%i',chansel);
                                         fprintf(1,'> [%i] Tag %i: (%i)\n',ftell(HDR.FILE.FID),tag2,len2);
@@ -430,7 +421,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         end;
                         
                 elseif tag==64;     % Preamble
-                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'char');
+                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'uint8');
                         HDR.TYPE='MFER';
                         
                 elseif tag==65;     % Events
@@ -445,7 +436,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                                 [HDR.EVENT.DUR(k),count] = fread(HDR.FILE.FID,1,'uint32');
                         end;
                         if len>10,
-                                [HDR.EVENT.Desc{k},count] = fread(HDR.FILE.FID,len-10,'char');
+                                [HDR.EVENT.Desc{k},count] = fread(HDR.FILE.FID,len-10,'uint8');
                         end;
                         end; 
                         
@@ -454,19 +445,19 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         HDR.SampleSkew = tmp;
                         
                 elseif tag==129;     % Patient Name 
-                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'char');
+                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'uint8');
                         HDR.Patient.Name = char(tmp);
                         
                 elseif tag==130;     % Patient Id 
-                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'char');
+                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'uint8');
                         HDR.PID = char(tmp);
                         
                 elseif tag==131;     % Patient Age 
-                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'char');
+                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'uint8');
                         HDR.Patient.Age = char(tmp);
                         
                 elseif tag==132;     % Patient Age 
-                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'char');
+                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'uint8');
                         HDR.Patient.Sex = char(tmp);
                         
                 elseif tag==133;     % recording time 
@@ -476,7 +467,7 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         HDR.T0(6) = HDR.T0(6) + tmp(1)*1e-3 + tmp(2)+1e-6;
                         
                 else
-                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'char');
+                        [tmp,count] = fread(HDR.FILE.FID,[1,len],'uint8');
                         %fprintf(1,'[%i %i] Tag %i: (%i) %s\n',ftell(HDR.FILE.FID),count,tag,len,char(tmp));
                 end;
                 % fprintf(1,'[%i %i] Tag %i: (%i)\n',ftell(HDR.FILE.FID),count,tag,len);

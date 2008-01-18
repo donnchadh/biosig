@@ -38,24 +38,15 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.72 2007-08-23 10:42:33 schloegl Exp $
-%	Copyright (C) 1997-2006 by Alois Schloegl 
+%	$Id: sload.m,v 1.73 2008-01-18 09:28:13 schloegl Exp $
+%	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
-%
-% This library is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-% Library General Public License for more details.
-%
-% You should have received a copy of the GNU Library General Public
-% License along with this library; if not, write to the
-% Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-% Boston, MA  02111-1307, USA.
+% Version 3 of the License, or (at your option) any later version.
+
 
 if length(varargin)<2; 
 	MODE = ''; 
@@ -258,13 +249,13 @@ end;
 
 %%%%%%%%%%%%%%% --------- Load single file ------------%%%%%%%%%%%
 signal = [];
-H = sopen(H,'r',0,MODE);
+H = sopen(H,'r',CHAN,MODE);
 
-if ~isnan(H.NS),
+if 0, ~isnan(H.NS),
 %------ ignore 'NaC'-channels
 	NS = size(H.Calib,2);
 	SelMx = speye(NS); 
-	ch = 1:NS; ch(strmatch('NaC',H.Label))=[];
+	ch = 1:NS; %ch(strmatch('NaC',H.Label))=[];
 	if length(ch)<NS,
 		fprintf(2,'Warning SLOAD: Some NaC channels have been removed %s\n',H.FileName); 
 	end; 
@@ -306,19 +297,33 @@ end
 	
 if 0,
         
-elseif (H.FILE.OPEN > 0) | any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat','EEProbe-CNT','EEProbe-AVR'})); 
+elseif isfield(H,'data') & all(diag(H.Calib(2:end,1:end))==1)
+	% only a single copy of the data
+	% important for large data sets, close to the available memory 
+	signal = H.data; 
+	H = rmfield(H,'data'); 
+	if (CHAN>0)
+		signal = signal(:,CHAN);
+	end; 	 
+
+
+elseif any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat','EEProbe-CNT','EEProbe-AVR'})); 
+	[signal,H] = sread(H);  
+        H = sclose(H);
+
+elseif (H.FILE.OPEN > 0)
         signal = repmat(NaN,H.SPR*H.NRec,size(H.Calib,2));
 	k1 = 0;
         while ~seof(H),
 	        [s,H] = sread(H,100);
-	        if 1,
+        	if 1,
 			k2 = size(s,1);
 			signal(k1+1:k1+k2,:)=s;
 			k1 = k1+k2;
 		else
-		         %fprintf('%i/%i\n',stell(H),H.SPR*H.NRec);
+	        	 %fprintf('%i/%i\n',stell(H),H.SPR*H.NRec);
 		        signal=[signal;s];
-		end;        
+		end;
 	end;      
         H = sclose(H);
 
@@ -782,7 +787,7 @@ if strcmp(H.TYPE,'CNT');
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.txt']); 
         if exist(f,'file'),
                 fid = fopen(f,'r');
-		tmp = fread(fid,inf,'char');
+		tmp = fread(fid,inf,'uint8');
 		fclose(fid);
 		[tmp,v] = str2double(char(tmp'));
 		if ~any(v), 
@@ -792,7 +797,7 @@ if strcmp(H.TYPE,'CNT');
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.par']); 
         if exist(f,'file'),
                 fid = fopen(f,'r');
-		tmp = fread(fid,inf,'char');
+		tmp = fread(fid,inf,'uint8');
 		fclose(fid);
 		[tmp,v] = str2double(char(tmp'));
 		if ~any(v), 
@@ -843,7 +848,7 @@ if strcmp(H.TYPE,'CNT');
         end
         if exist(f,'file'),
                 fid = fopen(f,'r');
-		tmp = fread(fid,inf,'char');
+		tmp = fread(fid,inf,'uint8');
 		fclose(fid);
 		[tmp,v] = str2double(char(tmp'));
 		if any(isnan(tmp)) |any(tmp~=ceil(tmp)) | any(tmp<0) | (any(tmp==0) & any(tmp>1))
@@ -919,7 +924,7 @@ if strcmp(H.TYPE,'GDF')
 	        fid=fopen(fullfile(H.FILE.Path,[H.FILE.Name,'.SEL']),'r');
         end
         if fid>0,
-                [tmp,c] = fread(fid,[1,inf],'char');
+                [tmp,c] = fread(fid,[1,inf],'uint8');
                 fclose(fid);
                 [tmp,v,sa] = str2double(tmp);
                 if isempty(sa{1})

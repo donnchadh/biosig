@@ -8,21 +8,11 @@ function [HDR] = sclose(HDR)
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
-% 
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-% 
-% You should have received a copy of the GNU General Public License
-% along with this program; if not, write to the Free Software
-% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.22 $
-%	$Id: sclose.m,v 1.22 2006-09-01 10:20:11 schloegl Exp $
-%	(C) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: sclose.m,v 1.23 2008-01-18 09:28:13 schloegl Exp $
+%	(C) 1997-2005,2006,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -59,14 +49,14 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                         fclose(HDR.FILE.FID);
                         HDR.FILE.FID = fopen(HDR.FileName,'r+');
                         
-                        count=fwrite(HDR.FILE.FID,HDR.VERSION,'short');	        % version number of header
-                        count=fwrite(HDR.FILE.FID,HDR.NS,'short');	        % number of channels
-                        count=fwrite(HDR.FILE.FID,HDR.SampleRate,'short');      % sampling rate
+                        count=fwrite(HDR.FILE.FID,HDR.VERSION,'int16');	        % version number of header
+                        count=fwrite(HDR.FILE.FID,HDR.NS,'int16');	        % number of channels
+                        count=fwrite(HDR.FILE.FID,HDR.SampleRate,'int16');      % sampling rate
                         count=fwrite(HDR.FILE.FID,HDR.NRec,'int32');            % number of trials: 1 for untriggered data
                         count=fwrite(HDR.FILE.FID,HDR.SPR,'uint32');            % samples/trial/channel
-                        count=fwrite(HDR.FILE.FID,HDR.PhysMax,'short');		% Kalibrierspannung
-                        count=fwrite(HDR.FILE.FID,HDR.DigMax, 'short');		% Kalibrierwert
-                        count=fwrite(HDR.FILE.FID,zeros(4,1),'char');        
+                        count=fwrite(HDR.FILE.FID,HDR.PhysMax,'int16');		% Kalibrierspannung
+                        count=fwrite(HDR.FILE.FID,HDR.DigMax, 'int16');		% Kalibrierwert
+                        count=fwrite(HDR.FILE.FID,zeros(4,1),'uint8');        
                         count=fwrite(HDR.FILE.FID,[HDR.Filter.LowPass,HDR.Filter.HighPass],'float'); 
                         
                         fseek(HDR.FILE.FID,32,'bof');
@@ -107,12 +97,12 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                                 end;
                                 if (HDR.VERSION<1.90)
                                         fprintf(2,'Warning SCLOSE: GDF v2.0 or higher required for storing sparse samples but version is only %4.2f.\n',HDR.VERSION); 
-                                        ix0 = ~isnan(HDR.EVENT.VAL);
-                                        HDR.EVENT.POS = HDR.EVENT.POS(~ix0); 
-                                        HDR.EVENT.TYP = HDR.EVENT.TYP(~ix0); 
-                                        HDR.EVENT.CHN = HDR.EVENT.CHN(~ix0); 
-                                        HDR.EVENT.DUR = HDR.EVENT.DUR(~ix0); 
-                                        HDR.EVENT = rmfield(HDR.EVENT,'VAL'); 
+                                        %ix0 = ~isnan(HDR.EVENT.VAL);
+                                        %HDR.EVENT.POS = HDR.EVENT.POS(~ix0); 
+                                        %HDR.EVENT.TYP = HDR.EVENT.TYP(~ix0); 
+                                        %HDR.EVENT.CHN = HDR.EVENT.CHN(~ix0); 
+                                        %HDR.EVENT.DUR = HDR.EVENT.DUR(~ix0); 
+                                        %HDR.EVENT = rmfield(HDR.EVENT,'VAL'); 
                                 end;
 	                end; 
                         if isfield(HDR.EVENT,'VAL')
@@ -238,6 +228,8 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                         count = fwrite(HDR.FILE.FID,EndPos-4-HDR.WAV.posis(2),'uint32');           % channels
                 end;
                 
+        elseif strcmp(HDR.TYPE,'FLT') ;
+		% warning FLT/header might have changed in needs to be rewritten             
         elseif strcmp(HDR.TYPE,'WAV') ;
                 if HDR.FILE.OPEN==3;
                         fseek(HDR.FILE.FID,4,-1);

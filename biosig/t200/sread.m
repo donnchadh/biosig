@@ -21,21 +21,11 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
-% 
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-% 
-% You should have received a copy of the GNU General Public License
-% along with this program; if not, write to the Free Software
-% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-
-%	$Id: sread.m,v 1.88 2007-11-15 14:07:09 schloegl Exp $
-%	(C) 1997-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: sread.m,v 1.89 2008-01-18 09:28:13 schloegl Exp $
+%	(C) 1997-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 S = [];
@@ -576,7 +566,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),
 	S      = repmat(NaN,nr,length(HDR.InChanSelect)); 
 	count  = 0;
     	while (count<nr) & ~feof(HDR.FILE.FID);
-                hdr = fread(HDR.FILE.FID,86,'char');
+                hdr = fread(HDR.FILE.FID,86,'uint8');
                 if all(HDR.GDFTYP==HDR.GDFTYP(1))
                         [s,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],gdfdatatype(HDR.GDFTYP(1)));
                 else
@@ -637,7 +627,7 @@ elseif strcmp(HDR.TYPE,'AVG'),
         S = repmat(nan,HDR.SPR,HDR.NS);
         count = 0;
         for i = 1:HDR.NS, 
-                [tmp,c]     = fread(HDR.FILE.FID,5,'char'); % no longer used 
+                [tmp,c]     = fread(HDR.FILE.FID,5,'uint8'); % no longer used 
                 count = count + c;
                 [S(:,i), c] = fread(HDR.FILE.FID,HDR.SPR,'float');
                 count = count + c*4;
@@ -774,9 +764,9 @@ elseif strcmp(HDR.TYPE,'NEX'),
                         names = zeros(1,64);
                         m = zeros(HDR.NEX.SPR(k), nl, nm);
                         for j=1:nm
-                                names(j, :) = fread(HDR.FILE.FID, [1 64], 'char');
+                                names(j, :) = fread(HDR.FILE.FID, [1 64], 'uint8');
                                 for p = 1:HDR.NEX.SPR(k)
-                                        m(p, :, j) = fread(HDR.FILE.FID, [1 nl], 'char');
+                                        m(p, :, j) = fread(HDR.FILE.FID, [1 nl], 'uint8');
                                 end
                         end
                         HDR.NEX.names = names;
@@ -1158,7 +1148,7 @@ elseif strcmp(HDR.TYPE,'SIGIF'),
                 HDR.FILE.POS = HDR.FILE.POS + 1;
                 STATUS = fseek(HDR.FILE.FID, HDR.Block.Pos(HDR.FILE.POS), 'bof');
                 if HDR.FLAG.TimeStamp,
-                        HDR.Frame(k).TimeStamp = fread(HDR.FILE.FID,[1,9],'char');
+                        HDR.Frame(k).TimeStamp = fread(HDR.FILE.FID,[1,9],'uint8');
                 end;
                 
                 if HDR.FLAG.SegmentLength,
@@ -1311,7 +1301,7 @@ elseif strcmp(HDR.TYPE,'SierraECG'),   %% SierraECG  1.03  *.open.xml from PHILI
 elseif strcmp(HDR.TYPE,'ATF'); 
         if HDR.FILE.OPEN,
                 fseek(HDR.FILE.FID,HDR.HeadLen,-1);
-                t = fread(HDR.FILE.FID,[1,inf],'char');
+                t = fread(HDR.FILE.FID,[1,inf],'uint8');
                 fclose(HDR.FILE.FID);
                 HDR.FILE.OPEN=0; 
                 [HDR.ATF.NUM,status,HDR.ATF.STR] = str2double(char(t));
@@ -1352,7 +1342,7 @@ elseif strcmp(HDR.TYPE,'WG1'),   %walter-graphtek
     	fp     = HDR.HeadLen + floor(HDR.FILE.POS/HDR.SPR)*HDR.AS.bpb;
     	status = fseek(HDR.FILE.FID, fp, 'bof');
 
-        nr     = min(HDR.AS.endpos-HDR.FILE.POS, NoS*HDR.SampleRate)
+        nr     = min(HDR.AS.endpos-HDR.FILE.POS, NoS*HDR.SampleRate);
 	S      = repmat(NaN,nr,length(HDR.InChanSelect)); 
 	count  = 0;
         endloop= 0;

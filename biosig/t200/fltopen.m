@@ -7,23 +7,14 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.11 2007-06-07 14:49:54 schloegl Exp $
-%	Copyright (c) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: fltopen.m,v 1.12 2008-01-18 09:28:13 schloegl Exp $
+%	Copyright (c) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the  License, or (at your option) any later version.
-% 
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-% 
-% You should have received a copy of the GNU General Public License
-% along with this program; if not, write to the Free Software
-% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 if isstruct(arg1),
 	HDR=arg1;
@@ -44,7 +35,7 @@ if any(HDR.FILE.PERMISSION=='r'),
         %%%%% READ HEADER
 
 	fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hdr']),'rt');
-	[r,c] = fread(fid,[1,inf],'char'); 
+	[r,c] = fread(fid,[1,inf],'uint8'); 
 	fclose(fid); 
 
 	r = char(r); 
@@ -214,10 +205,10 @@ if any(HDR.FILE.PERMISSION=='r'),
 			fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name(1:ix(1)-1),'.calib.txt']),'r'); 
 		end; 
 		if fid>0,
-			c   = fread(fid,[1,inf],'char=>char'); fclose(fid);
+			c   = fread(fid,[1,inf],'uint8=>char'); fclose(fid);
 			[n1,v1,sa1] = str2double(c,9,[10,13]);
 			%fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name(1:ix-1),'.calib2.txt']),'r');
-			%c  = fread(fid,[1,inf],'char'); fclose(fid); 
+			%c  = fread(fid,[1,inf],'uint8'); fclose(fid); 
 			%[n2,v2,sa2] = str2double(c); 
 			%HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,(n2(4:131,5).*n1(4:131,3)./n2(4:131,4))./100);
 			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,n1(4:131,3)*1e-13*(2^-12));
@@ -287,7 +278,7 @@ else
 	fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hdr']),'wt');
 	if 0, isfield(HDR,'H1') 
 		% copy header
-		fwrite(fid,HDR.H1,'char');
+		fwrite(fid,HDR.H1,'uint8');
 	else	
 
 		%%%%%%%% CHANNEL DATA %%%%%%%%%%%%%%%

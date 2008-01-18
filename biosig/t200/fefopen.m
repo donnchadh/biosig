@@ -9,26 +9,14 @@ function [HDR]=fefopen(arg1)
 % References: 
 % <A HREF="ftp://sigftp.cs.tut.fi/pub/eeg-data/standards/cenf060.zip ">About CEN/TC251</A> 
 
-%	$Revision: 1.2 $
-%	$Id: fefopen.m,v 1.2 2004-07-01 09:22:49 schloegl Exp $
-%	Copyright (c) 1998, 2004  Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Id: fefopen.m,v 1.3 2008-01-18 09:28:13 schloegl Exp $
+%	Copyright (c) 1998,2004,2008  Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
-%
-% This library is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-% Library General Public License for more details.
-%
-% You should have received a copy of the GNU Library General Public
-% License along with this library; if not, write to the
-% Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-% Boston, MA  02111-1307, USA.
+% Version 3 of the License, or (at your option) any later version.
 
 if ischar(arg1)
         HDR.FILE.OPEN = 0; 
@@ -46,7 +34,7 @@ N = 0;
 tag=fread(HDR.FILE.FID,1,TYP_OID16);
 len=fread(HDR.FILE.FID,1,'uint16');
 while ~feof(HDR.FILE.FID),
-        value=fread(HDR.FILE.FID,len,'char');
+        value=fread(HDR.FILE.FID,len,'uint8');
 	
 	tmp.TAG = sprintf('%x',tag); 
 	tmp.LEN = len;

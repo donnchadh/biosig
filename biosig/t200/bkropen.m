@@ -5,23 +5,14 @@ function [BKR,s]=bkropen(arg1,arg3,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Id: bkropen.m,v 1.35 2007-06-26 09:26:13 schloegl Exp $
-%	Copyright (c) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: bkropen.m,v 1.36 2008-01-18 09:28:13 schloegl Exp $
+%	Copyright (c) 1997-2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the  License, or (at your option) any later version.
-% 
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-% 
-% You should have received a copy of the GNU General Public License
-% along with this program; if not, write to the Free Software
-% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 if isstruct(arg1),
 	BKR=arg1;
@@ -58,15 +49,15 @@ if any(BKR.FILE.PERMISSION=='r'),
         %%%%% READ HEADER
 
         %VARIABLE	TYPE			#bytes	OFFSET	COMMENT
-	BKR.VERSION     = fread(fid,1,'ushort');	%	2 Byte	0	Versionsnummer 
+	BKR.VERSION     = fread(fid,1,'uint16');	%	2 Byte	0	Versionsnummer 
 	if ((BKR.VERSION<=200) | (BKR.VERSION>207)) fprintf(2,'LOADBKR: WARNING  Version BKR Format %i',BKR.VERSION); end;
-	BKR.NS          = fread(fid,1,'ushort');	%	2 Byte	2	Anzahl der Kanäle
-	BKR.SampleRate  = fread(fid,1,'ushort');	%	2 Byte	4	Abtastfrequenz	
+	BKR.NS          = fread(fid,1,'uint16');	%	2 Byte	2	Anzahl der Kanäle
+	BKR.SampleRate  = fread(fid,1,'uint16');	%	2 Byte	4	Abtastfrequenz	
 	BKR.NRec        = fread(fid,1,'uint32');	%	4 Byte	6	Anzahl der Trials
 	BKR.SPR         = fread(fid,1,'uint32');	%	4 Byte	10	Anzahl Samples per Trial
-	BKR.PhysMax     = fread(fid,1,'ushort');	%	2 Byte	14	Kalibrierspannung	
-	BKR.DigMax      = fread(fid,1,'ushort');	%	2 Byte	16	Kalibrierwert
-	Label           = fread(fid,[1,4],'char');	%	4 Byte	18	Elektrodencode
+	BKR.PhysMax     = fread(fid,1,'uint16');	%	2 Byte	14	Kalibrierspannung	
+	BKR.DigMax      = fread(fid,1,'uint16');	%	2 Byte	16	Kalibrierwert
+	Label           = fread(fid,[1,4],'uint8');	%	4 Byte	18	Elektrodencode
 	BKR.Label 	= repmat({char(Label)},BKR.NS,1); 
 	BKR.Filter.LowPass      = fread(fid,1, FLOAT);	%	4 Byte	22	untere Eckfrequenz
 	BKR.Filter.HighPass     = fread(fid,1, FLOAT);	%	4 Byte	26	obere Eckfrequenz
@@ -80,7 +71,7 @@ if any(BKR.FILE.PERMISSION=='r'),
 	BKR.BKR.hav=fread(fid,1,BOOL);		%	2 Byte	56	flag für "horizontale" Mittelung
 	BKR.BKR.nah=fread(fid,1, ULONG);	%	4 Byte	58	Anzahl der gemittelten Trials
 	BKR.BKR.vav=fread(fid,1,BOOL);		%	2 Byte	62	flag für "vertikale" Mittelung	
-	BKR.BKR.nav=fread(fid,1,'ushort');	%	2 Byte	64	Anzahl der gemittelten Kanäle
+	BKR.BKR.nav=fread(fid,1,'uint16');	%	2 Byte	64	Anzahl der gemittelten Kanäle
 	BKR.BKR.cav=fread(fid,1,BOOL);		%	2 Byte	66	flag für Datenkomprimierung
 	BKR.BKR.nac=fread(fid,1, ULONG);	%	4 Byte	68	Anzahl der gemittelten Samples
 	BKR.FLAG.ref=fread(fid,4,BOOL);		%	2 Byte	72	flag: Common Average Reference
@@ -100,26 +91,26 @@ if any(BKR.FILE.PERMISSION=='r'),
 	BKR.BKR.erc=fread(fid,1,BOOL);		%	2 Byte	102	flag: ERC
 	BKR.BKR.ham=fread(fid,1,BOOL);		%	2 Byte	104	flag: Hanning smoothed
 	BKR.BKR.ann=fread(fid,1,BOOL);		%	2 Byte	106	flag: art. Neuronal. NW. Filter (ANN)
-	niu=fread(fid,1,'ushort');	%	2 Byte 	108	ANN: Anzahl input units 
-	nhu=fread(fid,1,'ushort');	%	2 Byte	110	ANN: Anzahl hidden units
+	niu=fread(fid,1,'uint16');	%	2 Byte 	108	ANN: Anzahl input units 
+	nhu=fread(fid,1,'uint16');	%	2 Byte	110	ANN: Anzahl hidden units
 	nlc=fread(fid,1, ULONG);	%	4 Byte	112	ANN: Anzahl Lernzyklen
 	reg=fread(fid,1, FLOAT);	%	4 Byte	116	ANN: regression
 	lco=fread(fid,1, FLOAT);	%	4 Byte 	120	ANN: Lernkoeffizient
-	epo=fread(fid,1,'ushort');	%	2 Byte	124	ANN: Epoche
+	epo=fread(fid,1,'uint16');	%	2 Byte	124	ANN: Epoche
 	BKR.BKR.rel=fread(fid,1,BOOL);		%	2 Byte	126	flag: ERC in Relativwerten
-	wnd=fread(fid,1,'ushort');	%	2 Byte	128	Fenstertyp
+	wnd=fread(fid,1,'uint16');	%	2 Byte	128	Fenstertyp
 	BKR.BKR.kal=fread(fid,1,BOOL);		%	2 Byte	130	flag: Kalman gefilterte Daten
 	BKR.BKR.cwt=fread(fid,1,BOOL);		%	2 Byte	132	flag: kont. Wavelet transformtiert
 	cwt_fmin=fread(fid,1, FLOAT);	%	4 Byte	134	unterste Frequenz, kont. Wavelettransform.
 	cwt_fmax=fread(fid,1, FLOAT);	%	4 Byte	138	oberste Frequenz, kont. Wavelettransform.
-	scales=fread(fid,1,'ushort');	%	2 Byte	142	Anzahl Frequenzbänder für kont. WT
+	scales=fread(fid,1,'uint16');	%	2 Byte	142	Anzahl Frequenzbänder für kont. WT
 	cwt_fe=fread(fid,1, FLOAT);	%	4 Byte	144	frequ. für Dt = Df = 1/2Öp
 	cwt_start=fread(fid,1, ULONG);	%	4 Byte	148	Startsample für kont. WT Berechnung
         %-- NULL --	-------------	--------	152	-- Offset bis 512 Byte --
         if 1, 
-                fread(fid,1024-152,'char');
+                fread(fid,1024-152,'uint8');
         else
-                fread(fid,512-152,'char');
+                fread(fid,512-152,'uint8');
                 for i=1:BKR.NS,
                         eletyp(i)=fread(fid,1,'uchar');	%	1 Byte	512	Elektrode 1: Signalart (z.B: EEG)
                         elenum(i)=fread(fid,1,'uchar');	%	1 Byte	513	Elektrode 1: Kanalnr. für gleiche Signalart
@@ -386,7 +377,7 @@ elseif any(BKR.FILE.PERMISSION=='w'),
 	count=fwrite(BKR.FILE.FID,BKR.PhysMax,'short');		% Kalibrierspannung
 	count=fwrite(BKR.FILE.FID,BKR.DigMax, 'short');		% Kalibrierwert
         
-	count=fwrite(BKR.FILE.FID,zeros(4,1),'char');        
+	count=fwrite(BKR.FILE.FID,zeros(4,1),'uint8');        
 	if isfield(BKR,'Filter'),
 		if ~isfield(BKR.Filter,'LowPass'),
 			BKR.Filter.LowPass = NaN; 
@@ -410,9 +401,9 @@ elseif any(BKR.FILE.PERMISSION=='w'),
 	end;
 	count=fwrite(BKR.FILE.FID,[BKR.Filter.LowPass,BKR.Filter.HighPass],'float'); 
 
-	count=fwrite(BKR.FILE.FID,zeros(16,1),'char');         	% offset 30
+	count=fwrite(BKR.FILE.FID,zeros(16,1),'uint8');         	% offset 30
 	count=fwrite(BKR.FILE.FID,BKR.FLAG.TRIGGERED,'int16');	% offset 32
-	count=fwrite(BKR.FILE.FID,zeros(24,1),'char');         	% offset 46
+	count=fwrite(BKR.FILE.FID,zeros(24,1),'uint8');         	% offset 46
         
         if ~isfield(BKR,'FLAG')
                 BKR.FLAG.REFERENCE='';
@@ -426,7 +417,7 @@ elseif any(BKR.FILE.PERMISSION=='w'),
         fwrite(BKR.FILE.FID,tmp,BOOL); 		% offset 72 + 4*BOOL
                 
 	%speichert den rest des BKR-headers
-	count = fwrite(BKR.FILE.FID,zeros(1024-80,1),'char');
+	count = fwrite(BKR.FILE.FID,zeros(1024-80,1),'uint8');
 	BKR.HeadLen = ftell(BKR.FILE.FID);
 	if BKR.HeadLen~=1024,
 		fprintf(2,'Error BKROPEN WRITE: HeaderLength is not 1024 but %i\n',BKR.HeadLen);

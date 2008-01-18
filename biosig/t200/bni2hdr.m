@@ -12,13 +12,13 @@ function [HDR]=bni2hdr(arg1,arg3,arg4,arg5,arg6)
 %
 % see also: SOPEN 
 
-%	$Id: bni2hdr.m,v 1.1 2007-02-09 16:15:56 schloegl Exp $
-%	Copyright (c) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: bni2hdr.m,v 1.2 2008-01-18 09:28:13 schloegl Exp $
+%	Copyright (c) 2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the  License, or (at your option) any later version.
 % 
 % This program is distributed in the hope that it will be useful,
@@ -38,7 +38,7 @@ elseif exist(arg1,'file');
 end;
 if ~isfield(HDR,'H1')
 	fid = fopen(fullfile(HDR.FILE.Path,HDR.FILE.Name,'.bni'),'rt');
-	HDR.H1 = fread(fid,[1,inf],'char=>char'); 
+	HDR.H1 = char(fread(fid,[1,inf],'uint8')); 
 	fclose(fid);
 end;
 
