@@ -12,7 +12,7 @@ function HDR = qc_histo(fn,arg2)
 %       http://dx.doi.org/10.1016/S1388-2457(99)00172-8
 
 
-%  $Id: qc_histo.m,v 1.2 2006-10-24 16:25:14 schloegl Exp $ 
+%  $Id: qc_histo.m,v 1.3 2008-01-19 20:53:13 schloegl Exp $ 
 %  Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %  This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -43,15 +43,15 @@ else
 end;
 
 HDR = sopen(fn,'r',CHAN,MODE); 
-if HDR.FILE.FID<0,
-        return;
-end; 
 [s,HDR] = sread(HDR); 
 sclose(HDR); 
 
-HDR.HIS = histo2(s);
-HDR.RES = hist2res2(HDR.HIS); 
-HDR.Threshold = repmat([-1,1]/1e2,HDR.NS,1);
+HDR.HIS = histo3(s);
+HDR.RES = hist2res(HDR.HIS); 
+%HDR.RES = y2res(s); 
+%HDR.Threshold = repmat([-1,1]/1e2,HDR.NS,1);
 HDR.datatype = 'qc:histo'; 
+
+[HDR.AR,HDR.RC,HDR.PE]  = lattice(center(s)',50);
 
 
