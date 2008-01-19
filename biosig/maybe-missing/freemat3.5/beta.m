@@ -1,5 +1,5 @@
 %% Copyright (C) 2008 Alois Schloegl
-%% $Id: beta.m,v 1.3 2008-01-17 16:19:33 schloegl Exp $
+%% $Id: beta.m,v 1.1 2008-01-19 21:55:45 schloegl Exp $
 %% This function is part of BioSig http://biosig.sf.net 
 %% Originally, it was part of Octave. It was modified for the use with FreeMat
 %%

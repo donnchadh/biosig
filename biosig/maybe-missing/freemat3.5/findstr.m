@@ -122,7 +122,7 @@ function v = findstr (s, t, overlap)
   end
 
   %% Always return a column vector, because that's what the old one did
-  if (rows (v) > 1) 
+  if (size(v,1) > 1) 
     v = v.';
   end
 

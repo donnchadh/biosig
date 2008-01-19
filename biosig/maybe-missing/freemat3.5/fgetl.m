@@ -1,4 +1,4 @@
-%% Copyright (C) 2007 Alois Schloegl 
+%% Copyright (C) 2008 Alois Schloegl 
 %%
 %% This program is free software; you can redistribute it and/or modify
 %% it under the terms of the GNU General Public License as published by
@@ -14,15 +14,13 @@
 %% along with this program; if not, write to the Free Software
 %% Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-%% sign(x)
+%% fgetl(x)
 %%    returns length argument 
 %% 
-%% sign, needed for FreeMat 3.5
+%% fgetl, needed for FreeMat 3.5
 
-function y = sign(x);
-
-	y = (x>0)-(x<0);
-	y(isnan(x))=NaN;
+function y = fgetl(fid);
+	y = fgetline(fid);
 end
 
 

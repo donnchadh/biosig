@@ -1,5 +1,5 @@
 %% Copyright (C) 2008 Alois Schloegl
-%% $Id: upper.m,v 1.1 2008-01-17 16:28:26 schloegl Exp $
+%% $Id: filter.m,v 1.1 2008-01-19 21:55:45 schloegl Exp $
 %% This function is part of BioSig http://biosig.sf.net 
 %% This function is needed, if your system does not provide it (e.g. FreeMat v3.5)
 %%
@@ -17,13 +17,23 @@
 %% along with this program; if not, write to the Free Software
 %% Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-%% upper(x)
-%%    converts string in upper case characters 
-%% 
-%% upper, needed for FreeMat 3.5
+%% [Y,Z]=filter(B,A,X,Z)
+%%    The z-transform of Y,B,A and X correspond in the following way. 
+%%    Y(z) = B(z)/A(z)*X(z)   
 
-function x = upper(x);
-	ix = (x >= 'a') && (x <= 'z');
-	x(ix) = x(ix)-32; 
+function [Y,Z]=filter(B,A,X,Z)
 	
+	if nargin<3
+		usage('filter(B,A,X)');
+		return; 
+	elseif nargin<4
+		Z = []; 
+	end; 
 
+	sx = size(X); 	
+	if all(sx>1)
+		fprintf('X must be a vector');
+		return; 
+	end; 	
+	[Y,Z]=mvfilter(B(:).',A(:).',X(:).',Z);
+	Y = reshape(Y,sx); 
