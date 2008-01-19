@@ -16,7 +16,7 @@ function HDR=bv2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bv2biosig_events.m,v 1.6 2007-03-05 16:18:27 schloegl Exp $
+%	$Id: bv2biosig_events.m,v 1.7 2008-01-19 20:29:01 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -70,6 +70,7 @@ if (HDR.NS==128)
 	FLAG_SEASON2_ARTERAWDATA = isequal(tmp(1:64,1:end-1),tmp(65:128,2:end)) & all(tmp(65:128,1)=='x');
 	FLAG_SEASON2_ARTERAWDATA = FLAG_SEASON2_ARTERAWDATA & strncmp(HDR.FILE.Name,'arte',4);
 end;
+FLAG_ARTERAWDATA = strncmp(HDR.FILE.Name,'arte',4);
 	
 for k1 = 1:length(HDR.EVENT.Desc)
 	tmp = HDR.EVENT.Desc{k1};
@@ -96,9 +97,9 @@ for k1 = 1:length(HDR.EVENT.Desc)
         	HDR.EVENT.TYP(k1) = hex2dec('0433');
         elseif strcmpi(tmp,'augen unten') | strcmpi(tmp,'augen runter')		
         	HDR.EVENT.TYP(k1) = hex2dec('0434');
-        elseif strcmpi(tmp,'augen offen')	
+        elseif strcmpi(tmp,'augen offen') | strcmp(tmp,'Augen offen & entspannen')	
         	HDR.EVENT.TYP(k1) = hex2dec('0114');
-        elseif strcmpi(tmp,'augen zu')	
+        elseif strcmpi(tmp,'augen zu') | strcmp(tmp,'Augen zu & entspannen')	
         	HDR.EVENT.TYP(k1) = hex2dec('0115');
         elseif strcmp(tmp,'blinzeln')	
         	HDR.EVENT.TYP(k1) = hex2dec('0439'); 
@@ -124,7 +125,7 @@ for k1 = 1:length(HDR.EVENT.Desc)
         	HDR.EVENT.TYP(k1) = hex2dec('0449'); 
 
 % encoding der season2-arte* rawdata records
-        elseif strncmp(tmp,'S',1) & FLAG_SEASON2_ARTERAWDATA, 
+        elseif strncmp(tmp,'S',1) & (FLAG_SEASON2_ARTERAWDATA | FLAG_ARTERAWDATA), 
         	n = str2double(tmp(2:end));
 		if n==11,	% EMG left
 		       	HDR.EVENT.TYP(k1) = hex2dec('0441'); 
@@ -174,7 +175,7 @@ for k1 = 1:length(HDR.EVENT.Desc)
 	        	HDR.EVENT.TYP(k1) = hex2dec('830d');
 		elseif n==60,	% feedback onset
 	        	HDR.EVENT.TYP(k1) = hex2dec('030d'); 
-		elseif 0, any(n==[4,5,7]) %%% ignore these 
+		elseif any(n==[4,5,7]) %%% ignore these 
 	        	HDR.EVENT.TYP(k1) = NaN; 
         	else
 	        	HDR.EVENT.TYP(k1) = n; 
@@ -185,7 +186,7 @@ for k1 = 1:length(HDR.EVENT.Desc)
         	HDR.EVENT.TYP(k1) = bitxor(hex2dec('8000'),HDR.EVENT.TYP(k1-1)); 
 
         elseif ~isempty(tmp)
-        	[n,v,s] = str2double(tmp(2:end)); 
+        	[n,v,s] = str2double(tmp(2:end));
         	if (length(n)==1) & (~v)
         		HDR.EVENT.TYP(k1) = n; 
        		end; 
