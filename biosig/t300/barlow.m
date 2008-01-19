@@ -19,13 +19,14 @@ function [A,F,S]=barlow(S,UC,A)
 %       UC      update coefficient 
 %       B,A     filter coefficients (window function) 
 %              
+% see also: TDP, HJORTH, WACKERMANN
 %
 % REFERENCE(S):
 % [1] Goncharova II, Barlow JS.
 %   Changes in EEG mean frequency and spectral purity during spontaneous alpha blocking.
 %   Electroencephalogr Clin Neurophysiol. 1990 Sep;76(3):197-204. 
 
-%	$Id: barlow.m,v 1.1 2005-11-05 22:06:45 schloegl Exp $
+%	$Id: barlow.m,v 1.2 2008-01-19 20:54:51 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

@@ -19,13 +19,18 @@ function [ACTIVITY, MOBILITY, COMPLEXITY,m0,m1,m2] = hjorth(S,UC,A)
 %       UC      update coefficient 
 %       B,A     filter coefficients (window function) 
 %              
+% see also: TDP, BARLOW, WACKERMANN
 %
 % REFERENCE(S):
 % [1] B. Hjorth, 
+%   EEG analysis based on time domain properties
+%   Electroencephalography and Clinical Neurophysiology, vol. 29, no. 3, pp. 306–310, September 1970.
+% [2] B. Hjorth, 
 %   Time Domain Descriptors and their Relation to particulare Model for Generation of EEG activity. 
 %   in G. Dolce, H. Kunkel: CEAN Computerized EEG Analysis, Gustav Fischer 1975, S.3-8. 
 
-%	$Id: hjorth.m,v 1.2 2005-11-05 22:06:45 schloegl Exp $
+
+%	$Id: hjorth.m,v 1.3 2008-01-19 20:54:51 schloegl Exp $
 %	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
