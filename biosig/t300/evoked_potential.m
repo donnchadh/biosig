@@ -13,7 +13,7 @@ function R = evoked_potential(fn,CHAN,t1,t2)
 % 
 %  The 
 
-%	$Id: evoked_potential.m,v 1.2 2006-05-12 19:41:59 schloegl Exp $
+%	$Id: evoked_potential.m,v 1.3 2008-01-19 20:56:58 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -34,7 +34,12 @@ function R = evoked_potential(fn,CHAN,t1,t2)
 
 
 %% 
-[S,HDR]=sload(fn,CHAN);
+[S,HDR]=matload(fn,CHAN);
+%HDR = sopen(fn,'r',CHAN);HDR = sclose(HDR); 
+S(S> 400)=NaN;S(S<-400)=NaN;
+%S = diff(S); 
+%[B,A]=butter(5,[450 900]/HDR.SampleRate*2);S = filtfilt(B,A,S);  
+%[B,A]=fir1(20,[450 900]/HDR.SampleRate*2);S = filtfilt(B,A,S);  
 
 if ~isfield(HDR,'TRIG') 
         error('trigger information is missing')
@@ -42,6 +47,9 @@ end;
 if ~isfield(HDR,'Classlabel');
         HDR.Classlabel = ones(size(HDR.TRIG)); 
 end;        
+if (CHAN==0)
+	CHAN=1:HDR.NS;
+end; 	
 
 if nargin<4,
         t1 = 2; t2 = 4;
@@ -51,26 +59,47 @@ end;
 
 R0 = []; se=[];m=[];
 CL = unique(HDR.Classlabel(:))';
+
+t1 = floor(t1*HDR.SampleRate);
+t2 = ceil(t2*HDR.SampleRate);
+t  = t1:t2;
 for cl = 1:length(CL), 
-        t  = [t1*HDR.SampleRate:t2*HDR.SampleRate]'/HDR.SampleRate;
-        [s,sz] = trigg(S,HDR.TRIG(HDR.Classlabel==CL(cl)),t1*HDR.SampleRate,t2*HDR.SampleRate); 
-        N(cl)  = length(HDR.TRIG);
-        [se(:,:,cl), m(:,:,cl)] = sem(reshape(s,sz),3); 
-        RES = statistic(reshape(s,sz),3); 
+	ix = HDR.TRIG(HDR.Classlabel==CL(cl)); 
+	sz = [length(CHAN),length(t),length(ix)];
+	s  = repmat(NaN,sz);
+	for k = 1:sz(3), 
+		ix1 = ix(k)+t1;
+		ix2 = ix(k)+t2;
+		if (ix1>0) & (ix2<size(S,1)), 	
+			%%%  FIXME: include also partial trials %%% 
+			s(:,:,k) = S(ix1:ix2,:)';
+		end;
+	end; 	
+        %[s,sz] = trigg(HDR.data,HDR.TRIG(HDR.Classlabel==CL(cl)),floor(t1*HDR.SampleRate),ceil(t2*HDR.SampleRate),15); 
+        %N(cl)  = length(HDR.TRIG);
+        %[se(:,:,cl), m(:,:,cl)] = sem(reshape(s,sz),3); 
+        %RES = statistic(reshape(s,sz),3); 
+        RES = statistic(center(s,2),3); 
         R0.SUM(:,:,cl) = RES.SUM';
         R0.N(:,:,cl) = RES.N';
         R0.SSQ(:,:,cl) = RES.SSQ';
 end; 
 R0.datatype = 'MEAN+STD';
-R0.T = t;
+R0.T = t/HDR.SampleRate;
 %R0.trigger = 3*HDR.SampleRate; 
 
 R = R0; 
 if all(size(CHAN)>1), 
 elseif (CHAN==0)
 	R.Label = HDR.Label; 
+	if isfield(HDR,'ELEC')
+		R.ELEC = HDR.ELEC;
+	end; 	
 elseif all(CHAN>0) 
 	R.Label = HDR.Label(CHAN,:); 
+	if isfield(HDR,'ELEC')
+		R.ELEC.XYZ = HDR.ELEC.XYZ(CHAN,:);
+	end; 	
 end;
 
 if nargout>0, return; end
