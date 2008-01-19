@@ -9,9 +9,9 @@ function [R,S] = regress_eog(D,ny,nx)
 %	OL = IDENTIFY_EOG_CHANNELS(filename)
 %	EL are all remaining channels
 %       
-%  Correction matrix is obtained through
+%  Corrected data is obtained through
 %   [R] = regress_eog(covm(S1,'E'), EL, OL)
-%   S2 = S1 * R.ro;    % without offset correction
+%   S2 = S1 * R.r0;    % without offset correction
 %   S2 = [ones(size(S1,1),1),S1] * R.r1;    % with offset correction
 %  
 %  S1   recorded data
@@ -23,7 +23,7 @@ function [R,S] = regress_eog(D,ny,nx)
 %          should be used for for artefact reduction (because the global EEG should remain), 
 %          One can define OL = sparse([23,24,25,26],[1,1,2,2],[1,-1,1,-1]) 
 %	   resulting in two noise channels defined as bipolar channels #23-#24 and #25-#26
-%  R    rereferencing matrix for correction artifacts with regression analysis
+%  R.r1, R.r0    rereferencing matrix for correcting artifacts with and without offset correction
 %  S2   corrected EEG-signal      
 %
 % see also: IDENTIFY_EOG_CHANNELS, SLOAD
@@ -49,11 +49,9 @@ function [R,S] = regress_eog(D,ny,nx)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.7 $
-%	$Id: regress_eog.m,v 1.7 2007-02-06 09:22:14 schloegl Exp $
+%	$Id: regress_eog.m,v 1.8 2008-01-19 20:50:23 schloegl Exp $
 %	(C) 1997-2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
-
 
 if ischar(D),
         [D,H] = sload(D);
@@ -68,6 +66,7 @@ if ischar(D),
 elseif size(D,1)==size(D,2)
         C = D; 
         H.NS = size(C,2)-1;
+
 else
         H.NS = size(D,2);
         C = covm(D,'E');
@@ -84,6 +83,7 @@ if size(nx,1)==1,  % list of noise channel
         nx  = nx(:);
 else    % noise channels are defined through rereferencing (e.g. bipoloar channels)
         tmp = H.NS+(1:size(nx,2)); 
+%	nx(isnan(nx)) = 0;
         a(2:size(nx,1)+1,tmp+1) = nx;
         if rank(full(nx)) < size(nx,2),
                 fprintf(2,'Warning REGRESS_EOG: referencing matrix is singular! \n');
@@ -100,6 +100,7 @@ b0 = -inv(C([1; nx+1], [1; nx+1])) * C([1; nx+1], ny+1);
 r0(nx,ny) = b0(2:end,:);       % rearrange channel order
 r1([1;1+nx], ny) = b0;       % rearrange channel order
 
+R.b0 = b0;	% correction coefficients, useful for visualization
 R.r0 = a(2:end,2:end)*r0;
 R.r1 = a*r1;
 
