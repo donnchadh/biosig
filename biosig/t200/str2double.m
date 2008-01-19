@@ -69,8 +69,8 @@ function [num,status,strarray] = str2double(s,cdelim,rdelim,ddelim)
 %% along with this program; if not, write to the Free Software
 %% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%%	$Revision: 1.2 $
-%%	$Id: str2double.m,v 1.2 2007-03-21 09:51:10 schloegl Exp $
+%%	$Revision: 1.3 $
+%%	$Id: str2double.m,v 1.3 2008-01-19 20:27:58 schloegl Exp $
 %%	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %%      This function is part of Octave-Forge http://octave.sourceforge.net/
 
@@ -194,7 +194,11 @@ else %if isschar(s),
                 if ~isempty(te),
                         k2 = k2 + 1;
                         k3 = k3 + 1;
-                        strarray{k1,k2} = s(ta:te);
+                        if te<ta,
+	                        strarray{k1,k2} = [];
+	                else        
+	                        strarray{k1,k2} = s(ta:te);
+	                end;        
                         %strarray{k1,k2} = [ta,te];
                         
                         flag = 0;
@@ -251,9 +255,12 @@ for k2 = 1:nc,
 			if ddelim=='.',
 				t(t==ddelim)='.';
 			end;	
-			if FLAG_OCTAVE,
+			if FLAG_OCTAVE,		%% Octave
 	    			[v,tmp2,c] = sscanf(char(t),'%f %s','C');
-	    		else
+	    		elseif strcmp(version,'3.5')  %% FreeMat 3.5
+				[v,c,em] = sscanf(char(t),'%f %s');
+				c = 1;
+	    		else	%% Matlab 
 				[v,c,em,ni] = sscanf(char(t),'%f %s');
 				c = c * (ni>length(t));
 			end;

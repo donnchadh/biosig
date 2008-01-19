@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.68 2008-01-18 09:28:13 schloegl Exp $
+%	$Id: getfiletype.m,v 1.69 2008-01-19 20:27:58 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -104,11 +104,10 @@ else
 	HDR.FILE.size = ftell(fid);
         
 	fseek(fid,0,'bof');
-        
-        [s,c] = fread(fid,1024,'uint8');
+        [s,c] = fread(fid,min(HDR.FILE.size,1024),'uint8');
         if (c == 0),
-                s = repmat(0,1,1024-c);
-        elseif (c < 256),
+		return;
+        elseif (c < 1024),
                 s = [s', repmat(0,1,1024-c)];
         else
                 s = s';
@@ -936,7 +935,7 @@ else
                         end;
                         HDR.TYPE = 'EVENTCODES';
 			
-                else
+                elseif ~strcmp(version,'3.5') %% exclude FreeMat v3.5 
                         HDR.TYPE='unknown';
 
                         status = fseek(fid,3228,-1);
@@ -946,11 +945,13 @@ else
                                 HDR.TYPE='LX2';
                         end;
 			end;
-                end;
+                else
+                        HDR.TYPE='unknown';
 
+                end;
                 if strcmp(HDR.TYPE,'unknown')
-                        frewind(fid);
-                        [s,len] = fread(fid,[1,1e5],'uint8');
+                        fseek(fid,0,'bof');
+                        [s,len] = fread(fid,[1,min(1e5,HDR.FILE.size)],'uint8');
                         HDR.FLAG.ASCII = all((s>=32) | (s==9) | (s==10) | (s==13));
                         if HDR.FLAG.ASCII,
                                 HDR.s = char(s);
@@ -1042,7 +1043,7 @@ else
                                 tmp = dir(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.VHDR']));
                         end
                         if ~isempty(tmp), 
-                                HDR = getfiletype(tmp);
+                                HDR = getfiletype(fullfile(HDR.FILE.Path,tmp.name));
                         end
                         
                 elseif strcmpi(HDR.FILE.Ext,'flt') & exist([HDR.FileName,'.hdr'],'file'); 
