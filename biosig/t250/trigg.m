@@ -24,8 +24,7 @@ function [x,sz] = trigg(s,TRIG,pre,post,gap)
 %
 % see also: GETTRIGGER
 
-%	$Revision: 1.4 $
-% 	$Id: trigg.m,v 1.4 2005-04-01 07:00:39 schloegl Exp $
+% 	$Id: trigg.m,v 1.5 2008-01-19 20:50:56 schloegl Exp $
 %	Copyright (c) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -48,21 +47,21 @@ if nargin<5,
 	gap = 0;
 end;
 
+post=round(post);
+
 [nr,nc] = size(s);
 
 % include leading nan's
 off  = min(min([TRIG(:);+Inf])+pre-1,0);
-s    = [repmat(nan,-off,nc);s];
-TRIG = TRIG-off;        
-
 % include following nan's
-off = max(max([TRIG(:);-Inf])+post-length(s),0);
-s   = [s; repmat(nan,off,nc)];
+off2 = max(max([TRIG(:);-Inf])+post-length(s),0);
+s    = [repmat(nan,-off,nc);s;repmat(nan,off2,nc)];
+TRIG = TRIG-off;
 
 % devide into segments
 N   = post-pre+1+gap;
 sz  = [nc, post-pre+1+gap, length(TRIG)];
-x   = repmat(NaN, sz(1), sz(2)*sz(3));   % repmat(NaN, nc, N*length(TRIG));
+x   = repmat(NaN, [sz(1), sz(2)*sz(3)]);   
 for m = 1:length(TRIG),
 	x(:,m*N + (1-N:-gap)) = s(TRIG(m)+(pre:post)',:).';
 end;
