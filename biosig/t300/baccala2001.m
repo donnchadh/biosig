@@ -1,8 +1,8 @@
-function [A1,A2,A3,A4,A5] = baccala2001(list);
+function [A1,A2,A3,A4,A5,X6,X7] = baccala2001(list);
 % BACCALA2001 returns the MVAR-Parameters for 
 %    simulating MVAR processes according to [1].  
 %
-%  [A1,A2,A3,A4,A5] = baccala2001; 
+%  [A1,A2,A3,A4,A5,X6,X7] = baccala2001; 
 %       A1 ... A5 are 5 different sets of MVAR parameters
 %  baccala2001(k1:k2); 
 %       displays for Ak1 ... Ak2 corresponding PDC and DTF      
@@ -18,7 +18,7 @@ function [A1,A2,A3,A4,A5] = baccala2001(list);
 %       Partial directed coherence: a new concept in neural structure determination.
 %       Biol Cybern. 2001 Jun;84(6):463-74. 
 
-%	$Id: baccala2001.m,v 1.3 2006-01-04 22:07:56 schloegl Exp $
+%	$Id: baccala2001.m,v 1.4 2008-01-19 20:56:27 schloegl Exp $
 %	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -72,6 +72,29 @@ A5 = [[ .95*sqrt(2),0,0,0,0,            -.9025,0,0,0,0;  ...
        0,0,0,-sqrt(2)/4,sqrt(2)/4,     0,0,0,0,0;       ... 
 ],zeros(5,10)];
 A5(3,16)=.1;
+
+
+% Chen, Bressler, Ding 2006: Example 1
+A6 = [ 0,0,0,		0,0,0;  ...
+       1,0,0,           0,0,0;  ...
+       0,0,.5,          1,0,0;  ];
+X6.A = [eye(3),-A6];
+X6.B = [eye(3)];
+X6.C = diag([1,.2,.3]);
+X6.datatype = 'MVAR';
+
+
+% Chen, Bressler, Ding 2006: Example 1
+A7 = [ 0,0,0;  ...
+       0,1,0;  ...
+       0,1,0	];
+X7.A = [eye(3),-A7];
+X7.B = [eye(3)];
+X7.C = diag([1,.2,.3]);
+X7.datatype = 'MVAR';
+
+
+
 
 if nargin==0, return; end; 
 
