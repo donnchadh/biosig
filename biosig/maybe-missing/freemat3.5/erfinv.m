@@ -1,32 +1,17 @@
-%% Copyright (C) 1995, 1996  Kurt Hornik
+%% Copyright (C) 1994, 1995, 1996  Kurt Hornik
+%% Copyright (C) 2008 Alois Schloegl
+%% $Id: erfinv.m,v 1.2 2008-01-21 09:10:27 schloegl Exp $
+%% This function is part of BioSig http://biosig.sf.net 
+%% Originally, it was part of Octave. It was modified for the use with FreeMat
 %%
-%% This file is part of Octave.
-%%
-%% Octave is free software; you can redistribute it and/or modify it
+%% BioSig is free software; you can redistribute it and/or modify it
 %% under the terms of the GNU General Public License as published by
-%% the Free Software Foundation; either version 2, or (at your option)
+%% the Free Software Foundation; either version 3, or (at your option)
 %% any later version.
-%%
-%% Octave is distributed in the hope that it will be useful, but
-%% WITHOUT ANY WARRANTY; without even the implied warranty of
-%% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-%% General Public License for more details.
-%%
-%% You should have received a copy of the GNU General Public License
-%% along with Octave; see the file COPYING.  If not, write to the Free
-%% Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
-%% 02110-1301, USA.
 
-%% -*- texinfo -*-
-%% @deftypefn {Mapping Function} {} erfinv (@var{z})
-%% Computes the inverse of the error function.
-%% @seealso{erf, erfc}
-%% @end deftypefn
-
-%% Author: KH <Kurt.Hornik@wu-wien.ac.at>
-%% Created: 27 September 1994
-%% Adapted-By: jwe
-%% Adapted for FreeMat by : AS <a.schloegl@ieee.org>
+%% ERFINV returns the inverse of the error function ERF. 
+%%   y = erfinv(x)
+%%
 
 function [y, iterations] = erfinv (x)
 
@@ -35,44 +20,33 @@ function [y, iterations] = erfinv (x)
   end
 
   maxit = 100;
-  tol = eps;
+  tol = 2*eps;
 
   iterations = 0;
 
   sz = size (x);
   nel = numel (x);
 
-  x = reshape (x, nel, 1);
-  y = zeros (nel, 1);
+  y = zeros (size(x));
 
-  i = find ((x < -1) | (x > 1) | isnan(x));
-  if any (i)
-    y(i) = NaN * ones (length (i), 1);
-  end
-
-  t = find (x == -1);
-  y (t) = (-Inf) * ones (size (t));
-
-  t = find (x == 1);
-  y (t) = Inf * ones (size (t));
+  y((x < -1) | (x > 1) | isnan(x)) = NaN;
+  y(x == -1) = -Inf;
+  y(x == +1) = +Inf;
 
   i = find ((x > -1) & (x < 1));
-  if any (i)
+  if any(i)
     s = sqrt (pi) / 2;
-    z_old = ones (length (i), 1);
-    z_new = sqrt (-log (1 - abs (x(i)))) .* sign (x(i));
-    while (any (abs (erf (z_new) - x(i)) > tol * abs (x(i))))
-      z_old = z_new;
-      z_new = z_old - (erf (z_old) - x(i)) .* exp (z_old.^2) * s;
+    z = sqrt (-log (1 - abs (x(i)))) .* sign (x(i));
+    while (any (abs (erf (z) - x(i)) > tol * abs (x(i))))
+      z = z - (erf (z) - x(i)) .* exp (z.^2) * s;
       iterations = iterations+1;      
       if (iterations > maxit)
         warning ('erfinv: iteration limit exceeded');
         break;
-      end
-    end
-    y(i) = z_new;
+     end
+   end
+    y(i) = z;
   end
-
   y = reshape (y, sz);
 
 end
