@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.120 2008-01-10 21:41:01 schloegl Exp $
+    $Id: biosig.c,v 1.121 2008-01-21 18:42:03 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -406,6 +406,25 @@ void* mfer_swap8b(uint8_t *buf, int8_t len, char FLAG_SWAP)
 		fprintf(stdout,"%2x%2x%2x%2x%2x%2x%2x%2x %i %f\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7],*(uint64_t*)buf,*(double*)buf); 
 
 	return(buf); 
+}
+
+
+/* --------------------------------
+ * float to ascii[8] conversion 
+ * -------------------------------- */
+int ftoa8(char* buf, double num)
+{
+	// used for converting scaling factors Dig/Phys/Min/Max into EDF header
+	// Important note: buf may need more than len+1 bytes. make sure there is enough memory allocated.   
+	double f1,f2;
+
+	int count = sprintf(buf,"%f",num);
+
+	f1 = atof(buf); 
+	buf[8] = 0; 	// truncate 
+	f2 = atof(buf); 
+
+	return (fabs((f1-f2)/(f1+f2)) > 1e-6); 
 }
 
 
@@ -2802,7 +2821,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	memcpy(Header1+88+len, &hdr->ID.Equipment, 8);
 	     
 		tt = gdf_time2t_time(hdr->T0); 
-		strftime(tmp,81,"%d.%m.%y%H:%M:%S",gmtime(&tt));
+		strftime(tmp,81,"%d.%m.%y%H.%M.%S",gmtime(&tt));
 	     	memcpy(Header1+168, tmp, 16);
 
 		len = sprintf(tmp,"%i",hdr->HeadLen);
@@ -2830,30 +2849,30 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			else
 				tmpstr = hdr->CHANNEL[k].Label;
 		     	len = strlen(tmpstr);
-			if (len>15) 
-			//fprintf(stderr,"Warning: Label (%s) of channel %i is to long.\n",hdr->CHANNEL[k].Label,k);  
-		     	fprintf(stderr,"Warning: Label of channel %i is too long (%i>16).\n",k, len);  
+			if (len>15)
+			//fprintf(stderr,"Warning: Label (%s) of channel %i is to long.\n",hdr->CHANNEL[k].Label,k);
+		     	fprintf(stderr,"Warning: Label of channel %i is too long (%i>16).\n",k, len);
 		     	memcpy(Header2+16*k,tmpstr,min(len,16));
 		     	len = strlen(hdr->CHANNEL[k].Transducer);
 			if (len>80) fprintf(stderr,"Warning: Transducer of channel %i is too long (%i>80).\n",k, len);  
 		     	memcpy(Header2+80*k + 16*hdr->NS,hdr->CHANNEL[k].Transducer,min(len,80));
 		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
 		     	len = strlen(tmp);
-		     	if (len>8) fprintf(stderr,"Warning: Physical Dimension (%s) of channel %i is too long (%i>8).\n",tmp,k,len);  
-		     	memcpy(Header2+ 8*k + 96*hdr->NS,tmp,min(len,8));
-	
-			len = sprintf(tmp,"%f",hdr->CHANNEL[k].PhysMin);
-			if (len>8) fprintf(stderr,"Warning: PhysMin (%s) of channel %i is too long (%i>8).\n",tmp,k,len);  
-		     	memcpy(Header2+ 8*k + 104*hdr->NS,tmp,min(8,len));
-			len = sprintf(tmp,"%f",hdr->CHANNEL[k].PhysMax);
-			if (len>8) fprintf(stderr,"Warning: PhysMax (%s) of channel %i is too long (%i>8).\n",tmp,k,len);  
-		     	memcpy(Header2+ 8*k + 112*hdr->NS,tmp,min(8,len));
-			len = sprintf(tmp,"%f",hdr->CHANNEL[k].DigMin);
-			if (len>8) fprintf(stderr,"Warning: DigMin (%s) of channel %i is too long (%i>8).\n",tmp,k,len);  
-		     	memcpy(Header2+ 8*k + 120*hdr->NS,tmp,min(8,len));
-			len = sprintf(tmp,"%f",hdr->CHANNEL[k].DigMax);
-			if (len>8) fprintf(stderr,"Warning: DigMax (%s) of channel %i is too long (%i>8).\n",tmp,k,len);  
-		     	memcpy(Header2+ 8*k + 128*hdr->NS,tmp,min(8,len));
+		     	if (len>8) fprintf(stderr,"Warning: Physical Dimension (%s) of channel %i is too long (%i>8).\n",tmp,k,len);
+		     	memcpy(Header2 + 8*k + 96*hdr->NS, tmp, min(len,8));
+
+			if (ftoa8(tmp,hdr->CHANNEL[k].PhysMin))
+				fprintf(stderr,"Warning: PhysMin (%f) of channel %i does not fit into 8 bytes of EDF header.\n",hdr->CHANNEL[k].PhysMin,k);
+		     	memcpy(Header2 + 8*k + 104*hdr->NS, tmp, strlen(tmp));
+			if (ftoa8(tmp,hdr->CHANNEL[k].PhysMax))
+				fprintf(stderr,"Warning: PhysMax (%f) of channel %i does not fit into 8 bytes of EDF header.\n",hdr->CHANNEL[k].PhysMax,k);
+		     	memcpy(Header2 + 8*k + 112*hdr->NS, tmp, strlen(tmp));
+			if (ftoa8(tmp,hdr->CHANNEL[k].DigMin))
+				fprintf(stderr,"Warning: DigMin (%f) of channel %i does not fit into 8 bytes of EDF header.\n",hdr->CHANNEL[k].DigMin,k);
+		     	memcpy(Header2 + 8*k + 120*hdr->NS, tmp, strlen(tmp));
+			if (ftoa8(tmp,hdr->CHANNEL[k].DigMax))
+				fprintf(stderr,"Warning: DigMax (%f) of channel %i does not fit into 8 bytes of EDF header.\n",hdr->CHANNEL[k].DigMax,k);
+		     	memcpy(Header2 + 8*k + 128*hdr->NS, tmp, strlen(tmp));
 		     	
 			if (hdr->CHANNEL[k].Notch>0)		     	
 				len = sprintf(tmp,"HP:%fHz LP:%fHz Notch:%fHz",hdr->CHANNEL[k].HighPass,hdr->CHANNEL[k].LowPass,hdr->CHANNEL[k].Notch);
