@@ -1,6 +1,6 @@
 %% Copyright (C) 1994, 1995, 1996  Kurt Hornik
 %% Copyright (C) 2008 Alois Schloegl
-%% $Id: erfinv.m,v 1.2 2008-01-21 09:10:27 schloegl Exp $
+%% $Id: erfinv.m,v 1.3 2008-01-23 09:34:40 schloegl Exp $
 %% This function is part of BioSig http://biosig.sf.net 
 %% Originally, it was part of Octave. It was modified for the use with FreeMat
 %%
@@ -25,11 +25,10 @@ function [y, iterations] = erfinv (x)
   iterations = 0;
 
   sz = size (x);
-  nel = numel (x);
 
   y = zeros (size(x));
 
-  y((x < -1) | (x > 1) | isnan(x)) = NaN;
+  y(~(abs(x)<= 1)) = NaN;  %% x<1, x>1, x==NaN
   y(x == -1) = -Inf;
   y(x == +1) = +Inf;
 
