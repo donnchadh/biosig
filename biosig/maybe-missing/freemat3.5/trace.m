@@ -2,7 +2,7 @@
 %%
 %% This program is free software; you can redistribute it and/or modify
 %% it under the terms of the GNU General Public License as published by
-%% the Free Software Foundation; either version 2 of the License, or
+%% the Free Software Foundation; either version 3 of the License, or
 %% (at your option) any later version.
 %%
 %% This program is distributed in the hope that it will be useful,
@@ -18,8 +18,11 @@
 %%    trace of matrix f 
 
 function y = trace(x);
-  	[nr, nc] = size(x);
-  	if (nr == 1 || nc == 1)
+  	if ndims(x)>2,
+  		error('input argument must be a matrix');
+	elseif isempty(x)
+		y = 0;
+  	elseif any(size(x)==1)
     		y = x(1);
   	else
     		y = sum (diag (x));
