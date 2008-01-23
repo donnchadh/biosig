@@ -16,7 +16,7 @@ function [HDR] = ssave(FILENAME,DATA,TYPE,Fs,gdftyp)
 % see also: SSAVE, SOPEN, SWRITE, SCLOSE, doc/README
 %
 
-% $Id: ssave.m,v 1.5 2007-06-21 12:46:15 schloegl Exp $
+% $Id: ssave.m,v 1.6 2008-01-23 22:04:41 schloegl Exp $
 % Copyright (C) 2003,2004,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 % This file is part of the biosig project http://biosig.sf.net/
 
@@ -52,7 +52,8 @@ else
 end;
 
 if (nargin > 1),
-	[HDR.SPR, HDR.NS] = size(DATA);
+	[HDR.SPR, HDR.NS] = size(DATA); HDR.NRec = 1; 
+%	HDR.AS = rmfield(HDR.AS,'SPR'); 
 	if (strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF')) & (~isfield(HDR,'DigMax') | ~isfield(HDR,'DigMin') |~isfield(HDR,'PhysMax') | ~isfield(HDR,'PhysMin'))
 		HDR.PhysMax = max(DATA,[],1);
 		HDR.PhysMin = min(DATA,[],1);

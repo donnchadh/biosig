@@ -1,7 +1,7 @@
 ### Table of event codes. 
 # This file is part of the biosig project http://biosig.sf.net/
 # Copyright (C) 2004,2005,2006 Alois Schloegl <a.schloegl@ieee.org>
-# $Id: eventcodes.txt,v 1.8 2007-01-25 09:20:49 schloegl Exp $
+# $Id: eventcodes.txt,v 1.9 2008-01-23 22:04:41 schloegl Exp $
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -26,15 +26,22 @@
 0x0115	eeg:Idling EEG - eyes closed
 0x0116	eeg:spike
 0x0117	eeg:seizure
-### 0x012_	Evoked potentials
+#0x0118	eeg:Electrographic seizure
+#0x0119	eeg:Clinical seizure
+#0x011a	eeg:Subclinical seizure
+#0x011b	eeg:Stimulating for seizure
+### 0x012_	Stimulus for Evoked potentials
 0x0121	VEP: visual EP
 0x0122	AEP: auditory EP
 0x0123	SEP: somato-sensory EP
 0x012F	TMS: transcranial magnetic stimulation 
-### 0x013_	Steady State Evoked potentials
+### 0x013_	Stimulus for Steady State Evoked potentials
 0x0131	SSVEP
 0x0132	SSAEP
 0x0133	SSSEP
+### 0x014_	Response
+0x0144  Go
+0x0145  NoGo
 ### 0x03__	BCI: Trigger, cues, classlabels, 
 0x0300	Start of Trial, Trigger at t=0s
 0x0301	Left - cue onset (BCI experiment)
@@ -78,17 +85,17 @@
 0x0420	Lights on 
 #0x8420	Lights off
 ### 0x043_ 	Eye movements
-#0x0430	[obsolote] merged with 0x0115
+#0x0430	[obsolete] merged with 0x0115
 0x0431	eyes left
 0x0432	eyes right
 0x0433	eyes up
 0x0434	eyes down
 0x0435	horizontal eye movement
 0x0436	vertical eye movement
-0x0437	rotation (clockwise)
-0x0438	rotation (counterclockwise)
+0x0437	eye rotation (clockwise)
+0x0438	eye rotation (counterclockwise)
 0x0439	eye blinks
-#0x043f	[obsolote] merged with 0x0114
+#0x043f	[obsolete] merged with 0x0114
 ### 0x044_ 	muscle activity (for checking on EEG artifacts)
 0x0441	left hand movement
 0x0442	right hand movement
@@ -161,6 +168,11 @@
 0x0019	condition 25
 0x001a	condition 26
 0x0020	condition 32
+#
+0x002f	condition 47
+0x0030	condition 48
+0x0031	condition 49
+0x0032	condition 50
 0x0033	condition 51
 0x0034	condition 52
 0x0035	condition 53
@@ -187,6 +199,11 @@
 0x0060	condition 96
 0x0063	condition 99
 0x0080	condition 128
+0x00a6	condition 166
+0x00a7	condition 167
+0x00a8	condition 168
+0x00a9	condition 169
+### 0x4___	up to 4096 different stimuli
 ### 0x7f__      special codes
 0x7ffe	start of a new segment (after a break)
 0x7fff  non-equidistant sampling value

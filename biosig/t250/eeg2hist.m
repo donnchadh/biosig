@@ -9,8 +9,10 @@ function [HDR]=eeg2hist(FILENAME,CHAN);
 % input: FILENAME   EEG-File
 %        CHAN       Channel select
 % output: 
-%	 HDR	   header information%        HDR.HIS   histograms for each channel
-%	 HDR.RES   summary statistics based on the histogram analysis [1]% 	 HDR.THRESHOLD  Threshold values for overflow detection 
+%	 HDR	   header information
+%        HDR.HIS   histograms for each channel
+%	 HDR.RES   summary statistics based on the histogram analysis [1]
+% 	 HDR.THRESHOLD  Threshold values for overflow detection 
 %
 % 
 % see also: SOPEN, SLOAD, HIST2RES
@@ -19,7 +21,7 @@ function [HDR]=eeg2hist(FILENAME,CHAN);
 % [1] A. Schlögl, B. Kemp, T. Penzel, D. Kunz, S.-L. Himanen,A. Värri, G. Dorffner, G. Pfurtscheller.
 %   Quality Control of polysomnographic Sleep Data by Histogram and EntropyAnalysis. 
 %   Clin. Neurophysiol. 1999, Dec; 110(12): 2165 - 2170.
-%   http://dH.doi.org/10.1016/S1388-2457(99)00172-8
+%   http://dx.doi.org/10.1016/S1388-2457(99)00172-8
 %
 % [2] A. Schlögl, G. Klösch, W. Koele, J. Zeitlhofer, P.Rappelsberger, G. Pfurtscheller
 % Qualitätskontrolle von Biosignalen,
@@ -30,8 +32,8 @@ function [HDR]=eeg2hist(FILENAME,CHAN);
 % [4] A. Schlögl, Time Series Analysis toolbox for Matlab. 1996-2003
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/tsa/
 
-% 	$Id: eeg2hist.m,v 1.6 2007-01-02 15:18:56 schloegl Exp $
-%	Copyright (C) 2002,2003,2006 by Alois Schloegl <a.schloegl@ieee.org>		
+% 	$Id: eeg2hist.m,v 1.7 2008-01-23 22:04:41 schloegl Exp $
+%	Copyright (C) 2002,2003,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>		
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -50,7 +52,7 @@ function [HDR]=eeg2hist(FILENAME,CHAN);
 % Boston, MA  02111-1307, USA.
 
 
-MODE=1; 
+MODE=0; 
 if nargin<2, CHAN=0; end; 
 if ischar(CHAN), 
 	MODE = 1; 
@@ -141,6 +143,11 @@ elseif (strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') |  strcmp(HDR.TYPE,'ACQ'
 elseif ~strcmp(HDR.TYPE,'unknown')
 	[s,HDR]=sread(HDR); 
 	H = histo2(s); 
+	HDR.HIS = H; 
+	if any(HDR.GDFTYP>6)
+	        fprintf(2,'WARNING EEG2HIST: data is not integer.\n');
+	end; 	
+		
 else
         fprintf(2,'EEG2HIST: format %s not implemented yet.\n',HDR.TYPE);
 end;
@@ -163,7 +170,8 @@ H.N = sumskipnan(H.H);
                 elseif isfield(HDR,'THRESHOLD'),
                         MaxMin=HDR.THRESHOLD(K,[2,1])*HDR.Calib(K+1,K)+HDR.Calib(1,K);
 		else                
-                        MaxMin=t([max(t) min(t)])';
+			%[max(t) min(t)],
+                        MaxMin=[max(t) min(t)];
                 end;
                 xrange = [min(t(h>0)),max(t(h>0))]; 
                 xrange = xrange + [-1,1]*diff(xrange)/2;
@@ -182,12 +190,15 @@ H.N = sumskipnan(H.H);
                 title(HDR.Label{K});
 	end; 
 
-fprintf(1,'\nEEG2HIST:>Now You can modify the thresholds with mouse clicks.'); 
-fprintf(1,'\nEEG2HIST:>When you are finished, PRESS ANY KEY on the keyboard.'); 
-
 if MODE,	
+	fprintf(1,'\nEEG2HIST:>Now You can modify the thresholds with mouse clicks.'); 
+	fprintf(1,'\nEEG2HIST:>When you are finished, PRESS ANY KEY on the keyboard.'); 
+
 	% modify Threshold 
-	b = 0; 
+	if ~isfield(HDR,'THRESHOLD'),
+		HDR.THRESHOLD = repmat(NaN,HDR.NS,2); 
+	end;
+	b  = 0; 
 	K0 = 0; 
 	while (b<4),
 		[x,y,b]=ginput(1); 

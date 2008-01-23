@@ -4,8 +4,8 @@
 %     and contains a few tests 
 % 
 
-%	$Revision: 1.3 $
-%	$Id: demo4.m,v 1.3 2003-10-13 18:32:05 schloegl Exp $
+%	$Revision: 1.4 $
+%	$Id: demo4.m,v 1.4 2008-01-23 22:04:41 schloegl Exp $
 %	Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 % This library is free software; you can redistribute it and/or
@@ -47,6 +47,8 @@ s = randn(1000,5);	% Generate Test data
 % FLAG.TRIGGERED indicates if triggered data is stored.
     HDR.FLAG.TRIGGERED = 0;		% 0: continous data, 1 Triggered data
 % HDR.NRec must be known or FLAG.TRIGGERED must be set
+% number of channels [must be fixed before calling EEGCLOSE]
+    HDR.NS = size(s,2);	
 
 
 %%%%%%% 1st way to generate BKR-file
@@ -54,10 +56,8 @@ HDR.FileName = F{1};	% Assign Filename
 HDR = sopen(HDR,'w'); 	% OPEN BKR FILE
 dig_values = s'*HDR.DigMax/HDR.PhysMax; 	% digital values without scaling, each row is a channel.
 fwrite(HDR.FILE.FID,dig_values,'int16'); 
-% number of channels [must be fixed before calling EEGCLOSE]
-    HDR.NS = size(s,2);	
-% number of blocks [must be fixed before calling EEGCLOSE]
-    HDR.NRec= 1;
+% number of blocks [must be fixed before calling SCLOSE]
+HDR.NRec= 1;
 HDR = sclose(HDR);            % CLOSE BKR FILE
 
 %%%%%%% 2nd way to generate BKR-file

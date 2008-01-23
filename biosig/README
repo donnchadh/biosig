@@ -28,11 +28,12 @@ T250/* Quality Control and Artifact Processing
 
 T300/* Signal Processing and Feature extraction
 
-T400/* Classification, Single Trial Analysis, Statistics,
+T400/* Classification, Single Trial Analysis
+T450/* Statistics, False Discovery Rate
 T490/* Evaluation criteria
 
 T500/* Presentation, Output
-T550/* Topographic Mapping, 3-dimensional display
+T501/* Visualization of EEG coupling
 
 T600/* Interactive Viewer and Scoring  
 

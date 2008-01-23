@@ -14,14 +14,14 @@
 %   Quality Control of polysomnographic Sleep Data by Histogram and EntropyAnalysis. %   Clin. Neurophysiol. 1999, Dec; 110(12): 2165 - 2170.%   http://dH.doi.org/10.1016/S1388-2457(99)00172-8
 
 
-% $Id: Contents.m,v 1.8 2006-12-28 15:06:50 schloegl Exp $
+% $Id: Contents.m,v 1.9 2008-01-23 22:04:41 schloegl Exp $
 % Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 % This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
+% Version 3 of the License, or (at your option) any later version.
 %
 % This library is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -41,7 +41,7 @@ DEMO4	  % Demonstrates how the generate an BKR file
 DEMO5	  % Demonstrates how the generate an WAV file
 demo6     % lumped circuit model 
 demo7     % Multivariate autoregressive parameters              
-demo8     % overflow detection based on [1]	
+demo8     % Quality Control: Overflow detection based on [1]	
 
     % This test was applied for the OPENECG programming contest. 
 SCPTEST.M % test of SCP-ECG files can be accessed. 

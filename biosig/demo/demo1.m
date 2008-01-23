@@ -1,6 +1,6 @@
 % DEMO 1 - identifies QRS-complexes and computes HRV parameters 
 
-%	$Id: demo1.m,v 1.6 2007-07-31 14:07:06 schloegl Exp $
+%	$Id: demo1.m,v 1.7 2008-01-23 22:04:41 schloegl Exp $
 %	Copyright (C) 2000-2003, 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -57,7 +57,7 @@ qrsindex = H2.EVENT.POS(idx)/H2.EVENT.SampleRate;
 subplot(211)
 plot((1:size(s,1))/HDR.SampleRate,s,'-',qrsindex,-ones(size(qrsindex)),'x');
 xlabel('time t[s]');
-ylabel(sprintf('%s [%s]',HDR.Label(CHAN,:),HDR.PhysDim(CHAN,:)));
+ylabel(sprintf('%s [%s]',HDR.Label{CHAN},HDR.PhysDim{CHAN}));
 
 subplot(212)
 semilogy((qrsindex(1:end-1)+qrsindex(2:end))/2,diff(qrsindex));

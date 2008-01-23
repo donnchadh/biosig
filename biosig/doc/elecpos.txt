@@ -6,7 +6,7 @@
 # CEN/TC251/PT40 2001	
 # File Exchange Format for Vital Signs - Annex A 
 #
-# $Id: elecpos.txt,v 1.2 2007-02-05 14:39:23 schloegl Exp $
+# $Id: elecpos.txt,v 1.3 2008-01-23 22:04:41 schloegl Exp $
 # Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 # This file is part of the biosig project http://biosig.sf.net/
 #
@@ -84,7 +84,6 @@
 1257	P7	 216.0	  90.0
 1262	T6	 324.0	  90.0
 1262	P8	 324.0	  90.0
-#
 1265	T9	 180.0	 112.5
 1270	T10	   0.0	 112.5
 1273	TP7	 198.0	  90.0

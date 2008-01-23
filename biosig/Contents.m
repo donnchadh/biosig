@@ -1,10 +1,9 @@
 % BIOSIG toolbox contains many useful functions for biomedical signal processing
 %     http://biosig.sf.net/
 %
-% Copyright (C) 2003, 2004 by Alois Schloegl <a.schloegl@ieee.org>
+% Copyright (C) 2003,2004,2007 by Alois Schloegl <a.schloegl@ieee.org>
 % WWW: http://biosig.sf.net/
-% $Revision: 1.7 $ 
-% $Id: Contents.m,v 1.7 2006-08-02 10:07:07 schloegl Exp $
+% $Id: Contents.m,v 1.8 2008-01-23 22:04:41 schloegl Exp $
 % This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % LICENSE:
@@ -27,12 +26,15 @@
 % 
 % === INDEX  BIOSIG ===
 % 
-% DOC: Documentation
+% BIOSIG/DOC: Documentation
 % ---------------------------------------------
 % 	header.txt	specification of header (Dokumentation) 
+%	eventcodes.txt	Codes for Events, Markers, Annotations as used in GDF and BioSig
+% 	DecimalFactors.txt   
+%	units.csv	codes for phyiscal dimensions	
 % 
 % 
-% demo: [demo's, examples] 
+% BIOSIG/demo: [demo's, examples] 
 % ---------------------------------------------
 % 	demo1	QRS-detection
 % 	demo2	estimates and validates BCI classifier
@@ -50,7 +52,7 @@
 % 
 % 
 % 
-% T200: Data Formats
+% BIOSIG/T200: Data Formats
 % ---------------------------------------------
 % 	SOPEN		opens biosig data and reads header information
 % 	SREAD		reads biosig data
@@ -66,7 +68,7 @@
 %  	and some utility functions
 % 
 % 
-% T250: Quality Control and Artifact Processing
+% BIOSIG/T250: Quality Control and Artifact Processing
 % ---------------------------------------------
 %	ARTIFACT_SELECTION	converts artifact scorings into trial selections
 % 	EEG2HIST	calculates histogram
@@ -77,7 +79,7 @@
 %       REMOVE5060HZ    methods for removing line interference
 % 
 % 
-% T300: Signal Processing and Feature extraction
+% BIOSIG/T300: Signal Processing and Feature extraction
 % ---------------------------------------------
 %    general: 
 % 	processing	general framework for blockwise-dataprocessing
@@ -98,15 +100,29 @@
 %	ECTBcorr	correction of Ectopic beat effect
 %       TVAAR           Time-varying AAR estimation 
 %
-% 
-% T400: Classification, Single Trial Analysis, Statistics,
+%
+% BIOSIG/T310: Wavelet and Fourier Analysis,
+% ---------------------------------------------
+% 	ERD/ERS
+%	PLV
+%	HRV
+%
+%
+% BIOSIG/T400: Classification, Single Trial Analysis
 % ---------------------------------------------
 % 	DECOVM		decomposes an "extended" covariance matrix	
 % 	TRAIN_SC	estimates classifier from labelled data
 % 	TEST_SC         applies classifier to test data 
 % 	FINDCLASSIFIER	obtains classifier includeding performance test. 
 % 
-% T490: Evaluation criteria
+%
+% BIOSIG/T450: Statistical analysis, False Discovery Rate (FDR)
+% -------------------------------------------------------------
+%  	FDR	false discovery rate
+%	several utility functions
+%	
+%
+% BIOSIG/T490: Evaluation criteria
 % ---------------------------------------------
 % 	AUC		area under the curve
 % 	ROC		receiver-operator-characteristics 	
@@ -118,24 +134,41 @@
 %	CRITERIA2005IIIb   calculates maximum steepness of mutual information
 % 	
 % 
-% T500: Presentation, Output
+% BIOSIG/T500: Presentation, Output
 % ---------------------------------------------
 % 	PLOTA		general plot functions for various data structures
 %	SVIEW		simple signal viewer 
 %       ELPOS           2-D electrode positions
 %       ELPOS3          3-D electrode positions
-	
 % 
-%
-% T550: Topographic Mapping, 3-dimensional display
+% 
+% BIOSIG/T510: Visualization II
 % ---------------------------------------------
+%      various functions to display results of T310	
+%
+% BIOSIG/T501: Visualization of EEG Cooupling 
+% ---------------------------------------------
+%	PLOT_COUPLING	displays EEG coupling
 % 
 % 
-% T600: Interactive Viewer and Scoring  
+% BIOSIG/T600: Interactive Viewer and Scoring  
 % ---------------------------------------------
 %	SVIEWER		Interactive Viewer and Scoring
 % 	VIEWEDF		EDF-Viewer 
 %
-
+% 
+% 
+% TSA: Time Series Analysis 
+% ---------------------------------------------
+%
+%
+% NaN: Statistical Toolbox for data with missing Samples 
+% ---------------------------------------------
+%
+%
+%
+%
+%
+%
 
 

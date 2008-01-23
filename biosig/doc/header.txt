@@ -3,7 +3,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.22 2006-08-31 17:30:49 schloegl Exp $
+$Id: header.txt,v 1.23 2008-01-23 22:04:41 schloegl Exp $
 Copyright (C) Alois Schloegl 2003-2005 <a.schloegl@ieee.org>
 
 
@@ -45,11 +45,11 @@ HDR.Calib		 		Matrix for all kind of rereferencing, depends on scaling factors a
 HDR.InChanSelect			input channel selection, # read from Raw-data 
 
 HDR.EVENT 	# two versions are possible. Version 1:  
-    EVENT.SampleRate	uint24		how many units [sample] give one second
+    EVENT.SampleRate	float		how many units [sample] give one second
     EVENT.POS		uint32		Position of event [in samples]
     EVENT.TYP		uint16		Type of event/marker/annotation according to table biosig/t200/eventcodes.txt 
   		# or Version 3: 
-    EVENT.SampleRate	uint24		how many units [sample] give one second
+    EVENT.SampleRate	float		how many units [sample] give one second
     EVENT.POS		uint32		Position of event [in samples]
     EVENT.TYP		uint16		Type of event/marker/annotation according to table biosig/t200/eventcodes.txt 
     EVENT.CHN		uint16		associated channel; is zero if event applies to no specific or all channels
@@ -176,29 +176,38 @@ EDF.
  	.POS	     *	int					Position in EDF-Blocks
     .FileName           char(n)				full file name, including path,filename and extension
     .VERSION	     *	char(8) 				EDF field: Version
-    .PID              # char(n)			      EDF field: patient ID
-    .RID              # char(n)                       EDF field: recording ID 
-    .T0                 int(6) [yyyy mm dd hh MM ss]	EDF field: startdatetime of recording
-    .HeadLen         *  int					EDF field: Header Length
-    .NRec            *  int                     	EDF field: number of records
-    .Dur             *  float                       	EDF field: Duration of record
-    .NS		     *# int                      	EDF field: number of channels                               
-    .Label	      #	char array [NS,:]         	EDF field: Label
-    .Transducer       #	char array [NS,80]        	EDF field: Transducer
-    .PhysDim          #	char array [NS,:]         	EDF field: physical dimension
-    .PhysMin         *  float array [NS,1]        	EDF field: physical minimum
-    .PhysMax         *  float array [NS,1]        	EDF field: physical maximum
-    .DigMin          *  int array  [NS,1]         	EDF field: digital minimum
-    .DigMax          *  int array  [NS,1]         	EDF field: digital maximum
-    .PreFilt	      #	char array [NS,80]        	EDF field: Pre-filtering
-    .SPR	     *	int array  [NS,1]         	EDF field: Samples per Record 
+    .PID              # char(n)			     	Patient ID: ##OBSOLETE## this field will be replaced with HDR.Patient.Id	
+    .RID              # char(n)                       	Recording ID: ##OBSOLETE## this field will be replaced with HDR.ID.Recording 
+    .T0                 int(6) [yyyy mm dd hh MM ss]	startdatetime of recording
+    .HeadLen         *  int				Header Length
+    .NRec            *  int                     	number of records
+    .Dur             *  float                       	Duration of record
+    .NS		     *# int                      	number of channels                               
+    .Label	      #	char array [NS,:]         	Label
+    .Transducer       #	char array [NS,80]        	Transducer
+    .PhysDim          #	char array [NS,:]         	physical dimension
+    .PhysMin         *  float array [NS,1]        	physical minimum
+    .PhysMax         *  float array [NS,1]        	physical maximum
+    .DigMin          *  int array  [NS,1]         	digital minimum
+    .DigMax          *  int array  [NS,1]         	digital maximum
+    .PreFilt	      #	char array [NS,80]        	Pre-filtering
+    .SPR	     *	int array  [NS,1]         	Samples per Record 
     .GDFTYP 	     *	int [NS]				defines datatype of the channel  
     .Cal	      #	float array [NS,1]        
     .Off              # float array [NS,1]         
-    .Calib			float array [1+NS,NS]      
+    .Calib		float array [1+NS,NS]      
     .SampleRate	      #	float array [NS,1]         
     .Chan_Select        bool array [NS,1]          
     .ChanTyp            char array [1,EDF.NS]		indicates EEG, EOG, ECG, EMG, channel
+HDR.ID.
+	.Recording					Recording Identification 
+HDR.Patient...
+	.Id						Patient Identification 
+	.Sex						Gender: 1: Male 2: Female 
+	.Weigth						
+	.Heigth
+	.Birth						Birth date and time 
+	.Name							
     .AS.                					undocumented
        .bpb             int
        .spb             int
