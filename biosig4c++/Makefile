@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.30 2008-01-01 20:27:08 schloegl Exp $
+###  $Id: Makefile,v 1.31 2008-01-25 19:26:01 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -47,7 +47,7 @@ OBJECTS       = biosig.o \
 		t220/crc4scp.o \
 		t230/sopen_hl7aecg.o
 
-TARGET        = save2gdf demo save2aecg save2scp _biosig.so
+TARGET        = save2gdf demo save2aecg save2scp 
 
 first: all
 all: $(TARGET)
@@ -169,7 +169,8 @@ testhl7: save2gdf /tmp/t1.hl7
 	./save2gdf -f=SCP /tmp/t1.hl7.scp.gdf.hl7.gdf /tmp/t1.hl7.scp.gdf.hl7.gdf.scp
 	./save2gdf -f=HL7 /tmp/t1.hl7.scp.gdf.hl7.gdf.scp /tmp/t1.hl7.scp.gdf.hl7.gdf.scp.hl7
 
-test: /tmp/t1.scp save2scp save2aecg save2gdf biosig4python
+test: /tmp/t1.scp save2scp save2aecg save2gdf 
+	# biosig4python
 	# includes test for on-the-fly compression and decompression 
 	./save2gdf  -z  /tmp/t1.scp        /tmp/t1.scp.gdf
 	./save2scp  -z 	/tmp/t1.scp        /tmp/t1.scp.scp
@@ -183,7 +184,7 @@ test: /tmp/t1.scp save2scp save2aecg save2gdf biosig4python
 	./save2aecg 	/tmp/t1.scp.gdf.gz /tmp/t1.scp.gdf.hl7
 	./save2aecg	/tmp/t1.scp.scp.gz /tmp/t1.scp.scp.hl7  
 	./save2aecg	/tmp/t1.scp.hl7    /tmp/t1.scp.hl7.hl7
-	python test.py
+	# python test.py
 
 zip: /tmp/t1.scp save2gdf
 	# test for on-the-fly compression and decompression 
