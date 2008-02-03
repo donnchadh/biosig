@@ -7,7 +7,7 @@
 # CEN/TC251/PT40 2001	
 # File Exchange Format for Vital Signs - Annex A 
 #
-# $Id: units.csv,v 1.5 2006-11-06 17:07:24 schloegl Exp $
+# $Id: units.csv,v 1.6 2008-02-03 20:45:21 schloegl Exp $
 # Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 # This file is part of the biosig project http://biosig.sf.net/
 #
@@ -187,7 +187,7 @@
 ,,"I2T4M-1L-2 (electrical capacitance)",
 4352,"F",,"<magnitude> farad(s)"
 ,,"Q(temperature)",
-4384,"K",,"kelvin"
+4384,"K",,"Kelvin"
 6048,"°C",,"degree Celcius"
 4416,"°F",,"degree Fahrenheit"
 ,,"QT3M-1L-2 (thermal resistance)",
@@ -251,6 +251,8 @@
 6208,"Pa %-1","- ratio of paO2 to FIO2","<magnitude> pascal per percent"
 6016,"dyne s m-2 cm-5","- Pulmonary/ Systemic Vascular Resistance Index","dyne seconds per square meter per centimetre to the power of 5"
 ### private: units with no standardized code
+65376,"r.p.m",,"rotations per minute"
+65408,"B", "Bel", "relative power decibel"	
 65440,"dyne s m2 cm-5","Vascular Resistance Index","dyne seconds square meter per centimetre to the power of 5"
 65472,"l m-2","stroke index","litres per square meter"
 65504,"T",,"<magnitude> Tesla" 
