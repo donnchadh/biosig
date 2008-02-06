@@ -29,18 +29,17 @@ FileSignalWriterFactory* FileSignalWriterFactory::getInstance()
 QString FileSignalWriterFactory::getExtensions()
 {
     QString extensions;
-    for (StringIterator iter = getElementNameBegin();
-         iter != getElementNameEnd();
-         iter++)
+    QStringList extension_list = getElementNames();
+    foreach(QString extension, extension_list)
     {
-        if ((*iter)[0] == '.')
+        if (extension.startsWith("."))
         {
-            extensions += "*" + (*iter) + " ";
+            extensions += "*" + extension + " ";
         }
     }
     if (extensions.length() > 0)
     {
-        extensions = extensions.mid(0, extensions.length() - 1);
+        extensions = extensions.left(extensions.length() - 1);
     }
     return extensions;
 }

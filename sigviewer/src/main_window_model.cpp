@@ -710,10 +710,12 @@ void MainWindowModel::fileCloseAction()
     signal_browser_model_->saveSettings();
     file_signal_reader_->close();
     file_signal_reader_.reset(0);
-    main_window_->setCentralWidget(0);
+    
     signal_browser_model_.reset(0);
     signal_browser_.reset(0);
 
+    main_window_->setCentralWidget(0);
+    
     // reset status bar
     main_window_->setStatusBarSignalLength(-1);
     main_window_->setStatusBarNrChannels(-1);

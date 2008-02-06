@@ -8,6 +8,7 @@
 #include <QMap>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 
 namespace BioSig_
 {
@@ -27,9 +28,7 @@ public:
 
     int8 addPrototype(const QString& name, ElementType* element);
     ElementType* getElement(const QString& name);
-
-    StringIterator getElementNameBegin();
-    StringIterator getElementNameEnd();
+    QStringList getElementNames();
 
 protected :
     PrototypeFactory();
@@ -92,20 +91,11 @@ ElementType* PrototypeFactory<ElementType>::getElement(const QString& name)
     return iter == element_map_.end() ? 0 : iter.value()->clone();
 }
 
-// get element name begin
+// get element names
 template<typename ElementType>
-typename PrototypeFactory<ElementType>::StringIterator
-    PrototypeFactory<ElementType>::getElementNameBegin()
+QStringList PrototypeFactory<ElementType>::getElementNames()
 {
-    return name_set_.begin();
-}
-
-// get element name end
-template<typename ElementType>
-typename PrototypeFactory<ElementType>::StringIterator
-    PrototypeFactory<ElementType>::getElementNameEnd()
-{
-    return name_set_.end();
+    return name_set_.toList();
 }
 
 } // namespace BioSig_

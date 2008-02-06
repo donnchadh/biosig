@@ -1,6 +1,18 @@
+Version 0.1.7
+
+(B) fix export of evt files with a sampling rate higher than 256Hz
+
+Version 0.1.6
+
+(B) fix serious bug where SigViewer crashed when opening a file (probably due to a Windows update)
+
+Version 0.1.5
+
+(B) remove bug where SigViewer crashed when exiting
+
 Version 0.1.4
 
-(B) remove bug in SignalBuffer
+(B)	remove bug in SignalBuffer
 
 Version 0.1.3
 

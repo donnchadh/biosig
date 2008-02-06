@@ -76,6 +76,7 @@ void GDFReader::close()
 // open
 bool GDFReader::open(const QString& file_name)
 {
+    qDebug( "GDFReader::open(const QString& file_name) 1" );
     if (file_.isOpen())
     {
         if (log_stream_)
@@ -205,7 +206,7 @@ inline bool GDFReader::loadSignalHeaders(const QString& file_name)
     {
         readStreamArray(sig->reserved, file_);
     }
-
+    
     record_size_ = 0;
     if (number_channels_ > 0)
     {
@@ -215,7 +216,6 @@ inline bool GDFReader::loadSignalHeaders(const QString& file_name)
              sig != gdf_sig_vector_.end();
              sig++, channel_nr++)
         {
-
             SignalChannel* channel = new SignalChannel(channel_nr, sig->label,
                                                        sig->samples_per_record,
                                                        sig->physical_dimension,
@@ -245,6 +245,7 @@ inline bool GDFReader::loadSignalHeaders(const QString& file_name)
             }
         }
         event_sample_rate_ *= gdf_duration_data_record_[1];
+        
         if (event_sample_rate_ % gdf_duration_data_record_[0] != 0)
         {
             if (log_stream_)
@@ -263,15 +264,20 @@ inline bool GDFReader::loadSignalHeaders(const QString& file_name)
 // load event table header
 inline void GDFReader::loadEventTableHeader()
 {
+    qDebug( "GDFReader::loadEventTableHeader() begin" );
     event_table_position_ = (uint32)gdf_header_size_ + record_size_
                             * (uint32)gdf_number_data_records_;
+    qDebug( "GDFReader::loadEventTableHeader() 1" );
     file_.seek(event_table_position_);
+    qDebug( "GDFReader::loadEventTableHeader() 2" );
     event_table_position_ += readStreamValue(gdf_event_table_type_,
                                              file_);
     event_table_position_ += readStreamArray(gdf_event_table_sample_rate_,
                                              file_);
+    qDebug( "GDFReader::loadEventTableHeader() 3" );
     event_table_position_ +=
         readStreamValue(gdf_number_events_, file_);
+    qDebug( "GDFReader::loadEventTableHeader() %d", gdf_number_events_ );
     if (event_sample_rate_ == 0)
     {
         event_sample_rate_ = ((uint32)gdf_event_table_sample_rate_[2] << 16) +
@@ -284,20 +290,24 @@ inline void GDFReader::loadEventTableHeader()
         gdf_event_table_sample_rate_[1] = (uint8)(event_sample_rate_ << 8);
         gdf_event_table_sample_rate_[2] = (uint8)(event_sample_rate_ << 16);
     }
+    qDebug( "GDFReader::loadEventTableHeader() 5" );
 
     // calculate number of events
     number_events_ = 0;
     GDFEvent gdf_event;
     file_.seek(event_table_position_ + gdf_number_events_ *
                sizeof(gdf_event.position));
+    qDebug( "GDFReader::loadEventTableHeader() 6" );
     for (uint32 event_nr = 0; event_nr < gdf_number_events_; event_nr++)
     {
         readStreamValue(gdf_event.type, file_);
+        qDebug( "GDFReader::loadEventTableHeader() 7" );
         if ((gdf_event.type & SignalEvent::EVENT_END) == 0)
         {
             number_events_++;
         }
     }
+    qDebug( "GDFReader::loadEventTableHeader() end" );
 }
 
 // convert data

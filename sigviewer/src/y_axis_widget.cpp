@@ -121,7 +121,7 @@ void YAxisWidget::paintEvent(QPaintEvent*)
                 p.drawLine(w - 5, y, w - 1, y);
                 p.drawText(0, (int32)(y - 20) , w - 10, 40,
                        Qt::AlignRight | Qt::AlignVCenter, QString("%1")
-                                                                .arg(round(value * 100) / 100.0));
+                                                                .arg(qRound(value * 100) / 100.0));
             }
         }
 

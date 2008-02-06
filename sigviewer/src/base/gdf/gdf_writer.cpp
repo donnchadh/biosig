@@ -322,8 +322,8 @@ void GDFWriter::saveEvents(SignalEventVector& event_vector)
     gdf_event_table_type_ = EXTENDED_EVENT_TABLE;
     uint32 tmp = file_signal_reader_->getEventSamplerate();
     gdf_event_table_sample_rate_[0] = (uint8)tmp;
-    gdf_event_table_sample_rate_[1] = (uint8)(tmp << 8);
-    gdf_event_table_sample_rate_[2] = (uint8)(tmp << 16);
+    gdf_event_table_sample_rate_[1] = (uint8)(tmp >> 8);
+    gdf_event_table_sample_rate_[2] = (uint8)(tmp >> 16);
     gdf_number_events_ = event_vector.size();
 
     // write event table and events
