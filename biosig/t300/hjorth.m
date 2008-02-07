@@ -30,7 +30,7 @@ function [ACTIVITY, MOBILITY, COMPLEXITY,m0,m1,m2] = hjorth(S,UC,A)
 %   in G. Dolce, H. Kunkel: CEAN Computerized EEG Analysis, Gustav Fischer 1975, S.3-8. 
 
 
-%	$Id: hjorth.m,v 1.4 2008-02-05 14:56:36 schloegl Exp $
+%	$Id: hjorth.m,v 1.5 2008-02-07 13:30:17 schloegl Exp $
 %	Copyright (C) 2004,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -92,6 +92,6 @@ else
         m2 = filter(B,A,d2.^2)./filter(B,A,(~isnan(d2)).^2);
 end;
 
-ACTIVITY   = sqrt(m0);
+ACTIVITY   = m0;
 MOBILITY   = sqrt(m1./m0); 
 COMPLEXITY = sqrt(m2./m1); 
