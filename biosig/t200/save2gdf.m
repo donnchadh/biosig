@@ -27,7 +27,7 @@ function [HDR] = save2gdf(arg1,arg2,arg3);
 %   data	data samples
 %
 
-% 	$Id: save2gdf.m,v 1.11 2007-12-04 14:09:28 schloegl Exp $
+% 	$Id: save2gdf.m,v 1.12 2008-02-10 00:33:55 schloegl Exp $
 %	Copyright (C) 2003-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>		
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -96,7 +96,7 @@ if isstruct(arg1),
         % THRESHOLD, GDFTYP -> Phys/Dig/Min/Max
 	if isa(data,'single') & strncmp(version,'6',1)
 		data = double(data);
-	end;	
+	end;
         if HDR.NS,
 	if isfield(HDR,'THRESHOLD') 
 		HDR.DigMax  = HDR.THRESHOLD(1:HDR.NS,2)';
@@ -218,13 +218,16 @@ if isstruct(arg1),
 
         % final test 
         try
-                HDR = sopen(HDR.FileName,'r');
-	        HDR.FLAG.UCAL = 1; 
-    		HDR.FLAG.OVERFLOWDETECTION = 0; 
-    		[y1,HDR] = sread(HDR,inf);
-                HDR = sclose(HDR);
-                if all(all((data==y1) | (isnan(data) & isnan(y1)))),
+                H2 = sopen(HDR.FileName,'r');
+	        H2.FLAG.UCAL = 0; 
+    		H2.FLAG.OVERFLOWDETECTION = 0; 
+    		[y1,H2] = sread(H2,inf);
+                H2 = sclose(H2);
+		d2 = [ones(size(data,1),1),data]*HDR.Calib;
+                if all(all((d2==y1) | (isnan(d2) & isnan(y1)))),
                         fprintf(2,'SAVE2GDF: saving file %s OK.\n',HDR.FileName);
+		else 
+                        fprintf(2,'SAVE2GDF: file %s saved. Maximum relative roundoff error is %f.\n',HDR.FileName, max(max((d2-y1)./(d2+y1))) );
                 end;
         catch
                 fprintf(2,'Error SAVE2GDF: saving file %s failed\n',HDR.FileName);
