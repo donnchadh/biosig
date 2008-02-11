@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.191 2008-01-18 09:28:13 schloegl Exp $
+%	$Id: sopen.m,v 1.192 2008-02-11 13:02:27 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -8353,6 +8353,91 @@ elseif strncmp(HDR.TYPE,'CSE',3),  % axon text file
 	end; 
 
 
+elseif strcmp(HDR.TYPE,'ETG4000')  % NIRS - Hitachi ETG 4000
+                HDR.FILE.FID = fopen(HDR.FileName,'rt'); 
+                HDR.s = fread(HDR.FILE.FID,[1,inf],'uint8=>char'); 
+                fclose(HDR.FILE.FID);
+
+                [t,s] = strtok(HDR.s,[10,13]); 
+                HDR.VERSION = -1;
+		dlm = HDR.s(21);
+                while ((t(1)<'0') | (t(1)>'9'))
+         		[NUM, STATUS,STRARRAY] = str2double(t,dlm); 
+                        if 0
+                        elseif strncmp(t,'File Version',12)
+                                HDR.VERSION = NUM(2);
+                        elseif strncmp(t,'Name',4)
+                                HDR.Patient.ID  = STRARRAY{2};
+                        elseif strncmp(t,'Sex',3)
+                                HDR.Patient.Sex = strncmpi(STRARRAY{2},'M',1)+strncmpi(STRARRAY{2},'F',1)*2;
+                        elseif strncmp(t,'Age',3)
+                                if STATUS(2)
+                        	        tmp = STRARRAY{2};
+                                        if (lower(tmp(end))=='y')
+                                                tmp = tmp(1:end-1); 
+                                        end;
+                                        HDR.Patient.Age = str2double(tmp);
+                                else
+                                        HDR.Patient.Age = NUM(2);
+                                end
+                         elseif strncmp(t,'Date',4),
+                                tmp = STRARRAY{2}; 
+                                tmp((tmp==47) | (tmp==':')) = ' ';
+                                tmp = str2double(tmp); 
+                                HDR.T0(1:length(tmp)) = tmp; 
+                        elseif strncmp(t,'HPF[Hz]',7)
+                                HDR.Filter.HighPass = NUM(2);         
+                        elseif strncmp(t,'LPF[Hz]',7)
+                                HDR.Filter.LowPass = NUM(2);         
+                        elseif strncmp(t,'Analog Gain',11)
+                                HDR.ETG4000.aGain = NUM(2:end);         
+                        elseif strncmp(t,'Digital Gain',12)
+                                HDR.ETG4000.dGain = NUM(2:end);         
+                        elseif strncmp(t,'Sampling Period[s]',12)
+                                HDR.SampleRate = 1./NUM(2);
+                        elseif strncmp(t,'Probe',5)
+                                HDR.Label = STRARRAY(2:end);
+                        	HDR.AS.TIMECHAN = strmatch('Time',HDR.Label);
+                        end; 
+                        [t,s] = strtok(s,[10,13]); 
+                end
+                if ~any(HDR.VERSION==[1.06,1.09])
+                        fprintf(HDR.FILE.stdout,'SOPEN (ETG4000): Version %f has not been tested.\n',HDR.VERSION); 
+                end;
+                fprintf(1,'Please wait - conversion takes some time'); 
+                [NUM, STATUS, STRARRAY] = str2double([t,s]);
+                if ~isempty(HDR.AS.TIMECHAN)
+                	for k = 1:size(NUM,1),
+                        	[num,status,sa] = str2double(STRARRAY{k,HDR.AS.TIMECHAN+1},': ');
+                                NUM(k,HDR.AS.TIMECHAN+1) = num*[3600;60;1];
+                        end;
+                end;
+                fprintf(1,' - FINISHED\n'); 
+                ix = ~isnan(NUM(:,1));
+                HDR.data = NUM(ix,2:end); 
+                HDR.TYPE = 'native'; 
+                [HDR.SPR, HDR.NS] = size(HDR.data); 
+                HDR.NRec = 1; 
+                HDR.FILE.POS = 0; 
+
+                %HDR.Cal = aGain.*dGain; 
+                HDR.PhysMax = max(HDR.data,[],1);
+                HDR.PhysMin = min(HDR.data,[],1);
+                HDR.DigMax  = HDR.PhysMax;
+                HDR.DigMin  = HDR.PhysMin;
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
+
+	
+                %HDR.PhysDimCode = zeros(HDR.NS,1);
+		HDR.PhysDimCode = [repmat(65362,1,24),512,2176,repmat(512,1,3)];
+                %HDR.PhysDim = physicalunits(HDR.PhysDimCode); 
+                % EVENTS
+                evchan = strmatch('Mark',HDR.Label); 
+                HDR.EVENT.POS = find(HDR.data(:,evchan));
+                HDR.EVENT.TYP = HDR.data(HDR.EVENT.POS,evchan);
+                HDR.EVENT.TYP(2:2:end) = HDR.EVENT.TYP(2:2:end)+hex2dec('8000'); 
+
+
 elseif strcmp(HDR.TYPE,'FEPI3'), 	% Freiburg epileptic seizure prediction Contest
        	% https://epilepsy.uni-freiburg.de/seizure-prediction-workshop-2007/prediction-contest/data-download
         if any(HDR.FILE.PERMISSION=='r'),	
@@ -8770,81 +8855,6 @@ elseif strcmp(HDR.TYPE,'unknown'),
                                 HDR.TYPE  = 'ELPOS'; 
                         end;
                         return;
-
-                        
-                elseif strncmp(s,'Header',6);  % NIRS - Hitachi ETG 4000
-                        fid = fopen(HDR.FileName,'rt'); 
-                        HDR.s = fread(fid,[1,inf],'uint8=>char'); 
-                        fclose(fid);
-                        [t,s] = strtok(HDR.s,[10,13]); 
-                        HDR.VERSION = -1;
-                        while ((t(1)<'0') | (t(1)>'9'))
-                                [NUM, STATUS,STRARRAY] = str2double(t,9); 
-                                if 0
-                                elseif strncmp(t,'File Version',12)
-                                        HDR.VERSION = NUM(2);
-                                elseif strncmp(t,'Name',4)
-                                        HDR.Patient.ID  = STRARRAY{2};
-                                elseif strncmp(t,'Sex',3)
-                                        HDR.Patient.Sex = strncmpi(STRARRAY{2},'M',1)+strncmpi(STRARRAY{2},'F',1)*2;
-                                elseif strncmp(t,'Age',3)
-                                        if STATUS(2)
-                                                tmp = STRARRAY{2};
-                                                if (lower(tmp(end))=='y')
-                                                        tmp = tmp(1:end-1); 
-                                                end;
-                                                HDR.Patient.Age = str2double(tmp);
-                                        else
-                                                HDR.Patient.Age = NUM(2);
-                                        end
-                                elseif strncmp(t,'Date',4),
-                                        tmp = STRARRAY{2}; 
-                                        tmp((tmp==47) | (tmp==':')) = ' ';
-                                        tmp = str2double(tmp); 
-                                        HDR.T0(1:length(tmp)) = tmp; 
-                                elseif strncmp(t,'HPF[Hz]',7)
-                                        HDR.Filter.HighPass = NUM(2);         
-                                elseif strncmp(t,'LPF[Hz]',7)
-                                        HDR.Filter.LowPass = NUM(2);         
-                                elseif strncmp(t,'Analog Gain',11)
-                                        HDR.ETG4000.aGain = NUM(2:end);         
-                                elseif strncmp(t,'Digital Gain',12)
-                                        HDR.ETG4000.dGain = NUM(2:end);         
-                                elseif strncmp(t,'Sampling Period[s]',12)
-                                        HDR.SampleRate = 1./NUM(2);
-                                elseif strncmp(t,'Probe',5)
-                                        HDR.Label = STRARRAY(2:end);
-                                        HDR.AS.TIMECHAN = strmatch('Time',HDR.Label);
-                                end; 
-                                [t,s] = strtok(s,[10,13]); 
-                        end
-                        if (HDR.VERSION~=1.06)
-                                fprintf(HDR.FILE.stdout,'SOPEN (ETG4000): Version %f has not been tested.\n',HDR.VERSION); 
-                        end;
-                        fprintf(1,'Please wait - conversion takes some time'); 
-                        [NUM, STATUS, STRARRAY] = str2double([t,s]);
-                        if ~isempty(HDR.AS.TIMECHAN)
-                                for k = 1:size(NUM,1),
-                                        [num,status,sa] = str2double(STRARRAY{k,HDR.AS.TIMECHAN+1},': ');
-                                        NUM(k,HDR.AS.TIMECHAN+1) = num*[3600;60;1];
-                                end;
-                        end;
-                        fprintf(1,' - FINISHED\n'); 
-                        ix = ~isnan(NUM(:,1));
-                        HDR.data = NUM(ix,2:end); 
-                        HDR.TYPE = 'native'; 
-                        [HDR.SPR, HDR.NS] = size(HDR.data); 
-                        HDR.NRec = 1; 
-                        HDR.FILE.POS = 0; 
-                        %HDR.Cal = aGain.*dGain; 
-                        HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
-                        HDR.PhysDimCode = zeros(HDR.NS,1);
-                        HDR.PhysDim = physicalunits(HDR.PhysDimCode); 
-                        % EVENTS
-                        evchan = strmatch('Mark',HDR.Label); 
-                        HDR.EVENT.POS = find(HDR.data(:,evchan));
-                        HDR.EVENT.TYP = HDR.data(HDR.EVENT.POS,evchan);
-                        HDR.EVENT.TYP(2:2:end) = HDR.EVENT.TYP(2:2:end)+hex2dec('8000'); 
 
                         
                 elseif strncmp(s,'NumberPositions',15) & strcmpi(HDR.FILE.Ext,'elc');  % Polhemus 
