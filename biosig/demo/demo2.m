@@ -2,27 +2,34 @@
 % DEMO2 demonstrates the use of the data set III from the BCI competition 2003 for 
 %   The demo shows the offline analysis for obtaining a classifier and 
 %   uses a jack-knife method (leave-one-trial out) for validation. 
+%   AAR parameters are extracted 
 %
 %
 % References: 
-% [1} A. Schlögl, C. Keinrath, R. Scherer, G. Pfurtscheller,
+% [1] A. Schlögl, C. Keinrath, R. Scherer, G. Pfurtscheller,
 %       Information transfer of an EEG-based Bran-computer interface.
 %       Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003. 
-% [2} Schlögl A., Neuper C. Pfurtscheller G.
+% [2] Schlögl A., Neuper C. Pfurtscheller G.
 %       Estimating the mutual information of an EEG-based Brain-Computer-Interface
-%       Biomedizinische Technik 47(1-2): 3-8, 2002
+%       Biomedizinische Technik 47(1-2): 3-8, 2002.
 % [3] Alois Schlögl (2000)
 %       The electroencephalogram and the adaptive autoregressive model: theory and applications
 %       Shaker Verlag, Aachen, Germany, (ISBN3-8265-7640-3). 
 % [4] A. Schlögl, J. Kronegg, J.E. Huggins, S. G. Mason.
 %       Evaluation criteria in BCI research.
 %       (Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller,
-%       Towards Brain-Computer Interfacing. MIT press (accepted)
+%       Towards Brain-Computer Interfacing. MIT Press, 2007.
+% [5] A. Schlögl, F.Y. Lee, H. Bischof, G. Pfurtscheller
+%   	Characterization of Four-Class Motor Imagery EEG Data for the BCI-Competition 2005.
+%   	Journal of neural engineering 2 (2005) 4, S. L14-L22
+% [6] A. Schlögl, C. Vidaurre, K.-R. Müller
+%       Adaptive Methods in BCI research - an introductory tutorial. 
+%	(Eds.) B. Graimann and G. Pfurtscheller. 
+%	Brain Computer Interfaces - Invasive and noninvasive techniques. 
+%	Springer (submitted).
 
-
-%	$Revision: 1.7 $
-%	$Id: demo2.m,v 1.7 2007-09-06 13:23:20 schloegl Exp $
-%	Copyright (C) 1999-2003,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: demo2.m,v 1.8 2008-02-11 00:03:22 schloegl Exp $
+%	Copyright (C) 1999-2003,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -41,7 +48,7 @@
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 M0  = 7;
-MOP = 3;
+p   = 3;
 uc  = 30:5:80;
 
 % load EEG-data S and classlabels cl 
@@ -69,23 +76,26 @@ if ~any(size(eegchan)==1)
 	eegchan=1:size(eegchan,2); 
 end;
 
-MODE.T  = reshape((1:1152),16,1152/16)';	% define segments 
+MODE.T   = reshape((1:1152),16,1152/16)';	% define segments 
 MODE.WIN = MODE.T(:,1) > 3*Fs/8+1;	        % valid segments for building classifier
-MODE.MOP = [0,3,0];				% order of AAR model
+MODE.MOP = [0,p,0];				% order of AAR model
 MODE.UC  = 2^(-(7+5)*5/8);			% update coefficient of AAR model 
 
 % estimate AAR model parameters
 a2 = [];
 for ch = 1:length(eegchan),
-	X = tvaar(S(:,eegchan(ch)),MODE.MOP,MODE.UC); % 1st run used to get reasonable initial values 
+	% as suggested in [5] two runs are used, the first run is used to get reasonable initial values
+	X = tvaar(S(:,eegchan(ch)),MODE.MOP,MODE.UC); 
        	X = tvaar(S(:,eegchan(ch)),X);		% AAR estimation
-       	a2 = [a2,X.AAR]; 
+       	%a2 = [a2,X.AAR]; 
+       	a2 = [a2,X.AAR,log(X.PE)];  % variance provides additional information [6]
 end; 
 
 % get classifier 
 [cc] = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN);
 cc.TSD.T = cc.TSD.T/Fs;
 plota(cc.TSD);
+return; 
 
 m = {'LDA','NBC','aNBC','LD2','LD3','LD4','LD5','MDA','MD2','MD3','GRB','QDA','GDBC','LDA3/GSVD','SVM','REG'};
 for k = 1:length(m);
@@ -94,21 +104,25 @@ for k = 1:length(m);
 	plota(cc.TSD);	
 	suptitle(m{k});
 end; 
+return; 
 
 MODE.TYPE = 'LD3';
 for k = 0:10,
-	MODE.hyperparameter.gamma=k/10;
+	MODE.hyperparameter.gamma = k/10;
 	cc = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN, MODE);
-	fprintf(1,'gamma=%f\t%s\n',MODE.hyperparameter.gamma,cc.datatype);	plota(cc.TSD);
+	fprintf(1,'gamma=%f\t%s\n',MODE.hyperparameter.gamma,cc.datatype);
+	plota(cc.TSD);
 end; 
 
 	cc = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN, 'CSP');
-	fprintf(1,'%s\n',cc.datatype);	plota(cc.TSD);
+	fprintf(1,'%s\n',cc.datatype);
+	plota(cc.TSD);
 
 	[b,a] = butter(5,[7,30]/Fs*2);
 	s = S(:,eegchan);
 	s(isnan(s))=0; 
 	cc = findclassifier(filter(b,a,s), TRIG, cl, MODE.T, MODE.WIN, 'CSP');
-	fprintf(1,'%s\n',cc.datatype);	plota(cc.TSD);
+	fprintf(1,'%s\n',cc.datatype);
+	plota(cc.TSD);
 
 
