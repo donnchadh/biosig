@@ -59,7 +59,7 @@ function y = all(A,DIM)
 
 	sz = size(A); 	
 	if isempty(DIM),
-		DIM=min(find(sz != 1));
+		DIM=min(find(sz ~= 1));
 		if isempty(DIM), DIM = 1; end;
 	end;
 
