@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.192 2008-02-11 13:02:27 schloegl Exp $
+%	$Id: sopen.m,v 1.193 2008-02-29 09:37:14 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -867,7 +867,6 @@ end;
                                         ReRefMx(:,HDR.EDF.Annotations) = [];
                                 end;
                         end;
-                        
 
                 elseif strcmp(HDR.TYPE,'BDF') & any(strmatch('Status',HDR.Label)),
                         % BDF: 
@@ -877,10 +876,13 @@ end;
 
                         status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bi(HDR.BDF.Status.Channel)*3,'bof');
                         %t = fread(HDR.FILE.FID,[3,inf],'uint8',HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status.Channel)*3);
-                        t = fread(HDR.FILE.FID,inf,[int2str(HDR.AS.SPR(HDR.BDF.Status.Channel)*3),'*uchar'],HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status.Channel)*3);
+                        [t,c] = fread(HDR.FILE.FID,inf,[int2str(HDR.AS.SPR(HDR.BDF.Status.Channel)*3),'*uint8'],HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status.Channel)*3);
+			if (c>HDR.NRec*HDR.SPR*3)
+				% a hack to fix a bug in Octave Ver<=3.0.0
+        	                t = t(1:HDR.NRec*HDR.SPR*3);
+        	        end;
                         HDR.BDF.ANNONS = reshape(double(t),3,length(t)/3)'*2.^[0;8;16];
 			HDR = bdf2biosig_events(HDR); 
-
 
                 elseif strcmp(HDR.TYPE,'BDF') & ~any(strmatch('Status',HDR.Label)),
                         HDR.FLAG.OVERFLOWDETECTION = 0; 
