@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.28 2007-11-08 14:43:15 schloegl Exp $
+    $Id: save2gdf.c,v 1.29 2008-03-03 19:15:06 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -144,7 +144,8 @@ int main(int argc, char **argv){
 	count = sread(NULL, 0, hdr->NRec, hdr);
 	biosig_data_type* data = hdr->data.block;
 
- fprintf(stdout,"[122] UCAL=%i %e %e %e \n",hdr->FLAG.UCAL,data[100],data[110],data[500+hdr->SPR]);
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stdout,"[122] UCAL=%i %e %e %e \n",hdr->FLAG.UCAL,data[100],data[110],data[500+hdr->SPR]);
 	
 	if ((status=serror())) exit(status); 
 
