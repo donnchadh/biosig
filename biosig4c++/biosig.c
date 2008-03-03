@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.121 2008-01-21 18:42:03 schloegl Exp $
+    $Id: biosig.c,v 1.122 2008-03-03 19:13:36 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -1998,6 +1998,48 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	FSEEK(hdr, 68, SEEK_SET);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	}
+
+	else if (hdr->TYPE==DEMG) {
+	    	hdr->VERSION 	= leu16p(Header1+4);
+	    	hdr->NS		= leu16p(Header1+6);
+	    	hdr->SampleRate = leu32p(Header1+8);
+	    	hdr->NRec	= leu32p(Header1+12);
+	    	hdr->SPR	= 1;
+	    	
+		uint16_t gdftyp;
+		uint8_t  bits    = (uint8_t)Header1[16];	
+		double   PhysMin = (double)(int8_t)Header1[17];	
+		double   PhysMax = (double)(int8_t)Header1[18];	
+		double	 Cal; 
+		double	 Off; 
+		
+		if (hdr->VERSION==1) {
+			gdftyp = 16;	// float32
+			Cal = 1.0;
+			Off = 0.0;
+		}
+		else if (hdr->VERSION==2) {
+			gdftyp = 4;	// uint16
+			Cal = (PhysMax-PhysMin)/((1<<bits) - 1.0);
+			Off = (double)PhysMin;
+		}	
+		 
+	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+		for (k=0; k < hdr->NS; k++) {
+			CHANNEL_TYPE* hc = hdr->CHANNEL+k;
+			hc->GDFTYP = gdftyp;
+			hc->SPR = 1; 
+			hc->Cal = Cal; 
+			hc->Off = Off;
+			hc->Transducer[0] = '\0';
+			hc->LowPass = 450;
+			hc->HighPass = 20;
+		}
+		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
+	    	hdr->HeadLen    = 19; 
+	    	FSEEK(hdr, 19, SEEK_SET);
+	}
+
 	else if (hdr->TYPE==EGI) {
 		// BigEndian 
 	    	hdr->VERSION  	= beu32p(Header1);
