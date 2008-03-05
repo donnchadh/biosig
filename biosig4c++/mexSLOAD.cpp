@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.7 2007-11-08 14:44:49 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.8 2008-03-05 10:11:24 schloegl Exp $
     Copyright (C) 2007 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -60,7 +60,7 @@ void mexFunction(
 			mexPrintf("IsSingle\n");
 		else if (mxIsChar(arg))
 		{
-			mxGetString(prhs[k], FileName, max(1022,mxGetN(prhs[k])));
+			mxGetString(prhs[k], FileName, (1022 > mxGetN(prhs[k]) ? 1022 : mxGetN(prhs[k])));
 			mexPrintf("IsChar[%i,%i]\n\t%s\n",mxGetM(prhs[k]),mxGetN(prhs[k]),FileName);
 
 			hdr = sopen(FileName, "r", NULL);
