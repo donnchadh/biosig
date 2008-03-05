@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.8 2008-03-05 10:11:24 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.9 2008-03-05 22:29:26 schloegl Exp $
     Copyright (C) 2007 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -42,7 +42,7 @@ void mexFunction(
 	char 		FileName[1024];  
 	int 		status; 
 	
-	VERBOSE_LEVEL = 4; 
+	VERBOSE_LEVEL = 3; 
 	mexPrintf("\nHello world! [nlhs=%i nrhs=%i]\n",nlhs,nrhs);
 	mexPrintf("This is mexSLOAD, it is currently in an experimental state!\n");
 	for (k=0; k<nrhs; k++)
@@ -69,8 +69,11 @@ void mexFunction(
 			if (hdr==NULL) return;
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
-			hdr2ascii(hdr,stdout,4);	
 
+#ifdef ONLY_IF_ARGOUT2_IMPLEMENTED
+			/* this part needs fixing */			
+			
+			hdr2ascii(hdr,stdout,4);	
 			if (nlhs>1) {
 				char* mexFileName = (char*)mxMalloc(strlen(hdr->FileName)+1); 
 				mxArray *mexNS    = mxCreateNumericMatrix(2,1,mxUINT16_CLASS,mxREAL);
@@ -109,10 +112,11 @@ if (VERBOSE_LEVEL>8) mexPrintf("[205]\n");
 */
 			}	
 
+#endif
 			plhs[0] = mxCreateDoubleMatrix(hdr->SPR * hdr->NRec, hdr->NS, mxREAL);
 //			hdr->data.block = mxGetPr(plhs[0]);
 
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"[113] SOPEN-R finished\n");
 
 			hdr->FLAG.OVERFLOWDETECTION = (hdr->TYPE!=MFER);
 			hdr->FLAG.UCAL = 0;
