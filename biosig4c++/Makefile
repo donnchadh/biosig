@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.31 2008-01-25 19:26:01 schloegl Exp $
+###  $Id: Makefile,v 1.32 2008-03-05 10:10:43 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -68,18 +68,20 @@ biosig4python _biosig.so: swig.i $(SOURCES)
 #$(TARGET):  $(OBJECTS) 
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(OBJECTS) $(LIBS) $(TARGET)
 
+libbiosig.a: $(OBJECTS)
+	$ ar rcs libbiosig.a $(OBJECTS) 
 demo:   demo.c $(OBJECTS)
-	$(CXX) $(CFLAGS) $(OBJECTS) $(LFLAGS) demo.c -o demo 
-save2gdf: save2gdf.c $(OBJECTS)
-	$(CXX) $(CFLAGS) $(OBJECTS) $(LFLAGS) save2gdf.c -o save2gdf 
+	$(CXX) $(CFLAGS) $(LFLAGS) demo.c  -L. -lbiosig -o demo 
+save2gdf: save2gdf.c libbiosig.a $(OBJECTS)
+	$(CXX) $(CFLAGS) $(LFLAGS) save2gdf.c -L. -lbiosig -o save2gdf 
+
 mex:  mexSLOAD.cpp $(OBJECTS) 
-#	mex mexSLOAD.cpp $(OBJECTS) $(LFLAGS)
-#	mex mexSLOAD.cpp biosig.o XMLParser/tinyxml.o XMLParser/tinyxmlparser.o XMLParser/tinyxmlerror.o XMLParser/tinystr.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t220/crc4scp.o t230/sopen_hl7aecg.o  -lz
-#	mkoctfile --mex mexSLOAD.cpp $(OBJECTS)
-#	mkoctfile2.9  $(LFLAGS) -v -g --mex mexSLOAD.cpp $(OBJECTS)
-	mkoctfile2.9 -lz -v -g --mex mexSLOAD.cpp biosig.o XMLParser/tinyxml.o XMLParser/tinyxmlparser.o XMLParser/tinyxmlerror.o XMLParser/tinystr.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t220/crc4scp.o t230/sopen_hl7aecg.o
-oct:  octBiosig.c $(OBJECTS) 
-	mkoctfile2.9 mexSLOAD.cpp $(OBJECTS) $(LFLAGS)
+#	mkoctfile2.9 -lz -v -g --mex mexSLOAD.cpp biosig.o XMLParser/tinyxml.o XMLParser/tinyxmlparser.o XMLParser/tinyxmlerror.o XMLParser/tinystr.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t220/crc4scp.o t230/sopen_hl7aecg.o
+	mkoctfile2.9 -lz -v -g --mex mexSLOAD.cpp libbiosig.a
+oct:  mexSLOAD.cpp $(OBJECTS) 
+#	mkoctfile2.9 mexSLOAD.cpp $(OBJECTS) $(LFLAGS)
+	mkoctfile2.9 mexSLOAD.cpp  $(LFLAGS) libbiosig.a 
+
 
 # for backward compatibility 
 save2scp: save2gdf
