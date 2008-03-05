@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.32 2008-03-05 10:10:43 schloegl Exp $
+###  $Id: Makefile,v 1.33 2008-03-05 22:29:56 schloegl Exp $
 ###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -17,10 +17,10 @@ CFLAGS        = -O2 -Wall $(DEFINES)
 INCPATH       =
 #LINK          = gcc
 LINK          = g++
-#LFLAGS        = -Wl,-subsystem,console  # Windows
-LFLAGS        = -lz 			# zlib
-LIBS          = 
-#DEL_FILE      = del                     # Windows
+#LFLAGS        = -Wl,-subsystem,console # Windows
+LFLAGS        =
+LIBS          = -lz -L. -lbiosig 	# zlib
+#DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
 
 
@@ -55,32 +55,31 @@ all: $(TARGET)
 biosig.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t230/sopen_hl7aecg.o save2gdf.o: biosig.h
 
 %.o:  %.c %.cpp  %.h 
-	$(CXX) -shared -S $(CFLAGS)  -c $(.SOURCE)  
+	$(CXX) -shared -S $(CFLAGS) -c $(.SOURCE)  
 
-biosig4python _biosig.so: swig.i $(SOURCES)
+biosig4python _biosig.so: swig.i $(SOURCES) libbiosig.a
 	swig -c++ -python -includeall -I/usr/include swig.i
 	$(CXX) -fpic -c -I/usr/include/python2.4 -I/usr/lib/python2.4/config $(.SOURCE) swig_wrap.cxx
-	$(CXX) -shared -lz $(OBJECTS) swig_wrap.o -o _biosig.so
+	$(CXX) -shared $(LIBS) swig_wrap.o -o _biosig.so
 
 
 ####### Compile and link #########
 
-#$(TARGET):  $(OBJECTS) 
-#	$(LINK) $(LFLAGS) -o "$(TARGET)" $(OBJECTS) $(LIBS) $(TARGET)
+#$(TARGET):  libbiosig.a 
+#	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
 
 libbiosig.a: $(OBJECTS)
 	$ ar rcs libbiosig.a $(OBJECTS) 
-demo:   demo.c $(OBJECTS)
-	$(CXX) $(CFLAGS) $(LFLAGS) demo.c  -L. -lbiosig -o demo 
-save2gdf: save2gdf.c libbiosig.a $(OBJECTS)
-	$(CXX) $(CFLAGS) $(LFLAGS) save2gdf.c -L. -lbiosig -o save2gdf 
 
-mex:  mexSLOAD.cpp $(OBJECTS) 
-#	mkoctfile2.9 -lz -v -g --mex mexSLOAD.cpp biosig.o XMLParser/tinyxml.o XMLParser/tinyxmlparser.o XMLParser/tinyxmlerror.o XMLParser/tinystr.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t220/crc4scp.o t230/sopen_hl7aecg.o
-	mkoctfile2.9 -lz -v -g --mex mexSLOAD.cpp libbiosig.a
-oct:  mexSLOAD.cpp $(OBJECTS) 
-#	mkoctfile2.9 mexSLOAD.cpp $(OBJECTS) $(LFLAGS)
-	mkoctfile2.9 mexSLOAD.cpp  $(LFLAGS) libbiosig.a 
+demo:   demo.c libbiosig.a
+	$(CXX) $(CFLAGS) demo.c $(LFLAGS) $(LIBS) -o demo 
+save2gdf: save2gdf.c libbiosig.a 
+	$(CXX) $(CFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
+
+mex:  mexSLOAD.cpp libbiosig.a 
+	mkoctfile -lz -v -g --mex mexSLOAD.cpp libbiosig.a
+oct:  mexSLOAD.cpp libbiosig.a 
+	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) libbiosig.a 
 
 
 # for backward compatibility 
