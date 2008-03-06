@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.124 2008-03-06 13:12:17 schloegl Exp $
+    $Id: biosig.c,v 1.125 2008-03-06 14:46:50 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -1766,7 +1766,7 @@ if (!strncmp(MODE,"r",1))
 		hdr->HeadLen += 4;	
 		// read header up to nLenght and nID of foreign data section 
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
-	    	count  += FREAD(Header1+256, 1, hdr->HeadLen-256, hdr);
+	    	count  += FREAD(Header1+count, 1, hdr->HeadLen-count, hdr);
 		uint32_t POS = hdr->HeadLen; 
 	    	
 		// read "foreign data section" and "per channel data types section"  
@@ -1815,7 +1815,7 @@ if (!strncmp(MODE,"r",1))
 			if (hdr->VERSION>=38.0)
 				hdr->CHANNEL[k].SPR = hdr->SPR/hdr->CHANNEL[k].SPR;  // convert DIVIDER into SPR
 
-			switch (leu16p(Header1+POS+2))
+			switch ((leu16p(Header1+POS+2)))
 			{
 			case 1: 
 				hdr->CHANNEL[k].GDFTYP = 17;  // double
@@ -1891,6 +1891,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].Notch	 = -1.0;  // unknown 
 		    	hdr->CHANNEL[k].PhysMax	 = (double)leu16p(hdr->AS.Header+14);
 		    	hdr->CHANNEL[k].DigMax	 = (double)leu16p(hdr->AS.Header+16);
+		    	hdr->CHANNEL[k].PhysMin	 = -hdr->CHANNEL[k].PhysMax;
+		    	hdr->CHANNEL[k].DigMin	 = -hdr->CHANNEL[k].DigMax;
 		    	hdr->CHANNEL[k].Cal	 = ((double)hdr->CHANNEL[k].PhysMax)/hdr->CHANNEL[k].DigMax;
 		    	hdr->CHANNEL[k].Off	 = 0.0;
 			hdr->CHANNEL[k].OnOff    = 1;
@@ -1990,6 +1992,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].LowPass	= CNT_SETTINGS_LOWPASS[(uint8_t)Header2[65]];
 		    	hdr->CHANNEL[k].Notch	= CNT_SETTINGS_NOTCH[(uint8_t)Header1[682]];
 			hdr->CHANNEL[k].OnOff   = 1;
+
+		    	hdr->CHANNEL[k].DigMax	= (double)32767;
+		    	hdr->CHANNEL[k].DigMin	= -(double)32768;
+		    	hdr->CHANNEL[k].PhysMax	= hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+		    	hdr->CHANNEL[k].PhysMin	= hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 		}
 
 	    	/* extract more header information */
