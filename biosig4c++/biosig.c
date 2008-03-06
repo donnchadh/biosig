@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.125 2008-03-06 14:46:50 schloegl Exp $
+    $Id: biosig.c,v 1.126 2008-03-06 18:51:31 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -1761,7 +1761,6 @@ if (!strncmp(MODE,"r",1))
 			hdr->HeadLen += hdr->NS*252;
 		else 				// Version 3.7.3+
 			hdr->HeadLen += hdr->NS*254;
-			
 
 		hdr->HeadLen += 4;	
 		// read header up to nLenght and nID of foreign data section 
@@ -1780,7 +1779,9 @@ if (!strncmp(MODE,"r",1))
 		uint32_t* ACQ_NoSamples = (uint32_t*) calloc(hdr->NS,sizeof(uint32_t));
 		uint16_t CHAN; 
     		POS = leu32p(Header1+6);
+    		uint32_t minBufLenXVarDiv = -1;	// maximum integer value
 		for (k = 0; k < hdr->NS; k++)	{
+
 	    		Header2 = (char*)Header1+POS;
 			hdr->CHANNEL[k].Transducer[0] = '\0';
 			CHAN = leu16p(Header2+4);
@@ -1802,13 +1803,16 @@ if (!strncmp(MODE,"r",1))
 			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
 
 			ACQ_NoSamples[k] = leu32p(Header2+88);
-
+			uint32_t tmp64 = leu32p(Header2+88) * hdr->CHANNEL[k].SPR; 
+			if (minBufLenXVarDiv > tmp64) minBufLenXVarDiv = tmp64;
+			
 			POS += leu32p(Header2);
 		}
-		hdr->NRec /= hdr->SPR; 
+		
+		hdr->NRec = minBufLenXVarDiv / hdr->SPR;
 
 		/// foreign data section - skip 
-		POS += leu16p(Header2);
+		POS += leu16p(Header1+POS);
 		
 		size_t DataLen=0; 
 		for (k=0, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS; k++)	{
@@ -1821,20 +1825,27 @@ if (!strncmp(MODE,"r",1))
 				hdr->CHANNEL[k].GDFTYP = 17;  // double
 				hdr->AS.bpb += hdr->CHANNEL[k].SPR<<3;
 				DataLen += ACQ_NoSamples[k]<<3; 
+				hdr->CHANNEL[k].DigMax =  1e9;
+				hdr->CHANNEL[k].DigMin = -1e9;
 				break;   
 			case 2: 
 				hdr->CHANNEL[k].GDFTYP = 3;   // int
 				hdr->AS.bpb += hdr->CHANNEL[k].SPR<<1;
 				DataLen += ACQ_NoSamples[k]<<1; 
+				hdr->CHANNEL[k].DigMax =  32767;
+				hdr->CHANNEL[k].DigMin = -32678;
 				break;
 			default:
 				B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
 				B4C_ERRMSG = "SOPEN(ACQ-READ): invalid channel type.";	
 			};
+			hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+			hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 			hdr->AS.spb += hdr->CHANNEL[k].SPR;
 			POS +=4; 
 		}
-		free(ACQ_NoSamples);		
+		free(ACQ_NoSamples);
+		
 /*  ### FIXME ### 
 	reading Marker section
 		
