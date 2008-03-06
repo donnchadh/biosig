@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.123 2008-03-06 10:49:40 schloegl Exp $
+    $Id: biosig.c,v 1.124 2008-03-06 13:12:17 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -1943,15 +1943,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// CFWB does not support automated overflow and saturation detection
 	}
 	else if (hdr->TYPE==CNT) {
-	    	hdr->AS.Header = (uint8_t*)realloc(Header1,900);
-	    	hdr->VERSION = atof((char*)Header1+8);
-	    	count  += FREAD(Header1+count,1,900-count,hdr);
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,900);
+	    	hdr->VERSION = atof((char*)hdr->AS.Header+8);
+	    	count  += FREAD(hdr->AS.Header+count,1,900-count,hdr);
 
-	    	ptr_str = (char*)Header1+136;
+	    	ptr_str = (char*)hdr->AS.Header+136;
     		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
-	    	ptr_str = (char*)Header1+137;
+	    	ptr_str = (char*)hdr->AS.Header+137;
 	    	hdr->Patient.Handedness = (ptr_str[0]=='r')*2 + (ptr_str[0]=='R')*2 + (ptr_str[0]=='L') + (ptr_str[0]=='l');
-	    	Header2 = (char*)Header1+255;
+	    	Header2 = (char*)hdr->AS.Header+255;
     		tm_time.tm_sec  = atoi(strncpy(tmp,Header2+16,2)); 
     		tm_time.tm_min  = atoi(strncpy(tmp,Header2+13,2)); 
     		tm_time.tm_hour = atoi(strncpy(tmp,Header2+10,2)); 
@@ -1969,12 +1969,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->HeadLen = 900+hdr->NS*75; 
 		hdr->SampleRate = leu16p(Header1+376); 
 		hdr->SPR = 1; 
-#define _eventtablepos (*(uint32_t*)(Header1+886))
+#define _eventtablepos (leu32p(Header1+886))
 		hdr->NRec = (_eventtablepos-hdr->HeadLen)/(hdr->NS*2);
 		
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
-	    	Header2 = (char*)Header1+900; 
-	    	count  += FREAD(Header2,1,hdr->NS*75,hdr);
+	    	count  += FREAD(Header1+900,1,hdr->NS*75,hdr);
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS;k++)	{
@@ -1982,7 +1981,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr->CHANNEL[k].Transducer[0] = '\0';
 		    	hdr->CHANNEL[k].GDFTYP 	= 3;
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
-		    	strncpy(hdr->CHANNEL[k].Label,Header2+k*75,min(10,MAX_LENGTH_LABEL));
+		    	strncpy(hdr->CHANNEL[k].Label,Header2,min(10,MAX_LENGTH_LABEL));
 			hdr->CHANNEL[k].PhysDimCode = 4256+19;
 		    	hdr->CHANNEL[k].Cal	= lef32p(Header2+59);
 		    	hdr->CHANNEL[k].Cal    *= lef32p(Header2+71)/204.8;
@@ -3174,10 +3173,14 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 /****************************************************************************/
 size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) {
 /* 
- *	reads LENGTH blocks with HDR.AS.bpb BYTES each, 
- *	rawdata is available in hdr->AS.rawdata
- *      output data is available in hdr->data.block
- *	size of output data is availabe in hdr->data.size
+ *	Reads LENGTH blocks with HDR.AS.bpb BYTES each 
+ * 	(and HDR.SPR samples). 
+ *	Rawdata is available in hdr->AS.rawdata.
+ *      Output data is available in hdr->data.block. 
+ *      If the request can be completed, hdr->data.block contains 
+ *	LENGTH*HDR.SPR samples and HDR.NS channels. 
+ *	The size of the output data is availabe in hdr->data.size.
+ *
  *      hdr->FLAG.SWAP controls swapping 
  *
  *	data is a pointer to a memory array to write the data. 
