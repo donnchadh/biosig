@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.122 2008-03-03 19:13:36 schloegl Exp $
+    $Id: biosig.c,v 1.123 2008-03-06 10:49:40 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -1078,7 +1078,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     		hdr->TYPE = BDF;
     		hdr->VERSION = -1; 
     	}
-    	else if ((leu16p(hdr->AS.Header)==207) && (leu16p(hdr->AS.Header+154)>0))
+    	else if ((leu16p(hdr->AS.Header)==207) && (leu16p(hdr->AS.Header+154)==0))
 	    	hdr->TYPE = BKR;
         else if (!memcmp(Header1,"Brain Vision Data Exchange Header File",38))
                 hdr->TYPE = BrainVision;
@@ -1869,9 +1869,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}      	
 
 	else if (hdr->TYPE==BKR) {
-	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
-	    	count   += FREAD(Header1+256,1,1024-256,hdr);
 	    	hdr->HeadLen 	 = 1024; 
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
+	    	count   += FREAD(hdr->AS.Header+count,1,1024-count,hdr);
 		hdr->NS  	 = leu16p(hdr->AS.Header+2); 
 		hdr->SampleRate  = (double)leu16p(hdr->AS.Header+4); 
 		hdr->NRec   	 = leu32p(hdr->AS.Header+6); 
