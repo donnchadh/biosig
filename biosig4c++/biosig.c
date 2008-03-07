@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.129 2008-03-07 22:52:36 schloegl Exp $
+    $Id: biosig.c,v 1.130 2008-03-07 22:56:15 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -1059,6 +1059,25 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	const uint8_t MAGIC_NUMBER_TIFF_b64[] = {77,77,0,43,0,8,0,0};
 	const uint8_t MAGIC_NUMBER_DICOM[]    = {8,0,5,0,10,0,0,0,73,83,79,95,73,82,32,49,48,48};
 	uint32_t MAGIC_EN1064_Section0Length  = leu32p(hdr->AS.Header+10);
+	
+	/* AINF */
+	for (int k = strlen(hdr->FileName); k>0, k--; ) {
+		if (hdr->FileName[k] == '.') {
+			if (strcmp(hdr->FileName+k+1, "ainf")) {
+				char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+2,sizeof(char));
+				strncpy(AINF_RAW_FILENAME, hdr->FileName,k+1);
+				strcpy(AINF_RAW_FILENAME+k+1, "raw");
+				FILE* fid1=fopen(AINF_RAW_FILENAME,"r");
+				if (fid1) {
+					fclose(fid1);
+					hdr->TYPE = AINF; 
+				}	
+				free(AINF_RAW_FILENAME);
+			}
+			k = 0;  // stop loop 
+		}
+	}
+
 
     	if (hdr->TYPE != unknown)
       		return(hdr); 
@@ -1781,7 +1800,7 @@ if (!strncmp(MODE,"r",1))
 		uint32_t* ACQ_NoSamples = (uint32_t*) calloc(hdr->NS,sizeof(uint32_t));
 		uint16_t CHAN; 
     		POS = leu32p(Header1+6);
-    		uint32_t minBufLenXVarDiv = -1;	// maximum integer value
+    		size_t minBufLenXVarDiv = -1;	// maximum integer value
 		for (k = 0; k < hdr->NS; k++)	{
 
 	    		Header2 = (char*)Header1+POS;
@@ -1805,7 +1824,7 @@ if (!strncmp(MODE,"r",1))
 			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
 
 			ACQ_NoSamples[k] = leu32p(Header2+88);
-			uint32_t tmp64 = leu32p(Header2+88) * hdr->CHANNEL[k].SPR; 
+			size_t tmp64 = leu32p(Header2+88) * hdr->CHANNEL[k].SPR; 
 			if (minBufLenXVarDiv > tmp64) minBufLenXVarDiv = tmp64;
 			
 			POS += leu32p(Header2);
@@ -1881,6 +1900,63 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		FSEEK(hdr, hdr->HeadLen, SEEK_SET); 
 	}      	
 
+	else if (hdr->TYPE==AINF) {
+		/* read header file */
+	        FSEEK(hdr,0,SEEK_END);
+		hdr->HeadLen = FTELL(hdr);
+	        FSEEK(hdr,0,SEEK_SET);
+
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
+	    	count   = FREAD(hdr->AS.Header,1,hdr->HeadLen,hdr);
+	    	FCLOSE(hdr); 
+
+		hdr->HeadLen = count;
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
+
+		char* t = strtok((char*)hdr->AS.Header,"\x0a\x0d");
+	 	t = strtok(NULL,"\x0a\x0d");	
+		while ((t) && !strncmp(t,"#",1)) {
+			char* p = strstr(t,"sfreq =");
+			if (p) hdr->SampleRate = atof(strtok(p+7," "));
+		 	t = strtok(NULL,"\x0a\x0d");	
+		 	fprintf(stdout,"%s\n",t);
+		}
+		hdr->NS = 0; 
+		while (t) {
+			int chno1, chno2; 
+			double f1,f2;
+			char label[MAX_LENGTH_LABEL+1];
+
+			sscanf(t,"%i %s %i %f %f",chno1,label,chno2,f1,f2);
+			++hdr->NS;
+			hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
+			sprintf(hdr->CHANNEL[k].Label,"%s %03i",label,chno2);
+
+			hdr->CHANNEL[k].SPR    = 1;
+			hdr->CHANNEL[k].Cal    = f1*f2; 
+			hdr->CHANNEL[k].Off    = 0.0; 
+			hdr->CHANNEL[k].GDFTYP = 3;
+			hdr->CHANNEL[k].DigMax =  32767;
+			hdr->CHANNEL[k].DigMin = -32678;
+			hdr->CHANNEL[k].PhysMax= hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+			hdr->CHANNEL[k].PhysMin= hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+			
+			if (strcmp(label,"MEG")==0) 
+				hdr->CHANNEL[k].PhysDimCode = 1446; // "T/m" 
+			else 	
+				hdr->CHANNEL[k].PhysDimCode = 4256; // "V" 
+			 
+		 	t = strtok(NULL,"\x0a\x0d");	
+		}
+		hdr->AS.bpb = 2*hdr->NS + 4;	
+
+	        hdr = FOPEN(hdr,"rb");
+	        FSEEK(hdr,0,SEEK_END);
+		hdr->NRec = FTELL(hdr)/hdr->AS.bpb;
+	        FSEEK(hdr,0,SEEK_SET);
+		hdr->HeadLen = 0;
+	}      	
+
 	else if (hdr->TYPE==BKR) {
 	    	hdr->HeadLen 	 = 1024; 
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
@@ -1915,6 +1991,19 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].PhysDimCode = 4275; // uV
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// BKR does not support automated overflow and saturation detection
+	}
+
+	else if (hdr->TYPE==BrainVision) {
+		/* read header file */
+		hdr->HeadLen = 1e5;
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
+	    	count   += FREAD(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
+	    	FCLOSE(hdr); 
+		hdr->HeadLen = count;
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
+		
+	        hdr = FOPEN(hdr,"rb");
+				
 	}
 
 	else if (hdr->TYPE==CFWB) {
@@ -3188,7 +3277,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 	// internal variables
 	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
-	hdr->AS.bi[0] = 0;
+	hdr->AS.bi[0] = (hdr->TYPE==AINF ? 4 : 0); 
 	for (k=0, hdr->SPR = 1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS; k++) {
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
 		hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR;			

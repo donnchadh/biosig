@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.77 2008-03-07 15:56:28 schloegl Exp $
+% $Id: biosig.h,v 1.78 2008-03-07 22:56:15 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -264,7 +264,7 @@ double   bef64a(  double i, uint8_t* r);
 	/* list of file formats */
 enum FileFormat {
 	unknown, 
-	ABF, ACQ, ACR_NEMA, AIFC, AIFF, alpha, AU, ASF, AVI,
+	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, AVI,
 	BKR, BCI2000, BDF, BMP, BrainVision, BZ2, 
 	CDF, CFWB, CNT, 
 	DICOM, DEMG, EDF, EEProbe, EGI, EVENT, EXIF, 
