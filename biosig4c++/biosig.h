@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.75 2008-01-10 21:41:01 schloegl Exp $
+% $Id: biosig.h,v 1.76 2008-03-07 09:20:16 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -64,6 +64,16 @@ extern int   VERBOSE_LEVEL;
 #ifndef __BIOSIG_H__
 #define __BIOSIG_H__
 
+
+#ifdef  __APPLE__
+#define __BIG_ENDIAN  	 4321
+#define __LITTLE_ENDIAN  1234
+#ifdef  __LITTLE_ENDIAN__
+#define __BYTE_ORDER 	__LITTLE_ENDIAN
+#else
+#define __BYTE_ORDER 	__BIG_ENDIAN
+#endif
+#endif
 
 #ifdef  __sparc__
 #define __BIG_ENDIAN  	 4321
