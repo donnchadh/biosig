@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.128 2008-03-07 15:56:27 schloegl Exp $
+    $Id: biosig.c,v 1.129 2008-03-07 22:52:36 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -2052,20 +2052,25 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			Cal = (PhysMax-PhysMin)/((1<<bits) - 1.0);
 			Off = (double)PhysMin;
 		}	
-		 
+		double DigMax = (PhysMax-Off)/Cal;
+		double DigMin = (PhysMin-Off)/Cal;
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 		for (k=0; k < hdr->NS; k++) {
 			CHANNEL_TYPE* hc = hdr->CHANNEL+k;
-			hc->GDFTYP = gdftyp;
-			hc->SPR = 1; 
-			hc->Cal = Cal; 
-			hc->Off = Off;
+			hc->GDFTYP   = gdftyp;
+			hc->SPR      = 1; 
+			hc->Cal      = Cal; 
+			hc->Off      = Off;
 			hc->Transducer[0] = '\0';
-			hc->LowPass = 450;
+			hc->LowPass  = 450;
 			hc->HighPass = 20;
+			hc->PhysMax  = PhysMax;
+			hc->PhysMin  = PhysMin;
+			hc->DigMax   = DigMax;
+			hc->DigMin   = DigMin;
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
-	    	hdr->HeadLen    = 19; 
+	    	hdr->HeadLen = 19; 
 	    	FSEEK(hdr, 19, SEEK_SET);
 	}
 
