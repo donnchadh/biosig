@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.127 2008-03-07 10:34:08 schloegl Exp $
+    $Id: biosig.c,v 1.128 2008-03-07 15:56:27 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -844,7 +844,7 @@ int FGETPOS(HDRTYPE* hdr, fpos_t *pos) {
 		z_off_t p = gztell(hdr->FILE.gzFID);
 		if (p<0) return(-1); 
 		else {
-#ifdef __sparc__ || __APPLE__
+#if __sparc__ || __APPLE__
 			*pos = p;
 #else
 			pos->__pos = p;	// ugly hack but working
