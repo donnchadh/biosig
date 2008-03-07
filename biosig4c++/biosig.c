@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.126 2008-03-06 18:51:31 schloegl Exp $
+    $Id: biosig.c,v 1.127 2008-03-07 10:34:08 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -844,7 +844,7 @@ int FGETPOS(HDRTYPE* hdr, fpos_t *pos) {
 		z_off_t p = gztell(hdr->FILE.gzFID);
 		if (p<0) return(-1); 
 		else {
-#ifdef __sparc__
+#ifdef __sparc__ || __APPLE__
 			*pos = p;
 #else
 			pos->__pos = p;	// ugly hack but working
@@ -1361,7 +1361,8 @@ if (!strncmp(MODE,"r",1))
 	    		strtok(hdr->Patient.Id," ");
 	    		char *tmpptr = strtok(NULL," ");
 	    		if ((!hdr->FLAG.ANONYMOUS) && (tmpptr != NULL)) {
-		    		strncpy(hdr->Patient.Name,tmpptr,Header1+8-tmpptr);
+				// strncpy(hdr->Patient.Name,tmpptr,Header1+8-tmpptr);
+		    		strncpy(hdr->Patient.Name,tmpptr,MAX_LENGTH_NAME);
 		    	}	
 		    		
 	    		hdr->Patient.Smoking      =  Header1[84]%4;
@@ -1422,7 +1423,8 @@ if (!strncmp(MODE,"r",1))
 	    		strtok(hdr->Patient.Id," ");
 	    		char *tmpptr = strtok(NULL," ");
 	    		if ((!hdr->FLAG.ANONYMOUS) && (tmpptr != NULL)) {
-		    		strncpy(hdr->Patient.Name,tmpptr,Header1+8-tmpptr);
+				// strncpy(hdr->Patient.Name,tmpptr,Header1+8-tmpptr);
+		    		strncpy(hdr->Patient.Name,tmpptr,MAX_LENGTH_NAME);
 		    	}	
 
 			memset(tmp,0,5);
@@ -1808,8 +1810,8 @@ if (!strncmp(MODE,"r",1))
 			
 			POS += leu32p(Header2);
 		}
-		
-		hdr->NRec = minBufLenXVarDiv / hdr->SPR;
+		hdr->Dur[0] = hdr->SPR;
+		hdr->Dur[1] = hdr->SampleRate;
 
 		/// foreign data section - skip 
 		POS += leu16p(Header1+POS);
@@ -1890,6 +1892,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->NRec 	*= hdr->SPR; 
 		hdr->SPR  	 = 1; 
 		hdr->T0 	 = 0;        // Unknown;
+		hdr->Dur[0]	 = hdr->SPR;
+		hdr->Dur[1]	 = hdr->SampleRate;
+		
 	    	/* extract more header information */
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS; k++) {
@@ -1907,12 +1912,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].Cal	 = ((double)hdr->CHANNEL[k].PhysMax)/hdr->CHANNEL[k].DigMax;
 		    	hdr->CHANNEL[k].Off	 = 0.0;
 			hdr->CHANNEL[k].OnOff    = 1;
+		    	hdr->CHANNEL[k].PhysDimCode = 4275; // uV
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// BKR does not support automated overflow and saturation detection
 	}
 
 	else if (hdr->TYPE==CFWB) {
-	    	hdr->SampleRate = 1/lef64p(Header1+8);
+		hdr->Dur[0]	= 1;
+		hdr->Dur[1]	= lef64p(Header1+8);
+	    	hdr->SampleRate = 1.0/hdr->Dur[1];
 	    	tm_time.tm_year = lei32p(Header1+16) - 1900;
 	    	tm_time.tm_mon  = lei32p(Header1+20) - 1;
 	    	tm_time.tm_mday = lei32p(Header1+24);
@@ -1980,8 +1988,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		
 		hdr->NS  = leu16p(Header1+370); 
 	    	hdr->HeadLen = 900+hdr->NS*75; 
-		hdr->SampleRate = leu16p(Header1+376); 
-		hdr->SPR = 1; 
+		hdr->SPR    = 1; 
+		hdr->Dur[0] = 1;
+		hdr->Dur[1] = leu16p(Header1+376);
+		hdr->SampleRate = hdr->Dur[1]; 
 #define _eventtablepos (leu32p(Header1+886))
 		hdr->NRec = (_eventtablepos-hdr->HeadLen)/(hdr->NS*2);
 		
@@ -1995,7 +2005,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].GDFTYP 	= 3;
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	strncpy(hdr->CHANNEL[k].Label,Header2,min(10,MAX_LENGTH_LABEL));
-			hdr->CHANNEL[k].PhysDimCode = 4256+19;
+			hdr->CHANNEL[k].PhysDimCode = 4256+19;  // uV
 		    	hdr->CHANNEL[k].Cal	= lef32p(Header2+59);
 		    	hdr->CHANNEL[k].Cal    *= lef32p(Header2+71)/204.8;
 		    	hdr->CHANNEL[k].Off	= lef32p(Header2+47) * hdr->CHANNEL[k].Cal;
@@ -2019,9 +2029,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	else if (hdr->TYPE==DEMG) {
 	    	hdr->VERSION 	= leu16p(Header1+4);
 	    	hdr->NS		= leu16p(Header1+6);
-	    	hdr->SampleRate = leu32p(Header1+8);
-	    	hdr->NRec	= leu32p(Header1+12);
 	    	hdr->SPR	= 1;
+		hdr->Dur[0]	= 1;
+		hdr->Dur[1]  	= leu32p(Header1+8);
+	    	hdr->SampleRate = hdr->Dur[1];
+	    	hdr->NRec	= leu32p(Header1+12);
 	    	
 		uint16_t gdftyp;
 		uint8_t  bits    = (uint8_t)Header1[16];	
@@ -2531,6 +2543,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			int sz=FREAD(&tag,1,1,hdr);
 			curPos += sz;
 	 	}
+		hdr->Dur[0] = hdr->SPR;
+		hdr->Dur[1] = hdr->SampleRate;
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// overflow detection OFF - not supported
 	 	for (k=0; k<hdr->NS; k++) {
 	 		if (!hdr->CHANNEL[k].PhysDimCode) hdr->CHANNEL[k].PhysDimCode = MFER_PhysDimCodeTable[UnitCode]; 
@@ -2563,7 +2577,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	    	if ( leu16p(hdr->AS.Header) != crc) {
 	    		B4C_ERRNUM = B4C_CRC_ERROR;
-	    		B4C_ERRMSG = "Warning SOPEN(SCP-READ): Bad CRC!";
+	    		B4C_ERRMSG = "Warning SOPEN(SCP-READ): Bad CRC!";  
 		}
 
 		sopen_SCP_read(hdr);
