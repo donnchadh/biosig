@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.130 2008-03-07 22:56:15 schloegl Exp $
+    $Id: biosig.c,v 1.131 2008-03-09 20:09:20 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -125,7 +125,7 @@ const char *LEAD_ID_TABLE[] = { "unspecified",
 	"ER1","ER2","ER3","ER4","ER5","ER6","ER7","ELL",
 	"ERL","ELA","ELB","ERA","ERB"
 */
-	, "" };  // stop marker 
+	, "\0\0" };  // stop marker 
 
 
 
@@ -1989,6 +1989,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].Off	 = 0.0;
 			hdr->CHANNEL[k].OnOff    = 1;
 		    	hdr->CHANNEL[k].PhysDimCode = 4275; // uV
+		    	hdr->CHANNEL[k].LeadIdCode  = 0;
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// BKR does not support automated overflow and saturation detection
 	}
@@ -2042,6 +2043,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	strncpy(hdr->CHANNEL[k].Label, Header2,min(32,MAX_LENGTH_LABEL));
 		    	strncpy(hdr->CHANNEL[k].PhysDim,Header2+32,16);
+		    	hdr->CHANNEL[k].LeadIdCode  = 0;
 		    	hdr->CHANNEL[k].Cal	= lef64p(Header2+64);
 		    	hdr->CHANNEL[k].Off	= lef64p(Header2+72);
 		    	hdr->CHANNEL[k].PhysMax	= lef64p(Header2+80);
@@ -2094,6 +2096,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].GDFTYP 	= 3;
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	strncpy(hdr->CHANNEL[k].Label,Header2,min(10,MAX_LENGTH_LABEL));
+		    	hdr->CHANNEL[k].LeadIdCode  = 0;
 			hdr->CHANNEL[k].PhysDimCode = 4256+19;  // uV
 		    	hdr->CHANNEL[k].Cal	= lef32p(Header2+59);
 		    	hdr->CHANNEL[k].Cal    *= lef32p(Header2+71)/204.8;
@@ -2157,6 +2160,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hc->PhysMin  = PhysMin;
 			hc->DigMax   = DigMax;
 			hc->DigMin   = DigMin;
+		    	hc->LeadIdCode  = 0;
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	    	hdr->HeadLen = 19; 
@@ -2224,6 +2228,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	for (k=0; k<hdr->NS; k++) {
     			hdr->CHANNEL[k].GDFTYP = GDFTYP;
 	    		hdr->CHANNEL[k].PhysDimCode = 4275;  // "uV"
+		    	hdr->CHANNEL[k].LeadIdCode  = 0;
 	    		sprintf(hdr->CHANNEL[k].Label,"# %03i",k);  
 	    		hdr->CHANNEL[k].Cal     = PhysMax/ldexp(1,Bits);
 	    		hdr->CHANNEL[k].Off     = 0;
@@ -2716,7 +2721,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
 
 		// set HDR.PhysDimCode
-		if (hdr->CHANNEL[k].LeadIdCode == 0)
+		if (hdr->CHANNEL[k].LeadIdCode == 0) {
 		if (!strncmp(hdr->CHANNEL[k].Label, "MDC_ECG_LEAD_", 13)) {
 			// MDC_ECG_LEAD_*  - ignore case  //
 			for (k1=0; strcmpi(hdr->CHANNEL[k].Label+13,LEAD_ID_TABLE[k1]) && LEAD_ID_TABLE[k1][0]; k1++);
@@ -2727,7 +2732,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			for (k1=0; strcmp(hdr->CHANNEL[k].Label, LEAD_ID_TABLE[k1]) && LEAD_ID_TABLE[k1][0]; k1++); 
 			if (LEAD_ID_TABLE[k1][0])	
 				hdr->CHANNEL[k].LeadIdCode = k1;
-		}
+		}}
+
 		if (hdr->CHANNEL[k].LeadIdCode)
 			strcpy(hdr->CHANNEL[k].Label,LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode]);
 
