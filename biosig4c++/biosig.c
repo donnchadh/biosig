@@ -1,5 +1,5 @@
 	/*
-    $Id: biosig.c,v 1.133 2008-03-11 14:07:27 schloegl Exp $
+    $Id: biosig.c,v 1.134 2008-03-11 23:55:49 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -1063,10 +1063,21 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	/* AINF */
 	for (int k = strlen(hdr->FileName); --k>0; ) {
 		if (hdr->FileName[k] == '.') {
-			if (strcmp(hdr->FileName+k+1, "ainf")) {
-				char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+2,sizeof(char));
+			if (!strcmp(hdr->FileName+k+1, "ainf")) {
+				char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+5,sizeof(char));
 				strncpy(AINF_RAW_FILENAME, hdr->FileName,k+1);
 				strcpy(AINF_RAW_FILENAME+k+1, "raw");
+				FILE* fid1=fopen(AINF_RAW_FILENAME,"r");
+				if (fid1) {
+					fclose(fid1);
+					hdr->TYPE = AINF; 
+				}	
+				free(AINF_RAW_FILENAME);
+			}
+			else if (!strcmp(hdr->FileName+k+1, "raw") && !(*(uint32_t*)hdr->AS.Header)) {
+				char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+5,sizeof(char));
+				strncpy(AINF_RAW_FILENAME, hdr->FileName,k+1);
+				strcpy(AINF_RAW_FILENAME+k+1, "ainf");
 				FILE* fid1=fopen(AINF_RAW_FILENAME,"r");
 				if (fid1) {
 					fclose(fid1);
@@ -1901,7 +1912,20 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}      	
 
 	else if (hdr->TYPE==AINF) {
-		/* read header file */
+		ifclose(hdr);
+		const char *filename = hdr->FileName; 
+		strcpy(cmd,hdr->FileName);		
+		char* ext = NULL; 
+		for (k = strlen(cmd); --k>0; ) {
+			if (cmd[k] == '.') {
+				ext = cmd+k+1;
+			}
+		}	
+
+		/* open header file */ 
+		strcpy(ext,"ainf");		
+		hdr->FileName = cmd; 
+		hdr = ifopen(hdr,"rb"); 
 	        ifseek(hdr,0,SEEK_END);
 		hdr->HeadLen = iftell(hdr);
 	        ifseek(hdr,0,SEEK_SET);
@@ -1913,25 +1937,26 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->HeadLen = count;
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
 
-		char* t = strtok((char*)hdr->AS.Header,"\x0a\x0d");
-	 	t = strtok(NULL,"\x0a\x0d");	
+		char *t1;
+		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
 		while ((t) && !strncmp(t,"#",1)) {
-			char* p = strstr(t,"sfreq =");
-			if (p) hdr->SampleRate = atof(strtok(p+7," "));
-		 	t = strtok(NULL,"\x0a\x0d");	
-		 	fprintf(stdout,"%s\n",t);
+			if (char* p = strstr(t,"sfreq =")) t1 = p;
+			t = strtok(NULL,"\xA\xD");
 		}
+
 		hdr->NS = 0; 
 		while (t) {
-			int chno1, chno2; 
+			int chno1=-1, chno2=-1; 
 			double f1,f2;
 			char label[MAX_LENGTH_LABEL+1];
 
-			sscanf(t,"%i %s %i %lf %lf",&chno1,label,&chno2,&f1,&f2);
-			k = ++hdr->NS;
+			sscanf(t,"%d %s %d %lf %lf",&chno1,label,&chno2,&f1,&f2);
+			
+			k = hdr->NS++;
 			hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 			sprintf(hdr->CHANNEL[k].Label,"%s %03i",label,chno2);
 
+			hdr->CHANNEL[k].LeadIdCode = 0;
 			hdr->CHANNEL[k].SPR    = 1;
 			hdr->CHANNEL[k].Cal    = f1*f2; 
 			hdr->CHANNEL[k].Off    = 0.0; 
@@ -1945,16 +1970,20 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				hdr->CHANNEL[k].PhysDimCode = 1446; // "T/m" 
 			else 	
 				hdr->CHANNEL[k].PhysDimCode = 4256; // "V" 
-			 
+
 		 	t = strtok(NULL,"\x0a\x0d");	
 		}
 		hdr->AS.bpb = 2*hdr->NS + 4;	
+		hdr->SampleRate = atof(strtok(t1+7," "));
 
-	        hdr = ifopen(hdr,"rb");
+		/* open data file */ 
+		strcpy(ext,"raw");		
+		hdr = ifopen(hdr,"rb"); 
 	        ifseek(hdr,0,SEEK_END);
 		hdr->NRec = iftell(hdr)/hdr->AS.bpb;
 	        ifseek(hdr,0,SEEK_SET);
 		hdr->HeadLen = 0;
+		hdr->FileName = filename;
 	}      	
 
 	else if (hdr->TYPE==BKR) {
@@ -3282,9 +3311,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 }	// end of else 
 
 	// internal variables
-	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
-	hdr->AS.bi[0] = (hdr->TYPE==AINF ? 4 : 0); 
-	for (k=0, hdr->SPR = 1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS; k++) {
+	hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
+	hdr->AS.bpb = (hdr->TYPE==AINF ? 4 : 0); 
+	hdr->AS.bi[0] = hdr->AS.bpb;
+	for (k=0, hdr->SPR = 1, hdr->AS.spb=0; k<hdr->NS; k++) {
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
 		hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR;			
 		hdr->AS.bi[k+1] = hdr->AS.bpb; 
