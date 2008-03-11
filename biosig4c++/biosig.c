@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.131 2008-03-09 20:09:20 schloegl Exp $
+    $Id: biosig.c,v 1.132 2008-03-11 08:14:49 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -729,7 +729,7 @@ int VERBOSE_LEVEL = -1;
 	If ZLIB is availabe, HDR.FILE.COMPRESSION tells
 	whether STDIO or ZLIB is used. 
  */
-HDRTYPE* FOPEN(HDRTYPE* hdr, char* mode) {
+HDRTYPE* ifopen(HDRTYPE* hdr, char* mode) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION) 
 	{
@@ -744,7 +744,7 @@ HDRTYPE* FOPEN(HDRTYPE* hdr, char* mode) {
 	return(hdr);
 }
 
-int FCLOSE(HDRTYPE* hdr) {
+int ifclose(HDRTYPE* hdr) {
 	hdr->FILE.OPEN = 0; 
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
@@ -754,7 +754,7 @@ int FCLOSE(HDRTYPE* hdr) {
 	return(fclose(hdr->FILE.FID));
 }
 
-int FFLUSH(HDRTYPE* hdr) {
+int ifflush(HDRTYPE* hdr) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
 		return(gzflush(hdr->FILE.gzFID,Z_FINISH));  
@@ -763,7 +763,7 @@ int FFLUSH(HDRTYPE* hdr) {
 	return(fflush(hdr->FILE.FID));
 }
 
-size_t FREAD(void* ptr, size_t size, size_t nmemb, HDRTYPE* hdr) {
+size_t ifread(void* ptr, size_t size, size_t nmemb, HDRTYPE* hdr) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION>0)
 		return(gzread(hdr->FILE.gzFID, ptr, size * nmemb)/size);
@@ -772,7 +772,7 @@ size_t FREAD(void* ptr, size_t size, size_t nmemb, HDRTYPE* hdr) {
 	return(fread(ptr, size, nmemb, hdr->FILE.FID));
 }
 
-size_t FWRITE(void* ptr, size_t size, size_t nmemb, HDRTYPE* hdr) {
+size_t ifwrite(void* ptr, size_t size, size_t nmemb, HDRTYPE* hdr) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
 	return(gzwrite(hdr->FILE.gzFID, ptr, size*nmemb)/size);
@@ -781,7 +781,7 @@ size_t FWRITE(void* ptr, size_t size, size_t nmemb, HDRTYPE* hdr) {
 	return(fwrite(ptr, size, nmemb, hdr->FILE.FID));
 }
 
-int FPRINTF(HDRTYPE* hdr, const char *format, va_list arg) {
+int ifprintf(HDRTYPE* hdr, const char *format, va_list arg) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
 	return(gzprintf(hdr->FILE.gzFID,format, arg));
@@ -791,7 +791,7 @@ int FPRINTF(HDRTYPE* hdr, const char *format, va_list arg) {
 }
 
 
-int FPUTC(int c, HDRTYPE* hdr) {
+int ifputc(int c, HDRTYPE* hdr) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
 	return(gzputc(hdr->FILE.FID,c));
@@ -800,7 +800,7 @@ int FPUTC(int c, HDRTYPE* hdr) {
 	return(fputc(c,hdr->FILE.FID));
 }
 
-int FGETC(HDRTYPE* hdr) {
+int ifgetc(HDRTYPE* hdr) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
 	return(gzgetc(hdr->FILE.gzFID));
@@ -809,7 +809,7 @@ int FGETC(HDRTYPE* hdr) {
 	return(fgetc(hdr->FILE.FID));
 }
 
-char* FGETS(char *str, int n, HDRTYPE* hdr) {
+char* ifgets(char *str, int n, HDRTYPE* hdr) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
 	return(gzgets(hdr->FILE.gzFID, str, n));
@@ -818,18 +818,18 @@ char* FGETS(char *str, int n, HDRTYPE* hdr) {
 	return(fgets(str,n,hdr->FILE.FID));
 }
 
-int FSEEK(HDRTYPE* hdr, long offset, int whence) {
+int ifseek(HDRTYPE* hdr, long offset, int whence) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION) {
 	if (whence==SEEK_END)
-		fprintf(stdout,"Warning SEEK_END is not supported but used in gzseek/FSEEK.\nThis can cause undefined behaviour.\n");
+		fprintf(stdout,"Warning SEEK_END is not supported but used in gzseek/ifseek.\nThis can cause undefined behaviour.\n");
 	return(gzseek(hdr->FILE.gzFID,offset,whence));
 	} else	
 #endif
 	return(fseek(hdr->FILE.FID,offset,whence));
 }
 
-long FTELL(HDRTYPE* hdr) {
+long iftell(HDRTYPE* hdr) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
 	return(gztell(hdr->FILE.gzFID));
@@ -838,7 +838,7 @@ long FTELL(HDRTYPE* hdr) {
 	return(ftell(hdr->FILE.FID));
 }
 
-int FGETPOS(HDRTYPE* hdr, fpos_t *pos) {
+int ifgetpos(HDRTYPE* hdr, fpos_t *pos) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION) {
 		z_off_t p = gztell(hdr->FILE.gzFID);
@@ -856,7 +856,7 @@ int FGETPOS(HDRTYPE* hdr, fpos_t *pos) {
 	return(fgetpos(hdr->FILE.FID, pos));
 }
 
-int FEOF(HDRTYPE* hdr) {
+int ifeof(HDRTYPE* hdr) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
 	return(gzeof(hdr->FILE.gzFID));
@@ -865,7 +865,7 @@ int FEOF(HDRTYPE* hdr) {
 	return(feof(hdr->FILE.FID));
 }
 
-int FERROR(HDRTYPE* hdr) {
+int iferror(HDRTYPE* hdr) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION) {
 		const char *tmp = gzerror(hdr->FILE.gzFID,&errnum);
@@ -1325,7 +1325,7 @@ if (!strncmp(MODE,"r",1))
 
 	hdr->FileName = FileName; 
         hdr->FILE.COMPRESSION = 0;   	
-        hdr = FOPEN(hdr,"rb");
+        hdr = ifopen(hdr,"rb");
     	if (!hdr->FILE.OPEN) { 	
     		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
     		B4C_ERRMSG = "Error SOPEN(READ); Cannot open file.";		
@@ -1334,22 +1334,22 @@ if (!strncmp(MODE,"r",1))
     	}	    
     
     	/******** read 1st (fixed)  header  *******/	
-    	count = FREAD(Header1,1,256,hdr);
+    	count = ifread(Header1,1,256,hdr);
 	hdr   = getfiletype(hdr);
     	
     	if (hdr->TYPE == GZIP) {
 #ifdef ZLIB_H
-    		FCLOSE(hdr); 
+    		ifclose(hdr); 
 	        hdr->FILE.COMPRESSION = 1;   	
 	        // hdr->FILE.gzFID = gzdopen(hdr->FILE.FID,"rb"); // FIXME
-        	hdr= FOPEN(hdr,"rb");
+        	hdr= ifopen(hdr,"rb");
 	    	if (!hdr->FILE.OPEN) { 	
     			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 	    		B4C_ERRMSG = "Error SOPEN(GZREAD); Cannot open file.";		
     			free(hdr);   
 			return(NULL);
     		}	    
-	    	count = FREAD(Header1,1,256,hdr);
+	    	count = ifread(Header1,1,256,hdr);
 		hdr   = getfiletype(hdr);
 #else 
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
@@ -1359,7 +1359,7 @@ if (!strncmp(MODE,"r",1))
     	if (hdr->TYPE == unknown) {
     		B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
     		B4C_ERRMSG = "ERROR BIOSIG SOPEN(read): Dataformat Format not known.\n";
-    		FCLOSE(hdr);
+    		ifclose(hdr);
     		free(Header1);
     		free(hdr);
 		return(NULL);
@@ -1470,7 +1470,7 @@ if (!strncmp(MODE,"r",1))
 	    	hdr->AS.Header = (uint8_t*)realloc(Header1,hdr->HeadLen);
 //	    	Header1 = (char*)hdr->AS.Header1; 
 	    	Header2 = (char*)Header1+256; 
-	    	count   += FREAD(Header2, 1, hdr->HeadLen-256, hdr);
+	    	count   += ifread(Header2, 1, hdr->HeadLen-256, hdr);
 
 		for (k=0; k<hdr->NS; k++)	{
 			strncpy(hdr->CHANNEL[k].Label,Header2 + 16*k,min(16,MAX_LENGTH_LABEL));
@@ -1527,8 +1527,8 @@ if (!strncmp(MODE,"r",1))
 
 		// READ EVENTTABLE 
 		int c;
-		FSEEK(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
-		c = FREAD(buf, sizeof(uint8_t), 8, hdr);
+		ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
+		c = ifread(buf, sizeof(uint8_t), 8, hdr);
 
 		if (c<8) {
 			hdr->EVENT.SampleRate = hdr->SampleRate; 
@@ -1545,8 +1545,8 @@ if (!strncmp(MODE,"r",1))
 
  		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
 		hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
-		FREAD(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr);
-		FREAD(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr);
+		ifread(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr);
+		ifread(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr);
 
 		for (k32u=0; k32u < hdr->EVENT.N; k32u++) {
 			hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
@@ -1555,8 +1555,8 @@ if (!strncmp(MODE,"r",1))
 		if (buf[0]>1) {
 			hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR,hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
 			hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN,hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
-			FREAD(hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN),hdr->EVENT.N,hdr);
-			FREAD(hdr->EVENT.DUR,sizeof(*hdr->EVENT.DUR),hdr->EVENT.N,hdr);
+			ifread(hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN),hdr->EVENT.N,hdr);
+			ifread(hdr->EVENT.DUR,sizeof(*hdr->EVENT.DUR),hdr->EVENT.N,hdr);
 
 			for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
 				hdr->EVENT.DUR[k32u] = l_endian_u32(hdr->EVENT.DUR[k32u]); 
@@ -1639,7 +1639,7 @@ if (!strncmp(MODE,"r",1))
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
 	    	Header2 = (char*)Header1+256; 
-	    	count  += FREAD(Header2, 1, hdr->HeadLen-256, hdr);
+	    	count  += ifread(Header2, 1, hdr->HeadLen-256, hdr);
 
 		for (k=0; k<hdr->NS; k++)	{
 			strncpy(hdr->CHANNEL[k].Label,Header2 + 16*k,min(MAX_LENGTH_LABEL,16));
@@ -1701,7 +1701,7 @@ if (!strncmp(MODE,"r",1))
 		else {	// ABF 2.0+ 
 			hdr->HeadLen = leu32p(hdr->AS.Header+8);
 		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
-	    		count   += FREAD(Header1+count, 1, hdr->HeadLen-count, hdr);
+	    		count   += ifread(Header1+count, 1, hdr->HeadLen-count, hdr);
 
 			uint16_t gdftyp = 3; 
 			float fADCRange;
@@ -1717,9 +1717,9 @@ if (!strncmp(MODE,"r",1))
 				if (VERBOSE_LEVEL>8)
 					fprintf(stdout,"ABF %02i: %04li %04li %08Li\n",k1,BlockIndex,BlockSize,numBlocks);
 
-				FSEEK(hdr, BlockIndex*512, SEEK_SET);
+				ifseek(hdr, BlockIndex*512, SEEK_SET);
 				b  = (char*)realloc(b,numBlocks*BlockSize);
-				size_t c = FREAD(b,numBlocks,BlockSize,hdr);
+				size_t c = ifread(b,numBlocks,BlockSize,hdr);
 				
 				if 	(BlockIndex==1) {
 					hdr->SampleRate = 1.0 / lef32p(b+k*BlockSize+2);
@@ -1786,14 +1786,14 @@ if (!strncmp(MODE,"r",1))
 		hdr->HeadLen += 4;	
 		// read header up to nLenght and nID of foreign data section 
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
-	    	count  += FREAD(Header1+count, 1, hdr->HeadLen-count, hdr);
+	    	count  += ifread(Header1+count, 1, hdr->HeadLen-count, hdr);
 		uint32_t POS = hdr->HeadLen; 
 	    	
 		// read "foreign data section" and "per channel data types section"  
 		hdr->HeadLen += leu16p(Header1+hdr->HeadLen-4);
 		hdr->HeadLen += 4*hdr->NS; 
 	    	hdr->AS.Header = (uint8_t*)realloc(Header1,hdr->HeadLen+8);
-	    	count  += FREAD(Header1+POS, 1, hdr->HeadLen-POS, hdr);
+	    	count  += ifread(Header1+POS, 1, hdr->HeadLen-POS, hdr);
 		
 		// define channel specific header information
 		hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
@@ -1897,18 +1897,18 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			POS += 12 + leu16p(Header1+POS+10);
 		} 
 */
-		FSEEK(hdr, hdr->HeadLen, SEEK_SET); 
+		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
 	}      	
 
 	else if (hdr->TYPE==AINF) {
 		/* read header file */
-	        FSEEK(hdr,0,SEEK_END);
-		hdr->HeadLen = FTELL(hdr);
-	        FSEEK(hdr,0,SEEK_SET);
+	        ifseek(hdr,0,SEEK_END);
+		hdr->HeadLen = iftell(hdr);
+	        ifseek(hdr,0,SEEK_SET);
 
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
-	    	count   = FREAD(hdr->AS.Header,1,hdr->HeadLen,hdr);
-	    	FCLOSE(hdr); 
+	    	count   = ifread(hdr->AS.Header,1,hdr->HeadLen,hdr);
+	    	ifclose(hdr); 
 
 		hdr->HeadLen = count;
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
@@ -1950,17 +1950,17 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 		hdr->AS.bpb = 2*hdr->NS + 4;	
 
-	        hdr = FOPEN(hdr,"rb");
-	        FSEEK(hdr,0,SEEK_END);
-		hdr->NRec = FTELL(hdr)/hdr->AS.bpb;
-	        FSEEK(hdr,0,SEEK_SET);
+	        hdr = ifopen(hdr,"rb");
+	        ifseek(hdr,0,SEEK_END);
+		hdr->NRec = iftell(hdr)/hdr->AS.bpb;
+	        ifseek(hdr,0,SEEK_SET);
 		hdr->HeadLen = 0;
 	}      	
 
 	else if (hdr->TYPE==BKR) {
 	    	hdr->HeadLen 	 = 1024; 
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
-	    	count   += FREAD(hdr->AS.Header+count,1,1024-count,hdr);
+	    	count   += ifread(hdr->AS.Header+count,1,1024-count,hdr);
 		hdr->NS  	 = leu16p(hdr->AS.Header+2); 
 		hdr->SampleRate  = (double)leu16p(hdr->AS.Header+4); 
 		hdr->NRec   	 = leu32p(hdr->AS.Header+6); 
@@ -1998,12 +1998,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		/* read header file */
 		hdr->HeadLen = 1e5;
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
-	    	count   += FREAD(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
-	    	FCLOSE(hdr); 
+	    	count   += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
+	    	ifclose(hdr); 
 		hdr->HeadLen = count;
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
 		
-	        hdr = FOPEN(hdr,"rb");
+	        hdr = ifopen(hdr,"rb");
 				
 	}
 
@@ -2030,9 +2030,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->HeadLen = 68 + hdr->NS*96; 
 	    	hdr->AS.Header = (uint8_t*)realloc(Header1,hdr->HeadLen);
 	    	if (count<=hdr->HeadLen)
-			count += FREAD(Header1+count, 1, hdr->HeadLen-count, hdr);
+			count += ifread(Header1+count, 1, hdr->HeadLen-count, hdr);
 		else 	
-	    		FSEEK(hdr, hdr->HeadLen, SEEK_SET);
+	    		ifseek(hdr, hdr->HeadLen, SEEK_SET);
 		
 		GDFTYP = leu32p(Header1+64);
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
@@ -2057,7 +2057,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	else if (hdr->TYPE==CNT) {
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,900);
 	    	hdr->VERSION = atof((char*)hdr->AS.Header+8);
-	    	count  += FREAD(hdr->AS.Header+count,1,900-count,hdr);
+	    	count  += ifread(hdr->AS.Header+count,1,900-count,hdr);
 
 	    	ptr_str = (char*)hdr->AS.Header+136;
     		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
@@ -2087,7 +2087,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->NRec = (_eventtablepos-hdr->HeadLen)/(hdr->NS*2);
 		
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
-	    	count  += FREAD(Header1+900,1,hdr->NS*75,hdr);
+	    	count  += ifread(Header1+900,1,hdr->NS*75,hdr);
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS;k++)	{
@@ -2114,7 +2114,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	    	/* extract more header information */
 	    	// eventtablepos = leu32p(Header1+886);
-	    	FSEEK(hdr, 68, SEEK_SET);
+	    	ifseek(hdr, 68, SEEK_SET);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	}
 
@@ -2164,7 +2164,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	    	hdr->HeadLen = 19; 
-	    	FSEEK(hdr, 19, SEEK_SET);
+	    	ifseek(hdr, 19, SEEK_SET);
 	}
 
 	else if (hdr->TYPE==EGI) {
@@ -2200,7 +2200,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 			if (POS > count-8) {
 				hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,POS+8);
-				count += FREAD(hdr->AS.Header,1,POS+8-count,hdr);
+				count += ifread(hdr->AS.Header,1,POS+8-count,hdr);
 			}
 
 	    		hdr->NRec= beu16p(Header1+POS);
@@ -2221,7 +2221,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	}
 		POS += 4*EGI_LENGTH_CODETABLE;	    	// skip event codes
 		hdr->HeadLen = POS; 
-		FSEEK(hdr,hdr->HeadLen,SEEK_SET);
+		ifseek(hdr,hdr->HeadLen,SEEK_SET);
 		hdr->FILE.POS  = 0;
 
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
@@ -2269,9 +2269,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FLAG.SWAP = ( __BYTE_ORDER == __LITTLE_ENDIAN);   // default of MFER is BigEndian
 		/* TAG */ 
 		uint8_t tag = hdr->AS.Header[0];
-    		FSEEK(hdr,1,SEEK_SET);
+    		ifseek(hdr,1,SEEK_SET);
     		int curPos = 1; 
-		while (!FEOF(hdr)) {
+		while (!ifeof(hdr)) {
 			uint32_t len, val32=0;
 			int32_t  chan=-1; 
 			uint8_t tmplen;
@@ -2280,16 +2280,16 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				break;
 			else if (tag==63) {
 				/* CONTEXT */ 
-				curPos += FREAD(buf,1,1,hdr);
+				curPos += ifread(buf,1,1,hdr);
 				chan = buf[0] & 0x7f;
 				while (buf[0] & 0x80) {
-					curPos += FREAD(buf,1,1,hdr);
+					curPos += ifread(buf,1,1,hdr);
 					chan    = (chan<<7) + (buf[0] & 0x7f);
 				}
 			}
 			
 			/* LENGTH */ 
-			curPos += FREAD(&tmplen,1,1,hdr);
+			curPos += ifread(&tmplen,1,1,hdr);
 			char FlagInfiniteLength = 0; 
 			if ((tag==63) && (tmplen==0x80)) {
 				FlagInfiniteLength = -1; //Infinite Length
@@ -2297,7 +2297,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}	
 			else if (tmplen & 0x80) {
 				tmplen &= 0x7f;
-				curPos += FREAD(&buf,1,tmplen,hdr);
+				curPos += ifread(&buf,1,tmplen,hdr);
 				len = 0; 
 				k = 0; 
 				while (k<tmplen)
@@ -2307,18 +2307,18 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				len = tmplen;
 			
 			if (VERBOSE_LEVEL==9) 
-				fprintf(stdout,"MFER: tag=%3i chan=%2i len=%i %3i curPos=%i %i\n",tag,chan,tmplen,len,curPos,FTELL(hdr));
+				fprintf(stdout,"MFER: tag=%3i chan=%2i len=%i %3i curPos=%i %i\n",tag,chan,tmplen,len,curPos,iftell(hdr));
 
 			/* VALUE */ 
 			if (tag==0) {
 				if (len!=1) fprintf(stderr,"Warning MFER tag0 incorrect length %i!=1\n",len); 
-				curPos += FREAD(buf,1,len,hdr);
+				curPos += ifread(buf,1,len,hdr);
 			}	
 			else if (tag==1) {
 				// Endianity 
 				if (len!=1) fprintf(stderr,"Warning MFER tag1 incorrect length %i!=1\n",len); 
-					FSEEK(hdr,len-1,SEEK_CUR); 
-				curPos += FREAD(buf,1,1,hdr);
+					ifseek(hdr,len-1,SEEK_CUR); 
+				curPos += ifread(buf,1,1,hdr);
 				if      ( __BYTE_ORDER == __LITTLE_ENDIAN)
 					hdr->FLAG.SWAP =  !buf[0];
 				else if ( __BYTE_ORDER == __BIG_ENDIAN)
@@ -2328,26 +2328,26 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				// Version
 				uint8_t v[3];
 				if (len!=3) fprintf(stderr,"Warning MFER tag2 incorrect length %i!=3\n",len); 
-				curPos += FREAD(&v,1,3,hdr);
+				curPos += ifread(&v,1,3,hdr);
 				hdr->VERSION = v[0] + (v[1]<10 ? v[1]/10.0 : (v[1]<100 ? v[1]/100.0 : v[1]/1000.0)); 
 				}	
 			else if (tag==3) {
 				// character code 
 				char v[17];
 				if (len>16) fprintf(stderr,"Warning MFER tag2 incorrect length %i>16\n",len); 
-				curPos += FREAD(&v,1,len,hdr);
+				curPos += ifread(&v,1,len,hdr);
 				v[len]  = 0; 
 			}	
 			else if (tag==4) {
 				// SPR
 				if (len>4) fprintf(stderr,"Warning MFER tag4 incorrect length %i>4\n",len); 
-				curPos += FREAD(buf,1,len,hdr);
+				curPos += ifread(buf,1,len,hdr);
 				hdr->SPR = *(int64_t*) mfer_swap8b(buf, len, hdr->FLAG.SWAP); 
 			}	
 			else if (tag==5) {
 				// NS
 				if (len>4) fprintf(stderr,"Warning MFER tag5 incorrect length %i>4\n",len); 
-				curPos += FREAD(buf,1,len,hdr);
+				curPos += ifread(buf,1,len,hdr);
 				hdr->NS = *(int64_t*) mfer_swap8b(buf, len, hdr->FLAG.SWAP); 
 				hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL, hdr->NS*sizeof(CHANNEL_TYPE));
 				for (k=0; k<hdr->NS; k++) {
@@ -2359,7 +2359,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (tag==6) {
 				// NRec
 				if (len>4) fprintf(stderr,"Warning MFER tag6 incorrect length %i>4\n",len); 
-				curPos += FREAD(buf,1,len,hdr);
+				curPos += ifread(buf,1,len,hdr);
 				hdr->NRec = *(int64_t*) mfer_swap8b(buf, len, hdr->FLAG.SWAP); 
 			}	
 			else if (tag==8) {
@@ -2367,7 +2367,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				uint8_t TypeOfWaveForm8[2];
 				uint16_t TypeOfWaveForm;
 				if (len>2) fprintf(stderr,"Warning MFER tag8 incorrect length %i>2\n",len); 
-				curPos += FREAD(&TypeOfWaveForm8,1,len,hdr);
+				curPos += ifread(&TypeOfWaveForm8,1,len,hdr);
 				if (len==1) 
 					TypeOfWaveForm = TypeOfWaveForm8[0];
 				else if (hdr->FLAG.SWAP)
@@ -2378,7 +2378,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (tag==10) {
 				// GDFTYP
 				if (len!=1) fprintf(stderr,"warning MFER tag10 incorrect length %i!=1\n",len); 
-				curPos += FREAD(&gdftyp,1,1,hdr);
+				curPos += ifread(&gdftyp,1,1,hdr);
 				if 	(gdftyp==0)	gdftyp=3; // int16
 				else if (gdftyp==1)	gdftyp=4; // uint16
 				else if (gdftyp==2)	gdftyp=5; // int32
@@ -2396,7 +2396,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				// Fs
 				if (len>6) fprintf(stderr,"Warning MFER tag11 incorrect length %i>6\n",len); 
 				double  fval; 
-				curPos += FREAD(buf,1,len,hdr);
+				curPos += ifread(buf,1,len,hdr);
 				fval = *(int64_t*) mfer_swap8b(buf+2, len-2, hdr->FLAG.SWAP); 
 				
 				hdr->SampleRate = fval*pow(10.0, (int8_t)buf[1]);
@@ -2408,9 +2408,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (len>6) fprintf(stderr,"Warning MFER tag12 incorrect length %i>6\n",len); 
 				val32   = 0;
 				int8_t  v8; 
-				curPos += FREAD(&UnitCode,1,1,hdr);
-				curPos += FREAD(&v8,1,1,hdr);
-				curPos += FREAD(buf,1,len-2,hdr);
+				curPos += ifread(&UnitCode,1,1,hdr);
+				curPos += ifread(&v8,1,1,hdr);
+				curPos += ifread(buf,1,len-2,hdr);
 				Cal = *(int64_t*) mfer_swap8b(buf, len-2, hdr->FLAG.SWAP); 
 				Cal *= pow(10.0,v8); 
 				if (!MFER_PhysDimCodeTable[UnitCode]) 
@@ -2418,7 +2418,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}	
 			else if (tag==13) {
 				if (len>8) fprintf(stderr,"Warning MFER tag13 incorrect length %i>8\n",len); 
-				curPos += FREAD(&buf,1,len,hdr);
+				curPos += ifread(&buf,1,len,hdr);
 				if      (gdftyp == 1) Off = ( int8_t)buf[0];
 				else if (gdftyp == 2) Off = (uint8_t)buf[0];
 				else if (hdr->FLAG.SWAP) {
@@ -2451,8 +2451,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (tag==23) {
 				// manufacturer information: "Manufacturer^model^version number^serial number"
 				if (len>128) fprintf(stderr,"Warning MFER tag23 incorrect length %i>128\n",len); 
-				FREAD(hdr->ID.Manufacturer._field,1,max(MAX_LENGTH_MANUF,len),hdr);
-				FSEEK(hdr,max(0,len-MAX_LENGTH_MANUF),SEEK_CUR);
+				ifread(hdr->ID.Manufacturer._field,1,max(MAX_LENGTH_MANUF,len),hdr);
+				ifseek(hdr,max(0,len-MAX_LENGTH_MANUF),SEEK_CUR);
 				curPos += len;
 				for (k=0; isprint(hdr->ID.Manufacturer._field[k]) && (k<MAX_LENGTH_MANUF); k++);
 				hdr->ID.Manufacturer._field[k]    = 0; 
@@ -2465,22 +2465,22 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				// data block 
 				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,len); 
 				hdr->HeadLen    = curPos;
-				curPos += FREAD(hdr->AS.rawdata,1,len,hdr);
+				curPos += ifread(hdr->AS.rawdata,1,len,hdr);
 			}
 			else if (tag==63) {
 				uint8_t tag2=255, len2=255; 
 
 				count = 0; 
 				while ((count<len) && !(FlagInfiniteLength && len2==0 && tag2==0)){ 
-					curPos += FREAD(&tag2,1,1,hdr);
-					curPos += FREAD(&len2,1,1,hdr);
+					curPos += ifread(&tag2,1,1,hdr);
+					curPos += ifread(&len2,1,1,hdr);
 					if (VERBOSE_LEVEL==9)
-						fprintf(stdout,"MFER: tag=%3i chan=%2i len=%-4i tag2=%3i len2=%3i curPos=%i %i count=%4i\n",tag,chan,len,tag2,len2,curPos,FTELL(hdr),count);
+						fprintf(stdout,"MFER: tag=%3i chan=%2i len=%-4i tag2=%3i len2=%3i curPos=%i %i count=%4i\n",tag,chan,len,tag2,len2,curPos,iftell(hdr),count);
 				
 					if (FlagInfiniteLength && len2==0 && tag2==0) break; 
 
 					count  += (2+len2);
-					curPos += FREAD(&buf,1,len2,hdr);
+					curPos += ifread(&buf,1,len2,hdr);
 					if (tag2==4) {
 						// SPR
 						if (len2>4) fprintf(stderr,"Warning MFER tag63-4 incorrect length %i>4\n",len2); 
@@ -2521,7 +2521,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					;
 */
 					else {
-						FSEEK(hdr,len2,SEEK_CUR); 
+						ifseek(hdr,len2,SEEK_CUR); 
 						curPos += len2;
 						if (VERBOSE_LEVEL==9)
 							fprintf(stdout,"tag=63-%i (len=%i) not supported\n",tag,len); 
@@ -2532,14 +2532,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (tag==64) {
 				// preamble  
 				fprintf(stdout,"Preamble: pos=%i|",curPos); 
-				curPos += FREAD(tmp,1,len,hdr);
+				curPos += ifread(tmp,1,len,hdr);
 				for (k=0; k<len; k++)
 					fprintf(stdout,"%c",tmp[k]); 
 				fprintf(stdout,"|\n"); 
 			}	
 			else if (tag==65) {
 				// event table  
-				curPos += FREAD(buf,1,len,hdr);
+				curPos += ifread(buf,1,len,hdr);
 				if (len>2) {
 					hdr->EVENT.N++;
 					hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS,hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
@@ -2566,9 +2566,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 			else if (tag==129) {
 				if (!hdr->FLAG.ANONYMOUS)
-					curPos += FREAD(hdr->Patient.Name,1,len,hdr);
+					curPos += ifread(hdr->Patient.Name,1,len,hdr);
 				else 	{
-					FSEEK(hdr,len,SEEK_CUR); 
+					ifseek(hdr,len,SEEK_CUR); 
 					curPos += len; 
 				}		
 			}	
@@ -2577,18 +2577,18 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				// Patient Id 
 				if (len>64) fprintf(stderr,"Warning MFER tag131 incorrect length %i>64\n",len); 
 				if (len>MAX_LENGTH_PID) {
-					FREAD(hdr->Patient.Id,1,MAX_LENGTH_PID,hdr);
-					FSEEK(hdr,MAX_LENGTH_PID-len,SEEK_CUR);
+					ifread(hdr->Patient.Id,1,MAX_LENGTH_PID,hdr);
+					ifseek(hdr,MAX_LENGTH_PID-len,SEEK_CUR);
 					curPos += len;
 				}	
 				else
-					curPos += FREAD(hdr->Patient.Id,1,len,hdr);
+					curPos += ifread(hdr->Patient.Id,1,len,hdr);
 			}	
 
 			else if (tag==131) {
 				// Patient Age 
 				if (len!=7) fprintf(stderr,"Warning MFER tag131 incorrect length %i!=7\n",len); 
-				curPos += FREAD(buf,1,len,hdr);
+				curPos += ifread(buf,1,len,hdr);
 				tm_time.tm_year = *(uint16_t*)(buf+3);
 				if (hdr->FLAG.SWAP) tm_time.tm_year = bswap_16(tm_time.tm_year);
 		    		tm_time.tm_year-= 1900;
@@ -2606,10 +2606,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (tag==132) {
 				// Patient Sex 
 				if (len!=1) fprintf(stderr,"Warning MFER tag132 incorrect length %i!=1\n",len); 
-				curPos += FREAD(&hdr->Patient.Sex,1,len,hdr);
+				curPos += ifread(&hdr->Patient.Sex,1,len,hdr);
 			}	
 			else if (tag==133) {
-				curPos += FREAD(buf,1,len,hdr);
+				curPos += ifread(buf,1,len,hdr);
 				tm_time.tm_year = *(uint16_t*)buf;
 				if (hdr->FLAG.SWAP) tm_time.tm_year = bswap_16(tm_time.tm_year);
 				tm_time.tm_year-= 1900;
@@ -2630,16 +2630,16 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}
 			else	{ 	
 		    		curPos += len; 
-		    		FSEEK(hdr,len,SEEK_CUR);
+		    		ifseek(hdr,len,SEEK_CUR);
 				if (VERBOSE_LEVEL==9)
 					fprintf(stdout,"tag=%i (len=%i) not supported\n",tag,len); 
 		    	}	
 
-		    	if (curPos != FTELL(hdr))
-		    		fprintf(stdout,"positions differ %i %i \n",curPos,FTELL(hdr));
+		    	if (curPos != iftell(hdr))
+		    		fprintf(stdout,"positions differ %i %i \n",curPos,iftell(hdr));
 				
 			/* TAG */ 
-			int sz=FREAD(&tag,1,1,hdr);
+			int sz=ifread(&tag,1,1,hdr);
 			curPos += sz;
 	 	}
 		hdr->Dur[0] = hdr->SPR;
@@ -2671,7 +2671,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	else if (hdr->TYPE==SCP_ECG) {
 		hdr->HeadLen   = leu32p(hdr->AS.Header+2);
 		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
-	    	count += FREAD(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
+	    	count += ifread(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
 	    	uint16_t crc   = CRCEvaluate(hdr->AS.Header+2,hdr->HeadLen-2);
 
 	    	if ( leu16p(hdr->AS.Header) != crc) {
@@ -2706,7 +2706,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	{
     		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
     		B4C_ERRMSG = "ERROR BIOSIG SOPEN(READ): data format is not supported";		
-    		FCLOSE(hdr);
+    		ifclose(hdr);
     		free(Header1);
     		free(hdr);
 		return(NULL);
@@ -3257,7 +3257,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
     	hdr->FileName = FileName; 
 	if(hdr->TYPE != HL7aECG){
-	    	hdr = FOPEN(hdr,"wb");
+	    	hdr = ifopen(hdr,"wb");
 		
 		if (!hdr->FILE.COMPRESSION && (hdr->FILE.FID == NULL) ){
 			B4C_ERRNUM = B4C_CANNOT_WRITE_FILE;
@@ -3272,7 +3272,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		}
 #endif
 		if(hdr->TYPE != SCP_ECG){
-			FWRITE(Header1, sizeof(char), hdr->HeadLen, hdr);
+			ifwrite(Header1, sizeof(char), hdr->HeadLen, hdr);
 		}	
 
 		hdr->FILE.OPEN = 2;
@@ -3339,7 +3339,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		// check reading segment 
 		if (start < 0 || start > hdr->NRec) 
 			return(0);
-		else if (FSEEK(hdr, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET)<0)
+		else if (ifseek(hdr, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET)<0)
 			return(0);
 		hdr->FILE.POS = start; 	
 		
@@ -3350,7 +3350,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
 
 		// read data
-		count = FREAD(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr);
+		count = ifread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr);
 		if (count<nelem)
 			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem); 
 	}
@@ -3696,7 +3696,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 	if (hdr->TYPE != SCP_ECG  && hdr->TYPE != HL7aECG) {
 		// for SCP: writing to file is done in SCLOSE	
-		count = FWRITE((uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb, hdr->NRec, hdr);
+		count = ifwrite((uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb, hdr->NRec, hdr);
 	}	
 	else { 
 		count = 1; 	
@@ -3745,7 +3745,7 @@ int sseek(HDRTYPE* hdr, long int offset, int whence)
 	
 	if ((pos < 0) | (pos > hdr->NRec * hdr->AS.bpb))
 		return(-1);
-	else if (FSEEK(hdr, pos + hdr->HeadLen, SEEK_SET))
+	else if (ifseek(hdr, pos + hdr->HeadLen, SEEK_SET))
 		return(-1);
 
 	hdr->FILE.POS = pos / (hdr->AS.bpb); 	
@@ -3761,7 +3761,7 @@ long int stell(HDRTYPE* hdr)
 {
 	size_t pos; 
 	
-	pos = FTELL(hdr);	
+	pos = iftell(hdr);	
 	if (pos<0)
 		return(-1);
 	else if (pos != (hdr->FILE.POS * hdr->AS.bpb + hdr->HeadLen))
@@ -3786,7 +3786,7 @@ int sclose(HDRTYPE* hdr)
 	if ((hdr->FILE.OPEN>1) & ((hdr->TYPE==GDF) | (hdr->TYPE==EDF) | (hdr->TYPE==BDF)))
 	{
 		// WRITE HDR.NRec 
-		pos = (FTELL(hdr)-hdr->HeadLen); 
+		pos = (iftell(hdr)-hdr->HeadLen); 
 		if (hdr->NRec<0)
 		{	if (pos>0) 	hdr->NRec = pos/hdr->AS.bpb;
 			else		hdr->NRec = 0; 	
@@ -3801,13 +3801,13 @@ int sclose(HDRTYPE* hdr)
 			/* ### FIXME : gzseek supports only forward seek */
 			if (hdr->FILE.COMPRESSION>0)
 				fprintf(stderr,"Warning: writing NRec in gz-file requires gzseek which may not be supported.\n");
-			FSEEK(hdr,236,SEEK_SET); 
-			FWRITE(tmp,len,1,hdr);
+			ifseek(hdr,236,SEEK_SET); 
+			ifwrite(tmp,len,1,hdr);
 		}
 	
 		// WRITE EVENTTABLE 
 		if ((hdr->TYPE==GDF) & (hdr->EVENT.N>0)) {
-			FSEEK(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
+			ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
 			flag = (hdr->EVENT.DUR != NULL) & (hdr->EVENT.CHN != NULL); 
 			if (flag)   // any DUR or CHN is larger than 0 
 				for (k32u=0, flag=0; (k32u<hdr->EVENT.N) & !flag; k32u++)
@@ -3831,16 +3831,16 @@ int sclose(HDRTYPE* hdr)
 				hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
 				hdr->EVENT.TYP[k32u] = l_endian_u16(hdr->EVENT.TYP[k32u]); 
 			}
-			FWRITE(buf, 8, 1, hdr);
-			FWRITE(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr);
-			FWRITE(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr);
+			ifwrite(buf, 8, 1, hdr);
+			ifwrite(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr);
+			ifwrite(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr);
 			if (buf[0]>1) {
 				for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
 					hdr->EVENT.DUR[k32u] = l_endian_u32(hdr->EVENT.DUR[k32u]); 
 					hdr->EVENT.CHN[k32u] = l_endian_u16(hdr->EVENT.	CHN[k32u]); 
 				}
-				FWRITE(hdr->EVENT.CHN, sizeof(*hdr->EVENT.CHN), hdr->EVENT.N,hdr);
-				FWRITE(hdr->EVENT.DUR, sizeof(*hdr->EVENT.DUR), hdr->EVENT.N,hdr);
+				ifwrite(hdr->EVENT.CHN, sizeof(*hdr->EVENT.CHN), hdr->EVENT.N,hdr);
+				ifwrite(hdr->EVENT.DUR, sizeof(*hdr->EVENT.DUR), hdr->EVENT.N,hdr);
 			}	
 		}
 	}		
@@ -3864,7 +3864,7 @@ int sclose(HDRTYPE* hdr)
 		*(uint32_t*)(ptr+2) = l_endian_u32(hdr->HeadLen); 
 		crc = CRCEvaluate(ptr+2,hdr->HeadLen-2); 
 		*(int16_t*)ptr      = l_endian_u16(crc);
-		FWRITE(hdr->AS.Header, sizeof(char), hdr->HeadLen, hdr);
+		ifwrite(hdr->AS.Header, sizeof(char), hdr->HeadLen, hdr);
 	}		
 	else if ((hdr->FILE.OPEN>1) && (hdr->TYPE==HL7aECG))
 	{
@@ -3873,8 +3873,8 @@ int sclose(HDRTYPE* hdr)
 	}
 
 	if (hdr->FILE.OPEN > 0) {
-		int status = FCLOSE(hdr);
-		if (status) FERROR(hdr);
+		int status = ifclose(hdr);
+		if (status) iferror(hdr);
     	}	
 
     	if (hdr->aECG != NULL)	

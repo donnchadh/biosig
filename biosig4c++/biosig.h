@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.78 2008-03-07 22:56:15 schloegl Exp $
+% $Id: biosig.h,v 1.79 2008-03-11 08:14:49 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -75,7 +75,7 @@ extern int   VERBOSE_LEVEL;
 #endif
 #endif
 
-#ifdef  __sparc__
+#if	__sparc__
 #define __BIG_ENDIAN  	 4321
 #define __LITTLE_ENDIAN  1234
 #define __BYTE_ORDER 	__BIG_ENDIAN
@@ -562,19 +562,19 @@ typedef struct {
         file access wrapper: use ZLIB (if available) or STDIO
  */ 	 
 
-HDRTYPE* 	FOPEN(HDRTYPE* hdr, char* mode );
-int 		FCLOSE(HDRTYPE* hdr);
-int 		FFLUSH(HDRTYPE* hdr);
-size_t 		FREAD(void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
-size_t 		FWRITE(void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
-int             FPRINTF(HDRTYPE* hdr, const char *format, ...);
-int             FPUTC(int c, HDRTYPE* hdr);
-int 		FGETC(HDRTYPE* hdr);
-char*           FGETS(char *str, int n, HDRTYPE* hdr);
-int             FSEEK(HDRTYPE* hdr, long offset, int whence );
-long            FTELL(HDRTYPE* hdr);
-int 		FGETPOS(HDRTYPE* hdr, fpos_t *pos);
-int             FERROR(HDRTYPE* hdr);
+HDRTYPE* 	ifopen(HDRTYPE* hdr, char* mode );
+int 		ifclose(HDRTYPE* hdr);
+int 		ifflush(HDRTYPE* hdr);
+size_t 		ifread(void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
+size_t 		ifwrite(void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
+int             ifprintf(HDRTYPE* hdr, const char *format, ...);
+int             ifputc(int c, HDRTYPE* hdr);
+int 		ifgetc(HDRTYPE* hdr);
+char*           ifgets(char *str, int n, HDRTYPE* hdr);
+int             ifseek(HDRTYPE* hdr, long offset, int whence );
+long            iftell(HDRTYPE* hdr);
+int 		ifgetpos(HDRTYPE* hdr, fpos_t *pos);
+int             iferror(HDRTYPE* hdr);
 
 /*
 	These functions are for the converter between SCP to HL7aECG

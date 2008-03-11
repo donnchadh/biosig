@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.29 2008-03-03 19:15:06 schloegl Exp $
+    $Id: save2gdf.c,v 1.30 2008-03-11 08:14:49 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -164,7 +164,7 @@ int main(int argc, char **argv){
 	}
 
 	if (hdr->FILE.OPEN){
-		FCLOSE(hdr); 
+		ifclose(hdr); 
 		hdr->FILE.FID = 0;
 		free(hdr->AS.Header);
 		hdr->AS.Header = NULL;
@@ -224,6 +224,7 @@ int main(int argc, char **argv){
 			else if ((MaxValue <= ldexp(1.0,32)-1.0) && (MinValue >= 0.0))
 		    		hdr->CHANNEL[k].GDFTYP = 6;
 		}
+    		// hdr->CHANNEL[k].GDFTYP = 3;
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"#%3i %i [%f %f][%f %f]\n",k,hdr->CHANNEL[k].GDFTYP,MinValue,MaxValue,PhysMinValue0,PhysMaxValue0);
 	}
 	if (0) //(hdr->TYPE==SCP_ECG && !hdr->FLAG.UCAL) 
