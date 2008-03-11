@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.79 2008-03-11 08:14:49 schloegl Exp $
+% $Id: biosig.h,v 1.80 2008-03-11 14:07:27 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -240,23 +240,23 @@ int64_t  bei64p(uint8_t* i);
 float    bef32p(uint8_t* i);
 double   bef64p(uint8_t* i);
 
-uint16_t leu16a(uint16_t i, uint8_t* r);
-int16_t  lei16a( int16_t i, uint8_t* r);
-uint32_t leu32a(uint32_t i, uint8_t* r);
-int32_t  lei32a( int32_t i, uint8_t* r);
-uint64_t leu64a(uint64_t i, uint8_t* r);
-int64_t  lei64a( int64_t i, uint8_t* r);
-float    lef32a(   float i, uint8_t* r);
-double   lef64a(  double i, uint8_t* r);
+void leu16a(uint16_t i, uint8_t* r);
+void lei16a( int16_t i, uint8_t* r);
+void leu32a(uint32_t i, uint8_t* r);
+void lei32a( int32_t i, uint8_t* r);
+void leu64a(uint64_t i, uint8_t* r);
+void lei64a( int64_t i, uint8_t* r);
+void lef32a(   float i, uint8_t* r);
+void lef64a(  double i, uint8_t* r);
 
-uint16_t beu16a(uint16_t i, uint8_t* r);
-int16_t  bei16a( int16_t i, uint8_t* r);
-uint32_t beu32a(uint32_t i, uint8_t* r);
-int32_t  bei32a( int32_t i, uint8_t* r);
-uint64_t beu64a(uint64_t i, uint8_t* r);
-int64_t  bei64a( int64_t i, uint8_t* r);
-float    bef32a(   float i, uint8_t* r);
-double   bef64a(  double i, uint8_t* r);
+void beu16a(uint16_t i, uint8_t* r);
+void bei16a( int16_t i, uint8_t* r);
+void beu32a(uint32_t i, uint8_t* r);
+void bei32a( int32_t i, uint8_t* r);
+void beu64a(uint64_t i, uint8_t* r);
+void bei64a( int64_t i, uint8_t* r);
+void bef32a(   float i, uint8_t* r);
+void bef64a(  double i, uint8_t* r);
 
 #endif
 
@@ -562,7 +562,7 @@ typedef struct {
         file access wrapper: use ZLIB (if available) or STDIO
  */ 	 
 
-HDRTYPE* 	ifopen(HDRTYPE* hdr, char* mode );
+HDRTYPE* 	ifopen(HDRTYPE* hdr, const char* mode );
 int 		ifclose(HDRTYPE* hdr);
 int 		ifflush(HDRTYPE* hdr);
 size_t 		ifread(void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
