@@ -1,5 +1,5 @@
 	/*
-    $Id: biosig.c,v 1.135 2008-03-12 00:29:56 schloegl Exp $
+    $Id: biosig.c,v 1.136 2008-03-12 14:43:55 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -1346,6 +1346,9 @@ if (!strncmp(MODE,"r",1))
     	count = ifread(Header1,1,256,hdr);
 	hdr   = getfiletype(hdr);
     	
+	if (VERBOSE_LEVEL==9) 
+		fprintf(stdout,"File Format %i\n",hdr->TYPE); 
+
     	if (hdr->TYPE == GZIP) {
 #ifdef ZLIB_H
     		ifclose(hdr); 
@@ -1915,14 +1918,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		const char *filename = hdr->FileName; // keep input file name 
 		char* tmpfile = (char*)calloc(strlen(hdr->FileName)+5,1);		
 		strcpy(tmpfile,hdr->FileName);
-		char* ext = NULL; 
-		for (k = strlen(tmpfile); --k>0; ) {
-			if (tmpfile[k] == '.') {
-				ext = tmpfile+k+1;
-			}
-		}	
+		char* ext = strrchr(tmpfile,'.')+1; 
 
-		/* open header file */ 
+		/* open and read header file */ 
 		strcpy(ext,"ainf");		
 		hdr->FileName = tmpfile; 
 		hdr = ifopen(hdr,"rb"); 
@@ -1932,10 +1930,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
 	    	count   = ifread(hdr->AS.Header,1,hdr->HeadLen,hdr);
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, count+1);
+	    	hdr->AS.Header[count] = 0;	// add terminating \0 character
 	    	ifclose(hdr); 
-
-		hdr->HeadLen = count;
-	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
 
 		char *t1;
 		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
@@ -2026,16 +2023,168 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 
 	else if (hdr->TYPE==BrainVision) {
-		/* read header file */
+		/* open and read header file */ 
+		ifclose(hdr);
+		const char *filename = hdr->FileName; // keep input file name 
+		char* tmpfile = (char*)calloc(strlen(hdr->FileName)+5,1);		
+		strcpy(tmpfile,hdr->FileName);
+		char* ext = strrchr(tmpfile,'.')+1; 
+
+		strcpy(ext,"vhdr");		
+		hdr->FileName = tmpfile; 
 		hdr->HeadLen = 100000;
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
-	    	count   += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
+		hdr = ifopen(hdr,"rb"); 
+	    	count   = ifread(hdr->AS.Header,1,hdr->HeadLen,hdr);
 	    	ifclose(hdr); 
-		hdr->HeadLen = count;
-	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
-		
-	        hdr = ifopen(hdr,"rb");
-				
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, count+1);
+	    	hdr->AS.Header[count] = 0;	// add terminating \0 character
+
+		/* decode header information */
+		hdr->FLAG.OVERFLOWDETECTION = 0;
+		int seq = 0;
+		uint16_t gdftyp; 
+		double physmax=1e6,physmin=-1e6,digmax=1e6,digmin=-1e6,cal=1.0,off=0.0;
+		enum o_t{VEC,MUL};
+		enum o_t orientation;
+		size_t npts=0;
+
+		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
+		t = strtok(NULL,"\xA\xD");
+		while (t) {
+			if (!strncmp(t,";",1)) 	// comments
+				;
+			else if (!strncmp(t,"[Common Infos]",14))
+				seq = 1; 
+			else if (!strncmp(t,"[Binary Infos]",14))
+				seq = 2; 
+			else if (!strncmp(t,"[ASCII Infos]",13))
+				seq = 2; 
+			else if (!strncmp(t,"[Channel Infos]",14)) {
+				seq = 3; 
+
+				/* open data file */ 
+				hdr = ifopen(hdr,"rb"); 
+	        		ifseek(hdr,0,SEEK_END);
+				size_t FileSize = iftell(hdr);
+			        ifseek(hdr,0,SEEK_SET);
+				hdr->HeadLen = 0;
+				/* restore input file name, and free temporary file name  */
+				hdr->FileName = filename;
+				free(tmpfile);
+
+				if (!npts) npts = FileSize/hdr->AS.bpb;
+				if (orientation == VEC) {
+					hdr->SPR = npts;
+					hdr->NRec= 1;
+				} else {
+					hdr->SPR = 1;
+					hdr->NRec= npts;
+				}
+			    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
+				for (k=0; k<hdr->NS; k++) {
+					hdr->CHANNEL[k].Label[0] = 0;
+					hdr->CHANNEL[k].Transducer[0] = '\0';
+				    	hdr->CHANNEL[k].GDFTYP 	 = gdftyp; 
+				    	hdr->CHANNEL[k].SPR 	 = hdr->SPR; // *(int32_t*)(Header1+56);
+				    	hdr->CHANNEL[k].LowPass	 = -1.0;
+				    	hdr->CHANNEL[k].HighPass = -1.0;
+		    			hdr->CHANNEL[k].Notch	 = -1.0;  // unknown 
+				    	hdr->CHANNEL[k].PhysMax	 = physmax;
+				    	hdr->CHANNEL[k].DigMax	 = physmin;
+				    	hdr->CHANNEL[k].PhysMin	 = digmax;		
+				    	hdr->CHANNEL[k].DigMin	 = digmin;
+				    	hdr->CHANNEL[k].Cal	 = cal;
+				    	hdr->CHANNEL[k].Off	 = off;
+					hdr->CHANNEL[k].OnOff    = 1;
+				    	hdr->CHANNEL[k].PhysDimCode = 4275; // uV
+		    			hdr->CHANNEL[k].LeadIdCode  = 0;
+					}
+				}	
+			else if (!strncmp(t,"[Common Infos]",14))
+				seq = 4; 
+			else if (!strncmp(t,"[Coordinates]",13))
+				seq = 5; 
+			else if (!strncmp(t,"[Comment]",9))
+				seq = 6; 
+			else if (!strncmp(t,"[",1))
+				seq = 9; 
+			
+
+			else if (seq==1) {
+				if      (!strncmp(t,"DataFile=",9)) 
+					strcpy(ext,strrchr(t,'.')+1);		
+				else if (!strncmp(t,"MarkerFile=",11))
+					;
+				else if (!strncmp(t,"DataFormat=BINARY",11))
+					;
+				else if (!strncmp(t,"DataOrientation=VECTORIZED",25))
+					orientation = VEC;
+				else if (!strncmp(t,"DataOrientation=MULTIPLEXED",26))
+					orientation = MUL;
+				else if (!strncmp(t,"DataType=TIMEDOMAIN",19))
+					;
+				else if (!strncmp(t,"NumberOfChannels=",17))
+					hdr->NS = atoi(t+17);
+				else if (!strncmp(t,"DataPoints=",11)) {
+					npts = atof(t+11);
+				}	
+				else if (!strncmp(t,"SamplingInterval=",17)) {
+					hdr->SampleRate = 1e6/atof(t+17);
+				}	
+			}
+			else if (seq==2) {
+				if      (!strncmp(t,"BinaryFormat=IEEE_FLOAT_32",26)) {
+					gdftyp = 16;
+					hdr->AS.bpb = 4;
+				}	
+				else if (!strncmp(t,"BinaryFormat=INT_16",19)) {
+					gdftyp =  3;
+					hdr->AS.bpb = 2;
+					digmax =  32767;
+					digmin = -32768;
+					hdr->FLAG.OVERFLOWDETECTION = 1;
+				}
+				else {
+					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED; 
+					B4C_ERRMSG = "Error SOPEN(BrainVision): BinaryFormat=<unknown>";
+					return(hdr);
+				}	
+			}
+			else if (seq==3) {
+				if (!strncmp(t,"Ch",2)) {
+					char* ptr;
+
+					if (VERBOSE_LEVEL==9) fprintf(stdout,"%s\n",t);			
+
+					int n = strtoul(t+2, &ptr, 10)-1;
+					if ((n < 0) || (n >= hdr->NS)) {
+						B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED; 
+						B4C_ERRMSG = "Error SOPEN(BrainVision): invalid channel number";
+						ifclose(hdr);
+						return(hdr);
+					}
+					size_t len = strcspn(ptr+1,",");
+					strncpy(hdr->CHANNEL[n].Label,ptr+1,min(len,MAX_LENGTH_LABEL));
+					ptr += len+2;
+					ptr += strcspn(ptr,",")+1;
+					hdr->CHANNEL[n].Cal = atof(ptr);
+					hdr->CHANNEL[n].PhysMax = hdr->CHANNEL[n].DigMax * hdr->CHANNEL[n].Cal ;
+					hdr->CHANNEL[n].PhysMin = hdr->CHANNEL[n].DigMin * hdr->CHANNEL[n].Cal ;
+
+					if (VERBOSE_LEVEL==9) 
+						fprintf(stdout,"Ch%02i=%s,,%s(%f)\n",n,hdr->CHANNEL[n-1].Label,ptr,hdr->CHANNEL[n-1].Cal );			
+				}	
+			}
+			else if (seq==4) {
+			}
+			else if (seq==5) {
+			}
+			else if (seq==6) {
+			}
+					
+			t = strtok(NULL,"\xA\xD");	// extract next line
+		}
 	}
 
 	else if (hdr->TYPE==CFWB) {
