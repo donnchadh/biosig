@@ -1,5 +1,5 @@
 	/*
-    $Id: biosig.c,v 1.134 2008-03-11 23:55:49 schloegl Exp $
+    $Id: biosig.c,v 1.135 2008-03-12 00:29:56 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -1311,9 +1311,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
     	int 		k,k1;
     	uint32_t	k32u; 
     	size_t	 	count,len;
-    	uint8_t 	buf[128];
     	char 		tmp[81];
-    	char 		cmd[256];
     	double 		Dur; 
 //	char* 		Header1;
 //	char* 		Header2=NULL;
@@ -1538,6 +1536,7 @@ if (!strncmp(MODE,"r",1))
 
 		// READ EVENTTABLE 
 		int c;
+    		uint8_t buf[8];
 		ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
 		c = ifread(buf, sizeof(uint8_t), 8, hdr);
 
@@ -1913,18 +1912,19 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	else if (hdr->TYPE==AINF) {
 		ifclose(hdr);
-		const char *filename = hdr->FileName; 
-		strcpy(cmd,hdr->FileName);		
+		const char *filename = hdr->FileName; // keep input file name 
+		char* tmpfile = (char*)calloc(strlen(hdr->FileName)+5,1);		
+		strcpy(tmpfile,hdr->FileName);
 		char* ext = NULL; 
-		for (k = strlen(cmd); --k>0; ) {
-			if (cmd[k] == '.') {
-				ext = cmd+k+1;
+		for (k = strlen(tmpfile); --k>0; ) {
+			if (tmpfile[k] == '.') {
+				ext = tmpfile+k+1;
 			}
 		}	
 
 		/* open header file */ 
 		strcpy(ext,"ainf");		
-		hdr->FileName = cmd; 
+		hdr->FileName = tmpfile; 
 		hdr = ifopen(hdr,"rb"); 
 	        ifseek(hdr,0,SEEK_END);
 		hdr->HeadLen = iftell(hdr);
@@ -1983,7 +1983,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->NRec = iftell(hdr)/hdr->AS.bpb;
 	        ifseek(hdr,0,SEEK_SET);
 		hdr->HeadLen = 0;
+		/* restore input file name, and free temporary file name  */
 		hdr->FileName = filename;
+		free(tmpfile);
 	}      	
 
 	else if (hdr->TYPE==BKR) {
@@ -2198,6 +2200,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	else if (hdr->TYPE==EGI) {
 		// BigEndian 
+		hdr->FLAG.SWAP = (__BYTE_ORDER == __LITTLE_ENDIAN); 	// default: most data formats are little endian 
 	    	hdr->VERSION  	= beu32p(hdr->AS.Header);
     		if      (hdr->VERSION==2 || hdr->VERSION==3)	GDFTYP = 3;	//int32
     		else if (hdr->VERSION==4 || hdr->VERSION==5)	GDFTYP = 16;	//float
@@ -2292,6 +2295,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// MFER does not support automated overflow and saturation detection
 
+	    	uint8_t buf[128];
 		uint8_t gdftyp = 3; 	// default: int16
 		uint8_t UnitCode=0; 
 		double Cal = 1.0, Off = 0.0; 
@@ -3008,6 +3012,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 				if (isspace(hdr->Patient.Id[k]))
 					hdr->Patient.Id[k] = '_';
 
+	    	char cmd[256];
 		if (!hdr->FLAG.ANONYMOUS)
 			sprintf(cmd,"%s %c %s %s",hdr->Patient.Id,GENDER[hdr->Patient.Sex],tmp,hdr->Patient.Name);
 		else	
