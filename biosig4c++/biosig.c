@@ -1,5 +1,5 @@
 	/*
-    $Id: biosig.c,v 1.137 2008-03-13 14:56:53 schloegl Exp $
+    $Id: biosig.c,v 1.138 2008-03-13 15:58:05 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
@@ -1004,7 +1004,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 
 	// define EVENT structure
 	hdr->EVENT.N = N_EVENT; 
-	hdr->EVENT.SampleRate = hdr->SampleRate; 
+	hdr->EVENT.SampleRate = 0;  
 	hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
 	hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
 	hdr->EVENT.DUR = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.DUR));
@@ -2272,7 +2272,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->Dur[1] = leu16p(hdr->AS.Header+376);
 		hdr->SampleRate = hdr->Dur[1]; 
 #define _eventtablepos (leu32p(hdr->AS.Header+886))
-		hdr->NRec = (_eventtablepos-hdr->HeadLen)/(hdr->NS*2);
+		hdr->AS.bpb = hdr->NS*2;
+		hdr->NRec   = (_eventtablepos-hdr->HeadLen) / hdr->AS.bpb;
 		
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
 	    	count  += ifread(Header1+900,1,hdr->NS*75,hdr);
@@ -2300,9 +2301,30 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].PhysMin	= hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 		}
 
-	    	/* extract more header information */
-	    	// eventtablepos = leu32p(Header1+886);
-	    	ifseek(hdr, 68, SEEK_SET);
+	    	/* read event table */
+	    	size_t eventtablepos = leu32p(Header1+886);
+	    	if (!ifseek(hdr, eventtablepos, SEEK_SET)) {
+			uint8_t  TeegType   = ifread(tmp,1,1,hdr);	    	
+			uint32_t TeegSize   = ifread(tmp,4,1,hdr);	    	
+			uint32_t TeegOffset = ifread(tmp,4,1,hdr);
+			
+			uint8_t* buf = (uint8_t*)malloc(TeegSize);
+			int fieldsize = ( (TeegType==2) || (TeegType==3) ? 8 : 19); 
+			hdr->EVENT.N = ifread(buf,fieldsize,hdr->EVENT.N,hdr);
+			hdr->EVENT.SampleRate = hdr->SampleRate; 
+			hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
+			hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
+			hdr->EVENT.DUR = NULL;
+			hdr->EVENT.CHN = NULL;
+
+			for  (k = 0; k < hdr->EVENT.N; k++) {
+				hdr->EVENT.TYP[k] = leu16p(buf+k*fieldsize);
+				hdr->EVENT.POS[k] = leu32p(buf+k*fieldsize+4);
+				if (TeegType==3)
+					hdr->EVENT.POS[k] = (hdr->EVENT.POS[k] - hdr->HeadLen) / hdr->AS.bpb;
+			}
+		    	ifseek(hdr, hdr->HeadLen, SEEK_SET);
+	    	}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	}
 
@@ -4210,9 +4232,9 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 		fprintf(fid,"\n\n[EVENT TABLE] N=%i Fs=%f",hdr->EVENT.N,hdr->EVENT.SampleRate);
 		fprintf(fid,"\n#No\tTYP\tPOS\tDUR\tCHN");
 		for (int k=0; k<hdr->EVENT.N; k++) {
-			fprintf(fid,"\n%5i\t%x\t%d",k,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]);
+			fprintf(fid,"\n%5i\t0x%04x\t%d",k+1,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]);
 			if (hdr->EVENT.DUR != NULL)		
-				fprintf(fid,"\t%d\t%d",hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]);
+				fprintf(fid,"\t%5d\t%d",hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]);
 		}
 	}
 		
