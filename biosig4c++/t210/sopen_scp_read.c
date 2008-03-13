@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.53 2007-12-03 19:23:24 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.54 2008-03-13 15:08:42 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -356,23 +356,29 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		- currently Huffman and Bimodal compression is not supported. 
 	*/	
 
+	aECG_TYPE* aECG;
 	if (hdr->aECG == NULL) {
-		hdr->aECG = (aECG_TYPE*)malloc(sizeof(aECG_TYPE));
-		hdr->aECG->diastolicBloodPressure=0.0;				 
-		hdr->aECG->systolicBloodPressure=0.0;
-		hdr->aECG->MedicationDrugs = "\0";
-		hdr->aECG->ReferringPhysician="\0";
-		hdr->aECG->LatestConfirmingPhysician="\0";
-		hdr->aECG->Diagnosis="\0";
-		hdr->aECG->EmergencyLevel=0;
+		hdr->aECG = malloc(sizeof(aECG_TYPE));
+		aECG = (aECG_TYPE*)hdr->aECG;
+		aECG->diastolicBloodPressure=0.0;				 
+		aECG->systolicBloodPressure=0.0;
+		aECG->MedicationDrugs = "\0";
+		aECG->ReferringPhysician="\0";
+		aECG->LatestConfirmingPhysician="\0";
+		aECG->Diagnosis="\0";
+		aECG->EmergencyLevel=0;
 		hdr->ID.Technician = "nobody";
 	}
-	hdr->aECG->Section1.Tag14.VERSION = 0; // acquiring.protocol_revision_number 
-	hdr->aECG->Section1.Tag15.VERSION = 0; // analyzing.protocol_revision_number
-	hdr->aECG->FLAG.HUFFMAN  = 0; 
-	hdr->aECG->FLAG.DIFF     = 0; 
-	hdr->aECG->FLAG.REF_BEAT = 0; 
-	hdr->aECG->FLAG.BIMODAL  = 0;
+	else 
+		aECG = (aECG_TYPE*)hdr->aECG;
+
+	
+	aECG->Section1.Tag14.VERSION = 0; // acquiring.protocol_revision_number 
+	aECG->Section1.Tag15.VERSION = 0; // analyzing.protocol_revision_number
+	aECG->FLAG.HUFFMAN  = 0; 
+	aECG->FLAG.DIFF     = 0; 
+	aECG->FLAG.REF_BEAT = 0; 
+	aECG->FLAG.BIMODAL  = 0;
 
 	en1064.Section4.len_ms	 = 0;
 	
@@ -551,13 +557,13 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				else if (tag==10) {
 				}
 				else if (tag==11) {
- 					hdr->aECG->diastolicBloodPressure = leu16p(PtrCurSect+curSectPos);
+ 					aECG->diastolicBloodPressure = leu16p(PtrCurSect+curSectPos);
 				}
 				else if (tag==12) {
-					hdr->aECG->systolicBloodPressure  = leu16p(PtrCurSect+curSectPos);
+					aECG->systolicBloodPressure  = leu16p(PtrCurSect+curSectPos);
 				}
 				else if (tag==13) {
-					hdr->aECG->Diagnosis = (char*)(PtrCurSect+curSectPos);
+					aECG->Diagnosis = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==14) {
 					if (len1>80)
@@ -576,31 +582,31 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					/* might become obsolete */					
 					//memcpy(hdr->aECG->Section1.tag14,PtrCurSect+curSectPos,40);
 					//hdr->VERSION = *(PtrCurSect+curSectPos+14)/10.0;	// tag 14, byte 15
-					hdr->aECG->Section1.Tag14.INST_NUMBER = leu16p(PtrCurSect+curSectPos);
-					hdr->aECG->Section1.Tag14.DEPT_NUMBER = leu16p(PtrCurSect+curSectPos+2);
-					hdr->aECG->Section1.Tag14.DEVICE_ID   = leu16p(PtrCurSect+curSectPos+4);
-					hdr->aECG->Section1.Tag14.DEVICE_TYPE = *(PtrCurSect+curSectPos+ 6);
-					hdr->aECG->Section1.Tag14.MANUF_CODE  = *(PtrCurSect+curSectPos+ 7);	// tag 14, byte 7 (MANUF_CODE has to be 255)
-					hdr->aECG->Section1.Tag14.MOD_DESC    = (char*)(PtrCurSect+curSectPos+8); 
-					hdr->aECG->Section1.Tag14.VERSION     = *(PtrCurSect+curSectPos+14);
-					hdr->aECG->Section1.Tag14.PROT_COMP_LEVEL = *(PtrCurSect+curSectPos+15); 	// tag 14, byte 15 (PROT_COMP_LEVEL has to be 0xA0 => level II)
-					hdr->aECG->Section1.Tag14.LANG_SUPP_CODE  = *(PtrCurSect+curSectPos+16);	// tag 14, byte 16 (LANG_SUPP_CODE has to be 0x00 => Ascii only, latin and 1-byte code)
-					hdr->aECG->Section1.Tag14.ECG_CAP_DEV     = *(PtrCurSect+curSectPos+17);	// tag 14, byte 17 (ECG_CAP_DEV has to be 0xD0 => Acquire, (No Analysis), Print and Store)
-					hdr->aECG->Section1.Tag14.MAINS_FREQ      = *(PtrCurSect+curSectPos+18);	// tag 14, byte 18 (MAINS_FREQ has to be 0: unspecified, 1: 50 Hz, 2: 60Hz)
+					aECG->Section1.Tag14.INST_NUMBER = leu16p(PtrCurSect+curSectPos);
+					aECG->Section1.Tag14.DEPT_NUMBER = leu16p(PtrCurSect+curSectPos+2);
+					aECG->Section1.Tag14.DEVICE_ID   = leu16p(PtrCurSect+curSectPos+4);
+					aECG->Section1.Tag14.DEVICE_TYPE = *(PtrCurSect+curSectPos+ 6);
+					aECG->Section1.Tag14.MANUF_CODE  = *(PtrCurSect+curSectPos+ 7);	// tag 14, byte 7 (MANUF_CODE has to be 255)
+					aECG->Section1.Tag14.MOD_DESC    = (char*)(PtrCurSect+curSectPos+8); 
+					aECG->Section1.Tag14.VERSION     = *(PtrCurSect+curSectPos+14);
+					aECG->Section1.Tag14.PROT_COMP_LEVEL = *(PtrCurSect+curSectPos+15); 	// tag 14, byte 15 (PROT_COMP_LEVEL has to be 0xA0 => level II)
+					aECG->Section1.Tag14.LANG_SUPP_CODE  = *(PtrCurSect+curSectPos+16);	// tag 14, byte 16 (LANG_SUPP_CODE has to be 0x00 => Ascii only, latin and 1-byte code)
+					aECG->Section1.Tag14.ECG_CAP_DEV     = *(PtrCurSect+curSectPos+17);	// tag 14, byte 17 (ECG_CAP_DEV has to be 0xD0 => Acquire, (No Analysis), Print and Store)
+					aECG->Section1.Tag14.MAINS_FREQ      = *(PtrCurSect+curSectPos+18);	// tag 14, byte 18 (MAINS_FREQ has to be 0: unspecified, 1: 50 Hz, 2: 60Hz)
 
-					hdr->aECG->Section1.Tag14.ANAL_PROG_REV_NUM = (char*)(PtrCurSect+curSectPos+36);
+					aECG->Section1.Tag14.ANAL_PROG_REV_NUM = (char*)(PtrCurSect+curSectPos+36);
 					tmp = strlen((char*)(PtrCurSect+curSectPos+36));					
-					hdr->aECG->Section1.Tag14.SERIAL_NUMBER_ACQ_DEV = (char*)(PtrCurSect+curSectPos+36+tmp+1);
+					aECG->Section1.Tag14.SERIAL_NUMBER_ACQ_DEV = (char*)(PtrCurSect+curSectPos+36+tmp+1);
 					tmp += strlen((char*)(PtrCurSect+curSectPos+36+tmp+1));					
-					hdr->aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID = (char*)(PtrCurSect+curSectPos+36+tmp+1);
+					aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID = (char*)(PtrCurSect+curSectPos+36+tmp+1);
 					tmp += strlen((char*)(PtrCurSect+curSectPos+36+tmp+1));					
-					hdr->aECG->Section1.Tag14.ACQ_DEV_SCP_SW = (char*)(PtrCurSect+curSectPos+36+tmp+1); 	// tag 14, byte 38 (SCP_IMPL_SW has to be "OpenECG XML-SCP 1.00")
+					aECG->Section1.Tag14.ACQ_DEV_SCP_SW = (char*)(PtrCurSect+curSectPos+36+tmp+1); 	// tag 14, byte 38 (SCP_IMPL_SW has to be "OpenECG XML-SCP 1.00")
 					tmp += strlen((char*)(PtrCurSect+curSectPos+36+tmp+1));
-					hdr->aECG->Section1.Tag14.ACQ_DEV_MANUF  = (char*)(PtrCurSect+curSectPos+36+tmp+1);	// tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer")
+					aECG->Section1.Tag14.ACQ_DEV_MANUF  = (char*)(PtrCurSect+curSectPos+36+tmp+1);	// tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer")
 				}
 				else if (tag==15) {
 					//memcpy(hdr->aECG->Section1.tag15,PtrCurSect+curSectPos,40);
-					hdr->aECG->Section1.Tag15.VERSION     = *(PtrCurSect+curSectPos+14);
+					aECG->Section1.Tag15.VERSION     = *(PtrCurSect+curSectPos+14);
 				}
 				else if (tag==16) {
 				}
@@ -611,17 +617,17 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				else if (tag==19) {
 				}
 				else if (tag==20) {
-					hdr->aECG->ReferringPhysician = (char*)(PtrCurSect+curSectPos);
+					aECG->ReferringPhysician = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==21) {
-					hdr->aECG->MedicationDrugs = (char*)(PtrCurSect+curSectPos);
+					aECG->MedicationDrugs = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==22) {
 				}
 				else if (tag==23) {
 				}
 				else if (tag==24) {
-					hdr->aECG->EmergencyLevel = *(PtrCurSect+curSectPos);
+					aECG->EmergencyLevel = *(PtrCurSect+curSectPos);
 				}
 				else if (tag==25) {
 					t0.tm_year = leu16p(PtrCurSect+curSectPos)-1900;
@@ -678,7 +684,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 
 		/**** SECTION 2 ****/
 		else if (curSect==2)  {
-			hdr->aECG->FLAG.HUFFMAN = 1; 
+			aECG->FLAG.HUFFMAN = 1; 
 			en1064.FLAG.HUFFMAN = 1; 
 
 			NHT = leu16p(PtrCurSect+curSectPos);
@@ -729,7 +735,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		else if (curSect==3)  
 		{
 			hdr->NS = *(PtrCurSect+curSectPos);
-			hdr->aECG->FLAG.REF_BEAT = (*(PtrCurSect+curSectPos+1) & 0x01);
+			aECG->FLAG.REF_BEAT = (*(PtrCurSect+curSectPos+1) & 0x01);
 			en1064.FLAG.REF_BEAT = (*(PtrCurSect+curSectPos+1) & 0x01);
 			en1064.Section3.flags = *(PtrCurSect+curSectPos+1);
 			if (en1064.FLAG.REF_BEAT && !section[4].length)
@@ -858,8 +864,8 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 
 			Cal6 			= leu16p(PtrCurSect+curSectPos);
 			en1064.Section6.dT_us	= leu16p(PtrCurSect+curSectPos+2);
-			hdr->aECG->FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);
-			hdr->aECG->FLAG.BIMODAL = *(PtrCurSect+curSectPos+5);
+			aECG->FLAG.DIFF 	= *(PtrCurSect+curSectPos+4);
+			aECG->FLAG.BIMODAL = *(PtrCurSect+curSectPos+5);
 
 			if ((section[5].length>4) &&  en1064.Section5.dT_us) 
 				dT_us = en1064.Section5.dT_us;
@@ -912,19 +918,19 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				len += en1064.Section6.inlen[i];
 				Ptr2datablock += en1064.Section6.inlen[i]; 
 
-				if (hdr->aECG->FLAG.DIFF==1) {
+				if (aECG->FLAG.DIFF==1) {
 					for (ix = i*hdr->SPR+1; ix < i*hdr->SPR + SPR; ix++)
 						data[ix] += data[ix-1];
 				}		
-				else if (hdr->aECG->FLAG.DIFF==2) {
+				else if (aECG->FLAG.DIFF==2) {
 					for (ix = i*hdr->SPR+2; ix < i*hdr->SPR + SPR; ix++)
 						data[ix] += 2*data[ix-1] - data[ix-2];
 				}
 
 #ifndef WITHOUT_SCP_DECODE
-				if (hdr->aECG->FLAG.BIMODAL || en1064.FLAG.REF_BEAT) { 	
-//				if (hdr->aECG->FLAG.BIMODAL) {
-//				if (hdr->aECG->FLAG.REF_BEAT {
+				if (aECG->FLAG.BIMODAL || en1064.FLAG.REF_BEAT) { 	
+//				if (aECG->FLAG.BIMODAL) {
+//				if (aECG->FLAG.REF_BEAT {
 					/*	this is experimental work
 						Bimodal and RefBeat decompression are under development. 
 						"continue" ignores code below 
@@ -934,7 +940,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				}
 #endif
 
-				if (hdr->aECG->FLAG.BIMODAL) {
+				if (aECG->FLAG.BIMODAL) {
 					// ### FIXME ### 
 					ix = i*hdr->SPR;		// memory offset
 					k1 = en1064.Section4.SPR-1; 	// SPR of decimated data 
@@ -1117,12 +1123,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		- defines intermediate data structure
 	*/	
 
-	fprintf(stdout, "\nUse SCP_DECODE (Huffman=%i RefBeat=%i Bimodal=%i)\n",hdr->aECG->FLAG.HUFFMAN, hdr->aECG->FLAG.REF_BEAT, hdr->aECG->FLAG.BIMODAL);
+	fprintf(stdout, "\nUse SCP_DECODE (Huffman=%i RefBeat=%i Bimodal=%i)\n", aECG->FLAG.HUFFMAN, aECG->FLAG.REF_BEAT, aECG->FLAG.BIMODAL);
 
-	textual.des.acquiring.protocol_revision_number = hdr->aECG->Section1.Tag14.VERSION;
-	textual.des.analyzing.protocol_revision_number = hdr->aECG->Section1.Tag15.VERSION; 
+	textual.des.acquiring.protocol_revision_number = aECG->Section1.Tag14.VERSION;
+	textual.des.analyzing.protocol_revision_number = aECG->Section1.Tag15.VERSION; 
 
-	decode.flag_Res.bimodal = (hdr->aECG->Section1.Tag14.VERSION > 10 ? hdr->aECG->FLAG.BIMODAL : 0);  
+	decode.flag_Res.bimodal = (aECG->Section1.Tag14.VERSION > 10 ? aECG->FLAG.BIMODAL : 0);  
 	decode.Reconstructed    = (int32_t*) hdr->AS.rawdata; 
 
 	if (scp_decode(hdr, section, decode, record, textual, add_filter)) {
