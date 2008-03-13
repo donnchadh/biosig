@@ -1,6 +1,6 @@
 	/*
-    $Id: biosig.c,v 1.136 2008-03-12 14:43:55 schloegl Exp $
-    Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
+    $Id: biosig.c,v 1.137 2008-03-13 14:56:53 schloegl Exp $
+    Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 		    
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -630,6 +630,9 @@ const struct PhysDimIdx
 	{ 6208 ,  "Pa %-1" },
 	{ 6432 ,  "dB" },
 	{ 6016 ,  "dyne s m-2 cm-5" },
+	{65344 ,  "mol l-1 mm"}, 	// "light path length","milli(Mol/Liter)*millimeter"	
+	{65376 ,  "r.p.m"}, 		// "rotations per minute"
+	{65408 ,  "B"}, 		// "Bel", "relative power decibel"	
 	{65440 ,  "dyne s m2 cm-5" },
 	{65472 ,  "l m-2" },
 	{65504 ,  "T" },
@@ -1548,7 +1551,12 @@ if (!strncmp(MODE,"r",1))
 			hdr->EVENT.N = 0;
 		}	
 		else if (hdr->VERSION < 1.94) {
-			hdr->EVENT.SampleRate = (float)buf[1] + (buf[2] + buf[3]*256.0)*256.0; 
+			if (buf[1] | buf[2] | buf[3])
+				hdr->EVENT.SampleRate = buf[1] + (buf[2] + buf[3]*256.0)*256.0; 
+			else {
+				fprintf(stdout,"Warning GDF v1: SampleRate in Eventtable is not set in %s !!!\n",hdr->FileName);	
+				hdr->EVENT.SampleRate = hdr->SampleRate; 
+			}	
 			hdr->EVENT.N = leu32p(buf + 4);
 		}	
 		else	{
@@ -1995,8 +2003,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->NRec 	*= hdr->SPR; 
 		hdr->SPR  	 = 1; 
 		hdr->T0 	 = 0;        // Unknown;
-		hdr->Dur[0]	 = hdr->SPR;
-		hdr->Dur[1]	 = leu16p(hdr->AS.Header+4);
+		hdr->Dur[0]	 = leu16p(hdr->AS.Header+4);
+		hdr->Dur[1]	 = hdr->SPR;
 		hdr->SampleRate  = ((double)hdr->Dur[0])/hdr->Dur[1];		
 
 	    	/* extract more header information */
@@ -2436,7 +2444,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		const uint16_t MFER_PhysDimCodeTable[30] = {
     			4256, 3872, 3840, 3904,    0,	// Volt, mmHg, Pa, mmH2O, mmHg/S
     			3808, 3776,  544, 6048, 2528,	// dyne, N, %, °C, 1/min 
-    			4264, 4288, 4160,    0, 4032,	// 1/s, Ohm, A, rpm, W
+    			4264, 4288, 4160,65376, 4032,	// 1/s, Ohm, A, rpm, W
     			6432, 1731, 3968, 6016,    0,	// dB, kg, J, dyne s m-2 cm-5, l
     			3040, 3072, 4480,    0,    0,	// L/s, L/min, cd
     			   0,    0,    0,    0,    0,	// 
@@ -4033,15 +4041,16 @@ int sclose(HDRTYPE* hdr)
 		uint16_t 	crc; 
 		uint8_t*	ptr; 	// pointer to memory mapping of the file layout
 
-		if (hdr->aECG->Section5.Length>0) {
+		aECG_TYPE* aECG = (aECG_TYPE*)hdr->aECG;
+		if (aECG->Section5.Length>0) {
 			// compute CRC for Section 5
-			uint16_t crc = CRCEvaluate(hdr->AS.Header + hdr->aECG->Section5.StartPtr+2,hdr->aECG->Section5.Length-2); // compute CRC
-			*(uint16_t*)(hdr->AS.Header + hdr->aECG->Section5.StartPtr) = l_endian_u16(crc);
+			uint16_t crc = CRCEvaluate(hdr->AS.Header + aECG->Section5.StartPtr+2,aECG->Section5.Length-2); // compute CRC
+			*(uint16_t*)(hdr->AS.Header + aECG->Section5.StartPtr) = l_endian_u16(crc);
 		}	
-		if (hdr->aECG->Section6.Length>0) {
+		if (aECG->Section6.Length>0) {
 			// compute CRC for Section 6
-			uint16_t crc = CRCEvaluate(hdr->AS.Header + hdr->aECG->Section6.StartPtr+2,hdr->aECG->Section6.Length-2); // compute CRC
-			*(uint16_t*)(hdr->AS.Header + hdr->aECG->Section6.StartPtr) = l_endian_u16(crc);
+			uint16_t crc = CRCEvaluate(hdr->AS.Header + aECG->Section6.StartPtr+2,aECG->Section6.Length-2); // compute CRC
+			*(uint16_t*)(hdr->AS.Header + aECG->Section6.StartPtr) = l_endian_u16(crc);
 		}	
 		// compute crc and len and write to preamble 
 		ptr = hdr->AS.Header; 
@@ -4114,7 +4123,7 @@ int serror() {
 	int status = B4C_ERRNUM; 
 	if (status) {
 		fprintf(stderr,"ERROR %i: %s\n",B4C_ERRNUM,B4C_ERRMSG);
-		B4C_ERRNUM = 0;
+		B4C_ERRNUM = B4C_NO_ERROR;
 	}
 	return(status);
 }
@@ -4141,7 +4150,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 		/* display header information */
 		fprintf(fid,"FileName:\t%s\nType    :\t%i\nVersion :\t%4.2f\nHeadLen :\t%i\n",hdr->FileName,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
 		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nDuration[s]:\t%u/%u\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
-		fprintf(fid,"Events/Annotations:\t%i\n",hdr->EVENT.N); 
+		fprintf(fid,"Events/Annotations:\t%i\nEvents/SampleRate:\t%f\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
 	}
 		
 	if (VERBOSE_LEVEL>0) {
@@ -4182,7 +4191,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 		fprintf(fid,"\tStartOfRecording: %s\n",tmp); 
 	}
 		
-	if (VERBOSE_LEVEL>1) {
+	if (VERBOSE_LEVEL>2) {
 		/* channel settings */ 
 		fprintf(fid,"\n[CHANNEL HEADER]");
 		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin Filter");
@@ -4194,35 +4203,47 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass);
 			//fprintf(fid,"\t %3i", cp->SPR);
 		}
-		fprintf(fid,"\n\n");
 	}
 		
 	if (VERBOSE_LEVEL>3) {
-		if (hdr->aECG) {
-			fprintf(stdout,"Insitution Number: %i\n",hdr->aECG->Section1.Tag14.INST_NUMBER);
-			fprintf(stdout,"DepartmentNumber : %i\n",hdr->aECG->Section1.Tag14.DEPT_NUMBER);
-			fprintf(stdout,"Device Id        : %i\n",hdr->aECG->Section1.Tag14.DEVICE_ID);
-			fprintf(stdout,"Device Type      : %i\n",hdr->aECG->Section1.Tag14.DEVICE_TYPE);
-			fprintf(stdout,"Manufacture code : %i\n",hdr->aECG->Section1.Tag14.MANUF_CODE);
-			fprintf(stdout,"MOD_DESC         : %s\n",hdr->aECG->Section1.Tag14.MOD_DESC); 
-			fprintf(stdout,"Version          : %i\n",hdr->aECG->Section1.Tag14.VERSION);
-			fprintf(stdout,"ProtCompLevel    : %i\n",hdr->aECG->Section1.Tag14.PROT_COMP_LEVEL);
-			fprintf(stdout,"LangSuppCode     : %i\n",hdr->aECG->Section1.Tag14.LANG_SUPP_CODE);
-			fprintf(stdout,"ECG_CAP_DEV      : %i\n",hdr->aECG->Section1.Tag14.ECG_CAP_DEV);
-			fprintf(stdout,"Mains Frequency  : %i\n",hdr->aECG->Section1.Tag14.MAINS_FREQ);
-/*
-			fprintf(stdout,"ANAL_PROG_REV_NUM    : %s\n",hdr->aECG->Section1.Tag14.ANAL_PROG_REV_NUM);
-			fprintf(stdout,"SERIAL_NUMBER_ACQ_DEV: %s\n",hdr->aECG->Section1.Tag14.SERIAL_NUMBER_ACQ_DEV);
-			fprintf(stdout,"ACQ_DEV_SYS_SW_ID    : %i\n",hdr->aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID);
-			fprintf(stdout,"ACQ_DEV_SCP_SW       : %i\n",hdr->aECG->Section1.Tag14.ACQ_DEV_SCP_SW);
-			fprintf(stdout,"ACQ_DEV_MANUF        : %i\n",hdr->aECG->Section1.Tag14.ACQ_DEV_MANUF);
-*/
-			fprintf(stdout,"Compression  HUFFMAN : %i\n",hdr->aECG->FLAG.HUFFMAN);
-			fprintf(stdout,"Compression  REF-BEAT: %i\n",hdr->aECG->FLAG.REF_BEAT);		
-			fprintf(stdout,"Compression  BIMODAL : %i\n",hdr->aECG->FLAG.BIMODAL);		
-			fprintf(stdout,"Compression  DIFF    : %i\n",hdr->aECG->FLAG.DIFF);		
+		/* channel settings */ 
+		fprintf(fid,"\n\n[EVENT TABLE] N=%i Fs=%f",hdr->EVENT.N,hdr->EVENT.SampleRate);
+		fprintf(fid,"\n#No\tTYP\tPOS\tDUR\tCHN");
+		for (int k=0; k<hdr->EVENT.N; k++) {
+			fprintf(fid,"\n%5i\t%x\t%d",k,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]);
+			if (hdr->EVENT.DUR != NULL)		
+				fprintf(fid,"\t%d\t%d",hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]);
 		}
 	}
+		
+	if (VERBOSE_LEVEL>4) {
+		if (hdr->aECG) {
+			aECG_TYPE* aECG = (aECG_TYPE*)hdr->aECG;
+			fprintf(stdout,"\nInsitution Number: %i\n",aECG->Section1.Tag14.INST_NUMBER);
+			fprintf(stdout,"DepartmentNumber : %i\n",aECG->Section1.Tag14.DEPT_NUMBER);
+			fprintf(stdout,"Device Id        : %i\n",aECG->Section1.Tag14.DEVICE_ID);
+			fprintf(stdout,"Device Type      : %i\n",aECG->Section1.Tag14.DEVICE_TYPE);
+			fprintf(stdout,"Manufacture code : %i\n",aECG->Section1.Tag14.MANUF_CODE);
+			fprintf(stdout,"MOD_DESC         : %s\n",aECG->Section1.Tag14.MOD_DESC); 
+			fprintf(stdout,"Version          : %i\n",aECG->Section1.Tag14.VERSION);
+			fprintf(stdout,"ProtCompLevel    : %i\n",aECG->Section1.Tag14.PROT_COMP_LEVEL);
+			fprintf(stdout,"LangSuppCode     : %i\n",aECG->Section1.Tag14.LANG_SUPP_CODE);
+			fprintf(stdout,"ECG_CAP_DEV      : %i\n",aECG->Section1.Tag14.ECG_CAP_DEV);
+			fprintf(stdout,"Mains Frequency  : %i\n",aECG->Section1.Tag14.MAINS_FREQ);
+/*
+			fprintf(stdout,"ANAL_PROG_REV_NUM    : %s\n",aECG->Section1.Tag14.ANAL_PROG_REV_NUM);
+			fprintf(stdout,"SERIAL_NUMBER_ACQ_DEV: %s\n",aECG->Section1.Tag14.SERIAL_NUMBER_ACQ_DEV);
+			fprintf(stdout,"ACQ_DEV_SYS_SW_ID    : %i\n",aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID);
+			fprintf(stdout,"ACQ_DEV_SCP_SW       : %i\n",aECG->Section1.Tag14.ACQ_DEV_SCP_SW);
+			fprintf(stdout,"ACQ_DEV_MANUF        : %i\n",aECG->Section1.Tag14.ACQ_DEV_MANUF);
+*/
+			fprintf(stdout,"Compression  HUFFMAN : %i\n",aECG->FLAG.HUFFMAN);
+			fprintf(stdout,"Compression  REF-BEAT: %i\n",aECG->FLAG.REF_BEAT);		
+			fprintf(stdout,"Compression  BIMODAL : %i\n",aECG->FLAG.BIMODAL);		
+			fprintf(stdout,"Compression  DIFF    : %i",aECG->FLAG.DIFF);		
+		}
+	}
+	fprintf(fid,"\n\n");
 	return(0);
 } 	/* end of HDR2ASCII */
 
