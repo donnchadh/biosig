@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.1 2008-03-14 08:32:04 schloegl Exp $
+% $Id: biosig-dev.h,v 1.2 2008-03-14 15:33:40 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -13,8 +13,6 @@
 
 
  */
-
-/* 
 
 /* 
 	Internal definitions (external API is defined in biosig.h) 
@@ -36,12 +34,12 @@
 #ifndef __BIOSIG_INTERNAL_H__
 #define __BIOSIG_INTERNAL_H__
 
+#include "biosig.h"
+
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <time.h>
-
-#include "biosig.h"
 
 
 #if  	__APPLE__

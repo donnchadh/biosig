@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig.h,v 1.82 2008-03-14 08:32:04 schloegl Exp $
+% $Id: biosig.h,v 1.83 2008-03-14 15:33:40 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -25,6 +25,7 @@
 #define __BIOSIG_EXT_H__
 
 
+
 #ifdef _VCPP_DEF
 #define __BYTE_ORDER  __LITTLE_ENDIAN
 typedef unsigned __int64	uint64_t;
@@ -47,6 +48,8 @@ typedef char			int8_t;
  */
 #include <zlib.h>
 //#include <bz2lib.h>
+
+#include <stdio.h>
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
