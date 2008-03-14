@@ -1,23 +1,17 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.31 2008-03-13 15:08:43 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.32 2008-03-14 08:30:43 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
-    BioSig is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    BioSig is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 3
+    of the License, or (at your option) any later version.
 
-    You should have received a copy of the GNU General Public License
-    along with BioSig. If not, see <http://www.gnu.org/licenses/>.
 
  */
 
@@ -25,7 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../biosig.h"
+#include "../biosig-dev.h"
 
 int sopen_SCP_write(HDRTYPE* hdr) {	
 /*

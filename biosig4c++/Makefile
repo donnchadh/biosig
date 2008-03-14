@@ -1,8 +1,8 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.33 2008-03-05 22:29:56 schloegl Exp $
-###  Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
+###  $Id: Makefile,v 1.34 2008-03-14 08:33:18 schloegl Exp $
+###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
 ###
@@ -52,7 +52,7 @@ TARGET        = save2gdf demo save2aecg save2scp
 first: all
 all: $(TARGET)
 
-biosig.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t230/sopen_hl7aecg.o save2gdf.o: biosig.h
+biosig.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t230/sopen_hl7aecg.o save2gdf.o: biosig.h biosig-dev.h
 
 %.o:  %.c %.cpp  %.h 
 	$(CXX) -shared -S $(CFLAGS) -c $(.SOURCE)  
@@ -70,6 +70,7 @@ biosig4python _biosig.so: swig.i $(SOURCES) libbiosig.a
 
 libbiosig.a: $(OBJECTS)
 	$ ar rcs libbiosig.a $(OBJECTS) 
+	touch ../sigviewer/src/basic_header_info_dialog.cpp 
 
 demo:   demo.c libbiosig.a
 	$(CXX) $(CFLAGS) demo.c $(LFLAGS) $(LIBS) -o demo 
@@ -81,6 +82,12 @@ mex:  mexSLOAD.cpp libbiosig.a
 oct:  mexSLOAD.cpp libbiosig.a 
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) libbiosig.a 
 
+sigviewer: libbiosig.a
+	cd ../sigviewer/src/
+	ls
+	make -f ~/cvs/sigviewer/src/Makefile
+	cd ../../biosig4c++
+	
 
 # for backward compatibility 
 save2scp: save2gdf
@@ -89,6 +96,7 @@ save2aecg: save2gdf
 
 
 distclean:
+	-$(DEL_FILE) *.a
 	-$(DEL_FILE) *.o
 	-$(DEL_FILE) *.mex
 	-$(DEL_FILE) *.oct
@@ -98,6 +106,7 @@ distclean:
 	-$(DEL_FILE) XMLParser/*.o
 
 clean:
+	-$(DEL_FILE) *.a
 	-$(DEL_FILE) *.o
 	-$(DEL_FILE) *.so
 	-$(DEL_FILE) *.mex

@@ -1,22 +1,14 @@
 	/*
-    $Id: biosig.c,v 1.138 2008-03-13 15:58:05 schloegl Exp $
+    $Id: biosig.c,v 1.139 2008-03-14 08:30:41 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
-		    
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
-    BioSig is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    BioSig is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with BioSig. If not, see <http://www.gnu.org/licenses/>.
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 3
+    of the License, or (at your option) any later version.
 
  */
 
@@ -26,7 +18,7 @@
 	
 	Features: 
 	- reading and writing of EDF, BDF, GDF1, GDF2, CWFB, HL7aECG, SCP files 
-	- reading of ACQ, BKR, CNT, EGI, MFER files 
+	- reading of ACQ, AINF, BKR, BrainVision, CNT, DEMG, EGI, MFER files 
 	
 	implemented functions: 
 	- SOPEN, SREAD, SWRITE, SCLOSE, SEOF, SSEEK, STELL, SREWIND 
@@ -41,7 +33,7 @@
 
 //#include <libxml/xmlreader.h>
 
-#include "biosig.h"
+#include "biosig-dev.h"
 
 const int16_t GDFTYP_BYTE[] = {
 	1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0,   /* 0  */ 
@@ -1712,6 +1704,9 @@ if (!strncmp(MODE,"r",1))
 				hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 		}	
 		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
+		
+		/* read Annotation and Status channel and extract event information */		
+		
 	}      	
 
 	else if (hdr->TYPE==ABF) {

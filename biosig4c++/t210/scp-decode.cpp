@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.22 2008-03-11 08:14:50 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.23 2008-03-14 08:30:42 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -106,7 +106,7 @@ using namespace std;
 //______________________________________________________________________________
 //               FILE POINTERS
 
-#include "../biosig.h"
+#include "../biosig-dev.h"
 #include "types.h"
 #include "structures.h"
 #include "codes.h"

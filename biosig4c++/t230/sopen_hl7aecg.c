@@ -1,23 +1,17 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.16 2008-01-09 18:18:26 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.17 2008-03-14 08:30:43 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
-    BioSig is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    BioSig is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 3
+    of the License, or (at your option) any later version.
 
-    You should have received a copy of the GNU General Public License
-    along with BioSig. If not, see <http://www.gnu.org/licenses/>.
 
  */
 
@@ -27,7 +21,7 @@
 #include <string>
 #include <sstream>
 
-#include "../biosig.h"
+#include "../biosig-dev.h"
 #include "../XMLParser/tinyxml.h"
 #include "../XMLParser/Tokenizer.h"
 

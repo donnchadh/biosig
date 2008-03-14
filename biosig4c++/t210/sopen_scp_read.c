@@ -1,23 +1,17 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.54 2008-03-13 15:08:42 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.55 2008-03-14 08:30:43 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
-    BioSig is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    BioSig is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 3
+    of the License, or (at your option) any later version.
 
-    You should have received a copy of the GNU General Public License
-    along with BioSig. If not, see <http://www.gnu.org/licenses/>.
 
  */
 
@@ -42,7 +36,7 @@
 #include <time.h>
 #include <ctype.h>
 
-#include "../biosig.h"
+#include "../biosig-dev.h"
 
 #include "structures.h"
 static const U_int_S _NUM_SECTION=12U;	//consider first 11 sections of SCP

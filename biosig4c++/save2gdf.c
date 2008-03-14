@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.30 2008-03-11 08:14:49 schloegl Exp $
+    $Id: save2gdf.c,v 1.31 2008-03-14 08:33:18 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -22,10 +22,16 @@
 
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "biosig.h"
+#include <time.h>
+#include "biosig-dev.h"
+
+#ifndef INF
+#define INF (1.0/0.0)
+#endif 
 
 int main(int argc, char **argv){
     
@@ -44,11 +50,11 @@ int main(int argc, char **argv){
     	for (k=1; k<argc && argv[k][0]=='-'; k++)
     	if (!strcmp(argv[k],"-v") || !strcmp(argv[k],"--version") )
     	{
-		fprintf(stdout,"save2gdf (BioSig4C++) v0.48+\n");
+		fprintf(stdout,"save2gdf (BioSig4C++) v0.55\n");
 		fprintf(stdout,"Written by Alois Schloegl and others\n\n");
 		fprintf(stdout,"This program is free software; you can redistribute it and/or modify\n");
 		fprintf(stdout,"it under the terms of the GNU General Public License as published by\n");
-		fprintf(stdout,"the Free Software Foundation; either version 2 of the License, or\n");
+		fprintf(stdout,"the Free Software Foundation; either version 3 of the License, or\n");
 		fprintf(stdout,"(at your option) any later version.\n");
 	}	
     	else if (!strcmp(argv[k],"-h") || !strcmp(argv[k],"--help") )
@@ -230,7 +236,7 @@ int main(int argc, char **argv){
 	if (0) //(hdr->TYPE==SCP_ECG && !hdr->FLAG.UCAL) 
 	    	for (k=0; k<hdr->NS; k++) {
 	    		hdr->CHANNEL[k].GDFTYP = 3;
-	    		hdr->CHANNEL[k].PhysMax = max(PhysMaxValue0,-PhysMinValue0);
+	    		hdr->CHANNEL[k].PhysMax = (PhysMaxValue0 > -PhysMinValue0 ? PhysMaxValue0 : -PhysMinValue0);
 	    		hdr->CHANNEL[k].PhysMin = -hdr->CHANNEL[k].PhysMax;
 	    		hdr->CHANNEL[k].Cal = ceil(hdr->CHANNEL[k].PhysMax/(ldexp(1.0,15)-1));
 	    		hdr->CHANNEL[k].Off = 0.0;
