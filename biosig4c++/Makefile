@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.34 2008-03-14 08:33:18 schloegl Exp $
+###  $Id: Makefile,v 1.35 2008-03-14 15:31:05 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -47,17 +47,18 @@ OBJECTS       = biosig.o \
 		t220/crc4scp.o \
 		t230/sopen_hl7aecg.o
 
-TARGET        = save2gdf demo save2aecg save2scp 
+TARGET        = save2gdf save2aecg save2scp 
 
-first: all
-all: $(TARGET)
+first: $(TARGET)
+all: $(TARGET) demo mex sigviewer biosig4python
 
 biosig.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t230/sopen_hl7aecg.o save2gdf.o: biosig.h biosig-dev.h
 
 %.o:  %.c %.cpp  %.h 
 	$(CXX) -shared -S $(CFLAGS) -c $(.SOURCE)  
 
-biosig4python _biosig.so: swig.i $(SOURCES) libbiosig.a
+biosig4python _biosig.so: biosig.py
+biosig.py:  $(SOURCES) libbiosig.a swig.i
 	swig -c++ -python -includeall -I/usr/include swig.i
 	$(CXX) -fpic -c -I/usr/include/python2.4 -I/usr/lib/python2.4/config $(.SOURCE) swig_wrap.cxx
 	$(CXX) -shared $(LIBS) swig_wrap.o -o _biosig.so
@@ -69,7 +70,7 @@ biosig4python _biosig.so: swig.i $(SOURCES) libbiosig.a
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
 
 libbiosig.a: $(OBJECTS)
-	$ ar rcs libbiosig.a $(OBJECTS) 
+	ar rcs libbiosig.a $(OBJECTS) 
 	touch ../sigviewer/src/basic_header_info_dialog.cpp 
 
 demo:   demo.c libbiosig.a
@@ -77,22 +78,21 @@ demo:   demo.c libbiosig.a
 save2gdf: save2gdf.c libbiosig.a 
 	$(CXX) $(CFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
 
-mex:  mexSLOAD.cpp libbiosig.a 
+mex:  mexSLOAD.mex
+mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
 	mkoctfile -lz -v -g --mex mexSLOAD.cpp libbiosig.a
-oct:  mexSLOAD.cpp libbiosig.a 
+
+oct:  mexSLOAD.oct
+mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a 
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) libbiosig.a 
 
 sigviewer: libbiosig.a
-	cd ../sigviewer/src/
-	ls
-	make -f ~/cvs/sigviewer/src/Makefile
-	cd ../../biosig4c++
+	sh makeSV.sh
 	
 
 # for backward compatibility 
 save2scp: save2gdf
 save2aecg: save2gdf
-
 
 
 distclean:
@@ -117,6 +117,7 @@ clean:
 	-$(DEL_FILE) XMLParser/*.o
 	-$(DEL_FILE) demo t5.scp t6.scp save2gdf gztest test_scp_decode
 	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.*.gz *.fil /tmp/t1.*
+	-$(DEL_FILE) swig_wrap.* biosig.py 
 
 
 ####### Testing ########
