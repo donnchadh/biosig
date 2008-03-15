@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.10 2008-03-14 22:08:40 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.11 2008-03-15 00:28:49 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -87,9 +87,12 @@ void mexFunction(
 			if (nlhs>1) { 
 				char* mexFileName = (char*)mxMalloc(strlen(hdr->FileName)+1); 
 
-				mxArray *HDR, *tmp, *Patient, *EVENT;
+				mxArray *HDR, *tmp, *tmp2, *Patient, *EVENT;
 				uint16_t numfields;
-				const char *fnames[] = {"TYPE","NS","SPR","NRec","SampleRate","FileName","FILE","Patient","EVENT",NULL};
+				const char *fnames[] = {"TYPE","NS","SPR","NRec","SampleRate","FileName",\
+				"FILE","Patient","EVENT","Label","LeadIdCode","PhysDimCode","PhysDim",\
+				"PhysMax","PhysMin","DigMax","DigMin","Transducer","Cal","Off","GDFTYP",\
+				"LowPass","HighPass","Notch","ELEC","Impedance","AS","Dur",NULL};
 				for (numfields=0; fnames[numfields++] != 0; );
 				HDR = mxCreateStructMatrix(1, 1, --numfields, fnames);
 
@@ -97,10 +100,83 @@ void mexFunction(
 				mxSetField(HDR,0,"SPR",mxCreateDoubleScalar(hdr->SPR));
 				mxSetField(HDR,0,"NRec",mxCreateDoubleScalar(hdr->NRec));
 				mxSetField(HDR,0,"SampleRate",mxCreateDoubleScalar(hdr->SampleRate));
+				mxSetField(HDR,0,"Dur",mxCreateDoubleScalar((double)hdr->Dur[0]/hdr->Dur[1]));
 
 				mxSetField(HDR,0,"FileName",mxCreateCharMatrixFromStrings(1,&hdr->FileName));
 
+				/* Channel information */ 
+				mxArray *LeadIdCode  = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
+				mxArray *PhysDimCode = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
+				mxArray *GDFTYP      = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
+				mxArray *PhysMax     = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
+				mxArray *PhysMin     = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
+				mxArray *DigMax      = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
+				mxArray *DigMin      = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
+				mxArray *Cal         = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
+				mxArray *Off         = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
+				mxArray *ELEC_POS    = mxCreateDoubleMatrix(hdr->NS,3, mxREAL);
+				mxArray *LowPass     = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
+				mxArray *HighPass    = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
+				mxArray *Notch       = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+				mxArray *Impedance   = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+				mxArray *SPR         = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+				mxArray *Label       = mxCreateCellMatrix(hdr->NS,1);
+				mxArray *Transducer  = mxCreateCellMatrix(hdr->NS,1);
+				mxArray *PhysDim     = mxCreateCellMatrix(hdr->NS,1);
+				for (size_t k=0; k<hdr->NS; ++k) {
+					*(mxGetPr(LeadIdCode)+k)  = (double)hdr->CHANNEL[k].LeadIdCode;
+					*(mxGetPr(PhysDimCode)+k) = (double)hdr->CHANNEL[k].PhysDimCode;
+					*(mxGetPr(GDFTYP)+k) 	  = (double)hdr->CHANNEL[k].GDFTYP;
+					*(mxGetPr(PhysMax)+k) 	  = (double)hdr->CHANNEL[k].PhysMax;
+					*(mxGetPr(PhysMin)+k) 	  = (double)hdr->CHANNEL[k].PhysMin;
+					*(mxGetPr(DigMax)+k) 	  = (double)hdr->CHANNEL[k].DigMax;
+					*(mxGetPr(DigMin)+k) 	  = (double)hdr->CHANNEL[k].DigMin;
+					*(mxGetPr(Cal)+k) 	  = (double)hdr->CHANNEL[k].Cal;
+					*(mxGetPr(Off)+k) 	  = (double)hdr->CHANNEL[k].Off;
+					*(mxGetPr(PhysDimCode)+k) = (double)hdr->CHANNEL[k].PhysDimCode;
+					*(mxGetPr(SPR)+k) 	  = (double)hdr->CHANNEL[k].SPR;
+					*(mxGetPr(LowPass)+k) 	  = (double)hdr->CHANNEL[k].LowPass;
+					*(mxGetPr(HighPass)+k) 	  = (double)hdr->CHANNEL[k].HighPass;
+					*(mxGetPr(Notch)+k) 	  = (double)hdr->CHANNEL[k].Notch;
+					*(mxGetPr(ELEC_POS)+k) 	  = (double)hdr->CHANNEL[k].XYZ[0];
+					*(mxGetPr(ELEC_POS)+k+hdr->NS) 	  = (double)hdr->CHANNEL[k].XYZ[1];
+					*(mxGetPr(ELEC_POS)+k+hdr->NS*2)  = (double)hdr->CHANNEL[k].XYZ[2];
 
+					mxSetCell(Label,k,mxCreateString(hdr->CHANNEL[k].Label));
+					mxSetCell(Transducer,k,mxCreateString(hdr->CHANNEL[k].Transducer));
+					mxSetCell(PhysDim,k,mxCreateString(hdr->CHANNEL[k].PhysDim));
+				} 
+				mxSetField(HDR,0,"LeadIdCode",LeadIdCode);
+				mxSetField(HDR,0,"PhysDimCode",PhysDimCode);
+				mxSetField(HDR,0,"GDFTYP",GDFTYP);
+				mxSetField(HDR,0,"PhysMax",PhysMax);
+				mxSetField(HDR,0,"PhysMin",PhysMin);
+				mxSetField(HDR,0,"DigMax",DigMax);
+				mxSetField(HDR,0,"DigMin",DigMin);
+				mxSetField(HDR,0,"Cal",Cal);
+				mxSetField(HDR,0,"Off",Off);
+				mxSetField(HDR,0,"LowPass",LowPass);
+				mxSetField(HDR,0,"HighPass",HighPass);
+				mxSetField(HDR,0,"Notch",Notch);
+				mxSetField(HDR,0,"Impedance",Impedance);
+				mxSetField(HDR,0,"Off",Off);
+				mxSetField(HDR,0,"PhysDim",PhysDim);
+				mxSetField(HDR,0,"Transducer",Transducer);
+				mxSetField(HDR,0,"Label",Label);
+
+				const char* field[] = {"XYZ","GND","REF",NULL};
+				for (numfields=0; field[numfields++] != 0; );
+				tmp = mxCreateStructMatrix(1, 1, --numfields, field);
+				mxSetField(tmp,0,"XYZ",ELEC_POS);
+				mxSetField(HDR,0,"ELEC",tmp);
+
+				const char* field2[] = {"SPR",NULL};
+				for (numfields=0; field2[numfields++] != 0; );
+				tmp2 = mxCreateStructMatrix(1, 1, --numfields, field2);
+				mxSetField(tmp2,0,"SPR",SPR);
+				mxSetField(HDR,0,"AS",tmp2);
+
+				/* annotation, marker, event table */
 				const char *event_fields[] = {"N","SampleRate","TYP","POS","DUR","CHN",NULL};
 				for (numfields=0; event_fields[numfields++] != 0; );
 				EVENT = mxCreateStructMatrix(1, 1, --numfields, event_fields);
@@ -127,6 +203,7 @@ void mexFunction(
 				}
 				mxSetField(HDR,0,"EVENT",EVENT);
 
+				/* Patient Information */ 
 				const char *patient_fields[] = {"Sex","Handedness","Id","Name","Weight","Height",NULL};
 				for (numfields=0; patient_fields[numfields++] != 0; );
 				Patient = mxCreateStructMatrix(1, 1, --numfields, patient_fields);
@@ -138,6 +215,7 @@ void mexFunction(
 				mxSetField(Patient,0,"Height",mxCreateDoubleScalar(hdr->Patient.Height));
 
 				mxSetField(HDR,0,"Patient",Patient);
+				
 				plhs[1] = HDR;
 			}	
 
