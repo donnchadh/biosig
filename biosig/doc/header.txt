@@ -3,7 +3,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.23 2008-01-23 22:04:41 schloegl Exp $
+$Id: header.txt,v 1.24 2008-03-15 00:30:55 schloegl Exp $
 Copyright (C) Alois Schloegl 2003-2005 <a.schloegl@ieee.org>
 
 
@@ -121,7 +121,7 @@ HDR.ELEC.REF		3xfloat32	position of reference electrode
 HDR.ELEC.GND		3xfloat32	position of ground electrode 
 
 HDR.AS		# provides some internal information	
-    AS.MAXSPR				least common multiple samplerate
+    AS.SPR				samples per record for each channel
     AS.bpb				bytes per block
     AS.spb				samples per block
     AS.bi				cumulative index
