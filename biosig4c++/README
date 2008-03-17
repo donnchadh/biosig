@@ -6,14 +6,19 @@ This library is called "BioSig for C/C++" and is complementary to "BioSig for Oc
 
 BioSig4C++ provides several tools:  
 (1) "libbiosig.a" provides a library for accessing different dataformats. 
+Recommended: zlib http://zlib.net/
 The supported data formats are listed here: 
 http://hci.tugraz.at/schloegl/biosig/TESTED
 (2) "save2gdf" is a converter between different file formats, 
 including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, CWFB.
 (3) "mexSLOAD.mex" is a MEX-interface for Octave and Matlab
-Currently, only the data but not the Header is returned. And it is tested with Octave only. 
-(4) "_biosig.so" is an interface to python.
+Requirement: Matlab OR octave2.9, octave2.9-headers
+Currently, it is tested with Octave only.  
+(4) "_biosig.so" is an interface to python. 
+Requirement: python2.4-dev, swig (http://www.swig.org/)
 This part is also still experimental.  
+(5) SigViewer 
+Requirement: Qt4
 
 The internal data structure resemble the header structure similar 
 http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig/doc/header.txt
@@ -31,9 +36,9 @@ http://hci.tugraz.at/schloegl/biosig/TESTED
 File(s): 
 -------------
     README 	this file
-    biosig.h	definition of biosig data structures	
+    biosig.h	definition of external biosig interface	
+    biosig-dev.h definition of internal functions	
     biosig.c	SOPEN, SREAD, SWRITE, SEOF, SCLOSE functions 
-    demo.c	demo how to use them
     save2gdf.c	converter between various file formats.
     mexSLOAD.cpp is a MEX-File for loading data in Octave and Matab. 
     t210/*	reading SCP file format 
@@ -42,16 +47,29 @@ File(s):
     test0/*	scripts and functions for testing
     Makefile	script for compiling and testing 
     
-		
+
 Compilation: 
 -------------
 # Linux 
-you need g++ and make. Running make compiles the converter
-  make
-  make mex
+you need g++, make and zlib. (If you do not have zlib, uncomment in biosig.h line 40 #include <zlib.h>).
+Running make compiles the converter.
+  make 		 	# makes the converter
+  make save2gdf 	# makes the converter
+  make libbiosig.a  	# makes a static library 
+  make mex4o 		# makes mexSLOAD for Octave (requires Octave-headers2.9 or higher)
+  make sigviewer 	# recompiles SigViewer	(requires Qt)
+  make biosig4python 	# compiles the BioSig interface for Python (requires SWIG and Python 2.4)
+  make all  		# all of the above
+  make mex4m 		# makes mexSLOAD for Matlab (not supported yet)
+  make testscp 
+  make testhl7	
+  make test		# tests HL7<->SCP, SCP<->GDF, GDF<->HL7 converters
+  make test6		# tests bidirectional conversion between 6 differerent data formats	
 
 # Cygwin
 install g++, zlib, and make and compile it. 
+
+# The mex interface has not been tested with Matlab, yet. 
 
 # Other platforms (Windows, MGwin, MacOSX, Solaris, etc. )
 Not tested (yet). Let me know about successful compilations, 
@@ -61,7 +79,7 @@ or tell me what changes are needed.
 Execution:
 ----------
 # if test.gdf exists, some header information is displayed
-./demo test.gdf     		
+./savegdf test.gdf     		
 
 # help and usage information 
 ./save2gdf -h
@@ -118,7 +136,7 @@ The archive is available at
 http://newsarchiv.tugraz.at/browse/tu-graz.biosig/ 
 
 
-    $Id: README,v 1.13 2008-03-05 22:56:26 schloegl Exp $
+    $Id: README,v 1.14 2008-03-17 10:03:25 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 

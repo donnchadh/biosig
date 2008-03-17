@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.35 2008-03-14 15:31:05 schloegl Exp $
+###  $Id: Makefile,v 1.36 2008-03-17 10:03:25 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -34,7 +34,6 @@ SOURCES       = biosig.c \
 		t220/sopen_scp_write.c \
 		t220/crc4scp.c  \
 		t230/sopen_hl7aecg.c \
-		demo.c \
 
 OBJECTS       = biosig.o \
 		XMLParser/tinyxml.o \
@@ -50,12 +49,12 @@ OBJECTS       = biosig.o \
 TARGET        = save2gdf save2aecg save2scp 
 
 first: $(TARGET)
-all: $(TARGET) demo mex sigviewer biosig4python
+all: $(TARGET) mex4o sigviewer biosig4python
 
 biosig.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t230/sopen_hl7aecg.o save2gdf.o: biosig.h biosig-dev.h
 
 %.o:  %.c %.cpp  %.h 
-	$(CXX) -shared -S $(CFLAGS) -c $(.SOURCE)  
+	$(CXX) -fPIC -shared -S $(CFLAGS) -c $(.SOURCE)  
 
 biosig4python _biosig.so: biosig.py
 biosig.py:  $(SOURCES) libbiosig.a swig.i
@@ -73,12 +72,14 @@ libbiosig.a: $(OBJECTS)
 	ar rcs libbiosig.a $(OBJECTS) 
 	touch ../sigviewer/src/basic_header_info_dialog.cpp 
 
-demo:   demo.c libbiosig.a
-	$(CXX) $(CFLAGS) demo.c $(LFLAGS) $(LIBS) -o demo 
 save2gdf: save2gdf.c libbiosig.a 
 	$(CXX) $(CFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
 
-mex:  mexSLOAD.mex
+mex4m: mexSLOAD.cpp $(OBJECTS)
+	echo "Warning: MEX for Matlab is not tested yet"
+	mex mexSLOAD.cpp  $(OBJECTS) 
+
+mex4o:  mexSLOAD.mex
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
 	mkoctfile -lz -v -g --mex mexSLOAD.cpp libbiosig.a
 
@@ -115,7 +116,7 @@ clean:
 	-$(DEL_FILE) t220/*.o
 	-$(DEL_FILE) t230/*.o
 	-$(DEL_FILE) XMLParser/*.o
-	-$(DEL_FILE) demo t5.scp t6.scp save2gdf gztest test_scp_decode
+	-$(DEL_FILE) t5.scp t6.scp save2gdf gztest test_scp_decode
 	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.*.gz *.fil /tmp/t1.*
 	-$(DEL_FILE) swig_wrap.* biosig.py 
 
