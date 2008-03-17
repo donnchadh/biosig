@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.70 2008-02-11 13:02:26 schloegl Exp $
+%	$Id: getfiletype.m,v 1.71 2008-03-17 08:23:04 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -641,6 +641,8 @@ else
                         
                 elseif strncmp(lower(ss),'<?php',5)
                         HDR.TYPE='PHP';
+		elseif ~isempty(findstr(ss,'<AnnotatedECG xmlns="urn:hl7-org:v3" xmlns:voc="urn:hl7-org:v3/voc"'))
+                        HDR.TYPE='HL7aECG';
                 elseif strncmp(ss,'<WORLD>',7)
                         HDR.TYPE='XML';
                 elseif all(s(1:2)==[255,254]) & all(s(4:2:end)==0)

@@ -6,7 +6,7 @@ function [argout,s]=sview(s,varargin),
 %
 % See also: SLOAD 
 
-%	$Id: sview.m,v 1.18 2007-03-07 15:39:53 schloegl Exp $ 
+%	$Id: sview.m,v 1.19 2008-03-17 08:23:05 schloegl Exp $ 
 %	Copyright (c) 2004,2006 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -28,7 +28,7 @@ if length(varargin),
         H=varargin{1}; 
         arg2=varargin{1}; 
 else
-	arg2=0;         
+	arg2='';         
 end;
 
 if ischar(s) | iscell(s),

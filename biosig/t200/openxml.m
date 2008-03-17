@@ -18,7 +18,7 @@ function [HDR]=openxml(arg1,CHAN,arg4,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: openxml.m,v 1.5 2008-01-18 09:28:13 schloegl Exp $
+%	$Id: openxml.m,v 1.6 2008-03-17 08:23:04 schloegl Exp $
 %	Copyright 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -31,8 +31,14 @@ end;
 
 %if strncmp(HDR.TYPE,'XML',3),
 %        if any(HDR.FILE.PERMISSION=='r'),
-		HDR = getfiletype(HDR.FileName);
                 fid = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
+                s = char(fread(fid,[1,1024],'char')); 
+                if all(s(1:2)==[255,254]) & all(s(4:2:end)==0)
+                        HDR.TYPE='XML-UTF16';
+                elseif ~isempty(findstr(char(s),'?xml version'))
+                        HDR.TYPE='XML-UTF8';
+		end; 
+		fseek(fid,0,'bof');
                 if strcmp(HDR.TYPE,'XML-UTF16'),
                         magic = char(fread(fid,1,'uint16'));
                         HDR.XML = char(fread(fid,[1,inf],'uint16'));
@@ -259,7 +265,7 @@ function y = radix64d(x);
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: openxml.m,v 1.5 2008-01-18 09:28:13 schloegl Exp $
+%	$Id: openxml.m,v 1.6 2008-03-17 08:23:04 schloegl Exp $
 %	(C) 2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

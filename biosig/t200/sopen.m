@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.193 2008-02-29 09:37:14 schloegl Exp $
+%	$Id: sopen.m,v 1.194 2008-03-17 08:23:04 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -2343,7 +2343,7 @@ elseif strcmp(HDR.TYPE,'ACQ'),
                 sz = fread(HDR.FILE.FID,1,'uint16');
                 HDR.AS.bpb = HDR.AS.bpb + HDR.AS.SPR(k)*sz; 
                 offset3 = offset3 + HDR.ACQ.BufLength(k) * sz;
-                
+ftell(HDR.FILE.FID),                
                 typ = fread(HDR.FILE.FID,1,'uint16');
                 if ~any(typ==[1,2])
                         fprintf(HDR.FILE.stderr,'Warning SOPEN (ACQ): invalid or unknonw data type in file %s.\n',HDR.FileName);
@@ -8717,6 +8717,26 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 HDR.FILE.POS = 0; 
         end;
 
+
+elseif strncmp(HDR.TYPE,'HL7aECG',3),
+	try
+		[s,HDR] = mexSLOAD(HDR.FileName);
+		HDR.data = s;
+		HDR.Calib = [HDR.Off';diag(HDR.Cal)];
+		HDR.FLAG.OVERFLOWDETECTION = 0;
+		HDR.FLAG.UCAL = 0;
+		HDR.FLAG.TRIGGERED = 0;
+		HDR.FILE.PERMISSION = 'r'; 
+		HDR.FILE.POS = 0; 
+		HDR.FILE.FID = 0; 
+		HDR.FILE.OPEN = 0; 
+		HDR.TYPE = 'native'; 
+	catch
+		fprintf(stdout,'SOPEN: failed to read HL7aECG/FDA-XML files.\nInstall mexSLOAD from BioSig4C++ and try again!\n');
+		%HDR = openxml(HDR); 	% experimental version for reading various xml files 
+		return;
+	end; 
+	
 
 elseif strncmp(HDR.TYPE,'XML',3),
         if any(HDR.FILE.PERMISSION=='r'),
