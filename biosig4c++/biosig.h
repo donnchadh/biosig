@@ -1,6 +1,5 @@
 /*
-%
-% $Id: biosig.h,v 1.83 2008-03-14 15:33:40 schloegl Exp $
+% $Id: biosig.h,v 1.84 2008-03-18 01:44:33 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -88,7 +87,7 @@ enum FileFormat {
 	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, AVI,
 	BKR, BCI2000, BDF, BMP, BrainVision, BZ2, 
 	CDF, CFWB, CNT, 
-	DICOM, DEMG, EDF, EEProbe, EGI, EVENT, EXIF, 
+	DICOM, DEMG, EDF, EEProbe, EGI, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GZIP, HL7aECG, JPEG, 
 	Matlab, MFER, MIDI, NetCDF, NEX1, OGG, 
@@ -183,7 +182,6 @@ typedef struct {
 	double		Cal;		/* gain factor */ 
 	double		Off;		/* bias */ 
 } CHANNEL_TYPE;
-
 
 
 /*

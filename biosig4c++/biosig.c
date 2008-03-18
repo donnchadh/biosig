@@ -1,5 +1,5 @@
-	/*
-    $Id: biosig.c,v 1.139 2008-03-14 08:30:41 schloegl Exp $
+/*
+    $Id: biosig.c,v 1.140 2008-03-18 01:44:33 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1131,6 +1131,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = EGI;
 	    	hdr->VERSION = hdr->AS.Header[3];
     	}
+    	else if (!memcmp(Header1,"Header\r\nFile Version'",20))
+	    	hdr->TYPE = ETG4000;
     	else if (!memcmp(Header1,MAGIC_NUMBER_FEF1,8) | !memcmp(Header1,MAGIC_NUMBER_FEF2,8)) {
 	    	hdr->TYPE = FEF;
 		char tmp[9];
@@ -2455,6 +2457,106 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	}  
 	}
 	
+	else if (hdr->TYPE==ETG4000) {
+		/* read file */ 
+		ifseek(hdr,0,SEEK_END);
+		size_t len = iftell(hdr);
+		ifseek(hdr,count,SEEK_SET);
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,len);
+	    	count  += ifread(hdr->AS.Header+count,1,len-count,hdr);
+		ifclose(hdr);
+		
+		/* decode header section */
+		char dlm[2];
+		dlm[0] = (char)hdr->AS.Header[20];
+		dlm[1] = 0;
+		hdr->VERSION = -1; 
+		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
+		char *ag=NULL, *dg=NULL, *label;
+		double lpf,hpf,age;
+		while (strncmp(t,"Probe",5)) {
+			if (!strncmp(t,"File Version",12))
+				hdr->VERSION = atof(strpbrk(t,dlm)+1);
+			else if (!strncmp(t,"Name",4))
+				strncpy(hdr->Patient.Id,strpbrk(t,dlm)+1,MAX_LENGTH_PID);
+			else if (!strncmp(t,"Sex",3))
+				hdr->Patient.Sex = (toupper(*strpbrk(t,dlm)+1)=='F')<<1 + (toupper(*strpbrk(t,dlm)+1)=='M');
+			else if (!strncmp(t,"Age",3)) {
+				char *tmp1 = strpbrk(t,dlm)+1;
+				size_t c = strcspn(tmp1,"0123456789");
+				char buf[20];
+				age = atof(strncpy(buf,tmp1,19));
+				if (tmp1[c]=='y') 
+					age *= 365.25;
+				else if (tmp1[c]=='m') 
+					age *= 30;
+			}
+			else if (!strncmp(t,"Date",4)) {
+				sscanf(strpbrk(t,dlm)+1,"%d/%d/%d %d:%d",&(tm_time.tm_year),&(tm_time.tm_mon),&(tm_time.tm_mday),&(tm_time.tm_hour),&(tm_time.tm_min));
+				tm_time.tm_sec = 0;
+				tm_time.tm_year -= 1900;
+				tm_time.tm_mon -= 1;
+				fprintf(stdout,"%s\n",asctime(&tm_time));
+				hdr->T0 = tm_time2gdf_time(&tm_time);
+			}
+			else if (!strncmp(t,"HPF[Hz]",7))
+				hpf = atof(strpbrk(t,dlm)+1);
+			else if (!strncmp(t,"LPF[Hz]",7))
+				lpf = atof(strpbrk(t,dlm)+1);
+			else if (!strncmp(t,"Analog Gain",11))
+				ag = strpbrk(t,dlm);
+			else if (!strncmp(t,"Digital Gain",12))
+				dg = strpbrk(t,dlm)+1;
+			else if (!strncmp(t,"Sampling Period[s]",18))
+				hdr->SampleRate = 1.0/atof(strpbrk(t,dlm)+1);
+			else if (!strncmp(t,"StimType",8))
+				;
+
+			t = strtok(NULL,"\xA\xD");
+		}
+		hdr->Patient.Birthday = hdr->T0 - (uint64_t)ldexp(age,32);
+		hdr->NS = 0; 
+		while (ag != NULL) {
+			++hdr->NS; 
+			ag = strpbrk(ag+1,dlm);
+		}	
+		hdr->NS >>= 1; 
+
+	    	label = strpbrk(t,",") + 1; 
+		double DigMax = 1.0, DigMin = -1.0;
+		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
+		for (k=0; k < hdr->NS; k++) {
+			CHANNEL_TYPE* hc = hdr->CHANNEL+k;
+			hc->GDFTYP   = 16;
+			hc->SPR      = 1; 
+			hc->SPR      = 1; 
+			hc->Cal      = 1.0; 
+			hc->Off      = 0.0;
+			hc->Transducer[0] = '\0';
+			hc->LowPass  = lpf;
+			hc->HighPass = hpf;
+			hc->PhysMax  = DigMax;
+			hc->PhysMin  = DigMin;
+			hc->DigMax   = DigMax;
+			hc->DigMin   = DigMin;
+		    	hc->LeadIdCode  = 0;
+		    	hc->PhysDimCode = 65362;
+		    	size_t c = strspn(label,",");
+		    	strncpy(hc->Label, label, max(c,MAX_LENGTH_LABEL));
+		    	label += c+1;
+		}
+		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
+		hdr->SPR = 1;
+		hdr->Dur[0]=1;
+		hdr->Dur[1]=hdr->SampleRate;
+		hdr->NRec = 0;
+
+		/* decode data section */
+		hdr->FLAG.SWAP = 0; 
+		
+	}
+
+
     	else if (hdr->TYPE==MFER) {	
 		// MFER101E-2003, Table 5, p.18-19
     		/* ###  FIXME: some units are not encoded */  	
@@ -4204,7 +4306,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 			 
 		T0 = gdf_time2t_time(hdr->T0);
 		char tmp[60];
-		strftime(tmp, 59, "%x %X %Z", gmtime(&T0));
+		strftime(tmp, 59, "%x %X %Z", localtime(&T0));
 		fprintf(fid,"\tStartOfRecording: %s\n",tmp); 
 	}
 		
@@ -4215,7 +4317,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 		for (int k=0; k<hdr->NS; k++) {
 			cp = hdr->CHANNEL+k; 
 			fprintf(fid,"\n#%2i: %3i %7s\t%5.1f %2i  %5f %5f %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
-				k,cp->LeadIdCode,cp->Label,cp->SPR * hdr->SampleRate/hdr->SPR,
+				k+1,cp->LeadIdCode,cp->Label,cp->SPR * hdr->SampleRate/hdr->SPR,
 				cp->GDFTYP, cp->Cal, cp->Off, cp->PhysDim, 
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass);
 			//fprintf(fid,"\t %3i", cp->SPR);
