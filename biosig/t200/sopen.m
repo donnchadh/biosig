@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.194 2008-03-17 08:23:04 schloegl Exp $
+%	$Id: sopen.m,v 1.195 2008-03-18 01:51:23 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -8362,7 +8362,8 @@ elseif strcmp(HDR.TYPE,'ETG4000')  % NIRS - Hitachi ETG 4000
 
                 [t,s] = strtok(HDR.s,[10,13]); 
                 HDR.VERSION = -1;
-		dlm = HDR.s(21);
+		ix = strfind(HDR.s,'File Version');
+		dlm = HDR.s(ix(1) + 12);
                 while ((t(1)<'0') | (t(1)>'9'))
          		[NUM, STATUS,STRARRAY] = str2double(t,dlm); 
                         if 0
@@ -8398,25 +8399,44 @@ elseif strcmp(HDR.TYPE,'ETG4000')  % NIRS - Hitachi ETG 4000
                         elseif strncmp(t,'Sampling Period[s]',12)
                                 HDR.SampleRate = 1./NUM(2);
                         elseif strncmp(t,'Probe',5)
-                                HDR.Label = STRARRAY(2:end);
-                        	HDR.AS.TIMECHAN = strmatch('Time',HDR.Label);
+                                Label = STRARRAY;
+                        	HDR.AS.TIMECHAN = strmatch('Time',Label);
+                        elseif strncmp(t,'StimType',8)
+                                FLAG = STRARRAY{2}; 
                         end; 
-                        [t,s] = strtok(s,[10,13]); 
+                        [t,s] = strtok(s,[10,13]);
                 end
                 if ~any(HDR.VERSION==[1.06,1.09])
                         fprintf(HDR.FILE.stdout,'SOPEN (ETG4000): Version %f has not been tested.\n',HDR.VERSION); 
                 end;
-                fprintf(1,'Please wait - conversion takes some time'); 
-                [NUM, STATUS, STRARRAY] = str2double([t,s]);
-                if ~isempty(HDR.AS.TIMECHAN)
-                	for k = 1:size(NUM,1),
-                        	[num,status,sa] = str2double(STRARRAY{k,HDR.AS.TIMECHAN+1},': ');
-                                NUM(k,HDR.AS.TIMECHAN+1) = num*[3600;60;1];
-                        end;
-                end;
+	                fprintf(1,'Please wait - conversion takes some time'); 
+		if 0, 
+	                [NUM, STATUS, STRARRAY] = str2double([t,s]);
+        	        if ~isempty(HDR.AS.TIMECHAN)
+                		for k = 1:size(NUM,1),
+                        		[num,status,sa] = str2double(STRARRAY{k,HDR.AS.TIMECHAN+1},': ');
+                                	NUM(k,HDR.AS.TIMECHAN+1) = num*[3600;60;1];
+	                        end;
+        	        end;
+        	else
+			HDR.Label = Label([2:end-5,end-3]);
+        		F = ['%i',dlm];
+			for k=1:length(Label)-6,         		
+	        		F = [F,'%f',dlm];
+	        	end;	
+        		F = [F,'%i',dlm];
+        		F = [F,'%i:%i:%i.%i',dlm];
+        		F = [F,'%i',dlm];
+        		F = [F,'%i',dlm];
+        		F = [F,'%i'];
+
+        		[num,count] = sscanf([t,s],F,[length(Label)+3,inf]);count,
+        		NUM = num';
+			T = NUM(:,end+[-7:-4])*[3600;60;1;.01];
+        	end
                 fprintf(1,' - FINISHED\n'); 
                 ix = ~isnan(NUM(:,1));
-                HDR.data = NUM(ix,2:end); 
+                HDR.data = [NUM(ix,2:end-8),T]; 
                 HDR.TYPE = 'native'; 
                 [HDR.SPR, HDR.NS] = size(HDR.data); 
                 HDR.NRec = 1; 
@@ -8427,18 +8447,24 @@ elseif strcmp(HDR.TYPE,'ETG4000')  % NIRS - Hitachi ETG 4000
                 HDR.PhysMin = min(HDR.data,[],1);
                 HDR.DigMax  = HDR.PhysMax;
                 HDR.DigMin  = HDR.PhysMin;
-                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
-
+                HDR.Calib   = sparse(2:HDR.NS+1,1:HDR.NS,1); 
 	
                 %HDR.PhysDimCode = zeros(HDR.NS,1);
 		HDR.PhysDimCode = [repmat(65362,1,24),512,2176,repmat(512,1,3)];
                 %HDR.PhysDim = physicalunits(HDR.PhysDimCode); 
-                % EVENTS
-                evchan = strmatch('Mark',HDR.Label); 
-                HDR.EVENT.POS = find(HDR.data(:,evchan));
-                HDR.EVENT.TYP = HDR.data(HDR.EVENT.POS,evchan);
-                HDR.EVENT.TYP(2:2:end) = HDR.EVENT.TYP(2:2:end)+hex2dec('8000'); 
 
+                % EVENTS
+                evchan = strmatch('Mark',Label);
+                HDR.EVENT.POS = find(NUM(:,evchan));
+                HDR.EVENT.TYP = NUM(HDR.EVENT.POS,evchan);
+		if strcmp(FLAG,'STIM')
+			if (rem(length(HDR.EVENT.TYP),2)),
+				HDR.EVENT.TYP(end+1) = HDR.EVENT.TYP(end);
+				HDR.EVENT.POS(end+1) = size(HDR.data,1);
+			end;
+	    		HDR.EVENT.TYP(2:2:end) = HDR.EVENT.TYP(2:2:end)+hex2dec('8000');
+		end;
+		
 
 elseif strcmp(HDR.TYPE,'FEPI3'), 	% Freiburg epileptic seizure prediction Contest
        	% https://epilepsy.uni-freiburg.de/seizure-prediction-workshop-2007/prediction-contest/data-download
