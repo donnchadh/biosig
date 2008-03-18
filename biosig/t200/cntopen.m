@@ -5,7 +5,7 @@ function [CNT,h,e]=cntopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
-%	$Id: cntopen.m,v 1.41 2008-01-18 09:28:13 schloegl Exp $
+%	$Id: cntopen.m,v 1.42 2008-03-18 13:52:33 schloegl Exp $
 %	Copyright (c) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -285,7 +285,7 @@ else    % new header
         h.xsize             = fread(fid,1,'float');
         h.ysize             = fread(fid,1,'float');
         h.acmode            = fread(fid,1,'uint8');
-        h.commonchnl        = fread(fid,1,'uchar');
+        h.commonchnl        = fread(fid,1,'uint8');
         h.xtics             = fread(fid,1,'uint8');
         h.xrange            = fread(fid,1,'uint8');
         h.ytics             = fread(fid,1,'uint8');
@@ -316,7 +316,7 @@ else    % new header
         h.continuousseconds = fread(fid,1,'float');
         h.channeloffset     = fread(fid,1,'uint32');
         h.autocorrectflag   = fread(fid,1,'uint8');
-        h.dcthreshold       = fread(fid,1,'uchar');
+        h.dcthreshold       = fread(fid,1,'uint8');
         
         if ftell(fid)~=900,
                 warning(['supicous Neuroscan file ',FILENAME]);
@@ -348,10 +348,10 @@ else    % new header
                 e.gain(1,n)           = fread(fid,1,'uint8');
                 e.hipass(1,n)         = fread(fid,1,'uint8');
                 e.lopass(1,n)         = fread(fid,1,'uint8');
-                e.page(1,n)           = fread(fid,1,'uchar');
-                e.size(1,n)           = fread(fid,1,'uchar');
-                e.impedance(1,n)      = fread(fid,1,'uchar');
-                e.physicalchnl(1,n)   = fread(fid,1,'uchar');
+                e.page(1,n)           = fread(fid,1,'uint8');
+                e.size(1,n)           = fread(fid,1,'uint8');
+                e.impedance(1,n)      = fread(fid,1,'uint8');
+                e.physicalchnl(1,n)   = fread(fid,1,'uint8');
                 e.rectify(1,n)        = fread(fid,1,'uint8');
                 e.calib(1,n)          = fread(fid,1,'float');
         end
@@ -568,7 +568,7 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
 	CNT.EVENT.TeegSize = 0;
         status = fseek(CNT.FILE.FID,h.eventtablepos,'bof');
         if ~status,
-                [CNT.EVENT.TeegType,c1] = fread(fid,1,'uchar');		
+                [CNT.EVENT.TeegType,c1] = fread(fid,1,'uint8');		
                 [CNT.EVENT.TeegSize,c2] = fread(fid,1,'int32');	
                 [CNT.EVENT.TeegOffset,c3] = fread(fid,1,'int32');
 	end;	
