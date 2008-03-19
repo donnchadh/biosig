@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.196 2008-03-18 08:34:30 schloegl Exp $
+%	$Id: sopen.m,v 1.197 2008-03-19 07:32:52 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -8416,15 +8416,15 @@ elseif strcmp(HDR.TYPE,'ETG4000') 	 % NIRS - Hitachi ETG 4000
 		chansel = [2:nc-5,nc-3]; 	% with time channel 
 		chansel = [2:nc-5]; 	% without time channel 
 		HDR.Label = Label(chansel);
-       		F = ['%i',dlm];
+       		F = ['%d',dlm];
 		for k=1:length(Label)-6,         		
         		F = [F,'%f',dlm];
         	end;	
-       		F = [F,'%i',dlm];
-       		F = [F,'%i:%i:%i.%i',dlm];
-       		F = [F,'%i',dlm];
-       		F = [F,'%i',dlm];
-       		F = [F,'%i'];
+       		F = [F,'%d',dlm];
+       		F = [F,'%d:%d:%d.%d',dlm];
+       		F = [F,'%d',dlm];
+       		F = [F,'%d',dlm];
+       		F = [F,'%d'];
 
        		[num,count] = sscanf([t,s],F,[length(Label)+3,inf]);
        		NUM = num';
@@ -8448,8 +8448,11 @@ elseif strcmp(HDR.TYPE,'ETG4000') 	 % NIRS - Hitachi ETG 4000
                 HDR.DigMax  = HDR.PhysMax;
                 HDR.DigMin  = HDR.PhysMin;
                 HDR.Calib   = sparse(2:HDR.NS+1,1:HDR.NS,1); 
+%                HDR.Cal     = ones(1,HDR.NS);
+%                HDR.Off     = zeros(1,HDR.NS);
                 HDR.GDFTYP  = 16*ones(1,HDR.NS);
                 HDR.LeadIdCode = repmat(NaN,1,HDR.NS);
+                HDR.FLAG.OVERFLOWDETECTION = 0;
 	
                 %HDR.PhysDimCode = zeros(HDR.NS,1);
 		PhysDimCode = [512,repmat(65362,1,HDR.NS),512,2176,repmat(512,1,3)];
