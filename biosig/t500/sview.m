@@ -6,7 +6,7 @@ function [argout,s]=sview(s,varargin),
 %
 % See also: SLOAD 
 
-%	$Id: sview.m,v 1.19 2008-03-17 08:23:05 schloegl Exp $ 
+%	$Id: sview.m,v 1.20 2008-03-19 07:38:35 schloegl Exp $ 
 %	Copyright (c) 2004,2006 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -23,6 +23,7 @@ function [argout,s]=sview(s,varargin),
 % You should have received a copy of the GNU General Public License
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+length(varargin)
 
 if length(varargin),
         H=varargin{1}; 
@@ -114,11 +115,11 @@ if ~isfield(H,'Label'),
 elseif all(size(CHAN)>1)
         LEG = 'rereferenced';
 elseif all(CHAN>0)
-        LEG = H.Label(CHAN,:);
+        LEG = H.Label(CHAN);
 elseif size(H.Label,1)<H.NS,
       	LEG = H.Label;
 else
-        LEG = H.Label{CHAN};
+        LEG = H.Label(CHAN);
 end;
 
 t = detrend(s); t = t(:); 
