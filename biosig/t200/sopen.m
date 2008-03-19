@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.197 2008-03-19 07:32:52 schloegl Exp $
+%	$Id: sopen.m,v 1.198 2008-03-19 16:21:39 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -521,7 +521,8 @@ end;
                                 HDR.GDFTYP     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32');	%	datatype
 
                         else
-	                        HDR.PhysDim    =  char(fread(HDR.FILE.FID,[6,HDR.NS],'uint8')');
+	                        tmp	       =  char(fread(HDR.FILE.FID,[6,HDR.NS],'uint8')');
+	                        % HDR.PhysDim    =  char(fread(HDR.FILE.FID,[6,HDR.NS],'uint8')');
 	                        HDR.PhysDimCode =      fread(HDR.FILE.FID,[HDR.NS,1],'uint16');
 
 	                        HDR.PhysMin    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
@@ -1435,7 +1436,7 @@ end;
                                 fprintf(HDR.FILE.stderr,'\nWarning SOPEN (EDF): One block exceeds 61440 bytes.\n')
                         end;
 		end;
-		                
+
                 %%%%% Open File 
                 if ((HDR.NRec<0) & any(HDR.FILE.PERMISSION=='z')),
                         %% due to a limitation zlib
@@ -1456,6 +1457,7 @@ end;
                                 return;
                         end;
                 end;
+
                 if HDR.FILE.FID<0 
                         %fprintf(HDR.FILE.stderr,'Error EDFOPEN: %s\n',MESSAGE);  
                         H1=MESSAGE;H2=[];
@@ -1464,7 +1466,7 @@ end;
                         return;
                 end;
                 HDR.FILE.OPEN = 2;
-                
+
                 %if strcmp(HDR.VERSION(1:3),'GDF'),
                 if (HDR.VERSION > 0),  % GDF
 			if (HDR.VERSION >= 1.90)
@@ -1735,7 +1737,7 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'})
                 if any([HDR.SPR] <= 0);
                         HDR.FILE.OPEN = 3; 
                 end;
-                
+
                 % write fixed header
                 fwrite(HDR.FILE.FID,'Version 3.0','uint8');
                 fwrite(HDR.FILE.FID,zeros(2,1),'uint32');
@@ -2399,7 +2401,7 @@ elseif strncmp(HDR.TYPE,'AKO',3),
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         HDR.Header = fread(HDR.FILE.FID,[1,46],'uint8');
         warning('support of AKO format not completed');
-        HDR.Patient.ID = char(HDR.Header(17:24));
+        HDR.Patient.Id = char(HDR.Header(17:24));
         HDR.SampleRate = 128; % ???
         HDR.NS = 1;
         HDR.NRec = 1; 
@@ -2416,7 +2418,7 @@ elseif strcmp(HDR.TYPE,'ALICE4'),
         [s,c]  = fread(HDR.FILE.FID,[1,408],'uint8');
         HDR.NS = s(55:56)*[1;256];
         HDR.SampleRate   = 100; 
-        HDR.Patient.ID   = char(s(143:184));
+        HDR.Patient.Id   = char(s(143:184));
         HDR.Patient.Sex  = char(s(185));
         HDR.Patient.Date = char(s(187:194));
         [H2,c] = fread(HDR.FILE.FID,[118,HDR.NS],'uint8');
@@ -8366,11 +8368,11 @@ elseif strcmp(HDR.TYPE,'ETG4000') 	 % NIRS - Hitachi ETG 4000
 		dlm = HDR.s(ix(1) + 12);
                 while ((t(1)<'0') | (t(1)>'9'))
          		[NUM, STATUS,STRARRAY] = str2double(t,dlm); 
-                        if 0
+                        if 0,
                         elseif strncmp(t,'File Version',12)
                                 HDR.VERSION = NUM(2);
                         elseif strncmp(t,'Name',4)
-                                HDR.Patient.ID  = STRARRAY{2};
+                                HDR.Patient.Id  = STRARRAY{2};
                         elseif strncmp(t,'Sex',3)
                                 HDR.Patient.Sex = strncmpi(STRARRAY{2},'M',1)+strncmpi(STRARRAY{2},'F',1)*2;
                         elseif strncmp(t,'Age',3)
@@ -8448,8 +8450,8 @@ elseif strcmp(HDR.TYPE,'ETG4000') 	 % NIRS - Hitachi ETG 4000
                 HDR.DigMax  = HDR.PhysMax;
                 HDR.DigMin  = HDR.PhysMin;
                 HDR.Calib   = sparse(2:HDR.NS+1,1:HDR.NS,1); 
-%                HDR.Cal     = ones(1,HDR.NS);
-%                HDR.Off     = zeros(1,HDR.NS);
+                HDR.Cal     = ones(1,HDR.NS);
+                HDR.Off     = zeros(1,HDR.NS);
                 HDR.GDFTYP  = 16*ones(1,HDR.NS);
                 HDR.LeadIdCode = repmat(NaN,1,HDR.NS);
                 HDR.FLAG.OVERFLOWDETECTION = 0;
