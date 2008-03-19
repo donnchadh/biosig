@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.31 2008-03-14 08:33:18 schloegl Exp $
+    $Id: save2gdf.c,v 1.32 2008-03-19 21:40:12 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -39,7 +39,7 @@ int main(int argc, char **argv){
     size_t 	count, k1;
     uint16_t 	numopt = 0;
     char 	*source, *dest, tmp[1024]; 
-    enum FileFormat TARGET_TYPE=GDF; 		// type of file format
+    enum FileFormat SOURCE_TYPE, TARGET_TYPE=GDF; 		// type of file format
     int		COMPRESSION_LEVEL=0;
     int		status, k; 
 	
@@ -183,9 +183,10 @@ int main(int argc, char **argv){
    	Write data 
    *********************************/
 
+    	SOURCE_TYPE = hdr->TYPE;
     	hdr->TYPE = TARGET_TYPE;
 	hdr->FILE.COMPRESSION=COMPRESSION_LEVEL;
-	if (COMPRESSION_LEVEL>0 && hdr->TYPE==HL7aECG)	{
+	if (COMPRESSION_LEVEL>0 && TARGET_TYPE==HL7aECG)	{
 		fprintf(stderr,"Warning: on-the-fly compression (%i) is not supported for HL7aECG.\n",COMPRESSION_LEVEL); 
 		hdr->FILE.COMPRESSION = 0;
 	}
@@ -197,6 +198,7 @@ int main(int argc, char **argv){
     	for (k=0; k<hdr->NS; k++) {
 		double MaxValue = hdr->data.block[k*N];
 		double MinValue = hdr->data.block[k*N];
+		
 		/* Maximum and Minimum for channel k */ 
 		for (k1=1; k1<N; k1++) {
 			if (MaxValue < hdr->data.block[k*N+k1])
@@ -208,14 +210,21 @@ int main(int argc, char **argv){
 			MaxValue = (MaxValue - hdr->CHANNEL[k].Off)/hdr->CHANNEL[k].Cal;
 			MinValue = (MinValue - hdr->CHANNEL[k].Off)/hdr->CHANNEL[k].Cal;
 		}
-		val = MaxValue*hdr->CHANNEL[k].Cal+hdr->CHANNEL[k].Off;		
+		val = MaxValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;		
 		if (PhysMaxValue0 < val)
 			PhysMaxValue0 = val;
-		val = MinValue*hdr->CHANNEL[k].Cal+hdr->CHANNEL[k].Off;		
+		val = MinValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;		
  		if (PhysMinValue0 > val)
  			PhysMinValue0 = val;
 
-		if (hdr->TYPE==GDF || hdr->TYPE==CFWB) {
+		if ((SOURCE_TYPE==ETG4000) && (TARGET_TYPE==GDF)) {
+			hdr->CHANNEL[k].GDFTYP  = 16;
+			hdr->CHANNEL[k].PhysMax = MaxValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+			hdr->CHANNEL[k].PhysMin = MinValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+			hdr->CHANNEL[k].DigMax  = MaxValue;
+			hdr->CHANNEL[k].DigMin  = MinValue;
+		}
+		else if ((hdr->CHANNEL[k].GDFTYP<10 ) && (TARGET_TYPE==GDF || TARGET_TYPE==CFWB)) {
 			/* heuristic to determine optimal data type */
 			if ((MaxValue <= 127) && (MinValue >= -128))
 		    		hdr->CHANNEL[k].GDFTYP = 1;
@@ -230,8 +239,9 @@ int main(int argc, char **argv){
 			else if ((MaxValue <= ldexp(1.0,32)-1.0) && (MinValue >= 0.0))
 		    		hdr->CHANNEL[k].GDFTYP = 6;
 		}
+		
     		// hdr->CHANNEL[k].GDFTYP = 3;
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"#%3i %i [%f %f][%f %f]\n",k,hdr->CHANNEL[k].GDFTYP,MinValue,MaxValue,PhysMinValue0,PhysMaxValue0);
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"#%3d %d [%f %f][%f %f]\n",k,hdr->CHANNEL[k].GDFTYP,MinValue,MaxValue,PhysMinValue0,PhysMaxValue0);
 	}
 	if (0) //(hdr->TYPE==SCP_ECG && !hdr->FLAG.UCAL) 
 	    	for (k=0; k<hdr->NS; k++) {

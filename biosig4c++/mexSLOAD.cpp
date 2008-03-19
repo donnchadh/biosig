@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.12 2008-03-19 16:18:25 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.13 2008-03-19 21:40:12 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -91,7 +91,7 @@ void mexFunction(
 				"NS","SPR","NRec","SampleRate", \
 				"EVENT","Label","LeadIdCode","PhysDimCode","PhysDim","Filter",\
 				"PhysMax","PhysMin","DigMax","DigMin","Transducer","Cal","Off","GDFTYP",\
-				"LowPass","HighPass","Notch","ELEC","Impedance","AS","Dur","","FLAG",NULL};
+				"LowPass","HighPass","Notch","ELEC","Impedance","AS","Dur","FLAG",NULL};
 				for (numfields=0; fnames[numfields++] != 0; );
 				HDR = mxCreateStructMatrix(1, 1, --numfields, fnames);
 
