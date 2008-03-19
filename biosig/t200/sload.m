@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.73 2008-01-18 09:28:13 schloegl Exp $
+%	$Id: sload.m,v 1.74 2008-03-19 08:19:01 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -294,10 +294,10 @@ if 0, ~isnan(H.NS),
 	H.Calib = H.Calib([1;1+H.InChanSelect(:)],:);
 end
 	
-	
+
 if 0,
         
-elseif isfield(H,'data') & all(diag(H.Calib(2:end,1:end))==1)
+elseif isfield(H,'data') && all(diag(H.Calib(2:end,1:end))==1)
 	% only a single copy of the data
 	% important for large data sets, close to the available memory 
 	signal = H.data; 
