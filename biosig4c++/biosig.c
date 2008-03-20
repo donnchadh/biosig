@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.140 2008-03-18 01:44:33 schloegl Exp $
+    $Id: biosig.c,v 1.141 2008-03-20 14:42:23 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -200,42 +200,42 @@ uint32_t leu32p(uint8_t* i) {
 	// decode little endian uint32 pointer 
 	uint32_t o=0;
 	for (char k=0; k<4; k++)
-		o += (*(i+k))<<(k*8);
+		o += ((uin32_t)*(i+k))<<(k*8);
 	return(o); 
 }
 int32_t lei32p(uint8_t* i) {
 	// decode little endian int32 pointer 
 	uint32_t o=0;
 	for (char k=0; k<4; k++)
-		o += (*(i+k))<<(k*8);
+		o += ((uint32_t)*(i+k))<<(k*8);
 	return(*(int32_t*)(&o)); 
 }
 uint64_t leu64p(uint8_t* i) {
 	// decode little endian uint64 pointer 
 	uint64_t o=0;
 	for (char k=0; k<8; k++)
-		o += (*(i+k))<<(k*8);
+		o += ((uin64_t)*(i+k))<<(k*8);
 	return(o); 
 }
 int64_t lei64p(uint8_t* i) {
 	// decode little endian int64 pointer 
-	int64_t o=0;
+	uint64_t o=0;
 	for (char k=0; k<8; k++)
-		o += (*(i+k))<<(k*8);
+		o += ((uin64_t)*(i+k))<<(k*8);
 	return(*(int64_t*)(&o)); 
 }
 float lef32p(uint8_t* i) {
 	// decode little endian float pointer 
 	uint32_t o;
 	for (char k=0, o=0; k<4; k++)
-		o += (*(i+k))<<(k*8);
+		o += ((uin32_t)*(i+k))<<(k*8);
 	return(*(float*)(&o)); 
 }
 double lef64p(uint8_t* i) {
 	// decode little endian double pointer 
 	uint64_t o=0;
 	for (char k=0; k<8; k++)
-		o += (*(i+k))<<(k*8);
+		o += ((uin64_t)*(i+k))<<(k*8);
 	return(*(double*)(&o)); 
 }
 
@@ -1498,13 +1498,18 @@ if (!strncmp(MODE,"r",1))
 					hdr->CHANNEL[k].PhysDim[k1] = 0;
 
 				hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
+
+				hdr->CHANNEL[k].DigMin   = (double) lei64p(Header2+ 8*k + 120*hdr->NS);
+				hdr->CHANNEL[k].DigMax   = (double) lei64p(Header2+ 8*k + 128*hdr->NS);
+
 				/*
 				/ ###FIXME###
 				hdr->CHANNEL[k].PreFilt = (hdr->Header2+ 68*k + 136*hdr->NS);
 				*/
+				hdr->CHANNEL[k].LowPass  = NaN;
+				hdr->CHANNEL[k].HighPass = NaN;
+				hdr->CHANNEL[k].Notch    = NaN;
 
-				hdr->CHANNEL[k].DigMin   = (double) lei64p(Header2+ 8*k + 120*hdr->NS);
-				hdr->CHANNEL[k].DigMax   = (double) lei64p(Header2+ 8*k + 128*hdr->NS);
 			}	
 			else {
 				hdr->CHANNEL[k].PhysDimCode = leu16p(Header2+ 2*k + 102*hdr->NS);
@@ -2524,11 +2529,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	    	label = strpbrk(t,",") + 1; 
 		double DigMax = 1.0, DigMin = -1.0;
+		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
 		for (k=0; k < hdr->NS; k++) {
 			CHANNEL_TYPE* hc = hdr->CHANNEL+k;
 			hc->GDFTYP   = 16;
-			hc->SPR      = 1; 
 			hc->SPR      = 1; 
 			hc->Cal      = 1.0; 
 			hc->Off      = 0.0;
@@ -2540,16 +2545,17 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hc->DigMax   = DigMax;
 			hc->DigMin   = DigMin;
 		    	hc->LeadIdCode  = 0;
-		    	hc->PhysDimCode = 65362;
-		    	size_t c = strspn(label,",");
-		    	strncpy(hc->Label, label, max(c,MAX_LENGTH_LABEL));
+		    	hc->PhysDimCode = 65362;	//mol l-1 mm
+		    	size_t c     = strcspn(label,dlm);
+		    	size_t c1    = min(c,MAX_LENGTH_LABEL);
+		    	strncpy(hc->Label, label, c1);
+		    	hc->Label[c1]= 0;
 		    	label += c+1;
 		}
-		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
-		hdr->SPR = 1;
-		hdr->Dur[0]=1;
-		hdr->Dur[1]=hdr->SampleRate;
-		hdr->NRec = 0;
+		hdr->SPR    = 1;
+		hdr->Dur[0] = 1;
+		hdr->Dur[1] = hdr->SampleRate;
+		hdr->NRec   = 0;
 
 		/* decode data section */
 		hdr->FLAG.SWAP = 0; 
@@ -3236,8 +3242,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		     	*(double*)(Header2 + 8*k + 104*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMin);
 		     	*(double*)(Header2 + 8*k + 112*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMax);
 		     	if (hdr->VERSION < 1.9) {
-			     	*(int64_t*)(Header2 + 8*k + 120*hdr->NS)   = l_endian_i64(hdr->CHANNEL[k].DigMin);
-			     	*(int64_t*)(Header2 + 8*k + 128*hdr->NS)   = l_endian_i64(hdr->CHANNEL[k].DigMax);
+			     	*(int64_t*)(Header2 + 8*k + 120*hdr->NS)   = l_endian_i64((int64_t)hdr->CHANNEL[k].DigMin);
+			     	*(int64_t*)(Header2 + 8*k + 128*hdr->NS)   = l_endian_i64((int64_t)hdr->CHANNEL[k].DigMax);
 			     	// FIXME // memcpy(Header2 + 80*k + 136*hdr->NS,hdr->CHANNEL[k].PreFilt,max(80,strlen(hdr->CHANNEL[k].PreFilt)));
 			}     	
 			else {
@@ -3638,7 +3644,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
  *
  */
 
-	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem; 
+	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem,NS; 
 	int 			GDFTYP;
 	uint8_t*		ptr;
 	CHANNEL_TYPE*		CHptr;
@@ -3673,15 +3679,20 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	// set position of file handle 
 	hdr->FILE.POS += count;
 
+	// count number of selected channels 
+	for (k1=0,NS=0; k1<hdr->NS; ++k1)
+		NS += (hdr->CHANNEL[k1].OnOff ? 1 : 0); 
+
 	// transfer RAW into BIOSIG data format 
 	if (data==NULL)
-		data = (biosig_data_type*) malloc(hdr->SPR * count * hdr->NS * sizeof(biosig_data_type));
+		data = (biosig_data_type*) malloc(hdr->SPR * count * NS * sizeof(biosig_data_type));
 	hdr->data.block = data; 
-//	hdr->data.block = (biosig_data_type*) realloc(hdr->data.block, (hdr->SPR) * count * (hdr->NS) * sizeof(biosig_data_type));
+//	hdr->data.block = (biosig_data_type*) realloc(hdr->data.block, (hdr->SPR) * count * NS * sizeof(biosig_data_type));
 		
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
-	//(CHptr->OnOff != 0) 
+	
+	if (CHptr->OnOff) {	/* read selected channels only */ 
 	if (hdr->CHANNEL[k1].SPR==0) {	
 		// sparsely sampled channels are stored in event table
 		for (k5 = 0; k5 < hdr->SPR*hdr->NRec; k5++)
@@ -3808,7 +3819,8 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 			for (k3=0; k3 < DIV; k3++) 
 				hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
 		}
-		k2++;
+	}	
+	k2++;
 	}}
 	hdr->data.size[0] = hdr->SPR*count;	// rows	
 	hdr->data.size[1] = k2;			// columns 
