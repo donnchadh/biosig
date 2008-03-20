@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.13 2008-03-19 21:40:12 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.14 2008-03-20 14:43:07 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -24,6 +24,7 @@ void mexFunction(
     int           nrhs,           /* number of inputs */
     const mxArray *prhs[]         /* array of pointers to input arguments */
 )
+
 {
 	int k;
 	const mxArray	*arg;
@@ -31,42 +32,76 @@ void mexFunction(
 	CHANNEL_TYPE*	cp; 
 	size_t 		count;
 	time_t 		T0;
-	char 		FileName[1024];  
+	char 		*FileName;  
 	int 		status; 
+	int		CHAN = 0;
+	double		*ChanList=NULL;
+	int		NS = -1;
+	char		FlagOverflowDetection=0, FlagUCAL=0;
+	
 	
 	VERBOSE_LEVEL = 3; 
 	mexPrintf("This is mexSLOAD, it is currently in an experimental state!\n");
-	for (k=0; k<nrhs; k++)
+	for (k = 0; k < nrhs; k++)
 	{	
 		arg = prhs[k];
 		if (mxIsEmpty(arg))
 			mexPrintf("Empty\n");
 		else if (mxIsCell(arg))
 			mexPrintf("IsCell\n");
-		else if (mxIsStruct(arg))
+		else if (mxIsStruct(arg)) {
 			mexPrintf("IsStruct\n");
-		else if (mxIsNumeric(arg))
+			if (k==0)			
+				FileName = mxArrayToString(mxGetField(prhs[k],0,"FileName"));
+		}
+		else if (mxIsNumeric(arg)) {
 			mexPrintf("IsNumeric\n");
+			ChanList = (double*)mxGetData(prhs[k]);
+			NS = mxGetNumberOfElements(prhs[k]);
+		}	
 		else if (mxIsSingle(arg))
 			mexPrintf("IsSingle\n");
-		else if (mxIsChar(arg))
-		{
-			mxGetString(prhs[k], FileName, (1022 > mxGetN(prhs[k]) ? 1022 : mxGetN(prhs[k])));
-			//mexPrintf("IsChar[%i,%i]\n\t%s\n",mxGetM(prhs[k]),mxGetN(prhs[k]),FileName);
+		else if (mxIsChar(arg)) {
+			mexPrintf("arg%i IsChar\n",k);
+			if (k==0)			
+				FileName = mxArrayToString(prhs[k]);
+			else if (!strcmp(mxArrayToString(prhs[k]),"OVERFLOWDETECTION:ON"))
+				FlagOverflowDetection = 1;
+			else if (!strcmp(mxArrayToString(prhs[k]),"OVERFLOWDETECTION:OFF"))
+				FlagOverflowDetection = 0;
+			else if (!strcmp(mxArrayToString(prhs[k]),"UCAL:ON")) 
+				FlagUCAL = 1;
+			else if (!strcmp(mxArrayToString(prhs[k]),"UCAL:OFF"))
+				FlagUCAL = 0;
+		}
+	}
 
+	if (strlen(FileName)) {
 			hdr = sopen(FileName, "r", NULL);
 			if ((status=serror())) return; 
 	
 			if (hdr==NULL) return;
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
+			hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
+			hdr->FLAG.UCAL = FlagUCAL;
 
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"[113] SOPEN-R finished\n");
-
-			hdr->FLAG.OVERFLOWDETECTION = 0; (hdr->TYPE!=MFER);
-			hdr->FLAG.UCAL = 0;
-	
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"[121]\n");
+			for (k=0; k<hdr->NS; ++k)
+				hdr->CHANNEL[k].OnOff = 0; // reset 
+				
+			if ((NS<0) || ((NS==1) && (ChanList[0] == 0.0))) 
+				NS = hdr->NS;
+			for (k=0; k<NS; ++k) {
+				int ch = (int)ChanList[k];
+				if ((ch < 1) || (ch > hdr->NS)) 
+					mexPrintf("Invalid channel number CHAN(%i) = %i!",k,ch); 
+				else 	
+					hdr->CHANNEL[ch-1].OnOff = 1;  // set
+			}
+			for (k=0,NS=0; k<hdr->NS; ++k)
+				NS += (hdr->CHANNEL[k].OnOff ? 1 : 0); // count number of channels read 
+			
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"[121] NoOfChan=%i\n",NS);
 
 			count = sread(NULL, 0, hdr->NRec, hdr);
 			if ((status=serror())) return;  
@@ -75,8 +110,8 @@ void mexFunction(
 				fprintf(stdout,"\n[129] SREAD on %s successful [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
 
 			hdr->NRec = count; 
-			plhs[0] = mxCreateDoubleMatrix(hdr->SPR * count, hdr->NS, mxREAL);
-			memcpy((void*)mxGetPr(plhs[0]),(void*)hdr->data.block,hdr->SPR * count * hdr->NS * sizeof(biosig_data_type));
+			plhs[0] = mxCreateDoubleMatrix(hdr->SPR * count, NS, mxREAL);
+			memcpy((void*)mxGetPr(plhs[0]),(void*)hdr->data.block,hdr->SPR * count * NS * sizeof(biosig_data_type));
 	        	free(hdr->data.block);	
 
 
@@ -85,13 +120,14 @@ void mexFunction(
 			if (nlhs>1) { 
 				char* mexFileName = (char*)mxMalloc(strlen(hdr->FileName)+1); 
 
-				mxArray *HDR, *tmp, *tmp2, *Patient, *EVENT, *Filter;
+				mxArray *HDR, *tmp, *tmp2, *Patient, *EVENT, *Filter, *Flag;
 				uint16_t numfields;
 				const char *fnames[] = {"TYPE","VERSION","FileName","T0","FILE","Patient",\
-				"NS","SPR","NRec","SampleRate", \
+				"NS","SPR","NRec","SampleRate", "FLAG", \
 				"EVENT","Label","LeadIdCode","PhysDimCode","PhysDim","Filter",\
 				"PhysMax","PhysMin","DigMax","DigMin","Transducer","Cal","Off","GDFTYP",\
-				"LowPass","HighPass","Notch","ELEC","Impedance","AS","Dur","FLAG",NULL};
+				"LowPass","HighPass","Notch","ELEC","Impedance","AS","Dur",NULL};
+
 				for (numfields=0; fnames[numfields++] != 0; );
 				HDR = mxCreateStructMatrix(1, 1, --numfields, fnames);
 
@@ -175,6 +211,14 @@ void mexFunction(
 				tmp2 = mxCreateStructMatrix(1, 1, --numfields, field2);
 				mxSetField(tmp2,0,"SPR",SPR);
 				mxSetField(HDR,0,"AS",tmp2);
+				
+				/* FLAG */
+				const char* field3[] = {"UCAL","OVERFLOWDETECTION",NULL};
+				for (numfields=0; field3[numfields++] != 0; );
+				Flag = mxCreateStructMatrix(1, 1, --numfields, field3);
+				mxSetField(Flag,0,"UCAL",mxCreateDoubleScalar((double)hdr->FLAG.UCAL));
+				mxSetField(Flag,0,"OVERFLOWDETECTION",mxCreateDoubleScalar((double)hdr->FLAG.OVERFLOWDETECTION));
+				mxSetField(HDR,0,"FLAG",Flag);
 
 				/* Filter */ 
 				const char *filter_fields[] = {"HighPass","LowPass","Notch",NULL};
@@ -232,7 +276,6 @@ void mexFunction(
 			sclose(hdr);
 			hdr = NULL; 
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[137] SCLOSE finished\n");
-		}
-	}
+	}	
 };
 
