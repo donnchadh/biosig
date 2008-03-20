@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.74 2008-03-19 08:19:01 schloegl Exp $
+%	$Id: sload.m,v 1.75 2008-03-20 12:00:02 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -188,17 +188,17 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
                                         return;
                                 end;
                         end;
-                        if isfield(H,'Classlabel'),
+                        if isfield(H,'Classlabel'), 
                                 if isfield(H,'ArtifactSelection')
                                         if isfield(h,'ArtifactSelection'),
-                                                if any(h.ArtifactSelection>1) | (length(h.ArtifactSelection) < length(h.Classlabel))
+                                                if (any(h.ArtifactSelection>1) || (length(h.ArtifactSelection) < length(h.Classlabel)))
                                                         sel = zeros(size(h.Classlabel));
                                                         sel(h.ArtifactSelection) = 1; 
                                                 else
                                                         sel = h.ArtifactSelection(:);
                                                 end;
                                                 H.ArtifactSelection = [H.ArtifactSelection; h.ArtifactSelection(:)];
-                                        elseif isfield(H,'ArtifactSelection'),
+                                        else %if isfield(H,'ArtifactSelection'),
                                                 H.ArtifactSelection = [H.ArtifactSelection;zeros(length(h.Classlabel),1)];
                                         end;
                                 end;
@@ -842,6 +842,7 @@ if strcmp(H.TYPE,'CNT');
                         [x,H.Classlabel] = max(tmp.classlabel,[],2);                        
                 end;
         end;
+        
         f=fullfile(H.FILE.Path,[H.FILE.Name,'.sel']);
         if ~exist(f,'file'),
                 f=fullfile(H.FILE.Path,[H.FILE.Name,'.SEL']);
@@ -854,11 +855,10 @@ if strcmp(H.TYPE,'CNT');
 		if any(isnan(tmp)) |any(tmp~=ceil(tmp)) | any(tmp<0) | (any(tmp==0) & any(tmp>1))
                         fprintf(2,'Warning SLOAD(CNT): corrupted SEL-file %s\n',f);
                 else
-                        if isfield(H,'Classlabel'), 
-                                n = length(H.Classlabel);
-                        else
-                                n = length(H.EVENT.TYP);
-                        end;
+                        if ~isfield(H,'Classlabel'), 
+                                H.Classlabel = H.EVENT.TYP;
+                        end;        
+                        n = length(H.Classlabel);
                         
                         H.ArtifactSelection = zeros(n,1);
                         if all((tmp==0) | (tmp==1)) & (length(tmp)>1) & (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
