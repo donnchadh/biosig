@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.143 2008-03-24 19:46:08 schloegl Exp $
+    $Id: biosig.c,v 1.144 2008-03-24 21:17:59 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2633,12 +2633,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}	
 		hdr->NS >>= 1; 
 
-	    	label = strpbrk(t,",") + 1; 
+	    	label = strpbrk(t,dlm) + 1; 
 		double DigMax = 1.0, DigMin = -1.0;
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
 		for (k=0; k < hdr->NS; k++) {
 			CHANNEL_TYPE* hc = hdr->CHANNEL+k;
+			hc->OnOff    = 1;
 			hc->GDFTYP   = 16;
 			hc->SPR      = 1; 
 			hc->Cal      = 1.0; 
