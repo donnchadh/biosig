@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.141 2008-03-20 14:42:23 schloegl Exp $
+    $Id: biosig.c,v 1.142 2008-03-24 18:53:15 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1307,7 +1307,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 
     	int 		k,k1;
     	uint32_t	k32u; 
-    	size_t	 	count,len;
+    	size_t	 	count;
     	char 		tmp[81];
     	double 		Dur; 
 //	char* 		Header1;
@@ -1315,7 +1315,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	char*		ptr_str;
 	struct tm 	tm_time; 
 	time_t		tt;
-	unsigned	EventChannel = 0, GDFTYP=0;
+	unsigned	GDFTYP=0;
 	uint16_t	EGI_LENGTH_CODETABLE=0;	// specific for EGI format 
 
 	if (hdr==NULL)
@@ -1553,7 +1553,7 @@ if (!strncmp(MODE,"r",1))
 			if (buf[1] | buf[2] | buf[3])
 				hdr->EVENT.SampleRate = buf[1] + (buf[2] + buf[3]*256.0)*256.0; 
 			else {
-				fprintf(stdout,"Warning GDF v1: SampleRate in Eventtable is not set in %s !!!\n",hdr->FileName);	
+				fprintf(stdout,"Warning GDF v1: SampleRate in Eventtable is not set in %s !!!\n",hdr->FileName);
 				hdr->EVENT.SampleRate = hdr->SampleRate; 
 			}	
 			hdr->EVENT.N = leu32p(buf + 4);
@@ -1589,6 +1589,7 @@ if (!strncmp(MODE,"r",1))
 		}	
     	}
     	else if ((hdr->TYPE == EDF) | (hdr->TYPE == BDF))	{
+		size_t	EventChannel = 0;
     		strncpy(hdr->Patient.Id,Header1+8,min(MAX_LENGTH_PID,80));
     		memcpy(hdr->ID.Recording,Header1+88,min(80,MAX_LENGTH_RID));
 		hdr->ID.Recording[MAX_LENGTH_RID]=0;
@@ -1704,16 +1705,110 @@ if (!strncmp(MODE,"r",1))
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// EDF does not support automated overflow and saturation detection
 
-		for (k=0, hdr->SPR=1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS; k++) {
-			hdr->AS.spb += hdr->CHANNEL[k].SPR;
-			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;
-			if (hdr->CHANNEL[k].OnOff)
-				hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
-		}	
-		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
-		
-		/* read Annotation and Status channel and extract event information */		
-		
+		if (EventChannel) {
+			/* read Annotation and Status channel and extract event information */		
+			hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
+			hdr->AS.bpb = 0; 
+			hdr->AS.bi[0] = hdr->AS.bpb;
+			for (k=0, hdr->SPR=1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS; k++) {
+				hdr->AS.spb += hdr->CHANNEL[k].SPR;
+				hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;
+				hdr->AS.bi[k+1] = hdr->AS.bpb; 
+			}	
+
+
+			size_t sz   	= GDFTYP_BYTE[hdr->CHANNEL[EventChannel].GDFTYP];
+			uint8_t *Marker = (uint8_t*)malloc(hdr->CHANNEL[EventChannel].SPR * hdr->NRec * sz);
+			size_t skip 	= hdr->AS.bpb - hdr->CHANNEL[EventChannel].SPR * sz;
+			ifseek(hdr, hdr->HeadLen + hdr->AS.bi[EventChannel], SEEK_SET);
+			for (k=0; k<hdr->NS; k++) {
+			    	ifread(Marker+k*hdr->CHANNEL[EventChannel].SPR * sz, 1, hdr->CHANNEL[EventChannel].SPR * sz, hdr);
+				ifseek(hdr, skip, SEEK_CUR);
+			}
+			size_t len = hdr->SPR*hdr->NRec;		
+			size_t N_EVENT  = 0;
+			if (hdr->TYPE==EDF) {
+			/* convert EDF annotation channel into event table */
+				
+				for (k=1; k<len; k++) {
+				}
+
+				hdr->EVENT.N = N_EVENT;
+				hdr->EVENT.SampleRate = hdr->SampleRate; 
+				hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
+				hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
+				hdr->EVENT.DUR = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.DUR));
+				hdr->EVENT.CHN = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.CHN));
+
+				for (k=1; k<len; k++) {
+				}
+/*
+                        N  = 0; 
+			[s,t] = strtok(HDR.EDF.ANNONS,0);
+    			while ~isempty(s)
+    				N  = N + 1; 
+    				ix = find(s==20);
+    				[s1,s2] = strtok(s(1:ix(1)-1),21);
+    				onset(N,1) = str2double(s1);
+   				tmp = str2double(s2(2:end));
+   				if  ~isempty(tmp)
+   					dur(N,1) = tmp; 	
+   				else 
+   					dur(N,1) = 0; 	
+   				end;
+    				TeegType{N} = char(s(ix(1)+1:end-1));
+				[s,t] = strtok(t,0);
+    			end;		
+                        HDR.EVENT.TYP = ones(N,1);
+                        HDR.EVENT.POS = round(onset * HDR.SampleRate);
+                        HDR.EVENT.DUR = dur * HDR.SampleRate;
+                        HDR.EVENT.CHN = zeros(N,1); 
+*/
+			}
+			else if ((EventChannel>0) && (hdr->TYPE==BDF)) {
+				/* convert BDF status channel into event table*/
+				uint32_t d1, d0 = (uint32_t)Marker[2]<<16 + (uint32_t)Marker[1]<<8 + (uint32_t)Marker[0];
+				for (k=1; k<len; k++) {
+					d1 = (uint32_t)Marker[3*k1+2]<<16 + (uint32_t)Marker[3*k1+1]<<8 + (uint32_t)Marker[3*k1];
+					if ((d1 & 0x010000) != (d0 & 0x010000)) ++N_EVENT;
+					if ((d1 & 0x00ffff) != (d0 & 0x00ffff)) ++N_EVENT;
+					d0 = d1;
+				}	
+				hdr->EVENT.N = N_EVENT;
+				hdr->EVENT.SampleRate = hdr->SampleRate; 
+				hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
+				hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
+				hdr->EVENT.DUR = NULL;
+				hdr->EVENT.CHN = NULL;
+				d0 = (uint32_t)Marker[2]<<16 + (uint32_t)Marker[1]<<8 + (uint32_t)Marker[0];
+				for (N_EVENT=0, k=1; k<len; k++) {
+					d1 = (uint32_t)Marker[3*k1+2]<<16 + (uint32_t)Marker[3*k1+1]<<8 + (uint32_t)Marker[3*k1];
+					if ((d1 & 0x010000) > (d0 & 0x010000)) {
+						hdr->EVENT.POS[N_EVENT] = k;
+						hdr->EVENT.TYP[N_EVENT] = 0x7ffe;
+						++N_EVENT;
+					}
+					else if ((d1 & 0x010000) < (d0 & 0x010000)) {
+						hdr->EVENT.POS[N_EVENT] = k;
+						hdr->EVENT.TYP[N_EVENT] = 0x7ffe;
+						++N_EVENT;
+					}
+					if ((d1 & 0x00ffff) > (d0 & 0x00ffff)) {
+						hdr->EVENT.POS[N_EVENT] = k;
+						hdr->EVENT.TYP[N_EVENT] = d1 & 0x00ff;
+						++N_EVENT;
+					}	
+					else if ((d1 & 0x00ffff) < (d0 & 0x00ffff)) {
+						hdr->EVENT.POS[N_EVENT] = k;
+						hdr->EVENT.TYP[N_EVENT] = (d0 & 0x00ff) | 0x8000;
+						++N_EVENT;
+					}	
+					d0 = d1;
+				}	
+			}
+			free(Marker);
+			ifseek(hdr,hdr->HeadLen + hdr->AS.bi[EventChannel],SEEK_SET);
+		}	/* End reading EDF/BDF Status channel */
 	}      	
 
 	else if (hdr->TYPE==ABF) {
@@ -3108,7 +3203,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 				tmpstr = LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode];
 			else
 				tmpstr = hdr->CHANNEL[k].Label;
-		     	len = strlen(tmpstr);
+		     	size_t len = strlen(tmpstr);
 		     	memcpy(Header2+96*k, tmpstr, min(len,32));
 
 		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
@@ -3155,7 +3250,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		Header1[87] = (hdr->Patient.Sex%4) + ((hdr->Patient.Handedness%4)<<2) + ((hdr->Patient.Impairment.Visual%4)<<4);
 		}
 		
-	     	len = strlen(hdr->ID.Recording);
+	     	size_t len = strlen(hdr->ID.Recording);
 	     	memcpy(Header1+ 88,  hdr->ID.Recording, min(len,80));
 		if (hdr->VERSION>1.90) { 
 			memcpy(Header1+152, &hdr->LOC, 16);  
@@ -3305,7 +3400,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		tt = gdf_time2t_time(hdr->T0); 
 		if (hdr->T0>1) strftime(tmp,81,"%d-%b-%Y",gmtime(&tt));
 		else strcpy(tmp,"X");	
-		len = sprintf(cmd,"Startdate %s X X ",tmp);
+		size_t len = sprintf(cmd,"Startdate %s X X ",tmp);
 	     	memcpy(Header1+88, cmd, len);
 	     	memcpy(Header1+88+len, &hdr->ID.Equipment, 8);
 	     
@@ -3909,7 +4004,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			if (!hdr->FLAG.UCAL)	// scaling 
 				sample_value = sample_value * iCal + iOff;
 
-			// get source address 	
+			// get target address 	
 			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
 
 			// mapping of raw data type to (biosig_data_type)
