@@ -1,5 +1,5 @@
 /*
-    $Id: biosig.c,v 1.142 2008-03-24 18:53:15 schloegl Exp $
+    $Id: biosig.c,v 1.143 2008-03-24 19:46:08 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -9,6 +9,7 @@
     modify it under the terms of the GNU General Public License
     as published by the Free Software Foundation; either version 3
     of the License, or (at your option) any later version.
+
 
  */
 
@@ -189,18 +190,18 @@ double b_endian_f64(double x)
 /*    SPARC: missing alignment must be explicitly handled     */ 
 uint16_t leu16p(uint8_t* i) {
 	// decode little endian uint16 pointer 
-	return ((*i) + (*(i+1) << 8));
+	return ((*i) + ((uint16_t)*(i+1) << 8));
 }
 int16_t lei16p(uint8_t* i) {
 	// decode little endian int16 pointer 
-	uint16_t o = ((*i) + (*(i+1) << 8));
+	uint16_t o = ((*i) + ((uint16_t)*(i+1) << 8));
 	return(*(int16_t*)(&o)); 
 }
 uint32_t leu32p(uint8_t* i) {
 	// decode little endian uint32 pointer 
 	uint32_t o=0;
 	for (char k=0; k<4; k++)
-		o += ((uin32_t)*(i+k))<<(k*8);
+		o += ((uint32_t)*(i+k))<<(k*8);
 	return(o); 
 }
 int32_t lei32p(uint8_t* i) {
@@ -214,38 +215,38 @@ uint64_t leu64p(uint8_t* i) {
 	// decode little endian uint64 pointer 
 	uint64_t o=0;
 	for (char k=0; k<8; k++)
-		o += ((uin64_t)*(i+k))<<(k*8);
+		o += ((uint64_t)*(i+k))<<(k*8);
 	return(o); 
 }
 int64_t lei64p(uint8_t* i) {
 	// decode little endian int64 pointer 
 	uint64_t o=0;
 	for (char k=0; k<8; k++)
-		o += ((uin64_t)*(i+k))<<(k*8);
+		o += ((uint64_t)*(i+k))<<(k*8);
 	return(*(int64_t*)(&o)); 
 }
 float lef32p(uint8_t* i) {
 	// decode little endian float pointer 
 	uint32_t o;
 	for (char k=0, o=0; k<4; k++)
-		o += ((uin32_t)*(i+k))<<(k*8);
+		o += ((uint32_t)*(i+k))<<(k*8);
 	return(*(float*)(&o)); 
 }
 double lef64p(uint8_t* i) {
 	// decode little endian double pointer 
 	uint64_t o=0;
 	for (char k=0; k<8; k++)
-		o += ((uin64_t)*(i+k))<<(k*8);
+		o += ((uint64_t)*(i+k))<<(k*8);
 	return(*(double*)(&o)); 
 }
 
 uint16_t beu16p(uint8_t* i) {
 	// decode big endian uint16 pointer 
-	return ((*i<<8) + (*(i+1)));
+	return (((uint16_t)*i<<8) + (*(i+1)));
 }
 int16_t bei16p(uint8_t* i) {
 	// decode big endian int16 pointer 
-	uint16_t o = ((*i << 8) + (*(i+1)));
+	uint16_t o = (((uint16_t)*i << 8) + (*(i+1)));
 	return(*(int16_t*)(&o)); 
 }
 uint32_t beu32p(uint8_t* i) {
@@ -2148,7 +2149,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		/* decode header information */
 		hdr->FLAG.OVERFLOWDETECTION = 0;
 		int seq = 0;
-		uint16_t gdftyp; 
+		uint16_t gdftyp=3; 
 		double physmax=1e6,physmin=-1e6,digmax=1e6,digmin=-1e6,cal=1.0,off=0.0;
 		enum o_t{VEC,MUL};
 		enum o_t orientation;
@@ -2434,12 +2435,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->SampleRate = hdr->Dur[1];
 	    	hdr->NRec	= leu32p(hdr->AS.Header+12);
 	    	
-		uint16_t gdftyp;
+		uint16_t gdftyp = 16;
 		uint8_t  bits    = hdr->AS.Header[16];	
 		double   PhysMin = (double)(int8_t)hdr->AS.Header[17];	
 		double   PhysMax = (double)(int8_t)hdr->AS.Header[18];	
-		double	 Cal; 
-		double	 Off; 
+		double	 Cal = 1.0; 
+		double	 Off = 0.0; 
 		
 		if (hdr->VERSION==1) {
 			gdftyp = 16;	// float32
@@ -2565,16 +2566,23 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,len);
 	    	count  += ifread(hdr->AS.Header+count,1,len-count,hdr);
 		ifclose(hdr);
+
+		if (VERBOSE_LEVEL==9) 
+			fprintf(stdout,"File Size %i\n",count); 
 		
 		/* decode header section */
 		char dlm[2];
 		dlm[0] = (char)hdr->AS.Header[20];
 		dlm[1] = 0;
 		hdr->VERSION = -1; 
+		char FLAG_StimType_STIM = 0;
 		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
 		char *ag=NULL, *dg=NULL, *label;
-		double lpf,hpf,age;
+		double lpf=-1.0,hpf=-1.0,age=0.0;
 		while (strncmp(t,"Probe",5)) {
+			if (VERBOSE_LEVEL==9) 
+				fprintf(stdout,"-> %s\n",t);
+				 
 			if (!strncmp(t,"File Version",12))
 				hdr->VERSION = atof(strpbrk(t,dlm)+1);
 			else if (!strncmp(t,"Name",4))
@@ -2610,10 +2618,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (!strncmp(t,"Sampling Period[s]",18))
 				hdr->SampleRate = 1.0/atof(strpbrk(t,dlm)+1);
 			else if (!strncmp(t,"StimType",8))
-				;
+				FLAG_StimType_STIM = !strncmp(t+9,"STIM",4);
 
 			t = strtok(NULL,"\xA\xD");
 		}
+		if (VERBOSE_LEVEL==9) 
+			fprintf(stdout,"-> %s\n",t);
+
 		hdr->Patient.Birthday = hdr->T0 - (uint64_t)ldexp(age,32);
 		hdr->NS = 0; 
 		while (ag != NULL) {
@@ -2654,7 +2665,51 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 		/* decode data section */
 		hdr->FLAG.SWAP = 0; 
-		
+
+		uint32_t pos, N_EVENT = 0;
+		int Mark,hh,mm,ss,ds,BodyMovement,RemovalMark,PreScan;
+		hdr->EVENT.N = 0;
+		hdr->EVENT.SampleRate = hdr->SampleRate;
+		hdr->EVENT.DUR = NULL;
+		hdr->EVENT.CHN = NULL;
+ 
+		pos = atol(strtok(NULL,dlm));
+		while (pos) {
+			hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->NRec+1) * hdr->NS * sizeof(biosig_data_type));
+			for (k=0; k < hdr->NS; k++) {
+				*(biosig_data_type*)(hdr->AS.rawdata + (hdr->NRec*hdr->NS+k)*sizeof(biosig_data_type)) = atof(strtok(NULL,dlm));
+			}
+			++hdr->NRec;
+
+			Mark = atoi(strtok(NULL,dlm));
+			if (Mark) {
+				++hdr->EVENT.N;
+		 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
+				hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
+				hdr->EVENT.POS[hdr->EVENT.N-1] = pos; 
+				hdr->EVENT.TYP[hdr->EVENT.N-1] = Mark; 
+				if (FLAG_StimType_STIM && !(hdr->EVENT.N & 0x01))
+					hdr->EVENT.TYP[hdr->EVENT.N-1] = Mark | 0x8000; 
+			}
+			sscanf(strtok(NULL,dlm),"%d:%d:%d.%d",&hh,&mm,&ss,&ds);
+			BodyMovement 	= atoi(strtok(NULL,dlm));
+			RemovalMark 	= atoi(strtok(NULL,dlm));
+			PreScan 	= atoi(strtok(NULL,"\xA\xD"));
+
+			if (VERBOSE_LEVEL==9) {
+				fprintf(stdout,"%d: %d %02d:%02d:%02d.%02d %d %d %d\n",pos,Mark,hh,mm,ss,ds,BodyMovement,RemovalMark,PreScan);
+			}	
+			pos = atol(strtok(NULL,dlm));
+		};
+
+		if (FLAG_StimType_STIM && (hdr->EVENT.N & 0x01)) {
+			/* if needed, add End-Of-Event marker */
+			++hdr->EVENT.N;
+	 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
+			hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
+			hdr->EVENT.POS[hdr->EVENT.N-1] = pos; 
+			hdr->EVENT.TYP[hdr->EVENT.N-1] = Mark | 0x8000; 
+		}
 	}
 
 
@@ -3747,7 +3802,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	biosig_data_type 	sample_value; 
 	
 
-	if (hdr->TYPE != SCP_ECG && hdr->TYPE != HL7aECG) {	
+	if (hdr->TYPE != SCP_ECG && hdr->TYPE != HL7aECG && hdr->TYPE != ETG4000) {	
 		// check reading segment 
 		if (start < 0 || start > hdr->NRec) 
 			return(0);
@@ -3986,6 +4041,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 	for (k1=0, k2=0; k1<hdr->NS; k1++) {
 	CHptr 	= hdr->CHANNEL+k1;
+	
 	if (CHptr->SPR > 0) { /////CHptr->OnOff != 0) {
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
@@ -4027,9 +4083,11 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				*(uint16_t*)ptr = l_endian_u16(val.u16); 
 			}
 
-			else if (GDFTYP==16) 
-				*(float*)ptr  = l_endian_f32((float)sample_value); 
-
+			else if (GDFTYP==16) {
+				*(float*)ptr  = l_endian_f32((float)sample_value);
+			//	if (VERBOSE_LEVEL > 7) 
+					fprintf(stdout,"%f %f\n",sample_value,*(float*)ptr); 
+			}
 			else if (GDFTYP==17) 
 				*(double*)ptr = l_endian_f64((double)sample_value);
 
