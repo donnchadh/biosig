@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.14 2008-03-20 14:43:07 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.15 2008-03-24 21:17:30 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -32,7 +32,7 @@ void mexFunction(
 	CHANNEL_TYPE*	cp; 
 	size_t 		count;
 	time_t 		T0;
-	char 		*FileName;  
+	char 		*FileName=NULL;  
 	int 		status; 
 	int		CHAN = 0;
 	double		*ChanList=NULL;
@@ -41,6 +41,25 @@ void mexFunction(
 	
 	
 	VERBOSE_LEVEL = 3; 
+	
+	if (nrhs<1) {
+		mexPrintf("   Usage of mexSLOAD:\n");
+		mexPrintf("\t[s,HDR]=sload(f)\n");
+		mexPrintf("\t[s,HDR]=sload(f,chan)\n");
+		mexPrintf("\t[s,HDR]=sload(f,chan,\"OVERFLOWDETECTION:ON\")\n");
+		mexPrintf("\t[s,HDR]=sload(f,chan,\"OVERFLOWDETECTION:OFF\")\n");
+		mexPrintf("\t[s,HDR]=sload(f,chan,\"UCAL:ON\")\n");
+		mexPrintf("\t[s,HDR]=sload(f,chan,\"UCAL:OFF\")\n\n");
+		mexPrintf("   Input:\n\tf\tfilename\n");
+		mexPrintf("\tchan\tlist of selected channels; 0=all channels [default]\n");
+		mexPrintf("\tUCAL\tON: do not calibrate data; default=OFF\n");
+		mexPrintf("\tOVERFLOWDETECTION\tdefault = ON\n\t\tON: values outside dynamic range are not-a-number (NaN)\n");
+		mexPrintf("   Output:\n\ts\tsignal data, each column is one channel\n");
+		mexPrintf("\tHDR\theader structure\n\n");
+		return; 
+	}
+	
+	/* process input arguments */
 	mexPrintf("This is mexSLOAD, it is currently in an experimental state!\n");
 	for (k = 0; k < nrhs; k++)
 	{	
@@ -76,28 +95,35 @@ void mexFunction(
 		}
 	}
 
-	if (strlen(FileName)) {
+	/* open and read file, convert into M-struct */
+
 			hdr = sopen(FileName, "r", NULL);
 			if ((status=serror())) return; 
 	
 			if (hdr==NULL) return;
+
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
 			hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
 			hdr->FLAG.UCAL = FlagUCAL;
 
-			for (k=0; k<hdr->NS; ++k)
-				hdr->CHANNEL[k].OnOff = 0; // reset 
-				
-			if ((NS<0) || ((NS==1) && (ChanList[0] == 0.0))) 
+			if ((NS<0) || ((NS==1) && (ChanList[0] == 0.0))) { 	// all channels
+				for (k=0; k<hdr->NS; ++k)
+					hdr->CHANNEL[k].OnOff = 1; // set 
+			}		
+			else {		
+				for (k=0; k<hdr->NS; ++k)
+					hdr->CHANNEL[k].OnOff = 0; // reset 
 				NS = hdr->NS;
-			for (k=0; k<NS; ++k) {
-				int ch = (int)ChanList[k];
-				if ((ch < 1) || (ch > hdr->NS)) 
-					mexPrintf("Invalid channel number CHAN(%i) = %i!",k,ch); 
-				else 	
-					hdr->CHANNEL[ch-1].OnOff = 1;  // set
+				for (k=0; k<NS; ++k) {
+					int ch = (int)ChanList[k];
+					if ((ch < 1) || (ch > hdr->NS)) 
+						mexPrintf("Invalid channel number CHAN(%i) = %i!",k,ch); 
+					else 	
+						hdr->CHANNEL[ch-1].OnOff = 1;  // set
+				}		
 			}
+				
 			for (k=0,NS=0; k<hdr->NS; ++k)
 				NS += (hdr->CHANNEL[k].OnOff ? 1 : 0); // count number of channels read 
 			
@@ -276,6 +302,6 @@ void mexFunction(
 			sclose(hdr);
 			hdr = NULL; 
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[137] SCLOSE finished\n");
-	}	
+
 };
 
