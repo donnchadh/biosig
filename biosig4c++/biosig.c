@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.146 2008-03-26 10:20:08 schloegl Exp $
+    $Id: biosig.c,v 1.147 2008-03-26 10:43:37 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1677,7 +1677,7 @@ if (!strncmp(MODE,"r",1))
 	    	char *Header2 = (char*)hdr->AS.Header+256; 
 	    	count  += ifread(Header2, 1, hdr->HeadLen-256, hdr);
 
-		for (k=0; k<hdr->NS; k++)	{
+		for (k=0, hdr->SPR = 1; k<hdr->NS; k++)	{
 			strncpy(hdr->CHANNEL[k].Label,Header2 + 16*k,min(MAX_LENGTH_LABEL,16));
 			for (k1=strlen(hdr->CHANNEL[k].Label)-1; isspace(hdr->CHANNEL[k].Label[k1]) && k1; k1--)
 				hdr->CHANNEL[k].Label[k1] = 0;	// deblank
@@ -1704,6 +1704,7 @@ if (!strncmp(MODE,"r",1))
 			hdr->CHANNEL[k].SPR     = atol(strncpy(tmp,Header2 + 8*k + 216*hdr->NS,8));
 			hdr->CHANNEL[k].GDFTYP  = ((hdr->TYPE!=BDF) ? 3 : 255+24); 
 			hdr->CHANNEL[k].OnOff   = 1;
+			hdr->SPR 	 	= lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 			
 			//hdr->CHANNEL[k].PreFilt = (Header2+ 80*k + 136*hdr->NS);
 			// decode filter information into hdr->Filter.{Lowpass, Highpass, Notch}					
@@ -1717,24 +1718,18 @@ if (!strncmp(MODE,"r",1))
 			}
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// EDF does not support automated overflow and saturation detection
-		for (k=0, hdr->SPR=1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;k++) {
-			hdr->AS.spb += hdr->CHANNEL[k].SPR;
-			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
-			hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
-		}	
 		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
+
 
 		if (EventChannel) {
 			/* read Annotation and Status channel and extract event information */		
 			hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
-			hdr->AS.bpb = 0; 
-			hdr->AS.bi[0] = hdr->AS.bpb;
-			for (k=0, hdr->SPR=1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS; k++) {
-				hdr->AS.spb += hdr->CHANNEL[k].SPR;
-				hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;
-				hdr->AS.bi[k+1] = hdr->AS.bpb; 
+			hdr->AS.bi[0] = 0;
+			for (k=0, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;k++) {
+				hdr->AS.spb 	+= hdr->CHANNEL[k].SPR;
+				hdr->AS.bpb 	+= GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
+				hdr->AS.bi[k+1]  = hdr->AS.bpb;
 			}	
-
 
 			size_t sz   	= GDFTYP_BYTE[hdr->CHANNEL[EventChannel].GDFTYP];
 			uint8_t *Marker = (uint8_t*)malloc(hdr->CHANNEL[EventChannel].SPR * hdr->NRec * sz);
