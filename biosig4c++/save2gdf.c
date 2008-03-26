@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.32 2008-03-19 21:40:12 schloegl Exp $
+    $Id: save2gdf.c,v 1.33 2008-03-26 10:44:37 schloegl Exp $
     Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -128,7 +128,6 @@ int main(int argc, char **argv){
     	case 2:
 	    	source = argv[numopt+1]; 
     	}	
-//	if (dest==NULL ) VERBOSE_LEVEL=2; // default 
 
 	if (VERBOSE_LEVEL<0) VERBOSE_LEVEL=1; // default 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[111] SAVE2GDF started\n");
@@ -140,7 +139,16 @@ int main(int argc, char **argv){
 	if (hdr==NULL) exit(-1);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
-	hdr2ascii(hdr,stdout,VERBOSE_LEVEL);	
+	hdr2ascii(hdr,stdout,VERBOSE_LEVEL);
+	
+	// all channels are converted - channel selection currently not supported
+    	for (k=0; k<hdr->NS; k++) {
+    		if (!hdr->CHANNEL[k].OnOff) {
+			if ((hdr->SPR/hdr->CHANNEL[k].SPR)*hdr->CHANNEL[k].SPR != hdr->SPR)
+				 fprintf(stdout,"Warning: channel %i might be decimated!\n",k+1);
+    		};
+    		hdr->CHANNEL[k].OnOff = 1;	// convert all channels
+    	}	
 
 	hdr->FLAG.OVERFLOWDETECTION = 0;
 	hdr->FLAG.UCAL = 1;
