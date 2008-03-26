@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.15 2008-03-24 21:17:30 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.16 2008-03-26 14:14:06 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -14,6 +14,7 @@
 
 #include "biosig.h"
 #include "mex.h"
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,6 +29,7 @@ void mexFunction(
 {
 	int k;
 	const mxArray	*arg;
+//	mxArray		*Sort[2];
 	HDRTYPE		*hdr;
 	CHANNEL_TYPE*	cp; 
 	size_t 		count;
@@ -45,7 +47,7 @@ void mexFunction(
 	if (nrhs<1) {
 		mexPrintf("   Usage of mexSLOAD:\n");
 		mexPrintf("\t[s,HDR]=sload(f)\n");
-		mexPrintf("\t[s,HDR]=sload(f,chan)\n");
+		mexPrintf("\t[s,HDR]=sload(f,chan)\n\t\tchan must be sorted in ascending order\n");
 		mexPrintf("\t[s,HDR]=sload(f,chan,\"OVERFLOWDETECTION:ON\")\n");
 		mexPrintf("\t[s,HDR]=sload(f,chan,\"OVERFLOWDETECTION:OFF\")\n");
 		mexPrintf("\t[s,HDR]=sload(f,chan,\"UCAL:ON\")\n");
@@ -77,6 +79,7 @@ void mexFunction(
 			mexPrintf("IsNumeric\n");
 			ChanList = (double*)mxGetData(prhs[k]);
 			NS = mxGetNumberOfElements(prhs[k]);
+//			mexCallMATLAB(2, Sort, 1, (mxArray*)&prhs[k], "sort");
 		}	
 		else if (mxIsSingle(arg))
 			mexPrintf("IsSingle\n");
@@ -114,11 +117,10 @@ void mexFunction(
 			else {		
 				for (k=0; k<hdr->NS; ++k)
 					hdr->CHANNEL[k].OnOff = 0; // reset 
-				NS = hdr->NS;
 				for (k=0; k<NS; ++k) {
 					int ch = (int)ChanList[k];
 					if ((ch < 1) || (ch > hdr->NS)) 
-						mexPrintf("Invalid channel number CHAN(%i) = %i!",k,ch); 
+						mexPrintf("Invalid channel number CHAN(%i) = %i!\n",k,ch); 
 					else 	
 						hdr->CHANNEL[ch-1].OnOff = 1;  // set
 				}		
@@ -146,7 +148,7 @@ void mexFunction(
 			if (nlhs>1) { 
 				char* mexFileName = (char*)mxMalloc(strlen(hdr->FileName)+1); 
 
-				mxArray *HDR, *tmp, *tmp2, *Patient, *EVENT, *Filter, *Flag;
+				mxArray *HDR, *tmp, *tmp2, *Patient, *EVENT, *Filter, *Flag, *FileType;
 				uint16_t numfields;
 				const char *fnames[] = {"TYPE","VERSION","FileName","T0","FILE","Patient",\
 				"NS","SPR","NRec","SampleRate", "FLAG", \
@@ -157,15 +159,80 @@ void mexFunction(
 				for (numfields=0; fnames[numfields++] != 0; );
 				HDR = mxCreateStructMatrix(1, 1, --numfields, fnames);
 
+				FileType = mxCreateString("unknown");
+				switch (hdr->TYPE) {
+				case ABF: 	{ FileType = mxCreateString("ABF"); break; }
+				case ACQ: 	{ FileType = mxCreateString("ACQ"); break; }
+				case ACR_NEMA: 	{ FileType = mxCreateString("ACR_NEMA"); break; }
+				case AINF: 	{ FileType = mxCreateString("AINF"); break; }
+				case AIFC: 	{ FileType = mxCreateString("AIFC"); break; }
+				case AIFF: 	{ FileType = mxCreateString("AIFF"); break; }
+				case AU: 	{ FileType = mxCreateString("AU"); break; }
+
+				case BCI2000: 	{ FileType = mxCreateString("BCI2000"); break; }
+				case BDF: 	{ FileType = mxCreateString("BDF"); break; }
+				case BMP: 	{ FileType = mxCreateString("BMP"); break; }
+				case BrainVision: 	{ FileType = mxCreateString("BrainVision"); break; }
+				case BZ2: 	{ FileType = mxCreateString("BZ2"); break; }
+				case BKR: 	{ FileType = mxCreateString("BKR"); break; }
+
+				case DEMG: 	{ FileType = mxCreateString("DEMG"); break; }
+				case CFWB: 	{ FileType = mxCreateString("CFWB"); break; }
+				case CNT: 	{ FileType = mxCreateString("CNT"); break; }
+				case DICOM: 	{ FileType = mxCreateString("DICOM"); break; }
+
+				case EDF: 	{ FileType = mxCreateString("EDF"); break; }
+				case EEProbe: 	{ FileType = mxCreateString("EEProbe"); break; }
+				case EGI: 	{ FileType = mxCreateString("EGI"); break; }
+				case ETG4000: 	{ FileType = mxCreateString("ETG4000"); break; }
+				case EXIF: 	{ FileType = mxCreateString("EXIF"); break; }
+				case FAMOS: 	{ FileType = mxCreateString("FAMOS"); break; }
+				case FEF: 	{ FileType = mxCreateString("FEF"); break; }
+				case FITS: 	{ FileType = mxCreateString("FITS"); break; }
+				case FLAC: 	{ FileType = mxCreateString("FLAC"); break; }
+
+				case GDF: 	{ FileType = mxCreateString("GDF"); break; }
+				case GIF: 	{ FileType = mxCreateString("GIF"); break; }
+				case GZIP: 	{ FileType = mxCreateString("GZIP"); break; }
+				case HL7aECG: 	{ FileType = mxCreateString("HL7aECG"); break; }
+				case JPEG: 	{ FileType = mxCreateString("JPEG"); break; }
+				
+				case Matlab: 	{ FileType = mxCreateString("MAT"); break; }
+				case MFER: 	{ FileType = mxCreateString("MFER"); break; }
+				case MIDI: 	{ FileType = mxCreateString("MIDI"); break; }
+				case NetCDF: 	{ FileType = mxCreateString("NetCDF"); break; }
+				case NEX1: 	{ FileType = mxCreateString("NEX1"); break; }
+				case OGG: 	{ FileType = mxCreateString("OGG"); break; }
+
+				case RIFF: 	{ FileType = mxCreateString("RIFF"); break; }
+				case SCP_ECG: 	{ FileType = mxCreateString("SCP"); break; }
+				case SIGIF: 	{ FileType = mxCreateString("SIGIF"); break; }
+				case SMA: 	{ FileType = mxCreateString("SMA"); break; }
+				case SND: 	{ FileType = mxCreateString("SND"); break; }
+				case SVG: 	{ FileType = mxCreateString("SVG"); break; }
+				case TIFF: 	{ FileType = mxCreateString("TIFF"); break; }
+				case VRML: 	{ FileType = mxCreateString("VRML"); break; }
+				case VTK: 	{ FileType = mxCreateString("VTK"); break; }
+
+				case WAV: 	{ FileType = mxCreateString("WAV"); break; }
+				case WMF: 	{ FileType = mxCreateString("WMF"); break; }
+				case XML: 	{ FileType = mxCreateString("XML"); break; }
+				case ZIP: 	{ FileType = mxCreateString("ZIP"); break; }
+				case ZIP2: 	{ FileType = mxCreateString("ZIP2"); break; }
+				case Z: 	{ FileType = mxCreateString("Z"); break; }
+				default: 	  FileType = mxCreateString("unknown");
+				}
+
+				mxSetField(HDR,0,"TYPE",FileType);
 				mxSetField(HDR,0,"VERSION",mxCreateDoubleScalar(hdr->VERSION));
-				mxSetField(HDR,0,"T0",mxCreateDoubleMatrix(1,6,mxREAL));
 				mxSetField(HDR,0,"NS",mxCreateDoubleScalar(hdr->NS));
 				mxSetField(HDR,0,"SPR",mxCreateDoubleScalar(hdr->SPR));
 				mxSetField(HDR,0,"NRec",mxCreateDoubleScalar(hdr->NRec));
 				mxSetField(HDR,0,"SampleRate",mxCreateDoubleScalar(hdr->SampleRate));
 				mxSetField(HDR,0,"Dur",mxCreateDoubleScalar((double)hdr->Dur[0]/hdr->Dur[1]));
-
 				mxSetField(HDR,0,"FileName",mxCreateCharMatrixFromStrings(1,&hdr->FileName));
+
+				mxSetField(HDR,0,"T0",mxCreateDoubleScalar(ldexp(hdr->T0,-32)));
 
 				/* Channel information */ 
 				mxArray *LeadIdCode  = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
@@ -283,15 +350,16 @@ void mexFunction(
 				mxSetField(HDR,0,"EVENT",EVENT);
 
 				/* Patient Information */ 
-				const char *patient_fields[] = {"Sex","Handedness","Id","Name","Weight","Height",NULL};
+				const char *patient_fields[] = {"Sex","Handedness","Id","Name","Weight","Height","Birthday",NULL};
 				for (numfields=0; patient_fields[numfields++] != 0; );
 				Patient = mxCreateStructMatrix(1, 1, --numfields, patient_fields);
 //				mxSetField(Patient,0,"Name",mxCreateCharMatrixFromStrings(1,(const char**)&(hdr->Patient.Name)));
 //				mxSetField(Patient,0,"Id",mxCreateCharMatrixFromStrings(1,(const char**)&(hdr->Patient.Id)));
 				mxSetField(Patient,0,"Handedness",mxCreateDoubleScalar(hdr->Patient.Handedness));
 				mxSetField(Patient,0,"Sex",mxCreateDoubleScalar(hdr->Patient.Sex));
-				mxSetField(Patient,0,"Weight",mxCreateDoubleScalar(hdr->Patient.Weight));
-				mxSetField(Patient,0,"Height",mxCreateDoubleScalar(hdr->Patient.Height));
+				mxSetField(Patient,0,"Weight",mxCreateDoubleScalar((double)hdr->Patient.Weight));
+				mxSetField(Patient,0,"Height",mxCreateDoubleScalar((double)hdr->Patient.Height));
+				mxSetField(Patient,0,"Birthday",mxCreateDoubleScalar(ldexp(hdr->Patient.Birthday,-32)));
 
 				mxSetField(HDR,0,"Patient",Patient);
 				
