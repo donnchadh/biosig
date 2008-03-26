@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.145 2008-03-26 10:07:08 schloegl Exp $
+    $Id: biosig.c,v 1.146 2008-03-26 10:20:08 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1693,7 +1693,7 @@ if (!strncmp(MODE,"r",1))
 			for (k1=7; (k1>0) & !isalnum(hdr->CHANNEL[k].PhysDim[k1]); k1--)
 				hdr->CHANNEL[k].PhysDim[k1] = 0;
 			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
-			
+			tmp[8] = 0;
 			hdr->CHANNEL[k].PhysMin = atof(strncpy(tmp,Header2 + 8*k + 104*hdr->NS,8)); 
 			hdr->CHANNEL[k].PhysMax = atof(strncpy(tmp,Header2 + 8*k + 112*hdr->NS,8)); 
 			hdr->CHANNEL[k].DigMin  = atof(strncpy(tmp,Header2 + 8*k + 120*hdr->NS,8)); 
@@ -1701,7 +1701,7 @@ if (!strncmp(MODE,"r",1))
 			hdr->CHANNEL[k].Cal     = (hdr->CHANNEL[k].PhysMax-hdr->CHANNEL[k].PhysMin)/(hdr->CHANNEL[k].DigMax-hdr->CHANNEL[k].DigMin);
 			hdr->CHANNEL[k].Off     =  hdr->CHANNEL[k].PhysMin-hdr->CHANNEL[k].Cal*hdr->CHANNEL[k].DigMin;
 
-			hdr->CHANNEL[k].SPR     = atol(strncpy(tmp,Header2+  8*k + 216*hdr->NS,8));
+			hdr->CHANNEL[k].SPR     = atol(strncpy(tmp,Header2 + 8*k + 216*hdr->NS,8));
 			hdr->CHANNEL[k].GDFTYP  = ((hdr->TYPE!=BDF) ? 3 : 255+24); 
 			hdr->CHANNEL[k].OnOff   = 1;
 			
@@ -1717,6 +1717,12 @@ if (!strncmp(MODE,"r",1))
 			}
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// EDF does not support automated overflow and saturation detection
+		for (k=0, hdr->SPR=1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;k++) {
+			hdr->AS.spb += hdr->CHANNEL[k].SPR;
+			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
+			hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
+		}	
+		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
 
 		if (EventChannel) {
 			/* read Annotation and Status channel and extract event information */		
