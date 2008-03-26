@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.147 2008-03-26 10:43:37 schloegl Exp $
+    $Id: biosig.c,v 1.148 2008-03-26 14:19:35 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1623,6 +1623,8 @@ if (!strncmp(MODE,"r",1))
     		strncpy(tmp,Header1+168+6,2); 
     		tm_time.tm_year = atoi(tmp); 
     		tm_time.tm_year+= (tm_time.tm_year < 85 ? 100 : 0);
+    		
+    fprintf(stdout,"%s\n",asctime(&tm_time));		
 #ifndef __sparc__
     		tm_time.tm_gmtoff = 0;
 #endif
@@ -1655,8 +1657,9 @@ if (!strncmp(MODE,"r",1))
 				struct tm t1;
 		    		t1.tm_mday = atoi(strtok(ptr_str,"-")); 
 		    		strcpy(tmp,strtok(NULL,"-"));
+		    		for (k=0;k<strlen(tmp); ++k); tmp[k]= toupper(tmp[k]);	// convert to uppper case 
 		    		t1.tm_year = atoi(strtok(NULL,"-")) - 1900; 
-		    		t1.tm_mon  = !strcmp(tmp,"Feb")+!strcmp(tmp,"Mar")*2+!strcmp(tmp,"Apr")*3+!strcmp(tmp,"May")*4+!strcmp(tmp,"Jun")*5+!strcmp(tmp,"Jul")*6+!strcmp(tmp,"Aug")*7+!strcmp(tmp,"Sep")*8+!strcmp(tmp,"Oct")*9+!strcmp(tmp,"Nov")*10+!strcmp(tmp,"Dec")*11;
+		    		t1.tm_mon  = !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11;
 		    		t1.tm_sec  = 0; 
 		    		t1.tm_min  = 0; 
 		    		t1.tm_hour = 12; 
@@ -1667,9 +1670,10 @@ if (!strncmp(MODE,"r",1))
 	    		ptr_str = strtok(NULL," ");
 	    		tm_time.tm_mday = atoi(strtok(ptr_str,"-")); 
 	    		strcpy(tmp,strtok(NULL,"-"));
+	    		for (k=0;k<strlen(tmp); ++k); tmp[k]= toupper(tmp[k]);	// convert to uppper case 
 	    		tm_time.tm_year = atoi(strtok(NULL,"-")) - 1900; 
-	    		tm_time.tm_mon  = !strcmp(tmp,"Feb")+!strcmp(tmp,"Mar")*2+!strcmp(tmp,"Apr")*3+!strcmp(tmp,"May")*4+!strcmp(tmp,"Jun")*5+!strcmp(tmp,"Jul")*6+!strcmp(tmp,"Aug")*7+!strcmp(tmp,"Sep")*8+!strcmp(tmp,"Oct")*9+!strcmp(tmp,"Nov")*10+!strcmp(tmp,"Dec")*11;
-		}    	
+	    		tm_time.tm_mon  = !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11;
+		}   
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
@@ -4492,7 +4496,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 			fprintf(fid,"unknown\n"); 
 		if (hdr->Patient.Birthday) {
 			T0 = gdf_time2t_time(hdr->Patient.Birthday);
-			fprintf(fid,"\tAge             : %4.1f years\n\tBirthday        : %s",age,asctime(gmtime(&T0)));
+			fprintf(fid,"\tAge             : %4.1f years\n\tBirthday        : (%.6f) %s ",age,ldexp(hdr->Patient.Birthday,-32),asctime(gmtime(&T0)));
 		}
 		else
 			fprintf(fid,"\tAge             : ----\n\tBirthday        : unknown\n");
@@ -4500,7 +4504,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 		T0 = gdf_time2t_time(hdr->T0);
 		char tmp[60];
 		strftime(tmp, 59, "%x %X %Z", localtime(&T0));
-		fprintf(fid,"\tStartOfRecording: %s\n",tmp); 
+		fprintf(fid,"\tStartOfRecording: (%.6f) %s\n",ldexp(hdr->T0,-32),tmp); 
 	}
 		
 	if (VERBOSE_LEVEL>2) {
