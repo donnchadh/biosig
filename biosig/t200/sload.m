@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.75 2008-03-20 12:00:02 schloegl Exp $
+%	$Id: sload.m,v 1.76 2008-03-26 14:21:30 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -248,6 +248,28 @@ end;
 end; 
 
 %%%%%%%%%%%%%%% --------- Load single file ------------%%%%%%%%%%%
+FlagLoaded = 0;
+if exist('mexSLOAD','file')==3,
+
+	if (sum(size(CHAN)>1)<=1) 
+	try	
+		[signal,HDR]=mexSLOAD(H.FileName,CHAN);
+		if all(CHAN>0) && all(floor(CHAN)==CHAN), 
+			[tmp,ix]=sort(CHAN);
+			signal = signal(:,ix);
+		end;	
+		HDR.T0 = datevec(HDR.T0);
+		HDR.Patient.Birthday = datevec(HDR.Patient.Birthday);
+		HDR.Calib = [HDR.Off(:)';diag(HDR.Cal)]
+		H = HDR; 
+		FlagLoaded = ~isempty(HDR);
+	catch
+	end;
+	end;	
+end;
+
+if ~FlagLoaded,
+
 signal = [];
 H = sopen(H,'r',CHAN,MODE);
 
@@ -782,6 +804,10 @@ elseif strcmp(H.TYPE,'unknown')
                 signal = [];
         end;
 end;
+
+end; 
+
+%%%%%%%%%% Post-Processing %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if strcmp(H.TYPE,'CNT');    
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.txt']); 
