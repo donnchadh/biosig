@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.149 2008-03-27 16:09:20 schloegl Exp $
+    $Id: biosig.c,v 1.150 2008-03-27 17:11:21 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1326,7 +1326,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
 	const float	CNT_SETTINGS_HIGHPASS[] = {NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
 
-    	int 		k,k1;
+    	unsigned int 		k,k1;
     	uint32_t	k32u; 
     	size_t	 	count;
     	char 		tmp[81];
@@ -1662,7 +1662,7 @@ if (!strncmp(MODE,"r",1))
 				struct tm t1;
 		    		t1.tm_mday = atoi(strtok(ptr_str,"-")); 
 		    		strcpy(tmp,strtok(NULL,"-"));
-		    		for (k=0;k<strlen(tmp); ++k); tmp[k]= toupper(tmp[k]);	// convert to uppper case 
+		    		for (k=0; k<strlen(tmp); ++k); tmp[k]= toupper(tmp[k]);	// convert to uppper case 
 		    		t1.tm_year = atoi(strtok(NULL,"-")) - 1900; 
 		    		t1.tm_mon  = !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11;
 		    		t1.tm_sec  = 0; 
@@ -1790,9 +1790,9 @@ if (!strncmp(MODE,"r",1))
 			}
 			else if ((EventChannel>0) && (hdr->TYPE==BDF)) {
 				/* convert BDF status channel into event table*/
-				uint32_t d1, d0 = (uint32_t)Marker[2]<<16 + (uint32_t)Marker[1]<<8 + (uint32_t)Marker[0];
+				uint32_t d1, d0 = ((uint32_t)Marker[2]<<16) + ((uint32_t)Marker[1]<<8) + (uint32_t)Marker[0];
 				for (k=1; k<len; k++) {
-					d1 = (uint32_t)Marker[3*k1+2]<<16 + (uint32_t)Marker[3*k1+1]<<8 + (uint32_t)Marker[3*k1];
+					d1 = ((uint32_t)Marker[3*k1+2]<<16) + ((uint32_t)Marker[3*k1+1]<<8) + (uint32_t)Marker[3*k1];
 					if ((d1 & 0x010000) != (d0 & 0x010000)) ++N_EVENT;
 					if ((d1 & 0x00ffff) != (d0 & 0x00ffff)) ++N_EVENT;
 					d0 = d1;
@@ -1803,9 +1803,9 @@ if (!strncmp(MODE,"r",1))
 				hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
 				hdr->EVENT.DUR = NULL;
 				hdr->EVENT.CHN = NULL;
-				d0 = (uint32_t)Marker[2]<<16 + (uint32_t)Marker[1]<<8 + (uint32_t)Marker[0];
+				d0 = ((uint32_t)Marker[2]<<16) + ((uint32_t)Marker[1]<<8) + (uint32_t)Marker[0];
 				for (N_EVENT=0, k=1; k<len; k++) {
-					d1 = (uint32_t)Marker[3*k1+2]<<16 + (uint32_t)Marker[3*k1+1]<<8 + (uint32_t)Marker[3*k1];
+					d1 = ((uint32_t)Marker[3*k1+2]<<16) + ((uint32_t)Marker[3*k1+1]<<8) + (uint32_t)Marker[3*k1];
 					if ((d1 & 0x010000) > (d0 & 0x010000)) {
 						hdr->EVENT.POS[N_EVENT] = k;
 						hdr->EVENT.TYP[N_EVENT] = 0x7ffe;
@@ -2066,7 +2066,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
 		while ((t) && !strncmp(t,"#",1)) {
 			char* p;
-			if (p = strstr(t,"sfreq =")) t1 = p;
+			if ((p = strstr(t,"sfreq ="))) t1 = p;
 			t = strtok(NULL,"\xA\xD");
 		}
 
@@ -2427,7 +2427,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	if (!ifseek(hdr, eventtablepos, SEEK_SET)) {
 			uint8_t  TeegType   = ifread(tmp,1,1,hdr);	    	
 			uint32_t TeegSize   = ifread(tmp,4,1,hdr);	    	
-			uint32_t TeegOffset = ifread(tmp,4,1,hdr);
+			// uint32_t TeegOffset = ifread(tmp,4,1,hdr);
+			ifseek(hdr,4,SEEK_CUR);
 			
 			uint8_t* buf = (uint8_t*)malloc(TeegSize);
 			int fieldsize = ( (TeegType==2) || (TeegType==3) ? 8 : 19); 
@@ -2693,7 +2694,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		/* decode data section */
 		hdr->FLAG.SWAP = 0; 
 
-		uint32_t pos, N_EVENT = 0;
+		uint32_t pos;
 		int Mark,hh,mm,ss,ds,BodyMovement,RemovalMark,PreScan;
 		hdr->EVENT.N = 0;
 		hdr->EVENT.SampleRate = hdr->SampleRate;
@@ -4497,7 +4498,7 @@ int sclose(HDRTYPE* hdr)
     	if (hdr->AS.Header != NULL)	
         	free(hdr->AS.Header);
 
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 08 %x %x %x %x \n",hdr->EVENT.TYP,hdr->EVENT.POS,hdr->EVENT.DUR,hdr->EVENT.CHN);
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 08 %p %p %p %p \n",hdr->EVENT.TYP,hdr->EVENT.POS,hdr->EVENT.DUR,hdr->EVENT.CHN);
 
     	if (hdr->EVENT.POS != NULL)	
         	free(hdr->EVENT.POS);
