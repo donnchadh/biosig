@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.148 2008-03-26 14:19:35 schloegl Exp $
+    $Id: biosig.c,v 1.149 2008-03-27 16:09:20 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -406,8 +406,10 @@ void* mfer_swap8b(uint8_t *buf, int8_t len, char FLAG_SWAP)
 #elif __BYTE_ORDER == __LITTLE_ENDIAN
         if (FLAG_SWAP)
                 *(iType*)buf = bswap_64(*(iType*)buf) >> (sizeof(iType)-len)*8; 
-        else
-		for (unsigned k=len; k < sizeof(iType); buf[k++]=0);
+        else {
+        	unsigned k;
+		for (k=len; k < sizeof(iType); buf[k++]=0);
+	}	
 
 #endif
 
@@ -678,7 +680,8 @@ char* PhysDim(uint16_t PhysDimCode, char *PhysDim)
 	strcpy(PhysDim,PhysDimFactor[PhysDimCode & 0x001F]);
 
 	PhysDimCode &= ~0x001F; 
-	for (uint16_t k=0; _physdim[k].idx<0xffff; k++)
+	uint16_t k;
+	for (k=0; _physdim[k].idx<0xffff; k++)
 	if (PhysDimCode == _physdim[k].idx) {
 		strcat(PhysDim,_physdim[k].PhysDimDesc);
 		break;
@@ -1073,7 +1076,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	uint32_t MAGIC_EN1064_Section0Length  = leu32p(hdr->AS.Header+10);
 	
 	/* AINF */
-	for (int k = strlen(hdr->FileName); --k>0; ) {
+	int k;
+	for (k = strlen(hdr->FileName); --k>0; ) {
 		if (hdr->FileName[k] == '.') {
 			if (!strcmp(hdr->FileName+k+1, "ainf")) {
 				char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+5,sizeof(char));
@@ -1549,8 +1553,9 @@ if (!strncmp(MODE,"r",1))
 		}
 		for (k=0, hdr->SPR=1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;k++) {
 			hdr->AS.spb += hdr->CHANNEL[k].SPR;
-			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
-			hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
+			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;
+			if (hdr->CHANNEL[k].SPR)
+				hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 		}	
 		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
 
@@ -2060,7 +2065,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		char *t1;
 		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
 		while ((t) && !strncmp(t,"#",1)) {
-			if (char* p = strstr(t,"sfreq =")) t1 = p;
+			char* p;
+			if (p = strstr(t,"sfreq =")) t1 = p;
 			t = strtok(NULL,"\xA\xD");
 		}
 
@@ -3695,8 +3701,9 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		hdr->HeadLen = curPos; 		
 		// tag 63: channel-specific settings
 		
-		tag = 63; 
-		for (size_t ch=0; ch<hdr->NS; k++) {
+		tag = 63;
+		size_t ch; 
+		for (ch=0; ch<hdr->NS; k++) {
 		 	// FIXME: this is broken 
 			len = 0; 
 			Header1[curPos++] = tag; 
@@ -3806,6 +3813,8 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
  *
  *      hdr->FLAG.SWAP controls swapping 
  *
+ *      hdr->CHANNEL[k].OnOff 	controls whether channel k is loaded or not 
+ *
  *	data is a pointer to a memory array to write the data. 
  *	if data is NULL, memory is allocated and the pointer is returned 
  *	in hdr->data.block. 
@@ -3851,11 +3860,12 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	}
 	
 	// set position of file handle 
+	size_t POS = hdr->FILE.POS;
 	hdr->FILE.POS += count;
 
 	// count number of selected channels 
 	for (k1=0,NS=0; k1<hdr->NS; ++k1)
-		NS += (hdr->CHANNEL[k1].OnOff ? 1 : 0); 
+		if (hdr->CHANNEL[k1].OnOff) ++NS; 
 
 	// transfer RAW into BIOSIG data format 
 	if (data==NULL)
@@ -3880,9 +3890,11 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		SZ  	= GDFTYP_BYTE[GDFTYP];
 		int32_value = 0; 
 
-		if (hdr->FLAG.SWAP)		
 		for (k4 = 0; k4 < count; k4++)
-		for (k5 = 0; k5 < CHptr->SPR; k5++) {
+		for (k5 = 0; k5 < CHptr->SPR; k5++) 
+		{
+		if (hdr->FLAG.SWAP)		
+		{
 
 			// get source address 	
 			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
@@ -3931,17 +3943,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 				exit(-1);
 			}
 
-			// overflow and saturation detection 
-			if ((hdr->FLAG.OVERFLOWDETECTION) && ((sample_value<=hdr->CHANNEL[k1].DigMin) || (sample_value>=hdr->CHANNEL[k1].DigMax)))
-				sample_value = NaN; 	// missing value 
-			else if (!hdr->FLAG.UCAL)	// scaling 
-				sample_value = sample_value * CHptr->Cal + CHptr->Off;
-			// resampling 1->DIV samples
-			for (k3=0; k3 < DIV; k3++) 
-				hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
-		} else
-		for (k4 = 0; k4 < count; k4++)
-		for (k5 = 0; k5 < CHptr->SPR; k5++) {
+		} else {
 
 			// get source address 	
 			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
@@ -3985,27 +3987,106 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 				B4C_ERRMSG = "Error SREAD: datatype not supported";
 				exit(-1);
 			}
-
-			// overflow and saturation detection 
-			if ((hdr->FLAG.OVERFLOWDETECTION) && ((sample_value<=hdr->CHANNEL[k1].DigMin) || (sample_value>=hdr->CHANNEL[k1].DigMax)))
-				sample_value = NaN; 	// missing value 
-			else if (!hdr->FLAG.UCAL)	// scaling 
-				sample_value = sample_value * CHptr->Cal + CHptr->Off;
-			// resampling 1->DIV samples
-			for (k3=0; k3 < DIV; k3++) 
-				hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
-
-
 		}
+
+		// overflow and saturation detection 
+		if ((hdr->FLAG.OVERFLOWDETECTION) && ((sample_value <= CHptr->DigMin) || (sample_value >= CHptr->DigMax)))
+			sample_value = NaN; 	// missing value 
+		else if (!hdr->FLAG.UCAL)	// scaling 
+			sample_value = sample_value * CHptr->Cal + CHptr->Off;
+		// resampling 1->DIV samples
+		for (k3=0; k3 < DIV; k3++) 
+			hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
 
 		if ((VERBOSE_LEVEL>7) && (k4==0) && (k5==0)) 
 		fprintf(stdout,":s(1)=%f, NS=%d,[%d,%d,%d,%d SZ=%i, bpb=%i] %e %e %e\n",*(double*)hdr->AS.rawdata,NS,k1,k2,k4,k5,SZ,hdr->AS.bpb,sample_value,(*(double*)(ptr)),(*(float*)(ptr)));
+		}
 
 	}	
 	k2++;
 	}}
 	hdr->data.size[0] = hdr->SPR*count;	// rows	
 	hdr->data.size[1] = k2;			// columns 
+
+
+	/* read sparse samples */	
+	if ((hdr->TYPE==GDF) && (hdr->VERSION > 1.9)) {
+		double c = hdr->SPR / hdr->SampleRate * hdr->EVENT.SampleRate;
+		size_t *ChanList = (size_t*)calloc(hdr->NS+1,sizeof(size_t));
+		// Note: ChanList and EVENT.CHN start with index=1 (not 0)
+		size_t ch = 1;
+		for (k1=0; k1<hdr->NS; k1++) // list of selected channels 
+			ChanList[k1+1]= (hdr->CHANNEL[k1].OnOff ? ch++ : 0);
+		
+		for (k1=0; k1<hdr->EVENT.N; k1++) 
+		if (hdr->EVENT.TYP[k1] == 0x7fff) 	// select non-equidistant sampled value
+		if (ChanList[hdr->EVENT.CHN[k1]] > 0)	// if channel is selected
+		if ((hdr->EVENT.POS[k1] >= POS*c) && (hdr->EVENT.POS[k1] < hdr->FILE.POS*c))
+		{
+
+			ptr = (uint8_t*)(hdr->EVENT.DUR + k1);
+
+			k2 = ChanList[hdr->EVENT.CHN[k1]]-1;
+			CHptr = hdr->CHANNEL+k2;
+			DIV 	= ceil(hdr->SampleRate/hdr->EVENT.SampleRate); 
+			GDFTYP 	= CHptr->GDFTYP;
+			SZ  	= GDFTYP_BYTE[GDFTYP];
+			int32_value = 0; 
+			
+			if (0); 
+			else if (GDFTYP==3) 
+				sample_value = (biosig_data_type)lei16p(ptr); 
+			else if (GDFTYP==4)
+				sample_value = (biosig_data_type)leu16p(ptr); 
+			else if (GDFTYP==16) 
+				sample_value = (biosig_data_type)lef32p(ptr);
+/*			else if (GDFTYP==17) 
+				sample_value = (biosig_data_type)lef64p(ptr); 
+*/			else if (GDFTYP==0)
+				sample_value = (biosig_data_type)(*(char*)ptr); 
+			else if (GDFTYP==1)
+				sample_value = (biosig_data_type)(*(int8_t*)ptr); 
+			else if (GDFTYP==2)
+				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
+			else if (GDFTYP==5)
+				sample_value = (biosig_data_type)lei32p(ptr); 
+			else if (GDFTYP==6)
+				sample_value = (biosig_data_type)leu32p(ptr); 
+/*			else if (GDFTYP==7)
+				sample_value = (biosig_data_type)(*(int64_t*)ptr); 
+			else if (GDFTYP==8)
+				sample_value = (biosig_data_type)(*(uint64_t*)ptr); 
+*/			else if (GDFTYP==255+24) {
+				// assume LITTLE_ENDIAN platform
+				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
+				sample_value = (biosig_data_type)int32_value; 
+			}	
+			else if (GDFTYP==511+24) {
+				// assume LITTLE_ENDIAN platform
+				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
+				sample_value = (biosig_data_type)int32_value; 
+			}	
+			else {
+				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
+				B4C_ERRMSG = "Error SREAD: datatype not supported";
+				exit(-1);
+			}
+
+			// overflow and saturation detection 
+			if ((hdr->FLAG.OVERFLOWDETECTION) && ((sample_value<=CHptr->DigMin) || (sample_value>=CHptr->DigMax)))
+				sample_value = NaN; 	// missing value 
+			else if (!hdr->FLAG.UCAL)	// scaling 
+				sample_value = sample_value * CHptr->Cal + CHptr->Off;
+			// resampling 1->DIV samples
+			k5  = (hdr->EVENT.POS[k1]/c - POS)*hdr->SPR;
+			for (k3=0; k3 < DIV; k3++) 
+				hdr->data.block[k2*count*hdr->SPR + k5 + k3] = sample_value; 
+
+		if (VERBOSE_LEVEL>7) 
+			fprintf(stdout,"E%02i: s(1)= %d %e %e %e\n",k1,leu32p(ptr),sample_value,(*(double*)(ptr)),(*(float*)(ptr)));
+
+		}
+	}
 
 	return(count);
 
@@ -4117,8 +4198,6 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 			else if (GDFTYP==16) {
 				*(float*)ptr  = l_endian_f32((float)sample_value);
-			//	if (VERBOSE_LEVEL > 7) 
-					fprintf(stdout,"%f %f\n",sample_value,*(float*)ptr); 
 			}
 			else if (GDFTYP==17) 
 				*(double*)ptr = l_endian_f64((double)sample_value);
@@ -4403,17 +4482,23 @@ int sclose(HDRTYPE* hdr)
 */
 
 
-// fprintf(stdout,"sclose: 05\n");
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 05\n");
+
     	if (hdr->CHANNEL != NULL)	
         	free(hdr->CHANNEL);
-// fprintf(stdout,"sclose: 06\n");
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 06\n");
+
     	if (hdr->AS.bi != NULL)	
         	free(hdr->AS.bi);
-// fprintf(stdout,"sclose: 07\n");
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 07\n");
+
     	if (hdr->AS.Header != NULL)	
         	free(hdr->AS.Header);
 
-// fprintf(stdout,"sclose: 08\n");
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 08 %x %x %x %x \n",hdr->EVENT.TYP,hdr->EVENT.POS,hdr->EVENT.DUR,hdr->EVENT.CHN);
+
     	if (hdr->EVENT.POS != NULL)	
         	free(hdr->EVENT.POS);
     	if (hdr->EVENT.TYP != NULL)	
@@ -4422,11 +4507,13 @@ int sclose(HDRTYPE* hdr)
         	free(hdr->EVENT.DUR);
     	if (hdr->EVENT.CHN != NULL)	
         	free(hdr->EVENT.CHN);
-// fprintf(stdout,"sclose: 09\n");
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 09\n");
         	
         hdr->EVENT.N   = 0; 
 	hdr->FILE.OPEN = 0; 	     	
-// fprintf(stdout,"sclose: 10\n");
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 10\n");
 
     	return(0);
 }
@@ -4511,7 +4598,8 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 		/* channel settings */ 
 		fprintf(fid,"\n[CHANNEL HEADER]");
 		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin Filter");
-		for (int k=0; k<hdr->NS; k++) {
+		size_t k;
+		for (k=0; k<hdr->NS; k++) {
 			cp = hdr->CHANNEL+k; 
 			fprintf(fid,"\n#%2i: %3i %i %7s\t%5.1f %2i  %5f %5f %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
 				k+1,cp->LeadIdCode,cp->OnOff,cp->Label,cp->SPR * hdr->SampleRate/hdr->SPR,
@@ -4524,11 +4612,14 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 	if (VERBOSE_LEVEL>3) {
 		/* channel settings */ 
 		fprintf(fid,"\n\n[EVENT TABLE] N=%i Fs=%f",hdr->EVENT.N,hdr->EVENT.SampleRate);
-		fprintf(fid,"\n#No\tTYP\tPOS\tDUR\tCHN");
-		for (int k=0; k<hdr->EVENT.N; k++) {
+		fprintf(fid,"\n#No\tTYP\tPOS\tDUR\tCHN\tVAL");
+		size_t k;
+		for (k=0; k<hdr->EVENT.N; k++) {
 			fprintf(fid,"\n%5i\t0x%04x\t%d",k+1,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]);
 			if (hdr->EVENT.DUR != NULL)		
 				fprintf(fid,"\t%5d\t%d",hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]);
+			if ((hdr->EVENT.TYP[k] == 0x7fff) && (hdr->TYPE==GDF))
+				fprintf(fid,"\t[neds]");
 		}
 	}
 		
