@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.150 2008-03-27 17:11:21 schloegl Exp $
+    $Id: biosig.c,v 1.151 2008-03-27 22:05:01 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1261,6 +1261,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 
 	else if (!memcmp(Header1,"\"Snap-Master Data File\"",24))
 	    	hdr->TYPE = SMA;
+	else if (!memcmp(Header1,".snd",5))
+		hdr->TYPE = SND;                    
 	else if (!memcmp(Header1,MAGIC_NUMBER_TIFF_l32,4))
 		hdr->TYPE = TIFF;
 	else if (!memcmp(Header1,MAGIC_NUMBER_TIFF_b32,4))
@@ -3187,7 +3189,132 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	                return(NULL); 	 
 		}
 */
+	}
+	
+	else if (hdr->TYPE==SND) {
+		/* read file */ 
+		hdr->FLAG.SWAP  = (__BYTE_ORDER == __LITTLE_ENDIAN);
+		hdr->HeadLen  	= beu32p(hdr->AS.Header+4);
+		size_t datlen 	= beu32p(hdr->AS.Header+8);
+		uint32_t filetype = beu32p(hdr->AS.Header+12);
+		hdr->SampleRate	= (double)beu32p(hdr->AS.Header+16);
+		hdr->NS	      	= beu32p(hdr->AS.Header+20);
+		if (count<hdr->HeadLen) {
+		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
+		    	count  += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
+		}
+		else {
+		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
+			ifseek(hdr,hdr->HeadLen,SEEK_SET);
+		}
+	    	const uint16_t	SND_GDFTYP[] = {0,2,1,3,255+24,5,16,17,0,0,0,2,4,511+25,6};
+		uint16_t gdftyp = SND_GDFTYP[filetype];
+		hdr->AS.bpb = hdr->NS * GDFTYP_BYTE[gdftyp];	
+		double Cal = 1;
+		if ((filetype>1) && (filetype<6))
+			Cal = ldexp(1,-8*GDFTYP_BYTE[gdftyp]);
+
+		hdr->NRec = datlen/hdr->AS.bpb;
+		hdr->SPR  = 1;
+		hdr->Dur[0] = 1;
+		hdr->Dur[1] = hdr->SampleRate;
+
+		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
+		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
+		double digmax = ldexp(1,8*GDFTYP_BYTE[gdftyp]);
+		for (k=0; k < hdr->NS; k++) {
+			CHANNEL_TYPE* hc = hdr->CHANNEL+k;
+			hc->OnOff    = 1;
+			hc->GDFTYP   = gdftyp;
+			hc->SPR      = 1; 
+			hc->Cal      = Cal; 
+			hc->Off      = 0.0;
+			hc->Transducer[0] = '\0';
+			hc->LowPass  = -1;
+			hc->HighPass = -1;
+			hc->PhysMax  =  1.0;
+			hc->PhysMin  = -1.0;
+			hc->DigMax   =  digmax;
+			hc->DigMin   = -digmax;
+		    	hc->LeadIdCode  = 0;
+		    	hc->PhysDimCode = 0;
+		    	hc->Label[0] = 0;
+		}
+	}
+	
+	else if (hdr->TYPE==AIFF) {
+		hdr->FLAG.SWAP  = (__BYTE_ORDER == __LITTLE_ENDIAN);
+		uint8_t  *tag;
+		uint32_t tagsize;
+		uint16_t gdftyp;
+		size_t pos; 
+		tagsize  = beu32p(hdr->AS.Header+4);
+		tagsize += tagsize & 0x0001;
+		pos 	 = 12;
+		tag	 = hdr->AS.Header+pos;
+		while (1) {
+			tagsize  = beu32p(hdr->AS.Header+pos+4);
+			tagsize += tagsize & 0x0001;
+			if (!strncmp((char*)tag,"COMM",4)) {
+			}
+			else if (!strncmp((char*)tag,"DATA",4)) {
+			}
+		
+			pos += tagsize;
+			tag  = hdr->AS.Header+pos;
+		}
+	}
+	
+	else if ((hdr->TYPE==WAV)||(hdr->TYPE==AVI)||(hdr->TYPE==RIFF)) {
+		hdr->FLAG.SWAP  = (__BYTE_ORDER == __BIG_ENDIAN);
+		uint8_t *tag;
+		uint32_t tagsize;
+		uint16_t gdftyp;
+		uint16_t format=0, bits = 0;
+		double Cal=1.0, Off=0.0; 
+		size_t pos; 
+		tagsize  = leu32p(hdr->AS.Header+4);
+		tagsize += tagsize & 0x0001;
+		pos 	 = 12;
+		tag	 = hdr->AS.Header+pos;
+		while (1) {
+			tagsize  = leu32p(hdr->AS.Header+pos+4);
+			tagsize += tagsize & 0x0001;
+			if (!strncmp((char*)tag,"fmt ",4)) {
+				format	 	= leu16p(hdr->AS.Header+pos+4);
+				hdr->NS 	= leu16p(hdr->AS.Header+pos+4+2);
+				hdr->SampleRate = (double)leu32p(hdr->AS.Header+pos+4+4);
+				if (format==1) {
+					bits 	= leu16p(hdr->AS.Header+pos+4+14);
+					Cal 	= ldexp(1,-8*ceil(bits/8.0));
+					if 	(bits <= 8) {
+						gdftyp = 2;
+						Off = 0.5;
+					}	 
+					else if (bits <= 16)
+						gdftyp = 3; 
+					else if (bits <= 24)
+						gdftyp = 255+24; 
+					else if (bits <= 32)
+						gdftyp = 5; 
+				}
+				else
+					fprintf(stdout,"Warning (WAV): format not supported.\n");
+			}
+			else if (!strncmp((char*)tag,"data",4)) {
+				if (format==1) {
+					hdr->AS.bpb = hdr->NS * ceil(bits/8.0);
+					hdr->SPR    = tagsize/hdr->AS.bpb; 
+					hdr->Dur[0] = hdr->SPR;
+					hdr->Dur[1] = hdr->SampleRate;
+				}
+			}
+		
+			pos += tagsize;
+			tag  = hdr->AS.Header+pos;
+		}
 	}	
+
 	else if (hdr->TYPE==HL7aECG) 
 	{
 		sopen_HL7aECG_read(hdr);
