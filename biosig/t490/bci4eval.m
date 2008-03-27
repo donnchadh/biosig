@@ -63,7 +63,7 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %	http://ida.first.fraunhofer.de/projects/bci/competition/results/TR_BCI2003_III.pdf
 
 
-%    $Id: bci4eval.m,v 1.8 2005-11-28 17:37:18 schloegl Exp $
+%    $Id: bci4eval.m,v 1.9 2008-03-27 11:02:10 schloegl Exp $
 %    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -166,6 +166,7 @@ if (M==2) & (sz(1)==1),
         o.AUC = AUC'; 
 
         o.r = corrcoef(D,double(cl(:)));
+        o.N = double(~isnan(D)')*double(~isnan(cl(:)));
 
         % o.rankcorrelation = corrcoef(D,double(cl(:)),'rank');         %
         % is SLOW 
@@ -205,6 +206,7 @@ if M==sz(1),
                         o.Aprime   = x.Aprime;
                         o.dprime   = x.dprime;
                         o.r        = x.r; 
+                        o.N        = x.N; 
                         %o.rankcorrelation = x.rankcorrelation; % is slow
                         
                 else

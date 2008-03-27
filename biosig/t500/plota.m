@@ -55,7 +55,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.58 2007-10-16 14:36:29 schloegl Exp $
+%	$Id: plota.m,v 1.59 2008-03-27 11:02:12 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1921,11 +1921,20 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         v=axis; axis([xlim,0,1.5]);
 
         subplot(nf(6));
-        plot(X.T,X.r)
+        if isfield(X,'N')
+        	% show significance interval 
+	        alpha = .05;
+ 	       	ci = tanh(sqrt(2)*erfinv(1-2*alpha)./sqrt(X.N-3));		% confidence interval for alpha of z
+	        plot(X.T,X.r,'-',X.T,ci*[-1,1],'k:');
+	        LEG = [Labels,{'alpha=0.05'}];
+	else
+	        plot(X.T,X.r,'-');
+	        LEG = Labels;
+        end; 
         xlabel('time [s]')
         ylabel('r [1]')
         title('correlation coefficient (parametric)');
-        legend(Labels)
+        legend(LEG);
         v=axis; axis([xlim,-.2,1]);
 	h = nf;
 	
