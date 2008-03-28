@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.76 2008-03-26 14:21:30 schloegl Exp $
+%	$Id: sload.m,v 1.77 2008-03-28 09:16:56 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -953,7 +953,7 @@ if strcmp(H.TYPE,'GDF')
                 [tmp,c] = fread(fid,[1,inf],'uint8');
                 fclose(fid);
                 [tmp,v,sa] = str2double(tmp);
-                if isempty(sa{1})
+                if isempty(sa) || isempty(sa{1})
                         H.ArtifactSelection = repmat(0,length(H.TRIG),1);
                 elseif any(isnan(tmp)) |any(tmp~=ceil(tmp)) | any(tmp<0) | (any(tmp==0) & any(tmp>1))
                         fprintf(2,'Warning SLOAD(GDF): corrupted SEL-file %s\n',fullfile(H.FILE.Path,[H.FILE.Name,'.sel']));
