@@ -25,26 +25,17 @@ function [HDR] = save2gdf(arg1,arg2,arg3);
 %
 %   HDR		Header, HDR.FileName must contain target filename
 %   data	data samples
-%
 
-% 	$Id: save2gdf.m,v 1.12 2008-02-10 00:33:55 schloegl Exp $
-%	Copyright (C) 2003-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>		
+
+% This program is free software; you can redistribute it and/or
+% modify it under the terms of the GNU General Public License
+% as published by the Free Software Foundation; either version 3
+% of the License, or (at your option) any later version.
+
+
+% 	$Id: save2gdf.m,v 1.13 2008-04-01 12:38:38 schloegl Exp $
+%	Copyright (C) 2003-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>		
 %       This file is part of the biosig project http://biosig.sf.net/
-
-% This library is free software; you can redistribute it and/or
-% modify it under the terms of the GNU Library General Public
-% License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
-%
-% This library is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-% Library General Public License for more details.
-%
-% You should have received a copy of the GNU Library General Public
-% License along with this library; if not, write to the
-% Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-% Boston, MA  02111-1307, USA.
 
 
 FLAG_REMOVE_DC = 0;
@@ -111,19 +102,37 @@ if isstruct(arg1),
 	end; 
 
 	HDR.TYPE = 'GDF';
-	HDR.VERSION = 1.25;
-        HDR.FLAG.UCAL = 1;              % data is de-calibrated, no rescaling within SWRITE 
+	HDR.VERSION = 2.0;	
+	HDR.FLAG.UCAL = 1;              % data is de-calibrated, no rescaling within SWRITE 
 	if strcmp(HDR.TYPE,'EVENT')
                 HDR.SampleRate = HDR.EVENT.SampleRate;
         elseif isfield(HDR,'GDFTYP')
-                HDR.PhysMax = [1,HDR.DigMax]*HDR.Calib;
-        	HDR.PhysMin = [1,HDR.DigMin]*HDR.Calib;
-    		%bits = ceil(log2(max(HDR.DigMax-HDR.DigMin+1))/8)*8;    % allows int8, int16, int24, int32, etc. 
-    		bits1 = ceil(log2(HDR.DigMax-HDR.DigMin+1));
-	        [datatyp,limits,datatypes] = gdfdatatype(HDR.GDFTYP);
-		bits = log2(limits(:,2)-limits(:,1)+1);
-    		fprintf(1,'SAVE2GDF: %i bits needed, %i bits used for file %s\n',max(bits1),max(bits),HDR.FileName);
-
+		if any((HDR.GDFTYP>=16) & (HDR.GDFTYP<=18)) 
+			if (HDR.VERSION < 1.90)
+				digmin = -(2^30);
+				digmax = 2^30;
+		                HDR.PhysMax = [1,HDR.DigMax]*HDR.Calib;
+		        	HDR.PhysMin = [1,HDR.DigMin]*HDR.Calib;
+				data = (data - repmat(HDR.DigMin(:)',size(data,1),1));
+				data = data * diag((digmax-digmin)./HDR.Cal) + digmin;
+			        HDR.DigMin(:) = digmin; 
+			        HDR.DigMax(:) = digmax; 
+			        HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
+	                	HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
+	                	HDR.Calib = [HDR.Off;diag(HDR.Cal)];
+			else 
+				% do nothing
+			end
+		else 
+	                HDR.PhysMax = [1,HDR.DigMax]*HDR.Calib;
+	        	HDR.PhysMin = [1,HDR.DigMin]*HDR.Calib;
+    			%bits = ceil(log2(max(HDR.DigMax-HDR.DigMin+1))/8)*8;    % allows int8, int16, int24, int32, etc. 
+    			bits1 = ceil(log2(HDR.DigMax-HDR.DigMin+1));
+		        [datatyp,limits,datatypes] = gdfdatatype(HDR.GDFTYP);
+			bits = log2(limits(:,2)-limits(:,1)+1);
+	    		fprintf(1,'SAVE2GDF: %i bits needed, %i bits used for file %s\n',max(bits1),max(bits),HDR.FileName);
+		end;
+		
 	        % re-scale data to account for the scaling factor in the header
 	        %HIS = histo3(data); save HIS HIS
 	else	
@@ -206,15 +215,18 @@ if isstruct(arg1),
                 HDR.SPR = 1; 
         end;
 
+%%%	[HDR.PhysMax;HDR.PhysMin;HDR.DigMax;HDR.DigMin;max(data);min(data)],
+
         HDR = sopen(HDR,'w');
         if HDR.FILE.FID < 0,
                 fprintf(1,'Error SAVE2GDF: couldnot open file %s.\n',HDR.FileName);
                 return;
         end;
+
         if numel(data)>0,
 	        HDR = swrite(HDR,data(:,1:HDR.NS));  	% WRITE GDF FILE
         end;
-        HDR = sclose(HDR);
+	HDR = sclose(HDR);
 
         % final test 
         try
