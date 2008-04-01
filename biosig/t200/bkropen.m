@@ -5,7 +5,7 @@ function [BKR,s]=bkropen(arg1,arg3,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Id: bkropen.m,v 1.36 2008-01-18 09:28:13 schloegl Exp $
+%	$Id: bkropen.m,v 1.37 2008-04-01 11:35:28 schloegl Exp $
 %	Copyright (c) 1997-2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -129,8 +129,8 @@ if any(BKR.FILE.PERMISSION=='r'),
 
 	%%%%% Generate BKR-Struct according to biosig/doc/header.txt
 	BKR.Dur=1/BKR.SampleRate;
-	BKR.DigMax=BKR.DigMax;
-	BKR.PhysMax=BKR.PhysMax;
+	BKR.DigMin = -BKR.DigMax;
+	BKR.PhysMin= -BKR.PhysMax;
 	BKR.Cal=BKR.PhysMax/BKR.DigMax;
 	BKR.Off=zeros(BKR.NS,1);
         BKR.Calib = sparse(2:BKR.NS+1,1:BKR.NS,BKR.Cal,BKR.NS+1,BKR.NS);
