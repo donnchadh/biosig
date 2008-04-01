@@ -22,8 +22,8 @@
 %  you can excluded the path to NaN/*. The BIOSIG tools will still 
 %  work, but does not support the handling of NaN's.
 
-%	$Id: install.m,v 1.16 2007-08-09 20:06:07 schloegl Exp $
-%	Copyright (C) 2003-2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: install.m,v 1.17 2008-04-01 11:52:23 schloegl Exp $
+%	Copyright (C) 2003-2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 BIOSIG_HOME = pwd;	%
@@ -52,10 +52,10 @@ if ~exist('OCTAVE_VERSION','builtin'),
 end;
 
 path([BIOSIG_HOME,'/tsa'],path);		%  Time Series Analysis
-path([BIOSIG_HOME,'/tsa/inst'],path);		%  Time Series Analysis
+%path([BIOSIG_HOME,'/tsa/inst'],path);		%  Time Series Analysis
 % some users might get confused by this
 path([BIOSIG_HOME,'/NaN'],path);		%  Statistics analysis for missing data
-path([BIOSIG_HOME,'/NaN/inst'],path);		%  Statistics analysis for missing data
+%path([BIOSIG_HOME,'/NaN/inst'],path);		%  Statistics analysis for missing data
 
 %%% NONFREE %%%
 if exist([BIOSIG_HOME,'/biosig/NONFREE/EEProbe'],'dir'),
@@ -67,7 +67,7 @@ end;
 
 ver = version; 
 if (str2double(ver(1:3))<7.0)
-	path(path,[BIOSIG_HOME,'/biosig/maybe-missing']);
+%	path(path,[BIOSIG_HOME,'/biosig/maybe-missing']);
 end
 
 % test of installation 
@@ -85,12 +85,12 @@ if exist('OCTAVE_VERSION','builtin'),	% OCTAVE
                 try,
                         xmlstruct('<xml>v<b>v</xml>');
                 catch
-                        mex([BIOSIG_HOME,'/maybe-missing/xmldata.c']);
+                        mex([BIOSIG_HOME,'/biosig/maybe-missing/xmldata.c']);
                 end;
                 try,
                         bitand(5,7);
                 catch
-                        mkoctfile([BIOSIG_HOME,'/maybe-missing/bitand.cc']);
+                        mkoctfile([BIOSIG_HOME,'/biosig/maybe-missing/bitand.cc']);
                 end;
                 try,
                         x = which(fun{k});
@@ -109,7 +109,7 @@ else
         try,
                 xmlstruct('<xml>v<b>v</xml>');
         catch
-                unix(['mex ',BIOSIG_HOME,'/maybe-missing/bitand.cc']);
+                unix(['mex ',BIOSIG_HOME,'/biosig/maybe-missing/xmldata.c']);
         end;
 end;
 
