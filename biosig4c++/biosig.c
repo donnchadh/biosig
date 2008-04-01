@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.151 2008-03-27 22:05:01 schloegl Exp $
+    $Id: biosig.c,v 1.152 2008-04-01 21:37:31 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1609,6 +1609,8 @@ if (!strncmp(MODE,"r",1))
 			hdr->EVENT.DUR = NULL;
 			hdr->EVENT.CHN = NULL;
 		}	
+		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
+	    	hdr->FILE.POS = 0; 
     	}
     	else if ((hdr->TYPE == EDF) | (hdr->TYPE == BDF))	{
 		size_t	EventChannel = 0;
@@ -1629,7 +1631,7 @@ if (!strncmp(MODE,"r",1))
     		tm_time.tm_mon  = atoi(tmp)-1;
     		strncpy(tmp,Header1+168+6,2); 
     		tm_time.tm_year = atoi(tmp); 
-    		tm_time.tm_year+= (tm_time.tm_year < 85 ? 100 : 0);
+    		tm_time.tm_year+= (tm_time.tm_year < 70 ? 100 : 0);
     		
     fprintf(stdout,"%s\n",asctime(&tm_time));		
 #ifndef __sparc__
@@ -1832,8 +1834,9 @@ if (!strncmp(MODE,"r",1))
 				}	
 			}
 			free(Marker);
-			ifseek(hdr,hdr->HeadLen + hdr->AS.bi[EventChannel],SEEK_SET);
+			ifseek(hdr,hdr->HeadLen,SEEK_SET);
 		}	/* End reading EDF/BDF Status channel */
+	    	hdr->FILE.POS = 0; 
 	}      	
 
 	else if (hdr->TYPE==ABF) {
@@ -1909,6 +1912,7 @@ if (!strncmp(MODE,"r",1))
 			}
 			free(b);
 	    	}	
+	    	hdr->FILE.POS = 0; 
 	}      	
 
 	else if (hdr->TYPE==ACQ) {
@@ -2041,6 +2045,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		} 
 */
 		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
+	    	hdr->FILE.POS = 0; 
 	}      	
 
 	else if (hdr->TYPE==AINF) {
@@ -2111,6 +2116,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->NRec = iftell(hdr)/hdr->AS.bpb;
 	        ifseek(hdr,0,SEEK_SET);
 		hdr->HeadLen = 0;
+	    	hdr->FILE.POS = 0; 
 		/* restore input file name, and free temporary file name  */
 		hdr->FileName = filename;
 		free(tmpfile);
@@ -2151,6 +2157,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].LeadIdCode  = 0;
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// BKR does not support automated overflow and saturation detection
+	    	hdr->FILE.POS = 0; 
 	}
 
 	else if (hdr->TYPE==BrainVision) {
@@ -2316,6 +2323,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					
 			t = strtok(NULL,"\xA\xD");	// extract next line
 		}
+	    	hdr->FILE.POS = 0; 
 	}
 
 	else if (hdr->TYPE==CFWB) {
@@ -2364,6 +2372,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr->CHANNEL[k].OnOff    = 1;
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// CFWB does not support automated overflow and saturation detection
+	    	hdr->FILE.POS = 0; 
 	}
 	else if (hdr->TYPE==CNT) {
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,900);
@@ -2450,6 +2459,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	ifseek(hdr, hdr->HeadLen, SEEK_SET);
 	    	}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
+	    	hdr->FILE.POS = 0; 
 	}
 
 	else if (hdr->TYPE==DEMG) {
@@ -2499,6 +2509,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	    	hdr->HeadLen = 19; 
 	    	ifseek(hdr, 19, SEEK_SET);
+	    	hdr->FILE.POS = 0; 
 	}
 
 	else if (hdr->TYPE==EGI) {
@@ -2743,6 +2754,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr->EVENT.POS[hdr->EVENT.N-1] = pos; 
 			hdr->EVENT.TYP[hdr->EVENT.N-1] = Mark | 0x8000; 
 		}
+	    	hdr->FILE.POS = 0; 
 	}
 
 
@@ -3165,6 +3177,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	 		hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
 	 		hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
 	 	}	
+	    	hdr->FILE.POS = 0; 
 	}
 	else if (hdr->TYPE==SCP_ECG) {
 		hdr->HeadLen   = leu32p(hdr->AS.Header+2);
@@ -3180,6 +3193,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		sopen_SCP_read(hdr);
 		serror();
 		hdr->FLAG.SWAP = 0; 	// no swapping
+	    	hdr->FILE.POS = 0; 
 
 /* 
 		if (serror()) {
@@ -3335,6 +3349,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		return(NULL);
 	}
 
+	hdr->FILE.POS = 0; 
 	for (k=0; k<hdr->NS; k++) {	
 		// set HDR.PhysDim
 		k1 = hdr->CHANNEL[k].PhysDimCode;
@@ -3922,6 +3937,11 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (hdr->AS.Header[3] & 0x01)	// triggered  
 			hdr->AS.bpb += 6;
 	}
+
+	if (hdr->FILE.POS != 0)	
+		fprintf(stdout,"Debugging Information: (Format=%d) FILE.POS=%d is not zero.\n",hdr->TYPE,hdr->FILE.POS);
+
+		
 	return(hdr);
 }  // end of SOPEN 
 
@@ -4477,6 +4497,7 @@ long int stell(HDRTYPE* hdr)
 	size_t pos; 
 	
 	pos = iftell(hdr);	
+
 	if (pos<0)
 		return(-1);
 	else if (pos != (hdr->FILE.POS * hdr->AS.bpb + hdr->HeadLen))
