@@ -16,7 +16,7 @@ function [HDR] = ssave(FILENAME,DATA,TYPE,Fs,gdftyp)
 % see also: SSAVE, SOPEN, SWRITE, SCLOSE, doc/README
 %
 
-% $Id: ssave.m,v 1.6 2008-01-23 22:04:41 schloegl Exp $
+% $Id: ssave.m,v 1.7 2008-04-01 12:18:27 schloegl Exp $
 % Copyright (C) 2003,2004,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 % This file is part of the biosig project http://biosig.sf.net/
 
@@ -47,8 +47,9 @@ if isstruct(FILENAME),
         end;
 else
         HDR.FileName = FILENAME;
-        HDR.TYPE = TYPE; 	% type of data format
         HDR.SampleRate = Fs; 
+        gdftyp = 16;
+        HDR.TYPE = 'native';
 end;
 
 if (nargin > 1),
@@ -71,9 +72,23 @@ if (nargin > 1),
 		   	[datatyp,HDR.THRESHOLD,datatypes,HDR.bits,HDR.GDFTYP] = gdfdatatype(16*ones(HDR.NS,1));
 			HDR.DigMax = HDR.PhysMax;
 			HDR.DigMin = HDR.PhysMin;
+		else 	
+			HDR.DigMax = HDR.PhysMax;
+			HDR.DigMin = HDR.PhysMin;
 		end; 
 	end;    	
 
+	if (nargin > 2),
+        	if strcmp(TYPE,'GDF2'),
+        		HDR.TYPE = 'GDF';
+	        	HDR.VERSION = 2;
+        	elseif strncmp(TYPE,'GDF',3),
+        		HDR.TYPE = 'GDF';
+      	 	 	HDR.VERSION = 1.25;
+        	else	
+	        	HDR.TYPE = TYPE; 	% type of data format
+		end;        
+	end;
 	HDR = sopen(HDR,'w');
 	HDR = swrite(HDR,DATA);
 	HDR = sclose(HDR);
@@ -82,7 +97,7 @@ end;
 % Convert EVENT into WSCORE event format
 if all([length(HDR.EVENT.POS), length(HDR.EVENT.TYP)]),
 	p = which('sopen'); [p,H,e] = fileparts(p);
-	H = sload(fullfile(p,'eventcodes.txt'));
+	H = sload(fullfile(p,'../doc/eventcodes.txt'));
 
 	HDR.EVENT.CodeDesc  = H.CodeDesc;
 	HDR.EVENT.CodeIndex = H.CodeIndex;
