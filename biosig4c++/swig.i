@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.2 2008-03-14 15:31:35 schloegl Exp $
+% $Id: swig.i,v 1.3 2008-04-01 19:17:14 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -14,24 +14,26 @@
 
 
 // swig.i
-#ifdef SWIG
+
 %module biosig
 %{
 #define SWIG_FILE_WITH_INIT
 #include "biosig.h"
 %}
-#endif 
+
 
 #include <inttypes.h>
+#include "biosig.h"
 
-typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
+typedef int64_t gdf_time; /* gdf time is represented in 64 bits */
 
+	/* list of file formats */
 enum FileFormat {
 	unknown, 
 	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, AVI,
 	BKR, BCI2000, BDF, BMP, BrainVision, BZ2, 
 	CDF, CFWB, CNT, 
-	DICOM, DEMG, EDF, EEProbe, EGI, EVENT, EXIF, 
+	DICOM, DEMG, EDF, EEProbe, EGI, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GZIP, HL7aECG, JPEG, 
 	Matlab, MFER, MIDI, NetCDF, NEX1, OGG, 
