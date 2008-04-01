@@ -28,7 +28,7 @@ function [out,scale] = physicalunits(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: physicalunits.m,v 1.19 2008-03-18 13:47:21 schloegl Exp $
+%	$Id: physicalunits.m,v 1.20 2008-04-01 12:17:03 schloegl Exp $
 %	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -137,7 +137,7 @@ if isstruct(arg1)
 		[PhysDim,scale] = physicalunits(HDR.PhysDimCode);
 		if ~isequal(PhysDim(:),HDR.PhysDim(:))
 			warning('PhysDim and PhysDimCode differ');
-			PhysDim(:)',HDR.PhysDimCode(:)'
+			PhysDim',HDR.PhysDim'
 		end;
 	elseif ~isfield(HDR,'PhysDim') &  isfield(HDR,'PhysDimCode')
 		[HDR.PhysDim, scale] = physicalunits(HDR.PhysDimCode);
@@ -171,11 +171,12 @@ elseif ischar(arg1) | iscell(arg1)
                 arg1 = cellstr(arg1);
         end;
         j = 1:length(arg1);
-        VER = version
-        if (str2double(VER(1:3)) > 4)
-        	% FIXME does still not work for Octave 2.9.9
-		[arg1,i,j] = unique(arg1);
-	end; 	
+        VER = version;
+
+        % This does not work for Octave 2.9.9 and earlier versions. 
+        % Uncomment the next line to fix it. It is slower but correct. 
+	[arg1,i,j] = unique(arg1);
+
 	Code = zeros(length(arg1),1); 	% default value is 0 (unknown)
 	for k=1:length(arg1); 
 		unit = deblank(arg1{k});
