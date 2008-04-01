@@ -5,7 +5,7 @@ function [BKR,s]=bkropen(arg1,arg3,arg4,arg5,arg6)
 %
 % see also: SOPEN, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
-%	$Id: bkropen.m,v 1.38 2008-04-01 12:19:37 schloegl Exp $
+%	$Id: bkropen.m,v 1.39 2008-04-01 13:10:56 schloegl Exp $
 %	Copyright (c) 1997-2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -131,10 +131,11 @@ if any(BKR.FILE.PERMISSION=='r'),
 	BKR.Dur=1/BKR.SampleRate;
 	BKR.DigMin = -BKR.DigMax;
 	BKR.PhysMin= -BKR.PhysMax;
-	BKR.Cal=BKR.PhysMax/BKR.DigMax;
+	BKR.Cal=BKR.PhysMax./BKR.DigMax;
 	BKR.Off=zeros(BKR.NS,1);
         BKR.Calib = sparse(2:BKR.NS+1,1:BKR.NS,BKR.Cal,BKR.NS+1,BKR.NS);
-        BKR.PhysDim = repmat({'µV'},BKR.NS,1);
+        %BKR.PhysDim = repmat({'µV'},BKR.NS,1);
+        BKR.PhysDimCode = repmat(4275,BKR.NS,1);  % uV 
 	tmp=sprintf('LowPass %4.1f Hz; HighPass %4.1f Hz; Notch ?',BKR.Filter.LowPass,BKR.Filter.HighPass);
 	BKR.PreFilt=tmp; %ones(BKR.NS,1)*[tmp 32+zeros(1,80-length(tmp))];
 	BKR.Filter.Notch    = nan; %h.notchfilter;
