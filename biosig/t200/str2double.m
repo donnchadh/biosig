@@ -69,12 +69,13 @@ function [num,status,strarray] = str2double(s,cdelim,rdelim,ddelim)
 %% along with this program; if not, write to the Free Software
 %% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%%	$Revision: 1.3 $
-%%	$Id: str2double.m,v 1.3 2008-01-19 20:27:58 schloegl Exp $
-%%	Copyright (C) 2004 by Alois Schloegl <a.schloegl@ieee.org>	
+%%	$Revision: 1.4 $
+%%	$Id: str2double.m,v 1.4 2008-04-01 12:17:40 schloegl Exp $
+%%	Copyright (C) 2004,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %%      This function is part of Octave-Forge http://octave.sourceforge.net/
 
 FLAG_OCTAVE = exist('OCTAVE_VERSION','builtin');
+VER = version; 
 
 % valid_char = '0123456789eE+-.nNaAiIfF';	% digits, sign, exponent,NaN,Inf
 valid_delim = char(sort([0,9:14,32:34,abs('()[]{},;:"|/')]));	% valid delimiter
@@ -257,7 +258,7 @@ for k2 = 1:nc,
 			end;	
 			if FLAG_OCTAVE,		%% Octave
 	    			[v,tmp2,c] = sscanf(char(t),'%f %s','C');
-	    		elseif strcmp(version,'3.5')  %% FreeMat 3.5
+	    		elseif all(VER(1:2)=='3.') & any(VER(3)=='567');  %% FreeMat 3.5, 3.6, 3.7
 				[v,c,em] = sscanf(char(t),'%f %s');
 				c = 1;
 	    		else	%% Matlab 
