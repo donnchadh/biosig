@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.2 2008-03-14 15:33:40 schloegl Exp $
+% $Id: biosig-dev.h,v 1.3 2008-04-01 22:19:47 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -300,7 +300,7 @@ int 		ifclose(HDRTYPE* hdr);
 int 		ifflush(HDRTYPE* hdr);
 size_t 		ifread(void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
 size_t 		ifwrite(void* buf, size_t size, size_t nmemb, HDRTYPE* hdr);
-int             ifprintf(HDRTYPE* hdr, const char *format, ...);
+int             ifprintf(HDRTYPE* hdr, const char *format, va_list arg);
 int             ifputc(int c, HDRTYPE* hdr);
 int 		ifgetc(HDRTYPE* hdr);
 char*           ifgets(char *str, int n, HDRTYPE* hdr);
