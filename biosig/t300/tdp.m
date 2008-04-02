@@ -28,11 +28,21 @@ function [F,G] = tdp(S,p,UC,A)
 %       G	log-amplitude of each channel and each derivative
 %		in case of p=2, this is a linear combination of log(barlow)	
 %       
+% Relationship to related parameters:	
+%	Hjorth's ACTIVITY   = exp(F(:,1));
+%	Hjorth's MOBILITY   = exp(F(:,2)-F(:,1))/2; 
+%	Hjorth's COMPLEXITY = exp(F(:,3)-F(:,2))/2;	
+%		LINELENGTH = exp(G(:,2)); 
+%		AREA = exp(G(:,1)); 
+% 	Barlow's AMPLITUDE = exp(G(:,1)) = AREA; 
+% 	Barlow's FREQUENCY = exp(G(:,2)-G(:,1)); 
+% 	Barlow's Spectral Purity Index SPI = exp(2*F(:,2)-F(:,1)-F(:,3))
+%
 % see also: HJORTH, BARLOW, WACKERMANN
 %
 % REFERENCE(S):
 
-% 	$Id: tdp.m,v 1.2 2008-04-02 12:18:58 schloegl Exp $
+% 	$Id: tdp.m,v 1.3 2008-04-02 12:39:35 schloegl Exp $
 % 	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>
 % 	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
