@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.78 2008-04-02 09:12:28 schloegl Exp $
+%	$Id: sload.m,v 1.79 2008-04-02 23:49:24 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -227,17 +227,82 @@ end;
 
 
 %%%% start of single file section
-H = getfiletype(FILENAME);
-if isempty(H),
-	fprintf(2,'Warning SLOAD: no file found\n');
-	return;
-else	
-	% FILENAME can be fn.name struct, or HDR struct. 
-	FILENAME = H.FileName; 
+%%%%%%%%%% --------- EOG CORRECTION -------------- %%%%%%
+if STATE.EOG_CORRECTION,
+try
+        h = get_regress_eog(H.FileName,'REG fft16');
+catch,
+	fprintf(H.FILE.stderr,'Error: SLOAD (EOG_CORRECTION): %s\n',lasterr); 
+	H.FLAG.EOG_CORRECTION = 0; 
 end;
-H.FLAG.UCAL = STATE.UCAL;
-H.FLAG.OVERFLOWDETECTION = STATE.OVERFLOWDETECTION;
-H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
+end; 
+
+
+
+FlagLoaded = 0;
+if exist('mexSLOAD','file')==3,
+
+		ReRefMx=1;
+		valid_rerefmx=1;
+		if (size(CHAN,1)>1)		
+			ReRefMx = CHAN;
+		elseif all(CHAN>0) && all(floor(CHAN)==CHAN), 
+			[tmp,ix]=sort(CHAN);
+			ReRefMx = sparse(CHAN,1:length(CHAN),1);
+		else	
+			valid_rerefmx=0;
+		end; 
+		if STATE.EOG_CORRECTION,
+			ReRefMx = h.r0*ReRefMx;
+			valid_rerefmx=1;
+		end
+		if STATE.OVERFLOWDETECTION,
+			arg1 = 'OVERFLOWDETECTION:ON';
+		else
+			arg1 = 'OVERFLOWDETECTION:OFF';
+		end			
+		if STATE.UCAL,
+			arg2 = 'UCAL:ON';
+		else
+			arg2 = 'UCAL:OFF';
+		end
+		if ~valid_rerefmx,
+			[signal,HDR] = mexSLOAD(FILENAME,0,arg1,arg2);
+		else
+			InChanSelect = find(any(ReRefMx,2));
+			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2);
+			InChanSelect = InChanSelect(InChanSelect<=HDR.NS);
+			signal = signal*ReRefMx(InChanSelect,:);
+		end; 
+		
+		HDR.T0 = datevec(HDR.T0);
+		HDR.Patient.Birthday = datevec(HDR.Patient.Birthday);
+		HDR.Calib = [HDR.Off(:)';diag(HDR.Cal)];
+		[HDR.FILE.Path,HDR.FILE.Name,HDR.FILE.Ext] = fileparts(FILENAME);
+		HDR.FileName = FILENAME;
+		FlagLoaded = ~isempty(HDR);
+		H=HDR;
+		H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
+%	catch
+%		disp('mexSLOAD failed');
+%	end;
+
+end;
+
+if ~FlagLoaded,
+	H = getfiletype(FILENAME);
+
+	if isempty(H),
+		fprintf(2,'Warning SLOAD: no file found\n');
+		return;
+	else	
+		% FILENAME can be fn.name struct, or HDR struct. 
+		FILENAME = H.FileName; 
+	end;
+	H.FLAG.UCAL = STATE.UCAL;
+	H.FLAG.OVERFLOWDETECTION = STATE.OVERFLOWDETECTION;
+	H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
+
 
 if strncmp(H.TYPE,'IMAGE:',5)
 	[H,signal] = iopen(H);
@@ -249,49 +314,8 @@ if strncmp(H.TYPE,'IMAGE:',5)
 	return;
 end;
 
-%%%%%%%%%% --------- EOG CORRECTION -------------- %%%%%%
-if H.FLAG.EOG_CORRECTION,
-try
-        h = get_regress_eog(H.FileName,'REG fft16');
-catch,
-	fprintf(H.FILE.stderr,'Error: SLOAD (EOG_CORRECTION): %s\n',lasterr); 
-	H.FLAG.EOG_CORRECTION = 0; 
-end;
-end; 
 
 %%%%%%%%%%%%%%% --------- Load single file ------------%%%%%%%%%%%
-FlagLoaded = 0;
-if exist('mexSLOAD','file')==3,
-
-	if (sum(size(CHAN)>1)<=1) 
-	try	
-		if H.FLAG.OVERFLOWDETECTION,
-			arg1 = 'OVERFLOWDETECTION:ON';
-		else
-			arg1 = 'OVERFLOWDETECTION:OFF';
-		end			
-		if H.FLAG.UCAL,
-			arg2 = 'UCAL:ON';
-		else
-			arg2 = 'UCAL:OFF';
-		end			
-		[signal,HDR]=mexSLOAD(H.FileName,CHAN,arg1,arg2);
-		if all(CHAN>0) && all(floor(CHAN)==CHAN), 
-			[tmp,ix]=sort(CHAN);
-			signal = signal(:,ix);
-		end;	
-		HDR.T0 = datevec(HDR.T0);
-		HDR.Patient.Birthday = datevec(HDR.Patient.Birthday);
-		HDR.Calib = [HDR.Off(:)';diag(HDR.Cal)];
-		HDR.FILE = H.FILE;
-		H = HDR; 
-		FlagLoaded = ~isempty(HDR);
-	catch
-	end;
-	end;	
-end;
-
-if ~FlagLoaded,
 
 signal = [];
 H = sopen(H,'r',CHAN,MODE);
