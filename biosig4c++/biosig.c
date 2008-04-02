@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.152 2008-04-01 21:37:31 schloegl Exp $
+    $Id: biosig.c,v 1.153 2008-04-02 15:25:53 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1394,6 +1394,8 @@ if (!strncmp(MODE,"r",1))
 		return(NULL);
 	}	
 
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201] GDF=%i %i Ver=%4.2f\n",GDF,hdr->TYPE,hdr->VERSION);
+
 	if (hdr->TYPE == GDF) {
       	    	strncpy(tmp,(char*)hdr->AS.Header+3,5);
 	    	hdr->VERSION 	= atof(tmp);
@@ -1558,6 +1560,12 @@ if (!strncmp(MODE,"r",1))
 			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;
 			if (hdr->CHANNEL[k].SPR)
 				hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
+
+			if (GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]==0) {
+				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+				B4C_ERRMSG = "GDF: Invalid or unsupported GDFTYP";
+				return(hdr);
+			}
 		}	
 		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
 
