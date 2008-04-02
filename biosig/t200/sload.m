@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.77 2008-03-28 09:16:56 schloegl Exp $
+%	$Id: sload.m,v 1.78 2008-04-02 09:12:28 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -139,6 +139,17 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			H = h;
 			signal = s;  
 			H.SegLen = [0,size(s,1)];
+                        H.EVENT.POS = [H.EVENT.POS; size(signal,1)];
+                        H.EVENT.TYP = [H.EVENT.TYP; hex2dec('7ffe')];
+                        if isfield(H.EVENT,'CHN');
+                                H.EVENT.CHN = [H.EVENT.CHN; 0];
+                        end;
+                        if isfield(H.EVENT,'DUR');
+                                H.EVENT.DUR = [H.EVENT.DUR; size(s,1)];
+                        end;
+                        if isfield(H.EVENT,'Desc');	% TFM-Excel-Beat-to-Beat
+                                H.EVENT.Desc = [H.EVENT.Desc; {'New Segment'}; h.EVENT.Desc];
+                        end;
 		else
 			H.FILE(k) = h.FILE;
                         H.T0(k,1:6) = h.T0;
@@ -154,6 +165,20 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
                                 end;
                         end;
 
+                        if ~isempty(h.EVENT.POS),
+                                H.EVENT.POS = [H.EVENT.POS; size(signal,1); h.EVENT.POS+size(signal,1)];
+                                H.EVENT.TYP = [H.EVENT.TYP; hex2dec('7ffe'); h.EVENT.TYP];
+                                if isfield(H.EVENT,'CHN');
+                                        H.EVENT.CHN = [H.EVENT.CHN; 0; h.EVENT.CHN];
+                                end;
+                                if isfield(H.EVENT,'DUR');
+                                        H.EVENT.DUR = [H.EVENT.DUR; size(s,1); h.EVENT.DUR];
+                                end;
+                                if isfield(H.EVENT,'Desc');	% TFM-Excel-Beat-to-Beat
+                                        H.EVENT.Desc = [H.EVENT.Desc; {'New Segment'}; h.EVENT.Desc];
+                                end;
+                        end;			
+
                         if size(s,2)==size(signal,2), %(H.NS == h.NS) 
 				signal = [signal; repmat(NaN,STATE.NUMBER_OF_NAN_IN_BREAK,size(s,2)); s];
 				H.SegLen = [H.SegLen,size(signal,1)];
@@ -162,19 +187,6 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 				return;
 			end;
 
-                        if ~isempty(h.EVENT.POS),
-                                H.EVENT.POS = [H.EVENT.POS; h.EVENT.POS+size(signal,1)-size(s,1)];
-                                H.EVENT.TYP = [H.EVENT.TYP; h.EVENT.TYP];
-                                if isfield(H.EVENT,'CHN');
-                                        H.EVENT.CHN = [H.EVENT.CHN; h.EVENT.CHN];
-                                end;
-                                if isfield(H.EVENT,'DUR');
-                                        H.EVENT.DUR = [H.EVENT.DUR; h.EVENT.DUR];
-                                end;
-                                if isfield(H.EVENT,'Desc');	% TFM-Excel-Beat-to-Beat
-                                        H.EVENT.Desc = [H.EVENT.Desc; h.EVENT.Desc];
-                                end;
-                        end;			
                         if isfield(h,'TRIG'), 
                                 if ~isfield(H,'TRIG'),
                                         H.TRIG = [];
@@ -253,14 +265,25 @@ if exist('mexSLOAD','file')==3,
 
 	if (sum(size(CHAN)>1)<=1) 
 	try	
-		[signal,HDR]=mexSLOAD(H.FileName,CHAN);
+		if H.FLAG.OVERFLOWDETECTION,
+			arg1 = 'OVERFLOWDETECTION:ON';
+		else
+			arg1 = 'OVERFLOWDETECTION:OFF';
+		end			
+		if H.FLAG.UCAL,
+			arg2 = 'UCAL:ON';
+		else
+			arg2 = 'UCAL:OFF';
+		end			
+		[signal,HDR]=mexSLOAD(H.FileName,CHAN,arg1,arg2);
 		if all(CHAN>0) && all(floor(CHAN)==CHAN), 
 			[tmp,ix]=sort(CHAN);
 			signal = signal(:,ix);
 		end;	
 		HDR.T0 = datevec(HDR.T0);
 		HDR.Patient.Birthday = datevec(HDR.Patient.Birthday);
-		HDR.Calib = [HDR.Off(:)';diag(HDR.Cal)]
+		HDR.Calib = [HDR.Off(:)';diag(HDR.Cal)];
+		HDR.FILE = H.FILE;
 		H = HDR; 
 		FlagLoaded = ~isempty(HDR);
 	catch
