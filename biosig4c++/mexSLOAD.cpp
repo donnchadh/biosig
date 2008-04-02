@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.17 2008-04-02 09:11:35 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.18 2008-04-02 15:24:57 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -101,8 +101,11 @@ void mexFunction(
 	/* open and read file, convert into M-struct */
 
 			hdr = sopen(FileName, "r", NULL);
-			if ((status=serror())) return; 
-	
+			if ((status=serror())) {
+				mexPrintf("ERROR=%i: Cannot open file %s (%s)\n", status, FileName, B4C_ERRMSG); 
+				return; 
+			}
+			
 			if (hdr==NULL) return;
 
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
@@ -323,10 +326,9 @@ void mexFunction(
 				mxSetField(HDR,0,"Filter",Filter);
 
 				/* annotation, marker, event table */
-				const char *event_fields[] = {"N","SampleRate","TYP","POS","DUR","CHN",NULL};
+				const char *event_fields[] = {"SampleRate","TYP","POS","DUR","CHN",NULL};
 				for (numfields=0; event_fields[numfields++] != 0; );
 				EVENT = mxCreateStructMatrix(1, 1, --numfields, event_fields);
-				mxSetField(EVENT,0,"N",mxCreateDoubleScalar(hdr->EVENT.N));
 				mxSetField(EVENT,0,"SampleRate",mxCreateDoubleScalar(hdr->EVENT.SampleRate));
 
 				mxArray *TYP = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
