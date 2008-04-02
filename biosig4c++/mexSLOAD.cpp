@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.16 2008-03-26 14:14:06 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.17 2008-04-02 09:11:35 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -67,24 +67,24 @@ void mexFunction(
 	{	
 		arg = prhs[k];
 		if (mxIsEmpty(arg))
-			mexPrintf("Empty\n");
+			mexPrintf("arg[%i] Empty\n",k);
 		else if (mxIsCell(arg))
-			mexPrintf("IsCell\n");
+			mexPrintf("arg[%i] IsCell\n",k);
 		else if (mxIsStruct(arg)) {
-			mexPrintf("IsStruct\n");
+			mexPrintf("arg[%i] IsStruct\n",k);
 			if (k==0)			
 				FileName = mxArrayToString(mxGetField(prhs[k],0,"FileName"));
 		}
 		else if (mxIsNumeric(arg)) {
-			mexPrintf("IsNumeric\n");
+			mexPrintf("arg[%i] IsNumeric\n",k);
 			ChanList = (double*)mxGetData(prhs[k]);
 			NS = mxGetNumberOfElements(prhs[k]);
 //			mexCallMATLAB(2, Sort, 1, (mxArray*)&prhs[k], "sort");
 		}	
 		else if (mxIsSingle(arg))
-			mexPrintf("IsSingle\n");
+			mexPrintf("arg[%i] IsSingle\n",k);
 		else if (mxIsChar(arg)) {
-			mexPrintf("arg%i IsChar\n",k);
+			mexPrintf("arg[%i]=%s \n",k,mxArrayToString(prhs[k]));
 			if (k==0)			
 				FileName = mxArrayToString(prhs[k]);
 			else if (!strcmp(mxArrayToString(prhs[k]),"OVERFLOWDETECTION:ON"))
