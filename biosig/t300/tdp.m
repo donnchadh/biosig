@@ -41,8 +41,17 @@ function [F,G] = tdp(S,p,UC,A)
 % see also: HJORTH, BARLOW, WACKERMANN
 %
 % REFERENCE(S):
+% [1] B. Hjorth, 
+%   EEG analysis based on time domain properties
+%   Electroencephalography and Clinical Neurophysiology, vol. 29, no. 3, pp. 306–310, September 1970.
+% [2] B. Hjorth, 
+%   Time Domain Descriptors and their Relation to particulare Model for Generation of EEG activity. 
+%   in G. Dolce, H. Kunkel: CEAN Computerized EEG Analysis, Gustav Fischer 1975, S.3-8. 
+% [3] Goncharova II, Barlow JS.
+%   Changes in EEG mean frequency and spectral purity during spontaneous alpha blocking.
+%   Electroencephalogr Clin Neurophysiol. 1990 Sep;76(3):197-204. 
 
-% 	$Id: tdp.m,v 1.3 2008-04-02 12:39:35 schloegl Exp $
+% 	$Id: tdp.m,v 1.4 2008-04-02 12:55:52 schloegl Exp $
 % 	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>
 % 	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -50,6 +59,7 @@ function [F,G] = tdp(S,p,UC,A)
 % modify it under the terms of the GNU General Public License
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
+%% This library is distributed in the hope that it will be useful,% but WITHOUT ANY WARRANTY; without even the implied warranty of% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU% Library General Public License for more details.%% You should have received a copy of the GNU Library General Public% License along with this library; if not, write to the% Free Software Foundation, Inc., 59 Temple Place - Suite 330,% Boston, MA  02111-1307, USA.
 
 
 [N,K] = size(S); 	% number of electrodes K, number of samples N
