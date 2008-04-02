@@ -26,7 +26,7 @@ function [A,F,S]=barlow(S,UC,A)
 %   Changes in EEG mean frequency and spectral purity during spontaneous alpha blocking.
 %   Electroencephalogr Clin Neurophysiol. 1990 Sep;76(3):197-204. 
 
-%	$Id: barlow.m,v 1.2 2008-01-19 20:54:51 schloegl Exp $
+%	$Id: barlow.m,v 1.3 2008-04-02 13:05:12 schloegl Exp $
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -82,9 +82,9 @@ else
                 d1(isnan(d1)) = 0;
                 d2(isnan(d2)) = 0;
         end;
-        m0 = filter(B,A,abs(d0))./filter(B,A,(~isnan(d0)));
-        m1 = filter(B,A,abs(d1))./filter(B,A,(~isnan(d1)));
-        m2 = filter(B,A,abs(d2))./filter(B,A,(~isnan(d2)));
+        m0 = filter(B,A,abs(d0))./filter(B,A,double(~isnan(d0)));
+        m1 = filter(B,A,abs(d1))./filter(B,A,double(~isnan(d1)));
+        m2 = filter(B,A,abs(d2))./filter(B,A,double(~isnan(d2)));
 end;
 
 A = m0; 
