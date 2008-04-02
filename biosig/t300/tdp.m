@@ -1,10 +1,10 @@
-function F = tdp(S,p,UC,A)
+function [F,G] = tdp(S,p,UC,A)
 %  TDP time-domain parameters
 %	extracts EEG features very fast (low computational efforts) 
-%     	This is function was motivated by the Hjorth parameters and is experimental. 
-%	It might a useful EEG feature for BCI classification.  
+%     	This is function was motivated by the Hjorth and Barlow 
+%	parameters and is experimental. 
 %           
-%  F = TDP(...)
+%  [F,G] = TDP(...)
 %  
 %  [...] = tdp(S,p,0)
 %       calculates the log-power of the first p-th derivatives 
@@ -12,22 +12,27 @@ function F = tdp(S,p,UC,A)
 %       calculates time-varying power of the first p-th derivatives 
 %       using an exponential window 
 %  [...] = tdp(S,p,N) with N>1,
-%       calculates time-varying log-power of the first p-th derivatives %       using rectangulare window of length N
+%       calculates time-varying log-power of the first p-th derivatives
+%       using rectangulare window of length N
 %  [...] = tdp(S,p,B,A) with B>=1 oder length(B)>1,
-%       calculates time-varying log-power of the first p-th derivatives %       using the transfer function B(z)/A(z) for windowing 
+%       calculates time-varying log-power of the first p-th derivatives
+%       using the transfer function B(z)/A(z) for windowing 
 %  Input:
 %       S       data (each channel is a column)
 %	p	number of features
 %       UC      update coefficient 
 %       B,A     filter coefficients (window function) 
 %  Output:
-%       F	log-power of each channel and each derivative
+%       F	log-power of each channel and each derivative 
+%		in case of p=2, this is a linear combination of log(hjorth)	
+%       G	log-amplitude of each channel and each derivative
+%		in case of p=2, this is a linear combination of log(barlow)	
 %       
 % see also: HJORTH, BARLOW, WACKERMANN
 %
 % REFERENCE(S):
 
-% 	$Id: tdp.m,v 1.1 2008-03-13 09:14:10 schloegl Exp $
+% 	$Id: tdp.m,v 1.2 2008-04-02 12:18:58 schloegl Exp $
 % 	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>
 % 	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -73,15 +78,40 @@ else
         if FLAG_ReplaceNaN;
                 d(isnan(d)) = 0;
         end;
-        F = log(filter(B,A,d.^2)./filter(B,A,(~isnan(d0)).^2));
+        F = log(filter(B,A,d.^2)./filter(B,A,double(~isnan(d0))));
 	for k = 1:p,
 		d0 = diff([repmat(NaN,[1,K]);d0],[],1);
 		d  = d0;
 	        if FLAG_ReplaceNaN;
                 	d(isnan(d)) = 0;
         	end;
-	        m = filter(B,A,d.^2)./filter(B,A,(~isnan(d0)).^2);
+	        m = filter(B,A,d.^2)./filter(B,A,double(~isnan(d0)));
 	        F = [F, log(m)];
         end;
 end;
 
+if (nargout>1)
+if ~UC,
+	d = S;
+	G = log(mean(abs(d)));
+	for k = 1:p,
+		d = diff([repmat(NaN,[1,K]);d],[],1);
+	        G = [G, log(mean(abs(d)))];
+        end;
+else
+       	d = d0;
+        if FLAG_ReplaceNaN;
+                d(isnan(d)) = 0;
+        end;
+        G = log(filter(B,A,abs(d))./filter(B,A,double(~isnan(d0))));
+	for k = 1:p,
+		d0 = diff([repmat(NaN,[1,K]);d0],[],1);
+		d  = d0;
+	        if FLAG_ReplaceNaN;
+                	d(isnan(d)) = 0;
+        	end;
+	        m = filter(B,A,abs(d))./filter(B,A,double(~isnan(d0)));
+	        G = [G, log(m)];
+        end;
+end;
+end;
