@@ -1,25 +1,25 @@
 /*
 
-    $Id: save2gdf.c,v 1.33 2008-03-26 10:44:37 schloegl Exp $
-    Copyright (C) 2000,2005,2007 Alois Schloegl <a.schloegl@ieee.org>
+    $Id: save2gdf.c,v 1.34 2008-04-04 19:28:31 schloegl Exp $
+    Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
  
 
-    BioSig is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 3
+    of the License, or (at your option) any later version.
 
-    BioSig is distributed in the hope that it will be useful,
+    This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with BioSig. If not, see <http://www.gnu.org/licenses/>.
-
+    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+    
  */
 
 #include <math.h>
@@ -36,7 +36,7 @@
 int main(int argc, char **argv){
     
     HDRTYPE 	*hdr; 
-    size_t 	count, k1;
+    size_t 	count, k1, ne=0;
     uint16_t 	numopt = 0;
     char 	*source, *dest, tmp[1024]; 
     enum FileFormat SOURCE_TYPE, TARGET_TYPE=GDF; 		// type of file format
@@ -111,6 +111,11 @@ int main(int argc, char **argv){
 			return(-1);
 		}	
 	}
+
+    	else if (!strcmp(argv[k],"--TEST1"))  	{
+		/* used for testing SFLUSH_GDF_EVENT_TABLE */
+	    	ne = 1;
+	}
 	numopt = k-1;	
 		
     }
@@ -169,6 +174,16 @@ int main(int argc, char **argv){
 //	fprintf(stdout,"\n %f,%f.\n",hdr->FileName,hdr->data.block[3*hdr->SPR],hdr->data.block[4*hdr->SPR]);
 
 	if (dest==NULL) {
+		if (ne)	/* used for testig SFLUSH_GDF_EVENT_TABLE */
+		{	
+			if (hdr->EVENT.N > ne)
+				hdr->EVENT.N -= ne;
+			else 
+				hdr->EVENT.N  = 0;
+					
+			fprintf(stdout,"Status-SFLUSH %i\n",sflush_gdf_event_table(hdr));
+		}	
+		
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[131] going for SCLOSE\n");
 		sclose(hdr);
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[137] SCLOSE finished\n");
