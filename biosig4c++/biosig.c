@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.155 2008-04-04 19:27:43 schloegl Exp $
+    $Id: biosig.c,v 1.156 2008-04-04 22:48:34 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2219,21 +2219,20 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	else if (hdr->TYPE==BrainVision) {
 		/* open and read header file */ 
-		ifclose(hdr);
+		// ifclose(hdr);
 		const char *filename = hdr->FileName; // keep input file name 
 		char* tmpfile = (char*)calloc(strlen(hdr->FileName)+5,1);		
 		strcpy(tmpfile,hdr->FileName);
 		char* ext = strrchr(tmpfile,'.')+1; 
 
 		strcpy(ext,"vhdr");		
-		hdr->FileName = tmpfile; 
-		hdr->HeadLen = 100000;
-	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
-		hdr = ifopen(hdr,"rb"); 
-	    	count   = ifread(hdr->AS.Header,1,hdr->HeadLen,hdr);
+       		ifseek(hdr,0,SEEK_END);
+		hdr->HeadLen = iftell(hdr);
+	        ifseek(hdr,0,SEEK_SET);
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen+1);
+	    	count += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
 	    	ifclose(hdr); 
-	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, count+1);
-	    	hdr->AS.Header[count] = 0;	// add terminating \0 character
+	    	hdr->AS.Header[hdr->HeadLen] = 0;	// add terminating \0 character
 
 		/* decode header information */
 		hdr->FLAG.OVERFLOWDETECTION = 0;
@@ -2247,6 +2246,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
 		t = strtok(NULL,"\xA\xD");
 		while (t) {
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"[212]: %i <%s>\n",seq,t);
+
 			if (!strncmp(t,";",1)) 	// comments
 				;
 			else if (!strncmp(t,"[Common Infos]",14))
@@ -2259,6 +2261,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				seq = 3; 
 
 				/* open data file */ 
+				hdr->FileName = tmpfile;
 				hdr = ifopen(hdr,"rb"); 
 	        		ifseek(hdr,0,SEEK_END);
 				size_t FileSize = iftell(hdr);
@@ -2296,8 +2299,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    			hdr->CHANNEL[k].LeadIdCode  = 0;
 					}
 				}	
-			else if (!strncmp(t,"[Common Infos]",14))
-				seq = 4; 
+			//else if (!strncmp(t,"[Common Infos]",14))
+			//	seq = 4; 
 			else if (!strncmp(t,"[Coordinates]",13))
 				seq = 5; 
 			else if (!strncmp(t,"[Comment]",9))
@@ -2319,8 +2322,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					orientation = MUL;
 				else if (!strncmp(t,"DataType=TIMEDOMAIN",19))
 					;
-				else if (!strncmp(t,"NumberOfChannels=",17))
+				else if (!strncmp(t,"NumberOfChannels=",17)) {
 					hdr->NS = atoi(t+17);
+				}	
 				else if (!strncmp(t,"DataPoints=",11)) {
 					npts = atof(t+11);
 				}	
@@ -2331,16 +2335,21 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (seq==2) {
 				if      (!strncmp(t,"BinaryFormat=IEEE_FLOAT_32",26)) {
 					gdftyp = 16;
-					hdr->AS.bpb = 4;
+					hdr->AS.bpb = 4*hdr->NS;
 				}	
 				else if (!strncmp(t,"BinaryFormat=INT_16",19)) {
 					gdftyp =  3;
-					hdr->AS.bpb = 2;
 					digmax =  32767;
 					digmin = -32768;
+					hdr->AS.bpb = 2*hdr->NS;
 					hdr->FLAG.OVERFLOWDETECTION = 1;
-				}
-				else {
+				}	
+				else if (!strncmp(t,"UseBigEndianOrder=NO",20))
+					hdr->FLAG.SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 
+				else if (!strncmp(t,"UseBigEndianOrder=YES",21))
+					hdr->FLAG.SWAP = (__BYTE_ORDER == __LITTLE_ENDIAN); 
+				else if (0){
+fprintf(stdout,"[313] <%s>\n",t);				
 					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED; 
 					B4C_ERRMSG = "Error SOPEN(BrainVision): BinaryFormat=<unknown>";
 					return(hdr);
@@ -4571,10 +4580,7 @@ long int stell(HDRTYPE* hdr)
 int sclose(HDRTYPE* hdr)
 {
 	int32_t 	pos, len; 
-	uint32_t	k32u; 
-	uint8_t 	buf[88]; 
 	char tmp[88]; 
-	char flag; 
 	
 	if ((hdr->FILE.OPEN>1) & ((hdr->TYPE==GDF) | (hdr->TYPE==EDF) | (hdr->TYPE==BDF)))
 	{
