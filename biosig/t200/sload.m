@@ -38,7 +38,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.79 2008-04-02 23:49:24 schloegl Exp $
+%	$Id: sload.m,v 1.80 2008-04-04 23:07:56 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -241,7 +241,7 @@ end;
 
 FlagLoaded = 0;
 if exist('mexSLOAD','file')==3,
-
+%	try
 		ReRefMx=1;
 		valid_rerefmx=1;
 		if (size(CHAN,1)>1)		
@@ -269,9 +269,9 @@ if exist('mexSLOAD','file')==3,
 		if ~valid_rerefmx,
 			[signal,HDR] = mexSLOAD(FILENAME,0,arg1,arg2);
 		else
-			InChanSelect = find(any(ReRefMx,2));
+			InChanSelect = find(any(ReRefMx,2))
 			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2);
-			InChanSelect = InChanSelect(InChanSelect<=HDR.NS);
+			InChanSelect = InChanSelect(InChanSelect <= HDR.NS);
 			signal = signal*ReRefMx(InChanSelect,:);
 		end; 
 		
@@ -280,9 +280,17 @@ if exist('mexSLOAD','file')==3,
 		HDR.Calib = [HDR.Off(:)';diag(HDR.Cal)];
 		[HDR.FILE.Path,HDR.FILE.Name,HDR.FILE.Ext] = fileparts(FILENAME);
 		HDR.FileName = FILENAME;
+		
 		FlagLoaded = ~isempty(HDR);
 		H=HDR;
 		H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
+
+		%% read BrainVision Marker file 
+		if strcmp(HDR.TYPE,'BrainVision');
+			[p,f,e]=fileparts(FILENAME); 
+			HDR = sopen(fullfile(p,[f,'.vmrk']));HDR = sclose(HDR);
+			H.EVENT = HDR.EVENT;  
+		end; 					
 %	catch
 %		disp('mexSLOAD failed');
 %	end;
