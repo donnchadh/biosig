@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.38 2008-04-01 19:17:56 schloegl Exp $
+###  $Id: Makefile,v 1.39 2008-04-04 22:50:55 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -59,7 +59,7 @@ biosig.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t230/sop
 biosig4python _biosig.so: biosig.py
 biosig.py:	$(SOURCES) libbiosig.a swig.i
 	swig -c++ -python -I/usr/include -o swig_wrap.cxx swig.i
-	gcc -fPIC -c swig_wrap.cxx -o swig_wrap.o -I/usr/include/python2.4
+	$(CXX) -fPIC -c swig_wrap.cxx -o swig_wrap.o -I/usr/include/python2.4
 	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so
 
 
@@ -87,7 +87,7 @@ mex4m: mexSLOAD.cpp $(OBJECTS)
 
 mex4o:  mexSLOAD.mex
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
-	mkoctfile -lz -v -g --mex mexSLOAD.cpp libbiosig.a
+	mkoctfile  -v -g --mex mexSLOAD.cpp  $(LIBS) 
 
 oct:  mexSLOAD.oct
 mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a 
@@ -100,7 +100,6 @@ sigviewer: libbiosig.a
 # for backward compatibility 
 save2scp: save2gdf
 save2aecg: save2gdf
-
 
 distclean:
 	-$(DEL_FILE) *.a
