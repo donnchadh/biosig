@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.153 2008-04-02 15:25:53 schloegl Exp $
+    $Id: biosig.c,v 1.154 2008-04-04 15:59:24 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -4689,6 +4689,76 @@ int serror() {
 }
 
 
+
+/****************************************************************************/
+/*        Write/update Event Table of GDF file                              */
+/*                                                                          */
+/* returns 0 in case of success                                             */
+/* returns -1 in case of failure                                            */
+/****************************************************************************/
+int sflush_gdf_event_table(HDRTYPE* hdr)
+{
+	uint32_t	k32u; 
+	uint8_t 	buf[88]; 
+	char flag; 
+
+	// WRITE EVENTTABLE 
+	if ((hdr->TYPE!=GDF) || (hdr->EVENT.N==0) || hdr->FILE.COMPRESSION) {
+		return(-1);
+	}
+	
+		long int filepos = iftell(hdr); 
+		ifclose(hdr);
+		hdr = ifopen(hdr,"rb+");
+		if (!hdr->FILE.OPEN) {
+			// file cannot be opened in write mode 
+			hdr = ifopen(hdr,"rb+");
+			return(-1);
+		}
+
+		ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
+		flag = (hdr->EVENT.DUR != NULL) & (hdr->EVENT.CHN != NULL); 
+		if (flag)   // any DUR or CHN is larger than 0 
+			for (k32u=0, flag=0; (k32u<hdr->EVENT.N) & !flag; k32u++)
+				flag |= hdr->EVENT.CHN[k32u] | hdr->EVENT.DUR[k32u];
+
+		buf[0] = (flag ? 3 : 1);
+		if (hdr->VERSION < 1.94) {
+			k32u   = lround(hdr->EVENT.SampleRate); 
+			buf[1] =  k32u      & 0x000000FF;
+    			buf[2] = (k32u>>8 ) & 0x000000FF;
+			buf[3] = (k32u>>16) & 0x000000FF;
+			*(uint32_t*)(buf+4) = l_endian_u32(hdr->EVENT.N);
+		}
+		else {
+			k32u   = hdr->EVENT.N; 
+			buf[1] =  k32u      & 0x000000FF;
+    			buf[2] = (k32u>>8 ) & 0x000000FF;
+			buf[3] = (k32u>>16) & 0x000000FF;
+			*(float*)(buf+4) = l_endian_f32(hdr->EVENT.SampleRate);
+		};
+		for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
+			hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
+			hdr->EVENT.TYP[k32u] = l_endian_u16(hdr->EVENT.TYP[k32u]); 
+		}
+		ifwrite(buf, 8, 1, hdr);
+		ifwrite(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr);
+		ifwrite(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr);
+		if (buf[0]>1) {
+			for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
+				hdr->EVENT.DUR[k32u] = l_endian_u32(hdr->EVENT.DUR[k32u]); 
+				hdr->EVENT.CHN[k32u] = l_endian_u16(hdr->EVENT.	CHN[k32u]); 
+			}
+			ifwrite(hdr->EVENT.CHN, sizeof(*hdr->EVENT.CHN), hdr->EVENT.N,hdr);
+			ifwrite(hdr->EVENT.DUR, sizeof(*hdr->EVENT.DUR), hdr->EVENT.N,hdr);
+		}
+		ifseek(hdr,filepos,SEEK_SET); 
+		
+		return(0);		
+}
+
+
+
 /****************************************************************************/
 /**                     HDR2ASCII                                          **/
 /**	displaying header information                                      **/ 
@@ -4817,4 +4887,3 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 /**                               EOF                                      **/
 /**                                                                        **/
 /****************************************************************************/
-

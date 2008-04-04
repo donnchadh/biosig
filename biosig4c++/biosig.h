@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.84 2008-03-18 01:44:33 schloegl Exp $
+% $Id: biosig.h,v 1.85 2008-04-04 15:59:24 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -135,7 +135,7 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 /* #define t_time2gdf_time(t)	((gdf_time)floor(ldexp(difftime(t,0)/86400.0 + 719529.0, 32)))  */
 #define gdf_time2t_time(t)	((time_t)((ldexp((double)(t),-32) - 719529) * 86400))
 #define tm_time2gdf_time(t) 	t_time2gdf_time(mktime(t))
-/* #define gdf_time2tm_time(t)	gmtime(gdf_time2t_time(t)) */
+/* #define gdf_time2tm_time(t)        gmtime(gdf_time2t_time(t)) */
 #define	ntp_time2gdf_time(t)	((gdf_time)ldexp(ldexp(((double)(t)),-32)/86400 + 719529.0 - 70,32))
 #define	gdf_time2ntp_time(t)	((int64_t)ldexp((ldexp(((double)(t)),-32) - 719529.0 + 70) * 86400,32))
 
@@ -325,6 +325,7 @@ void	srewind(HDRTYPE* hdr);
 int 	sseek(HDRTYPE* hdr, long int offset, int whence);
 long int stell(HDRTYPE* hdr);
 int 	serror();
+int 	sflush_gdf_event_table(HDRTYPE* hdr);
 int	hdr2ascii(HDRTYPE* hdr,FILE *fid, int verbosity);
 
 /****************************************************************************/
