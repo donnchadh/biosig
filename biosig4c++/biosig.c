@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.156 2008-04-04 22:48:34 schloegl Exp $
+    $Id: biosig.c,v 1.157 2008-04-05 00:04:27 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2349,7 +2349,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				else if (!strncmp(t,"UseBigEndianOrder=YES",21))
 					hdr->FLAG.SWAP = (__BYTE_ORDER == __LITTLE_ENDIAN); 
 				else if (0){
-fprintf(stdout,"[313] <%s>\n",t);				
 					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED; 
 					B4C_ERRMSG = "Error SOPEN(BrainVision): BinaryFormat=<unknown>";
 					return(hdr);
@@ -2368,8 +2367,9 @@ fprintf(stdout,"[313] <%s>\n",t);
 						ifclose(hdr);
 						return(hdr);
 					}
-					size_t len = strcspn(ptr+1,",");
-					strncpy(hdr->CHANNEL[n].Label,ptr+1,min(len,MAX_LENGTH_LABEL));
+					size_t len = min(strcspn(ptr+1,","),MAX_LENGTH_LABEL);
+					strncpy(hdr->CHANNEL[n].Label,ptr+1,len);
+					hdr->CHANNEL[n].Label[len]=0;
 					ptr += len+2;
 					ptr += strcspn(ptr,",")+1;
 					hdr->CHANNEL[n].Cal = atof(ptr);
