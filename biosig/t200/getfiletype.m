@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.71 2008-03-17 08:23:04 schloegl Exp $
+%	$Id: getfiletype.m,v 1.72 2008-04-08 20:48:16 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -393,6 +393,8 @@ else
                 elseif all(s(1:4)==hex2dec(reshape('DADAFEAF',2,4)')'); 
                         HDR.TYPE='WG1';
                         HDR.Endianity = 'ieee-le';
+                elseif all(s(1:4)==[14,15,23,0]); 
+                        HDR.TYPE='WINEEG';
                         
                 elseif strncmp(ss,'HeaderLen=',10); 
                         HDR.TYPE    = 'BCI2000'; 
