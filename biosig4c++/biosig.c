@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.157 2008-04-05 00:04:27 schloegl Exp $
+    $Id: biosig.c,v 1.158 2008-04-08 19:58:54 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2223,7 +2223,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		const char *filename = hdr->FileName; // keep input file name 
 		char* tmpfile = (char*)calloc(strlen(hdr->FileName)+5,1);		
 		strcpy(tmpfile,hdr->FileName);
-		char* ext = strrchr(tmpfile,'.')+1; 
+		hdr->FileName = tmpfile;
+		char* ext = strrchr(hdr->FileName,'.')+1; 
 
 		strcpy(ext,"vhdr");		
        		ifseek(hdr,0,SEEK_END);
@@ -2234,9 +2235,92 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	ifclose(hdr); 
 	    	hdr->AS.Header[hdr->HeadLen] = 0;	// add terminating \0 character
 
+		int seq = 0;
+		/* read marker file */
+		strcpy(ext,"vmrk");		
+       		hdr = ifopen(hdr,"r");
+       		ifseek(hdr,0,SEEK_END);
+		size_t vmrk_len = iftell(hdr);
+	        ifseek(hdr,0,SEEK_SET);
+	    	char* vmrk = (char*)malloc(vmrk_len+1);
+	    	count += ifread(vmrk,1,vmrk_len,hdr);
+	    	ifclose(hdr); 
+	    	vmrk[vmrk_len] = 0;	// add terminating \0 character
+		/* decode marker file */
+		size_t pos = 0;
+
+		char *t1 = strtok(vmrk+pos,"\x0A\x0D");	// skip first line 
+		t1 = strtok(NULL,"\x0A\x0D");		
+		char *t2;
+		size_t N_EVENT=0,n=100,N_TYPES=0;
+ 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, n*sizeof(*hdr->EVENT.POS));
+		hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, n*sizeof(*hdr->EVENT.TYP));
+		hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR, n*sizeof(*hdr->EVENT.DUR));
+		hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN, n*sizeof(*hdr->EVENT.CHN));
+		while (t1 != NULL) {
+			if (!strncmp(t1,";",1))
+				; 	
+			else if (!strncmp(t1,"[Common Infos]",14))
+				seq = 1; 	
+			else if (!strncmp(t1,"[Marker Infos]",14))
+				seq = 2; 
+
+			else if (seq==1) 
+				;
+			else if ((seq==2) && !strncmp(t1,"Mk",2)) {
+				int p1 = strcspn(t1,"="); 
+				int p2 = p1 + 1 + strcspn(t1+p1+1,","); 
+				int p3 = p2 + 1 + strcspn(t1+p2+1,","); 
+				int p4 = p3 + 1 + strcspn(t1+p3+1,","); 
+				int p5 = p4 + 1 + strcspn(t1+p4+1,","); 
+				int p6 = p5 + 1 + strcspn(t1+p5+1,",");
+
+				t1[p1]=0;				
+				t1[p2]=0;				
+				t1[p3]=0;				
+				t1[p4]=0;				
+				t1[p5]=0;				
+
+				if (n <= N_EVENT) {
+					n += 256;
+			 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, n*sizeof(*hdr->EVENT.POS));
+					hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, n*sizeof(*hdr->EVENT.TYP));
+					hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR, n*sizeof(*hdr->EVENT.DUR));
+					hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN, n*sizeof(*hdr->EVENT.CHN));
+				}
+				hdr->EVENT.TYP[N_EVENT] = atol(t1+p2+2);
+				hdr->EVENT.POS[N_EVENT] = atol(t1+p3+1);
+				hdr->EVENT.DUR[N_EVENT] = atol(t1+p4+1);
+				hdr->EVENT.CHN[N_EVENT] = atol(t1+p5+1);
+				if (!strncmp(t1+p1+1,"New Segment",11)) {
+					hdr->EVENT.TYP[N_EVENT] = 0x7ffe;
+					
+					char* t2 = t1+p6+1;
+					t2[14]=0;
+					tm_time.tm_sec  = atoi(t2+12);
+					t2[12]=0;
+					tm_time.tm_min  = atoi(t2+10);
+					t2[10]=0;
+					tm_time.tm_hour = atoi(t2+8);
+					t2[8]=0;
+					tm_time.tm_mday = atoi(t2+6);
+					t2[6]=0;
+					tm_time.tm_mon  = atoi(t2+4);
+					t2[4]=0;
+					tm_time.tm_year = atoi(t2)-1900;
+					
+					hdr->T0 = t_time2gdf_time(mktime(&tm_time));
+				}
+				++N_EVENT;
+			}		
+			t1 = strtok(NULL,"\x0A\x0D");		
+		}
+		hdr->EVENT.N = N_EVENT;
+		free(vmrk);
+
 		/* decode header information */
 		hdr->FLAG.OVERFLOWDETECTION = 0;
-		int seq = 0;
+		seq = 0;
 		uint16_t gdftyp=3; 
 		double physmax=1e6,physmin=-1e6,digmax=1e6,digmin=-1e6,cal=1.0,off=0.0;
 		enum o_t{VEC,MUL};
@@ -2261,7 +2345,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				seq = 3; 
 
 				/* open data file */ 
-				hdr->FileName = tmpfile;
 				hdr = ifopen(hdr,"rb"); 
 	        		ifseek(hdr,0,SEEK_END);
 				size_t FileSize = iftell(hdr);
@@ -2289,8 +2372,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				    	hdr->CHANNEL[k].HighPass = -1.0;
 		    			hdr->CHANNEL[k].Notch	 = -1.0;  // unknown 
 				    	hdr->CHANNEL[k].PhysMax	 = physmax;
-				    	hdr->CHANNEL[k].DigMax	 = physmin;
-				    	hdr->CHANNEL[k].PhysMin	 = digmax;		
+				    	hdr->CHANNEL[k].DigMax	 = digmax;
+				    	hdr->CHANNEL[k].PhysMin	 = physmin;		
 				    	hdr->CHANNEL[k].DigMin	 = digmin;
 				    	hdr->CHANNEL[k].Cal	 = cal;
 				    	hdr->CHANNEL[k].Off	 = off;
@@ -2330,6 +2413,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				}	
 				else if (!strncmp(t,"SamplingInterval=",17)) {
 					hdr->SampleRate = 1e6/atof(t+17);
+					hdr->EVENT.SampleRate = hdr->SampleRate;
 				}	
 			}
 			else if (seq==2) {
