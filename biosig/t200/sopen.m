@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.198 2008-03-19 16:21:39 schloegl Exp $
+%	$Id: sopen.m,v 1.199 2008-04-08 11:45:24 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -506,14 +506,14 @@ end;
                         HDR.Transducer =  char(fread(HDR.FILE.FID,[80,HDR.NS],'uint8')');	
                         
                         if (HDR.NS<1),	% hack for a problem with Matlab 7.1.0.183 (R14) Service Pack 3
-                        		
+
 			elseif (HDR.VERSION < 1.9),
 	                        HDR.PhysDim    =  char(fread(HDR.FILE.FID,[ 8,HDR.NS],'uint8')');
 	                        HDR.PhysMin    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
 	                        HDR.PhysMax    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
 	                        tmp            =       fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');
 	                        HDR.DigMin     =  tmp((1:HDR.NS)*2-1);
-	                        tmp            =       fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');	
+	                        tmp            =       fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');
 	                        HDR.DigMax     =  tmp((1:HDR.NS)*2-1);
 
                                 HDR.PreFilt    =  char(fread(HDR.FILE.FID,[80,HDR.NS],'uint8')');	%	
@@ -655,7 +655,7 @@ end;
                                 elseif strcmp(T1,'Notch'), 
                                         HDR.Filter.Notch(k)   = tmp;
                                 end;
-                                tmp = str2double(F3); 
+                                tmp = str2double(F2); 
                                 if isempty(tmp),tmp=NaN; end; 
                                 if strcmp(T2,'LP'), 
                                         HDR.Filter.LowPass(k) = tmp;
@@ -1414,6 +1414,7 @@ end;
                 HDR.AS.BPR = ceil(HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)');
                 while HDR.NS & any(HDR.AS.BPR  ~= HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)');
                         fprintf(2,'\nWarning SOPEN (GDF/EDF/BDF): invalid block configuration in file %s.\n',HDR.FileName);
+                        HDR.SPR,
                         DIV = 2;
                         HDR.SPR    = HDR.SPR*DIV;
                         HDR.AS.SPR = HDR.AS.SPR*DIV;
@@ -1485,7 +1486,7 @@ end;
 				tmp = floor([rem(tmp,1)*2^32;tmp]);
                                 c = fwrite(HDR.FILE.FID,tmp,'uint32');
                                 c=fwrite(HDR.FILE.FID,[HDR.HeadLen/256,0,0,0],'uint16');
-                                c=fwrite(HDR.FILE.FID,'b4om1.92','uint8'); % EP_ID=ones(8,1)*32;
+                                c=fwrite(HDR.FILE.FID,'b4om2.01','uint8'); % EP_ID=ones(8,1)*32;
 				tmp = [HDR.REC.IPaddr, zeros(1,2)];
 			        c=fwrite(HDR.FILE.FID,tmp(6:-1:1),'uint8'); % IP address
 			        c=fwrite(HDR.FILE.FID,HDR.Patient.Headsize(1:3),'uint16'); % circumference, nasion-inion, left-right mastoid in [mm]
@@ -1588,7 +1589,7 @@ end;
 	                                fwrite(HDR.FILE.FID, HDR.PhysMin,'float64');
 	                                fwrite(HDR.FILE.FID, HDR.PhysMax,'float64');
 
-	                                if exist('OCTAVE_VERSION','builtin'),  % Octave does not support INT64 yet.
+	                                if 0, exist('OCTAVE_VERSION','builtin'),  % Octave does not support INT64 yet.
 	                                        fwrite(HDR.FILE.FID, [HDR.DigMin(:),-(HDR.DigMin(:)<0)]','int32');
 	                                        fwrite(HDR.FILE.FID, [HDR.DigMax(:),-(HDR.DigMax(:)<0)]','int32');
 	                                else
@@ -7400,6 +7401,9 @@ elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
                 end;
                 fclose(fid);
                 HDR.TYPE = 'EVENT';
+                [HDR.EVENT.CodeDesc, i, HDR.EVENT.CodeIndex] = unique(HDR.EVENT.Desc);
+                ix = (HDR.EVENT.TYP==0);
+                HDR.EVENT.TYP(ix) = HDR.EVENT.CodeIndex(ix);
         end; 
 
         
@@ -7567,7 +7571,11 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
 
         	        tmp = which('sopen'); %%% used for BBCI
         	        if exist(fullfile(fileparts(tmp),'bv2biosig_events.m'),'file'); 
-        	        	HDR = bv2biosig_events(HDR); 
+	        	        try 
+	        	        	HDR = bv2biosig_events(HDR); 
+        	        	catch
+        	        		warning('bv2biosig_events not executed');
+        	        	end; 
         	        end; 	
                 end; 
         end; 
@@ -8452,6 +8460,7 @@ elseif strcmp(HDR.TYPE,'ETG4000') 	 % NIRS - Hitachi ETG 4000
                 HDR.Calib   = sparse(2:HDR.NS+1,1:HDR.NS,1); 
                 HDR.Cal     = ones(1,HDR.NS);
                 HDR.Off     = zeros(1,HDR.NS);
+
                 HDR.GDFTYP  = 16*ones(1,HDR.NS);
                 HDR.LeadIdCode = repmat(NaN,1,HDR.NS);
                 HDR.FLAG.OVERFLOWDETECTION = 0;
