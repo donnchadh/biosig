@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.199 2008-04-08 11:45:24 schloegl Exp $
+%	$Id: sopen.m,v 1.200 2008-04-08 20:47:36 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -201,7 +201,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         SCALE14 = {'unknown','no','yes','corrected'};
                 
         if any(HDR.FILE.PERMISSION=='r');
-                [HDR.FILE.FID,MESSAGE]=fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');          
+                [HDR.FILE.FID]=fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');          
                 
                 if HDR.FILE.FID<0 
                         HDR.ErrNo = [32,HDR.ErrNo];
@@ -338,7 +338,7 @@ end;
                         HDR.NS = tmp(1);
                 else 
                         H1(193:256)= fread(HDR.FILE.FID,[1,256-192],'uint8');     %
-                        H1 = char(H1); 
+                        H1 = char(H1);
                         HDR.PID = deblank(char(H1(9:88)));                  % 80 Byte local patient identification
                         HDR.RID = deblank(char(H1(89:168)));                % 80 Byte local recording identification
 			[HDR.Patient.Id,tmp] = strtok(HDR.PID,' ');
@@ -7401,9 +7401,9 @@ elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
                 end;
                 fclose(fid);
                 HDR.TYPE = 'EVENT';
-                [HDR.EVENT.CodeDesc, i, HDR.EVENT.CodeIndex] = unique(HDR.EVENT.Desc);
+                [HDR.EVENT.CodeDesc, CodeIndex, j] = unique(HDR.EVENT.Desc);
                 ix = (HDR.EVENT.TYP==0);
-                HDR.EVENT.TYP(ix) = HDR.EVENT.CodeIndex(ix);
+                HDR.EVENT.TYP(ix) = j(ix);
         end; 
 
         

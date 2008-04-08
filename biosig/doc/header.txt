@@ -3,7 +3,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.24 2008-03-15 00:30:55 schloegl Exp $
+$Id: header.txt,v 1.25 2008-04-08 20:47:36 schloegl Exp $
 Copyright (C) Alois Schloegl 2003-2005 <a.schloegl@ieee.org>
 
 
@@ -57,6 +57,7 @@ HDR.EVENT 	# two versions are possible. Version 1:
     EVENT.VAL		(*)		use for sparse (non-equidistant) sample values). The type corresponds to GDFTYP of the respective channel. 
                                         and must not exceed 32 bits (4 bytes). Currently, only integer types are supported. 
 		# [OPTIONAL]
+    EVENT.Desc		text		description of Event
     EVENT.CodeDesc	text		description of Eventtypes
     EVENT.CodeIndex	int		corresponding index 
 
