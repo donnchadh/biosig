@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.158 2008-04-08 19:58:54 schloegl Exp $
+    $Id: biosig.c,v 1.159 2008-04-09 13:29:05 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1539,9 +1539,7 @@ if (!strncmp(MODE,"r",1))
 	    		tm_time.tm_mon  = atoi(tmp)-1;
 			strncpy(tmp,Header1+168   ,4);	    		 
 	    		tm_time.tm_year = atoi(tmp)-1900; 
-#ifndef __sparc__
-	    		tm_time.tm_gmtoff = 0;
-#endif
+
 			hdr->T0 = t_time2gdf_time(mktime(&tm_time)); 
 		    	hdr->HeadLen 	= leu64p(hdr->AS.Header+184); 
 	    	}
@@ -1690,10 +1688,7 @@ if (!strncmp(MODE,"r",1))
     		tm_time.tm_year = atoi(tmp); 
     		tm_time.tm_year+= (tm_time.tm_year < 70 ? 100 : 0);
     		
-    fprintf(stdout,"%s\n",asctime(&tm_time));		
-#ifndef __sparc__
-    		tm_time.tm_gmtoff = 0;
-#endif
+		hdr->EVENT.N 	= 0;
 	    	hdr->NS		= atoi(strncpy(tmp,Header1+252,4));
 	    	hdr->HeadLen	= atoi(strncpy(tmp,Header1+184,8));
 	    	hdr->NRec	= atoi(strncpy(tmp,Header1+236,8));
@@ -2486,9 +2481,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	tm_time.tm_hour = lei32p(hdr->AS.Header+28);
 	    	tm_time.tm_min  = lei32p(hdr->AS.Header+32);
 	    	tm_time.tm_sec  = (int)lef64p(hdr->AS.Header+36);
-#ifndef __sparc__
-			tm_time.tm_gmtoff = 0;
-#endif
+
     		hdr->T0 	= tm_time2gdf_time(&tm_time);
 	    	// = *(double*)(Header1+44);
 	    	hdr->NS   	= leu32p(hdr->AS.Header+52);
@@ -2540,9 +2533,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		tm_time.tm_mday = atoi(strncpy(tmp,ptr_str,2)); 
     		tm_time.tm_mon  = atoi(strncpy(tmp,ptr_str+3,2)-1); 
     		tm_time.tm_year = atoi(strncpy(tmp,ptr_str+6,2)); 
-#ifndef __sparc__
-			tm_time.tm_gmtoff = 0;
-#endif
+
 	    	if (tm_time.tm_year<=80)    	tm_time.tm_year += 2000;
 	    	else if (tm_time.tm_year<100) 	tm_time.tm_year += 1900;
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
@@ -2677,9 +2668,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	tm_time.tm_min  = beu16p(hdr->AS.Header+12);
 	    	tm_time.tm_sec  = beu16p(hdr->AS.Header+14);
 	    	// tm_time.tm_sec  = beu32p(Header1+16)/1000; // not supported by tm_time
-#ifndef __sparc__
-			tm_time.tm_gmtoff = 0;
-#endif
+
 	    	hdr->T0 = tm_time2gdf_time(&tm_time);
 	    	hdr->SampleRate = beu16p(hdr->AS.Header+20);
     		hdr->Dur[0] 	= 1;
@@ -3257,9 +3246,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    		tm_time.tm_hour = 12; 
 		    		tm_time.tm_min  = 0; 
 		    		tm_time.tm_sec  = 0; 
-#ifndef __sparc__
-					tm_time.tm_gmtoff = 0;
-#endif
 				hdr->Patient.Birthday  = t_time2gdf_time(mktime(&tm_time)); 
 				//hdr->Patient.Age = buf[0] + cswap_u16(*(uint16_t*)(buf+1))/365.25;
 			}	
@@ -3278,9 +3264,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    		tm_time.tm_hour = buf[4]; 
 		    		tm_time.tm_min  = buf[5]; 
 		    		tm_time.tm_sec  = buf[6]; 
-#ifndef __sparc__
-					tm_time.tm_gmtoff = 0;
-#endif
+				
 				hdr->T0  = t_time2gdf_time(mktime(&tm_time)); 
 				// add milli- and micro-seconds
 				if (hdr->FLAG.SWAP) 
