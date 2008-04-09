@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.159 2008-04-09 13:29:05 schloegl Exp $
+    $Id: biosig.c,v 1.160 2008-04-09 22:58:34 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -844,7 +844,7 @@ int ifseek(HDRTYPE* hdr, long offset, int whence) {
 	return(fseek(hdr->FILE.FID,offset,whence));
 }
 
-long iftell(HDRTYPE* hdr) {
+long int iftell(HDRTYPE* hdr) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION)
 	return(gztell(hdr->FILE.gzFID));
@@ -2300,7 +2300,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					t2[8]=0;
 					tm_time.tm_mday = atoi(t2+6);
 					t2[6]=0;
-					tm_time.tm_mon  = atoi(t2+4);
+					tm_time.tm_mon  = atoi(t2+4)-1;
 					t2[4]=0;
 					tm_time.tm_year = atoi(t2)-1900;
 					
@@ -2781,7 +2781,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				tm_time.tm_sec = 0;
 				tm_time.tm_year -= 1900;
 				tm_time.tm_mon -= 1;
-				fprintf(stdout,"%s\n",asctime(&tm_time));
+				//fprintf(stdout,"%s\n",asctime(&tm_time));
 				hdr->T0 = tm_time2gdf_time(&tm_time);
 			}
 			else if (!strncmp(t,"HPF[Hz]",7))
@@ -3540,12 +3540,12 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    	*(uint32_t*)(Header1+24) = l_endian_u32(t->tm_mday);
 	    	*(uint32_t*)(Header1+28) = l_endian_u32(t->tm_hour);
 	    	*(uint32_t*)(Header1+32) = l_endian_u32(t->tm_min);
-	    	*(double*) (Header1+36)  = l_endian_f64(t->tm_sec);
-	    	*(double*) (Header1+44)  = l_endian_f64(0.0);	// pretrigger time 
+	    	*(double*)  (Header1+36) = l_endian_f64(t->tm_sec);
+	    	*(double*)  (Header1+44) = l_endian_f64(0.0);	// pretrigger time 
 	    	*(uint32_t*)(Header1+52) = l_endian_u32(hdr->NS);
 	    	hdr->NRec *= hdr->SPR; hdr->SPR = 1;
 	    	*(uint32_t*)(Header1+56) = l_endian_u32(hdr->NRec); // number of samples 
-	    	*(int32_t*)(Header1+60)	 = l_endian_i32(0);	// 1: time channel
+	    	*(int32_t*) (Header1+60) = l_endian_i32(0);	// 1: time channel
 
 	    	int32_t gdftyp = 3; // 1:double, 2:float, 3: int16; see CFWB_GDFTYP too. 
 		for (k=0; k<hdr->NS; k++) {
@@ -3578,14 +3578,14 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			*(double*)(Header2+96*k+88) = l_endian_f64(hdr->CHANNEL[k].PhysMin);
 		}
 	}
-    	else if (hdr->TYPE==GDF || hdr->TYPE==GDF1) {	
+    	else if ((hdr->TYPE==GDF) || (hdr->TYPE==GDF1)) {	
 	     	hdr->HeadLen = (hdr->NS+1)*256;
 	    	hdr->AS.Header = (uint8_t*) malloc(hdr->HeadLen);
 	    	uint8_t* Header2 = hdr->AS.Header+256; 
 
 		memset(Header1,0,hdr->HeadLen);
 		hdr->VERSION = 1.99;
-		if (hdr->TYPE==GDF1)	hdr->VERSION = 1.25;
+		if (hdr->TYPE==GDF1) hdr->VERSION = 1.25;
 	     	sprintf(Header1,"GDF %4.2f",hdr->VERSION);
 	     	
 		uint16_t maxlen=66; 
@@ -3599,6 +3599,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		} 
 		else     	
 		     	strncat(Header1+8, "X", maxlen);
+
 	     	strncat(Header1+8, " ", maxlen);
 		if (!hdr->FLAG.ANONYMOUS && (hdr->Patient.Name!=NULL)) 
 		     	strncat(Header1+8, hdr->Patient.Name, maxlen);
@@ -3704,28 +3705,27 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			     	// FIXME // memcpy(Header2 + 80*k + 136*hdr->NS,hdr->CHANNEL[k].PreFilt,max(80,strlen(hdr->CHANNEL[k].PreFilt)));
 			}     	
 			else {
-			     	*(double*)(Header2 + 8*k + 120*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].DigMin);
-			     	*(double*)(Header2 + 8*k + 128*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].DigMax);
-			     	*(float*) (Header2+ 4*k + 204*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].LowPass);
-			     	*(float*) (Header2+ 4*k + 208*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].HighPass);
-			     	*(float*) (Header2+ 4*k + 212*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].Notch);
+			     	*(double*)(Header2 + 8*k + 120*hdr->NS) = l_endian_f64(hdr->CHANNEL[k].DigMin);
+			     	*(double*)(Header2 + 8*k + 128*hdr->NS) = l_endian_f64(hdr->CHANNEL[k].DigMax);
+			     	*(float*) (Header2 + 4*k + 204*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].LowPass);
+			     	*(float*) (Header2 + 4*k + 208*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].HighPass);
+			     	*(float*) (Header2 + 4*k + 212*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Notch);
 
-				*(float*) (Header2+ 4*k + 224*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].XYZ[0]);
-				*(float*) (Header2+ 4*k + 228*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].XYZ[1]);
-				*(float*) (Header2+ 4*k + 232*hdr->NS)    = l_endian_f32(hdr->CHANNEL[k].XYZ[2]);
+				*(float*) (Header2 + 4*k + 224*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[0]);
+				*(float*) (Header2 + 4*k + 228*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[1]);
+				*(float*) (Header2 + 4*k + 232*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[2]);
 
 	     			Header2[k+236*hdr->NS] = (uint8_t)ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
 		     	}
-		     	*(uint32_t*) (Header2+ 4*k + 216*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].SPR);
-		     	*(uint32_t*) (Header2+ 4*k + 220*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].GDFTYP);
+		     	*(uint32_t*) (Header2 + 4*k + 216*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].SPR);
+		     	*(uint32_t*) (Header2 + 4*k + 220*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].GDFTYP);
 		}
 	    	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(int32_t));
 		hdr->AS.bi[0] = 0;
-		for (k=0, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;)
-		{
+		for (k=0, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;) {
 			hdr->AS.spb += hdr->CHANNEL[k].SPR;
 			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR;
-			hdr->AS.bi[++k] = hdr->AS.bpb; 
+			hdr->AS.bi[++k] = hdr->AS.bpb;
 		}	
 //		hdr->AS.Header1 = (uint8_t*)Header1; 
 	}
@@ -3787,8 +3787,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (len>4) fprintf(stderr,"Warning: NS is (%s) too long (%i>4).\n",tmp,len);  
 	     	memcpy(Header1+252, tmp, len);
 	     	
-		for (k=0;k<hdr->NS;k++)
-		{
+		for (k=0;k<hdr->NS;k++) {
 			const char *tmpstr;
 			if (hdr->CHANNEL[k].LeadIdCode)
 				tmpstr = LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode];
@@ -4080,8 +4079,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 }  // end of SOPEN 
 
 
+#define ROW_BASED_CHANNELS_NO
+
 /****************************************************************************/
-/**	SREAD                                                              **/
+/**	SREAD : segment-based                                              **/
 /****************************************************************************/
 size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) {
 /* 
@@ -4138,7 +4139,8 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	}
 	else 	{  // ETG4000, SCP_ECG or HL7aECG format 
 		// hdr->AS.rawdata was defined in SOPEN	
-		count = hdr->NRec;
+		hdr->FILE.POS = start; 	
+		count = max(min(length, hdr->NRec - hdr->FILE.POS),0);
 	}
 	
 	// set position of file handle 
@@ -4149,13 +4151,15 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	for (k1=0,NS=0; k1<hdr->NS; ++k1)
 		if (hdr->CHANNEL[k1].OnOff) ++NS; 
 
+// fprintf(stdout,"SREAD: pos=%i, size of data = %ix%ix%ix%i = %i\n",hdr->FILE.POS,hdr->SPR, count, NS, sizeof(biosig_data_type),hdr->SPR * count * NS * sizeof(biosig_data_type));
+
 	// transfer RAW into BIOSIG data format 
 	if (data==NULL)
 		data = (biosig_data_type*) malloc(hdr->SPR * count * NS * sizeof(biosig_data_type));
+		
+		
 	hdr->data.block = data; 
 //	hdr->data.block = (biosig_data_type*) realloc(hdr->data.block, (hdr->SPR) * count * NS * sizeof(biosig_data_type));
-		
-
 
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
@@ -4163,8 +4167,12 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	if (CHptr->OnOff) {	/* read selected channels only */ 
 	if (CHptr->SPR==0) {	
 		// sparsely sampled channels are stored in event table
-		for (k5 = 0; k5 < hdr->SPR*hdr->NRec; k5++)
-			hdr->data.block[k2*count*hdr->SPR + k5] = NaN;
+		for (k5 = 0; k5 < hdr->SPR*count; k5++)
+#ifdef ROW_BASED_CHANNELS
+			hdr->data.block[k2 + k5*NS] = NaN;		// row-based channels 
+#else
+			hdr->data.block[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
+#endif
 	}
 	else {
 		DIV 	= hdr->SPR/CHptr->SPR; 
@@ -4276,9 +4284,14 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 			sample_value = NaN; 	// missing value 
 		else if (!hdr->FLAG.UCAL)	// scaling 
 			sample_value = sample_value * CHptr->Cal + CHptr->Off;
+
 		// resampling 1->DIV samples
 		for (k3=0; k3 < DIV; k3++) 
-			hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; 
+#ifdef ROW_BASED_CHANNELS
+			hdr->data.block[k2 + (k4*CHptr->SPR + k5 + k3)*NS] = sample_value; // row-based channels 
+#else
+			hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; // column-based channels 
+#endif
 
 		if ((VERBOSE_LEVEL>7) && (k4==0) && (k5==0)) 
 		fprintf(stdout,":s(1)=%f, NS=%d,[%d,%d,%d,%d SZ=%i, bpb=%i] %e %e %e\n",*(double*)hdr->AS.rawdata,NS,k1,k2,k4,k5,SZ,hdr->AS.bpb,sample_value,(*(double*)(ptr)),(*(float*)(ptr)));
@@ -4287,8 +4300,13 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	}	
 	k2++;
 	}}
+#ifdef ROW_BASED_CHANNELS
+	hdr->data.size[0] = k2;			// rows	
+	hdr->data.size[1] = hdr->SPR*count;	// columns 
+#else
 	hdr->data.size[0] = hdr->SPR*count;	// rows	
 	hdr->data.size[1] = k2;			// columns 
+#endif
 
 
 	/* read sparse samples */	
@@ -4362,7 +4380,11 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 			// resampling 1->DIV samples
 			k5  = (hdr->EVENT.POS[k1]/c - POS)*hdr->SPR;
 			for (k3=0; k3 < DIV; k3++) 
+#ifdef ROW_BASED_CHANNELS
+				hdr->data.block[k2 + (k5 + k3)*NS] = sample_value; 
+#else
 				hdr->data.block[k2*count*hdr->SPR + k5 + k3] = sample_value; 
+#endif 
 
 		if (VERBOSE_LEVEL>7) 
 			fprintf(stdout,"E%02i: s(1)= %d %e %e %e\n",k1,leu32p(ptr),sample_value,(*(double*)(ptr)),(*(float*)(ptr)));
@@ -4373,6 +4395,27 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	return(count);
 
 }  // end of SREAD 
+
+
+/****************************************************************************/
+/**	SREAD : sample-based
+	this is still experiemental                                        **/
+/****************************************************************************/
+size_t sread2(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) {
+
+	size_t count,k1,NS;
+
+	// count number of selected channels 
+	for (k1=0,NS=0; k1<hdr->NS; ++k1)
+		if (hdr->CHANNEL[k1].OnOff) ++NS; 
+
+	size_t s = floor(start/hdr->SPR);
+	size_t e = ceil ((start+length)/hdr->SPR);
+	count    = sread2(data, s, s-e, hdr);
+	/* in order to avoid memory leaks need fixing */
+	data     = data + NS*sizeof(biosig_data_type)*(start-s*hdr->SPR);
+	return(count);
+}
 
 
 /****************************************************************************/
@@ -4603,7 +4646,7 @@ void srewind(HDRTYPE* hdr)
 /****************************************************************************/
 int sseek(HDRTYPE* hdr, long int offset, int whence)
 {
-	size_t pos=0; 
+	int64_t pos=0; 
 	
 	if    	(whence < 0) 
 		pos = offset * hdr->AS.bpb; 
@@ -4628,9 +4671,7 @@ int sseek(HDRTYPE* hdr, long int offset, int whence)
 /****************************************************************************/
 long int stell(HDRTYPE* hdr)
 {
-	size_t pos; 
-	
-	pos = iftell(hdr);	
+	long int pos = iftell(hdr);	
 
 	if (pos<0)
 		return(-1);

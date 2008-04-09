@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.19 2008-04-04 20:30:21 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.20 2008-04-09 22:58:34 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -27,7 +27,7 @@ void mexFunction(
 )
 
 {
-	int k;
+	int k,k1;
 	const mxArray	*arg;
 	HDRTYPE		*hdr;
 	CHANNEL_TYPE*	cp; 
@@ -140,7 +140,14 @@ void mexFunction(
 
 	hdr->NRec = count; 
 	plhs[0] = mxCreateDoubleMatrix(hdr->SPR * count, NS, mxREAL);
+#ifdef ROW_BASED_CHANNELS
 	memcpy((void*)mxGetPr(plhs[0]),(void*)hdr->data.block,hdr->SPR * count * NS * sizeof(biosig_data_type));
+#else
+	/* tramspose matrix */
+	for (k=0; k<count*hdr->SPR; ++k)
+	for (k1=0; k1<NS; ++k1)
+		*(mxGetPr(plhs[0]) + k1*count*hdr->SPR + k) = hdr->data.block[k1 + k*NS];
+#endif 	
 	free(hdr->data.block);	
 
 
