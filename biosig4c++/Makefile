@@ -1,7 +1,7 @@
 
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.39 2008-04-04 22:50:55 schloegl Exp $
+###  $Id: Makefile,v 1.40 2008-04-09 10:24:55 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -9,11 +9,14 @@
 ##############################################################
 
 
-CC            = g++
+CC            = $(CXX)
 CXX           = g++
+MEX	      = /opt/MatlabR2008a/bin/mex	# Matlab mex compiler
 #DEFINES      = -D=WITHOUT_SCP_DECODE
 DEFINES       =
-CFLAGS        = -fPIC -O2 -Wall $(DEFINES)
+CFLAGS        = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES)
+CXXFLAGS      = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES)
+AR            = ar cqs
 INCPATH       =
 #LINK          = gcc
 LINK          = g++
@@ -23,6 +26,11 @@ LIBS          = libbiosig.a -lz 	# zlib
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
 
+####### Output directory
+
+OBJECTS_DIR   = ./
+
+####### Files
 
 SOURCES       = biosig.c \
 		XMLParser/tinyxml.cpp \
@@ -36,25 +44,94 @@ SOURCES       = biosig.c \
 		t230/sopen_hl7aecg.c \
 
 OBJECTS       = biosig.o \
-		XMLParser/tinyxml.o \
-		XMLParser/tinyxmlparser.o \
-		XMLParser/tinyxmlerror.o \
-		XMLParser/tinystr.o \
-		t210/sopen_scp_read.o \
-		t210/scp-decode.o \
-		t220/sopen_scp_write.o \
-		t220/crc4scp.o \
-		t230/sopen_hl7aecg.o
+		tinyxml.o \
+		tinyxmlparser.o \
+		tinyxmlerror.o \
+		tinystr.o \
+		sopen_scp_read.o \
+		scp-decode.o \
+		sopen_scp_write.o \
+		crc4scp.o \
+		sopen_hl7aecg.o
 
 TARGET        = save2gdf save2aecg save2scp mex4o
 
 first: $(TARGET)
 all: $(TARGET) mex4o sigviewer biosig4python
 
-biosig.o t210/sopen_scp_read.o t210/scp-decode.o t220/sopen_scp_write.o t230/sopen_hl7aecg.o save2gdf.o: biosig.h biosig-dev.h
+####### Implicit rules
 
-%.o:  %.c %.cpp  %.h 
-	$(CXX) -shared -S $(CFLAGS) -c $(.SOURCE)  
+.SUFFIXES: .o .c .cpp .cc .cxx .C
+
+.cpp.o:
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
+
+.cc.o:
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
+
+.cxx.o:
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
+
+.C.o:
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
+
+.c.o:
+	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
+
+
+####### Compile
+
+biosig.o: biosig.c biosig-dev.h biosig.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o biosig.o biosig.c
+
+save2gdf.o: save2gdf.c biosig-dev.h biosig.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o save2gdf.o save2gdf.c
+
+sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h \
+		biosig.h \
+		t210/structures.h \
+		t210/types.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_scp_read.o t210/sopen_scp_read.c
+
+scp-decode.o: t210/scp-decode.cpp biosig-dev.h \
+		biosig.h \
+		t210/types.h \
+		t210/structures.h \
+		t210/codes.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o scp-decode.o t210/scp-decode.cpp
+
+crc4scp.o: t220/crc4scp.c 
+	$(CC) -c $(CFLAGS) $(INCPATH) -o crc4scp.o t220/crc4scp.c
+
+sopen_scp_write.o: t220/sopen_scp_write.c biosig-dev.h \
+		biosig.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_scp_write.o t220/sopen_scp_write.c
+
+sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h \
+		biosig.h \
+		XMLParser/tinyxml.h \
+		XMLParser/tinystr.h \
+		XMLParser/Tokenizer.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_hl7aecg.o t230/sopen_hl7aecg.c
+
+tinystr.o: XMLParser/tinystr.cpp XMLParser/tinystr.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinystr.o XMLParser/tinystr.cpp
+
+tinyxml.o: XMLParser/tinyxml.cpp XMLParser/tinyxml.h \
+		XMLParser/tinystr.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinyxml.o XMLParser/tinyxml.cpp
+
+tinyxmlerror.o: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h \
+		XMLParser/tinystr.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinyxmlerror.o XMLParser/tinyxmlerror.cpp
+
+tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h \
+		XMLParser/tinystr.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinyxmlparser.o XMLParser/tinyxmlparser.cpp
+
+
+
+####### Build rules
 
 biosig4python _biosig.so: biosig.py
 biosig.py:	$(SOURCES) libbiosig.a swig.i
@@ -62,9 +139,6 @@ biosig.py:	$(SOURCES) libbiosig.a swig.i
 	$(CXX) -fPIC -c swig_wrap.cxx -o swig_wrap.o -I/usr/include/python2.4
 	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so
 
-
-
-####### Compile and link #########
 
 #$(TARGET):  libbiosig.a 
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
@@ -83,7 +157,7 @@ mex: mex4m mex4o
 
 mex4m: mexSLOAD.cpp $(OBJECTS)
 	echo "Warning: MEX for Matlab is not tested yet"
-	$(MEX) mexSLOAD.cpp  $(OBJECTS) 
+	$(MEX) mexSLOAD.cpp  $(LIBS) 
 
 mex4o:  mexSLOAD.mex
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
@@ -93,7 +167,7 @@ oct:  mexSLOAD.oct
 mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a 
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) 
 
-sigviewer: libbiosig.a
+sigviewer: 
 	sh makeSV.sh
 	
 
@@ -124,6 +198,7 @@ clean:
 	-$(DEL_FILE) t5.scp t6.scp save2gdf gztest test_scp_decode
 	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.*.gz *.fil /tmp/t1.*
 	-$(DEL_FILE) swig_wrap.* biosig.py 
+	-$(DEL_FILE) QMakefile
 
 
 ####### Testing ########
