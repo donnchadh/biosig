@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.3 2008-04-01 22:19:47 schloegl Exp $
+% $Id: biosig-dev.h,v 1.4 2008-04-10 14:08:49 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -56,6 +56,12 @@
 #define __BIG_ENDIAN  	 4321
 #define __LITTLE_ENDIAN  1234
 #define __BYTE_ORDER 	__BIG_ENDIAN
+#endif 
+
+#if	__MINGW32__
+#define __BIG_ENDIAN  	 4321
+#define __LITTLE_ENDIAN  1234
+#define __BYTE_ORDER 	__LITTLE_ENDIAN
 #endif 
 
 #ifdef __linux__
