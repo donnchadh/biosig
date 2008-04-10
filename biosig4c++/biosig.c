@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.160 2008-04-09 22:58:34 schloegl Exp $
+    $Id: biosig.c,v 1.161 2008-04-10 21:20:08 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -896,7 +896,7 @@ int iferror(HDRTYPE* hdr) {
 /*------------------------------------------------------------------------
 	write GDF event table   
 	utility function for SCLOSE and SFLUSH_GDF_EVENT_TABLE                                           
-------------------------------------------------------------------------*/
+  ------------------------------------------------------------------------*/
 void write_gdf_eventtable(HDRTYPE *hdr) 
 {
 	uint32_t	k32u; 
@@ -1771,8 +1771,35 @@ if (!strncmp(MODE,"r",1))
 			hdr->CHANNEL[k].OnOff   = 1;
 			hdr->SPR 	 	= lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 			
-			//hdr->CHANNEL[k].PreFilt = (Header2+ 80*k + 136*hdr->NS);
+			hdr->CHANNEL[k].LowPass = NaN;
+			hdr->CHANNEL[k].HighPass = NaN;
+			hdr->CHANNEL[k].Notch = NaN;
 			// decode filter information into hdr->Filter.{Lowpass, Highpass, Notch}					
+			float lf,hf;
+			char *PreFilt = (Header2+ 80*k + 136*hdr->NS);
+			char s1[40],s2[40];
+			PreFilt[79] = 0;
+			uint16_t d, pdc;
+			d = sscanf(PreFilt,"HP: %f %s LP:%f %s ",&lf,s1,&hf,s2);
+			if (d==4) {
+				pdc = PhysDimCode(s1);
+				if ((pdc & 0xffe0) == 2496)	// Hz 
+					hdr->CHANNEL[k].HighPass = lf * PhysDimScale(pdc);
+				pdc = PhysDimCode(s2);
+				if ((pdc & 0xffe0) == 2496)	// Hz 
+					hdr->CHANNEL[k].LowPass  = hf * PhysDimScale(pdc);
+			}
+			else {
+				d = sscanf(PreFilt,"HP: %s LP: %f %s ",s1,&hf,s2);
+				if (d==3) {
+					if (!strncmp(s1,"DC",2)) 
+						hdr->CHANNEL[k].HighPass = 0;
+					pdc = PhysDimCode(s2);
+					if ((pdc & 0xffe0) == 2496)	// Hz
+						hdr->CHANNEL[k].LowPass  = hf * PhysDimScale(pdc);
+				}
+			}
+				
 			if ((hdr->TYPE==EDF) && !strncmp(Header1+192,"EDF+",4) && !strcmp(hdr->CHANNEL[k].Label,"EDF Annotations")) {
 				hdr->CHANNEL[k].OnOff = 0;
 				EventChannel = k; 
@@ -2246,8 +2273,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 		char *t1 = strtok(vmrk+pos,"\x0A\x0D");	// skip first line 
 		t1 = strtok(NULL,"\x0A\x0D");		
-		char *t2;
-		size_t N_EVENT=0,n=100,N_TYPES=0;
+		size_t N_EVENT=0,n=100;
  		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, n*sizeof(*hdr->EVENT.POS));
 		hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, n*sizeof(*hdr->EVENT.TYP));
 		hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR, n*sizeof(*hdr->EVENT.DUR));
@@ -4118,9 +4144,9 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	biosig_data_type 	sample_value; 
 	
 
-	if (hdr->TYPE != SCP_ECG && hdr->TYPE != HL7aECG && hdr->TYPE != ETG4000) {	
+	if ((hdr->TYPE != SCP_ECG) && (hdr->TYPE != HL7aECG) && (hdr->TYPE != ETG4000)) {	
 		// check reading segment 
-		if (start < 0 || start > hdr->NRec) 
+		if ((start < 0) || (start > hdr->NRec)) 
 			return(0);
 		else if (ifseek(hdr, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET)<0)
 			return(0);
