@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.21 2008-04-11 09:24:46 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.22 2008-04-11 09:51:05 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -38,7 +38,7 @@ void mexFunction(
 	int		CHAN = 0;
 	double		*ChanList=NULL;
 	int		NS = -1;
-	char		FlagOverflowDetection=0, FlagUCAL=0;
+	char		FlagOverflowDetection=1, FlagUCAL=0;
 	
 	
 	VERBOSE_LEVEL = 3; 
@@ -155,7 +155,7 @@ void mexFunction(
 
 	hdr->NRec = count; 
 	plhs[0] = mxCreateDoubleMatrix(hdr->SPR * count, NS, mxREAL);
-#ifdef ROW_BASED_CHANNELS
+#ifndef ROW_BASED_CHANNELS
 	memcpy((void*)mxGetPr(plhs[0]),(void*)hdr->data.block,hdr->SPR * count * NS * sizeof(biosig_data_type));
 #else
 	/* tramspose matrix */
