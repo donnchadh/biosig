@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.201 2008-04-11 08:06:46 schloegl Exp $
+%	$Id: sopen.m,v 1.202 2008-04-11 12:45:47 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -6209,12 +6209,12 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 				%% if file was recorded on WIN but analyzed in LINUX
 				file=file(max(find(file=='\'))+1:end);
 			end;	 
-                        file = [file,ext];
+                        file = fullfile(HDR.FILE.Path,[file,ext]);
                         if exist(file,'file')
                                 HDR.data=daqread(file);        
                                 HDR.info=daqread(file,'info');        
                         else
-                                fprintf(HDR.FILE.stderr,'Error SOPEN: no data file found\n');
+                                fprintf(HDR.FILE.stderr,'Error SOPEN: data file %s not found\n',file);
                                 return;
                         end;
                         
@@ -6228,7 +6228,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
                 
                 if all(tmp.P_C_DAQ_S.unit==1)
-                        HDR.PhysDim='uV';
                         HDR.PhysDimCode=repmat(4275,1,HDR.NS);	%% uV
                 else
                         HDR.PhysDimCode=zeros(1,HDR.NS); 	%% [?]
