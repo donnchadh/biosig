@@ -28,7 +28,7 @@
 %	Brain Computer Interfaces - Invasive and noninvasive techniques. 
 %	Springer (submitted).
 
-%	$Id: demo2.m,v 1.8 2008-02-11 00:03:22 schloegl Exp $
+%	$Id: demo2.m,v 1.9 2008-04-11 12:50:28 schloegl Exp $
 %	Copyright (C) 1999-2003,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -60,13 +60,13 @@ if ~exist(fn,'file')
         system('wget http://hci.tugraz.at/schloegl/bci/competition2003/dataset_BCIcomp1raw.mat');
 end;        
 load(fn);
-cl = c1;
-Fs = 128;
+HDR.Classlabel = c1;
+Fs = 125;
 trigchan = 4;
 eegchan  = [1,3];
 
-TRIG = gettrigger(S(:,trigchan))-2*Fs;
-if length(TRIG)~=length(cl);
+HDR.TRIG = gettrigger(S(:,trigchan))-2*Fs;
+if length(HDR.TRIG)~=length(HDR.Classlabel);
         fprintf(2,'number of Triggers (%i) does not fit size of class information (%i)',length(TRIG),length(cl));
 	return;        
 end;
@@ -76,7 +76,7 @@ if ~any(size(eegchan)==1)
 	eegchan=1:size(eegchan,2); 
 end;
 
-MODE.T   = reshape((1:1152),16,1152/16)';	% define segments 
+MODE.T   = reshape((1:9*Fs),25,9*Fs/25)';	% define segments 
 MODE.WIN = MODE.T(:,1) > 3*Fs/8+1;	        % valid segments for building classifier
 MODE.MOP = [0,p,0];				% order of AAR model
 MODE.UC  = 2^(-(7+5)*5/8);			% update coefficient of AAR model 
@@ -92,7 +92,7 @@ for ch = 1:length(eegchan),
 end; 
 
 % get classifier 
-[cc] = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN);
+[cc] = findclassifier(a2, HDR.TRIG, HDR.Classlabel, MODE.T, MODE.WIN);
 cc.TSD.T = cc.TSD.T/Fs;
 plota(cc.TSD);
 return; 
