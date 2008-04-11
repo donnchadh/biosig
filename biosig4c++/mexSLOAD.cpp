@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.22 2008-04-11 09:51:05 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.23 2008-04-11 13:07:11 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -384,6 +384,16 @@ void mexFunction(
 		mxSetField(Patient,0,"Weight",mxCreateDoubleScalar((double)hdr->Patient.Weight));
 		mxSetField(Patient,0,"Height",mxCreateDoubleScalar((double)hdr->Patient.Height));
 		mxSetField(Patient,0,"Birthday",mxCreateDoubleScalar(ldexp(hdr->Patient.Birthday,-32)));
+		double d;
+		if (hdr->Patient.Weight==0)		d = 0.0/0.0;	// not-a-number		
+		else if (hdr->Patient.Weight==255)	d = 1.0/0.0;	// Overflow
+		else					d = (double)hdr->Patient.Weight;
+		mxSetField(Patient,0,"Weight",mxCreateDoubleScalar(d));
+			
+		if (hdr->Patient.Height==0)		d = 0.0/0.0;	// not-a-number		
+		else if (hdr->Patient.Height==255)	d = 1.0/0.0;	// Overflow
+		else					d = (double)hdr->Patient.Height;
+		mxSetField(Patient,0,"Height",mxCreateDoubleScalar(d));
 	
 		mxSetField(HDR,0,"Patient",Patient);
 
