@@ -26,14 +26,13 @@ function [HDR] = save2gdf(arg1,arg2,arg3);
 %   HDR		Header, HDR.FileName must contain target filename
 %   data	data samples
 
-
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
 
-% 	$Id: save2gdf.m,v 1.13 2008-04-01 12:38:38 schloegl Exp $
+% 	$Id: save2gdf.m,v 1.14 2008-04-11 12:57:27 schloegl Exp $
 %	Copyright (C) 2003-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>		
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -102,8 +101,10 @@ if isstruct(arg1),
 	end; 
 
 	HDR.TYPE = 'GDF';
-	HDR.VERSION = 2.0;	
-	HDR.FLAG.UCAL = 1;              % data is de-calibrated, no rescaling within SWRITE 
+	if ~isfield(HDR,'VERSION');
+		HDR.VERSION = 2.0;	
+	end;	
+%	HDR.FLAG.UCAL = 0;              % data is de-calibrated, no rescaling within SWRITE 
 	if strcmp(HDR.TYPE,'EVENT')
                 HDR.SampleRate = HDR.EVENT.SampleRate;
         elseif isfield(HDR,'GDFTYP')
@@ -235,11 +236,11 @@ if isstruct(arg1),
     		H2.FLAG.OVERFLOWDETECTION = 0; 
     		[y1,H2] = sread(H2,inf);
                 H2 = sclose(H2);
-		d2 = [ones(size(data,1),1),data]*HDR.Calib;
+		d2 = [ones(size(data,1),1),data]*H2.Calib;
                 if all(all((d2==y1) | (isnan(d2) & isnan(y1)))),
                         fprintf(2,'SAVE2GDF: saving file %s OK.\n',HDR.FileName);
 		else 
-                        fprintf(2,'SAVE2GDF: file %s saved. Maximum relative roundoff error is %f.\n',HDR.FileName, max(max((d2-y1)./(d2+y1))) );
+                        fprintf(2,'SAVE2GDF: file %s saved. Maximum relative roundoff error is %f.\n',HDR.FileName, max(max((d2-y1)./(abs(d2)+abs(y1)))) );
                 end;
         catch
                 fprintf(2,'Error SAVE2GDF: saving file %s failed\n',HDR.FileName);
