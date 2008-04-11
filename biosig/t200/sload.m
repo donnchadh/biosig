@@ -21,7 +21,7 @@ function [signal,H] = sload(FILENAME,varargin)
 %				'Off'		no correction of EOG artifacts [default]
 %	
 % The list of supported formats is available here: 
-% http://bci.tugraz.at/~schloegl/biosig/TESTED
+% http://hci.tugraz.at/~schloegl/biosig/TESTED
 %
 %    SLOAD loads all the data (of the selected channels)
 %    at once. In case of large data files, This can be 
@@ -35,10 +35,12 @@ function [signal,H] = sload(FILENAME,varargin)
 %
 % see also: SVIEW, SOPEN, SREAD, SCLOSE, SAVE2BKR, TLOAD
 %
+% In order to increase the speed, install mexSLOAD.mex from biosig4c++
+%
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.80 2008-04-04 23:07:56 schloegl Exp $
+%	$Id: sload.m,v 1.81 2008-04-11 12:30:42 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -121,11 +123,11 @@ if any(FILENAME=='*')
                         EOGix(k) = 1;
                 end
         end;
-        FILENAME=f([find(EOGix),find(~EOGix)]);
+        FILENAME={f([find(EOGix),find(~EOGix)]).name};
 end;        
 end;
 
-if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
+if ((iscell(FILENAME) || isstruct(FILENAME)) && (length(FILENAME)>1)),
 	signal = [];
 	for k = 1:length(FILENAME),
 		if iscell(FILENAME(k))
@@ -139,7 +141,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 			H = h;
 			signal = s;  
 			H.SegLen = [0,size(s,1)];
-                        H.EVENT.POS = [H.EVENT.POS; size(signal,1)];
+                        H.EVENT.POS = [H.EVENT.POS; 0];
                         H.EVENT.TYP = [H.EVENT.TYP; hex2dec('7ffe')];
                         if isfield(H.EVENT,'CHN');
                                 H.EVENT.CHN = [H.EVENT.CHN; 0];
@@ -153,26 +155,17 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 		else
 			H.FILE(k) = h.FILE;
                         H.T0(k,1:6) = h.T0;
-			if ~isnan(h.SampleRate) & (H.SampleRate ~= h.SampleRate),
+			if ~isnan(h.SampleRate) && (H.SampleRate ~= h.SampleRate),
 				fprintf(2,'Warning SLOAD: sampling rates of multiple files differ %i!=%i.\n',H.SampleRate, h.SampleRate);
 			end;
-                        if ~isequal(H.Label,h.Label) | ~isequal(H.PhysDimCode,h.PhysDimCode),
-				fprintf(2,'Warning SLOAD: Labels of multiple files differ! \n');
-                                for k1 = 1:h.NS,
-                                        if (H.Label{k1}~=h.Label{k1}) | (H.PhysDimCode(k1)~=h.PhysDimCode(k1)),
-                                                fprintf(2,'#%02i:  %s | %s | (%i)%s | (%i)%s\n', H.Label{k1},h.Label{k1}, H.PhysDimCode(k1),H.PhysDim{k1},h.PhysDimCode(k1),h.PhysDim{k1});
-                                        end;
-                                end;
-                        end;
-
                         if ~isempty(h.EVENT.POS),
                                 H.EVENT.POS = [H.EVENT.POS; size(signal,1); h.EVENT.POS+size(signal,1)];
                                 H.EVENT.TYP = [H.EVENT.TYP; hex2dec('7ffe'); h.EVENT.TYP];
                                 if isfield(H.EVENT,'CHN');
-                                        H.EVENT.CHN = [H.EVENT.CHN; 0; h.EVENT.CHN];
+        	                	H.EVENT.CHN = [H.EVENT.CHN; 0; h.EVENT.CHN];
                                 end;
                                 if isfield(H.EVENT,'DUR');
-                                        H.EVENT.DUR = [H.EVENT.DUR; size(s,1); h.EVENT.DUR];
+      					H.EVENT.DUR = [H.EVENT.DUR; size(s,1); h.EVENT.DUR];
                                 end;
                                 if isfield(H.EVENT,'Desc');	% TFM-Excel-Beat-to-Beat
                                         H.EVENT.Desc = [H.EVENT.Desc; {'New Segment'}; h.EVENT.Desc];
@@ -183,9 +176,22 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
 				signal = [signal; repmat(NaN,STATE.NUMBER_OF_NAN_IN_BREAK,size(s,2)); s];
 				H.SegLen = [H.SegLen,size(signal,1)];
 			else
-				fprintf(2,'ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
-				return;
+				error('ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
 			end;
+                        if ~isequal(H.Label,h.Label) || ~isequal(H.PhysDimCode,h.PhysDimCode) || ~isequal(H.Cal,h.Cal) || ~isequal(H.Off,h.Off),
+				fprintf(2,'Warning SLOAD: Labels,PhysDim,Cal or Off of multiple files differ! \n');
+                                %for k1 = 1:h.NS,
+                                for k2 = 1:length(H.InChanSelect),
+                                	k1 = H.InChanSelect(k2); 
+                                        if (H.Label{k1}~=h.Label{k1}) || (H.PhysDimCode(k1)~=h.PhysDimCode(k1)),
+                                                fprintf(2,'#%02i:  %s | %s | (%i)%s | (%i)%s\n', H.Label{k1},h.Label{k1}, H.PhysDimCode(k1),H.PhysDim{k1},h.PhysDimCode(k1),h.PhysDim{k1});
+                                        end;
+                                        if ((H.Cal(k1)~=h.Cal(k1)) || (H.Off(k1)~=h.Off(k1)))
+                                                fprintf(2,'#%02i:  Cal: %f %f \tOff: %f %f\n', H.Cal{k1},h.Cal{k1}, H.Off(k1),h.Off(k1));
+                                        end        
+                                end;
+                        end;
+
 
                         if isfield(h,'TRIG'), 
                                 if ~isfield(H,'TRIG'),
@@ -196,8 +202,7 @@ if ((iscell(FILENAME) | isstruct(FILENAME)) & (length(FILENAME)>1)),
                         
                         if isfield(H,'TriggerOffset'),
                                 if H.TriggerOffset ~= h.TriggerOffset,
-                                        fprintf(2,'Warning SLOAD: Triggeroffset does not fit.\n',H.TriggerOffset,h.TriggerOffset);
-                                        return;
+                                        fprintf(2,'Warning SLOAD: Triggeroffset %f does not fit.%f \n',H.TriggerOffset,h.TriggerOffset);
                                 end;
                         end;
                         if isfield(H,'Classlabel'), 
@@ -230,7 +235,7 @@ end;
 %%%%%%%%%% --------- EOG CORRECTION -------------- %%%%%%
 if STATE.EOG_CORRECTION,
 try
-        h = get_regress_eog(H.FileName,'REG fft16');
+        h = get_regress_eog(FILENAME,'REG fft16');
 catch,
 	fprintf(H.FILE.stderr,'Error: SLOAD (EOG_CORRECTION): %s\n',lasterr); 
 	H.FLAG.EOG_CORRECTION = 0; 
@@ -269,7 +274,7 @@ if exist('mexSLOAD','file')==3,
 		if ~valid_rerefmx,
 			[signal,HDR] = mexSLOAD(FILENAME,0,arg1,arg2);
 		else
-			InChanSelect = find(any(ReRefMx,2))
+			InChanSelect = find(any(ReRefMx,2));
 			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2);
 			InChanSelect = InChanSelect(InChanSelect <= HDR.NS);
 			signal = signal*ReRefMx(InChanSelect,:);
@@ -285,12 +290,243 @@ if exist('mexSLOAD','file')==3,
 		H=HDR;
 		H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
 
-		%% read BrainVision Marker file 
-		if strcmp(HDR.TYPE,'BrainVision');
-			[p,f,e]=fileparts(FILENAME); 
-			HDR = sopen(fullfile(p,[f,'.vmrk']));HDR = sclose(HDR);
-			H.EVENT = HDR.EVENT;  
-		end; 					
+
+		if strcmp(H.TYPE,'GDF');
+                        % Classlabels according to 
+                        % http://biosig.cvs.sourceforge.net/*checkout*/biosig/biosig/doc/eventcodes.txt
+                        if (length(H.EVENT.TYP)>0)
+                                ix = (H.EVENT.TYP>hex2dec('0300')) & (H.EVENT.TYP<hex2dec('030d'));
+                                ix = ix | ((H.EVENT.TYP>=hex2dec('0320')) & (H.EVENT.TYP<=hex2dec('037f')));
+                                ix = ix | (H.EVENT.TYP==hex2dec('030f')); % unknown/undefined cue
+                                H.Classlabel = mod(H.EVENT.TYP(ix),256);
+                                H.Classlabel(H.Classlabel==15) = NaN; % unknown/undefined cue
+                        end;
+                        
+                        % Trigger information and Artifact Selection 
+                        ix = find(H.EVENT.TYP==hex2dec('0300')); 
+                        H.TRIG = H.EVENT.POS(ix);
+                        ArtifactSelection = repmat(logical(0),length(ix),1);
+                        for k = 1:length(ix),
+                                ix2 = find(H.EVENT.POS(ix(k))==H.EVENT.POS);
+                                if any(H.EVENT.TYP(ix2)==hex2dec('03ff'))
+                                        ArtifactSelection(k) = logical(1);                
+                                end;
+                        end;
+                        if any(ArtifactSelection), % define only if necessary
+                                H.ArtifactSelection = ArtifactSelection; 
+                        end;
+                        
+			% apply channel selections to EVENT table
+			if valid_rerefmx && ~isempty(H.EVENT.POS) && (isfield(H.EVENT,'CHN')),	% only if channels are selected. 
+				sel = (H.EVENT.CHN(:)==0);	% memory allocation, select all general events
+				for k = find(~sel'),		% select channel specific elements
+					sel(k) = any(H.EVENT.CHN(k)==InChanSelect);
+				end;
+				H.EVENT.POS = H.EVENT.POS(sel);
+				H.EVENT.TYP = H.EVENT.TYP(sel);
+				H.EVENT.DUR = H.EVENT.DUR(sel);	% if EVENT.CHN available, also EVENT.DUR is defined. 
+				H.EVENT.CHN = H.EVENT.CHN(sel);
+				% assigning new channel number 
+				a = zeros(1,HDR.NS);
+				for k = 1:length(InChanSelect),		% select channel specific elements
+					a(InChanSelect(k)) = k;		% assigning to new channel number. 
+				end;
+				ix = H.EVENT.CHN>0;
+				H.EVENT.CHN(ix) = a(H.EVENT.CHN(ix));	% assigning new channel number
+			end;	
+			
+			if ~isfield(H.EVENT,'CHN') & ~isfield(H.EVENT,'DUR'),  
+				H.EVENT.CHN = zeros(size(H.EVENT.POS)); 
+				H.EVENT.DUR = zeros(size(H.EVENT.POS)); 
+
+				% convert EVENT.Version 1 to 3, currently used by GDF, BDF and alpha
+				flag_remove = zeros(size(H.EVENT.TYP));
+				types  = unique(H.EVENT.TYP);
+				for k1 = find(bitand(types(:)',hex2dec('8000')));
+				        TYP0 = bitand(types(k1),hex2dec('7fff'));
+	        			TYP1 = types(k1);
+	        			ix0  = (H.EVENT.TYP==TYP0);
+	        			ix1  = (H.EVENT.TYP==TYP1);
+
+				        if sum(ix0)==sum(ix1), 
+	                			H.EVENT.DUR(ix0) = H.EVENT.POS(ix1) - H.EVENT.POS(ix0);
+				                flag_remove = flag_remove | (H.EVENT.TYP==TYP1);
+			                else 
+	                			fprintf(2,'Warning SOPEN: number of event onset (TYP=%s) and event offset (TYP=%s) differ\n',dec2hex(double(TYP0)),dec2hex(double(TYP1)));
+                        			%% double(.) operator needed because Matlab6.5 can not fix fix(uint16(..))
+				        end;
+				end
+				if any(H.EVENT.DUR<0)
+				        fprintf(2,'Warning SOPEN: EVENT ONSET %s later than EVENT OFFSET %s \n',dec2hex(TYP0),dec2hex(TYP1));
+	        			%H.EVENT.DUR(:) = 0
+				end;
+				H.EVENT.TYP = H.EVENT.TYP(~flag_remove);
+				H.EVENT.POS = H.EVENT.POS(~flag_remove);
+				H.EVENT.CHN = H.EVENT.CHN(~flag_remove);
+				H.EVENT.DUR = H.EVENT.DUR(~flag_remove);
+			end;
+				
+		elseif strcmp(H.TYPE,'BKR');
+	                H.Classlabel = [];
+	                H.TRIG = [];
+		        tmp=fullfile(H.FILE.Path,[H.FILE.Name,'.mat']);
+        		if ~exist(tmp,'file'),
+        		        tmp=fullfile(H.FILE.Path,[H.FILE.Name,'.MAT']);
+       			end
+		        x = [];
+        		if exist(tmp,'file'),
+                		x = load('-mat',tmp);
+        		end;
+
+                        if isfield(x,'header'),
+                                H.MAT  = x.header;
+                                if isfield(x.header,'Setup'), 
+                                        if isfield(x.header.Setup,'Bits'), 
+                                                H.Bits = x.header.Setup.Bits;
+                                                [datatyp, limits, datatypes] = gdfdatatype(H.Bits+255);
+                                                % THRESHOLD for Overflow detection
+                                                if ~isfield(H,'THRESHOLD')
+                                                    H.THRESHOLD = repmat(limits, H.NS, 1);
+                                                end;         
+                                        end;
+                                end;
+                                if isfield(x.header,'Result') && isfield(x.header.Result,'Classlabel'),
+                                        H.Classlabel = x.header.Result.Classlabel;
+                                end;
+                                if isfield(x.header,'Paradigm')
+                                        if isempty(H.Classlabel) && isfield(x.header.Paradigm,'Classlabel')
+                                                H.Classlabel = x.header.Paradigm.Classlabel;
+                                        end;
+                                        H.BCI.Paradigm = x.header.Paradigm;
+                                        if isfield(H.BCI.Paradigm,'TriggerOnset');
+                                                H.TriggerOffset = H.BCI.Paradigm.TriggerOnset;
+                                        elseif isfield(H.BCI.Paradigm,'TriggerTiming');
+                                            %    H.BCI.Paradigm.TriggerTiming,
+                                                H.TriggerOffset = H.BCI.Paradigm.TriggerTiming;
+                                                fprintf(2,'Warning BKROPEN: Paradigm.TriggerOnset is unknown. Paradigm.TriggerTiming= %f ms is used instead\n',H.TriggerOffset);
+                                        end;
+                                end;
+
+                                if isfield(x.header,'PhysioRec'), % R. Leeb's data 
+                                       H.Label = cellstr(x.header.PhysioRec);
+                                end;
+                                if isfield(x.header,'BKRHeader'), % R. Scherer Data 
+                                        if isfield(x.header.BKRHeader,'TO'),
+                                                H.T0 = x.header.BKRHeader.TO;
+                                        end;
+                                        if isfield(x.header.BKRHeader,'Label'),
+                                                H.Label = cellstr(x.header.BKRHeader.Label);
+                                                ns = H.NS-length(H.Label);
+                                                if ns == 1;
+                                                        H.Label = strvcat(H.Label,'TRIGGER');
+                                                elseif ns > 1;
+                                                        H.Label = strvcat(H.Label,char(repmat('n.a.',ns,1)));
+                                                end;
+                                        end;
+                                end;
+                                if isfield(x.header,'Model'), % More 
+                                        if isfield(x.header.Model,'AnalogInput'), 
+                                                for k = 1:length(x.header.Model.AnalogInput),
+                                                        H.Filter.HighPass(k) = x.header.Model.AnalogInput{k}{5};
+                                                        H.Filter.LowPass(k)  = x.header.Model.AnalogInput{k}{6};
+                                                        H.Filter.Notch(k)    = strcmpi(x.header.Model.AnalogInput{k}{7},'on');
+
+                                                        H.MAT.Cal(k) = x.header.Model.AnalogInput{k}{3};
+                                                end
+                                        end;
+                                end;
+                                if ~isempty(strmatch('TRIGGER',H.Label))
+                                        H.AS.TRIGCHAN = H.NS; %strmatch('TRIGGER',H.Label); 
+                                end;
+                        end;
+                        if 1; %~isfield(BKR,'Classlabel'),
+                                tmp=fullfile(H.FILE.Path,[H.FILE.Name,'.par']);
+                                if ~exist(tmp,'file'),
+                                    tmp=fullfile(H.FILE.Path,[H.FILE.Name,'.PAR']);
+                                end
+                                if exist(tmp,'file'),
+                                        H.Classlabel = load(tmp);
+                                end;
+                        end;
+
+                        %%% Artifact Selection files 
+                        tmp1=fullfile(H.FILE.Path,[H.FILE.Name,'.sel']);
+                        if ~exist(tmp1,'file'),
+                                tmp1=fullfile(H.FILE.Path,[H.FILE.Name,'.SEL']);
+                        end
+                        tmp2 = fullfile(H.FILE.Path,[H.FILE.Name,'_artifact.mat']);
+                        SW   = (exist(tmp1,'file')>0) + 2*(exist(tmp2,'file')>0);
+                        if SW == 0, 
+                        elseif SW == 1,
+                                if exist('OCTAVE_VERSION','builtin')
+                                        H.ArtifactSelection = load('-ascii',tmp1);
+                                else
+                                        H.ArtifactSelection = load(tmp1);
+                                end;
+                        elseif SW == 2,
+                                if exist('OCTAVE_VERSION','builtin')
+                                        tmp = load('-mat',tmp2);
+                                else
+                                        tmp = load(tmp2);
+                                end;
+                                H.ArtifactSelection = tmp.artifact(:);
+                        elseif SW == 3,
+                                fprintf(H.FILE.stderr,'Warning BKROPEN: more than one ArtifactSelection files. File %s is used.\n',tmp1);
+                                if exist('OCTAVE_VERSION')>5
+                                        H.ArtifactSelection = load('-ascii',tmp1);
+                                else
+                                        H.ArtifactSelection = load(tmp1);
+                                end;
+                        end;
+                        if isfield(H,'ArtifactSelection'),
+                                if any(H.ArtifactSelection>1) | (length(H.ArtifactSelection)<length(H.Classlabel))
+                                        sel = zeros(size(H.Classlabel));
+                                        sel(H.ArtifactSelection) = 1;
+                                        H.ArtifactSelection = sel(:);
+                                end;
+                                H.ArtifactSelection = H.ArtifactSelection(:);
+                        end;
+
+                        if isfield(H.AS,'TRIGCHAN') % & isempty(H.EVENT.POS)
+                                if H.AS.TRIGCHAN <= H.NS, %size(H.data,2),
+                                        H.THRESHOLD(H.AS.TRIGCHAN,1:2) = [-1-2^15,2^15]; % do not apply overflow detection for Trigger channel 
+                                        data = mexSLOAD(H.FileName,H.AS.TRIGCHAN,'UCAL:ON','OVERFLOWDETECTION:OFF');
+                                        TRIGon = gettrigger(data);
+                                        %TRIGoff = gettrigger(-double(H.data(:,H.AS.TRIGCHAN)));
+                                        if isfield(H,'TriggerOffset')
+                                                TRIGon  = TRIGon - round(H.TriggerOffset/1000*H.SampleRate);
+                                        %        TRIGoff = TRIGoff - round(H.TriggerOffset/1000*H.SampleRate);
+                                        end;
+                                end;
+                                H.TRIG = TRIGon(:);
+                                H.EVENT.POS = TRIGon(:); %[TRIGon(:); TRIGoff(:)]; 
+                                H.EVENT.TYP = repmat(hex2dec('0300'),numel(TRIGon),1); %repmat(hex2dec('8300'),numel(TRIGoff),1)];
+                        end;
+                        if length(H.TRIG)~=length(H.Classlabel),
+                                % hack to deal with BCI22 data
+                                fprintf(2,'Warning BKROPEN: Number of triggers (%i) and number of Classlabels (%i) do not fit\n',length(H.TRIG),length(H.Classlabel));
+                                H.TRIG = [];
+                                H.Classlabel = [];
+                                H.ArtifactSelection = [];
+                        end;
+
+			%% end of BKR
+                end;        
+
+	        H.CHANTYP = repmat(' ',1,HDR.NS);
+	        tmp = H.NS-length(H.Label);
+	        %HDR.Label = [HDR.Label(1:HDR.NS,:);repmat(' ',max(0,tmp),size(HDR.Label,2))];
+	        Label = strvcat(H.Label);
+	        tmp = reshape(lower([[Label(1:min(HDR.NS,size(Label,1)),:);repmat(' ',max(0,tmp),size(Label,2))],repmat(' ',HDR.NS,1)])',1,HDR.NS*(size(Label,2)+1));
+        
+	        H.CHANTYP(ceil([strfind(tmp,'eeg'),strfind(tmp,'meg')]/(size(Label,2)+1))) = 'E'; 
+	        H.CHANTYP(ceil([strfind(tmp,'emg')]/(size(Label,2)+1))) = 'M'; 
+	        H.CHANTYP(ceil([strfind(tmp,'eog')]/(size(Label,2)+1))) = 'O'; 
+		H.CHANTYP(ceil([strfind(tmp,'ecg'),strfind(tmp,'ekg')]/(size(Label,2)+1))) = 'C'; 
+	        H.CHANTYP(ceil([strfind(tmp,'air'),strfind(tmp,'resp')]/(size(Label,2)+1))) = 'R'; 
+        	H.CHANTYP(ceil([strfind(tmp,'trig')]/(size(Label,2)+1))) = 'T'; 
+
+
 %	catch
 %		disp('mexSLOAD failed');
 %	end;
@@ -300,7 +536,7 @@ end;
 if ~FlagLoaded,
 	H = getfiletype(FILENAME);
 
-	if isempty(H),
+	if isempty(H)
 		fprintf(2,'Warning SLOAD: no file found\n');
 		return;
 	else	
@@ -327,7 +563,6 @@ end;
 
 signal = [];
 H = sopen(H,'r',CHAN,MODE);
-
 if 0, ~isnan(H.NS),
 %------ ignore 'NaC'-channels
 	NS = size(H.Calib,2);
@@ -350,10 +585,10 @@ if 0, ~isnan(H.NS),
 	end; 
 
 	%----- generate HDR.Calib -----
-	if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | any(CHAN<0) | (any(CHAN==0) & (numel(CHAN)>1));
+	if all(size(CHAN)>1) || any(floor(CHAN)~=CHAN) || any(CHAN<0) || (any(CHAN==0) && (numel(CHAN)>1));
         	ReRefMx = CHAN; 
         	CHAN = find(any(CHAN,2));
-	elseif all(CHAN>0) & all(floor(CHAN)==CHAN), 
+	elseif all(CHAN>0) && all(floor(CHAN)==CHAN), 
 		if any(diff(CHAN)<=0),
 		%	fprintf(HDR.FILE.FID,'Warning SOPEN: CHAN-argument not sorted - header information like Labels might not correspond to data.\n');
 		end;	
@@ -389,6 +624,10 @@ elseif any(strmatch(H.TYPE,{'native','TFM_EXCEL_Beat_to_Beat','EEProbe-CNT','EEP
         H = sclose(H);
 
 elseif (H.FILE.OPEN > 0)
+	[signal,H] = sread(H);  
+        H = sclose(H);
+
+elseif (H.FILE.OPEN > 0)
         signal = repmat(NaN,H.SPR*H.NRec,size(H.Calib,2));
 	k1 = 0;
         while ~seof(H),
@@ -419,7 +658,7 @@ elseif strcmp(H.TYPE,'DAQ')
 	tic;
         [signal, tmp, H.DAQ.T0, H.DAQ.events, DAQ.info] = daqread(H.FileName);
         fprintf(1,'Loading DAQ file finished after %.0f s.\n',toc);
-        H.NS   = size(signal,2);
+        [H.SPR,H.NS] = size(signal);
         
         H.SampleRate = DAQ.info.ObjInfo.SampleRate;
         sz     = size(signal);
