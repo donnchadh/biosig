@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.20 2008-04-09 22:58:34 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.21 2008-04-11 09:24:46 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -66,23 +66,38 @@ void mexFunction(
 	{	
 		arg = prhs[k];
 		if (mxIsEmpty(arg))
-			mexPrintf("arg[%i] Empty\n",k);
+#ifdef DEBUG		
+			mexPrintf("arg[%i] Empty\n",k)
+#endif
+			;
 		else if (mxIsCell(arg))
+#ifdef DEBUG		
 			mexPrintf("arg[%i] IsCell\n",k);
+#endif
+			;
 		else if (mxIsStruct(arg)) {
+#ifdef DEBUG		
 			mexPrintf("arg[%i] IsStruct\n",k);
+#endif
 			if (k==0)			
 				FileName = mxArrayToString(mxGetField(prhs[k],0,"FileName"));
 		}
 		else if (mxIsNumeric(arg)) {
+#ifdef DEBUG		
 			mexPrintf("arg[%i] IsNumeric\n",k);
+#endif
 			ChanList = (double*)mxGetData(prhs[k]);
 			NS = mxGetNumberOfElements(prhs[k]);
 		}	
 		else if (mxIsSingle(arg))
+#ifdef DEBUG		
 			mexPrintf("arg[%i] IsSingle\n",k);
+#endif
+			;
 		else if (mxIsChar(arg)) {
+#ifdef DEBUG		
 			mexPrintf("arg[%i]=%s \n",k,mxArrayToString(prhs[k]));
+#endif
 			if (k==0)			
 				FileName = mxArrayToString(prhs[k]);
 			else if (!strcmp(mxArrayToString(prhs[k]),"OVERFLOWDETECTION:ON"))
@@ -332,19 +347,11 @@ void mexFunction(
 
 		/* annotation, marker, event table */
 		const char *event_fields[] = {"SampleRate","TYP","POS","DUR","CHN",NULL};
-		for (numfields=0; event_fields[numfields++] != 0; );
-		EVENT = mxCreateStructMatrix(1, 1, --numfields, event_fields);
-		mxSetField(EVENT,0,"SampleRate",mxCreateDoubleScalar(hdr->EVENT.SampleRate));
-
-		mxArray *TYP = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
-		mxArray *POS = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
-		for (size_t k=0; k<hdr->EVENT.N; ++k) {
-			*(mxGetPr(TYP)+k) = (double)hdr->EVENT.TYP[k];
-			*(mxGetPr(POS)+k) = (double)hdr->EVENT.POS[k];
-		} 
-		mxSetField(EVENT,0,"TYP",TYP);
-		mxSetField(EVENT,0,"POS",POS);
-		if (hdr->EVENT.DUR != NULL) {
+		
+		if (hdr->EVENT.DUR == NULL)
+			EVENT = mxCreateStructMatrix(1, 1, 3, event_fields);
+		else {	
+			EVENT = mxCreateStructMatrix(1, 1, 5, event_fields);
 			mxArray *DUR = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
 			mxArray *CHN = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
 			for (size_t k=0; k<hdr->EVENT.N; ++k) {
@@ -354,6 +361,16 @@ void mexFunction(
 			mxSetField(EVENT,0,"DUR",DUR);
 			mxSetField(EVENT,0,"CHN",CHN);
 		}
+
+		mxArray *TYP = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
+		mxArray *POS = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
+		for (size_t k=0; k<hdr->EVENT.N; ++k) {
+			*(mxGetPr(TYP)+k) = (double)hdr->EVENT.TYP[k];
+			*(mxGetPr(POS)+k) = (double)hdr->EVENT.POS[k];
+		} 
+		mxSetField(EVENT,0,"TYP",TYP);
+		mxSetField(EVENT,0,"POS",POS);
+		mxSetField(EVENT,0,"SampleRate",mxCreateDoubleScalar(hdr->EVENT.SampleRate));
 		mxSetField(HDR,0,"EVENT",EVENT);
 
 		/* Patient Information */ 
