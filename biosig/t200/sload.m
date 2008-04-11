@@ -40,7 +40,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.81 2008-04-11 12:30:42 schloegl Exp $
+%	$Id: sload.m,v 1.82 2008-04-11 13:53:44 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -178,16 +178,19 @@ if ((iscell(FILENAME) || isstruct(FILENAME)) && (length(FILENAME)>1)),
 			else
 				error('ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
 			end;
-                        if ~isequal(H.Label,h.Label) || ~isequal(H.PhysDimCode,h.PhysDimCode) || ~isequal(H.Cal,h.Cal) || ~isequal(H.Off,h.Off),
+                        if ~isequal(H.Label,h.Label) || ~isequal(H.PhysDimCode,h.PhysDimCode) || ~isequal(H.Cal,h.Cal) || ~isequal(H.Off,h.Off)
 				fprintf(2,'Warning SLOAD: Labels,PhysDim,Cal or Off of multiple files differ! \n');
                                 %for k1 = 1:h.NS,
                                 for k2 = 1:length(H.InChanSelect),
                                 	k1 = H.InChanSelect(k2); 
-                                        if (H.Label{k1}~=h.Label{k1}) || (H.PhysDimCode(k1)~=h.PhysDimCode(k1)),
-                                                fprintf(2,'#%02i:  %s | %s | (%i)%s | (%i)%s\n', H.Label{k1},h.Label{k1}, H.PhysDimCode(k1),H.PhysDim{k1},h.PhysDimCode(k1),h.PhysDim{k1});
+                                        if ~strcmp(H.Label{k1},h.Label{k1}) || (H.PhysDimCode(k1)~=h.PhysDimCode(k1)),
+                                                fprintf(2,'#%02i:  %s | %s | (%i)%s | (%i)%s\n',k1, H.Label{k1},h.Label{k1}, H.PhysDimCode(k1),H.PhysDim{k1},h.PhysDimCode(k1),h.PhysDim{k1});
                                         end;
                                         if ((H.Cal(k1)~=h.Cal(k1)) || (H.Off(k1)~=h.Off(k1)))
-                                                fprintf(2,'#%02i:  Cal: %f %f \tOff: %f %f\n', H.Cal{k1},h.Cal{k1}, H.Off(k1),h.Off(k1));
+                                                fprintf(2,'#%02i:  Cal: %f %f \tOff: %f %f\n', k1,H.Cal(k1),h.Cal(k1), H.Off(k1),h.Off(k1));
+                                                if H.FLAG.UCAL,
+                                                	error('SLOAD: concatanating uncalibrated data with different scaling factors do not make sense!');
+                                                end		
                                         end        
                                 end;
                         end;
@@ -247,16 +250,20 @@ end;
 FlagLoaded = 0;
 if exist('mexSLOAD','file')==3,
 %	try
-		ReRefMx=1;
-		valid_rerefmx=1;
-		if (size(CHAN,1)>1)		
-			ReRefMx = CHAN;
-		elseif all(CHAN>0) && all(floor(CHAN)==CHAN), 
-			[tmp,ix]=sort(CHAN);
-			ReRefMx = sparse(CHAN,1:length(CHAN),1);
-		else	
-			valid_rerefmx=0;
-		end; 
+	valid_rerefmx=1;
+	if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | any(CHAN<0) | (any(CHAN==0) & (numel(CHAN)>1));
+	        ReRefMx = CHAN; 
+        	CHAN = find(any(CHAN,2));
+	elseif all(CHAN>0) & all(floor(CHAN)==CHAN), 
+		[tmp,ix]=sort(CHAN);
+	        ReRefMx = sparse(CHAN,1:length(CHAN),1);
+	else    
+	        ReRefMx = [];
+		valid_rerefmx=0;
+	end
+
+
+
 		if STATE.EOG_CORRECTION,
 			ReRefMx = h.r0*ReRefMx;
 			valid_rerefmx=1;
@@ -273,11 +280,12 @@ if exist('mexSLOAD','file')==3,
 		end
 		if ~valid_rerefmx,
 			[signal,HDR] = mexSLOAD(FILENAME,0,arg1,arg2);
+			HDR.InChanSelect = 1:HDR.NS;
 		else
-			InChanSelect = find(any(ReRefMx,2));
-			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2);
-			InChanSelect = InChanSelect(InChanSelect <= HDR.NS);
-			signal = signal*ReRefMx(InChanSelect,:);
+			HDR.InChanSelect = find(any(ReRefMx,2));
+			[signal,HDR] = mexSLOAD(FILENAME,HDR.InChanSelect,arg1,arg2);
+			InChanSelect = InChanSelect(HDR.InChanSelect <= HDR.NS);
+			signal = signal*ReRefMx(HDR.InChanSelect,:);
 		end; 
 		
 		HDR.T0 = datevec(HDR.T0);
