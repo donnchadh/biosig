@@ -1,11 +1,13 @@
-function R = evoked_potential(fn,CHAN,t1,t2)
+function R = evoked_potential(fn,CHAN,t1,t2,EventTyp)
 % EVOKED_POTENTIAL estimates evoked potentials (EP's)
 %
-%  R = EVOKED_POTENTIAL(filename, CHAN, t_start, t_end)
+%  R = EVOKED_POTENTIAL(filename, CHAN, t_start, t_end,EventTyp)
+%  R = EVOKED_POTENTIAL(s, HDR, t_start, t_end,EventTyp)
 %     filename  filename
 %     CHAN      channel selection; default: 0 (all)
-%     t_start   start time (relative to trigger time point
-%     t_end     end time relative to trigger 
+%     t_start   start time in seconds (relative to trigger time point)
+%     t_end     end time in seconds relative to trigger 
+%     EventTyp  [optional]
 %
 %  The trigger information must be available in the biosig file. 
 %  The EP is calculated for each selected channel, if classlabels 
@@ -13,14 +15,14 @@ function R = evoked_potential(fn,CHAN,t1,t2)
 % 
 %  The 
 
-%	$Id: evoked_potential.m,v 1.3 2008-01-19 20:56:58 schloegl Exp $
-%	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: evoked_potential.m,v 1.4 2008-04-11 13:36:59 schloegl Exp $
+%	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
+% Version 3 of the License, or (at your option) any later version.
 %
 % This library is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -34,9 +36,20 @@ function R = evoked_potential(fn,CHAN,t1,t2)
 
 
 %% 
-[S,HDR]=matload(fn,CHAN);
-%HDR = sopen(fn,'r',CHAN);HDR = sclose(HDR); 
-S(S> 400)=NaN;S(S<-400)=NaN;
+%[S,HDR]=matload(fn,CHAN);
+%S(S> 400)=NaN;S(S<-400)=NaN;
+if ischar(fn)
+	[S,HDR]=sload(fn,CHAN);
+	if (CHAN==0)
+		CHAN=1:HDR.NS;
+	end; 	
+	HDR.Classlabel = HDR.EVENT.TYP;
+	HDR.TRIG = HDR.EVENT.POS;
+elseif isnumeric(fn)
+	S = fn; 
+	HDR = CHAN;
+end;		
+%HDR = sopen(fn,'r',CHAN);[s,HDR]=sread(HDR);HDR = sclose(HDR); 
 %S = diff(S); 
 %[B,A]=butter(5,[450 900]/HDR.SampleRate*2);S = filtfilt(B,A,S);  
 %[B,A]=fir1(20,[450 900]/HDR.SampleRate*2);S = filtfilt(B,A,S);  
@@ -47,18 +60,16 @@ end;
 if ~isfield(HDR,'Classlabel');
         HDR.Classlabel = ones(size(HDR.TRIG)); 
 end;        
-if (CHAN==0)
-	CHAN=1:HDR.NS;
-end; 	
 
 if nargin<4,
         t1 = 2; t2 = 4;
 end;
-%HDR.Classlabel = HDR.EVENT.TYP;
-%HDR.TRIG = HDR.EVENT.POS;
 
 R0 = []; se=[];m=[];
 CL = unique(HDR.Classlabel(:))';
+if nargin>4,
+	CL = EventTyp; 
+end; 
 
 t1 = floor(t1*HDR.SampleRate);
 t2 = ceil(t2*HDR.SampleRate);
@@ -91,11 +102,11 @@ R0.T = t/HDR.SampleRate;
 R = R0; 
 if all(size(CHAN)>1), 
 elseif (CHAN==0)
-	R.Label = HDR.Label; 
+	R.Label = HDR.Label;
 	if isfield(HDR,'ELEC')
 		R.ELEC = HDR.ELEC;
-	end; 	
-elseif all(CHAN>0) 
+	end;
+elseif all(CHAN>0)
 	R.Label = HDR.Label(CHAN,:); 
 	if isfield(HDR,'ELEC')
 		R.ELEC.XYZ = HDR.ELEC.XYZ(CHAN,:);
