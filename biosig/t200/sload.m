@@ -40,7 +40,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.82 2008-04-11 13:53:44 schloegl Exp $
+%	$Id: sload.m,v 1.83 2008-04-14 19:03:16 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -249,20 +249,18 @@ end;
 
 FlagLoaded = 0;
 if exist('mexSLOAD','file')==3,
-%	try
-	valid_rerefmx=1;
-	if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | any(CHAN<0) | (any(CHAN==0) & (numel(CHAN)>1));
-	        ReRefMx = CHAN; 
-        	CHAN = find(any(CHAN,2));
-	elseif all(CHAN>0) & all(floor(CHAN)==CHAN), 
-		[tmp,ix]=sort(CHAN);
-	        ReRefMx = sparse(CHAN,1:length(CHAN),1);
-	else    
-	        ReRefMx = [];
-		valid_rerefmx=0;
-	end
-
-
+	try
+		valid_rerefmx = 1;
+		if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | any(CHAN<0) | (any(CHAN==0) & (numel(CHAN)>1));
+		        ReRefMx = CHAN; 
+	        	CHAN = find(any(CHAN,2));
+		elseif all(CHAN>0) & all(floor(CHAN)==CHAN), 
+			[tmp,ix]= sort(CHAN);
+		        ReRefMx = sparse(CHAN,1:length(CHAN),1);
+		else    
+		        ReRefMx = [];
+			valid_rerefmx=0;
+		end
 
 		if STATE.EOG_CORRECTION,
 			ReRefMx = h.r0*ReRefMx;
@@ -447,7 +445,7 @@ if exist('mexSLOAD','file')==3,
                                         H.AS.TRIGCHAN = H.NS; %strmatch('TRIGGER',H.Label); 
                                 end;
                         end;
-                        if 1; %~isfield(BKR,'Classlabel'),
+                        if 1; ~isfield(H,'Classlabel'),
                                 tmp=fullfile(H.FILE.Path,[H.FILE.Name,'.par']);
                                 if ~exist(tmp,'file'),
                                     tmp=fullfile(H.FILE.Path,[H.FILE.Name,'.PAR']);
@@ -535,9 +533,9 @@ if exist('mexSLOAD','file')==3,
         	H.CHANTYP(ceil([strfind(tmp,'trig')]/(size(Label,2)+1))) = 'T'; 
 
 
-%	catch
-%		disp('mexSLOAD failed');
-%	end;
+	catch
+		disp('mexSLOAD failed');
+	end;
 
 end;
 
