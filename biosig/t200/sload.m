@@ -40,7 +40,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.83 2008-04-14 19:03:16 schloegl Exp $
+%	$Id: sload.m,v 1.84 2008-04-15 12:40:06 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -278,11 +278,13 @@ if exist('mexSLOAD','file')==3,
 		end
 		if ~valid_rerefmx,
 			[signal,HDR] = mexSLOAD(FILENAME,0,arg1,arg2);
+			FlagLoaded = ~isempty(HDR);
 			HDR.InChanSelect = 1:HDR.NS;
 		else
-			HDR.InChanSelect = find(any(ReRefMx,2));
-			[signal,HDR] = mexSLOAD(FILENAME,HDR.InChanSelect,arg1,arg2);
-			InChanSelect = InChanSelect(HDR.InChanSelect <= HDR.NS);
+			InChanSelect = find(any(ReRefMx,2));
+			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2);
+			FlagLoaded = ~isempty(HDR);
+			HDR.InChanSelect = InChanSelect(InChanSelect <= HDR.NS);
 			signal = signal*ReRefMx(HDR.InChanSelect,:);
 		end; 
 		
@@ -292,7 +294,6 @@ if exist('mexSLOAD','file')==3,
 		[HDR.FILE.Path,HDR.FILE.Name,HDR.FILE.Ext] = fileparts(FILENAME);
 		HDR.FileName = FILENAME;
 		
-		FlagLoaded = ~isempty(HDR);
 		H=HDR;
 		H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
 
@@ -531,7 +532,6 @@ if exist('mexSLOAD','file')==3,
 		H.CHANTYP(ceil([strfind(tmp,'ecg'),strfind(tmp,'ekg')]/(size(Label,2)+1))) = 'C'; 
 	        H.CHANTYP(ceil([strfind(tmp,'air'),strfind(tmp,'resp')]/(size(Label,2)+1))) = 'R'; 
         	H.CHANTYP(ceil([strfind(tmp,'trig')]/(size(Label,2)+1))) = 'T'; 
-
 
 	catch
 		disp('mexSLOAD failed');
