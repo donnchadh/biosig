@@ -1,19 +1,18 @@
-function TRIG = gettrigger(s,TH);
+function TRIG = gettrigger(s,TH,rfp);
 % GETTRIGGER identifies trigger points 
 %
-% TRIG = gettrigger( s [,TH]); % trigger at ascending edge
-% TRIG = gettrigger(-s [,TH]); % trigger at decending edge
+% TRIG = gettrigger( s [,TH [,rfp]]); % trigger at ascending edge
+% TRIG = gettrigger(-s [,TH [,rfp]]); % trigger at decending edge
 %
 % input : s   	signal
 %         TH	Threshold; default: (max+min)/2
+%	  rfp   refractory period (default=0)	
 % output: TRIG	TRIGGER time points
 %
-% see also TRIGG
+% see also: TRIGG
 
-%	$Revision: 1.3 $
-% 	$Id: gettrigger.m,v 1.3 2003-06-25 15:16:32 schloegl Exp $
-%       Version 0.92        16 Jan 2003
-%	Copyright (C) 2002-2003 by Alois Schloegl <a.schloegl@ieee.org>		
+% 	$Id: gettrigger.m,v 1.4 2008-04-15 14:58:50 schloegl Exp $
+%	Copyright (C) 2002-2003,2008 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
@@ -34,10 +33,28 @@ function TRIG = gettrigger(s,TH);
 if nargin<2,
 	TH = (max(s)+min(s))/2;
 end;
+if nargin<3,
+	rfp = 0; 
+end; 	
 
 TRIG = find(diff(sign(s-TH))>0)+1;
-
 % perform check of trigger points
 
+if (rfp<=0), return; end; 
+
+% refractory period 
+k0=1;
+k1=2;
+while k1<length(TRIG);
+	T0 = TRIG(k0);
+	T1 = TRIG(k1);
+	if (T1-T0)<rfp,
+		TRIG(k1)=NaN;
+	else
+		k0 = k1; 
+	end
+	k1 = k1+1;
+end;	
+TRIG=TRIG(~isnan(TRIG));
 
 
