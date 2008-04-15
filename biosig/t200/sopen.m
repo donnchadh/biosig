@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.202 2008-04-11 12:45:47 schloegl Exp $
+%	$Id: sopen.m,v 1.203 2008-04-15 12:42:11 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -6226,6 +6226,13 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.NS = size(HDR.data,2);
                 HDR.Cal = tmp.P_C_DAQ_S.sens*(2.^(1-tmp.P_C_DAQ_S.daqboard{1}.HwInfo.Bits));
                 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
+                HDR.PhysMax = max(HDR.data);
+                HDR.PhysMin = min(HDR.data);
+                HDR.DigMax  = HDR.PhysMax;% ./HDR.Cal;
+                HDR.DigMin  = HDR.PhysMin;% ./HDR.Cal;
+                HDR.Cal = ones(1,HDR.NS); 
+                HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1);
+                HDR.GDFTYP  = repmat(16,1,HDR.NS);  	%% float
                 
                 if all(tmp.P_C_DAQ_S.unit==1)
                         HDR.PhysDimCode=repmat(4275,1,HDR.NS);	%% uV
