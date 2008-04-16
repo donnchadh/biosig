@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.23 2008-04-11 13:07:11 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.24 2008-04-16 20:48:56 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -115,7 +115,7 @@ void mexFunction(
 
 	hdr = sopen(FileName, "r", NULL);
 	if ((status=serror())) {
-		mexPrintf("ERROR=%i: Cannot open file %s (%s)\n", status, FileName, B4C_ERRMSG); 
+		mexPrintf("ERROR(%i) in mexSLOAD: Cannot open file %s (%s)\n", status, FileName, B4C_ERRMSG); 
 		return; 
 	}
 			
@@ -190,15 +190,19 @@ void mexFunction(
 		case AINF: 	{ FileType = mxCreateString("AINF"); break; }
 		case AIFC: 	{ FileType = mxCreateString("AIFC"); break; }
 		case AIFF: 	{ FileType = mxCreateString("AIFF"); break; }
+		case ATES: 	{ FileType = mxCreateString("ATES"); break; }
+		case ATF: 	{ FileType = mxCreateString("ATF"); break; }
 		case AU: 	{ FileType = mxCreateString("AU"); break; }
 
 		case BCI2000: 	{ FileType = mxCreateString("BCI2000"); break; }
 		case BDF: 	{ FileType = mxCreateString("BDF"); break; }
+		case BKR: 	{ FileType = mxCreateString("BKR"); break; }
+		case BLSC: 	{ FileType = mxCreateString("BLSC"); break; }
 		case BMP: 	{ FileType = mxCreateString("BMP"); break; }
 		case BrainVision: 	{ FileType = mxCreateString("BrainVision"); break; }
 		case BZ2: 	{ FileType = mxCreateString("BZ2"); break; }
-		case BKR: 	{ FileType = mxCreateString("BKR"); break; }
 
+		case CDF: 	{ FileType = mxCreateString("CDF"); break; }
 		case DEMG: 	{ FileType = mxCreateString("DEMG"); break; }
 		case CFWB: 	{ FileType = mxCreateString("CFWB"); break; }
 		case CNT: 	{ FileType = mxCreateString("CNT"); break; }
@@ -207,8 +211,10 @@ void mexFunction(
 		case EDF: 	{ FileType = mxCreateString("EDF"); break; }
 		case EEProbe: 	{ FileType = mxCreateString("EEProbe"); break; }
 		case EGI: 	{ FileType = mxCreateString("EGI"); break; }
+		case ELF: 	{ FileType = mxCreateString("ELF"); break; }
 		case ETG4000: 	{ FileType = mxCreateString("ETG4000"); break; }
 		case EXIF: 	{ FileType = mxCreateString("EXIF"); break; }
+
 		case FAMOS: 	{ FileType = mxCreateString("FAMOS"); break; }
 		case FEF: 	{ FileType = mxCreateString("FEF"); break; }
 		case FITS: 	{ FileType = mxCreateString("FITS"); break; }
@@ -216,7 +222,9 @@ void mexFunction(
 
 		case GDF: 	{ FileType = mxCreateString("GDF"); break; }
 		case GIF: 	{ FileType = mxCreateString("GIF"); break; }
+		case GTF: 	{ FileType = mxCreateString("GTF"); break; }
 		case GZIP: 	{ FileType = mxCreateString("GZIP"); break; }
+		case HDF: 	{ FileType = mxCreateString("HDF"); break; }
 		case HL7aECG: 	{ FileType = mxCreateString("HL7aECG"); break; }
 		case JPEG: 	{ FileType = mxCreateString("JPEG"); break; }
 
@@ -234,6 +242,7 @@ void mexFunction(
 		case SND: 	{ FileType = mxCreateString("SND"); break; }
 		case SVG: 	{ FileType = mxCreateString("SVG"); break; }
 		case TIFF: 	{ FileType = mxCreateString("TIFF"); break; }
+		case TMS32: 	{ FileType = mxCreateString("TMS32"); break; }
 		case VRML: 	{ FileType = mxCreateString("VRML"); break; }
 		case VTK: 	{ FileType = mxCreateString("VTK"); break; }
 

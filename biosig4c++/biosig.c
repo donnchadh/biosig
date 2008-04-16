@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.161 2008-04-10 21:20:08 schloegl Exp $
+    $Id: biosig.c,v 1.162 2008-04-16 20:48:56 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -47,8 +47,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-//#include <libxml/xmlreader.h>
 
 #include "biosig-dev.h"
 
@@ -1169,20 +1167,38 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     	}	
     	else if (!memcmp(Header1+20,"ACR-NEMA",8))
 	    	hdr->TYPE = ACR_NEMA;
+    	else if (!memcmp(Header1,"ATES MEDICA SOFT. EEG for Windows",33))
+	    	hdr->TYPE = ATES;
+    	else if (!memcmp(Header1,"ATF\x09",4))
+    	        	hdr->TYPE = ATF;
+
+    	else if (!memcmp(Header1,"HeaderLen=",10)) {
+	    	hdr->TYPE = BCI2000;
+	    	hdr->VERSION = 1;
+	}    	
+    	else if (!memcmp(Header1,"BCI2000",7)) {
+	    	hdr->TYPE = BCI2000;
+	    	hdr->VERSION = 1.1;
+	}    	
     	else if (!memcmp(Header1+1,"BIOSEMI",7) && (hdr->AS.Header[0]==0xff)) {
     		hdr->TYPE = BDF;
     		hdr->VERSION = -1; 
     	}
     	else if ((leu16p(hdr->AS.Header)==207) && (leu16p(hdr->AS.Header+154)==0))
 	    	hdr->TYPE = BKR;
+    	else if (!memcmp(Header1+34,"BLSC",4))
+	    	hdr->TYPE = BLSC;
         else if (!memcmp(Header1,"Brain Vision Data Exchange Header File",38))
                 hdr->TYPE = BrainVision;
     	else if (!memcmp(Header1,"BZh91",5))
 	    	hdr->TYPE = BZ2;
+    	else if (!memcmp(Header1,"CDF",3))
+	    	hdr->TYPE = CDF; 
     	else if (!memcmp(Header1,"CFWB\1\0\0\0",8))
 	    	hdr->TYPE = CFWB;
     	else if (!memcmp(Header1,"Version 3.0",11))
 	    	hdr->TYPE = CNT;
+
     	else if (!memcmp(Header1,"DEMG",4))
 	    	hdr->TYPE = DEMG;
     	else if (!memcmp(Header1+128,"DICM",4))
@@ -1193,6 +1209,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = DICOM;
     	else if (!memcmp(Header1+12, MAGIC_NUMBER_DICOM,8))
 	    	hdr->TYPE = DICOM;
+
     	else if (!memcmp(Header1,"0       ",8)) {
 	    	hdr->TYPE = EDF;
 	    	hdr->VERSION = 0; 
@@ -1201,8 +1218,11 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = EGI;
 	    	hdr->VERSION = hdr->AS.Header[3];
     	}
+    	else if (*(uint32_t*)(Header1) == b_endian_u32(0x7f454c46))
+	    	hdr->TYPE = ELF;
     	else if (!memcmp(Header1,"Header\r\nFile Version'",20))
 	    	hdr->TYPE = ETG4000;
+
     	else if (!memcmp(Header1,MAGIC_NUMBER_FEF1,8) | !memcmp(Header1,MAGIC_NUMBER_FEF2,8)) {
 	    	hdr->TYPE = FEF;
 		char tmp[9];
@@ -1217,10 +1237,14 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = GIF; 
     	else if (!memcmp(Header1,"GIF89a",6))
 	    	hdr->TYPE = GIF; 
+    	else if (!memcmp(Header1,"GALILEO EEG TRACE FILE",22))
+	    	hdr->TYPE = GTF; 
 	else if (!memcmp(Header1,MAGIC_NUMBER_GZIP,3))  {
 		hdr->TYPE = GZIP;
 //		hdr->FILE.COMPRESSION = 1; 
 	}	
+    	else if (!memcmp(Header1,"\x89HDF",4))
+	    	hdr->TYPE = HDF; 
     	else if (!memcmp(Header1,"@  MFER ",8))
 	    	hdr->TYPE = MFER;
     	else if (!memcmp(Header1,"@ MFR ",6))
@@ -1230,6 +1254,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 */
     	else if (!memcmp(Header1,"NEX1",4))
 	    	hdr->TYPE = NEX1;
+    	else if (!memcmp(Header1,"OggS",4))
+	    	hdr->TYPE = OGG;
     	else if (!memcmp(Header1,"PLEX",4))
 	    	hdr->TYPE = PLEXON;
     	else if (!memcmp(Header1,"RIFF",4)) {
@@ -1308,10 +1334,17 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	}    	
 	*/
 
+	else if (!memcmp(Header1,"IAvSFo",6))
+		hdr->TYPE = SIGIF;
 	else if (!memcmp(Header1,"\"Snap-Master Data File\"",24))
 	    	hdr->TYPE = SMA;
 	else if (!memcmp(Header1,".snd",5))
 		hdr->TYPE = SND;                    
+	else if (!memcmp(Header1,".snd",5))
+		hdr->TYPE = SND;                    
+
+	else if (!memcmp(Header1,"POLY SAMPLE FILEversion ",24) && !memcmp(Header1+28, "\x0d\x0a\x1a",3))
+		hdr->TYPE = TMS32;
 	else if (!memcmp(Header1,MAGIC_NUMBER_TIFF_l32,4))
 		hdr->TYPE = TIFF;
 	else if (!memcmp(Header1,MAGIC_NUMBER_TIFF_b32,4))
@@ -1551,6 +1584,9 @@ if (!strncmp(MODE,"r",1))
 	    	count   += ifread(Header2, 1, hdr->HeadLen-256, hdr);
 
 		for (k=0; k<hdr->NS; k++)	{
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 211] #=%i/%i\n",k,hdr->NS);
+
 			strncpy(hdr->CHANNEL[k].Label,(char*)Header2 + 16*k,min(16,MAX_LENGTH_LABEL));
 			strncpy(hdr->CHANNEL[k].Transducer,(char*)Header2 + 16*hdr->NS + 80*k,min(MAX_LENGTH_TRANSDUCER,80));
 			
@@ -1603,6 +1639,9 @@ if (!strncmp(MODE,"r",1))
 
 		}
 		for (k=0, hdr->SPR=1, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;k++) {
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 212] #=%i\n",k);
+
 			hdr->AS.spb += hdr->CHANNEL[k].SPR;
 			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;
 			if (hdr->CHANNEL[k].SPR)
@@ -1666,7 +1705,10 @@ if (!strncmp(MODE,"r",1))
 		}	
 		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
 	    	hdr->FILE.POS = 0; 
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 217] #=%i\n",iftell(hdr));
     	}
+
     	else if ((hdr->TYPE == EDF) | (hdr->TYPE == BDF))	{
 		size_t	EventChannel = 0;
     		strncpy(hdr->Patient.Id,Header1+8,min(MAX_LENGTH_PID,80));
@@ -1915,6 +1957,8 @@ if (!strncmp(MODE,"r",1))
 			free(Marker);
 			ifseek(hdr,hdr->HeadLen,SEEK_SET);
 		}	/* End reading EDF/BDF Status channel */
+
+		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
 	    	hdr->FILE.POS = 0; 
 	}      	
 
@@ -2543,6 +2587,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// CFWB does not support automated overflow and saturation detection
 	    	hdr->FILE.POS = 0; 
 	}
+
 	else if (hdr->TYPE==CNT) {
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,900);
 	    	hdr->VERSION = atof((char*)hdr->AS.Header+8);
@@ -2921,7 +2966,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 	    	hdr->FILE.POS = 0; 
 	}
-
 
     	else if (hdr->TYPE==MFER) {	
 		// MFER101E-2003, Table 5, p.18-19
@@ -3339,6 +3383,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	 	}	
 	    	hdr->FILE.POS = 0; 
 	}
+
 	else if (hdr->TYPE==SCP_ECG) {
 		hdr->HeadLen   = leu32p(hdr->AS.Header+2);
 		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
@@ -3489,8 +3534,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 	}	
 
-	else if (hdr->TYPE==HL7aECG) 
-	{
+	else if (hdr->TYPE==HL7aECG) {
 		sopen_HL7aECG_read(hdr);
     		if (serror()) { 
 	    		free(Header1);
@@ -3499,6 +3543,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		}
     		hdr->FLAG.SWAP = 0; 
 	}
+
 	else 
 	{
     		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
@@ -3511,6 +3556,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	hdr->FILE.POS = 0; 
 	for (k=0; k<hdr->NS; k++) {	
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 219] #=%i\n",k);
+
 		// set HDR.PhysDim
 		k1 = hdr->CHANNEL[k].PhysDimCode;
 		if (k1>0)
@@ -3604,6 +3652,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			*(double*)(Header2+96*k+88) = l_endian_f64(hdr->CHANNEL[k].PhysMin);
 		}
 	}
+
     	else if ((hdr->TYPE==GDF) || (hdr->TYPE==GDF1)) {	
 	     	hdr->HeadLen = (hdr->NS+1)*256;
 	    	hdr->AS.Header = (uint8_t*) malloc(hdr->HeadLen);
@@ -3755,6 +3804,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		}	
 //		hdr->AS.Header1 = (uint8_t*)Header1; 
 	}
+
     	else if ((hdr->TYPE==EDF) | (hdr->TYPE==BDF)) {	
 	     	hdr->HeadLen   = (hdr->NS+1)*256;
 	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
@@ -3857,6 +3907,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		     	hdr->CHANNEL[k].GDFTYP = ( (hdr->TYPE != BDF) ? 3 : 255+24);
 		}
 	}
+
     	else if (hdr->TYPE==HL7aECG) {	
    		hdr->FileName = FileName;
 		for (k=0; k<hdr->NS; k++) {
@@ -3864,10 +3915,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		}
 		hdr->SPR *= hdr->NRec;
 		hdr->NRec = 1; 
-		hdr->FILE.OPEN=2;
+		hdr->FILE.OPEN = 2;
     		hdr->FLAG.SWAP = 0; 
-
 	}
+
     	else if (hdr->TYPE==MFER) {	
     		uint8_t tag; 
     		size_t  len, curPos=0; 
@@ -4037,8 +4088,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			curPos += len+curPos; 
 		} 
 		// tag 30: data
-
 	}
+
     	else if (hdr->TYPE==SCP_ECG) {	
     		hdr->FileName = FileName;
     		sopen_SCP_write(hdr);
@@ -4048,6 +4099,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     			return(NULL);
     		}	
 	}
+
 	else {
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "ERROR: Writing of format not supported\n"; 
@@ -4177,7 +4229,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	for (k1=0,NS=0; k1<hdr->NS; ++k1)
 		if (hdr->CHANNEL[k1].OnOff) ++NS; 
 
-// fprintf(stdout,"SREAD: pos=%i, size of data = %ix%ix%ix%i = %i\n",hdr->FILE.POS,hdr->SPR, count, NS, sizeof(biosig_data_type),hdr->SPR * count * NS * sizeof(biosig_data_type));
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"SREAD: pos=[%i,%i,%i], size of data = %ix%ix%ix%i = %i\n",POS,length,hdr->FILE.POS,hdr->SPR, count, NS, sizeof(biosig_data_type),hdr->SPR * count * NS * sizeof(biosig_data_type));
 
 	// transfer RAW into BIOSIG data format 
 	if (data==NULL)
