@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.34 2008-04-04 19:28:31 schloegl Exp $
+    $Id: save2gdf.c,v 1.35 2008-04-17 13:28:28 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -187,7 +187,7 @@ int main(int argc, char **argv){
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[131] going for SCLOSE\n");
 		sclose(hdr);
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[137] SCLOSE finished\n");
-		free(hdr);
+		destructHDR(hdr);
 		free(data);
 		exit(serror());
 	}
@@ -294,12 +294,12 @@ int main(int argc, char **argv){
 	swrite(data, hdr->NRec, hdr);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[231] SWRITE finishes\n");
 	if ((status=serror())) { 
-		free(hdr);
+		destructHDR(hdr);
 		exit(status); 
     	}	
 
 	sclose(hdr);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[241] SCLOSE finished\n");
-    	free(hdr);
+	destructHDR(hdr);
 	exit(serror()); 
 }
