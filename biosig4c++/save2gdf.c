@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.35 2008-04-17 13:28:28 schloegl Exp $
+    $Id: save2gdf.c,v 1.36 2008-04-17 13:36:36 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -139,9 +139,11 @@ int main(int argc, char **argv){
 
 	tzset();
 	hdr = sopen(source, "r", NULL);
-	if ((status=serror())) exit(status); 
+	if ((status=serror())) {
+		destructHDR(hdr);
+		exit(status); 
+	} 
 	
-	if (hdr==NULL) exit(-1);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
 	hdr2ascii(hdr,stdout,VERBOSE_LEVEL);
@@ -166,8 +168,11 @@ int main(int argc, char **argv){
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stdout,"[122] UCAL=%i %e %e %e \n",hdr->FLAG.UCAL,data[100],data[110],data[500+hdr->SPR]);
 	
-	if ((status=serror())) exit(status); 
-
+	if ((status=serror())) {
+		destructHDR(hdr);
+		exit(status);
+	};
+	
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stdout,"\n[129] SREAD on %s successful [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
 
@@ -188,7 +193,6 @@ int main(int argc, char **argv){
 		sclose(hdr);
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[137] SCLOSE finished\n");
 		destructHDR(hdr);
-		free(data);
 		exit(serror());
 	}
 
@@ -287,7 +291,10 @@ int main(int argc, char **argv){
 	hdr->FLAG.ANONYMOUS = 1; 	// no personal names are processed 
 
 	hdr = sopen(tmp, "wb", hdr);
-	if ((status=serror())) exit(status); 
+	if ((status=serror())) {
+		destructHDR(hdr);
+		exit(status); 
+	}	
 	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"\n[221] File %s opened. %i %i \n",hdr->FileName,hdr->AS.bpb,hdr->NS);
 
