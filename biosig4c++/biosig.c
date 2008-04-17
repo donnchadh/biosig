@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.164 2008-04-17 13:59:28 schloegl Exp $
+    $Id: biosig.c,v 1.165 2008-04-17 19:55:34 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1531,7 +1531,7 @@ if (!strncmp(MODE,"r",1))
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201] GDF=%i %i Ver=%4.2f\n",GDF,hdr->TYPE,hdr->VERSION);
 
 	if (hdr->TYPE == GDF) {
-      	    	strncpy(tmp,(char*)hdr->AS.Header+3,5);
+      	    	strncpy(tmp,(char*)hdr->AS.Header+3,5); tmp[5]=0;
 	    	hdr->VERSION 	= atof(tmp);
 	    	hdr->NRec 	= lei64p(hdr->AS.Header+236); 
 	    	hdr->Dur[0]  	= leu32p(hdr->AS.Header+244);
@@ -1624,6 +1624,7 @@ if (!strncmp(MODE,"r",1))
 	    		tm_time.tm_mon  = atoi(tmp)-1;
 			strncpy(tmp,Header1+168   ,4);	    		 
 	    		tm_time.tm_year = atoi(tmp)-1900; 
+	    		tm_time.tm_isdst= -1; 
 
 			hdr->T0 = t_time2gdf_time(mktime(&tm_time)); 
 		    	hdr->HeadLen 	= leu64p(hdr->AS.Header+184); 
@@ -1819,11 +1820,12 @@ if (!strncmp(MODE,"r",1))
 		    		t1.tm_mday = atoi(strtok(ptr_str,"-")); 
 		    		strcpy(tmp,strtok(NULL,"-"));
 		    		for (k=0; k<strlen(tmp); ++k); tmp[k]= toupper(tmp[k]);	// convert to uppper case 
-		    		t1.tm_year = atoi(strtok(NULL,"-")) - 1900; 
+		    		t1.tm_year = atoi(strtok(NULL,"- ")) - 1900; 
 		    		t1.tm_mon  = !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11;
-		    		t1.tm_sec  = 0; 
-		    		t1.tm_min  = 0; 
-		    		t1.tm_hour = 12; 
+		    		t1.tm_sec  = 0;
+		    		t1.tm_min  = 0;
+		    		t1.tm_hour = 12;
+		    		t1.tm_isdst= -1;
 		    		hdr->Patient.Birthday = t_time2gdf_time(mktime(&t1));
 		    	}
 
@@ -1834,6 +1836,10 @@ if (!strncmp(MODE,"r",1))
 	    		for (k=0;k<strlen(tmp); ++k); tmp[k]= toupper(tmp[k]);	// convert to uppper case 
 	    		tm_time.tm_year = atoi(strtok(NULL,"-")) - 1900; 
 	    		tm_time.tm_mon  = !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11;
+	    		tm_time.tm_sec  = 0;
+	    		tm_time.tm_min  = 0;
+	    		tm_time.tm_hour = 12;
+	    		tm_time.tm_isdst= -1;
 		}   
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
 
@@ -2609,7 +2615,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	tm_time.tm_hour = lei32p(hdr->AS.Header+28);
 	    	tm_time.tm_min  = lei32p(hdr->AS.Header+32);
 	    	tm_time.tm_sec  = (int)lef64p(hdr->AS.Header+36);
-
+		tm_time.tm_isdst = -1; 
+		
     		hdr->T0 	= tm_time2gdf_time(&tm_time);
 	    	// = *(double*)(Header1+44);
 	    	hdr->NS   	= leu32p(hdr->AS.Header+52);
