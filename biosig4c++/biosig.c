@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.162 2008-04-16 20:48:56 schloegl Exp $
+    $Id: biosig.c,v 1.163 2008-04-17 13:26:22 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -953,7 +953,7 @@ void write_gdf_eventtable(HDRTYPE *hdr)
 /****************************************************************************/
 #define Header1 ((char*)hdr->AS.Header) 
 
-HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
+HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 {
 /*
 	HDR is initialized, memory is allocated for 
@@ -989,7 +989,7 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 
 	hdr->AS.Header = NULL;
 
-      	hdr->TYPE = GDF; 
+      	hdr->TYPE = noFile; 
       	hdr->VERSION = 1.99;
       	hdr->AS.rawdata = (uint8_t*) malloc(0);
       	hdr->NRec = 0; 
@@ -1074,6 +1074,67 @@ HDRTYPE* create_default_hdr(const unsigned NS, const unsigned N_EVENT)
 	
 	return(hdr);
 }
+
+
+void destructHDR(HDRTYPE* hdr) {
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.aECG\n");
+
+    	if (hdr->aECG != NULL)	
+        	free(hdr->aECG);
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.AS.rawdata\n");
+
+    	if ((hdr->AS.rawdata != NULL) && (hdr->TYPE != SCP_ECG)) 
+    	{	// for SCP: hdr->AS.rawdata is part of hdr.AS.Header1 
+        	free(hdr->AS.rawdata);
+        }	
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.data.block\n");
+
+    	if (hdr->data.block != NULL) {	
+        	free(hdr->data.block);
+       	}
+       	hdr->data.size[0]=0;
+       	hdr->data.size[1]=0;
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.CHANNEL[]\n");
+
+    	if (hdr->CHANNEL != NULL)	
+        	free(hdr->CHANNEL);
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.AS.bi\n");
+
+    	if (hdr->AS.bi != NULL)	
+        	free(hdr->AS.bi);
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.AS.Header\n");
+
+    	if (hdr->AS.Header != NULL)	
+        	free(hdr->AS.Header);
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free Event Table %p %p %p %p \n",hdr->EVENT.TYP,hdr->EVENT.POS,hdr->EVENT.DUR,hdr->EVENT.CHN);
+
+    	if (hdr->EVENT.POS != NULL)	
+        	free(hdr->EVENT.POS);
+    	if (hdr->EVENT.TYP != NULL)	
+        	free(hdr->EVENT.TYP);
+    	if (hdr->EVENT.DUR != NULL)	
+        	free(hdr->EVENT.DUR);
+    	if (hdr->EVENT.CHN != NULL)	
+        	free(hdr->EVENT.CHN);
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: 09\n");
+        	
+        hdr->EVENT.N   = 0; 
+	hdr->FILE.OPEN = 0; 	     	
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR\n");
+
+	free(hdr);
+	return; 
+}
+
 
 
 /****************************************************************************/
@@ -1386,11 +1447,6 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 }
 
 
-// the null HDR: needed for Python //
-HDRTYPE* nullhdr() {
-	return((HDRTYPE*)NULL);
-}
-
 
 /****************************************************************************/
 /**                     SOPEN                                              **/
@@ -1421,7 +1477,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	uint16_t	EGI_LENGTH_CODETABLE=0;	// specific for EGI format 
 
 	if (hdr==NULL)
-		hdr = create_default_hdr(0,0);	// initializes fields that may stay undefined during SOPEN 
+		hdr = constructHDR(0,0);	// initializes fields that may stay undefined during SOPEN 
 
 
 hdr->FLAG.SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 	// default: most data formats are little endian 
@@ -1429,7 +1485,7 @@ if (!strncmp(MODE,"r",1))
 {
  	hdr->AS.Header = (uint8_t*)malloc(257);
     	Header1[256] = 0;
-	hdr->TYPE = unknown; 
+	hdr->TYPE = noFile; 
 
 	hdr->FileName = FileName; 
         hdr->FILE.COMPRESSION = 0;   	
@@ -1437,8 +1493,7 @@ if (!strncmp(MODE,"r",1))
     	if (!hdr->FILE.OPEN) { 	
     		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
     		B4C_ERRMSG = "Error SOPEN(READ); Cannot open file.";		
-    		free(hdr);   
-		return(NULL);
+    		return(hdr); 
     	}	    
     
     	/******** read 1st (fixed)  header  *******/	
@@ -1457,8 +1512,7 @@ if (!strncmp(MODE,"r",1))
 	    	if (!hdr->FILE.OPEN) { 	
     			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 	    		B4C_ERRMSG = "Error SOPEN(GZREAD); Cannot open file.";		
-    			free(hdr);   
-			return(NULL);
+	    		return(hdr);
     		}	    
 	    	count = ifread(Header1,1,256,hdr);
 		hdr   = getfiletype(hdr);
@@ -1471,9 +1525,7 @@ if (!strncmp(MODE,"r",1))
     		B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
     		B4C_ERRMSG = "ERROR BIOSIG SOPEN(read): Dataformat Format not known.\n";
     		ifclose(hdr);
-    		free(Header1);
-    		free(hdr);
-		return(NULL);
+		return(hdr);
 	}	
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201] GDF=%i %i Ver=%4.2f\n",GDF,hdr->TYPE,hdr->VERSION);
@@ -1605,17 +1657,18 @@ if (!strncmp(MODE,"r",1))
 
 				hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
 
-				hdr->CHANNEL[k].DigMin   = (double) lei64p(Header2+ 8*k + 120*hdr->NS);
-				hdr->CHANNEL[k].DigMax   = (double) lei64p(Header2+ 8*k + 128*hdr->NS);
+				hdr->CHANNEL[k].DigMin   = (double) lei64p(Header2 + 8*k + 120*hdr->NS);
+				hdr->CHANNEL[k].DigMax   = (double) lei64p(Header2 + 8*k + 128*hdr->NS);
 
-				/*
-				/ ###FIXME###
-				hdr->CHANNEL[k].PreFilt = (hdr->Header2+ 68*k + 136*hdr->NS);
-				*/
+				char *PreFilt  = (char*)(Header2+ 68*k + 136*hdr->NS);
 				hdr->CHANNEL[k].LowPass  = NaN;
 				hdr->CHANNEL[k].HighPass = NaN;
 				hdr->CHANNEL[k].Notch    = NaN;
-
+				float lf,hf;
+				if (sscanf(PreFilt,"%f - %f Hz",&lf,&hf)==2) {
+					hdr->CHANNEL[k].LowPass  = hf;
+					hdr->CHANNEL[k].HighPass = lf;
+				}
 			}	
 			else {
 				hdr->CHANNEL[k].PhysDimCode = leu16p(Header2+ 2*k + 102*hdr->NS);
@@ -1733,6 +1786,11 @@ if (!strncmp(MODE,"r",1))
 		hdr->EVENT.N 	= 0;
 	    	hdr->NS		= atoi(strncpy(tmp,Header1+252,4));
 	    	hdr->HeadLen	= atoi(strncpy(tmp,Header1+184,8));
+	    	if (hdr->HeadLen != ((hdr->NS+1)<<8)) {
+	    		B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
+	    		B4C_ERRMSG = "EDF/BDF corrupted: HDR.NS and HDR.HeadLen do not fit";
+	    	};	
+
 	    	hdr->NRec	= atoi(strncpy(tmp,Header1+236,8));
 	    	Dur		= atof(strncpy(tmp,Header1+244,8));
 		double dtmp1, dtmp2;
@@ -1854,7 +1912,6 @@ if (!strncmp(MODE,"r",1))
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// EDF does not support automated overflow and saturation detection
 		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
 
-
 		if (EventChannel) {
 			/* read Annotation and Status channel and extract event information */		
 			hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
@@ -1913,7 +1970,7 @@ if (!strncmp(MODE,"r",1))
                         HDR.EVENT.CHN = zeros(N,1); 
 */
 			}
-			else if ((EventChannel>0) && (hdr->TYPE==BDF)) {
+			else if (hdr->TYPE==BDF) {
 				/* convert BDF status channel into event table*/
 				uint32_t d1, d0 = ((uint32_t)Marker[2]<<16) + ((uint32_t)Marker[1]<<8) + (uint32_t)Marker[0];
 				for (k=1; k<len; k++) {
@@ -1954,8 +2011,9 @@ if (!strncmp(MODE,"r",1))
 					d0 = d1;
 				}	
 			}
+
 			free(Marker);
-			ifseek(hdr,hdr->HeadLen,SEEK_SET);
+			ifseek(hdr, hdr->HeadLen, SEEK_SET);
 		}	/* End reading EDF/BDF Status channel */
 
 		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
@@ -3400,14 +3458,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FLAG.SWAP = 0; 	// no swapping
 	    	hdr->FILE.POS = 0; 
 
-/* 
-		if (serror()) {
-			serror();
-	                free(Header1); 	 
-	                free(hdr); 	 
-	                return(NULL); 	 
-		}
-*/
 	}
 	
 	else if (hdr->TYPE==SND) {
@@ -3536,11 +3586,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	else if (hdr->TYPE==HL7aECG) {
 		sopen_HL7aECG_read(hdr);
-    		if (serror()) { 
-	    		free(Header1);
-    			free(hdr);
-    			return(NULL);
-    		}
+    		if (serror()) return(hdr);
     		hdr->FLAG.SWAP = 0; 
 	}
 
@@ -3549,9 +3595,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
     		B4C_ERRMSG = "ERROR BIOSIG SOPEN(READ): data format is not supported";		
     		ifclose(hdr);
-    		free(Header1);
-    		free(hdr);
-		return(NULL);
+    		return(hdr);
 	}
 
 	hdr->FILE.POS = 0; 
@@ -4093,11 +4137,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     	else if (hdr->TYPE==SCP_ECG) {	
     		hdr->FileName = FileName;
     		sopen_SCP_write(hdr);
-    		if (serror()) { 
-	    		free(Header1);
-    			free(hdr);
-    			return(NULL);
-    		}	
+    		if (serror()) return(hdr);
 	}
 
 	else {
@@ -4828,56 +4868,6 @@ int sclose(HDRTYPE* hdr)
 		int status = ifclose(hdr);
 		if (status) iferror(hdr);
     	}	
-
-    	if (hdr->aECG != NULL)	
-        	free(hdr->aECG);
-
-    	if ((hdr->AS.rawdata != NULL) && (hdr->TYPE != SCP_ECG)) 
-    	{	// for SCP: hdr->AS.rawdata is part of hdr.AS.Header1 
-        	free(hdr->AS.rawdata);
-        }	
-
-/*
-    	if (hdr->data.block != NULL) {	
-        	free(hdr->data.block);
-       	}
-       	hdr->data.size[0]=0;
-       	hdr->data.size[1]=0;
-*/
-
-
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 05\n");
-
-    	if (hdr->CHANNEL != NULL)	
-        	free(hdr->CHANNEL);
-
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 06\n");
-
-    	if (hdr->AS.bi != NULL)	
-        	free(hdr->AS.bi);
-
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 07\n");
-
-    	if (hdr->AS.Header != NULL)	
-        	free(hdr->AS.Header);
-
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 08 %p %p %p %p \n",hdr->EVENT.TYP,hdr->EVENT.POS,hdr->EVENT.DUR,hdr->EVENT.CHN);
-
-    	if (hdr->EVENT.POS != NULL)	
-        	free(hdr->EVENT.POS);
-    	if (hdr->EVENT.TYP != NULL)	
-        	free(hdr->EVENT.TYP);
-    	if (hdr->EVENT.DUR != NULL)	
-        	free(hdr->EVENT.DUR);
-    	if (hdr->EVENT.CHN != NULL)	
-        	free(hdr->EVENT.CHN);
-
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 09\n");
-        	
-        hdr->EVENT.N   = 0; 
-	hdr->FILE.OPEN = 0; 	     	
-
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"sclose: 10\n");
 
     	return(0);
 }

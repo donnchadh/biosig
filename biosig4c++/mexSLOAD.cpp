@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.24 2008-04-16 20:48:56 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.25 2008-04-17 13:26:22 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -18,6 +18,87 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+mxArray* mxGetFileType(enum FileFormat FMT) {
+	mxArray *FileType;
+		
+	switch (FMT) {
+	case noFile: 	{ FileType = mxCreateDoubleScalar(-1.0); break; }
+	case unknown: 	{ FileType = mxCreateString("unknown"); break; }
+	
+	case ABF: 	{ FileType = mxCreateString("ABF"); break; }
+	case ACQ: 	{ FileType = mxCreateString("ACQ"); break; }
+	case ACR_NEMA: 	{ FileType = mxCreateString("ACR_NEMA"); break; }
+	case AINF: 	{ FileType = mxCreateString("AINF"); break; }
+	case AIFC: 	{ FileType = mxCreateString("AIFC"); break; }
+	case AIFF: 	{ FileType = mxCreateString("AIFF"); break; }
+	case ATES: 	{ FileType = mxCreateString("ATES"); break; }
+	case ATF: 	{ FileType = mxCreateString("ATF"); break; }
+	case AU: 	{ FileType = mxCreateString("AU"); break; }
+
+	case BCI2000: 	{ FileType = mxCreateString("BCI2000"); break; }
+	case BDF: 	{ FileType = mxCreateString("BDF"); break; }
+	case BKR: 	{ FileType = mxCreateString("BKR"); break; }
+	case BLSC: 	{ FileType = mxCreateString("BLSC"); break; }
+	case BMP: 	{ FileType = mxCreateString("BMP"); break; }
+	case BrainVision: 	{ FileType = mxCreateString("BrainVision"); break; }
+	case BZ2: 	{ FileType = mxCreateString("BZ2"); break; }
+
+	case CDF: 	{ FileType = mxCreateString("CDF"); break; }
+	case DEMG: 	{ FileType = mxCreateString("DEMG"); break; }
+	case CFWB: 	{ FileType = mxCreateString("CFWB"); break; }
+	case CNT: 	{ FileType = mxCreateString("CNT"); break; }
+	case DICOM: 	{ FileType = mxCreateString("DICOM"); break; }
+
+	case EDF: 	{ FileType = mxCreateString("EDF"); break; }
+	case EEProbe: 	{ FileType = mxCreateString("EEProbe"); break; }
+	case EGI: 	{ FileType = mxCreateString("EGI"); break; }
+	case ELF: 	{ FileType = mxCreateString("ELF"); break; }
+	case ETG4000: 	{ FileType = mxCreateString("ETG4000"); break; }
+	case EXIF: 	{ FileType = mxCreateString("EXIF"); break; }
+
+	case FAMOS: 	{ FileType = mxCreateString("FAMOS"); break; }
+	case FEF: 	{ FileType = mxCreateString("FEF"); break; }
+	case FITS: 	{ FileType = mxCreateString("FITS"); break; }
+	case FLAC: 	{ FileType = mxCreateString("FLAC"); break; }
+
+	case GDF: 	{ FileType = mxCreateString("GDF"); break; }
+	case GIF: 	{ FileType = mxCreateString("GIF"); break; }
+	case GTF: 	{ FileType = mxCreateString("GTF"); break; }
+	case GZIP: 	{ FileType = mxCreateString("GZIP"); break; }
+	case HDF: 	{ FileType = mxCreateString("HDF"); break; }
+	case HL7aECG: 	{ FileType = mxCreateString("HL7aECG"); break; }
+	case JPEG: 	{ FileType = mxCreateString("JPEG"); break; }
+
+	case Matlab: 	{ FileType = mxCreateString("MAT"); break; }
+	case MFER: 	{ FileType = mxCreateString("MFER"); break; }
+	case MIDI: 	{ FileType = mxCreateString("MIDI"); break; }
+	case NetCDF: 	{ FileType = mxCreateString("NetCDF"); break; }
+	case NEX1: 	{ FileType = mxCreateString("NEX1"); break; }
+	case OGG: 	{ FileType = mxCreateString("OGG"); break; }
+
+	case RIFF: 	{ FileType = mxCreateString("RIFF"); break; }
+	case SCP_ECG: 	{ FileType = mxCreateString("SCP"); break; }
+	case SIGIF: 	{ FileType = mxCreateString("SIGIF"); break; }
+	case SMA: 	{ FileType = mxCreateString("SMA"); break; }
+	case SND: 	{ FileType = mxCreateString("SND"); break; }
+	case SVG: 	{ FileType = mxCreateString("SVG"); break; }
+
+	case TIFF: 	{ FileType = mxCreateString("TIFF"); break; }
+	case TMS32: 	{ FileType = mxCreateString("TMS32"); break; }
+	case VRML: 	{ FileType = mxCreateString("VRML"); break; }
+	case VTK: 	{ FileType = mxCreateString("VTK"); break; }
+	case WAV: 	{ FileType = mxCreateString("WAV"); break; }
+
+	case WMF: 	{ FileType = mxCreateString("WMF"); break; }
+	case XML: 	{ FileType = mxCreateString("XML"); break; }
+	case ZIP: 	{ FileType = mxCreateString("ZIP"); break; }
+	case ZIP2: 	{ FileType = mxCreateString("ZIP2"); break; }
+	case Z: 	{ FileType = mxCreateString("Z"); break; }
+	default: 	  FileType = mxCreateString("unknown");
+	}
+	return(FileType); 
+}
 
 void mexFunction(
     int           nlhs,           /* number of expected outputs */
@@ -114,8 +195,17 @@ void mexFunction(
 	/* open and read file, convert into M-struct */
 
 	hdr = sopen(FileName, "r", NULL);
+
 	if ((status=serror())) {
+		//plhs[0] = mxCreateDoubleMatrix(0,0, mxREAL);
+
+		const char* fields[]={"TYPE","VERSION"};
+		plhs[1] = mxCreateStructMatrix(1, 1, 2, fields);
+		mxSetField(plhs[1],0,"TYPE",mxGetFileType(hdr->TYPE));
+		mxSetField(plhs[1],0,"VERSION",mxCreateDoubleScalar(hdr->VERSION));
+
 		mexPrintf("ERROR(%i) in mexSLOAD: Cannot open file %s (%s)\n", status, FileName, B4C_ERRMSG); 
+		destructHDR(hdr);
 		return; 
 	}
 			
@@ -182,80 +272,8 @@ void mexFunction(
 		for (numfields=0; fnames[numfields++] != 0; );
 		HDR = mxCreateStructMatrix(1, 1, --numfields, fnames);
 
-		FileType = mxCreateString("unknown");
-		switch (hdr->TYPE) {
-		case ABF: 	{ FileType = mxCreateString("ABF"); break; }
-		case ACQ: 	{ FileType = mxCreateString("ACQ"); break; }
-		case ACR_NEMA: 	{ FileType = mxCreateString("ACR_NEMA"); break; }
-		case AINF: 	{ FileType = mxCreateString("AINF"); break; }
-		case AIFC: 	{ FileType = mxCreateString("AIFC"); break; }
-		case AIFF: 	{ FileType = mxCreateString("AIFF"); break; }
-		case ATES: 	{ FileType = mxCreateString("ATES"); break; }
-		case ATF: 	{ FileType = mxCreateString("ATF"); break; }
-		case AU: 	{ FileType = mxCreateString("AU"); break; }
-
-		case BCI2000: 	{ FileType = mxCreateString("BCI2000"); break; }
-		case BDF: 	{ FileType = mxCreateString("BDF"); break; }
-		case BKR: 	{ FileType = mxCreateString("BKR"); break; }
-		case BLSC: 	{ FileType = mxCreateString("BLSC"); break; }
-		case BMP: 	{ FileType = mxCreateString("BMP"); break; }
-		case BrainVision: 	{ FileType = mxCreateString("BrainVision"); break; }
-		case BZ2: 	{ FileType = mxCreateString("BZ2"); break; }
-
-		case CDF: 	{ FileType = mxCreateString("CDF"); break; }
-		case DEMG: 	{ FileType = mxCreateString("DEMG"); break; }
-		case CFWB: 	{ FileType = mxCreateString("CFWB"); break; }
-		case CNT: 	{ FileType = mxCreateString("CNT"); break; }
-		case DICOM: 	{ FileType = mxCreateString("DICOM"); break; }
-
-		case EDF: 	{ FileType = mxCreateString("EDF"); break; }
-		case EEProbe: 	{ FileType = mxCreateString("EEProbe"); break; }
-		case EGI: 	{ FileType = mxCreateString("EGI"); break; }
-		case ELF: 	{ FileType = mxCreateString("ELF"); break; }
-		case ETG4000: 	{ FileType = mxCreateString("ETG4000"); break; }
-		case EXIF: 	{ FileType = mxCreateString("EXIF"); break; }
-
-		case FAMOS: 	{ FileType = mxCreateString("FAMOS"); break; }
-		case FEF: 	{ FileType = mxCreateString("FEF"); break; }
-		case FITS: 	{ FileType = mxCreateString("FITS"); break; }
-		case FLAC: 	{ FileType = mxCreateString("FLAC"); break; }
-
-		case GDF: 	{ FileType = mxCreateString("GDF"); break; }
-		case GIF: 	{ FileType = mxCreateString("GIF"); break; }
-		case GTF: 	{ FileType = mxCreateString("GTF"); break; }
-		case GZIP: 	{ FileType = mxCreateString("GZIP"); break; }
-		case HDF: 	{ FileType = mxCreateString("HDF"); break; }
-		case HL7aECG: 	{ FileType = mxCreateString("HL7aECG"); break; }
-		case JPEG: 	{ FileType = mxCreateString("JPEG"); break; }
-
-		case Matlab: 	{ FileType = mxCreateString("MAT"); break; }
-		case MFER: 	{ FileType = mxCreateString("MFER"); break; }
-		case MIDI: 	{ FileType = mxCreateString("MIDI"); break; }
-		case NetCDF: 	{ FileType = mxCreateString("NetCDF"); break; }
-		case NEX1: 	{ FileType = mxCreateString("NEX1"); break; }
-		case OGG: 	{ FileType = mxCreateString("OGG"); break; }
-
-		case RIFF: 	{ FileType = mxCreateString("RIFF"); break; }
-		case SCP_ECG: 	{ FileType = mxCreateString("SCP"); break; }
-		case SIGIF: 	{ FileType = mxCreateString("SIGIF"); break; }
-		case SMA: 	{ FileType = mxCreateString("SMA"); break; }
-		case SND: 	{ FileType = mxCreateString("SND"); break; }
-		case SVG: 	{ FileType = mxCreateString("SVG"); break; }
-		case TIFF: 	{ FileType = mxCreateString("TIFF"); break; }
-		case TMS32: 	{ FileType = mxCreateString("TMS32"); break; }
-		case VRML: 	{ FileType = mxCreateString("VRML"); break; }
-		case VTK: 	{ FileType = mxCreateString("VTK"); break; }
-
-		case WAV: 	{ FileType = mxCreateString("WAV"); break; }
-		case WMF: 	{ FileType = mxCreateString("WMF"); break; }
-		case XML: 	{ FileType = mxCreateString("XML"); break; }
-		case ZIP: 	{ FileType = mxCreateString("ZIP"); break; }
-		case ZIP2: 	{ FileType = mxCreateString("ZIP2"); break; }
-		case Z: 	{ FileType = mxCreateString("Z"); break; }
-		default: 	  FileType = mxCreateString("unknown");
-		}
-
-		mxSetField(HDR,0,"TYPE",FileType);
+		mxSetField(HDR,0,"TYPE",mxGetFileType(hdr->TYPE));
+		
 		mxSetField(HDR,0,"VERSION",mxCreateDoubleScalar(hdr->VERSION));
 		mxSetField(HDR,0,"NS",mxCreateDoubleScalar(hdr->NS));
 		mxSetField(HDR,0,"SPR",mxCreateDoubleScalar(hdr->SPR));

@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.3 2008-04-01 19:17:14 schloegl Exp $
+% $Id: swig.i,v 1.4 2008-04-17 13:26:22 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -193,8 +193,8 @@ typedef struct {
 } HDRTYPE;
 
 
-HDRTYPE* nullhdr();
-HDRTYPE* getfiletype(HDRTYPE* hdr);
+HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT);
+void 	 destructHDR(HDRTYPE* hdr);
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 int 	sclose(HDRTYPE* hdr);
 size_t	sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr);
