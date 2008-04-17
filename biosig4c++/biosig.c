@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.163 2008-04-17 13:26:22 schloegl Exp $
+    $Id: biosig.c,v 1.164 2008-04-17 13:59:28 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -4508,6 +4508,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 			fprintf(stdout,"E%02i: s(1)= %d %e %e %e\n",k1,leu32p(ptr),sample_value,(*(double*)(ptr)),(*(float*)(ptr)));
 
 		}
+		free(ChanList);
 	}
 
 	return(count);

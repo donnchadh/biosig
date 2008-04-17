@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.18 2008-04-14 07:34:17 cle1109 Exp $
+    $Id: sopen_hl7aecg.c,v 1.19 2008-04-17 13:59:28 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -59,22 +59,22 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 		else if(effectiveTime.FirstChild("center").Element())
 		    T0 = (char *)effectiveTime.FirstChild("center").Element()->Attribute("value");
 
-		struct tm *t0 = (struct tm *)malloc(sizeof(struct tm));
+		struct tm t0; 
 		T0[14] = '\0';
 		// ### ?FIXME?: compensate local time and DST in mktime used in tm_time2gdf_time below 
-		t0->tm_sec  = atoi(T0+12)-timezone;	
+		t0.tm_sec  = atoi(T0+12)-timezone;	
 		T0[12] = '\0';
-		t0->tm_min  = atoi(T0+10);
+		t0.tm_min  = atoi(T0+10);
 		T0[10] = '\0';
-		t0->tm_hour = atoi(T0+8);
+		t0.tm_hour = atoi(T0+8);
 		T0[8]  = '\0';
-		t0->tm_mday = atoi(T0+6);
+		t0.tm_mday = atoi(T0+6);
 		T0[6]  = '\0';
-		t0->tm_mon  = atoi(T0+4)-1;
+		t0.tm_mon  = atoi(T0+4)-1;
 		T0[4]  = '\0';
-		t0->tm_year = atoi(T0)-1900;
-		t0->tm_isdst  = -1;
- 		hdr->T0 = tm_time2gdf_time(t0);
+		t0.tm_year = atoi(T0)-1900;
+		t0.tm_isdst  = -1;
+ 		hdr->T0 = tm_time2gdf_time(&t0);
 
 		TiXmlHandle demographic = aECG.FirstChild("componentOf").FirstChild("timepointEvent").FirstChild("componentOf").FirstChild("subjectAssignment").FirstChild("subject").FirstChild("trialSubject");
 
@@ -130,19 +130,19 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 			;
 		else if (strlen(T0)>14) {
 		    T0[14] = '\0';
-		    t0->tm_sec = atoi(T0+12);
+		    t0.tm_sec = atoi(T0+12);
 		    T0[12] = '\0';
-		    t0->tm_min = atoi(T0+10);
+		    t0.tm_min = atoi(T0+10);
 		    T0[10] = '\0';
-		    t0->tm_hour = atoi(T0+8);
+		    t0.tm_hour = atoi(T0+8);
 		    T0[8] = '\0';
-		    t0->tm_mday = atoi(T0+6);
+		    t0.tm_mday = atoi(T0+6);
 		    T0[6] = '\0';
-		    t0->tm_mon = atoi(T0+4)-1;
+		    t0.tm_mon = atoi(T0+4)-1;
 		    T0[4] = '\0';
-		    t0->tm_year = atoi(T0)-1900;
+		    t0.tm_year = atoi(T0)-1900;
 
-		    hdr->Patient.Birthday = tm_time2gdf_time(t0);
+		    hdr->Patient.Birthday = tm_time2gdf_time(&t0);
 		}
 //		else
 //		    fprintf(stderr,"Error: birthday\n");
@@ -220,6 +220,8 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 			    hdr->CHANNEL[i].DigMin = data[j];
 			}
 		    }
+		    hdr->CHANNEL[i].OnOff = 1;
+
 		    /* scaling factors */ 
 		    hdr->CHANNEL[i].Cal  = atof(channel.FirstChild("value").FirstChild("scale").Element()->Attribute("value"));
 		    hdr->CHANNEL[i].Off  = atof(channel.FirstChild("value").FirstChild("origin").Element()->Attribute("value"));
