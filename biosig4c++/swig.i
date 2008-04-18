@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.4 2008-04-17 13:26:22 schloegl Exp $
+% $Id: swig.i,v 1.5 2008-04-18 18:52:17 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -29,17 +29,17 @@ typedef int64_t gdf_time; /* gdf time is represented in 64 bits */
 
 	/* list of file formats */
 enum FileFormat {
-	unknown, 
-	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, AVI,
-	BKR, BCI2000, BDF, BMP, BrainVision, BZ2, 
-	CDF, CFWB, CNT, 
-	DICOM, DEMG, EDF, EEProbe, EGI, ETG4000, EVENT, EXIF, 
+	noFile, unknown, 
+	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, ATES, ATF, AVI,
+	BCI2000, BDF, BKR, BLSC, BMP, BrainVision, BZ2, 
+	CDF, CFWB, CNT, DICOM, DEMG, 
+	EDF, EEProbe, EGI, ELF, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
-	GIF, GZIP, HL7aECG, JPEG, 
+	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, 
 	Matlab, MFER, MIDI, NetCDF, NEX1, OGG, 
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, SMA, SND, SVG, SXI,    
-	TIFF, VRML, VTK, WAV, WMF, XML, XPM,
+	TIFF, TMS32, VRML, VTK, WAV, WMF, XML, XPM,
 	Z, ZIP, ZIP2
 };
 
@@ -203,6 +203,6 @@ int	seof(HDRTYPE* hdr);
 void	srewind(HDRTYPE* hdr);
 int 	sseek(HDRTYPE* hdr, long int offset, int whence);
 long int stell(HDRTYPE* hdr);
-int	hdr2ascii(HDRTYPE* hdr,FILE *fid, int verbosity);
+int	hdr2ascii(HDRTYPE* hdr, FILE *fid, int verbosity);
 
 
