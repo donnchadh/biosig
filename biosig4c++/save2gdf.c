@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.36 2008-04-17 13:36:36 schloegl Exp $
+    $Id: save2gdf.c,v 1.37 2008-04-18 12:30:21 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "biosig-dev.h"
+#include "biosig.h"
 
 #ifndef INF
 #define INF (1.0/0.0)
@@ -112,10 +112,6 @@ int main(int argc, char **argv){
 		}	
 	}
 
-    	else if (!strcmp(argv[k],"--TEST1"))  	{
-		/* used for testing SFLUSH_GDF_EVENT_TABLE */
-	    	ne = 1;
-	}
 	numopt = k-1;	
 		
     }
@@ -197,8 +193,7 @@ int main(int argc, char **argv){
 	}
 
 	if (hdr->FILE.OPEN){
-		ifclose(hdr); 
-		hdr->FILE.FID = 0;
+		sclose(hdr); 
 		free(hdr->AS.Header);
 		hdr->AS.Header = NULL;
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[138] file closed\n");
