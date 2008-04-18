@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.37 2008-04-18 12:30:21 schloegl Exp $
+    $Id: save2gdf.c,v 1.38 2008-04-18 14:05:07 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -140,6 +140,10 @@ int main(int argc, char **argv){
 		exit(status); 
 	} 
 	
+	if (hdr->SPR*hdr->Dur[1] != hdr->SampleRate*hdr->Dur[0])
+		fprintf(stderr,"ERROR (%s): %i %i %f %i\n",hdr->SPR,hdr->Dur[1], hdr->SampleRate,hdr->Dur[0]);
+
+
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
 	hdr2ascii(hdr,stdout,VERBOSE_LEVEL);
@@ -158,9 +162,10 @@ int main(int argc, char **argv){
 	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[121]\n");
 //	count = sread(hdr, 0, hdr->NRec);
-	count = sread(NULL, 0, hdr->NRec, hdr);
-	biosig_data_type* data = hdr->data.block;
+	if (dest!=NULL)
+		count = sread(NULL, 0, hdr->NRec, hdr);
 
+	biosig_data_type* data = hdr->data.block;
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stdout,"[122] UCAL=%i %e %e %e \n",hdr->FLAG.UCAL,data[100],data[110],data[500+hdr->SPR]);
 	
