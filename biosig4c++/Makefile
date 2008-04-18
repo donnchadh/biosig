@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.41 2008-04-18 11:29:12 schloegl Exp $
+###  $Id: Makefile,v 1.42 2008-04-18 13:14:08 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -12,8 +12,7 @@ CC            = $(CXX)
 CXX           = g++
 MEX	      = /opt/MatlabR2008a/bin/mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-#DEFINES       = -D=WITH_ZLIB
-DEFINES       = -D=WITH_ZLIB
+DEFINES       = -D=WITH_ZLIB		# if you have zlib
 CFLAGS        = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES)
 CXXFLAGS      = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES)
 AR            = ar cqs
@@ -167,7 +166,8 @@ oct:  mexSLOAD.oct
 mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a 
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) 
 
-sigviewer: 
+sigviewer: libbiosig.a
+	touch ../sigviewer/src/log_dialog.cpp
 	sh makeSV.sh
 	
 
