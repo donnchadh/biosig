@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.167 2008-04-18 13:11:27 schloegl Exp $
+    $Id: biosig.c,v 1.168 2008-04-18 14:04:38 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2295,6 +2295,20 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 		hdr->AS.bpb = 2*hdr->NS + 4;	
 		hdr->SampleRate = atof(strtok(t1+7," "));
+		hdr->SPR = 1; 
+
+		double Dur = hdr->SPR/hdr->SampleRate;
+		double dtmp1, dtmp2;
+		dtmp2 = modf(Dur, &dtmp1); 
+		// approximate real with rational number 
+		if (fabs(dtmp2) < DBL_EPSILON) {
+			hdr->Dur[0] = lround(Dur); 
+			hdr->Dur[1] = 1; 
+		}
+		else {
+			hdr->Dur[1] = lround(1.0 / dtmp2 ); 
+			hdr->Dur[0] = lround(1.0 + dtmp1 * hdr->Dur[1]); 
+		}		
 
 		/* open data file */ 
 		strcpy(ext,"raw");		
@@ -2319,14 +2333,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->NRec 	*= hdr->SPR; 
 		hdr->SPR  	 = 1; 
 		hdr->T0 	 = 0;        // Unknown;
-		hdr->Dur[0]	 = leu16p(hdr->AS.Header+4);
-		hdr->Dur[1]	 = hdr->SPR;
-		hdr->SampleRate  = ((double)hdr->Dur[0])/hdr->Dur[1];		
+		hdr->SampleRate	 = leu16p(hdr->AS.Header+4);
+		hdr->Dur[0]	 = hdr->SPR;
+		hdr->Dur[1]	 = hdr->SampleRate;		
 
 	    	/* extract more header information */
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS; k++) {
-			hdr->CHANNEL[k].Label[0] = 0;
+			sprintf(hdr->CHANNEL[k].Label,"# %02i",k);
 			hdr->CHANNEL[k].Transducer[0] = '\0';
 		    	hdr->CHANNEL[k].GDFTYP 	 = 3; 
 		    	hdr->CHANNEL[k].SPR 	 = 1; // *(int32_t*)(Header1+56);
