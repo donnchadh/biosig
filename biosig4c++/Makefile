@@ -1,7 +1,6 @@
-
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.40 2008-04-09 10:24:55 schloegl Exp $
+###  $Id: Makefile,v 1.41 2008-04-18 11:29:12 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -11,9 +10,10 @@
 
 CC            = $(CXX)
 CXX           = g++
-MEX	      = /opt/MatlabR2008a/bin/mex	# Matlab mex compiler
+MEX	      = /opt/MatlabR2008a/bin/mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       =
+#DEFINES       = -D=WITH_ZLIB
+DEFINES       = -D=WITH_ZLIB
 CFLAGS        = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES)
 CXXFLAGS      = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES)
 AR            = ar cqs
@@ -54,7 +54,7 @@ OBJECTS       = biosig.o \
 		crc4scp.o \
 		sopen_hl7aecg.o
 
-TARGET        = save2gdf save2aecg save2scp mex4o
+TARGET        = save2gdf save2aecg save2scp
 
 first: $(TARGET)
 all: $(TARGET) mex4o sigviewer biosig4python
@@ -136,7 +136,7 @@ tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h \
 biosig4python _biosig.so: biosig.py
 biosig.py:	$(SOURCES) libbiosig.a swig.i
 	swig -c++ -python -I/usr/include -o swig_wrap.cxx swig.i
-	$(CXX) -fPIC -c swig_wrap.cxx -o swig_wrap.o -I/usr/include/python2.4
+	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python2.4
 	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so
 
 
@@ -144,22 +144,22 @@ biosig.py:	$(SOURCES) libbiosig.a swig.i
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
 
 libbiosig.a: $(OBJECTS)
-	$ ar rcs libbiosig.a $(OBJECTS) 
+	$(AR) libbiosig.a $(OBJECTS) 
 	touch ../sigviewer/src/basic_header_info_dialog.cpp 
 	
 libbiosig.so: $(OBJECTS)
 	$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) 
 
 save2gdf: save2gdf.c libbiosig.a 
-	$(CXX) $(CFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
+	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
 
 mex: mex4m mex4o
 
-mex4m: mexSLOAD.cpp $(OBJECTS)
+mex4m: mexSLOAD.cpp  libbiosig.a
 	echo "Warning: MEX for Matlab is not tested yet"
 	$(MEX) mexSLOAD.cpp  $(LIBS) 
 
-mex4o:  mexSLOAD.mex
+mex4o:  mexSLOAD.mex libbiosig.a 
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
 	mkoctfile  -v -g --mex mexSLOAD.cpp  $(LIBS) 
 

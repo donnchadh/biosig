@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.87 2008-04-17 13:26:22 schloegl Exp $
+% $Id: biosig.h,v 1.88 2008-04-18 11:29:12 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -46,7 +46,9 @@ typedef char			int8_t;
 	The output files can be zipped, too. 
  */
 
+#ifdef WITH_ZLIB
 #include <zlib.h>
+#endif 
 //#include <bz2lib.h>
 
 #include <stdio.h>
@@ -274,6 +276,7 @@ typedef struct {
 		char		UCAL; 		/* UnCalibration  0: scaling  !=0: NO scaling - raw data return  */
 		char		ANONYMOUS; 	/* 1: anonymous mode, no personal names are processed */ 
 		char		SWAP; 	        /* 1: endian swapping is needed */ 
+		char		ROW_BASED_CHANNELS; 	        /* 0: column-based data [default]; 1: row-based data */ 
 	} FLAG; 
 
 	struct {	/* File specific data  */
@@ -359,9 +362,13 @@ size_t	sread(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
 	The following flags will influence the result.
  	hdr->FLAG.UCAL = 0 	scales the data to its physical values
  	hdr->FLAG.UCAL = 1 	does not apply the scaling factors
+
+ 	hdr->FLAG.OVERFLOWDETECTION = 0 does not apply overflow detection 
  	hdr->FLAG.OVERFLOWDETECTION = 1: replaces all values that exceed 
 		the dynamic range (defined by Phys/Dig/Min/Max)
- 	hdr->FLAG.OVERFLOWDETECTION = 0 does not apply overflow detection 
+
+	hdr->FLAG.ROW_BASED_CHANNELS = 0 each channel is in one column 	
+	hdr->FLAG.ROW_BASED_CHANNELS = 1 each channel is in one row 	
  ---------------------------------------------------------------*/
 
 
