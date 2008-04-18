@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.166 2008-04-18 11:03:09 schloegl Exp $
+    $Id: biosig.c,v 1.167 2008-04-18 13:11:27 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2603,6 +2603,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			t = strtok(NULL,"\xA\xD");	// extract next line
 		}
 	    	hdr->FILE.POS = 0; 
+		hdr->Dur[0]	= hdr->SPR;
+		hdr->Dur[1]	= hdr->SampleRate;
 	}
 
 	else if (hdr->TYPE==CFWB) {
