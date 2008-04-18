@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.165 2008-04-17 19:55:34 schloegl Exp $
+    $Id: biosig.c,v 1.166 2008-04-18 11:03:09 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -4413,9 +4413,9 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		// resampling 1->DIV samples
 		for (k3=0; k3 < DIV; k3++) 
 #ifdef ROW_BASED_CHANNELS
-			hdr->data.block[k2 + (k4*CHptr->SPR + k5 + k3)*NS] = sample_value; // row-based channels 
+			hdr->data.block[k2 + (k4*hdr->SPR + k5*DIV + k3)*NS] = sample_value; // row-based channels 
 #else
-			hdr->data.block[k2*count*hdr->SPR + k4*CHptr->SPR + k5 + k3] = sample_value; // column-based channels 
+			hdr->data.block[k2*count*hdr->SPR + k4*hdr->SPR + k5*DIV + k3] = sample_value; // column-based channels 
 #endif
 
 		if ((VERBOSE_LEVEL>7) && (k4==0) && (k5==0)) 
