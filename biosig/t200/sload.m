@@ -40,7 +40,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.84 2008-04-15 12:40:06 schloegl Exp $
+%	$Id: sload.m,v 1.85 2008-04-21 14:35:41 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -48,7 +48,6 @@ function [signal,H] = sload(FILENAME,varargin)
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
 % Version 3 of the License, or (at your option) any later version.
-
 
 if length(varargin)<2; 
 	MODE = ''; 
@@ -132,7 +131,7 @@ if ((iscell(FILENAME) || isstruct(FILENAME)) && (length(FILENAME)>1)),
 	for k = 1:length(FILENAME),
 		if iscell(FILENAME(k))
 			f = FILENAME{k};
-		else 
+		else  
 			f = FILENAME(k);
 		end	
 
@@ -180,6 +179,7 @@ if ((iscell(FILENAME) || isstruct(FILENAME)) && (length(FILENAME)>1)),
 			end;
                         if ~isequal(H.Label,h.Label) || ~isequal(H.PhysDimCode,h.PhysDimCode) || ~isequal(H.Cal,h.Cal) || ~isequal(H.Off,h.Off)
 				fprintf(2,'Warning SLOAD: Labels,PhysDim,Cal or Off of multiple files differ! \n');
+				H.Label,h.Label,
                                 %for k1 = 1:h.NS,
                                 for k2 = 1:length(H.InChanSelect),
                                 	k1 = H.InChanSelect(k2); 
@@ -209,22 +209,25 @@ if ((iscell(FILENAME) || isstruct(FILENAME)) && (length(FILENAME)>1)),
                                 end;
                         end;
                         if isfield(H,'Classlabel'), 
-                                if isfield(H,'ArtifactSelection')
-                                        if isfield(h,'ArtifactSelection'),
-                                                if (any(h.ArtifactSelection>1) || (length(h.ArtifactSelection) < length(h.Classlabel)))
-                                                        sel = zeros(size(h.Classlabel));
-                                                        sel(h.ArtifactSelection) = 1; 
-                                                else
-                                                        sel = h.ArtifactSelection(:);
-                                                end;
-                                                H.ArtifactSelection = [H.ArtifactSelection; h.ArtifactSelection(:)];
-                                        else %if isfield(H,'ArtifactSelection'),
-                                                H.ArtifactSelection = [H.ArtifactSelection;zeros(length(h.Classlabel),1)];
+				if isfield(h,'ArtifactSelection'),
+                                	if (any(h.ArtifactSelection>1) || (length(h.ArtifactSelection) < length(h.Classlabel)))
+                                        	sel = zeros(size(h.Classlabel));
+                                                sel(h.ArtifactSelection) = 1; 
+                                        else
+                                                sel = h.ArtifactSelection(:);
                                         end;
+                                else 
+                                	h.ArtifactSelection = repmat(logical(0),length(h.Classlabel),1);        
+                                end;         
+
+                                if isfield(H,'ArtifactSelection')
+                                	H.ArtifactSelection = [H.ArtifactSelection; h.ArtifactSelection(:)];
+                                else
+                                	H.ArtifactSelection = [repmat(logical(0),length(H.Classlabel),1); h.ArtifactSelection(:)];
                                 end;
-                                H.Classlabel = [H.Classlabel(:);h.Classlabel(:)];
+                                H.Classlabel = [H.Classlabel(:); h.Classlabel(:)];
                         end;
-                        clear s
+			clear s;
                 end;
 	end;
         
@@ -278,12 +281,12 @@ if exist('mexSLOAD','file')==3,
 		end
 		if ~valid_rerefmx,
 			[signal,HDR] = mexSLOAD(FILENAME,0,arg1,arg2);
-			FlagLoaded = ~isempty(HDR);
+			FlagLoaded = isfield(HDR,'NS');
 			HDR.InChanSelect = 1:HDR.NS;
 		else
 			InChanSelect = find(any(ReRefMx,2));
 			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2);
-			FlagLoaded = ~isempty(HDR);
+			FlagLoaded = isfield(HDR,'NS');
 			HDR.InChanSelect = InChanSelect(InChanSelect <= HDR.NS);
 			signal = signal*ReRefMx(HDR.InChanSelect,:);
 		end; 
@@ -446,7 +449,7 @@ if exist('mexSLOAD','file')==3,
                                         H.AS.TRIGCHAN = H.NS; %strmatch('TRIGGER',H.Label); 
                                 end;
                         end;
-                        if 1; ~isfield(H,'Classlabel'),
+                        if 1; ~isfield(H,'Classlabel');
                                 tmp=fullfile(H.FILE.Path,[H.FILE.Name,'.par']);
                                 if ~exist(tmp,'file'),
                                     tmp=fullfile(H.FILE.Path,[H.FILE.Name,'.PAR']);
@@ -518,13 +521,17 @@ if exist('mexSLOAD','file')==3,
                         end;
 
 			%% end of BKR
+
+		elseif strcmp(H.TYPE,'BrainVision');
+			HDR = sopen(fullfile(H.FILE.Path,[H.FILE.Name,'.vmrk']));
+			HDR = sclose(HDR);
+			H.EVENT = HDR.EVENT;
                 end;        
 
-	        H.CHANTYP = repmat(' ',1,HDR.NS);
+	        H.CHANTYP = repmat(' ',1,H.NS);
 	        tmp = H.NS-length(H.Label);
-	        %HDR.Label = [HDR.Label(1:HDR.NS,:);repmat(' ',max(0,tmp),size(HDR.Label,2))];
 	        Label = strvcat(H.Label);
-	        tmp = reshape(lower([[Label(1:min(HDR.NS,size(Label,1)),:);repmat(' ',max(0,tmp),size(Label,2))],repmat(' ',HDR.NS,1)])',1,HDR.NS*(size(Label,2)+1));
+	        tmp = reshape(lower([[Label(1:min(H.NS,size(Label,1)),:);repmat(' ',max(0,tmp),size(Label,2))],repmat(' ',H.NS,1)])',1,H.NS*(size(Label,2)+1));
         
 	        H.CHANTYP(ceil([strfind(tmp,'eeg'),strfind(tmp,'meg')]/(size(Label,2)+1))) = 'E'; 
 	        H.CHANTYP(ceil([strfind(tmp,'emg')]/(size(Label,2)+1))) = 'M'; 
@@ -1268,12 +1275,6 @@ if strcmp(H.TYPE,'GDF')
         end;
 end;
 
-
-if isfield(H.EVENT,'TYP')
-% include NaN at "New Segment" in order to prevent spurious correlation
-	ix = H.EVENT.POS(find(H.EVENT.TYP==hex2dec('7ffe')))-1; 
-	signal(ix(ix>0),:)=NaN;    % mark 'New Segment' with NaN 
-end; 	
 
 
 % resampling 
