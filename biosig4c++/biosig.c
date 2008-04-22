@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.168 2008-04-18 14:04:38 schloegl Exp $
+    $Id: biosig.c,v 1.169 2008-04-22 19:21:09 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1470,7 +1470,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
     	uint32_t	k32u; 
     	size_t	 	count;
     	char 		tmp[81];
-    	double 		Dur; 
+//    	double 		Dur; 
 	char*		ptr_str;
 	struct tm 	tm_time; 
 	time_t		tt;
@@ -1793,18 +1793,7 @@ if (!strncmp(MODE,"r",1))
 	    	};	
 
 	    	hdr->NRec	= atoi(strncpy(tmp,Header1+236,8));
-	    	Dur		= atof(strncpy(tmp,Header1+244,8));
-		double dtmp1, dtmp2;
-		dtmp2 = modf(Dur, &dtmp1); 
-		// approximate real with rational number 
-		if (fabs(dtmp2) < DBL_EPSILON) {
-			hdr->Dur[0] = lround(Dur); 
-			hdr->Dur[1] = 1; 
-		}
-		else {
-			hdr->Dur[1] = lround(1.0 / dtmp2 ); 
-			hdr->Dur[0] = lround(1.0 + dtmp1 * hdr->Dur[1]); 
-		}		
+	    	//Dur		= atof(strncpy(tmp,Header1+244,8));
 
 		if (!strncmp(Header1+192,"EDF+",4)) {
 	    		strtok(hdr->Patient.Id," ");
@@ -1916,7 +1905,8 @@ if (!strncmp(MODE,"r",1))
 			}
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// EDF does not support automated overflow and saturation detection
-		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
+	    	double Dur	= atof(strncpy(tmp,Header1+244,8));
+		hdr->SampleRate = hdr->SPR/Dur;
 
 		if (EventChannel) {
 			/* read Annotation and Status channel and extract event information */		
@@ -2297,19 +2287,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->SampleRate = atof(strtok(t1+7," "));
 		hdr->SPR = 1; 
 
-		double Dur = hdr->SPR/hdr->SampleRate;
-		double dtmp1, dtmp2;
-		dtmp2 = modf(Dur, &dtmp1); 
-		// approximate real with rational number 
-		if (fabs(dtmp2) < DBL_EPSILON) {
-			hdr->Dur[0] = lround(Dur); 
-			hdr->Dur[1] = 1; 
-		}
-		else {
-			hdr->Dur[1] = lround(1.0 / dtmp2 ); 
-			hdr->Dur[0] = lround(1.0 + dtmp1 * hdr->Dur[1]); 
-		}		
-
 		/* open data file */ 
 		strcpy(ext,"raw");		
 		hdr = ifopen(hdr,"rb"); 
@@ -2623,6 +2600,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	else if (hdr->TYPE==CFWB) {
 	    	hdr->SampleRate = 1.0/lef64p(hdr->AS.Header+8);
+		hdr->SPR    	= 1; 
 		hdr->Dur[0]	= 1;
 		hdr->Dur[1]	= hdr->SampleRate;
 	    	tm_time.tm_year = lei32p(hdr->AS.Header+16) - 1900;
@@ -2694,8 +2672,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->HeadLen = 900+hdr->NS*75; 
 		hdr->SPR    = 1; 
 		hdr->Dur[0] = 1;
-		hdr->Dur[1] = leu16p(hdr->AS.Header+376);
-		hdr->SampleRate = hdr->Dur[1]; 
+		hdr->Dur[1] = hdr->SampleRate;
+		hdr->SampleRate = leu16p(hdr->AS.Header+376); 
 #define _eventtablepos (leu32p(hdr->AS.Header+886))
 		hdr->AS.bpb = hdr->NS*2;
 		hdr->NRec   = (_eventtablepos-hdr->HeadLen) / hdr->AS.bpb;
@@ -2822,9 +2800,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	// tm_time.tm_sec  = beu32p(Header1+16)/1000; // not supported by tm_time
 
 	    	hdr->T0 = tm_time2gdf_time(&tm_time);
-	    	hdr->SampleRate = beu16p(hdr->AS.Header+20);
     		hdr->Dur[0] 	= 1;
     		hdr->Dur[1] 	= beu16p(hdr->AS.Header+20);
+	    	hdr->SampleRate = hdr->Dur[1];
 	    	hdr->NS         = beu16p(hdr->AS.Header+22);
 	    	// uint16_t  Gain  = beu16p(Header1+24);
 	    	uint16_t  Bits  = beu16p(hdr->AS.Header+26);
@@ -3622,8 +3600,24 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 
 	hdr->FILE.POS = 0; 
-	for (k=0; k<hdr->NS; k++) {	
 
+	if (hdr->SPR*hdr->Dur[1] != hdr->SampleRate*hdr->Dur[0]) {
+		/* set duration if it was not properly set*/
+		double Dur = hdr->SPR/hdr->SampleRate; 
+		double dtmp1, dtmp2;
+		dtmp2 = modf(Dur, &dtmp1); 
+		// approximate real with rational number 
+		if (fabs(dtmp2) < DBL_EPSILON) {
+			hdr->Dur[0] = lround(Dur); 
+			hdr->Dur[1] = 1; 
+		}
+		else {
+			hdr->Dur[1] = lround(1.0 / dtmp2 ); 
+			hdr->Dur[0] = lround(1.0 + dtmp1 * hdr->Dur[1]); 
+		}		
+	}
+
+	for (k=0; k<hdr->NS; k++) {	
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 219] #=%i\n",k);
 
 		// set HDR.PhysDim
@@ -3798,7 +3792,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		/* Duration is expressed as an fraction of integers */ 
 		if (ceil(hdr->SampleRate)!=hdr->SampleRate)
 			fprintf(stderr,"Warning SOPEN(GDF write): Fraction of Duration rounded from %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,hdr->Dur[0],hdr->Dur[1]);
-		Dur = hdr->SPR/hdr->SampleRate;
+			
+		double Dur = hdr->SPR/hdr->SampleRate;
 		double dtmp1, dtmp2;
 		dtmp2 = modf(Dur, &dtmp1);
 		// approximate real with rational number 
