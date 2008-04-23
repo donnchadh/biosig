@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.169 2008-04-22 19:21:09 schloegl Exp $
+    $Id: biosig.c,v 1.170 2008-04-23 08:48:39 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2236,15 +2236,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		strcpy(ext,"ainf");		
 		hdr->FileName = tmpfile; 
 		hdr = ifopen(hdr,"rb"); 
-	        ifseek(hdr,0,SEEK_END);
-		hdr->HeadLen = iftell(hdr);
-	        ifseek(hdr,0,SEEK_SET);
-
-	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
-	    	count   = ifread(hdr->AS.Header,1,hdr->HeadLen,hdr);
-	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, count+1);
-	    	hdr->AS.Header[count] = 0;	// add terminating \0 character
-	    	ifclose(hdr); 
+		count = 0; 
+		while (!ifeof(hdr)) {
+			size_t bufsiz = 4096;
+		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+bufsiz+1);
+		    	count  += ifread(hdr->AS.Header+count,1,bufsiz,hdr);
+		}
+		hdr->AS.Header[count]=0;
+		hdr->HeadLen = count; 
+		ifclose(hdr);
 
 		char *t1;
 		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
@@ -2290,7 +2290,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		/* open data file */ 
 		strcpy(ext,"raw");		
 		hdr = ifopen(hdr,"rb"); 
-	        ifseek(hdr,0,SEEK_END);
+	        ifseek(hdr,0,SEEK_END);	// TODO: replace SEEK_END
 		hdr->NRec = iftell(hdr)/hdr->AS.bpb;
 	        ifseek(hdr,0,SEEK_SET);
 		hdr->HeadLen = 0;
@@ -2328,7 +2328,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].DigMax	 = (double)leu16p(hdr->AS.Header+16);
 		    	hdr->CHANNEL[k].PhysMin	 = -hdr->CHANNEL[k].PhysMax;
 		    	hdr->CHANNEL[k].DigMin	 = -hdr->CHANNEL[k].DigMax;
-		    	hdr->CHANNEL[k].Cal	 = ((double)hdr->CHANNEL[k].PhysMax)/hdr->CHANNEL[k].DigMax;
+		    	hdr->CHANNEL[k].Cal	 = hdr->CHANNEL[k].PhysMax/hdr->CHANNEL[k].DigMax;
 		    	hdr->CHANNEL[k].Off	 = 0.0;
 			hdr->CHANNEL[k].OnOff    = 1;
 		    	hdr->CHANNEL[k].PhysDimCode = 4275; // uV
@@ -2347,26 +2347,28 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FileName = tmpfile;
 		char* ext = strrchr(hdr->FileName,'.')+1; 
 
-		strcpy(ext,"vhdr");		
-       		ifseek(hdr,0,SEEK_END);
-		hdr->HeadLen = iftell(hdr);
-	        ifseek(hdr,0,SEEK_SET);
-	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen+1);
-	    	count += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
-	    	ifclose(hdr); 
-	    	hdr->AS.Header[hdr->HeadLen] = 0;	// add terminating \0 character
+		while (!ifeof(hdr)) {
+			size_t bufsiz = 4096;
+		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+bufsiz+1);
+		    	count  += ifread(hdr->AS.Header+count,1,bufsiz,hdr);
+		}
+		hdr->AS.Header[count]=0;
+		hdr->HeadLen = count; 
+		ifclose(hdr);
 
 		int seq = 0;
 		/* read marker file */
 		strcpy(ext,"vmrk");		
        		hdr = ifopen(hdr,"r");
-       		ifseek(hdr,0,SEEK_END);
-		size_t vmrk_len = iftell(hdr);
-	        ifseek(hdr,0,SEEK_SET);
-	    	char* vmrk = (char*)malloc(vmrk_len+1);
-	    	count += ifread(vmrk,1,vmrk_len,hdr);
-	    	ifclose(hdr); 
-	    	vmrk[vmrk_len] = 0;	// add terminating \0 character
+		size_t bufsiz = 4096;
+	    	char* vmrk = (char*)malloc(bufsiz+1);
+		while (!ifeof(hdr)) {
+		    	vmrk = (char*)realloc(vmrk,count+bufsiz+1);
+		    	count  += ifread(hdr->AS.Header+count,1,bufsiz,hdr);
+		}
+	    	vmrk[count] = 0;	// add terminating \0 character
+		ifclose(hdr);
+
 		/* decode marker file */
 		size_t pos = 0;
 
@@ -2466,7 +2468,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 				/* open data file */ 
 				hdr = ifopen(hdr,"rb"); 
-	        		ifseek(hdr,0,SEEK_END);
+	        		ifseek(hdr,0,SEEK_END);		// fix SEEK_END
 				size_t FileSize = iftell(hdr);
 			        ifseek(hdr,0,SEEK_SET);
 				hdr->HeadLen = 0;
@@ -2867,11 +2869,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	
 	else if (hdr->TYPE==ETG4000) {
 		/* read file */ 
-		ifseek(hdr,0,SEEK_END);
-		size_t len = iftell(hdr);
-		ifseek(hdr,count,SEEK_SET);
-	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,len);
-	    	count  += ifread(hdr->AS.Header+count,1,len-count,hdr);
+		while (!ifeof(hdr)) {
+			size_t bufsiz = 4096;
+		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+bufsiz+1);
+		    	count  += ifread(hdr->AS.Header+count,1,bufsiz,hdr);
+		}
+		hdr->AS.Header[count]=0;
+		hdr->HeadLen = count; 
 		ifclose(hdr);
 
 		if (VERBOSE_LEVEL==9) 
@@ -3024,6 +3028,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr->EVENT.TYP[hdr->EVENT.N-1] = Mark | 0x8000; 
 		}
 	    	hdr->FILE.POS = 0; 
+VERBOSE_LEVEL=9;
 	}
 
     	else if (hdr->TYPE==MFER) {	
@@ -4287,12 +4292,11 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	for (k1=0,NS=0; k1<hdr->NS; ++k1)
 		if (hdr->CHANNEL[k1].OnOff) ++NS; 
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"SREAD: pos=[%i,%i,%i], size of data = %ix%ix%ix%i = %i\n",POS,length,hdr->FILE.POS,hdr->SPR, count, NS, sizeof(biosig_data_type),hdr->SPR * count * NS * sizeof(biosig_data_type));
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"SREAD: pos=[%i,%i,%i,%i], size of data = %ix%ix%ix%i = %i\n",start,length,POS,hdr->FILE.POS,hdr->SPR, count, NS, sizeof(biosig_data_type), hdr->SPR * count * NS * sizeof(biosig_data_type));
 
 	// transfer RAW into BIOSIG data format 
 	if (data==NULL)
 		data = (biosig_data_type*) malloc(hdr->SPR * count * NS * sizeof(biosig_data_type));
-		
 		
 	hdr->data.block = data; 
 //	hdr->data.block = (biosig_data_type*) realloc(hdr->data.block, (hdr->SPR) * count * NS * sizeof(biosig_data_type));
@@ -4429,13 +4433,14 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 			hdr->data.block[k2*count*hdr->SPR + k4*hdr->SPR + k5*DIV + k3] = sample_value; // column-based channels 
 #endif
 
-		if ((VERBOSE_LEVEL>7) && (k4==0) && (k5==0)) 
-		fprintf(stdout,":s(1)=%f, NS=%d,[%d,%d,%d,%d SZ=%i, bpb=%i] %e %e %e\n",*(double*)hdr->AS.rawdata,NS,k1,k2,k4,k5,SZ,hdr->AS.bpb,sample_value,(*(double*)(ptr)),(*(float*)(ptr)));
+//		if ((VERBOSE_LEVEL>7) && (k4==0) && (k5==0)) 
+//		fprintf(stdout,":s(1)=%f, NS=%d,[%d,%d,%d,%d SZ=%i, bpb=%i] %e %e %e\n",*(double*)hdr->AS.rawdata,NS,k1,k2,k4,k5,SZ,hdr->AS.bpb,sample_value,(*(double*)(ptr)),(*(float*)(ptr)));
 		}
 
 	}	
 	k2++;
 	}}
+
 #ifdef ROW_BASED_CHANNELS
 	hdr->data.size[0] = k2;			// rows	
 	hdr->data.size[1] = hdr->SPR*count;	// columns 
@@ -4443,7 +4448,6 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	hdr->data.size[0] = hdr->SPR*count;	// rows	
 	hdr->data.size[1] = k2;			// columns 
 #endif
-
 
 	/* read sparse samples */	
 	if ((hdr->TYPE==GDF) && (hdr->VERSION > 1.9)) {
@@ -4457,9 +4461,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		for (k1=0; k1<hdr->EVENT.N; k1++) 
 		if (hdr->EVENT.TYP[k1] == 0x7fff) 	// select non-equidistant sampled value
 		if (ChanList[hdr->EVENT.CHN[k1]] > 0)	// if channel is selected
-		if ((hdr->EVENT.POS[k1] >= POS*c) && (hdr->EVENT.POS[k1] < hdr->FILE.POS*c))
-		{
-
+		if ((hdr->EVENT.POS[k1] >= POS*c) && (hdr->EVENT.POS[k1] < hdr->FILE.POS*c)) {
 			ptr = (uint8_t*)(hdr->EVENT.DUR + k1);
 
 			k2 = ChanList[hdr->EVENT.CHN[k1]]-1;
@@ -4519,7 +4521,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 #ifdef ROW_BASED_CHANNELS
 				hdr->data.block[k2 + (k5 + k3)*NS] = sample_value; 
 #else
-				hdr->data.block[k2*count*hdr->SPR + k5 + k3] = sample_value; 
+				hdr->data.block[k2 * count * hdr->SPR + k5 + k3] = sample_value; 
 #endif 
 
 		if (VERBOSE_LEVEL>7) 
