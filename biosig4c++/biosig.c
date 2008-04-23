@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.170 2008-04-23 08:48:39 schloegl Exp $
+    $Id: biosig.c,v 1.171 2008-04-23 15:00:53 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2870,7 +2870,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	else if (hdr->TYPE==ETG4000) {
 		/* read file */ 
 		while (!ifeof(hdr)) {
-			size_t bufsiz = 4096;
+			size_t bufsiz = 1<<16;
 		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+bufsiz+1);
 		    	count  += ifread(hdr->AS.Header+count,1,bufsiz,hdr);
 		}
@@ -2879,7 +2879,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		ifclose(hdr);
 
 		if (VERBOSE_LEVEL==9) 
-			fprintf(stdout,"File Size %i\n",count); 
+			fprintf(stdout,"Size of File %s is %i\n",hdr->FileName,count); 
 		
 		/* decode header section */
 		char dlm[2];
@@ -2892,7 +2892,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		double lpf=-1.0,hpf=-1.0,age=0.0;
 		while (strncmp(t,"Probe",5)) {
 			if (VERBOSE_LEVEL==9) 
-				fprintf(stdout,"-> %s\n",t);
+				fprintf(stderr,"-> %s\n",t);
 				 
 			if (!strncmp(t,"File Version",12))
 				hdr->VERSION = atof(strpbrk(t,dlm)+1);
@@ -2934,15 +2934,18 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			t = strtok(NULL,"\xA\xD");
 		}
 		if (VERBOSE_LEVEL==9) 
-			fprintf(stdout,"-> %s\n",t);
+			fprintf(stderr,"\nNS=%i\n-> %s\n",hdr->NS,t);
 
-		hdr->Patient.Birthday = hdr->T0 - (uint64_t)ldexp(age,32);
+		hdr->Patient.Birthday = hdr->T0 - ldexp(age,32);
 		hdr->NS = 0; 
 		while (ag != NULL) {
 			++hdr->NS; 
 			ag = strpbrk(ag+1,dlm);
 		}	
 		hdr->NS >>= 1; 
+
+		if (VERBOSE_LEVEL==9) 
+			fprintf(stderr,"\n-V=%i NS=%i\n-> %s\n",VERBOSE_LEVEL,hdr->NS,t);
 
 	    	label = strpbrk(t,dlm) + 1; 
 	    	//uint16_t gdftyp = 16;			// use float32 as internal buffer
@@ -2971,6 +2974,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	strncpy(hc->Label, label, c1);
 		    	hc->Label[c1]= 0;
 		    	label += c+1;
+
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stderr,"-> Label #%02i: len(%i) %s\n",k,c1,hc->Label);
 		}
 		hdr->SPR    = 1;
 		hdr->Dur[0] = 1;
@@ -3013,9 +3019,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			RemovalMark 	= atoi(strtok(NULL,dlm));
 			PreScan 	= atoi(strtok(NULL,"\xA\xD"));
 
-			if (VERBOSE_LEVEL==9) {
+			if (VERBOSE_LEVEL>8)
 				fprintf(stdout,"%d: %d %02d:%02d:%02d.%02d %d %d %d\n",pos,Mark,hh,mm,ss,ds,BodyMovement,RemovalMark,PreScan);
-			}	
+
 			pos = atol(strtok(NULL,dlm));
 		};
 
@@ -3028,7 +3034,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr->EVENT.TYP[hdr->EVENT.N-1] = Mark | 0x8000; 
 		}
 	    	hdr->FILE.POS = 0; 
-VERBOSE_LEVEL=9;
 	}
 
     	else if (hdr->TYPE==MFER) {	
@@ -3623,6 +3628,7 @@ VERBOSE_LEVEL=9;
 	}
 
 	for (k=0; k<hdr->NS; k++) {	
+
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 219] #=%i\n",k);
 
 		// set HDR.PhysDim
@@ -4196,6 +4202,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 }	// end of else 
 
 	// internal variables
+	if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> #info: @%p\n",&(hdr->CHANNEL));
+
 	hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	hdr->AS.bpb = (hdr->TYPE==AINF ? 4 : 0); 
 	hdr->AS.bi[0] = hdr->AS.bpb;
@@ -4205,6 +4213,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		hdr->AS.bi[k+1] = hdr->AS.bpb; 
 		if (hdr->CHANNEL[k].SPR > 0)  // ignore sparse channels
 			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
+
+		if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> Label #%02i: @%p %s\n",k,&(hdr->CHANNEL[k].Label),hdr->CHANNEL[k].Label);
 	}
 	if (hdr->TYPE==EGI) {
 		hdr->AS.bpb += EGI_LENGTH_CODETABLE * GDFTYP_BYTE[hdr->CHANNEL[0].GDFTYP];
@@ -4257,9 +4267,18 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	CHANNEL_TYPE*		CHptr;
 	int32_t			int32_value;
 	biosig_data_type 	sample_value; 
-	
+	size_t			toffset = 0;	// time offset for rawdata
 
-	if ((hdr->TYPE != SCP_ECG) && (hdr->TYPE != HL7aECG) && (hdr->TYPE != ETG4000)) {	
+	switch (hdr->TYPE) {
+	case ETG4000: toffset = start;	
+	case HL7aECG: 		
+	case SCP_ECG: {
+		// hdr->AS.rawdata was defined in SOPEN	
+		hdr->FILE.POS = start; 	
+		count = max(min(length, hdr->NRec - hdr->FILE.POS),0);
+		break; 
+	}		
+	default: {
 		// check reading segment 
 		if ((start < 0) || (start > hdr->NRec)) 
 			return(0);
@@ -4277,11 +4296,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		count = ifread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr);
 		if (count<nelem)
 			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem); 
-	}
-	else 	{  // ETG4000, SCP_ECG or HL7aECG format 
-		// hdr->AS.rawdata was defined in SOPEN	
-		hdr->FILE.POS = start; 	
-		count = max(min(length, hdr->NRec - hdr->FILE.POS),0);
+		}
 	}
 	
 	// set position of file handle 
@@ -4327,7 +4342,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		{
 
 			// get source address 	
-			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
+			ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
 			
 			// mapping of raw data type to (biosig_data_type)
 			if (0); 
@@ -4376,7 +4391,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		} else {
 
 			// get source address 	
-			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
+			ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
 			
 			// mapping of raw data type to (biosig_data_type)
 			if (0); 
