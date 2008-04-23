@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.89 2008-04-23 15:03:23 schloegl Exp $
+% $Id: biosig.h,v 1.90 2008-04-23 19:42:53 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -105,6 +105,8 @@ extern int   B4C_ERRNUM;
 extern const char *B4C_ERRMSG;
 extern int   VERBOSE_LEVEL; 
 
+
+
 /****************************************************************************/
 /**                                                                        **/
 /**                 DEFINITIONS, TYPEDEFS AND MACROS                       **/
@@ -157,6 +159,9 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 #define MAX_LENGTH_RID		80	// length of Recording ID: EDF,GDF,BDF<80, HL7 ?  	
 #define MAX_LENGTH_NAME 	128	// max length of personal name: MFER<=128
 #define MAX_LENGTH_MANUF 	128	// max length of manufacturer field: MFER<128
+
+#define __ALIGN__ __attribute__ ((aligned (8)))
+
 typedef struct {
 	char		OnOff; 		
 	char		Label[MAX_LENGTH_LABEL+1]; 	/* Label of channel */
@@ -189,27 +194,25 @@ typedef struct {
 	This structure defines the general (fixed) header  
 */
 typedef struct {
-	CHANNEL_TYPE *CHANNEL;  
-
-	enum FileFormat TYPE; 		/* type of file format */
-	float 		VERSION;	/* GDF version number */ 
-	const char* 	FileName;
+	enum FileFormat TYPE 	__ALIGN__; 		/* type of file format */
+	float 		VERSION __ALIGN__;	/* GDF version number */ 
+	const char* 	FileName __ALIGN__;
 	
 	struct {
-		size_t 			size[2]; /* size {rows, columns} of data block	 */
-		biosig_data_type* 	block; 	 /* data block */
-	} data;
+		size_t 			size[2] __ALIGN__; /* size {rows, columns} of data block	 */
+		biosig_data_type* 	block __ALIGN__; 	 /* data block */
+	} data __ALIGN__;
 
-	uint32_t 	HeadLen;	/* length of header in bytes */
-	uint16_t 	NS;		/* number of channels */
-	uint32_t 	SPR;		/* samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR) */
-	int64_t  	NRec;		/* number of records/blocks -1 indicates length is unknown. */	
-	uint32_t 	Dur[2];		/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
-	double 		SampleRate;	/* Sampling rate */
-	uint8_t 	IPaddr[6]; 	/* IP address of recording device (if applicable) */
-	uint32_t  	LOC[4];		/* location of recording according to RFC1876 */
-	gdf_time 	T0; 		/* starttime of recording */
-	int16_t 	tzmin; 		/* time zone (minutes of difference to UTC */
+	uint32_t 	HeadLen __ALIGN__;	/* length of header in bytes */
+	uint16_t 	NS 	__ALIGN__;	/* number of channels */
+	uint32_t 	SPR 	__ALIGN__;	/* samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR) */
+	int64_t  	NRec 	__ALIGN__;	/* number of records/blocks -1 indicates length is unknown. */	
+	uint32_t 	Dur[2] 	__ALIGN__;	/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
+	double 		SampleRate __ALIGN__;	/* Sampling rate */
+	uint8_t 	IPaddr[6] __ALIGN__; 	/* IP address of recording device (if applicable) */
+	uint32_t  	LOC[4] 	__ALIGN__;	/* location of recording according to RFC1876 */
+	gdf_time 	T0 	__ALIGN__; 	/* starttime of recording */
+	int16_t 	tzmin;	 		/* time zone (minutes of difference to UTC */
 
 	/* Patient specific information */
 	struct {
@@ -231,7 +234,7 @@ typedef struct {
 			int 	Visual;		/* 0:Unknown, 1: NO, 2: YES, 3: Corrected */
 		} Impairment;
 		
-	} Patient; 
+	} Patient __ALIGN__; 
 	
 	struct {
 		char		Recording[MAX_LENGTH_RID+1]; 	/* HL7, EDF, GDF, BDF replaces HDR.AS.RID */
@@ -252,24 +255,24 @@ typedef struct {
 		char 		EquipmentManufacturer[20];
 		char		EquipmentModel[20]; 
 		char		EquipmentSerialNumber[20];
-	} ID;
+	} ID __ALIGN__;
 
 	/* position of electrodes; see also HDR.CHANNEL[k].XYZ */
 	struct {
 		float		REF[3];	/* XYZ position of reference electrode */
 		float		GND[3];	/* XYZ position of ground electrode */
-	} ELEC;
+	} ELEC __ALIGN__;
 
 	/*	EVENTTABLE */
 	struct 
 	{
-		double  	SampleRate;	/* for converting POS and DUR into seconds  */
-		uint32_t  	N;	/* number of events */
-		uint16_t 	*TYP;	/* defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup */
-		uint32_t 	*POS;	/* starting position [in samples] */
-		uint32_t 	*DUR;	/* duration [in samples] */
-		uint16_t 	*CHN;	/* channel number; 0: all channels  */
-	} EVENT; 
+		double  	SampleRate __ALIGN__;	/* for converting POS and DUR into seconds  */
+		uint32_t  	N __ALIGN__;	/* number of events */
+		uint16_t 	*TYP __ALIGN__;	/* defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup */
+		uint32_t 	*POS __ALIGN__;	/* starting position [in samples] */
+		uint32_t 	*DUR __ALIGN__;	/* duration [in samples] */
+		uint16_t 	*CHN __ALIGN__;	/* channel number; 0: all channels  */
+	} EVENT __ALIGN__; 
 
 	struct {	/* flags */
 		char		OVERFLOWDETECTION; 	/* overflow & saturation detection 0: OFF, !=0 ON */
@@ -277,7 +280,7 @@ typedef struct {
 		char		ANONYMOUS; 	/* 1: anonymous mode, no personal names are processed */ 
 		char		SWAP; 	        /* 1: endian swapping is needed */ 
 		char		ROW_BASED_CHANNELS; 	        /* 0: column-based data [default]; 1: row-based data */ 
-	} FLAG; 
+	} FLAG __ALIGN__; 
 
 	struct {	/* File specific data  */
 #ifdef ZLIB_H
@@ -304,6 +307,7 @@ typedef struct {
 		uint8_t*	rawdata; 	/* raw data block */
 	} AS;
 	
+	CHANNEL_TYPE *CHANNEL __ALIGN__;  
 	void *aECG;
 	
 } HDRTYPE;
