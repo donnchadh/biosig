@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.90 2008-04-23 19:42:53 schloegl Exp $
+% $Id: biosig.h,v 1.91 2008-04-23 20:44:32 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -160,15 +160,22 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 #define MAX_LENGTH_NAME 	128	// max length of personal name: MFER<=128
 #define MAX_LENGTH_MANUF 	128	// max length of manufacturer field: MFER<128
 
-#define __ALIGN__ __attribute__ ((aligned (8)))
+#define ATT_ALI __attribute__ ((aligned (8)))
 
 typedef struct {
-	char		OnOff; 		
-	char		Label[MAX_LENGTH_LABEL+1]; 	/* Label of channel */
-	uint16_t	LeadIdCode;	/* Lead identification code */ 
-	char 		Transducer[MAX_LENGTH_TRANSDUCER+1];	/* transducer e.g. EEG: Ag-AgCl electrodes */
-	char 		PhysDim[MAX_LENGTH_PHYSDIM+1];	/* physical dimension */
-	uint16_t	PhysDimCode;	/* code for physical dimension */
+	double 		PhysMin ATT_ALI;	/* physical minimum */
+	double 		PhysMax ATT_ALI;	/* physical maximum */
+	double 		DigMin 	ATT_ALI;	/* digital minimum */
+	double	 	DigMax 	ATT_ALI;	/* digital maximum */
+	double		Cal 	ATT_ALI;	/* gain factor */ 
+	double		Off 	ATT_ALI;	/* bias */ 
+
+	char		OnOff 	ATT_ALI; 		
+	char		Label[MAX_LENGTH_LABEL+1] ATT_ALI; 	/* Label of channel */
+	uint16_t	LeadIdCode ATT_ALI;	/* Lead identification code */ 
+	char 		Transducer[MAX_LENGTH_TRANSDUCER+1] ATT_ALI;	/* transducer e.g. EEG: Ag-AgCl electrodes */
+	char 		PhysDim[MAX_LENGTH_PHYSDIM+1] ATT_ALI;	/* physical dimension */
+	uint16_t	PhysDimCode ATT_ALI;	/* code for physical dimension */
 	/* char* 	PreFilt;	// pre-filtering */
 
 	float 		LowPass;	/* lowpass filter */
@@ -177,16 +184,9 @@ typedef struct {
 	float 		XYZ[3];		/* electrode position */
 	float 		Impedance;   	/* in Ohm */
 	
-	double 		PhysMin;	/* physical minimum */
-	double 		PhysMax;	/* physical maximum */
-	double 		DigMin;		/* digital minimum */
-	double	 	DigMax;		/* digital maximum */
-
-	uint16_t 	GDFTYP;		/* data type */
-	uint32_t 	SPR;		/* samples per record (block) */
+	uint16_t 	GDFTYP ATT_ALI;		/* data type */
+	uint32_t 	SPR ATT_ALI;		/* samples per record (block) */
 	
-	double		Cal;		/* gain factor */ 
-	double		Off;		/* bias */ 
 } CHANNEL_TYPE;
 
 
@@ -194,24 +194,24 @@ typedef struct {
 	This structure defines the general (fixed) header  
 */
 typedef struct {
-	enum FileFormat TYPE 	__ALIGN__; 		/* type of file format */
-	float 		VERSION __ALIGN__;	/* GDF version number */ 
-	const char* 	FileName __ALIGN__;
+	enum FileFormat TYPE 	ATT_ALI; 	/* type of file format */
+	float 		VERSION ATT_ALI;	/* GDF version number */ 
+	const char* 	FileName ATT_ALI;
 	
 	struct {
-		size_t 			size[2] __ALIGN__; /* size {rows, columns} of data block	 */
-		biosig_data_type* 	block __ALIGN__; 	 /* data block */
-	} data __ALIGN__;
+		size_t 			size[2] ATT_ALI; /* size {rows, columns} of data block	 */
+		biosig_data_type* 	block ATT_ALI; 	 /* data block */
+	} data ATT_ALI;
 
-	uint32_t 	HeadLen __ALIGN__;	/* length of header in bytes */
-	uint16_t 	NS 	__ALIGN__;	/* number of channels */
-	uint32_t 	SPR 	__ALIGN__;	/* samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR) */
-	int64_t  	NRec 	__ALIGN__;	/* number of records/blocks -1 indicates length is unknown. */	
-	uint32_t 	Dur[2] 	__ALIGN__;	/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
-	double 		SampleRate __ALIGN__;	/* Sampling rate */
-	uint8_t 	IPaddr[6] __ALIGN__; 	/* IP address of recording device (if applicable) */
-	uint32_t  	LOC[4] 	__ALIGN__;	/* location of recording according to RFC1876 */
-	gdf_time 	T0 	__ALIGN__; 	/* starttime of recording */
+	uint32_t 	HeadLen ATT_ALI;	/* length of header in bytes */
+	uint16_t 	NS 	ATT_ALI;	/* number of channels */
+	uint32_t 	SPR 	ATT_ALI;	/* samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR) */
+	int64_t  	NRec 	ATT_ALI;	/* number of records/blocks -1 indicates length is unknown. */	
+	uint32_t 	Dur[2] 	ATT_ALI;	/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
+	double 		SampleRate ATT_ALI;	/* Sampling rate */
+	uint8_t 	IPaddr[6] ATT_ALI; 	/* IP address of recording device (if applicable) */
+	uint32_t  	LOC[4] 	ATT_ALI;	/* location of recording according to RFC1876 */
+	gdf_time 	T0 	ATT_ALI; 	/* starttime of recording */
 	int16_t 	tzmin;	 		/* time zone (minutes of difference to UTC */
 
 	/* Patient specific information */
@@ -234,7 +234,7 @@ typedef struct {
 			int 	Visual;		/* 0:Unknown, 1: NO, 2: YES, 3: Corrected */
 		} Impairment;
 		
-	} Patient __ALIGN__; 
+	} Patient ATT_ALI; 
 	
 	struct {
 		char		Recording[MAX_LENGTH_RID+1]; 	/* HL7, EDF, GDF, BDF replaces HDR.AS.RID */
@@ -255,24 +255,24 @@ typedef struct {
 		char 		EquipmentManufacturer[20];
 		char		EquipmentModel[20]; 
 		char		EquipmentSerialNumber[20];
-	} ID __ALIGN__;
+	} ID ATT_ALI;
 
 	/* position of electrodes; see also HDR.CHANNEL[k].XYZ */
 	struct {
 		float		REF[3];	/* XYZ position of reference electrode */
 		float		GND[3];	/* XYZ position of ground electrode */
-	} ELEC __ALIGN__;
+	} ELEC ATT_ALI;
 
 	/*	EVENTTABLE */
 	struct 
 	{
-		double  	SampleRate __ALIGN__;	/* for converting POS and DUR into seconds  */
-		uint32_t  	N __ALIGN__;	/* number of events */
-		uint16_t 	*TYP __ALIGN__;	/* defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup */
-		uint32_t 	*POS __ALIGN__;	/* starting position [in samples] */
-		uint32_t 	*DUR __ALIGN__;	/* duration [in samples] */
-		uint16_t 	*CHN __ALIGN__;	/* channel number; 0: all channels  */
-	} EVENT __ALIGN__; 
+		double  	SampleRate ATT_ALI;	/* for converting POS and DUR into seconds  */
+		uint32_t  	N ATT_ALI;	/* number of events */
+		uint16_t 	*TYP ATT_ALI;	/* defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup */
+		uint32_t 	*POS ATT_ALI;	/* starting position [in samples] */
+		uint32_t 	*DUR ATT_ALI;	/* duration [in samples] */
+		uint16_t 	*CHN ATT_ALI;	/* channel number; 0: all channels  */
+	} EVENT ATT_ALI; 
 
 	struct {	/* flags */
 		char		OVERFLOWDETECTION; 	/* overflow & saturation detection 0: OFF, !=0 ON */
@@ -280,7 +280,7 @@ typedef struct {
 		char		ANONYMOUS; 	/* 1: anonymous mode, no personal names are processed */ 
 		char		SWAP; 	        /* 1: endian swapping is needed */ 
 		char		ROW_BASED_CHANNELS; 	        /* 0: column-based data [default]; 1: row-based data */ 
-	} FLAG __ALIGN__; 
+	} FLAG ATT_ALI; 
 
 	struct {	/* File specific data  */
 #ifdef ZLIB_H
@@ -305,9 +305,9 @@ typedef struct {
 		uint32_t 	*bi;
 		uint8_t*	Header; 
 		uint8_t*	rawdata; 	/* raw data block */
-	} AS;
+	} AS ATT_ALI;
 	
-	CHANNEL_TYPE *CHANNEL __ALIGN__;  
+	CHANNEL_TYPE *CHANNEL ATT_ALI;  
 	void *aECG;
 	
 } HDRTYPE;
