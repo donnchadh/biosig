@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.88 2008-04-18 11:29:12 schloegl Exp $
+% $Id: biosig.h,v 1.89 2008-04-23 15:03:23 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -105,8 +105,6 @@ extern int   B4C_ERRNUM;
 extern const char *B4C_ERRMSG;
 extern int   VERBOSE_LEVEL; 
 
-
-
 /****************************************************************************/
 /**                                                                        **/
 /**                 DEFINITIONS, TYPEDEFS AND MACROS                       **/
@@ -191,6 +189,8 @@ typedef struct {
 	This structure defines the general (fixed) header  
 */
 typedef struct {
+	CHANNEL_TYPE *CHANNEL;  
+
 	enum FileFormat TYPE; 		/* type of file format */
 	float 		VERSION;	/* GDF version number */ 
 	const char* 	FileName;
@@ -304,7 +304,6 @@ typedef struct {
 		uint8_t*	rawdata; 	/* raw data block */
 	} AS;
 	
-	CHANNEL_TYPE *CHANNEL;  
 	void *aECG;
 	
 } HDRTYPE;
