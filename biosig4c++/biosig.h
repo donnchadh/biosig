@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.91 2008-04-23 20:44:32 schloegl Exp $
+% $Id: biosig.h,v 1.92 2008-04-24 07:19:30 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -160,7 +160,7 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 #define MAX_LENGTH_NAME 	128	// max length of personal name: MFER<=128
 #define MAX_LENGTH_MANUF 	128	// max length of manufacturer field: MFER<128
 
-#define ATT_ALI __attribute__ ((aligned (8)))
+#define ATT_ALI __attribute__ ((aligned (8)))	/* Matlab v7.3+ requires 8 byte alignment*/
 
 typedef struct {
 	double 		PhysMin ATT_ALI;	/* physical minimum */
@@ -207,7 +207,7 @@ typedef struct {
 	uint16_t 	NS 	ATT_ALI;	/* number of channels */
 	uint32_t 	SPR 	ATT_ALI;	/* samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR) */
 	int64_t  	NRec 	ATT_ALI;	/* number of records/blocks -1 indicates length is unknown. */	
-	uint32_t 	Dur[2] 	ATT_ALI;	/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
+	uint32_t 	Dur[2] 	__attribute__ ((deprecated));	/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
 	double 		SampleRate ATT_ALI;	/* Sampling rate */
 	uint8_t 	IPaddr[6] ATT_ALI; 	/* IP address of recording device (if applicable) */
 	uint32_t  	LOC[4] 	ATT_ALI;	/* location of recording according to RFC1876 */
