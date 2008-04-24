@@ -3,7 +3,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.25 2008-04-08 20:47:36 schloegl Exp $
+$Id: header.txt,v 1.26 2008-04-24 08:07:58 schloegl Exp $
 Copyright (C) Alois Schloegl 2003-2005 <a.schloegl@ieee.org>
 
 
@@ -39,7 +39,7 @@ HDR.NS			integer		number of channels
 HDR.SampleRate		integer		sampling frequency in [Hz]
 HDR.NRec		integer		number of records or blocks; 1 for continous data 
 HDR.SPR			integer		samples per record  
-HDR.Dur			float		Duration (in [s]) of block length
+HDR.Dur			float		Duration=SPR/SampleRate (in [s]) of data block [depreciated]
 
 HDR.Calib		 		Matrix for all kind of rereferencing, depends on scaling factors as well as input argument
 HDR.InChanSelect			input channel selection, # read from Raw-data 

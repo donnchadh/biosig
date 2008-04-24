@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.5 2008-04-18 18:52:17 schloegl Exp $
+% $Id: swig.i,v 1.6 2008-04-24 08:10:41 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -88,7 +88,6 @@ typedef struct {
 	uint16_t 	NS;		/* number of channels */
 	uint32_t 	SPR;		/* samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR) */
 	uint64_t  	NRec;		/* number of records/blocks -1 indicates length is unknown. */	
-	uint32_t 	Dur[2];		/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
 	double 		SampleRate;	/* Sampling rate */
 	uint8_t 	IPaddr[6]; 	/* IP address of recording device (if applicable) */
 	uint32_t  	LOC[4];		/* location of recording according to RFC1876 */

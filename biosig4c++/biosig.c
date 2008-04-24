@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.171 2008-04-23 15:00:53 schloegl Exp $
+    $Id: biosig.c,v 1.172 2008-04-24 08:06:03 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -990,7 +990,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->AS.Header = NULL;
 
       	hdr->TYPE = noFile; 
-      	hdr->VERSION = 1.99;
+      	hdr->VERSION = 2.0;
       	hdr->AS.rawdata = (uint8_t*) malloc(0);
       	hdr->NRec = 0; 
       	hdr->NS = NS;	
@@ -1003,7 +1003,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = t_time2gdf_time(time(NULL));
       	hdr->tzmin = 0; 
-      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.60";
+      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.62";
       	hdr->ID.Manufacturer._field[0]    = 0;
       	hdr->ID.Manufacturer.Name         = " ";
       	hdr->ID.Manufacturer.Model        = " ";
@@ -1023,8 +1023,6 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
       	hdr->Patient.Impairment.Visual = 0;	// 0:Unknown, 1: NO, 2: YES, 3: Corrected
       	hdr->Patient.Weight 	= 0;	// 0:Unknown
       	hdr->Patient.Height 	= 0;	// 0:Unknown
-      	hdr->Dur[0] = 1;
-      	hdr->Dur[1] = 1;
 	memset(&hdr->IPaddr,0,6);
       	for (k1=0; k1<3; k1++) {
       		hdr->Patient.Headsize[k1] = 0;        // Unknown;
@@ -1531,11 +1529,12 @@ if (!strncmp(MODE,"r",1))
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201] GDF=%i %i Ver=%4.2f\n",GDF,hdr->TYPE,hdr->VERSION);
 
 	if (hdr->TYPE == GDF) {
+		uint32_t Dur[2];
       	    	strncpy(tmp,(char*)hdr->AS.Header+3,5); tmp[5]=0;
 	    	hdr->VERSION 	= atof(tmp);
 	    	hdr->NRec 	= lei64p(hdr->AS.Header+236); 
-	    	hdr->Dur[0]  	= leu32p(hdr->AS.Header+244);
-	    	hdr->Dur[1]  	= leu32p(hdr->AS.Header+248); 
+	    	Dur[0]  	= leu32p(hdr->AS.Header+244);
+	    	Dur[1]  	= leu32p(hdr->AS.Header+248); 
 	    	hdr->NS   	= leu16p(hdr->AS.Header+252); 
 	    	
 	    	if (hdr->VERSION > 1.90) { 
@@ -1707,7 +1706,7 @@ if (!strncmp(MODE,"r",1))
 				return(hdr);
 			}
 		}	
-		hdr->SampleRate = ((double)(hdr->SPR))*hdr->Dur[1]/hdr->Dur[0];
+		hdr->SampleRate = ((double)(hdr->SPR))*Dur[1]/Dur[0];
 
 		// READ EVENTTABLE 
 		int c;
@@ -2153,8 +2152,6 @@ if (!strncmp(MODE,"r",1))
 			
 			POS += leu32p((uint8_t*)Header2);
 		}
-		hdr->Dur[0] = hdr->SPR;
-		hdr->Dur[1] = hdr->SampleRate;
 
 		/// foreign data section - skip 
 		POS += leu16p(hdr->AS.Header+POS);
@@ -2311,8 +2308,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->SPR  	 = 1; 
 		hdr->T0 	 = 0;        // Unknown;
 		hdr->SampleRate	 = leu16p(hdr->AS.Header+4);
-		hdr->Dur[0]	 = hdr->SPR;
-		hdr->Dur[1]	 = hdr->SampleRate;		
 
 	    	/* extract more header information */
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
@@ -2596,15 +2591,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			t = strtok(NULL,"\xA\xD");	// extract next line
 		}
 	    	hdr->FILE.POS = 0; 
-		hdr->Dur[0]	= hdr->SPR;
-		hdr->Dur[1]	= hdr->SampleRate;
 	}
 
 	else if (hdr->TYPE==CFWB) {
 	    	hdr->SampleRate = 1.0/lef64p(hdr->AS.Header+8);
 		hdr->SPR    	= 1; 
-		hdr->Dur[0]	= 1;
-		hdr->Dur[1]	= hdr->SampleRate;
 	    	tm_time.tm_year = lei32p(hdr->AS.Header+16) - 1900;
 	    	tm_time.tm_mon  = lei32p(hdr->AS.Header+20) - 1;
 	    	tm_time.tm_mday = lei32p(hdr->AS.Header+24);
@@ -2673,8 +2664,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->NS  = leu16p(hdr->AS.Header+370); 
 	    	hdr->HeadLen = 900+hdr->NS*75; 
 		hdr->SPR    = 1; 
-		hdr->Dur[0] = 1;
-		hdr->Dur[1] = hdr->SampleRate;
 		hdr->SampleRate = leu16p(hdr->AS.Header+376); 
 #define _eventtablepos (leu32p(hdr->AS.Header+886))
 		hdr->AS.bpb = hdr->NS*2;
@@ -2739,9 +2728,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->VERSION 	= leu16p(hdr->AS.Header+4);
 	    	hdr->NS		= leu16p(hdr->AS.Header+6);
 	    	hdr->SPR	= 1;
-		hdr->Dur[0]	= 1;
-		hdr->Dur[1]  	= leu32p(hdr->AS.Header+8);
-	    	hdr->SampleRate = hdr->Dur[1];
+	    	hdr->SampleRate = leu32p(hdr->AS.Header+8);
 	    	hdr->NRec	= leu32p(hdr->AS.Header+12);
 	    	
 		uint16_t gdftyp = 16;
@@ -2802,9 +2789,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	// tm_time.tm_sec  = beu32p(Header1+16)/1000; // not supported by tm_time
 
 	    	hdr->T0 = tm_time2gdf_time(&tm_time);
-    		hdr->Dur[0] 	= 1;
-    		hdr->Dur[1] 	= beu16p(hdr->AS.Header+20);
-	    	hdr->SampleRate = hdr->Dur[1];
+	    	hdr->SampleRate = beu16p(hdr->AS.Header+20);
 	    	hdr->NS         = beu16p(hdr->AS.Header+22);
 	    	// uint16_t  Gain  = beu16p(Header1+24);
 	    	uint16_t  Bits  = beu16p(hdr->AS.Header+26);
@@ -2979,8 +2964,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				fprintf(stderr,"-> Label #%02i: len(%i) %s\n",k,c1,hc->Label);
 		}
 		hdr->SPR    = 1;
-		hdr->Dur[0] = 1;
-		hdr->Dur[1] = hdr->SampleRate;
 		hdr->NRec   = 0;
 
 		/* decode data section */
@@ -3425,8 +3408,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			int sz=ifread(&tag,1,1,hdr);
 			curPos += sz;
 	 	}
-		hdr->Dur[0] = hdr->SPR;
-		hdr->Dur[1] = hdr->SampleRate;
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// overflow detection OFF - not supported
 	 	for (k=0; k<hdr->NS; k++) {
 	 		if (!hdr->CHANNEL[k].PhysDimCode) hdr->CHANNEL[k].PhysDimCode = MFER_PhysDimCodeTable[UnitCode]; 
@@ -3496,9 +3477,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 		hdr->NRec = datlen/hdr->AS.bpb;
 		hdr->SPR  = 1;
-		hdr->Dur[0] = 1;
-		hdr->Dur[1] = hdr->SampleRate;
-
+		
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
 		double digmax = ldexp(1,8*GDFTYP_BYTE[gdftyp]);
@@ -3585,8 +3564,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (format==1) {
 					hdr->AS.bpb = hdr->NS * ceil(bits/8.0);
 					hdr->SPR    = tagsize/hdr->AS.bpb; 
-					hdr->Dur[0] = hdr->SPR;
-					hdr->Dur[1] = hdr->SampleRate;
 				}
 			}
 		
@@ -3611,8 +3588,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	hdr->FILE.POS = 0; 
 
+/* this will become obsolote because HDR.Dur is depreciated */
 	if (hdr->SPR*hdr->Dur[1] != hdr->SampleRate*hdr->Dur[0]) {
-		/* set duration if it was not properly set*/
+		// set duration if it was not properly set 
 		double Dur = hdr->SPR/hdr->SampleRate; 
 		double dtmp1, dtmp2;
 		dtmp2 = modf(Dur, &dtmp1); 
@@ -3726,6 +3704,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	}
 
     	else if ((hdr->TYPE==GDF) || (hdr->TYPE==GDF1)) {	
+		uint32_t Dur[2];
 	     	hdr->HeadLen = (hdr->NS+1)*256;
 	    	hdr->AS.Header = (uint8_t*) malloc(hdr->HeadLen);
 	    	uint8_t* Header2 = hdr->AS.Header+256; 
@@ -3802,23 +3781,23 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		*(uint64_t*) (Header1+236) = l_endian_u64(hdr->NRec);
 		/* Duration is expressed as an fraction of integers */ 
 		if (ceil(hdr->SampleRate)!=hdr->SampleRate)
-			fprintf(stderr,"Warning SOPEN(GDF write): Fraction of Duration rounded from %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,hdr->Dur[0],hdr->Dur[1]);
+			fprintf(stderr,"Warning SOPEN(GDF write): Fraction of Duration rounded from %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,Dur[0],Dur[1]);
 			
-		double Dur = hdr->SPR/hdr->SampleRate;
+		double fDur = hdr->SPR/hdr->SampleRate;
 		double dtmp1, dtmp2;
-		dtmp2 = modf(Dur, &dtmp1);
+		dtmp2 = modf(fDur, &dtmp1);
 		// approximate real with rational number 
 		if (fabs(dtmp2) < DBL_EPSILON) {
-			hdr->Dur[0] = lround(Dur); 
-			hdr->Dur[1] = 1; 
+			Dur[0] = lround(fDur); 
+			Dur[1] = 1; 
 		}
 		else {   
-			hdr->Dur[1] = lround(1.0 / dtmp2 ); 
-			hdr->Dur[0] = lround(1.0 + dtmp1 * hdr->Dur[1]); 
+			Dur[1] = lround(1.0 / dtmp2 ); 
+			Dur[0] = lround(1.0 + dtmp1 * Dur[1]); 
 		}		
-		fprintf(stdout,"\n SOPEN(GDF write): %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,hdr->Dur[0],hdr->Dur[1]);
-		*(uint32_t*) (Header1+244) = l_endian_u32(hdr->Dur[0]);
-		*(uint32_t*) (Header1+248) = l_endian_u32(hdr->Dur[1]);
+		fprintf(stdout,"\n SOPEN(GDF write): %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,Dur[0],Dur[1]);
+		*(uint32_t*) (Header1+244) = l_endian_u32(Dur[0]);
+		*(uint32_t*) (Header1+248) = l_endian_u32(Dur[1]);
 		*(uint16_t*) (Header1+252) = l_endian_u16(hdr->NS);
 
 	     	/* define HDR.Header2 
@@ -3928,7 +3907,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (len>8) fprintf(stderr,"Warning: NRec is (%s) too long (%i>8).\n",tmp,len);  
 	     	memcpy(Header1+236, tmp, len);
 
-		len = sprintf(tmp,"%f",((double)hdr->Dur[0])/hdr->Dur[1]);
+		len = sprintf(tmp,"%f",hdr->SPR/hdr->SampleRate);
 		if (len>8) fprintf(stderr,"Warning: Duration is (%s) too long (%i>8).\n",tmp,len);  
 	     	memcpy(Header1+244, tmp, len);
 
@@ -4972,7 +4951,8 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 	if (VERBOSE_LEVEL>1) {
 		/* display header information */
 		fprintf(fid,"FileName:\t%s\nType    :\t%i\nVersion :\t%4.2f\nHeadLen :\t%i\n",hdr->FileName,hdr->TYPE,hdr->VERSION,hdr->HeadLen);
-		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nDuration[s]:\t%u/%u\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
+//		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nDuration[s]:\t%u/%u\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
+		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->SampleRate);
 		fprintf(fid,"Events/Annotations:\t%i\nEvents/SampleRate:\t%f\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
 	}
 		

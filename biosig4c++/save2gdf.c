@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.39 2008-04-22 19:30:55 schloegl Exp $
+    $Id: save2gdf.c,v 1.40 2008-04-24 08:06:03 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -140,8 +140,10 @@ int main(int argc, char **argv){
 		exit(status); 
 	} 
 	
+/* obsolete 
 	if (hdr->SPR * hdr->Dur[1] != hdr->SampleRate * hdr->Dur[0])
 		fprintf(stdout,"ERROR SAVE2GDF: SPR=%i Fs=%f Dur=%i/%i\n",hdr->SPR, hdr->SampleRate, hdr->Dur[0], hdr->Dur[1]);
+*/ 
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
