@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.55 2008-03-14 08:30:43 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.56 2008-04-24 17:04:10 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -356,10 +356,11 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		aECG = (aECG_TYPE*)hdr->aECG;
 		aECG->diastolicBloodPressure=0.0;				 
 		aECG->systolicBloodPressure=0.0;
-		aECG->MedicationDrugs = "\0";
-		aECG->ReferringPhysician="\0";
-		aECG->LatestConfirmingPhysician="\0";
-		aECG->Diagnosis="\0";
+		aECG->MedicationDrugs = "\x0";
+		aECG->ReferringPhysician= "\x0";
+		
+		aECG->LatestConfirmingPhysician="\x00";
+		aECG->Diagnosis="\x00";
 		aECG->EmergencyLevel=0;
 		hdr->ID.Technician = "nobody";
 	}
@@ -374,6 +375,10 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	aECG->FLAG.REF_BEAT = 0; 
 	aECG->FLAG.BIMODAL  = 0;
 
+	en1064.FLAG.HUFFMAN  = 0; 
+	en1064.FLAG.DIFF     = 0; 
+	en1064.FLAG.REF_BEAT = 0; 
+	en1064.FLAG.BIMODAL  = 0;
 	en1064.Section4.len_ms	 = 0;
 	
 #ifndef WITHOUT_SCP_DECODE
@@ -464,7 +469,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		crc 	   = leu16p(PtrCurSect);
 		uint16_t tmpcrc = CRCEvaluate((uint8_t*)(PtrCurSect+2),len-2); 
 		if ((crc != 0xffff) && (crc != tmpcrc))
-			fprintf(stderr,"Warning SOPEN(SCP-READ): faulty CRC in section %i: crc=%x, %x\n",curSect,crc,tmpcrc);
+			fprintf(stderr,"Warning SOPEN(SCP-READ): faulty CRC in section %i: crc=%x, %x\n" ,curSect,crc,tmpcrc);
 		if (curSect != leu16p(PtrCurSect+2))
 			fprintf(stderr,"Warning SOPEN(SCP-READ): Current Section No does not match field in sections (%i %i)\n",curSect,leu16p(PtrCurSect+2)); 
 		if (len != leu32p(PtrCurSect+4))
@@ -499,7 +504,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				tag = *(PtrCurSect+curSectPos);
 				len1 = leu16p(PtrCurSect+curSectPos+1);
 				if (VERBOSE_LEVEL>8)
-					fprintf(stdout,"SCP(r): Section 1 Tag %i Len %i\n",tag,len1);
+					fprintf(stdout,"SCP(r): Section 1 Tag %i Len %i\n",tag,len1); 
 
 				curSectPos += 3;
 				if (curSectPos+len1 > len) {
@@ -517,7 +522,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					if (len1>MAX_LENGTH_PID) {
 						fprintf(stdout,"Warning SCP(read): length of Patient Id (section1 tag2) exceeds %i>%i\n",len1,MAX_LENGTH_PID); 
 					}	
-					strncpy(hdr->Patient.Id,(char*)(PtrCurSect+curSectPos),min(len1,MAX_LENGTH_PID));
+					strncpy(hdr->Patient.Id,(char*)(PtrCurSect+curSectPos),min(len1,MAX_LENGTH_PID)); 
 
 					if (!strcmp(hdr->Patient.Id,"UNKNOWN")) 
 						hdr->Patient.Id[0] = 0;
@@ -562,7 +567,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				else if (tag==14) {
 					if (len1>80)
 						fprintf(stderr,"Warning SCP(r): length of tag14 %i>40\n",len1);
-					memcpy(hdr->ID.Manufacturer._field,(char*)PtrCurSect+curSectPos,min(len1,MAX_LENGTH_MANUF));
+					memcpy(hdr->ID.Manufacturer._field,(char*)PtrCurSect+curSectPos,min(len1,MAX_LENGTH_MANUF)); 
 					hdr->ID.Manufacturer._field[min(len1,MAX_LENGTH_MANUF)] = 0;
 					hdr->ID.Manufacturer.Model = hdr->ID.Manufacturer._field+8;  
 					hdr->ID.Manufacturer.Version = hdr->ID.Manufacturer._field+36;  
@@ -595,7 +600,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID = (char*)(PtrCurSect+curSectPos+36+tmp+1);
 					tmp += strlen((char*)(PtrCurSect+curSectPos+36+tmp+1));					
 					aECG->Section1.Tag14.ACQ_DEV_SCP_SW = (char*)(PtrCurSect+curSectPos+36+tmp+1); 	// tag 14, byte 38 (SCP_IMPL_SW has to be "OpenECG XML-SCP 1.00")
-					tmp += strlen((char*)(PtrCurSect+curSectPos+36+tmp+1));
+					tmp += strlen((char*)(PtrCurSect+curSectPos+36+tmp+1)); 
 					aECG->Section1.Tag14.ACQ_DEV_MANUF  = (char*)(PtrCurSect+curSectPos+36+tmp+1);	// tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer")
 				}
 				else if (tag==15) {
@@ -665,7 +670,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 							t0.tm_min += tzmin;
 						else 
 							fprintf(stderr,"Warning SOPEN(SCP-READ): invalid time zone (Section 1, Tag34)\n");
-					//fprintf(stdout,"SOPEN(SCP-READ): tzmin = %i %x \n",tzmin,tzmin);
+					//fprintf(stdout,"SOPEN(SCP-READ): tzmin = %i %x \n",tzmin,tzmin); 
 				}
 				else {
 				}
@@ -694,7 +699,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				if (VERBOSE_LEVEL==9)
 					for (k1=0; k1<Huffman[k2].NCT; k1++) 
 					fprintf(stdout,"%3i: %2i %2i %1i %3i %6u \n",k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode); 
-				if (!checkTree(HTrees[0])) // ### OPTIONAL, not needed ###
+				if (!checkTree(HTrees[0])) // ### OPTIONAL, not needed ### 
 					fprintf(stderr,"Warning: invalid Huffman Tree\n");
 			}
 			else {
@@ -715,7 +720,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 						if (VERBOSE_LEVEL==9)
 							fprintf(stdout,"%3i %3i: %2i %2i %1i %3i %6u \n",k2,k1,Huffman[k2].Table[k1].PrefixLength,Huffman[k2].Table[k1].CodeLength,Huffman[k2].Table[k1].TableModeSwitch,Huffman[k2].Table[k1].BaseValue,Huffman[k2].Table[k1].BaseCode);
 					}
-					HTrees[k2] = makeTree(Huffman[k2]);
+					HTrees[k2] = makeTree(Huffman[k2]); 
 					if (!checkTree(HTrees[k2])) {
 						B4C_ERRMSG = "Warning: invalid Huffman Tree\n";
 						B4C_ERRNUM = B4C_DECOMPRESSION_FAILED; 
@@ -734,7 +739,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			en1064.Section3.flags = *(PtrCurSect+curSectPos+1);
 			if (en1064.FLAG.REF_BEAT && !section[4].length)
 				fprintf(stderr,"Warning (SCP): Reference Beat but no Section 4\n");
-			if (!(en1064.Section3.flags & 0x04) || ((en1064.Section3.flags>>3) != hdr->NS))
+			if (!(en1064.Section3.flags & 0x04) || ((en1064.Section3.flags>>3) != hdr->NS)) 
 				fprintf(stderr,"Warning (SCP): channels are not simultaneously recorded! %x %i\n",en1064.Section3.flags,hdr->NS);
 
 			curSectPos += 2;
@@ -884,7 +889,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				hdr->CHANNEL[i].Cal 	    = Cal0 * 1e-3;
 				hdr->CHANNEL[i].Off         = 0;
 				hdr->CHANNEL[i].OnOff       = 1;    // 1: ON 0:OFF
-				hdr->CHANNEL[i].Transducer[0] = '\0';
+				hdr->CHANNEL[i].Transducer[0] = 0;
 				hdr->CHANNEL[i].GDFTYP      = gdftyp;  
 
 				// ### these values should represent the true saturation values ### //
@@ -920,14 +925,13 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					for (ix = i*hdr->SPR+2; ix < i*hdr->SPR + SPR; ix++)
 						data[ix] += 2*data[ix-1] - data[ix-2];
 				}
-
 #ifndef WITHOUT_SCP_DECODE
 				if (aECG->FLAG.BIMODAL || en1064.FLAG.REF_BEAT) { 	
 //				if (aECG->FLAG.BIMODAL) {
 //				if (aECG->FLAG.REF_BEAT {
 					/*	this is experimental work
 						Bimodal and RefBeat decompression are under development. 
-						"continue" ignores code below 
+						"continue" ignores code below  
 						AS_DECODE=1 will call later SCP-DECODE instead  
 					*/ 	
 					AS_DECODE = 1; continue; 
@@ -1075,8 +1079,6 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		else {
 		}
 	}	
-	hdr->Dur[0] = hdr->SPR * dT_us; 
-	hdr->Dur[1] = 1000000L; 
 
 	/* free allocated memory */ 
 	deallocEN1064(en1064);	
