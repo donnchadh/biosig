@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.44 2008-04-25 10:06:47 schloegl Exp $
+###  $Id: Makefile,v 1.45 2008-04-25 23:42:29 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -12,7 +12,7 @@ CC            = $(CXX)
 CXX           = g++
 MEX	      = /opt/MatlabR2008a/bin/mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB		# if you have zlib
+DEFINES       = -D=WITH_ZLIB # if you have zlib
 CFLAGS        = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES)
 CXXFLAGS      = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES)
 AR            = ar crs
@@ -24,6 +24,8 @@ LFLAGS        =
 LIBS          = libbiosig.a -lz 	# zlib
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
+
+BIN           = $(DESTDIR)/usr/local/bin
 
 ####### Output directory
 
@@ -196,9 +198,32 @@ clean:
 	-$(DEL_FILE) t230/*.o
 	-$(DEL_FILE) XMLParser/*.o
 	-$(DEL_FILE) t5.scp t6.scp save2gdf gztest test_scp_decode
-	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.*.gz *.fil /tmp/t1.*
+	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil /tmp/t1.*
 	-$(DEL_FILE) swig_wrap.* biosig.py 
 	-$(DEL_FILE) QMakefile
+
+
+####### INSTALL ########
+
+install: 
+	chmod 0755 	save2gdf
+	cp save2gdf  	$(BIN)
+	cp save2aecg 	$(BIN)
+	cp save2scp  	$(BIN)
+	chmod 0755  	../sigviewer/bin/sigviewer
+	cp ../sigviewer/bin/sigviewer $(BIN)
+	#cp biosig.h      $(DESTDIR)/usr/include
+	#cp libbiosig.so  $(DESTDIR)/usr/lib
+	#cp save2gdf.man  $(DESTDIR)/usr/share/man/man1
+	#cp libbiosig.man $(DESTDIR)/usr/share/man/man3
+	#cp mexSLOAD.mex  $(DESTDIR)/usr/local/share/octave
+
+remove: 
+	rm $(BIN)/save2gdf
+	rm $(BIN)/save2scp
+	rm $(BIN)/save2aecg
+	rm $(BIN)/sigviewer
+
 
 
 ####### Testing ########
@@ -282,11 +307,14 @@ zip: /tmp/t1.scp save2gdf
 	# test for on-the-fly compression and decompression 
 	# on-the-fly compression of output file 
 	./save2gdf -z -f=GDF /tmp/t1.scp t1.gdf
+	./save2gdf -z -f=GDF1 /tmp/t1.scp t1.gd1
 	./save2gdf -z -f=EDF /tmp/t1.scp t1.edf
 	./save2gdf -z -f=BDF /tmp/t1.scp t1.bdf
 	./save2gdf -z -f=SCP /tmp/t1.scp t1.scp
 	./save2gdf -z -f=HL7 /tmp/t1.scp t1.hl7
 	./save2gdf -z -f=CFW /tmp/t1.scp t1.cfw
+	./save2gdf -z -f=MFER /tmp/t1.scp t1.mwf
+
 	gzip -c /tmp/t1.scp >/tmp/t1.scp.gz 
 	# on-the-fly decompression of input file 
 	./save2gdf -f=GDF /tmp/t1.scp.gz t1.gdf

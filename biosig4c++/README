@@ -76,10 +76,18 @@ Not tested (yet). Let me know about successful compilations,
 or tell me what changes are needed.   
 
 
+
+Installation: 
+-------------
+ran as root 
+  make install 		# installs save2gdf, save2scp, save2aecg, sigviewer
+
+
+
 Execution:
 ----------
 # if test.gdf exists, some header information is displayed
-./savegdf test.gdf     		
+./save2gdf test.gdf     		
 
 # help and usage information 
 ./save2gdf -h
@@ -136,7 +144,7 @@ The archive is available at
 http://newsarchiv.tugraz.at/browse/tu-graz.biosig/ 
 
 
-    $Id: README,v 1.14 2008-03-17 10:03:25 schloegl Exp $
+    $Id: README,v 1.15 2008-04-25 23:42:29 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 
