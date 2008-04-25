@@ -9,7 +9,7 @@ function [HDR]=scpopen(arg1,CHAN,arg4,arg5,arg6)
 % See also: fopen, SOPEN, 
 
 
-%	$Id: scpopen.m,v 1.36 2008-01-18 09:28:13 schloegl Exp $
+%	$Id: scpopen.m,v 1.37 2008-04-25 06:34:24 schloegl Exp $
 %	(C) 2004,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BioSig-toolbox http://biosig.sf.net/
 %
@@ -79,7 +79,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
         section.Version = fread(fid,[1,2],'uint8');
         section.tmp     = fread(fid,[1,6],'uint8');
         
-        NSections = min(12,(section.Length-16)/10);
+        NSections = min(11,(section.Length-16)/10);
         for k = 1:NSections,
                 HDR.Block(k).id = k; 
                 HDR.Block(k).length = 0; 
@@ -89,19 +89,20 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                 k = fread(fid,1,'uint16');
 		len = fread(fid,1,'uint32');
 		pos = fread(fid,1,'uint32');
-		if ((k > 0) & (k < NSections))
-                HDR.Block(k).id = k; 
-                HDR.Block(k).length = len; 
-                HDR.Block(k).startpos = pos-1;
+		if ((k > 0) && (k < NSections))
+	                HDR.Block(k).id = k; 
+        	        HDR.Block(k).length = len; 
+                	HDR.Block(k).startpos = pos-1;
 
 %% [HDR.Block(k).id ,length(tmpbytes), HDR.Block(k).length, HDR.Block(k).length+HDR.Block(k).startpos]                
 		%% FIXME: instead of min(...,FileSize) a warning or error message should be reported 
-                tmpcrc = crc16eval(tmpbytes(HDR.Block(k).startpos+3:min(HDR.Block(k).startpos+HDR.Block(k).length,HDR.FILE.size)));
-                if (HDR.Block(k).length>0)
-                if (tmpcrc~=(tmpbytes(HDR.Block(k).startpos+(1:2))'*[1;256]))
-                	fprintf(HDR.FILE.stderr,'Warning SCPOPEN: faulty CRC %04x in section %i\n',tmpcrc,k-1);
-                end;
-                end;
+	                tmpcrc = crc16eval(tmpbytes(HDR.Block(k).startpos+3:min(HDR.Block(k).startpos+HDR.Block(k).length,HDR.FILE.size)));
+
+	                if (HDR.Block(k).length>0)
+        	        if (tmpcrc~=(tmpbytes(HDR.Block(k).startpos+(1:2))'*[1;256]))
+                		fprintf(HDR.FILE.stderr,'Warning SCPOPEN: faulty CRC %04x in section %i\n',tmpcrc,k-1);
+	                end;
+        	        end;
 		end;
         end;
         
@@ -408,7 +409,7 @@ if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ
                                 end;
 				%S2 = S2(:,CHAN); 
         
-                        elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) & (HDR.SCP2.prefix==0), 
+                        elseif (HDR.SCP2.NHT==1) && (HDR.SCP2.NCT==1) && (HDR.SCP2.prefix==0), 
 				codelength = HDR.SCP2.HT(1,4);
                                 if (codelength==16)
                                         S2 = fread(fid,[HDR.N,HDR.NS],'int16');  
@@ -974,7 +975,7 @@ else    % writing SCP file
         count = fwrite(fid,B,'uchar');
         fclose(fid); 
 end
-%end  %% scpopen
+end  %% scpopen
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -987,7 +988,7 @@ function b2 = s2b(i)
 	% converts 16bit into 2 bytes
 	b2 = [bitand(i,255),bitand(bitshift(i,-8),255)];
 	return; 
-end;	%%%%% s2b %%%%%
+end	%%%%% s2b %%%%%
 
 
 function b4 = s4b(i)
@@ -1091,7 +1092,7 @@ end;
 		end;
 	end;
 	return; 
-end; %%%%%%%% DecodeHuffman %%%%%%%%%
+end %%%%%%%% DecodeHuffman %%%%%%%%%
 
 function crc16 = crc16eval(D)
 % CRC16EVAL cyclic redundancy check with the polynomiaL x^16+x^12+x^5+1  
