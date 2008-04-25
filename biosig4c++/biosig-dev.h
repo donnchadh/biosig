@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.4 2008-04-10 14:08:49 schloegl Exp $
+% $Id: biosig-dev.h,v 1.5 2008-04-25 21:14:22 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -213,8 +213,11 @@ void bef64a(  double i, uint8_t* r);
 #endif
 
 
-#define NaN (0.0/0.0)	/* used for encoding of missing values */ 
-#define INF (1.0/0.0)	/* positive infinity */
+// #define NaN (0.0/0.0)	/* used for encoding of missing values */ 
+// #define INF (1.0/0.0)	/* positive infinity */
+
+const double NaN=0.0/0.0;
+const double INF=1.0/0.0;
 
 #define min(a,b)	(((a) < (b)) ? (a) : (b))
 #define max(a,b)	(((a) > (b)) ? (a) : (b))

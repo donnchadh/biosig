@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.174 2008-04-25 09:33:53 schloegl Exp $
+    $Id: biosig.c,v 1.175 2008-04-25 21:14:22 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1550,7 +1550,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
 	const float	CNT_SETTINGS_HIGHPASS[] = {NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
 
-    	unsigned int 		k,k1;
+    	unsigned int 	k,k1;
     	uint32_t	k32u; 
     	size_t	 	count;
     	char 		tmp[81];
@@ -1845,7 +1845,7 @@ if (!strncmp(MODE,"r",1))
 		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
 	    	hdr->FILE.POS = 0; 
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 217] #=%i\n",iftell(hdr));
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 217] #=%li\n",iftell(hdr));
     	}
 
     	else if ((hdr->TYPE == EDF) | (hdr->TYPE == BDF))	{
@@ -2123,7 +2123,7 @@ if (!strncmp(MODE,"r",1))
 				uint64_t numBlocks = leu64p(hdr->AS.Header + k1*16 + 19*4+8);
 
 				if (VERBOSE_LEVEL>8)
-					fprintf(stdout,"ABF %02i: %04li %04li %08Li\n",k1,BlockIndex,BlockSize,numBlocks);
+					fprintf(stdout,"ABF %02i: %04i %04i %08Li\n",k1,BlockIndex,BlockSize,numBlocks);
 
 				ifseek(hdr, BlockIndex*512, SEEK_SET);
 				b  = (uint8_t*)realloc(b,numBlocks*BlockSize);
@@ -2329,7 +2329,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->HeadLen = count; 
 		ifclose(hdr);
 
-		char *t1;
+		char *t1= NULL;
 		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
 		while ((t) && !strncmp(t,"#",1)) {
 			char* p;
@@ -2526,8 +2526,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		seq = 0;
 		uint16_t gdftyp=3; 
 		double physmax=1e6,physmin=-1e6,digmax=1e6,digmin=-1e6,cal=1.0,off=0.0;
-		enum o_t{VEC,MUL};
-		enum o_t orientation;
+		enum o_t{VEC,MUL} orientation = MUL;
 		size_t npts=0;
 
 		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
@@ -2860,13 +2859,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 
 	else if (hdr->TYPE==EGI) {
-	    	uint16_t gdftyp;
+	    	uint16_t gdftyp=3;
 		// BigEndian 
 		hdr->FLAG.SWAP = (__BYTE_ORDER == __LITTLE_ENDIAN); 	// default: most data formats are little endian 
 	    	hdr->VERSION  	= beu32p(hdr->AS.Header);
-    		if      (hdr->VERSION==2 || hdr->VERSION==3)	gdftyp = 3;	//int32
-    		else if (hdr->VERSION==4 || hdr->VERSION==5)	gdftyp = 16;	//float
+    		if      (hdr->VERSION==2 || hdr->VERSION==3)	gdftyp = 3;	// int32
+    		else if (hdr->VERSION==4 || hdr->VERSION==5)	gdftyp = 16;	// float
     		else if (hdr->VERSION==6 || hdr->VERSION==7)	gdftyp = 17;	// double
+    		
 	    	tm_time.tm_year = beu16p(hdr->AS.Header+4) - 1900;
 	    	tm_time.tm_mon  = beu16p(hdr->AS.Header+6) - 1;
 	    	tm_time.tm_mday = beu16p(hdr->AS.Header+8);
@@ -3165,7 +3165,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				len = tmplen;
 			
 			if (VERBOSE_LEVEL==9) 
-				fprintf(stdout,"MFER: tag=%3i chan=%2i len=%i %3i curPos=%i %i\n",tag,chan,tmplen,len,curPos,iftell(hdr));
+				fprintf(stdout,"MFER: tag=%3i chan=%2i len=%i %3i curPos=%i %li\n",tag,chan,tmplen,len,curPos,iftell(hdr));
 
 			/* VALUE */ 
 			if (tag==0) {
@@ -3308,9 +3308,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}
 			else if (tag==23) {
 				// manufacturer information: "Manufacturer^model^version number^serial number"
-				if (len>128) fprintf(stderr,"Warning MFER tag23 incorrect length %i>128\n",len); 
-				ifread(hdr->ID.Manufacturer._field,1,max(MAX_LENGTH_MANUF,len),hdr);
-				ifseek(hdr,max(0,len-MAX_LENGTH_MANUF),SEEK_CUR);
+				ifread(hdr->ID.Manufacturer._field,1,min(MAX_LENGTH_MANUF,len),hdr);
+				if (len>MAX_LENGTH_MANUF) {
+					fprintf(stderr,"Warning MFER tag23 incorrect length %i>128\n",len); 
+					ifseek(hdr,len-MAX_LENGTH_MANUF,SEEK_CUR);
+				}	
 				curPos += len;
 				for (k=0; isprint(hdr->ID.Manufacturer._field[k]) && (k<MAX_LENGTH_MANUF); k++);
 				hdr->ID.Manufacturer._field[k]    = 0; 
@@ -3333,7 +3335,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					curPos += ifread(&tag2,1,1,hdr);
 					curPos += ifread(&len2,1,1,hdr);
 					if (VERBOSE_LEVEL==9)
-						fprintf(stdout,"MFER: tag=%3i chan=%2i len=%-4i tag2=%3i len2=%3i curPos=%i %i count=%4i\n",tag,chan,len,tag2,len2,curPos,iftell(hdr),count);
+						fprintf(stdout,"MFER: tag=%3i chan=%2i len=%-4i tag2=%3i len2=%3i curPos=%i %li count=%4i\n",tag,chan,len,tag2,len2,curPos,iftell(hdr),count);
 				
 					if (FlagInfiniteLength && len2==0 && tag2==0) break; 
 
@@ -3489,7 +3491,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	}	
 
 		    	if (curPos != iftell(hdr))
-		    		fprintf(stdout,"positions differ %i %i \n",curPos,iftell(hdr));
+		    		fprintf(stdout,"positions differ %i %li \n",curPos,iftell(hdr));
 				
 			/* TAG */ 
 			int sz=ifread(&tag,1,1,hdr);
@@ -3866,10 +3868,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		}
 		
 		*(uint64_t*) (Header1+236) = l_endian_u64(hdr->NRec);
+
 		/* Duration is expressed as an fraction of integers */ 
-		if (ceil(hdr->SampleRate)!=hdr->SampleRate)
-			fprintf(stderr,"Warning SOPEN(GDF write): Fraction of Duration rounded from %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,Dur[0],Dur[1]);
-			
 		double fDur = hdr->SPR/hdr->SampleRate;
 		double dtmp1, dtmp2;
 		dtmp2 = modf(fDur, &dtmp1);
@@ -4346,7 +4346,8 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	}		
 	default: {
 		// check reading segment 
-		if ((start < 0) || (start > hdr->NRec)) 
+		// if ((start < 0) || (start > hdr->NRec)) 
+		if (start > hdr->NRec) 
 			return(0);
 		else if (ifseek(hdr, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET)<0)
 			return(0);
@@ -4417,12 +4418,14 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 			else if (GDFTYP==4)
 				sample_value = (biosig_data_type)bswap_16(*(uint16_t*)ptr); 
 			else if (GDFTYP==16) {
-				uint32_t v32 = bswap_32(*(uint32_t*)(ptr));
-				sample_value = (biosig_data_type)(*(float*)(&v32));
+				union {uint32_t i32; float f32;} u; 
+				u.i32 = bswap_32(*(uint32_t*)(ptr));
+				sample_value = (biosig_data_type)(u.f32);
 			}	
 			else if (GDFTYP==17) {
-				uint64_t v64 = bswap_64(*(uint64_t*)(ptr));
-				sample_value = (biosig_data_type)(*(double*)(&v64));
+				union {uint64_t i64; double f64;} u; 
+				u.i64 = bswap_64(*(uint64_t*)(ptr));
+				sample_value = (biosig_data_type)(u.f64);
 			}	
 			else if (GDFTYP==0)
 				sample_value = (biosig_data_type)(*(char*)ptr); 
@@ -5147,3 +5150,4 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 /**                               EOF                                      **/
 /**                                                                        **/
 /****************************************************************************/
+
