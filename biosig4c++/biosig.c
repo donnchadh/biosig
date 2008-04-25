@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.173 2008-04-25 06:56:33 schloegl Exp $
+    $Id: biosig.c,v 1.174 2008-04-25 09:33:53 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -434,90 +434,6 @@ int ftoa8(char* buf, double num)
 	f2 = atof(buf); 
 
 	return (fabs((f1-f2)/(f1+f2)) > 1e-6); 
-}
-
-
-/* ------------------------------------------
- *   	returns string of file type 	
- * ------------------------------------------- */
-const char* GetFileTypeString(enum FileFormat FMT) {
-	const char *FileType;
-		
-	switch (FMT) {
-	case unknown: 	{ FileType = "unknown"; break; }
-	
-	case ABF: 	{ FileType = "ABF"; break; }
-	case ACQ: 	{ FileType = "ACQ"; break; }
-	case ACR_NEMA: 	{ FileType = "ACR_NEMA"; break; }
-	case AINF: 	{ FileType = "AINF"; break; }
-	case AIFC: 	{ FileType = "AIFC"; break; }
-	case AIFF: 	{ FileType = "AIFF"; break; }
-	case ATES: 	{ FileType = "ATES"; break; }
-	case ATF: 	{ FileType = "ATF"; break; }
-	case AU: 	{ FileType = "AU"; break; }
-
-	case BCI2000: 	{ FileType = "BCI2000"; break; }
-	case BDF: 	{ FileType = "BDF"; break; }
-	case BKR: 	{ FileType = "BKR"; break; }
-	case BLSC: 	{ FileType = "BLSC"; break; }
-	case BMP: 	{ FileType = "BMP"; break; }
-	case BrainVision: 	{ FileType = "BrainVision"; break; }
-	case BZ2: 	{ FileType = "BZ2"; break; }
-
-	case CDF: 	{ FileType = "CDF"; break; }
-	case DEMG: 	{ FileType = "DEMG"; break; }
-	case CFWB: 	{ FileType = "CFWB"; break; }
-	case CNT: 	{ FileType = "CNT"; break; }
-	case DICOM: 	{ FileType = "DICOM"; break; }
-
-	case EDF: 	{ FileType = "EDF"; break; }
-	case EEProbe: 	{ FileType = "EEProbe"; break; }
-	case EGI: 	{ FileType = "EGI"; break; }
-	case ELF: 	{ FileType = "ELF"; break; }
-	case ETG4000: 	{ FileType = "ETG4000"; break; }
-	case EXIF: 	{ FileType = "EXIF"; break; }
-
-	case FAMOS: 	{ FileType = "FAMOS"; break; }
-	case FEF: 	{ FileType = "FEF"; break; }
-	case FITS: 	{ FileType = "FITS"; break; }
-	case FLAC: 	{ FileType = "FLAC"; break; }
-
-	case GDF: 	{ FileType = "GDF"; break; }
-	case GIF: 	{ FileType = "GIF"; break; }
-	case GTF: 	{ FileType = "GTF"; break; }
-	case GZIP: 	{ FileType = "GZIP"; break; }
-	case HDF: 	{ FileType = "HDF"; break; }
-	case HL7aECG: 	{ FileType = "HL7aECG"; break; }
-	case JPEG: 	{ FileType = "JPEG"; break; }
-
-	case Matlab: 	{ FileType = "MAT"; break; }
-	case MFER: 	{ FileType = "MFER"; break; }
-	case MIDI: 	{ FileType = "MIDI"; break; }
-	case NetCDF: 	{ FileType = "NetCDF"; break; }
-	case NEX1: 	{ FileType = "NEX1"; break; }
-	case OGG: 	{ FileType = "OGG"; break; }
-
-	case RIFF: 	{ FileType = "RIFF"; break; }
-	case SCP_ECG: 	{ FileType = "SCP"; break; }
-	case SIGIF: 	{ FileType = "SIGIF"; break; }
-	case SMA: 	{ FileType = "SMA"; break; }
-	case SND: 	{ FileType = "SND"; break; }
-	case SVG: 	{ FileType = "SVG"; break; }
-
-	case TIFF: 	{ FileType = "TIFF"; break; }
-	case TMS32: 	{ FileType = "TMS32"; break; }
-	case VRML: 	{ FileType = "VRML"; break; }
-	case VTK: 	{ FileType = "VTK"; break; }
-	case WAV: 	{ FileType = "WAV"; break; }
-
-	case WMF: 	{ FileType = "WMF"; break; }
-	case XML: 	{ FileType = "XML"; break; }
-	case ZIP: 	{ FileType = "ZIP"; break; }
-	case ZIP2: 	{ FileType = "ZIP2"; break; }
-	case Z: 	{ FileType = "Z"; break; }
-	default: 	  FileType = "unknown";
-	}
-	return(FileType); 
 }
 
 
@@ -1425,7 +1341,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 		&& (leu16p(hdr->AS.Header+32) == (uint16_t)0x0001)
 		) {
 	    	hdr->TYPE = SCP_ECG;
-	    	hdr->VERSION = *(hdr->AS.Header+14);
+	    	hdr->VERSION = *(hdr->AS.Header+14)/10.0;
 	}    	
 	// special SCP files - header is strange, files can be decoded 	
 	else if (  (leu32p(hdr->AS.Header+10) == 136)
@@ -1529,6 +1445,91 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	return(hdr); 
 }
 
+
+
+/* ------------------------------------------
+ *   	returns string of file type 	
+ * ------------------------------------------- */
+const char* GetFileTypeString(enum FileFormat FMT) {
+	const char *FileType;
+		
+	switch (FMT) {
+	case noFile: 	{ FileType = NULL; break; }
+	case unknown: 	{ FileType = "unknown"; break; }
+	
+	case ABF: 	{ FileType = "ABF"; break; }
+	case ACQ: 	{ FileType = "ACQ"; break; }
+	case ACR_NEMA: 	{ FileType = "ACR_NEMA"; break; }
+	case AINF: 	{ FileType = "AINF"; break; }
+	case AIFC: 	{ FileType = "AIFC"; break; }
+	case AIFF: 	{ FileType = "AIFF"; break; }
+	case ATES: 	{ FileType = "ATES"; break; }
+	case ATF: 	{ FileType = "ATF"; break; }
+	case AU: 	{ FileType = "AU"; break; }
+
+	case BCI2000: 	{ FileType = "BCI2000"; break; }
+	case BDF: 	{ FileType = "BDF"; break; }
+	case BKR: 	{ FileType = "BKR"; break; }
+	case BLSC: 	{ FileType = "BLSC"; break; }
+	case BMP: 	{ FileType = "BMP"; break; }
+	case BrainVision: 	{ FileType = "BrainVision"; break; }
+	case BZ2: 	{ FileType = "BZ2"; break; }
+
+	case CDF: 	{ FileType = "CDF"; break; }
+	case DEMG: 	{ FileType = "DEMG"; break; }
+	case CFWB: 	{ FileType = "CFWB"; break; }
+	case CNT: 	{ FileType = "CNT"; break; }
+	case DICOM: 	{ FileType = "DICOM"; break; }
+
+	case EDF: 	{ FileType = "EDF"; break; }
+	case EEProbe: 	{ FileType = "EEProbe"; break; }
+	case EGI: 	{ FileType = "EGI"; break; }
+	case ELF: 	{ FileType = "ELF"; break; }
+	case ETG4000: 	{ FileType = "ETG4000"; break; }
+	case EXIF: 	{ FileType = "EXIF"; break; }
+
+	case FAMOS: 	{ FileType = "FAMOS"; break; }
+	case FEF: 	{ FileType = "FEF"; break; }
+	case FITS: 	{ FileType = "FITS"; break; }
+	case FLAC: 	{ FileType = "FLAC"; break; }
+
+	case GDF: 	{ FileType = "GDF"; break; }
+	case GIF: 	{ FileType = "GIF"; break; }
+	case GTF: 	{ FileType = "GTF"; break; }
+	case GZIP: 	{ FileType = "GZIP"; break; }
+	case HDF: 	{ FileType = "HDF"; break; }
+	case HL7aECG: 	{ FileType = "HL7aECG"; break; }
+	case JPEG: 	{ FileType = "JPEG"; break; }
+
+	case Matlab: 	{ FileType = "MAT"; break; }
+	case MFER: 	{ FileType = "MFER"; break; }
+	case MIDI: 	{ FileType = "MIDI"; break; }
+	case NetCDF: 	{ FileType = "NetCDF"; break; }
+	case NEX1: 	{ FileType = "NEX1"; break; }
+	case OGG: 	{ FileType = "OGG"; break; }
+
+	case RIFF: 	{ FileType = "RIFF"; break; }
+	case SCP_ECG: 	{ FileType = "SCP"; break; }
+	case SIGIF: 	{ FileType = "SIGIF"; break; }
+	case SMA: 	{ FileType = "SMA"; break; }
+	case SND: 	{ FileType = "SND"; break; }
+	case SVG: 	{ FileType = "SVG"; break; }
+
+	case TIFF: 	{ FileType = "TIFF"; break; }
+	case TMS32: 	{ FileType = "TMS32"; break; }
+	case VRML: 	{ FileType = "VRML"; break; }
+	case VTK: 	{ FileType = "VTK"; break; }
+	case WAV: 	{ FileType = "WAV"; break; }
+
+	case WMF: 	{ FileType = "WMF"; break; }
+	case XML: 	{ FileType = "XML"; break; }
+	case ZIP: 	{ FileType = "ZIP"; break; }
+	case ZIP2: 	{ FileType = "ZIP2"; break; }
+	case Z: 	{ FileType = "Z"; break; }
+	default: 	  FileType = "unknown";
+	}
+	return(FileType); 
+}
 
 
 /****************************************************************************/
@@ -2658,9 +2659,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->CHANNEL[n].Label[len]=0;
 					ptr += len+2;
 					ptr += strcspn(ptr,",")+1;
-					hdr->CHANNEL[n].Cal = atof(ptr);
-					hdr->CHANNEL[n].PhysMax = hdr->CHANNEL[n].DigMax * hdr->CHANNEL[n].Cal ;
-					hdr->CHANNEL[n].PhysMin = hdr->CHANNEL[n].DigMin * hdr->CHANNEL[n].Cal ;
+					if (strlen(ptr)>0) {
+						hdr->CHANNEL[n].Cal = atof(ptr);
+						hdr->CHANNEL[n].PhysMax = hdr->CHANNEL[n].DigMax * hdr->CHANNEL[n].Cal ;
+						hdr->CHANNEL[n].PhysMin = hdr->CHANNEL[n].DigMin * hdr->CHANNEL[n].Cal ;
+					}	
 
 					if (VERBOSE_LEVEL==9) 
 						fprintf(stdout,"Ch%02i=%s,,%s(%f)\n",n,hdr->CHANNEL[n-1].Label,ptr,hdr->CHANNEL[n-1].Cal );			
@@ -2673,7 +2676,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (seq==6) {
 			}
 					
-			t = strtok(NULL,"\xA\xD");	// extract next line
+			t = strtok(NULL,"\x0a\x0d");	// extract next line
 		}
 	    	hdr->FILE.POS = 0; 
 	}
@@ -5110,7 +5113,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 	if (VERBOSE_LEVEL>4) {
 		if (hdr->aECG) {
 			aECG_TYPE* aECG = (aECG_TYPE*)hdr->aECG;
-			fprintf(stdout,"\nInsitution Number: %i\n",aECG->Section1.Tag14.INST_NUMBER);
+			fprintf(stdout,"\nInstitution Number: %i\n",aECG->Section1.Tag14.INST_NUMBER);
 			fprintf(stdout,"DepartmentNumber : %i\n",aECG->Section1.Tag14.DEPT_NUMBER);
 			fprintf(stdout,"Device Id        : %i\n",aECG->Section1.Tag14.DEVICE_ID);
 			fprintf(stdout,"Device Type      : %i\n",aECG->Section1.Tag14.DEVICE_TYPE);
