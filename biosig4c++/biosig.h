@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.92 2008-04-24 07:19:30 schloegl Exp $
+% $Id: biosig.h,v 1.93 2008-04-25 06:56:33 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -428,6 +428,12 @@ int	hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSITY);
  *	VERBOSITY=2 reports als the channel information 
  *	VERBOSITY=3 provides in addition the event table. 
  ---------------------------------------------------------------*/
+
+
+const char* GetFileTypeString(enum FileFormat FMT);
+/*	returns a string with file format
+ ---------------------------------------------------------------*/
+
 
 
 /****************************************************************************/
