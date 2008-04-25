@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.42 2008-04-18 13:14:08 schloegl Exp $
+###  $Id: Makefile,v 1.43 2008-04-25 08:55:26 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -15,7 +15,7 @@ MEX	      = /opt/MatlabR2008a/bin/mex  # add full path to .../matlab/bin/mex $(M
 DEFINES       = -D=WITH_ZLIB		# if you have zlib
 CFLAGS        = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES)
 CXXFLAGS      = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES)
-AR            = ar cqs
+AR            = ar crs
 INCPATH       =
 #LINK          = gcc
 LINK          = g++
@@ -186,10 +186,11 @@ distclean:
 	-$(DEL_FILE) XMLParser/*.o
 
 clean:		
+	-$(DEL_FILE) *~
 	-$(DEL_FILE) *.a
 	-$(DEL_FILE) *.o
 	-$(DEL_FILE) *.so
-	-$(DEL_FILE) *.mex
+	-$(DEL_FILE) *.mex*
 	-$(DEL_FILE) *.oct
 	-$(DEL_FILE) t210/*.o
 	-$(DEL_FILE) t220/*.o
