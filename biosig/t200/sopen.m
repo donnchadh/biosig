@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.203 2008-04-15 12:42:11 schloegl Exp $
+%	$Id: sopen.m,v 1.204 2008-04-25 06:35:10 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1509,7 +1509,8 @@ end;
                         %c=fwrite(HDR.FILE.FID,HDR.NRec,'int64');
                         c=fwrite(HDR.FILE.FID,[HDR.NRec,0],'int32');
                         %fwrite(HDR.FILE.FID,HDR.Dur,'float64');
-                        [n,d]=rat(HDR.Dur); fwrite(HDR.FILE.FID,[n d], 'uint32');
+                        [n,d]=rat(HDR.Dur),
+                        fwrite(HDR.FILE.FID,[n d], 'uint32');
                         c=fwrite(HDR.FILE.FID,[HDR.NS,0],'uint16');
                 else
                         H1(168+(1:16))=sprintf('%02i.%02i.%02i%02i:%02i:%02i',floor(rem(HDR.T0([3 2 1 4 5 6]),100)));
@@ -8389,6 +8390,8 @@ elseif strcmp(HDR.TYPE,'ETG4000') 	 % NIRS - Hitachi ETG 4000
                 HDR.VERSION = -1;
 		ix = strfind(HDR.s,'File Version');
 		dlm = HDR.s(ix(1) + 12);
+		HDR.s(HDR.s==dlm)=9;
+                [t,s] = strtok(HDR.s,[10,13]); 
                 while ((t(1)<'0') | (t(1)>'9'))
          		[NUM, STATUS,STRARRAY] = str2double(t,dlm); 
                         if 0,
@@ -8777,23 +8780,9 @@ elseif strcmp(HDR.TYPE,'BIFF'),
 
 
 elseif strncmp(HDR.TYPE,'HL7aECG',3),
-	try
-		[s,HDR] = mexSLOAD(HDR.FileName);
-		HDR.data = s;
-		HDR.Calib = [HDR.Off';diag(HDR.Cal)];
-		HDR.FLAG.OVERFLOWDETECTION = 0;
-		HDR.FLAG.UCAL = 0;
-		HDR.FLAG.TRIGGERED = 0;
-		HDR.FILE.PERMISSION = 'r'; 
-		HDR.FILE.POS = 0; 
-		HDR.FILE.FID = 0; 
-		HDR.FILE.OPEN = 0; 
-		HDR.TYPE = 'native'; 
-	catch
-		fprintf(stdout,'SOPEN: failed to read HL7aECG/FDA-XML files.\nInstall mexSLOAD from BioSig4C++ and try again!\n');
-		%HDR = openxml(HDR); 	% experimental version for reading various xml files 
-		return;
-	end; 
+	fprintf(stdout,'SOPEN: failed to read HL7aECG/FDA-XML files.\nUse mexSLOAD from BioSig4C++ instead!\n');
+	%HDR = openxml(HDR); 	% experimental version for reading various xml files 
+	return;
 	
 
 elseif strncmp(HDR.TYPE,'XML',3),
