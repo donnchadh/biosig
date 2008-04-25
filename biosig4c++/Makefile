@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.43 2008-04-25 08:55:26 schloegl Exp $
+###  $Id: Makefile,v 1.44 2008-04-25 10:06:47 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -144,7 +144,6 @@ biosig.py:	$(SOURCES) libbiosig.a swig.i
 
 libbiosig.a: $(OBJECTS)
 	$(AR) libbiosig.a $(OBJECTS) 
-	touch ../sigviewer/src/basic_header_info_dialog.cpp 
 	
 libbiosig.so: $(OBJECTS)
 	$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) 
