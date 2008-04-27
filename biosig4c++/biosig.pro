@@ -9,12 +9,10 @@ INCLUDEPATH += ./ \
 LIBS += -lz
 CONFIG +=     warn_on \
     staticlib \
-    debug
+    release
 
 HEADERS += *.h \
   t210\*.h \
-  t220\*.h \
-  t230\*.h \
   XMLParser\*.h  
 SOURCES +=  *.c \
   t210\*.c \
