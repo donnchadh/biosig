@@ -1,0 +1,37 @@
+.TH mexSLOAD 1
+.SH NAME
+mexSLOAD - a mex-functions for loading biomedical signal data into Octave or Matlab.   
+
+.SH DESCRIPTION 
+ [s,HDR]=sload(f)
+ [s,HDR]=sload(f,chan)
+ 	chan must be sorted in ascending order
+ [s,HDR]=sload(f,chan,"OVERFLOWDETECTION:ON")
+ [s,HDR]=sload(f,chan,"OVERFLOWDETECTION:OFF")
+ [s,HDR]=sload(f,chan,"UCAL:ON")
+ [s,HDR]=sload(f,chan,"UCAL:OFF")
+
+ Input:
+ 	f	filename
+ 	chan	list of selected channels; 0=all channels [default]
+ 	UCAL	ON: do not calibrate data; default=OFF
+ 	OVERFLOWDETECTION	default = ON
+ 		ON: values outside dynamic range are not-a-number (NaN)
+ Output:
+ 	s	signal data, each column is one channel
+ 	HDR	header structure
+
+.SH AUTHOR
+Alois Schloegl 
+	
+.SH REPORTING BUGS 
+Report bugs to <biosig-general@lists.sourceforge.net>
+	
+.SH COPYRIGHT
+Copyright (C) 2008 Free Software Foundation, Inc.  License GPLv3+:  GNU
+GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This  is  free  software:  you  are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+.SH RESOURCES
+http://biosig.sf.net	

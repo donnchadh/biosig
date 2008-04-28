@@ -1,0 +1,43 @@
+.TH SAVE2GDF 1
+.SH NAME
+save2gdf - converts different biomedical signal file formats. 
+
+.SH SYNOPSIS	
+.R save2gdf\  [OPTIONS]\  SOURCE\  [DEST]
+
+
+.SH DESCRIPTION 
+ SOURCE is the source file 
+ DEST is the destination file 
+ Supported OPTIONS are:
+ -v, --version
+ 	prints version information
+ -h, --help   
+ 	prints this information
+. -f=FMT  
+ 	converts data into format FMT
+ 	FMT must represent a valid target file format
+ 	Currently are supported: HL7aECG, SCP_ECG (EN1064), 
+ 	GDF (v2), GDF1 (v1), EDF, BDF, CFWB
+ -z	compress data using gzip
+ -z=#, compress data with level #
+ 	#=0 no compression; #=9 best compression
+ -VERBOSE=#, verbosity level #
+ 	0=silent, 9=debugging
+	
+.SH AUTHOR
+Alois Schloegl 
+	
+.SH REPORTING BUGS 
+Report bugs to <biosig-general@lists.sourceforge.net>
+	
+.SH COPYRIGHT
+Copyright (C) 2008 Free Software Foundation, Inc.  License GPLv3+:  GNU
+GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This  is  free  software:  you  are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+.SH RESOURCES
+http://biosig.sf.net	
+	
+	
