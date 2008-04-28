@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.46 2008-04-28 20:42:03 schloegl Exp $
+###  $Id: Makefile,v 1.47 2008-04-28 21:24:30 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -21,11 +21,10 @@ INCPATH       =
 LINK          = g++
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        =
-LIBS          = libbiosig.a -lz 	# zlib
+LIBS          = libbiosig.so -lz 	# zlib
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
 
-BIN           = $(DESTDIR)/usr/local/bin
 
 ####### Output directory
 
@@ -55,7 +54,7 @@ OBJECTS       = biosig.o \
 		crc4scp.o \
 		sopen_hl7aecg.o
 
-TARGET        = save2gdf save2aecg save2scp
+TARGET        = save2gdf save2aecg save2scp libbiosig.a libbiosig.so
 
 first: $(TARGET)
 all: $(TARGET) mex4o sigviewer biosig4python
@@ -148,26 +147,27 @@ libbiosig.a: $(OBJECTS)
 	$(AR) libbiosig.a $(OBJECTS) 
 	
 libbiosig.so: $(OBJECTS)
-	$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) 
+	$(CXX) -shared -fPIC -o libbiosig.so $(OBJECTS) 
+	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) 
 
-save2gdf: save2gdf.c libbiosig.a 
+save2gdf: save2gdf.c libbiosig.so 
 	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
 
 mex: mex4m mex4o
 
-mex4m: mexSLOAD.cpp  libbiosig.a
+mex4m: mexSLOAD.cpp  libbiosig.a libbiosig.so
 	echo "Warning: MEX for Matlab is not tested yet"
 	$(MEX) mexSLOAD.cpp  $(LIBS) 
 
-mex4o:  mexSLOAD.mex libbiosig.a 
-mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
+mex4o:  mexSLOAD.mex libbiosig.a  libbiosig.so
+mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a  libbiosig.so 
 	mkoctfile  -v -g --mex mexSLOAD.cpp  $(LIBS) 
 
 oct:  mexSLOAD.oct
-mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a 
+mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a libbiosig.so
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) 
 
-sigviewer: libbiosig.a
+sigviewer: libbiosig.a libbiosig.so
 	touch ../sigviewer/src/log_dialog.cpp
 	sh makeSV.sh
 	
@@ -211,25 +211,28 @@ clean:
 
 install:
 	chmod 0755 	save2gdf
-	cp save2gdf  	$(BIN)
-	cp save2aecg 	$(BIN)
-	cp save2scp  	$(BIN)
+	cp save2gdf  	$(DESTDIR)/usr/local/bin
+	cp save2aecg 	$(DESTDIR)/usr/local/bin
+	cp save2scp  	$(DESTDIR)/usr/local/bin
 	chmod 0755  	../sigviewer/bin/sigviewer
-	cp ../sigviewer/bin/sigviewer $(BIN)
-	#cp biosig.h      $(DESTDIR)/usr/include
-	#cp libbiosig.so  $(DESTDIR)/usr/lib
-	cp doc/*.1  $(DESTDIR)/usr/share/man/man1
+	cp ../sigviewer/bin/sigviewer $(DESTDIR)/usr/local/bin
+	cp biosig.h     $(DESTDIR)/usr/include
+	cp libbiosig.so $(DESTDIR)/usr/lib
+	cp libbiosig.a  $(DESTDIR)/usr/lib
+	cp doc/*.1  	$(DESTDIR)/usr/share/man/man1
 	#cp libbiosig.man $(DESTDIR)/usr/share/man/man3
 	#cp mexSLOAD.mex  $(DESTDIR)/usr/local/share/octave
 
 remove: 
-	rm $(BIN)/save2gdf
-	rm $(BIN)/save2scp
-	rm $(BIN)/save2aecg
-	rm $(BIN)/sigviewer
-	rm /usr/share/man/man1/save2gdf.1
-	rm /usr/share/man/man1/mexSLOAD.1
-	rm /usr/share/man/man1/sigviewer.1
+	rm $(DESTDIR)/usr/local/bin/save2gdf
+	rm $(DESTDIR)/usr/local/bin/save2scp
+	rm $(DESTDIR)/usr/local/bin/save2aecg
+	rm $(DESTDIR)/usr/local/bin/sigviewer
+	rm $(DESTDIR)/usr/include/biosig.h
+	rm $(DESTDIR)/usr/lib/libbiosig.*
+	rm $(DESTDIR)/usr/share/man/man1/save2gdf.1
+	rm $(DESTDIR)/usr/share/man/man1/mexSLOAD.1
+	rm $(DESTDIR)/usr/share/man/man1/sigviewer.1
 	
 
 
