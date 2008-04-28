@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.177 2008-04-28 10:34:55 schloegl Exp $
+    $Id: biosig.c,v 1.178 2008-04-28 10:36:57 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2835,6 +2835,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (TeegType!=3)
 					hdr->EVENT.POS[k] = (hdr->EVENT.POS[k] - hdr->HeadLen) / hdr->AS.bpb;
 			}
+			free(buf);
 		    	ifseek(hdr, hdr->HeadLen, SEEK_SET);
 		
 			if (VERBOSE_LEVEL>8)
