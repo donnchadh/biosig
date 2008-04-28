@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.176 2008-04-28 09:39:49 schloegl Exp $
+    $Id: biosig.c,v 1.177 2008-04-28 10:34:55 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2800,9 +2800,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			
 	    	if (!status) {
 			hdr->EVENT.SampleRate = hdr->SampleRate; 
-			uint8_t  TeegType   = ifread(tmp,1,1,hdr);	    	
-			uint32_t TeegSize   = ifread(tmp,4,1,hdr);
-			uint32_t TeegOffset = ifread(tmp,4,1,hdr);
+			ifread(tmp,1,1,hdr);	    	
+			int8_t  TeegType   = tmp[0]; 
+			ifread(tmp,4,1,hdr);	    	
+			uint32_t TeegSize   = leu32p(tmp);
+			ifread(tmp,4,1,hdr);	    	
+			uint32_t TeegOffset = leu32p(tmp);
 			//ifseek(hdr,4,SEEK_CUR);
 
 			if (VERBOSE_LEVEL>8)
@@ -2810,13 +2813,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 			int fieldsize  = ( ((TeegType==2) || (TeegType==3)) ? 19 : 8); 
 			count = 0;
-			int c = -1;
+			int c = 0;
 			const size_t bufsiz = 128;
 	    		uint8_t* buf = NULL;
-			while (c) {
+			while (count<TeegSize) {
 				buf = (uint8_t*)realloc(buf, fieldsize*(count+bufsiz));
-				c = ifread(buf+count, fieldsize, bufsiz, hdr);
+				c = ifread(buf+count, fieldsize, min(bufsiz,TeegSize/fieldsize-c), hdr);
 				hdr->EVENT.N += c;
+				count += fieldsize*c;
 				if (VERBOSE_LEVEL>8)
 					fprintf(stdout, "SOPEN(CNT): event table read N=%i, c=%i.\n", hdr->EVENT.N, c); 
 			}
