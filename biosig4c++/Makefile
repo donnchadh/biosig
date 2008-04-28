@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.45 2008-04-25 23:42:29 schloegl Exp $
+###  $Id: Makefile,v 1.46 2008-04-28 20:42:03 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -171,6 +171,10 @@ sigviewer: libbiosig.a
 	touch ../sigviewer/src/log_dialog.cpp
 	sh makeSV.sh
 	
+docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
+	asciidoc -d manpage docs/save2gdf.txt   
+	asciidoc -d manpage docs/mexSLOAD.txt 
+
 
 # for backward compatibility 
 save2scp: save2gdf
@@ -205,7 +209,7 @@ clean:
 
 ####### INSTALL ########
 
-install: 
+install:
 	chmod 0755 	save2gdf
 	cp save2gdf  	$(BIN)
 	cp save2aecg 	$(BIN)
@@ -214,7 +218,7 @@ install:
 	cp ../sigviewer/bin/sigviewer $(BIN)
 	#cp biosig.h      $(DESTDIR)/usr/include
 	#cp libbiosig.so  $(DESTDIR)/usr/lib
-	#cp save2gdf.man  $(DESTDIR)/usr/share/man/man1
+	cp doc/*.1  $(DESTDIR)/usr/share/man/man1
 	#cp libbiosig.man $(DESTDIR)/usr/share/man/man3
 	#cp mexSLOAD.mex  $(DESTDIR)/usr/local/share/octave
 
@@ -223,7 +227,10 @@ remove:
 	rm $(BIN)/save2scp
 	rm $(BIN)/save2aecg
 	rm $(BIN)/sigviewer
-
+	rm /usr/share/man/man1/save2gdf.1
+	rm /usr/share/man/man1/mexSLOAD.1
+	rm /usr/share/man/man1/sigviewer.1
+	
 
 
 ####### Testing ########
