@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.175 2008-04-25 21:14:22 schloegl Exp $
+    $Id: biosig.c,v 1.176 2008-04-28 09:39:49 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2437,19 +2437,26 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->HeadLen = count; 
 		ifclose(hdr);
 
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"SOPEN(BV): header file read.\n"); 
+
 		int seq = 0;
 		/* read marker file */
 		strcpy(ext,"vmrk");		
        		hdr = ifopen(hdr,"r");
 		size_t bufsiz = 4096;
+		count = 0;
 	    	char* vmrk = (char*)malloc(bufsiz+1);
 		while (!ifeof(hdr)) {
 		    	vmrk = (char*)realloc(vmrk,count+bufsiz+1);
-		    	count  += ifread(hdr->AS.Header+count,1,bufsiz,hdr);
+		    	count  += ifread(vmrk+count,1,bufsiz,hdr);
 		}
 	    	vmrk[count] = 0;	// add terminating \0 character
 		ifclose(hdr);
 
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"SOPEN(BV): marker file read.\n"); 
+			
 		/* decode marker file */
 		size_t pos = 0;
 
@@ -2782,29 +2789,53 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].PhysMin	= hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 		}
 
-	    	/* read event table */
-	    	if (!ifseek(hdr, eventtablepos, SEEK_SET)) {
-			uint8_t  TeegType   = ifread(tmp,1,1,hdr);	    	
-			uint32_t TeegSize   = ifread(tmp,4,1,hdr);	    	
-			// uint32_t TeegOffset = ifread(tmp,4,1,hdr);
-			ifseek(hdr,4,SEEK_CUR);
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"SOPEN(CNT): header file read.\n"); 
 			
-			uint8_t* buf = (uint8_t*)malloc(TeegSize);
-			int fieldsize = ( (TeegType==2) || (TeegType==3) ? 8 : 19); 
-			hdr->EVENT.N = ifread(buf,fieldsize,hdr->EVENT.N,hdr);
+	    	/* read event table */
+	    	int status = ifseek(hdr, eventtablepos, SEEK_SET);
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"SOPEN(CNT): event table read ETP=%i, status=%i,pos=%i.\n",eventtablepos,status,iftell(hdr)); 
+			
+	    	if (!status) {
 			hdr->EVENT.SampleRate = hdr->SampleRate; 
-			hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
-			hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
+			uint8_t  TeegType   = ifread(tmp,1,1,hdr);	    	
+			uint32_t TeegSize   = ifread(tmp,4,1,hdr);
+			uint32_t TeegOffset = ifread(tmp,4,1,hdr);
+			//ifseek(hdr,4,SEEK_CUR);
+
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"SOPEN(CNT): %i %i %i.\n",TeegType,TeegSize,TeegOffset); 
+
+			int fieldsize  = ( ((TeegType==2) || (TeegType==3)) ? 19 : 8); 
+			count = 0;
+			int c = -1;
+			const size_t bufsiz = 128;
+	    		uint8_t* buf = NULL;
+			while (c) {
+				buf = (uint8_t*)realloc(buf, fieldsize*(count+bufsiz));
+				c = ifread(buf+count, fieldsize, bufsiz, hdr);
+				hdr->EVENT.N += c;
+				if (VERBOSE_LEVEL>8)
+					fprintf(stdout, "SOPEN(CNT): event table read N=%i, c=%i.\n", hdr->EVENT.N, c); 
+			}
+			hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N, sizeof(hdr->EVENT.POS));
+			hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N, sizeof(hdr->EVENT.TYP));
 			hdr->EVENT.DUR = NULL;
 			hdr->EVENT.CHN = NULL;
 
 			for  (k = 0; k < hdr->EVENT.N; k++) {
 				hdr->EVENT.TYP[k] = leu16p(buf+k*fieldsize);
-				hdr->EVENT.POS[k] = leu32p(buf+k*fieldsize+4);
-				if (TeegType==3)
+				hdr->EVENT.POS[k] = leu32p(buf+4+k*fieldsize);
+				if (TeegType!=3)
 					hdr->EVENT.POS[k] = (hdr->EVENT.POS[k] - hdr->HeadLen) / hdr->AS.bpb;
 			}
 		    	ifseek(hdr, hdr->HeadLen, SEEK_SET);
+		
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"SOPEN(CNT): event table read.\n"); 
+			
 	    	}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	    	hdr->FILE.POS = 0; 
