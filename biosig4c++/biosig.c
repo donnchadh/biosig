@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.179 2008-04-28 11:02:16 schloegl Exp $
+    $Id: biosig.c,v 1.180 2008-04-28 15:34:37 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2378,6 +2378,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	        ifseek(hdr,0,SEEK_SET);
 		hdr->HeadLen = 0;
 	    	hdr->FILE.POS = 0; 
+		hdr->FLAG.SWAP = (__BYTE_ORDER == __LITTLE_ENDIAN);  	// AINF is big endian 
 		/* restore input file name, and free temporary file name  */
 		hdr->FileName = filename;
 		free(tmpfile);
@@ -2789,10 +2790,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].PhysMin	= hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 		}
 
-	    	/* read event table */
-	    	int status = ifseek(hdr, eventtablepos, SEEK_SET);
-
-	    	if (!status) {
+	    	if (!ifseek(hdr, eventtablepos, SEEK_SET)) {
+		    	/* read event table */
 			hdr->EVENT.SampleRate = hdr->SampleRate; 
 			ifread(tmp,9,1,hdr);	    	
 			int8_t   TeegType   = tmp[0]; 
@@ -2817,12 +2816,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			for  (k = 0; k < hdr->EVENT.N; k++) {
 				hdr->EVENT.TYP[k] = leu16p(buf+k*fieldsize);
 				hdr->EVENT.POS[k] = leu32p(buf+4+k*fieldsize);
-				if (TeegType!=3)
+				if (TeegType != 3)
 					hdr->EVENT.POS[k] = (hdr->EVENT.POS[k] - hdr->HeadLen) / hdr->AS.bpb;
 			}
 			free(buf);
-		    	ifseek(hdr, hdr->HeadLen, SEEK_SET);
 	    	}
+	    	ifseek(hdr, hdr->HeadLen, SEEK_SET);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	    	hdr->FILE.POS = 0; 
 	}
