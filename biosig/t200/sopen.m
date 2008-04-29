@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.204 2008-04-25 06:35:10 schloegl Exp $
+%	$Id: sopen.m,v 1.205 2008-04-29 13:10:37 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -8391,6 +8391,7 @@ elseif strcmp(HDR.TYPE,'ETG4000') 	 % NIRS - Hitachi ETG 4000
 		ix = strfind(HDR.s,'File Version');
 		dlm = HDR.s(ix(1) + 12);
 		HDR.s(HDR.s==dlm)=9;
+		dlm = char(9); 
                 [t,s] = strtok(HDR.s,[10,13]); 
                 while ((t(1)<'0') | (t(1)>'9'))
          		[NUM, STATUS,STRARRAY] = str2double(t,dlm); 
