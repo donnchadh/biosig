@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.48 2008-04-30 19:16:13 schloegl Exp $
+###  $Id: Makefile,v 1.49 2008-04-30 23:16:53 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -151,7 +151,7 @@ libbiosig.so: $(OBJECTS)
 	$(CXX) -shared -fPIC -o libbiosig.so $(OBJECTS) 
 	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) 
 
-save2gdf: save2gdf.c libbiosig.so 
+save2gdf: save2gdf.c libbiosig.a libbiosig.so 
 	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
 
 mex: mex4m mex4o
