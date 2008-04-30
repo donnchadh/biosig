@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.19 2008-04-17 13:59:28 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.20 2008-04-30 23:16:18 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -623,7 +623,7 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 	std::stringstream digitsStream;
 	
 	for(unsigned int j=0; j<hdr->CHANNEL[i].SPR; ++j)
-	    digitsStream << (*(int32_t*)(hdr->AS.rawdata + hdr->AS.bi[i] + j*GDFTYP_BYTE[hdr->CHANNEL[i].GDFTYP])) << " ";
+	    digitsStream << (*(int32_t*)(hdr->AS.rawdata + hdr->AS.bi[i] + (j*GDFTYP_BITS[hdr->CHANNEL[i].GDFTYP]>>3))) << " ";
 //	    digitsStream << hdr->data.block[hdr->SPR*i + j] << " ";
 
 	digitsText = new TiXmlText(digitsStream.str().c_str());

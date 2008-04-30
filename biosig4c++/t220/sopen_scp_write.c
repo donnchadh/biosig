@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.32 2008-03-14 08:30:43 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.33 2008-04-30 23:16:18 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -237,7 +237,7 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 			// Total = 161 (max value)
 			*(ptr+sectionStart+curSectLen) = 14;	// tag
 			//len = 41; 	// minimum length
-			//*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
+			// *(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length	
 			memset(ptr+sectionStart+curSectLen+3,0,41);  // dummy value 
 			
 			curSectLen += 3; 
@@ -420,7 +420,7 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 		else if (curSect==6)  // SECTION 6 
 		{
 			uint16_t GDFTYP = 3; 
-			size_t SZ = GDFTYP_BYTE[GDFTYP];
+			size_t SZ = GDFTYP_BITS[GDFTYP]>>3;
 			for (i = 0; i < hdr->NS; i++) 
 				hdr->CHANNEL[i].GDFTYP = GDFTYP; 
 			ptr = (uint8_t*)realloc(ptr,sectionStart+16+6+2*hdr->NS+SZ*(hdr->data.size[0]*hdr->data.size[1])); 
