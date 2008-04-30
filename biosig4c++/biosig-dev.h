@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.5 2008-04-25 21:14:22 schloegl Exp $
+% $Id: biosig-dev.h,v 1.6 2008-04-30 23:23:22 schloegl Exp $
 % Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -331,7 +331,7 @@ int sclose_HL7aECG_write(HDRTYPE* hdr);
 uint32_t gcd(uint32_t A, uint32_t B);
 uint32_t lcm(uint32_t A, uint32_t B);
 
-extern const int16_t GDFTYP_BYTE[];
+extern const int16_t GDFTYP_BITS[];
 extern const char *LEAD_ID_TABLE[];
 
 char* PhysDim(uint16_t PhysDimCode, char *PhysDim);
