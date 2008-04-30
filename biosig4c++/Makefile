@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.47 2008-04-28 21:24:30 schloegl Exp $
+###  $Id: Makefile,v 1.48 2008-04-30 19:16:13 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -21,7 +21,8 @@ INCPATH       =
 LINK          = g++
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        =
-LIBS          = libbiosig.so -lz 	# zlib
+#LIBS          = -lz -L. -lbiosig  	# dynamic
+LIBS          = libbiosig.a -lz 	# static
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
 
@@ -217,8 +218,8 @@ install:
 	chmod 0755  	../sigviewer/bin/sigviewer
 	cp ../sigviewer/bin/sigviewer $(DESTDIR)/usr/local/bin
 	cp biosig.h     $(DESTDIR)/usr/include
-	cp libbiosig.so $(DESTDIR)/usr/lib
-	cp libbiosig.a  $(DESTDIR)/usr/lib
+	#cp libbiosig.so $(DESTDIR)/usr/lib
+	#cp libbiosig.a  $(DESTDIR)/usr/lib
 	cp doc/*.1  	$(DESTDIR)/usr/share/man/man1
 	#cp libbiosig.man $(DESTDIR)/usr/share/man/man3
 	#cp mexSLOAD.mex  $(DESTDIR)/usr/local/share/octave
