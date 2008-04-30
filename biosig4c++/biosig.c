@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.180 2008-04-28 15:34:37 schloegl Exp $
+    $Id: biosig.c,v 1.181 2008-04-30 22:58:46 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -50,9 +50,10 @@
 
 #include "biosig-dev.h"
 
-const int16_t GDFTYP_BYTE[] = {
-	1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0,   /* 0  */ 
-	4, 8,16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 16 */ 
+
+const int16_t GDFTYP_BITS[] = {
+	8, 8, 8,16,16,32,32,64,64,32,64, 0, 0, 0, 0, 0,   /* 0  */ 
+	32,64,128,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 16 */ 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 32 */ 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 48 */ 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 64 */ 
@@ -67,11 +68,11 @@ const int16_t GDFTYP_BYTE[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2,    /* 256 - 271*/  
-	0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4,    /* 255+24 = bit24, 3 byte */ 
-	0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 6, 
-	0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 8, 
-	0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0,10, 
+	0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0,12, 0, 0, 0,16,    /* 256 - 271*/  
+	0, 0, 0, 0, 0, 0, 0,24, 0, 0, 0, 0, 0, 0, 0,32,    /* 255+24 = bit24, 3 byte */ 
+	0, 0, 0, 0, 0, 0, 0,40, 0, 0, 0, 0, 0, 0, 0,48, 
+	0, 0, 0, 0, 0, 0, 0,56, 0, 0, 0, 0, 0, 0, 0,64, 
+	0, 0, 0, 0, 0, 0, 0,72, 0, 0, 0, 0, 0, 0, 0,80, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -83,11 +84,11 @@ const int16_t GDFTYP_BYTE[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2,    /* 512 - 527*/ 
-	0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4, 
-	0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 6, 
-	0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 8, 
-	0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0,10};
+	0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0,12, 0, 0, 0,16,    /* 512 - 527*/  
+	0, 0, 0, 0, 0, 0, 0,24, 0, 0, 0, 0, 0, 0, 0,32, 
+	0, 0, 0, 0, 0, 0, 0,40, 0, 0, 0, 0, 0, 0, 0,48, 
+	0, 0, 0, 0, 0, 0, 0,56, 0, 0, 0, 0, 0, 0, 0,64, 
+	0, 0, 0, 0, 0, 0, 0,72, 0, 0, 0, 0, 0, 0, 0,80}; 
 
 
 const char *LEAD_ID_TABLE[] = { "unspecified",
@@ -1782,11 +1783,11 @@ if (!strncmp(MODE,"r",1))
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 212] #=%i\n",k);
 
 			hdr->AS.spb += hdr->CHANNEL[k].SPR;
-			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;
+			hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR)>>3;
 			if (hdr->CHANNEL[k].SPR)
 				hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 
-			if (GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]==0) {
+			if (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP]==0) {
 				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 				B4C_ERRMSG = "GDF: Invalid or unsupported GDFTYP";
 				return(hdr);
@@ -1999,11 +2000,11 @@ if (!strncmp(MODE,"r",1))
 			hdr->AS.bi[0] = 0;
 			for (k=0, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;k++) {
 				hdr->AS.spb 	+= hdr->CHANNEL[k].SPR;
-				hdr->AS.bpb 	+= GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR;			
+				hdr->AS.bpb 	+= (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR)>>3;			
 				hdr->AS.bi[k+1]  = hdr->AS.bpb;
 			}	
 
-			size_t sz   	= GDFTYP_BYTE[hdr->CHANNEL[EventChannel].GDFTYP];
+			size_t sz   	= GDFTYP_BITS[hdr->CHANNEL[EventChannel].GDFTYP]>>3;
 			uint8_t *Marker = (uint8_t*)malloc(hdr->CHANNEL[EventChannel].SPR * hdr->NRec * sz);
 			size_t skip 	= hdr->AS.bpb - hdr->CHANNEL[EventChannel].SPR * sz;
 			ifseek(hdr, hdr->HeadLen + hdr->AS.bi[EventChannel], SEEK_SET);
@@ -2373,11 +2374,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		/* open data file */ 
 		strcpy(ext,"raw");		
 		hdr = ifopen(hdr,"rb"); 
-	        ifseek(hdr,0,SEEK_END);	// TODO: replace SEEK_END
+	        ifseek(hdr, 0, SEEK_END);	// TODO: replace SEEK_END
 		hdr->NRec = iftell(hdr)/hdr->AS.bpb;
-	        ifseek(hdr,0,SEEK_SET);
-		hdr->HeadLen = 0;
-	    	hdr->FILE.POS = 0; 
+	        ifseek(hdr, 0, SEEK_SET);
+		hdr->HeadLen   = 0;
+	    	hdr->FILE.POS  = 0; 
 		hdr->FLAG.SWAP = (__BYTE_ORDER == __LITTLE_ENDIAN);  	// AINF is big endian 
 		/* restore input file name, and free temporary file name  */
 		hdr->FileName = filename;
@@ -2921,7 +2922,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    		hdr->SPR  = 1;
 	    		/* see also end-of-sopen  
 	    		hdr->AS.spb = hdr->SPR+EGI_LENGTH_CODETABLE ;
-		    	hdr->AS.bpb = (hdr->NS + EGI_LENGTH_CODETABLE)*GDFTYP_BYTE[hdr->CHANNEL[0].GDFTYP];
+		    	hdr->AS.bpb = (hdr->NS + EGI_LENGTH_CODETABLE)*GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
 		    	*/    
 		    	POS = 36; 
 	    	}
@@ -3081,12 +3082,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
  
 		pos = atol(strtok(NULL,dlm));
 		while (pos) {
-			hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->NRec+1) * hdr->NS * GDFTYP_BYTE[gdftyp]);
+			hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, ((hdr->NRec+1) * hdr->NS * GDFTYP_BITS[gdftyp])>>3);
 			for (k=0; k < hdr->NS; k++) {
 			if (gdftyp==16)	
-				*(float*)(hdr->AS.rawdata + (hdr->NRec*hdr->NS+k)*GDFTYP_BYTE[gdftyp]) = (float)atof(strtok(NULL,dlm));
+				*(float*)(hdr->AS.rawdata  + ((hdr->NRec*hdr->NS+k)*GDFTYP_BITS[gdftyp]>>3)) = (float)atof(strtok(NULL,dlm));
 			else if (gdftyp==17)
-				*(double*)(hdr->AS.rawdata + (hdr->NRec*hdr->NS+k)*GDFTYP_BYTE[gdftyp]) = atof(strtok(NULL,dlm));
+				*(double*)(hdr->AS.rawdata + ((hdr->NRec*hdr->NS+k)*GDFTYP_BITS[gdftyp]>>3)) = atof(strtok(NULL,dlm));
 			}
 			++hdr->NRec;
 
@@ -3522,11 +3523,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	 		hdr->CHANNEL[k].GDFTYP = gdftyp; 
 	 		if (gdftyp<16)
 	 			if (gdftyp & 0x01) {
-		 			hdr->CHANNEL[k].DigMax = ldexp( 1.0,GDFTYP_BYTE[gdftyp]*8-1) - 1.0; 
-		 			hdr->CHANNEL[k].DigMin = ldexp(-1.0,GDFTYP_BYTE[gdftyp]*8-1); 
+		 			hdr->CHANNEL[k].DigMax = ldexp( 1.0,GDFTYP_BITS[gdftyp]-1) - 1.0; 
+		 			hdr->CHANNEL[k].DigMin = ldexp(-1.0,GDFTYP_BITS[gdftyp]-1); 
 	 			}	
 	 			else {	
-	 				hdr->CHANNEL[k].DigMax = ldexp( 1.0,GDFTYP_BYTE[gdftyp]*8); 
+	 				hdr->CHANNEL[k].DigMax = ldexp( 1.0,GDFTYP_BITS[gdftyp]); 
 		 			hdr->CHANNEL[k].DigMin = 0.0; 
 	 			}	
 	 		else {	
@@ -3575,17 +3576,17 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 	    	const uint16_t	SND_GDFTYP[] = {0,2,1,3,255+24,5,16,17,0,0,0,2,4,511+25,6};
 		uint16_t gdftyp = SND_GDFTYP[filetype];
-		hdr->AS.bpb = hdr->NS * GDFTYP_BYTE[gdftyp];	
+		hdr->AS.bpb = hdr->NS * GDFTYP_BITS[gdftyp]>>3;	
 		double Cal = 1;
 		if ((filetype>1) && (filetype<6))
-			Cal = ldexp(1,-8*GDFTYP_BYTE[gdftyp]);
+			Cal = ldexp(1,-GDFTYP_BITS[gdftyp]);
 
 		hdr->NRec = datlen/hdr->AS.bpb;
 		hdr->SPR  = 1;
 		
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
-		double digmax = ldexp(1,8*GDFTYP_BYTE[gdftyp]);
+		double digmax = ldexp(1,GDFTYP_BITS[gdftyp]);
 		for (k=0; k < hdr->NS; k++) {
 			CHANNEL_TYPE* hc = hdr->CHANNEL+k;
 			hc->OnOff    = 1;
@@ -3954,7 +3955,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		hdr->AS.bi[0] = 0;
 		for (k=0, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;) {
 			hdr->AS.spb += hdr->CHANNEL[k].SPR;
-			hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR;
+			hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;
 			hdr->AS.bi[++k] = hdr->AS.bpb;
 		}	
 //		hdr->AS.Header1 = (uint8_t*)Header1; 
@@ -4291,7 +4292,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	hdr->AS.bi[0] = hdr->AS.bpb;
 	for (k=0, hdr->SPR = 1, hdr->AS.spb=0; k<hdr->NS; k++) {
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
-		hdr->AS.bpb += GDFTYP_BYTE[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR;			
+		hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;			
 		hdr->AS.bi[k+1] = hdr->AS.bpb; 
 		if (hdr->CHANNEL[k].SPR > 0)  // ignore sparse channels
 			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
@@ -4299,7 +4300,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> Label #%02i: @%p %s\n",k,&(hdr->CHANNEL[k].Label),hdr->CHANNEL[k].Label);
 	}
 	if (hdr->TYPE==EGI) {
-		hdr->AS.bpb += EGI_LENGTH_CODETABLE * GDFTYP_BYTE[hdr->CHANNEL[0].GDFTYP];
+		hdr->AS.bpb += EGI_LENGTH_CODETABLE * GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
 		if (hdr->AS.Header[3] & 0x01)	// triggered  
 			hdr->AS.bpb += 6;
 	}
@@ -4399,6 +4400,12 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	hdr->data.block = data; 
 //	hdr->data.block = (biosig_data_type*) realloc(hdr->data.block, (hdr->SPR) * count * NS * sizeof(biosig_data_type));
 
+#if __BYTE_ORDER == __BIG_ENDIAN
+	char FLAG_BIG_ENDIAN = !hdr->FLAG.SWAP;
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+	char FLAG_BIG_ENDIAN = hdr->FLAG.SWAP;
+#endif
+
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
 
@@ -4415,59 +4422,70 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	else {
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
-		SZ  	= GDFTYP_BYTE[GDFTYP];
+		SZ  	= GDFTYP_BITS[GDFTYP];
 		int32_value = 0; 
+		uint8_t bitoff = 0;
 
 		for (k4 = 0; k4 < count; k4++)
 		for (k5 = 0; k5 < CHptr->SPR; k5++) 
 		{
+		// get source address 	
+		ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + hdr->AS.bi[k1] + (k5*SZ>>3);
+		bitoff = k5*SZ & 0x07;			
+		union {int16_t i16; uint32_t i32; float f32; uint64_t i64; double f64;} u; 
+
+//		if (FLAG_BIG_ENDIAN)
+
 		if (hdr->FLAG.SWAP)		
 		{
-
-			// get source address 	
-			ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
-			
 			// mapping of raw data type to (biosig_data_type)
-			if (0); 
-			else if (GDFTYP==3) 
+			switch (GDFTYP) { 
+			case 3: 
 				sample_value = (biosig_data_type)(int16_t)bswap_16(*(int16_t*)ptr); 
-			else if (GDFTYP==4)
+				break;
+			case 4: 
 				sample_value = (biosig_data_type)bswap_16(*(uint16_t*)ptr); 
-			else if (GDFTYP==16) {
-				union {uint32_t i32; float f32;} u; 
+				break;
+			case 16: 
 				u.i32 = bswap_32(*(uint32_t*)(ptr));
 				sample_value = (biosig_data_type)(u.f32);
-			}	
-			else if (GDFTYP==17) {
-				union {uint64_t i64; double f64;} u; 
+				break;
+			case 17: 
 				u.i64 = bswap_64(*(uint64_t*)(ptr));
 				sample_value = (biosig_data_type)(u.f64);
-			}	
-			else if (GDFTYP==0)
+				break;
+			case 0: 
 				sample_value = (biosig_data_type)(*(char*)ptr); 
-			else if (GDFTYP==1)
+				break;
+			case 1: 
 				sample_value = (biosig_data_type)(*(int8_t*)ptr); 
-			else if (GDFTYP==2)
+				break;
+			case 2: 
 				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
-			else if (GDFTYP==5)
+				break;
+			case 5: 
 				sample_value = (biosig_data_type)bswap_32(*(int32_t*)ptr); 
-			else if (GDFTYP==6)
+				break;
+			case 6: 
 				sample_value = (biosig_data_type)bswap_32(*(uint32_t*)ptr); 
-			else if (GDFTYP==7)
+				break;
+			case 7: 
 				sample_value = (biosig_data_type)bswap_64(*(int64_t*)ptr); 
-			else if (GDFTYP==8)
+				break;
+			case 8: 
 				sample_value = (biosig_data_type)bswap_64(*(uint64_t*)ptr); 
-			else if (GDFTYP==255+24) {
+				break;
+			case (255+24): 
 				// assume LITTLE_ENDIAN platform
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
 				sample_value = (biosig_data_type)int32_value; 
-			}	
-			else if (GDFTYP==511+24) {
+				break;
+			case (511+24): 
 				// assume LITTLE_ENDIAN platform
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
 				sample_value = (biosig_data_type)int32_value; 
-			}	
-			else {
+				break;
+			default: 
 				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 				B4C_ERRMSG = "Error SREAD: datatype not supported";
 				exit(-1);
@@ -4475,44 +4493,67 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 
 		} else {
 
-			// get source address 	
-			ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
-			
+			int16_t i16;
 			// mapping of raw data type to (biosig_data_type)
-			if (0); 
-			else if (GDFTYP==3) 
+			switch (GDFTYP) { 
+			case 3: 
 				sample_value = (biosig_data_type)(*(int16_t*)ptr); 
-			else if (GDFTYP==4)
+				break;
+			case 4: 
 				sample_value = (biosig_data_type)(*(uint16_t*)ptr); 
-			else if (GDFTYP==16) 
+				break;
+			case 16: 
 				sample_value = (biosig_data_type)(*(float*)(ptr));
-			else if (GDFTYP==17) 
+				break;
+			case 17: 
 				sample_value = (biosig_data_type)(*(double*)(ptr)); 
-			else if (GDFTYP==0)
+				break;
+			case 0: 
 				sample_value = (biosig_data_type)(*(char*)ptr); 
-			else if (GDFTYP==1)
+				break;
+			case 1: 
 				sample_value = (biosig_data_type)(*(int8_t*)ptr); 
-			else if (GDFTYP==2)
+				break;
+			case 2: 
 				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
-			else if (GDFTYP==5)
+				break;
+			case 5: 
 				sample_value = (biosig_data_type)(*(int32_t*)ptr); 
-			else if (GDFTYP==6)
+				break;
+			case 6: 
 				sample_value = (biosig_data_type)(*(uint32_t*)ptr); 
-			else if (GDFTYP==7)
+				break;
+			case 7: 
 				sample_value = (biosig_data_type)(*(int64_t*)ptr); 
-			else if (GDFTYP==8)
+				break;
+			case 8: 
 				sample_value = (biosig_data_type)(*(uint64_t*)ptr); 
-			else if (GDFTYP==255+24) {
+				break;
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+
+			case (255+12):
+				// assume LITTLE_ENDIAN platform
+				u.i16 = ((*(uint16_t*)ptr)>>bitoff) & 0x0FFF;
+				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
+				sample_value = (biosig_data_type)u.i16; 
+				break;
+			case (255+24): 
 				// assume LITTLE_ENDIAN platform
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
 				sample_value = (biosig_data_type)int32_value; 
-			}	
-			else if (GDFTYP==511+24) {
+				break;
+			case (511+12): 
+				// assume LITTLE_ENDIAN platform
+				sample_value = (biosig_data_type)((*(uint16_t*)ptr)>>bitoff); 
+				break;
+			case (511+24): 
 				// assume LITTLE_ENDIAN platform
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
 				sample_value = (biosig_data_type)int32_value; 
-			}	
-			else {
+				break;
+#endif
+			default: 
 				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 				B4C_ERRMSG = "Error SREAD: datatype not supported";
 				exit(-1);
@@ -4568,7 +4609,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 			CHptr = hdr->CHANNEL+k2;
 			DIV 	= ceil(hdr->SampleRate/hdr->EVENT.SampleRate); 
 			GDFTYP 	= CHptr->GDFTYP;
-			SZ  	= GDFTYP_BYTE[GDFTYP];
+			SZ  	= GDFTYP_BITS[GDFTYP]>>3;
 			int32_value = 0; 
 			
 			if (0); 
@@ -4722,7 +4763,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	if (CHptr->SPR > 0) { /////CHptr->OnOff != 0) {
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
-		SZ  	= GDFTYP_BYTE[GDFTYP];
+		SZ  	= GDFTYP_BITS[GDFTYP]>>3;
 		iCal	= 1/CHptr->Cal;
 		//iOff	= CHptr->DigMin - CHptr->PhysMin*iCal;
 		iOff	= -CHptr->Off*iCal;
