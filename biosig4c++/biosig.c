@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.182 2008-05-05 08:06:54 schloegl Exp $
+    $Id: biosig.c,v 1.183 2008-05-05 08:51:38 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -4475,16 +4475,55 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 			case 8: 
 				sample_value = (biosig_data_type)bswap_64(*(uint64_t*)ptr); 
 				break;
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+
+			case (255+12):
+				// assume LITTLE_ENDIAN format & BIG_ENDIAN platform 
+				u.i16 = (leu16p(ptr) >> (4-bitoff)) & 0x0FFF;
+				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
+				sample_value = (biosig_data_type)u.i16; 
+				break;
 			case (255+24): 
-				// assume LITTLE_ENDIAN platform
+				// assume LITTLE_ENDIAN format and BIG_ENDIAN platform 
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
 				sample_value = (biosig_data_type)int32_value; 
 				break;
+			case (511+12): 
+				// assume LITTLE_ENDIAN format & BIG_ENDIAN platform 
+				sample_value = (biosig_data_type)((leu16p(ptr) >> (4-bitoff)) & 0x0FFF); 
+				break;
 			case (511+24): 
-				// assume LITTLE_ENDIAN platform
+				// assume LITTLE_ENDIAN format and BIG_ENDIAN platform 
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
 				sample_value = (biosig_data_type)int32_value; 
 				break;
+
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+
+			case (255+12):
+				// assume BIG_ENDIAN format & LITTLE_ENDIAN platform 
+				u.i16 = (beu16p(ptr) >> (4-bitoff)) & 0x0FFF;
+				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
+				sample_value = (biosig_data_type)u.i16; 
+				break;
+			case (255+24): 
+				// assume BIG_ENDIAN format & LITTLE_ENDIAN platform
+				int32_value = (*(uint8_t*)(ptr+2)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr)*(1<<16)); 
+				sample_value = (biosig_data_type)int32_value; 
+				break;
+			case (511+12): 
+				// assume BIG_ENDIAN format & LITTLE_ENDIAN platform 
+				sample_value = (biosig_data_type) ((beu16p(ptr) >> (4-bitoff)) & 0x0FFF); 
+				break;
+			case (511+24): 
+				// assume BIG_ENDIAN format & LITTLE_ENDIAN platform
+				int32_value = (*(uint8_t*)(ptr+2)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr)<<16); 
+				sample_value = (biosig_data_type)int32_value; 
+				break;
+
+#endif
+
 			default: 
 				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 				B4C_ERRMSG = "Error SREAD: datatype not supported";
@@ -4531,25 +4570,49 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 
 			case (255+12):
-				// assume LITTLE_ENDIAN platform
-				u.i16 = ((*(uint16_t*)ptr)>>bitoff) & 0x0FFF;
+				// assume LITTLE_ENDIAN platform & LITTLE_ENDIAN platform 
+				u.i16 = (leu16p(ptr)>>bitoff) & 0x0FFF;
 				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
 				sample_value = (biosig_data_type)u.i16; 
 				break;
 			case (255+24): 
-				// assume LITTLE_ENDIAN platform
+				// assume LITTLE_ENDIAN format
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
 				sample_value = (biosig_data_type)int32_value; 
 				break;
 			case (511+12): 
-				// assume LITTLE_ENDIAN platform
-				sample_value = (biosig_data_type)((*(uint16_t*)ptr)>>bitoff); 
+				// assume LITTLE_ENDIAN platform & LITTLE_ENDIAN platform 
+				sample_value = (biosig_data_type) ((leu16p(ptr) >> bitoff) & 0x0FFF); 
 				break;
 			case (511+24): 
-				// assume LITTLE_ENDIAN platform
+				// assume LITTLE_ENDIAN format
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
 				sample_value = (biosig_data_type)int32_value; 
 				break;
+
+#elif __BYTE_ORDER == __BIG_ENDIAN
+
+			case (255+12):
+				// assume BIG_ENDIAN platform & BIG_ENDIAN format 
+				u.i16 = ((beu16(ptr) >> (4-bitoff)) & 0x0FFF;
+				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
+				sample_value = (biosig_data_type)u.i16; 
+				break;
+			case (255+24): 
+				// assume BIG_ENDIAN format
+				int32_value = (*(uint8_t*)(ptr+2)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr)*(1<<16)); 
+				sample_value = (biosig_data_type)int32_value; 
+				break;
+			case (511+12): 
+				// assume BIG_ENDIAN platform & BIG_ENDIAN format 
+				sample_value = (biosig_data_type) ((beu16(ptr) >> (4-bitoff)) & 0x0FFF); 
+				break;
+			case (511+24): 
+				// assume BIG_ENDIAN format
+				int32_value = (*(uint8_t*)(ptr+2)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr)<<16); 
+				sample_value = (biosig_data_type)int32_value; 
+				break;
+
 #endif
 			default: 
 				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
@@ -4654,12 +4717,12 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 			else if (GDFTYP==8)
 				sample_value = (biosig_data_type)(*(uint64_t*)ptr); 
 */			else if (GDFTYP==255+24) {
-				// assume LITTLE_ENDIAN platform
+				// assume LITTLE_ENDIAN format
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
 				sample_value = (biosig_data_type)int32_value; 
 			}	
 			else if (GDFTYP==511+24) {
-				// assume LITTLE_ENDIAN platform
+				// assume LITTLE_ENDIAN format
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
 				sample_value = (biosig_data_type)int32_value; 
 			}	
