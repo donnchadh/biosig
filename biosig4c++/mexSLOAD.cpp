@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.27 2008-04-25 06:56:33 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.28 2008-05-05 08:06:56 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -40,7 +40,7 @@ void mexFunction(
 	char		FlagOverflowDetection=1, FlagUCAL=0;
 	
 	
-	VERBOSE_LEVEL = 3; 
+	VERBOSE_LEVEL = 9; 
 	
 	if (nrhs<1) {
 		mexPrintf("   Usage of mexSLOAD:\n");
@@ -142,6 +142,7 @@ void mexFunction(
 
 	hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
 	hdr->FLAG.UCAL = FlagUCAL;
+	hdr->FLAG.ROW_BASED_CHANNELS = 0; 
 
 	if ((NS<0) || ((NS==1) && (ChanList[0] == 0.0))) { 	// all channels
 		for (k=0; k<hdr->NS; ++k)
@@ -159,7 +160,8 @@ void mexFunction(
 		}		
 	}
 
-	count = sread(NULL, 0, hdr->NRec, hdr);
+	count = sread1(NULL, 0, hdr->NRec, hdr);
+	//count = sread2(NULL, 0, hdr->NRec * hdr->SPR, hdr);
 	sclose(hdr);
 
 	if ((status=serror())) return;  
@@ -169,17 +171,18 @@ void mexFunction(
 
 	hdr->NRec = count; 
 	// plhs[0] = mxCreateDoubleMatrix(hdr->SPR * count, NS, mxREAL);
-	plhs[0] = mxCreateDoubleMatrix(hdr->data.size[0], hdr->data.size[1], mxREAL);
 
-#ifndef __TRANSPOSE__
-	memcpy((void*)mxGetPr(plhs[0]),(void*)hdr->data.block, hdr->data.size[0]*hdr->data.size[1]*sizeof(biosig_data_type));
-#else 
-	/* transpose matrix */
-	for (k =0; k <hdr->data.size[0]; ++k)
-	for (k1=0; k1<hdr->data.size[1]; ++k1)
-		*(mxGetPr(plhs[0]) + k1*hdr->data.size[0] + k) = hdr->data.block[k1 + k*hdr->data.size[1]];
-#endif 
-
+	//if (hdr->FLAG.ROW_BASED_CHANNELS) {
+	if (0) {
+		/* transpose matrix */
+		plhs[0] = mxCreateDoubleMatrix(hdr->data.size[1], hdr->data.size[0], mxREAL);
+		for (k =0; k <hdr->data.size[0]; ++k)
+		for (k1=0; k1<hdr->data.size[1]; ++k1)
+			*(mxGetPr(plhs[0]) + k1*hdr->data.size[0] + k) = hdr->data.block[k1 + k*hdr->data.size[1]];
+	} else {		
+		plhs[0] = mxCreateDoubleMatrix(hdr->data.size[0], hdr->data.size[1], mxREAL);
+		memcpy((void*)mxGetPr(plhs[0]),(void*)hdr->data.block, hdr->data.size[0]*hdr->data.size[1]*sizeof(biosig_data_type));
+	}
 	free(hdr->data.block);	
 	hdr->data.block = NULL; 
 

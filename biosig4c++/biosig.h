@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.93 2008-04-25 06:56:33 schloegl Exp $
+% $Id: biosig.h,v 1.94 2008-05-05 08:06:56 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -291,6 +291,7 @@ typedef struct {
 #endif
 		FILE* 		FID;		/* file handle  */
 		size_t 		POS;		/* current reading/writing position [in blocks] */
+		//size_t 		POS2;		/* current reading/writing position [in samples] */
 		uint8_t		OPEN; 		/* 0: closed, 1:read, 2: write */
 		uint8_t		LittleEndian;
 		uint8_t		COMPRESSION;   /* 0: no compression 9: best compression */
@@ -305,6 +306,8 @@ typedef struct {
 		uint32_t 	*bi;
 		uint8_t*	Header; 
 		uint8_t*	rawdata; 	/* raw data block */
+		size_t		rawdata_curblock;
+		size_t		rawdata_nextblock;
 	} AS ATT_ALI;
 	
 	CHANNEL_TYPE *CHANNEL ATT_ALI;  
@@ -349,6 +352,7 @@ int 	sclose(HDRTYPE* hdr);
 
 
 size_t	sread(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
+size_t	sread1(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
 /*	LEN data segments are read from file associated with hdr, starting from 
 	segment START. The data is copied into DATA; if DATA == NULL, a 
 	sufficient amount of memory is allocated; otherwise, it's assumed 
@@ -372,6 +376,12 @@ size_t	sread(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
 
 	hdr->FLAG.ROW_BASED_CHANNELS = 0 each channel is in one column 	
 	hdr->FLAG.ROW_BASED_CHANNELS = 1 each channel is in one row 	
+ ---------------------------------------------------------------*/
+
+size_t	sread2(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
+size_t	sread3(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
+/*	SREAD2 and SREAD3 are experimental 
+	it is similar to SREAD but START and LENGTH are in samples.  
  ---------------------------------------------------------------*/
 
 
