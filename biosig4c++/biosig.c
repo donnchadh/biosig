@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.183 2008-05-05 08:51:38 schloegl Exp $
+    $Id: biosig.c,v 1.184 2008-05-06 11:50:06 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -989,6 +989,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->FILE.FID = 0;
 
 	hdr->AS.Header = NULL;
+	hdr->AS.auxBUF = NULL; 
 
       	hdr->TYPE = noFile; 
       	hdr->VERSION = 2.0;
@@ -1067,6 +1068,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
 	hdr->EVENT.DUR = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.DUR));
 	hdr->EVENT.CHN = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.CHN));
+	hdr->EVENT.Desc= (char**) calloc(hdr->EVENT.N,sizeof(char*));
 	
 	// initialize "Annotated ECG structure"
 	hdr->aECG = NULL; 
@@ -1122,6 +1124,8 @@ void destructHDR(HDRTYPE* hdr) {
         	free(hdr->EVENT.DUR);
     	if (hdr->EVENT.CHN != NULL)	
         	free(hdr->EVENT.CHN);
+    	if (hdr->EVENT.Desc != NULL)	
+        	free(hdr->EVENT.Desc);
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: 09\n");
         	
@@ -1129,6 +1133,9 @@ void destructHDR(HDRTYPE* hdr) {
 	hdr->FILE.OPEN = 0; 	     	
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR\n");
+
+    	if (hdr->AS.auxBUF != NULL)	
+        	free(hdr->AS.auxBUF);
 
 	free(hdr);
 	return; 
@@ -2004,30 +2011,70 @@ if (!strncmp(MODE,"r",1))
 			}	
 
 			size_t sz   	= GDFTYP_BITS[hdr->CHANNEL[EventChannel].GDFTYP]>>3;
-			uint8_t *Marker = (uint8_t*)malloc(hdr->CHANNEL[EventChannel].SPR * hdr->NRec * sz);
+			size_t len 	= hdr->CHANNEL[EventChannel].SPR * hdr->NRec;		
+			hdr->AS.auxBUF  = (uint8_t*)malloc(len * sz+1);
 			size_t skip 	= hdr->AS.bpb - hdr->CHANNEL[EventChannel].SPR * sz;
 			ifseek(hdr, hdr->HeadLen + hdr->AS.bi[EventChannel], SEEK_SET);
-			for (k=0; k<hdr->NS; k++) {
-			    	ifread(Marker+k*hdr->CHANNEL[EventChannel].SPR * sz, 1, hdr->CHANNEL[EventChannel].SPR * sz, hdr);
+			for (k=0; k<hdr->NRec; k++) {
+			    	ifread(hdr->AS.auxBUF+k*hdr->CHANNEL[EventChannel].SPR * sz, 1, hdr->CHANNEL[EventChannel].SPR * sz, hdr);
 				ifseek(hdr, skip, SEEK_CUR);
 			}
-			size_t len = hdr->SPR*hdr->NRec;		
 			size_t N_EVENT  = 0;
+			hdr->EVENT.SampleRate = hdr->SampleRate; 
 			if (hdr->TYPE==EDF) {
-			/* convert EDF annotation channel into event table */
+			/* convert EDF+ annotation channel into event table */
 				
-				for (k=1; k<len; k++) {
-				}
+				char *p0,*p1,*p2;  
+				N_EVENT=0;
+				len *= sz;
+				hdr->AS.auxBUF[len]=255; // stop marker;
+				double Onset,Duration;
+				char FLAG_NONZERO_DURATION = 0; 
+				p1 = (char*)hdr->AS.auxBUF;	
+				for (k=0; k<len; ) {
+					while ((hdr->AS.auxBUF[k] == 0) && (k<len)) ++k; // search for start of annotation 
+					if (k>=len) break; 
+										
+					if (N_EVENT+1 >= hdr->EVENT.N) {
+						hdr->EVENT.N += 10000;
+						hdr->EVENT.POS = (uint32_t*)realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
+						hdr->EVENT.TYP = (uint16_t*)realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
+						hdr->EVENT.DUR = (uint32_t*)realloc(hdr->EVENT.DUR, hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
+						hdr->EVENT.CHN = (uint16_t*)realloc(hdr->EVENT.CHN, hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
+						hdr->EVENT.Desc= (char**)realloc(hdr->EVENT.Desc, hdr->EVENT.N*sizeof(char*));
+					}
+					
+					Onset = strtod(p1+k, &p2);
+					p0 = p2;
+					if (*p2==21) {
+						Duration = strtod(p2+1,&p0);
+						FLAG_NONZERO_DURATION = 1; 
+					}	
+					else
+						Duration = 0; 
 
-				hdr->EVENT.N = N_EVENT;
-				hdr->EVENT.SampleRate = hdr->SampleRate; 
-				hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
-				hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
-				hdr->EVENT.DUR = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.DUR));
-				hdr->EVENT.CHN = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.CHN));
+					hdr->EVENT.POS[N_EVENT] = round(Onset * hdr->EVENT.SampleRate);	
+					hdr->EVENT.TYP[N_EVENT] = strlen(p0+1)-1;	// this is a hack 
+					hdr->EVENT.DUR[N_EVENT] = round(Duration * hdr->EVENT.SampleRate);	
+					hdr->EVENT.CHN[N_EVENT] = 0;	
+					hdr->EVENT.Desc[N_EVENT]= p0+1;	
+					hdr->EVENT.Desc[N_EVENT][strlen(hdr->EVENT.Desc[N_EVENT])-1]=0;
+					N_EVENT++; 
 
-				for (k=1; k<len; k++) {
+					if (VERBOSE_LEVEL>8)
+						fprintf(stdout,"%i,EDF+: %i\t%i\t%03i:\t%f\t%f\t%s\t%s\n",sizeof(char**),len,k,N_EVENT,Onset,Duration,p2+1,p0+1);
+					
+						
+					while ((hdr->AS.auxBUF[k] > 0) && (k<len)) k++;	// search for end of annotation 
 				}
+				hdr->EVENT.N = N_EVENT; 
+				if (!FLAG_NONZERO_DURATION){
+					free(hdr->EVENT.DUR);
+					hdr->EVENT.DUR = NULL;
+					free(hdr->EVENT.CHN);
+					hdr->EVENT.CHN = NULL;
+				} 
+
 /*
                         N  = 0; 
 			[s,t] = strtok(HDR.EDF.ANNONS,0);
@@ -2053,6 +2100,7 @@ if (!strncmp(MODE,"r",1))
 			}
 			else if (hdr->TYPE==BDF) {
 				/* convert BDF status channel into event table*/
+				uint8_t *Marker = hdr->AS.auxBUF;
 				uint32_t d1, d0 = ((uint32_t)Marker[2]<<16) + ((uint32_t)Marker[1]<<8) + (uint32_t)Marker[0];
 				for (k=1; k<len; k++) {
 					d1 = ((uint32_t)Marker[3*k1+2]<<16) + ((uint32_t)Marker[3*k1+1]<<8) + (uint32_t)Marker[3*k1];
@@ -2093,7 +2141,6 @@ if (!strncmp(MODE,"r",1))
 				}	
 			}
 
-			free(Marker);
 			ifseek(hdr, hdr->HeadLen, SEEK_SET);
 		}	/* End reading EDF/BDF Status channel */
 
@@ -4308,6 +4355,21 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	if (hdr->FILE.POS != 0)	
 		fprintf(stdout,"Debugging Information: (Format=%d) FILE.POS=%d is not zero.\n",hdr->TYPE,hdr->FILE.POS);
 
+
+	for (k=0; k<hdr->NS; k++) 
+	if  (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] % 8){
+#if   __BYTE_ORDER == __LITTLE_ENDIAN
+		if (hdr->FLAG.SWAP)
+			fprintf(stdout,"GDFTYP=%i [12bit LE/BE] not well tested\n",hdr->CHANNEL[k].GDFTYP);
+		else
+			fprintf(stdout,"GDFTYP=%i [12bit LE/LE] not well tested\n",hdr->CHANNEL[k].GDFTYP);
+#elif __BYTE_ORDER == __BIG_ENDIAN
+		if (hdr->FLAG.SWAP)
+			fprintf(stdout,"GDFTYP=%i [12bit BE/LE] not well tested\n",hdr->CHANNEL[k].GDFTYP);
+		else
+			fprintf(stdout,"GDFTYP=%i [12bit BE/BE] not well tested\n",hdr->CHANNEL[k].GDFTYP);
+#endif
+	}
 		
 	return(hdr);
 }  // end of SOPEN 
@@ -5505,6 +5567,8 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 				fprintf(fid,"\t%5d\t%d",hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]);
 			if ((hdr->EVENT.TYP[k] == 0x7fff) && (hdr->TYPE==GDF))
 				fprintf(fid,"\t[neds]");
+			if (hdr->EVENT.Desc != NULL)		
+				fprintf(fid,"\t%s",hdr->EVENT.Desc[k]);
 		}
 	}
 		

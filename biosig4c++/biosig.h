@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.94 2008-05-05 08:06:56 schloegl Exp $
+% $Id: biosig.h,v 1.95 2008-05-06 11:50:06 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -263,15 +263,15 @@ typedef struct {
 		float		GND[3];	/* XYZ position of ground electrode */
 	} ELEC ATT_ALI;
 
-	/*	EVENTTABLE */
-	struct 
-	{
+	/* EVENTTABLE */
+	struct {
 		double  	SampleRate ATT_ALI;	/* for converting POS and DUR into seconds  */
 		uint32_t  	N ATT_ALI;	/* number of events */
 		uint16_t 	*TYP ATT_ALI;	/* defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup */
 		uint32_t 	*POS ATT_ALI;	/* starting position [in samples] */
 		uint32_t 	*DUR ATT_ALI;	/* duration [in samples] */
 		uint16_t 	*CHN ATT_ALI;	/* channel number; 0: all channels  */
+		char		**Desc ATT_ALI; 	/* Description of Events */	
 	} EVENT ATT_ALI; 
 
 	struct {	/* flags */
@@ -308,6 +308,7 @@ typedef struct {
 		uint8_t*	rawdata; 	/* raw data block */
 		size_t		rawdata_curblock;
 		size_t		rawdata_nextblock;
+		uint8_t*	auxBUF;		/* auxillary buffer - used for storing EVENT.Desc */
 	} AS ATT_ALI;
 	
 	CHANNEL_TYPE *CHANNEL ATT_ALI;  

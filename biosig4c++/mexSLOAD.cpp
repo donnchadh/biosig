@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.28 2008-05-05 08:06:56 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.29 2008-05-06 11:50:07 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -40,7 +40,7 @@ void mexFunction(
 	char		FlagOverflowDetection=1, FlagUCAL=0;
 	
 	
-	VERBOSE_LEVEL = 9; 
+	VERBOSE_LEVEL = 3; 
 	
 	if (nrhs<1) {
 		mexPrintf("   Usage of mexSLOAD:\n");
@@ -160,7 +160,7 @@ void mexFunction(
 		}		
 	}
 
-	count = sread1(NULL, 0, hdr->NRec, hdr);
+	count = sread(NULL, 0, hdr->NRec, hdr);
 	//count = sread2(NULL, 0, hdr->NRec * hdr->SPR, hdr);
 	sclose(hdr);
 
@@ -304,7 +304,7 @@ void mexFunction(
 		mxSetField(HDR,0,"Filter",Filter);
 
 		/* annotation, marker, event table */
-		const char *event_fields[] = {"SampleRate","TYP","POS","DUR","CHN",NULL};
+		const char *event_fields[] = {"SampleRate","TYP","POS","DUR","CHN","Desc",NULL};
 		
 		if (hdr->EVENT.DUR == NULL)
 			EVENT = mxCreateStructMatrix(1, 1, 3, event_fields);
@@ -319,6 +319,14 @@ void mexFunction(
 			mxSetField(EVENT,0,"DUR",DUR);
 			mxSetField(EVENT,0,"CHN",CHN);
 		}
+		if (hdr->EVENT.Desc != NULL) {
+			mxAddField(EVENT, "Desc");
+			mxArray *Desc = mxCreateCellMatrix(hdr->EVENT.N,1);
+			for (size_t k=0; k<hdr->EVENT.N; ++k) {
+				mxSetCell(Desc,k,mxCreateString(hdr->EVENT.Desc[k]));
+			} 
+			mxSetField(EVENT,0,"Desc",Desc);
+		}	
 
 		mxArray *TYP = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
 		mxArray *POS = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
