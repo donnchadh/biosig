@@ -5,7 +5,7 @@ function [CNT,h,e]=cntopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
-%	$Id: cntopen.m,v 1.42 2008-03-18 13:52:33 schloegl Exp $
+%	$Id: cntopen.m,v 1.43 2008-05-07 08:25:28 schloegl Exp $
 %	Copyright (c) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -401,7 +401,8 @@ CNT.SampleRate=h.rate;	% D-to-A rate
 CNT.Scale=h.scale;	% scale factor for calibration
 CNT.Scale2=h.ampsensitivity;
 CNT.HeadLen = 900 + 75*CNT.NS;
-CNT.PhysDim = repmat({'µV'},CNT.NS,1);
+%CNT.PhysDim = repmat({'µV'},CNT.NS,1);
+CNT.PhysDimCode = repmat(4275,CNT.NS,1); %% uV 
 
 % Scan4.3->Edit->Overall Setup->Amplifier->Notch->Off/50Hz/60Hz
 tmp = [0,50,60]; 
@@ -568,14 +569,19 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
 	CNT.EVENT.TeegSize = 0;
         status = fseek(CNT.FILE.FID,h.eventtablepos,'bof');
         if ~status,
+ftell(fid),
                 [CNT.EVENT.TeegType,c1] = fread(fid,1,'uint8');		
+ftell(fid),
                 [CNT.EVENT.TeegSize,c2] = fread(fid,1,'int32');	
+ftell(fid),
                 [CNT.EVENT.TeegOffset,c3] = fread(fid,1,'int32');
+ftell(fid),
 	end;	
 	
         k = 0; 
         K = 1;
         TEEG = [];
+CNT.EVENT,
         while (K < CNT.EVENT.TeegSize),
 		k = k+1;
                 Teeg.Stimtype = fread(fid,1,'int16');        
