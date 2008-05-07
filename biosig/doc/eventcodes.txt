@@ -1,7 +1,15 @@
 ### Table of event codes. 
-# This file is part of the biosig project http://biosig.sf.net/
-# Copyright (C) 2004,2005,2006 Alois Schloegl <a.schloegl@ieee.org>
-# $Id: eventcodes.txt,v 1.9 2008-01-23 22:04:41 schloegl Exp $
+# This table is also part of the specification of 
+# GDF v2.x http://arxiv.org/abs/cs.DB/0608052 and 
+# GDF v1.x http://hci.tugraz.at/schloegl/matlab/eeg/gdf4/TR_GDF.pdf
+# and part of the BioSig project http://biosig.sf.net/
+# Copyright (C) 2004,2005,2006,2008 Alois Schloegl <a.schloegl@ieee.org>
+# $Id: eventcodes.txt,v 1.10 2008-05-07 08:16:21 schloegl Exp $
+#
+# BioSig is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; either
+# Version 3 of the License, or (at your option) any later version.
 #
 ### table of event codes: lines starting with # are omitted
 ### add 0x8000 to indicate end of event
@@ -104,7 +112,7 @@
 0x0445	swallowing
 0x0446	biting, chewing, teeth griding 
 0x0447	foot movement
-%0x0448	foot (right) movement
+#0x0448	foot (right) movement
 0x0449	arm movement
 0x044a	arm (right) movement
 ### 0x050_	ECG events
