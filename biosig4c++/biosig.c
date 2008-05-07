@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.186 2008-05-07 22:37:33 schloegl Exp $
+    $Id: biosig.c,v 1.187 2008-05-07 23:11:20 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1319,10 +1319,9 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 /*    	else if (!memcmp(Header1,"MThd\000\000\000\001\000",9))
 	    	hdr->TYPE = MIDI;
 */
-    	else if ( Header1[344]=='n' && Header1[347]=='\0' && 
-    		  (Header1[345]=='i' || Header1[345]=='+' ) && 
-    		  (Header1[346]>'0' && Header1[346]<='9' ) 
-    		) {
+    	else if ( (Header1[344]=='n') && (Header1[347]=='\0') && \
+    		  ((Header1[345]=='i') || (Header1[345]=='+') ) && \ 
+    		   (Header1[346]>'0') && (Header1[346]<='9') ) {
 	    	hdr->TYPE = NIFTI;
 	    	hdr->VERSION = Header1[346]-'0';
 		}    	
@@ -1584,8 +1583,8 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 hdr->FLAG.SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 	// default: most data formats are little endian 
 if (!strncmp(MODE,"r",1))	
 {
- 	hdr->AS.Header = (uint8_t*)malloc(257);
-    	Header1[256] = 0;
+ 	hdr->AS.Header = (uint8_t*)malloc(353);
+    	Header1[352] = 0;
 	hdr->TYPE = noFile; 
 
 	hdr->FileName = FileName; 
@@ -1598,11 +1597,11 @@ if (!strncmp(MODE,"r",1))
     	}	    
     
     	/******** read 1st (fixed)  header  *******/	
-    	count = ifread(Header1,1,256,hdr);
+    	count = ifread(Header1,1,352,hdr);
 	hdr   = getfiletype(hdr);
     	
 	if (VERBOSE_LEVEL==9) 
-		fprintf(stdout,"File Format %i\n",hdr->TYPE); 
+		fprintf(stdout,"File Format %i %s\n",hdr->TYPE,GetFileTypeString(hdr->TYPE)); 
 
     	if (hdr->TYPE == GZIP) {
 #ifdef ZLIB_H
@@ -1615,7 +1614,7 @@ if (!strncmp(MODE,"r",1))
 	    		B4C_ERRMSG = "Error SOPEN(GZREAD); Cannot open file.";		
 	    		return(hdr);
     		}	    
-	    	count = ifread(Header1,1,256,hdr);
+	    	count = ifread(Header1,1,352,hdr);
 		hdr   = getfiletype(hdr);
 #else 
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
@@ -1629,7 +1628,7 @@ if (!strncmp(MODE,"r",1))
 		return(hdr);
 	}	
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201] GDF=%i %i Ver=%4.2f\n",GDF,hdr->TYPE,hdr->VERSION);
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
 
 	if (hdr->TYPE == GDF) {
 		uint32_t Dur[2];
@@ -1736,7 +1735,7 @@ if (!strncmp(MODE,"r",1))
 	    	hdr->AS.Header = (uint8_t*)realloc(Header1,hdr->HeadLen);
 //	    	Header1 = (char*)hdr->AS.Header1; 
 	    	uint8_t *Header2 = hdr->AS.Header+256; 
-	    	count   += ifread(Header2, 1, hdr->HeadLen-256, hdr);
+	    	count   += ifread(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
 
 		for (k=0; k<hdr->NS; k++)	{
 
@@ -1871,6 +1870,8 @@ if (!strncmp(MODE,"r",1))
     		memcpy(hdr->ID.Recording,Header1+88,min(80,MAX_LENGTH_RID));
 		hdr->ID.Recording[MAX_LENGTH_RID]=0;
 		
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211] #=%li\n",iftell(hdr));
+
 		memset(tmp,0,9); 	
 		strncpy(tmp,Header1+168+14,2); 
     		tm_time.tm_sec  = atoi(tmp); 
@@ -1933,13 +1934,17 @@ if (!strncmp(MODE,"r",1))
 	    		tm_time.tm_isdst= -1;
 		}   
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 212] #=%li\n",iftell(hdr));
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
 	    	char *Header2 = (char*)hdr->AS.Header+256; 
-	    	count  += ifread(Header2, 1, hdr->HeadLen-256, hdr);
+	    	count  += ifread(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
 
 		for (k=0, hdr->SPR = 1; k<hdr->NS; k++)	{
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"[EDF 213] #%i/%i\n",k,hdr->NS);
+
 			strncpy(hdr->CHANNEL[k].Label,Header2 + 16*k,min(MAX_LENGTH_LABEL,16));
 			for (k1=strlen(hdr->CHANNEL[k].Label)-1; isspace(hdr->CHANNEL[k].Label[k1]) && k1; k1--)
 				hdr->CHANNEL[k].Label[k1] = 0;	// deblank
@@ -2010,6 +2015,8 @@ if (!strncmp(MODE,"r",1))
 	    	double Dur	= atof(strncpy(tmp,Header1+244,8));
 		hdr->SampleRate = hdr->SPR/Dur;
 
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 214] #=%li\n",iftell(hdr));
+
 		if (EventChannel) {
 			/* read Annotation and Status channel and extract event information */		
 			hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
@@ -2041,6 +2048,10 @@ if (!strncmp(MODE,"r",1))
 				char FLAG_NONZERO_DURATION = 0; 
 				p1 = (char*)Marker;	
 				for (k=0; k<len; ) {
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF+Events 217] #=%i\n",k);
+
+
 					while ((Marker[k] == 0) && (k<len)) ++k; // search for start of annotation 
 					if (k>=len) break; 
 										
@@ -3603,7 +3614,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 		else {
 			union {uint32_t u32; float f32;} u; 
-			u.u32 = bswap_32(*(uint32_t*)(Header1+80));
+			u.u32 = bswap_32(*(uint32_t*)(Header1+108));
 		    	hdr->HeadLen = (size_t)u.f32;
 		}    	
 		
@@ -3623,6 +3634,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		
 		ifclose(hdr); 
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+		B4C_ERRMSG = "Format NIFTI not supported\n";
 		return(hdr); 	
 	}
 
