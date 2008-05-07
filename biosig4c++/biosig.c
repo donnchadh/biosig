@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.184 2008-05-06 11:50:06 schloegl Exp $
+    $Id: biosig.c,v 1.185 2008-05-07 09:25:23 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2011,12 +2011,12 @@ if (!strncmp(MODE,"r",1))
 			}	
 
 			size_t sz   	= GDFTYP_BITS[hdr->CHANNEL[EventChannel].GDFTYP]>>3;
-			size_t len 	= hdr->CHANNEL[EventChannel].SPR * hdr->NRec;		
-			hdr->AS.auxBUF  = (uint8_t*)malloc(len * sz+1);
+			size_t len 	= hdr->CHANNEL[EventChannel].SPR * hdr->NRec * sz;		
+			uint8_t *Marker = (uint8_t*)malloc(len * sz+1);
 			size_t skip 	= hdr->AS.bpb - hdr->CHANNEL[EventChannel].SPR * sz;
 			ifseek(hdr, hdr->HeadLen + hdr->AS.bi[EventChannel], SEEK_SET);
 			for (k=0; k<hdr->NRec; k++) {
-			    	ifread(hdr->AS.auxBUF+k*hdr->CHANNEL[EventChannel].SPR * sz, 1, hdr->CHANNEL[EventChannel].SPR * sz, hdr);
+			    	ifread(Marker+k*hdr->CHANNEL[EventChannel].SPR * sz, 1, hdr->CHANNEL[EventChannel].SPR * sz, hdr);
 				ifseek(hdr, skip, SEEK_CUR);
 			}
 			size_t N_EVENT  = 0;
@@ -2026,17 +2026,16 @@ if (!strncmp(MODE,"r",1))
 				
 				char *p0,*p1,*p2;  
 				N_EVENT=0;
-				len *= sz;
-				hdr->AS.auxBUF[len]=255; // stop marker;
+				Marker[len]=255; // stop marker;
 				double Onset,Duration;
 				char FLAG_NONZERO_DURATION = 0; 
-				p1 = (char*)hdr->AS.auxBUF;	
+				p1 = (char*)Marker;	
 				for (k=0; k<len; ) {
-					while ((hdr->AS.auxBUF[k] == 0) && (k<len)) ++k; // search for start of annotation 
+					while ((Marker[k] == 0) && (k<len)) ++k; // search for start of annotation 
 					if (k>=len) break; 
 										
 					if (N_EVENT+1 >= hdr->EVENT.N) {
-						hdr->EVENT.N += 10000;
+						hdr->EVENT.N  += 256;
 						hdr->EVENT.POS = (uint32_t*)realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
 						hdr->EVENT.TYP = (uint16_t*)realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
 						hdr->EVENT.DUR = (uint32_t*)realloc(hdr->EVENT.DUR, hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
@@ -2053,19 +2052,19 @@ if (!strncmp(MODE,"r",1))
 					else
 						Duration = 0; 
 
-					hdr->EVENT.POS[N_EVENT] = round(Onset * hdr->EVENT.SampleRate);	
-					hdr->EVENT.TYP[N_EVENT] = strlen(p0+1)-1;	// this is a hack 
-					hdr->EVENT.DUR[N_EVENT] = round(Duration * hdr->EVENT.SampleRate);	
+					hdr->EVENT.POS[N_EVENT] = (uint32_t)round(Onset * hdr->EVENT.SampleRate);	
+					hdr->EVENT.TYP[N_EVENT] = min(255,strlen(p0+1)-1);	// this is a hack, maps all codes into "user specific events" 
+					hdr->EVENT.DUR[N_EVENT] = (uint32_t)round(Duration * hdr->EVENT.SampleRate);	
 					hdr->EVENT.CHN[N_EVENT] = 0;	
 					hdr->EVENT.Desc[N_EVENT]= p0+1;	
-					hdr->EVENT.Desc[N_EVENT][strlen(hdr->EVENT.Desc[N_EVENT])-1]=0;
+					hdr->EVENT.Desc[N_EVENT][strlen(hdr->EVENT.Desc[N_EVENT])-1]=0;	// remove last ascii(20)
 					N_EVENT++; 
 
 					if (VERBOSE_LEVEL>8)
 						fprintf(stdout,"%i,EDF+: %i\t%i\t%03i:\t%f\t%f\t%s\t%s\n",sizeof(char**),len,k,N_EVENT,Onset,Duration,p2+1,p0+1);
 					
 						
-					while ((hdr->AS.auxBUF[k] > 0) && (k<len)) k++;	// search for end of annotation 
+					while ((Marker[k] > 0) && (k<len)) k++;	// search for end of annotation 
 				}
 				hdr->EVENT.N = N_EVENT; 
 				if (!FLAG_NONZERO_DURATION){
@@ -2074,7 +2073,7 @@ if (!strncmp(MODE,"r",1))
 					free(hdr->EVENT.CHN);
 					hdr->EVENT.CHN = NULL;
 				} 
-
+				hdr->AS.auxBUF = Marker;	// contains EVENT.Desc strings
 /*
                         N  = 0; 
 			[s,t] = strtok(HDR.EDF.ANNONS,0);
@@ -2100,7 +2099,6 @@ if (!strncmp(MODE,"r",1))
 			}
 			else if (hdr->TYPE==BDF) {
 				/* convert BDF status channel into event table*/
-				uint8_t *Marker = hdr->AS.auxBUF;
 				uint32_t d1, d0 = ((uint32_t)Marker[2]<<16) + ((uint32_t)Marker[1]<<8) + (uint32_t)Marker[0];
 				for (k=1; k<len; k++) {
 					d1 = ((uint32_t)Marker[3*k1+2]<<16) + ((uint32_t)Marker[3*k1+1]<<8) + (uint32_t)Marker[3*k1];
@@ -2139,9 +2137,9 @@ if (!strncmp(MODE,"r",1))
 					}	
 					d0 = d1;
 				}	
+				free(Marker); 
 			}
 
-			ifseek(hdr, hdr->HeadLen, SEEK_SET);
 		}	/* End reading EDF/BDF Status channel */
 
 		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
@@ -2494,7 +2492,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
        		hdr = ifopen(hdr,"r");
 		size_t bufsiz = 4096;
 		count = 0;
-	    	char* vmrk = (char*)malloc(bufsiz+1);
+	    	char *vmrk = (char*)malloc(bufsiz+1);
 		while (!ifeof(hdr)) {
 		    	vmrk = (char*)realloc(vmrk,count+bufsiz+1);
 		    	count  += ifread(vmrk+count,1,bufsiz,hdr);
@@ -2510,11 +2508,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 		char *t1 = strtok(vmrk+pos,"\x0A\x0D");	// skip first line 
 		t1 = strtok(NULL,"\x0A\x0D");		
-		size_t N_EVENT=0,n=100;
- 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, n*sizeof(*hdr->EVENT.POS));
-		hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, n*sizeof(*hdr->EVENT.TYP));
-		hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR, n*sizeof(*hdr->EVENT.DUR));
-		hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN, n*sizeof(*hdr->EVENT.CHN));
+		size_t N_EVENT=0;
+		hdr->EVENT.N=0;
 		while (t1 != NULL) {
 			if (!strncmp(t1,";",1))
 				; 	
@@ -2539,17 +2534,19 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				t1[p4]=0;				
 				t1[p5]=0;				
 
-				if (n <= N_EVENT) {
-					n += 256;
-			 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, n*sizeof(*hdr->EVENT.POS));
-					hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, n*sizeof(*hdr->EVENT.TYP));
-					hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR, n*sizeof(*hdr->EVENT.DUR));
-					hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN, n*sizeof(*hdr->EVENT.CHN));
+				if (hdr->EVENT.N <= N_EVENT) {
+					hdr->EVENT.N  += 256;
+			 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
+					hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
+					hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR, hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
+					hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN, hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
+					hdr->EVENT.Desc= (char**)realloc(hdr->EVENT.Desc, hdr->EVENT.N*sizeof(char*));
 				}
 				hdr->EVENT.TYP[N_EVENT] = atol(t1+p2+2);
 				hdr->EVENT.POS[N_EVENT] = atol(t1+p3+1);
 				hdr->EVENT.DUR[N_EVENT] = atol(t1+p4+1);
 				hdr->EVENT.CHN[N_EVENT] = atol(t1+p5+1);
+				hdr->EVENT.Desc[N_EVENT] = t1+p2+1;
 				if (!strncmp(t1+p1+1,"New Segment",11)) {
 					hdr->EVENT.TYP[N_EVENT] = 0x7ffe;
 					
@@ -2573,8 +2570,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}		
 			t1 = strtok(NULL,"\x0A\x0D");		
 		}
+		// free(vmrk);
+		hdr->AS.auxBUF = (uint8_t*)vmrk;
 		hdr->EVENT.N = N_EVENT;
-		free(vmrk);
 
 		/* decode header information */
 		hdr->FLAG.OVERFLOWDETECTION = 0;
@@ -2666,7 +2664,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->NS = atoi(t+17);
 				}	
 				else if (!strncmp(t,"DataPoints=",11)) {
-					npts = atof(t+11);
+					npts = atol(t+11);
 				}	
 				else if (!strncmp(t,"SamplingInterval=",17)) {
 					hdr->SampleRate = 1e6/atof(t+17);
@@ -2843,7 +2841,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			ifread(tmp,9,1,hdr);	    	
 			int8_t   TeegType   = tmp[0]; 
 			uint32_t TeegSize   = leu32p(tmp+1);
-			uint32_t TeegOffset = leu32p(tmp+5);
+			// uint32_t TeegOffset = leu32p(tmp+5); // not used
 
 			int fieldsize;
 			switch (TeegType) {
@@ -3071,7 +3069,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		if (VERBOSE_LEVEL==9) 
 			fprintf(stderr,"\nNS=%i\n-> %s\n",hdr->NS,t);
 
-		hdr->Patient.Birthday = hdr->T0 - ldexp(age,32);
+		hdr->Patient.Birthday = hdr->T0 - (uint64_t)ldexp(age,32);
 		hdr->NS = 0; 
 		while (ag != NULL) {
 			++hdr->NS; 
@@ -3697,7 +3695,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				hdr->SampleRate = (double)leu32p(hdr->AS.Header+pos+4+4);
 				if (format==1) {
 					bits 	= leu16p(hdr->AS.Header+pos+4+14);
-					Cal 	= ldexp(1,-8*ceil(bits/8.0));
+					Cal 	= ldexp(1,-8*(bits/8 + ((bits%8) > 0)));
 					if 	(bits <= 8) {
 						gdftyp = 2;
 						Off = 0.5;
@@ -3714,7 +3712,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}
 			else if (!strncmp((char*)tag,"data",4)) {
 				if (format==1) {
-					hdr->AS.bpb = hdr->NS * ceil(bits/8.0);
+					hdr->AS.bpb = hdr->NS * ((bits/8) + ((bits%8)>0));
 					hdr->SPR    = tagsize/hdr->AS.bpb; 
 				}
 			}
@@ -4419,7 +4417,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	case HL7aECG: 		
 	case SCP_ECG: {
 		// hdr->AS.rawdata was defined in SOPEN	
-		if (start < -1) 
+		if (start < 0) 
 			start = hdr->FILE.POS;
 		else 
 			hdr->FILE.POS = start; 	
@@ -4431,7 +4429,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	default: {
 		// check reading segment 
 		// if ((start < 0) || (start > hdr->NRec)) 
-		if (start < -1) 
+		if (start < 0) 
 			start = hdr->FILE.POS;
 		else if (start > hdr->NRec) 
 			return(0);
@@ -5557,18 +5555,18 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 	}
 		
 	if (VERBOSE_LEVEL>3) {
-		/* channel settings */ 
+		/* channel settings */
 		fprintf(fid,"\n\n[EVENT TABLE] N=%i Fs=%f",hdr->EVENT.N,hdr->EVENT.SampleRate);
-		fprintf(fid,"\n#No\tTYP\tPOS\tDUR\tCHN\tVAL");
+		fprintf(fid,"\n#No\tTYP\tPOS\tDUR\tCHN\tVAL\tDesc");
 		size_t k;
 		for (k=0; k<hdr->EVENT.N; k++) {
 			fprintf(fid,"\n%5i\t0x%04x\t%d",k+1,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]);
-			if (hdr->EVENT.DUR != NULL)		
+			if (hdr->EVENT.DUR != NULL)
 				fprintf(fid,"\t%5d\t%d",hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]);
 			if ((hdr->EVENT.TYP[k] == 0x7fff) && (hdr->TYPE==GDF))
 				fprintf(fid,"\t[neds]");
-			if (hdr->EVENT.Desc != NULL)		
-				fprintf(fid,"\t%s",hdr->EVENT.Desc[k]);
+			else if (hdr->EVENT.Desc != NULL)
+				fprintf(fid,"\t\t%s",hdr->EVENT.Desc[k]);
 		}
 	}
 		
