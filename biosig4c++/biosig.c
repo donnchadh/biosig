@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.185 2008-05-07 09:25:23 schloegl Exp $
+    $Id: biosig.c,v 1.186 2008-05-07 22:37:33 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1319,6 +1319,15 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 /*    	else if (!memcmp(Header1,"MThd\000\000\000\001\000",9))
 	    	hdr->TYPE = MIDI;
 */
+    	else if ( Header1[344]=='n' && Header1[347]=='\0' && 
+    		  (Header1[345]=='i' || Header1[345]=='+' ) && 
+    		  (Header1[346]>'0' && Header1[346]<='9' ) 
+    		) {
+	    	hdr->TYPE = NIFTI;
+	    	hdr->VERSION = Header1[346]-'0';
+		}    	
+    	else if (!memcmp(Header1+344,"ni1",4) || !memcmp(Header1+344,"n+1",4) )
+	    	hdr->TYPE = NIFTI;
     	else if (!memcmp(Header1,"NEX1",4))
 	    	hdr->TYPE = NEX1;
     	else if (!memcmp(Header1,"OggS",4))
@@ -1513,6 +1522,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case MIDI: 	{ FileType = "MIDI"; break; }
 	case NetCDF: 	{ FileType = "NetCDF"; break; }
 	case NEX1: 	{ FileType = "NEX1"; break; }
+	case NIFTI: 	{ FileType = "NIFTI"; break; }
 	case OGG: 	{ FileType = "OGG"; break; }
 
 	case RIFF: 	{ FileType = "RIFF"; break; }
@@ -3584,6 +3594,38 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->FILE.POS = 0; 
 	}
 
+	else if (hdr->TYPE==NIFTI) {
+	    	count += ifread(hdr->AS.Header+count, 1, 352-count, hdr);
+	    	// nifti_1_header *NIFTI_HDR = (nifti_1_header*)hdr-AS.Header; 
+	    	hdr->FLAG.SWAP = *(int16_t*)(Header1+40) > 7; 
+	    	if (!hdr->FLAG.SWAP) { 
+		    	hdr->HeadLen = (size_t)*(float*)(Header1+80);
+		}
+		else {
+			union {uint32_t u32; float f32;} u; 
+			u.u32 = bswap_32(*(uint32_t*)(Header1+80));
+		    	hdr->HeadLen = (size_t)u.f32;
+		}    	
+		
+		if (Header1[345]=='i') {
+			ifclose(hdr);
+			const char *f0 = hdr->FileName;
+			char *f1 = (char*)malloc(strlen(hdr->FileName)+4);
+			strcpy(f1,hdr->FileName); 
+			strcpy(strrchr(f1,'.') + 1, "img");
+			hdr->FileName = f1; 
+			hdr = ifopen(hdr,"r"); 
+			hdr->FileName = f0; 
+		}
+		else  
+			ifseek(hdr,hdr->HeadLen,SEEK_SET); 
+						
+		
+		ifclose(hdr); 
+		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+		return(hdr); 	
+	}
+
 	else if (hdr->TYPE==SCP_ECG) {
 		hdr->HeadLen   = leu32p(hdr->AS.Header+2);
 		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
@@ -4740,6 +4782,18 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		for (k1=0; k1<hdr->NS; k1++) // list of selected channels 
 			ChanList[k1+1]= (hdr->CHANNEL[k1].OnOff ? ch++ : 0);
 		
+		// sparsely sampled channels are stored in event table
+		for (k1=0,k2=0; k1<hdr->NS; k1++) 
+		if (hdr->CHANNEL[k2].SPR==0) {
+			for (k5 = 0; k5 < hdr->SPR*count; k5++)
+#ifdef ROW_BASED_CHANNELS
+			hdr->data.block[k2 + k5*NS] = NaN;		// row-based channels 
+#else
+			hdr->data.block[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
+#endif
+			k2++;
+		}
+
 		for (k1=0; k1<hdr->EVENT.N; k1++) 
 		if (hdr->EVENT.TYP[k1] == 0x7fff) 	// select non-equidistant sampled value
 		if (ChanList[hdr->EVENT.CHN[k1]] > 0)	// if channel is selected
