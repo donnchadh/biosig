@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.187 2008-05-07 23:11:20 schloegl Exp $
+    $Id: biosig.c,v 1.188 2008-05-09 23:09:47 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1064,11 +1064,19 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	// define EVENT structure
 	hdr->EVENT.N = N_EVENT; 
 	hdr->EVENT.SampleRate = 0;  
-	hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
-	hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
-	hdr->EVENT.DUR = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.DUR));
-	hdr->EVENT.CHN = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.CHN));
-	hdr->EVENT.Desc= (char**) calloc(hdr->EVENT.N,sizeof(char*));
+	if (hdr->EVENT.N) {
+		hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
+		hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
+		hdr->EVENT.DUR = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.DUR));
+		hdr->EVENT.CHN = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.CHN));
+		hdr->EVENT.Desc= (char**)    calloc(hdr->EVENT.N,sizeof(char*));
+	} else {
+		hdr->EVENT.POS = NULL;
+		hdr->EVENT.TYP = NULL;
+		hdr->EVENT.DUR = NULL;
+		hdr->EVENT.CHN = NULL;
+		hdr->EVENT.Desc= NULL;
+	}
 	
 	// initialize "Annotated ECG structure"
 	hdr->aECG = NULL; 
@@ -1265,6 +1273,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = CFWB;
     	else if (!memcmp(Header1,"Version 3.0",11))
 	    	hdr->TYPE = CNT;
+    	else if (!memcmp(Header1,"MEG4",4))
+	    	hdr->TYPE = CTF; 
 
     	else if (!memcmp(Header1,"DEMG",4))
 	    	hdr->TYPE = DEMG;
@@ -1491,12 +1501,14 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case BZ2: 	{ FileType = "BZ2"; break; }
 
 	case CDF: 	{ FileType = "CDF"; break; }
-	case DEMG: 	{ FileType = "DEMG"; break; }
 	case CFWB: 	{ FileType = "CFWB"; break; }
 	case CNT: 	{ FileType = "CNT"; break; }
+	case CTF: 	{ FileType = "CTF"; break; }
+	case DEMG: 	{ FileType = "DEMG"; break; }
 	case DICOM: 	{ FileType = "DICOM"; break; }
 
 	case EDF: 	{ FileType = "EDF"; break; }
+	case EEG1100: 	{ FileType = "EEG1100"; break; }
 	case EEProbe: 	{ FileType = "EEProbe"; break; }
 	case EGI: 	{ FileType = "EGI"; break; }
 	case ELF: 	{ FileType = "ELF"; break; }
@@ -2890,6 +2902,160 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	ifseek(hdr, hdr->HeadLen, SEEK_SET);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	    	hdr->FILE.POS = 0; 
+	}
+
+	else if (hdr->TYPE==CTF) {
+	
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"CTF[101]: %s\n",hdr->FileName);
+	
+		hdr->AS.Header  = (uint8_t*)realloc(hdr->AS.Header,1844); 		 	
+		hdr->HeadLen    = 1844; 
+		const char *f0  = hdr->FileName;
+		char *f1 	= (char*)malloc(strlen(f0)+6);
+		strcpy(f1,f0);
+		strcpy(strrchr(f1,'.')+1,"res4");
+		if (strcmp(strrchr(hdr->FileName,'.'),".res4")) {
+			ifclose(hdr);
+			hdr->FileName = f1; 
+			hdr = ifopen(hdr,"rb"); 
+			count = 0;
+		} 
+		count += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
+		struct tm t;
+		sscanf((char*)(hdr->AS.Header+778),"%i:%i:i",&t.tm_hour,&t.tm_min,&t.tm_sec);
+		sscanf((char*)(hdr->AS.Header+778+255),"%i/%i/%i",&t.tm_mday,&t.tm_mon,&t.tm_year);
+		--t.tm_mon; 
+		hdr->T0 = tm_time2gdf_time(&t);
+		
+		hdr->SPR 	= bei32p(hdr->AS.Header+1288); 
+		hdr->NS  	= bei16p(hdr->AS.Header+1292); 
+		hdr->SampleRate = bef64p(hdr->AS.Header+1296); 
+		// double Dur	= bef64p(hdr->AS.Header+1304); 
+		hdr->NRec	= bei16p(hdr->AS.Header+1312); 
+		strncpy(hdr->Patient.Id,(char*)(hdr->AS.Header+1712),min(MAX_LENGTH_PID,32)); 
+		int32_t CTF_RunSize  = bei32p(hdr->AS.Header+1836); 
+		//int32_t CTF_RunSize2 = bei32p(hdr->AS.Header+1844); 
+		
+		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,1844+CTF_RunSize+2); 		 	
+		count += ifread(hdr->AS.Header+count,1,CTF_RunSize+2,hdr);
+		int16_t CTF_NumberOfFilters = bei16p(hdr->AS.Header+1844+CTF_RunSize*26); 
+		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+CTF_NumberOfFilters*26+hdr->NS*(32+48+1280)); 		 	
+		count += ifread(hdr->AS.Header+count,1,CTF_NumberOfFilters*26+hdr->NS*(32+48+1280),hdr);
+		ifclose(hdr); 
+
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"CTF[102] %s: %i %i %i %i\n",hdr->FileName,hdr->NS,hdr->SPR,hdr->NRec,count);
+
+		size_t pos = 1846+CTF_RunSize+CTF_NumberOfFilters*26;
+
+	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+		for (k=0; k<hdr->NS; k++) {
+
+			strncpy(hdr->CHANNEL[k].Label,(const char*)(hdr->AS.Header+pos+k*32),min(32,MAX_LENGTH_LABEL));
+			hdr->CHANNEL[k].Label[32]=0;
+
+			int16_t index = bei16p(hdr->AS.Header+pos+hdr->NS*32+k*(48+1280)); // index
+			hdr->CHANNEL[k].Cal = 1.0/bef64p(hdr->AS.Header+pos+hdr->NS*32+k*(48+1280)+16);
+			switch (index) {
+			case 0:
+			case 1:
+			case 9: 
+				hdr->CHANNEL[k].Cal /= bef64p(hdr->AS.Header+pos+hdr->NS*32+k*(48+1280)+8);
+			}
+
+			hdr->CHANNEL[k].PhysDimCode = 0;
+		    	hdr->CHANNEL[k].GDFTYP 	= 5;
+		    	hdr->CHANNEL[k].SPR 	= hdr->SPR;
+		    	hdr->CHANNEL[k].LeadIdCode  = 0;
+		    	hdr->CHANNEL[k].Off	= 0.0;
+			hdr->CHANNEL[k].OnOff   = 1;
+
+		    	hdr->CHANNEL[k].DigMax	=  ldexp(1,31);
+		    	hdr->CHANNEL[k].DigMin	= -ldexp(1,31);
+		    	hdr->CHANNEL[k].PhysMax	= hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+		    	hdr->CHANNEL[k].PhysMin	= hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+/*
+		    	hdr->CHANNEL[k].HighPass= CNT_SETTINGS_HIGHPASS[(uint8_t)Header2[64]];
+		    	hdr->CHANNEL[k].LowPass	= CNT_SETTINGS_LOWPASS[(uint8_t)Header2[65]];
+		    	hdr->CHANNEL[k].Notch	= CNT_SETTINGS_NOTCH[(uint8_t)Header1[682]];
+*/
+		}
+
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"CTF[109] %s: \n",hdr->FileName);
+
+		/********** read marker file **********/
+		char *f2 = (char*)malloc(strlen(f0)+16);
+		strcpy(f2,f0);
+#if	__MINGW32__
+		strcpy(strrchr(f2,'\\')+1,"MarkerFile.mrk");
+#else
+		strcpy(strrchr(f2,'/')+1,"MarkerFile.mrk");
+#endif
+		hdr->EVENT.SampleRate = hdr->SampleRate;
+		hdr->EVENT.N = 0;
+		
+		hdr->FileName = f2; 
+       		hdr = ifopen(hdr,"rb");
+	    	if (hdr->FILE.OPEN) { 	
+			size_t bufsiz = 4096;
+			count = 0;
+	    		char *vmrk=NULL;
+			while (!ifeof(hdr)) {
+			    	vmrk   = (char*)realloc(vmrk,count+bufsiz+1);
+			    	count += ifread(vmrk+count,1,bufsiz,hdr);
+			}
+		    	vmrk[count] = 0;	// add terminating \0 character
+			ifclose(hdr);
+
+			char *t1, *t2;
+			float u1,u2;
+			t1 = strstr(vmrk,"TRIAL NUMBER");
+			t2 = strtok(t1,"\x0a\x0d");
+			size_t N = 0; 
+			t2 = strtok(NULL,"\x0a\x0d");
+			while (t2 != NULL) {
+				sscanf(t2,"%f %f",&u1,&u2);
+
+				if (N+1 >= hdr->EVENT.N) {
+					hdr->EVENT.N  += 256;
+			 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
+					hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
+			 		hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR, hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
+					hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
+				}
+				hdr->EVENT.TYP[N] = 1;
+				hdr->EVENT.POS[N] = (uint32_t)(u1*hdr->SPR+u2*hdr->SampleRate);
+				hdr->EVENT.DUR[N] = 0;
+				hdr->EVENT.CHN[N] = 0;
+				N++; 
+
+				t2 = strtok(NULL,"\x0a\x0d");
+			}
+			hdr->EVENT.N = N;
+			free(vmrk); 
+		} 	
+		free(f2); 
+		/********** end reading event/marker file **********/
+
+
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"CTF[191] %s: %i %i %i %i\n",hdr->FileName,hdr->NS,hdr->SPR,hdr->NRec,count);
+
+		strcpy(strrchr(f1,'.')+1,"meg4");
+		hdr->FileName = f1; 
+		hdr = ifopen(hdr,"rb"); 
+		hdr->HeadLen  = ifread(hdr->AS.Header,1,8,hdr);
+		hdr->FLAG.SWAP= (__BYTE_ORDER == __LITTLE_ENDIAN); 
+	    	hdr->HeadLen  = 8; 
+	    	hdr->FILE.POS = 0; 
+
+		hdr->FileName = f0; 	
+		free(f1);
+
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"CTF[199] %s: %i %i %i %i\n",hdr->FileName,hdr->NS,hdr->SPR,hdr->NRec,count);
+
 	}
 
 	else if (hdr->TYPE==DEMG) {
@@ -4770,7 +4936,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	if ((hdr->TYPE==GDF) && (hdr->VERSION > 1.9)) {
 		for (k1=0,k2=0; k1<hdr->NS; k1++) {
 			CHptr 	= hdr->CHANNEL+k1;
-			// Initialize sparse channels with NaN's
+			// Initialize sparse channels with NaNs
 			if (CHptr->OnOff) {	/* read selected channels only */ 
 				if (CHptr->SPR==0) {	
 					// sparsely sampled channels are stored in event table
