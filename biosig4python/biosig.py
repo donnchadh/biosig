@@ -2,7 +2,7 @@
     Copyright (C) 2005-2006 by Martin Hieden <martin.hieden@gmx.at> 
 	             and Alois Schloegl <a.schloegl@ieee.org>
 
-    $Id: biosig.py,v 1.1.1.1 2006-03-24 18:17:06 schloegl Exp $
+    $Id: biosig.py,v 1.2 2008-05-13 11:21:25 schloegl Exp $
     This function is part of the "BioSig for Python" repository 
     (biosig4python) at http://biosig.sf.net/ 
 
@@ -176,10 +176,10 @@ try:
 ################
 	
 	try:
-		import scipy
-		from scipy import NaN
+		import numpy
+		from numpy import NaN
 	except ImportError:
-		raise __FATALERROR('SciPy or NumPy not found!\nPlease visit www.scipy.org or numeric.scipy.org for more information.')
+		raise __FATALERROR('NumPy not found!\nPlease visit numpy.scipy.org for more information.')
 	import math
 	import struct
 	import datetime
@@ -190,41 +190,39 @@ try:
 	
 	# not used so far:	
 	#	__FileFormat = ('ACQ', 'BKR', 'BDF', 'CNT', 'DEMG', 'EDF', 'EVENT', 'FLAC', 'GDF', 'MFER', 'NEX1', 'PLEXON') 
-	
+	type_not_supported = '%s not supported by this Numpy version!\nPlease visit numpy.scipy.org for more information.'
 	__HANDEDNESS = ('Unknown', 'Right', 'Left', 'Equal')
 	__GENDER = ('Unknown', 'Male', 'Female')
 	__SCALE = ('Unknown', 'No', 'Yes', 'Corrected')
 	
 	__GDFTYP_NAME = [None]
 	try:
-		from scipy import Int8
-		from scipy import UInt8
-		from scipy import Int16
-		from scipy import UInt16
-		from scipy import Int32
-		from scipy import UInt32
-		__GDFTYP_NAME.append(Int8)
-		__GDFTYP_NAME.append(UInt8)
-		__GDFTYP_NAME.append(Int16)
-		__GDFTYP_NAME.append(UInt16)
-		__GDFTYP_NAME.append(Int32)
-		__GDFTYP_NAME.append(UInt32)
+		from numpy import int8
+		from numpy import uint8
+		from numpy import int16
+		from numpy import uint16
+		from numpy import int32
+		from numpy import uint32
+		__GDFTYP_NAME.append(int8)
+		__GDFTYP_NAME.append(uint8)
+		__GDFTYP_NAME.append(int16)
+		__GDFTYP_NAME.append(uint16)
+		__GDFTYP_NAME.append(int32)
+		__GDFTYP_NAME.append(uint32)
 	except NameError:
-		raise __FATALERROR('Standard datatypes are not supported by this SciPy version!\nPlease visit www.scipy.org or numeric.scipy.org for more information.')
+		raise __FATALERROR(type_not_supported % 'Standard datatypes')
 	try:
-		from scipy import Int64 as Int64
-		__GDFTYP_NAME.append(Int64)
+		from numpy import int64
+		__GDFTYP_NAME.append(int64)
 	except NameError:
 		__GDFTYP_NAME.append(None)
-		print 'Int64 is not supported by this SciPy version.'
-		print 'Please visit www.scipy.org or numeric.scipy.org for more information.'
+		print type_not_supported % 'int64'
 	try:
-		from scipy import UInt64 as UInt64
-		__GDFTYP_NAME.append(UInt64)
+		from numpy import uint64
+		__GDFTYP_NAME.append(uint64)
 	except NameError:
 		__GDFTYP_NAME.append(None)
-		print 'UInt64 is not supported by this SciPy version.'
-		print 'Please visit www.scipy.org or numeric.scipy.org for more information.'
+		print type_not_supported % 'uint64'
 	__GDFTYP_NAME.append(None)
 	__GDFTYP_NAME.append(None)
 	__GDFTYP_NAME.append(None)
@@ -233,24 +231,23 @@ try:
 	__GDFTYP_NAME.append(None)
 	__GDFTYP_NAME.append(None)
 	try:
-		from scipy import Float32 as Float32
-		__GDFTYP_NAME.append(Float32)
+		from numpy import float32
+		__GDFTYP_NAME.append(float32)
 	except NameError:
-		raise __FATALERROR('Standard datatypes are not supported by this SciPy version!\nPlease visit www.scipy.org or numeric.scipy.org for more information.')
+		raise __FATALERROR(type_not_supported % 'Standard datatypes')
 	try:
-		from scipy import Float64 as Float64
-		__GDFTYP_NAME.append(Float64)
+		from numpy import float64 as float64
+		__GDFTYP_NAME.append(float64)
 	except NameError:
 		__GDFTYP_NAME.append(None)
-		print 'Float64 is not supported by this SciPy version.'
-		print 'Please visit www.scipy.org or numeric.scipy.org for more information.'
+		print type_not_supported % 'float64'
 	#try:
-	#	from scipy import Float128
-	#	__GDFTYP_NAME.append(Float128)
+	#	from numpy import float128
+	#	__GDFTYP_NAME.append(float128)
 	#except NameError:
 	#	__GDFTYP_NAME.append(None)
-	#	print 'Float128 is not supported by this SciPy version.'
-	#	print 'Please visit www.scipy.org or numeric.scipy.org for more information.'
+	#	print 'float128 is not supported by this SciPy version.'
+	#	print 'Please visit www.numpy.org or numeric.numpy.org for more information.'
 	
 	__GDFTYP_BYTE = (1, 1, 1, 2, 2, 4, 4, 8, 8, 4, 8, 0, 0, 0, 0, 0, 4, 8, 16)
 	
@@ -299,8 +296,8 @@ class CHANNEL_TYPE:
 	Off = 0		# bias 
 
 class DATA_TYPE:
-	size = scipy.array([0,0])	# size {rows, columns} of data block	
-	block =  scipy.array([])	# data block  
+	size = numpy.array([0,0])	# size {rows, columns} of data block	
+	block =  numpy.array([])	# data block  
 	
 class IMPAIRMENT_TYPE:
 	Visual = 'Unknown'
@@ -372,7 +369,7 @@ class AS_TYPE:
 	bpb = 0		# total bytes per block
 	bi = 0
 	Header1 = ''
-	rawdata = scipy.array([])	# raw data block 
+	rawdata = numpy.array([])	# raw data block 
 
 class HDR_TYPE:
 	TYPE = ''	# type of file format
@@ -478,7 +475,7 @@ def sopen(FileName, MODE = 'r', HDR = HDR_TYPE()):
 						HDR.Patient.Name = pid[3]
 				
 				HDR.NRec = int(HDR.FILE.FID.read(8))
-				HDR.Dur = scipy.array([float(HDR.FILE.FID.read(8)),1.])
+				HDR.Dur = numpy.array([float(HDR.FILE.FID.read(8)),1.])
 				HDR.NS = int(HDR.FILE.FID.read(4))
 				
 				#VARIABLE HEADER
@@ -551,14 +548,14 @@ def sopen(FileName, MODE = 'r', HDR = HDR_TYPE()):
 					
 					HDR.AS.RID = HDR.FILE.FID.read(80)
 					HDR.T0 = __gdf_time2py_time(HDR.FILE.FID.read(16))
-					HDR.HeadLen = scipy.fromstring(HDR.FILE.FID.read(8), Int64).tolist()[0]
-					HDR.ID.Equipment = scipy.fromstring(HDR.FILE.FID.read(8), UInt8)
-					HDR.ID.Hospital = scipy.fromstring(HDR.FILE.FID.read(8), UInt8)
-					HDR.ID.Technician = scipy.fromstring(HDR.FILE.FID.read(8), UInt8)
+					HDR.HeadLen = numpy.fromstring(HDR.FILE.FID.read(8), int64).tolist()[0]
+					HDR.ID.Equipment = numpy.fromstring(HDR.FILE.FID.read(8), uint8)
+					HDR.ID.Hospital = numpy.fromstring(HDR.FILE.FID.read(8), uint8)
+					HDR.ID.Technician = numpy.fromstring(HDR.FILE.FID.read(8), uint8)
 					HDR.FILE.FID.seek(20,1)	#20bytes reserved
-					HDR.NRec = scipy.fromstring(HDR.FILE.FID.read(8), Int64).tolist()[0]
-					HDR.Dur = scipy.fromstring(HDR.FILE.FID.read(8), UInt32)
-					HDR.NS = scipy.fromstring(HDR.FILE.FID.read(4), UInt32).tolist()[0]
+					HDR.NRec = numpy.fromstring(HDR.FILE.FID.read(8), int64).tolist()[0]
+					HDR.Dur = numpy.fromstring(HDR.FILE.FID.read(8), uint32)
+					HDR.NS = numpy.fromstring(HDR.FILE.FID.read(4), uint32).tolist()[0]
 					
 					#VARIABLE HEADER
 					HDR.SPR = 1
@@ -572,21 +569,21 @@ def sopen(FileName, MODE = 'r', HDR = HDR_TYPE()):
 						i = i + (HDR.NS-k)*80 + k*8
 						HDR.CHANNEL[k].PhysDim = vh[i:i+8]
 						i = i + (HDR.NS-k)*8 + k*8
-						HDR.CHANNEL[k].PhysMin = scipy.fromstring(vh[i:i+8], Float64).tolist()[0]
+						HDR.CHANNEL[k].PhysMin = numpy.fromstring(vh[i:i+8], float64).tolist()[0]
 						i = i + (HDR.NS-k)*8 + k*8
-						HDR.CHANNEL[k].PhysMax = scipy.fromstring(vh[i:i+8], Float64).tolist()[0]
+						HDR.CHANNEL[k].PhysMax = numpy.fromstring(vh[i:i+8], float64).tolist()[0]
 						i = i + (HDR.NS-k)*8 + k*8
-						HDR.CHANNEL[k].DigMin = scipy.fromstring(vh[i:i+8], Int64).tolist()[0]
+						HDR.CHANNEL[k].DigMin = numpy.fromstring(vh[i:i+8], int64).tolist()[0]
 						i = i + (HDR.NS-k)*8 + k*8
-						HDR.CHANNEL[k].DigMax = scipy.fromstring(vh[i:i+8], Int64).tolist()[0]
+						HDR.CHANNEL[k].DigMax = numpy.fromstring(vh[i:i+8], int64).tolist()[0]
 						i = i + (HDR.NS-k)*8 + k*80
 						HDR.CHANNEL[k].PreFilt = vh[i:i+80]
 						i = i + (HDR.NS-k)*80 + k*4
-						HDR.CHANNEL[k].SPR = scipy.fromstring(vh[i:i+4], UInt32).tolist()[0]
+						HDR.CHANNEL[k].SPR = numpy.fromstring(vh[i:i+4], uint32).tolist()[0]
 						HDR.SPR = __lcm(HDR.SPR, HDR.CHANNEL[k].SPR)	# least common SPR
 						HDR.AS.spb = HDR.AS.spb + HDR.CHANNEL[k].SPR
 						i = i + (HDR.NS-k)*4 + k*4
-						HDR.CHANNEL[k].GDFTYP = scipy.fromstring(vh[i:i+4], UInt32).tolist()[0]
+						HDR.CHANNEL[k].GDFTYP = numpy.fromstring(vh[i:i+4], uint32).tolist()[0]
 						HDR.CHANNEL[k].bpr = __GDFTYP_BYTE[HDR.CHANNEL[k].GDFTYP] * HDR.CHANNEL[k].SPR
 						HDR.AS.bpb = HDR.AS.bpb + HDR.CHANNEL[k].bpr
 						i = i + (HDR.NS-k)*4 + k*32
@@ -604,19 +601,19 @@ def sopen(FileName, MODE = 'r', HDR = HDR_TYPE()):
 					HDR.FILE.FID.seek(etp)
 					etmode = HDR.FILE.FID.read(1)
 					if etmode != '':
-						etmode = scipy.fromstring(etmode, UInt8).tolist()[0]
-						sr = scipy.fromstring(HDR.FILE.FID.read(3), UInt8)
+						etmode = numpy.fromstring(etmode, uint8).tolist()[0]
+						sr = numpy.fromstring(HDR.FILE.FID.read(3), uint8)
 						HDR.EVENT.SampleRate = sr[0]
 						for i in range(1,len(sr)):
 							HDR.EVENT.SampleRate = HDR.EVENT.SampleRate + sr[i]*2**i
 						
-						HDR.EVENT.N = scipy.fromstring(HDR.FILE.FID.read(4), UInt32).tolist()[0]
-						HDR.EVENT.POS = scipy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*4), UInt32)
-						HDR.EVENT.TYP = scipy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*2), UInt16)
+						HDR.EVENT.N = numpy.fromstring(HDR.FILE.FID.read(4), uint32).tolist()[0]
+						HDR.EVENT.POS = numpy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*4), uint32)
+						HDR.EVENT.TYP = numpy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*2), uint16)
 						
 						if etmode == 3:
-							HDR.EVENT.CHN = scipy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*2), UInt16)
-							HDR.EVENT.DUR = scipy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*4), UInt32)
+							HDR.EVENT.CHN = numpy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*2), uint16)
+							HDR.EVENT.DUR = numpy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*4), uint32)
 					
 					#Finished reading Header
 					HDR.FILE.OPEN = 1
@@ -638,26 +635,26 @@ def sopen(FileName, MODE = 'r', HDR = HDR_TYPE()):
 						HDR.Patient.Name = pid[1]
 					
 					HDR.FILE.FID.seek(10,1)	#10bytes reserved
-					sadm = scipy.fromstring(HDR.FILE.FID.read(1), UInt8).tolist()[0]	#Smoking / Alcohol abuse / drug abuse / medication
+					sadm = numpy.fromstring(HDR.FILE.FID.read(1), uint8).tolist()[0]	#Smoking / Alcohol abuse / drug abuse / medication
 					HDR.Patient.Smoking = __SCALE[sadm%4]
 					HDR.Patient.AlcoholAbuse = __SCALE[(sadm>>2)%4]
 					HDR.Patient.DrugAbuse = __SCALE[(sadm>>4)%4]
 					HDR.Patient.Medication = __SCALE[(sadm>>6)%4]
 					
-					HDR.Patient.Weight = scipy.fromstring(HDR.FILE.FID.read(1), UInt8).tolist()[0]
+					HDR.Patient.Weight = numpy.fromstring(HDR.FILE.FID.read(1), uint8).tolist()[0]
 					if HDR.Patient.Weight == 0 or HDR.Patient.Weight == 255:
 						HDR.Patient.Weight = NaN
-					HDR.Patient.Height = scipy.fromstring(HDR.FILE.FID.read(1), UInt8).tolist()[0]
+					HDR.Patient.Height = numpy.fromstring(HDR.FILE.FID.read(1), uint8).tolist()[0]
 					if HDR.Patient.Height == 0 or HDR.Patient.Height == 255:
 						HDR.Patient.Height = NaN
-					ghi = scipy.fromstring(HDR.FILE.FID.read(1), UInt8).tolist()[0]	#Gender / Handedness / Visual Impairment
+					ghi = numpy.fromstring(HDR.FILE.FID.read(1), uint8).tolist()[0]	#Gender / Handedness / Visual Impairment
 					HDR.Patient.Sex = __GENDER[ghi%4]
 					HDR.Patient.Handedness = __HANDEDNESS[(ghi>>2)%4]
 					HDR.Patient.Impairment.Visual = __SCALE[(ghi>>4)%4]
 					
 					HDR.AS.RID = HDR.FILE.FID.read(64)
 					rl = HDR.FILE.FID.read(16)	#Recording location (Lat, Long, Alt)
-					vhsv = scipy.fromstring(rl[0:4], UInt8)
+					vhsv = numpy.fromstring(rl[0:4], uint8)
 					if vhsv[3] == 0:
 						HDR.LOC.VertPre = 10 * int(vhsv[0]>>4) + int(vhsv[0]%16)
 						HDR.LOC.HorzPre = 10 * int(vhsv[1]>>4) + int(vhsv[1]%16)
@@ -667,12 +664,12 @@ def sopen(FileName, MODE = 'r', HDR = HDR_TYPE()):
 						HDR.LOC.HorizPre = 29
 						HDR.LOC.Size = 29
 					HDR.LOC.Version = 0
-					HDR.LOC.Latitude = float(scipy.fromstring(rl[4:8], UInt32).tolist()[0]) / 3600000
-					HDR.LOC.Longitude = float(scipy.fromstring(rl[8:12], UInt32).tolist()[0]) / 3600000
-					HDR.LOC.Altitude = float(scipy.fromstring(rl[12:16], Int32).tolist()[0]) / 100
+					HDR.LOC.Latitude = float(numpy.fromstring(rl[4:8], uint32).tolist()[0]) / 3600000
+					HDR.LOC.Longitude = float(numpy.fromstring(rl[8:12], uint32).tolist()[0]) / 3600000
+					HDR.LOC.Altitude = float(numpy.fromstring(rl[12:16], int32).tolist()[0]) / 100
 					
-					HDR.T0 = __gdf2_time2py_time(scipy.fromstring(HDR.FILE.FID.read(8), UInt64).tolist()[0])
-					HDR.Patient.Birthday = __gdf2_time2py_time(scipy.fromstring(HDR.FILE.FID.read(8), UInt64).tolist()[0])
+					HDR.T0 = __gdf2_time2py_time(numpy.fromstring(HDR.FILE.FID.read(8), uint64).tolist()[0])
+					HDR.Patient.Birthday = __gdf2_time2py_time(numpy.fromstring(HDR.FILE.FID.read(8), uint64).tolist()[0])
 					if HDR.Patient.Birthday != datetime.datetime(1,1,1,0,0):
 						today = datetime.datetime.today()
 						HDR.Patient.Age = today.year - HDR.Patient.Birthday.year
@@ -682,19 +679,19 @@ def sopen(FileName, MODE = 'r', HDR = HDR_TYPE()):
 					else:
 						Age = NaN
 					
-					HDR.HeadLen = scipy.fromstring(HDR.FILE.FID.read(2), UInt16).tolist()[0]*256
+					HDR.HeadLen = numpy.fromstring(HDR.FILE.FID.read(2), uint16).tolist()[0]*256
 					HDR.FILE.FID.seek(6,1)	#6bytes reserved
-					HDR.ID.Equipment = scipy.fromstring(HDR.FILE.FID.read(8), UInt8)
-					HDR.IPaddr = scipy.fromstring(HDR.FILE.FID.read(6), UInt8)
-					HDR.Patient.Headsize = scipy.fromstring(HDR.FILE.FID.read(6), UInt16)
-					HDR.Patient.Headsize = scipy.asarray(HDR.Patient.Headsize, Float32)
-					HDR.Patient.Headsize = scipy.ma.masked_array(HDR.Patient.Headsize, scipy.equal(HDR.Patient.Headsize, 0), NaN).filled()
+					HDR.ID.Equipment = numpy.fromstring(HDR.FILE.FID.read(8), uint8)
+					HDR.IPaddr = numpy.fromstring(HDR.FILE.FID.read(6), uint8)
+					HDR.Patient.Headsize = numpy.fromstring(HDR.FILE.FID.read(6), uint16)
+					HDR.Patient.Headsize = numpy.asarray(HDR.Patient.Headsize, float32)
+					HDR.Patient.Headsize = numpy.ma.masked_array(HDR.Patient.Headsize, numpy.equal(HDR.Patient.Headsize, 0), NaN).filled()
 					
-					HDR.ELEC.REF = scipy.fromstring(HDR.FILE.FID.read(12), Float32)
-					HDR.ELEC.GND = scipy.fromstring(HDR.FILE.FID.read(12), Float32)
-					HDR.NRec = scipy.fromstring(HDR.FILE.FID.read(8), Int64).tolist()[0]
-					HDR.Dur = scipy.fromstring(HDR.FILE.FID.read(8), UInt32)
-					HDR.NS = scipy.fromstring(HDR.FILE.FID.read(2), UInt16).tolist()[0]
+					HDR.ELEC.REF = numpy.fromstring(HDR.FILE.FID.read(12), float32)
+					HDR.ELEC.GND = numpy.fromstring(HDR.FILE.FID.read(12), float32)
+					HDR.NRec = numpy.fromstring(HDR.FILE.FID.read(8), int64).tolist()[0]
+					HDR.Dur = numpy.fromstring(HDR.FILE.FID.read(8), uint32)
+					HDR.NS = numpy.fromstring(HDR.FILE.FID.read(2), uint16).tolist()[0]
 					HDR.FILE.FID.seek(2,1)	#2bytes reserved
 					
 					#VARIABLE HEADER
@@ -709,35 +706,35 @@ def sopen(FileName, MODE = 'r', HDR = HDR_TYPE()):
 						i = i + (HDR.NS-k)*80 + k*6
 						HDR.CHANNEL[k].PhysDim = vh[i:i+6]
 						i = i + (HDR.NS-k)*6 + k*2
-						HDR.CHANNEL[k].PhysDimCode = scipy.fromstring(vh[i:i+2], UInt16).tolist()[0]
+						HDR.CHANNEL[k].PhysDimCode = numpy.fromstring(vh[i:i+2], uint16).tolist()[0]
 						i = i + (HDR.NS-k)*2 + k*8
-						HDR.CHANNEL[k].PhysMin = scipy.fromstring(vh[i:i+8], Float64).tolist()[0]
+						HDR.CHANNEL[k].PhysMin = numpy.fromstring(vh[i:i+8], float64).tolist()[0]
 						i = i + (HDR.NS-k)*8 + k*8
-						HDR.CHANNEL[k].PhysMax = scipy.fromstring(vh[i:i+8], Float64).tolist()[0]
+						HDR.CHANNEL[k].PhysMax = numpy.fromstring(vh[i:i+8], float64).tolist()[0]
 						i = i + (HDR.NS-k)*8 + k*8
-						HDR.CHANNEL[k].DigMin = scipy.fromstring(vh[i:i+8], Float64).tolist()[0]
+						HDR.CHANNEL[k].DigMin = numpy.fromstring(vh[i:i+8], float64).tolist()[0]
 						i = i + (HDR.NS-k)*8 + k*8
-						HDR.CHANNEL[k].DigMax = scipy.fromstring(vh[i:i+8], Float64).tolist()[0]
+						HDR.CHANNEL[k].DigMax = numpy.fromstring(vh[i:i+8], float64).tolist()[0]
 						i = i + (HDR.NS-k)*8 + k*68
 						HDR.CHANNEL[k].PreFilt = vh[i:i+68]
 						i = i + (HDR.NS-k)*68 + k*4
-						HDR.CHANNEL[k].LowPass = scipy.fromstring(vh[i:i+4], Float32).tolist()[0]
+						HDR.CHANNEL[k].LowPass = numpy.fromstring(vh[i:i+4], float32).tolist()[0]
 						i = i + (HDR.NS-k)*4 + k*4
-						HDR.CHANNEL[k].HighPass = scipy.fromstring(vh[i:i+4], Float32).tolist()[0]
+						HDR.CHANNEL[k].HighPass = numpy.fromstring(vh[i:i+4], float32).tolist()[0]
 						i = i + (HDR.NS-k)*4 + k*4
-						HDR.CHANNEL[k].Notch = scipy.fromstring(vh[i:i+4], Float32).tolist()[0]
+						HDR.CHANNEL[k].Notch = numpy.fromstring(vh[i:i+4], float32).tolist()[0]
 						i = i + (HDR.NS-k)*4 + k*4
-						HDR.CHANNEL[k].SPR = scipy.fromstring(vh[i:i+4], UInt32).tolist()[0]
+						HDR.CHANNEL[k].SPR = numpy.fromstring(vh[i:i+4], uint32).tolist()[0]
 						HDR.SPR = __lcm(HDR.SPR, HDR.CHANNEL[k].SPR)	# least common SPR
 						HDR.AS.spb = HDR.AS.spb + HDR.CHANNEL[k].SPR
 						i = i + (HDR.NS-k)*4 + k*4
-						HDR.CHANNEL[k].GDFTYP = scipy.fromstring(vh[i:i+4], UInt32).tolist()[0]
+						HDR.CHANNEL[k].GDFTYP = numpy.fromstring(vh[i:i+4], uint32).tolist()[0]
 						HDR.CHANNEL[k].bpr = __GDFTYP_BYTE[HDR.CHANNEL[k].GDFTYP] * HDR.CHANNEL[k].SPR
 						HDR.AS.bpb = HDR.AS.bpb + HDR.CHANNEL[k].bpr
 						i = i + (HDR.NS-k)*4 + k*12
-						HDR.CHANNEL[k].XYZ = scipy.fromstring(vh[i:i+12], Float32)
+						HDR.CHANNEL[k].XYZ = numpy.fromstring(vh[i:i+12], float32)
 						i = i + (HDR.NS-k)*12 + k*1
-						HDR.CHANNEL[k].Impedance= pow(2,float(scipy.fromstring(vh[i:i+1], UInt8)[0])/8)
+						HDR.CHANNEL[k].Impedance= pow(2,float(numpy.fromstring(vh[i:i+1], uint8)[0])/8)
 						i = i + (HDR.NS-k)*1 + k*19
 						#reserved
 						i = i +(HDR.NS-k)*19
@@ -754,27 +751,27 @@ def sopen(FileName, MODE = 'r', HDR = HDR_TYPE()):
 					HDR.FILE.FID.seek(etp)
 					etmode = HDR.FILE.FID.read(1)
 					if etmode != '':
-						etmode = scipy.fromstring(etmode, UInt8).tolist()[0]
+						etmode = numpy.fromstring(etmode, uint8).tolist()[0]
 						
 						if HDR.VERSION < 1.94:
-							sr = scipy.fromstring(HDR.FILE.FID.read(3), UInt8)
+							sr = numpy.fromstring(HDR.FILE.FID.read(3), uint8)
 							HDR.EVENT.SampleRate = sr[0]
 							for i in range(1,len(sr)):
 								HDR.EVENT.SampleRate = HDR.EVENT.SampleRate + sr[i]*2**i
-							HDR.EVENT.N = scipy.fromstring(HDR.FILE.FID.read(4), UInt32).tolist()[0]
+							HDR.EVENT.N = numpy.fromstring(HDR.FILE.FID.read(4), uint32).tolist()[0]
 						else:
-							ne = scipy.fromstring(HDR.FILE.FID.read(3), UInt8)
+							ne = numpy.fromstring(HDR.FILE.FID.read(3), uint8)
 							HDR.EVENT.N = ne[0]
 							for i in range(1,len(ne)):
 								HDR.EVENT.N = HDR.EVENT.N + ne[i]*2**i
-							HDR.EVENT.SampleRate = scipy.fromstring(HDR.FILE.FID.read(4), Float32).tolist()[0]
+							HDR.EVENT.SampleRate = numpy.fromstring(HDR.FILE.FID.read(4), float32).tolist()[0]
 
-						HDR.EVENT.POS = scipy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*4), UInt32)
-						HDR.EVENT.TYP = scipy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*2), UInt16)
+						HDR.EVENT.POS = numpy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*4), uint32)
+						HDR.EVENT.TYP = numpy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*2), uint16)
 						
 						if etmode == 3:
-							HDR.EVENT.CHN = scipy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*2), UInt16)
-							HDR.EVENT.DUR = scipy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*4), UInt32)
+							HDR.EVENT.CHN = numpy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*2), uint16)
+							HDR.EVENT.DUR = numpy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*4), uint32)
 					
 					#Finished reading Header
 					HDR.FILE.OPEN = 1
@@ -860,10 +857,10 @@ def sread(HDR, length = -1, start = 0):
 		if length == -1:
 			length = HDR.NRec	# read all blocks
 		length = max(min(length, HDR.NRec - HDR.FILE.POS),0)		# number of blocks to read
-		HDR.data.block = scipy.ones((HDR.SPR * length,ns), Float64) * NaN	# right sized output matrix filled with NaN's
+		HDR.data.block = numpy.ones((HDR.SPR * length,ns), float64) * NaN	# right sized output matrix filled with NaN's
 		raw = HDR.FILE.FID.read(HDR.AS.bpb * length)			# read input string from file
 		
-		for i in range(scipy.size(HDR.data.block)):
+		for i in range(numpy.size(HDR.data.block)):
 			row = i / (ns * HDR.SPR) * HDR.SPR + i % HDR.SPR
 			column = (i / HDR.SPR) % ns
 			ch = channel[column]
@@ -896,7 +893,7 @@ def sread(HDR, length = -1, start = 0):
 				# BDF
 				if HDR.CHANNEL[ch].GDFTYP == 255 + 24:
 					bend = bstart + 3
-					value = scipy.fromstring(raw[bstart:bend], UInt8).tolist()
+					value = numpy.fromstring(raw[bstart:bend], uint8).tolist()
 					if value[2] >= 128:	# minus
 						value = value[0] + value[1] * 2**8 + (value[2] - 256) * 2**16
 					else:			# plus
@@ -904,7 +901,7 @@ def sread(HDR, length = -1, start = 0):
 				# EDF, GDF
 				elif HDR.CHANNEL[ch].GDFTYP < 18:
 					bend = bstart + __GDFTYP_BYTE[HDR.CHANNEL[ch].GDFTYP]
-					value = scipy.fromstring(raw[bstart:bend], __GDFTYP_NAME[HDR.CHANNEL[ch].GDFTYP]).tolist()[0]
+					value = numpy.fromstring(raw[bstart:bend], __GDFTYP_NAME[HDR.CHANNEL[ch].GDFTYP]).tolist()[0]
 					
 				else:
 					raise __FATALERROR('Error SREAD: datatype ' + HDR.CHANNEL[ch].GDFTYP + ' not supported!')
