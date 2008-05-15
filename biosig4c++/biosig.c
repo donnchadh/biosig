@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.188 2008-05-09 23:09:47 schloegl Exp $
+    $Id: biosig.c,v 1.189 2008-05-15 14:29:03 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -972,14 +972,14 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
     	int k,k1;
 
 	EndianTest.testword = 0x4a3b2c1d; 
-	hdr->FILE.LittleEndian = (EndianTest.testbyte[0]==0x1d); 
+	uint8_t	LittleEndian = (EndianTest.testbyte[0]==0x1d); 
 	
-	if  ((hdr->FILE.LittleEndian) && (__BYTE_ORDER == __BIG_ENDIAN))	{
+	if  ((LittleEndian) && (__BYTE_ORDER == __BIG_ENDIAN))	{
 		B4C_ERRNUM = B4C_ENDIAN_PROBLEM;
 		B4C_ERRMSG = "Panic: mixed results on Endianity test.";
 		exit(-1); 
 	}		
-	if  ((!hdr->FILE.LittleEndian) && (__BYTE_ORDER == __LITTLE_ENDIAN))	{
+	if  ((!LittleEndian) && (__BYTE_ORDER == __LITTLE_ENDIAN))	{
 		B4C_ERRNUM = B4C_ENDIAN_PROBLEM;
 		B4C_ERRMSG = "Panic: mixed results on Endianity test.";
 		exit(-1); 
@@ -1249,7 +1249,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 
     	else if (!memcmp(Header1,"HeaderLen=",10)) {
 	    	hdr->TYPE = BCI2000;
-	    	hdr->VERSION = 1;
+	    	hdr->VERSION = 1.0;
 	}    	
     	else if (!memcmp(Header1,"BCI2000",7)) {
 	    	hdr->TYPE = BCI2000;
@@ -1276,6 +1276,14 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     	else if (!memcmp(Header1,"MEG4",4))
 	    	hdr->TYPE = CTF; 
 
+    	else if (!memcmp(Header1,"MEG4",4))
+	    	hdr->TYPE = CTF;
+    	else if (!memcmp(Header1,"CTF_MRI_FORMAT VER 2.2",22))
+	    	hdr->TYPE = CTF;
+    	else if (!memcmp(Header1,"PATH OF DATASET:",16))
+	    	hdr->TYPE = CTF;
+	    	
+    
     	else if (!memcmp(Header1,"DEMG",4))
 	    	hdr->TYPE = DEMG;
     	else if (!memcmp(Header1+128,"DICM",4))
@@ -1291,6 +1299,9 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = EDF;
 	    	hdr->VERSION = 0; 
 	}
+    	else if (!memcmp(Header1,"EEG-1100C ",10))
+	    	hdr->TYPE = EEG1100;
+
     	else if ((beu32p(hdr->AS.Header) > 1) && (beu32p(hdr->AS.Header) < 8)) {
 	    	hdr->TYPE = EGI;
 	    	hdr->VERSION = hdr->AS.Header[3];
@@ -1586,6 +1597,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	char*		ptr_str;
 	struct tm 	tm_time; 
 	time_t		tt;
+	uint16_t	BCI2000_StatusVectorLength=0;	// specific for BCI2000 format 
 	uint16_t	EGI_LENGTH_CODETABLE=0;	// specific for EGI format 
 
 	if (hdr==NULL)
@@ -1595,8 +1607,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 hdr->FLAG.SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 	// default: most data formats are little endian 
 if (!strncmp(MODE,"r",1))	
 {
- 	hdr->AS.Header = (uint8_t*)malloc(353);
-    	Header1[352] = 0;
+ 	hdr->AS.Header = (uint8_t*)malloc(352);
 	hdr->TYPE = noFile; 
 
 	hdr->FileName = FileName; 
@@ -2462,10 +2473,159 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		free(tmpfile);
 	}      	
 
+	else if (hdr->TYPE==BCI2000) {
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"[201] start reading BCI2000 data!\n");
+			
+		char *ptr, *t1;
+	    	hdr->HeadLen 	 = strtod((char*)(hdr->AS.Header+10),&ptr); 
+	    	hdr->NS 	 = strtod(strstr(ptr,"SourceCh=")+9,&ptr); 
+	    	hdr->SPR 	 = 0; 
+	    	BCI2000_StatusVectorLength = strtod(strstr(ptr,"StatevectorLen=")+15,&ptr); 
+	    	t1 = strstr(ptr,"DataFormat=");
+	    	uint16_t gdftyp	 = 3; 
+	    	if (t1 != NULL) {
+	    		if (0);  
+	    		else if (!strncmp(ptr+11,"int16",3))
+	    			gdftyp = 3; 
+	    		else if (!strncmp(ptr+11,"int32",5))
+	    			gdftyp = 5; 
+	    		else if (!strncmp(ptr+11,"int24",5))
+	    			gdftyp = 255+24; 
+	    		else if (!strncmp(ptr+11,"uint16",3))
+	    			gdftyp = 4; 
+	    		else if (!strncmp(ptr+11,"uint32",5))
+	    			gdftyp = 6; 
+	    		else if (!strncmp(ptr+11,"uint24",5))
+	    			gdftyp = 511+24; 
+	    		else if (!strncmp(ptr+11,"float",5))
+	    			gdftyp = 16; 
+	    		else if (!strncmp(ptr+11,"double",6))
+	    			gdftyp = 17;
+	    		else {	 
+	    			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+	    			B4C_ERRMSG = "ERROR 1234 SOPEN(BCI2000): this option is not supported yet, contact <a.schloegl@ieee.org> if you want this problem fixed.\n";
+	    			return(hdr);
+	    		}
+	    	}
+		    	 
+		if (count <= hdr->HeadLen) {
+		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen+1);
+		    	count   += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
+		} 
+		else
+			ifseek(hdr,hdr->HeadLen,SEEK_SET);
+			   	
+		hdr->AS.Header[hdr->HeadLen]=0; 
+		hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
+
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"[202] %i %i  %s!\n",count, hdr->HeadLen,(char*)hdr->AS.Header);
+
+		double gain=0.0, offset=0.0, digmin=0.0, digmax=0.0;
+		int status = 0;
+		t1  = strtok((char*)hdr->AS.Header,"\x0a\x0d");		
+		ptr = strtok(NULL,"\x0a\x0d");
+		while (ptr != NULL) {
+
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"[203] %i:  %s !\n",status,ptr);
+
+
+			if (!strncmp(ptr,"[ State Vector Definition ]",26)) 
+				status = 1;
+			else if (!strncmp(ptr,"[ Parameter Definition ]",24))
+				status = 2;
+			else if (!strncmp(ptr,"[ ",2))
+				status = 3;
+
+			// else if (status==1); 
+			
+			else if (status==2) {
+				t1 = strstr(ptr,"SamplingRate=");
+				if (t1 != NULL)
+		    			hdr->SampleRate = strtod(t1+14,&ptr);
+		    			 
+				t1 = strstr(ptr,"SourceChGain=");
+				if (t1 != NULL) {
+		    			gain = strtod(t1+13,&ptr);
+		    			gain = strtod(ptr,&ptr);
+		    		}	 
+				t1 = strstr(ptr,"SourceChOffset=");
+				if (t1 != NULL) {
+		    			offset = strtod(t1+15,&ptr);
+		    			offset = strtod(ptr,&ptr);
+		    		}	 
+				t1 = strstr(ptr,"SourceMin=");
+				if (t1 != NULL)
+		    			digmin = strtod(t1+10,&ptr);
+		    			 
+				t1 = strstr(ptr,"SourceMax=");
+				if (t1 != NULL)
+		    			digmax = strtod(t1+10,&ptr);
+
+			else if (status==3); 
+			
+		    			
+		    			 
+			}
+			ptr = strtok(NULL,"\x0a\x0d");
+		}
+
+		for (k=0; k<hdr->NS; k++)	{
+			sprintf(hdr->CHANNEL[k].Label,"#%03i",k);
+
+			hdr->CHANNEL[k].PhysDimCode = 4275; // uV
+			hdr->CHANNEL[k].LeadIdCode = 0;
+			hdr->CHANNEL[k].OnOff  = 1;
+			hdr->CHANNEL[k].SPR    = 1;
+			hdr->CHANNEL[k].Cal    = gain; 
+			hdr->CHANNEL[k].Off    = offset; 
+			hdr->CHANNEL[k].GDFTYP = gdftyp;
+			hdr->CHANNEL[k].DigMax = digmax;
+			hdr->CHANNEL[k].DigMin = digmin;
+			hdr->CHANNEL[k].PhysMax= hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+			hdr->CHANNEL[k].PhysMin= hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+			
+		}
+		hdr->AS.bpb = (hdr->NS * (GDFTYP_BITS[gdftyp]>>3) + BCI2000_StatusVectorLength);
+		
+
+	        size_t skip = hdr->NS * (GDFTYP_BITS[gdftyp]>>3);
+	        count = 0; 
+	        size_t N = 0; 
+	        uint8_t *StatusVector = (uint8_t*) malloc(BCI2000_StatusVectorLength*2);
+	        while (!ifeof(hdr)) {
+		        ifseek(hdr, skip, SEEK_CUR);
+			ifread(StatusVector + BCI2000_StatusVectorLength*(count & 1), 1, BCI2000_StatusVectorLength, hdr);
+			count++;		
+			if (memcmp(StatusVector, StatusVector+BCI2000_StatusVectorLength, BCI2000_StatusVectorLength)) { 
+				if (N+1>=hdr->EVENT.N ) {
+					hdr->EVENT.N  += 1024;
+					hdr->EVENT.POS = (uint32_t*)realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
+					hdr->EVENT.TYP = (uint16_t*)realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
+				}
+					
+				hdr->EVENT.POS[N] = count;	
+				hdr->EVENT.TYP[N] = 1;	// this is a hack, maps all codes into "user specific events" 
+				N++;
+			}
+			hdr->EVENT.N = N; 
+		}        
+		hdr->NRec = (iftell(hdr) - hdr->HeadLen) / hdr->AS.bpb;
+	        ifseek(hdr, hdr->HeadLen, SEEK_SET);
+
+		free(StatusVector); 
+		
+
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"[209] header finished!\n");
+	}      	
+
 	else if (hdr->TYPE==BKR) {
 	    	hdr->HeadLen 	 = 1024; 
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
-	    	count   += ifread(hdr->AS.Header+count,1,1024-count,hdr);
+	    	count   += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
 		hdr->NS  	 = leu16p(hdr->AS.Header+2); 
 		hdr->NRec   	 = leu32p(hdr->AS.Header+6); 
 		hdr->SPR  	 = leu32p(hdr->AS.Header+10); 
@@ -3106,6 +3266,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->FILE.POS = 0; 
 	}
 
+	else if (hdr->TYPE==EEG1100) {
+		ifclose(hdr); 
+		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+		B4C_ERRMSG = "Format EEG1100 not supported\n";
+		return(hdr); 	
+	}
+
 	else if (hdr->TYPE==EGI) {
 	    	uint16_t gdftyp=3;
 		// BigEndian 
@@ -3352,6 +3519,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr->EVENT.TYP[hdr->EVENT.N-1] = Mark | 0x8000; 
 		}
 	    	hdr->FILE.POS = 0; 
+	}
+
+    	else if (hdr->TYPE==HDF) {
+#ifdef _HDF5_H
+#endif
+		ifclose(hdr); 
+		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+		B4C_ERRMSG = "Format HDF not supported\n";
+		return(hdr); 	
 	}
 
     	else if (hdr->TYPE==MFER) {	
@@ -3797,7 +3973,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		else  
 			ifseek(hdr,hdr->HeadLen,SEEK_SET); 
 						
-		
+#ifdef _NIFTI_HEADER_ 
+		nifti_1_header *NIFTI_HDR = (nifti_1_header*)hdr->AS.Header; 
+#endif 
+
 		ifclose(hdr); 
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "Format NIFTI not supported\n";
@@ -3977,7 +4156,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	for (k=0; k<hdr->NS; k++) {	
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 219] #=%i\n",k);
+		// if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 219] #=%i\n",k);
 
 		// set HDR.PhysDim
 		k1 = hdr->CHANNEL[k].PhysDimCode;
@@ -4549,7 +4728,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 }	// end of else 
 
 	// internal variables
-	if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> #info: @%p\n",&(hdr->CHANNEL));
+	// if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> #info: @%p\n",&(hdr->CHANNEL));
 
 	hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	hdr->AS.bpb = (hdr->TYPE==AINF ? 4 : 0); 
@@ -4561,9 +4740,11 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (hdr->CHANNEL[k].SPR > 0)  // ignore sparse channels
 			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
 
-		if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> Label #%02i: @%p %s\n",k,&(hdr->CHANNEL[k].Label),hdr->CHANNEL[k].Label);
+//		if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> Label #%02i: @%p %s\n",k,&(hdr->CHANNEL[k].Label),hdr->CHANNEL[k].Label);
 	}
-	if (hdr->TYPE==EGI) {
+	if (hdr->TYPE==BCI2000) 
+		hdr->AS.bpb += BCI2000_StatusVectorLength;
+	else if (hdr->TYPE==EGI) {
 		hdr->AS.bpb += EGI_LENGTH_CODETABLE * GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
 		if (hdr->AS.Header[3] & 0x01)	// triggered  
 			hdr->AS.bpb += 6;
@@ -5706,6 +5887,50 @@ int sflush_gdf_event_table(HDRTYPE* hdr)
 	return(0);		
 }
 
+
+/****************************************************************************/
+/**     SLOAD                                                              **/
+/**	loads header and data of one file                                  **/ 
+/****************************************************************************/
+HDRTYPE* sload(const char* FileName, size_t ChanList[], biosig_data_type** DATA)
+{
+	size_t k,ch,NS;
+	int status;
+	HDRTYPE* hdr; 
+	hdr = sopen(FileName,"r",NULL); 
+	if ((status=serror())) {
+		destructHDR(hdr);
+		return(NULL);
+	} 
+
+	/* ChanList is currently not supported. 	
+
+	if ((ChanList[0] == 1) && (ChanList[1] == 0)) { 	// all channels
+		for (k=0; k<hdr->NS; ++k)
+			hdr->CHANNEL[k].OnOff = 1; // set 
+	}		
+	else {		
+		for (k=0; k<hdr->NS; ++k)
+			hdr->CHANNEL[k].OnOff = 0; // reset 
+			
+		for (k=1; k<=ChanList[0]; ++k) {
+			size_t ch = (int)ChanList[k];
+			if ((ch < 1) || (ch > hdr->NS)) 
+				fprintf(stdout,"Invalid channel number CHAN(%i) = %i!\n",k,ch); 
+			else 	
+				hdr->CHANNEL[ch-1].OnOff = 1;  // set
+		}		
+	}
+	*/	
+
+	for (k=0; k<hdr->NS; k++)
+		if (hdr->CHANNEL[ch-1].OnOff) NS++;
+	
+	*DATA = (biosig_data_type*)realloc(*DATA,hdr->SPR*hdr->NRec*NS*sizeof(biosig_data_type));
+	sread(*DATA,0,hdr->NRec,hdr); 	
+	sclose(hdr);
+	return(hdr); 
+}
 
 
 /****************************************************************************/
