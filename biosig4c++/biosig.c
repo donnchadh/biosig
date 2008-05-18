@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.189 2008-05-15 14:29:03 schloegl Exp $
+    $Id: biosig.c,v 1.190 2008-05-18 21:34:23 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -3074,13 +3074,21 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		char *f1 	= (char*)malloc(strlen(f0)+6);
 		strcpy(f1,f0);
 		strcpy(strrchr(f1,'.')+1,"res4");
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"CTF[102]: %s\n\t%s\n",f0,f1);
+	
 		if (strcmp(strrchr(hdr->FileName,'.'),".res4")) {
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"CTF[103]:\n");
 			ifclose(hdr);
 			hdr->FileName = f1; 
 			hdr = ifopen(hdr,"rb"); 
 			count = 0;
 		} 
+
 		count += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"CTF[104]: %i %s\n\t%s\n",count,f0,f1);
+	
 		struct tm t;
 		sscanf((char*)(hdr->AS.Header+778),"%i:%i:i",&t.tm_hour,&t.tm_min,&t.tm_sec);
 		sscanf((char*)(hdr->AS.Header+778+255),"%i/%i/%i",&t.tm_mday,&t.tm_mon,&t.tm_year);
@@ -3098,22 +3106,26 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		
 		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,1844+CTF_RunSize+2); 		 	
 		count += ifread(hdr->AS.Header+count,1,CTF_RunSize+2,hdr);
-		int16_t CTF_NumberOfFilters = bei16p(hdr->AS.Header+1844+CTF_RunSize*26); 
+		int16_t CTF_NumberOfFilters = bei16p(hdr->AS.Header+1844+CTF_RunSize); 
 		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+CTF_NumberOfFilters*26+hdr->NS*(32+48+1280)); 		 	
 		count += ifread(hdr->AS.Header+count,1,CTF_NumberOfFilters*26+hdr->NS*(32+48+1280),hdr);
 		ifclose(hdr); 
 
 		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"CTF[102] %s: %i %i %i %i\n",hdr->FileName,hdr->NS,hdr->SPR,hdr->NRec,count);
+			fprintf(stdout,"CTF[102] %s: %i %i %i %i %i %i\n",hdr->FileName,hdr->NS,hdr->SPR,hdr->NRec,count,CTF_RunSize,CTF_NumberOfFilters);
 
 		size_t pos = 1846+CTF_RunSize+CTF_NumberOfFilters*26;
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS; k++) {
 
-			strncpy(hdr->CHANNEL[k].Label,(const char*)(hdr->AS.Header+pos+k*32),min(32,MAX_LENGTH_LABEL));
-			hdr->CHANNEL[k].Label[32]=0;
 
+			strncpy(hdr->CHANNEL[k].Label,(const char*)(hdr->AS.Header+pos+k*32),min(32,MAX_LENGTH_LABEL));
+			hdr->CHANNEL[k].Label[min(MAX_LENGTH_LABEL,32)]=0;
+
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"CTF[107]: #%i\t%x\t%s\n",k,pos+k*32,hdr->CHANNEL[k].Label);
+	
 			int16_t index = bei16p(hdr->AS.Header+pos+hdr->NS*32+k*(48+1280)); // index
 			hdr->CHANNEL[k].Cal = 1.0/bef64p(hdr->AS.Header+pos+hdr->NS*32+k*(48+1280)+16);
 			switch (index) {
@@ -3123,15 +3135,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				hdr->CHANNEL[k].Cal /= bef64p(hdr->AS.Header+pos+hdr->NS*32+k*(48+1280)+8);
 			}
 
-			hdr->CHANNEL[k].PhysDimCode = 0;
 		    	hdr->CHANNEL[k].GDFTYP 	= 5;
 		    	hdr->CHANNEL[k].SPR 	= hdr->SPR;
 		    	hdr->CHANNEL[k].LeadIdCode  = 0;
 		    	hdr->CHANNEL[k].Off	= 0.0;
 			hdr->CHANNEL[k].OnOff   = 1;
 
-		    	hdr->CHANNEL[k].DigMax	=  ldexp(1,31);
-		    	hdr->CHANNEL[k].DigMin	= -ldexp(1,31);
+			hdr->CHANNEL[k].PhysDimCode = 0;
+		    	hdr->CHANNEL[k].DigMax	= ldexp( 1.0,31);
+		    	hdr->CHANNEL[k].DigMin	= ldexp(-1.0,31);
 		    	hdr->CHANNEL[k].PhysMax	= hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 		    	hdr->CHANNEL[k].PhysMin	= hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 /*
@@ -3199,16 +3211,16 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		/********** end reading event/marker file **********/
 
 
-		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"CTF[191] %s: %i %i %i %i\n",hdr->FileName,hdr->NS,hdr->SPR,hdr->NRec,count);
-
 		strcpy(strrchr(f1,'.')+1,"meg4");
 		hdr->FileName = f1; 
 		hdr = ifopen(hdr,"rb"); 
+	    	hdr->HeadLen  = 8; 
 		hdr->HeadLen  = ifread(hdr->AS.Header,1,8,hdr);
 		hdr->FLAG.SWAP= (__BYTE_ORDER == __LITTLE_ENDIAN); 
-	    	hdr->HeadLen  = 8; 
-	    	hdr->FILE.POS = 0; 
+		hdr->FILE.POS = 0; 
+
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"CTF[191] %s: %i %i %i %i\n",hdr->FileName,hdr->NS,hdr->SPR,hdr->NRec,count);
 
 		hdr->FileName = f0; 	
 		free(f1);
@@ -4905,7 +4917,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 				sample_value = (biosig_data_type)(int16_t)bswap_16(*(int16_t*)ptr); 
 				break;
 			case 4: 
-				sample_value = (biosig_data_type)bswap_16(*(uint16_t*)ptr); 
+				sample_value = (biosig_data_type)(uint16_t)bswap_16(*(uint16_t*)ptr); 
 				break;
 			case 16: 
 				u.i32 = bswap_32(*(uint32_t*)(ptr));
@@ -4925,16 +4937,16 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
 				break;
 			case 5: 
-				sample_value = (biosig_data_type)bswap_32(*(int32_t*)ptr); 
+				sample_value = (biosig_data_type)(int32_t)bswap_32(*(int32_t*)ptr); 
 				break;
 			case 6: 
-				sample_value = (biosig_data_type)bswap_32(*(uint32_t*)ptr); 
+				sample_value = (biosig_data_type)(uint32_t)bswap_32(*(uint32_t*)ptr); 
 				break;
 			case 7: 
-				sample_value = (biosig_data_type)bswap_64(*(int64_t*)ptr); 
+				sample_value = (biosig_data_type)(int64_t)bswap_64(*(int64_t*)ptr); 
 				break;
 			case 8: 
-				sample_value = (biosig_data_type)bswap_64(*(uint64_t*)ptr); 
+				sample_value = (biosig_data_type)(uint64_t)bswap_64(*(uint64_t*)ptr); 
 				break;
 
 #if __BYTE_ORDER == __BIG_ENDIAN
