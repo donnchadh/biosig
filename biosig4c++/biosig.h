@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.97 2008-05-09 23:09:47 schloegl Exp $
+% $Id: biosig.h,v 1.98 2008-05-19 15:14:41 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -41,6 +41,12 @@ typedef char			int8_t;
 
 #endif
 
+#ifdef WITH_HDF5
+#include <hdf5.h>
+#endif 
+#ifdef WITH_NIFTI
+#include <nifti1.h>
+#endif 
 /* 
 	Including ZLIB enables reading gzipped files (they are decompressed on-the-fly)  
 	The output files can be zipped, too. 
@@ -93,7 +99,7 @@ enum FileFormat {
 	EDF, EEG1100, EEProbe, EGI, ELF, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, 
-	Matlab, MFER, MIDI, NetCDF, NEX1, NIFTI, OGG, 
+	Matlab, MFER, MIDI, MIT, NetCDF, NEX1, NIFTI, OGG, 
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, VRML, VTK, WAV, WMF, XML, XPM,
@@ -271,7 +277,7 @@ typedef struct {
 		uint32_t 	*POS ATT_ALI;	/* starting position [in samples] */
 		uint32_t 	*DUR ATT_ALI;	/* duration [in samples] */
 		uint16_t 	*CHN ATT_ALI;	/* channel number; 0: all channels  */
-		char		**Desc ATT_ALI; 	/* Description of Events */	
+		char		**Desc ATT_ALI 	__attribute__ ((deprecated)); 	/* Description of Events */	
 	} EVENT ATT_ALI; 
 
 	struct {	/* flags */
@@ -293,7 +299,7 @@ typedef struct {
 		size_t 		POS;		/* current reading/writing position [in blocks] */
 		//size_t 		POS2;		/* current reading/writing position [in samples] */
 		uint8_t		OPEN; 		/* 0: closed, 1:read, 2: write */
-		uint8_t		LittleEndian;
+		uint8_t		LittleEndian __attribute__ ((deprecated));
 		uint8_t		COMPRESSION;   /* 0: no compression 9: best compression */
 	} FILE; 
 
@@ -308,7 +314,7 @@ typedef struct {
 		uint8_t*	rawdata; 	/* raw data block */
 		size_t		rawdata_curblock;
 		size_t		rawdata_nextblock;
-		uint8_t*	auxBUF;		/* auxillary buffer - used for storing EVENT.Desc */
+		uint8_t*	auxBUF 	__attribute__ ((deprecated));		/* auxillary buffer - used for storing EVENT.Desc */
 	} AS ATT_ALI;
 	
 	CHANNEL_TYPE *CHANNEL ATT_ALI;  
@@ -443,6 +449,15 @@ int	hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSITY);
 
 const char* GetFileTypeString(enum FileFormat FMT);
 /*	returns a string with file format
+ ---------------------------------------------------------------*/
+
+
+HDRTYPE* sload(const char* FileName, size_t CHANLIST[], biosig_data_type** DATA);
+/*	FileName: name of file 
+	returns a HDR struct containing the header information 
+	CHANLIST[0] contains the length of the channel list 
+	CHANLIST[1..CHANLIST[0]] contains the selected channels 
+	and DATA points to a matrix with HDR.SPR*HDR.NRec samples and HDR.NS channels
  ---------------------------------------------------------------*/
 
 
