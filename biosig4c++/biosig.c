@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.191 2008-05-19 15:14:41 schloegl Exp $
+    $Id: biosig.c,v 1.192 2008-05-19 22:59:58 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -4057,7 +4057,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 
 		int fmt;
-		size_t MUL = 1; 
+		size_t MUL=1, MUL2=1; 
 		char **DatFiles = (char**)calloc(hdr->NS, sizeof(char*));
 		size_t *ByteOffset = (size_t*)calloc(hdr->NS, sizeof(size_t));
 		size_t nDatFiles = 0;
@@ -4095,7 +4095,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				hdr->CHANNEL[k].SPR = DIV;
 				MUL = lcm(MUL,DIV);
 			} else {
-				DIV = 1.0;
+				DIV = 1;
 				hdr->CHANNEL[k].SPR = hdr->SPR;
 			}	 
 			if (ptr[0]==':') skew = strtod(ptr+1,&ptr);
@@ -4134,10 +4134,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hc->Transducer[0] = '\0';
 			hc->LowPass  = -1;
 			hc->HighPass = -1;
-			hdr->FLAG.SWAP = !(__BYTE_ORDER == __BIG_ENDIAN); 
-			switch (fmt){
-			case 80: 	gdftyp = 2; 	//uint8; 
-					hc->Off = -128*hc->Cal;
+			hdr->FLAG.SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 
+			size_t NUM=1,DEN=1;
+			switch (fmt) {
+			case 80: 	gdftyp = 2; 	// uint8; 
+					hc->Off= -128*hc->Cal;
 					break; 	
 			case 16: 	gdftyp = 3; 
 					break; 
@@ -4145,30 +4146,36 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->FLAG.SWAP = !(__BYTE_ORDER == __BIG_ENDIAN); 
 					break; 
 			case 160: 	gdftyp = 4; 	// uint16;
-					hc->Off = ldexp(-1.0,15)*hc->Cal;
+					hc->Off= ldexp(-1.0,15)*hc->Cal;
 					break; 	
+			case 212: 	gdftyp = 255+12; 
+					NUM=3; DEN=2;
+					break;
 			case 8: 	gdftyp = 1;
-					break; 
-			case 212: 
-			case 310: 
-			case 311: 
-			;
+					// break; 
+			case 310: 	
+			case 311: 	NUM=4; DEN=3;
+				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+				B4C_ERRMSG = "Format 8/310/311 of MIT/HEA/PhysioBank not supported.\n";
 			}
-
+			if (hdr->CHANNEL[k].SPR * NUM * MUL2 % DEN) {
+				MUL2 *= DEN; 	
+			}
+			
 			hc->GDFTYP   = gdftyp;
-			hc->DigMax   =  ldexp(1,ADCresolution)-1.0 - ADCzero;
+			hc->DigMax   = ldexp(1,ADCresolution)-1.0 - ADCzero;
 			hc->DigMin   = -ADCzero;
 		    	hc->LeadIdCode  = 0;
 	 		hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
 	 		hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
 
-		if (VERBOSE_LEVEL>8)
-		    	fprintf(stdout,"[MIT 150] #%i: FMT=%i\n",k+1,fmt); 
-
+			if (VERBOSE_LEVEL>8)
+			    	fprintf(stdout,"[MIT 150] #%i: FMT=%i\n",k+1,fmt); 
 
 		}
 		hdr->SampleRate *= MUL; 
-		hdr->SPR 	*= MUL;				
+		hdr->SPR 	*= MUL * MUL2;				
+		hdr->NRec	/= MUL2;
 
 		if (VERBOSE_LEVEL>8)
 		    	fprintf(stdout,"[MIT 197] #%i: (%i) %s FMT=%i+%i\n",k+1,nDatFiles,DatFiles[0],fmt,ByteOffset[0]); 
@@ -4180,12 +4187,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			strcpy(f1,hdr->FileName);
 			hdr->FileName = f1; 
 			char *ptr = strrchr(hdr->FileName,FILESEP);
-			if (ptr != NULL) {
+			if (ptr != NULL) 
 				strcpy(ptr+1,DatFiles[0]);
-			} else 	
+			else 		
 				strcpy(f1,DatFiles[0]);
 			
-			hdr->HeadLen  = ByteOffset[0];  
+			hdr->HeadLen = ByteOffset[0];  
 			hdr = ifopen(hdr,"rb");
 			ifseek(hdr,hdr->HeadLen,SEEK_SET);
 			
