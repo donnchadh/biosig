@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.40 2008-04-24 08:06:03 schloegl Exp $
+    $Id: save2gdf.c,v 1.41 2008-05-20 18:04:00 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -160,6 +160,7 @@ int main(int argc, char **argv){
 
 	hdr->FLAG.OVERFLOWDETECTION = 0;
 	hdr->FLAG.UCAL = 1;
+	hdr->FLAG.ROW_BASED_CHANNELS = 0;
 	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[121]\n");
 //	count = sread(hdr, 0, hdr->NRec);
