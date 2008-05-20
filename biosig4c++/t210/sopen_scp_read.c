@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.56 2008-04-24 17:04:10 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.57 2008-05-20 11:07:35 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -457,6 +457,10 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	}
 
 	for (int K=1; K<NSections; K++)	{
+
+	if (VERBOSE_LEVEL>8)
+		fprintf(stdout,"%s(%i) ",hdr->FileName,K);
+		
 		curSect           = section[K].ID;
 		len		  = section[K].length;
 		sectionStart 	  = section[K].index;
@@ -884,6 +888,9 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			len = 0;  
 			size_t ix; 			
 			for (i=0; i < hdr->NS; i++) {
+				if (VERBOSE_LEVEL>8)
+					fprintf(stdout,"sec6-%i\n",i);
+				
 				hdr->CHANNEL[i].SPR 	    = hdr->SPR;
 				hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV"
 				hdr->CHANNEL[i].Cal 	    = Cal0 * 1e-3;
@@ -974,9 +981,12 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 			}
 
 			en1064.Section6.datablock = data; 
-			hdr->FLAG.SWAP  = 0;
 
 			curSectPos += 6 + 2*hdr->NS + len;
+
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"end sec6\n");
+
 		}
 
 		/**** SECTION 7 ****/
@@ -1131,7 +1141,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 		if (Cal0>1)
 			for (i=0; i < hdr->NS * hdr->SPR * hdr->NRec; ++i)
 				data[i] /= Cal0;
-		hdr->FLAG.SWAP  = 0;
 	}
 	else { 
 		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;

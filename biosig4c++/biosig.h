@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.98 2008-05-19 15:14:41 schloegl Exp $
+% $Id: biosig.h,v 1.99 2008-05-20 11:07:34 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -284,7 +284,7 @@ typedef struct {
 		char		OVERFLOWDETECTION; 	/* overflow & saturation detection 0: OFF, !=0 ON */
 		char		UCAL; 		/* UnCalibration  0: scaling  !=0: NO scaling - raw data return  */
 		char		ANONYMOUS; 	/* 1: anonymous mode, no personal names are processed */ 
-		char		SWAP; 	        /* 1: endian swapping is needed */ 
+		char		SWAP __attribute__ ((deprecated)); 	        /* 1: endian swapping is needed */ 
 		char		ROW_BASED_CHANNELS; 	        /* 0: column-based data [default]; 1: row-based data */ 
 	} FLAG ATT_ALI; 
 
@@ -299,8 +299,8 @@ typedef struct {
 		size_t 		POS;		/* current reading/writing position [in blocks] */
 		//size_t 		POS2;		/* current reading/writing position [in samples] */
 		uint8_t		OPEN; 		/* 0: closed, 1:read, 2: write */
-		uint8_t		LittleEndian __attribute__ ((deprecated));
-		uint8_t		COMPRESSION;   /* 0: no compression 9: best compression */
+		uint8_t		LittleEndian;   /* 1 if file is LittleEndian data format and 0 for big endian data format*/  
+		uint8_t		COMPRESSION;    /* 0: no compression 9: best compression */
 	} FILE; 
 
 	/*	internal variables (not public)  */
