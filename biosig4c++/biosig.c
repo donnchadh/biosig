@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.193 2008-05-20 12:15:10 schloegl Exp $
+    $Id: biosig.c,v 1.194 2008-05-20 21:50:11 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2597,7 +2597,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (t1 != NULL)
 		    			digmax = strtod(t1+10,&ptr);
 
-			else if (status==3); 
+			// else if (status==3); 
 			
 		    			
 		    			 
@@ -4001,13 +4001,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		if (VERBOSE_LEVEL>8)
 		    	fprintf(stdout,"[MIT 111]: \n"); 
 
+    		const int bufsiz = 1024;
 	    	while (!ifeof(hdr)) {
-	    		const int bufsiz = 1024;
 			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+bufsiz);
 		    	count += ifread(hdr->AS.Header+count, 1, bufsiz, hdr);
 	    	}
 	    	ifclose(hdr); 
-	    	
+
+		/* decode header information */ 	    	
 		if (VERBOSE_LEVEL>8)
 		    	fprintf(stdout,"[MIT 112]: %s\n",(char*)hdr->AS.Header); 
 
@@ -4191,7 +4192,84 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->NRec	/= MUL2;
 
 		if (VERBOSE_LEVEL>8)
-		    	fprintf(stdout,"[MIT 197] #%i: (%i) %s FMT=%i+%i\n",k+1,nDatFiles,DatFiles[0],fmt,ByteOffset[0]); 
+		    	fprintf(stdout,"[MIT 177] #%i: (%i) %s FMT=%i+%i\n",k+1,nDatFiles,DatFiles[0],fmt,ByteOffset[0]); 
+
+
+		/* read ATR annotation file */ 
+		const char *f0 = hdr->FileName;		
+		char *f1 = (char*) malloc(strlen(hdr->FileName)+5);
+		strcpy(f1,hdr->FileName);
+		strcpy(strrchr(f1,'.')+1,"atr");
+		hdr->FileName = f1; 
+		
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MIT 181] %s\n",f1); 
+
+		uint16_t *Marker=NULL; 
+		count = 0;
+		hdr   = ifopen(hdr,"r");
+		if (hdr->FILE.OPEN) {
+		    	while (!ifeof(hdr)) {
+				Marker = (uint16_t*)realloc(Marker,(count+bufsiz)*2);
+			    	count += ifread(Marker+count, 2, bufsiz, hdr);
+		    	}
+		    	ifclose(hdr); 
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"[MIT 182] %s %i\n",f1,count); 
+
+			/* decode ATR annotation information */
+			size_t N = count; 
+			hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,N*sizeof(typeof(*hdr->EVENT.TYP)));
+			hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,N*sizeof(typeof(*hdr->EVENT.POS)));
+			hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,N*sizeof(typeof(*hdr->EVENT.CHN)));
+			
+			hdr->EVENT.N   = 0;
+			hdr->EVENT.SampleRate = hdr->SampleRate;
+			uint16_t chn   = 0;  
+			size_t pos     = 0;
+			char flag_chn  = 0;
+			for (k=0; (k<N) && Marker[k]; k++) {
+				uint16_t a16 = leu16p(Marker+k);
+				uint16_t A   = a16 >> 10;
+				uint16_t len = a16 & 0x03ff;
+
+				if (VERBOSE_LEVEL>8) 
+					fprintf(stdout,"[MIT 183] k=%i/%i N=%i A=%i l=%i\n", k, N, hdr->EVENT.N, a16>>10, len); 
+
+				switch (A) {
+				case 59:	// SKIP  
+					pos += (((uint32_t)leu16p(Marker+k+1))<<16) + leu16p(Marker+k+2);
+					k   += 2; 
+					break;
+				case 60:	// NUM
+				case 61:	// SUB
+					break;
+				case 62: 	// CHN
+					flag_chn = 1; 
+					chn = len; 
+					break;
+				case 63: 	// AUX
+					k += (len+1)/2;
+					break; 
+				default:
+					pos += len;
+					hdr->EVENT.POS[hdr->EVENT.N] = pos; 
+					hdr->EVENT.TYP[hdr->EVENT.N] = A;
+					hdr->EVENT.CHN[hdr->EVENT.N] = chn;
+					++hdr->EVENT.N;
+				}
+			}
+			if (flag_chn)
+				hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,N*sizeof(typeof(*hdr->EVENT.DUR)));
+			else {
+				free(hdr->EVENT.CHN);
+				hdr->EVENT.CHN = NULL;
+			}		
+			free(Marker); 
+		}
+		free(f1);
+		hdr->FileName = f0;  
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MIT 185] \n"); 
 
 		/* open data file */
 		if ((nDatFiles == 1) && (fmt < 300)) {
@@ -4207,11 +4285,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			
 			hdr->HeadLen = ByteOffset[0];  
 			hdr = ifopen(hdr,"rb");
-			ifseek(hdr,hdr->HeadLen,SEEK_SET);
+			ifseek(hdr, hdr->HeadLen, SEEK_SET);
 			
 			free(f1); 
 			hdr->FileName = f0;  
 		}
+
 		if (VERBOSE_LEVEL>8)
 		    	fprintf(stdout,"[MIT 198] #%i: (%i) %s FMT=%i\n",k+1,nDatFiles,DatFiles[0],fmt); 
 
@@ -4233,7 +4312,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	count += ifread(hdr->AS.Header+count, 1, 352-count, hdr);
 	    	// nifti_1_header *NIFTI_HDR = (nifti_1_header*)hdr-AS.Header; 
 	    	char SWAP = *(int16_t*)(Header1+40) > 7; 
-#if (__BYTE_ORDER == __BIG_ENDIAN)
+#if   (__BYTE_ORDER == __BIG_ENDIAN)
 		hdr->FILE.LittleEndian = SWAP;  
 #elif (__BYTE_ORDER == __LITTLE_ENDIAN)
 		hdr->FILE.LittleEndian = !SWAP;  
