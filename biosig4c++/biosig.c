@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.194 2008-05-20 21:50:11 schloegl Exp $
+    $Id: biosig.c,v 1.195 2008-05-21 08:26:11 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -140,7 +140,6 @@ const char *LEAD_ID_TABLE[] = { "unspecified",
 	"ERL","ELA","ELB","ERA","ERB"
 */
 	, "\0\0" };  // stop marker 
-
 
 
 /****************************************************************************/
@@ -1010,9 +1009,9 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.size[0] = 0; 	// rows 
 	hdr->data.size[1] = 0;  // columns 
 	hdr->data.block = (biosig_data_type*)malloc(0); 
-      	hdr->T0 = t_time2gdf_time(time(NULL));
+      	hdr->T0 = (gdf_time)0; t_time2gdf_time(time(NULL));
       	hdr->tzmin = 0; 
-      	hdr->ID.Equipment = *(uint64_t*)&"b4c_0.62";
+      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.63";
       	hdr->ID.Manufacturer._field[0]    = 0;
       	hdr->ID.Manufacturer.Name         = " ";
       	hdr->ID.Manufacturer.Model        = " ";
@@ -4035,7 +4034,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		if (VERBOSE_LEVEL>8)
 		    	fprintf(stdout,"[MIT 121]: NS=%i\n",hdr->NS); 
 
-	    	if (ptr != NULL) {
+	    	if ((ptr != NULL) && strlen(ptr)) {
 			if (VERBOSE_LEVEL>8)
 			    	fprintf(stdout,"123: <%s>\n",ptr); 
 			hdr->SampleRate = strtod(ptr,&ptr);
@@ -4047,17 +4046,18 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				ptr++; // skip ")"
 			}
 	    	}
-	    	if (ptr != NULL) {
+	    	if ((ptr != NULL) && strlen(ptr)) {
 			hdr->NRec = strtod(ptr,&ptr);
 		}
-	    	if (ptr != NULL) {
-    			struct tm t; 
+	    	if ((ptr != NULL) && strlen(ptr)) {
+	    	//if (ptr == NULL) ptr="";
+			struct tm t; 
 			sscanf(ptr," %u:%u:%u %u/%u/%u",&t.tm_hour,&t.tm_min,&t.tm_sec,&t.tm_mday,&t.tm_mon,&t.tm_year);
 			t.tm_mon--;
 			t.tm_year -= 1900;
 			t.tm_isdst = -1; 
 			hdr->T0 = tm_time2gdf_time(&t);
-		}
+		}	
 
 
 		int fmt,FMT;
@@ -4190,23 +4190,58 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->SampleRate *= MUL; 
 		hdr->SPR 	*= MUL * MUL2;				
 		hdr->NRec	/= MUL2;
+		
+		/* read age, sex etc. */	
+		line = strtok(NULL,"\x0d\x0a"); 
+		if (line != NULL) {
+			char *t1;  
+			int sex=0;
+			double age=0.0, bmi;
+			for (k=0; k<strlen(line); k++) line[k]=toupper(line[k]);
+			t1 = strstr(line,"AGE:"); 
+			if (t1 != NULL) age = strtod(t1+4,&ptr); 			 
+			t1 = strstr(line,"AGE>:"); 
+			if (t1 != NULL) age = strtod(t1+5,&ptr);
+			if (age>0.0)
+				hdr->Patient.Birthday = hdr->T0 - (uint64_t)ldexp(age*365.25,32);	 
+			
+			t1 = strstr(line,"SEX:"); 
+			if (t1 != NULL) t1 += 4;  			 
+			else {
+				t1 = strstr(line,"SEX>:"); 
+				if (t1 != NULL) t1 += 5;
+			}	  			 
+			if (t1 != NULL) {
+			        while (isspace(t1[0])) t1++;
+			        hdr->Patient.Sex = (t1[0]=='M') + 2* (t1[0]=='F');
+			}        
+		}	
+		
 
 		if (VERBOSE_LEVEL>8)
 		    	fprintf(stdout,"[MIT 177] #%i: (%i) %s FMT=%i+%i\n",k+1,nDatFiles,DatFiles[0],fmt,ByteOffset[0]); 
 
 
 		/* read ATR annotation file */ 
+		uint16_t *Marker=NULL; 
+		count = 0;
+
 		const char *f0 = hdr->FileName;		
 		char *f1 = (char*) malloc(strlen(hdr->FileName)+5);
 		strcpy(f1,hdr->FileName);
 		strcpy(strrchr(f1,'.')+1,"atr");
 		hdr->FileName = f1; 
-		
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MIT 181] %s\n",f1); 
-
-		uint16_t *Marker=NULL; 
-		count = 0;
 		hdr   = ifopen(hdr,"r");
+		if (!hdr->FILE.OPEN) {
+			// if no *.atr file, try *.qrs 
+			strcpy(strrchr(f1,'.')+1,"qrs");
+			hdr   = ifopen(hdr,"r");
+		}
+		if (!hdr->FILE.OPEN) {
+			// *.ecg 
+			strcpy(strrchr(f1,'.')+1,"ecg");
+			hdr   = ifopen(hdr,"r");
+		}
 		if (hdr->FILE.OPEN) {
 		    	while (!ifeof(hdr)) {
 				Marker = (uint16_t*)realloc(Marker,(count+bufsiz)*2);
@@ -5430,7 +5465,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 
 			case (255+12):
 				// assume BIG_ENDIAN platform & BIG_ENDIAN format 
-				u.i16 = ((beu16(ptr) >> (4-bitoff)) & 0x0FFF;
+				u.i16 = ((beu16p(ptr) >> (4-bitoff)) & 0x0FFF;
 				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
 				sample_value = (biosig_data_type)u.i16; 
 				break;
@@ -5441,7 +5476,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 				break;
 			case (511+12): 
 				// assume BIG_ENDIAN platform & BIG_ENDIAN format 
-				sample_value = (biosig_data_type) ((beu16(ptr) >> (4-bitoff)) & 0x0FFF); 
+				sample_value = (biosig_data_type) ((beu16p(ptr) >> (4-bitoff)) & 0x0FFF); 
 				break;
 			case (511+24): 
 				// assume BIG_ENDIAN format
@@ -6389,7 +6424,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 			fprintf(fid,"unknown\n"); 
 		if (hdr->Patient.Birthday) {
 			T0 = gdf_time2t_time(hdr->Patient.Birthday);
-			fprintf(fid,"\tAge             : %4.1f years\n\tBirthday        : (%.6f) %s ",age,ldexp(hdr->Patient.Birthday,-32),asctime(gmtime(&T0)));
+			fprintf(fid,"\tAge             : %4.1f years\n\tBirthday        : (%.6f) %s ",age,ldexp(hdr->Patient.Birthday,-32),asctime(localtime(&T0)));
 		}
 		else
 			fprintf(fid,"\tAge             : ----\n\tBirthday        : unknown\n");
@@ -6397,7 +6432,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 		T0 = gdf_time2t_time(hdr->T0);
 		char tmp[60];
 		strftime(tmp, 59, "%x %X %Z", localtime(&T0));
-		fprintf(fid,"\tStartOfRecording: (%.6f) %s\n",ldexp(hdr->T0,-32),tmp); 
+		fprintf(fid,"\tStartOfRecording: (%.6f) %s\n",ldexp(hdr->T0,-32),asctime(localtime(&T0))); 
 	}
 		
 	if (VERBOSE_LEVEL>2) {
