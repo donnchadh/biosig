@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.195 2008-05-21 08:26:11 schloegl Exp $
+    $Id: biosig.c,v 1.196 2008-05-21 09:04:20 cle1109 Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -5465,7 +5465,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 
 			case (255+12):
 				// assume BIG_ENDIAN platform & BIG_ENDIAN format 
-				u.i16 = ((beu16p(ptr) >> (4-bitoff)) & 0x0FFF;
+				u.i16 = ((beu16p(ptr) >> (4-bitoff))) & 0x0FFF;
 				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
 				sample_value = (biosig_data_type)u.i16; 
 				break;
