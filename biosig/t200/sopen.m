@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.205 2008-04-29 13:10:37 schloegl Exp $
+%	$Id: sopen.m,v 1.206 2008-05-21 13:32:02 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -724,7 +724,7 @@ end;
                 
                 if 0, 
                         
-                elseif strcmp(HDR.TYPE,'GDF') & (HDR.AS.EVENTTABLEPOS > 0),  
+                elseif strcmp(HDR.TYPE,'GDF') && (HDR.AS.EVENTTABLEPOS > 0),  
                         status = fseek(HDR.FILE.FID, HDR.AS.EVENTTABLEPOS, 'bof');
 			if (HDR.VERSION<1.94),
     		                [EVENT.Version,c] = fread(HDR.FILE.FID,1,'uint8');
@@ -741,14 +741,15 @@ end;
                         [HDR.EVENT.POS,c1] = fread(HDR.FILE.FID,[EVENT.N,1],'uint32');
                         [HDR.EVENT.TYP,c2] = fread(HDR.FILE.FID,[EVENT.N,1],'uint16');
                         if EVENT.Version==1,
-                                if any([c1,c2]~=EVENT.N) | (HDR.AS.endpos~=HDR.AS.EVENTTABLEPOS+8+EVENT.N*6),
+                                if any([c1,c2]~=EVENT.N) || (HDR.AS.endpos~=HDR.AS.EVENTTABLEPOS+8+EVENT.N*6),
                                         fprintf(2,'\nERROR SOPEN (GDF): Eventtable corrupted in file %s\n',HDR.FileName);
                                 end
                                 
                         elseif EVENT.Version==3,
                                 [HDR.EVENT.CHN,c3] = fread(HDR.FILE.FID,[EVENT.N,1],'uint16');
                                 [HDR.EVENT.DUR,c4] = fread(HDR.FILE.FID,[EVENT.N,1],'uint32');
-                                if any([c1,c2,c3,c4]~=EVENT.N) | (HDR.AS.endpos~=HDR.AS.EVENTTABLEPOS+8+EVENT.N*12),
+                        	[EVENT.N,HDR.AS.endpos,HDR.AS.EVENTTABLEPOS+8+EVENT.N*12]
+                                if any([c1,c2,c3,c4]~=EVENT.N) || (HDR.AS.endpos~=HDR.AS.EVENTTABLEPOS+8+EVENT.N*12),
                                         fprintf(2,'\nERROR SOPEN (GDF): Eventtable corrupted in file %s\n',HDR.FileName);
                                 end
                                 
@@ -817,16 +818,16 @@ end;
    				else 
    					dur(N,1) = 0; 	
    				end;
-    				TeegType{N} = char(s(ix(1)+1:end-1));
+    				Desc{N} = char(s(ix(1)+1:end-1));
 				[s,t] = strtok(t,0);
+	                        HDR.EVENT.TYP(N,1) = length(Desc{N});
     			end;		
-                        HDR.EVENT.TYP = ones(N,1);
                         HDR.EVENT.POS = round(onset * HDR.SampleRate);
                         HDR.EVENT.DUR = dur * HDR.SampleRate;
                         HDR.EVENT.CHN = zeros(N,1); 
+                        HDR.EVENT.Desc = Desc(:); 
 
-			HDR.EVENT.TeegType = TeegType; 
-                        [HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP] = unique(TeegType(1:N));
+                        [HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP] = unique(Desc(1:N)');
 
 
                 elseif strcmp(HDR.TYPE,'EDF') & (length(strmatch('ANNOTATION',HDR.Label))==1),
@@ -1190,10 +1191,13 @@ end;
                         if ~isfield(HDR,'Transducer')
                                 HDR.Transducer=repmat({' '},HDR.NS,1); %setstr(32+zeros(HDR.NS,80));
                         end; 
-                        Transducer = strvcat(HDR.Transducer); % local copy of HDR.Transducer
-                        tmp        = min(80,size(Transducer,2));
-                        Transducer = [Transducer(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,80-tmp))];
-
+                        for k=1:HDR.NS,
+	                        tmp = min(80,length(HDR.Transducer{k}));
+                        	HDR.Transducer{k} = [HDR.Transducer{k}, repmat(' ',1,80-tmp)];
+                        end; 	
+			Transducer = strvcat(HDR.Transducer); 
+			Transducer = Transducer(:,1:80);                        
+                        
                         if ~isfield(HDR,'Filter')
                                 HDR.Filter.LowPass = repmat(NaN,1,HDR.NS); 
                                 HDR.Filter.HighPass = repmat(NaN,1,HDR.NS); 
@@ -1312,8 +1316,8 @@ end;
                         else
                                 HDR.DigMax=HDR.DigMax(1:HDR.NS);
                         end;
-	                HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
-	                HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
+	                HDR.Cal = (HDR.PhysMax(:)-HDR.PhysMin(:))./(HDR.DigMax(:)-HDR.DigMin(:));
+	                HDR.Off = HDR.PhysMin(:) - HDR.Cal(:) .* HDR.DigMin(:);
 
 			flag = isfield(HDR,'ELEC');	
 			if flag,
@@ -1509,7 +1513,7 @@ end;
                         %c=fwrite(HDR.FILE.FID,HDR.NRec,'int64');
                         c=fwrite(HDR.FILE.FID,[HDR.NRec,0],'int32');
                         %fwrite(HDR.FILE.FID,HDR.Dur,'float64');
-                        [n,d]=rat(HDR.Dur),
+                        [n,d]=rat(HDR.Dur);
                         fwrite(HDR.FILE.FID,[n d], 'uint32');
                         c=fwrite(HDR.FILE.FID,[HDR.NS,0],'uint16');
                 else
@@ -6369,7 +6373,8 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 			end;	
 			[tline,rr] = strtok(rr,[10,13]);
 		end;
-                HDR.PhysDim = 'µV';
+                %HDR.PhysDim = 'µV';
+                HDR.PhysDimCode = repmat(4275,HDR.NS,1); % 'µV';
                 HDR.Calib = [HDR.Off(1)*ones(1,HDR.NS);eye(HDR.NS)]*HDR.Cal(1);
                 
 		% decode State Vector Definition 
@@ -8472,8 +8477,8 @@ elseif strcmp(HDR.TYPE,'ETG4000') 	 % NIRS - Hitachi ETG 4000
                 HDR.FILE.POS = 0; 
 
                 %HDR.Cal = aGain.*dGain; 
-                HDR.PhysMax = max(HDR.data,[],1);
-                HDR.PhysMin = min(HDR.data,[],1);
+                HDR.PhysMax = max(HDR.data,[],1)';
+                HDR.PhysMin = min(HDR.data,[],1)';
                 HDR.DigMax  = HDR.PhysMax;
                 HDR.DigMin  = HDR.PhysMin;
                 HDR.Calib   = sparse(2:HDR.NS+1,1:HDR.NS,1); 
