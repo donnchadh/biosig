@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.206 2008-05-21 13:32:02 schloegl Exp $
+%	$Id: sopen.m,v 1.207 2008-05-21 13:43:33 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -478,12 +478,12 @@ end;
                         h2=char(h2);
                         
                         HDR.Label      =            h2(:,idx1(1)+1:idx1(2));
-                        HDR.Transducer =            h2(:,idx1(2)+1:idx1(3));
+                        HDR.Transducer =    cellstr(h2(:,idx1(2)+1:idx1(3)));
                         HDR.PhysDim    =            h2(:,idx1(3)+1:idx1(4));
-                        HDR.PhysMin    = str2double(h2(:,idx1(4)+1:idx1(5)));
-                        HDR.PhysMax    = str2double(h2(:,idx1(5)+1:idx1(6)));
-                        HDR.DigMin     = str2double(h2(:,idx1(6)+1:idx1(7)));
-                        HDR.DigMax     = str2double(h2(:,idx1(7)+1:idx1(8)));
+                        HDR.PhysMin    = str2double(h2(:,idx1(4)+1:idx1(5)))';
+                        HDR.PhysMax    = str2double(h2(:,idx1(5)+1:idx1(6)))';
+                        HDR.DigMin     = str2double(h2(:,idx1(6)+1:idx1(7)))';
+                        HDR.DigMax     = str2double(h2(:,idx1(7)+1:idx1(8)))';
                         HDR.PreFilt    =            h2(:,idx1(8)+1:idx1(9));
                         HDR.AS.SPR     = str2double(h2(:,idx1(9)+1:idx1(10)));
                         %if ~all(abs(HDR.VERSION)==[255,abs('BIOSEMI')]),
@@ -503,17 +503,17 @@ end;
                                 error('position error');
                         end;	 
                         HDR.Label      =  char(fread(HDR.FILE.FID,[16,HDR.NS],'uint8')');		
-                        HDR.Transducer =  char(fread(HDR.FILE.FID,[80,HDR.NS],'uint8')');	
+                        HDR.Transducer =  cellstr(char(fread(HDR.FILE.FID,[80,HDR.NS],'uint8')'));	
                         
                         if (HDR.NS<1),	% hack for a problem with Matlab 7.1.0.183 (R14) Service Pack 3
 
 			elseif (HDR.VERSION < 1.9),
 	                        HDR.PhysDim    =  char(fread(HDR.FILE.FID,[ 8,HDR.NS],'uint8')');
-	                        HDR.PhysMin    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
-	                        HDR.PhysMax    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
-	                        tmp            =       fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');
+	                        HDR.PhysMin    =       fread(HDR.FILE.FID,[1,HDR.NS],'float64');	
+	                        HDR.PhysMax    =       fread(HDR.FILE.FID,[1,HDR.NS],'float64');	
+	                        tmp            =       fread(HDR.FILE.FID,[1,2*HDR.NS],'int32');
 	                        HDR.DigMin     =  tmp((1:HDR.NS)*2-1);
-	                        tmp            =       fread(HDR.FILE.FID,[2*HDR.NS,1],'int32');
+	                        tmp            =       fread(HDR.FILE.FID,[1,2*HDR.NS],'int32');
 	                        HDR.DigMax     =  tmp((1:HDR.NS)*2-1);
 
                                 HDR.PreFilt    =  char(fread(HDR.FILE.FID,[80,HDR.NS],'uint8')');	%	
@@ -523,12 +523,12 @@ end;
                         else
 	                        tmp	       =  char(fread(HDR.FILE.FID,[6,HDR.NS],'uint8')');
 	                        % HDR.PhysDim    =  char(fread(HDR.FILE.FID,[6,HDR.NS],'uint8')');
-	                        HDR.PhysDimCode =      fread(HDR.FILE.FID,[HDR.NS,1],'uint16');
+	                        HDR.PhysDimCode =      fread(HDR.FILE.FID,[1,HDR.NS],'uint16');
 
-	                        HDR.PhysMin    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
-	                        HDR.PhysMax    =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');	
- 	                        HDR.DigMin     =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');
- 	                        HDR.DigMax     =       fread(HDR.FILE.FID,[HDR.NS,1],'float64');
+	                        HDR.PhysMin    =       fread(HDR.FILE.FID,[1,HDR.NS],'float64');	
+	                        HDR.PhysMax    =       fread(HDR.FILE.FID,[1,HDR.NS],'float64');	
+ 	                        HDR.DigMin     =       fread(HDR.FILE.FID,[1,HDR.NS],'float64');
+ 	                        HDR.DigMax     =       fread(HDR.FILE.FID,[1,HDR.NS],'float64');
                                 HDR.PreFilt    =  char(fread(HDR.FILE.FID,[80-12,HDR.NS],'uint8')');	%	
                                 HDR.Filter.LowPass  =  fread(HDR.FILE.FID,[ 1,HDR.NS],'float32');	% 
                                 HDR.Filter.HighPass =  fread(HDR.FILE.FID,[ 1,HDR.NS],'float32');	%
@@ -544,7 +544,7 @@ end;
                 HDR.SPR=1;
 		if (HDR.NS>0)
 			if ~isfield(HDR,'THRESHOLD')
-	                        HDR.THRESHOLD  = [HDR.DigMin,HDR.DigMax];       % automated overflow detection 
+	                        HDR.THRESHOLD  = [HDR.DigMin',HDR.DigMax'];       % automated overflow detection 
 	                        if (HDR.VERSION == 0) & HDR.FLAG.OVERFLOWDETECTION,   % in case of EDF and OVERFLOWDETECTION
 	                        	fprintf(2,'WARNING SOPEN(EDF): Physical Max/Min values of EDF data are not necessarily defining the dynamic range.\n'); 
 	                        	fprintf(2,'   Hence, OVERFLOWDETECTION might not work correctly. See also EEG2HIST and read \n'); 
@@ -590,7 +590,7 @@ end;
 	                end;
 	                HDR.AS.SAMECHANTYP = all(HDR.AS.BPR == (HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)')) & ~any(diff(HDR.GDFTYP)); 
 	                HDR.AS.bpb = sum(ceil(HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)'));	% Bytes per Block
-	                HDR.Calib  = [HDR.Off'; diag(HDR.Cal)];
+	                HDR.Calib  = [HDR.Off; diag(HDR.Cal)];
 
 		else  % (if HDR.NS==0)
 			HDR.THRESHOLD = [];
@@ -8477,8 +8477,8 @@ elseif strcmp(HDR.TYPE,'ETG4000') 	 % NIRS - Hitachi ETG 4000
                 HDR.FILE.POS = 0; 
 
                 %HDR.Cal = aGain.*dGain; 
-                HDR.PhysMax = max(HDR.data,[],1)';
-                HDR.PhysMin = min(HDR.data,[],1)';
+                HDR.PhysMax = max(HDR.data,[],1);
+                HDR.PhysMin = min(HDR.data,[],1);
                 HDR.DigMax  = HDR.PhysMax;
                 HDR.DigMin  = HDR.PhysMin;
                 HDR.Calib   = sparse(2:HDR.NS+1,1:HDR.NS,1); 
@@ -8505,7 +8505,6 @@ elseif strcmp(HDR.TYPE,'ETG4000') 	 % NIRS - Hitachi ETG 4000
 			end;
 	    		HDR.EVENT.TYP(2:2:end) = HDR.EVENT.TYP(2:2:end)+hex2dec('8000');
 		end;
-
 
 elseif strcmp(HDR.TYPE,'FEPI3'), 	% Freiburg epileptic seizure prediction Contest
        	% https://epilepsy.uni-freiburg.de/seizure-prediction-workshop-2007/prediction-contest/data-download
