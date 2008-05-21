@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.207 2008-05-21 13:43:33 schloegl Exp $
+%	$Id: sopen.m,v 1.208 2008-05-21 14:56:19 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -741,7 +741,7 @@ end;
                         [HDR.EVENT.POS,c1] = fread(HDR.FILE.FID,[EVENT.N,1],'uint32');
                         [HDR.EVENT.TYP,c2] = fread(HDR.FILE.FID,[EVENT.N,1],'uint16');
                         if EVENT.Version==1,
-                                if any([c1,c2]~=EVENT.N) || (HDR.AS.endpos~=HDR.AS.EVENTTABLEPOS+8+EVENT.N*6),
+                                if any([c1,c2]~=EVENT.N)
                                         fprintf(2,'\nERROR SOPEN (GDF): Eventtable corrupted in file %s\n',HDR.FileName);
                                 end
                                 
@@ -749,7 +749,7 @@ end;
                                 [HDR.EVENT.CHN,c3] = fread(HDR.FILE.FID,[EVENT.N,1],'uint16');
                                 [HDR.EVENT.DUR,c4] = fread(HDR.FILE.FID,[EVENT.N,1],'uint32');
                         	[EVENT.N,HDR.AS.endpos,HDR.AS.EVENTTABLEPOS+8+EVENT.N*12]
-                                if any([c1,c2,c3,c4]~=EVENT.N) || (HDR.AS.endpos~=HDR.AS.EVENTTABLEPOS+8+EVENT.N*12),
+                                if any([c1,c2,c3,c4]~=EVENT.N),
                                         fprintf(2,'\nERROR SOPEN (GDF): Eventtable corrupted in file %s\n',HDR.FileName);
                                 end
                                 
