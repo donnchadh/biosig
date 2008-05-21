@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.29 2008-05-06 11:50:07 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.30 2008-05-21 13:31:09 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -216,15 +216,15 @@ void mexFunction(
 		mxSetField(HDR,0,"T0",mxCreateDoubleScalar(ldexp(hdr->T0,-32)));
 
 		/* Channel information */ 
-		mxArray *LeadIdCode  = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
-		mxArray *PhysDimCode = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
-		mxArray *GDFTYP      = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
-		mxArray *PhysMax     = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
-		mxArray *PhysMin     = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
-		mxArray *DigMax      = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
-		mxArray *DigMin      = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
-		mxArray *Cal         = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
-		mxArray *Off         = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
+		mxArray *LeadIdCode  = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+		mxArray *PhysDimCode = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+		mxArray *GDFTYP      = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+		mxArray *PhysMax     = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+		mxArray *PhysMin     = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+		mxArray *DigMax      = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+		mxArray *DigMin      = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+		mxArray *Cal         = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+		mxArray *Off         = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
 		mxArray *ELEC_POS    = mxCreateDoubleMatrix(hdr->NS,3, mxREAL);
 		mxArray *LowPass     = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
 		mxArray *HighPass    = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
