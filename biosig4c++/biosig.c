@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.196 2008-05-21 09:04:20 cle1109 Exp $
+    $Id: biosig.c,v 1.197 2008-05-23 00:48:20 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -74,7 +74,7 @@ const int16_t GDFTYP_BITS[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0,12, 0, 0, 0,16,    /* 256 - 271*/  
+	0, 0, 0, 0, 0, 0, 0, 8, 0,10, 0,12, 0, 0, 0,16,    /* 256 - 271*/  
 	0, 0, 0, 0, 0, 0, 0,24, 0, 0, 0, 0, 0, 0, 0,32,    /* 255+24 = bit24, 3 byte */ 
 	0, 0, 0, 0, 0, 0, 0,40, 0, 0, 0, 0, 0, 0, 0,48, 
 	0, 0, 0, 0, 0, 0, 0,56, 0, 0, 0, 0, 0, 0, 0,64, 
@@ -90,7 +90,7 @@ const int16_t GDFTYP_BITS[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0,12, 0, 0, 0,16,    /* 512 - 527*/  
+	0, 0, 0, 0, 0, 0, 0, 8, 0,10, 0,12, 0, 0, 0,16,    /* 512 - 527*/  
 	0, 0, 0, 0, 0, 0, 0,24, 0, 0, 0, 0, 0, 0, 0,32, 
 	0, 0, 0, 0, 0, 0, 0,40, 0, 0, 0, 0, 0, 0, 0,48, 
 	0, 0, 0, 0, 0, 0, 0,56, 0, 0, 0, 0, 0, 0, 0,64, 
@@ -4000,14 +4000,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		if (VERBOSE_LEVEL>8)
 		    	fprintf(stdout,"[MIT 111]: \n"); 
 
-    		const int bufsiz = 1024;
+    		int bufsiz = 1024;
 	    	while (!ifeof(hdr)) {
 			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+bufsiz);
 		    	count += ifread(hdr->AS.Header+count, 1, bufsiz, hdr);
 	    	}
 	    	ifclose(hdr); 
 
-		/* decode header information */ 	    	
+		/* MIT: decode header information */ 	    	
 		if (VERBOSE_LEVEL>8)
 		    	fprintf(stdout,"[MIT 112]: %s\n",(char*)hdr->AS.Header); 
 
@@ -4065,6 +4065,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		char **DatFiles = (char**)calloc(hdr->NS, sizeof(char*));
 		size_t *ByteOffset = (size_t*)calloc(hdr->NS, sizeof(size_t));
 		size_t nDatFiles = 0;
+		uint16_t gdftyp,NUM=1,DEN=1;	
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
 		for (k=0; k < hdr->NS; k++) {
 		
@@ -4090,7 +4091,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (strcmp(DatFiles[nDatFiles-1],line))
 				DatFiles[nDatFiles++]=line;
 				
-			uint16_t gdftyp;		
 			fmt = strtod(ptr+1,&ptr);
 			if (k==0) FMT = fmt;
 			else if (FMT != fmt) {
@@ -4098,15 +4098,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				B4C_ERRMSG = "MIT/HEA/PhysioBank: different formats within a single data set is not supported\n";
 			}
 
-			size_t DIV; 
+			size_t DIV=1; 
 			if (ptr[0]=='x') {
 				DIV = strtod(ptr+1,&ptr);
-				hdr->CHANNEL[k].SPR = DIV;
+				hdr->CHANNEL[k].SPR *= DIV;
 				MUL = lcm(MUL,DIV);
-			} else {
-				DIV = 1;
-				hdr->CHANNEL[k].SPR = hdr->SPR;
 			}	 
+			hdr->CHANNEL[k].SPR = DIV;
+			
 			if (ptr[0]==':') skew = strtod(ptr+1,&ptr);
 			if (ptr[0]=='+') ByteOffset[k] = strtod(ptr+1,&ptr);
 			
@@ -4137,7 +4136,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			strncpy(hdr->CHANNEL[k].Label,ptr,MAX_LENGTH_LABEL);
 
 			hc->Cal      = 1/ADCgain; 
-			hc->Off      = ADCzero*hc->Cal;
+			hc->Off      = -ADCzero*hc->Cal;
 			hc->OnOff    = 1;
 //			hc->GDFTYP   = gdftyp;
 			hc->Transducer[0] = '\0';
@@ -4145,40 +4144,62 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hc->HighPass = -1;
 			// hdr->FLAG.SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 
 			hdr->FILE.LittleEndian = 1; 
-			size_t NUM=1,DEN=1;
 			switch (fmt) {
-			case 80: 	gdftyp = 2; 	// uint8; 
-					hc->Off= -128*hc->Cal;
-					break; 	
-			case 16: 	gdftyp = 3; 
-					break; 
-			case 61:	gdftyp = 3; 
-					// hdr->FLAG.SWAP = !(__BYTE_ORDER == __BIG_ENDIAN);
-					hdr->FILE.LittleEndian = 0;
- 					break; 
-			case 160: 	gdftyp = 4; 	// uint16;
-					hc->Off= ldexp(-1.0,15)*hc->Cal;
-					break; 	
-			case 212: 	gdftyp = 255+12; 
-					NUM=3; DEN=2;
-					//break;
-			case 8: 	gdftyp = 1;
-					// break; 
-			case 310: 	
-			case 311: 	NUM=4; DEN=3;
+			case 8:
+				gdftyp = 1;
+				hc->DigMax =  127.0; 
+				hc->DigMin = -128.0; 
 				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-				B4C_ERRMSG = "MIT/HEA/PhysioBank format 8/212/310/311 not supported.\n";
+				B4C_ERRMSG = "MIT/HEA/PhysioBank format 8(diff) not supported.\n";
+				break; 
+			case 80: 
+				gdftyp = 2; 	// uint8; 
+				hc->Off= -128*hc->Cal;
+				hc->DigMax = 255.0; 
+				hc->DigMin = 0.0; 
+				break; 	
+			case 16:
+			 	gdftyp = 3; 
+				NUM = 2; DEN = 1;
+				hc->DigMax = ldexp( 1.0,15)-1.0; 
+				hc->DigMin = ldexp(-1.0,15); 
+				break; 
+			case 61:
+				gdftyp = 3; 
+				// hdr->FLAG.SWAP = !(__BYTE_ORDER == __BIG_ENDIAN);
+				hdr->FILE.LittleEndian = 0;
+				NUM = 2; DEN = 1;
+				hc->DigMax =  ldexp( 1.0,15)-1.0; 
+				hc->DigMin =  ldexp(-1.0,15); 
+				break; 
+			case 160:
+			 	gdftyp = 4; 	// uint16;
+				hc->Off= ldexp(-1.0,15)*hc->Cal;
+				NUM = 2; DEN = 1;
+				hc->DigMax = ldexp(1.0,16)-1.0; 
+				hc->DigMin = 0.0; 
+				break; 	
+			case 212:
+			 	gdftyp = 255+12; 
+				NUM = 3; DEN = 2;
+				hc->DigMax =  ldexp( 1.0,11)-1.0; 
+				hc->DigMin =  ldexp(-1.0,11); 
+				break;
+			case 310: 	
+			case 311: 	
+				gdftyp = 255+10;
+				NUM = 4; DEN = 3;
+				hc->DigMax = ldexp( 1.0,9)-1.0; 
+				hc->DigMin = ldexp(-1.0,9); 
+				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+				B4C_ERRMSG = "MIT/HEA/PhysioBank format 310/311 not supported.\n";
+				break;
+			default:		
+				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+				B4C_ERRMSG = "MIT/HEA/PhysioBank: unknown format.\n";
 			}
-			/* 
-			if (hdr->CHANNEL[k].SPR * NUM * MUL2 % DEN) {
-				MUL2 *= DEN; 
-			}
-			hdr->CHANNEL[k].SPR *= MUL2;	
-			*/ 
-			
+
 			hc->GDFTYP   = gdftyp;
-			hc->DigMax   = ldexp(1,ADCresolution)-1.0 - ADCzero;
-			hc->DigMin   = -ADCzero;
 		    	hc->LeadIdCode  = 0;
 	 		hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
 	 		hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
@@ -4187,9 +4208,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			    	fprintf(stdout,"[MIT 150] #%i: FMT=%i\n",k+1,fmt); 
 
 		}
-		hdr->SampleRate *= MUL; 
-		hdr->SPR 	*= MUL * MUL2;				
-		hdr->NRec	/= MUL2;
+		hdr->SampleRate *= MUL;
+		hdr->SPR 	*= MUL;
+	 		
+ 		hdr->AS.auxBUF 	= (typeof(hdr->AS.auxBUF))realloc(hdr->AS.auxBUF,2); // store FMT in auxBUF
+ 		*(uint16_t*) hdr->AS.auxBUF = FMT;
 		
 		/* read age, sex etc. */	
 		line = strtok(NULL,"\x0d\x0a"); 
@@ -4222,7 +4245,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	fprintf(stdout,"[MIT 177] #%i: (%i) %s FMT=%i+%i\n",k+1,nDatFiles,DatFiles[0],fmt,ByteOffset[0]); 
 
 
-		/* read ATR annotation file */ 
+		/* MIT: read ATR annotation file */ 
 		uint16_t *Marker=NULL; 
 		count = 0;
 
@@ -4267,8 +4290,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				uint16_t A   = a16 >> 10;
 				uint16_t len = a16 & 0x03ff;
 
-				if (VERBOSE_LEVEL>8) 
-					fprintf(stdout,"[MIT 183] k=%i/%i N=%i A=%i l=%i\n", k, N, hdr->EVENT.N, a16>>10, len); 
+//				if (VERBOSE_LEVEL>8) fprintf(stdout,"[MIT 183] k=%i/%i N=%i A=%i l=%i\n", k, N, hdr->EVENT.N, a16>>10, len); 
 
 				switch (A) {
 				case 59:	// SKIP  
@@ -4279,8 +4301,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				case 61:	// SUB
 					break;
 				case 62: 	// CHN
-					flag_chn = 1; 
 					chn = len; 
+					flag_chn = flag_chn || chn; 
 					break;
 				case 63: 	// AUX
 					k += (len+1)/2;
@@ -4306,8 +4328,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MIT 185] \n"); 
 
-		/* open data file */
-		if ((nDatFiles == 1) && (fmt < 300)) {
+		/* MIT: open data file */
+		if (nDatFiles == 1) {
 			const char *f0 = hdr->FileName;
 			char *f1 = (char*) malloc(strlen(hdr->FileName)+strlen(DatFiles[0])+2);
 			strcpy(f1,hdr->FileName);
@@ -4322,12 +4344,17 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr = ifopen(hdr,"rb");
 			ifseek(hdr, hdr->HeadLen, SEEK_SET);
 			
+			count  = 0;
+			bufsiz = 1<<20;
+		    	while (!ifeof(hdr)) {
+				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,(count+bufsiz));
+			    	count += ifread(hdr->AS.rawdata+count, 1, bufsiz, hdr);
+		    	}
+		    	ifclose(hdr); 
+
 			free(f1); 
 			hdr->FileName = f0;  
 		}
-
-		if (VERBOSE_LEVEL>8)
-		    	fprintf(stdout,"[MIT 198] #%i: (%i) %s FMT=%i\n",k+1,nDatFiles,DatFiles[0],fmt); 
 
 		free(DatFiles);
 		free(ByteOffset); 
@@ -4541,7 +4568,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 	hdr->FILE.POS = 0; 
 
-/* this will become obsolote because HDR.Dur is depreciated */
+/* this will become obsolete because HDR.Dur is depreciated */
 	if (hdr->SPR*hdr->Dur[1] != hdr->SampleRate*hdr->Dur[0]) {
 		// set duration if it was not properly set 
 		double Dur = hdr->SPR/hdr->SampleRate; 
@@ -4815,7 +4842,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 //		hdr->AS.Header1 = (uint8_t*)Header1; 
 	}
 
-    	else if ((hdr->TYPE==EDF) | (hdr->TYPE==BDF)) {	
+    	else if ((hdr->TYPE==EDF) || (hdr->TYPE==BDF)) {	
 	     	hdr->HeadLen   = (hdr->NS+1)*256;
 	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
 	    	char* Header2  = (char*)hdr->AS.Header+256; 
@@ -4938,7 +4965,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
 		memset(Header1, ' ', hdr->HeadLen);
 
-		char SWAP = ( __BYTE_ORDER == __LITTLE_ENDIAN);   // default of MFER is BigEndian
 		hdr->FILE.LittleEndian = 0; 
 		
 		fprintf(stderr,"Warning SOPEN(MFER): write support for MFER format under construction\n"); 
@@ -5162,6 +5188,34 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (hdr->AS.Header[3] & 0x01)	// triggered  
 			hdr->AS.bpb += 6;
 	}
+	else if (hdr->TYPE==MIT) {
+		uint16_t FMT = *(uint16_t*)hdr->AS.auxBUF;
+		size_t NUM,DEN;
+		switch (FMT) { 
+		case 212:
+			NUM = 3; DEN = 2;
+			break;
+		case 310:
+		case 311:
+			NUM = 4; DEN = 3;
+			break;
+		default:
+			NUM = GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
+			DEN = 1; 
+		}		
+
+		if (hdr->AS.bpb * NUM % DEN) {
+			hdr->SPR 	*= DEN;
+	 		hdr->AS.bpb 	 = hdr->AS.spb * NUM;
+	 	}	
+	 	else 
+	 		hdr->AS.bpb = hdr->AS.spb * NUM / DEN;
+
+		if (!hdr->NRec) 
+			hdr->NRec = (hdr->HeadLen + count)/hdr->AS.bpb; 
+
+	}
+		
 
 	//hdr->FILE.POS2 = 0; 
 	if (hdr->FILE.POS != 0)	
@@ -5186,7 +5240,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 }  // end of SOPEN 
 
 
-#define ROW_BASED_CHANNELS_NO
 
 /****************************************************************************/
 /**	SREAD : segment-based                                              **/
@@ -5228,6 +5281,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	switch (hdr->TYPE) {
 	case ETG4000: toffset = start;	
 	case HL7aECG: 		
+	case MIT: 		
 	case SCP_ECG: {
 		// hdr->AS.rawdata was defined in SOPEN	
 		if (start < 0) 
@@ -5288,6 +5342,15 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	char SWAP = !hdr->FILE.LittleEndian;  
 #endif
 
+	uint16_t MITTYP=0;
+	if (hdr->TYPE==MIT) {
+		MITTYP = *(uint16_t*)hdr->AS.auxBUF;
+
+//		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"0x%x 0x%x \n",*(uint32_t*)hdr->AS.rawdata,*(uint32_t*)hdr->AS.rawdata);
+		
+	}	
+
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
 
@@ -5306,9 +5369,17 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + hdr->AS.bi[k1] + (k5*SZ>>3);
 		bitoff = k5*SZ & 0x07;			
 		union {int16_t i16; uint32_t i32; float f32; uint64_t i64; double f64;} u; 
-
-		if (SWAP)		
-		{
+/*
+		if (MITTYP==212)
+			; 
+		else if (MITTYP==310)
+			; 
+		else if (MITTYP==311)
+			; 
+		else 
+*/
+		
+		if (SWAP) {
 			// mapping of raw data type to (biosig_data_type)
 			switch (GDFTYP) { 
 			case 3: 
