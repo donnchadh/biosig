@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.197 2008-05-23 00:48:20 schloegl Exp $
+    $Id: biosig.c,v 1.198 2008-05-23 01:16:55 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -4131,14 +4131,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			if (ptr != NULL) BlockSize = strtod(ptr+1,&ptr);
 			while (isspace(ptr[0])) ++ptr;
 			
-			PhysDim(hc->PhysDimCode,tmp);
-
 			strncpy(hdr->CHANNEL[k].Label,ptr,MAX_LENGTH_LABEL);
 
 			hc->Cal      = 1/ADCgain; 
 			hc->Off      = -ADCzero*hc->Cal;
 			hc->OnOff    = 1;
-//			hc->GDFTYP   = gdftyp;
 			hc->Transducer[0] = '\0';
 			hc->LowPass  = -1;
 			hc->HighPass = -1;
@@ -5279,9 +5276,9 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	size_t			toffset = 0;	// time offset for rawdata
 
 	switch (hdr->TYPE) {
-	case ETG4000: toffset = start;	
+	case ETG4000: 
+	case MIT: 	toffset = start;	
 	case HL7aECG: 		
-	case MIT: 		
 	case SCP_ECG: {
 		// hdr->AS.rawdata was defined in SOPEN	
 		if (start < 0) 
@@ -5346,7 +5343,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	if (hdr->TYPE==MIT) {
 		MITTYP = *(uint16_t*)hdr->AS.auxBUF;
 
-//		if (VERBOSE_LEVEL>8) 
+		if (VERBOSE_LEVEL>8) 
 			fprintf(stdout,"0x%x 0x%x \n",*(uint32_t*)hdr->AS.rawdata,*(uint32_t*)hdr->AS.rawdata);
 		
 	}	
