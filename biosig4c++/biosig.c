@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.198 2008-05-23 01:16:55 schloegl Exp $
+    $Id: biosig.c,v 1.199 2008-05-26 06:27:05 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -3997,8 +3997,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 
 	else if (hdr->TYPE==MIT) {
-		if (VERBOSE_LEVEL>8)
-		    	fprintf(stdout,"[MIT 111]: \n"); 
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MIT 111]: %i \n",VERBOSE_LEVEL); 
 
     		int bufsiz = 1024;
 	    	while (!ifeof(hdr)) {
@@ -4050,7 +4049,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr->NRec = strtod(ptr,&ptr);
 		}
 	    	if ((ptr != NULL) && strlen(ptr)) {
-	    	//if (ptr == NULL) ptr="";
 			struct tm t; 
 			sscanf(ptr," %u:%u:%u %u/%u/%u",&t.tm_hour,&t.tm_min,&t.tm_sec,&t.tm_mday,&t.tm_mon,&t.tm_year);
 			t.tm_mon--;
@@ -4067,7 +4065,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		size_t nDatFiles = 0;
 		uint16_t gdftyp,NUM=1,DEN=1;	
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
-		for (k=0; k < hdr->NS; k++) {
+		for (k=0,hdr->AS.bpb=0; k < hdr->NS; k++) {
 		
 			double skew=0;
 			double byteoffset=0; 
@@ -4200,6 +4198,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hc->LeadIdCode  = 0;
 	 		hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
 	 		hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
+			hdr->AS.bpb += hdr->SPR*GDFTYP_BITS[gdftyp]>>8;
 
 			if (VERBOSE_LEVEL>8)
 			    	fprintf(stdout,"[MIT 150] #%i: FMT=%i\n",k+1,fmt); 
@@ -4340,6 +4339,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr->HeadLen = ByteOffset[0];  
 			hdr = ifopen(hdr,"rb");
 			ifseek(hdr, hdr->HeadLen, SEEK_SET);
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MIT 186] %s\n",hdr->FileName); 
+
 			
 			count  = 0;
 			bufsiz = 1<<20;
@@ -4351,7 +4353,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 			free(f1); 
 			hdr->FileName = f0;  
+
+			if (!hdr->NRec) {
+				hdr->NRec = count/(hdr->AS.bpb);
+			}		    	
 		}
+
+		if (VERBOSE_LEVEL>8)
+		    	fprintf(stdout,"[MIT 198] #%i: (%i) %s FMT=%i\n",k+1,nDatFiles,DatFiles[0],fmt); 
 
 		free(DatFiles);
 		free(ByteOffset); 
@@ -5533,7 +5542,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 
 			case (255+12):
 				// assume BIG_ENDIAN platform & BIG_ENDIAN format 
-				u.i16 = ((beu16p(ptr) >> (4-bitoff))) & 0x0FFF;
+				u.i16 = (beu16p(ptr) >> (4-bitoff)) & 0x0FFF;
 				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
 				sample_value = (biosig_data_type)u.i16; 
 				break;
