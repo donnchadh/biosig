@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.199 2008-05-26 06:27:05 schloegl Exp $
+    $Id: biosig.c,v 1.200 2008-05-26 22:59:35 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1159,27 +1159,10 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
  */
 {
 
+	size_t count;
     	hdr->TYPE = unknown; 
 		
-	uint32_t U32 = leu32p(hdr->AS.Header+2); 
-
-    	if ((U32>=30) & (U32<=42)) {
-    		hdr->VERSION = (float)U32; 
-    		U32 = leu32p(hdr->AS.Header+6);
-    		if      ((hdr->VERSION <34.0) & (U32 == 150)) hdr->TYPE = ACQ;  
-    		else if ((hdr->VERSION <35.0) & (U32 == 164)) hdr->TYPE = ACQ;  
-    		else if ((hdr->VERSION <36.0) & (U32 == 326)) hdr->TYPE = ACQ;  
-    		else if ((hdr->VERSION <37.0) & (U32 == 886)) hdr->TYPE = ACQ;  
-    		else if ((hdr->VERSION <38.0) & (U32 ==1894)) hdr->TYPE = ACQ;  
-    		else if ((hdr->VERSION <41.0) & (U32 ==1896)) hdr->TYPE = ACQ;  
-    		else if ((hdr->VERSION>=41.0) & (U32 ==1944)) hdr->TYPE = ACQ;
-	    	if (hdr->TYPE == ACQ) {
-    			hdr->HeadLen = U32; // length of fixed header  
-    			return(hdr);
-    		}
-    	}
-
- 	const uint8_t MAGIC_NUMBER_FEF1[] = {67,69,78,13,10,0x1a,4,0x84};
+   	const uint8_t MAGIC_NUMBER_FEF1[] = {67,69,78,13,10,0x1a,4,0x84};
 	const uint8_t MAGIC_NUMBER_FEF2[] = {67,69,78,0x13,0x10,0x1a,4,0x84};
 	const uint8_t MAGIC_NUMBER_GZIP[] = {31,139,8};
 	const uint8_t MAGIC_NUMBER_Z[]    = {31,157,144};
@@ -1189,7 +1172,6 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	const uint8_t MAGIC_NUMBER_TIFF_l64[] = {73,73,43,0,8,0,0,0};
 	const uint8_t MAGIC_NUMBER_TIFF_b64[] = {77,77,0,43,0,8,0,0};
 	const uint8_t MAGIC_NUMBER_DICOM[]    = {8,0,5,0,10,0,0,0,73,83,79,95,73,82,32,49,48,48};
-	uint32_t MAGIC_EN1064_Section0Length  = leu32p(hdr->AS.Header+10);
 	
 	/* AINF */
 	int k;
@@ -1228,6 +1210,55 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 		FILE_NAME = hdr->FileName; 
 	char *FILE_EXT  = strrchr(hdr->FileName,'.')+1;
 
+
+ 	hdr->AS.Header = (uint8_t*)malloc(352);
+        hdr->FILE.COMPRESSION = 0;   	
+        hdr = ifopen(hdr,"rb");
+    	count = ifread(Header1,1,352,hdr);
+
+	fprintf(stdout,"[219] %i %s\n%s\n",(!strncmp(Header1,"Serial number",13)),hdr->FileName,Header1);
+
+
+	uint32_t MAGIC_EN1064_Section0Length  = leu32p(hdr->AS.Header+10);
+    	if (hdr->TYPE == GZIP) {
+#ifdef ZLIB_H
+    		ifclose(hdr); 
+	        hdr->FILE.COMPRESSION = 1;
+//	        hdr->FILE.gzFID = gzdopen(hdr->FILE.FID,"rb"); // FIXME
+        	hdr= ifopen(hdr,"rb");
+	    	if (!hdr->FILE.OPEN) { 	
+    			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+	    		B4C_ERRMSG = "Error SOPEN(GZREAD); Cannot open file.";		
+	    		return(hdr);
+    		}	    
+	    	count = ifread(Header1,1,352,hdr);
+#else 
+		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+    		B4C_ERRMSG = "Error SOPEN(READ); *.gz file not supported because not linked with zlib.";
+#endif
+    	}
+    	
+
+    	/******** read 1st (fixed)  header  *******/	
+  	uint32_t U32 = leu32p(hdr->AS.Header+2); 
+
+    	if ((U32>=30) & (U32<=42)) {
+    		hdr->VERSION = (float)U32; 
+    		U32 = leu32p(hdr->AS.Header+6);
+    		if      ((hdr->VERSION <34.0) & (U32 == 150)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <35.0) & (U32 == 164)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <36.0) & (U32 == 326)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <37.0) & (U32 == 886)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <38.0) & (U32 ==1894)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION <41.0) & (U32 ==1896)) hdr->TYPE = ACQ;  
+    		else if ((hdr->VERSION>=41.0) & (U32 ==1944)) hdr->TYPE = ACQ;
+	    	if (hdr->TYPE == ACQ) {
+    			hdr->HeadLen = U32; // length of fixed header  
+    			return(hdr);
+    		}
+    	}
+
+	fprintf(stdout,"[220] \n");
 
     	if (hdr->TYPE != unknown)
       		return(hdr); 
@@ -1460,6 +1491,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 		strncpy(tmp,(char*)Header1+23,3);
 		hdr->VERSION = atof(tmp);
 	}	
+	else if (!strncmp(Header1,"Serial number",13))
+		hdr->TYPE = ASCII_IBI;
 	else if (!memcmp(Header1,MAGIC_NUMBER_Z,3))
 		hdr->TYPE = Z;
 	else if (!strncmp(Header1,"PK\003\004",4))
@@ -1527,6 +1560,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case EGI: 	{ FileType = "EGI"; break; }
 	case ELF: 	{ FileType = "ELF"; break; }
 	case ETG4000: 	{ FileType = "ETG4000"; break; }
+	case EVENT: 	{ FileType = "EVENT"; break; }
 	case EXIF: 	{ FileType = "EXIF"; break; }
 
 	case FAMOS: 	{ FileType = "FAMOS"; break; }
@@ -1610,56 +1644,35 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	hdr->FileName = FileName; 
 
 
+
 // hdr->FLAG.SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 	// default: most data formats are little endian 
 hdr->FILE.LittleEndian = 1; 
 
 if (!strncmp(MODE,"r",1))	
 {
- 	hdr->AS.Header = (uint8_t*)malloc(352);
 	hdr->TYPE = noFile; 
+	hdr = getfiletype(hdr);
 
-        hdr->FILE.COMPRESSION = 0;   	
-        hdr = ifopen(hdr,"rb");
+//	if (VERBOSE_LEVEL>8) 
+	fprintf(stdout,"[202] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
+
     	if (!hdr->FILE.OPEN) { 	
     		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
     		B4C_ERRMSG = "Error SOPEN(READ); Cannot open file.";		
     		return(hdr); 
     	}	    
-    
-    	/******** read 1st (fixed)  header  *******/	
-    	count = ifread(Header1,1,352,hdr);
-	hdr   = getfiletype(hdr);
     	
-	if (VERBOSE_LEVEL==9) 
-		fprintf(stdout,"File Format %i %s (count=%i)\n",hdr->TYPE,GetFileTypeString(hdr->TYPE),count); 
-
-    	if (hdr->TYPE == GZIP) {
-#ifdef ZLIB_H
-    		ifclose(hdr); 
-	        hdr->FILE.COMPRESSION = 1;   	
-	        // hdr->FILE.gzFID = gzdopen(hdr->FILE.FID,"rb"); // FIXME
-        	hdr= ifopen(hdr,"rb");
-	    	if (!hdr->FILE.OPEN) { 	
-    			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-	    		B4C_ERRMSG = "Error SOPEN(GZREAD); Cannot open file.";		
-	    		return(hdr);
-    		}	    
-	    	count = ifread(Header1,1,352,hdr);
-		hdr   = getfiletype(hdr);
-#else 
-		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-    		B4C_ERRMSG = "Error SOPEN(READ); *.gz file not supported because not linked with zlib.";
-#endif
-    	}
     	if (hdr->TYPE == unknown) {
     		B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
-    		B4C_ERRMSG = "ERROR BIOSIG SOPEN(read): Dataformat Format not known.\n";
+    		B4C_ERRMSG = "ERROR BIOSIG SOPEN(read): Dataformat not known.\n";
     		ifclose(hdr);
 		return(hdr);
 	}	
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
+//	if (VERBOSE_LEVEL>8) 
+	fprintf(stdout,"[201] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
 
+    	count = iftell(hdr); 
 	if (hdr->TYPE == GDF) {
 		uint32_t Dur[2];
       	    	strncpy(tmp,(char*)hdr->AS.Header+3,5); tmp[5]=0;
@@ -4558,6 +4571,64 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 	}	
 
+	else if (hdr->TYPE==ASCII_IBI) {
+		
+		hdr->NS   = 0; 
+		hdr->NRec = 0; 
+		hdr->SPR  = 1; 
+		ifseek(hdr,0,SEEK_SET);
+		char line[81];
+		char desc[80];
+		ifgets(line,80,hdr);
+		size_t N = 0; 
+		hdr->EVENT.N = 0; 
+		while (!ifeof(hdr) && strlen(line)) {
+			if (isdigit(line[0])) {
+				struct tm t; 
+				time_t t0,t1;
+				int y,mo,dd,hh,mi,ss,ms,rri;
+				// sscanf(line,"%02u-%02u-%02u %02u:%02u:%02u %03u %s %f",&y,&mo,&dd,&hh,&mi,&ss,&ms,desc,rri);
+				sscanf(line,"%02u-%02u-%02u %02u:%02u:%02u %03u %s %f",&t.tm_mday,&t.tm_mon,&t.tm_year,&t.tm_hour,&t.tm_min,&t.tm_sec,&ms,desc,&rri);
+				t.tm_mon--;
+				//t.tm_year += (t.tm_year<80 ? 2000 : 1900);
+				t.tm_isdst = 0;
+				t1 = mktime(&t);
+				gdf_time t2 = (gdf_time)(tm_time2gdf_time(&t) + ldexp(ms/(24*3600*1e3),32));
+				if (N==0) {hdr->T0 = t2; t0=t1;};
+				t2 -= hdr->T0; 
+				t1 -= t0;
+				if (N+1 >= hdr->EVENT.N) {
+					hdr->EVENT.N  += 1l<<12; 
+			 		hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
+					hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
+					// hdr->EVENT.Desc= (typeof(hdr->EVENT.Desc))realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.Desc));
+				}
+				//hdr->EVENT.POS[N] = (typeof(*hdr->EVENT.POS)) (ldexp(t_time2gdf_time(t1),-32)*24*36e5);
+				hdr->EVENT.POS[N] = (typeof(*hdr->EVENT.POS)) (ldexp(t2,-32)*24*36e5);
+				/* TODO: fix TYP */
+				hdr->EVENT.TYP[N] = 1;
+				++N;
+			}
+			else {
+				char *f = strtok(line,":");
+				char *v = strtok(NULL,":");
+				if (!strncmp(line,"File version",12))
+					hdr->VERSION = atof(v); 
+				else if (!hdr->FLAG.ANONYMOUS && !strncmp(line,"File version",12))
+					strncpy(hdr->Patient.Id,v,MAX_LENGTH_PID); 
+			} 
+			ifgets(line,80,hdr);
+		}
+	    	ifclose(hdr);
+	    	hdr->EVENT.N = N; 
+	    	hdr->SampleRate = 1000.0;
+	    	hdr->EVENT.SampleRate = 1000.0;
+	    	hdr->TYPE = EVENT; 
+		hdr->data.block = NULL;
+		hdr->data.size[0] = 0;
+		hdr->data.size[1] = 0;
+	}	
+
 	else if (hdr->TYPE==HL7aECG) {
 		sopen_HL7aECG_read(hdr);
     		if (serror()) return(hdr);
@@ -5227,6 +5298,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	if (hdr->FILE.POS != 0)	
 		fprintf(stdout,"Debugging Information: (Format=%d) FILE.POS=%d is not zero.\n",hdr->TYPE,hdr->FILE.POS);
 
+		fprintf(stdout,"798\n");
 
 	for (k=0; k<hdr->NS; k++) 
 	if  (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] % 8) {
@@ -5241,6 +5313,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			fprintf(stdout,"GDFTYP=%i [12bit BE/BE] not well tested\n",hdr->CHANNEL[k].GDFTYP);
 
 	}
+
+		fprintf(stdout,"799\n");
 		
 	return(hdr);
 }  // end of SOPEN 
@@ -5287,6 +5361,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	switch (hdr->TYPE) {
 	case ETG4000: 
 	case MIT: 	toffset = start;	
+	case EVENT: 		
 	case HL7aECG: 		
 	case SCP_ECG: {
 		// hdr->AS.rawdata was defined in SOPEN	
