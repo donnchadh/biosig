@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.33 2008-04-30 23:16:18 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.34 2008-05-26 07:46:03 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -358,14 +358,18 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 
 			}
 
+#ifdef __GNUC__
 			// Tag 34 (len = 5)
 			*(ptr+sectionStart+curSectLen) = 34;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(5);	// length
 			// FIXME: compensation for daylight saving time not included
-			//*(int16_t*)(ptr+sectionStart+curSectLen+3) = 0; 
+			// writing of time zone information not supported 	
+			//*(int16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_i16(0x7fff); 
 			*(int16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_i16((int16_t)round(-timezone/60));
 			//*(int16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((int16_t)round(T0_tm->tm_gmtoff/60));
+			*(int16_t*)(ptr+sectionStart+curSectLen+5) = 0; 
 			curSectLen += 8; 
+#endif
 
 			// Tag 255 (len = 0)
 			*(ptr+sectionStart+curSectLen) = 255;	// tag
