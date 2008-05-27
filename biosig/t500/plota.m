@@ -8,6 +8,9 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 %
 % PLOTA(X [,Mode])
 %
+% if X.TYPE=='EVENT' and X.EVENT
+% 
+%
 % X.datatype determines type of data
 %    DATATYPE   Mode
 %   'MVAR'      'AutoSpectrum'
@@ -33,6 +36,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 %       arg5 ... maxstd (maximum of standard deviation)
 %       arg6 ... trigger (trigger instant) [optional]
 %
+%   'QRS_events' shows inter-beat-interval (IBI) of the ecg 
+%
 %   'HISTOGRAM'	'log'	chansel
 %   'HISTOGRAM'	'log+'	chansel
 %   'HISTOGRAM'	'log '	chansel
@@ -55,8 +60,8 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.59 2008-03-27 11:02:12 schloegl Exp $
-%	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>
+%	$Id: plota.m,v 1.60 2008-05-27 06:53:12 schloegl Exp $
+%	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -718,7 +723,11 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                 H.yKord = repmat(X.F(fidx),1,sz(2)); %Y-Koordinaten
                 H.farbwerte = squeeze(cat(3,x1,x2,x3)); %Farbwerte                               
 
-                H.Label = X.Label;
+		if isfield(X,'Label')
+	                H.Label = X.Label;
+	        else  
+	        	H.Label = cellstr(sprintf('#03i',[1:size(X.M.S,1)]'));
+	        end; 	        
                 H.type = type;
                 H.method = gf;
                 H.clim = clim;
@@ -1926,7 +1935,7 @@ elseif strcmp(X.datatype,'TSD_BCI9')
 	        alpha = .05;
  	       	ci = tanh(sqrt(2)*erfinv(1-2*alpha)./sqrt(X.N-3));		% confidence interval for alpha of z
 	        plot(X.T,X.r,'-',X.T,ci*[-1,1],'k:');
-	        LEG = [Labels,{'alpha=0.05'}];
+	        LEG = [Labels,{sprintf('alpha=%f',alpha)}];
 	else
 	        plot(X.T,X.r,'-');
 	        LEG = Labels;
@@ -2128,16 +2137,22 @@ elseif strcmp(X.datatype,'ERDS'),
 
 elseif strcmp(X.datatype,'QRS_events'),
         ix0 = find(X.EVENT.TYP==hex2dec('0501'));
-        if ~isempty(ix0)
+        if ~isfield(X.EVENT,'CHN')
+        	CHAN = 0; 
+        elseif ~isempty(ix0)
                 CHAN = unique(X.EVENT.CHN(ix0));
         end
         if (length(CHAN)==1)
                 ix = X.EVENT.POS(ix0) / X.EVENT.SampleRate;
                 if nargin<2,
                         semilogy((ix(1:end-1)+ix(2:end))/2,diff(ix));
+                elseif strcmp(arg2,'lin')
+                        plot((ix(1:end-1)+ix(2:end))/2,diff(ix));
                 else
                         semilogy((ix(1:end-1)+ix(2:end))/2,diff(ix),arg2);
                 end;
+                ylabel('Inter-Beat-Interval (IBI) [s]')
+                xlabel('time [s]')
         else
                 for k = 1:length(CHAN),
                         ix = find(X.EVENT.CHN(ix0)==CHAN(k));
