@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.99 2008-05-20 11:07:34 schloegl Exp $
+% $Id: biosig.h,v 1.100 2008-05-27 06:10:19 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -103,7 +103,8 @@ enum FileFormat {
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, VRML, VTK, WAV, WMF, XML, XPM,
-	Z, ZIP, ZIP2
+	Z, ZIP, ZIP2,
+	ASCII_IBI
 };
 
 

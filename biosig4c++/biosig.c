@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.200 2008-05-26 22:59:35 schloegl Exp $
+    $Id: biosig.c,v 1.201 2008-05-27 06:08:29 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -4581,32 +4581,30 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		char desc[80];
 		ifgets(line,80,hdr);
 		size_t N = 0; 
-		hdr->EVENT.N = 0; 
+		hdr->EVENT.N = 1l<<12; 
+ 		hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
+		hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
 		while (!ifeof(hdr) && strlen(line)) {
 			if (isdigit(line[0])) {
 				struct tm t; 
-				time_t t0,t1;
 				int y,mo,dd,hh,mi,ss,ms,rri;
-				// sscanf(line,"%02u-%02u-%02u %02u:%02u:%02u %03u %s %f",&y,&mo,&dd,&hh,&mi,&ss,&ms,desc,rri);
-				sscanf(line,"%02u-%02u-%02u %02u:%02u:%02u %03u %s %f",&t.tm_mday,&t.tm_mon,&t.tm_year,&t.tm_hour,&t.tm_min,&t.tm_sec,&ms,desc,&rri);
-				t.tm_mon--;
-				//t.tm_year += (t.tm_year<80 ? 2000 : 1900);
-				t.tm_isdst = 0;
-				t1 = mktime(&t);
-				gdf_time t2 = (gdf_time)(tm_time2gdf_time(&t) + ldexp(ms/(24*3600*1e3),32));
-				if (N==0) {hdr->T0 = t2; t0=t1;};
-				t2 -= hdr->T0; 
-				t1 -= t0;
+				sscanf(line,"%02u-%02u-%02u %02u:%02u:%02u %03u %s %i",&t.tm_mday,&t.tm_mon,&t.tm_year,&t.tm_hour,&t.tm_min,&t.tm_sec,&ms,desc,&rri);
+				if (N==0) {
+					hdr->T0 = (gdf_time)(tm_time2gdf_time(&t) + ldexp((ms-rri)/(24*3600*1e3),32)); 
+					hdr->EVENT.POS[0] = 0;
+					hdr->EVENT.TYP[0] = 0x0501;
+					hdr->EVENT.POS[1] = rri;
+					hdr->EVENT.TYP[1] = 0x0501;
+					N = 2;
+				};
 				if (N+1 >= hdr->EVENT.N) {
 					hdr->EVENT.N  += 1l<<12; 
 			 		hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
 					hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
-					// hdr->EVENT.Desc= (typeof(hdr->EVENT.Desc))realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.Desc));
 				}
-				//hdr->EVENT.POS[N] = (typeof(*hdr->EVENT.POS)) (ldexp(t_time2gdf_time(t1),-32)*24*36e5);
-				hdr->EVENT.POS[N] = (typeof(*hdr->EVENT.POS)) (ldexp(t2,-32)*24*36e5);
+				hdr->EVENT.POS[N] = hdr->EVENT.POS[N-1] + rri;
 				/* TODO: fix TYP */
-				hdr->EVENT.TYP[N] = 1;
+				hdr->EVENT.TYP[N] = 0x0501;
 				++N;
 			}
 			else {

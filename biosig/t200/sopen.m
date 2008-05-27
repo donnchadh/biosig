@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.208 2008-05-21 14:56:19 schloegl Exp $
+%	$Id: sopen.m,v 1.209 2008-05-27 06:08:33 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -7311,7 +7311,7 @@ elseif strcmp(HDR.TYPE,'CTF'),
 		tmp(tmp<0) = 0;
 		tmp(tmp>127) = 0;
 		tmp(cumsum(tmp==0)>0)=0;
-		HDR.Label = char(tmp');
+		HDR.Label = cellstr(char(tmp'));
 		
 		for k = 1:HDR.NS,
 			info.index(k,:) = fread(HDR.FILE.FID,1,'int16');
@@ -8782,6 +8782,59 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 HDR.TYPE = 'native'; 
                 HDR.FILE.POS = 0; 
         end;
+
+
+elseif strcmp(HDR.TYPE,'ASCII:IBI')
+	fid = fopen(HDR.FileName,'r');
+	line = fgetl(fid);
+	N = 0;
+	HDR.SampleRate = 1000; 
+	HDR.EVENT.SampleRate = 1000; 
+	HDR.EVENT.POS = [];
+	HDR.EVENT.TYP = [];
+	DescList = {};
+	while (~isempty(line))
+		if ((line(1)<'0') || (line(1)>'9'))
+			f=deblank(strtok(line,':'));
+			v=deblank(strtok(line,':'));
+			if strcmp(f,'File version')
+				HDR.VERSION = str2double(v); 
+			elseif strcmp(f,'Identification')
+				HDR.Patient.Name = v; 
+			end;	
+		else
+			N = N+1
+			if (N>length(HDR.EVENT.POS))
+				HDR.EVENT.POS = [HDR.EVENT.POS;zeros(1024,1)]; 
+				HDR.EVENT.TYP = [HDR.EVENT.TYP;zeros(1024,1)];
+			end;	 
+			[y,mo,dd,hh,mi,se,ms,desc,rri,count]=sscanf(line,'%02u-%02u-%02u %02u:%02u:%02u %03u %s %f','C');
+			%% t = datenum(y,mo,dd,hh,mi,se+ms/1000);
+			if (N==1)
+				HDR.T0 = datenum(y,mo,dd,hh,mi,se+(ms-rri)/1000);
+				HDR.EVENT.POS = [0;rri];
+				HDR.EVENT.TYP = [1;1]*hex2dec('0501');
+				N = 2; 
+			else	
+				HDR.EVENT.POS(N) = HDR.EVENT.POS(N-1)+rri;
+				HDR.EVENT.TYP(N) = hex2dec('0501');
+			end;
+			%% ix = strmatch(desc,DescList,'exact');
+			%% if isempty(ix)
+			%%	DescList{end+1}=desc;
+			%%	ix = length(DescList);
+			%% end;	
+			%% HDR.EVENT.TYP(N) = ix;
+		end; 	
+		line = fgetl(fid);
+	end
+	HDR.EVENT.POS = HDR.EVENT.POS(1:N);	
+	HDR.EVENT.TYP = HDR.EVENT.TYP(1:N);
+	HDR.EVENT.CodeDesc = DescList;
+	HDR.EVENT.CodeIndex = [1:length(DescList)]';	
+	fclose(HDR);
+	return;
+	
 
 
 elseif strncmp(HDR.TYPE,'HL7aECG',3),
