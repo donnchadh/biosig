@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.201 2008-05-27 06:08:29 schloegl Exp $
+    $Id: biosig.c,v 1.202 2008-05-27 11:41:30 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1331,7 +1331,19 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = EDF;
 	    	hdr->VERSION = 0; 
 	}
+
+	/* Nihon Kohden */
+    	else if (!memcmp(Header1,"EEG-1100A ",10))
+	    	hdr->TYPE = EEG1100;
+    	else if (!memcmp(Header1,"EEG-1100B ",10))
+	    	hdr->TYPE = EEG1100;
     	else if (!memcmp(Header1,"EEG-1100C ",10))
+	    	hdr->TYPE = EEG1100;
+    	else if (!memcmp(Header1,"QI-403A   ",10))
+	    	hdr->TYPE = EEG1100;
+    	else if (!memcmp(Header1,"EEG-2100  ",10))
+	    	hdr->TYPE = EEG1100;
+    	else if (!memcmp(Header1,"DAE-2100D ",10))
 	    	hdr->TYPE = EEG1100;
 
     	else if ((beu32p(hdr->AS.Header) > 1) && (beu32p(hdr->AS.Header) < 8)) {

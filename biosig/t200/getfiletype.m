@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.73 2008-05-27 07:50:12 schloegl Exp $
+%	$Id: getfiletype.m,v 1.74 2008-05-27 11:41:33 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -195,15 +195,25 @@ else
                 elseif 0, strncmp(ss,'PATH OF DATASET:',16); 
                         HDR.TYPE='CTF';
                         
-                elseif strcmp(ss(1:10),'EEG-1100C ') & strcmp(ss(16+(1:length(HDR.FILE.Name))),HDR.FILE.Name);      % Nihon-Kohden
+                elseif strcmp(ss(1:10),'EEG-1100C ') && strcmp(ss(16+(1:length(HDR.FILE.Name))),HDR.FILE.Name);      % Nihon-Kohden
                         HDR.TYPE='EEG-1100';
                         HDR.VERSION = ss(11:16);
-                elseif strcmp(ss(1:10),'EEG-1100C ') & strcmp(ss(32+(1:length(HDR.FILE.Name))),HDR.FILE.Name);      % Nihon-Kohden
+                elseif strcmp(ss(1:10),'EEG-1100C ') && strcmp(ss(32+(1:length(HDR.FILE.Name))),HDR.FILE.Name);      % Nihon-Kohden
                         HDR.TYPE='EEG-1100+';
                         HDR.VERSION = ss(11:16);
-                elseif strcmp(ss(1:10),'EEG-1100C ')     % Nihon-Kohden
+                elseif strcmp(ss([1:8,10]),'EEG-1100 ')  && any(ss(9)=='ABC')   % Nihon-Kohden
                         HDR.TYPE='EEG-1100-';
                         HDR.VERSION = ss(11:16);
+                elseif strcmp(ss(1:10),'QI-403A   ')     % Nihon-Kohden
+                        HDR.TYPE='EEG-1100-';
+                        HDR.VERSION = ss(11:16);
+                elseif strcmp(ss(1:10),'EEG-2100  ')     % Nihon-Kohden
+                        HDR.TYPE='EEG-1100-';
+                        HDR.VERSION = ss(11:16);
+                elseif strcmp(ss(1:10),'DAE-2100D ')     % Nihon-Kohden
+                        HDR.TYPE='EEG-1100-';
+                        HDR.VERSION = ss(11:16);
+                        
                 elseif strcmp(ss(1:20),['Header',13,10,'File Version'])  
                         HDR.TYPE='ETG4000';
                 elseif strncmp(ss,'GALILEO EEG TRACE FILE',22)     % Galilea EEG (from ESAOTE, EBNeuro spa) 
