@@ -17,7 +17,7 @@ function [Y,RRI] = berger(RRI,Fs)
 %    An efficient algorithm for spectral analysis of heart rate variability.
 %    IEEE Trans Biomed Eng. 1986 Sep;33(9):900-4.
 
-%       $Id: berger.m,v 1.5 2008-05-27 06:54:09 schloegl Exp $
+%       $Id: berger.m,v 1.6 2008-05-27 07:17:55 schloegl Exp $
 %	Copyright (c) 1997-2005, 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -43,9 +43,7 @@ if isstruct(RRI)
         else
                 EVENT = RRI; 
         end;
-        if isfield(EVENT,'SampleRate')
-                Fs = EVENT.SampleRate; 
-        else    
+        if ~isfield(EVENT,'SampleRate')
                 warning('Invalid input argument causes unknown source sampleing rate.');
         end;
         if isfield(EVENT,'POS') && isfield(EVENT,'TYP') && isfield(EVENT,'CHN') && isfield(EVENT,'DUR');
