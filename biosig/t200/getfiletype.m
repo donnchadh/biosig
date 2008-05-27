@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.72 2008-04-08 20:48:16 schloegl Exp $
+%	$Id: getfiletype.m,v 1.73 2008-05-27 07:50:12 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -651,6 +651,8 @@ else
                         HDR.TYPE='XML-UTF16';
                 elseif ~isempty(findstr(ss,'?xml version'))
                         HDR.TYPE='XML-UTF8';
+                elseif ~isempty(findstr(ss,'Serial number'))
+                        HDR.TYPE='ASCII:IBI';
 
                 elseif strncmp(ss,'ABF',3)
                         HDR.TYPE = ss(1:4);

@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.209 2008-05-27 06:08:33 schloegl Exp $
+%	$Id: sopen.m,v 1.210 2008-05-27 07:50:11 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -8793,7 +8793,8 @@ elseif strcmp(HDR.TYPE,'ASCII:IBI')
 	HDR.EVENT.POS = [];
 	HDR.EVENT.TYP = [];
 	DescList = {};
-	while (~isempty(line))
+%%	while (~isempty(line))
+	while (~feof(fid))
 		if ((line(1)<'0') || (line(1)>'9'))
 			f=deblank(strtok(line,':'));
 			v=deblank(strtok(line,':'));
@@ -8803,15 +8804,23 @@ elseif strcmp(HDR.TYPE,'ASCII:IBI')
 				HDR.Patient.Name = v; 
 			end;	
 		else
-			N = N+1
+			N = N+1;
 			if (N>length(HDR.EVENT.POS))
-				HDR.EVENT.POS = [HDR.EVENT.POS;zeros(1024,1)]; 
-				HDR.EVENT.TYP = [HDR.EVENT.TYP;zeros(1024,1)];
+				HDR.EVENT.POS = [HDR.EVENT.POS;zeros(2^12,1)]; 
+				HDR.EVENT.TYP = [HDR.EVENT.TYP;zeros(2^12,1)];
 			end;	 
-			[y,mo,dd,hh,mi,se,ms,desc,rri,count]=sscanf(line,'%02u-%02u-%02u %02u:%02u:%02u %03u %s %f','C');
+			if exist('OCTAVE_VERSION','builtin')
+				[y,mo,dd,hh,mi,se,ms,desc,rri,count]=sscanf(line,'%02u-%02u-%02u %02u:%02u:%02u %03u %s %f','C');
+				y = [y,mo,dd,hh,mi,se,ms];
+			else
+				[y,COUNT,ERRMSG,NEXTINDEX1] = sscanf(line,'%02u-%02u-%02u %02u:%02u:%02u %03u',7); 
+				[desc,COUNT,ERRMSG,NEXTINDEX2] = sscanf(line(NEXTINDEX1:end),'%s',1);
+				[rri,COUNT,ERRMSG,NEXTINDEX] = sscanf(line(NEXTINDEX1+NEXTINDEX2-1:end),'%4i',1);
+			end; 
+				
 			%% t = datenum(y,mo,dd,hh,mi,se+ms/1000);
 			if (N==1)
-				HDR.T0 = datenum(y,mo,dd,hh,mi,se+(ms-rri)/1000);
+				HDR.T0 = datenum(y(1),y(2),y(3),y(4),y(5),y(6)+(y(7)-rri)/1000);
 				HDR.EVENT.POS = [0;rri];
 				HDR.EVENT.TYP = [1;1]*hex2dec('0501');
 				N = 2; 
@@ -8828,11 +8837,12 @@ elseif strcmp(HDR.TYPE,'ASCII:IBI')
 		end; 	
 		line = fgetl(fid);
 	end
+	fclose(fid);
 	HDR.EVENT.POS = HDR.EVENT.POS(1:N);	
 	HDR.EVENT.TYP = HDR.EVENT.TYP(1:N);
 	HDR.EVENT.CodeDesc = DescList;
 	HDR.EVENT.CodeIndex = [1:length(DescList)]';	
-	fclose(HDR);
+	HDR.TYPE = 'EVENT';
 	return;
 	
 
