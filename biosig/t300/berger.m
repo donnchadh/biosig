@@ -17,7 +17,7 @@ function [Y,RRI] = berger(RRI,Fs)
 %    An efficient algorithm for spectral analysis of heart rate variability.
 %    IEEE Trans Biomed Eng. 1986 Sep;33(9):900-4.
 
-%       $Id: berger.m,v 1.4 2007-07-31 14:06:24 schloegl Exp $
+%       $Id: berger.m,v 1.5 2008-05-27 06:54:09 schloegl Exp $
 %	Copyright (c) 1997-2005, 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -44,17 +44,17 @@ if isstruct(RRI)
                 EVENT = RRI; 
         end;
         if isfield(EVENT,'SampleRate')
-                Fs0 = EVENT.SampleRate; 
+                Fs = EVENT.SampleRate; 
         else    
                 warning('Invalid input argument causes unknown source sampleing rate.');
         end;
-        if isfield(EVENT,'POS') & isfield(EVENT,'TYP') & isfield(EVENT,'CHN') & isfield(EVENT,'DUR');
+        if isfield(EVENT,'POS') && isfield(EVENT,'TYP') && isfield(EVENT,'CHN') && isfield(EVENT,'DUR');
                 ix = find(EVENT.TYP==hex2dec('0501'));
                 if all(EVENT.CHN(ix(1)) == EVENT.CHN(ix));
-                        on = EVENT.POS(EVENT.TYP==hex2dec('0501'))/Fs0;
+                        on = EVENT.POS(EVENT.TYP==hex2dec('0501'))/EVENT.SampleRate;
                 end;
-        elseif isfield(EVENT,'POS') & isfield(EVENT,'TYP');
-                on = EVENT.POS(EVENT.TYP==hex2dec('0501'))/Fs0;
+        elseif isfield(EVENT,'POS') && isfield(EVENT,'TYP');
+                on = EVENT.POS(EVENT.TYP==hex2dec('0501'))/EVENT.SampleRate;
         end;
         
 elseif ~any(diff(RRI)<0),	
