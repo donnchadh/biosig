@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.102 2008-05-28 13:00:59 schloegl Exp $
+% $Id: biosig.h,v 1.103 2008-05-28 13:33:23 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -324,17 +324,6 @@ typedef struct {
 	void *aECG;
 	
 } HDRTYPE;
-
-
-extern struct global_t {
-	uint16_t LenCodeDesc;	
-	uint16_t *CodeIndex;	
-	char 	**CodeDesc;	
-	char 	*Description;
-} Global;   		
-
-void LoadGlobalEventCodeTable(); 
-void FreeGlobalEventCodeTable(); 
 
 
 /****************************************************************************/

@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.204 2008-05-28 13:00:59 schloegl Exp $
+    $Id: biosig.c,v 1.205 2008-05-28 13:33:23 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -56,13 +56,6 @@
 #define FILESEP '/'
 #endif
 
-
-/*
-	Event code table 
-*/
-
-static char GLOBAL_ISLOADED = 0; 
-struct global_t Global; 		
 
 
 const int16_t GDFTYP_BITS[] = {
@@ -148,6 +141,19 @@ const char *LEAD_ID_TABLE[] = { "unspecified",
 	"ERL","ELA","ELB","ERA","ERB"
 */
 	, "\0\0" };  // stop marker 
+
+
+/* --------------------------------------------------- * 
+ *	Global Event Code Table                        *
+ * --------------------------------------------------- */
+static char GLOBAL_ISLOADED = 0; 
+struct global_t {
+	uint16_t LenCodeDesc;	
+	uint16_t *CodeIndex;	
+	char 	**CodeDesc;	
+	char 	*Description;
+} Global;   		
+
 
 
 /****************************************************************************/
@@ -957,6 +963,23 @@ void write_gdf_eventtable(HDRTYPE *hdr)
 /*------------------------------------------------------------------------
 	Loads Table of Event Codes                                           
   ------------------------------------------------------------------------*/
+void FreeGlobalEventCodeTable() {
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"FreeGlobalEventTable(start)%i\n",GLOBAL_ISLOADED);
+
+	if (!GLOBAL_ISLOADED) return;
+
+	free(Global.Description);
+	free(Global.CodeDesc); 
+	free(Global.CodeIndex);
+	Global.LenCodeDesc = 0;
+	Global.CodeDesc = NULL;	
+	Global.CodeIndex = NULL;	
+	Global.Description = NULL;	
+	
+	GLOBAL_ISLOADED = 0;
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"FreeGlobalEventTable(end)%i\n",GLOBAL_ISLOADED);
+}
+
 void LoadGlobalEventCodeTable() 
 {
 
@@ -979,6 +1002,9 @@ void LoadGlobalEventCodeTable()
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(102) OPEN=%i %i\n",HDR.FILE.OPEN,Global.LenCodeDesc);
 
+	
+	atexit(&FreeGlobalEventCodeTable);	// make sure memory is freed  
+
 	size_t count = 0; 
 	if (Global.Description==NULL)  
 	while (!ifeof(&HDR)) {
@@ -989,9 +1015,7 @@ void LoadGlobalEventCodeTable()
 	ifclose(&HDR);
 	Global.Description[count]=0;	// terminating /0 character
 
-	Global.LenCodeDesc = 0; 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(103) count=%i %i\n",count,Global.LenCodeDesc);
-
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(103) count=%i\n",count);
 
 	size_t N = 0; 
 	char *line = strtok(Global.Description,"\x0a\x0d");
@@ -1021,24 +1045,7 @@ void LoadGlobalEventCodeTable()
 		line = strtok(NULL,"\x0a\x0d");
 	}
 	GLOBAL_ISLOADED = 1;
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(end)%i\n",GLOBAL_ISLOADED);
-}
-
-void FreeGlobalEventCodeTable() {
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"FreeGlobalEventTable(start)%i\n",GLOBAL_ISLOADED);
-	if (!GLOBAL_ISLOADED) return;
-
-	free(Global.Description);
-	free(Global.CodeDesc); 
-	free(Global.CodeIndex);
-	Global.LenCodeDesc = 0;
-
-	Global.CodeDesc = NULL;	
-	Global.CodeIndex = NULL;	
-	Global.Description = NULL;	
-	
-	GLOBAL_ISLOADED = 0;
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"FreeGlobalEventTable(end)%i\n",GLOBAL_ISLOADED);
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"LoadGlobalEventTable(end)%i\n",Global.LenCodeDesc);
 }
 
 
@@ -6738,7 +6745,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 
 			else if (hdr->EVENT.TYP[k] < hdr->EVENT.LenCodeDesc)
 				fprintf(fid,"\t\t%s",hdr->EVENT.CodeDesc[hdr->EVENT.TYP[k]]);
-			else {
+			else if (Global.LenCodeDesc > 0) {
 				uint16_t k1;
 				for (k1=0; (k1 < Global.LenCodeDesc) && (hdr->EVENT.TYP[k] != Global.CodeIndex[k1]); k1++);
 				if (hdr->EVENT.TYP[k] == Global.CodeIndex[k1])
@@ -6775,8 +6782,6 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 		}
 	}
 	fprintf(fid,"\n\n");
-
-	FreeGlobalEventCodeTable(); 
 
 	return(0);
 } 	/* end of HDR2ASCII */
