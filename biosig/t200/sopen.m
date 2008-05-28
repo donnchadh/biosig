@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.210 2008-05-27 07:50:11 schloegl Exp $
+%	$Id: sopen.m,v 1.211 2008-05-28 15:21:07 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -825,8 +825,6 @@ end;
                         HDR.EVENT.POS = round(onset * HDR.SampleRate);
                         HDR.EVENT.DUR = dur * HDR.SampleRate;
                         HDR.EVENT.CHN = zeros(N,1); 
-                        HDR.EVENT.Desc = Desc(:); 
-
                         [HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP] = unique(Desc(1:N)');
 
 
@@ -4165,13 +4163,13 @@ elseif strcmp(HDR.TYPE,'WG1'),
         			pad = fread(fid,3,'uint32');
         			len = fread(fid,1,'uint8');
         			tmp = char(fread(fid,[1,47], 'uint8'));
-				HDR.EVENT.Desc{nr,1} = tmp(1:len);  
+				Desc{nr,1} = tmp(1:len);  
     				% find string between quotation marks
 				%  HDR.EVENT.Desc{nr}=regexpi(Event,'(?<=\'').*(?=\'')','match','once');
 				[s,c] = fread(fid,1,'uint32');
         			nr  = nr+1;
 		        end;
-    			HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
+                        [HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP] = unique(Desc);
 			fclose(fid);
 		end;
         end;
@@ -5562,8 +5560,9 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         	HDR.Label = tmp.dat.clab';
 		if isfield(tmp,'mrk_orig'),
 			HDR.EVENT.POS = round([tmp.mrk_orig.pos]./[tmp.mrk_orig.fs]*tmp.mrk.fs)';
-			HDR.EVENT.Desc = {tmp.mrk_orig.desc};
-			HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
+			% HDR.EVENT.Desc = {tmp.mrk_orig.desc};
+			% HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
+                        [HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP] = unique({tmp.mrk_orig.desc});
 			HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS));
 			HDR.EVENT.DUR = ones(size(HDR.EVENT.POS));
 			HDR = bv2biosig_events(HDR);
@@ -7409,7 +7408,7 @@ elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
                                 HDR.EVENT.DUR(N,1) = str2double(s(ix(3)+1:ix(4)-1));
                                 HDR.EVENT.CHN(N,1) = str2double(s(ix(4)+1:ix(5)-1));
                                 HDR.EVENT.TeegType{N,1} = s(2:ix(1)-1);
-                                HDR.EVENT.Desc{N,1} = s(ix(1)+1:ix(2)-1);
+                                Desc{N,1} = s(ix(1)+1:ix(2)-1);
                                 if strncmp('New Segment',s(2:ix(1)-1),4); 
                                         t = s(ix(5)+1:end); 
                                         NoSegs = NoSegs+1; 
@@ -7422,7 +7421,7 @@ elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
                 end;
                 fclose(fid);
                 HDR.TYPE = 'EVENT';
-                [HDR.EVENT.CodeDesc, CodeIndex, j] = unique(HDR.EVENT.Desc);
+                [HDR.EVENT.CodeDesc, CodeIndex, j] = unique(Desc);
                 ix = (HDR.EVENT.TYP==0);
                 HDR.EVENT.TYP(ix) = j(ix);
         end; 
@@ -8593,7 +8592,7 @@ elseif strcmp(HDR.TYPE,'FEPI3'), 	% Freiburg epileptic seizure prediction Contes
 						end; 
 						if isempty(tmp), tmp=0; end; 
 						HDR.EVENT.CHN(K,1) = tmp;
-						HDR.EVENT.Desc{K,1} = t2; 
+						%HDR.EVENT.Desc{K,1} = t2; 
 						Desc{K,1} = t4; 
 						
 						% according to https://epilepsy.uni-freiburg.de/seizure-prediction-workshop-2007/prediction-contest/data-download/the-datareader
@@ -8633,6 +8632,7 @@ elseif strcmp(HDR.TYPE,'FEPI3'), 	% Freiburg epileptic seizure prediction Contes
 						else typ = 0; 
 						end; 
 						HDR.EVENT.TYP(K,1) = typ; 
+						HDR.EVENT.CodeDesc{typ} = t2;
 					end;
 					end;
 				end; 					
@@ -8769,9 +8769,10 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 TFM.E = TFM.E(6:end,:);
 		
                 ix = find(isnan(TFM.S(:,2)) & ~isnan(TFM.S(:,1)));
-                HDR.EVENT.Desc = TFM.E(ix,2);
+                Desc = TFM.E(ix,2);
                 HDR.EVENT.POS  = ix(:);
                 HDR.EVENT.TYP  = zeros(size(HDR.EVENT.POS));
+                [HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP] = unique(Desc);
                 
 		[HDR.SPR,HDR.NS] = size(TFM.S);
                 HDR.Label = HDR.Label(1:HDR.NS); 
@@ -8841,7 +8842,7 @@ elseif strcmp(HDR.TYPE,'ASCII:IBI')
 	HDR.EVENT.POS = HDR.EVENT.POS(1:N);	
 	HDR.EVENT.TYP = HDR.EVENT.TYP(1:N);
 	HDR.EVENT.CodeDesc = DescList;
-	HDR.EVENT.CodeIndex = [1:length(DescList)]';	
+	% HDR.EVENT.CodeIndex = [1:length(DescList)]';	
 	HDR.TYPE = 'EVENT';
 	return;
 	
