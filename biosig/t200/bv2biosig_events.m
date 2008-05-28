@@ -16,7 +16,7 @@ function HDR=bv2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bv2biosig_events.m,v 1.7 2008-01-19 20:29:01 schloegl Exp $
+%	$Id: bv2biosig_events.m,v 1.8 2008-05-28 09:15:17 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -72,8 +72,12 @@ if (HDR.NS==128)
 end;
 FLAG_ARTERAWDATA = strncmp(HDR.FILE.Name,'arte',4);
 	
-for k1 = 1:length(HDR.EVENT.Desc)
-	tmp = HDR.EVENT.Desc{k1};
+for k1 = 1:length(HDR.EVENT.POS)
+	if isfield(HDR.EVENT,'Desc')
+		tmp = HDR.EVENT.Desc{k1};
+	elseif isfield(HDR.EVENT,'CodeDesc') && (HDR.EVENT.TYP(k1)<length(HDR.EVENT.CodeDesc))	
+		tmp = HDR.EVENT.CodeDesc{HDR.EVENT.TYP(k1)+1};
+	end;	
 	%HDR.TRIG = HDR.EVENT.POS(HDR.EVENT.TYP<10); 
 	if 0,
 		

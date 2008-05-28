@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.30 2008-05-21 13:31:09 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.31 2008-05-28 09:15:16 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -319,6 +319,7 @@ void mexFunction(
 			mxSetField(EVENT,0,"DUR",DUR);
 			mxSetField(EVENT,0,"CHN",CHN);
 		}
+/*
 		if (hdr->EVENT.Desc != NULL) {
 			mxAddField(EVENT, "Desc");
 			mxArray *Desc = mxCreateCellMatrix(hdr->EVENT.N,1);
@@ -326,6 +327,17 @@ void mexFunction(
 				mxSetCell(Desc,k,mxCreateString(hdr->EVENT.Desc[k]));
 			} 
 			mxSetField(EVENT,0,"Desc",Desc);
+		}	
+*/
+		if (hdr->EVENT.CodeDesc != NULL) {
+			mxAddField(EVENT, "CodeDesc");
+			size_t k;
+			for (k=0; hdr->EVENT.CodeDesc[k] != NULL; ++k);
+			mxArray *CodeDesc = mxCreateCellMatrix(k,1);
+			for (k=0; hdr->EVENT.CodeDesc[k] != NULL; ++k) {
+				mxSetCell(CodeDesc,k,mxCreateString(hdr->EVENT.CodeDesc[k]));
+			} 
+			mxSetField(EVENT,0,"CodeDesc",CodeDesc);
 		}	
 
 		mxArray *TYP = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);

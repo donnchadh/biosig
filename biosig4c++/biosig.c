@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.202 2008-05-27 11:41:30 schloegl Exp $
+    $Id: biosig.c,v 1.203 2008-05-28 09:15:16 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -946,7 +946,42 @@ void write_gdf_eventtable(HDRTYPE *hdr)
 	}	
 }
 
+/*------------------------------------------------------------------------
+	adds free text annotation to event table    
+	the EVENT.TYP is identified from the table EVENT.CodeDesc
+	if annotations is not listed in CodeDesc, it is added to CodeDesc
+	The table is limited to 256 entries, because the table EventCodes
+	allows only codes 0-255 as user specific entry.
+  ------------------------------------------------------------------------*/
+void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation) {
+	/* free text annotations encoded as user specific events (codes 1-255) */
 
+	static int LengthCodeDesc = 0;
+	if (hdr->EVENT.CodeDesc == NULL) {		
+		hdr->EVENT.CodeDesc = (typeof(hdr->EVENT.CodeDesc)) realloc(hdr->EVENT.CodeDesc,257*sizeof(*hdr->EVENT.CodeDesc));
+		hdr->EVENT.CodeDesc[0] = "";
+		LengthCodeDesc = 1; 
+		hdr->EVENT.CodeDesc[LengthCodeDesc]=NULL; 
+	}
+	
+	int flag=1,k1;
+	for (k1=0; (k1 < LengthCodeDesc) && flag; k1++) {
+		if (!strncmp(hdr->EVENT.CodeDesc[k1], annotation, strlen(annotation))) {
+			hdr->EVENT.TYP[N_EVENT] = k1;
+			flag = 0;
+		}
+	}		
+	if (flag) {
+		hdr->EVENT.TYP[N_EVENT] = LengthCodeDesc;
+		hdr->EVENT.CodeDesc[LengthCodeDesc]= annotation;
+		LengthCodeDesc++;
+		hdr->EVENT.CodeDesc[LengthCodeDesc]=NULL; 
+	}
+	if (LengthCodeDesc>256) {
+		B4C_ERRNUM = B4C_INSUFFICIENT_MEMORY; 
+		B4C_ERRMSG = "Maximum number of user-defined events (256) exceeded";
+	}	
+}
 
 /****************************************************************************/
 /**                                                                        **/
@@ -1070,18 +1105,20 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	// define EVENT structure
 	hdr->EVENT.N = N_EVENT; 
 	hdr->EVENT.SampleRate = 0;  
+	hdr->EVENT.CodeDesc = NULL; 
+	hdr->EVENT.Desc= NULL;
 	if (hdr->EVENT.N) {
 		hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
 		hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
 		hdr->EVENT.DUR = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.DUR));
 		hdr->EVENT.CHN = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.CHN));
-		hdr->EVENT.Desc= (char**)    calloc(hdr->EVENT.N,sizeof(char*));
+//		hdr->EVENT.Desc= (char**)    calloc(hdr->EVENT.N,sizeof(char*));
 	} else {
 		hdr->EVENT.POS = NULL;
 		hdr->EVENT.TYP = NULL;
 		hdr->EVENT.DUR = NULL;
 		hdr->EVENT.CHN = NULL;
-		hdr->EVENT.Desc= NULL;
+//		hdr->EVENT.Desc= NULL;
 	}
 	
 	// initialize "Annotated ECG structure"
@@ -1128,7 +1165,8 @@ void destructHDR(HDRTYPE* hdr) {
     	if (hdr->EVENT.TYP != NULL)  free(hdr->EVENT.TYP);
     	if (hdr->EVENT.DUR != NULL)  free(hdr->EVENT.DUR);
     	if (hdr->EVENT.CHN != NULL)  free(hdr->EVENT.CHN);
-    	if (hdr->EVENT.Desc != NULL) free(hdr->EVENT.Desc);
+//    	if (hdr->EVENT.Desc != NULL) free(hdr->EVENT.Desc);
+    	if (hdr->EVENT.CodeDesc != NULL) free(hdr->EVENT.CodeDesc);
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: 09\n");
         	
@@ -2124,6 +2162,7 @@ if (!strncmp(MODE,"r",1))
 				double Onset,Duration;
 				char FLAG_NONZERO_DURATION = 0; 
 				p1 = (char*)Marker;	
+				
 				for (k=0; k<len; ) {
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF+Events 217] #=%i\n",k);
@@ -2140,7 +2179,7 @@ if (!strncmp(MODE,"r",1))
 						hdr->EVENT.TYP = (uint16_t*)realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
 						hdr->EVENT.DUR = (uint32_t*)realloc(hdr->EVENT.DUR, hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
 						hdr->EVENT.CHN = (uint16_t*)realloc(hdr->EVENT.CHN, hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
-						hdr->EVENT.Desc= (char**)realloc(hdr->EVENT.Desc, hdr->EVENT.N*sizeof(char*));
+						//hdr->EVENT.Desc= (char**)realloc(hdr->EVENT.Desc, hdr->EVENT.N*sizeof(char*));
 					}
 					
 					Onset = strtod(p1+k, &p2);
@@ -2152,18 +2191,23 @@ if (!strncmp(MODE,"r",1))
 					else
 						Duration = 0; 
 
+					p0[strlen(p0)-1] = 0;			// remove last ascii(20)
 					hdr->EVENT.POS[N_EVENT] = (uint32_t)round(Onset * hdr->EVENT.SampleRate);	
-					hdr->EVENT.TYP[N_EVENT] = min(255,strlen(p0+1)-1);	// this is a hack, maps all codes into "user specific events" 
 					hdr->EVENT.DUR[N_EVENT] = (uint32_t)round(Duration * hdr->EVENT.SampleRate);	
 					hdr->EVENT.CHN[N_EVENT] = 0;	
-					hdr->EVENT.Desc[N_EVENT]= p0+1;	
-					hdr->EVENT.Desc[N_EVENT][strlen(hdr->EVENT.Desc[N_EVENT])-1]=0;	// remove last ascii(20)
-					N_EVENT++; 
+					hdr->EVENT.TYP[N_EVENT] = min(255,strlen(p0+1));	// this is a hack, maps all codes into "user specific events" 
+					//hdr->EVENT.Desc[N_EVENT]= p0+1;	
+
+					/* conversion from free text annotations to biosig event codes */
+					if (!strcmp(p0+1,"QRS")) hdr->EVENT.TYP[N_EVENT] = 0x0501;  
+					else {
+						FreeTextEvent(hdr,N_EVENT,p0+1);
+					}	
 
 					if (VERBOSE_LEVEL>8)
 						fprintf(stdout,"%i,EDF+: %i\t%i\t%03i:\t%f\t%f\t%s\t%s\n",sizeof(char**),len,k,N_EVENT,Onset,Duration,p2+1,p0+1);
 					
-						
+					N_EVENT++; 
 					while ((Marker[k] > 0) && (k<len)) k++;	// search for end of annotation 
 				}
 				hdr->EVENT.N = N_EVENT; 
@@ -2173,7 +2217,7 @@ if (!strncmp(MODE,"r",1))
 					free(hdr->EVENT.CHN);
 					hdr->EVENT.CHN = NULL;
 				} 
-				hdr->AS.auxBUF = Marker;	// contains EVENT.Desc strings
+				hdr->AS.auxBUF = Marker;	// contains EVENT.CodeDesc strings
 /*
                         N  = 0; 
 			[s,t] = strtok(HDR.EDF.ANNONS,0);
@@ -2788,13 +2832,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
 					hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR, hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
 					hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN, hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
-					hdr->EVENT.Desc= (char**)realloc(hdr->EVENT.Desc, hdr->EVENT.N*sizeof(char*));
+				//	hdr->EVENT.Desc= (char**)realloc(hdr->EVENT.Desc, hdr->EVENT.N*sizeof(char*));
 				}
 				hdr->EVENT.TYP[N_EVENT] = atol(t1+p2+2);
 				hdr->EVENT.POS[N_EVENT] = atol(t1+p3+1);
 				hdr->EVENT.DUR[N_EVENT] = atol(t1+p4+1);
 				hdr->EVENT.CHN[N_EVENT] = atol(t1+p5+1);
-				hdr->EVENT.Desc[N_EVENT] = t1+p2+1;
+				//hdr->EVENT.Desc[N_EVENT] = t1+p2+1;
 				if (!strncmp(t1+p1+1,"New Segment",11)) {
 					hdr->EVENT.TYP[N_EVENT] = 0x7ffe;
 					
@@ -2814,6 +2858,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					
 					hdr->T0 = t_time2gdf_time(mktime(&tm_time));
 				}
+				else 
+					FreeTextEvent(hdr,N_EVENT,t1+p2+1);
+					
 				++N_EVENT;
 			}		
 			t1 = strtok(NULL,"\x0A\x0D");		
@@ -4599,7 +4646,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		while (!ifeof(hdr) && strlen(line)) {
 			if (isdigit(line[0])) {
 				struct tm t; 
-				int y,mo,dd,hh,mi,ss,ms,rri;
+				int ms,rri;
 				sscanf(line,"%02u-%02u-%02u %02u:%02u:%02u %03u %s %i",&t.tm_mday,&t.tm_mon,&t.tm_year,&t.tm_hour,&t.tm_min,&t.tm_sec,&ms,desc,&rri);
 				if (N==0) {
 					hdr->T0 = (gdf_time)(tm_time2gdf_time(&t) + ldexp((ms-rri)/(24*3600*1e3),32)); 
@@ -6616,15 +6663,22 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 		/* channel settings */
 		fprintf(fid,"\n\n[EVENT TABLE] N=%i Fs=%f",hdr->EVENT.N,hdr->EVENT.SampleRate);
 		fprintf(fid,"\n#No\tTYP\tPOS\tDUR\tCHN\tVAL\tDesc");
-		size_t k;
+		size_t k,LengthCodeDesc=0;
+		if (hdr->EVENT.CodeDesc!=NULL) 
+			for (LengthCodeDesc=0; hdr->EVENT.CodeDesc[LengthCodeDesc] != NULL; LengthCodeDesc++) 
+				// fprintf(fid,"\n%5i <%s>",LengthCodeDesc,hdr->EVENT.CodeDesc[LengthCodeDesc])
+				;
+			
 		for (k=0; k<hdr->EVENT.N; k++) {
 			fprintf(fid,"\n%5i\t0x%04x\t%d",k+1,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]);
 			if (hdr->EVENT.DUR != NULL)
 				fprintf(fid,"\t%5d\t%d",hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]);
 			if ((hdr->EVENT.TYP[k] == 0x7fff) && (hdr->TYPE==GDF))
 				fprintf(fid,"\t[neds]");
-			else if (hdr->EVENT.Desc != NULL)
-				fprintf(fid,"\t\t%s",hdr->EVENT.Desc[k]);
+			else if (hdr->EVENT.TYP[k] < LengthCodeDesc)
+				fprintf(fid,"\t\t%s",hdr->EVENT.CodeDesc[hdr->EVENT.TYP[k]]);
+//			else if (hdr->EVENT.Desc != NULL)
+//				fprintf(fid,"\t\t%s",hdr->EVENT.Desc[k]);
 		}
 	}
 		

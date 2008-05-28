@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.100 2008-05-27 06:10:19 schloegl Exp $
+% $Id: biosig.h,v 1.101 2008-05-28 09:15:16 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -228,7 +228,9 @@ typedef struct {
 		char		Id[MAX_LENGTH_PID+1];	/* patient identification, identification code as used in hospital  */
 		uint8_t		Weight;		/* weight in kilograms [kg] 0:unkown, 255: overflow  */
 		uint8_t		Height;		/* height in centimeter [cm] 0:unkown, 255: overflow  */
+		//		BMI;		/* the body-mass index = weight[kg]/height[m]^2 */
 		gdf_time 	Birthday; 	/* Birthday of Patient */
+		// 		Age;		/* the age is HDR.T0 - HDR.Patient.Birthday, even if T0 and Birthday are not known */ 		
 		uint16_t	Headsize[3]; 	/* circumference, nasion-inion, left-right mastoid in millimeter;  */
 		/* Patient classification */
 		int	 	Sex;		/* 0:Unknown, 1: Male, 2: Female  */
@@ -278,7 +280,8 @@ typedef struct {
 		uint32_t 	*POS ATT_ALI;	/* starting position [in samples] */
 		uint32_t 	*DUR ATT_ALI;	/* duration [in samples] */
 		uint16_t 	*CHN ATT_ALI;	/* channel number; 0: all channels  */
-		char		**Desc ATT_ALI 	__attribute__ ((deprecated)); 	/* Description of Events */	
+		char		**CodeDesc;	/* describtion of "free text"/"user specific" events (encoded with TYP=0..255 */
+		char		**Desc ATT_ALI 	__attribute__ ((deprecated)); 	/* Description of Events */
 	} EVENT ATT_ALI; 
 
 	struct {	/* flags */
