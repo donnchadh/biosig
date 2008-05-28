@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.41 2008-05-20 18:04:00 schloegl Exp $
+    $Id: save2gdf.c,v 1.42 2008-05-28 21:31:51 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -163,12 +163,11 @@ int main(int argc, char **argv){
 	hdr->FLAG.ROW_BASED_CHANNELS = 0;
 	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[121]\n");
-//	count = sread(hdr, 0, hdr->NRec);
 	if (dest!=NULL)
 		count = sread(NULL, 0, hdr->NRec, hdr);
 
 	biosig_data_type* data = hdr->data.block;
-	if (VERBOSE_LEVEL>8) 
+	if ((VERBOSE_LEVEL>8) && (hdr->data.size[0]*hdr->data.size[1]>500))
 		fprintf(stdout,"[122] UCAL=%i %e %e %e \n",hdr->FLAG.UCAL,data[100],data[110],data[500+hdr->SPR]);
 	
 	if ((status=serror())) {
@@ -189,7 +188,7 @@ int main(int argc, char **argv){
 			else 
 				hdr->EVENT.N  = 0;
 					
-			fprintf(stdout,"Status-SFLUSH %i\n",sflush_gdf_event_table(hdr));
+			// fprintf(stdout,"Status-SFLUSH %i\n",sflush_gdf_event_table(hdr));
 		}	
 		
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[131] going for SCLOSE\n");
