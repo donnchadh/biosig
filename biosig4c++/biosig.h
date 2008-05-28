@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.103 2008-05-28 13:33:23 schloegl Exp $
+% $Id: biosig.h,v 1.104 2008-05-28 21:19:04 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -177,7 +177,7 @@ typedef struct {
 	double		Cal 	ATT_ALI;	/* gain factor */ 
 	double		Off 	ATT_ALI;	/* bias */ 
 
-	char		OnOff 	ATT_ALI; 		
+	char		OnOff	ATT_ALI; 		
 	char		Label[MAX_LENGTH_LABEL+1] ATT_ALI; 	/* Label of channel */
 	uint16_t	LeadIdCode ATT_ALI;	/* Lead identification code */ 
 	char 		Transducer[MAX_LENGTH_TRANSDUCER+1] ATT_ALI;	/* transducer e.g. EEG: Ag-AgCl electrodes */
@@ -185,22 +185,23 @@ typedef struct {
 	uint16_t	PhysDimCode ATT_ALI;	/* code for physical dimension */
 	/* char* 	PreFilt;	// pre-filtering */
 
-	float 		LowPass;	/* lowpass filter */
-	float 		HighPass;	/* high pass */
-	float 		Notch;		/* notch filter */
-	float 		XYZ[3];		/* electrode position */
-	float 		Impedance;   	/* in Ohm */
+	float 		LowPass	ATT_ALI;	/* lowpass filter */
+	float 		HighPass	ATT_ALI;	/* high pass */
+	float 		Notch	ATT_ALI;		/* notch filter */
+	float 		XYZ[3]	ATT_ALI;		/* electrode position */
+	float 		Impedance	ATT_ALI;   	/* in Ohm */
 	
-	uint16_t 	GDFTYP ATT_ALI;		/* data type */
-	uint32_t 	SPR ATT_ALI;		/* samples per record (block) */
+	uint16_t 	GDFTYP 	ATT_ALI;	/* data type */
+	uint32_t 	SPR 	ATT_ALI;	/* samples per record (block) */
 	
-} CHANNEL_TYPE;
+} CHANNEL_TYPE	ATT_ALI;
 
 
 /*
 	This structure defines the general (fixed) header  
 */
 typedef struct {
+	
 	enum FileFormat TYPE 	ATT_ALI; 	/* type of file format */
 	float 		VERSION ATT_ALI;	/* GDF version number */ 
 	const char* 	FileName ATT_ALI;
@@ -219,7 +220,7 @@ typedef struct {
 	uint8_t 	IPaddr[6] ATT_ALI; 	/* IP address of recording device (if applicable) */
 	uint32_t  	LOC[4] 	ATT_ALI;	/* location of recording according to RFC1876 */
 	gdf_time 	T0 	ATT_ALI; 	/* starttime of recording */
-	int16_t 	tzmin;	 		/* time zone (minutes of difference to UTC */
+	int16_t 	tzmin 	ATT_ALI;	 		/* time zone (minutes of difference to UTC */
 
 	/* Patient specific information */
 	struct {
@@ -304,7 +305,7 @@ typedef struct {
 		uint8_t		OPEN; 		/* 0: closed, 1:read, 2: write */
 		uint8_t		LittleEndian;   /* 1 if file is LittleEndian data format and 0 for big endian data format*/  
 		uint8_t		COMPRESSION;    /* 0: no compression 9: best compression */
-	} FILE; 
+	} FILE ATT_ALI; 
 
 	/*	internal variables (not public)  */
 	struct {
@@ -320,7 +321,8 @@ typedef struct {
 		uint8_t*	auxBUF 	__attribute__ ((deprecated));		/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor */
 	} AS ATT_ALI;
 	
-	CHANNEL_TYPE *CHANNEL ATT_ALI;  
+	CHANNEL_TYPE 	*CHANNEL ATT_ALI;  
+
 	void *aECG;
 	
 } HDRTYPE;
