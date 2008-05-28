@@ -3,7 +3,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.26 2008-04-24 08:07:58 schloegl Exp $
+$Id: header.txt,v 1.27 2008-05-28 15:24:15 schloegl Exp $
 Copyright (C) Alois Schloegl 2003-2005 <a.schloegl@ieee.org>
 
 
@@ -24,15 +24,15 @@ HDR.VERSION		string		[OPTIONAL] depends on data format
 
 HDR.FileName				full filename
 HDR.FILE	# file handling information 
-    FILE.Path				path 
-    FILE.Name				filename
-    FILE.Ext				extension
+    FILE.Path [optional]		path 
+    FILE.Name [optional]		filename
+    FILE.Ext  [optional]		extension
     FILE.OPEN				status: 0 (close), 1 (read), 2(write),3(rewrite header when SCLOSE)
     FILE.POS				position of the file handle (units depend on data format)
     FILE.PERMISSION			'r': read; 'w': write; 'z': on-the-fly (de-)compression 
-    FILE.stdout				output stream
-    FILE.stderr				error stream 
-    FILE.size [optional]
+    FILE.stdout	[optional]		output stream
+    FILE.stderr	[optional]		error stream 
+    FILE.size	[optional]
 
 HDR.T0			float[1..6]	start time, [yyyy mm dd hh MM ss.cc] see HELP CLOCK  
 HDR.NS			integer		number of channels
@@ -57,9 +57,9 @@ HDR.EVENT 	# two versions are possible. Version 1:
     EVENT.VAL		(*)		use for sparse (non-equidistant) sample values). The type corresponds to GDFTYP of the respective channel. 
                                         and must not exceed 32 bits (4 bytes). Currently, only integer types are supported. 
 		# [OPTIONAL]
-    EVENT.Desc		text		description of Event
-    EVENT.CodeDesc	text		description of Eventtypes
-    EVENT.CodeIndex	int		corresponding index 
+    EVENT.CodeDesc	text		description of (user-specified) Eventtypes
+    EVENT.Desc		text		description of Event [depreciated, will become obsolete]
+    EVENT.CodeIndex	int		corresponding index [depreciated, will become obsolete]
 
 HDR.ELEC.
     ELEC.XYZ		float 		electrode positions
