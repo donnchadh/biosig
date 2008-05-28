@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.205 2008-05-28 13:33:23 schloegl Exp $
+    $Id: biosig.c,v 1.206 2008-05-28 21:24:29 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1309,47 +1309,45 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	const uint8_t MAGIC_NUMBER_TIFF_b64[] = {77,77,0,43,0,8,0,0};
 	const uint8_t MAGIC_NUMBER_DICOM[]    = {8,0,5,0,10,0,0,0,73,83,79,95,73,82,32,49,48,48};
 	
-	/* AINF */
-	int k;
-	for (k = strlen(hdr->FileName); --k>0; ) {
-		if (hdr->FileName[k] == '.') {
-			if (!strcmp(hdr->FileName+k+1, "ainf")) {
-				char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+5,sizeof(char));
-				strncpy(AINF_RAW_FILENAME, hdr->FileName,k+1);
-				strcpy(AINF_RAW_FILENAME+k+1, "raw");
-				FILE* fid1=fopen(AINF_RAW_FILENAME,"r");
-				if (fid1) {
-					fclose(fid1);
-					hdr->TYPE = AINF; 
-				}	
-				free(AINF_RAW_FILENAME);
-			}
-			else if (!strcmp(hdr->FileName+k+1, "raw") && !(*(uint32_t*)hdr->AS.Header)) {
-				char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+5,sizeof(char));
-				strncpy(AINF_RAW_FILENAME, hdr->FileName,k+1);
-				strcpy(AINF_RAW_FILENAME+k+1, "ainf");
-				FILE* fid1=fopen(AINF_RAW_FILENAME,"r");
-				if (fid1) {
-					fclose(fid1);
-					hdr->TYPE = AINF; 
-				}	
-				free(AINF_RAW_FILENAME);
-			}
-			k = 0;  // stop loop 
-		}
+
+	size_t k,name=0,ext=0;	
+	for (k=0; hdr->FileName[k]; k++) {
+		if (hdr->FileName[k]==FILESEP) name = k+1;
+		if (hdr->FileName[k]=='.')     ext  = k+1;
 	}
+		
+	const char *FileExt  = hdr->FileName+ext;
+	const char *FileName = hdr->FileName+name;
 
-	 
-	const char *FILE_NAME = strrchr(hdr->FileName,FILESEP);
 
-	if (FILE_NAME==NULL)
-		FILE_NAME = hdr->FileName; 
-	char *FILE_EXT  = strrchr(hdr->FileName,'.')+1;
+	/* AINF */
+	if (!strcmp(FileExt, "ainf")) {
+		char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+5,sizeof(char));
+		strncpy(AINF_RAW_FILENAME, hdr->FileName,ext);
+		strcpy(AINF_RAW_FILENAME+ext, "raw");
+		FILE* fid1=fopen(AINF_RAW_FILENAME,"r");
+		if (fid1) {
+			fclose(fid1);
+			hdr->TYPE = AINF; 
+		}	
+		free(AINF_RAW_FILENAME);
+	}
+	else if (!strcmp(FileExt, "raw") && !(*(uint32_t*)hdr->AS.Header)) {
+		char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+5,sizeof(char));
+		strncpy(AINF_RAW_FILENAME, hdr->FileName,ext);
+		strcpy(AINF_RAW_FILENAME+ext, "ainf");
+		FILE* fid1=fopen(AINF_RAW_FILENAME,"r");
+		if (fid1) {
+			fclose(fid1);
+			hdr->TYPE = AINF; 
+		}	
+		free(AINF_RAW_FILENAME);
+	}
 
 
  	hdr->AS.Header = (uint8_t*)malloc(352);
         hdr->FILE.COMPRESSION = 0;   	
-        hdr = ifopen(hdr,"rb");
+        hdr   = ifopen(hdr,"rb");
     	count = ifread(Header1,1,352,hdr);
 
 
@@ -1440,8 +1438,6 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = CFWB;
     	else if (!memcmp(Header1,"Version 3.0",11))
 	    	hdr->TYPE = CNT;
-    	else if (!memcmp(Header1,"MEG4",4))
-	    	hdr->TYPE = CTF; 
 
     	else if (!memcmp(Header1,"MEG4",4))
 	    	hdr->TYPE = CTF;
@@ -1519,7 +1515,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 /*    	else if (!memcmp(Header1,"MThd\000\000\000\001\000",9))
 	    	hdr->TYPE = MIDI;
 */
-    	else if (!memcmp(Header1,FILE_NAME,strspn(FILE_NAME,".")) && (!strcmp(FILE_EXT,"HEA") || !strcmp(FILE_EXT,"hea") ))
+    	else if (!memcmp(Header1,FileName,strspn(FileName,".")) && (!strcmp(FileExt,"HEA") || !strcmp(FileExt,"hea") ))
 	    	hdr->TYPE = MIT;
     	else if ( (Header1[344]=='n') && (Header1[347]=='\0') && \
     		  ((Header1[345]=='i') || (Header1[345]=='+') ) && \ 
@@ -1785,11 +1781,11 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	uint16_t	BCI2000_StatusVectorLength=0;	// specific for BCI2000 format 
 	uint16_t	EGI_LENGTH_CODETABLE=0;	// specific for EGI format 
 
+
 	if (hdr==NULL)
 		hdr = constructHDR(0,0);	// initializes fields that may stay undefined during SOPEN 
 
 	hdr->FileName = FileName; 
-
 
 
 // hdr->FLAG.SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 	// default: most data formats are little endian 
@@ -1809,7 +1805,7 @@ if (!strncmp(MODE,"r",1))
     		return(hdr); 
     	}	    
     	
-    	if (hdr->TYPE == unknown) {
+    	if (hdr->TYPE == unknown) { 
     		B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
     		B4C_ERRMSG = "ERROR BIOSIG SOPEN(read): Dataformat not known.\n";
     		ifclose(hdr);
@@ -2299,7 +2295,7 @@ if (!strncmp(MODE,"r",1))
 						FreeTextEvent(hdr,N_EVENT,p0+1);
 					}	
 
-					//if (VERBOSE_LEVEL>8)
+					// if (VERBOSE_LEVEL>8)
 					//	fprintf(stdout,"%i,EDF+: %i\t%i\t%03i:\t%f\t%f\t%s\t%s\n",sizeof(char**),len,k,N_EVENT,Onset,Duration,p2+1,p0+1);
 					
 					N_EVENT++; 
@@ -4031,7 +4027,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				curPos += ifread(tmp,1,len,hdr);
 				if (VERBOSE_LEVEL>7) {
 					fprintf(stdout,"Preamble: pos=%i|",curPos); 
-					for (k=0; k<len; k) fprintf(stdout,"%c",tmp[k++]); 
+					for (k=0; k<len; k++) fprintf(stdout,"%c",tmp[k]); 
 					fprintf(stdout,"|\n");
 				}
 			}	
@@ -5375,7 +5371,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 }	// end of else 
 
 	// internal variables
-	// if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> #info: @%p\n",&(hdr->CHANNEL));
+//	if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> #info: @%p\n",&(hdr->CHANNEL));
 
 	hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	hdr->AS.bpb = (hdr->TYPE==AINF ? 4 : 0); 
@@ -5442,7 +5438,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			fprintf(stdout,"GDFTYP=%i [12bit BE/BE] not well tested\n",hdr->CHANNEL[k].GDFTYP);
 
 	}
-		
+
 	return(hdr);
 }  // end of SOPEN 
 
