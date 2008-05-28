@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.101 2008-05-28 09:15:16 schloegl Exp $
+% $Id: biosig.h,v 1.102 2008-05-28 13:00:59 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -280,15 +280,14 @@ typedef struct {
 		uint32_t 	*POS ATT_ALI;	/* starting position [in samples] */
 		uint32_t 	*DUR ATT_ALI;	/* duration [in samples] */
 		uint16_t 	*CHN ATT_ALI;	/* channel number; 0: all channels  */
-		char		**CodeDesc;	/* describtion of "free text"/"user specific" events (encoded with TYP=0..255 */
-		char		**Desc ATT_ALI 	__attribute__ ((deprecated)); 	/* Description of Events */
+		char		**CodeDesc ATT_ALI;	/* describtion of "free text"/"user specific" events (encoded with TYP=0..255 */
+		uint16_t	LenCodeDesc ATT_ALI;	/* length of CodeDesc Table */
 	} EVENT ATT_ALI; 
 
 	struct {	/* flags */
 		char		OVERFLOWDETECTION; 	/* overflow & saturation detection 0: OFF, !=0 ON */
 		char		UCAL; 		/* UnCalibration  0: scaling  !=0: NO scaling - raw data return  */
 		char		ANONYMOUS; 	/* 1: anonymous mode, no personal names are processed */ 
-		char		SWAP __attribute__ ((deprecated)); 	        /* 1: endian swapping is needed */ 
 		char		ROW_BASED_CHANNELS; 	        /* 0: column-based data [default]; 1: row-based data */ 
 	} FLAG ATT_ALI; 
 
@@ -318,7 +317,7 @@ typedef struct {
 		uint8_t*	rawdata; 	/* raw data block */
 		size_t		rawdata_curblock;
 		size_t		rawdata_nextblock;
-		uint8_t*	auxBUF 	__attribute__ ((deprecated));		/* auxillary buffer - used for storing EVENT.Desc */
+		uint8_t*	auxBUF 	__attribute__ ((deprecated));		/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor */
 	} AS ATT_ALI;
 	
 	CHANNEL_TYPE *CHANNEL ATT_ALI;  
@@ -326,6 +325,16 @@ typedef struct {
 	
 } HDRTYPE;
 
+
+extern struct global_t {
+	uint16_t LenCodeDesc;	
+	uint16_t *CodeIndex;	
+	char 	**CodeDesc;	
+	char 	*Description;
+} Global;   		
+
+void LoadGlobalEventCodeTable(); 
+void FreeGlobalEventCodeTable(); 
 
 
 /****************************************************************************/

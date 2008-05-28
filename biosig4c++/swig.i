@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.8 2008-05-19 15:14:41 schloegl Exp $
+% $Id: swig.i,v 1.9 2008-05-28 13:00:59 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -144,15 +144,15 @@ typedef struct {
 	} ELEC;
 
 	/*	EVENTTABLE */
-	struct 
-	{
+	struct {
 		double  	SampleRate;	/* for converting POS and DUR into seconds  */
 		uint32_t  	N;	/* number of events */
 		uint16_t 	*TYP;	/* defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup */
 		uint32_t 	*POS;	/* starting position [in samples] */
 		uint32_t 	*DUR;	/* duration [in samples] */
 		uint16_t 	*CHN;	/* channel number; 0: all channels  */
-		char		**Desc; /* Description of Events */	
+		char		**CodeDesc;	/* describtion of "free text"/"user specific" events (encoded with TYP=0..255 */
+		uint16_t	LenCodeDesc;	/* length of CodeDesc Table */
 	} EVENT; 
 
 	struct {	/* flags */
