@@ -7,7 +7,7 @@
 # CEN/TC251/PT40 2001	
 # File Exchange Format for Vital Signs - Annex A 
 #
-# $Id: units.csv,v 1.7 2008-02-10 00:33:56 schloegl Exp $
+# $Id: units.csv,v 1.8 2008-05-29 15:35:06 schloegl Exp $
 # Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 # This file is part of the biosig project http://biosig.sf.net/
 #
@@ -20,7 +20,7 @@
 544,"%",,"10-2 (percent)"
 576,"ppht",,"10-3 (part(s) per thousand )"
 608,"ppm",,"10-6 (part(s) per million )"
-640,,,"10-9 (part(s) per milliard)"
+640,"ppmd",,"10-9 (part(s) per milliard)"
 672,"ppb",,"10-12 (part(s) per billion )"
 704,"ppt",,"10-18 (part(s) per trillion )"
 736,"degree","- angles","angle degree"
