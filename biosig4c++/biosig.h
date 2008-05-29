@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.104 2008-05-28 21:19:04 schloegl Exp $
+% $Id: biosig.h,v 1.105 2008-05-29 14:07:34 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -181,7 +181,8 @@ typedef struct {
 	char		Label[MAX_LENGTH_LABEL+1] ATT_ALI; 	/* Label of channel */
 	uint16_t	LeadIdCode ATT_ALI;	/* Lead identification code */ 
 	char 		Transducer[MAX_LENGTH_TRANSDUCER+1] ATT_ALI;	/* transducer e.g. EEG: Ag-AgCl electrodes */
-	char 		PhysDim[MAX_LENGTH_PHYSDIM+1] ATT_ALI;	/* physical dimension */
+	char 		PhysDim[MAX_LENGTH_PHYSDIM+1] ATT_ALI  	__attribute__ ((deprecated));	/* physical dimension */
+			/*PhysDim is now depreciated - use function PhysDim(PhysDimCode,PhysDimText) instead */
 	uint16_t	PhysDimCode ATT_ALI;	/* code for physical dimension */
 	/* char* 	PreFilt;	// pre-filtering */
 
@@ -333,6 +334,13 @@ typedef struct {
 /**                     EXPORTED FUNCTIONS                                 **/
 /**                                                                        **/
 /****************************************************************************/
+
+char* PhysDim(uint16_t PhysDimCode, char *PhysDimText);
+/* converts HDR.CHANNEL[k].PhysDimCode into a readable Physical Dimension
+   the memory for PhysDim must be preallocated, its maximum length is 
+   defined by (MAX_LENGTH_PHYSDIM+1)  
+ ---------------------------------------------------------------*/
+
 
 
 HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT);

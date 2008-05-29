@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.206 2008-05-28 21:24:29 schloegl Exp $
+    $Id: biosig.c,v 1.207 2008-05-29 14:07:33 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -26,7 +26,7 @@
 	Library function for reading and writing of varios biosignal data formats.
 	It provides also one reference implementation for reading and writing of the 
 	GDF data format [1].
-	
+	a
 	Features: 
 	- reading and writing of EDF, BDF, GDF1, GDF2, CWFB, HL7aECG, SCP files 
 	- reading of ACQ, AINF, BKR, BrainVision, CNT, DEMG, EGI, ETG4000, MFER files 
@@ -49,6 +49,10 @@
 
 #include "biosig-dev.h"
 
+
+#ifndef SOFTCODED_PHYSDIMTABLE 
+#define HARDCODED_PHYSDIMTABLE 
+#endif
 
 #if	__MINGW32__
 #define FILESEP '\\'
@@ -146,13 +150,24 @@ const char *LEAD_ID_TABLE[] = { "unspecified",
 /* --------------------------------------------------- * 
  *	Global Event Code Table                        *
  * --------------------------------------------------- */
-static char GLOBAL_ISLOADED = 0; 
+#ifndef HARDCODED_PHYSDIMTABLE 
+static char GLOBAL_PHYSDIMIDX_ISLOADED = 0; 
+#endif
+static char GLOBAL_EVENTCODES_ISLOADED = 0; 
 struct global_t {
 	uint16_t LenCodeDesc;	
 	uint16_t *CodeIndex;	
-	char 	**CodeDesc;	
-	char 	*Description;
+	char 	 **CodeDesc;	
+	char  	 *EventCodesTextBuffer;
+	
+#ifndef HARDCODED_PHYSDIMTABLE 
+	uint16_t LenPhysDimCode;
+	uint16_t *PhysDimCode;
+	char 	 **PhysDim;
+	char	 *PhysUnitsTextBuffer;
+#endif
 } Global;   		
+
 
 
 
@@ -469,17 +484,18 @@ int ftoa8(char* buf, double num)
  Table A.4.1: Table of Decimal Factors	const double scale[32] =
 */
 
+#ifdef HARDCODED_PHYSDIMTABLE 
 const struct PhysDimIdx 
 	{
 		const uint16_t	idx;
 		const char*	PhysDimDesc;
-	} _physdim[] = 	{
+	} _physdim[] 	__attribute__ ((deprecated)) = 	{
 	{ 0 ,  "?" },
 	{ 512 ,  "-" },
 	{ 544 ,  "%" },
 	{ 576 ,  "ppht" },
 	{ 608 ,  "ppm" },
-	{ 640 ,  "" },
+	{ 640 ,  "ppmd" },
 	{ 672 ,  "ppb" },
 	{ 704 ,  "ppt" },
 	{ 736 ,  "degree" },
@@ -667,8 +683,9 @@ const struct PhysDimIdx
 	{65472 ,  "l m-2" },
 	{65504 ,  "T" },
 	{0xffff ,  "end-of-table" },
-};
-		
+} ;
+#endif 
+
 const char* PhysDimFactor[] = {
 	"","da","h","k","M","G","T","P",	//  0..7
 	"E","Z","Y","#","#","#","#","#",	//  8..15
@@ -692,17 +709,29 @@ double PhysDimScale(uint16_t PhysDimCode)
 	return (scale[PhysDimCode & 0x001f]); 
 }
 
+void LoadGlobalPhysDimCodeTable();	// this functions is defined below 
+
 char* PhysDim(uint16_t PhysDimCode, char *PhysDim)
 {	
 	// converting PhysDimCode -> PhysDim
-
+	
+#ifndef HARDCODED_PHYSDIMTABLE 
+	LoadGlobalPhysDimCodeTable();	// make sure Global Code table is loaded 
+#endif
 	strcpy(PhysDim,PhysDimFactor[PhysDimCode & 0x001F]);
 
 	PhysDimCode &= ~0x001F; 
 	uint16_t k;
+#ifdef HARDCODED_PHYSDIMTABLE 
 	for (k=0; _physdim[k].idx<0xffff; k++)
 	if (PhysDimCode == _physdim[k].idx) {
-		strcat(PhysDim,_physdim[k].PhysDimDesc);
+		strncat(PhysDim,_physdim[k].PhysDimDesc,MAX_LENGTH_PHYSDIM);
+#else
+	for (k=0; Global.PhysDimCode[k]<0xffff; k++)
+	if (PhysDimCode == Global.PhysDimCode[k]) {
+		strncat(PhysDim,Global.PhysDim[k],MAX_LENGTH_PHYSDIM);
+#endif
+		PhysDim[MAX_LENGTH_PHYSDIM]=0;
 		break;
 	}
 	return(PhysDim);
@@ -715,21 +744,33 @@ uint16_t PhysDimCode(char* PhysDim0)
 	if (PhysDim0==NULL) return(0);
 	if (!strlen(PhysDim0)) return(0);
 	
+#ifndef HARDCODED_PHYSDIMTABLE 
+	LoadGlobalPhysDimCodeTable();	// make sure Global Code table is loaded 
+#endif
 	uint16_t k1, k2;
 	char s[80];
 	char *s1;
 
 	// greedy search - check all codes 0..65535
 	for (k1=0; k1<33; k1++)
-	if (!strncmp(PhysDimFactor[k1],PhysDim0,strlen(PhysDimFactor[k1])) && PhysDimScale(k1)>0.0) 
+	if (!strncmp(PhysDimFactor[k1],PhysDim0,strlen(PhysDimFactor[k1])) && (PhysDimScale(k1)>0.0)) 
 	{ 	// exclude if beginning of PhysDim0 differs from PhysDimFactor and if NaN 
 		strcpy(s, PhysDimFactor[k1]);
 		s1 = s+strlen(s);
+#ifdef HARDCODED_PHYSDIMTABLE 
 		for (k2=0; _physdim[k2].idx < 0xffff; k2++) {
 			strcpy(s1, _physdim[k2].PhysDimDesc);
+#else
+		for (k2=0; Global.PhysDimCode[k2] < 0xffff; k2++) {
+			strcpy(s1, Global.PhysDim[k2]);
+#endif
 			if (!strcmp(PhysDim0, s)) {
 		 		if (k1==32) k1 = 19;		// hack for "µ" = "u"
+#ifdef HARDCODED_PHYSDIMTABLE 
 				return(_physdim[k2].idx+k1);
+#else
+				return(Global.PhysDimCode[k2]+k1);
+#endif
 			}	 
 		}
 	}
@@ -961,39 +1002,37 @@ void write_gdf_eventtable(HDRTYPE *hdr)
 }
 
 /*------------------------------------------------------------------------
-	Loads Table of Event Codes                                           
+	Load Table of Event Codes                                           
   ------------------------------------------------------------------------*/
 void FreeGlobalEventCodeTable() {
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"FreeGlobalEventTable(start)%i\n",GLOBAL_ISLOADED);
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"FreeGlobalEventTable(start)%i\n",GLOBAL_EVENTCODES_ISLOADED);
 
-	if (!GLOBAL_ISLOADED) return;
-
-	free(Global.Description);
-	free(Global.CodeDesc); 
-	free(Global.CodeIndex);
 	Global.LenCodeDesc = 0;
+	if (Global.EventCodesTextBuffer) free(Global.EventCodesTextBuffer);
+	Global.EventCodesTextBuffer = NULL;	
+	if (Global.CodeDesc) free(Global.CodeDesc); 
 	Global.CodeDesc = NULL;	
+	if (Global.CodeIndex) free(Global.CodeIndex);
 	Global.CodeIndex = NULL;	
-	Global.Description = NULL;	
 	
-	GLOBAL_ISLOADED = 0;
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"FreeGlobalEventTable(end)%i\n",GLOBAL_ISLOADED);
+	GLOBAL_EVENTCODES_ISLOADED = 0;
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"FreeGlobalEventTable(end)%i\n",GLOBAL_EVENTCODES_ISLOADED);
 }
 
 void LoadGlobalEventCodeTable() 
 {
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(start)%i\n",GLOBAL_ISLOADED);
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(start)%i\n",GLOBAL_EVENTCODES_ISLOADED);
 
-	if (GLOBAL_ISLOADED) return; 	// table is already loaded 
-	
+	if (GLOBAL_EVENTCODES_ISLOADED) return; 	// table is already loaded 
+
 
 	Global.CodeDesc = NULL;	
 	Global.CodeIndex = NULL;	
-	Global.Description = NULL;	
+	Global.EventCodesTextBuffer = NULL;	
 	Global.LenCodeDesc = 0; 
 	
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(101)%i %i\n",GLOBAL_ISLOADED,Global.LenCodeDesc);
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(101)%i %i\n",GLOBAL_EVENTCODES_ISLOADED,Global.LenCodeDesc);
 
 	HDRTYPE HDR; 
 	HDR.FileName = "eventcodes.txt";
@@ -1006,48 +1045,150 @@ void LoadGlobalEventCodeTable()
 	atexit(&FreeGlobalEventCodeTable);	// make sure memory is freed  
 
 	size_t count = 0; 
-	if (Global.Description==NULL)  
+	if (Global.EventCodesTextBuffer==NULL)  
 	while (!ifeof(&HDR)) {
 		size_t bufsiz = 8092;
-		Global.Description = (char*)realloc(Global.Description,(count+bufsiz+1));
-		count  += ifread(Global.Description+count,1,bufsiz,&HDR);
+		Global.EventCodesTextBuffer = (char*)realloc(Global.EventCodesTextBuffer,(count+bufsiz+1));
+		count  += ifread(Global.EventCodesTextBuffer+count,1,bufsiz,&HDR);
 	}
 	ifclose(&HDR);
-	Global.Description[count]=0;	// terminating /0 character
+	Global.EventCodesTextBuffer[count]=0;	// terminating /0 character
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(103) count=%i\n",count);
 
 	size_t N = 0; 
-	char *line = strtok(Global.Description,"\x0a\x0d");
+	char *line = strtok(Global.EventCodesTextBuffer,"\x0a\x0d");
 	while ((line != NULL) && (strlen(line)>0)) {
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i <%s>\n",Global.LenCodeDesc, line);
 	
 		if (line[0]=='0') {
 			size_t k;
+			int i; 
 			for (k=6; isspace(line[k]); k++);
 			char *t = line+k; 
-			int i; 
 			sscanf(line,"%x",&i);
+			i &= 0xffff;
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i %i %i %i\n",k,i,N,Global.LenCodeDesc);
-
-			if (N<=Global.LenCodeDesc+1) {
-				N += 100;	
+			if (N<=Global.LenCodeDesc) {
+				N += 256;	
 				Global.CodeIndex = (uint16_t*)realloc(Global.CodeIndex,N*sizeof(uint16_t));	
 				Global.CodeDesc = (char**)realloc(Global.CodeDesc,N*sizeof(char*));	
+
+				if (VERBOSE_LEVEL>8) fprintf(stdout,"++++++++ %i %i %i %i\n",k,i,N,Global.LenCodeDesc);
 			}
 			
-			Global.CodeDesc[Global.LenCodeDesc] = t; 
-			Global.CodeIndex[Global.LenCodeDesc] = i; 
-			Global.LenCodeDesc++ ; 
+			for (k=0; (k<Global.LenCodeDesc) || (Global.CodeIndex[k]==i); k++);
+			if (Global.CodeIndex[k]==i) {
+				fprintf(stdout,"Warning: Event Type %x is already defined (error in eventcodes.txt)\n",i);
+			}
+			else { 
+				Global.CodeDesc[Global.LenCodeDesc]  = t; 
+				Global.CodeIndex[Global.LenCodeDesc] = i; 
+				Global.LenCodeDesc++;
+			}	 
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"%x <%s>\n",i,t);
 		}	
 		line = strtok(NULL,"\x0a\x0d");
 	}
-	GLOBAL_ISLOADED = 1;
+	GLOBAL_EVENTCODES_ISLOADED = 1;
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"LoadGlobalEventTable(end)%i\n",Global.LenCodeDesc);
 }
 
+#ifndef HARDCODED_PHYSDIMTABLE 
+void FreeGlobalPhysDimCodeTable() 
+{
+	Global.LenPhysDimCode = 0;
+	if (Global.PhysDimCode) free(Global.PhysDimCode);
+	Global.PhysDimCode = NULL;	
+	if (Global.PhysDim) free(Global.PhysDim); 
+	Global.PhysDim = NULL;	
+	if (Global.PhysUnitsTextBuffer) free(Global.PhysUnitsTextBuffer);
+	Global.PhysUnitsTextBuffer = NULL;	
+	
+	GLOBAL_PHYSDIMIDX_ISLOADED = 0;
+}
+
+void LoadGlobalPhysDimCodeTable() 
+{
+
+	if (GLOBAL_PHYSDIMIDX_ISLOADED) return; 	// table is already loaded 
+
+	Global.LenPhysDimCode = 0;
+	Global.PhysDimCode = NULL;
+	Global.PhysDim = NULL;
+	Global.PhysUnitsTextBuffer = NULL;
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalPhysDimCodeTable(101)%i %i\n",GLOBAL_PHYSDIMIDX_ISLOADED,Global.LenCodeDesc);
+
+	HDRTYPE HDR; 
+	HDR.FileName = "units.csv";
+	ifopen(&HDR,"r"); 
+	if (!HDR.FILE.OPEN) return;	// event code table not available 
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(102) OPEN=%i %i\n",HDR.FILE.OPEN,Global.LenCodeDesc);
+
+	
+	atexit(&FreeGlobalPhysDimCodeTable);	// make sure memory is freed  
+	size_t count = 0; 
+	if (Global.PhysUnitsTextBuffer==NULL)  
+	while (!ifeof(&HDR)) {
+		size_t bufsiz = 8092;
+		Global.PhysUnitsTextBuffer = (char*)realloc(Global.PhysUnitsTextBuffer,(count+bufsiz+25));
+		count  += ifread(Global.PhysUnitsTextBuffer+count,1,bufsiz,&HDR);
+	}
+	ifclose(&HDR);
+	strcpy(Global.PhysUnitsTextBuffer+count,"\n65535,\"end-of-table\"\n");	// add terminating entry 
+
+
+
+	size_t N = 0; 
+	char *line = strtok(Global.PhysUnitsTextBuffer,"\x0a\x0d");
+	while ((line != NULL) && (strlen(line)>0)) {
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i <%s>\n",Global.LenPhysDimCode, line);
+	
+		if (isdigit(line[0])) {
+			int i;
+			char *tok; 
+			size_t k;
+			for (k=0; isdigit(line[k]); k++);
+			if ((line[k]==',') && (line[k+1]=='\"') ) {
+				line[k] = 0;  
+				line[k+1] = 0;  
+				i = atoi(line);
+				tok = line+k+2;
+				*(strchr(tok,'\"'))=0;
+			}
+			else 
+				fprintf(stdout,"Warning: unable to decode line <%s>  (error in units.csv)\n",line);
+
+			i &= 0xffff;
+
+			if (N<=Global.LenPhysDimCode) {
+				N += 256;	
+				Global.PhysDimCode = (uint16_t*)realloc(Global.PhysDimCode,N*sizeof(uint16_t));	
+				Global.PhysDim = (char**)realloc(Global.PhysDim,N*sizeof(char*));	
+
+				if (VERBOSE_LEVEL>8) fprintf(stdout,"++++++++ %i %i %i %i\n",k,i,N,Global.LenPhysDimCode);
+			}
+			
+			for (k=0; (k<Global.LenPhysDimCode) || (Global.PhysDimCode[k]==i); k++);
+			if (Global.PhysDimCode[k]==i) {
+				fprintf(stdout,"Warning: PhysDimCode %u is already defined (error in units.csv)\n",i);
+			}
+			else { 
+				Global.PhysDim[Global.LenPhysDimCode]  = tok; 
+				Global.PhysDimCode[Global.LenPhysDimCode] = i; 
+				Global.LenPhysDimCode++;
+			}	 
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"%x <%s>\n",i,tok);
+		}	
+		line = strtok(NULL,"\x0a\x0d");
+	}
+	GLOBAL_PHYSDIMIDX_ISLOADED = 1;
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"LoadGlobalEventTable(end)%i\n",Global.LenPhysDimCode);
+
+}
+#endif 
 
 /*------------------------------------------------------------------------
 	adds free text annotation to event table    
@@ -6741,7 +6882,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 
 			else if (hdr->EVENT.TYP[k] < hdr->EVENT.LenCodeDesc)
 				fprintf(fid,"\t\t%s",hdr->EVENT.CodeDesc[hdr->EVENT.TYP[k]]);
-			else if (Global.LenCodeDesc > 0) {
+			else if (GLOBAL_EVENTCODES_ISLOADED) {
 				uint16_t k1;
 				for (k1=0; (k1 < Global.LenCodeDesc) && (hdr->EVENT.TYP[k] != Global.CodeIndex[k1]); k1++);
 				if (hdr->EVENT.TYP[k] == Global.CodeIndex[k1])
