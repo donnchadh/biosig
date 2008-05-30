@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.42 2008-05-28 21:31:51 schloegl Exp $
+    $Id: save2gdf.c,v 1.43 2008-05-30 10:25:50 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -155,7 +155,7 @@ int main(int argc, char **argv){
 			if ((hdr->SPR/hdr->CHANNEL[k].SPR)*hdr->CHANNEL[k].SPR != hdr->SPR)
 				 fprintf(stdout,"Warning: channel %i might be decimated!\n",k+1);
     		};
-    		hdr->CHANNEL[k].OnOff = 1;	// convert all channels
+    		// hdr->CHANNEL[k].OnOff = 1;	// convert all channels
     	}	
 
 	hdr->FLAG.OVERFLOWDETECTION = 0;
@@ -223,7 +223,9 @@ int main(int argc, char **argv){
 	double PhysMinValue0 = +INF; //hdr->data.block[0];
 	double val; 
 	size_t N = hdr->NRec*hdr->SPR;
-    	for (k=0; k<hdr->NS; k++) {
+    	for (k=0; k<hdr->NS; k++)
+    	if (hdr->CHANNEL[k].OnOff) 
+    	{
 		double MaxValue = hdr->data.block[k*N];
 		double MinValue = hdr->data.block[k*N];
 		

@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.207 2008-05-29 14:07:33 schloegl Exp $
+    $Id: biosig.c,v 1.208 2008-05-30 10:25:49 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1203,7 +1203,7 @@ void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation) {
 	static int LengthCodeDesc = 0;
 	if (hdr->EVENT.CodeDesc == NULL) {		
 		hdr->EVENT.CodeDesc = (typeof(hdr->EVENT.CodeDesc)) realloc(hdr->EVENT.CodeDesc,257*sizeof(*hdr->EVENT.CodeDesc));
-		hdr->EVENT.CodeDesc[0] = "";
+		hdr->EVENT.CodeDesc[0] = "";	// typ==0, is always empty 
 		hdr->EVENT.LenCodeDesc = 1;
 	}
 	
@@ -2153,6 +2153,38 @@ if (!strncmp(MODE,"r",1))
 		hdr->SampleRate = ((double)(hdr->SPR))*Dur[1]/Dur[0];
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[219] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
+
+		/* read GDF Header 3 - experimental */	    	
+		if (hdr->HeadLen > 256*(hdr->NS+1)) {
+		    	Header2 = hdr->AS.Header + 256*(hdr->NS+1);
+		    	uint8_t tag = 0xff;
+		    	size_t pos=0,len=0;
+	    		tag = Header2[pos];
+    			fprintf(stdout,"Tag=%i Len=%i\n",tag,len);
+		    	while ((pos < (hdr->HeadLen-256*(hdr->NS+1))) && (tag>0)) {
+		    		len = leu32p(Header2+1) & 0x0fff; 
+
+    				if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFr3: Tag=%i Len=%i\n",tag,len);
+		
+		    		if (tag==1)	// user-specific events i.e. free text annotations 
+		    		{
+		    			fprintf(stdout,"user-specific events defined\n");
+					hdr->AS.auxBUF = (uint8_t*) realloc(hdr->AS.auxBUF,len);	
+					memcpy(hdr->AS.auxBUF, Header2+pos+4, len);
+					hdr->EVENT.CodeDesc = (typeof(hdr->EVENT.CodeDesc)) realloc(hdr->EVENT.CodeDesc,257*sizeof(*hdr->EVENT.CodeDesc));
+					hdr->EVENT.CodeDesc[0] = "";	// typ==0, is always empty 
+					hdr->EVENT.LenCodeDesc = 1;
+					k = 1;
+					while (hdr->AS.auxBUF[k]) {
+						hdr->EVENT.CodeDesc[hdr->EVENT.LenCodeDesc++] = (char*)(hdr->AS.auxBUF+k);
+						k += strlen((char*)(hdr->AS.auxBUF+k))+1;
+					} 
+		    		}	
+		    		pos += 4+len;
+		    		tag = Header2[pos];
+		    	}
+		}
+
 
 		// READ EVENTTABLE 
 		int c;
@@ -4975,6 +5007,13 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	fprintf(stdout,"Warning SOPEN: Alignment errors might cause Bus Error (SPARC platform).\nWe are aware of the problem but it is not fixed yet.\n");
 #endif
 
+	// NS number of channels selected for writing 
+     	typeof(hdr->NS)  NS = 0;
+	for (k=0; k<hdr->NS; k++) if (hdr->CHANNEL[k].OnOff) NS++;
+	if (NS < hdr->NS) 
+		if (!(hdr->TYPE==GDF) && !(hdr->TYPE==GDF1)) 
+			fprintf(stdout,"Channnel selections not supported yet\n");	
+    		
     	if (hdr->TYPE==CFWB) {	
 	     	hdr->HeadLen = 68 + hdr->NS*96;
 	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
@@ -5001,9 +5040,9 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		for (k=0; k<hdr->NS; k++) {
 			/* if int16 is not sufficient, use float or double */
 			if (hdr->CHANNEL[k].GDFTYP>16)
-				gdftyp = 1;	// double 
+				gdftyp = min(gdftyp,1);	// double 
 			else if (hdr->CHANNEL[k].GDFTYP>3)
-				gdftyp = 2;	// float 
+				gdftyp = min(gdftyp,2);	// float 
 		}
 	    	*(int32_t*)(Header1+64)	= l_endian_i32(gdftyp);	// 1: double, 2: float, 3:short
 		
@@ -5031,17 +5070,32 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
     	else if ((hdr->TYPE==GDF) || (hdr->TYPE==GDF1)) {	
 		uint32_t Dur[2];
-	     	hdr->HeadLen = (hdr->NS+1)*256;
-	    	hdr->AS.Header = (uint8_t*) malloc(hdr->HeadLen);
-	    	uint8_t* Header2 = hdr->AS.Header+256; 
+	     	hdr->HeadLen = (NS+1)*256;
 
-		memset(Header1,0,hdr->HeadLen);
+		/* experimental code: writing header 3, in Tag-Length-Value from 
+			currently only tag=1 is used for storing user-specific events (i.e. free text annotations
+		 */	
+	     	uint32_t Tag1Len = 0;  	
+	     	if (hdr->EVENT.LenCodeDesc > 1) {	// first entry is always empty - no need to save tag1
+	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) 
+		     		Tag1Len += strlen(hdr->EVENT.CodeDesc[k])+1; 
+	     		Tag1Len = 1; 			// acounts for terminating \0
+	     		hdr->HeadLen += 4+Tag1Len; 
+	     	}
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,Tag1Len);
+	     	/* end */
+
 		hdr->VERSION = 2.0;
 		if (hdr->TYPE==GDF1) {
 			hdr->VERSION = 1.25;
 			hdr->TYPE = GDF;
-		}	
-	     	sprintf(Header1,"GDF %4.2f",hdr->VERSION);
+		}
+		else if (hdr->HeadLen & 0x000f)	// in case of GDF v2, make HeadLen a multiple of 256. 
+			hdr->HeadLen = (hdr->HeadLen & 0xfff0) + 256;  
+			
+	    	hdr->AS.Header = (uint8_t*) calloc(hdr->HeadLen,1);
+	     	sprintf((char*)hdr->AS.Header,"GDF %4.2f",hdr->VERSION);
+	    	uint8_t* Header2 = hdr->AS.Header+256; 
 	     	
 		uint16_t maxlen=66; 
 		if (hdr->VERSION<1.90) maxlen=80;
@@ -5128,63 +5182,89 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 		*(uint32_t*) (Header1+244) = l_endian_u32(Dur[0]);
 		*(uint32_t*) (Header1+248) = l_endian_u32(Dur[1]);
-		*(uint16_t*) (Header1+252) = l_endian_u16(hdr->NS);
+		*(uint16_t*) (Header1+252) = l_endian_u16(NS);
 
 	     	/* define HDR.Header2 
 	     	this requires checking the arguments in the fields of the struct HDR.CHANNEL
 	     	and filling in the bytes in HDR.Header2. 
 	     	*/
-		for (k=0; k<hdr->NS; k++) {
+		typeof(k) k2=0;
+		for (k=0; k<hdr->NS; k++) 
+		if (hdr->CHANNEL[k].OnOff) 
+		{
 			const char *tmpstr;
 			if (hdr->CHANNEL[k].LeadIdCode)
 				tmpstr = LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode];
 			else
 				tmpstr = hdr->CHANNEL[k].Label;
+
 		     	len = strlen(tmpstr);
-		     	memcpy(Header2+16*k,tmpstr,min(len,16));
+		     	memcpy(Header2+16*k2,tmpstr,min(len,16));
 
 		     	len = strlen(hdr->CHANNEL[k].Transducer);
-		     	memcpy(Header2+80*k + 16*hdr->NS, hdr->CHANNEL[k].Transducer, min(len,80));
+		     	memcpy(Header2+80*k2 + 16*NS, hdr->CHANNEL[k].Transducer, min(len,80));
 		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
 		     	len = strlen(tmp);
 		     	if (hdr->VERSION < 1.9)
-		     		memcpy(Header2+ 8*k + 96*hdr->NS, tmp, min(8,len));
+		     		memcpy(Header2+ 8*k2 + 96*NS, tmp, min(8,len));
 		     	else {
-		     		memcpy(Header2+ 6*k + 96*hdr->NS, tmp, min(6,len));
-		     		*(uint16_t*)(Header2+ 2*k + 102*hdr->NS) = l_endian_u16(hdr->CHANNEL[k].PhysDimCode);
+		     		memcpy(Header2+ 6*k2 + 96*NS, tmp, min(6,len));
+		     		*(uint16_t*)(Header2+ 2*k2 + 102*NS) = l_endian_u16(hdr->CHANNEL[k].PhysDimCode);
 			};
 
-		     	*(double*)(Header2 + 8*k + 104*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMin);
-		     	*(double*)(Header2 + 8*k + 112*hdr->NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMax);
+		     	*(double*)(Header2 + 8*k2 + 104*NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMin);
+		     	*(double*)(Header2 + 8*k2 + 112*NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMax);
 		     	if (hdr->VERSION < 1.9) {
-			     	*(int64_t*)(Header2 + 8*k + 120*hdr->NS)   = l_endian_i64((int64_t)hdr->CHANNEL[k].DigMin);
-			     	*(int64_t*)(Header2 + 8*k + 128*hdr->NS)   = l_endian_i64((int64_t)hdr->CHANNEL[k].DigMax);
+			     	*(int64_t*)(Header2 + 8*k2 + 120*NS)   = l_endian_i64((int64_t)hdr->CHANNEL[k].DigMin);
+			     	*(int64_t*)(Header2 + 8*k2 + 128*NS)   = l_endian_i64((int64_t)hdr->CHANNEL[k].DigMax);
 			     	// FIXME // memcpy(Header2 + 80*k + 136*hdr->NS,hdr->CHANNEL[k].PreFilt,max(80,strlen(hdr->CHANNEL[k].PreFilt)));
 			}     	
 			else {
-			     	*(double*)(Header2 + 8*k + 120*hdr->NS) = l_endian_f64(hdr->CHANNEL[k].DigMin);
-			     	*(double*)(Header2 + 8*k + 128*hdr->NS) = l_endian_f64(hdr->CHANNEL[k].DigMax);
-			     	*(float*) (Header2 + 4*k + 204*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].LowPass);
-			     	*(float*) (Header2 + 4*k + 208*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].HighPass);
-			     	*(float*) (Header2 + 4*k + 212*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Notch);
+			     	*(double*)(Header2 + 8*k2 + 120*NS) = l_endian_f64(hdr->CHANNEL[k].DigMin);
+			     	*(double*)(Header2 + 8*k2 + 128*NS) = l_endian_f64(hdr->CHANNEL[k].DigMax);
+			     	*(float*) (Header2 + 4*k2 + 204*NS) = l_endian_f32(hdr->CHANNEL[k].LowPass);
+			     	*(float*) (Header2 + 4*k2 + 208*NS) = l_endian_f32(hdr->CHANNEL[k].HighPass);
+			     	*(float*) (Header2 + 4*k2 + 212*NS) = l_endian_f32(hdr->CHANNEL[k].Notch);
 
-				*(float*) (Header2 + 4*k + 224*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[0]);
-				*(float*) (Header2 + 4*k + 228*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[1]);
-				*(float*) (Header2 + 4*k + 232*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[2]);
+				*(float*) (Header2 + 4*k2 + 224*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[0]);
+				*(float*) (Header2 + 4*k2 + 228*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[1]);
+				*(float*) (Header2 + 4*k2 + 232*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[2]);
 
-	     			Header2[k+236*hdr->NS] = (uint8_t)ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
+	     			Header2[k2+236*NS] = (uint8_t)ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
 		     	}
-		     	*(uint32_t*) (Header2 + 4*k + 216*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].SPR);
-		     	*(uint32_t*) (Header2 + 4*k + 220*hdr->NS) = l_endian_u32(hdr->CHANNEL[k].GDFTYP);
+		     	*(uint32_t*) (Header2 + 4*k + 216*NS) = l_endian_u32(hdr->CHANNEL[k].SPR);
+		     	*(uint32_t*) (Header2 + 4*k + 220*NS) = l_endian_u32(hdr->CHANNEL[k].GDFTYP);
+		     	k2++;
 		}
+
 	    	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(int32_t));
 		hdr->AS.bi[0] = 0;
-		for (k=0, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;) {
+		for (k=0, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;) 
+		//if (hdr->CHANNEL[k].OnOff)
+		{
+			if (!hdr->CHANNEL[k].OnOff) hdr->CHANNEL[k].SPR = 0;	// hack: below spb, bpb and bi are computed again,   
 			hdr->AS.spb += hdr->CHANNEL[k].SPR;
 			hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;
 			hdr->AS.bi[++k] = hdr->AS.bpb;
 		}	
-//		hdr->AS.Header1 = (uint8_t*)Header1; 
+
+	     	/* define Header3
+	     		currently writing of free text annotations is supported
+	     		 
+	     	*/
+	    	Header2 = hdr->AS.Header+(NS+1)*256; 
+	     	if (Tag1Len>0) {
+	     		Header2[0] = 1; 	// Tag 1	     		
+	     		*(uint32_t*)(Header2+1)=l_endian_u32(Tag1Len); 	// Length of Tag 1
+	     		size_t pos = 4; 
+	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) {
+	     			strcpy((char*)(Header2+pos),hdr->EVENT.CodeDesc[k]);
+		     		pos += strlen(hdr->EVENT.CodeDesc[k])+1;
+		     	}	 
+		     	Header2[pos]=0; 	// terminating NULL 
+	     	}
+	     	
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw [339] %p %p\n", Header1,Header2);	     		
 	}
 
     	else if ((hdr->TYPE==EDF) || (hdr->TYPE==BDF)) {	
@@ -5512,19 +5592,20 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 }	// end of else 
 
 	// internal variables
-//	if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> #info: @%p\n",&(hdr->CHANNEL));
+	if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> #info: @%p\n",&(hdr->CHANNEL));
 
 	hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	hdr->AS.bpb = (hdr->TYPE==AINF ? 4 : 0); 
 	hdr->AS.bi[0] = hdr->AS.bpb;
 	for (k=0, hdr->SPR = 1, hdr->AS.spb=0; k<hdr->NS; k++) {
+		// FIXME: this could duplicate parts of GDF-write, problem is related to writing selected channels  
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
 		hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;			
 		hdr->AS.bi[k+1] = hdr->AS.bpb; 
 		if (hdr->CHANNEL[k].SPR > 0)  // ignore sparse channels
 			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
 
-//		if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> Label #%02i: @%p %s\n",k,&(hdr->CHANNEL[k].Label),hdr->CHANNEL[k].Label);
+		if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> Label #%02i: @%p %s\n",k,&(hdr->CHANNEL[k].Label),hdr->CHANNEL[k].Label);
 	}
 	if (hdr->TYPE==BCI2000) 
 		hdr->AS.bpb += BCI2000_StatusVectorLength;
@@ -6412,7 +6493,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	for (k1=0, k2=0; k1<hdr->NS; k1++) {
 	CHptr 	= hdr->CHANNEL+k1;
 	
-	if (CHptr->SPR > 0) { /////CHptr->OnOff != 0) {
+	if (CHptr->OnOff != 0) {
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
 		SZ  	= GDFTYP_BITS[GDFTYP]>>3;
