@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.208 2008-05-30 10:25:49 schloegl Exp $
+    $Id: biosig.c,v 1.209 2008-05-30 21:01:26 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -60,6 +60,12 @@
 #define FILESEP '/'
 #endif
 
+
+int errnum;
+int B4C_STATUS  = 0;
+int B4C_ERRNUM  = 0;
+const char *B4C_ERRMSG;
+int VERBOSE_LEVEL = -1; 
 
 
 const int16_t GDFTYP_BITS[] = {
@@ -489,7 +495,7 @@ const struct PhysDimIdx
 	{
 		const uint16_t	idx;
 		const char*	PhysDimDesc;
-	} _physdim[] 	__attribute__ ((deprecated)) = 	{
+	} _physdim[] = {
 	{ 0 ,  "?" },
 	{ 512 ,  "-" },
 	{ 544 ,  "%" },
@@ -791,12 +797,6 @@ int strcmpi(const char* str1, const char* str2)
 	}	
 	return(r); 	 	
 }
-
-int errnum;
-int B4C_STATUS  = 0;
-int B4C_ERRNUM  = 0;
-const char *B4C_ERRMSG;
-int VERBOSE_LEVEL = -1; 
 
 /*
 	Interface for mixed use of ZLIB and STDIO 
@@ -1491,14 +1491,12 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
         hdr   = ifopen(hdr,"rb");
     	count = ifread(Header1,1,352,hdr);
 
-
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[219] %i %s\n%s\n",(!strncmp(Header1,"Serial number",13)),hdr->FileName,Header1);
-
-
-	uint32_t MAGIC_EN1064_Section0Length  = leu32p(hdr->AS.Header+10);
-    	if (hdr->TYPE == GZIP) {
+	if (!memcmp(Header1,MAGIC_NUMBER_GZIP,3)) {
 #ifdef ZLIB_H
     		ifclose(hdr); 
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[221] \n");
+
 	        hdr->FILE.COMPRESSION = 1;
 //	        hdr->FILE.gzFID = gzdopen(hdr->FILE.FID,"rb"); // FIXME
         	hdr= ifopen(hdr,"rb");
@@ -1513,10 +1511,11 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     		B4C_ERRMSG = "Error SOPEN(READ); *.gz file not supported because not linked with zlib.";
 #endif
     	}
-    	
+
 
     	/******** read 1st (fixed)  header  *******/	
   	uint32_t U32 = leu32p(hdr->AS.Header+2); 
+	uint32_t MAGIC_EN1064_Section0Length  = leu32p(hdr->AS.Header+10);
 
     	if ((U32>=30) & (U32<=42)) {
     		hdr->VERSION = (float)U32; 
@@ -1697,6 +1696,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = SCP_ECG;
 	    	hdr->VERSION = *(hdr->AS.Header+14)/10.0;
 	}    	
+/*
 	// special SCP files - header is strange, files can be decoded 	
 	else if (  (leu32p(hdr->AS.Header+10) == 136)
 		&& (*(uint16_t*)(hdr->AS.Header+ 8) == 0x0000)
@@ -1724,7 +1724,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = SCP_ECG;
 	    	hdr->VERSION = -3;
 	}    	
-
+*/
 	/*
 	// special SCP files - header is strange, files cannot be decoded 
 	else if (  (leu32p(hdr->AS.Header+10) == 136)
@@ -1798,6 +1798,9 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	{	hdr->TYPE = XML; // UTF16 LittleEndian 
 		hdr->FILE.LittleEndian = 1;
     	}
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[228] %i %s %s %i \n",hdr->TYPE,GetFileTypeString(hdr->TYPE),hdr->FileName,count);
+    	
 	return(hdr); 
 }
 
@@ -1911,7 +1914,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
 	const float	CNT_SETTINGS_HIGHPASS[] = {NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
 
-    	unsigned int 	k,k1;
+    	unsigned int 	k,k1,k2;
     	uint32_t	k32u; 
     	size_t	 	count;
     	char 		tmp[81];
@@ -2069,7 +2072,6 @@ if (!strncmp(MODE,"r",1))
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
-//	    	Header1 = (char*)hdr->AS.Header1; 
 	    	uint8_t *Header2 = hdr->AS.Header+256; 
 	    	if (hdr->HeadLen > count)
 		    	count   += ifread(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
@@ -2346,13 +2348,14 @@ if (!strncmp(MODE,"r",1))
 			hdr->CHANNEL[k].PhysMax = atof(strncpy(tmp,Header2 + 8*k + 112*hdr->NS,8)); 
 			hdr->CHANNEL[k].DigMin  = atof(strncpy(tmp,Header2 + 8*k + 120*hdr->NS,8)); 
 			hdr->CHANNEL[k].DigMax  = atof(strncpy(tmp,Header2 + 8*k + 128*hdr->NS,8)); 
-			hdr->CHANNEL[k].Cal     = (hdr->CHANNEL[k].PhysMax-hdr->CHANNEL[k].PhysMin)/(hdr->CHANNEL[k].DigMax-hdr->CHANNEL[k].DigMin);
-			hdr->CHANNEL[k].Off     =  hdr->CHANNEL[k].PhysMin-hdr->CHANNEL[k].Cal*hdr->CHANNEL[k].DigMin;
+			
+			hdr->CHANNEL[k].Cal     = (hdr->CHANNEL[k].PhysMax - hdr->CHANNEL[k].PhysMin) / (hdr->CHANNEL[k].DigMax-hdr->CHANNEL[k].DigMin);
+			hdr->CHANNEL[k].Off     =  hdr->CHANNEL[k].PhysMin - hdr->CHANNEL[k].Cal*hdr->CHANNEL[k].DigMin;
 
-			hdr->CHANNEL[k].SPR     = atol(strncpy(tmp,Header2 + 8*k + 216*hdr->NS,8));
-			hdr->CHANNEL[k].GDFTYP  = ((hdr->TYPE!=BDF) ? 3 : 255+24); 
+			hdr->CHANNEL[k].SPR     = atol(strncpy(tmp, Header2 + 8*k + 216*hdr->NS,8));
+			hdr->CHANNEL[k].GDFTYP  = ((hdr->TYPE != BDF) ? 3 : 255+24); 
 			hdr->CHANNEL[k].OnOff   = 1;
-			hdr->SPR 	 	= lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
+			hdr->SPR 	 	= lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
 			
 			hdr->CHANNEL[k].LowPass = NaN;
 			hdr->CHANNEL[k].HighPass = NaN;
@@ -4991,11 +4994,62 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			strcpy(hdr->CHANNEL[k].Label,LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode]);
 
 	}
+	
+	hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
+	hdr->AS.bpb = (hdr->TYPE==AINF ? 4 : 0); 
+	hdr->AS.bi[0] = hdr->AS.bpb;
+	for (k=0, hdr->SPR = 1, hdr->AS.spb=0; k<hdr->NS; k++) 
+	{
+		// FIXME: this could duplicate parts of GDF-write, problem is related to writing selected channels  
+		hdr->AS.spb += hdr->CHANNEL[k].SPR;
+		hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;			
+		hdr->AS.bi[k+1] = hdr->AS.bpb; 
+		if (hdr->CHANNEL[k].SPR > 0)  // ignore sparse channels
+			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
+
+		// if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> Label #%02i: @%p %s\n",k,&(hdr->CHANNEL[k].Label),hdr->CHANNEL[k].Label);
+	}
+
+	if (hdr->TYPE==BCI2000) 
+		hdr->AS.bpb += BCI2000_StatusVectorLength;
+	else if (hdr->TYPE==EGI) {
+		hdr->AS.bpb += EGI_LENGTH_CODETABLE * GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
+		if (hdr->AS.Header[3] & 0x01)	// triggered  
+			hdr->AS.bpb += 6;
+	}
+	else if (hdr->TYPE==MIT) {
+		uint16_t FMT = *(uint16_t*)hdr->AS.auxBUF;
+		size_t NUM,DEN;
+		switch (FMT) { 
+		case 212:
+			NUM = 3; DEN = 2;
+			break;
+		case 310:
+		case 311:
+			NUM = 4; DEN = 3;
+			break;
+		default:
+			NUM = GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
+			DEN = 1; 
+		}		
+
+		if (hdr->AS.bpb * NUM % DEN) {
+			hdr->SPR 	*= DEN;
+	 		hdr->AS.bpb 	 = hdr->AS.spb * NUM;
+	 	}	
+	 	else 
+	 		hdr->AS.bpb = hdr->AS.spb * NUM / DEN;
+
+		if (!hdr->NRec) 
+			hdr->NRec = (hdr->HeadLen + count)/hdr->AS.bpb; 
+
+	}
+
 }
 else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 {
-	hdr->FILE.COMPRESSION = (strchr(MODE,'z') != NULL);
-	for (k=0; k<hdr->NS; k++) {	
+//	hdr->FILE.COMPRESSION = (strchr(MODE,'z') != NULL);
+	for (k=0; k < hdr->NS; k++) {	
 		// set HDR.PhysDim
 		k1 = hdr->CHANNEL[k].PhysDimCode;
 		if (k1>0) PhysDim(k1,hdr->CHANNEL[k].PhysDim);
@@ -5009,19 +5063,21 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 	// NS number of channels selected for writing 
      	typeof(hdr->NS)  NS = 0;
-	for (k=0; k<hdr->NS; k++) if (hdr->CHANNEL[k].OnOff) NS++;
-	if (NS < hdr->NS) 
-		if (!(hdr->TYPE==GDF) && !(hdr->TYPE==GDF1)) 
-			fprintf(stdout,"Channnel selections not supported yet\n");	
-    		
+	for (k=0; k<hdr->NS; k++) 
+		if (hdr->CHANNEL[k].OnOff) NS++;
+		// else hdr->CHANNEL[k].SPR = 0;
+		
     	if (hdr->TYPE==CFWB) {	
-	     	hdr->HeadLen = 68 + hdr->NS*96;
+	     	hdr->HeadLen = 68 + NS*96;
 	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
 	    	uint8_t* Header2 = hdr->AS.Header+68; 
 		memset(Header1,0,hdr->HeadLen);
 	    	memcpy(Header1,"CFWB\1\0\0\0",8);
 	    	*(double*)(Header1+8) = l_endian_f64(1/hdr->SampleRate);
-		
+	
+		if (VERBOSE_LEVEL>9)	
+			fprintf(stdout,"CFWB\n");	
+
 		tt = gdf_time2t_time(hdr->T0); 
 		struct tm *t = gmtime(&tt);
     		*(uint32_t*)(Header1+16) = l_endian_u32(t->tm_year + 1900);
@@ -5037,7 +5093,9 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    	*(int32_t*) (Header1+60) = l_endian_i32(0);	// 1: time channel
 
 	    	int32_t gdftyp = 3; // 1:double, 2:float, 3: int16; see CFWB_GDFTYP too. 
-		for (k=0; k<hdr->NS; k++) {
+		for (k=0; k<hdr->NS; k++)
+		if (hdr->CHANNEL[k].OnOff) 
+		{
 			/* if int16 is not sufficient, use float or double */
 			if (hdr->CHANNEL[k].GDFTYP>16)
 				gdftyp = min(gdftyp,1);	// double 
@@ -5046,7 +5104,9 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		}
 	    	*(int32_t*)(Header1+64)	= l_endian_i32(gdftyp);	// 1: double, 2: float, 3:short
 		
-		for (k=0; k<hdr->NS; k++) {
+		for (k=0,k2=0; k<hdr->NS; k++) 
+		if (hdr->CHANNEL[k].OnOff) 
+		{
 	    		hdr->CHANNEL[k].SPR = 1;
 			hdr->CHANNEL[k].GDFTYP = CFWB_GDFTYP[gdftyp-1];
 			const char *tmpstr;
@@ -5055,16 +5115,17 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			else
 				tmpstr = hdr->CHANNEL[k].Label;
 		     	size_t len = strlen(tmpstr);
-		     	memcpy(Header2+96*k, tmpstr, min(len,32));
+		     	memcpy(Header2+96*k2, tmpstr, min(len,32));
 
 		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
 		     	len = strlen(tmp);
-		     	memcpy(Header2+96*k+32, tmp, min(len,32));
+		     	memcpy(Header2+96*k2+32, tmp, min(len,32));
 			
-			*(double*)(Header2+96*k+64) = l_endian_f64(hdr->CHANNEL[k].Cal);
-			*(double*)(Header2+96*k+72) = l_endian_f64(hdr->CHANNEL[k].Off);
-			*(double*)(Header2+96*k+80) = l_endian_f64(hdr->CHANNEL[k].PhysMax);
-			*(double*)(Header2+96*k+88) = l_endian_f64(hdr->CHANNEL[k].PhysMin);
+			*(double*)(Header2+96*k2+64) = l_endian_f64(hdr->CHANNEL[k].Cal);
+			*(double*)(Header2+96*k2+72) = l_endian_f64(hdr->CHANNEL[k].Off);
+			*(double*)(Header2+96*k2+80) = l_endian_f64(hdr->CHANNEL[k].PhysMax);
+			*(double*)(Header2+96*k2+88) = l_endian_f64(hdr->CHANNEL[k].PhysMin);
+			k2++;
 		}
 	}
 
@@ -5232,19 +5293,18 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 	     			Header2[k2+236*NS] = (uint8_t)ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
 		     	}
-		     	*(uint32_t*) (Header2 + 4*k + 216*NS) = l_endian_u32(hdr->CHANNEL[k].SPR);
-		     	*(uint32_t*) (Header2 + 4*k + 220*NS) = l_endian_u32(hdr->CHANNEL[k].GDFTYP);
+		     	*(uint32_t*) (Header2 + 4*k2 + 216*NS) = l_endian_u32(hdr->CHANNEL[k].SPR);
+		     	*(uint32_t*) (Header2 + 4*k2 + 220*NS) = l_endian_u32(hdr->CHANNEL[k].GDFTYP);
 		     	k2++;
 		}
 
 	    	hdr->AS.bi = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(int32_t));
 		hdr->AS.bi[0] = 0;
-		for (k=0, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS;) 
-		//if (hdr->CHANNEL[k].OnOff)
-		{
-			if (!hdr->CHANNEL[k].OnOff) hdr->CHANNEL[k].SPR = 0;	// hack: below spb, bpb and bi are computed again,   
-			hdr->AS.spb += hdr->CHANNEL[k].SPR;
-			hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;
+		for (k=0, hdr->AS.spb=0, hdr->AS.bpb=0; k<hdr->NS; ) { 
+			if (hdr->CHANNEL[k].OnOff) {
+				hdr->AS.spb += hdr->CHANNEL[k].SPR;
+				hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;
+			}
 			hdr->AS.bi[++k] = hdr->AS.bpb;
 		}	
 
@@ -5268,7 +5328,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	}
 
     	else if ((hdr->TYPE==EDF) || (hdr->TYPE==BDF)) {	
-	     	hdr->HeadLen   = (hdr->NS+1)*256;
+	     	hdr->HeadLen   = (NS+1)*256;
 	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
 	    	char* Header2  = (char*)hdr->AS.Header+256; 
 		memset(Header1,' ',hdr->HeadLen);
@@ -5321,11 +5381,13 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (len>8) fprintf(stderr,"Warning: Duration is (%s) too long (%i>8).\n",tmp,len);  
 	     	memcpy(Header1+244, tmp, len);
 
-		len = sprintf(tmp,"%i",hdr->NS);
+		len = sprintf(tmp,"%i",NS);
 		if (len>4) fprintf(stderr,"Warning: NS is (%s) too long (%i>4).\n",tmp,len);  
 	     	memcpy(Header1+252, tmp, len);
 	     	
-		for (k=0;k<hdr->NS;k++) {
+		for (k=0,k2=0; k<hdr->NS; k++) 
+		if (hdr->CHANNEL[k].OnOff) 
+		{
 			const char *tmpstr;
 			if (hdr->CHANNEL[k].LeadIdCode)
 				tmpstr = LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode];
@@ -5334,39 +5396,40 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		     	len = strlen(tmpstr);
 			if (len>15)
 			//fprintf(stderr,"Warning: Label (%s) of channel %i is to long.\n",hdr->CHANNEL[k].Label,k);
-		     	fprintf(stderr,"Warning: Label of channel %i is too long (%i>16).\n",k, len);
-		     	memcpy(Header2+16*k,tmpstr,min(len,16));
+		     	fprintf(stderr,"Warning: Label of channel %i,%i is too long (%i>16).\n",k,k2, len);
+		     	memcpy(Header2+16*k2,tmpstr,min(len,16));
 		     	len = strlen(hdr->CHANNEL[k].Transducer);
-			if (len>80) fprintf(stderr,"Warning: Transducer of channel %i is too long (%i>80).\n",k, len);  
-		     	memcpy(Header2+80*k + 16*hdr->NS,hdr->CHANNEL[k].Transducer,min(len,80));
+			if (len>80) fprintf(stderr,"Warning: Transducer of channel %i,%i is too long (%i>80).\n",k,k2, len);  
+		     	memcpy(Header2+80*k2 + 16*NS,hdr->CHANNEL[k].Transducer,min(len,80));
 		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
 		     	len = strlen(tmp);
 		     	if (len>8) fprintf(stderr,"Warning: Physical Dimension (%s) of channel %i is too long (%i>8).\n",tmp,k,len);
-		     	memcpy(Header2 + 8*k + 96*hdr->NS, tmp, min(len,8));
+		     	memcpy(Header2 + 8*k2 + 96*NS, tmp, min(len,8));
 
 			if (ftoa8(tmp,hdr->CHANNEL[k].PhysMin))
-				fprintf(stderr,"Warning: PhysMin (%f) of channel %i does not fit into 8 bytes of EDF header.\n",hdr->CHANNEL[k].PhysMin,k);
-		     	memcpy(Header2 + 8*k + 104*hdr->NS, tmp, strlen(tmp));
+				fprintf(stderr,"Warning: PhysMin (%f)(%s) of channel %i does not fit into 8 bytes of EDF header.\n",hdr->CHANNEL[k].PhysMin,tmp,k);
+		     	memcpy(Header2 + 8*k2 + 104*NS, tmp, strlen(tmp));
 			if (ftoa8(tmp,hdr->CHANNEL[k].PhysMax))
-				fprintf(stderr,"Warning: PhysMax (%f) of channel %i does not fit into 8 bytes of EDF header.\n",hdr->CHANNEL[k].PhysMax,k);
-		     	memcpy(Header2 + 8*k + 112*hdr->NS, tmp, strlen(tmp));
+				fprintf(stderr,"Warning: PhysMax (%f)(%s) of channel %i does not fit into 8 bytes of EDF header.\n",hdr->CHANNEL[k].PhysMax,tmp,k);
+		     	memcpy(Header2 + 8*k2 + 112*NS, tmp, strlen(tmp));
 			if (ftoa8(tmp,hdr->CHANNEL[k].DigMin))
-				fprintf(stderr,"Warning: DigMin (%f) of channel %i does not fit into 8 bytes of EDF header.\n",hdr->CHANNEL[k].DigMin,k);
-		     	memcpy(Header2 + 8*k + 120*hdr->NS, tmp, strlen(tmp));
+				fprintf(stderr,"Warning: DigMin (%f)(%s) of channel %i does not fit into 8 bytes of EDF header.\n",hdr->CHANNEL[k].DigMin,tmp,k);
+		     	memcpy(Header2 + 8*k2 + 120*NS, tmp, strlen(tmp));
 			if (ftoa8(tmp,hdr->CHANNEL[k].DigMax))
-				fprintf(stderr,"Warning: DigMax (%f) of channel %i does not fit into 8 bytes of EDF header.\n",hdr->CHANNEL[k].DigMax,k);
-		     	memcpy(Header2 + 8*k + 128*hdr->NS, tmp, strlen(tmp));
+				fprintf(stderr,"Warning: DigMax (%f)(%s) of channel %i does not fit into 8 bytes of EDF header.\n",hdr->CHANNEL[k].DigMax,tmp,k);
+		     	memcpy(Header2 + 8*k2 + 128*NS, tmp, strlen(tmp));
 		     	
 			if (hdr->CHANNEL[k].Notch>0)		     	
 				len = sprintf(tmp,"HP:%fHz LP:%fHz Notch:%fHz",hdr->CHANNEL[k].HighPass,hdr->CHANNEL[k].LowPass,hdr->CHANNEL[k].Notch);
 			else
 				len = sprintf(tmp,"HP:%fHz LP:%fHz",hdr->CHANNEL[k].HighPass,hdr->CHANNEL[k].LowPass);
-		     	memcpy(Header2+ 80*k + 136*hdr->NS,tmp,min(80,len));
+		     	memcpy(Header2+ 80*k2 + 136*NS,tmp,min(80,len));
 		     	
 			len = sprintf(tmp,"%i",hdr->CHANNEL[k].SPR);
 			if (len>8) fprintf(stderr,"Warning: SPR (%s) of channel %i is to long (%i)>8.\n",tmp,k,len);  
-		     	memcpy(Header2+ 8*k + 216*hdr->NS,tmp,min(8,len));
+		     	memcpy(Header2+ 8*k2 + 216*NS,tmp,min(8,len));
 		     	hdr->CHANNEL[k].GDFTYP = ( (hdr->TYPE != BDF) ? 3 : 255+24);
+		     	k2++;
 		}
 	}
 
@@ -5589,61 +5652,22 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		hdr->FILE.POS  = 0;
 	}
 
-}	// end of else 
-
-	// internal variables
-	if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> #info: @%p\n",&(hdr->CHANNEL));
-
 	hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	hdr->AS.bpb = (hdr->TYPE==AINF ? 4 : 0); 
 	hdr->AS.bi[0] = hdr->AS.bpb;
-	for (k=0, hdr->SPR = 1, hdr->AS.spb=0; k<hdr->NS; k++) {
-		// FIXME: this could duplicate parts of GDF-write, problem is related to writing selected channels  
-		hdr->AS.spb += hdr->CHANNEL[k].SPR;
-		hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;			
-		hdr->AS.bi[k+1] = hdr->AS.bpb; 
-		if (hdr->CHANNEL[k].SPR > 0)  // ignore sparse channels
-			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
+	for (k=0, hdr->SPR = 1, hdr->AS.spb=0; k<hdr->NS; k++) { 
+		if (hdr->CHANNEL[k].OnOff)
+		{
+			hdr->AS.spb += hdr->CHANNEL[k].SPR;
+			hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;			
+			if (hdr->CHANNEL[k].SPR > 0)  // ignore sparse channels
+				hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
+		}
+		hdr->AS.bi[k+1] = hdr->AS.bpb;
+	} 
+}	// end of branch "write" 
 
-		if (VERBOSE_LEVEL>8) fprintf(stderr,"-4> Label #%02i: @%p %s\n",k,&(hdr->CHANNEL[k].Label),hdr->CHANNEL[k].Label);
-	}
-	if (hdr->TYPE==BCI2000) 
-		hdr->AS.bpb += BCI2000_StatusVectorLength;
-	else if (hdr->TYPE==EGI) {
-		hdr->AS.bpb += EGI_LENGTH_CODETABLE * GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
-		if (hdr->AS.Header[3] & 0x01)	// triggered  
-			hdr->AS.bpb += 6;
-	}
-	else if (hdr->TYPE==MIT) {
-		uint16_t FMT = *(uint16_t*)hdr->AS.auxBUF;
-		size_t NUM,DEN;
-		switch (FMT) { 
-		case 212:
-			NUM = 3; DEN = 2;
-			break;
-		case 310:
-		case 311:
-			NUM = 4; DEN = 3;
-			break;
-		default:
-			NUM = GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
-			DEN = 1; 
-		}		
 
-		if (hdr->AS.bpb * NUM % DEN) {
-			hdr->SPR 	*= DEN;
-	 		hdr->AS.bpb 	 = hdr->AS.spb * NUM;
-	 	}	
-	 	else 
-	 		hdr->AS.bpb = hdr->AS.spb * NUM / DEN;
-
-		if (!hdr->NRec) 
-			hdr->NRec = (hdr->HeadLen + count)/hdr->AS.bpb; 
-
-	}
-		
-
-	//hdr->FILE.POS2 = 0; 
 	if (hdr->FILE.POS != 0)	
 		fprintf(stdout,"Debugging Information: (Format=%d) FILE.POS=%d is not zero.\n",hdr->TYPE,hdr->FILE.POS);
 
