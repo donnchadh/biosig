@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.211 2008-05-28 15:21:07 schloegl Exp $
+%	$Id: sopen.m,v 1.212 2008-05-30 13:31:22 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -792,7 +792,7 @@ end;
                                 HDR.EVENT.VAL(ix) = HDR.EVENT.DUR(ix);
                         end;
 
-                elseif strcmp(HDR.TYPE,'EDF') & (length(strmatch('EDF Annotations',HDR.Label))==1),
+                elseif strcmp(HDR.TYPE,'EDF') && (length(strmatch('EDF Annotations',HDR.Label))==1),
                         % EDF+: 
                         tmp = strmatch('EDF Annotations',HDR.Label);
                         HDR.EDF.Annotations = tmp;
@@ -828,7 +828,7 @@ end;
                         [HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP] = unique(Desc(1:N)');
 
 
-                elseif strcmp(HDR.TYPE,'EDF') & (length(strmatch('ANNOTATION',HDR.Label))==1),
+                elseif strcmp(HDR.TYPE,'EDF') && (length(strmatch('ANNOTATION',HDR.Label))==1),
                         % EEG from Delta/NihonKohden converted into EDF: 
                         tmp = strmatch('ANNOTATION',HDR.Label);
                         HDR.EDF.Annotations = tmp;
@@ -6368,6 +6368,15 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 				elseif ~isempty(strfind(tag,'SourceMax'))
 					[tmp,status] = str2double(val);
 					HDR.DigMax = tmp(1);
+				elseif ~isempty(strfind(tag,'NotchFilter'))
+					[tmp,status] = str2double(val)
+					if tmp(1)==0, HDR.Filter.Notch = 0; 
+					elseif tmp(1)==1, HDR.Filter.Notch = 50; 
+					elseif tmp(1)==2, HDR.Filter.Notch = 60;
+					end; 
+				elseif ~isempty(strfind(tag,'TargetOrientation'))
+					[tmp,status] = str2double(val);
+					ORIENT = tmp(1);
 				end;
 			end;	
 			[tline,rr] = strtok(rr,[10,13]);
@@ -6383,14 +6392,12 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 				X(HDR.BCI2000.StateVector(k,3:4)*[8;1]+k1) = k;
 			end;		
 		end;
-		%HDR.BCI2000.X = X;
+		HDR.BCI2000.X = X;
                 
 		% convert EVENT information
 		status = fseek(HDR.FILE.FID,HDR.HeadLen+2*HDR.NS,'bof');
 		tmp = fread(HDR.FILE.FID,[HDR.BCI2000.StateVectorLength,inf],[int2str(HDR.BCI2000.StateVectorLength),'*uchar'],HDR.NS*2)';
 		HDR.EVENT.POS = [1;1+find(any(diff(tmp,[],1),2))];
-		HDR.EVENT.DUR = diff([HDR.EVENT.POS; 1+size(tmp,1)]);
-		HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS));
 		HDR.EVENT.TYP = repmat(0,size(HDR.EVENT.POS)); 	% should be extracted from HDR.BCI2000.STATE
 		fprintf(2,'Warning SOPEN (BCI2000): HDR.EVENT.TYP information need to be extracted from HDR.BCI2000.STATE\n');
 
@@ -6399,6 +6406,18 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 		for  k = 1:max(X)
                         HDR.BCI2000.STATE(:,k) = bin2dec(HDR.BCI2000.BINARYSTATUS(:,k==X));
                 end;
+
+		k   = strmatch('IntCompute',HDR.BCI2000.StateDef);
+		ix  = find(diff(HDR.BCI2000.STATE(:,k))>0)+1;	%% start of trial ?? 
+		HDR.TRIG = HDR.EVENT.POS(ix); 
+		if ORIENT == 1, %% vertical 
+			HDR.Classlabel = HDR.BCI2000.STATE(ix,k)*6;
+		else	%% horizontal or both 
+			HDR.Classlabel = HDR.BCI2000.STATE(ix,k);
+		end;	
+		HDR.EVENT.TYP(ix)  = HDR.Classlabel + hex2dec('0300'); 
+		ix  = find(diff(HDR.BCI2000.STATE(:,k))<0)+1;	%% end of trial ?? 
+		HDR.EVENT.TYP(ix) = HDR.Classlabel + hex2dec('8300');
 
 		% finalize header definition 		
 		status = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
