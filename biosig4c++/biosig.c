@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.209 2008-05-30 21:01:26 schloegl Exp $
+    $Id: biosig.c,v 1.210 2008-06-02 21:13:10 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -4967,7 +4967,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	hdr->FILE.POS = 0; 
 
 	for (k=0; k<hdr->NS; k++) {	
-
+		if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"[190] #%i\n",k);
+			
 		// set HDR.PhysDim
 		k1 = hdr->CHANNEL[k].PhysDimCode;
 		if (k1>0)
@@ -5437,6 +5439,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
    		hdr->FileName = FileName;
 		for (k=0; k<hdr->NS; k++) {
 			hdr->CHANNEL[k].GDFTYP = 5; //int32: internal datatype 
+			hdr->CHANNEL[k].SPR *= hdr->NRec;
 		}
 		hdr->SPR *= hdr->NRec;
 		hdr->NRec = 1; 

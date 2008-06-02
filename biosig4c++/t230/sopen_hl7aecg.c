@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.20 2008-04-30 23:16:18 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.21 2008-06-02 21:13:10 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -25,7 +25,7 @@
 #include "../XMLParser/tinyxml.h"
 #include "../XMLParser/Tokenizer.h"
 
-int sopen_HL7aECG_read(HDRTYPE* hdr){
+int sopen_HL7aECG_read(HDRTYPE* hdr) {
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful.
 	It will be called by the function SOPEN in "biosig.c"
@@ -98,8 +98,10 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 					fprintf(stdout,"Warning HL7aECG(read): length of Patient Name exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
 				strncpy(hdr->Patient.Name, name->GetText(), MAX_LENGTH_NAME);
 			}	
-			else
+			else {
+				hdr->Patient.Name[0] = 0;
 				fprintf(stderr,"Warning: Patient Name could not be read.\n");
+			}	
 		}		
 
 		/* non-standard fields height and weight */
@@ -109,7 +111,7 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 		    if ((code & 0xFFE0) != 1728) 
 		    	fprintf(stderr,"Warning: incorrect weight unit (%s)\n",weight->Attribute("unit"));	
 		    else 	// convert to kilogram
-			hdr->Patient.Weight = uint8_t(atof(weight->Attribute("value"))*PhysDimScale(code)*1e-3);  
+			hdr->Patient.Weight = (uint8_t)(atof(weight->Attribute("value"))*PhysDimScale(code)*1e-3);  
 		}
 		TiXmlElement *height = demographic.FirstChild("height").Element();
 		if (height) {
@@ -117,7 +119,7 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 		    if ((code & 0xFFE0) != 1280) 
 		    	fprintf(stderr,"Warning: incorrect height unit (%s) %i \n",height->Attribute("unit"),code);	
 		    else	// convert to centimeter
-			hdr->Patient.Height = uint8_t(atof(height->Attribute("value"))*PhysDimScale(code)*1e+2);
+			hdr->Patient.Height = (uint8_t)(atof(height->Attribute("value"))*PhysDimScale(code)*1e+2);
 		}
 		
 		TiXmlElement *birthday = demographic.FirstChild("birthTime").Element();
@@ -144,8 +146,6 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 
 		    hdr->Patient.Birthday = tm_time2gdf_time(&t0);
 		}
-//		else
-//		    fprintf(stderr,"Error: birthday\n");
 		
 		TiXmlElement *sex = demographic.FirstChild("administrativeGenderCode").Element();
 		if(sex){
@@ -175,12 +175,11 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 			HighPass = atoi(tmpvar->FirstChildElement("controlVariable")->FirstChildElement("component")->FirstChildElement("controlVariable")->FirstChildElement("value")->Attribute("value"));
 		}
 		hdr->NRec = 1;
-		hdr->SPR = 1;
-
-		hdr->AS.rawdata = (uint8_t *)malloc(hdr->SPR);
-		int32_t *data;
+//		hdr->SPR = 1;
+//		hdr->AS.rawdata = (uint8_t *)malloc(hdr->SPR);
+//		int32_t *data;
 		
-		hdr->SampleRate = atof(channels.FirstChild("component").FirstChild("sequence").FirstChild("value").FirstChild("increment").Element()->Attribute("value"));
+		hdr->SampleRate = 1.0/atof(channels.FirstChild("component").FirstChild("sequence").FirstChild("value").FirstChild("increment").Element()->Attribute("value"));
 		
 		TiXmlHandle channel = channels.Child("component", 1).FirstChild("sequence");
 		for(hdr->NS = 0; channel.Element(); ++(hdr->NS), channel = channels.Child("component", hdr->NS+1).FirstChild("sequence"));
@@ -192,6 +191,7 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 		    const char *code = channel.FirstChild("code").Element()->Attribute("code");
 		    
 		    strncpy(hdr->CHANNEL[i].Label,code,min(40,MAX_LENGTH_LABEL));
+		    hdr->CHANNEL[i].Label[MAX_LENGTH_LABEL] = '\0';
 		    hdr->CHANNEL[i].Transducer[0] = '\0';
 		    hdr->CHANNEL[i].GDFTYP = 5;	// int32
 
@@ -201,17 +201,27 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 		    hdr->CHANNEL[i].SPR = vector.size();
 		    if (i==0) {
 		    	hdr->SPR = hdr->CHANNEL[i].SPR;
-			hdr->AS.rawdata = (uint8_t *)realloc(hdr->AS.rawdata, 4*(i+1)*hdr->NS*hdr->SPR*hdr->NRec);
+			hdr->AS.rawdata = (uint8_t *)realloc(hdr->AS.rawdata, 4*hdr->NS*hdr->SPR*hdr->NRec);
 		    }
 		    else if (hdr->SPR != hdr->CHANNEL[i].SPR) {
-			fprintf(stderr,"Error: number of samples %i of #%i differ from %i in #0.\n",hdr->CHANNEL[i].SPR,i+1,hdr->SPR,1);
-			exit(-5);
+			if (hdr->SPR != lcm(hdr->SPR, hdr->CHANNEL[i].SPR)) 
+			{
+				fprintf(stderr,"Error: number of samples %i of #%i differ from %i in #0.\n",hdr->CHANNEL[i].SPR,i+1,hdr->SPR,1);
+				B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
+				B4C_ERRMSG = "HL7aECG: initial sample rate is not a multiple of all samplerates";
+				exit(-5);
+			}	
+			
 		    }	
 
 		    /* read data samples */	
-		    data = (int32_t*)(hdr->AS.rawdata + 4*i*(hdr->SPR));
-		    for(unsigned int j=0; j<hdr->SPR; ++j) {
-			data[j] = atoi(vector[j].c_str());
+		    int32_t* data = (int32_t*)(hdr->AS.rawdata + (GDFTYP_BITS[hdr->CHANNEL[i].GDFTYP]>>3)*i*(hdr->SPR));
+		    size_t DIV = hdr->SPR/hdr->CHANNEL[i].SPR;
+		    for(size_t j=0; j<hdr->CHANNEL[i].SPR; ++j) {
+			size_t k=0;
+			data[j*DIV+k] = atoi(vector[j].c_str());
+			while (++k<DIV) data[j*DIV+k] = data[j*DIV+k-1]; 
+			  
 			/* get Min/Max */
 			if(data[j] > hdr->CHANNEL[i].DigMax) {
 			    hdr->CHANNEL[i].DigMax = data[j];
@@ -221,6 +231,8 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 			}
 		    }
 		    hdr->CHANNEL[i].OnOff = 1;
+      		    hdr->CHANNEL[i].SPR = hdr->SPR; 	    
+ 	    
 
 		    /* scaling factors */ 
 		    hdr->CHANNEL[i].Cal  = atof(channel.FirstChild("value").FirstChild("scale").Element()->Attribute("value"));
@@ -246,15 +258,11 @@ int sopen_HL7aECG_read(HDRTYPE* hdr){
 //		    hdr->CHANNEL[i].Impedance = INF;
 //		    for(int k1=0; k1<3; hdr->CHANNEL[index].XYZ[k1++] = 0.0);
 		}
-// hdr2ascii(hdr,stdout,2);
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[320] \n");	
-		hdr->SampleRate *= hdr->SPR;
-		hdr->SampleRate  = hdr->SPR/hdr->SampleRate;
-
+//		hdr2ascii(hdr,stdout,2);
 
 		hdr->FLAG.OVERFLOWDETECTION = 0;
-	    }else{
+	    } else {
 		fprintf(stderr, "%s : failed to parse (2)\n", hdr->FileName);
 	    }
 	}
@@ -270,6 +278,7 @@ int sopen_HL7aECG_write(HDRTYPE* hdr){
 	size_t k;
 	for (k=0; k<hdr->NS; k++) {
 		hdr->CHANNEL[k].GDFTYP = 5; //int32
+		hdr->CHANNEL[k].SPR *= hdr->NRec;
 	}
 	hdr->SPR *= hdr->NRec;
 	hdr->NRec = 1; 
@@ -295,6 +304,8 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
     TiXmlDeclaration* decl = new TiXmlDeclaration("1.0", "UTF-8", "");
     doc.LinkEndChild(decl);
     
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"910 %i\n",1);
+
     TiXmlElement *root = new TiXmlElement("AnnotatedECG");
     root->SetAttribute("xmlns", "urn:hl7-org:v3");
     root->SetAttribute("xmlns:voc", "urn:hl7-org:v3/voc");
@@ -314,6 +325,8 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
     rootCode->SetAttribute("codeSystemName", "CPT-4");
     root->LinkEndChild(rootCode);
     
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"910 %i\n",2);
+
     char timelow[19], timehigh[19];
     time_t T0 = gdf_time2t_time(hdr->T0);
     struct tm *t0 = gmtime(&T0);
@@ -322,8 +335,9 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 //    t0->tm_gmtoff=0;
 
     sprintf(timelow, "%4d%2d%2d%2d%2d%2d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec);
-    sprintf(timehigh, "%4d%2d%2d%2d%2d%2d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec+hdr->SPR/((int)hdr->SampleRate));
+    sprintf(timehigh, "%4d%2d%2d%2d%2d%2d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, (int)(t0->tm_sec+hdr->SPR/hdr->SampleRate));
     for(int i=0; i<18; ++i){
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"910 %i\n",i);
 	if(timelow[i] == ' ')
 	    timelow[i] = '0';
 	if(timehigh[i] == ' ')
@@ -343,7 +357,7 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
     rootComponentOf->SetAttribute("typeCode", "COMP");
     rootComponentOf->SetAttribute("contextConductionInd", "true");
     root->LinkEndChild(rootComponentOf);
-    
+
     TiXmlElement *timePointEvent = new TiXmlElement("timepointEvent");
     timePointEvent->SetAttribute("classCode", "CTTEVENT");
     timePointEvent->SetAttribute("moodCode", "EVN");
@@ -470,6 +484,9 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
     series->LinkEndChild(seriesEffectiveTime);
     
     for(int i=3; i; --i){
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"950 %i\n",i);
+
 	    TiXmlElement *seriesControlVariable = new TiXmlElement("controlVariable");
 	    seriesControlVariable->SetAttribute("typeCode", "CTRLV");
 	    series->LinkEndChild(seriesControlVariable);
@@ -590,8 +607,12 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 
 	sequenceCode = new TiXmlElement("code");
 	
-	strcpy(tmp,"MDC_ECG_LEAD_");
-	strcat(tmp,LEAD_ID_TABLE[hdr->CHANNEL[i].LeadIdCode]);	
+	if (hdr->CHANNEL[i].LeadIdCode) {
+		strcpy(tmp,"MDC_ECG_LEAD_");
+		strcat(tmp,LEAD_ID_TABLE[hdr->CHANNEL[i].LeadIdCode]);
+	}
+	else 
+		strcpy(tmp,hdr->CHANNEL[i].Label);
 	sequenceCode->SetAttribute("code", tmp);
 
 	sequenceCode->SetAttribute("codeSystem", "2.16.840.1.113883.6.24");
@@ -621,10 +642,13 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 	sequenceValue->LinkEndChild(valueDigits);
 
 	std::stringstream digitsStream;
+
+
 	
-	for(unsigned int j=0; j<hdr->CHANNEL[i].SPR; ++j)
+	for(unsigned int j=0; j<hdr->CHANNEL[i].SPR; ++j) {
 	    digitsStream << (*(int32_t*)(hdr->AS.rawdata + hdr->AS.bi[i] + (j*GDFTYP_BITS[hdr->CHANNEL[i].GDFTYP]>>3))) << " ";
 //	    digitsStream << hdr->data.block[hdr->SPR*i + j] << " ";
+	}
 
 	digitsText = new TiXmlText(digitsStream.str().c_str());
 	valueDigits->LinkEndChild(digitsText);
