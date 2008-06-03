@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.210 2008-06-02 21:13:10 schloegl Exp $
+    $Id: biosig.c,v 1.211 2008-06-03 20:48:09 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2890,8 +2890,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		if (VERBOSE_LEVEL>8) 
 			fprintf(stdout,"[202] %i %i  %s!\n",count, hdr->HeadLen,(char*)hdr->AS.Header);
 
+		typedef struct {
+			char svd[20];
+			int  i[4];
+		} b2svd;
+			
+
 		double gain=0.0, offset=0.0, digmin=0.0, digmax=0.0;
 		int status = 0;
+		size_t tc_len=0,tc_pos=0;
 		t1  = strtok((char*)hdr->AS.Header,"\x0a\x0d");		
 		ptr = strtok(NULL,"\x0a\x0d");
 		while (ptr != NULL) {
@@ -2907,7 +2914,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (!strncmp(ptr,"[ ",2))
 				status = 3;
 
-			// else if (status==1); 
+			else if (status==1) {
+				int  i[4];
+				char item[20];
+				sscanf(ptr,"%s %i %i %i %i",item,i,i+1,i+2,i+3);
+				if (!strcmp(item,"TargetCode")) {
+					tc_pos = i[2]*8 + i[3];
+					tc_len = i[0];
+				}
+			} 
 			
 			else if (status==2) {
 				t1 = strstr(ptr,"SamplingRate=");
@@ -2932,9 +2947,34 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (t1 != NULL)
 		    			digmax = strtod(t1+10,&ptr);
 
+				t1 = strstr(ptr,"StorageTime=");
+				if (t1 != NULL) {
+					char *t2 = strstr(t1,"%20");
+					while (t2!=NULL) {
+						memset(t2,' ',3);
+						t2 = strstr(t1,"%20");
+					}
+					int c=sscanf(t1+12,"%03s %03s %2u %2u:%2u:%2u %4u",tmp+10,tmp,&tm_time.tm_mday,&tm_time.tm_hour,&tm_time.tm_min,&tm_time.tm_sec,&tm_time.tm_year);
+					if (c==7) {	
+						tm_time.tm_isdst = -1;
+						tm_time.tm_year -= 1900;
+						if      (!strcmp(tmp,"Jan")) tm_time.tm_mon = 0;
+						else if (!strcmp(tmp,"Feb")) tm_time.tm_mon = 1;
+						else if (!strcmp(tmp,"Mar")) tm_time.tm_mon = 2;
+						else if (!strcmp(tmp,"Apr")) tm_time.tm_mon = 3;
+						else if (!strcmp(tmp,"May")) tm_time.tm_mon = 4;
+						else if (!strcmp(tmp,"Jun")) tm_time.tm_mon = 5;
+						else if (!strcmp(tmp,"Jul")) tm_time.tm_mon = 6;
+						else if (!strcmp(tmp,"Aug")) tm_time.tm_mon = 7;
+						else if (!strcmp(tmp,"Sep")) tm_time.tm_mon = 8;
+						else if (!strcmp(tmp,"Oct")) tm_time.tm_mon = 9;
+						else if (!strcmp(tmp,"Nov")) tm_time.tm_mon = 10;
+						else if (!strcmp(tmp,"Dec")) tm_time.tm_mon = 11;
+						hdr->T0 = tm_time2gdf_time(&tm_time);
+					}	
+				}	
+
 			// else if (status==3); 
-			
-		    			
 		    			 
 			}
 			ptr = strtok(NULL,"\x0a\x0d");
@@ -2958,28 +2998,45 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 		hdr->AS.bpb = (hdr->NS * (GDFTYP_BITS[gdftyp]>>3) + BCI2000_StatusVectorLength);
 		
-
+		/* decode state vector into event table */
+		hdr->EVENT.SampleRate = hdr->SampleRate;
 	        size_t skip = hdr->NS * (GDFTYP_BITS[gdftyp]>>3);
 	        count = 0; 
 	        size_t N = 0; 
 	        uint8_t *StatusVector = (uint8_t*) malloc(BCI2000_StatusVectorLength*2);
+		uint32_t b0=0,b1;
 	        while (!ifeof(hdr)) {
 		        ifseek(hdr, skip, SEEK_CUR);
 			ifread(StatusVector + BCI2000_StatusVectorLength*(count & 1), 1, BCI2000_StatusVectorLength, hdr);
-			count++;		
-			if (memcmp(StatusVector, StatusVector+BCI2000_StatusVectorLength, BCI2000_StatusVectorLength)) { 
-				if (N+1 >= hdr->EVENT.N) {
+			if (tc_len && memcmp(StatusVector, StatusVector+BCI2000_StatusVectorLength, BCI2000_StatusVectorLength)) { 
+				if (N+2 >= hdr->EVENT.N) {
 					hdr->EVENT.N  += 1024;
 					hdr->EVENT.POS = (uint32_t*)realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
 					hdr->EVENT.TYP = (uint16_t*)realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
 				}
-					
+				/*****					
 				hdr->EVENT.POS[N] = count;	
-				hdr->EVENT.TYP[N] = 1;	// this is a hack, maps all codes into "user specific events" 
-				N++;
+				hdr->EVENT.TYP[N] = 1;	// this is a hack, maps all codes into "user specific events"
+				++N;
+				 *****/
+
+				/* decode Target Code */
+				b1 = *(uint32_t*)(StatusVector + BCI2000_StatusVectorLength*(count & 1) + (tc_pos>>3));
+				b1 = (b1 >> (tc_pos & 7)) & ((1<<tc_len)-1);
+				if (b1>b0) 
+					hdr->EVENT.TYP[N] = b1 | 0x0300;
+				else if (b1<b0) 
+					hdr->EVENT.TYP[N] = b0 | 0x8300;
+
+				if (b1!=b0) {
+					hdr->EVENT.POS[N] = count;	
+					N++;
+				}	
+				b0 = b1;
 			}
-			hdr->EVENT.N = N; 
+			count++;		
 		}        
+		hdr->EVENT.N = N; 
 		free(StatusVector); 
 		hdr->NRec = (iftell(hdr) - hdr->HeadLen) / hdr->AS.bpb;
 	        ifseek(hdr, hdr->HeadLen, SEEK_SET);
