@@ -44,7 +44,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sopen.m,v 1.212 2008-05-30 13:31:22 schloegl Exp $
+%	$Id: sopen.m,v 1.213 2008-06-03 13:10:35 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -6369,7 +6369,7 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 					[tmp,status] = str2double(val);
 					HDR.DigMax = tmp(1);
 				elseif ~isempty(strfind(tag,'NotchFilter'))
-					[tmp,status] = str2double(val)
+					[tmp,status] = str2double(val);
 					if tmp(1)==0, HDR.Filter.Notch = 0; 
 					elseif tmp(1)==1, HDR.Filter.Notch = 50; 
 					elseif tmp(1)==2, HDR.Filter.Notch = 60;
@@ -6392,6 +6392,7 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 				X(HDR.BCI2000.StateVector(k,3:4)*[8;1]+k1) = k;
 			end;		
 		end;
+		X = X(end:-1:1);
 		HDR.BCI2000.X = X;
                 
 		% convert EVENT information
@@ -6400,24 +6401,27 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 		HDR.EVENT.POS = [1;1+find(any(diff(tmp,[],1),2))];
 		HDR.EVENT.TYP = repmat(0,size(HDR.EVENT.POS)); 	% should be extracted from HDR.BCI2000.STATE
 		fprintf(2,'Warning SOPEN (BCI2000): HDR.EVENT.TYP information need to be extracted from HDR.BCI2000.STATE\n');
+		HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS));
+		HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS));
 
-                tmp = tmp(HDR.EVENT.POS,:)';         % compress event information
-                HDR.BCI2000.BINARYSTATUS = reshape(dec2bin(tmp(:),8)',8*HDR.BCI2000.StateVectorLength,size(tmp,2))';
+                tmp = tmp(HDR.EVENT.POS,end:-1:1)';         % compress event information
+                tmp = dec2bin(tmp(:),8)';
+                HDR.BCI2000.BINARYSTATUS = reshape(tmp, 8*HDR.BCI2000.StateVectorLength, size(tmp,2)/HDR.BCI2000.StateVectorLength)';
 		for  k = 1:max(X)
                         HDR.BCI2000.STATE(:,k) = bin2dec(HDR.BCI2000.BINARYSTATUS(:,k==X));
                 end;
 
-		k   = strmatch('IntCompute',HDR.BCI2000.StateDef);
+		k   = strmatch('TargetCode', HDR.BCI2000.StateDef);
 		ix  = find(diff(HDR.BCI2000.STATE(:,k))>0)+1;	%% start of trial ?? 
 		HDR.TRIG = HDR.EVENT.POS(ix); 
+		HDR.Classlabel = HDR.BCI2000.STATE(ix,k);
 		if ORIENT == 1, %% vertical 
-			HDR.Classlabel = HDR.BCI2000.STATE(ix,k)*6;
+			HDR.EVENT.TYP(ix)  = HDR.Classlabel*6 + hex2dec('0300'); 
 		else	%% horizontal or both 
-			HDR.Classlabel = HDR.BCI2000.STATE(ix,k);
+			HDR.EVENT.TYP(ix)  = HDR.Classlabel + hex2dec('0300'); 
 		end;	
-		HDR.EVENT.TYP(ix)  = HDR.Classlabel + hex2dec('0300'); 
-		ix  = find(diff(HDR.BCI2000.STATE(:,k))<0)+1;	%% end of trial ?? 
-		HDR.EVENT.TYP(ix) = HDR.Classlabel + hex2dec('8300');
+		ix2  = find(diff(HDR.BCI2000.STATE(:,k))<0)+1;	%% end of trial ?? 
+		HDR.EVENT.DUR(ix) = HDR.EVENT.POS(ix2) - HDR.EVENT.POS(ix);
 
 		% finalize header definition 		
 		status = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
@@ -6428,7 +6432,7 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 		HDR.NRec      = 1; 
 		
                 HDR.FILE.OPEN = 1;
-		HDR.FILE.POS = 0; 
+		HDR.FILE.POS  = 0; 
         end;
 
         
