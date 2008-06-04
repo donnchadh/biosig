@@ -7,7 +7,7 @@
 # CEN/TC251/PT40 2001	
 # File Exchange Format for Vital Signs - Annex A 
 #
-# $Id: units.csv,v 1.9 2008-06-04 18:33:07 schloegl Exp $
+# $Id: units.csv,v 1.10 2008-06-04 19:29:00 schloegl Exp $
 # Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
 # This file is part of the biosig project http://biosig.sf.net/
 #
@@ -254,7 +254,7 @@
 ### private: units with no standardized code
 65344,"mol l-1 mm","light path length","milli(Mol/Liter)*millimeter"
 65376,"r.p.m",,"rotations per minute"
-#65408,"B", "Bel", "relative power decibel"	
+65408,"B", "Bel", "relative power decibel"	
 65440,"dyne s m2 cm-5","Vascular Resistance Index","dyne seconds square meter per centimetre to the power of 5"
 65472,"l m-2","stroke index","litres per square meter"
 65504,"T",,"<magnitude> Tesla" 

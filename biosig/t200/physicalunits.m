@@ -28,7 +28,7 @@ function [out,scale] = physicalunits(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: physicalunits.m,v 1.20 2008-04-01 12:17:03 schloegl Exp $
+%	$Id: physicalunits.m,v 1.21 2008-06-04 19:29:00 schloegl Exp $
 %	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -266,7 +266,9 @@ elseif ischar(arg1) | iscell(arg1)
 				ix = ix(~mod(ix,32));	% select those with no PreFix (code offset = 0) 
 				if length(ix)==1,
 					Code(k) = ix; 
-				else
+				elseif sum(ix<64000)==1,
+					Code(k) = ix(ix<64000); 
+				else  
 					warning('ambigous physical unit')
 				end; 	
 			elseif length(ix2)==1,

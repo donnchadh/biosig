@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.213 2008-06-04 18:33:06 schloegl Exp $
+    $Id: biosig.c,v 1.214 2008-06-04 19:29:00 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -684,7 +684,7 @@ const struct PhysDimIdx
 	{ 6432 ,  "B" },
 	{65344 ,  "mol l-1 mm"}, 	// "light path length","milli(Mol/Liter)*millimeter"	
 	{65376 ,  "r.p.m"}, 		// "rotations per minute"
-//	{65408 ,  "B"}, 		// "Bel", "relative power decibel"	
+	{65408 ,  "B"}, 		/* obsolete, use 6432 instead */	
 	{65440 ,  "dyne s m2 cm-5" },
 	{65472 ,  "l m-2" },
 	{65504 ,  "T" },
@@ -3976,7 +3976,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     			3808, 3776,  544, 6048, 2528,	// dyne, N, %, °C, 1/min 
     			4264, 4288, 4160,65376, 4032,	// 1/s, Ohm, A, rpm, W
     			6448, 1731, 3968, 6016,    0,	// dB, kg, J, dyne s m-2 cm-5, l
-    			3040, 3072, 4480,    0,    0,	// L/s, L/min, cd
+    			3040, 3072, 4480,    0,    0,	// l/s, l/min, cd
     			   0,    0,    0,    0,    0,	// 
 		};
 
