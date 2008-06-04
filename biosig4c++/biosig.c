@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.212 2008-06-04 15:01:56 schloegl Exp $
+    $Id: biosig.c,v 1.213 2008-06-04 18:33:06 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -678,13 +678,13 @@ const struct PhysDimIdx
 	{ 5920 ,  "cmH2O l-1s-1" },
 	{ 5952 ,  "l2s-1" },
 	{ 5984 ,  "cmH2O %-1" },
+	{ 6016 ,  "dyne s m-2 cm-5" },
 	{ 6176 ,  "mmHg %-1" },
 	{ 6208 ,  "Pa %-1" },
-	{ 6432 ,  "dB" },
-	{ 6016 ,  "dyne s m-2 cm-5" },
+	{ 6432 ,  "B" },
 	{65344 ,  "mol l-1 mm"}, 	// "light path length","milli(Mol/Liter)*millimeter"	
 	{65376 ,  "r.p.m"}, 		// "rotations per minute"
-	{65408 ,  "B"}, 		// "Bel", "relative power decibel"	
+//	{65408 ,  "B"}, 		// "Bel", "relative power decibel"	
 	{65440 ,  "dyne s m2 cm-5" },
 	{65472 ,  "l m-2" },
 	{65504 ,  "T" },
@@ -2853,23 +2853,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	t1 = strstr(ptr,"DataFormat=");
 	    	uint16_t gdftyp	 = 3; 
 	    	if (t1 != NULL) {
-	    		if (0);  
-	    		else if (!strncmp(ptr+11,"int16",3))
-	    			gdftyp = 3; 
-	    		else if (!strncmp(ptr+11,"int32",5))
-	    			gdftyp = 5; 
-	    		else if (!strncmp(ptr+11,"int24",5))
-	    			gdftyp = 255+24; 
-	    		else if (!strncmp(ptr+11,"uint16",3))
-	    			gdftyp = 4; 
-	    		else if (!strncmp(ptr+11,"uint32",5))
-	    			gdftyp = 6; 
-	    		else if (!strncmp(ptr+11,"uint24",5))
-	    			gdftyp = 511+24; 
-	    		else if (!strncmp(ptr+11,"float",5))
-	    			gdftyp = 16; 
-	    		else if (!strncmp(ptr+11,"double",6))
-	    			gdftyp = 17;
+	    		if  	(!strncmp(ptr+11,"int16",3))	gdftyp = 3; 
+	    		else if (!strncmp(ptr+11,"int32",5))	gdftyp = 5; 
+	    		else if (!strncmp(ptr+11,"int24",5))	gdftyp = 255+24; 
+	    		else if (!strncmp(ptr+11,"uint16",3))	gdftyp = 4; 
+	    		else if (!strncmp(ptr+11,"uint32",5))	gdftyp = 6; 
+	    		else if (!strncmp(ptr+11,"uint24",5))	gdftyp = 511+24; 
+	    		else if (!strncmp(ptr+11,"float",5))	gdftyp = 16; 
+	    		else if (!strncmp(ptr+11,"double",6))	gdftyp = 17;
 	    		else {	 
 	    			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 	    			B4C_ERRMSG = "ERROR 1234 SOPEN(BCI2000): this option is not supported yet, contact <a.schloegl@ieee.org> if you want this problem fixed.\n";
@@ -2949,8 +2940,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    		}	
 		    			
 				t1 = strstr(ptr,"SamplingRate=");
-				if (t1 != NULL)
-		    			hdr->SampleRate = strtod(t1+14,&ptr);
+				if (t1 != NULL)	hdr->SampleRate = strtod(t1+14,&ptr);
 		    			 
 				t1 = strstr(ptr,"SourceChGain=");
 				if (t1 != NULL) {
@@ -2965,12 +2955,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    			for (; k<hdr->NS; k++) hdr->CHANNEL[k].Off = hdr->CHANNEL[k-1].Off;
 		    		}	 
 				t1 = strstr(ptr,"SourceMin=");
-				if (t1 != NULL)	
-					digmin = strtod(t1+10,&ptr);
+				if (t1 != NULL)	digmin = strtod(t1+10,&ptr);
 		    			 
 				t1 = strstr(ptr,"SourceMax=");
-				if (t1 != NULL) 
-					digmax = strtod(t1+10,&ptr);
+				if (t1 != NULL) digmax = strtod(t1+10,&ptr);
 
 				t1 = strstr(ptr,"StorageTime=");
 				if (t1 != NULL) {
@@ -2999,8 +2987,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					}	
 				}	
 				t1 = strstr(ptr,"TargetOrientation=");
-				if (t1 != NULL)
-		    			TargetOrientation = strtod(t1+18,&ptr);
+				if (t1 != NULL)	TargetOrientation = strtod(t1+18,&ptr);
 
 
 			// else if (status==3); 
@@ -3014,15 +3001,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr->CHANNEL[k].DigMin = digmin;
 			hdr->CHANNEL[k].PhysMax= hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 			hdr->CHANNEL[k].PhysMin= hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
-			
 		}
 		hdr->AS.bpb = (hdr->NS * (GDFTYP_BITS[gdftyp]>>3) + BCI2000_StatusVectorLength);
 		
 		/* decode state vector into event table */
 		hdr->EVENT.SampleRate = hdr->SampleRate;
 	        size_t skip = hdr->NS * (GDFTYP_BITS[gdftyp]>>3);
-	        count = 0; 
 	        size_t N = 0; 
+	        count 	 = 0; 
 	        uint8_t *StatusVector = (uint8_t*) malloc(BCI2000_StatusVectorLength*2);
 		uint32_t b0=0,b1;
 	        while (!ifeof(hdr)) {
@@ -3062,8 +3048,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->NRec = (iftell(hdr) - hdr->HeadLen) / hdr->AS.bpb;
 	        ifseek(hdr, hdr->HeadLen, SEEK_SET);
 
-		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"[209] header finished!\n");
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[209] header finished!\n");
 	}      	
 
 	else if (hdr->TYPE==BKR) {
@@ -3131,7 +3116,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		count = 0;
 	    	char *vmrk = (char*)malloc(bufsiz+1);
 		while (!ifeof(hdr)) {
-		    	vmrk = (char*)realloc(vmrk,count+bufsiz+1);
+		    	vmrk 	= (char*)realloc(vmrk,count+bufsiz+1);
 		    	count  += ifread(vmrk+count,1,bufsiz,hdr);
 		}
 	    	vmrk[count] = 0;	// add terminating \0 character
@@ -3186,19 +3171,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->EVENT.TYP[N_EVENT] = 0x7ffe;
 					
 					char* t2 = t1+p6+1;
-					t2[14]=0;
-					tm_time.tm_sec  = atoi(t2+12);
-					t2[12]=0;
-					tm_time.tm_min  = atoi(t2+10);
-					t2[10]=0;
-					tm_time.tm_hour = atoi(t2+8);
-					t2[8]=0;
-					tm_time.tm_mday = atoi(t2+6);
-					t2[6]=0;
-					tm_time.tm_mon  = atoi(t2+4)-1;
-					t2[4]=0;
-					tm_time.tm_year = atoi(t2)-1900;
-					
+					t2[14]=0;	tm_time.tm_sec  = atoi(t2+12);
+					t2[12]=0;	tm_time.tm_min  = atoi(t2+10);
+					t2[10]=0;	tm_time.tm_hour = atoi(t2+8);
+					t2[8] =0;	tm_time.tm_mday = atoi(t2+6);
+					t2[6] =0;	tm_time.tm_mon  = atoi(t2+4)-1;
+					t2[4] =0;	tm_time.tm_year = atoi(t2)-1900;
 					hdr->T0 = t_time2gdf_time(mktime(&tm_time));
 				}
 				else 
@@ -3997,7 +3975,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     			4256, 3872, 3840, 3904,    0,	// Volt, mmHg, Pa, mmH2O, mmHg/S
     			3808, 3776,  544, 6048, 2528,	// dyne, N, %, °C, 1/min 
     			4264, 4288, 4160,65376, 4032,	// 1/s, Ohm, A, rpm, W
-    			6432, 1731, 3968, 6016,    0,	// dB, kg, J, dyne s m-2 cm-5, l
+    			6448, 1731, 3968, 6016,    0,	// dB, kg, J, dyne s m-2 cm-5, l
     			3040, 3072, 4480,    0,    0,	// L/s, L/min, cd
     			   0,    0,    0,    0,    0,	// 
 		};
