@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.211 2008-06-03 20:48:09 schloegl Exp $
+    $Id: biosig.c,v 1.212 2008-06-04 15:01:56 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2883,22 +2883,31 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		} 
 		else
 			ifseek(hdr,hdr->HeadLen,SEEK_SET);
+			
+		if (hdr->FLAG.OVERFLOWDETECTION) {
+			fprintf(stderr,"WARNING: Automated overflowdetection not supported in BCI2000 file %s\n",hdr->FileName);
+			hdr->FLAG.OVERFLOWDETECTION = 0;
+		}	
 			   	
 		hdr->AS.Header[hdr->HeadLen]=0; 
 		hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 
-		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"[202] %i %i  %s!\n",count, hdr->HeadLen,(char*)hdr->AS.Header);
-
-		typedef struct {
-			char svd[20];
-			int  i[4];
-		} b2svd;
-			
 
 		double gain=0.0, offset=0.0, digmin=0.0, digmax=0.0;
-		int status = 0;
 		size_t tc_len=0,tc_pos=0;
+		char TargetOrientation=0;
+		for (k=0; k<hdr->NS; k++) {
+			sprintf(hdr->CHANNEL[k].Label,"#%03i",k+1);
+			hdr->CHANNEL[k].Cal    = gain; 
+			hdr->CHANNEL[k].Off    = offset; 
+			hdr->CHANNEL[k].PhysDimCode = 4275; // uV
+			hdr->CHANNEL[k].LeadIdCode = 0;
+			hdr->CHANNEL[k].OnOff  = 1;
+			hdr->CHANNEL[k].SPR    = 1;
+			hdr->CHANNEL[k].GDFTYP = gdftyp;
+		}	
+
+		int status = 0;
 		t1  = strtok((char*)hdr->AS.Header,"\x0a\x0d");		
 		ptr = strtok(NULL,"\x0a\x0d");
 		while (ptr != NULL) {
@@ -2925,27 +2934,43 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			} 
 			
 			else if (status==2) {
+				t1 = strstr(ptr,"ChannelNames=");
+				if (t1 != NULL) {
+		    			int NS = strtod(t1+13,&ptr);
+		    			for (k=0; k<NS; k++) {
+		    				while (isspace(ptr[0])) ++ptr;
+		    				int k1=0;
+		    				while (!isspace(ptr[k1])) ++k1;	    				
+		    				ptr += k1;
+		    				if (k1>MAX_LENGTH_LABEL) k1=MAX_LENGTH_LABEL;
+		    				strncpy(hdr->CHANNEL[k].Label,ptr-k1,k1);
+						hdr->CHANNEL[k].Label[k1]=0; 	// terminating 0
+		    			}	 
+		    		}	
+		    			
 				t1 = strstr(ptr,"SamplingRate=");
 				if (t1 != NULL)
 		    			hdr->SampleRate = strtod(t1+14,&ptr);
 		    			 
 				t1 = strstr(ptr,"SourceChGain=");
 				if (t1 != NULL) {
-		    			gain = strtod(t1+13,&ptr);
-		    			gain = strtod(ptr,&ptr);
+		    			int NS = strtod(t1+13,&ptr);
+		    			for (k=0; k<NS; k++) hdr->CHANNEL[k].Cal = strtod(ptr,&ptr);
+		    			for (; k<hdr->NS; k++) hdr->CHANNEL[k].Cal = hdr->CHANNEL[k-1].Cal;
 		    		}	 
 				t1 = strstr(ptr,"SourceChOffset=");
 				if (t1 != NULL) {
-		    			offset = strtod(t1+15,&ptr);
-		    			offset = strtod(ptr,&ptr);
+		    			int NS = strtod(t1+15,&ptr);
+		    			for (k=0; k<NS; k++) hdr->CHANNEL[k].Off = strtod(ptr,&ptr);
+		    			for (; k<hdr->NS; k++) hdr->CHANNEL[k].Off = hdr->CHANNEL[k-1].Off;
 		    		}	 
 				t1 = strstr(ptr,"SourceMin=");
-				if (t1 != NULL)
-		    			digmin = strtod(t1+10,&ptr);
+				if (t1 != NULL)	
+					digmin = strtod(t1+10,&ptr);
 		    			 
 				t1 = strstr(ptr,"SourceMax=");
-				if (t1 != NULL)
-		    			digmax = strtod(t1+10,&ptr);
+				if (t1 != NULL) 
+					digmax = strtod(t1+10,&ptr);
 
 				t1 = strstr(ptr,"StorageTime=");
 				if (t1 != NULL) {
@@ -2973,6 +2998,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 						hdr->T0 = tm_time2gdf_time(&tm_time);
 					}	
 				}	
+				t1 = strstr(ptr,"TargetOrientation=");
+				if (t1 != NULL)
+		    			TargetOrientation = strtod(t1+18,&ptr);
+
 
 			// else if (status==3); 
 		    			 
@@ -2981,15 +3010,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}
 
 		for (k=0; k<hdr->NS; k++)	{
-			sprintf(hdr->CHANNEL[k].Label,"#%03i",k);
-
-			hdr->CHANNEL[k].PhysDimCode = 4275; // uV
-			hdr->CHANNEL[k].LeadIdCode = 0;
-			hdr->CHANNEL[k].OnOff  = 1;
-			hdr->CHANNEL[k].SPR    = 1;
-			hdr->CHANNEL[k].Cal    = gain; 
-			hdr->CHANNEL[k].Off    = offset; 
-			hdr->CHANNEL[k].GDFTYP = gdftyp;
 			hdr->CHANNEL[k].DigMax = digmax;
 			hdr->CHANNEL[k].DigMin = digmin;
 			hdr->CHANNEL[k].PhysMax= hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
@@ -3014,6 +3034,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->EVENT.POS = (uint32_t*)realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
 					hdr->EVENT.TYP = (uint16_t*)realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
 				}
+
 				/*****					
 				hdr->EVENT.POS[N] = count;	
 				hdr->EVENT.TYP[N] = 1;	// this is a hack, maps all codes into "user specific events"
@@ -6972,17 +6993,9 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 		return(0);
 	}
 		
-	if (VERBOSE_LEVEL>1) {
-		/* display header information */
-		fprintf(fid,"FileName:\t%s\nType    :\t%s\nVersion :\t%4.2f\nHeadLen :\t%i\n",hdr->FileName,GetFileTypeString(hdr->TYPE),hdr->VERSION,hdr->HeadLen);
-//		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nDuration[s]:\t%u/%u\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
-		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->SampleRate);
-		fprintf(fid,"Events/Annotations:\t%i\nEvents/SampleRate:\t%f\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
-	}
-		
 	if (VERBOSE_LEVEL>0) {
 		/* demographic information */
-		fprintf(fid,"\n[FIXED HEADER]\n");
+		fprintf(fid,"\n===========================================\n[FIXED HEADER]\n");
 //		fprintf(fid,"\nPID:\t|%s|\nPatient:\n",hdr->AS.PID);
 		fprintf(fid,"Recording:\n\tID              : %s\n",hdr->ID.Recording);
 		fprintf(fid,"Manufacturer:\n\tName            : %s\n",hdr->ID.Manufacturer.Name);
@@ -7016,6 +7029,14 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 		char tmp[60];
 		strftime(tmp, 59, "%x %X %Z", localtime(&T0));
 		fprintf(fid,"\tStartOfRecording: (%.6f) %s\n",ldexp(hdr->T0,-32),asctime(localtime(&T0))); 
+	}
+		
+	if (VERBOSE_LEVEL>1) {
+		/* display header information */
+		fprintf(fid,"FileName:\t%s\nType    :\t%s\nVersion :\t%4.2f\nHeadLen :\t%i\n",hdr->FileName,GetFileTypeString(hdr->TYPE),hdr->VERSION,hdr->HeadLen);
+//		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nDuration[s]:\t%u/%u\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
+		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->SampleRate);
+		fprintf(fid,"Events/Annotations:\t%i\nEvents/SampleRate:\t%f\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
 	}
 		
 	if (VERBOSE_LEVEL>2) {
