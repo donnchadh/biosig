@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.32 2008-05-28 13:00:59 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.33 2008-06-04 20:17:18 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -137,20 +137,20 @@ void mexFunction(
 			
 	if (hdr==NULL) return;
 
-	if (VERBOSE_LEVEL>8) 
-		fprintf(stderr,"[112] SOPEN-R finished\n");
-
 	hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
 	hdr->FLAG.UCAL = FlagUCAL;
 	hdr->FLAG.ROW_BASED_CHANNELS = 0; 
 
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stderr,"[112] SOPEN-R finished NS=%i %i\n",hdr->NS,NS);
+
 	if ((NS<0) || ((NS==1) && (ChanList[0] == 0.0))) { 	// all channels
 		for (k=0; k<hdr->NS; ++k)
-			hdr->CHANNEL[k].OnOff = 1; // set 
+			hdr->CHANNEL[k].OnOff = 1; 	// set
 	}		
 	else {		
 		for (k=0; k<hdr->NS; ++k)
-			hdr->CHANNEL[k].OnOff = 0; // reset 
+			hdr->CHANNEL[k].OnOff = 0; 	// reset
 		for (k=0; k<NS; ++k) {
 			int ch = (int)ChanList[k];
 			if ((ch < 1) || (ch > hdr->NS)) 
@@ -167,7 +167,7 @@ void mexFunction(
 	if ((status=serror())) return;  
 
 	if (VERBOSE_LEVEL>8) 
-		fprintf(stderr,"\n[129] SREAD on %s successful [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
+		fprintf(stderr,"\n[129] SREAD/SCLOSE on %s successful [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
 
 	hdr->NRec = count; 
 	// plhs[0] = mxCreateDoubleMatrix(hdr->SPR * count, NS, mxREAL);
@@ -183,9 +183,10 @@ void mexFunction(
 		plhs[0] = mxCreateDoubleMatrix(hdr->data.size[0], hdr->data.size[1], mxREAL);
 		memcpy((void*)mxGetPr(plhs[0]),(void*)hdr->data.block, hdr->data.size[0]*hdr->data.size[1]*sizeof(biosig_data_type));
 	}
-	free(hdr->data.block);	
-	hdr->data.block = NULL; 
 
+
+	if (hdr->data.block != NULL) free(hdr->data.block);	
+	hdr->data.block = NULL; 
 
 //	hdr2ascii(hdr,stdout,4);	
 
@@ -233,8 +234,8 @@ void mexFunction(
 		mxArray *SPR         = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
 		mxArray *Label       = mxCreateCellMatrix(hdr->NS,1);
 		mxArray *Transducer  = mxCreateCellMatrix(hdr->NS,1);
-		mxArray *PhysDim     = mxCreateCellMatrix(hdr->NS,1);
-				
+		mxArray *PhysDim1    = mxCreateCellMatrix(hdr->NS,1);
+
 		for (size_t k=0; k<hdr->NS; ++k) {
 			*(mxGetPr(LeadIdCode)+k)  = (double)hdr->CHANNEL[k].LeadIdCode;
 			*(mxGetPr(PhysDimCode)+k) = (double)hdr->CHANNEL[k].PhysDimCode;
@@ -245,7 +246,6 @@ void mexFunction(
 			*(mxGetPr(DigMin)+k) 	  = (double)hdr->CHANNEL[k].DigMin;
 			*(mxGetPr(Cal)+k) 	  = (double)hdr->CHANNEL[k].Cal;
 			*(mxGetPr(Off)+k) 	  = (double)hdr->CHANNEL[k].Off;
-			*(mxGetPr(PhysDimCode)+k) = (double)hdr->CHANNEL[k].PhysDimCode;
 			*(mxGetPr(SPR)+k) 	  = (double)hdr->CHANNEL[k].SPR;
 			*(mxGetPr(LowPass)+k) 	  = (double)hdr->CHANNEL[k].LowPass;
 			*(mxGetPr(HighPass)+k) 	  = (double)hdr->CHANNEL[k].HighPass;
@@ -256,7 +256,10 @@ void mexFunction(
 
 			mxSetCell(Label,k,mxCreateString(hdr->CHANNEL[k].Label));
 			mxSetCell(Transducer,k,mxCreateString(hdr->CHANNEL[k].Transducer));
-			mxSetCell(PhysDim,k,mxCreateString(hdr->CHANNEL[k].PhysDim));
+			
+			char p[MAX_LENGTH_PHYSDIM+1];
+			PhysDim(hdr->CHANNEL[k].PhysDimCode,p);			
+			mxSetCell(PhysDim1,k,mxCreateString(p));
 		} 
 
 		mxSetField(HDR,0,"LeadIdCode",LeadIdCode);
@@ -270,7 +273,7 @@ void mexFunction(
 		mxSetField(HDR,0,"Off",Off);
 		mxSetField(HDR,0,"Impedance",Impedance);
 		mxSetField(HDR,0,"Off",Off);
-		mxSetField(HDR,0,"PhysDim",PhysDim);
+		mxSetField(HDR,0,"PhysDim",PhysDim1);
 		mxSetField(HDR,0,"Transducer",Transducer);
 		mxSetField(HDR,0,"Label",Label);
 

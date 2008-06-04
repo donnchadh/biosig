@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.214 2008-06-04 19:29:00 schloegl Exp $
+    $Id: biosig.c,v 1.215 2008-06-04 20:17:18 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2092,13 +2092,12 @@ if (!strncmp(MODE,"r",1))
 			hdr->CHANNEL[k].GDFTYP  = leu16p(Header2+ 4*k + 220*hdr->NS);
 			hdr->CHANNEL[k].OnOff   = 1;
 			if (hdr->VERSION < 1.90) {
-				strncpy(hdr->CHANNEL[k].PhysDim, (char*)Header2 + 8*k + 96*hdr->NS,8);
-				hdr->CHANNEL[k].PhysDim[8] = 0; // remove trailing blanks
-				int k1;
-				for (k1=7; (k1>0) & !isalnum(hdr->CHANNEL[k].PhysDim[k1]); k1--)
-					hdr->CHANNEL[k].PhysDim[k1] = 0;
-
-				hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
+				char p[9];
+				strncpy(p, (char*)Header2 + 8*k + 96*hdr->NS,8);
+				p[8] = 0; // remove trailing blanks
+				for (int k1=7; (k1>0) && isspace(p[k1]); p[k1--] = 0);
+					
+				hdr->CHANNEL[k].PhysDimCode = PhysDimCode(p);
 
 				hdr->CHANNEL[k].DigMin   = (double) lei64p(Header2 + 8*k + 120*hdr->NS);
 				hdr->CHANNEL[k].DigMax   = (double) lei64p(Header2 + 8*k + 128*hdr->NS);
@@ -2115,7 +2114,7 @@ if (!strncmp(MODE,"r",1))
 			}	
 			else {
 				hdr->CHANNEL[k].PhysDimCode = leu16p(Header2+ 2*k + 102*hdr->NS);
-				PhysDim(hdr->CHANNEL[k].PhysDimCode,hdr->CHANNEL[k].PhysDim);
+				// PhysDim(hdr->CHANNEL[k].PhysDimCode,hdr->CHANNEL[k].PhysDim);
 
 				hdr->CHANNEL[k].DigMin   = lef64p(Header2+ 8*k + 120*hdr->NS);
 				hdr->CHANNEL[k].DigMax   = lef64p(Header2+ 8*k + 128*hdr->NS);
@@ -2337,12 +2336,13 @@ if (!strncmp(MODE,"r",1))
 				hdr->CHANNEL[k].Transducer[k1]='\0'; 	// deblank
 			
 			// PhysDim -> PhysDimCode 
-			strncpy(hdr->CHANNEL[k].PhysDim,Header2 + 8*k + 96*hdr->NS,8);
-			hdr->CHANNEL[k].PhysDim[8] = 0; // remove trailing blanks
+			char p[9];
+			strncpy(p,Header2 + 8*k + 96*hdr->NS,8);
+			p[8] = 0; // remove trailing blanks
 			int k1;			
-			for (k1=7; (k1>0) & !isalnum(hdr->CHANNEL[k].PhysDim[k1]); k1--)
-				hdr->CHANNEL[k].PhysDim[k1] = 0;
-			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
+			for (int k1=7; (k1>0) && isspace(p[k1]); p[k1--]=0);
+
+			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(p);
 			tmp[8] = 0;
 			hdr->CHANNEL[k].PhysMin = atof(strncpy(tmp,Header2 + 8*k + 104*hdr->NS,8)); 
 			hdr->CHANNEL[k].PhysMax = atof(strncpy(tmp,Header2 + 8*k + 112*hdr->NS,8)); 
@@ -3386,7 +3386,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    	hdr->CHANNEL[k].GDFTYP 	= CFWB_GDFTYP[gdftyp-1];
 		    	hdr->CHANNEL[k].SPR 	= 1; // *(int32_t*)(Header1+56);
 		    	strncpy(hdr->CHANNEL[k].Label, (char*)Header2, min(32,MAX_LENGTH_LABEL));
-		    	strncpy(hdr->CHANNEL[k].PhysDim, (char*)Header2+32, 16);
+		    	char p[MAX_LENGTH_PHYSDIM+1];
+		    	strncpy(p, (char*)Header2+32, min(16,MAX_LENGTH_PHYSDIM));
+		    	p[MAX_LENGTH_PHYSDIM] = 0;
+		    	hdr->CHANNEL[k].PhysDimCode = PhysDimCode(p);
 		    	hdr->CHANNEL[k].LeadIdCode  = 0;
 		    	hdr->CHANNEL[k].Cal	= lef64p(Header2+64);
 		    	hdr->CHANNEL[k].Off	= lef64p(Header2+72);
@@ -5026,7 +5029,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		if (VERBOSE_LEVEL>7)
 			fprintf(stdout,"[190] #%i\n",k);
 			
-		// set HDR.PhysDim
+		// set HDR.PhysDim - this part will become obsolete 
 		k1 = hdr->CHANNEL[k].PhysDimCode;
 		if (k1>0)
 			PhysDim(k1,hdr->CHANNEL[k].PhysDim);
@@ -5107,11 +5110,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 {
 //	hdr->FILE.COMPRESSION = (strchr(MODE,'z') != NULL);
-	for (k=0; k < hdr->NS; k++) {	
-		// set HDR.PhysDim
-		k1 = hdr->CHANNEL[k].PhysDimCode;
-		if (k1>0) PhysDim(k1,hdr->CHANNEL[k].PhysDim);
-	}
 	if (!strlen(hdr->Patient.Id))
 		strcpy(hdr->Patient.Id,"00000000"); 
 
@@ -7024,9 +7022,11 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE_LEVEL)
 		size_t k;
 		for (k=0; k<hdr->NS; k++) {
 			cp = hdr->CHANNEL+k; 
+			char p[MAX_LENGTH_PHYSDIM+1];
+			PhysDim(cp->PhysDimCode,p);
 			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5.1f %2i  %e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
 				k+1,cp->LeadIdCode,cp->OnOff,cp->Label,cp->SPR * hdr->SampleRate/hdr->SPR,
-				cp->GDFTYP, cp->Cal, cp->Off, cp->PhysDim, 
+				cp->GDFTYP, cp->Cal, cp->Off, p,  
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass);
 			//fprintf(fid,"\t %3i", cp->SPR);
 		}
