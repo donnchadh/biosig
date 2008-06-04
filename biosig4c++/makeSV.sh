@@ -13,6 +13,7 @@ ln -s ../../biosig4c++/libbiosig.a ../sigviewer/extern/libbiosig.a
 
 # copy latest table of event codes 
 cp ../biosig/doc/eventcodes.txt ../sigviewer/bin/
+cp ../biosig/doc/units.csv      ../sigviewer/bin/
 
 # build sigviewer
 cd ../sigviewer/src/
