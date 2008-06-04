@@ -13,7 +13,7 @@ function [HDR]=mwfopen(HDR,PERMISSION,arg3,arg4,arg5,arg6)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: mwfopen.m,v 1.5 2008-01-18 09:28:13 schloegl Exp $
+%	$Id: mwfopen.m,v 1.6 2008-06-04 19:25:15 schloegl Exp $
 %	(C) 2004,2007,2008 by Alois Schloegl <a.schloegl@ieee.orgA	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -140,19 +140,13 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         HDR.NS = tmp; %*256.^[len-1:-1:0]';
 
                 elseif tag==6;
-                        if len == 0;
-                                tmp = NaN;
-                        elseif len == 1;
-                                [tmp,count] = fread(HDR.FILE.FID,1,'int8');
-                        elseif len == 2;
-                                [tmp,count] = fread(HDR.FILE.FID,1,'int16');
-                        elseif len == 3;
-                                [tmp,count] = fread(HDR.FILE.FID,1,'bit24')
-                                %tmp = (2.^[16,8,0])*tmp;
-                        elseif len == 4;
-                                [tmp,count] = fread(HDR.FILE.FID,1,'int32');
-                        else
-                                fprintf(2,'Error MWFOPEN: max length exceeded in tag 06h\n');
+                        if     len==0; 	tmp = NaN;
+                        elseif len==1;	[tmp,count] = fread(HDR.FILE.FID,1,'int8');
+                        elseif len==2;	[tmp,count] = fread(HDR.FILE.FID,1,'int16');
+                        elseif len==3;	[tmp,count] = fread(HDR.FILE.FID,1,'bit24')
+                             		% tmp = (2.^[16,8,0])*tmp;
+                        elseif len==4;	[tmp,count] = fread(HDR.FILE.FID,1,'int32');
+                        else   fprintf(2,'Error MWFOPEN: max length exceeded in tag 06h\n');
                         end;
                         HDR.NRec = tmp;
                                 
@@ -162,25 +156,18 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         
                 elseif tag==8;
                         [tmp,count] = fread(HDR.FILE.FID,[1,len],'uchar');
-                        if tmp==0,
-                                HDR.MFER.WaveFormType = 'undefined';
-                        elseif tmp==1,
-                                HDR.MFER.WaveFormType = 'ECG_STD12';
-                        elseif tmp==2,
-                                HDR.MFER.WaveFormType = 'ECG_LTERM';
-                        elseif tmp==3,
-                                HDR.MFER.WaveFormType = 'Vectorcardiogram';
-                        elseif tmp==4,
-                                HDR.MFER.WaveFormType = 'Stress_ECG';
-                        elseif tmp==5,
-                                HDR.MFER.WaveFormType = 'ECG_LTERM';
-                        else
-                                HDR.MFER.WaveFormType = tmp;
+                        if     tmp==0,	HDR.MFER.WaveFormType = 'undefined';
+                        elseif tmp==1,	HDR.MFER.WaveFormType = 'ECG_STD12';
+                        elseif tmp==2,	HDR.MFER.WaveFormType = 'ECG_LTERM';
+                        elseif tmp==3,	HDR.MFER.WaveFormType = 'Vectorcardiogram';
+                        elseif tmp==4,	HDR.MFER.WaveFormType = 'Stress_ECG';
+                        elseif tmp==5,	HDR.MFER.WaveFormType = 'ECG_LTERM';
+                        else		HDR.MFER.WaveFormType = tmp;
 			end
                         
                 elseif tag==9; 
                         [tmp,count] = fread(HDR.FILE.FID,[1,len],'uchar');
-                        HDR.Label=char(tmp);
+                        HDR.Label = char(tmp);
                         
                 elseif tag==10;
                         [tmp,count] = fread(HDR.FILE.FID,[1,len],'uchar');
@@ -220,14 +207,10 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                 elseif tag==11;       
                         [tmp1,count] = fread(HDR.FILE.FID,2,'int8');
                         len = len - 2;
-                        if len == 1;
-                                [tmp,count] = fread(HDR.FILE.FID,1,'int8');
-                        elseif len == 2;
-                                [tmp,count] = fread(HDR.FILE.FID,1,'int16');
-                        elseif len == 3;
-                                [tmp,count] = fread(HDR.FILE.FID,1,'bit24');
-                        elseif len == 4;
-                                [tmp,count] = fread(HDR.FILE.FID,1,'int32');
+                        if     len == 1;	[tmp,count] = fread(HDR.FILE.FID,1,'int8');
+                        elseif len == 2;	[tmp,count] = fread(HDR.FILE.FID,1,'int16');
+                        elseif len == 3;	[tmp,count] = fread(HDR.FILE.FID,1,'bit24');
+                        elseif len == 4;	[tmp,count] = fread(HDR.FILE.FID,1,'int32');
                         end;
                         e = 10^tmp1(2);
                         if     tmp1(1)==0, 
@@ -243,43 +226,39 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         
                 elseif tag==12;          % sensitivity, resolution, gain, calibration, 
                         [tmp,count] = fread(HDR.FILE.FID,2,'int8');
-                        if     tmp(1)==0, HDR.PhysDim = 'V';
-                        elseif tmp(1)==1, HDR.PhysDim = 'mmHg';
-                   	elseif tmp(1)==2, HDR.PhysDim = 'Pa';
-                        elseif tmp(1)==3, HDR.PhysDim = 'cmH2O';
-                        elseif tmp(1)==4, HDR.PhysDim = 'mmHg';
-                        elseif tmp(1)==5, HDR.PhysDim = 'dyne';
-                        elseif tmp(1)==6, HDR.PhysDim = 'N';
-                        elseif tmp(1)==7, HDR.PhysDim = '%';
-                        elseif tmp(1)==8, HDR.PhysDim = '°C';
-                        elseif tmp(1)==9, HDR.PhysDim = '/m';
-                        elseif tmp(1)==10, HDR.PhysDim = '/s';
-                        elseif tmp(1)==11, HDR.PhysDim = 'Ohm';
-                        elseif tmp(1)==12, HDR.PhysDim = 'A';
-                        elseif tmp(1)==13, HDR.PhysDim = 'r.p.m.';
-                        elseif tmp(1)==14, HDR.PhysDim = 'W';
-                        elseif tmp(1)==15, HDR.PhysDim = 'dB';
-                        elseif tmp(1)==16, HDR.PhysDim = 'kg';
-                        elseif tmp(1)==17, HDR.PhysDim = 'J';
-                        elseif tmp(1)==18, HDR.PhysDim = 'dyne s m-2 cm-5';
-                        elseif tmp(1)==19, HDR.PhysDim = 'L';
-                        elseif tmp(1)==20, HDR.PhysDim = 'L/s';
-                        elseif tmp(1)==21, HDR.PhysDim = 'L/m';
-                        elseif tmp(1)==22, HDR.PhysDim = 'cd';
-                        elseif tmp(1)==23, HDR.PhysDim = '';
-                        elseif tmp(1)==24, HDR.PhysDim = '';
-                        elseif tmp(1)==25, HDR.PhysDim = '';
+                        if     tmp(1)== 0, HDR.PhysDimCode = 4256; %% V
+                        elseif tmp(1)== 1, HDR.PhysDimCode = 3872; %% mmHg
+                   	elseif tmp(1)== 2, HDR.PhysDimCode = 3840; %% Pa
+                        elseif tmp(1)== 3, HDR.PhysDimCode = 3904; %% cmH2O
+                        elseif tmp(1)== 4, HDR.PhysDim     = 'mmHg/S';
+                        elseif tmp(1)== 5, HDR.PhysDimCode = 3808; %% dyne
+                        elseif tmp(1)== 6, HDR.PhysDimCode = 3776; %% N
+                        elseif tmp(1)== 7, HDR.PhysDimCode = 544;  %% '%'
+                        elseif tmp(1)== 8, HDR.PhysDimCode = 6048; %% °C
+                        elseif tmp(1)== 9, HDR.PhysDimCode = 2528; %% 1/min
+                        elseif tmp(1)==10, HDR.PhysDimCode = 4264; %% 1/s
+                        elseif tmp(1)==11, HDR.PhysDimCode = 4288; %% Ohm
+                        elseif tmp(1)==12, HDR.PhysDimCode = 4160; %% A
+                        elseif tmp(1)==13, HDR.PhysDimCode = 65376; %% r.p.m.
+                        elseif tmp(1)==14, HDR.PhysDimCode = 4032; %% W
+                        elseif tmp(1)==15, HDR.PhysDimCode = 6448; %% dB
+                        elseif tmp(1)==16, HDR.PhysDimCode = 1731; %% kg';
+                        elseif tmp(1)==17, HDR.PhysDimCode = 3968; %% J';
+                        elseif tmp(1)==18, HDR.PhysDimCode = 6016; %% dyne s m-2 cm-5';
+                        elseif tmp(1)==19, HDR.PhysDim 	   = 'k';
+                        elseif tmp(1)==20, HDR.PhysDimCode = 3040; %% L/s';
+                        elseif tmp(1)==21, HDR.PhysDimCode = 3072; %% L/m';
+                        elseif tmp(1)==22, HDR.PhysDimCode = 4480; %% cd';
+                        elseif tmp(1)==23, HDR.PhysDim     = '';
+                        elseif tmp(1)==24, HDR.PhysDim     = '';
+                        elseif tmp(1)==25, HDR.PhysDim     = '';
                         end;
                         e = 10^tmp(2);
                         len = len - 2;
-                        if len == 1;
-                                [tmp,count] = fread(HDR.FILE.FID,1,'int8');
-                        elseif len == 2;
-                                [tmp,count] = fread(HDR.FILE.FID,1,'int16');
-                        elseif len == 3;
-                                [tmp,count] = fread(HDR.FILE.FID,1,'bit24');
-                        elseif len == 4;
-                                [tmp,count] = fread(HDR.FILE.FID,1,'int32');
+                        if     len == 1; [tmp,count] = fread(HDR.FILE.FID,1,'int8');
+                        elseif len == 2; [tmp,count] = fread(HDR.FILE.FID,1,'int16');
+                        elseif len == 3; [tmp,count] = fread(HDR.FILE.FID,1,'bit24');
+                        elseif len == 4; [tmp,count] = fread(HDR.FILE.FID,1,'int32');
                         end;
                         HDR.Cal = tmp*e;
                         
@@ -428,16 +407,16 @@ if ~isempty(findstr(PERMISSION,'r')),		%%%%% READ
                         N = HDR.EVENT.N + 1;
                         HDR.EVENT.N = N;
 			for k=1:N,                        
-                        [HDR.EVENT.TYP(k),count] = fread(HDR.FILE.FID,1,'uint16');
-                        if len>5,
-                                [HDR.EVENT.POS(k),count] = fread(HDR.FILE.FID,1,'uint32');
-                        end;
-                        if len>9,
-                                [HDR.EVENT.DUR(k),count] = fread(HDR.FILE.FID,1,'uint32');
-                        end;
-                        if len>10,
-                                [HDR.EVENT.Desc{k},count] = fread(HDR.FILE.FID,len-10,'uint8');
-                        end;
+	                        [HDR.EVENT.TYP(k),count] = fread(HDR.FILE.FID,1,'uint16');
+        	                if len>5,
+                	                [HDR.EVENT.POS(k),count] = fread(HDR.FILE.FID,1,'uint32');
+                        	end;
+	                        if len>9,
+        	                        [HDR.EVENT.DUR(k),count] = fread(HDR.FILE.FID,1,'uint32');
+                	        end;
+                        	if len>10,
+                                	[HDR.EVENT.Desc{k},count] = fread(HDR.FILE.FID,len-10,'uint8');
+	                        end;
                         end; 
                         
                 elseif tag==67;     % Sample Skew
