@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.215 2008-06-04 20:17:18 schloegl Exp $
+    $Id: biosig.c,v 1.216 2008-06-06 17:13:43 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -731,11 +731,11 @@ char* PhysDim(uint16_t PhysDimCode, char *PhysDim)
 #ifdef HARDCODED_PHYSDIMTABLE 
 	for (k=0; _physdim[k].idx<0xffff; k++)
 	if (PhysDimCode == _physdim[k].idx) {
-		strncat(PhysDim,_physdim[k].PhysDimDesc,MAX_LENGTH_PHYSDIM);
+		strncat(PhysDim, _physdim[k].PhysDimDesc, MAX_LENGTH_PHYSDIM);
 #else
 	for (k=0; Global.PhysDimCode[k]<0xffff; k++)
 	if (PhysDimCode == Global.PhysDimCode[k]) {
-		strncat(PhysDim,Global.PhysDim[k],MAX_LENGTH_PHYSDIM);
+		strncat(PhysDim, Global.PhysDim[k], MAX_LENGTH_PHYSDIM);
 #endif
 		PhysDim[MAX_LENGTH_PHYSDIM]=0;
 		break;
@@ -1157,6 +1157,12 @@ void LoadGlobalPhysDimCodeTable()
 				i = atoi(line);
 				tok = line+k+2;
 				*(strchr(tok,'\"'))=0;
+				line = strchr(tok,'[');
+				if (line) 
+				do {
+					line[0] = 0;
+					--line;
+				} while (isspace(line[0])); 
 			}
 			else 
 				fprintf(stdout,"Warning: unable to decode line <%s>  (error in units.csv)\n",line);
