@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.216 2008-06-06 17:13:43 schloegl Exp $
+    $Id: biosig.c,v 1.217 2008-06-09 11:49:06 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -682,6 +682,7 @@ const struct PhysDimIdx
 	{ 6176 ,  "mmHg %-1" },
 	{ 6208 ,  "Pa %-1" },
 	{ 6432 ,  "B" },
+	{65312 ,  "mHg s-1" },
 	{65344 ,  "mol l-1 mm"}, 	// "light path length","milli(Mol/Liter)*millimeter"	
 	{65376 ,  "r.p.m"}, 		// "rotations per minute"
 	{65408 ,  "B"}, 		/* obsolete, use 6432 instead */	
@@ -3901,7 +3902,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hc->DigMax   = DigMax;
 			hc->DigMin   = DigMin;
 		    	hc->LeadIdCode  = 0;
-		    	hc->PhysDimCode = 65362;	//mol l-1 mm
+		    	hc->PhysDimCode = 65362;	//mmol l-1 mm
 		    	size_t c     = strcspn(label,dlm);
 		    	size_t c1    = min(c,MAX_LENGTH_LABEL);
 		    	strncpy(hc->Label, label, c1);
@@ -3978,13 +3979,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 
     	else if (hdr->TYPE==MFER) {	
-		// MFER101E-2003, Table 5, p.18-19
+		// ISO/TS 11073-92001:2007(E), Table 5, p.9
     		/* ###  FIXME: some units are not encoded */  	
     		const uint16_t MFER_PhysDimCodeTable[30] = {
-    			4256, 3872, 3840, 3904,    0,	// Volt, mmHg, Pa, mmH2O, mmHg/S
+    			4256, 3872, 3840, 3904,65330,	// Volt, mmHg, Pa, mmH2O, mmHg/s
     			3808, 3776,  544, 6048, 2528,	// dyne, N, %, °C, 1/min 
     			4264, 4288, 4160,65376, 4032,	// 1/s, Ohm, A, rpm, W
-    			6448, 1731, 3968, 6016,    0,	// dB, kg, J, dyne s m-2 cm-5, l
+    			6448, 1731, 3968, 6016, 1600,	// dB, kg, J, dyne s m-2 cm-5, l
     			3040, 3072, 4480,    0,    0,	// l/s, l/min, cd
     			   0,    0,    0,    0,    0,	// 
 		};
