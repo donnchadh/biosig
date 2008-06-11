@@ -39,14 +39,23 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-% This program is free software; you can redistribute it and/or
-% modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 3
-% of the License, or (at your option) any later version.
-
-%	$Id: sopen.m,v 1.213 2008-06-03 13:10:35 schloegl Exp $
+%	$Id: sopen.m,v 1.214 2008-06-11 09:50:17 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%
+%    BioSig is free software: you can redistribute it and/or modify
+%    it under the terms of the GNU General Public License as published by
+%    the Free Software Foundation, either version 3 of the License, or
+%    (at your option) any later version.
+
+%    BioSig is distributed in the hope that it will be useful,
+%    but WITHOUT ANY WARRANTY; without even the implied warranty of
+%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%    GNU General Public License for more details.
+%
+%    You should have received a copy of the GNU General Public License
+%    along with BioSig.  If not, see <http://www.gnu.org/licenses/>.
+
 
 if isnan(str2double('1, 3'));
         fprintf(2,'Warning BIOSIG: incorrect version of STR2DOUBLE.\n');
@@ -476,7 +485,7 @@ end;
                                 h2(:,idx1(k)+1:idx1(k+1))=reshape(H2(idx2(k)+1:idx2(k+1)),H2idx(k),HDR.NS)';
                         end;
                         h2=char(h2);
-                        
+
                         HDR.Label      =            h2(:,idx1(1)+1:idx1(2));
                         HDR.Transducer =    cellstr(h2(:,idx1(2)+1:idx1(3)));
                         HDR.PhysDim    =            h2(:,idx1(3)+1:idx1(4));
@@ -6398,30 +6407,32 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 		% convert EVENT information
 		status = fseek(HDR.FILE.FID,HDR.HeadLen+2*HDR.NS,'bof');
 		tmp = fread(HDR.FILE.FID,[HDR.BCI2000.StateVectorLength,inf],[int2str(HDR.BCI2000.StateVectorLength),'*uchar'],HDR.NS*2)';
-		HDR.EVENT.POS = [1;1+find(any(diff(tmp,[],1),2))];
-		HDR.EVENT.TYP = repmat(0,size(HDR.EVENT.POS)); 	% should be extracted from HDR.BCI2000.STATE
-		fprintf(2,'Warning SOPEN (BCI2000): HDR.EVENT.TYP information need to be extracted from HDR.BCI2000.STATE\n');
-		HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS));
-		HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS));
-
-                tmp = tmp(HDR.EVENT.POS,end:-1:1)';         % compress event information
+		POS = [1;1+find(any(diff(tmp,[],1),2))];
+                tmp = tmp(POS,end:-1:1)';         % compress event information
                 tmp = dec2bin(tmp(:),8)';
                 HDR.BCI2000.BINARYSTATUS = reshape(tmp, 8*HDR.BCI2000.StateVectorLength, size(tmp,2)/HDR.BCI2000.StateVectorLength)';
 		for  k = 1:max(X)
                         HDR.BCI2000.STATE(:,k) = bin2dec(HDR.BCI2000.BINARYSTATUS(:,k==X));
                 end;
+		k   		= strmatch('TargetCode', HDR.BCI2000.StateDef);
+		ix  		= find(diff(HDR.BCI2000.STATE(:,k))>0)+1;	%% start of trial ?? 
+		HDR.TRIG 	= POS(ix); 
+		HDR.Classlabel 	= HDR.BCI2000.STATE(ix,k);
 
-		k   = strmatch('TargetCode', HDR.BCI2000.StateDef);
-		ix  = find(diff(HDR.BCI2000.STATE(:,k))>0)+1;	%% start of trial ?? 
-		HDR.TRIG = HDR.EVENT.POS(ix); 
-		HDR.Classlabel = HDR.BCI2000.STATE(ix,k);
+		HDR.EVENT.POS = POS;
+		HDR.EVENT.TYP = repmat(0,size(HDR.EVENT.POS)); 	% should be extracted from HDR.BCI2000.STATE
+		fprintf(2,'Warning SOPEN (BCI2000): HDR.EVENT.TYP information need to be extracted from HDR.BCI2000.STATE\n');
+		HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS));
+		HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS));
+
 		if ORIENT == 1, %% vertical 
 			HDR.EVENT.TYP(ix)  = HDR.Classlabel*6 + hex2dec('0300'); 
 		else	%% horizontal or both 
 			HDR.EVENT.TYP(ix)  = HDR.Classlabel + hex2dec('0300'); 
 		end;	
-		ix2  = find(diff(HDR.BCI2000.STATE(:,k))<0)+1;	%% end of trial ?? 
-		HDR.EVENT.DUR(ix) = HDR.EVENT.POS(ix2) - HDR.EVENT.POS(ix);
+		ix2  = find(diff(HDR.BCI2000.STATE(:,k))<0)+1;	%% end of trial ??
+		ix   = ix(1:length(ix2));
+		HDR.EVENT.DUR(ix) = POS(ix2) - POS(ix);
 
 		% finalize header definition 		
 		status = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
