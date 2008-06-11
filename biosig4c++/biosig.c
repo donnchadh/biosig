@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.217 2008-06-09 11:49:06 schloegl Exp $
+    $Id: biosig.c,v 1.218 2008-06-11 12:24:54 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -914,6 +914,34 @@ long int iftell(HDRTYPE* hdr) {
 	return(ftell(hdr->FILE.FID));
 }
 
+int ifsetpos(HDRTYPE* hdr, size_t *pos) {
+#if __sparc__ || __APPLE__
+	size_t p = *pos;
+#else
+	fpos_t p;
+	p.__pos = *pos; 
+#endif
+	
+#ifdef ZLIB_H
+	if (hdr->FILE.COMPRESSION) {
+		gzseek(hdr->FILE.gzFID,*pos,SEEK_SET);
+		size_t pos1 = *pos;
+		*pos = gztell(hdr->FILE.gzFID);
+		return(*pos - pos1);
+	}	
+	else	
+#endif
+	{
+	int c= fsetpos(hdr->FILE.FID,&p);
+#if __sparc__ || __APPLE__
+	*pos = p;
+#else
+	*pos = p.__pos;
+#endif
+	return(c);
+	}
+}
+
 int ifgetpos(HDRTYPE* hdr, fpos_t *pos) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION) {
@@ -1060,7 +1088,7 @@ void LoadGlobalEventCodeTable()
 	size_t N = 0; 
 	char *line = strtok(Global.EventCodesTextBuffer,"\x0a\x0d");
 	while ((line != NULL) && (strlen(line)>0)) {
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i <%s>\n",Global.LenCodeDesc, line);
+		// if (VERBOSE_LEVEL>8) fprintf(stdout,"%i <%s>\n",Global.LenCodeDesc, line);
 	
 		if (line[0]=='0') {
 			size_t k;
@@ -1075,7 +1103,7 @@ void LoadGlobalEventCodeTable()
 				Global.CodeIndex = (uint16_t*)realloc(Global.CodeIndex,N*sizeof(uint16_t));	
 				Global.CodeDesc = (char**)realloc(Global.CodeDesc,N*sizeof(char*));	
 
-				if (VERBOSE_LEVEL>8) fprintf(stdout,"++++++++ %i %i %i %i\n",k,i,N,Global.LenCodeDesc);
+		//		if (VERBOSE_LEVEL>8) fprintf(stdout,"++++++++ %i %i %i %i\n",k,i,N,Global.LenCodeDesc);
 			}
 			
 			for (k=0; (k<Global.LenCodeDesc) || (Global.CodeIndex[k]==i); k++);
@@ -2194,61 +2222,71 @@ if (!strncmp(MODE,"r",1))
 		}
 
 
-		// READ EVENTTABLE 
-		int c;
-    		uint8_t buf[8];
-		ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
-		c = ifread(buf, sizeof(uint8_t), 8, hdr);
+		if (hdr->NRec < 0) {
+			ifseek(hdr, hdr->HeadLen, SEEK_SET);
+			int count = 0;
+			uint8_t *buf = (uint8_t*)malloc(hdr->AS.bpb);  
+			while (ifread(buf,hdr->AS.bpb,1,hdr)) count++;
+			free(buf); 
+			hdr->NRec = count;  
+		}
+		else
+		{	 
+			// READ EVENTTABLE 
+			int c;
+    			uint8_t buf[8];
+			ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET);
+			c = ifread(buf, sizeof(uint8_t), 8, hdr);
 
-		if (c<8) {
-			hdr->EVENT.SampleRate = hdr->SampleRate; 
-			hdr->EVENT.N = 0;
-		}	
-		else if (hdr->VERSION < 1.94) {
-			if (buf[1] | buf[2] | buf[3])
-				hdr->EVENT.SampleRate = buf[1] + (buf[2] + buf[3]*256.0)*256.0; 
-			else {
-				fprintf(stdout,"Warning GDF v1: SampleRate in Eventtable is not set in %s !!!\n",hdr->FileName);
+			if (c<8) {
 				hdr->EVENT.SampleRate = hdr->SampleRate; 
+				hdr->EVENT.N = 0;
 			}	
-			hdr->EVENT.N = leu32p(buf + 4);
-		}	
-		else	{
-			hdr->EVENT.N = buf[1] + (buf[2] + buf[3]*256)*256; 
-			hdr->EVENT.SampleRate = lef32p(buf + 4);
-		}	
+			else if (hdr->VERSION < 1.94) {
+				if (buf[1] | buf[2] | buf[3])
+					hdr->EVENT.SampleRate = buf[1] + (buf[2] + buf[3]*256.0)*256.0; 
+				else {
+					fprintf(stdout,"Warning GDF v1: SampleRate in Eventtable is not set in %s !!!\n",hdr->FileName);
+					hdr->EVENT.SampleRate = hdr->SampleRate; 
+				}	
+				hdr->EVENT.N = leu32p(buf + 4);
+			}	
+			else	{
+				hdr->EVENT.N = buf[1] + (buf[2] + buf[3]*256)*256; 
+				hdr->EVENT.SampleRate = lef32p(buf + 4);
+			}	
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[225] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"[225] FMT=%s Ver=%4.2f\nEVENT.N=%i (%i)\n",GetFileTypeString(hdr->TYPE),hdr->VERSION,hdr->EVENT.N,c);
 
- 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
-		hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
-		ifread(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr);
-		ifread(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr);
+	 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
+			hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
+			ifread(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr);
+			ifread(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr);
 
-		for (k32u=0; k32u < hdr->EVENT.N; k32u++) {
-			hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
-			hdr->EVENT.TYP[k32u] = l_endian_u16(hdr->EVENT.TYP[k32u]); 
-		}
-		if (buf[0]>1) {
-			hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR,hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
-			hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN,hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
-			ifread(hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN),hdr->EVENT.N,hdr);
-			ifread(hdr->EVENT.DUR,sizeof(*hdr->EVENT.DUR),hdr->EVENT.N,hdr);
-
-			for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
-				hdr->EVENT.DUR[k32u] = l_endian_u32(hdr->EVENT.DUR[k32u]); 
-				hdr->EVENT.CHN[k32u] = l_endian_u16(hdr->EVENT.CHN[k32u]); 
+			for (k32u=0; k32u < hdr->EVENT.N; k32u++) {
+				hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
+				hdr->EVENT.TYP[k32u] = l_endian_u16(hdr->EVENT.TYP[k32u]); 
 			}
-		}
-		else {
-			hdr->EVENT.DUR = NULL;
-			hdr->EVENT.CHN = NULL;
+			if (buf[0]>1) {
+				hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR,hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
+				hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN,hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
+				ifread(hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN),hdr->EVENT.N,hdr);
+				ifread(hdr->EVENT.DUR,sizeof(*hdr->EVENT.DUR),hdr->EVENT.N,hdr);
+
+				for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
+					hdr->EVENT.DUR[k32u] = l_endian_u32(hdr->EVENT.DUR[k32u]); 
+					hdr->EVENT.CHN[k32u] = l_endian_u16(hdr->EVENT.CHN[k32u]); 
+				}
+			}
+			else {
+				hdr->EVENT.DUR = NULL;
+				hdr->EVENT.CHN = NULL;
+			}	
 		}	
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[228] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
-
-		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
 	    	hdr->FILE.POS = 0; 
+		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
 
 		// if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 217] #=%li\n",iftell(hdr));
     	}
@@ -2853,47 +2891,76 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			fprintf(stdout,"[201] start reading BCI2000 data!\n");
 			
 		char *ptr, *t1;
-	    	hdr->HeadLen 	 = (typeof(hdr->HeadLen))strtod((char*)(hdr->AS.Header+10),&ptr); 
-	    	hdr->NS 	 = (typeof(hdr->NS))strtod(strstr(ptr,"SourceCh=")+9,&ptr); 
-	    	hdr->SPR 	 = 0; 
-	    	BCI2000_StatusVectorLength = (size_t)strtod(strstr(ptr,"StatevectorLen=")+15,&ptr); 
-	    	t1 = strstr(ptr,"DataFormat=");
-	    	uint16_t gdftyp	 = 3; 
-	    	if (t1 != NULL) {
+
+		/* decode header length */ 
+		hdr->HeadLen = 0;
+		ptr = strstr((char*)hdr->AS.Header,"HeaderLen=");
+		if (ptr==NULL) 
+			B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
+		else {
+			/* read whole header */
+			hdr->HeadLen = (typeof(hdr->HeadLen)) strtod(ptr+10,&ptr);
+			if (count <= hdr->HeadLen) {
+			    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen+1);
+			    	count   += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
+			} 
+			else
+				ifseek(hdr,hdr->HeadLen,SEEK_SET);
+		}		
+		hdr->AS.Header[hdr->HeadLen]=0; 
+
+	    	/* decode number of channels */ 
+		t1  = strtok((char*)hdr->AS.Header,"\x0a\x0d");			
+	    	ptr = strstr(t1,"SourceCh="); 
+		if (ptr==NULL) 
+			B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
+	    	else 
+	    		hdr->NS 	 = (typeof(hdr->NS)) strtod(ptr+9,&ptr); 
+	    	
+		/* decode length of state vector */
+	    	ptr = strstr(t1,"StatevectorLen=");
+		if (ptr==NULL) 
+			B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
+	    	else 
+		    	BCI2000_StatusVectorLength = (size_t) strtod(ptr+15,&ptr); 
+	    	
+	    	/* decode data format */
+	    	ptr = strstr(ptr,"DataFormat=");
+	    	uint16_t gdftyp; 
+	    	if (ptr == NULL) gdftyp = 3;
+	    	else
+	    	{
 	    		if  	(!strncmp(ptr+11,"int16",3))	gdftyp = 3; 
 	    		else if (!strncmp(ptr+11,"int32",5))	gdftyp = 5; 
+	    		else if (!strncmp(ptr+11,"float32",5))	gdftyp = 16; 
 	    		else if (!strncmp(ptr+11,"int24",5))	gdftyp = 255+24; 
 	    		else if (!strncmp(ptr+11,"uint16",3))	gdftyp = 4; 
 	    		else if (!strncmp(ptr+11,"uint32",5))	gdftyp = 6; 
 	    		else if (!strncmp(ptr+11,"uint24",5))	gdftyp = 511+24; 
-	    		else if (!strncmp(ptr+11,"float",5))	gdftyp = 16; 
-	    		else if (!strncmp(ptr+11,"double",6))	gdftyp = 17;
+	    		else if (!strncmp(ptr+11,"float64",6))	gdftyp = 17;
 	    		else {	 
 	    			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-	    			B4C_ERRMSG = "ERROR 1234 SOPEN(BCI2000): this option is not supported yet, contact <a.schloegl@ieee.org> if you want this problem fixed.\n";
-	    			return(hdr);
 	    		}
 	    	}
-		    	 
-		if (count <= hdr->HeadLen) {
-		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen+1);
-		    	count   += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
-		} 
-		else
-			ifseek(hdr,hdr->HeadLen,SEEK_SET);
+		
+		
+		if (B4C_ERRNUM) {
+			/* return if any error has occured. */
+			B4C_ERRMSG = "ERROR 1234 SOPEN(BCI2000): invalid file format .\n";
+	    		return(hdr);
+	    	}	
 			
 		if (hdr->FLAG.OVERFLOWDETECTION) {
 			fprintf(stderr,"WARNING: Automated overflowdetection not supported in BCI2000 file %s\n",hdr->FileName);
 			hdr->FLAG.OVERFLOWDETECTION = 0;
 		}	
 			   	
-		hdr->AS.Header[hdr->HeadLen]=0; 
-		hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
-
-
+	    	hdr->SPR = 1; 
 		double gain=0.0, offset=0.0, digmin=0.0, digmax=0.0;
 		size_t tc_len=0,tc_pos=0;
 		char TargetOrientation=0;
+
+		hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		for (k=0; k<hdr->NS; k++) {
 			sprintf(hdr->CHANNEL[k].Label,"#%03i",k+1);
 			hdr->CHANNEL[k].Cal    = gain; 
@@ -2906,8 +2973,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		}	
 
 		int status = 0;
-		t1  = strtok((char*)hdr->AS.Header,"\x0a\x0d");		
-		ptr = strtok(NULL,"\x0a\x0d");
+		ptr = strtok(NULL,"\x0a\x0d");		
 		while (ptr != NULL) {
 
 			if (VERBOSE_LEVEL>8) 
@@ -6227,15 +6293,13 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 }  // end of SREAD 
 
 
-#ifdef INCLUDE_EXPERIMENTAL_CODE 
-
 /****************************************************************************/
 /**	SREAD : 
 	this is still experiemental                                        **/
 /****************************************************************************/
 size_t sread1(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) {
 
-	size_t count=0,k,NS;
+	size_t c=1,count=0,k,NS;
 
 	if (start!=hdr->FILE.POS) 
 		fprintf(stderr,"SREAD start and FILE.POS differ (%i!=%i)\n",start,hdr->FILE.POS);
@@ -6247,23 +6311,38 @@ size_t sread1(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr)
 	size_t s;// = floor(start/hdr->SPR);
 	size_t e;// = ceil ((start+length)/hdr->SPR);
 	s = start; 
-	e = length;
+	e = start+length;
 
 	if (data==NULL) 
 		data = (biosig_data_type*)malloc(NS*length*hdr->SPR*sizeof(biosig_data_type));
-	hdr->data.block = data;
-	hdr->FLAG.ROW_BASED_CHANNELS = 1;
 
-	for (k=0; k<length; k++) {
-		count += sread(hdr->data.block+count*NS*hdr->SPR, -1, min(e-s-count,ceil(512/hdr->SPR)), hdr);
-	}	
 	if (hdr->FLAG.ROW_BASED_CHANNELS) {
+		for (k=0; (c>0) && (k<length); k++) {
+			c = sread1(hdr->data.block + count*NS*hdr->SPR, start+count, min(length-count,ceil(512.0/hdr->SPR)), hdr);
+			count += c; 
+		}	
 		hdr->data.size[0] = NS;			// rows	
 		hdr->data.size[1] = hdr->SPR*count;	// columns 
-	} else {
+	}
+	else
+	{
+		free(hdr->data.block);
+		hdr->data.block = NULL;
+
+		for (k=0; (c>0) && (k<length); k++) {
+			c = sread1(hdr->data.block, start+count, min(length-count,ceil(512.0/hdr->SPR)), hdr);
+			for (size_t k1=0; k1<hdr->data.size[0]; k1++) 
+			for (size_t k2=0; k2<hdr->data.size[1]; k2++) 
+			{
+				data[count*NS + k2*NS + k1] = hdr->data.block[k2*NS + k1]; 		
+			}
+			count += c; 
+		}
+		free(hdr->data.block);
+		hdr->data.block = data;
 		hdr->data.size[0] = hdr->SPR*count;	// rows	
 		hdr->data.size[1] = NS;			// columns 
-	}
+	}		
 	
 	/* in order to avoid memory leaks need fixing */
 	//data     = data + NS*sizeof(biosig_data_type)*(start-s*hdr->SPR);
@@ -6272,6 +6351,9 @@ size_t sread1(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr)
 	return(count);
 
 }
+
+
+#ifdef INCLUDE_EXPERIMENTAL_CODE 
 
 
 
