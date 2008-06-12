@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.33 2008-06-04 20:17:18 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.34 2008-06-12 11:19:41 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -112,7 +112,17 @@ void mexFunction(
 
 	/* open and read file, convert into M-struct */
 
-	hdr = sopen(FileName, "r", NULL);
+	hdr = constructHDR(0,0);
+	hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
+	hdr->FLAG.UCAL = FlagUCAL;
+	hdr->FLAG.ROW_BASED_CHANNELS = 0; 
+
+	hdr = sopen(FileName, "r", hdr);
+
+	if (hdr->FLAG.OVERFLOWDETECTION != FlagOverflowDetection)
+		mexPrintf("Warning mexSLOAD: Overflowdetection not supported in file %s\n",hdr->FileName);
+	if (hdr->FLAG.UCAL != FlagUCAL)
+		mexPrintf("Warning mexSLOAD: Flag UCAL is %i instead of %i (%s)\n",FlagUCAL,hdr->FLAG.UCAL,hdr->FileName);
 
 	if (VERBOSE_LEVEL>8) {
 		mexPrintf("#info @%p\n",&(hdr->CHANNEL));
@@ -137,10 +147,6 @@ void mexFunction(
 			
 	if (hdr==NULL) return;
 
-	hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
-	hdr->FLAG.UCAL = FlagUCAL;
-	hdr->FLAG.ROW_BASED_CHANNELS = 0; 
-
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[112] SOPEN-R finished NS=%i %i\n",hdr->NS,NS);
 
@@ -160,14 +166,18 @@ void mexFunction(
 		}		
 	}
 
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stderr,"[113] NS=%i %i\n",hdr->NS,NS);
+
 	count = sread(NULL, 0, hdr->NRec, hdr);
 	//count = sread2(NULL, 0, hdr->NRec * hdr->SPR, hdr);
+
 	sclose(hdr);
 
 	if ((status=serror())) return;  
 
 	if (VERBOSE_LEVEL>8) 
-		fprintf(stderr,"\n[129] SREAD/SCLOSE on %s successful [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
+		fprintf(stderr,"\n[129] SREAD/SCLOSE on %s successful [%i,%i] [%Li,%i] %i.\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1],hdr->NRec,count,NS);
 
 	hdr->NRec = count; 
 	// plhs[0] = mxCreateDoubleMatrix(hdr->SPR * count, NS, mxREAL);
@@ -324,9 +334,9 @@ void mexFunction(
 		}
 		if (hdr->EVENT.CodeDesc != NULL) {
 			mxAddField(EVENT, "CodeDesc");
-			mxArray *CodeDesc = mxCreateCellMatrix(hdr->EVENT.LenCodeDesc,1);
-			for (size_t k=0; k < hdr->EVENT.LenCodeDesc; ++k) {
-				mxSetCell(CodeDesc,k,mxCreateString(hdr->EVENT.CodeDesc[k]));
+			mxArray *CodeDesc = mxCreateCellMatrix(hdr->EVENT.LenCodeDesc-1,1);
+			for (size_t k=1; k < hdr->EVENT.LenCodeDesc; ++k) {
+				mxSetCell(CodeDesc,k-1,mxCreateString(hdr->EVENT.CodeDesc[k]));
 			} 
 			mxSetField(EVENT,0,"CodeDesc",CodeDesc);
 		}	
