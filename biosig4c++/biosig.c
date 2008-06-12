@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.220 2008-06-12 19:26:15 schloegl Exp $
+    $Id: biosig.c,v 1.221 2008-06-12 22:23:28 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -979,6 +979,114 @@ int iferror(HDRTYPE* hdr) {
 	else	
 #endif
 	return(ferror(hdr->FILE.FID));
+}
+
+
+/*------------------------------------------------------------------------
+	sort event table according to EVENT.POS    
+  ------------------------------------------------------------------------*/
+struct entry_t {
+	uint32_t POS; 
+	uint32_t DUR; 
+	uint16_t TYP; 
+	uint16_t CHN; 
+};
+
+int compare_eventpos(const void *e1, const void *e2) {
+	return(((entry_t*)e1)->POS - ((entry_t*)e2)->POS);
+}
+	
+void sort_eventtable(HDRTYPE *hdr) {
+	entry_t *entry = (entry_t*) calloc(hdr->EVENT.N,sizeof(entry_t));
+	if ((hdr->EVENT.DUR != NULL) && (hdr->EVENT.CHN != NULL)) 	
+	for (size_t k=0; k<hdr->EVENT.N;k++) {
+		entry[k].TYP = hdr->EVENT.TYP[k];
+		entry[k].POS = hdr->EVENT.POS[k];
+		entry[k].CHN = hdr->EVENT.CHN[k];
+		entry[k].DUR = hdr->EVENT.DUR[k];
+	}	
+	else
+	for (size_t k=0; k<hdr->EVENT.N;k++) {
+		entry[k].TYP = hdr->EVENT.TYP[k];
+		entry[k].POS = hdr->EVENT.POS[k];
+	}	
+
+	qsort(entry,hdr->EVENT.N,sizeof(entry_t),&compare_eventpos);	
+
+	if ((hdr->EVENT.DUR != NULL) && (hdr->EVENT.CHN != NULL)) 	
+	for (size_t k=0; k<hdr->EVENT.N;k++) {
+		hdr->EVENT.TYP[k] = entry[k].TYP;
+		hdr->EVENT.POS[k] = entry[k].POS;
+		hdr->EVENT.CHN[k] = entry[k].CHN;
+		hdr->EVENT.DUR[k] = entry[k].DUR;
+	}	
+	else
+	for (size_t k=0; k<hdr->EVENT.N;k++) {
+		hdr->EVENT.TYP[k] = entry[k].TYP;
+		hdr->EVENT.POS[k] = entry[k].POS;
+	}	
+	free(entry);
+}
+	
+/*------------------------------------------------------------------------
+	converts event table from {TYP,POS} to [TYP,POS,CHN,DUR} format   
+  ------------------------------------------------------------------------*/
+void convert2to4_eventtable(HDRTYPE *hdr) {
+	size_t k1,k2,N=hdr->EVENT.N;
+	
+	sort_eventtable(hdr);
+	
+	if (hdr->EVENT.DUR == NULL) 
+		hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) calloc(N,sizeof(typeof(*hdr->EVENT.DUR)));
+	if (hdr->EVENT.CHN == NULL)
+		hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) calloc(N,sizeof(typeof(*hdr->EVENT.CHN)));
+
+	for (k1=0; k1<N; k1++) {
+		typeof(*hdr->EVENT.TYP) typ =  hdr->EVENT.TYP[k1];
+		if ((typ < 0x8000) && typ  && !hdr->EVENT.DUR[k1])
+		for (k2 = k1+1; k2<N; k2++) {
+			if (typ ==  (hdr->EVENT.TYP[k2] & 0x7fff)) {
+				hdr->EVENT.DUR[k1] = hdr->EVENT.POS[k2] - hdr->EVENT.POS[k1]; 
+				hdr->EVENT.TYP[k2] = 0;
+				break; 
+			}	
+		} 
+	}
+	for (k1=0,k2=0; k1<N; k1++) {
+		if (k2!=k1) {
+			hdr->EVENT.TYP[k2]=hdr->EVENT.TYP[k1];
+			hdr->EVENT.POS[k2]=hdr->EVENT.POS[k1];
+			hdr->EVENT.DUR[k2]=hdr->EVENT.DUR[k1];
+			hdr->EVENT.CHN[k2]=hdr->EVENT.CHN[k1];
+		}
+		if (hdr->EVENT.TYP[k1]) k2++;
+	}
+	hdr->EVENT.N = k2; 
+}
+/*------------------------------------------------------------------------
+	converts event table from [TYP,POS,CHN,DUR} to {TYP,POS} format   
+  ------------------------------------------------------------------------*/
+void convert4to2_eventtable(HDRTYPE *hdr) {
+	if ((hdr->EVENT.DUR == NULL) || (hdr->EVENT.CHN == NULL)) return;
+	
+	size_t k1,k2,N = hdr->EVENT.N;  	
+	for (k1=0; k1<N; k1++) 
+		if (hdr->EVENT.CHN[k1]) return; 	
+	 	
+	hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,2*N*sizeof(typeof(*hdr->EVENT.TYP)));
+	hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,2*N*sizeof(typeof(*hdr->EVENT.POS)));
+
+	for (k1=0,k2=N; k1<N; k1++) 
+		if (hdr->EVENT.DUR[k1]) {
+			hdr->EVENT.TYP[k2] = hdr->EVENT.TYP[k1] | 0x8000; 
+			hdr->EVENT.POS[k2] = hdr->EVENT.POS[k1] + hdr->EVENT.DUR[k1];
+			k2++;
+		}	 
+	hdr->EVENT.N = k2; 
+
+	free(hdr->EVENT.CHN); hdr->EVENT.CHN=NULL; 
+	free(hdr->EVENT.DUR); hdr->EVENT.DUR=NULL; 
+	sort_eventtable(hdr);
 }
 
 
@@ -3114,6 +3222,17 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					http://biosig.cvs.sourceforge.net/biosig/biosig/doc/eventcodes.txt?view=markup
 				*/
 				
+				/* decode results */ 
+				b3 = *(uint32_t*)(StatusVector + BCI2000_StatusVectorLength*(count & 1) + (rs_pos>>3));
+				b3 = (b3 >> (rs_pos & 7)) & ((1<<rs_len)-1);
+				if (b3!=b2) {
+					if (b3>b2) hdr->EVENT.TYP[N] = ( b3==b1 ? 0x0381 : 0x0382);
+					else 	   hdr->EVENT.TYP[N] = ( b2==b0 ? 0x8381 : 0x8382);
+					hdr->EVENT.POS[N] = count;	
+					N++;
+					b2 = b3;
+				}	
+
 				/* decode Target Code */
 				b1 = *(uint32_t*)(StatusVector + BCI2000_StatusVectorLength*(count & 1) + (tc_pos>>3));
 				b1 = (b1 >> (tc_pos & 7)) & ((1<<tc_len)-1);
@@ -3137,17 +3256,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->EVENT.POS[N] = count;	
 					N++;
 					b0 = b1; 
-				}	
-
-				/* decode results */ 
-				b3 = *(uint32_t*)(StatusVector + BCI2000_StatusVectorLength*(count & 1) + (rs_pos>>3));
-				b3 = (b3 >> (rs_pos & 7)) & ((1<<rs_len)-1);
-				if (b3!=b2) {
-					if (b3>b2) hdr->EVENT.TYP[N] = ( b3==b1 ? 0x0381 : 0x0382);
-					else 	   hdr->EVENT.TYP[N] = ( b2==b0 ? 0x8381 : 0x8382);
-					hdr->EVENT.POS[N] = count;	
-					N++;
-					b2 = b3;
 				}	
 
 				/* decode feedback */ 
@@ -5318,6 +5426,9 @@ fprintf(stdout,"ASN1 [491]\n");
 			hdr->NRec = (hdr->HeadLen + count)/hdr->AS.bpb; 
 
 	}
+	
+	/* convert event table to full table */
+	convert2to4_eventtable(hdr);
 
 }
 else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
