@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.218 2008-06-11 12:24:54 schloegl Exp $
+    $Id: biosig.c,v 1.219 2008-06-12 11:27:25 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2957,7 +2957,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			   	
 	    	hdr->SPR = 1; 
 		double gain=0.0, offset=0.0, digmin=0.0, digmax=0.0;
-		size_t tc_len=0,tc_pos=0;
+		size_t tc_len=0,tc_pos=0, rs_len=0,rs_pos=0, fb_len=0,fb_pos=0;
 		char TargetOrientation=0;
 
 		hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
@@ -2994,6 +2994,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (!strcmp(item,"TargetCode")) {
 					tc_pos = i[2]*8 + i[3];
 					tc_len = i[0];
+				}
+				else if (!strcmp(item,"ResultCode")) {
+					rs_pos = i[2]*8 + i[3];
+					rs_len = i[0];
+				}
+				else if (!strcmp(item,"Feedback")) {
+					fb_pos = i[2]*8 + i[3];
+					fb_len = i[0];
 				}
 			} 
 			
@@ -3083,12 +3091,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	        size_t N = 0; 
 	        count 	 = 0; 
 	        uint8_t *StatusVector = (uint8_t*) malloc(BCI2000_StatusVectorLength*2);
-		uint32_t b0=0,b1;
+		uint32_t b0=0,b1,b2=0,b3,b4=0,b5;
 	        while (!ifeof(hdr)) {
 		        ifseek(hdr, skip, SEEK_CUR);
 			ifread(StatusVector + BCI2000_StatusVectorLength*(count & 1), 1, BCI2000_StatusVectorLength, hdr);
-			if (tc_len && memcmp(StatusVector, StatusVector+BCI2000_StatusVectorLength, BCI2000_StatusVectorLength)) { 
-				if (N+2 >= hdr->EVENT.N) {
+			if (memcmp(StatusVector, StatusVector+BCI2000_StatusVectorLength, BCI2000_StatusVectorLength)) { 
+				if (N+4 >= hdr->EVENT.N) {
 					hdr->EVENT.N  += 1024;
 					hdr->EVENT.POS = (uint32_t*)realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
 					hdr->EVENT.TYP = (uint16_t*)realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
@@ -3100,19 +3108,60 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				++N;
 				 *****/
 
+				/*
+					event codes according to 				
+					http://www.bci2000.org/wiki/index.php/User_Reference:GDFFileWriter
+					http://biosig.cvs.sourceforge.net/biosig/biosig/doc/eventcodes.txt?view=markup
+				*/
+				
 				/* decode Target Code */
 				b1 = *(uint32_t*)(StatusVector + BCI2000_StatusVectorLength*(count & 1) + (tc_pos>>3));
 				b1 = (b1 >> (tc_pos & 7)) & ((1<<tc_len)-1);
-				if (b1>b0) 
-					hdr->EVENT.TYP[N] = b1 | 0x0300;
-				else if (b1<b0) 
-					hdr->EVENT.TYP[N] = b0 | 0x8300;
-
 				if (b1!=b0) {
+					if (TargetOrientation==1) {	// vertical 
+						switch ((int)b1-(int)b0) {
+						case  1: hdr->EVENT.TYP[N] = 0x030c; break;
+						case  2: hdr->EVENT.TYP[N] = 0x0306; break;
+						case -1: hdr->EVENT.TYP[N] = 0x830c; break;
+						case -2: hdr->EVENT.TYP[N] = 0x8306; break;
+						default: 
+							if (b1>b0) hdr->EVENT.TYP[N] = 0x0300 + b1 - b0;
+							else       hdr->EVENT.TYP[N] = 0x8300 + b0 - b1;
+						}	
+					}
+					else {
+						if (b1>b0) hdr->EVENT.TYP[N] = 0x0300 + b1 - b0;
+						else       hdr->EVENT.TYP[N] = 0x8300 + b0 - b1;
+					}	
+
 					hdr->EVENT.POS[N] = count;	
 					N++;
+					b0 = b1; 
 				}	
-				b0 = b1;
+
+				/* decode results */ 
+				b3 = *(uint32_t*)(StatusVector + BCI2000_StatusVectorLength*(count & 1) + (rs_pos>>3));
+				b3 = (b3 >> (rs_pos & 7)) & ((1<<rs_len)-1);
+				if (b3!=b2) {
+					if (b3>b2) hdr->EVENT.TYP[N] = ( b3==b1 ? 0x0381 : 0x0382);
+					else 	   hdr->EVENT.TYP[N] = ( b2==b0 ? 0x8381 : 0x8382);
+					hdr->EVENT.POS[N] = count;	
+					N++;
+					b2 = b3;
+				}	
+
+				/* decode feedback */ 
+				b5 = *(uint32_t*)(StatusVector + BCI2000_StatusVectorLength*(count & 1) + (fb_pos>>3));
+				b5 = (b5 >> (fb_pos & 7)) & ((1<<fb_len)-1);
+				if (b5>b4) 
+					hdr->EVENT.TYP[N] = 0x030d;
+				else if (b5<b4) 
+					hdr->EVENT.TYP[N] = 0x830d;
+				if (b5!=b4) {
+					hdr->EVENT.POS[N] = count;	
+					N++;
+					b4 = b5;
+				}	
 			}
 			count++;		
 		}        
@@ -6293,13 +6342,22 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 }  // end of SREAD 
 
 
+
+#ifdef INCLUDE_EXPERIMENTAL_CODE 
+
+
 /****************************************************************************/
 /**	SREAD : 
+	the idea is to load data in smaller chunks, 
+	this could reduce the size of HDR.AS.rawdata.
 	this is still experiemental                                        **/
 /****************************************************************************/
 size_t sread1(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) {
 
 	size_t c=1,count=0,k,NS;
+
+
+	fprintf(stdout,"SREAD1(%i %i)\n",start,length);			
 
 	if (start!=hdr->FILE.POS) 
 		fprintf(stderr,"SREAD start and FILE.POS differ (%i!=%i)\n",start,hdr->FILE.POS);
@@ -6318,7 +6376,8 @@ size_t sread1(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr)
 
 	if (hdr->FLAG.ROW_BASED_CHANNELS) {
 		for (k=0; (c>0) && (k<length); k++) {
-			c = sread1(hdr->data.block + count*NS*hdr->SPR, start+count, min(length-count,ceil(512.0/hdr->SPR)), hdr);
+fprintf(stdout,"r %i %i %i \n",k,c,count);			
+			c = sread(hdr->data.block + count*NS*hdr->SPR, start+count, min(length-count,ceil(512.0/hdr->SPR)), hdr);
 			count += c; 
 		}	
 		hdr->data.size[0] = NS;			// rows	
@@ -6330,11 +6389,12 @@ size_t sread1(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr)
 		hdr->data.block = NULL;
 
 		for (k=0; (c>0) && (k<length); k++) {
-			c = sread1(hdr->data.block, start+count, min(length-count,ceil(512.0/hdr->SPR)), hdr);
+			c = sread(hdr->data.block, start+count, min(length-count,ceil(512.0/hdr->SPR)), hdr);
+fprintf(stdout,"c %i %i %i %i %i\n",k,c,count,hdr->data.size[0],hdr->data.size[1]);			
 			for (size_t k1=0; k1<hdr->data.size[0]; k1++) 
 			for (size_t k2=0; k2<hdr->data.size[1]; k2++) 
 			{
-				data[count*NS + k2*NS + k1] = hdr->data.block[k2*NS + k1]; 		
+				data[length*hdr->SPR*k2 + count*hdr->SPR + k1] = hdr->data.block[k2*hdr->data.size[0] + k1]; 		
 			}
 			count += c; 
 		}
@@ -6351,10 +6411,6 @@ size_t sread1(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr)
 	return(count);
 
 }
-
-
-#ifdef INCLUDE_EXPERIMENTAL_CODE 
-
 
 
 size_t loadBlockN(size_t k1, size_t k2, HDRTYPE* hdr) {
