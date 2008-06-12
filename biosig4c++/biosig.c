@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.221 2008-06-12 22:23:28 schloegl Exp $
+    $Id: biosig.c,v 1.222 2008-06-12 22:37:10 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -5427,9 +5427,6 @@ fprintf(stdout,"ASN1 [491]\n");
 
 	}
 	
-	/* convert event table to full table */
-	convert2to4_eventtable(hdr);
-
 }
 else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 {
