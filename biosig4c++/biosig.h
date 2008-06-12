@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.105 2008-05-29 14:07:34 schloegl Exp $
+% $Id: biosig.h,v 1.106 2008-06-12 22:36:06 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -335,13 +335,6 @@ typedef struct {
 /**                                                                        **/
 /****************************************************************************/
 
-char* PhysDim(uint16_t PhysDimCode, char *PhysDimText);
-/* converts HDR.CHANNEL[k].PhysDimCode into a readable Physical Dimension
-   the memory for PhysDim must be preallocated, its maximum length is 
-   defined by (MAX_LENGTH_PHYSDIM+1)  
- ---------------------------------------------------------------*/
-
-
 
 HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT);
 /* 	allocates memory initializes header HDR of type HDRTYPE 
@@ -471,6 +464,31 @@ HDRTYPE* sload(const char* FileName, size_t CHANLIST[], biosig_data_type** DATA)
 	CHANLIST[1..CHANLIST[0]] contains the selected channels 
 	and DATA points to a matrix with HDR.SPR*HDR.NRec samples and HDR.NS channels
  ---------------------------------------------------------------*/
+
+
+uint16_t PhysDimCode(char* PhysDim0);
+/* Encodes  Physical Dimension as 16bit integer according to 
+   ISO/IEEE 11073-10101:2004 Vital Signs Units of Measurement
+ ---------------------------------------------------------------*/
+
+char* PhysDim(uint16_t PhysDimCode, char *PhysDimText);
+/* converts HDR.CHANNEL[k].PhysDimCode into a readable Physical Dimension
+   the memory for PhysDim must be preallocated, its maximum length is 
+   defined by (MAX_LENGTH_PHYSDIM+1)  
+ ---------------------------------------------------------------*/
+
+void sort_eventtable(HDRTYPE *hdr);
+/* sort event table with respect to hdr->EVENT.POS    
+  --------------------------------------------------------------*/
+
+void convert2to4_eventtable(HDRTYPE *hdr);
+/* converts event table from {TYP,POS} to [TYP,POS,CHN,DUR} format   
+  --------------------------------------------------------------*/
+
+void convert4to2_eventtable(HDRTYPE *hdr);
+/* converts event table from [TYP,POS,CHN,DUR} to {TYP,POS} format 
+	all CHN[k] must be 0
+  --------------------------------------------------------------*/
 
 
 
