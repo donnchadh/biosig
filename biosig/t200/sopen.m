@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.214 2008-06-11 09:50:17 schloegl Exp $
+%	$Id: sopen.m,v 1.215 2008-06-13 15:04:09 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -6337,6 +6337,7 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
                 end
 		[tline,rr] = strtok(char(HDR.Header),[10,13]);
 
+		HDR.Label  = cellstr([repmat('ch',HDR.NS,1),num2str([1:HDR.NS]')]);
                 STATUSFLAG = 0;
 		while length(rr), 
 			tline = tline(1:min([length(tline),strfind(tline,[47,47])-1]));
@@ -6386,6 +6387,9 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 				elseif ~isempty(strfind(tag,'TargetOrientation'))
 					[tmp,status] = str2double(val);
 					ORIENT = tmp(1);
+				elseif ~isempty(strfind(tag,'ChannelNames'))
+					[tmp,status,labels] = str2double(val);
+					HDR.Label(1:tmp(1))=labels(2:tmp(1)+1);
 				end;
 			end;	
 			[tline,rr] = strtok(rr,[10,13]);
@@ -6417,7 +6421,7 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 		k   		= strmatch('TargetCode', HDR.BCI2000.StateDef);
 		ix  		= find(diff(HDR.BCI2000.STATE(:,k))>0)+1;	%% start of trial ?? 
 		HDR.TRIG 	= POS(ix); 
-		HDR.Classlabel 	= HDR.BCI2000.STATE(ix,k);
+		HDR.Classlabel  = HDR.BCI2000.STATE(ix,k);
 
 		HDR.EVENT.POS = POS;
 		HDR.EVENT.TYP = repmat(0,size(HDR.EVENT.POS)); 	% should be extracted from HDR.BCI2000.STATE
@@ -6426,7 +6430,8 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 		HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS));
 
 		if ORIENT == 1, %% vertical 
-			HDR.EVENT.TYP(ix)  = HDR.Classlabel*6 + hex2dec('0300'); 
+			cl = hex2dec('030c')*(HDR.Classlabel==1) + hex2dec('0306')*(HDR.Classlabel==2) + hex2dec('0303')*(HDR.Classlabel==3);
+			HDR.EVENT.TYP(ix)  = cl; 
 		else	%% horizontal or both 
 			HDR.EVENT.TYP(ix)  = HDR.Classlabel + hex2dec('0300'); 
 		end;	
@@ -6436,8 +6441,8 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 
 		% finalize header definition 		
 		status = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
-		HDR.AS.bpb = 2*HDR.NS + HDR.BCI2000.StateVectorLength;
-		HDR.SPR    = (HDR.FILE.size - HDR.HeadLen)/HDR.AS.bpb;
+		HDR.AS.bpb    = 2*HDR.NS + HDR.BCI2000.StateVectorLength;
+		HDR.SPR       = (HDR.FILE.size - HDR.HeadLen)/HDR.AS.bpb;
 		HDR.AS.endpos = HDR.SPR;
 		HDR.GDFTYP    = [int2str(HDR.NS),'*',HDR.GDFTYP,'=>',HDR.GDFTYP];
 		HDR.NRec      = 1; 
