@@ -4,7 +4,7 @@
 # GDF v1.x http://hci.tugraz.at/schloegl/matlab/eeg/gdf4/TR_GDF.pdf
 # and part of the BioSig project http://biosig.sf.net/
 # Copyright (C) 2004,2005,2006,2008 Alois Schloegl <a.schloegl@ieee.org>
-# $Id: eventcodes.txt,v 1.10 2008-05-07 08:16:21 schloegl Exp $
+# $Id: eventcodes.txt,v 1.11 2008-06-13 13:32:56 schloegl Exp $
 #
 # BioSig is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -52,18 +52,18 @@
 0x0145  NoGo
 ### 0x03__	BCI: Trigger, cues, classlabels, 
 0x0300	Start of Trial, Trigger at t=0s
-0x0301	Left - cue onset (BCI experiment)
-0x0302	Right - cue onset (BCI experiment)
-0x0303	Foot - cue onset (BCI experiment)
-0x0304	Tongue - cue onset (BCI experiment)
-0x0305  class5 - cue onset
-0x0306	Down - cue onset (BCI experiment)
-0x0307	class7 - cue onset
-0x0308	class8 - cue onset
-0x0309	class9 - cue onset
-0x030A	class10 - cue onset
-0x030B	class11 - cue onset
-0x030C	Up - cue onset (BCI experiment)
+0x0301	class1, Left hand	- cue onset (BCI experiment)
+0x0302	class2, Right hand	- cue onset (BCI experiment)
+0x0303	class3, Foot, towards Right - cue onset (BCI experiment)
+0x0304	class4, Tongue		- cue onset (BCI experiment)
+0x0305	class5			- cue onset
+0x0306	class6, towards Down	- cue onset (BCI experiment)
+0x0307	class7			- cue onset
+0x0308	class8			- cue onset
+0x0309	class9, towards Left 	- cue onset
+0x030A	class10            	- cue onset
+0x030B	class11            	- cue onset
+0x030C	class12, towards Up 	- cue onset (BCI experiment)
 0x030D	Feedback (continuous) - onset (BCI experiment)
 0x030E	Feedback (discrete) - onset (BCI experiment)
 0x030F	cue unknown/undefined (used for BCI competition) 
