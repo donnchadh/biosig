@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.106 2008-06-12 22:36:06 schloegl Exp $
+% $Id: biosig.h,v 1.107 2008-06-13 15:05:23 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -320,6 +320,7 @@ typedef struct {
 		size_t		rawdata_curblock;
 		size_t		rawdata_nextblock;
 		uint8_t*	auxBUF 	__attribute__ ((deprecated));		/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor */
+		char*		bci2000;
 	} AS ATT_ALI;
 	
 	CHANNEL_TYPE 	*CHANNEL ATT_ALI;  

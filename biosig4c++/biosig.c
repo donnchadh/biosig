@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.222 2008-06-12 22:37:10 schloegl Exp $
+    $Id: biosig.c,v 1.223 2008-06-13 15:05:22 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1506,6 +1506,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	
 	// initialize "Annotated ECG structure"
 	hdr->aECG = NULL; 
+	hdr->AS.bci2000 = NULL; 
 	
 	return(hdr);
 }
@@ -1516,6 +1517,7 @@ void destructHDR(HDRTYPE* hdr) {
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"destructHDR: free HDR.aECG\n");
 
     	if (hdr->aECG != NULL) free(hdr->aECG);
+    	if (hdr->AS.bci2000 != NULL) free(hdr->AS.bci2000);
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.AS.rawdata\n");
 
@@ -2303,14 +2305,14 @@ if (!strncmp(MODE,"r",1))
 		    	Header2 = hdr->AS.Header + 256*(hdr->NS+1);
 		    	uint8_t tag = 0xff;
 		    	size_t pos=0,len=0;
-	    		tag = (uint8_t) Header2[pos];
-    			fprintf(stdout,"Tag=%i Len=%i\n",tag,len);
+	    		tag = (uint8_t)Header2[0];
 		    	while ((pos < (hdr->HeadLen-256*(hdr->NS+1))) && (tag>0)) {
-		    		len = leu32p(Header2)>>8; 
+		    		len = leu32p(Header2+pos)>>8; 
 
     				if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFr3: Tag=%i Len=%i\n",tag,len);
 		
-		    		if (tag==1) {	// user-specific events i.e. free text annotations 
+		    		if (tag==1) {	
+		    			// user-specific events i.e. free text annotations 
 		    			fprintf(stdout,"user-specific events defined\n");
 					hdr->AS.auxBUF = (uint8_t*) realloc(hdr->AS.auxBUF,len);	
 					memcpy(hdr->AS.auxBUF, Header2+pos+4, len);
@@ -2324,17 +2326,19 @@ if (!strncmp(MODE,"r",1))
 					} 
 		    		}
 		    		else if (tag==2) {
+		    			/* BCI 2000 information */
+		    			hdr->AS.bci2000 = (char*) realloc(hdr->AS.bci2000,len);
+		    			memcpy(hdr->AS.bci2000,Header2+pos+4,len); 
 		    		}
 
 		    		/* further tags may include 
-		    		- BCI2000 field 
 		    		- Manufacturer
 		    		- Orientation of MEG channels 
 		    		- Study ID 
 		    		*/
 		    		
 		    		pos+= 4+len;
-		    		tag = Header2[pos];
+		    		tag = (uint8_t)Header2[pos];
 		    	}
 		}
 
@@ -3023,6 +3027,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				ifseek(hdr,hdr->HeadLen,SEEK_SET);
 		}		
 		hdr->AS.Header[hdr->HeadLen]=0; 
+	    	hdr->AS.bci2000 = (char*)realloc(hdr->AS.bci2000, hdr->HeadLen+1);
+	    	memcpy(hdr->AS.bci2000, hdr->AS.Header, hdr->HeadLen+1);
 
 	    	/* decode number of channels */ 
 		t1  = strtok((char*)hdr->AS.Header,"\x0a\x0d");			
@@ -5426,7 +5432,11 @@ fprintf(stdout,"ASN1 [491]\n");
 			hdr->NRec = (hdr->HeadLen + count)/hdr->AS.bpb; 
 
 	}
-	
+	/* TODO 
+	convert2to4_event_table(hdr->EVENT);
+	convert into canonical form if needed
+	*/
+
 }
 else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 {
@@ -5513,14 +5523,18 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		/* experimental code: writing header 3, in Tag-Length-Value from 
 			currently only tag=1 is used for storing user-specific events (i.e. free text annotations
 		 */	
-	     	uint32_t Tag1Len = 0;  	
+	     	uint32_t TagNLen[] = {0,0,0};  	
 	     	if (hdr->EVENT.LenCodeDesc > 1) {	// first entry is always empty - no need to save tag1
 	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) 
-		     		Tag1Len += strlen(hdr->EVENT.CodeDesc[k])+1; 
-	     		Tag1Len = 1; 			// acounts for terminating \0
-	     		hdr->HeadLen += 4+Tag1Len; 
+		     		TagNLen[1] += strlen(hdr->EVENT.CodeDesc[k])+1; 
+	     		TagNLen[1] += 1; 			// acounts for terminating \0
+	     		hdr->HeadLen += 4+TagNLen[1]; 
 	     	}
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,Tag1Len);
+	     	if (hdr->AS.bci2000 != NULL)
+	     		TagNLen[2] = strlen(hdr->AS.bci2000)+1;
+     		hdr->HeadLen += 4+TagNLen[2]; 
+	     	
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
 	     	/* end */
 
 		hdr->VERSION = 2.0;
@@ -5528,8 +5542,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			hdr->VERSION = 1.25;
 			hdr->TYPE = GDF;
 		}
-		else if (hdr->HeadLen & 0x000f)	// in case of GDF v2, make HeadLen a multiple of 256. 
-			hdr->HeadLen = (hdr->HeadLen & 0xfff0) + 256;  
+		else if (hdr->HeadLen & 0x00ff)	// in case of GDF v2, make HeadLen a multiple of 256. 
+			hdr->HeadLen = (hdr->HeadLen & 0xff00) + 256;  
 			
 	    	hdr->AS.Header = (uint8_t*) calloc(hdr->HeadLen,1);
 	     	sprintf((char*)hdr->AS.Header,"GDF %4.2f",hdr->VERSION);
@@ -5690,15 +5704,20 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		 
 	     	*/
 	    	Header2 = hdr->AS.Header+(NS+1)*256; 
-	     	if (Tag1Len>0) {
-	     		Header2[0] = 1; 	// Tag 1	     		
-	     		*(uint32_t*)(Header2+1)=l_endian_u32(Tag1Len); 	// Length of Tag 1
+	     	if (TagNLen[1]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(1 + (TagNLen[1]<<8)); // Tag=1 & Length of Tag 1
 	     		size_t pos = 4; 
 	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) {
 	     			strcpy((char*)(Header2+pos),hdr->EVENT.CodeDesc[k]);
 		     		pos += strlen(hdr->EVENT.CodeDesc[k])+1;
 		     	}	 
 		     	Header2[pos]=0; 	// terminating NULL 
+	     		Header2 += pos+1;
+	     	}
+	     	if (TagNLen[2]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(2 + (TagNLen[2]<<8)); // Tag=2 & Length of Tag 2
+     			strcpy((char*)(Header2+4),hdr->AS.bci2000);
+			Header2 += 4+TagNLen[2];	
 	     	}
 	     	
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw [339] %p %p\n", Header1,Header2);	     		
@@ -7348,7 +7367,12 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		T0 = gdf_time2t_time(hdr->T0);
 		char tmp[60];
 		strftime(tmp, 59, "%x %X %Z", localtime(&T0));
-		fprintf(fid,"\tStartOfRecording: (%.6f) %s\n",ldexp(hdr->T0,-32),asctime(localtime(&T0))); 
+		fprintf(fid,"\tStartOfRecording: (%.6f) %s\n",ldexp(hdr->T0,-32),asctime(localtime(&T0)));
+		if (hdr->AS.bci2000 != NULL) {
+			size_t c = strcspn(hdr->AS.bci2000,"\xa\xd");
+			strncpy(tmp,hdr->AS.bci2000,c); tmp[c]=0;
+			fprintf(fid,"BCI2000 [%i]\t\t: <%s<CR>...>\n",strlen(hdr->AS.bci2000),tmp); 
+		}	
 	}
 		
 	if (VERBOSE>1) {
