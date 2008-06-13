@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.34 2008-06-12 11:19:41 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.35 2008-06-13 15:08:22 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -118,6 +118,8 @@ void mexFunction(
 	hdr->FLAG.ROW_BASED_CHANNELS = 0; 
 
 	hdr = sopen(FileName, "r", hdr);
+
+	convert2to4_eventtable(hdr); 
 
 	if (hdr->FLAG.OVERFLOWDETECTION != FlagOverflowDetection)
 		mexPrintf("Warning mexSLOAD: Overflowdetection not supported in file %s\n",hdr->FileName);
