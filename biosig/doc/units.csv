@@ -7,8 +7,8 @@
 # CEN/TC251/PT40 2001	
 # File Exchange Format for Vital Signs - Annex A 
 #
-# $Id: units.csv,v 1.10 2008-06-04 19:29:00 schloegl Exp $
-# Copyright (C) 2005,2006 Alois Schloegl <a.schloegl@ieee.org>
+# $Id: units.csv,v 1.11 2008-06-16 07:20:48 schloegl Exp $
+# Copyright (C) 2005,2006,2008 Alois Schloegl <a.schloegl@ieee.org>
 # This file is part of the biosig project http://biosig.sf.net/
 #
 #
@@ -252,9 +252,10 @@
 6208,"Pa %-1","- ratio of paO2 to FIO2","<magnitude> pascal per percent"
 6432,"B", "Bel", "relative power decibel"	
 ### private: units with no standardized code
-65344,"mol l-1 mm","light path length","milli(Mol/Liter)*millimeter"
+65312,"mHg s-1",,
+65344,"mol l-1 mm","concentration change (of oxy- and deoxy-hemoglobin) per effective (optical) path length","milli(Mol/Liter)*millimeter"
 65376,"r.p.m",,"rotations per minute"
-65408,"B", "Bel", "relative power decibel"	
+65408,"B", "Bel", "relative power decibel"
 65440,"dyne s m2 cm-5","Vascular Resistance Index","dyne seconds square meter per centimetre to the power of 5"
 65472,"l m-2","stroke index","litres per square meter"
 65504,"T",,"<magnitude> Tesla" 
