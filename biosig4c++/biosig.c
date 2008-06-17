@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.223 2008-06-13 15:05:22 schloegl Exp $
+    $Id: biosig.c,v 1.224 2008-06-17 06:27:19 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2306,7 +2306,7 @@ if (!strncmp(MODE,"r",1))
 		    	uint8_t tag = 0xff;
 		    	size_t pos=0,len=0;
 	    		tag = (uint8_t)Header2[0];
-		    	while ((pos < (hdr->HeadLen-256*(hdr->NS+1))) && (tag>0)) {
+		    	while ((pos < (hdr->HeadLen-256*(hdr->NS+1)-4)) && (tag>0)) {
 		    		len = leu32p(Header2+pos)>>8; 
 
     				if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFr3: Tag=%i Len=%i\n",tag,len);
@@ -2332,9 +2332,10 @@ if (!strncmp(MODE,"r",1))
 		    		}
 
 		    		/* further tags may include 
-		    		- Manufacturer
+		    		- Manufacturer: SCP, MFER, GDF1
 		    		- Orientation of MEG channels 
-		    		- Study ID 
+		    		- Study ID
+		    		- BCI: session, run 
 		    		*/
 		    		
 		    		pos+= 4+len;
@@ -5528,11 +5529,12 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) 
 		     		TagNLen[1] += strlen(hdr->EVENT.CodeDesc[k])+1; 
 	     		TagNLen[1] += 1; 			// acounts for terminating \0
-	     		hdr->HeadLen += 4+TagNLen[1]; 
+	     		hdr->HeadLen += 4+TagNLen[1];
 	     	}
-	     	if (hdr->AS.bci2000 != NULL)
+	     	if (hdr->AS.bci2000 != NULL) {
 	     		TagNLen[2] = strlen(hdr->AS.bci2000)+1;
-     		hdr->HeadLen += 4+TagNLen[2]; 
+	     		hdr->HeadLen += 4+TagNLen[2];
+	     	}	
 	     	
 	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
 	     	/* end */
