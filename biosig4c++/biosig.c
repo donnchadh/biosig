@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.224 2008-06-17 06:27:19 schloegl Exp $
+    $Id: biosig.c,v 1.225 2008-06-17 13:22:33 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -915,8 +915,8 @@ long int iftell(HDRTYPE* hdr) {
 }
 
 int ifsetpos(HDRTYPE* hdr, size_t *pos) {
-#if __sparc__ || __APPLE__
-	size_t p = *pos;
+#if __sparc__ || __APPLE__ || __MINGW32__
+	fpos_t p = *pos;
 #else
 	fpos_t p;
 	p.__pos = *pos; 
@@ -933,7 +933,7 @@ int ifsetpos(HDRTYPE* hdr, size_t *pos) {
 #endif
 	{
 	int c= fsetpos(hdr->FILE.FID,&p);
-#if __sparc__ || __APPLE__
+#if __sparc__ || __APPLE__ || __MINGW32__
 	*pos = p;
 #else
 	*pos = p.__pos;
@@ -942,22 +942,27 @@ int ifsetpos(HDRTYPE* hdr, size_t *pos) {
 	}
 }
 
-int ifgetpos(HDRTYPE* hdr, fpos_t *pos) {
+int ifgetpos(HDRTYPE* hdr, size_t *pos) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION) {
 		z_off_t p = gztell(hdr->FILE.gzFID);
 		if (p<0) return(-1); 
 		else {
-#if __sparc__ || __APPLE__
 			*pos = p;
-#else
-			pos->__pos = p;	// ugly hack but working
-#endif
 			return(0);
 		}	
 	} else	
 #endif
-	return(fgetpos(hdr->FILE.FID, pos));
+	{
+		fpos_t p;
+		int c = fgetpos(hdr->FILE.FID, &p);
+#if __sparc__ || __APPLE__ || __MINGW32__
+		*pos = p;
+#else
+		*pos = p.__pos;	// ugly hack but working
+#endif
+		return(c);
+	}
 }
 
 int ifeof(HDRTYPE* hdr) {
@@ -1516,13 +1521,15 @@ void destructHDR(HDRTYPE* hdr) {
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"destructHDR: free HDR.aECG\n");
 
+	sclose(hdr); 
+
     	if (hdr->aECG != NULL) free(hdr->aECG);
     	if (hdr->AS.bci2000 != NULL) free(hdr->AS.bci2000);
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.AS.rawdata\n");
 
     	if ((hdr->AS.rawdata != NULL) && (hdr->TYPE != SCP_ECG)) 
-    	{	// for SCP: hdr->AS.rawdata is part of hdr.AS.Header1 
+    	{	// for SCP: hdr->AS.rawdata is part of hdr.AS.Header 
         	free(hdr->AS.rawdata);
         }	
 
@@ -1551,11 +1558,6 @@ void destructHDR(HDRTYPE* hdr) {
     	if (hdr->EVENT.DUR != NULL)  free(hdr->EVENT.DUR);
     	if (hdr->EVENT.CHN != NULL)  free(hdr->EVENT.CHN);
     	if (hdr->EVENT.CodeDesc != NULL) free(hdr->EVENT.CodeDesc);
-
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: 09\n");
-        	
-        hdr->EVENT.N   = 0; 
-	hdr->FILE.OPEN = 0; 	     	
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR\n");
 
@@ -7150,9 +7152,6 @@ int sclose(HDRTYPE* hdr)
 	int32_t 	pos, len; 
 	char tmp[88]; 
 	
-	if (VERBOSE_LEVEL>7) 
-		fprintf(stdout, "850: open=%i File Type=%s ,N#of Events=%i\n",hdr->FILE.OPEN,GetFileTypeString(hdr->TYPE),hdr->EVENT.N);
-
 	if ((hdr->FILE.OPEN>1) && ((hdr->TYPE==GDF) || (hdr->TYPE==EDF) || (hdr->TYPE==BDF)))
 	{
 		// WRITE HDR.NRec 
@@ -7213,16 +7212,11 @@ int sclose(HDRTYPE* hdr)
 		hdr->FILE.OPEN = 0; 
 	}
 
-	if (VERBOSE_LEVEL>7) 
-		fprintf(stdout, "901: open=%i File Type=%s ,N#of Events=%i\n",hdr->FILE.OPEN,GetFileTypeString(hdr->TYPE),hdr->EVENT.N);
-
 	if (hdr->FILE.OPEN > 0) {
 		int status = ifclose(hdr);
 		if (status) iferror(hdr);
+		hdr->FILE.OPEN = 0; 
     	}	
-
-	if (VERBOSE_LEVEL>7) 
-		fprintf(stdout, "911: open=%i File Type=%s ,N#of Events=%i\n",hdr->FILE.OPEN,GetFileTypeString(hdr->TYPE),hdr->EVENT.N);
 
     	return(0);
 }
