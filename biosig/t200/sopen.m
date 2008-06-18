@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.215 2008-06-13 15:04:09 schloegl Exp $
+%	$Id: sopen.m,v 1.216 2008-06-18 11:19:42 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -47,7 +47,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 %    it under the terms of the GNU General Public License as published by
 %    the Free Software Foundation, either version 3 of the License, or
 %    (at your option) any later version.
-
+%
 %    BioSig is distributed in the hope that it will be useful,
 %    but WITHOUT ANY WARRANTY; without even the implied warranty of
 %    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -691,6 +691,43 @@ end;
                         end;
                 end;
                 end
+
+                %% GDF Header 3 
+                if (HDR.VERSION > 2)
+                	pos = 256*(HDR.NS+1); 
+			fseek(HDR.FILE.FID,pos,'bof');	
+			while (pos <= HDR.HeadLen-4)
+				%% decode TAG-LENGTH-VALUE structure
+		               	tagval = fread(HDR.FILE.FID,1,'uint32')
+		               	TAG = bitand(tagval, 255);
+		               	LEN = (tagval/256);
+		               	if (pos+4+LEN > HDR.HeadLen)
+		               		fprintf(HDR.FILE.stderr,'ERROR SOPEN(GDF): T-L-V header broken\n'); 
+		               		break; 
+		               	end; 
+				switch (TAG)
+				case 0		%% last tag-length-value 
+					break; 	
+				case 1		%% description of user-specified event codes
+					VAL= fread(HDR.FILE.FID,[1,LEN],'uint8=>char');
+					ix = find(VAL==0);
+					N  = find(diff(ix)==1);
+					if isempty(N) 
+						N = length(ix); 
+						ix(N+1)=LEN+1;
+					end;	
+					for k = 1:N(1),
+						HDR.EVENT.CodeDesc{k} = VAL(ix(k)+1:ix(k+1)-1);
+					end; 
+				case 2		%% bci2000 additional information 
+					VAL = fread(HDR.FILE.FID,[1,LEN],'uint8=>char');
+					HDR.BCI2000.INFO = VAL;
+				otherwise 
+					fseek(HDR.FILE.FID,LEN,'cof'); 
+				end; 
+				pos = ftell(HDR.FILE.FID); 
+			end; 			
+                end; 
 
 		% filesize, position of eventtable, headerlength, etc. 	
                 HDR.AS.EVENTTABLEPOS = -1;
@@ -5496,6 +5533,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         if flag.fieldtrip,
          	flag.fieldtrip = isfield(tmp.data,'cfg') & isfield(tmp.data,'hdr') & isfield(tmp.data,'label') & isfield(tmp.data,'fsample'); 
 	end; 
+	flag.brainvision = isfield(tmp,'Channels') && isfield(tmp,'ChannelCount') && isfield(tmp,'Markers') && isfield(tmp,'MarkerCount') && isfield(tmp,'SampleRate') && isfield(tmp,'SegmentCount') && isfield(tmp,'t');
 	
         if isfield(tmp,'HDR'),
                 H = HDR; 
@@ -5527,6 +5565,33 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.PhysDimCode = zeros(HDR.NS,1); 
                 end; 
 
+        elseif flag.brainvision, 
+        	%% BrainVision Matlab export
+		HDR.SPR = length(tmp.t); 
+		HDR.NS  = tmp.ChannelCount;
+		HDR.SampleRate = tmp.SampleRate; 
+		HDR.NRec= tmp.SegmentCount;
+		HDR.Label = {tmp.Channels.Name}';
+		HDR.data  = zeros(HDR.SPR,HDR.NS);
+                R=[tmp.Channels.Radius]'; Theta = [tmp.Channels.Theta]'*pi/180; Phi = [tmp.Channels.Phi]'*pi/180; 
+                HDR.ELEC.XYZ = R(:,ones(1,3)).*[sin(Theta).*cos(Phi),sin(Theta).*sin(Phi),cos(Theta)]; 
+		HDR.PhysDimCode = repmat(4275,1,HDR.NS); % uV
+		HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
+		for k = 1:HDR.NS,
+			HDR.data(:,k) = getfield(tmp,tmp.Channels(k).Name);
+		end;
+		
+		% HDR.EVENT.N = tmp.MarkerCount; 
+		HDR.EVENT.POS = [tmp.Markers(:).Position]';
+		HDR.EVENT.DUR = [tmp.Markers(:).Points]';
+		HDR.EVENT.CHN = [tmp.Markers(:).ChannelNumber]';
+		HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
+		ix = strmatch('New Segment',{tmp.Markers.Type}');
+		HDR.EVENT.TYP(ix) = hex2dec('7ffe');  
+		ix = HDR.EVENT.TYP==0;
+                [HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP(ix)] = unique({tmp.Markers(ix).Type});
+                HDR.TYPE = 'native'; 
+		clear tmp;         
         
         elseif isfield(tmp,'mnt') & isfield(tmp,'mrk') & isfield(tmp,'cnt')                
         	HDR.SampleRate = tmp.cnt.fs; 
@@ -6330,12 +6395,12 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
                 end;
                 if count<HDR.HeadLen,
                         status = fseek(HDR.FILE.FID,0,'bof');
-                        [HDR.Header,count] = fread(HDR.FILE.FID,[1,HDR.HeadLen],'uint8');
+                        [BCI2000.INFO,count] = fread(HDR.FILE.FID,[1,HDR.HeadLen],'uint8=>char');
                 elseif count>HDR.HeadLen,
                         status = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
-                        HDR.Header = HDR.Header(1:HDR.HeadLen);
+                        BCI2000.INFO = char(HDR.Header(1:HDR.HeadLen));
                 end
-		[tline,rr] = strtok(char(HDR.Header),[10,13]);
+                [tline,rr] = strtok(BCI2000.INFO,[10,13]);
 
 		HDR.Label  = cellstr([repmat('ch',HDR.NS,1),num2str([1:HDR.NS]')]);
                 STATUSFLAG = 0;
