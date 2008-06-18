@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.49 2008-04-30 23:16:53 schloegl Exp $
+###  $Id: Makefile,v 1.50 2008-06-18 19:33:04 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -12,7 +12,7 @@ CC            = $(CXX)
 CXX           = g++
 MEX	      = /opt/MatlabR2008a/bin/mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB # if you have zlib
+DEFINES       = #-D=WITH_ZLIB -D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES)
 CXXFLAGS      = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES)
 AR            = ar crs
@@ -34,6 +34,7 @@ OBJECTS_DIR   = ./
 ####### Files
 
 SOURCES       = biosig.c \
+		physicalunits.c \
 		XMLParser/tinyxml.cpp \
 		XMLParser/tinyxmlparser.cpp \
 		XMLParser/tinyxmlerror.cpp \
@@ -43,6 +44,7 @@ SOURCES       = biosig.c \
 		t220/sopen_scp_write.c \
 		t220/crc4scp.c  \
 		t230/sopen_hl7aecg.c \
+		t240/sopen_asn1.c 
 
 OBJECTS       = biosig.o \
 		tinyxml.o \
@@ -53,9 +55,10 @@ OBJECTS       = biosig.o \
 		scp-decode.o \
 		sopen_scp_write.o \
 		crc4scp.o \
+		sopen_asn1.o \
 		sopen_hl7aecg.o
 
-TARGET        = save2gdf save2aecg save2scp libbiosig.a libbiosig.so
+TARGET        = save2gdf physicalunits # save2aecg save2scp libbiosig.a libbiosig.so mex4o
 
 first: $(TARGET)
 all: $(TARGET) mex4o sigviewer biosig4python
@@ -82,10 +85,13 @@ all: $(TARGET) mex4o sigviewer biosig4python
 
 ####### Compile
 
-biosig.o: biosig.c biosig-dev.h biosig.h
+biosig.o: biosig.c biosig-dev.h biosig.h 
 	$(CC) -c $(CFLAGS) $(INCPATH) -o biosig.o biosig.c
 
-save2gdf.o: save2gdf.c biosig-dev.h biosig.h
+physicalunits.o: physicalunits.c biosig.h 
+	$(CC) -c $(CFLAGS) $(INCPATH) -o physicalunits.o physicalunits.c
+
+save2gdf.o: save2gdf.c biosig-dev.h biosig.h 
 	$(CC) -c $(CFLAGS) $(INCPATH) -o save2gdf.o save2gdf.c
 
 sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h \
@@ -104,9 +110,11 @@ scp-decode.o: t210/scp-decode.cpp biosig-dev.h \
 crc4scp.o: t220/crc4scp.c 
 	$(CC) -c $(CFLAGS) $(INCPATH) -o crc4scp.o t220/crc4scp.c
 
-sopen_scp_write.o: t220/sopen_scp_write.c biosig-dev.h \
-		biosig.h
+sopen_scp_write.o: t220/sopen_scp_write.c biosig-dev.h biosig.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_scp_write.o t220/sopen_scp_write.c
+
+sopen_asn1.o: t240/sopen_asn1.c biosig-dev.h biosig.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_asn1.o t240/sopen_asn1.c
 
 sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h \
 		biosig.h \
@@ -154,15 +162,20 @@ libbiosig.so: $(OBJECTS)
 save2gdf: save2gdf.c libbiosig.a libbiosig.so 
 	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
 
+physicalunits: physicalunits.c libbiosig.a
+	$(CXX) $(CXXFLAGS) physicalunits.c $(LFLAGS) $(LIBS) -o physicalunits
+
 mex: mex4m mex4o
 
 mex4m: mexSLOAD.cpp  libbiosig.a libbiosig.so
 	echo "Warning: MEX for Matlab is not tested yet"
 	$(MEX) mexSLOAD.cpp  $(LIBS) 
 
-mex4o:  mexSLOAD.mex libbiosig.a  libbiosig.so
+mex4o:  physicalunits.mex mexSLOAD.mex libbiosig.a  libbiosig.so
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a  libbiosig.so 
 	mkoctfile  -v -g --mex mexSLOAD.cpp  $(LIBS) 
+physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
+	mkoctfile  -v -g --mex physicalunits.cpp  $(LIBS) 
 
 oct:  mexSLOAD.oct
 mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a libbiosig.so
@@ -216,10 +229,10 @@ install:
 	cp save2aecg 	$(DESTDIR)/usr/local/bin
 	cp save2scp  	$(DESTDIR)/usr/local/bin
 	chmod 0755  	../sigviewer/bin/sigviewer
-	cp ../sigviewer/bin/sigviewer $(DESTDIR)/usr/local/bin
+	mv ../sigviewer/bin/sigviewer $(DESTDIR)/usr/local/bin
 	cp biosig.h     $(DESTDIR)/usr/include
-	#cp libbiosig.so $(DESTDIR)/usr/lib
-	#cp libbiosig.a  $(DESTDIR)/usr/lib
+	mv libbiosig.so $(DESTDIR)/usr/lib
+	mv libbiosig.a  $(DESTDIR)/usr/lib
 	cp doc/*.1  	$(DESTDIR)/usr/share/man/man1
 	#cp libbiosig.man $(DESTDIR)/usr/share/man/man3
 	#cp mexSLOAD.mex  $(DESTDIR)/usr/local/share/octave
@@ -266,6 +279,14 @@ remove:
 	rm -rf "/tmp/aECG Release 1 Schema and Example.zip"
 	rm -rf "/tmp/2003-12 Schema"
 	touch /tmp/t1.hl7
+
+/tmp/t1.edf:
+	# EDF+ example data set
+#	wget -q -P/tmp http://www.edfplus.info/downloads/files/osas.zip
+#	unzip -u "/tmp/osas.zip"  -d /tmp
+	unzip -u "~/data/EDF/osas.zip"  -d /tmp
+	cp "/tmp/Osas2002plusQRS.edf" /tmp/t1.edf
+	touch /tmp/t1.edf
 
 testscp: save2gdf /tmp/t1.scp
 	# test converting SCP data
@@ -335,8 +356,10 @@ zip: /tmp/t1.scp save2gdf
 	./save2gdf -f=HL7 /tmp/t1.scp.gz t1.hl7
 	./save2gdf -f=CFW /tmp/t1.scp.gz t1.cfw
 
-test6: /tmp/t1.scp save2gdf
-		cp /tmp/t1.scp t0.xxx
+#test6: /tmp/t1.scp save2gdf
+#	cp /tmp/t1.scp t0.xxx
+test6: /tmp/t1.edf save2gdf
+	cp /tmp/t1.edf t0.xxx
 	./save2gdf -z -f=GDF1 t0.xxx t1.gd1
 	./save2gdf -z -f=GDF t0.xxx t1.gdf
 	./save2gdf -z -f=EDF t0.xxx t1.edf
@@ -376,7 +399,7 @@ test6: /tmp/t1.scp save2gdf
 	./save2gdf -f=GDF t1.scp.gz t2.scp.gdf
 	./save2gdf -f=EDF t1.scp.gz t2.scp.edf
 	./save2gdf -f=BDF t1.scp.gz t2.scp.bdf
-	./save2gdf -f=SCP t1.scp.gz t2.scp.scp
+#	./save2gdf -f=SCP t1.scp.gz t2.scp.scp
 	./save2gdf -f=HL7 t1.scp.gz t2.scp.hl7
 	./save2gdf -f=CFW t1.scp.gz t2.scp.cfw
 	./save2gdf -f=GDF1 t1.hl7    t2.hl7.gd1

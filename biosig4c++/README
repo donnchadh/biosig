@@ -39,6 +39,7 @@ File(s):
     biosig-dev.h definition of internal functions	
     biosig.c	SOPEN, SREAD, SWRITE, SEOF, SCLOSE functions 
     save2gdf.c	converter between various file formats.
+    physicalunit.c 	en-/decodes physical units according to ISO/DIS 11073-10101:2003
     mexSLOAD.cpp is a MEX-File for loading data in Octave and Matab. 
     t210/*	reading SCP file format 
     t220/*      writing SCP file format 
@@ -53,7 +54,8 @@ Compilation:
 you need g++, make and zlib. (If you do not have zlib, uncomment in biosig.h line 40 #include <zlib.h>).
 Running make compiles the converter.
   make 		 	# tries to makes the converter and the mex-files for Octave and Matlab
-  make save2gdf 	# makes the converter
+  make save2gdf 	# makes the file format converter
+  make physicalunits 	# makes the en/decoder for physical units
   make libbiosig.a  	# makes a static library 
   make mex4o 		# makes mexSLOAD for Octave (requires Octave-headers2.9 or higher)
   make mex4m 		# makes mexSLOAD for Matlab (path_to_mex need to be defined in Makefile)
@@ -73,7 +75,7 @@ Not tested (yet). Let me know about successful compilations,
 or tell me what changes are needed.   
 
 
-
+	
 Installation: 
 -------------
 ran as root 
@@ -141,7 +143,7 @@ The archive is available at
 http://newsarchiv.tugraz.at/browse/tu-graz.biosig/ 
 
 
-    $Id: README,v 1.16 2008-05-26 06:27:38 schloegl Exp $
+    $Id: README,v 1.17 2008-06-18 19:33:04 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 
