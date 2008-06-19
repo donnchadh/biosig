@@ -1,15 +1,24 @@
 /*
 %
-% $Id: swig.i,v 1.9 2008-05-28 13:00:59 schloegl Exp $
+% $Id: swig.i,v 1.10 2008-06-19 18:36:08 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
+
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
     as published by the Free Software Foundation; either version 3
     of the License, or (at your option) any later version.
 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+    
  */
 
 
@@ -40,10 +49,18 @@ enum FileFormat {
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, VRML, VTK, WAV, WMF, XML, XPM,
-	Z, ZIP, ZIP2
+	Z, ZIP, ZIP2,
+	ASCII_IBI
 };
 
 typedef struct {
+	double 		PhysMin;	/* physical minimum */
+	double 		PhysMax;	/* physical maximum */
+	double 		DigMin;		/* digital minimum */
+	double	 	DigMax;		/* digital maximum */
+	double		Cal;		/* gain factor */ 
+	double		Off;		/* bias */ 
+
 	char		OnOff; 		
 	char		Label[MAX_LENGTH_LABEL+1]; 	/* Label of channel */
 	uint16_t	LeadIdCode;	/* Lead identification code */ 
@@ -58,16 +75,9 @@ typedef struct {
 	float 		XYZ[3];		/* electrode position */
 	float 		Impedance;   	/* in Ohm */
 	
-	double 		PhysMin;	/* physical minimum */
-	double 		PhysMax;	/* physical maximum */
-	double 		DigMin;		/* digital minimum */
-	double	 	DigMax;		/* digital maximum */
-
 	uint16_t 	GDFTYP;		/* data type */
 	uint32_t 	SPR;		/* samples per record (block) */
 	
-	double		Cal;		/* gain factor */ 
-	double		Off;		/* bias */ 
 } CHANNEL_TYPE;
 
 
@@ -75,6 +85,7 @@ typedef struct {
 	This structure defines the general (fixed) header  
 */
 typedef struct {
+
 	enum FileFormat TYPE; 		/* type of file format */
 	float 		VERSION;	/* GDF version number */ 
 	const char* 	FileName;
@@ -87,7 +98,8 @@ typedef struct {
 	uint32_t 	HeadLen;	/* length of header in bytes */
 	uint16_t 	NS;		/* number of channels */
 	uint32_t 	SPR;		/* samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR) */
-	uint64_t  	NRec;		/* number of records/blocks -1 indicates length is unknown. */	
+	int64_t  	NRec;		/* number of records/blocks -1 indicates length is unknown. */	
+	uint32_t 	Dur[2];		/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
 	double 		SampleRate;	/* Sampling rate */
 	uint8_t 	IPaddr[6]; 	/* IP address of recording device (if applicable) */
 	uint32_t  	LOC[4];		/* location of recording according to RFC1876 */
@@ -101,7 +113,9 @@ typedef struct {
 		char		Id[MAX_LENGTH_PID+1];	/* patient identification, identification code as used in hospital  */
 		uint8_t		Weight;		/* weight in kilograms [kg] 0:unkown, 255: overflow  */
 		uint8_t		Height;		/* height in centimeter [cm] 0:unkown, 255: overflow  */
+		//		BMI;		/* the body-mass index = weight[kg]/height[m]^2 */
 		gdf_time 	Birthday; 	/* Birthday of Patient */
+		// 		Age;		/* the age is HDR.T0 - HDR.Patient.Birthday, even if T0 and Birthday are not known */ 		
 		uint16_t	Headsize[3]; 	/* circumference, nasion-inion, left-right mastoid in millimeter;  */
 		/* Patient classification */
 		int	 	Sex;		/* 0:Unknown, 1: Male, 2: Female  */
@@ -159,7 +173,7 @@ typedef struct {
 		char		OVERFLOWDETECTION; 	/* overflow & saturation detection 0: OFF, !=0 ON */
 		char		UCAL; 		/* UnCalibration  0: scaling  !=0: NO scaling - raw data return  */
 		char		ANONYMOUS; 	/* 1: anonymous mode, no personal names are processed */ 
-		char		SWAP; 	        /* 1: endian swapping is needed */ 
+		char		ROW_BASED_CHANNELS;	/* 0: column-based data [default]; 1: row-based data */ 
 	} FLAG; 
 
 	struct {	/* File specific data  */
@@ -172,7 +186,7 @@ typedef struct {
 		FILE* 		FID;		/* file handle  */
 		size_t 		POS;		/* current reading/writing position [in blocks] */
 		uint8_t		OPEN; 		/* 0: closed, 1:read, 2: write */
-//		uint8_t		LittleEndian;
+		uint8_t		LittleEndian;
 		uint8_t		COMPRESSION;   /* 0: no compression 9: best compression */
 	} FILE; 
 
@@ -185,9 +199,12 @@ typedef struct {
 		uint32_t 	*bi;
 		uint8_t*	Header; 
 		uint8_t*	rawdata; 	/* raw data block */
+		uint8_t*	auxBUF;		/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor */
+		char*		bci2000;
 	} AS;
 	
-	CHANNEL_TYPE *CHANNEL;  
+	CHANNEL_TYPE *CHANNEL;
+	  
 	void *aECG;
 	
 } HDRTYPE;
@@ -205,4 +222,13 @@ int 	sseek(HDRTYPE* hdr, long int offset, int whence);
 long int stell(HDRTYPE* hdr);
 int	hdr2ascii(HDRTYPE* hdr, FILE *fid, int verbosity);
 
+const char* GetFileTypeString(enum FileFormat FMT);
+HDRTYPE* sload(const char* FileName, size_t CHANLIST[], biosig_data_type** DATA);
+
+uint16_t PhysDimCode(char* PhysDim0);
+char* 	PhysDim(uint16_t PhysDimCode, char *PhysDimText);
+
+void 	sort_eventtable(HDRTYPE *hdr);
+void 	convert2to4_eventtable(HDRTYPE *hdr);
+void 	convert4to2_eventtable(HDRTYPE *hdr);
 
