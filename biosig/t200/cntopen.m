@@ -5,7 +5,7 @@ function [CNT,h,e]=cntopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
-%	$Id: cntopen.m,v 1.43 2008-05-07 08:25:28 schloegl Exp $
+%	$Id: cntopen.m,v 1.44 2008-06-19 13:06:07 schloegl Exp $
 %	Copyright (c) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -569,19 +569,14 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
 	CNT.EVENT.TeegSize = 0;
         status = fseek(CNT.FILE.FID,h.eventtablepos,'bof');
         if ~status,
-ftell(fid),
                 [CNT.EVENT.TeegType,c1] = fread(fid,1,'uint8');		
-ftell(fid),
                 [CNT.EVENT.TeegSize,c2] = fread(fid,1,'int32');	
-ftell(fid),
                 [CNT.EVENT.TeegOffset,c3] = fread(fid,1,'int32');
-ftell(fid),
 	end;	
 	
         k = 0; 
         K = 1;
         TEEG = [];
-CNT.EVENT,
         while (K < CNT.EVENT.TeegSize),
 		k = k+1;
                 Teeg.Stimtype = fread(fid,1,'int16');        
