@@ -14,7 +14,7 @@ function HDR=bdf2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bdf2biosig_events.m,v 1.10 2007-07-23 07:20:17 schloegl Exp $
+%	$Id: bdf2biosig_events.m,v 1.11 2008-06-19 21:27:46 schloegl Exp $
 %	Copyright (C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -55,7 +55,7 @@ if strcmp(HDR.TYPE,'BDF')
 
 elseif isfield(HDR,'data')
 	tmp = strmatch('Status',HDR.Label);
-	HDR.BDF.Status = tmp;
+%	HDR.BDF.Status = tmp;
 end; 
 
 t = HDR.BDF.ANNONS;

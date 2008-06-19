@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.216 2008-06-18 11:19:42 schloegl Exp $
+%	$Id: sopen.m,v 1.217 2008-06-19 21:27:46 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -5580,16 +5580,22 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 		for k = 1:HDR.NS,
 			HDR.data(:,k) = getfield(tmp,tmp.Channels(k).Name);
 		end;
-		
-		% HDR.EVENT.N = tmp.MarkerCount; 
-		HDR.EVENT.POS = [tmp.Markers(:).Position]';
-		HDR.EVENT.DUR = [tmp.Markers(:).Points]';
-		HDR.EVENT.CHN = [tmp.Markers(:).ChannelNumber]';
-		HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
-		ix = strmatch('New Segment',{tmp.Markers.Type}');
-		HDR.EVENT.TYP(ix) = hex2dec('7ffe');  
-		ix = HDR.EVENT.TYP==0;
-                [HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP(ix)] = unique({tmp.Markers(ix).Type});
+
+		ch = strmatch('Status',HDR.Label);
+		if 0,ch,
+			HDR.BDF.ANNONS = round(2^24 + HDR.data(:,ch)); 
+			HDR = bdf2biosig_events(HDR); 
+		else	
+			% HDR.EVENT.N = tmp.MarkerCount; 
+			HDR.EVENT.POS = [tmp.Markers(:).Position]';
+			HDR.EVENT.DUR = [tmp.Markers(:).Points]';
+			HDR.EVENT.CHN = [tmp.Markers(:).ChannelNumber]';
+			HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
+			ix = strmatch('New Segment',{tmp.Markers.Type}');
+			HDR.EVENT.TYP(ix) = hex2dec('7ffe');  
+			ix = HDR.EVENT.TYP==0;
+                	[HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP(ix)] = unique({tmp.Markers(ix).Description});
+		end;
                 HDR.TYPE = 'native'; 
 		clear tmp;         
         
