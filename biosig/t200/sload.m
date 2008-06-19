@@ -40,7 +40,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.86 2008-06-19 08:35:49 schloegl Exp $
+%	$Id: sload.m,v 1.87 2008-06-19 09:00:13 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -524,8 +524,8 @@ if exist('mexSLOAD','file')==3,
         	H.CHANTYP(ceil([strfind(tmp,'trig')]/(size(Label,2)+1))) = 'T'; 
 
 	catch
-		fprintf(stdout, 'SLOAD: mexSLOAD failed - the slower M-functions are used. \n');
-		fprintf(stdout, '     In order to use the faster mex-method, download biosig4c++ and make mexSLOAD for your platform.\n');
+		fprintf(1, 'SLOAD: mexSLOAD failed - the slower M-functions are used. \n');
+		fprintf(1, '     In order to use the faster mex-method, download biosig4c++ and make mexSLOAD for your platform.\n');
 	end;
 
 end;

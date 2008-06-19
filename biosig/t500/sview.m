@@ -6,7 +6,7 @@ function [argout,s]=sview(s,varargin),
 %
 % See also: SLOAD 
 
-%	$Id: sview.m,v 1.20 2008-03-19 07:38:35 schloegl Exp $ 
+%	$Id: sview.m,v 1.21 2008-06-19 09:00:13 schloegl Exp $ 
 %	Copyright (c) 2004,2006 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -23,29 +23,32 @@ function [argout,s]=sview(s,varargin),
 % You should have received a copy of the GNU General Public License
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-length(varargin)
 
 if length(varargin),
         H=varargin{1}; 
         arg2=varargin{1}; 
 else
-	arg2='';         
+	arg2='';     
+	H = [];    
 end;
 
-if ischar(s) | iscell(s),
-	[s,H] = sload(s,varargin{:});
-	CHAN = 1:size(s,2);
+	if ~isempty(H)
+		CHAN = 1:size(s,2);
+
+	elseif ischar(s) | iscell(s),
+		[s,H] = sload(s,0,'OVERFLOWDETECTION:OFF',varargin{:});
+		CHAN = 1:size(s,2);
 	
-elseif isstruct(s)
-        [s,H] = sload(s);
-	CHAN = 1:size(s,2);
+	elseif isstruct(s)
+	        [s,H] = sload(s);
+		CHAN = 1:size(s,2);
         
-elseif isnumeric(s) & (length(H.InChanSelect)==size(s,2))
-        CHAN = 1:size(s,2);
-        H.Label = H.Label(H.InChanSelect,:);
-else    
-        return;
-end;
+	elseif isnumeric(s) & (length(H.InChanSelect)==size(s,2))
+	        CHAN = 1:size(s,2);
+	        H.Label = H.Label(H.InChanSelect,:);
+	else    
+        	return;
+        end;	
 
 %if strmatch(H.TYPE,{'BMP','PBMA','PGMA','PPMA','PBMB','PGMB','PPMB','XPM'}),
 if isfield(H,'IMAGE');
@@ -61,7 +64,7 @@ if isfield(H,'IMAGE');
         argout=H;
         return;
 
-elseif ischar(arg2) & (strcmp(H.TYPE,'ELPOS') | (isfield(H,'ELEC') & strncmpi(arg2,'ELPOS',5)));
+elseif ischar(arg2) & (strcmp(H.TYPE,'ELPOS') | (isfield(H,'ELEC') && strncmpi(arg2,'ELPOS',5)));
 	XYZ = H.ELEC.XYZ;
 	K = 1:size(XYZ,1); 
 		
@@ -162,11 +165,11 @@ elseif isfield(H.EVENT,'CodeDesc'),
 elseif ~isfield(H.EVENT,'Desc') & (length(H.EVENT.TYP)>0),
 	[p,f,e]=fileparts(which('sopen.m'));
 	[p,f,e]=fileparts(p);
-        g = sload(fullfile(p,'doc/eventcodes.txt'));
-        ix = sparse(g.CodeIndex,1,1:length(g.CodeIndex));
+        g = sopen(fullfile(p,'doc/eventcodes.txt'));g=sclose(g);
+        ix = sparse(g.EVENT.CodeIndex,1,1:length(g.EVENT.CodeIndex));
         EVENT = H.EVENT;
         try,
-                EVENT.Desc = {g.CodeDesc{ix(H.EVENT.TYP)}};
+                EVENT.Desc = {g.EVENT.CodeDesc{ix(H.EVENT.TYP)}};
         catch
                 fprintf(2,'SVIEW: unknown eventcodes in file %s',H.FileName)
         end
@@ -203,8 +206,9 @@ if isfield(EVENT,'Desc') & ~isempty(ix) %& ~exist('OCTAVE_VERSION','builtin')
 		end;
         end;
         end;
+        ix = ix2;
 	for k=1:length(ix),
-                txt = EVENT.Desc{ix(k)}; 
+                txt = EVENT.Desc{ix(k)};
                 if isempty(txt),txt='';end; 
                 txt(txt=='_')=' ';
 		if exist('text','builtin');
@@ -216,7 +220,7 @@ if isfield(EVENT,'Desc') & ~isempty(ix) %& ~exist('OCTAVE_VERSION','builtin')
         	        end
                 end;
         end;	
-        % v(4) = v(3:4)*[-.7;1.3]; axis(v);
+        %v(4) = v(3:4)*[-.7;1.3]; axis(v);
         hold off;
 end;
 
