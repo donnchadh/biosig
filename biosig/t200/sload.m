@@ -40,7 +40,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.85 2008-04-21 14:35:41 schloegl Exp $
+%	$Id: sload.m,v 1.86 2008-06-19 08:35:49 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -169,7 +169,7 @@ if ((iscell(FILENAME) || isstruct(FILENAME)) && (length(FILENAME)>1)),
                                 if isfield(H.EVENT,'Desc');	% TFM-Excel-Beat-to-Beat
                                         H.EVENT.Desc = [H.EVENT.Desc; {'New Segment'}; h.EVENT.Desc];
                                 end;
-                        end;			
+                        end;
 
                         if size(s,2)==size(signal,2), %(H.NS == h.NS) 
 				signal = [signal; repmat(NaN,STATE.NUMBER_OF_NAN_IN_BREAK,size(s,2)); s];
@@ -345,37 +345,6 @@ if exist('mexSLOAD','file')==3,
 				H.EVENT.CHN(ix) = a(H.EVENT.CHN(ix));	% assigning new channel number
 			end;	
 			
-			if ~isfield(H.EVENT,'CHN') & ~isfield(H.EVENT,'DUR'),  
-				H.EVENT.CHN = zeros(size(H.EVENT.POS)); 
-				H.EVENT.DUR = zeros(size(H.EVENT.POS)); 
-
-				% convert EVENT.Version 1 to 3, currently used by GDF, BDF and alpha
-				flag_remove = zeros(size(H.EVENT.TYP));
-				types  = unique(H.EVENT.TYP);
-				for k1 = find(bitand(types(:)',hex2dec('8000')));
-				        TYP0 = bitand(types(k1),hex2dec('7fff'));
-	        			TYP1 = types(k1);
-	        			ix0  = (H.EVENT.TYP==TYP0);
-	        			ix1  = (H.EVENT.TYP==TYP1);
-
-				        if sum(ix0)==sum(ix1), 
-	                			H.EVENT.DUR(ix0) = H.EVENT.POS(ix1) - H.EVENT.POS(ix0);
-				                flag_remove = flag_remove | (H.EVENT.TYP==TYP1);
-			                else 
-	                			fprintf(2,'Warning SOPEN: number of event onset (TYP=%s) and event offset (TYP=%s) differ\n',dec2hex(double(TYP0)),dec2hex(double(TYP1)));
-                        			%% double(.) operator needed because Matlab6.5 can not fix fix(uint16(..))
-				        end;
-				end
-				if any(H.EVENT.DUR<0)
-				        fprintf(2,'Warning SOPEN: EVENT ONSET %s later than EVENT OFFSET %s \n',dec2hex(TYP0),dec2hex(TYP1));
-	        			%H.EVENT.DUR(:) = 0
-				end;
-				H.EVENT.TYP = H.EVENT.TYP(~flag_remove);
-				H.EVENT.POS = H.EVENT.POS(~flag_remove);
-				H.EVENT.CHN = H.EVENT.CHN(~flag_remove);
-				H.EVENT.DUR = H.EVENT.DUR(~flag_remove);
-			end;
-				
 		elseif strcmp(H.TYPE,'BKR');
 	                H.Classlabel = [];
 	                H.TRIG = [];
@@ -519,6 +488,19 @@ if exist('mexSLOAD','file')==3,
                                 H.Classlabel = [];
                                 H.ArtifactSelection = [];
                         end;
+			%% end of BKR
+
+		elseif strcmp(H.TYPE,'BrainVision');
+        	        try 
+        	        	H = bv2biosig_events(H); 
+       	        	catch
+       	        		%warning('bv2biosig_events not executed');
+       	        	end; 
+
+		elseif strcmp(H.TYPE,'EDF');
+			if length(HDR.EVENT.TYP)==length(HDR.EVENT.Desc)
+	                        [HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP] = unique(HDR.EVENT.Desc);
+	                end;
 
 			%% end of BKR
 
@@ -526,6 +508,7 @@ if exist('mexSLOAD','file')==3,
 			HDR = sopen(fullfile(H.FILE.Path,[H.FILE.Name,'.vmrk']));
 			HDR = sclose(HDR);
 			H.EVENT = HDR.EVENT;
+
                 end;        
 
 	        H.CHANTYP = repmat(' ',1,H.NS);
@@ -541,7 +524,8 @@ if exist('mexSLOAD','file')==3,
         	H.CHANTYP(ceil([strfind(tmp,'trig')]/(size(Label,2)+1))) = 'T'; 
 
 	catch
-		disp('mexSLOAD failed');
+		fprintf(stdout, 'SLOAD: mexSLOAD failed - the slower M-functions are used. \n');
+		fprintf(stdout, '     In order to use the faster mex-method, download biosig4c++ and make mexSLOAD for your platform.\n');
 	end;
 
 end;
