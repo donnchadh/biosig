@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.74 2008-05-27 11:41:33 schloegl Exp $
+%	$Id: getfiletype.m,v 1.75 2008-06-20 12:36:36 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -953,6 +953,28 @@ else
                         end;
                         HDR.TYPE = 'EVENTCODES';
 			
+                elseif strcmp(HDR.FILE.Ext,'Markers') && strcmp(ss(1:14),'Sampling rate:'),
+			HDR.EVENT.SampleRate = str2double(ss(15:strfind(ss,'Hz')-1));
+			[t,r]=strtok(ss,char([10,13]));
+			[t,r]=strtok(r,char([10,13]));
+			[t,r]=strtok(r,char([10,13]));
+			k = 1; 
+			while sum(t==',')>3,
+				[n,v,sa] = str2double(t,', ');
+				Desc{k,1} = sa{2};
+				HDR.EVENT.POS(k,1) = n(3);
+				HDR.EVENT.DUR(k,1) = n(4);
+				if isnan(n(5))
+					HDR.EVENT.CHN(k,1) = 0;
+				else
+					HDR.EVENT.CHN(k,1) = n(5);
+				end	
+				k = k+1; 
+				[t,r]=strtok(r,char([10,13]));
+			end;
+			[HDR.EVENT.CodeDesc,ix,HDR.EVENT.TYP]=unique(Desc);
+			HDR.TYPE='EVENT';
+ 				
                 elseif ~strcmp(version,'3.5') %% exclude FreeMat v3.5 
                         HDR.TYPE='unknown';
 
@@ -982,6 +1004,7 @@ else
                         	HDR.TYPE = 'CSE-database';
                         end; 	
                 end;
+                
         end;
         fclose(fid);
 
