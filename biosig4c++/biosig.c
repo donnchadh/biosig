@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.226 2008-06-26 09:26:28 schloegl Exp $
+    $Id: biosig.c,v 1.227 2008-06-26 10:42:41 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -3939,10 +3939,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 
 	else if (hdr->TYPE==EEG1100) {
+		// the information of this format is derived from nk2edf-0.43beta-src of Teunis van Beelen
 
-		if (VERBOSE_LEVEL>8)
-			fprintf(stdout,"NK 220\n"); 
-			
 		/* read .log */  
 		char *fn = (char*)malloc((strlen(hdr->FileName)+5)*sizeof(char));
 		strcpy(fn,hdr->FileName);
@@ -3957,9 +3955,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}
 			if (fid != NULL) { 
 
-		if (VERBOSE_LEVEL>8)
-			fprintf(stdout,"NK LOG\n"); 
-			
 				count = 0; 
 			 	while (~feof(fid)) {
 					LOG = (uint8_t*) realloc(LOG,count+1025);
@@ -4009,11 +4004,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				tm_time.tm_isdst = -1; 
 				hdr->Patient.Birthday = tm_time2gdf_time(&tm_time);
 				
-				// Start date: @0x0046
-				sscanf((char*)(LOG+0x46),"%04u%02u%02u",&tm_time.tm_year,&tm_time.tm_mon,&tm_time.tm_mday);
-				tm_time.tm_year -= 1900;
-				tm_time.tm_isdst = -1;
-				// hdr->T0 = tm_time2gdf_time(&tm_time);
 			}
 		free(fn);
 
@@ -4023,10 +4013,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,n1*20+0x92+1);
 			count += ifread(hdr->AS.Header+count, 1, n1*20+0x92-count,hdr);
 		}
+		// Start date: @0x0040
+		sscanf((char*)(hdr->AS.Header+0x40),"%04u%02u%02u%02u%02u%02u",&tm_time.tm_year,&tm_time.tm_mon,&tm_time.tm_mday,&tm_time.tm_hour,&tm_time.tm_min,&tm_time.tm_sec);
+		tm_time.tm_year -= 1900;
+		tm_time.tm_mon--;	// Jan=0, Feb=1, ...
+		tm_time.tm_isdst = -1;
+		//hdr->T0 = tm_time2gdf_time(&tm_time);
 
-		if (n1>1) fprintf(stdout,"EEG1100: more than 1 segment (n1=%i) not supported.\n",n1);
-		/* FIXME: currently, only the target segment can be read */
-		int TARGET_SEGMENT = hdr->FLAG.TARGETSEGMENT; 
+		int TARGET_SEGMENT = hdr->FLAG.TARGETSEGMENT;
+		int numSegments = 0;  
 
 		size_t Total_NRec = 0; 
 		uint8_t *h2 = (uint8_t*)malloc(22);
@@ -4040,55 +4035,46 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				h2 = (uint8_t*)realloc(h2,2+n2*20);
 				ifread(h2+22, 1, 2+n2*20-22, hdr);
 			}
-/*			
+
 			hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,(hdr->EVENT.N+n2)*sizeof(typeof(*hdr->EVENT.TYP)));
 			hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,(hdr->EVENT.N+n2)*sizeof(typeof(*hdr->EVENT.POS)));
 			hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,(hdr->EVENT.N+n2)*sizeof(typeof(*hdr->EVENT.CHN)));
 			hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,(hdr->EVENT.N+n2)*sizeof(typeof(*hdr->EVENT.DUR)));
-*/
-			if (n2>1) fprintf(stdout,"EEG1100: more than 1 segment [%i,%i] not supported.\n",n1,n2);
+
+//			if (n2>1) fprintf(stdout,"EEG1100: more than 1 segment [%i,%i] not supported.\n",n1,n2);
 			for (k2=0; k2<n2; k2++) {
 				pos2 = leu32p(h2 + 18 + k2*20);
 				
 				ifseek(hdr, pos2, SEEK_SET);
 				size_t pos3 = ifread(h3, 1, 40, hdr);
-			
-				uint8_t u8 = h3[20];
-				tm_time.tm_year  = (u8>>4) + (u8 & 0x0f);
-				tm_time.tm_year += (u8>80 ? 2000 : 1900); 
-				u8 = h3[21];
-				tm_time.tm_mon   = (u8>>4) + (u8 & 0x0f) - 1;
-				u8 = h3[22];
-				tm_time.tm_mday  = (u8>>4) + (u8 & 0x0f);
-				u8 = h3[23];
-				tm_time.tm_hour  = (u8>>4) + (u8 & 0x0f);
-				u8 = h3[24];
-				tm_time.tm_min   = (u8>>4) + (u8 & 0x0f);
-				u8 = h3[25];
-				tm_time.tm_sec   = (u8>>4) + (u8 & 0x0f);
-				tm_time.tm_isdst = -1; 
-				typeof(hdr->T0) T0 = tm_time2gdf_time(&tm_time);
 				
+				// fprintf(stdout,"@%i: <%s>\n",pos3,(char*)h3+1);
+				if (!strncmp((char*)h3+1,"TIME",4)) {
+					sscanf((char*)(h3+5),"%02u%02u%02u",&tm_time.tm_hour,&tm_time.tm_min,&tm_time.tm_sec);
+				}
+			
 				typeof(hdr->NS) NS = h3[38];
 				typeof(hdr->SampleRate) SampleRate = leu16p(h3+26) & 0x3fff;
 				typeof(hdr->NRec) NRec = leu32p(h3+28) * SampleRate * 0.1;
 				size_t HeadLen = pos2 + 39 + 10*NS;
-/*				
+
 				hdr->EVENT.TYP[hdr->EVENT.N] = 0x7ffe;
 				hdr->EVENT.POS[hdr->EVENT.N] = Total_NRec;
 				hdr->EVENT.DUR[hdr->EVENT.N] = NRec;
 				hdr->EVENT.CHN[hdr->EVENT.N] = 0;
 				Total_NRec += NRec;
 				hdr->EVENT.N++; 
-*/				
+				numSegments++;
+
 				--TARGET_SEGMENT;	// decrease target segment counter
 				if (TARGET_SEGMENT != 0) {
 					continue;
 				}	 
 				
-				hdr->T0 = T0;
+				hdr->T0 = tm_time2gdf_time(&tm_time);
 				hdr->NS = NS;
 				hdr->SampleRate = SampleRate;
+				hdr->EVENT.SampleRate = SampleRate;
 				hdr->NRec = NRec;
 				hdr->HeadLen = HeadLen;
 				hdr->SPR = 1;
@@ -4101,7 +4087,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 				hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 				for (int k3=0; k3<hdr->NS; k3++) {
-					u8 = h3[39+k3*10]; 
+					uint8_t u8 = h3[39+k3*10]; 
 					switch (u8) {
 					case 0: strcpy(hdr->CHANNEL[k3].Label,"Fp1"); break;
 					case 1: strcpy(hdr->CHANNEL[k3].Label,"Fp2"); break;
@@ -4162,11 +4148,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				    	hdr->CHANNEL[k3].GDFTYP = 128;	// Nihon-Kohden int16 format 
 					hdr->CHANNEL[k3].DigMax =  32767.0;
 					hdr->CHANNEL[k3].DigMin = -32768.0;
-/*
-				    	hdr->CHANNEL[k3].GDFTYP = 4;	// FIXME: not clear whether its int16 or uint16
-					hdr->CHANNEL[k3].DigMin =  0;
-					hdr->CHANNEL[k3].DigMax =  0xffff;
-*/
+
 					hdr->CHANNEL[k3].Cal   	= (hdr->CHANNEL[k3].PhysMax - hdr->CHANNEL[k3].PhysMin) / (hdr->CHANNEL[k3].DigMax - hdr->CHANNEL[k3].DigMin);
 					hdr->CHANNEL[k3].Off   	=  hdr->CHANNEL[k3].PhysMin - hdr->CHANNEL[k3].Cal * hdr->CHANNEL[k3].DigMin;
 					hdr->CHANNEL[k3].SPR    = 1;
@@ -4184,7 +4166,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		free(h3); 
 		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
 		hdr->FILE.POS = 0; 
-		// ifclose(hdr);
+		if ((numSegments>1) && (hdr->FLAG.TARGETSEGMENT==1))
+			fprintf(stdout,"File %s has more than one segment; use TARGET_SEGMENT argument to select other segments.\n",hdr->FileName); 
 	}
 
 	else if (hdr->TYPE==EGI) {
@@ -7396,6 +7379,11 @@ int sclose(HDRTYPE* hdr)
 	int32_t 	pos, len; 
 	char tmp[88]; 
 	
+	for (size_t k=0; k<hdr->NS; k++) {
+		// replace Nihon-Kohden code with standard code 
+		if (hdr->CHANNEL[k].GDFTYP==128)	 
+			hdr->CHANNEL[k].GDFTYP=3; 
+	}		
 	if ((hdr->FILE.OPEN>1) && ((hdr->TYPE==GDF) || (hdr->TYPE==EDF) || (hdr->TYPE==BDF)))
 	{
 		// WRITE HDR.NRec 
