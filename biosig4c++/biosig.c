@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.225 2008-06-17 13:22:33 schloegl Exp $
+    $Id: biosig.c,v 1.226 2008-06-26 09:26:28 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -75,7 +75,7 @@ const int16_t GDFTYP_BITS[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,    /* 128 */ 
+	16,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 128: EEG1100 coder,  */ 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -475,6 +475,19 @@ int ftoa8(char* buf, double num)
 	return (fabs((f1-f2)/(f1+f2)) > 1e-6); 
 }
 
+int is_nihonkohden_signature(char *str) {
+  return (!(
+	strncmp(str, "EEG-1100A V01.00", 16) &&  
+	strncmp(str, "EEG-1100B V01.00", 16) &&
+	strncmp(str, "EEG-1100C V01.00", 16) &&
+	strncmp(str, "QI-403A   V01.00", 16) &&
+  	strncmp(str, "QI-403A   V02.00", 16) &&
+  	strncmp(str, "EEG-2100  V01.00", 16) &&
+  	strncmp(str, "EEG-2100  V02.00", 16) &&
+  	strncmp(str, "DAE-2100D V01.30", 16) &&
+  	strncmp(str, "DAE-2100D V02.00", 16) 
+  ));	 
+}
 
 
 /* physical units are defined in 
@@ -1147,7 +1160,7 @@ void write_gdf_eventtable(HDRTYPE *hdr)
 	Load Table of Event Codes                                           
   ------------------------------------------------------------------------*/
 void FreeGlobalEventCodeTable() {
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"FreeGlobalEventTable(start)%i\n",GLOBAL_EVENTCODES_ISLOADED);
+//	if (VERBOSE_LEVEL>8) fprintf(stdout,"FreeGlobalEventTable(start)%i\n",GLOBAL_EVENTCODES_ISLOADED);
 
 	Global.LenCodeDesc = 0;
 	if (Global.EventCodesTextBuffer) free(Global.EventCodesTextBuffer);
@@ -1158,13 +1171,13 @@ void FreeGlobalEventCodeTable() {
 	Global.CodeIndex = NULL;	
 	
 	GLOBAL_EVENTCODES_ISLOADED = 0;
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"FreeGlobalEventTable(end)%i\n",GLOBAL_EVENTCODES_ISLOADED);
+//	if (VERBOSE_LEVEL>8) fprintf(stdout,"FreeGlobalEventTable(end)%i\n",GLOBAL_EVENTCODES_ISLOADED);
 }
 
 void LoadGlobalEventCodeTable() 
 {
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(start)%i\n",GLOBAL_EVENTCODES_ISLOADED);
+//	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(start)%i\n",GLOBAL_EVENTCODES_ISLOADED);
 
 	if (GLOBAL_EVENTCODES_ISLOADED) return; 	// table is already loaded 
 
@@ -1174,14 +1187,14 @@ void LoadGlobalEventCodeTable()
 	Global.EventCodesTextBuffer = NULL;	
 	Global.LenCodeDesc = 0; 
 	
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(101)%i %i\n",GLOBAL_EVENTCODES_ISLOADED,Global.LenCodeDesc);
+//	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(101)%i %i\n",GLOBAL_EVENTCODES_ISLOADED,Global.LenCodeDesc);
 
 	HDRTYPE HDR; 
 	HDR.FileName = "eventcodes.txt";
 	ifopen(&HDR,"r"); 
 	if (!HDR.FILE.OPEN) return;	// event code table not available 
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(102) OPEN=%i %i\n",HDR.FILE.OPEN,Global.LenCodeDesc);
+//	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(102) OPEN=%i %i\n",HDR.FILE.OPEN,Global.LenCodeDesc);
 
 	
 	atexit(&FreeGlobalEventCodeTable);	// make sure memory is freed  
@@ -1196,7 +1209,7 @@ void LoadGlobalEventCodeTable()
 	ifclose(&HDR);
 	Global.EventCodesTextBuffer[count]=0;	// terminating /0 character
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(103) count=%i\n",count);
+//	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(103) count=%i\n",count);
 
 	size_t N = 0; 
 	char *line = strtok(Global.EventCodesTextBuffer,"\x0a\x0d");
@@ -1228,12 +1241,12 @@ void LoadGlobalEventCodeTable()
 				Global.CodeIndex[Global.LenCodeDesc] = i; 
 				Global.LenCodeDesc++;
 			}	 
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"%x <%s>\n",i,t);
+//			if (VERBOSE_LEVEL>8) fprintf(stdout,"%x <%s>\n",i,t);
 		}	
 		line = strtok(NULL,"\x0a\x0d");
 	}
 	GLOBAL_EVENTCODES_ISLOADED = 1;
-	if (VERBOSE_LEVEL>7) fprintf(stdout,"LoadGlobalEventTable(end)%i\n",Global.LenCodeDesc);
+//	if (VERBOSE_LEVEL>7) fprintf(stdout,"LoadGlobalEventTable(end)%i\n",Global.LenCodeDesc);
 }
 
 #ifndef HARDCODED_PHYSDIMTABLE 
@@ -1470,6 +1483,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->FLAG.UCAL = 0; 		// un-calibration OFF (auto-scaling ON) 
 	hdr->FLAG.OVERFLOWDETECTION = 1; 	// overflow detection ON
 	hdr->FLAG.ANONYMOUS = 0; 	// 1: no personal names are processed 
+	hdr->FLAG.TARGETSEGMENT = 1;   // read 1st segment 
 	
        	// define variable header 
 	hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
@@ -1751,17 +1765,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	}
 
 	/* Nihon Kohden */
-    	else if (!memcmp(Header1,"EEG-1100A ",10))
-	    	hdr->TYPE = EEG1100;
-    	else if (!memcmp(Header1,"EEG-1100B ",10))
-	    	hdr->TYPE = EEG1100;
-    	else if (!memcmp(Header1,"EEG-1100C ",10))
-	    	hdr->TYPE = EEG1100;
-    	else if (!memcmp(Header1,"QI-403A   ",10))
-	    	hdr->TYPE = EEG1100;
-    	else if (!memcmp(Header1,"EEG-2100  ",10))
-	    	hdr->TYPE = EEG1100;
-    	else if (!memcmp(Header1,"DAE-2100D ",10))
+	else if (is_nihonkohden_signature((char*)Header1) && is_nihonkohden_signature((char*)(Header1+0x81)))
 	    	hdr->TYPE = EEG1100;
 
     	else if ((beu32p(hdr->AS.Header) > 1) && (beu32p(hdr->AS.Header) < 8)) {
@@ -1805,7 +1809,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     	else if (!memcmp(Header1,FileName,strspn(FileName,".")) && (!strcmp(FileExt,"HEA") || !strcmp(FileExt,"hea") ))
 	    	hdr->TYPE = MIT;
     	else if ( (Header1[344]=='n') && (Header1[347]=='\0') && \
-    		  ((Header1[345]=='i') || (Header1[345]=='+') ) && \ 
+    		  ((Header1[345]=='i') || (Header1[345]=='+') ) && \
     		   (Header1[346]>'0') && (Header1[346]<='9') ) {
 	    	hdr->TYPE = NIFTI;
 	    	hdr->VERSION = Header1[346]-'0';
@@ -2508,7 +2512,6 @@ if (!strncmp(MODE,"r",1))
 			char p[9];
 			strncpy(p,Header2 + 8*k + 96*hdr->NS,8);
 			p[8] = 0; // remove trailing blanks
-			int k1;			
 			for (int k1=7; (k1>0) && isspace(p[k1]); p[k1--]=0);
 
 			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(p);
@@ -3125,7 +3128,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (status==2) {
 				t1 = strstr(ptr,"ChannelNames=");
 				if (t1 != NULL) {
-		    			int NS = strtod(t1+13,&ptr);
+		    			int NS = (int)strtod(t1+13,&ptr);
 		    			for (k=0; k<NS; k++) {
 		    				while (isspace(ptr[0])) ++ptr;
 		    				int k1=0;
@@ -3142,13 +3145,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		    			 
 				t1 = strstr(ptr,"SourceChGain=");
 				if (t1 != NULL) {
-		    			int NS = strtod(t1+13,&ptr);
+		    			int NS = (int)strtod(t1+13,&ptr);
 		    			for (k=0; k<NS; k++) hdr->CHANNEL[k].Cal = strtod(ptr,&ptr);
 		    			for (; k<hdr->NS; k++) hdr->CHANNEL[k].Cal = hdr->CHANNEL[k-1].Cal;
 		    		}	 
 				t1 = strstr(ptr,"SourceChOffset=");
 				if (t1 != NULL) {
-		    			int NS = strtod(t1+15,&ptr);
+		    			int NS = (int) strtod(t1+15,&ptr);
 		    			for (k=0; k<NS; k++) hdr->CHANNEL[k].Off = strtod(ptr,&ptr);
 		    			for (; k<hdr->NS; k++) hdr->CHANNEL[k].Off = hdr->CHANNEL[k-1].Off;
 		    		}	 
@@ -3185,7 +3188,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					}	
 				}	
 				t1 = strstr(ptr,"TargetOrientation=");
-				if (t1 != NULL)	TargetOrientation = strtod(t1+18,&ptr);
+				if (t1 != NULL)	TargetOrientation = (char) strtod(t1+18,&ptr);
 
 
 			// else if (status==3); 
@@ -3780,9 +3783,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		count += ifread(hdr->AS.Header+count,1,CTF_NumberOfFilters*26+hdr->NS*(32+48+1280),hdr);
 		ifclose(hdr); 
 
-		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"CTF[102] %s: %i %i %i %i %i %i\n",hdr->FileName,hdr->NS,hdr->SPR,hdr->NRec,count,CTF_RunSize,CTF_NumberOfFilters);
-
 		size_t pos = 1846+CTF_RunSize+CTF_NumberOfFilters*26;
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
@@ -3885,14 +3885,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FILE.LittleEndian = 0; 
 		hdr->FILE.POS = 0; 
 
-		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"CTF[191] %s: %i %i %i %i\n",hdr->FileName,hdr->NS,hdr->SPR,hdr->NRec,count);
-
 		hdr->FileName = f0; 	
 		free(f1);
-
-		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"CTF[199] %s: %i %i %i %i\n",hdr->FileName,hdr->NS,hdr->SPR,hdr->NRec,count);
 
 	}
 
@@ -3945,10 +3939,252 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 
 	else if (hdr->TYPE==EEG1100) {
-		ifclose(hdr); 
-		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-		B4C_ERRMSG = "Format EEG1100 not supported\n";
-		return(hdr); 	
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"NK 220\n"); 
+			
+		/* read .log */  
+		char *fn = (char*)malloc((strlen(hdr->FileName)+5)*sizeof(char));
+		strcpy(fn,hdr->FileName);
+		char *c = strrchr(fn,'.');
+		uint8_t *LOG=NULL, *PNT=NULL;
+		if (c != NULL) {
+			strcpy(c+1,"log");
+			FILE *fid = fopen(fn,"rb");
+			if (fid == NULL) { 
+				strcpy(c+1,"LOG");
+				FILE *fid = fopen(fn,"rb");
+			}
+			if (fid != NULL) { 
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"NK LOG\n"); 
+			
+				count = 0; 
+			 	while (~feof(fid)) {
+					LOG = (uint8_t*) realloc(LOG,count+1025);
+					count += fread(LOG+count,1024,1,fid);
+			 	}
+				fclose(fid);
+				LOG[count]=0; 
+			}
+		}
+
+		/* read .pnt */
+			if (strrchr(fn,FILESEP))
+				strcpy(strrchr(fn,FILESEP)+1, (char*)(hdr->AS.Header + 32));
+			else 
+				strcpy(fn, (char*)(hdr->AS.Header + 32));
+				
+			FILE *fid = fopen(fn,"rb");
+			if (fid != NULL) { 
+				count = 0; 
+
+			 	while (!feof(fid)) {
+					LOG = (uint8_t*) realloc(LOG,count+1025);
+					count += fread(LOG+count,1,1024,fid);
+			 	}
+				fclose(fid);
+
+				LOG[count] = 0; 
+				// Name: @0x062e
+				if (!hdr->FLAG.ANONYMOUS) {
+					strncpy(hdr->Patient.Name, (char*)(LOG+0x62e), MAX_LENGTH_PID);
+					hdr->Patient.Name[MAX_LENGTH_NAME] = 0;	
+				}			
+
+				// Id: @0x0604
+				strncpy(hdr->Patient.Id, (char*)(LOG+0x604), MAX_LENGTH_PID);
+				hdr->Patient.Id[MAX_LENGTH_PID] = 0;
+
+				// Gender: @0x064a
+				hdr->Patient.Sex = (toupper(LOG[0x064a])=='M') + 2*(toupper(LOG[0x064a])=='F') + 2*(toupper(LOG[0x064a])=='W');
+
+				// Birthday: @0x0660
+				sscanf((char*)(LOG+0x0660),"%04u/%02u/%02u",&tm_time.tm_year,&tm_time.tm_mon,&tm_time.tm_mday);
+				tm_time.tm_hour  = 12; 
+				tm_time.tm_min   = 0; 
+				tm_time.tm_sec   = 0; 
+				tm_time.tm_year -= 1900;
+				tm_time.tm_isdst = -1; 
+				hdr->Patient.Birthday = tm_time2gdf_time(&tm_time);
+				
+				// Start date: @0x0046
+				sscanf((char*)(LOG+0x46),"%04u%02u%02u",&tm_time.tm_year,&tm_time.tm_mon,&tm_time.tm_mday);
+				tm_time.tm_year -= 1900;
+				tm_time.tm_isdst = -1;
+				// hdr->T0 = tm_time2gdf_time(&tm_time);
+			}
+		free(fn);
+
+		size_t n1,n2,pos1,pos2;
+		n1 = hdr->AS.Header[145];
+		if ((n1*20+0x92) > count) {
+			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,n1*20+0x92+1);
+			count += ifread(hdr->AS.Header+count, 1, n1*20+0x92-count,hdr);
+		}
+
+		if (n1>1) fprintf(stdout,"EEG1100: more than 1 segment (n1=%i) not supported.\n",n1);
+		/* FIXME: currently, only the target segment can be read */
+		int TARGET_SEGMENT = hdr->FLAG.TARGETSEGMENT; 
+
+		size_t Total_NRec = 0; 
+		uint8_t *h2 = (uint8_t*)malloc(22);
+		uint8_t *h3 = (uint8_t*)malloc(40);
+		for (k=0; k<n1; k++) {
+			pos1 = leu32p(hdr->AS.Header+146+k*20);
+			ifseek(hdr, pos1, SEEK_SET);
+			ifread(h2, 1, 22, hdr);
+			n2 = h2[17]; 
+			if (n2>1) {  
+				h2 = (uint8_t*)realloc(h2,2+n2*20);
+				ifread(h2+22, 1, 2+n2*20-22, hdr);
+			}
+/*			
+			hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,(hdr->EVENT.N+n2)*sizeof(typeof(*hdr->EVENT.TYP)));
+			hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,(hdr->EVENT.N+n2)*sizeof(typeof(*hdr->EVENT.POS)));
+			hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,(hdr->EVENT.N+n2)*sizeof(typeof(*hdr->EVENT.CHN)));
+			hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,(hdr->EVENT.N+n2)*sizeof(typeof(*hdr->EVENT.DUR)));
+*/
+			if (n2>1) fprintf(stdout,"EEG1100: more than 1 segment [%i,%i] not supported.\n",n1,n2);
+			for (k2=0; k2<n2; k2++) {
+				pos2 = leu32p(h2 + 18 + k2*20);
+				
+				ifseek(hdr, pos2, SEEK_SET);
+				size_t pos3 = ifread(h3, 1, 40, hdr);
+			
+				uint8_t u8 = h3[20];
+				tm_time.tm_year  = (u8>>4) + (u8 & 0x0f);
+				tm_time.tm_year += (u8>80 ? 2000 : 1900); 
+				u8 = h3[21];
+				tm_time.tm_mon   = (u8>>4) + (u8 & 0x0f) - 1;
+				u8 = h3[22];
+				tm_time.tm_mday  = (u8>>4) + (u8 & 0x0f);
+				u8 = h3[23];
+				tm_time.tm_hour  = (u8>>4) + (u8 & 0x0f);
+				u8 = h3[24];
+				tm_time.tm_min   = (u8>>4) + (u8 & 0x0f);
+				u8 = h3[25];
+				tm_time.tm_sec   = (u8>>4) + (u8 & 0x0f);
+				tm_time.tm_isdst = -1; 
+				typeof(hdr->T0) T0 = tm_time2gdf_time(&tm_time);
+				
+				typeof(hdr->NS) NS = h3[38];
+				typeof(hdr->SampleRate) SampleRate = leu16p(h3+26) & 0x3fff;
+				typeof(hdr->NRec) NRec = leu32p(h3+28) * SampleRate * 0.1;
+				size_t HeadLen = pos2 + 39 + 10*NS;
+/*				
+				hdr->EVENT.TYP[hdr->EVENT.N] = 0x7ffe;
+				hdr->EVENT.POS[hdr->EVENT.N] = Total_NRec;
+				hdr->EVENT.DUR[hdr->EVENT.N] = NRec;
+				hdr->EVENT.CHN[hdr->EVENT.N] = 0;
+				Total_NRec += NRec;
+				hdr->EVENT.N++; 
+*/				
+				--TARGET_SEGMENT;	// decrease target segment counter
+				if (TARGET_SEGMENT != 0) {
+					continue;
+				}	 
+				
+				hdr->T0 = T0;
+				hdr->NS = NS;
+				hdr->SampleRate = SampleRate;
+				hdr->NRec = NRec;
+				hdr->HeadLen = HeadLen;
+				hdr->SPR = 1;
+				
+				// fprintf(stdout,"NK k=%i <%s> k2=%i <%s>\n",k,h2+1,k2,h3+1); 
+				// fprintf(stdout,"[%i %i]:pos=%u (%x) length=%Li(%Lx).\n",k,k2,pos2,pos2,hdr->NRec*(hdr->NS+1)*2,hdr->NRec*(hdr->NS+1)*2);
+
+				h3 = (uint8_t*)realloc(h3,32 + hdr->NS*10);
+				pos3 += ifread(h3+pos3, 1, 32+hdr->NS*10 - pos3, hdr);
+
+				hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+				for (int k3=0; k3<hdr->NS; k3++) {
+					u8 = h3[39+k3*10]; 
+					switch (u8) {
+					case 0: strcpy(hdr->CHANNEL[k3].Label,"Fp1"); break;
+					case 1: strcpy(hdr->CHANNEL[k3].Label,"Fp2"); break;
+					case 2: strcpy(hdr->CHANNEL[k3].Label,"F3"); break;
+					case 3: strcpy(hdr->CHANNEL[k3].Label,"F4"); break;
+					case 4: strcpy(hdr->CHANNEL[k3].Label,"C3"); break;
+					case 5: strcpy(hdr->CHANNEL[k3].Label,"C4"); break;
+					case 6: strcpy(hdr->CHANNEL[k3].Label,"P3"); break;
+					case 7: strcpy(hdr->CHANNEL[k3].Label,"P4"); break;
+					case 8: strcpy(hdr->CHANNEL[k3].Label,"O1"); break;
+					case 9: strcpy(hdr->CHANNEL[k3].Label,"O2"); break;
+					case 10: strcpy(hdr->CHANNEL[k3].Label,"F7"); break;
+					case 11: strcpy(hdr->CHANNEL[k3].Label,"F8"); break;
+					case 12: strcpy(hdr->CHANNEL[k3].Label,"T3"); break;
+					case 13: strcpy(hdr->CHANNEL[k3].Label,"T4"); break;
+					case 14: strcpy(hdr->CHANNEL[k3].Label,"T5"); break;
+					case 15: strcpy(hdr->CHANNEL[k3].Label,"T6"); break;
+					case 16: strcpy(hdr->CHANNEL[k3].Label,"Fz"); break;
+					case 17: strcpy(hdr->CHANNEL[k3].Label,"Cz"); break;
+					case 18: strcpy(hdr->CHANNEL[k3].Label,"Pz"); break;
+					case 19: strcpy(hdr->CHANNEL[k3].Label,"E"); break;
+					case 20: strcpy(hdr->CHANNEL[k3].Label,"PG1"); break;
+					case 21: strcpy(hdr->CHANNEL[k3].Label,"PG2"); break;
+					case 22: strcpy(hdr->CHANNEL[k3].Label,"A1"); break;
+					case 23: strcpy(hdr->CHANNEL[k3].Label,"A2"); break;
+					case 24: strcpy(hdr->CHANNEL[k3].Label,"T1"); break;
+					case 25: strcpy(hdr->CHANNEL[k3].Label,"T2"); break;
+					
+					case 74: strcpy(hdr->CHANNEL[k3].Label,"BN1"); break;
+					case 75: strcpy(hdr->CHANNEL[k3].Label,"BN2"); break;
+					case 76: strcpy(hdr->CHANNEL[k3].Label,"Mark1"); break;
+					case 77: strcpy(hdr->CHANNEL[k3].Label,"Mark2"); break;
+					
+					case 100: strcpy(hdr->CHANNEL[k3].Label,"X12/BP1"); break;
+					case 101: strcpy(hdr->CHANNEL[k3].Label,"X13/BP2"); break;
+					case 102: strcpy(hdr->CHANNEL[k3].Label,"X14/BP3"); break;
+					case 103: strcpy(hdr->CHANNEL[k3].Label,"X15/BP4"); break;
+					
+					case 254: strcpy(hdr->CHANNEL[k3].Label,"-"); break;
+					case 255: strcpy(hdr->CHANNEL[k3].Label,"Z"); break;
+					default: 
+						if 	((25<u8)&&(u8<=36)) sprintf(hdr->CHANNEL[k3].Label,"X%u",u8-25);
+						else if ((36<u8)&&(u8<=41)) strcpy(hdr->CHANNEL[k3].Label,"-");
+						else if ((41<u8)&&(u8<=73)) sprintf(hdr->CHANNEL[k3].Label,"DC%02u",u8-41);
+						else if ((77<u8)&&(u8<=99)) strcpy(hdr->CHANNEL[k3].Label,"-");
+						else if	((103<u8)&&(u8<=254)) sprintf(hdr->CHANNEL[k3].Label,"X%u",u8-88);
+					}	
+					
+					if ((41<u8) && (u8<=73)) {
+						hdr->CHANNEL[k3].PhysDimCode = 4274;	// mV
+						hdr->CHANNEL[k3].PhysMin = -12002.9;
+						hdr->CHANNEL[k3].PhysMax =  12002.56;
+					} else {
+						hdr->CHANNEL[k3].PhysDimCode = 4275;    // uV
+						hdr->CHANNEL[k3].PhysMin = -3200.0;
+						hdr->CHANNEL[k3].PhysMax =  3200.0*((1<<15)-1)/(1<<15);
+					}
+				    	hdr->CHANNEL[k3].GDFTYP = 128;	// Nihon-Kohden int16 format 
+					hdr->CHANNEL[k3].DigMax =  32767.0;
+					hdr->CHANNEL[k3].DigMin = -32768.0;
+/*
+				    	hdr->CHANNEL[k3].GDFTYP = 4;	// FIXME: not clear whether its int16 or uint16
+					hdr->CHANNEL[k3].DigMin =  0;
+					hdr->CHANNEL[k3].DigMax =  0xffff;
+*/
+					hdr->CHANNEL[k3].Cal   	= (hdr->CHANNEL[k3].PhysMax - hdr->CHANNEL[k3].PhysMin) / (hdr->CHANNEL[k3].DigMax - hdr->CHANNEL[k3].DigMin);
+					hdr->CHANNEL[k3].Off   	=  hdr->CHANNEL[k3].PhysMin - hdr->CHANNEL[k3].Cal * hdr->CHANNEL[k3].DigMin;
+					hdr->CHANNEL[k3].SPR    = 1;
+				    	hdr->CHANNEL[k3].LeadIdCode = 0;
+					hdr->CHANNEL[k3].OnOff  = 1;
+					hdr->CHANNEL[k3].Transducer[0] = 0;
+					// hdr->CHANNEL[k3].LowPass  = 0.1;
+					// hdr->CHANNEL[k3].HighPass = 100;
+					// hdr->CHANNEL[k3].Notch    = 0;
+				}
+			}
+	
+		}
+		free(h2); 
+		free(h3); 
+		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
+		hdr->FILE.POS = 0; 
+		// ifclose(hdr);
 	}
 
 	else if (hdr->TYPE==EGI) {
@@ -5364,12 +5600,13 @@ fprintf(stdout,"ASN1 [491]\n");
 			fprintf(stdout,"[190] #%i\n",k);
 			
 		// set HDR.PhysDim - this part will become obsolete 
+/*
 		k1 = hdr->CHANNEL[k].PhysDimCode;
 		if (k1>0)
 			PhysDim(k1,hdr->CHANNEL[k].PhysDim);
 		else 
 			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(hdr->CHANNEL[k].PhysDim);
-
+*/
 		// set HDR.PhysDimCode
 		if (hdr->CHANNEL[k].LeadIdCode == 0) {
 			if (!strncmp(hdr->CHANNEL[k].Label, "MDC_ECG_LEAD_", 13)) {
@@ -5403,6 +5640,8 @@ fprintf(stdout,"ASN1 [491]\n");
 
 	if (hdr->TYPE==BCI2000) 
 		hdr->AS.bpb += BCI2000_StatusVectorLength;
+	else if (hdr->TYPE==EEG1100) 
+		hdr->AS.bpb += 2;
 	else if (hdr->TYPE==EGI) {
 		hdr->AS.bpb += EGI_LENGTH_CODETABLE * GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
 		if (hdr->AS.Header[3] & 0x01)	// triggered  
@@ -6120,8 +6359,8 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
  *
  */
 
-	size_t			count,k1,k2,k3,k4,k5,DIV,SZ,nelem,NS; 
-	int 			GDFTYP;
+	size_t			count,k1,k2,k3,k4,k5,SZ,nelem,NS; 
+	int 			GDFTYP,DIV;
 	uint8_t			*ptr, *buffer;
 	CHANNEL_TYPE		*CHptr;
 	int32_t			int32_value;
@@ -6166,7 +6405,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		// read data
 		count = ifread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr);
 		if (count<nelem)
-			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong\n",count,nelem); 
+			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong (bpb=%i,pos=%i)\n",count,nelem,hdr->AS.bpb,iftell(hdr)); 
 		}
 	}
 	
@@ -6219,7 +6458,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		// get source address 	
 		ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + hdr->AS.bi[k1] + (k5*SZ>>3);
 		bitoff = k5*SZ & 0x07;			
-		union {int16_t i16; uint32_t i32; float f32; uint64_t i64; double f64;} u; 
+		union {int16_t i16; uint16_t u16; uint32_t i32; float f32; uint64_t i64; double f64;} u; 
 /*
 		if (MITTYP==212)
 			; 
@@ -6362,6 +6601,11 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 
+			case 128:	// Nihon-Kohden little-endian int16 format  
+				u.u16 = *(uint16_t*)ptr + 0x8000;
+				sample_value = (biosig_data_type) (u.i16); 
+				break;
+				
 			case (255+12):
 				// assume LITTLE_ENDIAN platform & LITTLE_ENDIAN platform 
 				u.i16 = (leu16p(ptr)>>bitoff) & 0x0FFF;
@@ -6493,7 +6737,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 
 			k2 = ChanList[hdr->EVENT.CHN[k1]]-1;
 			CHptr = hdr->CHANNEL+k2;
-			DIV 	= ceil(hdr->SampleRate/hdr->EVENT.SampleRate); 
+			DIV 	= (int)ceil(hdr->SampleRate/hdr->EVENT.SampleRate); 
 			GDFTYP 	= CHptr->GDFTYP;
 			SZ  	= GDFTYP_BITS[GDFTYP]>>3;
 			int32_value = 0; 
@@ -7270,7 +7514,7 @@ int sflush_gdf_event_table(HDRTYPE* hdr)
 /****************************************************************************/
 HDRTYPE* sload(const char* FileName, size_t ChanList[], biosig_data_type** DATA)
 {
-	size_t k,ch,NS;
+	size_t k,NS;
 	int status;
 	HDRTYPE* hdr; 
 	hdr = sopen(FileName,"r",NULL); 
@@ -7299,8 +7543,8 @@ HDRTYPE* sload(const char* FileName, size_t ChanList[], biosig_data_type** DATA)
 	}
 	*/	
 
-	for (k=0; k<hdr->NS; k++)
-		if (hdr->CHANNEL[ch-1].OnOff) NS++;
+	for (k=0, NS=0; k<hdr->NS; k++)
+		if (hdr->CHANNEL[k-1].OnOff) NS++;
 	
 	*DATA = (biosig_data_type*)realloc(*DATA,hdr->SPR*hdr->NRec*NS*sizeof(biosig_data_type));
 	sread(*DATA,0,hdr->NRec,hdr); 	

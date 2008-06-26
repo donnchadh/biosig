@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.35 2008-06-13 15:08:22 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.36 2008-06-26 09:26:28 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -17,6 +17,8 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define DEBUG
 
 void mexFunction(
     int           nlhs,           /* number of expected outputs */
@@ -35,6 +37,7 @@ void mexFunction(
 	char 		*FileName=NULL;  
 	int 		status; 
 	int		CHAN = 0;
+	int		TARGETSEGMENT = 1; 
 	double		*ChanList=NULL;
 	int		NS = -1;
 	char		FlagOverflowDetection=1, FlagUCAL=0;
@@ -46,14 +49,17 @@ void mexFunction(
 		mexPrintf("   Usage of mexSLOAD:\n");
 		mexPrintf("\t[s,HDR]=sload(f)\n");
 		mexPrintf("\t[s,HDR]=sload(f,chan)\n\t\tchan must be sorted in ascending order\n");
+		mexPrintf("\t[s,HDR]=sload(f,chan,\"...\")\n");
 		mexPrintf("\t[s,HDR]=sload(f,chan,\"OVERFLOWDETECTION:ON\")\n");
 		mexPrintf("\t[s,HDR]=sload(f,chan,\"OVERFLOWDETECTION:OFF\")\n");
 		mexPrintf("\t[s,HDR]=sload(f,chan,\"UCAL:ON\")\n");
 		mexPrintf("\t[s,HDR]=sload(f,chan,\"UCAL:OFF\")\n\n");
+		mexPrintf("\t[s,HDR]=sload(f,chan,\"TARGETSEGMENT:<N>\")\n\n");
 		mexPrintf("   Input:\n\tf\tfilename\n");
 		mexPrintf("\tchan\tlist of selected channels; 0=all channels [default]\n");
 		mexPrintf("\tUCAL\tON: do not calibrate data; default=OFF\n");
 		mexPrintf("\tOVERFLOWDETECTION\tdefault = ON\n\t\tON: values outside dynamic range are not-a-number (NaN)\n");
+		mexPrintf("\tTARGETSEGMENT:<N>\n\t\tselect segment <N> in multisegment files (like Nihon-Khoden), default=1\n\t\tIt has no effect for other data formats.");
 		mexPrintf("   Output:\n\ts\tsignal data, each column is one channel\n");
 		mexPrintf("\tHDR\theader structure\n\n");
 		return; 
@@ -71,7 +77,7 @@ void mexFunction(
 			;
 		else if (mxIsCell(arg))
 #ifdef DEBUG		
-			mexPrintf("arg[%i] IsCell\n",k);
+			mexPrintf("arg[%i] IsCell\n",k)
 #endif
 			;
 		else if (mxIsStruct(arg)) {
@@ -90,7 +96,7 @@ void mexFunction(
 		}	
 		else if (mxIsSingle(arg))
 #ifdef DEBUG		
-			mexPrintf("arg[%i] IsSingle\n",k);
+			mexPrintf("arg[%i] IsSingle\n",k)
 #endif
 			;
 		else if (mxIsChar(arg)) {
@@ -107,6 +113,8 @@ void mexFunction(
 				FlagUCAL = 1;
 			else if (!strcmp(mxArrayToString(prhs[k]),"UCAL:OFF"))
 				FlagUCAL = 0;
+			else if (!strncmp(mxArrayToString(prhs[k]),"TARGETSEGMENT:",14))
+				TARGETSEGMENT = atoi(mxArrayToString(prhs[k])+14);
 		}
 	}
 
@@ -116,10 +124,13 @@ void mexFunction(
 	hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
 	hdr->FLAG.UCAL = FlagUCAL;
 	hdr->FLAG.ROW_BASED_CHANNELS = 0; 
+	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
+
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stderr,"[101] SOPEN-R start\n");
+
 
 	hdr = sopen(FileName, "r", hdr);
-
-	convert2to4_eventtable(hdr); 
 
 	if (hdr->FLAG.OVERFLOWDETECTION != FlagOverflowDetection)
 		mexPrintf("Warning mexSLOAD: Overflowdetection not supported in file %s\n",hdr->FileName);
@@ -146,12 +157,13 @@ void mexFunction(
 		destructHDR(hdr);
 		return; 
 	}
-			
 	if (hdr==NULL) return;
 
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[112] SOPEN-R finished NS=%i %i\n",hdr->NS,NS);
 
+	convert2to4_eventtable(hdr); 
+			
 	if ((NS<0) || ((NS==1) && (ChanList[0] == 0.0))) { 	// all channels
 		for (k=0; k<hdr->NS; ++k)
 			hdr->CHANNEL[k].OnOff = 1; 	// set
