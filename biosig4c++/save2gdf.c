@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.43 2008-05-30 10:25:50 schloegl Exp $
+    $Id: save2gdf.c,v 1.44 2008-06-26 10:42:12 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -42,6 +42,7 @@ int main(int argc, char **argv){
     enum FileFormat SOURCE_TYPE, TARGET_TYPE=GDF; 		// type of file format
     int		COMPRESSION_LEVEL=0;
     int		status, k; 
+    int		TARGETSEGMENT=1; 	// select segment in multi-segment file format EEG1100 (Nihon Kohden)	
 	
     if (argc<2)
     	;
@@ -70,6 +71,7 @@ int main(int argc, char **argv){
 		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF (v2), GDF1 (v1), EDF, BDF, CFWB\n"); 
 		fprintf(stdout,"   -z=#, compression level \n");
 		fprintf(stdout,"\t#=0 no compression; #=9 best compression\n");
+		fprintf(stdout,"   -s=#\tselect target segment # (in the multisegment file format EEG1100)\n");
 		fprintf(stdout,"   -VERBOSE=#, verbosity level #\n\t0=silent, 9=debugging");
 		fprintf(stdout,"\n\n");
 		return(0);
@@ -111,6 +113,9 @@ int main(int argc, char **argv){
 			return(-1);
 		}	
 	}
+    	else if (!strncmp(argv[k],"-s=",3))  	{
+    		TARGETSEGMENT = atoi(argv[k]+3);
+	}
 
 	numopt = k-1;	
 		
@@ -134,17 +139,18 @@ int main(int argc, char **argv){
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[111] SAVE2GDF started\n");
 
 	tzset();
-	hdr = sopen(source, "r", NULL);
+	hdr = constructHDR(0,0);
+	// hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
+	// hdr->FLAG.UCAL = FlagUCAL;
+	// hdr->FLAG.ROW_BASED_CHANNELS = 0; 
+	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
+
+	hdr = sopen(source, "r", hdr);
 	if ((status=serror())) {
 		destructHDR(hdr);
 		exit(status); 
 	} 
 	
-/* obsolete 
-	if (hdr->SPR * hdr->Dur[1] != hdr->SampleRate * hdr->Dur[0])
-		fprintf(stdout,"ERROR SAVE2GDF: SPR=%i Fs=%f Dur=%i/%i\n",hdr->SPR, hdr->SampleRate, hdr->Dur[0], hdr->Dur[1]);
-*/ 
-
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
 	hdr2ascii(hdr,stdout,VERBOSE_LEVEL);
@@ -254,6 +260,8 @@ int main(int argc, char **argv){
 			hdr->CHANNEL[k].DigMax  = MaxValue;
 			hdr->CHANNEL[k].DigMin  = MinValue;
 		}
+		else if ((SOURCE_TYPE==GDF) && (TARGET_TYPE==GDF)) 
+			;
 		else if ((hdr->CHANNEL[k].GDFTYP<10 ) && (TARGET_TYPE==GDF || TARGET_TYPE==CFWB)) {
 			/* heuristic to determine optimal data type */
 			if ((MaxValue <= 127) && (MinValue >= -128))
@@ -268,7 +276,7 @@ int main(int argc, char **argv){
 		    		hdr->CHANNEL[k].GDFTYP = 5;
 			else if ((MaxValue <= ldexp(1.0,32)-1.0) && (MinValue >= 0.0))
 		    		hdr->CHANNEL[k].GDFTYP = 6;
-		}
+		}    		
 		
     		// hdr->CHANNEL[k].GDFTYP = 3;
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"#%3d %d [%f %f][%f %f]\n",k,hdr->CHANNEL[k].GDFTYP,MinValue,MaxValue,PhysMinValue0,PhysMaxValue0);
@@ -283,6 +291,8 @@ int main(int argc, char **argv){
 	    		hdr->CHANNEL[k].DigMax = hdr->CHANNEL[k].PhysMax/hdr->CHANNEL[k].Cal;
 	    		hdr->CHANNEL[k].DigMin = -hdr->CHANNEL[k].DigMax;
 		}
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201]\n");
 
 	/* write file */
 	strcpy(tmp,dest);
@@ -299,7 +309,9 @@ int main(int argc, char **argv){
 		exit(status); 
 	}	
 	if (VERBOSE_LEVEL>8)
-		fprintf(stdout,"\n[221] File %s opened. %i %i \n",hdr->FileName,hdr->AS.bpb,hdr->NS);
+		fprintf(stdout,"\n[221] File %s opened. %i %i %Li\n",hdr->FileName,hdr->AS.bpb,hdr->NS,hdr->NRec);
+
+
 
 	swrite(data, hdr->NRec, hdr);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[231] SWRITE finishes\n");
