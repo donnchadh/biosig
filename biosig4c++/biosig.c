@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.227 2008-06-26 10:42:41 schloegl Exp $
+    $Id: biosig.c,v 1.228 2008-06-27 06:57:07 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1610,7 +1610,6 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	const uint8_t MAGIC_NUMBER_TIFF_l64[] = {73,73,43,0,8,0,0,0};
 	const uint8_t MAGIC_NUMBER_TIFF_b64[] = {77,77,0,43,0,8,0,0};
 	const uint8_t MAGIC_NUMBER_DICOM[]    = {8,0,5,0,10,0,0,0,73,83,79,95,73,82,32,49,48,48};
-	
 
 	size_t k,name=0,ext=0;	
 	for (k=0; hdr->FileName[k]; k++) {
@@ -1646,10 +1645,11 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 		free(AINF_RAW_FILENAME);
 	}
 
-
- 	hdr->AS.Header = (uint8_t*)malloc(352);
         hdr->FILE.COMPRESSION = 0;   	
         hdr   = ifopen(hdr,"rb");
+        if (!hdr->FILE.OPEN) return(hdr); 
+        
+ 	hdr->AS.Header = (uint8_t*)malloc(352);
     	count = ifread(Header1,1,352,hdr);
 
 	if (!memcmp(Header1,MAGIC_NUMBER_GZIP,3)) {
@@ -1711,7 +1711,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     	else if (!memcmp(Header1,"ATES MEDICA SOFT. EEG for Windows",33))
 	    	hdr->TYPE = ATES;
     	else if (!memcmp(Header1,"ATF\x09",4))
-    	        	hdr->TYPE = ATF;
+    	        hdr->TYPE = ATF;
 
     	else if (!memcmp(Header1,"HeaderLen=",10)) {
 	    	hdr->TYPE = BCI2000;
@@ -4167,7 +4167,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
 		hdr->FILE.POS = 0; 
 		if ((numSegments>1) && (hdr->FLAG.TARGETSEGMENT==1))
-			fprintf(stdout,"File %s has more than one segment; use TARGET_SEGMENT argument to select other segments.\n",hdr->FileName); 
+			fprintf(stdout,"File %s has more than one (%i) segment; use TARGET_SEGMENT argument to select other segments.\n",hdr->FileName,numSegments); 
 	}
 
 	else if (hdr->TYPE==EGI) {
