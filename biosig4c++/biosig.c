@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.228 2008-06-27 06:57:07 schloegl Exp $
+    $Id: biosig.c,v 1.229 2008-06-29 00:22:10 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -3941,29 +3941,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	else if (hdr->TYPE==EEG1100) {
 		// the information of this format is derived from nk2edf-0.43beta-src of Teunis van Beelen
 
-		/* read .log */  
 		char *fn = (char*)malloc((strlen(hdr->FileName)+5)*sizeof(char));
 		strcpy(fn,hdr->FileName);
-		char *c = strrchr(fn,'.');
 		uint8_t *LOG=NULL, *PNT=NULL;
-		if (c != NULL) {
-			strcpy(c+1,"log");
-			FILE *fid = fopen(fn,"rb");
-			if (fid == NULL) { 
-				strcpy(c+1,"LOG");
-				FILE *fid = fopen(fn,"rb");
-			}
-			if (fid != NULL) { 
-
-				count = 0; 
-			 	while (~feof(fid)) {
-					LOG = (uint8_t*) realloc(LOG,count+1025);
-					count += fread(LOG+count,1024,1,fid);
-			 	}
-				fclose(fid);
-				LOG[count]=0; 
-			}
-		}
 
 		/* read .pnt */
 			if (strrchr(fn,FILESEP))
@@ -4001,11 +3981,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				tm_time.tm_min   = 0; 
 				tm_time.tm_sec   = 0; 
 				tm_time.tm_year -= 1900;
+				tm_time.tm_mon--; 
 				tm_time.tm_isdst = -1; 
 				hdr->Patient.Birthday = tm_time2gdf_time(&tm_time);
 				
 			}
-		free(fn);
+
 
 		size_t n1,n2,pos1,pos2;
 		n1 = hdr->AS.Header[145];
@@ -4168,6 +4149,60 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FILE.POS = 0; 
 		if ((numSegments>1) && (hdr->FLAG.TARGETSEGMENT==1))
 			fprintf(stdout,"File %s has more than one (%i) segment; use TARGET_SEGMENT argument to select other segments.\n",hdr->FileName,numSegments); 
+
+
+		/* read .log */  
+		char *c = strrchr(fn,'.');
+		if (c != NULL) {
+			strcpy(c+1,"log");
+			FILE *fid = fopen(fn,"rb");
+			if (fid == NULL) { 
+				strcpy(c+1,"LOG");
+				fid = fopen(fn,"rb");
+			}
+			if (fid != NULL) { 
+
+				count = 0; 
+			 	while (!feof(fid)) {
+					LOG = (uint8_t*) realloc(LOG,count+11521);
+					count += fread(LOG+count,1,11520,fid);
+			 	}
+				fclose(fid);
+				LOG[count]=0; 
+				
+				for (k=0; k<LOG[145]; k++) {
+					int lba = leu32p(LOG+146+k*20);
+					int N = LOG[lba+18]; 
+					hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,(hdr->EVENT.N+N)*sizeof(typeof(*hdr->EVENT.TYP)));
+					hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,(hdr->EVENT.N+N)*sizeof(typeof(*hdr->EVENT.POS)));
+					hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,(hdr->EVENT.N+N)*sizeof(typeof(*hdr->EVENT.CHN)));
+					hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,(hdr->EVENT.N+N)*sizeof(typeof(*hdr->EVENT.DUR)));
+					for (k1=0; k1<N; k1++) {
+						FreeTextEvent(hdr,hdr->EVENT.N,(char*)(LOG+lba+20+k1*45));
+						// fprintf(stdout,"%s %s\n",(char*)(LOG+lba+20+k1*45),(char*)(LOG+lba+40+k1*45));
+						sscanf((char*)(LOG+lba+46+k1*45),"(%02u%02u%02u%02u%02u%02u)",&tm_time.tm_year,&tm_time.tm_mon,&tm_time.tm_mday,&tm_time.tm_hour,&tm_time.tm_min,&tm_time.tm_sec);
+						tm_time.tm_year += tm_time.tm_year<20 ? 100:0;
+						tm_time.tm_mon--;	// Jan=0, Feb=1, ...
+						gdf_time t0 = tm_time2gdf_time(&tm_time);
+						
+						time_t t;
+						t= gdf_time2t_time(hdr->T0);
+						t= gdf_time2t_time(t0);
+
+//						if (t0 >= hdr->T0) 
+						{
+							hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(ldexp(t0 - hdr->T0,-32)*24*3600*hdr->SampleRate);
+							//hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(atoi(strtok((char*)(LOG+lba+40+k1*45),"("))*hdr->SampleRate);
+							hdr->EVENT.DUR[hdr->EVENT.N] = 0; 
+							hdr->EVENT.CHN[hdr->EVENT.N] = 0;
+							hdr->EVENT.N++;
+						}	
+					}
+				}
+			}
+		}
+		hdr->AS.auxBUF = LOG; 
+		free(fn);
 	}
 
 	else if (hdr->TYPE==EGI) {
@@ -4420,7 +4455,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->FILE.POS = 0; 
 	}
 
-/* TODO 
     	else if (hdr->TYPE==FEF) {
     		tmp[8] = 0;
     		memcpy(tmp, hdr->AS.Header+8, 8);
@@ -4438,7 +4472,6 @@ fprintf(stdout,"ASN1 [491]\n");
 		return(hdr); 	
 		
 	}
-*/ 
 
     	else if (hdr->TYPE==HDF) {
 #ifdef _HDF5_H
