@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.229 2008-06-29 00:22:10 schloegl Exp $
+    $Id: biosig.c,v 1.230 2008-07-01 08:13:06 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -4462,11 +4462,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		memcpy(tmp, hdr->AS.Header+24, 8);
     		hdr->FILE.LittleEndian = !atol(tmp); 
     		ifseek(hdr,32,SEEK_SET);
-
+/*
 fprintf(stdout,"ASN1 [401]\n");
 		sopen_asn1(hdr);
 fprintf(stdout,"ASN1 [491]\n");
-
+*/
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "VITAL/FEF Format not supported\n";
 		return(hdr); 	
