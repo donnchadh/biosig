@@ -3,24 +3,22 @@
 %    and it tests also Matlab/Octave for its correctness. 
 % 
 
-%	$Id: demo3.m,v 1.11 2007-07-30 09:51:17 schloegl Exp $
-%	Copyright (C) 2000-2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: demo3.m,v 1.12 2008-07-02 08:46:43 schloegl Exp $
+%	Copyright (C) 2000-2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
-
-% This library is free software; you can redistribute it and/or
-% modify it under the terms of the GNU Library General Public
-% License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
 %
-% This library is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-% Library General Public License for more details.
+%    BioSig is free software: you can redistribute it and/or modify
+%    it under the terms of the GNU General Public License as published by
+%    the Free Software Foundation, either version 3 of the License, or
+%    (at your option) any later version.
 %
-% You should have received a copy of the GNU Library General Public
-% License along with this library; if not, write to the
-% Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-% Boston, MA  02111-1307, USA.
+%    BioSig is distributed in the hope that it will be useful,
+%    but WITHOUT ANY WARRANTY; without even the implied warranty of
+%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%    GNU General Public License for more details.
+%
+%    You should have received a copy of the GNU General Public License
+%    along with BioSig.  If not, see <http://www.gnu.org/licenses/>.
 
 x = randn(10000,6)+(1:1e4)'*ones(1,6); % test data
 x = (1:1e4)'*ones(1,6)/1000; % test data
@@ -70,7 +68,7 @@ HDR.SampleRate = 1000;
 HDR.Label=['chan 1  ';'chan 2  ';'chan 3  ';'chan 4  ';'chan 5  ';'NEQS    '];
 
 % Transducer, mx 80 char per channel
-HDR.Transducer = ['Ag-AgCl ';'Airflow ';'xyz     ';'        ';'        ';'Thermome'];
+HDR.Transducer = {'Ag-AgCl ';'Airflow ';'xyz     ';'        ';'        ';'Thermome'};
 
 % define datatypes (GDF only, see GDFDATATYPE.M for more details)
 HDR.GDFTYP = 3*ones(1,HDR.NS);
@@ -86,7 +84,7 @@ HDR.Filter.Notch = [0,0,0,0,0,0];
 
 
 % define physical dimension
-HDR.PhysDim = strvcat({'uV';'mV';'%';'-  ';'-  ';'°C '});
+HDR.PhysDim = {'uV';'mV';'%';'-';'-';'°C'};
 
 t = [100:100:size(x,1)]';
 %HDR.NRec = 100;
