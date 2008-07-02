@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.218 2008-07-01 13:15:07 schloegl Exp $
+%	$Id: sopen.m,v 1.219 2008-07-02 07:09:17 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -9050,7 +9050,7 @@ elseif strcmp(HDR.TYPE,'ASCII:IBI')
 	HDR.EVENT.TYP = [];
 	DescList = {};
 %%	while (~isempty(line))
-	while (~feof(fid))
+	while (length(line)>5)
 		if ((line(1)<'0') || (line(1)>'9'))
 			f=deblank(strtok(line,':'));
 			v=deblank(strtok(line,':'));
