@@ -18,9 +18,9 @@ function [X] = heartratevariability(RRI,arg2)
 %
 % OUTPUT
 %   X  		struct containing the results as defined by [1]
-%   X.meanRR      meanRR = meanNN
+%   X.meanRR      	meanRR = meanNN
 %   X.SDRR		standard deviaation of RR intervales
-%   X.RMSSD       rmsSD = SDSD
+%   X.RMSSD       	rmsSD = SDSD
 %     NN50count1
 %     NN50count2
 %     NN50count
@@ -36,6 +36,12 @@ function [X] = heartratevariability(RRI,arg2)
 %   X.LFnu              normalized units of LF power (0.04-0.15 Hz)
 %   X.HFnu              normalized units of HF power  (0.15-0.4 Hz)
 %
+% The spectral estimates are based on an autoregressive spectrum estimator 
+% of the data which is oversampled by a factor of 4 using the Berger method.  
+% The default model order is 15. In order to change these default settings, 
+% change in the source code line 194 (oversampling factor) and/or 
+% line 214 (order of the autoregressive model); 
+%
 % see also: QRSDETECT, BERGER, EVENTCODES.TXT
 %
 % Reference(s):
@@ -47,8 +53,8 @@ function [X] = heartratevariability(RRI,arg2)
 %	Do Existing Measures of Poincaré Plot Geometriy Reflect Nonlinear Features of Heart Rate Variablilty?
 %	IEEE Trans Biomedical Eng. 48(11),2001, 
 
-%	$Id: heartratevariability.m,v 1.5 2006-09-20 12:46:44 schloegl Exp $
-%	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: heartratevariability.m,v 1.6 2008-07-02 07:49:20 schloegl Exp $
+%	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -132,7 +138,7 @@ end;
 
 if nargout<1,
 	% scatterplot for testing of the distribution 
-	plot(RRI(1:end-1),RRI(2:end),'x');drawnow;
+	plot(NN(1:end-1),NN(2:end),'x');drawnow;
 	return;
 end;
 
@@ -185,7 +191,7 @@ elseif 0,
 	[y,m] = center(y); 
 	f0= 1/(m*t_scale)
 else
-	f0 = 4; 
+	f0 = 4*1000/X.meanNN;		%% four-times oversampling 
         [hrv,y] = berger(on*t_scale,f0); % resampleing 
 	[y,m] = center(y/t_scale); 
 end;
@@ -198,9 +204,11 @@ pmax = 100;
 n = sum(~isnan(y));
 [FPE,AIC,BIC,SBC,MDL,CAT,PHI,optFPE,optAIC,optBIC,optSBC,optMDL,optCAT,optPHI]=selmo(pe/pe(1),n);
 X.mops = [optFPE,optAIC,optBIC,optSBC,optMDL,optCAT,optPHI]; 
-% select model order 
+
+
+% select model order - vary the model order in order to check how robust the results are with respect to the model order  
 X.mop = optBIC;
-X.mop = optAIC; 
+%X.mop = optAIC; 
 X.mop = 15;
 [a,r] = arcext(mx,X.mop);
 
