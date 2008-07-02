@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.230 2008-07-01 08:13:06 schloegl Exp $
+    $Id: biosig.c,v 1.231 2008-07-02 07:05:41 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1061,9 +1061,9 @@ void convert2to4_eventtable(HDRTYPE *hdr) {
 
 	for (k1=0; k1<N; k1++) {
 		typeof(*hdr->EVENT.TYP) typ =  hdr->EVENT.TYP[k1];
-		if ((typ < 0x8000) && typ  && !hdr->EVENT.DUR[k1])
+		if ((typ < 0x8000) && (typ>0)  && !hdr->EVENT.DUR[k1])
 		for (k2 = k1+1; k2<N; k2++) {
-			if (typ ==  (hdr->EVENT.TYP[k2] & 0x7fff)) {
+			if ((typ|0x8000) == hdr->EVENT.TYP[k2]) {
 				hdr->EVENT.DUR[k1] = hdr->EVENT.POS[k2] - hdr->EVENT.POS[k1]; 
 				hdr->EVENT.TYP[k2] = 0;
 				break; 
@@ -5549,30 +5549,37 @@ fprintf(stdout,"ASN1 [491]\n");
 		char desc[80];
 		ifgets(line,80,hdr);
 		size_t N = 0; 
-		hdr->EVENT.N = 1l<<12; 
- 		hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
-		hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
+		hdr->EVENT.N = 0; 
 		while (!ifeof(hdr) && strlen(line)) {
+
 			if (isdigit(line[0])) {
 				struct tm t; 
 				int ms,rri;
-				sscanf(line,"%02u-%02u-%02u %02u:%02u:%02u %03u %s %i",&t.tm_mday,&t.tm_mon,&t.tm_year,&t.tm_hour,&t.tm_min,&t.tm_sec,&ms,desc,&rri);
+				
+				sscanf(line,"%02u-%02u-%02u %02u:%02u:%02u %03u %s %u",&t.tm_mday,&t.tm_mon,&t.tm_year,&t.tm_hour,&t.tm_min,&t.tm_sec,&ms,desc,&rri);
+
+				if (N+1 >= hdr->EVENT.N) {
+					hdr->EVENT.N  += 4096; 
+			 		hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
+					hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
+				}
 				if (N==0) {
 					hdr->T0 = (gdf_time)(tm_time2gdf_time(&t) + ldexp((ms-rri)/(24*3600*1e3),32)); 
 					hdr->EVENT.POS[0] = 0;
 					hdr->EVENT.TYP[0] = 0x0501;
 					hdr->EVENT.POS[1] = rri;
 					hdr->EVENT.TYP[1] = 0x0501;
-					N = 2;
-				};
-				if (N+1 >= hdr->EVENT.N) {
-					hdr->EVENT.N  += 1l<<12; 
-			 		hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
-					hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
-				}
-				hdr->EVENT.POS[N] = hdr->EVENT.POS[N-1] + rri;
-				/* TODO: fix TYP */
-				hdr->EVENT.TYP[N] = 0x0501;
+					N = 1;
+				} 
+				else {
+					hdr->EVENT.POS[N] = hdr->EVENT.POS[N-1] + rri;
+				}	
+
+				if (!strcmp(desc,"IBI"))
+					hdr->EVENT.TYP[N] = 0x0501;
+				else
+					FreeTextEvent(hdr,N,desc);	
+
 				++N;
 			}
 			else {
