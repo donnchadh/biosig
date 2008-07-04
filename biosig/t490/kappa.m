@@ -1,9 +1,12 @@
-function [kap,se,H,z,p0,SA,R]=kappa(d,c,kk);
+function [kap,se,H,z,p0,SA,R]=kappa(d,c,arg3);
 % KAPPA estimates Cohen's kappa coefficient
 %   and related statistics 
 %
-% [kap,sd,H,z,ACC,sACC,MI] = kappa(d1,d2);
-% [kap,sd,H,z,ACC,sACC,MI] = kappa(H);
+% [...] = kappa(d1,d2);
+%	NaN's are handled as missing values and are ignored
+% [...] = kappa(d1,d2,'notIgnoreNAN');
+%	NaN's are handled as just another Label.
+% [kap,sd,H,z,ACC,sACC,MI] = kappa(...);
 % X = kappa(...);
 %
 % d1    data of scorer 1 
@@ -29,43 +32,64 @@ function [kap,se,H,z,p0,SA,R]=kappa(d,c,kk);
 %
 %  
 
-%	$Revision: 1.8 $
-%	$Id: kappa.m,v 1.8 2007-12-03 19:19:49 schloegl Exp $
-%	Copyright (c) 1997-2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: kappa.m,v 1.9 2008-07-04 10:11:21 schloegl Exp $
+%	Copyright (c) 1997-2006,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%
+%    BioSig is free software: you can redistribute it and/or modify
+%    it under the terms of the GNU General Public License as published by
+%    the Free Software Foundation, either version 3 of the License, or
+%    (at your option) any later version.
+%
+%    BioSig is distributed in the hope that it will be useful,
+%    but WITHOUT ANY WARRANTY; without even the implied warranty of
+%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%    GNU General Public License for more details.
+%
+%    You should have received a copy of the GNU General Public License
+%    along with BioSig.  If not, see <http://www.gnu.org/licenses/>.
 
-% This library is free software; you can redistribute it and/or
-% modify it under the terms of the GNU Library General Public
-% License as published by the Free Software Foundation; either
-% version 2 of the License, or (at your option) any later version.
-%
-% This library is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-% Library General Public License for more details.
-%
-% You should have received a copy of the GNU Library General Public
-% License along with this library; if not, write to the
-% Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-% Boston, MA  02111-1307, USA.
-%
+
+mode.ignoreNAN = 1; 
+kk = [];
+if nargin>2
+	if ischar(arg3)
+		if strcmpi(arg3,'notIgnoreNAN')
+			mode.ignoreNAN = 0; 
+		 end
+	else 
+		kk = arg3; 
+	end
+end; 		 
+
 
 if nargin>1,
-        [dr,dc] = size(d);
-    	[cr,cc] = size(c);
-
-	[X.Label,i,j]=unique([d(:);c(:)]); 
+	d = d(:);
+	c = c(:);
+	
+	if mode.ignoreNAN,
+		if any(isnan([d;c]))
+               		fprintf(2,'Warning KAPPA: some elements are NaN. These are handled as missing values and are ignored.\n');
+               		fprintf(2,'If NaN should be handled as just another label, use kappa(..,''notIgnoreNaN'').\n');
+			ix = find(~isnan(c) & ~isnan(d));
+			d = d(ix); c=c(ix);
+		end;
+		[X.Label,i,j]   = unique([d;c]);
+	else 
+		tmp = [d;c]; 		 
+		tmp(isnan(tmp))=max(tmp)+1;
+		[X.Label,i,j]   = unique(tmp);
+		X.Label(end)=NaN; 
+	end;
+	[X.Label,i,j]   = unique([d;c]);
 	c = j(1+numel(d):end); 
 	d = j(1:numel(d)); 
 	
-
-    	N  = min(cr,dr); % number of examples
-    	N  = sum(isfinite(d) & isfinite(c));
+    	N  = length(d);
     	ku = max([d;c]); % upper range
     	kl = min([d;c]); % lower range
-    
 	
-    	if (nargin<3),
+    	if isempty(kk),
             	kk = length(X.Label);  	% maximum element
     	else
             	if kk<ku;  	% maximum element
@@ -124,8 +148,8 @@ if ((1 < nargout) & (nargout<7)) return; end;
 pwi = sum(H,2)/N;                       % p(x_i)
 pwj = sum(H,1)/N;                       % p(y_j)
 pji = H./repmat(sum(H,2),1,size(H,2));  % p(y_j | x_i) 
-pwj(pwj==0) = 1;                        % make sure p*log2(p) is 0, this avoids NaN's 
-pji(pji==0) = 1;                        % make sure p*log2(p) is 0, this avoids NaN's 
+pwj(pwj==0) = 1                        % make sure p*log2(p) is 0, this avoids NaN's 
+pji(pji==0) = 1                        % make sure p*log2(p) is 0, this avoids NaN's 
 R   = - sum(pwj.*log2(pwj)) + sum(pwi'*(pji.*log2(pji)));
 
 if (nargout>1) return; end; 
