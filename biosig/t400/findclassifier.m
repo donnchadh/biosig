@@ -42,7 +42,7 @@ function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
 %	(Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller;
 %	Towards Brain-Computer Interfacing, MIT press (accepted)
 
-%   $Id: findclassifier.m,v 1.10 2006-11-28 08:38:58 schloegl Exp $
+%   $Id: findclassifier.m,v 1.11 2008-07-04 09:26:58 schloegl Exp $
 %   Copyright (C) 1999-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -100,9 +100,9 @@ if size(cl,2)>1,
 else
         cl2 = [1:length(cl)]';  % each trial is a group (important for cross-validation); Trial-based LOOM  
 end;
-CL = unique(cl);
+[CL,i,cl] = unique(cl);
 CL2 = unique(cl2);
-[CL,iCL] = sort(CL);
+%[CL,iCL] = sort(CL);
 
 % add sufficient NaNs at the beginning and the end 
 tmp = min(TRIG)+min(min(T))-1;
@@ -122,9 +122,11 @@ for k = 1:size(T,1),
         if t0(k),
                 c = []; d = [];
                 for k1 = 1:length(CL), 
-                        t = perm(TRIG(cl==CL(k1)),T(k,:));
+                        %t = perm(TRIG(cl==CL(k1)),T(k,:));
+                        t = perm(TRIG(cl==k1),T(k,:));
                         d = [d; D(t(:),:)];
-                        c = [c; repmat(CL(k1),prod(size(t)),1)];
+                        %c = [c; repmat(CL(k1),prod(size(t)),1)];
+                        c = [c; repmat(k1,prod(size(t)),1)];
                 end;
                 cc{k} = train_sc(d,c,MODE);
                 r     = test_sc(cc{k},d,MODE,c);
@@ -152,7 +154,7 @@ tsd = repmat(nan,[nc*length(TRIG),M]);
 tt  = tsd(:,1);
 IX  = find(~isnan(cl(:)'));
 
-for l = 1:length(CL2);          % XV based on "Leave-One(group)-Out-Method" 
+for l = 1:length(CL2);        % XV based on "Leave-One(group)-Out-Method" 
         ix = find(cl2==CL2(l));         % identify members of l-th group 
         t  = perm(TRIG(ix), T(CC.TI,:));        % get samples of test set
 
@@ -185,5 +187,6 @@ for l = 1:length(CL2);          % XV based on "Leave-One(group)-Out-Method"
         tsd(ix(:),1:M) = r.output(:,1:M);                                % save results of l-th group
 end; 
 
-CC.TSD  = bci4eval(tsd, (0:length(cl)-1)'*nc, cl, 1, nc);
+%CC.TSD  = bci4eval(tsd, (0:length(cl)-1)'*nc, cl, 1, nc);
+CC.TSD  = bci4eval(tsd, (0:length(cl)-1)'*nc, CL(cl), 1, nc);
 CC.TSD.T = CC.TSD.T - 1 + min(T(:));
