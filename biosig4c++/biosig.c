@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.231 2008-07-02 07:05:41 schloegl Exp $
+    $Id: biosig.c,v 1.232 2008-07-07 12:16:13 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -5557,6 +5557,9 @@ fprintf(stdout,"ASN1 [491]\n");
 				int ms,rri;
 				
 				sscanf(line,"%02u-%02u-%02u %02u:%02u:%02u %03u %s %u",&t.tm_mday,&t.tm_mon,&t.tm_year,&t.tm_hour,&t.tm_min,&t.tm_sec,&ms,desc,&rri);
+				if (t.tm_year<1970) t.tm_year+=100; 
+				t.tm_mon--;
+				t.tm_isdst = -1; 
 
 				if (N+1 >= hdr->EVENT.N) {
 					hdr->EVENT.N  += 4096; 
@@ -5604,6 +5607,9 @@ fprintf(stdout,"ASN1 [491]\n");
 
 	else if (hdr->TYPE==HL7aECG) {
 		sopen_HL7aECG_read(hdr);
+		if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"[181] #%i\n",hdr->NS);
+		
     		if (serror()) return(hdr);
     		// hdr->FLAG.SWAP = 0; 
 		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN); 
@@ -5618,6 +5624,9 @@ fprintf(stdout,"ASN1 [491]\n");
 
 	hdr->FILE.POS = 0; 
 
+	if (VERBOSE_LEVEL>7)
+		fprintf(stdout,"[189] #%i\n",hdr->NS);
+		
 	for (k=0; k<hdr->NS; k++) {	
 		if (VERBOSE_LEVEL>7)
 			fprintf(stdout,"[190] #%i\n",k);
@@ -5717,7 +5726,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
      	typeof(hdr->NS)  NS = 0;
 	for (k=0; k<hdr->NS; k++) 
 		if (hdr->CHANNEL[k].OnOff) NS++;
-		// else hdr->CHANNEL[k].SPR = 0;
 		
     	if (hdr->TYPE==CFWB) {	
 	     	hdr->HeadLen = 68 + NS*96;
@@ -5739,7 +5747,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    	*(uint32_t*)(Header1+32) = l_endian_u32(t->tm_min);
 	    	*(double*)  (Header1+36) = l_endian_f64(t->tm_sec);
 	    	*(double*)  (Header1+44) = l_endian_f64(0.0);	// pretrigger time 
-	    	*(uint32_t*)(Header1+52) = l_endian_u32(hdr->NS);
+	    	*(uint32_t*)(Header1+52) = l_endian_u32(NS);
 	    	hdr->NRec *= hdr->SPR; hdr->SPR = 1;
 	    	*(uint32_t*)(Header1+56) = l_endian_u32(hdr->NRec); // number of samples 
 	    	*(int32_t*) (Header1+60) = l_endian_i32(0);	// 1: time channel
