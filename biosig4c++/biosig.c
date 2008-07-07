@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.232 2008-07-07 12:16:13 schloegl Exp $
+    $Id: biosig.c,v 1.233 2008-07-07 14:10:24 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2473,19 +2473,21 @@ if (!strncmp(MODE,"r",1))
 		    		t1.tm_min  = 0;
 		    		t1.tm_hour = 12;
 		    		t1.tm_isdst= -1;
-		    		hdr->Patient.Birthday = t_time2gdf_time(mktime(&t1));
+		    		hdr->Patient.Birthday = tm_time2gdf_time(&t1);
 		    	}
 
 	    		strtok(hdr->ID.Recording," ");
 	    		ptr_str = strtok(NULL," ");
-	    		tm_time.tm_mday = atoi(strtok(ptr_str,"-")); 
+			// check EDF+ Startdate against T0 
+	    		if (tm_time.tm_mday != atoi(strtok(ptr_str,"-")))
+	    			fprintf(stderr,"Warning SOPEN(EDF+): Day-of-the-Month currupted\n"); 
+
 	    		strcpy(tmp,strtok(NULL,"-"));
-	    		for (k=0;k<strlen(tmp); ++k); tmp[k]= toupper(tmp[k]);	// convert to uppper case 
 	    		tm_time.tm_year = atoi(strtok(NULL,"-")) - 1900; 
-	    		tm_time.tm_mon  = !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11;
-	    		tm_time.tm_sec  = 0;
-	    		tm_time.tm_min  = 0;
-	    		tm_time.tm_hour = 12;
+
+	    		for (k=0;k<strlen(tmp); ++k); tmp[k]= toupper(tmp[k]);	// convert to uppper case 
+	    		if (tm_time.tm_mon != !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11);
+	    			fprintf(stderr,"Warning SOPEN(EDF+): Month currupted\n"); 
 	    		tm_time.tm_isdst= -1;
 		}   
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
@@ -5739,7 +5741,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			fprintf(stdout,"CFWB\n");	
 
 		tt = gdf_time2t_time(hdr->T0); 
-		struct tm *t = gmtime(&tt);
+		struct tm *t = localtime(&tt);
     		*(uint32_t*)(Header1+16) = l_endian_u32(t->tm_year + 1900);
 	    	*(uint32_t*)(Header1+20) = l_endian_u32(t->tm_mon + 1);
 	    	*(uint32_t*)(Header1+24) = l_endian_u32(t->tm_mday);
@@ -5860,7 +5862,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		
 		if (hdr->VERSION<1.90) { 
 			tt = gdf_time2t_time(hdr->T0); 
-			struct tm *t = gmtime(&tt);
+			struct tm *t = localtime(&tt);
 			sprintf(tmp,"%04i%02i%02i%02i%02i%02i00",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
 			memcpy(Header1+168,tmp,max(strlen(tmp),16));
 			*(uint32_t*) (Header1+184) = l_endian_u32(hdr->HeadLen);
@@ -6011,7 +6013,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	}
 
 		tt = gdf_time2t_time(hdr->Patient.Birthday); 
-		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",gmtime(&tt));
+		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",localtime(&tt));
 		else strcpy(tmp,"X");	
 		
 		if (strlen(hdr->Patient.Id) > 0) 
@@ -6028,14 +6030,14 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	memcpy(Header1+8, cmd, strlen(cmd));
 	     	
 		tt = gdf_time2t_time(hdr->T0); 
-		if (hdr->T0>1) strftime(tmp,81,"%d-%b-%Y",gmtime(&tt));
+		if (hdr->T0>1) strftime(tmp,81,"%d-%b-%Y",localtime(&tt));
 		else strcpy(tmp,"X");	
 		size_t len = sprintf(cmd,"Startdate %s X X ",tmp);
 	     	memcpy(Header1+88, cmd, len);
 	     	memcpy(Header1+88+len, &hdr->ID.Equipment, 8);
 	     
 		tt = gdf_time2t_time(hdr->T0); 
-		strftime(tmp,81,"%d.%m.%y%H.%M.%S",gmtime(&tt));
+		strftime(tmp,81,"%d.%m.%y%H.%M.%S",localtime(&tt));
 	     	memcpy(Header1+168, tmp, 16);
 
 		len = sprintf(tmp,"%i",hdr->HeadLen);
@@ -6223,7 +6225,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		tag = 131;
 		len = 7;
 		tt = gdf_time2t_time(hdr->T0); 
-		struct tm *t = gmtime(&tt);
+		struct tm *t = localtime(&tt);
 		Header1[curPos++] = tag; 
 		Header1[curPos++] = len; 
 		*(Header1+curPos) = (uint8_t)((hdr->T0 - hdr->Patient.Birthday)/365.25); 
@@ -7597,6 +7599,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 {
 	CHANNEL_TYPE* 	cp; 
 	time_t  	T0;
+	float		age;
 
 	LoadGlobalEventCodeTable(); 
 
@@ -7619,8 +7622,13 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		fprintf(fid,"\tSerialNumber    : %s\n",hdr->ID.Manufacturer.SerialNumber);
 		fprintf(fid,"Patient:\n\tID              : %s\n",hdr->Patient.Id); 
 		if (hdr->Patient.Name!=NULL)
-			fprintf(fid,"\tName            : %s\n",hdr->Patient.Name); 
-		float age = (hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32); 
+			fprintf(fid,"\tName            : %s\n",hdr->Patient.Name);
+	
+		if (hdr->Patient.Birthday>0)
+			age = (hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32);
+		else	
+			age = NaN;
+			 
 		if (hdr->Patient.Height)
 			fprintf(fid,"\tHeight          : %i cm\n",hdr->Patient.Height); 
 		if (hdr->Patient.Height)
