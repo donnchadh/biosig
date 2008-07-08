@@ -27,7 +27,7 @@ function [argout,H1,h2] = hdr2ascii(source,dest)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: hdr2ascii.m,v 1.7 2008-07-08 15:12:52 schloegl Exp $
+%	$Id: hdr2ascii.m,v 1.8 2008-07-08 15:32:10 schloegl Exp $
 %	(C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -187,6 +187,8 @@ for k = 1:length(HDR.EVENT.POS);
 	if HDR.EVENT.TYP(k)==hex2dec('7fff'),
 		ch = HDR.EVENT.CHN(k);
 		fprintf(fid,'\t%f %s',[1,HDR.EVENT.DUR(k)]*HDR.Calib([1,ch+1],ch),HDR.PhysDim{ch}); 
+	elseif HDR.EVENT.TYP(k)==0,
+		;
 	elseif isfield(HDR.EVENT,'CodeDesc') && (HDR.EVENT.TYP(k)<=length(HDR.EVENT.CodeDesc))
 		fprintf(fid,'\t%s',HDR.EVENT.CodeDesc{HDR.EVENT.TYP(k)});
 	else
