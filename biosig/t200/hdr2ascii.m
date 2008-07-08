@@ -27,7 +27,7 @@ function [argout,H1,h2] = hdr2ascii(source,dest)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: hdr2ascii.m,v 1.6 2008-05-28 09:47:38 schloegl Exp $
+%	$Id: hdr2ascii.m,v 1.7 2008-07-08 15:12:52 schloegl Exp $
 %	(C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -161,7 +161,7 @@ end;
 
 %%%%%%%%%% EVENTTABLE %%%%%%%%%%%%%%%55
 fprintf(fid,'\n[Event Table]\n'); 
-fprintf(fid,'NumberOfEvents=%i\n   TYP\t   POS ',length(HDR.EVENT.POS)); 
+fprintf(fid,'NumberOfEvents=%i  SampleRate=%f\n   TYP\t   POS ',length(HDR.EVENT.POS),HDR.EVENT.SampleRate); 
 if isfield(HDR.EVENT,'CHN')
 	fprintf(fid,'\tCHN\tDUR/VAL'); 
 end; 
@@ -187,8 +187,8 @@ for k = 1:length(HDR.EVENT.POS);
 	if HDR.EVENT.TYP(k)==hex2dec('7fff'),
 		ch = HDR.EVENT.CHN(k);
 		fprintf(fid,'\t%f %s',[1,HDR.EVENT.DUR(k)]*HDR.Calib([1,ch+1],ch),HDR.PhysDim{ch}); 
-	elseif isfield(HDR.EVENT,'CodeDesc') && (HDR.EVENT.TYP(k)<length(HDR.EVENT.CodeDesc))
-		fprintf(fid,'\t%s',HDR.EVENT.CodeDesc{HDR.EVENT.TYP(k)+1});
+	elseif isfield(HDR.EVENT,'CodeDesc') && (HDR.EVENT.TYP(k)<=length(HDR.EVENT.CodeDesc))
+		fprintf(fid,'\t%s',HDR.EVENT.CodeDesc{HDR.EVENT.TYP(k)});
 	else
 		ix = find(HDR.EVENT.TYP(k)==BIOSIG_GLOBAL.EVENT.CodeIndex);
 		if length(ix)==1,
