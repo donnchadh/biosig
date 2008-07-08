@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.108 2008-06-26 09:26:28 schloegl Exp $
+% $Id: biosig.h,v 1.109 2008-07-08 15:18:46 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -246,7 +246,7 @@ typedef struct {
 		} Impairment;
 		
 	} Patient ATT_ALI; 
-	
+
 	struct {
 		char		Recording[MAX_LENGTH_RID+1]; 	/* HL7, EDF, GDF, BDF replaces HDR.AS.RID */
 		char* 		Technician; 	
@@ -294,6 +294,10 @@ typedef struct {
 		char		TARGETSEGMENT; /* in multi-segment files (like Nihon-Khoden, EEG1100), it is used to select a segment */ 
 	} FLAG ATT_ALI; 
 
+	CHANNEL_TYPE 	*CHANNEL ATT_ALI;  
+		// moving CHANNEL after the next struct (HDR.FILE) gives problems at AMD64 MEX-file. 
+		// perhaps some alignment problem. 
+	
 	struct {	/* File specific data  */
 #ifdef ZLIB_H
 		gzFile		gzFID;
@@ -324,8 +328,6 @@ typedef struct {
 		char*		bci2000;
 	} AS ATT_ALI;
 	
-	CHANNEL_TYPE 	*CHANNEL ATT_ALI;  
-
 	void *aECG;
 	
 } HDRTYPE;
