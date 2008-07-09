@@ -60,23 +60,23 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.60 2008-05-27 06:53:12 schloegl Exp $
+%	$Id: plota.m,v 1.61 2008-07-09 10:05:57 schloegl Exp $
 %	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%
+%    BioSig is free software: you can redistribute it and/or modify
+%    it under the terms of the GNU General Public License as published by
+%    the Free Software Foundation, either version 3 of the License, or
+%    (at your option) any later version.
+%
+%    BioSig is distributed in the hope that it will be useful,
+%    but WITHOUT ANY WARRANTY; without even the implied warranty of
+%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%    GNU General Public License for more details.
+%
+%    You should have received a copy of the GNU General Public License
+%    along with BioSig.  If not, see <http://www.gnu.org/licenses/>.
 
-% This program is free software; you can redistribute it and/or
-% modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
-% of the  License, or (at your option) any later version.
-%
-% This program is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-% GNU General Public License for more details.
-%
-% You should have received a copy of the GNU General Public License
-% along with this program; if not, write to the Free Software
-% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 h = [];
 if nargin>1,
@@ -87,6 +87,15 @@ if nargin>1,
                 end;
                 X.datatype = upper(arg2);
                 clf;
+        elseif strcmpi(arg2,'SCATTER'),
+        	tmp = X; X=[];
+        	X.datatype = upper(arg2);
+        	if isnumeric(tmp)
+	        	X.data  = tmp;
+	        	if nargin<3, arg3='x'; end;
+	        	plota(X,arg3);
+	        end;
+	        	
         end;
 end;
 
@@ -1101,16 +1110,16 @@ elseif strcmp(X.datatype,'qc:histo')
         for k = 1:length(chansel);
         	K = chansel(k); 
                 h = X.HIS.H(:,K);
-                if ~isfield(X,'Calib');
-	                t = X.HIS.X(:,min(K,size(X.HIS.X,2)));
+                if isfield(X,'FLAG') && isfield(X.FLAG,'UCAL') && X.FLAG.UCAL, 
+       		        t = X.HIS.X(:,min(K,size(X.HIS.X,2)))*X.Calib(K+1,K)+X.Calib(1,K);
         	else
-        	        t = X.HIS.X(:,min(K,size(X.HIS.X,2)))*X.Calib(K+1,K)+X.Calib(1,K);
-                end;
+	                t = X.HIS.X(:,min(K,size(X.HIS.X,2)));
+                end; 
                 if isfield(X,'THRESHOLD'),
-	                if ~isfield(X,'Calib');
-	                        MaxMin=X.THRESHOLD(K,[2,1]);
-	                else        
+	                if isfield(X,'FLAG') && isfield(X.FLAG,'UCAL') && X.FLAG.UCAL, 
 	                        MaxMin=X.THRESHOLD(K,[2,1])*X.Calib(K+1,K)+X.Calib(1,K);
+	                else        
+	                        MaxMin=X.THRESHOLD(K,[2,1]);
 			end; 
                 elseif isfield(X,'Threshold'),	%%% will become OBSOLETE 
                         MaxMin=X.Threshold(K,:);
@@ -1397,6 +1406,7 @@ elseif strcmp(X.datatype,'DBI-EPs'),
 
 elseif strcmp(X.datatype,'SCATTER'),
         s='x';
+
         if nargin<2,
 
         elseif nargin==2,
@@ -1409,7 +1419,9 @@ elseif strcmp(X.datatype,'SCATTER'),
                 s = arg2;
                 Labels = arg3;
         end;
-
+	if ~exist('Labels','var') 
+        	Labels = cellstr(int2str([1:size(X.data,2)]'));
+        end; 	
         if length(X)==1,
                 if ~isfield(X,'R');
                         [X.R,X.p,X.CIL,X.CIU] = corrcoef(X.data,'Rank');
@@ -1420,8 +1432,8 @@ elseif strcmp(X.datatype,'SCATTER'),
                         for l = k+1:nc+1,%[1:k-1,k+1:nc],
                                 h=subplot(nc,nc,(k-1)*nc+l-1);
                                 plot(X.data(:,l),X.data(:,k),s);
-                                %ht=title(sprintf('r=%.3f %s [%.3f,%.3f]',X.R(k,l),char('*'*(X.p(k,l)<[.05,.01,.001])),X.CIL(k,l),X.CIU(k,l)));
-                                ht=title(sprintf('r = %.4f %s',X.R(k,l),char('*'*(X.p(k,l)<[.05,.01,.001]))));
+                                ht=title(sprintf('r=%.3f %s [%.3f,%.3f]',X.R(k,l),char('*'*(X.p(k,l)<[.05,.01,.001])),X.CIL(k,l),X.CIU(k,l)));
+                                %ht=title(sprintf('r = %.4f %s',X.R(k,l),char('*'*(X.p(k,l)<[.05,.01,.001]))));
                                 pos=get(ht,'position');
                                 %pos(2)=max(X.data(k));
                                 %set(ht,'position',pos);
