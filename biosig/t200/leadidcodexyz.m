@@ -23,7 +23,7 @@ function [HDR] = leadidcodexyz(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: leadidcodexyz.m,v 1.14 2008-07-08 15:13:25 schloegl Exp $
+%	$Id: leadidcodexyz.m,v 1.15 2008-07-10 18:41:25 schloegl Exp $
 %	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -184,20 +184,21 @@ else    % electrode code and position
         	                end;
                         end;
                 else
-                       	HDR.Label = cell(NS,1);
-	               	for k = 1:NS;
-                        	ix = find(BIOSIG_GLOBAL.LeadIdCode==HDR.LeadIdCode(k));
-        	                if (length(ix)==1),
+			HDR.Label = cell(NS,1);
+			for k = 1:NS;
+				ix = find(BIOSIG_GLOBAL.LeadIdCode==HDR.LeadIdCode(k));
+				if (length(ix)>=1),
+					ix=ix(1);	% 
 	                                HDR.Label{k} = BIOSIG_GLOBAL.Label{ix};
-		                        if ~tmp.flag1,
+					if ~tmp.flag1,
         		                        HDR.ELEC.XYZ(k,1:3) = BIOSIG_GLOBAL.XYZ(ix,1:3);
         		                        HDR.ELEC.Phi(k,1)   = BIOSIG_GLOBAL.Phi(ix);
         		                        HDR.ELEC.Theta(k,1) = BIOSIG_GLOBAL.Theta(ix);
-                		        end;
-               		        else
-               		        	HDR.Label{k} = ['#',int2str(k)];
-               		        end;
-	               	end;
+					end;
+				else
+					HDR.Label{k} = ['#',int2str(k)];
+				end;
+			end;
                 end;
 	end;
 	if tmp.flag3 && ~any(HDR.LeadIdCode),
