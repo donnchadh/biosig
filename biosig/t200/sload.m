@@ -40,7 +40,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.87 2008-06-19 09:00:13 schloegl Exp $
+%	$Id: sload.m,v 1.88 2008-07-10 22:39:08 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -296,6 +296,7 @@ if exist('mexSLOAD','file')==3,
 		HDR.Calib = [HDR.Off(:)';diag(HDR.Cal)];
 		[HDR.FILE.Path,HDR.FILE.Name,HDR.FILE.Ext] = fileparts(FILENAME);
 		HDR.FileName = FILENAME;
+		HDR = leadidcodexyz(HDR);
 		
 		H=HDR;
 		H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
