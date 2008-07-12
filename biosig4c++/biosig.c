@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.233 2008-07-07 14:10:24 schloegl Exp $
+    $Id: biosig.c,v 1.234 2008-07-12 20:46:58 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -445,7 +445,7 @@ void* mfer_swap8b(uint8_t *buf, int8_t len, char FLAG_SWAP)
                 *(iType*)buf = bswap_64(*(iType*)buf) >> (sizeof(iType)-len)*8; 
         else {
         	unsigned k;
-		for (k=len; k < sizeof(iType); buf[k++]=0);
+		for (k=len; k < sizeof(iType); buf[k++]=0) {};
 	}	
 
 #endif
@@ -1219,7 +1219,7 @@ void LoadGlobalEventCodeTable()
 		if (line[0]=='0') {
 			size_t k;
 			int i; 
-			for (k=6; isspace(line[k]); k++);
+			for (k=6; isspace(line[k]); k++) {};
 			char *t = line+k; 
 			sscanf(line,"%x",&i);
 			i &= 0xffff;
@@ -1232,7 +1232,7 @@ void LoadGlobalEventCodeTable()
 		//		if (VERBOSE_LEVEL>8) fprintf(stdout,"++++++++ %i %i %i %i\n",k,i,N,Global.LenCodeDesc);
 			}
 			
-			for (k=0; (k<Global.LenCodeDesc) || (Global.CodeIndex[k]==i); k++);
+			for (k=0; (k<Global.LenCodeDesc) || (Global.CodeIndex[k]==i); k++) {};
 			if (Global.CodeIndex[k]==i) {
 				fprintf(stdout,"Warning: Event Type %x is already defined (error in eventcodes.txt)\n",i);
 			}
@@ -2246,7 +2246,7 @@ if (!strncmp(MODE,"r",1))
 				char p[9];
 				strncpy(p, (char*)Header2 + 8*k + 96*hdr->NS,8);
 				p[8] = 0; // remove trailing blanks
-				for (int k1=7; (k1>0) && isspace(p[k1]); p[k1--] = 0);
+				for (int k1=7; (k1>0) && isspace(p[k1]); p[k1--] = 0) {};
 					
 				hdr->CHANNEL[k].PhysDimCode = PhysDimCode(p);
 
@@ -2466,7 +2466,7 @@ if (!strncmp(MODE,"r",1))
 				struct tm t1;
 		    		t1.tm_mday = atoi(strtok(ptr_str,"-")); 
 		    		strcpy(tmp,strtok(NULL,"-"));
-		    		for (k=0; k<strlen(tmp); ++k); tmp[k]= toupper(tmp[k]);	// convert to uppper case 
+		    		for (k=0; k<strlen(tmp); ++k) tmp[k]= toupper(tmp[k]);	// convert to uppper case 
 		    		t1.tm_year = atoi(strtok(NULL,"- ")) - 1900; 
 		    		t1.tm_mon  = !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11;
 		    		t1.tm_sec  = 0;
@@ -2485,7 +2485,7 @@ if (!strncmp(MODE,"r",1))
 	    		strcpy(tmp,strtok(NULL,"-"));
 	    		tm_time.tm_year = atoi(strtok(NULL,"-")) - 1900; 
 
-	    		for (k=0;k<strlen(tmp); ++k); tmp[k]= toupper(tmp[k]);	// convert to uppper case 
+	    		for (k=0;k<strlen(tmp); ++k) tmp[k]= toupper(tmp[k]);	// convert to uppper case 
 	    		if (tm_time.tm_mon != !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11);
 	    			fprintf(stderr,"Warning SOPEN(EDF+): Month currupted\n"); 
 	    		tm_time.tm_isdst= -1;
@@ -4458,6 +4458,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 
     	else if (hdr->TYPE==FEF) {
+		size_t bufsiz = 1l<<24;
+		while (!ifeof(hdr)) {
+		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+bufsiz+1);
+		    	count  += ifread(hdr->AS.Header+count,1,bufsiz,hdr);
+		}
     		tmp[8] = 0;
     		memcpy(tmp, hdr->AS.Header+8, 8);
     		hdr->VERSION = atol(tmp)/100.0; 
@@ -4695,7 +4700,7 @@ fprintf(stdout,"ASN1 [491]\n");
 					ifseek(hdr,len-MAX_LENGTH_MANUF,SEEK_CUR);
 				}	
 				curPos += len;
-				for (k=0; isprint(hdr->ID.Manufacturer._field[k]) && (k<MAX_LENGTH_MANUF); k++);
+				for (k=0; isprint(hdr->ID.Manufacturer._field[k]) && (k<MAX_LENGTH_MANUF); k++) ;
 				hdr->ID.Manufacturer._field[k]    = 0; 
 				hdr->ID.Manufacturer.Name         = strtok(hdr->ID.Manufacturer._field,"^");  
 				hdr->ID.Manufacturer.Model        = strtok(NULL,"^");  
@@ -4991,7 +4996,7 @@ fprintf(stdout,"ASN1 [491]\n");
 			if (VERBOSE_LEVEL>8)
 				fprintf(stdout,"[MIT 111] #%i <%s>\n",k, line);		
 		
-			for (ptr=line; !isspace(ptr[0]); ptr++); 	// skip 1st field 
+			for (ptr=line; !isspace(ptr[0]); ptr++) {}; 	// skip 1st field 
 			ptr[0]=0;
 			if (k==0)
 				DatFiles[nDatFiles++]=line;
@@ -5445,7 +5450,7 @@ fprintf(stdout,"ASN1 [491]\n");
 			}
 
 			c = hdr->AS.Header[45+217+k*136];
-			strncmp(tmp, (char*)(hdr->AS.Header+46+217+k*136), c);
+			strncpy(tmp, (char*)(hdr->AS.Header+46+217+k*136), c);
 			tmp[c] = 0;
 		    	hc->PhysDimCode = PhysDimCode(tmp);
 			hc->PhysMin  = lef32p(hdr->AS.Header+56+217+k*136);
@@ -5645,12 +5650,12 @@ fprintf(stdout,"ASN1 [491]\n");
 		if (hdr->CHANNEL[k].LeadIdCode == 0) {
 			if (!strncmp(hdr->CHANNEL[k].Label, "MDC_ECG_LEAD_", 13)) {
 				// MDC_ECG_LEAD_*  - ignore case  //
-				for (k1=0; strcmpi(hdr->CHANNEL[k].Label+13,LEAD_ID_TABLE[k1]) && LEAD_ID_TABLE[k1][0]; k1++);
+				for (k1=0; strcmpi(hdr->CHANNEL[k].Label+13,LEAD_ID_TABLE[k1]) && LEAD_ID_TABLE[k1][0]; k1++) {};
 				if (LEAD_ID_TABLE[k1][0])	
 					hdr->CHANNEL[k].LeadIdCode = k1;
 			}
 			else {
-				for (k1=0; strcmp(hdr->CHANNEL[k].Label, LEAD_ID_TABLE[k1]) && LEAD_ID_TABLE[k1][0]; k1++); 
+				for (k1=0; strcmp(hdr->CHANNEL[k].Label, LEAD_ID_TABLE[k1]) && LEAD_ID_TABLE[k1][0]; k1++) {}; 
 				if (LEAD_ID_TABLE[k1][0])	
 					hdr->CHANNEL[k].LeadIdCode = k1;
 			}
@@ -7700,7 +7705,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 				fprintf(fid,"\t\t%s",hdr->EVENT.CodeDesc[hdr->EVENT.TYP[k]]);
 			else if (GLOBAL_EVENTCODES_ISLOADED) {
 				uint16_t k1;
-				for (k1=0; (k1 < Global.LenCodeDesc) && (hdr->EVENT.TYP[k] != Global.CodeIndex[k1]); k1++);
+				for (k1=0; (k1 < Global.LenCodeDesc) && (hdr->EVENT.TYP[k] != Global.CodeIndex[k1]); k1++) {};
 				if (hdr->EVENT.TYP[k] == Global.CodeIndex[k1])
 					fprintf(fid,"\t\t%s",Global.CodeDesc[k1]);
 			}	

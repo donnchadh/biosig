@@ -1,5 +1,5 @@
 /*
-    $Id: scp-decode.cpp,v 1.23 2008-03-14 08:30:42 schloegl Exp $
+    $Id: scp-decode.cpp,v 1.24 2008-07-12 20:46:58 schloegl Exp $
     This function is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -101,6 +101,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <iostream>
 #include <cstring>    //strcat, strcpy
 #include <cstdio>
+#include <stdlib.h>
 using namespace std;
 
 //______________________________________________________________________________
@@ -237,10 +238,10 @@ void *mymalloc(size_t size)            // by E.C. 07.11.2003    this is a workar
 //--------------------------------BYTE & BIT------------------------------------
 template<class t1>
 void ReadByte(t1 &number)
+{
 //read the requested number of bytes and
 //convert in decimal, taking into account that the first byte is the LSB.
 //the sign of the number is kept
-{
 	U_int_S *num, dim=sizeof(t1);
 	U_int_S mask=0xFF;
 
@@ -1034,7 +1035,7 @@ void section_1_5(demographic &ana)
 {
 	U_int_M dim;
 
-	char data[18], temp[18];
+	char data[18]; // temp[18];
 	U_int_S m, g, num;
 	U_int_M a;
 
@@ -1284,7 +1285,7 @@ void section_1_14(descriptive &des)
 	if(des.acquiring.AC>2)
 		des.acquiring.AC=0;
 	Skip(16);
-	des.acquiring.analysing_program_revision_number="\0";
+	des.acquiring.analysing_program_revision_number="\x0";
 	des.acquiring.serial_number_device="\0";
 	des.acquiring.device_system_software="\0";
 	des.acquiring.device_SCP_implementation_software="\0";
@@ -1471,7 +1472,7 @@ void section_1_25(device &dev)
 // section 1 tag 25
 {
 	U_int_M dim;
-	char data[18], temp[18];
+	char data[18];
 	U_int_S m, g, num;
 	U_int_M a;
 
@@ -1505,7 +1506,7 @@ void section_1_26(device &dev)
 // section 1 tag 26
 {
 	U_int_M dim;
-	char hour[9], temp[9];
+	char hour[9];
 	U_int_S h, m, s, num;
 
 	ReadByte(dim);
@@ -2175,7 +2176,7 @@ void section_8(pointer_section info_sections,DATA_INFO &data)
 {
 	U_int_S m, g, h, s, i;
 	U_int_M a, num, dim;
-	char dates[18], temp[18], hour[9], *temp_string, *c;
+	char dates[18], hour[9], *temp_string, *c;
 	//fpos_t filepos;
 	long filepos;
 	int_S version;
@@ -2396,7 +2397,7 @@ void section_11(pointer_section info_sections,DATA_INFO &data)
 {
 	U_int_S m, g, h, s, i, j;
 	U_int_M a, num, dim;
-	char dates[8], temp[18], hour[9], *temp_string, *punt, c;
+	char dates[8], hour[9], *temp_string, *punt, c;
 	//fpos_t filepos;
 	long filepos;
 	int_S version;
