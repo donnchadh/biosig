@@ -53,25 +53,23 @@ function [X] = heartratevariability(RRI,arg2)
 %	Do Existing Measures of Poincaré Plot Geometriy Reflect Nonlinear Features of Heart Rate Variablilty?
 %	IEEE Trans Biomedical Eng. 48(11),2001, 
 
-%	$Id: heartratevariability.m,v 1.6 2008-07-02 07:49:20 schloegl Exp $
+%	$Id: heartratevariability.m,v 1.7 2008-07-14 11:21:21 schloegl Exp $
 %	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
-
-% This library is free software; you can redistribute it and/or
-% modify it under the terms of the GNU Library General Public
-% License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
 %
-% This library is distributed in the hope that it will be useful,
+% This program is free software; you can redistribute it and/or
+% modify it under the terms of the GNU General Public License
+% as published by the Free Software Foundation; either version 3
+% of the License, or (at your option) any later version.
+% 
+% This program is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-% Library General Public License for more details.
-%
-% You should have received a copy of the GNU Library General Public
-% License along with this library; if not, write to the
-% Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-% Boston, MA  02111-1307, USA.
-
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU General Public License for more details.
+% 
+% You should have received a copy of the GNU General Public License
+% along with this program; if not, write to the Free Software
+% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 %%%%%%%% check and convert the input arguments  %%%%%%%%%%
@@ -130,7 +128,7 @@ if isstruct(RRI)
 elseif ~any(diff(RRI)<0),	
         on = RRI(:)/Fs; 
         NN = diff(on);
-	X.PhysDim = 's'; 
+%	X.PhysDim = 's'; 
 else	
         NN = RRI(:); 
         on = [0;cumsum(NN)];
@@ -189,14 +187,15 @@ if 0,
 elseif 0, 
 	y = NN; 
 	[y,m] = center(y); 
-	f0= 1/(m*t_scale)
+	f0= 1/(m*t_scale);
 else
-	f0 = 4*1000/X.meanNN;		%% four-times oversampling 
-        [hrv,y] = berger(on*t_scale,f0); % resampleing 
-	[y,m] = center(y/t_scale); 
+	%% factor 1000 because of [ms], berger expects [s]
+	f0  = 4*1000/(X.meanNN*t_scale);%% four-times oversampling
+        [hrv,y] = berger(on/1000,f0); % resampleing 
+	[y,m] = center(y*1000); 
 end;
 
-pmax = 100; 	
+pmax = 100;
 % choose levinson-durbin or Burg algorithm 
 [mx,pe]=durlev(acovf(y(:)',pmax));
 %[mx,pe]=lattice(y(:)',pmax); 
