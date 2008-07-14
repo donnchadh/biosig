@@ -53,7 +53,7 @@ function [X] = heartratevariability(RRI,arg2)
 %	Do Existing Measures of Poincaré Plot Geometriy Reflect Nonlinear Features of Heart Rate Variablilty?
 %	IEEE Trans Biomedical Eng. 48(11),2001, 
 
-%	$Id: heartratevariability.m,v 1.7 2008-07-14 11:21:21 schloegl Exp $
+%	$Id: heartratevariability.m,v 1.8 2008-07-14 11:31:52 schloegl Exp $
 %	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -189,8 +189,8 @@ elseif 0,
 	[y,m] = center(y); 
 	f0= 1/(m*t_scale);
 else
-	%% factor 1000 because of [ms], berger expects [s]
-	f0  = 4*1000/(X.meanNN*t_scale);%% four-times oversampling
+	%% factor 1000 because data is converted to [ms], berger expects [s]
+	f0  = 4*1000/(X.meanNN);%% four-times oversampling
         [hrv,y] = berger(on/1000,f0); % resampleing 
 	[y,m] = center(y*1000); 
 end;
