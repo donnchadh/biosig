@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.234 2008-07-12 20:46:58 schloegl Exp $
+    $Id: biosig.c,v 1.235 2008-07-15 11:47:19 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2476,18 +2476,24 @@ if (!strncmp(MODE,"r",1))
 		    		hdr->Patient.Birthday = tm_time2gdf_time(&t1);
 		    	}
 
-	    		strtok(hdr->ID.Recording," ");
+			strncpy(hdr->ID.Recording, Header1+88+22, 80-22);
+			strtok(hdr->ID.Recording," ");
+			hdr->ID.Technician = strtok(NULL," ");
+			hdr->ID.Manufacturer.Name  = strtok(NULL," ");
+			hdr->ID.Recording[80-22]=0;
+			
+	    		strtok(Header1+88," ");
 	    		ptr_str = strtok(NULL," ");
 			// check EDF+ Startdate against T0 
 	    		if (tm_time.tm_mday != atoi(strtok(ptr_str,"-")))
-	    			fprintf(stderr,"Warning SOPEN(EDF+): Day-of-the-Month currupted\n"); 
+	    			fprintf(stderr,"Warning SOPEN(EDF+): Day-of-the-Month %i <%s> corrupted\n",tm_time.tm_mday,ptr_str); 
 
 	    		strcpy(tmp,strtok(NULL,"-"));
 	    		tm_time.tm_year = atoi(strtok(NULL,"-")) - 1900; 
 
-	    		for (k=0;k<strlen(tmp); ++k) tmp[k]= toupper(tmp[k]);	// convert to uppper case 
-	    		if (tm_time.tm_mon != !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11);
-	    			fprintf(stderr,"Warning SOPEN(EDF+): Month currupted\n"); 
+	    		for (k=0; k<strlen(tmp); ++k) tmp[k]=toupper(tmp[k]);	// convert to uppper case 
+	    		if (tm_time.tm_mon != !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11)
+	    			fprintf(stderr,"Warning SOPEN(EDF+): %i <%s> Month corrupted\n",tm_time.tm_mon+1,tmp); 
 	    		tm_time.tm_isdst= -1;
 		}   
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
@@ -7620,14 +7626,15 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		/* demographic information */
 		fprintf(fid,"\n===========================================\n[FIXED HEADER]\n");
 //		fprintf(fid,"\nPID:\t|%s|\nPatient:\n",hdr->AS.PID);
-		fprintf(fid,"Recording:\n\tID              : %s\n",hdr->ID.Recording);
+		fprintf(fid,   "Recording:\n\tID              : %s\n",hdr->ID.Recording);
+		fprintf(fid,               "\tTechnician      : %s\n",hdr->ID.Technician);
 		fprintf(fid,"Manufacturer:\n\tName            : %s\n",hdr->ID.Manufacturer.Name);
-		fprintf(fid,"\tModel           : %s\n",hdr->ID.Manufacturer.Model);
-		fprintf(fid,"\tVersion         : %s\n",hdr->ID.Manufacturer.Version);
-		fprintf(fid,"\tSerialNumber    : %s\n",hdr->ID.Manufacturer.SerialNumber);
-		fprintf(fid,"Patient:\n\tID              : %s\n",hdr->Patient.Id); 
+		fprintf(fid,               "\tModel           : %s\n",hdr->ID.Manufacturer.Model);
+		fprintf(fid,               "\tVersion         : %s\n",hdr->ID.Manufacturer.Version);
+		fprintf(fid,               "\tSerialNumber    : %s\n",hdr->ID.Manufacturer.SerialNumber);
+		fprintf(fid,     "Patient:\n\tID              : %s\n",hdr->Patient.Id); 
 		if (hdr->Patient.Name!=NULL)
-			fprintf(fid,"\tName            : %s\n",hdr->Patient.Name);
+			fprintf(fid,       "\tName            : %s\n",hdr->Patient.Name);
 	
 		if (hdr->Patient.Birthday>0)
 			age = (hdr->T0 - hdr->Patient.Birthday)/ldexp(365.25,32);
@@ -7661,7 +7668,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			size_t c = strcspn(hdr->AS.bci2000,"\xa\xd");
 			strncpy(tmp,hdr->AS.bci2000,c); tmp[c]=0;
 			fprintf(fid,"BCI2000 [%i]\t\t: <%s<CR>...>\n",strlen(hdr->AS.bci2000),tmp); 
-		}	
+		}
 	}
 		
 	if (VERBOSE>1) {
