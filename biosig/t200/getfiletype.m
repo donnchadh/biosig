@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.75 2008-06-20 12:36:36 schloegl Exp $
+%	$Id: getfiletype.m,v 1.76 2008-07-18 19:57:04 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -952,6 +952,8 @@ else
                                 line = fgetl(fid);
                         end;
                         HDR.TYPE = 'EVENTCODES';
+			BIOSIG_GLOBAL.EVENT = HDR.EVENT;
+			BIOSIG_GLOBAL.ISLOADED_EVENTCODES = 1;
 			
                 elseif strcmp(HDR.FILE.Ext,'Markers') && strcmp(ss(1:14),'Sampling rate:'),
 			HDR.EVENT.SampleRate = str2double(ss(15:strfind(ss,'Hz')-1));
