@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.219 2008-07-02 07:09:17 schloegl Exp $
+%	$Id: sopen.m,v 1.220 2008-07-18 19:52:45 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -459,7 +459,7 @@ end;
                 if  any(HDR.T0>[2084 12 31 24 59 59]) | any(HDR.T0<[1985 1 1 0 0 0])
                         HDR.ErrNo = [4, HDR.ErrNo];
                 end;
-                
+
                 %%% Read variable Header %%%
                 %if ~strcmp(HDR.VERSION(1:3),'GDF'),
                 if ~strcmp(HDR.TYPE,'GDF'),
@@ -549,7 +549,7 @@ end;
                                 HDR.REC.Impedance = 2.^(tmp/8);
 			end;
                 end;
-                
+
                 HDR.SPR=1;
 		if (HDR.NS>0)
 			if ~isfield(HDR,'THRESHOLD')
@@ -781,11 +781,13 @@ end;
 	                        EVENT.N = [1,256,65536]*fread(HDR.FILE.FID,3,'uint8');
             		        [HDR.EVENT.SampleRate,c] = fread(HDR.FILE.FID,1,'float32');
 			end;	
+
                         if ~HDR.EVENT.SampleRate, % ... is not defined in GDF 1.24 or earlier
                                 HDR.EVENT.SampleRate = HDR.SampleRate; 
                         end;
                         [HDR.EVENT.POS,c1] = fread(HDR.FILE.FID,[EVENT.N,1],'uint32');
                         [HDR.EVENT.TYP,c2] = fread(HDR.FILE.FID,[EVENT.N,1],'uint16');
+
                         if EVENT.Version==1,
                                 if any([c1,c2]~=EVENT.N)
                                         fprintf(2,'\nERROR SOPEN (GDF): Eventtable corrupted in file %s\n',HDR.FileName);
@@ -794,16 +796,16 @@ end;
                         elseif EVENT.Version==3,
                                 [HDR.EVENT.CHN,c3] = fread(HDR.FILE.FID,[EVENT.N,1],'uint16');
                                 [HDR.EVENT.DUR,c4] = fread(HDR.FILE.FID,[EVENT.N,1],'uint32');
-                        	[EVENT.N,HDR.AS.endpos,HDR.AS.EVENTTABLEPOS+8+EVENT.N*12]
+                        	%[EVENT.N,HDR.AS.endpos,HDR.AS.EVENTTABLEPOS+8+EVENT.N*12]
                                 if any([c1,c2,c3,c4]~=EVENT.N),
                                         fprintf(2,'\nERROR SOPEN (GDF): Eventtable corrupted in file %s\n',HDR.FileName);
-                                end
+                                end;
                                 
                         else
                                 fprintf(2,'\nWarning SOPEN (GDF): File %s corrupted (Eventtable version %i ).\n',HDR.FileName,EVENT.Version);
                         end;
                         HDR.AS.endpos = HDR.AS.EVENTTABLEPOS;   % set end of data block, might be important for SSEEK
-                        
+
                         % Classlabels according to 
                         % http://biosig.cvs.sourceforge.net/*checkout*/biosig/biosig/doc/eventcodes.txt
                         if (length(HDR.EVENT.TYP)>0)
@@ -813,7 +815,7 @@ end;
                                 HDR.Classlabel = mod(HDR.EVENT.TYP(ix),256);
                                 HDR.Classlabel(HDR.Classlabel==15) = NaN; % unknown/undefined cue
                         end;
-                        
+
                         % Trigger information and Artifact Selection 
                         ix = find(HDR.EVENT.TYP==hex2dec('0300')); 
                         HDR.TRIG = HDR.EVENT.POS(ix);
@@ -6374,7 +6376,6 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 end;
         end;
 
-        
 elseif strncmp(HDR.TYPE,'BCI2000',7),
         if any(HDR.FILE.PERMISSION=='r'),
                 HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
@@ -6387,13 +6388,30 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
                         HDR.HeadLen = t(2);
                         HDR.NS = t(4);
                         HDR.BCI2000.StateVectorLength = t(6);
-                        HDR.GDFTYP = 'int16';
+                        HDR.GDFTYP  = 3; % 'int16';
+
                 elseif (HDR.VERSION==1.1) & strcmp(sa{5},'SourceCh') & strcmp(sa{7},'StatevectorLen') & strcmp(sa{9},'DataFormat') & ~any(status([2:2:8]))
                         HDR.VERSION = t(2);
                         HDR.HeadLen = t(4);
                         HDR.NS = t(6);
                         HDR.BCI2000.StateVectorLength = t(8);
-                        HDR.GDFTYP = sa{10};
+                        if strcmp(sa{10},'int16')
+	                        HDR.GDFTYP = 3;
+                        elseif strcmp(sa{10},'int32')
+	                        HDR.GDFTYP = 5;
+                        elseif strcmp(sa{10},'float32')
+	                        HDR.GDFTYP = 16;
+                        elseif strcmp(sa{10},'float64')
+	                        HDR.GDFTYP = 17;
+                        elseif strcmp(sa{10},'int24')
+	                        HDR.GDFTYP = 255+24;
+                        elseif strcmp(sa{10},'uint16')
+	                        HDR.GDFTYP = 4;
+                        elseif strcmp(sa{10},'uint32')
+	                        HDR.GDFTYP = 6;
+                        elseif strcmp(sa{10},'uint24')
+	                        HDR.GDFTYP = 511+24;
+	                end;
                 else
                         HDR.TYPE = 'unknown'; 
                         fprintf(HDR.FILE.stderr,'Error SOPEN: file %s does not confirm with BCI2000 format\n',HDR.FileName);
@@ -6412,7 +6430,7 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 		HDR.Label  = cellstr([repmat('ch',HDR.NS,1),num2str([1:HDR.NS]')]);
                 STATUSFLAG = 0;
 		while length(rr), 
-			tline = tline(1:min([length(tline),strfind(tline,[47,47])-1]));
+			tline = tline(1:min([length(tline),strfind(tline,char([47,47]))-1]));
 
 			if ~isempty(strfind(tline,'[ State Vector Definition ]'))
 				STATUSFLAG = 1;
@@ -6469,7 +6487,7 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
                 %HDR.PhysDim = 'µV';
                 HDR.PhysDimCode = repmat(4275,HDR.NS,1); % 'µV';
                 HDR.Calib = [HDR.Off(1)*ones(1,HDR.NS);eye(HDR.NS)]*HDR.Cal(1);
-                
+
 		% decode State Vector Definition 
 		X = repmat(NaN,1,HDR.BCI2000.StateVectorLength*8);
 		for k = 1:STATECOUNT,
@@ -6490,16 +6508,18 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 		for  k = 1:max(X)
                         HDR.BCI2000.STATE(:,k) = bin2dec(HDR.BCI2000.BINARYSTATUS(:,k==X));
                 end;
-		k   		= strmatch('TargetCode', HDR.BCI2000.StateDef);
-		ix  		= find(diff(HDR.BCI2000.STATE(:,k))>0)+1;	%% start of trial ?? 
-		HDR.TRIG 	= POS(ix); 
-		HDR.Classlabel  = HDR.BCI2000.STATE(ix,k);
 
 		HDR.EVENT.POS = POS;
 		HDR.EVENT.TYP = repmat(0,size(HDR.EVENT.POS)); 	% should be extracted from HDR.BCI2000.STATE
 		fprintf(2,'Warning SOPEN (BCI2000): HDR.EVENT.TYP information need to be extracted from HDR.BCI2000.STATE\n');
 		HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS));
 		HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS));
+		HDR.EVENT.SampleRate = HDR.SampleRate; 
+
+		k   		= strmatch('TargetCode', HDR.BCI2000.StateDef);
+		ix  		= find(diff(HDR.BCI2000.STATE(:,k))>0)+1;	%% start of trial ?? 
+		HDR.TRIG 	= POS(ix); 
+		HDR.Classlabel  = HDR.BCI2000.STATE(ix,k);
 
 		if ORIENT == 1, %% vertical 
 			cl = hex2dec('030c')*(HDR.Classlabel==1) + hex2dec('0306')*(HDR.Classlabel==2) + hex2dec('0303')*(HDR.Classlabel==3);
@@ -6510,19 +6530,37 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 		ix2  = find(diff(HDR.BCI2000.STATE(:,k))<0)+1;	%% end of trial ??
 		ix   = ix(1:length(ix2));
 		HDR.EVENT.DUR(ix) = POS(ix2) - POS(ix);
+		
+		% remove all empty events
+		ix = find(HDR.EVENT.TYP>0);
+		HDR.EVENT.POS=HDR.EVENT.POS(ix);
+		HDR.EVENT.TYP=HDR.EVENT.TYP(ix);
+		HDR.EVENT.DUR=HDR.EVENT.DUR(ix);
+		HDR.EVENT.CHN=HDR.EVENT.CHN(ix);
+		HDR.EVENT.N = length(ix); 
+
+		k= strmatch('Feedback', HDR.BCI2000.StateDef);
+		ix  = find(diff(HDR.BCI2000.STATE(:,k))>0)+1;	%% start of feedback 
+		ix2 = find(diff(HDR.BCI2000.STATE(:,k))<0)+1;	%% end of feedback 
+		HDR.EVENT.POS = [HDR.EVENT.POS;POS(ix)];
+		HDR.EVENT.TYP = [HDR.EVENT.TYP;repmat(hex2dec('030d'),length(ix2),1)];
+		HDR.EVENT.DUR = [HDR.EVENT.DUR;POS(ix2)-POS(ix)];
+		HDR.EVENT.CHN = zeros(length(HDR.EVENT.POS),1); 
+		HDR.EVENT.N   = length(HDR.EVENT.POS); 
 
 		% finalize header definition 		
 		status = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
 		HDR.AS.bpb    = 2*HDR.NS + HDR.BCI2000.StateVectorLength;
 		HDR.SPR       = (HDR.FILE.size - HDR.HeadLen)/HDR.AS.bpb;
 		HDR.AS.endpos = HDR.SPR;
-		HDR.GDFTYP    = [int2str(HDR.NS),'*',HDR.GDFTYP,'=>',HDR.GDFTYP];
+		
+		[datatyp,limits,datatypes,numbits,GDFTYP] = gdfdatatype(HDR.GDFTYP);
+		HDR.BCI2000.GDFTYP = [int2str(HDR.NS),'*',datatypes{1},'=>',datatypes{1}];
 		HDR.NRec      = 1; 
 		
                 HDR.FILE.OPEN = 1;
 		HDR.FILE.POS  = 0; 
         end;
-
         
 elseif strcmp(HDR.TYPE,'BioSig'),
 	% this code should match HDR2ASCII in order to do ASCII2HDR 
@@ -9076,7 +9114,10 @@ elseif strcmp(HDR.TYPE,'ASCII:IBI')
 				
 			%% t = datenum(y,mo,dd,hh,mi,se+ms/1000);
 			if (N==1)
-				HDR.T0 = datenum(y(1),y(2),y(3),y(4),y(5),y(6)+(y(7)-rri)/1000);
+				if y(3)<70, y(3)=y(3)+2000;
+				else   y(3)=y(3)+1900;
+				end; 	
+				HDR.T0 = [y(3),y(2),y(1),y(4),y(5),y(6)+(y(7)-rri)/1000];
 				HDR.EVENT.POS = [0;rri];
 				HDR.EVENT.TYP = [1;1]*hex2dec('0501');
 				N = 2; 
@@ -9100,7 +9141,6 @@ elseif strcmp(HDR.TYPE,'ASCII:IBI')
 	% HDR.EVENT.CodeIndex = [1:length(DescList)]';	
 	HDR.TYPE = 'EVENT';
 
-HDR.EVENT,
 	return;
 	
 

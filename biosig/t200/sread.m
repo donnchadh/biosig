@@ -24,7 +24,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sread.m,v 1.89 2008-01-18 09:28:13 schloegl Exp $
+%	$Id: sread.m,v 1.90 2008-07-18 19:52:45 schloegl Exp $
 %	(C) 1997-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -721,7 +721,7 @@ elseif strcmp(HDR.TYPE,'BCI2000'),
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
-        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],HDR.GDFTYP,HDR.BCI2000.StateVectorLength);
+        [S,count] = fread(HDR.FILE.FID,[HDR.NS,HDR.SampleRate*NoS],HDR.BCI2000.GDFTYP,HDR.BCI2000.StateVectorLength);
         if count,
                 S = S(HDR.InChanSelect,:)';
                 HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
