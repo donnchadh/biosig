@@ -1754,6 +1754,8 @@ if ~isempty(eventmatrix)
             H.EVENT.TYP = eventmatrix(:,2);
             H.EVENT.CHN = eventmatrix(:,3);
             H.EVENT.DUR = eventmatrix(:,4);
+            H.NS = 0; 
+            H.PhysDimCode = [];
             H=sopen(H,'w'); H=sclose(H);
 
             Data.Detection.EventMatrix = [];
