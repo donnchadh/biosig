@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.10 2008-06-19 18:36:08 schloegl Exp $
+% $Id: swig.i,v 1.11 2008-07-21 12:00:22 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -42,7 +42,7 @@ enum FileFormat {
 	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, ATES, ATF, AVI,
 	BCI2000, BDF, BKR, BLSC, BMP, BrainVision, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
-	EDF, EEG1100, EEProbe, EGI, ELF, ETG4000, EVENT, EXIF, 
+	EDF, EEG1100, EEProbe, EGI, ELF, EMBLA, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, 
 	Matlab, MFER, MIDI, MIT, NetCDF, NEX1, NIFTI, OGG, 
