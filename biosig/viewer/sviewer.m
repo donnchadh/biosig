@@ -2,29 +2,24 @@ function varargout = sviewer(varargin)
 % SVIEWER
 % Select HELP in the Info menu 
 %
-% Version 1.5, November 2004
-% Copyright by (C) Franz Einspieler <znarfi5@hotmail.com> and
-%                  Alois Schloegl   <a.schloegl@ieee.org>
+% $Id: sviewer.m,v 1.12 2008-07-21 15:23:27 schloegl Exp $
+% Copyright by (C) 2004 Franz Einspieler <znarfi5@hotmail.com> and
+%              (C) 2004,2008 Alois Schloegl <a.schloegl@ieee.org>
 % University of Technology Graz, Austria
-%
 % This is part of the BIOSIG-toolbox http://biosig.sf.net/
-% Comments or suggestions may be sent to the author.
-% This Software is subject to the GNU public license.
-
-% This library is free software; you can redistribute it and/or
-% modify it under the terms of the GNU Library General Public
-% License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
 %
-% This library is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-% Library General Public License for more details.
+%    BioSig is free software: you can redistribute it and/or modify
+%    it under the terms of the GNU General Public License as published by
+%    the Free Software Foundation, either version 3 of the License, or
+%    (at your option) any later version.
 %
-% You should have received a copy of the GNU Library General Public
-% License along with this library; if not, write to the
-% Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-% Boston, MA  02111-1307, USA.
+%    BioSig is distributed in the hope that it will be useful,
+%    but WITHOUT ANY WARRANTY; without even the implied warranty of
+%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%    GNU General Public License for more details.
+%
+%    You should have received a copy of the GNU General Public License
+%    along with BioSig.  If not, see <http://www.gnu.org/licenses/>.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Begin initialization code - DO NOT EDIT
@@ -74,7 +69,7 @@ function sviewer_OpeningFcn(hObject, eventdata, handles, varargin)
 % Choose default command line output for sviewer
 handles.output = hObject;
 set(gcf,'Color',[0.949,0.949,1]);
-set(gcf,'Name','SViewer (C) 2004 V1.5, University of Technology Graz, Austria');
+set(gcf,'Name','SViewer (C) 2008 V1.51, University of Technology Graz, Austria');
 set(findobj('Tag','ChannelsMenu'),'Enable','off');
 
 % Update handles structure
@@ -1723,13 +1718,8 @@ if ~isempty(eventmatrix)
     if isequal(button,'Yes')
         Data.Detection.Start='off';
         filename = Data.File.file(1:end-4);
-        [Y, M, D, H, MI, S] = datevec(now);
-        Y=num2str(Y);
-        M=num2str(M);
-        D=num2str(D);
-        H=num2str(H);
-        MI=num2str(MI);
-        [file,path]=uiputfile([filename '-' Y M D '.evt'],'Save Detection');
+        [Y, M, D, h, m, s] = datevec(now);
+        [file,path]=uiputfile(sprintf('%s-%04i%02i%02i.evt',filename,Y,M,D),'Save Detection');
         if isequal(file,0) | isequal(path,0)
             set(findobj('Tag','Startdetection'),'Label','Start                               F5');
             Data.Detection.EventMatrix = [];
@@ -2132,12 +2122,12 @@ web(['file:///' which('viewer\Help\index.htm')]);
 % about
 function About_Callback(hObject, eventdata, handles)
 helpdlg(sprintf([ 'SViewer \n', ...
-      'Version 1.5  November 2004\n\n' ...
-      'Copyright by (C) Franz Einspieler <znarfi5@hotmail.com> and\n', ...
-      '                          Alois Schloegl   <a.schloegl@ieee.org>\n\n' ...
+      'Version 1.51\n\n' ...
+      'Copyright (C) 2004 Franz Einspieler <znarfi5@hotmail.com> and\n', ...
+      'Copyright (C) 2004, 2008 Alois Schloegl   <a.schloegl@ieee.org>\n\n' ...
       '        University of Technology Graz, Austria\n\n' ...
       'Comments or suggestions may be sent to the author.\n', ...
-      'This Software is subject to the GNU public license.']), ...
+      'This Software is subject to the GNU General Public License.']), ...
     'About SViewer');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
