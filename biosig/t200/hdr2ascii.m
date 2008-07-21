@@ -12,7 +12,7 @@ function [argout,H1,h2] = hdr2ascii(source,dest)
 %  
 % see also: SLOAD, SOPEN
 
-%	$Id: hdr2ascii.m,v 1.9 2008-07-18 20:00:59 schloegl Exp $
+%	$Id: hdr2ascii.m,v 1.10 2008-07-21 13:05:30 schloegl Exp $
 %	Copyright (C) 2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -40,15 +40,17 @@ if nargin<2,
 		'not implemented yet',
 	end;	
 	dest = [tempname,'.dlm']; 
-elseif isstruct(source) & ischar(dest); 
+elseif isstruct(source) && ischar(dest); 
 	HDR = source; 
-elseif ischar(source) & ischar(dest); 
+elseif ischar(source) && ischar(dest); 
 	HDR = sopen(source); 
 	HDR = sclose(HDR); 
 else
 	'not implemented yet',
 end; 
-
+if isnan(HDR.NS) && exist('mexSLOAD','file'),
+	[s,HDR]=mexSLOAD(HDR.FileName); 
+end
 
 if nargin>1,
 	fid = fopen(dest,'wt'); 
@@ -125,6 +127,9 @@ end;
 if ~isfield(HDR,'AS') && isfield(HDR,'SampleRate')
 	HDR.AS.SampleRate = repmat(HDR.SampleRate,HDR.NS,1); 
 end;
+if ~isfield(HDR.AS,'SampleRate'),
+	HDR.AS.SampleRate = HDR.AS.SPR/HDR.SPR*HDR.SampleRate;  
+end; 
 if ~isfield(HDR,'THRESHOLD')
 	HDR.THRESHOLD = repmat(NaN,HDR.NS,2); 
 end;
@@ -172,9 +177,6 @@ if length(HDR.Filter.Notch)==1,
 end;
 end; 
 
-if ~isfield(HDR.AS,'SampleRate'),
-	HDR.AS.SampleRate = repmat(HDR.SampleRate,1,HDR.NS);
-end; 
 
 PhysDim = physicalunits(HDR.PhysDimCode); 
 fprintf(fid,'\n[Channel Header]\n#No  LeadId  Label\tfs [Hz]\tGDFTYP\tTH-  TH+  Offset  Calib  PhysDim  HP[Hz]  LP[Hz]  Notch  R[kOhm]  x  y  z\n'); 
