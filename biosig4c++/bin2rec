@@ -1,0 +1,6 @@
+# Conversion of ASCII-Header and binary channels into REC(GDF,EDF) data format
+#
+#    Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
+#    This file is part of the "BioSig for C/C++" repository 
+#    (biosig4c++) at http://biosig.sf.net/ 
+./save2gdf -f=GDF $1 $2 $3 $4 $5 $6 $7

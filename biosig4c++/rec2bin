@@ -1,0 +1,8 @@
+# Converts data into ascii-Header and each channel into a separate binary data file
+#
+#    Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
+#    This file is part of the "BioSig for C/C++" repository 
+#    (biosig4c++) at http://biosig.sf.net/ 
+./save2gdf -f=BIN $1 $2 $3 $4 $5 $6 $7
+
+
