@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.76 2008-07-18 19:57:04 schloegl Exp $
+%	$Id: getfiletype.m,v 1.77 2008-07-21 13:04:10 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -161,6 +161,8 @@ else
                         HDR.TYPE='AINF';
                 elseif strncmp(ss,'[BioSig Header]',13); 
                         HDR.TYPE='BioSig';
+                elseif strncmp(ss,'#BIOSIG BINARY]',14); 
+                        HDR.TYPE='BIN';
                 elseif strncmp(ss,'0       ',8); 
                         HDR.TYPE='EDF';
                 elseif all(s(1:8)==[255,abs('BIOSEMI')]); 
@@ -214,6 +216,8 @@ else
                         HDR.TYPE='EEG-1100-';
                         HDR.VERSION = ss(11:16);
                         
+                elseif strncmp(ss,'Embla data file',15) && strcmp(HDR.FILE.Name,ss(279:278+length(HDR.FILE.Name))),
+                        HDR.TYPE='EMBLA';
                 elseif strcmp(ss(1:20),['Header',13,10,'File Version'])  
                         HDR.TYPE='ETG4000';
                 elseif strncmp(ss,'GALILEO EEG TRACE FILE',22)     % Galilea EEG (from ESAOTE, EBNeuro spa) 
@@ -952,6 +956,7 @@ else
                                 line = fgetl(fid);
                         end;
                         HDR.TYPE = 'EVENTCODES';
+                        global BIOSIG_GLOBAL
 			BIOSIG_GLOBAL.EVENT = HDR.EVENT;
 			BIOSIG_GLOBAL.ISLOADED_EVENTCODES = 1;
 			
