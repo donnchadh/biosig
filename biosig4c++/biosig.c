@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.236 2008-07-21 12:05:19 schloegl Exp $
+    $Id: biosig.c,v 1.237 2008-07-21 19:00:37 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1361,7 +1361,7 @@ void LoadGlobalPhysDimCodeTable()
 void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation) {
 	/* free text annotations encoded as user specific events (codes 1-255) */
 
-	static int LengthCodeDesc = 0;
+//	static int LengthCodeDesc = 0;
 	if (hdr->EVENT.CodeDesc == NULL) {		
 		hdr->EVENT.CodeDesc = (typeof(hdr->EVENT.CodeDesc)) realloc(hdr->EVENT.CodeDesc,257*sizeof(*hdr->EVENT.CodeDesc));
 		hdr->EVENT.CodeDesc[0] = "";	// typ==0, is always empty 
@@ -1380,7 +1380,7 @@ void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation) {
 		hdr->EVENT.CodeDesc[hdr->EVENT.LenCodeDesc]= annotation;
 		hdr->EVENT.LenCodeDesc++;
 	}
-	if (LengthCodeDesc>256) {
+	if (hdr->EVENT.LenCodeDesc > 255) {
 		B4C_ERRNUM = B4C_INSUFFICIENT_MEMORY; 
 		B4C_ERRMSG = "Maximum number of user-defined events (256) exceeded";
 	}	
@@ -3065,7 +3065,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}	
 
 			val = strchr(line,'=');	
-			//if (VERBOSE_LEVEL>8) fprintf(stdout,"field=<%s> val=<%s>\n",line,val);
 			if (val!=NULL) {
 				val += strspn(val,sep);
 				size_t c;
@@ -3074,7 +3073,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				c = strcspn(line,sep);
 				if (c) line[c] = 0; // deblank 
 			}	
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"field=<%s> val=<%s>\n",line,val);
+
 			if (status==1) {
 				if (!strcmp(line,"Duration"))
 					duration = atof(val); 
@@ -6035,8 +6034,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 		fprintf(fid,"[EVENT TABLE]\n");
 		fprintf(fid,"TYP\tPOS [s]\tDUR [s]\tCHN\tVAL/Desc");
-			
+		LoadGlobalEventCodeTable(); 
+		
 		for (size_t k=0; k<hdr->EVENT.N; k++) {
+
 			fprintf(fid,"\n0x%04x\t%f\t",hdr->EVENT.TYP[k],hdr->EVENT.POS[k]/hdr->EVENT.SampleRate);
 			if (hdr->EVENT.DUR != NULL)
 				fprintf(fid,"%f\t%d\t",hdr->EVENT.DUR[k]/hdr->EVENT.SampleRate,hdr->EVENT.CHN[k]);
@@ -6045,6 +6046,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 				
 			if (hdr->EVENT.TYP[k] == 0x7fff)
 				fprintf(fid,"%i\t# sparse sample ",hdr->EVENT.DUR[k]);	// value of sparse samples
+			else if (hdr->EVENT.TYP[k] == 0) 
+				{}
 			else if (hdr->EVENT.TYP[k] < hdr->EVENT.LenCodeDesc)
 				fprintf(fid,"%s",hdr->EVENT.CodeDesc[hdr->EVENT.TYP[k]]);
 			else if (GLOBAL_EVENTCODES_ISLOADED) {
@@ -6059,7 +6062,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     	else if (hdr->TYPE==CFWB) {	
 	     	hdr->HeadLen = 68 + NS*96;
 	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
-	    	uint8_t* Header2 = hdr->AS.Header+68; 
+	    		    	uint8_t* Header2 = hdr->AS.Header+68; 
 		memset(Header1,0,hdr->HeadLen);
 	    	memcpy(Header1,"CFWB\1\0\0\0",8);
 	    	*(double*)(Header1+8) = l_endian_f64(1/hdr->SampleRate);

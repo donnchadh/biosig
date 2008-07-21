@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.44 2008-06-26 10:42:12 schloegl Exp $
+    $Id: save2gdf.c,v 1.45 2008-07-21 19:00:37 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -106,6 +106,8 @@ int main(int argc, char **argv){
 			TARGET_TYPE=SCP_ECG;
     		else if (!strncmp(argv[k],"-f=CFWB",6))
 			TARGET_TYPE=CFWB;
+    		else if (!strncmp(argv[k],"-f=BIN",6))
+			TARGET_TYPE=BIN;
     		else if (!strncmp(argv[k],"-f=MFER",6))
 			TARGET_TYPE=MFER;
 		else {
@@ -299,7 +301,8 @@ int main(int argc, char **argv){
 	if (hdr->FILE.COMPRESSION)  // add .gz extension to filename  
 		strcat(tmp,".gz");
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[211]\n");
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stdout,"[211] z=%i\n",hdr->FILE.COMPRESSION);
 
 	hdr->FLAG.ANONYMOUS = 1; 	// no personal names are processed 
 
@@ -310,8 +313,6 @@ int main(int argc, char **argv){
 	}	
 	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"\n[221] File %s opened. %i %i %Li\n",hdr->FileName,hdr->AS.bpb,hdr->NS,hdr->NRec);
-
-
 
 	swrite(data, hdr->NRec, hdr);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[231] SWRITE finishes\n");
