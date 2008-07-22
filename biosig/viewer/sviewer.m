@@ -2,7 +2,7 @@ function varargout = sviewer(varargin)
 % SVIEWER
 % Select HELP in the Info menu 
 %
-% $Id: sviewer.m,v 1.13 2008-07-22 13:42:30 schloegl Exp $
+% $Id: sviewer.m,v 1.14 2008-07-22 16:00:28 schloegl Exp $
 % Copyright by (C) 2004 Franz Einspieler <znarfi5@hotmail.com> and
 %              (C) 2004,2008 Alois Schloegl <a.schloegl@ieee.org>
 % University of Technology Graz, Austria
@@ -2117,7 +2117,11 @@ set(findobj('Tag','sviewer'),'UserData',Data);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % display help page
 function Help_Callback(hObject, eventdata, handles)
-web(['file:///' which('viewer\Help\index.htm')]);
+if strncmpi(computer,'PCWIN',2)
+	web(['file:///' which('viewer\help\index.htm')]);
+else
+	web(['file:///' which('viewer/help/index.htm')]);
+end; 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % about
