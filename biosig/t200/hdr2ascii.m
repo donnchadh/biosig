@@ -12,7 +12,7 @@ function [argout,H1,h2] = hdr2ascii(source,dest)
 %  
 % see also: SLOAD, SOPEN
 
-%	$Id: hdr2ascii.m,v 1.10 2008-07-21 13:05:30 schloegl Exp $
+%	$Id: hdr2ascii.m,v 1.11 2008-07-22 13:07:15 schloegl Exp $
 %	Copyright (C) 2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -87,40 +87,40 @@ end;
 if isfield(HDR,'NRec') && isfield(HDR,'SPR')
 	fprintf(fid,'Number_of_Samples\t= %i\n',HDR.NRec*HDR.SPR); 
 end;	 
+T0 = zeros(1,6);
 if isfield(HDR,'T0')
 	switch length(HDR.T0)
 	case 1, T0 = datevec(HDR.T0);
 	case 6, T0 = HDR.T0;
-	otherwise, T0 = zeros(1,6);
 	end; 
 	fprintf(fid,'RecordingDateTime\t= %04i-%02i-%02i %02i:%02i:%06.3f\n',T0);
 end; 	 
 if isfield(HDR,'Patient')
-fprintf(fid,'Patient.\n'); 
-if isfield(HDR.Patient,'Name')
-	fprintf(fid,'\tName      \t= %s\n',HDR.Patient.Name); 
-end;
-if isfield(HDR.Patient,'Id')
-	fprintf(fid,'\tId\t\t= %s\n',HDR.Patient.Id); 
-end;
-if isfield(HDR.Patient,'Sex')
-	if (HDR.Patient.Sex==1)
-		fprintf(fid,'\tGender   \t= male\n'); 
-	elseif (HDR.Patient.Sex==2)
-		fprintf(fid,'\tGender   \t= female\n'); 
-	else
-		fprintf(fid,'\tGender   \t= unknown\n');
+	fprintf(fid,'Patient.\n'); 
+	if isfield(HDR.Patient,'Name')
+		fprintf(fid,'\tName      \t= %s\n',HDR.Patient.Name); 
 	end;
-end;
-if isfield(HDR.Patient,'Birthday')
-	switch length(HDR.Patient.Birthday)
-	case 1,    T0 = datevec(HDR.Patient.Birthday);
-	case 6,    T0 = HDR.Patient.Birthday;
-	otherwise, T0 = zeros(1,6);
-	end; 
-	fprintf(fid,'\tAge\t\t= %4.1f years\n',(datenum(HDR.T0)-datenum(HDR.Patient.Birthday))/(365.25)); 
-	fprintf(fid,'\tBirth\t\t= %04i-%02i-%02i %02i:%02i:%06.3f\n',HDR.Patient.Birthday); 
-end;
+	if isfield(HDR.Patient,'Id')
+		fprintf(fid,'\tId\t\t= %s\n',HDR.Patient.Id); 
+	end;
+	if isfield(HDR.Patient,'Sex')
+		if (HDR.Patient.Sex==1)
+			fprintf(fid,'\tGender   \t= male\n'); 
+		elseif (HDR.Patient.Sex==2)
+			fprintf(fid,'\tGender   \t= female\n'); 
+		else	
+			fprintf(fid,'\tGender   \t= unknown\n');
+		end;	
+	end;
+	T1 = zeros(1,6);
+	if isfield(HDR.Patient,'Birthday')
+		switch length(HDR.Patient.Birthday)
+		case 1,    T1 = datevec(HDR.Patient.Birthday);
+		case 6,    T1 = HDR.Patient.Birthday;
+		end; 
+		fprintf(fid,'\tAge\t\t= %4.1f years\n',(datenum(T0)-datenum(T1))/(365.25)); 
+		fprintf(fid,'\tBirth\t\t= %04i-%02i-%02i %02i:%02i:%06.3f\n',T1); 
+	end;
 end;
 
 %%%%%%%% CHANNEL DATA %%%%%%%%%%%%%%%
@@ -156,7 +156,7 @@ else
 end
 if ~isfield(HDR,'Off')
 	HDR.Off = zeros(HDR.NS,1); 
-	HDR.Cal(InChanSelect) = diag(HDR.Calib(1,:));
+	HDR.Cal(InChanSelect) = diag(HDR.Calib(2:end,:));
 end;
 if ~isfield(HDR,'Cal') && isfield(HDR,'Calib')
 	HDR.Cal = ones(HDR.NS,1); 
@@ -188,8 +188,10 @@ for k = 1:HDR.NS,
 	fprintf(fid,'%3i  %i\t%-9s\t%6.1f %2i  %i\t%i\t%6e\t%6e %5s  %6.4f %5.1f  %i  %5.1f  %f %f %f\n',k,HDR.LeadIdCode(k),Label,HDR.AS.SampleRate(k),gdftyp,HDR.THRESHOLD(k,1:2),HDR.Off(k),HDR.Cal(k),PhysDim{k},HDR.Filter.HighPass(k),HDR.Filter.LowPass(k),HDR.Filter.Notch(k),Z,HDR.ELEC.XYZ(k,:)); 
 end;
 
-
-%%%%%%%%%% EVENTTABLE %%%%%%%%%%%%%%%55
+if ~isfield(HDR.EVENT,'SampleRate');
+	HDR.EVENT.SampleRate = HDR.SampleRate;
+end;	
+%%%%%%%%%% EVENTTABLE %%%%%%%%%%%%%%%
 fprintf(fid,'\n[Event Table]\n'); 
 fprintf(fid,'NumberOfEvents=%i  SampleRate=%f\n   TYP\t   POS ',length(HDR.EVENT.POS),HDR.EVENT.SampleRate); 
 if isfield(HDR.EVENT,'CHN')
