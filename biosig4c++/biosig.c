@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.237 2008-07-21 19:00:37 schloegl Exp $
+    $Id: biosig.c,v 1.238 2008-07-22 14:08:32 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -3046,18 +3046,20 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		const char sep[] = " =\x09";
 		double duration=0;
 		size_t lengthRawData=0;
+		uint8_t FLAG_NUMBER_OF_FIELDS_READ;	// used to trigger consolidation of channel info   
 		char *line = strtok((char*)hdr->AS.Header,"\x0a\x0d");
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"<%s>\n",line);
 		
 		while (line!=NULL) {
 
-//			if (VERBOSE_LEVEL>8) fprintf(stdout,"%s\n",line);
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"<%s>\n",line);
 
 			if (!strncmp(line,"[Header 1]",10))
 				status = 1; 
 			else if (!strncmp(line,"[Header 2]",10)) {
 				status = 2;
 				hdr->NS = 0; 
+				FLAG_NUMBER_OF_FIELDS_READ=0; 
 			}	
 			else if (!strncmp(line,"[EVENT TABLE]",13)) {
 				status = 3;
@@ -3072,6 +3074,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (c) val[c] = 0; // remove comments
 				c = strcspn(line,sep);
 				if (c) line[c] = 0; // deblank 
+				FLAG_NUMBER_OF_FIELDS_READ++; 
 			}	
 
 			if (status==1) {
@@ -3125,24 +3128,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}
 			else if (status==2) {
 				if (!strcmp(line,"Filename")) {
-					if (hdr->NS>0) {
-						// consolidate last channel
-						hdr->AS.bi[0]=0;
-						k = hdr->NS-1;	
-						if ((GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR >> 3) != (hdr->AS.bi[hdr->NS]-hdr->AS.bi[k])) {
-							fprintf(stdout,"Warning SOPEN(BIN): problems with channel %i - filesize %i does not fit header info %i\n",k+1, hdr->AS.bi[k]-hdr->AS.bi[k-1],GDFTYP_BITS[hdr->CHANNEL[k-1].GDFTYP]*hdr->CHANNEL[k-1].SPR >> 3);
-						}
-
-						
-						hdr->CHANNEL[k].SPR = (hdr->AS.bi[hdr->NS]-hdr->AS.bi[k])*8/GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP];
-						if (hdr->CHANNEL[k].SPR>0) hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
-						hdr->SampleRate = hdr->SPR/duration; 
-						hdr->CHANNEL[k].LeadIdCode = 0;
-						hdr->CHANNEL[k].OnOff = 1;
-						hdr->CHANNEL[k].Cal = (hdr->CHANNEL[k].PhysMax-hdr->CHANNEL[k].PhysMin)/(hdr->CHANNEL[k].DigMax-hdr->CHANNEL[k].DigMin);
-						hdr->CHANNEL[k].Off =  hdr->CHANNEL[k].PhysMin-hdr->CHANNEL[k].Cal*hdr->CHANNEL[k].DigMin;
-					}
-					
 					// add next channel  	
 					++hdr->NS; 
 					hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL, hdr->NS*sizeof(CHANNEL_TYPE));
@@ -3159,6 +3144,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					} 
 					hdr->AS.bi[hdr->NS] = lengthRawData; 
 					hdr->AS.bpb   = lengthRawData; 
+					FLAG_NUMBER_OF_FIELDS_READ = 1; 
 				}
 				else if (!strcmp(line,"Label"))
 					strncpy(hdr->CHANNEL[hdr->NS-1].Label,val,MAX_LENGTH_LABEL);
@@ -3188,6 +3174,24 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->CHANNEL[hdr->NS-1].PhysMax = atof(val);
 				else if (!strcmp(line,"PhysMin"))
 					hdr->CHANNEL[hdr->NS-1].PhysMin = atof(val);
+
+				if (FLAG_NUMBER_OF_FIELDS_READ > 14) { 
+					// consolidate last channel
+					hdr->AS.bi[0]=0;
+					k = hdr->NS-1;	
+					if ((GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR >> 3) != (hdr->AS.bi[hdr->NS]-hdr->AS.bi[k])) {
+						fprintf(stdout,"Warning SOPEN(BIN): problems with channel %i - filesize %i does not fit header info %i\n",k+1, hdr->AS.bi[k]-hdr->AS.bi[k-1],GDFTYP_BITS[hdr->CHANNEL[k-1].GDFTYP]*hdr->CHANNEL[k-1].SPR >> 3);
+					}
+
+					hdr->CHANNEL[k].SPR = (hdr->AS.bi[hdr->NS]-hdr->AS.bi[k])*8/GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP];
+					if (hdr->CHANNEL[k].SPR>0) hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
+					hdr->SampleRate = hdr->SPR/duration; 
+					hdr->CHANNEL[k].LeadIdCode = 0;
+					hdr->CHANNEL[k].OnOff = 1;
+					hdr->CHANNEL[k].Cal = (hdr->CHANNEL[k].PhysMax-hdr->CHANNEL[k].PhysMin)/(hdr->CHANNEL[k].DigMax-hdr->CHANNEL[k].DigMin);
+					hdr->CHANNEL[k].Off =  hdr->CHANNEL[k].PhysMin-hdr->CHANNEL[k].Cal*hdr->CHANNEL[k].DigMin;
+					FLAG_NUMBER_OF_FIELDS_READ = 0; 
+				}
 			}
 			else if (status==3) {
 				if (!strncmp(line,"0x",2)) {
@@ -6220,7 +6224,20 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		}
 		
 		*(uint64_t*) (Header1+236) = l_endian_u64(hdr->NRec);
-
+		
+	/* FIXME: this part should make the records as small as possible   
+		size_t DIV = 1, div; 		
+		for (k=0; k<hdr->NS; k++) {
+			div = hdr->SPR/hdr->CHANNEL[k].SPR;
+			if (div>DIV) DIV=div; 
+		}
+		for (k=0; k<hdr->NS; k++) {
+			hdr->CHANNEL[k].SPR = (hdr->CHANNEL[k].SPR*DIV)/hdr->SPR;
+		}
+		hdr->NRec *= hdr->SPR/DIV; 
+		hdr->SPR  = DIV; 
+	*/
+				 
 		/* Duration is expressed as an fraction of integers */ 
 		double fDur = hdr->SPR/hdr->SampleRate;
 		double dtmp1, dtmp2;
