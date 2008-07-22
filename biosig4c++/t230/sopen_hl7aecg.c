@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.22 2008-07-07 12:03:37 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.23 2008-07-22 21:26:13 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -327,6 +327,8 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 		char* HDR.AS.Header 	// contains the content which will be written to the file in SOPEN
 */	
 
+	time_t T0;
+	struct tm *t0;
     char tmp[80];	
     TiXmlDocument doc;
     
@@ -358,8 +360,8 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 
     char timelow[19], timehigh[19];
     gdf_time t1 = hdr->T0 + ldexp(timezone/(3600.0*24),32);	
-    time_t T0 = gdf_time2t_time(t1);
-    struct tm *t0 = localtime(&T0);
+    T0 = gdf_time2t_time(t1);
+    t0 = localtime(&T0);
 //    mktime(t0);
     gdf_time t2=tm_time2gdf_time(t0);
 //    t0->tm_gmtoff=0;
@@ -382,6 +384,8 @@ dT = (int)floor(ldexp(t1-t2,-32)*(3600e3*24));
 	    timehigh[i] = '0';
     }
 
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"930\n");
+
     TiXmlElement *effectiveTime = new TiXmlElement("effectiveTime");
     TiXmlElement *effectiveTimeLow = new TiXmlElement("low");
     effectiveTimeLow->SetAttribute("value", timelow);
@@ -391,10 +395,14 @@ dT = (int)floor(ldexp(t1-t2,-32)*(3600e3*24));
     effectiveTime->LinkEndChild(effectiveTimeHigh);
     root->LinkEndChild(effectiveTime);
 
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"931\n");
+
     TiXmlElement *rootComponentOf = new TiXmlElement("componentOf");
     rootComponentOf->SetAttribute("typeCode", "COMP");
     rootComponentOf->SetAttribute("contextConductionInd", "true");
     root->LinkEndChild(rootComponentOf);
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"932\n");
 
     TiXmlElement *timePointEvent = new TiXmlElement("timepointEvent");
     timePointEvent->SetAttribute("classCode", "CTTEVENT");
@@ -431,6 +439,8 @@ dT = (int)floor(ldexp(t1-t2,-32)*(3600e3*24));
     trialSubjectDemographicPerson->SetAttribute("determinerCode", "INSTANCE");
     trialSubject->LinkEndChild(trialSubjectDemographicPerson);
 
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"933\n");
+
     if (strlen(hdr->Patient.Name)>0)
     if (!hdr->FLAG.ANONYMOUS) 
     {	
@@ -457,14 +467,19 @@ dT = (int)floor(ldexp(t1-t2,-32)*(3600e3*24));
     subjectDemographicPersonGender->SetAttribute("codeSystemName", "AdministrativeGender");
     trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonGender);
 
-    T0 = gdf_time2t_time(hdr->Patient.Birthday);
-    t0 = gmtime(&T0);
-	// TODO: fixme if "t0->tm_sec"
-    sprintf(tmp, "%04d%02d%02d%02d%02d%02d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec);
+	if (hdr->Patient.Birthday>0) {
+		T0 = gdf_time2t_time(hdr->Patient.Birthday);
 
-    TiXmlElement *subjectDemographicPersonBirthtime = new TiXmlElement("birthTime");
-    subjectDemographicPersonBirthtime->SetAttribute("value", tmp);
-    trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonBirthtime);
+		t0 = gmtime(&T0);
+		// t0 = localtime(&T0);
+
+		// TODO: fixme if "t0->tm_sec"
+		sprintf(tmp, "%04d%02d%02d%02d%02d%02d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec);
+
+		TiXmlElement *subjectDemographicPersonBirthtime = new TiXmlElement("birthTime");
+		subjectDemographicPersonBirthtime->SetAttribute("value", tmp);
+		trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonBirthtime);
+	}	
 
 	/* write non-standard fields height and weight */
     if (hdr->Patient.Weight) {
@@ -482,6 +497,8 @@ dT = (int)floor(ldexp(t1-t2,-32)*(3600e3*24));
     	trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonHeight);
     }
 
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"937\n");
 
     TiXmlElement *subjectAssignmentComponentOf = new TiXmlElement("componentOf");
     subjectAssignmentComponentOf->SetAttribute("typeCode", "COMP");
@@ -503,6 +520,8 @@ dT = (int)floor(ldexp(t1-t2,-32)*(3600e3*24));
     rootComponent->SetAttribute("contextConductionInd", "true");
     root->LinkEndChild(rootComponent);
     
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"939\n");
+
     TiXmlElement *series = new TiXmlElement("series");
     series->SetAttribute("classCode", "OBSSER");
     series->SetAttribute("moodCode", "EVN");

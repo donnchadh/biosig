@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.238 2008-07-22 14:08:32 schloegl Exp $
+    $Id: biosig.c,v 1.239 2008-07-22 21:26:12 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1449,12 +1449,14 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = (gdf_time)0; t_time2gdf_time(time(NULL));
       	hdr->tzmin = 0; 
-      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.63";
+      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.65";
       	hdr->ID.Manufacturer._field[0]    = 0;
       	hdr->ID.Manufacturer.Name         = " ";
       	hdr->ID.Manufacturer.Model        = " ";
       	hdr->ID.Manufacturer.Version      = " ";
       	hdr->ID.Manufacturer.SerialNumber = " ";
+	hdr->ID.Technician 	= " "; 
+
 
 	hdr->Patient.Name[0] 	= 0; 
 	//hdr->Patient.Name 	= NULL; 
@@ -2511,6 +2513,7 @@ if (!strncmp(MODE,"r",1))
 	    	char *Header2 = (char*)hdr->AS.Header+256; 
 	    	count  += ifread(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
 
+		char p[9];
 		for (k=0, hdr->SPR = 1; k<hdr->NS; k++)	{
 			if (VERBOSE_LEVEL>8) 
 				fprintf(stdout,"[EDF 213] #%i/%i\n",k,hdr->NS);
@@ -2523,27 +2526,49 @@ if (!strncmp(MODE,"r",1))
 			for (k1=strlen(hdr->CHANNEL[k].Transducer)-1; isspace(hdr->CHANNEL[k].Transducer[k1]) && k1; k1--)
 				hdr->CHANNEL[k].Transducer[k1]='\0'; 	// deblank
 			
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"[EDF 214] #%i/%i\n",k,hdr->NS);
+
 			// PhysDim -> PhysDimCode 
-			char p[9];
-			strncpy(p,Header2 + 8*k + 96*hdr->NS,8);
+			memcpy(p,Header2 + 8*k + 96*hdr->NS,8);
+
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"[EDF 215-] #%i/%i\n",k,hdr->NS);
+
 			p[8] = 0; // remove trailing blanks
 			for (int k1=7; (k1>0) && isspace(p[k1]); p[k1--]=0);
 
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"[EDF 215] #%i/%i\n",k,hdr->NS);
+
 			hdr->CHANNEL[k].PhysDimCode = PhysDimCode(p);
 			tmp[8] = 0;
+
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"[EDF 215a] #%i/%i\n",k,hdr->NS);
+
 			hdr->CHANNEL[k].PhysMin = atof(strncpy(tmp,Header2 + 8*k + 104*hdr->NS,8)); 
 			hdr->CHANNEL[k].PhysMax = atof(strncpy(tmp,Header2 + 8*k + 112*hdr->NS,8)); 
 			hdr->CHANNEL[k].DigMin  = atof(strncpy(tmp,Header2 + 8*k + 120*hdr->NS,8)); 
 			hdr->CHANNEL[k].DigMax  = atof(strncpy(tmp,Header2 + 8*k + 128*hdr->NS,8)); 
 			
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"[EDF 215b] #%i/%i\n",k,hdr->NS);
+
 			hdr->CHANNEL[k].Cal     = (hdr->CHANNEL[k].PhysMax - hdr->CHANNEL[k].PhysMin) / (hdr->CHANNEL[k].DigMax-hdr->CHANNEL[k].DigMin);
 			hdr->CHANNEL[k].Off     =  hdr->CHANNEL[k].PhysMin - hdr->CHANNEL[k].Cal*hdr->CHANNEL[k].DigMin;
+
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"[EDF 215c] #%i/%i\n",k,hdr->NS);
 
 			hdr->CHANNEL[k].SPR     = atol(strncpy(tmp, Header2 + 8*k + 216*hdr->NS,8));
 			hdr->CHANNEL[k].GDFTYP  = ((hdr->TYPE != BDF) ? 3 : 255+24); 
 			hdr->CHANNEL[k].OnOff   = 1;
 			hdr->SPR 	 	= lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
 			
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"[EDF 216] #%i/%i\n",k,hdr->NS);
+
 			hdr->CHANNEL[k].LowPass = NaN;
 			hdr->CHANNEL[k].HighPass = NaN;
 			hdr->CHANNEL[k].Notch = NaN;
@@ -2573,6 +2598,9 @@ if (!strncmp(MODE,"r",1))
 				}
 			}
 				
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"[EDF 218] #%i/%i\n",k,hdr->NS);
+
 			if ((hdr->TYPE==EDF) && !strncmp(Header1+192,"EDF+",4) && !strcmp(hdr->CHANNEL[k].Label,"EDF Annotations")) {
 				hdr->CHANNEL[k].OnOff = 0;
 				EventChannel = k; 
@@ -2581,6 +2609,10 @@ if (!strncmp(MODE,"r",1))
 				hdr->CHANNEL[k].OnOff = 0;
 				EventChannel = k; 
 			}
+			
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"[EDF 219] #%i/%i\n",k,hdr->NS);
+
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// EDF does not support automated overflow and saturation detection
 	    	double Dur	= atof(strncpy(tmp,Header1+244,8));
@@ -3052,7 +3084,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		
 		while (line!=NULL) {
 
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"<%s>\n",line);
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"11<%s>\n",line);
 
 			if (!strncmp(line,"[Header 1]",10))
 				status = 1; 
@@ -3066,6 +3098,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				hdr->EVENT.SampleRate = hdr->SampleRate; 
 			}	
 
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"22<%s>\n",line);
+
 			val = strchr(line,'=');	
 			if (val!=NULL) {
 				val += strspn(val,sep);
@@ -3076,6 +3110,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (c) line[c] = 0; // deblank 
 				FLAG_NUMBER_OF_FIELDS_READ++; 
 			}	
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"33<%s>\n",line);
 
 			if (status==1) {
 				if (!strcmp(line,"Duration"))
@@ -3088,6 +3124,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					sscanf(val,"%04i-%02i-%02i %02i:%02i:%02i",&t.tm_year,&t.tm_mon,&t.tm_mday,&t.tm_hour,&t.tm_min,&t.tm_sec); 
 					t.tm_year -=1900;
 					t.tm_mon--;
+					t.tm_isdst = -1;
 					hdr->Patient.Birthday = tm_time2gdf_time(&t); 
 				}	
 				else if (!strcmp(line,"Patient.Weight"))
@@ -3113,6 +3150,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					int c=sscanf(val,"%04i-%02i-%02i %02i:%02i:%02i",&t.tm_year,&t.tm_mon,&t.tm_mday,&t.tm_hour,&t.tm_min,&t.tm_sec); 
 					t.tm_year -=1900;
 					t.tm_mon--;
+					t.tm_isdst = -1;
 					hdr->T0 = tm_time2gdf_time(&t); 
 				}	
 				else if (!strcmp(line,"Recording.Technician"))
@@ -3233,6 +3271,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					++hdr->EVENT.N;
 				}	
 			}				
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"44<%s>\n",line);
 
 			line = strtok(NULL,"\x0a\x0d");
 		}
@@ -6484,6 +6524,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		// Header1[curPos+1] = len; 
 		// curPos = len+2; 
 
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 711]:\n");
+
 		// tag 23: Manufacturer 
 		tag = 23;
 		Header1[curPos] = tag; 
@@ -6518,6 +6560,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		// tag 1: Endianity 
 		// use default BigEndianity		
 		 
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 720-4]:\n");
+
 		// tag 4: SPR 
 		tag = 4;
 		len = sizeof(uint32_t);
@@ -6525,6 +6569,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		Header1[curPos++] = len; 
 		*(uint32_t*)(Header1+curPos) = b_endian_u32(hdr->SPR); 
 		curPos += len; 
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 720-5]:\n");
 
 		// tag 5: NS 
 		tag = 5;
@@ -6534,6 +6580,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		*(uint16_t*)(Header1+curPos) = b_endian_u16(hdr->NS); 
 		curPos += len; 
 
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 720-6]:\n");
+
 		// tag 6: NRec 
 		tag = 6;
 		len = sizeof(uint32_t);
@@ -6542,6 +6590,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		*(uint32_t*)(Header1+curPos) = b_endian_u32(hdr->NRec); 
 		curPos += len; 
 
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 720-8]:\n");
+
 		// tag 8: Waveform: unidentified 
 		tag = 8;
 		len = sizeof(uint8_t);
@@ -6549,6 +6599,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		Header1[curPos++] = len; 
 		*(Header1+curPos) = 0; // unidentified 
 		curPos += len; 
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 720-129]:\n");
 
 		// tag 129: Patient Name  
 		if (!hdr->FLAG.ANONYMOUS) {
@@ -6584,6 +6636,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		*(Header1+curPos+6) = (t->tm_mday); 
 		curPos += len; 
 
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 720-132]:\n");
+
 		// tag 132: Patient Sex  
 		tag = 132;
 		Header1[curPos]   = tag; 
@@ -6600,9 +6654,15 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		hdr->HeadLen = curPos; 		
 		// tag 63: channel-specific settings
 		
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 720-63]:\n");
+
 		tag = 63;
 		size_t ch; 
-		for (ch=0; ch<hdr->NS; k++) {
+		for (ch=0; ch<hdr->NS; ch++) {
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 720-63 #%i/%i]:\n",ch,hdr->NS);
+
+
 		 	// FIXME: this is broken 
 			len = 0; 
 			Header1[curPos++] = tag; 
