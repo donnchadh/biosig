@@ -2,7 +2,7 @@ function varargout = sviewer(varargin)
 % SVIEWER
 % Select HELP in the Info menu 
 %
-% $Id: sviewer.m,v 1.12 2008-07-21 15:23:27 schloegl Exp $
+% $Id: sviewer.m,v 1.13 2008-07-22 13:42:30 schloegl Exp $
 % Copyright by (C) 2004 Franz Einspieler <znarfi5@hotmail.com> and
 %              (C) 2004,2008 Alois Schloegl <a.schloegl@ieee.org>
 % University of Technology Graz, Austria
@@ -1737,6 +1737,7 @@ if ~isempty(eventmatrix)
             [p,f,e]=fileparts(new_detection);
             H.FileName = fullfile(p,[f,'.evt']);
             H.T0 = Data.HDR.T0;
+            H.Patient = Data.HDR.Patient;
             H.PID = ['Scoring of file: ', Data.HDR.FileName];
             H.RID = 'Generated with SVIEWER from http://biosig.sf.net';
             H.EVENT.SampleRate = Data.HDR.SampleRate; 
