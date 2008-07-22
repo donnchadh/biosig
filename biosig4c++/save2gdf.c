@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.45 2008-07-21 19:00:37 schloegl Exp $
+    $Id: save2gdf.c,v 1.46 2008-07-22 14:11:18 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -68,7 +68,7 @@ int main(int argc, char **argv){
 		fprintf(stdout,"   -h, --help   \n\tprints this information\n");
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
 		fprintf(stdout,"\tFMT must represent a valid target file format\n"); 
-		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF (v2), GDF1 (v1), EDF, BDF, CFWB\n"); 
+		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF (v2), GDF1 (v1), EDF, BDF, CFWB, BIN\n"); 
 		fprintf(stdout,"   -z=#, compression level \n");
 		fprintf(stdout,"\t#=0 no compression; #=9 best compression\n");
 		fprintf(stdout,"   -s=#\tselect target segment # (in the multisegment file format EEG1100)\n");
@@ -110,6 +110,8 @@ int main(int argc, char **argv){
 			TARGET_TYPE=BIN;
     		else if (!strncmp(argv[k],"-f=MFER",6))
 			TARGET_TYPE=MFER;
+    		else if (!strcmp(argv[k],"-f=GDF1"))
+			TARGET_TYPE=GDF1;
 		else {
 			fprintf(stderr,"format %s not supported.\n",argv[k]);
 			return(-1);
@@ -143,17 +145,19 @@ int main(int argc, char **argv){
 	tzset();
 	hdr = constructHDR(0,0);
 	// hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
-	// hdr->FLAG.UCAL = FlagUCAL;
+	hdr->FLAG.UCAL = ((TARGET_TYPE==BIN) || (TARGET_TYPE==ASCII));
 	// hdr->FLAG.ROW_BASED_CHANNELS = 0; 
 	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
 
 	hdr = sopen(source, "r", hdr);
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
+
 	if ((status=serror())) {
 		destructHDR(hdr);
 		exit(status); 
 	} 
 	
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[113] SOPEN-R finished\n");
 
 	hdr2ascii(hdr,stdout,VERBOSE_LEVEL);
 	
