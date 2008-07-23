@@ -12,7 +12,7 @@ http://hci.tugraz.at/schloegl/biosig/TESTED
 (2) "save2gdf" is a converter between different file formats, 
 including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, CWFB.
 (3) "mexSLOAD.mex" is a MEX-interface for Octave and Matlab
-Requirement: Matlab OR Octave (v2.9 or higher), and octave-headers
+Requirement: Matlab OR Octave (v2.9 or higher) and octave-headers
 (4) "_biosig.so" is an interface to python. 
 Requirement: python2.4-dev, swig (http://www.swig.org/)
 This part is experimental.  
@@ -46,12 +46,12 @@ File(s):
     t230/*      support of HL7aECG file format 
     test0/*	scripts and functions for testing
     Makefile	script for compiling and testing 
-    
+    windows/*	executables for Windows
 
 Compilation: 
 -------------
 # Linux 
-you need g++, make and zlib. (If you do not have zlib, uncomment in biosig.h line 40 #include <zlib.h>).
+you need g++, make and zlib. (If you do not have zlib, uncomment in Makefile -D=WITH_ZLIB in DEFINES and -lz in LIBS).
 Running make compiles the converter.
   make 		 	# tries to makes the converter and the mex-files for Octave and Matlab
   make save2gdf 	# makes the file format converter
@@ -67,18 +67,29 @@ Running make compiles the converter.
   make test		# tests HL7<->SCP, SCP<->GDF, GDF<->HL7 converters
   make test6		# tests bidirectional conversion between 6 differerent data formats	
 
-# Cygwin
-install g++, zlib, and make and compile it. 
+# Windows + Cygwin
+Currently, only the file converter save2gdf is supported.
+- install Cygwin
+- within Cygwin install g++, zlib, and make 
+- run the make command 
+   make save2gdf 
 
-# Other platforms (Windows, MGwin, MacOSX, Solaris, etc. )
+# Windows + minGW
+Currently, only the file converter save2gdf is supported.
+- You need minGW with g++ and make, and MSYS. 
+- Removed the -lz flag from LIBS in Makefile.  
+- run the make command 
+   make save2gdf 
+
+# Other platforms (Windows+MSVC, MacOSX, Solaris, etc. )
 Not tested (yet). Let me know about successful compilations, 
 or tell me what changes are needed.   
-
 
 	
 Installation: 
 -------------
-ran as root 
+run as root 
+  make 
   make install 		# installs save2gdf, save2scp, save2aecg, sigviewer
 
 
@@ -134,16 +145,15 @@ or whether some conversion error has been included.
 
 
 
-
 More information is available at http://biosig.sf.net/
 
-If you have any questions you can also contact the newsgroup 
-news://tu-graz.biosig on the server news.tu-graz.ac.at. 
-The archive is available at 
-http://newsarchiv.tugraz.at/browse/tu-graz.biosig/ 
+If you have any questions you can also contact the mailinglist  
+https://lists.sourceforge.net/lists/listinfo/biosig-general
 
 
-    $Id: README,v 1.17 2008-06-18 19:33:04 schloegl Exp $
+
+
+    $Id: README,v 1.18 2008-07-23 08:20:23 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 
