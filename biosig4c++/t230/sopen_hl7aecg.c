@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.23 2008-07-22 21:26:13 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.24 2008-07-23 09:05:17 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -358,31 +358,31 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
     
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"910 %i\n",2);
 
-    char timelow[19], timehigh[19];
-    gdf_time t1 = hdr->T0 + ldexp(timezone/(3600.0*24),32);	
-    T0 = gdf_time2t_time(t1);
-    t0 = localtime(&T0);
-//    mktime(t0);
-    gdf_time t2=tm_time2gdf_time(t0);
-//    t0->tm_gmtoff=0;
-int dT;
-dT = (int)floor(ldexp(t1-t2,-32)*(3600e3*24));
-    sprintf(timelow, "%4d%2d%2d%2d%2d%2d.%3d", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec,(int)ceil(dT));
+	char timelow[24], timehigh[24];
+	gdf_time t1,t2;
+	t1 = hdr->T0;// + ldexp(timezone/(3600.0*24),32);	
+	T0 = gdf_time2t_time(t1);
+	t0 = localtime(&T0);
+	t2 = tm_time2gdf_time(t0);
+	double dT;
+	dT = ldexp(t1-t2,-32)*(3600*24);
+	dT = round(dT*1000);
+	sprintf(timelow, "%4d%2d%2d%2d%2d%2d.%3d", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec,(int)ceil(dT));
 
-    t1 = hdr->T0 + ldexp((hdr->SPR/hdr->SampleRate+timezone)/(3600.0*24),32);	
-    T0 = gdf_time2t_time(t1);
-    t0 = localtime(&T0);
-//    mktime(t0);
-    t2=tm_time2gdf_time(t0);
-dT = (int)floor(ldexp(t1-t2,-32)*(3600e3*24));
-    sprintf(timehigh, "%4d%2d%2d%2d%2d%2d.%3d", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec,(int)ceil(dT));
-    for(int i=0; i<18; ++i){
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"920 %i\n",i);
-	if(timelow[i] == ' ')
-	    timelow[i] = '0';
-	if(timehigh[i] == ' ')
-	    timehigh[i] = '0';
-    }
+	t1 = hdr->T0 + ldexp((hdr->SPR/hdr->SampleRate)/(3600.0*24),32);	
+	T0 = gdf_time2t_time(t1);
+	t0 = localtime(&T0);
+	t2 = tm_time2gdf_time(t0);
+	dT = ldexp(t1-t2,-32)*(3600*24);
+	dT = floor(dT*1000);
+	sprintf(timehigh, "%4d%2d%2d%2d%2d%2d.%3d", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec,(int)ceil(dT));
+	for(int i=0; i<18; ++i) {
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"920 %i\n",i);
+		if(timelow[i] == ' ')
+			timelow[i] = '0';
+		if(timehigh[i] == ' ')
+			timehigh[i] = '0';
+	}
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"930\n");
 
