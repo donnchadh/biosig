@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.24 2008-07-23 09:05:17 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.25 2008-07-23 17:44:39 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -202,7 +202,7 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		hdr->SampleRate = 1.0/atof(channels.FirstChild("component").FirstChild("sequence").FirstChild("value").FirstChild("increment").Element()->Attribute("value"));
 		
 		TiXmlHandle channel = channels.Child("component", 1).FirstChild("sequence");
-		for(hdr->NS = 0; channel.Element(); ++(hdr->NS), channel = channels.Child("component", hdr->NS+1).FirstChild("sequence"));
+		for(hdr->NS = 0; channel.Element(); ++(hdr->NS), channel = channels.Child("component", hdr->NS+1).FirstChild("sequence")) {};
 		hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 
 		channel = channels.Child("component", 1).FirstChild("sequence");
@@ -229,7 +229,7 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		    else if (hdr->SPR != hdr->CHANNEL[i].SPR) {
 			if (hdr->SPR != lcm(hdr->SPR, hdr->CHANNEL[i].SPR)) 
 			{
-				fprintf(stderr,"Error: number of samples %i of #%i differ from %i in #0.\n",hdr->CHANNEL[i].SPR,i+1,hdr->SPR,1);
+				fprintf(stderr,"Error: number of samples %i of #%i differ from %i in #0.\n",hdr->CHANNEL[i].SPR,i+1,hdr->SPR);
 				B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
 				B4C_ERRMSG = "HL7aECG: initial sample rate is not a multiple of all samplerates";
 				exit(-5);
