@@ -10,7 +10,7 @@ Recommended: zlib http://zlib.net/
 The supported data formats are listed here: 
 http://hci.tugraz.at/schloegl/biosig/TESTED
 (2) "save2gdf" is a converter between different file formats, 
-including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, CWFB.
+including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, CWFB, BIN.
 (3) "mexSLOAD.mex" is a MEX-interface for Octave and Matlab
 Requirement: Matlab OR Octave (v2.9 or higher) and octave-headers
 (4) "_biosig.so" is an interface to python. 
@@ -153,7 +153,7 @@ https://lists.sourceforge.net/lists/listinfo/biosig-general
 
 
 
-    $Id: README,v 1.18 2008-07-23 08:20:23 schloegl Exp $
+    $Id: README,v 1.19 2008-07-27 17:48:32 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 

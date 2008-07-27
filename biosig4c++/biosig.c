@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.239 2008-07-22 21:26:12 schloegl Exp $
+    $Id: biosig.c,v 1.240 2008-07-27 17:48:32 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -3068,23 +3068,20 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->HeadLen = count; 
 		ifclose(hdr);
 
-		hdr->NS = 0; 
+		hdr->NS   = 0; 
 		hdr->NRec = 1; 
-		hdr->SPR = 1; 
-		size_t N=0;	 
+		hdr->SPR  = 1; 
+		size_t N  = 0;	 
 		char status = 0; 
-		char *val=NULL;
-		char *field=NULL;
+		char *val   = NULL;
+		char *field = NULL;
 		const char sep[] = " =\x09";
-		double duration=0;
-		size_t lengthRawData=0;
+		double duration = 0;
+		size_t lengthRawData = 0;
 		uint8_t FLAG_NUMBER_OF_FIELDS_READ;	// used to trigger consolidation of channel info   
-		char *line = strtok((char*)hdr->AS.Header,"\x0a\x0d");
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"<%s>\n",line);
-		
-		while (line!=NULL) {
 
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"11<%s>\n",line);
+		char *line  = strtok((char*)hdr->AS.Header,"\x0a\x0d");
+		while (line!=NULL) {
 
 			if (!strncmp(line,"[Header 1]",10))
 				status = 1; 
@@ -3098,8 +3095,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				hdr->EVENT.SampleRate = hdr->SampleRate; 
 			}	
 
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"22<%s>\n",line);
-
 			val = strchr(line,'=');	
 			if (val!=NULL) {
 				val += strspn(val,sep);
@@ -3110,8 +3105,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (c) line[c] = 0; // deblank 
 				FLAG_NUMBER_OF_FIELDS_READ++; 
 			}	
-
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"33<%s>\n",line);
 
 			if (status==1) {
 				if (!strcmp(line,"Duration"))
@@ -3142,13 +3135,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				else if (!strcmp(line,"Patient.DrugAbuse"))
 					hdr->Patient.DrugAbuse = atoi(val);
 				else if (!strcmp(line,"Patient.Medication"))
-					hdr->Patient.Medication = strlen(val) ? 2 : 1;
+					hdr->Patient.Medication = atoi(val);
 				else if (!strcmp(line,"Recording.ID"))
 					strncpy(hdr->ID.Recording,val,MAX_LENGTH_RID);
 				else if (!strcmp(line,"Recording.Time")) {
 					struct tm t;
 					int c=sscanf(val,"%04i-%02i-%02i %02i:%02i:%02i",&t.tm_year,&t.tm_mon,&t.tm_mday,&t.tm_hour,&t.tm_min,&t.tm_sec); 
-					t.tm_year -=1900;
+					t.tm_year -= 1900;
 					t.tm_mon--;
 					t.tm_isdst = -1;
 					hdr->T0 = tm_time2gdf_time(&t); 
@@ -3164,6 +3157,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				else if (!strcmp(line,"Manufacturer.SerialNumber"))
 					hdr->ID.Manufacturer.SerialNumber = val;
 			}
+			
 			else if (status==2) {
 				if (!strcmp(line,"Filename")) {
 					// add next channel  	
@@ -3181,7 +3175,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 						fclose(fid);
 					} 
 					hdr->AS.bi[hdr->NS] = lengthRawData; 
-					hdr->AS.bpb   = lengthRawData; 
+					hdr->AS.bpb         = lengthRawData; 
+					hdr->CHANNEL[hdr->NS-1].PhysDimCode = 0;
+					hdr->CHANNEL[hdr->NS-1].HighPass = NaN;
+					hdr->CHANNEL[hdr->NS-1].LowPass  = NaN;
+					hdr->CHANNEL[hdr->NS-1].Notch    = NaN;
+
 					FLAG_NUMBER_OF_FIELDS_READ = 1; 
 				}
 				else if (!strcmp(line,"Label"))
@@ -3190,8 +3189,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->CHANNEL[hdr->NS-1].GDFTYP = atoi(val);
 				else if (!strcmp(line,"PhysicalUnits"))
 					hdr->CHANNEL[hdr->NS-1].PhysDimCode = PhysDimCode(val);
-				else if (!strcmp(line,"PhysDimCode"))
-					hdr->CHANNEL[hdr->NS-1].PhysDimCode = atoi(val);
+				else if (!strcmp(line,"PhysDimCode")) {
+					// If PhysicalUnits and PhysDimCode conflict, PhysicalUnits gets the preference 	
+					if (!hdr->CHANNEL[hdr->NS-1].PhysDimCode)
+						hdr->CHANNEL[hdr->NS-1].PhysDimCode = atoi(val);
+				}	
 				else if (!strcmp(line,"Transducer"))
 					strncpy(hdr->CHANNEL[hdr->NS-1].Transducer,val,MAX_LENGTH_TRANSDUCER);
 				else if (!strcmp(line,"SampleRate"))
@@ -3213,7 +3215,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				else if (!strcmp(line,"PhysMin"))
 					hdr->CHANNEL[hdr->NS-1].PhysMin = atof(val);
 
-				if (FLAG_NUMBER_OF_FIELDS_READ > 14) { 
+				if (FLAG_NUMBER_OF_FIELDS_READ > 13) { 
 					// consolidate last channel
 					hdr->AS.bi[0]=0;
 					k = hdr->NS-1;	
@@ -3231,6 +3233,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					FLAG_NUMBER_OF_FIELDS_READ = 0; 
 				}
 			}
+			
 			else if (status==3) {
 				if (!strncmp(line,"0x",2)) {
 					
@@ -3270,18 +3273,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					
 					++hdr->EVENT.N;
 				}	
-			}				
-
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"44<%s>\n",line);
-
+			}
+							
 			line = strtok(NULL,"\x0a\x0d");
 		}
-
-		if (VERBOSE_LEVEL>8)
-			hdr2ascii(hdr,stdout,3);
-
-		fprintf(stdout,"Warning ASCII/BIN: reading format is under construction.\n");
-		// TODO: 
     	}
     	
 	else if (hdr->TYPE==BCI2000) {
