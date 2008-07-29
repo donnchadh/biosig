@@ -40,14 +40,23 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.88 2008-07-10 22:39:08 schloegl Exp $
+%	$Id: sload.m,v 1.89 2008-07-29 07:30:49 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
-% This library is free software; you can redistribute it and/or
-% modify it under the terms of the GNU Library General Public
-% License as published by the Free Software Foundation; either
-% Version 3 of the License, or (at your option) any later version.
+%
+%    BioSig is free software: you can redistribute it and/or modify
+%    it under the terms of the GNU General Public License as published by
+%    the Free Software Foundation, either version 3 of the License, or
+%    (at your option) any later version.
+%
+%    BioSig is distributed in the hope that it will be useful,
+%    but WITHOUT ANY WARRANTY; without even the implied warranty of
+%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%    GNU General Public License for more details.
+%
+%    You should have received a copy of the GNU General Public License
+%    along with BioSig.  If not, see <http://www.gnu.org/licenses/>.
 
 if length(varargin)<2; 
 	MODE = ''; 
@@ -177,7 +186,7 @@ if ((iscell(FILENAME) || isstruct(FILENAME)) && (length(FILENAME)>1)),
 			else
 				error('ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
 			end;
-                        if ~isequal(H.Label,h.Label) || ~isequal(H.PhysDimCode,h.PhysDimCode) || ~isequal(H.Cal,h.Cal) || ~isequal(H.Off,h.Off)
+                        if ~isequal(H.Label,h.Label) || ~isequal(H.PhysDimCode,h.PhysDimCode) || ~isequal(H.Calib,h.Calib) %% || ~isequal(H.Off,h.Off)
 				fprintf(2,'Warning SLOAD: Labels,PhysDim,Cal or Off of multiple files differ! \n');
 				H.Label,h.Label,
                                 %for k1 = 1:h.NS,
@@ -297,6 +306,7 @@ if exist('mexSLOAD','file')==3,
 		[HDR.FILE.Path,HDR.FILE.Name,HDR.FILE.Ext] = fileparts(FILENAME);
 		HDR.FileName = FILENAME;
 		HDR = leadidcodexyz(HDR);
+		HDR.EVENT.POS = HDR.EVENT.POS+1; % convert from 0-based to 1-based index
 		
 		H=HDR;
 		H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
