@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.77 2008-07-21 13:04:10 schloegl Exp $
+%	$Id: getfiletype.m,v 1.78 2008-07-29 07:32:11 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -289,6 +289,9 @@ else
                         HDR.VERSION = ss(35:42);
                 elseif all(s([1:24,29:31])==[abs('POLY SAMPLE FILEversion '),13,10,26]) & (str2double(ss(25:28))==(s([32:33])*[1;256]/100)); % Poly5/TMS32 sample file format.
                         HDR.TYPE='TMS32';
+                elseif all(s([1:46])==['FileId=TMSi PortiLab sample log file',13,10,'Version=']); % 
+                        HDR.TYPE='TMSiLOG';
+                        HDR.H1 = [ss(1:c),fread(fid,[1,inf],'uint8=>char')];  %% read whole file 
                 elseif strncmp(ss,'"Snap-Master Data File"',23);	% Snap-Master Data File .
                         HDR.TYPE='SMA';
                 elseif 0, all(s([1:2,20])==[1,0,0]) & any(s(19)==[2,4]); 

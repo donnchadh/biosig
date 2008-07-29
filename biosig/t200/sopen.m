@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.221 2008-07-22 14:02:41 schloegl Exp $
+%	$Id: sopen.m,v 1.222 2008-07-29 07:32:11 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -168,6 +168,7 @@ if ~isfield(HDR,'T0');
         HDR.T0 = repmat(nan,1,6);
 end;
 if ~isfield(HDR,'Filter');
+        HDR.Filter.Notch    = NaN; 
         HDR.Filter.LowPass  = NaN; 
         HDR.Filter.HighPass = NaN; 
 end;
@@ -957,11 +958,11 @@ end;
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF') 
                         if ~isfield(HDR,'VERSION'),
-                                HDR.VERSION = 1.99;     %% stable version 
+                                HDR.VERSION = 2.0;     %% stable version 
                         elseif (HDR.VERSION<1.30)
                                 HDR.VERSION = 1.25;     %% stable version 
                         else
-                                HDR.VERSION = 1.99;     %% testing 
+                                HDR.VERSION = 2.0;     %% testing 
                         end;        
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
@@ -5162,7 +5163,7 @@ elseif strcmp(HDR.TYPE,'MIT-ATR'),
 		HDR.TYPE = 'EVENT';
                 
         
-elseif strcmp(HDR.TYPE,'TMS32'),        % Portilab/TMS32 format
+elseif strcmp(HDR.TYPE,'TMS32'),        % Portilab/TMS32/Poly5 format
         if any(HDR.FILE.PERMISSION=='r'),
                 HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 HDR.ID = fread(HDR.FILE.FID,31,'uint8');
@@ -5184,7 +5185,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),        % Portilab/TMS32 format
                 HDR.HeadLen = 217 + HDR.NS*136;
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS = 0;
-                
+
                 Label   = zeros(HDR.NS,40);
                 PhysDim = zeros(HDR.NS,10);
                 k = 1;  aux = 0; 
@@ -5192,13 +5193,13 @@ elseif strcmp(HDR.TYPE,'TMS32'),        % Portilab/TMS32 format
                         c   = fread(HDR.FILE.FID,[1,1],'uint8');
                         tmp = char(fread(HDR.FILE.FID,[1,40],'uint8'));
                         if strncmp(tmp,'(Lo)',4);
-                                Label(k-aux,1:c-4) = tmp(5:c);
+                                Label(k-aux,1:c-5) = tmp(6:c);
                                 HDR.GDFTYP(k-aux)  = 16;
-                        elseif strncmp(tmp,'(Hi)',4) ;
+                        elseif strncmp(tmp,'(Hi) ',5) ;
                                 aux = aux + 1;				
                         else
                                 Label(k-aux,1:c)  = tmp(1:c);
-                                HDR.GDFTYP(k-aux) = 5;
+                                HDR.GDFTYP(k-aux) = 3;
                         end;
                         
                         tmp = fread(HDR.FILE.FID,[1,4],'uint8');
@@ -5221,6 +5222,53 @@ elseif strcmp(HDR.TYPE,'TMS32'),        % Portilab/TMS32 format
                 HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
                 HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
                 HDR.Calib = sparse([HDR.Off';(diag(HDR.Cal))]);
+        end;
+        
+elseif strcmp(HDR.TYPE,'TMSiLOG'),
+        if any(HDR.FILE.PERMISSION=='r'),
+	        %fid = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
+                %H1  = fread(fid,[1,inf],'uint8=>char');
+		%fclose(fid);
+		%getfiletype read whole header file into HDR.H1
+		tmp = HDR.H1(62:81); 
+		tmp(tmp=='/' || tmp=='-' || tmp==':') = ' ';
+		HDR.T0 = str2double(tmp);
+		tmp = HDR.H1(90:96);
+		GDFTYP = 0; 
+		if     strcmp(tmp,'Int16  ') GDFTYP = 3; 	
+		elseif strcmp(tmp,'Int32  ') GDFTYP = 5; 	
+		elseif strcmp(tmp,'Float32') GDFTYP = 16; 	
+		elseif strcmp(tmp,'Ascii  ') GDFTYP = -1; 	
+		end;
+		duration = str2double(HDR.H1(106:126));  
+		HDR.NS   = str2double(HDR.H1(136:139));
+		HDR.Calib= sparse(2:HDR.NS,1:HDR.NS,1); 
+		HDR.SPR  = 1; 
+		HDR.NRec = 1; 
+		for k = 1:HDR.NS,
+			off = 141 + k*275;
+			HDR.Label{k} = deblank(HDR.H1(off+16+[1:80]));		
+			HDR.PhysDim{k} = deblank(HDR.H1(off+98+20+[1:20]));		
+			HDR.AS.SampleRate(k) = str2double(HDR.H1(off+184+21+[1:15]));	
+			HDR.AS.SPR = HDR.AS.SampleRate(k)*duration; 
+			HDR.SPR    = lcm(HDR.SPR, HDR.AS.SPR);
+		end; 
+		HDR.SampleRate = HDR.SPR/duration;
+		for k = 1:HDR.NS,
+			off = 141 + k*275;
+			fn  = deblank(HDR.H1(off+222+16+[1:12]));
+			fid = fopen(fn,'rb');
+			if (GDFTYP>0)
+				fid = fopen(fn,'rb');
+				[s,c]=fread(fid,inf,getdatatype(GDFTYP));
+			elseif (GDFTYP==-1)	 
+				fid = fopen(fn,'rt');
+				[s,c]=fscanf(fid,'%f');
+			end;
+			fclose(fid);
+			HDR.data(:,k)=rs(s(:),HDR.AS.SPR(k),HDR.SPR);	
+		end; 
+		HDR.TYPE = 'native';
         end;
         
         
