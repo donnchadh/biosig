@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.36 2008-06-26 09:26:28 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.37 2008-07-29 13:05:41 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DEBUG
+//#define DEBUG
 
 void mexFunction(
     int           nlhs,           /* number of expected outputs */
@@ -42,7 +42,7 @@ void mexFunction(
 	int		NS = -1;
 	char		FlagOverflowDetection=1, FlagUCAL=0;
 	
-	
+
 	VERBOSE_LEVEL = 3; 
 	
 	if (nrhs<1) {
@@ -66,7 +66,6 @@ void mexFunction(
 	}
 	
 	/* process input arguments */
-	mexPrintf("This is mexSLOAD, it is currently in an experimental state!\n");
 	for (k = 0; k < nrhs; k++)
 	{	
 		arg = prhs[k];
@@ -153,8 +152,11 @@ void mexFunction(
 		mxSetField(plhs[1],0,"TYPE",mxCreateString(GetFileTypeString(hdr->TYPE)));
 		mxSetField(plhs[1],0,"VERSION",mxCreateDoubleScalar(hdr->VERSION));
 
-		mexPrintf("ERROR(%i) in mexSLOAD: Cannot open file %s (%s)\n", status, FileName, B4C_ERRMSG); 
+		char msg[1024]; 
+		sprintf(msg,"Error mexSLOAD: Cannot open file %s - format %s not supported.\n",FileName,GetFileTypeString(hdr->TYPE));
 		destructHDR(hdr);
+		mexErrMsgTxt(msg);
+		//mexPrintf("ERROR(%i) in mexSLOAD: Cannot open file %s\n", status, FileName); 
 		return; 
 	}
 	if (hdr==NULL) return;
@@ -212,7 +214,7 @@ void mexFunction(
 	if (hdr->data.block != NULL) free(hdr->data.block);	
 	hdr->data.block = NULL; 
 
-//	hdr2ascii(hdr,stdout,4);	
+//	hdr2ascii(hdr,stderr,4);	
 
 	if (nlhs>1) { 
 		char* mexFileName = (char*)mxMalloc(strlen(hdr->FileName)+1); 
