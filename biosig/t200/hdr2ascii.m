@@ -12,7 +12,7 @@ function [argout,H1,h2] = hdr2ascii(source,dest)
 %  
 % see also: SLOAD, SOPEN
 
-%	$Id: hdr2ascii.m,v 1.11 2008-07-22 13:07:15 schloegl Exp $
+%	$Id: hdr2ascii.m,v 1.12 2008-07-29 12:52:17 schloegl Exp $
 %	Copyright (C) 2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -126,6 +126,9 @@ end;
 %%%%%%%% CHANNEL DATA %%%%%%%%%%%%%%%
 if ~isfield(HDR,'AS') && isfield(HDR,'SampleRate')
 	HDR.AS.SampleRate = repmat(HDR.SampleRate,HDR.NS,1); 
+end;
+if ~isfield(HDR.AS,'SPR'),
+	HDR.AS.SPR = repmat(HDR.SPR,1,HDR.NS);
 end;
 if ~isfield(HDR.AS,'SampleRate'),
 	HDR.AS.SampleRate = HDR.AS.SPR/HDR.SPR*HDR.SampleRate;  
