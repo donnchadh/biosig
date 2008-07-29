@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.223 2008-07-29 15:12:38 schloegl Exp $
+%	$Id: sopen.m,v 1.224 2008-07-29 19:47:56 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -595,7 +595,7 @@ end;
 	                HDR.AS.spb = sum(HDR.AS.SPR);	% Samples per Block
 	                HDR.AS.bi  = [0;cumsum(HDR.AS.SPR(:))]; 
 	                HDR.AS.BPR = ceil(HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)'); 
-	                while any(HDR.AS.BPR ~= HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)');
+	                if any(HDR.AS.BPR ~= HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)');
 	                        fprintf(2,'\nError SOPEN (GDF/EDF/BDF): block configuration in file %s not supported.\n',HDR.FileName);
 	                end;
 	                HDR.AS.SAMECHANTYP = all(HDR.AS.BPR == (HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)')) & ~any(diff(HDR.GDFTYP)); 
@@ -5186,88 +5186,119 @@ elseif strcmp(HDR.TYPE,'TMS32'),        % Portilab/TMS32/Poly5 format
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS = 0;
 
-                Label   = zeros(HDR.NS,40);
-                PhysDim = zeros(HDR.NS,10);
-                k = 1;  aux = 0; 
-                while k <= HDR.NS,
-                        c   = fread(HDR.FILE.FID,[1,1],'uint8');
-                        tmp = char(fread(HDR.FILE.FID,[1,40],'uint8'));
+                aux = 0;
+                for k=1:HDR.NS,
+                	c   = fread(HDR.FILE.FID,[1,1],'uint8');
+			tmp = fread(HDR.FILE.FID,[1,40],'uint8=>char');
                         if strncmp(tmp,'(Lo)',4);
-                                Label(k-aux,1:c-5) = tmp(6:c);
+                                %Label(k-aux,1:c-5) = tmp(6:c);
+                                HDR.Label{k-aux} = deblank(tmp(6:c));
                                 HDR.GDFTYP(k-aux)  = 16;
                         elseif strncmp(tmp,'(Hi) ',5) ;
                                 aux = aux + 1;				
                         else
-                                Label(k-aux,1:c)  = tmp(1:c);
+                                HDR.Label{k-aux}  = deblank(tmp(1:c));
                                 HDR.GDFTYP(k-aux) = 3;
                         end;
-                        
+
                         tmp = fread(HDR.FILE.FID,[1,4],'uint8');
                         c   = fread(HDR.FILE.FID,[1,1],'uint8');
-                        tmp = fread(HDR.FILE.FID,[1,10],'uint8');
-                        PhysDim(k-aux,1:c) = tmp(1:c);
+                        tmp = fread(HDR.FILE.FID,[1,10],'uint8=>char');
+                        HDR.PhysDim{k-aux} = deblank(tmp(1:c));
                         
                         HDR.PhysMin(k-aux,1) = fread(HDR.FILE.FID,1,'float32');			
                         HDR.PhysMax(k-aux,1) = fread(HDR.FILE.FID,1,'float32');			
                         HDR.DigMin(k-aux,1)  = fread(HDR.FILE.FID,1,'float32');			
                         HDR.DigMax(k-aux,1)  = fread(HDR.FILE.FID,1,'float32');			
                         HDR.TMS32.SI(k) = fread(HDR.FILE.FID,1,'int16');
-                        tmp = fread(HDR.FILE.FID,2,'uint8');
-                        tmp = fread(HDR.FILE.FID,60,'uint8');
-                        k = k + 1;
+                        tmp = fread(HDR.FILE.FID,62,'uint8');
                 end;
                 HDR.NS = HDR.NS-aux; 
-                HDR.Label = deblank(char(Label(1:HDR.NS,:)));
-                HDR.PhysDim = char(PhysDim(1:HDR.NS,:));
                 HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
                 HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
                 HDR.Calib = sparse([HDR.Off';(diag(HDR.Cal))]);
         end;
-        
+
 elseif strcmp(HDR.TYPE,'TMSiLOG'),
         if any(HDR.FILE.PERMISSION=='r'),
 	        %fid = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 %H1  = fread(fid,[1,inf],'uint8=>char');
 		%fclose(fid);
 		%getfiletype read whole header file into HDR.H1
-		tmp = HDR.H1(62:81); 
-		tmp(tmp=='/' || tmp=='-' || tmp==':') = ' ';
-		HDR.T0 = str2double(tmp);
-		tmp = HDR.H1(90:96);
-		GDFTYP = 0; 
-		if     strcmp(tmp,'Int16  ') GDFTYP = 3; 	
-		elseif strcmp(tmp,'Int32  ') GDFTYP = 5; 	
-		elseif strcmp(tmp,'Float32') GDFTYP = 16; 	
-		elseif strcmp(tmp,'Ascii  ') GDFTYP = -1; 	
-		end;
-		duration = str2double(HDR.H1(106:126));  
-		HDR.NS   = str2double(HDR.H1(136:139));
-		HDR.Calib= sparse(2:HDR.NS,1:HDR.NS,1); 
+		GDFTYP   = 0; 
 		HDR.SPR  = 1; 
 		HDR.NRec = 1; 
-		for k = 1:HDR.NS,
-			off = 141 + k*275;
-			HDR.Label{k} = deblank(HDR.H1(off+16+[1:80]));		
-			HDR.PhysDim{k} = deblank(HDR.H1(off+98+20+[1:20]));		
-			HDR.AS.SampleRate(k) = str2double(HDR.H1(off+184+21+[1:15]));	
-			HDR.AS.SPR = HDR.AS.SampleRate(k)*duration; 
-			HDR.SPR    = lcm(HDR.SPR, HDR.AS.SPR);
-		end; 
+		[line,r] = strtok(HDR.H1,[13,10]);
+		ix = find(line=='=');
+		while ~isempty(ix)
+			tag = line(1:ix-1);
+			val = deblank(line(ix+1:end));
+			if strcmp(tag,'DateTime')
+				val(val=='/' | val=='-' | val==':') = ' ';
+				HDR.T0 = str2double(val);
+			elseif strcmp(tag,'Format')
+				if     strcmp(val,'Int16') GDFTYP = 3; 	
+				elseif strcmp(val,'Int32') GDFTYP = 5; 	
+				elseif strcmp(val,'Float32') GDFTYP = 16; 	
+				elseif strcmp(val,'Ascii') GDFTYP = -1;
+				% else val,abs(val), 	
+				end;
+			elseif strcmp(tag,'Length')
+				duration = str2double(val);
+			elseif strcmp(tag,'Signals')
+				HDR.NS = str2double(val);
+			elseif strncmp(tag,'Signal',6)
+				ch = str2double(tag(7:10));
+				HDR.NS = str2double(val);
+				if strcmp(tag(12:end),'Name')
+					HDR.Label{ch}=val;
+				elseif strcmp(tag(12:end),'UnitName')
+					HDR.PhysDim{ch}=val;
+				elseif strcmp(tag(12:end),'Resolution')
+					HDR.Cal(ch)=str2double(val);
+				elseif strcmp(tag(12:end),'StoreRate')
+					HDR.AS.SampleRate(ch)=str2double(val);
+					HDR.AS.SPR = HDR.AS.SampleRate(ch)*duration; 
+					HDR.SPR    = lcm(HDR.SPR, HDR.AS.SPR);
+				elseif strcmp(tag(12:end),'File')
+					HDR.TMSi.FN{ch}=val;
+				elseif strcmp(tag(12:end),'Index')
+				end;		
+			end;			
+			[line,r]=strtok(r,[13,10]);
+			ix = find(line=='=');
+		end;		
+
+		HDR.Calib   = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal); 
 		HDR.SampleRate = HDR.SPR/duration;
-		for k = 1:HDR.NS,
-			off = 141 + k*275;
-			fn  = deblank(HDR.H1(off+222+16+[1:12]));
-			fid = fopen(fn,'rb');
+		HDR.GDFTYP  = repmat(GDFTYP,1,HDR.NS);
+		HDR.TMSi.FN = unique(HDR.TMSi.FN);
+		if length(HDR.TMSi.FN)==1,
 			if (GDFTYP>0)
-				fid = fopen(fn,'rb');
-				[s,c]=fread(fid,inf,getdatatype(GDFTYP));
+				fid = fopen(HDR.TMSi.FN{1},'rb');
+				tmp = fread(fid,[1,3],'int16');
+				switch tmp(3)
+				case {16}
+					GDFTYP=3; 
+				case {32}
+					GDFTYP=5; 
+				case {32+256}
+					GDFTYP=16; 
+				end;
+				HDR.data = fread(fid, [HDR.NS,inf], gdfdatatype(GDFTYP))';
+				fclose(fid);
+				
 			elseif (GDFTYP==-1)	 
-				fid = fopen(fn,'rt');
-				[s,c]=fscanf(fid,'%f');
+				fid  = fopen(HDR.TMSi.FN{1},'rt');
+				line = fgetl(fid);
+				line = fgetl(fid);
+				line = fgetl(fid);
+				tmp  = fread(fid,[1,inf],'uint8=>char');
+				fclose(fid);
+				[n,v,sa] = str2double(tmp);
+				HDR.data = n(:,2:end);
 			end;
-			fclose(fid);
-			HDR.data(:,k)=rs(s(:),HDR.AS.SPR(k),HDR.SPR);	
-		end; 
+		end
 		HDR.TYPE = 'native';
         end;
         
@@ -6473,8 +6504,8 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
                         status = fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
                         BCI2000.INFO = char(HDR.Header(1:HDR.HeadLen));
                 end
+		ORIENT = 0;
                 [tline,rr] = strtok(BCI2000.INFO,[10,13]);
-
 		HDR.Label  = cellstr([repmat('ch',HDR.NS,1),num2str([1:HDR.NS]')]);
                 STATUSFLAG = 0;
 		while length(rr), 
@@ -6525,6 +6556,16 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 				elseif ~isempty(strfind(tag,'TargetOrientation'))
 					[tmp,status] = str2double(val);
 					ORIENT = tmp(1);
+				elseif ~isempty(strfind(tag,'StorageTime'))
+					ix = strfind(val,'%20');
+					if length(ix)==4,
+						val([ix,ix+1,ix+2])=' ';
+						val(val==':') = ' ';
+						[n,v,s] = str2double(val);
+						n(1)=n(7);
+						n(2)=strmatch(s{2},{'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'});
+						HDR.T0 = n(1:6);
+					end;	
 				elseif ~isempty(strfind(tag,'ChannelNames'))
 					[tmp,status,labels] = str2double(val);
 					HDR.Label(1:tmp(1))=labels(2:tmp(1)+1);
@@ -6532,6 +6573,7 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 			end;	
 			[tline,rr] = strtok(rr,[10,13]);
 		end;
+
                 %HDR.PhysDim = 'µV';
                 HDR.PhysDimCode = repmat(4275,HDR.NS,1); % 'µV';
                 HDR.Calib = [HDR.Off(1)*ones(1,HDR.NS);eye(HDR.NS)]*HDR.Cal(1);
