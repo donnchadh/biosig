@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.222 2008-07-29 07:32:11 schloegl Exp $
+%	$Id: sopen.m,v 1.223 2008-07-29 15:12:38 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -5167,22 +5167,22 @@ elseif strcmp(HDR.TYPE,'TMS32'),        % Portilab/TMS32/Poly5 format
         if any(HDR.FILE.PERMISSION=='r'),
                 HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 HDR.ID = fread(HDR.FILE.FID,31,'uint8');
-                HDR.VERSION = fread(HDR.FILE.FID,1,'int16');
-                [tmp,c] = fread(HDR.FILE.FID,81,'uint8');
-                HDR.SampleRate = fread(HDR.FILE.FID,1,'int16');
-                HDR.TMS32.StorageRate = fread(HDR.FILE.FID,1,'int16');
-                HDR.TMS32.StorageType = fread(HDR.FILE.FID,1,'uint8');
-                HDR.NS = fread(HDR.FILE.FID,1,'int16');
-                HDR.AS.endpos = fread(HDR.FILE.FID,1,'int32');
-                tmp = fread(HDR.FILE.FID,1,'int32');
-                tmp = fread(HDR.FILE.FID,[1,7],'int16');
+                HDR.VERSION = fread(HDR.FILE.FID,1,'int16');	% 31
+                [tmp,c] = fread(HDR.FILE.FID,81,'uint8');	% 33
+                HDR.SampleRate = fread(HDR.FILE.FID,1,'int16');	% 114
+                HDR.TMS32.StorageRate = fread(HDR.FILE.FID,1,'int16');	% 116
+                HDR.TMS32.StorageType = fread(HDR.FILE.FID,1,'uint8');	% 118
+                HDR.NS = fread(HDR.FILE.FID,1,'int16');		% 119
+                HDR.AS.endpos = fread(HDR.FILE.FID,1,'int32');	% 121
+                tmp = fread(HDR.FILE.FID,1,'int32');		% 125
+                tmp = fread(HDR.FILE.FID,[1,7],'int16');	% 129
                 HDR.T0   = tmp([1:3,5:7]);
-                HDR.NRec = fread(HDR.FILE.FID,1,'int32');
-                HDR.SPR  = fread(HDR.FILE.FID,1,'uint16');
-                HDR.AS.bpb = fread(HDR.FILE.FID,1,'uint16')+86;
-                HDR.FLAG.DeltaCompression = fread(HDR.FILE.FID,1,'int16');
-                tmp = fread(HDR.FILE.FID,64,'uint8');
-                HDR.HeadLen = 217 + HDR.NS*136;
+                HDR.NRec = fread(HDR.FILE.FID,1,'int32');	% 143
+                HDR.SPR  = fread(HDR.FILE.FID,1,'uint16');	% 147
+                HDR.AS.bpb = fread(HDR.FILE.FID,1,'uint16')+86;	% 149
+                HDR.FLAG.DeltaCompression = fread(HDR.FILE.FID,1,'int16');	% 151
+                tmp = fread(HDR.FILE.FID,64,'uint8');		% 153
+                HDR.HeadLen = 217 + HDR.NS*136;			
                 HDR.FILE.OPEN = 1;
                 HDR.FILE.POS = 0;
 
@@ -8733,7 +8733,7 @@ elseif strcmp(HDR.TYPE,'EMBLA')
 	HDR.SPR = 1; 
 	HDR.NRec = 1; 
 	for k1 = 1:length(fn),
-		[p,f,e]=fileparts(fn(k1).name);
+		[p,f,e]= fileparts(fn(k1).name);
 		fid = fopen(fullfile(HDR.FILE.Path,fn(k1).name),'rb','ieee-le');
 		[ss,c] = fread(fid,[1,48],'uint8=>char');
                 if strncmp(ss,'Embla data file',15) && (c==48),
@@ -8762,6 +8762,7 @@ elseif strcmp(HDR.TYPE,'EMBLA')
 				T0(1) = t0(1)+t0(2)*256;	
 				T0(6) = t0(7)+t0(8)/100;
 				T0 = datenum(T0); 
+				Embla.T0 = T0; %datevec(T0); 
 				if (k==1)
 					HDR.T0 = T0;
 				elseif abs(HDR.T0-T0) > 2/(24*3600),
@@ -8800,7 +8801,8 @@ elseif strcmp(HDR.TYPE,'EMBLA')
 				Embla.CalibrationFunction = fread(fid,[1,siz],'uint8=>char');
 			case 153
 				%Embla.CalibrationUnit = fread(fid,[1,siz],'uint8=>char');
-				HDR.PhysDimCode(k) = physicalunits(fread(fid,[1,siz],'uint8=>char'));		
+				HDR.PhysDim{k} = deblank(fread(fid,[1,siz],'uint8=>char'));		
+				%HDR.PhysDimCode(k) = physicalunits(fread(fid,[1,siz],'uint8=>char'));		
 			case 154
 				Embla.CalibrationPoint = fread(fid,[1,siz],'uint8');
 			case 160
@@ -8846,15 +8848,33 @@ elseif strcmp(HDR.TYPE,'EMBLA')
 	HDR.Filter.HighPass = repmat(NaN,1,HDR.NS); 
 	HDR.Filter.LowPass = repmat(NaN,1,HDR.NS); 
 	HDR.GDFTYP = repmat(3,1,HDR.NS); 
+	HDR.DigMax = repmat(2^15-1,1,HDR.NS);
+	HDR.DigMin = repmat(-2^15,1,HDR.NS);
+	HDR.PhysMax = HDR.DigMax.*HDR.Cal(:)';
+	HDR.PhysMin = HDR.DigMin.*HDR.Cal(:)';
+	HDR.THRESHOLD = [HDR.DigMin(:),HDR.DigMax(:)];
 	Duration = mean(HDR.AS.SPR./HDR.AS.SampleRate);
 	HDR.SampleRate = HDR.SPR/Duration;
+
+	% compute time intervals for each channel, and LeastCommonMultiple SampleRate
+ 	t = repmat(NaN,HDR.NS,2); 
+ 	Fs = 1; 
 	for k = 1:HDR.NS,
-		%tmp = rs(HDR.Embla{k}.Data, HDR.AS.SPR(k), HDR.SPR);
-		%size(tmp),
-%		HDR.data(:,k) = 
+		t(k,1:2) = (datenum(HDR.Embla{k}.T0)-HDR.T0)*24*3600+[1,length(HDR.Embla{k}.Data)]/HDR.AS.SampleRate(k);
+		Fs = lcm(Fs,HDR.AS.SampleRate(k)); 
 	end;
-	fprintf(HDR.FILE.stderr,'Warning SOPEN: reading Embla format is under construction (does not work yet).!\n'); 	
-	return; 
+	T = [min(t(:,1)),max(t(:,2))]; 
+	HDR.data = repmat(NaN,floor(diff(T)/Fs+1),HDR.NS);
+	HDR.T0 = HDR.T0+T(1);
+	HDR.SampleRate = Fs; 
+	t = t-T(1);
+	for k = 1:HDR.NS,
+		d = rs(HDR.Embla{k}.Data,HDR.AS.SampleRate(k),Fs);
+		HDR.data(floor(t(k,1)*Fs)+[1:length(d)],k)=d; 
+	end;
+	HDR.Embla = [];
+	HDR.TYPE = 'native';
+	HDR.FILE.POS = 0;
 
 
 elseif strcmp(HDR.TYPE,'ETG4000') 	 % NIRS - Hitachi ETG 4000
