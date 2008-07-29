@@ -40,7 +40,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.89 2008-07-29 07:30:49 schloegl Exp $
+%	$Id: sload.m,v 1.90 2008-07-29 12:51:14 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -135,6 +135,9 @@ if any(FILENAME=='*')
 end;        
 end;
 
+if nargout>0,
+	signal = [];
+end;	
 if ((iscell(FILENAME) || isstruct(FILENAME)) && (length(FILENAME)>1)),
 	signal = [];
 	for k = 1:length(FILENAME),
@@ -186,24 +189,18 @@ if ((iscell(FILENAME) || isstruct(FILENAME)) && (length(FILENAME)>1)),
 			else
 				error('ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
 			end;
-                        if ~isequal(H.Label,h.Label) || ~isequal(H.PhysDimCode,h.PhysDimCode) || ~isequal(H.Calib,h.Calib) %% || ~isequal(H.Off,h.Off)
-				fprintf(2,'Warning SLOAD: Labels,PhysDim,Cal or Off of multiple files differ! \n');
-				H.Label,h.Label,
-                                %for k1 = 1:h.NS,
+                        if ~isequal(H.Label,h.Label) || ~isequal(H.PhysDimCode,h.PhysDimCode)
+				warning('Labels and PhysDim of multiple files differ!\n');
                                 for k2 = 1:length(H.InChanSelect),
                                 	k1 = H.InChanSelect(k2); 
                                         if ~strcmp(H.Label{k1},h.Label{k1}) || (H.PhysDimCode(k1)~=h.PhysDimCode(k1)),
-                                                fprintf(2,'#%02i:  %s | %s | (%i)%s | (%i)%s\n',k1, H.Label{k1},h.Label{k1}, H.PhysDimCode(k1),H.PhysDim{k1},h.PhysDimCode(k1),h.PhysDim{k1});
+                                                warning('#%02i:  %s | %s | (%i)%s | (%i)%s\n',k1, H.Label{k1},h.Label{k1}, H.PhysDimCode(k1),H.PhysDim{k1},h.PhysDimCode(k1),h.PhysDim{k1});
                                         end;
-                                        if ((H.Cal(k1)~=h.Cal(k1)) || (H.Off(k1)~=h.Off(k1)))
-                                                fprintf(2,'#%02i:  Cal: %f %f \tOff: %f %f\n', k1,H.Cal(k1),h.Cal(k1), H.Off(k1),h.Off(k1));
-                                                if H.FLAG.UCAL,
-                                                	error('SLOAD: concatanating uncalibrated data with different scaling factors do not make sense!');
-                                                end		
-                                        end        
                                 end;
                         end;
-
+                        if ~isequal(H.Calib,h.Calib) && H.FLAG.UCAL,
+				error('SLOAD: concatanating uncalibrated data with different scaling factors does not make sense!');
+                        end;
 
                         if isfield(h,'TRIG'), 
                                 if ~isfield(H,'TRIG'),
@@ -240,7 +237,7 @@ if ((iscell(FILENAME) || isstruct(FILENAME)) && (length(FILENAME)>1)),
                 end;
 	end;
         
-	fprintf(1,'  SLOAD: data segments are concatenated with NaNs in between.\n');
+	% fprintf(1,'SLOAD: data segments are concatenated with NaNs in between.\n');
 	return;	
 end;
 %%% end of multi-file section 
@@ -535,10 +532,10 @@ if exist('mexSLOAD','file')==3,
         	H.CHANTYP(ceil([strfind(tmp,'trig')]/(size(Label,2)+1))) = 'T'; 
 
 	catch
-		fprintf(1, 'SLOAD: mexSLOAD failed - the slower M-functions are used. \n');
-		fprintf(1, '     In order to use the faster mex-method, download biosig4c++ and make mexSLOAD for your platform.\n');
+		fprintf(1, 'SLOAD: mexSLOAD failed - the slower M-function is used.\n');
 	end;
-
+else 
+	fprintf(1, 'Hint: the performance of SLOAD can be improved with mexSLOAD.mex which is part of biosig4c++.\n');
 end;
 
 if ~FlagLoaded,
@@ -557,7 +554,7 @@ if ~FlagLoaded,
 
 
 if strncmp(H.TYPE,'IMAGE:',5)
-	[H,signal] = iopen(H);
+	[H] = iopen(H);
 	if H.FILE.OPEN,
 		signal = iread(H);
 		H.FILE.OPEN = 0; 
@@ -566,10 +563,8 @@ if strncmp(H.TYPE,'IMAGE:',5)
 	return;
 end;
 
-
 %%%%%%%%%%%%%%% --------- Load single file ------------%%%%%%%%%%%
 
-signal = [];
 H = sopen(H,'r',CHAN,MODE);
 if 0, ~isnan(H.NS),
 %------ ignore 'NaC'-channels
