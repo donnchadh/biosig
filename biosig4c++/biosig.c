@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.240 2008-07-27 17:48:32 schloegl Exp $
+    $Id: biosig.c,v 1.241 2008-07-29 11:36:46 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -5678,45 +5678,43 @@ fprintf(stdout,"ASN1 [491]\n");
 		} else 
 			ifseek(hdr,hdr->HeadLen,SEEK_SET);
 			
-		size_t filesize	= lei16p(hdr->AS.Header+121);
-		tm_time.tm_year = lei16p(hdr->AS.Header+139);
-		tm_time.tm_mon 	= lei16p(hdr->AS.Header+141);
-		tm_time.tm_mday = lei16p(hdr->AS.Header+143);
-		tm_time.tm_hour = lei16p(hdr->AS.Header+147);
-		tm_time.tm_min 	= lei16p(hdr->AS.Header+149);
-		tm_time.tm_sec 	= lei16p(hdr->AS.Header+151);
+		// size_t filesize	= lei32p(hdr->AS.Header+121);
+		tm_time.tm_year = lei16p(hdr->AS.Header+129)-1900;
+		tm_time.tm_mon 	= lei16p(hdr->AS.Header+131)-1;
+		tm_time.tm_mday = lei16p(hdr->AS.Header+133);
+		tm_time.tm_hour = lei16p(hdr->AS.Header+137);
+		tm_time.tm_min 	= lei16p(hdr->AS.Header+139);
+		tm_time.tm_sec 	= lei16p(hdr->AS.Header+141);
 		tm_time.tm_isdst= -1;
 		hdr->T0 	= tm_time2gdf_time(&tm_time);
-		hdr->NRec 	= lei32p(hdr->AS.Header+153);
-		hdr->SPR 	= leu16p(hdr->AS.Header+157);
-		hdr->AS.bpb 	= leu16p(hdr->AS.Header+159)+86;
-		hdr->HeadLen 	= 217 + hdr->NS*136;
-		
+		hdr->NRec 	= lei32p(hdr->AS.Header+143);
+		hdr->SPR 	= leu16p(hdr->AS.Header+147);
+		//hdr->AS.bpb 	= leu16p(hdr->AS.Header+149)+86;
+
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(NS, sizeof(CHANNEL_TYPE));
 		size_t aux = 0;
-		for (k=0; k < NS; k += aux) {
-			CHANNEL_TYPE* hc = hdr->CHANNEL+k;
-			uint8_t c = hdr->AS.Header[217+k*136];
-			if (!strncmp((char*)(hdr->AS.Header+218+k*136), "(Lo)", 4)) {
-				strncpy(hc->Label,(char*)(hdr->AS.Header+k*136+217+5),c);
+		for (k=0; k < NS; k += 1) {
+			CHANNEL_TYPE* hc = hdr->CHANNEL+aux;
+			uint8_t StringLength = hdr->AS.Header[217+k*136];
+			char *SignalName = (char*)(hdr->AS.Header+218+k*136);
+			if (!strncmp(SignalName, "(Lo) ", 5)) {
+				strncpy(hc->Label,SignalName+5,StringLength-5);
 				hc->GDFTYP = 16;
-				aux = 1;
-				hc->Label[c] = 0;
+				aux += 1;
+				hc->Label[StringLength-5] = 0;
 			} 
-			else if (!strncmp((char*)(hdr->AS.Header+218+k*136), "(Hi)", 4)) {
-				aux = 0;
-				--NS;
+			else if (!strncmp(SignalName, "(Hi) ", 5)) {
 			}
 			else {
-				strncpy(hc->Label, (char*)(hdr->AS.Header+k*136+217+1), c);
-				hc->GDFTYP = 5;
-				aux = 1;
-				hc->Label[c] = 0;
+				strncpy(hc->Label, SignalName, StringLength);
+				hc->GDFTYP = 3;
+				aux += 1;
+				hc->Label[StringLength] = 0;
 			}
 
-			c = hdr->AS.Header[45+217+k*136];
-			strncpy(tmp, (char*)(hdr->AS.Header+46+217+k*136), c);
-			tmp[c] = 0;
+			StringLength = hdr->AS.Header[45+217+k*136];
+			strncpy(tmp, (char*)(hdr->AS.Header+46+217+k*136), StringLength);
+			tmp[StringLength] = 0;
 		    	hc->PhysDimCode = PhysDimCode(tmp);
 			hc->PhysMin  = lef32p(hdr->AS.Header+56+217+k*136);
 			hc->PhysMax  = lef32p(hdr->AS.Header+60+217+k*136);
@@ -5732,10 +5730,20 @@ fprintf(stdout,"ASN1 [491]\n");
 			hc->LowPass  = -1;
 			hc->HighPass = -1;
 		    	hc->LeadIdCode  = 0;
+			
+			if (VERBOSE_LEVEL>7)
+				fprintf(stdout,"k=%i\tLabel=%s [%s]\tNS=%i\tpos=%i\n",k,SignalName,tmp,NS,iftell(hdr));		    	
+		    	
 		}
-		hdr->NS = NS;
-		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
+		hdr->NS = aux;
+		hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
+		hdr->FILE.POS = 0; 
 		
+/*
+		sclose(hdr);
+		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+		B4C_ERRMSG = "TMS32 support is under construction and not fixed yet."; 
+*/
 	}
 	
 	else if (hdr->TYPE==AIFF) {
@@ -5932,7 +5940,10 @@ fprintf(stdout,"ASN1 [491]\n");
 	}
 	
 	hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
-	hdr->AS.bpb = (hdr->TYPE==AINF ? 4 : 0); 
+	if (hdr->TYPE==AINF) hdr->AS.bpb = 4;
+	else if (hdr->TYPE==TMS32) hdr->AS.bpb = 86;
+	else hdr->AS.bpb = 0; 
+
 	hdr->AS.bi[0] = hdr->AS.bpb;
 	for (k=0, hdr->SPR = 1, hdr->AS.spb=0; k<hdr->NS; k++) {
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
@@ -5941,7 +5952,6 @@ fprintf(stdout,"ASN1 [491]\n");
 		if (hdr->CHANNEL[k].SPR > 0)  // ignore sparse channels
 			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
 	}
-
 	if (hdr->TYPE==BCI2000) 
 		hdr->AS.bpb += BCI2000_StatusVectorLength;
 	else if (hdr->TYPE==EEG1100) 
@@ -6802,6 +6812,9 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	biosig_data_type 	sample_value; 
 	size_t			toffset = 0;	// time offset for rawdata
 
+	if (VERBOSE_LEVEL>8)
+		fprintf(stdout,"####SREAD##########\n");
+
 	switch (hdr->TYPE) {
 	case ETG4000: 
 	case MIT: 	toffset = start;	
@@ -6818,7 +6831,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		count = max(min(length, hdr->NRec - hdr->FILE.POS),0);
 		buffer = hdr->AS.rawdata + toffset*hdr->AS.bpb;
 		break; 
-	}		
+		}		
 	default: {
 		// check reading segment 
 		// if ((start < 0) || (start > hdr->NRec)) 
@@ -6871,10 +6884,8 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	uint16_t MITTYP=0;
 	if (hdr->TYPE==MIT) {
 		MITTYP = *(uint16_t*)hdr->AS.auxBUF;
-
 		if (VERBOSE_LEVEL>8) 
 			fprintf(stdout,"0x%x 0x%x \n",*(uint32_t*)hdr->AS.rawdata,*(uint32_t*)hdr->AS.rawdata);
-		
 	}	
 
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
@@ -6892,7 +6903,11 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		for (k5 = 0; k5 < CHptr->SPR; k5++) 
 		{
 		// get source address 	
-		ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + hdr->AS.bi[k1] + (k5*SZ>>3);
+		if (hdr->TYPE==TMS32)
+			ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + (k1+k5*hdr->NS)*(SZ>>3)+86;
+		else
+			ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + hdr->AS.bi[k1] + (k5*SZ>>3);
+			
 		bitoff = k5*SZ & 0x07;			
 		union {int16_t i16; uint16_t u16; uint32_t i32; float f32; uint64_t i64; double f64;} u; 
 /*
@@ -7237,6 +7252,18 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 
 		}
 		free(ChanList);
+	}
+	else if (hdr->TYPE==TMS32) {
+		// post-processing TMS32 files: last block can contain undefined samples  
+		size_t spr = lei32p(hdr->AS.Header+121);
+		if (hdr->FILE.POS*hdr->SPR > spr)  
+		for (k2=0; k2<NS; k2++) {
+			for (k5 = spr - POS*hdr->SPR; k5 < hdr->SPR*count; k5++)
+			if (hdr->FLAG.ROW_BASED_CHANNELS) 
+				hdr->data.block[k2 + k5*NS] = NaN;		// row-based channels 
+			else 	
+				hdr->data.block[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
+		}
 	}
 
 	return(count);
