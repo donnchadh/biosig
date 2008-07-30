@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.242 2008-07-30 09:19:00 schloegl Exp $
+    $Id: biosig.c,v 1.243 2008-07-30 19:13:03 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -5744,38 +5744,44 @@ fprintf(stdout,"ASN1 [491]\n");
 	}
 	
 	else if (hdr->TYPE==TMSiLOG) {
-		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"TMSi [111]\n");
-		
-	    	if (!strstr(Header1,"Signals")) {
-			// read fixed header
-			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,150);
-		    	count += ifread(hdr->AS.Header+count, 1, 150-count, hdr);
-	    	}
-	    	char *line = strstr(Header1,"Signals"); 
-	    	hdr->NS = atoi(line+8); 
-	    	hdr->SPR = 1; 
-	    	hdr->NRec = 1; 
+		/* read header 
+		      docu says HeadLen = 141+275*NS, but our example has 135+277*NS; 
+		 */	
+		int bufsiz = 16384;
+		while (!ifeof(hdr)) {
+			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, count+bufsiz+1);
+		    	count += ifread(hdr->AS.Header+count, 1, bufsiz, hdr);
+		}
+	    	ifclose(hdr); 
+	    	hdr->AS.Header[count] = 0;
+
+	    	hdr->NS    = 0; 
+	    	hdr->SPR   = 1; 
+	    	hdr->NRec  = 1; 
 	    	double duration = 0.0;
 	    	uint16_t gdftyp = 0; 
 
-		// read variable header 
-		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,150+275*hdr->NS+1);
-	    	count += ifread(hdr->AS.Header+count, 1, 150+275*hdr->NS - count, hdr);
-	    	ifclose(hdr); 
-	    	hdr->AS.Header[count]=0;
+	    	char *line = strstr(Header1,"Signals=");
+		if (line) {
+			char tmp[5];
+			strncpy(tmp,line+8,5);
+	 	    	hdr->NS    = atoi(tmp); 
+		}
+		if (!hdr->NS) {
+			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+			B4C_ERRMSG = "TMSiLOG: multiple data files not supported\n";	
+		} 
+		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
 	    	
-		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"TMSi [115]\n");
-
-		char *filename=NULL;
+		char *filename = NULL;
 		line = strtok(Header1,"\x0d\x0a");
 		while (line) {
 			char *val = strchr(line,'=');
 			val[0] = 0;
 			val++;
 
-			if (!strcmp(line,"VERSION"))
+			if (!strcmp(line,"FileId")) {}
+			else if (!strcmp(line,"Version"))
 				hdr->VERSION = atoi(val);
 			else if (!strcmp(line,"DateTime")) {
 				struct tm t;
@@ -5785,27 +5791,23 @@ fprintf(stdout,"ASN1 [491]\n");
 				t.tm_isdst =-1;
 			}	
 			else if (!strcmp(line,"Format")) {
-				if (!strcmp(val,"Float32")) gdftyp = 16;
+				if      (!strcmp(val,"Float32")) gdftyp = 16;
 				else if (!strcmp(val,"Int32  ")) gdftyp = 5;
 				else if (!strcmp(val,"Int16  ")) gdftyp = 3;
 				else if (!strcmp(val,"Ascii  ")) gdftyp = 0xfffe;
-				else gdftyp = 0xffff; 
+				else                             gdftyp = 0xffff; 
 			}	
 			else if (!strcmp(line,"Length")) {
 				duration = atof(val);
 			}
 			else if (!strcmp(line,"Signals")) {
 				hdr->NS = atoi(val);
-				hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
 			}
 			else if (!strncmp(line,"Signal",6)) {
 				char tmp[5];
 				strncpy(tmp,line+6,4);
 				size_t ch = atoi(tmp); 
 				char *field = line+11;
-
-		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"TMSi [117] sig%04i.field=%s val=%s\n",ch, field,val);
 
 				if (!strcmp(field,"Name"))
 					strncpy(hdr->CHANNEL[ch].Label,val,MAX_LENGTH_LABEL);
@@ -5819,31 +5821,23 @@ fprintf(stdout,"ASN1 [491]\n");
 					// hdr->CHANNEL[ch].SPR=atof(val)*duration;
 					//hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[ch].SPR);
 				}	
-				else if (!strcmp(field,"File")) 
+				else if (!strcmp(field,"File")) {
 					if (!filename) 
 						filename = val; 
 					else if (strcmp(val, filename)) {
 						B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 						B4C_ERRMSG = "TMSiLOG: multiple data files not supported\n";	
-					}	
+					}
+				}
 				else if (!strcmp(field,"Index")) {}
 				else 
-					fprintf(stdout,"TMSi Signal.%s = <%s>\n",line,val);
+					fprintf(stdout,"TMSi Signal%04i.%s = <%s>\n",ch,field,val);
 			}
 			else 
 				fprintf(stdout,"TMSi %s = <%s>\n",line,val);
 
 			line = strtok(NULL,"\x0d\x0a");
-
-			if (VERBOSE_LEVEL>8) 
-				fprintf(stdout,"line=<%s> \n",line);
-
 		}
-
-		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"TMSi [119] fn=%p\n",filename);
-		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"TMSi [119] fn=%s\n",filename);
 
 		hdr->SampleRate = hdr->SPR*hdr->NRec/duration; 
 		hdr->NRec *= hdr->SPR;
@@ -5863,40 +5857,22 @@ fprintf(stdout,"ASN1 [491]\n");
 		}
 		filename = NULL; // filename had a pointer to hdr->AS.Header; could be released here 		
 		
-		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"TMSi [120] gdftyp=%i\n",gdftyp);
-
 		if (gdftyp < 1000) {
 			FILE *fid = fopen(fullfilename,"rb");
-
-			if (VERBOSE_LEVEL>8) 
-				fprintf(stdout,"TMSi [121] %p\n",fid);
 
 			if (!fid) {
 				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 				B4C_ERRMSG = "TMSiLOG: data file not found\n";	
 			}	
 			else {
-
-				if (VERBOSE_LEVEL>8) 
-					fprintf(stdout,"TMSi [123]\n");
-
 				int16_t h[3];
-				fread(h,2,3,fid);
-				if (h[2]==16) h[2]=3; 
-				else if (h[2]==32) h[2]=5; 
-				else if (h[2]==288) h[2]=16;
-				else h[2] = 0xffff;  	// this triggers the error trap 
-
-				if (VERBOSE_LEVEL>7) 
-					fprintf(stdout,"TMSi [124]\n");
+				fread(h, 2, 3, fid);
+				if      (h[2]==16)  h[2] = 3; 
+				else if (h[2]==32)  h[2] = 5; 
+				else if (h[2]==288) h[2] = 16;
+				else                h[2] = 0xffff;  	// this triggers the error trap 
 
 				if ((h[0]!=hdr->NS) || (double(h[1])!=hdr->SampleRate) || (h[2]!=gdftyp) ) {
-
-					if (VERBOSE_LEVEL>7) 
-						fprintf(stdout,"TMSi [125] %i %i %i %i %f %i\n",h[0],h[1],h[2],hdr->NS,hdr->SampleRate,gdftyp);
-
-				
 					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 					B4C_ERRMSG = "TMSiLOG: Binary file corrupted\n";	
 				}
@@ -5912,9 +5888,6 @@ fprintf(stdout,"ASN1 [491]\n");
 			double Fs;
 			gdftyp = 17; 	// ascii is converted to double
 			FILE *fid = fopen(fullfilename,"rt");
-
-			if (VERBOSE_LEVEL>8) 
-				fprintf(stdout,"TMSi [131] %p\n",fid);
 
 			if (!fid) {
 				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
