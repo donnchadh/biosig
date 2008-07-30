@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.241 2008-07-29 11:36:46 schloegl Exp $
+    $Id: biosig.c,v 1.242 2008-07-30 09:19:00 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1918,6 +1918,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 
 	else if (!memcmp(Header1,"POLY SAMPLE FILEversion ",24) && !memcmp(Header1+28, "\x0d\x0a\x1a",3))
 		hdr->TYPE = TMS32;
+	else if (!memcmp(Header1,"FileId=TMSi PortiLab sample log file\x0a\x0dVersion=",35))
+		hdr->TYPE = TMSiLOG;
 	else if (!memcmp(Header1,MAGIC_NUMBER_TIFF_l32,4))
 		hdr->TYPE = TIFF;
 	else if (!memcmp(Header1,MAGIC_NUMBER_TIFF_b32,4))
@@ -2040,7 +2042,8 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case SVG: 	{ FileType = "SVG"; break; }
 
 	case TIFF: 	{ FileType = "TIFF"; break; }
-	case TMS32: 	{ FileType = "TMS32"; break; }
+	case TMS32: 	{ FileType = "TMS32"; break; }		// Poly5+TMS32
+	case TMSiLOG: 	{ FileType = "TMSiLOG"; break; }
 	case VRML: 	{ FileType = "VRML"; break; }
 	case VTK: 	{ FileType = "VTK"; break; }
 	case WAV: 	{ FileType = "WAV"; break; }
@@ -5738,18 +5741,262 @@ fprintf(stdout,"ASN1 [491]\n");
 		hdr->NS = aux;
 		hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 		hdr->FILE.POS = 0; 
+	}
+	
+	else if (hdr->TYPE==TMSiLOG) {
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"TMSi [111]\n");
 		
-/*
-		sclose(hdr);
-		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-		B4C_ERRMSG = "TMS32 support is under construction and not fixed yet."; 
-*/
+	    	if (!strstr(Header1,"Signals")) {
+			// read fixed header
+			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,150);
+		    	count += ifread(hdr->AS.Header+count, 1, 150-count, hdr);
+	    	}
+	    	char *line = strstr(Header1,"Signals"); 
+	    	hdr->NS = atoi(line+8); 
+	    	hdr->SPR = 1; 
+	    	hdr->NRec = 1; 
+	    	double duration = 0.0;
+	    	uint16_t gdftyp = 0; 
+
+		// read variable header 
+		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,150+275*hdr->NS+1);
+	    	count += ifread(hdr->AS.Header+count, 1, 150+275*hdr->NS - count, hdr);
+	    	ifclose(hdr); 
+	    	hdr->AS.Header[count]=0;
+	    	
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"TMSi [115]\n");
+
+		char *filename=NULL;
+		line = strtok(Header1,"\x0d\x0a");
+		while (line) {
+			char *val = strchr(line,'=');
+			val[0] = 0;
+			val++;
+
+			if (!strcmp(line,"VERSION"))
+				hdr->VERSION = atoi(val);
+			else if (!strcmp(line,"DateTime")) {
+				struct tm t;
+				sscanf(val,"%04d/%02d/%02d-%02d:%02d:%02d",&t.tm_year,&t.tm_mon,&t.tm_mday,&t.tm_hour,&t.tm_min,&t.tm_sec);
+				t.tm_year -= 1900;
+				t.tm_mon--;
+				t.tm_isdst =-1;
+			}	
+			else if (!strcmp(line,"Format")) {
+				if (!strcmp(val,"Float32")) gdftyp = 16;
+				else if (!strcmp(val,"Int32  ")) gdftyp = 5;
+				else if (!strcmp(val,"Int16  ")) gdftyp = 3;
+				else if (!strcmp(val,"Ascii  ")) gdftyp = 0xfffe;
+				else gdftyp = 0xffff; 
+			}	
+			else if (!strcmp(line,"Length")) {
+				duration = atof(val);
+			}
+			else if (!strcmp(line,"Signals")) {
+				hdr->NS = atoi(val);
+				hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
+			}
+			else if (!strncmp(line,"Signal",6)) {
+				char tmp[5];
+				strncpy(tmp,line+6,4);
+				size_t ch = atoi(tmp); 
+				char *field = line+11;
+
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"TMSi [117] sig%04i.field=%s val=%s\n",ch, field,val);
+
+				if (!strcmp(field,"Name"))
+					strncpy(hdr->CHANNEL[ch].Label,val,MAX_LENGTH_LABEL);
+				else if (!strcmp(field,"UnitName"))
+					hdr->CHANNEL[ch].PhysDimCode=PhysDimCode(val);
+				else if (!strcmp(field,"Resolution"))
+					hdr->CHANNEL[ch].Cal=atof(val);
+				else if (!strcmp(field,"StoreRate")) {
+					hdr->NRec = (int64_t)atof(val)*duration;
+					hdr->CHANNEL[ch].SPR = 1; 
+					// hdr->CHANNEL[ch].SPR=atof(val)*duration;
+					//hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[ch].SPR);
+				}	
+				else if (!strcmp(field,"File")) 
+					if (!filename) 
+						filename = val; 
+					else if (strcmp(val, filename)) {
+						B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+						B4C_ERRMSG = "TMSiLOG: multiple data files not supported\n";	
+					}	
+				else if (!strcmp(field,"Index")) {}
+				else 
+					fprintf(stdout,"TMSi Signal.%s = <%s>\n",line,val);
+			}
+			else 
+				fprintf(stdout,"TMSi %s = <%s>\n",line,val);
+
+			line = strtok(NULL,"\x0d\x0a");
+
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"line=<%s> \n",line);
+
+		}
+
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"TMSi [119] fn=%p\n",filename);
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"TMSi [119] fn=%s\n",filename);
+
+		hdr->SampleRate = hdr->SPR*hdr->NRec/duration; 
+		hdr->NRec *= hdr->SPR;
+		hdr->SPR   = 1;
+		char *fullfilename = (char*)malloc(strlen(hdr->FileName)+strlen(filename)+1);
+
+		if (!filename) { 
+			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+			B4C_ERRMSG = "TMSiLOG: data file not specified\n";	
+		}	
+		else if (strrchr(hdr->FileName,FILESEP)) { 
+			strcpy(fullfilename,hdr->FileName); 
+			strcpy(strrchr(fullfilename,FILESEP)+1,filename);
+		}	
+		else {
+			strcpy(fullfilename,filename);
+		}
+		filename = NULL; // filename had a pointer to hdr->AS.Header; could be released here 		
+		
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"TMSi [120] gdftyp=%i\n",gdftyp);
+
+		if (gdftyp < 1000) {
+			FILE *fid = fopen(fullfilename,"rb");
+
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"TMSi [121] %p\n",fid);
+
+			if (!fid) {
+				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+				B4C_ERRMSG = "TMSiLOG: data file not found\n";	
+			}	
+			else {
+
+				if (VERBOSE_LEVEL>8) 
+					fprintf(stdout,"TMSi [123]\n");
+
+				int16_t h[3];
+				fread(h,2,3,fid);
+				if (h[2]==16) h[2]=3; 
+				else if (h[2]==32) h[2]=5; 
+				else if (h[2]==288) h[2]=16;
+				else h[2] = 0xffff;  	// this triggers the error trap 
+
+				if (VERBOSE_LEVEL>7) 
+					fprintf(stdout,"TMSi [124]\n");
+
+				if ((h[0]!=hdr->NS) || (double(h[1])!=hdr->SampleRate) || (h[2]!=gdftyp) ) {
+
+					if (VERBOSE_LEVEL>7) 
+						fprintf(stdout,"TMSi [125] %i %i %i %i %f %i\n",h[0],h[1],h[2],hdr->NS,hdr->SampleRate,gdftyp);
+
+				
+					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+					B4C_ERRMSG = "TMSiLOG: Binary file corrupted\n";	
+				}
+				else {
+					size_t sz = hdr->NS*hdr->SPR*hdr->NRec*GDFTYP_BITS[gdftyp]>>3;
+					hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,sz); 
+					fread(hdr->AS.rawdata,sz,1,fid);
+				}
+				fclose(fid);
+			}	
+		}
+		else if (gdftyp==0xfffe) {
+			double Fs;
+			gdftyp = 17; 	// ascii is converted to double
+			FILE *fid = fopen(fullfilename,"rt");
+
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"TMSi [131] %p\n",fid);
+
+			if (!fid) {
+				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+				B4C_ERRMSG = "TMSiLOG: data file not found\n";	
+			}	
+			else {
+				size_t sz  = (hdr->NS+1)*24;	
+				char *line = (char*) malloc(sz); 
+				fgets(line,sz,fid);
+				fgets(line,sz,fid);
+				fgets(line,sz,fid);
+				// TODO: sanity checks
+				if (0) {
+					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+					B4C_ERRMSG = "TMSiLOG: Binary file corrupted\n";	
+				}
+				else {
+					// hdr->FLAG.SWAP = 0; 	// no swaping required 
+					hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN); 
+					size_t sz = hdr->NS*hdr->SPR*hdr->NRec*GDFTYP_BITS[gdftyp]>>3;
+					hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,sz);
+					for (k=0; k < hdr->SPR*hdr->NRec; k++) 
+					if (fgets(line,sz,fid)) {
+						char *next;
+						strtoul(line, &next, 10);	// skip index entry
+						for (int k2=0;k2<hdr->NS;k2++) 
+							*(double*)(hdr->AS.rawdata+(k*hdr->NS+k2)*sizeof(double)) = strtod(next,&next);
+					}	
+					else {
+						for (int k2=0;k2<hdr->NS;k2++) 
+							*(double*)(hdr->AS.rawdata+(k*hdr->NS+k2)*sizeof(double)) = NaN;
+					}
+				}	
+				free(line);
+				fclose(fid);
+			}
+		}
+		free(fullfilename); 
+
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"TMSi [149] \n");
+
+
+		for (k=0; k<hdr->NS; k++) {
+
+			if (VERBOSE_LEVEL>8) 
+				fprintf(stdout,"TMSi [151] %i\n",k);
+
+			hdr->CHANNEL[k].GDFTYP = gdftyp; 
+			if (gdftyp==3) {
+				hdr->CHANNEL[k].DigMax = (double)(int16_t)0x7fff;
+				hdr->CHANNEL[k].DigMin = (double)(int16_t)0x8000;
+			}	
+			else if (gdftyp==5) {
+				hdr->CHANNEL[k].DigMax = (double)(int32_t)0x7fffffff;
+				hdr->CHANNEL[k].DigMin = (double)(int32_t)0x80000000;
+			}
+			else { 
+				hdr->CHANNEL[k].DigMax = 1.0;
+				hdr->CHANNEL[k].DigMin = 0.0;
+				hdr->FLAG.OVERFLOWDETECTION = 0;	// no overflow detection  
+			} 	
+			hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal;
+			hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal;
+		      	hdr->CHANNEL[k].LeadIdCode = 0;
+	      		hdr->CHANNEL[k].Transducer[0] = 0;
+		      	hdr->CHANNEL[k].SPR       = 1;	// one sample per block
+		      	hdr->CHANNEL[k].OnOff     = 1;
+	      		hdr->CHANNEL[k].HighPass  = NaN;
+		      	hdr->CHANNEL[k].LowPass   = NaN;
+		      	hdr->CHANNEL[k].Notch     = NaN;
+	      		hdr->CHANNEL[k].Impedance = INF;
+		      	hdr->CHANNEL[k].XYZ[0] = 0.0;
+		      	hdr->CHANNEL[k].XYZ[1] = 0.0;
+		      	hdr->CHANNEL[k].XYZ[2] = 0.0;
+		}
 	}
 	
 	else if (hdr->TYPE==AIFF) {
 		// hdr->FLAG.SWAP  = (__BYTE_ORDER == __LITTLE_ENDIAN);
 		hdr->FILE.LittleEndian = 0; 
-		uint8_t  *tag;
+		uint8_t *tag;
 		uint32_t tagsize;
 		//uint16_t gdftyp;
 		size_t pos; 
@@ -5908,7 +6155,7 @@ fprintf(stdout,"ASN1 [491]\n");
 		fprintf(stdout,"[189] #%i\n",hdr->NS);
 		
 	for (k=0; k<hdr->NS; k++) {	
-		if (VERBOSE_LEVEL>7)
+		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"[190] #%i: LeadIdCode=%i\n",k,hdr->CHANNEL[k].LeadIdCode);
 			
 		// set HDR.PhysDim - this part will become obsolete 
@@ -6821,7 +7068,8 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	case BIN: 		
 	case EVENT: 		
 	case HL7aECG: 		
-	case SCP_ECG: {
+	case SCP_ECG: 
+	case TMSiLOG: {
 		// hdr->AS.rawdata was defined in SOPEN	
 		if (start < 0) 
 			start = hdr->FILE.POS;

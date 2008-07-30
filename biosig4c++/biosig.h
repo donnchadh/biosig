@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.110 2008-07-21 12:00:22 schloegl Exp $
+% $Id: biosig.h,v 1.111 2008-07-30 09:19:00 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -102,7 +102,7 @@ enum FileFormat {
 	Matlab, MFER, MIDI, MIT, NetCDF, NEX1, NIFTI, OGG, 
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, SMA, SND, SVG, SXI,    
-	TIFF, TMS32, VRML, VTK, WAV, WMF, XML, XPM,
+	TIFF, TMS32, TMSiLOG, VRML, VTK, WAV, WMF, XML, XPM,
 	Z, ZIP, ZIP2,
 	ASCII_IBI, ASCII
 };
@@ -159,7 +159,7 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 /*
 	This structure defines the header for each channel (variable header) 
  */
-#define MAX_LENGTH_LABEL 	40 
+#define MAX_LENGTH_LABEL 	40	// TMS: 40 
 #define MAX_LENGTH_TRANSDUCER 	80
 #define MAX_LENGTH_PHYSDIM 	20
 #define MAX_LENGTH_PID	 	80      // length of Patient ID: MFER<65, GDF<67, EDF/BDF<81, etc. 
