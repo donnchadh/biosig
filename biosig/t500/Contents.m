@@ -2,6 +2,7 @@
 %
 % PLOTA         general display functions for BIOSIG
 % SVIEW		simple signal viewer
+% TOPO2		topographic map
 %
 % ELPOS         2-D electrode positions
 % ELPOS3        3-D electrode positions
@@ -13,8 +14,7 @@
 % REFERENCES: 
 %
 
-%	$Id: Contents.m,v 1.3 2007-02-03 21:36:16 schloegl Exp $
-%	Copyright (c) 1997-2004 by Alois Schloegl
-%	a.schloegl@ieee.org	
+%	$Id: Contents.m,v 1.4 2008-07-30 12:03:17 schloegl Exp $
+%	Copyright (c) 2003,2004,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
