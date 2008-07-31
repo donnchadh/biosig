@@ -2,7 +2,7 @@ function varargout = sviewer(varargin)
 % SVIEWER
 % Select HELP in the Info menu 
 %
-% $Id: sviewer.m,v 1.14 2008-07-22 16:00:28 schloegl Exp $
+% $Id: sviewer.m,v 1.15 2008-07-31 07:11:26 schloegl Exp $
 % Copyright by (C) 2004 Franz Einspieler <znarfi5@hotmail.com> and
 %              (C) 2004,2008 Alois Schloegl <a.schloegl@ieee.org>
 % University of Technology Graz, Austria
@@ -69,7 +69,7 @@ function sviewer_OpeningFcn(hObject, eventdata, handles, varargin)
 % Choose default command line output for sviewer
 handles.output = hObject;
 set(gcf,'Color',[0.949,0.949,1]);
-set(gcf,'Name','SViewer (C) 2008 V1.51, University of Technology Graz, Austria');
+set(gcf,'Name','SViewer (C) 2004,2008 V1.52, University of Technology Graz, Austria');
 set(findobj('Tag','ChannelsMenu'),'Enable','off');
 
 % Update handles structure
@@ -194,7 +194,12 @@ if isfield(Data,'HDR')
     Data=[];
 end
 
-Data.Eventcodes_txt = sload('eventcodes.txt');
+global BIOSIG_GLOBAL;
+if ~isfield(BIOSIG_GLOBAL,'ISLOADED_EVENTCODES') || ~BIOSIG_GLOBAL.ISLOADED_EVENTCODES,
+	%%% define BIOSIG_GLOBAL.EVENT
+	sclose(sopen('eventcodes.txt'));
+end;
+Data.Eventcodes_txt = BIOSIG_GLOBAL.EVENT;
 Event_string = sprintf('%s |',Data.Eventcodes_txt.GroupDesc{:});
 Event_string = Event_string(1:end-2);
 set(findobj('Tag','Event'),'String',Event_string);
@@ -2127,7 +2132,7 @@ end;
 % about
 function About_Callback(hObject, eventdata, handles)
 helpdlg(sprintf([ 'SViewer \n', ...
-      'Version 1.51\n\n' ...
+      'Version 1.52\n\n' ...
       'Copyright (C) 2004 Franz Einspieler <znarfi5@hotmail.com> and\n', ...
       'Copyright (C) 2004, 2008 Alois Schloegl   <a.schloegl@ieee.org>\n\n' ...
       '        University of Technology Graz, Austria\n\n' ...
