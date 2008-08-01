@@ -4,7 +4,7 @@ function HDR=openeep(HDR,arg2,arg3,arg4,arg5,arg6)
 %
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
-%	$Id: openeep.m,v 1.3 2007-06-21 14:16:48 schloegl Exp $
+%	$Id: openeep.m,v 1.4 2008-08-01 13:43:58 schloegl Exp $
 %	Copyright (c) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -81,8 +81,9 @@ if strcmp(HDR.TYPE,'EEProbe-CNT'),
 			
 			% decode data block
 			HDR.SPR = H.RIFF.CNT.LIST.raw3.ep(1);
-			HDR.NRec = length(H.RIFF.CNT.LIST.raw3.ep)-1;
-try
+			HDR.NRec = length(H.RIFF.CNT.LIST.raw3.ep)-2;
+			
+if 0, %try
 	%%% ### FIXME ### %%%
 	%%% decoding of data block
 	%%% this is work in progress. 
@@ -96,7 +97,6 @@ try
 				ix1 = HDR.EEP.epoch_start(k)+1;
 				bytes = double(H.RIFF.CNT.LIST.raw3.data(HDR.EEP.epoch_start(k)+1:HDR.EEP.epoch_start(k+1)));
 				ix1 = 1;
-
 			for ch= 1:HDR.NS,
 				ix1 = ceil(ix1);	
 				byte1 = H.RIFF.CNT.LIST.raw3.data(HDR.EEP.epoch_start(k)+ix1);
@@ -178,8 +178,8 @@ try
 						end;
 						y(k1)=a;
 					end; 
-					error('####');
 					fprintf(HDR.FILE.stderr,'Warning SOPEN(EEProbe): decompression method %i not implemented\n',meth);
+					error('####');
 				elseif meth==0,
 					y = bytes(ix1+(1:2:HDR.SPR*2));
 					y = y - 256*(y>127);
@@ -193,7 +193,7 @@ try
 				else 
 					y = repmat(NaN,HDR.SPR,1);
 					%fprintf(HDR.FILE.stderr,'ERROR SOPEN(EEProbe): decompression method %i not supported\n',double(meth));
-					error(sprintf('EEProbe: decompression method %i not supported\n',double(meth))); 
+					error(sprintf('EEProbe: decompression method %d not supported\n',double(meth))); 
 				end;
 				
 				if any(meth==[1,9]);
@@ -217,12 +217,12 @@ try
 			end; 		
 			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal); 
 			HDR.TYPE = 'native'; 
-catch
+else %catch
 			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); % because SREAD uses READ_EEP_CNT.MEX 
 end; 			
                 end
         end
-	end;
+end;
 
 	% read event file, if applicable 
 	fid = 0; 
