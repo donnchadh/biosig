@@ -10,7 +10,7 @@ function [INI,S,E] = detectmuscle(S, iter, Mode)
 % E		innan(E) indicates muscle artifact
 
 
-%	$Id: detectmuscle.m,v 1.2 2008-08-01 14:27:25 schloegl Exp $%	Copyright (C) 2003,2008 by Alois Schloegl <a.schloegl@ieee.org>	%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%	$Id: detectmuscle.m,v 1.3 2008-08-01 14:49:05 schloegl Exp $%	Copyright (C) 2003,2008 by Alois Schloegl <a.schloegl@ieee.org>	%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
 %    it under the terms of the GNU General Public License as published by
@@ -83,7 +83,6 @@ else
 	% Mark as bad after event: 100.00 ms
 	ix3 = abs(S)>75;
 	
-whos,
 	ix = filtfilt(ones(Fs/10,1),1,double(ix1|ix2|ix3))>0;
 	S(ix) = NaN;	
 	INI=[]; 
