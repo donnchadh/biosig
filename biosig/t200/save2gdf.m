@@ -32,7 +32,7 @@ function [HDR] = save2gdf(arg1,arg2,arg3);
 % of the License, or (at your option) any later version.
 
 
-% 	$Id: save2gdf.m,v 1.14 2008-04-11 12:57:27 schloegl Exp $
+% 	$Id: save2gdf.m,v 1.15 2008-08-05 13:04:46 schloegl Exp $
 %	Copyright (C) 2003-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>		
 %       This file is part of the biosig project http://biosig.sf.net/
 
@@ -105,6 +105,7 @@ if isstruct(arg1),
 		HDR.VERSION = 2.0;	
 	end;	
 %	HDR.FLAG.UCAL = 0;              % data is de-calibrated, no rescaling within SWRITE 
+
 	if strcmp(HDR.TYPE,'EVENT')
                 HDR.SampleRate = HDR.EVENT.SampleRate;
         elseif isfield(HDR,'GDFTYP')
@@ -163,8 +164,7 @@ if isstruct(arg1),
     	        else
     	                %% PROBLEM 
     	        end
-		% HDR.PhysMax = [1,digmax]*HDR.Calib; %max(data,[],1); %gives max of the whole matrix
-	        % HDR.PhysMin = [1,digmin]*HDR.Calib; %min(data,[],1); %gives max of the whole matrix
+
 	        [datatyp,limits,datatypes] = gdfdatatype(HDR.GDFTYP);
 		if 1, 
 			% here, the data is forced to a different data type
@@ -204,11 +204,11 @@ if isstruct(arg1),
 		        HDR.DigMin = digmin; %limits(:,1); %*ones(1,HDR.NS);
 	        
 		        %fprintf(1,'Warning SAVE2GDF: overflow detection not implemented, yet.\n');
-	                if isfield(HDR,'Calib') & ~isfield(HDR,'PhysMax');
-                	        HDR.PhysMax = [1,HDR.DigMax]*HDR.Calib;
-        	        	HDR.PhysMin = [1,HDR.DigMin]*HDR.Calib;
-	                end;
 	        end; 
+                if isfield(HDR,'Calib') & ~isfield(HDR,'PhysMax');
+               	        HDR.PhysMax = [1,HDR.DigMax]*HDR.Calib;
+       	        	HDR.PhysMin = [1,HDR.DigMin]*HDR.Calib;
+                end;
 	end;
 
         if ~isfield(HDR,'Dur'); 
@@ -216,7 +216,7 @@ if isstruct(arg1),
                 HDR.SPR = 1; 
         end;
 
-%%%	[HDR.PhysMax;HDR.PhysMin;HDR.DigMax;HDR.DigMin;max(data);min(data)],
+%%	[HDR.PhysMax;HDR.PhysMin;HDR.DigMax;HDR.DigMin;max(data);min(data)],
 
         HDR = sopen(HDR,'w');
         if HDR.FILE.FID < 0,
@@ -270,6 +270,18 @@ for k=1:length(infile);
 	end;
 	end;
 	end;
+        if ~isfield(HDR,'DigMax'),
+	        HDR.DigMax = max(data,[],1);
+	end;          
+        if ~isfield(HDR,'DigMin'),
+	        HDR.DigMin = min(data,[],1); 
+	end;          
+        if ~isfield(HDR,'DigMin'),
+		HDR.PhysMax = [1,HDR.DigMax]*HDR.Calib;
+	end;          
+        if ~isfield(HDR,'DigMin'),
+		HDR.PhysMin = [1,HDR.DigMin]*HDR.Calib;
+	end; 	        	
         if ~isfield(HDR,'NS'),
                 warning(['number of channels undefined in ',filename]);
                 HDR.NS = size(data,2);

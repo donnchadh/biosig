@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.224 2008-07-29 19:47:56 schloegl Exp $
+%	$Id: sopen.m,v 1.225 2008-08-05 13:04:46 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -7892,10 +7892,10 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         end
         HDR.SPR = HDR.AS.endpos;
 
-        
-elseif strncmp(HDR.TYPE,'EEProbe',7),
-%	HDR = openeep(HDR); 
+
 %elseif strncmp(HDR.TYPE,'EEProbe',7),
+%	HDR = openeep(HDR); 
+elseif strncmp(HDR.TYPE,'EEProbe',7),
 	if strcmp(HDR.TYPE,'EEProbe-CNT'),
         %if 
         try 	
@@ -7912,9 +7912,10 @@ elseif strncmp(HDR.TYPE,'EEProbe',7),
                  HDR.FLAG.TRIGGERED = 0; 	 
                  HDR.SPR = tmp.nsample;          % total number of samples in the file 	 
                  HDR.Dur = tmp.nsample/tmp.rate; % total duration in seconds 	 
-                 HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct? 	 
+                 HDR.Calib = [zeros(1,HDR.NS) ; eye(HDR.NS, HDR.NS)];  % is this correct? 
+                 HDR.Cal   = ones(1,HDR.NS); 
                  HDR.Label = char(tmp.label); 	 
-                 HDR.PhysDim = 'uV'; 	 
+                 HDR.PhysDimCode = ones(1,HDR.NS)*4275;	% uV  
                  HDR.AS.endpos = HDR.SPR; 	 
                  HDR.Label = tmp.label;
                  H = [];
@@ -7937,7 +7938,7 @@ elseif strncmp(HDR.TYPE,'EEProbe',7),
                 elseif ~isfield(HDR.RIFF.CNT,'eeph');
                 	HDR.TYPE = 'unknown'; 
                 else	
-			s = char(HDR.RIFF.CNT.eeph');
+			s = char(HDR.RIFF.CNT.eeph);
 			field = '';
 			while ~isempty(s)
 				[line,s] = strtok(s,[10,13]);
@@ -7972,6 +7973,8 @@ elseif strncmp(HDR.TYPE,'EEProbe',7),
 			
 			%HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal); 
 			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); % because SREAD uses READ_EEP_CNT.MEX 
+			HDR.Cal   = ones(1,HDR.NS); 
+			HDR.GDFTYP = repmat(16,1,HDR.NS);	%float32
                 end
         end
 	end;
