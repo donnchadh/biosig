@@ -40,7 +40,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.90 2008-07-29 12:51:14 schloegl Exp $
+%	$Id: sload.m,v 1.91 2008-08-05 21:22:07 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -520,16 +520,16 @@ if exist('mexSLOAD','file')==3,
                 end;        
 
 	        H.CHANTYP = repmat(' ',1,H.NS);
-	        tmp = H.NS-length(H.Label);
-	        Label = strvcat(H.Label);
-	        tmp = reshape(lower([[Label(1:min(H.NS,size(Label,1)),:);repmat(' ',max(0,tmp),size(Label,2))],repmat(' ',H.NS,1)])',1,H.NS*(size(Label,2)+1));
-        
-	        H.CHANTYP(ceil([strfind(tmp,'eeg'),strfind(tmp,'meg')]/(size(Label,2)+1))) = 'E'; 
-	        H.CHANTYP(ceil([strfind(tmp,'emg')]/(size(Label,2)+1))) = 'M'; 
-	        H.CHANTYP(ceil([strfind(tmp,'eog')]/(size(Label,2)+1))) = 'O'; 
-		H.CHANTYP(ceil([strfind(tmp,'ecg'),strfind(tmp,'ekg')]/(size(Label,2)+1))) = 'C'; 
-	        H.CHANTYP(ceil([strfind(tmp,'air'),strfind(tmp,'resp')]/(size(Label,2)+1))) = 'R'; 
-        	H.CHANTYP(ceil([strfind(tmp,'trig')]/(size(Label,2)+1))) = 'T'; 
+		for k=1:H.NS,
+			if     ~isempty(strfind(lower(H.Label{k}),'eeg')) 	H.CHANTYP(k) = 'E';
+			elseif ~isempty(strfind(lower(H.Label{k}),'meg')) 	H.CHANTYP(k) = 'E';
+			elseif ~isempty(strfind(lower(H.Label{k}),'emg')) 	H.CHANTYP(k) = 'M';
+			elseif ~isempty(strfind(lower(H.Label{k}),'eog')) 	H.CHANTYP(k) = 'O';
+			elseif ~isempty(strfind(lower(H.Label{k}),'ecg')) 	H.CHANTYP(k) = 'C';
+			elseif ~isempty(strfind(lower(H.Label{k}),'air')) 	H.CHANTYP(k) = 'R';
+			elseif ~isempty(strfind(lower(H.Label{k}),'trig')) 	H.CHANTYP(k) = 'T';
+			end; 
+		end;
 
 	catch
 		fprintf(1, 'SLOAD: mexSLOAD failed - the slower M-function is used.\n');
