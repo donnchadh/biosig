@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.243 2008-07-30 19:13:03 schloegl Exp $
+    $Id: biosig.c,v 1.244 2008-08-05 20:11:44 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2903,6 +2903,7 @@ if (!strncmp(MODE,"r",1))
 			hdr->CHANNEL[k].Off     = lef64p(Header2+52);
 			hdr->CHANNEL[k].Cal     = lef64p(Header2+60);
 
+			hdr->CHANNEL[k].OnOff   = 1; 
 			hdr->CHANNEL[k].SPR     = 1; 
 			if (hdr->VERSION >= 38.0) {
 				hdr->CHANNEL[k].SPR = leu16p(Header2+250);  // used here as Divider
@@ -3031,6 +3032,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hdr->CHANNEL[k].SPR    = 1;
 			hdr->CHANNEL[k].Cal    = f1*f2; 
 			hdr->CHANNEL[k].Off    = 0.0; 
+			hdr->CHANNEL[k].OnOff    = 1; 
 			hdr->CHANNEL[k].GDFTYP = 3;
 			hdr->CHANNEL[k].DigMax =  32767;
 			hdr->CHANNEL[k].DigMin = -32678;
@@ -4188,6 +4190,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			hc->SPR      = 1; 
 			hc->Cal      = Cal; 
 			hc->Off      = Off;
+			hc->OnOff    = 1;
 			hc->Transducer[0] = '\0';
 			hc->LowPass  = 450;
 			hc->HighPass = 20;
@@ -4548,6 +4551,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    		hdr->CHANNEL[k].DigMax  = ldexp(1,Bits);
 	    		hdr->CHANNEL[k].DigMin  = ldexp(-1,Bits);
 */	    		hdr->CHANNEL[k].Cal     = 1.0;
+	    		hdr->CHANNEL[k].OnOff   = 1;
 	    		}
 	    	}  
 	}
@@ -5174,6 +5178,7 @@ fprintf(stdout,"ASN1 [491]\n");
 	 		}
 	 		hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
 	 		hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
+	    		hdr->CHANNEL[k].OnOff   = 1;
 	 	}	
 	    	hdr->FILE.POS = 0; 
 	}
@@ -5806,7 +5811,7 @@ fprintf(stdout,"ASN1 [491]\n");
 			else if (!strncmp(line,"Signal",6)) {
 				char tmp[5];
 				strncpy(tmp,line+6,4);
-				size_t ch = atoi(tmp); 
+				size_t ch = atoi(tmp)-1; 
 				char *field = line+11;
 
 				if (!strcmp(field,"Name"))
@@ -5825,6 +5830,9 @@ fprintf(stdout,"ASN1 [491]\n");
 					if (!filename) 
 						filename = val; 
 					else if (strcmp(val, filename)) {
+					
+					fprintf(stdout,"<%s><%s>",val,filename);
+
 						B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 						B4C_ERRMSG = "TMSiLOG: multiple data files not supported\n";	
 					}
