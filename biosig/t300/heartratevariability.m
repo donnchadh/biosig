@@ -36,11 +36,13 @@ function [X] = heartratevariability(RRI,arg2)
 %   X.LFnu              normalized units of LF power (0.04-0.15 Hz)
 %   X.HFnu              normalized units of HF power  (0.15-0.4 Hz)
 %
+%  semilogy(X.f,X.ASpectrum) shows the spectral density function  
+%
 % The spectral estimates are based on an autoregressive spectrum estimator 
 % of the data which is oversampled by a factor of 4 using the Berger method.  
 % The default model order is 15. In order to change these default settings, 
-% change in the source code line 194 (oversampling factor) and/or 
-% line 214 (order of the autoregressive model); 
+% change in the source code line 211 (oversampling factor) and/or 
+% line 230 (order of the autoregressive model); 
 %
 % see also: QRSDETECT, BERGER, EVENTCODES.TXT
 %
@@ -52,8 +54,11 @@ function [X] = heartratevariability(RRI,arg2)
 % [2] M. Brennan, M.Palaniswami, P. Kamen
 %	Do Existing Measures of Poincaré Plot Geometriy Reflect Nonlinear Features of Heart Rate Variablilty?
 %	IEEE Trans Biomedical Eng. 48(11),2001, 
+% [3] U. Rajendra Acharya, K. Paul Joseph,N. Kannathal, Choo Min Lim, Jasjit S. Suri. 
+%	Heart rate variability: a review.
+%	Med Bio Eng Comput (2006) 44:1031–1051
 
-%	$Id: heartratevariability.m,v 1.8 2008-07-14 11:31:52 schloegl Exp $
+%	$Id: heartratevariability.m,v 1.9 2008-08-06 15:55:48 schloegl Exp $
 %	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -70,6 +75,17 @@ function [X] = heartratevariability(RRI,arg2)
 % You should have received a copy of the GNU General Public License
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+ 
+% TODO: 
+% TINN triangular interpolation of NN intervals 
+% CD Correlation dimension
+% DFA detrended fluctuation analysis 
+% LLA Largest Lyaponow exponent
+% ApEn Aproximate Entropy
+% FD	Fractal Dimension 
+% H	Hurst Exponent
+% SampEn Sample Entropy 
 
 
 %%%%%%%% check and convert the input arguments  %%%%%%%%%%
@@ -180,6 +196,7 @@ X.HRVindex128 = HIS.N/max(HIS.H);
 
 
 %%%%%%% AR-based spectrum  analysis %%%%%%%%%%%%%
+OS = 1; 
 if 0, 
 	y = log(NN); 
 	[y,m]=center(y); 
@@ -190,7 +207,8 @@ elseif 0,
 	f0= 1/(m*t_scale);
 else
 	%% factor 1000 because data is converted to [ms], berger expects [s]
-	f0  = 4*1000/(X.meanNN);%% four-times oversampling
+	OS = 4; 
+	f0  = OS*1000/(X.meanNN);%% four-times oversampling
         [hrv,y] = berger(on/1000,f0); % resampleing 
 	[y,m] = center(y*1000); 
 end;
@@ -208,10 +226,12 @@ X.mops = [optFPE,optAIC,optBIC,optSBC,optMDL,optCAT,optPHI];
 % select model order - vary the model order in order to check how robust the results are with respect to the model order  
 X.mop = optBIC;
 %X.mop = optAIC; 
-X.mop = 15;
+%X.mop = 15;
 [a,r] = arcext(mx,X.mop);
 
-[h,f] = freqz(sqrt(pe(X.mop+1)/f0),[1,-a],256,f0);
+[h,f] = freqz(sqrt(pe(X.mop+1)/f0),[1,-a],[0:256]/256*f0/OS,f0);
+X.ASpectrum = abs(h);
+X.f = f; 
 ix = f<0.04;
 X.VLF = trapz(f(ix),abs(h(ix)).^2);
 ix = (f>0.04) & (f<0.15);
