@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.225 2008-08-05 13:04:46 schloegl Exp $
+%	$Id: sopen.m,v 1.226 2008-08-07 16:32:05 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -296,10 +296,12 @@ end;
 				HDR.Patient.Birthday = datevec(t2);
 				if (t2 > 1) & (t2 < t1),
 					HDR.Patient.Age = floor((t1-t2)/365.25);
-				end;	
+				end;
                                 HDR.ID.Equipment = fread(HDR.FILE.FID,[1,8],'uint8');   
                                 tmp = fread(HDR.FILE.FID,[1,6],'uint8');
-                                HDR.REC.IPaddr = tmp(6:-1:1); 
+                                if (HDR.VERSION < 2.1)	
+                                	HDR.REC.IPaddr = tmp(6:-1:1); 
+                                end;
                                 tmp = fread(HDR.FILE.FID,[1,3],'uint16'); 
                                 tmp(tmp==0)=NaN;
                                 HDR.Patient.Headsize = tmp;
@@ -723,6 +725,9 @@ end;
 				case 2		%% bci2000 additional information 
 					VAL = fread(HDR.FILE.FID,[1,LEN],'uint8=>char');
 					HDR.BCI2000.INFO = VAL;
+				case 5 		%% IP address
+					VAL = fread(HDR.FILE.FID,[1,LEN],'uint8=>uint8');
+					HDR.REC.IPaddr = VAL;
 				otherwise 
 					fseek(HDR.FILE.FID,LEN,'cof'); 
 				end; 
@@ -1541,9 +1546,13 @@ end;
 				tmp = floor([rem(tmp,1)*2^32;tmp]);
                                 c = fwrite(HDR.FILE.FID,tmp,'uint32');
                                 c=fwrite(HDR.FILE.FID,[HDR.HeadLen/256,0,0,0],'uint16');
-                                c=fwrite(HDR.FILE.FID,'b4om2.01','uint8'); % EP_ID=ones(8,1)*32;
-				tmp = [HDR.REC.IPaddr, zeros(1,2)];
-			        c=fwrite(HDR.FILE.FID,tmp(6:-1:1),'uint8'); % IP address
+                                c=fwrite(HDR.FILE.FID,'b4om2.15','uint8'); % EP_ID=ones(8,1)*32;
+                                if (HDR.VERSION < 2.1)
+					tmp = [HDR.REC.IPaddr, zeros(1,2)];
+				else
+	                                tmp = zeros(1,6);
+				end;
+			        c=fwrite(HDR.FILE.FID,tmp(6:-1:1),'uint8'); % IP address, v2.1+: reserved
 			        c=fwrite(HDR.FILE.FID,HDR.Patient.Headsize(1:3),'uint16'); % circumference, nasion-inion, left-right mastoid in [mm]
 			        c=fwrite(HDR.FILE.FID,HDR.ELEC.REF(1:3),'float32'); % [X,Y,Z] position of reference electrode
 			        c=fwrite(HDR.FILE.FID,HDR.ELEC.GND(1:3),'float32'); % [X,Y,Z] position of ground electrode

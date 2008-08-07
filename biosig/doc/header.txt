@@ -3,7 +3,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.28 2008-05-28 15:26:19 schloegl Exp $
+$Id: header.txt,v 1.29 2008-08-07 16:32:06 schloegl Exp $
 Copyright (C) Alois Schloegl 2003-2005,2008 <a.schloegl@ieee.org>
 This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -115,7 +115,7 @@ HDR.Patient	# contains patient information [OPTIONAL]
     Patient.DrugAbuse			0: unknown 1: NO 2: YES 
     
 HDR.REC.LOC		16 byte		Latitude, Longitude and Altitude 3 x INT32 according to RFC1876
-HDR.REC.IPaddr		4(6)xuint8	IP address of recording system
+HDR.REC.IPaddr		4(16)xuint8	IP address of recording system
 # HDR.REC.Reference			reference (monopolar | CAR | LAR | Laplacian | Linked ears | weighted )
 HDR.REC.Impedance	NS*uint8	Electrode Impedance round(log2(Z[Ohm])*8) Z can be reconstructed with < 10% error 
 HDR.ELEC.XYZ		3xNSxfloat32	electrode position in cartesion coordinates
