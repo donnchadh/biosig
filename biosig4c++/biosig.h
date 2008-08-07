@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.111 2008-07-30 09:19:00 schloegl Exp $
+% $Id: biosig.h,v 1.112 2008-08-07 15:58:42 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -96,7 +96,7 @@ enum FileFormat {
 	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, ATES, ATF, AVI,
 	BCI2000, BDF, BIN, BKR, BLSC, BMP, BrainVision, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
-	EDF, EEG1100, EEProbe, EGI, ELF, EMBLA, ETG4000, EVENT, EXIF, 
+	EDF, EEG1100, EEProbe, EGI, EGIS, ELF, EMBLA, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, 
 	Matlab, MFER, MIDI, MIT, NetCDF, NEX1, NIFTI, OGG, 
@@ -218,7 +218,7 @@ typedef struct {
 	int64_t  	NRec 	ATT_ALI;	/* number of records/blocks -1 indicates length is unknown. */	
 	uint32_t 	Dur[2] 	__attribute__ ((deprecated));	/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
 	double 		SampleRate ATT_ALI;	/* Sampling rate */
-	uint8_t 	IPaddr[6] ATT_ALI; 	/* IP address of recording device (if applicable) */
+	uint8_t 	IPaddr[16] ATT_ALI; 	/* IP address of recording device (if applicable) */
 	uint32_t  	LOC[4] 	ATT_ALI;	/* location of recording according to RFC1876 */
 	gdf_time 	T0 	ATT_ALI; 	/* starttime of recording */
 	int16_t 	tzmin 	ATT_ALI;	 		/* time zone (minutes of difference to UTC */

@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.244 2008-08-05 20:11:44 schloegl Exp $
+    $Id: biosig.c,v 1.245 2008-08-07 15:58:42 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -26,7 +26,7 @@
 	Library function for reading and writing of varios biosignal data formats.
 	It provides also one reference implementation for reading and writing of the 
 	GDF data format [1].
-	a
+
 	Features: 
 	- reading and writing of EDF, BDF, GDF1, GDF2, CWFB, HL7aECG, SCP files 
 	- reading of ACQ, AINF, BKR, BrainVision, CNT, DEMG, EGI, ETG4000, MFER files 
@@ -1471,7 +1471,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
       	hdr->Patient.Impairment.Visual = 0;	// 0:Unknown, 1: NO, 2: YES, 3: Corrected
       	hdr->Patient.Weight 	= 0;	// 0:Unknown
       	hdr->Patient.Height 	= 0;	// 0:Unknown
-	memset(&hdr->IPaddr,0,6);
+	memset(&hdr->IPaddr,0,16);
       	for (k1=0; k1<3; k1++) {
       		hdr->Patient.Headsize[k1] = 0;        // Unknown;
       		hdr->ELEC.REF[k1] = 0.0;
@@ -1774,6 +1774,21 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	else if (is_nihonkohden_signature((char*)Header1) && is_nihonkohden_signature((char*)(Header1+0x81)))
 	    	hdr->TYPE = EEG1100;
 
+    	else if (!memcmp(Header1, "RIFF",4) && !memcmp(Header1+8, "CNT ",4))
+	    	hdr->TYPE = EEProbe;
+
+    	else if (( bei32p(hdr->AS.Header) == 0x01020304) && 
+    		 ((beu16p(hdr->AS.Header+4) == 0xffff) || (beu16p(hdr->AS.Header+4) == 3)) ) 
+    	{
+	    	hdr->TYPE = EGIS;
+	    	hdr->FILE.LittleEndian = 0; 
+    	}
+    	else if (( lei32p(hdr->AS.Header) == 0x01020304) && 
+    		 ((leu16p(hdr->AS.Header+4) == 0xffff) || (leu16p(hdr->AS.Header+4) == 3)) ) 
+	{
+	    	hdr->TYPE = EGIS;
+	    	hdr->FILE.LittleEndian = 1; 
+    	}
     	else if ((beu32p(hdr->AS.Header) > 1) && (beu32p(hdr->AS.Header) < 8)) {
 	    	hdr->TYPE = EGI;
 	    	hdr->VERSION = hdr->AS.Header[3];
@@ -2006,6 +2021,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case EEG1100: 	{ FileType = "EEG1100"; break; }
 	case EEProbe: 	{ FileType = "EEProbe"; break; }
 	case EGI: 	{ FileType = "EGI"; break; }
+	case EGIS: 	{ FileType = "EGIS"; break; }
 	case ELF: 	{ FileType = "ELF"; break; }
 	case EMBLA: 	{ FileType = "EMBLA"; break; }
 	case ETG4000: 	{ FileType = "ETG4000"; break; }
@@ -2175,7 +2191,7 @@ if (!strncmp(MODE,"r",1))
 			// memcpy(&hdr->Patient.Birthday, Header1+176, 8);
 
 			hdr->ID.Equipment 	= lei64p(hdr->AS.Header+192);
-			memcpy(&hdr->IPaddr, Header1+200,6);
+			memcpy(&hdr->IPaddr, Header1+200,4);
 			hdr->Patient.Headsize[0]= leu16p(hdr->AS.Header+206);
 			hdr->Patient.Headsize[1]= leu16p(hdr->AS.Header+208);
 			hdr->Patient.Headsize[2]= leu16p(hdr->AS.Header+210);
@@ -2347,6 +2363,10 @@ if (!strncmp(MODE,"r",1))
 		    			/* BCI 2000 information */
 		    			hdr->AS.bci2000 = (char*) realloc(hdr->AS.bci2000,len);
 		    			memcpy(hdr->AS.bci2000,Header2+pos+4,len); 
+		    		}
+		    		else if (tag==5) {
+		    			/* IP address  */
+		    			memcpy(hdr->IPaddr,Header2+pos+4,len); 
 		    		}
 
 		    		/* further tags may include 
@@ -3190,8 +3210,28 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				}
 				else if (!strcmp(line,"Label"))
 					strncpy(hdr->CHANNEL[hdr->NS-1].Label,val,MAX_LENGTH_LABEL);
-				else if (!strcmp(line,"GDFTYP"))
-					hdr->CHANNEL[hdr->NS-1].GDFTYP = atoi(val);
+				else if (!strcmp(line,"GDFTYP")) {
+					uint16_t gdftyp;
+					if      (!strcmp(val,"int8"))	gdftyp = 1; 
+					else if (!strcmp(val,"uint8"))	gdftyp = 2; 
+					else if (!strcmp(val,"int16"))	gdftyp = 3; 
+					else if (!strcmp(val,"uint16"))	gdftyp = 4; 
+					else if (!strcmp(val,"int32"))	gdftyp = 5; 
+					else if (!strcmp(val,"uint32"))	gdftyp = 6; 
+					else if (!strcmp(val,"int64"))	gdftyp = 7; 
+					else if (!strcmp(val,"uint64"))	gdftyp = 8; 
+					else if (!strcmp(val,"float32"))	gdftyp = 16; 
+					else if (!strcmp(val,"float64"))	gdftyp = 17; 
+					else if (!strcmp(val,"float128"))	gdftyp = 18;
+					else if (!strcmp(val,"ascii"))	gdftyp = 0xfffe;
+					else 				gdftyp = atoi(val);
+					if ((gdftyp<1) || (gdftyp>255)) {					
+						B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+						B4C_ERRMSG = "ASCII/BIN: reading ASCII format not supported.";	
+					}
+					else
+						hdr->CHANNEL[hdr->NS-1].GDFTYP = gdftyp;
+				}	
 				else if (!strcmp(line,"PhysicalUnits"))
 					hdr->CHANNEL[hdr->NS-1].PhysDimCode = PhysDimCode(val);
 				else if (!strcmp(line,"PhysDimCode")) {
@@ -4555,12 +4595,34 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    		}
 	    	}  
 	}
-/*	
+
+#ifdef WITH_EGIS
+	else if (hdr->TYPE==EGIS) {
+		fprintf(stdout,"Reading EGIS is under construction\n");	
+
+#if __BYTE_ORDER == __BIG_ENDIAN	
+		char FLAG_SWAP = hdr->FLAG.LittleEndian; 
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+		char FLAG_SWAP = hdr->FLAG.LittleEndian; 
+#endif
+		hdr->VERSION = *(int16_t*) mfer_swap8b(hdr->AS.Header+4, sizeof(int16_t), char FLAG_SWAP);
+		hdr->HeadLen = *(uint16_t*) mfer_swap8b(hdr->AS.Header+6, sizeof(uint16_t), char FLAG_SWAP);
+		//hdr->HeadLen = *(uint32_t*) mfer_swap8b(hdr->AS.Header+8, sizeof(uint32_t), char FLAG_SWAP);
+
+		/* read file */ 
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen+1);
+		count  += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
+		hdr->AS.Header[count]=0;
+
+	}
+#endif 
+
+#ifdef WITH_EMBLA
 	else if (hdr->TYPE==EMBLA) {
-//	else if (0) {
 		strncpy(hdr->CHANNEL[k].Label,buf+0x116,MAX_LENGTH_LABEL);
 	}
-*/	
+#endif
+	
 	else if (hdr->TYPE==ETG4000) {
 		/* read file */ 
 		while (!ifeof(hdr)) {
@@ -6286,10 +6348,27 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     			sprintf(strrchr(fn,'.'),".s%02i",k+1);
 	    		fprintf(fid,"Filename  \t= %s\n",fn);
 	    		fprintf(fid,"Label     \t= %s\n",hdr->CHANNEL[k].Label);
-	    		if (hdr->TYPE==BIN) {
-		    		fprintf(fid,"GDFTYP    \t= %i \t# ",hdr->CHANNEL[k].GDFTYP);
-		    		fprintf(fid,"(1:int8, 2:uint8, 3:int16, 4:uint16, 5:int32, 6:uint32, 7:int64, 8:uint64, 16:float32, 17:float64, 18:float128, 279:bit24)\n");
+	    		if (hdr->TYPE==ASCII) 
+		    		fprintf(fid,"GDFTYP    \t= ascii\n");
+	    		else if (hdr->TYPE==BIN) {
+	    			char *gdftyp;
+	    			switch (hdr->CHANNEL[k].GDFTYP) {
+	    			case 1:	gdftyp="int8"; break; 
+	    			case 2:	gdftyp="uint8"; break; 
+	    			case 3:	gdftyp="int16"; break; 
+	    			case 4:	gdftyp="uint16"; break; 
+	    			case 5:	gdftyp="int32"; break; 
+	    			case 6:	gdftyp="uint32"; break; 
+	    			case 7:	gdftyp="int64"; break; 
+	    			case 8:	gdftyp="uint64"; break; 
+	    			case 16: gdftyp="float32"; break; 
+	    			case 17: gdftyp="float64"; break; 
+	    			case 18: gdftyp="float128"; break; 
+	    			otherwise: gdftyp = "unknown"; 
+	    			}	
+		    		fprintf(fid,"GDFTYP    \t= %s\n",gdftyp);
 	    		}
+		    		
 	    		fprintf(fid,"Transducer\t= %s\n",hdr->CHANNEL[k].Transducer);
 	    		fprintf(fid,"PhysicalUnits\t= %s\n",PhysDim(hdr->CHANNEL[k].PhysDimCode,tmp));
 	    		fprintf(fid,"PhysDimCode\t= %i\n",hdr->CHANNEL[k].PhysDimCode);
@@ -6405,7 +6484,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		/* experimental code: writing header 3, in Tag-Length-Value from 
 			currently only tag=1 is used for storing user-specific events (i.e. free text annotations
 		 */	
-	     	uint32_t TagNLen[] = {0,0,0};  	
+	     	uint32_t TagNLen[] = {0,0,0,0,0,0,0};  	
 	     	if (hdr->EVENT.LenCodeDesc > 1) {	// first entry is always empty - no need to save tag1
 	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) 
 		     		TagNLen[1] += strlen(hdr->EVENT.CodeDesc[k])+1; 
@@ -6415,6 +6494,13 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	if (hdr->AS.bci2000 != NULL) {
 	     		TagNLen[2] = strlen(hdr->AS.bci2000)+1;
 	     		hdr->HeadLen += 4+TagNLen[2];
+	     	}	
+	     	for (k=0; k<16; k++) {
+	     		if (hdr->IPaddr[k]) {
+		     		if (k<4) TagNLen[5] = 4;  
+		     		else 	 TagNLen[5] = 16;
+		     	}
+	     		hdr->HeadLen += 4+TagNLen[5];
 	     	}	
 	     	
 	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
@@ -6486,7 +6572,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			*(uint32_t*) (Header1+184) = l_endian_u32(hdr->HeadLen>>8);
 		
 			memcpy(Header1+192, &hdr->ID.Equipment, 8);
-			memcpy(Header1+200, &hdr->IPaddr, 6);
+			// memcpy(Header1+200, &hdr->IPaddr, 6);
 			memcpy(Header1+206, &hdr->Patient.Headsize, 6);
 			*(float*) (Header1+212) = l_endian_f32(hdr->ELEC.REF[0]);
 			*(float*) (Header1+216) = l_endian_f32(hdr->ELEC.REF[1]);
@@ -6614,6 +6700,11 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		*(uint32_t*)(Header2) = l_endian_u32(2 + (TagNLen[2]<<8)); // Tag=2 & Length of Tag 2
      			strcpy((char*)(Header2+4),hdr->AS.bci2000);
 			Header2 += 4+TagNLen[2];	
+	     	}
+	     	if (TagNLen[5]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(5 + (TagNLen[5]<<8)); // Tag=5 & Length of Tag 2
+     			memcpy(Header2+4,hdr->IPaddr,TagNLen[5]);
+			Header2 += 4+TagNLen[5];
 	     	}
 	     	
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw [339] %p %p\n", Header1,Header2);	     		
@@ -6935,6 +7026,61 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     		if (serror()) return(hdr);
 	}
 
+#ifdef WITH_TMSiLOG 
+    	else if (hdr->TYPE==TMSiLOG) {	
+    		// ###FIXME: writing of TMSi-LOG file is experimental and not completed
+    		hdr->FileName = FileName;
+	    	FILE *fid = fopen(FileName,"wb");
+		fprintf(fid,"FileId=TMSi PortiLab sample log file\n\rVersion=0001\n\r",NULL);
+		time_t t0 = gdf_time2t_time(hdr->T0);
+		struct tm *t = localtime(&t0);
+		fprintf(fid,"DateTime=%04d/02d/02d-02d:02d:02d\n\r",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
+		fprintf(fid,"Format=Float32\n\rLength=%f\n\rSignals=%04i\n\r",hdr->NRec*hdr->SPR/hdr->SampleRate,hdr->NS);
+		const char* fn = strrchr(FileName,FILESEP);
+		if (!fn) fn=FileName; 
+		size_t len = strcspn(fn,".");
+		char* fn2 = (char*)malloc(len+1);
+		strncpy(fn2,fn,len);  
+		fn2[len]=0;
+		for (k=0; k<hdr->NS; k++) {
+			fprintf(fid,"Signal%04d.Name=%s\n\r",k+1,hdr->CHANNEL[k].Label);
+			char tmp[MAX_LENGTH_PHYSDIM+1];
+			PhysDim(hdr->CHANNEL[k].PhysDimCode,tmp);
+			fprintf(fid,"Signal%04d.UnitName=%s\n\r",k+1,tmp);
+			fprintf(fid,"Signal%04d.Resolution=%f\n\r",k+1,hdr->CHANNEL[k].Cal);
+			fprintf(fid,"Signal%04d.StoreRate=%f\n\r",k+1,hdr->SampleRate);
+			fprintf(fid,"Signal%04d.File=%s.asc\n\r",k+1,fn2);
+			fprintf(fid,"Signal%04d.Index=%04d\n\r",k+1,k+1);
+		}
+		fprintf(fid,"\n\r\n\r");
+		fclose(fid);
+
+		// ###FIXME: this belongs into SWRITE 
+		// write data file 
+		fn2 = (char*) realloc(fn2, strlen(FileName)+5);
+		strcpy(fn2,FileName); 
+		strcpy(strrchr(fn2,'.'),".asc");
+    		// hdr->FileName = fn2;
+	    	fid = fopen(fn2,"wb");
+	    	fprintf(fid,"%d\tHz\n\r\n\rN",hdr->SampleRate);
+		for (k=0; k<hdr->NS; k++) {
+			char tmp[MAX_LENGTH_PHYSDIM+1];
+			PhysDim(hdr->CHANNEL[k].PhysDimCode,tmp);
+			fprintf(fid,"\t%s(%s)",hdr->CHANNEL[k].Label,tmp);
+		}	
+		for (k1=0; k1<hdr->SPR*hdr->NRec; k1++) {
+			fprintf(fid,"\n%i",k1);
+			for (k=0; k<hdr->NS; k++) {
+				// TODO: Row/Column ordering 
+				fprintf(fid,"\t%f",hdr->data.block[]);
+			}
+		}	
+
+		fclose(fid);
+		free(fn2); 
+	}
+#endif  // WITH_TMSiLOG
+
 	else {
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "ERROR: Writing of format not supported\n"; 
@@ -6942,7 +7088,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	}
 
     	hdr->FileName = FileName; 
-	if ((hdr->TYPE != ASCII) && (hdr->TYPE != BIN) && (hdr->TYPE != HL7aECG)){
+	if ((hdr->TYPE != ASCII) && (hdr->TYPE != BIN) && (hdr->TYPE != HL7aECG) && (hdr->TYPE != TMSiLOG)){
 	    	hdr = ifopen(hdr,"wb");
 		
 		if (!hdr->FILE.COMPRESSION && (hdr->FILE.FID == NULL) ){
@@ -8309,6 +8455,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 //		fprintf(fid,"\nPID:\t|%s|\nPatient:\n",hdr->AS.PID);
 		fprintf(fid,   "Recording:\n\tID              : %s\n",hdr->ID.Recording);
 		fprintf(fid,               "\tTechnician      : %s\n",hdr->ID.Technician);
+		fprintf(fid,               "\tIP address      : %d.%d.%d.%d\n",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3]);
 		fprintf(fid,"Manufacturer:\n\tName            : %s\n",hdr->ID.Manufacturer.Name);
 		fprintf(fid,               "\tModel           : %s\n",hdr->ID.Manufacturer.Model);
 		fprintf(fid,               "\tVersion         : %s\n",hdr->ID.Manufacturer.Version);
