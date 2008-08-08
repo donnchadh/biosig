@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.245 2008-08-07 15:58:42 schloegl Exp $
+    $Id: biosig.c,v 1.246 2008-08-08 15:12:36 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -43,9 +43,11 @@
 
 #include <ctype.h>
 #include <float.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "biosig-dev.h"
 
@@ -1455,9 +1457,23 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
       	hdr->ID.Manufacturer.Model        = " ";
       	hdr->ID.Manufacturer.Version      = " ";
       	hdr->ID.Manufacturer.SerialNumber = " ";
-	hdr->ID.Technician 	= " "; 
+	hdr->ID.Technician[0] 	= 0; 
 
-
+#if _UNISTD_H
+      	// set default technician name to local IP address  
+	getlogin_r(hdr->ID.Technician, MAX_LENGTH_TECHNICIAN); 
+#endif 
+	
+	memset(hdr->IPaddr, 0, 16);
+#if _NETDB_H	
+      	// set default IP address to local IP address  
+	char localhostname[HOST_NAME_MAX+1];
+	if (!gethostname(localhostname,HOST_NAME_MAX+1)) {
+		struct hostent *host = gethostbyname(localhostname); 
+		memcpy(hdr->IPaddr, host->h_addr, host->h_length);
+	}	
+#endif 
+	
 	hdr->Patient.Name[0] 	= 0; 
 	//hdr->Patient.Name 	= NULL; 
 	//hdr->Patient.Id[0] 	= 0; 
@@ -1471,7 +1487,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
       	hdr->Patient.Impairment.Visual = 0;	// 0:Unknown, 1: NO, 2: YES, 3: Corrected
       	hdr->Patient.Weight 	= 0;	// 0:Unknown
       	hdr->Patient.Height 	= 0;	// 0:Unknown
-	memset(&hdr->IPaddr,0,16);
+      	
       	for (k1=0; k1<3; k1++) {
       		hdr->Patient.Headsize[k1] = 0;        // Unknown;
       		hdr->ELEC.REF[k1] = 0.0;
@@ -2368,6 +2384,11 @@ if (!strncmp(MODE,"r",1))
 		    			/* IP address  */
 		    			memcpy(hdr->IPaddr,Header2+pos+4,len); 
 		    		}
+		    		else if (tag==6) {
+		    			/* Technician  */
+		    			memcpy(hdr->ID.Technician,Header2+pos+4,min(len,MAX_LENGTH_TECHNICIAN));
+		    			hdr->ID.Technician[min(len,MAX_LENGTH_TECHNICIAN)]=0; 
+		    		}
 
 		    		/* further tags may include 
 		    		- Manufacturer: SCP, MFER, GDF1
@@ -2511,7 +2532,7 @@ if (!strncmp(MODE,"r",1))
 			strncpy(hdr->ID.Recording, Header1+88+22, 80-22);
 			hdr->ID.Recording[80-22]=0;
 			strtok(hdr->ID.Recording," ");
-			hdr->ID.Technician = strtok(NULL," ");
+			strncpy(hdr->ID.Technician, strtok(NULL," "),MAX_LENGTH_TECHNICIAN);
 			hdr->ID.Manufacturer.Name  = strtok(NULL," ");
 			
 	    		strtok(Header1+88," ");
@@ -3172,7 +3193,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->T0 = tm_time2gdf_time(&t); 
 				}	
 				else if (!strcmp(line,"Recording.Technician"))
-					hdr->ID.Technician = val;
+					strncpy(hdr->ID.Technician,val,MAX_LENGTH_TECHNICIAN);
 				else if (!strcmp(line,"Manufacturer.Name"))
 					hdr->ID.Manufacturer.Name = val;
 				else if (!strcmp(line,"Manufacturer.Model"))
@@ -6485,22 +6506,31 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			currently only tag=1 is used for storing user-specific events (i.e. free text annotations
 		 */	
 	     	uint32_t TagNLen[] = {0,0,0,0,0,0,0};  	
+	     	uint8_t tag=1; 
 	     	if (hdr->EVENT.LenCodeDesc > 1) {	// first entry is always empty - no need to save tag1
 	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) 
-		     		TagNLen[1] += strlen(hdr->EVENT.CodeDesc[k])+1; 
-	     		TagNLen[1] += 1; 			// acounts for terminating \0
-	     		hdr->HeadLen += 4+TagNLen[1];
+		     		TagNLen[tag] += strlen(hdr->EVENT.CodeDesc[k])+1; 
+	     		TagNLen[tag] += 1; 			// acounts for terminating \0
+	     		hdr->HeadLen += 4+TagNLen[tag];
 	     	}
+	     	tag = 2; 
 	     	if (hdr->AS.bci2000 != NULL) {
-	     		TagNLen[2] = strlen(hdr->AS.bci2000)+1;
-	     		hdr->HeadLen += 4+TagNLen[2];
+	     		TagNLen[tag] = strlen(hdr->AS.bci2000)+1;
+	     		hdr->HeadLen += 4+TagNLen[tag];
 	     	}	
+	     	tag = 5; 
 	     	for (k=0; k<16; k++) {
 	     		if (hdr->IPaddr[k]) {
-		     		if (k<4) TagNLen[5] = 4;  
-		     		else 	 TagNLen[5] = 16;
+		     		if (k<4) TagNLen[tag] = 4;  
+		     		else 	 TagNLen[tag] = 16;
 		     	}
-	     		hdr->HeadLen += 4+TagNLen[5];
+	     		hdr->HeadLen += 4+TagNLen[tag];
+	     	}	
+	     	tag = 6; 
+     		TagNLen[tag] = strlen(hdr->ID.Technician);
+	     	if (TagNLen[tag]) {
+	     		TagNLen[tag]++;
+	     		hdr->HeadLen += 4+TagNLen[tag];
 	     	}	
 	     	
 	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
@@ -6686,8 +6716,9 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		 
 	     	*/
 	    	Header2 = hdr->AS.Header+(NS+1)*256; 
-	     	if (TagNLen[1]>0) {
-	     		*(uint32_t*)(Header2) = l_endian_u32(1 + (TagNLen[1]<<8)); // Tag=1 & Length of Tag 1
+	    	tag = 1;
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=1 & Length of Tag 1
 	     		size_t pos = 4; 
 	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) {
 	     			strcpy((char*)(Header2+pos),hdr->EVENT.CodeDesc[k]);
@@ -6696,15 +6727,23 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		     	Header2[pos]=0; 	// terminating NULL 
 	     		Header2 += pos+1;
 	     	}
-	     	if (TagNLen[2]>0) {
-	     		*(uint32_t*)(Header2) = l_endian_u32(2 + (TagNLen[2]<<8)); // Tag=2 & Length of Tag 2
+	     	tag = 2; 
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=2 & Length of Tag 2
      			strcpy((char*)(Header2+4),hdr->AS.bci2000);
-			Header2 += 4+TagNLen[2];	
+			Header2 += 4+TagNLen[tag];	
 	     	}
-	     	if (TagNLen[5]>0) {
-	     		*(uint32_t*)(Header2) = l_endian_u32(5 + (TagNLen[5]<<8)); // Tag=5 & Length of Tag 2
-     			memcpy(Header2+4,hdr->IPaddr,TagNLen[5]);
-			Header2 += 4+TagNLen[5];
+	     	tag = 5;
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=5 & Length of Tag 2
+     			memcpy(Header2+4,hdr->IPaddr,TagNLen[tag]);
+			Header2 += 4+TagNLen[tag];
+	     	}
+	     	tag = 6; 
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=6 & Length of Tag 2
+     			strcpy((char*)(Header2+4),hdr->ID.Technician);
+			Header2 += 4+TagNLen[tag];
 	     	}
 	     	
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw [339] %p %p\n", Header1,Header2);	     		
@@ -8455,7 +8494,10 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 //		fprintf(fid,"\nPID:\t|%s|\nPatient:\n",hdr->AS.PID);
 		fprintf(fid,   "Recording:\n\tID              : %s\n",hdr->ID.Recording);
 		fprintf(fid,               "\tTechnician      : %s\n",hdr->ID.Technician);
-		fprintf(fid,               "\tIP address      : %d.%d.%d.%d\n",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3]);
+		uint8_t IPv6=0;
+		for (char k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
+		if (IPv6) fprintf(fid,     "\tIPv6 address    : %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x\n",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3],hdr->IPaddr[4],hdr->IPaddr[5],hdr->IPaddr[6],hdr->IPaddr[7],hdr->IPaddr[8],hdr->IPaddr[9],hdr->IPaddr[10],hdr->IPaddr[11],hdr->IPaddr[12],hdr->IPaddr[13],hdr->IPaddr[14],hdr->IPaddr[15]);
+		else fprintf(fid,          "\tIPv4 address    : %u.%u.%u.%u\n",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3]);
 		fprintf(fid,"Manufacturer:\n\tName            : %s\n",hdr->ID.Manufacturer.Name);
 		fprintf(fid,               "\tModel           : %s\n",hdr->ID.Manufacturer.Model);
 		fprintf(fid,               "\tVersion         : %s\n",hdr->ID.Manufacturer.Version);

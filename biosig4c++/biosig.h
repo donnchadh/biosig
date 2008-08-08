@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.112 2008-08-07 15:58:42 schloegl Exp $
+% $Id: biosig.h,v 1.113 2008-08-08 15:12:36 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -58,6 +58,7 @@ typedef char			int8_t;
 //#include <bz2lib.h>
 
 #include <stdio.h>
+//#include <unistd.h>
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -166,6 +167,7 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 #define MAX_LENGTH_RID		80	// length of Recording ID: EDF,GDF,BDF<80, HL7 ?  	
 #define MAX_LENGTH_NAME 	128	// max length of personal name: MFER<=128
 #define MAX_LENGTH_MANUF 	128	// max length of manufacturer field: MFER<128
+#define MAX_LENGTH_TECHNICIAN 	1280	// max length of manufacturer field: MFER<128
 
 #define ATT_ALI __attribute__ ((aligned (8)))	/* Matlab v7.3+ requires 8 byte alignment*/
 
@@ -249,8 +251,8 @@ typedef struct {
 
 	struct {
 		char		Recording[MAX_LENGTH_RID+1]; 	/* HL7, EDF, GDF, BDF replaces HDR.AS.RID */
-		char* 		Technician; 	
-		char* 		Hospital; 	
+		char 		Technician[MAX_LENGTH_TECHNICIAN+1]; 	
+		char* 		Hospital;
 		uint64_t 	Equipment; 	/* identifies this software */
 		struct {
 			/* see 
