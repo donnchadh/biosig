@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.57 2008-05-20 11:07:35 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.58 2008-08-08 15:13:13 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -362,7 +362,6 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 		aECG->LatestConfirmingPhysician="\x00";
 		aECG->Diagnosis="\x00";
 		aECG->EmergencyLevel=0;
-		hdr->ID.Technician = "nobody";
 	}
 	else 
 		aECG = (aECG_TYPE*)hdr->aECG;
@@ -370,10 +369,10 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	
 	aECG->Section1.Tag14.VERSION = 0; // acquiring.protocol_revision_number 
 	aECG->Section1.Tag15.VERSION = 0; // analyzing.protocol_revision_number
-	aECG->FLAG.HUFFMAN  = 0; 
-	aECG->FLAG.DIFF     = 0; 
-	aECG->FLAG.REF_BEAT = 0; 
-	aECG->FLAG.BIMODAL  = 0;
+	aECG->FLAG.HUFFMAN   = 0; 
+	aECG->FLAG.DIFF      = 0; 
+	aECG->FLAG.REF_BEAT  = 0; 
+	aECG->FLAG.BIMODAL   = 0;
 
 	en1064.FLAG.HUFFMAN  = 0; 
 	en1064.FLAG.DIFF     = 0; 
@@ -626,6 +625,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					aECG->MedicationDrugs = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==22) {
+					strncpy(hdr->ID.Technician,(char*)(PtrCurSect+curSectPos),MAX_LENGTH_TECHNICIAN);
 				}
 				else if (tag==23) {
 				}

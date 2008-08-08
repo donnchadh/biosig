@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.35 2008-06-12 11:28:22 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.36 2008-08-08 15:13:13 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -60,7 +60,6 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 		aECG->LatestConfirmingPhysician="/0";
 		aECG->Diagnosis="/0";
 		aECG->EmergencyLevel=0;
-		hdr->ID.Technician = "nobody";
 	}
 	else 
 		aECG = (aECG_TYPE*)hdr->aECG;
@@ -302,6 +301,16 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 				len = min(64,len+1);
 				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
 				strncpy((char*)(ptr+sectionStart+curSectLen+3),aECG->MedicationDrugs,len);
+				curSectLen += 3+len;
+			};	 
+
+			// Tag 22 (max len = 40 )
+			len = strlen(hdr->ID.Technician); 
+			if (len>0) {
+				*(ptr+sectionStart+curSectLen) = 22;	// tag
+				len = min(64,len+1);
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
+				strncpy((char*)(ptr+sectionStart+curSectLen+3),hdr->ID.Technician,len);
 				curSectLen += 3+len;
 			};	 
 
