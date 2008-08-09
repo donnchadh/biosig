@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.11 2008-07-21 12:00:22 schloegl Exp $
+% $Id: swig.i,v 1.12 2008-08-09 19:55:36 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -40,17 +40,17 @@ typedef int64_t gdf_time; /* gdf time is represented in 64 bits */
 enum FileFormat {
 	noFile, unknown, 
 	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, ATES, ATF, AVI,
-	BCI2000, BDF, BKR, BLSC, BMP, BrainVision, BZ2, 
+	BCI2000, BDF, BIN, BKR, BLSC, BMP, BrainVision, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
-	EDF, EEG1100, EEProbe, EGI, ELF, EMBLA, ETG4000, EVENT, EXIF, 
+	EDF, EEG1100, EEProbe, EGI, EGIS, ELF, EMBLA, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, 
 	Matlab, MFER, MIDI, MIT, NetCDF, NEX1, NIFTI, OGG, 
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, SMA, SND, SVG, SXI,    
-	TIFF, TMS32, VRML, VTK, WAV, WMF, XML, XPM,
+	TIFF, TMS32, TMSiLOG, VRML, VTK, WAV, WMF, XML, XPM,
 	Z, ZIP, ZIP2,
-	ASCII_IBI
+	ASCII_IBI, ASCII
 };
 
 typedef struct {
@@ -132,7 +132,7 @@ typedef struct {
 	
 	struct {
 		char		Recording[MAX_LENGTH_RID+1]; 	/* HL7, EDF, GDF, BDF replaces HDR.AS.RID */
-		char* 		Technician; 	
+		char 		Technician[MAX_LENGTH_TECHNICIAN+1];
 		char* 		Hospital; 	
 		uint64_t 	Equipment; 	/* identifies this software */
 		struct {
@@ -176,6 +176,8 @@ typedef struct {
 		char		ROW_BASED_CHANNELS;	/* 0: column-based data [default]; 1: row-based data */ 
 	} FLAG; 
 
+	CHANNEL_TYPE *CHANNEL;
+	  
 	struct {	/* File specific data  */
 #ifdef ZLIB_H
 		gzFile		gzFID;
@@ -203,8 +205,6 @@ typedef struct {
 		char*		bci2000;
 	} AS;
 	
-	CHANNEL_TYPE *CHANNEL;
-	  
 	void *aECG;
 	
 } HDRTYPE;
