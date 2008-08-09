@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.246 2008-08-08 15:12:36 schloegl Exp $
+    $Id: biosig.c,v 1.247 2008-08-09 18:09:15 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1462,6 +1462,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 #if _UNISTD_H
       	// set default technician name to local IP address  
 	getlogin_r(hdr->ID.Technician, MAX_LENGTH_TECHNICIAN); 
+	//hdr->ID.Technician[MAX_LENGTH_TECHNICIAN]=0;
 #endif 
 	
 	memset(hdr->IPaddr, 0, 16);
@@ -1473,7 +1474,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 		memcpy(hdr->IPaddr, host->h_addr, host->h_length);
 	}	
 #endif 
-	
+
 	hdr->Patient.Name[0] 	= 0; 
 	//hdr->Patient.Name 	= NULL; 
 	//hdr->Patient.Id[0] 	= 0; 
@@ -2207,7 +2208,7 @@ if (!strncmp(MODE,"r",1))
 			// memcpy(&hdr->Patient.Birthday, Header1+176, 8);
 
 			hdr->ID.Equipment 	= lei64p(hdr->AS.Header+192);
-			memcpy(&hdr->IPaddr, Header1+200,4);
+			if (hdr->VERSION < (float)2.10) memcpy(hdr->IPaddr, Header1+200,4);
 			hdr->Patient.Headsize[0]= leu16p(hdr->AS.Header+206);
 			hdr->Patient.Headsize[1]= leu16p(hdr->AS.Header+208);
 			hdr->Patient.Headsize[2]= leu16p(hdr->AS.Header+210);
@@ -2352,6 +2353,7 @@ if (!strncmp(MODE,"r",1))
 
 		/* read GDF Header 3 - experimental */	    	
 		if (hdr->HeadLen > 256*(hdr->NS+1)) {
+//		if (0) {
 		    	Header2 = hdr->AS.Header + 256*(hdr->NS+1);
 		    	uint8_t tag = 0xff;
 		    	size_t pos=0,len=0;
@@ -2361,7 +2363,8 @@ if (!strncmp(MODE,"r",1))
 
     				if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFr3: Tag=%i Len=%i\n",tag,len);
 		
-		    		if (tag==1) {	
+		    		if (0) {}
+		    		else if (tag==1) {	
 		    			// user-specific events i.e. free text annotations 
 		    			fprintf(stdout,"user-specific events defined\n");
 					hdr->AS.auxBUF = (uint8_t*) realloc(hdr->AS.auxBUF,len);	
@@ -2377,8 +2380,9 @@ if (!strncmp(MODE,"r",1))
 		    		}
 		    		else if (tag==2) {
 		    			/* BCI 2000 information */
-		    			hdr->AS.bci2000 = (char*) realloc(hdr->AS.bci2000,len);
-		    			memcpy(hdr->AS.bci2000,Header2+pos+4,len); 
+		    			hdr->AS.bci2000 = (char*) realloc(hdr->AS.bci2000,len+1);
+		    			memcpy(hdr->AS.bci2000,Header2+pos+4,len);
+		    			hdr->AS.bci2000[len]=0; 
 		    		}
 		    		else if (tag==5) {
 		    			/* IP address  */
@@ -3562,10 +3566,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					http://biosig.cvs.sourceforge.net/biosig/biosig/doc/eventcodes.txt?view=markup
 				*/
 				
-				/* decode results */ 
+				/* decode ResultCode */ 
 				b3 = *(uint32_t*)(StatusVector + BCI2000_StatusVectorLength*(count & 1) + (rs_pos>>3));
 				b3 = (b3 >> (rs_pos & 7)) & ((1<<rs_len)-1);
-				if (b3!=b2) {
+				if (b3 != b2) {
 					if (b3>b2) hdr->EVENT.TYP[N] = ( b3==b1 ? 0x0381 : 0x0382);
 					else 	   hdr->EVENT.TYP[N] = ( b2==b0 ? 0x8381 : 0x8382);
 					hdr->EVENT.POS[N] = count;	
@@ -3573,10 +3577,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					b2 = b3;
 				}	
 
-				/* decode Target Code */
+				/* decode TargetCode */
 				b1 = *(uint32_t*)(StatusVector + BCI2000_StatusVectorLength*(count & 1) + (tc_pos>>3));
 				b1 = (b1 >> (tc_pos & 7)) & ((1<<tc_len)-1);
-				if (b1!=b0) {
+				if (b1 != b0) {
 					if (TargetOrientation==1) {	// vertical 
 						switch ((int)b1-(int)b0) {
 						case  1: hdr->EVENT.TYP[N] = 0x030c; break;
@@ -3598,14 +3602,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					b0 = b1; 
 				}	
 
-				/* decode feedback */ 
+				/* decode Feedback */ 
 				b5 = *(uint32_t*)(StatusVector + BCI2000_StatusVectorLength*(count & 1) + (fb_pos>>3));
 				b5 = (b5 >> (fb_pos & 7)) & ((1<<fb_len)-1);
-				if (b5>b4) 
+				if (b5 > b4) 
 					hdr->EVENT.TYP[N] = 0x030d;
-				else if (b5<b4) 
+				else if (b5 < b4) 
 					hdr->EVENT.TYP[N] = 0x830d;
-				if (b5!=b4) {
+				if (b5 != b4) {
 					hdr->EVENT.POS[N] = count;	
 					N++;
 					b4 = b5;
@@ -6505,7 +6509,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		/* experimental code: writing header 3, in Tag-Length-Value from 
 			currently only tag=1 is used for storing user-specific events (i.e. free text annotations
 		 */	
-	     	uint32_t TagNLen[] = {0,0,0,0,0,0,0};  	
+	     	uint32_t TagNLen[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0};  	
 	     	uint8_t tag=1; 
 	     	if (hdr->EVENT.LenCodeDesc > 1) {	// first entry is always empty - no need to save tag1
 	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) 
@@ -6782,7 +6786,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		tt = gdf_time2t_time(hdr->T0); 
 		if (hdr->T0>1) strftime(tmp,81,"%d-%b-%Y",localtime(&tt));
 		else strcpy(tmp,"X");	
-		size_t len = sprintf(cmd,"Startdate %s X X ",tmp);
+		if (!strlen(hdr->ID.Technician)) strcpy(hdr->ID.Technician,"X");
+		size_t len = sprintf(cmd,"Startdate %s X %s ", tmp, hdr->ID.Technician);
 	     	memcpy(Header1+88, cmd, len);
 	     	memcpy(Header1+88+len, &hdr->ID.Equipment, 8);
 	     
@@ -7218,7 +7223,8 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
  */
 
 	size_t			count,k1,k2,k3,k4,k5,SZ,nelem,NS; 
-	int 			GDFTYP,DIV;
+	uint16_t		GDFTYP;
+	size_t	 		DIV;
 	uint8_t			*ptr, *buffer;
 	CHANNEL_TYPE		*CHptr;
 	int32_t			int32_value;
@@ -7602,7 +7608,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 
 			k2 = ChanList[hdr->EVENT.CHN[k1]]-1;
 			CHptr = hdr->CHANNEL+k2;
-			DIV 	= (int)ceil(hdr->SampleRate/hdr->EVENT.SampleRate); 
+			DIV 	= (uint32_t)ceil(hdr->SampleRate/hdr->EVENT.SampleRate); 
 			GDFTYP 	= CHptr->GDFTYP;
 			SZ  	= GDFTYP_BITS[GDFTYP]>>3;
 			int32_value = 0; 
@@ -8495,7 +8501,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		fprintf(fid,   "Recording:\n\tID              : %s\n",hdr->ID.Recording);
 		fprintf(fid,               "\tTechnician      : %s\n",hdr->ID.Technician);
 		uint8_t IPv6=0;
-		for (char k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
+		for (uint8_t k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
 		if (IPv6) fprintf(fid,     "\tIPv6 address    : %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x\n",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3],hdr->IPaddr[4],hdr->IPaddr[5],hdr->IPaddr[6],hdr->IPaddr[7],hdr->IPaddr[8],hdr->IPaddr[9],hdr->IPaddr[10],hdr->IPaddr[11],hdr->IPaddr[12],hdr->IPaddr[13],hdr->IPaddr[14],hdr->IPaddr[15]);
 		else fprintf(fid,          "\tIPv4 address    : %u.%u.%u.%u\n",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3]);
 		fprintf(fid,"Manufacturer:\n\tName            : %s\n",hdr->ID.Manufacturer.Name);
@@ -8535,9 +8541,9 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		strftime(tmp, 59, "%x %X %Z", localtime(&T0));
 		fprintf(fid,"\tStartOfRecording: (%.6f) %s\n",ldexp(hdr->T0,-32),asctime(localtime(&T0)));
 		if (hdr->AS.bci2000 != NULL) {
-			size_t c = strcspn(hdr->AS.bci2000,"\xa\xd");
+			size_t c = min(39,strcspn(hdr->AS.bci2000,"\xa\xd"));
 			strncpy(tmp,hdr->AS.bci2000,c); tmp[c]=0;
-			fprintf(fid,"BCI2000 [%i]\t\t: <%s<CR>...>\n",strlen(hdr->AS.bci2000),tmp); 
+			fprintf(fid,"BCI2000 [%i]\t\t: <%s...>\n",strlen(hdr->AS.bci2000),tmp); 
 		}
 	}
 		
@@ -8547,7 +8553,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 //		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nDuration[s]:\t%u/%u\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
 		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->SampleRate);
 		fprintf(fid,"Events/Annotations:\t%i\nEvents/SampleRate:\t%f\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
-	}
+    	}
 		
 	if (VERBOSE>2) {
 		/* channel settings */ 
