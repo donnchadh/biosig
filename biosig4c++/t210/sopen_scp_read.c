@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.58 2008-08-08 15:13:13 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.59 2008-08-09 20:16:47 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -611,6 +611,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					aECG->Section1.Tag15.VERSION     = *(PtrCurSect+curSectPos+14);
 				}
 				else if (tag==16) {
+					hdr->ID.Hospital = (char*)(PtrCurSect+curSectPos+14);
 				}
 				else if (tag==17) {
 				}

@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.114 2008-08-08 15:28:31 schloegl Exp $
+% $Id: biosig.h,v 1.115 2008-08-09 20:16:47 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -10,6 +10,14 @@
     as published by the Free Software Foundation; either version 3
     of the License, or (at your option) any later version.
 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+    
  */
 
 /* External API definitions */
@@ -53,7 +61,7 @@ typedef char			int8_t;
  */
 
 #ifdef WITH_ZLIB
-#include <zlib.h>
+//#include <zlib.h>
 #endif 
 //#include <bz2lib.h>
 
@@ -252,7 +260,7 @@ typedef struct {
 	struct {
 		char		Recording[MAX_LENGTH_RID+1]; 	/* HL7, EDF, GDF, BDF replaces HDR.AS.RID */
 		char 		Technician[MAX_LENGTH_TECHNICIAN+1];
-		char* 		Hospital;
+		char* 		Hospital;	/* recording institution */
 		uint64_t 	Equipment; 	/* identifies this software */
 		struct {
 			/* see 
@@ -309,7 +317,7 @@ typedef struct {
 #endif
 		FILE* 		FID;		/* file handle  */
 		size_t 		POS;		/* current reading/writing position [in blocks] */
-		//size_t 		POS2;		/* current reading/writing position [in samples] */
+		//size_t 	POS2;		/* current reading/writing position [in samples] */
 		uint8_t		OPEN; 		/* 0: closed, 1:read, 2: write */
 		uint8_t		LittleEndian;   /* 1 if file is LittleEndian data format and 0 for big endian data format*/  
 		uint8_t		COMPRESSION;    /* 0: no compression 9: best compression */
@@ -324,9 +332,7 @@ typedef struct {
 		uint32_t 	*bi;
 		uint8_t*	Header; 
 		uint8_t*	rawdata; 	/* raw data block */
-		size_t		rawdata_curblock;
-		size_t		rawdata_nextblock;
-		uint8_t*	auxBUF;		/* auxillary buffer - used for storing EVENT.CodeDesc (BV,EDF,GDF), FMT info (MIT) */
+		uint8_t*	auxBUF 	__attribute__ ((deprecated));		/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor */
 		char*		bci2000;
 	} AS ATT_ALI;
 	

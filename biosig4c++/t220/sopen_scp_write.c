@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.36 2008-08-08 15:13:13 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.37 2008-08-09 20:16:48 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -283,6 +283,16 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1-3) = l_endian_u16(len1);	// length
 			curSectLen += len1; 
+
+			// Tag 16 (max len = 80)
+			len = strlen(hdr->ID.Hospital); 
+			if (len>0) {
+				*(ptr+sectionStart+curSectLen) = 16;	// tag
+				len = min(64,len+1);
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(len);	// length
+				strncpy((char*)(ptr+sectionStart+curSectLen+3),hdr->ID.Hospital,len);
+				curSectLen += 3+len;
+			};	 
 
 			// Tag 20 (max len = 64 ) 
 			len = strlen(aECG->ReferringPhysician);

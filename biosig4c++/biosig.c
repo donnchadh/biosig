@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.247 2008-08-09 18:09:15 schloegl Exp $
+    $Id: biosig.c,v 1.248 2008-08-09 20:16:47 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1451,13 +1451,15 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = (gdf_time)0; t_time2gdf_time(time(NULL));
       	hdr->tzmin = 0; 
-      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.65";
+      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.70";
       	hdr->ID.Manufacturer._field[0]    = 0;
       	hdr->ID.Manufacturer.Name         = " ";
       	hdr->ID.Manufacturer.Model        = " ";
       	hdr->ID.Manufacturer.Version      = " ";
       	hdr->ID.Manufacturer.SerialNumber = " ";
 	hdr->ID.Technician[0] 	= 0; 
+	hdr->ID.Hospital 	= "\0";
+	 
 
 #if _UNISTD_H
       	// set default technician name to local IP address  
@@ -1476,7 +1478,6 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 #endif 
 
 	hdr->Patient.Name[0] 	= 0; 
-	//hdr->Patient.Name 	= NULL; 
 	//hdr->Patient.Id[0] 	= 0; 
 	hdr->Patient.Birthday 	= (gdf_time)0;        // Unknown;
       	hdr->Patient.Medication = 0;	// 0:Unknown, 1: NO, 2: YES
@@ -2353,7 +2354,6 @@ if (!strncmp(MODE,"r",1))
 
 		/* read GDF Header 3 - experimental */	    	
 		if (hdr->HeadLen > 256*(hdr->NS+1)) {
-//		if (0) {
 		    	Header2 = hdr->AS.Header + 256*(hdr->NS+1);
 		    	uint8_t tag = 0xff;
 		    	size_t pos=0,len=0;
@@ -2392,6 +2392,10 @@ if (!strncmp(MODE,"r",1))
 		    			/* Technician  */
 		    			memcpy(hdr->ID.Technician,Header2+pos+4,min(len,MAX_LENGTH_TECHNICIAN));
 		    			hdr->ID.Technician[min(len,MAX_LENGTH_TECHNICIAN)]=0; 
+		    		}
+		    		else if (tag==7) {
+		    			// recording institution 
+		    			hdr->ID.Hospital = Header2+pos+4;
 		    		}
 
 		    		/* further tags may include 
@@ -6536,6 +6540,12 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		TagNLen[tag]++;
 	     		hdr->HeadLen += 4+TagNLen[tag];
 	     	}	
+	     	tag = 7; 
+     		TagNLen[tag] = strlen(hdr->ID.Hospital);
+	     	if (TagNLen[tag]) {
+	     		TagNLen[tag]++;
+	     		hdr->HeadLen += 4+TagNLen[tag];
+	     	}	
 	     	
 	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
 	     	/* end */
@@ -6747,6 +6757,12 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	if (TagNLen[tag]>0) {
 	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=6 & Length of Tag 2
      			strcpy((char*)(Header2+4),hdr->ID.Technician);
+			Header2 += 4+TagNLen[tag];
+	     	}
+	     	tag = 7; 
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=7 & Length of Tag 2
+     			strcpy((char*)(Header2+4),hdr->ID.Hospital);
 			Header2 += 4+TagNLen[tag];
 	     	}
 	     	
@@ -8499,6 +8515,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		fprintf(fid,"\n===========================================\n[FIXED HEADER]\n");
 //		fprintf(fid,"\nPID:\t|%s|\nPatient:\n",hdr->AS.PID);
 		fprintf(fid,   "Recording:\n\tID              : %s\n",hdr->ID.Recording);
+		fprintf(fid,               "\tInstitution     : %s\n",hdr->ID.Hospital);
 		fprintf(fid,               "\tTechnician      : %s\n",hdr->ID.Technician);
 		uint8_t IPv6=0;
 		for (uint8_t k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
