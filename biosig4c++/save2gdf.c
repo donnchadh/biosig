@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.46 2008-07-22 14:11:18 schloegl Exp $
+    $Id: save2gdf.c,v 1.47 2008-08-10 17:56:37 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -51,7 +51,7 @@ int main(int argc, char **argv){
     	for (k=1; k<argc && argv[k][0]=='-'; k++)
     	if (!strcmp(argv[k],"-v") || !strcmp(argv[k],"--version") )
     	{
-		fprintf(stdout,"save2gdf (BioSig4C++) v0.55\n");
+		fprintf(stdout,"save2gdf (BioSig4C++) v0.70\n");
 		fprintf(stdout,"Written by Alois Schloegl and others\n\n");
 		fprintf(stdout,"This program is free software; you can redistribute it and/or modify\n");
 		fprintf(stdout,"it under the terms of the GNU General Public License as published by\n");
@@ -92,26 +92,27 @@ int main(int argc, char **argv){
 	    	VERBOSE_LEVEL = argv[k][strlen(argv[k])-1]-48;
 	}
     	else if (!strncmp(argv[k],"-f=",3))  	{
-    	 	if (!strcmp(argv[k],"-f=GDF"))
+    		if (0) {}
+    		else if (!strncmp(argv[k],"-f=ASCII",8))
+			TARGET_TYPE=ASCII;
+    		else if (!strcmp(argv[k],"-f=BDF"))
+			TARGET_TYPE=BDF;
+    		else if (!strncmp(argv[k],"-f=BIN",6))
+			TARGET_TYPE=BIN;
+    		else if (!strncmp(argv[k],"-f=CFWB",7))
+			TARGET_TYPE=CFWB;
+    		else if (!strcmp(argv[k],"-f=EDF"))
+			TARGET_TYPE=EDF;
+    	 	else if (!strcmp(argv[k],"-f=GDF"))
 			TARGET_TYPE=GDF;
     		else if (!strcmp(argv[k],"-f=GDF1"))
 			TARGET_TYPE=GDF1;
-    		else if (!strcmp(argv[k],"-f=EDF"))
-			TARGET_TYPE=EDF;
-    		else if (!strcmp(argv[k],"-f=BDF"))
-			TARGET_TYPE=BDF;
-    		else if (!strncmp(argv[k],"-f=HL7",6) )
+    		else if (!strncmp(argv[k],"-f=HL7",6))
 			TARGET_TYPE=HL7aECG;
+    		else if (!strncmp(argv[k],"-f=MFER",7))
+			TARGET_TYPE=MFER;
     		else if (!strncmp(argv[k],"-f=SCP",6))
 			TARGET_TYPE=SCP_ECG;
-    		else if (!strncmp(argv[k],"-f=CFWB",6))
-			TARGET_TYPE=CFWB;
-    		else if (!strncmp(argv[k],"-f=BIN",6))
-			TARGET_TYPE=BIN;
-    		else if (!strncmp(argv[k],"-f=MFER",6))
-			TARGET_TYPE=MFER;
-    		else if (!strcmp(argv[k],"-f=GDF1"))
-			TARGET_TYPE=GDF1;
 		else {
 			fprintf(stderr,"format %s not supported.\n",argv[k]);
 			return(-1);
@@ -160,7 +161,7 @@ int main(int argc, char **argv){
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[113] SOPEN-R finished\n");
 
 	hdr2ascii(hdr,stdout,VERBOSE_LEVEL);
-	
+
 	// all channels are converted - channel selection currently not supported
     	for (k=0; k<hdr->NS; k++) {
     		if (!hdr->CHANNEL[k].OnOff) {
@@ -324,6 +325,8 @@ int main(int argc, char **argv){
 		destructHDR(hdr);
 		exit(status); 
     	}	
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[236] SCLOSE finished\n");
 
 	sclose(hdr);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[241] SCLOSE finished\n");
