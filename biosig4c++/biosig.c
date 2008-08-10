@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.248 2008-08-09 20:16:47 schloegl Exp $
+    $Id: biosig.c,v 1.249 2008-08-10 22:00:22 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -43,11 +43,14 @@
 
 #include <ctype.h>
 #include <float.h>
-#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#ifndef WIN32
+#include <netdb.h>
+#endif
 
 #include "biosig-dev.h"
 
@@ -1458,17 +1461,18 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
       	hdr->ID.Manufacturer.Version      = " ";
       	hdr->ID.Manufacturer.SerialNumber = " ";
 	hdr->ID.Technician[0] 	= 0; 
-	hdr->ID.Hospital 	= "\0";
-	 
+	hdr->ID.Hospital 	= "\x00";
+	memset(hdr->IPaddr, 0, 16);
 
-#if _UNISTD_H
+#ifdef _UNISTD_H
+#ifndef WIN32
       	// set default technician name to local IP address  
 	getlogin_r(hdr->ID.Technician, MAX_LENGTH_TECHNICIAN); 
 	//hdr->ID.Technician[MAX_LENGTH_TECHNICIAN]=0;
 #endif 
+#endif 
 	
-	memset(hdr->IPaddr, 0, 16);
-#if _NETDB_H	
+#ifdef _NETDB_H	
       	// set default IP address to local IP address  
 	char localhostname[HOST_NAME_MAX+1];
 	if (!gethostname(localhostname,HOST_NAME_MAX+1)) {
@@ -2395,7 +2399,7 @@ if (!strncmp(MODE,"r",1))
 		    		}
 		    		else if (tag==7) {
 		    			// recording institution 
-		    			hdr->ID.Hospital = Header2+pos+4;
+		    			hdr->ID.Hospital = (char*)(Header2+pos+4);
 		    		}
 
 		    		/* further tags may include 
@@ -2515,6 +2519,7 @@ if (!strncmp(MODE,"r",1))
 	    	//Dur		= atof(strncpy(tmp,Header1+244,8));
 
 		if (!strncmp(Header1+192,"EDF+",4)) {
+			char ListOfMonth[12][4] = {"JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"};
 	    		strtok(hdr->Patient.Id," ");
 	    		ptr_str = strtok(NULL," ");
 	    		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
@@ -2528,8 +2533,10 @@ if (!strncmp(MODE,"r",1))
 		    		t1.tm_mday = atoi(strtok(ptr_str,"-")); 
 		    		strcpy(tmp,strtok(NULL,"-"));
 		    		for (k=0; k<strlen(tmp); ++k) tmp[k]= toupper(tmp[k]);	// convert to uppper case 
-		    		t1.tm_year = atoi(strtok(NULL,"- ")) - 1900; 
-		    		t1.tm_mon  = !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11;
+		    		t1.tm_year = atoi(strtok(NULL,"- ")) - 1900;
+		    		t1.tm_mon  = -1; 
+		    		for (k=0; k<12; k++) 
+		    			if (!strcmp(tmp,ListOfMonth[k])) t1.tm_mon = k;
 		    		t1.tm_sec  = 0;
 		    		t1.tm_min  = 0;
 		    		t1.tm_hour = 12;
@@ -2553,8 +2560,11 @@ if (!strncmp(MODE,"r",1))
 	    		tm_time.tm_year = atoi(strtok(NULL,"-")) - 1900; 
 
 	    		for (k=0; k<strlen(tmp); ++k) tmp[k]=toupper(tmp[k]);	// convert to uppper case 
-	    		if (tm_time.tm_mon != !strcmp(tmp,"FEB")+!strcmp(tmp,"MAR")*2+!strcmp(tmp,"APR")*3+!strcmp(tmp,"MAY")*4+!strcmp(tmp,"JUN")*5+!strcmp(tmp,"JUL")*6+!strcmp(tmp,"AUG")*7+!strcmp(tmp,"SEP")*8+!strcmp(tmp,"OCT")*9+!strcmp(tmp,"NOV")*10+!strcmp(tmp,"DEC")*11)
+	    		for (k=0; k<12; k++) if (!strcmp(tmp,ListOfMonth[k])) break;
+
+	    		if (tm_time.tm_mon != k)
 	    			fprintf(stderr,"Warning SOPEN(EDF+): %i <%s> Month corrupted\n",tm_time.tm_mon+1,tmp); 
+
 	    		tm_time.tm_isdst= -1;
 		}   
 		hdr->T0 = tm_time2gdf_time(&tm_time); 

@@ -10,7 +10,8 @@ Recommended: zlib http://zlib.net/
 The supported data formats are listed here: 
 http://hci.tugraz.at/schloegl/biosig/TESTED
 (2) "save2gdf" is a converter between different file formats, 
-including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, CWFB, BIN.
+including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, CWFB.
+    "win32/save2gdf.exe is pre-compiled for 32bit MS-windows
 (3) "mexSLOAD.mex" is a MEX-interface for Octave and Matlab
 Requirement: Matlab OR Octave (v2.9 or higher) and octave-headers
 (4) "_biosig.so" is an interface to python. 
@@ -46,15 +47,16 @@ File(s):
     t230/*      support of HL7aECG file format 
     test0/*	scripts and functions for testing
     Makefile	script for compiling and testing 
-    windows/*	executables for Windows
+    win32/*	executables for Windows
 
 Compilation: 
 -------------
 # Linux 
-you need g++, make and zlib. (If you do not have zlib, uncomment in Makefile -D=WITH_ZLIB in DEFINES and -lz in LIBS).
+you need g++, make and zlib. (If you do not have zlib, uncomment in biosig.h line 40 #include <zlib.h>).
 Running make compiles the converter.
   make 		 	# tries to makes the converter and the mex-files for Octave and Matlab
   make save2gdf 	# makes the file format converter
+  make save2gdf.exe	# makes the file format converter for Win32 (requires MinGW)
   make physicalunits 	# makes the en/decoder for physical units
   make libbiosig.a  	# makes a static library 
   make mex4o 		# makes mexSLOAD for Octave (requires Octave-headers2.9 or higher)
@@ -74,9 +76,9 @@ Currently, only the file converter save2gdf is supported.
 - run the make command 
    make save2gdf 
 
-# Windows + minGW
+# Windows + MinGW
 Currently, only the file converter save2gdf is supported.
-- You need minGW with g++ and make, and MSYS. 
+- You need MinGW with g++ and make, and MSYS. 
 - Removed the -lz flag from LIBS in Makefile.  
 - run the make command 
    make save2gdf 
@@ -153,7 +155,7 @@ https://lists.sourceforge.net/lists/listinfo/biosig-general
 
 
 
-    $Id: README,v 1.19 2008-07-27 17:48:32 schloegl Exp $
+    $Id: README,v 1.20 2008-08-10 22:00:23 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 

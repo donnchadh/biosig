@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.115 2008-08-09 20:16:47 schloegl Exp $
+% $Id: biosig.h,v 1.116 2008-08-10 22:00:23 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -60,13 +60,14 @@ typedef char			int8_t;
 	The output files can be zipped, too. 
  */
 
+#ifndef __MINGW32__
 #ifdef WITH_ZLIB
-//#include <zlib.h>
+#include <zlib.h>
+#endif 
 #endif 
 //#include <bz2lib.h>
 
 #include <stdio.h>
-//#include <unistd.h>
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
