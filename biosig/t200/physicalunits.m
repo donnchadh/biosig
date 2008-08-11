@@ -28,7 +28,7 @@ function [out,scale] = physicalunits(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: physicalunits.m,v 1.22 2008-06-20 12:36:14 schloegl Exp $
+%	$Id: physicalunits.m,v 1.23 2008-08-11 12:21:11 schloegl Exp $
 %	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -155,14 +155,16 @@ elseif isnumeric(arg1)
 	s = mod(arg1,32); 
 	n = bitand(arg1,2^16-32);
 	scale = repmat(NaN,size(arg1));
-	PhysDim = {};
+	PhysDim = repmat({'?'},size(arg1))
 	for k = 1:length(n); 
+	if any(BIOSIG_GLOBAL.DecimalFactor.Code==s(k)),
 		t1 = BIOSIG_GLOBAL.DecimalFactor.Prefix{BIOSIG_GLOBAL.DecimalFactor.Code==s(k)};
 		t2 = BIOSIG_GLOBAL.Units.Symbol{BIOSIG_GLOBAL.Units.Code==n(k)};
-		PhysDim{k,1} = [t1,t2];
+		PhysDim{k} = [t1,t2];
 		scale(k) = BIOSIG_GLOBAL.DecimalFactor.Cal(BIOSIG_GLOBAL.DecimalFactor.Code==s(k));
 	end;
-	out = PhysDim;
+	end; 
+	out = PhysDim
 	
 elseif ischar(arg1) | iscell(arg1) 
 	if iscell(arg1)
