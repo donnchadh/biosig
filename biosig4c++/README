@@ -69,17 +69,23 @@ Running make compiles the converter.
   make test		# tests HL7<->SCP, SCP<->GDF, GDF<->HL7 converters
   make test6		# tests bidirectional conversion between 6 differerent data formats	
 
-# Windows + Cygwin
+# MinGW Crosscompiler for Linux   
 Currently, only the file converter save2gdf is supported.
-- install Cygwin
-- within Cygwin install g++, zlib, and make 
-- run the make command 
-   make save2gdf 
+- install mingw32 mingw32-binutils mingw32-runtime
+- run the command  
+   make win32/save2gdf.exe
 
 # Windows + MinGW
 Currently, only the file converter save2gdf is supported.
 - You need MinGW with g++ and make, and MSYS. 
 - Removed the -lz flag from LIBS in Makefile.  
+- run the make command 
+   make save2gdf 
+
+# Windows + Cygwin
+Currently, only the file converter save2gdf is supported.
+- install Cygwin
+- within Cygwin install g++, zlib, and make 
 - run the make command 
    make save2gdf 
 
@@ -155,7 +161,7 @@ https://lists.sourceforge.net/lists/listinfo/biosig-general
 
 
 
-    $Id: README,v 1.20 2008-08-10 22:00:23 schloegl Exp $
+    $Id: README,v 1.21 2008-08-11 08:49:38 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 
