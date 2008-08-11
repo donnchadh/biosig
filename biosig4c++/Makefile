@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.51 2008-08-10 22:00:24 schloegl Exp $
+###  $Id: Makefile,v 1.52 2008-08-11 07:56:44 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -26,7 +26,7 @@ MinGWLINK     = i586-mingw32msvc-g++
 LFLAGS        =
 #LIBS          = -lz -L. -lbiosig  	# dynamic
 LIBS          = libbiosig.a -lz 	# static
-MinGWLIBS     = mingw/libbiosig.a 	# static
+MinGWLIBS     = win32/libbiosig.a 	# static
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
 
@@ -47,8 +47,7 @@ SOURCES       = biosig.c \
 		t210/scp-decode.cpp \
 		t220/sopen_scp_write.c \
 		t220/crc4scp.c  \
-		t230/sopen_hl7aecg.c \
-#		t240/sopen_asn1.c 
+		t230/sopen_hl7aecg.c 
 
 OBJECTS       = biosig.o \
 		tinyxml.o \
@@ -62,22 +61,22 @@ OBJECTS       = biosig.o \
 		sopen_hl7aecg.o
 #		sopen_asn1.o \
 
-MinGWOBJECTS  = mingw/biosig.o \
-		mingw/tinyxml.o \
-		mingw/tinyxmlparser.o \
-		mingw/tinyxmlerror.o \
-		mingw/tinystr.o \
-		mingw/sopen_scp_read.o \
-		mingw/scp-decode.o \
-		mingw/sopen_scp_write.o \
-		mingw/crc4scp.o \
-		mingw/sopen_hl7aecg.o
-#		mingw/sopen_asn1.o \
+MinGWOBJECTS  = win32/biosig.o \
+		win32/tinyxml.o \
+		win32/tinyxmlparser.o \
+		win32/tinyxmlerror.o \
+		win32/tinystr.o \
+		win32/sopen_scp_read.o \
+		win32/scp-decode.o \
+		win32/sopen_scp_write.o \
+		win32/crc4scp.o \
+		win32/sopen_hl7aecg.o
+#		win32/sopen_asn1.o \
 
-TARGET        = save2gdf physicalunits # save2aecg save2scp libbiosig.a libbiosig.so mex4o
+TARGET        = save2gdf #save2aecg save2scp libbiosig.a libbiosig.so sigviewer
 
 first: $(TARGET)
-all: $(TARGET) mex4o sigviewer exe biosig4python 
+all: $(TARGET) mex sigviewer exe biosig4python
 
 ####### Implicit rules
 
@@ -173,51 +172,53 @@ physicalunits: physicalunits.c libbiosig.a
 
 ####### Windows executables 
 
-mingw/biosig.o: biosig.c biosig-dev.h biosig.h 
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o mingw/biosig.o biosig.c
+win32/biosig.o: biosig.c biosig-dev.h biosig.h 
+	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/biosig.o biosig.c
 
-mingw/physicalunits.o: physicalunits.c biosig.h 
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o mingw/physicalunits.o physicalunits.c
+win32/physicalunits.o: physicalunits.c biosig.h 
+	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/physicalunits.o physicalunits.c
 
-mingw/save2gdf.o: save2gdf.c biosig-dev.h biosig.h 
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o mingw/save2gdf.o save2gdf.c
+win32/save2gdf.o: save2gdf.c biosig-dev.h biosig.h 
+	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/save2gdf.o save2gdf.c
 
-mingw/sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h \
+win32/sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h \
 		biosig.h t210/structures.h t210/types.h
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o mingw/sopen_scp_read.o t210/sopen_scp_read.c
+	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/sopen_scp_read.o t210/sopen_scp_read.c
 
-mingw/scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h \
+win32/scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h \
 		t210/types.h t210/structures.h t210/codes.h
-	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o mingw/scp-decode.o t210/scp-decode.cpp
+	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/scp-decode.o t210/scp-decode.cpp
 
-mingw/crc4scp.o: t220/crc4scp.c 
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o mingw/crc4scp.o t220/crc4scp.c
+win32/crc4scp.o: t220/crc4scp.c 
+	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/crc4scp.o t220/crc4scp.c
 
-mingw/sopen_scp_write.o: t220/sopen_scp_write.c biosig-dev.h biosig.h
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o mingw/sopen_scp_write.o t220/sopen_scp_write.c
+win32/sopen_scp_write.o: t220/sopen_scp_write.c biosig-dev.h biosig.h
+	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/sopen_scp_write.o t220/sopen_scp_write.c
 
-mingw/sopen_asn1.o: t240/sopen_asn1.c biosig-dev.h biosig.h
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o mingw/sopen_asn1.o t240/sopen_asn1.c
+win32/sopen_asn1.o: t240/sopen_asn1.c biosig-dev.h biosig.h
+	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/sopen_asn1.o t240/sopen_asn1.c
 
-mingw/sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
+win32/sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
 		XMLParser/tinyxml.h XMLParser/tinystr.h XMLParser/Tokenizer.h
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o mingw/sopen_hl7aecg.o t230/sopen_hl7aecg.c
+	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/sopen_hl7aecg.o t230/sopen_hl7aecg.c
 
-mingw/tinystr.o: XMLParser/tinystr.cpp XMLParser/tinystr.h
-	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o mingw/tinystr.o XMLParser/tinystr.cpp
+win32/tinystr.o: XMLParser/tinystr.cpp XMLParser/tinystr.h
+	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/tinystr.o XMLParser/tinystr.cpp
 
-mingw/tinyxml.o: XMLParser/tinyxml.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
-	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o mingw/tinyxml.o XMLParser/tinyxml.cpp
+win32/tinyxml.o: XMLParser/tinyxml.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
+	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/tinyxml.o XMLParser/tinyxml.cpp
 
-mingw/tinyxmlerror.o: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
-	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o mingw/tinyxmlerror.o XMLParser/tinyxmlerror.cpp
+win32/tinyxmlerror.o: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
+	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/tinyxmlerror.o XMLParser/tinyxmlerror.cpp
 
-mingw/tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
-	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o mingw/tinyxmlparser.o XMLParser/tinyxmlparser.cpp
+win32/tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
+	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/tinyxmlparser.o XMLParser/tinyxmlparser.cpp
 
-exe save2gdf.exe: save2gdf.c $(MinGWOBJECTS) #libbiosig.so 
-	mkdir -p mingw
-	$(MinGWCXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(MinGWOBJECTS)  -o save2gdf.exe 
+win32/getlogin_r.o: win32/getlogin_r.c
+	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/getlogin_r.o win32/getlogin_r.c
+
+win32 exe win32/save2gdf.exe: save2gdf.c $(MinGWOBJECTS) win32/getlogin_r.o #libbiosig.so 
+	$(MinGWCXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(MinGWOBJECTS)  win32/getlogin_r.o -lws2_32 -o win32/save2gdf.exe 
 
 
 
@@ -225,14 +226,13 @@ exe save2gdf.exe: save2gdf.c $(MinGWOBJECTS) #libbiosig.so
 mex: mex4m mex4o
 
 mex4m: mexSLOAD.cpp  libbiosig.a libbiosig.so
-	echo "Warning: MEX for Matlab is not tested yet"
 	$(MEX) mexSLOAD.cpp  $(LIBS) 
 
-mex4o:  physicalunits.mex mexSLOAD.mex libbiosig.a  libbiosig.so
+mex4o:  mexSLOAD.mex libbiosig.a  libbiosig.so
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a  libbiosig.so 
 	mkoctfile  -v -g --mex mexSLOAD.cpp  $(LIBS) 
-physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
-	mkoctfile  -v -g --mex physicalunits.cpp  $(LIBS) 
+#physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
+#	mkoctfile  -v -g --mex physicalunits.cpp  $(LIBS) 
 
 oct:  mexSLOAD.oct
 mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a libbiosig.so
@@ -268,6 +268,7 @@ clean:
 	-$(DEL_FILE) *.so
 	-$(DEL_FILE) *.mex*
 	-$(DEL_FILE) *.oct
+	-$(DEL_FILE) *.exe
 	-$(DEL_FILE) t210/*.o
 	-$(DEL_FILE) t220/*.o
 	-$(DEL_FILE) t230/*.o
@@ -276,7 +277,7 @@ clean:
 	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil /tmp/t1.*
 	-$(DEL_FILE) swig_wrap.* biosig.py 
 	-$(DEL_FILE) QMakefile
-	-$(DEL_FILE) mingw/*
+	-$(DEL_FILE) win32/*
 
 
 ####### INSTALL ########
@@ -309,8 +310,9 @@ remove:
 
 
 ####### Testing ########
-t0: save2gdf
-	./save2gdf -V3 ~/data/tms32/small_test.float32.log
+#	./save2gdf -V8 ~/data/test/tms32/small_test.float32.log	
+	./save2gdf -f=TMSi t0.scp t2.log
+	cat t2.log	
 
 /tmp/t1.scp: 
 	# scp example data sets
@@ -342,11 +344,17 @@ t0: save2gdf
 
 /tmp/t1.edf:
 	# EDF+ example data set
-	wget -q -P/tmp http://www.edfplus.info/downloads/files/osas.zip
-	unzip -u "/tmp/osas.zip"  -d /tmp
-#	unzip -u "~/data/EDF/osas.zip"  -d /tmp
+#	wget -q -P/home/schloegl/data/EDF/ http://www.edfplus.info/downloads/files/osas.zip
+#	unzip -u "/tmp/osas.zip"  -d /tmp
+	unzip -u /home/schloegl/data/EDF/osas.zip  -d /tmp
 	cp "/tmp/Osas2002plusQRS.edf" /tmp/t1.edf
 	touch /tmp/t1.edf
+
+asc: save2gdf 
+	./save2gdf -f=ASCII t0.xxx t1.asc
+
+bin: save2gdf 
+	./save2gdf -f=BIN t0.xxx t1.bin
 
 testbin: save2gdf /tmp/t1.edf
 	./save2gdf -f=BIN /tmp/t1.edf /tmp/t1.hdr
@@ -421,9 +429,9 @@ zip: /tmp/t1.scp save2gdf
 	./save2gdf -f=HL7 /tmp/t1.scp.gz t1.hl7
 	./save2gdf -f=CFW /tmp/t1.scp.gz t1.cfw
 
-#test6: /tmp/t1.scp save2gdf
-#	cp /tmp/t1.scp t0.xxx
-test6: /tmp/t1.edf save2gdf
+test6: /tmp/t1.scp save2gdf
+	cp /tmp/t1.scp t0.xxx
+test7: /tmp/t1.edf save2gdf
 	cp /tmp/t1.edf t0.xxx
 	./save2gdf -z -f=GDF1 t0.xxx t1.gd1
 	./save2gdf -z -f=GDF t0.xxx t1.gdf

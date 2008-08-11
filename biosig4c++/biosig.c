@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.249 2008-08-10 22:00:22 schloegl Exp $
+    $Id: biosig.c,v 1.250 2008-08-11 07:56:44 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -48,18 +48,17 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifndef WIN32
-#include <netdb.h>
-#endif
-
 #include "biosig-dev.h"
-
 
 #define HARDCODED_PHYSDIMTABLE 
 
-#if	__MINGW32__
+#ifdef	WIN32
+#include <winsock2.h>
+#define HOST_NAME_MAX 100
 #define FILESEP '\\'
+extern int getlogin_r(char* name, size_t namesize);
 #else
+#include <netdb.h>
 #define FILESEP '/'
 #endif
 
@@ -1464,22 +1463,16 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->ID.Hospital 	= "\x00";
 	memset(hdr->IPaddr, 0, 16);
 
-#ifdef _UNISTD_H
-#ifndef WIN32
       	// set default technician name to local IP address  
 	getlogin_r(hdr->ID.Technician, MAX_LENGTH_TECHNICIAN); 
 	//hdr->ID.Technician[MAX_LENGTH_TECHNICIAN]=0;
-#endif 
-#endif 
 	
-#ifdef _NETDB_H	
       	// set default IP address to local IP address  
 	char localhostname[HOST_NAME_MAX+1];
 	if (!gethostname(localhostname,HOST_NAME_MAX+1)) {
 		struct hostent *host = gethostbyname(localhostname); 
 		memcpy(hdr->IPaddr, host->h_addr, host->h_length);
 	}	
-#endif 
 
 	hdr->Patient.Name[0] 	= 0; 
 	//hdr->Patient.Id[0] 	= 0; 
@@ -2174,6 +2167,7 @@ if (!strncmp(MODE,"r",1))
 		    	hdr->HeadLen 	= leu16p(hdr->AS.Header+184)<<8; 
 	    		strncpy(hdr->Patient.Id,(const char*)hdr->AS.Header+8,min(66,MAX_LENGTH_PID));
 	    		strncpy(hdr->ID.Recording,(const char*)hdr->AS.Header+88,min(80,MAX_LENGTH_RID));
+	    		hdr->ID.Recording[min(80,MAX_LENGTH_RID)]=0;
 	    		strtok(hdr->Patient.Id," ");
 	    		char *tmpptr = strtok(NULL," ");
 	    		if ((!hdr->FLAG.ANONYMOUS) && (tmpptr != NULL)) {
