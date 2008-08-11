@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.250 2008-08-11 07:56:44 schloegl Exp $
+    $Id: biosig.c,v 1.251 2008-08-11 08:44:15 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -46,6 +46,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+//#include <arpa/inet.h>
 #include <unistd.h>
 
 #include "biosig-dev.h"
@@ -3203,6 +3204,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					t.tm_mon--;
 					t.tm_isdst = -1;
 					hdr->T0 = tm_time2gdf_time(&t); 
+				}	
+				else if (!strcmp(line,"Recording.IPaddress")) {
+					struct hostent *host = gethostbyaddr(val,strlen(val),AF_INET);
+					if (host!=NULL) 
+						memcpy(hdr->IPaddr, host->h_addr, host->h_length);
+					/* ###FIXME: IPv6 are currently not supported.
+					 	gethostbyaddr will become obsolete, 
+					 	use getaddrinfo instead
+					*/						
 				}	
 				else if (!strcmp(line,"Recording.Technician"))
 					strncpy(hdr->ID.Technician,val,MAX_LENGTH_TECHNICIAN);
@@ -6363,6 +6373,12 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     		fprintf(fid,"Patient.DrugAbuse \t= %i\t# 0:Unknown, 1: NO, 2: YES \n",hdr->Patient.DrugAbuse);
     		fprintf(fid,"Patient.Medication\t= %i\t# 0:Unknown, 1: NO, 2: YES \n",hdr->Patient.Medication);
 		fprintf(fid,"Recording.ID      \t= %s\n",hdr->ID.Recording);
+		uint8_t IPv6=0;
+		for (uint8_t k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
+		if (IPv6) 
+			fprintf(fid,"Recording.IPaddress \t= %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x\n",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3],hdr->IPaddr[4],hdr->IPaddr[5],hdr->IPaddr[6],hdr->IPaddr[7],hdr->IPaddr[8],hdr->IPaddr[9],hdr->IPaddr[10],hdr->IPaddr[11],hdr->IPaddr[12],hdr->IPaddr[13],hdr->IPaddr[14],hdr->IPaddr[15]);
+		else 
+			fprintf(fid,"Recording.IPaddress \t= %u.%u.%u.%u\n",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3]);
 		fprintf(fid,"Recording.Technician\t= %s\n",hdr->ID.Technician);
 		fprintf(fid,"Manufacturer.Name \t= %s\n",hdr->ID.Manufacturer.Name);
 		fprintf(fid,"Manufacturer.Model\t= %s\n",hdr->ID.Manufacturer.Model);
