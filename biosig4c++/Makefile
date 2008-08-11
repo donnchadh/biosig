@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.52 2008-08-11 07:56:44 schloegl Exp $
+###  $Id: Makefile,v 1.53 2008-08-11 09:06:44 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -62,6 +62,7 @@ OBJECTS       = biosig.o \
 #		sopen_asn1.o \
 
 MinGWOBJECTS  = win32/biosig.o \
+		win32/getlogin_r.o \
 		win32/tinyxml.o \
 		win32/tinyxmlparser.o \
 		win32/tinyxmlerror.o \
@@ -218,7 +219,7 @@ win32/getlogin_r.o: win32/getlogin_r.c
 	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/getlogin_r.o win32/getlogin_r.c
 
 win32 exe win32/save2gdf.exe: save2gdf.c $(MinGWOBJECTS) win32/getlogin_r.o #libbiosig.so 
-	$(MinGWCXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(MinGWOBJECTS)  win32/getlogin_r.o -lws2_32 -o win32/save2gdf.exe 
+	$(MinGWCXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(MinGWOBJECTS)  -lws2_32 -o win32/save2gdf.exe 
 
 
 
@@ -277,7 +278,8 @@ clean:
 	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil /tmp/t1.*
 	-$(DEL_FILE) swig_wrap.* biosig.py 
 	-$(DEL_FILE) QMakefile
-	-$(DEL_FILE) win32/*
+	-$(DEL_FILE) win32/*.o
+	-$(DEL_FILE) win32/*.exe
 
 
 ####### INSTALL ########
