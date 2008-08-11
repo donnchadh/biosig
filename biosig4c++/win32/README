@@ -1,0 +1,41 @@
+Introduction:
+---------------
+
+The directory ../biosig4c++/windows contains the pre-compiled 
+(i.e. executable) file format converter SAVE2GDF for Windows platform.   
+
+File(s): 
+-------------
+    README 		this file
+    getlogin_r.c	function needed but not supported by Windows
+    save2gdf.exe	converter between various file formats.
+    rec2bin.bat    	converts any raw data format into BIN-format
+    			an ASCII-header and Binary channels file
+    bin2rec.bat		converts the BIN formated data into any other format (default=GDF)
+
+    		 
+Compilation: 
+-------------
+The files were already compiled with minGW for the i386-platform. 
+If this is not suitable, you need to compile the files from the sources. 
+For more details, see .../biosig4c++/README.   
+
+	
+Installation: 
+-------------
+Copy the files from the current directory into some directory
+
+
+
+
+More information is available at http://biosig.sf.net/
+
+If you have any questions you can also contact the mailinglist  
+https://lists.sourceforge.net/lists/listinfo/biosig-general
+
+
+    $Id: README,v 1.1 2008-08-11 07:55:24 schloegl Exp $
+    Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
+    This function is part of the "BioSig for C/C++" repository 
+    (BioSig4C++) at http://biosig.sf.net/ 
+
