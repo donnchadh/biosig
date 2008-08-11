@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.47 2008-08-10 17:56:37 schloegl Exp $
+    $Id: save2gdf.c,v 1.48 2008-08-11 08:01:41 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -49,17 +49,17 @@ int main(int argc, char **argv){
     else 
     {
     	for (k=1; k<argc && argv[k][0]=='-'; k++)
-    	if (!strcmp(argv[k],"-v") || !strcmp(argv[k],"--version") )
-    	{
+    	if (!strcmp(argv[k],"-v") || !strcmp(argv[k],"--version") ) {
 		fprintf(stdout,"save2gdf (BioSig4C++) v0.70\n");
-		fprintf(stdout,"Written by Alois Schloegl and others\n\n");
-		fprintf(stdout,"This program is free software; you can redistribute it and/or modify\n");
+		fprintf(stdout,"Copyright (C) 2006,2007,2008 by Alois Schloegl and others\n");
+		fprintf(stdout,"This file is part of BioSig http://biosig.sf.net - the free and\n");
+		fprintf(stdout,"open source software library for biomedical signal processing.\n\n");
+		fprintf(stdout,"BioSig is free software; you can redistribute it and/or modify\n");
 		fprintf(stdout,"it under the terms of the GNU General Public License as published by\n");
 		fprintf(stdout,"the Free Software Foundation; either version 3 of the License, or\n");
 		fprintf(stdout,"(at your option) any later version.\n");
 	}	
-    	else if (!strcmp(argv[k],"-h") || !strcmp(argv[k],"--help") )
-    	{
+    	else if (!strcmp(argv[k],"-h") || !strcmp(argv[k],"--help") ) {
 		fprintf(stdout,"\nusage: save2gdf [OPTIONS] SOURCE DEST\n");
 		fprintf(stdout,"  SOURCE is the source file \n");
 		fprintf(stdout,"  DEST is the destination file \n");
@@ -68,7 +68,7 @@ int main(int argc, char **argv){
 		fprintf(stdout,"   -h, --help   \n\tprints this information\n");
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
 		fprintf(stdout,"\tFMT must represent a valid target file format\n"); 
-		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF (v2), GDF1 (v1), EDF, BDF, CFWB, BIN\n"); 
+		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF, EDF, BDF, CFWB, BIN, ASCII\n"); 
 		fprintf(stdout,"   -z=#, compression level \n");
 		fprintf(stdout,"\t#=0 no compression; #=9 best compression\n");
 		fprintf(stdout,"   -s=#\tselect target segment # (in the multisegment file format EEG1100)\n");
@@ -113,6 +113,8 @@ int main(int argc, char **argv){
 			TARGET_TYPE=MFER;
     		else if (!strncmp(argv[k],"-f=SCP",6))
 			TARGET_TYPE=SCP_ECG;
+//    		else if (!strncmp(argv[k],"-f=TMSi",7))
+//			TARGET_TYPE=TMSiLOG;
 		else {
 			fprintf(stderr,"format %s not supported.\n",argv[k]);
 			return(-1);
