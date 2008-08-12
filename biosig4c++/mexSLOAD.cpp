@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.37 2008-07-29 13:05:41 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.38 2008-08-12 14:10:51 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -219,13 +219,13 @@ void mexFunction(
 	if (nlhs>1) { 
 		char* mexFileName = (char*)mxMalloc(strlen(hdr->FileName)+1); 
 
-		mxArray *HDR, *tmp, *tmp2, *Patient, *EVENT, *Filter, *Flag, *FileType;
+		mxArray *HDR, *tmp, *tmp2, *Patient, *ID, *EVENT, *Filter, *Flag, *FileType;
 		uint16_t numfields;
 		const char *fnames[] = {"TYPE","VERSION","FileName","T0","FILE","Patient",\
 		"NS","SPR","NRec","SampleRate", "FLAG", \
 		"EVENT","Label","LeadIdCode","PhysDimCode","PhysDim","Filter",\
 		"PhysMax","PhysMin","DigMax","DigMin","Transducer","Cal","Off","GDFTYP",\
-		"LowPass","HighPass","Notch","ELEC","Impedance","AS","Dur",NULL};
+		"LowPass","HighPass","Notch","ELEC","Impedance","AS","Dur","REC",NULL};
 
 		for (numfields=0; fnames[numfields++] != 0; );
 		HDR = mxCreateStructMatrix(1, 1, --numfields, fnames);
@@ -313,6 +313,10 @@ void mexFunction(
 		for (numfields=0; field2[numfields++] != 0; );
 		tmp2 = mxCreateStructMatrix(1, 1, --numfields, field2);
 		mxSetField(tmp2,0,"SPR",SPR);
+		if (hdr->AS.bci2000!=NULL) {
+			mxAddField(tmp2, "BCI2000");
+			mxSetField(tmp2,0,"BCI2000",mxCreateString(hdr->AS.bci2000));
+		}
 		mxSetField(HDR,0,"AS",tmp2);
 				
 		/* FLAG */
@@ -367,6 +371,24 @@ void mexFunction(
 		mxSetField(EVENT,0,"POS",POS);
 		mxSetField(EVENT,0,"SampleRate",mxCreateDoubleScalar(hdr->EVENT.SampleRate));
 		mxSetField(HDR,0,"EVENT",EVENT);
+
+		/* Record identification */ 
+		const char *ID_fields[] = {"Recording","Technician","Hospital","Equipment","IPaddr",NULL};
+		for (numfields=0; ID_fields[numfields++] != 0; );
+		ID = mxCreateStructMatrix(1, 1, --numfields, ID_fields);
+		mxSetField(ID,0,"Recording",mxCreateString(hdr->ID.Recording));
+		mxSetField(ID,0,"Technician",mxCreateString(hdr->ID.Technician));
+		mxSetField(ID,0,"Hospital",mxCreateString(hdr->ID.Hospital));
+		mxSetField(ID,0,"Equipment",mxCreateString((char*)&hdr->ID.Equipment));
+		int len = 4; 
+		uint8_t IPv6=0;
+		for (uint8_t k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
+		if (IPv6) len=16; 
+		mxArray *IPaddr = mxCreateNumericMatrix(1,len,mxUINT8_CLASS,mxREAL);
+		memcpy(mxGetData(IPaddr),hdr->IPaddr,len);
+		mxSetField(ID,0,"IPaddr",IPaddr); 
+
+		mxSetField(HDR,0,"REC",ID);
 
 		/* Patient Information */ 
 		const char *patient_fields[] = {"Sex","Handedness","Id","Name","Weight","Height","Birthday",NULL};

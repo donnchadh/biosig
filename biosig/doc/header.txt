@@ -3,7 +3,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.29 2008-08-07 16:32:06 schloegl Exp $
+$Id: header.txt,v 1.30 2008-08-12 14:10:53 schloegl Exp $
 Copyright (C) Alois Schloegl 2003-2005,2008 <a.schloegl@ieee.org>
 This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -93,8 +93,6 @@ HDR.Filter	% filter information, usually for each channel separatily
     Filter.Notch 	float		[Hz] NaN: unknown, -1(<0): off
 HDR.PreFilt		string		[OPTIONAL] filter setting - used by GDF, BDF, EDF
 
-HDR.ID.Doctor				Identification of doctor
-HDR.ID.Hospital				Identification of Hospital
 HDR.Patient	# contains patient information [OPTIONAL]
     Patient.Name			Name of Patient: should not be used because of privacy protection
     Patient.Id				Patient identification code as used in hospital
@@ -114,6 +112,11 @@ HDR.Patient	# contains patient information [OPTIONAL]
     Patient.AlcoholAbuse		0: unknown 1: NO 2: YES 
     Patient.DrugAbuse			0: unknown 1: NO 2: YES 
     
+HDR.REC.Hospital			Identification of hospital
+HDR.RID					Identification of Recording, StudyID, consecutive number
+HDR.REC.Technician			identity of recording technician
+# HDR.REC.Doctor				Identification of refering doctor
+HDR.REC.Equipment			recording equipment
 HDR.REC.LOC		16 byte		Latitude, Longitude and Altitude 3 x INT32 according to RFC1876
 HDR.REC.IPaddr		4(16)xuint8	IP address of recording system
 # HDR.REC.Reference			reference (monopolar | CAR | LAR | Laplacian | Linked ears | weighted )

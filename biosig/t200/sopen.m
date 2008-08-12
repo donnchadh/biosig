@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.226 2008-08-07 16:32:05 schloegl Exp $
+%	$Id: sopen.m,v 1.227 2008-08-12 14:10:52 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -297,7 +297,7 @@ end;
 				if (t2 > 1) & (t2 < t1),
 					HDR.Patient.Age = floor((t1-t2)/365.25);
 				end;
-                                HDR.ID.Equipment = fread(HDR.FILE.FID,[1,8],'uint8');   
+                                HDR.REC.Equipment = fread(HDR.FILE.FID,[1,8],'uint8');   
                                 tmp = fread(HDR.FILE.FID,[1,6],'uint8');
                                 if (HDR.VERSION < 2.1)	
                                 	HDR.REC.IPaddr = tmp(6:-1:1); 
@@ -319,9 +319,9 @@ end;
             		        HDR.T0(1:6)   = str2double(tmp);
                     		HDR.T0(6)     = HDR.T0(6)/100;
                                 HDR.reserved1 = fread(HDR.FILE.FID,[1,8*3+20],'uint8');   % 44 Byte reserved
-                                HDR.ID.Equipment  = HDR.reserved1(1:8);
-                    		HDR.ID.Lab        = HDR.reserved1(9:16);
-                                HDR.ID.Technician = HDR.reserved1(17:24);
+                                HDR.REC.Equipment  = HDR.reserved1(1:8);
+                    		HDR.REC.Hospital   = HDR.reserved1(9:16);
+                                HDR.REC.Technician = HDR.reserved1(17:24);
                         end;
 			
                         %if str2double(HDR.VERSION(4:8))<0.12,
@@ -429,9 +429,9 @@ end;
                                         fprintf(HDR.FILE.stderr,'Warning SOPEN: EDF+ header is corrupted.\n');
                                 end;
                                 [HDR.Date2, tmp] = strtok(tmp,' ');
-                                [HDR.ID.Investigation, tmp] = strtok(tmp,' ');
-                                [HDR.ID.Investigator,  tmp] = strtok(tmp,' ');
-                                [HDR.ID.Equipment,     tmp] = strtok(tmp,' ');
+                                [HDR.RID, tmp] = strtok(tmp,' ');
+                                [HDR.REC.Technician,  tmp] = strtok(tmp,' ');
+                                [HDR.REC.Equipment,     tmp] = strtok(tmp,' ');
                         end;
                 end;
                 
@@ -728,6 +728,12 @@ end;
 				case 5 		%% IP address
 					VAL = fread(HDR.FILE.FID,[1,LEN],'uint8=>uint8');
 					HDR.REC.IPaddr = VAL;
+				case 6 		%% recording Technician
+					VAL = fread(HDR.FILE.FID,[1,LEN],'uint8=>char');
+					HDR.REC.Technician = VAL;
+				case 7 		%% recording institution/hospital/lab
+					VAL = fread(HDR.FILE.FID,[1,LEN],'uint8=>char');
+					HDR.REC.Hospital = VAL;
 				otherwise 
 					fseek(HDR.FILE.FID,LEN,'cof'); 
 				end; 
@@ -963,11 +969,11 @@ end;
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF') 
                         if ~isfield(HDR,'VERSION'),
-                                HDR.VERSION = 2.0;     %% stable version 
+                                HDR.VERSION = 2.1;     %% stable version 
                         elseif (HDR.VERSION<1.30)
                                 HDR.VERSION = 1.25;     %% stable version 
                         else
-                                HDR.VERSION = 2.0;     %% testing 
+                                HDR.VERSION = 2.1;     %% testing 
                         end;        
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
@@ -1129,15 +1135,15 @@ end;
 		if ~isfield(HDR.REC,'Impedance')	
                         HDR.REC.Impedance = repmat(NaN,HDR.NS,1); 
 		end
-                HDR.ID.Equipment = [1,abs('BIOSIG ')];
-                if ~isfield(HDR.ID,'Lab')
-                    HDR.ID.Lab = repmat(32,1,8);
+                HDR.REC.Equipment = [1,abs('BIOSIG ')];
+                if ~isfield(HDR.REC,'Lab')
+                    HDR.REC.Lab = repmat(32,1,8);
                 end;
                 if ~isfield(HDR.REC,'IPaddr')
                     HDR.REC.IPaddr = uint8(zeros(1,6));
                 end;
-                if ~isfield(HDR.ID,'Technician')
-                    HDR.ID.Technician = repmat(32,1,8);
+                if ~isfield(HDR.REC,'Technician')
+                    HDR.REC.Technician = repmat(32,1,8);
                 end;
                 if ~isfield(HDR,'NRec')
                         HDR.NRec=-1;
@@ -1560,9 +1566,9 @@ end;
                                 H1(169:184) = sprintf('%04i%02i%02i%02i%02i%02i%02i',floor(HDR.T0),floor(100*rem(HDR.T0(6),1)));
                                 c=fwrite(HDR.FILE.FID,H1(1:184),'uint8');
                                 c=fwrite(HDR.FILE.FID,[HDR.HeadLen,0],'int32');
-                                c=fwrite(HDR.FILE.FID,HDR.ID.Equipment,'uint8'); % EP_ID=ones(8,1)*32;
-                                c=fwrite(HDR.FILE.FID,HDR.ID.Lab,'uint8'); % Lab_ID=ones(8,1)*32;
-                                c=fwrite(HDR.FILE.FID,HDR.ID.Technician,'uint8'); % T_ID=ones(8,1)*32;
+                                c=fwrite(HDR.FILE.FID,HDR.REC.Equipment,'uint8'); % EP_ID=ones(8,1)*32;
+                                c=fwrite(HDR.FILE.FID,HDR.REC.Hospital,'uint8'); % Lab_ID=ones(8,1)*32;
+                                c=fwrite(HDR.FILE.FID,HDR.REC.Technician,'uint8'); % T_ID=ones(8,1)*32;
                                 c=fwrite(HDR.FILE.FID,ones(20,1)*32,'uint8'); % 
                         end;
 
@@ -2112,8 +2118,8 @@ elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
 		HDR.alpha.sleep.scoring = scoring; 
 	end;
 	if isfield(HDR.alpha,'r_info')
-                HDR.ID.Recording = HDR.alpha.r_info.RecId;
-                HDR.ID.Lab = HDR.alpha.r_info.Laboratory;
+                HDR.REC.Recording = HDR.alpha.r_info.RecId;
+                HDR.REC.Hospital = HDR.alpha.r_info.Laboratory;
 		tmp = [HDR.alpha.r_info.RecDate,' ',HDR.alpha.r_info.RecTime];
 		tmp(tmp=='.') = ' ';
 		[tmp,status]=str2double(tmp);
