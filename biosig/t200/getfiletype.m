@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.79 2008-07-31 07:12:35 schloegl Exp $
+%	$Id: getfiletype.m,v 1.80 2008-08-13 13:11:18 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -287,6 +287,8 @@ else
                 elseif strncmp(ss,'ATES MEDICA SOFT. EEG for Windows',32);	% ATES MEDICA SOFTWARE, NeuroTravel 
                         HDR.TYPE='ATES';
                         HDR.VERSION = ss(35:42);
+                elseif strncmp(ss,'V3.0            ',16) && strncmp(ss(33:41),'[PatInfo]',9); 
+                        HDR.TYPE='SigmaPLpro';
                 elseif all(s([1:24,29:31])==[abs('POLY SAMPLE FILEversion '),13,10,26]) & (str2double(ss(25:28))==(s([32:33])*[1;256]/100)); % Poly5/TMS32 sample file format.
                         HDR.TYPE='TMS32';
                 elseif strncmp(ss,['FileId=TMSi PortiLab sample log file'],36); % 
