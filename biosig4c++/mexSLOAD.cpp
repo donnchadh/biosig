@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.38 2008-08-12 14:10:51 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.39 2008-08-14 10:58:23 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -127,8 +127,6 @@ void mexFunction(
 
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[101] SOPEN-R start\n");
-
-
 	hdr = sopen(FileName, "r", hdr);
 
 	if (hdr->FLAG.OVERFLOWDETECTION != FlagOverflowDetection)
@@ -222,7 +220,7 @@ void mexFunction(
 		mxArray *HDR, *tmp, *tmp2, *Patient, *ID, *EVENT, *Filter, *Flag, *FileType;
 		uint16_t numfields;
 		const char *fnames[] = {"TYPE","VERSION","FileName","T0","FILE","Patient",\
-		"NS","SPR","NRec","SampleRate", "FLAG", \
+		"HeadLen","NS","SPR","NRec","SampleRate", "FLAG", \
 		"EVENT","Label","LeadIdCode","PhysDimCode","PhysDim","Filter",\
 		"PhysMax","PhysMin","DigMax","DigMin","Transducer","Cal","Off","GDFTYP",\
 		"LowPass","HighPass","Notch","ELEC","Impedance","AS","Dur","REC",NULL};
@@ -231,7 +229,7 @@ void mexFunction(
 		HDR = mxCreateStructMatrix(1, 1, --numfields, fnames);
 
 		mxSetField(HDR,0,"TYPE",mxCreateString(GetFileTypeString(hdr->TYPE)));
-		
+		mxSetField(HDR,0,"HeadLen",mxCreateDoubleScalar(hdr->HeadLen));
 		mxSetField(HDR,0,"VERSION",mxCreateDoubleScalar(hdr->VERSION));
 		mxSetField(HDR,0,"NS",mxCreateDoubleScalar(hdr->NS));
 		mxSetField(HDR,0,"SPR",mxCreateDoubleScalar(hdr->SPR));
@@ -317,6 +315,10 @@ void mexFunction(
 			mxAddField(tmp2, "BCI2000");
 			mxSetField(tmp2,0,"BCI2000",mxCreateString(hdr->AS.bci2000));
 		}
+		if (hdr->TYPE==Sigma) {	
+			mxAddField(tmp2, "H1");
+			mxSetField(tmp2,0,"H1",mxCreateString((char*)hdr->AS.Header));
+		}	
 		mxSetField(HDR,0,"AS",tmp2);
 				
 		/* FLAG */
