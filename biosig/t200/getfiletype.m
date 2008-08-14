@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.80 2008-08-13 13:11:18 schloegl Exp $
+%	$Id: getfiletype.m,v 1.81 2008-08-14 09:56:34 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -288,7 +288,8 @@ else
                         HDR.TYPE='ATES';
                         HDR.VERSION = ss(35:42);
                 elseif strncmp(ss,'V3.0            ',16) && strncmp(ss(33:41),'[PatInfo]',9); 
-                        HDR.TYPE='SigmaPLpro';
+                        HDR.TYPE='Sigma';	%% SigmaPLpro
+                        HDR.HeadLen = s(17:20)*(256.^[0:3]');
                 elseif all(s([1:24,29:31])==[abs('POLY SAMPLE FILEversion '),13,10,26]) & (str2double(ss(25:28))==(s([32:33])*[1;256]/100)); % Poly5/TMS32 sample file format.
                         HDR.TYPE='TMS32';
                 elseif strncmp(ss,['FileId=TMSi PortiLab sample log file'],36); % 

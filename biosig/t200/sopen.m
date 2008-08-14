@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.228 2008-08-13 13:11:18 schloegl Exp $
+%	$Id: sopen.m,v 1.229 2008-08-14 09:53:31 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -2837,7 +2837,7 @@ elseif strcmp(HDR.TYPE,'Delta'),
                 fclose(HDR.FILE.FID);
         end;
         
-elseif strcmp(HDR.TYPE,'SigmaPLpro'),
+elseif strcmp(HDR.TYPE,'Sigma'),	% SigmaPLpro
 	fprintf(HDR.FILE.stdout,'Warning SOPEN: SigmaPLpro format is experimental only.\n')
 	fprintf(HDR.FILE.stdout,'\t Assuming Samplerate and scaling factors are fixed to 128 Hz and 1, respectively.\n')
 	
@@ -2854,7 +2854,7 @@ elseif strcmp(HDR.TYPE,'SigmaPLpro'),
 	        	elseif strcmp(tag,'GebDat'),
 	        		val(val=='.')=' ';
 	        		tmp = str2double(val);
-	        		HDR.Patient.Birthday = tmp([3,2,1]);
+	        		HDR.Patient.Birthday = [tmp([3,2,1]),12,0,0];
 	        	elseif strcmp(tag,'ID'),
 	        		HDR.Patient.ID = val; 
 	        	end;
@@ -2887,11 +2887,11 @@ elseif strcmp(HDR.TYPE,'SigmaPLpro'),
 	                len = fread(HDR.FILE.FID,1,'uint8');
         	        val = fread(HDR.FILE.FID,[1,8],'uint8=>char');
         	end;         
-        	HDR.data = fread(HDR.FILE.FID,[HDR.NS,inf],'int16')';
-        	HDR.SPR  = size(HDR.data,1); 
-        	fclose(HDR.FILE.FID); 
-        	HDR.FILE.POS = 0; 
-        	HDR.TYPE = 'native';
+        	HDR.GDFTYP = repmat(3,1,HDR.NS);
+        	HDR.FILE.POS = 0;
+        	HDR.FILE.OPEN= 1;  
+		HDR.SPR  = 1; 
+		HDR.NRec = (HDR.FILE.size-HDR.HeadLen)/(2*HDR.NS); 
         end;
         
 elseif strncmp(HDR.TYPE,'EEG-1100',8),

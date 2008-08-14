@@ -10,7 +10,7 @@ function [HDR]=sseek(HDR,offset,origin)
 %
 % See also: SOPEN, SREAD, SWRITE, SCLOSE, SSEEK, SREWIND, STELL, SEOF
 
-%	$Id: sseek.m,v 1.17 2007-02-01 15:47:38 schloegl Exp $
+%	$Id: sseek.m,v 1.18 2008-08-14 09:53:31 schloegl Exp $
 %	(C) 1997-2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -65,13 +65,14 @@ elseif origin == 1,
 	if 0, %strmatch(HDR.TYPE,{}),
 		HDR.FILE.POS = HDR.NRec+offset;
 		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.AS.bpb*offset,1);
-	elseif strmatch(HDR.TYPE,{'ACQ','BDF','EDF','GDF','EPL'}),
+	elseif strmatch(HDR.TYPE,{'ACQ','BDF','EDF','GDF','EPL','Sigma'}),
 		HDR.FILE.POS = HDR.NRec*HDR.SPR+offset;
                 if HDR.FILE.POS < 0, 
                         HDR.FILE.POS = 0; 
                 elseif HDR.FILE.POS > HDR.NRec*HDR.SPR, 
                         HDR.FILE.POS = HDR.NRec*HDR.SPR; 
                 end;
+		HDR.FILE.status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.FILE.POS*HDR.AS.bpb,-1);
 	elseif strmatch(HDR.TYPE,{'CTF','Nicolet'}),
 		POS = HDR.AS.endpos+offset*HDR.AS.bpb;
 		HDR.FILE.status = fseek(HDR.FILE.FID,POS,-1);

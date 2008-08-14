@@ -24,7 +24,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sread.m,v 1.90 2008-07-18 19:52:45 schloegl Exp $
+%	$Id: sread.m,v 1.91 2008-08-14 09:53:31 schloegl Exp $
 %	(C) 1997-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -262,7 +262,7 @@ elseif strcmp(HDR.TYPE,'AINF'),
         HDR.FILE.POS = HDR.FILE.POS + count;
         
         
-elseif strcmp(HDR.TYPE,'BKR'),
+elseif strmatch(HDR.TYPE,{'BKR'}),
         if nargin==3,
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.NS*StartPos*2,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -277,13 +277,13 @@ elseif strcmp(HDR.TYPE,'BKR'),
         THRESHOLD(HDR.AS.TRIGCHAN,:)=NaN; % do not apply overflow detection for Trigger channel 
 
         
-elseif strmatch(HDR.TYPE,{'AIF','SND','WAV'})
+elseif strmatch(HDR.TYPE,{'AIF','SND','WAV','Sigma'})
         if nargin==3,
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
 
-        maxsamples = min(HDR.AS.endpos - HDR.FILE.POS, HDR.SampleRate*NoS);
+        maxsamples = min(HDR.SPR*HDR.NRec - HDR.FILE.POS, HDR.SampleRate*NoS);
         [S,count] = fread(HDR.FILE.FID,[HDR.NS,maxsamples], gdfdatatype(HDR.GDFTYP));
 
         S = S(HDR.InChanSelect,:)';
@@ -565,8 +565,9 @@ elseif strcmp(HDR.TYPE,'TMS32'),
         nr     = min(HDR.AS.endpos-HDR.FILE.POS, NoS*HDR.SampleRate);
 	S      = repmat(NaN,nr,length(HDR.InChanSelect)); 
 	count  = 0;
-    	while (count<nr) & ~feof(HDR.FILE.FID);
-                hdr = fread(HDR.FILE.FID,86,'uint8');
+
+        fread(HDR.FILE.FID,86,'uint8');
+    	while (count<nr) && ~feof(HDR.FILE.FID),
                 if all(HDR.GDFTYP==HDR.GDFTYP(1))
                         [s,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.SPR],gdfdatatype(HDR.GDFTYP(1)));
                 else
@@ -582,6 +583,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),
 		S(count+1:count+ix2,:) = s(HDR.InChanSelect, ix1+1:ix1+ix2)';
 		count = count + ix2; 
 		ix1 = 0;	% reset starting index, 
+                fread(HDR.FILE.FID,86,'uint8');
         end;
 	HDR.FILE.POS = HDR.FILE.POS + count;
         
@@ -728,7 +730,7 @@ elseif strcmp(HDR.TYPE,'BCI2000'),
         end;
 
         
-elseif strcmp(HDR.TYPE,'native') | strcmp(HDR.TYPE,'SCP'),
+elseif strcmp(HDR.TYPE,'native') || strcmp(HDR.TYPE,'SCP'),
 	if nargin>2,
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
@@ -1208,6 +1210,7 @@ elseif strcmp(HDR.TYPE,'EEProbe-CNT'),
 	else
                 fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): Cannot open EEProbe-file, because read_eep_cnt.mex not installed. \n');
                 fprintf(HDR.FILE.stderr,'ERROR SREAD (EEProbe): You can downlad it from http://www.smi.auc.dk/~roberto/eeprobe/\n');
+		%% ftp://ftp.fcdonders.nl/pub/fieldtrip/external/eeprobe.zip
                 return;
         end
        

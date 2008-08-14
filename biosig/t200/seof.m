@@ -12,7 +12,7 @@ function [status]=seof(HDR)
 % as published by the Free Software Foundation; either version 3
 % of the  License, or (at your option) any later version.
 
-%	$Id: seof.m,v 1.17 2008-01-23 22:04:41 schloegl Exp $
+%	$Id: seof.m,v 1.18 2008-08-14 09:53:31 schloegl Exp $
 %	(C) 1997-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -25,10 +25,10 @@ if strmatch(HDR.TYPE,{'CTF','RDF','EEG','AVG','SIGIF'}),
 	%if EDF.FILE.POS~=EDF.AS.startrec+EDF.AS.numrec;
         status = (HDR.FILE.POS >= HDR.NRec);
 	
-elseif strmatch(HDR.TYPE,{'RG64','LABVIEW','Nicolet','BrainVision'}),
+elseif strmatch(HDR.TYPE,{'RG64','LABVIEW','Nicolet'}),
 	status = (HDR.FILE.POS >= (HDR.AS.endpos-HDR.HeadLen));
 
-elseif strmatch(HDR.TYPE,{'ACQ','AINF','BDF','BKR','CNT','CTF','EDF','ET-MEG','GDF','MIT','SMA','CFWB','DEMG','EEProbe-CNT','EEProbe-AVR','MFER','alpha','native','SCP','BCI2000','TMS32','WG1'}),
+elseif strmatch(HDR.TYPE,{'ACQ','AINF','BDF','BKR','BrainVision','CNT','CTF','EDF','ET-MEG','GDF','MIT','SMA','CFWB','DEMG','EEProbe-CNT','EEProbe-AVR','MFER','alpha','native','SCP','BCI2000','TMS32','WG1','Sigma'}),
 	status = (HDR.FILE.POS >= HDR.SPR*HDR.NRec);
 
 elseif strmatch(HDR.TYPE,{'EGI'}),
