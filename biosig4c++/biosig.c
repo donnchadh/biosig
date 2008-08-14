@@ -1,12 +1,12 @@
 /*
 
-    $Id: biosig.c,v 1.251 2008-08-11 08:44:15 schloegl Exp $
+    $Id: biosig.c,v 1.252 2008-08-14 10:59:30 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
 
-    This program is free software; you can redistribute it and/or
+    BioSig is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
     as published by the Free Software Foundation; either version 3
     of the License, or (at your option) any later version.
@@ -46,16 +46,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <arpa/inet.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "biosig-dev.h"
 
+int sopen_SCP_read     (HDRTYPE* hdr);
+int sopen_SCP_write    (HDRTYPE* hdr);
+int sopen_HL7aECG_read (HDRTYPE* hdr);
+int sopen_HL7aECG_write(HDRTYPE* hdr);
+int sclose_HL7aECG_write(HDRTYPE* hdr);
+int sopen_eeprobe(HDRTYPE* hdr);
+
 #define HARDCODED_PHYSDIMTABLE 
 
-#ifdef	WIN32
+#ifdef	__WIN32__
 #include <winsock2.h>
-#define HOST_NAME_MAX 100
+#define HOST_NAME_MAX 256
 #define FILESEP '\\'
 extern int getlogin_r(char* name, size_t namesize);
 #else
@@ -1792,6 +1799,10 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 
     	else if (!memcmp(Header1, "RIFF",4) && !memcmp(Header1+8, "CNT ",4))
 	    	hdr->TYPE = EEProbe;
+    	else if (!memcmp(Header1, "EEP V2.0",8))
+	    	hdr->TYPE = EEProbe;
+    	else if (!memcmp(Header1, "\x26\x00\x10\x00",4))	// AVR 
+	    	hdr->TYPE = EEProbe;
 
     	else if (( bei32p(hdr->AS.Header) == 0x01020304) && 
     		 ((beu16p(hdr->AS.Header+4) == 0xffff) || (beu16p(hdr->AS.Header+4) == 3)) ) 
@@ -1870,7 +1881,6 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	if (!memcmp(Header1+8,"AVI ",4))
 	    		hdr->TYPE = AVI;
 	}    	
-	
 	// general SCP 
 	else if (  ( MAGIC_EN1064_Section0Length    >  120)   
 		&& ( MAGIC_EN1064_Section0Length    <  250)   
@@ -1938,6 +1948,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	}    	
 	*/
 
+	
 	else if (!memcmp(Header1,"IAvSFo",6))
 		hdr->TYPE = SIGIF;
 	else if (!memcmp(Header1,"\"Snap-Master Data File\"",24))
@@ -1990,6 +2001,10 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	{	hdr->TYPE = XML; // UTF16 LittleEndian 
 		hdr->FILE.LittleEndian = 1;
     	}
+	else if (!memcmp(hdr->AS.Header,"V3.0            ",16) && !memcmp(hdr->AS.Header+32,"[PatInfo]",9)) { 
+		hdr->TYPE = Sigma;  
+		hdr->VERSION = 3.0; 
+	}
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[228] %i %s %s %i \n",hdr->TYPE,GetFileTypeString(hdr->TYPE),hdr->FileName,count);
     	
@@ -2069,6 +2084,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case RIFF: 	{ FileType = "RIFF"; break; }
 	case SCP_ECG: 	{ FileType = "SCP"; break; }
 	case SIGIF: 	{ FileType = "SIGIF"; break; }
+	case Sigma: 	{ FileType = "Sigma"; break; }		// Sigma PLpro
 	case SMA: 	{ FileType = "SMA"; break; }
 	case SND: 	{ FileType = "SND"; break; }
 	case SVG: 	{ FileType = "SVG"; break; }
@@ -2352,7 +2368,7 @@ if (!strncmp(MODE,"r",1))
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[219] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
 
 		/* read GDF Header 3 - experimental */	    	
-		if (hdr->HeadLen > 256*(hdr->NS+1)) {
+		if ((hdr->HeadLen > 256*(hdr->NS+1)) && (hdr->VERSION>=(float)2.10)) {
 		    	Header2 = hdr->AS.Header + 256*(hdr->NS+1);
 		    	uint8_t tag = 0xff;
 		    	size_t pos=0,len=0;
@@ -4556,6 +4572,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		free(fn);
 	}
 
+	else if (hdr->TYPE==EEProbe) {
+#ifdef WITH_EEPROBE
+		sopen_eeprobe(hdr); 
+#else
+    		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+    		B4C_ERRMSG = "Due to license restrictions, we are not allowed to distribute binaries with EEProbe support.";
+#endif
+	}
+
 	else if (hdr->TYPE==EGI) {
 	    	uint16_t gdftyp=3;
 		// BigEndian 
@@ -5725,6 +5750,174 @@ fprintf(stdout,"ASN1 [491]\n");
 		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN); 	// no swapping 
 	    	hdr->FILE.POS  = 0; 
 	}
+
+	else if (hdr->TYPE==Sigma) {  /********* Sigma PLpro ************/
+		hdr->HeadLen = leu32p(hdr->AS.Header+16);
+	    	hdr->AS.Header = (uint8_t*) realloc(hdr->AS.Header,hdr->HeadLen+1);
+    		count += ifread(Header1+count, 1, hdr->HeadLen-count, hdr);
+		hdr->AS.Header[hdr->HeadLen]=0;
+
+		fprintf(stdout,"Warning: support of SigmaPLpro is not complete; \nfixed scaling factors and sampling rate are used\n");
+				
+		struct tm t; 
+		char *tag, *val;
+		size_t pos=0;
+		uint8_t len;
+
+		for (int k=0; k<5; k++) {
+#define line ((char*)(hdr->AS.Header+32+pos))
+			len = strcspn(line,"\x0a\x0d");
+			line[len] = 0;
+			tag = line; 
+			val = strchr(line,'='); 
+			if (val!=NULL) {
+				val[0] = 0; 
+				val++;
+			}	
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"%i: %s=%s\n",k,tag,val);
+			if (0) {}
+			//else if (!strcmp(tag,"Name")) {}
+			//else if (!strcmp(tag,"Vorname")) {}
+			else if (!strcmp(tag,"GebDat")) {
+				sscanf(val,"%02u.%02u.%04u",&t.tm_mday,&t.tm_mon,&t.tm_year);
+				t.tm_year -=1900;
+				t.tm_min--;
+				t.tm_hour = 12; 
+				t.tm_min = 0; 
+				t.tm_sec = 0;
+				t.tm_isdst = -1;
+				hdr->T0 = tm_time2gdf_time(&t); 
+			}	
+			else if (!strcmp(tag,"ID")) 
+				strncpy(hdr->Patient.Id,val,MAX_LENGTH_PID);
+
+			pos += len+1;
+			while ((line[0]==10) || (line[0]==13)) pos++; 
+#undef line 
+		} 	
+		hdr->NS = leu16p(hdr->AS.Header+32+pos);
+		hdr->SampleRate = 128;
+		hdr->SPR  = 1;
+		hdr->NRec = -1;		// unknown 
+		struct stat stbuf;
+		if(!stat(hdr->FileName, &stbuf))
+		if (!hdr->FILE.COMPRESSION)
+			hdr->NRec = (stbuf.st_size-hdr->HeadLen)/(2*hdr->NS);
+
+	       	// define variable header 
+		pos       = 148;
+		hdr->FLAG.UCAL = 1; 
+		hdr->FLAG.OVERFLOWDETECTION = 0; 
+		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+		for (typeof(hdr->NS) k=0; k<hdr->NS; k++) {
+			double val; 
+			hdr->CHANNEL[k].GDFTYP = 3; 
+			hdr->CHANNEL[k].OnOff  = 1; 
+			hdr->CHANNEL[k].SPR    = 1; 
+		      	hdr->CHANNEL[k].DigMax    = (int16_t)0x7fff;
+		      	hdr->CHANNEL[k].DigMin    = (int16_t)0x8000;
+	      		hdr->CHANNEL[k].PhysMax   = hdr->CHANNEL[k].DigMax;
+		      	hdr->CHANNEL[k].PhysMin   = hdr->CHANNEL[k].DigMin;
+		      	hdr->CHANNEL[k].Cal       = 1.0;
+	      		hdr->CHANNEL[k].Off       = 0.0;
+		      	hdr->CHANNEL[k].HighPass  = NaN;
+		      	hdr->CHANNEL[k].LowPass   = NaN;
+		      	hdr->CHANNEL[k].Notch     = NaN;
+		      	hdr->CHANNEL[k].Impedance = INF;
+	      		hdr->CHANNEL[k].XYZ[0]    = 0.0;
+		      	hdr->CHANNEL[k].XYZ[1]    = 0.0;
+		      	hdr->CHANNEL[k].XYZ[2]    = 0.0;
+
+			//chan = leu32p(line)
+			pos +=4; 
+
+			len = hdr->AS.Header[pos]+1;
+			int nextlen = hdr->AS.Header[pos+len]+1; // read length of next field ... 
+			hdr->AS.Header[pos+len] = 0;	// ... and use it for terminating \0 character 
+			val = atof((char*)(hdr->AS.Header+pos+1));	// val 1
+
+#define line ((char*)(hdr->AS.Header+pos))
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
+
+			pos+= len;
+			len = nextlen;
+			nextlen = hdr->AS.Header[pos+len]+1;
+			hdr->AS.Header[pos+len] = 0;
+			val = atof((char*)(hdr->AS.Header+pos+1));	// val 2
+	
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
+
+			pos+= len;
+			len = nextlen;
+			nextlen = hdr->AS.Header[pos+len]+1;
+			hdr->AS.Header[pos+len] = 0;
+			val = atof((char*)(hdr->AS.Header+pos+1));	// val 3
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
+
+			pos+= len;
+			len = nextlen;
+			nextlen = hdr->AS.Header[pos+len+2]+1;
+			hdr->AS.Header[pos+len] = 0;
+			val = atof((char*)(hdr->AS.Header+pos+1));	// val 4
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
+
+			pos+= len+2;
+			len = nextlen;
+			nextlen = hdr->AS.Header[pos+len]+1;
+			hdr->AS.Header[pos+len] = 0;
+			val = atof((char*)(hdr->AS.Header+pos+1));	// val 5
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
+
+			pos+= len;
+			len = nextlen;
+			nextlen = hdr->AS.Header[pos+len]+1;
+			hdr->AS.Header[pos+len] = 0;
+			val = atof((char*)(hdr->AS.Header+pos+1));	// val 6
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
+
+			pos+= len;
+			len = nextlen;
+			nextlen = hdr->AS.Header[pos+len]+1;
+			hdr->AS.Header[pos+len] = 0;
+			val = atof((char*)(hdr->AS.Header+pos+1));	// val 7
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
+
+			pos+= len;
+			len = nextlen;
+			nextlen = hdr->AS.Header[pos+len]+1;
+			hdr->AS.Header[pos+len] = 0;
+			val = atof((char*)(hdr->AS.Header+pos+1));	// val 8
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
+
+			pos+= len+8;
+			len = 20; 
+			strcpy(hdr->CHANNEL[k].Label, (char*)(hdr->AS.Header+pos+1));
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"%s\n",line+1);
+
+			pos+= len;
+			len = 8; 
+			hdr->CHANNEL[k].PhysDimCode = PhysDimCode((char*)(hdr->AS.Header+pos+1));
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"%s\n",line+1);
+
+			pos+= len;
+			len=9;
+			strcpy(hdr->CHANNEL[k].Transducer, (char*)(hdr->AS.Header+pos+1));
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"%s\n",line+1);
+#undef line 
+			pos+= len;
+	  	}
+	    	hdr->FILE.POS  = 0; 
+	}	/******* end of Sigma PLpro ********/
+
 /*	
 	else if (hdr->TYPE==SMA) {
 		char *delim = "=\x0a\x0d\x22";
@@ -6374,8 +6567,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     		fprintf(fid,"Patient.Medication\t= %i\t# 0:Unknown, 1: NO, 2: YES \n",hdr->Patient.Medication);
 		fprintf(fid,"Recording.ID      \t= %s\n",hdr->ID.Recording);
 		uint8_t IPv6=0;
-		for (uint8_t k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
-		if (IPv6) 
+		for (k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
+		if (IPv6)
 			fprintf(fid,"Recording.IPaddress \t= %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x\n",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3],hdr->IPaddr[4],hdr->IPaddr[5],hdr->IPaddr[6],hdr->IPaddr[7],hdr->IPaddr[8],hdr->IPaddr[9],hdr->IPaddr[10],hdr->IPaddr[11],hdr->IPaddr[12],hdr->IPaddr[13],hdr->IPaddr[14],hdr->IPaddr[15]);
 		else 
 			fprintf(fid,"Recording.IPaddress \t= %u.%u.%u.%u\n",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3]);
@@ -6570,7 +6763,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
 	     	/* end */
 
-		hdr->VERSION = 2.0;
+		hdr->VERSION = 2.10;
 		if (hdr->TYPE==GDF1) {
 			hdr->VERSION = 1.25;
 			hdr->TYPE = GDF;
@@ -6636,7 +6829,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			*(uint32_t*) (Header1+184) = l_endian_u32(hdr->HeadLen>>8);
 		
 			memcpy(Header1+192, &hdr->ID.Equipment, 8);
-			// memcpy(Header1+200, &hdr->IPaddr, 6);
+			memcpy(Header1+200, &hdr->IPaddr, 6);
 			memcpy(Header1+206, &hdr->Patient.Headsize, 6);
 			*(float*) (Header1+212) = l_endian_f32(hdr->ELEC.REF[0]);
 			*(float*) (Header1+216) = l_endian_f32(hdr->ELEC.REF[1]);
@@ -7223,6 +7416,9 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			fprintf(stdout,"GDFTYP=%i [12bit BE/BE] not well tested\n",hdr->CHANNEL[k].GDFTYP);
 
 	}
+	
+	if (VERBOSE_LEVEL>8)
+		fprintf(stdout,"sopen{return} %i %s\n", B4C_ERRNUM,GetFileTypeString(hdr->TYPE) ); 
 
 	return(hdr);
 }  // end of SOPEN 
@@ -7300,12 +7496,15 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		else	
 			hdr->FILE.POS = start; 	
 		
-		// allocate AS.rawdata 	
-		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*length);
-		buffer = hdr->AS.rawdata;
-
 		// limit reading to end of data block
-		nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
+		if (hdr->NRec<0)
+			nelem = length;
+		else 
+			nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
+
+		// allocate AS.rawdata 	
+		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*nelem);
+		buffer = hdr->AS.rawdata;
 
 		// read data
 		count = ifread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr);
@@ -8536,12 +8735,13 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 //		fprintf(fid,"\nPID:\t|%s|\nPatient:\n",hdr->AS.PID);
 		fprintf(fid,   "Recording:\n\tID              : %s\n",hdr->ID.Recording);
 		fprintf(fid,               "\tInstitution     : %s\n",hdr->ID.Hospital);
-		fprintf(fid,               "\tTechnician      : %s\n",hdr->ID.Technician);
+		fprintf(fid,               "\tTechnician      : %s\t# default: localuser\n",hdr->ID.Technician);
 		uint8_t IPv6=0;
 		for (uint8_t k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
-		if (IPv6) fprintf(fid,     "\tIPv6 address    : %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x\n",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3],hdr->IPaddr[4],hdr->IPaddr[5],hdr->IPaddr[6],hdr->IPaddr[7],hdr->IPaddr[8],hdr->IPaddr[9],hdr->IPaddr[10],hdr->IPaddr[11],hdr->IPaddr[12],hdr->IPaddr[13],hdr->IPaddr[14],hdr->IPaddr[15]);
-		else fprintf(fid,          "\tIPv4 address    : %u.%u.%u.%u\n",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3]);
-		fprintf(fid,"Manufacturer:\n\tName            : %s\n",hdr->ID.Manufacturer.Name);
+		if (IPv6) fprintf(fid,     "\tIPv6 address    : %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3],hdr->IPaddr[4],hdr->IPaddr[5],hdr->IPaddr[6],hdr->IPaddr[7],hdr->IPaddr[8],hdr->IPaddr[9],hdr->IPaddr[10],hdr->IPaddr[11],hdr->IPaddr[12],hdr->IPaddr[13],hdr->IPaddr[14],hdr->IPaddr[15]);
+		else fprintf(fid,          "\tIPv4 address    : %u.%u.%u.%u",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3]);
+
+		fprintf(fid,"\t # default:local host\nManufacturer:\n\tName            : %s\n",hdr->ID.Manufacturer.Name);
 		fprintf(fid,               "\tModel           : %s\n",hdr->ID.Manufacturer.Model);
 		fprintf(fid,               "\tVersion         : %s\n",hdr->ID.Manufacturer.Version);
 		fprintf(fid,               "\tSerialNumber    : %s\n",hdr->ID.Manufacturer.SerialNumber);

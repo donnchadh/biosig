@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.7 2008-06-06 16:54:02 schloegl Exp $
+% $Id: biosig-dev.h,v 1.8 2008-08-14 10:59:30 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -319,15 +319,6 @@ long            iftell(HDRTYPE* hdr);
 int 		ifgetpos(HDRTYPE* hdr, fpos_t *pos);
 int             iferror(HDRTYPE* hdr);
 
-/*
-	These functions are for the converter between SCP to HL7aECG
- */
-
-int sopen_SCP_read     (HDRTYPE* hdr);
-int sopen_SCP_write    (HDRTYPE* hdr);
-int sopen_HL7aECG_read (HDRTYPE* hdr);
-int sopen_HL7aECG_write(HDRTYPE* hdr);
-int sclose_HL7aECG_write(HDRTYPE* hdr);
 
 uint32_t gcd(uint32_t A, uint32_t B);
 uint32_t lcm(uint32_t A, uint32_t B);

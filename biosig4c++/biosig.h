@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.116 2008-08-10 22:00:23 schloegl Exp $
+% $Id: biosig.h,v 1.117 2008-08-14 10:59:30 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -85,7 +85,7 @@ typedef double biosig_data_type;
 
 /* for error handling */ 
 enum B4C_ERROR {
-	B4C_NO_ERROR,
+	B4C_NO_ERROR=0,
 	B4C_FORMAT_UNKNOWN,
 	B4C_FORMAT_UNSUPPORTED,
 	B4C_CANNOT_OPEN_FILE,
@@ -106,12 +106,12 @@ enum FileFormat {
 	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, ATES, ATF, AVI,
 	BCI2000, BDF, BIN, BKR, BLSC, BMP, BrainVision, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
-	EDF, EEG1100, EEProbe, EGI, EGIS, ELF, EMBLA, ETG4000, EVENT, EXIF, 
+	EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, 
 	Matlab, MFER, MIDI, MIT, NetCDF, NEX1, NIFTI, OGG, 
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
-	RIFF, SCP_ECG, SIGIF, SMA, SND, SVG, SXI,    
+	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, TMSiLOG, VRML, VTK, WAV, WMF, XML, XPM,
 	Z, ZIP, ZIP2,
 	ASCII_IBI, ASCII
