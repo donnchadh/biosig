@@ -28,7 +28,7 @@ function [out,scale] = physicalunits(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: physicalunits.m,v 1.23 2008-08-11 12:21:11 schloegl Exp $
+%	$Id: physicalunits.m,v 1.24 2008-08-14 09:51:46 schloegl Exp $
 %	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -134,8 +134,8 @@ if isstruct(arg1)
 	HDR = arg1;
 	if 0, 
 	elseif  isfield(HDR,'PhysDim') &  isfield(HDR,'PhysDimCode')
-		[PhysDim,scale] = physicalunits(HDR.PhysDimCode);
-		if ~isequal(PhysDim(:),HDR.PhysDim(:))
+		[PhysDimCode,scale] = physicalunits(HDR.PhysDim);
+		if any(PhysDimCode(:)~=HDR.PhysDimCode(:))
 			warning('PhysDim and PhysDimCode differ');
 			PhysDim',HDR.PhysDim'
 		end;
@@ -152,10 +152,10 @@ if isstruct(arg1)
 	out = HDR;	
 
 elseif isnumeric(arg1)
-	s = mod(arg1,32); 
+	s = mod(arg1,32);
 	n = bitand(arg1,2^16-32);
 	scale = repmat(NaN,size(arg1));
-	PhysDim = repmat({'?'},size(arg1))
+	PhysDim = repmat({'?'},size(arg1));
 	for k = 1:length(n); 
 	if any(BIOSIG_GLOBAL.DecimalFactor.Code==s(k)),
 		t1 = BIOSIG_GLOBAL.DecimalFactor.Prefix{BIOSIG_GLOBAL.DecimalFactor.Code==s(k)};
@@ -164,7 +164,7 @@ elseif isnumeric(arg1)
 		scale(k) = BIOSIG_GLOBAL.DecimalFactor.Cal(BIOSIG_GLOBAL.DecimalFactor.Code==s(k));
 	end;
 	end; 
-	out = PhysDim
+	out = PhysDim;
 	
 elseif ischar(arg1) | iscell(arg1) 
 	if iscell(arg1)
@@ -184,7 +184,7 @@ elseif ischar(arg1) | iscell(arg1)
 	for k=1:length(arg1); 
 		unit = deblank(arg1{k});
 		if length(unit)>0,
-			if (unit(1)=='µ'), unit(1)='u'; end; 
+			if (unit(1)==181), unit(1)='u'; end; 
 		else 
 
 		end;
