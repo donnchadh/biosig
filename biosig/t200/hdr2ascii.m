@@ -12,7 +12,7 @@ function [argout,H1,h2] = hdr2ascii(source,dest)
 %  
 % see also: SLOAD, SOPEN
 
-%	$Id: hdr2ascii.m,v 1.12 2008-07-29 12:52:17 schloegl Exp $
+%	$Id: hdr2ascii.m,v 1.13 2008-08-14 09:54:52 schloegl Exp $
 %	Copyright (C) 2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -66,7 +66,7 @@ end;
 %%%%%%%%% FIXED HEADER %%%%%%%%%%%%%%		
 fprintf(fid,'[BioSig Header]\n\n'); 
 fprintf(fid,'Version=0.10\n',dest); 
-fprintf(fid,'generated=%04i-%02i-%02i %02i:%02i:%2.0f\n',datevec(now)); 
+fprintf(fid,'generated=%04i-%02i-%02i %02i:%02i:%04.1f\n',datevec(now)); 
 if fid>2;
 	fprintf(fid,'\n;This is a TAB-delimiter file. When you edit this file, make sure not to corrupt the TABs ASCII(9)!\n\n'); 
 	fprintf(fid,'ThisFile=%s\n',dest); 
@@ -118,8 +118,10 @@ if isfield(HDR,'Patient')
 		case 1,    T1 = datevec(HDR.Patient.Birthday);
 		case 6,    T1 = HDR.Patient.Birthday;
 		end; 
-		fprintf(fid,'\tAge\t\t= %4.1f years\n',(datenum(T0)-datenum(T1))/(365.25)); 
-		fprintf(fid,'\tBirth\t\t= %04i-%02i-%02i %02i:%02i:%06.3f\n',T1); 
+		if ~any(isnan(T0))
+			fprintf(fid,'\tAge\t\t= %4.1f years\n',(datenum(T0)-datenum(T1))/(365.25));
+		end;	 
+		fprintf(fid,'\tBirthday\t= %04i-%02i-%02i %02i:%02i:%06.3f\n',T1); 
 	end;
 end;
 
