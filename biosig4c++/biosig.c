@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.252 2008-08-14 10:59:30 schloegl Exp $
+    $Id: biosig.c,v 1.253 2008-08-19 21:49:48 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -57,6 +57,8 @@ int sopen_HL7aECG_read (HDRTYPE* hdr);
 int sopen_HL7aECG_write(HDRTYPE* hdr);
 int sclose_HL7aECG_write(HDRTYPE* hdr);
 int sopen_eeprobe(HDRTYPE* hdr);
+int sopen_asn1(HDRTYPE* hdr);
+int sopen_zzztest(HDRTYPE* hdr);
 
 #define HARDCODED_PHYSDIMTABLE 
 
@@ -1528,7 +1530,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	      	hdr->CHANNEL[k].LowPass   = 70.0;
 	      	hdr->CHANNEL[k].Notch     = 50;
 	      	hdr->CHANNEL[k].Impedance = INF;
-	      	for (k1=0; k1<3; hdr->CHANNEL[k].XYZ[k1++] = 0.0);
+	      	for (k1=0; k1<3; hdr->CHANNEL[k].XYZ[k1++] = 0.0) {};
 	}      	
 
 	// define EVENT structure
@@ -4573,12 +4575,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}
 
 	else if (hdr->TYPE==EEProbe) {
-#ifdef WITH_EEPROBE
 		sopen_eeprobe(hdr); 
-#else
-    		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-    		B4C_ERRMSG = "Due to license restrictions, we are not allowed to distribute binaries with EEProbe support.";
-#endif
 	}
 
 	else if (hdr->TYPE==EGI) {
@@ -4871,11 +4868,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     		memcpy(tmp, hdr->AS.Header+24, 8);
     		hdr->FILE.LittleEndian = !atol(tmp); 
     		ifseek(hdr,32,SEEK_SET);
-/*
+
 fprintf(stdout,"ASN1 [401]\n");
 		sopen_asn1(hdr);
 fprintf(stdout,"ASN1 [491]\n");
-*/
+
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "VITAL/FEF Format not supported\n";
 		return(hdr); 	
@@ -5757,15 +5754,13 @@ fprintf(stdout,"ASN1 [491]\n");
     		count += ifread(Header1+count, 1, hdr->HeadLen-count, hdr);
 		hdr->AS.Header[hdr->HeadLen]=0;
 
-		fprintf(stdout,"Warning: support of SigmaPLpro is not complete; \nfixed scaling factors and sampling rate are used\n");
-				
 		struct tm t; 
 		char *tag, *val;
-		size_t pos=0;
+		size_t pos = leu32p(hdr->AS.Header+28);
 		uint8_t len;
 
 		for (int k=0; k<5; k++) {
-#define line ((char*)(hdr->AS.Header+32+pos))
+#define line ((char*)(hdr->AS.Header+pos))
 			len = strcspn(line,"\x0a\x0d");
 			line[len] = 0;
 			tag = line; 
@@ -5774,7 +5769,9 @@ fprintf(stdout,"ASN1 [491]\n");
 				val[0] = 0; 
 				val++;
 			}	
+			
 		if (VERBOSE_LEVEL>7) fprintf(stdout,"%i: %s=%s\n",k,tag,val);
+
 			if (0) {}
 			//else if (!strcmp(tag,"Name")) {}
 			//else if (!strcmp(tag,"Vorname")) {}
@@ -5793,9 +5790,8 @@ fprintf(stdout,"ASN1 [491]\n");
 
 			pos += len+1;
 			while ((line[0]==10) || (line[0]==13)) pos++; 
-#undef line 
 		} 	
-		hdr->NS = leu16p(hdr->AS.Header+32+pos);
+		hdr->NS = leu16p(hdr->AS.Header+pos);
 		hdr->SampleRate = 128;
 		hdr->SPR  = 1;
 		hdr->NRec = -1;		// unknown 
@@ -5803,13 +5799,24 @@ fprintf(stdout,"ASN1 [491]\n");
 		if(!stat(hdr->FileName, &stbuf))
 		if (!hdr->FILE.COMPRESSION)
 			hdr->NRec = (stbuf.st_size-hdr->HeadLen)/(2*hdr->NS);
+		else 
+			fprintf(stdout,"Compressed Sigma file (%s) is currently not supported. Uncompress file and try again.", hdr->FileName);	
 
 	       	// define variable header 
-		pos       = 148;
+		pos     = 148;
 		hdr->FLAG.UCAL = 1; 
 		hdr->FLAG.OVERFLOWDETECTION = 0; 
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
-		for (typeof(hdr->NS) k=0; k<hdr->NS; k++) {
+		
+		uint16_t p[] = {4,19,19,19,19+2,19,19,19,19+8,9,11};	// difference of positions of string elements within variable header
+		for (int k=1; k < sizeof(p)/sizeof(p[0]); k++) p[k] += p[k-1];	// relative position 
+		
+		double *fs = (double*) malloc(hdr->NS * sizeof(double));
+		typeof(hdr->NS) k;
+		double minFs = 1.0/0.0; 
+		for (k=0; k<hdr->NS; k++) {
+			pos = 148 + k*203;
+			// ch = lei16p(hdr->AS.Header+pos);
 			double val; 
 			hdr->CHANNEL[k].GDFTYP = 3; 
 			hdr->CHANNEL[k].OnOff  = 1; 
@@ -5818,103 +5825,64 @@ fprintf(stdout,"ASN1 [491]\n");
 		      	hdr->CHANNEL[k].DigMin    = (int16_t)0x8000;
 	      		hdr->CHANNEL[k].PhysMax   = hdr->CHANNEL[k].DigMax;
 		      	hdr->CHANNEL[k].PhysMin   = hdr->CHANNEL[k].DigMin;
-		      	hdr->CHANNEL[k].Cal       = 1.0;
+//		      	hdr->CHANNEL[k].Cal       = 1.0;
 	      		hdr->CHANNEL[k].Off       = 0.0;
 		      	hdr->CHANNEL[k].HighPass  = NaN;
 		      	hdr->CHANNEL[k].LowPass   = NaN;
-		      	hdr->CHANNEL[k].Notch     = NaN;
+		      	hdr->CHANNEL[k].Notch     = *(int16_t*)(hdr->AS.Header+pos+2) ? 1.0 : 0.0;
 		      	hdr->CHANNEL[k].Impedance = INF;
 	      		hdr->CHANNEL[k].XYZ[0]    = 0.0;
 		      	hdr->CHANNEL[k].XYZ[1]    = 0.0;
 		      	hdr->CHANNEL[k].XYZ[2]    = 0.0;
 
-			//chan = leu32p(line)
-			pos +=4; 
-
-			len = hdr->AS.Header[pos]+1;
-			int nextlen = hdr->AS.Header[pos+len]+1; // read length of next field ... 
-			hdr->AS.Header[pos+len] = 0;	// ... and use it for terminating \0 character 
-			val = atof((char*)(hdr->AS.Header+pos+1));	// val 1
-
-#define line ((char*)(hdr->AS.Header+pos))
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
-
-			pos+= len;
-			len = nextlen;
-			nextlen = hdr->AS.Header[pos+len]+1;
-			hdr->AS.Header[pos+len] = 0;
-			val = atof((char*)(hdr->AS.Header+pos+1));	// val 2
-	
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
-
-			pos+= len;
-			len = nextlen;
-			nextlen = hdr->AS.Header[pos+len]+1;
-			hdr->AS.Header[pos+len] = 0;
-			val = atof((char*)(hdr->AS.Header+pos+1));	// val 3
-
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
-
-			pos+= len;
-			len = nextlen;
-			nextlen = hdr->AS.Header[pos+len+2]+1;
-			hdr->AS.Header[pos+len] = 0;
-			val = atof((char*)(hdr->AS.Header+pos+1));	// val 4
-
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
-
-			pos+= len+2;
-			len = nextlen;
-			nextlen = hdr->AS.Header[pos+len]+1;
-			hdr->AS.Header[pos+len] = 0;
-			val = atof((char*)(hdr->AS.Header+pos+1));	// val 5
-
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
-
-			pos+= len;
-			len = nextlen;
-			nextlen = hdr->AS.Header[pos+len]+1;
-			hdr->AS.Header[pos+len] = 0;
-			val = atof((char*)(hdr->AS.Header+pos+1));	// val 6
-
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
-
-			pos+= len;
-			len = nextlen;
-			nextlen = hdr->AS.Header[pos+len]+1;
-			hdr->AS.Header[pos+len] = 0;
-			val = atof((char*)(hdr->AS.Header+pos+1));	// val 7
-
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
-
-			pos+= len;
-			len = nextlen;
-			nextlen = hdr->AS.Header[pos+len]+1;
-			hdr->AS.Header[pos+len] = 0;
-			val = atof((char*)(hdr->AS.Header+pos+1));	// val 8
-
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"--%i %i <%s> %f\n",len,nextlen,line+1,val);
-
-			pos+= len+8;
-			len = 20; 
-			strcpy(hdr->CHANNEL[k].Label, (char*)(hdr->AS.Header+pos+1));
-
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"%s\n",line+1);
-
-			pos+= len;
-			len = 8; 
-			hdr->CHANNEL[k].PhysDimCode = PhysDimCode((char*)(hdr->AS.Header+pos+1));
-
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"%s\n",line+1);
-
-			pos+= len;
-			len=9;
-			strcpy(hdr->CHANNEL[k].Transducer, (char*)(hdr->AS.Header+pos+1));
-
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"%s\n",line+1);
-#undef line 
-			pos+= len;
+			for (int k1=sizeof(p)/sizeof(p[0]); k1>0; ) {
+				k1--;
+				len = hdr->AS.Header[pos+p[k1]];
+				hdr->AS.Header[pos+p[k1]+len+1] = 0;
+				val = atof((char*)(hdr->AS.Header+pos+p[k1]+1));
+				switch (k1) {
+				case 0: 	// Abtastrate	
+					fs[k] = val;
+					if (hdr->SampleRate < fs[k]) hdr->SampleRate=fs[k];
+					if (minFs > fs[k]) minFs=fs[k];
+					break;
+				case 1: 	// obere Grenzfrequenz	
+				      	hdr->CHANNEL[k].LowPass = val;
+				      	break;
+				case 2: 	// untere Grenzfrequenz
+				      	hdr->CHANNEL[k].HighPass = val;
+				      	break;
+				case 6: 	// Electrodenimpedanz
+				      	hdr->CHANNEL[k].Impedance = val;
+				      	break;
+				case 7: 	// Sensitivitaet Verstaerker
+				      	hdr->CHANNEL[k].Cal = val;
+				      	break;
+				case 8: 	// Elektrodenbezeichnung
+					strcpy(hdr->CHANNEL[k].Label, (char*)(hdr->AS.Header+pos+p[k1]+1));
+					break;
+				case 10: 	// Masseinheit
+					hdr->CHANNEL[k].PhysDimCode = PhysDimCode((char*)(hdr->AS.Header+pos+p[k1]+1));
+					break;
+				case 11: 	// 	
+					strcpy(hdr->CHANNEL[k].Transducer, (char*)(hdr->AS.Header+pos+p[k1]+1));
+					break;
+				case 3: 	// gerfac ? 
+				case 4: 	// Kalibriergroesse	
+				case 5: 	// Kanaldimension
+				case 9: 	// Bezeichnung der Referenzelektrode
+					{};
+				}
+				
+			}
+			hdr->CHANNEL[k].Off    = lei16p(hdr->AS.Header+pos+ 80) * hdr->CHANNEL[k].Cal;
+			hdr->CHANNEL[k].XYZ[0] = lei32p(hdr->AS.Header+pos+158);
+			hdr->CHANNEL[k].XYZ[1] = lei32p(hdr->AS.Header+pos+162);
 	  	}
+#undef line
+		hdr->SPR = hdr->SampleRate/minFs;
+		for (k=0; k<hdr->NS; k++) hdr->CHANNEL[k].SPR = fs[k]/minFs;
+		free(fs); 
 	    	hdr->FILE.POS  = 0; 
 	}	/******* end of Sigma PLpro ********/
 
@@ -8795,16 +8763,16 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 	if (VERBOSE>2) {
 		/* channel settings */ 
 		fprintf(fid,"\n[CHANNEL HEADER]");
-		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin Filter");
+		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin HighPass LowPass Notch");
 		size_t k;
 		for (k=0; k<hdr->NS; k++) {
 			cp = hdr->CHANNEL+k; 
 			char p[MAX_LENGTH_PHYSDIM+1];
 			PhysDim(cp->PhysDimCode,p);
-			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5.1f %2i  %e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
+			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5.1f %2i  %e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
 				k+1,cp->LeadIdCode,cp->OnOff,cp->Label,cp->SPR * hdr->SampleRate/hdr->SPR,
 				cp->GDFTYP, cp->Cal, cp->Off, p,  
-				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass);
+				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch);
 			//fprintf(fid,"\t %3i", cp->SPR);
 		}
 	}
