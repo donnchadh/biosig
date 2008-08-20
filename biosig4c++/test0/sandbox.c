@@ -6,7 +6,7 @@
     or the functions are discarded. Do not rely on the interface in this function
        	
 
-    $Id: sandbox.c,v 1.1 2008-08-14 10:52:32 schloegl Exp $
+    $Id: sandbox.c,v 1.2 2008-08-20 17:54:48 schloegl Exp $
     Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -35,5 +35,24 @@
 
 extern int VERBOSE_LEVEL;
 
+// these functios are stubs
+
+int sopen_asn1(HDRTYPE* hdr) {
+	B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+	B4C_ERRMSG = "asn1 currently not supported";
+	return(0);
+};
+
+int sopen_eeprobe(HDRTYPE* hdr) {
+	B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+	B4C_ERRMSG = "asn1 currently not supported";
+	return(0);
+};
+
+int sopen_zzztest(HDRTYPE* hdr) {
+	B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+	B4C_ERRMSG = "asn1 currently not supported";
+	return(0);
+};
 
 
