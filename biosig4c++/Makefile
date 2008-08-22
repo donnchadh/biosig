@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.54 2008-08-14 10:52:33 schloegl Exp $
+###  $Id: Makefile,v 1.55 2008-08-22 22:55:10 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -10,22 +10,22 @@
 
 
 CC            = $(CXX)
-CXX           = g++-4.1
+CXX           = g++
 MinGWCXX      = i586-mingw32msvc-g++
 MEX	      = /opt/MatlabR2008a/bin/mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = -D=WITH_ZLIB #-D=WITH_EEPROBE -D=WITH_ANS1 #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
-INCPATH       =
+INCPATH       = 
 #LINK          = gcc
 LINK          = g++
 MinGWLINK     = i586-mingw32msvc-g++
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        =
 #LIBS          = -lz -L. -lbiosig  	# dynamic
-LIBS          = libbiosig.a cntopenlib/lib/Linux/libcnt.a -lz 	# static
+LIBS          = libbiosig.a -lz 	# static
 MinGWLIBS     = win32/libbiosig.a 	# static
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
@@ -37,7 +37,6 @@ OBJECTS_DIR   = ./
 
 ####### Files
 SOURCES       = biosig.c \
-		test0/sandbox.c \
 		physicalunits.c \
 		XMLParser/tinyxml.cpp \
 		XMLParser/tinyxmlparser.cpp \
@@ -47,9 +46,9 @@ SOURCES       = biosig.c \
 		t210/scp-decode.cpp \
 		t220/sopen_scp_write.c \
 		t220/crc4scp.c  \
-		t230/sopen_hl7aecg.c \  
-
-
+		t230/sopen_hl7aecg.c \
+		test0/sandbox.c 
+		
 OBJECTS       = biosig.o \
 		tinyxml.o \
 		tinyxmlparser.o \
@@ -60,8 +59,8 @@ OBJECTS       = biosig.o \
 		sopen_scp_write.o \
 		crc4scp.o \
 		sopen_hl7aecg.o \
-		sandbox.o
-
+		sandbox.o 
+		
 MinGWOBJECTS  = win32/biosig.obj \
 		win32/getlogin_r.obj \
 		win32/tinyxml.obj \
@@ -73,7 +72,8 @@ MinGWOBJECTS  = win32/biosig.obj \
 		win32/sopen_scp_write.obj \
 		win32/crc4scp.obj \
 		win32/sopen_hl7aecg.obj \
-		win32/sandbox.obj
+		win32/sandbox.obj \
+		win32/zlib/lib/zdll.lib		
 
 TARGET        = save2gdf #save2aecg save2scp libbiosig.a libbiosig.so sigviewer
 
@@ -148,7 +148,6 @@ tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinys
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinyxmlparser.o XMLParser/tinyxmlparser.cpp
 
 
-
 ####### Build rules
 
 biosig4python _biosig.so: biosig.py
@@ -175,38 +174,52 @@ physicalunits: physicalunits.c libbiosig.a
 	$(CXX) $(CXXFLAGS) physicalunits.c $(LFLAGS) $(LIBS) -o physicalunits
 
 
+
 ####### Windows executable
 
-win32/biosig.obj: biosig.c biosig-dev.h biosig.h 
+/tmp/zlib123-dll.zip:
+	wget -q -P/tmp http://www.zlib.net/zlib123-dll.zip
+
+win32/zlib: /tmp/zlib123-dll.zip
+	mkdir -p win32/zlib
+	unzip -u /tmp/zlib123-dll.zip -d win32/zlib
+
+win32/zlib/lib/zdll.lib: win32/zlib
+	touch --reference=win32/zlib win32/zlib/lib/zdll.lib
+
+win32/zlib/include/zlib.h: win32/zlib
+	touch --reference=win32/zlib win32/zlib/include/zlib.h
+
+win32/biosig.obj: biosig.c biosig-dev.h biosig.h  win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/biosig.obj biosig.c
 
 win32/libbiosig.a: $(MinGWOBJECTS)
 	i586-mingw32msvc-$(AR) win32/libbiosig.a $(MinGWOBJECTS) 
 	
-win32/physicalunits.obj: physicalunits.c biosig.h 
+win32/physicalunits.obj: physicalunits.c biosig.h  win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/physicalunits.obj physicalunits.c
 
-win32/sandbox.obj: test0/sandbox.c biosig.h 
+win32/sandbox.obj: test0/sandbox.c biosig.h  win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/sandbox.obj test0/sandbox.c
 
-win32/save2gdf.obj: save2gdf.c biosig-dev.h biosig.h 
+win32/save2gdf.obj: save2gdf.c biosig-dev.h biosig.h  win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/save2gdf.obj save2gdf.c
 
-win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h \
+win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h  win32/zlib/include/zlib.h \
 		biosig.h t210/structures.h t210/types.h
 	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/sopen_scp_read.obj t210/sopen_scp_read.c
 
-win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h \
+win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h win32/zlib/include/zlib.h \
 		t210/types.h t210/structures.h t210/codes.h
 	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/scp-decode.obj t210/scp-decode.cpp
 
 win32/crc4scp.obj: t220/crc4scp.c 
 	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/crc4scp.obj t220/crc4scp.c
 
-win32/sopen_scp_write.obj: t220/sopen_scp_write.c biosig-dev.h biosig.h
+win32/sopen_scp_write.obj: t220/sopen_scp_write.c biosig-dev.h biosig.h win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/sopen_scp_write.obj t220/sopen_scp_write.c
 
-win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
+win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h win32/zlib/include/zlib.h \
 		XMLParser/tinyxml.h XMLParser/tinystr.h XMLParser/Tokenizer.h
 	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/sopen_hl7aecg.obj t230/sopen_hl7aecg.c
 
@@ -225,9 +238,11 @@ win32/tinyxmlparser.obj: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLPars
 win32/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
 
-win32 exe win32/save2gdf.exe: save2gdf.c $(MinGWLIBS) #libbiosig.so 
-	$(MinGWCXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(MinGWOBJECTS)  -lws2_32 -o win32/save2gdf.exe 
+win32/save2gdf.exe: save2gdf.c $(MinGWLIBS)
+	$(MinGWCXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(MinGWOBJECTS) -lws2_32 -o win32/save2gdf.exe 
 
+win32 exe: win32/save2gdf.exe
+ 
 
 
 ####### MEX and OCT files 
@@ -262,12 +277,17 @@ save2aecg: save2gdf
 distclean:
 	-$(DEL_FILE) *.a
 	-$(DEL_FILE) *.o
-	-$(DEL_FILE) *.mex
+	-$(DEL_FILE) *.so
+	-$(DEL_FILE) *.mex*
 	-$(DEL_FILE) *.oct
-	-$(DEL_FILE) t210/*.o
-	-$(DEL_FILE) t220/*.o
-	-$(DEL_FILE) t230/*.o
-	-$(DEL_FILE) XMLParser/*.o
+	-$(DEL_FILE) t5.scp t6.scp save2gdf gztest test_scp_decode
+	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil /tmp/t1.*
+	-$(DEL_FILE) swig_wrap.* biosig.py 
+	-$(DEL_FILE) QMakefile
+	-$(DEL_FILE) win32/*.a
+	-$(DEL_FILE) win32/*.obj
+	-$(DEL_FILE) win32/*.exe
+	-$(DEL_FILE) -rf win32/zlib	
 
 clean:		
 	-$(DEL_FILE) *~
@@ -276,16 +296,8 @@ clean:
 	-$(DEL_FILE) *.so
 	-$(DEL_FILE) *.mex*
 	-$(DEL_FILE) *.oct
-	-$(DEL_FILE) *.exe
-	-$(DEL_FILE) t210/*.o
-	-$(DEL_FILE) t220/*.o
-	-$(DEL_FILE) t230/*.o
-	-$(DEL_FILE) XMLParser/*.o
-	-$(DEL_FILE) t5.scp t6.scp save2gdf gztest test_scp_decode
-	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil /tmp/t1.*
-	-$(DEL_FILE) swig_wrap.* biosig.py 
-	-$(DEL_FILE) QMakefile
 	-$(DEL_FILE) win32/*.a
+	-$(DEL_FILE) win32/*.o
 	-$(DEL_FILE) win32/*.obj
 	-$(DEL_FILE) win32/*.exe
 
