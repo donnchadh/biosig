@@ -45,7 +45,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %  so-called "extended covariance matrices". Nowadays, also other 
 % classifiers are supported. 
 %
-% see also: TEST_SC, COVM, LDBC2, LDBC3, LDBC4, MDBC, GDBC
+% see also: TEST_SC, COVM
 %
 % References: 
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
@@ -60,13 +60,14 @@ function [CC]=train_sc(D,classlabel,MODE)
 %       on undersampled problems.
 %       The Third IEEE International Conference on Data Mining, Melbourne, Florida, USA
 %       November 19 - 22, 2003
-% [5] J.D. Tebbens and P.Schlesinger (2006), 
+% [5] J.D. Tebbens and P. Schlesinger (2006), 
 %       Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
+%	Computational Statistics & Data Analysis, vol 52(1): 423-437, 2007
 %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
 % [6] H. Zhang, The optimality of Naive Bayes, 
 %	 http://www.cs.unb.ca/profs/hzhang/publications/FLAIRS04ZhangH.pdf
 
-%	$Id: train_sc.m,v 1.21 2007-09-06 13:23:19 schloegl Exp $
+%	$Id: train_sc.m,v 1.22 2008-08-29 16:31:06 schloegl Exp $
 %	Copyright (C) 2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

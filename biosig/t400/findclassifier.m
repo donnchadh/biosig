@@ -16,7 +16,7 @@ function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
 % class_times	classification times, combinations of times must be in one row 
 % t_ref	reference time for Class 0 (optional)
 % TYPE  determines the type of classifier (see HELP TEST_SC for complete list)
-%       the default method is 'LD3'
+%       bthe default method is 'LD3'
 %
 % CC 	contains the classifier and the validation results
 % Q  	is a list of classification quality for each time segment (as defined by 'class_times')
@@ -40,16 +40,16 @@ function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
 % [4] Schlögl A, Kronegg J, Huggins JE, Mason SG;
 %	Evaluation criteria in BCI research.
 %	(Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller;
-%	Towards Brain-Computer Interfacing, MIT press (accepted)
+%	Towards Brain-Computer Interfacing, MIT Press, p327-342, 2007
 
-%   $Id: findclassifier.m,v 1.11 2008-07-04 09:26:58 schloegl Exp $
+%   $Id: findclassifier.m,v 1.12 2008-08-29 16:31:06 schloegl Exp $
 %   Copyright (C) 1999-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
-% This program is free software; you can redistribute it and/or
+% BioSig is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the  License, or (at your option) any later version.
 % 
 % This program is distributed in the hope that it will be useful,
