@@ -7,7 +7,7 @@
 # CEN/TC251/PT40 2001	
 # File Exchange Format for Vital Signs - Annex A 
 #
-# $Id: units.csv,v 1.11 2008-06-16 07:20:48 schloegl Exp $
+# $Id: units.csv,v 1.12 2008-08-29 16:30:14 schloegl Exp $
 # Copyright (C) 2005,2006,2008 Alois Schloegl <a.schloegl@ieee.org>
 # This file is part of the biosig project http://biosig.sf.net/
 #
@@ -71,8 +71,12 @@
 1824,"g-1 [kg-1 , mg-1 ]",,"per  <magnitude> gram"
 ,,"ML",
 1856,"g m [kg m]",,"<magnitude> gram metre"
+#------ Q: Is a new number needed or should the symbol change ? 
+####,"gf m [kg m]",,"<magnitude> gram-force metre"
 ,,"ML-1",
 1888,"g m m-2  [kg m m-2]",,"<magnitude> gram(s) meter per square metre"
+#------ Q: Is a new number needed or should the symbol change ? 
+####,"gf m m-2  [kg m m-2]",,"<magnitude> gram-force meter per square 
 ,,"ML2 (moment of inertia)",
 1920,"kg m2",,"<magnitude> gram metre squared"
 ,,"ML-2",
@@ -155,10 +159,10 @@
 3904,"cm H2O",,"centimetre of water"
 3936,"bar",,"<magnitude> bar"
 ,,"L2MT-2 (energy)",
-3968,"J",,"<magnitude> joule(s)"
+3968,"J [gf m]",,"<magnitude> joule(s), mass-force x distance"
 4000,"eV",,"<magnitude> electronvolt(s)"
 ,,"L2MT-3 (power)",
-4032,"W",,"<magnitude> watt(s)"
+4032,"W [gf m s-1]",,"<magnitude> watt(s), mass-force x velocity"
 ,,"L-4MT-1 (hydraulic impedance)",
 4064,"Pa s m-3",,"<magnitude> pascal second per cubic meter"
 4096,"Pa s l-1",,"<magnitude> pascal second per litre"
@@ -252,8 +256,12 @@
 6208,"Pa %-1","- ratio of paO2 to FIO2","<magnitude> pascal per percent"
 6432,"B", "Bel", "relative power decibel"	
 ### private: units with no standardized code
+#,"kgf m [J]",,Left Stroke Work (LSW)
+#,"kgf m min-1 [W]",,Left Cardiac Work (LCW)
+65248,"g s-2 [J m-2, gf m-1]",,"Left Stroke Work Index (LSWI)"
+65280,"g s-3 [W m-2, gf m-1 s-1]",,"Indexed Left Cardiac Work (LCWI)"
 65312,"mHg s-1",,
-65344,"mol l-1 mm","concentration change (of oxy- and deoxy-hemoglobin) per effective (optical) path length","milli(Mol/Liter)*millimeter"
+65344,"mol l-1 mm","change in blood chromophore concentration per effective optical path length","milli(Mol/Liter)*millimeter"
 65376,"r.p.m",,"rotations per minute"
 65408,"B", "Bel", "relative power decibel"
 65440,"dyne s m2 cm-5","Vascular Resistance Index","dyne seconds square meter per centimetre to the power of 5"
