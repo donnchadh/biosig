@@ -63,6 +63,7 @@ function viewedf(Action, ActOption)
 %          & numrec)
 % 03/17/00 Ramoser: add command line functionality, add 'Goto second'
 % 10/22/01 Ramoser: some updates for Matlab 6
+% 01 Sep 2008 Schloegl: use sopen, sclose 
 
 FastPageIncrement = 5;
 PageIncrement = 1;
@@ -173,7 +174,7 @@ fig=figure( ...
     'PaperType', 'A4', ...
     'PaperUnits', 'Normalized', ...
     'Tag', 'ViewEDFFigure', ...
-    'Name', 'EDF File Viewer - (C) 1998-2001 DPMI, Graz University of Technology');
+    'Name', 'EDF File Viewer - (C) 1998-2001 DPMI, 2008 HCI, Graz University of Technology');
 Data=get(fig,'UserData');
 
 % Menus
@@ -309,7 +310,7 @@ for i=1:length(Data.EDF)
   Data.Display.EDF(i).DisplayMin = Data.EDF(i).Head.PhysMin;
   Data.Display.EDF(i).DisplayMax = Data.EDF(i).Head.PhysMax;
   Data.Display.EDF(i).StairPlot = zeros(1, Data.EDF(i).Head.NS);
-  Data.Display.EDF(i).UpDownPlot = zeros(1, Data.EDF(i).Head.NS);
+  Data.Display.EDF(i).UpDownPlot = Data.EDF(i).Head.PhysMin>Data.EDF(i).Head.PhysMax; %zeros(1, Data.EDF(i).Head.NS);
 end
 
 % Plugin data
@@ -323,7 +324,7 @@ for i = 1:length(Data.Plugin)
   Data.Display.Plugin(i).DisplayMax  = ...
       Data.Plugin(i).EDF.Head.PhysMax;
   Data.Display.Plugin(i).StairPlot = zeros(1, Data.Plugin(i).Head.NS);
-  Data.Display.Plugin(i).UpDownPlot = zeros(1, Data.Plugin(i).Head.NS);
+  Data.Display.Plugin(i).UpDownPlot = Data.EDF(i).Head.PhysMin>Data.EDF(i).Head.PhysMax; %zeros(1, Data.Plugin(i).Head.NS);
 end
 
 % update all strings
@@ -615,7 +616,7 @@ end
 ploth.PlotLine = plot(xd, yd);
 set(gca, ...
     'XLim', [1 max([2, len])], ...
-    'YLim', [Opt.DisplayMin Opt.DisplayMax]);
+    'YLim', sort([Opt.DisplayMin Opt.DisplayMax]));
 if ~Opt.ShowRange 
   set(gca, ...
       'XTickLabel', '', ...
@@ -736,11 +737,11 @@ switch Which
   case 'NRec'
     res = cat(1,temp(:).NRec);
   case 'Dur'
-    res = cat(1,temp(:).Dur);
+    res = cat(1,temp(:).SPR) ./ cat(1,temp(:).SampleRate);
   case 'SPR'
     res = cat(1,temp(:).SPR);
   case 'FileDur'
-    res = cat(1,temp(:).NRec) .* cat(1,temp(:).Dur);
+    res = cat(1,temp(:).NRec) .* cat(1,temp(:).SPR) ./ cat(1,temp(:).SampleRate);
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1168,7 +1169,7 @@ uicontrol(dlgh, ...
     'Units', 'Normalized', ...
     'HorizontalAlignment', 'left', ...
     'FontWeight', 'bold', ...
-    'String', sprintf('%d', RecHead.SPR(Rec)), ...
+    'String', sprintf('%d', RecHead.AS.SPR(Rec)), ...
     'Position', [0.35, 1-linenum*yinc, 0.63, Fnthgt]);
 % physical min
 linenum=linenum+1;
@@ -1614,8 +1615,8 @@ if nargin == 0
     Local.EDFInfo{i,1} = Data.EDF(i).Head.Version;
     Local.EDFInfo{i,2} = Data.EDF(i).Head.PID;
     Local.EDFInfo{i,3} = Data.EDF(i).Head.RID;
-    Local.EDFInfo{i,4} = sprintf('%02d/%02d/%02d', Data.EDF(i).Head.TO([3 2 1]));
-    Local.EDFInfo{i,5} = sprintf('%02d:%02d:%02d', Data.EDF(i).Head.TO([4 5 6]));
+    Local.EDFInfo{i,4} = sprintf('%02d/%02d/%02d', Data.EDF(i).Head.T0([3 2 1]));
+    Local.EDFInfo{i,5} = sprintf('%02d:%02d:%02d', Data.EDF(i).Head.T0([4 5 6]));
     Local.EDFInfo{i,6} = sprintf('%d', Data.EDF(i).Head.NS);
     Local.EDFInfo{i,7} = sprintf('%d', Data.EDF(i).Head.NRec);
   end
@@ -1986,12 +1987,6 @@ function LocalEDFOpen(Filename)
 % show EDF header errors
 ShowHeadErr = 0;
 
-% variables to find things in the header
-H1idx=[8 80 80 8 8 8 44 8 8 4];
-H2idx=[16 80 8 8 8 8 8 80 8 32];
-GDFTYP_BYTE=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8]';
-GDFTYPES=[0 1 2 3 4 5 6 7 16 17];
-
 if nargin == 0
   % get filename	
   [edfname,edfpath]=uigetfile('*.*','Open EDF File');
@@ -2001,6 +1996,14 @@ if nargin == 0
   end
 end 
    
+if 0, 
+%%% becomes obsolete 
+% variables to find things in the header
+H1idx=[8 80 80 8 8 8 44 8 8 4];
+H2idx=[16 80 8 8 8 8 8 80 8 32];
+GDFTYP_BYTE=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8]';
+GDFTYPES=[0 1 2 3 4 5 6 7 16 17];
+
 fid=fopen(Filename, 'r', 'ieee-le'); 
 if (fid < 0) 
   errordlg('Error reading file', 'File Error');
@@ -2011,7 +2014,7 @@ numedf = length(Data.EDF) + 1;
 
 % read all data
 EDFHead.FILE.FID = fid;
-EDFHeadFILE.OPEN = 1;
+EDFHead.FILE.OPEN = 1;
 EDFHead.FileName = Filename;
 
 PPos = min([max(find(Filename == '.')) length(Filename) + 1]);
@@ -2030,7 +2033,7 @@ end
 EDFHead.PID = deblank(H1(9:88));   % 80 Byte local patient identification
 EDFHead.RID = deblank(H1(89:168)); % 80 Byte local recording identification
 if IsGDF                           % handle different file formats
-  EDFHead.TO = [str2num(H1(168 + [1:4])) ...
+  EDFHead.T0 = [str2num(H1(168 + [1:4])) ...
         str2num(H1(168 + [5 6])) ...
         str2num(H1(168 + [7 8])) ...
         str2num(H1(168 + [9 10])) ...
@@ -2052,16 +2055,16 @@ if IsGDF                           % handle different file formats
   end
   EDFHead.NS   = fread(EDFHead.FILE.FID, 1, 'uint32');
 else
-  EDFHead.TO = [str2num(H1(168+[7 8])) ...
+  EDFHead.T0 = [str2num(H1(168+[7 8])) ...
         str2num(H1(168+[4 5])) ...
         str2num(H1(168+[1 2])) ...
         str2num(H1(168+[9 10])) ...
         str2num(H1(168+[12 13])) ...
         str2num(H1(168+[15 16])) ]; 
-  if EDFHead.TO(1) < 91
-    EDFHead.TO(1) = 2000 + EDFHead.TO(1);
-  elseif EDFHead.TO(1) < 100
-    EDFHead.TO(1) = 1900 + EDFHead.TO(1);
+  if EDFHead.T0(1) < 91
+    EDFHead.T0(1) = 2000 + EDFHead.T0(1);
+  elseif EDFHead.T0(1) < 100
+    EDFHead.T0(1) = 1900 + EDFHead.T0(1);
   end
   H1(185:256) = setstr(fread(EDFHead.FILE.FID, 256-184, 'uchar')');
   EDFHead.HeadLen = str2num(H1(185:192));  % 8 Byte  Length of Header
@@ -2202,7 +2205,14 @@ if EDFHead.NRec == -1   % unknown record size, determine correct NRec
   EDFHead.NRec = floor((endpos - EDFHead.HeadLen) / (sum(EDFHead.AS.bpb))); 
 end
 fseek(EDFHead.FILE.FID, EDFHead.HeadLen, 'bof');
-
+else 
+	EDFHead = sopen(Filename,'r',0,'OVERFLOWDETECTION:OFF');
+	EDFHead.GDFType = EDFHead.GDFTYP;
+	EDFHead.Version = EDFHead.VERSION;
+	%EDFHead.T0 = datevec(EDFHead.T0);
+	Data = get(findobj('Tag', 'ViewEDFFigure'), 'UserData');
+	numedf = length(Data.EDF) + 1;
+end; 	
 
 Data.EDF(numedf).Head = EDFHead;  
 drawnow;
@@ -2213,6 +2223,11 @@ LocalResetDisplay;
 % LocalEDFRead
 % read data from EDF file
 function [Record, EDFHead] = LocalEDFRead(EDFHead, recinfo)
+
+
+if 1, 
+%%% obsolete ??? 
+ 
 % define GDF data types
 GDF_STRING = {'uchar', 'int8', 'uint8', 'int16', 'uint16', 'int32', ...
       'uint32', 'int64', 'uint64', '', '', '', '', '', '', '', 'float32', ...
@@ -2234,7 +2249,7 @@ LocalWatchOn;
 RecLen = max(EDFHead.SPR);
 for rec = 1:numrec
   for ch = 1:EDFHead.NS
-    [d, count] = fread(EDFHead.FILE.FID, EDFHead.SPR(ch), ...
+    [d, count] = fread(EDFHead.FILE.FID, EDFHead.AS.SPR(ch), ...
         GDF_STRING{EDFHead.GDFType(ch)+1});
     if count < 1
       break;
@@ -2255,11 +2270,15 @@ end
 
 for ch = 1:EDFHead.NS
   Record{ch} = reshape(S(EDFHead.AS.bi(ch)+1 : EDFHead.AS.bi(ch+1),:), ...
-      EDFHead.SPR(ch) * numrec, 1);
+      EDFHead.AS.SPR(ch) * numrec, 1);
 end
 EDFHead.AS.numrec = numrec;
 EDFHead.AS.startrec = startrec;
 LocalWatchOff;
+
+else
+	[s,EDFHead] = sread(EDFHead,numrec*HDR.SampleRate,startrec*HDR.SampleRate);
+end 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % LocalEDFSeek
@@ -2291,7 +2310,9 @@ if cancelled
   return
 end
   
-fclose(Data.EDF(ind).Head.FILE.FID);
+%fclose(Data.EDF(ind).Head.FILE.FID);
+sclose(Data.EDF(ind).Head);
+
 for i = ind:(length(Data.EDF)-1)
   Data.Display.EDF(i) = Data.Display.EDF(i+1);
   Data.EDF(i) = Data.EDF(i+1);
@@ -2372,6 +2393,7 @@ function LocalCloseViewEDF()
 Data = get(findobj('Tag', 'ViewEDFFigure'), 'UserData');
 % close all files
 for i = 1:length(Data.EDF);
-  fclose(Data.EDF(i).Head.FILE.FID);
+  %fclose(Data.EDF(i).Head.FILE.FID);
+  sclose(Data.EDF(i).Head);
 end
 delete(findobj('Tag', 'ViewEDFFigure'));
