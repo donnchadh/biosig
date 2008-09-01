@@ -175,6 +175,7 @@ fig=figure( ...
     'PaperUnits', 'Normalized', ...
     'Tag', 'ViewEDFFigure', ...
     'Name', 'EDF File Viewer - (C) 1998-2001 DPMI, 2008 HCI, Graz University of Technology');
+
 Data=get(fig,'UserData');
 
 % Menus
@@ -1614,7 +1615,7 @@ if nargin == 0
   % get filenames
   for i = 1:length(Data.EDF)
     Local.EDFNames = {Local.EDFNames{:}, Data.EDF(i).Head.FileName};
-    Local.EDFInfo{i,1} = Data.EDF(i).Head.Version;
+    Local.EDFInfo{i,1} = Data.EDF(i).Head.VERSION;
     Local.EDFInfo{i,2} = Data.EDF(i).Head.PID;
     Local.EDFInfo{i,3} = Data.EDF(i).Head.RID;
     Local.EDFInfo{i,4} = sprintf('%02d/%02d/%02d', Data.EDF(i).Head.T0([3 2 1]));
@@ -2026,9 +2027,9 @@ EDFHead.FILE.Name = Filename(SPos+1:PPos-1);
 EDFHead.FILE.Path = edfpath;
 
 H1 = setstr(fread(EDFHead.FILE.FID,184,'uchar')');     
-EDFHead.Version = H1(1:8);         % 8 Byte  Versionsnummer 
-IsGDF = strcmp(EDFHead.Version(1:3), 'GDF');
-if (~strcmp(EDFHead.Version, '0       ') & ~IsGDF)
+EDFHead.VERSION = H1(1:8);         % 8 Byte  Versionsnummer 
+IsGDF = strcmp(EDFHead.VERSION(1:3), 'GDF');
+if (~strcmp(EDFHead.VERSION, '0       ') & ~IsGDF)
   errordlg('Unknown file version', 'File error');
   return;
 end
@@ -2041,7 +2042,7 @@ if IsGDF                           % handle different file formats
         str2num(H1(168 + [9 10])) ...
         str2num(H1(168 + [11 12])) ...
         str2num(H1(168 + [13:16]))];
-  if str2num(EDFHead.Version(4:8)) < 0.12
+  if str2num(EDFHead.VERSION(4:8)) < 0.12
     tmp = setstr(fread(EDFHead.FILE.FID, 8, 'uchar')');  % header-length
     EDFHead.HeadLen = str2num(tmp);
   else
@@ -2049,7 +2050,7 @@ if IsGDF                           % handle different file formats
   end
   tmp = fread(EDFHead.FILE.FID, 44, 'uchar'); % 44 bytes reserved
   EDFHead.NRec = fread(EDFHead.FILE.FID, 1, 'int64');
-  if strcmp(EDFHead.Version(4:8),' 0.10')
+  if strcmp(EDFHead.VERSION(4:8),' 0.10')
     EDFHead.Dur =  fread(EDFHead.FILE.FID, 1, 'float64');   
   else
     tmp = fread(EDFHead.FILE.FID, 2, 'uint32');    
@@ -2095,7 +2096,7 @@ if ~IsGDF
   EDFHead.DigMax  = str2num(h2(:, idx1(7)+1:idx1(8)));
   EDFHead.PreFilt = h2(:, idx1(8)+1:idx1(9));
   EDFHead.SPR     = str2num(h2(:, idx1(9)+1:idx1(10)));
-  EDFHead.GDFType  = 3*ones(1, EDFHead.NS);
+  EDFHead.GDFTYP  = 3*ones(1, EDFHead.NS);
 else
   fseek(EDFHead.FILE.FID, 256, 'bof');
   EDFHead.Label      =  setstr(fread(EDFHead.FILE.FID, [16,EDFHead.NS], ...
@@ -2111,8 +2112,8 @@ else
   EDFHead.PreFilt    =  setstr(fread(EDFHead.FILE.FID, [80,EDFHead.NS], ...
       'char')');
   EDFHead.SPR        =  fread(EDFHead.FILE.FID, [1,EDFHead.NS], 'uint32')';
-  EDFHead.GDFType    =  fread(EDFHead.FILE.FID, [1,EDFHead.NS], 'uint32');
-  tmp = (EDFHead.GDFType == 0);
+  EDFHead.GDFTYP     =  fread(EDFHead.FILE.FID, [1,EDFHead.NS], 'uint32');
+  tmp = (EDFHead.GDFTYP == 0);
   EDFHead.PhysMax(tmp) = 1;
   EDFHead.PhysMin(tmp) = 0;
   EDFHead.DigMax(tmp)  = 1;
@@ -2175,7 +2176,7 @@ EDFHead.SampleRate = EDFHead.SPR / EDFHead.Dur;
 bi = [0; cumsum(EDFHead.SPR)]; 
 EDFHead.AS.spb = sum(EDFHead.SPR);
 EDFHead.AS.bi = bi;
-EDFHead.AS.bpb = sum(EDFHead.SPR .* GDFTYP_BYTE(EDFHead.GDFType+1));
+EDFHead.AS.bpb = sum(EDFHead.SPR .* GDFTYP_BYTE(EDFHead.GDFTYP+1));
 EDFHead.AS.GDFbi = [0; cumsum(EDFHead.AS.bpb)];
 
 EDFHead.Chan_Select = (EDFHead.SPR == max(EDFHead.SPR));
@@ -2209,11 +2210,8 @@ end
 fseek(EDFHead.FILE.FID, EDFHead.HeadLen, 'bof');
 else 
 	EDFHead = sopen(Filename,'r',0,'OVERFLOWDETECTION:OFF');
-	EDFHead.GDFType = EDFHead.GDFTYP;
 	EDFHead.PhysDim = physicalunits(EDFHead.PhysDimCode);
-	EDFHead.Version = EDFHead.VERSION;
-	%EDFHead.T0 = datevec(EDFHead.T0);
-	Data = get(findobj('Tag', 'ViewEDFFigure'), 'UserData');
+	Data   = get(findobj('Tag', 'ViewEDFFigure'), 'UserData');
 	numedf = length(Data.EDF) + 1;
 end; 	
 
@@ -2236,6 +2234,9 @@ GDF_STRING = {'uchar', 'int8', 'uint8', 'int16', 'uint16', 'int32', ...
       'uint32', 'int64', 'uint64', '', '', '', '', '', '', '', 'float32', ...
       'float64'};
 
+GDF_STRING{256+24} = 'bit24';
+GDF_STRING{512+24} = 'ubit24';
+
 startrec = recinfo(1);
 numrec = recinfo(2);
 
@@ -2253,7 +2254,7 @@ RecLen = max(EDFHead.SPR);
 for rec = 1:numrec
   for ch = 1:EDFHead.NS
     [d, count] = fread(EDFHead.FILE.FID, EDFHead.AS.SPR(ch), ...
-        GDF_STRING{EDFHead.GDFType(ch)+1});
+        GDF_STRING{EDFHead.GDFTYP(ch)+1});
     if count < 1
       break;
     end
@@ -2295,7 +2296,7 @@ elseif origin == 0 | origin == 'cof'
   status = fseek(EDFHead.FILE.FID, offset, origin);
 elseif origin == 1 | origin == 'eof'
   offset = EDFHead.HeadLen + EDFHead.AS.bpb * (EDFHead.NRec + offset);
-  status = fseek(EDFHead.FILE.FID, offset, origin);
+  status = fseek(EDFHead.FILE.FID, offset, -1);
 end;
         
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
