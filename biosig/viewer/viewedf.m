@@ -471,7 +471,8 @@ for j=1:length(Data.EDF)
       Opt.DisplayMax = Data.Display.EDF(j).DisplayMax(showsig);
       Opt.UserData = { 'EDF', showsig, j};
       Opt.Label = Data.EDF(j).Head.Label(showsig,:);
-      Opt.YLabel = deblank(Data.EDF(j).Head.PhysDim(showsig,:));
+      %Opt.YLabel = deblank(Data.EDF(j).Head.PhysDim(showsig,:));
+      Opt.YLabel = deblank(Data.EDF(j).Head.PhysDim{showsig});
       yd = Data.EDF(j).Record{showsig};
       if (length(yd) ~= 1)
         yd = [yd(:); NaN];
@@ -516,7 +517,8 @@ for j = 1:length(Data.Plugin)
       Opt.DisplayMax = Data.Display.Plugin(j).DisplayMax(showsig);
       Opt.UserData = { 'PLUGIN', showsig, j};
       Opt.Label = Data.Plugin(j).EDF.Head.Label(showsig,:);
-      Opt.YLabel = deblank(Data.Plugin(j).EDF.Head.PhysDim(showsig,:));
+      %Opt.YLabel = deblank(Data.Plugin(j).EDF.Head.PhysDim(showsig,:));
+      Opt.YLabel = deblank(Data.Plugin(j).EDF.Head.PhysDim{showsig});
       yd = Data.Plugin(j).EDF.Record{showsig};
       if (length(yd) ~= 1)
         yd = [yd(:); NaN];
@@ -2086,7 +2088,7 @@ if ~IsGDF
   h2 = setstr(h2);
   EDFHead.Label      = h2(:, idx1(1)+1:idx1(2));
   EDFHead.Transducer = h2(:, idx1(2)+1:idx1(3));
-  EDFHead.PhysDim    = h2(:, idx1(3)+1:idx1(4));
+  EDFHead.PhysDim    = cellstr(h2(:, idx1(3)+1:idx1(4)));
   EDFHead.PhysMin = str2num(h2(:, idx1(4)+1:idx1(5)));
   EDFHead.PhysMax = str2num(h2(:, idx1(5)+1:idx1(6)));
   EDFHead.DigMin  = str2num(h2(:, idx1(6)+1:idx1(7)));
@@ -2100,8 +2102,8 @@ else
       'char')'); 
   EDFHead.Transducer =  setstr(fread(EDFHead.FILE.FID, [80,EDFHead.NS], ...
       'char')');
-  EDFHead.PhysDim    =  setstr(fread(EDFHead.FILE.FID, [8,EDFHead.NS], ...
-      'uchar')');
+  EDFHead.PhysDim    =  cellstr(setstr(fread(EDFHead.FILE.FID, [8,EDFHead.NS], ...
+      'uchar')'));
   EDFHead.PhysMin    =  fread(EDFHead.FILE.FID, [EDFHead.NS,1], 'float64');
   EDFHead.PhysMax    =  fread(EDFHead.FILE.FID, [EDFHead.NS,1], 'float64');
   EDFHead.DigMin     =  fread(EDFHead.FILE.FID, [EDFHead.NS,1], 'int64');
@@ -2208,6 +2210,7 @@ fseek(EDFHead.FILE.FID, EDFHead.HeadLen, 'bof');
 else 
 	EDFHead = sopen(Filename,'r',0,'OVERFLOWDETECTION:OFF');
 	EDFHead.GDFType = EDFHead.GDFTYP;
+	EDFHead.PhysDim = physicalunits(EDFHead.PhysDimCode);
 	EDFHead.Version = EDFHead.VERSION;
 	%EDFHead.T0 = datevec(EDFHead.T0);
 	Data = get(findobj('Tag', 'ViewEDFFigure'), 'UserData');
