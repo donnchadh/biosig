@@ -735,17 +735,20 @@ assignin('base', answer{1}, res);
 % LocalGetEDFInfo
 % get information of all open EDF files
 function [res] = LocalGetEDFInfo(Which, EDF)
-temp = cat(1,EDF(:).Head);
-switch Which
-  case 'NRec'
-    res = cat(1,temp(:).NRec);
-  case 'Dur'
-    res = cat(1,temp(:).SPR) ./ cat(1,temp(:).SampleRate);
-  case 'SPR'
-    res = cat(1,temp(:).SPR);
-  case 'FileDur'
-    res = cat(1,temp(:).NRec) .* cat(1,temp(:).SPR) ./ cat(1,temp(:).SampleRate);
-end
+
+res = [];
+for k=1:length(EDF),
+	switch Which
+	case 'NRec'
+		res = [res,EDF(k).Head.NRec];
+	case 'Dur'
+		res = [res,EDF(k).Head.SPR / EDF(k).Head.SampleRate]; 
+	case 'SPR'
+		res = [res,EDF(k).Head.SPR];
+	case 'FileDur'
+		res = [res,EDF(k).Head.NRec * EDF(k).Head.SPR / EDF(k).Head.SampleRate]; 
+	end
+end; 	
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % LocalAddPlugin
@@ -1172,7 +1175,7 @@ uicontrol(dlgh, ...
     'Units', 'Normalized', ...
     'HorizontalAlignment', 'left', ...
     'FontWeight', 'bold', ...
-    'String', sprintf('%d', RecHead.AS.SPR(Rec)), ...
+    'String', sprintf('%d', RecHead.SPR), ...
     'Position', [0.35, 1-linenum*yinc, 0.63, Fnthgt]);
 % physical min
 linenum=linenum+1;
@@ -2209,8 +2212,10 @@ if EDFHead.NRec == -1   % unknown record size, determine correct NRec
 end
 fseek(EDFHead.FILE.FID, EDFHead.HeadLen, 'bof');
 else 
-	EDFHead = sopen(Filename,'r',0,'OVERFLOWDETECTION:OFF');
+	EDFHead = sopen(Filename,'r',0,'OVERFLOWDETECTION:OFF FORCEALLCHANNEL');
+	EDFHead.Dur = EDFHead.SPR/EDFHead.SampleRate;
 	EDFHead.PhysDim = physicalunits(EDFHead.PhysDimCode);
+	
 	Data   = get(findobj('Tag', 'ViewEDFFigure'), 'UserData');
 	numedf = length(Data.EDF) + 1;
 end; 	
@@ -2225,8 +2230,11 @@ LocalResetDisplay;
 % read data from EDF file
 function [Record, EDFHead] = LocalEDFRead(EDFHead, recinfo)
 
+startrec = recinfo(1);
+numrec = recinfo(2);
 
-if 1, 
+
+if 0, 
 %%% obsolete ??? 
  
 % define GDF data types
@@ -2236,9 +2244,6 @@ GDF_STRING = {'uchar', 'int8', 'uint8', 'int16', 'uint16', 'int32', ...
 
 GDF_STRING{256+24} = 'bit24';
 GDF_STRING{512+24} = 'ubit24';
-
-startrec = recinfo(1);
-numrec = recinfo(2);
 
 if LocalEDFSeek(EDFHead, startrec, 'bof') < 0
   if numrec ~= 0
@@ -2272,7 +2277,7 @@ for ch = 1:EDFHead.NS
       EDFHead.AS.bi(ch+1),:) * EDFHead.Cal(ch) + EDFHead.Off(ch);
 end
 
-for ch = 1:EDFHead.NS
+for ch = 1:EDFHead.NS,
   Record{ch} = reshape(S(EDFHead.AS.bi(ch)+1 : EDFHead.AS.bi(ch+1),:), ...
       EDFHead.AS.SPR(ch) * numrec, 1);
 end
@@ -2281,7 +2286,15 @@ EDFHead.AS.startrec = startrec;
 LocalWatchOff;
 
 else
-	[s,EDFHead] = sread(EDFHead,numrec*HDR.SampleRate,startrec*HDR.SampleRate);
+LocalWatchOn;
+
+	Dur = EDFHead.SPR/EDFHead.SampleRate;
+	[s,EDFHead] = sread(EDFHead,numrec*Dur,startrec*Dur);
+	for ch = 1:EDFHead.NS,
+		Record{ch} = s(:,ch);
+	end;
+
+LocalWatchOff;
 end 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
