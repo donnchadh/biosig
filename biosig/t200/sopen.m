@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.229 2008-08-14 09:53:31 schloegl Exp $
+%	$Id: sopen.m,v 1.230 2008-09-02 10:02:21 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -186,6 +186,9 @@ if ~isfield(HDR.FLAG,'UCAL')
 end;
 if ~isfield(HDR.FLAG,'OVERFLOWDETECTION')
         HDR.FLAG.OVERFLOWDETECTION = isempty(strfind(upper(MODE),'OVERFLOWDETECTION:OFF'));
+end; 
+if ~isfield(HDR.FLAG,'FORCEALLCHANNEL')
+        HDR.FLAG.FORCEALLCHANNEL = ~isempty(strfind(upper(MODE),'FORCEALLCHANNEL'));
 end; 
 if ~isfield(HDR,'EVENT');
         HDR.EVENT.TYP = []; 
@@ -701,7 +704,7 @@ end;
 			fseek(HDR.FILE.FID,pos,'bof');	
 			while (pos <= HDR.HeadLen-4)
 				%% decode TAG-LENGTH-VALUE structure
-		               	tagval = fread(HDR.FILE.FID,1,'uint32')
+		               	tagval = fread(HDR.FILE.FID,1,'uint32');
 		               	TAG = bitand(tagval, 255);
 		               	LEN = (tagval/256);
 		               	if (pos+4+LEN > HDR.HeadLen)
@@ -937,6 +940,10 @@ end;
 
                         tmp = strmatch('Status',HDR.Label);
                         HDR.BDF.Status.Channel = tmp;
+                        if isempty(ReRefMx)
+                        	ReRefMx = sparse(1:HDR.NS,1:HDR.NS,1);
+                        	ReRefMx(:,tmp) = [];
+                        end;	
 
                         status = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bi(HDR.BDF.Status.Channel)*3,'bof');
                         %t = fread(HDR.FILE.FID,[3,inf],'uint8',HDR.AS.bpb-HDR.AS.SPR(HDR.BDF.Status.Channel)*3);
@@ -7473,12 +7480,12 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
                 end;
                 
                 switch HDR.FormatCode,
-                        case 0; HDR.GDFTYP = 'uint16';
-                        case 3; HDR.GDFTYP = 'int16';  
-                                HDR.Segment_separator = hex2dec(HDR.Segment_separator([3:4,1:2]));
-                        case 5; HDR.GDFTYP = 'float';
-                        otherwise;
-                                fprintf(HDR.FILE.stderr,'Warning LOADSIG: FormatCode %i not implemented\n',HDR.FormatCode);
+                case 0; HDR.GDFTYP = 4; %'uint16';
+                case 3; HDR.GDFTYP = 3; %'int16';  
+			HDR.Segment_separator = hex2dec(HDR.Segment_separator([3:4,1:2]));
+                case 5; HDR.GDFTYP = 16; %'float';
+                otherwise;
+ 			fprintf(HDR.FILE.stderr,'Warning LOADSIG: FormatCode %i not implemented\n',HDR.FormatCode);
                 end;
                 
                 tmp = ftell(HDR.FILE.FID);
@@ -9852,7 +9859,11 @@ if any(HDR.FILE.PERMISSION=='r') & (HDR.NS>0);
         if ~isfield(HDR,'Calib')
                 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); 
         end;
-        HDR.Calib = HDR.Calib*sparse([ReRefMx; zeros(HDR.NS-sz(1),sz(2))]);
+	if ~HDR.FLAG.FORCEALLCHANNEL,
+	        HDR.Calib = HDR.Calib*sparse([ReRefMx; zeros(HDR.NS-sz(1),sz(2))]);
+	else         
+		HDR.ReRefMx = ReRefMx;
+	end; 	 
         
         HDR.InChanSelect = find(any(HDR.Calib(2:HDR.NS+1,:),2));
         HDR.Calib = sparse(HDR.Calib([1;1+HDR.InChanSelect(:)],:));
