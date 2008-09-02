@@ -4,7 +4,7 @@ function HDR=openeep(HDR,arg2,arg3,arg4,arg5,arg6)
 %
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
-%	$Id: openeep.m,v 1.4 2008-08-01 13:43:58 schloegl Exp $
+%	$Id: openeep.m,v 1.5 2008-09-02 10:03:41 schloegl Exp $
 %	Copyright (c) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -221,6 +221,8 @@ else %catch
 			HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,1); % because SREAD uses READ_EEP_CNT.MEX 
 end; 			
                 end
+                HDR.SPR = HDR.SPR*HDR.NRec;
+                HDR.NRec = 1; 
         end
 end;
 
