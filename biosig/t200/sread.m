@@ -24,7 +24,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sread.m,v 1.91 2008-08-14 09:53:31 schloegl Exp $
+%	$Id: sread.m,v 1.92 2008-09-02 10:02:42 schloegl Exp $
 %	(C) 1997-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1158,8 +1158,8 @@ elseif strcmp(HDR.TYPE,'SIGIF'),
                         STATUS = fseek(HDR.FILE.FID,HDR.Block.Length(k)*H1.Bytes_per_Sample,'cof');
                 else
                         tmp = HDR.Segment_separator-1;
-                        [dat,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.Block.Length/HDR.NS],HDR.GDFTYP);
-                        [tmpsep,c] = fread(HDR.FILE.FID,1,HDR.GDFTYP);
+                        [dat,c] = fread(HDR.FILE.FID,[HDR.NS,HDR.Block.Length/HDR.NS],gdfdatatype(HDR.GDFTYP));
+                        [tmpsep,c] = fread(HDR.FILE.FID,1,gdfdatatype(HDR.GDFTYP));
                         
                         if  (tmpsep~=HDR.Segment_separator);
                                 fprintf(HDR.FILE.stderr,'Error SREAD Type=SIGIF: blockseparator not found\n');
@@ -1455,6 +1455,7 @@ end;
 
 
 %%% TOGGLE CHECK - checks whether HDR is kept consist %%% 
+if 0,
 global SREAD_TOGGLE_CHECK
 if isfield(HDR.FLAG,'TOGGLE');
         if HDR.FLAG.TOGGLE~=SREAD_TOGGLE_CHECK,
@@ -1466,6 +1467,7 @@ else
 end;
 SREAD_TOGGLE_CHECK = SREAD_TOGGLE_CHECK+1;
 HDR.FLAG.TOGGLE = HDR.FLAG.TOGGLE+1;
+end; 
 
 if STATUS,
         fprintf(HDR.FILE.stderr,'WARNING SREAD: something went wrong. Please send these files %s and BIOSIGCORE to <a.schloegl@ieee.org>',HDR.FileName);
@@ -1497,7 +1499,7 @@ if ~HDR.FLAG.UCAL,
         % perform the previous function more efficiently and
         % taking into account some specialities related to Octave sparse
         % data. 
-        if isempty(S),	% otherwise 2.1.64 could break below, 
+        if isempty(S),	% otherwise Octave 2.1.64 could break below, 
 		if size(S,2)~=length(HDR.InChanSelect), 
 			fprintf(HDR.FILE.stderr,'Warning SREAD (%s): number of columns (%i) incorrect!\n',HDR.TYPE,size(S,2));
 		end;	
