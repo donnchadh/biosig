@@ -2,7 +2,7 @@ function varargout = sviewer(varargin)
 % SVIEWER
 % Select HELP in the Info menu 
 %
-% $Id: sviewer.m,v 1.15 2008-07-31 07:11:26 schloegl Exp $
+% $Id: sviewer.m,v 1.16 2008-09-02 10:10:31 schloegl Exp $
 % Copyright by (C) 2004 Franz Einspieler <znarfi5@hotmail.com> and
 %              (C) 2004,2008 Alois Schloegl <a.schloegl@ieee.org>
 % University of Technology Graz, Austria
@@ -218,7 +218,7 @@ Data.detcolor = load('detcolor.mat');
 set(findobj('Tag', 'Slider1'), 'Value',0);
 
 newfile = [path,file];
-Data.HDR = sopen(newfile,'r');
+Data.HDR = sopen(newfile,'r',0,'OVERFLOWDETECTION:OFF');
 Data.Total_length_samples = Data.HDR.NRec * max(Data.HDR.SPR);
 Data.Total_length_sec = Data.Total_length_samples / max(Data.HDR.SampleRate);
 Data.ShowSamples = min(1000,Data.Total_length_samples);
