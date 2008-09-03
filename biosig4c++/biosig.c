@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.253 2008-08-19 21:49:48 schloegl Exp $
+    $Id: biosig.c,v 1.254 2008-09-03 07:59:45 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -8282,14 +8282,14 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		for (k4 = 0; k4 < hdr->NRec; k4++) {
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
     			for (k3=0, sample_value=0; k3 < DIV; k3++) 
-				sample_value += data[k1*nelem*hdr->SPR + k4*CHptr->SPR + k5 + k3]; 
+				sample_value += data[k1*nelem*hdr->SPR + k4*hdr->SPR + k5*DIV + k3]; 
 
 			sample_value /= DIV;
 
 			if (!hdr->FLAG.UCAL)	// scaling 
 				sample_value = sample_value * iCal + iOff;
 
-			// get target address 	
+			// get target address
 			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->AS.bi[k1] + k5*SZ;
 
 			// mapping of raw data type to (biosig_data_type)
@@ -8329,12 +8329,13 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				else if (sample_value < MIN_INT8) val.i8 = MIN_INT8;
 				else     val.i8 = (int8_t) sample_value;
 				*(int8_t*)ptr = val.i8; 
+// fprintf(stdout,"swrite: [%i,%i,%i,%i] val=%i\n",k1,k2,k4,k5,val.i8);				 
 			}
 			else if (GDFTYP==2) {
 				if      (sample_value > MAX_UINT8) val.u8 = MAX_UINT8;
 				else if (sample_value < MIN_UINT8) val.u8 = MIN_UINT8;
 				else     val.u8 = (uint8_t) sample_value;
-				*(uint8_t*)ptr = val.u8; 
+				*(uint8_t*)ptr = val.u8;
 			}
 			else if (GDFTYP==5) {
 				if      (sample_value > ldexp(1.0,31)-1) val.i32 = MAX_INT32;
@@ -8704,6 +8705,9 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		fprintf(fid,   "Recording:\n\tID              : %s\n",hdr->ID.Recording);
 		fprintf(fid,               "\tInstitution     : %s\n",hdr->ID.Hospital);
 		fprintf(fid,               "\tTechnician      : %s\t# default: localuser\n",hdr->ID.Technician);
+		fprintf(fid,               "\tEquipment       : %s\n",(char*)&hdr->ID.Equipment);
+		if (VERBOSE_LEVEL>8)
+			fprintf(fid,       "\t                  %#.16Lx\n",(uint64_t)hdr->ID.Equipment);
 		uint8_t IPv6=0;
 		for (uint8_t k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
 		if (IPv6) fprintf(fid,     "\tIPv6 address    : %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3],hdr->IPaddr[4],hdr->IPaddr[5],hdr->IPaddr[6],hdr->IPaddr[7],hdr->IPaddr[8],hdr->IPaddr[9],hdr->IPaddr[10],hdr->IPaddr[11],hdr->IPaddr[12],hdr->IPaddr[13],hdr->IPaddr[14],hdr->IPaddr[15]);
