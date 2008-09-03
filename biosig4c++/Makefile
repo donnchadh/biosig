@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.55 2008-08-22 22:55:10 schloegl Exp $
+###  $Id: Makefile,v 1.56 2008-09-03 08:34:26 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -10,7 +10,7 @@
 
 
 CC            = $(CXX)
-CXX           = g++
+CXX           = g++-4.1
 MinGWCXX      = i586-mingw32msvc-g++
 MEX	      = /opt/MatlabR2008a/bin/mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 #DEFINES      = -D=WITHOUT_SCP_DECODE
@@ -34,6 +34,8 @@ DEL_FILE      = rm
 ####### Output directory
 
 OBJECTS_DIR   = ./
+BIN	      = $(DESTDIR)/usr/bin
+LIB	      = $(DESTDIR)/usr/lib
 
 ####### Files
 SOURCES       = biosig.c \
@@ -59,7 +61,8 @@ OBJECTS       = biosig.o \
 		sopen_scp_write.o \
 		crc4scp.o \
 		sopen_hl7aecg.o \
-		sandbox.o 
+		sandbox.o
+		 
 		
 MinGWOBJECTS  = win32/biosig.obj \
 		win32/getlogin_r.obj \
@@ -75,7 +78,7 @@ MinGWOBJECTS  = win32/biosig.obj \
 		win32/sandbox.obj \
 		win32/zlib/lib/zdll.lib		
 
-TARGET        = save2gdf #save2aecg save2scp libbiosig.a libbiosig.so sigviewer
+TARGET        = save2gdf save2aecg save2scp libbiosig.a libbiosig.so #sigviewer
 
 first: $(TARGET)
 all: $(TARGET) mex sigviewer exe biosig4python
@@ -132,9 +135,6 @@ sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
 		XMLParser/tinyxml.h XMLParser/tinystr.h XMLParser/Tokenizer.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_hl7aecg.o t230/sopen_hl7aecg.c
 
-#cnt.o: cntopenlib/include/cnt.c  
-#	$(CC) -c $(CFLAGS) $(INCPATH) -o cnt.o cntopenlib/include/cnt.c
-
 tinystr.o: XMLParser/tinystr.cpp XMLParser/tinystr.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinystr.o XMLParser/tinystr.cpp
 
@@ -151,7 +151,7 @@ tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinys
 ####### Build rules
 
 biosig4python _biosig.so: biosig.py
-biosig.py:	$(SOURCES) libbiosig.a swig.i
+biosig.py: $(SOURCES) libbiosig.a swig.i
 	swig -c++ -python -I/usr/include -o swig_wrap.cxx swig.i
 	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python2.4
 	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so
@@ -167,22 +167,15 @@ libbiosig.so: $(OBJECTS)
 	$(CXX) -shared -fPIC -o libbiosig.so $(OBJECTS) 
 	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) 
 
-save2gdf: save2gdf.c libbiosig.a libbiosig.so 
-	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
-
-physicalunits: physicalunits.c libbiosig.a
-	$(CXX) $(CXXFLAGS) physicalunits.c $(LFLAGS) $(LIBS) -o physicalunits
-
-
 
 ####### Windows executable
 
-/tmp/zlib123-dll.zip:
-	wget -q -P/tmp http://www.zlib.net/zlib123-dll.zip
+win32/zlib123-dll.zip:
+	wget -q -Pwin32 http://www.zlib.net/zlib123-dll.zip
 
-win32/zlib: /tmp/zlib123-dll.zip
+win32/zlib: win32/zlib123-dll.zip
 	mkdir -p win32/zlib
-	unzip -u /tmp/zlib123-dll.zip -d win32/zlib
+	unzip -u win32/zlib123-dll.zip -d win32/zlib
 
 win32/zlib/lib/zdll.lib: win32/zlib
 	touch --reference=win32/zlib win32/zlib/lib/zdll.lib
@@ -245,13 +238,22 @@ win32 exe: win32/save2gdf.exe
  
 
 
-####### MEX and OCT files 
-mex: mex4m mex4o
+####### application files 
+ 
+save2gdf: save2gdf.c libbiosig.a libbiosig.so 
+	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
 
-mex4m: mexSLOAD.cpp  libbiosig.a libbiosig.so
+physicalunits: physicalunits.c libbiosig.a
+	$(CXX) $(CXXFLAGS) physicalunits.c $(LFLAGS) $(LIBS) -o physicalunits
+
+win32 exe: win32/save2gdf.exe 
+
+mex: mex4m mex4o
+mex4m: mexSLOAD.mexglx
+mexSLOAD.mexglx: mexSLOAD.cpp  libbiosig.a libbiosig.so
 	$(MEX) mexSLOAD.cpp  $(LIBS) 
 
-mex4o:  mexSLOAD.mex libbiosig.a  libbiosig.so
+mex4o:  mexSLOAD.mex 
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a  libbiosig.so 
 	mkoctfile  -v -g --mex mexSLOAD.cpp  $(LIBS) 
 #physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
@@ -261,7 +263,12 @@ oct:  mexSLOAD.oct
 mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a libbiosig.so
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) 
 
-sigviewer: libbiosig.a libbiosig.so
+sigviewer: libbiosig.a 
+	# symbolic link to latest biosig4c
+	rm -rf ../sigviewer/extern/biosig.h
+	ln -s ../../biosig4c++/biosig.h ../sigviewer/extern/biosig.h 
+	rm ../sigviewer/extern/libbiosig.a
+	ln -s ../../biosig4c++/libbiosig.a ../sigviewer/extern/libbiosig.a
 	touch ../sigviewer/src/log_dialog.cpp
 	sh makeSV.sh
 	
@@ -304,30 +311,39 @@ clean:
 
 ####### INSTALL ########
 
-install:
+install: #save2gdf mexSLOAD.mex
 	chmod 0755 	save2gdf
-	cp save2gdf  	$(DESTDIR)/usr/local/bin
-	cp save2aecg 	$(DESTDIR)/usr/local/bin
-	cp save2scp  	$(DESTDIR)/usr/local/bin
-	chmod 0755  	../sigviewer/bin/sigviewer
-	mv ../sigviewer/bin/sigviewer $(DESTDIR)/usr/local/bin
-	cp biosig.h     $(DESTDIR)/usr/include
-	mv libbiosig.so $(DESTDIR)/usr/lib
-	mv libbiosig.a  $(DESTDIR)/usr/lib
-	cp doc/*.1  	$(DESTDIR)/usr/share/man/man1
-	#cp libbiosig.man $(DESTDIR)/usr/share/man/man3
-	#cp mexSLOAD.mex  $(DESTDIR)/usr/local/share/octave
+	install -d $(BIN)
+	install save2gdf $(BIN)
+	install save2aecg $(BIN)
+	install save2scp  	$(BIN)
+	#install rec2bin  	$(BIN)
+	#install bin2rec  	$(BIN)
+	#chmod 0755  	../sigviewer/bin/sigviewer
+	#mv ../sigviewer/bin/sigviewer $(DESTDIR)/usr/local/bin
+	install biosig.h    	$(DESTDIR)/usr/include
+	mv libbiosig.so 	$(LIB)
+	mv libbiosig.a 		$(LIB)
+	mkdir -p  	$(DESTDIR)/usr/share/man/man1
+	install doc/*.1  	$(DESTDIR)/usr/share/man/man1
+	#install libbiosig.man $(DESTDIR)/usr/share/
+	mkdir -p  	$(DESTDIR)/share/octave
+	install mexSLOAD.mex $(DESTDIR)/share/octave
 
 remove: 
-	rm $(DESTDIR)/usr/local/bin/save2gdf
-	rm $(DESTDIR)/usr/local/bin/save2scp
-	rm $(DESTDIR)/usr/local/bin/save2aecg
-	rm $(DESTDIR)/usr/local/bin/sigviewer
+	rm $(BIN)save2gdf
+	rm $(BIN)save2scp
+	rm $(BIN)save2aecg
+	rm $(BIN)rec2bin
+	rm $(BIN)bin2rec
+	rm $(BIN)sigviewer
 	rm $(DESTDIR)/usr/include/biosig.h
-	rm $(DESTDIR)/usr/lib/libbiosig.*
+	rm $(LIB)libbiosig.*
 	rm $(DESTDIR)/usr/share/man/man1/save2gdf.1
 	rm $(DESTDIR)/usr/share/man/man1/mexSLOAD.1
 	rm $(DESTDIR)/usr/share/man/man1/sigviewer.1
+	rm $(DESTDIR)/usr/share/man/man1/rec2bin.1
+	rm $(DESTDIR)/usr/share/man/man1/bin2rec.1
 	
 
 
@@ -461,49 +477,49 @@ test7: /tmp/t1.edf save2gdf
 	./save2gdf -z -f=BDF t0.xxx t1.bdf
 	./save2gdf -z -f=SCP t0.xxx t1.scp
 	./save2gdf -z -f=HL7 t0.xxx t1.hl7   # -z not supported for HL7
-	./save2gdf -z -f=CFW t0.xxx t1.cfw
+	./save2gdf -z -f=CFWB t0.xxx t1.cfw
 	./save2gdf -f=GDF1 t1.gd1.gz t2.gd1.gd1
 	./save2gdf -f=GDF t1.gd1.gz t2.gd1.gdf
 	./save2gdf -f=EDF t1.gd1.gz t2.gd1.edf
 	./save2gdf -f=BDF t1.gd1.gz t2.gd1.bdf
 	./save2gdf -f=SCP t1.gd1.gz t2.gd1.scp
 	./save2gdf -f=HL7 t1.gd1.gz t2.gd1.hl7
-	./save2gdf -f=CFW t1.gd1.gz t2.gd1.cfw
+	./save2gdf -f=CFWB t1.gd1.gz t2.gd1.cfw
 	./save2gdf -f=GDF1 t1.gdf.gz t2.gdf.gd1
 	./save2gdf -f=GDF t1.gdf.gz t2.gdf.gdf
 	./save2gdf -f=EDF t1.gdf.gz t2.gdf.edf
 	./save2gdf -f=BDF t1.gdf.gz t2.gdf.bdf
 	./save2gdf -f=SCP t1.gdf.gz t2.gdf.scp
 	./save2gdf -f=HL7 t1.gdf.gz t2.gdf.hl7
-	./save2gdf -f=CFW t1.gdf.gz t2.gdf.cfw
+	./save2gdf -f=CFWB t1.gdf.gz t2.gdf.cfw
 	./save2gdf -f=GDF1 t1.edf.gz t2.edf.gd1
 	./save2gdf -f=GDF t1.edf.gz t2.edf.gdf
 	./save2gdf -f=EDF t1.edf.gz t2.edf.edf
 	./save2gdf -f=BDF t1.edf.gz t2.edf.bdf
 	./save2gdf -f=SCP t1.edf.gz t2.edf.scp
 	./save2gdf -f=HL7 t1.edf.gz t2.edf.hl7
-	./save2gdf -f=CFW t1.edf.gz t2.edf.cfw
+	./save2gdf -f=CFWB t1.edf.gz t2.edf.cfw
 	./save2gdf -f=GDF1 t1.bdf.gz t2.bdf.gd1
 	./save2gdf -f=GDF t1.bdf.gz t2.bdf.gdf
 	./save2gdf -f=EDF t1.bdf.gz t2.bdf.edf
 	./save2gdf -f=BDF t1.bdf.gz t2.bdf.bdf
 	./save2gdf -f=SCP t1.bdf.gz t2.bdf.scp
 	./save2gdf -f=HL7 t1.bdf.gz t2.bdf.hl7
-	./save2gdf -f=CFW t1.bdf.gz t2.bdf.cfw
+	./save2gdf -f=CFWB t1.bdf.gz t2.bdf.cfw
 	./save2gdf -f=GDF1 t1.scp.gz t2.scp.gd1
 	./save2gdf -f=GDF t1.scp.gz t2.scp.gdf
 	./save2gdf -f=EDF t1.scp.gz t2.scp.edf
 	./save2gdf -f=BDF t1.scp.gz t2.scp.bdf
 #	./save2gdf -f=SCP t1.scp.gz t2.scp.scp
 	./save2gdf -f=HL7 t1.scp.gz t2.scp.hl7
-	./save2gdf -f=CFW t1.scp.gz t2.scp.cfw
+	./save2gdf -f=CFWB t1.scp.gz t2.scp.cfw
 	./save2gdf -f=GDF1 t1.hl7    t2.hl7.gd1
 	./save2gdf -f=GDF t1.hl7    t2.hl7.gdf
 	./save2gdf -f=EDF t1.hl7    t2.hl7.edf
 	./save2gdf -f=BDF t1.hl7    t2.hl7.bdf
 	./save2gdf -f=SCP t1.hl7    t2.hl7.scp
 	./save2gdf -f=HL7 t1.hl7    t2.hl7.hl7
-	./save2gdf -f=CFW t1.hl7    t2.hl7.cfw
+	./save2gdf -f=CFWB t1.hl7    t2.hl7.cfw
 	./save2gdf -f=GDF1 t1.cfw.gz t2.cfw.gd1
 	./save2gdf -f=GDF t1.cfw.gz t2.cfw.gdf
 	./save2gdf -f=EDF t1.cfw.gz t2.cfw.edf
