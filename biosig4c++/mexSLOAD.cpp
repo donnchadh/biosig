@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.39 2008-08-14 10:58:23 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.40 2008-09-03 08:07:46 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -132,7 +132,7 @@ void mexFunction(
 	if (hdr->FLAG.OVERFLOWDETECTION != FlagOverflowDetection)
 		mexPrintf("Warning mexSLOAD: Overflowdetection not supported in file %s\n",hdr->FileName);
 	if (hdr->FLAG.UCAL != FlagUCAL)
-		mexPrintf("Warning mexSLOAD: Flag UCAL is %i instead of %i (%s)\n",FlagUCAL,hdr->FLAG.UCAL,hdr->FileName);
+		mexPrintf("Warning mexSLOAD: Flag UCAL is %i instead of %i (%s)\n",hdr->FLAG.UCAL,FlagUCAL,hdr->FileName);
 
 	if (VERBOSE_LEVEL>8) {
 		mexPrintf("#info @%p\n",&(hdr->CHANNEL));
