@@ -60,7 +60,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.61 2008-07-09 10:05:57 schloegl Exp $
+%	$Id: plota.m,v 1.62 2008-09-04 09:26:48 schloegl Exp $
 %	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -1855,7 +1855,7 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         fprintf(fid,'Accuracy:		  %4.1f %% \nspecific Accuracy:	 ',X.ACC00(tix)*100);
         [kap,sd,H,z,OA,SA,MI] = kappa(X.optCMX);
         fprintf(fid,'%4.1f   ',SA*100);
-        fprintf(fid,'\nKappa:		     %4.2f ± %4.2f\n',X.KAP00(tix),X.Ksd00(tix));
+        fprintf(fid,'\nKappa:		     %4.2f %c %4.2f\n',X.KAP00(tix),177,X.Ksd00(tix));
         fprintf(fid,'I(Wolpaw):		 %4.2f bit\n',wolpaw_entropy(X.ACC00(tix),N));
         fprintf(fid,'I(Nykopp):		 %4.2f bit\n',X.I_Nykopp(tix));
         if isfield(X,'I'),
