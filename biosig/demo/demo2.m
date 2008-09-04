@@ -30,7 +30,7 @@
 %   	BioSig: A Free and Open Source Software Library for BCI Research.
 %	Computer (2008, In Press)	
 
-%	$Id: demo2.m,v 1.11 2008-09-04 07:33:26 schloegl Exp $
+%	$Id: demo2.m,v 1.12 2008-09-04 08:02:51 schloegl Exp $
 %	Copyright (C) 1999-2003,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -56,12 +56,13 @@ if ~exist(filename,'file')
 end; 
 	
 % Step 1a: load data ============================%
-fprintf(1,'Step 1a: Load data file %s.\n',filename);
+fprintf(1,'Step 1: Prepare data.\n',filename);
+fprintf(1,'\ta: Load data file %s.\n',filename);
 [s,HDR]=sload(filename);
 
 % Step 1b: extract trigger and classlabels (if not already available) ==%
 %--------- extraction from event table 
-fprintf(1,'Step 1b: Extract trigger and classlabels.\n');
+fprintf(1,'\tb: Extract trigger and classlabels.\n');
 ix = find((HDR.EVENT.TYP>768)&(HDR.EVENT.TYP<777)); % 0x0300..0x03ff
 HDR.TRIG = HDR.EVENT.POS(ix)-3*HDR.SampleRate;
 HDR.Classlabel = HDR.EVENT.TYP(ix)-768; % 0x0300
@@ -72,7 +73,8 @@ HDR.Classlabel = HDR.EVENT.TYP(ix)-768; % 0x0300
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Step 2: Preprocessing and artifact processing ====================%
 %   2a: Overflowdetection: eeghist.m, [Schlögl et al. 1999] 
-fprintf(1,'Step 2a: Quality control with histogram analysis [Schloegl et al. 1999].\n');
+fprintf(1,'Step 2: Preprocessing.\n');
+fprintf(1,'\ta: Quality control with histogram analysis [Schloegl et al. 1999].\n');
 %Q = eeg2hist(filename); 
 Q = eeg2hist(filename,'manual'); % manual selection of threshold
 clear H;
@@ -80,10 +82,10 @@ H.FileName  = Q.FileName;
 H.THRESHOLD = Q.THRESHOLD; 
 [HDR]=sopen(H,'r',0);[s,HDR]=sread(HDR);HDR=sclose(HDR);
 %   2b: Muscle detection: detectmuscle.m
-fprintf(1,'Step 2b: Detection of muscle artifacts.\n');
+fprintf(1,'\tb: Detection of muscle artifacts.\n');
 
 %   2c: resampling 
-fprintf(1,'Step 2c: resampling.\n');
+fprintf(1,'\tc: resampling.\n');
 DIV = 1; 
 s = rs(s,DIV,1);   % downsampling by a factor of DIV; 
 %s = rs(s,256,100); % downsampling from 256 to 100 Hz. 
@@ -91,7 +93,7 @@ HDR.SampleRate = HDR.SampleRate/DIV;
 
 %   2d: Correction of EOG artifacts: regress_eog.m, get_regress_eog.m   
 % 		[Schlögl et al. 2007]
-fprintf(1,'Step 2d: reduce EOG artifacts.\n');
+fprintf(1,'\td: reduce EOG artifacts.\n');
 eogchan=identify_eog_channels(filename); 
 	% eogchan can be matrix in order to convert 
       	%     monopolar EOG to bipolar EOG channels
@@ -103,7 +105,7 @@ eegchan=find(HDR.CHANTYP=='E'); % exclude any non-eeg channel.
 %       spatial filters can be used to focus on specific areas.
 %       examples are bipolar (BIP), common average reference (CAR), 
 %       Hjorth's Laplace derivation (LAP), Common spatiol patterns (CSP)
-fprintf(1,'Step 2e: spatial filters.\n');
+fprintf(1,'\te: spatial filters.\n');
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -111,9 +113,9 @@ fprintf(1,'Step 2e: spatial filters.\n');
 eegchan=find(HDR.CHANTYP=='E'); % select EEG channels 
 fprintf(1,'Step 3: feature extraction.\n');
 
-p = 6; 
+p = 9; 
 MODE.MOP = [0,p,0];	% order of AAR model
-MODE.UC  = 0.005;		% update coefficient of AAR model %    3a: Time domain parameters 
+MODE.UC  = 0.0085;		% update coefficient of AAR model %    3a: Time domain parameters 
 
 %    3a: Time-dependent parameters - motivated by log(Hjorth)
 fprintf(1,'\ta: TDP (log(Hjorth)).\n');
@@ -170,9 +172,9 @@ CC3.weights
 
 % The chosen time segment used for computing the classifiers are: 
 fprintf(1,'\tc: choosen time segment.\n');
-MODE.T(CC1.TI,:)/HDR.SampleRate, 
-MODE.T(CC2.TI,:)/HDR.SampleRate, 
-MODE.T(CC3.TI,:)/HDR.SampleRate, 
+MODE.T(CC1.TI,[1,end])/HDR.SampleRate, 
+MODE.T(CC2.TI,[1,end])/HDR.SampleRate, 
+MODE.T(CC3.TI,[1:end])/HDR.SampleRate, 
  
 % Accordingly, the time-varying distance is available 
 d1 = [ones(size(a1,1),1),a1]*CC1.weights;
@@ -200,6 +202,8 @@ figure(3);
 plota(CC3.TSD)
 
 figure(4)
-plot(CC1.TSD.T,[CC1.TSD.I,CC2.TSD.I,CC3.TSD.I]);
+M = length(unique(HDR.Classlabel));
+clf;
+plot(CC1.TSD.T,[sum(CC1.TSD.I,2),sum(CC2.TSD.I,2),sum(CC3.TSD.I,2)]*(M-1)/M);
 legend({'TDP','AAR','BP'})
 
