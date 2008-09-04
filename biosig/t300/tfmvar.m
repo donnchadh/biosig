@@ -69,22 +69,22 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %     parameters for visualization
 %
 %  The standard error is calculated with a jackknife-method,
-%  based on LEAVE-ONE-TRIAL-OUT. Therefore, the SE need to be 
+%  based on LEAVE-K-TRIALs-OUT. Therefore, the SE need to be 
 %  rescaled, depending on the needs [10,11]. 
 %     SE 
 %	standard error of the mean from the bootstrap results 
 %	This has usually no common meaning (pretty much useless). 
-%     SE*(N-1)^(1/2) 
+%     SE*(N-K)^(1/2) 
 %	standard deviation of the means from the bootstrapping
 %	It can be interpreted as the standard error of the total mean 
 %	(across all trials).
 %	This value becames smaller if the number of trials increase. 	
-%     SE*(N-1) 	
+%     SE*(N-K) 	
 %	average standard error of the mean (based on a single trial).
 %	This value provides a realistic value for the confidence 
 %	interval of the estimates and can be used to test the 
 %	significance. 
-%     SE*(N-1)*N^(1/2) 
+%     SE*(N-K)*N^(1/2) 
 %	[estimated] standard deviation of a single trial estimate
 %	This value is important for a single-trial classification.  
 %		
@@ -109,8 +109,8 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %	Cortical fuctional network organization from autoregressive modelling of loal field potential oscillations.
 %	Statistics in Medicine, doi: 10.1002/sim.2935 
 
-%	$Revision: 1.11 $
-%	$Id: tfmvar.m,v 1.11 2007-10-17 09:20:39 schloegl Exp $
+%	$Revision: 1.12 $
+%	$Id: tfmvar.m,v 1.12 2008-09-04 09:34:54 schloegl Exp $
 %	Copyright (C) 2004,2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
