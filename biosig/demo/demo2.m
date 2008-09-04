@@ -30,7 +30,7 @@
 %   	BioSig: A Free and Open Source Software Library for BCI Research.
 %	Computer (2008, In Press)	
 
-%	$Id: demo2.m,v 1.10 2008-09-04 06:26:49 schloegl Exp $
+%	$Id: demo2.m,v 1.11 2008-09-04 07:33:26 schloegl Exp $
 %	Copyright (C) 1999-2003,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -95,7 +95,7 @@ fprintf(1,'Step 2d: reduce EOG artifacts.\n');
 eogchan=identify_eog_channels(filename); 
 	% eogchan can be matrix in order to convert 
       	%     monopolar EOG to bipolar EOG channels
-eegchan=1:HDR.NS; % exclude any non-eeg channel. 
+eegchan=find(HDR.CHANTYP=='E'); % exclude any non-eeg channel. 
 %R = regress_eog(s,eegchan,eogchan); 
 %s = s*R.r0; 	% reduce EOG artifacts 
 
@@ -108,7 +108,7 @@ fprintf(1,'Step 2e: spatial filters.\n');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Step 3: Feature extraction ====================%
-eegchan = 1:size(s,2); 	% select EEG channels 
+eegchan=find(HDR.CHANTYP=='E'); % select EEG channels 
 fprintf(1,'Step 3: feature extraction.\n');
 
 p = 6; 
