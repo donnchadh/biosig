@@ -32,7 +32,7 @@ function [kap,se,H,z,p0,SA,R]=kappa(d,c,arg3);
 %
 %  
 
-%	$Id: kappa.m,v 1.9 2008-07-04 10:11:21 schloegl Exp $
+%	$Id: kappa.m,v 1.10 2008-09-04 09:29:31 schloegl Exp $
 %	Copyright (c) 1997-2006,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -120,7 +120,6 @@ else
 	N = sum(sum(H));
     	% end;
 end;
-
 warning('off');
 p0  = sum(diag(H))/N;  %accuracy of observed agreement, overall agreement 
 %OA = sum(diag(H))/N);
@@ -148,8 +147,8 @@ if ((1 < nargout) & (nargout<7)) return; end;
 pwi = sum(H,2)/N;                       % p(x_i)
 pwj = sum(H,1)/N;                       % p(y_j)
 pji = H./repmat(sum(H,2),1,size(H,2));  % p(y_j | x_i) 
-pwj(pwj==0) = 1                        % make sure p*log2(p) is 0, this avoids NaN's 
-pji(pji==0) = 1                        % make sure p*log2(p) is 0, this avoids NaN's 
+pwj(pwj==0) = 1;                        % make sure p*log2(p) is 0, this avoids NaN's 
+pji(pji==0) = 1;                        % make sure p*log2(p) is 0, this avoids NaN's 
 R   = - sum(pwj.*log2(pwj)) + sum(pwi'*(pji.*log2(pji)));
 
 if (nargout>1) return; end; 
