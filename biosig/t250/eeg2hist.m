@@ -32,24 +32,22 @@ function [HDR]=eeg2hist(FILENAME,CHAN);
 % [4] A. Schlögl, Time Series Analysis toolbox for Matlab. 1996-2003
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/tsa/
 
-% 	$Id: eeg2hist.m,v 1.7 2008-01-23 22:04:41 schloegl Exp $
+% 	$Id: eeg2hist.m,v 1.8 2008-09-04 07:32:18 schloegl Exp $
 %	Copyright (C) 2002,2003,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>		
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
-
-% This library is free software; you can redistribute it and/or
-% modify it under the terms of the GNU Library General Public
-% License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
 %
-% This library is distributed in the hope that it will be useful,
-% but WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-% Library General Public License for more details.
+%    BioSig is free software: you can redistribute it and/or modify
+%    it under the terms of the GNU General Public License as published by
+%    the Free Software Foundation, either version 3 of the License, or
+%    (at your option) any later version.
 %
-% You should have received a copy of the GNU Library General Public
-% License along with this library; if not, write to the
-% Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-% Boston, MA  02111-1307, USA.
+%    BioSig is distributed in the hope that it will be useful,
+%    but WITHOUT ANY WARRANTY; without even the implied warranty of
+%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%    GNU General Public License for more details.
+%
+%    You should have received a copy of the GNU General Public License
+%    along with BioSig.  If not, see <http://www.gnu.org/licenses/>.
 
 
 MODE=0; 
@@ -60,6 +58,10 @@ if ischar(CHAN),
 end; 
  
 
+[s,HDR]=sload(FILENAME,0,'OVERFLOWDETECTION','OFF','UCAL','ON');
+%H = histo2(s);
+
+if 1, 
 HDR = sopen(FILENAME,'r',CHAN,'UCAL');	% open EEG file in uncalibrated mode (no scaling of the data)
 if HDR.FILE.FID<0,
         fprintf(2,'EEG2HIST: couldnot open file %s.\n',FILENAME); 
@@ -71,7 +73,7 @@ HDR.FLAG.OVERFLOWDETECTION = 0; % OFF
 if CHAN<1, CHAN=1:HDR.NS; end;
 
 H.datatype='HISTOGRAM';
-if strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'CNT') | strcmp(HDR.TYPE,'EEG'),
+if all(HDR.GDFTYP==3) % strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'CNT') | strcmp(HDR.TYPE,'EEG'),
         [s,HDR]=sread(HDR);
         
         H.H = zeros(2^16,HDR.NS);
@@ -82,12 +84,29 @@ if strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'CNT') | strcmp(HDR.TYPE,'EEG'),
                 	H.H(:,l)=sparse(s(:,l)'+2^15+1,1,1,2^16,1);
 		end;
         end;
-        tmp = find(any(H.H,2));
-        H.X = tmp-2^15-1; 	%int16
-        H.H = H.H(tmp,:);
+        H.X = [-2^15:2^15-1]'; 	%int16
+        %tmp = find(any(H.H,2));
+        %H.X = tmp-2^15-1; 	%int16
+        %H.H = H.H(tmp,:);
+
+elseif all(HDR.GDFTYP==4) 
+        [s,HDR]=sread(HDR);
+        
+        H.H = zeros(2^16,HDR.NS);
+        for l = 1:HDR.NS,
+		if exist('OCTAVE_VERSION') > 2,
+                	for k = s(:,l)'+1, H.H(k,l) = H.H(k,l)+1;  end;
+		else
+                	H.H(:,l)=sparse(s(:,l)'+1,1,1,2^16,1);
+		end;
+        end;
+        H.X = [0:2^16-1]';
+        %tmp = find(any(H.H,2));
+        %H.X = tmp-1; 	%uint16
+        %H.H = H.H(tmp,:);
 
         
-elseif strcmp(HDR.TYPE,'BDF'),
+elseif all(HDR.GDFTYP==(255+24)) %strcmp(HDR.TYPE,'BDF'),
         [s,HDR] = sread(HDR);
         
         H.H = sparse(2^24,HDR.NS);
@@ -143,7 +162,6 @@ elseif (strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') |  strcmp(HDR.TYPE,'ACQ'
 elseif ~strcmp(HDR.TYPE,'unknown')
 	[s,HDR]=sread(HDR); 
 	H = histo2(s); 
-	HDR.HIS = H; 
 	if any(HDR.GDFTYP>6)
 	        fprintf(2,'WARNING EEG2HIST: data is not integer.\n');
 	end; 	
@@ -152,10 +170,21 @@ else
         fprintf(2,'EEG2HIST: format %s not implemented yet.\n',HDR.TYPE);
 end;
 HDR = sclose(HDR);
+end; 
+
+HDR.HIS = H; 
 
 %%% complete histogram and display it 
 H.N = sumskipnan(H.H);
 %H.X = [ones(size(H.X,1),1),repmat(H.X,1,length(CHAN))]*HDR.Calib; 	%int16
+
+if strcmp(HDR.TYPE,'GDF')
+	HDR.THRESHOLD = [HDR.DigMin(:),HDR.DigMax(:)];
+end; 
+
+if ~isfield(HDR,'THRESHOLD')
+	HDR.THRESHOLD = 1e5*ones(HDR.NS,1)./HDR.Cal(:) *[-1,1];
+end; 
 
         N=ceil(sqrt(size(H.H,2)));
         for K = 1:size(H.H,2);
@@ -191,17 +220,22 @@ H.N = sumskipnan(H.H);
 	end; 
 
 if MODE,	
+	figure(gcf); %set(gcf,'CurrentFigure');
+	drawnow; 
 	fprintf(1,'\nEEG2HIST:>Now You can modify the thresholds with mouse clicks.'); 
 	fprintf(1,'\nEEG2HIST:>When you are finished, PRESS ANY KEY on the keyboard.'); 
-
+	fprintf(1,'\nEEG2HIST:> (make sure the focus is on the figure window).'); 
+	
 	% modify Threshold 
 	if ~isfield(HDR,'THRESHOLD'),
 		HDR.THRESHOLD = repmat(NaN,HDR.NS,2); 
 	end;
 	b  = 0; 
 	K0 = 0; 
-	while (b<4),
-		[x,y,b]=ginput(1); 
+	while (b<2),
+		[x,y,b]=ginput(1);
+		if isempty(b) break;end; 
+
 		v=axis; 
 		K = find(a==gca); 
                 %min(K,size(H.X,2))
