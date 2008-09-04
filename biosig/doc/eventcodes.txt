@@ -4,10 +4,10 @@
 # GDF v1.x http://hci.tugraz.at/schloegl/matlab/eeg/gdf4/TR_GDF.pdf
 # and part of the BioSig project http://biosig.sf.net/
 # Copyright (C) 2004,2005,2006,2008 Alois Schloegl <a.schloegl@ieee.org>
-# $Id: eventcodes.txt,v 1.11 2008-06-13 13:32:56 schloegl Exp $
+# $Id: eventcodes.txt,v 1.12 2008-09-04 09:36:16 schloegl Exp $
 #
 # BioSig is free software; you can redistribute it and/or
-# modify it under the terms of the GNU Library General Public
+# modify it under the terms of the GNU General Public
 # License as published by the Free Software Foundation; either
 # Version 3 of the License, or (at your option) any later version.
 #
@@ -148,7 +148,8 @@
 ### 0x100_	neural spikes 
 #
 ### 0x00__	user specific events
-# the use of these types is discouraged, because of ambigous definitions. 
+# the use of the following types is discouraged, because of possible ambiguities. 
+#0x0000	empty event, reserved for special use
 0x0001	condition 1
 0x0002	condition 2
 0x0003	condition 3

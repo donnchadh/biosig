@@ -24,6 +24,7 @@ function [R,S] = regress_eog(D,ny,nx)
 %          One can define OL = sparse([23,24,25,26],[1,1,2,2],[1,-1,1,-1]) 
 %	   resulting in two noise channels defined as bipolar channels #23-#24 and #25-#26
 %  R.r1, R.r0    rereferencing matrix for correcting artifacts with and without offset correction
+%  R.b0	coefficients of EOG influencing EEG channels
 %  S2   corrected EEG-signal      
 %
 % see also: IDENTIFY_EOG_CHANNELS, SLOAD
@@ -37,7 +38,7 @@ function [R,S] = regress_eog(D,ny,nx)
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 % 
 % This program is distributed in the hope that it will be useful,
@@ -49,8 +50,8 @@ function [R,S] = regress_eog(D,ny,nx)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: regress_eog.m,v 1.8 2008-01-19 20:50:23 schloegl Exp $
-%	(C) 1997-2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: regress_eog.m,v 1.9 2008-09-04 09:36:16 schloegl Exp $
+%	(C) 1997-2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if ischar(D),

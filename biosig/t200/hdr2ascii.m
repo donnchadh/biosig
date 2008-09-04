@@ -12,7 +12,7 @@ function [argout,H1,h2] = hdr2ascii(source,dest)
 %  
 % see also: SLOAD, SOPEN
 
-%	$Id: hdr2ascii.m,v 1.13 2008-08-14 09:54:52 schloegl Exp $
+%	$Id: hdr2ascii.m,v 1.14 2008-09-04 09:36:16 schloegl Exp $
 %	Copyright (C) 2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -65,7 +65,7 @@ end;
 
 %%%%%%%%% FIXED HEADER %%%%%%%%%%%%%%		
 fprintf(fid,'[BioSig Header]\n\n'); 
-fprintf(fid,'Version=0.10\n',dest); 
+fprintf(fid,'Version=0.10\n'); 
 fprintf(fid,'generated=%04i-%02i-%02i %02i:%02i:%04.1f\n',datevec(now)); 
 if fid>2;
 	fprintf(fid,'\n;This is a TAB-delimiter file. When you edit this file, make sure not to corrupt the TABs ASCII(9)!\n\n'); 
