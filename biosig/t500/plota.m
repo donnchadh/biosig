@@ -60,7 +60,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.64 2008-09-04 14:13:00 schloegl Exp $
+%	$Id: plota.m,v 1.65 2008-09-04 14:31:27 schloegl Exp $
 %	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -1928,11 +1928,11 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
         v=axis; axis([xlim,0,1.5]);
 
         subplot(nf(6));
-        if isfield(X,'N')
+        if isfield(X.TSD,'N')
         	% show significance interval 
 	        alpha = .05;
- 	       	ci = tanh(sqrt(2)*erfinv(1-2*alpha)./sqrt(X.N-3));		% confidence interval for alpha of z
-	        plot(X.T.t,X.TSD.r,'-',X.T,ci*[-1,1],'k:');
+ 	       	ci = tanh(sqrt(2)*erfinv(1-2*alpha)./sqrt(X.TSD.N-3));		% confidence interval for alpha of z
+	        plot(X.T.t,X.TSD.r,'-',X.T.t,ci*[-1,1],'k:');
 	        LEG = [Labels,{sprintf('alpha=%f',alpha)}];
 	else
 	        plot(X.T.t,X.TSD.r,'-');
