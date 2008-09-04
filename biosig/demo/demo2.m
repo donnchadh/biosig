@@ -6,31 +6,34 @@
 %
 %
 % References: 
-% [1] A. Schlögl, C. Keinrath, R. Scherer, G. Pfurtscheller,
-%       Information transfer of an EEG-based Bran-computer interface.
-%       Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003. 
-% [2] Schlögl A., Neuper C. Pfurtscheller G.
-%       Estimating the mutual information of an EEG-based Brain-Computer-Interface
-%       Biomedizinische Technik 47(1-2): 3-8, 2002.
-% [3] Alois Schlögl (2000)
+% [1] A. SchlÃ¶gl, B. Kemp, T. Penzel, D. Kunz, S.-L. Himanen, A. Värri, G. Dorffner, G. Pfurtscheller.
+%       Quality Control of polysomnographic Sleep Data by Histogram and Entropy Analysis.
+%       Clin. Neurophysiol. 1999, Dec; 110(12): 2165 - 2170.
+% [2] Alois SchlÃ¶gl (2000)
 %       The electroencephalogram and the adaptive autoregressive model: theory and applications
 %       Shaker Verlag, Aachen, Germany, (ISBN3-8265-7640-3). 
-% [4] A. Schlögl, J. Kronegg, J.E. Huggins, S. G. Mason.
+% [3] SchlÃ¶gl A., Neuper C. Pfurtscheller G.
+%       Estimating the mutual information of an EEG-based Brain-Computer-Interface
+%       Biomedizinische Technik 47(1-2): 3-8, 2002.
+% [4] A. SchlÃ¶gl, C. Keinrath, R. Scherer, G. Pfurtscheller,
+%       Information transfer of an EEG-based Bran-computer interface.
+%       Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003. 
+% [5] A. SchlÃ¶gl, J. Kronegg, J.E. Huggins, S. G. Mason.
 %       Evaluation criteria in BCI research.
 %       (Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller,
-%       Towards Brain-Computer Interfacing. MIT Press, 2007.
-% [5] A. Schlögl, F.Y. Lee, H. Bischof, G. Pfurtscheller
+%       Towards Brain-Computer Interfacing. MIT Press, p.327-342, 2007.
+% [6] A. SchlÃ¶gl, F.Y. Lee, H. Bischof, G. Pfurtscheller
 %   	Characterization of Four-Class Motor Imagery EEG Data for the BCI-Competition 2005.
 %   	Journal of neural engineering 2 (2005) 4, S. L14-L22
-% [6] A. Schlögl, C. Brunner, R. Scherer, A. Glatz;
+% [7] A. SchlÃ¶gl, C. Brunner, R. Scherer, A. Glatz;
 %   	BioSig - an open source software library for BCI research.
 %   	(Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R. Müller;
 %   	Towards Brain-Computer Interfacing, MIT Press, 2007, p.347-358. 
-% [7] A. Schlögl, C. Brunner
+% [8] A. SchlÃ¶gl, C. Brunner
 %   	BioSig: A Free and Open Source Software Library for BCI Research.
 %	Computer (2008, In Press)	
 
-%	$Id: demo2.m,v 1.12 2008-09-04 08:02:51 schloegl Exp $
+%	$Id: demo2.m,v 1.13 2008-09-04 09:42:44 schloegl Exp $
 %	Copyright (C) 1999-2003,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -61,13 +64,15 @@ fprintf(1,'\ta: Load data file %s.\n',filename);
 [s,HDR]=sload(filename);
 
 % Step 1b: extract trigger and classlabels (if not already available) ==%
-%--------- extraction from event table 
 fprintf(1,'\tb: Extract trigger and classlabels.\n');
-ix = find((HDR.EVENT.TYP>768)&(HDR.EVENT.TYP<777)); % 0x0300..0x03ff
-HDR.TRIG = HDR.EVENT.POS(ix)-3*HDR.SampleRate;
-HDR.Classlabel = HDR.EVENT.TYP(ix)-768; % 0x0300
 %--------  extraction from trigger channel: 
 % HDR.TRIG = gettrigger(s(:,triggerchannel)); 
+%--------- extraction from event table 
+ix = find((HDR.EVENT.TYP>768)&(HDR.EVENT.TYP<777)); % 0x0300..0x03ff
+HDR.Classlabel = HDR.EVENT.TYP(ix)-768; % 0x0300
+HDR.TRIG = HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('300'));
+t0 = HDR.EVENT.POS(ix);
+t0 = (t0(1) - HDR.TRIG(1))/HDR.SampleRate; 	% time between trial start and cue; 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -158,9 +163,9 @@ TYPE = 'LDA';	% classifier type.0
 CC1 = findclassifier(a1, HDR.TRIG, [HDR.Classlabel,NG], MODE.T, MODE.WIN, TYPE);
 CC2 = findclassifier(a2, HDR.TRIG, [HDR.Classlabel,NG], MODE.T, MODE.WIN, TYPE);
 CC3 = findclassifier(a3, HDR.TRIG, [HDR.Classlabel,NG], MODE.T, MODE.WIN, TYPE);
-CC1.TSD.T = CC1.TSD.T/HDR.SampleRate;
-CC2.TSD.T = CC2.TSD.T/HDR.SampleRate;
-CC3.TSD.T = CC3.TSD.T/HDR.SampleRate;
+CC1.TSD.T = CC1.TSD.T/HDR.SampleRate-t0;
+CC2.TSD.T = CC2.TSD.T/HDR.SampleRate-t0;
+CC3.TSD.T = CC3.TSD.T/HDR.SampleRate-t0;
 
 % For online feedback, the weights of the linear classifier 
 %   are available through 
@@ -192,18 +197,39 @@ d3 = [ones(size(a3,1),1),a3]*CC3.weights;
 fprintf(1,'Step 5: classifier.\n');
 
 % the various evaluation criteria are discussed in Schlogl, Kronegg et 2007. 
+fprintf(1,'\t Fig 1: results from TDP+%s.\n',TYPE);
 figure(1);
 plota(CC1.TSD)
 
+fprintf(1,'\t Fig 2: results from AAR+%s results.\n',TYPE);
 figure(2);
 plota(CC2.TSD)
 
+fprintf(1,'\t Fig 3: results from BandPower+%s results.\n',TYPE);
 figure(3);
 plota(CC3.TSD)
 
-figure(4)
+
+fprintf(1,'\t Fig 3+: various evaluation criteria [Schlögl et al. 2007] for comparing different features ');
+
+LEG= {['TDP+',TYPE],['AAR+',TYPE],['BP+',TYPE]};
 M = length(unique(HDR.Classlabel));
-clf;
-plot(CC1.TSD.T,[sum(CC1.TSD.I,2),sum(CC2.TSD.I,2),sum(CC3.TSD.I,2)]*(M-1)/M);
-legend({'TDP','AAR','BP'})
+FFIELD = {'ERR','r','I','SNR','AUC','ACC00','KAP00','I_wolpaw','I_Nykopp','STMI'}; 
+TIT = {'Error rate','correlation coefficient','Mutual information','Signal-to-Noise ratio','Area-under-the-ROC-curve','Accuracy','Cohens kappa coefficient','Information transfer [Wolpaw]','Information transfer [Nykopp]','Steepness of mutual information'};
+PhysDim = {'[1]','[1]','[bit]','[1]','[1]','[1]','[1]','[bit]','[bit]','[bit/s]'};
+for k=1:length(FFIELD),
+	figure(k+3); 
+	ffield = FFIELD{k};
+fprintf(1,'\t Fig %i: %s (CC.TSD.%s)\n',k+3,TIT{k},ffield);
+	if strcmp(ffield,'STMI') 	% steepness of mutual information 
+		plot(CC1.TSD.T+t0,[sum(CC1.TSD.I,2),sum(CC2.TSD.I,2),sum(CC3.TSD.I,2)]./t(:,[1,1,1])*(M-1)/M);
+	elseif (size(getfield(CC1.TSD,ffield),1)>1)	
+		plot(CC1.TSD.T+t0,[sum(getfield(CC1.TSD,ffield),2),sum(getfield(CC2.TSD,ffield),2),sum(getfield(CC3.TSD,ffield),2)]*(M-1)/M);
+	else
+		plot(CC1.TSD.T+t0,[getfield(CC1.TSD,ffield),getfield(CC2.TSD,ffield),getfield(CC3.TSD,ffield)]);
+	end; 	
+	legend(LEG);
+	ylabel([ffield,' ',PhysDim{k}]); 
+	title(TIT{k})
+end; 
 
