@@ -19,4 +19,5 @@ SOURCES +=  *.c \
   t210\*.cpp \
   t220\*.c \
   t230\*.c \
+  test0\sandbox.c \
   XMLParser\*.cpp
