@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.230 2008-09-02 10:02:21 schloegl Exp $
+%	$Id: sopen.m,v 1.231 2008-09-04 09:33:46 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -5682,6 +5682,9 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 flag.tfm = flag.tfm + 4*((isfield(tmp.BPVsBP,'HF_sBP') & isfield(tmp.BPVsBP,'LF_sBP') & isfield(tmp.BPVsBP,'PSD_sBP') & isfield(tmp.BPVsBP,'VLF_sBP'))); 
         end; 
         flag.bbci = isfield(tmp,'bbci') & isfield(tmp,'nfo');
+        flag.bcic2008_1 = isfield(tmp,'cnt') && isfield(tmp,'nfo') && isfield(tmp,'mrk'); 
+        flag.bcic2008_3 = isfield(tmp,'test_data') && isfield(tmp,'training_data') && isfield(tmp,'Info'); 
+        flag.bcic2008_4 = isfield(tmp,'test_data') && isfield(tmp,'train_data') && isfield(tmp,'train_dg'); 
         if flag.bbci
         	flag.bbci = isfield(tmp,'mnt') & isfield(tmp,'mrk') & isfield(tmp,'dat') & isfield(tmp,'fs_orig') & isfield(tmp,'mrk_orig'); 
         	if ~(flag.bbci),
@@ -5759,7 +5762,64 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.TYPE = 'native'; 
 		clear tmp;         
         
-        elseif isfield(tmp,'mnt') & isfield(tmp,'mrk') & isfield(tmp,'cnt')                
+        elseif flag.bcic2008_1,	%isfield(tmp,'cnt') && isfield(tmp,'mrk') && isfield(tmp,'nfo')                
+        	HDR.SampleRate = tmp.nfo.fs; 
+        	HDR.NRec = 1;
+        	HDR.Label = tmp.nfo.clab';
+        	HDR.EVENT.POS = tmp.mrk.pos';
+        	if isfield(tmp.nfo,'className')
+        		HDR.EVENT.CodeDesc = tmp.nfo.className;
+        	end; 	
+        	if isfield(tmp.mrk,'y')
+        		[u,i,HDR.Classlabel] = unique(tmp.mrk.y);
+        		HDR.EVENT.TYP = HDR.Classlabel(:);
+        		HDR.TRIG = tmp.mrk.pos';
+        	elseif isfield(tmp.mrk,'toe')
+        		HDR.EVENT.TYP = tmp.mrk.toe';
+	        	HDR.Classlabel = tmp.mrk.toe;
+        	else
+        		HDR.EVENT.TYP = zeros(size(HDR.EVENT.POS));
+	        end; 	
+
+        	HDR.data  = tmp.cnt; 
+        	[HDR.SPR,HDR.NS] = size(HDR.data);
+        	HDR.Calib = sparse(2:HDR.NS+1, 1:HDR.NS, 0.1); 
+        	HDR.PhysDimCode = repmat(4275,HDR.NS,1);	% uV
+		        	
+		if (CHAN==0), CHAN=1:HDR.NS; end; 
+       		[tmp0,HDR.THRESHOLD,tmp1,HDR.bits,HDR.GDFTYP] = gdfdatatype(class(HDR.data));
+        	HDR.THRESHOLD = repmat(HDR.THRESHOLD,HDR.NS,1); 
+        	HDR.TYPE  = 'native'; 
+        
+
+        elseif flag.bcic2008_3,	                
+		HDR.NS = 10; 
+		HDR.Label = tmp.Info.MEGChannelPosition;
+		HDR.Filter.LowPass = 100;		
+		HDR.Filter.HighPass = 0.3;
+		HDR.SampleRate = 400; 
+		HDR.data = cat(1,cat(1,tmp.training_data{:}),tmp.test_data);
+		[N,HDR.SPR,HDR.NS]=size(HDR.data); 
+		HDR.Classlabel = [ceil((1:160)'/40);repmat(NaN,size(tmp.test_data,1),1)];
+		HDR.TRIG = [0:N-1]*HDR.SPR+1;
+		%HDR.data = reshape(permute(HDR.data,[2,1,3]),
+		return; 
+
+						
+        elseif flag.bcic2008_4,	                
+        	HDR.SampleRate = 1000; 
+        	HDR.NRec = 1;
+        	HDR.NS   = 62+5;
+        	HDR.data = [tmp.train_data,tmp.train_dg;repmat(NaN,1000,HDR.NS);tmp.test_data,repmat(NaN,size(tmp.test_data,1),5)];
+        	[HDR.SPR,HDR.NS] = size(HDR.data);
+        	HDR.Label = cellstr(num2str([1:HDR.NS]'));
+        	
+        	HDR.Calib = sparse(2:HDR.NS+1, 1:HDR.NS, 1); 
+        	HDR.PhysDimCode = repmat(0,HDR.NS,1);	% unknown
+        	HDR.TYPE  = 'native'; 
+
+        
+        elseif isfield(tmp,'mnt') && isfield(tmp,'mrk') && isfield(tmp,'cnt')                
         	HDR.SampleRate = tmp.cnt.fs; 
         	HDR.NRec = 1;
         	HDR.Label = tmp.cnt.clab';
@@ -9839,7 +9899,7 @@ if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	HDR.EVENT.CHN = HDR.EVENT.CHN(~flag_remove);
 	HDR.EVENT.DUR = HDR.EVENT.DUR(~flag_remove);
 end;	
-[tmp,ix]=sort(HDR.EVENT.POS);
+[tmp,ix] = sort(HDR.EVENT.POS);
 HDR.EVENT.TYP=HDR.EVENT.TYP(ix);
 HDR.EVENT.POS=HDR.EVENT.POS(ix);
 HDR.EVENT.DUR=HDR.EVENT.DUR(ix);
