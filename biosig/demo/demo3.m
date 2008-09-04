@@ -3,7 +3,7 @@
 %    and it tests also Matlab/Octave for its correctness. 
 % 
 
-%	$Id: demo3.m,v 1.12 2008-07-02 08:46:43 schloegl Exp $
+%	$Id: demo3.m,v 1.13 2008-09-04 09:37:36 schloegl Exp $
 %	Copyright (C) 2000-2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -48,7 +48,23 @@ HDR.Patient.Handedness = 0; 	% unknown, 1:left, 2:right, 3: equal
 
 
 % recording identification, max 80 char.
-HDR.RID = 'recording identification';
+HDR.RID = 'TestFile 001'; %StudyID/Investigation [consecutive number];
+HDR.REC.Hospital   = 'BioSig Test Lab'; 
+HDR.REC.Techician  = 'Mister Muster';
+HDR.REC.Equipment  = 'biosig';
+HDR.REC.IPaddr	   = [127,0,0,1];	% IP address of recording system 	
+HDR.Patient.Name   = 'anonymous';  
+HDR.Patient.Id     = '007';
+HDR.Patient.Weight = 0; 	% undefined 
+HDR.Patient.Height = 0; 	% undefined 
+HDR.Patient.Sex    = 0; 	% 0: undefined,	1: male, 2: female 
+HDR.Patient.Birthday = zeros(1,6); %    undefined 
+HDR.Patient.Impairment.Heart = 0;  %	0: unknown 1: NO 2: YES 3: pacemaker 
+HDR.Patient.Impairment.Visual = 0; %	0: unknown 1: NO 2: YES 3: corrected (with visual aid) 
+HDR.Patient.Smoking = 0;           %	0: unknown 1: NO 2: YES 
+HDR.Patient.AlcoholAbuse = 0; 	   %	0: unknown 1: NO 2: YES 
+HDR.Patient.DrugAbuse = 0; 	   %	0: unknown 1: NO 2: YES 
+HDR.Patient.Handedness = 0; 	   % 	unknown, 1:left, 2:right, 3: equal
 
 % recording time [YYYY MM DD hh mm ss.ccc]
 HDR.T0 = clock;	
@@ -88,7 +104,7 @@ HDR.PhysDim = {'uV';'mV';'%';'-';'-';'°C'};
 
 t = [100:100:size(x,1)]';
 %HDR.NRec = 100;
-HDR.VERSION = 2.0; 
+HDR.VERSION = 2.1; 
 HDR = sopen(HDR,'w');
 %HDR.SIE.RAW = 0; % [default] channel data mode, one column is one channel 
 %HDR.SIE.RAW = 1; % switch to raw data mode, i.e. one column for one EDF-record
