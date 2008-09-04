@@ -1,14 +1,18 @@
-function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
+function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,MODE1,t0,MODE)
 % FINDCLASSIFIER
 %   identifies and validates a classifier of a BCI systems [1-3]. 
 %   Several evaluation criteria are obtained [4]. Several Cross-validation 
 %   procedures are supported. 
 %
-% By default, a Trial-based Leave-One-Out-Method is used for Crossvalidation     
+% By default, a Trial-based Leave-One-Out-Method is used for Crossvalidation    
+%	MODE.Segments = class_times; 
+%	MODE.WIN   = t_ref; 
+%       [CC,Q,TSD] = findclassifier(D,TRIG,Class,MODE,t_ref,TYPE);
+% Also this will work but its use is discouraged (it might become obsolete). 
 %       [CC,Q,TSD] = findclassifier(D,TRIG,Class,class_times,t_ref,TYPE);
 % An K-fold cross-validation can be applied in this way: 
 %       ng = floor([0:length(Class)-1]'/length(Class)*K);
-%       [CC,Q,TSD] = findclassifier(D,TRIG,[Class,ng],class_times,t_ref,TYPE);
+%       [CC,Q,TSD] = findclassifier(D,TRIG,[Class,ng],...);
 %
 % D 	data, each row is one time point
 % TRIG	trigger time points
@@ -42,7 +46,7 @@ function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
 %	(Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller;
 %	Towards Brain-Computer Interfacing, MIT Press, p327-342, 2007
 
-%   $Id: findclassifier.m,v 1.12 2008-08-29 16:31:06 schloegl Exp $
+%   $Id: findclassifier.m,v 1.13 2008-09-04 13:57:37 schloegl Exp $
 %   Copyright (C) 1999-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -61,7 +65,17 @@ function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,T,t0,MODE)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-CC =[]; Q = [];tsd=[];md=[];
+CC = []; Q = [];tsd=[];md=[];
+if isstruct(MODE1)
+	CC.T = MODE1; 
+	T  = MODE1.Segments;
+	t0 = MODE1.WIN; 
+else 
+	T = MODE1; 	
+end; 	 
+if ~isempty(t0)
+	warning('arg5 (t_ref) should be empty. Use MODE.WIN=t_ref instead.') 
+end; 
 
 if nargin<6,
         MODE.TYPE='LD3';
@@ -140,6 +154,9 @@ CC = cc{TI};
 CC.KAPPA = KAPPA;
 CC.TI = TI;
 CC.TC = T(TI,:);
+if isstruct(MODE1)
+	CC.T = MODE1; 
+end; 
 
 if isnan(maxQ)
 	fprintf(2,'ERROR FINDCLASSIFIER: no valid classifier available.\n'); 

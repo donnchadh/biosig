@@ -33,7 +33,7 @@
 %   	BioSig: A Free and Open Source Software Library for BCI Research.
 %	Computer (2008, In Press)	
 
-%	$Id: demo2.m,v 1.13 2008-09-04 09:42:44 schloegl Exp $
+%	$Id: demo2.m,v 1.14 2008-09-04 13:57:36 schloegl Exp $
 %	Copyright (C) 1999-2003,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -151,6 +151,10 @@ NoS = ceil(9*HDR.SampleRate/SegmentLen);
 MODE.T   = reshape((1:NoS*SegmentLen),SegmentLen,NoS)';
 % valid segments for building classifier must be after cue.
 MODE.WIN = MODE.T(:,1) > 3*HDR.SampleRate+1;	% cue @ t=3s.
+MODE.t0= t0;
+MODE.t = [min(MODE.T(:)):max(MODE.T(:))]'/HDR.SampleRate;
+MODE.Segments = MODE.T;
+MODE.Fs = HDR.SampleRate;  
 
 %%%% X-V based on Jackknife-procedure (leave-K-trials-out)
 K = 1; 
@@ -159,13 +163,10 @@ NG = ceil([1:length(HDR.Classlabel)]'/K);
 TYPE = 'LDA';	% classifier type.0 
 % other possible classifiers are: MDA, LD2, LD3, LD4, GDBC, SVM, RBF, NBC, aNBC, LDA/GSVD, MDA/GSVD, LDA/sparse, MDA/sparse 
 
-% search best segment, cross-validation using jackknife procedure, LDA
-CC1 = findclassifier(a1, HDR.TRIG, [HDR.Classlabel,NG], MODE.T, MODE.WIN, TYPE);
-CC2 = findclassifier(a2, HDR.TRIG, [HDR.Classlabel,NG], MODE.T, MODE.WIN, TYPE);
-CC3 = findclassifier(a3, HDR.TRIG, [HDR.Classlabel,NG], MODE.T, MODE.WIN, TYPE);
-CC1.TSD.T = CC1.TSD.T/HDR.SampleRate-t0;
-CC2.TSD.T = CC2.TSD.T/HDR.SampleRate-t0;
-CC3.TSD.T = CC3.TSD.T/HDR.SampleRate-t0;
+% search best segment, cross-validation using jackknife procedure, 1-vs-rest classifier 
+CC1 = findclassifier(a1, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
+CC2 = findclassifier(a2, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
+CC3 = findclassifier(a3, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
 
 % For online feedback, the weights of the linear classifier 
 %   are available through 
@@ -179,7 +180,7 @@ CC3.weights
 fprintf(1,'\tc: choosen time segment.\n');
 MODE.T(CC1.TI,[1,end])/HDR.SampleRate, 
 MODE.T(CC2.TI,[1,end])/HDR.SampleRate, 
-MODE.T(CC3.TI,[1:end])/HDR.SampleRate, 
+MODE.T(CC3.TI,[1,end])/HDR.SampleRate, 
  
 % Accordingly, the time-varying distance is available 
 d1 = [ones(size(a1,1),1),a1]*CC1.weights;
@@ -199,15 +200,15 @@ fprintf(1,'Step 5: classifier.\n');
 % the various evaluation criteria are discussed in Schlogl, Kronegg et 2007. 
 fprintf(1,'\t Fig 1: results from TDP+%s.\n',TYPE);
 figure(1);
-plota(CC1.TSD)
+plota(CC1)
 
 fprintf(1,'\t Fig 2: results from AAR+%s results.\n',TYPE);
 figure(2);
-plota(CC2.TSD)
+plota(CC2)
 
 fprintf(1,'\t Fig 3: results from BandPower+%s results.\n',TYPE);
 figure(3);
-plota(CC3.TSD)
+plota(CC3)
 
 
 fprintf(1,'\t Fig 3+: various evaluation criteria [Schlögl et al. 2007] for comparing different features ');
@@ -222,11 +223,13 @@ for k=1:length(FFIELD),
 	ffield = FFIELD{k};
 fprintf(1,'\t Fig %i: %s (CC.TSD.%s)\n',k+3,TIT{k},ffield);
 	if strcmp(ffield,'STMI') 	% steepness of mutual information 
-		plot(CC1.TSD.T+t0,[sum(CC1.TSD.I,2),sum(CC2.TSD.I,2),sum(CC3.TSD.I,2)]./t(:,[1,1,1])*(M-1)/M);
-	elseif (size(getfield(CC1.TSD,ffield),1)>1)	
-		plot(CC1.TSD.T+t0,[sum(getfield(CC1.TSD,ffield),2),sum(getfield(CC2.TSD,ffield),2),sum(getfield(CC3.TSD,ffield),2)]*(M-1)/M);
+		t = CC1.T.t-CC1.T.t0;
+		t(t<0.5) = NaN; 
+		plot(CC1.T.t,[sum(CC1.TSD.I,2),sum(CC2.TSD.I,2),sum(CC3.TSD.I,2)]./t(:,[1,1,1])*(M-1)/M);
+	elseif (size(getfield(CC1.TSD,ffield),2)>1)	
+		plot(CC1.T.t,[sum(getfield(CC1.TSD,ffield),2),sum(getfield(CC2.TSD,ffield),2),sum(getfield(CC3.TSD,ffield),2)]*(M-1)/M);
 	else
-		plot(CC1.TSD.T+t0,[getfield(CC1.TSD,ffield),getfield(CC2.TSD,ffield),getfield(CC3.TSD,ffield)]);
+		plot(CC1.T.t,[getfield(CC1.TSD,ffield),getfield(CC2.TSD,ffield),getfield(CC3.TSD,ffield)]);
 	end; 	
 	legend(LEG);
 	ylabel([ffield,' ',PhysDim{k}]); 

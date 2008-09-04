@@ -60,7 +60,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.62 2008-09-04 09:26:48 schloegl Exp $
+%	$Id: plota.m,v 1.63 2008-09-04 13:57:38 schloegl Exp $
 %	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -1820,19 +1820,143 @@ elseif strncmp(X.datatype,'TSD_BCI',7) & (nargin>1) & strcmpi(arg2,'TSD');
         end;
 
 
-elseif isfield(X,'TSD') 
-	if isfield(X.TSD,'datatype') 
-	if strcmp(X.TSD.datatype,'TSD_BCI9')
-		nf = plota(X.TSD);
-		for k=1:length(nf)
-			subplot(nf(k)); 
-			hold on; 
-			v=axis; 
-			plot([X.TC;X.TC],[.9;1]*v(4)*ones(1,length(X.TC)),'k-')
-			hold off; 
+elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'TSD_BCI9')
+        if nargin<2,
+                clf;
+                for k=1:6,
+                        nf(k)=subplot(3,2,k);
+                end;
+        else
+                nf=arg2;
+        end;
+
+        fid = 1;
+       	tix = X.TSD.tix(1);
+        N = length(X.TSD.CL);
+       	c = (N-1)/N;
+
+        fprintf(fid,'Error:		     %4.1f %% \n',100-X.TSD.ACC00(tix)*100);
+       	fprintf(fid,'Accuracy:		  %4.1f %% \nspecific Accuracy:	 ',X.TSD.ACC00(tix)*100);
+       	[kap,sd,H,z,OA,SA,MI] = kappa(X.TSD.optCMX);
+       	fprintf(fid,'%4.1f   ',SA*100);
+       	fprintf(fid,'\nKappa:		     %4.2f %c %4.2f\n',X.TSD.KAP00(tix),177,X.TSD.Ksd00(tix));
+       	fprintf(fid,'I(Wolpaw):		 %4.2f bit\n',wolpaw_entropy(X.TSD.ACC00(tix),N));
+       	fprintf(fid,'I(Nykopp):		 %4.2f bit\n',X.TSD.I_Nykopp(tix));
+
+        if isfield(X.TSD,'I'),
+	        fprintf(fid,'I(Continous):	      SUM = %4.2f  [ ',sumskipnan(X.TSD.I(tix,:))*c);
+        	fprintf(fid,'%4.2f   ',X.TSD.I(tix,:));
+        	t = X.T.t-X.T.t0; t(t<.5)=NaN;
+        	fprintf(fid,' ] \nSTMI:		      %4.2f  [ ',max([sum(X.TSD.I,2)]./t)*c);
+        	fprintf(fid,'   %4.2f',max(X.TSD.I./[t(:,ones(1,size(X.TSD.I,2)))-3]));
+        	fprintf(fid,' ] \nSNR:		       ')
+        	fprintf(fid,'%4.2f   ',X.TSD.SNR(tix,:));
+        	fprintf(fid,'\ncorrelation (parametric):  ')
+        	fprintf(fid,'%4.2f   ',X.TSD.r(tix,:));
+        	fprintf(fid,'\nrank correlation:	  ');
+	        fprintf(fid,'\nAUC:		       ');
+	        fprintf(fid,'%4.2f   ',X.TSD.AUC(tix,:));
+	        fprintf(fid,'\n');
+        end; 
+        if isfield(X,'rankcorrelation');
+                fprintf(fid,'%4.2f   ',X.TSD.rankcorrelation(tix,:));
+        end;
+
+        xlim = [min(0,X.T.t(1)),max(X.T.t(end))];
+        
+        subplot(nf(1));
+        if ~isfield(X.TSD,'Labels')
+                for k = 1:length(X.TSD.CL), Labels{k}=int2str(X.TSD.CL(k)); end;
+        else
+                Labels = X.TSD.Labels;
+        end;
+        %plota(X);
+
+        plot(X.T.t, 100*[X.TSD.ACC00, X.TSD.KAP00])
+        axis([xlim,-20,100])
+        xlabel('time [s]')
+        title('Accuracy and Kappa')
+        legend({'Accuracy [%]','Kappa [%]'})
+
+        subplot(nf(3));
+        plot(X.T.t,[sum(X.TSD.I,2)*c,X.TSD.I_Nykopp(:),wolpaw_entropy(X.TSD.ACC00,N)])
+        legend({'I_{continous}','I_{Nykopp}','I_{Wolpaw}'})
+        title('Mutual information')
+        ylabel('I [bit]');
+        xlabel('time [s]')
+        v=axis; axis([xlim,0,1.5]);
+
+        if 0,
+                subplot(nf(5));
+                plot(X.T.t,X.MEAN2)
+                hold on
+                plot(X.T.t,X.MEAN1)
+                hold off
+                Title('average output of one-vs-rest classifiers')
+                ylabel('TSD')
+                xlabel('time [s]')
+                tmp = strvcat(Labels);
+                legend(cellstr([tmp,repmat('(+)',size(tmp,1),1);tmp,repmat('(-)',size(tmp,1),1)]))
+                v=axis; axis([xlim,v(3:4)]);
+        else
+                subplot(nf(5));
+                t = X.T.t-X.T.t0;
+                %t(t < 3.5)=NaN;
+                t(t < 0.5)=NaN;
+                plot(X.T.t,[sum(X.TSD.I,2)*c,X.TSD.I_Nykopp(:),wolpaw_entropy(X.TSD.ACC00,N)]./repmat(t,1,3))
+                legend({'STMI_{C}','STMI_{N}','STMI_{W}'})
+                title('Steepness of Mutual information')
+                ylabel('STMI [bit/s]');
+                xlabel('time [s]')
+                v=axis; axis([xlim,0,1]);
+        end;
+
+        subplot(nf(2));
+        plot(X.T.t,X.TSD.AUC)
+        xlabel('time [s]')
+        ylabel('AUC [1]')
+        title('area-under-the-(ROC)-curve');
+        legend(Labels)
+        v=axis; axis([xlim,.4,1]);
+
+        subplot(nf(4));
+        plot(X.T.t,[X.TSD.I,sum(X.TSD.I,2)*c,])
+        xlabel('time [s]')
+        ylabel('I [bit]');
+        title('Mutual Information of continous output');
+        legend([Labels,{'SUM'}])
+        v=axis; axis([xlim,0,1.5]);
+
+        subplot(nf(6));
+        if isfield(X,'N')
+        	% show significance interval 
+	        alpha = .05;
+ 	       	ci = tanh(sqrt(2)*erfinv(1-2*alpha)./sqrt(X.N-3));		% confidence interval for alpha of z
+	        plot(X.T.t,X.TSD.r,'-',X.T,ci*[-1,1],'k:');
+	        LEG = [Labels,{sprintf('alpha=%f',alpha)}];
+	else
+	        plot(X.T.t,X.TSD.r,'-');
+	        LEG = Labels;
+        end; 
+        xlabel('time [s]')
+        ylabel('r [1]')
+        title('correlation coefficient (parametric)');
+        legend(LEG);
+        v=axis; axis([xlim,-.2,1]);
+	h = nf;
+
+	for k=1:length(nf)
+		subplot(nf(k)); 
+		hold on; 
+		v = axis;
+		if isfield(X,'T') && isfield(X.T,'t0') && isfield(X.T,'t')
+			h=patch(X.T.t(X.TC([1,1,end,end,1])),v([3,4,4,3,3]),[1,1,1]*0);
+			set(h,'FaceAlpha',.2,'EdgeAlpha',1)
+		else	
+			plot(X.T.t([X.TC;X.TC])-X.T.t0,[.9;1]*v(4)*ones(1,length(X.TC)),'k-');
 		end;
-	end; 
-	end; 
+		hold off; 
+	end;
 
 
 elseif strcmp(X.datatype,'TSD_BCI9')  
