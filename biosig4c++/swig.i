@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.13 2008-09-03 08:05:38 schloegl Exp $
+% $Id: swig.i,v 1.14 2008-09-04 16:03:10 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -28,11 +28,17 @@
 %{
 #define SWIG_FILE_WITH_INIT
 #include "biosig.h"
+#include <Numeric/arrayobject.h>
 %}
 
 
-#include <inttypes.h>
-#include "biosig.h"
+%include <inttypes.i>
+
+// import_array() call initialises Numpy
+%init
+%{
+        import_array();
+%}
 
 typedef int64_t gdf_time; /* gdf time is represented in 64 bits */
 
@@ -61,7 +67,7 @@ typedef struct {
 	double		Cal;		/* gain factor */ 
 	double		Off;		/* bias */ 
 
-	char		OnOff; 		
+	uint8_t		OnOff; 		
 	char		Label[MAX_LENGTH_LABEL+1]; 	/* Label of channel */
 	uint16_t	LeadIdCode;	/* Lead identification code */ 
 	char 		Transducer[MAX_LENGTH_TRANSDUCER+1];	/* transducer e.g. EEG: Ag-AgCl electrodes */
@@ -80,6 +86,13 @@ typedef struct {
 	
 } CHANNEL_TYPE;
 
+%extend CHANNEL_TYPE {
+   CHANNEL_TYPE *__getitem__(int index) {
+        return self+index;
+   }
+};
+
+ 
 
 /*
 	This structure defines the general (fixed) header  
@@ -214,7 +227,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT);
 void 	 destructHDR(HDRTYPE* hdr);
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 int 	sclose(HDRTYPE* hdr);
-size_t	sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr);
+/* size_t	sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr);*/
 size_t  swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr);
 int	seof(HDRTYPE* hdr);
 void	srewind(HDRTYPE* hdr);
@@ -232,3 +245,35 @@ void 	sort_eventtable(HDRTYPE *hdr);
 void 	convert2to4_eventtable(HDRTYPE *hdr);
 void 	convert4to2_eventtable(HDRTYPE *hdr);
 
+
+
+PyObject* sread(size_t start, size_t length, HDRTYPE* hdr);
+%{
+	PyObject* sread(size_t start, size_t length, HDRTYPE* hdr)
+	{
+		int i, dims[2];
+		PyArrayObject *_array;
+		size_t count;
+
+		dims[0] = 0;
+		dims[1] = length * hdr->SPR;
+		for(i = 0; i < hdr->NS; ++i)
+			if(hdr->CHANNEL[i].OnOff)
+				++dims[0];
+
+		hdr->FLAG.ROW_BASED_CHANNELS = 0;
+
+		if(sizeof(biosig_data_type) != sizeof(double))
+			return NULL;
+
+		/* create the NumPy array and copy the data into it */
+		_array = (PyArrayObject *)PyArray_FromDims(2, dims, PyArray_DOUBLE);
+		count = sread((double*)(_array->data), start, length, hdr);
+
+		/* the block of data is now owned by _array, destructHDR should not destroy it */
+		hdr->data.block = NULL;
+
+		/* if(count != length) {} */
+		return PyArray_Return(_array);
+        }
+%}

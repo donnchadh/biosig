@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.56 2008-09-03 08:34:26 schloegl Exp $
+###  $Id: Makefile,v 1.57 2008-09-04 16:03:10 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -30,7 +30,9 @@ MinGWLIBS     = win32/libbiosig.a 	# static
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
 
-
+SWIG          = swig
+PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
+ 
 ####### Output directory
 
 OBJECTS_DIR   = ./
@@ -47,7 +49,7 @@ SOURCES       = biosig.c \
 		t210/sopen_scp_read.c \
 		t210/scp-decode.cpp \
 		t220/sopen_scp_write.c \
-		t220/crc4scp.c  \
+		t220/crc4scp.c \
 		t230/sopen_hl7aecg.c \
 		test0/sandbox.c 
 		
@@ -150,12 +152,13 @@ tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinys
 
 ####### Build rules
 
-biosig4python _biosig.so: biosig.py
-biosig.py: $(SOURCES) libbiosig.a swig.i
-	swig -c++ -python -I/usr/include -o swig_wrap.cxx swig.i
-	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python2.4
-	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so
-
+biosig4python : _biosig.so biosig.py
+biosig.py swig_wrap.cxx : $(SOURCES) libbiosig.a swig.i 
+	$(SWIG) -c++ -python -I/usr/include -o swig_wrap.cxx swig.i
+_biosig.so : swig_wrap.cxx 
+	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python$(PYTHONVER) && \
+ 	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so
+ 
 
 #$(TARGET):  libbiosig.a 
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
@@ -527,3 +530,10 @@ test7: /tmp/t1.edf save2gdf
 	./save2gdf -f=SCP t1.cfw.gz t2.cfw.scp
 	./save2gdf -f=HL7 t1.cfw.gz t2.cfw.hl7
 
+testpybdf : /tmp/BDFtestfiles.zip
+	unzip -u /tmp/BDFtestfiles.zip -d /tmp && \
+	python example.py /tmp/*-256.bdf 256 && \
+	python example.py /tmp/*-2048.bdf 2048
+
+/tmp/BDFtestfiles.zip :
+	wget -P/tmp http://www.biosemi.com/download/BDFtestfiles.zip
