@@ -6,13 +6,13 @@ function [argout,s]=sview(s,varargin),
 %
 % See also: SLOAD 
 
-%	$Id: sview.m,v 1.21 2008-06-19 09:00:13 schloegl Exp $ 
+%	$Id: sview.m,v 1.22 2008-09-04 09:30:20 schloegl Exp $ 
 %	Copyright (c) 2004,2006 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 % 
 % This program is distributed in the hope that it will be useful,
@@ -88,6 +88,27 @@ elseif ischar(arg2) & (strcmp(H.TYPE,'ELPOS') | (isfield(H,'ELEC') && strncmpi(a
 	end;
         argout=H;
         return;
+
+        
+elseif all((H.LeadIdCode>0) & (H.LeadIdCode<256)) && (H.SPR*H.NRec==H.SampleRate*10)
+	% 12-lead, 10s ECG 
+	xlen = 2; 
+	d = repmat(NaN,[H.SampleRate*xlen,12]);
+	pos = [1,2,61:64,3:8];
+	x=leadidcodexyz(pos); 
+	for k=1:H.NS,
+		ch(k) = find(pos==H.LeadIdCode(k));
+		d(:,ch(k))=s(1:xlen*H.SampleRate,k);
+	end;
+	d = reshape(permute(reshape(d,[H.SampleRate*xlen,3,4]),[1,3,2]),[H.SampleRate*xlen*4,3]);
+	plot([1:H.SampleRate*xlen*4]'/H.SampleRate,d + ones(size(d,1),1)*[0,-1,-2]*3500,'k');
+	set(gca,'xMinorTick','on','yMinorTick','on','xMinorGrid','on','yMinorGrid','on');
+	grid on
+	for k=1:length(pos),
+		h=text(10*floor((k-1)/3)+1,500-3500*mod(k-1,3),x.Label(k));
+	end;
+	return;
+
         
 elseif strcmp(H.TYPE,'unknown');
         argout=H;
