@@ -60,7 +60,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.63 2008-09-04 13:57:38 schloegl Exp $
+%	$Id: plota.m,v 1.64 2008-09-04 14:13:00 schloegl Exp $
 %	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -1835,26 +1835,26 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
         N = length(X.TSD.CL);
        	c = (N-1)/N;
 
-        fprintf(fid,'Error:		     %4.1f %% \n',100-X.TSD.ACC00(tix)*100);
-       	fprintf(fid,'Accuracy:		  %4.1f %% \nspecific Accuracy:	 ',X.TSD.ACC00(tix)*100);
+        fprintf(fid,'Error:   		%4.1f %% \n',100-X.TSD.ACC00(tix)*100);
+       	fprintf(fid,'Accuracy:		%4.1f %% \nspecific Accuracy:	',X.TSD.ACC00(tix)*100);
        	[kap,sd,H,z,OA,SA,MI] = kappa(X.TSD.optCMX);
        	fprintf(fid,'%4.1f   ',SA*100);
-       	fprintf(fid,'\nKappa:		     %4.2f %c %4.2f\n',X.TSD.KAP00(tix),177,X.TSD.Ksd00(tix));
-       	fprintf(fid,'I(Wolpaw):		 %4.2f bit\n',wolpaw_entropy(X.TSD.ACC00(tix),N));
-       	fprintf(fid,'I(Nykopp):		 %4.2f bit\n',X.TSD.I_Nykopp(tix));
+       	fprintf(fid,'\nKappa:   		%4.2f %c %4.2f\n',X.TSD.KAP00(tix),177,X.TSD.Ksd00(tix));
+       	fprintf(fid,'I(Wolpaw):		%4.2f bit\n',wolpaw_entropy(X.TSD.ACC00(tix),N));
+       	fprintf(fid,'I(Nykopp):		%4.2f bit\n',X.TSD.I_Nykopp(tix));
 
         if isfield(X.TSD,'I'),
-	        fprintf(fid,'I(Continous):	      SUM = %4.2f  [ ',sumskipnan(X.TSD.I(tix,:))*c);
+	        fprintf(fid,'I(Continous):     SUM = %4.2f  [ ',sumskipnan(X.TSD.I(tix,:))*c);
         	fprintf(fid,'%4.2f   ',X.TSD.I(tix,:));
         	t = X.T.t-X.T.t0; t(t<.5)=NaN;
-        	fprintf(fid,' ] \nSTMI:		      %4.2f  [ ',max([sum(X.TSD.I,2)]./t)*c);
-        	fprintf(fid,'   %4.2f',max(X.TSD.I./[t(:,ones(1,size(X.TSD.I,2)))-3]));
-        	fprintf(fid,' ] \nSNR:		       ')
+        	fprintf(fid,' ] \nSTMI:   		%4.2f  [ ',max([sum(X.TSD.I,2)]./t)*c);
+        	fprintf(fid,'   %4.2f',max(X.TSD.I./[t(:,ones(1,size(X.TSD.I,2)))]));
+        	fprintf(fid,' ] \nSNR:			')
         	fprintf(fid,'%4.2f   ',X.TSD.SNR(tix,:));
-        	fprintf(fid,'\ncorrelation (parametric):  ')
+        	fprintf(fid,'\ncorrelation (parametric):	')
         	fprintf(fid,'%4.2f   ',X.TSD.r(tix,:));
         	fprintf(fid,'\nrank correlation:	  ');
-	        fprintf(fid,'\nAUC:		       ');
+	        fprintf(fid,'\nAUC:			');
 	        fprintf(fid,'%4.2f   ',X.TSD.AUC(tix,:));
 	        fprintf(fid,'\n');
         end; 
@@ -1950,8 +1950,9 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
 		hold on; 
 		v = axis;
 		if isfield(X,'T') && isfield(X.T,'t0') && isfield(X.T,'t')
-			h=patch(X.T.t(X.TC([1,1,end,end,1])),v([3,4,4,3,3]),[1,1,1]*0);
-			set(h,'FaceAlpha',.2,'EdgeAlpha',1)
+			ylim = v([3,4])*[1,.9;0,.1];
+			h=patch(X.T.t(X.TC([1,1,end,end,1])),ylim([1,2,2,1,1]),[1,1,1]*0);
+%			set(h,'FaceAlpha',.2,'EdgeAlpha',1)
 		else	
 			plot(X.T.t([X.TC;X.TC])-X.T.t0,[.9;1]*v(4)*ones(1,length(X.TC)),'k-');
 		end;
