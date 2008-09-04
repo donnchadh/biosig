@@ -22,20 +22,22 @@
 % [5] A. Schlögl, F.Y. Lee, H. Bischof, G. Pfurtscheller
 %   	Characterization of Four-Class Motor Imagery EEG Data for the BCI-Competition 2005.
 %   	Journal of neural engineering 2 (2005) 4, S. L14-L22
-% [6] A. Schlögl, C. Vidaurre, K.-R. Müller
-%       Adaptive Methods in BCI research - an introductory tutorial. 
-%	(Eds.) B. Graimann and G. Pfurtscheller. 
-%	Brain Computer Interfaces - Invasive and noninvasive techniques. 
-%	Springer (submitted).
+% [6] A. Schlögl, C. Brunner, R. Scherer, A. Glatz;
+%   	BioSig - an open source software library for BCI research.
+%   	(Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R. Müller;
+%   	Towards Brain-Computer Interfacing, MIT Press, 2007, p.347-358. 
+% [7] A. Schlögl, C. Brunner
+%   	BioSig: A Free and Open Source Software Library for BCI Research.
+%	Computer (2008, In Press)	
 
-%	$Id: demo2.m,v 1.9 2008-04-11 12:50:28 schloegl Exp $
+%	$Id: demo2.m,v 1.10 2008-09-04 06:26:49 schloegl Exp $
 %	Copyright (C) 1999-2003,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the  License, or (at your option) any later version.
 % 
 % This program is distributed in the hope that it will be useful,
@@ -47,82 +49,157 @@
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-M0  = 7;
-p   = 3;
-uc  = 30:5:80;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+filename = 'B0101T.gdf';
+if ~exist(filename,'file')
+	unix('wget http://hci.tugraz.at/~schloegl/bci/competition2008/B0101T.gdf');
+end; 
+	
+% Step 1a: load data ============================%
+fprintf(1,'Step 1a: Load data file %s.\n',filename);
+[s,HDR]=sload(filename);
 
-% load EEG-data S and classlabels cl 
-% here, the data set III of the BCI competition 2003 is used. The data is available from  
-%     http://hci.tugraz.at/schloegl/bci/competition2003/ (untriggered, raw data) 
+% Step 1b: extract trigger and classlabels (if not already available) ==%
+%--------- extraction from event table 
+fprintf(1,'Step 1b: Extract trigger and classlabels.\n');
+ix = find((HDR.EVENT.TYP>768)&(HDR.EVENT.TYP<777)); % 0x0300..0x03ff
+HDR.TRIG = HDR.EVENT.POS(ix)-3*HDR.SampleRate;
+HDR.Classlabel = HDR.EVENT.TYP(ix)-768; % 0x0300
+%--------  extraction from trigger channel: 
+% HDR.TRIG = gettrigger(s(:,triggerchannel)); 
 
-fn = 'dataset_BCIcomp1raw.mat'; 
-if ~exist(fn,'file')
-        system('wget http://hci.tugraz.at/schloegl/bci/competition2003/dataset_BCIcomp1raw.mat');
-end;        
-load(fn);
-HDR.Classlabel = c1;
-Fs = 125;
-trigchan = 4;
-eegchan  = [1,3];
 
-HDR.TRIG = gettrigger(S(:,trigchan))-2*Fs;
-if length(HDR.TRIG)~=length(HDR.Classlabel);
-        fprintf(2,'number of Triggers (%i) does not fit size of class information (%i)',length(TRIG),length(cl));
-	return;        
-end;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Step 2: Preprocessing and artifact processing ====================%
+%   2a: Overflowdetection: eeghist.m, [Schlögl et al. 1999] 
+fprintf(1,'Step 2a: Quality control with histogram analysis [Schloegl et al. 1999].\n');
+%Q = eeg2hist(filename); 
+Q = eeg2hist(filename,'manual'); % manual selection of threshold
+clear H;
+H.FileName  = Q.FileName;
+H.THRESHOLD = Q.THRESHOLD; 
+[HDR]=sopen(H,'r',0);[s,HDR]=sread(HDR);HDR=sclose(HDR);
+%   2b: Muscle detection: detectmuscle.m
+fprintf(1,'Step 2b: Detection of muscle artifacts.\n');
 
-if ~any(size(eegchan)==1)
-	S = S(:,1:size(eegchan,1))*eegchan;
-	eegchan=1:size(eegchan,2); 
-end;
+%   2c: resampling 
+fprintf(1,'Step 2c: resampling.\n');
+DIV = 1; 
+s = rs(s,DIV,1);   % downsampling by a factor of DIV; 
+%s = rs(s,256,100); % downsampling from 256 to 100 Hz. 
+HDR.SampleRate = HDR.SampleRate/DIV; 
 
-MODE.T   = reshape((1:9*Fs),25,9*Fs/25)';	% define segments 
-MODE.WIN = MODE.T(:,1) > 3*Fs/8+1;	        % valid segments for building classifier
-MODE.MOP = [0,p,0];				% order of AAR model
-MODE.UC  = 2^(-(7+5)*5/8);			% update coefficient of AAR model 
+%   2d: Correction of EOG artifacts: regress_eog.m, get_regress_eog.m   
+% 		[Schlögl et al. 2007]
+fprintf(1,'Step 2d: reduce EOG artifacts.\n');
+eogchan=identify_eog_channels(filename); 
+	% eogchan can be matrix in order to convert 
+      	%     monopolar EOG to bipolar EOG channels
+eegchan=1:HDR.NS; % exclude any non-eeg channel. 
+%R = regress_eog(s,eegchan,eogchan); 
+%s = s*R.r0; 	% reduce EOG artifacts 
 
-% estimate AAR model parameters
+%   2e: spatial filters 
+%       spatial filters can be used to focus on specific areas.
+%       examples are bipolar (BIP), common average reference (CAR), 
+%       Hjorth's Laplace derivation (LAP), Common spatiol patterns (CSP)
+fprintf(1,'Step 2e: spatial filters.\n');
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Step 3: Feature extraction ====================%
+eegchan = 1:size(s,2); 	% select EEG channels 
+fprintf(1,'Step 3: feature extraction.\n');
+
+p = 6; 
+MODE.MOP = [0,p,0];	% order of AAR model
+MODE.UC  = 0.005;		% update coefficient of AAR model %    3a: Time domain parameters 
+
+%    3a: Time-dependent parameters - motivated by log(Hjorth)
+fprintf(1,'\ta: TDP (log(Hjorth)).\n');
+a1 = tdp(s(:,eegchan),p,MODE.UC);
+
+%    3b: Adaptive Autoregressive Parameters
+fprintf(1,'\tb: Adaptive Autoregressive parameters (AAR).\n');
 a2 = [];
 for ch = 1:length(eegchan),
-	% as suggested in [5] two runs are used, the first run is used to get reasonable initial values
-	X = tvaar(S(:,eegchan(ch)),MODE.MOP,MODE.UC); 
-       	X = tvaar(S(:,eegchan(ch)),X);		% AAR estimation
-       	%a2 = [a2,X.AAR]; 
-       	a2 = [a2,X.AAR,log(X.PE)];  % variance provides additional information [6]
+	X = tvaar(s(:,eegchan(ch)),MODE.MOP,MODE.UC); 
+     	X = tvaar(s(:,eegchan(ch)),X);		% AAR estimation
+     	a2 = [a2,X.AAR,log(X.PE)];	
 end; 
 
-% get classifier 
-[cc] = findclassifier(a2, HDR.TRIG, HDR.Classlabel, MODE.T, MODE.WIN);
-cc.TSD.T = cc.TSD.T/Fs;
-plota(cc.TSD);
-return; 
+%    3c: bandpower
+fprintf(1,'\tc: bandpower.\n');
+bands = [10,12;16,24]; % define frequency bands 
+win = 1; 	% length of smoothing window in seconds
+s1 = s; s1(isnan(s1))=0; 
+a3 = bandpower(s, HDR.SampleRate, bands, win);
 
-m = {'LDA','NBC','aNBC','LD2','LD3','LD4','LD5','MDA','MD2','MD3','GRB','QDA','GDBC','LDA3/GSVD','SVM','REG'};
-for k = 1:length(m);
-	cc = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN, m{k});
-	fprintf(1,'%s\t%s\n',m{k},cc.datatype);
-	plota(cc.TSD);	
-	suptitle(m{k});
-end; 
-return; 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Step 4: Classification ==================== %
+fprintf(1,'Step 4: classification.\n');
+TrialLen = 9; % seconds
+SegmentLen = 100; % samples
+NoS = ceil(9*HDR.SampleRate/SegmentLen);
+MODE.T   = reshape((1:NoS*SegmentLen),SegmentLen,NoS)';
+% valid segments for building classifier must be after cue.
+MODE.WIN = MODE.T(:,1) > 3*HDR.SampleRate+1;	% cue @ t=3s.
 
-MODE.TYPE = 'LD3';
-for k = 0:10,
-	MODE.hyperparameter.gamma = k/10;
-	cc = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN, MODE);
-	fprintf(1,'gamma=%f\t%s\n',MODE.hyperparameter.gamma,cc.datatype);
-	plota(cc.TSD);
-end; 
+%%%% X-V based on Jackknife-procedure (leave-K-trials-out)
+K = 1; 
+NG = ceil([1:length(HDR.Classlabel)]'/K);
 
-	cc = findclassifier(a2, TRIG, cl, MODE.T, MODE.WIN, 'CSP');
-	fprintf(1,'%s\n',cc.datatype);
-	plota(cc.TSD);
+TYPE = 'LDA';	% classifier type.0 
+% other possible classifiers are: MDA, LD2, LD3, LD4, GDBC, SVM, RBF, NBC, aNBC, LDA/GSVD, MDA/GSVD, LDA/sparse, MDA/sparse 
 
-	[b,a] = butter(5,[7,30]/Fs*2);
-	s = S(:,eegchan);
-	s(isnan(s))=0; 
-	cc = findclassifier(filter(b,a,s), TRIG, cl, MODE.T, MODE.WIN, 'CSP');
-	fprintf(1,'%s\n',cc.datatype);
-	plota(cc.TSD);
+% search best segment, cross-validation using jackknife procedure, LDA
+CC1 = findclassifier(a1, HDR.TRIG, [HDR.Classlabel,NG], MODE.T, MODE.WIN, TYPE);
+CC2 = findclassifier(a2, HDR.TRIG, [HDR.Classlabel,NG], MODE.T, MODE.WIN, TYPE);
+CC3 = findclassifier(a3, HDR.TRIG, [HDR.Classlabel,NG], MODE.T, MODE.WIN, TYPE);
+CC1.TSD.T = CC1.TSD.T/HDR.SampleRate;
+CC2.TSD.T = CC2.TSD.T/HDR.SampleRate;
+CC3.TSD.T = CC3.TSD.T/HDR.SampleRate;
 
+% For online feedback, the weights of the linear classifier 
+%   are available through 
+fprintf(1,'\tb: weights of linear classifier.\n');
+CC1.weights
+CC2.weights
+CC3.weights
+% the first element represents the bias. 
+
+% The chosen time segment used for computing the classifiers are: 
+fprintf(1,'\tc: choosen time segment.\n');
+MODE.T(CC1.TI,:)/HDR.SampleRate, 
+MODE.T(CC2.TI,:)/HDR.SampleRate, 
+MODE.T(CC3.TI,:)/HDR.SampleRate, 
+ 
+% Accordingly, the time-varying distance is available 
+d1 = [ones(size(a1,1),1),a1]*CC1.weights;
+d2 = [ones(size(a2,1),1),a2]*CC2.weights;
+d3 = [ones(size(a3,1),1),a3]*CC3.weights;
+% Note, if the same a1,a2,a3 were already used for classifier training, 
+%   these results are subject to overfitting. 
+
+% Alternatively, you can setup your own cross-validation procedure 
+% using train_sc.m and test_sc.m.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Step 5: Show results  ==================== %
+fprintf(1,'Step 5: classifier.\n');
+
+% the various evaluation criteria are discussed in Schlogl, Kronegg et 2007. 
+figure(1);
+plota(CC1.TSD)
+
+figure(2);
+plota(CC2.TSD)
+
+figure(3);
+plota(CC3.TSD)
+
+figure(4)
+plot(CC1.TSD.T,[CC1.TSD.I,CC2.TSD.I,CC3.TSD.I]);
+legend({'TDP','AAR','BP'})
 
