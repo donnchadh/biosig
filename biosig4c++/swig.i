@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.14 2008-09-04 16:03:10 schloegl Exp $
+% $Id: swig.i,v 1.15 2008-09-09 20:24:45 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -222,12 +222,11 @@ typedef struct {
 	
 } HDRTYPE;
 
-
 HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT);
 void 	 destructHDR(HDRTYPE* hdr);
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 int 	sclose(HDRTYPE* hdr);
-/* size_t	sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr);*/
+size_t	sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr);
 size_t  swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr);
 int	seof(HDRTYPE* hdr);
 void	srewind(HDRTYPE* hdr);
@@ -246,6 +245,30 @@ void 	convert2to4_eventtable(HDRTYPE *hdr);
 void 	convert4to2_eventtable(HDRTYPE *hdr);
 
 
+/*
+HDRTYPE* sopen(char *filename);
+%{
+	HDRTYPE* sopen(char *filename)
+	{
+		HDRTYPE *hdr = constructHDR(0,0);
+		hdr = sopen(filename, "r", hdr);
+		return hdr;
+        }
+%}
+
+
+
+
+int sclose(HDRTYPE *hdr);
+%{
+	int sclose(HDRTYPE *hdr)
+	{
+		sclose(hdr);
+		destructHDR(hdr);
+		return 0;
+        }
+%}
+*/
 
 PyObject* sread(size_t start, size_t length, HDRTYPE* hdr);
 %{
@@ -275,5 +298,14 @@ PyObject* sread(size_t start, size_t length, HDRTYPE* hdr);
 
 		/* if(count != length) {} */
 		return PyArray_Return(_array);
+        }
+%}
+
+
+void hdr2ascii(HDRTYPE* hdr, int verbosity);
+%{
+	void hdr2ascii(HDRTYPE* hdr, int verbosity)
+	{
+		hdr2ascii(hdr, stdout, verbosity);
         }
 %}
