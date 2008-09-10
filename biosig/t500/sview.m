@@ -6,7 +6,7 @@ function [argout,s]=sview(s,varargin),
 %
 % See also: SLOAD 
 
-%	$Id: sview.m,v 1.22 2008-09-04 09:30:20 schloegl Exp $ 
+%	$Id: sview.m,v 1.23 2008-09-10 16:01:59 schloegl Exp $ 
 %	Copyright (c) 2004,2006 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -182,7 +182,9 @@ elseif isfield(H.EVENT,'Desc'),
         EVENT = H.EVENT;
 elseif isfield(H.EVENT,'CodeDesc'),
         EVENT = H.EVENT;
-	EVENT.Desc = H.EVENT.CodeDesc(H.EVENT.TYP);	
+        EVENT.CodeDesc{32766} = 'New Segment';
+        EVENT.CodeDesc{32767} = 'sparse sample';
+	EVENT.Desc = EVENT.CodeDesc(H.EVENT.TYP);	
 elseif ~isfield(H.EVENT,'Desc') & (length(H.EVENT.TYP)>0),
 	[p,f,e]=fileparts(which('sopen.m'));
 	[p,f,e]=fileparts(p);
