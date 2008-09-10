@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.254 2008-09-03 07:59:45 schloegl Exp $
+    $Id: biosig.c,v 1.255 2008-09-10 14:57:30 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -214,7 +214,7 @@ uint32_t lcm(uint32_t A, uint32_t B)
 	uint64_t A64 = A;
 	A64 *= B/gcd(A,B);
 	if (A64 > 0x00000000ffffffffllu) {
-		fprintf(stderr,"Error: HDR.SPR=LCM(%i,%i) overflows and does not fit into uint32.\n",A,B);
+		fprintf(stderr,"Error: HDR.SPR=LCM(%u,%u) overflows and does not fit into uint32.\n",A,B);
 		exit(-4);
 	}
 	return((uint32_t)A64);
@@ -1637,7 +1637,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	const uint8_t MAGIC_NUMBER_TIFF_l64[] = {73,73,43,0,8,0,0,0};
 	const uint8_t MAGIC_NUMBER_TIFF_b64[] = {77,77,0,43,0,8,0,0};
 	const uint8_t MAGIC_NUMBER_DICOM[]    = {8,0,5,0,10,0,0,0,73,83,79,95,73,82,32,49,48,48};
-
+	const char* MAGIC_NUMBER_BRAINVISION  = "Brain Vision Data Exchange Header File";
+	
 	size_t k,name=0,ext=0;	
 	for (k=0; hdr->FileName[k]; k++) {
 		if (hdr->FileName[k]==FILESEP) name = k+1;
@@ -1760,7 +1761,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = BKR;
     	else if (!memcmp(Header1+34,"BLSC",4))
 	    	hdr->TYPE = BLSC;
-        else if (!memcmp(Header1,"Brain Vision Data Exchange Header File",38))
+        else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISION,38) || ((leu32p(hdr->AS.Header)==0x42bfbbef) && !memcmp(Header1+3, MAGIC_NUMBER_BRAINVISION,38)))
                 hdr->TYPE = BrainVision;
     	else if (!memcmp(Header1,"BZh91",5))
 	    	hdr->TYPE = BZ2;
@@ -2283,6 +2284,12 @@ if (!strncmp(MODE,"r",1))
 	    	}
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[210] FMT=%s NS=%i pos=%i headlen=%i\n",GetFileTypeString(hdr->TYPE),hdr->NS,count,hdr->HeadLen);
+		
+		if (hdr->HeadLen < (256*hdr->NS+1)) {
+			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+			B4C_ERRMSG = "(GDF) Length of Header is too small";
+			return(hdr); 
+		}
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
@@ -2583,6 +2590,8 @@ if (!strncmp(MODE,"r",1))
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 212] #=%li\n",iftell(hdr));
 
+		if (hdr->NS==0) return(hdr); 
+		
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
 	    	char *Header2 = (char*)hdr->AS.Header+256; 
@@ -3804,6 +3813,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FLAG.OVERFLOWDETECTION = 0;
 		seq = 0;
 		uint16_t gdftyp=3; 
+		hdr->FILE.LittleEndian = 1;	// default little endian  
 		double physmax=1e6,physmin=-1e6,digmax=1e6,digmin=-1e6,cal=1.0,off=0.0;
 		enum o_t{VEC,MUL} orientation = MUL;
 		size_t npts=0;
@@ -3820,8 +3830,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				seq = 1; 
 			else if (!strncmp(t,"[Binary Infos]",14))
 				seq = 2; 
-			else if (!strncmp(t,"[ASCII Infos]",13))
+			else if (!strncmp(t,"[ASCII Infos]",13)) {
 				seq = 2; 
+				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
+				B4C_ERRMSG = "Error SOPEN(BrainVision): ASCII-format not supported";
+			}
 			else if (!strncmp(t,"[Channel Infos]",14)) {
 				seq = 3; 
 
@@ -3900,6 +3913,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (seq==2) {
 				if      (!strncmp(t,"BinaryFormat=IEEE_FLOAT_32",26)) {
 					gdftyp = 16;
+					digmax =  physmax/cal;
+					digmin =  physmin/cal;
 					hdr->AS.bpb = 4*hdr->NS;
 				}	
 				else if (!strncmp(t,"BinaryFormat=INT_16",19)) {
@@ -3909,16 +3924,27 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->AS.bpb = 2*hdr->NS;
 					hdr->FLAG.OVERFLOWDETECTION = 1;
 				}	
+				else if (!strncmp(t,"BinaryFormat=UINT_16",20)) {
+					gdftyp = 4;
+					digmax = 65535;
+					digmin = 0;
+					hdr->AS.bpb = 2*hdr->NS;
+					hdr->FLAG.OVERFLOWDETECTION = 1;
+				}
+				else if (!strncmp(t,"BinaryFormat",12)) {
+					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
+					B4C_ERRMSG = "Error SOPEN(BrainVision): BinaryFormat=<unknown>";
+				}
 				else if (!strncmp(t,"UseBigEndianOrder=NO",20)) {
 					// hdr->FLAG.SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 
-					hdr->FILE.LittleEndian = 0; 
+					hdr->FILE.LittleEndian = 1; 
 				}	
 				else if (!strncmp(t,"UseBigEndianOrder=YES",21)) {
 					// hdr->FLAG.SWAP = (__BYTE_ORDER == __LITTLE_ENDIAN); 
-					hdr->FILE.LittleEndian = 1; 
+					hdr->FILE.LittleEndian = 0; 
 				}	
 				else if (0){
-					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED; 
+					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 					B4C_ERRMSG = "Error SOPEN(BrainVision): BinaryFormat=<unknown>";
 					return(hdr);
 				}	
@@ -3942,13 +3968,14 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					ptr += len+2;
 					ptr += strcspn(ptr,",")+1;
 					if (strlen(ptr)>0) {
-						hdr->CHANNEL[n].Cal = atof(ptr);
+						double tmp = atof(ptr);
+						if (tmp) hdr->CHANNEL[n].Cal = tmp; 
 						hdr->CHANNEL[n].PhysMax = hdr->CHANNEL[n].DigMax * hdr->CHANNEL[n].Cal ;
 						hdr->CHANNEL[n].PhysMin = hdr->CHANNEL[n].DigMin * hdr->CHANNEL[n].Cal ;
 					}	
 
 					if (VERBOSE_LEVEL==9) 
-						fprintf(stdout,"Ch%02i=%s,,%s(%f)\n",n,hdr->CHANNEL[n-1].Label,ptr,hdr->CHANNEL[n-1].Cal );			
+						fprintf(stdout,"Ch%02i=%s,,%s(%f)\n",n,hdr->CHANNEL[n].Label,ptr,hdr->CHANNEL[n].Cal );			
 				}	
 			}
 			else if (seq==4) {
