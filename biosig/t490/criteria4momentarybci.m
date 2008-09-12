@@ -8,18 +8,20 @@ function [K1,K2] = criteria4momentarybci(TO,Fs,trig,ERW)
 % 	Fs sampleing rate
 % 	TRIG 	trigger information - its a vector in case of a single IC state
 %		othewise TRIG{K} are the triggers for the K-th IC state
-% 	ERW 	expected response window in seconds, default=[-.5,+.5]
+% 	ERW 	expected response window in seconds, default=[-0.5,+0.5]
 %
 % output:
 % 	K1 	result the rule-based (heuristic) approach 
 % 	K2 	results of the sample-by-sample approach 
 %
-% 	K1.HF  		hf-difference
+% 	K1.HF  		hf-difference 
 % 	K{12}.kappa 	Cohen's kappa coefficient
 % 	K{12}.H 	Confusion matrix 
+% 
+% References: 
 
 
-%    $Id: criteria4momentarybci.m,v 1.2 2008-09-12 10:33:56 schloegl Exp $
+%    $Id: criteria4momentarybci.m,v 1.3 2008-09-12 11:03:50 schloegl Exp $
 %    Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -49,6 +51,9 @@ if iscell(trig)
 		T = [T; trig{K}(:)];
 		CL = [CL; repmat(K,length(trig{K}),1)];
 		for k=1:length(TRIG)
+			if any(EUI((TRIG(k)+ERW(1)*Fs) : (TRIG(k)+ERW(2)*Fs)))
+				warning('overlapping ERW segments');
+			end; 	
 			EUI((TRIG(k)+ERW(1)*Fs) : (TRIG(k)+ERW(2)*Fs))=K; 
 		end;
 	end; 
@@ -58,6 +63,9 @@ else
 	TRIG = trig; 
 	CL   = ones(size(TRIG));
 	for k= 1:length(TRIG)
+		if any(EUI((TRIG(k)+ERW(1)*Fs) : (TRIG(k)+ERW(2)*Fs)))
+			warning('overlapping ERW segments');
+		end; 	
 		EUI((TRIG(k)+ERW(1)*Fs) : (TRIG(k)+ERW(2)*Fs)) = CL(k); 
 	end; 
 end; 
@@ -126,15 +134,13 @@ end;
 %% generate padding window - make padding window has the same size than ECW
 T1 = TO;   
 i0 = find(TO);
-plot([EUI,TO]);
 for k = i0(:)',
 	cl = TO(k); 
 	ix = max(1,k + ERW(1)*Fs) : min(k + ERW(2)*Fs,length(TO));
 	if any((T1(ix)~=cl) & (T1(ix)>0))
-		warning('overlapping windows');
+		warning('overlapping padding segments with different IC states');
 	end; 
 	T1(ix) = cl; 
 end; 
-plot([EUI,T1]);
 K2 = kappa(EUI,T1);
 
