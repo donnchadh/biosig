@@ -1,12 +1,13 @@
 function [K1,K2] = criteria4momentarybci(TO,Fs,trig,ERW)
 % CRITERIA4MOMENTARYBCI evaluates the output of momentary self-paced BCI  
 %
-% [K1,K2] = criteria4momentarybci(TO,Fs,trig,ERW) 
+% [K1,K2] = criteria4momentarybci(TO,Fs,TRIG,ERW) 
 %
 % Input: 
-% 	TO transducer output
+% 	TO transducer output: 0 is no control state, i>0 is i-th control state
 % 	Fs sampleing rate
-% 	TRIG 	trigger information - vector of 
+% 	TRIG 	trigger information - its a vector in case of a single IC state
+%		othewise TRIG{K} are the triggers for the K-th IC state
 % 	ERW 	expected response window in seconds, default=[-.5,+.5]
 %
 % output:
@@ -18,7 +19,7 @@ function [K1,K2] = criteria4momentarybci(TO,Fs,trig,ERW)
 % 	K{12}.H 	Confusion matrix 
 
 
-%    $Id: criteria4momentarybci.m,v 1.1 2008-09-12 10:16:19 schloegl Exp $
+%    $Id: criteria4momentarybci.m,v 1.2 2008-09-12 10:33:56 schloegl Exp $
 %    Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -110,12 +111,13 @@ end;
 	% initial value of EV	
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % summary statistics: compute kappa and hf-difference
-K = kappa(EV(:,1),EV(:,2)); 
+K1 = kappa(EV(:,1),EV(:,2)); 
 
-if length(K.H)==2,
+if length(K1.H)==2,
 	%% HF difference = TP/(TP+FN) - FP/(TP+FP)
-	K.HF = K.H(2,2)/sum(K.H(2,:)) - K.H(1,2)/sum(K.H(:,2));  
+	K1.HF = K1.H(2,2)/sum(K1.H(2,:)) - K1.H(1,2)/sum(K1.H(:,2));  
 end; 	
 
 
@@ -128,7 +130,7 @@ plot([EUI,TO]);
 for k = i0(:)',
 	cl = TO(k); 
 	ix = max(1,k + ERW(1)*Fs) : min(k + ERW(2)*Fs,length(TO));
-	if ((T1(ix)~=cl) & (T1(ix)>0))
+	if any((T1(ix)~=cl) & (T1(ix)>0))
 		warning('overlapping windows');
 	end; 
 	T1(ix) = cl; 
