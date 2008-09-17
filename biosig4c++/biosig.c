@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.256 2008-09-17 07:47:05 schloegl Exp $
+    $Id: biosig.c,v 1.257 2008-09-17 20:26:49 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -231,11 +231,10 @@ float b_endian_f32(float x)
 	union {
 		float f32;
 		uint32_t u32;
-	} b1,b2; 
+	} b1; 
 	b1.f32 = x; 
-	b2 = b1; 
-	b2.u32 = bswap_32(b1.u32);
-	return(b2.f32);
+	b1.u32 = bswap_32(b1.u32);
+	return(b1.f32);
 }
 
 #if __BYTE_ORDER == __BIG_ENDIAN
@@ -2794,17 +2793,17 @@ if (!strncmp(MODE,"r",1))
 					}
 					
 					Onset = strtod(p1+k, &p2);
-					if (!Onset) {
-						fprintf(stdout,"Warning EDF+: corrupted annotation channel - decoding of %i-th event failed.\n",N_EVENT);
-						break; // do not decode any further events. 
-					}	
 					p0 = p2;
 					if (*p2==21) {
 						Duration = strtod(p2+1,&p0);
 						FLAG_NONZERO_DURATION = 1; 
 					}
-					else
+					else if (*p2==20) 
 						Duration = 0; 
+					else {  /* sanity check */
+						fprintf(stdout,"Warning EDF+: corrupted annotation channel - decoding of event #%i <%s> failed.\n",N_EVENT+1,p1+k);
+						break; // do not decode any further events. 
+					}	
 
 					p0[strlen(p0)-1] = 0;	// remove last ascii(20)
 					hdr->EVENT.POS[N_EVENT] = (uint32_t)round(Onset * hdr->EVENT.SampleRate);	
@@ -3596,7 +3595,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 						t2 = strstr(t1,"%20");
 					}
 					int c=sscanf(t1+12,"%03s %03s %2u %2u:%2u:%2u %4u",tmp+10,tmp,&tm_time.tm_mday,&tm_time.tm_hour,&tm_time.tm_min,&tm_time.tm_sec,&tm_time.tm_year);
-					if (c==7) {	
+					if (c==7) {
 						tm_time.tm_isdst = -1;
 						tm_time.tm_year -= 1900;
 						if      (!strcmp(tmp,"Jan")) tm_time.tm_mon = 0;
@@ -3612,11 +3611,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 						else if (!strcmp(tmp,"Nov")) tm_time.tm_mon = 10;
 						else if (!strcmp(tmp,"Dec")) tm_time.tm_mon = 11;
 						hdr->T0 = tm_time2gdf_time(&tm_time);
-					}	
-				}	
+					}
+				}
 				t1 = strstr(ptr,"TargetOrientation=");
-				if (t1 != NULL)	TargetOrientation = (char) strtod(t1+18,&ptr);
-
+				if (t1 != NULL)	TargetOrientation = (char) strtod(t1+18, &ptr);
 
 			// else if (status==3); 
 		    			 
@@ -3861,8 +3859,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FILE.LittleEndian = 1;	// default little endian  
 		double physmax=1e6,physmin=-1e6,digmax=1e6,digmin=-1e6,cal=1.0,off=0.0;
 		enum o_t{VEC,MUL} orientation = MUL;
-		char DECIMALSYMBOL;
-		int  SKIPLINES, SKIPCOLUMNS;
+		char DECIMALSYMBOL='.';
+		int  SKIPLINES=0, SKIPCOLUMNS=0;
 		size_t npts=0;
 
 		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
@@ -6296,7 +6294,7 @@ fprintf(stdout,"ASN1 [491]\n");
 			}	
 		}
 		else if (gdftyp==0xfffe) {
-			double Fs;
+			// double Fs;
 			gdftyp = 17; 	// ascii is converted to double
 			FILE *fid = fopen(fullfilename,"rt");
 
@@ -6693,6 +6691,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     		for (k=0; k<hdr->NS; k++) 
     		if (hdr->CHANNEL[k].OnOff) {
     			sprintf(strrchr(fn,'.'),".s%02i",k+1);
+    			if (hdr->FILE.COMPRESSION) strcat(fn,"_gz");
 	    		fprintf(fid,"Filename  \t= %s\n",fn);
 	    		fprintf(fid,"Label     \t= %s\n",hdr->CHANNEL[k].Label);
 	    		if (hdr->TYPE==ASCII) 
@@ -6711,7 +6710,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    			case 16: gdftyp="float32"; break; 
 	    			case 17: gdftyp="float64"; break; 
 	    			case 18: gdftyp="float128"; break; 
-	    			otherwise: gdftyp = "unknown"; 
+	    			default: gdftyp = "unknown";
 	    			}	
 		    		fprintf(fid,"GDFTYP    \t= %s\n",gdftyp);
 	    		}
@@ -8538,6 +8537,9 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 	if ((hdr->TYPE == ASCII) || (hdr->TYPE == BIN)) {
 		char fn[1025];
+		HDRTYPE H1;
+		H1.FILE.COMPRESSION = hdr->FILE.COMPRESSION;
+		
 		strcpy(fn,hdr->FileName);
 		if (strrchr(fn,'.')==NULL)
 			strcat(fn,".");
@@ -8546,34 +8548,43 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
     		if (hdr->CHANNEL[k1].OnOff) {
 			CHptr 	= hdr->CHANNEL+k1;
     			sprintf(strrchr(fn,'.'),".s%02i",k1+1);
+			if (H1.FILE.COMPRESSION)
+	    			strcat(fn,"_gz");
+	    		else	
     	
     			if (VERBOSE_LEVEL>7)		
 				fprintf(stdout,"#%i: %s\n",k1,fn);    				
 
-			FILE *fid = fopen(fn,"wb");
+			H1.FileName = fn;
+			ifopen(&H1,"wb");
 	
 			if (hdr->TYPE == ASCII) {
 				DIV = hdr->SPR/CHptr->SPR; 
-				for (k2=0; k2<CHptr->SPR; k2++) {
+				for (k2=0; k2<CHptr->SPR*hdr->NRec; k2++) {
 					biosig_data_type i=0;
 					for (k3=0; k3<DIV; k3++) 
 						// assumes colume channels 
 						i += hdr->data.block[hdr->SPR*hdr->NRec*k1+k2*DIV+k3];
-						// TODO: row channels 
-					fprintf(fid,"%f\n",i/DIV);
+						// TODO: row channels
+						
+					if (H1.FILE.COMPRESSION) 
+						gzprintf(H1.FILE.gzFID,"%f\n",i/DIV);
+					else 
+						fprintf(H1.FILE.FID,"%f\n",i/DIV);
 				}		
 			}
 			else if (hdr->TYPE == BIN) {
-				fwrite(hdr->AS.rawdata+hdr->AS.bi[k1], hdr->AS.bi[k1+1]-hdr->AS.bi[k1], hdr->NRec, fid);
+				ifwrite(hdr->AS.rawdata+hdr->AS.bi[k1], hdr->AS.bi[k1+1]-hdr->AS.bi[k1], hdr->NRec, &H1);
 			}
-			fclose(fid);
+			ifclose(&H1);
 		}	
+		count = hdr->NRec; 
 	}
-	else if (hdr->TYPE != SCP_ECG  && hdr->TYPE != HL7aECG) {
+	else if ((hdr->TYPE != SCP_ECG) && (hdr->TYPE != HL7aECG)) {
 		// for SCP: writing to file is done in SCLOSE	
 		count = ifwrite((uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb, hdr->NRec, hdr);
 	}	
-	else { 
+	else { 	// SCP_ECG, HL7aECG
 		count = 1; 	
 	}
 	
