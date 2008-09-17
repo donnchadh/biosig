@@ -1,20 +1,21 @@
-function [W,Label] = spatialfilter(arg1,Mode)
+function [W,Label] = spatialfilter(arg1,Mode,s2)
 % Spatial filter provides different spatial filters. 
 %
 % W = spatialfilter(NS,...)	
 % W = spatialfilter(s,...)	
-% W = spatialfilter(HDR,...)% W = spatialfilter([.], Mode)% 
+% W = spatialfilter(HDR,...)% W = spatialfilter([.], Mode)% W = spatialfilter(s,'CSP',s2)	
+% 
 % NS	number of channels
 % s	data matrix (one column per channel)	% Mode	'Mono': monopolar
 %	'CAR':	common average reference
 %	'Laplace': Hjorth's Laplacian
-%	'bipolar':
-%	'PCA':
-%	'CSP':
-%	'ICA':
-%	'ALL':
+%	'bipolar': all posible combinations of bipolar channels 
+%	'PCA': Principle Component Analysis 
+%	'ICA': Independent Component Analysis
+%	'CSP': Common Spatial patterns
+%	'ALL': Combination of all 
 
-%	$Id: spatialfilter.m,v 1.1 2008-09-17 10:33:24 schloegl Exp $%	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%	$Id: spatialfilter.m,v 1.2 2008-09-17 11:46:51 schloegl Exp $%	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
 %    it under the terms of the GNU General Public License as published by
@@ -53,17 +54,19 @@ if strcmpi(Mode,'bipolar')
 elseif strcmpi(Mode,'Mono')
 	W = speye(NS); 
 	Label = cellstr(int2str([1:NS]'));
-	for k=1:NS,Label{k} = ['Mono #',int2str(k)]; end;  
+	for k=1:NS,Label{k} = ['Mono #',int2str(k)]; end;
+	  
 elseif strcmpi(Mode,'CAR')
-	W = eye(NS) - 1/NS; 
+	W = [eye(NS) - 1/NS, ones(NS,1)/NS]; 
 	Label = cellstr(int2str([1:NS]'));
 	for k=1:NS,Label{k} = ['CAR #',int2str(k)]; end;  
-
+	Label{NS+1} = 'CAR REF'; 
+	
 elseif strcmpi(Mode,'ICA')
 	W = []; 
-	warning('ICA not supported yet');
-	for k=1:size(W,2),Label{k} = ['ICA #',int2str(k)]; end;  
 	Label = {};
+	warning('ICA not supported yet');
+	%for k=1:size(W,2),Label{k} = ['ICA #',int2str(k)]; end;  
 
 elseif strcmpi(Mode,'PCA')
 	if isempty(s)
@@ -73,13 +76,21 @@ elseif strcmpi(Mode,'PCA')
 		for k=1:size(W,2),Label{k} = ['PCA #',int2str(k)]; end;  
 	end; 	 
 
+elseif strcmpi(Mode,'CSP')
+	if isempty(s) || nargin<3
+		error('CSP requires data matrix s and s2')		
+	else
+		[W,D] = eig(covm(s,'E'),covm(s2,'E'));
+		for k=1:size(W,2),Label{k} = ['CSP #',int2str(k)]; end;  
+	end; 	 
+
 elseif strcmpi(Mode,'ALL')
 	[W1,L1] = spatialfilter(NS,'Mono');
 	[W2,L2] = spatialfilter(NS,'bipolar');
 	[W3,L3] = spatialfilter(NS,'CAR');
 	W = [W1,W2,W3];
-	whos,
-	Label = [L1(:);L2(:);L3(:)];
+	Label = [L1(:); L2(:); L3(:)];
+
 	if ~isempty(s)
 		[W1,L1] = spatialfilter(s,'PCA');
 		[W2,L2] = spatialfilter(s,'ICA');
