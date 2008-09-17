@@ -16,22 +16,21 @@ including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, 
 (3) "mexSLOAD.mex" is a MEX-interface for Octave and Matlab
 Requirement: Matlab OR Octave (v2.9 or higher) and octave-headers
 (4) "_biosig.so" is an interface to python. 
-Requirement: python2.4-dev, swig (http://www.swig.org/)
-This part is experimental.  
+Requirement: python, python-dev, python-scipy, swig (http://www.swig.org/)
 (5) SigViewer 
 Requirement: qmake, Qt4
 
 The internal data structure resemble the header structure similar 
-http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig/doc/header.txt
+  http://biosig.cvs.sourceforge.net/biosig/biosig/doc/header.txt
 and is defined in
-http://cvs.sourceforge.net/viewcvs.py/*checkout*/biosig/biosig4c%2B%2B/biosig.h
+  http://biosig.cvs.sourceforge.net/biosig/biosig4c%2B%2B/biosig.h
 (see HDRTYPE and CHANNEL_TYPE)
 
 Encoding of Event/Markers/Annotations is available here: 
-http://hci.tugraz.at/schloegl/matlab/eeg/EventCodes.html
+  http://hci.tugraz.at/schloegl/matlab/eeg/EventCodes.html
 
 The latest list of supported data formats is available here: 
-http://hci.tugraz.at/schloegl/biosig/TESTED
+  http://hci.tugraz.at/schloegl/biosig/TESTED
 
 
 File(s): 
@@ -63,7 +62,7 @@ Running make compiles the converter.
   make mex4o 		# makes mexSLOAD for Octave (requires Octave-headers2.9 or higher)
   make mex4m 		# makes mexSLOAD for Matlab (path_to_mex need to be defined in Makefile)
   make sigviewer 	# recompiles SigViewer	(requires qmake and Qt)
-  make biosig4python 	# compiles the BioSig interface for Python (requires SWIG and Python 2.4)
+  make biosig4python 	# compiles the BioSig interface for Python (requires SWIG and Python)
   make all  		# all of the above
   make testscp 
   make testhl7	
@@ -160,7 +159,7 @@ https://lists.sourceforge.net/lists/listinfo/biosig-general
 
 
 
-    $Id: README,v 1.22 2008-08-23 22:12:26 schloegl Exp $
+    $Id: README,v 1.23 2008-09-17 07:49:38 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 
