@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" ######################
 ###
-###  $Id: Makefile,v 1.57 2008-09-04 16:03:10 schloegl Exp $
+###  $Id: Makefile,v 1.58 2008-09-17 20:46:29 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -10,11 +10,11 @@
 
 
 CC            = $(CXX)
-CXX           = g++-4.1
+CXX           = g++
 MinGWCXX      = i586-mingw32msvc-g++
 MEX	      = /opt/MatlabR2008a/bin/mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB #-D=WITH_EEPROBE -D=WITH_ANS1 #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = -D=WITH_ZLIB #-D=WITH_ANS1 #-D=WITH_EEPROBE -D=WITH_ANS1 #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
@@ -32,6 +32,8 @@ DEL_FILE      = rm
 
 SWIG          = swig
 PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
+TASN1_DIR     = /home/schloegl/src/libtasn1-1.5/lib/
+LIBTASN1      = $(TASN1_DIR).libs/libtasn1.a 
  
 ####### Output directory
 
@@ -83,7 +85,7 @@ MinGWOBJECTS  = win32/biosig.obj \
 TARGET        = save2gdf save2aecg save2scp libbiosig.a libbiosig.so #sigviewer
 
 first: $(TARGET)
-all: $(TARGET) mex sigviewer exe biosig4python
+all: $(TARGET) mex4o sigviewer exe biosig4python
 
 ####### Implicit rules
 
@@ -243,8 +245,8 @@ win32 exe: win32/save2gdf.exe
 
 ####### application files 
  
-save2gdf: save2gdf.c libbiosig.a libbiosig.so 
-	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
+save2gdf: save2gdf.c libbiosig.a libbiosig.so $(LIBTASN1)
+	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) $(TASN1_DIR).libs/libtasn1.a -o save2gdf 
 
 physicalunits: physicalunits.c libbiosig.a
 	$(CXX) $(CXXFLAGS) physicalunits.c $(LFLAGS) $(LIBS) -o physicalunits
@@ -252,13 +254,17 @@ physicalunits: physicalunits.c libbiosig.a
 win32 exe: win32/save2gdf.exe 
 
 mex: mex4m mex4o
-mex4m: mexSLOAD.mexglx
+mex4m: mexSLOAD.mexglx mexSOPEN.mexglx
 mexSLOAD.mexglx: mexSLOAD.cpp  libbiosig.a libbiosig.so
 	$(MEX) mexSLOAD.cpp  $(LIBS) 
+mexSOPEN.mexglx: mexSLOAD.cpp  libbiosig.a libbiosig.so
+	$(MEX) -DmexSOPEN mexSLOAD.cpp  $(LIBS) -output mexSOPEN
 
-mex4o:  mexSLOAD.mex 
+mex4o:  mexSLOAD.mex mexSOPEN.mex 
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a  libbiosig.so 
 	mkoctfile  -v -g --mex mexSLOAD.cpp  $(LIBS) 
+mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a  libbiosig.so 
+	mkoctfile  -D=mexSOPEN -v -g --mex mexSLOAD.cpp  $(LIBS) -o mexSOPEN.mex 
 #physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
 #	mkoctfile  -v -g --mex physicalunits.cpp  $(LIBS) 
 

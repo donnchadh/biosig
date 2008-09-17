@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.40 2008-09-03 08:07:46 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.41 2008-09-17 20:46:29 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -30,6 +30,7 @@ void mexFunction(
 {
 	int k,k1;
 	const mxArray	*arg;
+	mxArray	*HDR;
 	HDRTYPE		*hdr;
 	CHANNEL_TYPE*	cp; 
 	size_t 		count;
@@ -146,15 +147,23 @@ void mexFunction(
 		//plhs[0] = mxCreateDoubleMatrix(0,0, mxREAL);
 
 		const char* fields[]={"TYPE","VERSION"};
-		plhs[1] = mxCreateStructMatrix(1, 1, 2, fields);
-		mxSetField(plhs[1],0,"TYPE",mxCreateString(GetFileTypeString(hdr->TYPE)));
-		mxSetField(plhs[1],0,"VERSION",mxCreateDoubleScalar(hdr->VERSION));
+		HDR = mxCreateStructMatrix(1, 1, 2, fields);
+		mxSetField(HDR,0,"TYPE",mxCreateString(GetFileTypeString(hdr->TYPE)));
+		mxSetField(HDR,0,"VERSION",mxCreateDoubleScalar(hdr->VERSION));
 
 		char msg[1024]; 
 		sprintf(msg,"Error mexSLOAD: Cannot open file %s - format %s not supported.\n",FileName,GetFileTypeString(hdr->TYPE));
 		destructHDR(hdr);
 		mexErrMsgTxt(msg);
-		//mexPrintf("ERROR(%i) in mexSLOAD: Cannot open file %s\n", status, FileName); 
+		//mexPrintf("ERROR(%i) in mexSLOAD: Cannot open file %s\n", status, FileName);
+		
+
+#ifndef mexSOPEN
+		plhs[1] = HDR; 
+#else
+		plhs[0] = HDR; 
+#endif
+
 		return; 
 	}
 	if (hdr==NULL) return;
@@ -183,8 +192,10 @@ void mexFunction(
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[113] NS=%i %i\n",hdr->NS,NS);
 
+#ifndef mexSOPEN
 	count = sread(NULL, 0, hdr->NRec, hdr);
 	//count = sread2(NULL, 0, hdr->NRec * hdr->SPR, hdr);
+#endif
 
 	sclose(hdr);
 
@@ -214,10 +225,12 @@ void mexFunction(
 
 //	hdr2ascii(hdr,stderr,4);	
 
+#ifndef mexSOPEN 
 	if (nlhs>1) { 
+#endif
 		char* mexFileName = (char*)mxMalloc(strlen(hdr->FileName)+1); 
 
-		mxArray *HDR, *tmp, *tmp2, *Patient, *ID, *EVENT, *Filter, *Flag, *FileType;
+		mxArray *tmp, *tmp2, *Patient, *ID, *EVENT, *Filter, *Flag, *FileType;
 		uint16_t numfields;
 		const char *fnames[] = {"TYPE","VERSION","FileName","T0","FILE","Patient",\
 		"HeadLen","NS","SPR","NRec","SampleRate", "FLAG", \
@@ -396,8 +409,8 @@ void mexFunction(
 		const char *patient_fields[] = {"Sex","Handedness","Id","Name","Weight","Height","Birthday",NULL};
 		for (numfields=0; patient_fields[numfields++] != 0; );
 		Patient = mxCreateStructMatrix(1, 1, --numfields, patient_fields);
-//		mxSetField(Patient,0,"Name",mxCreateCharMatrixFromStrings(1,(const char**)&(hdr->Patient.Name)));
-//		mxSetField(Patient,0,"Id",mxCreateCharMatrixFromStrings(1,(const char**)&(hdr->Patient.Id)));
+		mxSetField(Patient,0,"Name",mxCreateCharMatrixFromStrings(1,(const char**)&(hdr->Patient.Name)));
+		mxSetField(Patient,0,"Id",mxCreateCharMatrixFromStrings(1,(const char**)&(hdr->Patient.Id)));
 		mxSetField(Patient,0,"Handedness",mxCreateDoubleScalar(hdr->Patient.Handedness));
 		mxSetField(Patient,0,"Sex",mxCreateDoubleScalar(hdr->Patient.Sex));
 		mxSetField(Patient,0,"Weight",mxCreateDoubleScalar((double)hdr->Patient.Weight));
@@ -416,8 +429,12 @@ void mexFunction(
 	
 		mxSetField(HDR,0,"Patient",Patient);
 
-		plhs[1] = HDR;
+#ifndef mexSOPEN
+		plhs[1] = HDR; 
 	}
+#else
+	plhs[0] = HDR; 
+#endif
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[131] going for SCLOSE\n");
 	destructHDR(hdr);
