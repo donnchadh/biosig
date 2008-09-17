@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.118 2008-08-22 22:55:10 schloegl Exp $
+% $Id: biosig.h,v 1.119 2008-09-17 07:50:13 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -97,6 +97,7 @@ enum B4C_ERROR {
 	B4C_DATATYPE_UNSUPPORTED,
 	B4C_SCLOSE_FAILED,
 	B4C_DECOMPRESSION_FAILED,
+	B4C_MEMORY_ALLOCATION_FAILED,
 	B4C_UNSPECIFIC_ERROR,
 };
 
@@ -110,7 +111,8 @@ enum FileFormat {
 	EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, 
-	Matlab, MFER, MIDI, MIT, NetCDF, NEX1, NIFTI, OGG, 
+	Matlab, MFER, MIDI, MIT, 
+	native, NetCDF, NEX1, NIFTI, OGG, 
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, TMSiLOG, VRML, VTK, WAV, WMF, XML, XPM,

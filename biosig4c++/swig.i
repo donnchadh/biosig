@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.15 2008-09-09 20:24:45 schloegl Exp $
+% $Id: swig.i,v 1.16 2008-09-17 07:50:13 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -51,7 +51,8 @@ enum FileFormat {
 	EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, 
-	Matlab, MFER, MIDI, MIT, NetCDF, NEX1, NIFTI, OGG, 
+	Matlab, MFER, MIDI, MIT, 
+	native, NetCDF, NEX1, NIFTI, OGG, 
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, TMSiLOG, VRML, VTK, WAV, WMF, XML, XPM,
