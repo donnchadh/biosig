@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.255 2008-09-10 14:57:30 schloegl Exp $
+    $Id: biosig.c,v 1.256 2008-09-17 07:47:05 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -64,7 +64,6 @@ int sopen_zzztest(HDRTYPE* hdr);
 
 #ifdef	__WIN32__
 #include <winsock2.h>
-#define HOST_NAME_MAX 256
 #define FILESEP '\\'
 extern int getlogin_r(char* name, size_t namesize);
 #else
@@ -72,6 +71,9 @@ extern int getlogin_r(char* name, size_t namesize);
 #define FILESEP '/'
 #endif
 
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX 256
+#endif 
 
 int errnum;
 int B4C_STATUS  = 0;
@@ -1133,10 +1135,14 @@ void write_gdf_eventtable(HDRTYPE *hdr)
 	char flag; 
 
 	ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
-	flag = (hdr->EVENT.DUR != NULL) & (hdr->EVENT.CHN != NULL); 
+//	if (VERBOSE_LEVEL>7) 
+		fprintf(stdout,"WriteEventTable: %p %p %p %p\t",hdr->EVENT.TYP,hdr->EVENT.POS,hdr->EVENT.DUR,hdr->EVENT.CHN);
+	flag = (hdr->EVENT.DUR != NULL) && (hdr->EVENT.CHN != NULL); 
 	if (flag)   // any DUR or CHN is larger than 0 
-		for (k32u=0, flag=0; (k32u<hdr->EVENT.N) & !flag; k32u++)
+		for (k32u=0, flag=0; (k32u<hdr->EVENT.N) && !flag; k32u++)
 			flag |= hdr->EVENT.CHN[k32u] || hdr->EVENT.DUR[k32u];
+
+	fprintf(stdout,"flag=%d.\n",flag);
 
 	buf[0] = (flag ? 3 : 1);
 	if (hdr->VERSION < 1.94) {
@@ -2079,6 +2085,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case MFER: 	{ FileType = "MFER"; break; }
 	case MIDI: 	{ FileType = "MIDI"; break; }
 	case MIT: 	{ FileType = "MIT"; break; }
+	case native: 	{ FileType = "native"; break; }
 	case NetCDF: 	{ FileType = "NetCDF"; break; }
 	case NEX1: 	{ FileType = "NEX1"; break; }
 	case NIFTI: 	{ FileType = "NIFTI"; break; }
@@ -2538,16 +2545,28 @@ if (!strncmp(MODE,"r",1))
 	    	hdr->NRec	= atoi(strncpy(tmp,Header1+236,8));
 	    	//Dur		= atof(strncpy(tmp,Header1+244,8));
 
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211b] #=%li\n",iftell(hdr));
+
 		if (!strncmp(Header1+192,"EDF+",4)) {
 			char ListOfMonth[12][4] = {"JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"};
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211c+] <%s>\n",hdr->Patient.Id);
+
 	    		strtok(hdr->Patient.Id," ");
 	    		ptr_str = strtok(NULL," ");
+			if (ptr_str!=NULL) {
+				// define Id, Sex, Birthday, Name
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211c+] <%p>\n",ptr_str);
+
 	    		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
 	    		ptr_str = strtok(NULL," ");	// startdate
 	    		char *tmpptr = strtok(NULL," ");
 	    		if ((!hdr->FLAG.ANONYMOUS) && (tmpptr != NULL)) {
 		    		strcpy(hdr->Patient.Name,tmpptr);
 		    	}	
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211c] #=%li\n",iftell(hdr));
+
 			if (strlen(ptr_str)==11) {
 				struct tm t1;
 		    		t1.tm_mday = atoi(strtok(ptr_str,"-")); 
@@ -2562,30 +2581,51 @@ if (!strncmp(MODE,"r",1))
 		    		t1.tm_hour = 12;
 		    		t1.tm_isdst= -1;
 		    		hdr->Patient.Birthday = tm_time2gdf_time(&t1);
-		    	}
+		    	}}
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211d] <%s>\n",hdr->ID.Recording);
 
 			strncpy(hdr->ID.Recording, Header1+88+22, 80-22);
 			hdr->ID.Recording[80-22]=0;
-			strtok(hdr->ID.Recording," ");
-			strncpy(hdr->ID.Technician, strtok(NULL," "),MAX_LENGTH_TECHNICIAN);
-			hdr->ID.Manufacturer.Name  = strtok(NULL," ");
+			if (strtok(hdr->ID.Recording," ")!=NULL) {
+				strncpy(hdr->ID.Technician, strtok(NULL," "),MAX_LENGTH_TECHNICIAN);
+				hdr->ID.Manufacturer.Name  = strtok(NULL," ");
+			}	
 			
+			Header1[167]=0;
 	    		strtok(Header1+88," ");
 	    		ptr_str = strtok(NULL," ");
-			// check EDF+ Startdate against T0 
+			if (ptr_str != NULL) { 
+			// check EDF+ Startdate against T0
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211e-] <%s>\n",ptr_str);
 	    		if (tm_time.tm_mday != atoi(strtok(ptr_str,"-")))
 	    			fprintf(stderr,"Warning SOPEN(EDF+): Day-of-the-Month %i <%s> corrupted\n",tm_time.tm_mday,ptr_str); 
 
-	    		strcpy(tmp,strtok(NULL,"-"));
-	    		tm_time.tm_year = atoi(strtok(NULL,"-")) - 1900; 
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211e] <%s>\n",ptr_str);
+			ptr_str = strtok(NULL,"-");
+//			if (ptr_str != NULL) { 
 
-	    		for (k=0; k<strlen(tmp); ++k) tmp[k]=toupper(tmp[k]);	// convert to uppper case 
-	    		for (k=0; k<12; k++) if (!strcmp(tmp,ListOfMonth[k])) break;
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211f] <%s>\n",ptr_str);
 
-	    		if (tm_time.tm_mon != k)
-	    			fprintf(stderr,"Warning SOPEN(EDF+): %i <%s> Month corrupted\n",tm_time.tm_mon+1,tmp); 
+	    			strcpy(tmp,ptr_str);
 
-	    		tm_time.tm_isdst= -1;
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211g] <%s>\n",tmp);
+
+	    			tm_time.tm_year = atoi(strtok(NULL,"-")) - 1900; 
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211h] <%i>\n",tm_time.tm_year);
+
+		    		for (k=0; k<strlen(tmp); ++k) tmp[k]=toupper(tmp[k]);	// convert to uppper case 
+		    		for (k=0; k<12; k++) if (!strcmp(tmp,ListOfMonth[k])) break;
+
+	    			if (tm_time.tm_mon != k)
+	    				fprintf(stderr,"Warning SOPEN(EDF+): %i <%s> Month corrupted\n",tm_time.tm_mon+1,tmp); 
+
+		    		tm_time.tm_isdst= -1;
+			} 
+			
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211z] #=%li\n",iftell(hdr));
+
 		}   
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 212] #=%li\n",iftell(hdr));
@@ -2754,15 +2794,19 @@ if (!strncmp(MODE,"r",1))
 					}
 					
 					Onset = strtod(p1+k, &p2);
+					if (!Onset) {
+						fprintf(stdout,"Warning EDF+: corrupted annotation channel - decoding of %i-th event failed.\n",N_EVENT);
+						break; // do not decode any further events. 
+					}	
 					p0 = p2;
 					if (*p2==21) {
 						Duration = strtod(p2+1,&p0);
 						FLAG_NONZERO_DURATION = 1; 
-					}	
+					}
 					else
 						Duration = 0; 
 
-					p0[strlen(p0)-1] = 0;			// remove last ascii(20)
+					p0[strlen(p0)-1] = 0;	// remove last ascii(20)
 					hdr->EVENT.POS[N_EVENT] = (uint32_t)round(Onset * hdr->EVENT.SampleRate);	
 					hdr->EVENT.DUR[N_EVENT] = (uint32_t)round(Duration * hdr->EVENT.SampleRate);	
 					hdr->EVENT.CHN[N_EVENT] = 0;	
@@ -3813,9 +3857,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->FLAG.OVERFLOWDETECTION = 0;
 		seq = 0;
 		uint16_t gdftyp=3; 
+		char FLAG_ASCII = 0; 
 		hdr->FILE.LittleEndian = 1;	// default little endian  
 		double physmax=1e6,physmin=-1e6,digmax=1e6,digmin=-1e6,cal=1.0,off=0.0;
 		enum o_t{VEC,MUL} orientation = MUL;
+		char DECIMALSYMBOL;
+		int  SKIPLINES, SKIPCOLUMNS;
 		size_t npts=0;
 
 		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
@@ -3832,23 +3879,31 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				seq = 2; 
 			else if (!strncmp(t,"[ASCII Infos]",13)) {
 				seq = 2; 
-				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
-				B4C_ERRMSG = "Error SOPEN(BrainVision): ASCII-format not supported";
+				FLAG_ASCII = 1; 
+				gdftyp = 17;
+
+//				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
+//				B4C_ERRMSG = "Error SOPEN(BrainVision): ASCII-format not supported (yet).";
 			}
 			else if (!strncmp(t,"[Channel Infos]",14)) {
 				seq = 3; 
 
 				/* open data file */ 
-				hdr = ifopen(hdr,"rb"); 
-	        		ifseek(hdr,0,SEEK_END);		// fix SEEK_END
-				size_t FileSize = iftell(hdr);
-			        ifseek(hdr,0,SEEK_SET);
+				if (FLAG_ASCII) hdr = ifopen(hdr,"rt");
+				else 	        hdr = ifopen(hdr,"rb");
+					
+				if (!npts) {
+					ifseek(hdr,0,SEEK_END);		// fix SEEK_END
+					size_t FileSize = iftell(hdr);
+				        ifseek(hdr,0,SEEK_SET);
+					npts = FileSize/hdr->AS.bpb;
+		        	}	
 				hdr->HeadLen = 0;
+
 				/* restore input file name, and free temporary file name  */
 				hdr->FileName = filename;
 				free(tmpfile);
 
-				if (!npts) npts = FileSize/hdr->AS.bpb;
 				if (orientation == VEC) {
 					hdr->SPR = npts;
 					hdr->NRec= 1;
@@ -3893,12 +3948,22 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					;
 				else if (!strncmp(t,"DataFormat=BINARY",11))
 					;
+				else if (!strncmp(t,"DataFormat=ASCII",16)) {
+					FLAG_ASCII = 1; 
+					gdftyp     = 17;
+//					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
+//					B4C_ERRMSG = "Error SOPEN(BrainVision): ASCII-format not supported (yet).";
+				}	
 				else if (!strncmp(t,"DataOrientation=VECTORIZED",25))
 					orientation = VEC;
 				else if (!strncmp(t,"DataOrientation=MULTIPLEXED",26))
 					orientation = MUL;
 				else if (!strncmp(t,"DataType=TIMEDOMAIN",19))
 					;
+				else if (!strncmp(t,"DataType=",9)) {
+					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
+					B4C_ERRMSG = "Error SOPEN(BrainVision): DataType is not TIMEDOMAIN";
+				}	
 				else if (!strncmp(t,"NumberOfChannels=",17)) {
 					hdr->NS = atoi(t+17);
 				}	
@@ -3943,7 +4008,16 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					// hdr->FLAG.SWAP = (__BYTE_ORDER == __LITTLE_ENDIAN); 
 					hdr->FILE.LittleEndian = 0; 
 				}	
-				else if (0){
+				else if (!strncmp(t,"DecimalSymbol=",14)) {
+					DECIMALSYMBOL = t[14];
+				}	
+				else if (!strncmp(t,"SkipLines=",10)) {
+					SKIPLINES = atoi(t+10);
+				}	
+				else if (!strncmp(t,"SkipColumns=",12)) {
+					SKIPCOLUMNS = atoi(t+12);
+				}
+				else if (0) {
 					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 					B4C_ERRMSG = "Error SOPEN(BrainVision): BinaryFormat=<unknown>";
 					return(hdr);
@@ -3988,6 +4062,42 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			t = strtok(NULL,"\x0a\x0d");	// extract next line
 		}
 	    	hdr->FILE.POS = 0; 
+	    	if (FLAG_ASCII) {
+	    		count = 0; 
+			size_t bufsiz  = hdr->NS*hdr->SPR*hdr->NRec*16;
+			while (!ifeof(hdr)) {
+			    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+bufsiz+1);
+		    		count += ifread(hdr->AS.Header+count,1,bufsiz,hdr);
+			}
+			ifclose(hdr);
+			hdr->AS.Header[count]=0;	// terminating null character			
+			
+			size_t pos=0;
+			if (DECIMALSYMBOL != '.') 
+				do {
+					if (hdr->AS.Header[pos]==DECIMALSYMBOL) 
+						hdr->AS.Header[pos] = '.';
+				} while (hdr->AS.Header[++pos]);
+				
+			pos = 0;  
+	    		while (SKIPLINES>0) {
+				while (!iscntrl(hdr->AS.Header[pos])) pos++; 	// skip line
+				while ( iscntrl(hdr->AS.Header[pos])) pos++;	// skip line feed and carriage return
+				SKIPLINES--;
+	    		}
+			
+			hdr->AS.rawdata = (uint8_t*)malloc(hdr->NS*npts*sizeof(double));
+			char* POS=(char*)(hdr->AS.Header+pos); 
+			for (k=0; k < hdr->NS*npts; k++) {
+		    		if (((orientation==MUL) && !(k%hdr->NS)) ||
+		    		    ((orientation==VEC) && !(k%npts))) {
+			    		int sc = SKIPCOLUMNS;
+					while (sc--) strtod(POS,&POS);
+	    			}
+		    		*(double*)(hdr->AS.rawdata+k*sizeof(double)) = strtod(POS,&POS);
+	    		}
+	    		hdr->TYPE = native;
+	    	}
 	}
 
 	else if (hdr->TYPE==CFWB) {
@@ -7466,7 +7576,8 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	case MIT: 	toffset = start;	
 	case BIN: 		
 	case EVENT: 		
-	case HL7aECG: 		
+	case HL7aECG:
+	case native: 		
 	case SCP_ECG: 
 	case TMSiLOG: {
 		// hdr->AS.rawdata was defined in SOPEN	
