@@ -24,8 +24,8 @@ function [HDR,H1,h2]=opendicom(arg1,arg2,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.2 $
-%	$Id: opendicom.m,v 1.2 2004-09-25 20:28:10 schloegl Exp $
+%	$Revision: 1.3 $
+%	$Id: opendicom.m,v 1.3 2008-09-24 14:54:12 schloegl Exp $
 %	(C) 1997-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -60,8 +60,8 @@ if any(PERMISSION=='r'),
         end;
 		
         count = 0;
+        [TAG,c] = fread(HDR.FILE.FID,2,'uint16');
         while ~feof(HDR.FILE.FID);
-                TAG = fread(HDR.FILE.FID,2,'uint16');
 		TAG = [2^16,1]*TAG;
 		if  HDR.FLAG.implicite_VR, 	% implicite VR
 			LEN = fread(HDR.FILE.FID,1,'uint32');
@@ -86,7 +86,7 @@ if any(PERMISSION=='r'),
 		%LEN = fread(HDR.FILE.FID,1,'uint32');
                 count = count + 1;
 
-%		fprintf(1,'%03i\t%08x\t%04i\n',count,TAG,LEN);
+		fprintf(1,'%03i\t%08x\t%04i\n',count,TAG,LEN);
 
 %[count,LEN],dec2hex(TAG),		
 		% read Value 
@@ -301,8 +301,8 @@ if any(PERMISSION=='r'),
 			[VAL,c] = fread(HDR.FILE.FID,1,'uint8');
 			HDR.DICOM.AcquisitionNumber = char(VAL);
 		elseif (TAG==hex2dec('00200013')),
-			[VAL,c] = fread(HDR.FILE.FID,1,'uint8');
-			HDR.DICOM.InstanceNumber = char(VAL);
+			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
+			HDR.DICOM.InstanceNumber = str2double(VAL);
 		elseif (TAG==hex2dec('00200019')),
 			[VAL,c] = fread(HDR.FILE.FID,1,'uint8');
 			HDR.DICOM.ItemNumber = char(VAL);
@@ -351,7 +351,6 @@ if any(PERMISSION=='r'),
 		elseif (TAG==hex2dec('003a001a')),	% waveform data
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
 			HDR.SampleRate = VAL; 
-
 
 		elseif (TAG==hex2dec('003a0020')),
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
@@ -464,7 +463,6 @@ if any(PERMISSION=='r'),
 		elseif (TAG==hex2dec('54000100')),
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
 			HDR.DICOM.WaveFormSequence = VAL; 
-			'54000100',
 		elseif (TAG==hex2dec('54000110')),	% channel minimum
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
 			HDR.PhysMin = VAL;
@@ -495,8 +493,10 @@ if any(PERMISSION=='r'),
 		else
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
 %			char(VAL'),
+			fprintf(1,'ignored: TAG=%08x VAL=%s\n',TAG,char(VAL));
 		end;	
 
+                [TAG,c] = fread(HDR.FILE.FID,2,'uint16');
         end;
 		
 	
