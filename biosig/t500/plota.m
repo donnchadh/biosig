@@ -60,7 +60,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.65 2008-09-04 14:31:27 schloegl Exp $
+%	$Id: plota.m,v 1.66 2008-09-24 12:28:19 schloegl Exp $
 %	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -855,25 +855,24 @@ set(gca,'YTickLabel',ytickLablesStrLab);
 
 suptitle([ H.method , H.type , ' - Subject ', H.subj , ' - Condition ', H.cond ]);
 
-
-
-
-                
         end
 
-elseif strcmp(X.datatype,'EDF'),
-        data = arg2;
-        [nr,nc]=size(data);
-        for k = 1:nc,
-                subplot(nc,1,k);
-                %t = (X.Block.number(3)+1:X.Block.number(4))/X.AS.MAXSPR*X.Dur;
 
-                t = X.FILE.POS*X.Dur+(1-nr:0)/X.AS.MAXSPR*X.Dur/size(X.SIE.T,2)*size(X.SIE.T,1);
-                plot(t, data(:,k));
-                ylabel(deblank(X.Label(X.SIE.ChanSelect(k),:)));
-        end;
-        xlabel('t [s]')
-
+elseif strcmp(X.datatype,'coupling'),
+	clim = [min(0,min(X.data(:))),max(1,max(X.data(:)))];
+	ndim = length(size(X.data));
+	for k1=1:size(X.data,1)
+	for k2=1:size(X.data,2)
+		subplot(size(X.data,1),size(X.data,2),(k1-1)*size(X.data,2)+k2);
+		if ndim==3,
+			area(X.f,squeeze(X.data(k1,k2,:)));
+			set(gca,'YLim',clim);
+		elseif ndim==4,
+			imagesc(X.t,X.f,squeeze(X.data(k1,k2,:,:)));
+			set(gca,'CLim',clim);
+		end;	
+	end;
+	end;	
 
 elseif strcmp(X.datatype,'confusion'),
         if nargin>1,
