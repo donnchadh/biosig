@@ -63,7 +63,7 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %	http://ida.first.fraunhofer.de/projects/bci/competition/results/TR_BCI2003_III.pdf
 
 
-%    $Id: bci4eval.m,v 1.9 2008-03-27 11:02:10 schloegl Exp $
+%    $Id: bci4eval.m,v 1.10 2008-09-25 16:27:38 schloegl Exp $
 %    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -132,8 +132,8 @@ if (M==2) & (sz(1)==1),
         [i2.SUM, o.N2, i2.SSQ] = sumskipnan(X{2},DIM);       
         
         o.MEAN1 = i1.SUM./o.N1;	% mean
-        v1    = i1.SSQ-i1.SUM.*o.MEAN1;	% n*var
-        o.SD1 = sqrt(v1./o.N1); % standard deviation 
+        v1      = i1.SSQ-i1.SUM.*o.MEAN1;	% n*var
+        o.SD1   = sqrt(v1./o.N1); % standard deviation 
         %o.SE1 = sqrt(v1)./o.N1; % standard error of the mean 
         
         o.MEAN2 = i2.SUM./o.N2;
@@ -191,7 +191,7 @@ if (M==2) & (sz(1)==1),
         
 end
 
-if M==sz(1),
+if (M==sz(1)),
         for k=1:sz(1),
                 x = bci4eval(tsd(:,k),TRIG,cl==CL(k),pre,post,Fs);
                 if k==1; 
@@ -226,15 +226,24 @@ if M==sz(1),
         end;
         o.CL = CL'; 
 
+elseif sz(1)==1,
+	% two-class problem with single column tsd 
+        [x,sz] = trigg([-tsd,tsd],TRIG,pre,post);
+        D = reshape(x,sz);
+        D = squeeze(D);
+else
+        error('number of classes and number of traces do not fit');
+end;
+
+ 
         
         [m,IX] = max(D,[],1);
         IX(isnan(m)) = NaN;
-        IX = squeeze(IX);
-
+        IX = squeeze(IX)
         CMX = repmat(zeros,[size(IX,1),length(CL)*[1,1]]);
         for k = 1:length(CL),
         for j = 1:length(CL),
-                CMX(:,k,j)=sum(IX(:,CL(k)==cl)==CL(j),2);
+                CMX(:,k,j)=sum(IX(:,CL(k)==cl)==j,2);
         end;
         end;
         o.CMX = CMX; 
@@ -247,13 +256,8 @@ if M==sz(1),
         for k   = 1:size(CMX,1),
                 [o.KAP00(k),o.Ksd00(k),h,z,o.ACC00(k),sa,o.I_Nykopp(k,1)] = kappa(squeeze(CMX(k,:,:)));            
         end;
-        o.datatype = 'TSD_BCI9';  % useful for PLOTA
+        o.datatype = 'TSD_BCI9'  % useful for PLOTA
         [tmp,o.tix]= max([o.KAP00,o.R,sum(o.I,2),wolpaw_entropy(o.ACC00,M)]); 
         o.optCMX   = squeeze(CMX(o.tix(1),:,:));%,length(CL)*[1,1]);
         o.I_wolpaw = wolpaw_entropy(o.ACC00,M);
         
-elseif sz(1)==1,
-        
-else
-        error('number of classes and number of traces do not fit');
-end;
