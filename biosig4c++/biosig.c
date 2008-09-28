@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.257 2008-09-17 20:26:49 schloegl Exp $
+    $Id: biosig.c,v 1.258 2008-09-28 21:50:16 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -3884,6 +3884,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 //				B4C_ERRMSG = "Error SOPEN(BrainVision): ASCII-format not supported (yet).";
 			}
 			else if (!strncmp(t,"[Channel Infos]",14)) {
+				hdr->AS.bpb = (hdr->NS*GDFTYP_BITS[gdftyp])>>3;			
 				seq = 3; 
 
 				/* open data file */ 
@@ -3897,7 +3898,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					npts = FileSize/hdr->AS.bpb;
 		        	}	
 				hdr->HeadLen = 0;
-
+					
 				/* restore input file name, and free temporary file name  */
 				hdr->FileName = filename;
 				free(tmpfile);
@@ -3909,6 +3910,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->SPR = 1;
 					hdr->NRec= npts;
 				}
+
 			    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 				for (k=0; k<hdr->NS; k++) {
 					hdr->CHANNEL[k].Label[0] = 0;
@@ -3927,8 +3929,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->CHANNEL[k].OnOff    = 1;
 				    	hdr->CHANNEL[k].PhysDimCode = 4275; // uV
 		    			hdr->CHANNEL[k].LeadIdCode  = 0;
-					}
-				}	
+				}
+			}	
 			//else if (!strncmp(t,"[Common Infos]",14))
 			//	seq = 4; 
 			else if (!strncmp(t,"[Coordinates]",13))
@@ -3978,20 +3980,17 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					gdftyp = 16;
 					digmax =  physmax/cal;
 					digmin =  physmin/cal;
-					hdr->AS.bpb = 4*hdr->NS;
 				}	
 				else if (!strncmp(t,"BinaryFormat=INT_16",19)) {
 					gdftyp =  3;
 					digmax =  32767;
 					digmin = -32768;
-					hdr->AS.bpb = 2*hdr->NS;
 					hdr->FLAG.OVERFLOWDETECTION = 1;
 				}	
 				else if (!strncmp(t,"BinaryFormat=UINT_16",20)) {
 					gdftyp = 4;
 					digmax = 65535;
 					digmin = 0;
-					hdr->AS.bpb = 2*hdr->NS;
 					hdr->FLAG.OVERFLOWDETECTION = 1;
 				}
 				else if (!strncmp(t,"BinaryFormat",12)) {
@@ -6761,10 +6760,108 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		}
 		fclose(fid); 
     	}	
+    	else if (hdr->TYPE==BrainVision) {
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [210]\n");
+
+		const char *filename = hdr->FileName; // keep input file name 
+		char* tmpfile = (char*)calloc(strlen(hdr->FileName)+5,1);		
+		strcpy(tmpfile,hdr->FileName);
+		hdr->FileName = tmpfile;
+		char* ext = strrchr(hdr->FileName,'.')+1; 
+		strcpy(ext,"vhdr");
+
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [211]\n");
+
+    		hdr->HeadLen = 0; 
+    		FILE *fid = fopen(hdr->FileName,"wb");
+    		fprintf(fid,"Brain Vision Data Exchange Header File Version 1.0\n\r");
+    		fprintf(fid,"; Data created by BioSig4C++\n\r\n\r");
+    		fprintf(fid,"[Common Infos]\n\r");
+    		fprintf(fid,"DataFile=%s\n\r",hdr->FileName);
+    		fprintf(fid,"MarkerFile=%s\n\r");
+    		fprintf(fid,"DataFormat=BINARY\n\r");
+    		fprintf(fid,"; Data orientation: MULTIPLEXED=ch1,pt1, ch2,pt1 ...\n\r");
+    		fprintf(fid,"DataOrientation=MULTIPLEXED\n\r");
+    		fprintf(fid,"NumberOfChannels=%i\n\r",hdr->NS);
+    		fprintf(fid,"; Sampling interval in microseconds\n\r");
+    		fprintf(fid,"SamplingInterval=%f\n\r\n\r",1e6/hdr->SampleRate);
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [212]\n");
+
+    		fprintf(fid,"[Binary Infos]\n\rBinaryFormat=");
+		uint16_t gdftyp = 0;
+    		for (k=0; k<hdr->NS; k++) 
+    			if (gdftyp < hdr->CHANNEL[k].GDFTYP) 
+    				gdftyp = hdr->CHANNEL[k].GDFTYP; 
+    		if (gdftyp<4) {
+    			gdftyp = 3; 
+    			fprintf(fid,"INT_16");
+    		}	
+    		else {
+    			gdftyp = 16;
+ 	   		fprintf(fid,"IEEE_FLOAT_32");
+		}
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [214]\n");
+
+    		fprintf(fid,"\n\r\n\r[Channel Infos]\n\r");
+    		fprintf(fid,"; Each entry: Ch<Channel number>=<Name>,<Reference channel name>,\n\r");
+    		fprintf(fid,"; <Resolution in \"Unit\">,<Unit>,,<Future extensions..\n\r");
+    		fprintf(fid,"; Fields are delimited by commas, some fields might be omitted (empty).\n\r");
+    		fprintf(fid,"; Commas in channel names are coded as \"\\1\".\n\r");
+    		for (k=0; k<hdr->NS; k++) {
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [220] %i\n",k);
+			
+			hdr->CHANNEL[k].GDFTYP = gdftyp; 
+    			char physdim[MAX_LENGTH_PHYSDIM+1];
+    			char Label[MAX_LENGTH_LABEL+1];
+    			strcpy(Label,hdr->CHANNEL[k].Label);
+    			size_t k1=0;
+    			while (Label[k1]) if (Label[k1]==',') Label[k1]=1;
+	    		fprintf(fid,"Ch%d=%s,,1,%s\n\r",k+1,Label,PhysDim(hdr->CHANNEL[k].PhysDimCode,physdim));
+    		}
+    		fprintf(fid,"\n\r\n\r[Coordinates]\n\r");
+    		// fprintf(fid,"; Each entry: Ch<Channel number>=<Radius>,<Theta>,<Phi>\n\r");
+    		fprintf(fid,"; Each entry: Ch<Channel number>=<X>,<Y>,<Z>\n\r");
+    		for (k=0; k<hdr->NS; k++)
+	    		fprintf(fid,"Ch%i=%f,%f,%f\n\r",k+1,hdr->CHANNEL[k].XYZ[0],hdr->CHANNEL[k].XYZ[1],hdr->CHANNEL[k].XYZ[2]);
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [222]\n");
+
+    		fprintf(fid,"\n\r\n\r[Comment]\n\r\n\r");
+
+		fprintf(fid,"A m p l i f i e r  S e t u p\n\r");
+		fprintf(fid,"============================\n\r");
+		fprintf(fid,"Number of channels: %i\n\r",hdr->NS);
+		fprintf(fid,"Sampling Rate [Hz]: %f\n\r",hdr->SampleRate);
+		fprintf(fid,"Sampling Interval [µS]: %f\n\r",1e6/hdr->SampleRate);
+		fprintf(fid,"Channels\n\r--------\n\r");
+		fprintf(fid,"#     Name      Phys. Chn.    Resolution [µV]  Low Cutoff [s]   High Cutoff [Hz]   Notch [Hz]\n\r");
+    		for (k=0; k<hdr->NS; k++) {
+			fprintf(fid,"\n\r%6i%13s%17i%18f%15f",k+1,hdr->CHANNEL[k].Label,k+1,hdr->CHANNEL[k].Cal,1/(2*3.141592653589793238462643383279502884197169399375*hdr->CHANNEL[k].HighPass),hdr->CHANNEL[k].LowPass);
+			if (hdr->CHANNEL[k].Notch)
+				fprintf(fid,"%f",hdr->CHANNEL[k].Notch);
+			else 	
+				fprintf(fid,"Off");
+		}	    		
+    		fprintf(fid,"\n\r\n\rImpedance [kOhm] :\n\r");
+    		for (k=0; k<hdr->NS; k++)
+			fprintf(fid,"%s:\t\t%i\n\r",hdr->CHANNEL[k].Label,hdr->CHANNEL[k].Impedance);
+
+		fclose(fid); 
+		hdr->FileName = filename;  
+		free(tmpfile);		
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [290]\n");
+
+    	}	
     	else if (hdr->TYPE==CFWB) {	
 	     	hdr->HeadLen = 68 + NS*96;
 	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
-	    		    	uint8_t* Header2 = hdr->AS.Header+68; 
+	    	uint8_t* Header2 = hdr->AS.Header+68; 
 		memset(Header1,0,hdr->HeadLen);
 	    	memcpy(Header1,"CFWB\1\0\0\0",8);
 	    	*(double*)(Header1+8) = l_endian_f64(1/hdr->SampleRate);
