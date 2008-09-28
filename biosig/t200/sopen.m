@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.231 2008-09-04 09:33:46 schloegl Exp $
+%	$Id: sopen.m,v 1.232 2008-09-28 20:54:11 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -336,6 +336,7 @@ end;
                         else 
                                 HDR.HeadLen  = H1(185:186)*256.^[1:2]';    % 8 Byte  Length of Header
                         end;
+                        HDR.H1 = H1; 
 
                         %HDR.NRec = fread(HDR.FILE.FID,1,'int64');     % 8 Byte # of data records
                         HDR.NRec = fread(HDR.FILE.FID,1,'int32');      % 8 Byte # of data records
@@ -2872,20 +2873,23 @@ elseif strcmp(HDR.TYPE,'Sigma'),	% SigmaPLpro
        	        val = fread(HDR.FILE.FID,[1,len],'uint8=>char');
         	fseek(HDR.FILE.FID,148,'bof');
                 for k1=1:HDR.NS
-	                ch = fread(HDR.FILE.FID,1,'uint32');
+	                ch = fread(HDR.FILE.FID,1,'uint16');
+	                HDR.Filter.Notch = fread(HDR.FILE.FID,1,'int16') != 0;
 	                for k2=1:4
 		                len = fread(HDR.FILE.FID,1,'uint8');
         		        val = fread(HDR.FILE.FID,[1,len],'uint8=>char');
-        	        	HDR.XXX.Val(k1,k2)=str2double(val); 
+        	        	XXX.Val(k1,k2)=str2double(val); 
         		end; 
-	        	fseek(HDR.FILE.FID,2,'cof');
+	        	HDR.Off(k1) = fread(HDR.FILE.FID,1,'int16');
                 	for k2=5:8
 		                len = fread(HDR.FILE.FID,1,'uint8');
         	        	val = fread(HDR.FILE.FID,[1,len],'uint8=>char');
-        		        HDR.XXX.Val(k1,k2)=str2double(val); 
+        		        XXX.Val(k1,k2)=str2double(val); 
         		end; 
-	        	fseek(HDR.FILE.FID,8,'cof');
-	                len = fread(HDR.FILE.FID,1,'uint8');
+	        	val = fread(HDR.FILE.FID,4,'int16');
+	        	HDR.ELEC.XYZ(k1,1:2)=val(1:2);
+	        	refxy(k1,:) = val(3:4);
+	        	len = fread(HDR.FILE.FID,1,'uint8');
         	        val = fread(HDR.FILE.FID,[1,19],'uint8=>char');
         	        HDR.Label{k1}=val(1:len);
 	                len = fread(HDR.FILE.FID,1,'uint8');
@@ -2893,7 +2897,19 @@ elseif strcmp(HDR.TYPE,'Sigma'),	% SigmaPLpro
         	        HDR.PhysDim{k1}=val(1:len);
 	                len = fread(HDR.FILE.FID,1,'uint8');
         	        val = fread(HDR.FILE.FID,[1,8],'uint8=>char');
-        	end;         
+        	end;
+        	HDR.XXX.Val = XXX.Val; 
+        	HDR.AS.SampleRate = XXX.Val(:,1);
+        	HDR.Filter.LowPass = XXX.Val(:,2);
+        	HDR.Filter.HighPass = XXX.Val(:,3);
+        	HDR.Filter.HighPass = XXX.Val(:,3);
+        	HDR.REC.Impedance = XXX.Val(:,7);
+        	HDR.Cal = XXX.Val(:,8);
+        	HDR.Off = HDR.Off(:)'.*HDR.Cal(:)';
+		if all(refxy(:,1)==refxy(1,1)) && all(refxy(:,2)==refxy(1,2))
+			HDR.ELEC.REF = refxy(1,1:2);
+		end;
+        	
         	HDR.GDFTYP = repmat(3,1,HDR.NS);
         	HDR.FILE.POS = 0;
         	HDR.FILE.OPEN= 1;  
@@ -5291,7 +5307,7 @@ elseif strcmp(HDR.TYPE,'TMS32'),        % Portilab/TMS32/Poly5 format
                         HDR.TMS32.SI(k) = fread(HDR.FILE.FID,1,'int16');
                         tmp = fread(HDR.FILE.FID,62,'uint8');
                 end;
-                HDR.NS = HDR.NS-aux; 
+                HDR.NS  = HDR.NS-aux; 
                 HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
                 HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
                 HDR.Calib = sparse([HDR.Off';(diag(HDR.Cal))]);
@@ -5353,7 +5369,7 @@ elseif strcmp(HDR.TYPE,'TMSiLOG'),
 		HDR.TMSi.FN = unique(HDR.TMSi.FN);
 		if length(HDR.TMSi.FN)==1,
 			if (GDFTYP>0)
-				fid = fopen(HDR.TMSi.FN{1},'rb');
+				fid = fopen(fullfile(HDR.FILE.Path,HDR.TMSi.FN{1}),'rb');
 				tmp = fread(fid,[1,3],'int16');
 				switch tmp(3)
 				case {16}
@@ -5367,7 +5383,7 @@ elseif strcmp(HDR.TYPE,'TMSiLOG'),
 				fclose(fid);
 				
 			elseif (GDFTYP==-1)	 
-				fid  = fopen(HDR.TMSi.FN{1},'rt');
+				fid  = fopen(fullfile(HDR.FILE.Path,HDR.TMSi.FN{1}),'rt');
 				line = fgetl(fid);
 				line = fgetl(fid);
 				line = fgetl(fid);
@@ -7793,7 +7809,9 @@ elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
                                         HDR.EVENT.Segments{NoSegs}.Start = HDR.EVENT.POS(N); 
 	                                HDR.EVENT.TYP(N,1) = hex2dec('7ffe');
                                 end; 
-                                HDR.T0 = HDR.EVENT.Segments{1}.T0; 
+				if NoSegs>0,
+	                                HDR.T0 = HDR.EVENT.Segments{1}.T0;
+	                        end;         
                         end;
                 end;
                 fclose(fid);
@@ -7941,6 +7959,13 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
         HDR.FLAG.TRIGGERED = 0; 
 
         if ~isfield(HDR.BV,'BinaryFormat')
+        	% default 
+        	warning('reading BVA format: default binary format not known, assume INT16!');
+                HDR.GDFTYP = 3; % 'int16'; 
+                HDR.AS.bpb = HDR.NS * 2; 
+                if ~isfield(HDR,'THRESHOLD'),
+	                HDR.THRESHOLD = repmat([-2^15,2^15-1],HDR.NS,1);
+	        end;         
         elseif strncmpi(HDR.BV.BinaryFormat, 'int_16',6)
                 HDR.GDFTYP = 3; % 'int16'; 
                 HDR.AS.bpb = HDR.NS * 2; 
@@ -9814,7 +9839,6 @@ end;
 if HDR.NS>0,
         HDR = physicalunits(HDR); % complete information on PhysDim, and PhysDimCode
         HDR = leadidcodexyz(HDR); % complete information on LeadIdCode and Electrode positions of EEG channels.
-
         if ~isfield(HDR,'Label')
                 HDR.Label = cellstr([repmat('#',HDR.NS,1),int2str([1:HDR.NS]')]);
         elseif isempty(HDR.Label)	
