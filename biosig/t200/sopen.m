@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.232 2008-09-28 20:54:11 schloegl Exp $
+%	$Id: sopen.m,v 1.233 2008-09-30 08:30:17 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -561,7 +561,7 @@ end;
 		if (HDR.NS>0)
 			if ~isfield(HDR,'THRESHOLD')
 	                        HDR.THRESHOLD  = [HDR.DigMin',HDR.DigMax'];       % automated overflow detection 
-	                        if (HDR.VERSION == 0) & HDR.FLAG.OVERFLOWDETECTION,   % in case of EDF and OVERFLOWDETECTION
+	                        if (HDR.VERSION == 0) && HDR.FLAG.OVERFLOWDETECTION,   % in case of EDF and OVERFLOWDETECTION
 	                        	fprintf(2,'WARNING SOPEN(EDF): Physical Max/Min values of EDF data are not necessarily defining the dynamic range.\n'); 
 	                        	fprintf(2,'   Hence, OVERFLOWDETECTION might not work correctly. See also EEG2HIST and read \n'); 
 	                        	fprintf(2,'   http://dx.doi.org/10.1016/S1388-2457(99)00172-8 (A. Schlögl et al. Quality Control ... Clin. Neurophysiol. 1999, Dec; 110(12): 2165 - 2170).\n'); 
@@ -757,7 +757,8 @@ end;
                         %if ~strcmp(HDR.VERSION(1:3),'GDF'),
                         if ~strcmp(HDR.TYPE,'GDF'),
                                 HDR.ErrNo= [16,HDR.ErrNo];
-                                tmp = HDR.NRec; 
+                                tmp = HDR.NRec
+                                (HDR.AS.endpos - HDR.HeadLen) / HDR.AS.bpb,
                                 HDR.NRec = floor((HDR.AS.endpos - HDR.HeadLen) / HDR.AS.bpb);
                                 if tmp~=HDR.NRec,
                                         fprintf(2,'\nWarning SOPEN (EDF/BDF): filesize (%i) of %s does not fit headerinformation (NRec = %i not %i).\n',HDR.AS.endpos,HDR.FileName,tmp,HDR.NRec);
@@ -860,7 +861,7 @@ end;
                         % EDF+: 
                         tmp = strmatch('EDF Annotations',HDR.Label);
                         HDR.EDF.Annotations = tmp;
-                        if isempty(ReRefMx)
+                        if 0,isempty(ReRefMx)
                         	ReRefMx = sparse(1:HDR.NS,1:HDR.NS,1);
                         	ReRefMx(:,tmp) = [];
                         end;	
@@ -869,13 +870,16 @@ end;
                         t = fread(HDR.FILE.FID,inf,[int2str(HDR.AS.SPR(HDR.EDF.Annotations)*2),'*uchar=>uchar'],HDR.AS.bpb-HDR.AS.SPR(HDR.EDF.Annotations)*2);
                         HDR.EDF.ANNONS = char(t');
                         
-                        N  = 0; 
+                        N = 0; 
+                        onset = []; dur=[]; Desc = {};
 			[s,t] = strtok(HDR.EDF.ANNONS,0);
-    			while ~isempty(s)
+    			while 0, ~isempty(s)
     				N  = N + 1; 
     				ix = find(s==20);
     				[s1,s2] = strtok(s(1:ix(1)-1),21);
-    				onset(N,1) = str2double(s1);
+    				s1;
+    				tmp = str2double(s1);
+    				onset(N,1) = tmp;
    				tmp = str2double(s2(2:end));
    				if  ~isempty(tmp)
    					dur(N,1) = tmp; 	
@@ -2874,7 +2878,7 @@ elseif strcmp(HDR.TYPE,'Sigma'),	% SigmaPLpro
         	fseek(HDR.FILE.FID,148,'bof');
                 for k1=1:HDR.NS
 	                ch = fread(HDR.FILE.FID,1,'uint16');
-	                HDR.Filter.Notch = fread(HDR.FILE.FID,1,'int16') != 0;
+	                HDR.Filter.Notch(k1) = fread(HDR.FILE.FID,1,'int16') ~= 0;
 	                for k2=1:4
 		                len = fread(HDR.FILE.FID,1,'uint8');
         		        val = fread(HDR.FILE.FID,[1,len],'uint8=>char');
@@ -6745,6 +6749,7 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 		% convert EVENT information
 		status = fseek(HDR.FILE.FID,HDR.HeadLen+2*HDR.NS,'bof');
 		tmp = fread(HDR.FILE.FID,[HDR.BCI2000.StateVectorLength,inf],[int2str(HDR.BCI2000.StateVectorLength),'*uchar'],HDR.NS*2)';
+		NoS = size(tmp);
 		POS = [1;1+find(any(diff(tmp,[],1),2))];
                 tmp = tmp(POS,end:-1:1)';         % compress event information
                 tmp = dec2bin(tmp(:),8)';
@@ -6787,9 +6792,14 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 		ix  = find(diff(HDR.BCI2000.STATE(:,k))>0)+1;	%% start of feedback 
 		ix2 = find(diff(HDR.BCI2000.STATE(:,k))<0)+1;	%% end of feedback 
 		HDR.EVENT.POS = [HDR.EVENT.POS;POS(ix)];
-		HDR.EVENT.TYP = [HDR.EVENT.TYP;repmat(hex2dec('030d'),length(ix2),1)];
-		HDR.EVENT.DUR = [HDR.EVENT.DUR;POS(ix2)-POS(ix)];
+		HDR.EVENT.TYP = [HDR.EVENT.TYP;repmat(hex2dec('030d'),length(ix),1)];
 		HDR.EVENT.CHN = zeros(length(HDR.EVENT.POS),1); 
+		if length(ix2)==length(ix),
+			HDR.EVENT.DUR = [HDR.EVENT.DUR;POS(ix2)-POS(ix)];
+		else 
+			tmp = [POS(ix2);NoS(1)+1];
+			HDR.EVENT.DUR = [HDR.EVENT.DUR;tmp-POS(ix)];
+		end;	
 		HDR.EVENT.N   = length(HDR.EVENT.POS); 
 
 		% finalize header definition 		
@@ -7960,17 +7970,30 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
 
         if ~isfield(HDR.BV,'BinaryFormat')
         	% default 
-        	warning('reading BVA format: default binary format not known, assume INT16!');
                 HDR.GDFTYP = 3; % 'int16'; 
                 HDR.AS.bpb = HDR.NS * 2; 
                 if ~isfield(HDR,'THRESHOLD'),
 	                HDR.THRESHOLD = repmat([-2^15,2^15-1],HDR.NS,1);
 	        end;         
         elseif strncmpi(HDR.BV.BinaryFormat, 'int_16',6)
-                HDR.GDFTYP = 3; % 'int16'; 
+                HDR.GDFTYP  = 3; % 'int16'; 
+                HDR.DigMin  = -32768*ones(HDR.NS,1);
+                HDR.DigMax  = 32767*ones(HDR.NS,1);
+                HDR.PhysMax = HDR.DigMax(:).*HDR.Cal(:);
+                HDR.PhysMin = HDR.DigMin(:).*HDR.Cal(:);
                 HDR.AS.bpb = HDR.NS * 2; 
                 if ~isfield(HDR,'THRESHOLD'),
 	                HDR.THRESHOLD = repmat([-2^15,2^15-1],HDR.NS,1);
+	        end;         
+        elseif strncmpi(HDR.BV.BinaryFormat, 'uint_16',7)
+                HDR.GDFTYP = 4; % 'uint16'; 
+                HDR.AS.bpb = HDR.NS * 2; 
+                HDR.DigMin = 0*ones(HDR.NS,1);
+                HDR.DigMax = 65535*ones(HDR.NS,1);
+                HDR.PhysMax = HDR.DigMax(:).*HDR.Cal(:);
+                HDR.PhysMin = HDR.DigMin(:).*HDR.Cal(:);
+                if ~isfield(HDR,'THRESHOLD'),
+	                HDR.THRESHOLD = repmat([0,2^16-1],HDR.NS,1);
 	        end;         
         elseif strncmpi(HDR.BV.BinaryFormat, 'ieee_float_32',13)
                 HDR.GDFTYP = 16; % 'float32'; 
