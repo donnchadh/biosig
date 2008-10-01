@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.41 2008-09-17 20:46:29 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.42 2008-10-01 12:20:04 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -30,7 +30,7 @@ void mexFunction(
 {
 	int k,k1;
 	const mxArray	*arg;
-	mxArray	*HDR;
+	mxArray		*HDR;
 	HDRTYPE		*hdr;
 	CHANNEL_TYPE*	cp; 
 	size_t 		count;
@@ -157,13 +157,11 @@ void mexFunction(
 		mexErrMsgTxt(msg);
 		//mexPrintf("ERROR(%i) in mexSLOAD: Cannot open file %s\n", status, FileName);
 		
-
-#ifndef mexSOPEN
-		plhs[1] = HDR; 
-#else
+#ifdef mexSOPEN
 		plhs[0] = HDR; 
-#endif
-
+#else
+		plhs[1] = HDR; 
+#endif 		 
 		return; 
 	}
 	if (hdr==NULL) return;
@@ -204,6 +202,8 @@ void mexFunction(
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"\n[129] SREAD/SCLOSE on %s successful [%i,%i] [%Li,%i] %i.\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1],hdr->NRec,count,NS);
 
+#ifndef mexSOPEN
+
 	hdr->NRec = count; 
 	// plhs[0] = mxCreateDoubleMatrix(hdr->SPR * count, NS, mxREAL);
 
@@ -220,14 +220,19 @@ void mexFunction(
 	}
 
 
+#else
+
 	if (hdr->data.block != NULL) free(hdr->data.block);	
 	hdr->data.block = NULL; 
+#endif 
 
 //	hdr2ascii(hdr,stderr,4);	
 
 #ifndef mexSOPEN 
+
 	if (nlhs>1) { 
 #endif
+
 		char* mexFileName = (char*)mxMalloc(strlen(hdr->FileName)+1); 
 
 		mxArray *tmp, *tmp2, *Patient, *ID, *EVENT, *Filter, *Flag, *FileType;
@@ -274,6 +279,7 @@ void mexFunction(
 		mxArray *PhysDim1    = mxCreateCellMatrix(hdr->NS,1);
 
 		for (size_t k=0; k<hdr->NS; ++k) {
+
 			*(mxGetPr(LeadIdCode)+k)  = (double)hdr->CHANNEL[k].LeadIdCode;
 			*(mxGetPr(PhysDimCode)+k) = (double)hdr->CHANNEL[k].PhysDimCode;
 			*(mxGetPr(GDFTYP)+k) 	  = (double)hdr->CHANNEL[k].GDFTYP;
@@ -367,6 +373,7 @@ void mexFunction(
 			mxSetField(EVENT,0,"DUR",DUR);
 			mxSetField(EVENT,0,"CHN",CHN);
 		}
+
 		if (hdr->EVENT.CodeDesc != NULL) {
 			mxAddField(EVENT, "CodeDesc");
 			mxArray *CodeDesc = mxCreateCellMatrix(hdr->EVENT.LenCodeDesc-1,1);
@@ -409,13 +416,18 @@ void mexFunction(
 		const char *patient_fields[] = {"Sex","Handedness","Id","Name","Weight","Height","Birthday",NULL};
 		for (numfields=0; patient_fields[numfields++] != 0; );
 		Patient = mxCreateStructMatrix(1, 1, --numfields, patient_fields);
-		mxSetField(Patient,0,"Name",mxCreateCharMatrixFromStrings(1,(const char**)&(hdr->Patient.Name)));
-		mxSetField(Patient,0,"Id",mxCreateCharMatrixFromStrings(1,(const char**)&(hdr->Patient.Id)));
+		const char *strarray[1];
+		strarray[0] = hdr->Patient.Name; 
+		mxSetField(Patient,0,"Name",mxCreateCharMatrixFromStrings(1,strarray));
+		strarray[0] = hdr->Patient.Id; 
+		mxSetField(Patient,0,"Id",mxCreateCharMatrixFromStrings(1,strarray));
 		mxSetField(Patient,0,"Handedness",mxCreateDoubleScalar(hdr->Patient.Handedness));
+
 		mxSetField(Patient,0,"Sex",mxCreateDoubleScalar(hdr->Patient.Sex));
 		mxSetField(Patient,0,"Weight",mxCreateDoubleScalar((double)hdr->Patient.Weight));
 		mxSetField(Patient,0,"Height",mxCreateDoubleScalar((double)hdr->Patient.Height));
 		mxSetField(Patient,0,"Birthday",mxCreateDoubleScalar(ldexp(hdr->Patient.Birthday,-32)));
+
 		double d;
 		if (hdr->Patient.Weight==0)		d = 0.0/0.0;	// not-a-number		
 		else if (hdr->Patient.Weight==255)	d = 1.0/0.0;	// Overflow
@@ -427,6 +439,8 @@ void mexFunction(
 		else					d = (double)hdr->Patient.Height;
 		mxSetField(Patient,0,"Height",mxCreateDoubleScalar(d));
 	
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[148] going for SCLOSE\n");
+
 		mxSetField(HDR,0,"Patient",Patient);
 
 #ifndef mexSOPEN
