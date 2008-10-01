@@ -1,6 +1,6 @@
-####### Makefile for "BioSig for C/C++" ######################
+####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.58 2008-09-17 20:46:29 schloegl Exp $
+###  $Id: Makefile,v 1.59 2008-10-01 12:21:31 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -245,8 +245,9 @@ win32 exe: win32/save2gdf.exe
 
 ####### application files 
  
-save2gdf: save2gdf.c libbiosig.a libbiosig.so $(LIBTASN1)
-	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) $(TASN1_DIR).libs/libtasn1.a -o save2gdf 
+save2gdf: save2gdf.c libbiosig.a libbiosig.so 
+	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
+#	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) $(TASN1_DIR).libs/libtasn1.a -o save2gdf 
 
 physicalunits: physicalunits.c libbiosig.a
 	$(CXX) $(CXXFLAGS) physicalunits.c $(LFLAGS) $(LIBS) -o physicalunits
@@ -255,6 +256,8 @@ win32 exe: win32/save2gdf.exe
 
 mex: mex4m mex4o
 mex4m: mexSLOAD.mexglx mexSOPEN.mexglx
+mexSLOAD: mexSLOAD.mexglx
+mexSOPEN: mexSOPEN.mexglx
 mexSLOAD.mexglx: mexSLOAD.cpp  libbiosig.a libbiosig.so
 	$(MEX) mexSLOAD.cpp  $(LIBS) 
 mexSOPEN.mexglx: mexSLOAD.cpp  libbiosig.a libbiosig.so
@@ -271,6 +274,7 @@ mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a  libbiosig.so
 oct:  mexSLOAD.oct
 mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a libbiosig.so
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) 
+	mkoctfile -D=mexSOPEN mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSLOAD.mex 
 
 sigviewer: libbiosig.a 
 	# symbolic link to latest biosig4c
@@ -312,6 +316,8 @@ clean:
 	-$(DEL_FILE) *.so
 	-$(DEL_FILE) *.mex*
 	-$(DEL_FILE) *.oct
+	-$(DEL_FILE) biosig.py*
+	-$(DEL_FILE) swig_wrap.*
 	-$(DEL_FILE) win32/*.a
 	-$(DEL_FILE) win32/*.o
 	-$(DEL_FILE) win32/*.obj
