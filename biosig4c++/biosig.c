@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.258 2008-09-28 21:50:16 schloegl Exp $
+    $Id: biosig.c,v 1.259 2008-10-02 12:44:29 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1643,6 +1643,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	const uint8_t MAGIC_NUMBER_TIFF_b64[] = {77,77,0,43,0,8,0,0};
 	const uint8_t MAGIC_NUMBER_DICOM[]    = {8,0,5,0,10,0,0,0,73,83,79,95,73,82,32,49,48,48};
 	const char* MAGIC_NUMBER_BRAINVISION  = "Brain Vision Data Exchange Header File";
+	const char* MAGIC_NUMBER_BRAINVISION1 = "Brain Vision V-Amp Data Header File Version";
+	const char* MAGIC_NUMBER_BRAINVISIONMARKER = "Brain Vision Data Exchange Marker File, Version";
 	
 	size_t k,name=0,ext=0;	
 	for (k=0; hdr->FileName[k]; k++) {
@@ -1768,6 +1770,10 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = BLSC;
         else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISION,38) || ((leu32p(hdr->AS.Header)==0x42bfbbef) && !memcmp(Header1+3, MAGIC_NUMBER_BRAINVISION,38)))
                 hdr->TYPE = BrainVision;
+        else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISION1,38))
+                hdr->TYPE = BrainVision;
+        else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISIONMARKER,38))
+                hdr->TYPE = BrainVisionMarker;
     	else if (!memcmp(Header1,"BZh91",5))
 	    	hdr->TYPE = BZ2;
     	else if (!memcmp(Header1,"CDF",3))
@@ -2778,7 +2784,6 @@ if (!strncmp(MODE,"r",1))
 
 					// if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF+Events 217] #=%i\n",k);
 
-
 					while ((Marker[k] == 0) && (k<len)) ++k; // search for start of annotation 
 					if (k>=len) break; 
 										
@@ -3748,14 +3753,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->FILE.POS = 0; 
 	}
 
-	else if (hdr->TYPE==BrainVision) {
-		/* open and read header file */ 
-		// ifclose(hdr);
-		const char *filename = hdr->FileName; // keep input file name 
-		char* tmpfile = (char*)calloc(strlen(hdr->FileName)+5,1);		
-		strcpy(tmpfile,hdr->FileName);
-		hdr->FileName = tmpfile;
-		char* ext = strrchr(hdr->FileName,'.')+1; 
+	else if (hdr->TYPE==BrainVisionMarker) {
 
 		while (!ifeof(hdr)) {
 			size_t bufsiz = 4096;
@@ -3767,29 +3765,13 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		ifclose(hdr);
 
 		if (VERBOSE_LEVEL>8)
-			fprintf(stdout,"SOPEN(BV): header file read.\n"); 
-
-		int seq = 0;
-		/* read marker file */
-		strcpy(ext,"vmrk");		
-       		hdr = ifopen(hdr,"r");
-		size_t bufsiz = 4096;
-		count = 0;
-	    	char *vmrk = (char*)malloc(bufsiz+1);
-		while (!ifeof(hdr)) {
-		    	vmrk 	= (char*)realloc(vmrk,count+bufsiz+1);
-		    	count  += ifread(vmrk+count,1,bufsiz,hdr);
-		}
-	    	vmrk[count] = 0;	// add terminating \0 character
-		ifclose(hdr);
-
-		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"SOPEN(BV): marker file read.\n"); 
 			
+		int seq = 0;
 		/* decode marker file */
 		size_t pos = 0;
 
-		char *t1 = strtok(vmrk+pos,"\x0A\x0D");	// skip first line 
+		char *t1 = strtok(Header1,"\x0A\x0D");	// skip first line 
 		t1 = strtok(NULL,"\x0A\x0D");		
 		size_t N_EVENT=0;
 		hdr->EVENT.N=0;
@@ -3848,8 +3830,34 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			t1 = strtok(NULL,"\x0A\x0D");		
 		}
 		// free(vmrk);
-		hdr->AS.auxBUF = (uint8_t*)vmrk;
-		hdr->EVENT.N = N_EVENT;
+		hdr->AS.auxBUF = hdr->AS.Header;
+		hdr->AS.Header = NULL;
+		hdr->EVENT.N   = N_EVENT;
+		hdr->TYPE      = EVENT; 
+	}
+
+	else if (hdr->TYPE==BrainVision) {
+		/* open and read header file */ 
+		// ifclose(hdr);
+		const char *filename = hdr->FileName; // keep input file name 
+		char* tmpfile = (char*)calloc(strlen(hdr->FileName)+5,1);		
+		strcpy(tmpfile,hdr->FileName);
+		hdr->FileName = tmpfile;
+		char* ext = strrchr(hdr->FileName,'.')+1; 
+
+		while (!ifeof(hdr)) {
+			size_t bufsiz = 4096;
+		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+bufsiz+1);
+		    	count  += ifread(hdr->AS.Header+count,1,bufsiz,hdr);
+		}
+		hdr->AS.Header[count]=0;
+		hdr->HeadLen = count; 
+		ifclose(hdr);
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"SOPEN(BV): header file read.\n"); 
+
+		int seq = 0;
 
 		/* decode header information */
 		hdr->FLAG.OVERFLOWDETECTION = 0;
@@ -3863,9 +3871,16 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		int  SKIPLINES=0, SKIPCOLUMNS=0;
 		size_t npts=0;
 
-		char *t = strtok((char*)hdr->AS.Header,"\xA\xD");
-		t = strtok(NULL,"\xA\xD");
-		while (t) {
+		char *t;
+		size_t pos;
+		// skip first line with <CR><LF>		
+		pos  = strcspn(Header1,"\xA\xD");
+		pos += strspn(Header1+pos,"\xA\xD");
+		while (pos < hdr->HeadLen) {
+			t = Header1+pos;	// start of line 
+			pos += strcspn(t,"\xA\xD");
+			Header1[pos]=0;		// line terminator
+			pos += strspn(Header1+pos+1,"\xA\xD")+1; // skip <CR><LF> 
 
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[212]: %i <%s>\n",seq,t);
 
@@ -3944,8 +3959,37 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (seq==1) {
 				if      (!strncmp(t,"DataFile=",9)) 
 					strcpy(ext,strrchr(t,'.')+1);		
-				else if (!strncmp(t,"MarkerFile=",11))
-					;
+				else if (!strncmp(t,"MarkerFile=",11)) {
+
+					char* mrkfile = (char*)calloc(strlen(hdr->FileName)+strlen(t),1);
+							
+					if (strrchr(hdr->FileName,FILESEP)) {
+						strcpy(mrkfile,hdr->FileName);
+						strcpy(strrchr(mrkfile,FILESEP)+1,t+11);
+					} else  
+						strcpy(mrkfile,t+11);
+						
+					if (VERBOSE_LEVEL>8)
+						fprintf(stdout,"SOPEN marker file <%s>.\n",mrkfile); 
+					if (VERBOSE_LEVEL>8)
+						fprintf(stdout,"= =%i %s\n",VERBOSE_LEVEL,t); 
+			
+					HDRTYPE *hdr2 = constructHDR(0,0); 
+
+					hdr2 = sopen(mrkfile,"r",hdr2);
+
+						fprintf(stdout,"===%i %s\n",VERBOSE_LEVEL,t); 
+
+					memcpy(&hdr->EVENT,&hdr2->EVENT,sizeof(hdr2->EVENT));
+					hdr->AS.auxBUF = hdr2->AS.auxBUF;  // contains the free text annotation 
+					// do not de-allocate event table when hdr2 is deconstructed 
+					memset(&hdr2->EVENT,0,sizeof(hdr2->EVENT));
+					hdr2->AS.auxBUF = NULL;  
+					sclose(hdr2); 
+					destructHDR(hdr2);
+					free(mrkfile);
+
+				}
 				else if (!strncmp(t,"DataFormat=BINARY",11))
 					;
 				else if (!strncmp(t,"DataFormat=ASCII",16)) {
@@ -4056,7 +4100,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (seq==6) {
 			}
 					
-			t = strtok(NULL,"\x0a\x0d");	// extract next line
+			// t = strtok(NULL,"\x0a\x0d");	// extract next line
 		}
 	    	hdr->FILE.POS = 0; 
 	    	if (FLAG_ASCII) {
@@ -8664,9 +8708,11 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 						i += hdr->data.block[hdr->SPR*hdr->NRec*k1+k2*DIV+k3];
 						// TODO: row channels
 						
-					if (H1.FILE.COMPRESSION) 
+#ifdef ZLIB_H
+					if (H1.FILE.COMPRESSION)
 						gzprintf(H1.FILE.gzFID,"%f\n",i/DIV);
-					else 
+					else
+#endif
 						fprintf(H1.FILE.FID,"%f\n",i/DIV);
 				}		
 			}

@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.16 2008-09-17 07:50:13 schloegl Exp $
+% $Id: swig.i,v 1.17 2008-10-02 12:44:29 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -46,7 +46,7 @@ typedef int64_t gdf_time; /* gdf time is represented in 64 bits */
 enum FileFormat {
 	noFile, unknown, 
 	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, ATES, ATF, AVI,
-	BCI2000, BDF, BIN, BKR, BLSC, BMP, BrainVision, BZ2, 
+	BCI2000, BDF, BIN, BKR, BLSC, BMP, BrainVision, BrainVisionMarker, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
 	EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,

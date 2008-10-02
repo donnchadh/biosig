@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.119 2008-09-17 07:50:13 schloegl Exp $
+% $Id: biosig.h,v 1.120 2008-10-02 12:44:29 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -106,7 +106,7 @@ enum B4C_ERROR {
 enum FileFormat {
 	noFile, unknown, 
 	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, ATES, ATF, AVI,
-	BCI2000, BDF, BIN, BKR, BLSC, BMP, BrainVision, BZ2, 
+	BCI2000, BDF, BIN, BKR, BLSC, BMP, BrainVision, BrainVisionMarker, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
 	EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
