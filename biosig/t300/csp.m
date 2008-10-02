@@ -4,7 +4,7 @@ function [V,d] = csp(ECM,Mode)
 %
 % [V] = csp(ECM)
 %
-% ECM is the extended covariance matrices (see COVM)  
+% ECM(k,:,:) is the extended covariance matrices (see COVM) for class k  
 % V	each column represents one CSP component. 
 %
 % REFERENCES: 
@@ -26,7 +26,7 @@ function [V,d] = csp(ECM,Mode)
 % 	Volume 52,  Issue 9,  Sept. 2005 Page(s):1541 - 1548
 %	Digital Object Identifier 10.1109/TBME.2005.851521 
 
-%	$Id: csp.m,v 1.1 2007-07-20 10:53:59 schloegl Exp $
+%	$Id: csp.m,v 1.2 2008-10-02 13:28:44 schloegl Exp $
 %	Copyright (C) 2007 by Alois Schloegl <a.schloegl@ieee.org>
 %	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
