@@ -40,7 +40,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.91 2008-08-05 21:22:07 schloegl Exp $
+%	$Id: sload.m,v 1.92 2008-10-02 13:00:32 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -137,8 +137,13 @@ end;
 
 if nargout>0,
 	signal = [];
-end;	
-if ((iscell(FILENAME) || isstruct(FILENAME)) && (length(FILENAME)>1)),
+end;
+
+if (iscell(FILENAME) && (length(FILENAME)==1)),
+	FILENAME = FILENAME{k};
+end; 	
+	
+if ((iscell(FILENAME) || isstruct(FILENAME))),
 	signal = [];
 	for k = 1:length(FILENAME),
 		if iscell(FILENAME(k))
@@ -255,7 +260,6 @@ end;
 end; 
 
 
-
 FlagLoaded = 0;
 if exist('mexSLOAD','file')==3,
 	try
@@ -295,6 +299,7 @@ if exist('mexSLOAD','file')==3,
 			FlagLoaded = isfield(HDR,'NS');
 			HDR.InChanSelect = InChanSelect(InChanSelect <= HDR.NS);
 			signal = signal*ReRefMx(HDR.InChanSelect,:);
+			signal = full(signal); 	%% make sure signal is not sparse 
 		end; 
 		
 		HDR.T0 = datevec(HDR.T0);
@@ -532,6 +537,7 @@ if exist('mexSLOAD','file')==3,
 		end;
 
 	catch
+		%fprintf(1,lasterr);
 		fprintf(1, 'SLOAD: mexSLOAD failed - the slower M-function is used.\n');
 	end;
 else 
@@ -1105,7 +1111,6 @@ end;
 end; 
 
 %%%%%%%%%% Post-Processing %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 if strcmp(H.TYPE,'CNT');    
         f = fullfile(H.FILE.Path, [H.FILE.Name,'.txt']); 
         if exist(f,'file'),
