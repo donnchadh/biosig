@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.81 2008-08-14 09:56:34 schloegl Exp $
+%	$Id: getfiletype.m,v 1.82 2008-10-02 12:48:27 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -149,6 +149,10 @@ else
                 elseif strncmp(ss,'NSI TFF',7); % Neuroscan 
                         HDR.TYPE='AST';
                 elseif strncmp(ss,'Brain Vision Data Exchange Header File',38); 
+                        HDR.TYPE = 'BrainVision';
+                elseif strncmp(ss,'Brain Vision V-Amp Data Header File Version',38); 
+                        HDR.TYPE = 'BrainVision';
+                elseif strncmp(ss,[239,187,191,'Brain Vision Data Exchange Header File'],38); 
                         HDR.TYPE = 'BrainVision';
                 elseif strncmp(ss,'Brain Vision Data Exchange Marker File',38); 
                         HDR.TYPE = 'BrainVision_MarkerFile';
