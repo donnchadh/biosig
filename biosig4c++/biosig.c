@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.259 2008-10-02 12:44:29 schloegl Exp $
+    $Id: biosig.c,v 1.260 2008-10-04 13:54:13 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -3873,16 +3873,17 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 		char *t;
 		size_t pos;
-		// skip first line with <CR><LF>		
-		pos  = strcspn(Header1,"\xA\xD");
-		pos += strspn(Header1+pos,"\xA\xD");
+		// skip first line with <CR><LF>
+		const char EOL[] = "\r\n";		
+		pos  = strcspn(Header1,EOL);
+		pos += strspn(Header1+pos,EOL);
 		while (pos < hdr->HeadLen) {
 			t = Header1+pos;	// start of line 
-			pos += strcspn(t,"\xA\xD");
+			pos += strcspn(t,EOL);
 			Header1[pos]=0;		// line terminator
-			pos += strspn(Header1+pos+1,"\xA\xD")+1; // skip <CR><LF> 
+			pos += strspn(Header1+pos+1,EOL)+1; // skip <CR><LF> 
 
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"[212]: %i <%s>\n",seq,t);
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"[212]: %i pos=%i <%s>\n",seq,pos,t);
 
 			if (!strncmp(t,";",1)) 	// comments
 				;
@@ -3902,21 +3903,26 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				hdr->AS.bpb = (hdr->NS*GDFTYP_BITS[gdftyp])>>3;			
 				seq = 3; 
 
+				if (VERBOSE_LEVEL==9) fprintf(stdout,"BVA210,%i,%i\n",pos,hdr->HeadLen);
+
 				/* open data file */ 
 				if (FLAG_ASCII) hdr = ifopen(hdr,"rt");
 				else 	        hdr = ifopen(hdr,"rb");
 					
+				if (VERBOSE_LEVEL==9) fprintf(stdout,"BVA210,%i,%i\n",pos,hdr->HeadLen);
+
 				if (!npts) {
 					ifseek(hdr,0,SEEK_END);		// fix SEEK_END
 					size_t FileSize = iftell(hdr);
 				        ifseek(hdr,0,SEEK_SET);
 					npts = FileSize/hdr->AS.bpb;
 		        	}	
-				hdr->HeadLen = 0;
 					
 				/* restore input file name, and free temporary file name  */
 				hdr->FileName = filename;
 				free(tmpfile);
+
+				if (VERBOSE_LEVEL==9) fprintf(stdout,"BVA210,%i,%i\n",pos,hdr->HeadLen);
 
 				if (orientation == VEC) {
 					hdr->SPR = npts;
@@ -3925,6 +3931,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->SPR = 1;
 					hdr->NRec= npts;
 				}
+
+				if (VERBOSE_LEVEL==9) fprintf(stdout,"BVA210,%i,%i\n",pos,hdr->HeadLen);
 
 			    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 				for (k=0; k<hdr->NS; k++) {
@@ -3945,6 +3953,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				    	hdr->CHANNEL[k].PhysDimCode = 4275; // uV
 		    			hdr->CHANNEL[k].LeadIdCode  = 0;
 				}
+				if (VERBOSE_LEVEL==9) fprintf(stdout,"BVA210 seq=%i,pos=%i,%i <%s>\n",seq,pos,hdr->HeadLen,t);
 			}	
 			//else if (!strncmp(t,"[Common Infos]",14))
 			//	seq = 4; 
@@ -3971,14 +3980,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 						
 					if (VERBOSE_LEVEL>8)
 						fprintf(stdout,"SOPEN marker file <%s>.\n",mrkfile); 
-					if (VERBOSE_LEVEL>8)
-						fprintf(stdout,"= =%i %s\n",VERBOSE_LEVEL,t); 
 			
-					HDRTYPE *hdr2 = constructHDR(0,0); 
-
-					hdr2 = sopen(mrkfile,"r",hdr2);
-
-						fprintf(stdout,"===%i %s\n",VERBOSE_LEVEL,t); 
+					HDRTYPE *hdr2 = sopen(mrkfile,"r",NULL);
 
 					memcpy(&hdr->EVENT,&hdr2->EVENT,sizeof(hdr2->EVENT));
 					hdr->AS.auxBUF = hdr2->AS.auxBUF;  // contains the free text annotation 
@@ -3988,7 +3991,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					sclose(hdr2); 
 					destructHDR(hdr2);
 					free(mrkfile);
-
 				}
 				else if (!strncmp(t,"DataFormat=BINARY",11))
 					;
@@ -4065,6 +4067,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				}	
 			}
 			else if (seq==3) {
+				if (VERBOSE_LEVEL==9)
+					fprintf(stdout,"BVA: seq=%i,line=<%s>\n",seq,t);
+
 				if (!strncmp(t,"Ch",2)) {
 					char* ptr;
 
@@ -4103,6 +4108,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			// t = strtok(NULL,"\x0a\x0d");	// extract next line
 		}
 	    	hdr->FILE.POS = 0; 
+		hdr->HeadLen  = 0;
 	    	if (FLAG_ASCII) {
 	    		count = 0; 
 			size_t bufsiz  = hdr->NS*hdr->SPR*hdr->NRec*16;
