@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.42 2008-10-01 12:20:04 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.43 2008-10-04 13:54:53 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -47,6 +47,12 @@ void mexFunction(
 	VERBOSE_LEVEL = 3; 
 	
 	if (nrhs<1) {
+#ifdef mexSOPEN
+		mexPrintf("   Usage of mexSOPEN:\n");
+		mexPrintf("\t[s,HDR]=mexSOPEN(f)\n");
+		mexPrintf("   Input:\n\tf\tfilename\n");
+		mexPrintf("   Output:\n\tHDR\theader structure\n\n");
+#else
 		mexPrintf("   Usage of mexSLOAD:\n");
 		mexPrintf("\t[s,HDR]=sload(f)\n");
 		mexPrintf("\t[s,HDR]=sload(f,chan)\n\t\tchan must be sorted in ascending order\n");
@@ -63,6 +69,7 @@ void mexFunction(
 		mexPrintf("\tTARGETSEGMENT:<N>\n\t\tselect segment <N> in multisegment files (like Nihon-Khoden), default=1\n\t\tIt has no effect for other data formats.");
 		mexPrintf("   Output:\n\ts\tsignal data, each column is one channel\n");
 		mexPrintf("\tHDR\theader structure\n\n");
+#endif
 		return; 
 	}
 	
@@ -152,7 +159,13 @@ void mexFunction(
 		mxSetField(HDR,0,"VERSION",mxCreateDoubleScalar(hdr->VERSION));
 
 		char msg[1024]; 
-		sprintf(msg,"Error mexSLOAD: Cannot open file %s - format %s not supported.\n",FileName,GetFileTypeString(hdr->TYPE));
+		if (status==B4C_CANNOT_OPEN_FILE)
+			sprintf(msg,"Error mexSLOAD: file %s not found.\n",FileName);
+		else if (status==B4C_FORMAT_UNKNOWN)
+			sprintf(msg,"Error mexSLOAD: Cannot open file %s - format %s not known.\n",FileName,GetFileTypeString(hdr->TYPE));
+		else if (status==B4C_FORMAT_UNSUPPORTED)
+			sprintf(msg,"Error mexSLOAD: Cannot open file %s - format %s not supported.\n",FileName,GetFileTypeString(hdr->TYPE));
+			
 		destructHDR(hdr);
 		mexErrMsgTxt(msg);
 		//mexPrintf("ERROR(%i) in mexSLOAD: Cannot open file %s\n", status, FileName);
