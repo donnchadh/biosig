@@ -1,7 +1,7 @@
-function [K1,K2] = criteria4momentarybci(TO,Fs,trig,ERW)
+function [K1,K2,K3] = criteria4momentarybci(TO,Fs,trig,ERW)
 % CRITERIA4MOMENTARYBCI evaluates the output of momentary self-paced BCI  
 %
-% [K1,K2] = criteria4momentarybci(TO,Fs,TRIG,ERW) 
+% [K1,K2,K3] = criteria4momentarybci(TO,Fs,TRIG,ERW) 
 %
 % Input: 
 % 	TO transducer output: 0 is no control state, i>0 is i-th control state
@@ -11,17 +11,22 @@ function [K1,K2] = criteria4momentarybci(TO,Fs,trig,ERW)
 % 	ERW 	expected response window in seconds, default=[-0.5,+0.5]
 %
 % output:
-% 	K1 	result the rule-based (heuristic) approach 
-% 	K2 	results of the sample-by-sample approach 
+% 	K1 	result the rule-based (heuristic) approach [1] 
+% 	K2 	results of the sample-by-sample approach
+%	K3	result by Fatourechi's Method 
 %
 % 	K1.HF  		hf-difference 
-% 	K{12}.kappa 	Cohen's kappa coefficient
-% 	K{12}.H 	Confusion matrix 
+% 	K{123}.kappa 	Cohen's kappa coefficient
+% 	K{123}.H 	Confusion matrix 
 % 
 % References: 
+% [1] Jane E. Huggins, Michael T. McCann, …
+% 	Comparison of Evaluation Metrics for an ECoG-based Momentary BCI.
+% 	https://ctools.umich.edu/access/content/attachment/5fa4908e-eaba-4e67-8eee-d92169c70726/kappa_vs_HF_windowed2_jeh3.doc
+% [2] Mehrdad Fatourechi, personal communication 
+% 
 
-
-%    $Id: criteria4momentarybci.m,v 1.3 2008-09-12 11:03:50 schloegl Exp $
+%    $Id: criteria4momentarybci.m,v 1.4 2008-10-06 10:53:33 schloegl Exp $
 %    Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -143,4 +148,28 @@ for k = i0(:)',
 	T1(ix) = cl; 
 end; 
 K2 = kappa(EUI,T1);
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Mehrdad's method on "TNs based on switch output activation"
+%% generate padding window - make padding window has the same size than ECW
+
+EV  = zeros(length(TO),2);   
+EV(:,2) = TO;		   % default value is TN or FP  	 
+
+for k = 1:length(TRIG)
+	ix = max(1,TRIG(k)+ERW(1)*Fs):min(TRIG(k)+ERW(2)*Fs,length(TO));
+
+	% overwrite values within ECW 
+	if any(TO(ix))	% TP
+		EV(ix(1),1)=1;  	
+		EV(ix(1),2)=1;  	
+		EV(ix(2:end),:)=NaN;	% NaN's are ignored, therefore just 1 count per ECW
+	else 		% FN
+		EV(ix(1),1)=1;  	
+		EV(ix(1),2)=0;  	
+		EV(ix(2:end),:)=NaN;	% NaN's are ignored, therefore just 1 count per ECW
+	end; 	
+end;
+K3 = kappa(EV(:,1),EV(:,2)); 
 
