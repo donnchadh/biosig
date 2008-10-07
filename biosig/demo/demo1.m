@@ -1,6 +1,6 @@
 % DEMO 1 - identifies QRS-complexes and computes HRV parameters 
 
-%	$Id: demo1.m,v 1.7 2008-01-23 22:04:41 schloegl Exp $
+%	$Id: demo1.m,v 1.8 2008-10-07 13:40:58 schloegl Exp $
 %	Copyright (C) 2000-2003, 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -26,8 +26,7 @@
 CHAN = 0; 
 HDR  = sopen(fullfile(P,F),'r');
 if HDR.NS > 1,
-        tmp   = reshape(lower([HDR.Label,repmat(' ',HDR.NS,1)])',1,prod(size(HDR.Label)+[0,1]));
-        CHAN  = ceil([strfind(tmp,'ecg'),strfind(tmp,'ekg')]/(size(HDR.Label,2)+1)); 
+        CHAN = sort([strmatch('ECG',HDR.Label);strmatch('EKG',HDR.Label);strmatch('ecg',HDR.Label);strmatch('Ecg',HDR.Label)]);
         if length(CHAN)~=1,
                 HDR = sclose(HDR);
                 fprintf(1,'The selected file contains the following channels: \n');
