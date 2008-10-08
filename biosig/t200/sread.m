@@ -24,7 +24,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sread.m,v 1.92 2008-09-02 10:02:42 schloegl Exp $
+%	$Id: sread.m,v 1.93 2008-10-08 13:23:20 schloegl Exp $
 %	(C) 1997-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -299,6 +299,9 @@ elseif strmatch(HDR.TYPE,{'AIF','SND','WAV','Sigma'})
 
         
 elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Nicolet','RG64'}),
+
+	tc = strcmp(HDR.TYPE,'CFWB') && isfield(HDR,'FLAG') && isfield(HDR.FLAG,'TimeChannel') && HDR.FLAG.TimeChannel;
+
         if nargin==3,
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
@@ -313,11 +316,11 @@ elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Nicolet','
         maxsamples = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
 	S = []; count = 0;
 	while maxsamples>0,
-    		[s,c] = fread(HDR.FILE.FID, [HDR.NS,min(2^24/HDR.NS,maxsamples)], DT);
+    		[s,c] = fread(HDR.FILE.FID, [HDR.NS+tc,min(2^24/HDR.NS,maxsamples)], DT);
 		count = count + c;
 		maxsamples = maxsamples - c/HDR.NS;
         	if c>0,
-            		S = [S; s(HDR.InChanSelect,:)'];
+            		S = [S; s(HDR.InChanSelect+tc,:)'];
     		end;
         end;
 	HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
@@ -1238,6 +1241,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),   %Brainvision
                         count = 0; 
                         while (count<nr),
                         	[s,c] = fread(HDR.FILE.FID, [HDR.NS, min(nr-count,floor(2^24/HDR.NS))], gdfdatatype(HDR.GDFTYP));
+                        	if ~c, break; end; 
                         	S = [S; s(HDR.InChanSelect,:)'];
                         	count = count + c/HDR.NS; 
 			end; 

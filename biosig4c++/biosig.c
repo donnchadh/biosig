@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.260 2008-10-04 13:54:13 schloegl Exp $
+    $Id: biosig.c,v 1.261 2008-10-08 13:23:19 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2294,6 +2294,11 @@ if (!strncmp(MODE,"r",1))
 			hdr->T0 = t_time2gdf_time(mktime(&tm_time)); 
 		    	hdr->HeadLen 	= leu64p(hdr->AS.Header+184); 
 	    	}
+	    	else {
+    			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+	    		B4C_ERRMSG = "Error SOPEN(GDF); invalid version number.";		
+	    		return(hdr);
+	    	}
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[210] FMT=%s NS=%i pos=%i headlen=%i\n",GetFileTypeString(hdr->TYPE),hdr->NS,count,hdr->HeadLen);
 		
@@ -2361,10 +2366,8 @@ if (!strncmp(MODE,"r",1))
 				//memcpy(&hdr->CHANNEL[k].XYZ,Header2 + 4*k + 224*hdr->NS,12);
 				hdr->CHANNEL[k].Impedance= ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);
 			}
-
 			hdr->CHANNEL[k].Cal   	= (hdr->CHANNEL[k].PhysMax-hdr->CHANNEL[k].PhysMin)/(hdr->CHANNEL[k].DigMax-hdr->CHANNEL[k].DigMin);
 			hdr->CHANNEL[k].Off   	=  hdr->CHANNEL[k].PhysMin-hdr->CHANNEL[k].Cal*hdr->CHANNEL[k].DigMin;
-
 		}
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[213] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
@@ -4159,10 +4162,10 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		tm_time.tm_isdst = -1; 
 		
     		hdr->T0 	= tm_time2gdf_time(&tm_time);
-	    	// = *(double*)(Header1+44);
+	    	// = *(double*)(Header1+44);	// pre-trigger time 
 	    	hdr->NS   	= leu32p(hdr->AS.Header+52);
 	    	hdr->NRec	= leu32p(hdr->AS.Header+56);
-	    	//  	= *(int32_t*)(Header1+60);	// TimeChannel
+#define CFWB_FLAG_TIME_CHANNEL  (*(int32_t*)(Header1+60))	// TimeChannel
 	    	//  	= *(int32_t*)(Header1+64);	// DataFormat
 
 	    	hdr->HeadLen = 68 + hdr->NS*96; 
@@ -6619,6 +6622,7 @@ fprintf(stdout,"ASN1 [491]\n");
 	
 	hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	if (hdr->TYPE==AINF) hdr->AS.bpb = 4;
+	else if ((hdr->TYPE==CFWB) && (CFWB_FLAG_TIME_CHANNEL)) hdr->AS.bpb = GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
 	else if (hdr->TYPE==TMS32) hdr->AS.bpb = 86;
 	else hdr->AS.bpb = 0; 
 
