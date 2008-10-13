@@ -4,6 +4,23 @@
 % [1] A. Schlögl, B. Kemp, T. Penzel, D. Kunz, S.-L. Himanen,A. Värri, G. Dorffner, G. Pfurtscheller.
 %   Quality Control of polysomnographic Sleep Data by Histogram and EntropyAnalysis. %   Clin. Neurophysiol. 1999, Dec; 110(12): 2165 - 2170.%   http://dx.doi.org/10.1016/S1388-2457(99)00172-8
 
+%	$Id: demo8.m,v 1.3 2008-10-13 13:06:41 schloegl Exp $
+%	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+
+% This program is free software; you can redistribute it and/or
+% modify it under the terms of the GNU General Public License
+% as published by the Free Software Foundation; either version 3
+% of the  License, or (at your option) any later version.
+% 
+% This program is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU General Public License for more details.
+% 
+% You should have received a copy of the GNU General Public License
+% along with this program; if not, write to the Free Software
+% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 [filename, pathname, filterindex] = uigetfile('*.*', 'Pick an EEG/ECG-file');
 
