@@ -6,34 +6,34 @@
 %
 %
 % References: 
-% [1] A. SchlÃ¶gl, B. Kemp, T. Penzel, D. Kunz, S.-L. Himanen, A. Värri, G. Dorffner, G. Pfurtscheller.
+% [1] A. Schlögl, B. Kemp, T. Penzel, D. Kunz, S.-L. Himanen, A. Värri, G. Dorffner, G. Pfurtscheller.
 %       Quality Control of polysomnographic Sleep Data by Histogram and Entropy Analysis.
 %       Clin. Neurophysiol. 1999, Dec; 110(12): 2165 - 2170.
-% [2] Alois SchlÃ¶gl (2000)
+% [2] Alois Schlögl (2000)
 %       The electroencephalogram and the adaptive autoregressive model: theory and applications
 %       Shaker Verlag, Aachen, Germany, (ISBN3-8265-7640-3). 
-% [3] SchlÃ¶gl A., Neuper C. Pfurtscheller G.
+% [3] Schlögl A., Neuper C. Pfurtscheller G.
 %       Estimating the mutual information of an EEG-based Brain-Computer-Interface
 %       Biomedizinische Technik 47(1-2): 3-8, 2002.
-% [4] A. SchlÃ¶gl, C. Keinrath, R. Scherer, G. Pfurtscheller,
+% [4] A. Schlögl, C. Keinrath, R. Scherer, G. Pfurtscheller,
 %       Information transfer of an EEG-based Bran-computer interface.
 %       Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003. 
-% [5] A. SchlÃ¶gl, J. Kronegg, J.E. Huggins, S. G. Mason.
+% [5] A. Schlögl, J. Kronegg, J.E. Huggins, S. G. Mason.
 %       Evaluation criteria in BCI research.
 %       (Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller,
 %       Towards Brain-Computer Interfacing. MIT Press, p.327-342, 2007.
-% [6] A. SchlÃ¶gl, F.Y. Lee, H. Bischof, G. Pfurtscheller
+% [6] A. Schlögl, F.Y. Lee, H. Bischof, G. Pfurtscheller
 %   	Characterization of Four-Class Motor Imagery EEG Data for the BCI-Competition 2005.
 %   	Journal of neural engineering 2 (2005) 4, S. L14-L22
-% [7] A. SchlÃ¶gl, C. Brunner, R. Scherer, A. Glatz;
+% [7] A. Schlögl, C. Brunner, R. Scherer, A. Glatz;
 %   	BioSig - an open source software library for BCI research.
 %   	(Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R. Müller;
 %   	Towards Brain-Computer Interfacing, MIT Press, 2007, p.347-358. 
-% [8] A. SchlÃ¶gl, C. Brunner
+% [8] A. Schlögl, C. Brunner
 %   	BioSig: A Free and Open Source Software Library for BCI Research.
 %	Computer (2008, In Press)	
 
-%	$Id: demo2.m,v 1.14 2008-09-04 13:57:36 schloegl Exp $
+%	$Id: demo2.m,v 1.15 2008-10-13 12:05:14 schloegl Exp $
 %	Copyright (C) 1999-2003,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -68,9 +68,10 @@ fprintf(1,'\tb: Extract trigger and classlabels.\n');
 %--------  extraction from trigger channel: 
 % HDR.TRIG = gettrigger(s(:,triggerchannel)); 
 %--------- extraction from event table 
-ix = find((HDR.EVENT.TYP>768)&(HDR.EVENT.TYP<777)); % 0x0300..0x03ff
-HDR.Classlabel = HDR.EVENT.TYP(ix)-768; % 0x0300
+ix = find((HDR.EVENT.TYP>hex2dec('300'))&(HDR.EVENT.TYP<hex2dec('30d'))); % 0x0300..0x03ff
+[i,j,HDR.Classlabel] = unique(HDR.EVENT.TYP(ix));
 HDR.TRIG = HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('300'));
+%HDR.TRIG = HDR.EVENT.POS(ix);
 t0 = HDR.EVENT.POS(ix);
 t0 = (t0(1) - HDR.TRIG(1))/HDR.SampleRate; 	% time between trial start and cue; 
 
@@ -95,6 +96,9 @@ DIV = 1;
 s = rs(s,DIV,1);   % downsampling by a factor of DIV; 
 %s = rs(s,256,100); % downsampling from 256 to 100 Hz. 
 HDR.SampleRate = HDR.SampleRate/DIV; 
+HDR.EVENT.POS = round(HDR.EVENT.POS/DIV); 
+HDR.EVENT.DUR = round(HDR.EVENT.DUR/DIV); 
+HDR.TRIG      = round(HDR.TRIG); 
 
 %   2d: Correction of EOG artifacts: regress_eog.m, get_regress_eog.m   
 % 		[Schlögl et al. 2007]
@@ -124,15 +128,15 @@ MODE.UC  = 0.0085;		% update coefficient of AAR model %    3a: Time domain param
 
 %    3a: Time-dependent parameters - motivated by log(Hjorth)
 fprintf(1,'\ta: TDP (log(Hjorth)).\n');
-a1 = tdp(s(:,eegchan),p,MODE.UC);
+f1 = tdp(s(:,eegchan),p,MODE.UC);
 
 %    3b: Adaptive Autoregressive Parameters
 fprintf(1,'\tb: Adaptive Autoregressive parameters (AAR).\n');
-a2 = [];
+f2 = [];
 for ch = 1:length(eegchan),
 	X = tvaar(s(:,eegchan(ch)),MODE.MOP,MODE.UC); 
      	X = tvaar(s(:,eegchan(ch)),X);		% AAR estimation
-     	a2 = [a2,X.AAR,log(X.PE)];	
+     	f2 = [f2,X.AAR,log(X.PE)];	
 end; 
 
 %    3c: bandpower
@@ -140,7 +144,7 @@ fprintf(1,'\tc: bandpower.\n');
 bands = [10,12;16,24]; % define frequency bands 
 win = 1; 	% length of smoothing window in seconds
 s1 = s; s1(isnan(s1))=0; 
-a3 = bandpower(s, HDR.SampleRate, bands, win);
+f3 = bandpower(s, HDR.SampleRate, bands, win);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Step 4: Classification ==================== %
