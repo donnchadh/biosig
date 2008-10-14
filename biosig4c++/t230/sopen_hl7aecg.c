@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.25 2008-07-23 17:44:39 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.26 2008-10-14 14:45:05 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -62,7 +62,13 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		struct tm t0; 
 		T0[14] = '\0';
 		// ### ?FIXME?: compensate local time and DST in mktime used in tm_time2gdf_time below 
+
+#ifdef __APPLE__
+		// ### FIXME: for some (unknown) reason, timezone does not work on MacOSX
+		t0.tm_sec  = atoi(T0+12);  	
+#else
 		t0.tm_sec  = atoi(T0+12)-timezone;	
+#endif 
 		T0[12] = '\0';
 		t0.tm_min  = atoi(T0+10);
 		T0[10] = '\0';
