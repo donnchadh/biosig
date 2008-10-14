@@ -24,7 +24,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sread.m,v 1.93 2008-10-08 13:23:20 schloegl Exp $
+%	$Id: sread.m,v 1.94 2008-10-14 14:06:22 schloegl Exp $
 %	(C) 1997-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1228,7 +1228,7 @@ elseif strcmp(HDR.TYPE,'EEProbe-AVR'),
         HDR.FILE.POS = HDR.FILE.POS + nr;
 
         
-elseif strcmp(HDR.TYPE,'BrainVision'),   %Brainvision
+elseif strncmp(HDR.TYPE,'BrainVision',11),   %Brainvision
         if strncmpi(HDR.BV.DataFormat, 'binary',5)
                 if strncmpi(HDR.BV.DataOrientation, 'multiplexed',6),
                         if nargin>2,
@@ -1236,14 +1236,16 @@ elseif strcmp(HDR.TYPE,'BrainVision'),   %Brainvision
                                 HDR.FILE.POS = HDR.SampleRate*StartPos;
                         end;
                         
-                        nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
-                        S = []; 
+			tc = strcmp(HDR.TYPE,'BrainVisionVAmp');
+			NS = HDR.NS+tc;
+                        nr = min(HDR.SampleRate*NoS, HDR.SPR*HDR.NRec - HDR.FILE.POS);
+                        S  = []; 
                         count = 0; 
                         while (count<nr),
-                        	[s,c] = fread(HDR.FILE.FID, [HDR.NS, min(nr-count,floor(2^24/HDR.NS))], gdfdatatype(HDR.GDFTYP));
+                        	[s,c] = fread(HDR.FILE.FID, [NS, min(nr-count,floor(2^24/NS))], gdfdatatype(HDR.GDFTYP));
                         	if ~c, break; end; 
                         	S = [S; s(HDR.InChanSelect,:)'];
-                        	count = count + c/HDR.NS; 
+                        	count = count + c/NS; 
 			end; 
                         HDR.FILE.POS = HDR.FILE.POS + count;
                         
@@ -1253,7 +1255,7 @@ elseif strcmp(HDR.TYPE,'BrainVision'),   %Brainvision
                         
                         count = 0; 
                         for chan = 1:length(HDR.InChanSelect);
-                                STATUS = fseek(HDR.FILE.FID, HDR.HeadLen + HDR.FILE.POS + HDR.AS.bpb*HDR.SPR*(chan-1)/HDR.NS, 'bof');
+                                STATUS = fseek(HDR.FILE.FID, HDR.HeadLen + HDR.FILE.POS + HDR.AS.bpb*HDR.SPR*(chan-1)/NS, 'bof');
                                 [s,count] = fread(HDR.FILE.FID, [nr,1], gdfdatatype(HDR.GDFTYP));
                                 if count ~= nr,
                                         fprintf(2,'ERROR READ BV-bin-vec: \n');

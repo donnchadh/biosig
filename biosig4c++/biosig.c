@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.261 2008-10-08 13:23:19 schloegl Exp $
+    $Id: biosig.c,v 1.262 2008-10-14 14:06:22 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1771,7 +1771,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
         else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISION,38) || ((leu32p(hdr->AS.Header)==0x42bfbbef) && !memcmp(Header1+3, MAGIC_NUMBER_BRAINVISION,38)))
                 hdr->TYPE = BrainVision;
         else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISION1,38))
-                hdr->TYPE = BrainVision;
+                hdr->TYPE = BrainVisionVAmp;
         else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISIONMARKER,38))
                 hdr->TYPE = BrainVisionMarker;
     	else if (!memcmp(Header1,"BZh91",5))
@@ -2052,7 +2052,9 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case BKR: 	{ FileType = "BKR"; break; }
 	case BLSC: 	{ FileType = "BLSC"; break; }
 	case BMP: 	{ FileType = "BMP"; break; }
-	case BrainVision: 	{ FileType = "BrainVision"; break; }
+	case BrainVision:
+	case BrainVisionVAmp:
+		 	{ FileType = "BrainVision"; break; }
 	case BZ2: 	{ FileType = "BZ2"; break; }
 
 	case CDF: 	{ FileType = "CDF"; break; }
@@ -3839,7 +3841,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->TYPE      = EVENT; 
 	}
 
-	else if (hdr->TYPE==BrainVision) {
+	else if ((hdr->TYPE==BrainVision) || (hdr->TYPE==BrainVisionVAmp)) {
 		/* open and read header file */ 
 		// ifclose(hdr);
 		const char *filename = hdr->FileName; // keep input file name 
@@ -3881,9 +3883,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		pos  = strcspn(Header1,EOL);
 		pos += strspn(Header1+pos,EOL);
 		while (pos < hdr->HeadLen) {
-			t = Header1+pos;	// start of line 
+			t    = Header1+pos;	// start of line 
 			pos += strcspn(t,EOL);
-			Header1[pos]=0;		// line terminator
+			Header1[pos] = 0;	// line terminator
 			pos += strspn(Header1+pos+1,EOL)+1; // skip <CR><LF> 
 
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[212]: %i pos=%i <%s>\n",seq,pos,t);
@@ -3891,20 +3893,21 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			if (!strncmp(t,";",1)) 	// comments
 				;
 			else if (!strncmp(t,"[Common Infos]",14))
-				seq = 1; 
+				seq = 1;
 			else if (!strncmp(t,"[Binary Infos]",14))
-				seq = 2; 
+				seq = 2;
 			else if (!strncmp(t,"[ASCII Infos]",13)) {
-				seq = 2; 
-				FLAG_ASCII = 1; 
+				seq = 2;
+				FLAG_ASCII = 1;
 				gdftyp = 17;
 
 //				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 //				B4C_ERRMSG = "Error SOPEN(BrainVision): ASCII-format not supported (yet).";
 			}
 			else if (!strncmp(t,"[Channel Infos]",14)) {
-				hdr->AS.bpb = (hdr->NS*GDFTYP_BITS[gdftyp])>>3;			
 				seq = 3; 
+				hdr->AS.bpb = (hdr->NS*GDFTYP_BITS[gdftyp])>>3;
+				hdr->AS.bpb+= (hdr->TYPE==BrainVisionVAmp ? 4 : 0);			
 
 				if (VERBOSE_LEVEL==9) fprintf(stdout,"BVA210,%i,%i\n",pos,hdr->HeadLen);
 
@@ -6636,6 +6639,8 @@ fprintf(stdout,"ASN1 [491]\n");
 	}
 	if (hdr->TYPE==BCI2000) 
 		hdr->AS.bpb += BCI2000_StatusVectorLength;
+	else if (hdr->TYPE==BrainVisionVAmp) 
+		hdr->AS.bpb += 4;
 	else if (hdr->TYPE==EEG1100) 
 		hdr->AS.bpb += 2;
 	else if (hdr->TYPE==EGI) {

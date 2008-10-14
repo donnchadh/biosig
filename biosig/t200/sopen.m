@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.233 2008-09-30 08:30:17 schloegl Exp $
+%	$Id: sopen.m,v 1.234 2008-10-14 14:06:22 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -6894,8 +6894,6 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
         if any(HDR.FILE.PERMISSION=='r'),
                 HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 
-                fprintf(HDR.FILE.stderr,'Format not tested yet. \nFor more information contact <a.schloegl@ieee.org> Subject: Biosig/Dataformats \n',HDR.FILE.PERMISSION);	
-                
                 HDR.FILE.OPEN = 1;
                 fseek(HDR.FILE.FID,4,'bof');
                 HDR.VERSION = fread(HDR.FILE.FID,1,'int32');
@@ -7832,7 +7830,7 @@ elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
         end; 
 
         
-elseif strcmp(HDR.TYPE,'BrainVision'),
+elseif strncmp(HDR.TYPE,'BrainVision',11),
         % get the header information from the VHDR ascii file
         fid = fopen(HDR.FileName,'rt');
         if fid<0,
@@ -8002,6 +8000,9 @@ elseif strcmp(HDR.TYPE,'BrainVision'),
                 HDR.GDFTYP = 17; % 'float64'; 
                 HDR.AS.bpb = HDR.NS * 8; 
         end
+        if (strcmp(HDR.TYPE,'BrainVisionVAmp'))
+        	HDR.AS.bpb = HDR.AS.bpb+4;
+        end; 
         
         % read event file 
         tmp = fullfile(HDR.FILE.Path, HDR.BV.MarkerFile);
