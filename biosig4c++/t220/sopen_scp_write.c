@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.38 2008-10-14 14:45:05 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.39 2008-10-14 15:06:19 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -381,11 +381,10 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 			*(ptr+sectionStart+curSectLen) = 34;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(5);	// length
 			// FIXME: compensation for daylight saving time not included
-			// writing of time zone information not supported 	
-			//
 #ifdef __APPLE__
 			// ### FIXME: for some (unknown) reason, timezone does not work on MacOSX
 			*(int16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_i16(0x7fff); 
+			printf("Warning SOPEN(SCP,write): timezone not supported\n");
 #else
 			*(int16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_i16((int16_t)round(-timezone/60.0));
 #endif
