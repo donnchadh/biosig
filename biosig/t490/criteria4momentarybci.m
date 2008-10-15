@@ -26,7 +26,7 @@ function [K1,K2,K3] = criteria4momentarybci(TO,Fs,trig,ERW)
 % [2] Mehrdad Fatourechi, personal communication 
 % 
 
-%    $Id: criteria4momentarybci.m,v 1.4 2008-10-06 10:53:33 schloegl Exp $
+%    $Id: criteria4momentarybci.m,v 1.5 2008-10-15 12:26:49 schloegl Exp $
 %    Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -154,9 +154,7 @@ K2 = kappa(EUI,T1);
 %% Mehrdad's method on "TNs based on switch output activation"
 %% generate padding window - make padding window has the same size than ECW
 
-EV  = zeros(length(TO),2);   
-EV(:,2) = TO;		   % default value is TN or FP  	 
-
+EV  = [zeros(length(TO),1),TO(:)];  % default value is TN or FP  	 
 for k = 1:length(TRIG)
 	ix = max(1,TRIG(k)+ERW(1)*Fs):min(TRIG(k)+ERW(2)*Fs,length(TO));
 
@@ -171,5 +169,6 @@ for k = 1:length(TRIG)
 		EV(ix(2:end),:)=NaN;	% NaN's are ignored, therefore just 1 count per ECW
 	end; 	
 end;
+EV = EV(~any(isnan(EV),2),:);		
 K3 = kappa(EV(:,1),EV(:,2)); 
 

@@ -61,34 +61,39 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, pp.641-644, Mar 20-22, 2003. 
 %  [3]  A. Schlögl, Evaluation of the dataset III of the BCI-competition 2003. 
 %	http://ida.first.fraunhofer.de/projects/bci/competition/results/TR_BCI2003_III.pdf
+% [4] Schlögl A, Kronegg J, Huggins JE, Mason SG;
+%	Evaluation criteria in BCI research.
+%	(Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller;
+%	Towards Brain-Computer Interfacing, MIT Press, p327-342, 2007
 
 
-%    $Id: bci4eval.m,v 1.10 2008-09-25 16:27:38 schloegl Exp $
-%    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
+%    $Id: bci4eval.m,v 1.11 2008-10-15 12:26:49 schloegl Exp $
+%    Copyright (C) 2003,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
-%    This program is free software; you can redistribute it and/or modify
-%    it under the terms of the GNU General Public License as published by
-%    the Free Software Foundation; either version 2 of the License, or
-%    (at your option) any later version.
-%
-%    This program is distributed in the hope that it will be useful,
-%    but WITHOUT ANY WARRANTY; without even the implied warranty of
-%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-%    GNU General Public License for more details.
-%
-%    You should have received a copy of the GNU General Public License
-%    along with this program; if not, write to the Free Software
-%    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+% BioSig is free software; you can redistribute it and/or
+% modify it under the terms of the GNU General Public License
+% as published by the Free Software Foundation; either version 3
+% of the  License, or (at your option) any later version.
+% 
+% This program is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU General Public License for more details.
+% 
+% You should have received a copy of the GNU General Public License
+% along with this program; if not, write to the Free Software
+% Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
 
 if nargin<6
         Fs = 1;
 end;
 
 DIM = 2; 
-CL = unique(cl(~isnan(cl)));
-M = length(CL); 
-
+CL = unique(cl(~isnan(cl)));M = length(CL); 
+M1 = size(tsd,2);
+%CL= 0:M; M,M1,CL,
 
 if any([1,M]==size(tsd,2))
         [x,sz] = trigg(tsd,TRIG,pre,post);
@@ -235,11 +240,10 @@ else
         error('number of classes and number of traces do not fit');
 end;
 
- 
         
         [m,IX] = max(D,[],1);
         IX(isnan(m)) = NaN;
-        IX = squeeze(IX)
+        IX = squeeze(IX);
         CMX = repmat(zeros,[size(IX,1),length(CL)*[1,1]]);
         for k = 1:length(CL),
         for j = 1:length(CL),
@@ -256,7 +260,7 @@ end;
         for k   = 1:size(CMX,1),
                 [o.KAP00(k),o.Ksd00(k),h,z,o.ACC00(k),sa,o.I_Nykopp(k,1)] = kappa(squeeze(CMX(k,:,:)));            
         end;
-        o.datatype = 'TSD_BCI9'  % useful for PLOTA
+        o.datatype = 'TSD_BCI9';  % useful for PLOTA
         [tmp,o.tix]= max([o.KAP00,o.R,sum(o.I,2),wolpaw_entropy(o.ACC00,M)]); 
         o.optCMX   = squeeze(CMX(o.tix(1),:,:));%,length(CL)*[1,1]);
         o.I_wolpaw = wolpaw_entropy(o.ACC00,M);
