@@ -46,7 +46,7 @@ function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,MODE1,t0,MODE)
 %	(Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller;
 %	Towards Brain-Computer Interfacing, MIT Press, p327-342, 2007
 
-%   $Id: findclassifier.m,v 1.13 2008-09-04 13:57:37 schloegl Exp $
+%   $Id: findclassifier.m,v 1.14 2008-10-15 12:28:08 schloegl Exp $
 %   Copyright (C) 1999-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -65,6 +65,10 @@ function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,MODE1,t0,MODE)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
+if ~isempty(t0)
+	warning('arg5 (t_ref) should be empty. Use MODE.WIN=t_ref instead.') 
+end; 
+
 CC = []; Q = [];tsd=[];md=[];
 if isstruct(MODE1)
 	CC.T = MODE1; 
@@ -73,9 +77,6 @@ if isstruct(MODE1)
 else 
 	T = MODE1; 	
 end; 	 
-if ~isempty(t0)
-	warning('arg5 (t_ref) should be empty. Use MODE.WIN=t_ref instead.') 
-end; 
 
 if nargin<6,
         MODE.TYPE='LD3';
