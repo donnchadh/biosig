@@ -23,10 +23,11 @@ function [K1,K2,K3] = criteria4momentarybci(TO,Fs,trig,ERW)
 % [1] Jane E. Huggins, Michael T. McCann, …
 % 	Comparison of Evaluation Metrics for an ECoG-based Momentary BCI.
 % 	https://ctools.umich.edu/access/content/attachment/5fa4908e-eaba-4e67-8eee-d92169c70726/kappa_vs_HF_windowed2_jeh3.doc
-% [2] Mehrdad Fatourechi, personal communication 
-% 
+% [2] M Fatourechi, R K Ward, and G E Birch
+%	A self-paced brain–computer interface system with a low false positive rate
+%	J. Neural Eng. 5: 9–23, 2008.
 
-%    $Id: criteria4momentarybci.m,v 1.5 2008-10-15 12:26:49 schloegl Exp $
+%    $Id: criteria4momentarybci.m,v 1.6 2008-10-17 08:28:03 schloegl Exp $
 %    Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -136,7 +137,7 @@ end;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% sample-based evaluation 
-%% generate padding window - make padding window has the same size than ECW
+%% generate padding window - make padding window the same size than ECW
 T1 = TO;   
 i0 = find(TO);
 for k = i0(:)',
@@ -151,8 +152,7 @@ K2 = kappa(EUI,T1);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Mehrdad's method on "TNs based on switch output activation"
-%% generate padding window - make padding window has the same size than ECW
+%% Mehrdad's method on "TNs based on switch output activation" [2]
 
 EV  = [zeros(length(TO),1),TO(:)];  % default value is TN or FP  	 
 for k = 1:length(TRIG)
