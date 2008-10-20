@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.59 2008-08-09 20:16:47 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.60 2008-10-20 08:22:15 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -559,10 +559,10 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				else if (tag==10) {
 				}
 				else if (tag==11) {
- 					aECG->diastolicBloodPressure = leu16p(PtrCurSect+curSectPos);
+					aECG->systolicBloodPressure  = leu16p(PtrCurSect+curSectPos);
 				}
 				else if (tag==12) {
-					aECG->systolicBloodPressure  = leu16p(PtrCurSect+curSectPos);
+ 					aECG->diastolicBloodPressure = leu16p(PtrCurSect+curSectPos);
 				}
 				else if (tag==13) {
 					aECG->Diagnosis = (char*)(PtrCurSect+curSectPos);

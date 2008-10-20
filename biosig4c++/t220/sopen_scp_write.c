@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.39 2008-10-14 15:06:19 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.40 2008-10-20 08:22:15 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -207,20 +207,20 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 			}	 
 
 			// Tag 11 (len = 2)
-			if (aECG->diastolicBloodPressure>0.0) {
-				*(ptr+sectionStart+curSectLen) = 11;	// tag
-				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(2);	// length
-				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((uint16_t)aECG->diastolicBloodPressure);	// value
-				curSectLen += 5;
-			};
-			// Tag 12 (len = 2)
 			if (aECG->systolicBloodPressure>0.0) {
-				*(ptr+sectionStart+curSectLen) = 12;	// tag
+				*(ptr+sectionStart+curSectLen) = 11;	// tag
 				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(2);	// length
 				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((uint16_t)aECG->systolicBloodPressure);	// value
 				curSectLen += 5;
 			};	 
 
+			// Tag 12 (len = 2)
+			if (aECG->diastolicBloodPressure>0.0) {
+				*(ptr+sectionStart+curSectLen) = 12;	// tag
+				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(2);	// length
+				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((uint16_t)aECG->diastolicBloodPressure);	// value
+				curSectLen += 5;
+			};
 			// Tag 13 (max len = 80)
 			aECG->Diagnosis="";
 			len = strlen(aECG->Diagnosis); 
