@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.262 2008-10-14 14:06:22 schloegl Exp $
+    $Id: biosig.c,v 1.263 2008-10-22 10:15:22 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -55,6 +55,7 @@ int sopen_SCP_read     (HDRTYPE* hdr);
 int sopen_SCP_write    (HDRTYPE* hdr);
 int sopen_HL7aECG_read (HDRTYPE* hdr);
 int sopen_HL7aECG_write(HDRTYPE* hdr);
+int sopen_FAMOS_read   (HDRTYPE* hdr);
 int sclose_HL7aECG_write(HDRTYPE* hdr);
 int sopen_eeprobe(HDRTYPE* hdr);
 int sopen_asn1(HDRTYPE* hdr);
@@ -708,6 +709,11 @@ const struct PhysDimIdx
 	{ 6176 ,  "mmHg %-1" },
 	{ 6208 ,  "Pa %-1" },
 	{ 6432 ,  "B" },
+	{65148 ,  "\xb0/m" },
+	{65184 ,  "m/m" },
+	{65216 ,  "km/h" },
+	{65248 ,  "g s-2" },
+	{65280 ,  "g s-3" },
 	{65312 ,  "mHg s-1" },
 	{65344 ,  "mol l-1 mm"}, 	// "light path length","milli(Mol/Liter)*millimeter"	
 	{65376 ,  "r.p.m"}, 		// "rotations per minute"
@@ -715,9 +721,39 @@ const struct PhysDimIdx
 	{65440 ,  "dyne s m2 cm-5" },
 	{65472 ,  "l m-2" },
 	{65504 ,  "T" },
-	{0xffff ,  "end-of-table" },
+	{0xffff,  "end-of-table" },
 } ;
 #endif 
+
+/*
+	compare strings, ignore case  
+ */
+int strcmpi(const char* str1, const char* str2)
+{	
+	unsigned int k=0;
+	int r;
+	r = tolower(str1[k]) - tolower(str2[k]); 
+	while (!r && str1[k] && str2[k]) {
+		k++; 
+		r = tolower(str1[k]) - tolower(str2[k]);
+	}	
+	return(r); 	 	
+}
+
+/*
+	compare strings, accept bit7=1 
+ */
+int strcmp(const char* str1, const char* str2)
+{	
+	unsigned int k=0;
+	int r;
+	r = str1[k] - str2[k]; 
+	while (!r && str1[k] && str2[k]) {
+		k++; 
+		r = str1[k] - str2[k];
+	}	
+	return(r); 	 	
+}
 
 const char* PhysDimFactor[] = {
 	"","da","h","k","M","G","T","P",	//  0..7
@@ -810,21 +846,6 @@ uint16_t PhysDimCode(char* PhysDim0)
 		}
 	}
 	return(0);
-}
-
-/*
-	compare strings, ignore case  
- */
-int strcmpi(const char* str1, const char* str2)
-{	
-	unsigned int k=0;
-	int r;
-	r = tolower(str1[k]) - tolower(str2[k]); 
-	while (!r && str1[k] && str2[k]) {
-		k++; 
-		r = tolower(str1[k]) - tolower(str2[k]);
-	}	
-	return(r); 	 	
 }
 
 /*
@@ -1468,7 +1489,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = (gdf_time)0; t_time2gdf_time(time(NULL));
       	hdr->tzmin = 0; 
-      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.70";
+      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.75";
       	hdr->ID.Manufacturer._field[0]    = 0;
       	hdr->ID.Manufacturer.Name         = " ";
       	hdr->ID.Manufacturer.Model        = " ";
@@ -1478,16 +1499,21 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->ID.Hospital 	= "\x00";
 	memset(hdr->IPaddr, 0, 16);
 
+#ifndef WITHOUT_NETWORK
+	///### FIXME for mingw32g++ on windows 
+
       	// set default technician name to local IP address  
 	getlogin_r(hdr->ID.Technician, MAX_LENGTH_TECHNICIAN); 
 	//hdr->ID.Technician[MAX_LENGTH_TECHNICIAN]=0;
 	
       	// set default IP address to local IP address  
 	char localhostname[HOST_NAME_MAX+1];
+
 	if (!gethostname(localhostname,HOST_NAME_MAX+1)) {
 		struct hostent *host = gethostbyname(localhostname); 
 		memcpy(hdr->IPaddr, host->h_addr, host->h_length);
 	}	
+#endif 
 
 	hdr->Patient.Name[0] 	= 0; 
 	//hdr->Patient.Id[0] 	= 0; 
@@ -1661,7 +1687,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 		char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+5,sizeof(char));
 		strncpy(AINF_RAW_FILENAME, hdr->FileName,ext);
 		strcpy(AINF_RAW_FILENAME+ext, "raw");
-		FILE* fid1=fopen(AINF_RAW_FILENAME,"r");
+		FILE* fid1=fopen(AINF_RAW_FILENAME,"rb");
 		if (fid1) {
 			fclose(fid1);
 			hdr->TYPE = AINF; 
@@ -1840,6 +1866,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = EMBLA;
     	else if (!memcmp(Header1,"Header\r\nFile Version'",20))
 	    	hdr->TYPE = ETG4000;
+    	else if (!memcmp(Header1,"|CF,",4))
+	    	hdr->TYPE = FAMOS;
 
     	else if (!memcmp(Header1,MAGIC_NUMBER_FEF1,8) || !memcmp(Header1,MAGIC_NUMBER_FEF2,8)) {
 	    	hdr->TYPE = FEF;
@@ -1939,7 +1967,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->VERSION = -3;
 	}    	
 */
-	/*
+/*
 	// special SCP files - header is strange, files cannot be decoded 
 	else if (  (leu32p(hdr->AS.Header+10) == 136)
 		&& (*(uint16_t*)(hdr->AS.Header+ 8) == 0x0000)
@@ -1960,8 +1988,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = SCP_ECG;
 	    	hdr->VERSION = -4;
 	}    	
-	*/
-
+*/
 	
 	else if (!memcmp(Header1,"IAvSFo",6))
 		hdr->TYPE = SIGIF;
@@ -2399,10 +2426,13 @@ if (!strncmp(MODE,"r",1))
 		    	uint8_t tag = 0xff;
 		    	size_t pos=0,len=0;
 	    		tag = (uint8_t)Header2[0];
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"[220] GDFr3: %i %i Tag=%i\n",hdr->HeadLen,hdr->NS,tag);
+
 		    	while ((pos < (hdr->HeadLen-256*(hdr->NS+1)-4)) && (tag>0)) {
 		    		len = leu32p(Header2+pos)>>8; 
 
-    				if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFr3: Tag=%i Len=%i\n",tag,len);
+    				if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFr3: Tag=%i Len=%i pos=%i\n",tag,len,pos);
 		
 		    		if (0) {}
 		    		else if (tag==1) {	
@@ -2424,6 +2454,19 @@ if (!strncmp(MODE,"r",1))
 		    			hdr->AS.bci2000 = (char*) realloc(hdr->AS.bci2000,len+1);
 		    			memcpy(hdr->AS.bci2000,Header2+pos+4,len);
 		    			hdr->AS.bci2000[len]=0; 
+		    		}
+		    		else if (tag==3) {
+		    			/* manufacture information */
+		    			if (len > MAX_LENGTH_MANUF) {
+		    				fprintf(stderr,"Warning: length of Manufacturer information (%i) exceeds length of %i bytes\n", len, MAX_LENGTH_MANUF);
+		    				len = MAX_LENGTH_MANUF;
+		    			}
+		    			memcpy(hdr->ID.Manufacturer._field,Header2+pos+4,len);
+		    			hdr->ID.Manufacturer._field[MAX_LENGTH_MANUF]=0;
+		    			hdr->ID.Manufacturer.Name = hdr->ID.Manufacturer._field;
+		    			hdr->ID.Manufacturer.Model= hdr->ID.Manufacturer.Name+strlen(hdr->ID.Manufacturer.Name)+1;
+		    			hdr->ID.Manufacturer.Version = hdr->ID.Manufacturer.Model+strlen(hdr->ID.Manufacturer.Model)+1;
+		    			hdr->ID.Manufacturer.SerialNumber = hdr->ID.Manufacturer.Version+strlen(hdr->ID.Manufacturer.Version)+1;
 		    		}
 		    		else if (tag==5) {
 		    			/* IP address  */
@@ -3286,9 +3329,12 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->T0 = tm_time2gdf_time(&t); 
 				}	
 				else if (!strcmp(line,"Recording.IPaddress")) {
+#ifndef WITHOUT_NETWORK
+					///### FIXME for mingw32g++ on windows 
 					struct hostent *host = gethostbyaddr(val,strlen(val),AF_INET);
 					if (host!=NULL) 
 						memcpy(hdr->IPaddr, host->h_addr, host->h_length);
+#endif 
 					/* ###FIXME: IPv6 are currently not supported.
 					 	gethostbyaddr will become obsolete, 
 					 	use getaddrinfo instead
@@ -5046,6 +5092,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	    	hdr->FILE.POS = 0; 
 	}
 
+    	else if (hdr->TYPE==FAMOS) {
+    		hdr->HeadLen=count;
+//		sopen_FAMOS_read(hdr);
+	}
+
     	else if (hdr->TYPE==FEF) {
 		size_t bufsiz = 1l<<24;
 		while (!ifeof(hdr)) {
@@ -6623,17 +6674,28 @@ fprintf(stdout,"ASN1 [491]\n");
 
 	}
 	
+	if (VERBOSE_LEVEL>7) 
+		fprintf(stdout,"[194]: bpb=%i\n",hdr->AS.bpb);	
+
 	hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 	if (hdr->TYPE==AINF) hdr->AS.bpb = 4;
 	else if ((hdr->TYPE==CFWB) && (CFWB_FLAG_TIME_CHANNEL)) hdr->AS.bpb = GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
 	else if (hdr->TYPE==TMS32) hdr->AS.bpb = 86;
+	else if (hdr->TYPE==FAMOS) ;	// famos has already defined AS.bpb and AS.bi
 	else hdr->AS.bpb = 0; 
 
-	hdr->AS.bi[0] = hdr->AS.bpb;
+	if (VERBOSE_LEVEL>7) 
+		fprintf(stdout,"[195]: bpb=%i\n",hdr->AS.bpb);	
+
+	if (hdr->TYPE != FAMOS)	// hack: famos has already defined AS.bi 
+		hdr->AS.bi[0] = hdr->AS.bpb;
 	for (k=0, hdr->SPR = 1, hdr->AS.spb=0; k<hdr->NS; k++) {
 		hdr->AS.spb += hdr->CHANNEL[k].SPR;
-		hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;			
-		hdr->AS.bi[k+1] = hdr->AS.bpb; 
+		if (hdr->TYPE != FAMOS) 	// hack: famos has already defined AS.bi 
+		{
+			hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;			
+			hdr->AS.bi[k+1] = hdr->AS.bpb; 
+		}
 		if (hdr->CHANNEL[k].SPR > 0)  // ignore sparse channels
 			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
 	}
@@ -6675,6 +6737,9 @@ fprintf(stdout,"ASN1 [491]\n");
 			hdr->NRec = (hdr->HeadLen + count)/hdr->AS.bpb; 
 
 	}
+	if (VERBOSE_LEVEL>7) 
+		fprintf(stdout,"[197]: bpb=%i\n",hdr->AS.bpb);	
+	
 	/* TODO 
 	convert2to4_event_table(hdr->EVENT);
 	convert into canonical form if needed
@@ -6999,6 +7064,11 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		TagNLen[tag] = strlen(hdr->AS.bci2000)+1;
 	     		hdr->HeadLen += 4+TagNLen[tag];
 	     	}	
+	     	tag = 3; 
+	     	if ((hdr->ID.Manufacturer.Name != NULL) || (hdr->ID.Manufacturer.Model != NULL) || (hdr->ID.Manufacturer.Version != NULL) || (hdr->ID.Manufacturer.SerialNumber != NULL)) { 
+	     		TagNLen[tag] = strlen(hdr->ID.Manufacturer.Name)+strlen(hdr->ID.Manufacturer.Model)+strlen(hdr->ID.Manufacturer.Version)+strlen(hdr->ID.Manufacturer.SerialNumber)+4;
+	     		hdr->HeadLen += 4+TagNLen[tag];
+	     	}	
 	     	tag = 5; 
 	     	for (k=0; k<16; k++) {
 	     		if (hdr->IPaddr[k]) {
@@ -7218,6 +7288,26 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	if (TagNLen[tag]>0) {
 	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=2 & Length of Tag 2
      			strcpy((char*)(Header2+4),hdr->AS.bci2000);
+			Header2 += 4+TagNLen[tag];	
+	     	}
+	     	tag = 3; 
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=3 & Length of Tag 3
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"SOPEN(GDF)w: tag=%i,len=%i\n",tag,TagNLen[tag]);
+	     		memset(Header2+4,0,TagNLen[tag]);
+	     		size_t len = 0; 
+     			strcpy((char*)(Header2+4), hdr->ID.Manufacturer.Name);
+		     	if (hdr->ID.Manufacturer.Name != NULL) 	
+		     		len += strlen(hdr->ID.Manufacturer.Name);
+     			strcpy((char*)(Header2+5+len), hdr->ID.Manufacturer.Model);
+		     	if (hdr->ID.Manufacturer.Model != NULL)
+		     		len += strlen(hdr->ID.Manufacturer.Model);
+     			strcpy((char*)(Header2+6+len), hdr->ID.Manufacturer.Version);
+		     	if (hdr->ID.Manufacturer.Version != NULL)
+		     		len += strlen(hdr->ID.Manufacturer.Version);
+     			strcpy((char*)(Header2+7+len), hdr->ID.Manufacturer.SerialNumber);
+		     	if (hdr->ID.Manufacturer.SerialNumber != NULL)
+		     		len += strlen(hdr->ID.Manufacturer.SerialNumber);
 			Header2 += 4+TagNLen[tag];	
 	     	}
 	     	tag = 5;
@@ -8851,7 +8941,7 @@ int sclose(HDRTYPE* hdr)
 		}
 	
 		if (VERBOSE_LEVEL>7) 
-			fprintf(stdout, "888: File Type=%s ,N#of Events%i\n",GetFileTypeString(hdr->TYPE),hdr->EVENT.N);
+			fprintf(stdout, "888: File Type=%s ,N#of Events %i\n",GetFileTypeString(hdr->TYPE),hdr->EVENT.N);
 
 		if ((hdr->TYPE==GDF) && (hdr->EVENT.N>0)) {
 
@@ -9012,7 +9102,10 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		fprintf(fid,   "Recording:\n\tID              : %s\n",hdr->ID.Recording);
 		fprintf(fid,               "\tInstitution     : %s\n",hdr->ID.Hospital);
 		fprintf(fid,               "\tTechnician      : %s\t# default: localuser\n",hdr->ID.Technician);
-		fprintf(fid,               "\tEquipment       : %s\n",(char*)&hdr->ID.Equipment);
+		char tmp[60];
+		strncpy(tmp,(char*)&hdr->ID.Equipment,8);
+		tmp[8] = 0;
+		fprintf(fid,               "\tEquipment       : %s\n",tmp);
 		if (VERBOSE_LEVEL>8)
 			fprintf(fid,       "\t                  %#.16Lx\n",(uint64_t)hdr->ID.Equipment);
 		uint8_t IPv6=0;
@@ -9053,7 +9146,6 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			fprintf(fid,"\tAge             : ----\n\tBirthday        : unknown\n");
 			 
 		T0 = gdf_time2t_time(hdr->T0);
-		char tmp[60];
 		strftime(tmp, 59, "%x %X %Z", localtime(&T0));
 		fprintf(fid,"\tStartOfRecording: (%.6f) %s\n",ldexp(hdr->T0,-32),asctime(localtime(&T0)));
 		if (hdr->AS.bci2000 != NULL) {
@@ -9079,10 +9171,11 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		for (k=0; k<hdr->NS; k++) {
 			cp = hdr->CHANNEL+k; 
 			char p[MAX_LENGTH_PHYSDIM+1];
-			PhysDim(cp->PhysDimCode,p);
-			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5.1f %2i  %e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
+
+			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, cp->PhysDim);
+			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5f %2i  %e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
 				k+1,cp->LeadIdCode,cp->OnOff,cp->Label,cp->SPR * hdr->SampleRate/hdr->SPR,
-				cp->GDFTYP, cp->Cal, cp->Off, p,  
+				cp->GDFTYP, cp->Cal, cp->Off, cp->PhysDim,  
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch);
 			//fprintf(fid,"\t %3i", cp->SPR);
 		}
@@ -9130,12 +9223,14 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			fprintf(stdout,"SERIAL_NUMBER_ACQ_DEV: %s\n",aECG->Section1.Tag14.SERIAL_NUMBER_ACQ_DEV);
 			fprintf(stdout,"ACQ_DEV_SYS_SW_ID    : %i\n",aECG->Section1.Tag14.ACQ_DEV_SYS_SW_ID);
 			fprintf(stdout,"ACQ_DEV_SCP_SW       : %i\n",aECG->Section1.Tag14.ACQ_DEV_SCP_SW);
-			fprintf(stdout,"ACQ_DEV_MANUF        : %i\n",aECG->Section1.Tag14.ACQ_DEV_MANUF);
 */
+			fprintf(stdout,"ACQ_DEV_MANUF        : %s\n",aECG->Section1.Tag14.ACQ_DEV_MANUF);
 			fprintf(stdout,"Compression  HUFFMAN : %i\n",aECG->FLAG.HUFFMAN);
 			fprintf(stdout,"Compression  REF-BEAT: %i\n",aECG->FLAG.REF_BEAT);		
 			fprintf(stdout,"Compression  BIMODAL : %i\n",aECG->FLAG.BIMODAL);		
-			fprintf(stdout,"Compression  DIFF    : %i",aECG->FLAG.DIFF);		
+			fprintf(stdout,"Compression  DIFF    : %i\n",aECG->FLAG.DIFF);		
+			if ((aECG->systolicBloodPressure > 0.0) || (aECG->diastolicBloodPressure > 0.0)) 
+				fprintf(stdout,"Blood pressure (systolic/diastolic) : %3.0f/%3.0f mmHg\n",aECG->systolicBloodPressure,aECG->diastolicBloodPressure);
 		}
 	}
 	fprintf(fid,"\n\n");

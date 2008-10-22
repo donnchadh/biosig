@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.234 2008-10-14 14:06:22 schloegl Exp $
+%	$Id: sopen.m,v 1.235 2008-10-22 10:15:21 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -729,6 +729,15 @@ end;
 				case 2		%% bci2000 additional information 
 					VAL = fread(HDR.FILE.FID,[1,LEN],'uint8=>char');
 					HDR.BCI2000.INFO = VAL;
+				case 3		%% Manufacturer Information 
+					VAL = fread(HDR.FILE.FID,[1,LEN],'uint8=>char');
+					[HDR.Manufacturer.Name,VAL] = strtok(VAL,0); 
+					[HDR.Manufacturer.Model,VAL] = strtok(VAL,0); 
+					[HDR.Manufacturer.Version,VAL] = strtok(VAL,0); 
+					[HDR.Manufacturer.SerialNumber,VAL] = strtok(VAL,0); 
+				case 4		%% Orientation of MEG channels 
+					VAL = fread(HDR.FILE.FID,[32,HDR.NS],'float32');
+					HDR.ELEC.Orientation = VAL';
 				case 5 		%% IP address
 					VAL = fread(HDR.FILE.FID,[1,LEN],'uint8=>uint8');
 					HDR.REC.IPaddr = VAL;
@@ -1451,6 +1460,20 @@ end;
                         
                 end;	% header 2
 
+                %%%%%% generate Header 3,  Tag-Length-Value
+                LengthHeader3 = 0;
+                TagLenValue = {};
+                TagLen = 0;
+                if isfield(HDR,'Manufacturer')
+	                tag=3;
+	                if ~isfield(HDR.Manufacturer,'Name') 	HDR.Manufacturer.Name=''; end; 
+	                if ~isfield(HDR.Manufacturer,'Model') 	HDR.Manufacturer.Model=''; end; 
+	                if ~isfield(HDR.Manufacturer,'Version') 	HDR.Manufacturer.Version=''; end;
+	                if ~isfield(HDR.Manufacturer,'SerialNumber') HDR.Manufacturer.SerialNumber=''; end;  
+	                TagLenValue{tag} = char([HDR.Manufacturer.Name,0,HDR.Manufacturer.Model,0,HDR.Manufacturer.Version,0,HDR.Manufacturer.SerialNumber]);
+	                TagLen(tag) = length(TagLenValue{tag}); 
+                end; 
+
                 HDR.SPR = 1;
                 for k = 1:HDR.NS,
                         if (HDR.AS.SPR(k)>0)
@@ -1460,6 +1483,10 @@ end;
                 
                 %%%%%% generate Header 1, first 256 bytes 
                 HDR.HeadLen=(HDR.NS+1)*256;
+                if any(TagLen>0) 
+                	HDR.HeadLen = HDR.HeadLen + ceil((sum(TagLen)+4*sum(TagLen>0)+4)/256)*256; 	%% terminating 0-Tag
+                end; 	 
+                
                 %H1(1:8)=HDR.VERSION; %sprintf('%08i',HDR.VERSION);     % 8 Byte  Versionsnummer 
 		if isempty(HDR.Patient.Birthday), bd = 'X';
                         HDR.Patient.Birthday = zeros(1,6);
@@ -1562,9 +1589,9 @@ end;
                                 end;
 				tmp = [datenum(HDR.T0), datenum(HDR.Patient.Birthday)];
 				tmp = floor([rem(tmp,1)*2^32;tmp]);
-                                c = fwrite(HDR.FILE.FID,tmp,'uint32');
-                                c=fwrite(HDR.FILE.FID,[HDR.HeadLen/256,0,0,0],'uint16');
-                                c=fwrite(HDR.FILE.FID,'b4om2.15','uint8'); % EP_ID=ones(8,1)*32;
+                                c   = fwrite(HDR.FILE.FID,tmp,'uint32');
+                                c   = fwrite(HDR.FILE.FID,[HDR.HeadLen/256,0,0,0],'uint16');
+                                c   = fwrite(HDR.FILE.FID,'b4om2.15','uint8'); % EP_ID=ones(8,1)*32;
                                 if (HDR.VERSION < 2.1)
 					tmp = [HDR.REC.IPaddr, zeros(1,2)];
 				else
@@ -1704,9 +1731,24 @@ end;
 				end;
                         end;
                 end;
+
+                %%%%%% generate Header 3,  Tag-Length-Value
+                for tag=find(TagLen>0)
+                	fwrite(HDR.FILE.FID, tag+TagLen(tag)*256, 'uint32');
+	                switch tag 
+        	        case 3 
+                		fwrite(HDR.FILE.FID, TagLenValue{tag}, 'uint8');
+                	end;
+                end; 
+                if any(TagLen>0) 
+                	fwrite(HDR.FILE.FID, 0, 'uint32');	%% terminating 0-tag
+                end; 	
+
+
                 tmp = ftell(HDR.FILE.FID);
-                if tmp ~= (256 * (HDR.NS+1)) 
-                        fprintf(1,'Warning SOPEN (GDF/EDF/BDF)-WRITE: incorrect header length %i vs. %i bytes\n',tmp, 256*(HDR.NS+1) );
+                if tmp ~= HDR.HeadLen, 
+               		fwrite(HDR.FILE.FID, zeros(1,HDR.HeadLen-tmp), 'uint8');
+                        fprintf(1,'Warning SOPEN (GDF/EDF/BDF)-WRITE: incorrect header length %i vs. %i bytes\n',tmp, HDR.HeadLen );
                         %else   fprintf(1,'SOPEN (GDF/EDF/BDF) in write mode: header info stored correctly\n');
                 end;        
 
@@ -9979,3 +10021,4 @@ if any(HDR.FILE.PERMISSION=='r') & (HDR.NS>0);
                 HDR.data = HDR.data(:,HDR.InChanSelect);
         end;
 end;
+

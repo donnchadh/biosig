@@ -3,7 +3,7 @@
 %    and it tests also Matlab/Octave for its correctness. 
 % 
 
-%	$Id: demo3.m,v 1.13 2008-09-04 09:37:36 schloegl Exp $
+%	$Id: demo3.m,v 1.14 2008-10-22 10:15:22 schloegl Exp $
 %	Copyright (C) 2000-2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -46,6 +46,10 @@ HDR.Patient.Birthday = [1951 05 13 0 0 0];
 HDR.Patient.Name = 'X';		% for privacy protection  
 HDR.Patient.Handedness = 0; 	% unknown, 1:left, 2:right, 3: equal
 
+HDR.Manufacturer.Name = 'BioSig'; 
+HDR.Manufacturer.Model = 'demo3.m'; 
+HDR.Manufacturer.Version = '$revision'; 
+HDR.Manufacturer.SerialNumber = '00000000' 
 
 % recording identification, max 80 char.
 HDR.RID = 'TestFile 001'; %StudyID/Investigation [consecutive number];

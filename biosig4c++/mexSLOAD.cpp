@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.43 2008-10-04 13:54:53 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.44 2008-10-22 10:15:22 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -248,13 +248,13 @@ void mexFunction(
 
 		char* mexFileName = (char*)mxMalloc(strlen(hdr->FileName)+1); 
 
-		mxArray *tmp, *tmp2, *Patient, *ID, *EVENT, *Filter, *Flag, *FileType;
+		mxArray *tmp, *tmp2, *Patient, *Manufacturer, *ID, *EVENT, *Filter, *Flag, *FileType;
 		uint16_t numfields;
 		const char *fnames[] = {"TYPE","VERSION","FileName","T0","FILE","Patient",\
 		"HeadLen","NS","SPR","NRec","SampleRate", "FLAG", \
 		"EVENT","Label","LeadIdCode","PhysDimCode","PhysDim","Filter",\
 		"PhysMax","PhysMin","DigMax","DigMin","Transducer","Cal","Off","GDFTYP",\
-		"LowPass","HighPass","Notch","ELEC","Impedance","AS","Dur","REC",NULL};
+		"LowPass","HighPass","Notch","ELEC","Impedance","AS","Dur","REC","Manufacturer",NULL};
 
 		for (numfields=0; fnames[numfields++] != 0; );
 		HDR = mxCreateStructMatrix(1, 1, --numfields, fnames);
@@ -422,7 +422,6 @@ void mexFunction(
 		mxArray *IPaddr = mxCreateNumericMatrix(1,len,mxUINT8_CLASS,mxREAL);
 		memcpy(mxGetData(IPaddr),hdr->IPaddr,len);
 		mxSetField(ID,0,"IPaddr",IPaddr); 
-
 		mxSetField(HDR,0,"REC",ID);
 
 		/* Patient Information */ 
@@ -452,6 +451,20 @@ void mexFunction(
 		else					d = (double)hdr->Patient.Height;
 		mxSetField(Patient,0,"Height",mxCreateDoubleScalar(d));
 	
+		/* Manufacturer Information */ 
+		const char *manufacturer_fields[] = {"Name","Model","Version","SerialNumber",NULL};
+		for (numfields=0; manufacturer_fields[numfields++] != 0; );
+		Manufacturer = mxCreateStructMatrix(1, 1, --numfields, manufacturer_fields);
+		strarray[0] = hdr->ID.Manufacturer.Name;
+		mxSetField(Manufacturer,0,"Name",mxCreateCharMatrixFromStrings(1,strarray));
+		strarray[0] = hdr->ID.Manufacturer.Model;
+		mxSetField(Manufacturer,0,"Model",mxCreateCharMatrixFromStrings(1,strarray));
+		strarray[0] = hdr->ID.Manufacturer.Version;
+		mxSetField(Manufacturer,0,"Version",mxCreateCharMatrixFromStrings(1,strarray));
+		strarray[0] = hdr->ID.Manufacturer.SerialNumber;
+		mxSetField(Manufacturer,0,"SerialNumber",mxCreateCharMatrixFromStrings(1,strarray));
+		mxSetField(HDR,0,"Manufacturer",Manufacturer);
+
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[148] going for SCLOSE\n");
 
 		mxSetField(HDR,0,"Patient",Patient);

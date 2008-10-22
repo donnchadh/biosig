@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.60 2008-10-20 08:22:15 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.61 2008-10-22 10:15:22 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -589,6 +589,24 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					aECG->Section1.Tag14.DEVICE_ID   = leu16p(PtrCurSect+curSectPos+4);
 					aECG->Section1.Tag14.DEVICE_TYPE = *(PtrCurSect+curSectPos+ 6);
 					aECG->Section1.Tag14.MANUF_CODE  = *(PtrCurSect+curSectPos+ 7);	// tag 14, byte 7 (MANUF_CODE has to be 255)
+
+					const char *MANUFACTURER[] = {
+						"unknown","Burdick","Cambridge",
+						"Compumed","Datamed","Fukuda","Hewlett-Packard",
+						"Marquette Electronics","Mortara Instruments",
+						"Nihon Kohden","Okin","Quinton","Siemens","Spacelabs",
+						"Telemed","Hellige","ESA-OTE","Schiller",
+						"Picker-Schwarzer","et medical devices",
+						"Zwönitz",NULL}; 
+											
+					if (!strlen(hdr->ID.Manufacturer.Name)) {
+						if (aECG->Section1.Tag14.MANUF_CODE < 21)
+							hdr->ID.Manufacturer.Name = MANUFACTURER[aECG->Section1.Tag14.MANUF_CODE];
+						else 
+							fprintf(stderr,"Warning SOPEN(SCP): unknown manufacturer code\n");
+					}		 
+											
+
 					aECG->Section1.Tag14.MOD_DESC    = (char*)(PtrCurSect+curSectPos+8); 
 					aECG->Section1.Tag14.VERSION     = *(PtrCurSect+curSectPos+14);
 					aECG->Section1.Tag14.PROT_COMP_LEVEL = *(PtrCurSect+curSectPos+15); 	// tag 14, byte 15 (PROT_COMP_LEVEL has to be 0xA0 => level II)
@@ -605,6 +623,8 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					aECG->Section1.Tag14.ACQ_DEV_SCP_SW = (char*)(PtrCurSect+curSectPos+36+tmp+1); 	// tag 14, byte 38 (SCP_IMPL_SW has to be "OpenECG XML-SCP 1.00")
 					tmp += strlen((char*)(PtrCurSect+curSectPos+36+tmp+1)); 
 					aECG->Section1.Tag14.ACQ_DEV_MANUF  = (char*)(PtrCurSect+curSectPos+36+tmp+1);	// tag 14, byte 38 (ACQ_DEV_MANUF has to be "Manufacturer")
+					
+					
 				}
 				else if (tag==15) {
 					//memcpy(hdr->aECG->Section1.tag15,PtrCurSect+curSectPos,40);
