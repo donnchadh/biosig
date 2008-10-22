@@ -3,7 +3,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.31 2008-10-22 10:15:22 schloegl Exp $
+$Id: header.txt,v 1.32 2008-10-22 12:38:36 schloegl Exp $
 Copyright (C) Alois Schloegl 2003-2005,2008 <a.schloegl@ieee.org>
 This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -110,12 +110,13 @@ HDR.Patient	# contains patient information [OPTIONAL]
     Patient.Impairment.Visual		0: unknown 1: NO 2: YES 3: corrected (with visual aid) 
     Patient.Smoking			0: unknown 1: NO 2: YES 
     Patient.AlcoholAbuse		0: unknown 1: NO 2: YES 
-    Patient.DrugAbuse			0: unknown 1: NO 2: YES 
+    Patient.DrugAbuse			0: unknown 1: NO 2: YES
+     
 HDR.Manufacturer	# Manufacturer information			
-		.Name			name of manufacture
-		.Model			device model 
-		.Version		version of device
-		.SerialNumber    	Serial number 
+    Manufacturer.Name			name of manufacture
+    Manufacturer.Model			device model 
+    Manufacturer.Version		version of device
+    Manufacturer.SerialNumber    	Serial number 
     
 HDR.REC.Hospital			Identification of hospital
 HDR.RID					Identification of Recording, StudyID, consecutive number

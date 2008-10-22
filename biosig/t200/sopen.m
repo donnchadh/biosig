@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.235 2008-10-22 10:15:21 schloegl Exp $
+%	$Id: sopen.m,v 1.236 2008-10-22 12:38:35 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -700,7 +700,7 @@ end;
                 end
 
                 %% GDF Header 3 
-                if (HDR.VERSION > 2)
+                if (HDR.VERSION > 2.1)
                 	pos = 256*(HDR.NS+1); 
 			fseek(HDR.FILE.FID,pos,'bof');	
 			while (pos <= HDR.HeadLen-4)
@@ -1465,14 +1465,19 @@ end;
                 TagLenValue = {};
                 TagLen = 0;
                 if isfield(HDR,'Manufacturer')
-	                tag=3;
+                	tag = 3;
 	                if ~isfield(HDR.Manufacturer,'Name') 	HDR.Manufacturer.Name=''; end; 
 	                if ~isfield(HDR.Manufacturer,'Model') 	HDR.Manufacturer.Model=''; end; 
-	                if ~isfield(HDR.Manufacturer,'Version') 	HDR.Manufacturer.Version=''; end;
+	                if ~isfield(HDR.Manufacturer,'Version') HDR.Manufacturer.Version=''; end;
 	                if ~isfield(HDR.Manufacturer,'SerialNumber') HDR.Manufacturer.SerialNumber=''; end;  
 	                TagLenValue{tag} = char([HDR.Manufacturer.Name,0,HDR.Manufacturer.Model,0,HDR.Manufacturer.Version,0,HDR.Manufacturer.SerialNumber]);
 	                TagLen(tag) = length(TagLenValue{tag}); 
-                end; 
+		end;	                
+                if isfield(HDR,'ELEC') && isfield(HDR.ELEC,'Orientation') && all(size(HDR.ELEC.Orientation)==HDR.NS,3) 
+	                tag = 4; 
+	                TagLenValue{tag} = HDR.ELEC.Orientation;
+	                TagLen(tag) = 12*HDR.NS; 
+                end;
 
                 HDR.SPR = 1;
                 for k = 1:HDR.NS,
@@ -1734,20 +1739,24 @@ end;
 
                 %%%%%% generate Header 3,  Tag-Length-Value
                 for tag=find(TagLen>0)
-                	fwrite(HDR.FILE.FID, tag+TagLen(tag)*256, 'uint32');
-	                switch tag 
-        	        case 3 
-                		fwrite(HDR.FILE.FID, TagLenValue{tag}, 'uint8');
-                	end;
-                end; 
+       	        	fwrite(HDR.FILE.FID, tag+TagLen(tag)*256, 'uint32');
+        	        switch tag 
+       	        	case 3 
+               			fwrite(HDR.FILE.FID, TagLenValue{tag}, 'uint8');
+       	        	case 4 
+               			fwrite(HDR.FILE.FID, HDR.ELEC.Orientation', 'float32');
+               		end;
+               	end; 
                 if any(TagLen>0) 
-                	fwrite(HDR.FILE.FID, 0, 'uint32');	%% terminating 0-tag
-                end; 	
-
+       	        	fwrite(HDR.FILE.FID, 0, 'uint32');	%% terminating 0-tag
+		end; 
 
                 tmp = ftell(HDR.FILE.FID);
                 if tmp ~= HDR.HeadLen, 
-               		fwrite(HDR.FILE.FID, zeros(1,HDR.HeadLen-tmp), 'uint8');
+             		fwrite(HDR.FILE.FID, zeros(1,HDR.HeadLen-tmp), 'uint8');
+             	end; 	
+                tmp = ftell(HDR.FILE.FID);
+                if tmp ~= HDR.HeadLen, 
                         fprintf(1,'Warning SOPEN (GDF/EDF/BDF)-WRITE: incorrect header length %i vs. %i bytes\n',tmp, HDR.HeadLen );
                         %else   fprintf(1,'SOPEN (GDF/EDF/BDF) in write mode: header info stored correctly\n');
                 end;        
