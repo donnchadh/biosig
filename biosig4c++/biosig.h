@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.121 2008-10-14 14:06:22 schloegl Exp $
+% $Id: biosig.h,v 1.122 2008-10-22 12:45:35 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -271,10 +271,10 @@ typedef struct {
 				MFER: tag23:  "Manufacturer^model^version number^serial number"
 			*/	
 			char	_field[MAX_LENGTH_MANUF+1];	/* buffer */
-			char*	Name;  
-			char*	Model;
-			char*	Version;
-			char*	SerialNumber;
+			const char*	Name;  
+			const char*	Model;
+			const char*	Version;
+			const char*	SerialNumber;
 		} Manufacturer;  
 		char 		EquipmentManufacturer[20];
 		char		EquipmentModel[20]; 
