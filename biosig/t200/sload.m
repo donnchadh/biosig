@@ -40,7 +40,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.92 2008-10-02 13:00:32 schloegl Exp $
+%	$Id: sload.m,v 1.93 2008-10-22 13:57:50 schloegl Exp $
 %	Copyright (C) 1997-2007,2008 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -298,7 +298,7 @@ if exist('mexSLOAD','file')==3,
 			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2);
 			FlagLoaded = isfield(HDR,'NS');
 			HDR.InChanSelect = InChanSelect(InChanSelect <= HDR.NS);
-			signal = signal*ReRefMx(HDR.InChanSelect,:);
+			signal = signal*ReRefMx(HDR.InChanSelect,:); %% can be sparse if just a single channel is loaded
 			signal = full(signal); 	%% make sure signal is not sparse 
 		end; 
 		
@@ -541,7 +541,11 @@ if exist('mexSLOAD','file')==3,
 		fprintf(1, 'SLOAD: mexSLOAD failed - the slower M-function is used.\n');
 	end;
 else 
-	fprintf(1, 'Hint: the performance of SLOAD can be improved with mexSLOAD.mex which is part of biosig4c++.\n');
+	global FLAG_HINT_mexSLOAD;
+	if isempty(FLAG_HINT_mexSLOAD) 
+		fprintf(1, 'Hint: the performance of SLOAD can be improved with mexSLOAD.mex which is part of biosig4c++.\n');
+		FLAG_HINT_mexSLOAD = 1;
+	end;
 end;
 
 if ~FlagLoaded,
