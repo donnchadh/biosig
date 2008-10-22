@@ -3,7 +3,7 @@
 %    and it tests also Matlab/Octave for its correctness. 
 % 
 
-%	$Id: demo3.m,v 1.14 2008-10-22 10:15:22 schloegl Exp $
+%	$Id: demo3.m,v 1.15 2008-10-22 13:49:59 schloegl Exp $
 %	Copyright (C) 2000-2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -46,9 +46,10 @@ HDR.Patient.Birthday = [1951 05 13 0 0 0];
 HDR.Patient.Name = 'X';		% for privacy protection  
 HDR.Patient.Handedness = 0; 	% unknown, 1:left, 2:right, 3: equal
 
+% description of recording device 
 HDR.Manufacturer.Name = 'BioSig'; 
 HDR.Manufacturer.Model = 'demo3.m'; 
-HDR.Manufacturer.Version = '$revision'; 
+HDR.Manufacturer.Version = '$Revision'; 
 HDR.Manufacturer.SerialNumber = '00000000' 
 
 % recording identification, max 80 char.
@@ -108,7 +109,7 @@ HDR.PhysDim = {'uV';'mV';'%';'-';'-';'°C'};
 
 t = [100:100:size(x,1)]';
 %HDR.NRec = 100;
-HDR.VERSION = 2.1; 
+HDR.VERSION = 2.11; 
 HDR = sopen(HDR,'w');
 %HDR.SIE.RAW = 0; % [default] channel data mode, one column is one channel 
 %HDR.SIE.RAW = 1; % switch to raw data mode, i.e. one column for one EDF-record

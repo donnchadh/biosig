@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.236 2008-10-22 12:38:35 schloegl Exp $
+%	$Id: sopen.m,v 1.237 2008-10-22 13:49:59 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -700,7 +700,7 @@ end;
                 end
 
                 %% GDF Header 3 
-                if (HDR.VERSION > 2.1)
+                if (HDR.VERSION > 2)
                 	pos = 256*(HDR.NS+1); 
 			fseek(HDR.FILE.FID,pos,'bof');	
 			while (pos <= HDR.HeadLen-4)
@@ -736,7 +736,7 @@ end;
 					[HDR.Manufacturer.Version,VAL] = strtok(VAL,0); 
 					[HDR.Manufacturer.SerialNumber,VAL] = strtok(VAL,0); 
 				case 4		%% Orientation of MEG channels 
-					VAL = fread(HDR.FILE.FID,[32,HDR.NS],'float32');
+					VAL = fread(HDR.FILE.FID,[3,HDR.NS],'float32');
 					HDR.ELEC.Orientation = VAL';
 				case 5 		%% IP address
 					VAL = fread(HDR.FILE.FID,[1,LEN],'uint8=>uint8');
@@ -994,7 +994,7 @@ end;
                         elseif (HDR.VERSION<1.30)
                                 HDR.VERSION = 1.25;     %% stable version 
                         else
-                                HDR.VERSION = 2.1;     %% testing 
+                                HDR.VERSION = 2.11;     %% testing 
                         end;        
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
@@ -1461,7 +1461,6 @@ end;
                 end;	% header 2
 
                 %%%%%% generate Header 3,  Tag-Length-Value
-                LengthHeader3 = 0;
                 TagLenValue = {};
                 TagLen = 0;
                 if isfield(HDR,'Manufacturer')
@@ -1472,8 +1471,9 @@ end;
 	                if ~isfield(HDR.Manufacturer,'SerialNumber') HDR.Manufacturer.SerialNumber=''; end;  
 	                TagLenValue{tag} = char([HDR.Manufacturer.Name,0,HDR.Manufacturer.Model,0,HDR.Manufacturer.Version,0,HDR.Manufacturer.SerialNumber]);
 	                TagLen(tag) = length(TagLenValue{tag}); 
-		end;	                
-                if isfield(HDR,'ELEC') && isfield(HDR.ELEC,'Orientation') && all(size(HDR.ELEC.Orientation)==HDR.NS,3) 
+		end;
+
+                if isfield(HDR,'ELEC') && isfield(HDR.ELEC,'Orientation') && all(size(HDR.ELEC.Orientation)==[HDR.NS,3]) 
 	                tag = 4; 
 	                TagLenValue{tag} = HDR.ELEC.Orientation;
 	                TagLen(tag) = 12*HDR.NS; 
