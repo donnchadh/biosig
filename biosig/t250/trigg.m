@@ -24,7 +24,7 @@ function [x,sz] = trigg(s,TRIG,pre,post,gap)
 %
 % see also: GETTRIGGER
 
-% 	$Id: trigg.m,v 1.5 2008-01-19 20:50:56 schloegl Exp $
+% 	$Id: trigg.m,v 1.6 2008-10-24 11:37:39 schloegl Exp $
 %	Copyright (c) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -55,8 +55,10 @@ post=round(post);
 off  = min(min([TRIG(:);+Inf])+pre-1,0);
 % include following nan's
 off2 = max(max([TRIG(:);-Inf])+post-length(s),0);
-s    = [repmat(nan,-off,nc);s;repmat(nan,off2,nc)];
-TRIG = TRIG-off;
+if ((off~=0) || (off2~=0))
+	s    = [repmat(nan,-off,nc);s;repmat(nan,off2,nc)];
+	TRIG = TRIG-off;
+end; 
 
 % devide into segments
 N   = post-pre+1+gap;
