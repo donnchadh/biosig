@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.263 2008-10-22 10:15:22 schloegl Exp $
+    $Id: biosig.c,v 1.264 2008-11-03 16:52:51 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1499,7 +1499,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->ID.Hospital 	= "\x00";
 	memset(hdr->IPaddr, 0, 16);
 
-#ifndef WITHOUT_NETWORK
+#if (!__MINGW32__ || (__GNUC__ > 3)) 
 	///### FIXME for mingw32g++ on windows 
 
       	// set default technician name to local IP address  
@@ -1561,7 +1561,13 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	      	hdr->CHANNEL[k].LowPass   = 70.0;
 	      	hdr->CHANNEL[k].Notch     = 50;
 	      	hdr->CHANNEL[k].Impedance = INF;
-	      	for (k1=0; k1<3; hdr->CHANNEL[k].XYZ[k1++] = 0.0) {};
+	      	hdr->CHANNEL[k].XYZ[0] 	  = 0.0;
+	      	hdr->CHANNEL[k].XYZ[1] 	  = 0.0;
+	      	hdr->CHANNEL[k].XYZ[2] 	  = 0.0;
+	      	hdr->CHANNEL[k].Orientation[0] = 0.0;
+	      	hdr->CHANNEL[k].Orientation[1] = 0.0;
+	      	hdr->CHANNEL[k].Orientation[2] = 0.0;
+	      	hdr->CHANNEL[k].Area      = 0.0;
 	}      	
 
 	// define EVENT structure
@@ -1912,6 +1918,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = NEX1;
     	else if (!memcmp(Header1,"OggS",4))
 	    	hdr->TYPE = OGG;
+    	else if (!memcmp(Header1,"SXDF",4))
+	    	hdr->TYPE = OpenXDF;
     	else if (!memcmp(Header1,"PLEX",4))
 	    	hdr->TYPE = PLEXON;
     	else if (!memcmp(Header1,"RIFF",4)) {
@@ -2467,6 +2475,16 @@ if (!strncmp(MODE,"r",1))
 		    			hdr->ID.Manufacturer.Model= hdr->ID.Manufacturer.Name+strlen(hdr->ID.Manufacturer.Name)+1;
 		    			hdr->ID.Manufacturer.Version = hdr->ID.Manufacturer.Model+strlen(hdr->ID.Manufacturer.Model)+1;
 		    			hdr->ID.Manufacturer.SerialNumber = hdr->ID.Manufacturer.Version+strlen(hdr->ID.Manufacturer.Version)+1;
+		    		}
+		    		else if (tag==4) {
+		    			/* sensor orientation */
+		    			for (k=0; k<hdr->NS; k++) {
+		    				hdr->CHANNEL[k].Orientation[0] = lef32p(Header2+pos+4+4*k);
+		    				hdr->CHANNEL[k].Orientation[1] = lef32p(Header2+pos+4+4*k+hdr->NS*4);
+		    				hdr->CHANNEL[k].Orientation[2] = lef32p(Header2+pos+4+4*k+hdr->NS*8);
+		    				if (len >= 16*hdr->NS)
+			    				hdr->CHANNEL[k].Area   = lef32p(Header2+pos+4+4*k+hdr->NS*12);
+		    			}	
 		    		}
 		    		else if (tag==5) {
 		    			/* IP address  */
@@ -3287,6 +3305,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (c) line[c] = 0; // deblank 
 				FLAG_NUMBER_OF_FIELDS_READ++; 
 			}	
+if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val); 
 
 			if (status==1) {
 				if (!strcmp(line,"Duration"))
@@ -3329,7 +3348,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					hdr->T0 = tm_time2gdf_time(&t); 
 				}	
 				else if (!strcmp(line,"Recording.IPaddress")) {
-#ifndef WITHOUT_NETWORK
+#if (!__MINGW32__ || (__GNUC__ > 3)) 
 					///### FIXME for mingw32g++ on windows 
 					struct hostent *host = gethostbyaddr(val,strlen(val),AF_INET);
 					if (host!=NULL) 
@@ -3353,6 +3372,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}
 			
 			else if (status==2) {
+				CHANNEL_TYPE *cp;
 				if (!strcmp(line,"Filename")) {
 					// add next channel  	
 					++hdr->NS; 
@@ -3369,16 +3389,17 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 						fclose(fid);
 					} 
 					hdr->AS.bi[hdr->NS] = lengthRawData; 
-					hdr->AS.bpb         = lengthRawData; 
-					hdr->CHANNEL[hdr->NS-1].PhysDimCode = 0;
-					hdr->CHANNEL[hdr->NS-1].HighPass = NaN;
-					hdr->CHANNEL[hdr->NS-1].LowPass  = NaN;
-					hdr->CHANNEL[hdr->NS-1].Notch    = NaN;
+					hdr->AS.bpb         = lengthRawData;
+					cp = hdr->CHANNEL+hdr->NS-1; 
+					cp->PhysDimCode = 0;
+					cp->HighPass = NaN;
+					cp->LowPass  = NaN;
+					cp->Notch    = NaN;
 
 					FLAG_NUMBER_OF_FIELDS_READ = 1; 
 				}
 				else if (!strcmp(line,"Label"))
-					strncpy(hdr->CHANNEL[hdr->NS-1].Label,val,MAX_LENGTH_LABEL);
+					strncpy(cp->Label,val,MAX_LENGTH_LABEL);
 				else if (!strcmp(line,"GDFTYP")) {
 					uint16_t gdftyp;
 					if      (!strcmp(val,"int8"))	gdftyp = 1; 
@@ -3399,37 +3420,43 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 						B4C_ERRMSG = "ASCII/BIN: reading ASCII format not supported.";	
 					}
 					else
-						hdr->CHANNEL[hdr->NS-1].GDFTYP = gdftyp;
+						cp->GDFTYP = gdftyp;
 				}	
 				else if (!strcmp(line,"PhysicalUnits"))
-					hdr->CHANNEL[hdr->NS-1].PhysDimCode = PhysDimCode(val);
+					cp->PhysDimCode = PhysDimCode(val);
 				else if (!strcmp(line,"PhysDimCode")) {
 					// If PhysicalUnits and PhysDimCode conflict, PhysicalUnits gets the preference 	
-					if (!hdr->CHANNEL[hdr->NS-1].PhysDimCode)
-						hdr->CHANNEL[hdr->NS-1].PhysDimCode = atoi(val);
+					if (!cp->PhysDimCode)
+						cp->PhysDimCode = atoi(val);
 				}	
 				else if (!strcmp(line,"Transducer"))
-					strncpy(hdr->CHANNEL[hdr->NS-1].Transducer,val,MAX_LENGTH_TRANSDUCER);
+					strncpy(cp->Transducer,val,MAX_LENGTH_TRANSDUCER);
 				else if (!strcmp(line,"SampleRate"))
-					hdr->CHANNEL[hdr->NS-1].SPR = (atof(val)*duration);
+					cp->SPR = (atof(val)*duration);
 				else if (!strcmp(line,"NumberOfSamples"))
-					hdr->CHANNEL[hdr->NS-1].SPR = atol(val);
+					cp->SPR = atol(val);
 				else if (!strcmp(line,"HighPassFilter"))
-					hdr->CHANNEL[hdr->NS-1].HighPass = atof(val);
+					cp->HighPass = atof(val);
 				else if (!strcmp(line,"LowPassFilter"))
-					hdr->CHANNEL[hdr->NS-1].LowPass = atof(val);
+					cp->LowPass = atof(val);
 				else if (!strcmp(line,"NotchFilter"))
-					hdr->CHANNEL[hdr->NS-1].Notch = atof(val);
+					cp->Notch = atof(val);
 				else if (!strcmp(line,"DigMax"))
-					hdr->CHANNEL[hdr->NS-1].DigMax = atof(val);
+					cp->DigMax = atof(val);
 				else if (!strcmp(line,"DigMin"))
-					hdr->CHANNEL[hdr->NS-1].DigMin = atof(val);
+					cp->DigMin = atof(val);
 				else if (!strcmp(line,"PhysMax"))
-					hdr->CHANNEL[hdr->NS-1].PhysMax = atof(val);
+					cp->PhysMax = atof(val);
 				else if (!strcmp(line,"PhysMin"))
-					hdr->CHANNEL[hdr->NS-1].PhysMin = atof(val);
+					cp->PhysMin = atof(val);
+				else if (!strncmp(line,"Position",8)) 
+					sscanf(val,"%f \t%f \t%f",cp->XYZ,cp->XYZ+1,cp->XYZ+2);
+				else if (!strncmp(line,"Orientation",11)) 
+					sscanf(val,"%f \t%f \t%f",cp->Orientation,cp->Orientation+1,cp->Orientation+2);
+				else if (!strcmp(line,"Area"))
+					cp->Area = atof(val);
 
-				if (FLAG_NUMBER_OF_FIELDS_READ > 13) { 
+				if (FLAG_NUMBER_OF_FIELDS_READ > 16) { 
 					// consolidate last channel
 					hdr->AS.bi[0]=0;
 					k = hdr->NS-1;	
@@ -3488,7 +3515,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 					++hdr->EVENT.N;
 				}	
 			}
-							
 			line = strtok(NULL,"\x0a\x0d");
 		}
     	}
@@ -5094,7 +5120,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
     	else if (hdr->TYPE==FAMOS) {
     		hdr->HeadLen=count;
-//		sopen_FAMOS_read(hdr);
+		sopen_FAMOS_read(hdr);
 	}
 
     	else if (hdr->TYPE==FEF) {
@@ -5228,8 +5254,8 @@ fprintf(stdout,"ASN1 [491]\n");
 				curPos += ifread(buf,1,len,hdr);
 				hdr->SPR = *(int64_t*) mfer_swap8b(buf, len, SWAP); 
 			}	
-			else if (tag==5) {
-				// NS
+			else if (tag==5)     //0x05: number of channels 
+			{
 				if (len>4) fprintf(stderr,"Warning MFER tag5 incorrect length %i>4\n",len); 
 				curPos += ifread(buf,1,len,hdr);
 				hdr->NS = *(int64_t*) mfer_swap8b(buf, len, SWAP); 
@@ -5276,7 +5302,8 @@ fprintf(stdout,"ASN1 [491]\n");
 					fprintf(stdout,"Warning: MFER compressed format not supported\n");   
 				else			gdftyp=3;
 			}	
-			else if (tag==11) {
+			else if (tag==11)    //0x0B
+			{
 				// Fs
 				if (len>6) fprintf(stderr,"Warning MFER tag11 incorrect length %i>6\n",len); 
 				double  fval; 
@@ -5287,7 +5314,8 @@ fprintf(stdout,"ASN1 [491]\n");
 				if (buf[0]==1)  // s
 					hdr->SampleRate = 1.0/hdr->SampleRate;
 			}	
-			else if (tag==12) {
+			else if (tag==12)    //0x0C
+			{
 				// sampling resolution 
 				if (len>6) fprintf(stderr,"Warning MFER tag12 incorrect length %i>6\n",len); 
 				val32   = 0;
@@ -5347,7 +5375,8 @@ fprintf(stdout,"ASN1 [491]\n");
 				hdr->ID.Manufacturer.Version      = strtok(NULL,"^");  
 				hdr->ID.Manufacturer.SerialNumber = strtok(NULL,"^");  
 			}
-			else if (tag==30) {
+			else if (tag==30)     //0x1e: waveform data 
+			{
 				// data block 
 				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,len); 
 				hdr->HeadLen    = curPos;
@@ -5415,7 +5444,8 @@ fprintf(stdout,"ASN1 [491]\n");
 					
 				}
 			}	
-			else if (tag==64) {
+			else if (tag==64)     //0x40 
+			{
 				// preamble  
 				curPos += ifread(tmp,1,len,hdr);
 				if (VERBOSE_LEVEL>7) {
@@ -5424,7 +5454,8 @@ fprintf(stdout,"ASN1 [491]\n");
 					fprintf(stdout,"|\n");
 				}
 			}	
-			else if (tag==65) {
+			else if (tag==65)     //0x41: patient event 
+			{
 				// event table  
 				curPos += ifread(buf,1,len,hdr);
 				if (len>2) {
@@ -5449,9 +5480,13 @@ fprintf(stdout,"ASN1 [491]\n");
 							hdr->EVENT.DUR[hdr->EVENT.N] = *(uint32_t*)(buf+6);
 					}		
 				}		
+			}	
+			else if (tag==66)     //0x42: NIPB, SpO2(value)   
+			{
 			}
 
-			else if (tag==129) {
+			else if (tag==129)   //0x81
+			{
 				if (!hdr->FLAG.ANONYMOUS)
 					curPos += ifread(hdr->Patient.Name,1,len,hdr);
 				else 	{
@@ -5460,7 +5495,8 @@ fprintf(stdout,"ASN1 [491]\n");
 				}		
 			}	
 
-			else if (tag==130) {
+			else if (tag==130)    //0x82
+			{
 				// Patient Id 
 				if (len>64) fprintf(stderr,"Warning MFER tag131 incorrect length %i>64\n",len); 
 				if (len>MAX_LENGTH_PID) {
@@ -5472,7 +5508,8 @@ fprintf(stdout,"ASN1 [491]\n");
 					curPos += ifread(hdr->Patient.Id,1,len,hdr);
 			}	
 
-			else if (tag==131) {
+			else if (tag==131)    //0x83
+			{
 				// Patient Age 
 				if (len!=7) fprintf(stderr,"Warning MFER tag131 incorrect length %i!=7\n",len); 
 				curPos += ifread(buf,1,len,hdr);
@@ -5487,12 +5524,14 @@ fprintf(stdout,"ASN1 [491]\n");
 				hdr->Patient.Birthday  = t_time2gdf_time(mktime(&tm_time)); 
 				//hdr->Patient.Age = buf[0] + cswap_u16(*(uint16_t*)(buf+1))/365.25;
 			}	
-			else if (tag==132) {
+			else if (tag==132)    //0x84
+			{
 				// Patient Sex 
 				if (len!=1) fprintf(stderr,"Warning MFER tag132 incorrect length %i!=1\n",len); 
 				curPos += ifread(&hdr->Patient.Sex,1,len,hdr);
 			}	
-			else if (tag==133) {
+			else if (tag==133)    //0x85
+			{
 				curPos += ifread(buf,1,len,hdr);
 				tm_time.tm_year = *(uint16_t*)buf;
 				if (SWAP) tm_time.tm_year = bswap_16(tm_time.tm_year);
@@ -6850,7 +6889,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    		fprintf(fid,"HighPassFilter\t= %f\n",hdr->CHANNEL[k].HighPass);
 	    		fprintf(fid,"LowPassFilter\t= %f\n",hdr->CHANNEL[k].LowPass);
 	    		fprintf(fid,"NotchFilter\t= %f\n",hdr->CHANNEL[k].Notch);
-    			
+	    		fprintf(fid,"PositionXYZ\t= %f\t%f\t%f\n",hdr->CHANNEL[k].XYZ[0],hdr->CHANNEL[k].XYZ[1],hdr->CHANNEL[k].XYZ[2]);
+	    		fprintf(fid,"OrientationXYZ\t= %f\t%f\t%f\n",hdr->CHANNEL[k].Orientation[0],hdr->CHANNEL[k].Orientation[1],hdr->CHANNEL[k].Orientation[2]);
+	    		fprintf(fid,"Area     \t= %f\n",hdr->CHANNEL[k].Area);
+
 	    		fprintf(fid,"\n");
 			hdr->CHANNEL[k].SPR *= hdr->NRec; 
     		}
@@ -7069,6 +7111,15 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		TagNLen[tag] = strlen(hdr->ID.Manufacturer.Name)+strlen(hdr->ID.Manufacturer.Model)+strlen(hdr->ID.Manufacturer.Version)+strlen(hdr->ID.Manufacturer.SerialNumber)+4;
 	     		hdr->HeadLen += 4+TagNLen[tag];
 	     	}	
+	     	tag = 4;
+	     	char FLAG_SENSOR_ORIENTATION = 0;  
+	     	for (k=0; k<hdr->NS; k++) {
+	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Orientation[0] != (float)0.0;
+	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Orientation[1] != (float)0.0;
+	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Orientation[2] != (float)0.0;
+	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Area != (float)0.0;
+	     		TagNLen[tag] = hdr->NS*sizeof(float)*3;
+	     	} 
 	     	tag = 5; 
 	     	for (k=0; k<16; k++) {
 	     		if (hdr->IPaddr[k]) {
@@ -7310,9 +7361,21 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		     		len += strlen(hdr->ID.Manufacturer.SerialNumber);
 			Header2 += 4+TagNLen[tag];	
 	     	}
+	     	tag = 4;
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=4 & Length of Tag 4
+	     		Header2 += 4;
+	     		for (k=0; k<hdr->NS; k++) {
+	     			lef32a(hdr->CHANNEL[k].Orientation[0],(Header2+4*k));
+	     			lef32a(hdr->CHANNEL[k].Orientation[1],(Header2+4*k+4*hdr->NS));
+	     			lef32a(hdr->CHANNEL[k].Orientation[2],(Header2+4*k+8*hdr->NS));
+	     			lef32a(hdr->CHANNEL[k].Area,          (Header2+4*k+12*hdr->NS));
+	     		}
+     			Header2 += 4*sizeof(float)*hdr->NS;
+	     	}
 	     	tag = 5;
 	     	if (TagNLen[tag]>0) {
-	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=5 & Length of Tag 2
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=5 & Length of Tag 5
      			memcpy(Header2+4,hdr->IPaddr,TagNLen[tag]);
 			Header2 += 4+TagNLen[tag];
 	     	}

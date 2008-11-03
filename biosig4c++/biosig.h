@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.122 2008-10-22 12:45:35 schloegl Exp $
+% $Id: biosig.h,v 1.123 2008-11-03 16:52:51 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -111,7 +111,7 @@ enum FileFormat {
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, 
 	Matlab, MFER, MIDI, MIT, 
-	native, NetCDF, NEX1, NIFTI, OGG, 
+	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, TMSiLOG, VRML, VTK, WAV, WMF, XML, XPM,
@@ -199,14 +199,16 @@ typedef struct {
 	uint16_t	PhysDimCode ATT_ALI;	/* code for physical dimension */
 	/* char* 	PreFilt;	// pre-filtering */
 
-	float 		LowPass	ATT_ALI;	/* lowpass filter */
+	float 		LowPass		ATT_ALI;	/* lowpass filter */
 	float 		HighPass	ATT_ALI;	/* high pass */
-	float 		Notch	ATT_ALI;		/* notch filter */
-	float 		XYZ[3]	ATT_ALI;		/* electrode position */
+	float 		Notch		ATT_ALI;	/* notch filter */
+	float 		XYZ[3]		ATT_ALI;	/* sensor position */
+	float 		Orientation[3]	ATT_ALI;	/* sensor direction */
+	float 		Area		ATT_ALI;	/* area of sensor (e.g. for MEG) */
 	float 		Impedance	ATT_ALI;   	/* in Ohm */
 	
-	uint16_t 	GDFTYP 	ATT_ALI;	/* data type */
-	uint32_t 	SPR 	ATT_ALI;	/* samples per record (block) */
+	uint16_t 	GDFTYP 		ATT_ALI;	/* data type */
+	uint32_t 	SPR 		ATT_ALI;	/* samples per record (block) */
 	
 } CHANNEL_TYPE	ATT_ALI;
 

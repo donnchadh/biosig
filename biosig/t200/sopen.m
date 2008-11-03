@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.237 2008-10-22 13:49:59 schloegl Exp $
+%	$Id: sopen.m,v 1.238 2008-11-03 16:52:51 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -736,8 +736,9 @@ end;
 					[HDR.Manufacturer.Version,VAL] = strtok(VAL,0); 
 					[HDR.Manufacturer.SerialNumber,VAL] = strtok(VAL,0); 
 				case 4		%% Orientation of MEG channels 
-					VAL = fread(HDR.FILE.FID,[3,HDR.NS],'float32');
-					HDR.ELEC.Orientation = VAL';
+					VAL = fread(HDR.FILE.FID,[HDR.NS,4],'float32');
+					HDR.ELEC.Orientation = VAL(:,1:3);
+					HDR.ELEC.Area = VAL(:,4);
 				case 5 		%% IP address
 					VAL = fread(HDR.FILE.FID,[1,LEN],'uint8=>uint8');
 					HDR.REC.IPaddr = VAL;
@@ -1476,7 +1477,7 @@ end;
                 if isfield(HDR,'ELEC') && isfield(HDR.ELEC,'Orientation') && all(size(HDR.ELEC.Orientation)==[HDR.NS,3]) 
 	                tag = 4; 
 	                TagLenValue{tag} = HDR.ELEC.Orientation;
-	                TagLen(tag) = 12*HDR.NS; 
+	                TagLen(tag) = 16*HDR.NS; 
                 end;
 
                 HDR.SPR = 1;
@@ -1744,7 +1745,9 @@ end;
        	        	case 3 
                			fwrite(HDR.FILE.FID, TagLenValue{tag}, 'uint8');
        	        	case 4 
-               			fwrite(HDR.FILE.FID, HDR.ELEC.Orientation', 'float32');
+               			c=fwrite(HDR.FILE.FID, HDR.ELEC.Orientation, 'float32');
+               			c=c+fwrite(HDR.FILE.FID, HDR.ELEC.Area, 'float32');
+               			fwrite(HDR.FILE.FID, zeros(4*HDR.NS-c), 'float32');
                		end;
                	end; 
                 if any(TagLen>0) 

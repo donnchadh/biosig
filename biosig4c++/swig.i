@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.18 2008-10-14 14:06:22 schloegl Exp $
+% $Id: swig.i,v 1.19 2008-11-03 16:52:51 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -53,7 +53,7 @@ enum FileFormat {
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, 
 	Matlab, MFER, MIDI, MIT, 
-	native, NetCDF, NEX1, NIFTI, OGG, 
+	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, TMSiLOG, VRML, VTK, WAV, WMF, XML, XPM,
@@ -80,7 +80,9 @@ typedef struct {
 	float 		LowPass;	/* lowpass filter */
 	float 		HighPass;	/* high pass */
 	float 		Notch;		/* notch filter */
-	float 		XYZ[3];		/* electrode position */
+	float 		XYZ[3];		/* sensor position */
+	float 		Orientation[3];	/* sensor direction */
+	float 		Area;		/* area of sensor (in m^2 e.g. for MEG) */
 	float 		Impedance;   	/* in Ohm */
 	
 	uint16_t 	GDFTYP;		/* data type */
@@ -88,7 +90,7 @@ typedef struct {
 	
 } CHANNEL_TYPE;
 
-%extend CHANNEL_TYPE {
+% extend CHANNEL_TYPE {
    CHANNEL_TYPE *__getitem__(int index) {
         return self+index;
    }
