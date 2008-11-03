@@ -3,7 +3,7 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.32 2008-10-22 12:38:36 schloegl Exp $
+$Id: header.txt,v 1.33 2008-11-03 10:44:16 schloegl Exp $
 Copyright (C) Alois Schloegl 2003-2005,2008 <a.schloegl@ieee.org>
 This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -129,6 +129,7 @@ HDR.REC.IPaddr		4(16)xuint8	IP address of recording system
 HDR.REC.Impedance	NS*uint8	Electrode Impedance round(log2(Z[Ohm])*8) Z can be reconstructed with < 10% error 
 HDR.ELEC.XYZ		3xNSxfloat32	sensor position in cartesion coordinates
 HDR.ELEC.Orientation	3xNSxfloat32	sensor orientation in cartesion coordinates
+HDR.ELEC.Area		NSxfloat32	area [m^2] of (MEG) sensor
 HDR.ELEC.REF		3xfloat32	position of reference electrode 
 HDR.ELEC.GND		3xfloat32	position of ground electrode 
 

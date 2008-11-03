@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.12 2008-01-18 09:28:13 schloegl Exp $
+%	$Id: fltopen.m,v 1.13 2008-11-03 10:44:16 schloegl Exp $
 %	Copyright (c) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -194,6 +194,8 @@ if any(HDR.FILE.PERMISSION=='r'),
 	HDR.Cal = Cal_Group(HDR.FLT.channels.grp+1); 
 
 	HDR.ELEC.XYZ = HDR.FLT.channels.Cal*HDR.FLT.sensors.XYZabcArea(:,1:3); 
+	HDR.ELEC.Orientation = HDR.FLT.channels.Cal*HDR.FLT.sensors.XYZabcArea(:,4:6); 
+	HDR.ELEC.Area = HDR.FLT.channels.Cal*HDR.FLT.sensors.XYZabcArea(:,7); 
 	HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
 	if HDR.GDFTYP < 10,
 		FLAG = HDR.FLAG; % backup
