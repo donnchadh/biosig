@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.19 2008-11-03 16:52:51 schloegl Exp $
+% $Id: swig.i,v 1.20 2008-11-04 12:19:44 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -51,12 +51,13 @@ enum FileFormat {
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
 	EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
-	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, 
+	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, Lexicor,
 	Matlab, MFER, MIDI, MIT, 
 	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
-	TIFF, TMS32, TMSiLOG, VRML, VTK, WAV, WMF, XML, XPM,
+	TIFF, TMS32, TMSiLOG, VRML, VTK, 
+	WAV, WinEEG, WMF, XML, XPM,
 	Z, ZIP, ZIP2,
 	ASCII_IBI, ASCII
 };
@@ -90,7 +91,8 @@ typedef struct {
 	
 } CHANNEL_TYPE;
 
-% extend CHANNEL_TYPE {
+
+%extend CHANNEL_TYPE {
    CHANNEL_TYPE *__getitem__(int index) {
         return self+index;
    }
@@ -102,7 +104,6 @@ typedef struct {
 	This structure defines the general (fixed) header  
 */
 typedef struct {
-
 	enum FileFormat TYPE; 		/* type of file format */
 	float 		VERSION;	/* GDF version number */ 
 	const char* 	FileName;
@@ -156,6 +157,7 @@ typedef struct {
 			/* see 
 				SCP: section1, tag14, 
 				MFER: tag23:  "Manufacturer^model^version number^serial number"
+				GDF: tag3:  "Manufacturer\0model\0version\0number\0serial number\0"
 			*/	
 			char	_field[MAX_LENGTH_MANUF+1];	/* buffer */
 			char*	Name;  
@@ -163,9 +165,6 @@ typedef struct {
 			char*	Version;
 			char*	SerialNumber;
 		} Manufacturer;  
-		char 		EquipmentManufacturer[20];
-		char		EquipmentModel[20]; 
-		char		EquipmentSerialNumber[20];
 	} ID;
 
 	/* position of electrodes; see also HDR.CHANNEL[k].XYZ */

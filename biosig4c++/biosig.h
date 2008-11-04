@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.123 2008-11-03 16:52:51 schloegl Exp $
+% $Id: biosig.h,v 1.124 2008-11-04 12:19:44 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -109,12 +109,13 @@ enum FileFormat {
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
 	EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
-	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, 
+	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, Lexicor, 
 	Matlab, MFER, MIDI, MIT, 
 	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
 	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
-	TIFF, TMS32, TMSiLOG, VRML, VTK, WAV, WMF, XML, XPM,
+	TIFF, TMS32, TMSiLOG, VRML, VTK, 
+	WAV, WinEEG, WMF, XML, XPM,
 	Z, ZIP, ZIP2,
 	ASCII_IBI, ASCII
 };
@@ -278,9 +279,6 @@ typedef struct {
 			const char*	Version;
 			const char*	SerialNumber;
 		} Manufacturer;  
-		char 		EquipmentManufacturer[20];
-		char		EquipmentModel[20]; 
-		char		EquipmentSerialNumber[20];
 	} ID ATT_ALI;
 
 	/* position of electrodes; see also HDR.CHANNEL[k].XYZ */

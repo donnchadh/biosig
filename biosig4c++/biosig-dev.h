@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.8 2008-08-14 10:59:30 schloegl Exp $
+% $Id: biosig-dev.h,v 1.9 2008-11-04 12:19:44 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -241,8 +241,8 @@ const double INF=1.0/0.0;
 typedef struct {
 	char*		test;		/* test field for annotated ECG */
 	
-	float		diastolicBloodPressure;				
-	float		systolicBloodPressure;	
+	float		diastolicBloodPressure;		/* in mmHg */
+	float		systolicBloodPressure;		/* in mmHg */
 	char*		MedicationDrugs;
 	char*		ReferringPhysician;
 	char*		LatestConfirmingPhysician;

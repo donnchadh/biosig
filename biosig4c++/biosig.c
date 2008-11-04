@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.264 2008-11-03 16:52:51 schloegl Exp $
+    $Id: biosig.c,v 1.265 2008-11-04 12:19:44 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2339,7 +2339,7 @@ if (!strncmp(MODE,"r",1))
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[210] FMT=%s NS=%i pos=%i headlen=%i\n",GetFileTypeString(hdr->TYPE),hdr->NS,count,hdr->HeadLen);
 		
-		if (hdr->HeadLen < (256*hdr->NS+1)) {
+		if (hdr->HeadLen < (256*(hdr->NS+1))) {
 			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 			B4C_ERRMSG = "(GDF) Length of Header is too small";
 			return(hdr); 
@@ -2482,9 +2482,11 @@ if (!strncmp(MODE,"r",1))
 		    				hdr->CHANNEL[k].Orientation[0] = lef32p(Header2+pos+4+4*k);
 		    				hdr->CHANNEL[k].Orientation[1] = lef32p(Header2+pos+4+4*k+hdr->NS*4);
 		    				hdr->CHANNEL[k].Orientation[2] = lef32p(Header2+pos+4+4*k+hdr->NS*8);
-		    				if (len >= 16*hdr->NS)
+		    				// if (len >= 12*hdr->NS)
 			    				hdr->CHANNEL[k].Area   = lef32p(Header2+pos+4+4*k+hdr->NS*12);
-		    			}	
+						if (VERBOSE_LEVEL>8) 
+							fprintf(stdout,"GDF tag=4 #%i pos=%i/%i: %f\n",k,pos,len,hdr->CHANNEL[k].Area);
+		    			}
 		    		}
 		    		else if (tag==5) {
 		    			/* IP address  */
@@ -7118,8 +7120,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Orientation[1] != (float)0.0;
 	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Orientation[2] != (float)0.0;
 	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Area != (float)0.0;
-	     		TagNLen[tag] = hdr->NS*sizeof(float)*3;
 	     	} 
+	     	if (FLAG_SENSOR_ORIENTATION) 
+	     		TagNLen[tag] = hdr->NS*sizeof(float)*4;
+     		hdr->HeadLen += 4+TagNLen[tag];
 	     	tag = 5; 
 	     	for (k=0; k<16; k++) {
 	     		if (hdr->IPaddr[k]) {
@@ -7141,10 +7145,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		hdr->HeadLen += 4+TagNLen[tag];
 	     	}	
 	     	
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",hdr->HeadLen,TagNLen[1],FLAG_SENSOR_ORIENTATION);
 	     	/* end */
 
-		hdr->VERSION = 2.10;
+		hdr->VERSION = 2.11;
 		if (hdr->TYPE==GDF1) {
 			hdr->VERSION = 1.25;
 			hdr->TYPE = GDF;
@@ -7152,6 +7156,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		else if (hdr->HeadLen & 0x00ff)	// in case of GDF v2, make HeadLen a multiple of 256. 
 			hdr->HeadLen = (hdr->HeadLen & 0xff00) + 256;  
 			
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",hdr->HeadLen,TagNLen[1],FLAG_SENSOR_ORIENTATION);
+
 	    	hdr->AS.Header = (uint8_t*) calloc(hdr->HeadLen,1);
 	     	sprintf((char*)hdr->AS.Header,"GDF %4.2f",hdr->VERSION);
 	    	uint8_t* Header2 = hdr->AS.Header+256; 
@@ -7366,10 +7372,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=4 & Length of Tag 4
 	     		Header2 += 4;
 	     		for (k=0; k<hdr->NS; k++) {
-	     			lef32a(hdr->CHANNEL[k].Orientation[0],(Header2+4*k));
-	     			lef32a(hdr->CHANNEL[k].Orientation[1],(Header2+4*k+4*hdr->NS));
-	     			lef32a(hdr->CHANNEL[k].Orientation[2],(Header2+4*k+8*hdr->NS));
-	     			lef32a(hdr->CHANNEL[k].Area,          (Header2+4*k+12*hdr->NS));
+	     			*(float*)(Header2 + 4*k)             = l_endian_f32(hdr->CHANNEL[k].Orientation[0]);
+	     			*(float*)(Header2 + 4*k + 4*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Orientation[1]);
+	     			*(float*)(Header2 + 4*k + 8*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Orientation[2]);
+	     			*(float*)(Header2 + 4*k +12*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Area);
 	     		}
      			Header2 += 4*sizeof(float)*hdr->NS;
 	     	}
@@ -7381,13 +7387,13 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	}
 	     	tag = 6; 
 	     	if (TagNLen[tag]>0) {
-	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=6 & Length of Tag 2
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=6 & Length of Tag 6
      			strcpy((char*)(Header2+4),hdr->ID.Technician);
 			Header2 += 4+TagNLen[tag];
 	     	}
 	     	tag = 7; 
 	     	if (TagNLen[tag]>0) {
-	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=7 & Length of Tag 2
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=7 & Length of Tag 7
      			strcpy((char*)(Header2+4),hdr->ID.Hospital);
 			Header2 += 4+TagNLen[tag];
 	     	}
@@ -9229,17 +9235,18 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 	if (VERBOSE>2) {
 		/* channel settings */ 
 		fprintf(fid,"\n[CHANNEL HEADER]");
-		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin HighPass LowPass Notch");
+		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin HighPass LowPass Notch X Y Z dX dY dZ Area");
 		size_t k;
 		for (k=0; k<hdr->NS; k++) {
 			cp = hdr->CHANNEL+k; 
 			char p[MAX_LENGTH_PHYSDIM+1];
 
 			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, cp->PhysDim);
-			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5f %2i  %e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
+			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5f %2i  %e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
 				k+1,cp->LeadIdCode,cp->OnOff,cp->Label,cp->SPR * hdr->SampleRate/hdr->SPR,
 				cp->GDFTYP, cp->Cal, cp->Off, cp->PhysDim,  
-				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch);
+				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch,
+				cp->XYZ[0],cp->XYZ[1],cp->XYZ[2],cp->Orientation[0],cp->Orientation[1],cp->Orientation[2],cp->Area);
 			//fprintf(fid,"\t %3i", cp->SPR);
 		}
 	}
