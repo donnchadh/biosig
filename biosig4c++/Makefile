@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.59 2008-10-01 12:21:31 schloegl Exp $
+###  $Id: Makefile,v 1.60 2008-11-04 12:15:33 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -10,23 +10,25 @@
 
 
 CC            = $(CXX)
-CXX           = g++
+CXX           = g++-4.1
 MinGWCXX      = i586-mingw32msvc-g++
 MEX	      = /opt/MatlabR2008a/bin/mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB #-D=WITH_ANS1 #-D=WITH_EEPROBE -D=WITH_ANS1 #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = #-D=WITH_ZLIB #-D=WITH_ANS1 #-D=WITH_EEPROBE -D=WITH_ANS1 #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES) # -I cntopenlib/include/
+#MinGWCFLAGS   = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT -D=WITHOUT_NETWORK $(DEFINES)
+MinGWCFLAGS   = $(CFLAGS)
 AR            = ar crs
 INCPATH       = 
 #LINK          = gcc
-LINK          = g++
+LINK          = $(CXX)
 MinGWLINK     = i586-mingw32msvc-g++
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        =
 #LIBS          = -lz -L. -lbiosig  	# dynamic
 LIBS          = libbiosig.a -lz 	# static
-MinGWLIBS     = win32/libbiosig.a 	# static
+MinGWLIBS     = win32/libbiosig.a -lz	# static
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
 
@@ -49,6 +51,7 @@ SOURCES       = biosig.c \
 		XMLParser/tinyxmlerror.cpp \
 		XMLParser/tinystr.cpp \
 		t210/sopen_scp_read.c \
+		t210/sopen_famos_read.c \
 		t210/scp-decode.cpp \
 		t220/sopen_scp_write.c \
 		t220/crc4scp.c \
@@ -61,6 +64,7 @@ OBJECTS       = biosig.o \
 		tinyxmlerror.o \
 		tinystr.o \
 		sopen_scp_read.o \
+		sopen_famos_read.o \
 		scp-decode.o \
 		sopen_scp_write.o \
 		crc4scp.o \
@@ -75,17 +79,18 @@ MinGWOBJECTS  = win32/biosig.obj \
 		win32/tinyxmlerror.obj \
 		win32/tinystr.obj \
 		win32/sopen_scp_read.obj \
+		win32/sopen_famos_read.obj \
 		win32/scp-decode.obj \
 		win32/sopen_scp_write.obj \
 		win32/crc4scp.obj \
 		win32/sopen_hl7aecg.obj \
 		win32/sandbox.obj \
-		win32/zlib/lib/zdll.lib		
+#		win32/zlib/lib/zdll.lib		
 
-TARGET        = save2gdf save2aecg save2scp libbiosig.a libbiosig.so #sigviewer
+TARGET        = save2gdf save2aecg save2scp libbiosig.a #libbiosig.so #sigviewer
 
 first: $(TARGET)
-all: $(TARGET) mex4o sigviewer exe biosig4python
+all: $(TARGET) mex sigviewer exe biosig4python
 
 ####### Implicit rules
 
@@ -124,6 +129,9 @@ save2gdf.o: save2gdf.c biosig-dev.h biosig.h
 sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h \
 		biosig.h t210/structures.h t210/types.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_scp_read.o t210/sopen_scp_read.c
+
+sopen_famos_read.o: t210/sopen_famos_read.c biosig-dev.h 
+	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_famos_read.o t210/sopen_famos_read.c
 
 scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h \
 		t210/types.h t210/structures.h t210/codes.h
@@ -189,55 +197,58 @@ win32/zlib/include/zlib.h: win32/zlib
 	touch --reference=win32/zlib win32/zlib/include/zlib.h
 
 win32/biosig.obj: biosig.c biosig-dev.h biosig.h  win32/zlib/include/zlib.h
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/biosig.obj biosig.c
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/biosig.obj biosig.c
 
-win32/libbiosig.a: $(MinGWOBJECTS)
+win32/libbiosig.a: $(MinGWOBJECTS) 
 	i586-mingw32msvc-$(AR) win32/libbiosig.a $(MinGWOBJECTS) 
 	
 win32/physicalunits.obj: physicalunits.c biosig.h  win32/zlib/include/zlib.h
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/physicalunits.obj physicalunits.c
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/physicalunits.obj physicalunits.c
 
 win32/sandbox.obj: test0/sandbox.c biosig.h  win32/zlib/include/zlib.h
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/sandbox.obj test0/sandbox.c
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sandbox.obj test0/sandbox.c
 
 win32/save2gdf.obj: save2gdf.c biosig-dev.h biosig.h  win32/zlib/include/zlib.h
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/save2gdf.obj save2gdf.c
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/save2gdf.obj save2gdf.c
 
 win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h  win32/zlib/include/zlib.h \
 		biosig.h t210/structures.h t210/types.h
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/sopen_scp_read.obj t210/sopen_scp_read.c
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_scp_read.obj t210/sopen_scp_read.c
+
+win32/sopen_famos_read.obj: t210/sopen_famos_read.c biosig-dev.h 
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_famos_read.obj t210/sopen_famos_read.c
 
 win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h win32/zlib/include/zlib.h \
 		t210/types.h t210/structures.h t210/codes.h
-	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/scp-decode.obj t210/scp-decode.cpp
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/scp-decode.obj t210/scp-decode.cpp
 
 win32/crc4scp.obj: t220/crc4scp.c 
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/crc4scp.obj t220/crc4scp.c
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/crc4scp.obj t220/crc4scp.c
 
 win32/sopen_scp_write.obj: t220/sopen_scp_write.c biosig-dev.h biosig.h win32/zlib/include/zlib.h
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/sopen_scp_write.obj t220/sopen_scp_write.c
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_scp_write.obj t220/sopen_scp_write.c
 
 win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h win32/zlib/include/zlib.h \
 		XMLParser/tinyxml.h XMLParser/tinystr.h XMLParser/Tokenizer.h
-	$(MinGWCXX) -c $(CFLAGS) $(INCPATH) -o win32/sopen_hl7aecg.obj t230/sopen_hl7aecg.c
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_hl7aecg.obj t230/sopen_hl7aecg.c
 
 win32/tinystr.obj: XMLParser/tinystr.cpp XMLParser/tinystr.h
-	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/tinystr.obj XMLParser/tinystr.cpp
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinystr.obj XMLParser/tinystr.cpp
 
 win32/tinyxml.obj: XMLParser/tinyxml.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
-	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/tinyxml.obj XMLParser/tinyxml.cpp
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinyxml.obj XMLParser/tinyxml.cpp
 
 win32/tinyxmlerror.obj: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
 	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/tinyxmlerror.obj XMLParser/tinyxmlerror.cpp
 
 win32/tinyxmlparser.obj: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
-	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/tinyxmlparser.obj XMLParser/tinyxmlparser.cpp
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinyxmlparser.obj XMLParser/tinyxmlparser.cpp
 
 win32/getlogin_r.obj: win32/getlogin_r.c
-	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
 
-win32/save2gdf.exe: save2gdf.c $(MinGWLIBS)
-	$(MinGWCXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(MinGWOBJECTS) -lws2_32 -o win32/save2gdf.exe 
+win32/save2gdf.exe: save2gdf.c $(MinGWLIBS)  
+	$(MinGWCXX) $(MinGWCFLAGS) save2gdf.c $(LFLAGS) $(MinGWOBJECTS) -lws2_32 -o win32/save2gdf.exe 
 
 win32 exe: win32/save2gdf.exe
  
@@ -245,7 +256,7 @@ win32 exe: win32/save2gdf.exe
 
 ####### application files 
  
-save2gdf: save2gdf.c libbiosig.a libbiosig.so 
+save2gdf: save2gdf.c libbiosig.a #libbiosig.so 
 	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
 #	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) $(TASN1_DIR).libs/libtasn1.a -o save2gdf 
 
@@ -254,25 +265,27 @@ physicalunits: physicalunits.c libbiosig.a
 
 win32 exe: win32/save2gdf.exe 
 
+### MEX-files for Matlab
 mex: mex4m mex4o
 mex4m: mexSLOAD.mexglx mexSOPEN.mexglx
 mexSLOAD: mexSLOAD.mexglx
 mexSOPEN: mexSOPEN.mexglx
-mexSLOAD.mexglx: mexSLOAD.cpp  libbiosig.a libbiosig.so
+mexSLOAD.mexglx: mexSLOAD.cpp libbiosig.a
 	$(MEX) mexSLOAD.cpp  $(LIBS) 
-mexSOPEN.mexglx: mexSLOAD.cpp  libbiosig.a libbiosig.so
+mexSOPEN.mexglx: mexSLOAD.cpp libbiosig.a
 	$(MEX) -DmexSOPEN mexSLOAD.cpp  $(LIBS) -output mexSOPEN
 
+### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex 
-mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a  libbiosig.so 
+mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
 	mkoctfile  -v -g --mex mexSLOAD.cpp  $(LIBS) 
-mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a  libbiosig.so 
+mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a 
 	mkoctfile  -D=mexSOPEN -v -g --mex mexSLOAD.cpp  $(LIBS) -o mexSOPEN.mex 
 #physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
 #	mkoctfile  -v -g --mex physicalunits.cpp  $(LIBS) 
 
 oct:  mexSLOAD.oct
-mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a libbiosig.so
+mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) 
 	mkoctfile -D=mexSOPEN mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSLOAD.mex 
 
