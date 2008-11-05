@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.13 2008-11-03 10:44:16 schloegl Exp $
+%	$Id: fltopen.m,v 1.14 2008-11-05 10:32:02 schloegl Exp $
 %	Copyright (c) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -75,17 +75,23 @@ if any(HDR.FILE.PERMISSION=='r'),
 		end;
 		HDR.FLT = setfield(HDR.FLT,hdr,b);
 	end; 
+
 	HDR.SPR = HDR.FLT.Dataformat.number_of_samples; 
 	HDR.NRec = 1; 
 	HDR.NS = HDR.FLT.System.number_of_channels; 
-
 	[n,v,sa]=str2double(HDR.FLT.System.parameter_of_sensors); 
-	HDR.FLT.System = rmfield(HDR.FLT.System,'parameter_of_sensors');
+	%HDR.FLT.System = rmfield(HDR.FLT.System,'parameter_of_sensors');
 	HDR.FLT.sensors.id = n(:,1); 
 	HDR.FLT.sensors.name = sa(:,2); 
 	HDR.FLT.sensors.type = n(:,3); 
 	HDR.FLT.sensors.mod  = n(:,4); 
 	HDR.FLT.sensors.XYZabcArea = n(:,5:11); 
+
+%	HDR.FLT.sensors.id(n(:,1)+1,1) = n(:,1); 
+%	HDR.FLT.sensors.name(n(:,1)+1,:) = sa(:,2); 
+%	HDR.FLT.sensors.type(n(:,1)+1,:) = n(:,3); 
+%	HDR.FLT.sensors.mod(n(:,1)+1,:)  = n(:,4); 
+%	HDR.FLT.sensors.XYZabcArea(n(:,1)+1,:) = n(:,5:11); 
 
 	[n,v,sa]=str2double(HDR.FLT.System.parameter_of_groups);
 	HDR.FLT.System = rmfield(HDR.FLT.System,'parameter_of_groups');
@@ -118,6 +124,7 @@ if any(HDR.FILE.PERMISSION=='r'),
 	HDR.FLT.channels.Cal = sparse(HDR.NS,HDR.FLT.System.number_of_sensors); 
 	HDR.FLT.channels.grd = repmat(NaN,HDR.NS,1); 
 	HDR.FLT.channels.grp = repmat(NaN,HDR.NS,1); 
+
 	while ~isempty(tline),
 		[n,v,sa]=str2double(tline);
 		K = K+1; 
@@ -136,7 +143,8 @@ if any(HDR.FILE.PERMISSION=='r'),
 		for k=1:n(9);
 			[tline,tch] = strtok(tch,[10,13]); 
 			[n1,v1,sa]=str2double(tline);
-			sen = n1(1)+1; 
+			%sen = n1(1);
+			sen = find(n1(1)==HDR.FLT.sensors.id);
 			HDR.FLT.channels.Cal(ch,sen) = n1(2);
 			if ~strcmp(sa{4},HDR.FLT.sensors.name{sen}),
 				fprintf(HDR.FILE.stderr,'Warning SOPEN(ET-MEG): sensor name does not fit: %s %s. \n    Maybe header of file %s is corrupted!\n',sa{4},HDR.FLT.sensors.name{sen}, HDR.FileName);
@@ -147,7 +155,7 @@ if any(HDR.FILE.PERMISSION=='r'),
 
 	if isfield(HDR.FLT.Header,'name_of_data_file');
 	if exist(fullfile(HDR.FILE.Path,HDR.FLT.Header.name_of_data_file)),
-			HDR.FLT.datafile = HDR.FLT.Header.name_of_data_file; 
+		HDR.FLT.datafile = HDR.FLT.Header.name_of_data_file; 
 	end;
 	end; 
 	if HDR.FLT.Dataformat.type(1)<10; 
@@ -167,7 +175,7 @@ if any(HDR.FILE.PERMISSION=='r'),
 	case 5,
 		HDR.GDFTYP = 17;
 	otherwise
-		fprintf(HDR.FILE.stderr,'Error SOPEN(FLT): type %i not supported',type); 	
+		fprintf(HDR.FILE.stderr,'Error SOPEN(FLT): type %i not supported',type);
 	end; 	
 
 	[tmp,scale] = physicalunits(HDR.FLT.Measurement.sampling_unit);
@@ -193,9 +201,23 @@ if any(HDR.FILE.PERMISSION=='r'),
 	HDR.PhysDim = PhysDim_Group(HDR.FLT.channels.grp+1); 
 	HDR.Cal = Cal_Group(HDR.FLT.channels.grp+1); 
 
-	HDR.ELEC.XYZ = HDR.FLT.channels.Cal*HDR.FLT.sensors.XYZabcArea(:,1:3); 
-	HDR.ELEC.Orientation = HDR.FLT.channels.Cal*HDR.FLT.sensors.XYZabcArea(:,4:6); 
-	HDR.ELEC.Area = HDR.FLT.channels.Cal*HDR.FLT.sensors.XYZabcArea(:,7); 
+	grad.pnt = HDR.FLT.sensors.XYZabcArea(:,1:3);
+	grad.ori = HDR.FLT.sensors.XYZabcArea(:,4:6);
+	grad.tra = HDR.FLT.channels.Cal;
+	grad.label = HDR.Label;
+	HDR.MEG.grad = grad; 
+
+	%% compute HDR.ELEC.XYZ - experimental 
+	cal = HDR.FLT.channels.Cal;
+	HDR.ELEC.XYZ1 = abs(cal)*(HDR.FLT.sensors.XYZabcArea(:,1:3)); 
+	HDR.ELEC.XYZ3 = cal*(HDR.FLT.sensors.XYZabcArea(:,1:3)); 
+	cal = diag(1./sum(abs(cal),2))*abs(cal);
+	HDR.ELEC.XYZ2 = abs(cal)*(HDR.FLT.sensors.XYZabcArea(:,1:3)); 
+	%HDR.ELEC.Orientation = HDR.FLT.channels.Cal*HDR.FLT.sensors.XYZabcArea(:,4:6); 
+	%HDR.ELEC.Area = HDR.FLT.channels.Cal*abs(HDR.FLT.sensors.XYZabcArea(:,7));
+	%% -- end --- 	
+	
+	 
 	HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
 	if HDR.GDFTYP < 10,
 		FLAG = HDR.FLAG; % backup
@@ -465,6 +487,5 @@ else
 	HDR.FILE.FID  = fopen(fullfile(HDR.FILE.Path,HDR.FILE.Name),'wb','ieee-le');
 	HDR.FILE.OPEN = 2;
 	HDR.HeadLen   = 0; 
-
 end;
 
