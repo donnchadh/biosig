@@ -11,13 +11,21 @@ function [CC]=train_sc(D,classlabel,MODE)
 %    'GRB'      Gaussian radial basis function     [1]
 %    'QDA'      quadratic discriminant analysis    [1]
 %    'LD2'      linear discriminant analysis (see LDBC2) [1]
-%               MODE.hyperparameters.gamma = 
+%               MODE.hyperparameters.gamma: regularization parameter [default 0] 
 %    'LD3'      linear discriminant analysis (see LDBC3) [1]
-%               MODE.hyperparameters.gamma = 
+%               MODE.hyperparameters.gamma: regularization parameter [default 0] 
 %    'LD4'      linear discriminant analysis (see LDBC4) [1]
-%               MODE.hyperparameters.gamma = 
+%               MODE.hyperparameters.gamma: regularization parameter [default 0] 
 %    'LD5'      another LDA (motivated by CSP)
-%               MODE.hyperparameters.gamma = 
+%               MODE.hyperparameters.gamma: regularization parameter [default 0] 
+%    'RDA'      regularized discriminant analysis [7]
+%               MODE.hyperparameters.gamma: regularization parameter 
+%               MODE.hyperparameters.lambda =  
+%		gamma = 0, lambda = 0 : MDA 
+%		gamma = 0, lambda = 1 : LDA 
+% 		Hint: hyperparameters are used only in test_sc.m, testing different 
+%		the hyperparameters do not need repetitive calls to train_sc, 
+%		it is sufficient to modify CC.hyperparameters before calling test_sc. 	
 %    'GDBC'     general distance based classifier  [1]
 %    ''         statistical classifier, requires Mode argument in TEST_SC	
 %    '###/GSVD'	GSVD and statistical classifier [2,3], 
@@ -25,6 +33,11 @@ function [CC]=train_sc(D,classlabel,MODE)
 %               '###' must be 'LDA' or any other classifier 
 %    'SVM','SVM1r'  support vector machines, one-vs-rest
 %               MODE.hyperparameters.c_value = 
+%    'PLS'	partial least squares regression 
+%    'REG'      regression analysis;
+%    'WienerHopf'	Wiener-Hopf equation  
+%    'NBC'	Naive Bayesian Classifier [6]     
+%    'aNBC'	Augmented Naive Bayesian Classifier [6]
 %    'SVM11'    support vector machines, one-vs-one + voting
 %               MODE.hyperparameters.c_value = 
 %    'RBF'      Support Vector Machines with RBF Kernel
@@ -32,11 +45,8 @@ function [CC]=train_sc(D,classlabel,MODE)
 %               MODE.hyperparameters.gamma = 
 %    'LPM'      Linear Programming Machine
 %               MODE.hyperparameters.c_value = 
-%    'REG'      regression analysis;
 %    'CSP'	CommonSpatialPattern is very experimental and just a hack
 %		uses a smoothing window of 50 samples.
-%    'NBC'	Naive Bayesian Classifier [6]     
-%    'aNBC'	Augmented Naive Bayesian Classifier [6]     
 %
 % 
 % CC contains the model parameters of a classifier. Some time ago,     
@@ -56,8 +66,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 %       dx.doi.org/10.1109/TPAMI.2004.46
 % [3] http://www-static.cc.gatech.edu/~kihwan23/face_recog_gsvd.htm
 % [4] Jieping Ye, Ravi Janardan, Cheong Hee Park, Haesun Park
-%       A new optimization criterion for generalized discriminant analysis
-%       on undersampled problems.
+%       A new optimization criterion for generalized discriminant analysis on undersampled problems.
 %       The Third IEEE International Conference on Data Mining, Melbourne, Florida, USA
 %       November 19 - 22, 2003
 % [5] J.D. Tebbens and P. Schlesinger (2006), 
@@ -66,8 +75,10 @@ function [CC]=train_sc(D,classlabel,MODE)
 %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
 % [6] H. Zhang, The optimality of Naive Bayes, 
 %	 http://www.cs.unb.ca/profs/hzhang/publications/FLAIRS04ZhangH.pdf
+% [7] J.H. Friedman. Regularized discriminant analysis. 
+%	Journal of the American Statistical Association, 84:165–175, 1989.
 
-%	$Id: train_sc.m,v 1.22 2008-08-29 16:31:06 schloegl Exp $
+%	$Id: train_sc.m,v 1.23 2008-11-07 11:13:11 schloegl Exp $
 %	Copyright (C) 2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -154,18 +165,30 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'lpm'))
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
 
         
-elseif ~isempty(strfind(lower(MODE.TYPE),'reg'))
+elseif ~isempty(strfind(lower(MODE.TYPE),'pls')) || ~isempty(strfind(lower(MODE.TYPE),'reg'))
         % regression analysis, kann handle sparse data, too. 
         % Q: equivalent to LDA? 
         M = length(CC.Labels); 
+	%X = sparse(1:length(classlabel),classlabel,1,length(classlabel),M);
+	X = sparse(length(classlabel),M);
+	for k = 1:M,
+		X(find(classlabel==CC.Labels(k)),k) = 2;
+	end;
+	CC.weights = [ones(size(D,1),1),D]\X;
+	CC.weights(1,:) = CC.weights(1,:)-1;
+        CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(MODE.TYPE,'WienerHopf'))
+        % Q: equivalent to LDA, Regression? 
+        M = length(CC.Labels);
         %if M==2, M==1; end;
         CC.weights = repmat(NaN,size(D,2)+1,M);
         for k = 1:M,
-                CC.weights(:,k) = [ones(size(D,1),1),D]\[(classlabel==CC.Labels(k))*2-1];
+		ix = ~any(isnan([classlabel,D]),2);
+		w  = covm(D(ix,:),'E')\covm([ones(sum(ix),1),D(ix,:)],(classlabel(ix,:)==CC.Labels(k)),'M');
+                CC.weights(:,k) = w;
 	end;
-        if size(D,2)>size(D,1),
-                CC.weights = sparse(CC.weights); 
-        end;
         CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
 
 
@@ -429,6 +452,12 @@ else          % Linear and Quadratic statistical classifiers
                         w0    = -M0*w;
                         CC.weights(:,k) = [w0; w];
                 end;
+        elseif strcmpi(MODE.TYPE,'RDA');
+		if isfield(MODE,'hyperparameters') && isfield(MODE.hyperparameters,'lambda')  && isfield(MODE.hyperparameters,'gamma')
+		        CC.hyperparameters = MODE.hyperparameters;
+		else 
+			error('QDA: hyperparamters lambda and/or gamma not defined')
+		end; 	         
         else
                 c  = size(ECM,2);
                 ECM0 = sum(ECM,1);
@@ -456,8 +485,8 @@ else          % Linear and Quadratic statistical classifiers
 
                         %ICOV(1) = ICOV(1) + (XC(2:NC(2),2:NC(2)) - )/nn
 
-                        CC.M{k} = M;
-                        CC.IR{k} = [-M;eye(NC(2)-1)]*inv(S)*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean
+                        CC.M{k}   = M;
+                        CC.IR{k}  = [-M;eye(NC(2)-1)]*inv(S)*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean
                         CC.IR0{k} = [-M;eye(NC(2)-1)]*ICOV0*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean
                         d = NC(2)-1;
                         CC.logSF(k)  = log(nn) - d/2*log(2*pi) - det(S)/2;
@@ -472,3 +501,4 @@ else          % Linear and Quadratic statistical classifiers
                 end;
         end;
 end;
+

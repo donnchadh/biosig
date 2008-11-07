@@ -27,7 +27,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
 
-%	$Id: test_sc.m,v 1.19 2007-09-06 13:23:19 schloegl Exp $
+%	$Id: test_sc.m,v 1.20 2008-11-07 11:13:11 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -83,6 +83,30 @@ elseif strcmp(CC.datatype,'classifier:anbc')
 		d(:,k) = sum(-z/2, 2) + log(mean(CC.N(k,:)));
 	end; 
 	d = exp(d-log(mean(sum(CC.N,1)))-log(2*pi)/2);
+
+
+elseif strcmp(CC.datatype,'classifier:statistical:rda')
+	% Friedman (1989) Regularized Discriminant analysis
+	if isfield(CC,'hyperparameters') && isfield(CC.hyperparameters,'lambda')  && isfield(CC.hyperparameters,'gamma')
+	        D = [ones(size(D,1),1),D];  % add 1-column
+		lambda = CC.hyperparameters.lambda;
+		gamma  = CC.hyperparameters.gamma;
+	        d = repmat(NaN,size(D,1),size(CC.MD,1));
+                ECM = CC.MD./CC.NN; 
+                NC = size(ECM); 
+                ECM0 = squeeze(sum(ECM,1));  %decompose ECM
+                [M0,sd,COV0,xc,N,R2] = decovm(ECM0);
+                for k = 1:NC(1);
+                        [M,sd,s,xc,N,R2] = decovm(squeeze(ECM(k,:,:)));
+                	s = ((1-lambda)*N*s+lambda*COV0)/((1-lambda)*N+lambda);
+                	s = (1-gamma)*s+gamma*(trace(s))/(NC(2)-1)*eye(NC(2)-1);
+                        ir  = [-M;eye(NC(2)-1)]*inv(s)*[-M',eye(NC(2)-1)];  % inverse correlation matrix extended by mean
+                        d(:,k) = -sum((D*ir).*D,2); % calculate distance of each data point to each class
+                end;
+	else 
+		error('QDA: hyperparamters lambda and/or gamma not defined')
+	end; 	         
+	 
 
 
 elseif strcmp(CC.datatype,'classifier:csp')
