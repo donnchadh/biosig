@@ -33,7 +33,7 @@
 %   	BioSig: A Free and Open Source Software Library for BCI Research.
 %	Computer (2008, In Press)	
 
-%	$Id: demo2.m,v 1.15 2008-10-13 12:05:14 schloegl Exp $
+%	$Id: demo2.m,v 1.16 2008-11-07 11:14:42 schloegl Exp $
 %	Copyright (C) 1999-2003,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -164,13 +164,14 @@ MODE.Fs = HDR.SampleRate;
 K = 1; 
 NG = ceil([1:length(HDR.Classlabel)]'/K);
 
-TYPE = 'LDA';	% classifier type.0 
-% other possible classifiers are: MDA, LD2, LD3, LD4, GDBC, SVM, RBF, NBC, aNBC, LDA/GSVD, MDA/GSVD, LDA/sparse, MDA/sparse 
+TYPE.TYPE = 'LDA';	% classifier type 
+% TYPE.hyperparameters.gamma = 0; 	% and its hyperparameters
+% other possible classifiers are: MDA, LD2, LD3, LD4, RDA, GDBC, SVM, RBF, NBC, aNBC, LDA/GSVD, MDA/GSVD, LDA/sparse, MDA/sparse 
 
 % search best segment, cross-validation using jackknife procedure, 1-vs-rest classifier 
-CC1 = findclassifier(a1, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
-CC2 = findclassifier(a2, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
-CC3 = findclassifier(a3, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
+CC1 = findclassifier(f1, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
+CC2 = findclassifier(f2, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
+CC3 = findclassifier(f3, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
 
 % For online feedback, the weights of the linear classifier 
 %   are available through 
