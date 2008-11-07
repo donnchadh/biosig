@@ -60,7 +60,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.66 2008-09-24 12:28:19 schloegl Exp $
+%	$Id: plota.m,v 1.67 2008-11-07 11:19:48 schloegl Exp $
 %	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -1409,7 +1409,7 @@ elseif strcmp(X.datatype,'SCATTER'),
         if nargin<2,
 
         elseif nargin==2,
-                if length(arg2)==1
+                if length(arg2)<3,
                         s = arg2;
                 else
                         Labels=arg2;
@@ -1421,6 +1421,12 @@ elseif strcmp(X.datatype,'SCATTER'),
 	if ~exist('Labels','var') 
         	Labels = cellstr(int2str([1:size(X.data,2)]'));
         end; 	
+        if isfield(X,'Classlabel')
+        	CL = unique(X.Classlabel);
+        else 
+        	CL = 1; 	
+        end;	
+CL,
         if length(X)==1,
                 if ~isfield(X,'R');
                         [X.R,X.p,X.CIL,X.CIU] = corrcoef(X.data,'Rank');
@@ -1430,7 +1436,11 @@ elseif strcmp(X.datatype,'SCATTER'),
                 for k   = 1:nc,
                         for l = k+1:nc+1,%[1:k-1,k+1:nc],
                                 h=subplot(nc,nc,(k-1)*nc+l-1);
-                                plot(X.data(:,l),X.data(:,k),s);
+                                if length(CL)==1,
+	                                plot(X.data(:,l),X.data(:,k),s);
+                                elseif length(CL)==2,
+	                                plot(X.data(X.Classlabel==CL(1),l),X.data(X.Classlabel==CL(1),k),'bx',X.data(X.Classlabel==CL(2),l),X.data(X.Classlabel==CL(2),k),'ro');
+	                        end;        
                                 ht=title(sprintf('r=%.3f %s [%.3f,%.3f]',X.R(k,l),char('*'*(X.p(k,l)<[.05,.01,.001])),X.CIL(k,l),X.CIU(k,l)));
                                 %ht=title(sprintf('r = %.4f %s',X.R(k,l),char('*'*(X.p(k,l)<[.05,.01,.001]))));
                                 pos=get(ht,'position');
@@ -1834,6 +1844,13 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
         N = length(X.TSD.CL);
        	c = (N-1)/N;
 
+	fprintf(fid,'Classifier:	%s\n',X.datatype);
+	if isfield(X,'hyperparameters')
+		f = fieldnames(X.hyperparameters); 
+		for k=1:length(f),
+			fprintf(fid,'	%s = %f\n',f{k},getfield(X.hyperparameters,f{k}));
+		end; 	
+	end; 	
         fprintf(fid,'Error:   		%4.1f %% \n',100-X.TSD.ACC00(tix)*100);
        	fprintf(fid,'Accuracy:		%4.1f %% \nspecific Accuracy:	',X.TSD.ACC00(tix)*100);
        	[kap,sd,H,z,OA,SA,MI] = kappa(X.TSD.optCMX);
@@ -1974,7 +1991,13 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         N = length(X.CL);
         c = (N-1)/N;
 
-
+	fprintf(fid,'Classifier:	%s\n',X.datatype);
+	if isfield(X,'hyperparameters')
+		f = getfields(X.hyperparameters); 
+		for k=1:length(f),
+			fprintf(fid,'	%s = %f\n',f{k},getfield(X.hyperparameters,f));
+		end; 	
+	end; 	
         fprintf(fid,'Error:		     %4.1f %% \n',100-X.ACC00(tix)*100);
         fprintf(fid,'Accuracy:		  %4.1f %% \nspecific Accuracy:	 ',X.ACC00(tix)*100);
         [kap,sd,H,z,OA,SA,MI] = kappa(X.optCMX);
