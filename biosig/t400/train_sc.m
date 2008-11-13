@@ -78,7 +78,7 @@ function [CC]=train_sc(D,classlabel,MODE)
 % [7] J.H. Friedman. Regularized discriminant analysis. 
 %	Journal of the American Statistical Association, 84:165–175, 1989.
 
-%	$Id: train_sc.m,v 1.23 2008-11-07 11:13:11 schloegl Exp $
+%	$Id: train_sc.m,v 1.24 2008-11-13 11:48:45 schloegl Exp $
 %	Copyright (C) 2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -328,6 +328,8 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
                 % nothing to be done
         elseif exist('svmtrain','file')==3,
                 MODE.TYPE = 'SVM:LIB';
+        elseif exist('svmtrain','file')==2,
+                MODE.TYPE = 'SVM:bioinfo';
         elseif exist('mexSVMTrain','file')==3,
                 MODE.TYPE = 'SVM:OSU';
         elseif exist('svcm_train','file')==2,
@@ -362,6 +364,11 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
                         w = -cl(1) * model.SVs' * model.sv_coef;  %Calculate decision hyperplane weight vector
                         % ensure correct sign of weight vector and Bias according to class label
                         Bias  = -model.rho * cl(1);
+
+                elseif strcmp(MODE.TYPE, 'SVM:bioinfo');
+                        CC.SVMstruct = svmtrain(D, cl,'AUTOSCALE', 0);    % 
+                        Bias = CC.SVMstruct.Bias;
+                        w = CC.SVMstruct.Alpha'*CC.SVMstruct.SupportVectors;
 
                 elseif strcmp(MODE.TYPE, 'SVM:OSU');
                         [AlphaY, SVs, Bias, Parameters, nSV, nLabel] = mexSVMTrain(D', cl', [0 1 1 1 MODE.hyperparameter.c_value]);    % Linear Kernel, C=1; degree=1, c-SVM
