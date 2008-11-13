@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.265 2008-11-04 12:19:44 schloegl Exp $
+    $Id: biosig.c,v 1.266 2008-11-13 09:19:50 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1499,7 +1499,8 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->ID.Hospital 	= "\x00";
 	memset(hdr->IPaddr, 0, 16);
 
-#if (!__MINGW32__ || (__GNUC__ > 3)) 
+//#if (!__MINGW32__ || (__GNUC__ > 3)) 
+#ifndef WITHOUT_NETWORK
 	///### FIXME for mingw32g++ on windows 
 
       	// set default technician name to local IP address  
@@ -1564,10 +1565,6 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	      	hdr->CHANNEL[k].XYZ[0] 	  = 0.0;
 	      	hdr->CHANNEL[k].XYZ[1] 	  = 0.0;
 	      	hdr->CHANNEL[k].XYZ[2] 	  = 0.0;
-	      	hdr->CHANNEL[k].Orientation[0] = 0.0;
-	      	hdr->CHANNEL[k].Orientation[1] = 0.0;
-	      	hdr->CHANNEL[k].Orientation[2] = 0.0;
-	      	hdr->CHANNEL[k].Area      = 0.0;
 	}      	
 
 	// define EVENT structure
@@ -1740,7 +1737,6 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 #endif
     	}
 
-
     	/******** read 1st (fixed)  header  *******/	
   	uint32_t U32 = leu32p(hdr->AS.Header+2); 
 	uint32_t MAGIC_EN1064_Section0Length  = leu32p(hdr->AS.Header+10);
@@ -1799,6 +1795,11 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     	else if ((leu16p(hdr->AS.Header)==207) && (leu16p(hdr->AS.Header+154)==0))
 	    	hdr->TYPE = BKR;
     	else if (!memcmp(Header1+34,"BLSC",4))
+	    	hdr->TYPE = BLSC;
+    	else if ((beu16p(Header1)==0x0311) && (beu32p(Header1+4)==0x0809B002) 
+    		 && (leu16p(Header1+2) > 240) && (leu16p(Header1+2) < 250)  		// v2.40 - v2.50
+    		 || !memcmp(Header1+307, "E\x00\x00\x00\x00\x00\x00\x00DAT", 11)
+    		)
 	    	hdr->TYPE = BLSC;
         else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISION,38) || ((leu32p(hdr->AS.Header)==0x42bfbbef) && !memcmp(Header1+3, MAGIC_NUMBER_BRAINVISION,38)))
                 hdr->TYPE = BrainVision;
@@ -2476,8 +2477,10 @@ if (!strncmp(MODE,"r",1))
 		    			hdr->ID.Manufacturer.Version = hdr->ID.Manufacturer.Model+strlen(hdr->ID.Manufacturer.Model)+1;
 		    			hdr->ID.Manufacturer.SerialNumber = hdr->ID.Manufacturer.Version+strlen(hdr->ID.Manufacturer.Version)+1;
 		    		}
-		    		else if (tag==4) {
+		    		else if (0) {	 
+		    			// (tag==4) {
 		    			/* sensor orientation */
+/*		    			// OBSOLETE 
 		    			for (k=0; k<hdr->NS; k++) {
 		    				hdr->CHANNEL[k].Orientation[0] = lef32p(Header2+pos+4+4*k);
 		    				hdr->CHANNEL[k].Orientation[1] = lef32p(Header2+pos+4+4*k+hdr->NS*4);
@@ -2487,7 +2490,7 @@ if (!strncmp(MODE,"r",1))
 						if (VERBOSE_LEVEL>8) 
 							fprintf(stdout,"GDF tag=4 #%i pos=%i/%i: %f\n",k,pos,len,hdr->CHANNEL[k].Area);
 		    			}
-		    		}
+*/		    		}
 		    		else if (tag==5) {
 		    			/* IP address  */
 		    			memcpy(hdr->IPaddr,Header2+pos+4,len); 
@@ -3350,7 +3353,8 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					hdr->T0 = tm_time2gdf_time(&t); 
 				}	
 				else if (!strcmp(line,"Recording.IPaddress")) {
-#if (!__MINGW32__ || (__GNUC__ > 3)) 
+//#if (!__MINGW32__ || (__GNUC__ > 3)) 
+#ifndef WITHOUT_NETWORK
 					///### FIXME for mingw32g++ on windows 
 					struct hostent *host = gethostbyaddr(val,strlen(val),AF_INET);
 					if (host!=NULL) 
@@ -3453,10 +3457,10 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					cp->PhysMin = atof(val);
 				else if (!strncmp(line,"Position",8)) 
 					sscanf(val,"%f \t%f \t%f",cp->XYZ,cp->XYZ+1,cp->XYZ+2);
-				else if (!strncmp(line,"Orientation",11)) 
-					sscanf(val,"%f \t%f \t%f",cp->Orientation,cp->Orientation+1,cp->Orientation+2);
-				else if (!strcmp(line,"Area"))
-					cp->Area = atof(val);
+//				else if (!strncmp(line,"Orientation",11)) 
+//					sscanf(val,"%f \t%f \t%f",cp->Orientation,cp->Orientation+1,cp->Orientation+2);
+//				else if (!strcmp(line,"Area"))
+//					cp->Area = atof(val);
 
 				if (FLAG_NUMBER_OF_FIELDS_READ > 16) { 
 					// consolidate last channel
@@ -3830,6 +3834,78 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// BKR does not support automated overflow and saturation detection
 	    	hdr->FILE.POS = 0; 
+	}
+
+	else if (hdr->TYPE==BLSC) {
+		hdr->HeadLen = hdr->AS.Header[1]<<7;
+		if (count<hdr->HeadLen) {
+		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
+		    	count   += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
+		}		
+		
+		hdr->VERSION  = leu16p(hdr->AS.Header+2)/100.0; 
+		hdr->SampleRate = 128; 
+		hdr->SPR = 1; 
+		hdr->NS  = hdr->AS.Header[346];
+
+		const uint32_t GAIN[] = { 
+			0,50000,75000,100000,150000,200000,250000,300000,  //0-7
+			0,5000,7500,10000,15000,20000,25000,30000,  //8-15	
+			0,500,750,1000,1500,2000,2500,3000,  //16-23	
+			10,50,75,100,150,200,250,300  //24-31	
+			};
+
+	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
+		for (k=0; k<hdr->NS; k++) {
+			hdr->CHANNEL[k].Label[0] = 0;
+			hdr->CHANNEL[k].Transducer[0] = '\0';
+		    	hdr->CHANNEL[k].GDFTYP 	 = 2; 
+		    	hdr->CHANNEL[k].SPR 	 = hdr->SPR; // *(int32_t*)(Header1+56);
+		    	hdr->CHANNEL[k].LowPass	 = -1.0;
+		    	hdr->CHANNEL[k].HighPass = -1.0;
+    			hdr->CHANNEL[k].Notch	 = -1.0;  // unknown 
+		    	hdr->CHANNEL[k].DigMax	 = 255;
+		    	hdr->CHANNEL[k].DigMin	 = 0;
+			
+#define SENS  	leu16p(hdr->AS.Header+467)
+#define CALUV 	leu16p(hdr->AS.Header+469)
+#define CV 	hdr->AS.Header[425+k]
+#define DC 	hdr->AS.Header[446+k]
+#define gain 	GAIN[hdr->AS.Header[602+k]]			
+
+if (VERBOSE_LEVEL>8)
+	fprintf(stdout,"#%i sens=%i caluv=%i cv=%i dc=%i Gain=%i\n",k,SENS,CALUV,CV,DC,gain);
+
+			double cal, off; 
+		    	if (hdr->AS.Header[5]==0) {
+		    		// external amplifier
+				cal = 0.2*CALUV*SENS/CV;
+				off = -DC*cal;
+		    	}
+		    	else {
+		    		// internal amplifier 
+			    	cal = 4e6/(CV*gain);
+				off = -(128+(DC-128)*gain/3e5)*cal;
+			}	
+
+#undef SENS
+#undef CALUV
+#undef CV
+#undef DC
+#undef gain
+			
+		    	hdr->CHANNEL[k].Cal	 = cal; 
+		    	hdr->CHANNEL[k].Off	 = off;
+		    	hdr->CHANNEL[k].PhysMax	 = hdr->CHANNEL[k].DigMax * cal + off;
+		    	hdr->CHANNEL[k].PhysMin	 = hdr->CHANNEL[k].DigMin * cal + off;
+			hdr->CHANNEL[k].OnOff    = 1;
+		    	hdr->CHANNEL[k].PhysDimCode = 4275; // uV
+    			hdr->CHANNEL[k].LeadIdCode  = 0;
+		}
+	    	hdr->FILE.POS = 0; 
+	        ifseek(hdr, 0, SEEK_END);	// TODO: replace SEEK_END
+		hdr->NRec = iftell(hdr)/hdr->NS;
+	        ifseek(hdr, hdr->HeadLen, SEEK_SET);
 	}
 
 	else if (hdr->TYPE==BrainVisionMarker) {
@@ -6892,8 +6968,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    		fprintf(fid,"LowPassFilter\t= %f\n",hdr->CHANNEL[k].LowPass);
 	    		fprintf(fid,"NotchFilter\t= %f\n",hdr->CHANNEL[k].Notch);
 	    		fprintf(fid,"PositionXYZ\t= %f\t%f\t%f\n",hdr->CHANNEL[k].XYZ[0],hdr->CHANNEL[k].XYZ[1],hdr->CHANNEL[k].XYZ[2]);
-	    		fprintf(fid,"OrientationXYZ\t= %f\t%f\t%f\n",hdr->CHANNEL[k].Orientation[0],hdr->CHANNEL[k].Orientation[1],hdr->CHANNEL[k].Orientation[2]);
-	    		fprintf(fid,"Area     \t= %f\n",hdr->CHANNEL[k].Area);
+//	    		fprintf(fid,"OrientationXYZ\t= %f\t%f\t%f\n",hdr->CHANNEL[k].Orientation[0],hdr->CHANNEL[k].Orientation[1],hdr->CHANNEL[k].Orientation[2]);
+//	    		fprintf(fid,"Area     \t= %f\n",hdr->CHANNEL[k].Area);
 
 	    		fprintf(fid,"\n");
 			hdr->CHANNEL[k].SPR *= hdr->NRec; 
@@ -7114,6 +7190,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		hdr->HeadLen += 4+TagNLen[tag];
 	     	}	
 	     	tag = 4;
+/* OBSOLETE 
 	     	char FLAG_SENSOR_ORIENTATION = 0;  
 	     	for (k=0; k<hdr->NS; k++) {
 	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Orientation[0] != (float)0.0;
@@ -7124,6 +7201,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	if (FLAG_SENSOR_ORIENTATION) 
 	     		TagNLen[tag] = hdr->NS*sizeof(float)*4;
      		hdr->HeadLen += 4+TagNLen[tag];
+*/
 	     	tag = 5; 
 	     	for (k=0; k<16; k++) {
 	     		if (hdr->IPaddr[k]) {
@@ -7145,7 +7223,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     		hdr->HeadLen += 4+TagNLen[tag];
 	     	}	
 	     	
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",hdr->HeadLen,TagNLen[1],FLAG_SENSOR_ORIENTATION);
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
 	     	/* end */
 
 		hdr->VERSION = 2.11;
@@ -7156,7 +7234,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		else if (hdr->HeadLen & 0x00ff)	// in case of GDF v2, make HeadLen a multiple of 256. 
 			hdr->HeadLen = (hdr->HeadLen & 0xff00) + 256;  
 			
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",hdr->HeadLen,TagNLen[1],FLAG_SENSOR_ORIENTATION);
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
 
 	    	hdr->AS.Header = (uint8_t*) calloc(hdr->HeadLen,1);
 	     	sprintf((char*)hdr->AS.Header,"GDF %4.2f",hdr->VERSION);
@@ -7369,6 +7447,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	}
 	     	tag = 4;
 	     	if (TagNLen[tag]>0) {
+/*
 	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=4 & Length of Tag 4
 	     		Header2 += 4;
 	     		for (k=0; k<hdr->NS; k++) {
@@ -7378,7 +7457,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     			*(float*)(Header2 + 4*k +12*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Area);
 	     		}
      			Header2 += 4*sizeof(float)*hdr->NS;
-	     	}
+*/	     	}
 	     	tag = 5;
 	     	if (TagNLen[tag]>0) {
 	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=5 & Length of Tag 5
@@ -9235,18 +9314,18 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 	if (VERBOSE>2) {
 		/* channel settings */ 
 		fprintf(fid,"\n[CHANNEL HEADER]");
-		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin HighPass LowPass Notch X Y Z dX dY dZ Area");
+		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin HighPass LowPass Notch X Y Z");
 		size_t k;
 		for (k=0; k<hdr->NS; k++) {
 			cp = hdr->CHANNEL+k; 
-			char p[MAX_LENGTH_PHYSDIM+1];
+			//char p[MAX_LENGTH_PHYSDIM+1];
 
 			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, cp->PhysDim);
-			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5f %2i  %e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
+			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5f %2i  %e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
 				k+1,cp->LeadIdCode,cp->OnOff,cp->Label,cp->SPR * hdr->SampleRate/hdr->SPR,
 				cp->GDFTYP, cp->Cal, cp->Off, cp->PhysDim,  
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch,
-				cp->XYZ[0],cp->XYZ[1],cp->XYZ[2],cp->Orientation[0],cp->Orientation[1],cp->Orientation[2],cp->Area);
+				cp->XYZ[0],cp->XYZ[1],cp->XYZ[2]);
 			//fprintf(fid,"\t %3i", cp->SPR);
 		}
 	}

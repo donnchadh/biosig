@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.20 2008-11-04 12:19:44 schloegl Exp $
+% $Id: swig.i,v 1.21 2008-11-13 09:21:47 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -82,8 +82,8 @@ typedef struct {
 	float 		HighPass;	/* high pass */
 	float 		Notch;		/* notch filter */
 	float 		XYZ[3];		/* sensor position */
-	float 		Orientation[3];	/* sensor direction */
-	float 		Area;		/* area of sensor (in m^2 e.g. for MEG) */
+//	float 		Orientation[3];	/* sensor direction */
+//	float 		Area;		/* area of sensor (in m^2 e.g. for MEG) */
 	float 		Impedance;   	/* in Ohm */
 	
 	uint16_t 	GDFTYP;		/* data type */

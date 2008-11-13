@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.124 2008-11-04 12:19:44 schloegl Exp $
+% $Id: biosig.h,v 1.125 2008-11-13 09:19:50 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -204,8 +204,8 @@ typedef struct {
 	float 		HighPass	ATT_ALI;	/* high pass */
 	float 		Notch		ATT_ALI;	/* notch filter */
 	float 		XYZ[3]		ATT_ALI;	/* sensor position */
-	float 		Orientation[3]	ATT_ALI;	/* sensor direction */
-	float 		Area		ATT_ALI;	/* area of sensor (e.g. for MEG) */
+//	float 		Orientation[3]	__attribute__ ((deprecated));	/* sensor direction */
+//	float 		Area		__attribute__ ((deprecated));	/* area of sensor (e.g. for MEG) */
 	float 		Impedance	ATT_ALI;   	/* in Ohm */
 	
 	uint16_t 	GDFTYP 		ATT_ALI;	/* data type */

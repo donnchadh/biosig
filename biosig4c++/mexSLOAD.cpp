@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.45 2008-11-04 13:10:06 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.46 2008-11-13 09:19:50 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -311,11 +311,12 @@ void mexFunction(
 			*(mxGetPr(ELEC_POS)+k) 	  = (double)hdr->CHANNEL[k].XYZ[0];
 			*(mxGetPr(ELEC_POS)+k+hdr->NS) 	  = (double)hdr->CHANNEL[k].XYZ[1];
 			*(mxGetPr(ELEC_POS)+k+hdr->NS*2)  = (double)hdr->CHANNEL[k].XYZ[2];
+/*
 			*(mxGetPr(ELEC_Orient)+k) 	  = (double)hdr->CHANNEL[k].Orientation[0];
 			*(mxGetPr(ELEC_Orient)+k+hdr->NS) 	  = (double)hdr->CHANNEL[k].Orientation[1];
 			*(mxGetPr(ELEC_Orient)+k+hdr->NS*2)  = (double)hdr->CHANNEL[k].Orientation[2];
 			*(mxGetPr(ELEC_Area)+k) 	  = (double)hdr->CHANNEL[k].Area;
-
+*/
 			mxSetCell(Label,k,mxCreateString(hdr->CHANNEL[k].Label));
 			mxSetCell(Transducer,k,mxCreateString(hdr->CHANNEL[k].Transducer));
 			
