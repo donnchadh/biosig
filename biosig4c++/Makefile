@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.60 2008-11-04 12:15:33 schloegl Exp $
+###  $Id: Makefile,v 1.61 2008-11-13 09:21:32 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -17,8 +17,7 @@ MEX	      = /opt/MatlabR2008a/bin/mex  # add full path to .../matlab/bin/mex $(M
 DEFINES       = #-D=WITH_ZLIB #-D=WITH_ANS1 #-D=WITH_EEPROBE -D=WITH_ANS1 #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES) # -I cntopenlib/include/
-#MinGWCFLAGS   = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT -D=WITHOUT_NETWORK $(DEFINES)
-MinGWCFLAGS   = $(CFLAGS)
+MinGWCFLAGS   = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT -D=WITHOUT_NETWORK $(DEFINES)
 AR            = ar crs
 INCPATH       = 
 #LINK          = gcc
