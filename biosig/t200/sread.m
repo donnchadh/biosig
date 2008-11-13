@@ -24,7 +24,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sread.m,v 1.94 2008-10-14 14:06:22 schloegl Exp $
+%	$Id: sread.m,v 1.95 2008-11-13 09:18:33 schloegl Exp $
 %	(C) 1997-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -298,12 +298,12 @@ elseif strmatch(HDR.TYPE,{'AIF','SND','WAV','Sigma'})
         end;
 
         
-elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Nicolet','RG64'}),
+elseif strmatch(HDR.TYPE,{'BLSC2','CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Nicolet','RG64'}),
 
 	tc = strcmp(HDR.TYPE,'CFWB') && isfield(HDR,'FLAG') && isfield(HDR.FLAG,'TimeChannel') && HDR.FLAG.TimeChannel;
 
         if nargin==3,
-                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
+                STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*round(HDR.SampleRate*StartPos),'bof');
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
         if any(HDR.GDFTYP==[1:6,16]) & ~exist('OCTAVE_VERSION','builtin'),
@@ -313,12 +313,12 @@ elseif strmatch(HDR.TYPE,{'CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Nicolet','
 		% convert to double
 		DT = [gdfdatatype(HDR.GDFTYP)];
         end;
-        maxsamples = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
+        maxsamples = min(HDR.SampleRate*NoS, HDR.NRec*HDR.SPR-HDR.FILE.POS);
 	S = []; count = 0;
 	while maxsamples>0,
     		[s,c] = fread(HDR.FILE.FID, [HDR.NS+tc,min(2^24/HDR.NS,maxsamples)], DT);
 		count = count + c;
-		maxsamples = maxsamples - c/HDR.NS;
+		maxsamples = maxsamples - c/(HDR.NS+tc);
         	if c>0,
             		S = [S; s(HDR.InChanSelect+tc,:)'];
     		end;

@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.238 2008-11-03 16:52:51 schloegl Exp $
+%	$Id: sopen.m,v 1.239 2008-11-13 09:18:33 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -735,10 +735,10 @@ end;
 					[HDR.Manufacturer.Model,VAL] = strtok(VAL,0); 
 					[HDR.Manufacturer.Version,VAL] = strtok(VAL,0); 
 					[HDR.Manufacturer.SerialNumber,VAL] = strtok(VAL,0); 
-				case 4		%% Orientation of MEG channels 
-					VAL = fread(HDR.FILE.FID,[HDR.NS,4],'float32');
-					HDR.ELEC.Orientation = VAL(:,1:3);
-					HDR.ELEC.Area = VAL(:,4);
+				% case 4	%% OBSOLETE %% Orientation of MEG channels 
+					%VAL = fread(HDR.FILE.FID,[HDR.NS,4],'float32');
+					%HDR.ELEC.Orientation = VAL(:,1:3);
+					%HDR.ELEC.Area = VAL(:,4);
 				case 5 		%% IP address
 					VAL = fread(HDR.FILE.FID,[1,LEN],'uint8=>uint8');
 					HDR.REC.IPaddr = VAL;
@@ -1474,7 +1474,8 @@ end;
 	                TagLen(tag) = length(TagLenValue{tag}); 
 		end;
 
-                if isfield(HDR,'ELEC') && isfield(HDR.ELEC,'Orientation') && all(size(HDR.ELEC.Orientation)==[HDR.NS,3]) 
+                if 0, isfield(HDR,'ELEC') && isfield(HDR.ELEC,'Orientation') && all(size(HDR.ELEC.Orientation)==[HDR.NS,3]) 
+                	%% OBSOLETE 
 	                tag = 4; 
 	                TagLenValue{tag} = HDR.ELEC.Orientation;
 	                TagLen(tag) = 16*HDR.NS; 
@@ -1744,9 +1745,9 @@ end;
         	        switch tag 
        	        	case 3 
                			fwrite(HDR.FILE.FID, TagLenValue{tag}, 'uint8');
-       	        	case 4 
-               			c=fwrite(HDR.FILE.FID, HDR.ELEC.Orientation, 'float32');
-               			c=c+fwrite(HDR.FILE.FID, HDR.ELEC.Area, 'float32');
+       	        	case 4 	%% OBSOLETE 
+               			%  c=fwrite(HDR.FILE.FID, HDR.ELEC.Orientation, 'float32');
+               			%  c=c+fwrite(HDR.FILE.FID, HDR.ELEC.Area, 'float32');
                			fwrite(HDR.FILE.FID, zeros(4*HDR.NS-c), 'float32');
                		end;
                	end; 
@@ -2601,7 +2602,7 @@ elseif strcmp(HDR.TYPE,'ATES'),
         fclose(HDR.FILE.FID);
 
         
-elseif strcmp(HDR.TYPE,'BLSC'),
+elseif strcmp(HDR.TYPE,'BLSC1'),
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         HDR.Header = fread(HDR.FILE.FID,[1,3720],'uint8');       % ???
         HDR.data   = fread(HDR.FILE.FID,[32,inf],'ubit8');      % ???
@@ -2610,6 +2611,122 @@ elseif strcmp(HDR.TYPE,'BLSC'),
         fclose(HDR.FILE.FID);
         fprintf(2,'Error SOPEN: Format BLSC not supported (yet).\n'); 
         return; 
+
+        H1 = HDR.Header; 
+	fclose(HDR.FILE.FID);
+
+        
+elseif strncmp(HDR.TYPE,'BLSC2',5),
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
+        HDR.Header = fread(HDR.FILE.FID,[1,3720],'uint8');       % ???
+        %HDR.data   = fread(HDR.FILE.FID,[32,inf],'ubit8');      % ???
+        H1 = HDR.Header; 
+        HDR.HeadLen= H1(2)*128;
+    	if strcmp(HDR.TYPE,'BLSC2-128'),
+	        H1 = HDR.Header(129:end);
+	        HDR.HeadLen = H1(2)*128;
+	end;         
+        HDR.VERSION= H1(3:4)*[1;256]/100;
+	T0 = char(H1(25:34));
+	T0(T0=='-') = ' ';
+	T0 = str2double(T0);
+	HDR.T0     = T0([3,2,1]); 
+        HDR.NS     = H1(347);
+        HDR.SPR    = 1; 
+        HDR.SampleRate = 128; 
+        HDR.GDFTYP = 2; 	% uint8
+        AmpType    = H1(6);
+        HDR.Filter.LF = H1(319:323);
+        HDR.Filter.HF = H1(314:328);        
+	RefPos   = char(H1(336:341));
+	GndPos   = char(H1(342:346));
+	NormFlag = H1(348);
+	ReCount  = H1(353:354)*[1;256];	% EEG record count
+	NoSets   = H1(355:356)*[1;256];	% Number of EEG channels
+	ReCount  = H1(357:358)*[1;256]; % Number of Channels in an EEG set
+
+	if (HDR.HeadLen >= 2.34)
+%		HDR.Label = cellstr(reshape(char(H1(1861:1986)),6,21));	
+	end; 
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+	%codetab;	% Loading the Code Table
+	%load codetab
+gain_code=[10 24;
+           50 25;
+           75 26;
+           100 27;
+           150 28;
+           200 29;
+           300 31;
+           500 17;
+           750 18;
+           1000 19;
+           1500 20;
+           2000 21;
+           2500 22;
+           3000 23;
+           5000 9;
+           7500 10;
+           10000 11;
+           15000 12;
+           20000 13;
+           25000 14;
+           30000 15;
+           50000 1;
+           75000 2;
+           100000 3;
+           150000 4;
+           200000 5;
+           250000 6;
+           300000 7];
+                     
+	lpf_code=[ 30 100 150 300 500 750 1000 70 300 1000 1500 3000 5000 7500 10000 700];                     
+	hpf_code=[.1 .3  1  3 10 30 100 300 inf];
+
+	CV    = H1(426:446);
+	DC    = H1(447:467)-128;
+	SENS  = H1(468:469)*[1;256];
+	CALUV = H1(470:471)*[1;256];
+	GAIN  = H1(603:634);
+
+	for k=1:length(GAIN),
+		gain(k)=gain_code(find(gain_code(:,2)==GAIN(k)),1);                                      
+	end;
+                                      
+	if  AmpType==0	%External Amplifier
+		HDR.Cal = (2*CALUV./CV)*(SENS/10);
+		HDR.Off = -(128+DC)*HDR.Cal;
+		%Voltage=((ADV'-128)-(DC-128))*(2*CALUV/CV)*(SENS/10);
+	else %Internal Amplifier
+		ch = 1:HDR.NS; %1:min(length(CV),length(gain));
+		HDR.Cal =  (200./CV(ch)).*(20000./gain(ch));
+		HDR.Off = -(128+DC(ch).*gain(ch)/300000).*HDR.Cal;
+		%for k=(1:NoChan),
+		%	Voltage(:,k)=((ADV(k,:)'-128)-((DC(k)-128)*gain(k)/300000))*((200/CV(k))*(20000/gain(k)));
+		%end;
+	end;
+
+	HDR.Calib  = [HDR.Off; diag(HDR.Cal)];
+	HDR.PhysDimCode = zeros(HDR.NS,1);
+        fprintf(2,'Warning SOPEN: Format BLSC not well tested.\n'); 
+        fseek(HDR.FILE.FID,0,'eof');
+        HDR.NRec = (ftell(HDR.FILE.FID)-HDR.HeadLen)/HDR.NS; 
+        HDR.AS.bpb = HDR.NS; 
+        fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
+        HDR.FILE.POS = 0; 
+        HDR.FILE.OPEN = 1; 
+        HDR.TYPE   = 'BLSC2';
+	
+        fn = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.CMT']); 
+        fid = fopen(fn,'rb');
+        if (fid>0)
+        	[CMT,c] = fread(fid,[1,inf],'uint8');
+        	CMT = reshape(CMT(27:end),70,(c-26)/70)';
+        	HDR.EVENT.T = CMT(:,[55:58,63:66])*sparse([7,8,6,5,1,2,3,4],[1,1,2,3,4,5,6,6],[1,256,1,1,1,1,1,.01]);   
+        	HDR.EVENT.CMT = CMT;
+        	fclose(fid); 
+        end; 	
 
         
 elseif strncmp(HDR.TYPE,'NXA',3),

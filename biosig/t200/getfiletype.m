@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.83 2008-10-14 14:06:22 schloegl Exp $
+%	$Id: getfiletype.m,v 1.84 2008-11-13 09:18:33 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -113,10 +113,11 @@ else
                 s = s';
         end;
 
+
         if c,
 		ss = char(s);
                 HDR.keycode = s(1:34); 
-		
+
                 %%%% file type check based on magic numbers %%%
 		tmp = 256.^[0:3]*reshape(s(1:20),4,5);
 		mat4.flag = (c>20) & (tmp(5)<256) & (tmp(5)>1) & (tmp(1)<4053) & any(s(13)==[0,1]) & any(tmp(4)==[0,1]);
@@ -312,12 +313,27 @@ else
                         else
                                 warning('BLSC: ????');
                         end;
-                        HDR.TYPE='BLSC';
+                        HDR.TYPE='BLSC1';
+
+                elseif all(s([1:2,4:8])==[3,17,0,8,9,176,2]) && any(s(3)==[240:249])	% v2.40 - v2.49
+                        HDR.TYPE='BLSC2';
+                elseif all(ss(308:318)==['E',zeros(1,7),'DAT']) % CeeGraph, Bio-Logic Systems Corp. 
+                        HDR.TYPE='BLSC2';
+                elseif all(s([129,130,132:136])==[3,17,0,8,9,176,2]) && any(s(3)==[240:249])	% v2.40 - v2.49
+                        HDR.TYPE='BLSC2-128';
+                elseif strncmp(ss(436:446),[HDR.FILE.Name,0,HDR.FILE.Ext],length(HDR.FILE.Name)+length(HDR.FILE.Ext)+1) % CeeGraph, Bio-Logic Systems Corp. 
+                        HDR.TYPE='BLSC2';
+                elseif strncmp(ss(436:446),[HDR.FILE.Name,0,HDR.FILE.Ext],length(HDR.FILE.Name)+length(HDR.FILE.Ext)+1) % CeeGraph, Bio-Logic Systems Corp. 
+                        HDR.TYPE='BLSC2';
+                elseif strncmp(ss(436:446),[HDR.FILE.Name,0,0,0,0],length(HDR.FILE.Name)+4) % CeeGraph, Bio-Logic Systems Corp. 
+                        HDR.TYPE='BLSC2';
                         
                 elseif any(s(1)==[100:103]) & all(s([2:8])==[0,0,0,176,1,0,0]) & strcmpi(HDR.FILE.Ext,'DDT'); 
                         HDR.TYPE='DDT';
                 elseif all(s([1:4])==abs('NEX1')); 
                         HDR.TYPE='NEX';
+                elseif all(s([1:4])==abs('SXDF')); 
+                        HDR.TYPE='OpenXDF';
                 elseif all(s([1:4,6:132])==[abs('PLEX'),zeros(1,127)]); 	% http://WWW.PLEXONINC.COM
                         HDR.TYPE='PLEXON';                        
                         
