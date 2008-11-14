@@ -39,7 +39,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.239 2008-11-13 09:18:33 schloegl Exp $
+%	$Id: sopen.m,v 1.240 2008-11-14 16:20:20 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -757,21 +757,18 @@ end;
 
 		% filesize, position of eventtable, headerlength, etc. 	
                 HDR.AS.EVENTTABLEPOS = -1;
-                HDR.AS.endpos = HDR.FILE.size;
-                if (HDR.AS.endpos == HDR.HeadLen)
+                if (HDR.FILE.size == HDR.HeadLen)
                         HDR.NRec = 0; 
                 elseif HDR.NRec == -1   % unknown record size, determine correct NRec
-                        HDR.NRec = floor((HDR.AS.endpos - HDR.HeadLen) / HDR.AS.bpb);
+                        HDR.NRec = floor((HDR.FILE.size - HDR.HeadLen) / HDR.AS.bpb);
                 end
-                if  (HDR.NRec*HDR.AS.bpb) ~= (HDR.AS.endpos - HDR.HeadLen);
+                if  (HDR.NRec*HDR.AS.bpb) ~= (HDR.FILE.size - HDR.HeadLen);
                         %if ~strcmp(HDR.VERSION(1:3),'GDF'),
                         if ~strcmp(HDR.TYPE,'GDF'),
                                 HDR.ErrNo= [16,HDR.ErrNo];
-                                tmp = HDR.NRec
-                                (HDR.AS.endpos - HDR.HeadLen) / HDR.AS.bpb,
-                                HDR.NRec = floor((HDR.AS.endpos - HDR.HeadLen) / HDR.AS.bpb);
+                                HDR.NRec = floor((HDR.FILE.size - HDR.HeadLen) / HDR.AS.bpb);
                                 if tmp~=HDR.NRec,
-                                        fprintf(2,'\nWarning SOPEN (EDF/BDF): filesize (%i) of %s does not fit headerinformation (NRec = %i not %i).\n',HDR.AS.endpos,HDR.FileName,tmp,HDR.NRec);
+                                        fprintf(2,'\nWarning SOPEN (EDF/BDF): filesize (%i) of %s does not fit headerinformation (NRec = %i not %i).\n',HDR.FILE.size,HDR.FileName,tmp,HDR.NRec);
                                 else
                                         fprintf(2,'\nWarning: incomplete data block appended (ignored) in file %s.\n',HDR.FileName);
                                 end
@@ -823,7 +820,7 @@ end;
                         elseif EVENT.Version==3,
                                 [HDR.EVENT.CHN,c3] = fread(HDR.FILE.FID,[EVENT.N,1],'uint16');
                                 [HDR.EVENT.DUR,c4] = fread(HDR.FILE.FID,[EVENT.N,1],'uint32');
-                        	%[EVENT.N,HDR.AS.endpos,HDR.AS.EVENTTABLEPOS+8+EVENT.N*12]
+                        	%[EVENT.N,HDR.FILE.size,HDR.AS.EVENTTABLEPOS+8+EVENT.N*12]
                                 if any([c1,c2,c3,c4]~=EVENT.N),
                                         fprintf(2,'\nERROR SOPEN (GDF): Eventtable corrupted in file %s\n',HDR.FileName);
                                 end;
@@ -1192,11 +1189,20 @@ end;
                 end;
                 if isfield(HDR,'SPR')
                         HDR.AS.SPR(isnan(HDR.AS.SPR)) = HDR.SPR;
+                elseif all(~isnan(HDR.AS.SPR))
+			HDR.SPR = 1; 
+			for k=1:HDR.NS
+				if HDR.AS.SPR(k),
+					HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
+				end;	 
+			end; 
+                else
+                	warning('either HDR.SPR or HDR.AS.SPR must be defined');
        	        end;        
                 if ~isfield(HDR,'AS')
                         HDR.AS.SampleRate = repmat(HDR.SampleRate,HDR.NS,1);
                 elseif ~isfield(HDR.AS,'SampleRate')
-                        HDR.AS.SampleRate = repmat(HDR.SampleRate,HDR.NS,1);
+                        HDR.AS.SampleRate = HDR.SampleRate*HDR.AS.SPR/HDR.SPR;
                 end;
                 
                 if ~HDR.NS,
@@ -1205,12 +1211,11 @@ end;
                 elseif ~isnan(HDR.Dur) & ~any(isnan(HDR.AS.SPR)) & any(isnan(HDR.AS.SampleRate))
                         HDR.SampleRate = HDR.Dur * HDR.AS.SPR;
                 elseif isnan(HDR.Dur) & ~any(isnan(HDR.AS.SPR)) & ~any(isnan(HDR.AS.SampleRate))
-                        HDR.Dur = HDR.AS.SPR ./ HDR.SampleRate;
-                        if all(HDR.Dur(1)==HDR.Dur)
+                        HDR.Dur = HDR.AS.SPR(:) ./ HDR.AS.SampleRate(:);
+                        if all((HDR.Dur(1)-HDR.Dur)<5*eps)
                                 HDR.Dur = HDR.Dur(1);
                         else
                                 fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF): SPR and SampleRate do not fit\n');
-                                [HDR.AS.SPR,HDR.SampleRate,HDR.Dur]
                         end;
                 elseif ~isnan(HDR.Dur) & ~any(isnan(HDR.AS.SPR)) & ~any(isnan(HDR.AS.SampleRate))
                         %% thats ok, 
@@ -1326,7 +1331,7 @@ end;
                         end;
                         tmp = min(80,size(HDR.PreFilt,2));
                         HDR.PreFilt = [HDR.PreFilt(1:HDR.NS,1:tmp), setstr(32+zeros(HDR.NS,80-tmp))];
-                        
+
                         if isfield(HDR,'PhysDimCode')
 				HDR.PhysDimCode = HDR.PhysDimCode(1:HDR.NS);
 			end;	
@@ -1481,18 +1486,11 @@ end;
 	                TagLen(tag) = 16*HDR.NS; 
                 end;
 
-                HDR.SPR = 1;
-                for k = 1:HDR.NS,
-                        if (HDR.AS.SPR(k)>0)
-				HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
-                        end;
-                end;
-                
                 %%%%%% generate Header 1, first 256 bytes 
                 HDR.HeadLen=(HDR.NS+1)*256;
-                if any(TagLen>0) 
+                if any(TagLen>0) && (HDR.VERSION>2)
                 	HDR.HeadLen = HDR.HeadLen + ceil((sum(TagLen)+4*sum(TagLen>0)+4)/256)*256; 	%% terminating 0-Tag
-                end; 	 
+                end; 
                 
                 %H1(1:8)=HDR.VERSION; %sprintf('%08i',HDR.VERSION);     % 8 Byte  Versionsnummer 
 		if isempty(HDR.Patient.Birthday), bd = 'X';
@@ -1739,22 +1737,24 @@ end;
                         end;
                 end;
 
-                %%%%%% generate Header 3,  Tag-Length-Value
-                for tag=find(TagLen>0)
-       	        	fwrite(HDR.FILE.FID, tag+TagLen(tag)*256, 'uint32');
-        	        switch tag 
-       	        	case 3 
-               			fwrite(HDR.FILE.FID, TagLenValue{tag}, 'uint8');
-       	        	case 4 	%% OBSOLETE 
-               			%  c=fwrite(HDR.FILE.FID, HDR.ELEC.Orientation, 'float32');
-               			%  c=c+fwrite(HDR.FILE.FID, HDR.ELEC.Area, 'float32');
-               			fwrite(HDR.FILE.FID, zeros(4*HDR.NS-c), 'float32');
-               		end;
-               	end; 
-                if any(TagLen>0) 
-       	        	fwrite(HDR.FILE.FID, 0, 'uint32');	%% terminating 0-tag
+		if (HDR.VERSION>2)
+	                %%%%%% GDF2: generate Header 3,  Tag-Length-Value
+        	        for tag=find(TagLen>0)
+       	        		fwrite(HDR.FILE.FID, tag+TagLen(tag)*256, 'uint32');
+        	        	switch tag 
+	       	        	case 3 
+        	       			fwrite(HDR.FILE.FID, TagLenValue{tag}, 'uint8');
+       	        		case 4 	%% OBSOLETE 
+               				%  c=fwrite(HDR.FILE.FID, HDR.ELEC.Orientation, 'float32');
+               				%  c=c+fwrite(HDR.FILE.FID, HDR.ELEC.Area, 'float32');
+	               			fwrite(HDR.FILE.FID, zeros(4*HDR.NS-c), 'float32');
+        	       		end;
+               		end; 
+	                if any(TagLen>0) 
+       		        	fwrite(HDR.FILE.FID, 0, 'uint32');	%% terminating 0-tag
+			end; 
 		end; 
-
+		
                 tmp = ftell(HDR.FILE.FID);
                 if tmp ~= HDR.HeadLen, 
              		fwrite(HDR.FILE.FID, zeros(1,HDR.HeadLen-tmp), 'uint8');
@@ -2054,9 +2054,7 @@ elseif strcmp(HDR.TYPE,'rhdE'),
         HDR.HeadLen = tmp(2);		% Length of Header ? 
         HDR.H2 = tmp;
         HDR.NS = tmp(8);		% ? number of channels
-        
-        HDR.AS.endpos = HDR.FILE.size;
-        HDR.NRec = (HDR.AS.endpos-HDR.HeadLen)/1024;
+        HDR.NRec = (HDR.FILE.size-HDR.HeadLen)/1024;
         
         fprintf(1,'Warning SOPEN HolterExcel2: is under construction.\n');
         
@@ -2349,8 +2347,8 @@ elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
                 HDR.FILE.POS  = 0;
                 HDR.HeadLen = ftell(HDR.FILE.FID);
                 fseek(HDR.FILE.FID,0,'eof');
-                HDR.AS.endpos = (ftell(HDR.FILE.FID)-HDR.HeadLen)/HDR.AS.bpb;
-                HDR.NRec = HDR.AS.endpos;
+                HDR.NRec = (ftell(HDR.FILE.FID)-HDR.HeadLen)/HDR.AS.bpb;
+                HDR.AS.endpos = HDR.NRec;
                 fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         end;
         
@@ -2389,7 +2387,6 @@ elseif strcmp(HDR.TYPE,'DEMG'),
                 HDR.HeadLen = ftell(HDR.FILE.FID);
                 HDR.FILE.POS = 0;
                 HDR.FILE.OPEN = 1; 
-                HDR.AS.endpos = HDR.SPR;
                 %HDR.Filter.LowPass = 450;       % default values
                 %HDR.Filter.HighPass = 20;       % default values
                 
@@ -2710,13 +2707,12 @@ gain_code=[10 24;
 	HDR.Calib  = [HDR.Off; diag(HDR.Cal)];
 	HDR.PhysDimCode = zeros(HDR.NS,1);
         fprintf(2,'Warning SOPEN: Format BLSC not well tested.\n'); 
-        fseek(HDR.FILE.FID,0,'eof');
-        HDR.NRec = (ftell(HDR.FILE.FID)-HDR.HeadLen)/HDR.NS; 
+        HDR.NRec = (HDR.FILE.size-HDR.HeadLen)/HDR.NS; 
         HDR.AS.bpb = HDR.NS; 
-        fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         HDR.FILE.POS = 0; 
         HDR.FILE.OPEN = 1; 
         HDR.TYPE   = 'BLSC2';
+        fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
 	
         fn = fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.CMT']); 
         fid = fopen(fn,'rb');
@@ -2978,7 +2974,6 @@ elseif strcmp(HDR.TYPE,'SND'),
                 end;	
                 fseek(HDR.FILE.FID,HDR.HeadLen,-1);
                 HDR.SPR  = datlen/HDR.AS.bpb;
-                HDR.AS.endpos = datlen/HDR.AS.bpb;
                 HDR.Dur  = HDR.SPR/HDR.SampleRate;
                 
                 
@@ -3753,7 +3748,6 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                                         HDR.AS.bpb = HDR.NS * ceil(HDR.Bits/8);
                                         HDR.SPR = tagsize/HDR.AS.bpb;
                                         HDR.Dur = HDR.SPR/HDR.SampleRate;
-                                        HDR.AS.endpos = HDR.SPR;
                                         
                                 else 
                                         fprintf(HDR.FILE.stderr,'Error SOPEN WAV: format type %i not supported\n',HDR.WAV.Format);	
@@ -4590,8 +4584,6 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         
         HDR.FILE.POS= 0;
         HDR.HeadLen = ftell(HDR.FILE.FID);  % Length of Header
-        fseek(HDR.FILE.FID,0,'eof'); 
-        endpos = ftell(HDR.FILE.FID); 
 
         fclose(HDR.FILE.FID);
         %% PERMISSION = PERMISSION(PERMISSION~='t');       % open in binary mode 
@@ -4600,7 +4592,7 @@ elseif strcmp(HDR.TYPE,'SMA'),  % under constructions
         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
         %[HDR.AS.endpos,HDR.HeadLen,HDR.NS,HDR.SPR,HDR.NS*HDR.SPR*4,HDR.AS.endpos-HDR.HeadLen - HDR.NS*HDR.SPR*4]
         HDR.AS.endpos = HDR.NS*HDR.SPR*4 - HDR.HeadLen;
-        if endpos-HDR.HeadLen ~= HDR.NS*HDR.SPR*4;
+        if HDR.FILE.size-HDR.HeadLen ~= HDR.NS*HDR.SPR*4;
                 fprintf(HDR.FILE.stderr,'Warning SOPEN TYPE=SMA: Header information does not fit size of file\n');
                 fprintf(HDR.FILE.stderr,'\tProbably more than one data segment - this is not supported in the current version of SOPEN\n');
         end
@@ -7821,7 +7813,6 @@ elseif strcmp(HDR.TYPE,'AINF'),
                 HDR.SPR = floor(HDR.FILE.size/HDR.AS.bpb);
                 HDR.NRec = 1; 
                 HDR.FILE.POS = 0; 
-                HDR.AS.endpos = HDR.SPR;
                 HDR.HeadLen = 0; 
 		HDR.PhysDimCode = zeros(HDR.NS,1);
         end;

@@ -3,7 +3,7 @@
 %    and it tests also Matlab/Octave for its correctness. 
 % 
 
-%	$Id: demo3.m,v 1.15 2008-10-22 13:49:59 schloegl Exp $
+%	$Id: demo3.m,v 1.16 2008-11-14 16:23:46 schloegl Exp $
 %	Copyright (C) 2000-2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -50,7 +50,7 @@ HDR.Patient.Handedness = 0; 	% unknown, 1:left, 2:right, 3: equal
 HDR.Manufacturer.Name = 'BioSig'; 
 HDR.Manufacturer.Model = 'demo3.m'; 
 HDR.Manufacturer.Version = '$Revision'; 
-HDR.Manufacturer.SerialNumber = '00000000' 
+HDR.Manufacturer.SerialNumber = '00000000';
 
 % recording identification, max 80 char.
 HDR.RID = 'TestFile 001'; %StudyID/Investigation [consecutive number];
@@ -78,12 +78,13 @@ HDR.T0 = clock;
 HDR.NS = size(x,2);
 
 % Duration of one block in seconds
-HDR.Dur = 0.2;
+HDR.SampleRate = 1024.6;
+HDR.SPR = 1000;   
+HDR.Dur = HDR.SPR/HDR.SampleRate;
 
 % Samples within 1 block
-%HDR.AS.SPR = [20;20;20;20;];	% samples per block;
-HDR.AS.SampleRate = [1000;100;200;100;20;0];	% samplerate of each channel
-HDR.SampleRate = 1000;   
+HDR.AS.SPR = [1000;100;200;100;20;1];	% samples per block;
+%HDR.AS.SampleRate = [1000;100;200;100;20;0];	% samplerate of each channel
 
 % channel identification, max 80 char. per channel
 HDR.Label=['chan 1  ';'chan 2  ';'chan 3  ';'chan 4  ';'chan 5  ';'NEQS    '];
