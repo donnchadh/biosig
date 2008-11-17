@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.14 2008-11-05 10:32:02 schloegl Exp $
+%	$Id: fltopen.m,v 1.15 2008-11-17 11:11:49 schloegl Exp $
 %	Copyright (c) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -94,12 +94,12 @@ if any(HDR.FILE.PERMISSION=='r'),
 %	HDR.FLT.sensors.XYZabcArea(n(:,1)+1,:) = n(:,5:11); 
 
 	[n,v,sa]=str2double(HDR.FLT.System.parameter_of_groups);
-	HDR.FLT.System = rmfield(HDR.FLT.System,'parameter_of_groups');
+%	HDR.FLT.System = rmfield(HDR.FLT.System,'parameter_of_groups');
 	HDR.FLT.groups.id = n(:,1); 
-	HDR.FLT.groups.u = n(:,2); 
+	HDR.FLT.groups.usage = n(:,2); 
 	HDR.FLT.groups.name = sa(:,3); 
 	HDR.FLT.groups.unit = sa(:,4); 
-	HDR.FLT.groups.exp = n(:,5); 
+	HDR.FLT.groups.unit_exp = n(:,5); 
 	HDR.FLT.groups.calib = n(:,6); 
 	Cal_Group(n(:,1)+1)  = n(:,6).*10.^n(:,5);
 	PhysDim_Group(n(:,1)+1) = sa(:,4);
@@ -119,11 +119,11 @@ if any(HDR.FILE.PERMISSION=='r'),
 	HDR.FLT.channels.num = repmat(NaN,HDR.NS,9); 
 	HDR.FLT.channels.seq = repmat(NaN,HDR.NS,1); 
 	HDR.FLT.channels.id = repmat(NaN,HDR.NS,1); 
-	HDR.FLT.channels.u = repmat(NaN,HDR.NS,1); 
+	HDR.FLT.channels.usage = repmat(NaN,HDR.NS,1); 
 	HDR.FLT.channels.cal = repmat(NaN,HDR.NS,1); 
 	HDR.FLT.channels.Cal = sparse(HDR.NS,HDR.FLT.System.number_of_sensors); 
-	HDR.FLT.channels.grd = repmat(NaN,HDR.NS,1); 
-	HDR.FLT.channels.grp = repmat(NaN,HDR.NS,1); 
+	HDR.FLT.channels.grd_mode = repmat(NaN,HDR.NS,1); 
+	HDR.FLT.channels.grp_id = repmat(NaN,HDR.NS,1); 
 
 	while ~isempty(tline),
 		[n,v,sa]=str2double(tline);
@@ -133,12 +133,13 @@ if any(HDR.FILE.PERMISSION=='r'),
 		ch = n(1)+1;
 		HDR.FLT.channels.seq(ch) = n(1);
 		HDR.FLT.channels.id(ch) = n(2);
-		HDR.FLT.channels.u(ch) = n(3);
+		HDR.FLT.channels.usage(ch) = n(3);
 		HDR.Label{ch} = sa{4}; 
 		HDR.FLT.channels.cal(ch) = n(5);
-		HDR.FLT.channels.grd(ch) = n(6);
-		HDR.FLT.channels.grd_name{ch} = sa{7};
-		HDR.FLT.channels.grp(ch) = n(8);
+		HDR.FLT.channels.grd_mode(ch) = n(6);
+		HDR.FLT.channels.grd_mode_name{ch} = sa{7};
+		HDR.FLT.channels.grp_id(ch) = n(8);
+		HDR.FLT.channels.no_sensors(ch) = n(8);
 
 		for k=1:n(9);
 			[tline,tch] = strtok(tch,[10,13]); 
@@ -198,13 +199,18 @@ if any(HDR.FILE.PERMISSION=='r'),
 			HDR.Patient.Birthday(1:3) = tmp;
 		end
 	end
-	HDR.PhysDim = PhysDim_Group(HDR.FLT.channels.grp+1); 
-	HDR.Cal = Cal_Group(HDR.FLT.channels.grp+1); 
+	HDR.PhysDim = PhysDim_Group(HDR.FLT.channels.grp_id+1); 
+	HDR.Cal = Cal_Group(HDR.FLT.channels.grp_id+1); 
 
+	ix1 = strmatch('gr1s',HDR.FLT.channels.grd_mode_name,'exact');
+	ix2 = find(any(HDR.FLT.channels.Cal(ix1,:),1));
+	tmp = size(HDR.FLT.channels.Cal);
+	ix1 = 1:tmp(1); ix2 = 1:tmp(2);
+	grad.tra = HDR.FLT.channels.Cal;
 	grad.pnt = HDR.FLT.sensors.XYZabcArea(:,1:3);
 	grad.ori = HDR.FLT.sensors.XYZabcArea(:,4:6);
-	grad.tra = HDR.FLT.channels.Cal;
 	grad.label = HDR.Label;
+	grad.group_id = HDR.FLT.channels.grp_id;
 	HDR.MEG.grad = grad; 
 
 	%% compute HDR.ELEC.XYZ - experimental 
