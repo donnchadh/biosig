@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.61 2008-11-13 09:21:32 schloegl Exp $
+###  $Id: Makefile,v 1.62 2008-11-18 07:57:48 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -295,7 +295,7 @@ sigviewer: libbiosig.a
 	rm ../sigviewer/extern/libbiosig.a
 	ln -s ../../biosig4c++/libbiosig.a ../sigviewer/extern/libbiosig.a
 	touch ../sigviewer/src/log_dialog.cpp
-	sh makeSV.sh
+	make -C ../sigviewer/src
 	
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
 	asciidoc -d manpage docs/save2gdf.txt   
