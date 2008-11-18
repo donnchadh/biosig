@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.266 2008-11-13 09:19:50 schloegl Exp $
+    $Id: biosig.c,v 1.267 2008-11-18 07:41:33 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1598,7 +1598,12 @@ void destructHDR(HDRTYPE* hdr) {
 
 	sclose(hdr); 
 
-    	if (hdr->aECG != NULL) free(hdr->aECG);
+    	if (hdr->aECG != NULL) {
+		free(((aECG_TYPE*)hdr->aECG)->Section8.Statements); 
+		free(((aECG_TYPE*)hdr->aECG)->Section11.Statements); 
+    		free(hdr->aECG);
+
+    	}
     	if (hdr->AS.bci2000 != NULL) free(hdr->AS.bci2000);
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.AS.rawdata\n");
@@ -2616,6 +2621,8 @@ if (!strncmp(MODE,"r",1))
 	    	if (hdr->HeadLen != ((hdr->NS+1)<<8)) {
 	    		B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
 	    		B4C_ERRMSG = "EDF/BDF corrupted: HDR.NS and HDR.HeadLen do not fit";
+	    		if (VERBOSE_LEVEL>8)
+	    		fprintf(stdout,"HeadLen=%i,%i\n",hdr->HeadLen ,(hdr->NS+1)<<8);
 	    	};	
 
 	    	hdr->NRec	= atoi(strncpy(tmp,Header1+236,8));
@@ -9380,6 +9387,31 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			fprintf(stdout,"Compression  DIFF    : %i\n",aECG->FLAG.DIFF);		
 			if ((aECG->systolicBloodPressure > 0.0) || (aECG->diastolicBloodPressure > 0.0)) 
 				fprintf(stdout,"Blood pressure (systolic/diastolic) : %3.0f/%3.0f mmHg\n",aECG->systolicBloodPressure,aECG->diastolicBloodPressure);
+
+
+			const char* StatusString;
+			switch (aECG->Section8.Confirmed) {
+			case 0: StatusString = "Original (not overread)"; break;  
+			case 1: StatusString = "Confirmed"; break;  
+			case 2: StatusString = "Overread (not confirmed)"; break;  
+			default: StatusString = "unknown"; break;  
+			}
+
+			if (aECG->Section8.NumberOfStatements>0) {
+				fprintf(stdout,"\n\nReport %04i-%02i-%02i %02ih%02im%02is (Status=%s)\n",aECG->Section8.t.tm_year+1900,aECG->Section8.t.tm_mon+1,aECG->Section8.t.tm_mday,aECG->Section8.t.tm_hour,aECG->Section8.t.tm_min,aECG->Section8.t.tm_sec,StatusString);
+				for (uint8_t k=0; k<aECG->Section8.NumberOfStatements;k++) {
+					fprintf(stdout,"%s\n",aECG->Section8.Statements[k]);
+				}
+			}	
+
+			if (aECG->Section11.NumberOfStatements>0) {
+				fprintf(stdout,"\n\nReport %04i-%02i-%02i %02ih%02im%02is (Status=%s)\n",aECG->Section11.t.tm_year+1900,aECG->Section11.t.tm_mon+1,aECG->Section11.t.tm_mday,aECG->Section11.t.tm_hour,aECG->Section11.t.tm_min,aECG->Section11.t.tm_sec,StatusString);
+				for (uint8_t k=0; k<aECG->Section11.NumberOfStatements;k++) {
+					fprintf(stdout,"%s\n",aECG->Section11.Statements[k]);
+				}
+			}	
+
+			fprintf(stdout,"\n\nSection9:\n%s\n\n",aECG->Section9.StartPtr);
 		}
 	}
 	fprintf(fid,"\n\n");

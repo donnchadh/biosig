@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.61 2008-10-22 10:15:22 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.62 2008-11-18 07:41:34 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -373,6 +373,10 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 	aECG->FLAG.DIFF      = 0; 
 	aECG->FLAG.REF_BEAT  = 0; 
 	aECG->FLAG.BIMODAL   = 0;
+	aECG->Section8.NumberOfStatements = 0; 
+	aECG->Section8.Statements = NULL; 
+	aECG->Section11.NumberOfStatements = 0; 
+	aECG->Section11.Statements = NULL; 
 
 	en1064.FLAG.HUFFMAN  = 0; 
 	en1064.FLAG.DIFF     = 0; 
@@ -1094,6 +1098,48 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 
 		/**** SECTION 8 ****/
 		else if (curSect==8)  {
+			aECG->Section8.Confirmed = *(char*)(PtrCurSect+curSectPos);
+			aECG->Section8.t.tm_year = leu16p(PtrCurSect+curSectPos+1)-1900;
+			aECG->Section8.t.tm_mon  = *(uint8_t*)(PtrCurSect+curSectPos+3)-1;
+			aECG->Section8.t.tm_mday = *(uint8_t*)(PtrCurSect+curSectPos+4);
+			aECG->Section8.t.tm_hour = *(uint8_t*)(PtrCurSect+curSectPos+5);
+			aECG->Section8.t.tm_min  = *(uint8_t*)(PtrCurSect+curSectPos+6);
+			aECG->Section8.t.tm_sec  = *(uint8_t*)(PtrCurSect+curSectPos+7);
+			aECG->Section8.NumberOfStatements = *(uint8_t*)(PtrCurSect+curSectPos+8);
+			aECG->Section8.Statements= (char**)malloc(aECG->Section8.NumberOfStatements*sizeof(char*));
+			curSectPos += 9;
+			for (uint8_t k=0; k<aECG->Section8.NumberOfStatements;k++) {
+				aECG->Section8.Statements[k] = (char*)(PtrCurSect+curSectPos+3);
+				curSectPos += 3+leu16p(PtrCurSect+curSectPos+1);
+			}
+		}
+
+		/**** SECTION 9 ****/
+		else if (curSect==9)  {
+			aECG->Section9.StartPtr = (char*)(PtrCurSect+curSectPos);
+			aECG->Section9.Length   = len;
+		}
+
+		/**** SECTION 10 ****/
+		else if (curSect==10)  {
+		}
+
+		/**** SECTION 11 ****/
+		else if (curSect==11)  {
+			aECG->Section11.Confirmed = *(char*)(PtrCurSect+curSectPos);
+			aECG->Section11.t.tm_year = leu16p(PtrCurSect+curSectPos+1)-1900;
+			aECG->Section11.t.tm_mon  = *(uint8_t*)(PtrCurSect+curSectPos+3)-1;
+			aECG->Section11.t.tm_mday = *(uint8_t*)(PtrCurSect+curSectPos+4);
+			aECG->Section11.t.tm_hour = *(uint8_t*)(PtrCurSect+curSectPos+5);
+			aECG->Section11.t.tm_min  = *(uint8_t*)(PtrCurSect+curSectPos+6);
+			aECG->Section11.t.tm_sec  = *(uint8_t*)(PtrCurSect+curSectPos+7);
+			aECG->Section11.NumberOfStatements = *(uint8_t*)(PtrCurSect+curSectPos+8);
+			aECG->Section11.Statements= (char**)malloc(aECG->Section11.NumberOfStatements*sizeof(char*));
+			curSectPos += 9;
+			for (uint8_t k=0; k<aECG->Section11.NumberOfStatements;k++) {
+				aECG->Section11.Statements[k] = (char*)(PtrCurSect+curSectPos+4);
+				curSectPos += 3+leu16p(PtrCurSect+curSectPos+1);
+			}
 		}
 
 		/**** SECTION 9 ****/
@@ -1173,4 +1219,3 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	return(1);
 #endif 
 };
-

@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.9 2008-11-04 12:19:44 schloegl Exp $
+% $Id: biosig-dev.h,v 1.10 2008-11-18 07:41:33 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -292,6 +292,26 @@ typedef struct {
         	size_t   StartPtr;
         	size_t	 Length;
         } Section6;
+        struct {
+        	char	 Confirmed; // 0: original report (not overread); 1:Confirmed report; 2: Overread report (not confirmed)
+		struct tm t; 
+		uint8_t	 NumberOfStatements;
+		char 	 **Statements;
+        } Section8;
+        struct {
+        	char*    StartPtr;
+        	size_t	 Length;
+        } Section9;
+        struct {
+        	size_t   StartPtr;
+        	size_t	 Length;
+        } Section10;
+        struct {
+        	char	 Confirmed; // 0: original report (not overread); 1:Confirmed report; 2: Overread report (not confirmed)
+		struct tm t; 
+		uint8_t	 NumberOfStatements;
+		char 	 **Statements;
+        } Section11;
 } aECG_TYPE;
 
 /****************************************************************************/
