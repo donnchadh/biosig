@@ -4,6 +4,10 @@ function [CC]=train_sc(D,classlabel,MODE)
 %  CC = train_sc(D,classlabel)
 %  CC = train_sc(D,classlabel,MODE)
 %
+% CC contains the model parameters of a classifier which can be applied 
+%   to test data using test_sc. 
+%   R = test_sc(CC,D,...) 
+%
 %  The following classifier types are supported MODE.TYPE
 %    'MDA'      mahalanobis distance based classifier [1]
 %    'MD2'      mahalanobis distance based classifier [1]
@@ -78,8 +82,8 @@ function [CC]=train_sc(D,classlabel,MODE)
 % [7] J.H. Friedman. Regularized discriminant analysis. 
 %	Journal of the American Statistical Association, 84:165–175, 1989.
 
-%	$Id: train_sc.m,v 1.24 2008-11-13 11:48:45 schloegl Exp $
-%	Copyright (C) 2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: train_sc.m,v 1.25 2008-11-18 07:46:52 schloegl Exp $
+%	Copyright (C) 2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or

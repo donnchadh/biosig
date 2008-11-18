@@ -9,7 +9,7 @@ function [R]=test_sc(CC,D,mode,classlabel)
 %       R.ACC   Classification accuracy 
 %       R.H     Confusion matrix 
 %
-%  The same classifier as in TRAIN_SC are supported. If a statistical 
+% The classifier CC is typically obtained by TRAIN_SC. If a statistical 
 % classifier is used, TYPE can be used to modify the classifier. 
 %    TYPE = 'MDA'    mahalanobis distance based classifier
 %    TYPE = 'MD2'    mahalanobis distance based classifier
@@ -27,8 +27,8 @@ function [R]=test_sc(CC,D,mode,classlabel)
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
 
-%	$Id: test_sc.m,v 1.20 2008-11-07 11:13:11 schloegl Exp $
-%	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: test_sc.m,v 1.21 2008-11-18 07:46:52 schloegl Exp $
+%	Copyright (C) 2005,2006,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
