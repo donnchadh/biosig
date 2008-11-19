@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.62 2008-11-18 07:57:48 schloegl Exp $
+###  $Id: Makefile,v 1.63 2008-11-19 10:43:33 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -38,7 +38,7 @@ LIBTASN1      = $(TASN1_DIR).libs/libtasn1.a
  
 ####### Output directory
 
-OBJECTS_DIR   = ./
+OBJ	      = ./obj
 BIN	      = $(DESTDIR)/usr/bin
 LIB	      = $(DESTDIR)/usr/lib
 
@@ -89,7 +89,7 @@ MinGWOBJECTS  = win32/biosig.obj \
 TARGET        = save2gdf save2aecg save2scp libbiosig.a #libbiosig.so #sigviewer
 
 first: $(TARGET)
-all: $(TARGET) mex sigviewer exe biosig4python
+all:   $(TARGET) mex sigviewer biosig4python win32
 
 ####### Implicit rules
 
@@ -288,7 +288,7 @@ mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) 
 	mkoctfile -D=mexSOPEN mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSLOAD.mex 
 
-sigviewer: libbiosig.a 
+../sigviewer/bin/sigviewer: libbiosig.a 
 	# symbolic link to latest biosig4c
 	rm -rf ../sigviewer/extern/biosig.h
 	ln -s ../../biosig4c++/biosig.h ../sigviewer/extern/biosig.h 
@@ -296,6 +296,7 @@ sigviewer: libbiosig.a
 	ln -s ../../biosig4c++/libbiosig.a ../sigviewer/extern/libbiosig.a
 	touch ../sigviewer/src/log_dialog.cpp
 	make -C ../sigviewer/src
+sigviewer: ../sigviewer/bin/sigviewer 
 	
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
 	asciidoc -d manpage docs/save2gdf.txt   
@@ -338,42 +339,44 @@ clean:
 
 ####### INSTALL ########
 
-install: #save2gdf mexSLOAD.mex
-	chmod 0755 	save2gdf
-	install -d $(BIN)
-	install save2gdf $(BIN)
-	install save2aecg $(BIN)
+install_sigviewer: sigviewer
+	install ../sigviewer/bin/sigviewer $(BIN)
+install_octave: mexSLOAD.mex 
+	mkdir -p  		$(DESTDIR)/usr/local/share/octave/site-m/
+	install mexSLOAD.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
+
+install: save2gdf libbiosig.so libbiosig.a doc/save2gdf.1
+	install -d 		$(BIN)
+	install save2gdf 	$(BIN)
+	install save2aecg 	$(BIN)
 	install save2scp  	$(BIN)
 	#install rec2bin  	$(BIN)
 	#install bin2rec  	$(BIN)
-	#chmod 0755  	../sigviewer/bin/sigviewer
-	#mv ../sigviewer/bin/sigviewer $(DESTDIR)/usr/local/bin
 	install biosig.h    	$(DESTDIR)/usr/include
-	mv libbiosig.so 	$(LIB)
-	mv libbiosig.a 		$(LIB)
-	mkdir -p  	$(DESTDIR)/usr/share/man/man1
+	install libbiosig.so 	$(LIB)
+	install libbiosig.a	$(LIB)
+	mkdir -p  		$(DESTDIR)/usr/share/man/man1
 	install doc/*.1  	$(DESTDIR)/usr/share/man/man1
 	#install libbiosig.man $(DESTDIR)/usr/share/
-	mkdir -p  	$(DESTDIR)/share/octave
-	install mexSLOAD.mex $(DESTDIR)/share/octave
+	#make install_sigviewer
+	#make install_octave
 
 remove: 
-	rm $(BIN)save2gdf
-	rm $(BIN)save2scp
-	rm $(BIN)save2aecg
-	rm $(BIN)rec2bin
-	rm $(BIN)bin2rec
-	rm $(BIN)sigviewer
+	rm $(BIN)/save2gdf
+	rm $(BIN)/save2scp
+	rm $(BIN)/save2aecg
+	#rm $(BIN)/rec2bin
+	#rm $(BIN)/bin2rec
+	rm $(BIN)/sigviewer
 	rm $(DESTDIR)/usr/include/biosig.h
-	rm $(LIB)libbiosig.*
+	rm $(LIB)/libbiosig.*
 	rm $(DESTDIR)/usr/share/man/man1/save2gdf.1
 	rm $(DESTDIR)/usr/share/man/man1/mexSLOAD.1
 	rm $(DESTDIR)/usr/share/man/man1/sigviewer.1
-	rm $(DESTDIR)/usr/share/man/man1/rec2bin.1
-	rm $(DESTDIR)/usr/share/man/man1/bin2rec.1
+	#rm $(DESTDIR)/usr/share/man/man1/rec2bin.1
+	#rm $(DESTDIR)/usr/share/man/man1/bin2rec.1
 	
-
-
+:
 ####### Testing ########
 #	./save2gdf -V8 ~/data/test/tms32/small_test.float32.log	
 	./save2gdf -f=TMSi t0.scp t2.log

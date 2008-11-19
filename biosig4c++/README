@@ -11,14 +11,16 @@ The supported data formats are listed here:
 http://hci.tugraz.at/schloegl/biosig/TESTED
 (2) "save2gdf" is a converter between different file formats, 
 including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, CWFB.
-    win32/save2gdf.exe is pre-compiled for 32bit MS-windows, you need to copy 
-    win32/zlib1.dll into System or System32 directory.
-(3) "mexSLOAD.mex" is a MEX-interface for Octave and Matlab
-Requirement: Matlab OR Octave (v2.9 or higher) and octave-headers
+(3) "mexSLOAD" is a MEX-interface for Octave and Matlab
+Requirement: Matlab OR Octave (v2.9 or higher) with octave-headers
 (4) "_biosig.so" is an interface to python. 
 Requirement: python, python-dev, python-scipy, swig (http://www.swig.org/)
 (5) SigViewer 
 Requirement: qmake, Qt4
+(6) Precompiled binaries for Win32
+   win32/save2gdf.exe  binary converter
+   win32/libbiosig.a   library for MinGW 4.x (might work with other compilers too) 
+   win32/mexSLOAD.mexw32  mexSLOAD for Matlab7.6 (2008a) on Windows 	
 
 The internal data structure resemble the header structure similar 
   http://biosig.cvs.sourceforge.net/biosig/biosig/doc/header.txt
@@ -42,7 +44,7 @@ File(s):
     save2gdf.c	converter between various file formats.
     physicalunit.c 	en-/decodes physical units according to ISO/DIS 11073-10101:2003
     mexSLOAD.cpp is a MEX-File for loading data in Octave and Matab. 
-    t210/*	reading SCP file format 
+    t210/*	reading SCP,FAMOS file format 
     t220/*      writing SCP file format 
     t230/*      support of HL7aECG file format 
     test0/*	scripts and functions for testing
@@ -52,16 +54,16 @@ File(s):
 Compilation: 
 -------------
 # Linux 
-You need g++, make and zlib. (If you do not have zlib, do not define WITH_ZLIB).
+You need g++(>4.0), make and zlib. (If you do not have zlib, do not define WITH_ZLIB).
 Running make compiles the converter.
   make 		 	# makes the file format converter
   make save2gdf 	# makes the file format converter
-  make win32/save2gdf.exe	# makes the file format converter for Win32 (requires MinGW)
+  make win32/save2gdf.exe	# makes the file format converter for Win32 (requires MinGW >4.0)
   make physicalunits 	# makes the en/decoder for physical units
   make libbiosig.a  	# makes a static library 
   make mex4o 		# makes mexSLOAD for Octave (requires Octave-headers2.9 or higher)
   make mex4m 		# makes mexSLOAD for Matlab (path_to_mex need to be defined in Makefile)
-  make sigviewer 	# recompiles SigViewer	(requires qmake and Qt)
+  make sigviewer 	# recompiles SigViewer	(requires qmake and Qt, and the sources of sigviewer must be in ../sigviewer)
   make biosig4python 	# compiles the BioSig interface for Python (requires SWIG and Python)
   make all  		# all of the above
   make testscp 
@@ -69,7 +71,7 @@ Running make compiles the converter.
   make test		# tests HL7<->SCP, SCP<->GDF, GDF<->HL7 converters
   make test6		# tests bidirectional conversion between 6 differerent data formats	
 
-# MinGW Crosscompiler for Linux   
+# MinGW Crosscompiler on Linux for Windows  
 Currently, only the file converter save2gdf is supported.
 - install mingw32 mingw32-binutils mingw32-runtime
 - run the command  
@@ -98,27 +100,35 @@ Installation:
 -------------
 run as root 
   make 
-  make install 		# installs save2gdf, save2scp, save2aecg, sigviewer
+  make install 		# installs save2gdf, save2scp, save2aecg, 
+  make install_octave	# installs mexSLOAD.mex in /usr/local/share/octave/site-m/
+  make install_sigviewer	# installs sigviewer
+ 
 
 
 Execution:
 ----------
 # if test.gdf exists, some header information is displayed
-./save2gdf test.gdf     		
+save2gdf test.gdf     		
 
 # help and usage information 
-./save2gdf -h
+save2gdf -h
 
 # converts a data file into a GDF format (destination
-./save2gdf PFE103.scp t5.gdf     		
+save2gdf PFE103.scp t5.gdf     		
 
 # converts a data file into a SCP format (destination
-./save2scp t5.gdf t5.scp      		
-./save2gdf -f=SCP t5.gdf t5.scp      		
+save2scp t5.gdf t5.scp      		
+save2gdf -f=SCP t5.gdf t5.scp      		
 
 # converts a data file into a HL7aECG format (destination
-./save2aecg t5.gdf t5.hl7      		
-./save2gdf -f=HL7aECG t5.gdf t5.hl7
+save2aecg t5.gdf t5.hl7      		
+save2gdf -f=HL7aECG t5.gdf t5.hl7
+
+# load matlab into octave or matlab
+start octave or matlab
+addpath path_to_mexSLOAD.mex
+[data,HDR] = mexSLOAD(filename); % loads data and header information 
 
 
 Open Issue(s) of the SCP-ECG <-> HL7aECG converter:
@@ -159,7 +169,7 @@ https://lists.sourceforge.net/lists/listinfo/biosig-general
 
 
 
-    $Id: README,v 1.23 2008-09-17 07:49:38 schloegl Exp $
+    $Id: README,v 1.24 2008-11-19 10:43:33 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 
