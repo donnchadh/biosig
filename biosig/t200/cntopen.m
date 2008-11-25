@@ -5,7 +5,7 @@ function [CNT,h,e]=cntopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
-%	$Id: cntopen.m,v 1.44 2008-06-19 13:06:07 schloegl Exp $
+%	$Id: cntopen.m,v 1.45 2008-11-25 08:58:40 schloegl Exp $
 %	Copyright (c) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -581,7 +581,8 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
 		k = k+1;
                 Teeg.Stimtype = fread(fid,1,'int16');        
                 Teeg.Keyboard = fread(fid,1,'uint8');        
-                tmp = fread(fid,1,'uint8');        
+                tmp = fread(fid,1,'uint8');
+                Teeg.tmp = tmp;         
                 Teeg.KeyPad = rem(tmp,16); %bitand(tmp,15);
                 Teeg.Accept = (fix(tmp/16))==13; % (bitshift(tmp,-4)==13);  % 0xd = accept, 0xc = reject 
                         
@@ -605,7 +606,16 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
 	
         if length(TEEG) > 0,
                 CNT.EVENT.TEEG = TEEG'; 
-                CNT.EVENT.TYP  = [TEEG(:).Stimtype]';
+                %CNT.EVENT.TYP = [TEEG(:).Stimtype]';
+                stim = [TEEG(:).Stimtype]';
+                resp = [TEEG(:).KeyPad]';
+                ix   = find((stim>0) & (resp>0));
+                if ~isempty(ix)
+                	fprintf(HDR.FILE.stderr,'Warning SOPEN(CNT): in some events, both response and stimulus are non zero. Response code ignored.\n');
+                	ix,
+                end;	
+                
+                CNT.EVENT.TYP  = stim + (resp+128*(stim==0));
                 if CNT.EVENT.TeegType==3,
                         CNT.EVENT.POS =  [TEEG(:).Offset]';
                 else

@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.267 2008-11-18 07:41:33 schloegl Exp $
+    $Id: biosig.c,v 1.268 2008-11-25 08:58:39 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -724,6 +724,21 @@ const struct PhysDimIdx
 	{0xffff,  "end-of-table" },
 } ;
 #endif 
+
+/*
+	compare first n characters of two strings, ignore case  
+ */
+int strncmpi(const char* str1, const char* str2, size_t n)
+{	
+	unsigned int k=0;
+	int r;
+	r = tolower(str1[k]) - tolower(str2[k]); 
+	while (!r && str1[k] && str2[k] && (k<n)) {
+		k++; 
+		r = tolower(str1[k]) - tolower(str2[k]);
+	}	
+	return(r); 	 	
+}
 
 /*
 	compare strings, ignore case  
@@ -1806,6 +1821,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     		 || !memcmp(Header1+307, "E\x00\x00\x00\x00\x00\x00\x00DAT", 11)
     		)
 	    	hdr->TYPE = BLSC;
+    	else if (!memcmp(Header1,"FileFormat = BNI-1-BALTIMORE",28))
+	    	hdr->TYPE = BNI;
         else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISION,38) || ((leu32p(hdr->AS.Header)==0x42bfbbef) && !memcmp(Header1+3, MAGIC_NUMBER_BRAINVISION,38)))
                 hdr->TYPE = BrainVision;
         else if (!memcmp(Header1,MAGIC_NUMBER_BRAINVISION1,38))
@@ -2093,6 +2110,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case BKR: 	{ FileType = "BKR"; break; }
 	case BLSC: 	{ FileType = "BLSC"; break; }
 	case BMP: 	{ FileType = "BMP"; break; }
+	case BNI: 	{ FileType = "BNI-1-Baltimore/Nicolet"; break; }
 	case BrainVision:
 	case BrainVisionVAmp:
 		 	{ FileType = "BrainVision"; break; }
@@ -3913,6 +3931,75 @@ if (VERBOSE_LEVEL>8)
 	        ifseek(hdr, 0, SEEK_END);	// TODO: replace SEEK_END
 		hdr->NRec = iftell(hdr)/hdr->NS;
 	        ifseek(hdr, hdr->HeadLen, SEEK_SET);
+	        
+	}
+
+	else if (hdr->TYPE==BNI) {
+		// BNI-1-Baltimore/Nicolet
+		char *line = strtok((char*)hdr->AS.Header,"\x0a\x0d");  
+		fprintf(stdout,"Warning SOPEN: BNI not implemented - experimental code!\n");
+		double cal,age; 
+		char *Label; 
+		struct tm t; 
+		while (line != NULL) {
+			size_t c1 = strcspn(line," =");
+			size_t c2 = strspn(line+c1," =");
+			char *val = line+c1+c2;
+			if (!strncmp(line,"PatientId",9))
+				strncpy(hdr->Patient.Id,val,MAX_LENGTH_PID);
+			else if (!strncmpi(line,"Sex",3)) 
+				hdr->Patient.Sex = 1*(toupper(val[0])=='M')+2*(toupper(val[0])=='F');
+			else if (!strncmpi(line,"medication",11)) 
+				hdr->Patient.Medication = val==NULL ? 1 : 2;
+			else if (!strncmpi(line,"diagnosis",10)) {
+			}
+			else if (!strncmpi(line,"MontageRaw",9)) 
+				Label = val; 
+			else if (!strncmpi(line,"Age",3)) 
+				age = atol(val);			
+			else if (!strncmpi(line,"Date",c1)) 
+				sscanf(val,"%02i/%02i/%02i",&t.tm_mon,&t.tm_mday,&t.tm_year);
+			else if (!strncmpi(line,"Time",c1)) 
+				sscanf(val,"%02i:%02i:%02i",&t.tm_hour,&t.tm_min,&t.tm_sec);
+			else if (!strncmpi(line,"Rate",c1)) 
+				hdr->SampleRate = atol(val);			
+			else if (!strncmpi(line,"NchanFile",9)) 
+				hdr->NS = atol(val);			
+			else if (!strncmpi(line,"UvPerBit",c1)) 
+				cal = atof(val); 			
+			else if (!strncmpi(line,"[Events]",c1)) {
+				// not implemented yet
+			}
+			else 
+				fprintf(stdout,"SOPEN(BNI): unknown field %s=%s\n",line,val);
+
+			line = strtok(NULL,"\x0a\x0d");
+		}
+		hdr->T0 = tm_time2gdf_time(&t);
+	    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
+		for (k=0; k<hdr->NS; k++) {
+			if (!k) strncpy(hdr->CHANNEL[k].Label, strtok(Label,","),MAX_LENGTH_LABEL);
+			else 	strncpy(hdr->CHANNEL[k].Label, strtok(NULL,","),MAX_LENGTH_LABEL);
+				
+			hdr->CHANNEL[k].Transducer[0] = '\0';
+		    	hdr->CHANNEL[k].GDFTYP 	 = 0xffff;	// unknown - triggers error status  
+		    	hdr->CHANNEL[k].SPR 	 = 1; // 
+		    	hdr->CHANNEL[k].LowPass	 = -1.0;
+		    	hdr->CHANNEL[k].HighPass = -1.0;
+    			hdr->CHANNEL[k].Notch	 = -1.0;  // unknown 
+		    	hdr->CHANNEL[k].DigMax	 = 32767;
+		    	hdr->CHANNEL[k].DigMin	 = -32768;
+
+		    	hdr->CHANNEL[k].Cal	 = cal; 
+		    	hdr->CHANNEL[k].Off	 = 0.0;
+		    	hdr->CHANNEL[k].PhysMax	 = hdr->CHANNEL[k].DigMax * cal;
+		    	hdr->CHANNEL[k].PhysMin	 = hdr->CHANNEL[k].DigMin * cal;
+			hdr->CHANNEL[k].OnOff    = 1;
+		    	hdr->CHANNEL[k].PhysDimCode = 4275; // uV
+    			hdr->CHANNEL[k].LeadIdCode  = 0;
+		}
+	    	hdr->FILE.POS = 0; 
+
 	}
 
 	else if (hdr->TYPE==BrainVisionMarker) {
@@ -4439,7 +4526,14 @@ if (VERBOSE_LEVEL>8)
 			hdr->EVENT.CHN = NULL;
 
 			for  (k = 0; k < hdr->EVENT.N; k++) {
-				hdr->EVENT.TYP[k] = leu16p(buf+k*fieldsize);
+				hdr->EVENT.TYP[k] = leu16p(buf+k*fieldsize);	// stimulus type 
+				uint8_t tmp8 = buf[k*fieldsize+3];
+				if (tmp8>0) 
+					if (hdr->EVENT.TYP[k]>0) 
+						fprintf(stdout,"Warning SOPEN(CNT) event %i: both, stimulus and response, codes (%i/%i) are non-zero. response code is ignored.\n",k+1,hdr->EVENT.TYP[k],tmp8);
+					else 		
+						hdr->EVENT.TYP[k] |= tmp8 | 0x80;	// response type
+				}	 
 				hdr->EVENT.POS[k] = leu32p(buf+4+k*fieldsize);
 				if (TeegType != 3)
 					hdr->EVENT.POS[k] = (hdr->EVENT.POS[k] - hdr->HeadLen) / hdr->AS.bpb;
@@ -7969,7 +8063,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	size_t			toffset = 0;	// time offset for rawdata
 
 	if (VERBOSE_LEVEL>8)
-		fprintf(stdout,"####SREAD##########\n");
+		fprintf(stdout,"####SREAD########## start=%u length=%u\n",start,length);
 
 	switch (hdr->TYPE) {
 	case ETG4000: 
@@ -8012,10 +8106,14 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*nelem);
 		buffer = hdr->AS.rawdata;
 
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"#sread(%i %i)\n",hdr->HeadLen + hdr->FILE.POS*hdr->AS.bpb, iftell(hdr));
+		
 		// read data
 		count = ifread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr);
 		if (count<nelem)
 			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong (bpb=%i,pos=%i)\n",count,nelem,hdr->AS.bpb,iftell(hdr)); 
+//		else    fprintf(stderr,"              %i            %i blocks read                        (bpb=%i,pos=%i)\n",count,nelem,hdr->AS.bpb,iftell(hdr)); 
 		}
 	}
 	
