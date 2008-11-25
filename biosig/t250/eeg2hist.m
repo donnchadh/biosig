@@ -32,7 +32,7 @@ function [HDR]=eeg2hist(FILENAME,CHAN);
 % [4] A. Schlögl, Time Series Analysis toolbox for Matlab. 1996-2003
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/tsa/
 
-% 	$Id: eeg2hist.m,v 1.8 2008-09-04 07:32:18 schloegl Exp $
+% 	$Id: eeg2hist.m,v 1.9 2008-11-25 10:30:46 schloegl Exp $
 %	Copyright (C) 2002,2003,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>		
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -79,9 +79,9 @@ if all(HDR.GDFTYP==3) % strcmp(HDR.TYPE,'BKR') | strcmp(HDR.TYPE,'CNT') | strcmp
         H.H = zeros(2^16,HDR.NS);
         for l = 1:HDR.NS,
 		if exist('OCTAVE_VERSION') > 2,
-                	for k = s(:,l)'+2^15+1, H.H(k,l) = H.H(k,l)+1;  end;
+                	for k = double(s(:,l)')+2^15+1, H.H(k,l) = H.H(k,l)+1;  end;
 		else
-                	H.H(:,l)=sparse(s(:,l)'+2^15+1,1,1,2^16,1);
+                	H.H(:,l)=sparse(double(s(:,l)')+2^15+1,1,1,2^16,1);
 		end;
         end;
         H.X = [-2^15:2^15-1]'; 	%int16
@@ -203,7 +203,7 @@ end;
                         MaxMin=[max(t) min(t)];
                 end;
                 xrange = [min(t(h>0)),max(t(h>0))]; 
-                xrange = xrange + [-1,1]*diff(xrange)/2;
+                xrange = xrange + [-1,1]*(diff(xrange)/2+eps);
  
                 a(K)= subplot(ceil(size(H.H,2)/N),N,K);
                 tmp = diff(t);

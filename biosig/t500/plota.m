@@ -60,7 +60,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.67 2008-11-07 11:19:48 schloegl Exp $
+%	$Id: plota.m,v 1.68 2008-11-25 10:30:47 schloegl Exp $
 %	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -1137,7 +1137,7 @@ elseif strcmp(X.datatype,'qc:histo')
 		sd2  	= R.SSQ0./max(R.N-1,0);	     	% variance (unbiased) 
                 dT  	= min(abs(diff(t,[],1)));		% QUANT
                 xrange  = [min(t(h>0)),max(t(h>0))]; 
-                xrange  = xrange + [-1,1]*diff(xrange)/2;
+                xrange  = xrange + [-1,1]*(diff(xrange)/2+eps);
                 
                 if strcmp(yscale,'lin '),
                         subplot(Ny,N,k);
