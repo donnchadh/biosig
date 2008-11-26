@@ -60,7 +60,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.68 2008-11-25 10:30:47 schloegl Exp $
+%	$Id: plota.m,v 1.69 2008-11-26 07:56:34 schloegl Exp $
 %	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -122,7 +122,7 @@ end;
 if 0,
 
 elseif strcmp(X.datatype,'MVAR'),
-        if ~isfield(X,'A') | ~isfield(X,'B'),
+        if ~isfield(X,'A') || ~isfield(X,'B'),
                 fprintf(2,'Error PLOTA: MVAR missing input data\n');
                 return;
         end;
@@ -218,7 +218,7 @@ elseif strcmp(X.datatype,'MVAR'),
         else
                 if 0,
 
-                elseif strcmpi(Mode,'Spectrum') | strcmpi(Mode,'logS'),
+                elseif strcmpi(Mode,'Spectrum') || strcmpi(Mode,'logS'),
                         R = abs(S);
                         range = [min(R(:)),max(R(:))];
                         range(1) = min(range(1),range(2)/100);
@@ -605,7 +605,7 @@ elseif strncmp(X.datatype,'TF-MVAR',7)    % logS2 and S1
                         end;
                 end;
 
-        elseif AUTO | MONO,
+        elseif AUTO || MONO,
                 caxis(clim);
                 cm = colormap;
 
@@ -957,7 +957,7 @@ elseif strcmpi(X.datatype,'pfurtscheller_spectral_difference'),
         end;
 
 
-elseif strcmpi(X.datatype,'spectrum') | strcmp(X.datatype,'qualitycontrol'),
+elseif strcmpi(X.datatype,'spectrum') || strcmp(X.datatype,'qualitycontrol'),
 
         if nargin>1,
                 Mode=arg2;
@@ -1277,7 +1277,7 @@ elseif strcmp(X.datatype,'qc:histo')
         legend(Label);
         
         
-elseif strcmp(X.datatype,'HISTOGRAM') | strcmp(X.datatype,'qc:histo')
+elseif strcmp(X.datatype,'HISTOGRAM') || strcmp(X.datatype,'qc:histo')
         
         if nargin<3,
                 chansel=0;
@@ -1426,7 +1426,7 @@ elseif strcmp(X.datatype,'SCATTER'),
         else 
         	CL = 1; 	
         end;	
-CL,
+
         if length(X)==1,
                 if ~isfield(X,'R');
                         [X.R,X.p,X.CIL,X.CIU] = corrcoef(X.data,'Rank');
@@ -1542,6 +1542,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
         else
                 nf = arg2;  % Handles to subplots
         end;
+        sz,
         if isempty(nf)
                 for k0 = 1:sz(3),
                         if sz(3)>1, figure(k0); end;
@@ -1557,7 +1558,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
                 end;
         end;
 
-        if (~isfield(X,'MEAN') | ~isfield(X,'STD')) %& isfield(X,'SUM') & isfield(X,'N') & isfield(X,'SSQ')
+        if (~isfield(X,'MEAN') || ~isfield(X,'STD')) %& isfield(X,'SUM') & isfield(X,'N') & isfield(X,'SSQ')
                 X.MEAN 	= X.SUM./X.N;			% mean
                 X.MSQ  	= X.SSQ./X.N;;			% mean square
                 X.RMS  	= sqrt(X.MSQ);			% root mean square
@@ -1805,7 +1806,7 @@ elseif strcmp(X.datatype,'Classifier')
                 plota(X,'MI',hf(4));
         end;
 
-elseif strncmp(X.datatype,'TSD_BCI',7) & (nargin>1) & strcmpi(arg2,'TSD');
+elseif strncmp(X.datatype,'TSD_BCI',7) && (nargin>1) && strcmpi(arg2,'TSD');
         N = length(X.CL);
         if N>2,
                 for k=1:N,
