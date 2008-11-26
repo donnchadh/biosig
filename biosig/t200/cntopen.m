@@ -5,7 +5,7 @@ function [CNT,h,e]=cntopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
-%	$Id: cntopen.m,v 1.45 2008-11-25 08:58:40 schloegl Exp $
+%	$Id: cntopen.m,v 1.46 2008-11-26 08:41:34 schloegl Exp $
 %	Copyright (c) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -561,6 +561,16 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
 	CNT.Calib  = [-[e.baseline];eye(CNT.NS)]*diag([e.sensitivity].*[e.calib]/204.8);
 	CNT.FLAG.TRIGGERED = 0;	        
 	CNT.Dur    = 1/CNT.SampleRate;
+
+	if all(CNT.GDFTYP==3)
+		CNT.DigMax = repmat(32767,1,CNT.NS); 
+		CNT.DigMin = repmat(-32768,1,CNT.NS); 
+	else
+		CNT.DigMax = repmat(2^23-1,1,CNT.NS); 
+		CNT.DigMin = repmat(-2^23,1,CNT.NS); 
+	end; 
+	CNT.PhysMax = [1,CNT.DigMax]*CNT.Calib; 	
+	CNT.PhysMin = [1,CNT.DigMin]*CNT.Calib; 	
 
         %%%%% read event table 
         CNT.EVENT.TYP = [];
