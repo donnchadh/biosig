@@ -6,7 +6,7 @@ function [argout,s]=sview(s,varargin),
 %
 % See also: SLOAD 
 
-%	$Id: sview.m,v 1.23 2008-09-10 16:01:59 schloegl Exp $ 
+%	$Id: sview.m,v 1.24 2008-12-01 15:35:48 schloegl Exp $ 
 %	Copyright (c) 2004,2006 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -90,23 +90,55 @@ elseif ischar(arg2) & (strcmp(H.TYPE,'ELPOS') | (isfield(H,'ELEC') && strncmpi(a
         return;
 
         
-elseif all((H.LeadIdCode>0) & (H.LeadIdCode<256)) && (H.SPR*H.NRec==H.SampleRate*10)
+elseif all((H.LeadIdCode>0) & (H.LeadIdCode<256)) && (H.SPR*H.NRec==H.SampleRate*10) && all(H.PhysDimCode==H.PhysDimCode(1)) 
 	% 12-lead, 10s ECG 
-	xlen = 2; 
+	xlen = 3; 
 	d = repmat(NaN,[H.SampleRate*xlen,12]);
 	pos = [1,2,61:64,3:8];
-	x=leadidcodexyz(pos); 
-	for k=1:H.NS,
-		ch(k) = find(pos==H.LeadIdCode(k));
-		d(:,ch(k))=s(1:xlen*H.SampleRate,k);
+	x = leadidcodexyz(pos); 
+	[tmp, scale] = physicalunits(H.PhysDimCode);
+	CH = zeros(1,12);
+	for k=1:12,
+		ch = find(pos==H.LeadIdCode(k));
+		if ~isempty(ch)
+			d(1:xlen*H.SampleRate-1,ch)=s(1:xlen*H.SampleRate-1,k);
+		else 	
+			switch k
+			case 3
+				d(:,3)=d(:,1:2)*[-1;1];
+			case 4
+				d(:,4)=d(:,1:2)*[1;1]/2;
+			case 5
+				d(:,5)=d(:,1:2)*[1;-1/2];
+			case 6
+				d(:,6)=d(:,1:2)*[-1/2;1];
+			end;
+		end; 	
 	end;
+
 	d = reshape(permute(reshape(d,[H.SampleRate*xlen,3,4]),[1,3,2]),[H.SampleRate*xlen*4,3]);
-	plot([1:H.SampleRate*xlen*4]'/H.SampleRate,d + ones(size(d,1),1)*[0,-1,-2]*3500,'k');
+	d = [(abs([-(H.SampleRate/2):(H.SampleRate/2)])' < (H.SampleRate/4))*ones(1,3)*1e-3/scale(1); repmat(NaN,1,3); d];	
+	
+	plot([1:H.SampleRate*(xlen*4+1)+2]'/H.SampleRate, d + ones(size(d,1),1)*[0,-1,-2]*3*1e-3/scale(1),'k');
 	set(gca,'xMinorTick','on','yMinorTick','on','xMinorGrid','on','yMinorGrid','on');
 	grid on
 	for k=1:length(pos),
-		h=text(10*floor((k-1)/3)+1,500-3500*mod(k-1,3),x.Label(k));
+		h=text(xlen*floor((k-1)/3)+1,(1-3*mod(k-1,3))*1e-3/scale(1),x.Label(k));
 	end;
+	text(.1,-2e-4/scale(1),'0.5s / 1 mV'); 
+	set(gca,'xlim',[0,4*xlen+1]);
+
+	gender='UMFX'; sex=gender(H.Patient.Sex+1);
+	if isfield(H.Patient,'Age') age=H.Patient.Age;
+	elseif isfield(H.Patient,'Birthday') && (H.Patient.Birthday>0) age=datenum(H.T0-H.Patient.Birthday)/365.25;
+	else age = -1;
+	end;		
+	id = H.Patient.Id; id(id=='_')=' ';
+	title(sprintf('Patient Id: %s   Age=%i y  Sex=%c',id,age,sex));
+
+	tmp = physicalunits(H.PhysDimCode(1));
+	ylabel(tmp{1});
+	xlabel('time [s]');
 	return;
 
         
