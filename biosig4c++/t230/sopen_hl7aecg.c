@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.27 2008-10-14 15:06:19 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.28 2008-12-01 08:14:16 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -288,15 +288,13 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 //		    hdr->CHANNEL[i].Impedance = INF;
 //		    for(int k1=0; k1<3; hdr->CHANNEL[index].XYZ[k1++] = 0.0);
 		}
-
-		if (VERBOSE_LEVEL>8)
-			fprintf(stdout,"hl7r: [430] %i\n",B4C_ERRNUM); 
-
-		hdr2ascii(hdr,stdout,3);
-
 		hdr->FLAG.OVERFLOWDETECTION = 0;
-		if (VERBOSE_LEVEL>8)
+
+		if (VERBOSE_LEVEL>8) {
+			fprintf(stdout,"hl7r: [430] %i\n",B4C_ERRNUM); 
+			hdr2ascii(hdr,stdout,3);
 			fprintf(stdout,"hl7r: [431] %i\n",B4C_ERRNUM); 
+		}
 
 	    } else {
 		fprintf(stderr, "%s : failed to parse (2)\n", hdr->FileName);
