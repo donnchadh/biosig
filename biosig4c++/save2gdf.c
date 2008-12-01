@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.48 2008-08-11 08:01:41 schloegl Exp $
+    $Id: save2gdf.c,v 1.49 2008-12-01 09:21:27 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -42,7 +42,11 @@ int main(int argc, char **argv){
     enum FileFormat SOURCE_TYPE, TARGET_TYPE=GDF; 		// type of file format
     int		COMPRESSION_LEVEL=0;
     int		status, k; 
-    int		TARGETSEGMENT=1; 	// select segment in multi-segment file format EEG1100 (Nihon Kohden)	
+    int		TARGETSEGMENT=1; 	// select segment in multi-segment file format EEG1100 (Nihon Kohden)
+    int 	VERBOSE	= -1; 	
+#ifdef VERBOSE_LEVEL
+	VERBOSE = VERBOSE_LEVEL; 	
+#endif     	
 	
     if (argc<2)
     	;
@@ -89,7 +93,7 @@ int main(int argc, char **argv){
 #endif 
 	}
     	else if (!strncmp(argv[k],"-VERBOSE",2))  	{
-	    	VERBOSE_LEVEL = argv[k][strlen(argv[k])-1]-48;
+	    	VERBOSE = argv[k][strlen(argv[k])-1]-48;
 	}
     	else if (!strncmp(argv[k],"-f=",3))  	{
     		if (0) {}
@@ -128,6 +132,7 @@ int main(int argc, char **argv){
 		
     }
 
+
 	source = NULL;
 	dest = NULL;
     	switch (argc - numopt) {
@@ -142,7 +147,7 @@ int main(int argc, char **argv){
 	    	source = argv[numopt+1]; 
     	}	
 
-	if (VERBOSE_LEVEL<0) VERBOSE_LEVEL=1; // default 
+	if (VERBOSE_LEVEL<0) VERBOSE=1; // default 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[111] SAVE2GDF started\n");
 
 	tzset();
@@ -162,7 +167,7 @@ int main(int argc, char **argv){
 	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[113] SOPEN-R finished\n");
 
-	hdr2ascii(hdr,stdout,VERBOSE_LEVEL);
+	hdr2ascii(hdr,stdout,VERBOSE);
 
 	// all channels are converted - channel selection currently not supported
     	for (k=0; k<hdr->NS; k++) {

@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.46 2008-11-13 09:19:50 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.47 2008-12-01 09:21:27 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -44,8 +44,6 @@ void mexFunction(
 	char		FlagOverflowDetection=1, FlagUCAL=0;
 	
 
-	VERBOSE_LEVEL = 3; 
-	
 	if (nrhs<1) {
 #ifdef mexSOPEN
 		mexPrintf("   Usage of mexSOPEN:\n");

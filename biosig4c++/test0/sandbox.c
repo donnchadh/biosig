@@ -6,7 +6,7 @@
     or the functions are discarded. Do not rely on the interface in this function
        	
 
-    $Id: sandbox.c,v 1.2 2008-08-20 17:54:48 schloegl Exp $
+    $Id: sandbox.c,v 1.3 2008-12-01 09:21:27 schloegl Exp $
     Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -32,8 +32,6 @@
 #include <sys/stat.h>
 
 #include "../biosig-dev.h"
-
-extern int VERBOSE_LEVEL;
 
 // these functios are stubs
 

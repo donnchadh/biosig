@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.268 2008-11-25 08:58:39 schloegl Exp $
+    $Id: biosig.c,v 1.269 2008-12-01 09:21:27 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -80,7 +80,10 @@ int errnum;
 int B4C_STATUS  = 0;
 int B4C_ERRNUM  = 0;
 const char *B4C_ERRMSG;
-int VERBOSE_LEVEL = -1; 
+
+#ifndef VERBOSE_LEVEL
+int VERBOSE_LEVEL = 0; 
+#endif
 
 
 const int16_t GDFTYP_BITS[] = {
@@ -3304,7 +3307,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		size_t N  = 0;	 
 		char status = 0; 
 		char *val   = NULL;
-		char *field = NULL;
 		const char sep[] = " =\x09";
 		double duration = 0;
 		size_t lengthRawData = 0;
@@ -3371,7 +3373,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					strncpy(hdr->ID.Recording,val,MAX_LENGTH_RID);
 				else if (!strcmp(line,"Recording.Time")) {
 					struct tm t;
-					int c=sscanf(val,"%04i-%02i-%02i %02i:%02i:%02i",&t.tm_year,&t.tm_mon,&t.tm_mday,&t.tm_hour,&t.tm_min,&t.tm_sec); 
+					sscanf(val,"%04i-%02i-%02i %02i:%02i:%02i",&t.tm_year,&t.tm_mon,&t.tm_mday,&t.tm_hour,&t.tm_min,&t.tm_sec); 
 					t.tm_year -= 1900;
 					t.tm_mon--;
 					t.tm_isdst = -1;
@@ -3463,7 +3465,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 				else if (!strcmp(line,"Transducer"))
 					strncpy(cp->Transducer,val,MAX_LENGTH_TRANSDUCER);
 				else if (!strcmp(line,"SampleRate"))
-					cp->SPR = (atof(val)*duration);
+					cp->SPR = (typeof(cp->SPR))(atof(val)*duration);
 				else if (!strcmp(line,"NumberOfSamples"))
 					cp->SPR = atol(val);
 				else if (!strcmp(line,"HighPassFilter"))
@@ -3517,8 +3519,13 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 						hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN, N*sizeof(*hdr->EVENT.CHN));
 					}	
 
-					val = line+2;					
-					sscanf(val,"%04x",&hdr->EVENT.TYP[hdr->EVENT.N]); 
+					val = line+2;
+					int i;  					
+					sscanf(val,"%04x",&i); 
+					if (i>0xffff)
+						fprintf(stdout,"Warning: Type %i of event %i does not fit in 16bit\n",i,hdr->EVENT.N);
+					else 	
+						hdr->EVENT.TYP[hdr->EVENT.N] = (typeof(hdr->EVENT.TYP[0]))i;	
 
 					double d;	
 					val = strchr(val,'\t')+1;
@@ -3534,8 +3541,13 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 						hdr->EVENT.DUR[hdr->EVENT.N] = 0;  
 
 					val = strchr(val,'\t')+1;
-					if (val[0]!='\t')
-						sscanf(val,"%d",&hdr->EVENT.CHN[hdr->EVENT.N]);
+					if (val[0]!='\t') {
+						sscanf(val,"%d",&i);
+						if (i>0xffff)
+							fprintf(stdout,"Warning: channel number %i of event %i does not fit in 16bit\n",i,hdr->EVENT.N);
+						else 
+							hdr->EVENT.CHN[hdr->EVENT.N] = i; 
+					}		
 					else  
 						hdr->EVENT.CHN[hdr->EVENT.N] = 0;  
 
@@ -4018,8 +4030,7 @@ if (VERBOSE_LEVEL>8)
 			
 		int seq = 0;
 		/* decode marker file */
-		size_t pos = 0;
-
+		
 		char *t1 = strtok(Header1,"\x0A\x0D");	// skip first line 
 		t1 = strtok(NULL,"\x0A\x0D");		
 		size_t N_EVENT=0;
@@ -4528,7 +4539,7 @@ if (VERBOSE_LEVEL>8)
 			for  (k = 0; k < hdr->EVENT.N; k++) {
 				hdr->EVENT.TYP[k] = leu16p(buf+k*fieldsize);	// stimulus type 
 				uint8_t tmp8 = buf[k*fieldsize+3];
-				if (tmp8>0) 
+				if (tmp8>0) {
 					if (hdr->EVENT.TYP[k]>0) 
 						fprintf(stdout,"Warning SOPEN(CNT) event %i: both, stimulus and response, codes (%i/%i) are non-zero. response code is ignored.\n",k+1,hdr->EVENT.TYP[k],tmp8);
 					else 		
@@ -4571,8 +4582,8 @@ if (VERBOSE_LEVEL>8)
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"CTF[104]: %i %s\n\t%s\n",count,f0,f1);
 	
 		struct tm t;
-		sscanf((char*)(hdr->AS.Header+778),"%i:%i:i",&t.tm_hour,&t.tm_min,&t.tm_sec);
-		sscanf((char*)(hdr->AS.Header+778+255),"%i/%i/%i",&t.tm_mday,&t.tm_mon,&t.tm_year);
+		sscanf((char*)(hdr->AS.Header+778),"%d:%d:%d",&t.tm_hour,&t.tm_min,&t.tm_sec);
+		sscanf((char*)(hdr->AS.Header+778+255),"%d/%d/%d",&t.tm_mday,&t.tm_mon,&t.tm_year);
 		--t.tm_mon; 
 		hdr->T0 = tm_time2gdf_time(&t);
 		
@@ -4753,7 +4764,7 @@ if (VERBOSE_LEVEL>8)
 
 		char *fn = (char*)malloc((strlen(hdr->FileName)+5)*sizeof(char));
 		strcpy(fn,hdr->FileName);
-		uint8_t *LOG=NULL, *PNT=NULL;
+		uint8_t *LOG=NULL;
 
 		/* read .pnt */
 			if (strrchr(fn,FILESEP))
@@ -6339,8 +6350,8 @@ fprintf(stdout,"ASN1 [491]\n");
 			hdr->CHANNEL[k].XYZ[1] = lei32p(hdr->AS.Header+pos+162);
 	  	}
 #undef line
-		hdr->SPR = hdr->SampleRate/minFs;
-		for (k=0; k<hdr->NS; k++) hdr->CHANNEL[k].SPR = fs[k]/minFs;
+		hdr->SPR = (typeof(hdr->SPR))round(hdr->SampleRate/minFs);
+		for (k=0; k<hdr->NS; k++) hdr->CHANNEL[k].SPR = (typeof(hdr->SPR))round(fs[k]/minFs);
 		free(fs); 
 	    	hdr->FILE.POS  = 0; 
 	}	/******* end of Sigma PLpro ********/
@@ -7125,7 +7136,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     		fprintf(fid,"; Data created by BioSig4C++\n\r\n\r");
     		fprintf(fid,"[Common Infos]\n\r");
     		fprintf(fid,"DataFile=%s\n\r",hdr->FileName);
-    		fprintf(fid,"MarkerFile=%s\n\r");
+    		fprintf(fid,"MarkerFile=\n\r");
     		fprintf(fid,"DataFormat=BINARY\n\r");
     		fprintf(fid,"; Data orientation: MULTIPLEXED=ch1,pt1, ch2,pt1 ...\n\r");
     		fprintf(fid,"DataOrientation=MULTIPLEXED\n\r");
@@ -7186,7 +7197,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		fprintf(fid,"Channels\n\r--------\n\r");
 		fprintf(fid,"#     Name      Phys. Chn.    Resolution [µV]  Low Cutoff [s]   High Cutoff [Hz]   Notch [Hz]\n\r");
     		for (k=0; k<hdr->NS; k++) {
-			fprintf(fid,"\n\r%6i%13s%17i%18f%15f",k+1,hdr->CHANNEL[k].Label,k+1,hdr->CHANNEL[k].Cal,1/(2*3.141592653589793238462643383279502884197169399375*hdr->CHANNEL[k].HighPass),hdr->CHANNEL[k].LowPass);
+			fprintf(fid,"\n\r%6i %13s %17i %18f %15f %15f",k+1,hdr->CHANNEL[k].Label,k+1,hdr->CHANNEL[k].Cal,1/(2*3.141592653589793238462643383279502884197169399375*hdr->CHANNEL[k].HighPass),hdr->CHANNEL[k].LowPass);
 			if (hdr->CHANNEL[k].Notch)
 				fprintf(fid,"%f",hdr->CHANNEL[k].Notch);
 			else 	
@@ -7194,7 +7205,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		}	    		
     		fprintf(fid,"\n\r\n\rImpedance [kOhm] :\n\r");
     		for (k=0; k<hdr->NS; k++)
-			fprintf(fid,"%s:\t\t%i\n\r",hdr->CHANNEL[k].Label,hdr->CHANNEL[k].Impedance);
+			fprintf(fid,"%s:\t\t%f\n\r",hdr->CHANNEL[k].Label,hdr->CHANNEL[k].Impedance);
 
 		fclose(fid); 
 		hdr->FileName = filename;  
@@ -8107,13 +8118,13 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		buffer = hdr->AS.rawdata;
 
 		if (VERBOSE_LEVEL>8)
-			fprintf(stdout,"#sread(%i %i)\n",hdr->HeadLen + hdr->FILE.POS*hdr->AS.bpb, iftell(hdr));
+			fprintf(stdout,"#sread(%i %li)\n",hdr->HeadLen + hdr->FILE.POS*hdr->AS.bpb, iftell(hdr));
 		
 		// read data
 		count = ifread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr);
 		if (count<nelem)
-			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong (bpb=%i,pos=%i)\n",count,nelem,hdr->AS.bpb,iftell(hdr)); 
-//		else    fprintf(stderr,"              %i            %i blocks read                        (bpb=%i,pos=%i)\n",count,nelem,hdr->AS.bpb,iftell(hdr)); 
+			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong (bpb=%i,pos=%li)\n",count,nelem,hdr->AS.bpb,iftell(hdr)); 
+//		else    fprintf(stderr,"              %i            %i blocks read                        (bpb=%i,pos=%li)\n",count,nelem,hdr->AS.bpb,iftell(hdr)); 
 		}
 	}
 	
