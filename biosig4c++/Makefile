@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.63 2008-11-19 10:43:33 schloegl Exp $
+###  $Id: Makefile,v 1.64 2008-12-02 09:00:23 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -288,15 +288,15 @@ mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) 
 	mkoctfile -D=mexSOPEN mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSLOAD.mex 
 
+sigviewer :../sigviewer/bin/sigviewer
 ../sigviewer/bin/sigviewer: libbiosig.a 
 	# symbolic link to latest biosig4c
 	rm -rf ../sigviewer/extern/biosig.h
-	ln -s ../../biosig4c++/biosig.h ../sigviewer/extern/biosig.h 
+	ln -s ../../biosig4c++/biosig.h ../sigviewer/extern/biosig.h
 	rm ../sigviewer/extern/libbiosig.a
 	ln -s ../../biosig4c++/libbiosig.a ../sigviewer/extern/libbiosig.a
-	touch ../sigviewer/src/log_dialog.cpp
-	make -C ../sigviewer/src
-sigviewer: ../sigviewer/bin/sigviewer 
+	touch ../sigviewer/tmp/basic_header.o
+	make -C ../sigviewer/src  
 	
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
 	asciidoc -d manpage docs/save2gdf.txt   
@@ -341,6 +341,8 @@ clean:
 
 install_sigviewer: sigviewer
 	install ../sigviewer/bin/sigviewer $(BIN)
+	install ../biosig/doc/eventcodes.txt $(BIN)
+
 install_octave: mexSLOAD.mex 
 	mkdir -p  		$(DESTDIR)/usr/local/share/octave/site-m/
 	install mexSLOAD.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
@@ -368,6 +370,7 @@ remove:
 	#rm $(BIN)/rec2bin
 	#rm $(BIN)/bin2rec
 	rm $(BIN)/sigviewer
+	rm $(BIN)/eventcodes.txt
 	rm $(DESTDIR)/usr/include/biosig.h
 	rm $(LIB)/libbiosig.*
 	rm $(DESTDIR)/usr/share/man/man1/save2gdf.1
