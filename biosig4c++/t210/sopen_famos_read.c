@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_famos_read.c,v 1.1 2008-11-04 12:15:33 schloegl Exp $
+    $Id: sopen_famos_read.c,v 1.2 2008-12-02 08:25:37 schloegl Exp $
     Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -25,11 +25,9 @@
 #include <string.h>
 #include "../biosig-dev.h"
 
-extern int VERBOSE_LEVEL;
-
-
 int sopen_FAMOS_read(HDRTYPE* hdr) {
 #define Header1 ((char*)hdr->AS.Header)	
+
 		size_t count = hdr->HeadLen;
 	    	
 		char *t, *t1, *t2;
@@ -37,13 +35,13 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 		size_t pos, l1, len;
 		pos  = strspn(Header1, EOL);
 		uint16_t gdftyp, CHAN=0;
-		char OnOff;		
+		char OnOff=1;		
 		double Fs;
 		uint32_t NoChanCurrentGroup = 0;	// number of (undefined) channels of current group 
 		int level = 0; 	// to check consistency of file
 		
-		fprintf(stdout,"SOPEN(FAMOS): support is experimental. Only single time series with equidistant sampling and single sampling rate are supported.\n");		
-		 
+		fprintf(stdout,"SOPEN(FAMOS): support is experimental. Only time series with equidistant sampling and single sampling rate are supported.\n");		
+
 		while (pos < count-20) {
 			t       = Header1+pos;	// start of line
 
@@ -61,7 +59,7 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				
 			
 			if (VERBOSE_LEVEL>8)
-				fprintf(stdout,"FAMOS %i <%s>: %i,%i\n",pos,t,l1,len);
+				fprintf(stdout,"FAMOS %i <%s>: %i,%i OnOff=%i\n",pos,t,l1,len,OnOff);
 			
 
 			if (!strncmp(t,"CF,2",4) && (level==0)) {
@@ -130,10 +128,14 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				size_t bpb = atol(t2);
 				hdr->AS.bi[CHAN+1] = hdr->AS.bi[CHAN] + bpb;
 				hdr->CHANNEL[CHAN].SPR = 8*bpb/GDFTYP_BITS[hdr->CHANNEL[CHAN].GDFTYP];
+
+
+				if (VERBOSE_LEVEL) fprintf(stdout,"famos123: %i %i\n", OnOff, CHAN);
+				
 				if ((OnOff) && (CHAN==0)) hdr->SPR = hdr->CHANNEL[CHAN].SPR;  
 				
 				if (hdr->SPR != hdr->CHANNEL[CHAN].SPR) {
-					fprintf(stdout,"Warning SOPEN(FAMOS): multiple sampling rates not supported. Channel %i ignored!\n",CHAN+1);
+					fprintf(stdout,"Warning SOPEN(FAMOS): multiple sampling (%i:%i) rates not supported. Channel %i ignored!\n", hdr->SPR, hdr->CHANNEL[CHAN].SPR, CHAN+1);
 					OnOff = 0;  
 				}
 				if (!OnOff) hdr->CHANNEL[CHAN].SPR = 0;
@@ -183,7 +185,7 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				t2[p] = 0;
 				OnOff = 1; 
 				if (atoi(t2) != 1) {
-					OnOff = 0; 
+//					OnOff = 0; 
 //					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 //					B4C_ERRMSG = "FAMOS: data is not real and aquidistant sampled";
 				}
