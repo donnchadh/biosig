@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.10 2008-11-18 07:41:33 schloegl Exp $
+% $Id: biosig-dev.h,v 1.11 2008-12-03 11:20:03 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -221,12 +221,16 @@ const double INF=1.0/0.0;
 
 #define min(a,b)	(((a) < (b)) ? (a) : (b))
 #define max(a,b)	(((a) > (b)) ? (a) : (b))
-
-
+#define fix(m)     	(m<0 ? ceil(m) : floor(m))	
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	global constants and variables 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+
+extern int   VERBOSE_LEVEL; 	// used for debugging
+//#define VERBOSE_LEVEL 0	// turn off debugging information 
+
 
 /****************************************************************************/
 /**                                                                        **/

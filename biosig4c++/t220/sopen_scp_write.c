@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.40 2008-10-20 08:22:15 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.41 2008-12-03 11:18:29 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -39,7 +39,6 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 	uint16_t 	crc; 
 	uint32_t	i; 
 	uint32_t 	sectionStart; 
-	time_t 		T0;
 	tm* 		T0_tm;
 	double 		AVM, avm; 
 	aECG_TYPE*	aECG;		
@@ -60,6 +59,10 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 		aECG->LatestConfirmingPhysician="/0";
 		aECG->Diagnosis="/0";
 		aECG->EmergencyLevel=0;
+		aECG->Section8.NumberOfStatements = 0; 
+		aECG->Section8.Statements = NULL; 
+		aECG->Section11.NumberOfStatements = 0; 
+		aECG->Section11.Statements = NULL; 
 	}
 	else 
 		aECG = (aECG_TYPE*)hdr->aECG;
@@ -169,9 +172,8 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 
 			// Tag 5 (len = 4) 
 			if ((hdr->Patient.Birthday) > 0) {
-				T0    = gdf_time2t_time(hdr->Patient.Birthday);
-				T0_tm = gmtime(&T0);
-
+				T0_tm = gdf_time2tm_time(hdr->Patient.Birthday);
+				
 				*(ptr+sectionStart+curSectLen) = 5;	// tag
 				*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
 				*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16(T0_tm->tm_year+1900);// year
@@ -331,13 +333,16 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 			curSectLen += 4;
 
 			// Tag 25 (len = 4)
-			T0 = gdf_time2t_time(hdr->T0);
-			T0_tm = gmtime(&T0);
+			gdf_time T1 = hdr->T0;
+#ifndef __APPLE__
+			T1 += (int32_t)ldexp(timezone/86400.0,32);			
+#endif 
+			T0_tm = gdf_time2tm_time(T1);
 
 			*(ptr+sectionStart+curSectLen) = 25;	// tag
 			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(4);	// length
 			*(uint16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((uint16_t)(T0_tm->tm_year+1900));// year
-			*(ptr+sectionStart+curSectLen+5) = (uint8_t)(T0_tm->tm_mon + 1);	// month
+			*(ptr+sectionStart+curSectLen+5) = (uint8_t)(T0_tm->tm_mon + 1);// month
 			*(ptr+sectionStart+curSectLen+6) = (uint8_t)T0_tm->tm_mday; 	// day
 			curSectLen += 7; 
 

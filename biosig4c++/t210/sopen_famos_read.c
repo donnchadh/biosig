@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_famos_read.c,v 1.2 2008-12-02 08:25:37 schloegl Exp $
+    $Id: sopen_famos_read.c,v 1.3 2008-12-03 11:18:29 schloegl Exp $
     Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -252,8 +252,7 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				tmp[p]=0;
 				tm_time.tm_sec = atoi(tmp);
 
-				int64_t t0 = t_time2gdf_time(mktime(&tm_time)); 
-				hdr->T0 = t0;
+				hdr->T0 = tm_time2gdf_time(&tm_time); 
 			}
 			else if (!strncmp(t,"CZ,1",4) && (level==3)) {
 			}

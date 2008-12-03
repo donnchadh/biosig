@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.126 2008-12-01 07:59:09 schloegl Exp $
+% $Id: biosig.h,v 1.127 2008-12-03 11:18:29 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -123,8 +123,10 @@ enum FileFormat {
 
 extern int   B4C_ERRNUM;
 extern const char *B4C_ERRMSG;
-extern int   VERBOSE_LEVEL; 
 
+
+//extern int   VERBOSE_LEVEL; 	// used for debugging
+//#define VERBOSE_LEVEL 0	// turn off debugging information 
 
 
 /****************************************************************************/
@@ -154,13 +156,13 @@ extern int   VERBOSE_LEVEL;
       	GDF format. 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
-#define t_time2gdf_time(t)	((gdf_time)round(ldexp(((double)(t))/86400.0 + 719529.0, 32)))
-/* #define t_time2gdf_time(t)	((gdf_time)floor(ldexp(difftime(t,0)/86400.0 + 719529.0, 32)))  */
-#define gdf_time2t_time(t)	((time_t)((ldexp((double)(t),-32) - 719529) * 86400))
-#define tm_time2gdf_time(t) 	t_time2gdf_time(mktime(t))
-/* #define gdf_time2tm_time(t)        gmtime(gdf_time2t_time(t)) */
+
+#define t_time2gdf_time(t)	((gdf_time)floor(ldexp(((double)(t))/86400.0 + 719529.0, 32)))
 #define	ntp_time2gdf_time(t)	((gdf_time)ldexp(ldexp(((double)(t)),-32)/86400 + 719529.0 - 70,32))
 #define	gdf_time2ntp_time(t)	((int64_t)ldexp((ldexp(((double)(t)),-32) - 719529.0 + 70) * 86400,32))
+
+gdf_time   tm_time2gdf_time(struct tm *t);
+struct tm *gdf_time2tm_time(gdf_time t);
 
 
 /****************************************************************************/
@@ -335,7 +337,7 @@ typedef struct {
 		uint32_t 	*bi;
 		uint8_t*	Header; 
 		uint8_t*	rawdata; 	/* raw data block */
-		uint8_t*	auxBUF 	__attribute__ ((deprecated));		/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor */
+		uint8_t*	auxBUF;  	/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor */
 		char*		bci2000;
 	} AS ATT_ALI;
 	

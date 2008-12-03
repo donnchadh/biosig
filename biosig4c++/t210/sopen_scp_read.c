@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.62 2008-11-18 07:41:34 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.63 2008-12-03 11:18:29 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -706,7 +706,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				curSectPos += len1;
 			}
 //			t0.tm_gmtoff = 60*tzminutes;
-			t0.tm_isdst = -1;
+//			t0.tm_isdst = -1;
 			hdr->T0     = tm_time2gdf_time(&t0);
 		}
 

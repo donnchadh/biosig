@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.28 2008-12-01 08:14:16 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.29 2008-12-03 11:18:29 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -63,13 +63,15 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		T0[14] = '\0';
 		// ### ?FIXME?: compensate local time and DST in mktime used in tm_time2gdf_time below 
 
+		t0.tm_sec  = atoi(T0+12);  	
+/*	obsolete 
 #ifdef __APPLE__
 		// ### FIXME: for some (unknown) reason, timezone does not work on MacOSX
-		t0.tm_sec  = atoi(T0+12);  	
 		printf("Warning SOPEN(HL7aECG,read): timezone not supported\n");
 #else
 		t0.tm_sec  = atoi(T0+12)-timezone;	
 #endif 
+*/
 		T0[12] = '\0';
 		t0.tm_min  = atoi(T0+10);
 		T0[10] = '\0';
@@ -332,8 +334,7 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 		char* HDR.AS.Header 	// contains the content which will be written to the file in SOPEN
 */	
 
-	time_t T0;
-	struct tm *t0;
+    struct tm *t0;
     char tmp[80];	
     TiXmlDocument doc;
     
@@ -366,8 +367,7 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 	char timelow[24], timehigh[24];
 	gdf_time t1,t2;
 	t1 = hdr->T0;// + ldexp(timezone/(3600.0*24),32);	
-	T0 = gdf_time2t_time(t1);
-	t0 = localtime(&T0);
+	t0 = gdf_time2tm_time(t1);
 	t2 = tm_time2gdf_time(t0);
 	double dT;
 	dT = ldexp(t1-t2,-32)*(3600*24);
@@ -375,8 +375,7 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 	sprintf(timelow, "%4d%2d%2d%2d%2d%2d.%3d", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec,(int)ceil(dT));
 
 	t1 = hdr->T0 + ldexp((hdr->SPR/hdr->SampleRate)/(3600.0*24),32);	
-	T0 = gdf_time2t_time(t1);
-	t0 = localtime(&T0);
+	t0 = gdf_time2tm_time(t1);
 	t2 = tm_time2gdf_time(t0);
 	dT = ldexp(t1-t2,-32)*(3600*24);
 	dT = floor(dT*1000);
@@ -473,9 +472,7 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
     trialSubjectDemographicPerson->LinkEndChild(subjectDemographicPersonGender);
 
 	if (hdr->Patient.Birthday>0) {
-		T0 = gdf_time2t_time(hdr->Patient.Birthday);
-
-		t0 = gmtime(&T0);
+		t0 = gdf_time2tm_time(hdr->Patient.Birthday);
 		// t0 = localtime(&T0);
 
 		// TODO: fixme if "t0->tm_sec"

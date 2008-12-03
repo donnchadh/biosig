@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.269 2008-12-01 09:21:27 schloegl Exp $
+    $Id: biosig.c,v 1.270 2008-12-03 11:18:29 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -128,7 +128,6 @@ const int16_t GDFTYP_BITS[] = {
 
 const char *LEAD_ID_TABLE[] = { "unspecified",
 	"I","II","V1","V2","V3","V4","V5","V6",
-	"V7","V2R","V1","V2","V3","V4","V5","V6",
 	"V7","V2R","V3R","V4R","V5R","V6R","V7R","X",
 	"Y","Z","CC5","CM5","LA","RA","LL","fI",
 	"fE","fC","fA","fM","fF","fH","dI",
@@ -866,6 +865,122 @@ uint16_t PhysDimCode(char* PhysDim0)
 	return(0);
 }
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	Conversion of time formats between Unix and GDF format.
+
+	The default time format in BIOSIG uses a 64-bit fixed point format with 
+	reference date 01-Jan-0000 00h00m00s (value=0). 
+	One unit indicates the 2^(-32) part of 1 day (ca 20 us). Accordingly, 
+	the higher 32 bits count the number of days, the lower 32 bits describe 
+	the fraction of a day.  01-Jan-1970 is the day 719529. 
+
+      	time_t t0; 
+      	t0 = time(NULL); 
+      	T0 = (double)t0/86400.0;	// convert seconds in days since 1970-Jan-01
+      	floor(T0) + 719529;		// number of days since 01-Jan-0000
+      	floor(ldexp(T0-floor(T0),32));  // fraction x/2^32; one day is 2^32 
+      	
+      	The following macros define the conversions between the unix time and the 
+      	GDF format. 
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+gdf_time   tm_time2gdf_time(struct tm *t){
+	/* based Octave's datevec.m 
+	it referes Peter Baum's algorithm at http://vsg.cape.com/~pbaum/date/date0.htm 
+	but the link is not working anymore as of 2008-12-03. 
+
+	Other links to Peter Baum's algorithm are
+	http://www.rexswain.com/b2mmddyy.rex
+	http://www.dpwr.net/forums/index.php?s=ecfa72e38be61327403126e23aeea7e5&showtopic=4309
+	*/
+	
+	int Y,M,h,m,s;
+	double D; 
+	gdf_time o; 
+		
+	D = t->tm_mday; 
+	M = t->tm_mon+1; 
+	Y = t->tm_year+1900;
+		
+	// Set start of year to March by moving Jan. and Feb. to previous year.
+  	// Correct for months > 12 by moving to subsequent years.
+  	Y += fix ((M-14.0)/12);
+  
+  	const int monthstart[] = {306, 337, 0, 31, 61, 92, 122, 153, 184, 214, 245, 275};
+	// Lookup number of days since start of the current year.
+  	D += monthstart[t->tm_mon % 12] + 60;
+
+	// Add number of days to the start of the current year. Correct
+  	// for leap year every 4 years except centuries not divisible by 400.
+  	D += 365*Y + floor (Y/4) - floor (Y/100) + floor (Y/400);
+
+  	// Add fraction representing current second of the day.
+  	s = t->tm_hour*3600 + t->tm_min*60 + t->tm_sec; 
+#ifdef __APPLE__
+		// ### FIXME: for some (unknown) reason, timezone does not work on MacOSX
+		printf("Warning: timezone not supported\n");
+#else
+		s -= timezone;	
+#endif 
+  	o = ldexp(D+s/86400.0,32);
+
+	return(o);
+}
+
+struct tm *gdf_time2tm_time(gdf_time t) {
+	/* based Octave's datevec.m 
+	it referes Peter Baum's algorithm at http://vsg.cape.com/~pbaum/date/date0.htm 
+	but the link is not working anymore as of 2008-12-03. 
+
+	Other links to Peter Baum's algorithm are
+	http://www.rexswain.com/b2mmddyy.rex
+	http://www.dpwr.net/forums/index.php?s=ecfa72e38be61327403126e23aeea7e5&showtopic=4309
+	*/
+
+	static struct tm tt;	// allocate memory for t3; 
+	struct tm *t3 = &tt;
+	int32_t rd = (int32_t)floor(ldexp((double)t,-32)); // days since 0001-01-01
+
+
+	/* derived from datenum.m from Octave 3.0.0 */  
+
+	// Move day 0 from midnight -0001-12-31 to midnight 0000-3-1
+	double z = floor (rd) - 60;
+	// Calculate number of centuries; K1 = 0.25 is to avoid rounding problems.
+	double a = floor ((z - 0.25) / 36524.25);
+	// Days within century; K2 = 0.25 is to avoid rounding problems.
+	double b = z - 0.25 + a - floor (a / 4);
+	// Calculate the year (year starts on March 1).
+	int y = floor (b / 365.25);
+    	// Calculate day in year.
+	double c = fix (b - floor (365.25 * y)) + 1;
+	// Calculate month in year.
+	double m = fix ((5 * c + 456) / 153);
+	double d = c - fix ((153 * m - 457) / 5);
+	
+	// Move to Jan 1 as start of year.
+	if (m>12) {y++; m-=12;} 
+	t3->tm_year = y-1900; 
+	t3->tm_mon  = m-1; 
+	t3->tm_mday = d; 
+
+	double s = ldexp((double) (t & 0x00000000ffffffff),-32)*86400 + 1; // seconds of the day 
+#ifdef __APPLE__
+		// ### FIXME: for some (unknown) reason, timezone does not work on MacOSX
+		printf("Warning: timezone not supported\n");
+#else
+		s += timezone;	
+#endif 
+	t3->tm_hour = (int)(floor (s / 3600));
+	s = s - 3600 * t3->tm_hour;
+	t3->tm_min = (int)(floor (s / 60));
+	t3->tm_sec = s - 60 * t3->tm_min;
+	//t3->tm_gmtoff = 3600;
+    	
+    	return(t3); 
+}
+
+
 /*
 	Interface for mixed use of ZLIB and STDIO 
 	If ZLIB is not available, STDIO is used. 
@@ -1505,7 +1620,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.size[0] = 0; 	// rows 
 	hdr->data.size[1] = 0;  // columns 
 	hdr->data.block = (biosig_data_type*)malloc(0); 
-      	hdr->T0 = (gdf_time)0; t_time2gdf_time(time(NULL));
+      	hdr->T0 = (gdf_time)0; 
       	hdr->tzmin = 0; 
       	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.75";
       	hdr->ID.Manufacturer._field[0]    = 0;
@@ -1617,11 +1732,14 @@ void destructHDR(HDRTYPE* hdr) {
 	sclose(hdr); 
 
     	if (hdr->aECG != NULL) {
-		free(((aECG_TYPE*)hdr->aECG)->Section8.Statements); 
-		free(((aECG_TYPE*)hdr->aECG)->Section11.Statements); 
+		if (((aECG_TYPE*)hdr->aECG)->Section8.NumberOfStatements>0)
+			free(((aECG_TYPE*)hdr->aECG)->Section8.Statements); 
+		if (((aECG_TYPE*)hdr->aECG)->Section11.NumberOfStatements>0)
+			free(((aECG_TYPE*)hdr->aECG)->Section11.Statements); 
     		free(hdr->aECG);
-
+    		hdr->aECG = NULL;
     	}
+
     	if (hdr->AS.bci2000 != NULL) free(hdr->AS.bci2000);
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.AS.rawdata\n");
@@ -1851,7 +1969,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     
     	else if (!memcmp(Header1,"DEMG",4))
 	    	hdr->TYPE = DEMG;
-    	else if (!memcmp(Header1+128,"DICM",4))
+    	else if (!memcmp(Header1+128,"DICM\x02\x00\x00\x00",8))
 	    	hdr->TYPE = DICOM;
     	else if (!memcmp(Header1, MAGIC_NUMBER_DICOM,18))
 	    	hdr->TYPE = DICOM;
@@ -2211,7 +2329,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 //    	double 		Dur; 
 	char*		ptr_str;
 	struct tm 	tm_time; 
-	time_t		tt;
+//	time_t		tt;
 	uint16_t	BCI2000_StatusVectorLength=0;	// specific for BCI2000 format 
 	uint16_t	EGI_LENGTH_CODETABLE=0;	// specific for EGI format 
 
@@ -2355,7 +2473,7 @@ if (!strncmp(MODE,"r",1))
 	    		tm_time.tm_year = atoi(tmp)-1900; 
 	    		tm_time.tm_isdst= -1; 
 
-			hdr->T0 = t_time2gdf_time(mktime(&tm_time)); 
+			hdr->T0 = tm_time2gdf_time(&tm_time); 
 		    	hdr->HeadLen 	= leu64p(hdr->AS.Header+184); 
 	    	}
 	    	else {
@@ -4080,7 +4198,7 @@ if (VERBOSE_LEVEL>8)
 					t2[8] =0;	tm_time.tm_mday = atoi(t2+6);
 					t2[6] =0;	tm_time.tm_mon  = atoi(t2+4)-1;
 					t2[4] =0;	tm_time.tm_year = atoi(t2)-1900;
-					hdr->T0 = t_time2gdf_time(mktime(&tm_time));
+					hdr->T0 = tm_time2gdf_time(&tm_time);
 				}
 				else 
 					FreeTextEvent(hdr,N_EVENT,t1+p2+1);
@@ -5005,12 +5123,8 @@ if (VERBOSE_LEVEL>8)
 						tm_time.tm_year += tm_time.tm_year<20 ? 100:0;
 						tm_time.tm_mon--;	// Jan=0, Feb=1, ...
 						gdf_time t0 = tm_time2gdf_time(&tm_time);
-						
-						time_t t;
-						t= gdf_time2t_time(hdr->T0);
-						t= gdf_time2t_time(t0);
 
-//						if (t0 >= hdr->T0) 
+						if (t0 >= hdr->T0) 
 						{
 							hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(ldexp(t0 - hdr->T0,-32)*24*3600*hdr->SampleRate);
 							//hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(atoi(strtok((char*)(LOG+lba+40+k1*45),"("))*hdr->SampleRate);
@@ -5711,7 +5825,7 @@ fprintf(stdout,"ASN1 [491]\n");
 		    		tm_time.tm_hour = 12; 
 		    		tm_time.tm_min  = 0; 
 		    		tm_time.tm_sec  = 0; 
-				hdr->Patient.Birthday  = t_time2gdf_time(mktime(&tm_time)); 
+				hdr->Patient.Birthday  = tm_time2gdf_time(&tm_time); 
 				//hdr->Patient.Age = buf[0] + cswap_u16(*(uint16_t*)(buf+1))/365.25;
 			}	
 			else if (tag==132)    //0x84
@@ -5732,7 +5846,7 @@ fprintf(stdout,"ASN1 [491]\n");
 		    		tm_time.tm_min  = buf[5]; 
 		    		tm_time.tm_sec  = buf[6]; 
 				
-				hdr->T0  = t_time2gdf_time(mktime(&tm_time)); 
+				hdr->T0  = tm_time2gdf_time(&tm_time); 
 				// add milli- and micro-seconds
 				if (SWAP) 
 					hdr->T0 += (uint64_t) ( (bswap_16(*(uint16_t*)(buf+7)) * 1e+3 + bswap_16(*(uint16_t*)(buf+9))) * ldexp(1.0,32) / (24*3600e6) );
@@ -6849,6 +6963,42 @@ fprintf(stdout,"ASN1 [491]\n");
 		hdr->data.size[1] = 0;
 	}	
 
+	else if (hdr->TYPE==DICOM) {
+		int bufsiz = 16384;
+		while (!ifeof(hdr)) {
+			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, count+bufsiz+1);
+		    	count += ifread(hdr->AS.Header+count, 1, bufsiz, hdr);
+		}
+	    	ifclose(hdr); 
+	    	hdr->AS.Header[count] = 0;
+		size_t pos = 132; 
+		
+		uint32_t Tag;
+		uint32_t Len;
+		while (pos<count) {	
+			if (hdr->FILE.LittleEndian) {
+				Tag = (leu16p(hdr->AS.Header+pos)<<16) + leu16p(hdr->AS.Header+pos+2);
+			//	tag[1] = leu16p(hdr->AS.Header+pos+4);
+				Len    = leu16p(hdr->AS.Header+pos+6);
+			}
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"%08x: %c%c %d\n",Tag,hdr->AS.Header[pos+4],hdr->AS.Header[pos+5],Len);			
+				
+			switch (Tag) {
+			case 0x00020000: 
+			case 0x00020001: 
+			default:;
+			}
+			pos += 8+Len; 
+		}
+
+/*
+    		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+    		B4C_ERRMSG = "ERROR BIOSIG SOPEN(READ): DICOM format is not supported yet";		
+    		ifclose(hdr);
+  */  		return(hdr);
+	}	
+
 	else if (hdr->TYPE==HL7aECG) {
 		sopen_HL7aECG_read(hdr);
 		if (VERBOSE_LEVEL>7)
@@ -7002,15 +7152,11 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     		// fprintf(fid,"\n[Header 1]\nNumberOfChannels\t= %i\n",hdr->NS);
     		//fprintf(fid,"NRec\t= %i\n",hdr->NRec);
     		fprintf(fid,"Duration         \t= %f\t# in seconds\n",hdr->SPR*hdr->NRec/hdr->SampleRate);
-    		struct tm *t; 
-    		time_t t0;
-    		t0 = gdf_time2t_time(hdr->T0);
-    		t  = localtime(&t0);
+    		struct tm *t = gdf_time2tm_time(hdr->T0); 
     		fprintf(fid,"Recording.Time    \t= %04i-%02i-%02i %02i:%02i:%02i\t# YYYY-MM-DD hh:mm:ss\n",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
 
     		fprintf(fid,"Patient.Id        \t= %s\n",hdr->Patient.Id);
-    		t0 = gdf_time2t_time(hdr->Patient.Birthday);
-    		t = localtime(&t0);
+    		t = gdf_time2tm_time(hdr->Patient.Birthday);
     		fprintf(fid,"Patient.Birthday  \t= %04i-%02i-%02i %02i:%02i:%02i\t# YYYY-MM-DD hh:mm:ss\n",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
     		fprintf(fid,"Patient.Weight    \t= %i\t# in [kg]\n",hdr->Patient.Weight);
     		fprintf(fid,"Patient.Height    \t= %i\t# in [cm]\n",hdr->Patient.Height);
@@ -7224,9 +7370,11 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	
 		if (VERBOSE_LEVEL>9)	
 			fprintf(stdout,"CFWB\n");	
-
+/* obsolete 
 		tt = gdf_time2t_time(hdr->T0); 
 		struct tm *t = localtime(&tt);
+*/
+		struct tm *t = gdf_time2tm_time(hdr->T0); 
     		*(uint32_t*)(Header1+16) = l_endian_u32(t->tm_year + 1900);
 	    	*(uint32_t*)(Header1+20) = l_endian_u32(t->tm_mon + 1);
 	    	*(uint32_t*)(Header1+24) = l_endian_u32(t->tm_mday);
@@ -7388,8 +7536,11 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		}
 		
 		if (hdr->VERSION<1.90) { 
+    			struct tm *t = gdf_time2tm_time(hdr->T0);
+/* obsolete
 			tt = gdf_time2t_time(hdr->T0); 
 			struct tm *t = localtime(&tt);
+*/
 			sprintf(tmp,"%04i%02i%02i%02i%02i%02i00",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
 			memcpy(Header1+168,tmp,max(strlen(tmp),16));
 			*(uint32_t*) (Header1+184) = l_endian_u32(hdr->HeadLen);
@@ -7605,8 +7756,12 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			Header1[0] = '0';
 	     	}
 
+/* obsolete 
 		tt = gdf_time2t_time(hdr->Patient.Birthday); 
 		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",localtime(&tt));
+*/	
+		struct tm *t = gdf_time2tm_time(hdr->Patient.Birthday); 
+		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",t);
 		else strcpy(tmp,"X");	
 		
 		if (strlen(hdr->Patient.Id) > 0) 
@@ -7622,16 +7777,16 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			
 	     	memcpy(Header1+8, cmd, strlen(cmd));
 	     	
-		tt = gdf_time2t_time(hdr->T0); 
-		if (hdr->T0>1) strftime(tmp,81,"%d-%b-%Y",localtime(&tt));
+		t = gdf_time2tm_time(hdr->T0); 
+		if (hdr->T0>1) strftime(tmp,81,"%d-%b-%Y",t);
 		else strcpy(tmp,"X");	
 		if (!strlen(hdr->ID.Technician)) strcpy(hdr->ID.Technician,"X");
 		size_t len = sprintf(cmd,"Startdate %s X %s ", tmp, hdr->ID.Technician);
 	     	memcpy(Header1+88, cmd, len);
 	     	memcpy(Header1+88+len, &hdr->ID.Equipment, 8);
 	     
-		tt = gdf_time2t_time(hdr->T0); 
-		strftime(tmp,81,"%d.%m.%y%H.%M.%S",localtime(&tt));
+		t = gdf_time2tm_time(hdr->T0); 
+		strftime(tmp,81,"%d.%m.%y%H.%M.%S",t);
 	     	memcpy(Header1+168, tmp, 16);
 
 		len = sprintf(tmp,"%i",hdr->HeadLen);
@@ -7830,8 +7985,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		// tag 131: Patient Age  
 		tag = 131;
 		len = 7;
-		tt = gdf_time2t_time(hdr->T0); 
-		struct tm *t = localtime(&tt);
+		struct tm *t = gdf_time2tm_time(hdr->T0);
 		Header1[curPos++] = tag; 
 		Header1[curPos++] = len; 
 		*(Header1+curPos) = (uint8_t)((hdr->T0 - hdr->Patient.Birthday)/365.25); 
@@ -7915,8 +8069,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     		hdr->FileName = FileName;
 	    	FILE *fid = fopen(FileName,"wb");
 		fprintf(fid,"FileId=TMSi PortiLab sample log file\n\rVersion=0001\n\r",NULL);
-		time_t t0 = gdf_time2t_time(hdr->T0);
-		struct tm *t = localtime(&t0);
+		struct tm *t = gdf_time2tm_time(hdr->T0);
 		fprintf(fid,"DateTime=%04d/02d/02d-02d:02d:02d\n\r",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
 		fprintf(fid,"Format=Float32\n\rLength=%f\n\rSignals=%04i\n\r",hdr->NRec*hdr->SPR/hdr->SampleRate,hdr->NS);
 		const char* fn = strrchr(FileName,FILESEP);
@@ -9346,15 +9499,15 @@ HDRTYPE* sload(const char* FileName, size_t ChanList[], biosig_data_type** DATA)
 int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 {
 	CHANNEL_TYPE* 	cp; 
-	time_t  	T0;
+	struct tm  	*T0;
 	float		age;
 
 	LoadGlobalEventCodeTable(); 
 
 	if (VERBOSE==7) {
-		T0 = gdf_time2t_time(hdr->T0);
+		T0 = gdf_time2tm_time(hdr->T0);
 		char tmp[60];
-		strftime(tmp, 59, "%x %X %Z", gmtime(&T0));
+		strftime(tmp, 59, "%x %X %Z", T0);
 		fprintf(fid,"\tStartOfRecording: %s\n",tmp); 
 		return(0);
 	}
@@ -9403,15 +9556,15 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		else 
 			fprintf(fid,"unknown\n"); 
 		if (hdr->Patient.Birthday) {
-			T0 = gdf_time2t_time(hdr->Patient.Birthday);
-			fprintf(fid,"\tAge             : %4.1f years\n\tBirthday        : (%.6f) %s ",age,ldexp(hdr->Patient.Birthday,-32),asctime(localtime(&T0)));
+			T0 = gdf_time2tm_time(hdr->Patient.Birthday);
+			fprintf(fid,"\tAge             : %4.1f years\n\tBirthday        : (%.6f) %s ",age,ldexp(hdr->Patient.Birthday,-32),asctime(T0));
 		}
 		else
 			fprintf(fid,"\tAge             : ----\n\tBirthday        : unknown\n");
 			 
-		T0 = gdf_time2t_time(hdr->T0);
-		strftime(tmp, 59, "%x %X %Z", localtime(&T0));
-		fprintf(fid,"\tStartOfRecording: (%.6f) %s\n",ldexp(hdr->T0,-32),asctime(localtime(&T0)));
+		T0 = gdf_time2tm_time(hdr->T0);
+		strftime(tmp, 59, "%x %X %Z", T0);
+		fprintf(fid,"\tStartOfRecording: (%.6f) %s\n",ldexp(hdr->T0,-32),asctime(T0));
 		if (hdr->AS.bci2000 != NULL) {
 			size_t c = min(39,strcspn(hdr->AS.bci2000,"\xa\xd"));
 			strncpy(tmp,hdr->AS.bci2000,c); tmp[c]=0;
