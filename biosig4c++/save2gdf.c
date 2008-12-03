@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.49 2008-12-01 09:21:27 schloegl Exp $
+    $Id: save2gdf.c,v 1.50 2008-12-03 11:23:13 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "biosig.h"
+#include "biosig-dev.h"
 
 #ifndef INF
 #define INF (1.0/0.0)
@@ -43,10 +43,7 @@ int main(int argc, char **argv){
     int		COMPRESSION_LEVEL=0;
     int		status, k; 
     int		TARGETSEGMENT=1; 	// select segment in multi-segment file format EEG1100 (Nihon Kohden)
-    int 	VERBOSE	= -1; 	
-#ifdef VERBOSE_LEVEL
-	VERBOSE = VERBOSE_LEVEL; 	
-#endif     	
+    int 	VERBOSE	= 1; 	
 	
     if (argc<2)
     	;
@@ -94,6 +91,10 @@ int main(int argc, char **argv){
 	}
     	else if (!strncmp(argv[k],"-VERBOSE",2))  	{
 	    	VERBOSE = argv[k][strlen(argv[k])-1]-48;
+#ifndef VERBOSE_LEVEL
+	// then VERBOSE_LEVEL is not a constant but a variable
+	VERBOSE_LEVEL = VERBOSE; 
+#endif
 	}
     	else if (!strncmp(argv[k],"-f=",3))  	{
     		if (0) {}

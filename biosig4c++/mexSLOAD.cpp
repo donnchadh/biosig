@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.47 2008-12-01 09:21:27 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.48 2008-12-03 11:23:13 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -12,7 +12,7 @@
 
  */
 
-#include "biosig.h"
+#include "biosig-dev.h"
 #include "mex.h"
 #include <math.h>
 #include <stdlib.h>
