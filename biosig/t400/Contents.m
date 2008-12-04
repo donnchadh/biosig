@@ -2,6 +2,8 @@
 %
 % TRAIN_SC      train classifier
 % TEST_SC       test  classifier
+% CLASSIFY	to classify samples into categories
+% XVAL		cross-validation procedure
 % UNTRAIN_SC	decremental training of classifier (depre
 % FC0   generates classifier from "asychronous" data
 % FINDCLASSIFIER generates BCI classifier [1-3]
@@ -33,9 +35,12 @@
 % [5] Schlögl A, Brunner C, Scherer R, Glatz A
 %       BioSig - an open source software library for BCI research.
 %       (Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R. Müller;
-%       Towards Brain-Computer Interfacing, MIT press (accepted).
-
-%	$Id: Contents.m,v 1.6 2006-08-22 17:45:37 schloegl Exp $
-%	Copyright (c) 1997-2005,2006 by Alois Schloegl
+%       Towards Brain-Computer Interfacing, MIT Press, 2007, p.347-358.
+% [6] Schlögl A., Brunner C.
+%	BioSig: A Free and Open Source Software Library for BCI Research,
+%	Computer, vol. 41, no. 10, pp. 44-50, October, 2008.
+%	
+%	$Id: Contents.m,v 1.7 2008-12-04 15:34:44 schloegl Exp $
+%	Copyright (c) 1997-2005,2006,2008 by Alois Schloegl
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
