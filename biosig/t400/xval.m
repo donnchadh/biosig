@@ -1,13 +1,15 @@
-function [R,CC]=xval(D,classlabel,MODE)
+function [R,CC]=xval(D,classlabel,MODE,arg4)
 % XVAL is used for crossvalidation 
 %
 %  [R,CC] = xval(D,classlabel)
-%  .. = xval(D,classlabel,MODE)
-%  .. = xval(D,[classlabel,NG],...)
+%  .. = xval(D,classlabel,CLASSIFIER)
+%  .. = xval(D,classlabel,CLASSIFIER,type)
+%  .. = xval(D,[classlabel,NG],CLASSIFIER)
 %
 % Input:
 %    D 	data features (one feature per column, one sample per row)
 %    classlabel  classlabel (same number of rows)
+%    CLASSIFIER can be any classifier supported by train_sc (default='LDA')
 %    NG: used to define the type of cross-valdiation
 % 	Leave-One-Out-Method (LOOM): NG = [1:length(classlabel)]' (default)
 % 	Leave-K-Out-Method: NG = ceil([1:length(classlabel)]'/K)
@@ -15,7 +17,9 @@ function [R,CC]=xval(D,classlabel,MODE)
 %	group-wise XV (if samples are not indepentent) can be also defined here
 %	samples from the same group (dependent samples) get the same identifier
 %	samples from different groups get different classifiers
-%  MODE can be any classifier supported by train_sc
+%    TYPE  defines the type of cross-validation procedure if NG is not specified 
+%	'LOOM'  leave-one-out-method
+%       k	k-fold crossvalidation
 %
 % OUTPUT: 
 %    R contains the resulting performance metric
@@ -27,7 +31,7 @@ function [R,CC]=xval(D,classlabel,MODE)
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
 
-%	$Id: xval.m,v 1.1 2008-12-04 15:34:44 schloegl Exp $
+%	$Id: xval.m,v 1.2 2008-12-05 12:38:21 schloegl Exp $
 %	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -45,7 +49,9 @@ function [R,CC]=xval(D,classlabel,MODE)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-if nargin<3, MODE = 'LDA'; end;
+if (nargin<3) || isempty(MODE), 
+	MODE = 'LDA'; 
+end;
 if ischar(MODE) 
         tmp = MODE; 
         clear MODE; 
@@ -62,8 +68,13 @@ end;
 if size(classlabel,2)>1,
 	%% group-wise classvalidation
 	[tmp,tmp1,NG] = unique(classlabel(:,2));
-else
+elseif nargin<4
 	%% LOOM 
+	NG = [1:sz(1)]';	
+elseif isscalar(arg4) && isnumeric(arg4)
+	% K-fold XV
+	NG = ceil([1:length(classlabel)]'*arg4/length(classlabel));
+elseif strcmpi(arg4,'LOOM')
 	NG = [1:sz(1)]';	
 end; 
 
