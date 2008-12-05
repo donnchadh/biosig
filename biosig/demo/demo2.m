@@ -33,7 +33,7 @@
 %   	BioSig: A Free and Open Source Software Library for BCI Research.
 %	Computer (2008, In Press)	
 
-%	$Id: demo2.m,v 1.16 2008-11-07 11:14:42 schloegl Exp $
+%	$Id: demo2.m,v 1.17 2008-12-05 12:37:56 schloegl Exp $
 %	Copyright (C) 1999-2003,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -188,9 +188,9 @@ MODE.T(CC2.TI,[1,end])/HDR.SampleRate,
 MODE.T(CC3.TI,[1,end])/HDR.SampleRate, 
  
 % Accordingly, the time-varying distance is available 
-d1 = [ones(size(a1,1),1),a1]*CC1.weights;
-d2 = [ones(size(a2,1),1),a2]*CC2.weights;
-d3 = [ones(size(a3,1),1),a3]*CC3.weights;
+d1 = [ones(size(f1,1),1),f1]*CC1.weights;
+d2 = [ones(size(f2,1),1),f2]*CC2.weights;
+d3 = [ones(size(f3,1),1),f3]*CC3.weights;
 % Note, if the same a1,a2,a3 were already used for classifier training, 
 %   these results are subject to overfitting. 
 
@@ -203,22 +203,22 @@ d3 = [ones(size(a3,1),1),a3]*CC3.weights;
 fprintf(1,'Step 5: classifier.\n');
 
 % the various evaluation criteria are discussed in Schlogl, Kronegg et 2007. 
-fprintf(1,'\t Fig 1: results from TDP+%s.\n',TYPE);
+fprintf(1,'\t Fig 1: results from TDP+%s.\n',TYPE.TYPE);
 figure(1);
 plota(CC1)
 
-fprintf(1,'\t Fig 2: results from AAR+%s results.\n',TYPE);
+fprintf(1,'\t Fig 2: results from AAR+%s results.\n',TYPE.TYPE);
 figure(2);
 plota(CC2)
 
-fprintf(1,'\t Fig 3: results from BandPower+%s results.\n',TYPE);
+fprintf(1,'\t Fig 3: results from BandPower+%s results.\n',TYPE.TYPE);
 figure(3);
 plota(CC3)
 
 
 fprintf(1,'\t Fig 3+: various evaluation criteria [Schlögl et al. 2007] for comparing different features ');
 
-LEG= {['TDP+',TYPE],['AAR+',TYPE],['BP+',TYPE]};
+LEG= {['TDP+',TYPE.TYPE],['AAR+',TYPE.TYPE],['BP+',TYPE.TYPE]};
 M = length(unique(HDR.Classlabel));
 FFIELD = {'ERR','r','I','SNR','AUC','ACC00','KAP00','I_wolpaw','I_Nykopp','STMI'}; 
 TIT = {'Error rate','correlation coefficient','Mutual information','Signal-to-Noise ratio','Area-under-the-ROC-curve','Accuracy','Cohens kappa coefficient','Information transfer [Wolpaw]','Information transfer [Nykopp]','Steepness of mutual information'};
