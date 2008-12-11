@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.29 2008-12-03 11:18:29 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.30 2008-12-11 07:47:49 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -39,10 +39,17 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 	char tmp[80]; 
 	TiXmlDocument doc(hdr->FileName);
 
+	if (VERBOSE_LEVEL>8)
+		fprintf(stdout,"hl7r: [411]\n"); 
+
 	if(doc.LoadFile()){
 	    TiXmlHandle hDoc(&doc);
 	    TiXmlHandle aECG = hDoc.FirstChild("AnnotatedECG");
 	    if(aECG.Element()){
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"hl7r: [412]\n"); 
+
 	    	char *strtmp = strdup(aECG.FirstChild("id").Element()->Attribute("root"));
 	    	size_t len = strlen(strtmp); 
 	    	if (len>MAX_LENGTH_RID)	
@@ -99,13 +106,14 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		if (!hdr->FLAG.ANONYMOUS) 
 		{
 			demographic = demographic.FirstChild("subjectDemographicPerson");
-		
-			TiXmlElement *name = demographic.FirstChild("name").Element();
-			if (name) {
-				size_t len = strlen(name->GetText());
+			const char *name = demographic.FirstChild("name").Element()->GetText();
+
+			if (name!=NULL) {
+				size_t len = strlen(name);
+
 				if (len>MAX_LENGTH_NAME)
 					fprintf(stdout,"Warning HL7aECG(read): length of Patient Name exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
-				strncpy(hdr->Patient.Name, name->GetText(), MAX_LENGTH_NAME);
+				strncpy(hdr->Patient.Name, name, MAX_LENGTH_NAME);
 			}	
 			else {
 				hdr->Patient.Name[0] = 0;
