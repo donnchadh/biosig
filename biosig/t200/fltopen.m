@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.15 2008-11-17 11:11:49 schloegl Exp $
+%	$Id: fltopen.m,v 1.16 2008-12-12 08:44:21 schloegl Exp $
 %	Copyright (c) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -213,16 +213,9 @@ if any(HDR.FILE.PERMISSION=='r'),
 	grad.group_id = HDR.FLT.channels.grp_id;
 	HDR.MEG.grad = grad; 
 
-	%% compute HDR.ELEC.XYZ - experimental 
+	%% compute HDR.ELEC.XYZ
 	cal = HDR.FLT.channels.Cal;
-	HDR.ELEC.XYZ1 = abs(cal)*(HDR.FLT.sensors.XYZabcArea(:,1:3)); 
-	HDR.ELEC.XYZ3 = cal*(HDR.FLT.sensors.XYZabcArea(:,1:3)); 
-	cal = diag(1./sum(abs(cal),2))*abs(cal);
-	HDR.ELEC.XYZ2 = abs(cal)*(HDR.FLT.sensors.XYZabcArea(:,1:3)); 
-	%HDR.ELEC.Orientation = HDR.FLT.channels.Cal*HDR.FLT.sensors.XYZabcArea(:,4:6); 
-	%HDR.ELEC.Area = HDR.FLT.channels.Cal*abs(HDR.FLT.sensors.XYZabcArea(:,7));
-	%% -- end --- 	
-	
+	HDR.ELEC.XYZ = abs(cal)*(HDR.FLT.sensors.XYZabcArea(:,1:3));
 	 
 	HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
 	if HDR.GDFTYP < 10,
