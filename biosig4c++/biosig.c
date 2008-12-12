@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.270 2008-12-03 11:18:29 schloegl Exp $
+    $Id: biosig.c,v 1.271 2008-12-12 13:41:21 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -916,12 +916,8 @@ gdf_time   tm_time2gdf_time(struct tm *t){
 
   	// Add fraction representing current second of the day.
   	s = t->tm_hour*3600 + t->tm_min*60 + t->tm_sec; 
-#ifdef __APPLE__
-		// ### FIXME: for some (unknown) reason, timezone does not work on MacOSX
-		printf("Warning: timezone not supported\n");
-#else
-		s -= timezone;	
-#endif 
+
+	// s -= timezone;	
   	o = ldexp(D+s/86400.0,32);
 
 	return(o);
@@ -965,12 +961,8 @@ struct tm *gdf_time2tm_time(gdf_time t) {
 	t3->tm_mday = d; 
 
 	double s = ldexp((double) (t & 0x00000000ffffffff),-32)*86400 + 1; // seconds of the day 
-#ifdef __APPLE__
-		// ### FIXME: for some (unknown) reason, timezone does not work on MacOSX
-		printf("Warning: timezone not supported\n");
-#else
-		s += timezone;	
-#endif 
+	// s += timezone;	
+
 	t3->tm_hour = (int)(floor (s / 3600));
 	s = s - 3600 * t3->tm_hour;
 	t3->tm_min = (int)(floor (s / 60));
@@ -1224,9 +1216,9 @@ void convert2to4_eventtable(HDRTYPE *hdr) {
 	sort_eventtable(hdr);
 	
 	if (hdr->EVENT.DUR == NULL) 
-		hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) calloc(N,sizeof(typeof(*hdr->EVENT.DUR)));
+		hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) calloc(N,sizeof(*hdr->EVENT.DUR));
 	if (hdr->EVENT.CHN == NULL)
-		hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) calloc(N,sizeof(typeof(*hdr->EVENT.CHN)));
+		hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) calloc(N,sizeof(*hdr->EVENT.CHN));
 
 	for (k1=0; k1<N; k1++) {
 		typeof(*hdr->EVENT.TYP) typ =  hdr->EVENT.TYP[k1];
@@ -1260,8 +1252,8 @@ void convert4to2_eventtable(HDRTYPE *hdr) {
 	for (k1=0; k1<N; k1++) 
 		if (hdr->EVENT.CHN[k1]) return; 	
 	 	
-	hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,2*N*sizeof(typeof(*hdr->EVENT.TYP)));
-	hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,2*N*sizeof(typeof(*hdr->EVENT.POS)));
+	hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,2*N*sizeof(*hdr->EVENT.TYP));
+	hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,2*N*sizeof(*hdr->EVENT.POS));
 
 	for (k1=0,k2=N; k1<N; k1++) 
 		if (hdr->EVENT.DUR[k1]) {
@@ -4585,16 +4577,15 @@ if (VERBOSE_LEVEL>8)
     		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
 	    	ptr_str = (char*)hdr->AS.Header+137;
 	    	hdr->Patient.Handedness = (ptr_str[0]=='r')*2 + (ptr_str[0]=='R')*2 + (ptr_str[0]=='L') + (ptr_str[0]=='l');
-	    	ptr_str = (char*)hdr->AS.Header+255;
+	    	ptr_str = (char*)hdr->AS.Header+225;
 	    	tm_time.tm_sec  = atoi(strncpy(tmp,ptr_str+16,2)); 
     		tm_time.tm_min  = atoi(strncpy(tmp,ptr_str+13,2)); 
     		tm_time.tm_hour = atoi(strncpy(tmp,ptr_str+10,2)); 
     		tm_time.tm_mday = atoi(strncpy(tmp,ptr_str,2)); 
-    		tm_time.tm_mon  = atoi(strncpy(tmp,ptr_str+3,2)-1); 
+    		tm_time.tm_mon  = atoi(strncpy(tmp,ptr_str+3,2))-1; 
     		tm_time.tm_year = atoi(strncpy(tmp,ptr_str+6,2)); 
 
-	    	if (tm_time.tm_year<=80)    	tm_time.tm_year += 2000;
-	    	else if (tm_time.tm_year<100) 	tm_time.tm_year += 1900;
+	    	if (tm_time.tm_year<=80)    	tm_time.tm_year += 100;
 		hdr->T0 = tm_time2gdf_time(&tm_time); 
 		
 		hdr->NS  = leu16p(hdr->AS.Header+370); 
@@ -4956,10 +4947,10 @@ if (VERBOSE_LEVEL>8)
 				ifread(h2+22, 1, 2+n2*20-22, hdr);
 			}
 
-			hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,(hdr->EVENT.N+n2)*sizeof(typeof(*hdr->EVENT.TYP)));
-			hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,(hdr->EVENT.N+n2)*sizeof(typeof(*hdr->EVENT.POS)));
-			hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,(hdr->EVENT.N+n2)*sizeof(typeof(*hdr->EVENT.CHN)));
-			hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,(hdr->EVENT.N+n2)*sizeof(typeof(*hdr->EVENT.DUR)));
+			hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,(hdr->EVENT.N+n2)*sizeof(*hdr->EVENT.TYP));
+			hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,(hdr->EVENT.N+n2)*sizeof(*hdr->EVENT.POS));
+			hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,(hdr->EVENT.N+n2)*sizeof(*hdr->EVENT.CHN));
+			hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,(hdr->EVENT.N+n2)*sizeof(*hdr->EVENT.DUR));
 
 //			if (n2>1) fprintf(stdout,"EEG1100: more than 1 segment [%i,%i] not supported.\n",n1,n2);
 			for (k2=0; k2<n2; k2++) {
@@ -5112,10 +5103,10 @@ if (VERBOSE_LEVEL>8)
 				for (k=0; k<LOG[145]; k++) {
 					int lba = leu32p(LOG+146+k*20);
 					int N = LOG[lba+18]; 
-					hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,(hdr->EVENT.N+N)*sizeof(typeof(*hdr->EVENT.TYP)));
-					hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,(hdr->EVENT.N+N)*sizeof(typeof(*hdr->EVENT.POS)));
-					hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,(hdr->EVENT.N+N)*sizeof(typeof(*hdr->EVENT.CHN)));
-					hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,(hdr->EVENT.N+N)*sizeof(typeof(*hdr->EVENT.DUR)));
+					hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,(hdr->EVENT.N+N)*sizeof(*hdr->EVENT.TYP));
+					hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,(hdr->EVENT.N+N)*sizeof(*hdr->EVENT.POS));
+					hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,(hdr->EVENT.N+N)*sizeof(*hdr->EVENT.CHN));
+					hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,(hdr->EVENT.N+N)*sizeof(*hdr->EVENT.DUR));
 					for (k1=0; k1<N; k1++) {
 						FreeTextEvent(hdr,hdr->EVENT.N,(char*)(LOG+lba+20+k1*45));
 						// fprintf(stdout,"%s %s\n",(char*)(LOG+lba+20+k1*45),(char*)(LOG+lba+40+k1*45));
@@ -6169,9 +6160,9 @@ fprintf(stdout,"ASN1 [491]\n");
 
 			/* decode ATR annotation information */
 			size_t N = count; 
-			hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,N*sizeof(typeof(*hdr->EVENT.TYP)));
-			hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,N*sizeof(typeof(*hdr->EVENT.POS)));
-			hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,N*sizeof(typeof(*hdr->EVENT.CHN)));
+			hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,N*sizeof(*hdr->EVENT.TYP));
+			hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,N*sizeof(*hdr->EVENT.POS));
+			hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,N*sizeof(*hdr->EVENT.CHN));
 			
 			hdr->EVENT.N   = 0;
 			hdr->EVENT.SampleRate = hdr->SampleRate;
@@ -6209,7 +6200,7 @@ fprintf(stdout,"ASN1 [491]\n");
 				}
 			}
 			if (flag_chn)
-				hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,N*sizeof(typeof(*hdr->EVENT.DUR)));
+				hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,N*sizeof(*hdr->EVENT.DUR));
 			else {
 				free(hdr->EVENT.CHN);
 				hdr->EVENT.CHN = NULL;
@@ -8289,7 +8280,8 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	for (k1=0,NS=0; k1<hdr->NS; ++k1)
 		if (hdr->CHANNEL[k1].OnOff) ++NS; 
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"SREAD: pos=[%i,%i,%i,%i], size of data = %ix%ix%ix%i = %i\n",start,length,POS,hdr->FILE.POS,hdr->SPR, count, NS, sizeof(biosig_data_type), hdr->SPR * count * NS * sizeof(biosig_data_type));
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stdout,"SREAD: pos=[%i,%i,%i,%i], size of data = %ix%ix%ix%i = %i\n",start,length,POS,hdr->FILE.POS,hdr->SPR, count, NS, sizeof(biosig_data_type), hdr->SPR * count * NS * sizeof(biosig_data_type));
 
 	// transfer RAW into BIOSIG data format 
 	if (data==NULL)
