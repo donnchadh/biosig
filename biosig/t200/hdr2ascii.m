@@ -12,7 +12,7 @@ function [argout,H1,h2] = hdr2ascii(source,dest)
 %  
 % see also: SLOAD, SOPEN
 
-%	$Id: hdr2ascii.m,v 1.14 2008-09-04 09:36:16 schloegl Exp $
+%	$Id: hdr2ascii.m,v 1.15 2008-12-12 13:43:49 schloegl Exp $
 %	Copyright (C) 2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -34,8 +34,12 @@ if nargin<2,
 	if isstruct(source) 
 		HDR = source; 
 	elseif ischar(source)
-		HDR = sopen(source);
-		HDR = sclose(HDR); 
+		if any(source=='*')
+			[s,HDR]=sload(source); 
+		else
+			HDR = sopen(source);
+			HDR = sclose(HDR); 
+		end; 	
 	else
 		'not implemented yet',
 	end;	
@@ -124,6 +128,23 @@ if isfield(HDR,'Patient')
 		fprintf(fid,'\tBirthday\t= %04i-%02i-%02i %02i:%02i:%06.3f\n',T1); 
 	end;
 end;
+
+if isfield(HDR,'Manufacturer')
+	fprintf(fid,'Manufacturer.\n');
+	if isfield(HDR.Manufacturer,'Name')
+		fprintf(fid,'\tName\t\t= %s\n',HDR.Manufacturer.Name); 
+	end; 	
+	if isfield(HDR.Manufacturer,'Model')
+		fprintf(fid,'\tModel\t\t= %s\n',HDR.Manufacturer.Model); 
+	end; 	
+	if isfield(HDR.Manufacturer,'Version')
+		fprintf(fid,'\tVersion \t= %s\n',HDR.Manufacturer.Version); 
+	end; 	
+	if isfield(HDR.Manufacturer,'SerialNumber')
+		fprintf(fid,'\tSerialNumber \t= %s\n',HDR.Manufacturer.SerialNumber); 
+	end; 	
+end;
+
 
 %%%%%%%% CHANNEL DATA %%%%%%%%%%%%%%%
 if ~isfield(HDR,'AS') && isfield(HDR,'SampleRate')
