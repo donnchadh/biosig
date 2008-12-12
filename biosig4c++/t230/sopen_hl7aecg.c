@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.31 2008-12-11 08:37:32 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.32 2008-12-12 16:06:55 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -110,18 +110,20 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		{
 			demographic = demographic.FirstChild("subjectDemographicPerson");
 			TiXmlElement *Name1 = demographic.FirstChild("name").Element();
-			const char *name = demographic.FirstChild("name").Element()->GetText();
 
-			if (name != NULL) {
-				size_t len = strlen(name);
 
-				if (len>MAX_LENGTH_NAME)
-					fprintf(stdout,"Warning HL7aECG(read): length of Patient Name exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
-				strncpy(hdr->Patient.Name, name, MAX_LENGTH_NAME);
-			}	
-			else if (Name1 != NULL) {
-				fprintf(stderr,"Warning: composite subject name is not supported.\n");
-				hdr->Patient.Name[0] = 0;
+			if (Name1 != NULL) {
+				const char *name = demographic.FirstChild("name").Element()->GetText();
+				if (name != NULL) {
+					size_t len = strlen(name);
+	
+					if (len>MAX_LENGTH_NAME)
+						fprintf(stdout,"Warning HL7aECG(read): length of Patient Name exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
+					strncpy(hdr->Patient.Name, name, MAX_LENGTH_NAME);
+				}	
+				else {
+					fprintf(stderr,"Warning: composite subject name is not supported.\n");
+					hdr->Patient.Name[0] = 0;
 /*
 				### FIXME: support of composite patient name.  
 
@@ -133,10 +135,11 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 					strncpy(hdr->Patient.Name, Name1, MAX_LENGTH_NAME);
 				}
 */
+				}	
 			}	
 			else {
 				hdr->Patient.Name[0] = 0;
-				fprintf(stderr,"Warning: Patient Name could not be read.\n");
+				fprintf(stderr,"Warning: Patient Name not available could not be read.\n");
 			}	
 		}		
 
