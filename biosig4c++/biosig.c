@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.271 2008-12-12 13:41:21 schloegl Exp $
+    $Id: biosig.c,v 1.272 2008-12-17 14:11:24 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1624,14 +1624,14 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->ID.Hospital 	= "\x00";
 	memset(hdr->IPaddr, 0, 16);
 
-//#if (!__MINGW32__ || (__GNUC__ > 3)) 
-#ifndef WITHOUT_NETWORK
-	///### FIXME for mingw32g++ on windows 
-
       	// set default technician name to local IP address  
 	getlogin_r(hdr->ID.Technician, MAX_LENGTH_TECHNICIAN); 
 	//hdr->ID.Technician[MAX_LENGTH_TECHNICIAN]=0;
 	
+#ifndef WITHOUT_NETWORK
+//#if (!__MINGW32__ || (__GNUC__ > 3)) 
+	///### FIXME for mingw32g++ on windows 
+
       	// set default IP address to local IP address  
 	char localhostname[HOST_NAME_MAX+1];
 
@@ -8218,7 +8218,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	size_t			toffset = 0;	// time offset for rawdata
 
 	if (VERBOSE_LEVEL>8)
-		fprintf(stdout,"####SREAD########## start=%u length=%u\n",start,length);
+		fprintf(stdout,"####SREAD########## start=%d length=%d\n",start,length);
 
 	switch (hdr->TYPE) {
 	case ETG4000: 

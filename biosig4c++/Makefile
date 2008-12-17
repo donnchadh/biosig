@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.64 2008-12-02 09:00:23 schloegl Exp $
+###  $Id: Makefile,v 1.65 2008-12-17 14:11:24 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -11,23 +11,19 @@
 
 CC            = $(CXX)
 CXX           = g++-4.1
-MinGWCXX      = i586-mingw32msvc-g++
-MEX	      = /opt/MatlabR2008a/bin/mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
+MEX	      = mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 #DEFINES      = -D=WITHOUT_SCP_DECODE
 DEFINES       = #-D=WITH_ZLIB #-D=WITH_ANS1 #-D=WITH_EEPROBE -D=WITH_ANS1 #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES) # -I cntopenlib/include/
-MinGWCFLAGS   = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT -D=WITHOUT_NETWORK $(DEFINES)
 AR            = ar crs
 INCPATH       = 
 #LINK          = gcc
 LINK          = $(CXX)
-MinGWLINK     = i586-mingw32msvc-g++
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        =
-#LIBS          = -lz -L. -lbiosig  	# dynamic
+#LIBS          = -lz  -lbiosig  	# dynamic
 LIBS          = libbiosig.a -lz 	# static
-MinGWLIBS     = win32/libbiosig.a -lz	# static
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
 
@@ -35,7 +31,13 @@ SWIG          = swig
 PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 TASN1_DIR     = /home/schloegl/src/libtasn1-1.5/lib/
 LIBTASN1      = $(TASN1_DIR).libs/libtasn1.a 
- 
+
+# MinGW Crosscompiler: compile on linux binaries for windows  
+MinGWCXX      = i586-mingw32msvc-g++ # 
+MinGWCFLAGS   = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT $(DEFINES) # -D=WITHOUT_NETWORK
+MinGWLIBS     = win32/libbiosig.a -lz	# static
+MinGWLINK     = i586-mingw32msvc-g++
+
 ####### Output directory
 
 OBJ	      = ./obj
@@ -55,6 +57,7 @@ SOURCES       = biosig.c \
 		t220/sopen_scp_write.c \
 		t220/crc4scp.c \
 		t230/sopen_hl7aecg.c \
+		win32/getlogin_r.c \
 		test0/sandbox.c 
 		
 OBJECTS       = biosig.o \
@@ -68,6 +71,7 @@ OBJECTS       = biosig.o \
 		sopen_scp_write.o \
 		crc4scp.o \
 		sopen_hl7aecg.o \
+		getlogin_r.o \
 		sandbox.o
 		 
 		
@@ -83,7 +87,7 @@ MinGWOBJECTS  = win32/biosig.obj \
 		win32/sopen_scp_write.obj \
 		win32/crc4scp.obj \
 		win32/sopen_hl7aecg.obj \
-		win32/sandbox.obj \
+		win32/sandbox.obj 
 #		win32/zlib/lib/zdll.lib		
 
 TARGET        = save2gdf save2aecg save2scp libbiosig.a #libbiosig.so #sigviewer
@@ -145,6 +149,9 @@ sopen_scp_write.o: t220/sopen_scp_write.c biosig-dev.h biosig.h
 sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
 		XMLParser/tinyxml.h XMLParser/tinystr.h XMLParser/Tokenizer.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_hl7aecg.o t230/sopen_hl7aecg.c
+	
+getlogin_r.o: win32/getlogin_r.c
+	$(CC) -c $(CFLAGS) $(INCPATH) -o getlogin_r.o win32/getlogin_r.c
 
 tinystr.o: XMLParser/tinystr.cpp XMLParser/tinystr.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinystr.o XMLParser/tinystr.cpp
@@ -201,6 +208,7 @@ win32/biosig.obj: biosig.c biosig-dev.h biosig.h  win32/zlib/include/zlib.h
 win32/libbiosig.a: $(MinGWOBJECTS) 
 	i586-mingw32msvc-$(AR) win32/libbiosig.a $(MinGWOBJECTS) 
 	
+	
 win32/physicalunits.obj: physicalunits.c biosig.h  win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/physicalunits.obj physicalunits.c
 
@@ -231,6 +239,9 @@ win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h win32/zlib/i
 		XMLParser/tinyxml.h XMLParser/tinystr.h XMLParser/Tokenizer.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_hl7aecg.obj t230/sopen_hl7aecg.c
 
+win32/getlogin_r.obj: win32/getlogin_r.c
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
+
 win32/tinystr.obj: XMLParser/tinystr.cpp XMLParser/tinystr.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinystr.obj XMLParser/tinystr.cpp
 
@@ -242,9 +253,6 @@ win32/tinyxmlerror.obj: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h XMLParser
 
 win32/tinyxmlparser.obj: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinyxmlparser.obj XMLParser/tinyxmlparser.cpp
-
-win32/getlogin_r.obj: win32/getlogin_r.c
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
 
 win32/save2gdf.exe: save2gdf.c $(MinGWLIBS)  
 	$(MinGWCXX) $(MinGWCFLAGS) save2gdf.c $(LFLAGS) $(MinGWOBJECTS) -lws2_32 -o win32/save2gdf.exe 
@@ -289,6 +297,7 @@ mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
 	mkoctfile -D=mexSOPEN mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSLOAD.mex 
 
 sigviewer :../sigviewer/bin/sigviewer
+	make -C ../sigviewer/src  
 ../sigviewer/bin/sigviewer: libbiosig.a 
 	# symbolic link to latest biosig4c
 	rm -rf ../sigviewer/extern/biosig.h
@@ -417,7 +426,7 @@ remove:
 	# EDF+ example data set
 #	wget -q -P/home/schloegl/data/EDF/ http://www.edfplus.info/downloads/files/osas.zip
 #	unzip -u "/tmp/osas.zip"  -d /tmp
-	unzip -u /home/schloegl/data/EDF/osas.zip  -d /tmp
+	unzip -u /home/schloegl/data/test/edf/osas.zip  -d /tmp
 	cp "/tmp/Osas2002plusQRS.edf" /tmp/t1.edf
 	touch /tmp/t1.edf
 
@@ -502,8 +511,8 @@ zip: /tmp/t1.scp save2gdf
 
 test6: /tmp/t1.scp save2gdf
 	cp /tmp/t1.scp t0.xxx
-test7: /tmp/t1.edf save2gdf
-	cp /tmp/t1.edf t0.xxx
+	#test7: /tmp/t1.edf save2gdf
+	#cp /tmp/t1.edf t0.xxx
 	./save2gdf -z -f=GDF1 t0.xxx t1.gd1
 	./save2gdf -z -f=GDF t0.xxx t1.gdf
 	./save2gdf -z -f=EDF t0.xxx t1.edf

@@ -3,12 +3,15 @@ getlogin_r is missing in mingw; the following code was suggested here
 http://article.gmane.org/gmane.comp.kde.devel.cygwin/410
 in 2002-11-30 by Martin Fuchs <martin-fuchs@gmx.at> 
 
-% $Id: getlogin_r.c,v 1.1 2008-08-11 07:55:24 schloegl Exp $
+% $Id: getlogin_r.c,v 1.2 2008-12-17 14:11:24 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
     
  */
+
+#if __MINGW32__
+
 
 #include <windows.h>
 #include <malloc.h>
@@ -19,6 +22,7 @@ in 2002-11-30 by Martin Fuchs <martin-fuchs@gmx.at>
 
 #define	SUCCESS	EOK
 #define	FAILURE	ERANGE
+
 
 int getlogin_r(char* name, size_t namesize)
 {
@@ -58,4 +62,6 @@ int getlogin_r(char* name, size_t namesize)
 
 	return SUCCESS;
 }
+
+#endif
 
