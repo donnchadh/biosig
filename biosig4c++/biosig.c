@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.273 2008-12-18 12:13:03 schloegl Exp $
+    $Id: biosig.c,v 1.274 2008-12-18 13:43:39 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2662,7 +2662,7 @@ if (!strncmp(MODE,"r",1))
 
 		if (hdr->NRec < 0) {
 			ifseek(hdr, hdr->HeadLen, SEEK_SET);
-			int count = 0;
+			nrec_t count = 0;
 			uint8_t *buf = (uint8_t*)malloc(hdr->AS.bpb);  
 			while (ifread(buf,hdr->AS.bpb,1,hdr)) count++;
 			free(buf); 
@@ -2978,7 +2978,7 @@ if (!strncmp(MODE,"r",1))
 			uint8_t *Marker = (uint8_t*)malloc(len * sz+1);
 			size_t skip 	= hdr->AS.bpb - hdr->CHANNEL[EventChannel].SPR * sz;
 			ifseek(hdr, hdr->HeadLen + hdr->AS.bi[EventChannel], SEEK_SET);
-			for (k=0; k<hdr->NRec; k++) {
+			for (nrec_t k=0; k<hdr->NRec; k++) {
 			    	ifread(Marker+k*hdr->CHANNEL[EventChannel].SPR * sz, 1, hdr->CHANNEL[EventChannel].SPR * sz, hdr);
 				ifseek(hdr, skip, SEEK_CUR);
 			}
@@ -4960,7 +4960,7 @@ if (VERBOSE_LEVEL>8)
 			
 				typeof(hdr->NS) NS = h3[38];
 				typeof(hdr->SampleRate) SampleRate = leu16p(h3+26) & 0x3fff;
-				typeof(hdr->NRec) NRec = leu32p(h3+28) * SampleRate * 0.1;
+				nrec_t NRec = leu32p(h3+28) * SampleRate * 0.1;
 				size_t HeadLen = pos2 + 39 + 10*NS;
 
 				hdr->EVENT.TYP[hdr->EVENT.N] = 0x7ffe;
@@ -5926,7 +5926,7 @@ fprintf(stdout,"ASN1 [491]\n");
 			}
 	    	}
 	    	if ((ptr != NULL) && strlen(ptr)) {
-			hdr->NRec = (typeof(hdr->NRec))strtod(ptr,&ptr);
+			hdr->NRec = (nrec_t)strtod(ptr,&ptr);
 		}
 	    	if ((ptr != NULL) && strlen(ptr)) {
 			struct tm t; 
@@ -6652,7 +6652,7 @@ fprintf(stdout,"ASN1 [491]\n");
 				else if (!strcmp(field,"Resolution"))
 					hdr->CHANNEL[ch].Cal=atof(val);
 				else if (!strcmp(field,"StoreRate")) {
-					hdr->NRec = (int64_t)atof(val)*duration;
+					hdr->NRec = (nrec_t)atof(val)*duration;
 					hdr->CHANNEL[ch].SPR = 1; 
 					// hdr->CHANNEL[ch].SPR=atof(val)*duration;
 					//hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[ch].SPR);
@@ -8170,6 +8170,36 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 
 
+/****************************************************************************
+ 	caching: load data of whole file into buffer                      
+		 this will speed up data access, especially in interactive mode 
+ ****************************************************************************/
+
+
+int cachingWholeFile(HDRTYPE* hdr) {
+
+	if (hdr->NRec<0) 
+		return (-1); // failed, data size not known 
+	
+	if ((hdr->AS.first == 0) && (hdr->NRec == hdr->AS.last)) 
+		return(0); 	// data is already in cache 
+
+	if (ifseek(hdr, hdr->HeadLen, SEEK_SET)<0)
+		return(-1);
+		
+	nrec_t count; 	
+		// allocate AS.rawdata 	
+	hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*hdr->NRec);
+		
+		// read data
+	hdr->AS.last = ifread(hdr->AS.rawdata, hdr->AS.bpb, hdr->NRec, hdr);
+//	if ((count<nelem) && ((hdr->NRec < 0) || (hdr->NRec > start+count))) hdr->NRec = start+count; // get NRec if NRec undefined, not tested yet.
+
+	hdr->AS.first = 0;
+	return(0); 
+}
+
+
 /****************************************************************************/
 /**	SREAD : segment-based                                              **/
 /****************************************************************************/
@@ -8215,7 +8245,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	size_t			toffset = 0;	// time offset for rawdata
 
 
-//	if (VERBOSE_LEVEL>8)
+	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"####SREAD########## start=%d length=%d\n",start,length);
 
 	if (start < 0) 
@@ -9328,7 +9358,7 @@ int sclose(HDRTYPE* hdr)
 		{	if (pos>0) 	hdr->NRec = pos/hdr->AS.bpb;
 			else		hdr->NRec = 0; 	
 			if (hdr->TYPE==GDF) {
-				*(uint64_t*)tmp = l_endian_u64(hdr->NRec);
+				*(int64_t*)tmp = l_endian_i64(hdr->NRec);
 				len = sizeof(hdr->NRec);
 			}
 			else {

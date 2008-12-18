@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.128 2008-12-18 12:13:03 schloegl Exp $
+% $Id: biosig.h,v 1.129 2008-12-18 13:43:39 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -464,6 +464,11 @@ int 	sflush_gdf_event_table(HDRTYPE* hdr);
 /*	writes the event table of file hdr. hdr must define a file in GDF format  
  *  	and can be opened as read or write. 
  *	In case of success, the return value is 0. 
+ --------------------------------------------------------------- */
+
+int 	cachingWholeFile(HDRTYPE* hdr);
+/*	caching: load data of whole file into buffer                      
+ *		 this will speed up data access, especially in interactive mode 
  --------------------------------------------------------------- */
 
 
