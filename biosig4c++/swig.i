@@ -1,6 +1,6 @@
 /*
 %
-% $Id: swig.i,v 1.22 2008-12-01 07:59:09 schloegl Exp $
+% $Id: swig.i,v 1.23 2008-12-18 12:13:03 schloegl Exp $
 % Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -40,7 +40,10 @@
         import_array();
 %}
 
-typedef int64_t gdf_time; /* gdf time is represented in 64 bits */
+typedef int64_t gdf_time; 	/* gdf time is represented in 64 bits */
+
+typedef int64_t nrec_t; 	/* type for number of records */
+
 
 	/* list of file formats */
 enum FileFormat {
@@ -217,6 +220,8 @@ typedef struct {
 		uint32_t 	*bi;
 		uint8_t*	Header; 
 		uint8_t*	rawdata; 	/* raw data block */
+		nrec_t		first;		/* first block loaded in buffer - this is equivalent to hdr->FILE.POS */
+		nrec_t		last;		/* last block loaded in buffer */
 		uint8_t*	auxBUF;		/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor */
 		char*		bci2000;
 	} AS;

@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.272 2008-12-17 14:11:24 schloegl Exp $
+    $Id: biosig.c,v 1.273 2008-12-18 12:13:03 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1596,13 +1596,17 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 
 	hdr->FILE.OPEN = 0;
 	hdr->FILE.FID = 0;
+    	hdr->FILE.POS = 0; 
 
 	hdr->AS.Header = NULL;
 	hdr->AS.auxBUF = NULL; 
 
       	hdr->TYPE = noFile; 
       	hdr->VERSION = 2.0;
-      	hdr->AS.rawdata = (uint8_t*) malloc(0);
+      	hdr->AS.rawdata = NULL; //(uint8_t*) malloc(0);
+	hdr->AS.first = 0;
+	hdr->AS.last  = -1;  // no data loaded 
+
       	hdr->NRec = 0; 
       	hdr->NS = NS;	
 	hdr->SampleRate = 4321.5;
@@ -1737,7 +1741,7 @@ void destructHDR(HDRTYPE* hdr) {
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.AS.rawdata\n");
 
     	if ((hdr->AS.rawdata != NULL) && (hdr->TYPE != SCP_ECG)) 
-    	{	// for SCP: hdr->AS.rawdata is part of hdr.AS.Header 
+    	{	// for SCP: hdr->AS.rawdata is part of hdr->AS.Header 
         	free(hdr->AS.rawdata);
         }	
 
@@ -2360,6 +2364,8 @@ if (!strncmp(MODE,"r",1))
 		fprintf(stdout,"[201] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
 
     	count = iftell(hdr); 
+    	hdr->AS.first=  0; 
+    	hdr->AS.last = -1; 
 	if (hdr->TYPE == GDF) {
 		uint32_t Dur[2];
       	    	strncpy(tmp,(char*)hdr->AS.Header+3,5); tmp[5]=0;
@@ -2717,7 +2723,6 @@ if (!strncmp(MODE,"r",1))
 		}	
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[228] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
-	    	hdr->FILE.POS = 0; 
 		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
 
 		// if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 217] #=%li\n",iftell(hdr));
@@ -3114,7 +3119,6 @@ if (!strncmp(MODE,"r",1))
 		}	/* End reading EDF/BDF Status channel */
 
 		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
-	    	hdr->FILE.POS = 0; 
 	}      	
 
 	else if (hdr->TYPE==ABF) {
@@ -3190,7 +3194,6 @@ if (!strncmp(MODE,"r",1))
 			}
 			free(b);
 	    	}	
-	    	hdr->FILE.POS = 0; 
 	}      	
 
 	else if (hdr->TYPE==ACQ) {
@@ -3320,7 +3323,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		} 
 */
 		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
-	    	hdr->FILE.POS = 0; 
 	}      	
 
 	else if (hdr->TYPE==AINF) {
@@ -3393,7 +3395,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->NRec = iftell(hdr)/hdr->AS.bpb;
 	        ifseek(hdr, 0, SEEK_SET);
 		hdr->HeadLen   = 0;
-	    	hdr->FILE.POS  = 0; 
 		// hdr->FLAG.SWAP = (__BYTE_ORDER == __LITTLE_ENDIAN);  	// AINF is big endian 
 		hdr->FILE.LittleEndian = 0; 
 		/* restore input file name, and free temporary file name  */
@@ -3670,6 +3671,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 			}
 			line = strtok(NULL,"\x0a\x0d");
 		}
+		hdr->AS.last  = hdr->NRec; 
     	}
     	
 	else if (hdr->TYPE==BCI2000) {
@@ -3980,7 +3982,6 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 		    	hdr->CHANNEL[k].LeadIdCode  = 0;
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// BKR does not support automated overflow and saturation detection
-	    	hdr->FILE.POS = 0; 
 	}
 
 	else if (hdr->TYPE==BLSC) {
@@ -4049,7 +4050,6 @@ if (VERBOSE_LEVEL>8)
 		    	hdr->CHANNEL[k].PhysDimCode = 4275; // uV
     			hdr->CHANNEL[k].LeadIdCode  = 0;
 		}
-	    	hdr->FILE.POS = 0; 
 	        ifseek(hdr, 0, SEEK_END);	// TODO: replace SEEK_END
 		hdr->NRec = iftell(hdr)/hdr->NS;
 	        ifseek(hdr, hdr->HeadLen, SEEK_SET);
@@ -4120,8 +4120,6 @@ if (VERBOSE_LEVEL>8)
 		    	hdr->CHANNEL[k].PhysDimCode = 4275; // uV
     			hdr->CHANNEL[k].LeadIdCode  = 0;
 		}
-	    	hdr->FILE.POS = 0; 
-
 	}
 
 	else if (hdr->TYPE==BrainVisionMarker) {
@@ -4478,7 +4476,6 @@ if (VERBOSE_LEVEL>8)
 					
 			// t = strtok(NULL,"\x0a\x0d");	// extract next line
 		}
-	    	hdr->FILE.POS = 0; 
 		hdr->HeadLen  = 0;
 	    	if (FLAG_ASCII) {
 	    		count = 0; 
@@ -4515,6 +4512,7 @@ if (VERBOSE_LEVEL>8)
 		    		*(double*)(hdr->AS.rawdata+k*sizeof(double)) = strtod(POS,&POS);
 	    		}
 	    		hdr->TYPE = native;
+			hdr->AS.last  = hdr->NRec; 
 	    	}
 	}
 
@@ -4565,7 +4563,6 @@ if (VERBOSE_LEVEL>8)
 			hdr->CHANNEL[k].OnOff    = 1;
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// CFWB does not support automated overflow and saturation detection
-	    	hdr->FILE.POS = 0; 
 	}
 
 	else if (hdr->TYPE==CNT) {
@@ -4662,7 +4659,6 @@ if (VERBOSE_LEVEL>8)
 	    	}
 	    	ifseek(hdr, hdr->HeadLen, SEEK_SET);
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
-	    	hdr->FILE.POS = 0; 
 	}
 
 	else if (hdr->TYPE==CTF) {
@@ -4812,7 +4808,6 @@ if (VERBOSE_LEVEL>8)
 		hdr->HeadLen  = ifread(hdr->AS.Header,1,8,hdr);
 		// hdr->FLAG.SWAP= (__BYTE_ORDER == __LITTLE_ENDIAN); 
 		hdr->FILE.LittleEndian = 0; 
-		hdr->FILE.POS = 0; 
 
 		hdr->FileName = f0; 	
 		free(f1);
@@ -4865,7 +4860,6 @@ if (VERBOSE_LEVEL>8)
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// automated overflow and saturation detection not supported
 	    	hdr->HeadLen = 19; 
 	    	ifseek(hdr, 19, SEEK_SET);
-	    	hdr->FILE.POS = 0; 
 	}
 
 	else if (hdr->TYPE==EEG1100) {
@@ -5076,7 +5070,6 @@ if (VERBOSE_LEVEL>8)
 		free(h2); 
 		free(h3); 
 		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
-		hdr->FILE.POS = 0; 
 		if ((numSegments>1) && (hdr->FLAG.TARGETSEGMENT==1))
 			fprintf(stdout,"File %s has more than one (%i) segment; use TARGET_SEGMENT argument to select other segments.\n",hdr->FileName,numSegments); 
 
@@ -5190,7 +5183,6 @@ if (VERBOSE_LEVEL>8)
 		POS += 4*EGI_LENGTH_CODETABLE;	    	// skip event codes
 		hdr->HeadLen = POS; 
 		ifseek(hdr,hdr->HeadLen,SEEK_SET);
-		hdr->FILE.POS  = 0;
 
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 	    	for (k=0; k<hdr->NS; k++) {
@@ -5410,7 +5402,7 @@ if (VERBOSE_LEVEL>8)
 			hdr->EVENT.POS[hdr->EVENT.N-1] = pos; 
 			hdr->EVENT.TYP[hdr->EVENT.N-1] = Mark | 0x8000; 
 		}
-	    	hdr->FILE.POS = 0; 
+		hdr->AS.last  = hdr->NRec; 
 	}
 
     	else if (hdr->TYPE==FAMOS) {
@@ -5882,7 +5874,6 @@ fprintf(stdout,"ASN1 [491]\n");
 	 		hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
 	    		hdr->CHANNEL[k].OnOff   = 1;
 	 	}	
-	    	hdr->FILE.POS = 0; 
 	}
 
 	else if (hdr->TYPE==MIT) {
@@ -6262,6 +6253,7 @@ fprintf(stdout,"ASN1 [491]\n");
 			B4C_ERRMSG = "MIT/HEA/PhysioBank: multiply data files within a single data set is not supported\n";
 			return(hdr);
 		}	 	
+		hdr->AS.last  = hdr->NRec; 
 	} /* END OF MIT FORMAT */
 	
 	else if (hdr->TYPE==NIFTI) {
@@ -6320,7 +6312,7 @@ fprintf(stdout,"ASN1 [491]\n");
 		serror();
 		// hdr->FLAG.SWAP = 0; 	// no swapping
 		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN); 	// no swapping 
-	    	hdr->FILE.POS  = 0; 
+		hdr->AS.last = hdr->NRec; 
 	}
 
 	else if (hdr->TYPE==Sigma) {  /********* Sigma PLpro ************/
@@ -6458,7 +6450,6 @@ fprintf(stdout,"ASN1 [491]\n");
 		hdr->SPR = (typeof(hdr->SPR))round(hdr->SampleRate/minFs);
 		for (k=0; k<hdr->NS; k++) hdr->CHANNEL[k].SPR = (typeof(hdr->SPR))round(fs[k]/minFs);
 		free(fs); 
-	    	hdr->FILE.POS  = 0; 
 	}	/******* end of Sigma PLpro ********/
 
 /*	
@@ -6586,7 +6577,6 @@ fprintf(stdout,"ASN1 [491]\n");
 		}
 		hdr->NS = aux;
 		hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
-		hdr->FILE.POS = 0; 
 	}
 	
 	else if (hdr->TYPE==TMSiLOG) {
@@ -6775,6 +6765,7 @@ fprintf(stdout,"ASN1 [491]\n");
 			}
 		}
 		free(fullfilename); 
+		hdr->AS.last  = hdr->NRec; 
 
 		if (VERBOSE_LEVEL>8) 
 			fprintf(stdout,"TMSi [149] \n");
@@ -6998,6 +6989,7 @@ fprintf(stdout,"ASN1 [491]\n");
     		if (serror()) return(hdr);
     		// hdr->FLAG.SWAP = 0; 
 		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN); 
+		hdr->AS.last  = hdr->NRec; 
 	}
 
 	else {
@@ -8168,7 +8160,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			fprintf(stdout,"GDFTYP=%i [12bit BE/LE] not well tested\n",hdr->CHANNEL[k].GDFTYP);
 	else if  ((__BYTE_ORDER == __BIG_ENDIAN) && !hdr->FILE.LittleEndian)
 			fprintf(stdout,"GDFTYP=%i [12bit BE/BE] not well tested\n",hdr->CHANNEL[k].GDFTYP);
-
 	}
 	
 	if (VERBOSE_LEVEL>8)
@@ -8206,71 +8197,72 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
  *             >=0: start reading from position start
  *        length  : try to read length blocks
  *
+ *
+ * ToDo:
+ *	- sample-based loading 
+ *
+ *
+ *
  */
 
 	size_t			count,k1,k2,k3,k4,k5,SZ,nelem,NS; 
 	uint16_t		GDFTYP;
 	size_t	 		DIV;
-	uint8_t			*ptr, *buffer;
+	uint8_t			*ptr; // *buffer;
 	CHANNEL_TYPE		*CHptr;
 	int32_t			int32_value;
 	biosig_data_type 	sample_value; 
 	size_t			toffset = 0;	// time offset for rawdata
 
-	if (VERBOSE_LEVEL>8)
+
+//	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"####SREAD########## start=%d length=%d\n",start,length);
 
-	switch (hdr->TYPE) {
-	case ETG4000: 
-	case MIT: 	toffset = start;	
-	case BIN: 		
-	case EVENT: 		
-	case HL7aECG:
-	case native: 		
-	case SCP_ECG: 
-	case TMSiLOG: {
-		// hdr->AS.rawdata was defined in SOPEN	
-		if (start < 0) 
-			start = hdr->FILE.POS;
-		else 
-			hdr->FILE.POS = start; 	
-			
-		count = max(min(length, hdr->NRec - hdr->FILE.POS),0);
-		buffer = hdr->AS.rawdata + toffset*hdr->AS.bpb;
-		break; 
-		}		
-	default: {
-		// check reading segment 
-		// if ((start < 0) || (start > hdr->NRec)) 
-		if (start < 0) 
-			start = hdr->FILE.POS;
-		else if (start > hdr->NRec) 
-			return(0);
-		else if (ifseek(hdr, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET)<0)
+	if (start < 0) 
+		start = hdr->FILE.POS;
+	else if (start > hdr->NRec) 
+		return(0);
+
+	// limit reading to end of data block
+	if (hdr->NRec<0)
+		nelem = length;
+	else 
+		nelem = max(min(length, hdr->NRec - start),0);
+
+
+	if ((start >= hdr->AS.first) && ((nrec_t)(start+nelem) <= hdr->AS.last)) {
+		// Caching, no file-IO, data is already loaded into hdr->AS.rawdata
+		hdr->FILE.POS = start; 	
+		count = nelem; 
+	}
+	else {
+	
+		if (ifseek(hdr, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET)<0)
 			return(0);
 		else	
 			hdr->FILE.POS = start; 	
-		
-		// limit reading to end of data block
-		if (hdr->NRec<0)
-			nelem = length;
-		else 
-			nelem = max(min(length, hdr->NRec - hdr->FILE.POS),0);
 
 		// allocate AS.rawdata 	
 		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*nelem);
-		buffer = hdr->AS.rawdata;
+//		buffer = hdr->AS.rawdata;
 
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"#sread(%i %li)\n",hdr->HeadLen + hdr->FILE.POS*hdr->AS.bpb, iftell(hdr));
 		
 		// read data
 		count = ifread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr);
+//		if ((count<nelem) && ((hdr->NRec < 0) || (hdr->NRec > start+count))) hdr->NRec = start+count; // get NRec if NRec undefined, not tested yet.
 		if (count<nelem)
 			fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong (bpb=%i,pos=%li)\n",count,nelem,hdr->AS.bpb,iftell(hdr)); 
 //		else    fprintf(stderr,"              %i            %i blocks read                        (bpb=%i,pos=%li)\n",count,nelem,hdr->AS.bpb,iftell(hdr)); 
-		}
+
+		hdr->AS.first = hdr->FILE.POS;
+		hdr->AS.last  = hdr->AS.first + count;  
 	}
+	// data is now in buffer hdr->AS.rawdata 
+
+	
+	toffset = start - hdr->AS.first;
 	
 	// set position of file handle 
 	size_t POS = hdr->FILE.POS;
@@ -8281,7 +8273,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		if (hdr->CHANNEL[k1].OnOff) ++NS; 
 
 	if (VERBOSE_LEVEL>8) 
-		fprintf(stdout,"SREAD: pos=[%i,%i,%i,%i], size of data = %ix%ix%ix%i = %i\n",start,length,POS,hdr->FILE.POS,hdr->SPR, count, NS, sizeof(biosig_data_type), hdr->SPR * count * NS * sizeof(biosig_data_type));
+		fprintf(stdout,"SREAD: count=%i pos=[%i,%i,%i,%i], size of data = %ix%ix%ix%i = %i\n",count,start,length,POS,hdr->FILE.POS,hdr->SPR, count, NS, sizeof(biosig_data_type), hdr->SPR * count * NS * sizeof(biosig_data_type));
 
 	// transfer RAW into BIOSIG data format 
 	if (data==NULL)
@@ -8317,6 +8309,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		for (k4 = 0; k4 < count; k4++)
 		for (k5 = 0; k5 < CHptr->SPR; k5++) 
 		{
+
 		// get source address 	
 		if (hdr->TYPE==TMS32)
 			ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + (k1+k5*hdr->NS)*(SZ>>3)+86;
@@ -9246,7 +9239,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	}
 	
 	// set position of file handle 
-	(hdr->FILE.POS) += count; 
+	hdr->FILE.POS += count; 
 
 	return(count);
 
@@ -9258,7 +9251,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 /****************************************************************************/
 int seof(HDRTYPE* hdr)
 {
-	return(hdr->FILE.POS >= hdr->NRec);
+	return (hdr->FILE.POS >= hdr->NRec);
 }
 
 

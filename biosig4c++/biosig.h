@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.127 2008-12-03 11:18:29 schloegl Exp $
+% $Id: biosig.h,v 1.128 2008-12-18 12:13:03 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -164,6 +164,7 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 gdf_time   tm_time2gdf_time(struct tm *t);
 struct tm *gdf_time2tm_time(gdf_time t);
 
+typedef int64_t 		nrec_t;	/* type for number of records */
 
 /****************************************************************************/
 /**                                                                        **/
@@ -233,7 +234,7 @@ typedef struct {
 	uint32_t 	HeadLen ATT_ALI;	/* length of header in bytes */
 	uint16_t 	NS 	ATT_ALI;	/* number of channels */
 	uint32_t 	SPR 	ATT_ALI;	/* samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR) */
-	int64_t  	NRec 	ATT_ALI;	/* number of records/blocks -1 indicates length is unknown. */	
+	nrec_t  	NRec 	ATT_ALI;	/* number of records/blocks -1 indicates length is unknown. */	
 	uint32_t 	Dur[2] 	__attribute__ ((deprecated));	/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
 	double 		SampleRate ATT_ALI;	/* Sampling rate */
 	uint8_t 	IPaddr[16] ATT_ALI; 	/* IP address of recording device (if applicable) */
@@ -337,6 +338,8 @@ typedef struct {
 		uint32_t 	*bi;
 		uint8_t*	Header; 
 		uint8_t*	rawdata; 	/* raw data block */
+		nrec_t		first;		/* first block loaded in buffer - this is equivalent to hdr->FILE.POS */
+		nrec_t		last;		/* last block loaded in buffer */
 		uint8_t*	auxBUF;  	/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor */
 		char*		bci2000;
 	} AS ATT_ALI;
