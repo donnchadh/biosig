@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.129 2008-12-18 13:43:39 schloegl Exp $
+% $Id: biosig.h,v 1.130 2008-12-23 12:56:11 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -213,6 +213,7 @@ typedef struct {
 	
 	uint16_t 	GDFTYP 		ATT_ALI;	/* data type */
 	uint32_t 	SPR 		ATT_ALI;	/* samples per record (block) */
+	uint32_t	bi 		ATT_ALI;	/* start byte (byte index) of channel within data block */
 	
 } CHANNEL_TYPE	ATT_ALI;
 
@@ -333,13 +334,13 @@ typedef struct {
 	struct {
 //		char 		PID[MAX_LENGTH_PID+1];	/* use HDR.Patient.Id instead */
 //		char* 		RID;		/* recording identification */ 
-		uint32_t 	spb;		/* total samples per block */
+//		uint32_t 	spb __attribute__ ((deprecated)); /* total samples per block */
 		uint32_t 	bpb;  		/* total bytes per block */
-		uint32_t 	*bi;
+//		uint32_t 	*bi __attribute__ ((deprecated)); /* this information redundant with HDR.CHANNEL[k].bi[0] - and is now obsolete */
 		uint8_t*	Header; 
 		uint8_t*	rawdata; 	/* raw data block */
 		nrec_t		first;		/* first block loaded in buffer - this is equivalent to hdr->FILE.POS */
-		nrec_t		last;		/* last block loaded in buffer */
+		nrec_t		length;		/* number of block(s) loaded in buffer */
 		uint8_t*	auxBUF;  	/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor */
 		char*		bci2000;
 	} AS ATT_ALI;

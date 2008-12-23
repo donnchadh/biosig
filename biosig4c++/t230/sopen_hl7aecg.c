@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.32 2008-12-12 16:06:55 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.33 2008-12-23 12:56:11 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -68,17 +68,7 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 
 		struct tm t0; 
 		T0[14] = '\0';
-		// ### ?FIXME?: compensate local time and DST in mktime used in tm_time2gdf_time below 
-
 		t0.tm_sec  = atoi(T0+12);  	
-/*	obsolete 
-#ifdef __APPLE__
-		// ### FIXME: for some (unknown) reason, timezone does not work on MacOSX
-		printf("Warning SOPEN(HL7aECG,read): timezone not supported\n");
-#else
-		t0.tm_sec  = atoi(T0+12)-timezone;	
-#endif 
-*/
 		T0[12] = '\0';
 		t0.tm_min  = atoi(T0+10);
 		T0[10] = '\0';
@@ -113,7 +103,7 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 
 
 			if (Name1 != NULL) {
-				const char *name = demographic.FirstChild("name").Element()->GetText();
+				const char *name = Name1->GetText();
 				if (name != NULL) {
 					size_t len = strlen(name);
 	
@@ -123,7 +113,9 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 				}	
 				else {
 					fprintf(stderr,"Warning: composite subject name is not supported.\n");
-					hdr->Patient.Name[0] = 0;
+					for (int k=1;k<40;k++)
+						fprintf(stderr,"%c.",((char*)Name1)[k]);
+					//hdr->Patient.Name[0] = 0;
 /*
 				### FIXME: support of composite patient name.  
 
@@ -245,30 +237,32 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 
 		channel = channels.Child("component", 1).FirstChild("sequence");
+		hdr->AS.bpb = 0; 
 		for(int i = 0; channel.Element(); ++i, channel = channels.Child("component", i+1).FirstChild("sequence")){
 
 		    const char *code = channel.FirstChild("code").Element()->Attribute("code");
 		    
-			if (VERBOSE_LEVEL>8)
+  		    CHANNEL_TYPE *hc = hdr->CHANNEL+i;
+  		    if (VERBOSE_LEVEL>8)
 				fprintf(stdout,"hl7r: [420] %i\n",i); 
 
-		    strncpy(hdr->CHANNEL[i].Label,code,min(40,MAX_LENGTH_LABEL));
-		    hdr->CHANNEL[i].Label[MAX_LENGTH_LABEL] = '\0';
-		    hdr->CHANNEL[i].Transducer[0] = '\0';
-		    hdr->CHANNEL[i].GDFTYP = 5;	// int32
+		    strncpy(hc->Label,code,min(40,MAX_LENGTH_LABEL));
+		    hc->Label[MAX_LENGTH_LABEL] = '\0';
+		    hc->Transducer[0] = '\0';
+		    hc->GDFTYP = 5;	// int32
 
 		    std::vector<std::string> vector;
 		    stringtokenizer(vector, channel.FirstChild("value").FirstChild("digits").Element()->GetText());
 
-		    hdr->CHANNEL[i].SPR = vector.size();
+		    hc->SPR = vector.size();
 		    if (i==0) {
-		    	hdr->SPR = hdr->CHANNEL[i].SPR;
+		    	hdr->SPR = hc->SPR;
 			hdr->AS.rawdata = (uint8_t *)realloc(hdr->AS.rawdata, 4*hdr->NS*hdr->SPR*hdr->NRec);
 		    }
-		    else if (hdr->SPR != hdr->CHANNEL[i].SPR) {
-			if (hdr->SPR != lcm(hdr->SPR, hdr->CHANNEL[i].SPR)) 
+		    else if (hdr->SPR != hc->SPR) {
+			if (hdr->SPR != lcm(hdr->SPR, hc->SPR)) 
 			{
-				fprintf(stderr,"Error: number of samples %i of #%i differ from %i in #0.\n",hdr->CHANNEL[i].SPR,i+1,hdr->SPR);
+				fprintf(stderr,"Error: number of samples %i of #%i differ from %i in #0.\n",hc->SPR,i+1,hdr->SPR);
 				B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
 				B4C_ERRMSG = "HL7aECG: initial sample rate is not a multiple of all samplerates";
 				exit(-5);
@@ -277,47 +271,49 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		    }	
 
 		    /* read data samples */	
-		    int32_t* data = (int32_t*)(hdr->AS.rawdata + (GDFTYP_BITS[hdr->CHANNEL[i].GDFTYP]>>3)*i*(hdr->SPR));
-		    size_t DIV = hdr->SPR/hdr->CHANNEL[i].SPR;
-		    for(size_t j=0; j<hdr->CHANNEL[i].SPR; ++j) {
+		    int32_t* data = (int32_t*)(hdr->AS.rawdata + (GDFTYP_BITS[hc->GDFTYP]>>3)*i*(hdr->SPR));
+		    size_t DIV = hdr->SPR/hc->SPR;
+		    for(size_t j=0; j<hc->SPR; ++j) {
 			size_t k=0;
 			data[j*DIV+k] = atoi(vector[j].c_str());
 			while (++k<DIV) data[j*DIV+k] = data[j*DIV+k-1]; 
 			  
 			/* get Min/Max */
-			if(data[j] > hdr->CHANNEL[i].DigMax) {
-			    hdr->CHANNEL[i].DigMax = data[j];
+			if(data[j] > hc->DigMax) {
+			    hc->DigMax = data[j];
 			}
-			if(data[j] < hdr->CHANNEL[i].DigMin){
-			    hdr->CHANNEL[i].DigMin = data[j];
+			if(data[j] < hc->DigMin){
+			    hc->DigMin = data[j];
 			}
 		    }
-		    hdr->CHANNEL[i].OnOff = 1;
-      		    hdr->CHANNEL[i].SPR = hdr->SPR; 	    
+		    hc->OnOff = 1;
+      		    hc->SPR = hdr->SPR; 	    
+		    hc->bi = hdr->AS.bpb;
+  		    hdr->AS.bpb += hc->SPR*GDFTYP_BITS[hc->GDFTYP]>>3;
  	    
 
 		    /* scaling factors */ 
-		    hdr->CHANNEL[i].Cal  = atof(channel.FirstChild("value").FirstChild("scale").Element()->Attribute("value"));
-		    hdr->CHANNEL[i].Off  = atof(channel.FirstChild("value").FirstChild("origin").Element()->Attribute("value"));
-		    hdr->CHANNEL[i].DigMax += 1;
-		    hdr->CHANNEL[i].DigMin -= 1;
-		    hdr->CHANNEL[i].PhysMax = hdr->CHANNEL[i].DigMax*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
-		    hdr->CHANNEL[i].PhysMin = hdr->CHANNEL[i].DigMin*hdr->CHANNEL[i].Cal + hdr->CHANNEL[i].Off;
+		    hc->Cal  = atof(channel.FirstChild("value").FirstChild("scale").Element()->Attribute("value"));
+		    hc->Off  = atof(channel.FirstChild("value").FirstChild("origin").Element()->Attribute("value"));
+		    hc->DigMax += 1;
+		    hc->DigMin -= 1;
+		    hc->PhysMax = hc->DigMax*hc->Cal + hc->Off;
+		    hc->PhysMin = hc->DigMin*hc->Cal + hc->Off;
 
 		    /* Physical units */ 
 		    strncpy(tmp, channel.FirstChild("value").FirstChild("origin").Element()->Attribute("unit"),20);
- 		    hdr->CHANNEL[i].PhysDimCode = PhysDimCode(tmp);
+ 		    hc->PhysDimCode = PhysDimCode(tmp);
  		    
-		    hdr->CHANNEL[i].LowPass  = LowPass;
-		    hdr->CHANNEL[i].HighPass = HighPass;
-		    hdr->CHANNEL[i].Notch    = Notch;
-// 			hdr->CHANNEL[i].XYZ[0]   = l_endian_f32( *(float*) (Header2+ 4*k + 224*hdr->NS) );
-// 			hdr->CHANNEL[i].XYZ[1]   = l_endian_f32( *(float*) (Header2+ 4*k + 228*hdr->NS) );
-// 			hdr->CHANNEL[i].XYZ[2]   = l_endian_f32( *(float*) (Header2+ 4*k + 232*hdr->NS) );
+		    hc->LowPass  = LowPass;
+		    hc->HighPass = HighPass;
+		    hc->Notch    = Notch;
+// 			hc->XYZ[0]   = l_endian_f32( *(float*) (Header2+ 4*k + 224*hdr->NS) );
+// 			hc->XYZ[1]   = l_endian_f32( *(float*) (Header2+ 4*k + 228*hdr->NS) );
+// 			hc->XYZ[2]   = l_endian_f32( *(float*) (Header2+ 4*k + 232*hdr->NS) );
 // 				//memcpy(&hdr->CHANNEL[k].XYZ,Header2 + 4*k + 224*hdr->NS,12);
-// 			hdr->CHANNEL[i].Impedance= ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);
+// 			hc->Impedance= ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);
 
-//		    hdr->CHANNEL[i].Impedance = INF;
+//		    hc->Impedance = INF;
 //		    for(int k1=0; k1<3; hdr->CHANNEL[index].XYZ[k1++] = 0.0);
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0;
@@ -503,7 +499,6 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 
 	if (hdr->Patient.Birthday>0) {
 		t0 = gdf_time2tm_time(hdr->Patient.Birthday);
-		// t0 = localtime(&T0);
 
 		// TODO: fixme if "t0->tm_sec"
 		sprintf(tmp, "%04d%02d%02d%02d%02d%02d.000", t0->tm_year+1900, t0->tm_mon+1, t0->tm_mday, t0->tm_hour, t0->tm_min, t0->tm_sec);
@@ -743,7 +738,7 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 
 	for(unsigned int j=0; j<hdr->CHANNEL[i].SPR; ++j) {
 
-	    digitsStream << (*(int32_t*)(hdr->AS.rawdata + hdr->AS.bi[i] + (j*GDFTYP_BITS[hdr->CHANNEL[i].GDFTYP]>>3))) << " ";
+	    digitsStream << (*(int32_t*)(hdr->AS.rawdata + hdr->CHANNEL[i].bi + (j*GDFTYP_BITS[hdr->CHANNEL[i].GDFTYP]>>3))) << " ";
 //	    digitsStream << hdr->data.block[hdr->SPR*i + j] << " ";
 	}
 

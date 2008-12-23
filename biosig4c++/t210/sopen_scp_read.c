@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.63 2008-12-03 11:18:29 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.64 2008-12-23 12:56:11 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -572,7 +572,7 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 					aECG->Diagnosis = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==14) {
-					if (len1>80)
+					if (len1>85)
 						fprintf(stderr,"Warning SCP(r): length of tag14 %i>40\n",len1);
 					memcpy(hdr->ID.Manufacturer._field,(char*)PtrCurSect+curSectPos,min(len1,MAX_LENGTH_MANUF)); 
 					hdr->ID.Manufacturer._field[min(len1,MAX_LENGTH_MANUF)] = 0;
@@ -911,24 +911,28 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 
 			Ptr2datablock = (PtrCurSect+curSectPos + 6 + hdr->NS*2);   // pointer for huffman decoder
 			len = 0;  
-			size_t ix; 			
+			size_t ix;
+			hdr->AS.bpb   = hdr->NS * hdr->SPR*GDFTYP_BITS[gdftyp]>>3;  
 			for (i=0; i < hdr->NS; i++) {
 				if (VERBOSE_LEVEL>8)
 					fprintf(stdout,"sec6-%i\n",i);
 				
-				hdr->CHANNEL[i].SPR 	    = hdr->SPR;
-				hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV"
-				hdr->CHANNEL[i].Cal 	    = Cal0 * 1e-3;
-				hdr->CHANNEL[i].Off         = 0;
-				hdr->CHANNEL[i].OnOff       = 1;    // 1: ON 0:OFF
-				hdr->CHANNEL[i].Transducer[0] = 0;
-				hdr->CHANNEL[i].GDFTYP      = gdftyp;  
+				CHANNEL_TYPE *hc = hdr->CHANNEL+i;
+				hc->SPR 	= hdr->SPR;
+				hc->PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV"
+				hc->Cal 	= Cal0 * 1e-3;
+				hc->Off         = 0;
+				hc->OnOff       = 1;    // 1: ON 0:OFF
+				hc->Transducer[0] = 0;
+				hc->GDFTYP      = gdftyp;  
+				hc->bi       = i*hdr->SPR*GDFTYP_BITS[gdftyp]>>3;  
 
 				// ### these values should represent the true saturation values ### //
-				hdr->CHANNEL[i].DigMax      = ldexp(1.0,20)-1;
-				hdr->CHANNEL[i].DigMin      = ldexp(-1.0,20);
-				hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
-				hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
+				hc->DigMax      = ldexp(1.0,20)-1;
+				hc->DigMin      = ldexp(-1.0,20);
+				hc->PhysMax     = hc->DigMax * hc->Cal;
+				hc->PhysMin     = hc->DigMin * hc->Cal;
+				
 				
 #ifndef WITHOUT_SCP_DECODE
 //				if (AS_DECODE > 0) continue; 
@@ -1064,19 +1068,20 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				/* add pacemaker channel */
 				hdr->CHANNEL = (CHANNEL_TYPE *) realloc(hdr->CHANNEL,(++hdr->NS)*sizeof(CHANNEL_TYPE));
 				i = hdr->NS;
-				hdr->CHANNEL[i].SPR 	    = 0;    // sparse event channel 
-				hdr->CHANNEL[i].PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV"
-				hdr->CHANNEL[i].Cal 	    = 1;
-				hdr->CHANNEL[i].Off         = 0;
-				hdr->CHANNEL[i].OnOff       = 1;    // 1: ON 0:OFF
-				strcpy(hdr->CHANNEL[i].Transducer,"Pacemaker");
-				hdr->CHANNEL[i].GDFTYP      = 3;  
+				CHANNEL_TYPE *hc = hdr->CHANNEL+i;
+				hc->SPR 	= 0;    // sparse event channel 
+				hc->PhysDimCode = 4275; // PhysDimCode("uV") physical unit "uV"
+				hc->Cal 	= 1;
+				hc->Off         = 0;
+				hc->OnOff       = 1;    // 1: ON 0:OFF
+				strcpy(hc->Transducer,"Pacemaker");
+				hc->GDFTYP      = 3;  
 
 				// ### these values should represent the true saturation values ###//
-				hdr->CHANNEL[i].DigMax      = ldexp(1.0,15)-1;
-				hdr->CHANNEL[i].DigMin      = ldexp(-1.0,15);
-				hdr->CHANNEL[i].PhysMax     = hdr->CHANNEL[i].DigMax * hdr->CHANNEL[i].Cal;
-				hdr->CHANNEL[i].PhysMin     = hdr->CHANNEL[i].DigMin * hdr->CHANNEL[i].Cal;
+				hc->DigMax      = ldexp(1.0,15)-1;
+				hc->DigMin      = ldexp(-1.0,15);
+				hc->PhysMax     = hc->DigMax * hc->Cal;
+				hc->PhysMin     = hc->DigMin * hc->Cal;
 			}
 			// skip pacemaker spike measurements  
 			for (i=0; i < N_PaceMaker; i++) {

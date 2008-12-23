@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_famos_read.c,v 1.3 2008-12-03 11:18:29 schloegl Exp $
+    $Id: sopen_famos_read.c,v 1.4 2008-12-23 12:56:11 schloegl Exp $
     Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -112,7 +112,7 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				t2 += 1+p;
 				p = strcspn(t2,",");
 				t2[p] = 0;
-				hdr->AS.bi[CHAN] = atol(t2);
+				hdr->CHANNEL[CHAN].bi = atol(t2);
 				// BufferLangBytes
 				t2 += 1+p;
 				p = strcspn(t2,",");
@@ -126,7 +126,6 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				p = strcspn(t2,",");
 				t2[p] = 0;
 				size_t bpb = atol(t2);
-				hdr->AS.bi[CHAN+1] = hdr->AS.bi[CHAN] + bpb;
 				hdr->CHANNEL[CHAN].SPR = 8*bpb/GDFTYP_BITS[hdr->CHANNEL[CHAN].GDFTYP];
 
 
@@ -139,8 +138,8 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 					OnOff = 0;  
 				}
 				if (!OnOff) hdr->CHANNEL[CHAN].SPR = 0;
-											
-				hdr->AS.bpb = hdr->AS.bi[CHAN] + bpb;
+
+				hdr->AS.bpb = hdr->CHANNEL[CHAN].bi + bpb;
 				
 				// 0, 
 				t2 += 1+p;
@@ -194,7 +193,6 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				t2[p] = 0;
 
 				hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL, hdr->NS*sizeof(CHANNEL_TYPE));
-				hdr->AS.bi  = (uint32_t*) realloc(hdr->AS.bi,(hdr->NS+1)*sizeof(uint32_t));
 				level = 3;
 			}
 
@@ -506,7 +504,6 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 		}
 			
 		ifseek(hdr,hdr->HeadLen,SEEK_SET);
-		hdr->FILE.POS = 0;
 		hdr->NRec = 1; 
 
 };
