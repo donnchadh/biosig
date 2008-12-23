@@ -6,8 +6,8 @@ function [argout,s]=sview(s,varargin),
 %
 % See also: SLOAD 
 
-%	$Id: sview.m,v 1.24 2008-12-01 15:35:48 schloegl Exp $ 
-%	Copyright (c) 2004,2006 by Alois Schlögl <a.schloegl@ieee.org>	
+%	$Id: sview.m,v 1.25 2008-12-23 12:50:14 schloegl Exp $ 
+%	Copyright (c) 2004,2006,2008 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -35,7 +35,7 @@ end;
 	if ~isempty(H)
 		CHAN = 1:size(s,2);
 
-	elseif ischar(s) | iscell(s),
+	elseif ischar(s) || iscell(s),
 		[s,H] = sload(s,0,'OVERFLOWDETECTION:OFF',varargin{:});
 		CHAN = 1:size(s,2);
 	
@@ -98,10 +98,11 @@ elseif all((H.LeadIdCode>0) & (H.LeadIdCode<256)) && (H.SPR*H.NRec==H.SampleRate
 	x = leadidcodexyz(pos); 
 	[tmp, scale] = physicalunits(H.PhysDimCode);
 	CH = zeros(1,12);
-	for k=1:12,
-		ch = find(pos==H.LeadIdCode(k));
+	for k=1:length(pos),
+		ch = find(pos(k)==H.LeadIdCode);
 		if ~isempty(ch)
-			d(1:xlen*H.SampleRate-1,ch)=s(1:xlen*H.SampleRate-1,k);
+			CH(ch) = k;
+			d(1:xlen*H.SampleRate-1,k)=s(1:xlen*H.SampleRate-1,ch);
 		else 	
 			switch k
 			case 3
@@ -130,7 +131,8 @@ elseif all((H.LeadIdCode>0) & (H.LeadIdCode<256)) && (H.SPR*H.NRec==H.SampleRate
 
 	gender='UMFX'; sex=gender(H.Patient.Sex+1);
 	if isfield(H.Patient,'Age') age=H.Patient.Age;
-	elseif isfield(H.Patient,'Birthday') && (H.Patient.Birthday>0) age=datenum(H.T0-H.Patient.Birthday)/365.25;
+	elseif isfield(H.Patient,'Birthday') && (datenum(H.Patient.Birthday)>0) 
+		age = datenum(H.T0-H.Patient.Birthday)/365.25;
 	else age = -1;
 	end;		
 	id = H.Patient.Id; id(id=='_')=' ';
