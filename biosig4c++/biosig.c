@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.276 2008-12-23 14:40:51 schloegl Exp $
+    $Id: biosig.c,v 1.277 2008-12-23 14:45:51 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1345,9 +1345,7 @@ void LoadGlobalEventCodeTable()
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(start)%i\n",GLOBAL_EVENTCODES_ISLOADED);
 
-//	if (GLOBAL_EVENTCODES_ISLOADED) 
-	return; 	// table is already loaded 
-
+	if (GLOBAL_EVENTCODES_ISLOADED) return; 	// table is already loaded 
 
 	Global.CodeDesc = NULL;	
 	Global.CodeIndex = NULL;	
