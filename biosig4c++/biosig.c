@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.275 2008-12-23 12:56:11 schloegl Exp $
+    $Id: biosig.c,v 1.276 2008-12-23 14:40:51 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -3455,6 +3455,8 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		hdr->NS   = 0; 
 		hdr->NRec = 1; 
 		hdr->SPR  = 1; 
+		hdr->AS.bpb = 0; 
+		double Fs = 1.0; 
 		size_t N  = 0;	 
 		char status = 0; 
 		char *val   = NULL;
@@ -3558,10 +3560,10 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 			else if (status==2) {
 				CHANNEL_TYPE *cp;
 				if (!strcmp(line,"Filename")) {
+
 					// add next channel  	
 					++hdr->NS; 
 					hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL, hdr->NS*sizeof(CHANNEL_TYPE));
-					hdr->CHANNEL[hdr->NS-1].bi = lengthRawData; 
 					FILE *fid = fopen(val,"rb");
 					if (fid!=NULL) {
 						while (!feof(fid)) {
@@ -3579,6 +3581,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					cp->HighPass = NaN;
 					cp->LowPass  = NaN;
 					cp->Notch    = NaN;
+					cp->LeadIdCode = 0; 
 
 					FLAG_NUMBER_OF_FIELDS_READ = 1; 
 				}
@@ -3615,10 +3618,12 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 				}	
 				else if (!strcmp(line,"Transducer"))
 					strncpy(cp->Transducer,val,MAX_LENGTH_TRANSDUCER);
-				else if (!strcmp(line,"SampleRate"))
-					cp->SPR = (typeof(cp->SPR))(atof(val)*duration);
-				else if (!strcmp(line,"NumberOfSamples"))
+				else if (!strcmp(line,"SamplingRate"))
+					Fs = atof(val);
+				else if (!strcmp(line,"NumberOfSamples")) {
 					cp->SPR = atol(val);
+					if (cp->SPR>0) hdr->SPR = lcm(hdr->SPR,cp->SPR);
+				}	
 				else if (!strcmp(line,"HighPassFilter"))
 					cp->HighPass = atof(val);
 				else if (!strcmp(line,"LowPassFilter"))
@@ -3633,28 +3638,19 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					cp->PhysMax = atof(val);
 				else if (!strcmp(line,"PhysMin"))
 					cp->PhysMin = atof(val);
-				else if (!strncmp(line,"Position",8)) 
+				else if (!strncmp(line,"Position",8)) {
 					sscanf(val,"%f \t%f \t%f",cp->XYZ,cp->XYZ+1,cp->XYZ+2);
-//				else if (!strncmp(line,"Orientation",11)) 
-//					sscanf(val,"%f \t%f \t%f",cp->Orientation,cp->Orientation+1,cp->Orientation+2);
-//				else if (!strcmp(line,"Area"))
-//					cp->Area = atof(val);
 
-				if (FLAG_NUMBER_OF_FIELDS_READ > 16) { 
-					// consolidate last channel
-					k = hdr->NS-1;	
-					if ((GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR >> 3) != (hdr->AS.bpb-hdr->CHANNEL[k].bi)) {
+					// consolidate previos channel
+					if ((GDFTYP_BITS[cp->GDFTYP]*cp->SPR >> 3) != (hdr->AS.bpb-cp->bi)) {
 						fprintf(stdout,"Warning SOPEN(BIN): problems with channel %i - filesize %i does not fit header info %i\n",k+1, hdr->AS.bpb-hdr->CHANNEL[k].bi,GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR >> 3);
 					}
-
-					hdr->CHANNEL[k].SPR = (hdr->AS.bpb-hdr->CHANNEL[k].bi)*8/GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP];
-					if (hdr->CHANNEL[k].SPR>0) hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
+					
 					hdr->SampleRate = hdr->SPR/duration; 
-					hdr->CHANNEL[k].LeadIdCode = 0;
-					hdr->CHANNEL[k].OnOff = 1;
-					hdr->CHANNEL[k].Cal = (hdr->CHANNEL[k].PhysMax-hdr->CHANNEL[k].PhysMin)/(hdr->CHANNEL[k].DigMax-hdr->CHANNEL[k].DigMin);
-					hdr->CHANNEL[k].Off =  hdr->CHANNEL[k].PhysMin-hdr->CHANNEL[k].Cal*hdr->CHANNEL[k].DigMin;
-					FLAG_NUMBER_OF_FIELDS_READ = 0; 
+					cp->LeadIdCode = 0;
+					cp->OnOff = 1;
+					cp->Cal = (cp->PhysMax - cp->PhysMin) / (cp->DigMax - cp->DigMin);
+					cp->Off =  cp->PhysMin - cp->Cal*cp->DigMin;
 				}
 			}
 			
@@ -9719,11 +9715,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 	struct tm  	*T0;
 	float		age;
 
-	fprintf(stdout,"hdr2ascii 099 -V=%i\n",VERBOSE); 
-
 	LoadGlobalEventCodeTable(); 
-
-	fprintf(stdout,"hdr2ascii 100\n"); 
 
 	if (VERBOSE==7) {
 		T0 = gdf_time2tm_time(hdr->T0);
@@ -9733,8 +9725,6 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		return(0);
 	}
 		
-	fprintf(stdout,"hdr2ascii 101\n"); 
-
 	if (VERBOSE>0) {
 		/* demographic information */
 		fprintf(fid,"\n===========================================\n[FIXED HEADER]\n");
