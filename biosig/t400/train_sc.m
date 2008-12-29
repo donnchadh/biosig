@@ -15,16 +15,16 @@ function [CC]=train_sc(D,classlabel,MODE)
 %    'GRB'      Gaussian radial basis function     [1]
 %    'QDA'      quadratic discriminant analysis    [1]
 %    'LD2'      linear discriminant analysis (see LDBC2) [1]
-%               MODE.hyperparameters.gamma: regularization parameter [default 0] 
+%               MODE.hyperparameter.gamma: regularization parameter [default 0] 
 %    'LD3'      linear discriminant analysis (see LDBC3) [1]
-%               MODE.hyperparameters.gamma: regularization parameter [default 0] 
+%               MODE.hyperparameter.gamma: regularization parameter [default 0] 
 %    'LD4'      linear discriminant analysis (see LDBC4) [1]
-%               MODE.hyperparameters.gamma: regularization parameter [default 0] 
+%               MODE.hyperparameter.gamma: regularization parameter [default 0] 
 %    'LD5'      another LDA (motivated by CSP)
-%               MODE.hyperparameters.gamma: regularization parameter [default 0] 
+%               MODE.hyperparameter.gamma: regularization parameter [default 0] 
 %    'RDA'      regularized discriminant analysis [7]
-%               MODE.hyperparameters.gamma: regularization parameter 
-%               MODE.hyperparameters.lambda =  
+%               MODE.hyperparameter.gamma: regularization parameter 
+%               MODE.hyperparameter.lambda =  
 %		gamma = 0, lambda = 0 : MDA 
 %		gamma = 0, lambda = 1 : LDA 
 % 		Hint: hyperparameters are used only in test_sc.m, testing different 
@@ -36,19 +36,22 @@ function [CC]=train_sc(D,classlabel,MODE)
 %    '###/sparse'  sparse  [5] 
 %               '###' must be 'LDA' or any other classifier 
 %    'SVM','SVM1r'  support vector machines, one-vs-rest
-%               MODE.hyperparameters.c_value = 
-%    'PLS'	partial least squares regression 
+%               MODE.hyperparameter.c_value = 
+%    'PSVM'	Proximal SVM [8] 
+%               MODE.hyperparameter.nu  (default: 1.0)
+%    'PLS'	(linear) partial least squares regression 
 %    'REG'      regression analysis;
 %    'WienerHopf'	Wiener-Hopf equation  
 %    'NBC'	Naive Bayesian Classifier [6]     
 %    'aNBC'	Augmented Naive Bayesian Classifier [6]
+%    'NBPW'	Naive Bayesian Parzen Window [9]     
 %    'SVM11'    support vector machines, one-vs-one + voting
-%               MODE.hyperparameters.c_value = 
+%               MODE.hyperparameter.c_value = 
 %    'RBF'      Support Vector Machines with RBF Kernel
-%               MODE.hyperparameters.c_value = 
-%               MODE.hyperparameters.gamma = 
+%               MODE.hyperparameter.c_value = 
+%               MODE.hyperparameter.gamma = 
 %    'LPM'      Linear Programming Machine
-%               MODE.hyperparameters.c_value = 
+%               MODE.hyperparameter.c_value = 
 %    'CSP'	CommonSpatialPattern is very experimental and just a hack
 %		uses a smoothing window of 50 samples.
 %
@@ -81,8 +84,16 @@ function [CC]=train_sc(D,classlabel,MODE)
 %	 http://www.cs.unb.ca/profs/hzhang/publications/FLAIRS04ZhangH.pdf
 % [7] J.H. Friedman. Regularized discriminant analysis. 
 %	Journal of the American Statistical Association, 84:165–175, 1989.
+% [8] G. Fung and O.L. Mangasarian, Proximal Support Vector Machine Classifiers, KDD 2001.
+%        Eds. F. Provost and R. Srikant, Proc. KDD-2001: Knowledge Discovery and Data Mining, August 26-29, 2001, San Francisco, CA.
+% 	p. 77-86.
+% [9] Kai Keng Ang, Zhang Yang Chin, Haihong Zhang, Cuntai Guan.
+%	Filter Bank Common Spatial Pattern (FBCSP) in Brain-Computer Interface.
+%	IEEE International Joint Conference on Neural Networks, 2008. IJCNN 2008. (IEEE World Congress on Computational Intelligence). 
+%	1-8 June 2008 Page(s):2390 - 2397
 
-%	$Id: train_sc.m,v 1.25 2008-11-18 07:46:52 schloegl Exp $
+
+%	$Id: train_sc.m,v 1.26 2008-12-29 14:46:19 schloegl Exp $
 %	Copyright (C) 2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -133,6 +144,17 @@ end
 
 if 0, 
 
+elseif ~isempty(strfind(lower(MODE.TYPE),'nbpw'))	
+	error('NBPW not implemented yet')
+	%%%% Naive Bayesian Parzen Window Classifier. 
+        for k = 1:length(CC.Labels),
+                [d,CC.MEAN(k,:)] = center(D(classlabel==CC.Labels(k),:),1);
+                [CC.VAR(k,:),CC.N(k,:)] = sumskipnan(d.^2,1);  
+                h2_opt = (4./(3*CC.N(k,:))).^(2/5).*CC.VAR(k,:);
+                %%% TODO 
+        end;
+	
+	
 elseif ~isempty(strfind(lower(MODE.TYPE),'nbc'))	
 	%%%% Naive Bayesian Classifier. 
 	if ~isempty(strfind(lower(MODE.TYPE),'anbc'))
@@ -165,7 +187,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'lpm'))
                 LPM = train_LPM(D',(classlabel'==CC.Labels(k)));
                 CC.weights(:,k) = [-LPM.b; LPM.w(:)];
         end;
-        CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
+        CC.hyperparameter.c_value = MODE.hyperparameter.c_value; 
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
 
         
@@ -291,8 +313,8 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'rbf'))
                 MODE.hyperparameter.c_value = 1; 
         end
         CC.options = sprintf('-c %g -t 2 -g %g', MODE.hyperparameter.c_value, MODE.hyperparameter.gamma);  %use RBF kernel, set C, set gamma
-        CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
-        CC.hyperparameters.gamma = MODE.hyperparameter.gamma; 
+        CC.hyperparameter.c_value = MODE.hyperparameter.c_value; 
+        CC.hyperparameter.gamma = MODE.hyperparameter.gamma; 
 
         % pre-whitening
         [D,r,m]=zscore(D,1); 
@@ -311,7 +333,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm11'))
         %CC = train_svm11(D,classlabel,MODE.hyperparameter.c_value);
 
         CC.options=sprintf('-c %g -t 0',MODE.hyperparameter.c_value);  %use linear kernel, set C
-        CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
+        CC.hyperparameter.c_value = MODE.hyperparameter.c_value; 
 
         % pre-whitening
         [D,r,m]=zscore(D,1); 
@@ -323,6 +345,26 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm11'))
         FUN = 'SVM:LIB:1vs1';
         CC.datatype = ['classifier:',lower(FUN)];
 
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'psvm'))
+        if isfield(MODE.hyperparameters,'nu')
+	        nu = MODE.hyperparameter.nu;
+	else 
+		nu = 1;          
+        end;
+        [m,n] = size(D); 
+        CC.weights = repmat(NaN,n+1,length(CC.Labels));
+        for k = 1:length(CC.Labels),
+		d = sparse(1:m,1:m,(classlabel==CC.Labels(k))*2-1);
+		H = d * [-ones(m,1),D];
+		r = sum(H,1)';
+		r = (speye(n+1)/nu + H' * H)\r; %solve (I/nu+H’*H)r=H’*e
+		u = nu*(1-(H*r)); 
+		CC.weights(:,k) = u'*H;
+        end;
+        CC.hyperparameter.nu = nu; 
+        CC.datatype = ['classifier:',lower(MODE.TYPE)];
+        
 
 elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
         if ~isfield(MODE.hyperparameter,'c_value')
@@ -402,7 +444,7 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
                 CC.weights(2:end,k) = w;
         end;
         CC.weights = s * CC.weights(2:end,:) + sparse(1,1:M,CC.weights(1,:),sz(2)+1,M); % include pre-whitening transformation
-        CC.hyperparameters.c_value = MODE.hyperparameter.c_value; 
+        CC.hyperparameter.c_value = MODE.hyperparameter.c_value; 
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
 
 
@@ -463,6 +505,7 @@ else          % Linear and Quadratic statistical classifiers
                         w0    = -M0*w;
                         CC.weights(:,k) = [w0; w];
                 end;
+                
         elseif strcmpi(MODE.TYPE,'RDA');
 		if isfield(MODE,'hyperparameters') && isfield(MODE.hyperparameters,'lambda')  && isfield(MODE.hyperparameters,'gamma')
 		        CC.hyperparameters = MODE.hyperparameters;
