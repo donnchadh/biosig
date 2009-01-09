@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.277 2008-12-23 14:45:51 schloegl Exp $
+    $Id: biosig.c,v 1.278 2009-01-09 10:01:20 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -175,6 +175,8 @@ const char *LEAD_ID_TABLE[] = { "unspecified",
  * --------------------------------------------------- */
 #ifndef HARDCODED_PHYSDIMTABLE 
 static char GLOBAL_PHYSDIMIDX_ISLOADED = 0; 
+#else
+#define GLOBAL_PHYSDIMIDX_ISLOADED 1 
 #endif
 static char GLOBAL_EVENTCODES_ISLOADED = 0; 
 struct global_t {
@@ -1375,8 +1377,8 @@ void LoadGlobalEventCodeTable()
 	size_t count = 0; 
 	if (Global.EventCodesTextBuffer==NULL)  
 	while (!ifeof(&HDR)) {
-		size_t bufsiz = 8092;
-		Global.EventCodesTextBuffer = (char*)realloc(Global.EventCodesTextBuffer,(count+bufsiz+1));
+		const size_t bufsiz = 8092;
+		Global.EventCodesTextBuffer = (char*)realloc(Global.EventCodesTextBuffer,count+bufsiz+1);
 		count  += ifread(Global.EventCodesTextBuffer+count,1,bufsiz,&HDR);
 	}
 	ifclose(&HDR);
@@ -1459,7 +1461,6 @@ void LoadGlobalPhysDimCodeTable()
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(102) OPEN=%i %i\n",HDR.FILE.OPEN,Global.LenCodeDesc);
 
-	
 	atexit(&FreeGlobalPhysDimCodeTable);	// make sure memory is freed  
 	size_t count = 0; 
 	if (Global.PhysUnitsTextBuffer==NULL)  
@@ -1470,8 +1471,6 @@ void LoadGlobalPhysDimCodeTable()
 	}
 	ifclose(&HDR);
 	strcpy(Global.PhysUnitsTextBuffer+count,"\n65535,\"end-of-table\"\n");	// add terminating entry 
-
-
 
 	size_t N = 0; 
 	char *line = strtok(Global.PhysUnitsTextBuffer,"\x0a\x0d");
@@ -1544,7 +1543,23 @@ void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation) {
 		hdr->EVENT.CodeDesc[0] = "";	// typ==0, is always empty 
 		hdr->EVENT.LenCodeDesc = 1;
 	}
-	
+
+	// First, compare text with any global event description 
+	if (!GLOBAL_EVENTCODES_ISLOADED) LoadGlobalEventCodeTable();
+	for (size_t k=0; k<Global.LenCodeDesc; k++) {
+		if (Global.CodeIndex[k]>255) {
+			// compare description only up last non-space character before '#' 
+			int len = strcspn(Global.CodeDesc[k],"#"); 
+			while ((len>=0) && isspace(Global.CodeDesc[k][len-1])) len--;
+			if (!strncmp(Global.CodeDesc[k],annotation,len)) {
+				// annotation is already a globally defined event 
+				hdr->EVENT.TYP[N_EVENT] = Global.CodeIndex[k];
+				return; 
+			}
+		}
+	}
+
+	// Second, compare text with user-defined event description 
 	int flag=1,k1;
 	for (k1=0; (k1 < hdr->EVENT.LenCodeDesc) && flag; k1++) {
 		if (!strncmp(hdr->EVENT.CodeDesc[k1], annotation, strlen(annotation))) {
@@ -1552,9 +1567,11 @@ void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation) {
 			flag = 0;
 		}
 	}		
+
+	// Third, add event description if needed 
 	if (flag) {
 		hdr->EVENT.TYP[N_EVENT] = hdr->EVENT.LenCodeDesc;
-		hdr->EVENT.CodeDesc[hdr->EVENT.LenCodeDesc]= annotation;
+		hdr->EVENT.CodeDesc[hdr->EVENT.LenCodeDesc] = annotation;
 		hdr->EVENT.LenCodeDesc++;
 	}
 	if (hdr->EVENT.LenCodeDesc > 255) {
@@ -2989,14 +3006,15 @@ if (!strncmp(MODE,"r",1))
 
 		if (EventChannel) {
 			/* read Annotation and Status channel and extract event information */		
+			CHANNEL_TYPE *hc = hdr->CHANNEL+EventChannel-1;
 
-			size_t sz   	= GDFTYP_BITS[hdr->CHANNEL[EventChannel-1].GDFTYP]>>3;
-			size_t len 	= hdr->CHANNEL[EventChannel-1].SPR * hdr->NRec * sz;		
+			size_t sz   	= GDFTYP_BITS[hc->GDFTYP]>>3;
+			size_t len 	= hc->SPR * hdr->NRec * sz;		
 			uint8_t *Marker = (uint8_t*)malloc(len + 1);
-			size_t skip 	= hdr->AS.bpb - hdr->CHANNEL[EventChannel-1].SPR * sz;
-			ifseek(hdr, hdr->HeadLen + hdr->CHANNEL[EventChannel-1].bi, SEEK_SET);
+			size_t skip 	= hdr->AS.bpb - hc->SPR * sz;
+			ifseek(hdr, hdr->HeadLen + hc->bi, SEEK_SET);
 			for (nrec_t k3=0; k3<hdr->NRec; k3++) {
-			    	ifread(Marker+k3*hdr->CHANNEL[EventChannel-1].SPR * sz, 1, hdr->CHANNEL[EventChannel-1].SPR * sz, hdr);
+			    	ifread(Marker+k3*hc->SPR * sz, 1, hc->SPR * sz, hdr);
 				ifseek(hdr, skip, SEEK_CUR);
 			}
 			size_t N_EVENT  = 0;
@@ -3321,7 +3339,7 @@ if (!strncmp(MODE,"r",1))
 			};
 			hc->PhysMax = hc->DigMax * hc->Cal + hc->Off;
 			hc->PhysMin = hc->DigMin * hc->Cal + hc->Off;
-		      	hc->bi 	  = hdr->AS.bpb;
+					      	hc->bi 	  = hdr->AS.bpb;
 		      	hdr->AS.bpb += (GDFTYP_BITS[hc->GDFTYP]*hc->SPR)>>3;
 			POS +=4; 
 		}
@@ -5790,10 +5808,10 @@ fprintf(stdout,"ASN1 [491]\n");
 						hdr->CHANNEL[chan].SPR = *(int64_t*) mfer_swap8b(buf, len2, SWAP); 
 					}	
 					else if (tag2==9) {	//leadname 
-						if (len2==1)
-							hdr->CHANNEL[chan].LeadIdCode = buf[0]; 
-						else if (len2==2)
+						if (len2==2)
 							hdr->CHANNEL[chan].LeadIdCode = 0; 
+						else if (len2==1)
+							hdr->CHANNEL[chan].LeadIdCode = buf[0]; 
 						else if (len2<=32)
 							strncpy(hdr->CHANNEL[chan].Label,(char*)buf,len2); 
 						else
@@ -7346,7 +7364,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 		fprintf(fid,"[EVENT TABLE]\n");
 		fprintf(fid,"TYP\tPOS [s]\tDUR [s]\tCHN\tVAL/Desc");
-		LoadGlobalEventCodeTable(); 
+		if (!GLOBAL_EVENTCODES_ISLOADED) LoadGlobalEventCodeTable();
 		
 		for (size_t k=0; k<hdr->EVENT.N; k++) {
 
@@ -7375,26 +7393,26 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [210]\n");
 
-		const char *filename = hdr->FileName; // keep input file name 
-		char* tmpfile = (char*)calloc(strlen(hdr->FileName)+5,1);		
+		char* tmpfile = (char*)calloc(strlen(hdr->FileName)+6,1);		
 		strcpy(tmpfile,hdr->FileName);
-		hdr->FileName = tmpfile;
-		char* ext = strrchr(hdr->FileName,'.')+1; 
-		strcpy(ext,"vhdr");
-
+		char* ext = strrchr(tmpfile,'.'); 
+		if (ext != NULL) strcpy(ext+1,"vhdr");
+		else 		strcat(tmpfile,".vhdr");
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [211]\n");
 
     		hdr->HeadLen = 0; 
-    		FILE *fid = fopen(hdr->FileName,"wb");
+    		FILE *fid = fopen(tmpfile,"wb");
     		fprintf(fid,"Brain Vision Data Exchange Header File Version 1.0\n\r");
     		fprintf(fid,"; Data created by BioSig4C++\n\r\n\r");
     		fprintf(fid,"[Common Infos]\n\r");
     		fprintf(fid,"DataFile=%s\n\r",hdr->FileName);
-    		fprintf(fid,"MarkerFile=\n\r");
+    		fprintf(fid,"MarkerFile=%s\n\r",strcpy(strrchr(tmpfile,'.')+1,"vhdr"));
     		fprintf(fid,"DataFormat=BINARY\n\r");
     		fprintf(fid,"; Data orientation: MULTIPLEXED=ch1,pt1, ch2,pt1 ...\n\r");
     		fprintf(fid,"DataOrientation=MULTIPLEXED\n\r");
+    		hdr->NRec *= hdr->SPR; 
+		hdr->SPR = 1; 
     		fprintf(fid,"NumberOfChannels=%i\n\r",hdr->NS);
     		fprintf(fid,"; Sampling interval in microseconds\n\r");
     		fprintf(fid,"SamplingInterval=%f\n\r\n\r",1e6/hdr->SampleRate);
@@ -7415,7 +7433,9 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
  	   		fprintf(fid,"IEEE_FLOAT_32");
 		}
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [214]\n");
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [214] gdftyp=%i NS=%i\n",gdftyp,hdr->NS);
+
+		hdr->AS.bpb = hdr->NS * hdr->SPR * GDFTYP_BITS[gdftyp] >> 3;
 
     		fprintf(fid,"\n\r\n\r[Channel Infos]\n\r");
     		fprintf(fid,"; Each entry: Ch<Channel number>=<Name>,<Reference channel name>,\n\r");
@@ -7426,12 +7446,12 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [220] %i\n",k);
 			
+			hdr->CHANNEL[k].SPR = hdr->SPR; 
 			hdr->CHANNEL[k].GDFTYP = gdftyp; 
     			char physdim[MAX_LENGTH_PHYSDIM+1];
     			char Label[MAX_LENGTH_LABEL+1];
     			strcpy(Label,hdr->CHANNEL[k].Label);
-    			size_t k1=0;
-    			while (Label[k1]) if (Label[k1]==',') Label[k1]=1;
+    			for (size_t k1=0; Label[k1]; k1++) if (Label[k1]==',') Label[k1]=1;
 	    		fprintf(fid,"Ch%d=%s,,1,%s\n\r",k+1,Label,PhysDim(hdr->CHANNEL[k].PhysDimCode,physdim));
     		}
     		fprintf(fid,"\n\r\n\r[Coordinates]\n\r");
@@ -7462,11 +7482,38 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     		for (k=0; k<hdr->NS; k++)
 			fprintf(fid,"%s:\t\t%f\n\r",hdr->CHANNEL[k].Label,hdr->CHANNEL[k].Impedance);
 
+
 		fclose(fid); 
-		hdr->FileName = filename;  
+		
+		strcpy(strrchr(tmpfile,'.')+1,"vmrk");
+		fid = fopen(tmpfile,"wb");
+    		fprintf(fid,"Brain Vision Data Exchange Marker File, Version 1.0\n\r");
+    		fprintf(fid,"; Data created by BioSig4C++\n\r\n\r");
+    		fprintf(fid,"[Common Infos]\n\r");
+    		fprintf(fid,"DataFile=%s\n\r\n\r",hdr->FileName);
+    		fprintf(fid,"[Marker Infos]\n\r");
+    		fprintf(fid,"; Each entry: Mk<Marker number>=<Type>,<Description>,<Position in data points>,\n\r");
+    		fprintf(fid,"; <Size in data points>, <Channel number (0 = marker is related to all channels)>\n\r");
+    		fprintf(fid,"; Fields are delimited by commas, some fields might be omitted (empty).\n\r");
+    		fprintf(fid,"; Commas in type or description text are coded as \"\\1\".\n\r");
+    		struct tm *T0 = gdf_time2tm_time(hdr->T0);
+		uint32_t us = (hdr->T0*24*3600 - floor(hdr->T0*24*3600))*1e6;
+    		fprintf(fid,"Mk1=New Segment,,1,1,0,%04u%02u%02u%02u%02u%02u%06u",T0->tm_year+1900,T0->tm_mon+1,T0->tm_mday,T0->tm_hour,T0->tm_min,T0->tm_sec,us); // 20081002150147124211
+
+		if ((hdr->EVENT.DUR==NULL) && (hdr->EVENT.CHN==NULL))
+	    		for (k=0; k<hdr->EVENT.N; k++) {
+				fprintf(fid,"\n\rMk%i=,0x%04x,%u,1,0",k+2,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]);
+   			}
+    		else
+    			for (k=0; k<hdr->EVENT.N; k++) {
+				fprintf(fid,"\n\rMk%i=,0x%04x,%u,%u,%u",k+2,hdr->EVENT.TYP[k],hdr->EVENT.POS[k],hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]);
+	   		}
+		fclose(fid); 
+		
 		free(tmpfile);		
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [290]\n");
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [290] %s %s\n",tmpfile,hdr->FileName);
+
 
     	}	
     	else if (hdr->TYPE==CFWB) {	
@@ -8004,6 +8051,16 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		hdr->FILE.LittleEndian = 0; 
 		
 		fprintf(stderr,"Warning SOPEN(MFER): write support for MFER format under construction\n"); 
+		/* FIXME & TODO: 
+		   known issues:
+			Birthday 
+			Recording time 
+			Label
+			Sampling Rate
+			HeadLen
+			Encoding of data block			
+		*/
+		
 		// tag 64: preamble 
 		// Header1[curPos] = 64; 
 		// len =32;
@@ -8018,16 +8075,16 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		tag = 23;
 		Header1[curPos] = tag; 
 		strcpy(Header1+curPos+2,hdr->ID.Manufacturer.Name);
+		strcat(Header1+curPos+2,"^");
 		if (hdr->ID.Manufacturer.Model != NULL) {
-			strcat(Header1+curPos+2,"^");
 			strcat(Header1+curPos+2,hdr->ID.Manufacturer.Model);
 		}	
+		strcat(Header1+curPos+2,"^");
 		if (hdr->ID.Manufacturer.Version != NULL) {
-			strcat(Header1+curPos+2,"^");
 			strcat(Header1+curPos+2,hdr->ID.Manufacturer.Version);
 		}	
+		strcat(Header1+curPos+2,"^");
 		if (hdr->ID.Manufacturer.SerialNumber!=NULL) {
-			strcat(Header1+curPos+2,"^");
 			strcat(Header1+curPos+2,hdr->ID.Manufacturer.SerialNumber);
 		}	
 		len = strlen(Header1+curPos+2); 
@@ -8147,7 +8204,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		size_t ch; 
 		for (ch=0; ch<hdr->NS; ch++) {
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 720-63 #%i/%i]:\n",ch,hdr->NS);
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 720-63 #%i/%i %i]:\n",ch,hdr->NS,hdr->CHANNEL[ch].LeadIdCode);
 
 
 		 	// FIXME: this is broken 
@@ -8164,8 +8221,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			size_t len1 = 0; 
 			Header1[ix++] = 9;
 			if (hdr->CHANNEL[ch].LeadIdCode>0) {
-				Header1[ix++] = 1;
-				Header1[ix++] = hdr->CHANNEL[ch].LeadIdCode;
+				Header1[ix++] = 2;
+				*(uint16_t*)(Header1+ix) = hdr->CHANNEL[ch].LeadIdCode;
+				len1 = 2;
+				
 			} else {	
 				len1 = strlen(hdr->CHANNEL[ch].Label);
 				Header1[ix++] = len1;
@@ -9713,8 +9772,8 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 	struct tm  	*T0;
 	float		age;
 
-	LoadGlobalEventCodeTable(); 
-
+	if (!GLOBAL_EVENTCODES_ISLOADED) LoadGlobalEventCodeTable();
+	
 	if (VERBOSE==7) {
 		T0 = gdf_time2tm_time(hdr->T0);
 		char tmp[60];

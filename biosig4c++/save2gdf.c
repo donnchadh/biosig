@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.50 2008-12-03 11:23:13 schloegl Exp $
+    $Id: save2gdf.c,v 1.51 2009-01-09 10:01:20 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -104,6 +104,8 @@ int main(int argc, char **argv){
 			TARGET_TYPE=BDF;
     		else if (!strncmp(argv[k],"-f=BIN",6))
 			TARGET_TYPE=BIN;
+    		else if (!strncmp(argv[k],"-f=BVA",6))
+			TARGET_TYPE=BrainVision;
     		else if (!strncmp(argv[k],"-f=CFWB",7))
 			TARGET_TYPE=CFWB;
     		else if (!strcmp(argv[k],"-f=EDF"))
@@ -244,19 +246,22 @@ int main(int argc, char **argv){
 	double PhysMinValue0 = +INF; //hdr->data.block[0];
 	double val; 
 	size_t N = hdr->NRec*hdr->SPR;
+	int k2=0;
     	for (k=0; k<hdr->NS; k++)
     	if (hdr->CHANNEL[k].OnOff) 
     	{
-		double MaxValue = hdr->data.block[k*N];
-		double MinValue = hdr->data.block[k*N];
+		double MaxValue = hdr->data.block[k2*N];
+		double MinValue = hdr->data.block[k2*N];
 		
 		/* Maximum and Minimum for channel k */ 
 		for (k1=1; k1<N; k1++) {
-			if (MaxValue < hdr->data.block[k*N+k1])
-		 		MaxValue = hdr->data.block[k*N+k1];
-	 		if (MinValue > hdr->data.block[k*N+k1])
-	 			MinValue = hdr->data.block[k*N+k1];
+
+			if (MaxValue < hdr->data.block[k2*N+k1])
+		 		MaxValue = hdr->data.block[k2*N+k1];
+	 		if (MinValue > hdr->data.block[k2*N+k1])
+	 			MinValue = hdr->data.block[k2*N+k1];
 		}
+
 		if (!hdr->FLAG.UCAL) {
 			MaxValue = (MaxValue - hdr->CHANNEL[k].Off)/hdr->CHANNEL[k].Cal;
 			MinValue = (MinValue - hdr->CHANNEL[k].Off)/hdr->CHANNEL[k].Cal;
@@ -295,6 +300,7 @@ int main(int argc, char **argv){
 		
     		// hdr->CHANNEL[k].GDFTYP = 3;
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"#%3d %d [%f %f][%f %f]\n",k,hdr->CHANNEL[k].GDFTYP,MinValue,MaxValue,PhysMinValue0,PhysMaxValue0);
+		k2++;
 	}
 	if (0) //(hdr->TYPE==SCP_ECG && !hdr->FLAG.UCAL) 
 	    	for (k=0; k<hdr->NS; k++) {
