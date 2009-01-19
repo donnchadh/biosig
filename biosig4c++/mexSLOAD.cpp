@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.48 2008-12-03 11:23:13 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.49 2009-01-19 15:36:33 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -52,14 +52,14 @@ void mexFunction(
 		mexPrintf("   Output:\n\tHDR\theader structure\n\n");
 #else
 		mexPrintf("   Usage of mexSLOAD:\n");
-		mexPrintf("\t[s,HDR]=sload(f)\n");
-		mexPrintf("\t[s,HDR]=sload(f,chan)\n\t\tchan must be sorted in ascending order\n");
-		mexPrintf("\t[s,HDR]=sload(f,chan,\"...\")\n");
-		mexPrintf("\t[s,HDR]=sload(f,chan,\"OVERFLOWDETECTION:ON\")\n");
-		mexPrintf("\t[s,HDR]=sload(f,chan,\"OVERFLOWDETECTION:OFF\")\n");
-		mexPrintf("\t[s,HDR]=sload(f,chan,\"UCAL:ON\")\n");
-		mexPrintf("\t[s,HDR]=sload(f,chan,\"UCAL:OFF\")\n\n");
-		mexPrintf("\t[s,HDR]=sload(f,chan,\"TARGETSEGMENT:<N>\")\n\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f)\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan)\n\t\tchan must be sorted in ascending order\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'...')\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'OVERFLOWDETECTION:ON')\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'OVERFLOWDETECTION:OFF')\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'UCAL:ON')\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'UCAL:OFF')\n\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'TARGETSEGMENT:<N>')\n\n");
 		mexPrintf("   Input:\n\tf\tfilename\n");
 		mexPrintf("\tchan\tlist of selected channels; 0=all channels [default]\n");
 		mexPrintf("\tUCAL\tON: do not calibrate data; default=OFF\n");
