@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.130 2008-12-23 12:56:11 schloegl Exp $
+% $Id: biosig.h,v 1.131 2009-01-19 15:36:14 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -107,7 +107,7 @@ enum FileFormat {
 	BCI2000, BDF, BIN, BKR, BLSC, BMP, BNI,
 	BrainVision, BrainVisionVAmp, BrainVisionMarker, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
-	EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ETG4000, EVENT, EXIF, 
+	EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, Lexicor, 
 	Matlab, MFER, MIDI, MIT, 
@@ -214,6 +214,7 @@ typedef struct {
 	uint16_t 	GDFTYP 		ATT_ALI;	/* data type */
 	uint32_t 	SPR 		ATT_ALI;	/* samples per record (block) */
 	uint32_t	bi 		ATT_ALI;	/* start byte (byte index) of channel within data block */
+	uint32_t	bi8 		ATT_ALI;	/* start bit  (bit index) of channel within data block */
 	
 } CHANNEL_TYPE	ATT_ALI;
 
