@@ -28,6 +28,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 %
 % MODE  'UCAL'  uncalibrated data
 %       'OVERFLOWDETECTION:OFF' turns off automated overflow detection
+%       'OUTPUT:SINGLE' returned data is of class 'single' [default: 'double']
 %       '32bit' for NeuroScan CNT files reading 4-byte integer data
 %       Several opteions can be concatenated within MODE. 
 %
@@ -39,7 +40,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.240 2008-11-14 16:20:20 schloegl Exp $
+%	$Id: sopen.m,v 1.241 2009-01-20 14:36:18 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -190,6 +191,14 @@ end;
 if ~isfield(HDR.FLAG,'FORCEALLCHANNEL')
         HDR.FLAG.FORCEALLCHANNEL = ~isempty(strfind(upper(MODE),'FORCEALLCHANNEL'));
 end; 
+if ~isfield(HDR.FLAG,'OUTPUT')
+	if ~isempty(strfind(upper(MODE),'OUTPUT:SINGLE'));
+		HDR.FLAG.OUTPUT = 'single'; 
+	else
+		HDR.FLAG.OUTPUT = 'double'; 
+	end; 
+end; 
+
 if ~isfield(HDR,'EVENT');
         HDR.EVENT.TYP = []; 
         HDR.EVENT.POS = []; 
@@ -2217,7 +2226,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
 		k = 0; 
 		while (k<2)		%% skip first 2 lines
 	                [s] = fgetl(fid);   
-			if ~strncmp(s,'#',1), %% comment lins do not count
+			if ~strncmp(s,'#',1), %% comment lines do not count
 				k=k+1; 
 			end;
 		end;	
@@ -10016,6 +10025,16 @@ end;
 %	General Postprecessing for all formats of Header information 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+if isfield(HDR,'Patient') && isfield(HDR.Patient,'Weight') && isfield(HDR.Patient,'Height')
+	%% Body Mass Index 
+       	HDR.Patient.BMI = HDR.Patient.Weight * HDR.Patient.Height^-2 * 1e4;
+
+       	%% Body Surface Area
+	% DuBois D, DuBois EF. A formula to estimate the approximate surface area if height and weight be known. Arch Intern Medicine. 1916; 17:863-71.
+	% Wang Y, Moss J, Thisted R. Predictors of body surface area. J Clin Anesth. 1992; 4(1):4-10.
+       	HDR.Patient.BSA = 0.007184 * HDR.Patient.Weight^0.425 * HDR.Patient.Height^0.725;
+end; 
+
 % check consistency
 if HDR.FLAG.OVERFLOWDETECTION & ~isfield(HDR,'THRESHOLD') & ~strcmp(HDR.TYPE,'EVENT'),
         fprintf(HDR.FILE.stderr,'Warning SOPEN: Automated OVERFLOWDETECTION not supported - check yourself for saturation artifacts.\n');
@@ -10096,7 +10115,7 @@ if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	                HDR.EVENT.DUR(ix0) = HDR.EVENT.POS(ix1) - HDR.EVENT.POS(ix0);
 	                flag_remove = flag_remove | (HDR.EVENT.TYP==TYP1);
                 else 
-	                fprintf(2,'Warning SOPEN: number of event onset (TYP=%s) and event offset (TYP=%s) differ\n',dec2hex(double(TYP0)),dec2hex(double(TYP1)));
+	                fprintf(2,'Warning SOPEN: number of event onset (TYP=%s) and event offset (TYP=%s) differ (%i,%i)\n',dec2hex(double(TYP0)),dec2hex(double(TYP1)),sum(ix0),sum(ix1));
                         %% double(.) operator needed because Matlab6.5 can not fix fix(uint16(..))
 	        end;
 	end

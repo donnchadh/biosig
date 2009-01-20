@@ -24,7 +24,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sread.m,v 1.95 2008-11-13 09:18:33 schloegl Exp $
+%	$Id: sread.m,v 1.96 2009-01-20 14:36:18 schloegl Exp $
 %	(C) 1997-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -247,7 +247,7 @@ elseif strcmp(HDR.TYPE,'AINF'),
         end;
 
         %[S,count] = fread(HDR.FILE.FID,[HDR.NS+2,HDR.SampleRate*NoS],'int16');
-        nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
+        nr = min(HDR.SampleRate*NoS, HDR.SPR*HDR.NRec-HDR.FILE.POS);
         S  = []; 
 	time = [];
         count = 0; 
@@ -306,7 +306,9 @@ elseif strmatch(HDR.TYPE,{'BLSC2','CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Ni
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.AS.bpb*round(HDR.SampleRate*StartPos),'bof');
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
-        if any(HDR.GDFTYP==[1:6,16]) & ~exist('OCTAVE_VERSION','builtin'),
+        if strcmpi(HDR.FLAG.OUTPUT,'single'),
+		DT = [gdfdatatype(HDR.GDFTYP),'=>single'];
+        elseif any(HDR.GDFTYP==[1:6,16]) & ~exist('OCTAVE_VERSION','builtin'),
         	% preserve data type
 		DT = ['*',gdfdatatype(HDR.GDFTYP)];
 	else
@@ -316,7 +318,7 @@ elseif strmatch(HDR.TYPE,{'BLSC2','CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Ni
         maxsamples = min(HDR.SampleRate*NoS, HDR.NRec*HDR.SPR-HDR.FILE.POS);
 	S = []; count = 0;
 	while maxsamples>0,
-    		[s,c] = fread(HDR.FILE.FID, [HDR.NS+tc,min(2^24/HDR.NS,maxsamples)], DT);
+    		[s,c] = fread(HDR.FILE.FID, [HDR.NS+tc,min(2^20/HDR.NS,maxsamples)], DT);
 		count = count + c;
 		maxsamples = maxsamples - c/(HDR.NS+tc);
         	if c>0,
@@ -347,7 +349,7 @@ elseif strcmp(HDR.TYPE,'SMA'),
                 STATUS = fseek(HDR.FILE.FID,HDR.HeadLen+HDR.SampleRate*HDR.AS.bpb*StartPos,'bof');        
                 HDR.FILE.POS = HDR.SampleRate*StartPos;
         end;
-        tmp = min(NoS*HDR.SampleRate,(HDR.AS.endpos-HDR.FILE.POS));
+        tmp = min(NoS*HDR.SampleRate,(HDR.NRec*HDR.SPR-HDR.FILE.POS));
         [S,count] = fread(HDR.FILE.FID,[HDR.NS,tmp],'float32'); % read data frame
         tmp = HDR.NS*tmp;
         if count < tmp,
@@ -1514,6 +1516,15 @@ if ~HDR.FLAG.UCAL,
 
         %if ~issparse(HDR.Calib); %
         if FLAG_CALIB_DONE, 
+
+        elseif strcmpi(HDR.FLAG.OUTPUT,'single')
+        	tmp = single(zeros(size(S,1),size(HDR.Calib,2)));
+                for k = 1:size(S,1),
+                        tmp(k,:) = [1,S(k,:)] * HDR.Calib;
+                end;
+                S = tmp; 
+                clear tmp;
+        	
         elseif 1, % exist('OCTAVE_VERSION','builtin')
                 % force octave to do a sparse multiplication
                 % the difference is NaN*sparse(0) = 0 instead of NaN
