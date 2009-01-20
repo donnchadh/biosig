@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.51 2009-01-09 10:01:20 schloegl Exp $
+    $Id: save2gdf.c,v 1.52 2009-01-20 13:33:36 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -273,6 +273,9 @@ int main(int argc, char **argv){
  		if (PhysMinValue0 > val)
  			PhysMinValue0 = val;
 
+		if ((SOURCE_TYPE==alpha) && (hdr->CHANNEL[k].GDFTYP==(255+12)) && (TARGET_TYPE==GDF)) 
+			// 12 bit into 16 bit 
+			hdr->CHANNEL[k].GDFTYP = 3;
 		if ((SOURCE_TYPE==ETG4000) && (TARGET_TYPE==GDF)) {
 			hdr->CHANNEL[k].GDFTYP  = 16;
 			hdr->CHANNEL[k].PhysMax = MaxValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
