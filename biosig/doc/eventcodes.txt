@@ -4,7 +4,7 @@
 # GDF v1.x http://hci.tugraz.at/schloegl/matlab/eeg/gdf4/TR_GDF.pdf
 # and part of the BioSig project http://biosig.sf.net/
 # Copyright (C) 2004,2005,2006,2008 Alois Schloegl <a.schloegl@ieee.org>
-# $Id: eventcodes.txt,v 1.14 2008-11-25 08:58:40 schloegl Exp $
+# $Id: eventcodes.txt,v 1.15 2009-01-20 16:09:46 schloegl Exp $
 #
 # BioSig is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public
@@ -82,20 +82,37 @@
 0x0382	target missed, task not reached, incorrect classification
 0x03ff	Rejection of whole trial
 ### 0x040_	Respiratory Events
-0x0401	Obstructive Apnea/Hypopnea Event (OAHE) 
-0x0402	Respiratory Effort Related Arousal (RERA)
+0x0401	Obstructive apnea/Hypopnea event (OAHE)
+0x0402	RERA #(Respiratory Effort Related Arousal)
 0x0403	Central Apnea/Hypopnea Event (CAHE)
-0x0404	Cheyne-Stokes Breathing (CSB)
-0x0405	Sleep Hypoventilation 
-0x040e	(time of) maximum inspiration 
-0x040f	Start of inspiration, (end of expiration) 
-### 0x041_	Sleep stages according to Rechtschaffen&Kales
-0x0410	Wake
-0x0411	Stage 1
-0x0412	Stage 2
-0x0413	Stage 3
-0x0414	Stage 4
-0x0415	REM
+0x0404	CS Breathing #(Cheyne-Stokes Breathing)
+0x0405	Hypoventilation 
+0x0406	Apnea  
+0x0407	Obstructive apnea
+0x0408	Central apnea  
+0x0409	Mixed apnea  
+0x040A	Hypopnea  
+0x040B	Periodic Breathing  
+0x040C	Limb movement 
+0x040D	PLMS
+0x040E	(time of) maximum inspiration 
+0x040F	Start of inspiration, (end of expiration) 
+### 0x041_ Sleep stages according to Rechtschaffen&Kales and AASM'07
+0x0410	Sleep stage Wake
+0x0411	Sleep stage 1
+0x0412	Sleep stage 2
+0x0413	Sleep stage 3
+0x0414	Sleep stage 4
+0x0415	Sleep stage REM
+0x0416	Sleep stage ?
+0x0417	Movement time
+0x0418	Bruxism
+0x0419	RBD #(Rapid eye movement sleep behaviour disorder)
+0x041A	RMD #(Sleep related rhythmic movement disorder)
+0x041B	Sleep stage N
+0x041C	Sleep stage N1
+0x041D	Sleep stage N2
+0x041E	Sleep stage N3
 ### 0x042_	Sleep
 0x0420	Lights on 
 #0x8420	Lights off
@@ -135,6 +152,9 @@
 # - FEF/Vital/11073 p.83
 # Unification is desired
 #
+# see also 0x2000-0x22ff: 
+#   
+#
 ### 0x058_	ergometric events 
 0x0580	start
 0x0581	 25 Watt
@@ -153,6 +173,8 @@
 0x058e	350 Watt
 #0x8580  end
 ### 0x100_	neural spikes 
+#
+### 0x2000-22ff	reserved for ECG events (see HL7 10102 Annotated ECG)
 #
 ### 0x00__	user specific events
 # Often, 1-127 are used for stimulus codes, and 129-255 for response code.
@@ -216,6 +238,12 @@
 0x0060	condition 96
 0x0063	condition 99
 0x0080	condition 128
+0x0081	condition 129
+0x0082	condition 130
+0x0084	condition 131
+0x0085	condition 132
+0x0086	condition 133
+0x0087	condition 134
 0x00a6	condition 166
 0x00a7	condition 167
 0x00a8	condition 168
