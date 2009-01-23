@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.131 2009-01-19 15:36:14 schloegl Exp $
+% $Id: biosig.h,v 1.132 2009-01-23 23:55:31 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -66,6 +66,7 @@ typedef char			int8_t;
 #endif 
 #endif 
 
+#include <gsl/gsl_matrix_double.h>
 #include <stdio.h>
 
 
@@ -389,6 +390,7 @@ int 	sclose(HDRTYPE* hdr);
  --------------------------------------------------------------- */
 
 
+
 size_t	sread(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
 size_t	sread1(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
 /*	LEN data segments are read from file associated with hdr, starting from 
@@ -415,6 +417,12 @@ size_t	sread1(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
 	hdr->FLAG.ROW_BASED_CHANNELS = 0 each channel is in one column 	
 	hdr->FLAG.ROW_BASED_CHANNELS = 1 each channel is in one row 	
  --------------------------------------------------------------- */
+
+#ifdef __GSL_MATRIX_DOUBLE_H__
+size_t	gsl_sread(gsl_matrix* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
+/*	same as sread but return data is of type gsl_matrix
+ --------------------------------------------------------------- */
+#endif 
 
 size_t	sread2(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
 size_t	sread3(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);

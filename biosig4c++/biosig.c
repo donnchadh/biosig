@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.280 2009-01-20 13:39:30 schloegl Exp $
+    $Id: biosig.c,v 1.281 2009-01-23 23:55:31 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -40,6 +40,7 @@
 		available online http://arxiv.org/abs/cs.DB/0608052	
 	
 */
+
 
 #include <ctype.h>
 #include <float.h>
@@ -8393,19 +8394,21 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		curPos += len; 
 
 		// tag 131: Patient Age  
-		tag = 131;
-		len = 7;
-		struct tm *t = gdf_time2tm_time(hdr->T0);
-		Header1[curPos++] = tag; 
-		Header1[curPos++] = len; 
-		*(Header1+curPos) = (uint8_t)((hdr->T0 - hdr->Patient.Birthday)/365.25); 
-		double tmpf64 = (hdr->T0 - hdr->Patient.Birthday); 
-		tmpf64 -= 365.25*floor(tmpf64/365.25);
-		*(uint16_t*)(Header1+curPos+1) = b_endian_u16((uint16_t)tmpf64); 
-		*(uint16_t*)(Header1+curPos+3) = b_endian_u16(t->tm_year+1900); 
-		*(Header1+curPos+5) = (t->tm_mon+1); 
-		*(Header1+curPos+6) = (t->tm_mday); 
-		curPos += len; 
+		if (hdr->Patient.Birthday>0) {
+			tag = 131;
+			len = 7;
+			struct tm *t = gdf_time2tm_time(hdr->Patient.Birthday);
+			Header1[curPos++] = tag; 
+			Header1[curPos++] = len; 
+			*(Header1+curPos) = (uint8_t)((hdr->T0 - hdr->Patient.Birthday)/365.25); 
+			double tmpf64 = (hdr->T0 - hdr->Patient.Birthday); 
+			tmpf64 -= 365.25*floor(tmpf64/365.25);
+			*(uint16_t*)(Header1+curPos+1) = b_endian_u16((uint16_t)tmpf64); 
+			*(uint16_t*)(Header1+curPos+3) = b_endian_u16(t->tm_year+1900); 
+			*(Header1+curPos+5) = (t->tm_mon+1); 
+			*(Header1+curPos+6) = (t->tm_mday); 
+			curPos += len;
+		} 
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 720-132]:\n");
 
@@ -8416,7 +8419,25 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		Header1[curPos+2] = hdr->Patient.Sex; 
 		curPos += 3; 
 
-
+		// tag 133: Recording time   
+		tag = 133;
+		len = 11;
+		{
+			struct tm *t = gdf_time2tm_time(hdr->Patient.Birthday);
+			Header1[curPos++] = tag; 
+			Header1[curPos++] = len; 
+			*(uint16_t*)(Header1+curPos) = b_endian_u16(t->tm_year+1900); 
+			*(Header1+curPos+2) = (t->tm_mon+1); 
+			*(Header1+curPos+3) = (t->tm_mday); 
+			*(Header1+curPos+4) = (t->tm_hour); 
+			*(Header1+curPos+5) = (t->tm_min); 
+			*(Header1+curPos+6) = (t->tm_sec); 
+			*(uint16_t*)(Header1+curPos+7) = 0; 
+			*(uint16_t*)(Header1+curPos+9) = 0; 
+			curPos += len;
+		}
+		
+		
 		// tag  9: LeadId
 		// tag 10: gdftyp
 		// tag 11: SampleRate
@@ -9196,6 +9217,25 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 
 }  // end of SREAD 
 
+
+#ifdef __GSL_MATRIX_DOUBLE_H__
+/****************************************************************************/
+/**	GSL_SREAD : GSL-version of sread                                   **/
+/****************************************************************************/
+size_t gsl_sread(gsl_matrix* m, size_t start, size_t length, HDRTYPE* hdr) {
+/* 	same as sread but return data is of type gsl_matrix
+*/
+        size_t count = sread(m->data, start, length, hdr);
+
+	m->size1 = hdr->data.size[1];
+	m->tda   = hdr->data.size[1];
+	m->size2 = hdr->data.size[0];
+	m->data  = hdr->data.block;
+	m->owner = 0; 
+	
+	return(count); 
+}
+#endif 
 
 
 #ifdef INCLUDE_EXPERIMENTAL_CODE 
