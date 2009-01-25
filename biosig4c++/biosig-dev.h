@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.11 2008-12-03 11:20:03 schloegl Exp $
+% $Id: biosig-dev.h,v 1.12 2009-01-25 20:26:09 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -227,10 +227,9 @@ const double INF=1.0/0.0;
 	global constants and variables 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-
+#ifndef VERBOSE_LEVEL
 extern int   VERBOSE_LEVEL; 	// used for debugging
-//#define VERBOSE_LEVEL 0	// turn off debugging information 
-
+#endif 
 
 /****************************************************************************/
 /**                                                                        **/

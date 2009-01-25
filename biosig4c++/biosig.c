@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.281 2009-01-23 23:55:31 schloegl Exp $
+    $Id: biosig.c,v 1.282 2009-01-25 20:26:09 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -6971,8 +6971,8 @@ fprintf(stdout,"ASN1 [491]\n");
 			hc->LowPass  = -1;
 			hc->HighPass = -1;
 		    	hc->LeadIdCode  = 0;
-			hdr->AS.bpb    += 2 * hc->SPR;
-			//hdr->AS.bpb    += (GDFTYP_BITS[hc->GDFTYP] * hc->SPR)>>3;
+			//hdr->AS.bpb    += 2 * hc->SPR;
+			hdr->AS.bpb    += (GDFTYP_BITS[hc->GDFTYP] * hc->SPR)>>3;
 						
 			if (VERBOSE_LEVEL>7)
 				fprintf(stdout,"k=%i\tLabel=%s [%s]\tNS=%i\tpos=%i\n",k,SignalName,tmp,NS,iftell(hdr));		    	
@@ -8623,8 +8623,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
  	caching: load data of whole file into buffer                      
 		 this will speed up data access, especially in interactive mode 
  ****************************************************************************/
-
-
 int cachingWholeFile(HDRTYPE* hdr) {
 
 	if (VERBOSE_LEVEL>7)
@@ -8681,8 +8679,6 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
  *
  * ToDo:
  *	- sample-based loading 
- *
- *
  *
  */
 
@@ -8803,250 +8799,211 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"sread 224 %p k4=%i %i %i %i bpb=%i,k1=%i k5=%i %i\n",ptr,k4,toffset,start, hdr->AS.first,hdr->AS.bpb,k1,k5,SZ );
 
+		union {int16_t i16; uint16_t u16; uint32_t i32; float f32; uint64_t i64; double f64;} u; 
+
+
+		// TODO:  MIT data types  
 		for (k4 = 0; k4 < count; k4++)
 		for (k5 = 0; k5 < CHptr->SPR; k5++) 
 		{
 
-		union {int16_t i16; uint16_t u16; uint32_t i32; float f32; uint64_t i64; double f64;} u; 
-
-		if (ALPHA12BIT) {
-			// get source address 	
-			size_t off = (k4+toffset)*hdr->NS*SZ + hdr->CHANNEL[k1].bi8 + k5*SZ;
-			ptr = hdr->AS.rawdata + (off>>3);
-
-			if (off & 0x07) 
-				u.i16 = ptr[1] + ((ptr[0] & 0x0f)<<8); 
-			else 
-				u.i16 = (ptr[0]<<4) + (ptr[1] >> 4); 
-
-			if (u.i16 & 0x0800) u.i16 -= 0x1000; 
-			sample_value = (biosig_data_type)u.i16; 
-
-			if (VERBOSE_LEVEL>7)
-				fprintf(stdout,"|%f",sample_value );
-		}	
-
-/*
-		if (MITTYP==212)
-			; 
-		else if (MITTYP==310)
-			; 
-		else if (MITTYP==311)
-			; 
-		else 
-*/
-
-		else 
-		{
-		
-		bitoff = k5*SZ & 0x07;
-		// get source address 	
-		if (hdr->TYPE==TMS32)
-			ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + (k1+k5*hdr->NS)*(SZ>>3)+86;
-		else
-			ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + hdr->CHANNEL[k1].bi + (k5*SZ>>3);
-
-		if (VERBOSE_LEVEL>8)
-			fprintf(stdout,"sread 225 %p k4=%i %i %i %i bpb=%i,k1=%i k5=%i %i\n",ptr,k4,toffset,start, hdr->AS.first,hdr->AS.bpb,k1,k5,SZ );
-
-		if (SWAP) {
-			// mapping of raw data type to (biosig_data_type)
-			switch (GDFTYP) { 
-			case 3: 
+		ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + hdr->CHANNEL[k1].bi + (k5*SZ>>3);
+		switch (GDFTYP) { 
+		case 1: 
+			sample_value = (biosig_data_type)(*(int8_t*)ptr); 
+			break;
+		case 2: 
+			sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
+			break;
+		case 3: 
+			if (hdr->TYPE==TMS32) {
+				ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + (k1+k5*hdr->NS)*(SZ>>3)+86;
+#if __BYTE_ORDER == __BIG_ENDIAN
 				sample_value = (biosig_data_type)(int16_t)bswap_16(*(int16_t*)ptr); 
-				break;
-			case 4: 
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+				sample_value = (biosig_data_type)(*(int16_t*)ptr); 
+#endif
+			}
+			else if (SWAP) {
+				sample_value = (biosig_data_type)(int16_t)bswap_16(*(int16_t*)ptr); 
+			}
+			else {
+				sample_value = (biosig_data_type)(*(int16_t*)ptr); 
+			}
+			break;
+		case 4: 
+			if (SWAP) {
 				sample_value = (biosig_data_type)(uint16_t)bswap_16(*(uint16_t*)ptr); 
-				break;
-			case 16: 
+			}
+			else {
+				sample_value = (biosig_data_type)(*(uint16_t*)ptr); 
+			}
+			break;
+		case 5: 
+			if (SWAP) {
+				sample_value = (biosig_data_type)(int32_t)bswap_32(*(int32_t*)ptr); 
+			}
+			else {
+				sample_value = (biosig_data_type)(*(int32_t*)ptr); 
+			}
+			break;
+		case 6: 
+			if (SWAP) {
+				sample_value = (biosig_data_type)(uint32_t)bswap_32(*(uint32_t*)ptr); 
+			}
+			else {
+				sample_value = (biosig_data_type)(*(uint32_t*)ptr); 
+			}
+			break;
+		case 7: 
+			if (SWAP) {
+				sample_value = (biosig_data_type)(int64_t)bswap_64(*(int64_t*)ptr); 
+			}
+			else {
+				sample_value = (biosig_data_type)(*(int64_t*)ptr); 
+			}
+			break;
+		case 8: 
+			if (SWAP) {
+				sample_value = (biosig_data_type)(uint64_t)bswap_64(*(uint64_t*)ptr); 
+			}
+			else {
+				sample_value = (biosig_data_type)(*(uint64_t*)ptr); 
+			}
+			break;
+		case 16:	 
+			if (hdr->TYPE==TMS32) {
+				ptr = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + (k1+k5*hdr->NS)*(SZ>>3)+86;
+#if __BYTE_ORDER == __BIG_ENDIAN
 				u.i32 = bswap_32(*(uint32_t*)(ptr));
 				sample_value = (biosig_data_type)(u.f32);
-				break;
-			case 17: 
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+				sample_value = (biosig_data_type)(*(float*)(ptr));
+#endif
+			}
+			else if (SWAP) {
+				u.i32 = bswap_32(*(uint32_t*)(ptr));
+				sample_value = (biosig_data_type)(u.f32);
+			}
+			else {
+				sample_value = (biosig_data_type)(*(float*)(ptr));
+			}
+			break;
+
+		case 17: 
+			if (SWAP) {
 				u.i64 = bswap_64(*(uint64_t*)(ptr));
 				sample_value = (biosig_data_type)(u.f64);
-				break;
-			case 0: 
-				sample_value = (biosig_data_type)(*(char*)ptr); 
-				break;
-			case 1: 
-				sample_value = (biosig_data_type)(*(int8_t*)ptr); 
-				break;
-			case 2: 
-				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
-				break;
-			case 5: 
-				sample_value = (biosig_data_type)(int32_t)bswap_32(*(int32_t*)ptr); 
-				break;
-			case 6: 
-				sample_value = (biosig_data_type)(uint32_t)bswap_32(*(uint32_t*)ptr); 
-				break;
-			case 7: 
-				sample_value = (biosig_data_type)(int64_t)bswap_64(*(int64_t*)ptr); 
-				break;
-			case 8: 
-				sample_value = (biosig_data_type)(uint64_t)bswap_64(*(uint64_t*)ptr); 
-				break;
+			}
+			else {
+				sample_value = (biosig_data_type)(*(double*)(ptr));
+			}
+			break;
 
+		case 128:	// Nihon-Kohden little-endian int16 format  
+			u.u16 = leu16p(ptr) + 0x8000;
+			sample_value = (biosig_data_type) (u.i16); 
+			break;
+
+		case 255+12: 
+			if (ALPHA12BIT) {
+				// get source address 	
+				size_t off = (k4+toffset)*hdr->NS*SZ + hdr->CHANNEL[k1].bi8 + k5*SZ;
+				ptr = hdr->AS.rawdata + (off>>3);
+
+				if (off & 0x07) 
+					u.i16 = ptr[1] + ((ptr[0] & 0x0f)<<8); 
+				else 
+					u.i16 = (ptr[0]<<4) + (ptr[1] >> 4); 
+
+				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
+				sample_value = (biosig_data_type)u.i16; 
+			}
+			else if (hdr->FILE.LittleEndian) {
+				bitoff = k5*SZ & 0x07;
 #if __BYTE_ORDER == __BIG_ENDIAN
-
-			case (255+12):
-				// assume LITTLE_ENDIAN format & BIG_ENDIAN platform 
 				u.i16 = (leu16p(ptr) >> (4-bitoff)) & 0x0FFF;
-				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
-				sample_value = (biosig_data_type)u.i16; 
-				break;
-			case (255+24): 
-				// assume LITTLE_ENDIAN format and BIG_ENDIAN platform 
-				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
-				sample_value = (biosig_data_type)int32_value; 
-				break;
-			case (511+12): 
-				// assume LITTLE_ENDIAN format & BIG_ENDIAN platform 
-				sample_value = (biosig_data_type)((leu16p(ptr) >> (4-bitoff)) & 0x0FFF); 
-				break;
-			case (511+24): 
-				// assume LITTLE_ENDIAN format and BIG_ENDIAN platform 
-				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
-				sample_value = (biosig_data_type)int32_value; 
-				break;
-
 #elif __BYTE_ORDER == __LITTLE_ENDIAN
-
-			case (255+12):
-				// assume BIG_ENDIAN format & LITTLE_ENDIAN platform 
-				u.i16 = (beu16p(ptr) >> (4-bitoff)) & 0x0FFF;
-				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
-				sample_value = (biosig_data_type)u.i16; 
-				break;
-			case (255+24): 
-				// assume BIG_ENDIAN format & LITTLE_ENDIAN platform
-				int32_value = (*(uint8_t*)(ptr+2)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr)*(1<<16)); 
-				sample_value = (biosig_data_type)int32_value; 
-				break;
-			case (511+12): 
-				// assume BIG_ENDIAN format & LITTLE_ENDIAN platform 
-				sample_value = (biosig_data_type) ((beu16p(ptr) >> (4-bitoff)) & 0x0FFF); 
-				break;
-			case (511+24): 
-				// assume BIG_ENDIAN format & LITTLE_ENDIAN platform
-				int32_value = (*(uint8_t*)(ptr+2)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr)<<16); 
-				sample_value = (biosig_data_type)int32_value; 
-				break;
-
-#endif
-
-			default: 
-				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
-				B4C_ERRMSG = "Error SREAD: datatype not supported";
-				exit(-1);
-			}
-
-		} else {
-			// mapping of raw data type to (biosig_data_type)
-			switch (GDFTYP) { 
-			case 3: 
-				sample_value = (biosig_data_type)(*(int16_t*)ptr); 
-				break;
-			case 4: 
-				sample_value = (biosig_data_type)(*(uint16_t*)ptr); 
-				break;
-			case 16: 
-				sample_value = (biosig_data_type)(*(float*)(ptr));
-				break;
-			case 17: 
-				sample_value = (biosig_data_type)(*(double*)(ptr)); 
-				break;
-			case 0: 
-				sample_value = (biosig_data_type)(*(char*)ptr); 
-				break;
-			case 1: 
-				sample_value = (biosig_data_type)(*(int8_t*)ptr); 
-				break;
-			case 2: 
-				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
-				break;
-			case 5: 
-				sample_value = (biosig_data_type)(*(int32_t*)ptr); 
-				break;
-			case 6: 
-				sample_value = (biosig_data_type)(*(uint32_t*)ptr); 
-				break;
-			case 7: 
-				sample_value = (biosig_data_type)(*(int64_t*)ptr); 
-				break;
-			case 8: 
-				sample_value = (biosig_data_type)(*(uint64_t*)ptr); 
-				break;
-
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-
-			case 128:	// Nihon-Kohden little-endian int16 format  
-				u.u16 = *(uint16_t*)ptr + 0x8000;
-				sample_value = (biosig_data_type) (u.i16); 
-				break;
-				
-			case (255+12):
-				// assume LITTLE_ENDIAN platform & LITTLE_ENDIAN platform 
 				u.i16 = (leu16p(ptr)>>bitoff) & 0x0FFF;
+#endif		
 				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
 				sample_value = (biosig_data_type)u.i16; 
-				break;
-			case (255+24): 
-				// assume LITTLE_ENDIAN format
+			}
+			else {
+				bitoff = k5*SZ & 0x07;
+#if __BYTE_ORDER == __BIG_ENDIAN
+				u.i16 = (beu16p(ptr) >> (4-bitoff)) & 0x0FFF;
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+				u.i16 = (beu16p(ptr) >> (4-bitoff)) & 0x0FFF;
+#endif
+				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
+				sample_value = (biosig_data_type)u.i16; 
+			}
+			break;	
+			
+		case 511+12: 
+			bitoff = k5*SZ & 0x07;
+			if (hdr->FILE.LittleEndian) {
+#if __BYTE_ORDER == __BIG_ENDIAN
+				sample_value = (biosig_data_type)((leu16p(ptr) >> (4-bitoff)) & 0x0FFF); 
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+				sample_value = (biosig_data_type)((leu16p(ptr) >> bitoff) & 0x0FFF); 
+#endif		
+			} else {
+#if __BYTE_ORDER == __BIG_ENDIAN
+				sample_value = (biosig_data_type)((beu16p(ptr) >> (4-bitoff)) & 0x0FFF); 
+#elif __BYTE_ORDER == __LITTLE_ENDIAN
+				sample_value = (biosig_data_type)((beu16p(ptr) >> (4-bitoff)) & 0x0FFF); 
+#endif		
+			}
+			
+		case 255+24:
+			if (hdr->FILE.LittleEndian) {
 				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
 				sample_value = (biosig_data_type)int32_value; 
-				break;
-			case (511+12): 
-				// assume LITTLE_ENDIAN platform & LITTLE_ENDIAN platform 
-				sample_value = (biosig_data_type) ((leu16p(ptr) >> bitoff) & 0x0FFF); 
-				break;
-			case (511+24): 
-				// assume LITTLE_ENDIAN format
-				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
-				sample_value = (biosig_data_type)int32_value; 
-				break;
-
-#elif __BYTE_ORDER == __BIG_ENDIAN
-
-			case (255+12):
-				// assume BIG_ENDIAN platform & BIG_ENDIAN format 
-				u.i16 = (beu16p(ptr) >> (4-bitoff)) & 0x0FFF;
-				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
-				sample_value = (biosig_data_type)u.i16; 
-				break;
-			case (255+24): 
-				// assume BIG_ENDIAN format
+			}
+			else {
 				int32_value = (*(uint8_t*)(ptr+2)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr)*(1<<16)); 
 				sample_value = (biosig_data_type)int32_value; 
-				break;
-			case (511+12): 
-				// assume BIG_ENDIAN platform & BIG_ENDIAN format 
-				sample_value = (biosig_data_type) ((beu16p(ptr) >> (4-bitoff)) & 0x0FFF); 
-				break;
-			case (511+24): 
-				// assume BIG_ENDIAN format
+			}
+			break;
+			
+		case 511+24:
+			if (hdr->FILE.LittleEndian) {
+				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
+				sample_value = (biosig_data_type)int32_value; 
+			}
+			else {
 				int32_value = (*(uint8_t*)(ptr+2)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr)<<16); 
 				sample_value = (biosig_data_type)int32_value; 
-				break;
-
-#endif
-			default: 
-				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
-				B4C_ERRMSG = "Error SREAD: datatype not supported";
-				exit(-1);
 			}
-		}	// endif (hdr->TYPE == alpha)
-		}	// endloop for k5 
+			break; 	
 
+		default: 
+/*
+			if (MITTYP==212)
+				; 
+			else if (MITTYP==310)
+				; 
+			else if (MITTYP==311)
+				; 
+			else 
+*/
+
+			B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
+			B4C_ERRMSG = "Error SREAD: datatype not supported";
+			exit(-1);
+		}	
 
 		if ((VERBOSE_LEVEL>7) && (k5==0))
 			fprintf(stdout,"|%f (%i %i [%f %f] %f*x+%f)",sample_value,hdr->FLAG.OVERFLOWDETECTION,hdr->FLAG.UCAL,CHptr->DigMax,CHptr->DigMin,CHptr->Cal, CHptr->Off);
+
 		// overflow and saturation detection 
 		if ((hdr->FLAG.OVERFLOWDETECTION) && ((sample_value <= CHptr->DigMin) || (sample_value >= CHptr->DigMax)))
 			sample_value = NaN; 	// missing value 
 		else if (!hdr->FLAG.UCAL)	// scaling 
 			sample_value = sample_value * CHptr->Cal + CHptr->Off;
+
 
 		if ((VERBOSE_LEVEL>7) && (k5==0))
 			fprintf(stdout,"|%f",sample_value );
