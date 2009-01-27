@@ -23,16 +23,17 @@ function [HDR] = leadidcodexyz(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: leadidcodexyz.m,v 1.15 2008-07-10 18:41:25 schloegl Exp $
-%	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: leadidcodexyz.m,v 1.16 2009-01-27 10:54:54 schloegl Exp $
+%	Copyright (C) 2006,2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
-
-
 
 
 global BIOSIG_GLOBAL;
 % BIOSIG_GLOBAL=[]; %%% used for debugging, only. 
 
+if ~isfield(BIOSIG_GLOBAL,'Phi'); 
+	BIOSIG_GLOBAL.ISLOADED_XYZ = 0 ; 
+end; 
 if ~isfield(BIOSIG_GLOBAL,'ISLOADED_XYZ')
 	BIOSIG_GLOBAL.ISLOADED_XYZ = 0 ; 
 end; 
