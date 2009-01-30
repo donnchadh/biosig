@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.282 2009-01-25 20:26:09 schloegl Exp $
+    $Id: biosig.c,v 1.283 2009-01-30 17:08:53 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -32,7 +32,7 @@
 	- reading of ACQ, AINF, BKR, BrainVision, CNT, DEMG, EGI, ETG4000, MFER files 
 	
 	implemented functions: 
-	- SOPEN, SREAD, SWRITE, SCLOSE, SEOF, SSEEK, STELL, SREWIND 
+	- SOPEN, 	SREAD, SWRITE, SCLOSE, SEOF, SSEEK, STELL, SREWIND 
 	
 
 	References: 
@@ -670,6 +670,7 @@ const struct PhysDimIdx
 	{ 4480 ,  "cd" },
 	{ 4512 ,  "osmole" },
 	{ 4544 ,  "mol" },
+	{ 4544 ,  "Mol" },
 	{ 4576 ,  "eq" },
 	{ 4608 ,  "osmol l-1" },
 	{ 4640 ,  "mol cm-3" },
@@ -740,11 +741,10 @@ const struct PhysDimIdx
 int strncmpi(const char* str1, const char* str2, size_t n)
 {	
 	unsigned int k=0;
-	int r;
-	r = tolower(str1[k]) - tolower(str2[k]); 
+	int r=0;
 	while (!r && str1[k] && str2[k] && (k<n)) {
-		k++; 
 		r = tolower(str1[k]) - tolower(str2[k]);
+		k++; 
 	}	
 	return(r); 	 	
 }
@@ -777,6 +777,14 @@ int strcmp(const char* str1, const char* str2)
 		r = str1[k] - str2[k];
 	}	
 	return(r); 	 	
+}
+
+/*
+	compare uint32_t
+*/
+int u32cmp(const void *a,const void *b) 
+{
+	return(*(uint32_t*)a - *(uint32_t*)b);
 }
 
 const char* PhysDimFactor[] = {
@@ -891,7 +899,7 @@ uint16_t PhysDimCode(char* PhysDim0)
       	GDF format. 
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-gdf_time   tm_time2gdf_time(struct tm *t){
+gdf_time tm_time2gdf_time(struct tm *t){
 	/* based Octave's datevec.m 
 	it referes Peter Baum's algorithm at http://vsg.cape.com/~pbaum/date/date0.htm 
 	but the link is not working anymore as of 2008-12-03. 
@@ -2542,7 +2550,7 @@ if (!strncmp(MODE,"r",1))
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[211] FMT=%s NS=%i pos=%i headlen=%i\n",GetFileTypeString(hdr->TYPE),hdr->NS,count,hdr->HeadLen);
 
 		hdr->AS.bpb=0;
-		size_t BitsPerBlock = 0; 
+		size_t bpb8 = 0; 
 		for (k=0; k<hdr->NS; k++)	{
 			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
 
@@ -2557,12 +2565,10 @@ if (!strncmp(MODE,"r",1))
 			hc->SPR     = leu32p(Header2+ 4*k + 216*hdr->NS);
 			hc->GDFTYP  = leu16p(Header2+ 4*k + 220*hdr->NS);
 			hc->OnOff   = 1;
-			hc->bi      = hdr->AS.bpb;
-			hc->bi8     = BitsPerBlock;
+			hc->bi      = bpb8>>3;
+			hc->bi8     = bpb8;
 			uint32_t nbits = (GDFTYP_BITS[hc->GDFTYP]*hc->SPR);
-			BitsPerBlock += nbits; 
-			hdr->AS.bpb  += nbits>>3;
-
+			bpb8 += nbits; 
 
 			if (hdr->VERSION < 1.90) {
 				char p[9];
@@ -2601,9 +2607,14 @@ if (!strncmp(MODE,"r",1))
 				//memcpy(&hc->XYZ,Header2 + 4*k + 224*hdr->NS,12);
 				hc->Impedance= ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);
 			}
-			hc->Cal   	= (hc->PhysMax-hc->PhysMin)/(hc->DigMax-hc->DigMin);
-			hc->Off   	=  hc->PhysMin-hc->Cal*hc->DigMin;
+			hc->Cal = (hc->PhysMax-hc->PhysMin)/(hc->DigMax-hc->DigMin);
+			hc->Off =  hc->PhysMin-hc->Cal*hc->DigMin;
 		}
+		hdr->AS.bpb = bpb8>>3;
+		if (bpb8 & 0x07) {		// each block must use whole number of bytes  
+			hdr->AS.bpb++;  
+			hdr->AS.bpb8 = hdr->AS.bpb<<3;  
+		}	
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[213] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
 
@@ -3041,7 +3052,7 @@ if (!strncmp(MODE,"r",1))
 			size_t N_EVENT  = 0;
 			hdr->EVENT.SampleRate = hdr->SampleRate; 
 			
-			// TODO: remove header for event channel	
+			// remove header for event channel	
 			uint16_t k17=0; 		
 			for (uint16_t k16=0; k16<hdr->NS; k16++) {
 				if (k16!=k17) {
@@ -3467,10 +3478,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 
 		/* open data file */ 
 		strcpy(ext,"raw");		
+		struct stat FileBuf;
+		stat(hdr->FileName,&FileBuf);
+
 		hdr = ifopen(hdr,"rb"); 
-	        ifseek(hdr, 0, SEEK_END);	// TODO: replace SEEK_END
-		hdr->NRec = iftell(hdr)/hdr->AS.bpb;
-	        ifseek(hdr, 0, SEEK_SET);
+		hdr->NRec = FileBuf.st_size/hdr->AS.bpb;
 		hdr->HeadLen   = 0;
 		// hdr->FLAG.SWAP = (__BYTE_ORDER == __LITTLE_ENDIAN);  	// AINF is big endian 
 		hdr->FILE.LittleEndian = 0; 
@@ -3482,8 +3494,6 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
     	else if (hdr->TYPE==alpha) {
 
 		fprintf(stdout,"Warning: support for alpha format is just experimental.\n"); 
-		/* ToDo: re-ordering of channel info according to rawhead
-		*/
 
 		char* fn = (char*)calloc(strlen(hdr->FileName)+15,sizeof(char));
 		strcpy(fn,hdr->FileName); 
@@ -3501,10 +3511,15 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		FILE *fid = fopen(fn,"r"); count  = fread(buf,1,bufsiz-1,fid); fclose(fid); buf[count]=0;	// terminating 0 character 		
 		char *t   = strtok(buf,"\xA\xD");
 		while (t) {
-if (VERBOSE_LEVEL>7) fprintf(stdout,"0: %s \n",t); 
-			if (!strcmp(t,"Version ="))
-				hdr->VERSION = atof(t+9);
 
+if (VERBOSE_LEVEL>7) fprintf(stdout,"0: %s \n",t); 
+
+			if (!strncmp(t,"Version = ",9))
+				hdr->VERSION = atof(t+9);
+			else if (!strncmp(t,"Id = ",4)) {
+				strncpy(hdr->ID.Manufacturer._field,t+5,MAX_LENGTH_MANUF);
+				hdr->ID.Manufacturer.Name = hdr->ID.Manufacturer._field;
+			}
 			t = strtok(NULL,"\xA\xD");
 		}
 
@@ -3519,6 +3534,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"0: %s \n",t);
 		fid = fopen(fn,"r"); count  = fread(buf,1,bufsiz-1,fid); fclose(fid); buf[count]=0;	// terminating 0 character 		
 		t   = strtok(buf,"\xA\xD");
 		char STATUS = 1; 
+		uint32_t *ChanOrder=NULL; 
+		char **ChanType = NULL;
 		while ((t!=NULL) && (STATUS<9)) {
 			char *t1 = strchr(t,'=');
 
@@ -3543,6 +3560,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"%i- %s = %s\n",STATUS,t,t1);
 					else if (!strcmp(t,"ChanCount")) {
 						hdr->NS = atoi(t1);
 						hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL, hdr->NS*sizeof(CHANNEL_TYPE));
+						ChanOrder = (uint32_t*)calloc(hdr->NS,sizeof(uint32_t)*2);
+						ChanType  = (char**)calloc(hdr->NS,sizeof(char*));
+						
 					}
 					else if (!strcmp(t,"SampleFreq"))
 						hdr->SampleRate = atof(t1);
@@ -3558,49 +3578,76 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"%i- %s = %s\n",STATUS,t,t1);
 				else if (STATUS == 2) {
 					//sscanf(t1, "%s, %i, %s, %f, %s, %s", &HighPass,&LowPass, &tmp1,&tmp2,pd); 
 
-					CHANNEL_TYPE *hc = hdr->CHANNEL+ns; 
-					hc->GDFTYP  = gdftyp; 
-					hc->Notch   = Notch; 
-					hc->LeadIdCode = 0; 
-					hc->SPR = hdr->SPR; 
-					hc->bi8 = GDFTYP_BITS[gdftyp]*ns; 
-					hc->DigMax  = (1<<(Bits-1))-1;
-					hc->DigMin  = -(1<<(Bits-1));
-					hc->OnOff   = 1; 
-					hc->Cal     = 1.0; 
-					hc->Off     = 0.0; 
-					hc->PhysMax = hc->DigMax; 
-					hc->PhysMin = hc->DigMin; 
-					
-					strcpy(hc->Label, t);
-					/* TODO 
-					hc->bi;
-					hc->LowPass;
-					hc->HighPass;
-					hc->PhysDimCode;
-					*/
-					ns++;
 					if (ns>=hdr->NS) {
-						t = strtok(NULL,"\xA\xD");  //skip REF 
 						ns = 0; 
 						STATUS = 3;
+					}
+					else {	
+						CHANNEL_TYPE *hc = hdr->CHANNEL+ns; 
+						hc->GDFTYP  = gdftyp; 
+						hc->Notch   = Notch; 
+						hc->LeadIdCode = 0; 
+						hc->SPR = hdr->SPR; 
+						//hc->bi8 = GDFTYP_BITS[gdftyp]*ns; 
+						hc->DigMax  = (1<<(Bits-1))-1;
+						hc->DigMin  = -(1<<(Bits-1));
+						hc->OnOff   = 1; 
+						hc->Cal     = 1.0; 
+						hc->Off     = 0.0; 
+						hc->PhysMax = hc->DigMax; 
+						hc->PhysMin = hc->DigMin; 
+					
+						strcpy(hc->Label, t);
+						char* t2= strchr(t1,',');
+						t2[0] = 0; while (isspace((++t2)[0]));
+						char* t3= strchr(t2,',');
+						t3[0] = 0; while (isspace((++t3)[0]));
+						char* t4= strchr(t3,',');
+						t4[0] = 0; while (isspace((++t4)[0]));
+
+						ChanOrder[ns*2] = atoi(t2); 
+						ChanOrder[ns*2+1] = ns; 
+						ChanType[ns] = t3; 
+						ns++;
 					}	
 				}	
 				else if (STATUS == 3) {
-					// TODO: decode information (filters, PhysDim, etc.)
+					// decode information (filters, PhysDim, etc.) and assign to corresponding channels. 
 					char pd[MAX_LENGTH_PHYSDIM+1];
 					float tmp1, tmp2, HighPass, LowPass;
 					sscanf(t1, "%f, %f, %f, %f, %s, %s", &HighPass,&LowPass, &tmp1,&tmp2,pd); 
+					strrchr(pd,',')[0]=0;
 					if (!strcmp(pd,"%%")) pd[1]=0; 
-					//hc->PhysDimCode = PhysDimCode(pd); 
+					uint16_t pdc = PhysDimCode(pd); 
 
-					ns++;
-					if (ns>hdr->NS) STATUS = 99;
+					char flag = 0; 
+					for (k=0; k < hdr->NS; k++) {
+						if ((ChanType[k]!=NULL) && !strcmp(t,ChanType[k])) {
+							CHANNEL_TYPE *hc = hdr->CHANNEL+k; 
+							hc->PhysDimCode = pdc; 
+							//strcpy(hc->PhysDim,pd); 
+							hc->LowPass = LowPass;
+							hc->HighPass = HighPass;
+							ChanType[k] = NULL; 
+						}
+						if (ChanType[k] != NULL) flag = 1;	// not done yet 
+					}	
+					if (!flag) STATUS== 99; 	// done with channel definition
 				}	
 			}	
 			t = strtok(NULL,"\xA\xD");
 		}
-		hdr->AS.bpb = (GDFTYP_BITS[gdftyp]*hdr->NS)>>3;
+		hdr->AS.bpb8 = (GDFTYP_BITS[gdftyp]*hdr->NS);
+//		hdr->AS.bpb = (GDFTYP_BITS[gdftyp]*hdr->NS)>>3;		// do not rely on this, because some bits can get lost
+
+		// sort channels 
+		qsort(ChanOrder,hdr->NS,2*sizeof(uint32_t),&u32cmp);
+		for (k=0; k<hdr->NS; k++) {
+			hdr->CHANNEL[ChanOrder[2*k+1]].bi8 = GDFTYP_BITS[gdftyp]*k; 
+		}
+		free(ChanOrder); 		
+		free(ChanType); 		
+
 		
 		f2 = "cal_res";
 		if (tmpstr) 	strcpy(tmpstr+1,f2); 
@@ -3636,6 +3683,125 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"%i- %s = %s\n",STATUS,t,t1);
 			}
 		}
 		
+		f2 = "r_info";
+		if (tmpstr) 	strcpy(tmpstr+1,f2); 
+		else 	    	strcpy(fn,f2); 
+				
+		fid = fopen(fn,"r"); 
+
+		if (fid!=NULL) {
+			count  = fread(buf,1,bufsiz-1,fid); fclose(fid); buf[count]=0;	// terminating 0 character 		
+			struct tm T;
+			t   = strtok(buf,"\xA\xD");
+			t   = strtok(NULL,"\xA\xD");	// skip line 1 
+			while (t!=NULL) {
+				char *t1 = strchr(t,'=');
+				t1[0] = 0;
+				while (isspace((++t1)[0])); 
+				for (k=strlen(t); (k>0) && isspace(t[--k]); t[k]=0);
+				for (k=strlen(t1); (k>0) && isspace(t1[--k]); t1[k]=0);
+
+			if (VERBOSE_LEVEL>7) fprintf(stdout,"r_info: %s = %s\n",t,t1); 
+
+				if (0) {}
+				else if (!strcmp(t,"RecId")) 
+					strncpy(hdr->ID.Recording,t1,MAX_LENGTH_RID);
+				else if (!strcmp(t,"RecDate")) {
+					sscanf(t1,"%02d.%02d.%04d",&T.tm_mday,&T.tm_mon,&T.tm_year);
+					T.tm_year -=1900;
+					T.tm_min -=1;
+				}	
+				else if (!strcmp(t,"RecTime"))
+					sscanf(t1,"%02d.%02d.%02d",&T.tm_hour,&T.tm_min,&T.tm_sec);
+				else if (!strcmp(t,"TechSal"))
+					strncpy(hdr->ID.Technician,t1,MAX_LENGTH_TECHNICIAN);
+				else if (!strcmp(t,"TechTitle")) {
+					strncat(hdr->ID.Technician," ",MAX_LENGTH_TECHNICIAN);
+					strncat(hdr->ID.Technician,t1,MAX_LENGTH_TECHNICIAN);
+				}	
+				else if (!strcmp(t,"TechLast")) {
+					strncat(hdr->ID.Technician," ",MAX_LENGTH_TECHNICIAN);
+					strncat(hdr->ID.Technician,t1,MAX_LENGTH_TECHNICIAN);
+				}	
+				else if (!strcmp(t,"TechFirst")) {
+					strncat(hdr->ID.Technician," ",MAX_LENGTH_TECHNICIAN);
+					strncat(hdr->ID.Technician,t1,MAX_LENGTH_TECHNICIAN);
+				}	
+
+				t = strtok(NULL,"\xA\xD");
+			}
+			hdr->T0 = tm_time2gdf_time(&T);
+		}
+		
+		f2 = "marker";
+		if (tmpstr) 	strcpy(tmpstr+1,f2); 
+		else 	    	strcpy(fn,f2); 
+		fid = fopen(fn,"r"); 
+		if (fid != NULL) {
+			size_t n,N;
+			N=0; n=0;  
+			while (!feof(fid)) {
+				hdr->AS.auxBUF = (uint8_t*) realloc(hdr->AS.auxBUF,N+bufsiz+1);
+				N += fread(hdr->AS.auxBUF+N, 1, bufsiz, fid); 
+			}
+			fclose(fid); 
+			hdr->AS.auxBUF[N] = 0;	// terminating 0 character 		
+
+			N = 0; 
+			t = (char*)hdr->AS.auxBUF+strcspn((char*)hdr->AS.auxBUF,"\xA\xD");
+			t = t+strspn(t,"\xA\xD");	// skip lines 1 and 2 
+			while (t[0]) {
+				char*  t1 = t;	
+				size_t l1 = strcspn(t1," ="); 
+				size_t p2 = strspn(t1+l1," =")+l1; 
+				char*  t2 = t+p2;
+				size_t l2 = strcspn(t2," ,"); 
+				size_t p3 = strspn(t2+l2," ,")+l2; 
+				char*  t3 = t2+p3;
+				size_t l3 = strcspn(t3," ,"); 
+				size_t p4 = strspn(t3+l3," ,")+l3; 
+				char*  t4 = t3+p4;
+				size_t l4 = strcspn(t4,"\xA\xD"); 
+				size_t p5 = strspn(t4+l4,"\xA\xD")+l4;
+				t1[l1] = 0;
+				t2[l2] = 0;
+				t3[l3] = 0;
+				t4[l4] = 0;
+				t = t4 + p5;
+				
+				if (n+1 >= N) {
+					const size_t sz = 100;
+					hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,(N+sz)*sizeof(*hdr->EVENT.TYP));
+					hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,(N+sz)*sizeof(*hdr->EVENT.POS));
+					N += sz; 
+				}	
+
+				hdr->EVENT.POS[n] = atol(t3);
+				if (!strcmp(t1,"REC")) 
+					hdr->EVENT.TYP[n] = 0x7ffe;
+				else if (!strcmp(t1,"MON"))
+					hdr->EVENT.TYP[n] = 0;
+				else if (!strcmp(t1,"TXT"))
+					FreeTextEvent(hdr, n, t4); 
+				else
+					FreeTextEvent(hdr, n, t1); 
+						
+				if (!strcmp(t2,"off")) 
+					hdr->EVENT.TYP[n] |= 0x8000;	
+
+//fprintf(stdout,"#%u, 0x%04x,%u | %s = %s, %s, %s\n",n,hdr->EVENT.TYP[n],hdr->EVENT.POS[n],t1,t2,t3,t4);
+
+				n++;
+//				t = strtok(NULL,"\xA\xD");
+
+//fprintf(stdout," <%s>\n",t1);
+			}	
+			hdr->EVENT.N = n; 
+			hdr->EVENT.SampleRate = hdr->SampleRate; 
+			convert2to4_eventtable(hdr);
+		}
+
+		
 		f2 = "rawdata";
 		if (tmpstr) 	strcpy(tmpstr+1,f2); 
 		else 	    	strcpy(fn,f2); 
@@ -3659,7 +3825,6 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"%i- %s = %s\n",STATUS,t,t1);
 				hdr->CHANNEL[k].OnOff = 0;  
 			for (k=0; k<hdr->NS; k++) {
 				hdr->CHANNEL[k].GDFTYP = gdftyp; 
-				hdr->CHANNEL[k].bi8 = GDFTYP_BITS[gdftyp]*k; 
 			}
 			hdr->AS.bpb = (GDFTYP_BITS[gdftyp]*a[1])>>3; 
 			hdr->FILE.POS = 0;
@@ -4338,8 +4503,10 @@ if (VERBOSE_LEVEL>8)
     			hc->bi 	= k*hc->SPR*GDFTYP_BITS[2]>>3;
 		}
 		hdr->AS.bpb     = hdr->NS*hdr->SPR*GDFTYP_BITS[2]>>3;
-	        ifseek(hdr, 0, SEEK_END);	// TODO: replace SEEK_END
-		hdr->NRec = iftell(hdr)/hdr->NS;
+
+		struct stat FileBuf;
+		stat(hdr->FileName,&FileBuf);
+		hdr->NRec = FileBuf.st_size/hdr->NS;
 	        ifseek(hdr, hdr->HeadLen, SEEK_SET);
 	        
 	}
@@ -4571,10 +4738,9 @@ if (VERBOSE_LEVEL>8)
 				if (VERBOSE_LEVEL==9) fprintf(stdout,"BVA210,%i,%i\n",pos,hdr->HeadLen);
 
 				if (!npts) {
-					ifseek(hdr,0,SEEK_END);		// fix SEEK_END
-					size_t FileSize = iftell(hdr);
-				        ifseek(hdr,0,SEEK_SET);
-					npts = FileSize/hdr->AS.bpb;
+					struct stat FileBuf;
+					stat(hdr->FileName,&FileBuf);
+					npts = FileBuf.st_size/hdr->AS.bpb;
 		        	}	
 					
 				/* restore input file name, and free temporary file name  */
@@ -7448,30 +7614,8 @@ fprintf(stdout,"ASN1 [491]\n");
 	
 	if (VERBOSE_LEVEL>7) 
 		fprintf(stdout,"[194]: bpb=%i spr=%i\n",hdr->AS.bpb,hdr->SPR);	
-
-/*
-	uint32_t bpb = hdr->AS.bpb; 
-	if (bpb & 0x80000000)
-		fprintf(stdout,"Warning SOPEN (%s) AS.bpb not defined \n",GetFileTypeString(hdr->TYPE));
-		
-	for (k=0, hdr->SPR = 1; k<hdr->NS; k++) {
-		if ((int32_t)bpb < 0) ;
-		 	// hack: CHANNEL[k].bi already defined AS.bi
-		else { 
-			hdr->CHANNEL[k].bi = hdr->AS.bpb;
-			hdr->AS.bpb    += (hdr->CHANNEL[k].SPR * GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP])>>3;
-		}
-		if (hdr->CHANNEL[k].SPR > 0)  // ignore sparse channels
-			hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
-			
-		if (VERBOSE_LEVEL>7) 
-			fprintf(stdout,"[196]: #%i bpb=%i,spr=%i/%i\n",k,hdr->AS.bpb,hdr->SPR, hdr->CHANNEL[k].SPR);
-	}
-*/
-	if (VERBOSE_LEVEL>7) 
-		fprintf(stdout,"[197]: bpb=%i,spr=%i\n",hdr->AS.bpb,hdr->SPR);	
 	
-	/* TODO 
+	/*  
 	convert2to4_event_table(hdr->EVENT);
 	convert into canonical form if needed
 	*/
@@ -7563,6 +7707,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    			case 16: gdftyp="float32"; break; 
 	    			case 17: gdftyp="float64"; break; 
 	    			case 18: gdftyp="float128"; break; 
+	    			case 255+24: gdftyp="bit24"; break; 
+	    			case 511+24: gdftyp="ubit24"; break; 
+	    			case 255+12: gdftyp="bit12"; break; 
+	    			case 511+12: gdftyp="ubit12"; break; 
 	    			default: gdftyp = "unknown";
 	    			}	
 		    		fprintf(fid,"GDFTYP    \t= %s\n",gdftyp);
@@ -7752,12 +7900,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    	memcpy(Header1,"CFWB\1\0\0\0",8);
 	    	*(double*)(Header1+8) = l_endian_f64(1/hdr->SampleRate);
 	
-		if (VERBOSE_LEVEL>9)	
-			fprintf(stdout,"CFWB\n");	
-/* obsolete 
-		tt = gdf_time2t_time(hdr->T0); 
-		struct tm *t = localtime(&tt);
-*/
 		struct tm *t = gdf_time2tm_time(hdr->T0); 
     		*(uint32_t*)(Header1+16) = l_endian_u32(t->tm_year + 1900);
 	    	*(uint32_t*)(Header1+20) = l_endian_u32(t->tm_mon + 1);
@@ -8056,12 +8198,19 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"GDFw 444\n");
 
+		size_t bpb8 = 0; 
 		for (k=0, hdr->AS.bpb=0; k<hdr->NS; k++) { 
+			hdr->CHANNEL[k].bi8 = bpb8;
+			hdr->CHANNEL[k].bi  = bpb8>>3;
 			if (hdr->CHANNEL[k].OnOff) {
-				hdr->CHANNEL[k].bi = hdr->AS.bpb;
-				hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;
+				bpb8 += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR);
 			}
-			hdr->CHANNEL[k].bi = hdr->AS.bpb;
+		}	
+		hdr->AS.bpb8 = bpb8; 
+		hdr->AS.bpb = bpb8>>3;
+		if (bpb8 & 0x07) {		// each block must use whole number of bytes  
+			hdr->AS.bpb++;  
+			hdr->AS.bpb8 = hdr->AS.bpb<<3;  
 		}	
 
 		if (VERBOSE_LEVEL>8)
@@ -8281,8 +8430,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		fprintf(stderr,"Warning SOPEN(MFER): write support for MFER format under construction\n"); 
 		/* FIXME & TODO: 
 		   known issues:
-			Birthday 
-			Recording time 
 			Label
 			Sampling Rate
 			HeadLen
@@ -8423,7 +8570,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		tag = 133;
 		len = 11;
 		{
-			struct tm *t = gdf_time2tm_time(hdr->Patient.Birthday);
+			struct tm *t = gdf_time2tm_time(hdr->T0);
 			Header1[curPos++] = tag; 
 			Header1[curPos++] = len; 
 			*(uint16_t*)(Header1+curPos) = b_endian_u16(t->tm_year+1900); 
@@ -8580,16 +8727,32 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		hdr->FILE.POS  = 0;
 	}
 
-	hdr->AS.bpb = (hdr->TYPE==AINF ? 4 : 0); 
+	size_t bpb8 = 0;
+	if (hdr->TYPE==AINF) {
+		hdr->AS.bpb = 4; 
+		bpb8 = 32; 
+	}
+	else 	
+		hdr->AS.bpb = 0; 
+
 	for (k=0, hdr->SPR = 1; k<hdr->NS; k++) { 
-		if (hdr->CHANNEL[k].OnOff)
-		{
-			hdr->CHANNEL[k].bi = hdr->AS.bpb;
-			hdr->AS.bpb += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR)>>3;
+		hdr->CHANNEL[k].bi  = bpb8>>3;
+		hdr->CHANNEL[k].bi8 = bpb8;
+		if (hdr->CHANNEL[k].OnOff) {
+			bpb8 += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR);
 			if (hdr->CHANNEL[k].SPR > 0)  // ignore sparse channels
 				hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
 		}
 	} 
+	hdr->AS.bpb8 = bpb8;
+	hdr->AS.bpb  = bpb8>>3;
+	hdr->AS.bpb = bpb8>>3;
+	if ((hdr->TYPE==GDF) && (bpb8 & 0x07)) { 
+		// each block must use whole number of bytes  
+		hdr->AS.bpb++;  
+		hdr->AS.bpb8 = hdr->AS.bpb<<3;  
+	}	
+	
 }	// end of branch "write" 
 
 
@@ -8650,35 +8813,17 @@ int cachingWholeFile(HDRTYPE* hdr) {
 
 
 /****************************************************************************/
-/**	SREAD : segment-based                                              **/
+/**	SREAD_RAW : segment-based                                              **/
 /****************************************************************************/
-size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) {
+size_t sread_raw(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) {
 /* 
  *	Reads LENGTH blocks with HDR.AS.bpb BYTES each 
  * 	(and HDR.SPR samples). 
  *	Rawdata is available in hdr->AS.rawdata.
- *      Output data is available in hdr->data.block. 
- *      If the request can be completed, hdr->data.block contains 
- *	LENGTH*HDR.SPR samples and HDR.NS channels. 
- *	The size of the output data is availabe in hdr->data.size.
- *
- *      hdr->FLAG.LittleEndian controls swapping 
- *
- *      hdr->CHANNEL[k].OnOff 	controls whether channel k is loaded or not 
- *
- *	data is a pointer to a memory array to write the data. 
- *	if data is NULL, memory is allocated and the pointer is returned 
- *	in hdr->data.block. 
- *
- *	channel selection is controlled by hdr->CHANNEL[k].OnOff
  * 
  *        start <0: read from current position
  *             >=0: start reading from position start
  *        length  : try to read length blocks
- *
- *
- * ToDo:
- *	- sample-based loading 
  *
  */
 
@@ -8743,6 +8888,55 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	}
 	// data is now in buffer hdr->AS.rawdata 
 
+	return(count); 
+}
+
+
+/****************************************************************************/
+/**	SREAD : segment-based                                              **/
+/****************************************************************************/
+size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) {
+/* 
+ *	Reads LENGTH blocks with HDR.AS.bpb BYTES each 
+ * 	(and HDR.SPR samples). 
+ *	Rawdata is available in hdr->AS.rawdata.
+ *      Output data is available in hdr->data.block. 
+ *      If the request can be completed, hdr->data.block contains 
+ *	LENGTH*HDR.SPR samples and HDR.NS channels. 
+ *	The size of the output data is availabe in hdr->data.size.
+ *
+ *      hdr->FLAG.LittleEndian controls swapping 
+ *
+ *      hdr->CHANNEL[k].OnOff 	controls whether channel k is loaded or not 
+ *
+ *	data is a pointer to a memory array to write the data. 
+ *	if data is NULL, memory is allocated and the pointer is returned 
+ *	in hdr->data.block. 
+ *
+ *	channel selection is controlled by hdr->CHANNEL[k].OnOff
+ * 
+ *        start <0: read from current position
+ *             >=0: start reading from position start
+ *        length  : try to read length blocks
+ *
+ *
+ * ToDo:
+ *	- sample-based loading 
+ *
+ */
+
+	size_t			count,k1,k2,k3,k4,k5,SZ,NS;
+	nrec_t			nelem; 
+	uint16_t		GDFTYP;
+	size_t	 		DIV;
+	uint8_t			*ptr; // *buffer;
+	CHANNEL_TYPE		*CHptr;
+	int32_t			int32_value;
+	biosig_data_type 	sample_value; 
+	size_t			toffset;	// time offset for rawdata
+
+
+	count = sread_raw(data, start, length, hdr);
 	
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"sread 222 %i=?=%i  %i=?=%i \n",start,hdr->AS.first,start+count,hdr->AS.length);
@@ -8780,7 +8974,6 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 		if (VERBOSE_LEVEL>7) 
 			fprintf(stdout,"0x%x 0x%x \n",*(uint32_t*)hdr->AS.rawdata,*(uint32_t*)hdr->AS.rawdata);
 	}	
-
 
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"sread 223 alpha12bit=%i SWAP=%i spr=%i\n",ALPHA12BIT,SWAP,hdr->SPR);
@@ -9556,7 +9749,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 
 
-	size_t sz = hdr->AS.bpb*hdr->NRec;
+	size_t sz = (hdr->AS.bpb+1)*hdr->NRec;
 
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"swrite sz=%i\n",sz);
@@ -9587,7 +9780,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
-		SZ  	= GDFTYP_BITS[GDFTYP]>>3;
+		SZ  	= GDFTYP_BITS[GDFTYP];
 		iCal	= 1/CHptr->Cal;
 		//iOff	= CHptr->DigMin - CHptr->PhysMin*iCal;
 		iOff	= -CHptr->Off*iCal;
@@ -9612,106 +9805,138 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			// get target address
 			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->CHANNEL[k1].bi + k5*SZ;
 
-//			if (VERBOSE_LEVEL>8)
-//				fprintf(stdout,"swrite 313= [%i %i %i %i %i ] %i %i \n",k4, k1, hdr->CHANNEL[k1].bi, k5,SZ,k4*hdr->AS.bpb + hdr->CHANNEL[k1].bi + k5*SZ,k1*nelem*hdr->SPR + k4*hdr->SPR + k5*DIV + k3);
+			size_t off = k4*hdr->AS.bpb8 + hdr->CHANNEL[k1].bi8 + (k5*SZ);
+			ptr = hdr->AS.rawdata + (off>>3);
 
 			// mapping of raw data type to (biosig_data_type)
-			if (0); 
-
-			else if (GDFTYP==3) {
+			switch (GDFTYP) {
+			case 3: 
 				if      (sample_value > MAX_INT16) val.i16 = MAX_INT16;
-				else if (sample_value < MIN_INT16) val.i16 = MIN_INT16;
-				else     val.i16 = (int16_t) sample_value;
+				else if (sample_value > MIN_INT16) val.i16 = (int16_t) sample_value;
+				else     val.i16 = MIN_INT16;
 				if (!SWAP)
 					*(int16_t*)ptr = val.i16; 
 				else	
 					*(int16_t*)ptr = bswap_16(val.i16); 
-			}
+				break;	
 
-			else if (GDFTYP==4) {
+			case 4: 
 				if      (sample_value > MAX_UINT16) val.u16 = MAX_UINT16;
-				else if (sample_value < MIN_UINT16) val.u16 = MIN_UINT16;
-				else     val.u16 = (uint16_t) sample_value;
+				else if (sample_value > MIN_UINT16) val.u16 = (uint16_t) sample_value;
+				else     val.u16 = MIN_UINT16;
 				*(uint16_t*)ptr = l_endian_u16(val.u16); 
-			}
+				break;	
 
-			else if (GDFTYP==16) {
+			case 16: 
 				*(float*)ptr  = l_endian_f32((float)sample_value);
-			}
-			else if (GDFTYP==17) 
-				*(double*)ptr = l_endian_f64((double)sample_value);
+				break;	
 
-			else if (GDFTYP==0) {
+			case 17: 
+				*(double*)ptr = l_endian_f64((double)sample_value);
+				break;	
+
+			case 0: 
 				if      (sample_value > MAX_INT8) val.i8 = MAX_INT8;
-				else if (sample_value < MIN_INT8) val.i8 = MIN_INT8;
-				else     val.i8 = (int8_t) sample_value;
+				else if (sample_value > MIN_INT8) val.i8 = (int8_t) sample_value;
+				else     val.i8 = MIN_INT8;
 				*(int8_t*)ptr = val.i8; 
-			}
-			else if (GDFTYP==1) {
+				break;	
+
+			case 1: 
 				if      (sample_value > MAX_INT8) val.i8 = MAX_INT8;
-				else if (sample_value < MIN_INT8) val.i8 = MIN_INT8;
-				else     val.i8 = (int8_t) sample_value;
+				else if (sample_value > MIN_INT8) val.i8 = (int8_t) sample_value;
+				else     val.i8 = MIN_INT8;
 				*(int8_t*)ptr = val.i8; 
-// fprintf(stdout,"swrite: [%i,%i,%i,%i] val=%i\n",k1,k2,k4,k5,val.i8);				 
-			}
-			else if (GDFTYP==2) {
+				break;	
+
+			case 2: 
 				if      (sample_value > MAX_UINT8) val.u8 = MAX_UINT8;
-				else if (sample_value < MIN_UINT8) val.u8 = MIN_UINT8;
-				else     val.u8 = (uint8_t) sample_value;
+				else if (sample_value > MIN_UINT8) val.u8 = (uint8_t) sample_value;
+				else      val.u8 = MIN_UINT8;
 				*(uint8_t*)ptr = val.u8;
-			}
-			else if (GDFTYP==5) {
+				break;	
+
+			case 5: 
 				if      (sample_value > ldexp(1.0,31)-1) val.i32 = MAX_INT32;
-				else if (sample_value < ldexp(-1.0,31)) val.i32 = MIN_INT32;
-				else     val.i32 = (int32_t) sample_value;
+				else if (sample_value > ldexp(-1.0,31)) val.i32 = (int32_t) sample_value;
+				else     val.i32 = MIN_INT32;
 				if (!SWAP)
 					*(int32_t*)ptr = val.i32; 
 				else	
 					*(int32_t*)ptr = bswap_32(val.i32); 
-			}
-			else if (GDFTYP==6) {
+				break;	
+
+			case 6: 
 				if      (sample_value > ldexp(1.0,32)-1.0) val.u32 = MAX_UINT32;
-				else if (sample_value < 0.0) val.u32 = MIN_UINT32;
-				else     val.u32 = (uint32_t) sample_value;
+				else if (sample_value > 0.0) val.u32 = (uint32_t) sample_value;
+				else     val.u32 = MIN_UINT32;
 				*(uint32_t*)ptr = l_endian_u32(val.u32); 
-			}
-
-			else if (GDFTYP==7) {
-				if      (sample_value > ldexp(1.0,63)-1.0) 
-					val.i64 = MAX_INT64;
-				else if (sample_value < -ldexp(1.0,63)) 
-					val.i64 = MIN_INT64;
-				else     
-					val.i64 = (int64_t) sample_value;
+				break;	
+			case 7: 
+				if      (sample_value > ldexp(1.0,63)-1.0) val.i64 = MAX_INT64;
+				else if (sample_value > -ldexp(1.0,63)) val.i64 = (int64_t) sample_value;
+				else     val.i64 = MIN_INT64;
 				*(int64_t*)ptr = l_endian_i64(val.i64); 
-			}
-
-			else if (GDFTYP==8) {
+				break;	
+			case 8: 
 				if      (sample_value > ldexp(1.0,64)-1.0) val.u64 = (uint64_t)(-1);
-				else if (sample_value < 0.0) val.u64 = 0;
-				else     val.u64 = (uint64_t) sample_value;
+				else if (sample_value > 0.0) val.u64 = (uint64_t) sample_value;
+				else     val.u64 = 0;
 				*(uint64_t*)ptr = l_endian_u64(val.u64); 
-			}
-
-			else if (GDFTYP==255+24) {
+				break;	
+	
+			case 255+24: 
 				if      (sample_value > MAX_INT24) val.i32 = MAX_INT24;
-				else if (sample_value < MIN_INT24) val.i32 = MIN_INT24;
-				else     val.i32 = (int32_t) sample_value;
+				else if (sample_value > MIN_INT24) val.i32 = (int32_t) sample_value;
+				else     val.i32 = MIN_INT24;
 				*(uint8_t*)ptr = (uint8_t)(val.i32 & 0x000000ff); 
 				*((uint8_t*)ptr+1) = (uint8_t)((val.i32>>8) & 0x000000ff); 
 				*((uint8_t*)ptr+2) = (uint8_t)((val.i32>>16) & 0x000000ff); 
-			}	
+				break;	
 
-			else if (GDFTYP==511+24) {
+			case 511+24: 
 				if      (sample_value > MAX_UINT24) val.i32 = MAX_UINT24;
-				else if (sample_value < MIN_UINT24) val.i32 = MIN_UINT24;
-				else     val.i32 = (int32_t) sample_value;
+				else if (sample_value > MIN_UINT24) val.i32 = (int32_t) sample_value;
+				else     val.i32 = MIN_UINT24;
 				*(uint8_t*)ptr     =  val.i32 & 0x000000ff; 
 				*((uint8_t*)ptr+1) = (uint8_t)((val.i32>>8) & 0x000000ff); 
 				*((uint8_t*)ptr+2) = (uint8_t)((val.i32>>16) & 0x000000ff); 
+				break;	
+
+			case 255+12: 
+			case 511+12: {
+				if (GDFTYP == 255+12) {
+					if      (sample_value > ((1<<11)-1)) val.i16 =  (1<<11)-1;
+					else if (sample_value > -(1<<11))  val.i16 = (int16_t) sample_value;
+					else     val.i16 = -(1<<11);
+				}	
+				else if (GDFTYP == 511+12) {
+					if      (sample_value > ((1<<12)-1)) val.u16 =  (1<<12)-1;
+					else if (sample_value > 0)  val.u16 = (int16_t) sample_value;
+					else     val.u16 = 0;
+				}	
+
+				if (hdr->FILE.LittleEndian) {
+					uint16_t acc = l_endian_u16(*(uint16_t*)ptr);
+					if (off) 
+						*(uint16_t*)ptr = l_endian_u16( (acc & 0x000F) | (val.u16<<4));
+//						leu16a(leu16p(ptr) & 0x000F) | (i16<<4), ptr);
+					else 	
+						*(uint16_t*)ptr = l_endian_u16( (acc & 0xF000) | (val.u16 & 0x0FFF));
+//						leu16a(leu16p(ptr) & 0xF000) | i16, ptr);
+				} 
+				else {
+					uint16_t acc = b_endian_u16(*(uint16_t*)ptr);
+					if (!off) 
+						*(uint16_t*)ptr = b_endian_u16( (acc & 0x000F) | (val.u16<<4));
+//						beu16a(beu16p(ptr) & 0x000F) | (i16<<4), ptr);
+					else 	
+						*(uint16_t*)ptr = b_endian_u16( (acc & 0xF000) | (val.u16 & 0x0FFF));
+//						beu16a(beu16p(ptr) & 0xF000) | i16, ptr);
+				}
+				break;	
 			}
-			// TODO: 12bit GDF 
-			else {
+			default: 
 				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 				B4C_ERRMSG = "SWRITE: datatype not supported";
 				exit(-1);
@@ -10123,7 +10348,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 
 			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, cp->PhysDim);
 			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5f %4i %2i  %e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
-				k+1,cp->LeadIdCode,cp->OnOff,cp->Label,cp->SPR,cp->SPR * hdr->SampleRate/hdr->SPR,
+				k+1,cp->LeadIdCode,cp->bi8,cp->Label,cp->SPR,cp->SPR * hdr->SampleRate/hdr->SPR,
 				cp->GDFTYP, cp->Cal, cp->Off, cp->PhysDim,  
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch,
 				cp->XYZ[0],cp->XYZ[1],cp->XYZ[2]);
