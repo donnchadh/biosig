@@ -10,16 +10,9 @@ function [mu,sd,COV,xc,M,R2]=decovm(XCN,NN)
 %
 % see also: MDBC, ECOVM, R2
 
-%	Version 0.22
-%	13.10.2002
-%	Copyright (c) 1999-2002 by  Alois Schloegl
+%	$Id: decovm.m,v 1.3 2009-02-06 07:28:59 schloegl Exp $
+%	Copyright (c) 1999-2002,2009 by  Alois Schloegl
 %	a.schloegl@ieee.org	
-
-% V0.10	20.10.1998
-% V0.11	10.11.1999    Made Octave compatible
-% V0.12	26.04.2000    ecovm.m included
-% V0.13	02.05.2000    correlation coefficient R2 included
-% V0.20 27.03.2001    missing values (i.e. NaN) considered
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -61,15 +54,15 @@ COV = XCN(2:c,2:c) - mu'*mu;
 sd  = sqrt(diag(COV))';        
 xc  = COV./(sd'*sd);
 R2  = xc.*xc;
+M=XCN(1,1);
+R2=xc.*xc;
 
 return;
         
-M=XCN(1,1);
 mu=XCN(2:N,1)/XCN(1,1);
 COV=(XCN(2:N,2:N)/XCN(1,1)-XCN(2:N,1)*XCN(1,2:N)/XCN(1,1)^2);
 sd=sqrt(diag(COV));
 xc=COV./(sd*sd');
-R2=xc.*xc;
 
 % function [ECM] = ecovm(signal);
 % Generates extended Covariance matrix, 
