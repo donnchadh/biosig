@@ -7,7 +7,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 
 % HDR=fltopen(HDR);
 
-%	$Id: fltopen.m,v 1.16 2008-12-12 08:44:21 schloegl Exp $
+%	$Id: fltopen.m,v 1.17 2009-02-06 07:20:08 schloegl Exp $
 %	Copyright (c) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -410,10 +410,10 @@ else
 		fprintf(fid,'parameter_of_channels={\n');
 		if isfield(HDR.FLT,'channels')
 			% write original channel header 
-			num = [HDR.FLT.channels.seq,HDR.FLT.channels.id,HDR.FLT.channels.u,HDR.FLT.channels.cal,HDR.FLT.channels.grd,HDR.FLT.channels.grp];
+			num = [HDR.FLT.channels.seq,HDR.FLT.channels.id,HDR.FLT.channels.usage,HDR.FLT.channels.cal,HDR.FLT.channels.grd_mode,HDR.FLT.channels.grp_id];       
 			for k=1:HDR.NS,
 				ix = find(HDR.FLT.channels.Cal(k,:));
-				fprintf(fid,'%04i %04i %i %-17s %5.3f  %i  %-8s  %04i  %i\n',num(k,1:3),HDR.Label{k},num(k,4:5),HDR.FLT.channels.grd_name{k},num(k,6),length(ix)); 
+				fprintf(fid,'%04i %04i %i %-17s %5.3f  %i  %-8s  %04i  %i\n',num(k,1:3),HDR.Label{k},num(k,4:5),HDR.FLT.channels.grd_mode_name{k},num(k,6),length(ix)); 
 				for k1 = 1:length(ix)
 					fprintf(fid,'\t%04i %9.6f * %s\n',ix(k1)-1,HDR.FLT.channels.Cal(k,ix(k1)),HDR.FLT.sensors.name{ix(k1)});
 				end; 
@@ -451,7 +451,7 @@ else
 		fprintf(fid,'parameter_of_groups={\n');
 		if isfield(HDR.FLT,'groups')
 			for k=1:size(HDR.FLT.groups.id,1),
-				fprintf(fid,'%04i %i %-16s %-6s %i %8.3f\n',HDR.FLT.groups.id(k),HDR.FLT.groups.u(k),HDR.FLT.groups.name{k},HDR.FLT.groups.unit{k},HDR.FLT.groups.exp(k),HDR.FLT.groups.calib(k)); 
+				fprintf(fid,'%04i %i %-16s %-6s %i %8.3f\n',HDR.FLT.groups.id(k),HDR.FLT.groups.usage(k),HDR.FLT.groups.name{k},HDR.FLT.groups.unit{k},HDR.FLT.groups.unit_exp(k),HDR.FLT.groups.calib(k)); 
 			end; 	
 		else
 			fprintf(fid,'0001 1 ET-Mag_80WH      T      0    1.000\n');
