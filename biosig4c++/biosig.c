@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.283 2009-01-30 17:08:53 schloegl Exp $
+    $Id: biosig.c,v 1.284 2009-02-09 13:19:12 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -787,6 +787,7 @@ int u32cmp(const void *a,const void *b)
 	return(*(uint32_t*)a - *(uint32_t*)b);
 }
 
+
 const char* PhysDimFactor[] = {
 	"","da","h","k","M","G","T","P",	//  0..7
 	"E","Z","Y","#","#","#","#","#",	//  8..15
@@ -1294,6 +1295,9 @@ void write_gdf_eventtable(HDRTYPE *hdr)
 	uint8_t 	buf[88]; 
 	char flag; 
 
+
+fprintf(stdout,"write_gdf_eventtable is obsolete - use hdrEVT2rawEVT instead;\n"); 
+
 	ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
 	if (VERBOSE_LEVEL>7) 
 		fprintf(stdout,"WriteEventTable: %p %p %p %p\t",hdr->EVENT.TYP,hdr->EVENT.POS,hdr->EVENT.DUR,hdr->EVENT.CHN);
@@ -1641,6 +1645,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
     	hdr->FILE.POS = 0; 
 
 	hdr->AS.Header = NULL;
+	hdr->AS.rawEventData = NULL;
 	hdr->AS.auxBUF = NULL; 
 	hdr->AS.bpb    = 0; 
 
@@ -1682,6 +1687,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	char localhostname[HOST_NAME_MAX+1];
 
 	if (!gethostname(localhostname,HOST_NAME_MAX+1)) {
+		// TODO: replace gethostbyname by getaddrinfo (for IPv6) 
 		struct hostent *host = gethostbyname(localhostname); 
 		memcpy(hdr->IPaddr, host->h_addr, host->h_length);
 	}	
@@ -1761,7 +1767,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 		hdr->EVENT.CHN = NULL;
 	}
 	
-	// initialize "Annotated ECG structure"
+	// initialize specialized fields
 	hdr->aECG = NULL; 
 	hdr->AS.bci2000 = NULL; 
 	
@@ -1805,6 +1811,7 @@ void destructHDR(HDRTYPE* hdr) {
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.AS.Header\n");
 
+    	if (hdr->AS.rawEventData != NULL) free(hdr->AS.rawEventData);
     	if (hdr->AS.Header != NULL) free(hdr->AS.Header);
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free Event Table %p %p %p %p \n",hdr->EVENT.TYP,hdr->EVENT.POS,hdr->EVENT.DUR,hdr->EVENT.CHN);
@@ -1831,13 +1838,14 @@ void destructHDR(HDRTYPE* hdr) {
 HDRTYPE* getfiletype(HDRTYPE* hdr)
 /*
 	input:
-		hdr->AS.Header1 contains first block up to 256 bytes 
+		hdr->AS.Header1 contains first block of hdr->HeadLen bytes 
 		hdr->TYPE must be unknown, otherwise no FileFormat evaluation is performed
 	output:
 		hdr->TYPE	file format
 		hdr->VERSION	is defined for some selected formats e.g. ACQ, EDF, BDF, GDF
  */
 {
+	// ToDo: use LEN to detect buffer overflow 
 
 	size_t count;
     	hdr->TYPE = unknown; 
@@ -1856,68 +1864,6 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	const char* MAGIC_NUMBER_BRAINVISION1 = "Brain Vision V-Amp Data Header File Version";
 	const char* MAGIC_NUMBER_BRAINVISIONMARKER = "Brain Vision Data Exchange Marker File, Version";
 	
-	size_t k,name=0,ext=0;	
-	for (k=0; hdr->FileName[k]; k++) {
-		if (hdr->FileName[k]==FILESEP) name = k+1;
-		if (hdr->FileName[k]=='.')     ext  = k+1;
-	}
-		
-	const char *FileExt  = hdr->FileName+ext;
-	const char *FileName = hdr->FileName+name;
-
-	/* AINF */
-	if (!strcmp(FileExt, "ainf")) {
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"getfiletype ainf1 %s %i\n",hdr->FileName,ext); 
-		char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+5,sizeof(char));
-		strncpy(AINF_RAW_FILENAME, hdr->FileName,ext);
-		strcpy(AINF_RAW_FILENAME+ext, "raw");
-		FILE* fid1=fopen(AINF_RAW_FILENAME,"rb");
-		if (fid1) {
-			fclose(fid1);
-			hdr->TYPE = AINF; 
-		}	
-		free(AINF_RAW_FILENAME);
-	}
-	else if (!strcmp(FileExt, "raw")) {
-		char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+5,sizeof(char));
-		strncpy(AINF_RAW_FILENAME, hdr->FileName,ext);
-		strcpy(AINF_RAW_FILENAME+ext, "ainf");
-		FILE* fid1=fopen(AINF_RAW_FILENAME,"r");
-		if (fid1) {
-			fclose(fid1);
-			hdr->TYPE = AINF; 
-		}	
-		free(AINF_RAW_FILENAME);
-	}
-
-        hdr->FILE.COMPRESSION = 0;   	
-        hdr   = ifopen(hdr,"rb");
-        if (!hdr->FILE.OPEN) return(hdr); 
-        
- 	hdr->AS.Header = (uint8_t*)malloc(352);
-    	count = ifread(Header1,1,352,hdr);
-
-	if (!memcmp(Header1,MAGIC_NUMBER_GZIP,3)) {
-#ifdef ZLIB_H
-    		ifclose(hdr); 
-
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[221] \n");
-
-	        hdr->FILE.COMPRESSION = 1;
-//	        hdr->FILE.gzFID = gzdopen(hdr->FILE.FID,"rb"); // FIXME
-        	hdr= ifopen(hdr,"rb");
-	    	if (!hdr->FILE.OPEN) { 	
-    			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-	    		B4C_ERRMSG = "Error SOPEN(GZREAD); Cannot open file.";		
-	    		return(hdr);
-    		}	    
-	    	count = ifread(Header1,1,352,hdr);
-#else 
-		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-    		B4C_ERRMSG = "Error SOPEN(READ); *.gz file not supported because not linked with zlib.";
-#endif
-    	}
-
     	/******** read 1st (fixed)  header  *******/	
   	uint32_t U32 = leu32p(hdr->AS.Header+2); 
 	uint32_t MAGIC_EN1064_Section0Length  = leu32p(hdr->AS.Header+10);
@@ -2092,8 +2038,6 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 /*    	else if (!memcmp(Header1,"MThd\000\000\000\001\000",9))
 	    	hdr->TYPE = MIDI;
 */
-    	else if (!memcmp(Header1,FileName,strspn(FileName,".")) && (!strcmp(FileExt,"HEA") || !strcmp(FileExt,"hea") ))
-	    	hdr->TYPE = MIT;
     	else if ( (Header1[344]=='n') && (Header1[347]=='\0') && \
     		  ((Header1[345]=='i') || (Header1[345]=='+') ) && \
     		   (Header1[346]>'0') && (Header1[346]<='9') ) {
@@ -2350,76 +2294,389 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 
 
 /****************************************************************************/
-/**                     SOPEN                                              **/
+/**                     struct2gdfbin                                      **/
 /****************************************************************************/
-HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
-/*
-	MODE="r" 
-		reads file and returns HDR 
-	MODE="w" 
-		writes HDR into file 
- */
+int struct2gdfbin(HDRTYPE *hdr)
 {
-    	
-    	const char*	GENDER = "XMFX";  
-    	const uint16_t	CFWB_GDFTYP[] = {17,16,3};  
-	const float	CNT_SETTINGS_NOTCH[] = {0.0, 50.0, 60.0}; 
-	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
-	const float	CNT_SETTINGS_HIGHPASS[] = {NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
+	size_t k; 
+	char tmp[81];
+	uint32_t Dur[2];
+		
+	// NS number of channels selected for writing 
+     	typeof(hdr->NS)  NS = 0;
+	for (k=0; k<hdr->NS; k++) 
+		if (hdr->CHANNEL[k].OnOff) NS++;
 
+     	hdr->HeadLen = (NS+1)*256;
+
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw 101 %i \n", hdr->HeadLen);
+
+		/* experimental code: writing header 3, in Tag-Length-Value from 
+			currently only tag=1 is used for storing user-specific events (i.e. free text annotations
+		 */	
+	     	uint32_t TagNLen[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0};  	
+	     	uint8_t tag=1; 
+	     	if (hdr->EVENT.LenCodeDesc > 1) {	// first entry is always empty - no need to save tag1
+	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) 
+		     		TagNLen[tag] += strlen(hdr->EVENT.CodeDesc[k])+1; 
+	     		TagNLen[tag] += 1; 			// acounts for terminating \0
+	     		hdr->HeadLen += 4+TagNLen[tag];
+	     	}
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",tag, hdr->HeadLen,TagNLen[1]);
+	     	tag = 2; 
+	     	if (hdr->AS.bci2000 != NULL) {
+	     		TagNLen[tag] = strlen(hdr->AS.bci2000)+1;
+	     		hdr->HeadLen += 4+TagNLen[tag];
+	     	}	
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",tag, hdr->HeadLen,TagNLen[1]);
+	     	tag = 3; 
+	     	if ((hdr->ID.Manufacturer.Name != NULL) || (hdr->ID.Manufacturer.Model != NULL) || (hdr->ID.Manufacturer.Version != NULL) || (hdr->ID.Manufacturer.SerialNumber != NULL)) { 
+	     		if (hdr->ID.Manufacturer.Name == NULL) hdr->ID.Manufacturer.Name="\0";
+	     		if (hdr->ID.Manufacturer.Model == NULL) hdr->ID.Manufacturer.Model="\0";
+	     		if (hdr->ID.Manufacturer.Version == NULL) hdr->ID.Manufacturer.Version="\0";
+	     		if (hdr->ID.Manufacturer.SerialNumber == NULL) hdr->ID.Manufacturer.SerialNumber="\0";
+	     		
+	     		TagNLen[tag] = strlen(hdr->ID.Manufacturer.Name)+strlen(hdr->ID.Manufacturer.Model)+strlen(hdr->ID.Manufacturer.Version)+strlen(hdr->ID.Manufacturer.SerialNumber)+4;
+	     		hdr->HeadLen += 4+TagNLen[tag];
+	     	}	
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",tag, hdr->HeadLen,TagNLen[1]);
+	     	tag = 4;
+/* OBSOLETE 
+	     	char FLAG_SENSOR_ORIENTATION = 0;  
+	     	for (k=0; k<hdr->NS; k++) {
+	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Orientation[0] != (float)0.0;
+	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Orientation[1] != (float)0.0;
+	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Orientation[2] != (float)0.0;
+	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Area != (float)0.0;
+	     	} 
+	     	if (FLAG_SENSOR_ORIENTATION) 
+	     		TagNLen[tag] = hdr->NS*sizeof(float)*4;
+     		hdr->HeadLen += 4+TagNLen[tag];
+*/
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",tag, hdr->HeadLen,TagNLen[1]);
+	     	tag = 5; 
+	     	for (k=0; k<16; k++) {
+	     		if (hdr->IPaddr[k]) {
+		     		if (k<4) TagNLen[tag] = 4;  
+		     		else 	 TagNLen[tag] = 16;
+		     	}
+	     		hdr->HeadLen += 4+TagNLen[tag];
+	     	}	
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",tag, hdr->HeadLen,TagNLen[1]);
+	     	tag = 6; 
+     		TagNLen[tag] = strlen(hdr->ID.Technician);
+	     	if (TagNLen[tag]) {
+	     		TagNLen[tag]++;
+	     		hdr->HeadLen += 4+TagNLen[tag];
+	     	}	
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",tag, hdr->HeadLen,TagNLen[1]);
+	     	tag = 7; 
+     		TagNLen[tag] = strlen(hdr->ID.Hospital);
+	     	if (TagNLen[tag]) {
+	     		TagNLen[tag]++;
+	     		hdr->HeadLen += 4+TagNLen[tag];
+	     	}	
+	     	
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",tag, hdr->HeadLen,TagNLen[1]);
+	     	/* end */
+
+		hdr->VERSION = 2.11;
+		if (hdr->TYPE==GDF1) {
+			hdr->VERSION = 1.25;
+			hdr->TYPE = GDF;
+		}
+		else if (hdr->HeadLen & 0x00ff)	// in case of GDF v2, make HeadLen a multiple of 256. 
+			hdr->HeadLen = (hdr->HeadLen & 0xff00) + 256;  
+			
+	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
+
+	    	hdr->AS.Header = (uint8_t*) calloc(hdr->HeadLen,1);
+	     	sprintf((char*)hdr->AS.Header,"GDF %4.2f",hdr->VERSION);
+	    	uint8_t* Header2 = hdr->AS.Header+256; 
+	     	
+		uint16_t maxlen=66; 
+		if (hdr->VERSION<1.90) maxlen=80;
+		if (strlen(hdr->Patient.Id) > 0) {
+			for (k=0; hdr->Patient.Id[k]; k++)
+				if (isspace(hdr->Patient.Id[k]))
+					hdr->Patient.Id[k] = '_';
+					
+	     		strncat(Header1+8, hdr->Patient.Id, maxlen);
+		} 
+		else     	
+		     	strncat(Header1+8, "X", maxlen);
+
+	     	strncat(Header1+8, " ", maxlen);
+		if (!hdr->FLAG.ANONYMOUS && (hdr->Patient.Name!=NULL)) 
+		     	strncat(Header1+8, hdr->Patient.Name, maxlen);
+		else     	
+		     	strncat(Header1+8, "X", maxlen);
+
+		if (hdr->VERSION>1.90) { 
+	     		Header1[84] = (hdr->Patient.Smoking%4) + ((hdr->Patient.AlcoholAbuse%4)<<2) + ((hdr->Patient.DrugAbuse%4)<<4) + ((hdr->Patient.Medication%4)<<6);
+	     		Header1[85] =  hdr->Patient.Weight;
+	     		Header1[86] =  hdr->Patient.Height;
+	     		Header1[87] = (hdr->Patient.Sex%4) + ((hdr->Patient.Handedness%4)<<2) + ((hdr->Patient.Impairment.Visual%4)<<4);
+		}
+		
+	     	size_t len = strlen(hdr->ID.Recording);
+	     	memcpy(Header1+ 88,  hdr->ID.Recording, min(len,80));
+		if (hdr->VERSION>1.90) { 
+			memcpy(Header1+152, &hdr->LOC, 16);  
+			*(uint32_t*) (Header1+152) = l_endian_u32( *(uint32_t*) (Header1+152) );
+			*(uint32_t*) (Header1+156) = l_endian_u32( *(uint32_t*) (Header1+156) );
+			*(uint32_t*) (Header1+160) = l_endian_u32( *(uint32_t*) (Header1+160) );
+			*(uint32_t*) (Header1+164) = l_endian_u32( *(uint32_t*) (Header1+164) );
+		}
+		
+		if (hdr->VERSION<1.90) { 
+    			struct tm *t = gdf_time2tm_time(hdr->T0);
+
+			sprintf(tmp,"%04i%02i%02i%02i%02i%02i00",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
+			memcpy(Header1+168,tmp,max(strlen(tmp),16));
+			*(uint32_t*) (Header1+184) = l_endian_u32(hdr->HeadLen);
+
+			memcpy(Header1+192, &hdr->ID.Equipment, 8);
+			// FIXME: 200: LabId, 208 TechId, 216, Serial No // 
+		}
+		else {
+			//memcpy(Header1+168, &hdr->T0, 8); 
+			*(uint64_t*) (Header1+168) = l_endian_u64(hdr->T0);
+			//memcpy(Header1+176, &hdr->Patient.Birthday, 8); 
+			*(uint64_t*) (Header1+176) = l_endian_u64(hdr->Patient.Birthday);
+			// *(uint16_t*)(Header1+184) = (hdr->HeadLen>>8)+(hdr->HeadLen%256>0); 
+			*(uint32_t*) (Header1+184) = l_endian_u32(hdr->HeadLen>>8);
+		
+			memcpy(Header1+192, &hdr->ID.Equipment, 8);
+			memcpy(Header1+200, &hdr->IPaddr, 6);
+			memcpy(Header1+206, &hdr->Patient.Headsize, 6);
+			*(float*) (Header1+212) = l_endian_f32(hdr->ELEC.REF[0]);
+			*(float*) (Header1+216) = l_endian_f32(hdr->ELEC.REF[1]);
+			*(float*) (Header1+220) = l_endian_f32(hdr->ELEC.REF[2]);
+			*(float*) (Header1+224) = l_endian_f32(hdr->ELEC.GND[0]);
+			*(float*) (Header1+228) = l_endian_f32(hdr->ELEC.GND[1]);
+			*(float*) (Header1+232) = l_endian_f32(hdr->ELEC.GND[2]);
+		}
+		
+		*(uint64_t*) (Header1+236) = l_endian_u64(hdr->NRec);
+		
+	/* FIXME: this part should make the records as small as possible   
+		size_t DIV = 1, div; 		
+		for (k=0; k<hdr->NS; k++) {
+			div = hdr->SPR/hdr->CHANNEL[k].SPR;
+			if (div>DIV) DIV=div; 
+		}
+		for (k=0; k<hdr->NS; k++) {
+			hdr->CHANNEL[k].SPR = (hdr->CHANNEL[k].SPR*DIV)/hdr->SPR;
+		}
+		hdr->NRec *= hdr->SPR/DIV; 
+		hdr->SPR  = DIV; 
+	*/
+				 
+		/* Duration is expressed as an fraction of integers */ 
+		double fDur = hdr->SPR/hdr->SampleRate;
+		double dtmp1, dtmp2;
+		dtmp2 = modf(fDur, &dtmp1);
+		// approximate real with rational number 
+		if (fabs(dtmp2) < DBL_EPSILON) {
+			Dur[0] = lround(fDur); 
+			Dur[1] = 1; 
+		}
+		else {   
+			Dur[1] = lround(1.0 / dtmp2 ); 
+			Dur[0] = lround(1.0 + dtmp1 * Dur[1]); 
+		}		
+
+		if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"\n SOPEN(GDF write): %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,Dur[0],Dur[1]);
+
+		*(uint32_t*) (Header1+244) = l_endian_u32(Dur[0]);
+		*(uint32_t*) (Header1+248) = l_endian_u32(Dur[1]);
+		*(uint16_t*) (Header1+252) = l_endian_u16(NS);
+
+	     	/* define HDR.Header2 
+	     	this requires checking the arguments in the fields of the struct HDR.CHANNEL
+	     	and filling in the bytes in HDR.Header2. 
+	     	*/
+		typeof(k) k2=0;
+		for (k=0; k<hdr->NS; k++) 
+		if (hdr->CHANNEL[k].OnOff) 
+		{
+			const char *tmpstr;
+			if (hdr->CHANNEL[k].LeadIdCode)
+				tmpstr = LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode];
+			else
+				tmpstr = hdr->CHANNEL[k].Label;
+
+		     	len = strlen(tmpstr);
+		     	memcpy(Header2+16*k2,tmpstr,min(len,16));
+
+		     	len = strlen(hdr->CHANNEL[k].Transducer);
+		     	memcpy(Header2+80*k2 + 16*NS, hdr->CHANNEL[k].Transducer, min(len,80));
+		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
+		     	len = strlen(tmp);
+		     	if (hdr->VERSION < 1.9)
+		     		memcpy(Header2+ 8*k2 + 96*NS, tmp, min(8,len));
+		     	else {
+		     		memcpy(Header2+ 6*k2 + 96*NS, tmp, min(6,len));
+		     		*(uint16_t*)(Header2+ 2*k2 + 102*NS) = l_endian_u16(hdr->CHANNEL[k].PhysDimCode);
+			};
+
+		     	*(double*)(Header2 + 8*k2 + 104*NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMin);
+		     	*(double*)(Header2 + 8*k2 + 112*NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMax);
+		     	if (hdr->VERSION < 1.9) {
+			     	*(int64_t*)(Header2 + 8*k2 + 120*NS)   = l_endian_i64((int64_t)hdr->CHANNEL[k].DigMin);
+			     	*(int64_t*)(Header2 + 8*k2 + 128*NS)   = l_endian_i64((int64_t)hdr->CHANNEL[k].DigMax);
+			     	// FIXME // memcpy(Header2 + 80*k + 136*hdr->NS,hdr->CHANNEL[k].PreFilt,max(80,strlen(hdr->CHANNEL[k].PreFilt)));
+			}     	
+			else {
+			     	*(double*)(Header2 + 8*k2 + 120*NS) = l_endian_f64(hdr->CHANNEL[k].DigMin);
+			     	*(double*)(Header2 + 8*k2 + 128*NS) = l_endian_f64(hdr->CHANNEL[k].DigMax);
+			     	*(float*) (Header2 + 4*k2 + 204*NS) = l_endian_f32(hdr->CHANNEL[k].LowPass);
+			     	*(float*) (Header2 + 4*k2 + 208*NS) = l_endian_f32(hdr->CHANNEL[k].HighPass);
+			     	*(float*) (Header2 + 4*k2 + 212*NS) = l_endian_f32(hdr->CHANNEL[k].Notch);
+
+				*(float*) (Header2 + 4*k2 + 224*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[0]);
+				*(float*) (Header2 + 4*k2 + 228*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[1]);
+				*(float*) (Header2 + 4*k2 + 232*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[2]);
+
+	     			Header2[k2+236*NS] = (uint8_t)ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
+		     	}
+		     	*(uint32_t*) (Header2 + 4*k2 + 216*NS) = l_endian_u32(hdr->CHANNEL[k].SPR);
+		     	*(uint32_t*) (Header2 + 4*k2 + 220*NS) = l_endian_u32(hdr->CHANNEL[k].GDFTYP);
+		     	k2++;
+		}
+
+		if (errno==34) errno = 0; // reset numerical overflow error 
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"GDFw 444 %i %s\n", errno, strerror(errno));
+
+		size_t bpb8 = 0; 
+		for (k=0, hdr->AS.bpb=0; k<hdr->NS; k++) { 
+			hdr->CHANNEL[k].bi8 = bpb8;
+			hdr->CHANNEL[k].bi  = bpb8>>3;
+			if (hdr->CHANNEL[k].OnOff) 
+				bpb8 += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR);
+		}	
+		hdr->AS.bpb8 = bpb8; 
+		hdr->AS.bpb  = bpb8>>3;
+		if (bpb8 & 0x07) {		// each block must use whole number of bytes  
+			hdr->AS.bpb++;  
+			hdr->AS.bpb8 = hdr->AS.bpb<<3;  
+		}	
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"GDFw h3\n");
+
+	     	/* define Header3
+	     		currently writing of free text annotations is supported
+	     		 
+	     	*/
+	    	Header2 = hdr->AS.Header+(NS+1)*256; 
+	    	tag = 1;
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=1 & Length of Tag 1
+	     		size_t pos = 4; 
+	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) {
+	     			strcpy((char*)(Header2+pos),hdr->EVENT.CodeDesc[k]);
+		     		pos += strlen(hdr->EVENT.CodeDesc[k])+1;
+		     	}	 
+		     	Header2[pos]=0; 	// terminating NULL 
+	     		Header2 += pos+1;
+	     	}
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw tag2\n");	     		
+
+	     	tag = 2; 
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=2 & Length of Tag 2
+     			strcpy((char*)(Header2+4),hdr->AS.bci2000);
+			Header2 += 4+TagNLen[tag];	
+	     	}
+	     	tag = 3; 
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw tag3 %i %i\n",tag, TagNLen[tag]);
+		
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=3 & Length of Tag 3
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"SOPEN(GDF)w: tag=%i,len=%i\n",tag,TagNLen[tag]);
+	     		memset(Header2+4,0,TagNLen[tag]);
+	     		size_t len = 0; 
+/*     			strcpy((char*)(Header2+4), hdr->ID.Manufacturer.Name);
+		     	if (hdr->ID.Manufacturer.Name != NULL) 	
+		     		len += strlen(hdr->ID.Manufacturer.Name);
+     			strcpy((char*)(Header2+5+len), hdr->ID.Manufacturer.Model);
+		     	if (hdr->ID.Manufacturer.Model != NULL)
+		     		len += strlen(hdr->ID.Manufacturer.Model);
+     			strcpy((char*)(Header2+6+len), hdr->ID.Manufacturer.Version);
+		     	if (hdr->ID.Manufacturer.Version != NULL)
+		     		len += strlen(hdr->ID.Manufacturer.Version);
+     			strcpy((char*)(Header2+7+len), hdr->ID.Manufacturer.SerialNumber);
+		     	if (hdr->ID.Manufacturer.SerialNumber != NULL)
+		     		len += strlen(hdr->ID.Manufacturer.SerialNumber);
+			Header2 += 4+TagNLen[tag];	
+*/	     	}
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw tag4\n");	     		
+
+	     	tag = 4;
+	     	if (TagNLen[tag]>0) {
+/*
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=4 & Length of Tag 4
+	     		Header2 += 4;
+	     		for (k=0; k<hdr->NS; k++) {
+	     			*(float*)(Header2 + 4*k)             = l_endian_f32(hdr->CHANNEL[k].Orientation[0]);
+	     			*(float*)(Header2 + 4*k + 4*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Orientation[1]);
+	     			*(float*)(Header2 + 4*k + 8*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Orientation[2]);
+	     			*(float*)(Header2 + 4*k +12*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Area);
+	     		}
+     			Header2 += 4*sizeof(float)*hdr->NS;
+*/	     	}
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw tag5\n");	     		
+
+	     	tag = 5;
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=5 & Length of Tag 5
+     			memcpy(Header2+4,hdr->IPaddr,TagNLen[tag]);
+			Header2 += 4+TagNLen[tag];
+	     	}
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw tag6\n");	     		
+
+	     	tag = 6; 
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=6 & Length of Tag 6
+     			strcpy((char*)(Header2+4),hdr->ID.Technician);
+			Header2 += 4+TagNLen[tag];
+	     	}
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw tag7\n");	     		
+
+	     	tag = 7; 
+	     	if (TagNLen[tag]>0) {
+	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=7 & Length of Tag 7
+     			strcpy((char*)(Header2+4),hdr->ID.Hospital);
+			Header2 += 4+TagNLen[tag];
+	     	}
+	     	
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw [339] %p %p\n", Header1,Header2);	     		
+}
+
+/****************************************************************************
+       gdfbin2struct                                      
+	converts flat file into hdr structure 
+/****************************************************************************/
+int gdfbin2struct(HDRTYPE *hdr)
+{
     	unsigned int 	k,k1,k2;
-    	uint32_t	k32u; 
-    	size_t	 	count;
     	char 		tmp[81];
 //    	double 		Dur; 
 	char*		ptr_str;
 	struct tm 	tm_time; 
 //	time_t		tt;
-	uint16_t	BCI2000_StatusVectorLength=0;	// specific for BCI2000 format 
-	uint16_t	EGI_LENGTH_CODETABLE=0;	// specific for EGI format 
 
-
-	if (hdr==NULL)
-		hdr = constructHDR(0,0);	// initializes fields that may stay undefined during SOPEN 
-
-	hdr->FileName = FileName; 
-
-
-// hdr->FLAG.SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 	// default: most data formats are little endian 
-hdr->FILE.LittleEndian = 1; 
-
-if (!strncmp(MODE,"r",1))	
-{
-	hdr->TYPE = noFile; 
-	if (VERBOSE_LEVEL>8) 
-		fprintf(stdout,"[201] \n");
-
-	hdr = getfiletype(hdr);
-
-	if (VERBOSE_LEVEL>8) 
-		fprintf(stdout,"[202] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
-
-    	if (!hdr->FILE.OPEN) { 	
-    		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
-    		B4C_ERRMSG = "Error SOPEN(READ); Cannot open file.";		
-    		return(hdr); 
-    	}	    
-    	
-    	if (hdr->TYPE == unknown) { 
-    		B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
-    		B4C_ERRMSG = "ERROR BIOSIG SOPEN(read): Dataformat not known.\n";
-    		ifclose(hdr);
-		return(hdr);
-	}	
-
-	if (VERBOSE_LEVEL>8) 
-		fprintf(stdout,"[201] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
-
-    	count = iftell(hdr); 
-    	hdr->AS.first=  0; 
-    	hdr->AS.length = 0; 
-	hdr->AS.bpb    = -1; 	// errorneous value: ensures that hdr->AS.bpb will be defined 
-	if (hdr->TYPE == GDF) {
 		uint32_t Dur[2];
       	    	strncpy(tmp,(char*)hdr->AS.Header+3,5); tmp[5]=0;
 	    	hdr->VERSION 	= atof(tmp);
@@ -2427,6 +2684,8 @@ if (!strncmp(MODE,"r",1))
 	    	Dur[0]  	= leu32p(hdr->AS.Header+244);
 	    	Dur[1]  	= leu32p(hdr->AS.Header+248); 
 	    	hdr->NS   	= leu16p(hdr->AS.Header+252); 
+
+		
 	    	
 	    	if (hdr->VERSION > 1.90) { 
 		    	hdr->HeadLen 	= leu16p(hdr->AS.Header+184)<<8; 
@@ -2439,7 +2698,7 @@ if (!strncmp(MODE,"r",1))
 				// strncpy(hdr->Patient.Name,tmpptr,Header1+8-tmpptr);
 		    		strncpy(hdr->Patient.Name,tmpptr,MAX_LENGTH_NAME);
 		    	}	
-		    		
+
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"[202] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
 
 	    		hdr->Patient.Smoking      =  Header1[84]%4;
@@ -2530,24 +2789,17 @@ if (!strncmp(MODE,"r",1))
 	    	else {
     			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 	    		B4C_ERRMSG = "Error SOPEN(GDF); invalid version number.";		
-	    		return(hdr);
+	    		return(B4C_ERRNUM);
 	    	}
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[210] FMT=%s NS=%i pos=%i headlen=%i\n",GetFileTypeString(hdr->TYPE),hdr->NS,count,hdr->HeadLen);
-		
 		if (hdr->HeadLen < (256u * (hdr->NS + 1u))) {
 			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 			B4C_ERRMSG = "(GDF) Length of Header is too small";
-			return(hdr); 
+			return(B4C_ERRNUM); 
 		}
 
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
-	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
 	    	uint8_t *Header2 = hdr->AS.Header+256; 
-	    	if (hdr->HeadLen > count)
-		    	count   += ifread(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
-
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[211] FMT=%s NS=%i pos=%i headlen=%i\n",GetFileTypeString(hdr->TYPE),hdr->NS,count,hdr->HeadLen);
 
 		hdr->AS.bpb=0;
 		size_t bpb8 = 0; 
@@ -2628,7 +2880,7 @@ if (!strncmp(MODE,"r",1))
 			if (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP]==0) {
 				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 				B4C_ERRMSG = "GDF: Invalid or unsupported GDFTYP";
-				return(hdr);
+				return(B4C_ERRNUM);
 			}
 		}	
 		hdr->SampleRate = ((double)(hdr->SPR))*Dur[1]/Dur[0];
@@ -2637,7 +2889,7 @@ if (!strncmp(MODE,"r",1))
 
 		/* read GDF Header 3 - experimental */	    	
 		if ((hdr->HeadLen > 256u*(hdr->NS+1u)) && (hdr->VERSION>=(float)2.10)) {
-		    	Header2 = hdr->AS.Header + 256*(hdr->NS+1);
+		    	uint8_t *Header2 = hdr->AS.Header + 256*(hdr->NS+1);
 		    	uint8_t tag = 0xff;
 		    	size_t pos=0,len=0;
 	    		tag = (uint8_t)Header2[0];
@@ -2723,23 +2975,285 @@ if (!strncmp(MODE,"r",1))
 		    	}
 		}
 
+		// if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 217] #=%li\n",iftell(hdr));
+		return(B4C_ERRNUM);
+}
+
+/*
+	hdrEVT2rawEVT(HDRTYPE *hdr)
+	converts structure HDR.EVENT into raw event data (hdr->AS.rawEventData)  
+*/
+size_t hdrEVT2rawEVT(HDRTYPE *hdr) { 
+
+	size_t k32u; 
+	char flag = (hdr->EVENT.DUR != NULL) && (hdr->EVENT.CHN != NULL); 
+	if (flag)   // any DUR or CHN is larger than 0 
+		for (k32u=0, flag=0; (k32u<hdr->EVENT.N) && !flag; k32u++)
+			flag |= hdr->EVENT.CHN[k32u] || hdr->EVENT.DUR[k32u];
+
+	int sze = flag ? 12 : 6;
+	size_t len = 8+hdr->EVENT.N*sze; 
+	hdr->AS.rawEventData = (uint8_t*) realloc(hdr->AS.rawEventData,len);
+	uint8_t *buf = hdr->AS.rawEventData;
+	
+	buf[0] = (flag ? 3 : 1);
+	if (hdr->VERSION < 1.94) {
+		k32u   = lround(hdr->EVENT.SampleRate); 
+		buf[1] =  k32u      & 0x000000FF;
+		buf[2] = (k32u>>8 ) & 0x000000FF;
+		buf[3] = (k32u>>16) & 0x000000FF;
+		*(uint32_t*)(buf+4) = l_endian_u32(hdr->EVENT.N);
+	}
+	else {
+		k32u   = hdr->EVENT.N; 
+		buf[1] =  k32u      & 0x000000FF;
+		buf[2] = (k32u>>8 ) & 0x000000FF;
+		buf[3] = (k32u>>16) & 0x000000FF;
+		*(float*)(buf+4) = l_endian_f32(hdr->EVENT.SampleRate);
+	};
+	uint8_t *buf1=hdr->AS.rawEventData+8;
+	uint8_t *buf2=hdr->AS.rawEventData+8+hdr->EVENT.N*4;
+	for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
+		*(uint32_t*)(buf1+k32u*4) = l_endian_u32(hdr->EVENT.POS[k32u]); 
+		*(uint16_t*)(buf2+k32u*2) = l_endian_u16(hdr->EVENT.TYP[k32u]); 
+	}
+	if (flag==3) {	
+		buf1 = hdr->AS.rawEventData+8+hdr->EVENT.N*6;
+		buf2 = hdr->AS.rawEventData+8+hdr->EVENT.N*10;
+		for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
+			*(uint32_t*)(buf1+k32u*4) = l_endian_u32(hdr->EVENT.DUR[k32u]); 
+			*(uint16_t*)(buf2+k32u*2) = l_endian_u16(hdr->EVENT.CHN[k32u]); 
+		}
+	}
+	return(len); 
+}
+
+/*
+	rawEVT2hdrEVT(HDRTYPE *hdr)
+	converts raw event data (hdr->AS.rawEventData) into structure HDR.EVENT 
+*/
+int rawEVT2hdrEVT(HDRTYPE *hdr) { 
+	// TODO: avoid additional copying 
+	size_t k; 
+			uint8_t *buf = hdr->AS.rawEventData; 
+			if (hdr->VERSION < 1.94) {
+				if (buf[1] | buf[2] | buf[3])
+					hdr->EVENT.SampleRate = buf[1] + (buf[2] + buf[3]*256.0)*256.0; 
+				else {
+					fprintf(stdout,"Warning GDF v1: SampleRate in Eventtable is not set in %s !!!\n",hdr->FileName);
+					hdr->EVENT.SampleRate = hdr->SampleRate; 
+				}	
+				hdr->EVENT.N = leu32p(buf + 4);
+			}	
+			else	{
+				hdr->EVENT.N = buf[1] + (buf[2] + buf[3]*256)*256; 
+				hdr->EVENT.SampleRate = lef32p(buf + 4);
+			}	
+			int sze = (buf[0]>1) ? 12 : 6;
+	
+	 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
+			hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
+
+			uint8_t *buf1 = hdr->AS.rawEventData+8; 
+			uint8_t *buf2 = hdr->AS.rawEventData+8+4*hdr->EVENT.N; 
+			for (k=0; k < hdr->EVENT.N; k++) {
+				hdr->EVENT.POS[k] = leu32p(buf1 + k*4); 
+				hdr->EVENT.TYP[k] = leu32p(buf2 + k*2); 
+			}
+			if (buf[0]>1) {
+				hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR,hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
+				hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN,hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
+
+				buf1 = hdr->AS.rawEventData+8+6*hdr->EVENT.N; 
+				buf2 = hdr->AS.rawEventData+8+10*hdr->EVENT.N; 
+				for (k=0; k < hdr->EVENT.N; k++) {
+					hdr->EVENT.DUR[k] = leu32p(buf1 + k*4); 
+					hdr->EVENT.CHN[k] = leu32p(buf2 + k*2); 
+				}
+			}
+			else {
+				hdr->EVENT.DUR = NULL;
+				hdr->EVENT.CHN = NULL;
+			}	
+}
+
+/****************************************************************************/
+/**                     SOPEN                                              **/
+/****************************************************************************/
+HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
+/*
+	MODE="r" 
+		reads file and returns HDR 
+	MODE="w" 
+		writes HDR into file 
+ */
+{
+    	
+    	const char*	GENDER = "XMFX";  
+    	const uint16_t	CFWB_GDFTYP[] = {17,16,3};  
+	const float	CNT_SETTINGS_NOTCH[] = {0.0, 50.0, 60.0}; 
+	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
+	const float	CNT_SETTINGS_HIGHPASS[] = {NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
+
+    	unsigned int 	k,k1,k2;
+    	uint32_t	k32u; 
+    	size_t	 	count;
+    	char 		tmp[81];
+//    	double 		Dur; 
+	char*		ptr_str;
+	struct tm 	tm_time; 
+//	time_t		tt;
+	uint16_t	BCI2000_StatusVectorLength=0;	// specific for BCI2000 format 
+	uint16_t	EGI_LENGTH_CODETABLE=0;	// specific for EGI format 
+
+
+	if (hdr==NULL)
+		hdr = constructHDR(0,0);	// initializes fields that may stay undefined during SOPEN 
+
+	hdr->FileName = FileName; 
+
+
+// hdr->FLAG.SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 	// default: most data formats are little endian 
+hdr->FILE.LittleEndian = 1; 
+
+if (!strncmp(MODE,"r",1))	
+{
+	hdr->TYPE = noFile; 
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stdout,"[201] \n");
+
+	size_t k,name=0,ext=0;	
+	for (k=0; hdr->FileName[k]; k++) {
+		if (hdr->FileName[k]==FILESEP) name = k+1;
+		if (hdr->FileName[k]=='.')     ext  = k+1;
+	}
+		
+	const char *FileExt  = hdr->FileName+ext;
+	const char *FileName = hdr->FileName+name;
+
+	/* AINF */
+	if (!strcmp(FileExt, "ainf")) {
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"getfiletype ainf1 %s %i\n",hdr->FileName,ext); 
+		char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+5,sizeof(char));
+		strncpy(AINF_RAW_FILENAME, hdr->FileName,ext);
+		strcpy(AINF_RAW_FILENAME+ext, "raw");
+		FILE* fid1=fopen(AINF_RAW_FILENAME,"rb");
+		if (fid1) {
+			fclose(fid1);
+			hdr->TYPE = AINF; 
+		}	
+		free(AINF_RAW_FILENAME);
+	}
+	else if (!strcmp(FileExt, "raw")) {
+		char* AINF_RAW_FILENAME = (char*)calloc(strlen(hdr->FileName)+5,sizeof(char));
+		strncpy(AINF_RAW_FILENAME, hdr->FileName,ext);
+		strcpy(AINF_RAW_FILENAME+ext, "ainf");
+		FILE* fid1=fopen(AINF_RAW_FILENAME,"r");
+		if (fid1) {
+			fclose(fid1);
+			hdr->TYPE = AINF; 
+		}	
+		free(AINF_RAW_FILENAME);
+	}
+
+        hdr->FILE.COMPRESSION = 0;   	
+        hdr   = ifopen(hdr,"rb");
+        if (!hdr->FILE.OPEN) return(hdr); 
+        
+ 	hdr->AS.Header = (uint8_t*)malloc(352);
+    	count = ifread(Header1,1,352,hdr);
+
+	const uint8_t MAGIC_NUMBER_GZIP[] = {31,139,8};
+	if (!memcmp(Header1,MAGIC_NUMBER_GZIP,3)) {
+#ifdef ZLIB_H
+    		ifclose(hdr); 
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[221] \n");
+
+	        hdr->FILE.COMPRESSION = 1;
+//	        hdr->FILE.gzFID = gzdopen(hdr->FILE.FID,"rb"); // FIXME
+        	hdr= ifopen(hdr,"rb");
+	    	if (!hdr->FILE.OPEN) { 	
+    			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+	    		B4C_ERRMSG = "Error SOPEN(GZREAD); Cannot open file.";		
+	    		return(hdr);
+    		}	    
+	    	count = ifread(Header1,1,352,hdr);
+#else 
+		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+    		B4C_ERRMSG = "Error SOPEN(READ); *.gz file not supported because not linked with zlib.";
+#endif
+    	}
+
+	hdr->HeadLen = count; 	
+	getfiletype(hdr);
+
+	if (hdr->TYPE != unknown)
+		;
+    	else if (!memcmp(Header1,FileName,strspn(FileName,".")) && (!strcmp(FileExt,"HEA") || !strcmp(FileExt,"hea") ))
+	    	hdr->TYPE = MIT;
+
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stdout,"[202] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
+
+    	if (!hdr->FILE.OPEN) { 	
+    		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
+    		B4C_ERRMSG = "Error SOPEN(READ); Cannot open file.";		
+    		return(hdr); 
+    	}	    
+    	
+    	if (hdr->TYPE == unknown) { 
+    		B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
+    		B4C_ERRMSG = "ERROR BIOSIG SOPEN(read): Dataformat not known.\n";
+    		ifclose(hdr);
+		return(hdr);
+	}	
+
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stdout,"[201] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
+
+    	count = iftell(hdr); 
+    	hdr->AS.first=  0; 
+    	hdr->AS.length = 0; 
+	hdr->AS.bpb    = -1; 	// errorneous value: ensures that hdr->AS.bpb will be defined 
+	if (hdr->TYPE == GDF) {
+
+	    	if (hdr->VERSION > 1.90) 
+		    	hdr->HeadLen = leu16p(hdr->AS.Header+184)<<8; 
+		else 
+		    	hdr->HeadLen = leu64p(hdr->AS.Header+184); 
+
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
+	    	if (hdr->HeadLen > count)
+		    	count   += ifread(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
+
+		gdfbin2struct(hdr);
+
+		hdr->EVENT.N = 0; 
+		hdr->EVENT.POS = NULL; 
+		hdr->EVENT.TYP = NULL; 
+		hdr->EVENT.DUR = NULL; 
+		hdr->EVENT.CHN = NULL; 
+
+		struct stat FileBuf;
+		stat(hdr->FileName,&FileBuf);
+		//FileBuf.st_size/hdr->AS.bpb;
 
 		if (hdr->NRec < 0) {
-			ifseek(hdr, hdr->HeadLen, SEEK_SET);
-			nrec_t count = 0;
-			uint8_t *buf = (uint8_t*)malloc(hdr->AS.bpb);  
-			while (ifread(buf,hdr->AS.bpb,1,hdr)) count++;
-			free(buf); 
-			hdr->NRec = count;  
+			hdr->NRec = (FileBuf.st_size - hdr->HeadLen)/hdr->AS.bpb; 
+			if (hdr->AS.rawEventData!=NULL) {
+				free(hdr->AS.rawEventData);
+				hdr->AS.rawEventData=NULL;
+			}
 		}
-		else
-		{	 
-			// READ EVENTTABLE 
-			int c;
-    			uint8_t buf[8];
+		else if (FileBuf.st_size > hdr->HeadLen + hdr->AS.bpb*hdr->NRec + 8) 
+		{
 			ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET);
-			c = ifread(buf, sizeof(uint8_t), 8, hdr);
-
+			// READ EVENTTABLE 
+			hdr->AS.rawEventData = (uint8_t*)realloc(hdr->AS.rawEventData,8);
+			int c = ifread(hdr->AS.rawEventData, sizeof(uint8_t), 8, hdr);
+    			uint8_t *buf = hdr->AS.rawEventData;
+			
 			if (c<8) {
 				hdr->EVENT.SampleRate = hdr->SampleRate; 
 				hdr->EVENT.N = 0;
@@ -2753,45 +3267,21 @@ if (!strncmp(MODE,"r",1))
 				}	
 				hdr->EVENT.N = leu32p(buf + 4);
 			}	
-			else	{
+			else {
 				hdr->EVENT.N = buf[1] + (buf[2] + buf[3]*256)*256; 
 				hdr->EVENT.SampleRate = lef32p(buf + 4);
 			}	
-
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"[225] FMT=%s Ver=%4.2f\nEVENT.N=%i (%i)\n",GetFileTypeString(hdr->TYPE),hdr->VERSION,hdr->EVENT.N,c);
-
-	 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
-			hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
-			ifread(hdr->EVENT.POS, sizeof(*hdr->EVENT.POS), hdr->EVENT.N, hdr);
-			ifread(hdr->EVENT.TYP, sizeof(*hdr->EVENT.TYP), hdr->EVENT.N, hdr);
-
-			for (k32u=0; k32u < hdr->EVENT.N; k32u++) {
-				hdr->EVENT.POS[k32u] = l_endian_u32(hdr->EVENT.POS[k32u]); 
-				hdr->EVENT.TYP[k32u] = l_endian_u16(hdr->EVENT.TYP[k32u]); 
-			}
-			if (buf[0]>1) {
-				hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR,hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
-				hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN,hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
-				ifread(hdr->EVENT.CHN,sizeof(*hdr->EVENT.CHN),hdr->EVENT.N,hdr);
-				ifread(hdr->EVENT.DUR,sizeof(*hdr->EVENT.DUR),hdr->EVENT.N,hdr);
-
-				for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
-					hdr->EVENT.DUR[k32u] = l_endian_u32(hdr->EVENT.DUR[k32u]); 
-					hdr->EVENT.CHN[k32u] = l_endian_u16(hdr->EVENT.CHN[k32u]); 
-				}
-			}
-			else {
-				hdr->EVENT.DUR = NULL;
-				hdr->EVENT.CHN = NULL;
-			}	
+			int sze = (buf[0]>1) ? 12 : 6;
+			hdr->AS.rawEventData = (uint8_t*)realloc(hdr->AS.rawEventData,8+hdr->EVENT.N*sze);
+			ifread(hdr->AS.rawEventData+8, sze, hdr->EVENT.N, hdr);
+			ifseek(hdr, hdr->HeadLen, SEEK_SET); 
+			
+			rawEVT2hdrEVT(hdr); 
 		}	
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[228] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
-		ifseek(hdr, hdr->HeadLen, SEEK_SET); 
 
-		// if (VERBOSE_LEVEL>8) fprintf(stdout,"[GDF 217] #=%li\n",iftell(hdr));
     	}
-
     	else if ((hdr->TYPE == EDF) || (hdr->TYPE == BDF))	{
 		size_t	EventChannel = 0;
     		strncpy(hdr->Patient.Id,Header1+8,min(MAX_LENGTH_PID,80));
@@ -5031,6 +5521,7 @@ if (VERBOSE_LEVEL>8)
 	}
 
 	else if (hdr->TYPE==CNT) {
+		// TODO: fix handling of AVG files  
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,900);
 	    	hdr->VERSION = atof((char*)hdr->AS.Header+8);
 	    	count  += ifread(hdr->AS.Header+count,1,900-count,hdr);
@@ -7951,346 +8442,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	}
 
     	else if ((hdr->TYPE==GDF) || (hdr->TYPE==GDF1)) {	
-		uint32_t Dur[2];
-	     	hdr->HeadLen = (NS+1)*256;
-
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw 010\n");
-
-		/* experimental code: writing header 3, in Tag-Length-Value from 
-			currently only tag=1 is used for storing user-specific events (i.e. free text annotations
-		 */	
-	     	uint32_t TagNLen[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0};  	
-	     	uint8_t tag=1; 
-	     	if (hdr->EVENT.LenCodeDesc > 1) {	// first entry is always empty - no need to save tag1
-	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) 
-		     		TagNLen[tag] += strlen(hdr->EVENT.CodeDesc[k])+1; 
-	     		TagNLen[tag] += 1; 			// acounts for terminating \0
-	     		hdr->HeadLen += 4+TagNLen[tag];
-	     	}
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw 010 tag=%i\n",tag);
-	     	tag = 2; 
-	     	if (hdr->AS.bci2000 != NULL) {
-	     		TagNLen[tag] = strlen(hdr->AS.bci2000)+1;
-	     		hdr->HeadLen += 4+TagNLen[tag];
-	     	}	
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw 010 tag=%i\n",tag);
-	     	tag = 3; 
-	     	if ((hdr->ID.Manufacturer.Name != NULL) || (hdr->ID.Manufacturer.Model != NULL) || (hdr->ID.Manufacturer.Version != NULL) || (hdr->ID.Manufacturer.SerialNumber != NULL)) { 
-	     		if (hdr->ID.Manufacturer.Name == NULL) hdr->ID.Manufacturer.Name="\0";
-	     		if (hdr->ID.Manufacturer.Model == NULL) hdr->ID.Manufacturer.Model="\0";
-	     		if (hdr->ID.Manufacturer.Version == NULL) hdr->ID.Manufacturer.Version="\0";
-	     		if (hdr->ID.Manufacturer.SerialNumber == NULL) hdr->ID.Manufacturer.SerialNumber="\0";
-	     		
-	     		TagNLen[tag] = strlen(hdr->ID.Manufacturer.Name)+strlen(hdr->ID.Manufacturer.Model)+strlen(hdr->ID.Manufacturer.Version)+strlen(hdr->ID.Manufacturer.SerialNumber)+4;
-	     		hdr->HeadLen += 4+TagNLen[tag];
-	     	}	
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw 010 tag=%i\n",tag);
-	     	tag = 4;
-/* OBSOLETE 
-	     	char FLAG_SENSOR_ORIENTATION = 0;  
-	     	for (k=0; k<hdr->NS; k++) {
-	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Orientation[0] != (float)0.0;
-	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Orientation[1] != (float)0.0;
-	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Orientation[2] != (float)0.0;
-	     		FLAG_SENSOR_ORIENTATION |= hdr->CHANNEL[k].Area != (float)0.0;
-	     	} 
-	     	if (FLAG_SENSOR_ORIENTATION) 
-	     		TagNLen[tag] = hdr->NS*sizeof(float)*4;
-     		hdr->HeadLen += 4+TagNLen[tag];
-*/
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw 010 tag=%i\n",tag);
-	     	tag = 5; 
-	     	for (k=0; k<16; k++) {
-	     		if (hdr->IPaddr[k]) {
-		     		if (k<4) TagNLen[tag] = 4;  
-		     		else 	 TagNLen[tag] = 16;
-		     	}
-	     		hdr->HeadLen += 4+TagNLen[tag];
-	     	}	
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw 010 tag=%i\n",tag);
-	     	tag = 6; 
-     		TagNLen[tag] = strlen(hdr->ID.Technician);
-	     	if (TagNLen[tag]) {
-	     		TagNLen[tag]++;
-	     		hdr->HeadLen += 4+TagNLen[tag];
-	     	}	
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw 010 tag=%i\n",tag);
-	     	tag = 7; 
-     		TagNLen[tag] = strlen(hdr->ID.Hospital);
-	     	if (TagNLen[tag]) {
-	     		TagNLen[tag]++;
-	     		hdr->HeadLen += 4+TagNLen[tag];
-	     	}	
-	     	
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
-	     	/* end */
-
-		hdr->VERSION = 2.11;
-		if (hdr->TYPE==GDF1) {
-			hdr->VERSION = 1.25;
-			hdr->TYPE = GDF;
-		}
-		else if (hdr->HeadLen & 0x00ff)	// in case of GDF v2, make HeadLen a multiple of 256. 
-			hdr->HeadLen = (hdr->HeadLen & 0xff00) + 256;  
-			
-	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
-
-	    	hdr->AS.Header = (uint8_t*) calloc(hdr->HeadLen,1);
-	     	sprintf((char*)hdr->AS.Header,"GDF %4.2f",hdr->VERSION);
-	    	uint8_t* Header2 = hdr->AS.Header+256; 
-	     	
-		uint16_t maxlen=66; 
-		if (hdr->VERSION<1.90) maxlen=80;
-		if (strlen(hdr->Patient.Id) > 0) {
-			for (k=0; hdr->Patient.Id[k]; k++)
-				if (isspace(hdr->Patient.Id[k]))
-					hdr->Patient.Id[k] = '_';
-					
-	     		strncat(Header1+8, hdr->Patient.Id, maxlen);
-		} 
-		else     	
-		     	strncat(Header1+8, "X", maxlen);
-
-	     	strncat(Header1+8, " ", maxlen);
-		if (!hdr->FLAG.ANONYMOUS && (hdr->Patient.Name!=NULL)) 
-		     	strncat(Header1+8, hdr->Patient.Name, maxlen);
-		else     	
-		     	strncat(Header1+8, "X", maxlen);
-
-		if (hdr->VERSION>1.90) { 
-	     		Header1[84] = (hdr->Patient.Smoking%4) + ((hdr->Patient.AlcoholAbuse%4)<<2) + ((hdr->Patient.DrugAbuse%4)<<4) + ((hdr->Patient.Medication%4)<<6);
-	     		Header1[85] =  hdr->Patient.Weight;
-	     		Header1[86] =  hdr->Patient.Height;
-	     		Header1[87] = (hdr->Patient.Sex%4) + ((hdr->Patient.Handedness%4)<<2) + ((hdr->Patient.Impairment.Visual%4)<<4);
-		}
-		
-	     	size_t len = strlen(hdr->ID.Recording);
-	     	memcpy(Header1+ 88,  hdr->ID.Recording, min(len,80));
-		if (hdr->VERSION>1.90) { 
-			memcpy(Header1+152, &hdr->LOC, 16);  
-			*(uint32_t*) (Header1+152) = l_endian_u32( *(uint32_t*) (Header1+152) );
-			*(uint32_t*) (Header1+156) = l_endian_u32( *(uint32_t*) (Header1+156) );
-			*(uint32_t*) (Header1+160) = l_endian_u32( *(uint32_t*) (Header1+160) );
-			*(uint32_t*) (Header1+164) = l_endian_u32( *(uint32_t*) (Header1+164) );
-		}
-		
-		if (hdr->VERSION<1.90) { 
-    			struct tm *t = gdf_time2tm_time(hdr->T0);
-/* obsolete
-			tt = gdf_time2t_time(hdr->T0); 
-			struct tm *t = localtime(&tt);
-*/
-			sprintf(tmp,"%04i%02i%02i%02i%02i%02i00",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
-			memcpy(Header1+168,tmp,max(strlen(tmp),16));
-			*(uint32_t*) (Header1+184) = l_endian_u32(hdr->HeadLen);
-
-			memcpy(Header1+192, &hdr->ID.Equipment, 8);
-			// FIXME: 200: LabId, 208 TechId, 216, Serial No // 
-		}
-		else {
-			//memcpy(Header1+168, &hdr->T0, 8); 
-			*(uint64_t*) (Header1+168) = l_endian_u64(hdr->T0);
-			//memcpy(Header1+176, &hdr->Patient.Birthday, 8); 
-			*(uint64_t*) (Header1+176) = l_endian_u64(hdr->Patient.Birthday);
-			// *(uint16_t*)(Header1+184) = (hdr->HeadLen>>8)+(hdr->HeadLen%256>0); 
-			*(uint32_t*) (Header1+184) = l_endian_u32(hdr->HeadLen>>8);
-		
-			memcpy(Header1+192, &hdr->ID.Equipment, 8);
-			memcpy(Header1+200, &hdr->IPaddr, 6);
-			memcpy(Header1+206, &hdr->Patient.Headsize, 6);
-			*(float*) (Header1+212) = l_endian_f32(hdr->ELEC.REF[0]);
-			*(float*) (Header1+216) = l_endian_f32(hdr->ELEC.REF[1]);
-			*(float*) (Header1+220) = l_endian_f32(hdr->ELEC.REF[2]);
-			*(float*) (Header1+224) = l_endian_f32(hdr->ELEC.GND[0]);
-			*(float*) (Header1+228) = l_endian_f32(hdr->ELEC.GND[1]);
-			*(float*) (Header1+232) = l_endian_f32(hdr->ELEC.GND[2]);
-		}
-		
-		*(uint64_t*) (Header1+236) = l_endian_u64(hdr->NRec);
-		
-	/* FIXME: this part should make the records as small as possible   
-		size_t DIV = 1, div; 		
-		for (k=0; k<hdr->NS; k++) {
-			div = hdr->SPR/hdr->CHANNEL[k].SPR;
-			if (div>DIV) DIV=div; 
-		}
-		for (k=0; k<hdr->NS; k++) {
-			hdr->CHANNEL[k].SPR = (hdr->CHANNEL[k].SPR*DIV)/hdr->SPR;
-		}
-		hdr->NRec *= hdr->SPR/DIV; 
-		hdr->SPR  = DIV; 
-	*/
-				 
-		/* Duration is expressed as an fraction of integers */ 
-		double fDur = hdr->SPR/hdr->SampleRate;
-		double dtmp1, dtmp2;
-		dtmp2 = modf(fDur, &dtmp1);
-		// approximate real with rational number 
-		if (fabs(dtmp2) < DBL_EPSILON) {
-			Dur[0] = lround(fDur); 
-			Dur[1] = 1; 
-		}
-		else {   
-			Dur[1] = lround(1.0 / dtmp2 ); 
-			Dur[0] = lround(1.0 + dtmp1 * Dur[1]); 
-		}		
-
-		if (VERBOSE_LEVEL>7)
-			fprintf(stdout,"\n SOPEN(GDF write): %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,Dur[0],Dur[1]);
-
-		*(uint32_t*) (Header1+244) = l_endian_u32(Dur[0]);
-		*(uint32_t*) (Header1+248) = l_endian_u32(Dur[1]);
-		*(uint16_t*) (Header1+252) = l_endian_u16(NS);
-
-	     	/* define HDR.Header2 
-	     	this requires checking the arguments in the fields of the struct HDR.CHANNEL
-	     	and filling in the bytes in HDR.Header2. 
-	     	*/
-		typeof(k) k2=0;
-		for (k=0; k<hdr->NS; k++) 
-		if (hdr->CHANNEL[k].OnOff) 
-		{
-			const char *tmpstr;
-			if (hdr->CHANNEL[k].LeadIdCode)
-				tmpstr = LEAD_ID_TABLE[hdr->CHANNEL[k].LeadIdCode];
-			else
-				tmpstr = hdr->CHANNEL[k].Label;
-
-		     	len = strlen(tmpstr);
-		     	memcpy(Header2+16*k2,tmpstr,min(len,16));
-
-		     	len = strlen(hdr->CHANNEL[k].Transducer);
-		     	memcpy(Header2+80*k2 + 16*NS, hdr->CHANNEL[k].Transducer, min(len,80));
-		     	PhysDim(hdr->CHANNEL[k].PhysDimCode, tmp);
-		     	len = strlen(tmp);
-		     	if (hdr->VERSION < 1.9)
-		     		memcpy(Header2+ 8*k2 + 96*NS, tmp, min(8,len));
-		     	else {
-		     		memcpy(Header2+ 6*k2 + 96*NS, tmp, min(6,len));
-		     		*(uint16_t*)(Header2+ 2*k2 + 102*NS) = l_endian_u16(hdr->CHANNEL[k].PhysDimCode);
-			};
-
-		     	*(double*)(Header2 + 8*k2 + 104*NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMin);
-		     	*(double*)(Header2 + 8*k2 + 112*NS)   = l_endian_f64(hdr->CHANNEL[k].PhysMax);
-		     	if (hdr->VERSION < 1.9) {
-			     	*(int64_t*)(Header2 + 8*k2 + 120*NS)   = l_endian_i64((int64_t)hdr->CHANNEL[k].DigMin);
-			     	*(int64_t*)(Header2 + 8*k2 + 128*NS)   = l_endian_i64((int64_t)hdr->CHANNEL[k].DigMax);
-			     	// FIXME // memcpy(Header2 + 80*k + 136*hdr->NS,hdr->CHANNEL[k].PreFilt,max(80,strlen(hdr->CHANNEL[k].PreFilt)));
-			}     	
-			else {
-			     	*(double*)(Header2 + 8*k2 + 120*NS) = l_endian_f64(hdr->CHANNEL[k].DigMin);
-			     	*(double*)(Header2 + 8*k2 + 128*NS) = l_endian_f64(hdr->CHANNEL[k].DigMax);
-			     	*(float*) (Header2 + 4*k2 + 204*NS) = l_endian_f32(hdr->CHANNEL[k].LowPass);
-			     	*(float*) (Header2 + 4*k2 + 208*NS) = l_endian_f32(hdr->CHANNEL[k].HighPass);
-			     	*(float*) (Header2 + 4*k2 + 212*NS) = l_endian_f32(hdr->CHANNEL[k].Notch);
-
-				*(float*) (Header2 + 4*k2 + 224*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[0]);
-				*(float*) (Header2 + 4*k2 + 228*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[1]);
-				*(float*) (Header2 + 4*k2 + 232*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[2]);
-
-	     			Header2[k2+236*NS] = (uint8_t)ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
-		     	}
-		     	*(uint32_t*) (Header2 + 4*k2 + 216*NS) = l_endian_u32(hdr->CHANNEL[k].SPR);
-		     	*(uint32_t*) (Header2 + 4*k2 + 220*NS) = l_endian_u32(hdr->CHANNEL[k].GDFTYP);
-		     	k2++;
-		}
-
-		if (VERBOSE_LEVEL>8)
-			fprintf(stdout,"GDFw 444\n");
-
-		size_t bpb8 = 0; 
-		for (k=0, hdr->AS.bpb=0; k<hdr->NS; k++) { 
-			hdr->CHANNEL[k].bi8 = bpb8;
-			hdr->CHANNEL[k].bi  = bpb8>>3;
-			if (hdr->CHANNEL[k].OnOff) {
-				bpb8 += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR);
-			}
-		}	
-		hdr->AS.bpb8 = bpb8; 
-		hdr->AS.bpb = bpb8>>3;
-		if (bpb8 & 0x07) {		// each block must use whole number of bytes  
-			hdr->AS.bpb++;  
-			hdr->AS.bpb8 = hdr->AS.bpb<<3;  
-		}	
-
-		if (VERBOSE_LEVEL>8)
-			fprintf(stdout,"GDFw h3\n");
-
-	     	/* define Header3
-	     		currently writing of free text annotations is supported
-	     		 
-	     	*/
-	    	Header2 = hdr->AS.Header+(NS+1)*256; 
-	    	tag = 1;
-	     	if (TagNLen[tag]>0) {
-	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=1 & Length of Tag 1
-	     		size_t pos = 4; 
-	     		for (k=0; k<hdr->EVENT.LenCodeDesc; k++) {
-	     			strcpy((char*)(Header2+pos),hdr->EVENT.CodeDesc[k]);
-		     		pos += strlen(hdr->EVENT.CodeDesc[k])+1;
-		     	}	 
-		     	Header2[pos]=0; 	// terminating NULL 
-	     		Header2 += pos+1;
-	     	}
-	     	tag = 2; 
-	     	if (TagNLen[tag]>0) {
-	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=2 & Length of Tag 2
-     			strcpy((char*)(Header2+4),hdr->AS.bci2000);
-			Header2 += 4+TagNLen[tag];	
-	     	}
-	     	tag = 3; 
-	     	if (TagNLen[tag]>0) {
-	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=3 & Length of Tag 3
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"SOPEN(GDF)w: tag=%i,len=%i\n",tag,TagNLen[tag]);
-	     		memset(Header2+4,0,TagNLen[tag]);
-	     		size_t len = 0; 
-     			strcpy((char*)(Header2+4), hdr->ID.Manufacturer.Name);
-		     	if (hdr->ID.Manufacturer.Name != NULL) 	
-		     		len += strlen(hdr->ID.Manufacturer.Name);
-     			strcpy((char*)(Header2+5+len), hdr->ID.Manufacturer.Model);
-		     	if (hdr->ID.Manufacturer.Model != NULL)
-		     		len += strlen(hdr->ID.Manufacturer.Model);
-     			strcpy((char*)(Header2+6+len), hdr->ID.Manufacturer.Version);
-		     	if (hdr->ID.Manufacturer.Version != NULL)
-		     		len += strlen(hdr->ID.Manufacturer.Version);
-     			strcpy((char*)(Header2+7+len), hdr->ID.Manufacturer.SerialNumber);
-		     	if (hdr->ID.Manufacturer.SerialNumber != NULL)
-		     		len += strlen(hdr->ID.Manufacturer.SerialNumber);
-			Header2 += 4+TagNLen[tag];	
-	     	}
-	     	tag = 4;
-	     	if (TagNLen[tag]>0) {
-/*
-	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=4 & Length of Tag 4
-	     		Header2 += 4;
-	     		for (k=0; k<hdr->NS; k++) {
-	     			*(float*)(Header2 + 4*k)             = l_endian_f32(hdr->CHANNEL[k].Orientation[0]);
-	     			*(float*)(Header2 + 4*k + 4*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Orientation[1]);
-	     			*(float*)(Header2 + 4*k + 8*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Orientation[2]);
-	     			*(float*)(Header2 + 4*k +12*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Area);
-	     		}
-     			Header2 += 4*sizeof(float)*hdr->NS;
-*/	     	}
-	     	tag = 5;
-	     	if (TagNLen[tag]>0) {
-	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=5 & Length of Tag 5
-     			memcpy(Header2+4,hdr->IPaddr,TagNLen[tag]);
-			Header2 += 4+TagNLen[tag];
-	     	}
-	     	tag = 6; 
-	     	if (TagNLen[tag]>0) {
-	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=6 & Length of Tag 6
-     			strcpy((char*)(Header2+4),hdr->ID.Technician);
-			Header2 += 4+TagNLen[tag];
-	     	}
-	     	tag = 7; 
-	     	if (TagNLen[tag]>0) {
-	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=7 & Length of Tag 7
-     			strcpy((char*)(Header2+4),hdr->ID.Hospital);
-			Header2 += 4+TagNLen[tag];
-	     	}
-	     	
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw [339] %p %p\n", Header1,Header2);	     		
+    	
+		struct2gdfbin(hdr);     	
 	}
 
     	else if ((hdr->TYPE==EDF) || (hdr->TYPE==BDF)) {	
@@ -8827,24 +8980,24 @@ size_t sread_raw(biosig_data_type* data, size_t start, size_t length, HDRTYPE* h
  *
  */
 
-	size_t			count,k1,k2,k3,k4,k5,SZ,NS;
+	size_t			count;
 	nrec_t			nelem; 
-	uint16_t		GDFTYP;
-	size_t	 		DIV;
-	uint8_t			*ptr; // *buffer;
-	CHANNEL_TYPE		*CHptr;
-	int32_t			int32_value;
-	biosig_data_type 	sample_value; 
-	size_t			toffset;	// time offset for rawdata
-
 
 	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"####SREAD########## start=%d length=%d\n",start,length);
+		fprintf(stdout,"####SREAD-RAW########## start=%d length=%d\n",start,length);
 
+		fprintf(stdout,"####SREAD-RAW########## start=%d length=%d\n",start,length);
+
+	if (VERBOSE_LEVEL>7)
+		fprintf(stdout,"sread 211: %d %d %Ld %Ld %Ld\n",start, length, nelem, hdr->NRec, hdr->FILE.POS);
+	
 	if (start < 0) 
 		start = hdr->FILE.POS;
 	else if ((nrec_t)start > hdr->NRec) 
 		return(0);
+
+	if (VERBOSE_LEVEL>7)
+		fprintf(stdout,"sread 216: %d %d %Ld %Ld %Ld\n",start, length, nelem, hdr->NRec, hdr->FILE.POS);
 
 	// limit reading to end of data block
 	if (hdr->NRec<0)
@@ -8855,20 +9008,34 @@ size_t sread_raw(biosig_data_type* data, size_t start, size_t length, HDRTYPE* h
 		nelem = min(length, hdr->NRec - start);
 
 	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"sread 221 %i=?=%i  %i=?=%i \n",start,hdr->AS.first,start+nelem,hdr->AS.length);
+		fprintf(stdout,"sread 221: %i %i %Li %Li %Li\n",start, length, nelem, hdr->NRec, hdr->FILE.POS);
+
+	if (VERBOSE_LEVEL>7)
+		fprintf(stdout,"sread 221 %Li=?=%Li  %Li=?=%Li \n", start,hdr->AS.first,start+nelem,hdr->AS.length);
 
 
-	if ((start >= hdr->AS.first) && (start+nelem <= hdr->AS.first+hdr->AS.length)) {
+	if ((start >= hdr->AS.first) && ((start+nelem) <= (hdr->AS.first+hdr->AS.length))) {
 		// Caching, no file-IO, data is already loaded into hdr->AS.rawdata
 		hdr->FILE.POS = start; 	
 		count = nelem; 
+
+		if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"sread-raw: 222\n");
+
 	}
 	else {
+		if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"sread-raw: 223\n");
+
 		// read required data block(s)
 		if (ifseek(hdr, start*hdr->AS.bpb + hdr->HeadLen, SEEK_SET)<0)
 			return(0);
 		else	
 			hdr->FILE.POS = start; 	
+
+		if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"sread-raw: 224\n");
+
 
 		// allocate AS.rawdata 	
 		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, hdr->AS.bpb*nelem);
@@ -10086,13 +10253,21 @@ int sclose(HDRTYPE* hdr)
 	int32_t 	pos, len; 
 	char tmp[88]; 
 	
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"sclose(121)\n"); 
+
 	for (size_t k=0; k<hdr->NS; k++) {
 		// replace Nihon-Kohden code with standard code 
 		if (hdr->CHANNEL[k].GDFTYP==128)	 
 			hdr->CHANNEL[k].GDFTYP=3; 
 	}		
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"sclose(122) OPEN=%i %s\n",hdr->FILE.OPEN,GetFileTypeString(hdr->TYPE)); 
+
 	if ((hdr->FILE.OPEN>1) && ((hdr->TYPE==GDF) || (hdr->TYPE==EDF) || (hdr->TYPE==BDF)))
 	{
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"sclose(121) nrec= %li\n",hdr->NRec); 
+
 		// WRITE HDR.NRec 
 		pos = (iftell(hdr)-hdr->HeadLen); 
 		if (hdr->NRec<0)
@@ -10118,7 +10293,11 @@ int sclose(HDRTYPE* hdr)
 
 		if ((hdr->TYPE==GDF) && (hdr->EVENT.N>0)) {
 
-			write_gdf_eventtable(hdr);
+			size_t len = hdrEVT2rawEVT(hdr);
+			ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
+			ifwrite(hdr->AS.rawEventData, len, 1, hdr);
+
+//			write_gdf_eventtable(hdr);
 		}	
 
 	}		
@@ -10195,7 +10374,10 @@ int sflush_gdf_event_table(HDRTYPE* hdr)
 		return(-1);
 	}
 
-	write_gdf_eventtable(hdr);  
+	size_t len = hdrEVT2rawEVT(hdr);
+	ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
+	ifwrite(hdr->AS.rawEventData, len, 1, hdr);
+//	write_gdf_eventtable(hdr);  
 
 	ifseek(hdr,filepos,SEEK_SET); 
 		

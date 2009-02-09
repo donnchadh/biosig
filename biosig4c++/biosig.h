@@ -1,6 +1,6 @@
 /*
-% $Id: biosig.h,v 1.132 2009-01-23 23:55:31 schloegl Exp $
-% Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
+% $Id: biosig.h,v 1.133 2009-02-09 13:19:12 schloegl Exp $
+% Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
 
@@ -66,7 +66,9 @@ typedef char			int8_t;
 #endif 
 #endif 
 
+#ifdef WITH_GSL
 #include <gsl/gsl_matrix_double.h>
+#endif 
 #include <stdio.h>
 
 
@@ -126,7 +128,7 @@ extern int   B4C_ERRNUM;
 extern const char *B4C_ERRMSG;
 
 
-//extern int   VERBOSE_LEVEL; 	// used for debugging
+extern int   VERBOSE_LEVEL; 	// used for debugging
 //#define VERBOSE_LEVEL 0	// turn off debugging information 
 
 
@@ -338,12 +340,14 @@ typedef struct {
 //		char* 		RID;		/* recording identification */ 
 //		uint32_t 	spb __attribute__ ((deprecated)); /* total samples per block */
 		uint32_t 	bpb;  		/* total bytes per block */
-//		uint32_t 	*bi __attribute__ ((deprecated)); /* this information redundant with HDR.CHANNEL[k].bi[0] - and is now obsolete */
+		uint32_t 	bpb8;  		/* total bits per block */
+	//		uint32_t 	*bi __attribute__ ((deprecated)); /* this information redundant with HDR.CHANNEL[k].bi[0] - and is now obsolete */
 		uint8_t*	Header; 
+		uint8_t*	rawEventData;
 		uint8_t*	rawdata; 	/* raw data block */
 		nrec_t		first;		/* first block loaded in buffer - this is equivalent to hdr->FILE.POS */
 		nrec_t		length;		/* number of block(s) loaded in buffer */
-		uint8_t*	auxBUF;  	/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor */
+		uint8_t*	auxBUF;  	/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor, alpha:rawdata header */
 		char*		bci2000;
 	} AS ATT_ALI;
 	
@@ -369,6 +373,15 @@ void 	 destructHDR(HDRTYPE* hdr);
 /* 	destroys the header *hdr and frees allocated memory
  --------------------------------------------------------------- */
 
+HDRTYPE* getfiletype(HDRTYPE* hdr);
+/* 	identify file format from header information 
+	input:
+		hdr->AS.Header contains header of hdr->HeadLen bytes 
+		hdr->TYPE must be unknown, otherwise no FileFormat evaluation is performed
+	output:
+		hdr->TYPE	file format
+		hdr->VERSION	is defined for some selected formats e.g. ACQ, EDF, BDF, GDF
+ --------------------------------------------------------------- */
 
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 /*	FileName: name of file 
@@ -392,7 +405,7 @@ int 	sclose(HDRTYPE* hdr);
 
 
 size_t	sread(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
-size_t	sread1(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
+size_t	sread_raw(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
 /*	LEN data segments are read from file associated with hdr, starting from 
 	segment START. The data is copied into DATA; if DATA == NULL, a 
 	sufficient amount of memory is allocated; otherwise, it's assumed 
@@ -423,13 +436,6 @@ size_t	gsl_sread(gsl_matrix* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
 /*	same as sread but return data is of type gsl_matrix
  --------------------------------------------------------------- */
 #endif 
-
-size_t	sread2(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
-size_t	sread3(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
-/*	SREAD2 and SREAD3 are experimental 
-	it is similar to SREAD but START and LENGTH are in samples.  
- --------------------------------------------------------------- */
-
 
 size_t  swrite(const biosig_data_type *DATA, size_t NELEM, HDRTYPE* hdr);
 /*	DATA contains the next NELEM data segment(s) for writing. 
