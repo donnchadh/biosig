@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.12 2009-01-25 20:26:09 schloegl Exp $
+% $Id: biosig-dev.h,v 1.13 2009-02-11 16:38:28 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -68,6 +68,12 @@
 /* use byteswap macros from the host system, hopefully optimized ones ;-) */
 #include <byteswap.h>
 #endif 
+
+#ifdef	__WIN32__
+#define FILESEP '\\'
+#else
+#define FILESEP '/'
+#endif
 
 
 #ifndef _BYTESWAP_H
@@ -231,6 +237,9 @@ const double INF=1.0/0.0;
 extern int   VERBOSE_LEVEL; 	// used for debugging
 #endif 
 
+
+
+
 /****************************************************************************/
 /**                                                                        **/
 /**                     TYPEDEFS AND STRUCTURES                            **/
@@ -343,6 +352,10 @@ int 		ifgetpos(HDRTYPE* hdr, fpos_t *pos);
 int             iferror(HDRTYPE* hdr);
 
 
+/*
+	various utility functions 
+*/
+
 uint32_t gcd(uint32_t A, uint32_t B);
 uint32_t lcm(uint32_t A, uint32_t B);
 
@@ -355,6 +368,18 @@ double PhysDimScale(uint16_t PhysDimCode);
 
 uint16_t CRCEvaluate(uint8_t* datablock, uint32_t datalength);
 int16_t CRCCheck(uint8_t* datablock, uint32_t datalength);
+
+int strcmpi(const char* str1, const char* str2);
+int strncmpi(const char* str1, const char* str2, size_t n);
+int u32cmp(const void *a, const void *b); 
+
+int struct2gdfbin(HDRTYPE *hdr);
+int gdfbin2struct(HDRTYPE *hdr);
+size_t hdrEVT2rawEVT(HDRTYPE *hdr);
+int rawEVT2hdrEVT(HDRTYPE *hdr);
+
+void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation);
+
 
 /****************************************************************************/
 /**                                                                        **/
