@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.286 2009-02-12 16:15:09 schloegl Exp $
+    $Id: biosig.c,v 1.287 2009-02-12 21:40:38 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1815,7 +1815,6 @@ void destructHDR(HDRTYPE* hdr) {
     	if ((hdr->AS.rawdata != NULL) && (hdr->TYPE != SCP_ECG)) 
     	{	// for SCP: hdr->AS.rawdata is part of hdr->AS.Header 
         	free(hdr->AS.rawdata);
-        	hdr->AS.rawdata = NULL; 
         }	
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.data.block\n");
@@ -3234,10 +3233,16 @@ if (!strncmp(MODE,"r",1))
 		fprintf(stdout,"[201] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
 
     	count = iftell(hdr); 
-    	hdr->AS.first=  0; 
-    	hdr->AS.length = 0; 
+    	hdr->AS.first  =  0; 
+    	hdr->AS.length =  0; 
 	hdr->AS.bpb    = -1; 	// errorneous value: ensures that hdr->AS.bpb will be defined 
-	if (hdr->TYPE == GDF) {
+/*	if (hdr->TYPE == GDF) {
+		sd = bscs_connect(argv[1]); 
+		s  = bscs_open(sd, &ID);
+  		     bscs_requ_hdr(sd,hdr);
+	}
+	else
+*/	 if (hdr->TYPE == GDF) {
 
 	    	if (hdr->VERSION > 1.90) 
 		    	hdr->HeadLen = leu16p(hdr->AS.Header+184)<<8; 
@@ -8646,7 +8651,7 @@ int cachingWholeFile(HDRTYPE* hdr) {
 /****************************************************************************/
 /**	SREAD_RAW : segment-based                                              **/
 /****************************************************************************/
-size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr) {
+size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 /* 
  *	Reads LENGTH blocks with HDR.AS.bpb BYTES each 
  * 	(and HDR.SPR samples). 
@@ -8743,6 +8748,62 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr) {
 	return(count); 
 }
 
+/****************************************************
+   collapse raw data
+	re-allocates buffer (buf) to hold collapsed data
+	bpb are the bytes per block. The total size of 
+	buf is bpb*hdr->AS.length
+ *****************************************************/	
+int collapse_rawdata(HDRTYPE *hdr, uint8_t **buf)
+{
+	CHANNEL_TYPE *CHptr;
+	size_t bpb=0;
+	char bitflag = 0;
+	size_t	k1,k2,k4,k5,count,bpb8,SZ;
+	uint16_t GDFTYP;
+	
+	
+	for (k1=0,k2=0; k1<hdr->NS; k1++) {
+		CHptr 	= hdr->CHANNEL+k1;
+		if (CHptr->OnOff) bpb += CHptr->SPR*GDFTYP_BITS[GDFTYP];
+		bitflag |= bpb & 0x07; 
+	}
+
+	if (bpb == hdr->AS.bpb) return(0); // no collapsing 
+
+	if (bitflag) {
+		fprintf(stderr,"collapse_rawdata: does not support bitfields"); 
+		return(-1); 
+	}	
+	
+	if (buf==NULL) return(-1); 
+	*buf = (uint8_t*) realloc(*buf,count*bpb8>>3);	
+	size_t bi = 0;
+	for (k1=0,k2=0; k1<hdr->NS; k1++) {
+		CHptr 	= hdr->CHANNEL+k1;
+
+		if (CHptr->OnOff) {	/* read selected channels only */ 
+			
+		if (CHptr->SPR > 0) {	
+		GDFTYP 	= CHptr->GDFTYP;
+		SZ  	= GDFTYP_BITS[GDFTYP]>>3;
+		bpb	= CHptr->SPR*GDFTYP_BITS[GDFTYP]>>3;
+
+		for (k4 = 0; k4 < count; k4++)
+		for (k5 = 0; k5 < CHptr->SPR; k5++) 
+		{
+			size_t off1 = k4*hdr->AS.bpb + CHptr->bi + (k5*SZ);
+			size_t off2 = k4*bpb + bi + (k5*SZ);
+			memcpy(buf + off2, hdr->AS.rawdata + off1, bpb);
+		}
+		bi += bpb;
+		}
+		k2++;
+	}	
+	}
+	return(bpb); 
+}
+
 
 /****************************************************************************/
 /**	SREAD : segment-based                                              **/
@@ -8790,7 +8851,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	if ((start + length) < 0) return(0);  	
 
 		
-	count = sread_raw(start, length, hdr);
+	count = sread_raw(start, length, hdr, 0);
 //	count = sread_raw(0, hdr->NRec, hdr);
 	
 	if (VERBOSE_LEVEL>7)

@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.134 2009-02-12 16:15:10 schloegl Exp $
+% $Id: biosig.h,v 1.135 2009-02-12 21:40:38 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -128,7 +128,7 @@ extern int   B4C_ERRNUM;
 extern const char *B4C_ERRMSG;
 
 
-extern int   VERBOSE_LEVEL; 	// used for debugging
+//extern int   VERBOSE_LEVEL; 	// used for debugging
 //#define VERBOSE_LEVEL 0	// turn off debugging information 
 
 
@@ -329,6 +329,7 @@ typedef struct {
 		FILE* 		FID;		/* file handle  */
 		size_t 		POS;		/* current reading/writing position [in blocks] */
 		//size_t 	POS2;		/* current reading/writing position [in samples] */
+		int		Des;		/* file descriptor */
 		uint8_t		OPEN; 		/* 0: closed, 1:read, 2: write */
 		uint8_t		LittleEndian;   /* 1 if file is LittleEndian data format and 0 for big endian data format*/  
 		uint8_t		COMPRESSION;    /* 0: no compression 9: best compression */
@@ -427,21 +428,6 @@ size_t	sread(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
 
 	hdr->FLAG.ROW_BASED_CHANNELS = 0 each channel is in one column 	
 	hdr->FLAG.ROW_BASED_CHANNELS = 1 each channel is in one row 	
- --------------------------------------------------------------- */
-
-size_t	sread_raw(size_t START, size_t LEN, HDRTYPE* hdr);
-/* sread_raw: 
-	LEN data segments are read from file associated with hdr, starting from 
-	segment START. A sufficient amount of memory is (re-)allocated in 
-	hdr->AS.rawdata and the data is copied into  hdr->AS.rawdata
-	Typically, LEN*hdr->AS.bpb bytes are read and stored in its native format.
-	No Overflowdetection or calibration is applied. 
-	
-	The number of successfully read data blocks is returned, this can be smaller 
-	than LEN at the end of the file. The data can be "cached", this means 
-	that more than the requested number of blocks is available in hdr->AS.rawdata. 
-	hdr->AS.first and hdr->AS.length contain the number of the first 
-	block and the number of blocks, respectively.  
  --------------------------------------------------------------- */
 
 #ifdef __GSL_MATRIX_DOUBLE_H__

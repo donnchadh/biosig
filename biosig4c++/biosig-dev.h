@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.13 2009-02-11 16:38:28 schloegl Exp $
+% $Id: biosig-dev.h,v 1.14 2009-02-12 21:40:38 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -373,12 +373,70 @@ int strcmpi(const char* str1, const char* str2);
 int strncmpi(const char* str1, const char* str2, size_t n);
 int u32cmp(const void *a, const void *b); 
 
+/*
+	some important functions used internally, 
+	the interface for these functios is a bit clumsy and is 
+	(therefore) not 
+*/
+
 int struct2gdfbin(HDRTYPE *hdr);
 int gdfbin2struct(HDRTYPE *hdr);
+/* struct2gdfbin and gdfbin2struct
+	convert between the streamed header information (as in a GDF file or 
+	on a network connection) and the header structure HDRTYPE 
+	Specifically, the fixed header, the variable hadder and the optional 
+	header information (header 1,2 and 3), but not the 
+	event information are considered. 
+ ------------------------------------------------------------------------*/
+
 size_t hdrEVT2rawEVT(HDRTYPE *hdr);
 int rawEVT2hdrEVT(HDRTYPE *hdr);
+/* rawEVT2hdrEVT and hdrEVT2rawEVT
+	convert between streamed event table and the structure
+	HDRTYPE.EVENT.
+ ------------------------------------------------------------------------*/
 
 void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation);
+/*------------------------------------------------------------------------
+	adds free text annotation to event table    
+	the EVENT.TYP is identified from the table EVENT.CodeDesc
+	if annotations is not listed in CodeDesc, it is added to CodeDesc
+	The table is limited to 256 entries, because the table EventCodes
+	allows only codes 0-255 as user specific entry.
+  ------------------------------------------------------------------------*/
+
+size_t	sread_raw(size_t START, size_t LEN, HDRTYPE* hdr, char flag);
+/* sread_raw: 
+	LEN data segments are read from file associated with hdr, starting from 
+	segment START. A sufficient amount of memory is (re-)allocated in 
+	hdr->AS.rawdata and the data is copied into  hdr->AS.rawdata
+	Typically, LEN*hdr->AS.bpb bytes are read and stored in its native format.
+	No Overflowdetection or calibration is applied. 
+	
+	The number of successfully read data blocks is returned, this can be smaller 
+	than LEN at the end of the file. The data can be "cached", this means 
+	that more than the requested number of blocks is available in hdr->AS.rawdata. 
+	hdr->AS.first and hdr->AS.length contain the number of the first 
+	block and the number of blocks, respectively.  
+ --------------------------------------------------------------- */
+
+int collapse_rawdata(HDRTYPE *HDR, uint8_t **buf);
+/* collapse raw data:
+	this function is used to remove status and annotation 
+	channels that are not needed in GDF. 
+
+	re-allocates buffer (buf) to hold collapsed data
+	bpb are the bytes per block. 
+	
+    return value: 
+	<0 indicates an error 
+	=0 indicates that no collapsing is performed, buf is unchanged
+		data is available through hdr->AS.rawdata
+	>0 bpb indicates the number of bytes per data block
+		**buf contains the collapsed data and has size 	
+		 bpb*hdr->AS.length
+	! Donot forget to free the memory allocated for **buf !!!	 
+ --------------------------------------------------------------- */
 
 
 /****************************************************************************/
