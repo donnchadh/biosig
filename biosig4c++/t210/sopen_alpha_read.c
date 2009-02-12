@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_alpha_read.c,v 1.1 2009-02-11 16:38:38 schloegl Exp $
+    $Id: sopen_alpha_read.c,v 1.2 2009-02-12 16:15:17 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -45,7 +45,7 @@ int sopen_alpha_read(HDRTYPE* hdr) {
     	const char	*FileName = hdr->FileName; 
 
 		fprintf(stdout,"Warning: support for alpha format is just experimental.\n"); 
-
+		
 		char* fn = (char*)calloc(strlen(hdr->FileName)+15,sizeof(char));
 		strcpy(fn,hdr->FileName); 
 		
@@ -58,7 +58,7 @@ int sopen_alpha_read(HDRTYPE* hdr) {
 		char *tmpstr   = strrchr(fn,FILESEP); 
 		if (tmpstr) 	strcpy(tmpstr+1,f2); 
 		else 	    	strcpy(fn,f2); 
-				
+
 		FILE *fid = fopen(fn,"r"); count  = fread(buf,1,bufsiz-1,fid); fclose(fid); buf[count]=0;	// terminating 0 character 		
 		char *t   = strtok(buf,"\xA\xD");
 		while (t) {
@@ -197,6 +197,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 		qsort(ChanOrder,hdr->NS,2*sizeof(uint32_t),&u32cmp);
 		for (k=0; k<hdr->NS; k++) {
 			hdr->CHANNEL[ChanOrder[2*k+1]].bi8 = GDFTYP_BITS[gdftyp]*k; 
+			hdr->CHANNEL[ChanOrder[2*k+1]].bi  = (GDFTYP_BITS[gdftyp]*k)>>3; 
 		}
 		free(ChanOrder); 		
 		free(ChanType); 		
@@ -255,6 +256,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 
 				hc->PhysMax = (hc->DigMax - hc->Off) * hc->Cal;
 				hc->PhysMin = (hc->DigMin - hc->Off) * hc->Cal;
+				hc->XYZ[0]=0;
+				hc->XYZ[1]=0;
+				hc->XYZ[2]=0;
 			}
 		}
 		
@@ -376,48 +380,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 			}	
 			hdr->EVENT.N = n; 
 			hdr->EVENT.SampleRate = hdr->SampleRate; 
-			convert2to4_eventtable(hdr);
-		}
-
-		
-		f2 = "rawdata";
-		if (tmpstr) 	strcpy(tmpstr+1,f2); 
-		else 	    	strcpy(fn,f2); 
-				
-		if (VERBOSE_LEVEL>7) fprintf(stdout,"rawdata11: %s \n",f2); 
-
-		hdr->FileName = fn; 
-		hdr = ifopen(hdr,"r"); 
-		if (VERBOSE_LEVEL>7) fprintf(stdout,"rawdata22: %s open=%i\n",f2,hdr->FILE.OPEN); 
-		if (hdr->FILE.OPEN) {
-			int16_t a[3];
-			ifread(a, 2, 3, hdr); 
-			hdr->VERSION = a[0]; 
-			hdr->HeadLen = 6; 
-			switch (a[1]) {
-			case 12: gdftyp = 255+12; break;
-			case 16: gdftyp = 3; break; 
-			case 32: gdftyp = 5; break; 
-			}
-			for (k=a[1]; k<hdr->NS; k++) 
-				hdr->CHANNEL[k].OnOff = 0;  
-			for (k=0; k<hdr->NS; k++) {
-				hdr->CHANNEL[k].GDFTYP = gdftyp; 
-			}
-			hdr->AS.bpb = (GDFTYP_BITS[gdftyp]*a[1])>>3; 
-			hdr->FILE.POS = 0;
-			
-			if ((GDFTYP_BITS[gdftyp]*a[1]) & 0x07) {
-				/* hack: if SPR*NS*bits are not a multiple of bytes, 
-				   hdr->AS.bpb would be non-integer causing some problems in SREAD reading the correct number of bytes. 
-				   This hack makes sure that all data is loaded.  	
-				*/
-				size_t len = (GDFTYP_BITS[gdftyp]*a[1]*hdr->NRec*hdr->SPR)>>3;	
-				hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, len+1);
-				size_t count   = ifread(hdr->AS.rawdata,1,len+1,hdr);
-				hdr->AS.first  = 0; 
-				hdr->AS.length = (count<<3)/(GDFTYP_BITS[gdftyp]*a[1]);
-			}
+//			convert2to4_eventtable(hdr);
 		}
 
 		tmpstr    = strrchr(fn,FILESEP); 
@@ -492,11 +455,55 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 				}	
 				t = strtok(NULL,"\xA\xD");
 			}	
-			
 		}
-		
-		
-		if (VERBOSE_LEVEL>7) fprintf(stdout,"rawdata55: %s c=%i [%i, %i]\n",fn,count,hdr->AS.first,hdr->AS.length); 
+
+		strcpy(fn,hdr->FileName); 
+		tmpstr   = strrchr(fn,FILESEP); 
+		f2 = "rawdata";
+		if (tmpstr) 	strcpy(tmpstr+1,f2); 
+		else 	    	strcpy(fn,f2); 
+				
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"rawdata11: %s \n",f2); 
+
+		hdr->FileName = fn; 
+		ifopen(hdr,"r"); 
+
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"rawdata22: %s open=%i\n",f2,hdr->FILE.OPEN); 
+		if (hdr->FILE.OPEN) {
+			int16_t a[3];
+			ifread(a, 2, 3, hdr); 
+			hdr->VERSION = a[0]; 
+			hdr->HeadLen = 6; 
+			
+			switch (a[2]) {
+			case 12: gdftyp = 255+12; break;
+			case 16: gdftyp = 3; break; 
+			case 32: gdftyp = 5; break; 
+			}
+			for (k=a[1]; k<hdr->NS; k++) 
+				hdr->CHANNEL[k].OnOff = 0;  
+			for (k=0; k<hdr->NS; k++) {
+				hdr->CHANNEL[k].GDFTYP = gdftyp; 
+			}
+
+			hdr->AS.bpb = (GDFTYP_BITS[gdftyp]*a[1])>>3; 
+			hdr->FILE.POS = 0;
+			
+			size_t len = (GDFTYP_BITS[gdftyp]*a[1]*hdr->NRec*hdr->SPR)>>3;	
+			if ((GDFTYP_BITS[gdftyp]*a[1]) & 0x07) {
+				/* hack: if SPR*NS*bits are not a multiple of bytes, 
+				   hdr->AS.bpb would be non-integer causing some problems in SREAD reading the correct number of bytes. 
+				   This hack makes sure that all data is loaded.  	
+				*/
+				len++;
+			}	
+			hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, len);
+			size_t count    = ifread(hdr->AS.rawdata,1,len,hdr);
+			hdr->AS.first   = 0; 
+			hdr->AS.length  = (count<<3)/(GDFTYP_BITS[gdftyp]*a[1]);
+		}
+
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"rawdata55: %s c=%i [%i, %i] sizeof(CHAN)=%i\n",fn,count,hdr->AS.first,hdr->AS.length,sizeof(hdr->CHANNEL[0])); 
 
 		free(fn);     
 		hdr->FileName = FileName; 		
