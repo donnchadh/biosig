@@ -16,7 +16,7 @@ function HDR=bv2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bv2biosig_events.m,v 1.8 2008-05-28 09:15:17 schloegl Exp $
+%	$Id: bv2biosig_events.m,v 1.9 2009-02-13 19:42:44 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -71,41 +71,43 @@ if (HDR.NS==128)
 	FLAG_SEASON2_ARTERAWDATA = FLAG_SEASON2_ARTERAWDATA & strncmp(HDR.FILE.Name,'arte',4);
 end;
 FLAG_ARTERAWDATA = strncmp(HDR.FILE.Name,'arte',4);
-	
+
 for k1 = 1:length(HDR.EVENT.POS)
 	if isfield(HDR.EVENT,'Desc')
 		tmp = HDR.EVENT.Desc{k1};
-	elseif isfield(HDR.EVENT,'CodeDesc') && (HDR.EVENT.TYP(k1)<length(HDR.EVENT.CodeDesc))	
-		tmp = HDR.EVENT.CodeDesc{HDR.EVENT.TYP(k1)+1};
-	end;	
-	%HDR.TRIG = HDR.EVENT.POS(HDR.EVENT.TYP<10); 
+	elseif isfield(HDR.EVENT,'CodeDesc') && (HDR.EVENT.TYP(k1)<=length(HDR.EVENT.CodeDesc))
+		tmp = HDR.EVENT.CodeDesc{HDR.EVENT.TYP(k1)};
+	else 
+		continue; 
+	end;
+
 	if 0,
-		
-        elseif strncmp(tmp,'TargetCode',10)
-        	HDR.EVENT.TYP(k1) = str2double(tmp(11:12))+hex2dec('0300'); 
-        	
-        elseif strcmp(tmp,'BeginOfTrial')
-        	HDR.EVENT.TYP(k1) = hex2dec('0300'); 
-        	
-        elseif strcmp(tmp,'hit')
+
+	elseif strncmp(tmp,'TargetCode',10)
+		HDR.EVENT.TYP(k1) = str2double(tmp(11:12))+hex2dec('0300'); 
+
+	elseif strcmp(tmp,'BeginOfTrial')
+		HDR.EVENT.TYP(k1) = hex2dec('0300'); 
+
+	elseif strcmp(tmp,'hit')
         	HDR.EVENT.TYP(k1) = hex2dec('0381'); 
         elseif strcmp(tmp,'wrong')
         	HDR.EVENT.TYP(k1) = hex2dec('0382'); 
 
 % eye movements
-        elseif strcmpi(tmp,'augen links')	
+        elseif strcmpi(tmp,'augen links')
         	HDR.EVENT.TYP(k1) = hex2dec('0431');
-        elseif strcmpi(tmp,'augen rechts')	
+        elseif strcmpi(tmp,'augen rechts')
         	HDR.EVENT.TYP(k1) = hex2dec('0432');
-        elseif strcmpi(tmp,'augen hoch') | strcmpi(tmp,'augen oben')		
+        elseif strcmpi(tmp,'augen hoch') | strcmpi(tmp,'augen oben')
         	HDR.EVENT.TYP(k1) = hex2dec('0433');
-        elseif strcmpi(tmp,'augen unten') | strcmpi(tmp,'augen runter')		
+        elseif strcmpi(tmp,'augen unten') | strcmpi(tmp,'augen runter')
         	HDR.EVENT.TYP(k1) = hex2dec('0434');
-        elseif strcmpi(tmp,'augen offen') | strcmp(tmp,'Augen offen & entspannen')	
+        elseif strcmpi(tmp,'augen offen') | strcmp(tmp,'Augen offen & entspannen')
         	HDR.EVENT.TYP(k1) = hex2dec('0114');
-        elseif strcmpi(tmp,'augen zu') | strcmp(tmp,'Augen zu & entspannen')	
+        elseif strcmpi(tmp,'augen zu') | strcmp(tmp,'Augen zu & entspannen')
         	HDR.EVENT.TYP(k1) = hex2dec('0115');
-        elseif strcmp(tmp,'blinzeln')	
+        elseif strcmp(tmp,'blinzeln')
         	HDR.EVENT.TYP(k1) = hex2dec('0439'); 
 
 % muscle movements 
@@ -121,50 +123,50 @@ for k1 = 1:length(HDR.EVENT.POS)
         	HDR.EVENT.TYP(k1) = hex2dec('8444'); 
         elseif strcmp(tmp,'Kiefer anspannen')
         	HDR.EVENT.TYP(k1) = hex2dec('0446'); 
-        elseif strcmp(tmp,'beißen') | strcmp(tmp,'beissen'),
+        elseif strcmp(tmp,'beißen') | strcmp(tmp,'beissen') | strcmp(tmp,['bei',223,'en']),
         	HDR.EVENT.TYP(k1) = hex2dec('0446'); 
         elseif strcmp(tmp,'EMG fuss')
-        	HDR.EVENT.TYP(k1) = hex2dec('0447'); 
-        elseif strcmp(tmp,'Arme bewegen')
-        	HDR.EVENT.TYP(k1) = hex2dec('0449'); 
+		HDR.EVENT.TYP(k1) = hex2dec('0447'); 
+	elseif strcmp(tmp,'Arme bewegen')
+		HDR.EVENT.TYP(k1) = hex2dec('0449'); 
 
 % encoding der season2-arte* rawdata records
-        elseif strncmp(tmp,'S',1) & (FLAG_SEASON2_ARTERAWDATA | FLAG_ARTERAWDATA), 
-        	n = str2double(tmp(2:end));
+	elseif strncmp(tmp,'S',1) & (FLAG_SEASON2_ARTERAWDATA | FLAG_ARTERAWDATA), 
+		n = str2double(tmp(2:end));
 		if n==11,	% EMG left
-		       	HDR.EVENT.TYP(k1) = hex2dec('0441'); 
+			HDR.EVENT.TYP(k1) = hex2dec('0441'); 
 		elseif n==12,	% EMG right
-	        	HDR.EVENT.TYP(k1) = hex2dec('0442'); 
+			HDR.EVENT.TYP(k1) = hex2dec('0442'); 
 		elseif n==13,	% EMG (foot)
-	        	HDR.EVENT.TYP(k1) = hex2dec('0447'); 
-        	elseif n==1,	% Augen (left)
-	        	HDR.EVENT.TYP(k1) = hex2dec('0431'); 
+			HDR.EVENT.TYP(k1) = hex2dec('0447'); 
+		elseif n==1,	% Augen (left)
+			HDR.EVENT.TYP(k1) = hex2dec('0431'); 
 		elseif n==2,	% Augen (right)
-	        	HDR.EVENT.TYP(k1) = hex2dec('0432'); 
+			HDR.EVENT.TYP(k1) = hex2dec('0432'); 
 		elseif n==3,	% Augen oben
-	        	HDR.EVENT.TYP(k1) = hex2dec('0433');
+			HDR.EVENT.TYP(k1) = hex2dec('0433');
 		elseif n==4,	% Augen unten
-	        	HDR.EVENT.TYP(k1) = hex2dec('0434');
+			HDR.EVENT.TYP(k1) = hex2dec('0434');
 		elseif n==5,	% blinzeln
-	        	HDR.EVENT.TYP(k1) = hex2dec('0439');
+			HDR.EVENT.TYP(k1) = hex2dec('0439');
 		elseif n==6,	% Augen zu & entspannen
-	        	HDR.EVENT.TYP(k1) = hex2dec('0115');
+			HDR.EVENT.TYP(k1) = hex2dec('0115');
 		elseif n==7,	% Augen offen & entspannen
-	        	HDR.EVENT.TYP(k1) = hex2dec('0114');
+			HDR.EVENT.TYP(k1) = hex2dec('0114');
 		elseif n==8,	% beissen
-	        	HDR.EVENT.TYP(k1) = hex2dec('0446');
+			HDR.EVENT.TYP(k1) = hex2dec('0446');
 		elseif n==9,	% kopf bewegen
-	        	HDR.EVENT.TYP(k1) = hex2dec('0443');
+			HDR.EVENT.TYP(k1) = hex2dec('0443');
 		elseif any(n==[10,100])	% ende der aktion
-	        	HDR.EVENT.TYP(k1) = bitxor(hex2dec('8000'),HDR.EVENT.TYP(k1-1)); 
-        	else
-	        	HDR.EVENT.TYP(k1) = n; 
+			HDR.EVENT.TYP(k1) = bitxor(hex2dec('8000'),HDR.EVENT.TYP(k1-1)); 
+		else
+			HDR.EVENT.TYP(k1) = n; 
 		end;
 
-% hits and misses, feedback		
-        elseif strncmp(tmp,'S',1) | strncmp(tmp,'R',1) 
-        	HDR.EVENT.CHN(k1) = (tmp(1)=='R')*64+1;  %%% hack to distinguish Player 1 and 2 in SEASON2 data
-        	n = str2double(tmp(2:end)); 
+% hits and misses, feedback
+	elseif strncmp(tmp,'S',1) | strncmp(tmp,'R',1) 
+		HDR.EVENT.CHN(k1) = (tmp(1)=='R')*64+1;  %%% hack to distinguish Player 1 and 2 in SEASON2 data
+		n = str2double(tmp(2:end)); 
 		if n==11,	% hit (left)
 		       	HDR.EVENT.TYP(k1) = hex2dec('0381'); 
 		elseif n==12,	% hit (right)
@@ -215,7 +217,9 @@ if isfield(HDR.EVENT,'POS');
 	if isfield(HDR.EVENT,'TeegType');
 		HDR.EVENT.TeegType = HDR.EVENT.TeegType(~flag_remove);
 	end;	
-	HDR.EVENT.Desc = HDR.EVENT.Desc(~flag_remove);
+	if isfield(HDR.EVENT,'Desc')
+		HDR.EVENT.Desc = HDR.EVENT.Desc(~flag_remove);
+	end; 	
 
        	ix1 = find(HDR.EVENT.TYP<10);
        	ix2 = find(HDR.EVENT.TYP==100); 
@@ -268,5 +272,7 @@ if 1, % ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 		HDR.EVENT.TeegType = HDR.EVENT.TeegType(~flag_remove);
 	end;	
 	%HDR.EVENT.TeegType = HDR.EVENT.TeegType(~flag_remove);
-	HDR.EVENT.Desc = HDR.EVENT.Desc(~flag_remove);
+	if isfield(HDR.EVENT,'Desc')
+		HDR.EVENT.Desc = HDR.EVENT.Desc(~flag_remove);
+	end;
 end;	
