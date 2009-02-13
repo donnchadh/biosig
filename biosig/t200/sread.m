@@ -24,7 +24,7 @@ function [S,HDR,time] = sread(HDR,NoS,StartPos)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: sread.m,v 1.96 2009-01-20 14:36:18 schloegl Exp $
+%	$Id: sread.m,v 1.97 2009-02-13 20:19:30 schloegl Exp $
 %	(C) 1997-2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -1237,37 +1237,42 @@ elseif strncmp(HDR.TYPE,'BrainVision',11),   %Brainvision
                                 STATUS = fseek(HDR.FILE.FID,StartPos*HDR.SampleRate*HDR.AS.bpb,'bof');        
                                 HDR.FILE.POS = HDR.SampleRate*StartPos;
                         end;
-                        
+
 			tc = strcmp(HDR.TYPE,'BrainVisionVAmp');
 			NS = HDR.NS+tc;
-                        nr = min(HDR.SampleRate*NoS, HDR.SPR*HDR.NRec - HDR.FILE.POS);
-                        S  = []; 
-                        count = 0; 
-                        while (count<nr),
-                        	[s,c] = fread(HDR.FILE.FID, [NS, min(nr-count,floor(2^24/NS))], gdfdatatype(HDR.GDFTYP));
-                        	if ~c, break; end; 
-                        	S = [S; s(HDR.InChanSelect,:)'];
-                        	count = count + c/NS; 
-			end; 
-                        HDR.FILE.POS = HDR.FILE.POS + count;
-                        
-                elseif strncmpi(HDR.BV.DataOrientation, 'vectorized',6),
-                        S = [];
-                        nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
-                        
-                        count = 0; 
-                        for chan = 1:length(HDR.InChanSelect);
+			nr = min(HDR.SampleRate*NoS, HDR.SPR*HDR.NRec - HDR.FILE.POS);
+			if (length(HDR.InChanSelect)*2>HDR.NS)
+				[s,c] = fread(HDR.FILE.FID, [NS, nr], ['*',gdfdatatype(HDR.GDFTYP)]);
+				count = c/NS;
+				S = s(HDR.InChanSelect,:)';
+			else
+				S  = [];
+				count = 0;
+				while (count<nr),
+					[s,c] = fread(HDR.FILE.FID, [NS, min(nr-count,floor(2^24/NS))], gdfdatatype(HDR.GDFTYP));
+					if ~c, break; end; 
+					S = [S; s(HDR.InChanSelect,:)'];
+					count = count + c/NS; 
+				end; 
+			end;
+			HDR.FILE.POS = HDR.FILE.POS + count;
+		elseif strncmpi(HDR.BV.DataOrientation, 'vectorized',6),
+			S = [];
+			nr = min(HDR.SampleRate*NoS, HDR.AS.endpos-HDR.FILE.POS);
+
+			count = 0; 
+			for chan = 1:length(HDR.InChanSelect);
                                 STATUS = fseek(HDR.FILE.FID, HDR.HeadLen + HDR.FILE.POS + HDR.AS.bpb*HDR.SPR*(chan-1)/NS, 'bof');
                                 [s,count] = fread(HDR.FILE.FID, [nr,1], gdfdatatype(HDR.GDFTYP));
                                 if count ~= nr,
                                         fprintf(2,'ERROR READ BV-bin-vec: \n');
                                         return;
-                                end;    
-                                S(:,chan) = s;        
+                                end;
+                                S(:,chan) = s;
                         end
                         HDR.FILE.POS = HDR.FILE.POS + count; 
                 end;
-        
+
         elseif strncmpi(HDR.BV.DataFormat, 'ascii',5)  
 	        %%%% OBSOLETE: supported by 'native' %%%%
                 if nargin>2,
