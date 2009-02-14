@@ -6,7 +6,7 @@
     or the functions are discarded. Do not rely on the interface in this function
        	
 
-    $Id: biosig-network.c,v 1.1 2009-02-09 13:19:12 schloegl Exp $
+    $Id: biosig-network.c,v 1.2 2009-02-14 00:13:48 schloegl Exp $
     Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -226,22 +226,22 @@ int bscs_open(int sd, uint64_t* ID) {
 
 	if ((*ID==0) && (LEN==8) && (msg.STATE==(BSCS_VERSION_01 | BSCS_OPEN_W | BSCS_REPLY | STATE_OPEN_WRITE_HDR | BSCS_NO_ERROR)) ) 
 	{
-fprintf(stdout,"123\n");
+if (VERBOSE_LEVEL>8) fprintf(stdout,"123\n");
 		// write access: get new ID
 		count += recv(sd, ID, LEN, 0);
-fprintf(stdout,"123 %i:\n",count);
+if (VERBOSE_LEVEL>8) fprintf(stdout,"123 %i:\n",count);
 		*ID = l_endian_u64(*ID);
 		return(0);
 	}
 	
 	if ((*ID != 0) && (LEN==0) && (msg.STATE==(BSCS_VERSION_01 | BSCS_OPEN_R | BSCS_REPLY | STATE_OPEN_READ | BSCS_NO_ERROR)) ) 
 	{
-fprintf(stdout,"124\n");
+if (VERBOSE_LEVEL>8) fprintf(stdout,"124\n");
 		; // read access 
 		return(0); 
 	}
 	
-fprintf(stdout,"125\n");
+if (VERBOSE_LEVEL>8) fprintf(stdout,"125\n");
 	uint8_t buf[8];
 	count = 0;
 	while (LEN>count) 
@@ -262,13 +262,13 @@ int bscs_close(int sd) {
 	mesg_t msg; 
 	
 	msg.STATE = BSCS_VERSION_01 | BSCS_CLOSE | BSCS_NO_ERROR | SERVER_STATE;
-fprintf(stdout,"close1: %08x \n",msg.STATE);
+if (VERBOSE_LEVEL>8) fprintf(stdout,"close1: %08x \n",msg.STATE);
 	msg.LEN   = b_endian_u32(0);
-fprintf(stdout,"close2: %08x %i %i\n",msg.STATE,sizeof(msg),msg.LEN);
+if (VERBOSE_LEVEL>8) fprintf(stdout,"close2: %08x %i %i\n",msg.STATE,sizeof(msg),msg.LEN);
 
 	s = send(sd, &msg, 8, 0);	
 
-fprintf(stdout,"close3: %08x %i\n",msg.STATE,s);
+if (VERBOSE_LEVEL>8) fprintf(stdout,"close3: %08x %i\n",msg.STATE,s);
 
 	// wait for reply 
 	s = recv(sd, &msg, 8, 0);
@@ -306,20 +306,20 @@ int bscs_send_hdr(int sd, HDRTYPE *hdr) {
 
 	hdr->TYPE = GDF;
 	LEN = struct2gdfbin(hdr); 
-hdr2ascii(hdr,stdout,3);
+	//hdr2ascii(hdr,stdout,3);
 
 	msg.STATE = BSCS_VERSION_01 | BSCS_SEND_HDR | STATE_OPEN_WRITE_HDR | BSCS_NO_ERROR;
 	msg.LEN   = b_endian_u32(hdr->HeadLen);
 	int s = send(sd, &msg, 8, 0);	
-fprintf(stdout,"SND HDR  %i %i %i\n",LEN,hdr->HeadLen,s); 
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR  %i %i %i\n",LEN,hdr->HeadLen,s); 
 	s = send(sd, hdr->AS.Header, hdr->HeadLen, 0);	
 
-fprintf(stdout,"SND HDR %i %i\n",hdr->HeadLen,s); 
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR %i %i\n",hdr->HeadLen,s); 
 
 	// wait for reply 
 	ssize_t count = recv(sd, &msg, 8, 0);
 
-fprintf(stdout,"SND HDR %i %i %i %08x\n",hdr->HeadLen,s,count,msg.STATE); 
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR %i %i %i %08x\n",hdr->HeadLen,s,count,msg.STATE); 
 
 	LEN = b_endian_u32(msg.LEN);
 	SERVER_STATE = msg.STATE & STATE_MASK;
@@ -394,21 +394,21 @@ int bscs_send_evt(int sd, HDRTYPE *hdr) {
 
 	size_t len = hdrEVT2rawEVT(hdr); 
 
-fprintf(stdout,"write evt: len=%i\n",len); 
+if (VERBOSE_LEVEL>8) fprintf(stdout,"write evt: len=%i\n",len); 
 
 	msg.STATE = BSCS_VERSION_01 | BSCS_SEND_EVT | STATE_OPEN_WRITE | BSCS_NO_ERROR;
 	msg.LEN   = b_endian_u32(len);
 	int s1 = send(sd, &msg, 8, 0);	
 	int s2 = send(sd, hdr->AS.rawEventData, len, 0);	
 
-fprintf(stdout,"write evt2: %08x len=%i\n",msg.STATE,len); 
+if (VERBOSE_LEVEL>8) fprintf(stdout,"write evt2: %08x len=%i\n",msg.STATE,len); 
 	
 	// wait for reply 
 	ssize_t count = recv(sd, &msg, 8, 0);
 	LEN = b_endian_u32(msg.LEN);
 	SERVER_STATE = msg.STATE & STATE_MASK;
 
-fprintf(stdout,"write evt2: %08x len=%i count=%i\n",msg.STATE,LEN,count); 
+if (VERBOSE_LEVEL>8) fprintf(stdout,"write evt2: %08x len=%i count=%i\n",msg.STATE,LEN,count); 
 	
 	if ((LEN==0) && (msg.STATE==(BSCS_VERSION_01 | BSCS_SEND_EVT | BSCS_REPLY | STATE_OPEN_WRITE | BSCS_NO_ERROR)) ) 
 		// close without error 
@@ -520,7 +520,7 @@ fprintf(stdout,"REQ EVT: %i %i \n",s,LEN);
 	   	rawEVT2hdrEVT(hdr); // TODO: replace this function because it is inefficient  
    	}
    	
-fprintf(stdout,"REQ EVT: %i %i \n",s,LEN);
+if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ EVT: %i %i \n",s,LEN);
 #if 0 
 			uint8_t *buf = hdr->AS.rawEventData; 
 			if (hdr->VERSION < 1.94) {
