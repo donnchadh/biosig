@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig_client.c,v 1.2 2009-02-12 21:40:38 schloegl Exp $
+    $Id: biosig_client.c,v 1.3 2009-02-14 00:19:18 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -244,6 +244,7 @@ fprintf(stdout,"16 %i\n",hdr->EVENT.N);
 		     		}
 		     	}	
 		     	else {
+		     	
 		     		sread_raw(0,hdr->NRec,hdr,0); 
 		
 				ID = 0; 
@@ -261,17 +262,22 @@ fprintf(stdout,"16 %i\n",hdr->EVENT.N);
 				fprintf(fid,"key4biosig: host=%s ID=%16Lx ",argv[1],ID);
 				fclose(fid);
 
-				fprintf(stdout,"open_w ID=%16Lx len=%i\n",ID,hdr->AS.length);
+				fprintf(stdout,"open_w  ID=%16Lx len=%i\n",ID,hdr->AS.length);
 				s= bscs_send_hdr(sd, hdr);
-				fprintf(stdout,"sent hdr %i\n",s);
-				
+				fprintf(stdout,"sent hdr %i %i\n",s,hdr->AS.bpb);
+
+				fprintf(stdout,"sent hdr %i %i %i\n",hdr->AS.first,hdr->AS.length);
+
 				uint8_t *buf = NULL;	
 		     		ssize_t bpb = collapse_rawdata(hdr,&buf);
-				if (bpb>0) 
+				fprintf(stdout,"sent dat bpb=%i\n",bpb);
+				if (bpb>0) {
 					s = bscs_send_dat(sd, buf, bpb*hdr->AS.length);
+					free(buf);
+				}	
 				else 	
 					s = bscs_send_dat(sd, hdr->AS.rawdata, hdr->AS.bpb*hdr->AS.length);
-				fprintf(stdout,"sent dat %i\n",s);
+				fprintf(stdout,"sent dat %i %i\n",s,bpb);
 					
 				if (hdr->TYPE != GDF) hdrEVT2rawEVT(hdr); 
 				if (hdr->EVENT.N>0) s= bscs_send_evt(sd, hdr);
