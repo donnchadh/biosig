@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.287 2009-02-12 21:40:38 schloegl Exp $
+    $Id: biosig.c,v 1.288 2009-02-14 00:09:44 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -2572,23 +2572,6 @@ int struct2gdfbin(HDRTYPE *hdr)
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"GDFw 444 %i %s\n", errno, strerror(errno));
 
-		size_t bpb8 = 0; 
-		for (k=0, hdr->AS.bpb=0; k<hdr->NS; k++) { 
-			hdr->CHANNEL[k].bi8 = bpb8;
-			hdr->CHANNEL[k].bi  = bpb8>>3;
-			if (hdr->CHANNEL[k].OnOff) 
-				bpb8 += (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] * hdr->CHANNEL[k].SPR);
-		}	
-		hdr->AS.bpb8 = bpb8; 
-		hdr->AS.bpb  = bpb8>>3;
-		if (bpb8 & 0x07) {		// each block must use whole number of bytes  
-			hdr->AS.bpb++;  
-			hdr->AS.bpb8 = hdr->AS.bpb<<3;  
-		}	
-
-		if (VERBOSE_LEVEL>8)
-			fprintf(stdout,"GDFw h3\n");
-
 	     	/* define Header3
 	     		currently writing of free text annotations is supported
 	     		 
@@ -2709,9 +2692,12 @@ int gdfbin2struct(HDRTYPE *hdr)
 	    	
 	    	if (hdr->VERSION > 1.90) { 
 		    	hdr->HeadLen 	= leu16p(hdr->AS.Header+184)<<8; 
-	    		strncpy(hdr->Patient.Id,(const char*)hdr->AS.Header+8,min(66,MAX_LENGTH_PID));
-	    		strncpy(hdr->ID.Recording,(const char*)hdr->AS.Header+88,min(80,MAX_LENGTH_RID));
-	    		hdr->ID.Recording[min(80,MAX_LENGTH_RID)]=0;
+		    	int len = min(66,MAX_LENGTH_PID);
+	    		strncpy(hdr->Patient.Id,(const char*)hdr->AS.Header+8,len);
+	    		hdr->Patient.Id[len]=0;
+	    		len = min(64,MAX_LENGTH_RID);
+	    		strncpy(hdr->ID.Recording,(const char*)hdr->AS.Header+88,len);
+	    		hdr->ID.Recording[len]=0; 
 	    		strtok(hdr->Patient.Id," ");
 	    		char *tmpptr = strtok(NULL," ");
 	    		if ((!hdr->FLAG.ANONYMOUS) && (tmpptr != NULL)) {
@@ -3039,10 +3025,10 @@ size_t hdrEVT2rawEVT(HDRTYPE *hdr) {
 	}
 	if (flag==3) {	
 		buf1 = hdr->AS.rawEventData+8+hdr->EVENT.N*6;
-		buf2 = hdr->AS.rawEventData+8+hdr->EVENT.N*10;
+		buf2 = hdr->AS.rawEventData+8+hdr->EVENT.N*8;
 		for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
-			*(uint32_t*)(buf1+k32u*4) = l_endian_u32(hdr->EVENT.DUR[k32u]); 
-			*(uint16_t*)(buf2+k32u*2) = l_endian_u16(hdr->EVENT.CHN[k32u]); 
+			*(uint16_t*)(buf1+k32u*2) = l_endian_u16(hdr->EVENT.CHN[k32u]); 
+			*(uint32_t*)(buf2+k32u*4) = l_endian_u32(hdr->EVENT.DUR[k32u]); 
 		}
 	}
 	return(len); 
@@ -3085,10 +3071,10 @@ int rawEVT2hdrEVT(HDRTYPE *hdr) {
 				hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN,hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
 
 				buf1 = hdr->AS.rawEventData+8+6*hdr->EVENT.N; 
-				buf2 = hdr->AS.rawEventData+8+10*hdr->EVENT.N; 
+				buf2 = hdr->AS.rawEventData+8+8*hdr->EVENT.N; 
 				for (k=0; k < hdr->EVENT.N; k++) {
-					hdr->EVENT.DUR[k] = leu32p(buf1 + k*4); 
-					hdr->EVENT.CHN[k] = leu32p(buf2 + k*2); 
+					hdr->EVENT.CHN[k] = leu32p(buf1 + k*2); 
+					hdr->EVENT.DUR[k] = leu32p(buf2 + k*4); 
 				}
 			}
 			else {
@@ -3569,7 +3555,10 @@ if (!strncmp(MODE,"r",1))
 			size_t N_EVENT  = 0;
 			hdr->EVENT.SampleRate = hdr->SampleRate; 
 			
+/*	
 			// remove header for event channel	
+			// this is not needed because the other functions are made aware 
+			// of unused channels by HDR.CHANNEL[k].OnOff
 			uint16_t k17=0; 		
 			for (uint16_t k16=0; k16<hdr->NS; k16++) {
 				if (k16!=k17) {
@@ -3579,7 +3568,7 @@ if (!strncmp(MODE,"r",1))
 			}
 			hdr->NS = k17;
 			hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL, hdr->NS * sizeof(CHANNEL_TYPE));
-			
+*/			
 			
 			if (hdr->TYPE==EDF) {
 			/* convert EDF+ annotation channel into event table */
@@ -4762,11 +4751,23 @@ if (VERBOSE_LEVEL>8)
 		int seq = 0;
 		/* decode marker file */
 		
-		char *t1 = strtok(Header1,"\x0A\x0D");	// skip first line 
-		t1 = strtok(NULL,"\x0A\x0D");		
+
+		char *t,*t1="    ";;
+		t  = Header1; 
+		t += strcspn(Header1,"\x0A\x0D");	
+		t += strspn(t,"\x0A\x0D");	
+		//char *t1 = strtok(Header1,"\x0A\x0D");	
+		// skip first line 
 		size_t N_EVENT=0;
 		hdr->EVENT.N=0;
-		while (t1 != NULL) {
+		do {
+			t1 = t; 
+			t += strcspn(t,"\x0A\x0D");	
+			t += strspn(t,"\x0A\x0D");	
+			t[-1]=0;
+				
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"%i <%s>\n",seq,t1);
+			
 			if (!strncmp(t1,";",1))
 				; 	
 			else if (!strncmp(t1,"[Common Infos]",14))
@@ -4783,6 +4784,8 @@ if (VERBOSE_LEVEL>8)
 				int p4 = p3 + 1 + strcspn(t1+p3+1,","); 
 				int p5 = p4 + 1 + strcspn(t1+p4+1,","); 
 				int p6 = p5 + 1 + strcspn(t1+p5+1,",");
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"  %i %i %i %i %i %i \n",p1,p2,p3,p4,p5,p6);
 
 				t1[p1]=0;				
 				t1[p2]=0;				
@@ -4813,18 +4816,22 @@ if (VERBOSE_LEVEL>8)
 					t2[4] =0;	tm_time.tm_year = atoi(t2)-1900;
 					hdr->T0 = tm_time2gdf_time(&tm_time);
 				}
-				else 
+				else {
+					if (VERBOSE_LEVEL>8) fprintf(stdout,"#%02i <%s>\n",N_EVENT,t1+p2+1);
 					FreeTextEvent(hdr,N_EVENT,t1+p2+1);
+				}	
 					
 				++N_EVENT;
 			}		
-			t1 = strtok(NULL,"\x0A\x0D");		
 		}
+		while (strlen(t1)>0);
+
 		// free(vmrk);
 		hdr->AS.auxBUF = hdr->AS.Header;
 		hdr->AS.Header = NULL;
 		hdr->EVENT.N   = N_EVENT;
 		hdr->TYPE      = EVENT; 
+
 	}
 
 	else if ((hdr->TYPE==BrainVision) || (hdr->TYPE==BrainVisionVAmp)) {
@@ -8127,6 +8134,25 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     	else if ((hdr->TYPE==GDF) || (hdr->TYPE==GDF1)) {	
     	
 		struct2gdfbin(hdr);     	
+
+		size_t bpb8 = 0; 
+		for (k=0, hdr->AS.bpb=0; k<hdr->NS; k++) { 
+			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
+			hc->bi8 = bpb8;
+			hc->bi  = bpb8>>3;
+			if (hc->OnOff) 
+				bpb8 += (GDFTYP_BITS[hc->GDFTYP] * hc->SPR);
+		}	
+		hdr->AS.bpb8 = bpb8; 
+		hdr->AS.bpb  = bpb8>>3;
+		if (bpb8 & 0x07) {		// each block must use whole number of bytes  
+			hdr->AS.bpb++;  
+			hdr->AS.bpb8 = hdr->AS.bpb<<3;  
+		}	
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"GDFw h3\n");
+
 	}
 
     	else if ((hdr->TYPE==EDF) || (hdr->TYPE==BDF)) {	
@@ -8661,6 +8687,8 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
  *             >=0: start reading from position start
  *        length  : try to read length blocks
  *
+ *	  flag!=0 : unused channels (those channels k where HDR.CHANNEL[k].OnOff==0) 
+ *		are collapsed 
  */
 
 	size_t	count;
@@ -8744,7 +8772,7 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 		hdr->AS.length= count;  
 	}
 	// data is now in buffer hdr->AS.rawdata 
-
+	
 	return(count); 
 }
 
@@ -8753,21 +8781,27 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 	re-allocates buffer (buf) to hold collapsed data
 	bpb are the bytes per block. The total size of 
 	buf is bpb*hdr->AS.length
+	
+	!Beware: this function requires the un-collapsed 
+	header. 
  *****************************************************/	
 int collapse_rawdata(HDRTYPE *hdr, uint8_t **buf)
 {
 	CHANNEL_TYPE *CHptr;
-	size_t bpb=0;
+	size_t bpb,bpb8=0;
 	char bitflag = 0;
-	size_t	k1,k2,k4,k5,count,bpb8,SZ;
-	uint16_t GDFTYP;
+	size_t	k1,k2,k4,k5,count,SZ;
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"collapse: started\n");
 	
-	
-	for (k1=0,k2=0; k1<hdr->NS; k1++) {
+	for (k1=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
-		if (CHptr->OnOff) bpb += CHptr->SPR*GDFTYP_BITS[GDFTYP];
-		bitflag |= bpb & 0x07; 
+		if (CHptr->OnOff) bpb8 += CHptr->SPR*GDFTYP_BITS[CHptr->GDFTYP];
+		bitflag |= bpb8 & 0x07; 
 	}
+	bpb = bpb8>>3;
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"collapse: bpb=%i/%i\n",bpb,hdr->AS.bpb);
 
 	if (bpb == hdr->AS.bpb) return(0); // no collapsing 
 
@@ -8777,30 +8811,33 @@ int collapse_rawdata(HDRTYPE *hdr, uint8_t **buf)
 	}	
 	
 	if (buf==NULL) return(-1); 
-	*buf = (uint8_t*) realloc(*buf,count*bpb8>>3);	
+	count = hdr->AS.length; 
+
+	*buf = (uint8_t*) realloc(*buf,count*bpb);	
 	size_t bi = 0;
-	for (k1=0,k2=0; k1<hdr->NS; k1++) {
+	for (k1=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
 
-		if (CHptr->OnOff) {	/* read selected channels only */ 
-			
+		if (CHptr->OnOff)	/* read selected channels only */ 
 		if (CHptr->SPR > 0) {	
-		GDFTYP 	= CHptr->GDFTYP;
-		SZ  	= GDFTYP_BITS[GDFTYP]>>3;
-		bpb	= CHptr->SPR*GDFTYP_BITS[GDFTYP]>>3;
+		SZ  	= CHptr->SPR*GDFTYP_BITS[CHptr->GDFTYP]>>3;
+		//bpb	= SZ;
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i: %i %i %i %i \n",k1,bi,CHptr->bi,bpb,hdr->AS.bpb);
 
 		for (k4 = 0; k4 < count; k4++)
-		for (k5 = 0; k5 < CHptr->SPR; k5++) 
 		{
-			size_t off1 = k4*hdr->AS.bpb + CHptr->bi + (k5*SZ);
-			size_t off2 = k4*bpb + bi + (k5*SZ);
-			memcpy(buf + off2, hdr->AS.rawdata + off1, bpb);
+			size_t off1 = k4*hdr->AS.bpb + CHptr->bi;
+			size_t off2 = k4*bpb + bi;
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i %i: %i %i \n",k1,k4,off1,off2);
+
+			memcpy((*buf) + off2, hdr->AS.rawdata + off1, SZ);
 		}
-		bi += bpb;
+		bi += SZ;
 		}
-		k2++;
-	}	
 	}
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"collapse: finished\n");
 	return(bpb); 
 }
 
