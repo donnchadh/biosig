@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig_client.c,v 1.3 2009-02-14 00:19:18 schloegl Exp $
+    $Id: biosig_client.c,v 1.4 2009-02-14 23:16:10 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -245,7 +245,12 @@ fprintf(stdout,"16 %i\n",hdr->EVENT.N);
 		     	}	
 		     	else {
 		     	
-		     		sread_raw(0,hdr->NRec,hdr,0); 
+		     		sread_raw(0,hdr->NRec,hdr,1); 	// collapse rawdata (remove obsolete channels) 
+				size_t bpb = bpb8_collapsed_rawdata(hdr)>>3;
+				if (serror()) {
+					sclose(hdr);
+					exit(-1);
+				}	
 		
 				ID = 0; 
 				bscs_open(sd,&ID); // write-open
@@ -266,17 +271,7 @@ fprintf(stdout,"16 %i\n",hdr->EVENT.N);
 				s= bscs_send_hdr(sd, hdr);
 				fprintf(stdout,"sent hdr %i %i\n",s,hdr->AS.bpb);
 
-				fprintf(stdout,"sent hdr %i %i %i\n",hdr->AS.first,hdr->AS.length);
-
-				uint8_t *buf = NULL;	
-		     		ssize_t bpb = collapse_rawdata(hdr,&buf);
-				fprintf(stdout,"sent dat bpb=%i\n",bpb);
-				if (bpb>0) {
-					s = bscs_send_dat(sd, buf, bpb*hdr->AS.length);
-					free(buf);
-				}	
-				else 	
-					s = bscs_send_dat(sd, hdr->AS.rawdata, hdr->AS.bpb*hdr->AS.length);
+				s = bscs_send_dat(sd, hdr->AS.rawdata, hdr->AS.length*bpb);
 				fprintf(stdout,"sent dat %i %i\n",s,bpb);
 					
 				if (hdr->TYPE != GDF) hdrEVT2rawEVT(hdr); 

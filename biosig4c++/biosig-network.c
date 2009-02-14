@@ -6,7 +6,7 @@
     or the functions are discarded. Do not rely on the interface in this function
        	
 
-    $Id: biosig-network.c,v 1.2 2009-02-14 00:13:48 schloegl Exp $
+    $Id: biosig-network.c,v 1.3 2009-02-14 23:16:10 schloegl Exp $
     Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -146,9 +146,6 @@ int bscs_connect(char* hostname) {
    	localAddr.sin_family = AF_INET;
    	localAddr.sin_addr.s_addr = htonl(INADDR_ANY);
    	localAddr.sin_port = htons(0);
-
-//	int rc = bind(sd, (struct sockaddr *) &localAddr, sizeof(localAddr));
-//   	if(rc<0) return(BSCS_CANNOT_BIND_PORT);
             
    	/* connect to server */
    	int rc = connect(sd, (struct sockaddr *) &sain, sizeof(sain));
@@ -212,7 +209,7 @@ int bscs_open(int sd, uint64_t* ID) {
 		*(uint64_t*)&msg.LOAD  = leu64p(ID);
 		LEN = BSCS_ID_BITLEN>>3;
 	}	
-	fprintf(stdout,"open: %16lx %16lx\n",*ID,msg.LOAD);
+if (VERBOSE_LEVEL>8) fprintf(stdout,"open: %16lx %16lx\n",*ID,msg.LOAD);
 	msg.LEN   = b_endian_u32(LEN);
 	int s = send(sd, &msg, LEN+8, 0);	
 
@@ -222,7 +219,7 @@ int bscs_open(int sd, uint64_t* ID) {
 	LEN = b_endian_u32(msg.LEN);
 	SERVER_STATE = msg.STATE & STATE_MASK;
 
-	fprintf(stdout,"BSCS_OPEN %i:%i: ID=%16lx LEN=%x STATE=0x%08x\n",s,count,*ID,msg.LEN,b_endian_u32(msg.STATE));
+if (VERBOSE_LEVEL>8) fprintf(stdout,"BSCS_OPEN %i:%i: ID=%16Lx LEN=%x STATE=0x%08x\n",s,count,*ID,msg.LEN,b_endian_u32(msg.STATE));
 
 	if ((*ID==0) && (LEN==8) && (msg.STATE==(BSCS_VERSION_01 | BSCS_OPEN_W | BSCS_REPLY | STATE_OPEN_WRITE_HDR | BSCS_NO_ERROR)) ) 
 	{
@@ -447,6 +444,7 @@ int bscs_requ_hdr(int sd, HDRTYPE *hdr) {
 		count += recv(sd, hdr->AS.Header+count, hdr->HeadLen-count, 0);
 	}
 
+if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ HDR: %i %s\n",count,GetFileTypeString(hdr->TYPE));
 	gdfbin2struct(hdr); 
 	
    	return(count-hdr->HeadLen); 
@@ -482,9 +480,9 @@ ssize_t bscs_requ_dat(int sd, size_t start, size_t length, HDRTYPE *hdr) {
 	}	
 	
 	hdr->AS.first = start;
-fprintf(stdout,"REQ DAT: %i %i\n",count,hdr->AS.bpb);
+if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ DAT: %i %i\n",count,hdr->AS.bpb);
 	hdr->AS.length= count/hdr->AS.bpb;  
-fprintf(stdout,"REQ DAT: %i %i\n",hdr->AS.first,hdr->AS.length);
+if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ DAT: %i %i\n",hdr->AS.first,hdr->AS.length);
 
 	return(0);
 }
@@ -497,7 +495,7 @@ int bscs_requ_evt(int sd, HDRTYPE *hdr) {
 	mesg_t msg; 
 	size_t LEN;
 
-	fprintf(stdout,"REQ EVT %08x %08x\n",SERVER_STATE, STATE_OPEN_READ);
+if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ EVT %08x %08x\n",SERVER_STATE, STATE_OPEN_READ);
 
 	if (SERVER_STATE != STATE_OPEN_READ) return(BSCS_ERROR);
 
@@ -509,17 +507,16 @@ int bscs_requ_evt(int sd, HDRTYPE *hdr) {
 	s = recv(sd, &msg, 8, 0);
 	LEN = b_endian_u32(msg.LEN); 	 
 
-fprintf(stdout,"REQ EVT: %i %i \n",s,LEN);
-
-    	hdr->AS.rawEventData = (uint8_t*)realloc(hdr->AS.rawEventData,LEN);
-	int count = 0; 
-	while (LEN>count) {
-		count += recv(sd, hdr->AS.rawEventData+count, LEN-count, 0);
-	}
-    	if (LEN>0) {
-	   	rawEVT2hdrEVT(hdr); // TODO: replace this function because it is inefficient  
+if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ EVT: %i %i \n",s,LEN);
+	if (LEN>0) {
+	    	hdr->AS.rawEventData = (uint8_t*)realloc(hdr->AS.rawEventData,LEN);
+		int count = 0; 
+		while (LEN>count) {
+			count += recv(sd, hdr->AS.rawEventData+count, LEN-count, 0);
+		}
+    	   	rawEVT2hdrEVT(hdr); // TODO: replace this function because it is inefficient  
    	}
-   	
+
 if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ EVT: %i %i \n",s,LEN);
 #if 0 
 			uint8_t *buf = hdr->AS.rawEventData; 

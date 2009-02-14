@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig_server.c,v 1.1 2009-02-12 21:51:38 schloegl Exp $
+    $Id: biosig_server.c,v 1.2 2009-02-14 23:16:10 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -19,8 +19,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. 
     
 */
-
-
 
 // TODO: daemonize
 
@@ -184,7 +182,7 @@ void DoJob(int ns)
 	    	while (!stopflag) // wait for command 
 		{
 		
-//		fprintf(stdout,"wait for command:\n"); 
+			fprintf(stdout,":> "); 
 	   		ssize_t count = recv(ns, &msg, 8, 0);
 			fprintf(stdout,"STATUS=%08x c=%i MSG=%08x len=%i,errno=%i %s\n",STATUS,count,b_endian_u32(msg.STATE),b_endian_u32(msg.LEN),errno,strerror(errno)); 
 			size_t  LEN = b_endian_u32(msg.LEN);  
@@ -307,11 +305,16 @@ void DoJob(int ns)
 				hdr->HeadLen = LEN; 
 				count = 0; 
 				while (count<LEN) {
+fprintf(stdout,"SND HDR: c=%i,LEN=%i\n",count,LEN);				
 					count += recv(ns, hdr->AS.Header+count, LEN-count, 0);
 				}
+fprintf(stdout,"SND HDR: LEN=%i\n",LEN,count);				
 
 				hdr->TYPE = GDF; 
+int V = VERBOSE_LEVEL;
+//	VERBOSE_LEVEL = 9;				
 				gdfbin2struct(hdr);
+	VERBOSE_LEVEL = V;
 				hdr->EVENT.N = 0; 
 				hdr->EVENT.POS = NULL; 
 				hdr->EVENT.TYP = NULL; 
@@ -323,8 +326,10 @@ void DoJob(int ns)
 				hdr->FILE.COMPRESSION = 0; 
 				ifopen(hdr,"w"); 
 				hdr->FILE.OPEN = 2; 
-				ifwrite(hdr->AS.Header, 1, hdr->HeadLen, hdr);
+				count=ifwrite(hdr->AS.Header, 1, hdr->HeadLen, hdr);
 				datalen = 0;
+
+fprintf(stdout,"SND HDR: count=%i\n",count);				
 	
 				if (errno) {	
 					// check for errors in gdfbin2struct, ifopen and ifwrite		
@@ -336,6 +341,7 @@ void DoJob(int ns)
 					msg.STATE = BSCS_VERSION_01 | BSCS_SEND_HDR | BSCS_REPLY | STATE_OPEN_WRITE;
 				}	
 				msg.LEN = b_endian_u32(0);
+fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);				
 				s = send(ns, &msg, 8, 0);	
 			}
 

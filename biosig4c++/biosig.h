@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.135 2009-02-12 21:40:38 schloegl Exp $
+% $Id: biosig.h,v 1.136 2009-02-14 23:16:10 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -99,6 +99,7 @@ enum B4C_ERROR {
 	B4C_SCLOSE_FAILED,
 	B4C_DECOMPRESSION_FAILED,
 	B4C_MEMORY_ALLOCATION_FAILED,
+	B4C_RAWDATA_COLLAPSING_FAILED,
 	B4C_UNSPECIFIC_ERROR,
 };
 
@@ -107,7 +108,7 @@ enum B4C_ERROR {
 enum FileFormat {
 	noFile, unknown, 
 	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, ATES, ATF, AVI,
-	BCI2000, BDF, BIN, BKR, BLSC, BMP, BNI,
+	BCI2000, BDF, BIN, BKR, BLSC, BMP, BNI, BSCS, 
 	BrainVision, BrainVisionVAmp, BrainVisionMarker, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
 	EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
@@ -120,7 +121,7 @@ enum FileFormat {
 	TIFF, TMS32, TMSiLOG, VRML, VTK, 
 	WAV, WinEEG, WMF, XML, XPM,
 	Z, ZIP, ZIP2,
-	ASCII_IBI, ASCII
+	ASCII_IBI, ASCII, 
 };
 
 
@@ -347,6 +348,7 @@ typedef struct {
 		uint8_t*	Header; 
 		uint8_t*	rawEventData;
 		uint8_t*	rawdata; 	/* raw data block */
+		char		flag_collapsed_rawdata; /*0 if rawdata contain obsolete channels, too. 	*/
 		nrec_t		first;		/* first block loaded in buffer - this is equivalent to hdr->FILE.POS */
 		nrec_t		length;		/* number of block(s) loaded in buffer */
 		uint8_t*	auxBUF;  	/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor, alpha:rawdata header */

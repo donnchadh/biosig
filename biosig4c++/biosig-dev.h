@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.14 2009-02-12 21:40:38 schloegl Exp $
+% $Id: biosig-dev.h,v 1.15 2009-02-14 23:16:10 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -420,23 +420,10 @@ size_t	sread_raw(size_t START, size_t LEN, HDRTYPE* hdr, char flag);
 	block and the number of blocks, respectively.  
  --------------------------------------------------------------- */
 
-int collapse_rawdata(HDRTYPE *HDR, uint8_t **buf);
-/* collapse raw data:
-	this function is used to remove status and annotation 
-	channels that are not needed in GDF. 
-
-	re-allocates buffer (buf) to hold collapsed data
-	bpb are the bytes per block. 
-	
-    return value: 
-	<0 indicates an error 
-	=0 indicates that no collapsing is performed, buf is unchanged
-		data is available through hdr->AS.rawdata
-	>0 bpb indicates the number of bytes per data block
-		**buf contains the collapsed data and has size 	
-		 bpb*hdr->AS.length
-	! Donot forget to free the memory allocated for **buf !!!	 
- --------------------------------------------------------------- */
+size_t bpb8_collapsed_rawdata(HDRTYPE *hdr);
+/* bpb8_collapsed_rawdata
+	computes the bits per block when rawdata is collapsed
+--------------------------------------------------------------- */
 
 
 /****************************************************************************/

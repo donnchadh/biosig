@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.288 2009-02-14 00:09:44 schloegl Exp $
+    $Id: biosig.c,v 1.289 2009-02-14 23:16:10 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -52,6 +52,7 @@
 #include <unistd.h>
 
 #include "biosig-dev.h"
+#include "biosig-network.h"
 
 int sopen_SCP_read     (HDRTYPE* hdr);
 int sopen_SCP_write    (HDRTYPE* hdr);
@@ -1642,7 +1643,8 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->FILE.OPEN = 0;
 	hdr->FILE.FID = 0;
     	hdr->FILE.POS = 0; 
-
+	hdr->FILE.Des = 0; 
+	
 	hdr->AS.Header = NULL;
 	hdr->AS.rawEventData = NULL;
 	hdr->AS.auxBUF = NULL; 
@@ -1651,6 +1653,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
       	hdr->TYPE = noFile; 
       	hdr->VERSION = 2.0;
       	hdr->AS.rawdata = NULL; //(uint8_t*) malloc(0);
+	hdr->AS.flag_collapsed_rawdata = 0;	// is rawdata not collapsed 
 	hdr->AS.first = 0;
 	hdr->AS.length  = 0;  // no data loaded 
 
@@ -1943,6 +1946,10 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = BKR;
     	else if (!memcmp(Header1+34,"BLSC",4))
 	    	hdr->TYPE = BLSC;
+    	else if (!memcmp(Header1,"key4biosig",10))
+	    	hdr->TYPE = BSCS;
+    	else if (!memcmp(Header1,"bscs://",7))
+	    	hdr->TYPE = BSCS;
     	else if ((beu16p(Header1)==0x0311) && (beu32p(Header1+4)==0x0809B002) 
     		 && (leu16p(Header1+2) > 240) && (leu16p(Header1+2) < 250)  		// v2.40 - v2.50
     		 || !memcmp(Header1+307, "E\x00\x00\x00\x00\x00\x00\x00DAT", 11)
@@ -3042,6 +3049,8 @@ int rawEVT2hdrEVT(HDRTYPE *hdr) {
 	// TODO: avoid additional copying 
 	size_t k; 
 			uint8_t *buf = hdr->AS.rawEventData; 
+			if (buf==NULL) return(0); 
+			
 			if (hdr->VERSION < 1.94) {
 				if (buf[1] | buf[2] | buf[3])
 					hdr->EVENT.SampleRate = buf[1] + (buf[2] + buf[3]*256.0)*256.0; 
@@ -3222,13 +3231,35 @@ if (!strncmp(MODE,"r",1))
     	hdr->AS.first  =  0; 
     	hdr->AS.length =  0; 
 	hdr->AS.bpb    = -1; 	// errorneous value: ensures that hdr->AS.bpb will be defined 
-/*	if (hdr->TYPE == GDF) {
-		sd = bscs_connect(argv[1]); 
+	if (hdr->TYPE == BSCS) {
+		char *t,*hostname,*IDstr;
+		hdr->AS.Header[count]=0;
+		if (!memcmp(Header1,"key4biosig",10)) {
+			hostname = strstr(Header1,"host=")+5;
+			IDstr = strstr(Header1,"ID=")+3;
+			for (t = hostname;!isspace(*t); t++); 
+			*t=0;		
+			for (t = IDstr;!isspace(*t); t++); 
+			*t=0;		
+		}
+	    	else if (!memcmp(Header1,"bscs://",7)) {
+	    		hostname = Header1+7;
+	    		t = strrchr(Header1,'/');
+	    		*t=0;
+	    		IDstr = t+1; 
+	    	}
+
+		uint64_t ID; 
+		cat64(IDstr, &ID);
+		int sd,s;
+		sd = bscs_connect(hostname); 
 		s  = bscs_open(sd, &ID);
-  		     bscs_requ_hdr(sd,hdr);
+  		s  = bscs_requ_hdr(sd,hdr);
+  		s  = bscs_requ_dat(sd,0,hdr->NRec,hdr);
+  		s  = bscs_requ_evt(sd,hdr);
+  		s  = bscs_close(sd);
 	}
-	else
-*/	 if (hdr->TYPE == GDF) {
+	else if (hdr->TYPE == GDF) {
 
 	    	if (hdr->VERSION > 1.90) 
 		    	hdr->HeadLen = leu16p(hdr->AS.Header+184)<<8; 
@@ -8623,7 +8654,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 	for (k=0; k<hdr->NS; k++) 
 	if  (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] % 8) {
-
+	
 	if (hdr->TYPE==alpha)
 		; // 12bit alpha is well tested 
 	else if  ((__BYTE_ORDER == __LITTLE_ENDIAN) && !hdr->FILE.LittleEndian)
@@ -8645,37 +8676,91 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 
 /****************************************************************************
- 	caching: load data of whole file into buffer                      
-		 this will speed up data access, especially in interactive mode 
+	bpb8_collapsed_rawdata
+	 computes the bytes per block when rawdata is collapsed
  ****************************************************************************/
-int cachingWholeFile(HDRTYPE* hdr) {
-
-	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"Start CachingWholeFile [%i %i %i %i]\n",hdr->NRec,hdr->AS.first,hdr->AS.length,hdr->HeadLen);
-		
-	if (hdr->NRec<0) 
-		return (-1); // failed, data size not known 
-	
-	if ((hdr->AS.first == 0) && (hdr->NRec == hdr->AS.length)) 
-		return(0); 	// data is already in cache 
-
-	if (ifseek(hdr, hdr->HeadLen, SEEK_SET)<0)
-		return(-1);
-		
-		// allocate AS.rawdata 	
-	hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, (hdr->AS.bpb)*hdr->NRec);
-		
-		// read data
-	hdr->AS.length = ifread(hdr->AS.rawdata, hdr->AS.bpb, hdr->NRec, hdr);
-//	if ((count<nelem) && ((hdr->NRec < 0) || (hdr->NRec > start+count))) hdr->NRec = start+count; // get NRec if NRec undefined, not tested yet.
-
-	hdr->AS.first = 0;
-	return(0); 
+size_t bpb8_collapsed_rawdata(HDRTYPE *hdr)
+{
+	size_t bpb8=0;
+	CHANNEL_TYPE *CHptr;
+	for (typeof(hdr->NS) k=0; k<hdr->NS; k++) {
+		CHptr 	= hdr->CHANNEL+k;
+		if (CHptr->OnOff) bpb8 += CHptr->SPR*GDFTYP_BITS[CHptr->GDFTYP];
+	}
+	return(bpb8);
 }
 
+/* ***************************************************************************
+   collapse raw data
+	this function is used to remove obsolete channels (e.g. 
+	status and annotation channels because the information 
+	as been already converted into the event table) 
+	that are not needed in GDF. 
+
+	re-allocates buffer (buf) to hold collapsed data
+	bpb are the bytes per block. 
+	
+ ****************************************************************************/
+ 
+int collapse_rawdata(HDRTYPE *hdr)
+{
+	CHANNEL_TYPE *CHptr;
+	size_t bpb,bpb8;
+	char bitflag = 0;
+	size_t	k1,k2,k4,k5,count,SZ;
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"collapse: started\n");
+	
+	bpb = bpb8_collapsed_rawdata(hdr);	
+	if (bpb == hdr->AS.bpb<<3) return(0); // no collapsing needed
+
+	if ((bpb & 7) || (hdr->AS.bpb8 & 7)) {
+		B4C_ERRNUM = B4C_RAWDATA_COLLAPSING_FAILED;
+		B4C_ERRMSG = "collapse_rawdata: does not support bitfields"; 
+	}
+	bpb >>= 3;
+
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"collapse: bpb=%i/%i\n",bpb,hdr->AS.bpb);
+
+	count = hdr->AS.length; 
+
+	uint8_t *buf = (uint8_t*) malloc(count*bpb);	
+	size_t bi = 0;
+	for (k1=0; k1<hdr->NS; k1++) {
+		CHptr 	= hdr->CHANNEL+k1;
+
+		if (CHptr->OnOff)	/* read selected channels only */ 
+		if (CHptr->SPR > 0) {	
+		SZ = CHptr->SPR*GDFTYP_BITS[CHptr->GDFTYP];
+
+		if ((SZ & 7) || (CHptr->bi & 7)) {
+			B4C_ERRNUM = B4C_RAWDATA_COLLAPSING_FAILED;
+			B4C_ERRMSG = "collapse_rawdata: does not support bitfields"; 
+		}
+		SZ >>= 3;
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i: %i %i %i %i \n",k1,bi,CHptr->bi,bpb,hdr->AS.bpb);
+
+		for (k4 = 0; k4 < count; k4++) {
+			size_t off1 = k4*hdr->AS.bpb + CHptr->bi;
+			size_t off2 = k4*bpb + bi;
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i %i: %i %i \n",k1,k4,off1,off2);
+
+			memcpy(buf + off2, hdr->AS.rawdata + off1, SZ);
+		}
+		bi += SZ;
+		}
+	}
+	free(hdr->AS.rawdata);
+	hdr->AS.rawdata = buf;
+	hdr->AS.flag_collapsed_rawdata = 1;	// rawdata is now "collapsed" 
+	
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"collapse: finished\n");
+}
 
 /****************************************************************************/
-/**	SREAD_RAW : segment-based                                              **/
+/**	SREAD_RAW : segment-based                                          **/
 /****************************************************************************/
 size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 /* 
@@ -8691,6 +8776,10 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
  *		are collapsed 
  */
 
+	
+	if (hdr->AS.flag_collapsed_rawdata && ! flag)
+		hdr->AS.length = 0; // 	force reloading of data 	
+	
 	size_t	count;
 	nrec_t	nelem; 
 
@@ -8760,6 +8849,7 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 		
 		// read data
 		count = ifread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr);
+		hdr->AS.flag_collapsed_rawdata = 0;	// is rawdata not collapsed 
 //		if ((count<nelem) && ((hdr->NRec < 0) || (hdr->NRec > start+count))) hdr->NRec = start+count; // get NRec if NRec undefined, not tested yet.
 		if (count<nelem) {
 			fprintf(stderr,"warning: less then requested blocks read - something went wrong\n"); 
@@ -8771,75 +8861,25 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 		hdr->AS.first = start;
 		hdr->AS.length= count;  
 	}
-	// data is now in buffer hdr->AS.rawdata 
-	
+	// (uncollapsed) data is now in buffer hdr->AS.rawdata 
+
+	if (flag) {
+		collapse_rawdata(hdr);
+	}	
 	return(count); 
 }
 
-/****************************************************
-   collapse raw data
-	re-allocates buffer (buf) to hold collapsed data
-	bpb are the bytes per block. The total size of 
-	buf is bpb*hdr->AS.length
-	
-	!Beware: this function requires the un-collapsed 
-	header. 
- *****************************************************/	
-int collapse_rawdata(HDRTYPE *hdr, uint8_t **buf)
-{
-	CHANNEL_TYPE *CHptr;
-	size_t bpb,bpb8=0;
-	char bitflag = 0;
-	size_t	k1,k2,k4,k5,count,SZ;
+/****************************************************************************
+ 	caching: load data of whole file into buffer                      
+		 this will speed up data access, especially in interactive mode 
+ ****************************************************************************/
+int cachingWholeFile(HDRTYPE* hdr) {
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"collapse: started\n");
-	
-	for (k1=0; k1<hdr->NS; k1++) {
-		CHptr 	= hdr->CHANNEL+k1;
-		if (CHptr->OnOff) bpb8 += CHptr->SPR*GDFTYP_BITS[CHptr->GDFTYP];
-		bitflag |= bpb8 & 0x07; 
-	}
-	bpb = bpb8>>3;
+	sread_raw(0,hdr->NRec,hdr, 0); 	
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"collapse: bpb=%i/%i\n",bpb,hdr->AS.bpb);
-
-	if (bpb == hdr->AS.bpb) return(0); // no collapsing 
-
-	if (bitflag) {
-		fprintf(stderr,"collapse_rawdata: does not support bitfields"); 
-		return(-1); 
-	}	
-	
-	if (buf==NULL) return(-1); 
-	count = hdr->AS.length; 
-
-	*buf = (uint8_t*) realloc(*buf,count*bpb);	
-	size_t bi = 0;
-	for (k1=0; k1<hdr->NS; k1++) {
-		CHptr 	= hdr->CHANNEL+k1;
-
-		if (CHptr->OnOff)	/* read selected channels only */ 
-		if (CHptr->SPR > 0) {	
-		SZ  	= CHptr->SPR*GDFTYP_BITS[CHptr->GDFTYP]>>3;
-		//bpb	= SZ;
-
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i: %i %i %i %i \n",k1,bi,CHptr->bi,bpb,hdr->AS.bpb);
-
-		for (k4 = 0; k4 < count; k4++)
-		{
-			size_t off1 = k4*hdr->AS.bpb + CHptr->bi;
-			size_t off2 = k4*bpb + bi;
-
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i %i: %i %i \n",k1,k4,off1,off2);
-
-			memcpy((*buf) + off2, hdr->AS.rawdata + off1, SZ);
-		}
-		bi += SZ;
-		}
-	}
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"collapse: finished\n");
-	return(bpb); 
+	return((hdr->AS.first != 0) || (hdr->AS.length!=hdr->NRec));
 }
+
 
 
 /****************************************************************************/
