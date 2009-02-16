@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.289 2009-02-14 23:16:10 schloegl Exp $
+    $Id: biosig.c,v 1.290 2009-02-16 16:59:33 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -54,30 +54,17 @@
 #include "biosig-dev.h"
 #include "biosig-network.h"
 
-int sopen_SCP_read     (HDRTYPE* hdr);
-int sopen_SCP_write    (HDRTYPE* hdr);
-int sopen_HL7aECG_read (HDRTYPE* hdr);
-int sopen_HL7aECG_write(HDRTYPE* hdr);
-int sopen_alpha_read   (HDRTYPE* hdr);
-int sopen_FAMOS_read   (HDRTYPE* hdr);
-int sclose_HL7aECG_write(HDRTYPE* hdr);
-int sopen_eeprobe(HDRTYPE* hdr);
-int sopen_asn1(HDRTYPE* hdr);
-int sopen_zzztest(HDRTYPE* hdr);
-
-#define HARDCODED_PHYSDIMTABLE 
-
 #ifdef _WIN32
-#define WITHOUT_NETWORK
-#endif 
-
-#ifdef	__WIN32__
-#include <winsock2.h>
 #define FILESEP '\\'
 extern int getlogin_r(char* name, size_t namesize);
+#define WITHOUT_NETWORK
+#include <winsock2.h>
+// #include "biosig-network.h" // not supported by windows 
+
 #else
 #include <netdb.h>
 #define FILESEP '/'
+
 #endif
 
 #ifndef HOST_NAME_MAX
@@ -93,6 +80,19 @@ const char *B4C_ERRMSG;
 int VERBOSE_LEVEL = 0; 
 #endif
 
+#define HARDCODED_PHYSDIMTABLE 
+
+
+int sopen_SCP_read     (HDRTYPE* hdr);
+int sopen_SCP_write    (HDRTYPE* hdr);
+int sopen_HL7aECG_read (HDRTYPE* hdr);
+int sopen_HL7aECG_write(HDRTYPE* hdr);
+int sopen_alpha_read   (HDRTYPE* hdr);
+int sopen_FAMOS_read   (HDRTYPE* hdr);
+int sclose_HL7aECG_write(HDRTYPE* hdr);
+int sopen_eeprobe(HDRTYPE* hdr);
+int sopen_asn1(HDRTYPE* hdr);
+int sopen_zzztest(HDRTYPE* hdr);
 
 const int16_t GDFTYP_BITS[] = {
 	8, 8, 8,16,16,32,32,64,64,32,64, 0, 0, 0, 0, 0,   /* 0  */ 
@@ -1946,11 +1946,11 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = BKR;
     	else if (!memcmp(Header1+34,"BLSC",4))
 	    	hdr->TYPE = BLSC;
-    	else if (!memcmp(Header1,"key4biosig",10))
+/*    	else if (!memcmp(Header1,"key4biosig",10))
 	    	hdr->TYPE = BSCS;
     	else if (!memcmp(Header1,"bscs://",7))
 	    	hdr->TYPE = BSCS;
-    	else if ((beu16p(Header1)==0x0311) && (beu32p(Header1+4)==0x0809B002) 
+*/    	else if ((beu16p(Header1)==0x0311) && (beu32p(Header1+4)==0x0809B002) 
     		 && (leu16p(Header1+2) > 240) && (leu16p(Header1+2) < 250)  		// v2.40 - v2.50
     		 || !memcmp(Header1+307, "E\x00\x00\x00\x00\x00\x00\x00DAT", 11)
     		)
@@ -3049,7 +3049,10 @@ int rawEVT2hdrEVT(HDRTYPE *hdr) {
 	// TODO: avoid additional copying 
 	size_t k; 
 			uint8_t *buf = hdr->AS.rawEventData; 
-			if (buf==NULL) return(0); 
+			if (buf==NULL) {
+				hdr->EVENT.N = 0; 
+				return(0); 
+			}	
 			
 			if (hdr->VERSION < 1.94) {
 				if (buf[1] | buf[2] | buf[3])
@@ -3171,6 +3174,33 @@ if (!strncmp(MODE,"r",1))
 		free(AINF_RAW_FILENAME);
 	}
 
+#ifndef WITHOUT_NETWORK
+	if (!memcmp(hdr->FileName,"bscs://",7)) {
+		uint64_t ID; 
+    		char *hostname = (char*)hdr->FileName+7;
+    		char *t = strrchr(hdr->FileName,'/');
+    		if (t==NULL) {
+			B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
+    			B4C_ERRMSG = "SOPEN-NETWORK: file identifier not specifed";
+    			return(hdr); 
+    		}
+    		*t=0;
+		cat64(t+1, &ID);
+		int sd,s;
+		sd = bscs_connect(hostname); 
+		if (sd<0) {
+			B4C_ERRNUM = B4C_CANNOT_OPEN_FILE; 
+			B4C_ERRMSG = "could not connect to server";
+			return(hdr); 
+		}
+  		hdr->FILE.Des = sd; 
+		s  = bscs_open(sd, &ID);
+  		s  = bscs_requ_hdr(sd,hdr);
+  		s  = bscs_requ_evt(sd,hdr);
+  		return(hdr); 
+    	} 
+#endif
+
         hdr->FILE.COMPRESSION = 0;   	
         hdr   = ifopen(hdr,"rb");
         if (!hdr->FILE.OPEN) return(hdr); 
@@ -3231,35 +3261,7 @@ if (!strncmp(MODE,"r",1))
     	hdr->AS.first  =  0; 
     	hdr->AS.length =  0; 
 	hdr->AS.bpb    = -1; 	// errorneous value: ensures that hdr->AS.bpb will be defined 
-	if (hdr->TYPE == BSCS) {
-		char *t,*hostname,*IDstr;
-		hdr->AS.Header[count]=0;
-		if (!memcmp(Header1,"key4biosig",10)) {
-			hostname = strstr(Header1,"host=")+5;
-			IDstr = strstr(Header1,"ID=")+3;
-			for (t = hostname;!isspace(*t); t++); 
-			*t=0;		
-			for (t = IDstr;!isspace(*t); t++); 
-			*t=0;		
-		}
-	    	else if (!memcmp(Header1,"bscs://",7)) {
-	    		hostname = Header1+7;
-	    		t = strrchr(Header1,'/');
-	    		*t=0;
-	    		IDstr = t+1; 
-	    	}
-
-		uint64_t ID; 
-		cat64(IDstr, &ID);
-		int sd,s;
-		sd = bscs_connect(hostname); 
-		s  = bscs_open(sd, &ID);
-  		s  = bscs_requ_hdr(sd,hdr);
-  		s  = bscs_requ_dat(sd,0,hdr->NRec,hdr);
-  		s  = bscs_requ_evt(sd,hdr);
-  		s  = bscs_close(sd);
-	}
-	else if (hdr->TYPE == GDF) {
+	if (hdr->TYPE == GDF) {
 
 	    	if (hdr->VERSION > 1.90) 
 		    	hdr->HeadLen = leu16p(hdr->AS.Header+184)<<8; 
@@ -3280,7 +3282,6 @@ if (!strncmp(MODE,"r",1))
 
 		struct stat FileBuf;
 		stat(hdr->FileName,&FileBuf);
-		//FileBuf.st_size/hdr->AS.bpb;
 
 		if (hdr->NRec < 0) {
 			hdr->NRec = (FileBuf.st_size - hdr->HeadLen)/hdr->AS.bpb; 
@@ -3321,6 +3322,8 @@ if (!strncmp(MODE,"r",1))
 			
 			rawEVT2hdrEVT(hdr); 
 		}	
+		else 
+			hdr->EVENT.N = 0; 
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[228] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
 
@@ -7843,6 +7846,29 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	fprintf(stdout,"Warning SOPEN: Alignment errors might cause Bus Error (SPARC platform).\nWe are aware of the problem but it is not fixed yet.\n");
 #endif
 
+#ifndef WITHOUT_NETWORK
+    	if (!memcmp(hdr->FileName,"bscs://",7)) {
+    		// network: write to server
+		char *hostname;
+    		hostname = (char*)hdr->FileName+7;
+    		
+		uint64_t ID=0; 
+		int sd,s;
+		sd = bscs_connect(hostname); 
+		if (sd<0) {
+			fprintf(stderr,"could not connect to <%s>\n",hostname);
+			B4C_ERRNUM = B4C_CANNOT_OPEN_FILE; 
+			B4C_ERRMSG = "could not connect to server";
+			return(hdr); 
+		}
+  		hdr->FILE.Des = sd; 
+		s  = bscs_open(sd, &ID);
+  		s  = bscs_send_hdr(sd,hdr);
+  		fprintf(stdout,"write file to bscs://%s/%016Lx\n",hostname,ID); 
+  		return(hdr); 
+	}
+#endif
+
 	// NS number of channels selected for writing 
      	typeof(hdr->NS)  NS = 0;
 	for (k=0; k<hdr->NS; k++) 
@@ -7977,7 +8003,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		}
 		fclose(fid); 
     	}	
-    	else if (hdr->TYPE==BrainVision) {
+	else if (hdr->TYPE==BrainVision) {
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [210]\n");
 
@@ -8824,6 +8850,16 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 			fprintf(stdout,"sread-raw: 222\n");
 
 	}
+#ifndef WITHOUT_NETWORK
+	else if (hdr->FILE.Des>0) {
+		// network connection
+		int s = bscs_requ_dat(hdr->FILE.Des,start,length,hdr); 
+		count = hdr->AS.length; 	
+		
+		if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"sread-raw from network: 222 count=%i\n",count);
+	}
+#endif
 	else {
 		if (VERBOSE_LEVEL>7)
 			fprintf(stdout,"sread-raw: 223\n");
@@ -8927,12 +8963,15 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	if (start >= hdr->NRec) return(0);  	
 	if ((start + length) < 0) return(0);  	
 
-		
+int V = VERBOSE_LEVEL;
+//VERBOSE_LEVEL = 9; 		
 	count = sread_raw(start, length, hdr, 0);
 //	count = sread_raw(0, hdr->NRec, hdr);
 	
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"sread 222 %i=?=%i  %i=?=%i \n",(int)start,(int)hdr->AS.first,(int)(start+count),(int)hdr->AS.length);
+
+VERBOSE_LEVEL = V; 		
 
 	toffset = start - hdr->AS.first;
 	
@@ -9961,7 +10000,12 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"swrite 313\n");
-
+#ifndef WITHOUT_NETWORK
+	if (hdr->FILE.Des>0) {
+		bscs_send_dat(hdr->FILE.Des,hdr->AS.rawdata,hdr->AS.bpb*hdr->NRec);
+	}
+	else 
+#endif
 	if ((hdr->TYPE == ASCII) || (hdr->TYPE == BIN)) {
 		char fn[1025];
 		HDRTYPE H1;
@@ -10108,6 +10152,19 @@ int sclose(HDRTYPE* hdr)
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"sclose(122) OPEN=%i %s\n",hdr->FILE.OPEN,GetFileTypeString(hdr->TYPE)); 
 
+#ifndef WITHOUT_NETWORK
+	if (hdr->FILE.Des>0) {
+		// network connection
+		if (hdr->FILE.OPEN > 1) bscs_send_evt(hdr->FILE.Des,hdr); 
+  		int s = bscs_close(hdr->FILE.Des);
+  		if (s) {
+			B4C_ERRNUM = B4C_SCLOSE_FAILED; 
+			B4C_ERRMSG = "bscs_close failed";
+  		}
+  		hdr->FILE.Des = 0; 
+	}
+	else 
+#endif
 	if ((hdr->FILE.OPEN>1) && ((hdr->TYPE==GDF) || (hdr->TYPE==EDF) || (hdr->TYPE==BDF)))
 	{
 

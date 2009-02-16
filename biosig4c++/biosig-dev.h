@@ -1,7 +1,7 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.15 2009-02-14 23:16:10 schloegl Exp $
-% Copyright (C) 2005,2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
+% $Id: biosig-dev.h,v 1.16 2009-02-16 16:59:33 schloegl Exp $
+% Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
 
@@ -385,8 +385,9 @@ int gdfbin2struct(HDRTYPE *hdr);
 	convert between the streamed header information (as in a GDF file or 
 	on a network connection) and the header structure HDRTYPE 
 	Specifically, the fixed header, the variable hadder and the optional 
-	header information (header 1,2 and 3), but not the 
-	event information are considered. 
+	header information (header 1,2 and 3). This incluedes the 
+	description of the user-specified events (TYP=1..255), but not the 
+	event table itself. 
  ------------------------------------------------------------------------*/
 
 size_t hdrEVT2rawEVT(HDRTYPE *hdr);
@@ -396,6 +397,7 @@ int rawEVT2hdrEVT(HDRTYPE *hdr);
 	HDRTYPE.EVENT.
  ------------------------------------------------------------------------*/
 
+void FreeGlobalEventCodeTable();
 void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation);
 /*------------------------------------------------------------------------
 	adds free text annotation to event table    

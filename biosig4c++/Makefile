@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.66 2009-02-11 16:38:28 schloegl Exp $
+###  $Id: Makefile,v 1.67 2009-02-16 16:59:33 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -34,7 +34,7 @@ LIBTASN1      = $(TASN1_DIR).libs/libtasn1.a
 
 # MinGW Crosscompiler: compile on linux binaries for windows  
 MinGWCXX      = i586-mingw32msvc-g++ # 
-MinGWCFLAGS   = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT # -D=WITHOUT_NETWORK
+MinGWCFLAGS   = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT -D=WITHOUT_NETWORK
 MinGWLIBS     = win32/libbiosig.a -lz	# static
 MinGWLINK     = i586-mingw32msvc-g++
 
@@ -77,6 +77,7 @@ OBJECTS       = biosig.o \
 		crc4scp.o \
 		sopen_hl7aecg.o \
 		getlogin_r.o \
+		biosig-network.o \
 		sandbox.o 
 		 
 		
@@ -93,8 +94,8 @@ MinGWOBJECTS  = win32/biosig.obj \
 		win32/sopen_scp_write.obj \
 		win32/crc4scp.obj \
 		win32/sopen_hl7aecg.obj \
-		win32/biosig-network.obj \
 		win32/sandbox.obj 
+#		win32/biosig-network.obj \
 #		win32/zlib/lib/zdll.lib		
 
 TARGET        = save2gdf save2aecg save2scp libbiosig.a sigviewer mex #libbiosig.so 
@@ -218,7 +219,7 @@ win32/zlib/lib/zdll.lib: win32/zlib
 win32/zlib/include/zlib.h: win32/zlib
 	touch --reference=win32/zlib win32/zlib/include/zlib.h
 
-win32/biosig.obj: biosig.c biosig-dev.h biosig.h  win32/zlib/include/zlib.h
+win32/biosig.obj: biosig.c biosig-dev.h biosig.h win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/biosig.obj biosig.c
 
 win32/libbiosig.a: $(MinGWOBJECTS) 
@@ -243,6 +244,9 @@ win32/sopen_famos_read.obj: t210/sopen_famos_read.c biosig-dev.h
 
 win32/sopen_alpha_read.obj: t210/sopen_alpha_read.c biosig-dev.h 
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_alpha_read.obj t210/sopen_alpha_read.c
+
+win32/biosig-network.obj: biosig-network.c biosig-dev.h biosig-network.h 
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/biosig-network.obj biosig-network.c
 
 win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h win32/zlib/include/zlib.h \
 		t210/types.h t210/structures.h t210/codes.h
@@ -305,8 +309,10 @@ mexSLOAD: mexSLOAD.mexa64
 mexSOPEN: mexSOPEN.mexa64
 mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.a
 	$(MEX) mexSLOAD.cpp  $(LIBS) 
+	cp mexSLOAD.mexa64 ../biosig/t200/
 mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.a
 	$(MEX) -DmexSOPEN mexSLOAD.cpp  $(LIBS) -output mexSOPEN
+	cp mexSOPEN.mexa64 ../biosig/t200/
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex 

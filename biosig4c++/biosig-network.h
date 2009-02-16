@@ -1,5 +1,5 @@
 /*
-% $Id: biosig-network.h,v 1.1 2009-02-09 13:19:12 schloegl Exp $
+% $Id: biosig-network.h,v 1.2 2009-02-16 16:59:33 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -28,14 +28,21 @@
 #include "biosig-dev.h"
 
 
-#define SERVER_PORT 54322
+#define SERVER_PORT 54321
 
+#ifdef __WIN32__
+#include <winsock2.h>
+
+#else 
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+
+#endif
+
+#include <sys/types.h>
 #include <unistd.h>
 
 

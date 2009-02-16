@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.52 2009-01-20 13:33:36 schloegl Exp $
+    $Id: save2gdf.c,v 1.53 2009-02-16 16:59:33 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -235,7 +235,9 @@ int main(int argc, char **argv){
    *********************************/
 
     	SOURCE_TYPE = hdr->TYPE;
-    	hdr->TYPE = TARGET_TYPE;
+    	if (!memcmp(dest,"bscs://",7)) 
+		TARGET_TYPE=BSCS;
+
 	hdr->FILE.COMPRESSION=COMPRESSION_LEVEL;
 	if (COMPRESSION_LEVEL>0 && TARGET_TYPE==HL7aECG)	{
 		fprintf(stderr,"Warning: on-the-fly compression (%i) is not supported for HL7aECG.\n",COMPRESSION_LEVEL); 
@@ -273,18 +275,20 @@ int main(int argc, char **argv){
  		if (PhysMinValue0 > val)
  			PhysMinValue0 = val;
 
-		if ((SOURCE_TYPE==alpha) && (hdr->CHANNEL[k].GDFTYP==(255+12)) && (TARGET_TYPE==GDF)) 
+		if (TARGET_TYPE==BSCS) 
+			;	// do nothing 
+		else if ((SOURCE_TYPE==alpha) && (hdr->CHANNEL[k].GDFTYP==(255+12)) && (TARGET_TYPE==GDF)) 
 			// 12 bit into 16 bit 
-			hdr->CHANNEL[k].GDFTYP = 3;
-		if ((SOURCE_TYPE==ETG4000) && (TARGET_TYPE==GDF)) {
+;//			hdr->CHANNEL[k].GDFTYP = 3;
+		else if ((SOURCE_TYPE==ETG4000) && (TARGET_TYPE==GDF)) {
 			hdr->CHANNEL[k].GDFTYP  = 16;
 			hdr->CHANNEL[k].PhysMax = MaxValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 			hdr->CHANNEL[k].PhysMin = MinValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 			hdr->CHANNEL[k].DigMax  = MaxValue;
 			hdr->CHANNEL[k].DigMin  = MinValue;
 		}
-		else if ((SOURCE_TYPE==GDF) && (TARGET_TYPE==GDF)) 
-			;
+//		else if ((SOURCE_TYPE==GDF) && (TARGET_TYPE==GDF)) 
+//			;
 		else if ((hdr->CHANNEL[k].GDFTYP<10 ) && (TARGET_TYPE==GDF || TARGET_TYPE==CFWB)) {
 			/* heuristic to determine optimal data type */
 			if ((MaxValue <= 127) && (MinValue >= -128))
@@ -301,7 +305,6 @@ int main(int argc, char **argv){
 		    		hdr->CHANNEL[k].GDFTYP = 6;
 		}    		
 		
-    		// hdr->CHANNEL[k].GDFTYP = 3;
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"#%3d %d [%f %f][%f %f]\n",k,hdr->CHANNEL[k].GDFTYP,MinValue,MaxValue,PhysMinValue0,PhysMaxValue0);
 		k2++;
 	}
@@ -316,7 +319,7 @@ int main(int argc, char **argv){
 	    		hdr->CHANNEL[k].DigMin = -hdr->CHANNEL[k].DigMax;
 		}
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201]\n");
+//	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201]\n");
 
 	/* write file */
 	strcpy(tmp,dest);
@@ -327,6 +330,8 @@ int main(int argc, char **argv){
 		fprintf(stdout,"[211] z=%i\n",hdr->FILE.COMPRESSION);
 
 	hdr->FLAG.ANONYMOUS = 1; 	// no personal names are processed 
+    	hdr->TYPE = TARGET_TYPE;
+	if (TARGET_TYPE == BSCS) hdr->TYPE = GDF;
 
 	hdr = sopen(tmp, "wb", hdr);
 	if ((status=serror())) {
