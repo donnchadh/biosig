@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.136 2009-02-14 23:16:10 schloegl Exp $
+% $Id: biosig.h,v 1.137 2009-02-18 14:01:13 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -128,6 +128,7 @@ enum FileFormat {
 extern int   B4C_ERRNUM;
 extern const char *B4C_ERRMSG;
 
+#define BIOSIG_VERSION 0.80
 
 //extern int   VERBOSE_LEVEL; 	// used for debugging
 //#define VERBOSE_LEVEL 0	// turn off debugging information 
@@ -344,7 +345,7 @@ typedef struct {
 //		uint32_t 	spb __attribute__ ((deprecated)); /* total samples per block */
 		uint32_t 	bpb;  		/* total bytes per block */
 		uint32_t 	bpb8;  		/* total bits per block */
-	//		uint32_t 	*bi __attribute__ ((deprecated)); /* this information redundant with HDR.CHANNEL[k].bi[0] - and is now obsolete */
+
 		uint8_t*	Header; 
 		uint8_t*	rawEventData;
 		uint8_t*	rawdata; 	/* raw data block */
