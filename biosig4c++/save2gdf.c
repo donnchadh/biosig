@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.53 2009-02-16 16:59:33 schloegl Exp $
+    $Id: save2gdf.c,v 1.54 2009-02-18 13:13:28 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -33,6 +33,9 @@
 #define INF (1.0/0.0)
 #endif 
 
+int savelink(const char* filename);
+
+
 int main(int argc, char **argv){
     
     HDRTYPE 	*hdr; 
@@ -51,20 +54,23 @@ int main(int argc, char **argv){
     {
     	for (k=1; k<argc && argv[k][0]=='-'; k++)
     	if (!strcmp(argv[k],"-v") || !strcmp(argv[k],"--version") ) {
-		fprintf(stdout,"save2gdf (BioSig4C++) v0.70\n");
-		fprintf(stdout,"Copyright (C) 2006,2007,2008 by Alois Schloegl and others\n");
+		fprintf(stdout,"save2gdf (BioSig4C++) v%04.2f\n", BIOSIG_VERSION);
+		fprintf(stdout,"Copyright (C) 2006,2007,2008,2009 by Alois Schloegl and others\n");
 		fprintf(stdout,"This file is part of BioSig http://biosig.sf.net - the free and\n");
 		fprintf(stdout,"open source software library for biomedical signal processing.\n\n");
 		fprintf(stdout,"BioSig is free software; you can redistribute it and/or modify\n");
 		fprintf(stdout,"it under the terms of the GNU General Public License as published by\n");
 		fprintf(stdout,"the Free Software Foundation; either version 3 of the License, or\n");
-		fprintf(stdout,"(at your option) any later version.\n");
+		fprintf(stdout,"(at your option) any later version.\n\n");
 	}	
     	else if (!strcmp(argv[k],"-h") || !strcmp(argv[k],"--help") ) {
 		fprintf(stdout,"\nusage: save2gdf [OPTIONS] SOURCE DEST\n");
 		fprintf(stdout,"  SOURCE is the source file \n");
+		fprintf(stdout,"      SOURCE can be also network file bscs://<hostname>/ID e.g. bscs://129.27.3.99/9aebcc5b4eef1024 \n");
 		fprintf(stdout,"  DEST is the destination file \n");
-		fprintf(stdout,"  Supported OPTIONS are:\n");
+		fprintf(stdout,"      DEST can be also network server bscs://<hostname>\n");
+		fprintf(stdout,"      The corresponding ID number is reported and a bscs-link file is stored in /tmp/<SOURCE>.bscs\n");
+		fprintf(stdout,"\n  Supported OPTIONS are:\n");
 		fprintf(stdout,"   -v, --version\n\tprints version information\n");
 		fprintf(stdout,"   -h, --help   \n\tprints this information\n");
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
@@ -186,6 +192,7 @@ int main(int argc, char **argv){
 	hdr->FLAG.ROW_BASED_CHANNELS = 0;
 	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[121]\n");
+
 	if (dest!=NULL)
 		count = sread(NULL, 0, hdr->NRec, hdr);
 
@@ -202,6 +209,8 @@ int main(int argc, char **argv){
 		fprintf(stdout,"\n[129] SREAD on %s successful [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
 
 //	fprintf(stdout,"\n %f,%f.\n",hdr->FileName,hdr->data.block[3*hdr->SPR],hdr->data.block[4*hdr->SPR]);
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stdout,"\n[130] File  %s =%i/%i\n",hdr->FileName,hdr->FILE.OPEN,hdr->FILE.Des);
 
 	if (dest==NULL) {
 		if (ne)	/* used for testig SFLUSH_GDF_EVENT_TABLE */
@@ -228,15 +237,13 @@ int main(int argc, char **argv){
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[138] file closed\n");
 	}
 	if (VERBOSE_LEVEL>8) 
-		fprintf(stdout,"\n[139] File %s closed \n",hdr->FileName);
+		fprintf(stdout,"\n[139] File %s closed sd=%i/%i\n",hdr->FileName,hdr->FILE.OPEN,hdr->FILE.Des);
 	
    /********************************* 
    	Write data 
    *********************************/
 
     	SOURCE_TYPE = hdr->TYPE;
-    	if (!memcmp(dest,"bscs://",7)) 
-		TARGET_TYPE=BSCS;
 
 	hdr->FILE.COMPRESSION=COMPRESSION_LEVEL;
 	if (COMPRESSION_LEVEL>0 && TARGET_TYPE==HL7aECG)	{
@@ -275,9 +282,7 @@ int main(int argc, char **argv){
  		if (PhysMinValue0 > val)
  			PhysMinValue0 = val;
 
-		if (TARGET_TYPE==BSCS) 
-			;	// do nothing 
-		else if ((SOURCE_TYPE==alpha) && (hdr->CHANNEL[k].GDFTYP==(255+12)) && (TARGET_TYPE==GDF)) 
+		if ((SOURCE_TYPE==alpha) && (hdr->CHANNEL[k].GDFTYP==(255+12)) && (TARGET_TYPE==GDF)) 
 			// 12 bit into 16 bit 
 ;//			hdr->CHANNEL[k].GDFTYP = 3;
 		else if ((SOURCE_TYPE==ETG4000) && (TARGET_TYPE==GDF)) {
@@ -287,8 +292,8 @@ int main(int argc, char **argv){
 			hdr->CHANNEL[k].DigMax  = MaxValue;
 			hdr->CHANNEL[k].DigMin  = MinValue;
 		}
-//		else if ((SOURCE_TYPE==GDF) && (TARGET_TYPE==GDF)) 
-//			;
+		else if ((SOURCE_TYPE==GDF) && (TARGET_TYPE==GDF)) 
+			;
 		else if ((hdr->CHANNEL[k].GDFTYP<10 ) && (TARGET_TYPE==GDF || TARGET_TYPE==CFWB)) {
 			/* heuristic to determine optimal data type */
 			if ((MaxValue <= 127) && (MinValue >= -128))
@@ -327,19 +332,21 @@ int main(int argc, char **argv){
 		strcat(tmp,".gz");
 
 	if (VERBOSE_LEVEL>8) 
-		fprintf(stdout,"[211] z=%i\n",hdr->FILE.COMPRESSION);
+		fprintf(stdout,"[211] z=%i sd=%i\n",hdr->FILE.COMPRESSION,hdr->FILE.Des);
 
 	hdr->FLAG.ANONYMOUS = 1; 	// no personal names are processed 
     	hdr->TYPE = TARGET_TYPE;
-	if (TARGET_TYPE == BSCS) hdr->TYPE = GDF;
 
 	hdr = sopen(tmp, "wb", hdr);
 	if ((status=serror())) {
 		destructHDR(hdr);
 		exit(status); 
 	}	
+	if (hdr->FILE.Des>0) 
+		savelink(source);
+
 	if (VERBOSE_LEVEL>8)
-		fprintf(stdout,"\n[221] File %s opened. %i %i %Li\n",hdr->FileName,hdr->AS.bpb,hdr->NS,hdr->NRec);
+		fprintf(stdout,"\n[221] File %s opened. %i %i %Li Des=%i\n",hdr->FileName,hdr->AS.bpb,hdr->NS,hdr->NRec,hdr->FILE.Des);
 
 	swrite(data, hdr->NRec, hdr);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[231] SWRITE finishes\n");
