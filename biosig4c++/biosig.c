@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.290 2009-02-16 16:59:33 schloegl Exp $
+    $Id: biosig.c,v 1.291 2009-02-18 12:38:35 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -57,9 +57,8 @@
 #ifdef _WIN32
 #define FILESEP '\\'
 extern int getlogin_r(char* name, size_t namesize);
-#define WITHOUT_NETWORK
+//#define WITHOUT_NETWORK
 #include <winsock2.h>
-// #include "biosig-network.h" // not supported by windows 
 
 #else
 #include <netdb.h>
@@ -1946,11 +1945,9 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = BKR;
     	else if (!memcmp(Header1+34,"BLSC",4))
 	    	hdr->TYPE = BLSC;
-/*    	else if (!memcmp(Header1,"key4biosig",10))
-	    	hdr->TYPE = BSCS;
     	else if (!memcmp(Header1,"bscs://",7))
 	    	hdr->TYPE = BSCS;
-*/    	else if ((beu16p(Header1)==0x0311) && (beu32p(Header1+4)==0x0809B002) 
+    	else if ((beu16p(Header1)==0x0311) && (beu32p(Header1+4)==0x0809B002) 
     		 && (leu16p(Header1+2) > 240) && (leu16p(Header1+2) < 250)  		// v2.40 - v2.50
     		 || !memcmp(Header1+307, "E\x00\x00\x00\x00\x00\x00\x00DAT", 11)
     		)
@@ -3197,6 +3194,7 @@ if (!strncmp(MODE,"r",1))
 		s  = bscs_open(sd, &ID);
   		s  = bscs_requ_hdr(sd,hdr);
   		s  = bscs_requ_evt(sd,hdr);
+  		hdr->FILE.OPEN = 1; 
   		return(hdr); 
     	} 
 #endif
@@ -3261,6 +3259,38 @@ if (!strncmp(MODE,"r",1))
     	hdr->AS.first  =  0; 
     	hdr->AS.length =  0; 
 	hdr->AS.bpb    = -1; 	// errorneous value: ensures that hdr->AS.bpb will be defined 
+#ifndef WITHOUT_NETWORK
+	if (!memcmp(hdr->AS.Header,"bscs://",7)) {
+		hdr->AS.Header[count]=0;
+
+		uint64_t ID; 
+    		char *hostname = Header1+7;
+		Header1[6]=0;
+    		char *t = strrchr(hostname,'/');
+    		if (t==NULL) {
+			B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
+    			B4C_ERRMSG = "SOPEN-NETWORK: file identifier not specifed";
+    			return(hdr); 
+    		}
+    		t[0]=0;
+		cat64(t+1, &ID);
+		int sd,s;
+		sd = bscs_connect(hostname); 
+		if (sd<0) {
+    			fprintf(stderr,"could not connect to %s\n",hostname);
+			B4C_ERRNUM = B4C_CANNOT_OPEN_FILE; 
+			B4C_ERRMSG = "could not connect to server";
+			return(hdr); 
+		}
+  		hdr->FILE.Des = sd; 
+		s  = bscs_open(sd, &ID);
+  		s  = bscs_requ_hdr(sd,hdr);
+  		s  = bscs_requ_evt(sd,hdr);
+  		hdr->FILE.OPEN = 1; 
+  		return(hdr); 
+    	} 
+    	else 
+#endif
 	if (hdr->TYPE == GDF) {
 
 	    	if (hdr->VERSION > 1.90) 
@@ -5207,7 +5237,6 @@ if (VERBOSE_LEVEL>8)
 		else 	
 	    		ifseek(hdr, hdr->HeadLen, SEEK_SET);
 		
-	
 		uint16_t gdftyp = leu32p(hdr->AS.Header+64);
 		hdr->AS.bpb = (CFWB_FLAG_TIME_CHANNEL ? GDFTYP_BITS[CFWB_GDFTYP[gdftyp-1]]>>3 : 0); 
 
@@ -5230,8 +5259,8 @@ if (VERBOSE_LEVEL>8)
 		    	hc->PhysMin	= lef64p(Header2+88);
 		    	hc->DigMax	= (hc->PhysMax - hc->Off) / hc->Cal; 
 		    	hc->DigMin	= (hc->PhysMin - hc->Off) / hc->Cal; 
-			hc->OnOff    = 1;
-			hc->bi    = hdr->AS.bpb;
+			hc->OnOff    	= 1;
+			hc->bi    	= hdr->AS.bpb;
 			hdr->AS.bpb += GDFTYP_BITS[hc->GDFTYP]>>3;
 		}
 		hdr->FLAG.OVERFLOWDETECTION = 0; 	// CFWB does not support automated overflow and saturation detection
@@ -7856,7 +7885,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		int sd,s;
 		sd = bscs_connect(hostname); 
 		if (sd<0) {
-			fprintf(stderr,"could not connect to <%s>\n",hostname);
+			fprintf(stdout,"could not connect to <%s>\n",hostname);
 			B4C_ERRNUM = B4C_CANNOT_OPEN_FILE; 
 			B4C_ERRMSG = "could not connect to server";
 			return(hdr); 
@@ -7864,6 +7893,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
   		hdr->FILE.Des = sd; 
 		s  = bscs_open(sd, &ID);
   		s  = bscs_send_hdr(sd,hdr);
+  		hdr->FILE.OPEN = 2; 
   		fprintf(stdout,"write file to bscs://%s/%016Lx\n",hostname,ID); 
   		return(hdr); 
 	}
@@ -8755,27 +8785,27 @@ int collapse_rawdata(HDRTYPE *hdr)
 	for (k1=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
 
-		if (CHptr->OnOff)	/* read selected channels only */ 
-		if (CHptr->SPR > 0) {	
 		SZ = CHptr->SPR*GDFTYP_BITS[CHptr->GDFTYP];
-
-		if ((SZ & 7) || (CHptr->bi & 7)) {
+		if (SZ & 7) {
 			B4C_ERRNUM = B4C_RAWDATA_COLLAPSING_FAILED;
 			B4C_ERRMSG = "collapse_rawdata: does not support bitfields"; 
 		}
 		SZ >>= 3;
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i: %i %i %i %i \n",k1,bi,CHptr->bi,bpb,hdr->AS.bpb);
+		if (CHptr->OnOff)	/* read selected channels only */ 
+		if (CHptr->SPR > 0) {	
 
-		for (k4 = 0; k4 < count; k4++) {
-			size_t off1 = k4*hdr->AS.bpb + CHptr->bi;
-			size_t off2 = k4*bpb + bi;
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"%i: %i %i %i %i \n",k1,bi,CHptr->bi,bpb,hdr->AS.bpb);
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i %i: %i %i \n",k1,k4,off1,off2);
+			for (k4 = 0; k4 < count; k4++) {
+				size_t off1 = k4*hdr->AS.bpb + CHptr->bi;
+				size_t off2 = k4*bpb + bi;
 
-			memcpy(buf + off2, hdr->AS.rawdata + off1, SZ);
-		}
-		bi += SZ;
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"%i %i: %i %i \n",k1,k4,off1,off2);
+
+				memcpy(buf + off2, hdr->AS.rawdata + off1, SZ);
+			}
+			bi += SZ;
 		}
 	}
 	free(hdr->AS.rawdata);
@@ -8951,7 +8981,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
  *
  */
 
-	size_t			count,k1,k2,k3,k4,k5,SZ,NS;
+	size_t			count,k1,k2,k3,k4,k5,SZ,NS,bi,bi8;
 	uint16_t		GDFTYP;
 	size_t	 		DIV;
 	uint8_t			*ptr; // *buffer;
@@ -9027,7 +9057,7 @@ VERBOSE_LEVEL = V;
 		uint8_t bitoff = 0;
 
 		if (VERBOSE_LEVEL>7) {
-			fprintf(stdout,"sread 224 %i %i %i %i |",toffset*hdr->AS.bpb + hdr->CHANNEL[k1].bi, toffset, hdr->AS.bpb, hdr->CHANNEL[k1].bi);
+			fprintf(stdout,"sread 224 %i %i %i %i |",toffset*hdr->AS.bpb + bi8>>3, toffset, hdr->AS.bpb, bi8);
 			fprintf(stdout,"%i %i %i bpb=%i,k1=%i %i\n",toffset,start, hdr->AS.first,hdr->AS.bpb,k1,SZ );
 		}	
 
@@ -9041,7 +9071,7 @@ VERBOSE_LEVEL = V;
 
 //fprintf(stdout,"%i %i\n",hdr->AS.bpb*hdr->NRec,(k4+toffset)*hdr->AS.bpb + hdr->CHANNEL[k1].bi + (k5*SZ>>3));
 
-		size_t len = (k4+toffset)*hdr->AS.bpb + hdr->CHANNEL[k1].bi + (k5*SZ>>3);
+		size_t len = (k4+toffset)*hdr->AS.bpb + ((hdr->CHANNEL[k1].bi8 + k5*SZ)>>3);
 		ptr = hdr->AS.rawdata + len;
 
 //		if ((VERBOSE_LEVEL>7) && (k4==0))
@@ -9257,7 +9287,7 @@ VERBOSE_LEVEL = V;
 		if ((VERBOSE_LEVEL>8) && (k5==0)) {
 //		if (VERBOSE_LEVEL>8) {
 			fprintf(stdout,"sread 226 ");
-			fprintf(stdout,"%i %i\n",hdr->AS.bpb*hdr->NRec,(k4+toffset)*hdr->AS.bpb + hdr->CHANNEL[k1].bi + (k5*SZ>>3));
+			fprintf(stdout,"%i %i\n",hdr->AS.bpb*hdr->NRec,(k4+toffset)*hdr->AS.bpb + (bi8 + k5*SZ>>3));
 			fprintf(stdout,":s(1)=%f, NS=%d,[%d,%d,%d,%d SZ=%i, bpb=%i] %e %d %e\n",*(int16_t*)hdr->AS.rawdata,NS,k1,k2,k4,k5,SZ,hdr->AS.bpb,sample_value,(*(int16_t*)(ptr)),(*(float*)(ptr)));
 		}
 		
@@ -9752,10 +9782,10 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 /* 
  *	writes NELEM blocks with HDR.AS.bpb BYTES each, 
  */
-	void*			ptr;
-	size_t			count,k1,k2,k3,k4,k5,DIV,SZ; 
-	int 			GDFTYP;
-	CHANNEL_TYPE*		CHptr;
+	uint8_t		*ptr;
+	size_t		count,k1,k3,k4,k5,DIV,SZ; 
+	int 		GDFTYP;
+	CHANNEL_TYPE*	CHptr;
 	biosig_data_type 	sample_value, iCal, iOff; 
 	union {	
 		int8_t i8;
@@ -9800,14 +9830,14 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 
 
-	size_t sz = (hdr->AS.bpb+1)*hdr->NRec;
+	size_t bpb8 = bpb8_collapsed_rawdata(hdr);
 
 	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"swrite sz=%i\n",sz);
+		fprintf(stdout,"swrite sz=%i\n",hdr->NRec*bpb8>>3);
 
-	if ((sz>0) && (hdr->TYPE != SCP_ECG)) { 
+	if ((hdr->NRec*bpb8>0) && (hdr->TYPE != SCP_ECG)) { 
 	// memory allocation for SCP is done in SOPEN_SCP_WRITE Section 6	
-		ptr = realloc(hdr->AS.rawdata, sz);
+		ptr = (typeof(ptr))realloc(hdr->AS.rawdata, (hdr->NRec*bpb8>>3)+1);
 		if (ptr==NULL) {
 			B4C_ERRNUM = B4C_INSUFFICIENT_MEMORY;
 			B4C_ERRMSG = "SWRITE: memory allocation failed.";
@@ -9821,13 +9851,11 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"swrite 311=\n");
 
-	for (k1=0, k2=0; k1<hdr->NS; k1++) {
+	size_t bi8 = 0; 
+	for (k1=0; k1<hdr->NS; k1++) {
 	CHptr 	= hdr->CHANNEL+k1;
 	
 	if (CHptr->OnOff != 0) {
-
-	if (VERBOSE_LEVEL>8)
-		fprintf(stdout,"swrite 312=#%i/%i gdftyp=%i\n",k1,k2,GDFTYP);
 
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
@@ -9835,6 +9863,9 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		iCal	= 1/CHptr->Cal;
 		//iOff	= CHptr->DigMin - CHptr->PhysMin*iCal;
 		iOff	= -CHptr->Off*iCal;
+
+	if (VERBOSE_LEVEL>8)
+		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i\n",k1,GDFTYP,bi8,SZ);
 
 		for (k4 = 0; k4 < hdr->NRec; k4++) {
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
@@ -9845,19 +9876,21 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
     			for (k3=0, sample_value=0; k3 < DIV; k3++) 
 				sample_value += data[k1*nelem*hdr->SPR + k4*hdr->SPR + k5*DIV + k3];
 
-//			if (VERBOSE_LEVEL>8)
-//				fprintf(stdout,"swrite 313b\n");
-
 			sample_value /= DIV;
 
 			if (!hdr->FLAG.UCAL)	// scaling 
 				sample_value = sample_value * iCal + iOff;
 
 			// get target address
-			ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->CHANNEL[k1].bi + k5*SZ;
+			//ptr = hdr->AS.rawdata + k4*hdr->AS.bpb + hdr->CHANNEL[k1].bi + k5*SZ;
+			//ptr = hdr->AS.rawdata + (k4*bpb8 + bi8 + k5*SZ)>>3;
 
-			size_t off = k4*hdr->AS.bpb8 + hdr->CHANNEL[k1].bi8 + (k5*SZ);
+			//size_t off = k4*hdr->AS.bpb8 + hdr->CHANNEL[k1].bi8 + (k5*SZ);
+			size_t off = k4*bpb8 + bi8 + (k5*SZ);
 			ptr = hdr->AS.rawdata + (off>>3);
+
+			//if (VERBOSE_LEVEL>8)
+			//	fprintf(stdout,"swrite 313b %i %i %li\n",k4,k5,off>>3);
 
 			// mapping of raw data type to (biosig_data_type)
 			switch (GDFTYP) {
@@ -9995,6 +10028,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 		}
 		}
+		bi8 += SZ*CHptr->SPR;
 	}
 	}	
 
@@ -10002,7 +10036,13 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			fprintf(stdout,"swrite 313\n");
 #ifndef WITHOUT_NETWORK
 	if (hdr->FILE.Des>0) {
-		bscs_send_dat(hdr->FILE.Des,hdr->AS.rawdata,hdr->AS.bpb*hdr->NRec);
+
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"bscs_send_dat sz=%i\n",hdr->NRec*bpb8>>3);
+
+		int s = bscs_send_dat(hdr->FILE.Des,hdr->AS.rawdata,hdr->NRec*bpb8>>3);
+
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"bscs_send_dat succeeded %i\n",s);
+
 	}
 	else 
 #endif
@@ -10034,7 +10074,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	
 			if (hdr->TYPE == ASCII) {
 				DIV = hdr->SPR/CHptr->SPR; 
-				for (k2=0; k2<CHptr->SPR*hdr->NRec; k2++) {
+				for (size_t k2=0; k2<CHptr->SPR*hdr->NRec; k2++) {
 					biosig_data_type i=0;
 					for (k3=0; k3<DIV; k3++) 
 						// assumes colume channels 
@@ -10162,6 +10202,7 @@ int sclose(HDRTYPE* hdr)
 			B4C_ERRMSG = "bscs_close failed";
   		}
   		hdr->FILE.Des = 0; 
+  		hdr->FILE.OPEN = 0; 
 	}
 	else 
 #endif
