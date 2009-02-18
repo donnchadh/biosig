@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig-network.c,v 1.4 2009-02-16 16:59:33 schloegl Exp $
+    $Id: biosig-network.c,v 1.5 2009-02-18 12:44:41 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -22,10 +22,21 @@
  */
 
 //#include <math.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "biosig-network.h"
+
+#ifdef _WIN32
+#define TC (char*)	// WINSOCK's send and recv require (char*)buf 
+#else	
+#define TC
+#endif 
+
+uint64_t B4C_ID=0;	// ID of currently open file 
+char *B4C_HOSTNAME = NULL; 
+uint32_t SERVER_STATE; // state of server, useful for preliminary error checking 
 
 
 int c64ta(uint64_t ID, char *txt) {
@@ -49,16 +60,17 @@ int cat64(char* txt, uint64_t *ID) {
 }
 
 
-uint32_t SERVER_STATE; // state of server, useful for preliminary error checking 
-
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
-    if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in*)sa)->sin_addr);
-    }
-
-    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+	if (sa->sa_family == AF_INET) {
+		return &(((struct sockaddr_in*)sa)->sin_addr);
+	}
+#ifndef _WIN32
+	return &(((struct sockaddr_in6*)sa)->sin6_addr);
+#else 
+	return(NULL); 
+#endif     
 }
 
 
@@ -71,6 +83,7 @@ int bscs_connect(char* hostname) {
     	struct sockaddr_in localAddr;
 
 	if (hostname==NULL) hostname = "129.27.3.99"; 
+	B4C_HOSTNAME = hostname; 
 	
 #if 0	// IPv4 and IPv6
 	int status;
@@ -153,7 +166,7 @@ int bscs_connect(char* hostname) {
    
 	/* identification */	
 	mesg_t msg; 
-	recv(sd,&msg,8,0);
+	recv(sd,TC&msg,8,0);
 	int len = b_endian_u32(msg.LEN); 	
 	if ((msg.STATE & (VER_MASK|CMD_MASK)) != (BSCS_VERSION_01 | BSCS_SEND_MSG))	// currently only V0.1 is supported 
 	{
@@ -179,14 +192,47 @@ int bscs_disconnect(int sd) {
 }
 
 
-int send_packet(int sd, uint32_t state, uint32_t len, void* load)
-{
+int send_packet(int sd, uint32_t state, uint32_t len, void* load) {
 	mesg_t msg; 
 	msg.STATE = state; 
 	msg.LEN = b_endian_u32(len); 
-	send(sd,&msg,8,0);
-	if (len>0) send(sd,load,len,0);
+	send(sd, TC &msg, 8, 0);
+	if (len>0) send(sd, TC load, len, 0);
 }
+
+
+/*
+	stores a bscs link file on client side for the 
+	currently open network file is stored in the directory "/tmp/"
+*/
+int savelink(const char* filename) {
+
+	if ((SERVER_STATE & STATE_MASK)==STATE_INIT) return(-1);	
+
+	char *logpath = "/tmp/";		// perhaps some other directory 
+	char tmp[5];
+	const char *fn = strrchr(filename,FILESEP);
+	if (fn==NULL) fn = filename; 
+	else fn++;
+	char *logfile = (char*)malloc(strlen(logpath)+strlen(fn)+6+strlen(tmp));
+	strcpy(logfile,logpath); 
+	strcat(logfile,fn); 
+	strcat(logfile,".bscs"); 
+	int k=0; 
+	size_t sl = strlen(logfile);
+	FILE *fid;
+	while ((fid=fopen(logfile,"r"))>0) {
+		fclose(fid);
+		sprintf(tmp,".%i",k);
+		strcpy(logfile+sl,tmp);
+		k++;
+	}
+	fid = fopen(logfile,"w");
+	fprintf(fid,"bscs://%s/%016Lx",B4C_HOSTNAME,B4C_ID);
+	fclose(fid);
+	free(logfile);
+}
+
 
 /****************************************************************************************
 	OPEN FILE with ID 
@@ -209,11 +255,11 @@ int bscs_open(int sd, uint64_t* ID) {
 	}	
 if (VERBOSE_LEVEL>8) fprintf(stdout,"open: %16lx %16lx\n",*ID,msg.LOAD);
 	msg.LEN   = b_endian_u32(LEN);
-	int s = send(sd, &msg, LEN+8, 0);	
+	int s = send(sd, TC &msg, LEN+8, 0);	
 
 	// wait for reply 
 	ssize_t count = 0; 
-	count = recv(sd, &msg, 8, 0);
+	count = recv(sd, TC &msg, 8, 0);
 	LEN = b_endian_u32(msg.LEN);
 	SERVER_STATE = msg.STATE & STATE_MASK;
 
@@ -223,9 +269,10 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BSCS_OPEN %i:%i: ID=%16Lx LEN=%x STATE=0x%0
 	{
 if (VERBOSE_LEVEL>8) fprintf(stdout,"123\n");
 		// write access: get new ID
-		count += recv(sd, ID, LEN, 0);
+		count += recv(sd, TC ID, LEN, 0);
 if (VERBOSE_LEVEL>8) fprintf(stdout,"123 %i:\n",count);
 		*ID = l_endian_u64(*ID);
+		B4C_ID = *ID;	
 		return(0);
 	}
 	
@@ -240,7 +287,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"125\n");
 	uint8_t buf[8];
 	count = 0;
 	while (LEN>count) 
-		count += recv(sd, &buf, min(8,max(0,LEN-count)), 0);
+		count += recv(sd, TC &buf, min(8,max(0,LEN-count)), 0);
 	 	// invalid packet or error opening file 
 
 	fprintf(stdout,"ERR: state= %08x %08x len=%i\n",b_endian_u32(msg.STATE),BSCS_VERSION_01 | BSCS_OPEN_R | BSCS_REPLY | STATE_OPEN_READ | BSCS_NO_ERROR,LEN);
@@ -261,12 +308,12 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"close1: %08x \n",msg.STATE);
 	msg.LEN   = b_endian_u32(0);
 if (VERBOSE_LEVEL>8) fprintf(stdout,"close2: %08x %i %i\n",msg.STATE,sizeof(msg),msg.LEN);
 
-	s = send(sd, &msg, 8, 0);	
+	s = send(sd, TC &msg, 8, 0);	
 
 if (VERBOSE_LEVEL>8) fprintf(stdout,"close3: %08x %i\n",msg.STATE,s);
 
 	// wait for reply 
-	s = recv(sd, &msg, 8, 0);
+	s = recv(sd, TC &msg, 8, 0);
 	LEN = b_endian_u32(msg.LEN);
 	SERVER_STATE = msg.STATE & STATE_MASK;
 
@@ -305,14 +352,14 @@ int bscs_send_hdr(int sd, HDRTYPE *hdr) {
 
 	msg.STATE = BSCS_VERSION_01 | BSCS_SEND_HDR | STATE_OPEN_WRITE_HDR | BSCS_NO_ERROR;
 	msg.LEN   = b_endian_u32(hdr->HeadLen);
-	int s = send(sd, &msg, 8, 0);	
+	int s = send(sd, TC &msg, 8, 0);	
 if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR  %i %i %i\n",LEN,hdr->HeadLen,s); 
-	s = send(sd, hdr->AS.Header, hdr->HeadLen, 0);	
+	s = send(sd, TC hdr->AS.Header, hdr->HeadLen, 0);	
 
 if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR %i %i\n",hdr->HeadLen,s); 
 
 	// wait for reply 
-	ssize_t count = recv(sd, &msg, 8, 0);
+	ssize_t count = recv(sd, TC &msg, 8, 0);
 
 if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR %i %i %i %08x\n",hdr->HeadLen,s,count,msg.STATE); 
 
@@ -322,7 +369,6 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR %i %i %i %08x\n",hdr->HeadLen,s,cou
 	if ((LEN==0) && (msg.STATE==(BSCS_VERSION_01 | BSCS_SEND_HDR | BSCS_REPLY | STATE_OPEN_WRITE | BSCS_NO_ERROR)) ) 
 		// close without error 
 		return(0);
-
 	if ((LEN==0) && ((msg.STATE & ~ERR_MASK)==(BSCS_VERSION_01 | BSCS_SEND_HDR | BSCS_REPLY | STATE_OPEN_WRITE_HDR)) ) 
 		// could not write header  
 		return((msg.STATE & ~ERR_MASK) | BSCS_ERROR_COULD_NOT_WRITE_HDR);
@@ -342,13 +388,28 @@ int bscs_send_dat(int sd, void* buf, size_t len ) {
 	mesg_t msg; 
 	msg.STATE = BSCS_VERSION_01 | BSCS_SEND_DAT | STATE_OPEN_WRITE | BSCS_NO_ERROR;
 	msg.LEN   = b_endian_u32(len);
-	send(sd, &msg, 8, 0);	
-	send(sd, buf, len, MSG_EOR);	
+
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND DAT %i %08x\n",len,msg.STATE); 
+
+	ssize_t s = send(sd, TC &msg, 8, 0);	
+	ssize_t count = 0;
+	while (count<len) {
+		s = send(sd, ((uint8_t*)buf)+count, len-count, 0);	
+		if (s<0) 
+			fprintf(stdout,"SND DAT ERR=%i %s\n",errno,strerror(errno));
+		else 
+			count += s; 
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND DAT %i %08x %i %i\n",len,msg.STATE,s,count); 
+	}	
+
 
 	// wait for reply 
-	ssize_t count = recv(sd, &msg, 8, 0);
+	count = recv(sd, TC &msg, 8, 0);
 	LEN = b_endian_u32(msg.LEN);
 	SERVER_STATE = msg.STATE & STATE_MASK;
+
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND DAT RPLY %i %08x \n",count,msg.STATE); 
+
 
 	if ((LEN==0) && (msg.STATE==(BSCS_VERSION_01 | BSCS_SEND_DAT | BSCS_REPLY | STATE_OPEN_WRITE | BSCS_NO_ERROR)) ) 
 		// close without error 
@@ -393,13 +454,13 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"write evt: len=%i\n",len);
 
 	msg.STATE = BSCS_VERSION_01 | BSCS_SEND_EVT | STATE_OPEN_WRITE | BSCS_NO_ERROR;
 	msg.LEN   = b_endian_u32(len);
-	int s1 = send(sd, &msg, 8, 0);	
-	int s2 = send(sd, hdr->AS.rawEventData, len, 0);	
+	int s1 = send(sd, TC &msg, 8, 0);	
+	int s2 = send(sd, TC hdr->AS.rawEventData, len, 0);	
 
 if (VERBOSE_LEVEL>8) fprintf(stdout,"write evt2: %08x len=%i\n",msg.STATE,len); 
 	
 	// wait for reply 
-	ssize_t count = recv(sd, &msg, 8, 0);
+	ssize_t count = recv(sd, TC &msg, 8, 0);
 	LEN = b_endian_u32(msg.LEN);
 	SERVER_STATE = msg.STATE & STATE_MASK;
 
@@ -432,15 +493,15 @@ int bscs_requ_hdr(int sd, HDRTYPE *hdr) {
 	
 	msg.STATE = BSCS_VERSION_01 | BSCS_REQU_HDR | BSCS_NO_ERROR | (SERVER_STATE & STATE_MASK);
 	msg.LEN   = 0;
-	count = send(sd, &msg, 8, 0);	
+	count = send(sd, TC &msg, 8, 0);	
 
-   	count = recv(sd, &msg, 8, 0);
+   	count = recv(sd, TC &msg, 8, 0);
 	hdr->HeadLen   = b_endian_u32(msg.LEN);
     	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
     	hdr->TYPE      = GDF; 
 	count = 0; 
 	while (hdr->HeadLen>count) {
-		count += recv(sd, hdr->AS.Header+count, hdr->HeadLen-count, 0);
+		count += recv(sd, TC hdr->AS.Header+count, hdr->HeadLen-count, 0);
 	}
 
 if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ HDR: %i %s\n",count,GetFileTypeString(hdr->TYPE));
@@ -469,15 +530,15 @@ ssize_t bscs_requ_dat(int sd, size_t start, size_t length, HDRTYPE *hdr) {
 
 	*(uint32_t*)(msg.LOAD+4) = l_endian_u32(start);	
 	*(uint32_t*)(msg.LOAD+0) = l_endian_u32(length);	
-	int s = send(sd, &msg, 16, 0);	
+	int s = send(sd, TC &msg, 16, 0);	
 	
-	ssize_t count = recv(sd, &msg, 8, 0);
+	ssize_t count = recv(sd, TC &msg, 8, 0);
 	LEN = b_endian_u32(msg.LEN);
 	
 	hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata,LEN);
 	count = 0; 
 	while (LEN>count) {
-		count += recv(sd, hdr->AS.rawdata+count, LEN-count, 0);
+		count += recv(sd, TC hdr->AS.rawdata+count, LEN-count, 0);
 	}	
 	
 	hdr->AS.first = start;
@@ -502,10 +563,10 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ EVT %08x %08x\n",SERVER_STATE, STATE_OP
 
 	msg.STATE = BSCS_VERSION_01 | BSCS_REQU_EVT | BSCS_NO_ERROR | (SERVER_STATE & STATE_MASK);
 	msg.LEN   = b_endian_u32(0);
-	int s = send(sd, &msg, 8, 0);	
+	int s = send(sd, TC &msg, 8, 0);	
 
 	// wait for reply 
-	s = recv(sd, &msg, 8, 0);
+	s = recv(sd, TC &msg, 8, 0);
 	LEN = b_endian_u32(msg.LEN); 	 
 
 if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ EVT: %i %i \n",s,LEN);
@@ -514,7 +575,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ EVT: %i %i \n",s,LEN);
 	    	hdr->AS.rawEventData = (uint8_t*)realloc(hdr->AS.rawEventData,LEN);
 		int count = 0; 
 		while (LEN>count) {
-			count += recv(sd, hdr->AS.rawEventData+count, LEN-count, 0);
+			count += recv(sd, TC hdr->AS.rawEventData+count, LEN-count, 0);
 		}
 	   	rawEVT2hdrEVT(hdr); // TODO: replace this function because it is inefficient  
    	}
@@ -555,13 +616,13 @@ int bscs_send_msg(int sd, char *mesg) {
 	msg.STATE = (BSCS_VERSION_01 | BSCS_SEND_MSG | BSCS_NO_ERROR) | SERVER_STATE;
 	msg.LEN   = b_endian_u32(LEN);
 
-	int s = send(sd, &msg, 8, 0);	
-	s = send(sd, mesg, LEN, 0);	
+	int s = send(sd, TC &msg, 8, 0);	
+	s = send(sd, TC mesg, LEN, 0);	
 	return(s); 
 }
 
+#if 0 // obsolete ? 
 int bscs_error(int sd, int ERRNUM, char* ERRMSG) {
-	// obsolete ? 
 	size_t len;
 	if (ERRMSG==NULL) len = 0; 
 	else len = strlen(ERRMSG); 
@@ -572,8 +633,8 @@ int bscs_error(int sd, int ERRNUM, char* ERRMSG) {
 	buf[6] = ERRNUM; 
 	memcpy(buf+7,ERRMSG,strlen(ERRMSG));
 	buf[7+len] = 0;	// terminating \0
-	int s = send(sd,buf,len+8, 0);	
+	int s = send(sd, TC buf,len+8, 0);	
 	free(buf);
 	return(s);  
 }
-
+#endif 
