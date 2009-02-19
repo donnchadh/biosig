@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.291 2009-02-18 12:38:35 schloegl Exp $
+    $Id: biosig.c,v 1.292 2009-02-19 21:02:50 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1680,19 +1680,23 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	getlogin_r(hdr->ID.Technician, MAX_LENGTH_TECHNICIAN); 
 	//hdr->ID.Technician[MAX_LENGTH_TECHNICIAN]=0;
 	
-//#if (!__MINGW32__ || (__GNUC__ > 3)) 
-#ifndef WITHOUT_NETWORK
-	///### FIXME for mingw32g++ on windows 
-
       	// set default IP address to local IP address  
 	char localhostname[HOST_NAME_MAX+1];
 
+#ifndef WITHOUT_NETWORK
+#ifdef _WIN32
+	WSADATA wsadata;
+	(WSAStartup(MAKEWORD(1,1), &wsadata);
+#endif
 	if (!gethostname(localhostname,HOST_NAME_MAX+1)) {
 		// TODO: replace gethostbyname by getaddrinfo (for IPv6) 
 		struct hostent *host = gethostbyname(localhostname); 
 		memcpy(hdr->IPaddr, host->h_addr, host->h_length);
 	}	
-#endif 
+#ifdef _WIN32		
+	WSACleanup();
+#endif
+#endif // not WITHOUT_NETWORK
 
 	hdr->Patient.Name[0] 	= 0; 
 	//hdr->Patient.Id[0] 	= 0; 
@@ -4157,16 +4161,22 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					hdr->T0 = tm_time2gdf_time(&t); 
 				}	
 				else if (!strcmp(line,"Recording.IPaddress")) {
-#ifndef WITHOUT_NETWORK
-					///### FIXME for mingw32g++ on windows 
-					struct hostent *host = gethostbyaddr(val,strlen(val),AF_INET);
-					if (host!=NULL) 
-						memcpy(hdr->IPaddr, host->h_addr, host->h_length);
-#endif 
 					/* ###FIXME: IPv6 are currently not supported.
 					 	gethostbyaddr will become obsolete, 
 					 	use getaddrinfo instead
 					*/						
+#ifndef WITHOUT_NETWORK
+#ifdef _WIN32
+					WSADATA wsadata;
+					WSAStartup(MAKEWORD(1,1), &wsadata);
+#endif
+					struct hostent *host = gethostbyaddr(val,strlen(val),AF_INET);
+					if (host!=NULL) 
+						memcpy(hdr->IPaddr, host->h_addr, host->h_length);
+#ifdef _WIN32		
+					WSACleanup();
+#endif
+#endif // not WITHOUT_NETWORK
 				}	
 				else if (!strcmp(line,"Recording.Technician"))
 					strncpy(hdr->ID.Technician,val,MAX_LENGTH_TECHNICIAN);
@@ -9059,7 +9069,7 @@ VERBOSE_LEVEL = V;
 		if (VERBOSE_LEVEL>7) {
 			fprintf(stdout,"sread 224 %i %i %i %i |",toffset*hdr->AS.bpb + bi8>>3, toffset, hdr->AS.bpb, bi8);
 			fprintf(stdout,"%i %i %i bpb=%i,k1=%i %i\n",toffset,start, hdr->AS.first,hdr->AS.bpb,k1,SZ );
-		}	
+		}
 
 		union {int16_t i16; uint16_t u16; uint32_t i32; float f32; uint64_t i64; double f64;} u; 
 
@@ -9071,7 +9081,7 @@ VERBOSE_LEVEL = V;
 
 //fprintf(stdout,"%i %i\n",hdr->AS.bpb*hdr->NRec,(k4+toffset)*hdr->AS.bpb + hdr->CHANNEL[k1].bi + (k5*SZ>>3));
 
-		size_t len = (k4+toffset)*hdr->AS.bpb + ((hdr->CHANNEL[k1].bi8 + k5*SZ)>>3);
+		size_t len = (k4+toffset)*hdr->AS.bpb + CHptr->bi + (k5*SZ)>>3;
 		ptr = hdr->AS.rawdata + len;
 
 //		if ((VERBOSE_LEVEL>7) && (k4==0))
