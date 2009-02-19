@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig-network.c,v 1.5 2009-02-18 12:44:41 schloegl Exp $
+    $Id: biosig-network.c,v 1.6 2009-02-19 21:05:27 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -22,6 +22,7 @@
  */
 
 //#include <math.h>
+#include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,24 +40,39 @@ char *B4C_HOSTNAME = NULL;
 uint32_t SERVER_STATE; // state of server, useful for preliminary error checking 
 
 
+/*
+	converts 64bit integer into hex string
+*/
 int c64ta(uint64_t ID, char *txt) {
-#if (__SIZEOF_INT__==4)
 	const char hex[] = "0123456789abcdef";
-	for (int k=0; k<16; k++) {
+	for (int k=(BSCS_ID_BITLEN>>2)-1; k>=0; k--) {
 		txt[k] = hex[ID & 0x0f]; 
 		ID>>=4;
-	}	
-//	fprintf(stdout,"c64ta8: %016lx.gdf\n",ID);
-	sprintf(txt,"%016Lx.gdf",ID);
-#else 
-//	fprintf(stdout,"c64ta9: %016Lx.gdf\n",ID);
-	sprintf(txt,"%016lx.gdf",ID);
-#endif
+	}
+	txt[BSCS_ID_BITLEN>>2] = 0;
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"c64ta: ID=%016lx TXT=%s\n",ID,txt);
 }
 
-int cat64(char* txt, uint64_t *ID) {
-	*ID = 0; 
-	sscanf(txt,"%16lx",ID);
+
+/*
+	converts hex string into 64bit integer 
+*/
+int cat64(char* txt, uint64_t *id) {
+	uint64_t ID = 0; 
+	for (int k = 0; txt[k] && (k<(BSCS_ID_BITLEN>>2));k++) {
+		ID<<=4; 
+		if (isdigit(txt[k]))
+			ID += txt[k]-'0';
+		else if (isxdigit(txt[k]))
+			ID += toupper(txt[k])-'A'+10;
+		else {
+			*id = -1;
+			return(-1);
+		}	 	
+	}
+	*id = ID;
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"cat64: ID=%016lx TXT=%s\n",ID,txt);
+	return(0);
 }
 
 
@@ -84,6 +100,14 @@ int bscs_connect(char* hostname) {
 
 	if (hostname==NULL) hostname = "129.27.3.99"; 
 	B4C_HOSTNAME = hostname; 
+
+#ifdef _WIN32
+	WSADATA wsadata;
+	if (WSAStartup(MAKEWORD(1,1), &wsadata) == SOCKET_ERROR) {
+		fprintf(stderr,"Error creating socket.");
+		return(BSCS_CANNOT_CONNECT);
+	}
+#endif
 	
 #if 0	// IPv4 and IPv6
 	int status;
@@ -391,28 +415,22 @@ int bscs_send_dat(int sd, void* buf, size_t len ) {
 
 if (VERBOSE_LEVEL>8) fprintf(stdout,"SND DAT %i %08x\n",len,msg.STATE); 
 
-	ssize_t s = send(sd, TC &msg, 8, 0);	
-	ssize_t count = 0;
-	while (count<len) {
-		s = send(sd, ((uint8_t*)buf)+count, len-count, 0);	
-		if (s<0) 
-			fprintf(stdout,"SND DAT ERR=%i %s\n",errno,strerror(errno));
-		else 
-			count += s; 
-if (VERBOSE_LEVEL>8) fprintf(stdout,"SND DAT %i %08x %i %i\n",len,msg.STATE,s,count); 
-	}	
+	ssize_t s;
+	s = send(sd, TC &msg, 8, 0);	
+	s = send(sd, TC buf, len, 0);	
+	if (errno) fprintf(stdout,"SND DAT ERR=%i %s\n",errno,strerror(errno));
 
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND DAT %i %08x %i \n",len,msg.STATE,s); 
 
 	// wait for reply 
-	count = recv(sd, TC &msg, 8, 0);
+	s = recv(sd, TC &msg, 8, 0);
 	LEN = b_endian_u32(msg.LEN);
 	SERVER_STATE = msg.STATE & STATE_MASK;
 
-if (VERBOSE_LEVEL>8) fprintf(stdout,"SND DAT RPLY %i %08x \n",count,msg.STATE); 
-
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND DAT RPLY %i %08x \n",s,msg.STATE); 
 
 	if ((LEN==0) && (msg.STATE==(BSCS_VERSION_01 | BSCS_SEND_DAT | BSCS_REPLY | STATE_OPEN_WRITE | BSCS_NO_ERROR)) ) 
-		// close without error 
+		// end without error 
 		return(0);
 
 	if (LEN>0) 
@@ -438,11 +456,11 @@ int bscs_send_evt(int sd, HDRTYPE *hdr) {
 	char flag;
 
 	size_t LEN;
-	mesg_t msg; 
+	mesg_t msg;
 
 	if ((hdr->EVENT.DUR!=NULL) && (hdr->EVENT.CHN!=NULL)) {
 		sze = 12; 
-		flag = 3; 
+		flag = 3;
 	} else {
 		sze = 6; 
 		flag = 1;
@@ -606,35 +624,3 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ EVT: %i %i \n",s,LEN);
 	return(0);    	
 }
 
-/****************************************************************************************
-	SEND MESSAGE 
- ****************************************************************************************/
-int bscs_send_msg(int sd, char *mesg) {
-	size_t LEN=strlen(mesg);
-	mesg_t msg; 
-
-	msg.STATE = (BSCS_VERSION_01 | BSCS_SEND_MSG | BSCS_NO_ERROR) | SERVER_STATE;
-	msg.LEN   = b_endian_u32(LEN);
-
-	int s = send(sd, TC &msg, 8, 0);	
-	s = send(sd, TC mesg, LEN, 0);	
-	return(s); 
-}
-
-#if 0 // obsolete ? 
-int bscs_error(int sd, int ERRNUM, char* ERRMSG) {
-	size_t len;
-	if (ERRMSG==NULL) len = 0; 
-	else len = strlen(ERRMSG); 
-	uint8_t* buf = (uint8_t*)malloc(6+2+len);
-	buf[0] = BSCS_VERSION; 	// version 
-	buf[1] = BSCS_ERROR; 
-	*(uint32_t*)(buf+4) = htonl(2+strlen(ERRMSG)); 	 
-	buf[6] = ERRNUM; 
-	memcpy(buf+7,ERRMSG,strlen(ERRMSG));
-	buf[7+len] = 0;	// terminating \0
-	int s = send(sd, TC buf,len+8, 0);	
-	free(buf);
-	return(s);  
-}
-#endif 
