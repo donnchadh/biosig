@@ -14,6 +14,7 @@ function [signal,H] = sload(FILENAME,varargin)
 %	'UCAL'			-		data uncalibrated (not scaled)
 %	'OVERFLOWDETECTION'	'On'		[default] 
 %				'Off'		no overflow detection 
+%	'OUTPUT'		'single'	single precision data [default: 'double'] 
 %	'NUMBER_OF_NAN_IN_BREAK'   N		inserts N NaN's between two concatanated segments
 %						default: N=100
 %	'SampleRate'		Fs		target sampling rate (supports resampling)
@@ -40,8 +41,8 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.93 2008-10-22 13:57:50 schloegl Exp $
-%	Copyright (C) 1997-2007,2008 by Alois Schloegl 
+%	$Id: sload.m,v 1.94 2009-02-19 16:47:36 schloegl Exp $
+%	Copyright (C) 1997-2007,2008,2009 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 %
@@ -69,6 +70,8 @@ STATE.UCAL = 0;
 STATE.OVERFLOWDETECTION = 1; 
 STATE.NUMBER_OF_NAN_IN_BREAK = 100; 
 STATE.EOG_CORRECTION = 0 ; 
+STATE.OUTPUT = 'double';
+
 Fs = NaN; 
 k = 1; 
 while (k<=length(varargin))
@@ -97,6 +100,11 @@ while (k<=length(varargin))
 			STATE.OVERFLOWDETECTION = varargin{k+1};
 		end;			
 		k=k+1;
+	elseif ~isempty(strfind(varargin{k},'OUTPUT:SINGLE'))
+		MODE = varargin{k}; 
+		STATE.OUTPUT = 'single';
+	elseif strcmpi(varargin{k},'OUTPUT')
+		STATE.OUTPUT = varargin{k+1};
 	elseif strcmpi(varargin{k},'EOG_CORRECTION')
 		if strcmpi(varargin{k+1},'on'); 
 			STATE.EOG_CORRECTION = 1;
@@ -157,25 +165,32 @@ if ((iscell(FILENAME) || isstruct(FILENAME))),
 			H = h;
 			signal = s;  
 			H.SegLen = [0,size(s,1)];
-                        H.EVENT.POS = [H.EVENT.POS; 0];
-                        H.EVENT.TYP = [H.EVENT.TYP; hex2dec('7ffe')];
-                        if isfield(H.EVENT,'CHN');
-                                H.EVENT.CHN = [H.EVENT.CHN; 0];
-                        end;
-                        if isfield(H.EVENT,'DUR');
-                                H.EVENT.DUR = [H.EVENT.DUR; size(s,1)];
-                        end;
-                        if isfield(H.EVENT,'Desc');	% TFM-Excel-Beat-to-Beat
-                                H.EVENT.Desc = [H.EVENT.Desc; {'New Segment'}; h.EVENT.Desc];
-                        end;
+                        %H.EVENT.POS = [H.EVENT.POS; 0];
+                        %H.EVENT.TYP = [H.EVENT.TYP; hex2dec('7ffe')];
+                        %if isfield(H.EVENT,'CHN');
+                        %        H.EVENT.CHN = [H.EVENT.CHN; 0];
+                        %end;
+                        %if isfield(H.EVENT,'DUR');
+                        %        H.EVENT.DUR = [H.EVENT.DUR; size(s,1)];
+                        %end;
+                        %if isfield(H.EVENT,'Desc');	% TFM-Excel-Beat-to-Beat
+                        %        H.EVENT.Desc = [H.EVENT.Desc; {'New Segment'}; h.EVENT.Desc];
+                        %end;
 		else
 			H.FILE(k) = h.FILE;
                         H.T0(k,1:6) = h.T0;
 			if ~isnan(h.SampleRate) && (H.SampleRate ~= h.SampleRate),
 				fprintf(2,'Warning SLOAD: sampling rates of multiple files differ %i!=%i.\n',H.SampleRate, h.SampleRate);
 			end;
+                        if size(s,2)==size(signal,2), %(H.NS == h.NS) 
+				signal = [signal; repmat(NaN,STATE.NUMBER_OF_NAN_IN_BREAK,size(s,2)); s];
+				H.SegLen = [H.SegLen,size(signal,1)];
+			else
+				error('ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
+			end;
+
                         if ~isempty(h.EVENT.POS),
-                                H.EVENT.POS = [H.EVENT.POS; size(signal,1); h.EVENT.POS+size(signal,1)];
+                                H.EVENT.POS = [H.EVENT.POS; size(signal,1); h.EVENT.POS+size(signal,1)-size(s,1)];
                                 H.EVENT.TYP = [H.EVENT.TYP; hex2dec('7ffe'); h.EVENT.TYP];
                                 if isfield(H.EVENT,'CHN');
         	                	H.EVENT.CHN = [H.EVENT.CHN; 0; h.EVENT.CHN];
@@ -188,12 +203,6 @@ if ((iscell(FILENAME) || isstruct(FILENAME))),
                                 end;
                         end;
 
-                        if size(s,2)==size(signal,2), %(H.NS == h.NS) 
-				signal = [signal; repmat(NaN,STATE.NUMBER_OF_NAN_IN_BREAK,size(s,2)); s];
-				H.SegLen = [H.SegLen,size(signal,1)];
-			else
-				error('ERROR SLOAD: incompatible channel numbers %i!=%i of multiple files\n',H.NS,h.NS);
-			end;
                         if ~isequal(H.Label,h.Label) || ~isequal(H.PhysDimCode,h.PhysDimCode)
 				warning('Labels and PhysDim of multiple files differ!\n');
                                 for k2 = 1:length(H.InChanSelect),
@@ -207,19 +216,21 @@ if ((iscell(FILENAME) || isstruct(FILENAME))),
 				error('SLOAD: concatanating uncalibrated data with different scaling factors does not make sense!');
                         end;
 
-                        if isfield(h,'TRIG'), 
-                                if ~isfield(H,'TRIG'),
-                                        H.TRIG = [];
-                                end;
-                                H.TRIG = [H.TRIG(:); h.TRIG(:)+size(signal,1)-size(s,1)];
-                        end;
-                        
                         if isfield(H,'TriggerOffset'),
                                 if H.TriggerOffset ~= h.TriggerOffset,
                                         fprintf(2,'Warning SLOAD: Triggeroffset %f does not fit.%f \n',H.TriggerOffset,h.TriggerOffset);
                                 end;
                         end;
-                        if isfield(H,'Classlabel'), 
+
+                        if isfield(h,'TRIG'), 
+                                if ~isfield(H,'TRIG'),
+                                        H.TRIG = [];
+                                end;
+                                H.TRIG = [H.TRIG(:); h.TRIG(:)+size(signal,1)-size(s,1)];
+                        else h.TRIG=[];        
+                        end;
+                        
+                        if isfield(h,'Classlabel'), 
 				if isfield(h,'ArtifactSelection'),
                                 	if (any(h.ArtifactSelection>1) || (length(h.ArtifactSelection) < length(h.Classlabel)))
                                         	sel = zeros(size(h.Classlabel));
@@ -237,6 +248,10 @@ if ((iscell(FILENAME) || isstruct(FILENAME))),
                                 	H.ArtifactSelection = [repmat(logical(0),length(H.Classlabel),1); h.ArtifactSelection(:)];
                                 end;
                                 H.Classlabel = [H.Classlabel(:); h.Classlabel(:)];
+                                
+                        elseif isfield(H,'Classlabel') && (length(h.TRIG)>0), 
+			        warning(sprintf('field classlabel missing in %s. This might corrupt the resulting classlabels!',h.FileName));
+
                         end;
 			clear s;
                 end;
@@ -313,6 +328,15 @@ if exist('mexSLOAD','file')==3,
 		H=HDR;
 		H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
 
+		if isfield(HDR,'Patient') && isfield(HDR.Patient,'Weight') && isfield(HDR.Patient,'Height')
+			%% Body Mass Index 
+       			HDR.Patient.BMI = HDR.Patient.Weight * HDR.Patient.Height^-2 * 1e4;
+
+		       	%% Body Surface Area
+			% DuBois D, DuBois EF. A formula to estimate the approximate surface area if height and weight be known. Arch Intern Medicine. 1916; 17:863-71.
+			% Wang Y, Moss J, Thisted R. Predictors of body surface area. J Clin Anesth. 1992; 4(1):4-10.
+		       	HDR.Patient.BSA = 0.007184 * HDR.Patient.Weight^0.425 * HDR.Patient.Height^0.725;
+		end; 
 
 		if strcmp(H.TYPE,'GDF');
                         % Classlabels according to 
@@ -544,7 +568,7 @@ else
 	global FLAG_HINT_mexSLOAD;
 	if isempty(FLAG_HINT_mexSLOAD) 
 		fprintf(1, 'Hint: the performance of SLOAD can be improved with mexSLOAD.mex which is part of biosig4c++.\n');
-		FLAG_HINT_mexSLOAD = 1;
+		FLAG_HINT_mexSLOAD = 1;	 	% turn off hint 
 	end;
 end;
 
@@ -561,6 +585,7 @@ if ~FlagLoaded,
 	H.FLAG.UCAL = STATE.UCAL;
 	H.FLAG.OVERFLOWDETECTION = STATE.OVERFLOWDETECTION;
 	H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
+	H.FLAG.OUTPUT = STATE.OUTPUT; 
 
 
 if strncmp(H.TYPE,'IMAGE:',5)
