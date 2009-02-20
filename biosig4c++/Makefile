@@ -1,7 +1,7 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.67 2009-02-16 16:59:33 schloegl Exp $
-###  Copyright (C) 2006,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
+###  $Id: Makefile,v 1.68 2009-02-20 09:22:06 schloegl Exp $
+###  Copyright (C) 2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
 ###
@@ -24,6 +24,7 @@ LINK          = $(CXX)
 LFLAGS        =
 #LIBS          = -lz  -lbiosig  	# dynamic
 LIBS          = libbiosig.a -lz -lgsl -lgslcblas -lm	# static
+#LIBS          = libbiosig.a -lws2_32 	# static
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
 
@@ -34,8 +35,8 @@ LIBTASN1      = $(TASN1_DIR).libs/libtasn1.a
 
 # MinGW Crosscompiler: compile on linux binaries for windows  
 MinGWCXX      = i586-mingw32msvc-g++ # 
-MinGWCFLAGS   = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT -D=WITHOUT_NETWORK
-MinGWLIBS     = win32/libbiosig.a -lz	# static
+MinGWCFLAGS   = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT
+MinGWLIBS     = win32/libbiosig.a -lws2_32 # static
 MinGWLINK     = i586-mingw32msvc-g++
 
 ####### Output directory
@@ -94,8 +95,8 @@ MinGWOBJECTS  = win32/biosig.obj \
 		win32/sopen_scp_write.obj \
 		win32/crc4scp.obj \
 		win32/sopen_hl7aecg.obj \
+		win32/biosig-network.obj \
 		win32/sandbox.obj 
-#		win32/biosig-network.obj \
 #		win32/zlib/lib/zdll.lib		
 
 TARGET        = save2gdf save2aecg save2scp libbiosig.a sigviewer mex #libbiosig.so 
@@ -178,10 +179,6 @@ tinyxmlerror.o: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h XMLParser/tinystr
 
 tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinyxmlparser.o XMLParser/tinyxmlparser.cpp
-
-physicalunits: physicalunits.c libbiosig.a
-	$(CXX) $(CXXFLAGS) physicalunits.c $(LFLAGS) $(LIBS) -o physicalunits
-
 
 ####### Build rules
 
@@ -277,8 +274,8 @@ win32/tinyxmlerror.obj: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h XMLParser
 win32/tinyxmlparser.obj: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinyxmlparser.obj XMLParser/tinyxmlparser.cpp
 
-win32/save2gdf.exe: save2gdf.c $(MinGWLIBS)  
-	$(MinGWCXX) $(MinGWCFLAGS) save2gdf.c $(LFLAGS) $(MinGWOBJECTS) -lws2_32 -o win32/save2gdf.exe 
+win32/save2gdf.exe: save2gdf.c 
+	$(MinGWCXX) $(MinGWCFLAGS) save2gdf.c  $(MinGWOBJECTS) $(MinGWLIBS) -o win32/save2gdf.exe 
 
 win32 exe: win32/save2gdf.exe
  
