@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig-network.c,v 1.6 2009-02-19 21:05:27 schloegl Exp $
+    $Id: biosig-network.c,v 1.7 2009-02-20 08:59:46 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -143,6 +143,7 @@ int bscs_connect(char* hostname) {
 			close(sd);
 #else
 			closesocket(sd);
+			WSACleanup();
 #endif
 			perror("client: connect");
 			continue;
@@ -451,7 +452,6 @@ int bscs_send_evt(int sd, HDRTYPE *hdr) {
 
 	if (SERVER_STATE != STATE_OPEN_WRITE) return(BSCS_ERROR);
 
-	size_t N = hdr->EVENT.N;
 	int sze;
 	char flag;
 

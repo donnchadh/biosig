@@ -1,5 +1,5 @@
 /*
-% $Id: biosig-network.h,v 1.2 2009-02-16 16:59:33 schloegl Exp $
+% $Id: biosig-network.h,v 1.3 2009-02-20 08:59:46 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -32,6 +32,32 @@
 
 #ifdef __WIN32__
 #include <winsock2.h>
+//#include <ws2tcpip.h>
+
+#ifndef socklen_t
+#define socklen_t int
+#endif
+
+#define EALREADY      WSAEALREADY    
+#define ECONNABORTED  WSAECONNABORTED
+#define ECONNREFUSED  WSAECONNREFUSED
+#define ECONNRESET    WSAECONNRESET  
+#define EHOSTDOWN     WSAEHOSTDOWN   
+#define EHOSTUNREACH  WSAEHOSTUNREACH
+#define EINPROGRESS   WSAEINPROGRESS 
+#define EISCONN       WSAEISCONN     
+#define ENETDOWN      WSAENETDOWN    
+#define ENETRESET     WSAENETRESET   
+#define ENETUNREACH   WSAENETUNREACH 
+#define EWOULDBLOCK   WSAEWOULDBLOCK 
+#define EADDRINUSE    WSAEADDRINUSE
+#define ENOTSUP       ENOSYS
+#define ETIMEDOUT     WSAETIMEDOUT
+#define ENOTSOCK      WSAENOTSOCK
+#define ENOBUFS       WSAENOBUFS
+#define EMSGSIZE      WSAEMSGSIZE
+#define EADDRNOTAVAIL WSAEADDRNOTAVAIL
+#define EPROTONOSUPPORT WSAEPROTONOSUPPORT
 
 #else 
 #include <arpa/inet.h>

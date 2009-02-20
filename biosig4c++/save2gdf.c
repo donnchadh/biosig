@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.54 2009-02-18 13:13:28 schloegl Exp $
+    $Id: save2gdf.c,v 1.55 2009-02-20 08:59:46 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -244,6 +244,7 @@ int main(int argc, char **argv){
    *********************************/
 
     	SOURCE_TYPE = hdr->TYPE;
+    	hdr->TYPE = TARGET_TYPE;
 
 	hdr->FILE.COMPRESSION=COMPRESSION_LEVEL;
 	if (COMPRESSION_LEVEL>0 && TARGET_TYPE==HL7aECG)	{
@@ -335,16 +336,16 @@ int main(int argc, char **argv){
 		fprintf(stdout,"[211] z=%i sd=%i\n",hdr->FILE.COMPRESSION,hdr->FILE.Des);
 
 	hdr->FLAG.ANONYMOUS = 1; 	// no personal names are processed 
-    	hdr->TYPE = TARGET_TYPE;
 
 	hdr = sopen(tmp, "wb", hdr);
 	if ((status=serror())) {
 		destructHDR(hdr);
 		exit(status); 
 	}	
+#ifndef WITHOUT_NETWORK
 	if (hdr->FILE.Des>0) 
 		savelink(source);
-
+#endif 
 	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"\n[221] File %s opened. %i %i %Li Des=%i\n",hdr->FileName,hdr->AS.bpb,hdr->NS,hdr->NRec,hdr->FILE.Des);
 

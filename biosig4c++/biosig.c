@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.293 2009-02-20 08:29:31 schloegl Exp $
+    $Id: biosig.c,v 1.294 2009-02-20 08:59:46 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1685,7 +1685,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 #ifndef WITHOUT_NETWORK
 #ifdef _WIN32
 	WSADATA wsadata;
-	(WSAStartup(MAKEWORD(1,1), &wsadata);
+	WSAStartup(MAKEWORD(1,1), &wsadata);
 #endif
 	if (!gethostname(localhostname,HOST_NAME_MAX+1)) {
 		// TODO: replace gethostbyname by getaddrinfo (for IPv6) 
@@ -2612,8 +2612,8 @@ int struct2gdfbin(HDRTYPE *hdr)
 	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=3 & Length of Tag 3
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"SOPEN(GDF)w: tag=%i,len=%i\n",tag,TagNLen[tag]);
 	     		memset(Header2+4,0,TagNLen[tag]);
-	     		size_t len = 0; 
-/*     			strcpy((char*)(Header2+4), hdr->ID.Manufacturer.Name);
+/*	     		size_t len = 0; 
+     			strcpy((char*)(Header2+4), hdr->ID.Manufacturer.Name);
 		     	if (hdr->ID.Manufacturer.Name != NULL) 	
 		     		len += strlen(hdr->ID.Manufacturer.Name);
      			strcpy((char*)(Header2+5+len), hdr->ID.Manufacturer.Model);
@@ -2626,13 +2626,15 @@ int struct2gdfbin(HDRTYPE *hdr)
 		     	if (hdr->ID.Manufacturer.SerialNumber != NULL)
 		     		len += strlen(hdr->ID.Manufacturer.SerialNumber);
 			Header2 += 4+TagNLen[tag];	
-*/	     	}
+*/
+	     	}
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw tag4\n");	     		
 
+/*
 	     	tag = 4;
 	     	if (TagNLen[tag]>0) {
-/*
+
 	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=4 & Length of Tag 4
 	     		Header2 += 4;
 	     		for (k=0; k<hdr->NS; k++) {
@@ -2642,7 +2644,8 @@ int struct2gdfbin(HDRTYPE *hdr)
 	     			*(float*)(Header2 + 4*k +12*hdr->NS) = l_endian_f32(hdr->CHANNEL[k].Area);
 	     		}
      			Header2 += 4*sizeof(float)*hdr->NS;
-*/	     	}
+	     	}
+*/
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw tag5\n");	     		
 
@@ -2677,7 +2680,7 @@ int struct2gdfbin(HDRTYPE *hdr)
 /****************************************************************************
        gdfbin2struct                                      
 	converts flat file into hdr structure 
-/****************************************************************************/
+ ****************************************************************************/
 int gdfbin2struct(HDRTYPE *hdr)
 {
     	unsigned int 	k,k1,k2;
@@ -2992,10 +2995,10 @@ int gdfbin2struct(HDRTYPE *hdr)
 		return(B4C_ERRNUM);
 }
 
-/*
+/*********************************************************************************
 	hdrEVT2rawEVT(HDRTYPE *hdr)
 	converts structure HDR.EVENT into raw event data (hdr->AS.rawEventData)  
-*/
+ *********************************************************************************/
 size_t hdrEVT2rawEVT(HDRTYPE *hdr) { 
 
 	size_t k32u; 
@@ -3041,10 +3044,10 @@ size_t hdrEVT2rawEVT(HDRTYPE *hdr) {
 	return(len); 
 }
 
-/*
+/*********************************************************************************
 	rawEVT2hdrEVT(HDRTYPE *hdr)
 	converts raw event data (hdr->AS.rawEventData) into structure HDR.EVENT 
-*/
+ *********************************************************************************/
 int rawEVT2hdrEVT(HDRTYPE *hdr) { 
 	// TODO: avoid additional copying 
 	size_t k; 
@@ -9296,7 +9299,7 @@ VERBOSE_LEVEL = V;
 		if ((VERBOSE_LEVEL>8) && (k5==0)) {
 //		if (VERBOSE_LEVEL>8) {
 			fprintf(stdout,"sread 226 ");
-			fprintf(stdout,"%i %i\n",hdr->AS.bpb*hdr->NRec,(k4+toffset)*hdr->AS.bpb + (bi8 + k5*SZ>>3));
+			fprintf(stdout,"%i %i\n",hdr->AS.bpb*hdr->NRec,(k4+toffset)*hdr->AS.bpb + (CHptr->bi8 + k5*SZ>>3));
 			fprintf(stdout,":s(1)=%f, NS=%d,[%d,%d,%d,%d SZ=%i, bpb=%i] %e %d %e\n",*(int16_t*)hdr->AS.rawdata,NS,k1,k2,k4,k5,SZ,hdr->AS.bpb,sample_value,(*(int16_t*)(ptr)),(*(float*)(ptr)));
 		}
 		
@@ -9525,7 +9528,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 #define MAX_UINT32 ((uint32_t)0xffffffff)
 #define MIN_UINT32 ((uint32_t)0)
 #define MAX_INT64  ((((uint64_t)1)<<63)-1)
-#define MIN_INT64  ((int64_t)(0x8000000000000000l))
+#define MIN_INT64  ((int64_t)((uint64_t)1)<<63)
 #define MAX_UINT64 ((uint64_t)0xffffffffffffffffl)
 #define MIN_UINT64 ((uint64_t)0)
 
