@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.292 2009-02-19 21:02:50 schloegl Exp $
+    $Id: biosig.c,v 1.293 2009-02-20 08:29:31 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -57,7 +57,6 @@
 #ifdef _WIN32
 #define FILESEP '\\'
 extern int getlogin_r(char* name, size_t namesize);
-//#define WITHOUT_NETWORK
 #include <winsock2.h>
 
 #else
@@ -1666,7 +1665,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = (gdf_time)0; 
       	hdr->tzmin = 0; 
-      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.79";
+      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.80";
       	hdr->ID.Manufacturer._field[0]    = 0;
       	hdr->ID.Manufacturer.Name         = " ";
       	hdr->ID.Manufacturer.Model        = " ";
@@ -4171,6 +4170,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					WSAStartup(MAKEWORD(1,1), &wsadata);
 #endif
 					struct hostent *host = gethostbyaddr(val,strlen(val),AF_INET);
+					// TODO: replace gethostbyaddr: getaddrinfo, getnameinfo()
 					if (host!=NULL) 
 						memcpy(hdr->IPaddr, host->h_addr, host->h_length);
 #ifdef _WIN32		
@@ -8167,9 +8167,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		free(tmpfile);		
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [290] %s %s\n",tmpfile,hdr->FileName);
-
-
     	}	
+
     	else if (hdr->TYPE==CFWB) {	
 	     	hdr->HeadLen = 68 + NS*96;
 	    	hdr->AS.Header = (uint8_t*)malloc(hdr->HeadLen);
@@ -9055,7 +9054,7 @@ VERBOSE_LEVEL = V;
 
 	if (VERBOSE_LEVEL>7) {
 		fprintf(stdout,"sread 223+ ");
-		fprintf(stdout," %i %i %i %i\n",k1,k2,hdr->NS,NS);
+		fprintf(stdout," %i %i %i %i %i\n",k1,k2,hdr->NS,NS,CHptr->bi);
 	}
 
 	if (CHptr->OnOff) {	/* read selected channels only */ 
@@ -9067,7 +9066,7 @@ VERBOSE_LEVEL = V;
 		uint8_t bitoff = 0;
 
 		if (VERBOSE_LEVEL>7) {
-			fprintf(stdout,"sread 224 %i %i %i %i |",toffset*hdr->AS.bpb + bi8>>3, toffset, hdr->AS.bpb, bi8);
+			fprintf(stdout,"sread 224 %i %i %i %i |",toffset*hdr->AS.bpb + CHptr->bi, toffset, hdr->AS.bpb, CHptr->bi8);
 			fprintf(stdout,"%i %i %i bpb=%i,k1=%i %i\n",toffset,start, hdr->AS.first,hdr->AS.bpb,k1,SZ );
 		}
 
@@ -9081,8 +9080,8 @@ VERBOSE_LEVEL = V;
 
 //fprintf(stdout,"%i %i\n",hdr->AS.bpb*hdr->NRec,(k4+toffset)*hdr->AS.bpb + hdr->CHANNEL[k1].bi + (k5*SZ>>3));
 
-		size_t len = (k4+toffset)*hdr->AS.bpb + CHptr->bi + (k5*SZ)>>3;
-		ptr = hdr->AS.rawdata + len;
+		size_t off = (k4+toffset)*hdr->AS.bpb + CHptr->bi + (k5*SZ>>3);
+		ptr = hdr->AS.rawdata + off;
 
 //		if ((VERBOSE_LEVEL>7) && (k4==0))
 //			fprintf(stdout,"sread 224 %p [%i %i %i %i] %i \n", ptr, k1, k2, k4, k5, len);
@@ -9301,8 +9300,6 @@ VERBOSE_LEVEL = V;
 			fprintf(stdout,":s(1)=%f, NS=%d,[%d,%d,%d,%d SZ=%i, bpb=%i] %e %d %e\n",*(int16_t*)hdr->AS.rawdata,NS,k1,k2,k4,k5,SZ,hdr->AS.bpb,sample_value,(*(int16_t*)(ptr)),(*(float*)(ptr)));
 		}
 		
-//		if (VERBOSE_LEVEL>7)			fprintf(stdout,"sread 229 \n");
-
 		}
 
 	}	
@@ -9479,312 +9476,6 @@ size_t gsl_sread(gsl_matrix* m, size_t start, size_t length, HDRTYPE* hdr) {
 #endif 
 
 
-#ifdef INCLUDE_EXPERIMENTAL_CODE 
-
-
-/****************************************************************************/
-/**	SREAD : 
-	the idea is to load data in smaller chunks, 
-	this could reduce the size of HDR.AS.rawdata.
-	this is still experiemental                                        **/
-/****************************************************************************/
-size_t sread1(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) {
-
-	size_t c=1,count=0,k,NS;
-
-
-	fprintf(stdout,"SREAD1(%i %i)\n",start,length);			
-
-	if (start!=hdr->FILE.POS) 
-		fprintf(stderr,"SREAD start and FILE.POS differ (%i!=%i)\n",start,hdr->FILE.POS);
-
-	// count number of selected channels 
-	for (k=0,NS=0; k<hdr->NS; ++k)
-		if (hdr->CHANNEL[k].OnOff) ++NS; 
-
-	size_t s;// = floor(start/hdr->SPR);
-	size_t e;// = ceil ((start+length)/hdr->SPR);
-	s = start; 
-	e = start+length;
-
-	if (data==NULL) 
-		data = (biosig_data_type*)malloc(NS*length*hdr->SPR*sizeof(biosig_data_type));
-
-	if (hdr->FLAG.ROW_BASED_CHANNELS) {
-		for (k=0; (c>0) && (k<length); k++) {
-fprintf(stdout,"r %i %i %i \n",k,c,count);			
-			c = sread(hdr->data.block + count*NS*hdr->SPR, start+count, min(length-count,ceil(512.0/hdr->SPR)), hdr);
-			count += c; 
-		}	
-		hdr->data.size[0] = NS;			// rows	
-		hdr->data.size[1] = hdr->SPR*count;	// columns 
-	}
-	else
-	{
-		free(hdr->data.block);
-		hdr->data.block = NULL;
-
-		for (k=0; (c>0) && (k<length); k++) {
-			c = sread(hdr->data.block, start+count, min(length-count,ceil(512.0/hdr->SPR)), hdr);
-fprintf(stdout,"c %i %i %i %i %i\n",k,c,count,hdr->data.size[0],hdr->data.size[1]);			
-			for (size_t k1=0; k1<hdr->data.size[0]; k1++) 
-			for (size_t k2=0; k2<hdr->data.size[1]; k2++) 
-			{
-				data[length*hdr->SPR*k2 + count*hdr->SPR + k1] = hdr->data.block[k2*hdr->data.size[0] + k1]; 		
-			}
-			count += c; 
-		}
-		free(hdr->data.block);
-		hdr->data.block = data;
-		hdr->data.size[0] = hdr->SPR*count;	// rows	
-		hdr->data.size[1] = NS;			// columns 
-	}		
-	
-	/* in order to avoid memory leaks need fixing */
-	//data     = data + NS*sizeof(biosig_data_type)*(start-s*hdr->SPR);
-	//count = count*hdr->SPR-start+s*hdr->SPR;
-	//hdr->FILE.POS2 += count;
-	return(count);
-
-}
-
-
-size_t loadBlockN(size_t k1, size_t k2, HDRTYPE* hdr) {
-	switch (hdr->TYPE) {
-	case ETG4000: 	
-	case HL7aECG: 		
-	case SCP_ECG: {
-		hdr->AS.rawdata_curblock = 0;	
-		hdr->AS.rawdata_nextblock = hdr->NRec;
-		break;
-		}
-	
-	default: {	
-	
-		if ( (k2>0) && (
-			(k1 < hdr->AS.rawdata_curblock)	|| 
-			((k1+k2) > hdr->AS.rawdata_nextblock) )
-		)
-		{
-			sseek(hdr,k1,SEEK_SET);
-			hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,k2*hdr->AS.bpb);
-
-			k2 = ifread(hdr->AS.rawdata,hdr->AS.bpb,k2,hdr);
-			hdr->AS.rawdata_curblock  = k1;	
-			hdr->AS.rawdata_nextblock = k1+k2;
-		}	
-	}}	
-	return(k2); 
-}
-
-size_t getNsamples(size_t p, size_t n, size_t k, HDRTYPE* hdr, biosig_data_type* buf, size_t off) {
-
-	biosig_data_type sample_value;
-	int32_t		int32_value;
-	CHANNEL_TYPE 	*CHptr = hdr->CHANNEL+k;
-	size_t 		DIV = hdr->SPR/CHptr->SPR;
-	uint16_t 	GDFTYP = CHptr->GDFTYP;
-	int16_t 	sz = GDFTYP_BYTE[GDFTYP];
-	size_t 		count=0, i, ix, lastix=-1;
-
-#if (__BYTE_ORDER == __BIG_ENDIAN)
-	char SWAP = hdr->FILE.LittleEndian;  
-#elif (__BYTE_ORDER == __LITTLE_ENDIAN)
-	char SWAP = !hdr->FILE.LittleEndian;  
-#endif
-	// char SWAP = hdr->FLAG.SWAP; 
-	
-	size_t pi = p  / hdr->SPR;
-	size_t pr = p  % hdr->SPR;
-	size_t si = (p+n)  / hdr->SPR;
-	size_t sr = (p+n)  % hdr->SPR;
-	size_t qi = pr / DIV;
-	size_t qr = pr % DIV;
-	loadBlockN(pi, 1, hdr);
-
-	for (i=0; i<n; ++i,++qr) {
-	
-		//pi = (p+i) / hdr->SPR;
-		//pr = (p+i) % hdr->SPR;
-		//qi = pr / DIV;
-		//qr = pr % DIV;
-		// same as above but without DIV and MOD operations
-		if (qr==DIV) {
-			qr = 0;
-			++qi;
-			pr += DIV;
-		}
-		if (pr==hdr->SPR) {
-			pr = 0;
-			++pi;
-			loadBlockN(pi, 1, hdr);
-		}
-
-		ix = (pi-hdr->AS.rawdata_curblock)*hdr->AS.bpb + hdr->CHANNEL[k].bi+qi*sz; 
-	
-		uint8_t *ptr = hdr->AS.rawdata + ix; 
-	
-		if (pi >= hdr->AS.rawdata_nextblock)
-			sample_value = NaN; 
-		else if (ix!=lastix) {
-			 // sample_value has not changed - no need to recompute 
-		if (SWAP)		
-		{
-
-			// mapping of raw data type to (biosig_data_type)
-			if (0); 
-			else if (GDFTYP==3) 
-				sample_value = (biosig_data_type)(int16_t)bswap_16(*(int16_t*)ptr); 
-			else if (GDFTYP==4)
-				sample_value = (biosig_data_type)bswap_16(*(uint16_t*)ptr); 
-			else if (GDFTYP==16) {
-				union {uint32_t i32; float f32;} u; 
-				u.i32 = bswap_32(*(uint32_t*)(ptr));
-				sample_value = (biosig_data_type)(u.f32);
-			}	
-			else if (GDFTYP==17) {
-				union {uint64_t i64; double f64;} u; 
-				u.i64 = bswap_64(*(uint64_t*)(ptr));
-				sample_value = (biosig_data_type)(u.f64);
-			}	
-			else if (GDFTYP==0)
-				sample_value = (biosig_data_type)(*(char*)ptr); 
-			else if (GDFTYP==1)
-				sample_value = (biosig_data_type)(*(int8_t*)ptr); 
-			else if (GDFTYP==2)
-				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
-			else if (GDFTYP==5)
-				sample_value = (biosig_data_type)bswap_32(*(int32_t*)ptr); 
-			else if (GDFTYP==6)
-				sample_value = (biosig_data_type)bswap_32(*(uint32_t*)ptr); 
-			else if (GDFTYP==7)
-				sample_value = (biosig_data_type)bswap_64(*(int64_t*)ptr); 
-			else if (GDFTYP==8)
-				sample_value = (biosig_data_type)bswap_64(*(uint64_t*)ptr); 
-			else if (GDFTYP==255+24) {
-				// assume LITTLE_ENDIAN platform
-				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
-				sample_value = (biosig_data_type)int32_value; 
-			}	
-			else if (GDFTYP==511+24) {
-				// assume LITTLE_ENDIAN platform
-				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
-				sample_value = (biosig_data_type)int32_value; 
-			}	
-			else {
-				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
-				B4C_ERRMSG = "Error SREAD: datatype not supported";
-				exit(-1);
-			}
-
-		} else {
-
-			// mapping of raw data type to (biosig_data_type)
-			if (0); 
-			else if (GDFTYP==3) 
-				sample_value = (biosig_data_type)(*(int16_t*)ptr); 
-			else if (GDFTYP==4)
-				sample_value = (biosig_data_type)(*(uint16_t*)ptr); 
-			else if (GDFTYP==16) 
-				sample_value = (biosig_data_type)(*(float*)(ptr));
-			else if (GDFTYP==17) 
-				sample_value = (biosig_data_type)(*(double*)(ptr)); 
-			else if (GDFTYP==0)
-				sample_value = (biosig_data_type)(*(char*)ptr); 
-			else if (GDFTYP==1)
-				sample_value = (biosig_data_type)(*(int8_t*)ptr); 
-			else if (GDFTYP==2)
-				sample_value = (biosig_data_type)(*(uint8_t*)ptr); 
-			else if (GDFTYP==5)
-				sample_value = (biosig_data_type)(*(int32_t*)ptr); 
-			else if (GDFTYP==6)
-				sample_value = (biosig_data_type)(*(uint32_t*)ptr); 
-			else if (GDFTYP==7)
-				sample_value = (biosig_data_type)(*(int64_t*)ptr); 
-			else if (GDFTYP==8)
-				sample_value = (biosig_data_type)(*(uint64_t*)ptr); 
-			else if (GDFTYP==255+24) {
-				// assume LITTLE_ENDIAN platform
-				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(int8_t*)(ptr+2)*(1<<16)); 
-				sample_value = (biosig_data_type)int32_value; 
-			}	
-			else if (GDFTYP==511+24) {
-				// assume LITTLE_ENDIAN platform
-				int32_value = (*(uint8_t*)(ptr)) + (*(uint8_t*)(ptr+1)<<8) + (*(uint8_t*)(ptr+2)<<16); 
-				sample_value = (biosig_data_type)int32_value; 
-			}	
-			else {
-				B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
-				B4C_ERRMSG = "Error SREAD: datatype not supported";
-				exit(-1);
-			}
-		}
-			++count;
-			// overflow and saturation detection 
-			if ((hdr->FLAG.OVERFLOWDETECTION) && ((sample_value<=CHptr->DigMin) || (sample_value>=CHptr->DigMax)))
-				sample_value = NaN; 	// missing value 
-			else if (!hdr->FLAG.UCAL)	// scaling 
-				sample_value = sample_value * CHptr->Cal + CHptr->Off;
-		}
-		lastix = ix; 
-		buf[i*off] = sample_value;
-	}	
-	return(count);  
-}
-
-/****************************************************************************/
-/**	SREAD : sample-based,
-	this is still experiemental                                        **/
-/****************************************************************************/
-size_t sread3(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) {
-
-	size_t count,k1,k2,NS,K=0;
-
-	fprintf(stdout,"SREAD2 is experimental\n",NS);
-
-	// count number of selected channels 
-	for (k1=0, NS=0; k1 < hdr->NS; ++k1)
-		if (hdr->CHANNEL[k1].OnOff) ++NS; 
-
-	if (VERBOSE_LEVEL>8)	
-		fprintf(stdout,"[312] %i\n",NS);
-
-	// transfer RAW into BIOSIG data format 
-	if (data==NULL) {
-		data = (biosig_data_type*) malloc(length * NS * sizeof(biosig_data_type));
-		hdr->data.size[0] = length;
-		hdr->data.size[1] = NS;
-	}	
-	hdr->data.block = data; 
-#ifdef ROW_BASED_CHANNELS
-	hdr->data.size[0] = NS;			// rows	
-	hdr->data.size[1] = length;		// columns 
-#else
-	hdr->data.size[0] = length;		// rows	
-	hdr->data.size[1] = NS;			// columns 
-#endif
-		
-	if (start!=hdr->FILE.POS) 
-		fprintf(stderr,"SREAD start and FILE.POS differ (%i!=%i)\n",start,hdr->FILE.POS);
-
-	for (k1=0,k2=0; k1<hdr->NS; ++k1)
-		if (hdr->CHANNEL[k1].OnOff) {
-#ifdef ROW_BASED_CHANNELS
-			count = getNsamples(start, length, k1, hdr, data + k2*hdr->data.size[0],1);
-#else
-			count = getNsamples(start, length, k1, hdr, data + k2,hdr->data.size[1]);
-#endif
-		++k2;
-		if (VERBOSE_LEVEL>8)	
-			fprintf(stdout,"[315] %i %i\n",k2,count);
-		}; 
-
-	hdr->FILE.POS += count;
-	return(count);
-}
-
-#endif 
-
 /****************************************************************************/
 /**                     SWRITE                                             **/
 /****************************************************************************/
@@ -9833,9 +9524,9 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 #define MIN_INT32  ((int32_t)0x80000000)
 #define MAX_UINT32 ((uint32_t)0xffffffff)
 #define MIN_UINT32 ((uint32_t)0)
-#define MAX_INT64  ((uint64_t)(ldexp(1.0,63)-1.0))
-#define MIN_INT64  ((int64_t)(-ldexp(1.0,63)))
-#define MAX_UINT64 ((uint64_t)0xffffffffffffffff)
+#define MAX_INT64  ((((uint64_t)1)<<63)-1)
+#define MIN_INT64  ((int64_t)(0x8000000000000000l))
+#define MAX_UINT64 ((uint64_t)0xffffffffffffffffl)
 #define MIN_UINT64 ((uint64_t)0)
 
 
