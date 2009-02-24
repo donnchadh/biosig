@@ -1,10 +1,16 @@
-function [V,d] = csp(ECM,Mode)
+function [V,d] = csp(ECM,arg2,arg3)
 % CSP computes common spatial patterns
 % 	this version supports multiple classes using a One-vs-Rest scheme
 %
 % [V] = csp(ECM)
+% [V] = csp(X,Y)
+% [V] = csp(...,Mode)
 %
 % ECM(k,:,:) is the extended covariance matrices (see COVM) for class k  
+% X,Y	are matrices of the two classes (one channel per column)
+%	the number of columns must be the same for X and Y
+% Mode  = 'CSP0' uses common diagonalization 
+%	= 'CSP3' solves generalized eigenvalue problem
 % V	each column represents one CSP component. 
 %
 % REFERENCES: 
@@ -26,12 +32,28 @@ function [V,d] = csp(ECM,Mode)
 % 	Volume 52,  Issue 9,  Sept. 2005 Page(s):1541 - 1548
 %	Digital Object Identifier 10.1109/TBME.2005.851521 
 
-%	$Id: csp.m,v 1.2 2008-10-02 13:28:44 schloegl Exp $
-%	Copyright (C) 2007 by Alois Schloegl <a.schloegl@ieee.org>
+%	$Id: csp.m,v 1.3 2009-02-24 16:37:02 schloegl Exp $
+%	Copyright (C) 2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>
 %	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
+Mode =[];
 sz = size(ECM); 
+if (length(sz)<3) && isnumeric(arg2),
+	X = ECM;
+	ECM = permute(cat(3,covm(X,'E'),covm(arg2,'E')),[3,1,2]);
+end; 
+sz = size(ECM); 
+if (nargin>1) && ischar(arg2)
+	Mode = arg2; 
+end; 
+if (nargin>1) && ischar(arg2)
+	Mode = arg3; 
+end; 
+if isempty(Mode),
+	Mode = 'CSP3';
+end; 	
 
+COV = zeros(size(ECM)-[0,1,1]);
 for k=1:sz(1),
   	[mu,sd,COV(k,:,:),xc,N,R2]=decovm(squeeze(ECM(k,:,:)));
 end; 
