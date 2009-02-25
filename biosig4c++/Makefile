@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.68 2009-02-20 09:22:06 schloegl Exp $
+###  $Id: Makefile,v 1.69 2009-02-25 15:17:04 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -14,8 +14,8 @@ CXX           = g++-4.1
 MEX	      = mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 #DEFINES      = -D=WITHOUT_SCP_DECODE
 DEFINES       = -D=WITH_ZLIB #-D=WITH_GSL #-D=WITH_ASN1 #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
-CFLAGS        = -g -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
-CXXFLAGS      = -g -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
+CFLAGS        = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
+CXXFLAGS      = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
 INCPATH       = 
 #LINK          = gcc
@@ -35,7 +35,7 @@ LIBTASN1      = $(TASN1_DIR).libs/libtasn1.a
 
 # MinGW Crosscompiler: compile on linux binaries for windows  
 MinGWCXX      = i586-mingw32msvc-g++ # 
-MinGWCFLAGS   = -pipe -g -fPIC -Wall -O2 -W -D_REENTRANT
+MinGWCFLAGS   = -pipe -fPIC -Wall -O2 -W -D_REENTRANT
 MinGWLIBS     = win32/libbiosig.a -lws2_32 # static
 MinGWLINK     = i586-mingw32msvc-g++
 
@@ -122,6 +122,9 @@ all:   $(TARGET) mex sigviewer biosig4python win32 biosig_client biosig_server
 
 .c.o:
 	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
+
+.cpp.obj:
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
 
 ####### Compile
