@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig_server.c,v 1.2 2009-02-14 23:16:10 schloegl Exp $
+    $Id: biosig_server.c,v 1.3 2009-02-27 09:23:58 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -20,9 +20,6 @@
     
 */
 
-// TODO: daemonize
-
-
 #include "biosig-network.h"
 
 #include <ctype.h>
@@ -32,9 +29,12 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <syslog.h>
 #include <sys/wait.h>
 #include <signal.h>
 
+
+char *LOGFILE = "/tmp/biosig/biosigd.log";
 
 /* 
 	Key ID table and related functions 
@@ -46,13 +46,6 @@ struct IDTABLE_T {
 } *IdTablePtr; 
 size_t IdTableLen; 
 
-
-#ifdef __GSL_RNG_H__
-gsl_rng *r; //random number generator 
-void free_rng() {
-	gsl_rng_free (r);
-}
-#endif 
 
 /*
 	compare uint32_t
@@ -77,19 +70,9 @@ uint64_t GetNewId() {
 	uint64_t c;
 	FILE *fid = fopen("/dev/urandom","r"); 
 	do {
-		if (fid !=  NULL) 
-			fread(&c,sizeof(c),1,fid); 
-#ifdef __GSL_RNG_H__
-		else 
-			c = (((uint64_t)gsl_rng_get(r))<<32)+gsl_rng_get (r);
-#else
-		else 
-			// now random generator
-			c++;					
-#endif
+		fread(&c,sizeof(c),1,fid); 
 	} while (bsearch(&c, IdTablePtr, IdTableLen, sizeof(IDTABLE_T), &u64cmp)); 
 	fclose(fid); 
-		
 		
 	k = IdTableLen; 
 	IdTableLen++; 
@@ -154,9 +137,9 @@ void sigchld_handler(int s)
 const char   path[] = "/tmp/biosig/\0                .gdf";
 void DoJob(int ns)
 {
-	char fullfilename[] = "/tmp/biosig/                .gdf";
-	const size_t pathlen = strlen(path); 
-	char *filename = fullfilename+pathlen;  
+		char fullfilename[] = "/tmp/biosig/                .gdf";
+		const size_t pathlen = strlen(path); 
+		char *filename = fullfilename+pathlen;  
 
 //    		size_t sizbuf = BSCS_MAX_BUFSIZ+8;
 		uint8_t inbuf[BSCS_MAX_BUFSIZ+8];
@@ -172,6 +155,12 @@ void DoJob(int ns)
 			fprintf(stdout,"## errno=%i %s\n",errno,strerror(errno));
 		}	 
 
+		/* Create a new SID for the child process */
+		pid_t sid = setsid();
+		if (sid < 0) {
+			exit(-1);
+		}
+
 		/*server identification */
 		const char *greeting="Hi: this is your experimental BioSig data archive server. \n It is useful for testing the BioSig client-server architecture.\n";
 		msg.STATE = BSCS_VERSION_01 | BSCS_SEND_MSG | STATE_INIT | BSCS_NO_ERROR;
@@ -186,6 +175,10 @@ void DoJob(int ns)
 	   		ssize_t count = recv(ns, &msg, 8, 0);
 			fprintf(stdout,"STATUS=%08x c=%i MSG=%08x len=%i,errno=%i %s\n",STATUS,count,b_endian_u32(msg.STATE),b_endian_u32(msg.LEN),errno,strerror(errno)); 
 			size_t  LEN = b_endian_u32(msg.LEN);  
+
+			FILE *fid = fopen(LOGFILE,"a");
+			fprintf(stdout,"STATUS=%08x c=%i MSG=%08x len=%i,errno=%i %s\n",STATUS,count,b_endian_u32(msg.STATE),b_endian_u32(msg.LEN),errno,strerror(errno)); 
+			fclose(fid); 
 
 
 	   		if (count==0) {
@@ -222,6 +215,7 @@ void DoJob(int ns)
 					ID = GetNewId(); 
 					c64ta(ID, filename); 
 					hdr = constructHDR(0,0);
+					hdr->FLAG.ANONYMOUS = 1; 	// do not store name 
 					STATUS = STATE_OPEN_WRITE_HDR; 
 					msg.STATE = BSCS_VERSION_01 | BSCS_OPEN_W | BSCS_REPLY | STATE_OPEN_WRITE_HDR;
 					msg.LEN = b_endian_u32(8);
@@ -235,6 +229,7 @@ void DoJob(int ns)
 
 					c64ta(ID, filename); 
 					// ToDo: replace SOPEN with simple function, e.g. access to event table not needed here 
+					hdr->FLAG.ANONYMOUS = 1; 	// do not store name 
 					hdr = sopen(fullfilename,"r",hdr);
 					msg.LEN = b_endian_u32(0);
 					if (hdr->FILE.OPEN==0) {
@@ -305,16 +300,15 @@ void DoJob(int ns)
 				hdr->HeadLen = LEN; 
 				count = 0; 
 				while (count<LEN) {
-fprintf(stdout,"SND HDR: c=%i,LEN=%i\n",count,LEN);				
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR: c=%i,LEN=%i\n",count,LEN);				
 					count += recv(ns, hdr->AS.Header+count, LEN-count, 0);
 				}
-fprintf(stdout,"SND HDR: LEN=%i\n",LEN,count);				
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR: LEN=%i\n",LEN,count);				
 
 				hdr->TYPE = GDF; 
-int V = VERBOSE_LEVEL;
-//	VERBOSE_LEVEL = 9;				
+				hdr->FLAG.ANONYMOUS = 1; 	// do not store name 
 				gdfbin2struct(hdr);
-	VERBOSE_LEVEL = V;
+
 				hdr->EVENT.N = 0; 
 				hdr->EVENT.POS = NULL; 
 				hdr->EVENT.TYP = NULL; 
@@ -329,7 +323,7 @@ int V = VERBOSE_LEVEL;
 				count=ifwrite(hdr->AS.Header, 1, hdr->HeadLen, hdr);
 				datalen = 0;
 
-fprintf(stdout,"SND HDR: count=%i\n",count);				
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR: count=%i\n",count);				
 	
 				if (errno) {	
 					// check for errors in gdfbin2struct, ifopen and ifwrite		
@@ -341,7 +335,7 @@ fprintf(stdout,"SND HDR: count=%i\n",count);
 					msg.STATE = BSCS_VERSION_01 | BSCS_SEND_HDR | BSCS_REPLY | STATE_OPEN_WRITE;
 				}	
 				msg.LEN = b_endian_u32(0);
-fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);				
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);				
 				s = send(ns, &msg, 8, 0);	
 			}
 
@@ -449,7 +443,7 @@ fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 			}
 
 			else if ((msg.STATE & CMD_MASK) ==  BSCS_SEND_MSG ) 
-			{	
+			{	// might become obsolet (?)
 				// ToDo: check corrupt packet
 				count = 0; 
 				ssize_t c=0;
@@ -558,23 +552,12 @@ fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 //int main (int argc, char *argv[]) {
 int main () {
 
-    	int sd, ns; 		
-    	socklen_t fromlen;
-    	int addrlen;
-   	struct sigaction sa;
+	int sd, ns; 		
+	socklen_t fromlen;
+	int addrlen;
+	struct sigaction sa;
 	time_t timer;	
-	char *LOGFILE = "/tmp/biosig/biosigd.log";
-
-
-#ifdef __GSL_RNG_H__
-	// initialize random generator 
-       	const gsl_rng_type * T;
-       	gsl_rng_env_setup();
-       	T = gsl_rng_default;
-       	r = gsl_rng_alloc (T);
-       	gsl_rng_set(r,time(NULL));
-       	atexit(&free_rng);
-#endif 
+	pid_t sid; 
 
 	fprintf(stdout,"01## errno=%i %s\n",errno,strerror(errno)); 
 	LoadIdTable(path); 
@@ -726,14 +709,28 @@ int main () {
 
 
 		FILE *fid = fopen(LOGFILE,"a");
-		fprintf(fid,"%s\t%s\n",t,dst); 
+		fprintf(fid,"%s\t%s\t%s\n",t,dst,hostname); 
 		fclose(fid); 
 		
 	        if (!fork()) { // this is the child process
 			close(sd); // child doesn't need the listener
 
+			/* Change the file mode mask */
+			umask(0);
+
+			/* Change the current working directory.  This prevents the current
+   			   directory from being locked; hence not being able to remove it. */
+			if ((chdir("/")) < 0) {
+				syslog( LOG_ERR, "unable to change directory to %s, code %d (%s)","/", errno, strerror(errno) );
+			        exit(-1);
+			}
+			    
+			/* Redirect standard files to /dev/null */
+			freopen( "/dev/null", "r", stdin);
+			freopen( "/dev/null", "w", stdout);
+			freopen( "/dev/null", "w", stderr);
+			
 			if (VERBOSE_LEVEL>7) fprintf(stdout,"server123 err=%i %s\n",errno,strerror(errno));
-//			bscs_send_msg(ns,"Hello Client - this is your server\n");
 
 			DoJob(ns);
 	
@@ -746,3 +743,8 @@ int main () {
     	close(sd);
     	exit(0);
 }
+
+
+
+
+
