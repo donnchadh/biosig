@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.33 2008-12-23 12:56:11 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.34 2009-02-27 09:17:47 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -287,8 +287,10 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			}
 		    }
 		    hc->OnOff = 1;
-      		    hc->SPR = hdr->SPR; 	    
+      		    hc->SPR = hdr->SPR;
+#ifndef NO_BI
 		    hc->bi = hdr->AS.bpb;
+#endif 
   		    hdr->AS.bpb += hc->SPR*GDFTYP_BITS[hc->GDFTYP]>>3;
  	    
 
@@ -679,6 +681,9 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 
     TiXmlText *digitsText;
 
+#ifdef NO_BI
+    size_t bi = 0; 
+#endif
     for(int i=0; i<hdr->NS; ++i)
     if (hdr->CHANNEL[i].OnOff)
     {
@@ -736,12 +741,16 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"967 %i\n",i);
 
+	size_t sz = GDFTYP_BITS[hdr->CHANNEL[i].GDFTYP]>>3;
 	for(unsigned int j=0; j<hdr->CHANNEL[i].SPR; ++j) {
-
-	    digitsStream << (*(int32_t*)(hdr->AS.rawdata + hdr->CHANNEL[i].bi + (j*GDFTYP_BITS[hdr->CHANNEL[i].GDFTYP]>>3))) << " ";
-//	    digitsStream << hdr->data.block[hdr->SPR*i + j] << " ";
+#ifndef NO_BI
+	    	digitsStream << (*(int32_t*)(hdr->AS.rawdata + hdr->CHANNEL[i].bi + (j*sz))) << 0x020;
 	}
-
+#else
+	    	digitsStream << (*(int32_t*)(hdr->AS.rawdata + bi + (j*sz))) << 0x020;
+	}
+	bi += hdr->CHANNEL[i].SPR*sz;
+#endif
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"970 %i\n",i);
 
 

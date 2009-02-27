@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.64 2008-12-23 12:56:11 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.65 2009-02-27 09:17:46 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -925,18 +925,14 @@ int sopen_SCP_read(HDRTYPE* hdr) {
 				hc->OnOff       = 1;    // 1: ON 0:OFF
 				hc->Transducer[0] = 0;
 				hc->GDFTYP      = gdftyp;  
-				hc->bi       = i*hdr->SPR*GDFTYP_BITS[gdftyp]>>3;  
-
-				// ### these values should represent the true saturation values ### //
+#ifndef NO_BI
+				hc->bi          = i*hdr->SPR*GDFTYP_BITS[gdftyp]>>3;  
+#endif 
+				// ### TODO: these values should represent the true saturation values ### //
 				hc->DigMax      = ldexp(1.0,20)-1;
 				hc->DigMin      = ldexp(-1.0,20);
 				hc->PhysMax     = hc->DigMax * hc->Cal;
 				hc->PhysMin     = hc->DigMin * hc->Cal;
-				
-				
-#ifndef WITHOUT_SCP_DECODE
-//				if (AS_DECODE > 0) continue; 
-#endif
 
 				en1064.Section6.inlen[i]    = leu16p(PtrCurSect+curSectPos+6+2*i);
 				if (en1064.FLAG.HUFFMAN) {
@@ -1191,10 +1187,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 	/* Fall back method: 
-
-
-
-
 
 		+ implements Huffman, reference beat and Bimodal compression. 
 		- uses piece-wise file access
