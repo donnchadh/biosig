@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig_client.c,v 1.4 2009-02-14 23:16:10 schloegl Exp $
+    $Id: biosig_client.c,v 1.5 2009-02-27 09:21:11 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -264,7 +264,7 @@ fprintf(stdout,"16 %i\n",hdr->EVENT.N);
 				if (fid==NULL) 
 					fprintf(stdout,"error: %i %s\n",errno, strerror(errno));		     		
 
-				fprintf(fid,"key4biosig: host=%s ID=%16Lx ",argv[1],ID);
+				fprintf(fid,"bscs://%s/%16Lx",argv[1],ID);
 				fclose(fid);
 
 				fprintf(stdout,"open_w  ID=%16Lx len=%i\n",ID,hdr->AS.length);
@@ -283,9 +283,6 @@ fprintf(stdout,"16 %i\n",hdr->EVENT.N);
 			     	sclose(hdr);
 			}     	 
 		}			
-		else 	
-			bscs_send_msg(sd,cmd);
-		
 	}	
 
     /*
