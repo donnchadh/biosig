@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig-network.c,v 1.7 2009-02-20 08:59:46 schloegl Exp $
+    $Id: biosig-network.c,v 1.8 2009-02-27 09:20:24 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -17,7 +17,6 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. 
-
 
  */
 
@@ -246,16 +245,19 @@ int savelink(const char* filename) {
 	int k=0; 
 	size_t sl = strlen(logfile);
 	FILE *fid;
+	// check whether file already exists 
 	while ((fid=fopen(logfile,"r"))>0) {
 		fclose(fid);
 		sprintf(tmp,".%i",k);
 		strcpy(logfile+sl,tmp);
 		k++;
 	}
+	errno = 0; 	// fopen caused errno=2; reset errno 
 	fid = fopen(logfile,"w");
-	fprintf(fid,"bscs://%s/%016Lx",B4C_HOSTNAME,B4C_ID);
+	fprintf(fid,"bscs://%s/%016lx",B4C_HOSTNAME,B4C_ID);
 	fclose(fid);
 	free(logfile);
+
 }
 
 
@@ -372,8 +374,8 @@ int bscs_send_hdr(int sd, HDRTYPE *hdr) {
 	size_t LEN;
 
 	hdr->TYPE = GDF;
+	hdr->FLAG.ANONYMOUS = 1; 	// do not store name 
 	LEN = struct2gdfbin(hdr); 
-	//hdr2ascii(hdr,stdout,3);
 
 	msg.STATE = BSCS_VERSION_01 | BSCS_SEND_HDR | STATE_OPEN_WRITE_HDR | BSCS_NO_ERROR;
 	msg.LEN   = b_endian_u32(hdr->HeadLen);
@@ -524,6 +526,7 @@ int bscs_requ_hdr(int sd, HDRTYPE *hdr) {
 
 if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ HDR: %i %s\n",count,GetFileTypeString(hdr->TYPE));
 	
+	hdr->FLAG.ANONYMOUS = 1; 	// do not store name 
 	gdfbin2struct(hdr); 
 	
 	
