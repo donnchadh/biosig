@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.70 2009-02-26 16:34:45 schloegl Exp $
+###  $Id: Makefile,v 1.71 2009-02-27 09:18:14 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -295,7 +295,7 @@ save2gdf: save2gdf.c libbiosig.a #libbiosig.so
 physicalunits: physicalunits.c libbiosig.a
 	$(CXX) $(CXXFLAGS) physicalunits.c $(LFLAGS) $(LIBS) -o physicalunits
 
-bscs: biosig_client biosig_server sandbox.o biosig.omake
+bscs: biosig_client biosig_server sandbox.o biosig.o 
 biosig_client: biosig_client.c libbiosig.a biosig-network.o 
 	$(CXX) $(CXXFLAGS) biosig_client.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_client
 
