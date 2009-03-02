@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.294 2009-02-20 08:59:46 schloegl Exp $
+    $Id: biosig.c,v 1.295 2009-03-02 13:46:55 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -32,7 +32,7 @@
 	- reading of ACQ, AINF, BKR, BrainVision, CNT, DEMG, EGI, ETG4000, MFER files 
 	
 	implemented functions: 
-	- SOPEN, 	SREAD, SWRITE, SCLOSE, SEOF, SSEEK, STELL, SREWIND 
+	- SOPEN, SREAD, SWRITE, SCLOSE, SEOF, SSEEK, STELL, SREWIND 
 	
 
 	References: 
@@ -9008,7 +9008,6 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 int V = VERBOSE_LEVEL;
 //VERBOSE_LEVEL = 9; 		
 	count = sread_raw(start, length, hdr, 0);
-//	count = sread_raw(0, hdr->NRec, hdr);
 	
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"sread 222 %i=?=%i  %i=?=%i \n",(int)start,(int)hdr->AS.first,(int)(start+count),(int)hdr->AS.length);
@@ -9029,10 +9028,10 @@ VERBOSE_LEVEL = V;
 		fprintf(stdout,"SREAD: count=%i pos=[%i,%i,%i,%i], size of data = %ix%ix%ix%i = %i\n",(int)count,(int)start,(int)length,(int)POS,hdr->FILE.POS,(int)hdr->SPR, (int)count, (int)NS, sizeof(biosig_data_type), (int)(hdr->SPR * count * NS * sizeof(biosig_data_type)));
 
 	// transfer RAW into BIOSIG data format 
-	if (data==NULL)
-		data = (biosig_data_type*) malloc(hdr->SPR * count * NS * sizeof(biosig_data_type));
-		
-	hdr->data.block = data; 
+	if (data==NULL) {
+		data = (biosig_data_type*) realloc(hdr->data.block, hdr->SPR * count * NS * sizeof(biosig_data_type));
+		hdr->data.block = data; 
+	}	
 
 	char ALPHA12BIT = (hdr->TYPE==alpha) && (hdr->NS>0) && (hdr->CHANNEL[0].GDFTYP==(255+12));
 #if (__BYTE_ORDER == __BIG_ENDIAN)
@@ -9050,7 +9049,6 @@ VERBOSE_LEVEL = V;
 
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"sread 223 alpha12bit=%i SWAP=%i spr=%i\n",ALPHA12BIT,SWAP,hdr->SPR);
-
 
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
@@ -9074,7 +9072,6 @@ VERBOSE_LEVEL = V;
 		}
 
 		union {int16_t i16; uint16_t u16; uint32_t i32; float f32; uint64_t i64; double f64;} u; 
-
 
 		// TODO:  MIT data types  
 		for (k4 = 0; k4 < count; k4++)
@@ -9290,10 +9287,10 @@ VERBOSE_LEVEL = V;
 		// resampling 1->DIV samples
 		if (hdr->FLAG.ROW_BASED_CHANNELS) {
 			for (k3=0; k3 < DIV; k3++) 
-				hdr->data.block[k2 + (k4*hdr->SPR + k5*DIV + k3)*NS] = sample_value; // row-based channels 
+				data[k2 + (k4*hdr->SPR + k5*DIV + k3)*NS] = sample_value; // row-based channels 
 		} else {
 			for (k3=0; k3 < DIV; k3++) 
-				hdr->data.block[k2*count*hdr->SPR + k4*hdr->SPR + k5*DIV + k3] = sample_value; // column-based channels 
+				data[k2*count*hdr->SPR + k4*hdr->SPR + k5*DIV + k3] = sample_value; // column-based channels 
 		}
 
 		if ((VERBOSE_LEVEL>8) && (k5==0)) {
@@ -9334,10 +9331,10 @@ VERBOSE_LEVEL = V;
 					// sparsely sampled channels are stored in event table
 					if (hdr->FLAG.ROW_BASED_CHANNELS) {
 						for (k5 = 0; k5 < hdr->SPR*count; k5++)
-							hdr->data.block[k2 + k5*NS] = NaN;		// row-based channels 
+							data[k2 + k5*NS] = NaN;		// row-based channels 
 					} else {
 						for (k5 = 0; k5 < hdr->SPR*count; k5++)
-							hdr->data.block[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
+							data[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
 					}
 				}
 				k2++;
@@ -9357,9 +9354,9 @@ VERBOSE_LEVEL = V;
 		if (hdr->CHANNEL[k2].SPR==0) {
 			for (k5 = 0; k5 < hdr->SPR*count; k5++)
 			if (hdr->FLAG.ROW_BASED_CHANNELS) 
-				hdr->data.block[k2 + k5*NS] = NaN;		// row-based channels 
+				data[k2 + k5*NS] = NaN;		// row-based channels 
 			else 	
-				hdr->data.block[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
+				data[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
 
 			k2++;
 		}
@@ -9426,10 +9423,10 @@ VERBOSE_LEVEL = V;
 			k5  = (hdr->EVENT.POS[k1]/c - POS)*hdr->SPR;
 			if (hdr->FLAG.ROW_BASED_CHANNELS) {
 				for (k3=0; k3 < DIV; k3++) 
-					hdr->data.block[k2 + (k5 + k3)*NS] = sample_value; 
+					data[k2 + (k5 + k3)*NS] = sample_value; 
 			} else {
 				for (k3=0; k3 < DIV; k3++) 
-					hdr->data.block[k2 * count * hdr->SPR + k5 + k3] = sample_value; 
+					data[k2 * count * hdr->SPR + k5 + k3] = sample_value; 
 			}
 			
 		if (VERBOSE_LEVEL>7) 
@@ -9445,9 +9442,9 @@ VERBOSE_LEVEL = V;
 		for (k2=0; k2<NS; k2++) {
 			for (k5 = spr - POS*hdr->SPR; k5 < hdr->SPR*count; k5++)
 			if (hdr->FLAG.ROW_BASED_CHANNELS) 
-				hdr->data.block[k2 + k5*NS] = NaN;		// row-based channels 
+				data[k2 + k5*NS] = NaN;		// row-based channels 
 			else 	
-				hdr->data.block[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
+				data[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
 		}
 	}
 

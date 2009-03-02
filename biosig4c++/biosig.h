@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.137 2009-02-18 14:01:13 schloegl Exp $
+% $Id: biosig.h,v 1.138 2009-03-02 13:46:55 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -19,6 +19,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. 
     
  */
+
+
+/* test whether HDR.CHANNEL[].{bi,bi8} can be replaced, reduction of header size by about 3% 
+   currently this is not working, because FAMOS seems to need it. 	
+//#define NO_BI 
+*/ 
+
 
 /* External API definitions */
 
@@ -218,9 +225,10 @@ typedef struct {
 	
 	uint16_t 	GDFTYP 		ATT_ALI;	/* data type */
 	uint32_t 	SPR 		ATT_ALI;	/* samples per record (block) */
+#ifndef NO_BI
 	uint32_t	bi 		ATT_ALI;	/* start byte (byte index) of channel within data block */
 	uint32_t	bi8 		ATT_ALI;	/* start bit  (bit index) of channel within data block */
-	
+#endif	
 } CHANNEL_TYPE	ATT_ALI;
 
 
@@ -410,11 +418,12 @@ int 	sclose(HDRTYPE* hdr);
 size_t	sread(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
 /*	LEN data segments are read from file associated with hdr, starting from 
 	segment START. The data is copied into DATA; if DATA == NULL, a 
-	sufficient amount of memory is allocated; otherwise, it's assumed 
-	that sufficient memory is already allocated. 
-	Only those channels with (hdr->CHANNEL[].OnOff != 0) are read. 
-	In total, LEN*hdr->SPR*hdr->NS samples are read and stored in 
+	sufficient amount of memory is allocated, and the pointer to the data 
+	is available in hdr->data.block. 
+
+	In total, LEN*hdr->SPR*NS samples are read and stored in 
 	data type of biosig_data_type (currently double). 
+	NS is the number of channels with non-zero hdr->CHANNEL[].OnOff. 
 	The number of successfully read data blocks is returned.
 
  	A pointer to the data block is also available from hdr->data.block, 
