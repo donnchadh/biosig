@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.71 2009-02-27 09:18:14 schloegl Exp $
+###  $Id: Makefile,v 1.72 2009-03-03 11:46:57 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -26,6 +26,7 @@ LIBS          = libbiosig.a -lz -lgsl -lgslcblas -lm	# static
 #LIBS         = libbiosig.a -lws2_32 win32/libzdll.a	# static, for windows 
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
+COPY          = cp
 
 SWIG          = swig
 PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
@@ -95,13 +96,13 @@ MinGWOBJECTS  = win32/biosig.obj \
 		win32/crc4scp.obj \
 		win32/sopen_hl7aecg.obj \
 		win32/biosig-network.obj \
-		win32/sandbox.obj 
-#		win32/zlib/lib/zdll.lib		
+		win32/sandbox.obj \
+		win32/zlib/lib/zdll.lib		
 
-TARGET        = save2gdf save2aecg save2scp libbiosig.a sigviewer mex #libbiosig.so 
+TARGET        = save2gdf save2aecg save2scp libbiosig.a mex #libbiosig.so 
 
 first: $(TARGET)
-all:   $(TARGET) mex sigviewer biosig4python win32 biosig_client biosig_server
+all:   $(TARGET) mex biosig4python win32 sigviewer biosig_client biosig_server
 
 ####### Implicit rules
 
@@ -219,14 +220,13 @@ win32/zlib/include/zlib.h: win32/zlib
 	touch --reference=win32/zlib win32/zlib/include/zlib.h
 
 win32/libzdll.a: win32/zlib/lib/zdll.lib
-	cp win32/zlib/lib/zdll.lib win32/libzdll.a
+	$(COPY) win32/zlib/lib/zdll.lib win32/libzdll.a
 	
 win32/biosig.obj: biosig.c biosig-dev.h biosig.h win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/biosig.obj biosig.c
 
 win32/libbiosig.a: $(MinGWOBJECTS) win32/libzdll.a
-	i586-mingw32msvc-$(AR) win32/libbiosig.a $(MinGWOBJECTS) 
-	
+	i586-mingw32msvc-$(AR) win32/libbiosig.a $(MinGWOBJECTS) win32/libzdll.a
 	
 win32/physicalunits.obj: physicalunits.c biosig.h  win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/physicalunits.obj physicalunits.c
@@ -311,10 +311,10 @@ mexSLOAD: mexSLOAD.mexa64
 mexSOPEN: mexSOPEN.mexa64
 mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.a
 	$(MEX) mexSLOAD.cpp  $(LIBS) 
-	cp mexSLOAD.mexa64 ../biosig/t200/
+	$(COPY) mexSLOAD.mexa64 ../biosig/t200/
 mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.a
 	$(MEX) -DmexSOPEN mexSLOAD.cpp  $(LIBS) -output mexSOPEN
-	cp mexSOPEN.mexa64 ../biosig/t200/
+	$(COPY) mexSOPEN.mexa64 ../biosig/t200/
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex 
@@ -333,12 +333,9 @@ mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
 
 sigviewer: ../sigviewer/bin/sigviewer 
 	make -C ../sigviewer/src  
-../sigviewer/bin/sigviewer: libbiosig.a
-	# symbolic link to latest biosig4c
-	rm -rf ../sigviewer/extern/biosig.h
-	ln -s ../../biosig4c++/biosig.h ../sigviewer/extern/
-	rm ../sigviewer/extern/libbiosig.a
-	ln -s ../../biosig4c++/libbiosig.a ../sigviewer/extern/
+../sigviewer/bin/sigviewer: libbiosig.a biosig.h
+	$(COPY) -l biosig.h ../sigviewer/extern/
+	$(COPY) -l libbiosig.a ../sigviewer/extern/
 	touch ../sigviewer/tmp/basic_header.o
 	make -C ../sigviewer/src  
 	
@@ -445,14 +442,14 @@ remove:
 	unzip -u /tmp/scp_redredc.zip -d /tmp/scp/redredc
 	rm -rf /tmp/ECGsamples*.zip 
 	rm -rf /tmp/scp*.zip 
-	cp /tmp/scp/redred/PFE103.scp /tmp/t1.scp
+	$(COPY) /tmp/scp/redred/PFE103.scp /tmp/t1.scp
 	touch /tmp/t1.scp
 
 /tmp/t1.hl7:
 	# HL7aECG example data set
 	wget -q -P/tmp http://hl7.org/library/committees/rcrim/annecg/aECG%20Release%201%20Schema%20and%20Example%2Ezip
 	unzip -u "/tmp/aECG Release 1 Schema and Example.zip"  -d /tmp
-	cp "/tmp/2003-12 Schema/example/Example aECG.xml" /tmp/t1.hl7
+	$(COPY) "/tmp/2003-12 Schema/example/Example aECG.xml" /tmp/t1.hl7
 	rm -rf "/tmp/aECG Release 1 Schema and Example.zip"
 	rm -rf "/tmp/2003-12 Schema"
 	touch /tmp/t1.hl7
@@ -545,9 +542,9 @@ zip: /tmp/t1.scp save2gdf
 	./save2gdf -f=CFW /tmp/t1.scp.gz t1.cfw
 
 test6: /tmp/t1.scp save2gdf
-	cp /tmp/t1.scp t0.xxx
+	$(COPY) /tmp/t1.scp t0.xxx
 	#test7: /tmp/t1.edf save2gdf
-	#cp /tmp/t1.edf t0.xxx
+	#$(COPY) /tmp/t1.edf t0.xxx
 	./save2gdf -z -f=GDF1 t0.xxx t1.gd1
 	./save2gdf -z -f=GDF t0.xxx t1.gdf
 	./save2gdf -z -f=EDF t0.xxx t1.edf
