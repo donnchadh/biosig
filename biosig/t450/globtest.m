@@ -1,5 +1,5 @@
-function [p] = glob(Input,n1,samp,varargin)
-% The function glob performs different global tests. A global test provides one
+function [p] = globtest(Input,n1,samp,varargin)
+% GLOBTEST performs different global tests. A global test provides one
 % joint statement on all endpoints, i.e. the global hypotheses is testing. 
 % This function returns the corresponding p-value.
 % 
@@ -19,7 +19,7 @@ function [p] = glob(Input,n1,samp,varargin)
 %           independent sample  'indept' (n1 < n)
 %-----
 %
-%   [...] = glob(...,'PARAM1',VAL1,'PARAM2',VAL2,...) specifies additional
+%   [...] = globtest(...,'PARAM1',VAL1,'PARAM2',VAL2,...) specifies additional
 %   parameters and their values.  Valid parameters are the following:
 %   
 %    Parameter        Value  
@@ -56,7 +56,7 @@ function [p] = glob(Input,n1,samp,varargin)
 %
 % OUTPUT
 %
-% [p] = glob(Input,n1,samp) returns the p-value of the global test.
+% [p] = globtest(Input,n1,samp) returns the p-value of the global test.
 %
 %-----------
 %
@@ -308,4 +308,4 @@ disp(sprintf('\nResult (p-value):'));
 
 
 
-%end function[p] = glob(Input,n1,samp,varargin)
+%end function[p] = globtest(Input,n1,samp,varargin)

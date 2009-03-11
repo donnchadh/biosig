@@ -4,7 +4,7 @@
 %  FDR.M	false discovery rate
 %  FDP.M	false discovery proportion 
 %  gFWE.M	generalized familiy-wise error 
-%  GLOB.M	global hypothesis test
+%  GLOBTEST.M	global hypothesis test
 %
 % === UTILITY FUNCTIONS === 
 %    --- do not use them directly if you not know what to do. At least you are warned --- 
@@ -19,7 +19,7 @@
 %	J Neurosci Methods. 2004 Oct 15;139(1):111-20. 
 %
 
-%	$Id: Contents.m,v 1.1 2007-02-05 17:11:21 schloegl Exp $
+%	$Id: Contents.m,v 1.2 2009-03-11 15:53:37 schloegl Exp $
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
