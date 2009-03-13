@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.295 2009-03-02 13:46:55 schloegl Exp $
+    $Id: biosig.c,v 1.296 2009-03-13 16:16:57 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -3033,7 +3033,7 @@ size_t hdrEVT2rawEVT(HDRTYPE *hdr) {
 		*(uint32_t*)(buf1+k32u*4) = l_endian_u32(hdr->EVENT.POS[k32u]); 
 		*(uint16_t*)(buf2+k32u*2) = l_endian_u16(hdr->EVENT.TYP[k32u]); 
 	}
-	if (flag==3) {	
+	if (flag) {	
 		buf1 = hdr->AS.rawEventData+8+hdr->EVENT.N*6;
 		buf2 = hdr->AS.rawEventData+8+hdr->EVENT.N*8;
 		for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
@@ -3079,7 +3079,7 @@ int rawEVT2hdrEVT(HDRTYPE *hdr) {
 			uint8_t *buf2 = hdr->AS.rawEventData+8+4*hdr->EVENT.N; 
 			for (k=0; k < hdr->EVENT.N; k++) {
 				hdr->EVENT.POS[k] = leu32p(buf1 + k*4); 
-				hdr->EVENT.TYP[k] = leu32p(buf2 + k*2); 
+				hdr->EVENT.TYP[k] = leu16p(buf2 + k*2); 
 			}
 			if (buf[0]>1) {
 				hdr->EVENT.DUR = (uint32_t*) realloc(hdr->EVENT.DUR,hdr->EVENT.N*sizeof(*hdr->EVENT.DUR));
@@ -3088,7 +3088,7 @@ int rawEVT2hdrEVT(HDRTYPE *hdr) {
 				buf1 = hdr->AS.rawEventData+8+6*hdr->EVENT.N; 
 				buf2 = hdr->AS.rawEventData+8+8*hdr->EVENT.N; 
 				for (k=0; k < hdr->EVENT.N; k++) {
-					hdr->EVENT.CHN[k] = leu32p(buf1 + k*2); 
+					hdr->EVENT.CHN[k] = leu16p(buf1 + k*2); 
 					hdr->EVENT.DUR[k] = leu32p(buf2 + k*4); 
 				}
 			}
@@ -7103,6 +7103,7 @@ fprintf(stdout,"ASN1 [491]\n");
 		return(hdr); 	
 	}
 
+
 	else if (hdr->TYPE==SCP_ECG) {
 		hdr->HeadLen   = leu32p(hdr->AS.Header+2);
 		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
@@ -9463,13 +9464,21 @@ VERBOSE_LEVEL = V;
 size_t gsl_sread(gsl_matrix* m, size_t start, size_t length, HDRTYPE* hdr) {
 /* 	same as sread but return data is of type gsl_matrix
 */
-        size_t count = sread(m->data, start, length, hdr);
+	// TODO: testing 
+
+        size_t count = sread(NULL, start, length, hdr);
+	size_t n = hdr->data.size[0]*hdr->data.size[1];
+
+	if (m->owner && m->block) gsl_block_free(m->block->data);
+	m->block = gsl_block_alloc(n);	
+	m->block->data = hdr->data.block; 
 
 	m->size1 = hdr->data.size[1];
 	m->tda   = hdr->data.size[1];
 	m->size2 = hdr->data.size[0];
-	m->data  = hdr->data.block;
-	m->owner = 0; 
+	m->data  = m->block->data; 
+	m->owner = 1; 
+	hdr->data.block = NULL; 	
 	
 	return(count); 
 }
@@ -9937,7 +9946,9 @@ int sclose(HDRTYPE* hdr)
 
 		if ((hdr->TYPE==GDF) && (hdr->EVENT.N>0)) {
 
+fprintf(stdout,"sclose #242 %04x %i %i %i\n",hdr->EVENT.TYP[242],hdr->EVENT.POS[242],hdr->EVENT.CHN[242],hdr->EVENT.DUR[242]);
 			size_t len = hdrEVT2rawEVT(hdr);
+fprintf(stdout,"sclose #242 %i %i \n",*(uint16_t*)(hdr->AS.rawEventData+8+hdr->EVENT.N*6+242*2),*(uint32_t*)(hdr->AS.rawEventData+8+hdr->EVENT.N*8+242*4));
 			ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
 			ifwrite(hdr->AS.rawEventData, len, 1, hdr);
 
