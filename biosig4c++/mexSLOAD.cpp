@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.49 2009-01-19 15:36:33 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.50 2009-03-13 16:17:54 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+//#define VERBOSE_LEVEL  9 
 //#define DEBUG
 
 void mexFunction(
@@ -42,6 +43,9 @@ void mexFunction(
 	double		*ChanList=NULL;
 	int		NS = -1;
 	char		FlagOverflowDetection=1, FlagUCAL=0;
+
+// ToDO: output single data 
+//	mxClassId	FlagMXclass=mxDOUBLE_CLASS;
 	
 
 	if (nrhs<1) {
@@ -59,10 +63,12 @@ void mexFunction(
 		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'OVERFLOWDETECTION:OFF')\n");
 		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'UCAL:ON')\n");
 		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'UCAL:OFF')\n\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'OUTPUT:SINGLE')\n\n");
 		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'TARGETSEGMENT:<N>')\n\n");
 		mexPrintf("   Input:\n\tf\tfilename\n");
 		mexPrintf("\tchan\tlist of selected channels; 0=all channels [default]\n");
 		mexPrintf("\tUCAL\tON: do not calibrate data; default=OFF\n");
+//		mexPrintf("\tOUTPUT\tSINGLE: single precision; default='double'\n");
 		mexPrintf("\tOVERFLOWDETECTION\tdefault = ON\n\t\tON: values outside dynamic range are not-a-number (NaN)\n");
 		mexPrintf("\tTARGETSEGMENT:<N>\n\t\tselect segment <N> in multisegment files (like Nihon-Khoden), default=1\n\t\tIt has no effect for other data formats.");
 		mexPrintf("   Output:\n\ts\tsignal data, each column is one channel\n");
@@ -118,6 +124,8 @@ void mexFunction(
 				FlagUCAL = 1;
 			else if (!strcmp(mxArrayToString(prhs[k]),"UCAL:OFF"))
 				FlagUCAL = 0;
+//			else if (!strcmp(mxArrayToString(prhs[k]),"OUTPUT:SINGLE"))
+//				FlagMXclass = mxSINGLE_CLASS;
 			else if (!strncmp(mxArrayToString(prhs[k]),"TARGETSEGMENT:",14))
 				TARGETSEGMENT = atoi(mxArrayToString(prhs[k])+14);
 		}
@@ -134,6 +142,9 @@ void mexFunction(
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[101] SOPEN-R start\n");
 	hdr = sopen(FileName, "r", hdr);
+
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stderr,"[102]\n");
 
 	if (hdr->FLAG.OVERFLOWDETECTION != FlagOverflowDetection)
 		mexPrintf("Warning mexSLOAD: Overflowdetection not supported in file %s\n",hdr->FileName);
@@ -198,7 +209,7 @@ void mexFunction(
 		}		
 	}
 
-	if (VERBOSE_LEVEL>8) 
+	if (VERBOSE_LEVEL>7) 
 		fprintf(stderr,"[113] NS=%i %i\n",hdr->NS,NS);
 
 #ifndef mexSOPEN
@@ -388,7 +399,7 @@ void mexFunction(
 			mxArray *CHN = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
 			for (size_t k=0; k<hdr->EVENT.N; ++k) {
 				*(mxGetPr(DUR)+k) = (double)hdr->EVENT.DUR[k];
-				*(mxGetPr(CHN)+k) = (double)hdr->EVENT.CHN[k];
+				*(mxGetPr(CHN)+k) = (double)hdr->EVENT.CHN[k]+1;	// conversion of 0-based to 1-based numbering 
 			} 
 			mxSetField(EVENT,0,"DUR",DUR);
 			mxSetField(EVENT,0,"CHN",CHN);
