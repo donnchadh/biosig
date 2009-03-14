@@ -1,6 +1,6 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.50 2009-03-13 16:17:54 schloegl Exp $
+    $Id: mexSLOAD.cpp,v 1.51 2009-03-14 22:39:14 schloegl Exp $
     Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -399,7 +399,7 @@ void mexFunction(
 			mxArray *CHN = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
 			for (size_t k=0; k<hdr->EVENT.N; ++k) {
 				*(mxGetPr(DUR)+k) = (double)hdr->EVENT.DUR[k];
-				*(mxGetPr(CHN)+k) = (double)hdr->EVENT.CHN[k]+1;	// conversion of 0-based to 1-based numbering 
+				*(mxGetPr(CHN)+k) = (double)hdr->EVENT.CHN[k];	// conversion of 0-based to 1-based numbering 
 			} 
 			mxSetField(EVENT,0,"DUR",DUR);
 			mxSetField(EVENT,0,"CHN",CHN);
