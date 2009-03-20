@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig_server.c,v 1.4 2009-03-20 23:23:24 schloegl Exp $
+    $Id: biosig_server.c,v 1.5 2009-03-20 23:35:42 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -589,8 +589,6 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 				hdr->AS.Header = (uint8_t*) malloc(352);
 				FILE *fid = fopen(f2,"w"); 
 
-fprintf(stdout,"put file %s\n",f2);
-
 				/*********** temporary file - not checked *********/
 				size_t buflen = 0x10000;
 				char buf[buflen]; 
@@ -598,12 +596,10 @@ fprintf(stdout,"put file %s\n",f2);
 				count  = 0; 
 				size_t count2 = 0; 
 
-fprintf(stdout,"put file(2) %i %i\n",count,count2);
 				size_t len = recv(ns, hdr->AS.Header, 352, 0);
 				count2+= fwrite(hdr->AS.Header, 1, len, fid);
 				count += len;
 				while (count<LEN) {
-fprintf(stdout,"put file(3) %i %i\n",count,count2);
 					len = recv(ns, buf, min(LEN-count, buflen), 0);
 					count2+= fwrite(buf, 1, len, fid);
 					count += len; 
@@ -617,12 +613,9 @@ fprintf(stdout,"put file(3) %i %i\n",count,count2);
 				hdr->FileName = f2;
 				int status = 0;
 #ifdef WITH_PDP 
-fprintf(stdout,"put file(4) %s\n",f2);
-
 				sopen_pdp_read(hdr);
 				sread(NULL,0,hdr->NRec,hdr);	// rawdata -> data.block
 				status=serror();
-fprintf(stdout,"put file status=%i\n",status);
 
 				if (status) {
 					errcode = 2;
@@ -645,40 +638,29 @@ fprintf(stdout,"put file status=%i\n",status);
 					}
 				}
 				/********* ... and convert to GDF file *************/
-fprintf(stdout,"put file status=%i\n",status);
 				if (!status) {
-fprintf(stdout,"put file status=%i\n",status);
 					hdr->FileName = fullfilename;
 					hdr->TYPE = GDF;
 					hdr->VERSION = 2; 
 					sopen(fullfilename,"w",hdr);
-fprintf(stdout,"put file status=%i\n",status,hdr->data.block);
 					if (status=serror()) {
 						errcode = 21;
 					} else {
 						count = swrite(hdr->data.block, hdr->NRec, hdr);
 						if (status=serror())
 							errcode = 22;
-fprintf(stdout,"put file (8) errcode=%i\n",errcode);
 						sclose(hdr);
 						if (status=serror())
 							errcode = 23;
 					}	
-fprintf(stdout,"put file (8) errcode=%i\n",errcode);
-					    
 				}
 				}
 				destructHDR(hdr); 			    
 				free(f2); 
 
-fprintf(stdout,"put file(9) %s\n",f2);
-
 				STATUS = STATE_INIT; 
 				msg.STATE = BSCS_VERSION_01 | BSCS_PUT_FILE | BSCS_REPLY | STATE_INIT | b_endian_u32(errcode);
 				msg.LEN = b_endian_u32(0);
-
-if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);				
-
 				s = send(ns, &msg, 8, 0);	
 			}
 
@@ -868,18 +850,18 @@ int main () {
 
 			/* Change the current working directory.  This prevents the current
    			   directory from being locked; hence not being able to remove it. */
-/*
+
 			if ((chdir("/")) < 0) {
 				syslog( LOG_ERR, "unable to change directory to %s, code %d (%s)","/", errno, strerror(errno) );
 			        exit(-1);
 			}
-*/			    
+			    
 			/* Redirect standard files to /dev/null */
-/*
+
 			freopen( "/dev/null", "r", stdin);
 			freopen( "/dev/null", "w", stdout);
 			freopen( "/dev/null", "w", stderr);
-*/			
+			
 			if (VERBOSE_LEVEL>7) fprintf(stdout,"server123 err=%i %s\n",errno,strerror(errno));
 
 			errno = 0; 
