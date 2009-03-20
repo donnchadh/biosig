@@ -1,5 +1,5 @@
 /*
-% $Id: biosig-network.h,v 1.3 2009-02-20 08:59:46 schloegl Exp $
+% $Id: biosig-network.h,v 1.4 2009-03-20 23:23:24 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -108,6 +108,8 @@
 #define	BSCS_REQU_HDR  (b_endian_u32(0x00070000))	// reqest header info 
 #define	BSCS_REQU_DAT  (b_endian_u32(0x00080000))	// request data block
 #define	BSCS_REQU_EVT  (b_endian_u32(0x00090000))	// request event table 
+#define	BSCS_PUT_FILE  (b_endian_u32(0x000a0000))	// request event table 
+#define	BSCS_GET_FILE  (b_endian_u32(0x000b0000))	// request event table 
 #define	BSCS_REPLY     (b_endian_u32(0x00800000))	// replay flag: can be combined with any of the above codes   
 
 #define	STATE_INIT    	      (b_endian_u32(0x00000000)) 		// initial state 
@@ -216,6 +218,13 @@ int bscs_requ_evt(int sd, HDRTYPE *hdr);
 /* request event information 
    -------------------------------------------------------------- */
 
+int bscs_put_file(int sd, char *filename);
+/* put raw data file on server 
+   -------------------------------------------------------------- */
+
+int bscs_get_file(int sd, char *filename);
+/* put raw data file on server 
+   -------------------------------------------------------------- */
 
 
 /****************************************************************************/

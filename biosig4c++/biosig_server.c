@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig_server.c,v 1.3 2009-02-27 09:23:58 schloegl Exp $
+    $Id: biosig_server.c,v 1.4 2009-03-20 23:23:24 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -33,6 +33,9 @@
 #include <sys/wait.h>
 #include <signal.h>
 
+#ifdef WITH_PDP 
+void sopen_pdp_read(HDRTYPE *hdr);
+#endif
 
 char *LOGFILE = "/tmp/biosig/biosigd.log";
 
@@ -134,6 +137,8 @@ void sigchld_handler(int s)
 }
 
 
+#define VERBOSE_LEVEL 8
+
 const char   path[] = "/tmp/biosig/\0                .gdf";
 void DoJob(int ns)
 {
@@ -162,7 +167,7 @@ void DoJob(int ns)
 		}
 
 		/*server identification */
-		const char *greeting="Hi: this is your experimental BioSig data archive server. \n It is useful for testing the BioSig client-server architecture.\n";
+		const char *greeting="Hi there,\n this is your experimental BSCS server. \n It is useful for testing the BioSig client-server architecture.\n";
 		msg.STATE = BSCS_VERSION_01 | BSCS_SEND_MSG | STATE_INIT | BSCS_NO_ERROR;
 		msg.LEN = b_endian_u32(strlen(greeting)); 
 		int s = send(ns,&msg,8,0);
@@ -179,7 +184,7 @@ void DoJob(int ns)
 			FILE *fid = fopen(LOGFILE,"a");
 			fprintf(stdout,"STATUS=%08x c=%i MSG=%08x len=%i,errno=%i %s\n",STATUS,count,b_endian_u32(msg.STATE),b_endian_u32(msg.LEN),errno,strerror(errno)); 
 			fclose(fid); 
-
+			errno = 0; 
 
 	   		if (count==0) {
 				fprintf(stdout,"connection lost! %i %i %i %s\n",stopflag,count,errno,strerror(errno)); 
@@ -204,17 +209,21 @@ void DoJob(int ns)
 				msg.LEN = b_endian_u32(0);
 				s = send(ns, &msg, 8, 0);	
 			}
+
 			else if ((STATUS == STATE_INIT) && 
 			    	 ((msg.STATE & ~ERR_MASK) == (BSCS_VERSION_01 | BSCS_OPEN | STATE_INIT))) 
-			{	/******* open *******/
+			{
+/****************************************************************************************
+	OPEN FILE with ID 
+ ****************************************************************************************/
 
 				if (VERBOSE_LEVEL>7) fprintf(stdout,"open %i %i %016lx\n",LEN,count,ID);
 
+				hdr = constructHDR(0,0);
 				if (LEN==0) //|| ((LEN==8) && (ID==0))) 	// no ID, send back id, open(w) 
 				{
 					ID = GetNewId(); 
 					c64ta(ID, filename); 
-					hdr = constructHDR(0,0);
 					hdr->FLAG.ANONYMOUS = 1; 	// do not store name 
 					STATUS = STATE_OPEN_WRITE_HDR; 
 					msg.STATE = BSCS_VERSION_01 | BSCS_OPEN_W | BSCS_REPLY | STATE_OPEN_WRITE_HDR;
@@ -230,6 +239,7 @@ void DoJob(int ns)
 					c64ta(ID, filename); 
 					// ToDo: replace SOPEN with simple function, e.g. access to event table not needed here 
 					hdr->FLAG.ANONYMOUS = 1; 	// do not store name 
+					hdr->FileName = fullfilename;
 					hdr = sopen(fullfilename,"r",hdr);
 					msg.LEN = b_endian_u32(0);
 					if (hdr->FILE.OPEN==0) {
@@ -258,6 +268,9 @@ void DoJob(int ns)
 				 (LEN == 0) && 
 				 ((msg.STATE & (VER_MASK | CMD_MASK)) == (BSCS_VERSION_01 | BSCS_CLOSE))) 
 			{	// close 
+/****************************************************************************************
+	CLOSE FILE 
+ ****************************************************************************************/
 
 				if (STATUS != (msg.STATE & STATE_MASK)) fprintf(stdout,"Close: status does not fit\n");
 	
@@ -288,12 +301,14 @@ void DoJob(int ns)
 
 				s = send(ns, &msg, 8, 0);	
 
-				break; 
 			}
 
 			else if ((STATUS == STATE_OPEN_WRITE_HDR) && 
 				 ((msg.STATE & ~ERR_MASK) == (BSCS_VERSION_01 | BSCS_SEND_HDR | STATE_OPEN_WRITE_HDR))) 
 			{	
+/****************************************************************************************
+	SEND HEADER
+ ****************************************************************************************/
  
 				//case BSCS_SEND_HDR:  	// send header information
 				hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,LEN); 
@@ -343,6 +358,9 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 			else if ((STATUS == STATE_OPEN_WRITE) && 
 				 ((msg.STATE & ~ERR_MASK) == (BSCS_VERSION_01 | BSCS_SEND_DAT | STATE_OPEN_WRITE))) 
 			{	
+/****************************************************************************************
+	SEND DATA
+ ****************************************************************************************/
 				//case BSCS_SEND_DAT:   	// send data block 
 				// ToDo: check corrupt packet
 					count = 0; 
@@ -369,6 +387,9 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 			else if ((STATUS == STATE_OPEN_WRITE) && 
 				 ((msg.STATE & ~ERR_MASK) == (BSCS_VERSION_01 | BSCS_SEND_EVT | STATE_OPEN_WRITE))) 
 			{	
+/****************************************************************************************
+	SEND EVENTS
+ ****************************************************************************************/
 				//case BSCS_SEND_EVT:  	// send event information 
 
 				
@@ -461,6 +482,9 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 			else if ((STATUS == STATE_OPEN_READ) && 
 				 ((msg.STATE & ~ERR_MASK) == (BSCS_VERSION_01 | BSCS_REQU_HDR | STATE_OPEN_READ))) 
 			{	
+/****************************************************************************************
+	REQUEST HEADER
+ ****************************************************************************************/
 				msg.STATE = BSCS_VERSION_01 | BSCS_REQU_HDR | BSCS_REPLY | STATE_OPEN_READ;
 				msg.LEN = b_endian_u32(hdr->HeadLen);
 				s = send(ns, &msg, 8, 0);	
@@ -471,6 +495,9 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 			else if ((STATUS == STATE_OPEN_READ) && 
 				 ((msg.STATE & ~ERR_MASK) == (BSCS_VERSION_01 | BSCS_REQU_DAT | STATE_OPEN_READ))) 
 			{	
+/****************************************************************************************
+	REQUEST DATA
+ ****************************************************************************************/
 	   			count += recv(ns, inbuf, 8, 0);
 		   		size_t length = leu32p(inbuf);
 		   		size_t start = leu32p(inbuf+4);
@@ -487,6 +514,9 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 			else if ((STATUS == STATE_OPEN_READ) && 
 				 ((msg.STATE & ~ERR_MASK) == (BSCS_VERSION_01 | BSCS_REQU_EVT | STATE_OPEN_READ))) 
 			{	
+/****************************************************************************************
+	REQUEST EVENT TABLE 
+ ****************************************************************************************/
 				size_t len = 0; 
 				if ((hdr->TYPE == GDF) && (hdr->AS.rawEventData == NULL) && (hdr->NRec>=0)) {
 					// event table from GDF file 
@@ -539,6 +569,124 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 					s = send(ns, hdr->AS.rawEventData, len, 0);
 				}
 			}
+
+			else if ((STATUS == STATE_OPEN_WRITE_HDR) && 
+				 ((msg.STATE & ~ERR_MASK) == (BSCS_VERSION_01 | BSCS_PUT_FILE | STATE_OPEN_WRITE_HDR))) 
+			{	
+/****************************************************************************************
+	PUT FILE 
+ ****************************************************************************************/
+ 
+				//case BSCS_PUT_FILE:  	// send header information
+				uint32_t errcode = 0; 
+
+				c64ta(ID, filename); 
+				char *f2 = (char*)malloc(strlen(fullfilename)+5); 
+				strcpy(f2,fullfilename); 
+				strcat(f2,".tmp"); 
+				
+				HDRTYPE *hdr = constructHDR(0,0);
+				hdr->AS.Header = (uint8_t*) malloc(352);
+				FILE *fid = fopen(f2,"w"); 
+
+fprintf(stdout,"put file %s\n",f2);
+
+				/*********** temporary file - not checked *********/
+				size_t buflen = 0x10000;
+				char buf[buflen]; 
+				
+				count  = 0; 
+				size_t count2 = 0; 
+
+fprintf(stdout,"put file(2) %i %i\n",count,count2);
+				size_t len = recv(ns, hdr->AS.Header, 352, 0);
+				count2+= fwrite(hdr->AS.Header, 1, len, fid);
+				count += len;
+				while (count<LEN) {
+fprintf(stdout,"put file(3) %i %i\n",count,count2);
+					len = recv(ns, buf, min(LEN-count, buflen), 0);
+					count2+= fwrite(buf, 1, len, fid);
+					count += len; 
+				}
+				fclose(fid);
+
+				if (count-count2) 
+					errcode = 1;
+				else {
+				/************ read temporary file, ... ************/
+				hdr->FileName = f2;
+				int status = 0;
+#ifdef WITH_PDP 
+fprintf(stdout,"put file(4) %s\n",f2);
+
+				sopen_pdp_read(hdr);
+				sread(NULL,0,hdr->NRec,hdr);	// rawdata -> data.block
+				status=serror();
+fprintf(stdout,"put file status=%i\n",status);
+
+				if (status) {
+					errcode = 2;
+#else
+        				{
+#endif
+					sopen(f2,"r",hdr);
+					if (status=serror()) 
+					        errcode = 11;
+					
+					else {
+						count = sread(NULL,0,hdr->NRec,hdr);
+						if (status=serror()) 
+							errcode = 12;
+						
+						sclose(hdr);
+						if (status=serror()) 
+							errcode = 13;
+						
+					}
+				}
+				/********* ... and convert to GDF file *************/
+fprintf(stdout,"put file status=%i\n",status);
+				if (!status) {
+fprintf(stdout,"put file status=%i\n",status);
+					hdr->FileName = fullfilename;
+					hdr->TYPE = GDF;
+					hdr->VERSION = 2; 
+					sopen(fullfilename,"w",hdr);
+fprintf(stdout,"put file status=%i\n",status,hdr->data.block);
+					if (status=serror()) {
+						errcode = 21;
+					} else {
+						count = swrite(hdr->data.block, hdr->NRec, hdr);
+						if (status=serror())
+							errcode = 22;
+fprintf(stdout,"put file (8) errcode=%i\n",errcode);
+						sclose(hdr);
+						if (status=serror())
+							errcode = 23;
+					}	
+fprintf(stdout,"put file (8) errcode=%i\n",errcode);
+					    
+				}
+				}
+				destructHDR(hdr); 			    
+				free(f2); 
+
+fprintf(stdout,"put file(9) %s\n",f2);
+
+				STATUS = STATE_INIT; 
+				msg.STATE = BSCS_VERSION_01 | BSCS_PUT_FILE | BSCS_REPLY | STATE_INIT | b_endian_u32(errcode);
+				msg.LEN = b_endian_u32(0);
+
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);				
+
+				s = send(ns, &msg, 8, 0);	
+			}
+
+
+			else if (msg.STATE & BSCS_REPLY) 
+			{	// ignore reply messages
+				;
+	   		} 
 			else 
 			{
 				fprintf(stdout,"unknown packet: state=%08x len=%i\n",b_endian_u32(msg.STATE),b_endian_i32(msg.LEN)); 
@@ -720,18 +868,21 @@ int main () {
 
 			/* Change the current working directory.  This prevents the current
    			   directory from being locked; hence not being able to remove it. */
+/*
 			if ((chdir("/")) < 0) {
 				syslog( LOG_ERR, "unable to change directory to %s, code %d (%s)","/", errno, strerror(errno) );
 			        exit(-1);
 			}
-			    
+*/			    
 			/* Redirect standard files to /dev/null */
+/*
 			freopen( "/dev/null", "r", stdin);
 			freopen( "/dev/null", "w", stdout);
 			freopen( "/dev/null", "w", stderr);
-			
+*/			
 			if (VERBOSE_LEVEL>7) fprintf(stdout,"server123 err=%i %s\n",errno,strerror(errno));
 
+			errno = 0; 
 			DoJob(ns);
 	
 		    	close(ns);

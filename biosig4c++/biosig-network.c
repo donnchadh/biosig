@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig-network.c,v 1.8 2009-02-27 09:20:24 schloegl Exp $
+    $Id: biosig-network.c,v 1.9 2009-03-20 23:23:24 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "biosig-network.h"
 
@@ -244,6 +245,9 @@ int savelink(const char* filename) {
 	strcat(logfile,".bscs"); 
 	int k=0; 
 	size_t sl = strlen(logfile);
+	
+fprintf(stdout,"saveling %s\n",logfile); 
+	
 	FILE *fid;
 	// check whether file already exists 
 	while ((fid=fopen(logfile,"r"))>0) {
@@ -280,10 +284,12 @@ int bscs_open(int sd, uint64_t* ID) {
 		*(uint64_t*)&msg.LOAD  = leu64p(ID);
 		LEN = BSCS_ID_BITLEN>>3;
 	}	
-if (VERBOSE_LEVEL>8) fprintf(stdout,"open: %16lx %16lx\n",*ID,msg.LOAD);
+//if (VERBOSE_LEVEL>8) 
+fprintf(stdout,"open: %16lx %16lx\n",*ID,msg.LOAD);
 	msg.LEN   = b_endian_u32(LEN);
 	int s = send(sd, TC &msg, LEN+8, 0);	
 
+fprintf(stdout,"open: %16lx %16lx\n",*ID,msg.LOAD);
 	// wait for reply 
 	ssize_t count = 0; 
 	count = recv(sd, TC &msg, 8, 0);
@@ -360,7 +366,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"s=%i state= %08x len=%i %i  %08x\n",s,msg.S
 }
 
 /****************************************************************************************
-	REQUEST HEADER
+	SEND HEADER
  ****************************************************************************************/
 int bscs_send_hdr(int sd, HDRTYPE *hdr) {
 /* hdr->AS.Header must contain GDF header information 
@@ -564,7 +570,7 @@ ssize_t bscs_requ_dat(int sd, size_t start, size_t length, HDRTYPE *hdr) {
 	
 	hdr->AS.first = start;
 if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ DAT: %i %i\n",count,hdr->AS.bpb);
-	hdr->AS.length= count/hdr->AS.bpb;  
+	hdr->AS.length= (hdr->AS.bpb ? count/hdr->AS.bpb : length);  
 if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ DAT: %i %i\n",hdr->AS.first,hdr->AS.length);
 
 	return(0);
@@ -625,5 +631,54 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ EVT: %i %i \n",s,LEN);
 
 
 	return(0);    	
+}
+
+/****************************************************************************************
+	PUT FILE 
+ ****************************************************************************************/
+int bscs_put_file(int sd, char *filename) {
+
+	size_t LEN;
+	mesg_t msg;
+
+
+	if (SERVER_STATE != STATE_OPEN_WRITE_HDR) return(BSCS_ERROR);
+
+	struct stat FileBuf;
+	stat(filename,&FileBuf);
+
+	if (!FileBuf.st_size) return(BSCS_ERROR);
+
+	FILE *fid = fopen(filename,"rb");
+
+
+	char* buf = (char*)malloc(FileBuf.st_size);
+	LEN = fread(buf,1,FileBuf.st_size,fid);
+	fclose(fid); 
+
+	msg.STATE = BSCS_VERSION_01 | BSCS_PUT_FILE | STATE_OPEN_WRITE_HDR | BSCS_NO_ERROR;
+	msg.LEN   = b_endian_u32(LEN);
+	int s1 = send(sd, TC &msg, 8, 0);	
+	int s2 = send(sd, TC buf, LEN, 0);	
+
+	free(buf); 
+	
+	// wait for reply 
+	ssize_t count = recv(sd, TC &msg, 8, 0);
+	LEN = b_endian_u32(msg.LEN);
+	SERVER_STATE = msg.STATE & STATE_MASK;
+
+//if (VERBOSE_LEVEL>8) 
+	fprintf(stdout,"PUT FILE: %i %x \n",s2,msg.STATE);
+
+	if ((LEN==0) && (msg.STATE==(BSCS_VERSION_01 | BSCS_PUT_FILE | BSCS_REPLY | STATE_INIT | BSCS_NO_ERROR)) ) 
+		// close without error 
+		return(0);
+
+	if (LEN>0) 
+		return (BSCS_VERSION_01 | BSCS_PUT_FILE | BSCS_REPLY | STATE_INIT | BSCS_ERROR);
+
+ 	// invalid packet or error opening file 
+	return(msg.STATE);
 }
 
