@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.296 2009-03-13 16:16:57 schloegl Exp $
+    $Id: biosig.c,v 1.297 2009-03-23 22:14:43 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -130,6 +130,11 @@ const int16_t GDFTYP_BITS[] = {
 	0, 0, 0, 0, 0, 0, 0,40, 0, 0, 0, 0, 0, 0, 0,48, 
 	0, 0, 0, 0, 0, 0, 0,56, 0, 0, 0, 0, 0, 0, 0,64, 
 	0, 0, 0, 0, 0, 0, 0,72, 0, 0, 0, 0, 0, 0, 0,80 }; 
+
+char *gdftyp_string[] = {
+	"char","int8","uint8","int16","uint16","int32","uint32","int64","uint64",
+	"","","","","","","","float32","float64","float128"
+	};
 
 
 const char *LEAD_ID_TABLE[] = { "unspecified",
@@ -996,6 +1001,7 @@ struct tm *gdf_time2tm_time(gdf_time t) {
 	If ZLIB is availabe, HDR.FILE.COMPRESSION tells
 	whether STDIO or ZLIB is used. 
  */
+
 HDRTYPE* ifopen(HDRTYPE* hdr, const char* mode) {
 #ifdef ZLIB_H
 	if (hdr->FILE.COMPRESSION) 
@@ -1407,7 +1413,7 @@ void LoadGlobalEventCodeTable()
 	size_t N = 0; 
 	char *line = strtok(Global.EventCodesTextBuffer,"\x0a\x0d");
 	while ((line != NULL) && (strlen(line)>0)) {
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i <%s>\n",Global.LenCodeDesc, line);
+//		if (VERBOSE_LEVEL>8) fprintf(stdout,"%i <%s>\n",Global.LenCodeDesc, line);
 	
 		if (line[0]=='0') {
 			size_t k;
@@ -1435,7 +1441,7 @@ void LoadGlobalEventCodeTable()
 				Global.CodeIndex[Global.LenCodeDesc] = i; 
 				Global.LenCodeDesc++;
 			}	 
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"%x <%s>\n",i,t);
+//			if (VERBOSE_LEVEL>8) fprintf(stdout,"%x <%s>\n",i,t);
 		}	
 		line = strtok(NULL,"\x0a\x0d");
 	}
@@ -2612,7 +2618,7 @@ int struct2gdfbin(HDRTYPE *hdr)
 	     		*(uint32_t*)(Header2) = l_endian_u32(tag + (TagNLen[tag]<<8)); // Tag=3 & Length of Tag 3
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"SOPEN(GDF)w: tag=%i,len=%i\n",tag,TagNLen[tag]);
 	     		memset(Header2+4,0,TagNLen[tag]);
-/*	     		size_t len = 0; 
+	     		size_t len = 0; 
      			strcpy((char*)(Header2+4), hdr->ID.Manufacturer.Name);
 		     	if (hdr->ID.Manufacturer.Name != NULL) 	
 		     		len += strlen(hdr->ID.Manufacturer.Name);
@@ -2626,7 +2632,7 @@ int struct2gdfbin(HDRTYPE *hdr)
 		     	if (hdr->ID.Manufacturer.SerialNumber != NULL)
 		     		len += strlen(hdr->ID.Manufacturer.SerialNumber);
 			Header2 += 4+TagNLen[tag];	
-*/
+
 	     	}
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw tag4\n");	     		
@@ -9007,13 +9013,13 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	if ((start + length) < 0) return(0);  	
 
 int V = VERBOSE_LEVEL;
-//VERBOSE_LEVEL = 9; 		
+//VERBOSE_LEVEL = 9;
 	count = sread_raw(start, length, hdr, 0);
 	
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"sread 222 %i=?=%i  %i=?=%i \n",(int)start,(int)hdr->AS.first,(int)(start+count),(int)hdr->AS.length);
 
-VERBOSE_LEVEL = V; 		
+//VERBOSE_LEVEL = V; 		
 
 	toffset = start - hdr->AS.first;
 	
@@ -9298,7 +9304,7 @@ VERBOSE_LEVEL = V;
 //		if (VERBOSE_LEVEL>8) {
 			fprintf(stdout,"sread 226 ");
 			fprintf(stdout,"%i %i\n",hdr->AS.bpb*hdr->NRec,(k4+toffset)*hdr->AS.bpb + (CHptr->bi8 + k5*SZ>>3));
-			fprintf(stdout,":s(1)=%f, NS=%d,[%d,%d,%d,%d SZ=%i, bpb=%i] %e %d %e\n",*(int16_t*)hdr->AS.rawdata,NS,k1,k2,k4,k5,SZ,hdr->AS.bpb,sample_value,(*(int16_t*)(ptr)),(*(float*)(ptr)));
+			fprintf(stdout,":s(1)=%i, NS=%d,[%d,%d,%d,%d SZ=%i, bpb=%i] %e %d %e\n",*(int16_t*)hdr->AS.rawdata,NS,k1,k2,k4,k5,SZ,hdr->AS.bpb,sample_value,(*(int16_t*)(ptr)),(*(float*)(ptr)));
 		}
 		
 		}
@@ -9310,6 +9316,7 @@ VERBOSE_LEVEL = V;
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"sread 225 #blk=%i, spr=%i\n",count,hdr->SPR);
 
+VERBOSE_LEVEL = V; 		
 
 	if (hdr->FLAG.ROW_BASED_CHANNELS) {
 		hdr->data.size[0] = k2;			// rows	
@@ -9469,7 +9476,7 @@ size_t gsl_sread(gsl_matrix* m, size_t start, size_t length, HDRTYPE* hdr) {
         size_t count = sread(NULL, start, length, hdr);
 	size_t n = hdr->data.size[0]*hdr->data.size[1];
 
-	if (m->owner && m->block) gsl_block_free(m->block->data);
+	if (m->owner && m->block) gsl_block_free(m->block);
 	m->block = gsl_block_alloc(n);	
 	m->block->data = hdr->data.block; 
 
@@ -9539,7 +9546,6 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 #define MIN_UINT64 ((uint64_t)0)
 
 
-
 	size_t bpb8 = bpb8_collapsed_rawdata(hdr);
 
 	if (VERBOSE_LEVEL>7)
@@ -9565,7 +9571,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	for (k1=0; k1<hdr->NS; k1++) {
 	CHptr 	= hdr->CHANNEL+k1;
 	
-	if (CHptr->OnOff != 0) {
+	if ((CHptr->OnOff != 0) && (CHptr->SPR)) {
 
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
@@ -9913,6 +9919,7 @@ int sclose(HDRTYPE* hdr)
   		}
   		hdr->FILE.Des = 0; 
   		hdr->FILE.OPEN = 0; 
+		bscs_disconnect(hdr->FILE.Des); 
 	}
 	else 
 #endif
@@ -9946,9 +9953,7 @@ int sclose(HDRTYPE* hdr)
 
 		if ((hdr->TYPE==GDF) && (hdr->EVENT.N>0)) {
 
-fprintf(stdout,"sclose #242 %04x %i %i %i\n",hdr->EVENT.TYP[242],hdr->EVENT.POS[242],hdr->EVENT.CHN[242],hdr->EVENT.DUR[242]);
 			size_t len = hdrEVT2rawEVT(hdr);
-fprintf(stdout,"sclose #242 %i %i \n",*(uint16_t*)(hdr->AS.rawEventData+8+hdr->EVENT.N*6+242*2),*(uint32_t*)(hdr->AS.rawEventData+8+hdr->EVENT.N*8+242*4));
 			ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET); 
 			ifwrite(hdr->AS.rawEventData, len, 1, hdr);
 
@@ -10184,9 +10189,15 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			//char p[MAX_LENGTH_PHYSDIM+1];
 
 			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, cp->PhysDim);
-			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5f %4i %2i  %e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
-				k+1,cp->LeadIdCode,cp->bi8,cp->Label,cp->SPR,cp->SPR * hdr->SampleRate/hdr->SPR,
-				cp->GDFTYP, cp->Cal, cp->Off, cp->PhysDim,  
+			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5f %4i",
+				k+1,cp->LeadIdCode,cp->bi8,cp->Label,cp->SPR,cp->SPR * hdr->SampleRate/hdr->SPR);
+
+			if      (cp->GDFTYP<20)  fprintf(fid," %s  ",gdftyp_string[cp->GDFTYP]);
+			else if (cp->GDFTYP<256) fprintf(fid, " bit%i  ", cp->GDFTYP-255);
+			else if (cp->GDFTYP<512) fprintf(fid, " bit%i  ", cp->GDFTYP-511);
+			
+			fprintf(fid,"%e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
+				cp->Cal, cp->Off, cp->PhysDim,  
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch,
 				cp->XYZ[0],cp->XYZ[1],cp->XYZ[2]);
 			//fprintf(fid,"\t %3i", cp->SPR);
