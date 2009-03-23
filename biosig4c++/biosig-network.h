@@ -1,5 +1,5 @@
 /*
-% $Id: biosig-network.h,v 1.4 2009-03-20 23:23:24 schloegl Exp $
+% $Id: biosig-network.h,v 1.5 2009-03-23 22:01:51 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -222,8 +222,12 @@ int bscs_put_file(int sd, char *filename);
 /* put raw data file on server 
    -------------------------------------------------------------- */
 
-int bscs_get_file(int sd, char *filename);
+int bscs_get_file(int sd, uint64_t ID, char *filename);
 /* put raw data file on server 
+   -------------------------------------------------------------- */
+
+int bscs_nop(int sd);
+/* no operation 
    -------------------------------------------------------------- */
 
 

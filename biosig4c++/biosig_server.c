@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig_server.c,v 1.5 2009-03-20 23:35:42 schloegl Exp $
+    $Id: biosig_server.c,v 1.6 2009-03-23 22:01:51 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -25,6 +25,7 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -137,7 +138,7 @@ void sigchld_handler(int s)
 }
 
 
-#define VERBOSE_LEVEL 8
+//#define VERBOSE_LEVEL 8
 
 const char   path[] = "/tmp/biosig/\0                .gdf";
 void DoJob(int ns)
@@ -576,6 +577,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 /****************************************************************************************
 	PUT FILE 
  ****************************************************************************************/
+
  
 				//case BSCS_PUT_FILE:  	// send header information
 				uint32_t errcode = 0; 
@@ -584,36 +586,36 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 				char *f2 = (char*)malloc(strlen(fullfilename)+5); 
 				strcpy(f2,fullfilename); 
 				strcat(f2,".tmp"); 
-				
-				HDRTYPE *hdr = constructHDR(0,0);
-				hdr->AS.Header = (uint8_t*) malloc(352);
-				FILE *fid = fopen(f2,"w"); 
 
+fprintf(stdout,"%s %s\n",f2,fullfilename);
+				
 				/*********** temporary file - not checked *********/
-				size_t buflen = 0x10000;
-				char buf[buflen]; 
+				int sdo = open(f2,O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); 
+fprintf(stdout,"%i\n",sdo);
 				
+				const int BUFLEN = 1024;
+				char buf[BUFLEN]; 
+
 				count  = 0; 
-				size_t count2 = 0; 
-
-				size_t len = recv(ns, hdr->AS.Header, 352, 0);
-				count2+= fwrite(hdr->AS.Header, 1, len, fid);
-				count += len;
 				while (count<LEN) {
-					len = recv(ns, buf, min(LEN-count, buflen), 0);
-					count2+= fwrite(buf, 1, len, fid);
-					count += len; 
+					size_t len = recv(ns, buf, min(LEN-count, BUFLEN), 0);
+					count += write(sdo, buf, len);
+					//fprintf(stdout,"\b\b\b\b%02i%% ",100.0*count/LEN);
 				}
-				fclose(fid);
+				close(sdo);
 
-				if (count-count2) 
+				if (LEN-count) {
 					errcode = 1;
+fprintf(stdout,"errcode=1 %i\n",LEN-count);
+				}
 				else {
 				/************ read temporary file, ... ************/
+				HDRTYPE *hdr = constructHDR(0,0);
 				hdr->FileName = f2;
 				int status = 0;
 #ifdef WITH_PDP 
 				sopen_pdp_read(hdr);
+				
 				sread(NULL,0,hdr->NRec,hdr);	// rawdata -> data.block
 				status=serror();
 
@@ -637,6 +639,9 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 						
 					}
 				}
+
+				if (VERBOSE_LEVEL>7) fprintf(stdout,"put file: errcode=%i\n",errcode); 
+
 				/********* ... and convert to GDF file *************/
 				if (!status) {
 					hdr->FileName = fullfilename;
@@ -646,7 +651,8 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 					if (status=serror()) {
 						errcode = 21;
 					} else {
-						count = swrite(hdr->data.block, hdr->NRec, hdr);
+						//count = swrite(hdr->data.block, hdr->NRec, hdr);
+						ifwrite(hdr->AS.rawdata,hdr->AS.bpb,hdr->NRec,hdr);
 						if (status=serror())
 							errcode = 22;
 						sclose(hdr);
@@ -654,14 +660,71 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 							errcode = 23;
 					}	
 				}
-				}
-				destructHDR(hdr); 			    
-				free(f2); 
 
-				STATUS = STATE_INIT; 
+				if (VERBOSE_LEVEL>7) fprintf(stdout,"put file: errcode=%i\n",errcode); 
+
+				}
+				destructHDR(hdr);
+				free(f2);
+
+				STATUS = STATE_INIT;
 				msg.STATE = BSCS_VERSION_01 | BSCS_PUT_FILE | BSCS_REPLY | STATE_INIT | b_endian_u32(errcode);
 				msg.LEN = b_endian_u32(0);
+				s = send(ns, &msg, 8, 0);
+			}
+
+			else if (( 
+				 (msg.STATE & ~ERR_MASK & ~STATE_MASK) == (BSCS_VERSION_01 | BSCS_GET_FILE))) 
+			{	
+/****************************************************************************************
+	GET FILE 
+ ****************************************************************************************/
+
+	   			count = recv(ns, &msg.LOAD, 8, 0);
+				ID = leu64p(&msg.LOAD);
+				c64ta(ID, filename); 
+
+				if (VERBOSE_LEVEL>7) fprintf(stdout,"get file: %s\n",filename); 
+
+fprintf(stdout,"get file: %016lx\n",ID);
+
+				int sdi = open(fullfilename,O_RDONLY,S_IFREG);
+
+fprintf(stdout,"get file: %016lx %i\n",ID,sdi);
+
+				if (sdi<0) {
+					msg.STATE = BSCS_VERSION_01 | BSCS_GET_FILE | BSCS_REPLY | STATUS | BSCS_ERROR_CANNOT_OPEN_FILE;
+					msg.LEN = b_endian_u32(0);
+					s = send(ns, &msg, 8, 0);	
+				} 
+				else {		
+					struct stat FileBuf;
+					stat(fullfilename,&FileBuf);
+					uint32_t LEN = FileBuf.st_size;
+
+					msg.STATE = BSCS_VERSION_01 | BSCS_GET_FILE | BSCS_REPLY | STATUS | BSCS_NO_ERROR;
+					msg.LEN = b_endian_u32(LEN);
+					s = send(ns, &msg, 8, 0);	
+
+					const int BUFLEN = 1024;
+					char *buf[BUFLEN]; 
+					count = 0; 
+					while (count<LEN) {
+						size_t len = read(sdi, buf, min(LEN-count,BUFLEN));
+						count += send(ns, buf, len, 0); 
+					}
+					//if (FileBuf.st_size-count); // TODO: error handling
+					close(sdi); 
+				}
 				s = send(ns, &msg, 8, 0);	
+			}
+
+			else if ((msg.STATE & CMD_MASK) == BSCS_NOP) 
+			{	
+/****************************************************************************************
+	NO OPERATION
+ ****************************************************************************************/
+				;
 			}
 
 
@@ -857,11 +920,11 @@ int main () {
 			}
 			    
 			/* Redirect standard files to /dev/null */
-
+/*
 			freopen( "/dev/null", "r", stdin);
 			freopen( "/dev/null", "w", stdout);
 			freopen( "/dev/null", "w", stderr);
-			
+*/			
 			if (VERBOSE_LEVEL>7) fprintf(stdout,"server123 err=%i %s\n",errno,strerror(errno));
 
 			errno = 0; 
