@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.297 2009-03-23 22:14:43 schloegl Exp $
+    $Id: biosig.c,v 1.298 2009-03-26 07:34:14 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -45,6 +45,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <float.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -491,6 +492,7 @@ void* mfer_swap8b(uint8_t *buf, int8_t len, char FLAG_SWAP)
 /* --------------------------------
  * float to ascii[8] conversion 
  * -------------------------------- */
+
 int ftoa8(char* buf, double num)
 {
 	// used for converting scaling factors Dig/Phys/Min/Max into EDF header
@@ -2044,7 +2046,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = FEF;
 		char tmp[9];
 		strncpy(tmp,(char*)hdr->AS.Header+8,8);
-		hdr->VERSION = atof(tmp);
+		tmp[8]=0;
+		hdr->VERSION = (float)atol(tmp);
     	}
     	else if (!memcmp(Header1,"fLaC",4))
 	    	hdr->TYPE = FLAC;
@@ -2188,7 +2191,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 		hdr->TYPE = VTK;
 		char tmp[4];
 		strncpy(tmp,(char*)Header1+23,3);
-		hdr->VERSION = atof(tmp);
+		hdr->VERSION = strtod(tmp,NULL);
 	}	
 	else if (!strncmp(Header1,"Serial number",13))
 		hdr->TYPE = ASCII_IBI;
@@ -2698,13 +2701,11 @@ int gdfbin2struct(HDRTYPE *hdr)
 
 		uint32_t Dur[2];
       	    	strncpy(tmp,(char*)hdr->AS.Header+3,5); tmp[5]=0;
-	    	hdr->VERSION 	= atof(tmp);
+	    	hdr->VERSION 	= strtod(tmp,NULL);
 	    	hdr->NRec 	= lei64p(hdr->AS.Header+236); 
 	    	Dur[0]  	= leu32p(hdr->AS.Header+244);
 	    	Dur[1]  	= leu32p(hdr->AS.Header+248); 
 	    	hdr->NS   	= leu16p(hdr->AS.Header+252); 
-
-		
 	    	
 	    	if (hdr->VERSION > 1.90) { 
 		    	hdr->HeadLen 	= leu16p(hdr->AS.Header+184)<<8; 
@@ -3133,12 +3134,13 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	uint16_t	BCI2000_StatusVectorLength=0;	// specific for BCI2000 format 
 	uint16_t	EGI_LENGTH_CODETABLE=0;	// specific for EGI format 
 
-
+  
 	if (hdr==NULL)
 		hdr = constructHDR(0,0);	// initializes fields that may stay undefined during SOPEN 
 
 	hdr->FileName = FileName; 
 
+	setlocale(LC_NUMERIC,"C");
 
 // hdr->FLAG.SWAP = (__BYTE_ORDER == __BIG_ENDIAN); 	// default: most data formats are little endian 
 hdr->FILE.LittleEndian = 1; 
