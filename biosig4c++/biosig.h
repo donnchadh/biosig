@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.138 2009-03-02 13:46:55 schloegl Exp $
+% $Id: biosig.h,v 1.139 2009-03-27 07:13:44 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -54,12 +54,17 @@ typedef char			int8_t;
 
 #endif
 
+
+
 #ifdef WITH_HDF5
 #include <hdf5.h>
 #endif 
 #ifdef WITH_NIFTI
 #include <nifti1.h>
 #endif 
+
+
+
 /* 
 	Including ZLIB enables reading gzipped files (they are decompressed on-the-fly)  
 	The output files can be zipped, too. 
@@ -123,9 +128,9 @@ enum FileFormat {
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, Lexicor, 
 	Matlab, MFER, MIDI, MIT, 
 	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
-	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
+	PBMA, PBMN, PDF, PDP, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
-	TIFF, TMS32, TMSiLOG, VRML, VTK, 
+	TIFF, TMS32, TMSiLOG, UNIPRO, VRML, VTK, 
 	WAV, WinEEG, WMF, XML, XPM,
 	Z, ZIP, ZIP2,
 	ASCII_IBI, ASCII, 

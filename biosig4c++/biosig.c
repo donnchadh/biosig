@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.298 2009-03-26 07:34:14 schloegl Exp $
+    $Id: biosig.c,v 1.299 2009-03-27 07:13:44 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -89,6 +89,7 @@ int sopen_HL7aECG_write(HDRTYPE* hdr);
 int sopen_alpha_read   (HDRTYPE* hdr);
 int sopen_FAMOS_read   (HDRTYPE* hdr);
 int sclose_HL7aECG_write(HDRTYPE* hdr);
+int sopen_unipro_read   (HDRTYPE* hdr);
 int sopen_eeprobe(HDRTYPE* hdr);
 int sopen_asn1(HDRTYPE* hdr);
 int sopen_zzztest(HDRTYPE* hdr);
@@ -1673,7 +1674,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = (gdf_time)0; 
       	hdr->tzmin = 0; 
-      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.80";
+      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.83";
       	hdr->ID.Manufacturer._field[0]    = 0;
       	hdr->ID.Manufacturer.Name         = " ";
       	hdr->ID.Manufacturer.Model        = " ";
@@ -1891,6 +1892,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	const uint8_t MAGIC_NUMBER_TIFF_l64[] = {73,73,43,0,8,0,0,0};
 	const uint8_t MAGIC_NUMBER_TIFF_b64[] = {77,77,0,43,0,8,0,0};
 	const uint8_t MAGIC_NUMBER_DICOM[]    = {8,0,5,0,10,0,0,0,73,83,79,95,73,82,32,49,48,48};
+	const uint8_t MAGIC_NUMBER_UNIPRO[]   = {40,0,4,1,44,1,102,2,146,3,44,0,190,3};
 	const char* MAGIC_NUMBER_BRAINVISION  = "Brain Vision Data Exchange Header File";
 	const char* MAGIC_NUMBER_BRAINVISION1 = "Brain Vision V-Amp Data Header File Version";
 	const char* MAGIC_NUMBER_BRAINVISIONMARKER = "Brain Vision Data Exchange Marker File, Version";
@@ -1986,7 +1988,6 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = CTF;
     	else if (!memcmp(Header1,"PATH OF DATASET:",16))
 	    	hdr->TYPE = CTF;
-	    	
     
     	else if (!memcmp(Header1,"DEMG",4))
 	    	hdr->TYPE = DEMG;
@@ -2187,6 +2188,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 		hdr->TYPE = TIFF;
 	else if (!memcmp(Header1,"#VRML",5))
 		hdr->TYPE = VRML;                    
+	else if (!memcmp(hdr->AS.Header+4,MAGIC_NUMBER_UNIPRO,14))
+		hdr->TYPE = UNIPRO;
 	else if (!memcmp(Header1,"# vtk DataFile Version ",23)) {
 		hdr->TYPE = VTK;
 		char tmp[4];
@@ -2312,10 +2315,11 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case TIFF: 	{ FileType = "TIFF"; break; }
 	case TMS32: 	{ FileType = "TMS32"; break; }		// Poly5+TMS32
 	case TMSiLOG: 	{ FileType = "TMSiLOG"; break; }
+	case UNIPRO: 	{ FileType = "UNIPRO"; break; }
 	case VRML: 	{ FileType = "VRML"; break; }
 	case VTK: 	{ FileType = "VTK"; break; }
-	case WAV: 	{ FileType = "WAV"; break; }
 
+	case WAV: 	{ FileType = "WAV"; break; }
 	case WMF: 	{ FileType = "WMF"; break; }
 	case XML: 	{ FileType = "XML"; break; }
 	case ZIP: 	{ FileType = "ZIP"; break; }
@@ -7831,6 +7835,43 @@ fprintf(stdout,"ASN1 [491]\n");
     		// hdr->FLAG.SWAP = 0; 
 		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN); 
 		hdr->AS.length  = hdr->NRec; 
+	}
+
+	else if (hdr->TYPE==UNIPRO) {
+		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN); 
+		struct tm t0; 
+		char tmp[5];
+		memset(tmp,0,5);  
+		strncpy(tmp,Header1+0x9c,2);
+		t0.tm_mon = atoi(tmp)-1; 
+		strncpy(tmp,Header1+0x9e,2);
+		t0.tm_mday = atoi(tmp); 
+		strncpy(tmp,Header1+0xa1,2);
+		t0.tm_hour = atoi(tmp); 
+		strncpy(tmp,Header1+0xa3,2);
+		t0.tm_min = atoi(tmp); 
+		strncpy(tmp,Header1+0xa5,2);
+		t0.tm_sec = atoi(tmp); 
+		strncpy(tmp,Header1+0x98,4);
+		t0.tm_year = atoi(tmp)-1900; 
+		hdr->T0 = tm_time2gdf_time(&t0);		
+
+		memset(tmp,0,5);  
+		strncpy(tmp,Header1+0x85,2);
+		t0.tm_mday = atoi(tmp); 
+		strncpy(tmp,Header1+0x83,2);
+		t0.tm_mon = atoi(tmp)-1; 
+		strncpy(tmp,Header1+0x7f,4);
+		t0.tm_year = atoi(tmp)-1900; 
+		hdr->Patient.Birthday = tm_time2gdf_time(&t0);		
+
+		// filesize = leu32p(hdr->AS.Header + 0x24);
+		sopen_unipro_read(hdr);
+		if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"[181] #%i\n",hdr->NS);
+		
+    		if (serror()) return(hdr);
+    		// hdr->FLAG.SWAP = 0; 
 	}
 
 	else {

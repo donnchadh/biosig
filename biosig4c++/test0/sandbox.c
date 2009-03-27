@@ -6,7 +6,7 @@
     or the functions are discarded. Do not rely on the interface in this function
        	
 
-    $Id: sandbox.c,v 1.3 2008-12-01 09:21:27 schloegl Exp $
+    $Id: sandbox.c,v 1.4 2009-03-27 07:16:50 schloegl Exp $
     Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -53,4 +53,12 @@ int sopen_zzztest(HDRTYPE* hdr) {
 	return(0);
 };
 
+int sopen_unipro_read(HDRTYPE* hdr) {
+	B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+	B4C_ERRMSG = "UNIPRO not supported";
+	return(0);
+}
 
+#ifdef WITH_PDP
+#include "../NONFREE/sopen_pdp_read.c"
+#endif 
