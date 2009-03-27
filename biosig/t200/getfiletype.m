@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.84 2008-11-13 09:18:33 schloegl Exp $
+%	$Id: getfiletype.m,v 1.85 2009-03-27 07:06:44 schloegl Exp $
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -330,6 +330,8 @@ else
                         
                 elseif any(s(1)==[100:103]) & all(s([2:8])==[0,0,0,176,1,0,0]) & strcmpi(HDR.FILE.Ext,'DDT'); 
                         HDR.TYPE='DDT';
+                elseif all(s([1:32])==[0,0,0,0,0,0,58,1,58,1,58,1,105,0,4,0,128,0,4,0,0,0,0,0,2,0,0,0,0,0,0,0]); 
+                        HDR.TYPE='LEXICORE';
                 elseif all(s([1:4])==abs('NEX1')); 
                         HDR.TYPE='NEX';
                 elseif all(s([1:4])==abs('SXDF')); 
@@ -511,6 +513,19 @@ else
 				end;	
 				fclose(fid2);
 		        end; 	
+                        
+                elseif all(s(5:18)==[40,0,4,1,44,1,102,2,146,3,44,0,190,3]) 
+                	%HDR.FILE.size == (s(37:40)*256.^[0:3]')
+                	HDR.TYPE = 'unipro'; 
+                	tmp=repmat(',',1,19);
+                	tmp([1:4,6:7,9:10,12:13,15:16,18:19])=s([153:160,162:167]);
+			HDR.T0 = str2double(char(tmp));                	
+                	tmp([1:4,6:7,9:10])=s([128:135]);
+			HDR.Patient.Birthday = str2double(char(tmp));
+			frewind(fid); 
+			HDR.s8=fread(fid,[1,inf],'uint8'); 
+			frewind(fid); 
+			HDR.s16=fread(fid,[1,inf],'uint16'); 
                         
                 elseif strfind(ss,'W1N10936.');
                         ss(1:20),
@@ -748,6 +763,9 @@ else
 			HDR.Encoding = s(3);
 			HDR.BitsPerPixel = s(4);
 			HDR.NPlanes = s(65);
+                elseif all(s(1:20)==[ 99,253,45,1,3,0,1,0,1,zeros(1,11)])      
+                        HDR.TYPE='PDP';
+                        HDR.T0 = [1,256]*reshape(s(21:32),2,6); 
 			
                 elseif all(s(1:8)==[139,74,78,71,13,10,26,10])
                         HDR.TYPE='IMAGE:JNG';
