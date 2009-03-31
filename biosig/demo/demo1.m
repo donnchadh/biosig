@@ -1,6 +1,6 @@
 % DEMO 1 - identifies QRS-complexes and computes HRV parameters 
 
-%	$Id: demo1.m,v 1.8 2008-10-07 13:40:58 schloegl Exp $
+%	$Id: demo1.m,v 1.9 2009-03-31 06:36:30 schloegl Exp $
 %	Copyright (C) 2000-2003, 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -21,7 +21,15 @@
 
 
 % load file
+
 [F,P]=uigetfile('*.*','Pick an ECG file');
+
+if (F==0)
+	fprintf(1,'ECG data is available from PhysioBank: http://www.physionet.org/physiobank/database/#ecg\n');
+	return; 
+end; 	
+
+
 
 CHAN = 0; 
 HDR  = sopen(fullfile(P,F),'r');
@@ -31,7 +39,7 @@ if HDR.NS > 1,
                 HDR = sclose(HDR);
                 fprintf(1,'The selected file contains the following channels: \n');
                 for k = 1:HDR.NS,
-                        fprintf(1,'%3i: %s\n',k,HDR.Label(k,:));
+                        fprintf(1,'%3i: %s\n',k,HDR.Label{k});
                 end;
                 CHAN = input('Which channel should be used for QRS-detection? ');
         end;
@@ -44,7 +52,7 @@ HDR = sclose(HDR);
 % QRS-Detection
 H2 = qrsdetect(s,HDR.SampleRate);
 % resampling to 4 Hz using the Berger algorithm 
-[HRV,RRI] = berger(H2,4)
+[HRV,RRI] = berger(H2,4);
 % compute HRV parameters 
 [X] = heartratevariability(H2);
 
