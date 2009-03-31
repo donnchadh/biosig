@@ -13,10 +13,9 @@ function R = evoked_potential(fn,CHAN,t1,t2,EventTyp)
 %  The EP is calculated for each selected channel, if classlabels 
 %  are available, the EP is calculated for each class
 % 
-%  The 
 
-%	$Id: evoked_potential.m,v 1.4 2008-04-11 13:36:59 schloegl Exp $
-%	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id: evoked_potential.m,v 1.5 2009-03-31 06:34:43 schloegl Exp $
+%	Copyright (C) 2005,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -49,7 +48,7 @@ elseif isnumeric(fn)
 	S = fn; 
 	HDR = CHAN;
 end;		
-%HDR = sopen(fn,'r',CHAN);[s,HDR]=sread(HDR);HDR = sclose(HDR); 
+%HDR = sopen(fn,'r',CHAN);[S,HDR]=sread(HDR);HDR = sclose(HDR); 
 %S = diff(S); 
 %[B,A]=butter(5,[450 900]/HDR.SampleRate*2);S = filtfilt(B,A,S);  
 %[B,A]=fir1(20,[450 900]/HDR.SampleRate*2);S = filtfilt(B,A,S);  
@@ -75,24 +74,31 @@ t1 = floor(t1*HDR.SampleRate);
 t2 = ceil(t2*HDR.SampleRate);
 t  = t1:t2;
 for cl = 1:length(CL), 
-	ix = HDR.TRIG(HDR.Classlabel==CL(cl)); 
-	sz = [length(CHAN),length(t),length(ix)];
-	s  = repmat(NaN,sz);
-	for k = 1:sz(3), 
-		ix1 = ix(k)+t1;
-		ix2 = ix(k)+t2;
-		if (ix1>0) & (ix2<size(S,1)), 	
-			%%%  FIXME: include also partial trials %%% 
-			s(:,:,k) = S(ix1:ix2,:)';
+	if ~isfield(HDR,'Classlabel') || isempty(HDR.Classlabel)
+		trig = HDR.EVENT.POS(HDR.EVENT.TYP==CL(cl)); 
+	else	
+		trig = HDR.TRIG(HDR.Classlabel==CL(cl));
+	end;
+	if 0, 
+		sz = [length(CHAN),length(t),length(ix)];
+		s  = repmat(NaN,sz);
+		for k = 1:sz(3), 
+			ix1 = ix(k)+t1;
+			ix2 = ix(k)+t2;
+			if (ix1>0) & (ix2<size(S,1)), 	
+				%%%  FIXME: include also partial trials %%% 
+				s(:,:,k) = S(ix1:ix2,:)';
+			end;
 		end;
-	end; 	
-        %[s,sz] = trigg(HDR.data,HDR.TRIG(HDR.Classlabel==CL(cl)),floor(t1*HDR.SampleRate),ceil(t2*HDR.SampleRate),15); 
-        %N(cl)  = length(HDR.TRIG);
-        %[se(:,:,cl), m(:,:,cl)] = sem(reshape(s,sz),3); 
-        %RES = statistic(reshape(s,sz),3); 
-        RES = statistic(center(s,2),3); 
+	else 	 	
+        	[s,sz] = trigg(S,trig,t1,t2,0); 
+        	N(cl)  = length(trig);
+        	[se(:,:,cl), m(:,:,cl)] = sem(reshape(s,sz),3);
+        end;  
+        RES = statistic(reshape(s,sz),3); 
+        %RES = statistic(center(s,2),3); 
         R0.SUM(:,:,cl) = RES.SUM';
-        R0.N(:,:,cl) = RES.N';
+        R0.N(:,:,cl)   = RES.N';
         R0.SSQ(:,:,cl) = RES.SSQ';
 end; 
 R0.datatype = 'MEAN+STD';
