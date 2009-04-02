@@ -40,7 +40,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.241 2009-01-20 14:36:18 schloegl Exp $
+%	$Id: sopen.m,v 1.242 2009-04-02 14:07:22 schloegl Exp $
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -606,7 +606,7 @@ end;
                                 end;
 	                end;
 	                HDR.SampleRate = HDR.SPR/HDR.Dur;
-	                
+          
 	                HDR.AS.spb = sum(HDR.AS.SPR);	% Samples per Block
 	                HDR.AS.bi  = [0;cumsum(HDR.AS.SPR(:))]; 
 	                HDR.AS.BPR = ceil(HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)'); 
@@ -1284,6 +1284,8 @@ end;
 
                         if ~isfield(HDR,'Transducer')
                                 HDR.Transducer=repmat({' '},HDR.NS,1); %setstr(32+zeros(HDR.NS,80));
+			elseif ischar(HDR.Transducer) 
+                                HDR.Transducer = cellstr(HDR.Transducer);
                         end; 
                         for k=1:HDR.NS,
 	                        tmp = min(80,length(HDR.Transducer{k}));
@@ -2732,6 +2734,39 @@ gain_code=[10 24;
         	HDR.EVENT.CMT = CMT;
         	fclose(fid); 
         end; 	
+
+        
+elseif strcmp(HDR.TYPE,'LEXICORE'),
+
+	warning('LOADLEXI is experimental and not well tested. ')
+	%% The solution is based on a single data file, with the comment:
+	%% "It was used to create a QEEG. It might have been collected 
+	%% on an older Lexicore - I don't know.   That was 4 years ago [in 2005]." 
+
+	fid = fopen(HDR.FileName,'rb','ieee-le');
+	HDR.H1   = fread(fid,[1,128],'uint8')';
+	HDR.data = fread(fid,[24,inf],'int16')';
+	fclose(fid); 
+
+	[HDR.NRec]=size(HDR.data,1);
+	HDR.NS = 20; 
+	HDR.SPR = 1; 
+	HDR.LEXICORE.status = HDR.data(:,21:24); 
+	s = HDR.data(:,1:20); 
+
+	HDR.data = s; 
+	HDR.TYPE = 'native'; 
+
+	%% unkwown parameters
+	HDR.SampleRate = NaN; 
+	HDR.FLAG.UCAL = 1;	% data is not scaled
+	HDR.PhysDimCode = zeros(1,HDR.NS);
+	HDR.Cal = ones(1,HDR.NS);	
+	HDR.Off = zeros(1,HDR.NS); 
+	HDR.Calib = sparse([HDR.Off;diag(HDR.Cal)]); 
+	HDR.Label = repmat({' '},HDR.NS,1);
+	HDR.EVENT.TYP = [];
+	HDR.EVENT.POS = [];
 
         
 elseif strncmp(HDR.TYPE,'NXA',3),
@@ -7995,6 +8030,7 @@ elseif strcmp(HDR.TYPE,'BrainVision_MarkerFile'),
                 end;
                 fclose(fid);
                 HDR.TYPE = 'EVENT';
+                HDR.EVENT.Desc = Desc; 
                 [HDR.EVENT.CodeDesc, CodeIndex, j] = unique(Desc);
                 ix = (HDR.EVENT.TYP==0);
                 HDR.EVENT.TYP(ix) = j(ix);
@@ -10106,10 +10142,10 @@ if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),
 	flag_remove = zeros(size(HDR.EVENT.TYP));
 	types  = unique(HDR.EVENT.TYP);
 	for k1 = find(bitand(types(:)',hex2dec('8000')));
-	        TYP0 = bitand(types(k1),hex2dec('7fff'));
-	        TYP1 = types(k1);
-	        ix0  = (HDR.EVENT.TYP==TYP0);
-	        ix1  = (HDR.EVENT.TYP==TYP1);
+		TYP0 = bitand(types(k1),hex2dec('7fff'));
+		TYP1 = types(k1);
+		ix0  = (HDR.EVENT.TYP==TYP0);
+		ix1  = (HDR.EVENT.TYP==TYP1);
 
 	        if sum(ix0)==sum(ix1), 
 	                HDR.EVENT.DUR(ix0) = HDR.EVENT.POS(ix1) - HDR.EVENT.POS(ix0);
