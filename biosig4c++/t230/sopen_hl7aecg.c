@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.34 2009-02-27 09:17:47 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.35 2009-04-06 20:34:34 schloegl Exp $
     Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -287,7 +287,6 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			}
 		    }
 		    hc->OnOff = 1;
-      		    hc->SPR = hdr->SPR;
 #ifndef NO_BI
 		    hc->bi = hdr->AS.bpb;
 #endif 
@@ -744,10 +743,10 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 	size_t sz = GDFTYP_BITS[hdr->CHANNEL[i].GDFTYP]>>3;
 	for(unsigned int j=0; j<hdr->CHANNEL[i].SPR; ++j) {
 #ifndef NO_BI
-	    	digitsStream << (*(int32_t*)(hdr->AS.rawdata + hdr->CHANNEL[i].bi + (j*sz))) << 0x020;
+	    	digitsStream << (*(int32_t*)(hdr->AS.rawdata + hdr->CHANNEL[i].bi + (j*sz))) << " ";
 	}
 #else
-	    	digitsStream << (*(int32_t*)(hdr->AS.rawdata + bi + (j*sz))) << 0x020;
+	    	digitsStream << (*(int32_t*)(hdr->AS.rawdata + bi + (j*sz))) << " ";
 	}
 	bi += hdr->CHANNEL[i].SPR*sz;
 #endif
