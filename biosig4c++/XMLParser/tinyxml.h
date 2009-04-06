@@ -20,6 +20,23 @@ must not be misrepresented as being the original software.
 
 3. This notice may not be removed or altered from any source
 distribution.
+
+
+Modified by Alois Schlögl 
+Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
+	
+
+    $Id: tinyxml.h,v 1.2 2009-04-06 20:33:23 schloegl Exp $
+    Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
+    This file is part of the "BioSig for C/C++" repository
+    (biosig4c++) at http://biosig.sf.net/
+
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 3
+    of the License, or (at your option) any later version.
+
+
 */
 
 
@@ -37,6 +54,7 @@ distribution.
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <zlib.h>
 
 // Help out windows:
 #if defined( _DEBUG ) && !defined( DEBUG )
@@ -54,7 +72,7 @@ distribution.
 #endif
 
 // Deprecated library function hell. Compilers want to use the
-// new safe versions. This probably doesn't fully address the problem,
+// new safe versions. This probably doesn t fully address the problem,
 // but it gets closer. There are too many compilers for me to fully
 // test. If you get compilation troubles, undefine TIXML_SAFE
 #define TIXML_SAFE
@@ -1391,6 +1409,10 @@ public:
 		file location. Streaming may be added in the future.
 	*/
 	bool LoadFile( FILE*, TiXmlEncoding encoding = TIXML_DEFAULT_ENCODING );
+	#ifdef ZLIB_H
+	bool LoadFile( gzFile, TiXmlEncoding encoding = TIXML_DEFAULT_ENCODING );
+	#endif
+
 	/// Save a file using the given FILE*. Returns true if successful.
 	bool SaveFile( FILE* ) const;
 
