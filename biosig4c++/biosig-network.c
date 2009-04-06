@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig-network.c,v 1.10 2009-03-23 22:01:51 schloegl Exp $
+    $Id: biosig-network.c,v 1.11 2009-04-06 08:04:44 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -662,8 +662,8 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"PUT FILE(1) %s\n",filename);
 if (VERBOSE_LEVEL>8) fprintf(stdout,"PUT FILE(2) %i %i\n",LEN,sdi);
 
 	const int BUFLEN = 1024;
-	char *buf[BUFLEN]; 
-	size_t count = 0; 
+	char buf[BUFLEN]; 
+	size_t count = 0;
 	while (count<LEN) {
 		size_t len  = read(sdi, buf, min(LEN-count,BUFLEN));
 		count += send(sd, buf, len, 0);
@@ -699,8 +699,11 @@ int bscs_get_file(int sd, uint64_t ID, char *filename) {
 	size_t LEN;
 	mesg_t msg;
 
-
-	int sdo = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+#if __MINGW32__ && (__GNUC__ == 3)
+	int sdo = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+#else 
+    int sdo = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+#endif 
 
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"get file (1) %i\n",sdo);
 
@@ -720,7 +723,7 @@ int bscs_get_file(int sd, uint64_t ID, char *filename) {
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"get file (3) %i\n",LEN);
 
 	const int BUFLEN=1024;
-	char *buf[BUFLEN]; 
+	char buf[BUFLEN]; 
 	count = 0; 
 	size_t len = 0; 
 	while (count<LEN) {
