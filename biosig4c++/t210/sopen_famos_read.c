@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_famos_read.c,v 1.4 2008-12-23 12:56:11 schloegl Exp $
+    $Id: sopen_famos_read.c,v 1.5 2009-04-06 07:38:33 schloegl Exp $
     Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -23,7 +23,18 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "../biosig-dev.h"
+
+/* 
+   FIXME: 
+   	
+   The switch __4HAERTEL__ is for some specific FAMOS file not supported yet by the default code. 
+   currently, it is not clear (at least to me) how support for such a file should 
+   be incorporated it the standard solution.    
+   
+#define __4HAERTEL__ 
+*/
 
 int sopen_FAMOS_read(HDRTYPE* hdr) {
 #define Header1 ((char*)hdr->AS.Header)	
@@ -39,6 +50,8 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 		double Fs;
 		uint32_t NoChanCurrentGroup = 0;	// number of (undefined) channels of current group 
 		int level = 0; 	// to check consistency of file
+
+		char flag_AbstandFile = 0;		// interleaved format ??? used for experimental code 
 		
 		fprintf(stdout,"SOPEN(FAMOS): support is experimental. Only time series with equidistant sampling and single sampling rate are supported.\n");		
 
@@ -54,11 +67,11 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 		    		size_t bufsiz = 4095;
 			    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, count+bufsiz+1);
 	    			count += ifread(hdr->AS.Header+count,1,bufsiz,hdr);
-			}	
+			}
 			pos    += len+1;
 				
 			
-			if (VERBOSE_LEVEL>8)
+			if (VERBOSE_LEVEL>7)
 				fprintf(stdout,"FAMOS %i <%s>: %i,%i OnOff=%i\n",pos,t,l1,len,OnOff);
 			
 
@@ -129,7 +142,7 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				hdr->CHANNEL[CHAN].SPR = 8*bpb/GDFTYP_BITS[hdr->CHANNEL[CHAN].GDFTYP];
 
 
-				if (VERBOSE_LEVEL) fprintf(stdout,"famos123: %i %i\n", OnOff, CHAN);
+				if (VERBOSE_LEVEL) fprintf(stdout,"famos123: %i %i %i\n", OnOff, CHAN, hdr->CHANNEL[CHAN].SPR);
 				
 				if ((OnOff) && (CHAN==0)) hdr->SPR = hdr->CHANNEL[CHAN].SPR;  
 				
@@ -169,8 +182,10 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				}	
 				level = 2; 
 			}
+
 			else if (!strncmp(t,"CI,1",4)) {
 			}
+
 			else if (!strncmp(t,"CG,1",4)) // Definition eines Datenfeldes 
 			{
 				int p;
@@ -268,7 +283,7 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 //					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 //					B4C_ERRMSG = "FAMOS: multiple sampling rates not supported";
 				} 
-				if (VERBOSE_LEVEL>8)
+				if (VERBOSE_LEVEL>7)
 					fprintf(stdout,"CC: %i#%i Fs=%f,%i\n",OnOff,CHAN,Fs,len);
 
 /*
@@ -282,6 +297,8 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				int p;
 				
 				char s[21]; strncpy(s,t2,20);s[20]=0;	
+				if (VERBOSE_LEVEL>7)
+					fprintf(stdout,"CHAN=%i tag=<%s>\n",CHAN,s);
 
 				// Bufferreferenz
 				p = strcspn(t2,",");
@@ -297,6 +314,9 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				p   = strcspn(t2,",");
 				t2[p] = 0;
 				gdftyp = atoi(t2);
+
+				if (VERBOSE_LEVEL>7)
+					fprintf(stdout,"CHAN=%i tag=<%s> gdf=%i\n",CHAN,s,gdftyp);
 					  				
 				// SignBits  
 				t2 += p+1;
@@ -317,8 +337,12 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				p   = strcspn(t2,",");
 				t2[p] = 0;
 				if (atoi(t2)) {
+					fprintf(stdout,"Offset:<%s>\n",t2);
+					flag_AbstandFile = 1;
+#ifndef __4HAERTEL__
 					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 					B4C_ERRMSG = "FAMOS: Offset != 0 not supported";
+#endif
 				};
 				// DirekteFolgeAnzahl  
 				t2 += p+1;
@@ -334,8 +358,12 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				p   = strcspn(t2,EOL);
 				t2[p] = 0;
 				if (atoi(t2)) {
+					fprintf(stdout,"Abstandbytes:<%s>\n",t2);
+#ifndef __4HAERTEL__
+					flag_AbstandFile = 1;
 					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 					B4C_ERRMSG = "FAMOS: AbstandBytes != 0 not supported";
+#endif
 				};
 				
 				double digmax=1e6,digmin=-1e6;
@@ -410,6 +438,9 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 	      			hdr->CHANNEL[CHAN].XYZ[0] = 0.0;
 	      			hdr->CHANNEL[CHAN].XYZ[1] = 0.0;
 	      			hdr->CHANNEL[CHAN].XYZ[2] = 0.0;
+
+				if (VERBOSE_LEVEL>7)
+					fprintf(stdout,"#%i\t%i %i\n",CHAN,gdftyp, hdr->CHANNEL[CHAN].GDFTYP);
 
 			}
 			else if (!strncmp(t,"CR,1",4)) {
@@ -502,9 +533,30 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 			pos += strcspn(Header1+pos,EOL);
 			pos += strspn(Header1+pos,EOL);
 		}
-			
 		ifseek(hdr,hdr->HeadLen,SEEK_SET);
 		hdr->NRec = 1; 
 
+#ifdef __4HAERTEL__
+		if (flag_AbstandFile==1) {
+			struct stat FileBuf;
+			stat(hdr->FileName,&FileBuf);
+
+			size_t bpb = 0; 
+			for (uint16_t k=0; k<hdr->NS; k++) {
+				if (hdr->CHANNEL[k].SPR>=1)
+					hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
+				hdr->CHANNEL[k].SPR = 1; 
+				hdr->CHANNEL[k].bi  = bpb; 
+				bpb += GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP]>>3;
+			}
+
+			hdr->NRec *= hdr->SPR;
+			hdr->SPR = 1; 
+			hdr->AS.bpb = bpb;
+
+			hdr->NRec = (FileBuf.st_size - hdr->HeadLen)/bpb; 
+		}
+#endif
+			
 };
 // End of SOPEN_FAMOS_READ
