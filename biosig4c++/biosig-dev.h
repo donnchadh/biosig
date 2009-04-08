@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.16 2009-02-16 16:59:33 schloegl Exp $
+% $Id: biosig-dev.h,v 1.17 2009-04-08 12:49:54 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -369,9 +369,13 @@ double PhysDimScale(uint16_t PhysDimCode);
 uint16_t CRCEvaluate(uint8_t* datablock, uint32_t datalength);
 int16_t CRCCheck(uint8_t* datablock, uint32_t datalength);
 
+#ifndef _WIN32
 int strcmpi(const char* str1, const char* str2);
+#endif
 int strncmpi(const char* str1, const char* str2, size_t n);
 int u32cmp(const void *a, const void *b); 
+
+//double strtod (const char *nptr, char **endptr); // no locale dependency 
 
 /*
 	some important functions used internally, 
@@ -379,7 +383,7 @@ int u32cmp(const void *a, const void *b);
 	(therefore) not 
 */
 
-int struct2gdfbin(HDRTYPE *hdr);
+void struct2gdfbin(HDRTYPE *hdr);
 int gdfbin2struct(HDRTYPE *hdr);
 /* struct2gdfbin and gdfbin2struct
 	convert between the streamed header information (as in a GDF file or 
@@ -391,7 +395,7 @@ int gdfbin2struct(HDRTYPE *hdr);
  ------------------------------------------------------------------------*/
 
 size_t hdrEVT2rawEVT(HDRTYPE *hdr);
-int rawEVT2hdrEVT(HDRTYPE *hdr);
+void rawEVT2hdrEVT(HDRTYPE *hdr);
 /* rawEVT2hdrEVT and hdrEVT2rawEVT
 	convert between streamed event table and the structure
 	HDRTYPE.EVENT.
