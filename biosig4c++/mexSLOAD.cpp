@@ -1,7 +1,7 @@
 /*
 
-    $Id: mexSLOAD.cpp,v 1.51 2009-03-14 22:39:14 schloegl Exp $
-    Copyright (C) 2007,2008 Alois Schloegl <a.schloegl@ieee.org>
+    $Id: mexSLOAD.cpp,v 1.52 2009-04-08 13:03:10 schloegl Exp $
+    Copyright (C) 2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -12,13 +12,19 @@
 
  */
 
-#include "biosig-dev.h"
 #include "mex.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "biosig-dev.h"
+
+#ifdef WITH_PDP 
+void sopen_pdp_read(HDRTYPE *hdr);
+#endif
+
 //#define VERBOSE_LEVEL  9 
+extern int VERBOSE_LEVEL;
 //#define DEBUG
 
 void mexFunction(
@@ -141,7 +147,14 @@ void mexFunction(
 
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[101] SOPEN-R start\n");
+
 	hdr = sopen(FileName, "r", hdr);
+#ifdef WITH_PDP 
+	if (B4C_ERRNUM) {
+		B4C_ERRNUM = 0;  
+		sopen_pdp_read(hdr);
+	}	
+#endif
 
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[102]\n");
@@ -194,8 +207,9 @@ void mexFunction(
 	convert2to4_eventtable(hdr); 
 			
 	if ((NS<0) || ((NS==1) && (ChanList[0] == 0.0))) { 	// all channels
-		for (k=0; k<hdr->NS; ++k)
-			hdr->CHANNEL[k].OnOff = 1; 	// set
+		for (k=0, NS=0; k<hdr->NS; ++k) {
+			if (hdr->CHANNEL[k].OnOff) NS++; 
+		}	
 	}		
 	else {		
 		for (k=0; k<hdr->NS; ++k)
@@ -213,40 +227,17 @@ void mexFunction(
 		fprintf(stderr,"[113] NS=%i %i\n",hdr->NS,NS);
 
 #ifndef mexSOPEN
-	count = sread(NULL, 0, hdr->NRec, hdr);
-	//count = sread2(NULL, 0, hdr->NRec * hdr->SPR, hdr);
+	plhs[0] = mxCreateDoubleMatrix(hdr->NRec*hdr->SPR, NS, mxREAL);
+	hdr->FLAG.ROW_BASED_CHANNELS = 0;
+	count = sread(mxGetPr(plhs[0]), 0, hdr->NRec, hdr);
+	hdr->NRec = count; 
 #endif
-
 	sclose(hdr);
 
 	if ((status=serror())) return;  
 
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"\n[129] SREAD/SCLOSE on %s successful [%i,%i] [%Li,%i] %i.\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1],hdr->NRec,count,NS);
-
-#ifndef mexSOPEN
-
-	hdr->NRec = count; 
-	// plhs[0] = mxCreateDoubleMatrix(hdr->SPR * count, NS, mxREAL);
-
-	//if (hdr->FLAG.ROW_BASED_CHANNELS) {
-	if (0) {
-		/* transpose matrix */
-		plhs[0] = mxCreateDoubleMatrix(hdr->data.size[1], hdr->data.size[0], mxREAL);
-		for (k =0; k <hdr->data.size[0]; ++k)
-		for (k1=0; k1<hdr->data.size[1]; ++k1)
-			*(mxGetPr(plhs[0]) + k1*hdr->data.size[0] + k) = hdr->data.block[k1 + k*hdr->data.size[1]];
-	} else {		
-		plhs[0] = mxCreateDoubleMatrix(hdr->data.size[0], hdr->data.size[1], mxREAL);
-		memcpy((void*)mxGetPr(plhs[0]),(void*)hdr->data.block, hdr->data.size[0]*hdr->data.size[1]*sizeof(biosig_data_type));
-	}
-
-
-#else
-
-	if (hdr->data.block != NULL) free(hdr->data.block);	
-	hdr->data.block = NULL; 
-#endif 
 
 //	hdr2ascii(hdr,stderr,4);	
 
