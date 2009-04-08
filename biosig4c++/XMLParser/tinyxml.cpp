@@ -22,11 +22,10 @@ must not be misrepresented as being the original software.
 distribution.
 
 
-
 Modified by Alois Schlögl 
-Apr 6, 2009: add support for zlib-compressed XML data
+Apr 7, 2009: add support for biosig's gzipped(zlib)-xml data
 	
-    $Id: tinyxml.cpp,v 1.2 2009-04-06 20:33:23 schloegl Exp $
+    $Id: tinyxml.cpp,v 1.3 2009-04-08 18:21:00 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository
     (biosig4c++) at http://biosig.sf.net/
@@ -49,7 +48,21 @@ Apr 6, 2009: add support for zlib-compressed XML data
 
 bool TiXmlBase::condenseWhiteSpace = true;
 
-void TiXmlBase::PutString( const TIXML_STRING& str, TIXML_STRING* outString )
+// Microsoft compiler security
+FILE* TiXmlFOpen( const char* filename, const char* mode )
+{
+	#if defined(_MSC_VER) && (_MSC_VER >= 1400 )
+		FILE* fp = 0;
+		errno_t err = fopen_s( &fp, filename, mode );
+		if ( !err && fp )
+			return fp;
+		return 0;
+	#else
+		return fopen( filename, mode );
+	#endif
+}
+
+void TiXmlBase::EncodeString( const TIXML_STRING& str, TIXML_STRING* outString )
 {
 	int i=0;
 
@@ -100,7 +113,7 @@ void TiXmlBase::PutString( const TIXML_STRING& str, TIXML_STRING* outString )
 			outString->append( entity[3].str, entity[3].strLength );
 			++i;
 		}
-		else if ( c == 39 )
+		else if ( c == '\'' )
 		{
 			outString->append( entity[4].str, entity[4].strLength );
 			++i;
@@ -117,9 +130,8 @@ void TiXmlBase::PutString( const TIXML_STRING& str, TIXML_STRING* outString )
 				sprintf( buf, "&#x%02X;", (unsigned) ( c & 0xff ) );
 			#endif		
 
-			// *ME:	warning C4267: convert 'size_t' to 'int'
-			// *ME:	Int-Cast to make compiler happy ...
-	
+			//*ME:	warning C4267: convert 'size_t' to 'int'
+			//*ME:	Int-Cast to make compiler happy ...
 			outString->append( buf, (int)strlen( buf ) );
 			++i;
 		}
@@ -950,7 +962,7 @@ bool TiXmlDocument::LoadFile( const char* _filename, TiXmlEncoding encoding )
 	//		value = filename
 	// in the STL case, cause the assignment method of the std::string to
 	// be called. What is strange, is that the std::string had the same
-	// address as it is c_str() method, and so bad things happen. Looks
+	// address as it's c_str() method, and so bad things happen. Looks
 	// like a bug in the Microsoft STL implementation.
 	// Add an extra string to avoid the crash.
 	TIXML_STRING filename( _filename );
@@ -968,7 +980,8 @@ bool TiXmlDocument::LoadFile( const char* _filename, TiXmlEncoding encoding )
 		return result;
 	}
 #else
-	FILE* file = fopen( value.c_str(), "rb" );	
+	FILE* file = TiXmlFOpen( value.c_str (), "rb" );	
+	// FILE* file = fopen( value.c_str(), "rb" );	
 	if ( file )
 	{
 		bool result = LoadFile( file, encoding );
@@ -983,62 +996,23 @@ bool TiXmlDocument::LoadFile( const char* _filename, TiXmlEncoding encoding )
 	}
 }
 
-#ifdef ZLIB_H
-bool TiXmlDocument::LoadFile( gzFile file, TiXmlEncoding encoding )
+#ifdef WITH_ZLIB
+bool TiXmlDocument::LoadFile(gzFile file, TiXmlEncoding encoding )
 {
-	if ( !file ) 
-	{
-		SetError( TIXML_ERROR_OPENING_FILE, 0, 0, TIXML_ENCODING_UNKNOWN );
-		return false;
+
+	char *buf = NULL;
+	long length = 0; 
+
+	// file is loaded in hdr->AS.Header; 
+	size_t buflen = 1l<<18;	
+	while (!gzeof(file)) {
+	    	buf = (char*)realloc(buf, buflen);
+	    	length += gzread(file, buf+length, buflen-1);
+	    	buflen *= 2;
 	}
+	buf[length] = 0;
+    	buf = (char*)realloc(buf,length+1);
 
-	// Delete the existing data:
-	Clear();
-	location.Clear();
-
-	// Subtle bug here. TinyXml did use fgets. But from the XML spec:
-	// 2.11 End-of-Line Handling
-	// <snip>
-	// <quote>
-	// ...the XML processor MUST behave as if it normalized all line breaks in external 
-	// parsed entities (including the document entity) on input, before parsing, by translating 
-	// both the two-character sequence #xD #xA and any #xD that is not followed by #xA to 
-	// a single #xA character.
-	// </quote>
-	//
-	// It is not clear fgets does that, and certainly is not clear it works cross platform. 
-	// Generally, you expect fgets to translate from the convention of the OS to the c/unix
-	// convention, and not work generally.
-
-	/*
-	while( fgets( buf, sizeof(buf), file ) )
-	{
-		data += buf;
-	}
-	*/
-
-        char* buf = NULL; 
-        const int buflen = 1000000;
-        long length = 0;
-        long n;
-        do {
-                buf = (char*)realloc(buf, length+buflen+1);
-                n   = gzread(file, buf+length, buflen);
-                if (n>0) length +=n;
-        } while (n>0);
-        buf[length] = 0;
-
-        // Strange case, but good to handle up front.
-        if ( length == 0 )
-        {
-                if (n < 0) {
-                        delete [] buf;
-                        SetError( TIXML_ERROR_OPENING_FILE, 0, 0, TIXML_ENCODING_UNKNOWN );
-                        return false;
-                }
-                SetError( TIXML_ERROR_DOCUMENT_EMPTY, 0, 0, TIXML_ENCODING_UNKNOWN );
-                return false;
-        }
 
 	// If we have a file, assume it is all one big XML file, and read it in.
 	// The document parser may decide the document ends sooner than the entire file, however.
@@ -1090,15 +1064,15 @@ bool TiXmlDocument::LoadFile( gzFile file, TiXmlEncoding encoding )
 	}		
 	delete [] buf;
 	buf = 0;
-
+	
 	Parse( data.c_str(), 0, encoding );
 
 	if (  Error() )
-        return false;
-    else
+	        return false;
+    	else
 		return true;
 }
-#endif
+#endif 
 
 bool TiXmlDocument::LoadFile( FILE* file, TiXmlEncoding encoding )
 {
@@ -1119,7 +1093,7 @@ bool TiXmlDocument::LoadFile( FILE* file, TiXmlEncoding encoding )
 	fseek( file, 0, SEEK_SET );
 
 	// Strange case, but good to handle up front.
-	if ( length == 0 )
+	if ( length <= 0 )
 	{
 		SetError( TIXML_ERROR_DOCUMENT_EMPTY, 0, 0, TIXML_ENCODING_UNKNOWN );
 		return false;
@@ -1140,7 +1114,7 @@ bool TiXmlDocument::LoadFile( FILE* file, TiXmlEncoding encoding )
 	// a single #xA character.
 	// </quote>
 	//
-	// It is not clear fgets does that, and certainly is not clear it works cross platform. 
+	// It is not clear fgets does that, and certainly isn't clear it works cross platform. 
 	// Generally, you expect fgets to translate from the convention of the OS to the c/unix
 	// convention, and not work generally.
 
@@ -1218,7 +1192,7 @@ bool TiXmlDocument::LoadFile( FILE* file, TiXmlEncoding encoding )
 bool TiXmlDocument::SaveFile( const char * filename ) const
 {
 	// The old c stuff lives on...
-	FILE* fp = fopen( filename, "w" );
+	FILE* fp = TiXmlFOpen( filename, "w" );
 	if ( fp )
 	{
 		bool result = SaveFile( fp );
@@ -1251,7 +1225,11 @@ void TiXmlDocument::CopyTo( TiXmlDocument* target ) const
 	TiXmlNode::CopyTo( target );
 
 	target->error = error;
-	target->errorDesc = errorDesc.c_str ();
+	target->errorId = errorId;
+	target->errorDesc = errorDesc;
+	target->tabsize = tabsize;
+	target->errorLocation = errorLocation;
+	target->useMicrosoftBOM = useMicrosoftBOM;
 
 	TiXmlNode* node = 0;
 	for ( node = firstChild; node; node = node->NextSibling() )
@@ -1341,8 +1319,8 @@ void TiXmlAttribute::Print( FILE* cfile, int /*depth*/, TIXML_STRING* str ) cons
 {
 	TIXML_STRING n, v;
 
-	PutString( name, &n );
-	PutString( value, &v );
+	EncodeString( name, &n );
+	EncodeString( value, &v );
 
 	if (value.find ('\"') == TIXML_STRING::npos) {
 		if ( cfile ) {
@@ -1365,14 +1343,14 @@ void TiXmlAttribute::Print( FILE* cfile, int /*depth*/, TIXML_STRING* str ) cons
 
 int TiXmlAttribute::QueryIntValue( int* ival ) const
 {
-	if ( sscanf( value.c_str(), "%d", ival ) == 1 )
+	if ( TIXML_SSCANF( value.c_str(), "%d", ival ) == 1 )
 		return TIXML_SUCCESS;
 	return TIXML_WRONG_TYPE;
 }
 
 int TiXmlAttribute::QueryDoubleValue( double* dval ) const
 {
-	if ( sscanf( value.c_str(), "%lf", dval ) == 1 )
+	if ( TIXML_SSCANF( value.c_str(), "%lf", dval ) == 1 )
 		return TIXML_SUCCESS;
 	return TIXML_WRONG_TYPE;
 }
@@ -1473,7 +1451,7 @@ void TiXmlText::Print( FILE* cfile, int depth ) const
 	else
 	{
 		TIXML_STRING buffer;
-		PutString( value, &buffer );
+		EncodeString( value, &buffer );
 		fprintf( cfile, "%s", buffer.c_str() );
 	}
 }
@@ -1966,12 +1944,16 @@ bool TiXmlPrinter::Visit( const TiXmlText& text )
 	}
 	else if ( simpleTextPrint )
 	{
-		buffer += text.Value();
+		TIXML_STRING str;
+		TiXmlBase::EncodeString( text.ValueTStr(), &str );
+		buffer += str;
 	}
 	else
 	{
 		DoIndent();
-		buffer += text.Value();
+		TIXML_STRING str;
+		TiXmlBase::EncodeString( text.ValueTStr(), &str );
+		buffer += str;
 		DoLineBreak();
 	}
 	return true;

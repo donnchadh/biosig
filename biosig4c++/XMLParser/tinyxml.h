@@ -26,7 +26,7 @@ Modified by Alois Schlögl
 Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 	
 
-    $Id: tinyxml.h,v 1.2 2009-04-06 20:33:23 schloegl Exp $
+    $Id: tinyxml.h,v 1.3 2009-04-08 18:21:07 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository
     (biosig4c++) at http://biosig.sf.net/
@@ -35,7 +35,6 @@ Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
     modify it under the terms of the GNU General Public License
     as published by the Free Software Foundation; either version 3
     of the License, or (at your option) any later version.
-
 
 */
 
@@ -54,7 +53,14 @@ Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+
+#ifdef WITH_ZLIB
+#ifdef __MINGW32__
+#include "../win32/zlib/include/zlib.h"
+#else
 #include <zlib.h>
+#endif 
+#endif 
 
 // Help out windows:
 #if defined( _DEBUG ) && !defined( DEBUG )
@@ -72,7 +78,7 @@ Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 #endif
 
 // Deprecated library function hell. Compilers want to use the
-// new safe versions. This probably doesn t fully address the problem,
+// new safe versions. This probably doesn't fully address the problem,
 // but it gets closer. There are too many compilers for me to fully
 // test. If you get compilation troubles, undefine TIXML_SAFE
 #define TIXML_SAFE
@@ -82,16 +88,21 @@ Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 		// Microsoft visual studio, version 2005 and higher.
 		#define TIXML_SNPRINTF _snprintf_s
 		#define TIXML_SNSCANF  _snscanf_s
+		#define TIXML_SSCANF   sscanf_s
 	#elif defined(_MSC_VER) && (_MSC_VER >= 1200 )
 		// Microsoft visual studio, version 6 and higher.
 		//#pragma message( "Using _sn* functions." )
 		#define TIXML_SNPRINTF _snprintf
 		#define TIXML_SNSCANF  _snscanf
+		#define TIXML_SSCANF   sscanf
 	#elif defined(__GNUC__) && (__GNUC__ >= 3 )
 		// GCC version 3 and higher.s
 		//#warning( "Using sn* functions." )
 		#define TIXML_SNPRINTF snprintf
 		#define TIXML_SNSCANF  snscanf
+		#define TIXML_SSCANF   sscanf
+	#else
+		#define TIXML_SSCANF   sscanf
 	#endif
 #endif	
 
@@ -106,7 +117,7 @@ class TiXmlParsingData;
 
 const int TIXML_MAJOR_VERSION = 2;
 const int TIXML_MINOR_VERSION = 5;
-const int TIXML_PATCH_VERSION = 2;
+const int TIXML_PATCH_VERSION = 3;
 
 /*	Internal structure for tracking location of items 
 	in the XML file.
@@ -145,23 +156,23 @@ public:
 	virtual ~TiXmlVisitor() {}
 
 	/// Visit a document.
-	virtual bool VisitEnter( const TiXmlDocument& doc )	{ return true; }
+	virtual bool VisitEnter( const TiXmlDocument& /*doc*/ )			{ return true; }
 	/// Visit a document.
-	virtual bool VisitExit( const TiXmlDocument& doc )	{ return true; }
+	virtual bool VisitExit( const TiXmlDocument& /*doc*/ )			{ return true; }
 
 	/// Visit an element.
-	virtual bool VisitEnter( const TiXmlElement& element, const TiXmlAttribute* firstAttribute )	{ return true; }
+	virtual bool VisitEnter( const TiXmlElement& /*element*/, const TiXmlAttribute* /*firstAttribute*/ )	{ return true; }
 	/// Visit an element.
-	virtual bool VisitExit( const TiXmlElement& element )											{ return true; }
+	virtual bool VisitExit( const TiXmlElement& /*element*/ )		{ return true; }
 
 	/// Visit a declaration
-	virtual bool Visit( const TiXmlDeclaration& declaration )		{ return true; }
+	virtual bool Visit( const TiXmlDeclaration& /*declaration*/ )	{ return true; }
 	/// Visit a text node
-	virtual bool Visit( const TiXmlText& text )						{ return true; }
+	virtual bool Visit( const TiXmlText& /*text*/ )					{ return true; }
 	/// Visit a comment node
-	virtual bool Visit( const TiXmlComment& comment )				{ return true; }
+	virtual bool Visit( const TiXmlComment& /*comment*/ )			{ return true; }
 	/// Visit an unknow node
-	virtual bool Visit( const TiXmlUnknown& unknown )				{ return true; }
+	virtual bool Visit( const TiXmlUnknown& /*unknown*/ )			{ return true; }
 };
 
 // Only used by Attribute::Query functions
@@ -270,6 +281,11 @@ public:
 								TiXmlParsingData* data, 
 								TiXmlEncoding encoding /*= TIXML_ENCODING_UNKNOWN */ ) = 0;
 
+	/** Expands entities in a string. Note this should not contian the tag's '<', '>', etc, 
+		or they will be transformed into entities!
+	*/
+	static void EncodeString( const TIXML_STRING& str, TIXML_STRING* out );
+
 	enum
 	{
 		TIXML_NO_ERROR = 0,
@@ -368,10 +384,6 @@ protected:
 			return 0;
 		}
 	}
-
-	// Puts a string to a stream, expanding entities as it goes.
-	// Note this should not contian the '<', '>', etc, or they will be transformed into entities!
-	static void PutString( const TIXML_STRING& str, TIXML_STRING* out );
 
 	// Return true if the next characters in the stream are any of the endTag sequences.
 	// Ignore case only works for english, and should only be relied on when comparing
@@ -507,6 +519,8 @@ public:
 	const std::string& ValueStr() const { return value; }
 	#endif
 
+	const TIXML_STRING& ValueTStr() const { return value; }
+
 	/** Changes the value of the node. Defined as:
 		@verbatim
 		Document:	filename of the xml file
@@ -530,8 +544,8 @@ public:
 	TiXmlNode* Parent()							{ return parent; }
 	const TiXmlNode* Parent() const				{ return parent; }
 
-	const TiXmlNode* FirstChild()	const	{ return firstChild; }		///< The first child of this node. Will be null if there are no children.
-	TiXmlNode* FirstChild()					{ return firstChild; }
+	const TiXmlNode* FirstChild()	const		{ return firstChild; }	///< The first child of this node. Will be null if there are no children.
+	TiXmlNode* FirstChild()						{ return firstChild; }
 	const TiXmlNode* FirstChild( const char * value ) const;			///< The first child of this node with the matching 'value'. Will be null if none found.
 	/// The first child of this node with the matching 'value'. Will be null if none found.
 	TiXmlNode* FirstChild( const char * _value ) {
@@ -1008,10 +1022,13 @@ public:
 		}
 		return result;
 	}
+
     #ifdef TIXML_USE_STL
 	/** Template form of the attribute query which will try to read the
 		attribute into the specified type. Very easy, very powerful, but
 		be careful to make sure to call this with the correct type.
+		
+		NOTE: This method doesn't work correctly for 'string' types.
 
 		@return TIXML_SUCCESS, TIXML_WRONG_TYPE, or TIXML_NO_ATTRIBUTE
 	*/
@@ -1027,6 +1044,21 @@ public:
 			return TIXML_SUCCESS;
 		return TIXML_WRONG_TYPE;
 	}
+	/*
+	 This is - in theory - a bug fix for "QueryValueAtribute returns truncated std::string"
+	 but template specialization is hard to get working cross-compiler. Leaving the bug for now.
+	 
+	// The above will fail for std::string because the space character is used as a seperator.
+	// Specialize for strings. Bug [ 1695429 ] QueryValueAtribute returns truncated std::string
+	template<> int QueryValueAttribute( const std::string& name, std::string* outValue ) const
+	{
+		const TiXmlAttribute* node = attributeSet.Find( name );
+		if ( !node )
+			return TIXML_NO_ATTRIBUTE;
+		*outValue = node->ValueStr();
+		return TIXML_SUCCESS;
+	}
+	*/
 	#endif
 
 	/** Sets an attribute of name to a given value. The attribute
@@ -1409,10 +1441,9 @@ public:
 		file location. Streaming may be added in the future.
 	*/
 	bool LoadFile( FILE*, TiXmlEncoding encoding = TIXML_DEFAULT_ENCODING );
-	#ifdef ZLIB_H
+#ifdef WITH_ZLIB
 	bool LoadFile( gzFile, TiXmlEncoding encoding = TIXML_DEFAULT_ENCODING );
-	#endif
-
+#endif 
 	/// Save a file using the given FILE*. Returns true if successful.
 	bool SaveFile( FILE* ) const;
 
