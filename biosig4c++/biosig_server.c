@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig_server.c,v 1.6 2009-03-23 22:01:51 schloegl Exp $
+    $Id: biosig_server.c,v 1.7 2009-04-08 15:55:56 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -587,31 +587,37 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 				strcpy(f2,fullfilename); 
 				strcat(f2,".tmp"); 
 
-fprintf(stdout,"%s %s\n",f2,fullfilename);
-				
 				/*********** temporary file - not checked *********/
 				int sdo = open(f2,O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); 
-fprintf(stdout,"%i\n",sdo);
 				
+				HDRTYPE *hdr = constructHDR(0,0);
+				hdr->FileName = f2;
+#ifdef WITH_PDP 
+				hdr->AS.Header = (uint8_t*) malloc(LEN+1);
+#endif
+
 				const int BUFLEN = 1024;
 				char buf[BUFLEN]; 
 
 				count  = 0; 
 				while (count<LEN) {
 					size_t len = recv(ns, buf, min(LEN-count, BUFLEN), 0);
+#ifdef WITH_PDP 
+					memcpy(hdr->AS.Header+count,buf,len);
+#endif
 					count += write(sdo, buf, len);
 					//fprintf(stdout,"\b\b\b\b%02i%% ",100.0*count/LEN);
 				}
 				close(sdo);
+				hdr->AS.Header[count]=0;
+				hdr->HeadLen = count;
 
 				if (LEN-count) {
 					errcode = 1;
-fprintf(stdout,"errcode=1 %i\n",LEN-count);
+//fprintf(stdout,"errcode=1 %i\n",LEN-count);
 				}
 				else {
 				/************ read temporary file, ... ************/
-				HDRTYPE *hdr = constructHDR(0,0);
-				hdr->FileName = f2;
 				int status = 0;
 #ifdef WITH_PDP 
 				sopen_pdp_read(hdr);
@@ -920,11 +926,11 @@ int main () {
 			}
 			    
 			/* Redirect standard files to /dev/null */
-/*
+
 			freopen( "/dev/null", "r", stdin);
 			freopen( "/dev/null", "w", stdout);
 			freopen( "/dev/null", "w", stderr);
-*/			
+			
 			if (VERBOSE_LEVEL>7) fprintf(stdout,"server123 err=%i %s\n",errno,strerror(errno));
 
 			errno = 0; 

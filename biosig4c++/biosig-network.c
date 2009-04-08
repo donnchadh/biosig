@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig-network.c,v 1.11 2009-04-06 08:04:44 schloegl Exp $
+    $Id: biosig-network.c,v 1.12 2009-04-08 15:56:00 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -378,16 +378,15 @@ int bscs_send_hdr(int sd, HDRTYPE *hdr) {
 	if (SERVER_STATE != STATE_OPEN_WRITE_HDR) return(BSCS_ERROR);
 
 	mesg_t msg; 
-	size_t LEN;
 
 	hdr->TYPE = GDF;
 	hdr->FLAG.ANONYMOUS = 1; 	// do not store name 
-	LEN = struct2gdfbin(hdr); 
+	struct2gdfbin(hdr); 
 
 	msg.STATE = BSCS_VERSION_01 | BSCS_SEND_HDR | STATE_OPEN_WRITE_HDR | BSCS_NO_ERROR;
 	msg.LEN   = b_endian_u32(hdr->HeadLen);
 	int s = send(sd, TC &msg, 8, 0);	
-if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR  %i %i %i\n",LEN,hdr->HeadLen,s); 
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR  %i %i\n",hdr->HeadLen,s); 
 	s = send(sd, TC hdr->AS.Header, hdr->HeadLen, 0);	
 
 if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR %i %i\n",hdr->HeadLen,s); 
@@ -397,7 +396,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR %i %i\n",hdr->HeadLen,s);
 
 if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR %i %i %i %08x\n",hdr->HeadLen,s,count,msg.STATE); 
 
-	LEN = b_endian_u32(msg.LEN);
+	size_t LEN = b_endian_u32(msg.LEN);
 	SERVER_STATE = msg.STATE & STATE_MASK;
 
 	if ((LEN==0) && (msg.STATE==(BSCS_VERSION_01 | BSCS_SEND_HDR | BSCS_REPLY | STATE_OPEN_WRITE | BSCS_NO_ERROR)) ) 
@@ -651,25 +650,30 @@ int bscs_put_file(int sd, char *filename) {
 
 if (VERBOSE_LEVEL>8) fprintf(stdout,"PUT FILE(1) %s\n",filename);
 
-	int sdi = open(filename,O_RDONLY);
+//	int sdi = open(filename,O_RDONLY);
+//	if (sdi<=0) return(BSCS_ERROR);
 
-	if (sdi<=0) return(BSCS_ERROR);
+	FILE *fid = fopen(filename,"r");
+	if (fid==NULL) return(BSCS_ERROR);
+
 
 	msg.STATE = BSCS_VERSION_01 | BSCS_PUT_FILE | STATE_OPEN_WRITE_HDR | BSCS_NO_ERROR;
 	msg.LEN   = b_endian_u32(LEN);
 	int s1 = send(sd, TC &msg, 8, 0);	
 
-if (VERBOSE_LEVEL>8) fprintf(stdout,"PUT FILE(2) %i %i\n",LEN,sdi);
+//if (VERBOSE_LEVEL>8) fprintf(stdout,"PUT FILE(2) %i %i\n",LEN,sdi);
 
 	const int BUFLEN = 1024;
 	char buf[BUFLEN]; 
 	size_t count = 0;
 	while (count<LEN) {
-		size_t len  = read(sdi, buf, min(LEN-count,BUFLEN));
+		//size_t len  = read(sdi, buf, min(LEN-count,BUFLEN));
+		size_t len  = fread( buf, 1, min(LEN-count,BUFLEN),fid);
 		count += send(sd, buf, len, 0);
 //		fprintf(stdout,"\b\b\b\b%02i%% ",100.0*count/LEN);
 	}
-	close(sdi); 
+	//close(sdi); 
+	fclose(fid); 
 
 	if (LEN-count) fprintf(stdout,"file size and number of sent bytes do not fit");
 
@@ -699,11 +703,13 @@ int bscs_get_file(int sd, uint64_t ID, char *filename) {
 	size_t LEN;
 	mesg_t msg;
 
-#if __MINGW32__ && (__GNUC__ == 3)
-	int sdo = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-#else 
-    int sdo = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-#endif 
+#if _WIN32 
+	mode_t mode = S_IRUSR | S_IWUSR;
+#else
+	mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+#endif 	
+
+	int sdo = creat(filename, mode);
 
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"get file (1) %i\n",sdo);
 
