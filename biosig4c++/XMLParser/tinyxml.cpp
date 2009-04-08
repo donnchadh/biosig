@@ -25,7 +25,7 @@ distribution.
 Modified by Alois Schlögl 
 Apr 7, 2009: add support for biosig's gzipped(zlib)-xml data
 	
-    $Id: tinyxml.cpp,v 1.3 2009-04-08 18:21:00 schloegl Exp $
+    $Id: tinyxml.cpp,v 1.4 2009-04-08 21:22:11 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository
     (biosig4c++) at http://biosig.sf.net/
@@ -59,7 +59,7 @@ FILE* TiXmlFOpen( const char* filename, const char* mode )
 		return 0;
 	#else
 		return fopen( filename, mode );
-	#endif
+	#endif   
 }
 
 void TiXmlBase::EncodeString( const TIXML_STRING& str, TIXML_STRING* outString )
@@ -113,7 +113,7 @@ void TiXmlBase::EncodeString( const TIXML_STRING& str, TIXML_STRING* outString )
 			outString->append( entity[3].str, entity[3].strLength );
 			++i;
 		}
-		else if ( c == '\'' )
+		else if ( c == 39 )
 		{
 			outString->append( entity[4].str, entity[4].strLength );
 			++i;
@@ -130,8 +130,8 @@ void TiXmlBase::EncodeString( const TIXML_STRING& str, TIXML_STRING* outString )
 				sprintf( buf, "&#x%02X;", (unsigned) ( c & 0xff ) );
 			#endif		
 
-			//*ME:	warning C4267: convert 'size_t' to 'int'
-			//*ME:	Int-Cast to make compiler happy ...
+			// *ME:	warning C4267: convert 'size_t' to 'int'
+			// *ME:	Int-Cast to make compiler happy ...
 			outString->append( buf, (int)strlen( buf ) );
 			++i;
 		}
@@ -834,6 +834,62 @@ void TiXmlElement::Print( FILE* cfile, int depth ) const
 	}
 }
 
+#ifdef WITH_ZLIB 
+void TiXmlElement::gzPrint( gzFile cfile, int depth ) const
+{
+	int i;
+	assert( cfile );
+	for ( i=0; i<depth; i++ ) {
+		gzprintf( cfile, "    " );
+	}
+
+	gzprintf( cfile, "<%s", value.c_str() );
+
+	const TiXmlAttribute* attrib;
+	for ( attrib = attributeSet.First(); attrib; attrib = attrib->Next() )
+	{
+		gzprintf( cfile, " " );
+		attrib->gzPrint( cfile, depth );
+	}
+
+	// There are 3 different formatting approaches:
+	// 1) An element without children is printed as a <foo /> node
+	// 2) An element with only a text child is printed as <foo> text </foo>
+	// 3) An element with children is printed on multiple lines.
+	TiXmlNode* node;
+	if ( !firstChild )
+	{
+		gzprintf( cfile, " />" );
+	}
+	else if ( firstChild == lastChild && firstChild->ToText() )
+	{
+		gzprintf( cfile, ">" );
+		firstChild->gzPrint( cfile, depth + 1 );
+		gzprintf( cfile, "</%s>", value.c_str() );
+		fprintf( stdout, "<%s>\n", value.c_str() );
+	}
+	else
+	{
+		gzprintf( cfile, ">" );
+
+		for ( node = firstChild; node; node=node->NextSibling() )
+		{
+			if ( !node->ToText() )
+			{
+				gzprintf( cfile, "\n" );
+			}
+			node->gzPrint( cfile, depth+1 );
+		}
+		gzprintf( cfile, "\n" );
+		for( i=0; i<depth; ++i ) {
+			gzprintf( cfile, "    " );
+		}
+		gzprintf( cfile, "</%s>", value.c_str() );
+	}
+}
+
+#endif
+
 
 void TiXmlElement::CopyTo( TiXmlElement* target ) const
 {
@@ -916,7 +972,7 @@ TiXmlDocument::TiXmlDocument( const std::string& documentName ) : TiXmlNode( TiX
 {
 	tabsize = 4;
 	useMicrosoftBOM = false;
-    value = documentName;
+	value = documentName;
 	ClearError();
 }
 #endif
@@ -962,9 +1018,10 @@ bool TiXmlDocument::LoadFile( const char* _filename, TiXmlEncoding encoding )
 	//		value = filename
 	// in the STL case, cause the assignment method of the std::string to
 	// be called. What is strange, is that the std::string had the same
-	// address as it's c_str() method, and so bad things happen. Looks
+	// address as its c_str() method, and so bad things happen. Looks
 	// like a bug in the Microsoft STL implementation.
 	// Add an extra string to avoid the crash.
+
 	TIXML_STRING filename( _filename );
 	value = filename;
 
@@ -1114,7 +1171,7 @@ bool TiXmlDocument::LoadFile( FILE* file, TiXmlEncoding encoding )
 	// a single #xA character.
 	// </quote>
 	//
-	// It is not clear fgets does that, and certainly isn't clear it works cross platform. 
+	// It is not clear fgets does that, and certainly is not clear it works cross platform. 
 	// Generally, you expect fgets to translate from the convention of the OS to the c/unix
 	// convention, and not work generally.
 
@@ -1188,10 +1245,34 @@ bool TiXmlDocument::LoadFile( FILE* file, TiXmlEncoding encoding )
 		return true;
 }
 
+bool TiXmlDocument::SaveFile( const char * filename, char compression ) const
+{
+	// The old c stuff lives on...
+
+	if (compression) {
+		gzFile fid = gzopen(filename, "wb" );
+		if (fid) {
+			bool result = SaveFile(fid);
+			gzclose(fid);
+			return result;
+		}	
+	}
+	else {
+		FILE *fid = fopen(filename, "wb" );
+		if (fid) {
+			bool result = SaveFile(fid);
+			fclose(fid);
+			return result;
+		}	
+	}
+	return false;
+}
 
 bool TiXmlDocument::SaveFile( const char * filename ) const
 {
+
 	// The old c stuff lives on...
+
 	FILE* fp = TiXmlFOpen( filename, "w" );
 	if ( fp )
 	{
@@ -1201,7 +1282,6 @@ bool TiXmlDocument::SaveFile( const char * filename ) const
 	}
 	return false;
 }
-
 
 bool TiXmlDocument::SaveFile( FILE* fp ) const
 {
@@ -1217,6 +1297,25 @@ bool TiXmlDocument::SaveFile( FILE* fp ) const
 	}
 	Print( fp, 0 );
 	return (ferror(fp) == 0);
+}
+
+
+bool TiXmlDocument::SaveFile( gzFile fp ) const
+{
+	if ( useMicrosoftBOM ) 
+	{
+		const unsigned char TIXML_UTF_LEAD_0 = 0xefU;
+		const unsigned char TIXML_UTF_LEAD_1 = 0xbbU;
+		const unsigned char TIXML_UTF_LEAD_2 = 0xbfU;
+
+		gzputc( fp, TIXML_UTF_LEAD_0 );
+		gzputc( fp, TIXML_UTF_LEAD_1 );
+		gzputc( fp, TIXML_UTF_LEAD_2 );
+	}
+	gzPrint( fp, 0 ); 
+	int errno;
+	gzerror(fp,&errno);
+	return (errno!=0);
 }
 
 
@@ -1260,6 +1359,17 @@ void TiXmlDocument::Print( FILE* cfile, int depth ) const
 	}
 }
 
+#ifdef WITH_ZLIB 
+void TiXmlDocument::gzPrint(gzFile cfile, int depth ) const
+{
+	assert( cfile );
+	for ( const TiXmlNode* node=FirstChild(); node; node=node->NextSibling() )
+	{
+		node->gzPrint( cfile, depth );
+		gzprintf( cfile, "\n" );
+	}
+}
+#endif
 
 bool TiXmlDocument::Accept( TiXmlVisitor* visitor ) const
 {
@@ -1340,6 +1450,33 @@ void TiXmlAttribute::Print( FILE* cfile, int /*depth*/, TIXML_STRING* str ) cons
 	}
 }
 
+#ifdef WITH_ZLIB 
+void TiXmlAttribute::gzPrint( gzFile cfile, int /*depth*/, TIXML_STRING* str ) const
+{
+	TIXML_STRING n, v;
+
+	EncodeString( name, &n );
+	EncodeString( value, &v );
+
+	if (value.find ('\"') == TIXML_STRING::npos) {
+		if ( cfile ) {
+			gzprintf (cfile, "%s=\"%s\"", n.c_str(), v.c_str() );
+		}
+		if ( str ) {
+			(*str) += n; (*str) += "=\""; (*str) += v; (*str) += "\"";
+		}
+	}
+	else {
+		if ( cfile ) {
+			gzprintf (cfile, "%s='%s'", n.c_str(), v.c_str() );
+		}
+		if ( str ) {
+			(*str) += n; (*str) += "='"; (*str) += v; (*str) += "'";
+		}
+	}
+}
+#endif
+
 
 int TiXmlAttribute::QueryIntValue( int* ival ) const
 {
@@ -1411,6 +1548,17 @@ void TiXmlComment::Print( FILE* cfile, int depth ) const
 	fprintf( cfile, "<!--%s-->", value.c_str() );
 }
 
+#ifdef WITH_ZLIB 
+void TiXmlComment::gzPrint( gzFile cfile, int depth ) const
+{
+	assert( cfile );
+	for ( int i=0; i<depth; i++ )
+	{
+		gzprintf( cfile,  "    " );
+	}
+	gzprintf( cfile, "<!--%s-->", value.c_str() );
+}
+#endif
 
 void TiXmlComment::CopyTo( TiXmlComment* target ) const
 {
@@ -1457,6 +1605,29 @@ void TiXmlText::Print( FILE* cfile, int depth ) const
 }
 
 
+#ifdef WITH_ZLIB 
+void TiXmlText::gzPrint( gzFile cfile, int depth ) const
+{
+	assert( cfile );
+	if ( cdata )
+	{
+		int i;
+		gzprintf( cfile, "\n" );
+		for ( i=0; i<depth; i++ ) {
+			gzprintf( cfile, "    " );
+		}
+		gzprintf( cfile, "<![CDATA[%s]]>\n", value.c_str() );	// unformatted output
+	}
+	else
+	{
+		TIXML_STRING buffer;
+		EncodeString( value, &buffer );
+		gzprintf( cfile, "%s", buffer.c_str() );
+	}
+}
+#endif
+
+
 void TiXmlText::CopyTo( TiXmlText* target ) const
 {
 	TiXmlNode::CopyTo( target );
@@ -1483,10 +1654,7 @@ TiXmlNode* TiXmlText::Clone() const
 }
 
 
-TiXmlDeclaration::TiXmlDeclaration( const char * _version,
-									const char * _encoding,
-									const char * _standalone )
-	: TiXmlNode( TiXmlNode::DECLARATION )
+TiXmlDeclaration::TiXmlDeclaration( const char * _version, const char * _encoding, const char * _standalone ) : TiXmlNode( TiXmlNode::DECLARATION )
 {
 	version = _version;
 	encoding = _encoding;
@@ -1542,6 +1710,29 @@ void TiXmlDeclaration::Print( FILE* cfile, int /*depth*/, TIXML_STRING* str ) co
 	if ( str )	 (*str) += "?>";
 }
 
+#ifdef WITH_ZLIB 
+void TiXmlDeclaration::gzPrint( gzFile cfile, int /*depth*/, TIXML_STRING* str ) const
+{
+	if ( cfile ) gzprintf( cfile, "<?xml " );
+	if ( str )	 (*str) += "<?xml ";
+
+	if ( !version.empty() ) {
+		if ( cfile ) gzprintf (cfile, "version=\"%s\" ", version.c_str ());
+		if ( str ) { (*str) += "version=\""; (*str) += version; (*str) += "\" "; }
+	}
+	if ( !encoding.empty() ) {
+		if ( cfile ) gzprintf (cfile, "encoding=\"%s\" ", encoding.c_str ());
+		if ( str ) { (*str) += "encoding=\""; (*str) += encoding; (*str) += "\" "; }
+	}
+	if ( !standalone.empty() ) {
+		if ( cfile ) gzprintf (cfile, "standalone=\"%s\" ", standalone.c_str ());
+		if ( str ) { (*str) += "standalone=\""; (*str) += standalone; (*str) += "\" "; }
+	}
+	if ( cfile ) gzprintf( cfile, "?>" );
+	if ( str )	 (*str) += "?>";
+}
+#endif
+
 
 void TiXmlDeclaration::CopyTo( TiXmlDeclaration* target ) const
 {
@@ -1577,6 +1768,17 @@ void TiXmlUnknown::Print( FILE* cfile, int depth ) const
 		fprintf( cfile, "    " );
 	fprintf( cfile, "<%s>", value.c_str() );
 }
+
+#ifdef WITH_ZLIB 
+void TiXmlUnknown::gzPrint( gzFile cfile, int depth ) const
+{
+	for ( int i=0; i<depth; i++ )
+		gzprintf( cfile, "    " );
+
+	gzprintf( cfile, "<%s>", value.c_str() );
+
+}
+#endif
 
 
 void TiXmlUnknown::CopyTo( TiXmlUnknown* target ) const

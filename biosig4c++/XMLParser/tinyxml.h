@@ -26,7 +26,7 @@ Modified by Alois Schlögl
 Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 	
 
-    $Id: tinyxml.h,v 1.3 2009-04-08 18:21:07 schloegl Exp $
+    $Id: tinyxml.h,v 1.4 2009-04-08 21:22:13 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository
     (biosig4c++) at http://biosig.sf.net/
@@ -78,7 +78,7 @@ Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 #endif
 
 // Deprecated library function hell. Compilers want to use the
-// new safe versions. This probably doesn't fully address the problem,
+// new safe versions. This probably does not fully address the problem,
 // but it gets closer. There are too many compilers for me to fully
 // test. If you get compilation troubles, undefine TIXML_SAFE
 #define TIXML_SAFE
@@ -138,7 +138,7 @@ struct TiXmlCursor
 	you will get called with a VisitEnter/VisitExit pair. Nodes that are always leaves
 	are simple called with Visit().
 
-	If you return 'true' from a Visit method, recursive parsing will continue. If you return
+	If you return TRUE from a Visit method, recursive parsing will continue. If you return
 	false, <b>no children of this node or its sibilings</b> will be Visited.
 
 	All flavors of Visit methods have a default implementation that returns 'true' (continue 
@@ -150,6 +150,7 @@ struct TiXmlCursor
 
 	@sa TiXmlNode::Accept()
 */
+
 class TiXmlVisitor
 {
 public:
@@ -236,6 +237,7 @@ public:
 		(For an unformatted stream, use the << operator.)
 	*/
 	virtual void Print( FILE* cfile, int depth ) const = 0;
+	virtual void gzPrint( gzFile cfile, int depth ) const = 0;
 
 	/**	The world does not agree on whether white space should be kept or
 		not. In order to make everyone happy, these global, static functions
@@ -897,6 +899,12 @@ public:
 	}
 	void Print( FILE* cfile, int depth, TIXML_STRING* str ) const;
 
+	// Print through zlib 
+	virtual void gzPrint( gzFile cfile, int depth ) const {
+		gzPrint( cfile, depth, 0);
+	}
+	void gzPrint( gzFile cfile, int depth, TIXML_STRING* str ) const;
+
 	// [internal use]
 	// Set the document pointer so the attribute can report errors.
 	void SetDocument( TiXmlDocument* doc )	{ document = doc; }
@@ -1139,6 +1147,9 @@ public:
 	virtual TiXmlNode* Clone() const;
 	// Print the Element to a FILE stream.
 	virtual void Print( FILE* cfile, int depth ) const;
+#ifdef WITH_ZLIB 
+	virtual void gzPrint( gzFile cfile, int depth ) const;
+#endif 
 
 	/*	Attribtue parsing starts: next char past '<'
 						 returns: next char past '>'
@@ -1193,6 +1204,9 @@ public:
 	virtual TiXmlNode* Clone() const;
 	// Write this Comment to a FILE stream.
 	virtual void Print( FILE* cfile, int depth ) const;
+#ifdef WITH_ZLIB 
+	virtual void gzPrint( gzFile cfile, int depth ) const;
+#endif
 
 	/*	Attribtue parsing starts: at the ! of the !--
 						 returns: next char past '>'
@@ -1254,6 +1268,9 @@ public:
 
 	// Write this text object to a FILE stream.
 	virtual void Print( FILE* cfile, int depth ) const;
+#ifdef WITH_ZLIB 
+	virtual void gzPrint( gzFile cfile, int depth ) const;
+#endif 
 
 	/// Queries whether this represents text using a CDATA section.
 	bool CDATA() const				{ return cdata; }
@@ -1335,6 +1352,12 @@ public:
 	virtual void Print( FILE* cfile, int depth ) const {
 		Print( cfile, depth, 0 );
 	}
+#ifdef WITH_ZLIB 
+	virtual void gzPrint( gzFile cfile, int depth, TIXML_STRING* str ) const;
+	virtual void gzPrint( gzFile cfile, int depth ) const {
+		gzPrint( cfile, depth, 0 );
+	}
+#endif 
 
 	virtual const char* Parse( const char* p, TiXmlParsingData* data, TiXmlEncoding encoding );
 
@@ -1380,6 +1403,9 @@ public:
 	virtual TiXmlNode* Clone() const;
 	// Print this Unknown to a FILE stream.
 	virtual void Print( FILE* cfile, int depth ) const;
+#ifdef WITH_ZLIB 
+	virtual void gzPrint( gzFile cfile, int depth ) const;
+#endif 
 
 	virtual const char* Parse( const char* p, TiXmlParsingData* data, TiXmlEncoding encoding );
 
@@ -1435,6 +1461,7 @@ public:
 	bool LoadFile( const char * filename, TiXmlEncoding encoding = TIXML_DEFAULT_ENCODING );
 	/// Save a file using the given filename. Returns true if successful.
 	bool SaveFile( const char * filename ) const;
+	bool SaveFile( const char * filename, char compression ) const;
 	/** Load a file using the given FILE*. Returns true if successful. Note that this method
 		doesn't stream - the entire object pointed at by the FILE*
 		will be interpreted as an XML file. TinyXML doesn't stream in XML from the current
@@ -1446,6 +1473,7 @@ public:
 #endif 
 	/// Save a file using the given FILE*. Returns true if successful.
 	bool SaveFile( FILE* ) const;
+	bool SaveFile( gzFile ) const;
 
 	#ifdef TIXML_USE_STL
 	bool LoadFile( const std::string& filename, TiXmlEncoding encoding = TIXML_DEFAULT_ENCODING )			///< STL std::string version.
@@ -1539,7 +1567,7 @@ public:
 											}
 
 	/** Write the document to standard out using formatted printing ("pretty print"). */
-	void Print() const						{ Print( stdout, 0 ); }
+	void Print() const	{ Print( stdout, 0 ); }
 
 	/* Write the document to a string using formatted printing ("pretty print"). This
 		will allocate a character array (new char[]) and return it as a pointer. The
@@ -1549,6 +1577,9 @@ public:
 
 	/// Print this Document to a FILE stream.
 	virtual void Print( FILE* cfile, int depth = 0 ) const;
+#ifdef WITH_ZLIB 
+	virtual void gzPrint( gzFile cfile, int depth = 0 ) const;
+#endif 
 	// [internal use]
 	void SetError( int err, const char* errorLocation, TiXmlParsingData* prevData, TiXmlEncoding encoding );
 
