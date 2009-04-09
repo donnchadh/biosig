@@ -4,6 +4,7 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %   multivariate stochastic processes. 
 %
 % [R] = tfmvar(s,TRIG,T,MOP,f,Fs, [CL,group])
+% [R] = tfmvar(s,TRIG,T,MOP,N,Fs, [CL,group])
 %
 % INPUT: 
 %  s    signal data (one channel per column) 
@@ -11,7 +12,8 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %  T    windows definition; each column defines one window)
 %       T(1,:) and T(2,:) indicate start and end [in samples], respectivly  
 %  MOP  model order of the MVAR model   
-%  f    designated frequencies 
+%  f    vector of designated frequencies
+%  N 	(scalar) number of frequencies distributed between 0..Fs/2 	
 %  Fs   sampling rate. 
 %  [CL,group]  is OPTIONAL
 %	CL 	are the labels for different classes, conditions, states. 
@@ -25,7 +27,6 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %		Accordingly, a trial-based leave-on-out-method (LOOM) is used, 
 %		for computing the standard error. 
 %               
-%
 %
 % OUTPUT: 
 %     	M and SE contain the mean 
@@ -109,9 +110,9 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %	Cortical fuctional network organization from autoregressive modelling of loal field potential oscillations.
 %	Statistics in Medicine, doi: 10.1002/sim.2935 
 
-%	$Revision: 1.12 $
-%	$Id: tfmvar.m,v 1.12 2008-09-04 09:34:54 schloegl Exp $
-%	Copyright (C) 2004,2005,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Revision: 1.13 $
+%	$Id: tfmvar.m,v 1.13 2009-04-09 11:17:46 schloegl Exp $
+%	Copyright (C) 2004,2005,2006,2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -138,6 +139,13 @@ R.datatype = 'TF-MVAR 2.0';	% C = PE(MOP+1)
 R.T = T; %(T(1,:)+T(2,:))/(2*Fs); 
 R.SampleRate = Fs; 
 R.F = f; 
+if numel(f)==1,
+        N = f;
+        f = (0:N-1)*(Fs/(2*N));
+	R.F = f; 
+end; 
+R.F = f; 
+
 R.MOP = MOP; 
 R.nan_ratio = zeros(1,size(T,2));
 
@@ -161,7 +169,7 @@ end;
 
 TRIG = TRIG(:);
 TRIG = TRIG(~any(isnan(cl),2));
-cl   = cl(~any(isnan(cl),2),:   );
+cl   = cl(~any(isnan(cl),2),:);
 if size(cl,2)>1,
         cl2 = cl(:,2);          % 2nd column contains the group definition, ( Leave-One (Group) - Out ) 
         cl  = cl(:,1); 
@@ -244,8 +252,10 @@ for k1 = 1:size(T,2),
         % univariate
         [AR1,RC1,PE1] = durlev(acovf(S0,MOP));
         
+	e = exp(i*2*pi*f/Fs);
         for k=1:m;
-                [h1,f] = freqz(sqrt(PE1(k,MOP+1)/(Fs*2*pi)),ar2poly(AR1(k,:)),f,Fs);
+		h1 = sqrt(PE1(k,MOP+1)/(Fs*2*pi))./polyval(ar2poly(AR1(k,:)),e);
+                %[h1,f] = freqz(sqrt(PE1(k,MOP+1)/(Fs*2*pi)),ar2poly(AR1(k,:)),f,Fs);
                 H1(k,:)= h1(:)'; %F(:,k)=f(:);
         end;
         
