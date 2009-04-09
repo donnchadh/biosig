@@ -1,7 +1,7 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.35 2009-04-06 20:34:34 schloegl Exp $
-    Copyright (C) 2006,2007 Alois Schloegl <a.schloegl@ieee.org>
+    $Id: sopen_hl7aecg.c,v 1.36 2009-04-09 13:54:04 schloegl Exp $
+    Copyright (C) 2006,2007,2009 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -36,6 +36,7 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 	Output: 
 		HDRTYPE *hdr	// defines the HDR structure accoring to "biosig.h"
 */
+
 	char tmp[80]; 
 	TiXmlDocument doc(hdr->FileName);
 
@@ -44,8 +45,110 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 
 	if(doc.LoadFile()){
 	    TiXmlHandle hDoc(&doc);
+	    TiXmlHandle geECG = hDoc.FirstChild("CardiologyXML");
 	    TiXmlHandle aECG = hDoc.FirstChild("AnnotatedECG");
-	    if(aECG.Element()){
+	    if (geECG.Element()) {
+
+			struct tm t0; 
+			t0.tm_hour = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Hour").Element()->GetText());
+			t0.tm_min  = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Minute").Element()->GetText());
+			t0.tm_sec  = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Second").Element()->GetText());
+			t0.tm_mday = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Day").Element()->GetText());
+			t0.tm_mon  = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Month").Element()->GetText())-1;
+			t0.tm_year = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Year").Element()->GetText())-1900;
+			hdr->T0    = tm_time2gdf_time(&t0);
+
+			hdr->ID.Manufacturer.Name = "GE";			
+			strncpy(hdr->ID.Manufacturer._field, geECG.FirstChild("Device-Type").Element()->GetText(),MAX_LENGTH_PID);
+			hdr->ID.Manufacturer.Model = hdr->ID.Manufacturer._field;			
+
+			strncpy(hdr->Patient.Id, geECG.FirstChild("PatientInfo").FirstChild("PID").Element()->GetText(),MAX_LENGTH_PID);
+			const char *tmp = geECG.FirstChild("PatientInfo").FirstChild("PID").Element()->GetText();
+			hdr->Patient.Sex = (toupper(tmp[0])=='M') + 2*(toupper(tmp[0])=='F');
+			strncpy(hdr->Patient.Name, geECG.FirstChild("PatientInfo").FirstChild("Name").FirstChild("FamilyName").Element()->GetText(),MAX_LENGTH_PID);
+			strncat(hdr->Patient.Name, " ",MAX_LENGTH_PID);
+			strncat(hdr->Patient.Name, geECG.FirstChild("PatientInfo").FirstChild("Name").FirstChild("GivenName").Element()->GetText(),MAX_LENGTH_PID);
+			
+			hdr->NS = atoi(geECG.FirstChild("StripData").FirstChild("NumberOfLeads").Element()->GetText());
+			hdr->SPR = 1;
+			hdr->NRec = atoi(geECG.FirstChild("StripData").FirstChild("ChannelSampleCountTotal").Element()->GetText());
+			hdr->SampleRate = atof(geECG.FirstChild("StripData").FirstChild("SampleRate").Element()->GetText());
+			double Cal = atof(geECG.FirstChild("StripData").FirstChild("Resolution").Element()->GetText());
+
+			double LP = atof(geECG.FirstChild("FilterSetting").FirstChild("LowPass").Element()->GetText());
+			double HP = atof(geECG.FirstChild("FilterSetting").FirstChild("HighPass").Element()->GetText());
+			double Notch = 0; 
+			if (!strcmpi("yes",geECG.FirstChild("FilterSetting").FirstChild("Filter50Hz").Element()->GetText()))
+				Notch = 50; 
+			else if (!strcmpi("yes",geECG.FirstChild("FilterSetting").FirstChild("Filter60Hz").Element()->GetText()))
+				Notch = 60; 
+			
+			uint16_t gdftyp = 3; 
+			hdr->AS.bpb = 0; 
+			hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+			hdr->AS.rawdata = (uint8_t*) calloc(hdr->NS,hdr->NRec*hdr->SPR*GDFTYP_BITS[gdftyp]>>3);
+
+			TiXmlElement *C = geECG.FirstChild("StripData").FirstChild("WaveformData").Element();
+			for (int k=0; C && (k<hdr->NS); k++) {
+				CHANNEL_TYPE *hc = hdr->CHANNEL + k;
+				// default values 
+				hc->GDFTYP	= gdftyp;	
+				hc->PhysDimCode	= 4275; //PhysDimCode("uV");	
+				hc->DigMin 	= (double)(int16_t)0x8000;			
+				hc->DigMax	= (double)(int16_t)0x7fff;	
+				strncpy(hc->Label, C->Attribute("lead"), MAX_LENGTH_LABEL);
+
+				hc->LeadIdCode	= 0;
+				size_t j;
+				for (j=0; strcmpi(hdr->CHANNEL[k].Label, LEAD_ID_TABLE[j]) && LEAD_ID_TABLE[j][0]; j++) {}; 
+				if (LEAD_ID_TABLE[j][0])	
+					hdr->CHANNEL[k].LeadIdCode = j;
+
+				hc->LowPass	= LP;
+				hc->HighPass	= HP;
+				hc->Notch	= Notch;
+				hc->Impedance	= NaN;
+				hc->XYZ[0] 	= 0.0;
+				hc->XYZ[1] 	= 0.0;
+				hc->XYZ[2] 	= 0.0;
+				
+				// defined 
+				hc->Cal		= Cal;
+				hc->Off		= 0.0;
+				hc->SPR		= 1; 
+				hc->OnOff	= 1;	
+				hc->bi  	= hdr->AS.bpb;
+				hdr->AS.bpb    += hc->SPR * GDFTYP_BITS[hc->GDFTYP]>>3;
+
+				    /* read data samples */	
+				std::vector<std::string> vector;
+				stringtokenizer(vector, C->GetText(), ",");
+				
+				int16_t* data = (int16_t*)(hdr->AS.rawdata);
+				hc->DigMax	= 0; 
+				hc->DigMin	= 0; 
+				for(j=0; j<vector.size(); ++j) {
+					int d = atoi(vector[j].c_str());
+
+					data[j*hdr->NS+k] = d;
+					/* get Min/Max */
+					if(d > hc->DigMax) hc->DigMax = d;
+					if(d < hc->DigMin) hc->DigMin = d;
+				}
+				for(; j<hdr->NRec; ++j) {
+					data[j*hdr->NS+k] = (double)(int16_t)0x8000;	// set to NaN 
+				}
+
+				hc->PhysMax	= hc->DigMax * hc->Cal + hc->Off; 
+				hc->PhysMin	= hc->DigMin * hc->Cal + hc->Off; 
+
+				C = C->NextSiblingElement();
+			}
+			hdr->AS.first = 0; 	
+			hdr->AS.length = hdr->NRec; 	
+
+	    }
+	    else if(aECG.Element()){
 
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"hl7r: [412]\n"); 
@@ -115,6 +218,7 @@ int sopen_HL7aECG_read(HDRTYPE* hdr) {
 					fprintf(stderr,"Warning: composite subject name is not supported.\n");
 					for (int k=1;k<40;k++)
 						fprintf(stderr,"%c.",((char*)Name1)[k]);
+
 					//hdr->Patient.Name[0] = 0;
 /*
 				### FIXME: support of composite patient name.  
@@ -758,8 +862,8 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
     }
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"980\n");
-    doc.SaveFile(hdr->FileName);
-//    doc.SaveFile(hdr);
+	doc.SaveFile(hdr->FileName, hdr->FILE.COMPRESSION);
+//	doc.SaveFile(hdr);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"989\n");
 
     return(0);
