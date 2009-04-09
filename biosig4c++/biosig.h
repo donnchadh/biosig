@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.139 2009-03-27 07:13:44 schloegl Exp $
+% $Id: biosig.h,v 1.140 2009-04-09 15:06:55 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -282,6 +282,7 @@ typedef struct {
 		int		Medication;	/* 0:Unknown, 1: NO, 2: YES */
 		struct {
 			int 	Visual;		/* 0:Unknown, 1: NO, 2: YES, 3: Corrected */
+			int 	Heart;		/* 0:Unknown, 1: NO, 2: YES, 3: Pacemaker */
 		} Impairment;
 		
 	} Patient ATT_ALI; 

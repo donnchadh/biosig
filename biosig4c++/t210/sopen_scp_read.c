@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.65 2009-02-27 09:17:46 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.66 2009-04-09 15:08:14 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -689,6 +689,18 @@ int sopen_SCP_read(HDRTYPE* hdr) {
  				else if (tag==31) {
 				}
 				else if (tag==32) {
+					if (PtrCurSect[curSectPos]==0) {
+						for (int k=1;k<len1;k++) {
+							if ((PtrCurSect[curSectPos+k] > 9) && (PtrCurSect[curSectPos+k] < 40)) 
+								hdr->Patient.Impairment.Heart = 2; 
+							else if (PtrCurSect[curSectPos+k]==1) 
+								hdr->Patient.Impairment.Heart = 1; 
+							else if (PtrCurSect[curSectPos+k]==42) {
+								hdr->Patient.Impairment.Heart = 3; 
+								break;
+							}	
+						}	
+					}
 				}
 				else if (tag==33) {
 				}

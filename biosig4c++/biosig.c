@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.300 2009-04-08 12:49:42 schloegl Exp $
+    $Id: biosig.c,v 1.301 2009-04-09 15:06:53 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -1716,6 +1716,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
       	hdr->Patient.Sex 	= 0;	// 0:Unknown, 1: Male, 2: Female
       	hdr->Patient.Handedness = 0;	// 0:Unknown, 1: Right, 2: Left, 3: Equal
       	hdr->Patient.Impairment.Visual = 0;	// 0:Unknown, 1: NO, 2: YES, 3: Corrected
+      	hdr->Patient.Impairment.Heart  = 0;	// 0:Unknown, 1: NO, 2: YES, 3: Pacemaker
       	hdr->Patient.Weight 	= 0;	// 0:Unknown
       	hdr->Patient.Height 	= 0;	// 0:Unknown
 
@@ -2459,7 +2460,7 @@ void struct2gdfbin(HDRTYPE *hdr)
 	     		Header1[84] = (hdr->Patient.Smoking%4) + ((hdr->Patient.AlcoholAbuse%4)<<2) + ((hdr->Patient.DrugAbuse%4)<<4) + ((hdr->Patient.Medication%4)<<6);
 	     		Header1[85] =  hdr->Patient.Weight;
 	     		Header1[86] =  hdr->Patient.Height;
-	     		Header1[87] = (hdr->Patient.Sex%4) + ((hdr->Patient.Handedness%4)<<2) + ((hdr->Patient.Impairment.Visual%4)<<4);
+	     		Header1[87] = (hdr->Patient.Sex%4) + ((hdr->Patient.Handedness%4)<<2) + ((hdr->Patient.Impairment.Visual%4)<<4) + ((hdr->Patient.Impairment.Heart%4)<<6);
 		}
 		
 	     	size_t len = strlen(hdr->ID.Recording);
@@ -2740,6 +2741,7 @@ int gdfbin2struct(HDRTYPE *hdr)
 	    		hdr->Patient.Sex       	  =  Header1[87]%4;
 	    		hdr->Patient.Handedness   = (Header1[87]>>2)%4;
 	    		hdr->Patient.Impairment.Visual = (Header1[87]>>4)%4;
+	    		hdr->Patient.Impairment.Heart  = (Header1[87]>>6)%4;
 	
 			*(uint32_t*)(hdr->AS.Header+156) = leu32p(hdr->AS.Header+156);
 			*(uint32_t*)(hdr->AS.Header+160) = leu32p(hdr->AS.Header+160);
@@ -3273,6 +3275,7 @@ if (!strncmp(MODE,"r",1))
     	hdr->AS.first  =  0; 
     	hdr->AS.length =  0; 
 	hdr->AS.bpb    = -1; 	// errorneous value: ensures that hdr->AS.bpb will be defined 
+
 #ifndef WITHOUT_NETWORK
 	if (!memcmp(hdr->AS.Header,"bscs://",7)) {
 		hdr->AS.Header[count]=0;
@@ -3305,6 +3308,7 @@ if (!strncmp(MODE,"r",1))
     	} 
     	else 
 #endif
+
 	if (hdr->TYPE == GDF) {
 
 	    	if (hdr->VERSION > 1.90) 
@@ -10173,14 +10177,13 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			fprintf(fid,"\tHeight          : %i cm\n",hdr->Patient.Height); 
 		if (hdr->Patient.Height)
 			fprintf(stdout,"\tWeight          : %i kg\n",hdr->Patient.Weight); 
-			
-		fprintf(fid,"\tGender          : "); 
-		if (hdr->Patient.Sex==1)
-			fprintf(fid,"male\n"); 
-		else if (hdr->Patient.Sex==2)
-			fprintf(fid,"female\n"); 
-		else 
-			fprintf(fid,"unknown\n"); 
+	
+		const char *Gender[] = {"unknown","male","female","unknown"};		
+		const char *EyeImpairment[] = {"unknown","no","yes","corrected"};		
+		const char *HeartImpairment[] = {"unknown","no","yes","pacemaker"};		
+		fprintf(fid,"\tGender          : %s\n",Gender[hdr->Patient.Sex]); 
+		fprintf(fid,"\tEye Impairment  : %s\n",EyeImpairment[hdr->Patient.Impairment.Visual]); 
+		fprintf(fid,"\tHeart Impairment: %s\n",HeartImpairment[hdr->Patient.Impairment.Heart]); 
 		if (hdr->Patient.Birthday) {
 			T0 = gdf_time2tm_time(hdr->Patient.Birthday);
 			fprintf(fid,"\tAge             : %4.1f years\n\tBirthday        : (%.6f) %s ",age,ldexp(hdr->Patient.Birthday,-32),asctime(T0));

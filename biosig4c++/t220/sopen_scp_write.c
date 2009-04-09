@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_write.c,v 1.41 2008-12-03 11:18:29 schloegl Exp $
+    $Id: sopen_scp_write.c,v 1.42 2009-04-09 15:08:14 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -381,6 +381,20 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 			curSectLen += 4; 
 
 			}
+			
+			// Tag 32 (len = 5)
+			*(ptr+sectionStart+curSectLen) = 32;	// tag
+			*(uint16_t*)(ptr+sectionStart+curSectLen+1) = l_endian_u16(2);	// length
+			if (hdr->Patient.Impairment.Heart==1) {
+				*(ptr+sectionStart+curSectLen+3) = 0; 
+				*(ptr+sectionStart+curSectLen+4) = 1; 	// Apparently healthy
+				curSectLen += 5; 
+			}			
+			else if (hdr->Patient.Impairment.Heart==3) {
+				*(ptr+sectionStart+curSectLen+3) = 0; 
+				*(ptr+sectionStart+curSectLen+4) = 42; 	// Implanted cardiac pacemaker
+				curSectLen += 5; 
+			}			
 
 			// Tag 34 (len = 5)
 			*(ptr+sectionStart+curSectLen) = 34;	// tag
