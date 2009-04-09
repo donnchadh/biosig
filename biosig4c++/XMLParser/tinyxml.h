@@ -25,13 +25,12 @@ distribution.
 Modified by Alois Schlögl 
 Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 	
-
-    $Id: tinyxml.h,v 1.4 2009-04-08 21:22:13 schloegl Exp $
+    $Id: tinyxml.h,v 1.5 2009-04-09 09:12:09 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository
     (biosig4c++) at http://biosig.sf.net/
 
-    This program is free software; you can redistribute it and/or
+    BioSig is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
     as published by the Free Software Foundation; either version 3
     of the License, or (at your option) any later version.
@@ -54,8 +53,9 @@ Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 #include <string.h>
 #include <assert.h>
 
-#ifdef WITH_ZLIB
+#ifdef ZLIB_H
 #ifdef __MINGW32__
+	// requires zlib e.g. from here: http://www.zlib.net/zlib123-dll.zip
 #include "../win32/zlib/include/zlib.h"
 #else
 #include <zlib.h>
@@ -237,7 +237,9 @@ public:
 		(For an unformatted stream, use the << operator.)
 	*/
 	virtual void Print( FILE* cfile, int depth ) const = 0;
+#ifdef ZLIB_H 
 	virtual void gzPrint( gzFile cfile, int depth ) const = 0;
+#endif
 
 	/**	The world does not agree on whether white space should be kept or
 		not. In order to make everyone happy, these global, static functions
@@ -899,11 +901,13 @@ public:
 	}
 	void Print( FILE* cfile, int depth, TIXML_STRING* str ) const;
 
+#ifdef ZLIB_H 
 	// Print through zlib 
 	virtual void gzPrint( gzFile cfile, int depth ) const {
 		gzPrint( cfile, depth, 0);
 	}
 	void gzPrint( gzFile cfile, int depth, TIXML_STRING* str ) const;
+#endif 
 
 	// [internal use]
 	// Set the document pointer so the attribute can report errors.
@@ -1147,7 +1151,7 @@ public:
 	virtual TiXmlNode* Clone() const;
 	// Print the Element to a FILE stream.
 	virtual void Print( FILE* cfile, int depth ) const;
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 	virtual void gzPrint( gzFile cfile, int depth ) const;
 #endif 
 
@@ -1204,7 +1208,7 @@ public:
 	virtual TiXmlNode* Clone() const;
 	// Write this Comment to a FILE stream.
 	virtual void Print( FILE* cfile, int depth ) const;
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 	virtual void gzPrint( gzFile cfile, int depth ) const;
 #endif
 
@@ -1268,7 +1272,7 @@ public:
 
 	// Write this text object to a FILE stream.
 	virtual void Print( FILE* cfile, int depth ) const;
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 	virtual void gzPrint( gzFile cfile, int depth ) const;
 #endif 
 
@@ -1352,7 +1356,7 @@ public:
 	virtual void Print( FILE* cfile, int depth ) const {
 		Print( cfile, depth, 0 );
 	}
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 	virtual void gzPrint( gzFile cfile, int depth, TIXML_STRING* str ) const;
 	virtual void gzPrint( gzFile cfile, int depth ) const {
 		gzPrint( cfile, depth, 0 );
@@ -1403,7 +1407,7 @@ public:
 	virtual TiXmlNode* Clone() const;
 	// Print this Unknown to a FILE stream.
 	virtual void Print( FILE* cfile, int depth ) const;
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 	virtual void gzPrint( gzFile cfile, int depth ) const;
 #endif 
 
@@ -1468,12 +1472,12 @@ public:
 		file location. Streaming may be added in the future.
 	*/
 	bool LoadFile( FILE*, TiXmlEncoding encoding = TIXML_DEFAULT_ENCODING );
-#ifdef WITH_ZLIB
-	bool LoadFile( gzFile, TiXmlEncoding encoding = TIXML_DEFAULT_ENCODING );
-#endif 
 	/// Save a file using the given FILE*. Returns true if successful.
 	bool SaveFile( FILE* ) const;
+#ifdef ZLIB_H
+	bool LoadFile( gzFile, TiXmlEncoding encoding = TIXML_DEFAULT_ENCODING );
 	bool SaveFile( gzFile ) const;
+#endif 
 
 	#ifdef TIXML_USE_STL
 	bool LoadFile( const std::string& filename, TiXmlEncoding encoding = TIXML_DEFAULT_ENCODING )			///< STL std::string version.
@@ -1577,7 +1581,7 @@ public:
 
 	/// Print this Document to a FILE stream.
 	virtual void Print( FILE* cfile, int depth = 0 ) const;
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 	virtual void gzPrint( gzFile cfile, int depth = 0 ) const;
 #endif 
 	// [internal use]

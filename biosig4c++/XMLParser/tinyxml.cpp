@@ -25,7 +25,7 @@ distribution.
 Modified by Alois Schlögl 
 Apr 7, 2009: add support for biosig's gzipped(zlib)-xml data
 	
-    $Id: tinyxml.cpp,v 1.4 2009-04-08 21:22:11 schloegl Exp $
+    $Id: tinyxml.cpp,v 1.5 2009-04-09 09:12:05 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository
     (biosig4c++) at http://biosig.sf.net/
@@ -834,7 +834,7 @@ void TiXmlElement::Print( FILE* cfile, int depth ) const
 	}
 }
 
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 void TiXmlElement::gzPrint( gzFile cfile, int depth ) const
 {
 	int i;
@@ -1053,7 +1053,7 @@ bool TiXmlDocument::LoadFile( const char* _filename, TiXmlEncoding encoding )
 	}
 }
 
-#ifdef WITH_ZLIB
+#ifdef ZLIB_H
 bool TiXmlDocument::LoadFile(gzFile file, TiXmlEncoding encoding )
 {
 
@@ -1250,13 +1250,17 @@ bool TiXmlDocument::SaveFile( const char * filename, char compression ) const
 	// The old c stuff lives on...
 
 	if (compression) {
+#ifdef ZLIB_H 
 		gzFile fid = gzopen(filename, "wb" );
 		if (fid) {
 			bool result = SaveFile(fid);
 			gzclose(fid);
 			return result;
 		}	
-	}
+#else
+		fprintf(stdout,"warning: zlib compression not supported\n"); 
+#endif
+	} 
 	else {
 		FILE *fid = fopen(filename, "wb" );
 		if (fid) {
@@ -1299,7 +1303,7 @@ bool TiXmlDocument::SaveFile( FILE* fp ) const
 	return (ferror(fp) == 0);
 }
 
-
+#ifdef ZLIB_H 
 bool TiXmlDocument::SaveFile( gzFile fp ) const
 {
 	if ( useMicrosoftBOM ) 
@@ -1317,7 +1321,7 @@ bool TiXmlDocument::SaveFile( gzFile fp ) const
 	gzerror(fp,&errno);
 	return (errno!=0);
 }
-
+#endif 
 
 void TiXmlDocument::CopyTo( TiXmlDocument* target ) const
 {
@@ -1359,7 +1363,7 @@ void TiXmlDocument::Print( FILE* cfile, int depth ) const
 	}
 }
 
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 void TiXmlDocument::gzPrint(gzFile cfile, int depth ) const
 {
 	assert( cfile );
@@ -1450,7 +1454,7 @@ void TiXmlAttribute::Print( FILE* cfile, int /*depth*/, TIXML_STRING* str ) cons
 	}
 }
 
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 void TiXmlAttribute::gzPrint( gzFile cfile, int /*depth*/, TIXML_STRING* str ) const
 {
 	TIXML_STRING n, v;
@@ -1548,7 +1552,7 @@ void TiXmlComment::Print( FILE* cfile, int depth ) const
 	fprintf( cfile, "<!--%s-->", value.c_str() );
 }
 
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 void TiXmlComment::gzPrint( gzFile cfile, int depth ) const
 {
 	assert( cfile );
@@ -1605,7 +1609,7 @@ void TiXmlText::Print( FILE* cfile, int depth ) const
 }
 
 
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 void TiXmlText::gzPrint( gzFile cfile, int depth ) const
 {
 	assert( cfile );
@@ -1710,7 +1714,7 @@ void TiXmlDeclaration::Print( FILE* cfile, int /*depth*/, TIXML_STRING* str ) co
 	if ( str )	 (*str) += "?>";
 }
 
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 void TiXmlDeclaration::gzPrint( gzFile cfile, int /*depth*/, TIXML_STRING* str ) const
 {
 	if ( cfile ) gzprintf( cfile, "<?xml " );
@@ -1769,7 +1773,7 @@ void TiXmlUnknown::Print( FILE* cfile, int depth ) const
 	fprintf( cfile, "<%s>", value.c_str() );
 }
 
-#ifdef WITH_ZLIB 
+#ifdef ZLIB_H 
 void TiXmlUnknown::gzPrint( gzFile cfile, int depth ) const
 {
 	for ( int i=0; i<depth; i++ )
