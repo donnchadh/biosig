@@ -25,7 +25,7 @@ distribution.
 Modified by Alois Schlögl 
 Apr 7, 2009: add support for biosig's gzipped(zlib)-xml data
 	
-    $Id: tinyxml.cpp,v 1.5 2009-04-09 09:12:05 schloegl Exp $
+    $Id: tinyxml.cpp,v 1.6 2009-04-14 12:25:44 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository
     (biosig4c++) at http://biosig.sf.net/
@@ -1317,9 +1317,9 @@ bool TiXmlDocument::SaveFile( gzFile fp ) const
 		gzputc( fp, TIXML_UTF_LEAD_2 );
 	}
 	gzPrint( fp, 0 ); 
-	int errno;
-	gzerror(fp,&errno);
-	return (errno!=0);
+	int err;
+	gzerror(fp,&err);
+	return (err!=0);
 }
 #endif 
 
