@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.55 2009-02-20 08:59:46 schloegl Exp $
+    $Id: save2gdf.c,v 1.56 2009-04-15 20:32:03 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -247,10 +247,6 @@ int main(int argc, char **argv){
     	hdr->TYPE = TARGET_TYPE;
 
 	hdr->FILE.COMPRESSION=COMPRESSION_LEVEL;
-	if (COMPRESSION_LEVEL>0 && TARGET_TYPE==HL7aECG)	{
-		fprintf(stderr,"Warning: on-the-fly compression (%i) is not supported for HL7aECG.\n",COMPRESSION_LEVEL); 
-		hdr->FILE.COMPRESSION = 0;
-	}
 
 	double PhysMaxValue0 = -INF; //hdr->data.block[0];
 	double PhysMinValue0 = +INF; //hdr->data.block[0];

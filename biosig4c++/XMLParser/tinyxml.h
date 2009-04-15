@@ -25,7 +25,7 @@ distribution.
 Modified by Alois Schlögl 
 Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 	
-    $Id: tinyxml.h,v 1.5 2009-04-09 09:12:09 schloegl Exp $
+    $Id: tinyxml.h,v 1.6 2009-04-15 20:31:54 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository
     (biosig4c++) at http://biosig.sf.net/
@@ -53,7 +53,7 @@ Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 #include <string.h>
 #include <assert.h>
 
-#ifdef ZLIB_H
+#ifdef WITH_ZLIB
 #ifdef __MINGW32__
 	// requires zlib e.g. from here: http://www.zlib.net/zlib123-dll.zip
 #include "../win32/zlib/include/zlib.h"

@@ -25,7 +25,7 @@ distribution.
 Modified by Alois Schlögl 
 Apr 7, 2009: add support for biosig's gzipped(zlib)-xml data
 	
-    $Id: tinyxml.cpp,v 1.6 2009-04-14 12:25:44 schloegl Exp $
+    $Id: tinyxml.cpp,v 1.7 2009-04-15 20:31:53 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository
     (biosig4c++) at http://biosig.sf.net/
@@ -866,7 +866,6 @@ void TiXmlElement::gzPrint( gzFile cfile, int depth ) const
 		gzprintf( cfile, ">" );
 		firstChild->gzPrint( cfile, depth + 1 );
 		gzprintf( cfile, "</%s>", value.c_str() );
-		fprintf( stdout, "<%s>\n", value.c_str() );
 	}
 	else
 	{
@@ -1620,13 +1619,16 @@ void TiXmlText::gzPrint( gzFile cfile, int depth ) const
 		for ( i=0; i<depth; i++ ) {
 			gzprintf( cfile, "    " );
 		}
-		gzprintf( cfile, "<![CDATA[%s]]>\n", value.c_str() );	// unformatted output
+		//gzprintf( cfile, "<![CDATA[%s]]>\n", value.c_str() );	// unformatted output
+		gzwrite( cfile, "<![CDATA[",9);
+		gzwrite( cfile, value.c_str(), value.length() );
+		gzwrite( cfile, "]]>\n", 4 );
 	}
 	else
 	{
 		TIXML_STRING buffer;
 		EncodeString( value, &buffer );
-		gzprintf( cfile, "%s", buffer.c_str() );
+		gzwrite( cfile, buffer.c_str(), buffer.length() );
 	}
 }
 #endif
