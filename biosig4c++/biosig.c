@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.301 2009-04-09 15:06:53 schloegl Exp $
+    $Id: biosig.c,v 1.302 2009-04-16 20:19:17 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -93,6 +93,9 @@ int sopen_unipro_read   (HDRTYPE* hdr);
 int sopen_eeprobe(HDRTYPE* hdr);
 int sopen_asn1(HDRTYPE* hdr);
 int sopen_zzztest(HDRTYPE* hdr);
+#ifdef WITH_DICOM
+int sopen_dicom_read(HDRTYPE* hdr);
+#endif 
 
 const int16_t GDFTYP_BITS[] = {
 	8, 8, 8,16,16,32,32,64,64,32,64, 0, 0, 0, 0, 0,   /* 0  */ 
@@ -4399,7 +4402,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 	    	
 	    	/* decode data format */
 	    	ptr = strstr(ptr,"DataFormat=");
-	    	uint16_t gdftyp; 
+	    	uint16_t gdftyp=3; 
 	    	if (ptr == NULL) gdftyp = 3;
 	    	else if (!strncmp(ptr+12,"int16",3))	gdftyp = 3; 
 	    	else if (!strncmp(ptr+12,"int32",5))	gdftyp = 5; 
@@ -7785,46 +7788,16 @@ fprintf(stdout,"ASN1 [491]\n");
 		hdr->data.size[1] = 0;
 	}	
 
+#ifdef WITH_DICOM 
 	else if (hdr->TYPE==DICOM) {
-		int bufsiz = 16384;
-		while (!ifeof(hdr)) {
-			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, count+bufsiz+1);
-		    	count += ifread(hdr->AS.Header+count, 1, bufsiz, hdr);
-		}
-	    	ifclose(hdr); 
-	    	hdr->AS.Header[count] = 0;
-		size_t pos = 132; 
+		fprintf(stdout,"DICOM support is very (!!!) experimental!\n");
+	    
+		hdr->HeadLen = count; 
+		sopen_dicom_read(hdr);
 		
-		uint32_t Tag;
-		uint32_t Len;
-		while (pos<count) {	
-			if (hdr->FILE.LittleEndian) {
-				Tag = (leu16p(hdr->AS.Header+pos)<<16) + leu16p(hdr->AS.Header+pos+2);
-			//	tag[1] = leu16p(hdr->AS.Header+pos+4);
-				Len    = leu16p(hdr->AS.Header+pos+6);
-			}
-			else {
-				fprintf(stdout,"Warning BigEndian Dicom not tested\n");			
-				Tag = (beu16p(hdr->AS.Header+pos)<<16) + beu16p(hdr->AS.Header+pos+2);
-				Len =  beu16p(hdr->AS.Header+pos+6);
-			}
-			if (VERBOSE_LEVEL>8)
-				fprintf(stdout,"%08x: %c%c %d\n",Tag,hdr->AS.Header[pos+4],hdr->AS.Header[pos+5],Len);			
-				
-			switch (Tag) {
-			case 0x00020000: 
-			case 0x00020001: 
-			default:;
-			}
-			pos += 8+Len; 
-		}
-
-/*
-    		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-    		B4C_ERRMSG = "ERROR BIOSIG SOPEN(READ): DICOM format is not supported yet";		
-    		ifclose(hdr);
-  */  		return(hdr);
+    		return(hdr);
 	}	
+#endif
 
 	else if (hdr->TYPE==HL7aECG) {
 		sopen_HL7aECG_read(hdr);

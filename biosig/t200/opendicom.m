@@ -25,8 +25,8 @@ function [HDR,H1,h2]=opendicom(arg1,arg2,arg3,arg4,arg5,arg6)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Revision: 1.4 $
-%	$Id: opendicom.m,v 1.4 2009-03-27 15:25:09 schloegl Exp $
+%	$Revision: 1.5 $
+%	$Id: opendicom.m,v 1.5 2009-04-16 20:19:17 schloegl Exp $
 %	(C) 1997-2002,2004,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -45,7 +45,10 @@ else
         fprintf(2,'Warning OPENDICOM: the use of OPENDICOM is discouraged (OPENDICOM might disappear); please use SOPEN instead.\n');
 end;
 
-DEBUG=0; 	%% set 1 to get more information 
+DEBUG=1; 	%% set 1 to get more information 
+
+
+HDR.DICOM.SeriesNumber = {}; 
 
 if any(PERMISSION=='r'),
 	% Default Settings
@@ -61,15 +64,16 @@ if any(PERMISSION=='r'),
 	else
 		HDR.FLAG.implicite_VR = 0;
         end;
-		
+
         count = 0;
         [tag,c] = fread(HDR.FILE.FID,2,'uint16');
         while ~feof(HDR.FILE.FID);
 		TAG = [2^16,1]*tag;
-		if  HDR.FLAG.implicite_VR || any(tag(1)==[8,16,32]), 	% implicite VR
+		if  HDR.FLAG.implicite_VR %|| any(tag(1)==[8,16,32]), 	% implicite VR
 			LEN = fread(HDR.FILE.FID,1,'uint32');
 		else  % Explicite VR
 			[VR,c] = fread(HDR.FILE.FID,2,'uint16');
+			fprintf(1,'%c%c',char(mod(VR(1),256)),char(VR(1)/256));
 			ix = ['OB';'OW';'OF';'SQ';'UT';'UN']*[1;256];
 			if ~c, 
 				HDR.ERROR.status = -1;
@@ -83,31 +87,20 @@ if any(PERMISSION=='r'),
 			end;	
 		end;
 		if (LEN==hex2dec('FFFFFFFF')),
-			LEN = -1;
+			LEN = inf;
 		end;
 
 		%LEN = fread(HDR.FILE.FID,1,'uint32');
                 count = count + 1;
 
 		if DEBUG
-			fprintf(1,'%03i\t%08x\t%04i\n',count,TAG,LEN);
+			fprintf(1,'%06x: %03i\t%08x\t%04i\n',ftell(HDR.FILE.FID),count,TAG,LEN);
 		end;
 		
 %[count,LEN],dec2hex(TAG),		
 		% read Value 
 		if 0, 
 
-		elseif (LEN>100000),  
-			status = fseek(HDR.FILE.FID,LEN,0);
-			if status, 
-				fclose(HDR.FILE.FID);
-				return;
-			end;
-			
-		elseif (LEN<0), 
-			fclose(HDR.FILE.FID);
-			return;
-		
 		elseif (TAG==hex2dec('00000002')),
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
 			HDR.DICOM.TAG00000002 = char(VAL');
@@ -125,6 +118,7 @@ if any(PERMISSION=='r'),
 			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
 			HDR.DICOM.MediaStorageSOPClassUID = deblank(char(VAL));
 			HDR.NS = 1; 
+			%HDR.DICOM.MediaStorageSOPClassUID,
 			if strcmp(HDR.DICOM.MediaStorageSOPClassUID,'1.2.840.10008.5.1.4.1.1.9.1.1')
 				% 12-lead ECG Waveform Storage
 				HDR.NS = 12; 
@@ -134,6 +128,7 @@ if any(PERMISSION=='r'),
 				% Ambulatory ECG Waveform Storage
 			elseif strcmp(HDR.DICOM.MediaStorageSOPClassUID,'1.2.840.10008.5.1.4.1.1.9.2.1')
 				% Hemodynamic Waveform Storage
+				HDR.NS = 2;
 			elseif strcmp(HDR.DICOM.MediaStorageSOPClassUID,'1.2.840.10008.5.1.4.1.1.9.3.1')
 				% Cardiac Electrophysiology Waveform Storagee
 			elseif strcmp(HDR.DICOM.MediaStorageSOPClassUID,'1.2.840.10008.5.1.4.1.1.9.4.1')
@@ -147,15 +142,17 @@ if any(PERMISSION=='r'),
 			HDR.DICOM.TransferSyntaxUID = deblank(char(VAL));
 			if strcmp(HDR.DICOM.TransferSyntaxUID,'1.2.840.10008.1.2')			
 				% Implicit VR Little Endian: Default Transfer Syntax for DICOM
-				% HDR.FLAG.implicite_VR = 1; 
+				HDR.FLAG.implicite_VR = 1; 
 			elseif strcmp(HDR.DICOM.TransferSyntaxUID,'1.2.840.10008.1.2.1')			
 				% Explicit VR Little Endian
+				HDR.FLAG.implicite_VR = 0; 
 			elseif strcmp(HDR.DICOM.TransferSyntaxUID,'1.2.840.10008.1.2.1.99')			
 				% Deflated Explicit VR Little Endian
 			elseif strcmp(HDR.DICOM.TransferSyntaxUID,'1.2.840.10008.1.2.2')			
 				% Explicit VR Big Endian
 				% HDR.FLAG.implicite_VR = 1; 
 			end;
+			
 		elseif (TAG==hex2dec('00020012')),
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
 			HDR.DICOM.ImplementationClassUID = char(VAL');
@@ -201,8 +198,8 @@ if any(PERMISSION=='r'),
 			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
 			HDR.DICOM.CurveDate = char(VAL(VAL~=abs('.')));
 		elseif (TAG==hex2dec('0008002A')),
-			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
-			HDR.DICOM.AcquisitionDateTime = char(VAL(VAL~=abs('.')));
+			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8=>char');
+			HDR.DICOM.AcquisitionDateTime = VAL; char(VAL(VAL~=abs('.')));
 
 		elseif (TAG==hex2dec('00080030')),
 			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
@@ -235,6 +232,9 @@ if any(PERMISSION=='r'),
 		elseif (TAG==hex2dec('00080080')),
 			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
 			HDR.DICOM.InstitutionName = char(VAL);
+		elseif (TAG==hex2dec('00080081')),
+			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
+			HDR.DICOM.InstitutionAddress = char(VAL);
 		elseif (TAG==hex2dec('00080090')),
 			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
 			HDR.DICOM.ReferringPhysiciansName = char(VAL);
@@ -274,17 +274,27 @@ if any(PERMISSION=='r'),
 			HDR.PID = char(VAL);
 		elseif (TAG==hex2dec('00100030')),
 			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8=>char');
-			VAL = (VAL(VAL~=abs('.')));
-			HDR.DICOM.BirthDate = VAL;
-			tmp = repmat(',',1,10);
-			tmp([1:4,6:7,9:10])=VAL;
-			HDR.Patient.Birthday = [str2double(tmp),12,0,0];
-		elseif (TAG==hex2dec('00100030')),
-			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
-			HDR.DICOM.BirthTime = char(VAL(VAL~=abs('.')));
+			if (c) 
+    				VAL = (VAL(VAL~=abs('.')));
+    				VAL = (VAL(VAL~=abs('-')));
+        			HDR.DICOM.BirthDate = VAL;
+            			tmp = repmat(',',1,10);
+                		tmp([1:4,6:7,9:10])=VAL;
+                		HDR.Patient.Birthday = [str2double(tmp,','),12,0,0];
+            		end;     
 		elseif (TAG==hex2dec('00100040')),
 			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
 			HDR.Patient.Sex = deblank(char(VAL));
+
+		elseif (TAG==hex2dec('00101010')),
+			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
+			HDR.Patient.Age = char(VAL);
+		elseif (TAG==hex2dec('00101020')),
+			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
+			HDR.Patient.Height = str2double(VAL)*100;
+		elseif (TAG==hex2dec('00101030')),
+			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
+			HDR.Patient.Weight = str2double(VAL);
 
 		elseif (TAG==hex2dec('00181000')),
 			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
@@ -336,8 +346,8 @@ if any(PERMISSION=='r'),
 			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
 			HDR.DICOM.StudyID = char(VAL);
 		elseif (TAG==hex2dec('00200011')),
-			[VAL,c] = fread(HDR.FILE.FID,1,'uint8');
-			HDR.DICOM.SeriesNumber = char(VAL);
+			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
+			HDR.DICOM.SeriesNumber{end+1} = char(VAL);
 		elseif (TAG==hex2dec('00200012')),
 			[VAL,c] = fread(HDR.FILE.FID,1,'uint8');
 			HDR.DICOM.AcquisitionNumber = char(VAL);
@@ -352,7 +362,7 @@ if any(PERMISSION=='r'),
 			HDR.DICOM.TAG00200054 = VAL';
 
 		elseif (TAG==hex2dec('00200200')),
-			[VAL,c] = fread(HDR.FILE.FID,1,'uint8');
+			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8');
 			HDR.DICOM.SychronizationFrame = char(VAL);
 
 		elseif (TAG==hex2dec('00280010')),
@@ -381,17 +391,17 @@ if any(PERMISSION=='r'),
 			HDR.DICOM.PixelRepresentation = VAL;
 
 		elseif (TAG==hex2dec('003a0004')),
-			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
-			HDR.DICOM.WaveformOriginality = char(VAL); 
+			[VAL,c] = fread(HDR.FILE.FID,[1,LEN],'uint8=>char');
+			HDR.DICOM.WaveformOriginality = VAL; 
 		elseif (TAG==hex2dec('003a0005')),	% waveform data
-			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
-			HDR.NS = VAL; 
+			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8=>char');
+			HDR.NS = str2double(VAL); 
 		elseif (TAG==hex2dec('003a0010')),
-			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
-			HDR.SPR = VAL; 
+			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8=>char');
+			HDR.SPR = str2double(VAL); 
 		elseif (TAG==hex2dec('003a001a')),	% waveform data
-			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
-			HDR.SampleRate = VAL; 
+			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8=>char');
+			HDR.SampleRate = str2double(VAL); 
 
 		elseif (TAG==hex2dec('003a0020')),
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
@@ -461,6 +471,11 @@ if any(PERMISSION=='r'),
 		elseif (TAG==hex2dec('00400055')),
 			[VAL,c] = fread(HDR.FILE.FID,LEN/2,'uint16');
 			HDR.DICOM.AcquisitionContextModule = VAL;
+		elseif (TAG==hex2dec('00400555')),
+			HDR.H1 = fread(HDR.FILE.FID,[1,261*HDR.NS*2],'uint8=>char')
+			[VAL,c] = fread(HDR.FILE.FID,[HDR.NS,LEN],'int16');
+			HDR.DICOM.AcquisitionContextSequence = VAL';
+			HDR.data = VAL(:,1:end-3)';
 		elseif (TAG==hex2dec('0040A043')),
 			[VAL,c] = fread(HDR.FILE.FID,LEN/2,'uint16');
 			HDR.DICOM.WaveformAnnotationModule = VAL;
@@ -490,9 +505,14 @@ if any(PERMISSION=='r'),
 			[VAL,c] = fread(HDR.FILE.FID,LEN/2,'uint16');
 			HDR.DICOM.WaveformAnnotationSequence = VAL;
 
+		elseif (TAG==hex2dec('20201300'))
+			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
+			%[VAL,c] = fread(HDR.FILE.FID,LEN/2,'int16');
+			HDR.DICOM.TAG20201300=VAL';
+
 		elseif (TAG==hex2dec('20330008'))
-			%[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
-			[VAL,c] = fread(HDR.FILE.FID,LEN/2,'int16');
+			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
+			%[VAL,c] = fread(HDR.FILE.FID,LEN,'int16');
 			HDR.DICOM.TAG20330008=VAL';
 		elseif (TAG==hex2dec('42000000'))
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
@@ -502,8 +522,10 @@ if any(PERMISSION=='r'),
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
 			'54000010',
 		elseif (TAG==hex2dec('54000100')),
-			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
-			HDR.DICOM.WaveFormSequence = VAL; 
+			[VAL,c] = fread(HDR.FILE.FID,[HDR.NS,LEN/(HDR.NS)],'int16');
+			%[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
+			HDR.DICOM.WaveFormSequence = VAL';
+			HDR.data = VAL(:,111:end)';
 		elseif (TAG==hex2dec('54000110')),	% channel minimum
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
 			HDR.PhysMin = VAL;
@@ -519,7 +541,7 @@ if any(PERMISSION=='r'),
 			HDR.DICOM.PaddingValue = VAL;
 		elseif (TAG==hex2dec('54001010')),	% waveform data element
 			[VAL,c] = fread(HDR.FILE.FID,LEN/2,'uint16');
-			HDR.Data= VAL;
+			HDR.data= VAL;
 
 		elseif (TAG==hex2dec('7FE00010'))
 			[VAL,c] = fread(HDR.FILE.FID,LEN,'uint8');
@@ -545,10 +567,14 @@ if any(PERMISSION=='r'),
         end;
 	
 	if isfield(HDR.DICOM,'StudyDate') & isfield(HDR.DICOM,'StudyTime'),
-		tmp = char(repmat(32,[1,20]));
-		tmp([1:4,6,7,9,10]) = HDR.DICOM.StudyDate;
-		tmp([12,13,15,16,18,19]) = HDR.DICOM.StudyTime(1:6);
-		HDR.T0 = str2double(tmp);
+		tmp = char(repmat(',',[1,20]));
+		if length(HDR.DICOM.StudyDate)==8,
+			tmp([1:4,6:7,9:10]) = HDR.DICOM.StudyDate;
+			tmp([12:13,15:16,18:19]) = HDR.DICOM.StudyTime(1:6);
+			HDR.T0 = str2double(tmp,',');
+		else
+			fprintf(1,'Warning OPENDICOM: StudyDate <%s> not supported\n',HDR.DICOM.StudyDate);
+		end; 	
 	end;
 	if isfield(HDR.DICOM,'Modality') & strncmp(HDR.DICOM.Modality,'ECG',3)
 		tmp = char(repmat(32,[1,20]));
