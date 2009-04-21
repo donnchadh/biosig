@@ -29,7 +29,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 %
 %   'MEAN+STD'
 %       plota(X,hf,minmean,maxmean,maxstd [,trigger])
-%       arg1 ... R	
+%       arg1 ... R = evoked_potential(...);	
 %       arg2 ... hf (handles to figures)
 %       arg3 ... minmean (minimum of mean)
 %       arg4 ... maxmean (maximum of mean)
@@ -60,7 +60,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.69 2008-11-26 07:56:34 schloegl Exp $
+%	$Id: plota.m,v 1.70 2009-04-21 07:01:56 schloegl Exp $
 %	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -351,7 +351,7 @@ elseif strcmp(X.datatype,'MVAR'),
                 end;
         end;
         if exist('suptitle','file')
-                suptitle(Mode);
+%                suptitle(Mode);
         end;
 
 
@@ -1301,11 +1301,11 @@ elseif strcmp(X.datatype,'HISTOGRAM') || strcmp(X.datatype,'qc:histo')
         N=ceil(sqrt(size(X.H,2)));
         for K = chansel;
                 %min(K,size(X.X,2))
-                t = X.X(:,min(K,size(X.X,2)));
+                t = double(X.X(:,min(K,size(X.X,2))));
                 %HISTO=hist2pdf(HISTO);
                 h = X.H(:,K);
 
-                mu = (t(h>0)'*h(h>0))/X.N(K);%sumskipnan(repmat(t,size(h)./size(t)).*h,1)./sumskipnan(h,1);
+                mu = (t(h>0)'*h(h>0))/X.N(K);  %sumskipnan(repmat(t,size(h)./size(t)).*h,1)./sumskipnan(h,1);
                 x  = t-mu; %(repmat(t,size(h)./size(t))-repmat(mu,size(h)./size(mu)));
                 sd2= sumskipnan((x(h>0).^2).*h(h>0),1)./X.N(K);
 
@@ -1350,7 +1350,8 @@ elseif strcmp(X.datatype,'HISTOGRAM') || strcmp(X.datatype,'qc:histo')
                         %semilogy(t,[h]+.01,'-',t,exp(-(t(:,ones(size(mu)))-mu(ones(size(t)),:)).^2./sd2(ones(size(t)),:)/2)./sqrt(2*pi*sd2(ones(size(t)),:)).*(ones(size(t))*sum(h)),'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5],tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         %semilogy(t,[h]+.01,'-',t,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h)*dQ,'c',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
                         semilogy(t,[h+.01,exp(-((t-mu).^2)/(sd2*2))/sqrt(2*pi*sd2)*sum(h(h>0))*dQ],'-',mu+sqrt(sd2)*[-5 -3 -1 0 1 3 5]',tmp*ones(7,1),'+-',MaxMin,tmp,'rx');
-                        v=axis; v=[MaxMin(2)+0.1*diff(MaxMin)-eps MaxMin(1)-0.1*diff(MaxMin)+eps 1 max(h)]; axis(v);
+                        v=axis; v=[MaxMin(2)+0.1*diff(MaxMin)-50*eps MaxMin(1)-0.1*diff(MaxMin)+50*eps 1 max(h)];
+                        axis(v);
                         v=axis; v=[v(1:2) 1 max(h)]; axis(v);
                 elseif strcmp(yscale,'qq'),
                         subplot(ceil(size(X.H,2)/N),N,K);
@@ -1584,8 +1585,15 @@ elseif strcmp(X.datatype,'MEAN+STD')
                 if sz(3)>1, figure(k0); end;
                 for k = 1:sz(2)  % For each channel
 
-                        subplot(nf(k0,k));
-                        [ax,h1,h2] = plotyy(X.T,X.MEAN(:,k,k0),X.T,X.STD(:,k,k0));
+                        %subplot(nf(k0,k));
+			set (gcf(), 'currentaxes', nf(k0,k));
+                        
+                        ax = plot(X.T,[X.MEAN(:,k),X.SEM(:,k)]*[1,1,1;0,-1,1],'k');
+                        set(ax(2),'color',[1,1,1]/2);
+                        set(ax(3),'color',[1,1,1]/2);
+                        
+                if 0,          		
+%                        [ax,h1,h2] = plotyy(X.T,X.MEAN(:,k,k0),X.T,X.STD(:,k,k0));
                         drawnow;
                         set(ax(1),'FontSize',8);
                         set(ax(2),'FontSize',8);
@@ -1615,7 +1623,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
 
                         xlabel('Time (s)');
                         grid on;
-
+		end;
                         if isfield(X,'Label')  % Print label of each channel (if such a label exists)
                                 if k <= length(X.Label)
                                         title(X.Label{k},'FontSize',8,'Interpreter','none');
@@ -1817,7 +1825,8 @@ elseif strncmp(X.datatype,'TSD_BCI',7) && (nargin>1) && strcmpi(arg2,'TSD');
         if N==2, N=1; end;
         for k=1:N,
                 if N>1,
-                        subplot(nf(k));
+                        %subplot(nf(k));
+			set (gcf(), 'currentaxes', nf(k));
                 end;
                 h=plot(X.T,[X.MEAN1(:,k),X.MEAN2(:,k),X.SD1(:,k),X.SD2(:,k)]*[1,0,1,0,1,0; 0,1,0,1,0,1; 0,0,1,0,-1,0; 0,0,0,1,0,-1]);
                 set(h(1),'linewidQh',2);
@@ -1834,7 +1843,7 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
         if nargin<2,
                 clf;
                 for k=1:6,
-                        nf(k)=subplot(3,2,k);
+                        nf(k)=subplot(3,2,k)
                 end;
         else
                 nf=arg2;
@@ -1860,6 +1869,14 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
        	fprintf(fid,'I(Wolpaw):		%4.2f bit\n',wolpaw_entropy(X.TSD.ACC00(tix),N));
        	fprintf(fid,'I(Nykopp):		%4.2f bit\n',X.TSD.I_Nykopp(tix));
 
+
+	if ~isfield(X,'T') || ~isfield(X.T,'t')
+		X.T.t = X.TSD.T;
+	end; 	
+	if ~isfield(X.T,'t0')
+		X.T.t0 = 0;
+	end; 	
+
         if isfield(X.TSD,'I'),
 	        fprintf(fid,'I(Continous):     SUM = %4.2f  [ ',sumskipnan(X.TSD.I(tix,:))*c);
         	fprintf(fid,'%4.2f   ',X.TSD.I(tix,:));
@@ -1881,7 +1898,8 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
 
         xlim = [min(0,X.T.t(1)),max(X.T.t(end))];
         
-        subplot(nf(1));
+        %subplot(nf(1));
+	set (gcf(), 'currentaxes', nf(1));
         if ~isfield(X.TSD,'Labels')
                 for k = 1:length(X.TSD.CL), Labels{k}=int2str(X.TSD.CL(k)); end;
         else
@@ -1895,7 +1913,8 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
         title('Accuracy and Kappa')
         legend({'Accuracy [%]','Kappa [%]'})
 
-        subplot(nf(3));
+        %subplot(nf(3));
+	set (gcf(), 'currentaxes', nf(3));
         plot(X.T.t,[sum(X.TSD.I,2)*c,X.TSD.I_Nykopp(:),wolpaw_entropy(X.TSD.ACC00,N)])
         legend({'I_{continous}','I_{Nykopp}','I_{Wolpaw}'})
         title('Mutual information')
@@ -1904,7 +1923,8 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
         v=axis; axis([xlim,0,1.5]);
 
         if 0,
-                subplot(nf(5));
+                %subplot(nf(5));
+		set (gcf(), 'currentaxes', nf(5));
                 plot(X.T.t,X.MEAN2)
                 hold on
                 plot(X.T.t,X.MEAN1)
@@ -1916,7 +1936,8 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
                 legend(cellstr([tmp,repmat('(+)',size(tmp,1),1);tmp,repmat('(-)',size(tmp,1),1)]))
                 v=axis; axis([xlim,v(3:4)]);
         else
-                subplot(nf(5));
+		set (gcf(), 'currentaxes', nf(5));
+                %subplot(nf(5));
                 t = X.T.t-X.T.t0;
                 %t(t < 3.5)=NaN;
                 t(t < 0.5)=NaN;
@@ -1928,7 +1949,7 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
                 v=axis; axis([xlim,0,1]);
         end;
 
-        subplot(nf(2));
+	set (gcf(), 'currentaxes', nf(2));
         plot(X.T.t,X.TSD.AUC)
         xlabel('time [s]')
         ylabel('AUC [1]')
@@ -1936,7 +1957,8 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
         legend(Labels)
         v=axis; axis([xlim,.4,1]);
 
-        subplot(nf(4));
+        %subplot(nf(4));
+	set (gcf(), 'currentaxes', nf(4));
         plot(X.T.t,[X.TSD.I,sum(X.TSD.I,2)*c,])
         xlabel('time [s]')
         ylabel('I [bit]');
@@ -1944,7 +1966,8 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
         legend([Labels,{'SUM'}])
         v=axis; axis([xlim,0,1.5]);
 
-        subplot(nf(6));
+        %subplot(nf(6));
+	set (gcf(), 'currentaxes', nf(6));
         if isfield(X.TSD,'N')
         	% show significance interval 
 	        alpha = .05;
@@ -1963,7 +1986,8 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
 	h = nf;
 
 	for k=1:length(nf)
-		subplot(nf(k)); 
+		%subplot(nf(k)); 
+		set (gcf(), 'currentaxes', nf(k));
 		hold on; 
 		v = axis;
 		if isfield(X,'T') && isfield(X.T,'t0') && isfield(X.T,'t')
@@ -2027,7 +2051,8 @@ elseif strcmp(X.datatype,'TSD_BCI9')
 
         xlim = [min(0,X.T(1)),max(X.T(end))];
         
-        subplot(nf(1));
+        %subplot(nf(1));
+	set (gcf(), 'currentaxes', nf(1));
         if ~isfield(X,'Labels')
                 for k = 1:length(X.CL), Labels{k}=int2str(X.CL(k)); end;
         else
@@ -2040,7 +2065,8 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         title('Accuracy and Kappa')
         legend({'Accuracy [%]','Kappa [%]'})
 
-        subplot(nf(3));
+        %subplot(nf(3));
+	set (gcf(), 'currentaxes', nf(3));
         plot(X.T,[sum(X.I,2)*c,X.I_Nykopp(:),wolpaw_entropy(X.ACC00,N)])
         legend({'I_{continous}','I_{Nykopp}','I_{Wolpaw}'})
         title('Mutual information')
@@ -2049,7 +2075,9 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         v=axis; axis([xlim,0,1.5]);
 
         if 0,
-                subplot(nf(5));
+                %subplot(nf(5));
+		set (gcf(), 'currentaxes', nf(5));
+
                 plot(X.T,X.MEAN2)
                 hold on
                 plot(X.T,X.MEAN1)
@@ -2061,7 +2089,8 @@ elseif strcmp(X.datatype,'TSD_BCI9')
                 legend(cellstr([tmp,repmat('(+)',size(tmp,1),1);tmp,repmat('(-)',size(tmp,1),1)]))
                 v=axis; axis([xlim,v(3:4)]);
         else
-                subplot(nf(5));
+                %subplot(nf(5));
+		set (gcf(), 'currentaxes', nf(5));
                 t = X.T;
                 %t(t < 3.5)=NaN;
                 t(t < 0.5)=NaN;
@@ -2073,7 +2102,8 @@ elseif strcmp(X.datatype,'TSD_BCI9')
                 v=axis; axis([xlim,0,1]);
         end;
 
-        subplot(nf(2));
+        %subplot(nf(2));
+	set (gcf(), 'currentaxes', nf(2));
         plot(X.T,X.AUC)
         xlabel('time [s]')
         ylabel('AUC [1]')
@@ -2081,7 +2111,8 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         legend(Labels)
         v=axis; axis([xlim,.4,1]);
 
-        subplot(nf(4));
+        %subplot(nf(4));
+	set (gcf(), 'currentaxes', nf(4));
         plot(X.T,[X.I,sum(X.I,2)*c,])
         xlabel('time [s]')
         ylabel('I [bit]');
@@ -2089,7 +2120,8 @@ elseif strcmp(X.datatype,'TSD_BCI9')
         legend([Labels,{'SUM'}])
         v=axis; axis([xlim,0,1.5]);
 
-        subplot(nf(6));
+        %subplot(nf(6));
+	set (gcf(), 'currentaxes', nf(6));
         if isfield(X,'N')
         	% show significance interval 
 	        alpha = .05;
@@ -2242,13 +2274,15 @@ elseif strcmp(X.datatype,'TSD_BCI7')    % obsolete
                         t=(1:N)/X.Fs;
                 end;
 
-                subplot(nf(1));
+                %subplot(nf(1));
+		set (gcf(), 'currentaxes', nf(1));
                 plot(t,X.ERR*100);
                 grid on;
                 ylabel('Error rate [%]')
                 v=axis;v=[0,max(t),0,100];axis(v);
 
-                subplot(nf(2));
+                %subplot(nf(2));
+		set (gcf(), 'currentaxes', nf(2));
                 %if strcmp(X.datatype,'SNR'),
                 if isfield(X,'MEAN1'),
                         h=plot(t,[X.MEAN1(:),X.MEAN2(:),X.SD1(:),X.SD2(:)]*[1,0,0,0; 0,1,0,0; 1,0,1,0; 1,0,-1,0; 0,1,0,1; 0,1,0,-1]','b',t([1,length(t)]),[0,0],'k');
@@ -2264,7 +2298,8 @@ elseif strcmp(X.datatype,'TSD_BCI7')    % obsolete
                 ylabel('Average TSD');
                 v=axis;v(1:2)=[0,max(t)];axis(v);
 
-                subplot(nf(3));
+                %subplot(nf(3));
+		set (gcf(), 'currentaxes', nf(3));
                 if isfield(X,'T')
                         tmp = repmat(NaN,size(X.T));
                         tmp((X.T>=3.5) & X.ERR<=.50) = 0;
