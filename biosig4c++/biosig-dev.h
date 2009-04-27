@@ -1,6 +1,6 @@
 /*
 %
-% $Id: biosig-dev.h,v 1.17 2009-04-08 12:49:54 schloegl Exp $
+% $Id: biosig-dev.h,v 1.17 2009/04/08 12:49:54 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -98,6 +98,9 @@
       	| (((x) & 0x00000000000000ffull) << 56))
 #endif  /* _BYTESWAP_H */
 
+#ifdef __cplusplus
+extern "C" {
+#endif 
 
 #if __BYTE_ORDER == __BIG_ENDIAN
 #define l_endian_u16(x) ((uint16_t)bswap_16((uint16_t)(x)))
@@ -217,13 +220,16 @@ void bef32a(   float i, uint8_t* r);
 void bef64a(  double i, uint8_t* r);
 
 #endif
+#ifdef __cplusplus
+}
+#endif 
 
 
-// #define NaN (0.0/0.0)	/* used for encoding of missing values */ 
-// #define INF (1.0/0.0)	/* positive infinity */
+#define NaN (0.0/0.0)	/* used for encoding of missing values */ 
+#define INF (1.0/0.0)	/* positive infinity */
 
-const double NaN=0.0/0.0;
-const double INF=1.0/0.0;
+//const double NaN = (0.0/0.0);
+//const double INF = (1.0/0.0);
 
 #define min(a,b)	(((a) < (b)) ? (a) : (b))
 #define max(a,b)	(((a) > (b)) ? (a) : (b))
@@ -335,6 +341,9 @@ typedef struct {
 /*
         file access wrapper: use ZLIB (if available) or STDIO
  */ 	 
+#ifdef __cplusplus
+extern "C" {
+#endif 
 
 HDRTYPE* 	ifopen(HDRTYPE* hdr, const char* mode );
 int 		ifclose(HDRTYPE* hdr);
@@ -431,6 +440,9 @@ size_t bpb8_collapsed_rawdata(HDRTYPE *hdr);
 	computes the bits per block when rawdata is collapsed
 --------------------------------------------------------------- */
 
+#ifdef __cplusplus
+}
+#endif 
 
 /****************************************************************************/
 /**                                                                        **/

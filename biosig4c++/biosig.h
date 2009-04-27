@@ -1,5 +1,5 @@
 /*
-% $Id: biosig.h,v 1.140 2009-04-09 15:06:55 schloegl Exp $
+% $Id: biosig.h,v 1.140 2009/04/09 15:06:55 schloegl Exp $
 % Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
@@ -82,6 +82,7 @@ typedef char			int8_t;
 #include <gsl/gsl_matrix_double.h>
 #endif 
 #include <stdio.h>
+#include <time.h>
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -178,8 +179,14 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 #define	ntp_time2gdf_time(t)	((gdf_time)ldexp(ldexp(((double)(t)),-32)/86400 + 719529.0 - 70,32))
 #define	gdf_time2ntp_time(t)	((int64_t)ldexp((ldexp(((double)(t)),-32) - 719529.0 + 70) * 86400,32))
 
+#ifdef __cplusplus
+extern "C" {
+#endif 
 gdf_time   tm_time2gdf_time(struct tm *t);
 struct tm *gdf_time2tm_time(gdf_time t);
+#ifdef __cplusplus
+}
+#endif 
 
 typedef int64_t 		nrec_t;	/* type for number of records */
 
@@ -381,6 +388,9 @@ typedef struct {
 /**                                                                        **/
 /****************************************************************************/
 
+#ifdef __cplusplus
+extern "C" {
+#endif 
 
 HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT);
 /* 	allocates memory initializes header HDR of type HDRTYPE 
@@ -552,6 +562,9 @@ void convert4to2_eventtable(HDRTYPE *hdr);
 	all CHN[k] must be 0
   -------------------------------------------------------------- */
 
+#ifdef __cplusplus
+}
+#endif 
 
 
 /****************************************************************************/

@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.302 2009-04-16 20:19:17 schloegl Exp $
+    $Id: biosig.c,v 1.302 2009/04/16 20:19:17 schloegl Exp $
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -81,6 +81,9 @@ int VERBOSE_LEVEL = 0;
 
 #define HARDCODED_PHYSDIMTABLE 
 
+#ifdef __cplusplus
+extern "C" {
+#endif 
 
 int sopen_SCP_read     (HDRTYPE* hdr);
 int sopen_SCP_write    (HDRTYPE* hdr);
@@ -91,10 +94,13 @@ int sopen_FAMOS_read   (HDRTYPE* hdr);
 int sclose_HL7aECG_write(HDRTYPE* hdr);
 int sopen_unipro_read   (HDRTYPE* hdr);
 int sopen_eeprobe(HDRTYPE* hdr);
-int sopen_asn1(HDRTYPE* hdr);
+int sopen_fef_read(HDRTYPE* hdr);
 int sopen_zzztest(HDRTYPE* hdr);
 #ifdef WITH_DICOM
 int sopen_dicom_read(HDRTYPE* hdr);
+#endif 
+#ifdef __cplusplus
+}
 #endif 
 
 const int16_t GDFTYP_BITS[] = {
@@ -496,7 +502,6 @@ void* mfer_swap8b(uint8_t *buf, int8_t len, char FLAG_SWAP)
 /* --------------------------------
  * float to ascii[8] conversion 
  * -------------------------------- */
-
 int ftoa8(char* buf, double num)
 {
 	// used for converting scaling factors Dig/Phys/Min/Max into EDF header
@@ -2376,10 +2381,10 @@ void struct2gdfbin(HDRTYPE *hdr)
 	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",tag, hdr->HeadLen,TagNLen[1]);
 	     	tag = 3; 
 	     	if ((hdr->ID.Manufacturer.Name != NULL) || (hdr->ID.Manufacturer.Model != NULL) || (hdr->ID.Manufacturer.Version != NULL) || (hdr->ID.Manufacturer.SerialNumber != NULL)) { 
-	     		if (hdr->ID.Manufacturer.Name == NULL) hdr->ID.Manufacturer.Name="\0";
-	     		if (hdr->ID.Manufacturer.Model == NULL) hdr->ID.Manufacturer.Model="\0";
-	     		if (hdr->ID.Manufacturer.Version == NULL) hdr->ID.Manufacturer.Version="\0";
-	     		if (hdr->ID.Manufacturer.SerialNumber == NULL) hdr->ID.Manufacturer.SerialNumber="\0";
+	     		if (hdr->ID.Manufacturer.Name == NULL) hdr->ID.Manufacturer.Name="";
+	     		if (hdr->ID.Manufacturer.Model == NULL) hdr->ID.Manufacturer.Model="";
+	     		if (hdr->ID.Manufacturer.Version == NULL) hdr->ID.Manufacturer.Version="";
+	     		if (hdr->ID.Manufacturer.SerialNumber == NULL) hdr->ID.Manufacturer.SerialNumber="";
 	     		
 	     		TagNLen[tag] = strlen(hdr->ID.Manufacturer.Name)+strlen(hdr->ID.Manufacturer.Model)+strlen(hdr->ID.Manufacturer.Version)+strlen(hdr->ID.Manufacturer.SerialNumber)+4;
 	     		hdr->HeadLen += 4+TagNLen[tag];
@@ -6187,6 +6192,9 @@ if (VERBOSE_LEVEL>8)
 		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+bufsiz+1);
 		    	count  += ifread(hdr->AS.Header+count,1,bufsiz,hdr);
 		}
+		hdr->AS.Header[count]=0;
+		hdr->HeadLen = count; 
+		
     		tmp[8] = 0;
     		memcpy(tmp, hdr->AS.Header+8, 8);
     		hdr->VERSION = atol(tmp)/100.0; 
@@ -6194,9 +6202,9 @@ if (VERBOSE_LEVEL>8)
     		hdr->FILE.LittleEndian = !atol(tmp); 
     		ifseek(hdr,32,SEEK_SET);
 
-fprintf(stdout,"ASN1 [401]\n");
-		sopen_asn1(hdr);
-fprintf(stdout,"ASN1 [491]\n");
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"ASN1 [401] %i\n",count);
+		sopen_fef_read(hdr);
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"ASN1 [491]\n");
 
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "VITAL/FEF Format not supported\n";
@@ -10193,8 +10201,8 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			//char p[MAX_LENGTH_PHYSDIM+1];
 
 			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, cp->PhysDim);
-			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5f %4i",
-				k+1,cp->LeadIdCode,cp->bi8,cp->Label,cp->SPR,cp->SPR * hdr->SampleRate/hdr->SPR);
+			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5f %5i",
+				k+1,cp->LeadIdCode,cp->bi8,cp->Label,cp->SPR*hdr->SampleRate/hdr->SPR,cp->SPR);
 
 			if      (cp->GDFTYP<20)  fprintf(fid," %s  ",gdftyp_string[cp->GDFTYP]);
 			else if (cp->GDFTYP<256) fprintf(fid, " bit%i  ", cp->GDFTYP-255);
