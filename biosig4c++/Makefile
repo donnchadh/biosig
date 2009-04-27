@@ -8,11 +8,11 @@
 ##############################################################
 
 
-CC            = $(CXX)
-CXX           = g++-4.1
+CC            = gcc
+CXX           = g++
 MEX	      = mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB #-D=WITH_GSL #-D=WITH_ASN1 #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = -D=WITH_ZLIB  -D=WITH_DICOM -D=__4HAERTEL__ -D=WITH_GSL -D=WITH_ASN1 #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
@@ -22,7 +22,7 @@ LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        =
 #LIBS          = -lz  -lbiosig  	# dynamic
-LIBS          = libbiosig.a -lz -lgsl -lgslcblas -lm	# static
+LIBS          = libbiosig.a t240/libfef.a -lz -lgsl -lgslcblas -lm	# static
 #LIBS         = libbiosig.a -lws2_32 win32/libzdll.a	# static, for windows 
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
@@ -76,6 +76,7 @@ OBJECTS       = biosig.o \
 		scp-decode.o \
 		sopen_scp_write.o \
 		crc4scp.o \
+		sopen_fef_read.o \
 		sopen_hl7aecg.o \
 		getlogin_r.o \
 		biosig-network.o \
@@ -130,7 +131,7 @@ all:   $(TARGET) mex biosig4python win32 sigviewer biosig_client biosig_server
 ####### Compile
 
 biosig.o: biosig.c biosig-dev.h biosig.h 
-	$(CC) -c $(CFLAGS) $(INCPATH) -o biosig.o biosig.c
+	$(CXX) -c $(CFLAGS) $(INCPATH) -o biosig.o biosig.c
 
 biosig-network.o: biosig-network.c biosig-network.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o biosig-network.o biosig-network.c
@@ -146,7 +147,7 @@ save2gdf.o: save2gdf.c biosig-dev.h biosig.h
 
 sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h biosig.h\
 		biosig.h t210/structures.h t210/types.h
-	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_scp_read.o t210/sopen_scp_read.c
+	$(CXX) -c $(CFLAGS) $(INCPATH) -o sopen_scp_read.o t210/sopen_scp_read.c
 
 sopen_famos_read.o: t210/sopen_famos_read.c biosig-dev.h biosig.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_famos_read.o t210/sopen_famos_read.c
@@ -166,7 +167,10 @@ sopen_scp_write.o: t220/sopen_scp_write.c biosig-dev.h biosig.h
 
 sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
 		XMLParser/tinyxml.h XMLParser/tinystr.h XMLParser/Tokenizer.h
-	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_hl7aecg.o t230/sopen_hl7aecg.c
+	$(CXX) -c $(CFLAGS) $(INCPATH) -o sopen_hl7aecg.o t230/sopen_hl7aecg.c
+	
+sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h 
+	$(CC) -c $(CFLAGS) -I t240 $(INCPATH) -o sopen_fef_read.o t240/sopen_fef_read.c
 	
 getlogin_r.o: win32/getlogin_r.c
 	$(CC) -c $(CFLAGS) $(INCPATH) -o getlogin_r.o win32/getlogin_r.c

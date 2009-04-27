@@ -50,8 +50,7 @@ extern "C" {
 #endif 
 
 
-//int sopen_fef_read(HDRTYPE* hdr) {
-int sopen_asn1(HDRTYPE* hdr) {
+int sopen_fef_read(HDRTYPE* hdr) {
 
 	static asn_TYPE_descriptor_t *pduType = &asn_DEF_SessionArchiveSection;
 	SessionArchiveSection_t *SAS = 0;

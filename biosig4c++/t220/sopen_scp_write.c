@@ -39,7 +39,7 @@ int sopen_SCP_write(HDRTYPE* hdr) {
 	uint16_t 	crc; 
 	uint32_t	i; 
 	uint32_t 	sectionStart; 
-	tm* 		T0_tm;
+	struct tm* 	T0_tm;
 	double 		AVM, avm; 
 	aECG_TYPE*	aECG;		
 
