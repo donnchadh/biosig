@@ -45,10 +45,8 @@ Constrained types
 ISO/IEC 8824-1:1998 Ch. 44 
 */
 
---INT-U64 ::=              INTEGER (0 .. 18446744073709551615)
-INT-U64 ::=              INTEGER (0 .. 1844674407370955161)	/* reduced to make asn1c v0.9.22 happy */
---INT-I64 ::=              INTEGER (-9223372036854775808 .. 9223372036854775807)
-INT-I64 ::=              INTEGER (-1844674407370955161 .. 1844674407370955161) /* reduced to make asn1c v0.9.22 happy */
+INT-U64 ::=              INTEGER -- (0 .. 18446744073709551615)	/* make asn1c v0.9.22 happy */
+INT-I64 ::=              INTEGER -- (-9223372036854775808 .. 9223372036854775807) /* reduced to make asn1c v0.9.22 happy */
 
 INT-U32 ::=              INTEGER (0 .. 4294967295)
 INT-I32 ::=              INTEGER (-2147483648 .. 2147483647)
@@ -121,8 +119,6 @@ ObservationTime ::= SEQUENCE {
     hirestimerelativestamp  [APPLICATION 2537] HighResRelativeTime --OPTIONAL
 }    
 
-
---SimpleColour ::= INT-U16 {  
 SimpleColour ::= INTEGER {  
     colblack                (0), -- RGB=000
     colred                  (1), -- RGB=100
@@ -132,7 +128,7 @@ SimpleColour ::= INTEGER {
     colmagenta              (5), -- RGB=101
     colcyan                 (6), -- RGB=011
     colwhite                (7)  -- RGB=111
-}
+} (0..65535)
 
 ExtNomenRef ::= SEQUENCE {
     nomenclatureid          ExtNomenclatureCode,
@@ -181,7 +177,7 @@ SessionArchiveSection ::= [APPLICATION 7001] SEQUENCE {
     manufacturerspecific    [APPLICATION 7002] ManufacturerSpecificSection OPTIONAL,
     healthcareprovider      [APPLICATION 7003] HealthCareProviderSection OPTIONAL,
     demographics            [APPLICATION 7004] PatientDemographicsSection,
-    sessions                [APPLICATION 7015] SEQUENCE OF 
+    sessions                [APPLICATION 7015] SEQUENCE SIZE (1..MAX) OF 
     				SessionTestSection, /* SIZE (1..*), -- to make asn1c v0.9.22 happy */
     notes                   [APPLICATION 7016] SEQUENCE OF 
     				SessionNotesSection DEFAULT {}
@@ -307,29 +303,27 @@ PatMeasure ::= SEQUENCE {
 }
 
 -- Patient Sex according to ISO 5218
--- PatientSex ::= INT-U16 {
 PatientSex ::= INTEGER {
     sex-unknown             (0),
     male                    (1),
     female                  (2),
     sex-unspecified         (9)
-}
+} (0..65535)
 
---PatientType ::= INT-U16 {
 PatientType ::= INTEGER {
     pt-unspecified          (0),
     adult                   (1),
     pediatric               (2),
     neonatal                (3)
-}
+} (0..65535)
+
 -- Patient Race according to SCP ECG
---PatientRace ::= INT-U16 {
 PatientRace ::= INTEGER {
     race-unspecified        (0),
     race-caucasian          (1),
     race-black              (2),
     race-oriental           (3)
-}
+} (0..65535)
 
 SessionTestSection ::= SEQUENCE {
     handle                  Handle,
@@ -344,7 +338,7 @@ SessionTestSection ::= SEQUENCE {
     medicaldevicesystem     [APPLICATION 7005] MedicalDeviceSystemSection,
     multimedia              [APPLICATION 7006] SEQUENCE OF 
     				MultimediaSection DEFAULT {},
-    phases                  [APPLICATION 7017] SEQUENCE OF 
+    phases                  [APPLICATION 7017] SEQUENCE SIZE (1..MAX) OF 
     				SessionPhaseSection /* SIZE (1..*) -- to make asn1c v0.9.22 happy */
 }
 
@@ -411,7 +405,6 @@ SystemSpecEntry ::= SEQUENCE {
     component-spec          [2] ANY DEFINED BY component-capab-id
 }
 
---ProdSpecEntryType ::= INT-U16 {
 ProdSpecEntryType ::= INTEGER {
     unspecified             (0),
     serial-number           (1),
@@ -420,7 +413,8 @@ ProdSpecEntryType ::= INTEGER {
     sw-revision             (4),
     fw-revision             (5),
     protocol-revision       (6) 
-}
+} (0..65535)
+
 ProdSpecEntry ::= SEQUENCE {
     spec-type               [1] ProdSpecEntryType,
     component-id            [2] PrivateCode, 
@@ -428,36 +422,33 @@ ProdSpecEntry ::= SEQUENCE {
 }
 
 
--- ApplicationArea ::= INT-U16 {
 ApplicationArea ::= INTEGER {
     area-unspec             (0), 
     area-operating-room     (1),
     area-intensive-care     (2)
-}
+} (0..65535)
 
---PowerStatus ::= BITS-16 {
-  PowerStatus ::= BIT STRING {
+PowerStatus ::= BIT STRING {
     onMains                 (0),
     onBattery               (1),
     chargingFull            (8),
     chargingTrickle         (9),
     chargingOff             (10)
-}
+} SIZE(16)
 
---LineFrequency ::= INT-U16 {
 LineFrequency ::= INTEGER {
     line-f-unspec           (0),
     line-f-50hz             (1),
     line-f-60hz             (2) 
-} 
+} (0..65535)
 
 MedicalDeviceComponents ::= CHOICE {
     medicaldevice           [APPLICATION 7009] VirtualMedicalDeviceSection,
                             -- Simple MDS
-    medicaldevices          [APPLICATION 7010] SEQUENCE OF 
+    medicaldevices          [APPLICATION 7010] SEQUENCE SIZE (2..MAX) OF 
                             VirtualMedicalDeviceSection, /* SIZE (2..*), -- to make asn1c v0.9.22 happy */
                             -- Hydra MDS
-    subsystems              [APPLICATION 7011] SEQUENCE OF 
+    subsystems              [APPLICATION 7011] SEQUENCE SIZE (1..MAX) OF 
                             MedicalDeviceSystemSection /* SIZE (1..*), -- to make asn1c v0.9.22 happy */
                             -- Composite Single Bed MDS
 }
@@ -490,7 +481,6 @@ VirtualMedicalDeviceSection ::= SEQUENCE {
 }
 
 
---MsmtPrinciple ::= BITS-16 {
 MsmtPrinciple ::= BIT STRING {
     msp-chemical            (1),
     msp-electrical          (2),
@@ -501,7 +491,7 @@ MsmtPrinciple ::= BIT STRING {
     msp-biological          (7),
     msp-mechanical          (8),
     msp-manual              (15) 
-} 
+} SIZE(16)
 
 ChannelDescriptionSection ::= SEQUENCE {
     handle                Handle,
@@ -526,14 +516,14 @@ ChannelDescriptionSection ::= SEQUENCE {
                           -- of the measurement
 }
 
---ChannelStatus ::= BITS-16 {
+
 ChannelStatus ::= BIT STRING {
     chn-off                 (0),
     chn-not-ready           (1),
     chn-standby             (2), 
     chn-transduc-discon     (8),
     chn-hw-discon           (9) 
-}
+} SIZE(16)
 
 MultimediaSection ::= SEQUENCE {
     starttime              [APPLICATION 2538] AbsoluteTime,
@@ -563,7 +553,7 @@ SessionPhaseSection ::= SEQUENCE {
     stoptime                [APPLICATION 2539] AbsoluteTime,
     placeholder             Placeholder OPTIONAL,
     descriptivedata         [APPLICATION 7018] DescriptiveDataSection,
-    measureddata            [APPLICATION 7019] SEQUENCE OF 
+    measureddata            [APPLICATION 7019] SEQUENCE SIZE (1..MAX) OF 
     				MeasuredDataSection /* SIZE (1..*) -- to make asn1c v0.9.22 happy */
                             -- size = 1 except for streaming mode profile
 }
@@ -687,15 +677,14 @@ PatMeasure ::= SEQUENCE {
 }
 */
 
--- MetricStatus ::= BITS-16 {
 MetricStatus ::= BIT STRING {
     metric-off              (0),
     metric-not-ready        (1), 
     metric-standby          (2), 
     metric-transduc-discon  (8),
     metric-hw-discon        (9) 
-}
--- MetricCategory ::= INT-U16 {
+} SIZE(16)
+
 MetricCategory ::= INTEGER {
     mcat-unspec             (0),
     auto-measurement        (1),
@@ -704,28 +693,27 @@ MetricCategory ::= INTEGER {
     manual-setting          (4),
     auto-calculation        (5),
     manual-calculation      (6)
-}
+} (0..65535)
+
 MetricCalEntry ::= SEQUENCE  {
     cal-type                [1] MetricCalType,
     cal-state               [2] MetricCalState,
     cal-time                [3] AbsoluteTime
 }
--- MetricCalType ::= INT-U16 {
+
 MetricCalType ::= INTEGER {
     cal-unspec              (0),
     cal-offset              (1),
     cal-gain                (2),
     cal-two-point           (3)
-}
+} (0..65535)
 
--- MetricCalState ::= INT-U16 {
 MetricCalState ::= INTEGER {
     not-calibrated          (0),
     cal-required            (1),
     calibrated              (2)
-}
+} (0..65535)
 
---MeasurementStatus ::= BITS-16 {
 MeasurementStatus ::= BIT STRING {
     invalid                 (0),
     questionable            (1),
@@ -740,7 +728,7 @@ MeasurementStatus ::= BIT STRING {
     msmt-ongoing            (10)
                             -- indicates that a new msmt is just 
                             -- being taken (episodic) 
-}
+} SIZE(16)
 
 SampleArrayDescriptiveDataSection ::= SEQUENCE {
     COMPONENTS OF       MetricDescriptiveDataSection, 
@@ -783,12 +771,12 @@ SaSpec ::= SEQUENCE {
                                        -- signal in a subblock of a SAMDB
 }
 
---StorageDataType ::= INT-U8 {
 StorageDataType ::= INTEGER {
     unsigned                (0),
     signed                  (1),
     ieee754float            (2)
-}
+} (0..255)
+
 --  allowed combinations of storagedatatype and storagedatasize are:
 --  storagedatatype storagesize
 --     unsigned            8
@@ -800,7 +788,6 @@ StorageDataType ::= INTEGER {
 --     ieee754float       32
 --     ieee754float       64
 
---SaFlags ::= BITS-16 {
 SaFlags ::= BIT STRING {
     smoothcurve           (0),
                           -- for optimum display, use a smoothing algorithm
@@ -809,7 +796,8 @@ SaFlags ::= BIT STRING {
     saextvalrange         (3)
                           -- The non-significant bits in a sample are 
                           -- not 0 (or sign extended in the signed case)
-}
+} SIZE(16)
+
 -- The scale and range definition attribute describes a relation between
 -- scaled values and absolute values.
 -- Note: If a wave does not represent absolute values, the absolute value
@@ -832,13 +820,12 @@ SaFilterEntry ::= SEQUENCE {
     filterorder             [3] INT-I16     -- e.g. -1: 6 dB/oct
 }
 
---FilterType ::= INT-U16 {
 FilterType ::= INTEGER {
     other                   (0), 
     lowpass                 (1), 
     highpass                (2),
     notch                   (3)
-}
+} (0..65535)
 
 -- The visual grid definition attribute defines grid lines at different levels
 -- of grid lines.
@@ -857,13 +844,13 @@ SaCalData ::= SEQUENCE {
     cal-type                [6] SaCalDataType
 }
 
---SaCalDataType ::= INT-U16 {
 SaCalDataType ::= INTEGER {
     bar                   (0),
                           -- display a calibration bar
     stair                 (1)
                           -- display a calibration stair
-}
+} (0..65535)
+
 -- Specification of signal frequency
 SaSignalFrequency ::= SEQUENCE {
     lowedgefreq            [1] FEFFloat,     -- in Hz 
@@ -970,7 +957,8 @@ SampleArrayMeasuredDataSection ::= SEQUENCE {
                           -- in seconds
     subblocksize          [APPLICATION 6037] INT-U32,
                           -- in octets
-    metriclist            [APPLICATION 6038] SEQUENCE OF HandleRef /* SIZE (1..*) -- to make asn1c v0.9.22 happy */
+    metriclist            [APPLICATION 6038] SEQUENCE SIZE (1..MAX) OF 
+    				HandleRef /* SIZE (1..*) -- to make asn1c v0.9.22 happy */
                           -- references to SampleArrayDescriptiveDataSection
 }
 
@@ -1016,7 +1004,8 @@ ChoiceOfNuObsValue ::= CHOICE {
     nuobservedvalue         [APPLICATION 2384] NuObsValue,
                              -- e.g. measurement value, should also contain 
                              -- validity information to be useful!
-    compoundnuobservedvalue  [APPLICATION 2379] SEQUENCE OF NuObsValue /* SIZE (2..*) -- to make asn1 v0.9.22 happy */
+    compoundnuobservedvalue  [APPLICATION 2379] SEQUENCE SIZE (2..MAX) OF 
+    				NuObsValue /* SIZE (2..*) -- to make asn1 v0.9.22 happy */
                              -- used when multiple values are represented 
                              -- in a single NU object (Structure is compound)
 }
@@ -1060,7 +1049,7 @@ EnumObsValue ::= SEQUENCE {
 
 ChoiceOfEnumObsValue ::= CHOICE {
     enumobservedvalue           [APPLICATION 2462] EnumObsValue,
-    compoundenumobservedvalue   [APPLICATION 2463] SEQUENCE OF 
+    compoundenumobservedvalue   [APPLICATION 2463] SEQUENCE SIZE (1..MAX) OF 
     				EnumObsValue /* SIZE (1..*) -- to make asn1c v0.9.22 happy */
 }
 
@@ -1119,15 +1108,14 @@ AlertCondition ::= SEQUENCE {
 
 -- Alert Controls define flags to communicate status information 
 -- relevant for alarm processor
---AlertControls ::= BITS-16 {
 AlertControls ::= BIT STRING {
     acobjoff        (0), -- the object supervised by the alert is off
     acchanoff       (1), -- channel is off
     acallobjaloff   (3), -- all alerts supervising the reference objects are off 
     acalertoff      (4) -- this alert supervisor process is off
-}
+} SIZE(16)
+
 -- Alert Flags give additional support information how to process the condition,
--- AlertFlags ::= BITS-16 {
 AlertFlags ::= BIT STRING {
     localaudible     (1), -- indicates that the condition is audible
                           -- at the local system
@@ -1136,11 +1124,10 @@ AlertFlags ::= BIT STRING {
     audiblelatching  (4), -- audio latching of the condition is allowed
     derived          (6),
     recordinhibit    (8) -- do not start alarm recording 
-} 
+} SIZE(16)
 
 -- Alert Type allows to distinguish severity of technical and
 -- physiological alarms
--- AlertType ::=  INT-U16 {
 AlertType ::=  INTEGER {
     noalert         (0),
     lowprital       (1), -- low priority technical alarm
@@ -1149,7 +1136,7 @@ AlertType ::=  INTEGER {
     lowpripal       (256), -- awareness condition
     medpripal       (512), -- prompt response required (abnormal condition)
     hipripal        (1024) -- immediate response required (emergency condition)
-}
+} (0..65535)
 
 -- Specification of the supervised limit range
 LimitSpecEntry ::= SEQUENCE {
@@ -1163,13 +1150,12 @@ LimitSpecEntry ::= SEQUENCE {
 -- Current Limit Alert State -
 -- NOTE: The bits refer to the Limit Alarm only, not to the global alert
 -- state of the metric! 
--- CurLimAlStat ::= BITS-16 {
 CurLimAlStat ::= BIT STRING {
     limalertoff             (0), -- if this bit is set, all alerts (both
                                  -- high and low) are off
     limlowoff               (1), -- low limit violation detection is off
     limhighoff              (2)  -- high limit violation detection is off
-}
+} SIZE(16)
 
 DynamicAttributeChangeSection ::= SEQUENCE {
     timestamp            ObservationTime,
