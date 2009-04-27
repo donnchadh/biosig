@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_scp_read.c,v 1.66 2009-04-09 15:08:14 schloegl Exp $
+    $Id: sopen_scp_read.c,v 1.66 2009/04/09 15:08:14 schloegl Exp $
     Copyright (C) 2005,2006,2007 Alois Schloegl <a.schloegl@ieee.org>
 
     This file is part of the "BioSig for C/C++" repository 
@@ -316,7 +316,7 @@ void deallocEN1064(en1064_t en1064) {
 //	if (en1064.Section6.datablock != NULL) 	free(en1064.Section6.datablock);
 }
 
-int sopen_SCP_read(HDRTYPE* hdr) {	
+extern "C" int sopen_SCP_read(HDRTYPE* hdr) {	
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful. 
 	It will be called by the function SOPEN in "biosig.c"

@@ -1,6 +1,6 @@
 /*
 
-    $Id: sopen_hl7aecg.c,v 1.36 2009-04-09 13:54:04 schloegl Exp $
+    $Id: sopen_hl7aecg.c,v 1.36 2009/04/09 13:54:04 schloegl Exp $
     Copyright (C) 2006,2007,2009 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -25,7 +25,7 @@
 #include "../XMLParser/tinyxml.h"
 #include "../XMLParser/Tokenizer.h"
 
-int sopen_HL7aECG_read(HDRTYPE* hdr) {
+extern "C" int sopen_HL7aECG_read(HDRTYPE* hdr) {
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful.
 	It will be called by the function SOPEN in "biosig.c"
@@ -454,7 +454,7 @@ int sopen_HL7aECG_write(HDRTYPE* hdr){
 };
 
 
-int sclose_HL7aECG_write(HDRTYPE* hdr){
+extern "C" int sclose_HL7aECG_write(HDRTYPE* hdr){
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful. 
 	It will be called by the function SOPEN in "biosig.c"
@@ -845,7 +845,7 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"967 %i\n",i);
 
 	size_t sz = GDFTYP_BITS[hdr->CHANNEL[i].GDFTYP]>>3;
-	for(unsigned int j=0; j<hdr->CHANNEL[i].SPR; ++j) {
+	for (unsigned int j=0; j<hdr->CHANNEL[i].SPR; ++j) {
 #ifndef NO_BI
 	    	digitsStream << (*(int32_t*)(hdr->AS.rawdata + hdr->CHANNEL[i].bi + (j*sz))) << " ";
 	}
@@ -854,14 +854,13 @@ int sclose_HL7aECG_write(HDRTYPE* hdr){
 	}
 	bi += hdr->CHANNEL[i].SPR*sz;
 #endif
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"970 %i\n",i);
-
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"970 %i \n",i);
 
 	digitsText = new TiXmlText(digitsStream.str().c_str());
 	valueDigits->LinkEndChild(digitsText);
     }
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"980\n");
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"980 [%i]\n", hdr->FILE.COMPRESSION);
 	doc.SaveFile(hdr->FileName, hdr->FILE.COMPRESSION);
 //	doc.SaveFile(hdr);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"989\n");

@@ -1,7 +1,7 @@
 /*
 
-    $Id: sopen_famos_read.c,v 1.5 2009-04-06 07:38:33 schloegl Exp $
-    Copyright (C) 2008 Alois Schloegl <a.schloegl@ieee.org>
+    $Id: sopen_famos_read.c,v 1.5 2009/04/06 07:38:33 schloegl Exp $
+    Copyright (C) 2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -542,7 +542,8 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 			stat(hdr->FileName,&FileBuf);
 
 			size_t bpb = 0; 
-			for (uint16_t k=0; k<hdr->NS; k++) {
+			uint16_t k;
+			for (k=0; k<hdr->NS; k++) {
 				if (hdr->CHANNEL[k].SPR>=1)
 					hdr->SPR = lcm(hdr->SPR,hdr->CHANNEL[k].SPR);
 				hdr->CHANNEL[k].SPR = 1; 
