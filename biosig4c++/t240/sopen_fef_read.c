@@ -33,15 +33,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-
-#include <asn_application.h>
-//#include <asn_internal.h>	/* for _ASN_DEFAULT_STACK_MAX */
-
 #include "../biosig-dev.h"
 
 #ifdef WITH_ASN1
 #include "SessionArchiveSection.h"
-
 #endif
 
 
@@ -50,15 +45,88 @@ extern "C" {
 #endif 
 
 
-int sopen_fef_read(HDRTYPE* hdr) {
+void sopen_fef_read(HDRTYPE* hdr) {
 
+#ifndef WITH_ASN1
+
+	B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+	B4C_ERRMSG = "ASN1/FEF currently not supported";
+
+#else 
 	static asn_TYPE_descriptor_t *pduType = &asn_DEF_SessionArchiveSection;
-	SessionArchiveSection_t *SAS = 0;
-	void *structure;	/* Decoded structure */
+	SessionArchiveSection_t *SAS = 0; 	/* Decoded structure */
+	FEFString_t *fefstr = 0;
+	asn_codec_ctx_t *opt_codec_ctx = 0;
 
 	asn_dec_rval_t rval;
 
-	rval = ber_decode(0, pduType, (void **)&structure, hdr->AS.Header+32, hdr->HeadLen-32);
+if (VERBOSE_LEVEL>7) 
+	fprintf(stdout,"ASN1: BER DECODING\n");
+	
+	size_t pos =32;	
+	rval = ber_decode(0, pduType, (void **)&SAS, hdr->AS.Header+32, hdr->HeadLen-32);
+
+	pos += rval.consumed;
+/*
+	while (pos<hdr->HeadLen) {
+
+fprintf(stdout,"%i/%i\n",pos,hdr->HeadLen);
+	
+		rval = ber_decode(opt_codec_ctx, pduType, (void **)&SAS, hdr->AS.Header+pos, hdr->HeadLen-32);
+		pos += rval.consumed;
+	}
+*/
+if (VERBOSE_LEVEL>7) 
+	fprintf(stdout,"%i/%i\nASN1: BER DECODING DONE\n",pos,hdr->HeadLen);
+
+if (VERBOSE_LEVEL>8) {
+//	asn_fprint(stdout, &asn_DEF_SessionArchiveSection, SAS);
+
+//	SAS->s_archive_id
+	asn_fprint(stdout, &asn_DEF_FEFString, &SAS->s_archive_id);
+	asn_fprint(stdout, &asn_DEF_FEFString, &SAS->s_archive_name);
+	asn_fprint(stdout, &asn_DEF_FEFString, SAS->s_archive_comments);
+
+	/**********************************
+		Manufacturer information 
+	 **********************************/	
+	asn_fprint(stdout, &asn_DEF_ManufacturerSpecificSection, SAS->manufacturerspecific);
+
+	/**********************************
+		Health Care provider
+	 **********************************/	
+	asn_fprint(stdout, &asn_DEF_HealthCareProviderSection, SAS->healthcareprovider);
+	asn_fprint(stdout, &asn_DEF_PatientDemographicsSection, &SAS->demographics);
+}
+
+	/**********************************
+		demographic information 
+	 **********************************/	
+	{ 
+	long ival; 
+	if (!asn_INTEGER2long(SAS->demographics.sex, &ival))
+		hdr->Patient.Sex = ival;
+	}
+
+	{
+	double val; 
+	if (!asn_REAL2double(&SAS->demographics.patientweight->value, &val))
+		hdr->Patient.Weight = (uint8_t)val;
+	if (!asn_REAL2double(&SAS->demographics.patientheight->value, &val))
+		hdr->Patient.Height = (uint8_t)val;
+
+	strncpy(hdr->Patient.Name,SAS->demographics.characternamegroup->givenname.buf,MAX_LENGTH_NAME);
+	strncat(hdr->Patient.Name," ",MAX_LENGTH_NAME);
+	strncat(hdr->Patient.Name,SAS->demographics.characternamegroup->middlename.buf,MAX_LENGTH_NAME);
+	strncat(hdr->Patient.Name," ",MAX_LENGTH_NAME);
+	strncat(hdr->Patient.Name,SAS->demographics.characternamegroup->familyname.buf,MAX_LENGTH_NAME);
+	}
+	
+	/**********************************
+		Manufacturer information 
+	 **********************************/	
+
+hdr2ascii(hdr,stdout,2);
 
 	if(errno) {
 		/* Error message is already printed */
@@ -68,15 +136,16 @@ int sopen_fef_read(HDRTYPE* hdr) {
 	/* Check ASN.1 constraints */
 	char errbuf[128];
 	size_t errlen = sizeof(errbuf);
-	if(asn_check_constraints(pduType, structure,
+	if(asn_check_constraints(pduType, SAS,
 		errbuf, &errlen)) {
-		fprintf(stderr, "SOPEN_FEF_READ: ASN.1 constraint "
+		fprintf(stdout, "SOPEN_FEF_READ: ASN.1 constraint "
 			"check failed: %s\n", errbuf);
-		exit(-1);
 	}
 
-	asn_fprint(stdout, pduType, structure);
-	ASN_STRUCT_FREE(*pduType, structure);
+//	asn_fprint(stdout, pduType, structure);
+	ASN_STRUCT_FREE(*pduType, SAS);
+
+#endif 
 
 }
 
