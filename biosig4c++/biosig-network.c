@@ -45,7 +45,8 @@ uint32_t SERVER_STATE; // state of server, useful for preliminary error checking
 */
 int c64ta(uint64_t ID, char *txt) {
 	const char hex[] = "0123456789abcdef";
-	for (int k=(BSCS_ID_BITLEN>>2)-1; k>=0; k--) {
+	int k=(BSCS_ID_BITLEN>>2)-1;
+	for (; k>=0; k--) {
 		txt[k] = hex[ID & 0x0f]; 
 		ID>>=4;
 	}
@@ -59,7 +60,8 @@ int c64ta(uint64_t ID, char *txt) {
 */
 int cat64(char* txt, uint64_t *id) {
 	uint64_t ID = 0; 
-	for (int k = 0; txt[k] && (k<(BSCS_ID_BITLEN>>2));k++) {
+	int k = 0;
+	for (; txt[k] && (k<(BSCS_ID_BITLEN>>2));k++) {
 		ID<<=4; 
 		if (isdigit(txt[k]))
 			ID += txt[k]-'0';
