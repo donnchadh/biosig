@@ -1,6 +1,6 @@
 /*
 
-    $Id: save2gdf.c,v 1.56 2009-04-15 20:32:03 schloegl Exp $
+    $Id: save2gdf.c,v 1.56 2009/04/15 20:32:03 schloegl Exp $
     Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
@@ -33,7 +33,17 @@
 #define INF (1.0/0.0)
 #endif 
 
+#ifdef __cplusplus
+extern "C" {
+#endif 
 int savelink(const char* filename);
+#ifdef __cplusplus
+}
+#endif 
+
+#ifdef WITH_PDP 
+void sopen_pdp_read(HDRTYPE *hdr);
+#endif
 
 
 int main(int argc, char **argv){
@@ -166,7 +176,15 @@ int main(int argc, char **argv){
 	// hdr->FLAG.ROW_BASED_CHANNELS = 0; 
 	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
 
+	hdr->FileName = source;
 	hdr = sopen(source, "r", hdr);
+#ifdef WITH_PDP 
+	if (B4C_ERRNUM) {
+		B4C_ERRNUM = 0;  
+		sopen_pdp_read(hdr);
+	}	
+#endif
+
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
 	if ((status=serror())) {
@@ -254,7 +272,7 @@ int main(int argc, char **argv){
 	size_t N = hdr->NRec*hdr->SPR;
 	int k2=0;
     	for (k=0; k<hdr->NS; k++)
-    	if (hdr->CHANNEL[k].OnOff) 
+    	if (hdr->CHANNEL[k].OnOff && hdr->CHANNEL[k].SPR) 
     	{
 		double MaxValue = hdr->data.block[k2*N];
 		double MinValue = hdr->data.block[k2*N];
