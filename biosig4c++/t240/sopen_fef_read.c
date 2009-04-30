@@ -48,6 +48,7 @@ extern int VERBOSE_LEVEL;
 
 void sopen_fef_read(HDRTYPE* hdr) {
 
+
 #ifndef WITH_ASN1
 
 	B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
@@ -58,10 +59,11 @@ void sopen_fef_read(HDRTYPE* hdr) {
 	SessionArchiveSection_t *SAS = NULL;
 	SessionTestSection_t *STS = NULL;
 	SessionPhaseSection_t *SPS = NULL; 	/* Decoded structure */
-	FEFString_t *fefstr = 0;
 	asn_codec_ctx_t *opt_codec_ctx = 0;
-
 	asn_dec_rval_t rval;
+	long ival; 
+	double val; 
+
 
 if (VERBOSE_LEVEL>7) 
 	fprintf(stdout,"ASN1: BER DECODING\n");
@@ -70,6 +72,15 @@ if (VERBOSE_LEVEL>7)
 	rval = ber_decode(0, pduType, (void **)&SAS, hdr->AS.Header+32, hdr->HeadLen-32);
 
 	pos += rval.consumed;
+
+	/* backup info for proper freeing of memery */
+	hdr->aECG = malloc(sizeof(ASN1_t));
+	{
+		ASN1_t *asn1info = (ASN1_t*)hdr->aECG;
+		asn1info->pduType = pduType; 
+		asn1info->SAS = SAS; 
+	}	
+
 /*
 	while (pos<hdr->HeadLen) {
 
@@ -105,12 +116,10 @@ if (VERBOSE_LEVEL>8) {
 	/**********************************
 		demographic information 
 	 **********************************/	
-	long ival; 
 	if (!asn_INTEGER2long(SAS->demographics.sex, &ival))
 		hdr->Patient.Sex = ival;
 
 	{
-	double val; 
 	if (!asn_REAL2double(&SAS->demographics.patientweight->value, &val))
 		hdr->Patient.Weight = (uint8_t)val;
 	if (!asn_REAL2double(&SAS->demographics.patientheight->value, &val))
@@ -131,9 +140,7 @@ if (VERBOSE_LEVEL>8) {
 
 //	asn_fprint(stdout, &asn_DEF_SessionTestSection, SAS->sessions.list.array[0]);
 //		asn_fprint(stdout, &asn_DEF_SessionTestSection, SAS->sessions.list.array[k]);
-	if (!asn_INTEGER2long(&SAS->sessions.list.count,&ival)) N = ival; 
-	if (!N) while (SAS->sessions.list.array[N]) N++; 
-	fprintf(stdout,"Number of TestSections %i\n",N);
+	fprintf(stdout,"Number of TestSections %i\n",SAS->sessions.list.count);
 
 	if (N>1) { 
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
@@ -158,8 +165,7 @@ if (VERBOSE_LEVEL>8) {
 
 //	asn_fprint(stdout, &asn_DEF_SessionTestSection, SAS->sessions.list.array[0]);
 //	asn_fprint(stdout, &asn_DEF_SessionTestSection, SAS->sessions.list.array[k]);
-	if (!asn_INTEGER2long(&STS->phases.list.count,&ival)) N = ival; 
-	if (!N) while (STS->phases.list.array[N]) N++; 
+	N = STS->phases.list.count; 
 	if (N>1) { 
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "FEF: multiple phases sections are not supported, yet";
@@ -172,9 +178,7 @@ if (VERBOSE_LEVEL>8) {
 
 //	SPS->descriptivedata->realtimesadescs
 //	asn_fprint(stdout, &asn_DEF_SessionTestSection, SAS->sessions.list.array[0]);
-	N = 0; 
-	if (!asn_INTEGER2long(&SPS->descriptivedata.realtimesadescs->list.count,&ival)) N = ival; 
-	if (!N) while (SPS->descriptivedata.realtimesadescs->list.array[N]) N++;
+	N = SPS->descriptivedata.realtimesadescs->list.count;
 	
 	hdr->NS = N;
 	hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
@@ -183,7 +187,7 @@ if (VERBOSE_LEVEL>8) {
 	for (k=0; k<hdr->NS; k++)	{
 	
 			RealTimeSampleArrayDescriptiveDataSection_t *RTSADDS = SPS->descriptivedata.realtimesadescs->list.array[k];
-			if (VERBOSE_LEVEL>7) {
+			if (VERBOSE_LEVEL>8) {
 				fprintf(stdout,"[FEF 212] #=%i/%i\n",k,hdr->NS);
 				asn_fprint(stdout, &asn_DEF_RealTimeSampleArrayDescriptiveDataSection, RTSADDS);
 			}	
@@ -283,13 +287,13 @@ if (VERBOSE_LEVEL>8) {
 			// TODO: 				
 		      	hc->LeadIdCode= 0;
 	      		strcpy(hc->Transducer, "EEG: Ag-AgCl electrodes");
-		      	hc->bi 	      = 2*k;
+		      	hc->bi 	      = 0;
 	      		hc->OnOff     = 1;
 	      		hc->Notch     = -1;
 		      	hc->Impedance = INF;
-		      	hc->XYZ[0] 	  = 0.0;
-	      		hc->XYZ[1] 	  = 0.0;
-		      	hc->XYZ[2] 	  = 0.0;
+		      	hc->XYZ[0] 	= 0.0;
+	      		hc->XYZ[1] 	= 0.0;
+		      	hc->XYZ[2] 	= 0.0;
 	}
 	size_t d = gcd(FsD,FsN);
 	fprintf(stdout,"Fs=%i/%i\n",FsN,FsD);
@@ -297,31 +301,65 @@ if (VERBOSE_LEVEL>8) {
 	hdr->SPR = FsD;
 
 	/************** Measured Data Section MeasDS ***********************/
-	N = 0; 
-	if (!asn_INTEGER2long(&SPS->measureddata.list.count,&ival)) N = ival; 
-	if (!N) while (SPS->measureddata.list.array[N]) N++;
-	fprintf(stdout,"number of MeasuredData",N);
+	N = SPS->measureddata.list.count;
+	fprintf(stdout,"Number of MeasuredData %i\n",N);
+//	asn_fprint(stdout, &asn_DEF_SessionPhaseSection, SPS);
 	
-	for (k=0; k<N; k++) {
-		asn_fprint(stdout, &asn_DEF_MeasuredDataSection, SPS->measureddata.list.array[k]);
-		SPS->measureddata.list.array[k].realtimesas
+	for (k=0; k<N; k++) 
+	{
+		int nrec,dur,spr,n,d; 
+
+		MeasuredDataSection_t *MDS = SPS->measureddata.list.array[k];
+//		asn_fprint(stdout, &asn_DEF_RealTimeSampleArrayMeasuredDataSection, RTSAMDS);
+
+		int n2,N2 = 0; 
+		hdr->SPR = 1; 
+		for (n2=0; n2 < MDS->realtimesas->list.count; n2++) {
+			CHANNEL_TYPE *hc = hdr->CHANNEL+n2;
+			RealTimeSampleArrayMeasuredDataSection_t *RTSAMDS = MDS->realtimesas->list.array[n2];
+//			if (VERBOSE_LEVEL>8)
+//				asn_fprint(stdout, &asn_DEF_RealTimeSampleArrayMeasuredDataSection, MDS->realtimesas->list.array[n2]);
+
+			asn_INTEGER2long(&RTSAMDS->numberofsubblocks,&nrec);
+			asn_INTEGER2long(&RTSAMDS->subblocklength.denominator,&d);
+			asn_INTEGER2long(&RTSAMDS->subblocklength.numerator,&n);
+			asn_INTEGER2long(&RTSAMDS->subblocksize,&spr);
+
+			// &RTSAMDS->metriclist // 
+			fprintf(stdout,"%i blk: %i   #subblocks:%i subblocklength:%i/%i subblocksize:%i size:%i \n",n2,k,nrec,n,d,spr,RTSAMDS->data.size);
+			//RTSAMDS->data->buf
+			//RTSAMDS->data.size
+			
+			hc->bufptr = RTSAMDS->data.buf; 
+			hc->SPR = (RTSAMDS->data.size<<3)/GDFTYP_BITS[hc->GDFTYP]; 
+			if (hc->SPR>10) {
+				// FIXME: 
+				hdr->SPR = lcm(hdr->SPR,hc->SPR);
+		      	}		
+	      		hc->OnOff = (hc->SPR>10);
+			hc->bi  = 0; 
+			hc->bi8 = 0; 
+		}
 	}
+	hdr->NRec = 1; 
+	hdr->AS.first = 0;
+	hdr->AS.length = 1;
  	 
  	 
 	/****** Notes Section information SNS **********************************/	
-	if (!asn_INTEGER2long(&SAS->notes->list.count,&ival)) N = ival; 
-	for (k=0; (!N && SAS->notes->list.array[k]) || (k<N) ; k++) {
+	for (k=0; k<SAS->notes->list.count; k++) {
 		asn_fprint(stdout, &asn_DEF_SessionNotesSection, SAS->notes->list.array[k++]);
 	}
 	
 	/******* post checks ************/		
 
-hdr2ascii(hdr,stdout,3);
-
+/*
 	if(errno) {
-		/* Error message is already printed */
-		exit(-1);
+		fprintf(stdout,"Error FEF: %s\n",strerror(errno));
+		// Error message is already printed 
+//		exit(-1);
 	}
+*/
 
 	/* Check ASN.1 constraints */
 	char errbuf[128];
@@ -333,10 +371,21 @@ hdr2ascii(hdr,stdout,3);
 	}
 
 //	asn_fprint(stdout, pduType, structure);
-	ASN_STRUCT_FREE(*pduType, SAS);
+//	ASN_STRUCT_FREE(*pduType, SAS);
 
 #endif 
-
+	
 }
 
+void sclose_fef_read(HDRTYPE* hdr) {
 
+	if (VERBOSE_LEVEL>7)
+		fprintf(stdout,"sclose_FEF_read\n");
+	
+	if (hdr->aECG) {
+		ASN1_t *asn1info = (ASN1_t*)hdr->aECG;	
+		ASN_STRUCT_FREE((*(asn_TYPE_descriptor_t *)(asn1info->pduType)), ((SessionArchiveSection_t*)asn1info->SAS));
+		free(hdr->aECG);
+		hdr->aECG = NULL; 
+	}	
+}

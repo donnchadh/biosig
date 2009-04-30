@@ -95,6 +95,7 @@ int sclose_HL7aECG_write(HDRTYPE* hdr);
 int sopen_unipro_read   (HDRTYPE* hdr);
 int sopen_eeprobe(HDRTYPE* hdr);
 int sopen_fef_read(HDRTYPE* hdr);
+int sclose_fef_read(HDRTYPE* hdr);
 int sopen_zzztest(HDRTYPE* hdr);
 #ifdef WITH_DICOM
 int sopen_dicom_read(HDRTYPE* hdr);
@@ -1822,6 +1823,8 @@ void destructHDR(HDRTYPE* hdr) {
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"destructHDR: free HDR.aECG\n");
 
 	sclose(hdr); 
+
+	if (hdr->TYPE == FEF) sclose_fef_read(hdr);
 
     	if (hdr->aECG != NULL) {
 		if (((aECG_TYPE*)hdr->aECG)->Section8.NumberOfStatements>0)
@@ -6205,11 +6208,12 @@ if (VERBOSE_LEVEL>8)
 		if (VERBOSE_LEVEL>7) fprintf(stdout,"ASN1 [401] %i\n",count);
 		sopen_fef_read(hdr);
 		if (VERBOSE_LEVEL>7) fprintf(stdout,"ASN1 [491]\n");
+/*
 
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "VITAL/FEF Format not supported\n";
 		return(hdr); 	
-		
+*/		
 	}
 
     	else if (hdr->TYPE==HDF) {
@@ -9027,10 +9031,10 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	size_t			count,k1,k2,k3,k4,k5,SZ,NS;//bi,bi8;
 	uint16_t		GDFTYP;
 	size_t	 		DIV;
-	uint8_t			*ptr; // *buffer;
+	uint8_t			*ptr=NULL; // *buffer;
 	CHANNEL_TYPE		*CHptr;
 	int32_t			int32_value;
-	biosig_data_type 	sample_value; 
+	biosig_data_type 	sample_value=NaN; 
 	size_t			toffset;	// time offset for rawdata
 
 	if (start >= hdr->NRec) return(0);  	
@@ -9104,16 +9108,22 @@ int V = VERBOSE_LEVEL;
 
 		// TODO:  MIT data types  
 		for (k4 = 0; k4 < count; k4++)
+		{  	uint8_t *ptr1;
+			if (hdr->TYPE == FEF) 
+				ptr1 = CHptr->bufptr;
+			else
+				ptr1 = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + CHptr->bi;
+				
 		for (k5 = 0; k5 < CHptr->SPR; k5++) 
 		{
 
 //fprintf(stdout,"%i %i\n",hdr->AS.bpb*hdr->NRec,(k4+toffset)*hdr->AS.bpb + hdr->CHANNEL[k1].bi + (k5*SZ>>3));
-
-		size_t off = (k4+toffset)*hdr->AS.bpb + CHptr->bi + (k5*SZ>>3);
-		ptr = hdr->AS.rawdata + off;
+		// size_t off = (k4+toffset)*hdr->AS.bpb + CHptr->bi + (k5*SZ>>3);
+		// ptr = hdr->AS.rawdata + off;
+		ptr = ptr1 + (k5*SZ>>3);
 
 //		if ((VERBOSE_LEVEL>7) && (k4==0))
-//			fprintf(stdout,"sread 224 %p [%i %i %i %i] %i \n", ptr, k1, k2, k4, k5, len);
+//			fprintf(stdout,"sread 224 %p [%i %i %i %i] %i %i \n", ptr, k1, k2, k4, k5, count,CHptr->SPR);
 
 		switch (GDFTYP) { 
 		case 1: 
@@ -9300,7 +9310,8 @@ int V = VERBOSE_LEVEL;
 			B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 			B4C_ERRMSG = "Error SREAD: datatype not supported";
 			exit(-1);
-		}	
+		}	// end for (k5 ....
+		}	// end for (k4 ....
 
 
 		if ((VERBOSE_LEVEL>8) && (k5==0))
@@ -9594,7 +9605,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		iOff	= -CHptr->Off*iCal;
 
 	if (VERBOSE_LEVEL>8)
-		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i\n",k1,GDFTYP,bi8,SZ);
+		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i %i\n",k1,GDFTYP,bi8,SZ,CHptr->SPR);
 
 		for (k4 = 0; k4 < hdr->NRec; k4++) {
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
@@ -10201,7 +10212,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			//char p[MAX_LENGTH_PHYSDIM+1];
 
 			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, cp->PhysDim);
-			fprintf(fid,"\n#%2i: %3i %i %-7s\t%5f %5i",
+			fprintf(fid,"\n#%2i: %3i %i %-27s\t%5f %5i",
 				k+1,cp->LeadIdCode,cp->bi8,cp->Label,cp->SPR*hdr->SampleRate/hdr->SPR,cp->SPR);
 
 			if      (cp->GDFTYP<20)  fprintf(fid," %s  ",gdftyp_string[cp->GDFTYP]);
@@ -10240,7 +10251,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 	}
 		
 	if (VERBOSE>4) {
-		if (hdr->aECG) {
+		if (hdr->aECG && (hdr->TYPE==SCP_ECG)) {
 			aECG_TYPE* aECG = (aECG_TYPE*)hdr->aECG;
 			fprintf(stdout,"\nInstitution Number: %i\n",aECG->Section1.Tag14.INST_NUMBER);
 			fprintf(stdout,"DepartmentNumber : %i\n",aECG->Section1.Tag14.DEPT_NUMBER);

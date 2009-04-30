@@ -241,7 +241,9 @@ typedef struct {
 	uint32_t	bi 		ATT_ALI;	/* start byte (byte index) of channel within data block */
 	uint32_t	bi8 		ATT_ALI;	/* start bit  (bit index) of channel within data block */
 #endif	
+	uint8_t*	bufptr		ATT_ALI;	/* pointer to buffer: NRec<=1 and bi,bi8 not used */
 } CHANNEL_TYPE	ATT_ALI;
+
 
 
 /*
