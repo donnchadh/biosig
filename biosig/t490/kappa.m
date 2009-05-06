@@ -1,4 +1,4 @@
-function [kap,se,H,z,p0,SA,R]=kappa(d,c,arg3);
+function [kap,se,H,z,p0,SA,R]=kappa(d,c,arg3,w);
 % KAPPA estimates Cohen's kappa coefficient
 %   and related statistics 
 %
@@ -61,33 +61,40 @@ if nargin>2
 		kk = arg3; 
 	end
 end; 		 
-
+if nargin<4
+	w = [];
+end; 	
 
 if nargin>1,
 	d = d(:);
 	c = c(:);
 	
+	tmp = [d;c];
+	maxCLASS = max(tmp); 
+	tmp(isnan(tmp)) = maxCLASS+1;
+	[X.Label,i,j]   = unique(tmp);
+	c = j(1+numel(d):end);
+	d = j(1:numel(d));
+
 	if mode.ignoreNAN,
-		if any(isnan([d;c]))
-               		fprintf(2,'Warning KAPPA: some elements are NaN. These are handled as missing values and are ignored.\n');
-               		fprintf(2,'If NaN should be handled as just another label, use kappa(..,''notIgnoreNaN'').\n');
-			ix = find(~isnan(c) & ~isnan(d));
+		if any(tmp>maxCLASS)
+%			fprintf(2,'Warning KAPPA: some elements are NaN. These are handled as missing values and are ignored.\n');
+%			fprintf(2,'If NaN should be handled as just another label, use kappa(..,''notIgnoreNaN'').\n');
+			ix = find(c<=maxCLASS & d<=maxCLASS);
 			d = d(ix); c=c(ix);
+			if ~isempty(w) w = w(ix); end; 
 		end;
-		[X.Label,i,j]   = unique([d;c]);
+		X.Label(X.Label>maxCLASS) = []; 
 	else 
-		tmp = [d;c]; 		 
-		tmp(isnan(tmp))=max(tmp)+1;
-		[X.Label,i,j]   = unique(tmp);
-		X.Label(end)=NaN; 
+		X.Label(X.Label>maxCLASS) = NaN; 
 	end;
-	[X.Label,i,j]   = unique([d;c]);
-	c = j(1+numel(d):end); 
-	d = j(1:numel(d)); 
 	
     	N  = length(d);
     	ku = max([d;c]); % upper range
     	kl = min([d;c]); % lower range
+    	if isempty(w)
+    		w = ones(N,1);
+    	end; 	
 	
     	if isempty(kk),
             	kk = length(X.Label);  	% maximum element
@@ -106,7 +113,7 @@ if nargin>1,
 	        	H = zeros(kk);
     			for k = 1:N, 
     				if ~isnan(d(k)) & ~isnan(c(k)),
-		    			H(d(k),c(k)) = H(d(k),c(k)) + 1;
+		    			H(d(k),c(k)) = H(d(k),c(k)) + w(k);
 		    		end;	
         		end;
 		else

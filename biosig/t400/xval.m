@@ -5,6 +5,7 @@ function [R,CC]=xval(D,classlabel,MODE,arg4)
 %  .. = xval(D,classlabel,CLASSIFIER)
 %  .. = xval(D,classlabel,CLASSIFIER,type)
 %  .. = xval(D,[classlabel,NG],CLASSIFIER)
+%  .. = xval(D,[classlabel,NG,W],CLASSIFIER)
 %
 % Input:
 %    D 	data features (one feature per column, one sample per row)
@@ -17,6 +18,7 @@ function [R,CC]=xval(D,classlabel,MODE,arg4)
 %	group-wise XV (if samples are not indepentent) can be also defined here
 %	samples from the same group (dependent samples) get the same identifier
 %	samples from different groups get different classifiers
+%    W  weight of each sample [default: ones(:,1)]
 %    TYPE  defines the type of cross-validation procedure if NG is not specified 
 %	'LOOM'  leave-one-out-method
 %       k	k-fold crossvalidation
@@ -31,7 +33,7 @@ function [R,CC]=xval(D,classlabel,MODE,arg4)
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
 
-%	$Id: xval.m,v 1.2 2008-12-05 12:38:21 schloegl Exp $
+%	$Id: xval.m,v 1.1 2008/12/04 15:34:44 schloegl Exp $
 %	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -65,15 +67,24 @@ if sz(1)~=size(classlabel,1),
         error('length of data and classlabel does not fit');
 end;
 
+W = ones(sz(1),1);
 if size(classlabel,2)>1,
 	%% group-wise classvalidation
 	[tmp,tmp1,NG] = unique(classlabel(:,2));
+	if size(classlabel,2)>2,
+		W = classlabel(:,3);
+	end; 
 elseif nargin<4
 	%% LOOM 
 	NG = [1:sz(1)]';	
-elseif isscalar(arg4) && isnumeric(arg4)
+elseif isnumeric(arg4)
+	if isscalar(arg4)  
 	% K-fold XV
-	NG = ceil([1:length(classlabel)]'*arg4/length(classlabel));
+		NG = ceil([1:length(classlabel)]'*arg4/length(classlabel));
+	elseif length(arg4)==2,
+		NG = ceil([1:length(classlabel)]'*arg4(1)/length(classlabel));
+	end; 	
+	
 elseif strcmpi(arg4,'LOOM')
 	NG = [1:sz(1)]';	
 end; 
@@ -85,6 +96,9 @@ CC.Labels = 1:max(classlabel);
 ix = any(isnan([D,classlabel]),2);
 D(ix,:)=[];
 classlabel(ix,:)=[];
+W(ix,:)=[];
+sz = size(D);
+
 
 sz = size(D);
 if sz(1)~=length(classlabel),
@@ -97,15 +111,15 @@ end
 
 for k = 1:sz(1),
  	ix = find(NG~=k);
-	CC = train_sc(D(ix,:),classlabel(ix,1),MODE);
+	CC = train_sc(D(ix,:),classlabel(ix,1),MODE,W(ix));
  	ix = find(NG==k);
 	r  = test_sc(CC,D(ix,:));
 	cl(ix,1) = r.classlabel;
 end; 
-R = kappa(cl,classlabel(:,1));
+R = kappa(cl,classlabel(:,1),[],W);
 R.ERR = 1-R.ACC; 
 
 if nargout>1,
 	% final classifier 
-	CC = train_sc(D,classlabel(ix),MODE);
+	CC = train_sc(D,classlabel,MODE);
 end; 

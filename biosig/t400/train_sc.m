@@ -1,8 +1,10 @@
-function [CC]=train_sc(D,classlabel,MODE)
+function [CC]=train_sc(D,classlabel,MODE,W)
 % Train a (statistical) classifier
 % 
 %  CC = train_sc(D,classlabel)
 %  CC = train_sc(D,classlabel,MODE)
+%  CC = train_sc(D,classlabel, 'REG', W)
+%	weighting D(k,:) with weight W(k)
 %
 % CC contains the model parameters of a classifier which can be applied 
 %   to test data using test_sc. 
@@ -129,9 +131,18 @@ end;
 CC.Labels = 1:max(classlabel);
 
 % remove all NaN's
-ix = any(isnan([D,classlabel]),2);
-D(ix,:)=[];
-classlabel(ix,:)=[];
+if (nargin<4) || isempty(W)
+	ix = any(isnan([D,classlabel]),2);
+	D(ix,:)=[];
+	classlabel(ix,:)=[];
+	W = []; 
+else
+	ix = any(isnan([D,classlabel,W(:)]),2);
+	D(ix,:)=[];
+	classlabel(ix,:)=[];
+	W(ix,:)=[];
+	warning('support for weighting of samples is still experimental');
+end; 
 
 sz = size(D);
 if sz(1)~=length(classlabel),
@@ -192,6 +203,65 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'lpm'))
 
         
 elseif ~isempty(strfind(lower(MODE.TYPE),'pls')) || ~isempty(strfind(lower(MODE.TYPE),'reg'))
+	% 3rd version: support for weighted samples - should work well with unequally distributed data: 
+	% tests are not good enough 
+	
+        % regression analysis, kann handle sparse data, too. 
+        % Q: equivalent to LDA? A: in case of an equal distribution its the same, in case of an unequal distribution not
+        % weighted version 
+        M = length(CC.Labels); 
+	%X = sparse(1:length(classlabel),classlabel,1,length(classlabel),M);
+	X = sparse(length(classlabel),M);
+	if nargin<4
+		W = ones(sz(1),1);
+	end; 
+	for k = 1:M,
+		X(find(classlabel==CC.Labels(k)),k) = 2;
+	end;
+	w  = W;
+	M0 = (W'*D)/sum(W); 
+	CC.weights = repmat(NaN,sz(2)+1,M);
+	for k = 1:M,
+		ix = classlabel==CC.Labels(k);
+		%X(find(ix),k) = 2;
+		w(ix) = W(ix)/sum(W(ix));		
+		w(~ix)= W(~ix)/sum(W(~ix));		
+		w1    = spdiags(w,0,sz(1),sz(1));
+%		CC.weights(:,k) = [W,w1*D]\(w1*ix);
+		CC.weights(2:end,k) = [w1*D]\(w1*ix);
+		CC.weights(1,k) = -M0*CC.weights(2:end,k); 
+%		CC.weights(:,k) = [ones(sz(1),1),w1*D]\(w1*ix);
+	end;
+	
+%	CC.weights(1,:) = CC.weights(1,:)-1;
+        CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'pls')) || ~isempty(strfind(lower(MODE.TYPE),'reg'))
+	% 2nd version: with support for weighted samples - does not work well at least for unequally distributed data
+        % regression analysis, kann handle sparse data, too. 
+        % Q: equivalent to LDA? 
+        M = length(CC.Labels); 
+	%X = sparse(1:length(classlabel),classlabel,1,length(classlabel),M);
+	X = sparse(length(classlabel),M);
+	if nargin<4
+		W = ones(sz(1),1);
+	end; 
+	for k = 1:M,
+		X(find(classlabel==CC.Labels(k)),k) = 2;
+	end;
+	if nargin<4
+		CC.weights = [ones(size(D,1),1),D]\X;
+	else
+		w    = spdiags(W,0,size(D,1),size(D,1));
+		CC.weights = (w*[ones(size(D,1),1),D])\(w*X);
+	end;	
+	CC.weights(1,:) = CC.weights(1,:)-1;
+        CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'pls')) || ~isempty(strfind(lower(MODE.TYPE),'reg'))
+	% original version: without support for weighted samples 
         % regression analysis, kann handle sparse data, too. 
         % Q: equivalent to LDA? 
         M = length(CC.Labels); 
@@ -471,7 +541,12 @@ else          % Linear and Quadratic statistical classifiers
         CC.MD = repmat(NaN,[length(CC.Labels),sz(2)+[1,1]]);
         CC.NN = CC.MD;
         for k = 1:length(CC.Labels),
-                [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
+        	ix = classlabel==CC.Labels(k);
+        	if isempty(W)
+	                [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(ix,:), 'E');
+	        else        
+                        [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(ix,:), 'E', W(ix));
+                end;         
         end;
 
         ECM = CC.MD./CC.NN;
@@ -495,6 +570,8 @@ else          % Linear and Quadratic statistical classifiers
                                         cov = (COV1*N1+COV2*N2)/(N1+N2);
                                 case 5          % LD5
                                         cov = COV2;
+                                case 6          % LD6
+                                        cov = COV1;
                                 otherwise       % LD3, LDA
                                         cov = COV0/2; 
                         end
