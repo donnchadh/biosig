@@ -198,7 +198,7 @@ int main(int argc, char **argv){
 
 	// all channels are converted - channel selection currently not supported
     	for (k=0; k<hdr->NS; k++) {
-    		if (!hdr->CHANNEL[k].OnOff) {
+    		if (!hdr->CHANNEL[k].OnOff && hdr->CHANNEL[k].SPR) {
 			if ((hdr->SPR/hdr->CHANNEL[k].SPR)*hdr->CHANNEL[k].SPR != hdr->SPR)
 				 fprintf(stdout,"Warning: channel %i might be decimated!\n",k+1);
     		};
