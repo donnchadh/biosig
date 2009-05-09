@@ -1,6 +1,6 @@
 /*
 
-    $Id: biosig.c,v 1.302 2009/04/16 20:19:17 schloegl Exp $
+    $Id$
     Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -3542,7 +3542,7 @@ if (!strncmp(MODE,"r",1))
 				fprintf(stdout,"[EDF 215-] #%i/%i\n",k,hdr->NS);
 
 			p[8] = 0; // remove trailing blanks
-			for (k1=7; (k1>0) && isspace(p[k1]); p[k1--]=0);
+			for (k1=7; (k1>0) && isspace(p[k1]); p[k1--]=0) {};
 
 			if (VERBOSE_LEVEL>8) 
 				fprintf(stdout,"[EDF 215] #%i/%i\n",k,hdr->NS);
@@ -6190,6 +6190,7 @@ if (VERBOSE_LEVEL>8)
 	}
 
     	else if (hdr->TYPE==FEF) {
+#ifdef WITH_ASN1
 		size_t bufsiz = 1l<<24;
 		while (!ifeof(hdr)) {
 		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+bufsiz+1);
@@ -6208,12 +6209,12 @@ if (VERBOSE_LEVEL>8)
 		if (VERBOSE_LEVEL>7) fprintf(stdout,"ASN1 [401] %i\n",count);
 		sopen_fef_read(hdr);
 		if (VERBOSE_LEVEL>7) fprintf(stdout,"ASN1 [491]\n");
-/*
-
+#else
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "VITAL/FEF Format not supported\n";
 		return(hdr); 	
-*/		
+
+#endif		
 	}
 
     	else if (hdr->TYPE==HDF) {
@@ -9028,7 +9029,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
  *
  */
 
-	size_t			count,k1,k2,k3,k4,k5,SZ,NS;//bi,bi8;
+	size_t			count,k1,k2,k4,k5,SZ,NS;//bi,bi8;
 	uint16_t		GDFTYP;
 	size_t	 		DIV;
 	uint8_t			*ptr=NULL; // *buffer;
@@ -9099,31 +9100,24 @@ int V = VERBOSE_LEVEL;
 		int32_value = 0; 
 		uint8_t bitoff = 0;
 
-		if (VERBOSE_LEVEL>7) {
-			fprintf(stdout,"sread 224 %i %i %i %i |",toffset*hdr->AS.bpb + CHptr->bi, toffset, hdr->AS.bpb, CHptr->bi8);
-			fprintf(stdout,"%i %i %i bpb=%i,k1=%i %i\n",toffset,start, hdr->AS.first,hdr->AS.bpb,k1,SZ );
-		}
-
 		union {int16_t i16; uint16_t u16; uint32_t i32; float f32; uint64_t i64; double f64;} u; 
 
 		// TODO:  MIT data types  
 		for (k4 = 0; k4 < count; k4++)
 		{  	uint8_t *ptr1;
-			if (hdr->TYPE == FEF) 
+		
+			if (hdr->TYPE == FEF) {
 				ptr1 = CHptr->bufptr;
+			}	
 			else
 				ptr1 = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + CHptr->bi;
 				
 		for (k5 = 0; k5 < CHptr->SPR; k5++) 
 		{
 
-//fprintf(stdout,"%i %i\n",hdr->AS.bpb*hdr->NRec,(k4+toffset)*hdr->AS.bpb + hdr->CHANNEL[k1].bi + (k5*SZ>>3));
 		// size_t off = (k4+toffset)*hdr->AS.bpb + CHptr->bi + (k5*SZ>>3);
 		// ptr = hdr->AS.rawdata + off;
 		ptr = ptr1 + (k5*SZ>>3);
-
-//		if ((VERBOSE_LEVEL>7) && (k4==0))
-//			fprintf(stdout,"sread 224 %p [%i %i %i %i] %i %i \n", ptr, k1, k2, k4, k5, count,CHptr->SPR);
 
 		switch (GDFTYP) { 
 		case 1: 
@@ -9310,12 +9304,7 @@ int V = VERBOSE_LEVEL;
 			B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 			B4C_ERRMSG = "Error SREAD: datatype not supported";
 			exit(-1);
-		}	// end for (k5 ....
-		}	// end for (k4 ....
-
-
-		if ((VERBOSE_LEVEL>8) && (k5==0))
-			fprintf(stdout,"|%f (%i %i [%f %f] %f*x+%f)",sample_value,hdr->FLAG.OVERFLOWDETECTION,hdr->FLAG.UCAL,CHptr->DigMax,CHptr->DigMin,CHptr->Cal, CHptr->Off);
+		}	// end switch 	
 
 		// overflow and saturation detection 
 		if ((hdr->FLAG.OVERFLOWDETECTION) && ((sample_value <= CHptr->DigMin) || (sample_value >= CHptr->DigMax)))
@@ -9323,31 +9312,23 @@ int V = VERBOSE_LEVEL;
 		else if (!hdr->FLAG.UCAL)	// scaling 
 			sample_value = sample_value * CHptr->Cal + CHptr->Off;
 
-
 		// resampling 1->DIV samples
 		if (hdr->FLAG.ROW_BASED_CHANNELS) {
+			size_t k3;
 			for (k3=0; k3 < DIV; k3++) 
 				data[k2 + (k4*hdr->SPR + k5*DIV + k3)*NS] = sample_value; // row-based channels 
 		} else {
+			size_t k3;
 			for (k3=0; k3 < DIV; k3++) 
 				data[k2*count*hdr->SPR + k4*hdr->SPR + k5*DIV + k3] = sample_value; // column-based channels 
 		}
 
-		if ((VERBOSE_LEVEL>8) && (k5==0)) {
-//		if (VERBOSE_LEVEL>8) {
-			fprintf(stdout,"sread 226 ");
-			fprintf(stdout,"%i %i\n",hdr->AS.bpb*hdr->NRec,(k4+toffset)*hdr->AS.bpb + (CHptr->bi8 + k5*SZ>>3));
-			fprintf(stdout,":s(1)=%i, NS=%d,[%d,%d,%d,%d SZ=%i, bpb=%i] %e %d %e\n",*(int16_t*)hdr->AS.rawdata,NS,k1,k2,k4,k5,SZ,hdr->AS.bpb,sample_value,(*(int16_t*)(ptr)),(*(float*)(ptr)));
-		}
-		
-		}
+		}	// end for (k5 ....
+		}	// end for (k4 ....
 
 	}	
 	k2++;
 	}}
-
-	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"sread 225 #blk=%i, spr=%i\n",count,hdr->SPR);
 
 	if (hdr->FLAG.ROW_BASED_CHANNELS) {
 		hdr->data.size[0] = k2;			// rows	
@@ -9356,11 +9337,6 @@ int V = VERBOSE_LEVEL;
 		hdr->data.size[0] = hdr->SPR*count;	// rows	
 		hdr->data.size[1] = k2;			// columns 
 	}
-
-//VERBOSE_LEVEL = 8;
-	
-	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"sread 226 %i %i\n",hdr->FLAG.ROW_BASED_CHANNELS,NS);
 
 	/* read sparse samples */	
 	if (((hdr->TYPE==GDF) && (hdr->VERSION > 1.9)) || (hdr->TYPE==PDP)) {
@@ -9452,9 +9428,11 @@ int V = VERBOSE_LEVEL;
 			// resampling 1->DIV samples
 			k5  = (hdr->EVENT.POS[k1]/c - POS)*hdr->SPR;
 			if (hdr->FLAG.ROW_BASED_CHANNELS) {
+				size_t k3;
 				for (k3=0; k3 < DIV; k3++) 
 					data[k2 + (k5 + k3)*NS] = sample_value; 
 			} else {
+				size_t k3;
 				for (k3=0; k3 < DIV; k3++) 
 					data[k2 * count * hdr->SPR + k5 + k3] = sample_value; 
 			}
@@ -9524,7 +9502,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
  *	writes NELEM blocks with HDR.AS.bpb BYTES each, 
  */
 	uint8_t		*ptr;
-	size_t		count=0,k1,k3,k4,k5,DIV,SZ; 
+	size_t		count=0,k1,k2,k4,k5,DIV,SZ=0; 
 	int 		GDFTYP;
 	CHANNEL_TYPE*	CHptr;
 	biosig_data_type 	sample_value, iCal, iOff; 
@@ -9589,13 +9567,14 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 
 	if (VERBOSE_LEVEL>8)
-		fprintf(stdout,"swrite 311=\n");
+		fprintf(stdout,"swrite 311: %i\n",hdr->NRec);
 
 	size_t bi8 = 0; 
-	for (k1=0; k1<hdr->NS; k1++) {
+	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 	CHptr 	= hdr->CHANNEL+k1;
 	
-	if ((CHptr->OnOff != 0) && (CHptr->SPR)) {
+	if (CHptr->OnOff != 0) {
+	if (CHptr->SPR) {
 
 		DIV 	= hdr->SPR/CHptr->SPR; 
 		GDFTYP 	= CHptr->GDFTYP;
@@ -9604,6 +9583,8 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		//iOff	= CHptr->DigMin - CHptr->PhysMin*iCal;
 		iOff	= -CHptr->Off*iCal;
 
+		size_t col = (hdr->data.size[1]<hdr->NS) ? k2 : k1;
+
 	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i %i\n",k1,GDFTYP,bi8,SZ,CHptr->SPR);
 
@@ -9611,10 +9592,11 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
 
 //			if (VERBOSE_LEVEL>8)
-//				fprintf(stdout,"swrite 313a [%i %i]\n",hdr->data.size[0],hdr->data.size[1]);
+//				fprintf(stdout,"swrite 313a #%i: [%i %i] %i %i %i %i %i\n",k1,hdr->data.size[0],hdr->data.size[1],k4,k5,hdr->SPR,DIV,nelem);
 
-    			for (k3=0, sample_value=0; k3 < DIV; k3++) 
-				sample_value += data[k1*nelem*hdr->SPR + k4*hdr->SPR + k5*DIV + k3];
+			size_t k3;
+    			for (k3=0, sample_value=0; k3 < DIV; k3++)
+				sample_value += data[col*nelem*hdr->SPR + k4*hdr->SPR + k5*DIV + k3];
 
 			sample_value /= DIV;
 
@@ -9630,7 +9612,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			ptr = hdr->AS.rawdata + (off>>3);
 
 			//if (VERBOSE_LEVEL>8)
-			//	fprintf(stdout,"swrite 313b %i %i %li\n",k4,k5,off>>3);
+			//	fprintf(stdout,"swrite 313e %i %i %li\n",k4,k5,off>>3);
 
 			// mapping of raw data type to (biosig_data_type)
 			switch (GDFTYP) {
@@ -9765,7 +9747,8 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				B4C_ERRMSG = "SWRITE: datatype not supported";
 				exit(-1);
 			}
-
+		}
+		k2++; 
 		}
 		}
 		bi8 += SZ*CHptr->SPR;
@@ -9816,6 +9799,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				DIV = hdr->SPR/CHptr->SPR; 
 				for (size_t k2=0; k2<CHptr->SPR*hdr->NRec; k2++) {
 					biosig_data_type i=0;
+					size_t k3;
 					for (k3=0; k3<DIV; k3++) 
 						// assumes colume channels 
 						i += hdr->data.block[hdr->SPR*hdr->NRec*k1+k2*DIV+k3];
