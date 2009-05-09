@@ -381,6 +381,7 @@ void sclose_fef_read(HDRTYPE* hdr) {
 
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"sclose_FEF_read\n");
+#ifdef WITH_ASN1
 	
 	if (hdr->aECG) {
 		ASN1_t *asn1info = (ASN1_t*)hdr->aECG;	
@@ -388,4 +389,6 @@ void sclose_fef_read(HDRTYPE* hdr) {
 		free(hdr->aECG);
 		hdr->aECG = NULL; 
 	}	
+
+#endif 
 }
