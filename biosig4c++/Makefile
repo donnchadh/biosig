@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.72 2009-03-03 11:46:57 schloegl Exp $
+###  $Id: Makefile,v 1.72 2009/03/03 11:46:57 schloegl Exp $
 ###  Copyright (C) 2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -12,7 +12,7 @@ CC            = gcc
 CXX           = g++
 MEX	      = mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB  -D=WITH_DICOM -D=__4HAERTEL__ -D=WITH_GSL -D=WITH_ASN1 #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = #-D=WITH_ZLIB -D=WITH_DICOM -D=__4HAERTEL__ -D=WITH_ASN1 # -D=WITH_GSL -D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
@@ -34,6 +34,7 @@ TASN1_DIR     = /home/schloegl/src/libtasn1-1.5/lib/
 LIBTASN1      = $(TASN1_DIR).libs/libtasn1.a 
 
 # MinGW Crosscompiler: compile on linux binaries for windows  
+MinGWCC      = i586-mingw32msvc-gcc # 
 MinGWCXX      = i586-mingw32msvc-g++ # 
 MinGWCFLAGS   = -pipe -fPIC -Wall -O2 -W -D_REENTRANT
 MinGWLIBS     = win32/libbiosig.a -lws2_32  # static
@@ -58,6 +59,7 @@ SOURCES       = biosig.c \
 		t220/sopen_scp_write.c \
 		t220/crc4scp.c \
 		t230/sopen_hl7aecg.c \
+		t240/sopen_fef_read.c \
 		win32/getlogin_r.c \
 		test0/sandbox.c \
 		physicalunits.c \
@@ -78,6 +80,7 @@ OBJECTS       = biosig.o \
 		crc4scp.o \
 		sopen_fef_read.o \
 		sopen_hl7aecg.o \
+		sopen_fef_read.o \
 		getlogin_r.o \
 		biosig-network.o \
 		sandbox.o 
@@ -96,6 +99,7 @@ MinGWOBJECTS  = win32/biosig.obj \
 		win32/sopen_scp_write.obj \
 		win32/crc4scp.obj \
 		win32/sopen_hl7aecg.obj \
+		win32/sopen_fef_read.obj \
 		win32/biosig-network.obj \
 		win32/sandbox.obj \
 		win32/zlib/lib/zdll.lib		
@@ -207,6 +211,9 @@ libbiosig.so: $(OBJECTS)
 	$(CXX) -shared -fPIC -o libbiosig.so $(OBJECTS) 
 	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) 
 
+t240/libfef.a: t240/fef.asn
+	make -C t240 regen 
+	make -C t240 
 
 ####### Windows executable
 
@@ -239,37 +246,37 @@ win32/sandbox.obj: test0/sandbox.c biosig.h  win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sandbox.obj test0/sandbox.c
 
 win32/save2gdf.obj: save2gdf.c biosig-dev.h biosig.h  win32/zlib/include/zlib.h
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/save2gdf.obj save2gdf.c
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/save2gdf.obj save2gdf.c
 
 win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h  win32/zlib/include/zlib.h \
 		biosig.h t210/structures.h t210/types.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_scp_read.obj t210/sopen_scp_read.c
 
 win32/sopen_famos_read.obj: t210/sopen_famos_read.c biosig-dev.h 
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_famos_read.obj t210/sopen_famos_read.c
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_famos_read.obj t210/sopen_famos_read.c
 
 win32/sopen_alpha_read.obj: t210/sopen_alpha_read.c biosig-dev.h 
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_alpha_read.obj t210/sopen_alpha_read.c
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_alpha_read.obj t210/sopen_alpha_read.c
 
 win32/biosig-network.obj: biosig-network.c biosig-dev.h biosig-network.h 
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/biosig-network.obj biosig-network.c
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/biosig-network.obj biosig-network.c
 
 win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h win32/zlib/include/zlib.h \
 		t210/types.h t210/structures.h t210/codes.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/scp-decode.obj t210/scp-decode.cpp
 
 win32/crc4scp.obj: t220/crc4scp.c 
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/crc4scp.obj t220/crc4scp.c
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/crc4scp.obj t220/crc4scp.c
 
 win32/sopen_scp_write.obj: t220/sopen_scp_write.c biosig-dev.h biosig.h win32/zlib/include/zlib.h
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_scp_write.obj t220/sopen_scp_write.c
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_scp_write.obj t220/sopen_scp_write.c
 
 win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h win32/zlib/include/zlib.h \
 		XMLParser/tinyxml.h XMLParser/tinystr.h XMLParser/Tokenizer.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_hl7aecg.obj t230/sopen_hl7aecg.c
 
 win32/getlogin_r.obj: win32/getlogin_r.c
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
 
 win32/tinystr.obj: XMLParser/tinystr.cpp XMLParser/tinystr.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinystr.obj XMLParser/tinystr.cpp
@@ -283,7 +290,7 @@ win32/tinyxmlerror.obj: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h XMLParser
 win32/tinyxmlparser.obj: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinyxmlparser.obj XMLParser/tinyxmlparser.cpp
 
-win32/save2gdf.exe: save2gdf.c win32/libbiosig.a
+win32/save2gdf.exe: save2gdf.c win32/libbiosig.a 
 	$(MinGWCXX) $(MinGWCFLAGS) save2gdf.c  $(MinGWOBJECTS) $(MinGWLIBS) -o win32/save2gdf.exe 
 
 win32 exe: win32/save2gdf.exe
@@ -292,7 +299,7 @@ win32 exe: win32/save2gdf.exe
 
 ####### application files 
  
-save2gdf: save2gdf.c libbiosig.a #libbiosig.so 
+save2gdf: save2gdf.c libbiosig.a t240/libfef.a #libbiosig.so 
 	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
 #	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) $(TASN1_DIR).libs/libtasn1.a -o save2gdf 
 
@@ -404,7 +411,7 @@ install: save2gdf libbiosig.so libbiosig.a doc/save2gdf.1
 	install libbiosig.a	$(LIB)
 	mkdir -p  		$(DESTDIR)/usr/share/man/man1
 	install doc/*.1  	$(DESTDIR)/usr/share/man/man1
-	#install libbiosig.man $(DESTDIR)/usr/share/
+	#install libbiosig.man  $(DESTDIR)/usr/share/
 	#make install_sigviewer
 	#make install_octave
 
@@ -532,9 +539,9 @@ zip: /tmp/t1.scp save2gdf
 	./save2gdf -z -f=EDF /tmp/t1.scp t1.edf
 	./save2gdf -z -f=BDF /tmp/t1.scp t1.bdf
 	./save2gdf -z -f=SCP /tmp/t1.scp t1.scp
-	./save2gdf -z -f=HL7 /tmp/t1.scp t1.hl7
-	./save2gdf -z -f=CFW /tmp/t1.scp t1.cfw
+	./save2gdf -z -f=CFWB /tmp/t1.scp t1.cfw
 	./save2gdf -z -f=MFER /tmp/t1.scp t1.mwf
+	./save2gdf -z -f=HL7 /tmp/t1.scp t1.hl7
 
 	gzip -c /tmp/t1.scp >/tmp/t1.scp.gz 
 	# on-the-fly decompression of input file 
@@ -543,7 +550,7 @@ zip: /tmp/t1.scp save2gdf
 	./save2gdf -f=BDF /tmp/t1.scp.gz t1.bdf
 	./save2gdf -f=SCP /tmp/t1.scp.gz t1.scp
 	./save2gdf -f=HL7 /tmp/t1.scp.gz t1.hl7
-	./save2gdf -f=CFW /tmp/t1.scp.gz t1.cfw
+	./save2gdf -f=CFWB /tmp/t1.scp.gz t1.cfw
 
 test6: /tmp/t1.scp save2gdf
 	$(COPY) /tmp/t1.scp t0.xxx
@@ -554,10 +561,11 @@ test6: /tmp/t1.scp save2gdf
 	./save2gdf -z -f=EDF t0.xxx t1.edf
 	./save2gdf -z -f=BDF t0.xxx t1.bdf
 	./save2gdf -z -f=SCP t0.xxx t1.scp
-	./save2gdf -z -f=HL7 t0.xxx t1.hl7   # -z not supported for HL7
 	./save2gdf -z -f=CFWB t0.xxx t1.cfw
 	./save2gdf -z -f=MFER t0.xxx t1.mwf
 	./save2gdf -z -f=BVA t0.xxx t1.bva
+	./save2gdf -z -f=HL7 t0.xxx t1.hl7   # -z not supported for HL7
+	
 	./save2gdf -f=GDF1 t1.gd1.gz t2.gd1.gd1
 	./save2gdf -f=GDF t1.gd1.gz t2.gd1.gdf
 	./save2gdf -f=EDF t1.gd1.gz t2.gd1.edf
@@ -593,13 +601,13 @@ test6: /tmp/t1.scp save2gdf
 #	./save2gdf -f=SCP t1.scp.gz t2.scp.scp
 	./save2gdf -f=HL7 t1.scp.gz t2.scp.hl7
 	./save2gdf -f=CFWB t1.scp.gz t2.scp.cfw
-	./save2gdf -f=GDF1 t1.hl7    t2.hl7.gd1
-	./save2gdf -f=GDF t1.hl7    t2.hl7.gdf
-	./save2gdf -f=EDF t1.hl7    t2.hl7.edf
-	./save2gdf -f=BDF t1.hl7    t2.hl7.bdf
-	./save2gdf -f=SCP t1.hl7    t2.hl7.scp
-	./save2gdf -f=HL7 t1.hl7    t2.hl7.hl7
-	./save2gdf -f=CFWB t1.hl7    t2.hl7.cfw
+	./save2gdf -f=GDF1 t1.hl7.gz t2.hl7.gd1
+	./save2gdf -f=GDF t1.hl7.gz t2.hl7.gdf
+	./save2gdf -f=EDF t1.hl7.gz t2.hl7.edf
+	./save2gdf -f=BDF t1.hl7.gz t2.hl7.bdf
+	./save2gdf -f=SCP t1.hl7.gz t2.hl7.scp
+	./save2gdf -f=HL7 t1.hl7.gz t2.hl7.hl7
+	./save2gdf -f=CFWB t1.hl7.gz t2.hl7.cfw
 	./save2gdf -f=GDF1 t1.cfw.gz t2.cfw.gd1
 	./save2gdf -f=GDF t1.cfw.gz t2.cfw.gdf
 	./save2gdf -f=EDF t1.cfw.gz t2.cfw.edf
