@@ -13,7 +13,7 @@ function [R,CC]=xval(D,classlabel,MODE,arg4)
 %    CLASSIFIER can be any classifier supported by train_sc (default='LDA')
 %	{'MDA','MD2','LD2','LD3','LD4','LD5','LD6','NBC','aNBC','WienerHopf','REG','LDA/GSVD','MDA/GSVD', 'LDA/sparse','MDA/sparse','RDA','GDBC','SVM','RBF'}
 %    W:	weights for each sample (row) in D. 
-%	default: W=ones(:,1),
+%	default: [] (i.e. all weights are 1)
 %	number of elements in W must match the number of rows of D 
 %    NG: used to define the type of cross-valdiation
 % 	Leave-One-Out-Method (LOOM): NG = [1:length(classlabel)]' (default)
@@ -76,18 +76,20 @@ if sz(1)~=size(classlabel,1),
         error('length of data and classlabel does not fit');
 end;
 
-NG = [1:sz(1)]';	
-W = ones(sz(1),1);
+NG = [];	
+W = [];
 % use only valid samples
 ix0 = find(~any(isnan([classlabel]),2));
 if size(classlabel,2)>1,
 	%% group-wise classvalidation
 	W = classlabel(:,2);
+	if all(W==1) W = []; end; 
 	if size(classlabel,2)>2,
 		[Label,tmp1,NG] = unique(classlabel(:,3));
 	end;
-
-elseif nargin<4
+end; 
+if isempty(NG)
+if (nargin<4) || strcmpi(arg4,'LOOM')
 	%% LOOM 
 	NG = [1:sz(1)]';	
 
@@ -99,8 +101,7 @@ elseif isnumeric(arg4)
 		NG = ceil([1:length(classlabel)]'*arg4(1)/length(classlabel));
 	end; 	
 	
-elseif strcmpi(arg4,'LOOM')
-	NG = [1:sz(1)]';	
+end; 
 end; 
 
 sz = size(D);
@@ -114,7 +115,11 @@ end
 cl = repmat(NaN,size(classlabel,1),1);
 for k = 1:max(NG),
  	ix = ix0(NG(ix0)~=k);
-	CC = train_sc(D(ix,:),classlabel(ix,1),MODE,W(ix));
+	if isempty(W)	
+		CC = train_sc(D(ix,:),classlabel(ix,1),MODE);
+	else
+		CC = train_sc(D(ix,:),classlabel(ix,1),MODE,W(ix));
+	end; 	
  	ix = ix0(NG(ix0)==k);
 	r  = test_sc(CC,D(ix,:));
 	cl(ix,1) = r.classlabel;

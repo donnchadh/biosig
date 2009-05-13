@@ -10,7 +10,7 @@ function [mu,sd,COV,xc,M,R2]=decovm(XCN,NN)
 %
 % see also: MDBC, ECOVM, R2
 
-%	$Id: decovm.m,v 1.3 2009-02-06 07:28:59 schloegl Exp $
+%	$Id$
 %	Copyright (c) 1999-2002,2009 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 
@@ -54,8 +54,7 @@ COV = XCN(2:c,2:c) - mu'*mu;
 sd  = sqrt(diag(COV))';        
 xc  = COV./(sd'*sd);
 R2  = xc.*xc;
-M=XCN(1,1);
-R2=xc.*xc;
+M   = XCN(1,1);
 
 return;
         
