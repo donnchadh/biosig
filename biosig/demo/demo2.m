@@ -1,4 +1,4 @@
-
+function []=demo2();
 % DEMO2 demonstrates the use of the data set III from the BCI competition 2003 for 
 %   The demo shows the offline analysis for obtaining a classifier and 
 %   uses a jack-knife method (leave-one-trial out) for validation. 
@@ -33,7 +33,7 @@
 %   	BioSig: A Free and Open Source Software Library for BCI Research.
 %	Computer (2008, In Press)	
 
-%	$Id: demo2.m,v 1.17 2008-12-05 12:37:56 schloegl Exp $
+%	$Id$
 %	Copyright (C) 1999-2003,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -87,8 +87,10 @@ clear H;
 H.FileName  = Q.FileName;
 H.THRESHOLD = Q.THRESHOLD; 
 [HDR]=sopen(H,'r',0);[s,HDR]=sread(HDR);HDR=sclose(HDR);
+
 %   2b: Muscle detection: detectmuscle.m
 fprintf(1,'\tb: Detection of muscle artifacts.\n');
+% [ini,s,e] = detectmuscle(s,H.SampleRate,3);
 
 %   2c: resampling 
 fprintf(1,'\tc: resampling.\n');

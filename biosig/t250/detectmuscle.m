@@ -2,15 +2,23 @@ function [INI,S,E] = detectmuscle(S, iter, Mode)
 % Muscle detection with inverse filtering
 % Artifacts are indicated with NaN's. 
 %
-% [INI,S,E] = detectmuscle(S [, iter [,1]])% [INI,S,E] = detectmuscle(S [, Fs, 2])%
+% [INI,S,E] = detectmuscle(S [, iter [,1]])% [INI,S,E] = detectmuscle(S [, Fs, Mode])  with Mode>1% [INI,S,E] = detectmuscle(S,arg2,Mode)%
 % iter		number of iterations [default:1]
 % INI.MU	mean of S
 % INI.InvFilter	coefficients of inverse filter 
 % S		outlier replaced by NaN
-% E		innan(E) indicates muscle artifact
+% E		isnan(E) indicates muscle artifact
+% Mode	1: [default] inverse filtering
+%	2: based on gradient, range and amplitude [BrainVision method]
+% 	3: slope > 11 uV/sample [1]% 	4: beta2 > 0.9 uV^2/Hz [1] %
+%
+% References: 
+% [1]	Van de Velde, M., Van Erp, G., Cluitmans, P., 1998. 
+%	Detection of muscle artefact in the normal human awake EEG. 
+% 	Electroencephalography and Clinical Neurophysiology 107 (2), 149-158.
+%
 
-
-%	$Id: detectmuscle.m,v 1.3 2008-08-01 14:49:05 schloegl Exp $%	Copyright (C) 2003,2008 by Alois Schloegl <a.schloegl@ieee.org>	%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%	$Id$%	Copyright (C) 2003,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
 %    it under the terms of the GNU General Public License as published by
@@ -29,10 +37,12 @@ function [INI,S,E] = detectmuscle(S, iter, Mode)
 if nargin<2,
         iter=[];
 end;
-if isempty(iter) iter = 1; end; 
+INI = [];
 
 % Muscle Detection
 if Mode==1, 
+	%% TODO: Validation 
+	if isempty(iter) iter = 1; end; 
 	%% inverse filter   
 	TH = 5; 
 	[se,INI.MU] = sem(S);
@@ -59,7 +69,8 @@ if Mode==1,
                 E(:,k) = filter(INI.InvFilter(k,:),1,S(:,k));
 	end;
 	% isnan(E), returns Artifactselse 
-else
+
+elseif Mode==2,
 	Fs = iter; 
 	% Criterion for bad gradient:
 	% Maximal allowed voltage step / sampling point: 100.00 µV
@@ -86,6 +97,27 @@ else
 	ix = filtfilt(ones(Fs/10,1),1,double(ix1|ix2|ix3))>0;
 	S(ix) = NaN;	
 	INI=[]; 
+
+
+elseif Mode==3,
+	Fs = iter; 
+	E  = filter(ones(1,Fs),Fs,abs(diff(S))/Fs*250);
+	Threshold = 11; % uV/sample [1]
+	S(E>Threshold) = NaN;
+
+
+elseif Mode==4,
+	%% TODO: free butter 
+	Fs = iter; 
+	if Fs>= 250, 
+		[A,B]=butter(5,25*2/Fs,'high');
+	else 	
+		[A,B]=butter(5,[25,125]*2/Fs);
+	end; 
+	E = filtfilt(ones(1,Fs),Fs,filtfilt(A,B,S).^2);
+	Threshold = 0.9; % uV^2/Hz ??? [1]
+ 	S(E>Threshold) = NaN; 
+
 end; 
 
 if nargout<3, return; end;
