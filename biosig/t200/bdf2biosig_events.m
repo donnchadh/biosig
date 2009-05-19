@@ -14,8 +14,8 @@ function HDR=bdf2biosig_events(EVENT)
 % 
 % see also: doc/eventcodes.txt
 
-%	$Id: bdf2biosig_events.m,v 1.11 2008-06-19 21:27:46 schloegl Exp $
-%	Copyright (C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id$
+%	Copyright (C) 2007,2008,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -64,13 +64,13 @@ ix1 = diff(double([0;bitand(t,2^16)]));	% start of epoch
 ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels 
 
 % defines mapping of the BDF-status channel to BioSig event codes 			
-switch 1,    % determines default decoding
+switch 7,    % determines default decoding
 case 1,	
 	% epoching information is derived from bit17
 	% only lower 8 bits are supported
 	POS = [find(ix1>0);find(ix2>0);find(ix1<0);find(ix2<0)];
 	TYP = [repmat(hex2dec('7ffe'),sum(ix1>0),1); bitand(t(ix2>0),255); repmat(hex2dec('fffe'),sum(ix1<0),1); bitor(bitand(t(find(ix2<0)-1),255),2^15)];
-
+	
 case 2, 
 	% suggested decoding if standardized event codes (according to 
 	% .../biosig/doc/eventcodes.txt) are used  
@@ -113,6 +113,19 @@ case 6,
 	POS = [find(ix2>0)];
 	TYP = [t(ix2>0)];
 		
+case 7,
+	%% bit-based decoding 
+	POS = [];
+	TYP = [];
+	for k=1:16,k
+		t = bitand(HDR.BDF.ANNONS,2^(k-1));
+		t = t~=t(1);			% support of low-active and high-active
+		ix2 = diff(double([0;t]));	% labels 
+		POS = [POS; find(ix2>0); find(ix2<0)];
+ 		TYP = [TYP; repmat(k,sum(ix2>0),1); repmat(k+hex2dec('8000'),sum(ix2<0),1)];
+ 		HDR.EVENT.CodeDesc{k} = sprintf('bit %i',k);
+	end;
+	
 case 99,
 	% not recommended, because it could break some functionality in BioSig 
 	POS = [find(ix2>0);find(ix2<0)];
