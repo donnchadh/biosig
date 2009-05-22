@@ -2014,6 +2014,9 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     	else if (!memcmp(Header1+12, MAGIC_NUMBER_DICOM,8))
 	    	hdr->TYPE = DICOM;
 
+    	else if (!memcmp(Header1,"EBS\x94\x0a\x13\x1a\x0d",8))
+	    	hdr->TYPE = EBS;
+    	
     	else if (!memcmp(Header1,"0       ",8)) {
 	    	hdr->TYPE = EDF;
 	    	hdr->VERSION = 0; 
@@ -2283,6 +2286,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case DEMG: 	{ FileType = "DEMG"; break; }
 	case DICOM: 	{ FileType = "DICOM"; break; }
 
+	case EBS: 	{ FileType = "EBS"; break; }
 	case EDF: 	{ FileType = "EDF"; break; }
 	case EEG1100: 	{ FileType = "EEG1100"; break; }
 	case EEProbe: 	{ FileType = "EEProbe"; break; }
@@ -5610,6 +5614,240 @@ if (VERBOSE_LEVEL>8)
 	    	ifseek(hdr, 19, SEEK_SET);
 	}
 
+	else if (hdr->TYPE==EBS) {
+
+		fprintf(stdout,"Warning SOPEN(EBS): support for EBS format is experimental\n");
+
+		/**  Fixed Header (32 bytes)  **/		
+		uint32_t EncodingID = beu32p(Header1+8);
+		hdr->NS  = beu32p(Header1+12);
+		hdr->SPR = beu64p(Header1+16);
+		uint64_t datalen = beu64p(Header1+24);
+
+		enum encoding {
+			TIB_16 = 0x00000000,
+			CIB_16 = 0x00000001,
+			TIL_16 = 0x00000002,
+			CIL_16 = 0x00000003,
+			TI_16D = 0x00000010,
+			CI_16D = 0x00000011
+		};
+
+		hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
+		size_t pos = 32; 
+		uint32_t tag, len; 
+                /**  Variable Header  **/
+                tag = beu32p(hdr->AS.Header+pos);	
+                while (tag) {
+	                len = beu32p(hdr->AS.Header+pos+4)<<2;
+	                pos += 8; 	
+	                if (count < pos+len+8) {
+	                	hdr->AS.Header = (uint8_t*) realloc(hdr->AS.Header,count*2);
+	                	count += ifread(hdr->AS.Header+count, 1, count, hdr);
+	                }
+			if (VERBOSE_LEVEL>8)
+		                fprintf(stdout,"%6i %6i tag=%08x len=%5i: |%c%c%c%c| %s\n", pos,count,tag, len, Header1[0x015f], Header1[0x0160], Header1[0x0161], Header1[0x0162], hdr->AS.Header+pos);
+		                
+        		/* Appendix A */        	
+        		switch (tag) {
+        		case 0x00000002: break; 
+        		case 0x00000004: 
+        			strncpy(hdr->Patient.Name,Header1+pos,MAX_LENGTH_NAME); 
+        			break; 
+        		case 0x00000006: 
+        			strncpy(hdr->Patient.Id,Header1+pos,MAX_LENGTH_PID); 
+        			break; 
+        		case 0x00000008: {
+        			struct tm t; 
+        			t.tm_mday = (Header1[pos+6]-'0')*10 + (Header1[pos+7]-'0'); 
+        			Header1[pos+6] = 0;
+        			t.tm_mon  = atoi(Header1+pos+4) + 1; 
+        			Header1[pos+4] = 0;
+        			t.tm_year = atoi(Header1+pos) - 1900; 
+				t.tm_hour = 0; 
+				t.tm_min = 0; 
+				t.tm_sec = 0; 
+				hdr->Patient.Birthday = tm_time2gdf_time(&t); 
+        			break; 
+        			}
+        		case 0x0000000a: 
+        			hdr->Patient.Sex = bei32p(Header1+pos); 
+        			break; 
+        		case 0x00000010: 
+        			hdr->SampleRate = atof(Header1+pos); 
+        			break;
+        		case 0x00000012: 
+        			hdr->ID.Hospital = Header1+pos; 
+        			break;
+        			
+        		case 0x00000003: // units 
+        			{
+        			int k; 
+				char* ptr = Header1+pos;
+        			for (k=0; k < hdr->NS; k++) {
+					CHANNEL_TYPE *hc = hdr->CHANNEL + k;
+       					hc->Cal = strtod(ptr, &ptr);
+       					int c = 0; 
+       					char physdim[MAX_LENGTH_PHYSDIM+1];
+        				while (bei32p(ptr)) {
+        				
+						if (VERBOSE_LEVEL>8)
+							fprintf(stdout,"0x03: [%i %i] %c\n",k,c,*ptr);        				
+        
+        					if (*ptr && (c<=MAX_LENGTH_PHYSDIM)) {
+        						physdim[c++] = *ptr;
+        					}
+        					ptr++; 
+        				}	
+        				ptr += 4;
+					physdim[c] = 0;
+					hc->PhysDimCode = PhysDimCode(physdim); 
+        			}
+        			}
+        			break;
+        			
+        		case 0x00000005: 	
+        			{
+        			int k; 
+				char* ptr = Header1+pos;
+        			for (k=0; k < hdr->NS; k++) {
+					CHANNEL_TYPE *hc = hdr->CHANNEL + k;
+					int c = 0;
+        				while (beu32p(ptr)) {
+						if (VERBOSE_LEVEL>8)
+							fprintf(stdout,"0x05: [%i %i] |%c%c%c%c%c%c%c%c|\n",k,c,ptr[0],ptr[1],ptr[2],ptr[3],ptr[4],ptr[5],ptr[6],ptr[7]);
+
+						if ((*ptr) && (c<=MAX_LENGTH_LABEL)) {
+        						hc->Label[c++] = *ptr;
+        					}
+        					ptr++; 
+        				}
+					if (VERBOSE_LEVEL>8)
+						fprintf(stdout,"0x05: %08x\n",beu32p(ptr));
+					hc->Label[c] = 0;
+        				ptr += 4;
+        				while (bei32p(ptr)) ptr++; 
+        				ptr += 4;
+				}
+				}
+				break;
+
+        		case 0x0000000b: // recording time 
+        			if (Header1[pos+8]=='T') {
+	        			struct tm t; 
+					t.tm_sec = atoi(Header1+pos+13); 
+        				Header1[pos+13] = 0;
+					t.tm_min = atoi(Header1+pos+11); 
+        				Header1[pos+11] = 0;
+					t.tm_hour = atoi(Header1+pos+9); 
+        				Header1[pos+8] = 0;
+        				t.tm_mday = atoi(Header1+pos+6); 
+        				Header1[pos+6] = 0;
+        				t.tm_mon  = atoi(Header1+pos+4) + 1; 
+	        			Header1[pos+4] = 0;
+        				t.tm_year = atoi(Header1+pos) - 1900; 
+					hdr->T0 = tm_time2gdf_time(&t); 
+					if (VERBOSE_LEVEL>8)
+		       				fprintf(stdout,"<%s>, T0 = %s\n",Header1+pos,asctime(&t));
+        			}
+				if (VERBOSE_LEVEL>8)
+	       				fprintf(stdout,"<%s>\n",Header1+pos);
+        			break; 
+        		case 0x0000000f: // filter 
+        			{
+        			int k; 
+				char* ptr = Header1+pos;
+        			for (k=0; k < hdr->NS; k++) {
+					CHANNEL_TYPE *hc = hdr->CHANNEL + k;
+        				switch (beu32p(ptr)) {
+        				case 1: // lowpass
+        					hc->LowPass  = strtod(ptr+4, &ptr);
+        					break;
+        				case 2: // high pass
+        					hc->HighPass = strtod(ptr+4, &ptr);
+        					break; 
+        				otherwise: 
+						fprintf(stderr,"Warning SOPEN (EBS): unknown filter\n");
+        				}
+        				while (bei32p(ptr) != -1) ptr++; 
+        				ptr += 4;
+        			}
+        			}
+        			break;
+        		}	
+
+			pos += len; 
+	                tag = beu32p(hdr->AS.Header+pos);	
+                }
+                hdr->HeadLen = pos; 
+                ifseek(hdr,pos,SEEK_SET);
+		hdr->AS.first = 0; 
+		hdr->AS.length = 0; 
+		hdr->ID.Hospital = ""; 
+
+		if ((bei64p(Header1+24)==-1) && (bei64p(Header1+24)==-1)) {
+			/* if data length is not present */
+			struct stat FileBuf;
+			stat(hdr->FileName,&FileBuf);
+			datalen = (FileBuf.st_size - hdr->HeadLen); 
+		}		
+		else 	datalen <<= 2;
+
+                /**  Encoded Signal Data (4*d bytes)  **/
+                size_t spr = datalen/(2*hdr->NS); 
+                switch (EncodingID) {
+                case TIB_16: 
+                	hdr->SPR = 1; 
+                	hdr->NRec = spr;
+                	hdr->FILE.LittleEndian = 0; 
+                	break; 
+                case CIB_16: 
+                	hdr->SPR = spr; 
+                	hdr->NRec = 1;
+                	hdr->FILE.LittleEndian = 0; 
+                	break; 
+                case TIL_16: 
+                	hdr->SPR = 1; 
+                	hdr->NRec = spr;
+                	hdr->FILE.LittleEndian = 1; 
+                	break; 
+                case CIL_16: 
+                	hdr->SPR = spr; 
+                	hdr->NRec = 1;
+                	hdr->FILE.LittleEndian = 1; 
+                	break; 
+                case TI_16D: 
+                case CI_16D: 
+                default: 
+                	B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+                	B4C_ERRMSG = "EBS: unsupported Encoding";
+                	return(hdr); 
+                }
+
+		for (size_t k = 0; k < hdr->NS; k++) {
+			CHANNEL_TYPE *hc = hdr->CHANNEL + k;
+			hc->GDFTYP = 3; 	// int16 
+			hc->SPR    = hdr->SPR; 	// int16 
+			hc->bi     = k*2;
+			hc->Off    = 0.0;
+			hc->OnOff  = 1;
+			hc->DigMax = (double)32767;
+			hc->DigMin = (double)-32768;
+			hc->PhysMax = hc->DigMax*hc->Cal;
+			hc->PhysMin = hc->DigMin*hc->Cal;
+			hc->Transducer[0] = 0; 
+			hc->Notch = NaN;
+			hc->Impedance = INF;  
+			hc->XYZ[0] = 0.0;  
+			hc->XYZ[1] = 0.0;  
+			hc->XYZ[2] = 0.0;  
+		}
+		hdr->AS.bpb = hdr->SPR*hdr->NS*2; 
+		
+                /**  Optional Second Variable Header  **/
+
+	}
+
 	else if (hdr->TYPE==EEG1100) {
 		// the information of this format is derived from nk2edf-0.43beta-src of Teunis van Beelen
 
@@ -5883,7 +6121,7 @@ if (VERBOSE_LEVEL>8)
 
 	else if (hdr->TYPE==EGI) {
 
-		fprintf(stdout,"Reading EGIS is under construction\n");	
+		fprintf(stdout,"Reading EGI is under construction\n");	
 
 	    	uint16_t gdftyp=3;
 		// BigEndian 

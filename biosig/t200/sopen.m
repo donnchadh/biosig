@@ -40,7 +40,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 % see also: SLOAD, SREAD, SSEEK, STELL, SCLOSE, SWRITE, SEOF
 
 
-%	$Id: sopen.m,v 1.242 2009-04-02 14:07:22 schloegl Exp $
+%	$Id$
 %	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -2006,7 +2006,7 @@ elseif strcmp(HDR.TYPE,'EBS'),
         
         %%%%% (1) Fixed Header (32 bytes) %%%%%
         HDR.VERSION = fread(HDR.FILE.FID,[1,8],'uint8');	%
-        if strncmp(char(HDR.VERSION(1:3)),'EBS') 
+        if ~strcmp(char(HDR.VERSION(1:3)),'EBS') 
                 fprintf(HDR.FILE.stderr,'Error LOADEBS: %s not an EBS-File',HDR.FileName); 
                 if any(HDR.VERSION(4:8)~=hex2dec(['94';'0a';'13';'1a';'0d'])'); 
                         fprintf(HDR.FILE.stderr,'Warning SOPEN EBS: %s may be corrupted',HDR.FileName); 
@@ -2014,42 +2014,64 @@ elseif strcmp(HDR.TYPE,'EBS'),
         end;
         HDR.EncodingId = fread(HDR.FILE.FID,1,'int32');	%
         HDR.NS  = fread(HDR.FILE.FID,1,'uint32');	% Number of Channels
-        HDR.SPR = fread(HDR.FILE.FID,2,'uint32');	% Number of Samples
-        if HDR.SPR(1)==0,
-                HDR.SPR=HDR.SPR(2);
-        else 
-                fprintf(HDR.FILE.stderr,'Error SOPEN: EBS-FILE %s too large',HDR.FileName); 
-        end;
-        LenData=fread(HDR.FILE.FID,1,'int64');	% Data Length
+        HDR.SPR=fread(HDR.FILE.FID,1,'int64')	% Data Length
+        LenData=fread(HDR.FILE.FID,1,'int64')	% Data Length
         
         %%%%% (2) LOAD Variable Header %%%%%
         tag=fread(HDR.FILE.FID,1,'int32');	% Tag field
+        fid = HDR.FILE.FID;
         while (tag~=0),
-                l  =fread(HDR.FILE.FID,1,'int32');	% length of value field
-                val=char(fread(HDR.FILE.FID,4*l,'uint8')');	% depends on Tag field
+                l  =fread(fid,1,'int32');	% length of value field
+                [tag,l],
+                %val=char(fread(HDR.FILE.FID,l,'uint16')');	% depends on Tag field
                 if     tag==hex2dec('00000002'),	%IGNORE
-                elseif tag==hex2dec('00000004') HDR.PATIENT_NAME=val;
-                elseif tag==hex2dec('00000006') HDR.PATIENT_ID=val;
-                elseif tag==hex2dec('00000008') HDR.PATIENT_BIRTHDAY=val;
-                elseif tag==hex2dec('0000000a') HDR.PATIENT_SEX=val;
-                elseif tag==hex2dec('0000000c') HDR.SHORT_DESCRIPTION=val;
-                elseif tag==hex2dec('0000000e') HDR.DESCRIPTION=val;
-                elseif tag==hex2dec('00000010') HDR.SAMPLE_RATE=str2double(val);
-                elseif tag==hex2dec('00000012') HDR.INSTITUTION=val;
-                elseif tag==hex2dec('00000014') HDR.PROCESSING_HISTORY=val;
-                elseif tag==hex2dec('00000016') HDR.LOCATION_DIAGRAM=val;
+                elseif tag==hex2dec('00000004') HDR.Patient.Name	= fread(fid,2*l,'uint16=>char');
+                elseif tag==hex2dec('00000006') HDR.Patient.Id		= fread(fid,l,'uint32');
+                elseif tag==hex2dec('00000008') HDR.Patient.Birthday 	= fread(fid,l,'uint32');
+                elseif tag==hex2dec('0000000a') HDR.Patient.Sex		= fread(fid,l,'uint32');
+                elseif tag==hex2dec('0000000c') HDR.SHORT_DESCRIPTION		= fread(fid,2*l,'uint16=>char');
+                elseif tag==hex2dec('0000000e') HDR.DESCRIPTION		= fread(fid,2*l,'uint16=>char');
+                elseif tag==hex2dec('00000010') HDR.SampleRate		= str2double(fread(fid,4*l,'uint8=>char'));
+                elseif tag==hex2dec('00000012') HDR.INSTITUTION		= fread(fid,l,'uint32');
+                elseif tag==hex2dec('00000014') HDR.PROCESSING_HISTORY		= fread(fid,2*l,'uint16=>char');
+                elseif tag==hex2dec('00000016') HDR.LOCATION_DIAGRAM		= fread(fid,2*l,'uint16=>char');
                         
-                elseif tag==hex2dec('00000001') HDR.PREFERRED_INTEGER_RANGE=vec2matx(vec2matx(val,HDR.NS),2);
-                elseif tag==hex2dec('00000003') HDR.PhysDim=val;
-                elseif tag==hex2dec('00000005') HDR.CHANNEL_DESCRIPTION=val;
-                elseif tag==hex2dec('00000007') HDR.CHANNEL_GROUPS=val;
-                elseif tag==hex2dec('00000009') HDR.EVENTS=val;
-                elseif tag==hex2dec('0000000b') HDR.RECORDING_TIME=val;
-                elseif tag==hex2dec('0000000d') HDR.HDR.CHANNEL_LOCATIONS=val;
-                elseif tag==hex2dec('0000000f') HDR.FILTERS=val;
+                elseif tag==hex2dec('00000001') HDR.PREFERRED_INTEGER_RANGE	= fread(fid,2*l,'uint16=>char');; %reshape(reshape(val,HDR.NS,numel(val)/HDR.NS),2,numel(val));
+                elseif tag==hex2dec('00000003') 
+                	[val,c] = fread(fid,4*l,'uint8=>char');
+                	%val = char(reshape(val(1:16*(HDR.NS)),16,HDR.NS))'
+                	%HDR.Cal = str2double(cellstr(val(:,1:8)));
+                	%HDR.PhysDim = cellstr(val(:,[10,12]));	
+
+                elseif tag==hex2dec('00000005') 
+                	[val,c] = fread(fid,2*l,'uint16=>char');
+                	val = reshape(val(1:8*floor(2*l/8)),8,floor(2*l/8))'
+                	HDR.Label = val; 
+                	
+                elseif tag==hex2dec('00000007') HDR.CHANNEL_GROUPS		= fread(fid,2*l,'uint16=>char')';
+                elseif tag==hex2dec('00000009') HDR.EVENTS			= fread(fid,2*l,'uint16=>char')';
+                elseif tag==hex2dec('0000000b') 
+                	t = fread(fid,4*l,'uint8=>char')';
+                	t2 = repmat(' ',1,20); 
+                	t2([1:4,6:7,9:10,13:14,16:17,19:20]) = t([1:8,10:15]);
+                	HDR.T0 = str2double(t2,' ');
+
+                elseif tag==hex2dec('0000000d') HDR.CHANNEL_LOCATIONS	= fread(fid,2*l,'uint16=>char')';
+                elseif tag==hex2dec('0000000f') 
+                	t = fread(fid,4*l,'uint8=>char');
+                	t = reshape(t(1:28*floor(numel(t)/28)),28,floor(numel(t)/28))';
+                	HDR.Filter.LowPass = str2double(cellstr(t(:,5:8)));
+                	HDR.Filter.HighPass = str2double(cellstr(t(:,17:20))); 
+                else 
+                	break;
                 end;
-                tag=fread(HDR.FILE.FID,1,'int32');	% Tag field
+                tag=fread(fid,1,'int32');	% Tag field
         end; 
+        %if ~tag, fseek(fid,-4,'cof'); end; 
+
+        %%%%% (3) Encoded Signal Data 4*d bytes%%%%%
+        HDR.data = fread(fid,[HDR.NS,inf],'int16')';
+	HDR.HeadLen = ftell(fid);  
         fclose(HDR.FILE.FID);
         
         
@@ -4245,8 +4267,8 @@ elseif strcmp(HDR.TYPE,'EGI'),
 	
 	% extract event information 
         if HDR.FLAG.TRIGGERED,
-        	fprintf(stdout,'Warning: reading EVENT information of triggered EGI data not fully supported (yet)\n'); 
-        	fprintf(stdout,'Contact a.schloegl@ieee.org if you need this.\n'); 
+        	fprintf(HDR.FILE.stderr,'Warning: reading EVENT information of triggered EGI data not fully supported (yet)\n'); 
+        	fprintf(HDR.FILE.stderr,'Contact a.schloegl@ieee.org if you need this.\n'); 
         else
 		fseek(HDR.FILE.FID,HDR.HeadLen + HDR.NS*GDFTYP_BYTE(HDR.GDFTYP+1),'bof');
 		typ = [int2str(HDR.EGI.N),'*',gdfdatatype(HDR.GDFTYP),'=>',gdfdatatype(HDR.GDFTYP)];

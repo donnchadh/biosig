@@ -124,7 +124,7 @@ enum FileFormat {
 	BCI2000, BDF, BIN, BKR, BLSC, BMP, BNI, BSCS, 
 	BrainVision, BrainVisionVAmp, BrainVisionMarker, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
-	EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
+	EBS, EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, Lexicor, 
 	Matlab, MFER, MIDI, MIT, 
@@ -204,7 +204,7 @@ typedef int64_t 		nrec_t;	/* type for number of records */
 #define MAX_LENGTH_PHYSDIM 	20
 #define MAX_LENGTH_PID	 	80      // length of Patient ID: MFER<65, GDF<67, EDF/BDF<81, etc. 
 #define MAX_LENGTH_RID		80	// length of Recording ID: EDF,GDF,BDF<80, HL7 ?  	
-#define MAX_LENGTH_NAME 	128	// max length of personal name: MFER<=128
+#define MAX_LENGTH_NAME 	132	// max length of personal name: MFER<=128, EBS<=33*4
 #define MAX_LENGTH_MANUF 	128	// max length of manufacturer field: MFER<128
 #define MAX_LENGTH_TECHNICIAN 	128	// max length of manufacturer field: SCP<41 
 
