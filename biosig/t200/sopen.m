@@ -4204,10 +4204,11 @@ elseif strcmp(HDR.TYPE,'EGI'),
         HDR.DigMax  = 2^HDR.Bits;
         HDR.PhysMax = fread(HDR.FILE.FID,1,'uint16');
         if ( HDR.Bits ~= 0 & HDR.PhysMax ~= 0 )
-                HDR.Cal = (HDR.PhysMax/HDR.DigMax);
+                HDR.Cal = repmat(HDR.PhysMax/HDR.DigMax,1,HDR.NS);
         else
-                HDR.Cal = 1;
+                HDR.Cal = ones(1,HDR.NS);
         end;
+        HDR.Off = zeros(1,HDR.NS);
         HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
         HDR.PhysDim = 'uV';
         for k=1:HDR.NS,
@@ -4257,29 +4258,43 @@ elseif strcmp(HDR.TYPE,'EGI'),
         end
         HDR.AS.bpb = HDR.AS.spb*GDFTYP_BYTE(HDR.GDFTYP+1) + 6*HDR.FLAG.TRIGGERED;
 
-        tmp = fread(HDR.FILE.FID,[4,HDR.EGI.N],'uint8');
-        HDR.EGI.eventcode = reshape(tmp,[4,HDR.EGI.N])';
-        HDR.EVENT.DescCode = HDR.EGI.eventcode*(2.^[24;16;8;0]);
+        tmp = fread(HDR.FILE.FID,[4,HDR.EGI.N],'uint8=>char');
+        HDR.EVENT.CodeDesc = cellstr(tmp'); 
         
         HDR.HeadLen   = ftell(HDR.FILE.FID);
         HDR.FILE.POS  = 0;
 	HDR.FILE.OPEN = 1; 
 	
 	% extract event information 
-        if HDR.FLAG.TRIGGERED,
-        	fprintf(HDR.FILE.stderr,'Warning: reading EVENT information of triggered EGI data not fully supported (yet)\n'); 
-        	fprintf(HDR.FILE.stderr,'Contact a.schloegl@ieee.org if you need this.\n'); 
-        else
-		fseek(HDR.FILE.FID,HDR.HeadLen + HDR.NS*GDFTYP_BYTE(HDR.GDFTYP+1),'bof');
-		typ = [int2str(HDR.EGI.N),'*',gdfdatatype(HDR.GDFTYP),'=>',gdfdatatype(HDR.GDFTYP)];
-		[s,count] = fread(HDR.FILE.FID,inf, typ, HDR.NS*GDFTYP_BYTE(HDR.GDFTYP+1));
+	if (HDR.EGI.N>0),
+	        if HDR.FLAG.TRIGGERED,
+			fseek(HDR.FILE.FID,HDR.HeadLen + 6 + HDR.NS*GDFTYP_BYTE(HDR.GDFTYP+1),'bof');
+			typ = [int2str(HDR.EGI.N),'*',gdfdatatype(HDR.GDFTYP),'=>',gdfdatatype(HDR.GDFTYP)]
+			[s,count] = fread(HDR.FILE.FID,inf, typ, 6+HDR.NS*GDFTYP_BYTE(HDR.GDFTYP+1));
+        	else
+			fseek(HDR.FILE.FID,HDR.HeadLen + HDR.NS*GDFTYP_BYTE(HDR.GDFTYP+1),'bof');
+			typ = [int2str(HDR.EGI.N),'*',gdfdatatype(HDR.GDFTYP),'=>',gdfdatatype(HDR.GDFTYP)];
+			[s,count] = fread(HDR.FILE.FID,inf, typ, HDR.NS*GDFTYP_BYTE(HDR.GDFTYP+1));
+		end;
 
 		s = reshape(s, HDR.EGI.N, length(s)/HDR.EGI.N)'; 
-                if (HDR.EGI.N > 0),
-			[HDR.EVENT.POS,HDR.EVENT.CHN,HDR.EVENT.TYP] = find(s);
-	                HDR.EVENT.DUR = ones(size(HDR.EVENT.POS)); 
+		POS = []; 
+		CHN = [];
+		DUR = [];
+		TYP = [];
+		for k = 1:HDR.EGI.N, 
+			ix = find(diff(s(:,k)));
+			ix = diff(double([s(:,k);s(1,k)]==s(1,k)));	% labels 
+			POS = [POS; find(ix>0)+1];
+ 			TYP = [TYP; repmat(k,sum(ix>0),1)];
+			CHN = [CHN; repmat(0,sum(ix>0),1)];
+			DUR = [DUR; find(ix>0)-find(ix<0)];
                 end
-	end;
+                HDR.EVENT.POS = POS; 
+                HDR.EVENT.TYP = TYP; 
+                HDR.EVENT.CHN = CHN; 
+                HDR.EVENT.DUR = DUR; 
+	end; 
         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
 
 
