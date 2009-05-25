@@ -231,20 +231,22 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'pls')) || ~isempty(strfind(lower(MODE.
 	end; 
 	wD = [ones(size(D,1),1),D]; 
 
-	if ~isempty(W)			
-		W = W(:);	
+	if isempty(W)
+		W = 1; 
+	else 	
+		%% wD = diag(W)*wD
+		W = W(:);
 		for k=1:size(wD,2)
-			wD(:,k)=W.*wD(:,k);
+			wD(:,k) = W.*wD(:,k);
 		end; 
 	end; 
 
 	[q,r] = qr(wD,0);
 	CC.weights = repmat(NaN,sz(2)+1,M);
 	for k = 1:M,
-		ix = classlabel==CC.Labels(k);
+		ix = 2*(classlabel==CC.Labels(k)) - 1;
 		CC.weights(:,k)	= r\(q'*(W.*ix));
 	end;
-%%	CC.weights = sparse(CC.weights);
         CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
 
 
