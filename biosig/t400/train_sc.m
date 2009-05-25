@@ -57,6 +57,7 @@ function [CC]=train_sc(D,classlabel,MODE,W)
 %    'CSP'	CommonSpatialPattern is very experimental and just a hack
 %		uses a smoothing window of 50 samples.
 %
+%  {'MDA','MD2','LD2','LD3','LD4','LD5','LD6','NBC','aNBC','WienerHopf','REG','LDA/GSVD','MDA/GSVD', 'LDA/sparse','MDA/sparse','RDA','GDBC','SVM','RBF'} 
 % 
 % CC contains the model parameters of a classifier. Some time ago,     
 % CC was a statistical classifier containing the mean 
@@ -95,8 +96,8 @@ function [CC]=train_sc(D,classlabel,MODE,W)
 %	1-8 June 2008 Page(s):2390 - 2397
 
 
-%	$Id: train_sc.m,v 1.26 2008-12-29 14:46:19 schloegl Exp $
-%	Copyright (C) 2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id$
+%	Copyright (C) 2005,2006,2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -132,12 +133,15 @@ CC.Labels = 1:max(classlabel);
 
 % remove all NaN's
 if (nargin<4) || isempty(W)
+	%% TODO: some classifiers can deal with NaN's in D. Test whether this can be relaxed.  
+	%ix = any(isnan([classlabel]),2);
 	ix = any(isnan([D,classlabel]),2);
 	D(ix,:)=[];
 	classlabel(ix,:)=[];
 	W = []; 
 else
-	ix = any(isnan([D,classlabel,W(:)]),2);
+	%ix = any(isnan([classlabel]),2);
+	ix = any(isnan([D,classlabel]),2);
 	D(ix,:)=[];
 	classlabel(ix,:)=[];
 	W(ix,:)=[];
@@ -170,20 +174,34 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'nbc'))
 	%%%% Naive Bayesian Classifier. 
 	if ~isempty(strfind(lower(MODE.TYPE),'anbc'))
 		%%%% Augmented Naive Bayesian classifier. 
-		[CC.V,L] = eig(covm(D,'M')); 
+		[CC.V,L] = eig(covm(D,'M',W)); 
 		D = D*CC.V;
 	else 
 		CC.V = eye(size(D,2)); 		
 	end; 
         for k = 1:length(CC.Labels),
-                [d,CC.MEAN(k,:)] = center(D(classlabel==CC.Labels(k),:),1);
-                [CC.VAR(k,:),CC.N(k,:)] = sumskipnan(d.^2,1);  
+        	ix = classlabel==CC.Labels(k); 
+                %% [d,CC.MEAN(k,:)] = center(D(ix,:),1);
+		if ~isempty(W)
+			[s,n] = sumskipnan(D(ix,:),1,W(ix));  
+			CC.MEAN(k,:) = s./n; 
+			d = D(ix,:) - CC.MEAN(repmat(k,sum(ix),1),:);
+			[CC.VAR(k,:),CC.N(k,:)] = sumskipnan(d.^2,1,W(ix));  
+		else
+			[s,n] = sumskipnan(D(ix,:),1);
+			CC.MEAN(k,:) = s./n; 
+			d = D(ix,:) - CC.MEAN(repmat(k,sum(ix),1),:);
+			[CC.VAR(k,:),CC.N(k,:)] = sumskipnan(d.^2,1);
+		end
         end;
         CC.VAR = CC.VAR./max(CC.N-1,0); 
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
 
 
 elseif ~isempty(strfind(lower(MODE.TYPE),'lpm'))
+	if ~isempty(W) 
+		error(sprintf('Error TRAIN_SC: Classifier (%s) does not support weighted samples.',MODE.TYPE));
+	end; 	
         % linear programming machine 
         % CPLEX optimizer: ILOG solver, ilog cplex 6.5 reference manual http://www.ilog.com
         MODE.TYPE = 'LPM';
@@ -203,79 +221,48 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'lpm'))
 
         
 elseif ~isempty(strfind(lower(MODE.TYPE),'pls')) || ~isempty(strfind(lower(MODE.TYPE),'reg'))
-	% 3rd version: support for weighted samples - should work well with unequally distributed data: 
-	% tests are not good enough 
-	
-        % regression analysis, kann handle sparse data, too. 
-        % Q: equivalent to LDA? A: in case of an equal distribution its the same, in case of an unequal distribution not
-        % weighted version 
+	% 4th version: support for weighted samples - work well with unequally distributed data: 
+        % regression analysis, can handle sparse data, too. 
+
         M = length(CC.Labels); 
-	%X = sparse(1:length(classlabel),classlabel,1,length(classlabel),M);
-	X = sparse(length(classlabel),M);
-	if nargin<4
-		W = ones(sz(1),1);
+
+	if nargin<4,
+		W = [];
 	end; 
-	for k = 1:M,
-		X(find(classlabel==CC.Labels(k)),k) = 2;
-	end;
-	w  = W;
-	M0 = (W'*D)/sum(W); 
+	wD = [ones(size(D,1),1),D]; 
+
+	if ~isempty(W)			
+		W = W(:);	
+		for k=1:size(wD,2)
+			wD(:,k)=W.*wD(:,k);
+		end; 
+	end; 
+
+	[q,r] = qr(wD,0);
 	CC.weights = repmat(NaN,sz(2)+1,M);
 	for k = 1:M,
 		ix = classlabel==CC.Labels(k);
-		%X(find(ix),k) = 2;
-		w(ix) = W(ix)/sum(W(ix));		
-		w(~ix)= W(~ix)/sum(W(~ix));		
-		w1    = spdiags(w,0,sz(1),sz(1));
-%		CC.weights(:,k) = [W,w1*D]\(w1*ix);
-		CC.weights(2:end,k) = [w1*D]\(w1*ix);
-		CC.weights(1,k) = -M0*CC.weights(2:end,k); 
-%		CC.weights(:,k) = [ones(sz(1),1),w1*D]\(w1*ix);
+		CC.weights(:,k)	= r\(q'*(W.*ix));
 	end;
-	
-%	CC.weights(1,:) = CC.weights(1,:)-1;
-        CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
-
-
-elseif ~isempty(strfind(lower(MODE.TYPE),'pls')) || ~isempty(strfind(lower(MODE.TYPE),'reg'))
-	% 2nd version: with support for weighted samples - does not work well at least for unequally distributed data
-        % regression analysis, kann handle sparse data, too. 
-        % Q: equivalent to LDA? 
-        M = length(CC.Labels); 
-	%X = sparse(1:length(classlabel),classlabel,1,length(classlabel),M);
-	X = sparse(length(classlabel),M);
-	if nargin<4
-		W = ones(sz(1),1);
-	end; 
-	for k = 1:M,
-		X(find(classlabel==CC.Labels(k)),k) = 2;
-	end;
-	if nargin<4
-		CC.weights = [ones(size(D,1),1),D]\X;
-	else
-		w    = spdiags(W,0,size(D,1),size(D,1));
-		CC.weights = (w*[ones(size(D,1),1),D])\(w*X);
-	end;	
-	CC.weights(1,:) = CC.weights(1,:)-1;
-        CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
-
-
-elseif ~isempty(strfind(lower(MODE.TYPE),'pls')) || ~isempty(strfind(lower(MODE.TYPE),'reg'))
-	% original version: without support for weighted samples 
-        % regression analysis, kann handle sparse data, too. 
-        % Q: equivalent to LDA? 
-        M = length(CC.Labels); 
-	%X = sparse(1:length(classlabel),classlabel,1,length(classlabel),M);
-	X = sparse(length(classlabel),M);
-	for k = 1:M,
-		X(find(classlabel==CC.Labels(k)),k) = 2;
-	end;
-	CC.weights = [ones(size(D,1),1),D]\X;
-	CC.weights(1,:) = CC.weights(1,:)-1;
+%%	CC.weights = sparse(CC.weights);
         CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
 
 
 elseif ~isempty(strfind(MODE.TYPE,'WienerHopf'))
+        % Q: equivalent to LDA, Regression? 
+        M = length(CC.Labels);
+        %if M==2, M==1; end;
+        CC.weights = repmat(NaN,size(D,2)+1,M);
+        cc = covm(D,'E',W);
+        for k = 1:M,
+		w  = cc\covm([ones(sz(1),1),D],real(classlabel==CC.Labels(k)),'M',W);
+                CC.weights(:,k) = w;
+	end;
+        CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(MODE.TYPE,'WienerHopf'))
+	%% OBSOLETE ??? 
         % Q: equivalent to LDA, Regression? 
         M = length(CC.Labels);
         %if M==2, M==1; end;
@@ -289,6 +276,9 @@ elseif ~isempty(strfind(MODE.TYPE,'WienerHopf'))
 
 
 elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
+	if ~isempty(W) 
+		error(sprintf('Error TRAIN_SC: Classifier (%s) does not support weighted samples.',MODE.TYPE));
+	end; 	
 	% [2] Peg Howland and Haesun Park, 2004. 
         %       Generalizing Discriminant Analysis Using the Generalized Singular Value Decomposition
         %       IEEE Transactions on Pattern Analysis and Machine Intelligence, 26(8), 2004.
@@ -341,6 +331,9 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'/gsvd'))
 
 
 elseif ~isempty(strfind(lower(MODE.TYPE),'sparse'))
+	if ~isempty(W) 
+		error(sprintf('Error TRAIN_SC: Classifier (%s) does not support weighted samples.',MODE.TYPE));
+	end; 	
         % [5] J.D. Tebbens and P.Schlesinger (2006), 
         %       Improving Implementation of Linear Discriminant Analysis for the Small Sample Size Problem
         %       http://www.cs.cas.cz/mweb/download/publi/JdtSchl2006.pdf
@@ -370,6 +363,10 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'sparse'))
 
         
 elseif ~isempty(strfind(lower(MODE.TYPE),'rbf'))
+	if ~isempty(W) 
+		error(sprintf('Error TRAIN_SC: Classifier (%s) does not support weighted samples.',MODE.TYPE));
+	end; 	
+
         % Martin Hieden's RBF-SVM        
         if exist('svmpredict','file')==3,
                 MODE.TYPE = 'SVM:LIB:RBF';
@@ -396,6 +393,9 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'rbf'))
 
 
 elseif ~isempty(strfind(lower(MODE.TYPE),'svm11'))
+	if ~isempty(W) 
+		error(sprintf('Error TRAIN_SC: Classifier (%s) does not support weighted samples.',MODE.TYPE));
+	end; 	
         % 1-versus-1 scheme 
         if ~isfield(MODE.hyperparameter,'c_value')
                 MODE.hyperparameter.c_value = 1; 
@@ -417,6 +417,9 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm11'))
 
 
 elseif ~isempty(strfind(lower(MODE.TYPE),'psvm'))
+	if ~isempty(W) 
+		error(sprintf('Error TRAIN_SC: Classifier (%s) does not support weighted samples.',MODE.TYPE));
+	end; 	
         if isfield(MODE.hyperparameters,'nu')
 	        nu = MODE.hyperparameter.nu;
 	else 
@@ -437,6 +440,10 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'psvm'))
         
 
 elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
+	if ~isempty(W) 
+		error(sprintf('Error TRAIN_SC: Classifier (%s) does not support weighted samples.',MODE.TYPE));
+	end; 	
+
         if ~isfield(MODE.hyperparameter,'c_value')
                 MODE.hyperparameter.c_value = 1; 
         end
@@ -523,7 +530,13 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'csp'))
         CC.MD = repmat(NaN,[length(CC.Labels),sz(2)+[1,1]]);
         CC.NN = CC.MD;
         for k = 1:length(CC.Labels),
-                [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
+                %% [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
+        	ix = classlabel==CC.Labels(k);
+        	if isempty(W)
+	                [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(ix,:), 'E');
+	        else        
+                        [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(ix,:), 'E', W(ix));
+                end;         
         end;
         ECM = CC.MD./CC.NN;
         NC  = size(ECM);
@@ -582,6 +595,8 @@ else          % Linear and Quadratic statistical classifiers
                         w0    = -M0*w;
                         CC.weights(:,k) = [w0; w];
                 end;
+		CC.weights = sparse(CC.weights);
+		
                 
         elseif strcmpi(MODE.TYPE,'RDA');
 		if isfield(MODE,'hyperparameters') && isfield(MODE.hyperparameters,'lambda')  && isfield(MODE.hyperparameters,'gamma')
@@ -597,9 +612,11 @@ else          % Linear and Quadratic statistical classifiers
                 M  = XC(1,2:NC(2));		% mean
                 S  = XC(2:NC(2),2:NC(2)) - M'*M;% covariance matrix
                 
-                [v,d]=eig(S);               
-                U0 = v(diag(d)==0,:);
-                CC.iS2 = U0*U0';  
+		try, 
+	                [v,d]=eig(S);               
+        	        U0 = v(diag(d)==0,:);
+                	CC.iS2 = U0*U0';  
+                end;
                 
                 %M  = M/nn; S=S/(nn-1);
                 ICOV0 = inv(S);
