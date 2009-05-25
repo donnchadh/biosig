@@ -3156,7 +3156,6 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	struct tm 	tm_time; 
 //	time_t		tt;
 	uint16_t	BCI2000_StatusVectorLength=0;	// specific for BCI2000 format 
-	uint16_t	EGI_LENGTH_CODETABLE=0;	// specific for EGI format 
 
   
 	if (hdr==NULL)
@@ -3736,20 +3735,20 @@ if (!strncmp(MODE,"r",1))
 /*
                         N  = 0; 
 			[s,t] = strtok(HDR.EDF.ANNONS,0);
-    			while ~isempty(s)
-    				N  = N + 1; 
-    				ix = find(s==20);
-    				[s1,s2] = strtok(s(1:ix(1)-1),21);
-    				onset(N,1) = str2double(s1);
-   				tmp = str2double(s2(2:end));
-   				if  ~isempty(tmp)
-   					dur(N,1) = tmp; 	
-   				else 
-   					dur(N,1) = 0; 	
-   				end;
-    				TeegType{N} = char(s(ix(1)+1:end-1));
+			while ~isempty(s)
+				N  = N + 1; 
+				ix = find(s==20);
+				[s1,s2] = strtok(s(1:ix(1)-1),21);
+				onset(N,1) = str2double(s1);
+				tmp = str2double(s2(2:end));
+				if  ~isempty(tmp)
+					dur(N,1) = tmp; 	
+				else 
+					dur(N,1) = 0; 	
+				end;
+				TeegType{N} = char(s(ix(1)+1:end-1));
 				[s,t] = strtok(t,0);
-    			end;		
+			end;		
                         HDR.EVENT.TYP = ones(N,1);
                         HDR.EVENT.POS = round(onset * HDR.SampleRate);
                         HDR.EVENT.DUR = dur * HDR.SampleRate;
@@ -4387,57 +4386,57 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 			/* read whole header */
 			hdr->HeadLen = (typeof(hdr->HeadLen)) strtod(ptr+10,&ptr);
 			if (count <= hdr->HeadLen) {
-			    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen+1);
-			    	count   += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
-			} 
+				hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen+1);
+				count   += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
+			}
 			else
 				ifseek(hdr,hdr->HeadLen,SEEK_SET);
 		}		
 		hdr->AS.Header[hdr->HeadLen]=0; 
-	    	hdr->AS.bci2000 = (char*)realloc(hdr->AS.bci2000, hdr->HeadLen+1);
-	    	memcpy(hdr->AS.bci2000, hdr->AS.Header, hdr->HeadLen+1);
+		hdr->AS.bci2000 = (char*)realloc(hdr->AS.bci2000, hdr->HeadLen+1);
+		memcpy(hdr->AS.bci2000, hdr->AS.Header, hdr->HeadLen+1);
 
-	    	/* decode number of channels */ 
+		/* decode number of channels */ 
 		t1  = strtok((char*)hdr->AS.Header,"\x0a\x0d");			
-	    	ptr = strstr(t1,"SourceCh="); 
+		ptr = strstr(t1,"SourceCh="); 
 		if (ptr==NULL) 
 			B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
-	    	else 
-	    		hdr->NS = (typeof(hdr->NS)) strtod(ptr+9,&ptr); 
-	    	
+		else 
+			hdr->NS = (typeof(hdr->NS)) strtod(ptr+9,&ptr); 
+
 		/* decode length of state vector */
-	    	ptr = strstr(t1,"StatevectorLen=");
+		ptr = strstr(t1,"StatevectorLen=");
 		if (ptr==NULL) 
 			B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
-	    	else 
+		else 
 		    	BCI2000_StatusVectorLength = (size_t) strtod(ptr+15,&ptr); 
-	    	
-	    	/* decode data format */
-	    	ptr = strstr(ptr,"DataFormat=");
-	    	uint16_t gdftyp=3; 
-	    	if (ptr == NULL) gdftyp = 3;
-	    	else if (!strncmp(ptr+12,"int16",3))	gdftyp = 3; 
-	    	else if (!strncmp(ptr+12,"int32",5))	gdftyp = 5; 
-	    	else if (!strncmp(ptr+12,"float32",5))	gdftyp = 16; 
-	    	else if (!strncmp(ptr+12,"int24",5))	gdftyp = 255+24; 
-	    	else if (!strncmp(ptr+12,"uint16",3))	gdftyp = 4; 
-	    	else if (!strncmp(ptr+12,"uint32",5))	gdftyp = 6; 
-	    	else if (!strncmp(ptr+12,"uint24",5))	gdftyp = 511+24; 
-	    	else if (!strncmp(ptr+12,"float64",6))	gdftyp = 17;
-	    	else B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		
+		/* decode data format */
+		ptr = strstr(ptr,"DataFormat=");
+		uint16_t gdftyp=3; 
+		if (ptr == NULL) gdftyp = 3;
+		else if (!strncmp(ptr+12,"int16",3))	gdftyp = 3; 
+		else if (!strncmp(ptr+12,"int32",5))	gdftyp = 5; 
+		else if (!strncmp(ptr+12,"float32",5))	gdftyp = 16; 
+		else if (!strncmp(ptr+12,"int24",5))	gdftyp = 255+24; 
+		else if (!strncmp(ptr+12,"uint16",3))	gdftyp = 4; 
+		else if (!strncmp(ptr+12,"uint32",5))	gdftyp = 6; 
+		else if (!strncmp(ptr+12,"uint24",5))	gdftyp = 511+24; 
+		else if (!strncmp(ptr+12,"float64",6))	gdftyp = 17;
+		else B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+
 		if (B4C_ERRNUM) {
 			/* return if any error has occured. */
 			B4C_ERRMSG = "ERROR 1234 SOPEN(BCI2000): invalid file format .\n";
-	    		return(hdr);
-	    	}	
-			
+			return(hdr);
+		}
+
 		if (hdr->FLAG.OVERFLOWDETECTION) {
 			fprintf(stderr,"WARNING: Automated overflowdetection not supported in BCI2000 file %s\n",hdr->FileName);
 			hdr->FLAG.OVERFLOWDETECTION = 0;
 		}	
-			   	
-	    	hdr->SPR = 1; 
+
+		hdr->SPR = 1; 
 		double gain=0.0, offset=0.0, digmin=0.0, digmax=0.0;
 		size_t tc_len=0,tc_pos=0, rs_len=0,rs_pos=0, fb_len=0,fb_pos=0;
 		char TargetOrientation=0;
@@ -4456,13 +4455,12 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 			hc->GDFTYP = gdftyp;
 			hc->bi     = hdr->AS.bpb;
 			hdr->AS.bpb    += (GDFTYP_BITS[hc->GDFTYP] * hc->SPR)>>3;
-		}	
+		}
 		if (hdr->TYPE==BCI2000) 
 			hdr->AS.bpb += BCI2000_StatusVectorLength;
 
-
 		int status = 0;
-		ptr = strtok(NULL,"\x0a\x0d");		
+		ptr = strtok(NULL,"\x0a\x0d");
 		while (ptr != NULL) {
 
 			if (VERBOSE_LEVEL>8) 
@@ -4595,14 +4593,14 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					http://www.bci2000.org/wiki/index.php/User_Reference:GDFFileWriter
 					http://biosig.cvs.sourceforge.net/biosig/biosig/doc/eventcodes.txt?view=markup
 				*/
-				
+
 				/* decode ResultCode */ 
 				b3 = *(uint32_t*)(StatusVector + BCI2000_StatusVectorLength*(count & 1) + (rs_pos>>3));
 				b3 = (b3 >> (rs_pos & 7)) & ((1<<rs_len)-1);
 				if (b3 != b2) {
 					if (b3>b2) hdr->EVENT.TYP[N] = ( b3==b1 ? 0x0381 : 0x0382);
 					else 	   hdr->EVENT.TYP[N] = ( b2==b0 ? 0x8381 : 0x8382);
-					hdr->EVENT.POS[N] = count;	
+					hdr->EVENT.POS[N] = count;
 					N++;
 					b2 = b3;
 				}	
@@ -6123,97 +6121,185 @@ if (VERBOSE_LEVEL>8)
 
 		fprintf(stdout,"Reading EGI is under construction\n");	
 
-	    	uint16_t gdftyp=3;
+		uint16_t NEC = 0;	// specific for EGI format 
+		uint16_t gdftyp = 3;
+
 		// BigEndian 
-		// hdr->FLAG.SWAP = (__BYTE_ORDER == __LITTLE_ENDIAN); 	// default: most data formats are little endian 
-		hdr->FILE.LittleEndian = 0; 
-	    	hdr->VERSION  	= beu32p(hdr->AS.Header);
-    		if      (hdr->VERSION==2 || hdr->VERSION==3)	gdftyp = 3;	// int32
-    		else if (hdr->VERSION==4 || hdr->VERSION==5)	gdftyp = 16;	// float
-    		else if (hdr->VERSION==6 || hdr->VERSION==7)	gdftyp = 17;	// double
-    		
-	    	tm_time.tm_year = beu16p(hdr->AS.Header+4) - 1900;
-	    	tm_time.tm_mon  = beu16p(hdr->AS.Header+6) - 1;
-	    	tm_time.tm_mday = beu16p(hdr->AS.Header+8);
-	    	tm_time.tm_hour = beu16p(hdr->AS.Header+10);
-	    	tm_time.tm_min  = beu16p(hdr->AS.Header+12);
-	    	tm_time.tm_sec  = beu16p(hdr->AS.Header+14);
-	    	// tm_time.tm_sec  = beu32p(Header1+16)/1000; // not supported by tm_time
+		hdr->FILE.LittleEndian = 0;
+		hdr->VERSION	= beu32p(hdr->AS.Header);
+		if      (hdr->VERSION==2 || hdr->VERSION==3)	gdftyp = 3;	// int32
+		else if (hdr->VERSION==4 || hdr->VERSION==5)	gdftyp = 16;	// float
+		else if (hdr->VERSION==6 || hdr->VERSION==7)	gdftyp = 17;	// double
 
-	    	hdr->T0 = tm_time2gdf_time(&tm_time);
-	    	hdr->SampleRate = beu16p(hdr->AS.Header+20);
-	    	hdr->NS         = beu16p(hdr->AS.Header+22);
-	    	// uint16_t  Gain  = beu16p(Header1+24);
-	    	uint16_t  Bits  = beu16p(hdr->AS.Header+26);
-	    	uint16_t PhysMax= beu16p(hdr->AS.Header+28);
-	    	size_t POS; 
-	    	if (hdr->AS.Header[3] & 0x01)
-	    	{ 	// Version 3,5,7
-	    		POS = 32; 
-	    		for (k=0; k < beu16p(hdr->AS.Header+30); k++)
-	    			POS += *(hdr->AS.Header+POS);	// skip EGI categories 
+		tm_time.tm_year = beu16p(hdr->AS.Header+4) - 1900;
+		tm_time.tm_mon  = beu16p(hdr->AS.Header+6) - 1;
+		tm_time.tm_mday = beu16p(hdr->AS.Header+8);
+		tm_time.tm_hour = beu16p(hdr->AS.Header+10);
+		tm_time.tm_min  = beu16p(hdr->AS.Header+12);
+		tm_time.tm_sec  = beu16p(hdr->AS.Header+14);
+		// tm_time.tm_sec  = beu32p(Header1+16)/1000; // not supported by tm_time
 
-			if (POS > count-8) {
-				hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,POS+8);
-				count += ifread(hdr->AS.Header,1,POS+8-count,hdr);
+		hdr->T0 = tm_time2gdf_time(&tm_time);
+		hdr->SampleRate = beu16p(hdr->AS.Header+20);
+		hdr->NS         = beu16p(hdr->AS.Header+22);
+		uint16_t  Gain  = beu16p(Header1+24);
+		uint16_t  Bits  = beu16p(hdr->AS.Header+26);
+		uint16_t PhysMax= beu16p(hdr->AS.Header+28);
+		size_t POS; 
+		if (hdr->AS.Header[3] & 0x01)
+		{ 	// Version 3,5,7
+			POS = 32; 
+			for (k=0; k < beu16p(hdr->AS.Header+30); k++) {
+				char tmp[256]; 
+				int  len = hdr->AS.Header[POS];
+				strncpy(tmp,Header1+POS,len);
+				tmp[len]=0; 
+				if (VERBOSE_LEVEL>7)
+					fprintf(stdout,"EGI categorie %i: <%s>\n",k,tmp); 
+					
+				POS += *(hdr->AS.Header+POS);	// skip EGI categories 
+				if (POS > count-8) {
+					hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,2*count);
+					count += ifread(hdr->AS.Header,1,count,hdr);
+				}
 			}
 
-	    		hdr->NRec= beu16p(hdr->AS.Header+POS);
-	    		hdr->SPR = beu32p(hdr->AS.Header+POS+2);
-	    		EGI_LENGTH_CODETABLE = beu16p(hdr->AS.Header+POS+6);	// EGI.N
-	    		POS += 8; 
-	    	}
-	    	else
-	    	{ 	// Version 2,4,6
-	    		hdr->NRec = beu32p(hdr->AS.Header+30);
-	    		EGI_LENGTH_CODETABLE = beu16p(hdr->AS.Header+34);	// EGI.N
-	    		hdr->SPR  = 1;
-	    		/* see also end-of-sopen  
-	    		hdr->AS.spb = hdr->SPR+EGI_LENGTH_CODETABLE ;
-		    	hdr->AS.bpb = (hdr->NS + EGI_LENGTH_CODETABLE)*GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
-		    	*/    
-		    	POS = 36; 
-	    	}
+			hdr->NRec= beu16p(hdr->AS.Header+POS);
+			hdr->SPR = beu32p(hdr->AS.Header+POS+2);
+			NEC = beu16p(hdr->AS.Header+POS+6);	// EGI.N
+			POS += 8; 
+		}
+		else
+		{ 	// Version 2,4,6
+			hdr->NRec = beu32p(hdr->AS.Header+30);
+			NEC = beu16p(hdr->AS.Header+34);	// EGI.N
+			hdr->SPR  = 1;
+			/* see also end-of-sopen  
+			hdr->AS.spb = hdr->SPR+NEC;
+			hdr->AS.bpb = (hdr->NS + NEC)*GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
+			*/    
+			POS = 36; 
+		}
 
-
-		POS += 4*EGI_LENGTH_CODETABLE;	    	// skip event codes
-		hdr->HeadLen = POS; 
+		/* read event code description */
+		hdr->AS.auxBUF = (uint8_t*) realloc(hdr->AS.auxBUF,5*NEC);
+		hdr->EVENT.CodeDesc = (typeof(hdr->EVENT.CodeDesc)) realloc(hdr->EVENT.CodeDesc,257*sizeof(*hdr->EVENT.CodeDesc));
+		hdr->EVENT.CodeDesc[0] = "";	// typ==0, is always empty 
+		hdr->EVENT.LenCodeDesc = NEC+1;
+		for (k=0; k < NEC; k++) {
+			memcpy(hdr->AS.auxBUF+5*k,Header1+POS,4);
+			hdr->AS.auxBUF[5*k+4]=0; 
+			hdr->EVENT.CodeDesc[k+1] = (char*)hdr->AS.auxBUF+5*k;
+			POS += 4;
+		}
+		hdr->HeadLen = POS;
 		ifseek(hdr,hdr->HeadLen,SEEK_SET);
 
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
-	    	for (k=0; k<hdr->NS; k++) {
+		for (k=0; k<hdr->NS; k++) {
 			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
-    			hc->GDFTYP = gdftyp;
-	    		hc->PhysDimCode = 4275;  // "uV"
-		    	hc->LeadIdCode  = 0;
-	    		sprintf(hc->Label,"# %03i",k);  
-	    		hc->Cal     = PhysMax/ldexp(1,Bits);
-	    		hc->Off     = 0;
-	    		hc->SPR     = hdr->SPR;
-	    		hc->bi   = k*hdr->SPR*GDFTYP_BITS[gdftyp]>>3;
+			hc->GDFTYP = gdftyp;
+			hc->PhysDimCode = 4275;  // "uV"
+			hc->LeadIdCode  = 0;
+			sprintf(hc->Label,"# %03i",k);  
+			hc->Cal	= PhysMax/ldexp(1,Bits);
+			hc->Off	= 0;
+			hc->SPR	= hdr->SPR;
+			hc->bi	= k*hdr->SPR*GDFTYP_BITS[gdftyp]>>3;
 			
 			if (VERBOSE_LEVEL>8)	
-				fprintf(stdout,"SOPEN(EGI): %i %f\n",Bits, PhysMax);	    		
-	    		
-		    	if (Bits && PhysMax) {
-		    		hc->PhysMax = PhysMax;
-		    		hc->PhysMin = -PhysMax;
-	    			hc->DigMax  = ldexp(1,Bits);
-	    			hc->DigMin  = ldexp(-1,Bits);
-	    		} 
-	    		else {	
-/*	    		hc->PhysMax = PhysMax;
-	    		hc->PhysMin = -PhysMax;
-	    		hc->DigMax  = ldexp(1,Bits);
-	    		hc->DigMin  = ldexp(-1,Bits);
-*/	    		hc->Cal     = 1.0;
-	    		hc->OnOff   = 1;
-	    		}
-	    	}  
-		hdr->AS.bpb = (hdr->NS*hdr->SPR + EGI_LENGTH_CODETABLE) * GDFTYP_BITS[gdftyp]>>3;
+				fprintf(stdout,"SOPEN(EGI): #%i %i %f\n",k,Bits, PhysMax);
+
+			if (Bits && PhysMax) {
+				hc->PhysMax = PhysMax;
+				hc->PhysMin = -PhysMax;
+				hc->DigMax  = ldexp(1,Bits);
+				hc->DigMin  = ldexp(-1,Bits);
+			} 
+			else {	
+/*			hc->PhysMax = PhysMax;
+			hc->PhysMin = -PhysMax;
+			hc->DigMax  = ldexp(1,Bits);
+			hc->DigMin  = ldexp(-1,Bits);
+*/			hc->Cal     = 1.0;
+			hc->OnOff   = 1;
+			}
+		}
+		hdr->AS.bpb = (hdr->NS*hdr->SPR + NEC) * GDFTYP_BITS[gdftyp]>>3;
 		if (hdr->AS.Header[3] & 0x01)	// triggered  
 			hdr->AS.bpb += 6;
-		// TODO: check EGI format 	
+
+		size_t N = 0; 
+		if (NEC > 0) {
+			/* read event information */
+
+			size_t sz	= GDFTYP_BITS[gdftyp]>>3;
+			size_t len	= hdr->SPR * hdr->NRec * NEC * sz;
+
+			uint8_t *buf 	= (uint8_t*)calloc(NEC, sz);
+			uint8_t *buf8 	= (uint8_t*)calloc(NEC*2, 1);
+			size_t *ix 	= (size_t*)calloc(NEC, sizeof(size_t));
+
+			size_t skip	= hdr->AS.bpb - NEC * sz;
+			ifseek(hdr, hdr->HeadLen + skip, SEEK_SET);
+			int k1;
+			for (nrec_t k=0; (k < hdr->NRec*hdr->SPR) && !ifeof(hdr); k++) {
+				ifread(buf, sz,   NEC, hdr);
+				ifseek(hdr, skip, SEEK_CUR);
+
+				int off0, off1;
+				if (k & 0x01)
+				{ 	off0 = 0; off1=NEC; }
+				else	
+				{ 	off0 = NEC; off1=0; }
+
+				memset(buf8+off1,0,NEC);	// reset
+				for (k1=0; k1 < NEC * sz; k1++)
+					if (buf[k1]) buf8[ off1 + k1/sz ] = 1;
+
+				for (k1=0; k1 < NEC ; k1++) {
+					if (buf8[off1 + k1] && !buf8[off0 + k1]) {
+						/* rising edge */
+						ix[k1] = k;
+					}
+					else if (!buf8[off1 + k1] && buf8[off0 + k1]) {
+						/* falling edge */
+						if (N <= (hdr->EVENT.N + NEC*2)) {
+							N += (hdr->EVENT.N+NEC)*2;	// allocate memory for this and the terminating line. 
+							hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP, N*sizeof(*hdr->EVENT.TYP));
+							hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS, N*sizeof(*hdr->EVENT.POS));
+							hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN, N*sizeof(*hdr->EVENT.CHN));
+							hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR, N*sizeof(*hdr->EVENT.DUR));
+						}
+						hdr->EVENT.TYP[hdr->EVENT.N] = k1+1;
+						hdr->EVENT.POS[hdr->EVENT.N] = ix[k1];
+						hdr->EVENT.CHN[hdr->EVENT.N] = 0;
+						hdr->EVENT.DUR[hdr->EVENT.N] = k-ix[k1];
+						hdr->EVENT.N++;
+						ix[k1] = 0;
+					}
+				}
+			}
+
+			for (k1 = 0; k1 < NEC; k1++)
+			if (ix[k1]) {
+				/* end of data */
+				hdr->EVENT.TYP[hdr->EVENT.N] = k1+1;
+				hdr->EVENT.POS[hdr->EVENT.N] = ix[k1];
+				hdr->EVENT.CHN[hdr->EVENT.N] = 0;
+				hdr->EVENT.DUR[hdr->EVENT.N] = k-ix[k1];
+				hdr->EVENT.N++;
+				ix[k1] = 0;
+			}
+
+			hdr->EVENT.SampleRate = hdr->SampleRate; 
+			free(buf);
+			free(buf8);
+			free(ix);
+		}
+		ifseek(hdr,hdr->HeadLen,SEEK_SET);
+
+		/* TODO: check EGI format */
 	}
 
 
@@ -6233,12 +6319,12 @@ if (VERBOSE_LEVEL>8)
 		//hdr->HeadLen = *(uint32_t*) mfer_swap8b(hdr->AS.Header+8, sizeof(uint32_t), char FLAG_SWAP);
 
 		/* read file */ 
-	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen+1);
+		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen+1);
 		count  += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
 		hdr->AS.Header[count]=0;
 
 	}
-#endif 
+#endif
 
 #ifdef WITH_EMBLA
 	else if (hdr->TYPE==EMBLA) {
@@ -6250,7 +6336,7 @@ if (VERBOSE_LEVEL>8)
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED; 
 		B4C_ERRMSG = "FLT/ET-MEG format not supported";
 	}
-	
+
 	else if (hdr->TYPE==ETG4000) {
 		/* read file */ 
 		while (!ifeof(hdr)) {
