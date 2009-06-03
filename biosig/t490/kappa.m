@@ -32,8 +32,8 @@ function [kap,se,H,z,p0,SA,R]=kappa(d,c,arg3,w);
 %
 %  
 
-%	$Id: kappa.m,v 1.11 2008-10-15 12:27:20 schloegl Exp $
-%	Copyright (c) 1997-2006,2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id$
+%	Copyright (c) 1997-2006,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
@@ -116,18 +116,19 @@ if nargin>1,
 		    			H(d(k),c(k)) = H(d(k),c(k)) + w(k);
 		    		end;	
         		end;
-		else
+		elseif isempty(w)
 			H = full(sparse(d(1:N),c(1:N),1,kk,kk));
+		else
+			H = full(sparse(d(1:N),c(1:N),w(1:N),kk,kk));
     		end;
 	end;
 else
 	X.Label = 1:min(size(d));
     	H = d(X.Label,X.Label);
-    	% if size(H,1)==size(H,2);	
-	N = sum(sum(H));
-    	% end;
 end;
 warning('off');
+
+N = sum(H(:)); 
 p0  = sum(diag(H))/N;  %accuracy of observed agreement, overall agreement 
 %OA = sum(diag(H))/N);
 
@@ -146,6 +147,9 @@ sd  = sqrt((pe+pe*pe-px)/(N*(1-pe*pe)));
 
 %standard error 
 se  = sqrt((p0+pe*pe-px)/N)/(1-pe);
+if ~isreal(se)
+	z = NaN;
+end
 z = kap/se;
 
 if ((1 < nargout) & (nargout<7)) return; end; 
