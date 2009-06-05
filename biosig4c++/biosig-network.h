@@ -65,11 +65,11 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <unistd.h>
 
 #endif
 
 #include <sys/types.h>
-#include <unistd.h>
 
 
 /* External API definitions */
