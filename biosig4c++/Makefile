@@ -29,7 +29,7 @@ LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        = -L /usr/local/lib/
 #LIBS          = -lz  -lbiosig  	# dynamic
-LIBS          = libbiosig.a -lz t240/libfef.a -lgdcmDSED -lgsl -lgslcblas -lm	# static
+LIBS          = libbiosig.a -lz #t240/libfef.a -lgdcmDSED -lgsl -lgslcblas -lm	# static
 #LIBS         = libbiosig.a -lws2_32 win32/zlib/lib/zdll.lib	# static, for windows 
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
@@ -334,7 +334,7 @@ win32 exe: win32/save2gdf.exe
 
 ####### application files 
  
-save2gdf: save2gdf.o libbiosig.a t240/libfef.a #libbiosig.so 
+save2gdf: save2gdf.o libbiosig.a #t240/libfef.a #libbiosig.so 
 	$(LINK) $(CXXFLAGS) save2gdf.o $(LFLAGS) $(LIBS) -o save2gdf 
 #	$(LINK) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) $(TASN1_DIR).libs/libtasn1.a -o save2gdf 
 
@@ -389,7 +389,7 @@ sigviewer: ../sigviewer/bin/sigviewer
 ../sigviewer/bin/sigviewer: libbiosig.a biosig.h
 	$(COPY) -lf biosig.h ../sigviewer/extern/
 	$(COPY) -lf libbiosig.a ../sigviewer/extern/
-	$(COPY) -lf t240/libfef.a ../sigviewer/extern/
+#	$(COPY) -lf t240/libfef.a ../sigviewer/extern/
 	touch ../sigviewer/tmp/basic_header.o
 	make -C ../sigviewer/src  
 	
