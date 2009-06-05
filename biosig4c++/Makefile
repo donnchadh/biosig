@@ -8,25 +8,32 @@
 ##############################################################
 
 
-CC            = gcc
-CXX           = g++
-MEX	      = mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
+CC            = gcc-4.1
+CXX           = g++-4.1
+MEX	      = mex   # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
+octVER	      = # default
+OCT	      =	mkoctfile$(octVER)
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = #-D=WITH_ZLIB -D=WITH_DICOM -D=__4HAERTEL__ -D=WITH_ASN1 # -D=WITH_GSL -D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
-CFLAGS        = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
-CXXFLAGS      = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
+DEFINES       = #-D=WITH_ZLIB  -D=__4HAERTEL__ -D=WITH_ASN1  -D=WITH_GDCM -D=WITH_DICOM -D=WITH_FAMOS # -D=WITH_GSL -D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+CFLAGS        =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
+CXXFLAGS      =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
-INCPATH       = 
+INCPATH       = -I /usr/local/include/gdcm-2.0/
+#		../gdcm-2.0.10/Source/DataStructureAndEncodingDefinition \
+#		../gdcm-2.0.10/Source/InformationObjectDefinition  	\
+#		../gdcm-2.0.10/Source/MediaStorageAndFileFormat 	\
+#		../gdcm-2.0.10/Source/DataDictionary 			\
+#		../gdcm-2.0.10/Source/Common
 #LINK          = gcc
 LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
-LFLAGS        =
+LFLAGS        = -L /usr/local/lib/
 #LIBS          = -lz  -lbiosig  	# dynamic
-LIBS          = libbiosig.a t240/libfef.a -lz -lgsl -lgslcblas -lm	# static
-#LIBS         = libbiosig.a -lws2_32 win32/libzdll.a	# static, for windows 
+LIBS          = libbiosig.a -lz t240/libfef.a -lgdcmDSED -lgsl -lgslcblas -lm	# static
+#LIBS         = libbiosig.a -lws2_32 win32/zlib/lib/zdll.lib	# static, for windows 
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
-COPY          = cp
+COPY          = cp -f
 
 SWIG          = swig
 PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
@@ -34,10 +41,11 @@ TASN1_DIR     = /home/schloegl/src/libtasn1-1.5/lib/
 LIBTASN1      = $(TASN1_DIR).libs/libtasn1.a 
 
 # MinGW Crosscompiler: compile on linux binaries for windows  
-MinGWCC      = i586-mingw32msvc-gcc # 
-MinGWCXX      = i586-mingw32msvc-g++ # 
-MinGWCFLAGS   = -pipe -fPIC -Wall -O2 -W -D_REENTRANT
-MinGWLIBS     = win32/libbiosig.a -lws2_32  # static
+MinGWCC      = i586-mingw32msvc-gcc 
+MinGWCXX      = i586-mingw32msvc-g++ 
+MinGWCFLAGS   = -pipe -fPIC -Wall -O2 -W -D_REENTRANT #-D=BUILD_DLL
+#MinGWLIBS     = win32/libbiosig.a win32/libfef.a win32/zlib/lib/zdll.lib -lws2_32  # static
+MinGWLIBS     = win32/libbiosig.a win32/zlib/lib/zdll.lib -lws2_32  # static
 MinGWLINK     = i586-mingw32msvc-g++
 
 ####### Output directory
@@ -64,6 +72,7 @@ SOURCES       = biosig.c \
 		test0/sandbox.c \
 		physicalunits.c \
 		biosig-network.c \
+		save2gdf.c \
 		biosig_client.c \
 		biosig_server.c
 		
@@ -75,14 +84,16 @@ OBJECTS       = biosig.o \
 		sopen_scp_read.o \
 		sopen_famos_read.o \
 		sopen_alpha_read.o \
+		sopen_fef_read.o \
 		scp-decode.o \
 		sopen_scp_write.o \
 		crc4scp.o \
 		sopen_fef_read.o \
 		sopen_hl7aecg.o \
-		sopen_fef_read.o \
 		getlogin_r.o \
 		biosig-network.o \
+		save2gdf.o \
+		pdp2gdf.o \
 		sandbox.o 
 		 
 		
@@ -98,13 +109,13 @@ MinGWOBJECTS  = win32/biosig.obj \
 		win32/scp-decode.obj \
 		win32/sopen_scp_write.obj \
 		win32/crc4scp.obj \
-		win32/sopen_hl7aecg.obj \
 		win32/sopen_fef_read.obj \
+		win32/sopen_hl7aecg.obj \
 		win32/biosig-network.obj \
 		win32/sandbox.obj \
 		win32/zlib/lib/zdll.lib		
 
-TARGET        = save2gdf save2aecg save2scp libbiosig.a mex #libbiosig.so 
+TARGET        = save2gdf save2aecg save2scp libbiosig.a mex pdp2gdf #libbiosig.so 
 
 first: $(TARGET)
 all:   $(TARGET) mex biosig4python win32 sigviewer biosig_client biosig_server
@@ -125,39 +136,59 @@ all:   $(TARGET) mex biosig4python win32 sigviewer biosig_client biosig_server
 .C.o:
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
 
-.c.o:
+%.o: test0/%.c %.c biosig.h biosig-dev.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
-.cpp.obj:
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
+%.o: %.cpp biosig.h biosig-dev.h
+	$(CXX) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
+
+%.obj: %.cpp
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/"$@" "$<"
 
 
 ####### Compile
 
-biosig.o: biosig.c biosig-dev.h biosig.h 
-	$(CXX) -c $(CFLAGS) $(INCPATH) -o biosig.o biosig.c
+#biosig.o: biosig.c biosig-dev.h biosig.h 
+#	$(CC) -c $(CFLAGS) $(INCPATH) -o biosig.o biosig.c
 
-biosig-network.o: biosig-network.c biosig-network.h
-	$(CC) -c $(CFLAGS) $(INCPATH) -o biosig-network.o biosig-network.c
+#biosig-network.o: biosig-network.c biosig-network.h
+#	$(CC) -c $(CFLAGS) $(INCPATH) -o biosig-network.o biosig-network.c
 
-physicalunits.o: physicalunits.c biosig.h 
-	$(CC) -c $(CFLAGS) $(INCPATH) -o physicalunits.o physicalunits.c
+#physicalunits.o: physicalunits.c biosig.h 
+#	$(CC) -c $(CFLAGS) $(INCPATH) -o physicalunits.o physicalunits.c
 
 sandbox.o: test0/sandbox.c biosig.h 
-	$(CC) -c $(CFLAGS) $(INCPATH) -o sandbox.o test0/sandbox.c
+	$(CXX) -c $(CFLAGS) $(INCPATH) -o sandbox.o test0/sandbox.c
 
-save2gdf.o: save2gdf.c biosig-dev.h biosig.h 
-	$(CC) -c $(CFLAGS) $(INCPATH) -o save2gdf.o save2gdf.c
-
-sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h biosig.h\
-		biosig.h t210/structures.h t210/types.h
-	$(CXX) -c $(CFLAGS) $(INCPATH) -o sopen_scp_read.o t210/sopen_scp_read.c
+sopen_alpha_read.o: t210/sopen_alpha_read.c biosig-dev.h biosig.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_alpha_read.o t210/sopen_alpha_read.c
 
 sopen_famos_read.o: t210/sopen_famos_read.c biosig-dev.h biosig.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_famos_read.o t210/sopen_famos_read.c
 
-sopen_alpha_read.o: t210/sopen_alpha_read.c biosig-dev.h biosig.h
-	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_alpha_read.o t210/sopen_alpha_read.c
+sopen_dicom_read.o: t210/sopen_dicom_read.c biosig-dev.h biosig.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_dicom_read.o t210/sopen_dicom_read.c
+
+sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h
+	cd t240
+	#asn1c -fcompound-names -pdu=SessionArchiveSection -S /home/schloegl/cvs/asn1c/skeletons fef.asn1
+	asn1c -fcompound-names -pdu=SessionArchiveSection fef.asn1
+	#asn1c -fcompound-names iso11073-10471.asn1
+	#asn1c -fcompound-names iso11073-20601.asn1
+	cd ..
+	make -C t240 -f Makefile.am.sample 
+#	$(CC) -c $(CFLAGS) -I t240 $(INCPATH) -o sopen_fef_read.o t240/sopen_fef_read.c
+
+sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h 
+	$(CC) -c $(CFLAGS) -I t240 $(INCPATH) -o sopen_fef_read.o t240/sopen_fef_read.c
+	
+sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
+		XMLParser/tinyxml.h XMLParser/tinystr.h # XMLParser/Tokenizer.h
+	$(CXX) -c $(CFLAGS) $(INCPATH) -o sopen_hl7aecg.o t230/sopen_hl7aecg.c
+	
+sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h biosig.h\
+		biosig.h t210/structures.h t210/types.h
+	$(CXX) -c $(CFLAGS) $(INCPATH) -o sopen_scp_read.o t210/sopen_scp_read.c
 
 scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h \
 		t210/types.h t210/structures.h t210/codes.h
@@ -169,15 +200,11 @@ crc4scp.o: t220/crc4scp.c
 sopen_scp_write.o: t220/sopen_scp_write.c biosig-dev.h biosig.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_scp_write.o t220/sopen_scp_write.c
 
-sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
-		XMLParser/tinyxml.h XMLParser/tinystr.h XMLParser/Tokenizer.h
-	$(CXX) -c $(CFLAGS) $(INCPATH) -o sopen_hl7aecg.o t230/sopen_hl7aecg.c
-	
-sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h 
-	$(CC) -c $(CFLAGS) -I t240 $(INCPATH) -o sopen_fef_read.o t240/sopen_fef_read.c
-	
 getlogin_r.o: win32/getlogin_r.c
 	$(CC) -c $(CFLAGS) $(INCPATH) -o getlogin_r.o win32/getlogin_r.c
+
+#strtod.o: gnulib/strtod.c
+#	$(CC) -c $(CFLAGS) $(INCPATH) -o strtod.o gnulib/strtod.c
 
 tinystr.o: XMLParser/tinystr.cpp XMLParser/tinystr.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinystr.o XMLParser/tinystr.cpp
@@ -200,7 +227,6 @@ _biosig.so : swig_wrap.cxx
 	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python$(PYTHONVER) && \
  	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so
  
-
 #$(TARGET):  libbiosig.a 
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
 
@@ -211,9 +237,6 @@ libbiosig.so: $(OBJECTS)
 	$(CXX) -shared -fPIC -o libbiosig.so $(OBJECTS) 
 	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) 
 
-t240/libfef.a: t240/fef.asn
-	make -C t240 regen 
-	make -C t240 
 
 ####### Windows executable
 
@@ -236,17 +259,20 @@ win32/libzdll.a: win32/zlib/lib/zdll.lib
 win32/biosig.obj: biosig.c biosig-dev.h biosig.h win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/biosig.obj biosig.c
 
-win32/libbiosig.a: $(MinGWOBJECTS) win32/libzdll.a
-	i586-mingw32msvc-$(AR) win32/libbiosig.a $(MinGWOBJECTS) win32/libzdll.a
+win32/libbiosig.a: $(MinGWOBJECTS)  
+	i586-mingw32msvc-$(AR) win32/libbiosig.a   $(MinGWOBJECTS)  
+
+win32/libfef.a:	
+		
 	
+win32/libbiosig.dll: $(OBJECTS) win32/libzdll.a
+	$(MinGWCXX) -shared -fPIC  $(MinGWOBJECTS) win32/zlib/zlib1.dll -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
+
 win32/physicalunits.obj: physicalunits.c biosig.h  win32/zlib/include/zlib.h
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/physicalunits.obj physicalunits.c
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/physicalunits.obj physicalunits.c
 
 win32/sandbox.obj: test0/sandbox.c biosig.h  win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sandbox.obj test0/sandbox.c
-
-win32/save2gdf.obj: save2gdf.c biosig-dev.h biosig.h  win32/zlib/include/zlib.h
-	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/save2gdf.obj save2gdf.c
 
 win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h  win32/zlib/include/zlib.h \
 		biosig.h t210/structures.h t210/types.h
@@ -271,12 +297,18 @@ win32/crc4scp.obj: t220/crc4scp.c
 win32/sopen_scp_write.obj: t220/sopen_scp_write.c biosig-dev.h biosig.h win32/zlib/include/zlib.h
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_scp_write.obj t220/sopen_scp_write.c
 
+win32/sopen_fef_read.obj: t240/sopen_fef_read.c biosig-dev.h biosig.h 
+	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o win32/sopen_fef_read.obj t240/sopen_fef_read.c
+	
 win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h win32/zlib/include/zlib.h \
-		XMLParser/tinyxml.h XMLParser/tinystr.h XMLParser/Tokenizer.h
+		XMLParser/tinyxml.h XMLParser/tinystr.h # XMLParser/Tokenizer.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_hl7aecg.obj t230/sopen_hl7aecg.c
 
 win32/getlogin_r.obj: win32/getlogin_r.c
-	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
+
+#win32/strtod.obj: gnulib/strtod.c
+#	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/strtod.obj gnulib/strtod.c
 
 win32/tinystr.obj: XMLParser/tinystr.cpp XMLParser/tinystr.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinystr.obj XMLParser/tinystr.cpp
@@ -290,8 +322,11 @@ win32/tinyxmlerror.obj: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h XMLParser
 win32/tinyxmlparser.obj: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinyxmlparser.obj XMLParser/tinyxmlparser.cpp
 
-win32/save2gdf.exe: save2gdf.c win32/libbiosig.a 
-	$(MinGWCXX) $(MinGWCFLAGS) save2gdf.c  $(MinGWOBJECTS) $(MinGWLIBS) -o win32/save2gdf.exe 
+win32/save2gdf.exe: save2gdf.c win32/libbiosig.a
+	$(MinGWLINK) $(MinGWCFLAGS)  -o win32/save2gdf.exe save2gdf.c $(MinGWOBJECTS) $(MinGWLIBS)
+
+win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.a #libbiosig.so 
+	$(MinGWLINK) $(MinGWCFLAGS)  -o win32/pdp2gdf.exe pdp2gdf.c $(MinGWOBJECTS)  $(MinGWLIBS)  
 
 win32 exe: win32/save2gdf.exe
  
@@ -299,21 +334,24 @@ win32 exe: win32/save2gdf.exe
 
 ####### application files 
  
-save2gdf: save2gdf.c libbiosig.a t240/libfef.a #libbiosig.so 
-	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
-#	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) $(TASN1_DIR).libs/libtasn1.a -o save2gdf 
+save2gdf: save2gdf.o libbiosig.a t240/libfef.a #libbiosig.so 
+	$(LINK) $(CXXFLAGS) save2gdf.o $(LFLAGS) $(LIBS) -o save2gdf 
+#	$(LINK) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) $(TASN1_DIR).libs/libtasn1.a -o save2gdf 
 
-physicalunits: physicalunits.c libbiosig.a
-	$(CXX) $(CXXFLAGS) physicalunits.c $(LFLAGS) $(LIBS) -o physicalunits
+pdp2gdf: pdp2gdf.o libbiosig.a #libbiosig.so 
+	$(LINK) $(CXXFLAGS) pdp2gdf.o $(LFLAGS) $(LIBS) -o pdp2gdf 
+
+physicalunits: physicalunits.o libbiosig.a
+	$(LINK) $(CXXFLAGS) physicalunits.o $(LFLAGS) $(LIBS) -o physicalunits
 
 bscs: biosig_client biosig_server sandbox.o biosig.o 
 biosig_client: biosig_client.c libbiosig.a biosig-network.o 
-	$(CXX) $(CXXFLAGS) biosig_client.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_client
+	$(LINK) $(CXXFLAGS) biosig_client.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_client
 
 biosig_server: biosig_server.c libbiosig.a biosig-network.o 
-	$(CXX) $(CXXFLAGS) biosig_server.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_server
+	$(LINK) $(CXXFLAGS) biosig_server.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_server
 
-win32 exe: win32/save2gdf.exe 
+win32 exe: win32/save2gdf.exe win32/pdp2gdf.exe 
 
 ### MEX-files for Matlab
 mex: mex4m mex4o
@@ -330,23 +368,28 @@ mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.a
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex 
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
-	mkoctfile  -v -g --mex mexSLOAD.cpp  $(LIBS) 
+	$(OCT) -v -g --mex mexSLOAD.cpp  $(LIBS) 
+	$(COPY) mexSLOAD.mex ../biosig/t200/
 mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a 
-	mkoctfile  -D=mexSOPEN -v -g --mex mexSLOAD.cpp  $(LIBS) -o mexSOPEN.mex 
+	$(OCT) -D=mexSOPEN -v -g --mex mexSLOAD.cpp  $(LIBS) -o mexSOPEN.mex 
+	$(COPY) mexSOPEN.mex ../biosig/t200/
 #physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
-#	mkoctfile  -v -g --mex physicalunits.cpp  $(LIBS) 
+#	$(OCT) -v -g --mex physicalunits.cpp  $(LIBS) 
 
 oct:  mexSLOAD.oct
 mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
-	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) 
-	mkoctfile -D=mexSOPEN mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSLOAD.mex 
+	$(OCT) mexSLOAD.cpp $(LFLAGS) $(LIBS) 
+	$(OCT) -D=mexSOPEN mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.oct 
+	$(COPY) mexSOPEN.oct ../biosig/t200/
+	$(COPY) mexSOPEN.oct ../biosig/t200/
 
 
 sigviewer: ../sigviewer/bin/sigviewer 
 	make -C ../sigviewer/src  
 ../sigviewer/bin/sigviewer: libbiosig.a biosig.h
-	$(COPY) -l biosig.h ../sigviewer/extern/
-	$(COPY) -l libbiosig.a ../sigviewer/extern/
+	$(COPY) -lf biosig.h ../sigviewer/extern/
+	$(COPY) -lf libbiosig.a ../sigviewer/extern/
+	$(COPY) -lf t240/libfef.a ../sigviewer/extern/
 	touch ../sigviewer/tmp/basic_header.o
 	make -C ../sigviewer/src  
 	
@@ -398,6 +441,7 @@ install_sigviewer: sigviewer
 install_octave: mexSLOAD.mex 
 	mkdir -p  		$(DESTDIR)/usr/local/share/octave/site-m/
 	install mexSLOAD.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
+	install mexSOPEN.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
 
 install: save2gdf libbiosig.so libbiosig.a doc/save2gdf.1
 	install -d 		$(BIN)
@@ -411,7 +455,7 @@ install: save2gdf libbiosig.so libbiosig.a doc/save2gdf.1
 	install libbiosig.a	$(LIB)
 	mkdir -p  		$(DESTDIR)/usr/share/man/man1
 	install doc/*.1  	$(DESTDIR)/usr/share/man/man1
-	#install libbiosig.man  $(DESTDIR)/usr/share/
+	#install libbiosig.man $(DESTDIR)/usr/share/
 	#make install_sigviewer
 	#make install_octave
 
@@ -519,16 +563,16 @@ test: /tmp/t1.scp save2scp save2aecg save2gdf
 	# includes test for on-the-fly compression and decompression 
 	./save2gdf  -z  /tmp/t1.scp        /tmp/t1.scp.gdf
 	./save2scp  -z 	/tmp/t1.scp        /tmp/t1.scp.scp
-	./save2aecg  	/tmp/t1.scp        /tmp/t1.scp.hl7
+	./save2aecg -z 	/tmp/t1.scp        /tmp/t1.scp.hl7
 	./save2gdf 	/tmp/t1.scp.gdf.gz /tmp/t1.scp.gdf.gdf
 	./save2gdf 	/tmp/t1.scp.scp.gz /tmp/t1.scp.scp.gdf  
-	./save2gdf 	/tmp/t1.scp.hl7    /tmp/t1.scp.hl7.gdf
+	./save2gdf 	/tmp/t1.scp.hl7.gz /tmp/t1.scp.hl7.gdf
 	./save2scp 	/tmp/t1.scp.gdf.gz /tmp/t1.scp.gdf.scp
 	./save2scp 	/tmp/t1.scp.scp.gz /tmp/t1.scp.scp.scp  
-	./save2scp 	/tmp/t1.scp.hl7    /tmp/t1.scp.hl7.scp
+	./save2scp 	/tmp/t1.scp.hl7.gz /tmp/t1.scp.hl7.scp
 	./save2aecg 	/tmp/t1.scp.gdf.gz /tmp/t1.scp.gdf.hl7
 	./save2aecg	/tmp/t1.scp.scp.gz /tmp/t1.scp.scp.hl7  
-	./save2aecg	/tmp/t1.scp.hl7    /tmp/t1.scp.hl7.hl7
+	./save2aecg	/tmp/t1.scp.hl7.gz /tmp/t1.scp.hl7.hl7
 	# python test.py
 
 zip: /tmp/t1.scp save2gdf
@@ -550,6 +594,7 @@ zip: /tmp/t1.scp save2gdf
 	./save2gdf -f=BDF /tmp/t1.scp.gz t1.bdf
 	./save2gdf -f=SCP /tmp/t1.scp.gz t1.scp
 	./save2gdf -f=HL7 /tmp/t1.scp.gz t1.hl7
+	./save2gdf -f=MFER /tmp/t1.scp.gz t1.mwf
 	./save2gdf -f=CFWB /tmp/t1.scp.gz t1.cfw
 
 test6: /tmp/t1.scp save2gdf
@@ -561,11 +606,10 @@ test6: /tmp/t1.scp save2gdf
 	./save2gdf -z -f=EDF t0.xxx t1.edf
 	./save2gdf -z -f=BDF t0.xxx t1.bdf
 	./save2gdf -z -f=SCP t0.xxx t1.scp
+	./save2gdf -z -f=HL7 t0.xxx t1.hl7   # -z not supported for HL7
 	./save2gdf -z -f=CFWB t0.xxx t1.cfw
 	./save2gdf -z -f=MFER t0.xxx t1.mwf
 	./save2gdf -z -f=BVA t0.xxx t1.bva
-	./save2gdf -z -f=HL7 t0.xxx t1.hl7   # -z not supported for HL7
-	
 	./save2gdf -f=GDF1 t1.gd1.gz t2.gd1.gd1
 	./save2gdf -f=GDF t1.gd1.gz t2.gd1.gdf
 	./save2gdf -f=EDF t1.gd1.gz t2.gd1.edf
