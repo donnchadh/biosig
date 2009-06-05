@@ -30,7 +30,7 @@
 #include "../biosig-dev.h"
 
 
-int sopen_alpha_read(HDRTYPE* hdr) {	
+EXTERN_C int sopen_alpha_read(HDRTYPE* hdr) {	
 /*
 	this function will be called by the function SOPEN in "biosig.c"
 

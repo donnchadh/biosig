@@ -36,11 +36,75 @@
 
 // these functios are stubs
 
-int sopen_asn1(HDRTYPE* hdr) {
-	B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-	B4C_ERRMSG = "asn1 currently not supported";
-	return(0);
-};
+#ifdef WITH_GDCM
+#undef WITH_DICOM
+
+#include "gdcmReader.h"
+//#include "gdcmImageReader.h"
+//#include "gdcmWriter.h"
+#include "gdcmDataSet.h"
+#include "gdcmAttribute.h"
+
+extern "C" int sopen_dicom_read(HDRTYPE* hdr) {
+
+	gdcm::Reader r;
+  	r.SetFileName( hdr->FileName );
+  	if( !r.Read() )   
+  		return 1;
+
+  	gdcm::File &file = r.GetFile();
+  	gdcm::DataSet& ds = file.GetDataSet();
+/*
+	{
+		gdcm::Attribute<0x28,0x100> at;
+		at.SetFromDataElement( ds.GetDataElement( at.GetTag() ) );
+		if( at.GetValue() != 8 ) 
+			return 1;
+		//at.SetValue( 32 );
+		//ds.Replace( at.GetAsDataElement() );
+	}
+*/
+	{
+
+fprintf(stdout,"attr <0x0008,0x002a>\n");
+		gdcm::Attribute<0x0008,0x002a> at;
+ 		ds.GetDataElement( at.GetTag() );
+//		at.SetFromDataElement( ds.GetDataElement( at.GetTag() ) );
+
+		fprintf(stdout,"DCM: [0008,002a]: %i %p\n",at.GetNumberOfValues(), at.GetValue());
+	}
+
+
+/*
+				{
+				struct tm t0; 
+				hdr->AS.Header[pos+14]=0;
+				t0.tm_sec = atoi((char*)hdr->AS.Header+pos+12);
+				hdr->AS.Header[pos+12]=0;
+				t0.tm_min = atoi((char*)hdr->AS.Header+pos+10);
+				hdr->AS.Header[pos+10]=0;
+				t0.tm_hour = atoi((char*)hdr->AS.Header+pos+8);
+				hdr->AS.Header[pos+8]=0;
+				t0.tm_mday = atoi((char*)hdr->AS.Header+pos+6);
+				hdr->AS.Header[pos+6]=0;
+				t0.tm_mon = atoi((char*)hdr->AS.Header+pos+4)-1;
+				hdr->AS.Header[pos+4]=0;
+				t0.tm_year = atoi((char*)hdr->AS.Header+pos)-1900;
+
+				hdr->T0 = tm_time2gdf_time(&t0); 
+				break;
+				}
+			
+*/
+}
+#endif
+
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif 
+
 
 int sopen_eeprobe(HDRTYPE* hdr) {
 	B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
@@ -298,3 +362,8 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 #ifdef WITH_PDP
 #include "../NONFREE/sopen_pdp_read.c"
 #endif 
+
+#ifdef __cplusplus
+}
+#endif 
+

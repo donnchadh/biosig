@@ -25,7 +25,7 @@
 #include "../XMLParser/tinyxml.h"
 #include "../XMLParser/Tokenizer.h"
 
-extern "C" int sopen_HL7aECG_read(HDRTYPE* hdr) {
+EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful.
 	It will be called by the function SOPEN in "biosig.c"
@@ -65,10 +65,11 @@ extern "C" int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			strncpy(hdr->Patient.Id, geECG.FirstChild("PatientInfo").FirstChild("PID").Element()->GetText(),MAX_LENGTH_PID);
 			const char *tmp = geECG.FirstChild("PatientInfo").FirstChild("PID").Element()->GetText();
 			hdr->Patient.Sex = (toupper(tmp[0])=='M') + 2*(toupper(tmp[0])=='F');
-			strncpy(hdr->Patient.Name, geECG.FirstChild("PatientInfo").FirstChild("Name").FirstChild("FamilyName").Element()->GetText(),MAX_LENGTH_PID);
-			strncat(hdr->Patient.Name, " ",MAX_LENGTH_PID);
-			strncat(hdr->Patient.Name, geECG.FirstChild("PatientInfo").FirstChild("Name").FirstChild("GivenName").Element()->GetText(),MAX_LENGTH_PID);
-			
+			if (!hdr->FLAG.ANONYMOUS) {
+				strncpy(hdr->Patient.Name, geECG.FirstChild("PatientInfo").FirstChild("Name").FirstChild("FamilyName").Element()->GetText(),MAX_LENGTH_PID);
+				strncat(hdr->Patient.Name, " ",MAX_LENGTH_PID);
+				strncat(hdr->Patient.Name, geECG.FirstChild("PatientInfo").FirstChild("Name").FirstChild("GivenName").Element()->GetText(),MAX_LENGTH_PID);
+			}
 			hdr->NS = atoi(geECG.FirstChild("StripData").FirstChild("NumberOfLeads").Element()->GetText());
 			hdr->SPR = 1;
 			hdr->NRec = atoi(geECG.FirstChild("StripData").FirstChild("ChannelSampleCountTotal").Element()->GetText());
@@ -441,7 +442,7 @@ extern "C" int sopen_HL7aECG_read(HDRTYPE* hdr) {
 };
 
 
-int sopen_HL7aECG_write(HDRTYPE* hdr){
+EXTERN_C int sopen_HL7aECG_write(HDRTYPE* hdr) {
 	size_t k;
 	for (k=0; k<hdr->NS; k++) {
 		hdr->CHANNEL[k].GDFTYP = 5; //int32
@@ -454,7 +455,7 @@ int sopen_HL7aECG_write(HDRTYPE* hdr){
 };
 
 
-extern "C" int sclose_HL7aECG_write(HDRTYPE* hdr){
+EXTERN_C int sclose_HL7aECG_write(HDRTYPE* hdr){
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful. 
 	It will be called by the function SOPEN in "biosig.c"
@@ -855,6 +856,7 @@ extern "C" int sclose_HL7aECG_write(HDRTYPE* hdr){
 	bi += hdr->CHANNEL[i].SPR*sz;
 #endif
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"970 %i \n",i);
+//	if (VERBOSE_LEVEL>8) fprintf(stdout,"<%s>\n",digitsStream.str().c_str());
 
 	digitsText = new TiXmlText(digitsStream.str().c_str());
 	valueDigits->LinkEndChild(digitsText);

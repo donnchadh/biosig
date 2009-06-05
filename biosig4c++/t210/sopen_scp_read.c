@@ -26,16 +26,8 @@
 */
 
 
-#include <stdio.h>             // system includes
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include <float.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <ctype.h>
-
 #include "../biosig-dev.h"
 
 #include "structures.h"
@@ -316,7 +308,7 @@ void deallocEN1064(en1064_t en1064) {
 //	if (en1064.Section6.datablock != NULL) 	free(en1064.Section6.datablock);
 }
 
-extern "C" int sopen_SCP_read(HDRTYPE* hdr) {	
+EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {	
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful. 
 	It will be called by the function SOPEN in "biosig.c"

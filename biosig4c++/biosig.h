@@ -54,14 +54,19 @@ typedef char			int8_t;
 
 #endif
 
-
-
 #ifdef WITH_HDF5
 #include <hdf5.h>
 #endif 
 #ifdef WITH_NIFTI
 #include <nifti1.h>
 #endif 
+
+
+#ifdef __cplusplus
+#define EXTERN_C extern "C"
+#else
+#define EXTERN_C
+#endif
 
 
 
@@ -129,7 +134,7 @@ enum FileFormat {
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, Lexicor, 
 	Matlab, MFER, MIDI, MIT, 
 	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
-	PBMA, PBMN, PDF, PDP, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
+	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, TMSiLOG, UNIPRO, VRML, VTK, 
 	WAV, WinEEG, WMF, XML, XPM,
@@ -138,12 +143,12 @@ enum FileFormat {
 };
 
 
-extern int   B4C_ERRNUM;
-extern const char *B4C_ERRMSG;
+EXTERN_C int   B4C_ERRNUM;
+EXTERN_C const char *B4C_ERRMSG;
 
 #define BIOSIG_VERSION 0.80
 
-//extern int   VERBOSE_LEVEL; 	// used for debugging
+//EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
 //#define VERBOSE_LEVEL 0	// turn off debugging information 
 
 
@@ -180,7 +185,7 @@ typedef int64_t 		gdf_time; /* gdf time is represented in 64 bits */
 #define	gdf_time2ntp_time(t)	((int64_t)ldexp((ldexp(((double)(t)),-32) - 719529.0 + 70) * 86400,32))
 
 #ifdef __cplusplus
-extern "C" {
+EXTERN_C {
 #endif 
 gdf_time   tm_time2gdf_time(struct tm *t);
 struct tm *gdf_time2tm_time(gdf_time t);
@@ -391,7 +396,7 @@ typedef struct {
 /****************************************************************************/
 
 #ifdef __cplusplus
-extern "C" {
+EXTERN_C {
 #endif 
 
 HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT);
@@ -425,7 +430,6 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 	After calling sopen, the file header is read or written, and 
 	the position pointer points to the beginning of the data section
  --------------------------------------------------------------- */
-
 
 int 	sclose(HDRTYPE* hdr);
 /* 	closes the file corresponding to hdr
@@ -550,6 +554,11 @@ char* PhysDim(uint16_t PhysDimCode, char *PhysDimText);
    the memory for PhysDim must be preallocated, its maximum length is 
    defined by (MAX_LENGTH_PHYSDIM+1)  
  --------------------------------------------------------------- */
+double PhysDimScale(uint16_t PhysDimCode);
+/* returns scaling factor of physical dimension 
+	e.g. 0.001 for milli, 1000 for kilo etc. 
+ --------------------------------------------------------------- */
+
 
 void sort_eventtable(HDRTYPE *hdr);
 /* sort event table with respect to hdr->EVENT.POS    

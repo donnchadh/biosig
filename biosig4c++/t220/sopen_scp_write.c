@@ -21,7 +21,7 @@
 #include <string.h>
 #include "../biosig-dev.h"
 
-int sopen_SCP_write(HDRTYPE* hdr) {	
+EXTERN_C int sopen_SCP_write(HDRTYPE* hdr) {	
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful. 
 	It will be called by the function SOPEN in "biosig.c"

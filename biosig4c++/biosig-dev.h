@@ -41,7 +41,6 @@
 #include <stdio.h>
 #include <time.h>
 
-
 #if  	__APPLE__
 #define __BIG_ENDIAN  	 4321
 #define __LITTLE_ENDIAN  1234
@@ -99,7 +98,7 @@
 #endif  /* _BYTESWAP_H */
 
 #ifdef __cplusplus
-extern "C" {
+EXTERN_C {
 #endif 
 
 #if __BYTE_ORDER == __BIG_ENDIAN
@@ -240,7 +239,7 @@ void bef64a(  double i, uint8_t* r);
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #ifndef VERBOSE_LEVEL
-extern int   VERBOSE_LEVEL; 	// used for debugging
+EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
 #endif 
 
 
@@ -350,7 +349,7 @@ typedef struct {
         file access wrapper: use ZLIB (if available) or STDIO
  */ 	 
 #ifdef __cplusplus
-extern "C" {
+EXTERN_C {
 #endif 
 
 HDRTYPE* 	ifopen(HDRTYPE* hdr, const char* mode );
@@ -365,7 +364,7 @@ int 		ifgetc(HDRTYPE* hdr);
 char*           ifgets(char *str, int n, HDRTYPE* hdr);
 int             ifseek(HDRTYPE* hdr, long offset, int whence );
 long            iftell(HDRTYPE* hdr);
-int 		ifgetpos(HDRTYPE* hdr, fpos_t *pos);
+int 		ifgetpos(HDRTYPE* hdr, size_t *pos);
 int             iferror(HDRTYPE* hdr);
 
 
@@ -376,12 +375,8 @@ int             iferror(HDRTYPE* hdr);
 uint32_t gcd(uint32_t A, uint32_t B);
 uint32_t lcm(uint32_t A, uint32_t B);
 
-extern const int16_t GDFTYP_BITS[];
-extern const char *LEAD_ID_TABLE[];
-
-char* PhysDim(uint16_t PhysDimCode, char *PhysDim);
-uint16_t PhysDimCode(char* PhysDim0);
-double PhysDimScale(uint16_t PhysDimCode);
+EXTERN_C const int16_t GDFTYP_BITS[];
+EXTERN_C const char *LEAD_ID_TABLE[];
 
 uint16_t CRCEvaluate(uint8_t* datablock, uint32_t datalength);
 int16_t CRCCheck(uint8_t* datablock, uint32_t datalength);

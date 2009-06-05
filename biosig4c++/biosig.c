@@ -50,20 +50,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #include "biosig-dev.h"
 #include "biosig-network.h"
 
 #ifdef _WIN32
-#define FILESEP '\\'
-extern int getlogin_r(char* name, size_t namesize);
-#include <winsock2.h>
-
+  extern int getlogin_r(char* name, size_t namesize);
+  #include <winsock2.h>
+  #define FILESEP '\\'
 #else
-#include <netdb.h>
-#define FILESEP '/'
-
+  #include <netdb.h>
+  #include <unistd.h>
+  #define FILESEP '/'
 #endif
 
 #ifndef HOST_NAME_MAX
@@ -785,7 +783,7 @@ int strcmpi(const char* str1, const char* str2)
 /*
 	compare strings, accept bit7=1 
  */
-int strcmp(const char* str1, const char* str2)
+int strcmp8(const char* str1, const char* str2)
 {	
 	unsigned int k=0;
 	int r;
@@ -886,7 +884,7 @@ uint16_t PhysDimCode(char* PhysDim0)
 		for (k2=0; Global.PhysDimCode[k2] < 0xffff; k2++) {
 			strcpy(s1, Global.PhysDim[k2]);
 #endif
-			if (!strcmp(PhysDim0, s)) {
+			if (!strcmp8(PhysDim0, s)) {
 		 		if (k1==32) k1 = 19;		// hack for "µ" = "u"
 #ifdef HARDCODED_PHYSDIMTABLE 
 				return(_physdim[k2].idx+k1);
@@ -1000,7 +998,7 @@ struct tm *gdf_time2tm_time(gdf_time t) {
 	t3->tm_hour = (int)(floor (s / 3600));
 	s = s - 3600 * t3->tm_hour;
 	t3->tm_min = (int)(floor (s / 60));
-	t3->tm_sec = int(s) - 60 * t3->tm_min;
+	t3->tm_sec = (int)(s) - 60 * t3->tm_min;
 	//t3->tm_gmtoff = 3600;
     	
     	return(t3); 
@@ -1199,28 +1197,29 @@ int iferror(HDRTYPE* hdr) {
 /*------------------------------------------------------------------------
 	sort event table according to EVENT.POS    
   ------------------------------------------------------------------------*/
-struct entry_t {
+typedef struct {
 	uint32_t POS; 
 	uint32_t DUR; 
 	uint16_t TYP; 
 	uint16_t CHN; 
-};
+}  entry_t;
 
 int compare_eventpos(const void *e1, const void *e2) {
-	return(((entry_t*)e1)->POS - ((entry_t*)e2)->POS);
+	return(((entry_t*)(e1))->POS - ((entry_t*)(e2))->POS);
 }
 	
 void sort_eventtable(HDRTYPE *hdr) {
+	size_t k;
 	entry_t *entry = (entry_t*) calloc(hdr->EVENT.N,sizeof(entry_t));
 	if ((hdr->EVENT.DUR != NULL) && (hdr->EVENT.CHN != NULL)) 	
-	for (size_t k=0; k<hdr->EVENT.N;k++) {
+	for (k=0; k<hdr->EVENT.N;k++) {
 		entry[k].TYP = hdr->EVENT.TYP[k];
 		entry[k].POS = hdr->EVENT.POS[k];
 		entry[k].CHN = hdr->EVENT.CHN[k];
 		entry[k].DUR = hdr->EVENT.DUR[k];
 	}	
 	else
-	for (size_t k=0; k<hdr->EVENT.N;k++) {
+	for (k=0; k<hdr->EVENT.N;k++) {
 		entry[k].TYP = hdr->EVENT.TYP[k];
 		entry[k].POS = hdr->EVENT.POS[k];
 	}	
@@ -1228,14 +1227,14 @@ void sort_eventtable(HDRTYPE *hdr) {
 	qsort(entry,hdr->EVENT.N,sizeof(entry_t),&compare_eventpos);	
 
 	if ((hdr->EVENT.DUR != NULL) && (hdr->EVENT.CHN != NULL)) 	
-	for (size_t k=0; k<hdr->EVENT.N;k++) {
+	for (k=0; k<hdr->EVENT.N;k++) {
 		hdr->EVENT.TYP[k] = entry[k].TYP;
 		hdr->EVENT.POS[k] = entry[k].POS;
 		hdr->EVENT.CHN[k] = entry[k].CHN;
 		hdr->EVENT.DUR[k] = entry[k].DUR;
 	}	
 	else
-	for (size_t k=0; k<hdr->EVENT.N;k++) {
+	for (k=0; k<hdr->EVENT.N;k++) {
 		hdr->EVENT.TYP[k] = entry[k].TYP;
 		hdr->EVENT.POS[k] = entry[k].POS;
 	}	
@@ -1570,6 +1569,7 @@ void LoadGlobalPhysDimCodeTable()
 void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation) {
 	/* free text annotations encoded as user specific events (codes 1-255) */
 
+	size_t k;
 //	static int LengthCodeDesc = 0;
 	if (hdr->EVENT.CodeDesc == NULL) {		
 		hdr->EVENT.CodeDesc = (typeof(hdr->EVENT.CodeDesc)) realloc(hdr->EVENT.CodeDesc,257*sizeof(*hdr->EVENT.CodeDesc));
@@ -1579,7 +1579,7 @@ void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation) {
 
 	// First, compare text with any global event description 
 	if (!GLOBAL_EVENTCODES_ISLOADED) LoadGlobalEventCodeTable();
-	for (size_t k=0; k<Global.LenCodeDesc; k++) {
+	for (k=0; k<Global.LenCodeDesc; k++) {
 		if (Global.CodeIndex[k]>255) {
 			// compare description only up last non-space character before '#' 
 			int len = strcspn(Global.CodeDesc[k],"#"); 
@@ -1593,10 +1593,10 @@ void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation) {
 	}
 
 	// Second, compare text with user-defined event description 
-	int flag=1,k1;
-	for (k1=0; (k1 < hdr->EVENT.LenCodeDesc) && flag; k1++) {
-		if (!strncmp(hdr->EVENT.CodeDesc[k1], annotation, strlen(annotation))) {
-			hdr->EVENT.TYP[N_EVENT] = k1;
+	int flag=1;
+	for (k=0; (k < hdr->EVENT.LenCodeDesc) && flag; k++) {
+		if (!strncmp(hdr->EVENT.CodeDesc[k], annotation, strlen(annotation))) {
+			hdr->EVENT.TYP[N_EVENT] = k;
 			flag = 0;
 		}
 	}		
@@ -2873,7 +2873,8 @@ int gdfbin2struct(HDRTYPE *hdr)
 				char p[9];
 				strncpy(p, (char*)Header2 + 8*k + 96*hdr->NS,8);
 				p[8] = 0; // remove trailing blanks
-				for (int k1=7; (k1>0) && isspace(p[k1]); p[k1--] = 0) {};
+				int k1;
+				for (k1=7; (k1>0) && isspace(p[k1]); p[k1--] = 0) {};
 					
 				hc->PhysDimCode = PhysDimCode(p);
 
@@ -3644,7 +3645,8 @@ if (!strncmp(MODE,"r",1))
 			uint8_t *Marker = (uint8_t*)malloc(len + 1);
 			size_t skip 	= hdr->AS.bpb - hc->SPR * sz;
 			ifseek(hdr, hdr->HeadLen + hc->bi, SEEK_SET);
-			for (nrec_t k3=0; k3<hdr->NRec; k3++) {
+			nrec_t k3; 
+			for (k3=0; k3<hdr->NRec; k3++) {
 			    	ifread(Marker+k3*hc->SPR * sz, 1, hc->SPR * sz, hdr);
 				ifseek(hdr, skip, SEEK_CUR);
 			}
@@ -3818,8 +3820,9 @@ if (!strncmp(MODE,"r",1))
 			float fDACRange;
 			long  lADCResolution;
 			long  lDACResolution;
-			uint8_t* b = NULL; 
-			for (int k1=0; k1<18; ++k1) {
+			uint8_t* b = NULL;
+			int k1; 
+			for (k1=0; k1<18; ++k1) {
 				size_t BlockIndex  = leu32p(hdr->AS.Header + k1*16 + 19*4);
 				size_t BlockSize   = leu32p(hdr->AS.Header + k1*16 + 19*4+4);
 				uint64_t numBlocks = leu64p(hdr->AS.Header + k1*16 + 19*4+8);
@@ -5822,7 +5825,8 @@ if (VERBOSE_LEVEL>8)
                 	return(hdr); 
                 }
 
-		for (size_t k = 0; k < hdr->NS; k++) {
+		typeof(hdr->NS) k;
+		for (k = 0; k < hdr->NS; k++) {
 			CHANNEL_TYPE *hc = hdr->CHANNEL + k;
 			hc->GDFTYP = 3; 	// int16 
 			hc->SPR    = hdr->SPR; 	// int16 
@@ -5977,7 +5981,8 @@ if (VERBOSE_LEVEL>8)
 				pos3 += ifread(h3+pos3, 1, 32+hdr->NS*10 - pos3, hdr);
 
 				hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
-				for (int k3=0; k3<hdr->NS; k3++) {
+				int k3;
+				for (k3=0; k3<hdr->NS; k3++) {
 					CHANNEL_TYPE *hc = hdr->CHANNEL+k3;
 					uint8_t u8 = h3[39+k3*10]; 
 					switch (u8) {
@@ -6089,7 +6094,8 @@ if (VERBOSE_LEVEL>8)
 					hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,(hdr->EVENT.N+N)*sizeof(*hdr->EVENT.POS));
 					hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,(hdr->EVENT.N+N)*sizeof(*hdr->EVENT.CHN));
 					hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,(hdr->EVENT.N+N)*sizeof(*hdr->EVENT.DUR));
-					for (size_t k1=0; k1<N; k1++) {
+					size_t k1;
+					for (k1=0; k1<N; k1++) {
 						FreeTextEvent(hdr,hdr->EVENT.N,(char*)(LOG+lba+20+k1*45));
 						// fprintf(stdout,"%s %s\n",(char*)(LOG+lba+20+k1*45),(char*)(LOG+lba+40+k1*45));
 						sscanf((char*)(LOG+lba+46+k1*45),"(%02u%02u%02u%02u%02u%02u)",&tm_time.tm_year,&tm_time.tm_mon,&tm_time.tm_mday,&tm_time.tm_hour,&tm_time.tm_min,&tm_time.tm_sec);
@@ -6243,7 +6249,8 @@ if (VERBOSE_LEVEL>8)
 			size_t skip	= hdr->AS.bpb - NEC * sz;
 			ifseek(hdr, hdr->HeadLen + skip, SEEK_SET);
 			int k1;
-			for (nrec_t k=0; (k < hdr->NRec*hdr->SPR) && !ifeof(hdr); k++) {
+			nrec_t k;
+			for (k=0; (k < hdr->NRec*hdr->SPR) && !ifeof(hdr); k++) {
 				ifread(buf, sz,   NEC, hdr);
 				ifseek(hdr, skip, SEEK_CUR);
 
@@ -6301,8 +6308,6 @@ if (VERBOSE_LEVEL>8)
 
 		/* TODO: check EGI format */
 	}
-
-
 
 
 #ifdef WITH_EGIS
@@ -6508,10 +6513,12 @@ if (VERBOSE_LEVEL>8)
 		hdr->AS.length  = hdr->NRec; 
 	}
 
+#ifdef WITH_FAMOS
     	else if (hdr->TYPE==FAMOS) {
     		hdr->HeadLen=count;
 		sopen_FAMOS_read(hdr);
 	}
+#endif 
 
     	else if (hdr->TYPE==FEF) {
 #ifdef WITH_ASN1
@@ -7136,7 +7143,8 @@ if (VERBOSE_LEVEL>8)
 			if (ptr != NULL) InitialValue = strtod(ptr+1,&ptr);
 			else InitialValue = ADCzero; 
 
-			if (ptr != NULL) double checksum = strtod(ptr+1,&ptr); 
+			double checksum;
+			if (ptr != NULL) checksum = strtod(ptr+1,&ptr); 
 			if (ptr != NULL) BlockSize = strtod(ptr+1,&ptr);
 			while (isspace(ptr[0])) ++ptr;
 			
@@ -7455,6 +7463,51 @@ if (VERBOSE_LEVEL>8)
 		return(hdr); 	
 	}
 
+    	else if (hdr->TYPE==Persyst) {	
+
+		while (~ifeof(hdr)) {
+			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count*2+1);
+		    	count += ifread(hdr->AS.Header + count, 1, count, hdr);
+		}
+		hdr->AS.Header[count] = 0;
+		ifclose(hdr);		
+		int status = 0;
+		size_t pos=0;  
+		char *line = strtok(Header1,"\n\r");
+		while (pos<count) {
+			if (!strncmp(line,"[FileInfo]",10))
+				status = 1;
+			else if (!strncmp(line,"[ChannelMap]",12))
+				status = 2;
+			else if (!strncmp(line,"[Sheets]",8))
+				status = 3;
+			else if (!strncmp(line,"[Comments]",10))
+				status = 4;
+			else if (!strncmp(line,"[Patient]",9))
+				status = 5;
+			else if (!strncmp(line,"[SampleTimes]",13))
+				status = 6;
+
+			else if (status==1) {
+//					filename = strchr(line,'=')+1;
+					if (!strncmp(line,"File",4))
+					;
+//						hdr->FILE.FID = fopen(''
+					else if (!strncmp(line,"File",4))
+					;
+
+				}
+					
+
+			line = strtok(NULL,"\n\r");
+		}
+			
+		uint16_t gdftyp = 3;
+
+
+    		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+    		B4C_ERRMSG = "Format Persyst not supported,yet.";
+	}
 
 	else if (hdr->TYPE==SCP_ECG) {
 		hdr->HeadLen   = leu32p(hdr->AS.Header+2);
@@ -7485,7 +7538,8 @@ if (VERBOSE_LEVEL>8)
 		size_t pos = leu32p(hdr->AS.Header+28);
 		uint8_t len;
 
-		for (int k=0; k<5; k++) {
+		int k;
+		for (k=0; k<5; k++) {
 #define line ((char*)(hdr->AS.Header+pos))
 			len = strcspn(line,"\x0a\x0d");
 			line[len] = 0;
@@ -7535,10 +7589,9 @@ if (VERBOSE_LEVEL>8)
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
 		
 		uint16_t p[] = {4,19,19,19,19+2,19,19,19,19+8,9,11};	// difference of positions of string elements within variable header
-		for (int k=1; k < sizeof(p)/sizeof(p[0]); k++) p[k] += p[k-1];	// relative position 
+		for (k=1; k < sizeof(p)/sizeof(p[0]); k++) p[k] += p[k-1];	// relative position 
 		
 		double *fs = (double*) malloc(hdr->NS * sizeof(double));
-		typeof(hdr->NS) k;
 		double minFs = 1.0/0.0; 
 		for (k=0; k<hdr->NS; k++) {
 			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
@@ -7562,7 +7615,8 @@ if (VERBOSE_LEVEL>8)
 		      	hc->XYZ[1]    = 0.0;
 		      	hc->XYZ[2]    = 0.0;
 
-			for (int k1=sizeof(p)/sizeof(p[0]); k1>0; ) {
+			int k1;
+			for (k1 = sizeof(p)/sizeof(p[0]); k1>0; ) {
 				k1--;
 				len = hdr->AS.Header[pos+p[k1]];
 				hdr->AS.Header[pos+p[k1]+len+1] = 0;
@@ -7884,7 +7938,7 @@ if (VERBOSE_LEVEL>8)
 				else if (h[2]==288) h[2] = 16;
 				else                h[2] = 0xffff;  	// this triggers the error trap 
 
-				if ((h[0]!=hdr->NS) || (double(h[1])!=hdr->SampleRate) || (h[2]!=gdftyp) ) {
+				if ((h[0] != hdr->NS) || (((double)h[1]) != hdr->SampleRate) || (h[2] != gdftyp) ) {
 					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 					B4C_ERRMSG = "TMSiLOG: Binary file corrupted\n";	
 				}
@@ -7925,11 +7979,12 @@ if (VERBOSE_LEVEL>8)
 					if (fgets(line,sz,fid)) {
 						char *next;
 						strtoul(line, &next, 10);	// skip index entry
-						for (int k2=0;k2<hdr->NS;k2++) 
+						for (k2=0;k2<hdr->NS;k2++) 
 							*(double*)(hdr->AS.rawdata+(k*hdr->NS+k2)*sizeof(double)) = strtod(next,&next);
 					}	
 					else {
-						for (int k2=0;k2<hdr->NS;k2++) 
+						int k2;
+						for (k2=0;k2<hdr->NS;k2++) 
 							*(double*)(hdr->AS.rawdata+(k*hdr->NS+k2)*sizeof(double)) = NaN;
 					}
 				}	
@@ -8382,8 +8437,9 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		fprintf(fid,"[EVENT TABLE]\n");
 		fprintf(fid,"TYP\tPOS [s]\tDUR [s]\tCHN\tVAL/Desc");
 		if (!GLOBAL_EVENTCODES_ISLOADED) LoadGlobalEventCodeTable();
-		
-		for (size_t k=0; k<hdr->EVENT.N; k++) {
+
+		size_t k;
+		for (k=0; k<hdr->EVENT.N; k++) {
 
 			fprintf(fid,"\n0x%04x\t%f\t",hdr->EVENT.TYP[k],hdr->EVENT.POS[k]/hdr->EVENT.SampleRate);
 			if (hdr->EVENT.DUR != NULL)
@@ -8468,7 +8524,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     			char physdim[MAX_LENGTH_PHYSDIM+1];
     			char Label[MAX_LENGTH_LABEL+1];
     			strcpy(Label,hdr->CHANNEL[k].Label);
-    			for (size_t k1=0; Label[k1]; k1++) if (Label[k1]==',') Label[k1]=1;
+    			size_t k1;
+    			for (k1=0; Label[k1]; k1++) if (Label[k1]==',') Label[k1]=1;
 	    		fprintf(fid,"Ch%d=%s,,1,%s\n\r",k+1,Label,PhysDim(hdr->CHANNEL[k].PhysDimCode,physdim));
     		}
     		fprintf(fid,"\n\r\n\r[Coordinates]\n\r");
@@ -9111,7 +9168,8 @@ size_t bpb8_collapsed_rawdata(HDRTYPE *hdr)
 {
 	size_t bpb8=0;
 	CHANNEL_TYPE *CHptr;
-	for (typeof(hdr->NS) k=0; k<hdr->NS; k++) {
+	typeof(hdr->NS) k; 
+	for (k=0; k<hdr->NS; k++) {
 		CHptr 	= hdr->CHANNEL+k;
 		if (CHptr->OnOff) bpb8 += CHptr->SPR*GDFTYP_BITS[CHptr->GDFTYP];
 	}
@@ -10120,8 +10178,9 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			ifopen(&H1,"wb");
 	
 			if (hdr->TYPE == ASCII) {
-				DIV = hdr->SPR/CHptr->SPR; 
-				for (size_t k2=0; k2<CHptr->SPR*hdr->NRec; k2++) {
+				DIV = hdr->SPR/CHptr->SPR;
+				size_t k2; 
+				for (k2=0; k2<CHptr->SPR*hdr->NRec; k2++) {
 					biosig_data_type i=0;
 					size_t k3;
 					for (k3=0; k3<DIV; k3++) 
@@ -10232,7 +10291,8 @@ int sclose(HDRTYPE* hdr)
 	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"sclose(121)\n"); 
 
-	for (size_t k=0; k<hdr->NS; k++) {
+	size_t k;
+	for (k=0; k<hdr->NS; k++) {
 		// replace Nihon-Kohden code with standard code 
 		if (hdr->CHANNEL[k].GDFTYP==128)	 
 			hdr->CHANNEL[k].GDFTYP=3; 
@@ -10455,8 +10515,8 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		fprintf(fid,               "\tEquipment       : %s\n",tmp);
 		if (VERBOSE_LEVEL>8)
 			fprintf(fid,       "\t                  %#.16Lx\n",(uint64_t)hdr->ID.Equipment);
-		uint8_t IPv6=0;
-		for (uint8_t k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
+		uint8_t k,IPv6=0;
+		for (k=4; k<16; k++) IPv6 |= hdr->IPaddr[k];
 		if (IPv6) fprintf(fid,     "\tIPv6 address    : %02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3],hdr->IPaddr[4],hdr->IPaddr[5],hdr->IPaddr[6],hdr->IPaddr[7],hdr->IPaddr[8],hdr->IPaddr[9],hdr->IPaddr[10],hdr->IPaddr[11],hdr->IPaddr[12],hdr->IPaddr[13],hdr->IPaddr[14],hdr->IPaddr[15]);
 		else fprintf(fid,          "\tIPv4 address    : %u.%u.%u.%u",hdr->IPaddr[0],hdr->IPaddr[1],hdr->IPaddr[2],hdr->IPaddr[3]);
 
@@ -10540,7 +10600,8 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		fprintf(fid,"\n\n[EVENT TABLE] N=%i Fs=%f",hdr->EVENT.N,hdr->EVENT.SampleRate);
 		fprintf(fid,"\n#No\tTYP\tPOS\tDUR\tCHN\tVAL\tDesc");
 			
-		for (size_t k=0; k<hdr->EVENT.N; k++) {
+		size_t k;
+		for (k=0; k<hdr->EVENT.N; k++) {
 			fprintf(fid,"\n%5i\t0x%04x\t%d",k+1,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]);
 			if (hdr->EVENT.DUR != NULL)
 				fprintf(fid,"\t%5d\t%d",hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]);
@@ -10595,16 +10656,17 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			default: StatusString = "unknown"; break;  
 			}
 
+			uint8_t k; 
 			if (aECG->Section8.NumberOfStatements>0) {
 				fprintf(stdout,"\n\nReport %04i-%02i-%02i %02ih%02im%02is (Status=%s)\n",aECG->Section8.t.tm_year+1900,aECG->Section8.t.tm_mon+1,aECG->Section8.t.tm_mday,aECG->Section8.t.tm_hour,aECG->Section8.t.tm_min,aECG->Section8.t.tm_sec,StatusString);
-				for (uint8_t k=0; k<aECG->Section8.NumberOfStatements;k++) {
+				for (k=0; k<aECG->Section8.NumberOfStatements;k++) {
 					fprintf(stdout,"%s\n",aECG->Section8.Statements[k]);
 				}
 			}	
 
 			if (aECG->Section11.NumberOfStatements>0) {
 				fprintf(stdout,"\n\nReport %04i-%02i-%02i %02ih%02im%02is (Status=%s)\n",aECG->Section11.t.tm_year+1900,aECG->Section11.t.tm_mon+1,aECG->Section11.t.tm_mday,aECG->Section11.t.tm_hour,aECG->Section11.t.tm_min,aECG->Section11.t.tm_sec,StatusString);
-				for (uint8_t k=0; k<aECG->Section11.NumberOfStatements;k++) {
+				for (k=0; k<aECG->Section11.NumberOfStatements;k++) {
 					fprintf(stdout,"%s\n",aECG->Section11.Statements[k]);
 				}
 			}	

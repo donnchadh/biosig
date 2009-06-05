@@ -32,13 +32,22 @@
 
 #include "biosig-network.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif 
 int savelink(const char* filename);
+#ifdef __cplusplus
+}
+#endif 
 
+#ifdef WITH_PDP 
+void sopen_pdp_read(HDRTYPE *hdr);
+#endif
 
 
 int main (int argc, char *argv[]) {
 
-	int s,status; 
+	int k,s,status; 
     	register int sd;
 	struct stat info;
 	int state; 
@@ -48,7 +57,7 @@ int main (int argc, char *argv[]) {
 	int VERBOSE	= 1; 
 	int  numopt = 0;
 	
-   	for (int k=1; k<argc; k++)
+   	for (k=1; k<argc; k++)
     	if (!strcmp(argv[k],"-v") || !strcmp(argv[k],"--version") ) {
 		fprintf(stdout,"pdp2gdf (BioSig4C++) v%04.2f\n", BIOSIG_VERSION);
 		fprintf(stdout,"Copyright (C) 2009 by Alois Schloegl\n");
