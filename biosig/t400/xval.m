@@ -126,6 +126,9 @@ for k = 1:max(NG),
 end; 
 
 R = kappa(classlabel(:,1),cl,'notIgnoreNAN',W);
+%R1 = kappa(classlabel(:,1),cl,[],W)
+%R2 = kappa(R.H)
+
 R.ERR = 1-R.ACC; 
 if isnumeric(R.Label)
 	R.Label = cellstr(int2str(R.Label)); 
@@ -135,10 +138,10 @@ R.data = R.H;
 
 if nargout>1,
 	% final classifier 
-	if all(W==1)
-		CC = train_sc(D,classlabel,MODE);
+	if isempty(W), 
+		CC = train_sc(D,classlabel(:,1),MODE);
 	else	
-		CC = train_sc(D,classlabel,MODE,W);
+		CC = train_sc(D,classlabel(:,1),MODE,W);
 	end; 	
 	CC.Labels = 1:max(classlabel);
 	%CC.Labels = unique(classlabel);
