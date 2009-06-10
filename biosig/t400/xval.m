@@ -79,7 +79,8 @@ end;
 NG = [];	
 W = [];
 % use only valid samples
-ix0 = find(~any(isnan([classlabel]),2));
+ix0 = find(~any(isnan(classlabel),2));
+
 if size(classlabel,2)>1,
 	%% group-wise classvalidation
 	W = classlabel(:,2);
@@ -88,10 +89,11 @@ if size(classlabel,2)>1,
 		[Label,tmp1,NG] = unique(classlabel(:,3));
 	end;
 end; 
+
 if isempty(NG)
 if (nargin<4) || strcmpi(arg4,'LOOM')
 	%% LOOM 
-	NG = [1:sz(1)]';	
+	NG = [1:sz(1)]';
 
 elseif isnumeric(arg4)
 	if isscalar(arg4)  

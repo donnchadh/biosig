@@ -41,20 +41,22 @@ else
                 XCN = XCN./(NN);
         end;
 
-        if any(isnan(XCN(:))),
-	        warning('DECOVM: Extended Covariance Matrix should not contain NaN''s');
+	if any(isnan(XCN(:))),
+		warning('DECOVM: Extended Covariance Matrix should not contain NaN''s');
 	end;
-        if det(XCN)<0,
-                warning('DECOVM: Extended Covariance Matrix must be non-negative definite');
+	if 0, %det(XCN)<0; % check removed for performance reasons
+		warning('DECOVM: Extended Covariance Matrix must be non-negative definite');
         end;
 end;
 
 mu  = XCN(1,2:c);
 COV = XCN(2:c,2:c) - mu'*mu;
-sd  = sqrt(diag(COV))';        
+sd  = sqrt(diag(COV))';
+if nargout<4, return; end; 
 xc  = COV./(sd'*sd);
-R2  = xc.*xc;
 M   = XCN(1,1);
+if nargout<6, return; end; 
+R2  = xc.*xc;
 
 return;
         

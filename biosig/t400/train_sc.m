@@ -17,30 +17,30 @@ function [CC]=train_sc(D,classlabel,MODE,W)
 %    'GRB'      Gaussian radial basis function     [1]
 %    'QDA'      quadratic discriminant analysis    [1]
 %    'LD2'      linear discriminant analysis (see LDBC2) [1]
-%               MODE.hyperparameter.gamma: regularization parameter [default 0] 
+%		MODE.hyperparameter.gamma: regularization parameter [default 0] 
 %    'LD3'      linear discriminant analysis (see LDBC3) [1]
-%               MODE.hyperparameter.gamma: regularization parameter [default 0] 
+%		MODE.hyperparameter.gamma: regularization parameter [default 0] 
 %    'LD4'      linear discriminant analysis (see LDBC4) [1]
-%               MODE.hyperparameter.gamma: regularization parameter [default 0] 
+%		MODE.hyperparameter.gamma: regularization parameter [default 0] 
 %    'LD5'      another LDA (motivated by CSP)
-%               MODE.hyperparameter.gamma: regularization parameter [default 0] 
+%		MODE.hyperparameter.gamma: regularization parameter [default 0] 
 %    'RDA'      regularized discriminant analysis [7]
-%               MODE.hyperparameter.gamma: regularization parameter 
-%               MODE.hyperparameter.lambda =  
-%		gamma = 0, lambda = 0 : MDA 
-%		gamma = 0, lambda = 1 : LDA 
-% 		Hint: hyperparameters are used only in test_sc.m, testing different 
+%		MODE.hyperparameter.gamma: regularization parameter 
+%		MODE.hyperparameter.lambda =
+%		gamma = 0, lambda = 0 : MDA
+%		gamma = 0, lambda = 1 : LDA
+%		Hint: hyperparameters are used only in test_sc.m, testing different 
 %		the hyperparameters do not need repetitive calls to train_sc, 
 %		it is sufficient to modify CC.hyperparameters before calling test_sc. 	
 %    'GDBC'     general distance based classifier  [1]
 %    ''         statistical classifier, requires Mode argument in TEST_SC	
 %    '###/GSVD'	GSVD and statistical classifier [2,3], 
 %    '###/sparse'  sparse  [5] 
-%               '###' must be 'LDA' or any other classifier 
+%		'###' must be 'LDA' or any other classifier 
 %    'SVM','SVM1r'  support vector machines, one-vs-rest
-%               MODE.hyperparameter.c_value = 
+%		MODE.hyperparameter.c_value = 
 %    'PSVM'	Proximal SVM [8] 
-%               MODE.hyperparameter.nu  (default: 1.0)
+%		MODE.hyperparameter.nu  (default: 1.0)
 %    'PLS'	(linear) partial least squares regression 
 %    'REG'      regression analysis;
 %    'WienerHopf'	Wiener-Hopf equation  
@@ -48,12 +48,12 @@ function [CC]=train_sc(D,classlabel,MODE,W)
 %    'aNBC'	Augmented Naive Bayesian Classifier [6]
 %    'NBPW'	Naive Bayesian Parzen Window [9]     
 %    'SVM11'    support vector machines, one-vs-one + voting
-%               MODE.hyperparameter.c_value = 
+%		MODE.hyperparameter.c_value = 
 %    'RBF'      Support Vector Machines with RBF Kernel
-%               MODE.hyperparameter.c_value = 
-%               MODE.hyperparameter.gamma = 
+%		MODE.hyperparameter.c_value = 
+%		MODE.hyperparameter.gamma = 
 %    'LPM'      Linear Programming Machine
-%               MODE.hyperparameter.c_value = 
+%		MODE.hyperparameter.c_value = 
 %    'CSP'	CommonSpatialPattern is very experimental and just a hack
 %		uses a smoothing window of 50 samples.
 %
@@ -132,7 +132,9 @@ end;
 CC.Labels = 1:max(classlabel);
 
 % remove all NaN's
-if (nargin<4) || isempty(W)
+if 0,
+	% several classifier can deal with NaN's, there is no need to remove them. 
+elseif (nargin<4) || isempty(W)
 	%% TODO: some classifiers can deal with NaN's in D. Test whether this can be relaxed.  
 	%ix = any(isnan([classlabel]),2);
 	ix = any(isnan([D,classlabel]),2);
@@ -251,12 +253,28 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'pls')) || ~isempty(strfind(lower(MODE.
 
 
 elseif ~isempty(strfind(MODE.TYPE,'WienerHopf'))
+        % Q: equivalent to LDA
+        % equivalent to Regression, except regression can not deal with NaN's  
+        M = length(CC.Labels);
+        %if M==2, M==1; end;
+        CC.weights = repmat(NaN,size(D,2)+1,M);
+        cc = covm(D,'E',W);
+        c1 = classlabel(~isnan(classlabel));
+        c2 = ones(sum(~isnan(classlabel)),M);
+        for k = 1:M,
+		c2(:,k) = c1==CC.Labels(k);
+        end; 
+        CC.weights  = cc\covm([ones(size(c2,1),1),D(~isnan(classlabel),:)],2*real(c2)-1,'M',W);
+        CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
+
+
+elseif ~isempty(strfind(MODE.TYPE,'WienerHopf'))
         % Q: equivalent to LDA, Regression? 
         M = length(CC.Labels);
         %if M==2, M==1; end;
         CC.weights = repmat(NaN,size(D,2)+1,M);
         cc = covm(D,'E',W);
-        for k = 1:M,
+	for k = 1:M,
 		w  = cc\covm([ones(sz(1),1),D],real(classlabel==CC.Labels(k)),'M',W);
                 CC.weights(:,k) = w;
 	end;
@@ -269,7 +287,7 @@ elseif ~isempty(strfind(MODE.TYPE,'WienerHopf'))
         M = length(CC.Labels);
         %if M==2, M==1; end;
         CC.weights = repmat(NaN,size(D,2)+1,M);
-        for k = 1:M,
+	for k = 1:M,
 		ix = ~any(isnan([classlabel,D]),2);
 		w  = covm(D(ix,:),'E')\covm([ones(sum(ix),1),D(ix,:)],(classlabel(ix,:)==CC.Labels(k)),'M');
                 CC.weights(:,k) = w;
@@ -529,15 +547,15 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'svm'))
 
 elseif ~isempty(strfind(lower(MODE.TYPE),'csp'))
         CC.datatype = ['classifier:',lower(MODE.TYPE)];
-        CC.MD = repmat(NaN,[length(CC.Labels),sz(2)+[1,1]]);
+        CC.MD = repmat(NaN,[sz(2)+[1,1],length(CC.Labels)]);
         CC.NN = CC.MD;
         for k = 1:length(CC.Labels),
                 %% [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(classlabel==CC.Labels(k),:),'E');
         	ix = classlabel==CC.Labels(k);
         	if isempty(W)
-	                [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(ix,:), 'E');
+	                [CC.MD(:,:,k),CC.NN(:,:,k)] = covm(D(ix,:), 'E');
 	        else        
-                        [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(ix,:), 'E', W(ix));
+                        [CC.MD(:,:,k),CC.NN(:,:,k)] = covm(D(ix,:), 'E', W(ix));
                 end;         
         end;
         ECM = CC.MD./CC.NN;
@@ -553,16 +571,16 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'csp'))
 
 else          % Linear and Quadratic statistical classifiers 
         CC.datatype = ['classifier:statistical:',lower(MODE.TYPE)];
-        CC.MD = repmat(NaN,[length(CC.Labels),sz(2)+[1,1]]);
+        CC.MD = repmat(NaN,[sz(2)+[1,1],length(CC.Labels)]);
         CC.NN = CC.MD;
-        for k = 1:length(CC.Labels),
-        	ix = classlabel==CC.Labels(k);
-        	if isempty(W)
-	                [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(ix,:), 'E');
-	        else        
-                        [CC.MD(k,:,:),CC.NN(k,:,:)] = covm(D(ix,:), 'E', W(ix));
-                end;         
-        end;
+	for k = 1:length(CC.Labels),
+		ix = classlabel==CC.Labels(k);
+		if isempty(W)
+			[CC.MD(:,:,k),CC.NN(:,:,k)] = covm(D(ix,:), 'E');
+		else
+			[CC.MD(:,:,k),CC.NN(:,:,k)] = covm(D(ix,:), 'E', W(ix));
+		end;
+	end;
 
         ECM = CC.MD./CC.NN;
         NC  = size(ECM);
@@ -572,12 +590,14 @@ else          % Linear and Quadratic statistical classifiers
                 CC.weights = repmat(NaN,NC(2),NC(1));     % memory allocation
                 type = MODE.TYPE(3)-'0';
 
-                ECM0 = squeeze(sum(ECM,1));  %decompose ECM
-                [M0,sd,COV0,xc,N,R2] = decovm(ECM0);
-                for k = 1:NC(1);
-                        ecm = squeeze(ECM(k,:,:));
-                        [M1,sd,COV1,xc,N1,R2] = decovm(ECM0-ecm);
-                        [M2,sd,COV2,xc,N2,R2] = decovm(ecm);
+                ECM0 = squeeze(sum(ECM,3));  %decompose ECM
+                [M0,sd,COV0] = decovm(ECM0);
+	        for k = 1:NC(3);
+                        ecm = squeeze(ECM(:,:,k));
+                        [M1,sd,COV1] = decovm(ECM0-ecm);
+                        N1 = ECM0(1,1)-ecm(1,1); 
+                        [M2,sd,COV2] = decovm(ecm);
+                        N2 = ecm(1,1); 
                         switch (type)
                                 case 2          % LD2
                                         cov = (COV1+COV2)/2;
@@ -608,27 +628,27 @@ else          % Linear and Quadratic statistical classifiers
 		end; 	         
         else
                 c  = size(ECM,2);
-                ECM0 = sum(ECM,1);
+                ECM0 = sum(ECM,3);
                 nn = ECM0(1,1,1);	% number of samples in training set for class k
-                XC = squeeze(ECM0(1,:,:))/nn;		% normalize correlation matrix
+                XC = squeeze(ECM0(:,:,1))/nn;		% normalize correlation matrix
                 M  = XC(1,2:NC(2));		% mean
                 S  = XC(2:NC(2),2:NC(2)) - M'*M;% covariance matrix
-                
-		try, 
-	                [v,d]=eig(S);               
-        	        U0 = v(diag(d)==0,:);
-                	CC.iS2 = U0*U0';  
-                end;
-                
+
+		try
+			[v,d]=eig(S);
+			U0 = v(diag(d)==0,:);
+			CC.iS2 = U0*U0';  
+		end;
+
                 %M  = M/nn; S=S/(nn-1);
                 ICOV0 = inv(S);
                 CC.iS0 = ICOV0; 
                 ICOV1 = zeros(size(S));
-                for k = 1:NC(1);
+                for k = 1:NC(3);
                         %[M,sd,S,xc,N] = decovm(ECM{k});  %decompose ECM
                         %c  = size(ECM,2);
-                        nn = ECM(k,1,1);	% number of samples in training set for class k
-                        XC = squeeze(ECM(k,:,:))/nn;		% normalize correlation matrix
+                        nn = ECM(1,1,k);	% number of samples in training set for class k
+                        XC = squeeze(ECM(:,:,k))/nn;		% normalize correlation matrix
                         M  = XC(1,2:NC(2));		% mean
                         S  = XC(2:NC(2),2:NC(2)) - M'*M;% covariance matrix
                         %M  = M/nn; S=S/(nn-1);
