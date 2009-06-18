@@ -37,7 +37,6 @@ typedef char			int8_t;
 
 #endif
 
-#include "../biosig-dev.h"
 
 /********************************************************************
 *	CRCEvaluate														*
