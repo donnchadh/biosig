@@ -14,7 +14,7 @@ MEX	      = mex   # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex
 octVER	      = # default
 OCT	      =	mkoctfile$(octVER)
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = #-D=WITH_ZLIB  -D=__4HAERTEL__ -D=WITH_ASN1  -D=WITH_GDCM -D=WITH_DICOM -D=WITH_FAMOS # -D=WITH_GSL -D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = -D=WITH_ZLIB  -D=__4HAERTEL__  -D=WITH_FAMOS #-D=WITH_FEF  -D=WITH_DICOM -D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
@@ -29,7 +29,7 @@ LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        = -L /usr/local/lib/
 #LIBS          = -lz  -lbiosig  	# dynamic
-LIBS          = libbiosig.a -lz #t240/libfef.a -lgdcmDSED -lgsl -lgslcblas -lm	# static
+LIBS          = libbiosig.a -lz t240/libfef.a -lgdcmDSED -lgsl -lgslcblas -lm	# static
 #LIBS         = libbiosig.a -lws2_32 win32/zlib/lib/zdll.lib	# static, for windows 
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
@@ -37,16 +37,15 @@ COPY          = cp -f
 
 SWIG          = swig
 PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
-TASN1_DIR     = /home/schloegl/src/libtasn1-1.5/lib/
-LIBTASN1      = $(TASN1_DIR).libs/libtasn1.a 
 
 # MinGW Crosscompiler: compile on linux binaries for windows  
 MinGWCC      = i586-mingw32msvc-gcc 
-MinGWCXX      = i586-mingw32msvc-g++ 
-MinGWCFLAGS   = -pipe -fPIC -Wall -O2 -W -D_REENTRANT #-D=BUILD_DLL
-#MinGWLIBS     = win32/libbiosig.a win32/libfef.a win32/zlib/lib/zdll.lib -lws2_32  # static
-MinGWLIBS     = win32/libbiosig.a win32/zlib/lib/zdll.lib -lws2_32  # static
-MinGWLINK     = i586-mingw32msvc-g++
+MinGWCXX     = i586-mingw32msvc-g++ 
+MinGWCFLAGS  = -shared -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL
+#MinGWLIBS   = win32/libbiosig.a win32/libfef.a win32/zlib/lib/zdll.lib -lws2_32  # static
+MinGWLIBS   = win32/libbiosig.a win32/zlib/lib/zdll.lib -lws2_32  # static
+#MinGWLIBS    = -Lwin32 -l biosig -l zlib1 -lws2_32  # static
+MinGWLINK    = i586-mingw32msvc-g++
 
 ####### Output directory
 
@@ -112,8 +111,7 @@ MinGWOBJECTS  = win32/biosig.obj \
 		win32/sopen_fef_read.obj \
 		win32/sopen_hl7aecg.obj \
 		win32/biosig-network.obj \
-		win32/sandbox.obj \
-		win32/zlib/lib/zdll.lib		
+		win32/sandbox.obj 
 
 TARGET        = save2gdf save2aecg save2scp libbiosig.a mex pdp2gdf #libbiosig.so 
 
@@ -241,7 +239,7 @@ libbiosig.so: $(OBJECTS)
 ####### Windows executable
 
 win32/zlib123-dll.zip:
-	wget -q -Pwin32 http://www.zlib.net/zlib123-dll.zip
+#	wget -q -Pwin32 http://www.zlib.net/zlib123-dll.zip
 
 win32/zlib: win32/zlib123-dll.zip
 	mkdir -p win32/zlib
@@ -316,7 +314,7 @@ win32/tinystr.obj: XMLParser/tinystr.cpp XMLParser/tinystr.h
 win32/tinyxml.obj: XMLParser/tinyxml.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinyxml.obj XMLParser/tinyxml.cpp
 
-win32/tinyxmlerror.obj: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
+win32/tinyxmlerror.obj: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h XMLParser/tinystr.h win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/tinyxmlerror.obj XMLParser/tinyxmlerror.cpp
 
 win32/tinyxmlparser.obj: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
@@ -325,7 +323,7 @@ win32/tinyxmlparser.obj: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLPars
 win32/save2gdf.exe: save2gdf.c win32/libbiosig.a
 	$(MinGWLINK) $(MinGWCFLAGS)  -o win32/save2gdf.exe save2gdf.c $(MinGWOBJECTS) $(MinGWLIBS)
 
-win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.a #libbiosig.so 
+win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.a 
 	$(MinGWLINK) $(MinGWCFLAGS)  -o win32/pdp2gdf.exe pdp2gdf.c $(MinGWOBJECTS)  $(MinGWLIBS)  
 
 win32 exe: win32/save2gdf.exe
@@ -336,7 +334,6 @@ win32 exe: win32/save2gdf.exe
  
 save2gdf: save2gdf.o libbiosig.a #t240/libfef.a #libbiosig.so 
 	$(LINK) $(CXXFLAGS) save2gdf.o $(LFLAGS) $(LIBS) -o save2gdf 
-#	$(LINK) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) $(TASN1_DIR).libs/libtasn1.a -o save2gdf 
 
 pdp2gdf: pdp2gdf.o libbiosig.a #libbiosig.so 
 	$(LINK) $(CXXFLAGS) pdp2gdf.o $(LFLAGS) $(LIBS) -o pdp2gdf 
@@ -360,19 +357,19 @@ mexSLOAD: mexSLOAD.mexa64
 mexSOPEN: mexSOPEN.mexa64
 mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.a
 	$(MEX) mexSLOAD.cpp  $(LIBS) 
-	$(COPY) mexSLOAD.mexa64 ../biosig/t200/
+#	$(COPY) mexSLOAD.mexa64 ../biosig/t200/
 mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.a
 	$(MEX) -DmexSOPEN mexSLOAD.cpp  $(LIBS) -output mexSOPEN
-	$(COPY) mexSOPEN.mexa64 ../biosig/t200/
+#	$(COPY) mexSOPEN.mexa64 ../biosig/t200/
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex 
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
 	$(OCT) -v -g --mex mexSLOAD.cpp  $(LIBS) 
-	$(COPY) mexSLOAD.mex ../biosig/t200/
+#	$(COPY) mexSLOAD.mex ../biosig/t200/
 mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a 
 	$(OCT) -D=mexSOPEN -v -g --mex mexSLOAD.cpp  $(LIBS) -o mexSOPEN.mex 
-	$(COPY) mexSOPEN.mex ../biosig/t200/
+#	$(COPY) mexSOPEN.mex ../biosig/t200/
 #physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
 #	$(OCT) -v -g --mex physicalunits.cpp  $(LIBS) 
 

@@ -36,7 +36,7 @@
 #define __4HAERTEL__ 
 */
 
-int sopen_FAMOS_read(HDRTYPE* hdr) {
+EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 #define Header1 ((char*)hdr->AS.Header)	
 
 		size_t count = hdr->HeadLen;
@@ -359,8 +359,8 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 				t2[p] = 0;
 				if (atoi(t2)) {
 					fprintf(stdout,"Abstandbytes:<%s>\n",t2);
-#ifndef __4HAERTEL__
 					flag_AbstandFile = 1;
+#ifndef __4HAERTEL__
 					B4C_ERRNUM = B4C_DATATYPE_UNSUPPORTED;
 					B4C_ERRMSG = "FAMOS: AbstandBytes != 0 not supported";
 #endif
@@ -538,9 +538,7 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 
 #ifdef __4HAERTEL__
 		if (flag_AbstandFile==1) {
-			struct stat FileBuf;
-			stat(hdr->FileName,&FileBuf);
-
+			
 			size_t bpb = 0; 
 			uint16_t k;
 			for (k=0; k<hdr->NS; k++) {
@@ -555,7 +553,11 @@ int sopen_FAMOS_read(HDRTYPE* hdr) {
 			hdr->SPR = 1; 
 			hdr->AS.bpb = bpb;
 
-			hdr->NRec = (FileBuf.st_size - hdr->HeadLen)/bpb; 
+		 	// This part is necessary for broken files (if header information does not fit file size) 
+			struct stat FileBuf;
+			stat(hdr->FileName,&FileBuf);
+			size_t tmp = (FileBuf.st_size - hdr->HeadLen)/bpb;
+			if (tmp < hdr->NRec) hdr->NRec =  tmp; 
 		}
 #endif
 			

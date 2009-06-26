@@ -1824,7 +1824,9 @@ void destructHDR(HDRTYPE* hdr) {
 
 	sclose(hdr); 
 
+#ifdef WITH_FEF
 	if (hdr->TYPE == FEF) sclose_fef_read(hdr);
+#endif 
 
     	if (hdr->aECG != NULL) {
 		if (((aECG_TYPE*)hdr->aECG)->Section8.NumberOfStatements>0)
@@ -5088,6 +5090,7 @@ if (VERBOSE_LEVEL>8)
 			
 					HDRTYPE *hdr2 = sopen(mrkfile,"r",NULL);
 
+					hdr->T0 = hdr2->T0;  // contains the free text annotation 
 					memcpy(&hdr->EVENT,&hdr2->EVENT,sizeof(hdr2->EVENT));
 					hdr->AS.auxBUF = hdr2->AS.auxBUF;  // contains the free text annotation 
 					// do not de-allocate event table when hdr2 is deconstructed 
@@ -6521,7 +6524,7 @@ if (VERBOSE_LEVEL>8)
 #endif 
 
     	else if (hdr->TYPE==FEF) {
-#ifdef WITH_ASN1
+#ifdef WITH_FEF
 		size_t bufsiz = 1l<<24;
 		while (!ifeof(hdr)) {
 		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,count+bufsiz+1);
