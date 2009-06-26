@@ -4,10 +4,10 @@
     The functions here are either under construction or experimental. 
     The functions will be either fixed, then they are moved to another place;
     or the functions are discarded. Do not rely on the interface in this function
-       	
 
-    $Id: sandbox.c,v 1.5 2009/04/16 20:19:17 schloegl Exp $
-    Copyright (C) 2008,2009 Alois Schloegl <a.schloegl@ieee.org>
+
+    $Id: sandbox.c$
+    Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -35,21 +35,17 @@
 #include <sys/stat.h>
 #include "../biosig-dev.h"
 
-#ifdef WITH_ASN1
+#ifdef WITH_FEF
 #include "SessionArchiveSection.h"
 #endif
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif 
+EXTERN_C int VERBOSE_LEVEL;
 
-extern int VERBOSE_LEVEL;
-
-void sopen_fef_read(HDRTYPE* hdr) {
+EXTERN_C void sopen_fef_read(HDRTYPE* hdr) {
 
 
-#ifndef WITH_ASN1
+#ifndef WITH_FEF
 
 	B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 	B4C_ERRMSG = "ASN1/FEF currently not supported";
@@ -321,8 +317,8 @@ if (VERBOSE_LEVEL>8) {
 //				asn_fprint(stdout, &asn_DEF_RealTimeSampleArrayMeasuredDataSection, MDS->realtimesas->list.array[n2]);
 
 			asn_INTEGER2long(&RTSAMDS->numberofsubblocks,&nrec);
-			asn_INTEGER2long(&RTSAMDS->subblocklength.denominator,&d);
 			asn_INTEGER2long(&RTSAMDS->subblocklength.numerator,&n);
+			asn_INTEGER2long(&RTSAMDS->subblocklength.denominator,&d);
 			asn_INTEGER2long(&RTSAMDS->subblocksize,&spr);
 
 			// &RTSAMDS->metriclist // 
@@ -377,11 +373,11 @@ if (VERBOSE_LEVEL>8) {
 	
 }
 
-void sclose_fef_read(HDRTYPE* hdr) {
+EXTERN_C void sclose_fef_read(HDRTYPE* hdr) {
 
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"sclose_FEF_read\n");
-#ifdef WITH_ASN1
+#ifdef WITH_FEF
 	
 	if (hdr->aECG) {
 		ASN1_t *asn1info = (ASN1_t*)hdr->aECG;	
@@ -389,6 +385,5 @@ void sclose_fef_read(HDRTYPE* hdr) {
 		free(hdr->aECG);
 		hdr->aECG = NULL; 
 	}	
-
 #endif 
 }
