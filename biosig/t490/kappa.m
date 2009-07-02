@@ -126,6 +126,7 @@ else
 	X.Label = 1:min(size(d));
     	H = d(X.Label,X.Label);
 end;
+s = warning; 
 warning('off');
 
 N = sum(H(:)); 
@@ -151,6 +152,7 @@ if ~isreal(se)
 	z = NaN;
 end
 z = kap/se;
+warning(s); 
 
 if ((1 < nargout) & (nargout<7)) return; end; 
 
