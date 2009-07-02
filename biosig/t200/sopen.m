@@ -41,7 +41,7 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 
 
 %	$Id$
-%	(C) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%	(C) 1997-2006,2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
@@ -60,7 +60,10 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 
 if isnan(str2double('1, 3'));
         fprintf(2,'Warning BIOSIG: incorrect version of STR2DOUBLE.\n');
-        fprintf(2,'- Its recommended to update STR2DOUBLE. Contact Alois!\n');
+        fprintf(2,'- Make sure the path to this directory comes before the path to ... /matlab/toolbox/matlab/strfun/\n');
+        fprintf(2,'Running the script below should fix the problem. \n\n');
+        fprintf(2,'   x = fileparts( which(''sopen'') );\n');
+        fprintf(2,'   rmpath(x);\n   addpath(x,''-begin'');\n\n');
 end;
 
 global FLAG_NUMBER_OF_OPEN_FIF_FILES;
