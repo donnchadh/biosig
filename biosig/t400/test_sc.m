@@ -236,6 +236,13 @@ elseif strcmp(t2,'statistical');
                         % [1] (18.33) QCF - quadratic classification function  
                         d(:,k) = -(sum((D*CC.IR{k}).*D,2) - CC.logSF5(k)); 
                 end;
+        elseif strcmpi(mode.TYPE,'QDA2');
+        	r = sum(CC.NN(:,1,1));
+        	r = r/(r-length(CC.IR));
+                for k = 1:length(CC.IR);
+                        % [1] (18.33) QCF - quadratic classification function  
+                        d(:,k) = -(sum((D*(CC.IR{k})).*D,2) + CC.logSF4(k)); 
+                end;
         elseif strcmpi(mode.TYPE,'GRB');     % Gaussian RBF
                 for k = 1:length(CC.IR);
                         d(:,k) = sum((D*CC.IR{k}).*D,2); % calculate distance of each data point to each class

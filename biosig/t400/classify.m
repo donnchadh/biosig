@@ -22,7 +22,7 @@ function [CLASS,ERR,POSTERIOR,LOGP,COEF]=classify(sample,training,classlabel,TYP
 % [1] R. Duda, P. Hart, and D. Stork, Pattern Classification, second ed. 
 %       John Wiley & Sons, 2001. 
 
-%	$Id: classify.m,v 1.1 2008-12-04 15:34:44 schloegl Exp $
+%	$Id$
 %	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -47,7 +47,7 @@ end;
 if strcmp(TYPE,'linear')
 	TYPE = 'LDA';
 elseif strcmp(TYPE,'quadratic')
-	TYPE = 'QDA';
+	TYPE = 'QDA2'; % result is closer to Matlab 
 elseif strcmp(TYPE,'diagLinear')
 	TYPE = 'NBC';
 elseif strcmp(TYPE,'diagQuadratic')
@@ -56,20 +56,21 @@ elseif strcmp(TYPE,'mahalanobis')
 	TYPE = 'MDA';
 end; 	
 
-CC = train_sc(training,group,TYPE); 
+[group,I,classlabel] = unique(classlabel);
+
+CC = train_sc(training,classlabel,TYPE); 
 R  = test_sc(CC,sample);
-CLASS = R.classlabel; 
+CLASS = group(R.classlabel); 
 
 if nargout>1,
 	R  = test_sc(CC,training,[],classlabel);
-	[kap,sd,H,z,ACC,sACC,MI] = kappa(R.H);
-	ERR = 1-mean(ACC); 
+	ERR = 1-R.ACC; 
 end; 
+
 if nargout>2,
 	warning('output arguments POSTERIOR,LOGP and COEF not supported')
 	POSTERIOR = [];
 	LOGP = [];
 	COEF = [];
 end; 
-
 

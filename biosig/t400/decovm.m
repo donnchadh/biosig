@@ -8,7 +8,7 @@ function [mu,sd,COV,xc,M,R2]=decovm(XCN,NN)
 % ECM 	is the extended covariance matrix
 % NN	is the number of elements, each estimate (in ECM) is based on 
 %
-% see also: MDBC, ECOVM, R2
+% see also: MDBC, COVM, R2
 
 %	$Id$
 %	Copyright (c) 1999-2002,2009 by  Alois Schloegl

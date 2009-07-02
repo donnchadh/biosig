@@ -115,13 +115,14 @@ function [CC]=train_sc(D,classlabel,MODE,W)
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 if nargin<3, MODE = 'LDA'; end;
+if nargin<4, W = []; end;
 if ischar(MODE) 
         tmp = MODE; 
         clear MODE; 
         MODE.TYPE = tmp;
 elseif ~isfield(MODE,'TYPE')
         MODE.TYPE=''; 
-end;        
+end;
 
 sz = size(D);
 if sz(1)~=length(classlabel),
@@ -132,10 +133,10 @@ end;
 CC.Labels = 1:max(classlabel);
 
 % remove all NaN's
-if 0,
-	% several classifier can deal with NaN's, there is no need to remove them. 
-elseif (nargin<4) || isempty(W)
-	%% TODO: some classifiers can deal with NaN's in D. Test whether this can be relaxed.  
+if 1,
+	% several classifier can deal with NaN's, there is no need to remove them.
+elseif isempty(W)
+	%% TODO: some classifiers can deal with NaN's in D. Test whether this can be relaxed.
 	%ix = any(isnan([classlabel]),2);
 	ix = any(isnan([D,classlabel]),2);
 	D(ix,:)=[];
@@ -161,7 +162,7 @@ end
 
 if 0, 
 
-elseif ~isempty(strfind(lower(MODE.TYPE),'nbpw'))	
+elseif ~isempty(strfind(lower(MODE.TYPE),'nbpw'))
 	error('NBPW not implemented yet')
 	%%%% Naive Bayesian Parzen Window Classifier. 
         for k = 1:length(CC.Labels),
@@ -170,16 +171,16 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'nbpw'))
                 h2_opt = (4./(3*CC.N(k,:))).^(2/5).*CC.VAR(k,:);
                 %%% TODO 
         end;
-	
-	
-elseif ~isempty(strfind(lower(MODE.TYPE),'nbc'))	
+
+
+elseif ~isempty(strfind(lower(MODE.TYPE),'nbc'))
 	%%%% Naive Bayesian Classifier. 
 	if ~isempty(strfind(lower(MODE.TYPE),'anbc'))
 		%%%% Augmented Naive Bayesian classifier. 
 		[CC.V,L] = eig(covm(D,'M',W)); 
 		D = D*CC.V;
 	else 
-		CC.V = eye(size(D,2)); 		
+		CC.V = eye(size(D,2));
 	end; 
         for k = 1:length(CC.Labels),
         	ix = classlabel==CC.Labels(k); 
@@ -230,18 +231,18 @@ elseif ~isempty(strfind(lower(MODE.TYPE),'pls')) || ~isempty(strfind(lower(MODE.
 
 	if nargin<4,
 		W = [];
-	end; 
+	end;
 	wD = [ones(size(D,1),1),D]; 
 
 	if isempty(W)
 		W = 1; 
-	else 	
+	else	
 		%% wD = diag(W)*wD
 		W = W(:);
 		for k=1:size(wD,2)
 			wD(:,k) = W.*wD(:,k);
 		end; 
-	end; 
+	end;
 
 	[q,r] = qr(wD,0);
 	CC.weights = repmat(NaN,sz(2)+1,M);
@@ -624,7 +625,7 @@ else          % Linear and Quadratic statistical classifiers
 		if isfield(MODE,'hyperparameters') && isfield(MODE.hyperparameters,'lambda')  && isfield(MODE.hyperparameters,'gamma')
 		        CC.hyperparameters = MODE.hyperparameters;
 		else 
-			error('QDA: hyperparamters lambda and/or gamma not defined')
+			error('RDA: hyperparamters lambda and/or gamma not defined')
 		end; 	         
         else
                 c  = size(ECM,2);
@@ -666,6 +667,7 @@ else          % Linear and Quadratic statistical classifiers
                         CC.logSF5(k) = log(det(S));
                         CC.logSF6(k) = log(det(S)) - 2*log(nn/sum(ECM(:,1,1)));
                         CC.logSF7(k) = log(det(S)) + d*log(2*pi) - 2*log(nn/sum(ECM(:,1,1)));
+                        CC.logSF8(k) = sum(log(svd(S))) + log(nn) - log(sum(ECM(:,1,1)));
                         CC.SF(k) = nn/sqrt((2*pi)^d * det(S));
                         %CC.datatype='LLBC';
                 end;
