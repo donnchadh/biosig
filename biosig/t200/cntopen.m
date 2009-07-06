@@ -5,8 +5,8 @@ function [CNT,h,e]=cntopen(arg1,arg2,arg3,arg4,arg5,arg6)
 %
 % see also: SLOAD, SOPEN, SREAD, SCLOSE, SEOF, STELL, SSEEK.
 
-%	$Id: cntopen.m,v 1.46 2008-11-26 08:41:34 schloegl Exp $
-%	Copyright (c) 1997-2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id$
+%	Copyright (c) 1997-2006,2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -621,8 +621,8 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
                 resp = [TEEG(:).KeyPad]';
                 ix   = find((stim>0) & (resp>0));
                 if ~isempty(ix)
-                	fprintf(HDR.FILE.stderr,'Warning SOPEN(CNT): in some events, both response and stimulus are non zero. Response code ignored.\n');
-                	ix,
+                	fprintf(CNT.FILE.stderr,'Warning SOPEN(CNT): in some events, both response and stimulus are non zero. Response code ignored.\n');
+                	ix',
                 end;	
                 
                 CNT.EVENT.TYP  = stim + (resp+128*(stim==0));
