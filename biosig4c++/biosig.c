@@ -5090,7 +5090,7 @@ if (VERBOSE_LEVEL>8)
 			
 					HDRTYPE *hdr2 = sopen(mrkfile,"r",NULL);
 
-					hdr->T0 = hdr2->T0;  // contains the free text annotation 
+					hdr->T0 = hdr2->T0;
 					memcpy(&hdr->EVENT,&hdr2->EVENT,sizeof(hdr2->EVENT));
 					hdr->AS.auxBUF = hdr2->AS.auxBUF;  // contains the free text annotation 
 					// do not de-allocate event table when hdr2 is deconstructed 
@@ -7086,7 +7086,9 @@ if (VERBOSE_LEVEL>8)
 		size_t nDatFiles = 0;
 		uint16_t gdftyp,NUM=1,DEN=1;	
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
-		for (k=0,hdr->AS.bpb=0; k < hdr->NS; k++) {
+		hdr->AS.bpb8 = 0; 
+		hdr->AS.bpb=0;
+		for (k=0; k < hdr->NS; k++) {
 		
 			double skew=0;
 			double byteoffset=0; 
@@ -7221,40 +7223,20 @@ if (VERBOSE_LEVEL>8)
 		    	hc->LeadIdCode  = 0;
 	 		hc->PhysMax = hc->DigMax * hc->Cal + hc->Off; 
 	 		hc->PhysMin = hc->DigMin * hc->Cal + hc->Off; 
-	 		hc->bi = hdr->AS.bpb;	// TODO ??? :  
-			hdr->AS.bpb += hdr->SPR*GDFTYP_BITS[gdftyp]>>3;
+	 		hc->bi8 = hdr->AS.bpb8;	  
+			hdr->AS.bpb8 += (hdr->SPR*NUM<<3)/DEN;
+	 		hc->bi = hdr->AS.bpb;  
+			hdr->AS.bpb += hdr->AS.bpb8>>3;
 
 			if (VERBOSE_LEVEL>8)
-			    	fprintf(stdout,"[MIT 150] #%i: FMT=%i\n",k+1,fmt); 
+			    	fprintf(stdout,"[MIT 150] #%i: FMT=%i bi8=%i\n",k+1,fmt,hc->bi8); 
 
 		}
 		hdr->SampleRate *= MUL;
 		hdr->SPR 	*= MUL;
 	 		
-		switch (FMT) { 
-		case 212:
-			NUM = 3; DEN = 2;
-			break;
-		case 310:
-		case 311:
-			NUM = 4; DEN = 3;
-			break;
-		default:
-			NUM = GDFTYP_BITS[hdr->CHANNEL[0].GDFTYP]>>3;
-			DEN = 1; 
-		}		
-
-		size_t spb = hdr->SPR*hdr->NS;
-		if (hdr->AS.bpb * NUM % DEN) {
-			hdr->SPR 	*= DEN;
-	 		hdr->AS.bpb 	 = spb * NUM;
-	 	}	
-	 	else 
-	 		hdr->AS.bpb = spb * NUM / DEN;hdr->AS.bpb;
-
 		if (!hdr->NRec) 
 			hdr->NRec = (hdr->HeadLen + count)/hdr->AS.bpb; 
-
 
 		/* read age, sex etc. */	
 		line = strtok(NULL,"\x0d\x0a"); 
@@ -7280,11 +7262,9 @@ if (VERBOSE_LEVEL>8)
 			        hdr->Patient.Sex = (t1[0]=='M') + 2* (t1[0]=='F');
 			}        
 		}	
-		
 
 		if (VERBOSE_LEVEL>8)
 		    	fprintf(stdout,"[MIT 177] #%i: (%i) %s FMT=%i+%i\n",k+1,nDatFiles,DatFiles[0],fmt,ByteOffset[0]); 
-
 
 		/* MIT: read ATR annotation file */ 
 		uint16_t *Marker=NULL; 
@@ -9453,6 +9433,7 @@ int V = VERBOSE_LEVEL;
 	}	
 
 	char ALPHA12BIT = (hdr->TYPE==alpha) && (hdr->NS>0) && (hdr->CHANNEL[0].GDFTYP==(255+12));
+	char MIT12BIT   = (hdr->TYPE==MIT  ) && (hdr->NS>0) && (hdr->CHANNEL[0].GDFTYP==(255+12));
 #if (__BYTE_ORDER == __BIG_ENDIAN)
 	char SWAP = hdr->FILE.LittleEndian;  
 #elif (__BYTE_ORDER == __LITTLE_ENDIAN)
@@ -9496,7 +9477,7 @@ int V = VERBOSE_LEVEL;
 			}	
 			else
 				ptr1 = hdr->AS.rawdata + (k4+toffset)*hdr->AS.bpb + CHptr->bi;
-				
+
 		for (k5 = 0; k5 < CHptr->SPR; k5++) 
 		{
 
@@ -9615,12 +9596,25 @@ int V = VERBOSE_LEVEL;
 				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
 				sample_value = (biosig_data_type)u.i16; 
 			}
+			else if (MIT12BIT) {
+				size_t off = (k4+toffset)*hdr->NS*SZ + hdr->CHANNEL[k1].bi8 + k5*SZ;
+				ptr = hdr->AS.rawdata + (off>>3);
+				//bitoff = k5*SZ & 0x07;
+				if (off & 0x07)
+					u.i16 = (((uint16_t)ptr[0] & 0xf0) << 4) + ptr[1];
+				else 	
+					//u.i16 = ((uint16_t)ptr[0]<<4) + (ptr[1] & 0x0f); 
+					u.i16 = leu16p(ptr) & 0x0fff;
+					
+				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
+				sample_value = (biosig_data_type)u.i16; 
+			}
 			else if (hdr->FILE.LittleEndian) {
 				bitoff = k5*SZ & 0x07;
 #if __BYTE_ORDER == __BIG_ENDIAN
 				u.i16 = (leu16p(ptr) >> (4-bitoff)) & 0x0FFF;
 #elif __BYTE_ORDER == __LITTLE_ENDIAN
-				u.i16 = (leu16p(ptr)>>bitoff) & 0x0FFF;
+				u.i16 = (leu16p(ptr) >> bitoff) & 0x0FFF;
 #endif		
 				if (u.i16 & 0x0800) u.i16 -= 0x1000; 
 				sample_value = (biosig_data_type)u.i16; 
