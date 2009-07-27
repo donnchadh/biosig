@@ -6,7 +6,7 @@ function [argout,s]=sview(s,varargin),
 %
 % See also: SLOAD 
 
-%	$Id: sview.m,v 1.25 2008-12-23 12:50:14 schloegl Exp $ 
+%	$Id$ 
 %	Copyright (c) 2004,2006,2008 by Alois Schlögl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -24,6 +24,10 @@ function [argout,s]=sview(s,varargin),
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
+argout = {}; 
+if nargin<2,
+        varargin={};
+end;         
 if length(varargin),
         H=varargin{1}; 
         arg2=varargin{1}; 
@@ -47,8 +51,12 @@ end;
 	        CHAN = 1:size(s,2);
 	        H.Label = H.Label(H.InChanSelect,:);
 	else    
+                if nargout, 
+                        argout=H;
+                end;
         	return;
         end;	
+
 
 %if strmatch(H.TYPE,{'BMP','PBMA','PGMA','PPMA','PBMB','PGMB','PPMB','XPM'}),
 if isfield(H,'IMAGE');
@@ -61,7 +69,9 @@ if isfield(H,'IMAGE');
         else	
                 image(s);
         end;
-        argout=H;
+        if nargout, 
+                argout=H;
+        end;
         return;
 
 elseif ischar(arg2) & (strcmp(H.TYPE,'ELPOS') | (isfield(H,'ELEC') && strncmpi(arg2,'ELPOS',5)));
@@ -86,13 +96,15 @@ elseif ischar(arg2) & (strcmp(H.TYPE,'ELPOS') | (isfield(H,'ELEC') && strncmpi(a
 			text(XYZ(k,1),XYZ(k,2),XYZ(k,3),H.Label(k,:));
 		end;
 	end;
-        argout=H;
+        if nargout, 
+                argout=H;
+        end;
         return;
 
         
 elseif all((H.LeadIdCode>0) & (H.LeadIdCode<256)) && (H.SPR*H.NRec==H.SampleRate*10) && all(H.PhysDimCode==H.PhysDimCode(1)) 
 	% 12-lead, 10s ECG 
-	xlen = 3; 
+	xlen = 5; 
 	d = repmat(NaN,[H.SampleRate*xlen,12]);
 	pos = [1,2,61:64,3:8];
 	x = leadidcodexyz(pos); 
@@ -141,11 +153,16 @@ elseif all((H.LeadIdCode>0) & (H.LeadIdCode<256)) && (H.SPR*H.NRec==H.SampleRate
 	tmp = physicalunits(H.PhysDimCode(1));
 	ylabel(tmp{1});
 	xlabel('time [s]');
-	return;
+        if nargout, 
+                argout=H;
+        end;
+        return;
 
         
 elseif strcmp(H.TYPE,'unknown');
-        argout=H;
+        if nargout, 
+                argout=H;
+        end;
         return;
 end;
 

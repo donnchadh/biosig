@@ -60,7 +60,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 % REFERENCE(S):
 
 
-%	$Id: plota.m,v 1.70 2009-04-21 07:01:56 schloegl Exp $
+%	$Id$
 %	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -878,7 +878,7 @@ elseif strcmp(X.datatype,'confusion'),
         if nargin>1,
                 [kap,sd,H,z,OA,SA,MI]=kappa(X.data);
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
-                fprintf(1,'Kappa = %5.3f %c %4.3f(%s)\tOverall Accuracy = %4.1f%%\n',kap,177,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
+                fprintf(1,'Kappa = %5.3f %c %4.3f(%s z=%4.2f)\tOverall Accuracy = %4.1f%%\n',kap,177,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),z,OA*100);
                 %disp([X.data,sum(X.data,2);sum(X.data,1),sum(X.data(:))])
 
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
@@ -887,12 +887,13 @@ elseif strcmp(X.datatype,'confusion'),
                         fprintf(1,'| %4.0f\n',sum(X.data(k,:),2));
                 end;
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
-                fprintf(1,'%4.0f\t',sum(X.data,1));
-                fprintf(1,'| %4.0f\n\n',sum(X.data(:)));
+                fprintf(1,'%4.1f\t',sum(X.data,1));
+                fprintf(1,'| %4.1f\n\n',sum(X.data(:)));
         else
                 [kap,sd,H,z,OA,SA,MI]=kappa(X.data);
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
-                fprintf(1,'Kappa = %5.3f %c %4.3f(%s)\tOverall Accuracy = %4.1f%%\n',kap,177,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
+                %fprintf(1,'Kappa = %5.3f %c %4.3f(%s)\tOverall Accuracy = %4.1f%%\n',kap,177,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),OA*100);
+                fprintf(1,'Kappa = %5.3f %c %4.3f(%s z=%4.2f)\tOverall Accuracy = %4.1f%%\n',kap,177,sd,repmat('*',sum(-z<norminv([.05,.01,.001]/2)),1),z,OA*100);
                 %disp([X.data,sum(X.data,2);sum(X.data,1),sum(X.data(:))])
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
 
@@ -901,8 +902,8 @@ elseif strcmp(X.datatype,'confusion'),
                         fprintf(1,'|%6.1f\t| %4.1f%%\n',sum(X.data(k,:),2),X.data(k,k)/sum(X.data(k,:),2)*100);
                 end;
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+2)));
-                fprintf(1,'%6.0f\t',sum(X.data,1));
-                fprintf(1,'|%6.0f\t|\n',sum(X.data(:)));
+                fprintf(1,'%6.1f\t',sum(X.data,1));
+                fprintf(1,'|%6.1f\t|\n',sum(X.data(:)));
                 fprintf(1,'%s\n',repmat('-',1,8*(size(X.data,1)+1)));
                 fprintf(1,'%5.1f%%\t',diag(X.data)'./sum(X.data,1)*100);
                 fprintf(1,'|\n\n');
@@ -1843,7 +1844,7 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
         if nargin<2,
                 clf;
                 for k=1:6,
-                        nf(k)=subplot(3,2,k)
+                        nf(k)=subplot(3,2,k);
                 end;
         else
                 nf=arg2;
