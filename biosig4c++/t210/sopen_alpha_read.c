@@ -80,6 +80,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"0: %s \n",t);
 				
 		int Notch = 0; 		
 		int Bits  = 0; 		
+		double DigMax=0, DigMin=0; 
 		uint16_t gdftyp = 0; 
 		int ns = 0;
 		fid = fopen(fn,"r"); count  = fread(buf,1,bufsiz-1,fid); fclose(fid); buf[count]=0;	// terminating 0 character 		
@@ -103,9 +104,16 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 						switch (Bits) {
 						case 12: gdftyp = 255+12; 
 						//	hdr->FILE.LittleEndian = 0;
+						        DigMax =  (1<<(Bits-1))-1;
+						        DigMin = -(1<<(Bits-1));
 							break;
-						case 16: gdftyp = 3; break; 
+						case 16: gdftyp = 3; 
+						        DigMax =  32752.0;  //!!! that's the maximum value found in alpha-trace files 
+						        DigMin = -32736.0;  //!!! that's the minimum value found in alpha-trace files
+						        break; 
 						case 32: gdftyp = 5; break; 
+						        DigMax =  (1<<(Bits-1))-1;
+						        DigMin = -(1<<(Bits-1));
 						}
 					}	
 					else if (!strcmp(t,"ChanCount")) {
@@ -142,8 +150,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 						hc->LeadIdCode = 0; 
 						hc->SPR = hdr->SPR; 
 						//hc->bi8 = GDFTYP_BITS[gdftyp]*ns; 
-						hc->DigMax  = (1<<(Bits-1))-1;
-						hc->DigMin  = -(1<<(Bits-1));
+						hc->DigMax  = DigMax;
+						hc->DigMin  = DigMin;
 						hc->OnOff   = 1; 
 						hc->Cal     = 1.0; 
 						hc->Off     = 0.0; 
