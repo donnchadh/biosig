@@ -67,12 +67,12 @@ tmp = s; tmp(isnan(tmp))=0;
 if mode == 1  % FIR  
         for k=1:size(F,1),
                 B  = fir1(HDR.SampleRate,F(k,:)/HDR.SampleRate*2);
-                bp = [bp,log(filter(ones(W*HDR.SampleRate,1),W*HDR.SampleRate,filter(B,1,tmp).^2 ))];
+                bp = [bp,log10(filter(ones(W*HDR.SampleRate,1),W*HDR.SampleRate,filter(B,1,tmp).^2 ))];
         end;
 elseif mode == 2  % Butterworth order 5
         for k=1:size(F,1),
                 [B,A] = butter(5,F(k,:)/HDR.SampleRate*2);
-                bp = [bp,log(filter(ones(W*HDR.SampleRate,1),W*HDR.SampleRate,filter(B,A,tmp).^2 ))];
+                bp = [bp,log10(filter(ones(W*HDR.SampleRate,1),W*HDR.SampleRate,filter(B,A,tmp).^2 ))];
         end;
 end;
 
