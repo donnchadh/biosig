@@ -2103,6 +2103,8 @@ elseif strcmp(HDR.TYPE,'rhdE'),
 elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
         HDR.FILE.FID = -1;      % make sure SLOAD does not call SREAD;
 
+        %%% 
+
         % The header files are text files (not binary).
         try
                 PERMISSION = 'rt';	% MatLAB default is binary, force Mode='rt';
@@ -2131,12 +2133,18 @@ elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
                                 [VAL,s1] = strtok(s,' ');
                                 [val,status] = str2double(VAL);
                                 if (state==0),
+                                        try;         
                                         if any(status),
                                                 S=setfield(S,tag,VAL);
                                         else
                                                 S=setfield(S,tag,val);
                                         end;
-                                        if (flag.rawhead & strncmp(tag,'DispFlags',9))
+                                        end; 
+
+                                        if (flag.rawhead & strncmp(tag,'DispFlags',9) & (S.Version < 411.89))
+                                                state = 1;
+                                                k1 = 0; 
+                                        elseif (flag.rawhead & strncmp(tag,'Sec2Marker',9) & (S.Version > 411.89))
                                                 state = 1;
                                                 k1 = 0; 
                                         elseif (flag.sleep & strncmp(tag,'SleepType',9))
@@ -2260,19 +2268,33 @@ elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
 		[s] = fread(fid,[1,inf],'uint8'); 
 		fclose(fid);
 
+                HDR.Cal = ones(HDR.NS,1);         
+                HDR.Off = ones(HDR.NS,1);         
 		s(s=='=') = ',';
 		[val,status,strarray]=str2double(s);
-		
-		HDR.Cal = val(HDR.alpha.chanorder,3);
-		HDR.Off = val(HDR.alpha.chanorder,4);
-                HDR.Label2 = strvcat(strarray(HDR.alpha.chanorder,1));
-		OK = strmatch('no',strarray(HDR.alpha.chanorder,2));
+		if 0, %try,
+                       	HDR.Cal = val(HDR.alpha.chanorder,3);
+                	HDR.Off = val(HDR.alpha.chanorder,4);
+                else %catch 	
+                        %%%% FIXME: 
+        	       	for k = 1:size(val,1),
+        	       	        if val(k,1)>0,
+        	       	                ch = val(k,1);
+        	       	        else
+        	       	                ch = k; %strmatch(strarray{k,1},HDR.Label);         
+        	       	        end;        
+                        	HDR.Cal(ch,1) = val(k, 3);
+	                        HDR.Off(ch,1) = val(k, 4);
+	                end; 	
+		end; 
+%                HDR.Label2 = strvcat(strarray(HDR.alpha.chanorder,1));
+		OK = strmatch('no',strarray(:,2));
 		
                 HDR.FLAG.UCAL = ~isempty(OK);
                 if ~isempty(OK),
                         fprintf(HDR.FILE.stderr,'Warning SOPEN (alpha): calibration not valid for some channels\n');
                 end;
-                HDR.Cal(OK) = NaN;
+%                HDR.Cal(OK) = NaN;
                 HDR.Calib = sparse([-HDR.Off';eye(HDR.NS*[1,1])])*sparse(1:HDR.NS,1:HDR.NS,HDR.Cal);
         end;        
         
@@ -2364,7 +2386,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
                 HDR.EVENT.IO  = IO(:);
                 HDR.EVENT.CHN = zeros(HDR.EVENT.N,1);
         end;
-        if all(abs(HDR.alpha.rawhead.Version-[407.1,407.11,409.5]) > 1e-6);
+        if all(abs(HDR.alpha.rawhead.Version - [407.1, 407.11, 409.5, 413.2]) > 1e-6);
                 fprintf(HDR.FILE.stderr,'Warning SLOAD: Format ALPHA Version %6.2f not tested yet.\n',HDR.VERSION);
         end;
         
