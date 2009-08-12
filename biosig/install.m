@@ -22,8 +22,8 @@
 %  you can excluded the path to NaN/*. The BIOSIG tools will still 
 %  work, but does not support the handling of NaN's.
 
-%	$Id: install.m,v 1.17 2008-04-01 11:52:23 schloegl Exp $
-%	Copyright (C) 2003-2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id$
+%	Copyright (C) 2003-2005,2006,2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 BIOSIG_HOME = pwd;	%
@@ -31,6 +31,9 @@ if exist('t200','dir')
 	% install.m may reside in .../biosig/ or above (...)
         [BIOSIG_HOME,f,e] = fileparts(BIOSIG_HOME);
 elseif exist('biosig','dir')
+else 
+        fprintf(2,'Error: biosig subdirectories not found\n');
+        return;
 end; 
 
 path([BIOSIG_HOME,'/biosig'],path);			% 
@@ -49,13 +52,35 @@ if ~exist('OCTAVE_VERSION','builtin'),
 	path([BIOSIG_HOME,'/biosig/viewer'],path);		% viewer
 	path([BIOSIG_HOME,'/biosig/viewer/utils'],path);	% viewer
 	path([BIOSIG_HOME,'/biosig/viewer/help'],path);	% viewer
+
 end;
+
+if (~exist('butter','file') || ~exist('betainv','file')) && isdir([BIOSIG_HOME,'/freetb4matlab'])
+	path(path,[BIOSIG_HOME,'/freetb4matlab/signal']);	% Octave-Forge signal processing toolbox converted with freetb4matlab 
+	path(path,[BIOSIG_HOME,'/freetb4matlab/general']);	% Octave functions
+	path(path,[BIOSIG_HOME,'/freetb4matlab/statistics/distribution']);	% Octave-Forge statistics toolbox converted with freetb4matlab 
+end; 
 
 path([BIOSIG_HOME,'/tsa'],path);		%  Time Series Analysis
 %path([BIOSIG_HOME,'/tsa/inst'],path);		%  Time Series Analysis
 % some users might get confused by this
-path([BIOSIG_HOME,'/NaN'],path);		%  Statistics analysis for missing data
-%path([BIOSIG_HOME,'/NaN/inst'],path);		%  Statistics analysis for missing data
+
+sel = 0; 
+while sel<2,
+        sel = menu('Do You want to install NaN-toolbox? [Yes]/No','Help','Yes','No');
+        if sel==1, 
+        fprintf(1,'The NaN-toolbox is a powerful statistical and machine learning toolbox, \nwhich is also able to handle data with missing values.\n');
+        fprintf(1,'Typically, samples with NaNs are simply skipped.\n');
+        fprintf(1,'If your data contains NaNs, installing the NaN-toolbox will \nmodify the following functions in order to ignore NaNs:\n');
+        fprintf(1,'\tcor, corrcoef, cov, geomean, harmmean, iqr, kurtosis, mad, mahal, mean, \n\tmedian, moment, quantile, prctile, skewness, std, var.\n');
+        fprintf(1,'If you do not have NaN, the behaviour is the same; if you have NaNs in your data, you will get more often a reasonable result instead of a NaN-result.\n');
+        fprintf(1,'Moreover, NaN-provides also a number of other useful functions. Installing NaN-toolbox is the recommended option.\n');
+        end
+end; 
+if sel==2, 
+        path([BIOSIG_HOME,'/NaN'],path);		%  Statistics analysis for missing data
+        path([BIOSIG_HOME,'/NaN/inst'],path);		%  Statistics analysis for missing data
+end; 
 
 %%% NONFREE %%%
 if exist([BIOSIG_HOME,'/biosig/NONFREE/EEProbe'],'dir'),
@@ -65,58 +90,23 @@ if exist([BIOSIG_HOME,'/biosig/NONFREE/meg-pd-1.2-4'],'dir'),
         path(path,[BIOSIG_HOME,'/biosig/NONFREE/meg-pd-1.2-4']);	% Kimmo Uutela's library to access FIF data
 end;
 
-ver = version; 
-if (str2double(ver(1:3))<7.0)
-%	path(path,[BIOSIG_HOME,'/biosig/maybe-missing']);
-end
-
 % test of installation 
-fun = {'isdir','ischar','strtok','str2double','strcmpi','strmatch','bitand','bitshift','sparse','strfind'};
+fun = {};
 for k = 1:length(fun),
         x = which(fun{k});
         if isempty(x) | strcmp(x,'undefined'),
                 fprintf(2,'Function %s is missing\n',upper(fun{k}));     
         end;
 end;
-        
-if exist('OCTAVE_VERSION','builtin'),	% OCTAVE
-        fun = {'bitand','xmldata'};
-        for k = 1:length(fun),
-                try,
-                        xmlstruct('<xml>v<b>v</xml>');
-                catch
-                        mex([BIOSIG_HOME,'/biosig/maybe-missing/xmldata.c']);
-                end;
-                try,
-                        bitand(5,7);
-                catch
-                        mkoctfile([BIOSIG_HOME,'/biosig/maybe-missing/bitand.cc']);
-                end;
-                try,
-                        x = which(fun{k});
-                catch
-                        x = [];
-                end;	
-
-                if isempty(x) | strcmp(x,'undefined'),
-                        fprintf(2,'Function %s is missing. \n',upper(fun{k}));     
-                end;
-        end;
-	if any(size(sparse(5,4))<0)
-        	fprintf(2,'Warning: Size of Sparse does not work\n')
-	end;
-else
-        try,
-                xmlstruct('<xml>v<b>v</xml>');
-        catch
-                unix(['mex ',BIOSIG_HOME,'/biosig/maybe-missing/xmldata.c']);
-        end;
+try
+        mex([BIOSIG_HOME,'/NaN/sumskipnan_mex.cpp'], '-o', [BIOSIG_HOME,'/NaN/sumskipnan_mex'])
 end;
-
-% test of installation 
-% 	Some users might get confused by it. 
-% nantest;	
-% naninsttest; 
+try
+        mex([BIOSIG_HOME,'/NaN/covm_mex.cpp'], '-o', [BIOSIG_HOME,'/NaN/covm_mex'])
+end;
+try
+        mex([BIOSIG_HOME,'/NaN/histo_mex.cpp'], '-o', [BIOSIG_HOME,'/NaN/histo_mex'])
+end
 
 disp('BIOSIG-toolbox activated');
 if ~exist('OCTAVE_VERSION'),	% OCTAVE
