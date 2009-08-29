@@ -8,8 +8,8 @@
 ##############################################################
 
 
-CC            = gcc-4.1
-CXX           = g++-4.1
+CC            = gcc
+CXX           = g++
 MEX	      = mex   # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 octVER	      = # default
 OCT	      =	mkoctfile$(octVER)
@@ -28,8 +28,8 @@ INCPATH       = -I /usr/local/include/gdcm-2.0/
 LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        = -L /usr/local/lib/
-#LIBS          = -lz  -lbiosig  	# dynamic
-LIBS          = libbiosig.a -lz t240/libfef.a -lgdcmDSED -lgsl -lgslcblas -lm	# static
+LIBS          = -lz  -lbiosig  	# dynamic
+LIBS          = libbiosig.a -lz #t240/libfef.a -lgdcmDSED -lgsl -lgslcblas -lm	# static
 #LIBS         = libbiosig.a -lws2_32 win32/zlib/lib/zdll.lib	# static, for windows 
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
