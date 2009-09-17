@@ -28,16 +28,24 @@ function [X] = heartratevariability(RRI,arg2)
 %	SD1		width of Poincaré plot; equivalent to sqrt(2)*RMSSD [2]
 %	SD2		length of Poincaré plot; i.e. 2SDRR²+SDSD²/2 [2]
 %	r_RR 		correlation coefficient [2]
-%   X.VLF               power of very low frequency band (< 0.04 Hz)
+%        AR-based spectral estimation 
+%   X.VLF               power of very low frequency band (< 0.04 Hz) 
 %   X.LF                power of low frequency band (0.04-0.15 Hz)
 %   X.HF                power of high low frequency band (0.15-0.4 Hz)
 %   X.TotalPower        power of high low frequency band (0.15-0.4 Hz)
 %   X.LFHFratio         LF/HF-ratio
 %   X.LFnu              normalized units of LF power (0.04-0.15 Hz)
 %   X.HFnu              normalized units of HF power  (0.15-0.4 Hz)
+%        FFT-based spectral estimations 
+%   X.FFT.VLF
+%   X.FFT.LF
+%   X.FFT.HF
+%   X.FFT.TotalPower
+%   X.FFT.LFHFratio
+%   X.FFT.LFnu
+%   X.FFT.HFnu
 %
-%  semilogy(X.f,X.ASpectrum) shows the spectral density function  
-%
+%  semilogy(X.f,X.ASpectrum) shows the spectral density function  %  semilogy(X.FFT.f,X.FFT.ASpectrum) shows the FFT-based spectral density function  %
 % The spectral estimates are based on an autoregressive spectrum estimator 
 % of the data which is oversampled by a factor of 4 using the Berger method.  
 % The default model order is 15. In order to change these default settings, 
@@ -59,7 +67,7 @@ function [X] = heartratevariability(RRI,arg2)
 %	Med Bio Eng Comput (2006) 44:1031–1051
 
 %	$Id$
-%	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%	Copyright (C) 2005,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % This program is free software; you can redistribute it and/or
@@ -249,9 +257,11 @@ end;
 
 %%%%%%% FFT-based spectrum  analysis %%%%%%%%%%%%%
 r = sum(~isnan(y))/length(y)
-y(isnan(y))=0; 
+y(isnan(y)) = 0; 
 [Pxx,f] = periodogram(y(:),[],[],f0);         
 Pxx = r*Pxx/length(Pxx); 
+X.FFT.ASpectrum = Pxx; 
+X.FFT.f = f; 
 ix = f<0.04;
 X.FFT.VLF = sum(Pxx(ix));
 ix = (f>0.04) & (f<0.15);
@@ -262,7 +272,6 @@ X.FFT.TotalPower = sum(Pxx);
 X.FFT.LFHFratio = X.FFT.LF./X.FFT.HF; 
 X.FFT.LFnu = X.FFT.LF./(X.FFT.TotalPower-X.FFT.VLF);
 X.FFT.HFnu = X.FFT.HF./(X.FFT.TotalPower-X.FFT.VLF);
-
 
 
 %%%%%%% slope %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
