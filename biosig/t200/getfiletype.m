@@ -19,7 +19,7 @@ function [HDR] = getfiletype(arg1)
 % as published by the Free Software Foundation; either version 3
 % of the License, or (at your option) any later version.
 
-%	$Id: getfiletype.m,v 1.85 2009-03-27 07:06:44 schloegl Exp $
+%	$Id$
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -108,7 +108,7 @@ else
         if (c == 0),
 		return;
         elseif (c < 1024),
-                s = [s', repmat(0,1,1024-c)];
+                s = [s', repmat(NaN,1,1024-c)];
         else
                 s = s';
         end;
@@ -541,6 +541,8 @@ else
                         HDR.TYPE='RDF'; % UCSD ERPSS aquisition system 
                 elseif strncmp(ss,'Stamp',5)
                         HDR.TYPE='XLTEK-EVENT';
+                elseif (c>176) && any(s(176)==[0:4])
+                        HDR.TYPE='MicroMed TRC';
                         
                 elseif all(s(1:2)==[hex2dec('55'),hex2dec('3A')]);      % little endian 
                         HDR.TYPE='SEG2';
@@ -644,8 +646,9 @@ else
                 elseif all(s([1:8,13:20])==[8,0,0,0,4,0,0,0,8,0,5,0,10,0,0,0])            % DICOM candidate
                         HDR.TYPE='DICOM';
 		% more about the heuristics to identify DICOM files at
-		%<http://groups.google.com/groups?hl=fr&lr=&frame=right&th=cb048de7b4459bd3&seekm=9h9jrs%247jf%40news.Informatik.Uni-Oldenburg.DE#link1>
-                        
+		% http://groups.google.com/groups?hl=fr&lr=&frame=right&th=cb048de7b4459bd3&seekm=9h9jrs%247jf%40news.Informatik.Uni-Oldenburg.DE#link1
+		% http://fixunix.com/dicom/545185-dicom-file-without-file-meta-information-size-preamble.html
+		                        
                 elseif strncmp(ss,'*3DSMAX_ASCIIEXPORT',19)
                         HDR.TYPE='ASE';
                 elseif strncmp(ss,'999',3)
@@ -693,6 +696,8 @@ else
                 elseif all(s([1:8])==[254,237,250,206,0,0,0,18])
                         HDR.TYPE='MEXMAC';
 
+                elseif all(s(1:33)==[208 207 17 224 161 177 26 225 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 62 00 03 00 254 255 09 00 06]); 
+                        HDR.TYPE='MSI';
                 elseif all(s(1:24)==[208,207,17,224,161,177,26,225,zeros(1,16)]);	% MS-EXCEL candidate
                         HDR.TYPE='BIFF';
                         
@@ -849,6 +854,7 @@ else
                         HDR.TYPE='MPEG';
                 elseif strncmp(ss(5:8),'mdat',4); 
                         HDR.TYPE='MOV';
+
                 elseif all(s(1:2)==[26,63]); 
                         HDR.TYPE='OPT';
                 elseif strncmp(ss,'%PDF',4); 
