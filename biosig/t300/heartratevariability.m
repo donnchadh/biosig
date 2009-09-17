@@ -58,7 +58,7 @@ function [X] = heartratevariability(RRI,arg2)
 %	Heart rate variability: a review.
 %	Med Bio Eng Comput (2006) 44:1031–1051
 
-%	$Id: heartratevariability.m,v 1.9 2008-08-06 15:55:48 schloegl Exp $
+%	$Id$
 %	Copyright (C) 2005,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -210,9 +210,9 @@ else
 	OS = 4; 
 	f0  = OS*1000/(X.meanNN);%% four-times oversampling
         [hrv,y] = berger(on/1000,f0); % resampleing 
-	[y,m] = center(y*1000); 
+	[y,m] = center(y*1000);    %%% use RRI spectral estimates   	%% [y,m] = center(hrv);       %%% use HRV spectral estimates   
 end;
-
+plot(y)
 pmax = 100;
 % choose levinson-durbin or Burg algorithm 
 [mx,pe]=durlev(acovf(y(:)',pmax));
@@ -229,10 +229,12 @@ X.mop = optBIC;
 %X.mop = 15;
 [a,r] = arcext(mx,X.mop);
 
-[h,f] = freqz(sqrt(pe(X.mop+1)/f0),[1,-a],[0:256]/256*f0/OS,f0);
+[h,f] = freqz(sqrt(pe(X.mop+1)/f0),[1,-a],[0:512]/512*f0/OS,f0);
 X.ASpectrum = abs(h);
 X.f = f; 
-ix = f<0.04;
+ix  = f<0.04;
+try
+%find(ix),f0,OS,
 X.VLF = trapz(f(ix),abs(h(ix)).^2);
 ix = (f>0.04) & (f<0.15);
 X.LF = trapz(f(ix),abs(h(ix)).^2);
@@ -240,13 +242,27 @@ ix = (f>0.15) & (f<0.40);
 X.HF = trapz(f(ix),abs(h(ix)).^2);
 ix = (f>0.15) & (f<0.40);
 X.TotalPower = trapz(f,abs(h).^2);
-
 X.LFHFratio = X.LF./X.HF; 
 X.LFnu = X.LF./(X.TotalPower-X.VLF);
 X.HFnu = X.HF./(X.TotalPower-X.VLF);
+end;
 
 %%%%%%% FFT-based spectrum  analysis %%%%%%%%%%%%%
-% currently not implemented 
+r = sum(~isnan(y))/length(y)
+y(isnan(y))=0; 
+[Pxx,f] = periodogram(y(:),[],[],f0);         
+Pxx = r*Pxx/length(Pxx); 
+ix = f<0.04;
+X.FFT.VLF = sum(Pxx(ix));
+ix = (f>0.04) & (f<0.15);
+X.FFT.LF = sum(Pxx(ix));
+ix = (f>0.15) & (f<0.40);
+X.FFT.HF = sum(Pxx(ix));
+X.FFT.TotalPower = sum(Pxx);
+X.FFT.LFHFratio = X.FFT.LF./X.FFT.HF; 
+X.FFT.LFnu = X.FFT.LF./(X.FFT.TotalPower-X.FFT.VLF);
+X.FFT.HFnu = X.FFT.HF./(X.FFT.TotalPower-X.FFT.VLF);
+
 
 
 %%%%%%% slope %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
