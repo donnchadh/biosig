@@ -1661,6 +1661,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->FILE.FID = 0;
     	hdr->FILE.POS = 0; 
 	hdr->FILE.Des = 0; 
+	hdr->FILE.COMPRESSION = 0; 	
 	
 	hdr->AS.Header = NULL;
 	hdr->AS.rawEventData = NULL;
@@ -8303,7 +8304,7 @@ if (VERBOSE_LEVEL>8)
 }
 else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 {
-//	hdr->FILE.COMPRESSION = (strchr(MODE,'z') != NULL);
+	hdr->FILE.COMPRESSION = hdr->FILE.COMPRESSION || strchr(MODE,'z');
 	if (!strlen(hdr->Patient.Id))
 		strcpy(hdr->Patient.Id,"00000000"); 
 
