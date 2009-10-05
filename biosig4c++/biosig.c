@@ -90,6 +90,7 @@ int sopen_HL7aECG_write(HDRTYPE* hdr);
 int sopen_alpha_read   (HDRTYPE* hdr);
 int sopen_FAMOS_read   (HDRTYPE* hdr);
 int sclose_HL7aECG_write(HDRTYPE* hdr);
+int sopen_trc_read   (HDRTYPE* hdr);
 int sopen_unipro_read   (HDRTYPE* hdr);
 int sopen_eeprobe(HDRTYPE* hdr);
 int sopen_fef_read(HDRTYPE* hdr);
@@ -1757,6 +1758,8 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	      	hc->PhysMin   = -100;
 	      	hc->DigMax    = +2047;
 	      	hc->DigMin    = -2048;
+	      	hc->Cal	      = NaN; 
+	      	hc->Off	      = 0.0; 
 	      	hc->GDFTYP    = 3;	// int16
 	      	hc->SPR       = 1;	// one sample per block
 	      	hc->bi 	      = 2*k;
@@ -2092,6 +2095,10 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 /*    	else if (!memcmp(Header1,"MThd\000\000\000\001\000",9))
 	    	hdr->TYPE = MIDI;
 */
+
+    	else if (!memcmp(Header1,"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3E\x00\x03\x00\xFE\xFF\x09\x00\x06",0x21))
+	    	hdr->TYPE = MSI;
+
     	else if ( (Header1[344]=='n') && (Header1[347]=='\0') && \
     		  ((Header1[345]=='i') || (Header1[345]=='+') ) && \
     		   (Header1[346]>'0') && (Header1[346]<='9') ) {
@@ -2242,6 +2249,10 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 		hdr->TYPE = Sigma;  
 		hdr->VERSION = 3.0; 
 	}
+	else if (hdr->AS.Header[175] < 5) 
+	{	hdr->TYPE = TRC; // Micromed *.TRC format 
+		hdr->FILE.LittleEndian = 1;
+    	}
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[228] %i %s %s \n",hdr->TYPE,GetFileTypeString(hdr->TYPE),hdr->FileName);
     	
@@ -2260,6 +2271,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case noFile: 	{ FileType = NULL; break; }
 	case unknown: 	{ FileType = "unknown"; break; }
 	
+	case alpha: 	{ FileType = "alpha"; break; }
 	case ABF: 	{ FileType = "ABF"; break; }
 	case ACQ: 	{ FileType = "ACQ"; break; }
 	case ACR_NEMA: 	{ FileType = "ACR_NEMA"; break; }
@@ -2318,6 +2330,8 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case MFER: 	{ FileType = "MFER"; break; }
 	case MIDI: 	{ FileType = "MIDI"; break; }
 	case MIT: 	{ FileType = "MIT"; break; }
+	case MSI: 	{ FileType = "MSI"; break; }
+
 	case native: 	{ FileType = "native"; break; }
 	case NetCDF: 	{ FileType = "NetCDF"; break; }
 	case NEX1: 	{ FileType = "NEX1"; break; }
@@ -2336,6 +2350,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case TIFF: 	{ FileType = "TIFF"; break; }
 	case TMS32: 	{ FileType = "TMS32"; break; }		// Poly5+TMS32
 	case TMSiLOG: 	{ FileType = "TMSiLOG"; break; }
+	case TRC: 	{ FileType = "TRC"; break; }
 	case UNIPRO: 	{ FileType = "UNIPRO"; break; }
 	case VRML: 	{ FileType = "VRML"; break; }
 	case VTK: 	{ FileType = "VTK"; break; }
@@ -2363,9 +2378,13 @@ void struct2gdfbin(HDRTYPE *hdr)
 		
 	// NS number of channels selected for writing 
      	typeof(hdr->NS)  NS = 0;
-	for (k=0; k<hdr->NS; k++) 
-		if (hdr->CHANNEL[k].OnOff) NS++;
-
+	for (k=0; k<hdr->NS; k++) {
+		CHANNEL_TYPE *hc = hdr->CHANNEL+k;
+		if (hc->OnOff) NS++;
+		hc->Cal = (hc->PhysMax-hc->PhysMin)/(hc->DigMax-hc->DigMin);
+		hc->Off =  hc->PhysMin-hc->Cal*hc->DigMin;
+	}	
+	
  	    	hdr->HeadLen = (NS+1)*256;
 
 	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw 101 %i \n", hdr->HeadLen);
@@ -8185,6 +8204,12 @@ if (VERBOSE_LEVEL>8)
 		hdr->AS.length  = hdr->NRec; 
 	}
 
+#ifdef WITH_MICROMED
+    	else if (hdr->TYPE==TRC) {
+    		sopen_TRC_read(hdr);
+	}
+#endif 
+
 	else if (hdr->TYPE==UNIPRO) {
 		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN); 
 		struct tm t0; 
@@ -9965,7 +9990,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		size_t col = (hdr->data.size[1]<hdr->NS) ? k2 : k1;
 
 	if (VERBOSE_LEVEL>8)
-		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i %i\n",k1,GDFTYP,bi8,SZ,CHptr->SPR);
+		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i %i %f %f %f %f\n",k1,GDFTYP,bi8,SZ,CHptr->SPR,CHptr->Cal,CHptr->Off,iCal,iOff);
 
 		for (k4 = 0; k4 < hdr->NRec; k4++) {
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
