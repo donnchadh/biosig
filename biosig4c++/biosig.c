@@ -3659,7 +3659,7 @@ if (!strncmp(MODE,"r",1))
 	    	double Dur	= atof(strncpy(tmp,Header1+244,8));
 		hdr->SampleRate = hdr->SPR/Dur;
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 214] #=%li\n",iftell(hdr));
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 220] #=%li\n",iftell(hdr));
 
 		if (EventChannel) {
 			/* read Annotation and Status channel and extract event information */		
@@ -3705,13 +3705,9 @@ if (!strncmp(MODE,"r",1))
 				
 				for (k=0; k<len; ) {
 
-					// if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF+Events 217] #=%i\n",k);
-
 					while ((Marker[k] == 0) && (k<len)) ++k; // search for start of annotation 
 					if (k>=len) break; 
 										
-					// if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF+Events 217] #=%i: %s\n",k,Marker);
-
 					if (N_EVENT+1 >= hdr->EVENT.N) {
 						hdr->EVENT.N  += 2560;
 						hdr->EVENT.POS = (uint32_t*)realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
@@ -3783,14 +3779,16 @@ if (!strncmp(MODE,"r",1))
 */
 			}
 			else if (hdr->TYPE==BDF) {
+
 				/* convert BDF status channel into event table*/
 				uint32_t d1, d0 = ((uint32_t)Marker[2]<<16) + ((uint32_t)Marker[1]<<8) + (uint32_t)Marker[0];
-				for (k=1; k<len; k++) {
+				for (k=1; k<len/3; k++) {
 					d1 = ((uint32_t)Marker[3*k+2]<<16) + ((uint32_t)Marker[3*k+1]<<8) + (uint32_t)Marker[3*k];
 					if ((d1 & 0x010000) != (d0 & 0x010000)) ++N_EVENT;
 					if ((d1 & 0x00ffff) != (d0 & 0x00ffff)) ++N_EVENT;
 					d0 = d1;
 				}	
+
 				hdr->EVENT.N = N_EVENT;
 				hdr->EVENT.SampleRate = hdr->SampleRate; 
 				hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
@@ -3798,7 +3796,8 @@ if (!strncmp(MODE,"r",1))
 				hdr->EVENT.DUR = NULL;
 				hdr->EVENT.CHN = NULL;
 				d0 = ((uint32_t)Marker[2]<<16) + ((uint32_t)Marker[1]<<8) + (uint32_t)Marker[0];
-				for (N_EVENT=0, k=1; k<len; k++) {
+				for (N_EVENT=0, k=1; k<len/3; k++) {
+
 					d1 = ((uint32_t)Marker[3*k+2]<<16) + ((uint32_t)Marker[3*k+1]<<8) + (uint32_t)Marker[3*k];
 					if ((d1 & 0x010000) > (d0 & 0x010000)) {
 						hdr->EVENT.POS[N_EVENT] = k;
@@ -3822,6 +3821,7 @@ if (!strncmp(MODE,"r",1))
 					}	
 					d0 = d1;
 				}	
+
 				free(Marker); 
 			}
 
