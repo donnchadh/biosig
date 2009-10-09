@@ -1662,6 +1662,9 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
     	hdr->FILE.POS = 0; 
 	hdr->FILE.Des = 0; 
 	hdr->FILE.COMPRESSION = 0; 	
+#ifdef ZLIB_H
+	hdr->FILE.gzFID = 0;
+#endif	
 	
 	hdr->AS.Header = NULL;
 	hdr->AS.rawEventData = NULL;
@@ -3300,7 +3303,7 @@ if (!strncmp(MODE,"r",1))
 
     	if (hdr->TYPE == unknown) { 
     		B4C_ERRNUM = B4C_FORMAT_UNKNOWN;
-    		B4C_ERRMSG = "ERROR BIOSIG SOPEN(read): Dataformat not known.\n";
+    		B4C_ERRMSG = "ERROR BIOSIG4C++ SOPEN(read): Dataformat not known.\n";
     		ifclose(hdr);
 		return(hdr);
 	}	
@@ -9888,13 +9891,13 @@ size_t gsl_sread(gsl_matrix* m, size_t start, size_t length, HDRTYPE* hdr) {
 	m->block->data = hdr->data.block; 
 
 	m->size1 = hdr->data.size[1];
-	m->tda   = hdr->data.size[1];
+	m->tda   = hdr->data.size[0];
 	m->size2 = hdr->data.size[0];
 	m->data  = m->block->data; 
 	m->owner = 1; 
-	hdr->data.block = NULL; 	
-	
-	return(count); 
+	hdr->data.block = NULL;
+
+	return(count);
 }
 #endif 
 
@@ -10600,9 +10603,9 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		size_t k;
 		for (k=0; k<hdr->NS; k++) {
 			cp = hdr->CHANNEL+k; 
-			//char p[MAX_LENGTH_PHYSDIM+1];
+			char p[MAX_LENGTH_PHYSDIM+1];
 
-			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, cp->PhysDim);
+			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, p);
 			fprintf(fid,"\n#%2i: %3i %i %-27s\t%5f %5i",
 				k+1,cp->LeadIdCode,cp->bi8,cp->Label,cp->SPR*hdr->SampleRate/hdr->SPR,cp->SPR);
 
@@ -10611,7 +10614,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			else if (cp->GDFTYP<512) fprintf(fid, " bit%i  ", cp->GDFTYP-511);
 			
 			fprintf(fid,"%e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
-				cp->Cal, cp->Off, cp->PhysDim,  
+				cp->Cal, cp->Off, p,  
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch,
 				cp->XYZ[0],cp->XYZ[1],cp->XYZ[2]);
 			//fprintf(fid,"\t %3i", cp->SPR);
