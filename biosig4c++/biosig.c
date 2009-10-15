@@ -1677,6 +1677,9 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->AS.flag_collapsed_rawdata = 0;	// is rawdata not collapsed 
 	hdr->AS.first = 0;
 	hdr->AS.length  = 0;  // no data loaded 
+#ifdef WITH_CHOLMOD
+	hdr->Calib = NULL; 
+#endif 
 
       	hdr->NRec = 0; 
       	hdr->NS = NS;	
@@ -1881,6 +1884,10 @@ void destructHDR(HDRTYPE* hdr) {
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR\n");
 
     	if (hdr->AS.auxBUF != NULL) free(hdr->AS.auxBUF);
+
+#ifdef WITH_CHOLMOD
+	if (hdr->Calib) cholmod_free_sparse(hdr->Calib,NULL);
+#endif 
 
 	free(hdr);
 	return; 
@@ -2096,6 +2103,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = MFER;
     	else if (!memcmp(Header1,"@ MFR ",6))
 	    	hdr->TYPE = MFER;
+    	else if (!memcmp(Header1,"%%MatrixMarket",14))
+	    	hdr->TYPE = MM;
 /*    	else if (!memcmp(Header1,"MThd\000\000\000\001\000",9))
 	    	hdr->TYPE = MIDI;
 */
@@ -2334,6 +2343,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case MFER: 	{ FileType = "MFER"; break; }
 	case MIDI: 	{ FileType = "MIDI"; break; }
 	case MIT: 	{ FileType = "MIT"; break; }
+	case MM: 	{ FileType = "MatrixMarket"; break; }
 	case MSI: 	{ FileType = "MSI"; break; }
 
 	case native: 	{ FileType = "native"; break; }
@@ -7428,10 +7438,31 @@ if (VERBOSE_LEVEL>8)
 		
 	} /* END OF MIT FORMAT */
 	
+#ifdef WITH_CHOLMOD
+	else if ((hdr->TYPE==MM) && (!hdr->FILE.COMPRESSION)) {
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MM 001] %i,%i\n",count,hdr->FILE.COMPRESSION); 
+
+		ifseek(hdr,0,SEEK_SET); 
+                cholmod_common c ;
+                cholmod_start (&c) ; /* start CHOLMOD */
+                c.print = 5; 
+                hdr->Calib = cholmod_read_sparse (hdr->FILE.FID, &c); /* read in a matrix */
+                
+                if (VERBOSE_LEVEL>8) 
+                        cholmod_print_sparse (hdr->Calib, "Calib", &c); /* print the matrix */
+                cholmod_finish (&c) ; /* finish CHOLMOD */
+
+		ifclose(hdr);
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MM 003] %i\n",count); 
+                return(hdr);
+	} /* END OF MatrixMarket */
+#endif 
+	
 	else if (hdr->TYPE==NIFTI) {
 	    	count += ifread(hdr->AS.Header+count, 1, 352-count, hdr);
 	    	// nifti_1_header *NIFTI_HDR = (nifti_1_header*)hdr-AS.Header; 
-	    	char SWAP = *(int16_t*)(Header1+40) > 7; 
+	    	char SWAP = *(int16_t*)(Header1+40) > 7;
 #if   (__BYTE_ORDER == __BIG_ENDIAN)
 		hdr->FILE.LittleEndian = SWAP;  
 #elif (__BYTE_ORDER == __LITTLE_ENDIAN)
@@ -9991,20 +10022,30 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		//iOff	= CHptr->DigMin - CHptr->PhysMin*iCal;
 		iOff	= -CHptr->Off*iCal;
 
-		size_t col = (hdr->data.size[1]<hdr->NS) ? k2 : k1;
+		size_t col = (hdr->data.size[1-hdr->FLAG.ROW_BASED_CHANNELS]<hdr->NS) ? k2 : k1;        // if collapsed data, use k2, otherwise use k1
 
 	if (VERBOSE_LEVEL>8)
-		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i %i %f %f %f %f\n",k1,GDFTYP,bi8,SZ,CHptr->SPR,CHptr->Cal,CHptr->Off,iCal,iOff);
+		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i %i %f %f %f %f %i\n",k1,GDFTYP,bi8,SZ,CHptr->SPR,CHptr->Cal,CHptr->Off,iCal,iOff,bpb8);
 
 		for (k4 = 0; k4 < hdr->NRec; k4++) {
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
 
-//			if (VERBOSE_LEVEL>8)
-//				fprintf(stdout,"swrite 313a #%i: [%i %i] %i %i %i %i %i\n",k1,hdr->data.size[0],hdr->data.size[1],k4,k5,hdr->SPR,DIV,nelem);
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"swrite 313a #%i: [%i %i] %i %i %i %i %i\n",k1,hdr->data.size[0],hdr->data.size[1],k4,k5,hdr->SPR,DIV,nelem);
 
 			size_t k3;
-    			for (k3=0, sample_value=0; k3 < DIV; k3++)
-				sample_value += data[col*nelem*hdr->SPR + k4*hdr->SPR + k5*DIV + k3];
+        		if (hdr->FLAG.ROW_BASED_CHANNELS) {
+        		        // FIXME: 
+            			for (k3=0, sample_value=0.0; k3 < DIV; k3++)
+        				sample_value += data[col + (k4*hdr->SPR + k5*DIV + k3)*hdr->NS];
+                        }
+            		else {
+            			for (k3=0, sample_value=0.0; k3 < DIV; k3++)
+        				sample_value += data[col*nelem*hdr->SPR + k4*hdr->SPR + k5*DIV + k3];
+                        }
+
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"swrite 313b\n");
 
 			sample_value /= DIV;
 
@@ -10019,8 +10060,8 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			size_t off = k4*bpb8 + bi8 + (k5*SZ);
 			ptr = hdr->AS.rawdata + (off>>3);
 
-			//if (VERBOSE_LEVEL>8)
-			//	fprintf(stdout,"swrite 313e %i %i %li\n",k4,k5,off>>3);
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"swrite 313e %i %i %li\n",k4,k5,off>>3);
 
 			// mapping of raw data type to (biosig_data_type)
 			switch (GDFTYP) {
@@ -10594,8 +10635,8 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 //		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nDuration[s]:\t%u/%u\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->Dur[0],hdr->Dur[1],hdr->SampleRate);
 		fprintf(fid,"NoChannels:\t%i\nSPR:\t\t%i\nNRec:\t\t%Li\nFs:\t\t%f\n",hdr->NS,hdr->SPR,hdr->NRec,hdr->SampleRate);
 		fprintf(fid,"Events/Annotations:\t%i\nEvents/SampleRate:\t%f\n",hdr->EVENT.N,hdr->EVENT.SampleRate); 
-    	}
-		
+	}
+
 	if (VERBOSE>2) {
 		/* channel settings */ 
 		fprintf(fid,"\n[CHANNEL HEADER]");
@@ -10610,9 +10651,9 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 				k+1,cp->LeadIdCode,cp->bi8,cp->Label,cp->SPR*hdr->SampleRate/hdr->SPR,cp->SPR);
 
 			if      (cp->GDFTYP<20)  fprintf(fid," %s  ",gdftyp_string[cp->GDFTYP]);
-			else if (cp->GDFTYP<256) fprintf(fid, " bit%i  ", cp->GDFTYP-255);
-			else if (cp->GDFTYP<512) fprintf(fid, " bit%i  ", cp->GDFTYP-511);
-			
+			else if (cp->GDFTYP>511) fprintf(fid, " bit%i  ", cp->GDFTYP-511);
+			else if (cp->GDFTYP>255) fprintf(fid, " bit%i  ", cp->GDFTYP-255);
+
 			fprintf(fid,"%e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
 				cp->Cal, cp->Off, p,  
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch,
@@ -10620,7 +10661,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			//fprintf(fid,"\t %3i", cp->SPR);
 		}
 	}
-		
+
 	if (VERBOSE>3) {
 		/* channel settings */
 		fprintf(fid,"\n\n[EVENT TABLE] N=%i Fs=%f",hdr->EVENT.N,hdr->EVENT.SampleRate);
@@ -10641,10 +10682,10 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 				for (k1=0; (k1 < Global.LenCodeDesc) && (hdr->EVENT.TYP[k] != Global.CodeIndex[k1]); k1++) {};
 				if (k1 < Global.LenCodeDesc)
 					fprintf(fid,"\t\t%s",Global.CodeDesc[k1]);
-			}	
+			}
 		}
 	}
-		
+
 	if (VERBOSE>4) {
 		if (hdr->aECG && (hdr->TYPE==SCP_ECG)) {
 			aECG_TYPE* aECG = (aECG_TYPE*)hdr->aECG;

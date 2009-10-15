@@ -48,7 +48,7 @@ void sopen_pdp_read(HDRTYPE *hdr);
 
 int main(int argc, char **argv){
     
-    HDRTYPE 	*hdr; 
+    HDRTYPE 	*hdr,*rrFile=NULL; 
     size_t 	count, k1, ne=0;
     uint16_t 	numopt = 0;
     char 	*source, *dest, tmp[1024]; 
@@ -56,7 +56,7 @@ int main(int argc, char **argv){
     int		COMPRESSION_LEVEL=0;
     int		status, k; 
     int		TARGETSEGMENT=1; 	// select segment in multi-segment file format EEG1100 (Nihon Kohden)
-    int 	VERBOSE	= 1; 	
+    int 	VERBOSE	= 1; 
 	
     if (argc<2)
     	;
@@ -83,6 +83,7 @@ int main(int argc, char **argv){
 		fprintf(stdout,"\n  Supported OPTIONS are:\n");
 		fprintf(stdout,"   -v, --version\n\tprints version information\n");
 		fprintf(stdout,"   -h, --help   \n\tprints this information\n");
+		fprintf(stdout,"   -r, --ref=MM  \n\trereference data with matrix file MM. \n\tMM must be a 'MatrixMarket matrix coordinate real general' file.\n");
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
 		fprintf(stdout,"\tFMT must represent a valid target file format\n"); 
 		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF, EDF, BDF, CFWB, BIN, ASCII\n"); 
@@ -143,6 +144,18 @@ int main(int argc, char **argv){
 			return(-1);
 		}	
 	}
+
+    	else if (!strncmp(argv[k],"-r=",3) || !strncmp(argv[k],"--ref=",6) )	{
+    	        // re-referencing matrix 
+#ifdef WITH_CHOLMOD
+    	        rrFile = sopen(strchr(argv[k],'=')+1,"r",NULL); 
+    	        
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[rrFile] %Li %Li \n", rrFile->Calib->nrow, rrFile->Calib->ncol); 
+#else
+                fprintf(stdout,"error: option %s not supported (compile with -D=WITH_CHOLMOD)\n",argv[k]); 
+#endif
+	}
+
     	else if (!strncmp(argv[k],"-s=",3))  	{
     		TARGETSEGMENT = atoi(argv[k]+3);
 	}
@@ -176,6 +189,7 @@ int main(int argc, char **argv){
 	// hdr->FLAG.ROW_BASED_CHANNELS = 0; 
 	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
 
+
 	hdr->FileName = source;
 	hdr = sopen(source, "r", hdr);
 #ifdef WITH_PDP 
@@ -189,12 +203,14 @@ int main(int argc, char **argv){
 
 	if ((status=serror())) {
 		destructHDR(hdr);
+		destructHDR(rrFile);
 		exit(status); 
 	} 
 	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[113] SOPEN-R finished\n");
 
 	hdr2ascii(hdr,stdout,VERBOSE);
+//	hdr2ascii(hdr,stdout,3);
 
 	// all channels are converted - channel selection currently not supported
     	for (k=0; k<hdr->NS; k++) {
@@ -206,8 +222,8 @@ int main(int argc, char **argv){
     	}	
 
 	hdr->FLAG.OVERFLOWDETECTION = 0;
-	hdr->FLAG.UCAL = 1;
-	hdr->FLAG.ROW_BASED_CHANNELS = 0;
+	hdr->FLAG.UCAL = (rrFile==NULL);
+	hdr->FLAG.ROW_BASED_CHANNELS = (rrFile!=NULL);
 	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[121]\n");
 
@@ -220,9 +236,10 @@ int main(int argc, char **argv){
 	
 	if ((status=serror())) {
 		destructHDR(hdr);
+		destructHDR(rrFile);
 		exit(status);
 	};
-	
+
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stdout,"\n[129] SREAD on %s successful [%i,%i].\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1]);
 
@@ -245,6 +262,7 @@ int main(int argc, char **argv){
 		sclose(hdr);
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[137] SCLOSE finished\n");
 		destructHDR(hdr);
+		destructHDR(rrFile);
 		exit(serror());
 	}
 
@@ -256,17 +274,155 @@ int main(int argc, char **argv){
 	}
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stdout,"\n[139] File %s closed sd=%i/%i\n",hdr->FileName,hdr->FILE.OPEN,hdr->FILE.Des);
-	
+
+	SOURCE_TYPE = hdr->TYPE;
+	hdr->TYPE = TARGET_TYPE;
+	if ((hdr->TYPE==GDF) && (hdr->VERSION<2)) hdr->VERSION = 2.0;
+
+	hdr->FILE.COMPRESSION = COMPRESSION_LEVEL;
+
+   /********************************* 
+   	re-referencing 
+   *********************************/
+#ifdef WITH_CHOLMOD
+        if (rrFile) {
+        	if (VERBOSE_LEVEL>8) fprintf(stdout,"\nrereferencing\n");
+                /* TODO: 
+                        - check physdimcode
+                        - if FLAG.UCAL: check scaling
+                        - rereferencing
+                        - order channel information
+                        - set GDFTYP = 17 (double)
+                */
+                uint16_t i,j;
+                char flag = 0;
+                for (i=1; i<hdr->NS; i++)
+			if (hdr->CHANNEL[i].OnOff > hdr->CHANNEL[i-1].OnOff) {
+			/* a more sophisticated check would test whether any of these channels is actually used
+			*/
+				fprintf(stderr,"Warning: possible channel mix-up. \n");
+				break;
+			}
+
+        	if (VERBOSE_LEVEL>8) fprintf(stdout,"\n403\n");
+
+                cholmod_dense *Cd;
+                cholmod_common c;
+                cholmod_start(&c); // start CHOLMOD 
+                //c.print = 5;
+                //cholmod_print_sparse(rrFile->Calib,"Calib(sparse)",&c);
+                Cd = cholmod_sparse_to_dense(rrFile->Calib, &c); /* sparse_to_dense */
+                //cholmod_print_dense(Cd,"Calib(dense)",&c);
+                cholmod_finish(&c); /* finish CHOLMOD */
+
+		int newNS = Cd->ncol;
+        	if (VERBOSE_LEVEL>8) fprintf(stdout,"\n403\n");
+
+		CHANNEL_TYPE *NEWCHANNEL = (CHANNEL_TYPE*) malloc(newNS*sizeof(CHANNEL_TYPE));
+		for (i=0; i<newNS; i++) {
+			flag = 0;
+			int mix = -1, oix = -1, pix = -1;
+			double m  = 0.0;
+			double *v = Cd->x + i*Cd->nrow;
+			for (j=0; j<Cd->nrow; j++) {
+
+               	if (VERBOSE_LEVEL>8) fprintf(stdout,"\n404 %i %i %f\n",i,j,v);
+
+				if (v[j]>m) {
+					m=v[j];
+					mix=j;
+				}
+				if (v[j]==1.0) {
+					if (oix<0) 
+						oix = j;
+					else
+						fprintf(stderr,"Warning: ambiguous channel information (in new #%i, more than one scaling factor of 1.0 is used.) \n",i,j);
+				}
+				if (v[j]) {
+					if (pix == -1)
+						pix = hdr->CHANNEL[j].PhysDimCode;
+					else if (pix != hdr->CHANNEL[j].PhysDimCode)
+						flag = 1;
+				}
+			}
+
+        	if (VERBOSE_LEVEL>8) fprintf(stdout,"\n406 %i %i\n",mix,oix);
+
+			if (mix>-1) j=mix;
+			else if (oix>-1) j=oix; 
+			else j = -1;
+
+			if (!flag && (j<hdr->NS)) {
+
+        	if (VERBOSE_LEVEL>8) fprintf(stdout,"\n407 %i %i\n",i,j);
+
+				memcpy(NEWCHANNEL+i, hdr->CHANNEL+j, sizeof(CHANNEL_TYPE));
+				NEWCHANNEL[i].GDFTYP = 17; // double
+                        }
+			else {
+				fprintf(stderr,"Error: check for channel information failed) (%i %i)\n",i,j);
+				free(NEWCHANNEL);
+				destructHDR(hdr);
+				destructHDR(rrFile);
+				exit(-1);
+			}
+                }
+
+
+        	if (VERBOSE_LEVEL>7) fprintf(stdout,"\n407 %i %i\n",i,j);
+        	
+		
+        	{
+        		cholmod_dense X,Y;
+			X.nrow = hdr->data.size[0];
+			X.ncol = hdr->data.size[1];
+			X.d    = hdr->data.size[0];
+			X.nzmax= hdr->data.size[1]*hdr->data.size[0];
+			X.x    = hdr->data.block;
+                        X.xtype = CHOLMOD_REAL;
+                        X.dtype = CHOLMOD_DOUBLE;
+
+			Y.nrow = rrFile->Calib->ncol;
+			Y.ncol = hdr->data.size[1];
+			Y.d    = Y.nrow;
+			Y.nzmax= Y.nrow * Y.ncol;
+			Y.x    = malloc(Y.nzmax*sizeof(double)); 
+                        Y.xtype = CHOLMOD_REAL;
+                        Y.dtype = CHOLMOD_DOUBLE;
+			cholmod_common C; 
+			double alpha[]={1,0},beta[]={0,0};
+
+                        cholmod_common c ;
+                        cholmod_start (&c) ; // start CHOLMOD 
+/*
+                        c.print = 4; 
+                        cholmod_print_sparse(rrFile->Calib.Cs,"Calib(sparse)",&c);
+                        cholmod_print_dense(rrFile->Calib.Cd,"Calib(dense)",&c);
+                        cholmod_print_dense(&X,"X",&c);
+                        cholmod_print_dense(&Y,"Y",&c);
+*/
+
+			cholmod_sdmult(rrFile->Calib,1,alpha,beta,&X,&Y,&c);
+                        cholmod_finish (&c) ; /* finish CHOLMOD */
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"%f -> %f\n",*(double*)X.x,*(double*)Y.x);
+			free(X.x);
+			hdr->data.block = Y.x;
+                        data = hdr->data.block;
+			hdr->data.size[1] = Y.ncol;
+        		hdr->NS = newNS; 
+				
+                        free(hdr->CHANNEL);
+                        hdr->CHANNEL = NEWCHANNEL;
+                }
+        }
+
+    else 
+#endif         // WITH_CHOLMOD 
    /********************************* 
    	Write data 
    *********************************/
-
-    	SOURCE_TYPE = hdr->TYPE;
-    	hdr->TYPE = TARGET_TYPE;
-
-	hdr->FILE.COMPRESSION=COMPRESSION_LEVEL;
-
-	double PhysMaxValue0 = -INF; //hdr->data.block[0];
+   {	double PhysMaxValue0 = -INF; //hdr->data.block[0];
 	double PhysMinValue0 = +INF; //hdr->data.block[0];
 	double val; 
 	size_t N = hdr->NRec*hdr->SPR;
@@ -339,6 +495,7 @@ int main(int argc, char **argv){
 	    		hdr->CHANNEL[k].DigMin = -hdr->CHANNEL[k].DigMax;
 		}
 
+    }
 //	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201]\n");
 
 	/* write file */
@@ -354,6 +511,7 @@ int main(int argc, char **argv){
 	hdr = sopen(tmp, "wb", hdr);
 	if ((status=serror())) {
 		destructHDR(hdr);
+		destructHDR(rrFile);
 		exit(status); 
 	}	
 #ifndef WITHOUT_NETWORK
@@ -367,6 +525,7 @@ int main(int argc, char **argv){
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[231] SWRITE finishes\n");
 	if ((status=serror())) { 
 		destructHDR(hdr);
+		destructHDR(rrFile);
 		exit(status); 
     	}	
 
@@ -375,5 +534,6 @@ int main(int argc, char **argv){
 	sclose(hdr);
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[241] SCLOSE finished\n");
 	destructHDR(hdr);
+	destructHDR(rrFile);
 	exit(serror()); 
 }

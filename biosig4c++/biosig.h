@@ -88,7 +88,7 @@ typedef char			int8_t;
 #endif 
 #include <stdio.h>
 #include <time.h>
-
+#include <suitesparse/cholmod.h>
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	biosig_data_type    data type of  internal data format 
@@ -132,7 +132,7 @@ enum FileFormat {
 	EBS, EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, Lexicor, 
-	Matlab, MFER, MIDI, MIT, MSI, 
+	Matlab, MFER, MIDI, MIT, MM, MSI, 
 	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
 	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
@@ -275,6 +275,10 @@ typedef struct {
 	uint32_t  	LOC[4] 	ATT_ALI;	/* location of recording according to RFC1876 */
 	gdf_time 	T0 	ATT_ALI; 	/* starttime of recording */
 	int16_t 	tzmin 	ATT_ALI;	/* time zone (minutes of difference to UTC */
+
+#ifdef WITH_CHOLMOD
+	cholmod_sparse *Calib;                  /* Calibration and rescaling matrix */
+#endif 	
 
 	/* Patient specific information */
 	struct {
@@ -423,6 +427,8 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 /*	FileName: name of file 
 	Mode: "r" is reading mode, requires FileName
 	Mode: "w" is writing mode, hdr contains the header information
+		If the number of records is not known, set hdr->NRec=-1 and 
+		sclose will fill in the correct number. 
 	hdr should be generated with constructHDR, and the necessary fields 
 	must be defined. In read-mode, hdr can be NULL; however, 
 	hdr->FLAG... can be used to turn off spurious warnings. In write-mode, 
@@ -434,7 +440,10 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 int 	sclose(HDRTYPE* hdr);
 /* 	closes the file corresponding to hdr
 	file handles are closed, the position pointer becomes meaningless
-	Note: hdr is not destroyed; use destructHDR() to free the memory of hdr 		
+	Note: hdr is not destroyed; use destructHDR() to free the memory of hdr
+	if hdr was opened in writing mode, the event table is added to the file 
+	and if hdr->NRec=-1, the number of records is obtained from the 
+	    position pointer and written into the header,
  --------------------------------------------------------------- */
 
 size_t	sread(biosig_data_type* DATA, size_t START, size_t LEN, HDRTYPE* hdr);
