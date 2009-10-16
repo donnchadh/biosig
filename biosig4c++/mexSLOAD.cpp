@@ -18,13 +18,142 @@
 #include <string.h>
 
 #include "biosig-dev.h"
+#ifdef tmwtypes_h
+  #if (MX_API_VER<=0x07020000)
+    typedef int mwSize;
+  #endif 
+#endif 
+typedef long Int;
+#define TRUE (1)
+
+#ifdef WITH_REREF
+#include <suitesparse/cholmod.h>
+//#include "cholmod/matlab/cholmod_matlab.h"
+/*
+The function sputil_get_sparse and its license was downloaded on Oct 16, 2009 from 
+http://www.cise.ufl.edu/research/sparse/cholmod/CHOLMOD/MATLAB/cholmod_matlab.c
+http://www.cise.ufl.edu/research/sparse/cholmod/CHOLMOD/MATLAB/License.txt
+*/
+/*
+CHOLMOD/MATLAB Module.
+Copyright (C) 2005-2006, Timothy A. Davis
+CHOLMOD is also available under other licenses; contact authors for details.
+MATLAB(tm) is a Registered Trademark of The MathWorks, Inc.
+http://www.cise.ufl.edu/research/sparse
+
+Note that this license is for the CHOLMOD/MATLAB module only.
+All CHOLMOD modules are licensed separately.
+
+
+--------------------------------------------------------------------------------
+
+
+This Module is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This Module is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this Module; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
+
+/* ========================================================================== */
+/* === sputil_get_sparse ==================================================== */
+/* ========================================================================== */
+
+/* Create a shallow CHOLMOD copy of a MATLAB sparse matrix.  No memory is
+ * allocated.  The resulting matrix A must not be modified.
+ */
+
+cholmod_sparse *sputil_get_sparse
+(
+    const mxArray *Amatlab, /* MATLAB version of the matrix */
+    cholmod_sparse *A,	    /* CHOLMOD version of the matrix */
+    double *dummy,	    /* a pointer to a valid scalar double */
+    Int stype		    /* -1: lower, 0: unsymmetric, 1: upper */
+)
+{
+    Int *Ap ;
+    A->nrow = mxGetM (Amatlab) ;
+    A->ncol = mxGetN (Amatlab) ;
+    A->p = (Int *) mxGetJc (Amatlab) ;
+    A->i = (Int *) mxGetIr (Amatlab) ;
+    Ap = (Int*)A->p ;
+    A->nzmax = Ap [A->ncol] ;
+    A->packed = TRUE ;
+    A->sorted = TRUE ;
+    A->nz = NULL ;
+    A->itype = CHOLMOD_LONG ;       /* was CHOLMOD_INT in v1.6 and earlier */
+    A->dtype = CHOLMOD_DOUBLE ;
+    A->stype = stype ;
+
+#ifndef MATLAB6p1_OR_EARLIER
+
+    if (mxIsLogical (Amatlab))
+    {
+	A->x = NULL ;
+	A->z = NULL ;
+	A->xtype = CHOLMOD_PATTERN ;
+    }
+    else if (mxIsEmpty (Amatlab))
+    {
+	/* this is not dereferenced, but the existence (non-NULL) of these
+	 * pointers is checked in CHOLMOD */
+	A->x = dummy ;
+	A->z = dummy ;
+	A->xtype = mxIsComplex (Amatlab) ? CHOLMOD_ZOMPLEX : CHOLMOD_REAL ;
+    }
+    else if (mxIsDouble (Amatlab))
+    {
+	A->x = mxGetPr (Amatlab) ;
+	A->z = mxGetPi (Amatlab) ;
+	A->xtype = mxIsComplex (Amatlab) ? CHOLMOD_ZOMPLEX : CHOLMOD_REAL ;
+    }
+    else
+    {
+	/* only logical and complex/real double matrices supported */
+	//sputil_error (ERROR_INVALID_TYPE, 0) ;
+    }
+
+#else
+
+    if (mxIsEmpty (Amatlab))
+    {
+	/* this is not dereferenced, but the existence (non-NULL) of these
+	 * pointers is checked in CHOLMOD */
+	A->x = dummy ;
+	A->z = dummy ;
+	A->xtype = mxIsComplex (Amatlab) ? CHOLMOD_ZOMPLEX : CHOLMOD_REAL ;
+    }
+    else
+    {
+	/* in MATLAB 6.1, the matrix is sparse, so it must be double */
+	A->x = mxGetPr (Amatlab) ;
+	A->z = mxGetPi (Amatlab) ;
+	A->xtype = mxIsComplex (Amatlab) ? CHOLMOD_ZOMPLEX : CHOLMOD_REAL ;
+    }
+
+#endif 
+
+    return (A) ;
+}
+/* ========================================================================== */
+/* === end of sputil_get_sparse ============================================= */
+/* ========================================================================== */
+#endif 
 
 #ifdef WITH_PDP 
 void sopen_pdp_read(HDRTYPE *hdr);
 #endif
 
 //#define VERBOSE_LEVEL  9 
-EXTERN_C int VERBOSE_LEVEL;
+//EXTERN_C int VERBOSE_LEVEL;
 //#define DEBUG
 
 void mexFunction(
@@ -49,6 +178,10 @@ void mexFunction(
 	double		*ChanList=NULL;
 	int		NS = -1;
 	char		FlagOverflowDetection=1, FlagUCAL=0;
+#ifdef WITH_REREF
+	cholmod_sparse RR,*rr=NULL;
+	double dummy;
+#endif 
 
 // ToDO: output single data 
 //	mxClassId	FlagMXclass=mxDOUBLE_CLASS;
@@ -64,6 +197,7 @@ void mexFunction(
 		mexPrintf("   Usage of mexSLOAD:\n");
 		mexPrintf("\t[s,HDR]=mexSLOAD(f)\n");
 		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan)\n\t\tchan must be sorted in ascending order\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,ReRef)\n\t\treref is a (sparse) matrix for rerefencing\n");
 		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'...')\n");
 		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'OVERFLOWDETECTION:ON')\n");
 		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'OVERFLOWDETECTION:OFF')\n");
@@ -82,7 +216,7 @@ void mexFunction(
 #endif
 		return; 
 	}
-	
+
 	/* process input arguments */
 	for (k = 0; k < nrhs; k++)
 	{	
@@ -104,6 +238,11 @@ void mexFunction(
 			if (k==0)			
 				FileName = mxArrayToString(mxGetField(prhs[k],0,"FileName"));
 		}
+#ifdef WITH_REREF
+		else if (mxIsSparse(arg) && (k==1)) {
+			rr = sputil_get_sparse(arg,&RR,&dummy,0);
+		}
+#endif 
 		else if (mxIsNumeric(arg)) {
 #ifdef DEBUG		
 			mexPrintf("arg[%i] IsNumeric\n",k);
@@ -142,14 +281,15 @@ void mexFunction(
 	hdr = constructHDR(0,0);
 	hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
 	hdr->FLAG.UCAL = FlagUCAL;
-	hdr->FLAG.ROW_BASED_CHANNELS = 0; 
+	hdr->FLAG.ROW_BASED_CHANNELS = (rr!=NULL); 
 	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
 
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[101] SOPEN-R start\n");
 
 #ifdef WITH_REREF
-	hdr = sopen(FileName, "r", hdr, NULL, 0);
+	hdr = sopen(FileName, "r", hdr, rr, (rr!=NULL ? 2 : 0));
+	rr  = NULL;
 #else 
 	hdr = sopen(FileName, "r", hdr);
 #endif	
@@ -206,11 +346,14 @@ void mexFunction(
 	if (hdr==NULL) return;
 
 	if (VERBOSE_LEVEL>8) 
-		fprintf(stderr,"[112] SOPEN-R finished NS=%i %i\n",hdr->NS,NS);
+		fprintf(stderr,"[112] SOPEN-R finished NS=%i %i %p\n",hdr->NS,NS,hdr->Calib);
 
 	convert2to4_eventtable(hdr); 
-			
-	if ((NS<0) || ((NS==1) && (ChanList[0] == 0.0))) { 	// all channels
+		
+	if (hdr->Calib != NULL) {
+		NS = hdr->Calib->ncol;
+	}
+	else if ((NS<0) || ((NS==1) && (ChanList[0] == 0.0))) { 	// all channels
 		for (k=0, NS=0; k<hdr->NS; ++k) {
 			if (hdr->CHANNEL[k].OnOff) NS++; 
 		}	
@@ -226,17 +369,25 @@ void mexFunction(
 				hdr->CHANNEL[ch-1].OnOff = 1;  // set
 		}		
 	}
-
+	
 	if (VERBOSE_LEVEL>7) 
 		fprintf(stderr,"[113] NS=%i %i\n",hdr->NS,NS);
 
 #ifndef mexSOPEN
-	plhs[0] = mxCreateDoubleMatrix(hdr->NRec*hdr->SPR, NS, mxREAL);
-	hdr->FLAG.ROW_BASED_CHANNELS = 0;
+	if (hdr->FLAG.ROW_BASED_CHANNELS)
+		plhs[0] = mxCreateDoubleMatrix(NS, hdr->NRec*hdr->SPR, mxREAL);
+	else
+		plhs[0] = mxCreateDoubleMatrix(hdr->NRec*hdr->SPR, NS, mxREAL);
 	count = sread(mxGetPr(plhs[0]), 0, hdr->NRec, hdr);
 	hdr->NRec = count; 
 #endif
 	sclose(hdr);
+        if (hdr->Calib && hdr->rerefCHANNEL) {
+		hdr->NS = hdr->Calib->ncol; 
+                free(hdr->CHANNEL);
+                hdr->CHANNEL = hdr->rerefCHANNEL;
+                hdr->rerefCHANNEL = NULL; 
+        }                
 
 	if ((status=serror())) return;  
 
@@ -367,11 +518,12 @@ void mexFunction(
 		mxSetField(HDR,0,"AS",tmp2);
 				
 		/* FLAG */
-		const char* field3[] = {"UCAL","OVERFLOWDETECTION",NULL};
+		const char* field3[] = {"UCAL","OVERFLOWDETECTION","ROW_BASED_CHANNELS",NULL};
 		for (numfields=0; field3[numfields++] != 0; );
 		Flag = mxCreateStructMatrix(1, 1, --numfields, field3);
 		mxSetField(Flag,0,"UCAL",mxCreateDoubleScalar((double)hdr->FLAG.UCAL));
 		mxSetField(Flag,0,"OVERFLOWDETECTION",mxCreateDoubleScalar((double)hdr->FLAG.OVERFLOWDETECTION));
+		mxSetField(Flag,0,"ROW_BASED_CHANNELS",mxCreateLogicalScalar(hdr->FLAG.ROW_BASED_CHANNELS));
 		mxSetField(HDR,0,"FLAG",Flag);
 
 		/* Filter */ 
@@ -478,7 +630,8 @@ void mexFunction(
 		mxSetField(Manufacturer,0,"SerialNumber",mxCreateCharMatrixFromStrings(1,strarray));
 		mxSetField(HDR,0,"Manufacturer",Manufacturer);
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[148] going for SCLOSE\n");
+	if (VERBOSE_LEVEL>8) 
+		fprintf(stdout,"[148] going for SCLOSE\n");
 
 		mxSetField(HDR,0,"Patient",Patient);
 
@@ -489,9 +642,10 @@ void mexFunction(
 	plhs[0] = HDR; 
 #endif
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[131] going for SCLOSE\n");
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[151] going for SCLOSE\n");
+	hdr->Calib = NULL; // is refering to &RR, do not destroy
 	destructHDR(hdr);
 	hdr = NULL; 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[137] SCLOSE finished\n");
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[157] SCLOSE finished\n");
 };
 

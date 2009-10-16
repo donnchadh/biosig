@@ -1692,7 +1692,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = (gdf_time)0; 
       	hdr->tzmin = 0; 
-      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.83";
+      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.85";
       	hdr->ID.Manufacturer._field[0]    = 0;
       	hdr->ID.Manufacturer.Name         = " ";
       	hdr->ID.Manufacturer.Model        = " ";
@@ -1894,8 +1894,10 @@ void destructHDR(HDRTYPE* hdr) {
         cholmod_common c ;
         cholmod_start (&c) ; /* start CHOLMOD */
         //if (hdr->Calib) cholmod_print_sparse(hdr->Calib,"destructHDR hdr->Calib",&c);
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free hdr->Calib\n");
 	if (hdr->Calib) cholmod_free_sparse(&hdr->Calib,&c);
         cholmod_finish (&c) ;
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free hdr->rerefCHANNEL\n");
 	if (hdr->rerefCHANNEL) free(hdr->rerefCHANNEL);
 #endif 
 
@@ -8461,7 +8463,8 @@ if (VERBOSE_LEVEL>8)
         }        
         if (rr) {
                 hdr->Calib = (cholmod_sparse*) rr; 
-                hdr->rerefCHANNEL=RerefCHANNEL(hdr,rr);         
+                hdr->rerefCHANNEL=RerefCHANNEL(hdr,rr);   
+                /*TODO: optimize OnOff, do not load channels that are not needed */      
         }
 	if (VERBOSE_LEVEL>7) 
                 fprintf(stdout,"==== hdr->Calib %p %p\n",hdr->Calib,hdr->rerefCHANNEL);
@@ -9599,6 +9602,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	int32_t			int32_value;
 	biosig_data_type 	sample_value=NaN; 
 	size_t			toffset;	// time offset for rawdata
+	biosig_data_type	*data1=NULL;
 
 	if (start >= hdr->NRec) return(0);  	
 	if ((start + length) < 0) return(0);  	
@@ -9624,10 +9628,13 @@ int V = VERBOSE_LEVEL;
 		fprintf(stdout,"SREAD: count=%i pos=[%i,%i,%i,%i], size of data = %ix%ix%ix%i = %i\n",(int)count,(int)start,(int)length,(int)POS,hdr->FILE.POS,(int)hdr->SPR, (int)count, (int)NS, sizeof(biosig_data_type), (int)(hdr->SPR * count * NS * sizeof(biosig_data_type)));
 
 	// transfer RAW into BIOSIG data format 
-	if (data==NULL) {
-		data = (biosig_data_type*) realloc(hdr->data.block, hdr->SPR * count * NS * sizeof(biosig_data_type));
-		hdr->data.block = data; 
-	}	
+	if ((data==NULL) || hdr->Calib) {
+		// local data memory required
+		data1 = (biosig_data_type*) realloc(hdr->data.block, hdr->SPR * count * NS * sizeof(biosig_data_type));
+		hdr->data.block = data1; 
+	}
+	else 
+		data1 = data; 
 
 	char ALPHA12BIT = (hdr->TYPE==alpha) && (hdr->NS>0) && (hdr->CHANNEL[0].GDFTYP==(255+12));
 	char MIT12BIT   = (hdr->TYPE==MIT  ) && (hdr->NS>0) && (hdr->CHANNEL[0].GDFTYP==(255+12));
@@ -9892,11 +9899,11 @@ int V = VERBOSE_LEVEL;
 		if (hdr->FLAG.ROW_BASED_CHANNELS) {
 			size_t k3;
 			for (k3=0; k3 < DIV; k3++) 
-				data[k2 + (k4*hdr->SPR + k5*DIV + k3)*NS] = sample_value; // row-based channels 
+				data1[k2 + (k4*hdr->SPR + k5*DIV + k3)*NS] = sample_value; // row-based channels 
 		} else {
 			size_t k3;
 			for (k3=0; k3 < DIV; k3++) 
-				data[k2*count*hdr->SPR + k4*hdr->SPR + k5*DIV + k3] = sample_value; // column-based channels 
+				data1[k2*count*hdr->SPR + k4*hdr->SPR + k5*DIV + k3] = sample_value; // column-based channels 
 		}
 
 		}	// end for (k5 ....
@@ -9925,10 +9932,10 @@ int V = VERBOSE_LEVEL;
 					// sparsely sampled channels are stored in event table
 					if (hdr->FLAG.ROW_BASED_CHANNELS) {
 						for (k5 = 0; k5 < hdr->SPR*count; k5++)
-							data[k2 + k5*NS] = NaN;		// row-based channels 
+							data1[k2 + k5*NS] = NaN;		// row-based channels 
 					} else {
 						for (k5 = 0; k5 < hdr->SPR*count; k5++)
-							data[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
+							data1[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
 					}
 				}
 				k2++;
@@ -10006,11 +10013,11 @@ int V = VERBOSE_LEVEL;
 			if (hdr->FLAG.ROW_BASED_CHANNELS) {
 				size_t k3;
 				for (k3=0; k3 < DIV; k3++) 
-					data[k2 + (k5 + k3)*NS] = sample_value; 
+					data1[k2 + (k5 + k3)*NS] = sample_value; 
 			} else {
 				size_t k3;
 				for (k3=0; k3 < DIV; k3++) 
-					data[k2 * count * hdr->SPR + k5 + k3] = sample_value; 
+					data1[k2 * count * hdr->SPR + k5 + k3] = sample_value; 
 			}
 			
 		if (VERBOSE_LEVEL>8) 
@@ -10026,9 +10033,9 @@ int V = VERBOSE_LEVEL;
 		for (k2=0; k2<NS; k2++) {
 			for (k5 = spr - POS*hdr->SPR; k5 < hdr->SPR*count; k5++)
 			if (hdr->FLAG.ROW_BASED_CHANNELS) 
-				data[k2 + k5*NS] = NaN;		// row-based channels 
+				data1[k2 + k5*NS] = NaN;		// row-based channels 
 			else 	
-				data[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
+				data1[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
 		}
 	}
 #ifdef WITH_REREF	
@@ -10042,7 +10049,7 @@ int V = VERBOSE_LEVEL;
 			X.ncol = hdr->data.size[1];
 			X.d    = hdr->data.size[0];
 			X.nzmax= hdr->data.size[1]*hdr->data.size[0];
-			X.x    = data;
+			X.x    = data1;
                         X.xtype = CHOLMOD_REAL;
                         X.dtype = CHOLMOD_DOUBLE;
 
@@ -10050,7 +10057,11 @@ int V = VERBOSE_LEVEL;
 			Y.ncol = hdr->data.size[1];
 			Y.d    = Y.nrow;
 			Y.nzmax= Y.nrow * Y.ncol;
-			Y.x    = malloc(Y.nzmax*sizeof(double)); 
+			if (data)
+				Y.x    = data;
+			else
+				Y.x    = malloc(Y.nzmax*sizeof(double)); 
+				
                         Y.xtype = CHOLMOD_REAL;
                         Y.dtype = CHOLMOD_DOUBLE;
 
@@ -10064,9 +10075,12 @@ int V = VERBOSE_LEVEL;
 
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"%f -> %f\n",*(double*)X.x,*(double*)Y.x);
 			free(X.x);
-			hdr->data.block = Y.x;
-                        data = hdr->data.block;
-			hdr->data.size[1] = Y.ncol;
+			if (data==NULL) 
+				hdr->data.block = Y.x;
+			else 
+				hdr->data.block = NULL;
+					
+        		hdr->data.size[1] = Y.ncol;
 
 	}
 #endif 
