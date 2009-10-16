@@ -16,15 +16,15 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
-    
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
  */
 
 
 /* test whether HDR.CHANNEL[].{bi,bi8} can be replaced, reduction of header size by about 3% 
    currently this is not working, because FAMOS seems to need it. 	
 //#define NO_BI 
-*/ 
+*/
 
 
 /* External API definitions */
@@ -50,24 +50,26 @@ typedef unsigned char		uint8_t;
 typedef char			int8_t;
 
 #else
-#include <inttypes.h>
-
+    #include <inttypes.h>
 #endif
 
 #ifdef WITH_HDF5
-#include <hdf5.h>
+    #include <hdf5.h>
 #endif 
 #ifdef WITH_NIFTI
-#include <nifti1.h>
+    #include <nifti1.h>
 #endif 
 
 
 #ifdef __cplusplus
-#define EXTERN_C extern "C"
+    #define EXTERN_C extern "C"
 #else
-#define EXTERN_C
+    #define EXTERN_C
 #endif
 
+#ifdef WITH_REREF
+    #define WITH_CHOLMOD
+#endif 
 
 
 /* 
@@ -76,19 +78,21 @@ typedef char			int8_t;
  */
 
 #ifdef WITH_ZLIB
-#ifdef __MINGW32__
-#include "win32/zlib/include/zlib.h"
-#else
-#include <zlib.h>
-#endif 
+    #ifdef __MINGW32__
+	#include "win32/zlib/include/zlib.h"
+    #else
+	#include <zlib.h>
+    #endif 
 #endif 
 
 #ifdef WITH_GSL
-#include <gsl/gsl_matrix_double.h>
+    #include <gsl/gsl_matrix_double.h>
 #endif 
 #include <stdio.h>
 #include <time.h>
-#include <suitesparse/cholmod.h>
+#ifdef WITH_CHOLMOD
+    #include <suitesparse/cholmod.h>
+#endif
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	biosig_data_type    data type of  internal data format 
@@ -118,6 +122,7 @@ enum B4C_ERROR {
 	B4C_DECOMPRESSION_FAILED,
 	B4C_MEMORY_ALLOCATION_FAILED,
 	B4C_RAWDATA_COLLAPSING_FAILED,
+	B4C_REREF_FAILED,
 	B4C_UNSPECIFIC_ERROR,
 };
 
@@ -228,7 +233,7 @@ typedef struct {
 	uint16_t	LeadIdCode ATT_ALI;	/* Lead identification code */ 
 	char 		Transducer[MAX_LENGTH_TRANSDUCER+1] ATT_ALI;	/* transducer e.g. EEG: Ag-AgCl electrodes */
 	char 		PhysDim[MAX_LENGTH_PHYSDIM+1] ATT_ALI  	__attribute__ ((deprecated));	/* physical dimension */
-			/*PhysDim is now depreciated - use function PhysDim(PhysDimCode,PhysDimText) instead */
+			/*PhysDim is now obsolete - use function PhysDim(PhysDimCode,PhysDimText) instead */
 	uint16_t	PhysDimCode ATT_ALI;	/* code for physical dimension */
 	/* char* 	PreFilt;	// pre-filtering */
 
@@ -277,7 +282,8 @@ typedef struct {
 	int16_t 	tzmin 	ATT_ALI;	/* time zone (minutes of difference to UTC */
 
 #ifdef WITH_CHOLMOD
-	cholmod_sparse *Calib;                  /* Calibration and rescaling matrix */
+	cholmod_sparse  *Calib ATT_ALI;                  /* re-referencing matrix */
+	CHANNEL_TYPE 	*rerefCHANNEL ATT_ALI;  
 #endif 	
 
 	/* Patient specific information */
@@ -417,13 +423,18 @@ HDRTYPE* getfiletype(HDRTYPE* hdr);
 /* 	identify file format from header information 
 	input:
 		hdr->AS.Header contains header of hdr->HeadLen bytes 
-		hdr->TYPE must be unknown, otherwise no FileFormat evaluation is performed
+		hdr->TYPE must	CHANNEL_TYPE 	*CHANNEL ATT_ALI;  
+ be unknown, otherwise no FileFormat evaluation is performed
 	output:
 		hdr->TYPE	file format
 		hdr->VERSION	is defined for some selected formats e.g. ACQ, EDF, BDF, GDF
  --------------------------------------------------------------- */
 
+#ifdef WITH_REREF
+HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr, void *rr, int rrType);
+#else
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
+#endif 
 /*	FileName: name of file 
 	Mode: "r" is reading mode, requires FileName
 	Mode: "w" is writing mode, hdr contains the header information
@@ -435,6 +446,12 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 	the whole header information must be defined.    
 	After calling sopen, the file header is read or written, and 
 	the position pointer points to the beginning of the data section
+	
+        rr is a pointer to a rereferencing matrix
+        rrtype determines the type of pointer 
+        rrtype=0: no rereferencing, RR is ignored (NULL) 
+               1: pointer to MarketMatrix file (char*)
+               2: pointer to a sparse cholmod matrix  (cholmod_sparse*)
  --------------------------------------------------------------- */
 
 int 	sclose(HDRTYPE* hdr);

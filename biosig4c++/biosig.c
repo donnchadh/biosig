@@ -1679,6 +1679,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->AS.length  = 0;  // no data loaded 
 #ifdef WITH_CHOLMOD
 	hdr->Calib = NULL; 
+        hdr->rerefCHANNEL = NULL;
 #endif 
 
       	hdr->NRec = 0; 
@@ -1830,7 +1831,9 @@ void debug_showptr(HDRTYPE* hdr) {
 
 void destructHDR(HDRTYPE* hdr) {
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"destructHDR: free HDR.aECG\n");
+	if (hdr==NULL) return;
+	
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"destructHDR(%s): free HDR.aECG\n",hdr->FileName);
 
 	sclose(hdr); 
 
@@ -1885,9 +1888,18 @@ void destructHDR(HDRTYPE* hdr) {
 
     	if (hdr->AS.auxBUF != NULL) free(hdr->AS.auxBUF);
 
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR\n");
+
 #ifdef WITH_CHOLMOD
-	if (hdr->Calib) cholmod_free_sparse(hdr->Calib,NULL);
+        cholmod_common c ;
+        cholmod_start (&c) ; /* start CHOLMOD */
+        //if (hdr->Calib) cholmod_print_sparse(hdr->Calib,"destructHDR hdr->Calib",&c);
+	if (hdr->Calib) cholmod_free_sparse(&hdr->Calib,&c);
+        cholmod_finish (&c) ;
+	if (hdr->rerefCHANNEL) free(hdr->rerefCHANNEL);
 #endif 
+
+	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR\n");
 
 	free(hdr);
 	return; 
@@ -3165,10 +3177,107 @@ void rawEVT2hdrEVT(HDRTYPE *hdr) {
 			}	
 }
 
+int NumberOfChannels(HDRTYPE *hdr) 
+{
+        int k,NS; 
+        for (k=0, NS=0; k<hdr->NS; k++) 
+                if (hdr->CHANNEL[k].OnOff) NS++; 
+
+        if (hdr->Calib == NULL) 
+                return (NS); 
+        
+        if (NS==hdr->Calib->nrow) 
+                return (hdr->Calib->ncol);
+                                                      
+} 
+
+#ifdef WITH_REREF
+CHANNEL_TYPE *RerefCHANNEL(HDRTYPE *hdr, cholmod_sparse *ReRef) 
+{
+                cholmod_sparse *A=ReRef;
+		uint16_t r, newNS = A->ncol;
+                uint16_t i,j,k,NS,flag; 
+                for (k=0, NS=0; k<hdr->NS; k++) 
+                        if (hdr->CHANNEL[k].OnOff) NS++; 
+                if (NS != A->nrow) {
+#if 1
+		        fprintf(stderr,"Warning REREF_CHAN: size of data and ReRef-matrix do not fit (%i,%i)\n", NS, A->nrow);
+#else
+                        // eventually this must be changed into an error, and return(NuLL)
+                        return(NULL);          
+#endif 
+                }        
+		        
+		CHANNEL_TYPE *NEWCHANNEL = (CHANNEL_TYPE*) malloc(newNS*sizeof(CHANNEL_TYPE));
+		for (i=0; i<newNS; i++) {
+			flag = 0;
+			int mix = -1, oix = -1, pix = -1;
+			double m  = 0.0;
+			double v;
+			for (j = *(int*)A->p+i; j < *(int*)A->p+i+1; j++) {
+				
+				v = *(double*)A->x+j;
+				r = *(int*)A->i+j;
+
+               	if (VERBOSE_LEVEL>7) fprintf(stdout,"\n404 %i %i %f %i %i\n",i,j,v,A->nrow,A->ncol);
+
+				if (v>m) {
+					m = v;
+					mix = r;
+				}
+				if (v==1.0) {
+					if (oix<0) 
+						oix = r;
+					else 
+						fprintf(stderr,"Warning: ambiguous channel information (in new #%i, more than one scaling factor of 1.0 is used.) \n",i,j);
+				}
+				if (v) {
+					if (pix == -1)
+						pix = hdr->CHANNEL[r].PhysDimCode;
+					else if (pix != hdr->CHANNEL[r].PhysDimCode) {
+						flag = 1;
+						fprintf(stderr,"Error: PhysDims in new channel (%i) no not fit\n",i);
+					}
+				}
+				if (r >= hdr->NS) {
+					flag = 1;
+					fprintf(stderr,"Error: index (%i) in channel (%i) exceeds number of channels (%i)\n",r,i,hdr->NS);
+				}
+			}
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"\n406 %i %i\n",mix,oix);
+
+			if (oix>-1) j=oix;        // use the info from channel with a scaling of 1.0 ; 
+			else if (mix>-1) j=mix;   // use the info from channel with the largest scale;
+			else j = -1;
+
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"\n407 %i %i %i %i %i %i\n",mix,oix,i,j,flag,pix);
+
+			if (!flag && (j<hdr->NS)) {
+			        // if successful 
+				memcpy(NEWCHANNEL+i, hdr->CHANNEL+j, sizeof(CHANNEL_TYPE));
+				NEWCHANNEL[i].GDFTYP = 16; // float
+                        }
+			else {
+				free(NEWCHANNEL);
+				B4C_ERRNUM = B4C_REREF_FAILED; 
+				B4C_ERRMSG = "Error: rereferencing check for channel information failed"; 
+				return(NULL);
+			}
+                }
+		return(NEWCHANNEL);
+}
+#endif 
+
+
 /****************************************************************************/
 /**                     SOPEN                                              **/
 /****************************************************************************/
+#ifdef WITH_REREF
+HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr, void *rr, int rrtype)
+#else
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
+#endif 
 /*
 	MODE="r" 
 		reads file and returns HDR 
@@ -3207,7 +3316,7 @@ hdr->FILE.LittleEndian = 1;
 if (!strncmp(MODE,"r",1))	
 {
 	if (VERBOSE_LEVEL>8) 
-		fprintf(stdout,"[201] \n");
+		fprintf(stdout,"[201] %s,%s\n",hdr->FileName,(char*)rr);
 
 	size_t k,name=0,ext=0;	
 	for (k=0; hdr->FileName[k]; k++) {
@@ -5121,7 +5230,7 @@ if (VERBOSE_LEVEL>8)
 					if (VERBOSE_LEVEL>8)
 						fprintf(stdout,"SOPEN marker file <%s>.\n",mrkfile); 
 			
-					HDRTYPE *hdr2 = sopen(mrkfile,"r",NULL);
+					HDRTYPE *hdr2 = sopen(mrkfile,"r",NULL,NULL,0);
 
 					hdr->T0 = hdr2->T0;
 					memcpy(&hdr->EVENT,&hdr2->EVENT,sizeof(hdr2->EVENT));
@@ -8328,8 +8437,36 @@ if (VERBOSE_LEVEL>8)
 	}
 	
 	if (VERBOSE_LEVEL>7) 
-		fprintf(stdout,"[194]: bpb=%i spr=%i\n",hdr->AS.bpb,hdr->SPR);	
+		fprintf(stdout,"[194]: bpb=%i spr=%i,rrtype=%i,%s\n",hdr->AS.bpb,hdr->SPR,rrtype,(char*)rr);	
 	
+#ifdef WITH_REREF
+        if (!rr) rrtype=0; 
+        switch (rrtype) {
+        case 1: {
+                HDRTYPE *RR=constructHDR(0,0);
+                RR = sopen((char*)rr,"r",RR,NULL,0);
+	if (VERBOSE_LEVEL>7) 
+                fprintf(stdout,"==== RR->Calib %p %p\n",RR->Calib,hdr->rerefCHANNEL);
+                rr = RR->Calib;            
+	if (VERBOSE_LEVEL>7) 
+                fprintf(stdout,"==== rr->Calib %p %p\n",rr,hdr->rerefCHANNEL);
+                RR->Calib = NULL;
+                destructHDR(RR);
+	if (VERBOSE_LEVEL>7) 
+                fprintf(stdout,"==== rr->Calib %p %p\n",rr,hdr->rerefCHANNEL);
+                break; 
+                }
+        case 2: break; 
+        default: rr = NULL;         
+        }        
+        if (rr) {
+                hdr->Calib = (cholmod_sparse*) rr; 
+                hdr->rerefCHANNEL=RerefCHANNEL(hdr,rr);         
+        }
+	if (VERBOSE_LEVEL>7) 
+                fprintf(stdout,"==== hdr->Calib %p %p\n",hdr->Calib,hdr->rerefCHANNEL);
+#endif 
+        
 	/*  
 	convert2to4_event_table(hdr->EVENT);
 	convert into canonical form if needed
@@ -9894,7 +10031,45 @@ int V = VERBOSE_LEVEL;
 				data[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
 		}
 	}
+#ifdef WITH_REREF	
+                
+	if (hdr->Calib) 
+        if (!hdr->FLAG.ROW_BASED_CHANNELS)
+                fprintf(stderr,"Error SREAD: Re-Referencing on column-based data not supported."); 
+        else {        	
+			cholmod_dense X,Y;
+			X.nrow = hdr->data.size[0];
+			X.ncol = hdr->data.size[1];
+			X.d    = hdr->data.size[0];
+			X.nzmax= hdr->data.size[1]*hdr->data.size[0];
+			X.x    = data;
+                        X.xtype = CHOLMOD_REAL;
+                        X.dtype = CHOLMOD_DOUBLE;
 
+			Y.nrow = hdr->Calib->ncol;
+			Y.ncol = hdr->data.size[1];
+			Y.d    = Y.nrow;
+			Y.nzmax= Y.nrow * Y.ncol;
+			Y.x    = malloc(Y.nzmax*sizeof(double)); 
+                        Y.xtype = CHOLMOD_REAL;
+                        Y.dtype = CHOLMOD_DOUBLE;
+
+			double alpha[]={1,0},beta[]={0,0};
+
+                        cholmod_common c ;
+                        cholmod_start (&c) ; // start CHOLMOD 
+
+			cholmod_sdmult(hdr->Calib,1,alpha,beta,&X,&Y,&c);
+                        cholmod_finish (&c) ; /* finish CHOLMOD */
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"%f -> %f\n",*(double*)X.x,*(double*)Y.x);
+			free(X.x);
+			hdr->data.block = Y.x;
+                        data = hdr->data.block;
+			hdr->data.size[1] = Y.ncol;
+
+	}
+#endif 
 	if (VERBOSE_LEVEL>7) 
 		fprintf(stdout,"sread - end \n");
 
@@ -10408,7 +10583,7 @@ int sclose(HDRTYPE* hdr)
 		}
 	
 		if (VERBOSE_LEVEL>7) 
-			fprintf(stdout, "888: File Type=%s ,N#of Events %i\n",GetFileTypeString(hdr->TYPE),hdr->EVENT.N);
+			fprintf(stdout, "888: File Type=%s ,N#of Events %i,bpb=%i\n",GetFileTypeString(hdr->TYPE),hdr->EVENT.N,hdr->AS.bpb);
 
 		if ((hdr->TYPE==GDF) && (hdr->EVENT.N>0)) {
 
@@ -10513,7 +10688,7 @@ HDRTYPE* sload(const char* FileName, size_t ChanList[], biosig_data_type** DATA)
 	size_t k,NS;
 	int status;
 	HDRTYPE* hdr; 
-	hdr = sopen(FileName,"r",NULL); 
+	hdr = sopen(FileName,"r",NULL,NULL,0); 
 	if ((status=serror())) {
 		destructHDR(hdr);
 		return(NULL);

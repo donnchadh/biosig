@@ -413,6 +413,24 @@ void rawEVT2hdrEVT(HDRTYPE *hdr);
 	HDRTYPE.EVENT.
  ------------------------------------------------------------------------*/
 
+int NumberOfChannels(HDRTYPE *hdr); 
+/*
+        returns the number of channels returned by SREAD. 
+        This might be different than the number of data channels in the file
+        because of status,event and annotation channels, and because some 
+        rereferencing is applied
+ ------------------------------------------------------------------------*/
+
+#ifdef WITH_REREF
+CHANNEL_TYPE *RerefCHANNEL(HDRTYPE *hdr, cholmod_sparse *ReRef);
+/* rerefCHAN 
+        defines rereferencing of channels, 
+        hdr->Calib defines the rereferencing matrix 
+        hdr->rerefCHANNEL is defined by some heuristics from hdr->CHANNEL
+                either the maximum scaling factor  
+ ------------------------------------------------------------------------*/
+#endif  
+
 void FreeGlobalEventCodeTable();
 void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation);
 /*------------------------------------------------------------------------

@@ -148,7 +148,11 @@ void mexFunction(
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[101] SOPEN-R start\n");
 
+#ifdef WITH_REREF
+	hdr = sopen(FileName, "r", hdr, NULL, 0);
+#else 
 	hdr = sopen(FileName, "r", hdr);
+#endif	
 #ifdef WITH_PDP 
 	if (B4C_ERRNUM) {
 		B4C_ERRNUM = 0;  
