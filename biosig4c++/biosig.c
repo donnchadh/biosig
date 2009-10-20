@@ -1888,6 +1888,7 @@ void destructHDR(HDRTYPE* hdr) {
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR\n");
 
+#ifdef CHOLMOD_H
         cholmod_common c ;
         cholmod_start (&c) ; /* start CHOLMOD */
         //if (hdr->Calib) cholmod_print_sparse(hdr->Calib,"destructHDR hdr->Calib",&c);
@@ -1897,7 +1898,6 @@ void destructHDR(HDRTYPE* hdr) {
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free hdr->rerefCHANNEL\n");
 	if (hdr->rerefCHANNEL) free(hdr->rerefCHANNEL);
 #endif 
-
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR\n");
 
 	free(hdr);
@@ -3187,11 +3187,17 @@ int NumberOfChannels(HDRTYPE *hdr)
         
         if (NS==hdr->Calib->nrow) 
                 return (hdr->Calib->ncol);
-                                                      
+                
+        return(hdr->NS);                                               
 } 
 
 int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode) 
 {
+#ifndef CHOLMOD_H
+                B4C_ERRNUM = B4C_REREF_FAILED;
+                B4C_ERRMSG = "Error RerefCHANNEL: cholmod library is missing";
+                return(1); 
+#else 
                 cholmod_sparse *ReRef=NULL;
 		uint16_t r;
                 uint16_t i,j,k,NS,flag;
@@ -3308,9 +3314,8 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 			}
                 }
 		return(0);
-}
 #endif 
-
+}
 
 /****************************************************************************/
 /**                     SOPEN                                              **/

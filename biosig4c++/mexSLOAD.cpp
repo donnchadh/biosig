@@ -178,7 +178,7 @@ void mexFunction(
 	double		*ChanList=NULL;
 	int		NS = -1;
 	char		FlagOverflowDetection=1, FlagUCAL=0;
-#ifdef WITH_REREF
+#ifdef CHOLMOD_H
 	cholmod_sparse RR,*rr=NULL;
 	double dummy;
 #endif 
