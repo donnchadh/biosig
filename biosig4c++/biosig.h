@@ -67,11 +67,6 @@ typedef char			int8_t;
     #define EXTERN_C
 #endif
 
-#ifdef WITH_REREF
-    #define WITH_CHOLMOD
-#endif 
-
-
 /* 
 	Including ZLIB enables reading gzipped files (they are decompressed on-the-fly)  
 	The output files can be zipped, too. 
@@ -90,9 +85,7 @@ typedef char			int8_t;
 #endif 
 #include <stdio.h>
 #include <time.h>
-#ifdef WITH_CHOLMOD
-    #include <suitesparse/cholmod.h>
-#endif
+#include <suitesparse/cholmod.h>
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	biosig_data_type    data type of  internal data format 
@@ -220,7 +213,7 @@ typedef int64_t 		nrec_t;	/* type for number of records */
 
 #define ATT_ALI __attribute__ ((aligned (8)))	/* Matlab v7.3+ requires 8 byte alignment*/
 
-typedef struct {
+typedef struct CHANNEL_STRUCT {
 	double 		PhysMin ATT_ALI;	/* physical minimum */
 	double 		PhysMax ATT_ALI;	/* physical maximum */
 	double 		DigMin 	ATT_ALI;	/* digital minimum */
@@ -281,7 +274,7 @@ typedef struct {
 	gdf_time 	T0 	ATT_ALI; 	/* starttime of recording */
 	int16_t 	tzmin 	ATT_ALI;	/* time zone (minutes of difference to UTC */
 
-#ifdef WITH_CHOLMOD
+#ifdef CHOLMOD_H
 	cholmod_sparse  *Calib ATT_ALI;                  /* re-referencing matrix */
 	CHANNEL_TYPE 	*rerefCHANNEL ATT_ALI;  
 #endif 	
@@ -430,11 +423,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr);
 		hdr->VERSION	is defined for some selected formats e.g. ACQ, EDF, BDF, GDF
  --------------------------------------------------------------- */
 
-#ifdef WITH_REREF
-HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr, void *rr, int rrType);
-#else
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
-#endif 
 /*	FileName: name of file 
 	Mode: "r" is reading mode, requires FileName
 	Mode: "w" is writing mode, hdr contains the header information
@@ -554,6 +543,21 @@ int	hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSITY);
  *	VERBOSITY=2 reports als the channel information 
  *	VERBOSITY=3 provides in addition the event table. 
  --------------------------------------------------------------- */
+
+int RerefCHANNEL(HDRTYPE *hdr, void *ReRef, char Mode);
+/* rerefCHAN 
+        defines rereferencing of channels, 
+        hdr->Calib defines the rereferencing matrix 
+        hdr->rerefCHANNEL is defined. 
+        hdr->rerefCHANNEL[.].Label is  by some heuristics from hdr->CHANNEL
+                either the maximum scaling factor  
+        if ReRef is NULL, rereferencing is turned off (hdr->Calib and 
+        hdr->rerefCHANNEL are reset to NULL). 
+        if Mode==1, Reref is a filename pointing to a MatrixMarket file 
+        if Mode==2, Reref must be a pointer to a cholmod sparse matrix (cholmod_sparse*)
+        In case of an error (mismatch of dimensions), a non-zero is returned,
+        and serror() is set.     
+ ------------------------------------------------------------------------*/
 
 
 const char* GetFileTypeString(enum FileFormat FMT);

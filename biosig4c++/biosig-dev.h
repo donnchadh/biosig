@@ -421,16 +421,6 @@ int NumberOfChannels(HDRTYPE *hdr);
         rereferencing is applied
  ------------------------------------------------------------------------*/
 
-#ifdef WITH_REREF
-CHANNEL_TYPE *RerefCHANNEL(HDRTYPE *hdr, cholmod_sparse *ReRef);
-/* rerefCHAN 
-        defines rereferencing of channels, 
-        hdr->Calib defines the rereferencing matrix 
-        hdr->rerefCHANNEL is defined by some heuristics from hdr->CHANNEL
-                either the maximum scaling factor  
- ------------------------------------------------------------------------*/
-#endif  
-
 void FreeGlobalEventCodeTable();
 void FreeTextEvent(HDRTYPE* hdr,size_t N_EVENT, char* annotation);
 /*------------------------------------------------------------------------

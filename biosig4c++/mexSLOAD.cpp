@@ -287,18 +287,14 @@ void mexFunction(
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[101] SOPEN-R start\n");
 
-#ifdef WITH_REREF
-	hdr = sopen(FileName, "r", hdr, rr, (rr!=NULL ? 2 : 0));
-	rr  = NULL;
-#else 
 	hdr = sopen(FileName, "r", hdr);
-#endif	
 #ifdef WITH_PDP 
 	if (B4C_ERRNUM) {
 		B4C_ERRNUM = 0;  
 		sopen_pdp_read(hdr);
 	}	
 #endif
+	RerefCHANNEL(hdr,rr,2);
 
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[102]\n");
@@ -387,6 +383,7 @@ void mexFunction(
                 free(hdr->CHANNEL);
                 hdr->CHANNEL = hdr->rerefCHANNEL;
                 hdr->rerefCHANNEL = NULL; 
+                hdr->Calib = NULL; 
         }                
 
 	if ((status=serror())) return;  

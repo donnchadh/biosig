@@ -48,7 +48,7 @@ void sopen_pdp_read(HDRTYPE *hdr);
 
 int main(int argc, char **argv){
     
-    HDRTYPE 	*hdr,*rrFile=NULL; 
+    HDRTYPE 	*hdr; 
     size_t 	count, k1, ne=0;
     uint16_t 	numopt = 0;
     char 	*source, *dest, tmp[1024]; 
@@ -57,6 +57,8 @@ int main(int argc, char **argv){
     int		status, k; 
     int		TARGETSEGMENT=1; 	// select segment in multi-segment file format EEG1100 (Nihon Kohden)
     int 	VERBOSE	= 1; 
+    cholmod_sparse *rr  = NULL; 
+    char        *rrFile = NULL;
 	
     if (argc<2)
     	;
@@ -83,7 +85,7 @@ int main(int argc, char **argv){
 		fprintf(stdout,"\n  Supported OPTIONS are:\n");
 		fprintf(stdout,"   -v, --version\n\tprints version information\n");
 		fprintf(stdout,"   -h, --help   \n\tprints this information\n");
-#ifdef WITH_CHOLMOD
+#ifdef CHOLMOD_H
 		fprintf(stdout,"   -r, --ref=MM  \n\trereference data with matrix file MM. \n\tMM must be a 'MatrixMarket matrix coordinate real general' file.\n");
 #endif
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
@@ -149,13 +151,9 @@ int main(int argc, char **argv){
 
     	else if (!strncmp(argv[k],"-r=",3) || !strncmp(argv[k],"--ref=",6) )	{
     	        // re-referencing matrix 
-#ifdef WITH_REREF
-		rrFile = strchr(argv[k],'=')+1; 
-
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[rrFile] %s \n", (char*)rrFile); 
-#else
-                fprintf(stdout,"error: option %s not supported (compile with -D=WITH_CHOLMOD)\n",argv[k]); 
-#endif
+    	        rrFile = strchr(argv[k],'=')+1;
+    	        if (!rrFile) 
+                        fprintf(stdout,"error: option %s not supported \n",argv[k]); 
 	}
 
     	else if (!strncmp(argv[k],"-s=",3))  	{
@@ -193,13 +191,15 @@ int main(int argc, char **argv){
 
 
 	hdr->FileName = source;
-	hdr = sopen(source, "r", hdr, rrFile, 1);
+	hdr = sopen(source, "r", hdr);
 #ifdef WITH_PDP 
 	if (B4C_ERRNUM) {
 		B4C_ERRNUM = 0;  
 		sopen_pdp_read(hdr);
 	}	
 #endif
+        if (RerefCHANNEL(hdr,rrFile,1))
+                fprintf(stdout,"error: option %s not supported (link with -lcholmod)\n",argv[k]); 
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
@@ -222,12 +222,13 @@ int main(int argc, char **argv){
     		// hdr->CHANNEL[k].OnOff = 1;	// convert all channels
     	}	
 
-        int flagREREF = hdr->Calib && hdr->rerefCHANNEL;        
+        int flagREREF = hdr->Calib && hdr->rerefCHANNEL;
 	hdr->FLAG.OVERFLOWDETECTION = 0;
 	hdr->FLAG.UCAL = !flagREREF;
 	hdr->FLAG.ROW_BASED_CHANNELS = flagREREF;
 	
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[121]\n");
+	if (VERBOSE_LEVEL>8) 
+        	fprintf(stdout,"[121] %p %p\n",hdr->Calib, hdr->rerefCHANNEL);
 
 	if (dest!=NULL)
 		count = sread(NULL, 0, hdr->NRec, hdr);
@@ -371,7 +372,7 @@ int main(int argc, char **argv){
 		}
 
     }
-//	if (VERBOSE_LEVEL>8) fprintf(stdout,"[205]\n");
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[205]\n");
 
 	/* write file */
 	strcpy(tmp,dest);
@@ -383,7 +384,7 @@ int main(int argc, char **argv){
 
 	hdr->FLAG.ANONYMOUS = 1; 	// no personal names are processed 
 
-	hdr = sopen(tmp, "wb", hdr, NULL, 0);
+	hdr = sopen(tmp, "wb", hdr);
 	if ((status=serror())) {
 		destructHDR(hdr);
 		exit(status); 

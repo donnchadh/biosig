@@ -1677,10 +1677,8 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->AS.flag_collapsed_rawdata = 0;	// is rawdata not collapsed 
 	hdr->AS.first = 0;
 	hdr->AS.length  = 0;  // no data loaded 
-#ifdef WITH_CHOLMOD
 	hdr->Calib = NULL; 
         hdr->rerefCHANNEL = NULL;
-#endif 
 
       	hdr->NRec = 0; 
       	hdr->NS = NS;	
@@ -1890,7 +1888,6 @@ void destructHDR(HDRTYPE* hdr) {
 
 	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR\n");
 
-#ifdef WITH_CHOLMOD
         cholmod_common c ;
         cholmod_start (&c) ; /* start CHOLMOD */
         //if (hdr->Calib) cholmod_print_sparse(hdr->Calib,"destructHDR hdr->Calib",&c);
@@ -3193,25 +3190,62 @@ int NumberOfChannels(HDRTYPE *hdr)
                                                       
 } 
 
-#ifdef WITH_REREF
-CHANNEL_TYPE *RerefCHANNEL(HDRTYPE *hdr, cholmod_sparse *ReRef) 
+int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode) 
 {
-                cholmod_sparse *A=ReRef;
-		uint16_t r, newNS = A->ncol;
-                uint16_t i,j,k,NS,flag; 
+                cholmod_sparse *ReRef=NULL;
+		uint16_t r;
+                uint16_t i,j,k,NS,flag;
+                
+                cholmod_common c ;
+                cholmod_start (&c) ; /* start CHOLMOD */
+
+                switch (Mode) {
+                case 1: {
+                        HDRTYPE *RR = sopen((char*)arg2,"r",NULL);
+                        ReRef = RR->Calib; 
+                        RR->Calib = NULL; // do not destroy ReRef 
+                        destructHDR(RR); 
+                        break; 
+                        }
+                case 2: ReRef = (cholmod_sparse*)arg2;
+                        break;
+                }
+
+                if ((ReRef==NULL) || !Mode) {
+                        // reset rereferencing
+        		if (hdr->Calib != NULL) 
+                                cholmod_free_sparse(&hdr->Calib,&c);
+
+                        hdr->Calib = ReRef;
+        		free(hdr->rerefCHANNEL);
+        		hdr->rerefCHANNEL = NULL; 
+                        cholmod_finish (&c) ;
+        	        return(0); 
+                }               
+                cholmod_sparse *A = ReRef; 
+                
+                // check dimensions  
                 for (k=0, NS=0; k<hdr->NS; k++) 
                         if (hdr->CHANNEL[k].OnOff) NS++; 
-                if (NS != A->nrow) {
-#if 1
-		        fprintf(stderr,"Warning REREF_CHAN: size of data and ReRef-matrix do not fit (%i,%i)\n", NS, A->nrow);
-#else
-                        // eventually this must be changed into an error, and return(NuLL)
-                        return(NULL);          
-#endif 
+                if (NS - A->nrow) {
+                        B4C_ERRNUM = B4C_REREF_FAILED;
+                        B4C_ERRMSG = "Error REREF_CHAN: size of data does not fit ReRef-matrix";
+                        cholmod_finish (&c) ;
+                        return(1); 
                 }        
-		        
-		CHANNEL_TYPE *NEWCHANNEL = (CHANNEL_TYPE*) malloc(newNS*sizeof(CHANNEL_TYPE));
-		for (i=0; i<newNS; i++) {
+		
+                // allocate memory 
+		if (hdr->Calib != NULL) 
+                        cholmod_free_sparse(&hdr->Calib,&c);
+
+                cholmod_finish (&c) ;        // stop cholmod 
+
+                hdr->Calib = ReRef;
+		CHANNEL_TYPE *NEWCHANNEL = (CHANNEL_TYPE*) realloc(hdr->rerefCHANNEL, A->ncol*sizeof(CHANNEL_TYPE));
+		hdr->rerefCHANNEL = NEWCHANNEL; 
+                        
+                // check each component 
+       		for (i=0; i<A->ncol; i++) {
 			flag = 0;
 			int mix = -1, oix = -1, pix = -1;
 			double m  = 0.0;
@@ -3220,8 +3254,6 @@ CHANNEL_TYPE *RerefCHANNEL(HDRTYPE *hdr, cholmod_sparse *ReRef)
 				
 				v = *(double*)A->x+j;
 				r = *(int*)A->i+j;
-
-               	if (VERBOSE_LEVEL>7) fprintf(stdout,"\n404 %i %i %f %i %i\n",i,j,v,A->nrow,A->ncol);
 
 				if (v>m) {
 					m = v;
@@ -3234,11 +3266,26 @@ CHANNEL_TYPE *RerefCHANNEL(HDRTYPE *hdr, cholmod_sparse *ReRef)
 						fprintf(stderr,"Warning: ambiguous channel information (in new #%i, more than one scaling factor of 1.0 is used.) \n",i,j);
 				}
 				if (v) {
-					if (pix == -1)
-						pix = hdr->CHANNEL[r].PhysDimCode;
-					else if (pix != hdr->CHANNEL[r].PhysDimCode) {
-						flag = 1;
-						fprintf(stderr,"Error: PhysDims in new channel (%i) no not fit\n",i);
+					if (pix == -1) {
+                				memcpy(NEWCHANNEL+i, hdr->CHANNEL+j, sizeof(CHANNEL_TYPE));
+						pix = 0; 
+					}
+					else {
+					        if (NEWCHANNEL[i].PhysDimCode != hdr->CHANNEL[j].PhysDimCode)
+					                NEWCHANNEL[i].PhysDimCode = 0; 
+					        if (NEWCHANNEL[i].LowPass != hdr->CHANNEL[j].LowPass)
+					                NEWCHANNEL[i].LowPass = NaN; 
+					        if (NEWCHANNEL[i].HighPass != hdr->CHANNEL[j].HighPass)
+					                NEWCHANNEL[i].HighPass = NaN; 
+					        if (NEWCHANNEL[i].Notch != hdr->CHANNEL[j].Notch)
+					                NEWCHANNEL[i].Notch = NaN; 
+					        if (NEWCHANNEL[i].SPR != hdr->CHANNEL[j].SPR)
+					                NEWCHANNEL[i].SPR = lcm(NEWCHANNEL[i].SPR, hdr->CHANNEL[j].SPR);
+					        if (NEWCHANNEL[i].GDFTYP != hdr->CHANNEL[j].GDFTYP)
+					                NEWCHANNEL[i].GDFTYP = max(NEWCHANNEL[i].GDFTYP, hdr->CHANNEL[j].GDFTYP);
+
+				                NEWCHANNEL[i].Impedance += fabs(v)*NEWCHANNEL[j].Impedance;
+				                NEWCHANNEL[i].GDFTYP = 16;
 					}
 				}
 				if (r >= hdr->NS) {
@@ -3247,27 +3294,20 @@ CHANNEL_TYPE *RerefCHANNEL(HDRTYPE *hdr, cholmod_sparse *ReRef)
 				}
 			}
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"\n406 %i %i\n",mix,oix);
-
 			if (oix>-1) j=oix;        // use the info from channel with a scaling of 1.0 ; 
 			else if (mix>-1) j=mix;   // use the info from channel with the largest scale;
 			else j = -1;
 
-		if (VERBOSE_LEVEL>7) fprintf(stdout,"\n407 %i %i %i %i %i %i\n",mix,oix,i,j,flag,pix);
-
-			if (!flag && (j<hdr->NS)) {
+			if (!flag && (j<hdr->NS) && (j>=0)) {
 			        // if successful 
-				memcpy(NEWCHANNEL+i, hdr->CHANNEL+j, sizeof(CHANNEL_TYPE));
+			        memcpy(NEWCHANNEL[i].Label, hdr->CHANNEL[j].Label, MAX_LENGTH_LABEL); 
 				NEWCHANNEL[i].GDFTYP = 16; // float
                         }
 			else {
-				free(NEWCHANNEL);
-				B4C_ERRNUM = B4C_REREF_FAILED; 
-				B4C_ERRMSG = "Error: rereferencing check for channel information failed"; 
-				return(NULL);
+			        sprintf(NEWCHANNEL[i].Label,"component #%i",i); 
 			}
                 }
-		return(NEWCHANNEL);
+		return(0);
 }
 #endif 
 
@@ -3275,11 +3315,7 @@ CHANNEL_TYPE *RerefCHANNEL(HDRTYPE *hdr, cholmod_sparse *ReRef)
 /****************************************************************************/
 /**                     SOPEN                                              **/
 /****************************************************************************/
-#ifdef WITH_REREF
-HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr, void *rr, int rrtype)
-#else
 HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
-#endif 
 /*
 	MODE="r" 
 		reads file and returns HDR 
@@ -3318,7 +3354,7 @@ hdr->FILE.LittleEndian = 1;
 if (!strncmp(MODE,"r",1))	
 {
 	if (VERBOSE_LEVEL>8) 
-		fprintf(stdout,"[201] %s,%s\n",hdr->FileName,(char*)rr);
+		fprintf(stdout,"[201] %s\n",hdr->FileName);
 
 	size_t k,name=0,ext=0;	
 	for (k=0; hdr->FileName[k]; k++) {
@@ -3798,21 +3834,6 @@ if (!strncmp(MODE,"r",1))
 			}
 			size_t N_EVENT  = 0;
 			hdr->EVENT.SampleRate = hdr->SampleRate; 
-			
-/*	
-			// remove header for event channel	
-			// this is not needed because the other functions are made aware 
-			// of unused channels by HDR.CHANNEL[k].OnOff
-			uint16_t k17=0; 		
-			for (uint16_t k16=0; k16<hdr->NS; k16++) {
-				if (k16!=k17) {
-					memcpy(hdr->CHANNEL+k17, hdr->CHANNEL+k16, sizeof(CHANNEL_TYPE));
-				}
-				if (hdr->CHANNEL[k16].OnOff) k17++;
-			}
-			hdr->NS = k17;
-			hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL, hdr->NS * sizeof(CHANNEL_TYPE));
-*/			
 			
 			if (hdr->TYPE==EDF) {
 			/* convert EDF+ annotation channel into event table */
@@ -5232,7 +5253,7 @@ if (VERBOSE_LEVEL>8)
 					if (VERBOSE_LEVEL>8)
 						fprintf(stdout,"SOPEN marker file <%s>.\n",mrkfile); 
 			
-					HDRTYPE *hdr2 = sopen(mrkfile,"r",NULL,NULL,0);
+					HDRTYPE *hdr2 = sopen(mrkfile,"r",NULL);
 
 					hdr->T0 = hdr2->T0;
 					memcpy(&hdr->EVENT,&hdr2->EVENT,sizeof(hdr2->EVENT));
@@ -7549,7 +7570,7 @@ if (VERBOSE_LEVEL>8)
 		
 	} /* END OF MIT FORMAT */
 	
-#ifdef WITH_CHOLMOD
+#ifdef CHOLMOD_H
 	else if ((hdr->TYPE==MM) && (!hdr->FILE.COMPRESSION)) {
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MM 001] %i,%i\n",count,hdr->FILE.COMPRESSION); 
@@ -8438,38 +8459,6 @@ if (VERBOSE_LEVEL>8)
 
 	}
 	
-	if (VERBOSE_LEVEL>7) 
-		fprintf(stdout,"[194]: bpb=%i spr=%i,rrtype=%i,%s\n",hdr->AS.bpb,hdr->SPR,rrtype,(char*)rr);	
-	
-#ifdef WITH_REREF
-        if (!rr) rrtype=0; 
-        switch (rrtype) {
-        case 1: {
-                HDRTYPE *RR=constructHDR(0,0);
-                RR = sopen((char*)rr,"r",RR,NULL,0);
-	if (VERBOSE_LEVEL>7) 
-                fprintf(stdout,"==== RR->Calib %p %p\n",RR->Calib,hdr->rerefCHANNEL);
-                rr = RR->Calib;            
-	if (VERBOSE_LEVEL>7) 
-                fprintf(stdout,"==== rr->Calib %p %p\n",rr,hdr->rerefCHANNEL);
-                RR->Calib = NULL;
-                destructHDR(RR);
-	if (VERBOSE_LEVEL>7) 
-                fprintf(stdout,"==== rr->Calib %p %p\n",rr,hdr->rerefCHANNEL);
-                break; 
-                }
-        case 2: break; 
-        default: rr = NULL;         
-        }        
-        if (rr) {
-                hdr->Calib = (cholmod_sparse*) rr; 
-                hdr->rerefCHANNEL=RerefCHANNEL(hdr,rr);   
-                /*TODO: optimize OnOff, do not load channels that are not needed */      
-        }
-	if (VERBOSE_LEVEL>7) 
-                fprintf(stdout,"==== hdr->Calib %p %p\n",hdr->Calib,hdr->rerefCHANNEL);
-#endif 
-        
 	/*  
 	convert2to4_event_table(hdr->EVENT);
 	convert into canonical form if needed
@@ -10038,7 +10027,6 @@ int V = VERBOSE_LEVEL;
 				data1[k2*count*hdr->SPR + k5] = NaN; 	// column-based channels 
 		}
 	}
-#ifdef WITH_REREF	
                 
 	if (hdr->Calib) 
         if (!hdr->FLAG.ROW_BASED_CHANNELS)
@@ -10083,7 +10071,7 @@ int V = VERBOSE_LEVEL;
         		hdr->data.size[1] = Y.ncol;
 
 	}
-#endif 
+
 	if (VERBOSE_LEVEL>7) 
 		fprintf(stdout,"sread - end \n");
 
@@ -10547,6 +10535,8 @@ int sclose(HDRTYPE* hdr)
 	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"sclose(121)\n"); 
 
+        if (hdr==NULL) return(0); 
+        
 	size_t k;
 	for (k=0; k<hdr->NS; k++) {
 		// replace Nihon-Kohden code with standard code 
@@ -10702,7 +10692,7 @@ HDRTYPE* sload(const char* FileName, size_t ChanList[], biosig_data_type** DATA)
 	size_t k,NS;
 	int status;
 	HDRTYPE* hdr; 
-	hdr = sopen(FileName,"r",NULL,NULL,0); 
+	hdr = sopen(FileName,"r",NULL); 
 	if ((status=serror())) {
 		destructHDR(hdr);
 		return(NULL);
@@ -10816,6 +10806,9 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			fprintf(fid,"BCI2000 [%i]\t\t: <%s...>\n",strlen(hdr->AS.bci2000),tmp); 
 		}
 		fprintf(fid,"bpb=%i\n",hdr->AS.bpb);
+		fprintf(fid,"row-based=%i\n",hdr->FLAG.ROW_BASED_CHANNELS);
+		fprintf(fid,"uncalib  =%i\n",hdr->FLAG.UCAL);
+		fprintf(fid,"OFdetect =%i\n",hdr->FLAG.OVERFLOWDETECTION);
 	}
 		
 	if (VERBOSE>1) {
