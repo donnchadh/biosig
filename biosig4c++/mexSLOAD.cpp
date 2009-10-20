@@ -23,11 +23,12 @@
     typedef int mwSize;
   #endif 
 #endif 
-typedef long Int;
+
+typedef mwSize Int;
 #define TRUE (1)
 
-#ifdef WITH_REREF
 #include <suitesparse/cholmod.h>
+#ifdef CHOLMOD_H
 //#include "cholmod/matlab/cholmod_matlab.h"
 /*
 The function sputil_get_sparse and its license was downloaded on Oct 16, 2009 from 
@@ -152,7 +153,7 @@ cholmod_sparse *sputil_get_sparse
 void sopen_pdp_read(HDRTYPE *hdr);
 #endif
 
-//#define VERBOSE_LEVEL  9 
+#define VERBOSE_LEVEL  0 
 //EXTERN_C int VERBOSE_LEVEL;
 //#define DEBUG
 
@@ -177,7 +178,7 @@ void mexFunction(
 	int		TARGETSEGMENT = 1; 
 	double		*ChanList=NULL;
 	int		NS = -1;
-	char		FlagOverflowDetection=1, FlagUCAL=0;
+	char		FlagOverflowDetection = 1, FlagUCAL = 0;
 #ifdef CHOLMOD_H
 	cholmod_sparse RR,*rr=NULL;
 	double dummy;
@@ -238,7 +239,7 @@ void mexFunction(
 			if (k==0)			
 				FileName = mxArrayToString(mxGetField(prhs[k],0,"FileName"));
 		}
-#ifdef WITH_REREF
+#ifdef CHOLMOD_H
 		else if (mxIsSparse(arg) && (k==1)) {
 			rr = sputil_get_sparse(arg,&RR,&dummy,0);
 		}
@@ -518,9 +519,17 @@ void mexFunction(
 		const char* field3[] = {"UCAL","OVERFLOWDETECTION","ROW_BASED_CHANNELS",NULL};
 		for (numfields=0; field3[numfields++] != 0; );
 		Flag = mxCreateStructMatrix(1, 1, --numfields, field3);
-		mxSetField(Flag,0,"UCAL",mxCreateDoubleScalar((double)hdr->FLAG.UCAL));
-		mxSetField(Flag,0,"OVERFLOWDETECTION",mxCreateDoubleScalar((double)hdr->FLAG.OVERFLOWDETECTION));
-		mxSetField(Flag,0,"ROW_BASED_CHANNELS",mxCreateLogicalScalar(hdr->FLAG.ROW_BASED_CHANNELS));
+#ifdef MX_API_VER
+                // Matlab 
+       		mxSetField(Flag,0,"UCAL",mxCreateLogicalScalar(hdr->FLAG.UCAL));
+        	mxSetField(Flag,0,"OVERFLOWDETECTION",mxCreateLogicalScalar(hdr->FLAG.OVERFLOWDETECTION));
+        	mxSetField(Flag,0,"ROW_BASED_CHANNELS",mxCreateLogicalScalar(hdr->FLAG.ROW_BASED_CHANNELS));
+#else 
+                // mxCreateLogicalScalar are not included in Octave 3.0 
+	        mxSetField(Flag,0,"UCAL",mxCreateDoubleScalar(hdr->FLAG.UCAL));
+       		mxSetField(Flag,0,"OVERFLOWDETECTION",mxCreateDoubleScalar(hdr->FLAG.OVERFLOWDETECTION));
+       		mxSetField(Flag,0,"ROW_BASED_CHANNELS",mxCreateDoubleScalar(hdr->FLAG.ROW_BASED_CHANNELS));
+#endif
 		mxSetField(HDR,0,"FLAG",Flag);
 
 		/* Filter */ 
