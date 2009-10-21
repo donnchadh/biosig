@@ -1677,8 +1677,10 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->AS.flag_collapsed_rawdata = 0;	// is rawdata not collapsed 
 	hdr->AS.first = 0;
 	hdr->AS.length  = 0;  // no data loaded 
+#ifdef CHOLMOD_H
 	hdr->Calib = NULL; 
         hdr->rerefCHANNEL = NULL;
+#endif 
 
       	hdr->NRec = 0; 
       	hdr->NS = NS;	
@@ -3182,12 +3184,13 @@ int NumberOfChannels(HDRTYPE *hdr)
         for (k=0, NS=0; k<hdr->NS; k++) 
                 if (hdr->CHANNEL[k].OnOff) NS++; 
 
+#ifdef CHOLMOD_H
         if (hdr->Calib == NULL) 
                 return (NS); 
         
         if (NS==hdr->Calib->nrow) 
                 return (hdr->Calib->ncol);
-                
+#endif                
         return(hdr->NS);                                               
 } 
 
@@ -9622,7 +9625,11 @@ int V = VERBOSE_LEVEL;
 		fprintf(stdout,"SREAD: count=%i pos=[%i,%i,%i,%i], size of data = %ix%ix%ix%i = %i\n",(int)count,(int)start,(int)length,(int)POS,hdr->FILE.POS,(int)hdr->SPR, (int)count, (int)NS, sizeof(biosig_data_type), (int)(hdr->SPR * count * NS * sizeof(biosig_data_type)));
 
 	// transfer RAW into BIOSIG data format 
-	if ((data==NULL) || hdr->Calib) {
+	if ((data==NULL) 
+#ifdef CHOLMOD_H
+	   || hdr->Calib
+#endif
+	   ) {
 		// local data memory required
 		data1 = (biosig_data_type*) realloc(hdr->data.block, hdr->SPR * count * NS * sizeof(biosig_data_type));
 		hdr->data.block = data1; 
@@ -10459,7 +10466,8 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		// for SCP: writing to file is done in SCLOSE	
 		count = ifwrite((uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb, hdr->NRec, hdr);
 	}	
-	else { 	// SCP_ECG, HL7aECG
+	else { 	// SCP_ECG, HL7aECG#ifdef CHOLMOD_H
+
 		count = 1; 	
 	}
 	
@@ -10831,14 +10839,18 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		fprintf(fid,"\n[CHANNEL HEADER]");
 		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tSPR\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin HighPass LowPass Notch X Y Z");
 		size_t k;
-                uint16_t NS = hdr->NS; 
+#ifdef CHOLMOD_H
+                int NS = hdr->NS; 
                 if (hdr->Calib) NS += hdr->Calib->ncol; 		
-		
 		for (k=0; k<NS; k++) {
 		        if (k<hdr->NS) 
         			cp = hdr->CHANNEL+k;
         		else 
         			cp = hdr->rerefCHANNEL + k - hdr->NS;
+#else 
+		for (k=0; k<hdr->NS; k++) {
+       			cp = hdr->CHANNEL+k;
+#endif 
         			 
 			char p[MAX_LENGTH_PHYSDIM+1];
 
