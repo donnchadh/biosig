@@ -14,7 +14,7 @@ MEX	      = mex   # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex
 octVER	      = # default
 OCT	      =	mkoctfile$(octVER)
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB  -D=__4HAERTEL__  -D=WITH_FAMOS #-D=WITH_FEF  -D=WITH_DICOM -D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = -D=WITH_ZLIB -D=WITH_CHOLMOD -D=__4HAERTEL__ # -D=WITH_FAMOS -D=WITH_FEF -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
@@ -28,8 +28,8 @@ INCPATH       = -I /usr/local/include/gdcm-2.0/
 LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        = -L /usr/local/lib/
-LIBS          = -lz  -lbiosig  	# dynamic
-LIBS          = libbiosig.a -lz #t240/libfef.a -lgdcmDSED -lgsl -lgslcblas -lm	# static
+#LIBS          = -lz  -lbiosig  	# dynamic
+LIBS          = libbiosig.a -lz -lcholmod t240/libfef.a #-lgdcmDSED -lgsl -lgslcblas -lm	# static
 #LIBS         = libbiosig.a -lws2_32 win32/zlib/lib/zdll.lib	# static, for windows 
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
@@ -43,7 +43,7 @@ MinGWCC      = i586-mingw32msvc-gcc
 MinGWCXX     = i586-mingw32msvc-g++ 
 MinGWCFLAGS  = -shared -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL
 #MinGWLIBS   = win32/libbiosig.a win32/libfef.a win32/zlib/lib/zdll.lib -lws2_32  # static
-MinGWLIBS   = win32/libbiosig.a win32/zlib/lib/zdll.lib -lws2_32  # static
+MinGWLIBS   = win32/libbiosig.a win32/zlib/lib/zdll.lib -lws2_32 -lcholmod # static
 #MinGWLIBS    = -Lwin32 -l biosig -l zlib1 -lws2_32  # static
 MinGWLINK    = i586-mingw32msvc-g++
 
@@ -356,27 +356,27 @@ mex4m: mexSLOAD.mexa64 mexSOPEN.mexa64
 mexSLOAD: mexSLOAD.mexa64
 mexSOPEN: mexSOPEN.mexa64
 mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.a
-	$(MEX) mexSLOAD.cpp  $(LIBS) 
+	$(MEX) $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LIBS) 
 #	$(COPY) mexSLOAD.mexa64 ../biosig/t200/
 mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.a
-	$(MEX) -DmexSOPEN mexSLOAD.cpp  $(LIBS) -output mexSOPEN
+	$(MEX) -DmexSOPEN $(DEFINES) mexSLOAD.cpp $(LIBS) -output mexSOPEN
 #	$(COPY) mexSOPEN.mexa64 ../biosig/t200/
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex 
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
-	$(OCT) -v -g --mex mexSLOAD.cpp  $(LIBS) 
-#	$(COPY) mexSLOAD.mex ../biosig/t200/
+	$(OCT)  $(DEFINES) -v -g --mex mexSLOAD.cpp $(LIBS) 
+	$(COPY) mexSLOAD.mex ../biosig/t200/
 mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a 
-	$(OCT) -D=mexSOPEN -v -g --mex mexSLOAD.cpp  $(LIBS) -o mexSOPEN.mex 
-#	$(COPY) mexSOPEN.mex ../biosig/t200/
+	$(OCT) -D=mexSOPEN $(DEFINES) -v -g --mex mexSLOAD.cpp $(LIBS) -o mexSOPEN.mex 
+	$(COPY) mexSOPEN.mex ../biosig/t200/
 #physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
 #	$(OCT) -v -g --mex physicalunits.cpp  $(LIBS) 
 
 oct:  mexSLOAD.oct
 mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
-	$(OCT) mexSLOAD.cpp $(LFLAGS) $(LIBS) 
-	$(OCT) -D=mexSOPEN mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.oct 
+	$(OCT)  $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) 
+	$(OCT) -D=mexSOPEN $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.oct 
 	$(COPY) mexSOPEN.oct ../biosig/t200/
 	$(COPY) mexSOPEN.oct ../biosig/t200/
 

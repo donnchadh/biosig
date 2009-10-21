@@ -10033,6 +10033,7 @@ int V = VERBOSE_LEVEL;
 		}
 	}
                 
+#ifdef CHOLMOD_H
 	if (hdr->Calib) 
         if (!hdr->FLAG.ROW_BASED_CHANNELS)
                 fprintf(stderr,"Error SREAD: Re-Referencing on column-based data not supported."); 
@@ -10076,6 +10077,7 @@ int V = VERBOSE_LEVEL;
         		hdr->data.size[1] = Y.ncol;
 
 	}
+#endif 
 
 	if (VERBOSE_LEVEL>7) 
 		fprintf(stdout,"sread - end \n");
@@ -10829,8 +10831,15 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		fprintf(fid,"\n[CHANNEL HEADER]");
 		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tSPR\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin HighPass LowPass Notch X Y Z");
 		size_t k;
-		for (k=0; k<hdr->NS; k++) {
-			cp = hdr->CHANNEL+k; 
+                uint16_t NS = hdr->NS; 
+                if (hdr->Calib) NS += hdr->Calib->ncol; 		
+		
+		for (k=0; k<NS; k++) {
+		        if (k<hdr->NS) 
+        			cp = hdr->CHANNEL+k;
+        		else 
+        			cp = hdr->rerefCHANNEL + k - hdr->NS;
+        			 
 			char p[MAX_LENGTH_PHYSDIM+1];
 
 			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, p);

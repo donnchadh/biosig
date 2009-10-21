@@ -27,7 +27,6 @@
 typedef mwSize Int;
 #define TRUE (1)
 
-#include <suitesparse/cholmod.h>
 #ifdef CHOLMOD_H
 //#include "cholmod/matlab/cholmod_matlab.h"
 /*
@@ -282,7 +281,11 @@ void mexFunction(
 	hdr = constructHDR(0,0);
 	hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
 	hdr->FLAG.UCAL = FlagUCAL;
+#ifdef CHOLMOD_H
 	hdr->FLAG.ROW_BASED_CHANNELS = (rr!=NULL); 
+#else 	
+	hdr->FLAG.ROW_BASED_CHANNELS = 0; 
+#endif 
 	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
 
 	if (VERBOSE_LEVEL>8) 
@@ -295,7 +298,9 @@ void mexFunction(
 		sopen_pdp_read(hdr);
 	}	
 #endif
+#ifdef CHOLMOD_H
 	RerefCHANNEL(hdr,rr,2);
+#endif
 
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[102]\n");
@@ -343,14 +348,17 @@ void mexFunction(
 	if (hdr==NULL) return;
 
 	if (VERBOSE_LEVEL>8) 
-		fprintf(stderr,"[112] SOPEN-R finished NS=%i %i %p\n",hdr->NS,NS,hdr->Calib);
+		fprintf(stderr,"[112] SOPEN-R finished NS=%i %i\n",hdr->NS,NS);
 
 	convert2to4_eventtable(hdr); 
 		
+#ifdef CHOLMOD_H
 	if (hdr->Calib != NULL) {
 		NS = hdr->Calib->ncol;
 	}
-	else if ((NS<0) || ((NS==1) && (ChanList[0] == 0.0))) { 	// all channels
+	else 
+#endif
+	if ((NS<0) || ((NS==1) && (ChanList[0] == 0.0))) { 	// all channels
 		for (k=0, NS=0; k<hdr->NS; ++k) {
 			if (hdr->CHANNEL[k].OnOff) NS++; 
 		}	
@@ -379,6 +387,7 @@ void mexFunction(
 	hdr->NRec = count; 
 #endif
 	sclose(hdr);
+#ifdef CHOLMOD_H
         if (hdr->Calib && hdr->rerefCHANNEL) {
 		hdr->NS = hdr->Calib->ncol; 
                 free(hdr->CHANNEL);
@@ -386,7 +395,7 @@ void mexFunction(
                 hdr->rerefCHANNEL = NULL; 
                 hdr->Calib = NULL; 
         }                
-
+#endif 
 	if ((status=serror())) return;  
 
 	if (VERBOSE_LEVEL>8) 
@@ -649,7 +658,9 @@ void mexFunction(
 #endif
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[151] going for SCLOSE\n");
+#ifdef CHOLMOD_H
 	hdr->Calib = NULL; // is refering to &RR, do not destroy
+#endif
 	destructHDR(hdr);
 	hdr = NULL; 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[157] SCLOSE finished\n");
