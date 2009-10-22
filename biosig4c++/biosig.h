@@ -80,12 +80,14 @@ typedef char			int8_t;
     #endif 
 #endif 
 
+#ifdef WITH_CHOLMOD
+    #include <suitesparse/cholmod.h>
+#endif
 #ifdef WITH_GSL
     #include <gsl/gsl_matrix_double.h>
-#endif 
+#endif
 #include <stdio.h>
 #include <time.h>
-#include <suitesparse/cholmod.h>
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	biosig_data_type    data type of  internal data format 
