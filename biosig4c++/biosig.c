@@ -3251,6 +3251,10 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 		if (hdr->Calib != NULL) 
                         cholmod_free_sparse(&hdr->Calib,&c);
 
+		if (VERBOSE_LEVEL>6) {
+			c.print = 5; 
+			cholmod_print_sparse(ReRef,"HDR.Calib", &c);
+		}
                 cholmod_finish (&c) ;        // stop cholmod 
 
                 hdr->Calib = ReRef;
@@ -3266,8 +3270,8 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 			double v;
 			for (j = *(int*)A->p+i; j < *(int*)A->p+i+1; j++) {
 				
-				v = *(double*)A->x+j;
-				r = *(int*)A->i+j;
+				v = *((double*)(A->x)+j);
+				r = *((int*)(A->i)+j);
 
 				if (v>m) {
 					m = v;
@@ -10473,7 +10477,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	else if ((hdr->TYPE != SCP_ECG) && (hdr->TYPE != HL7aECG)) {
 		// for SCP: writing to file is done in SCLOSE	
 		count = ifwrite((uint8_t*)(hdr->AS.rawdata), hdr->AS.bpb, hdr->NRec, hdr);
-	}	
+	}
 	else { 	// SCP_ECG, HL7aECG#ifdef CHOLMOD_H
 
 		count = 1; 	
