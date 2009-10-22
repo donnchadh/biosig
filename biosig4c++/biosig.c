@@ -3197,10 +3197,14 @@ int NumberOfChannels(HDRTYPE *hdr)
 int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode) 
 {
 #ifndef CHOLMOD_H
+                if (!arg2 || !Mode) return(0); // do nothing 
+
                 B4C_ERRNUM = B4C_REREF_FAILED;
                 B4C_ERRMSG = "Error RerefCHANNEL: cholmod library is missing";
                 return(1); 
 #else 
+                if (arg2==NULL) Mode = 0; // do nothing 
+
                 cholmod_sparse *ReRef=NULL;
 		uint16_t r;
                 uint16_t i,j,k,NS,flag;
@@ -3211,12 +3215,12 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 switch (Mode) {
                 case 1: {
                         HDRTYPE *RR = sopen((char*)arg2,"r",NULL);
-                        ReRef = RR->Calib; 
-                        RR->Calib = NULL; // do not destroy ReRef 
-                        destructHDR(RR); 
+                        ReRef       = RR->Calib; 
+                        RR->Calib   = NULL; // do not destroy ReRef 
+                        destructHDR(RR);
                         break; 
                         }
-                case 2: ReRef = (cholmod_sparse*)arg2;
+                case 2: ReRef = (cholmod_sparse*) arg2;
                         break;
                 }
 
@@ -3252,6 +3256,7 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 hdr->Calib = ReRef;
 		CHANNEL_TYPE *NEWCHANNEL = (CHANNEL_TYPE*) realloc(hdr->rerefCHANNEL, A->ncol*sizeof(CHANNEL_TYPE));
 		hdr->rerefCHANNEL = NEWCHANNEL; 
+                hdr->FLAG.ROW_BASED_CHANNELS = 1; 
                         
                 // check each component 
        		for (i=0; i<A->ncol; i++) {
@@ -10081,7 +10086,7 @@ int V = VERBOSE_LEVEL;
 			else 
 				hdr->data.block = NULL;
 					
-        		hdr->data.size[1] = Y.ncol;
+        		hdr->data.size[0] = Y.nrow;
 
 	}
 #endif 
@@ -10196,8 +10201,8 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	}
 
 
-	if (VERBOSE_LEVEL>8)
-		fprintf(stdout,"swrite 311: %i\n",hdr->NRec);
+	if (VERBOSE_LEVEL>7)
+		fprintf(stdout,"swrite 311: %li %i\n",hdr->NRec,hdr->NS);
 
 	size_t bi8 = 0; 
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
@@ -10215,7 +10220,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 
 		size_t col = (hdr->data.size[1-hdr->FLAG.ROW_BASED_CHANNELS]<hdr->NS) ? k2 : k1;        // if collapsed data, use k2, otherwise use k1
 
-	if (VERBOSE_LEVEL>8)
+	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i %i %f %f %f %f %i\n",k1,GDFTYP,bi8,SZ,CHptr->SPR,CHptr->Cal,CHptr->Off,iCal,iOff,bpb8);
 
 		for (k4 = 0; k4 < hdr->NRec; k4++) {
@@ -10224,11 +10229,13 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			if (VERBOSE_LEVEL>8)
 				fprintf(stdout,"swrite 313a #%i: [%i %i] %i %i %i %i %i\n",k1,hdr->data.size[0],hdr->data.size[1],k4,k5,hdr->SPR,DIV,nelem);
 
-			size_t k3;
+			size_t k3=0;
+			if (VERBOSE_LEVEL>7)
+				fprintf(stdout,"swrite 313+: [%i %i %i %i %i] %i %i %i %i %i %i\n",k1,k2,k3,k4,k5,col,hdr->data.size[0],hdr->data.size[1],hdr->SPR,nelem,hdr->NRec);
+
         		if (hdr->FLAG.ROW_BASED_CHANNELS) {
-        		        // FIXME: 
             			for (k3=0, sample_value=0.0; k3 < DIV; k3++)
-        				sample_value += data[col + (k4*hdr->SPR + k5*DIV + k3)*hdr->NS];
+        				sample_value += data[col + (k4*hdr->SPR + k5*DIV + k3)*hdr->data.size[0]];
                         }
             		else {
             			for (k3=0, sample_value=0.0; k3 < DIV; k3++)
@@ -10387,16 +10394,17 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				B4C_ERRMSG = "SWRITE: datatype not supported";
 				exit(-1);
 			}
-		}
-		k2++; 
-		}
-		}
+		}        // end for k5
+		}        // end for k4
+		}        // end if SPR
+		k2++;
 		bi8 += SZ*CHptr->SPR;
-	}
-	}	
+	}       // end if OnOff
+	}	// end for k1
 
-		if (VERBOSE_LEVEL>8)
-			fprintf(stdout,"swrite 313\n");
+	if (VERBOSE_LEVEL>8)
+		fprintf(stdout,"swrite 313\n");
+
 #ifndef WITHOUT_NETWORK
 	if (hdr->FILE.Des>0) {
 
