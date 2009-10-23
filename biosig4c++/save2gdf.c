@@ -190,7 +190,6 @@ int main(int argc, char **argv){
 	hdr = constructHDR(0,0);
 	// hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
 	hdr->FLAG.UCAL = ((TARGET_TYPE==BIN) || (TARGET_TYPE==ASCII));
-	// hdr->FLAG.ROW_BASED_CHANNELS = 0; 
 	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
 
 
@@ -202,10 +201,11 @@ int main(int argc, char **argv){
 		sopen_pdp_read(hdr);
 	}	
 #endif
+#ifdef CHOLMOD_H
+        if (RerefCHANNEL(hdr,rrFile,1))
+                fprintf(stdout,"error: option %s not supported (link with -lcholmod)\n",argv[k]); 
+#endif
 
-#ifdef WITH_CHOLMOD
-	RerefCHANNEL(hdr,rrFile,1); 
-#endif	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
 	if ((status=serror())) {
@@ -294,7 +294,7 @@ int main(int argc, char **argv){
 	hdr->FILE.COMPRESSION = COMPRESSION_LEVEL;
 
    /********************************* 
-   	re-referencing 
+   	re-referencing
    *********************************/
 
 #ifdef CHOLMOD_H
@@ -302,7 +302,7 @@ int main(int argc, char **argv){
 		hdr->NS = hdr->Calib->ncol; 
                 free(hdr->CHANNEL);
                 hdr->CHANNEL = hdr->rerefCHANNEL;
-                hdr->rerefCHANNEL = NULL; 
+                RerefCHANNEL(hdr,NULL,0);	// clear HDR.Calib und HDR.rerefCHANNEL
 	        if (VERBOSE_LEVEL>6) 
         	        hdr2ascii(hdr,stdout,3);
         } else                
@@ -312,24 +312,37 @@ int main(int argc, char **argv){
    	Write data 
    *********************************/
     {	
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201]\n");
+
         double PhysMaxValue0 = -INF; //hdr->data.block[0];
 	double PhysMinValue0 = +INF; //hdr->data.block[0];
-	double val; 
+	biosig_data_type val; 
 	size_t N = hdr->NRec*hdr->SPR;
 	int k2=0;
     	for (k=0; k<hdr->NS; k++)
     	if (hdr->CHANNEL[k].OnOff && hdr->CHANNEL[k].SPR) 
     	{
-		double MaxValue = hdr->data.block[k2*N];
-		double MinValue = hdr->data.block[k2*N];
-		
-		/* Maximum and Minimum for channel k */ 
-		for (k1=1; k1<N; k1++) {
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[204] #%i\n",k);
 
-			if (MaxValue < hdr->data.block[k2*N+k1])
-		 		MaxValue = hdr->data.block[k2*N+k1];
-	 		if (MinValue > hdr->data.block[k2*N+k1])
-	 			MinValue = hdr->data.block[k2*N+k1];
+		double MaxValue;
+		double MinValue;
+		if (hdr->FLAG.ROW_BASED_CHANNELS) {
+			MaxValue = hdr->data.block[k2];
+			MinValue = hdr->data.block[k2];
+			for (k1=1; k1<N; k1++) {
+				val = hdr->data.block[k2 + k1*hdr->data.size[0]];
+				if (MaxValue < val) MaxValue = val;
+	 			if (MinValue > val) MinValue = val;
+			}
+		}
+		else {
+			MaxValue = hdr->data.block[k2*N];
+			MinValue = hdr->data.block[k2*N];
+			for (k1=1; k1<N; k1++) {
+				val = hdr->data.block[k2*N + k1];
+				if (MaxValue < val) MaxValue = val;
+	 			if (MinValue > val) MinValue = val;
+			}
 		}
 
 		if (!hdr->FLAG.UCAL) {
@@ -337,11 +350,9 @@ int main(int argc, char **argv){
 			MinValue = (MinValue - hdr->CHANNEL[k].Off)/hdr->CHANNEL[k].Cal;
 		}
 		val = MaxValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
-		if (PhysMaxValue0 < val)
-			PhysMaxValue0 = val;
+		if (PhysMaxValue0 < val) PhysMaxValue0 = val;
 		val = MinValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
-		if (PhysMinValue0 > val)
-			PhysMinValue0 = val;
+		if (PhysMinValue0 > val) PhysMinValue0 = val;
 
 		if ((SOURCE_TYPE==alpha) && (hdr->CHANNEL[k].GDFTYP==(255+12)) && (TARGET_TYPE==GDF)) 
 			// 12 bit into 16 bit 
