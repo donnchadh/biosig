@@ -41,7 +41,7 @@ function [signal,H] = sload(FILENAME,varargin)
 % Reference(s):
 
 
-%	$Id: sload.m,v 1.94 2009-02-19 16:47:36 schloegl Exp $
+%	$Id$
 %	Copyright (C) 1997-2007,2008,2009 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -120,6 +120,8 @@ while (k<=length(varargin))
 	elseif strcmpi(varargin{k},'SampleRate')
 		Fs = varargin{k+1};
 		k=k+1;
+	elseif exist(varargin{k},'file') && (k==1)
+	        CHAN = varargin{k};	
 	end; 	
 	k=k+1;
 end;
@@ -279,13 +281,20 @@ FlagLoaded = 0;
 if exist('mexSLOAD','file')==3,
 	try
 		valid_rerefmx = 1;
-		if all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | any(CHAN<0) | (any(CHAN==0) & (numel(CHAN)>1));
+		if ischar(CHAN)
+		        HDR = sopen(CHAN,'r'); HDR=sclose(HDR); 
+		        if isfield(HDR.Calib),
+		                ReRefMx = HDR.Calib; 
+		        else
+        			valid_rerefmx = 0;
+		        end;         
+		elseif all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | any(CHAN<0) | (any(CHAN==0) & (numel(CHAN)>1));
 		        ReRefMx = CHAN; 
 	        	CHAN = find(any(CHAN,2));
 		elseif all(CHAN>0) & all(floor(CHAN)==CHAN), 
 			[tmp,ix]= sort(CHAN);
 		        ReRefMx = sparse(CHAN,1:length(CHAN),1);
-		else    
+		else
 		        ReRefMx = [];
 			valid_rerefmx=0;
 		end
@@ -298,7 +307,7 @@ if exist('mexSLOAD','file')==3,
 			arg1 = 'OVERFLOWDETECTION:ON';
 		else
 			arg1 = 'OVERFLOWDETECTION:OFF';
-		end			
+		end
 		if STATE.UCAL,
 			arg2 = 'UCAL:ON';
 		else
@@ -306,17 +315,19 @@ if exist('mexSLOAD','file')==3,
 		end
 		if ~valid_rerefmx,
 			[signal,HDR] = mexSLOAD(FILENAME,0,arg1,arg2);
-			FlagLoaded = isfield(HDR,'NS');
+			if isfield(HDR.FLAG,'ROW_BASED_CHANNELS') && HDR.FLAG.ROW_BASED_CHANNELS, signal = signal.'; end;
+			FlagLoaded   = isfield(HDR,'NS');
 			HDR.InChanSelect = 1:HDR.NS;
 		else
 			InChanSelect = find(any(ReRefMx,2));
 			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2);
-			FlagLoaded = isfield(HDR,'NS');
+			if isfield(HDR.FLAG,'ROW_BASED_CHANNELS') && HDR.FLAG.ROW_BASED_CHANNELS, signal = signal.'; end;
+			FlagLoaded   = isfield(HDR,'NS');
 			HDR.InChanSelect = InChanSelect(InChanSelect <= HDR.NS);
 			signal = signal*ReRefMx(HDR.InChanSelect,:); %% can be sparse if just a single channel is loaded
-			signal = full(signal); 	%% make sure signal is not sparse 
-		end; 
-		
+			signal = full(signal);  %% make sure signal is not sparse 
+		end;
+
 		HDR.T0 = datevec(HDR.T0);
 		HDR.Patient.Birthday = datevec(HDR.Patient.Birthday);
 		HDR.Calib = [HDR.Off(:)';diag(HDR.Cal)];
@@ -324,19 +335,19 @@ if exist('mexSLOAD','file')==3,
 		HDR.FileName = FILENAME;
 		HDR = leadidcodexyz(HDR);
 		HDR.EVENT.POS = HDR.EVENT.POS+1; % convert from 0-based to 1-based index
-		
+
 		H=HDR;
 		H.FLAG.EOG_CORRECTION = STATE.EOG_CORRECTION; 
 
 		if isfield(HDR,'Patient') && isfield(HDR.Patient,'Weight') && isfield(HDR.Patient,'Height')
 			%% Body Mass Index 
-       			HDR.Patient.BMI = HDR.Patient.Weight * HDR.Patient.Height^-2 * 1e4;
+			HDR.Patient.BMI = HDR.Patient.Weight * HDR.Patient.Height^-2 * 1e4;
 
 		       	%% Body Surface Area
 			% DuBois D, DuBois EF. A formula to estimate the approximate surface area if height and weight be known. Arch Intern Medicine. 1916; 17:863-71.
 			% Wang Y, Moss J, Thisted R. Predictors of body surface area. J Clin Anesth. 1992; 4(1):4-10.
 		       	HDR.Patient.BSA = 0.007184 * HDR.Patient.Weight^0.425 * HDR.Patient.Height^0.725;
-		end; 
+		end;
 
 		if strcmp(H.TYPE,'GDF');
                         % Classlabels according to 
@@ -534,9 +545,9 @@ if exist('mexSLOAD','file')==3,
        	        		%warning('bv2biosig_events not executed');
        	        	end; 
 
-		elseif strcmp(H.TYPE,'EDF');
-			if length(HDR.EVENT.TYP)==length(HDR.EVENT.Desc)
-	                        [HDR.EVENT.CodeDesc, CodeIndex, HDR.EVENT.TYP] = unique(HDR.EVENT.Desc);
+		elseif strcmp(H.TYPE,'EDF') && isfield(H.EVENT,'Desc');
+			if length(H.EVENT.TYP)==length(H.EVENT.Desc)
+	                        [H.EVENT.CodeDesc, CodeIndex, H.EVENT.TYP] = unique(H.EVENT.Desc);
 	                end;
 
 			%% end of BKR
@@ -546,7 +557,17 @@ if exist('mexSLOAD','file')==3,
 			HDR = sclose(HDR);
 			H.EVENT = HDR.EVENT;
 
+		elseif strcmp(H.TYPE,'PDP');
+			signal = repmat(NaN,max(HDR.EVENT.POS),HDR.NS); 
                 end;        
+
+		if isempty(signal);
+			signal = repmat(NaN,round(max(HDR.EVENT.POS)*HDR.SampleRate/HDR.EVENT.SampleRate),HDR.NS); 
+                end;        
+		for k = 1:HDR.NS, 
+			ix = find(HDR.EVENT.CHN==k);
+			signal(round(HDR.EVENT.POS(ix)*HDR.SampleRate/HDR.EVENT.SampleRate),k)=HDR.EVENT.DUR(ix);
+		end;
 
 	        H.CHANTYP = repmat(' ',1,H.NS);
 		for k=1:H.NS,
@@ -644,10 +665,9 @@ if 0, ~isnan(H.NS),
 	H.Calib = H.Calib([1;1+H.InChanSelect(:)],:);
 end
 	
-
 if 0,
         
-elseif isfield(H,'data') && all(diag(H.Calib(2:end,1:end))==1)
+elseif isfield(H,'data') && all(diag(H.Calib(2:end,1:end))==1) && ~H.FLAG.OVERFLOWDETECTION,
 	% only a single copy of the data
 	% important for large data sets, close to the available memory 
 	signal = H.data; 
