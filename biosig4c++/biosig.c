@@ -3206,8 +3206,9 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 if (arg2==NULL) Mode = 0; // do nothing 
 
                 cholmod_sparse *ReRef=NULL;
-		uint16_t r;
-                uint16_t i,j,k,NS,flag;
+		uint16_t flag,NS;
+                size_t i,j,k;
+                long r; 
                 
                 cholmod_common c ;
                 cholmod_start (&c) ; /* start CHOLMOD */
@@ -3263,15 +3264,16 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 hdr->FLAG.ROW_BASED_CHANNELS = 1; 
                         
                 // check each component 
-       		for (i=0; i<A->ncol; i++) {
+       		for (i=0; i<A->ncol; i++)         // i .. column index 
+       		{
 			flag = 0;
 			int mix = -1, oix = -1, pix = -1;
 			double m  = 0.0;
 			double v;
-			for (j = *(int*)A->p+i; j < *(int*)A->p+i+1; j++) {
+			for (j = *(((int*)A->p)+i); j < *(((int*)A->p)+i+1); j++) {
 				
-				v = *((double*)(A->x)+j);
-				r = *((int*)(A->i)+j);
+				v = *(((double*)A->x)+j);
+				r = *(((int*)A->i)+j);        // r .. row index 
 
 				if (v>m) {
 					m = v;
@@ -3285,24 +3287,25 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 				}
 				if (v) {
 					if (pix == -1) {
-                				memcpy(NEWCHANNEL+i, hdr->CHANNEL+j, sizeof(CHANNEL_TYPE));
+                				memcpy(NEWCHANNEL+i, hdr->CHANNEL+r, sizeof(CHANNEL_TYPE));
 						pix = 0; 
 					}
 					else {
-					        if (NEWCHANNEL[i].PhysDimCode != hdr->CHANNEL[j].PhysDimCode)
+					        if (NEWCHANNEL[i].PhysDimCode != hdr->CHANNEL[r].PhysDimCode)
 					                NEWCHANNEL[i].PhysDimCode = 0; 
-					        if (NEWCHANNEL[i].LowPass != hdr->CHANNEL[j].LowPass)
+					        if (NEWCHANNEL[i].LowPass != hdr->CHANNEL[r].LowPass)
 					                NEWCHANNEL[i].LowPass = NaN; 
-					        if (NEWCHANNEL[i].HighPass != hdr->CHANNEL[j].HighPass)
+					        if (NEWCHANNEL[i].HighPass != hdr->CHANNEL[r].HighPass)
 					                NEWCHANNEL[i].HighPass = NaN; 
-					        if (NEWCHANNEL[i].Notch != hdr->CHANNEL[j].Notch)
+					        if (NEWCHANNEL[i].Notch != hdr->CHANNEL[r].Notch)
 					                NEWCHANNEL[i].Notch = NaN; 
-					        if (NEWCHANNEL[i].SPR != hdr->CHANNEL[j].SPR)
-					                NEWCHANNEL[i].SPR = lcm(NEWCHANNEL[i].SPR, hdr->CHANNEL[j].SPR);
-					        if (NEWCHANNEL[i].GDFTYP != hdr->CHANNEL[j].GDFTYP)
-					                NEWCHANNEL[i].GDFTYP = max(NEWCHANNEL[i].GDFTYP, hdr->CHANNEL[j].GDFTYP);
 
-				                NEWCHANNEL[i].Impedance += fabs(v)*NEWCHANNEL[j].Impedance;
+					        if (NEWCHANNEL[i].SPR != hdr->CHANNEL[r].SPR)
+					                NEWCHANNEL[i].SPR = lcm(NEWCHANNEL[i].SPR, hdr->CHANNEL[r].SPR);
+					        if (NEWCHANNEL[i].GDFTYP != hdr->CHANNEL[r].GDFTYP)
+					                NEWCHANNEL[i].GDFTYP = max(NEWCHANNEL[i].GDFTYP, hdr->CHANNEL[r].GDFTYP);
+
+				                NEWCHANNEL[i].Impedance += fabs(v)*NEWCHANNEL[r].Impedance;
 				                NEWCHANNEL[i].GDFTYP = 16;
 					}
 				}
@@ -3312,13 +3315,13 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 				}
 			}
 
-			if (oix>-1) j=oix;        // use the info from channel with a scaling of 1.0 ; 
-			else if (mix>-1) j=mix;   // use the info from channel with the largest scale;
-			else j = -1;
+			if (oix>-1) r=oix;        // use the info from channel with a scaling of 1.0 ; 
+			else if (mix>-1) r=mix;   // use the info from channel with the largest scale;
+			else r = -1;
 
-			if (!flag && (j<hdr->NS) && (j>=0)) {
+			if (!flag && (r<hdr->NS) && (r>=0)) {
 			        // if successful 
-			        memcpy(NEWCHANNEL[i].Label, hdr->CHANNEL[j].Label, MAX_LENGTH_LABEL); 
+			        memcpy(NEWCHANNEL[i].Label, hdr->CHANNEL[r].Label, MAX_LENGTH_LABEL); 
 				NEWCHANNEL[i].GDFTYP = 16; // float
                         }
 			else {

@@ -203,6 +203,9 @@ int main(int argc, char **argv){
 	}	
 #endif
 
+#ifdef WITH_CHOLMOD
+	RerefCHANNEL(hdr,rrFile,1); 
+#endif	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
 	if ((status=serror())) {
