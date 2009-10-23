@@ -18,8 +18,9 @@ function [HDR,H1,h2] = sopen(arg1,PERMISSION,CHAN,MODE,arg5,arg6)
 %       'wz'    on-the-fly compression to gzipped files (only supported with Octave 2.9.3 or higher). 
 %
 % CHAN defines a list of selected Channels
-%   	Alternative CHAN can be also a Re-Referencing Matrix ReRefMx
-%       	(i.e. a spatial filter). 
+%   	Alternative CHAN can be also a Re-Referencing Matrix ReRefMx, 
+%       	(i.e. a spatial filter) in form of a matrix or a 
+%               filename of a MarketMatrix format  
 %   	E.g. the following command returns the difference and 
 %   	    the mean of the first two channels. 
 %   	HDR = sopen(Filename, 'r', [[1;-1],[.5,5]]);
@@ -118,6 +119,10 @@ if iscell(CHAN),
 	LABELS = CHAN; 
 	CHAN = 0; 
 	ReRefMx = []; 
+elseif ischar(CHAN)
+        H2 = sopen(CHAN,'r'); H2=sclose(H2); 
+        ReRefMx = H2.Calib;
+        CHAN = find(any(CHAN,2));
 elseif all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | any(CHAN<0) | (any(CHAN==0) & (numel(CHAN)>1));
         ReRefMx = CHAN; 
         CHAN = find(any(CHAN,2));
@@ -155,7 +160,9 @@ elseif any(HDR.FILE.PERMISSION=='w'),
 	HDR.ERROR.status  = 0; 
 	HDR.ERROR.message = '';
 	
-	HDR = physicalunits(HDR); 
+	if isfield(HDR,'NS') && (HDR.NS>0), 
+	        HDR = physicalunits(HDR); 
+	end;         
 end;
 
 %% Initialization
@@ -2816,6 +2823,14 @@ elseif strcmp(HDR.TYPE,'LEXICORE'),
 	HDR.EVENT.POS = [];
 
         
+elseif strcmp(HDR.TYPE,'MicroMed TRC'),
+	% MicroMed Srl, *.TRC format 
+        HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
+        HDR.dat = fread(HDR.FILE.FID,[1,inf],'*uint8'); 
+        HDR.Patient.Name = char(HDR.dat(192+[1:42]));
+        fclose(HDR.FILE.FID); 
+
+        
 elseif strncmp(HDR.TYPE,'NXA',3),
 	% Nexstim TMS-compatible EEG system called eXimia
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
@@ -3291,6 +3306,45 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
 	Cal  = Sens(x(1:HDR.NS,:)+1)'/4;
 	HDR.data  = HDR.data.*Cal(ceil((1:HDR.SampleRate*HDR.NRec*HDR.Dur)/HDR.SampleRate),:);
 	HDR.PhysDim = 'uV';
+
+                
+elseif strcmp(HDR.TYPE,'MatrixMarket'),
+        if (HDR.FILE.PERMISSION=='r')
+                fid = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
+                k = 0; 
+                while ~feof(fid);
+                        line = fgetl(fid);
+                        if isempty(line)
+                                ;
+                        elseif line(1)=='%'
+                                ;
+                        else 
+                                [n,v,sa]=str2double(line);
+                                k = k+1; 
+                                if (k==1)
+                                        HDR.Calib = sparse([],[],[],n(1),n(2),n(3));
+                                else 
+                                        HDR.Calib(n(1),n(2))=n(3);                                                  
+                                end;                 
+                        end;
+                end;                                 
+                fclose(fid); 
+                HDR.FILE.FID = fid; 
+
+        elseif (HDR.FILE.PERMISSION=='w')        
+                fid = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
+
+                [I,J,V] = find(HDR.Calib); 
+                fprintf(fid,'%%%%MatrixMarket matrix coordinate real general\n');
+                fprintf(fid,'%% generated on %04i-%02i-%02i %02i:%02i:%02.0f\n',clock);
+                fprintf(fid,'%% Spatial Filter for EEG/BioSig data\n');
+                fprintf(fid,'%i %i %i\n',size(HDR.Calib),length(V));
+                for k = 1:length(V),
+                        fprintf(fid,'%2i %2i %f\n',I(k),J(k),V(k));
+                end;
+                fclose(fid);        
+
+        end;
 
                 
 elseif strcmp(HDR.TYPE,'MFER'),
@@ -6596,7 +6650,16 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.data = [x{:,4}]';
                         HDR.NS   = size(HDR.data,2); 
                         HDR.Calib= sparse(2:8,1:7,1);
+                        HDR.Cal  = ones(HDR.NS,1); 
+                        HDR.Off  = zeros(HDR.NS,1); 
+                        HDR.PhysDimCode = zeros(HDR.NS,1); 
                         HDR.TYPE = 'native'; 
+                        HDR.THRESHOLD = [-31.4802   28.8094;  -29.1794   31.8082;  -25.9697   31.4411;  -44.8894   29.2010;  -31.6907   35.1667;  -29.9277   32.6030; -336.5146  261.8502];
+                        if HDR.FLAG.OVERFLOWDETECTION
+                                for k=1:HDR.NS,
+                                        HDR.data((HDR.data(:,k)<=HDR.THRESHOLD(k,1)) | (HDR.data(:,k)>=HDR.THRESHOLD(k,2)),k)=NaN;
+                                end;
+                        end;                         
                         
                 else        	% Mueller, Scherer ? 
                         HDR.NS = size(tmp.data,2);
@@ -10134,7 +10197,7 @@ if isfield(HDR,'Patient') && isfield(HDR.Patient,'Weight') && isfield(HDR.Patien
 end; 
 
 % check consistency
-if HDR.FLAG.OVERFLOWDETECTION & ~isfield(HDR,'THRESHOLD') & ~strcmp(HDR.TYPE,'EVENT'),
+if (HDR.NS>0) && HDR.FLAG.OVERFLOWDETECTION && ~isfield(HDR,'THRESHOLD') && ~strcmp(HDR.TYPE,'EVENT'),
         fprintf(HDR.FILE.stderr,'Warning SOPEN: Automated OVERFLOWDETECTION not supported - check yourself for saturation artifacts.\n');
 end;
 

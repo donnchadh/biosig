@@ -1,4 +1,4 @@
-function [lap, plot_index, n_rows, n_cols] = getMontage(montage)
+function [lap, plot_index, n_rows, n_cols] = getMontage(montage,outfile)
 % Calculates spatial filter matrix for Laplacian derivations.
 % 
 % Returns a spatial filter matrix used to calculate Laplacian derivations as
@@ -8,6 +8,7 @@ function [lap, plot_index, n_rows, n_cols] = getMontage(montage)
 %
 % Usage:
 %   [lap, plot_index, n_rows, n_cols] = getMontage(montage);
+%   [...] = getMontage(montage,rrfile);
 %
 % Input parameters:
 %   montage ... Matrix containing the topographical layout of the channels. The
@@ -24,6 +25,13 @@ function [lap, plot_index, n_rows, n_cols] = getMontage(montage)
 %                              1 1 1; ...
 %                              0 1 0];
 %               (3) montage = '16ch';
+%   rrfile ...  name of generated rereferencing file defining the spatial filter 
+%               MatrixMarket file format is used. If the extension is empty, 
+%               '.mtx' is added to the filename
+%               This file can be used eventually in combination with 
+%                        save2gdf -r=rrfile ... 
+%                        mexSLOAD(file,rrfile, ...  
+%                        sigviewer
 %
 % Output parameters:
 %   lap        ... Laplacian filter matrix
@@ -31,8 +39,9 @@ function [lap, plot_index, n_rows, n_cols] = getMontage(montage)
 %   n_rows     ... Number of rows of the montage
 %   n_cols     ... Number of columns of the montage
 
-% Copyright by Clemens Brunner and Robert Leeb
+% Copyright by Clemens Brunner, Robert Leeb, Alois Schlögl 
 % $Revision: 0.3 $ $Date: 10/22/2009 16:45:07 $
+% $Id$
 % E-Mail: clemens.brunner@tugraz.at
 
 % This program is free software; you can redistribute it and/or modify it
@@ -139,7 +148,7 @@ lap = zeros(size(temp,1), size(temp,2));
 % Used electrode positions instead of ones (format (1))
 positions = [];
 if sum(sum(temp)) ~= (sum(sum(temp>0)))
-    [~, positions] = sort(temp(find(temp)));
+    [tmp, positions] = sort(temp(find(temp)));
     temp = temp > 0;
 end;
 
@@ -187,3 +196,32 @@ if ~isempty(positions)
 end
 
 lap = lap';
+
+if nargin>1, 
+        [f,p,e] = fileparts(outfile);
+        if isempty(e) e='.mtx'; end; 
+        HDR.TYPE = 'MatrixMarket'; 
+        HDR.Calib = lap; 
+        HDR.FileName = fullfile(f,[p,e]);
+if 0,
+        %% brief version using sopen      
+        HDR = sopen(HDR,'w'); 
+        sclose(HDR); 
+else          
+        [I,J,V] = find(HDR.Calib); 
+        fid = fopen(HDR.FileName,'w+'); 
+        fprintf(fid,'%%%%MatrixMarket matrix coordinate real general\n');
+        fprintf(fid,'%% generated on %04i-%02i-%02i %02i:%02i:%02.0f\n',clock);
+
+        if ischar(montage) m = montage; else m = '? (user specified)'; end;  
+        fprintf(fid,'%% Spatial Laplacian Filter for Montage %s \n',m);
+        fprintf(fid,'%i %i %i\n',size(HDR.Calib),length(V));
+
+        for k = 1:length(V),
+                fprintf(fid,'%2i %2i %f\n',I(k),J(k),V(k));
+        end;
+        fclose(fid);        
+end; 
+end; 
+
+
