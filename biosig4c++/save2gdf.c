@@ -57,8 +57,10 @@ int main(int argc, char **argv){
     int		status, k; 
     int		TARGETSEGMENT=1; 	// select segment in multi-segment file format EEG1100 (Nihon Kohden)
     int 	VERBOSE	= 1; 
+#ifdef CHOLMOD_H
     cholmod_sparse *rr  = NULL; 
     char        *rrFile = NULL;
+#endif 
 	
     if (argc<2)
     	;
@@ -149,12 +151,14 @@ int main(int argc, char **argv){
 		}	
 	}
 
+#ifdef CHOLMOD_H
     	else if (!strncmp(argv[k],"-r=",3) || !strncmp(argv[k],"--ref=",6) )	{
     	        // re-referencing matrix 
     	        rrFile = strchr(argv[k],'=')+1;
     	        if (!rrFile) 
                         fprintf(stdout,"error: option %s not supported \n",argv[k]); 
 	}
+#endif
 
     	else if (!strncmp(argv[k],"-s=",3))  	{
     		TARGETSEGMENT = atoi(argv[k]+3);
@@ -198,8 +202,6 @@ int main(int argc, char **argv){
 		sopen_pdp_read(hdr);
 	}	
 #endif
-        if (RerefCHANNEL(hdr,rrFile,1))
-                fprintf(stdout,"error: option %s not supported (link with -lcholmod)\n",argv[k]); 
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
 
@@ -222,13 +224,19 @@ int main(int argc, char **argv){
     		// hdr->CHANNEL[k].OnOff = 1;	// convert all channels
     	}	
 
+#ifdef CHOLMOD_H
         int flagREREF = hdr->Calib && hdr->rerefCHANNEL;
+#else
+        int flagREREF = 0;
+#endif
 	hdr->FLAG.OVERFLOWDETECTION = 0;
 	hdr->FLAG.UCAL = !flagREREF;
 	hdr->FLAG.ROW_BASED_CHANNELS = flagREREF;
 	
+#ifdef CHOLMOD_H
 	if (VERBOSE_LEVEL>8) 
-        	fprintf(stdout,"[121] %p %p\n",hdr->Calib, hdr->rerefCHANNEL);
+        	fprintf(stdout,"[121] %p %p Flag.ReRef=%i\n",hdr->Calib, hdr->rerefCHANNEL,flagREREF);
+#endif
 
 	if (dest!=NULL)
 		count = sread(NULL, 0, hdr->NRec, hdr);
@@ -286,18 +294,21 @@ int main(int argc, char **argv){
    	re-referencing 
    *********************************/
 
+#ifdef CHOLMOD_H
         if (hdr->Calib && hdr->rerefCHANNEL) {
 		hdr->NS = hdr->Calib->ncol; 
                 free(hdr->CHANNEL);
                 hdr->CHANNEL = hdr->rerefCHANNEL;
                 hdr->rerefCHANNEL = NULL; 
-        	hdr2ascii(hdr,stdout,3);
-        }                
+	        if (VERBOSE_LEVEL>6) 
+        	        hdr2ascii(hdr,stdout,3);
+        } else                
+#endif
 
    /********************************* 
    	Write data 
    *********************************/
-    else {	
+    {	
         double PhysMaxValue0 = -INF; //hdr->data.block[0];
 	double PhysMinValue0 = +INF; //hdr->data.block[0];
 	double val; 

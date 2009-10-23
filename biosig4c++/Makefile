@@ -8,13 +8,13 @@
 ##############################################################
 
 
-CC            = gcc
-CXX           = g++
+CC            = gcc-4.1
+CXX           = g++-4.1
 MEX	      = mex   # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 octVER	      = # default
 OCT	      =	mkoctfile$(octVER)
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB -D=WITH_CHOLMOD -D=__4HAERTEL__ # -D=WITH_FAMOS -D=WITH_FEF -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = -D=WITH_ZLIB -D=WITH_CHOLMOD -D=__4HAERTEL__ -D=WITH_FAMOS #-D=WITH_FEF -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
@@ -41,9 +41,9 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 # MinGW Crosscompiler: compile on linux binaries for windows  
 MinGWCC      = i586-mingw32msvc-gcc 
 MinGWCXX     = i586-mingw32msvc-g++ 
-MinGWCFLAGS  = -shared -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL
+MinGWCFLAGS  = -shared -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL #-D=WITH_CHOLMOD
 #MinGWLIBS   = win32/libbiosig.a win32/libfef.a win32/zlib/lib/zdll.lib -lws2_32  # static
-MinGWLIBS   = win32/libbiosig.a win32/zlib/lib/zdll.lib -lws2_32 -lcholmod # static
+MinGWLIBS   = win32/libbiosig.a win32/zlib/lib/zdll.lib -lws2_32 #-lcholmod # static
 #MinGWLIBS    = -Lwin32 -l biosig -l zlib1 -lws2_32  # static
 MinGWLINK    = i586-mingw32msvc-g++
 
@@ -387,7 +387,7 @@ sigviewer: ../sigviewer/bin/sigviewer
 	$(COPY) -lf biosig.h ../sigviewer/extern/
 	$(COPY) -lf libbiosig.a ../sigviewer/extern/
 #	$(COPY) -lf t240/libfef.a ../sigviewer/extern/
-	touch ../sigviewer/tmp/basic_header.o
+#	touch ../sigviewer/tmp/basic_header.o
 	make -C ../sigviewer/src  
 	
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
