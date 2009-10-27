@@ -13,7 +13,7 @@
 % 
 % Copyright (C) 2003,2004,2005,2006 by Alois Schloegl <a.schloegl@ieee.org>
 % WWW: http://biosig.sf.net/
-% $Id: Contents.m,v 1.1 2006-08-02 14:23:33 schloegl Exp $
+% $Id$
 % This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % LICENSE:

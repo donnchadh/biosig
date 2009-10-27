@@ -15,7 +15,7 @@ function [W,Label] = spatialfilter(arg1,Mode,s2)
 %	'CSP': Common Spatial patterns
 %	'ALL': Combination of all 
 
-%	$Id: spatialfilter.m,v 1.2 2008-09-17 11:46:51 schloegl Exp $%	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%	$Id$%	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
 %    it under the terms of the GNU General Public License as published by

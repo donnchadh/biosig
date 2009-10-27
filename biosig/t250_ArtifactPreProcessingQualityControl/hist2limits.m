@@ -15,7 +15,7 @@ function [LIM1,LIM2,LIM3,h0] = hist2limits(H,TH)
 
 
 %       $Revision: 1.1 $
-%	$Id: hist2limits.m,v 1.1 2003-10-12 22:12:41 schloegl Exp $
+%	$Id$
 %	Copyright (C) 1999-2003 by Alois Schloegl <a.schloegl@ieee.org>
 
 % This program is free software; you can redistribute it and/or

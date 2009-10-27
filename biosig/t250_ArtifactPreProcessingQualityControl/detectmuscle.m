@@ -2,7 +2,7 @@ function [INI,S,E] = detectmuscle(S, iter, Mode)
 % Muscle detection with inverse filtering
 % Artifacts are indicated with NaN's. 
 %
-% [INI,S,E] = detectmuscle(S [, iter [,1]])% [INI,S,E] = detectmuscle(S [, Fs, Mode])  with Mode>1% [INI,S,E] = detectmuscle(S,arg2,Mode)%
+% [INI,S,E] = detectmuscle(S [, iter [,1]])% [INI,S,E] = detectmuscle(S, Fs, Mode)  with Mode>1% [INI,S,E] = detectmuscle(S, arg2, Mode)%
 % iter		number of iterations [default:1]
 % INI.MU	mean of S
 % INI.InvFilter	coefficients of inverse filter 

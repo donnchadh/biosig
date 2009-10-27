@@ -78,7 +78,7 @@ function [h0, s00] = get_regress_eog(fn,Mode)
 %	automatec correction of artifact from single-trial event-related potentials bz blind separation  using second order statistics only.
 %	Medical Engineering & Physics, 28, 780-794 (2006)
 
-%	$Id: get_regress_eog.m,v 1.8 2008-05-14 14:02:02 schloegl Exp $
+%	$Id$
 %	Copyright (C) 2006,2007 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

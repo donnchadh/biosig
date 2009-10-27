@@ -23,7 +23,7 @@ function chEOG=identify_eog_channels(fn,x);
 % 	http://dx.doi.org/10.1016/j.clinph.2006.09.003
 %       http://www.dpmi.tugraz.at/~schloegl/publications/schloegl2007eog.pdf
 
-%	$Id: identify_eog_channels.m,v 1.5 2008-09-04 07:32:18 schloegl Exp $
+%	$Id$
 %	Copyright (C) 2006,2007 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

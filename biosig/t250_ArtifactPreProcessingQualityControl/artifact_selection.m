@@ -25,7 +25,7 @@ function [HDR,A] = artifact_selection(fn,t1,t2)
 % see also: TLOAD, SLOAD, SOPEN,  
 
 %	$Revision: 1.6 $
-% 	$Id: artifact_selection.m,v 1.6 2007-06-27 14:03:34 schloegl Exp $
+% 	$Id$
 %	Copyright (c) 2004-2005,2007 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

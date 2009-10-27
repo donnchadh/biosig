@@ -12,7 +12,7 @@ function HDR = qc_histo(fn,arg2)
 %       http://dx.doi.org/10.1016/S1388-2457(99)00172-8
 
 
-%  $Id: qc_histo.m,v 1.3 2008-01-19 20:53:13 schloegl Exp $ 
+%  $Id$ 
 %  Copyright (C) 2006 by Alois Schloegl <a.schloegl@ieee.org>
 %  This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %

@@ -1,16 +1,21 @@
 function [R,S] = regress_eog(D,ny,nx)
 %  REGRESS_EOG yields the regression coefficients for 
-%  correcting EOG artifacts in EEG recordings.
+%  correcting EOG artifacts in EEG recordings as described in [1]. 
+%  Typically, EOG correction is a two-step procedure. The first step
+%  estimates the correction coefficient, the second step uses them 
+%  for data correction. 
 %  
-%  The correction of a single record is obtained like this:      
-%   [R,S2] = regress_eog(S1, EL, OL)
-%   [R,S2] = regress_eog(filename, EL, OL)
-%   [R,S2] = regress_eog(filename)
-%	OL = IDENTIFY_EOG_CHANNELS(filename)
-%	EL are all remaining channels
+%  Step 1: estimating the correction coefficients:       
+%   R = regress_eog(D, EL, OL)
+%   R = regress_eog(filename, EL, OL)
+%   R = regress_eog(filename)
+%   R = regress_eog(covm(D,'E'), EL, OL)
+%  NOTE: it is recommended that this data segments (D, filename) contain
+%  	segments with large eye movement artifacts only; other artifacts
+%	(e.g. saturation, electrode movement, muscle, etc) should be 
+%	excluded. 
 %       
-%  Corrected data is obtained through
-%   [R] = regress_eog(covm(S1,'E'), EL, OL)
+%  Step 2: Corrected data is obtained by
 %   S2 = S1 * R.r0;    % without offset correction
 %   S2 = [ones(size(S1,1),1),S1] * R.r1;    % with offset correction
 %  
@@ -23,18 +28,20 @@ function [R,S] = regress_eog(D,ny,nx)
 %          should be used for for artefact reduction (because the global EEG should remain), 
 %          One can define OL = sparse([23,24,25,26],[1,1,2,2],[1,-1,1,-1]) 
 %	   resulting in two noise channels defined as bipolar channels #23-#24 and #25-#26
+%	A heuristic to get the proper OL is provided by identify_eog_channels.m 
+%	   OL = IDENTIFY_EOG_CHANNELS(filename)
 %  R.r1, R.r0    rereferencing matrix for correcting artifacts with and without offset correction
 %  R.b0	coefficients of EOG influencing EEG channels
 %  S2   corrected EEG-signal      
 %
-% see also: IDENTIFY_EOG_CHANNELS, SLOAD
+% see also: IDENTIFY_EOG_CHANNELS, SLOAD, GET_REGRESS_EOG
 %
 % Reference(s):
 % [1] Schlogl A, Keinrath C, Zimmermann D, Scherer R, Leeb R, Pfurtscheller G. 
 %	A fully automated correction method of EOG artifacts in EEG recordings.
 %	Clin Neurophysiol. 2007 Jan;118(1):98-104. Epub 2006 Nov 7.
 % 	http://dx.doi.org/10.1016/j.clinph.2006.09.003
-%       http://www.dpmi.tugraz.at/~schloegl/publications/schloegl2007eog.pdf
+%       http://hci.tugraz.at/~schloegl/publications/schloegl2007eog.pdf
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
@@ -50,8 +57,8 @@ function [R,S] = regress_eog(D,ny,nx)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: regress_eog.m,v 1.9 2008-09-04 09:36:16 schloegl Exp $
-%	(C) 1997-2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%	$Id$
+%	(C) 1997-2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 if ischar(D),

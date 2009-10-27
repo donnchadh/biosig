@@ -9,7 +9,7 @@ function [y1]=rs(y1,T,f2)
 % Reference(s):
 
 %	$Revision: 1.2 $
-%	$Id: rs.m,v 1.2 2004-08-03 10:20:59 schloegl Exp $
+%	$Id$
 %	Copyright (C) 1997-2004 by Alois Schloegl 
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/

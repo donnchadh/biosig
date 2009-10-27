@@ -39,7 +39,7 @@ function [R]=hist2res(H,fun)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: hist2res.m,v 1.4 2007-02-06 09:21:09 schloegl Exp $
+%	$Id$
 %	Copyright (c) 1996-2002,2006 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

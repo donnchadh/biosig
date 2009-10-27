@@ -24,7 +24,7 @@ function [x,sz] = trigg(s,TRIG,pre,post,gap)
 %
 % see also: GETTRIGGER
 
-% 	$Id: trigg.m,v 1.6 2008-10-24 11:37:39 schloegl Exp $
+% 	$Id$
 %	Copyright (c) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

@@ -42,7 +42,7 @@ function [S,HDR] = remove5060hz(arg1,arg2,arg3)
 % along with this program; if not, write to the Free Software
 % Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-%	$Id: remove5060hz.m,v 1.2 2006-08-02 09:54:10 schloegl Exp $
+%	$Id$
 %	(C)2006 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

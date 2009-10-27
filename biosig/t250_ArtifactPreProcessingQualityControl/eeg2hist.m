@@ -32,7 +32,7 @@ function [HDR]=eeg2hist(FILENAME,CHAN);
 % [4] A. Schlögl, Time Series Analysis toolbox for Matlab. 1996-2003
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/tsa/
 
-% 	$Id: eeg2hist.m,v 1.9 2008-11-25 10:30:46 schloegl Exp $
+% 	$Id$
 %	Copyright (C) 2002,2003,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>		
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -50,6 +50,8 @@ function [HDR]=eeg2hist(FILENAME,CHAN);
 %    along with BioSig.  If not, see <http://www.gnu.org/licenses/>.
 
 
+%%% FIXME: if there is only a single value exceeding the threshold, this is not visualized
+
 MODE=0; 
 if nargin<2, CHAN=0; end; 
 if ischar(CHAN), 
@@ -58,10 +60,11 @@ if ischar(CHAN),
 end; 
  
 
-[s,HDR]=sload(FILENAME,0,'OVERFLOWDETECTION','OFF','UCAL','ON');
-%H = histo2(s);
-
 if 1, 
+[s, HDR] = sload(FILENAME,0,'OVERFLOWDETECTION','OFF','UCAL','ON');
+H = histo2(s)
+
+else
 HDR = sopen(FILENAME,'r',CHAN,'UCAL');	% open EEG file in uncalibrated mode (no scaling of the data)
 if HDR.FILE.FID<0,
         fprintf(2,'EEG2HIST: couldnot open file %s.\n',FILENAME); 
@@ -178,13 +181,13 @@ HDR.HIS = H;
 H.N = sumskipnan(H.H);
 %H.X = [ones(size(H.X,1),1),repmat(H.X,1,length(CHAN))]*HDR.Calib; 	%int16
 
-if strcmp(HDR.TYPE,'GDF')
+if strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'alpha')
 	HDR.THRESHOLD = [HDR.DigMin(:),HDR.DigMax(:)];
 end; 
 
-if ~isfield(HDR,'THRESHOLD')
-	HDR.THRESHOLD = 1e5*ones(HDR.NS,1)./HDR.Cal(:) *[-1,1];
-end; 
+        if ~isfield(HDR,'THRESHOLD')
+	        HDR.THRESHOLD = inf*ones(HDR.NS,1)./HDR.Cal(:) *[-1,1];
+        end; 
 
         N=ceil(sqrt(size(H.H,2)));
         for K = 1:size(H.H,2);
@@ -233,8 +236,8 @@ if MODE,
 	b  = 0; 
 	K0 = 0; 
 	while (b<2),
-		[x,y,b]=ginput(1);
-		if isempty(b) break;end; 
+		[x,y,b] = ginput(1);
+		if isempty(b) break; end; 
 
 		v=axis; 
 		K = find(a==gca); 

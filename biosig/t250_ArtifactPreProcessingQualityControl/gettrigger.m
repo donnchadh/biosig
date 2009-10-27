@@ -11,7 +11,7 @@ function TRIG = gettrigger(s,TH,rfp);
 %
 % see also: TRIGG
 
-% 	$Id: gettrigger.m,v 1.4 2008-04-15 14:58:50 schloegl Exp $
+% 	$Id$
 %	Copyright (C) 2002-2003,2008 by Alois Schloegl <a.schloegl@ieee.org>		
 
 % This library is free software; you can redistribute it and/or
