@@ -2,7 +2,7 @@ function [F,G] = tdp(S,p,UC,A)
 %  TDP time-domain parameters
 %	extracts EEG features very fast (low computational efforts) 
 %     	This is function was motivated by the Hjorth and Barlow 
-%	parameters and is experimental. 
+%	parameters. 
 %           
 %  [F,G] = TDP(...)
 %  
@@ -50,9 +50,13 @@ function [F,G] = tdp(S,p,UC,A)
 % [3] Goncharova II, Barlow JS.
 %   Changes in EEG mean frequency and spectral purity during spontaneous alpha blocking.
 %   Electroencephalogr Clin Neurophysiol. 1990 Sep;76(3):197-204. 
+% [4] C. Vidaurre, N. Krämer, B. Blankertz, A. Schlögl.
+%   Time Domain Parameters as a feature for EEG-Based Brain Computer Interfaces. - in: 
+%   Neural networks 22 (2009):1313 - 1319. 
+%   http://dx.doi.org/10.1016/j.neunet.2009.07.020    
 
-% 	$Id: tdp.m,v 1.4 2008-04-02 12:55:52 schloegl Exp $
-% 	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>
+% 	$Id$
+% 	Copyright (C) 2008,2009 by Alois Schloegl <a.schloegl@ieee.org>
 % 	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
