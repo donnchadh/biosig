@@ -46,7 +46,7 @@ function [CC,KAPPA,tsd]=findclassifier(D,TRIG,cl,MODE1,t0,MODE)
 %	(Eds.) G. Dornhege, J.R. Millan, T. Hinterberger, D.J. McFarland, K.-R.Müller;
 %	Towards Brain-Computer Interfacing, MIT Press, p327-342, 2007
 
-%   $Id: findclassifier.m,v 1.14 2008-10-15 12:28:08 schloegl Exp $
+%   $Id$
 %   Copyright (C) 1999-2006 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

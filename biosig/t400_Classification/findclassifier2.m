@@ -27,7 +27,7 @@ function [CC,Q,tsd,md]=findclassifier2(D,TRIG,cl,T,t0,SWITCH)
 %	Proceedings of the 1st International IEEE EMBS Conference on Neural Engineering, Capri, Italy, Mar 20-22, 2003 
 
 
-%   $Id: findclassifier2.m,v 1.5 2006-07-12 19:48:13 schloegl Exp $
+%   $Id$
 %   Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %   This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

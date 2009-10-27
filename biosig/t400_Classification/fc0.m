@@ -21,7 +21,7 @@ function [CC,Q,tsd,md,cc]=fc0(D,TRIG,T,arg4)
 
 %
 %	$Revision: 1.1 $
-%	$Id: fc0.m,v 1.1 2004-09-02 17:12:35 schloegl Exp $
+%	$Id$
 %	Copyright (c) 1999-2002, 2004 by Alois Schloegl <a.schloegl@ieee.org>	%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 

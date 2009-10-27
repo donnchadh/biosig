@@ -28,12 +28,12 @@ function [CC] = train_lda_sparse(X,G,par,tol)
 %
 % Modified for the use with Matlab6.5 by A. Schlögl, 22.Aug.2006
 %
-%	$Id: train_lda_sparse.m,v 1.7 2007-10-11 09:39:39 schloegl Exp $
-%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%	$Id$
+%	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the  License, or (at your option) any later version.
 % 
 % This program is distributed in the hope that it will be useful,

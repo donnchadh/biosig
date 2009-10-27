@@ -1,9 +1,9 @@
-function [CC]=train_sc(D,classlabel,MODE,W)
+function [CC] = train_sc(D,classlabel,MODE,W)
 % Train a (statistical) classifier
 % 
 %  CC = train_sc(D,classlabel)
 %  CC = train_sc(D,classlabel,MODE)
-%  CC = train_sc(D,classlabel, 'REG', W)
+%  CC = train_sc(D,classlabel,MODE, W)
 %	weighting D(k,:) with weight W(k)
 %
 % CC contains the model parameters of a classifier which can be applied 
@@ -30,7 +30,7 @@ function [CC]=train_sc(D,classlabel,MODE,W)
 %		gamma = 0, lambda = 0 : MDA
 %		gamma = 0, lambda = 1 : LDA
 %		Hint: hyperparameters are used only in test_sc.m, testing different 
-%		the hyperparameters do not need repetitive calls to train_sc, 
+%		hyperparameters do not need repetitive calls to train_sc, 
 %		it is sufficient to modify CC.hyperparameters before calling test_sc. 	
 %    'GDBC'     general distance based classifier  [1]
 %    ''         statistical classifier, requires Mode argument in TEST_SC	
@@ -615,7 +615,7 @@ else          % Linear and Quadratic statistical classifiers
 	        		cov = cov + mean(diag(cov))*eye(size(cov))*MODE.hyperparameter.gamma;
         		end	
                         w = cov\(M2-M1)';
-                        w0    = -M0*w;
+                        w0= -M0*w;
                         CC.weights(:,k) = [w0; w];
                 end;
 		CC.weights = sparse(CC.weights);

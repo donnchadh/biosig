@@ -24,7 +24,7 @@ function [CC]=getclassifier(d,c, Mode)
 % http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/NaN/
 
 %	$Revision: 1.1 $
-%	$Id: getclassifier.m,v 1.1 2003-02-07 10:10:52 schloegl Exp $
+%	$Id$
 %	Copyright (C) 1999-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 

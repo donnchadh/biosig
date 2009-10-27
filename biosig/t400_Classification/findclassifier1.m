@@ -27,7 +27,7 @@ function [CC,Q,tsd,md]=findclassifier1(D,TRIG,cl,T,t0,SWITCH)
 
 
 %   Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
-%	$Id: findclassifier1.m,v 1.11 2006-07-12 19:48:13 schloegl Exp $
+%	$Id$
 
 
 % This program is free software; you can redistribute it and/or

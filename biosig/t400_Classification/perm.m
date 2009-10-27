@@ -6,7 +6,7 @@ function [perm]=perm(x1,x2)
 
 
 %	$Revision: 1.1 $
-%	$Id: perm.m,v 1.1 2004-03-30 08:45:49 schloegl Exp $
+%	$Id$
 %	Copyright (c) 1998-2003 by Alois Schloegl
 %	a.schloegl@ieee.org	
 

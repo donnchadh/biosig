@@ -40,7 +40,7 @@
 %	BioSig: A Free and Open Source Software Library for BCI Research,
 %	Computer, vol. 41, no. 10, pp. 44-50, October, 2008.
 %	
-%	$Id: Contents.m,v 1.7 2008-12-04 15:34:44 schloegl Exp $
+%	$Id$
 %	Copyright (c) 1997-2005,2006,2008 by Alois Schloegl
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

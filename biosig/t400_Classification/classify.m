@@ -23,12 +23,12 @@ function [CLASS,ERR,POSTERIOR,LOGP,COEF]=classify(sample,training,classlabel,TYP
 %       John Wiley & Sons, 2001. 
 
 %	$Id$
-%	Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	
-%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%	Copyright (C) 2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
+%	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the  License, or (at your option) any later version.
 % 
 % This program is distributed in the hope that it will be useful,

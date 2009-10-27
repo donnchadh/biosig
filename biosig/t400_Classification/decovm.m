@@ -12,11 +12,11 @@ function [mu,sd,COV,xc,M,R2]=decovm(XCN,NN)
 
 %	$Id$
 %	Copyright (c) 1999-2002,2009 by  Alois Schloegl
-%	a.schloegl@ieee.org	
+%	a.schloegl@ieee.org
 
 % This program is free software; you can redistribute it and/or
 % modify it under the terms of the GNU General Public License
-% as published by the Free Software Foundation; either version 2
+% as published by the Free Software Foundation; either version 3
 % of the  License, or (at your option) any later version.
 % 
 % This program is distributed in the hope that it will be useful,

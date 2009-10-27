@@ -12,7 +12,7 @@ function [CC]=untrain_sc(CC,classlabel,x)
 %
 % see also: TEST_SC, COVM, LDBC2, LDBC3, LDBC4, MDBC, GDBC
 
-%	$Id: untrain_sc.m,v 1.2 2005-12-16 16:59:59 schloegl Exp $
+%	$Id$
 %	Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
