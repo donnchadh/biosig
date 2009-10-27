@@ -41,96 +41,100 @@ function [lap, plot_index, n_rows, n_cols] = getMontage(montage, outfile)
 %   n_cols     ... Number of columns of the montage
 
 % Copyright by Clemens Brunner, Robert Leeb, Alois Schlögl 
-% $Revision: 0.3 $ $Date: 10/27/2009 11:41:07 $
+% $Revision: 0.31 $ $Date: 10/27/2009 11:41:07 $
 % $Id$
 % E-Mail: clemens.brunner@tugraz.at
 
-% This program is free software; you can redistribute it and/or modify it
-% under the terms of the GNU General Public License as published by the
-% Free Software Foundation; either version 2 of the License, or (at your
-% option) any later version.
+% Revision history:
+%   0.31: Cosmetic changes.
+%   0.30: Include export of re-referencing matrix (MarketMatrix).
+
+% This program is free software; you can redistribute it and/or modify it under
+% the terms of the GNU General Public License as published by the Free Software
+% Foundation; either version 2 of the License, or (at your option) any later
+% version.
 %
-% This program is distributed in the hope that it will be useful, but
-% WITHOUT ANY WARRANTY; without even the implied warranty of
-% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-% Public License for more details.
+% This program is distributed in the hope that it will be useful, but WITHOUT
+% ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+% FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 %
-% You should have received a copy of the GNU General Public License along
-% with this program; if not, write to the Free Software Foundation, Inc.,
-% 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+% You should have received a copy of the GNU General Public License along with
+% this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+% Place - Suite 330, Boston, MA  02111-1307, USA.
+
 
 if ischar(montage)  % Predefined layouts
     switch montage
         case '16ch'
             temp = [0 0 1 0 0;...
-                    0 1 1 1 0;...
-                    0 1 1 1 0;...
-                    1 1 1 1 1;...
-                    0 1 1 1 0;...
-                    0 0 1 0 0];
+                0 1 1 1 0;...
+                0 1 1 1 0;...
+                1 1 1 1 1;...
+                0 1 1 1 0;...
+                0 0 1 0 0];
             plot_index = find(temp' == 1);
             n_rows = size(temp, 1);
             n_cols = size(temp, 2);
         case '22ch'
             temp = [0 0 0 1 0 0 0;...
-                    0 1 1 1 1 1 0;...
-                    1 1 1 1 1 1 1;...
-                    0 1 1 1 1 1 0;...
-                    0 0 1 1 1 0 0;...
-                    0 0 0 1 0 0 0];
+                0 1 1 1 1 1 0;...
+                1 1 1 1 1 1 1;...
+                0 1 1 1 1 1 0;...
+                0 0 1 1 1 0 0;...
+                0 0 0 1 0 0 0];
             plot_index = find(temp' == 1);
             n_rows = size(temp, 1);
             n_cols = size(temp, 2);
         case '24ch'
             temp = [0 1 0 0 1 0 0 1 0;...
-                    1 1 1 1 1 1 1 1 1;...
-                    1 1 1 1 1 1 1 1 1;...
-                    0 1 0 0 1 0 0 1 0];
+                1 1 1 1 1 1 1 1 1;...
+                1 1 1 1 1 1 1 1 1;...
+                0 1 0 0 1 0 0 1 0];
             plot_index = find(temp' == 1);
             n_rows = size(temp, 1);
             n_cols = size(temp, 2);
         case '28ch'
             temp = [0 0 0 1 0 0 0;...
-                    0 1 1 1 1 1 0;...
-                    1 1 1 1 1 1 1;...
-                    0 1 1 1 1 1 0;...
-                    0 0 1 1 1 0 0;...
-                    0 0 0 1 0 0 0;...
-                    1 1 1 0 1 1 1];
+                0 1 1 1 1 1 0;...
+                1 1 1 1 1 1 1;...
+                0 1 1 1 1 1 0;...
+                0 0 1 1 1 0 0;...
+                0 0 0 1 0 0 0;...
+                1 1 1 0 1 1 1];
             plot_index = find(temp' == 1);
             n_rows = size(temp, 1);
             n_cols = size(temp, 2);
         case '30ch'
             temp = [0 0 0 1 1 1 0 0 0;...
-                    1 1 1 1 1 1 1 1 1;...
-                    1 1 1 1 1 1 1 1 1;...
-                    1 1 1 1 1 1 1 1 1];
+                1 1 1 1 1 1 1 1 1;...
+                1 1 1 1 1 1 1 1 1;...
+                1 1 1 1 1 1 1 1 1];
             plot_index = find(temp' == 1);
             n_rows = size(temp, 1);
             n_cols = size(temp, 2);
         case '58ch'
             temp = [0 0 1 1 1 1 1 0 0;...
-                    1 1 1 1 1 1 1 1 1;...
-                    1 1 1 1 1 1 1 1 1;...
-                    1 1 1 1 1 1 1 1 1;...
-                    1 1 1 1 1 1 1 1 1;...
-                    1 1 1 1 1 1 1 1 1;...
-                    0 0 1 1 1 1 1 0 0;...
-                    0 0 0 1 1 1 0 0 0];...
+                1 1 1 1 1 1 1 1 1;...
+                1 1 1 1 1 1 1 1 1;...
+                1 1 1 1 1 1 1 1 1;...
+                1 1 1 1 1 1 1 1 1;...
+                1 1 1 1 1 1 1 1 1;...
+                0 0 1 1 1 1 1 0 0;...
+                0 0 0 1 1 1 0 0 0];...
                 plot_index = find(temp' == 1);
             n_rows = size(temp, 1);
             n_cols = size(temp, 2);
         case '60ch'
             temp = [0 0 0 0 0 1 0 0 0 0 0;...
-                    0 0 0 0 1 1 1 0 0 0 0;...
-                    0 0 0 1 1 1 1 1 0 0 0;...
-                    0 0 1 1 1 1 1 1 1 0 0;...
-                    0 1 1 1 1 1 1 1 1 1 0;...
-                    1 1 1 1 1 1 1 1 1 1 1;...
-                    0 1 1 1 1 1 1 1 1 1 0;...
-                    0 0 1 1 1 1 1 1 1 0 0;...
-                    0 0 0 1 1 1 1 1 0 0 0;...
-                    0 0 0 0 1 1 1 0 0 0 0];
+                0 0 0 0 1 1 1 0 0 0 0;...
+                0 0 0 1 1 1 1 1 0 0 0;...
+                0 0 1 1 1 1 1 1 1 0 0;...
+                0 1 1 1 1 1 1 1 1 1 0;...
+                1 1 1 1 1 1 1 1 1 1 1;...
+                0 1 1 1 1 1 1 1 1 1 0;...
+                0 0 1 1 1 1 1 1 1 0 0;...
+                0 0 0 1 1 1 1 1 0 0 0;...
+                0 0 0 0 1 1 1 0 0 0 0];
             plot_index = find(temp' == 1);
             n_rows = size(temp, 1);
             n_cols = size(temp, 2);
@@ -146,9 +150,9 @@ counter = 1;
 temp = temp';
 lap = zeros(size(temp,1), size(temp,2));
 
-% Use electrode positions instead of ones
+% Used electrode positions instead of ones (format (1))
 positions = [];
-if sum(sum(temp)) ~= (sum(sum(temp > 0)))
+if sum(sum(temp)) ~= (sum(sum(temp>0)))
     [tmp, positions] = sort(temp(find(temp)));
     temp = temp > 0;
 end;
@@ -166,19 +170,19 @@ for (k = 1:numel(lap))
     if lap(k) ~= 0
         col = 1;
         electrode = electrode + 1;
-        if (k - size(lap, 1) > 0 && lap(k - size(lap, 1)) ~= 0)  % Top
+        if (k - size(lap, 1) > 0 && lap(k - size(lap, 1)) ~= 0)  % T
             neighbors(electrode, col) = lap(k - size(lap, 1));
             col = col + 1;
         end;
-        if (mod(k+1, size(lap, 1)) ~= 1 && k < numel(lap) && lap(k+1) ~= 0)  % Left
+        if (mod(k+1, size(lap, 1)) ~= 1 && k < numel(lap) && lap(k+1) ~= 0)  % L
             neighbors(electrode, col) = lap(k+1);
             col = col + 1;
         end;
-        if (mod(k-1, size(lap, 1)) ~= 0 && k > 1 && lap(k-1) ~= 0)  % Right
+        if (mod(k-1, size(lap, 1)) ~= 0 && k > 1 && lap(k-1) ~= 0)  % R
             neighbors(electrode, col) = lap(k-1);
             col = col + 1;
         end;
-        if (k + size(lap, 1) < numel(lap) && lap(k + size(lap, 1)) ~= 0)  % Bottom
+        if (k + size(lap, 1) < numel(lap) && lap(k + size(lap, 1)) ~= 0)  % B
             neighbors(electrode, col) = lap(k + size(lap, 1));
             col = col + 1;
         end;
@@ -198,27 +202,31 @@ end
 
 lap = lap';
 
-% Generate re-referencing matrix (MatrixMarket format)
-if nargin > 1
-    [f, p, e] = fileparts(outfile);
-    if isempty(e)
-        e = '.mtx';
-    end;
-    [I,J,V] = find(lap);
-    fid = fopen(fullfile(f, [p, e]), 'w+');
-    fprintf(fid, '%%%%MatrixMarket matrix coordinate real general\n');
-    fprintf(fid, '%% generated on %04i-%02i-%02i %02i:%02i:%02.0f\n', clock);
-    
-    if ischar(montage)
-        m = montage;
-    else
-        m = '? (user specified)';
-    end;
-    fprintf(fid, '%% Spatial Laplacian Filter for Montage %s \n', m);
-    fprintf(fid, '%i %i %i\n', size(lap), length(V));
-    
-    for k = 1:length(V),
-        fprintf(fid, '%2i %2i %f\n', I(k), J(k), V(k));
-    end;
-    fclose(fid);
-end;
+if nargin>1, 
+        [f,p,e] = fileparts(outfile);
+        if isempty(e) e='.mtx'; end; 
+        HDR.TYPE = 'MatrixMarket'; 
+        HDR.Calib = lap; 
+        HDR.FileName = fullfile(f,[p,e]);
+if 0,
+        %% brief version using sopen      
+        HDR = sopen(HDR,'w'); 
+        sclose(HDR); 
+else          
+        [I,J,V] = find(HDR.Calib); 
+        fid = fopen(HDR.FileName,'w+'); 
+        fprintf(fid,'%%%%MatrixMarket matrix coordinate real general\n');
+        fprintf(fid,'%% generated on %04i-%02i-%02i %02i:%02i:%02.0f\n',clock);
+
+        if ischar(montage) m = montage; else m = '? (user specified)'; end;  
+        fprintf(fid,'%% Spatial Laplacian Filter for Montage %s \n',m);
+        fprintf(fid,'%i %i %i\n',size(HDR.Calib),length(V));
+
+        for k = 1:length(V),
+                fprintf(fid,'%2i %2i %f\n',I(k),J(k),V(k));
+        end;
+        fclose(fid);        
+end; 
+end; 
+
+
