@@ -39,14 +39,14 @@ end;
 path([BIOSIG_HOME,'/biosig'],path);			% 
 path([BIOSIG_HOME,'/biosig/demo'],path);		% demos
 path([BIOSIG_HOME,'/biosig/doc'],path);		% docus, Eventtable etc. 
-path([BIOSIG_HOME,'/biosig/t200'],path);		% dataformat
-path([BIOSIG_HOME,'/biosig/t250'],path);		% trigger and quality control
-path([BIOSIG_HOME,'/biosig/t300'],path);		% signal processing and feature extraction
-path([BIOSIG_HOME,'/biosig/t400'],path);		% classification
-path([BIOSIG_HOME,'/biosig/t450'],path);		% statistics, false discovery rates
-path([BIOSIG_HOME,'/biosig/t490'],path);		% evaluation criteria
-path([BIOSIG_HOME,'/biosig/t500'],path);		% display and presentation
-path([BIOSIG_HOME,'/biosig/t501'],path);		% visualization ofcoupling analysis
+path([BIOSIG_HOME,'/biosig/t200_FileAccess'],path);		% dataformat
+path([BIOSIG_HOME,'/biosig/t250_ArtifactPreProcessingQualityControl'],path);		% trigger and quality control
+path([BIOSIG_HOME,'/biosig/t300_FeatureExtraction'],path);		% signal processing and feature extraction
+path([BIOSIG_HOME,'/biosig/t400_Classification'],path);		% classification
+path([BIOSIG_HOME,'/biosig/t450_MultipleTestStatistic'],path);		% statistics, false discovery rates
+path([BIOSIG_HOME,'/biosig/t490_EvaluationCriteria'],path);		% evaluation criteria
+path([BIOSIG_HOME,'/biosig/t500_Visualization'],path);		% display and presentation
+path([BIOSIG_HOME,'/biosig/t501_VisualizeCoupling'],path);		% visualization ofcoupling analysis
 
 if ~exist('OCTAVE_VERSION','builtin'),	
 	path([BIOSIG_HOME,'/biosig/viewer'],path);		% viewer

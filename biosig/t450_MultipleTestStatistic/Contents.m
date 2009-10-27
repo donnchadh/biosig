@@ -19,7 +19,7 @@
 %	J Neurosci Methods. 2004 Oct 15;139(1):111-20. 
 %
 
-%	$Id: Contents.m,v 1.2 2009-03-11 15:53:37 schloegl Exp $
+%	$Id$
 %	Copyright (C) 2006,2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %	This is part of the BIOSIG project http://biosig.sf.net/
 
