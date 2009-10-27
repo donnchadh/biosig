@@ -29,7 +29,7 @@ function [o] = bci3eval(x1,x2,DIM)
 
 
 %    $Revision: 1.3 $
-%    $Id: bci3eval.m,v 1.3 2003-05-27 14:32:43 schloegl Exp $
+%    $Id$
 %    Copyright (C) 2003 by Alois Schloegl <a.schloegl@ieee.org>	
 
 %    This program is free software; you can redistribute it and/or modify

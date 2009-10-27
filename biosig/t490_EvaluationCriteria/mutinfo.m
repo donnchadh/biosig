@@ -19,7 +19,7 @@ function [I,ERR,SNR]=mutinfo(d,c);
 % Biomedizinische Technik 47(1-2): 3-8, 2002
 
 %	$Revision: 1.2 $
-%	$Id: mutinfo.m,v 1.2 2003-06-25 16:23:33 schloegl Exp $
+%	$Id$
 %	Copyright (c) 1997-2003 by  Alois Schloegl
 %	a.schloegl@ieee.org	
 

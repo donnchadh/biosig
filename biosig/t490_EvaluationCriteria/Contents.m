@@ -24,7 +24,7 @@
 %	http://ida.first.fraunhofer.de/projects/bci/competition/results/TR_BCI2003_III.pdf
 %
 
-%	$Id: Contents.m,v 1.2 2005-06-23 16:49:26 schloegl Exp $ 
+%	$Id$ 
 %	Copyright (c) 1997-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

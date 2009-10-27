@@ -67,7 +67,7 @@ function [o] = bci4eval(tsd,TRIG,cl,pre,post,Fs)
 %	Towards Brain-Computer Interfacing, MIT Press, p327-342, 2007
 
 
-%    $Id: bci4eval.m,v 1.11 2008-10-15 12:26:49 schloegl Exp $
+%    $Id$
 %    Copyright (C) 2003,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

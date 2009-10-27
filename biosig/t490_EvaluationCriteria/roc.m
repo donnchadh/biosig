@@ -17,7 +17,7 @@ function [SEN,SPEC,d,ACC,AREA,YI,c]=roc(d,c,color);
 % Yi 	  max(SEN+SPEC-1), Youden index 
 % c	  TH(c) is the threshold that maximizes Yi 
 
-%	$Id: roc.m,v 1.4 2007-05-18 10:56:01 schloegl Exp $
+%	$Id$
 %	Copyright (c) 1997-2003,2005,2007 by  Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %

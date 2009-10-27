@@ -42,7 +42,7 @@ function [X] = criteria4asyncbci(D0, TRIG, ONTIME ,Fs)
 %
 
 
-%    $Id: criteria4asyncbci.m,v 1.9 2008-10-15 12:26:49 schloegl Exp $
+%    $Id$
 %    Copyright (C) 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %

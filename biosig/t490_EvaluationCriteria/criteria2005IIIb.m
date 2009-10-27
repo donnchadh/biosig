@@ -9,7 +9,7 @@ function [crit,t] = criteria2005IIIb(X)
 
 
 %    $Revision: 1.4 $
-%    $Id: criteria2005IIIb.m,v 1.4 2005-06-09 16:52:28 schloegl Exp $
+%    $Id$
 %    Copyright (C) 2004,2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 

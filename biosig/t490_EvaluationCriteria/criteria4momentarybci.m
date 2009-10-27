@@ -27,7 +27,7 @@ function [K1,K2,K3] = criteria4momentarybci(TO,Fs,trig,ERW)
 %	A self-paced brain–computer interface system with a low false positive rate
 %	J. Neural Eng. 5: 9–23, 2008.
 
-%    $Id: criteria4momentarybci.m,v 1.6 2008-10-17 08:28:03 schloegl Exp $
+%    $Id$
 %    Copyright (C) 2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %

@@ -17,7 +17,7 @@ function B=wolpaw_entropy(P,N)
 % 	IEEE Transactions on Rehabilitation Engineering 8(2) (Jun 2000) 164-173.
 
 
-%    $Id: wolpaw_entropy.m,v 1.1 2005-10-23 21:03:15 schloegl Exp $
+%    $Id$
 %    Copyright (C) 2003-2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
