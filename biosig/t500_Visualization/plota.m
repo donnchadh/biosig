@@ -7,7 +7,13 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 %       displays 3-D location of EEG channels described by Labels
 %
 % PLOTA(X [,Mode])
+% PLOTA(X, 'SCATTER')         Scatter plot 
+%        data is organized in columns               
+%        
+% PLOTA(X, 'BLAND-ALTMAN')    Bland-Altman plot, or mean-difference plot
+%        data is organized in columns               
 %
+% 
 % if X.TYPE=='EVENT' and X.EVENT
 % 
 %
@@ -61,7 +67,7 @@ function H=plota(X,arg2,arg3,arg4,arg5,arg6,arg7)
 
 
 %	$Id$
-%	Copyright (C) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
+%	Copyright (C) 2006,2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>
 %       This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
@@ -87,13 +93,14 @@ if nargin>1,
                 end;
                 X.datatype = upper(arg2);
                 clf;
-        elseif strcmpi(arg2,'SCATTER'),
+        elseif strcmpi(arg2,'SCATTER') || strcmpi(arg2,'BLAND-ALTMAN'),
         	tmp = X; X=[];
         	X.datatype = upper(arg2);
         	if isnumeric(tmp)
 	        	X.data  = tmp;
 	        	if nargin<3, arg3='x'; end;
 	        	plota(X,arg3);
+	        	return;
 	        end;
 	        	
         end;
@@ -216,6 +223,8 @@ elseif strcmp(X.datatype,'MVAR'),
                 end;
 
         else
+                YTICK = [];
+                YTICKLABEL = []; 
                 if 0,
 
                 elseif strcmpi(Mode,'Spectrum') || strcmpi(Mode,'logS'),
@@ -252,24 +261,41 @@ elseif strcmp(X.datatype,'MVAR'),
                         end;
                         range = [-180,180]*2;
                         range = [min(R(:)),max(R(:))];
+                        YTICK = -180:90:180;
                 elseif strcmpi(Mode,'PDC'),
                         R = PDC;
+                        YTICK = 0:.5:1;
+                        YTICKLABEL = {'0','0.5',[]}
                 elseif strcmpi(Mode,'GPDC'),
                         R = GPDC;
+                        YTICK = 0:.5:1;
+                        YTICKLABEL = {'0','0.5',[]}
                 elseif strcmpi(Mode,'Coherence') | strcmpi(Mode,'COH'),
                         R = abs(COH);
+                        YTICK = 0:.5:1;
+                        YTICKLABEL = {'0','0.5',[]}
                 elseif strcmpi(Mode,'iCOH') | strcmpi(Mode,'imagCOH'),
                         R = imag(COH);
                         range = [-1,1];
+                        YTICK = -1:.5:1;
+                        YTICKLABEL = {[],'-0.5','0','0.5',[]}
                 elseif strcmpi(Mode,'pCOH'),
                         R = abs(pCOH);
+                        YTICK = 0:.5:1;
+                        YTICKLABEL = {'0','0.5',[]}
                 elseif strcmpi(Mode,'pCOH2'),
                         R = abs(pCOH2);
+                        YTICK = 0:.5:1;
+                        YTICKLABEL = {'0','0.5',[]}
                 elseif strcmpi(Mode,'coh'),
                         R = abs(coh);
+                        YTICK = 0:.5:1;
+                        YTICKLABEL = {'0','0.5',[]}
                 elseif strcmpi(Mode,'icoh'),
                         R = imag(coh);
                         range = [-1,1];
+                        YTICK = -1:.5:1;
+                        YTICKLABEL = {'0','0.5',[]}
                 elseif strcmpi(Mode,'GGC'),
                         R = log10(GGC);
                         range = [min(R(:)),max(R(:))];
@@ -293,12 +319,20 @@ elseif strcmp(X.datatype,'MVAR'),
                         %range = [[.001,1]*max(R(:))]
                 elseif strcmpi(Mode,'PDCF'),
                         R = PDCF;
+                        YTICK = 0:.5:1;
+                        YTICKLABEL = {'0','0.5',[]}
                 elseif strcmpi(Mode,'DTF'),
                         R = DTF;
+                        YTICK = 0:.5:1;
+                        YTICKLABEL = {'0','0.5',[]}
                 elseif strcmpi(Mode,'dDTF'),
                         R = dDTF;
+                        YTICK = 0:.5:1;
+                        YTICKLABEL = {'0','0.5',[]}
                 elseif strcmpi(Mode,'ffDTF'),
                         R = ffDTF;
+                        YTICK = 0:.5:1;
+                        YTICKLABEL = {'0','0.5',[]}
                 elseif strcmpi(Mode,'dT'),
                         R = dT;
                         tmp = dT(isfinite(dT(:)));
@@ -336,16 +370,42 @@ elseif strcmp(X.datatype,'MVAR'),
                         for k2=1:K2;
                                 subplot(K1,K2,k2+(k1-1)*K1);
                                 if strcmpi(Mode,'logS') %| strcmpi(Mode,'Af'),
-                                        semilogy(f,squeeze(R(k1,k2,:)));
+                                        h=semilogy(f,squeeze(R(k1,k2,:)));
                                 else
-                                        area(f,squeeze(R(k1,k2,:)));
+                                        h=area(f,squeeze(R(k1,k2,:)));
                                 end;
                                 axis([0,max(f),range]);
+                                set(gca,'position',get(gca,'position').*[1,1,1.2,1.2]),
+                                set(gca,'box','off','fontsize',16);
+ 
+                                 if 0, 
+%                                set(gca,'xticklabelmode','manual','yticklabelmode','manual')
+
+                                if ~isempty(YTICK)
+                                        set(gca,'ytick',YTICK);
+                                end;         
+                                if ~isempty(YTICKLABEL)
+                                        set(gca,'yticklabel',YTICKLABEL);
+                                end;         
+
+                                XTICKLABEL = {'0',[],'0.2',[],'0.4',[]}; 
+                                XTICKLABEL = []; 
+                                YTICKLABEL = []; 
+                                set(gca,'xtickmode','manual','ytickmode','manual','xtick',0:.1:.5);
+                                set(gca,'xticklabelmode','manual','yticklabelmode','manual','xticklabel',XTICKLABEL);
+                                set(gca,'yticklabel',YTICKLABEL);
+                                end;         
+
                                 if k2==1;
                                         ylabel(Label{k1});
+                                else         
+                                        set(gca,'yticklabel',[])
                                 end;
                                 if k1==1;
                                         title(Label{k2});
+                                end;
+                                if k1<K1;
+                                        set(gca,'xticklabel',[])
                                 end;
                         end;
                 end;
@@ -1405,6 +1465,59 @@ elseif strcmp(X.datatype,'DBI-EPs'),
         end;
 
 
+elseif strcmpi(X.datatype,'BLAND-ALTMAN'),
+        s='x';
+
+        if nargin<2,
+
+        elseif nargin==2,
+                if length(arg2)<3,
+                        s = arg2;
+                else
+                        Labels=arg2;
+                end
+        elseif nargin>2,
+                s = arg2;
+                Labels = arg3;
+        end;
+	if ~exist('Labels','var'),
+        	Labels = cellstr(int2str([1:size(X.data,2)]'));
+        end; 	
+
+        if length(X)==1,
+                [nr,nc] = size(X.data)
+                nc=nc-1;
+                for k   = 1:nc,
+                        for l = k+1:nc+1,%[1:k-1,k+1:nc],
+                                h = subplot(nc,nc,(k-1)*nc+l-1);
+                                a = X.data(:,l)+X.data(:,k);
+                                d = X.data(:,l)-X.data(:,k);
+                                m = mean(d); sd=std(d);
+                                plot(a,d,s,[min(a),max(a)],[1;1]*[m,sd*norminv(.025)*[1,-1]],'--k');
+                                text(max(a),m+.1*sd,'Mean');
+                                
+                                text(max(a),m-.2*sd,sprintf('%5.2f',m));
+                                text(max(a),m+2*sd,'+1.96 SD');
+                                text(max(a),m+1.8*sd,sprintf('%5.2f',m+sd*norminv(.975)));
+                                text(max(a),m-1.9*sd,'-1.96 SD');
+                                text(max(a),m-2.1*sd,sprintf('%5.2f',m+sd*norminv(.025)));
+
+                                ht=title(sprintf('%s - %s',Labels{k}, Labels{l}));
+                                %ht=title(sprintf('r = %.4f %s',X.R(k,l),char('*'*(X.p(k,l)<[.05,.01,.001]))));
+                                pos=get(ht,'position');
+                                %pos(2)=max(X.data(k));
+                                %set(ht,'position',pos);
+                                % title gives the r-value, its confidence interval (see CORRCOFF for which level),
+                                %      and indicates the significance for alpha=0.05 (*), 0.01(**) and 0.001(***)
+                                if l == (k+1),
+                                        xlabel(Labels{l});
+                                        ylabel(Labels{k});
+                                end% else
+                        end;
+                end;
+        end
+
+
 elseif strcmp(X.datatype,'SCATTER'),
         s='x';
 
@@ -1420,7 +1533,7 @@ elseif strcmp(X.datatype,'SCATTER'),
                 s = arg2;
                 Labels = arg3;
         end;
-	if ~exist('Labels','var') 
+	if ~exist('Labels','var'),
         	Labels = cellstr(int2str([1:size(X.data,2)]'));
         end; 	
         if isfield(X,'Classlabel')
@@ -1433,7 +1546,7 @@ elseif strcmp(X.datatype,'SCATTER'),
                 if ~isfield(X,'R');
                         [X.R,X.p,X.CIL,X.CIU] = corrcoef(X.data,'Rank');
                 end;
-                [nr,nc] = size(X.data);
+                [nr,nc] = size(X.data)
                 nc=nc-1;
                 for k   = 1:nc,
                         for l = k+1:nc+1,%[1:k-1,k+1:nc],
@@ -1861,7 +1974,7 @@ elseif isfield(X,'TSD') && isfield(X.TSD,'datatype') && strcmp(X.TSD.datatype,'T
 		for k=1:length(f),
 			fprintf(fid,'	%s = %f\n',f{k},getfield(X.hyperparameters,f{k}));
 		end; 	
-	end; 	
+	end;
         fprintf(fid,'Error:   		%4.1f %% \n',100-X.TSD.ACC00(tix)*100);
        	fprintf(fid,'Accuracy:		%4.1f %% \nspecific Accuracy:	',X.TSD.ACC00(tix)*100);
        	[kap,sd,H,z,OA,SA,MI] = kappa(X.TSD.optCMX);

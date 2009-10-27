@@ -1,9 +1,9 @@
-function [xyz,code]=elpos3(Label);
-% ELPOS3 provides electrode positions in 3-D according to FEF 
+function [YX,code]=elpos(Label);
+% ELPOS provides electrode positions in 2-D according to [1]
 %   
-% [YX,code]=elpos3(Label);
+% [YX,code]=elpos(Label);
 %
-% see also: ELPOS
+% see also: ELPOS3
 %
 % Reference(s): 
 % [1] FEF: 
@@ -12,9 +12,8 @@ function [xyz,code]=elpos3(Label);
 %   Table A.6.3: Nomenclature and Codes for Electrode Sites 
 %   for Electroencephalography according to the International 10-20 system.
 %   CEN/TC251/PT-40 (2001)
- 
 
-%	$Id: elpos3.m,v 1.2 2007-02-03 21:33:45 schloegl Exp $
+%	$Id$
 %	Copyright (c) 1997,1998,2004,2007 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
@@ -38,34 +37,35 @@ function [xyz,code]=elpos3(Label);
 tmp = leadidcodexyz('Fp1');   % make sure BIOSIG_GLOBAL.XYZ is loaded 
 global BIOSIG_GLOBAL
 
-
 if nargin<1,
         Label='';
 end
 [nr,nc]=size(Label);
 code=zeros(nr,1);
-xyz=ones(nr,3);
-
 XYZ = BIOSIG_GLOBAL.XYZ;
+Phi   = atan(XYZ(:,1)./XYZ(:,2))*180/pi;
+Theta = acos(XYZ(:,3)./sqrt(sum(XYZ.^2,2)));
+xy  = Theta.*exp(i*angle(XYZ*[1;i;0]))*180/pi; 
 
-for k=1:nr,
-for l=1:length(BIOSIG_GLOBAL.Label),%size(Electrode.Theta,2), 
+for k=1:nr;
+for l=1:length(BIOSIG_GLOBAL.Label),
 	if strcmp(upper(deblank(Label(k,:))),upper(BIOSIG_GLOBAL.Label{l}))
 		code(k)=l;
-		xyz = BIOSIG_GLOBAL.XYZ(l,:);
 break;
-	end;
+	end;	
 end;
 end;
-
 
 K=code(code>0)';
-plot3(XYZ(:,1),XYZ(:,2),XYZ(:,3),'x',XYZ(K,1),XYZ(K,2),XYZ(K,3),'ro');
-for k=1:size(XYZ,1),
+
+T=0:.001:2*pi;
+R=180/pi*2;
+plot(real(xy),imag(xy),'x',real(xy(K)),imag(xy(K)),'ro',R*sin(T),R*cos(T),'b-',-R+R/10*sin(-T/2),10*cos(-T/2),'b-',10*sin(T/2)+R,10*cos(T/2),'b-',[-10 0 10],[R R+10 R],'b-');
+for k=1:size(XYZ,1), 
 	if all(~isnan(XYZ(k,:))),
-		text(XYZ(k,1),XYZ(k,2),XYZ(k,3),BIOSIG_GLOBAL.Label{k});
+		text(real(xy(k)),imag(xy(k)),BIOSIG_GLOBAL.Label{k});
 	end;
-end; 
-set(gca,'xtick',0,'ytick',0)
+end;
+set(gca,'xtick',0,'ytick',0,'xticklabel','','yticklabel','')
 
 
