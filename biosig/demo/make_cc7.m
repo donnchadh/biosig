@@ -2,6 +2,8 @@ function [cc3,cc0,cbp,cc4,cbp3]=make_cc7(fn,eegchan,trigchan,Fs)
 % Builds a classifier based on AAR parameters from BCI recordings. 
 %  The result includes also initial values for the next run. 
 %
+%  MAKE_CC is obsolete and will be removed in future versions. Use DEMO2 instead. 
+%
 % CC=make_cc(fn,eegchan,trigchan,Fs)
 %  
 %  e.g. 
@@ -32,10 +34,13 @@ function [cc3,cc0,cbp,cc4,cbp3]=make_cc7(fn,eegchan,trigchan,Fs)
 %   Proceedings of the 19th Annual International Conference if the IEEE Engineering in Medicine and Biology Society ,vol 19 , pp.1533-1535, 1997.
 %
 
-%	$Revision: 1.2 $
-%	$Id: make_cc7.m,v 1.2 2005-10-13 08:27:57 schloegl Exp $
+%	$Id$
 %	Copyright (C) 1999-2004 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+
+
+fprintf(1,'MAKE_CC is obsolete and will be removed in future versions. Use DEMO2 instead. ');
+return;  
 
 cname = computer;
 
