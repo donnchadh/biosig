@@ -8,8 +8,8 @@
 ##############################################################
 
 
-CC            = gcc-4.1
-CXX           = g++-4.1
+CC            = gcc
+CXX           = g++
 MEX	      = mex   # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
 octVER	      = # default
 OCT	      =	mkoctfile$(octVER)
@@ -29,7 +29,7 @@ LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        = -L /usr/local/lib/
 #LIBS          = -lz  -lbiosig  	# dynamic
-LIBS          = libbiosig.a -lz -lcholmod t240/libfef.a #-lgdcmDSED -lgsl -lgslcblas -lm	# static
+LIBS          = libbiosig.a -lz -lcholmod # t240/libfef.a #-lgdcmDSED -lgsl -lgslcblas -lm	# static
 #LIBS         = libbiosig.a -lws2_32 win32/zlib/lib/zdll.lib	# static, for windows 
 #DEL_FILE      = del                    # Windows
 DEL_FILE      = rm
@@ -113,7 +113,7 @@ MinGWOBJECTS  = win32/biosig.obj \
 		win32/biosig-network.obj \
 		win32/sandbox.obj 
 
-TARGET        = save2gdf save2aecg save2scp libbiosig.a mex pdp2gdf #libbiosig.so 
+TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o pdp2gdf #libbiosig.so 
 
 first: $(TARGET)
 all:   $(TARGET) mex biosig4python win32 sigviewer biosig_client biosig_server
@@ -357,19 +357,19 @@ mexSLOAD: mexSLOAD.mexa64
 mexSOPEN: mexSOPEN.mexa64
 mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.a
 	$(MEX) $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LIBS) 
-#	$(COPY) mexSLOAD.mexa64 ../biosig/t200/
+#	$(COPY) mexSLOAD.mexa64 ../biosig/t200_FileAccess/
 mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.a
 	$(MEX) -DmexSOPEN $(DEFINES) mexSLOAD.cpp $(LIBS) -output mexSOPEN
-#	$(COPY) mexSOPEN.mexa64 ../biosig/t200/
+#	$(COPY) mexSOPEN.mexa64 ../biosig/t200_FileAccess/
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex 
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
 	$(OCT)  $(DEFINES) -v -g --mex mexSLOAD.cpp $(LIBS) 
-	$(COPY) mexSLOAD.mex ../biosig/t200/
+	$(COPY) mexSLOAD.mex ../biosig/t200_FileAccess/
 mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a 
 	$(OCT) -D=mexSOPEN $(DEFINES) -v -g --mex mexSLOAD.cpp $(LIBS) -o mexSOPEN.mex 
-	$(COPY) mexSOPEN.mex ../biosig/t200/
+	$(COPY) mexSOPEN.mex ../biosig/t200_FileAccess/
 #physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
 #	$(OCT) -v -g --mex physicalunits.cpp  $(LIBS) 
 
@@ -377,8 +377,8 @@ oct:  mexSLOAD.oct
 mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
 	$(OCT)  $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) 
 	$(OCT) -D=mexSOPEN $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.oct 
-	$(COPY) mexSOPEN.oct ../biosig/t200/
-	$(COPY) mexSOPEN.oct ../biosig/t200/
+	$(COPY) mexSOPEN.oct ../biosig/t200_FileAccess/
+	$(COPY) mexSOPEN.oct ../biosig/t200_FileAccess/
 
 
 sigviewer: ../sigviewer/bin/sigviewer 
@@ -655,7 +655,6 @@ test6: /tmp/t1.scp save2gdf
 	./save2gdf -f=BDF t1.cfw.gz t2.cfw.bdf
 	./save2gdf -f=SCP t1.cfw.gz t2.cfw.scp
 	./save2gdf -f=HL7 t1.cfw.gz t2.cfw.hl7
-
 	./save2gdf -f=GDF1 t1.mwf.gz t2.mwf.gd1
 	./save2gdf -f=GDF t1.mwf.gz t2.mwf.gdf
 	./save2gdf -f=EDF t1.mwf.gz t2.mwf.edf
