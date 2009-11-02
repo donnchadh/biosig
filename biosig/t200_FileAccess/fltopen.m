@@ -139,7 +139,7 @@ if any(HDR.FILE.PERMISSION=='r'),
 		HDR.FLT.channels.grd_mode(ch) = n(6);
 		HDR.FLT.channels.grd_mode_name{ch} = sa{7};
 		HDR.FLT.channels.grp_id(ch) = n(8);
-		HDR.FLT.channels.no_sensors(ch) = n(8);
+		HDR.FLT.channels.no_sensors(ch) = n(9);
 
 		for k=1:n(9);
 			[tline,tch] = strtok(tch,[10,13]); 
