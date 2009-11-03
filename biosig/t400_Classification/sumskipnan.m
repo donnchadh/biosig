@@ -86,7 +86,7 @@ if (DIM<1) DIM = 1; end; %% Hack, because min([])=0 for FreeMat v3.5
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % non-float data 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if  (isempty(W) && (~(isa(x,'float') || isa(x,'double')))) || ~flag_implicit_skip_nan(), %%% skip always NaN's
+if  (isempty(W) && (~(isa(x,'float') || isa(x,'double'))))  % || ~flag_implicit_skip_nan(), %%% skip always NaN's
 	if ~isempty(W)
 		error('SUMSKIPNAN: weighted sum of integers not supported, yet');
 	end; 
