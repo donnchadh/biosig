@@ -1,6 +1,6 @@
 % DEMO 1 - identifies QRS-complexes and computes HRV parameters 
 
-%	$Id: demo1.m,v 1.9 2009-03-31 06:36:30 schloegl Exp $
+%	$Id$
 %	Copyright (C) 2000-2003, 2005 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -31,7 +31,6 @@ end;
 
 
 
-CHAN = 0; 
 HDR  = sopen(fullfile(P,F),'r');
 if HDR.NS > 1,
         CHAN = sort([strmatch('ECG',HDR.Label);strmatch('EKG',HDR.Label);strmatch('ecg',HDR.Label);strmatch('Ecg',HDR.Label)]);
@@ -44,6 +43,8 @@ if HDR.NS > 1,
                 CHAN = input('Which channel should be used for QRS-detection? ');
         end;
         HDR = sopen(fullfile(P,F),'r',CHAN);
+else 
+        CHAN = 1;       
 end;
 [s,HDR] = sread(HDR);
 HDR = sclose(HDR);
@@ -55,7 +56,6 @@ H2 = qrsdetect(s,HDR.SampleRate);
 [HRV,RRI] = berger(H2,4);
 % compute HRV parameters 
 [X] = heartratevariability(H2);
-
 % Extract QRS-info according to BIOSIG/T200/EVENTCODES.TXT
 idx = find(H2.EVENT.TYP == hex2dec('0501'));
 qrsindex = H2.EVENT.POS(idx)/H2.EVENT.SampleRate; 
