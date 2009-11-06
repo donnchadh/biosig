@@ -8,7 +8,7 @@ function [HDR]=fltopen(arg1,arg3,arg4,arg5,arg6)
 % HDR=fltopen(HDR);
 
 %	$Id$
-%	Copyright (c) 2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
+%	Copyright (c) 2006,2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This program is free software; you can redistribute it and/or
@@ -147,9 +147,9 @@ if any(HDR.FILE.PERMISSION=='r'),
 			%sen = n1(1);
 			sen = find(n1(1)==HDR.FLT.sensors.id);
 			HDR.FLT.channels.Cal(ch,sen) = n1(2);
-			if ~strcmp(sa{4},HDR.FLT.sensors.name{sen}),
+			if (length(sa)>=4) && ~strcmp(sa{4},HDR.FLT.sensors.name{sen}),
 				fprintf(HDR.FILE.stderr,'Warning SOPEN(ET-MEG): sensor name does not fit: %s %s. \n    Maybe header of file %s is corrupted!\n',sa{4},HDR.FLT.sensors.name{sen}, HDR.FileName);
-			end; 	
+			end;
 		end; 	
 		[tline,tch] = strtok(tch,[10,13]);
 	end; 	
@@ -185,19 +185,23 @@ if any(HDR.FILE.PERMISSION=='r'),
 	tmp (tmp=='.')=' ';
 	tmp (tmp==':')=' ';
 	HDR.T0([3,2,1,4:6]) = str2double(tmp);
-	HDR.Patient.Sex = 0; % unknown
 	if isfield(HDR.FLT,'Patient'),
+        	HDR.Patient.Sex = 0; % unknown
 		HDR.FLT.Patient.remark = 'Do Not Modify !!!'; 
-		tmp = deblank(HDR.FLT.Patient.sex);
-		if length(tmp)
-			HDR.Patient.Sex	= any(tmp(1)=='mM1') + 2*any(tmp(1)=='fFwW2');
-		end;
-		tmp = deblank(HDR.FLT.Patient.birthday);
-		tmp(tmp=='.' | tmp=='-' | tmp=='/')=' ';
-		[tmp,v,sa] = str2double(tmp); 
-		if length(tmp)==3 & ~any(v),
-			HDR.Patient.Birthday(1:3) = tmp;
-		end
+		if isfield(HDR.FLT.Patient,'sex')
+        		tmp = deblank(HDR.FLT.Patient.sex);
+	        	if length(tmp)
+	        		HDR.Patient.Sex	= any(tmp(1)=='mM1') + 2*any(tmp(1)=='fFwW2');
+	        	end;
+	        end; 	
+		if isfield(HDR.FLT.Patient,'birthday')
+        		tmp = deblank(HDR.FLT.Patient.birthday);
+        		tmp(tmp=='.' | tmp=='-' | tmp=='/')=' ';
+        		[tmp,v,sa] = str2double(tmp); 
+        		if length(tmp)==3 & ~any(v),
+        			HDR.Patient.Birthday(1:3) = tmp;
+        		end
+        	end;
 	end
 	HDR.PhysDim = PhysDim_Group(HDR.FLT.channels.grp_id+1); 
 	HDR.Cal = Cal_Group(HDR.FLT.channels.grp_id+1); 
