@@ -2275,7 +2275,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 		hdr->TYPE = Sigma;  
 		hdr->VERSION = 3.0; 
 	}
-	else if (hdr->AS.Header[175] < 5) 
+	else if ((hdr->HeadLen > 175) && (hdr->AS.Header[175] < 5)) 
 	{	hdr->TYPE = TRC; // Micromed *.TRC format 
 		hdr->FILE.LittleEndian = 1;
     	}
