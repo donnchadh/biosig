@@ -1,4 +1,4 @@
-function r = calcErdsMapBP(s, h, t, f_borders, f_bandwidths, f_steps, class, ref, submean, sig, lambda, alpha)
+function r = calcErdsMapBP(s, h, t, f_borders, f_bandwidths, f_steps, class, ref, submean, sig, lambda, alpha, refmethod)
 % Calculates time-frequency (ERDS) maps based on the bandpower (BP) method.
 %
 % This function calculates time-frequency (ERDS) maps by using a bandpass filter
@@ -47,18 +47,22 @@ function r = calcErdsMapBP(s, h, t, f_borders, f_bandwidths, f_steps, class, ref
 %                    the following methods: 'boot', 'boxcox' or 'none'.
 %   lambda       ... Parameter of the Box-Cox transform <1x1>. If lambda is 0,
 %                    the transform is a log-transform.
-%                    Default: 0.
 %   alpha        ... Significance level <1x1>. If 'sig' is set to 'none', this 
 %                    value is ignored.
+%   refmethod    ... Calculation mode <string>. 'classic' uses the classical
+%                    approach with an averaged reference interval. 'trial' uses
+%                    an individual reference for each trial.
 %
 % Output parameter:
 %   r ... Structure containing the results <1x1 struct>.
 
 % Copyright by Clemens Brunner
-% $Revision: 0.21 $ $Date: 02/23/2009 15:53:00 $
+% $Revision: 0.30 $ $Date: 10/29/2009 13:11:00 $
 % E-Mail: clemens.brunner@tugraz.at
 
 % Revision history:
+%   0.30: Added new calculation mode that uses an individual reference for each
+%         trial.
 %   0.21: Rounded all conversions from time to samples
 %   0.20: Modifications concerning the interface and computations.
 %   0.10: Initial version.
@@ -105,7 +109,7 @@ fn  = fs/2;
 
 for chn = 1:size(s,2)  % Loop over all channels
        
-    if submean
+    if submean  % Subtract evoked components?
         s_t = trigg(s(:, chn), h.TRIG(ismember(h.Classlabel, class)), round(t(1)*fs), round(t(3)*fs));
         temp = reshape(s_t, triallen, length(s_t)/triallen);  % Reshape to samples x trials
         average = mean(temp, 2);
@@ -116,7 +120,16 @@ for chn = 1:size(s,2)  % Loop over all channels
         s(:, chn) = s(:, chn) - temp;
     end;
     
-    refp = zeros(1, length(f_plot));
+    if strcmp(refmethod, 'classic')  % 1 reference per frequency band
+        refp = zeros(1, length(f_plot));
+    else  % References for each trial per frequency band
+        if submean  % s_t was already defined
+            refp = zeros(length(s_t)/triallen, length(f_plot));
+        else
+            s_t = trigg(s(:, chn), h.TRIG(ismember(h.Classlabel, class)), round(t(1)*fs), round(t(3)*fs));
+            refp = zeros(length(s_t)/triallen, length(f_plot));
+        end;
+    end;
     erds = zeros(triallen, length(f_plot));
     
     for k = 1:length(f_plot)  % Loop over frequency bands
@@ -128,13 +141,20 @@ for chn = 1:size(s,2)  % Loop over all channels
         % Trigger data
         s_t = trigg(s_f, h.TRIG(ismember(h.Classlabel, class)), round(t(1)*fs), round(t(3)*fs));
 
-        % The variable pre_erds is needed for the bootstrap statistics, it contains the single-trial ERDS values
-        % pre_erds{frequency band} = <time x trials>
-        pre_erds{k} = reshape(s_t, triallen, length(s_t)/triallen);
-        activity = mean(pre_erds{k}, 2);  % Activity power
-        refp(k) = mean(mean(pre_erds{k}(ref(1):ref(2),:)));  % Reference power
-        erds(:,k) = activity./refp(k) - 1;
-        pre_erds{k} = pre_erds{k}./refp(k) - 1;
+        if strcmp(refmethod, 'classic')  % Use classical calculation scheme with trial-averaged reference
+            % The variable pre_erds is needed for the bootstrap statistics, it contains the single-trial ERDS values
+            % pre_erds{frequency band} = <time x trials>
+            pre_erds{k} = reshape(s_t, triallen, length(s_t)/triallen);
+            activity = mean(pre_erds{k}, 2);  % Average activity power over all trials
+            refp(k) = mean(mean(pre_erds{k}(ref(1):ref(2),:)));  % Average reference power over all trials and the reference time segment
+            erds(:,k) = activity./refp(k) - 1;  % Calculate ERDS
+            pre_erds{k} = pre_erds{k}./refp(k) - 1;
+        elseif strcmp(refmethod, 'trial')  % Use alternative calculation scheme with trial-individual references
+            pre_erds{k} = reshape(s_t, triallen, length(s_t)/triallen);
+            refp(:,k) = mean(pre_erds{k}(ref(1):ref(2),:));  % Average reference power for each trial
+            pre_erds{k} = pre_erds{k}./repmat(refp(:,k)',size(pre_erds{k},1),1) - 1;
+            erds(:,k) = mean(pre_erds{k},2);
+        end;
     end;
     
     if t(2) ~= 0

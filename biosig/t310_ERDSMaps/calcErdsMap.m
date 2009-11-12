@@ -75,15 +75,21 @@ function r = calcErdsMap(s, h, t, f_borders, varargin)
 %                      the first and after the end of the last trial are
 %                      required.
 %                      Default: true.
+%   'refmethod'    ... Calculation mode <string>. 'classic' uses the classical
+%                      approach with an averaged reference interval. 'trial'
+%                      uses an individual reference for each trial.
+%                      Default: 'classic'.
 %
 % Output parameter:
 %   r ... Structure containing the results <1x1 struct>.
 
 % Copyright by Clemens Brunner
-% $Revision: 0.91 $ $Date: 02/20/2009 11:45:00 $
+% $Revision: 0.99 $ $Date: 10/29/2009 13:13:00 $
 % E-Mail: clemens.brunner@tugraz.at
 
 % Revision history:
+%   0.99: Added new calculation mode that uses an individual reference for each
+%         trial (right now only working with BP method).
 %   0.91: Add 'wide_trials' option for FFT maps.
 %   0.90: Clean up code, move unnecessary parameters to plot function. Enhance
 %         functionality such as the support for different spacings in multiple
@@ -136,6 +142,7 @@ heading = [];  % Default heading
 montage = [];  % Default montage
 cue = [];  % Default do not draw cue
 wide_trials = true;  % Default use additional samples outside of trial for FFT method
+refmethod = 'classic';
 
 % Overwriting default values with optional input parameters
 if ~isempty(varargin)  % Are there optional parameters available?
@@ -179,6 +186,9 @@ if ~isempty(varargin)  % Are there optional parameters available?
             k = k + 2;
         elseif strcmp(varargin{k}, 'wide_trials')
             wide_trials = varargin{k + 1};
+            k = k + 2;
+        elseif strcmp(varargin{k}, 'refmethod')
+            refmethod = varargin{k + 1};
             k = k + 2;
         else  % Ignore unknown parameters
             k = k + 2;
@@ -227,10 +237,9 @@ end;
 
 switch lower(method)
     case 'bp'
-        r = calcErdsMapBP(s, h, t, f_borders, f_bandwidths, f_steps, class, ref, submean, sig, lambda, alpha);
+        r = calcErdsMapBP(s, h, t, f_borders, f_bandwidths, f_steps, class, ref, submean, sig, lambda, alpha, refmethod);
     case 'fft'
         r = calcErdsMapFFT(s, h, t, f_borders, f_bandwidths, f_steps, class, ref, submean, sig, lambda, alpha, wide_trials);
-        % error('The FFT method has not been implemented yet.');
     case 'wavelet'
         error('The wavelet method has not been implemented yet.');
     otherwise

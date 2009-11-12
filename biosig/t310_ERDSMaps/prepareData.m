@@ -29,13 +29,14 @@ data = '*.gdf';
 
 channels = 0;  % 0 ... All channels
 classes = [1];  % [] ... All classes
-method = 'bp';
+method = 'bp';  % 'bp' or 'fft'
+refmethod = 'classic';  % 'classic' or 'trial'
 
 [s, h] = sload([path_name, data], channels, 'OVERFLOWDETECTION:OFF');
 s(isnan(s)) = 0;
 
 %% ERDS maps
-r1 = calcErdsMap(s, h, [0, 0.05, 5], [5, 40], 'method', method, 'class', classes, 'ref', [0.25, 0.75], 'f_bandwidths', [2], 'f_steps', [1], 'sig', 'boxcox', 'lambda', 1, 'alpha', 0.05, 'heading', name, 'montage', [1 1 1 1], 'cue', 3);
+r1 = calcErdsMap(s, h, [0, 0.05, 5], [5, 40], 'method', method, 'class', classes, 'ref', [0.25, 0.75], 'f_bandwidths', [2], 'f_steps', [1], 'sig', 'boxcox', 'lambda', 1, 'alpha', 0.05, 'heading', name, 'montage', [1 1 1 1], 'cue', 3, 'refmethod', refmethod);
 plotErdsMap(r1);
 
 %% Average/variance
