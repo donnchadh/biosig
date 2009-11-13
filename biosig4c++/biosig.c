@@ -1779,10 +1779,11 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	      	hc->LowPass   = 70.0;
 	      	hc->Notch     = 50;
 	      	hc->Impedance = INF;
-	      	hc->XYZ[0] 	  = 0.0;
-	      	hc->XYZ[1] 	  = 0.0;
-	      	hc->XYZ[2] 	  = 0.0;
-	}      	
+	      	hc->fZ        = NaN;
+	      	hc->XYZ[0] 	= 0.0;
+	      	hc->XYZ[1] 	= 0.0;
+	      	hc->XYZ[2] 	= 0.0;
+	}
 
 	// define EVENT structure
 	hdr->EVENT.N = N_EVENT; 
@@ -2647,7 +2648,19 @@ void struct2gdfbin(HDRTYPE *hdr)
 				*(float*) (Header2 + 4*k2 + 228*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[1]);
 				*(float*) (Header2 + 4*k2 + 232*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[2]);
 
-	     			Header2[k2+236*NS] = (uint8_t)ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
+        		     	if (hdr->VERSION < 2.19) 
+       	     				Header2[k2+236*NS] = (uint8_t)ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
+
+        		     	else switch (hdr->CHANNEL[k].PhysDimCode & 0xFFE0) {
+        		     	        // context-specific header 2 area 
+        		     	        case 4256:
+        	     				*(double*)(Header2+236*NS+20*k2) = hdr->CHANNEL[k].Impedance;
+        	     				break; 
+        		     	        case 4288:
+        	     				*(double*)(Header2+236*NS+20*k2) = hdr->CHANNEL[k].fZ;
+        	     				break;
+        	     			// default:        // reserved area 
+                                }        		     	        
 		     	}
 		     	*(uint32_t*) (Header2 + 4*k2 + 216*NS) = l_endian_u32(hdr->CHANNEL[k].SPR);
 		     	*(uint32_t*) (Header2 + 4*k2 + 220*NS) = l_endian_u32(hdr->CHANNEL[k].GDFTYP);
@@ -2954,6 +2967,19 @@ int gdfbin2struct(HDRTYPE *hdr)
 				hc->XYZ[2]   = lef32p(Header2+ 4*k + 232*hdr->NS);
 				//memcpy(&hc->XYZ,Header2 + 4*k + 224*hdr->NS,12);
 				hc->Impedance= ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);
+
+        		     	if (hdr->VERSION < 2.19) 
+        				hc->Impedance = ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);
+        		     	else switch(hdr->CHANNEL[k].PhysDimCode & 0xFFE0) {
+        		     	        // context-specific header 2 area 
+        		     	        case 4256:
+                				hc->Impedance = *(double*)(Header2+236*hdr->NS+20*k);
+        	     				break; 
+        		     	        case 4288:
+        		     	                hc->fZ = *(double*)(Header2+236*hdr->NS+20*k);
+        	     				break;
+        	     			// default:        // reserved area 
+                                }        		     	        
 			}
 			hc->Cal = (hc->PhysMax-hc->PhysMin)/(hc->DigMax-hc->DigMin);
 			hc->Off =  hc->PhysMin-hc->Cal*hc->DigMin;
@@ -4049,6 +4075,7 @@ if (!strncmp(MODE,"r",1))
 					      	hc->OnOff     = 1;
 					      	hc->Notch     = 50;
 					      	hc->Impedance = INF;
+					      	hc->fZ        = NaN;
 					      	hc->bi 	  = hdr->AS.bpb;
 					      	hdr->AS.bpb += (GDFTYP_BITS[hc->GDFTYP]*hc->SPR)>>3;
 					}      	
@@ -4433,6 +4460,8 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					cp->HighPass = NaN;
 					cp->LowPass  = NaN;
 					cp->Notch    = NaN;
+					cp->Impedance= NaN;
+					cp->fZ       = NaN;
 					cp->LeadIdCode = 0; 
 
 					FLAG_NUMBER_OF_FIELDS_READ = 1; 
@@ -4490,6 +4519,10 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					cp->PhysMax = atof(val);
 				else if (!strcmp(line,"PhysMin"))
 					cp->PhysMin = atof(val);
+				else if (!strcmp(line,"Impedance"))
+					cp->Impedance = atof(val);
+				else if (!strcmp(line,"freqZ"))
+					cp->fZ = atof(val);
 				else if (!strncmp(line,"Position",8)) {
 					sscanf(val,"%f \t%f \t%f",cp->XYZ,cp->XYZ+1,cp->XYZ+2);
 
@@ -6028,6 +6061,7 @@ if (VERBOSE_LEVEL>8)
 			hc->Transducer[0] = 0; 
 			hc->Notch = NaN;
 			hc->Impedance = INF;  
+		      	hc->fZ        = NaN;
 			hc->XYZ[0] = 0.0;  
 			hc->XYZ[1] = 0.0;  
 			hc->XYZ[2] = 0.0;  
@@ -7800,6 +7834,7 @@ if (VERBOSE_LEVEL>8)
 		      	hc->LowPass   = NaN;
 		      	hc->Notch     = *(int16_t*)(hdr->AS.Header+pos+2) ? 1.0 : 0.0;
 		      	hc->Impedance = INF;
+		      	hc->fZ        = NaN;
 	      		hc->XYZ[0]    = 0.0;
 		      	hc->XYZ[1]    = 0.0;
 		      	hc->XYZ[2]    = 0.0;
@@ -8219,6 +8254,7 @@ if (VERBOSE_LEVEL>8)
 		      	hc->LowPass   = NaN;
 		      	hc->Notch     = NaN;
 	      		hc->Impedance = INF;
+		      	hc->fZ        = NaN;
 		      	hc->XYZ[0] = 0.0;
 		      	hc->XYZ[1] = 0.0;
 		      	hc->XYZ[2] = 0.0;
@@ -8616,6 +8652,14 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    		fprintf(fid,"HighPassFilter\t= %f\n",hdr->CHANNEL[k].HighPass);
 	    		fprintf(fid,"LowPassFilter\t= %f\n",hdr->CHANNEL[k].LowPass);
 	    		fprintf(fid,"NotchFilter\t= %f\n",hdr->CHANNEL[k].Notch);
+	    		switch (hdr->CHANNEL[k].PhysDimCode & 0xffe0) {
+	       		case 4256:        // Voltage data  
+	    		        fprintf(fid,"Impedance\t= %f\n",hdr->CHANNEL[k].Impedance);
+	    		        break;
+	    		case 4288:         // Impedance data 
+	    		        fprintf(fid,"freqZ\t= %f\n",hdr->CHANNEL[k].fZ);
+	    		        break;
+	    		}
 	    		fprintf(fid,"PositionXYZ\t= %f\t%f\t%f\n",hdr->CHANNEL[k].XYZ[0],hdr->CHANNEL[k].XYZ[1],hdr->CHANNEL[k].XYZ[2]);
 //	    		fprintf(fid,"OrientationXYZ\t= %f\t%f\t%f\n",hdr->CHANNEL[k].Orientation[0],hdr->CHANNEL[k].Orientation[1],hdr->CHANNEL[k].Orientation[2]);
 //	    		fprintf(fid,"Area     \t= %f\n",hdr->CHANNEL[k].Area);
@@ -8744,6 +8788,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			else 	
 				fprintf(fid,"Off");
 		}	    		
+                
     		fprintf(fid,"\n\r\n\rImpedance [kOhm] :\n\r");
     		for (k=0; k<hdr->NS; k++)
 			fprintf(fid,"%s:\t\t%f\n\r",hdr->CHANNEL[k].Label,hdr->CHANNEL[k].Impedance);

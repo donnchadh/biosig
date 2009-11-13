@@ -148,7 +148,7 @@ EXTERN_C const char *B4C_ERRMSG;
 
 #define BIOSIG_VERSION 0.80
 
-//EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
+EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
 //#define VERBOSE_LEVEL 0	// turn off debugging information 
 
 
@@ -238,7 +238,9 @@ typedef struct CHANNEL_STRUCT {
 	float 		XYZ[3]		ATT_ALI;	/* sensor position */
 //	float 		Orientation[3]	__attribute__ ((deprecated));	/* sensor direction */
 //	float 		Area		__attribute__ ((deprecated));	/* area of sensor (e.g. for MEG) */
-	float 		Impedance	ATT_ALI;   	/* in Ohm */
+        /* context specific channel information */
+	float 		Impedance	ATT_ALI;   	/* Electrode Impedance in Ohm, defined only if PhysDim = _Volt */
+	double 		fZ        	ATT_ALI;   	/* ICG probe frequency, defined only if PhysDim = _Ohm */
 	
 	uint16_t 	GDFTYP 		ATT_ALI;	/* data type */
 	uint32_t 	SPR 		ATT_ALI;	/* samples per record (block) */
@@ -437,12 +439,6 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr);
 	the whole header information must be defined.    
 	After calling sopen, the file header is read or written, and 
 	the position pointer points to the beginning of the data section
-	
-        rr is a pointer to a rereferencing matrix
-        rrtype determines the type of pointer 
-        rrtype=0: no rereferencing, RR is ignored (NULL) 
-               1: pointer to MarketMatrix file (char*)
-               2: pointer to a sparse cholmod matrix  (cholmod_sparse*)
  --------------------------------------------------------------- */
 
 int 	sclose(HDRTYPE* hdr);
@@ -546,7 +542,7 @@ int	hdr2ascii(HDRTYPE* hdr,FILE *fid, int VERBOSITY);
  *	VERBOSITY=3 provides in addition the event table. 
  --------------------------------------------------------------- */
 
-int RerefCHANNEL(HDRTYPE *hdr, void *ReRef, char Mode);
+int RerefCHANNEL(HDRTYPE *hdr, void *ReRef, char rrtype);
 /* rerefCHAN 
         defines rereferencing of channels, 
         hdr->Calib defines the rereferencing matrix 
@@ -555,12 +551,17 @@ int RerefCHANNEL(HDRTYPE *hdr, void *ReRef, char Mode);
                 either the maximum scaling factor  
         if ReRef is NULL, rereferencing is turned off (hdr->Calib and 
         hdr->rerefCHANNEL are reset to NULL). 
-        if Mode==1, Reref is a filename pointing to a MatrixMarket file 
-        if Mode==2, Reref must be a pointer to a cholmod sparse matrix (cholmod_sparse*)
+        if rrtype==1, Reref is a filename pointing to a MatrixMarket file 
+        if rrtype==2, Reref must be a pointer to a cholmod sparse matrix (cholmod_sparse*)
         In case of an error (mismatch of dimensions), a non-zero is returned,
         and serror() is set.     
- ------------------------------------------------------------------------*/
 
+        rr is a pointer to a rereferencing matrix
+        rrtype determines the type of pointer 
+        rrtype=0: no rereferencing, RR is ignored (NULL) 
+               1: pointer to MarketMatrix file (char*)
+               2: pointer to a sparse cholmod matrix  (cholmod_sparse*)
+ ------------------------------------------------------------------------*/
 
 const char* GetFileTypeString(enum FileFormat FMT);
 /*	returns a string with file format
