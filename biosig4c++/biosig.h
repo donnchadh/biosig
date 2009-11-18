@@ -238,10 +238,12 @@ typedef struct CHANNEL_STRUCT {
 	float 		XYZ[3]		ATT_ALI;	/* sensor position */
 //	float 		Orientation[3]	__attribute__ ((deprecated));	/* sensor direction */
 //	float 		Area		__attribute__ ((deprecated));	/* area of sensor (e.g. for MEG) */
+
         /* context specific channel information */
 	float 		Impedance	ATT_ALI;   	/* Electrode Impedance in Ohm, defined only if PhysDim = _Volt */
-	double 		fZ        	ATT_ALI;   	/* ICG probe frequency, defined only if PhysDim = _Ohm */
-	
+	float 		fZ        	ATT_ALI;   	/* ICG probe frequency, defined only if PhysDim = _Ohm */
+	/* end of context specific channel information */
+
 	uint16_t 	GDFTYP 		ATT_ALI;	/* data type */
 	uint32_t 	SPR 		ATT_ALI;	/* samples per record (block) */
 #ifndef NO_BI
@@ -250,7 +252,6 @@ typedef struct CHANNEL_STRUCT {
 #endif	
 	uint8_t*	bufptr		ATT_ALI;	/* pointer to buffer: NRec<=1 and bi,bi8 not used */
 } CHANNEL_TYPE	ATT_ALI;
-
 
 
 /*

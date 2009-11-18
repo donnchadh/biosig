@@ -2654,10 +2654,10 @@ void struct2gdfbin(HDRTYPE *hdr)
         		     	else switch (hdr->CHANNEL[k].PhysDimCode & 0xFFE0) {
         		     	        // context-specific header 2 area 
         		     	        case 4256:
-        	     				*(double*)(Header2+236*NS+20*k2) = hdr->CHANNEL[k].Impedance;
+        	     				*(float*)(Header2+236*NS+20*k2) = (float)hdr->CHANNEL[k].Impedance;
         	     				break; 
         		     	        case 4288:
-        	     				*(double*)(Header2+236*NS+20*k2) = hdr->CHANNEL[k].fZ;
+        	     				*(float*)(Header2+236*NS+20*k2) = (float)hdr->CHANNEL[k].fZ;
         	     				break;
         	     			// default:        // reserved area 
                                 }        		     	        
@@ -2973,10 +2973,10 @@ int gdfbin2struct(HDRTYPE *hdr)
         		     	else switch(hdr->CHANNEL[k].PhysDimCode & 0xFFE0) {
         		     	        // context-specific header 2 area 
         		     	        case 4256:
-                				hc->Impedance = *(double*)(Header2+236*hdr->NS+20*k);
+                				hc->Impedance = *(float*)(Header2+236*hdr->NS+20*k);
         	     				break; 
         		     	        case 4288:
-        		     	                hc->fZ = *(double*)(Header2+236*hdr->NS+20*k);
+        		     	                hc->fZ = *(float*)(Header2+236*hdr->NS+20*k);
         	     				break;
         	     			// default:        // reserved area 
                                 }        		     	        
@@ -3863,6 +3863,12 @@ if (!strncmp(MODE,"r",1))
 		hdr->SampleRate = hdr->SPR/Dur;
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 220] #=%li\n",iftell(hdr));
+
+		if (hdr->NRec < 0) {
+        		struct stat FileBuf;
+        		stat(hdr->FileName,&FileBuf);
+			hdr->NRec = (FileBuf.st_size - hdr->HeadLen)/hdr->AS.bpb; 
+		}
 
 		if (EventChannel) {
 			/* read Annotation and Status channel and extract event information */		
@@ -8534,11 +8540,12 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 #ifndef WITHOUT_NETWORK
     	if (!memcmp(hdr->FileName,"bscs://",7)) {
     		// network: write to server
-		char *hostname;
-    		hostname = (char*)hdr->FileName+7;
-    		
-		uint64_t ID=0; 
-		int sd,s;
+                char *hostname = hdr->FileName+7;
+                char *tmp= strchr(hostname,'/');
+                if (tmp != NULL) tmp[0]=0;   // ignore terminating slash       
+
+                uint64_t ID=0; 
+                int sd, s;
 		sd = bscs_connect(hostname); 
 		if (sd<0) {
 			fprintf(stdout,"could not connect to <%s>\n",hostname);
@@ -8665,10 +8672,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 //	    		fprintf(fid,"Area     \t= %f\n",hdr->CHANNEL[k].Area);
 
 	    		fprintf(fid,"\n");
-			hdr->CHANNEL[k].SPR *= hdr->NRec; 
+			hdr->CHANNEL[k].SPR *= hdr->NRec;
     		}
-		hdr->SPR *= hdr->NRec; 
-		hdr->NRec = 1; 
+		hdr->SPR *= hdr->NRec;
+		hdr->NRec = 1;
 
 		fprintf(fid,"[EVENT TABLE]\n");
 		fprintf(fid,"TYP\tPOS [s]\tDUR [s]\tCHN\tVAL/Desc");
