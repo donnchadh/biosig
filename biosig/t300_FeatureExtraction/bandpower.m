@@ -1,14 +1,19 @@
-function bp = cfm(s,arg2,arg3,arg4,mode)
-% CFM - cerebral function monitor 
-%       c = CFM(filename)
-%       c = CFM(s,Fs)
-%       c = CFM(s,HDR)
-
+function bp = bandpower(s,arg2,arg3,arg4,mode)
+% BANDPOWER calculation 
+%       bp = bandpower(s, Fs, bands, smoothing, mode)
+%  
 % INPUT:
 %    s          raw data, one channel per column
 %    Fs         sampling rate
-%    HDR        header information  
-%    filename   filename 
+%    bands      each row has two elements indicating the lower and upper frequency 
+%               default value is [10,12;16,24] indicating two bands of
+%               10-12 and 16-24 Hz. 
+%    smoothing  length of smoothing window in seconds. The default value is 1 [s]
+%    mode       mode == 1 uses FIR filter and log10
+%               mode == 2 uses Butterworth IIR filter and log10
+%               mode == 3 udes FIR filter and ln
+%               mode == 4 uses Butterworth IIR filter and ln
+%               the default value is mode == 2 (Butterworth filter and log10)
 % 
 % OUTPUT:
 %    bp is log(bandpower) of s
@@ -18,7 +23,7 @@ function bp = cfm(s,arg2,arg3,arg4,mode)
 %       the the second band of all channels, until the last 
 %       last f-band of all channels 
 
-%	$Id$
+%	$Id: bandpower.m 2205 2009-10-27 12:18:15Z schloegl $
 %	Copyright (C) 2007 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
