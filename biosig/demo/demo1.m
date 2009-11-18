@@ -1,13 +1,13 @@
 % DEMO 1 - identifies QRS-complexes and computes HRV parameters 
 
 %	$Id$
-%	Copyright (C) 2000-2003, 2005 by Alois Schloegl <a.schloegl@ieee.org>	
+%	Copyright (C) 2000-2003,2005,2009 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
+% Version 3 of the License, or (at your option) any later version.
 %
 % This library is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -51,7 +51,7 @@ HDR = sclose(HDR);
 
 
 % QRS-Detection
-H2 = qrsdetect(s,HDR.SampleRate);
+H2 = qrsdetect(s,HDR.SampleRate,2);
 % resampling to 4 Hz using the Berger algorithm 
 [HRV,RRI] = berger(H2,4);
 % compute HRV parameters 
@@ -71,7 +71,6 @@ semilogy((qrsindex(1:end-1)+qrsindex(2:end))/2,diff(qrsindex));
 ylabel('RRI [s]');
 xlabel('time t[s]');
 
-
 %% write output file 
 H2.FileName = [HDR.FILE.Name,'.evt']; 
 if exist(H2.FileName,'file')
@@ -80,6 +79,5 @@ end;
 fprintf(1,'File %s contains the detected QRS events\n',H2.FileName) 
 H2.NRec = 0;
 H2.T0 = HDR.T0; 
-if isfield(HDR,'Patient'); H2.Patient=HDR.Patient; end; 
 H2=sopen(H2,'w'); H2=sclose(H2); 
 
