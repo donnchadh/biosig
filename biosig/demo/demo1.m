@@ -71,3 +71,15 @@ semilogy((qrsindex(1:end-1)+qrsindex(2:end))/2,diff(qrsindex));
 ylabel('RRI [s]');
 xlabel('time t[s]');
 
+
+%% write output file 
+H2.FileName = [HDR.FILE.Name,'.evt']; 
+if exist(H2.FileName,'file')
+        H2.FileName = input(['File ', H2.FileName, ' does already exist. What filename should be used to store detected QRS events ? '],'s');  
+end;
+fprintf(1,'File %s contains the detected QRS events\n',H2.FileName) 
+H2.NRec = 0;
+H2.T0 = HDR.T0; 
+if isfield(HDR,'Patient'); H2.Patient=HDR.Patient; end; 
+H2=sopen(H2,'w'); H2=sclose(H2); 
+
