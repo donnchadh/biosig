@@ -192,6 +192,62 @@ const char *LEAD_ID_TABLE[] = { "unspecified",
 	, "\0\0" };  // stop marker 
 
 
+/*
+        This information was obtained from here: 
+        http://www.physionet.org/physiotools/wfdb/lib/ecgcodes.h
+*/
+const char *MIT_EVENT_DESC[] = {
+        "normal beat", 
+        "left bundle branch block beat",
+        "right bundle branch block beat", 
+        "aberrated atrial premature beat",
+        "premature ventricular contraction",
+        "fusion of ventricular and normal beat",
+        "nodal (junctional) premature beat",
+        "atrial premature contraction",
+        "premature or ectopic supraventricular beat",
+        "ventricular escape beat",
+        "nodal (junctional) escape beat",
+        "paced beat",
+        "unclassifiable beat",
+        "signal quality change",
+        "condition 15",
+        "isolated QRS-like artifact",
+        "condition 17",
+        "ST change",
+        "T-wave change",
+        "systole",
+        "diastole",
+        "comment annotation",
+        "measurement annotation",
+        "P-wave peak",
+        "left or right bundle branch block",
+        "non-conducted pacer spike",
+        "T-wave peak",
+        "rhythm change",
+        "U-wave peak",
+        "learning",
+        "ventricular flutter wave",
+        "start of ventricular flutter/fibrillation",
+        "end of ventricular flutter/fibrillation",
+        "atrial escape beat",
+        "supraventricular escape beat",
+        "link to external data (aux contains URL)",
+        "non-conducted P-wave (blocked APB)",
+        "fusion of paced and normal beat",
+        "PQ junction (beginning of QRS)",
+        "J point (end of QRS)",
+        "R-on-T premature ventricular contraction",
+        "condition 42",
+        "condition 43",
+        "condition 44",
+        "condition 45",
+        "condition 46",
+        "condition 47",
+        "condition 48",
+        "not-QRS (not a getann/putann code)",        // code = 0 is mapped to 49(ACMAX) 
+        ""};
+
 /* --------------------------------------------------- * 
  *	Global Event Code Table                        *
  * --------------------------------------------------- */
@@ -7518,7 +7574,15 @@ if (VERBOSE_LEVEL>8)
 		    	}
 		    	ifclose(hdr); 
 
-			if (VERBOSE_LEVEL>8) fprintf(stdout,"[MIT 182] %s %i\n",f1,count); 
+                        /* define user specified events according to http://www.physionet.org/physiotools/wfdb/lib/ecgcodes.h */
+        		hdr->EVENT.CodeDesc = (typeof(hdr->EVENT.CodeDesc)) realloc(hdr->EVENT.CodeDesc,257*sizeof(*hdr->EVENT.CodeDesc));
+        		for (k=0; strlen(MIT_EVENT_DESC[k])>0; k++) {
+                                hdr->EVENT.CodeDesc[k+1] = MIT_EVENT_DESC[k];
+        		        if (VERBOSE_LEVEL>7) fprintf(stdout,"[MIT 182] %i %s %s\n",k,MIT_EVENT_DESC[k],hdr->EVENT.CodeDesc[k]); 
+                        }		 
+        		hdr->EVENT.LenCodeDesc = k+1; 
+
+			if (VERBOSE_LEVEL>7) fprintf(stdout,"[MIT 183] %s %i\n",f1,count); 
 
 			/* decode ATR annotation information */
 			size_t N = count; 
@@ -7555,8 +7619,9 @@ if (VERBOSE_LEVEL>8)
 					break; 
 				default:
 					pos += len;
+					// code = 0 is mapped to 49(ACMAX), see MIT_EVENT_DESC and http://www.physionet.org/physiotools/wfdb/lib/ecgcodes.h 
+					hdr->EVENT.TYP[hdr->EVENT.N] = (A==0 ? 49 : A);        
 					hdr->EVENT.POS[hdr->EVENT.N] = pos; 
-					hdr->EVENT.TYP[hdr->EVENT.N] = A;
 					hdr->EVENT.CHN[hdr->EVENT.N] = chn;
 					++hdr->EVENT.N;
 				}
@@ -7591,7 +7656,6 @@ if (VERBOSE_LEVEL>8)
 			ifseek(hdr, hdr->HeadLen, SEEK_SET);
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MIT 186] %s\n",hdr->FileName); 
-
 			
 			count  = 0;
 			bufsiz = 1<<20;
@@ -7617,7 +7681,6 @@ if (VERBOSE_LEVEL>8)
 
 		if (VERBOSE_LEVEL>8)
 		    	fprintf(stdout,"[MIT 199] #%i: (%i) %s FMT=%i\n",k+1,nDatFiles,DatFiles[0],fmt); 
-
 		
 		if (nDatFiles != 1) {
 			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
@@ -7625,8 +7688,6 @@ if (VERBOSE_LEVEL>8)
 			return(hdr);
 		}	 	
 		hdr->AS.length  = hdr->NRec; 
-		
-		
 		
 	} /* END OF MIT FORMAT */
 	
@@ -10947,9 +11008,9 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			fprintf(fid,"\n%5i\t0x%04x\t%d",k+1,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]);
 			if (hdr->EVENT.DUR != NULL)
 				fprintf(fid,"\t%5d\t%d",hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]);
+
 			if ((hdr->EVENT.TYP[k] == 0x7fff) && (hdr->TYPE==GDF))
 				fprintf(fid,"\t[neds]");
-
 			else if (hdr->EVENT.TYP[k] < hdr->EVENT.LenCodeDesc)
 				fprintf(fid,"\t\t%s",hdr->EVENT.CodeDesc[hdr->EVENT.TYP[k]]);
 			else if (GLOBAL_EVENTCODES_ISLOADED) {
