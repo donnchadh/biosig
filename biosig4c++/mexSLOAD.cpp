@@ -118,7 +118,7 @@ cholmod_sparse *sputil_get_sparse
     else
     {
 	/* only logical and complex/real double matrices supported */
-	//sputil_error (ERROR_INVALID_TYPE, 0) ;
+	//sputil_error (ERROR_INVALID_TYPE, 0) ;        // modified by AS, Oct 2009 
     }
 
 #else
@@ -152,7 +152,7 @@ cholmod_sparse *sputil_get_sparse
 void sopen_pdp_read(HDRTYPE *hdr);
 #endif
 
-#define VERBOSE_LEVEL  0 
+//#define VERBOSE_LEVEL  9 
 //EXTERN_C int VERBOSE_LEVEL;
 //#define DEBUG
 
@@ -416,7 +416,7 @@ void mexFunction(
 		"HeadLen","NS","SPR","NRec","SampleRate", "FLAG", \
 		"EVENT","Label","LeadIdCode","PhysDimCode","PhysDim","Filter",\
 		"PhysMax","PhysMin","DigMax","DigMin","Transducer","Cal","Off","GDFTYP",\
-		"LowPass","HighPass","Notch","ELEC","Impedance","AS","Dur","REC","Manufacturer",NULL};
+		"LowPass","HighPass","Notch","ELEC","Impedance","fZ","AS","Dur","REC","Manufacturer",NULL};
 
 		for (numfields=0; fnames[numfields++] != 0; );
 		HDR = mxCreateStructMatrix(1, 1, --numfields, fnames);
@@ -430,10 +430,18 @@ void mexFunction(
 		mxSetField(HDR,0,"SampleRate",mxCreateDoubleScalar(hdr->SampleRate));
 		mxSetField(HDR,0,"Dur",mxCreateDoubleScalar(hdr->SPR/hdr->SampleRate));
 		mxSetField(HDR,0,"FileName",mxCreateCharMatrixFromStrings(1,&hdr->FileName));
-
+                
 		mxSetField(HDR,0,"T0",mxCreateDoubleScalar(ldexp(hdr->T0,-32)));
 
 		/* Channel information */ 
+#ifdef CHOLMOD_H
+/*
+        	if (hdr->Calib == NULL) { // is refering to &RR, do not destroy
+		        mxArray *Calib = mxCreateDoubleMatrix(hdr->Calib->nrow, hdr->Calib->ncol, mxREAL);
+
+        	}
+*/
+#endif
 		mxArray *LeadIdCode  = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
 		mxArray *PhysDimCode = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
 		mxArray *GDFTYP      = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
@@ -450,6 +458,7 @@ void mexFunction(
 		mxArray *HighPass    = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
 		mxArray *Notch       = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
 		mxArray *Impedance   = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+		mxArray *fZ          = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
 		mxArray *SPR         = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
 		mxArray *Label       = mxCreateCellMatrix(hdr->NS,1);
 		mxArray *Transducer  = mxCreateCellMatrix(hdr->NS,1);
@@ -470,6 +479,8 @@ void mexFunction(
 			*(mxGetPr(LowPass)+k) 	  = (double)hdr->CHANNEL[k].LowPass;
 			*(mxGetPr(HighPass)+k) 	  = (double)hdr->CHANNEL[k].HighPass;
 			*(mxGetPr(Notch)+k) 	  = (double)hdr->CHANNEL[k].Notch;
+			*(mxGetPr(Impedance)+k)	  = (double)hdr->CHANNEL[k].Impedance;
+			*(mxGetPr(fZ)+k)	  = (double)hdr->CHANNEL[k].fZ;
 			*(mxGetPr(ELEC_POS)+k) 	  = (double)hdr->CHANNEL[k].XYZ[0];
 			*(mxGetPr(ELEC_POS)+k+hdr->NS) 	  = (double)hdr->CHANNEL[k].XYZ[1];
 			*(mxGetPr(ELEC_POS)+k+hdr->NS*2)  = (double)hdr->CHANNEL[k].XYZ[2];
@@ -497,6 +508,7 @@ void mexFunction(
 		mxSetField(HDR,0,"Cal",Cal);
 		mxSetField(HDR,0,"Off",Off);
 		mxSetField(HDR,0,"Impedance",Impedance);
+		mxSetField(HDR,0,"fZ",fZ);
 		mxSetField(HDR,0,"Off",Off);
 		mxSetField(HDR,0,"PhysDim",PhysDim1);
 		mxSetField(HDR,0,"Transducer",Transducer);
@@ -561,7 +573,7 @@ void mexFunction(
 			mxArray *CHN = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
 			for (size_t k=0; k<hdr->EVENT.N; ++k) {
 				*(mxGetPr(DUR)+k) = (double)hdr->EVENT.DUR[k];
-				*(mxGetPr(CHN)+k) = (double)hdr->EVENT.CHN[k];	// conversion of 0-based to 1-based numbering 
+				*(mxGetPr(CHN)+k) = (double)hdr->EVENT.CHN[k];  // channels use a 1-based index, 0 indicates all channels
 			} 
 			mxSetField(EVENT,0,"DUR",DUR);
 			mxSetField(EVENT,0,"CHN",CHN);
@@ -580,7 +592,7 @@ void mexFunction(
 		mxArray *POS = mxCreateDoubleMatrix(hdr->EVENT.N,1, mxREAL);
 		for (size_t k=0; k<hdr->EVENT.N; ++k) {
 			*(mxGetPr(TYP)+k) = (double)hdr->EVENT.TYP[k];
-			*(mxGetPr(POS)+k) = (double)hdr->EVENT.POS[k];
+			*(mxGetPr(POS)+k) = (double)hdr->EVENT.POS[k]+1;   // conversion from 0-based to 1-based indexing 
 		} 
 		mxSetField(EVENT,0,"TYP",TYP);
 		mxSetField(EVENT,0,"POS",POS);

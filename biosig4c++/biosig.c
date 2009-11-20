@@ -3192,7 +3192,7 @@ size_t hdrEVT2rawEVT(HDRTYPE *hdr) {
 	uint8_t *buf1=hdr->AS.rawEventData+8;
 	uint8_t *buf2=hdr->AS.rawEventData+8+hdr->EVENT.N*4;
 	for (k32u=0; k32u<hdr->EVENT.N; k32u++) {
-		*(uint32_t*)(buf1+k32u*4) = l_endian_u32(hdr->EVENT.POS[k32u]); 
+		*(uint32_t*)(buf1+k32u*4) = l_endian_u32(hdr->EVENT.POS[k32u]+1); // convert from 0-based (biosig4c++) to 1-based (GDF) indexing 
 		*(uint16_t*)(buf2+k32u*2) = l_endian_u16(hdr->EVENT.TYP[k32u]); 
 	}
 	if (flag) {	
@@ -3240,7 +3240,7 @@ void rawEVT2hdrEVT(HDRTYPE *hdr) {
 			uint8_t *buf1 = hdr->AS.rawEventData+8; 
 			uint8_t *buf2 = hdr->AS.rawEventData+8+4*hdr->EVENT.N; 
 			for (k=0; k < hdr->EVENT.N; k++) {
-				hdr->EVENT.POS[k] = leu32p(buf1 + k*4); 
+				hdr->EVENT.POS[k] = leu32p(buf1 + k*4)-1;  // convert from 1-based (GDF) to 0-based (biosig4c++) indexing 
 				hdr->EVENT.TYP[k] = leu16p(buf2 + k*2); 
 			}
 			if (buf[0]>1) {
@@ -3980,7 +3980,7 @@ if (!strncmp(MODE,"r",1))
 					}	
 
 					p0[strlen(p0)-1] = 0;	// remove last ascii(20)
-					hdr->EVENT.POS[N_EVENT] = (uint32_t)round(Onset * hdr->EVENT.SampleRate);	
+					hdr->EVENT.POS[N_EVENT] = (uint32_t)round(Onset * hdr->EVENT.SampleRate);	// 0-based indexing 
 					hdr->EVENT.DUR[N_EVENT] = (uint32_t)round(Duration * hdr->EVENT.SampleRate);	
 					hdr->EVENT.CHN[N_EVENT] = 0;	
 					hdr->EVENT.TYP[N_EVENT] = min(255,strlen(p0+1));	// this is a hack, maps all codes into "user specific events" 
@@ -4050,22 +4050,22 @@ if (!strncmp(MODE,"r",1))
 
 					d1 = ((uint32_t)Marker[3*k+2]<<16) + ((uint32_t)Marker[3*k+1]<<8) + (uint32_t)Marker[3*k];
 					if ((d1 & 0x010000) > (d0 & 0x010000)) {
-						hdr->EVENT.POS[N_EVENT] = k;
+						hdr->EVENT.POS[N_EVENT] = k-1;        // 0-based indexing 
 						hdr->EVENT.TYP[N_EVENT] = 0x7ffe;
 						++N_EVENT;
 					}
 					else if ((d1 & 0x010000) < (d0 & 0x010000)) {
-						hdr->EVENT.POS[N_EVENT] = k;
+						hdr->EVENT.POS[N_EVENT] = k-1;        // 0-based indexing 
 						hdr->EVENT.TYP[N_EVENT] = 0x7ffe;
 						++N_EVENT;
 					}
 					if ((d1 & 0x00ffff) > (d0 & 0x00ffff)) {
-						hdr->EVENT.POS[N_EVENT] = k;
+						hdr->EVENT.POS[N_EVENT] = k-1;        // 0-based indexing 
 						hdr->EVENT.TYP[N_EVENT] = d1 & 0x00ff;
 						++N_EVENT;
 					}	
 					else if ((d1 & 0x00ffff) < (d0 & 0x00ffff)) {
-						hdr->EVENT.POS[N_EVENT] = k;
+						hdr->EVENT.POS[N_EVENT] = k-1;        // 0-based indexing 
 						hdr->EVENT.TYP[N_EVENT] = (d0 & 0x00ff) | 0x8000;
 						++N_EVENT;
 					}	
@@ -4623,7 +4623,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					double d;	
 					val = strchr(val,'\t')+1;
 					sscanf(val,"%lf",&d);
-					hdr->EVENT.POS[hdr->EVENT.N] = (typeof(*hdr->EVENT.POS))round(d*hdr->EVENT.SampleRate);
+					hdr->EVENT.POS[hdr->EVENT.N] = (typeof(*hdr->EVENT.POS))round(d*hdr->EVENT.SampleRate);  // 0-based indexing 
 					
 					val = strchr(val,'\t')+1;
 					if (val[0]!='\t') {
@@ -4885,7 +4885,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 				if (b3 != b2) {
 					if (b3>b2) hdr->EVENT.TYP[N] = ( b3==b1 ? 0x0381 : 0x0382);
 					else 	   hdr->EVENT.TYP[N] = ( b2==b0 ? 0x8381 : 0x8382);
-					hdr->EVENT.POS[N] = count;
+					hdr->EVENT.POS[N] = count;        // 0-based indexing 
 					N++;
 					b2 = b3;
 				}	
@@ -4910,7 +4910,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 						else       hdr->EVENT.TYP[N] = 0x8300 + b0 - b1;
 					}	
 
-					hdr->EVENT.POS[N] = count;	
+					hdr->EVENT.POS[N] = count;        // 0-based indexing 	
 					N++;
 					b0 = b1; 
 				}	
@@ -4923,7 +4923,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 				else if (b5 < b4) 
 					hdr->EVENT.TYP[N] = 0x830d;
 				if (b5 != b4) {
-					hdr->EVENT.POS[N] = count;	
+					hdr->EVENT.POS[N] = count;        // 0-based indexing 	
 					N++;
 					b4 = b5;
 				}	
@@ -5188,7 +5188,7 @@ if (VERBOSE_LEVEL>8)
 					hdr->EVENT.CHN = (uint16_t*) realloc(hdr->EVENT.CHN, hdr->EVENT.N*sizeof(*hdr->EVENT.CHN));
 				}
 				hdr->EVENT.TYP[N_EVENT] = atol(t1+p2+2);
-				hdr->EVENT.POS[N_EVENT] = atol(t1+p3+1);
+				hdr->EVENT.POS[N_EVENT] = atol(t1+p3+1)-1;        // 0-based indexing 
 				hdr->EVENT.DUR[N_EVENT] = atol(t1+p4+1);
 				hdr->EVENT.CHN[N_EVENT] = atol(t1+p5+1);
 				if (!strncmp(t1+p1+1,"New Segment",11)) {
@@ -5681,7 +5681,7 @@ if (VERBOSE_LEVEL>8)
 					else 		
 						hdr->EVENT.TYP[k] |= tmp8 | 0x80;	// response type
 				}	 
-				hdr->EVENT.POS[k] = leu32p(buf+4+k*fieldsize);
+				hdr->EVENT.POS[k] = leu32p(buf+4+k*fieldsize);        // 0-based indexing 
 				if (TeegType != 3)
 					hdr->EVENT.POS[k] = (hdr->EVENT.POS[k] - hdr->HeadLen) / hdr->AS.bpb;
 			}
@@ -6389,7 +6389,7 @@ if (VERBOSE_LEVEL>8)
 
 						if (t0 >= hdr->T0) 
 						{
-							hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(ldexp(t0 - hdr->T0,-32)*24*3600*hdr->SampleRate);
+							hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(ldexp(t0 - hdr->T0,-32)*24*3600*hdr->SampleRate);        // 0-based indexing 
 							//hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(atoi(strtok((char*)(LOG+lba+40+k1*45),"("))*hdr->SampleRate);
 							hdr->EVENT.DUR[hdr->EVENT.N] = 0; 
 							hdr->EVENT.CHN[hdr->EVENT.N] = 0;
@@ -6563,7 +6563,7 @@ if (VERBOSE_LEVEL>8)
 							hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR, N*sizeof(*hdr->EVENT.DUR));
 						}
 						hdr->EVENT.TYP[hdr->EVENT.N] = k1+1;
-						hdr->EVENT.POS[hdr->EVENT.N] = ix[k1];
+						hdr->EVENT.POS[hdr->EVENT.N] = ix[k1];        // 0-based indexing 
 						hdr->EVENT.CHN[hdr->EVENT.N] = 0;
 						hdr->EVENT.DUR[hdr->EVENT.N] = k-ix[k1];
 						hdr->EVENT.N++;
@@ -6576,7 +6576,7 @@ if (VERBOSE_LEVEL>8)
 			if (ix[k1]) {
 				/* end of data */
 				hdr->EVENT.TYP[hdr->EVENT.N] = k1+1;
-				hdr->EVENT.POS[hdr->EVENT.N] = ix[k1];
+				hdr->EVENT.POS[hdr->EVENT.N] = ix[k1];        // 0-based indexing 
 				hdr->EVENT.CHN[hdr->EVENT.N] = 0;
 				hdr->EVENT.DUR[hdr->EVENT.N] = k-ix[k1];
 				hdr->EVENT.N++;
@@ -6749,6 +6749,7 @@ if (VERBOSE_LEVEL>8)
 
 		uint32_t pos;
 		int Mark=0,hh,mm,ss,ds,BodyMovement,RemovalMark,PreScan;
+		size_t NEV = 16; 
 		hdr->EVENT.N = 0;
 		hdr->EVENT.SampleRate = hdr->SampleRate;
 		hdr->EVENT.DUR = NULL;
@@ -6767,13 +6768,16 @@ if (VERBOSE_LEVEL>8)
 
 			Mark = atoi(strtok(NULL,dlm));
 			if (Mark) {
-				++hdr->EVENT.N;
-		 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
-				hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
-				hdr->EVENT.POS[hdr->EVENT.N-1] = pos; 
-				hdr->EVENT.TYP[hdr->EVENT.N-1] = Mark; 
+                                if (hdr->EVENT.N+1 >= NEV) {
+                                        NEV<<=1;        // double allocated memory 
+        		 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, NEV*sizeof(*hdr->EVENT.POS) );
+        				hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, NEV*sizeof(*hdr->EVENT.TYP) );
+        			}	
+				hdr->EVENT.POS[hdr->EVENT.N] = pos;         // 0-based indexing
+				hdr->EVENT.TYP[hdr->EVENT.N] = Mark; 
 				if (FLAG_StimType_STIM && !(hdr->EVENT.N & 0x01))
-					hdr->EVENT.TYP[hdr->EVENT.N-1] = Mark | 0x8000; 
+					hdr->EVENT.TYP[hdr->EVENT.N] = Mark | 0x8000; 
+				++hdr->EVENT.N;
 			}
 			sscanf(strtok(NULL,dlm),"%d:%d:%d.%d",&hh,&mm,&ss,&ds);
 			BodyMovement 	= atoi(strtok(NULL,dlm));
@@ -6791,7 +6795,7 @@ if (VERBOSE_LEVEL>8)
 			++hdr->EVENT.N;
 	 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS, hdr->EVENT.N*sizeof(*hdr->EVENT.POS) );
 			hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP, hdr->EVENT.N*sizeof(*hdr->EVENT.TYP) );
-			hdr->EVENT.POS[hdr->EVENT.N-1] = pos; 
+			hdr->EVENT.POS[hdr->EVENT.N-1] = pos;         // 0-based indexing 
 			hdr->EVENT.TYP[hdr->EVENT.N-1] = Mark | 0x8000; 
 		}
 		hdr->AS.length  = hdr->NRec; 
@@ -7166,13 +7170,13 @@ if (VERBOSE_LEVEL>8)
 					hdr->EVENT.DUR[hdr->EVENT.N] = 0;
 					if (SWAP) {
 						hdr->EVENT.TYP[hdr->EVENT.N] = bswap_16(*(uint16_t*)(buf));
-						hdr->EVENT.POS[hdr->EVENT.N] = bswap_32(*(uint32_t*)(buf+2));
+						hdr->EVENT.POS[hdr->EVENT.N] = bswap_32(*(uint32_t*)(buf+2));   // 0-based indexing 
 						if (len>6)
 							hdr->EVENT.DUR[hdr->EVENT.N] = bswap_32(*(uint32_t*)(buf+6));
 					}
 					else {
 						hdr->EVENT.TYP[hdr->EVENT.N] = *(uint16_t*)buf;
-						hdr->EVENT.POS[hdr->EVENT.N] = *(uint32_t*)(buf+2);
+						hdr->EVENT.POS[hdr->EVENT.N] = *(uint32_t*)(buf+2);   // 0-based indexing
 						if (len>6)
 							hdr->EVENT.DUR[hdr->EVENT.N] = *(uint32_t*)(buf+6);
 					}		
@@ -7621,7 +7625,7 @@ if (VERBOSE_LEVEL>8)
 					pos += len;
 					// code = 0 is mapped to 49(ACMAX), see MIT_EVENT_DESC and http://www.physionet.org/physiotools/wfdb/lib/ecgcodes.h 
 					hdr->EVENT.TYP[hdr->EVENT.N] = (A==0 ? 49 : A);        
-					hdr->EVENT.POS[hdr->EVENT.N] = pos; 
+					hdr->EVENT.POS[hdr->EVENT.N] = pos-1;   // convert to 0-based indexing 
 					hdr->EVENT.CHN[hdr->EVENT.N] = chn;
 					++hdr->EVENT.N;
 				}
@@ -8745,7 +8749,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		size_t k;
 		for (k=0; k<hdr->EVENT.N; k++) {
 
-			fprintf(fid,"\n0x%04x\t%f\t",hdr->EVENT.TYP[k],hdr->EVENT.POS[k]/hdr->EVENT.SampleRate);
+			fprintf(fid,"\n0x%04x\t%f\t",hdr->EVENT.TYP[k],hdr->EVENT.POS[k]/hdr->EVENT.SampleRate);   // EVENT.POS uses 0-based indexing
 			if (hdr->EVENT.DUR != NULL)
 				fprintf(fid,"%f\t%d\t",hdr->EVENT.DUR[k]/hdr->EVENT.SampleRate,hdr->EVENT.CHN[k]);
 			else 	
@@ -8881,11 +8885,11 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 		if ((hdr->EVENT.DUR==NULL) && (hdr->EVENT.CHN==NULL))
 	    		for (k=0; k<hdr->EVENT.N; k++) {
-				fprintf(fid,"\n\rMk%i=,0x%04x,%u,1,0",k+2,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]);
+				fprintf(fid,"\n\rMk%i=,0x%04x,%u,1,0",k+2,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]+1);  // convert to 1-based indexing 
    			}
     		else
     			for (k=0; k<hdr->EVENT.N; k++) {
-				fprintf(fid,"\n\rMk%i=,0x%04x,%u,%u,%u",k+2,hdr->EVENT.TYP[k],hdr->EVENT.POS[k],hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]);
+				fprintf(fid,"\n\rMk%i=,0x%04x,%u,%u,%u",k+2,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]+1,hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]); // convert EVENT.POS to 1-based indexing 
 	   		}
 		fclose(fid); 
 		

@@ -338,7 +338,7 @@ typedef struct {
 		double  	SampleRate ATT_ALI;	/* for converting POS and DUR into seconds  */
 		uint32_t  	N ATT_ALI;	/* number of events */
 		uint16_t 	*TYP ATT_ALI;	/* defined at http://cvs.sourceforge.net/viewcvs.py/biosig/biosig/t200/eventcodes.txt?view=markup */
-		uint32_t 	*POS ATT_ALI;	/* starting position [in samples] */
+		uint32_t 	*POS ATT_ALI;	/* starting position [in samples] using a 0-based indexing */
 		uint32_t 	*DUR ATT_ALI;	/* duration [in samples] */
 		uint16_t 	*CHN ATT_ALI;	/* channel number; 0: all channels  */
 		char		**CodeDesc ATT_ALI;	/* describtion of "free text"/"user specific" events (encoded with TYP=0..255 */
