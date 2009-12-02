@@ -3,7 +3,7 @@
 %    and it tests also Matlab/Octave for its correctness. 
 % 
 
-%	$Id: demo3.m,v 1.16 2008-11-14 16:23:46 schloegl Exp $
+%	$Id$
 %	Copyright (C) 2000-2005,2006,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -30,8 +30,8 @@ VER   = version;
 cname = computer;
 
 % select file format 
-HDR.TYPE='GDF';
-%HDR.TYPE='EDF';
+HDR.TYPE='GDF';  
+% HDR.TYPE='EDF';
 %HDR.TYPE='BDF'; 
 %HDR.TYPE='CFWB';
 %HDR.TYPE='CNT';
@@ -49,7 +49,7 @@ HDR.Patient.Handedness = 0; 	% unknown, 1:left, 2:right, 3: equal
 % description of recording device 
 HDR.Manufacturer.Name = 'BioSig'; 
 HDR.Manufacturer.Model = 'demo3.m'; 
-HDR.Manufacturer.Version = '$Revision'; 
+HDR.Manufacturer.Version = '$Revision$'; 
 HDR.Manufacturer.SerialNumber = '00000000';
 
 % recording identification, max 80 char.
@@ -87,7 +87,7 @@ HDR.AS.SPR = [1000;100;200;100;20;1];	% samples per block;
 %HDR.AS.SampleRate = [1000;100;200;100;20;0];	% samplerate of each channel
 
 % channel identification, max 80 char. per channel
-HDR.Label=['chan 1  ';'chan 2  ';'chan 3  ';'chan 4  ';'chan 5  ';'NEQS    '];
+HDR.Label={'chan 1  ';'chan 2  ';'chan 3  ';'chan 4  ';'chan 5  ';'NEQS    '};
 
 % Transducer, mx 80 char per channel
 HDR.Transducer = {'Ag-AgCl ';'Airflow ';'xyz     ';'        ';'        ';'Thermome'};
@@ -106,11 +106,13 @@ HDR.Filter.Notch = [0,0,0,0,0,0];
 
 
 % define physical dimension
-HDR.PhysDim = {'uV';'mV';'%';'-';'-';'°C'};
+HDR.PhysDim = {'uV';'mV';'%';'Ohm';'-';'°C'};
+HDR.Impedance = [5000,50000,NaN,NaN,NaN,NaN];         % electrode impedance (in Ohm) for voltage channels 
+HDR.fZ = [NaN,NaN,NaN,400000,NaN,NaN];                % probe frequency in Hz for Impedance channel
 
 t = [100:100:size(x,1)]';
 %HDR.NRec = 100;
-HDR.VERSION = 2.11; 
+HDR.VERSION = 2.20;        % experimental  
 HDR = sopen(HDR,'w');
 %HDR.SIE.RAW = 0; % [default] channel data mode, one column is one channel 
 %HDR.SIE.RAW = 1; % switch to raw data mode, i.e. one column for one EDF-record

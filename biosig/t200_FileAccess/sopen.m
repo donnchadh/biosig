@@ -578,10 +578,12 @@ end;
                                         fseek(HDR.FILE.FID, HDR.NS*19, 'cof');	                        % datatype
                                 else 
                                         tmp    =       fread(HDR.FILE.FID,[5,HDR.NS],'float32');	% datatype
-                                        ch     =       (HDR.PhysDimCode & hex2dec('ffe0'))==4256;       % channel with voltage data  
+                                        ch     =       bitand(HDR.PhysDimCode, hex2dec('ffe0'))==4256;       % channel with voltage data  
                                         HDR.Impedance(ch) = tmp(1,ch);
-                                        ch     =       (HDR.PhysDimCode & hex2dec('ffe0'))==4288;       % channel with impedance data  
+                                        HDR.Impedance(~ch)= NaN;
+                                        ch     =       bitand(HDR.PhysDimCode, hex2dec('ffe0'))==4288;       % channel with impedance data  
                                         HDR.fZ(ch) = tmp(1,ch);                                         % probe frequency
+                                        HDR.fZ(~ch)= NaN;
                                 end;
 			end;
                 end;
@@ -1771,10 +1773,10 @@ end;
                                                 fwrite(HDR.FILE.FID, max(0,min(255,round(log2(HDR.Impedance(1:HDR.NS))*8)')),'uint8');
                                                 fwrite(HDR.FILE.FID,32*ones(19,HDR.NS),'uint8');
                                         else 
-                                                tmp = repmat(NaN,5,NS); 
-                                                ch  = find((HDR.PhysDimCode & hex2dec('ffe0'))==4256); % channel with voltage data  
-                                                tmp(1,ch) = HDR.Impedance(ch)
-                                                ch  = find((HDR.PhysDimCode & hex2dec('ffe0'))==4288); % channel with impedance data  
+                                                tmp = repmat(NaN,5,HDR.NS); 
+                                                ch  = find(bitand(HDR.PhysDimCode, hex2dec('ffe0'))==4256) % channel with voltage data  
+                                                tmp(1,ch) = HDR.Impedance(ch);
+                                                ch  = find(bitand(HDR.PhysDimCode, hex2dec('ffe0'))==4288) % channel with impedance data  
                                                 if isfield(HDR,'fZ')
                                                         tmp(1,ch) = HDR.fZ(ch);                      % probe frequency
                                                 end;
