@@ -565,14 +565,24 @@ end;
  	                        HDR.DigMin     =       fread(HDR.FILE.FID,[1,HDR.NS],'float64');
  	                        HDR.DigMax     =       fread(HDR.FILE.FID,[1,HDR.NS],'float64');
                                 HDR.PreFilt    =  char(fread(HDR.FILE.FID,[80-12,HDR.NS],'uint8')');	%	
-                                HDR.Filter.LowPass  =  fread(HDR.FILE.FID,[ 1,HDR.NS],'float32');	% 
-                                HDR.Filter.HighPass =  fread(HDR.FILE.FID,[ 1,HDR.NS],'float32');	%
-                                HDR.Filter.Notch    =  fread(HDR.FILE.FID,[ 1,HDR.NS],'float32');	%
-                                HDR.AS.SPR     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32')';	%	samples per data record
-                                HDR.GDFTYP     =       fread(HDR.FILE.FID,[ 1,HDR.NS],'uint32');	%	datatype
-                                HDR.ELEC.XYZ   =       fread(HDR.FILE.FID,[ 3,HDR.NS],'float32')';	%	datatype
-                                tmp            =       fread(HDR.FILE.FID,[HDR.NS, 1],'uint8');	%	datatype
-                                HDR.REC.Impedance = 2.^(tmp/8);
+                                HDR.Filter.LowPass  =  fread(HDR.FILE.FID,[1,HDR.NS],'float32');	% 
+                                HDR.Filter.HighPass =  fread(HDR.FILE.FID,[1,HDR.NS],'float32');	%
+                                HDR.Filter.Notch    =  fread(HDR.FILE.FID,[1,HDR.NS],'float32');	%
+                                HDR.AS.SPR     =       fread(HDR.FILE.FID,[1,HDR.NS],'uint32')';	% samples per data record
+                                HDR.GDFTYP     =       fread(HDR.FILE.FID,[1,HDR.NS],'uint32');	        % datatype
+                                HDR.ELEC.XYZ   =       fread(HDR.FILE.FID,[3,HDR.NS],'float32')';	% datatype
+                                if (HDR.VERSION < 2.19)
+                                        tmp    =       fread(HDR.FILE.FID,[HDR.NS, 1],'uint8');	        % datatype
+                                        tmp(tmp==255) = NaN; 
+                                        HDR.Impedance = 2.^(tmp/8);
+                                        fseek(HDR.FILE.FID, HDR.NS*19, 'cof');	                        % datatype
+                                else 
+                                        tmp    =       fread(HDR.FILE.FID,[5,HDR.NS],'float32');	% datatype
+                                        ch     =       (HDR.PhysDimCode & hex2dec('ffe0'))==4256;       % channel with voltage data  
+                                        HDR.Impedance(ch) = tmp(1,ch);
+                                        ch     =       (HDR.PhysDimCode & hex2dec('ffe0'))==4288;       % channel with impedance data  
+                                        HDR.fZ(ch) = tmp(1,ch);                                         % probe frequency
+                                end;
 			end;
                 end;
 
@@ -1005,13 +1015,15 @@ end;
         elseif any(HDR.FILE.PERMISSION=='w');                %%%%%%% ============= WRITE ===========%%%%%%%%%%%%        
                 if strcmp(HDR.TYPE,'EDF')
                         HDR.VERSION = 0;
-                elseif strcmp(HDR.TYPE,'GDF') 
-                        if ~isfield(HDR,'VERSION'),
-                                HDR.VERSION = 2.1;     %% stable version 
-                        elseif (HDR.VERSION<1.30)
-                                HDR.VERSION = 1.25;     %% stable version 
+                elseif strcmp(HDR.TYPE,'GDF')
+                        if ~isfield(HDR,'VERSION')
+                                HDR.VERSION = 2.11;     %% default version 
+                        elseif (HDR.VERSION < 1.30)
+                                HDR.VERSION = 1.25;     %% old version 
+                        elseif (HDR.VERSION < 2.19)
+                                HDR.VERSION = 2.11;     %% stable version 
                         else
-                                HDR.VERSION = 2.11;     %% testing 
+                                HDR.VERSION = 2.19;     %% experimental 
                         end;        
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
@@ -1170,8 +1182,11 @@ end;
 			tmp = HDR.REC.LOC;
 			HDR.REC.LOC.RFC1876 = [hex2dec('00292929'),tmp.Latitude*36e5,tmp.Longitude*36e5,tmp.Altitude*100];
 		end
-		if ~isfield(HDR.REC,'Impedance')	
-                        HDR.REC.Impedance = repmat(NaN,HDR.NS,1); 
+		if isfield(HDR.REC,'Impedance') && ~isfield(HDR,'Impedance')	
+                        HDR.Impedance = HDR.REC.Impedance; 
+		end
+		if ~isfield(HDR,'Impedance')	
+                        HDR.Impedance = repmat(NaN,HDR.NS,1); 
 		end
                 HDR.REC.Equipment = [1,abs('BIOSIG ')];
                 if ~isfield(HDR.REC,'Lab')
@@ -1452,14 +1467,14 @@ end;
                                 HDR.ELEC.REF = HDR.ELEC.XYZ(HDR.NS+1,:); 
                                 HDR.ELEC.GND = HDR.ELEC.XYZ(HDR.NS+2,:); 
     		        end;
-	                if ~isfield(HDR.REC,'Impedance')
-				HDR.REC.Impedance = repmat(NaN,HDR.NS,1); 
-			elseif ~isnumeric(HDR.REC.Impedance)
-                                fprintf('Warning SOPEN (GDF)-W: HDR.REC.Impedance must be numeric.\n');
-			elseif (length(HDR.REC.Impedance)~=HDR.NS)
-				sz = size(HDR.REC.Impedance(:));
-				tmp = [HDR.REC.Impedance(:),repmat(NaN,sz(1),1);repmat(NaN,HDR.NS,sz(2)+1)];	
-				HDR.REC.Impedance = tmp(1:HDR.NS,1); 
+	                if ~isfield(HDR,'Impedance')
+				HDR.Impedance = repmat(NaN,HDR.NS,1); 
+			elseif ~isnumeric(HDR.Impedance)
+                                fprintf('Warning SOPEN (GDF)-W: HDR.Impedance must be numeric.\n');
+			elseif (length(HDR.Impedance)~=HDR.NS)
+				sz = size(HDR.Impedance(:));
+				tmp = [HDR.Impedance(:),repmat(NaN,sz(1),1);repmat(NaN,HDR.NS,sz(2)+1)];	
+				HDR.Impedance = tmp(1:HDR.NS,1); 
 			end
                         
                         ix = find((HDR.DigMax(:)==HDR.DigMin(:)) & (HDR.PhysMax(:)==HDR.PhysMin(:)));
@@ -1617,7 +1632,7 @@ end;
 				tmp = floor([rem(tmp,1)*2^32;tmp]);
                                 c   = fwrite(HDR.FILE.FID,tmp,'uint32');
                                 c   = fwrite(HDR.FILE.FID,[HDR.HeadLen/256,0,0,0],'uint16');
-                                c   = fwrite(HDR.FILE.FID,'b4om2.15','uint8'); % EP_ID=ones(8,1)*32;
+                                c   = fwrite(HDR.FILE.FID,'b4om2.39','uint8'); % EP_ID=ones(8,1)*32;
                                 if (HDR.VERSION < 2.1)
 					tmp = [HDR.REC.IPaddr, zeros(1,2)];
 				else
@@ -1720,7 +1735,7 @@ end;
                         else
                                 fwrite(HDR.FILE.FID, abs(Label)','uint8');
                                 fwrite(HDR.FILE.FID, abs(Transducer)','uint8');
-                                if (HDR.VERSION<1.9),
+                                if (HDR.VERSION < 1.9)
 	                                fwrite(HDR.FILE.FID, abs(PhysDim)','uint8');
 	                                fwrite(HDR.FILE.FID, HDR.PhysMin,'float64');
 	                                fwrite(HDR.FILE.FID, HDR.PhysMax,'float64');
@@ -1752,8 +1767,19 @@ end;
                                         fwrite(HDR.FILE.FID, HDR.AS.SPR(1:HDR.NS),'uint32');
                                         fwrite(HDR.FILE.FID, HDR.GDFTYP(1:HDR.NS),'uint32');
                                         fwrite(HDR.FILE.FID, HDR.ELEC.XYZ(1:HDR.NS,:)','float32');
-                                        fwrite(HDR.FILE.FID, max(0,min(255,round(log2(HDR.REC.Impedance(1:HDR.NS))*8)')),'uint8');
-                                        fwrite(HDR.FILE.FID,32*ones(32-13,HDR.NS),'uint8');
+                                        if (HDR.VERSION < 2.19)
+                                                fwrite(HDR.FILE.FID, max(0,min(255,round(log2(HDR.Impedance(1:HDR.NS))*8)')),'uint8');
+                                                fwrite(HDR.FILE.FID,32*ones(19,HDR.NS),'uint8');
+                                        else 
+                                                tmp = repmat(NaN,5,NS); 
+                                                ch  = find((HDR.PhysDimCode & hex2dec('ffe0'))==4256); % channel with voltage data  
+                                                tmp(1,ch) = HDR.Impedance(ch)
+                                                ch  = find((HDR.PhysDimCode & hex2dec('ffe0'))==4288); % channel with impedance data  
+                                                if isfield(HDR,'fZ')
+                                                        tmp(1,ch) = HDR.fZ(ch);                      % probe frequency
+                                                end;
+                                                fwrite(HDR.FILE.FID, tmp, 'float32');
+                                        end         
 				end;
                         end;
                 end;
@@ -3179,7 +3205,7 @@ elseif strcmp(HDR.TYPE,'Sigma'),	% SigmaPLpro
         	HDR.Filter.LowPass = XXX.Val(:,2);
         	HDR.Filter.HighPass = XXX.Val(:,3);
         	HDR.Filter.HighPass = XXX.Val(:,3);
-        	HDR.REC.Impedance = XXX.Val(:,7);
+        	HDR.Impedance = XXX.Val(:,7);
         	HDR.Cal = XXX.Val(:,8);
         	HDR.Off = HDR.Off(:)'.*HDR.Cal(:)';
 		if all(refxy(:,1)==refxy(1,1)) && all(refxy(:,2)==refxy(1,2))
@@ -7188,7 +7214,7 @@ elseif strcmp(HDR.TYPE,'BioSig'),
         	HDR.Filter.HighPass = n(:,11); 
         	HDR.Filter.LowPass = n(:,12); 
         	HDR.Filter.Notch = n(:,13); 
-        	HDR.REC.Impedance = n(:,14)*1000; 
+        	HDR.Impedance = n(:,14)*1000; 
         	HDR.ELEC.XYZ = n(:,15:17); 
  		
  		%%%%%%%%%% event table 
@@ -8285,7 +8311,7 @@ elseif strncmp(HDR.TYPE,'BrainVision',11),
                         		n(2) = Inf; 
                        		end; 
                         	if any(ch),
-	                        	HDR.REC.Impedance(ch,1) = n(2)*Zscale;
+	                        	HDR.Impedance(ch,1) = n(2)*Zscale;
                         	end; 
                         end; 
                 end;

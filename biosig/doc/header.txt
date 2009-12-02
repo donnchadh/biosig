@@ -3,8 +3,8 @@ SPECIFICATION OF HEADERINFORMATION OF EEG-Files
 -----------------------------------------------
 
 
-$Id: header.txt,v 1.33 2008-11-03 10:44:16 schloegl Exp $
-Copyright (C) Alois Schloegl 2003-2005,2008 <a.schloegl@ieee.org>
+$Id$
+Copyright (C) Alois Schloegl 2003-2005,2008,2009 <a.schloegl@ieee.org>
 This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
@@ -77,11 +77,14 @@ HDR.Bits		integer		number of bits used
 HDR.THRESHOLD		numeric		digital minimum and maximum (for saturation detection);
 					a third column indicates the encoding of missing data;  
 HDR.CHANTYP		ascii		guess for signal type 
+HDR.Impedance	        float32	        Electrode Impedance for Voltage data channels  
+HDR.fZ                	float32	        Probe frequency of impedance channels  
 
 HDR.FLAG.TRIGGERED	int		0=no, 1=yes
 HDR.FLAG.REFERENCE	string          COM, CAR: common average reference; LOC,LAR local average ref; LAP Laplacian derivation, WGT weighted average
 HDR.FLAG.UCAL		int		0: data is calibrated (scaled), 1: data is not calibrated (scaled)
 HDR.FLAG.OVERFLOWDETECTION 	int	1: automated overflow detection if HDR.THRESHOLD is available; 0: no overflow detection 
+HDR.FLAG.OUTPUT		ascii		'double': data is a double; 'single': data is single precision 	
 	
 HDR.Classlabel		int		0: left, 1: right, etc.
 HDR.ArtifactSelection	int		[OPTIONAL] 0: ok, 1: artifact 
@@ -121,12 +124,12 @@ HDR.Manufacturer	# Manufacturer information
 HDR.REC.Hospital			Identification of hospital
 HDR.RID					Identification of Recording, StudyID, consecutive number
 HDR.REC.Technician			identity of recording technician
-# HDR.REC.Doctor				Identification of refering doctor
+# HDR.REC.Doctor			Identification of refering doctor
 HDR.REC.Equipment			recording equipment
 HDR.REC.LOC		16 byte		Latitude, Longitude and Altitude 3 x INT32 according to RFC1876
 HDR.REC.IPaddr		4(16)xuint8	IP address of recording system
 # HDR.REC.Reference			reference (monopolar | CAR | LAR | Laplacian | Linked ears | weighted )
-HDR.REC.Impedance	NS*uint8	Electrode Impedance round(log2(Z[Ohm])*8) Z can be reconstructed with < 10% error 
+HDR.REC.Impedance	NS*float32	[OBSOLETE] replaced with HDR.Impedance  
 HDR.ELEC.XYZ		3xNSxfloat32	sensor position in cartesion coordinates
 HDR.ELEC.Orientation	3xNSxfloat32	sensor orientation in cartesion coordinates
 HDR.ELEC.Area		NSxfloat32	area [m^2] of (MEG) sensor
@@ -165,7 +168,6 @@ HDR.SampleRate		Integer		sampling frequency in [Hz]
 
 HDR.Label		char-array	z.B. '+C3a - C3p  '
 HDR.PhysDim		char-array	'uV    '
-
 -------------------------------------------------------------------------
 
 
