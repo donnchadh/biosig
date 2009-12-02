@@ -154,6 +154,9 @@ for chn = 1:size(s,2)  % Loop over all channels
             refp(:,k) = mean(pre_erds{k}(ref(1):ref(2),:));  % Average reference power for each trial
             pre_erds{k} = pre_erds{k}./repmat(refp(:,k)',size(pre_erds{k},1),1) - 1;
             erds(:,k) = mean(pre_erds{k},2);
+        elseif strcmp(refmethod, 'absolute')  % Calculate BP maps
+            pre_erds{k} = reshape(s_t, triallen, length(s_t)/triallen);
+            erds(:,k) = mean(pre_erds{k},2);
         end;
     end;
     
@@ -166,7 +169,9 @@ for chn = 1:size(s,2)  % Loop over all channels
     else
         r.ERDS{chn}.erds = erds;
     end;
-    r.ERDS{chn}.refp = refp;
+    if ~strcmp(refmethod, 'absolute')  % We don't need reference power values for BP maps
+        r.ERDS{chn}.refp = refp;
+    end;
     
     switch lower(sig)
 
@@ -252,3 +257,4 @@ r.f_plot = f_plot;
 r.f_low = f_low;
 r.f_up = f_up;
 r.n_trials = length(h.TRIG(ismember(h.Classlabel, class)));
+r.refmethod = refmethod;

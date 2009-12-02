@@ -77,7 +77,9 @@ function r = calcErdsMap(s, h, t, f_borders, varargin)
 %                      Default: true.
 %   'refmethod'    ... Calculation mode <string>. 'classic' uses the classical
 %                      approach with an averaged reference interval. 'trial'
-%                      uses an individual reference for each trial.
+%                      uses an individual reference for each trial. 'absolute'
+%                      does not use references, but calculates bandpower maps
+%                      instead.
 %                      Default: 'classic'.
 %
 % Output parameter:
@@ -143,6 +145,7 @@ montage = [];  % Default montage
 cue = [];  % Default do not draw cue
 wide_trials = true;  % Default use additional samples outside of trial for FFT method
 refmethod = 'classic';
+warning('The parameter "refmethod" is currently only working with the BP method.');
 
 % Overwriting default values with optional input parameters
 if ~isempty(varargin)  % Are there optional parameters available?
