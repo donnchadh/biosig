@@ -143,7 +143,12 @@ for i_rows = 1:n_rows
             a3{counter_plots} = axes('position', [border + border_plots + i_width * (i_cols - 1), plot_area + border + border_plots - i_height * i_rows + 5 * (i_height - border_plots) ./ 6, i_width - border_plots, (i_height - border_plots) ./ 6]);
             set(f, 'CurrentAxes', a1{counter_plots});
             set(gca, 'FontSize', font_size/2*3);
-            imagesc(r.t_plot, r.f_plot, r.ERDS{counter_plots}.erds', [-1, 1.5]);
+            
+            if strcmp(r.refmethod, 'absolute')
+                imagesc(r.t_plot, r.f_plot, r.ERDS{counter_plots}.erds');
+            else
+                imagesc(r.t_plot, r.f_plot, r.ERDS{counter_plots}.erds', [-1, 1.5]);
+            end;
             
             set(f, 'CurrentAxes', a2{counter_plots});
             set(gca, 'FontSize', font_size/1*3*2);
