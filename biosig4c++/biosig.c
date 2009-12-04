@@ -3496,7 +3496,7 @@ if (!strncmp(MODE,"r",1))
 	if (!memcmp(hdr->FileName,"bscs://",7)) {
 		uint64_t ID; 
     		char *hostname = (char*)hdr->FileName+7;
-    		char *t = strrchr(hdr->FileName,'/');
+    		char *t = strrchr(hostname,'/');
     		if (t==NULL) {
 			B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
     			B4C_ERRMSG = "SOPEN-NETWORK: file identifier not specifed";
@@ -7581,7 +7581,8 @@ if (VERBOSE_LEVEL>8)
                         /* define user specified events according to http://www.physionet.org/physiotools/wfdb/lib/ecgcodes.h */
         		hdr->EVENT.CodeDesc = (typeof(hdr->EVENT.CodeDesc)) realloc(hdr->EVENT.CodeDesc,257*sizeof(*hdr->EVENT.CodeDesc));
         		for (k=0; strlen(MIT_EVENT_DESC[k])>0; k++) {
-                                hdr->EVENT.CodeDesc[k+1] = MIT_EVENT_DESC[k];
+                                //hdr->EVENT.CodeDesc[k+1] = MIT_EVENT_DESC[k];
+                                hdr->EVENT.CodeDesc[k+1] = (char*)MIT_EVENT_DESC[k];   // hack to satisfy MinGW (gcc version 4.2.1-sjlj)
         		        if (VERBOSE_LEVEL>7) fprintf(stdout,"[MIT 182] %i %s %s\n",k,MIT_EVENT_DESC[k],hdr->EVENT.CodeDesc[k]); 
                         }		 
         		hdr->EVENT.LenCodeDesc = k+1; 
@@ -8605,7 +8606,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 #ifndef WITHOUT_NETWORK
     	if (!memcmp(hdr->FileName,"bscs://",7)) {
     		// network: write to server
-                char *hostname = hdr->FileName+7;
+                const char *hostname = hdr->FileName+7;
                 char *tmp= strchr(hostname,'/');
                 if (tmp != NULL) tmp[0]=0;   // ignore terminating slash       
 
