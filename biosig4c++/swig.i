@@ -49,20 +49,20 @@ typedef int64_t nrec_t; 	/* type for number of records */
 enum FileFormat {
 	noFile, unknown, 
 	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, ATES, ATF, AVI,
-	BCI2000, BDF, BIN, BKR, BLSC, BMP, BNI, 
+	BCI2000, BDF, BIN, BKR, BLSC, BMP, BNI, BSCS, 
 	BrainVision, BrainVisionVAmp, BrainVisionMarker, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
-	EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
+	EBS, EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
-	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, Lexicor,
-	Matlab, MFER, MIDI, MIT, 
+	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, Lexicor, 
+	Matlab, MFER, MIDI, MIT, MM, MSI, 
 	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
-	PBMA, PBMN, PDF, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
+	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
-	TIFF, TMS32, TMSiLOG, VRML, VTK, 
+	TIFF, TMS32, TMSiLOG, TRC, UNIPRO, VRML, VTK, 
 	WAV, WinEEG, WMF, XML, XPM,
 	Z, ZIP, ZIP2,
-	ASCII_IBI, ASCII
+	ASCII_IBI, ASCII, 
 };
 
 typedef struct {
@@ -88,10 +88,14 @@ typedef struct {
 //	float 		Orientation[3];	/* sensor direction */
 //	float 		Area;		/* area of sensor (in m^2 e.g. for MEG) */
 	float 		Impedance;   	/* in Ohm */
+	float 		fZ;	   	/* probe freqency in Hertz */
 	
 	uint16_t 	GDFTYP;		/* data type */
 	uint32_t 	SPR;		/* samples per record (block) */
+#ifndef NO_BI
 	uint32_t	bi; 		/* start and end byte of channel within data block */
+	uint32_t	bi8; 		/* start and end bit of channel within data block */
+#endif
 	
 } CHANNEL_TYPE;
 
@@ -128,6 +132,10 @@ typedef struct {
 	gdf_time 	T0; 		/* starttime of recording */
 	int16_t 	tzmin; 		/* time zone (minutes of difference to UTC */
 
+#ifdef CHOLMOD_H
+	cholmod_sparse  *Calib;                  /* re-referencing matrix */
+	CHANNEL_TYPE 	*rerefCHANNEL;  
+#endif 	
 	/* Patient specific information */
 	struct {
 		char		Name[MAX_LENGTH_NAME+1]; /* because for privacy protection it is by default not supported, support is turned on with FLAG.ANONYMOUS */
@@ -148,6 +156,7 @@ typedef struct {
 		int		Medication;	/* 0:Unknown, 1: NO, 2: YES */
 		struct {
 			int 	Visual;		/* 0:Unknown, 1: NO, 2: YES, 3: Corrected */
+			int 	Heart;		/* 0:Unknown, 1: NO, 2: YES, 3: Pacemaker */
 		} Impairment;
 		
 	} Patient; 
@@ -194,6 +203,7 @@ typedef struct {
 		char		UCAL; 		/* UnCalibration  0: scaling  !=0: NO scaling - raw data return  */
 		char		ANONYMOUS; 	/* 1: anonymous mode, no personal names are processed */ 
 		char		ROW_BASED_CHANNELS;	/* 0: column-based data [default]; 1: row-based data */ 
+		char		TARGETSEGMENT; /* in multi-segment files (like Nihon-Khoden, EEG1100), it is used to select a segment */ 
 	} FLAG; 
 
 	CHANNEL_TYPE *CHANNEL;
@@ -207,9 +217,11 @@ typedef struct {
 #endif
 		FILE* 		FID;		/* file handle  */
 		size_t 		POS;		/* current reading/writing position [in blocks] */
+		int		Des;		/* file descriptor */
 		uint8_t		OPEN; 		/* 0: closed, 1:read, 2: write */
 		uint8_t		LittleEndian;
 		uint8_t		COMPRESSION;   /* 0: no compression 9: best compression */
+		int		DES;		/* descriptor for streams */
 	} FILE; 
 
 	/*	internal variables (not public)  */
@@ -218,8 +230,10 @@ typedef struct {
 //		char* 		RID;		/* recording identification */ 
 //		uint32_t 	spb;		/* total samples per block */
 		uint32_t 	bpb;  		/* total bytes per block */
+		uint32_t 	bpb8;  		/* total bits per block */
 //		uint32_t 	*bi __attribute__ ((deprecated)); /* this information redundant with HDR.CHANNEL[k].bi[0] - and might become obsolete */
 		uint8_t*	Header; 
+		uint8_t*	rawEventData;
 		uint8_t*	rawdata; 	/* raw data block */
 		nrec_t		first;		/* first block loaded in buffer - this is equivalent to hdr->FILE.POS */
 		nrec_t		length;		/* number of block(s) loaded in buffer */
@@ -243,6 +257,7 @@ int 	sseek(HDRTYPE* hdr, long int offset, int whence);
 long int stell(HDRTYPE* hdr);
 int	hdr2ascii(HDRTYPE* hdr, FILE *fid, int verbosity);
 
+int RerefCHANNEL(HDRTYPE *hdr, void *ReRef, char rrtype);
 const char* GetFileTypeString(enum FileFormat FMT);
 HDRTYPE* sload(const char* FileName, size_t CHANLIST[], biosig_data_type** DATA);
 
