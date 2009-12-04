@@ -26,6 +26,7 @@
 */
 
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include "../biosig-dev.h"
@@ -513,16 +514,17 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 				if (tag==0) {
 					if (!hdr->FLAG.ANONYMOUS)
 						strncpy(hdr->Patient.Name, (char*)(PtrCurSect+curSectPos),min(len1,MAX_LENGTH_NAME));
-				}		
+				}
 				else if (tag==1) {
 //					hdr->Patient.FirstName = (char*)(PtrCurSect+curSectPos);
 				}
 				else if (tag==2) {
-					if (len1>MAX_LENGTH_PID) {
+					if (len1 > MAX_LENGTH_PID) {
 						fprintf(stdout,"Warning SCP(read): length of Patient Id (section1 tag2) exceeds %i>%i\n",len1,MAX_LENGTH_PID); 
-					}	
-					strncpy(hdr->Patient.Id,(char*)(PtrCurSect+curSectPos),min(len1,MAX_LENGTH_PID)); 
-
+					}
+					strncpy(hdr->Patient.Id,(char*)(PtrCurSect+curSectPos),min(len1,MAX_LENGTH_PID));
+					hdr->Patient.Id[MAX_LENGTH_PID] = 0;
+					
 					if (!strcmp(hdr->Patient.Id,"UNKNOWN")) 
 						hdr->Patient.Id[0] = 0;
 				}
