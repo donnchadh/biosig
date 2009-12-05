@@ -91,8 +91,6 @@ OBJECTS       = biosig.o \
 		sopen_hl7aecg.o \
 		getlogin_r.o \
 		biosig-network.o \
-		save2gdf.o \
-		pdp2gdf.o \
 		sandbox.o 
 		 
 		
@@ -218,12 +216,12 @@ tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinys
 
 ####### Build rules
 
-biosig4python : _biosig.so biosig.py
-biosig.py swig_wrap.cxx : $(SOURCES) libbiosig.a swig.i 
+biosig4python : python/_biosig.so python/biosig.py
+python/biosig.py swig_wrap.cxx : $(SOURCES) libbiosig.a swig.i 
 	$(SWIG) -c++ -python -I/usr/include -o swig_wrap.cxx swig.i
-_biosig.so : swig_wrap.cxx 
+python/_biosig.so : swig_wrap.cxx 
 	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python$(PYTHONVER) && \
- 	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so
+ 	$(CXX) -shared swig_wrap.o $(LIBS) -o python/_biosig.so
  
 #$(TARGET):  libbiosig.a 
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
