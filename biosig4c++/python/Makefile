@@ -31,8 +31,9 @@ _biosig.so : swig_wrap.cxx
 	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python$(PYTHONVER) && \
  	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so
 
-testpybdf : /tmp/BDFtestfiles.zip
+test: /tmp/BDFtestfiles.zip
 	unzip -u /tmp/BDFtestfiles.zip -d /tmp && \
+	python demo.py /tmp/*-256.bdf
 	python example.py /tmp/*-256.bdf 256 && \
 	python example.py /tmp/*-2048.bdf 2048
 
