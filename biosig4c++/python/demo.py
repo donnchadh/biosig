@@ -20,6 +20,10 @@ HDR = biosig.sopen(fname, "r", HDR);
 data = biosig.sread(0, HDR.NRec, HDR)
 
 biosig.sclose(HDR)
+
+biosig.hdr2ascii(HDR,3)
+
+
 #biosig.destructHDR(HDR)
     
 #return data
