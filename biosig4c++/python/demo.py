@@ -1,5 +1,5 @@
 import biosig
-# import scipy as S
+import numpy as S
 
 
 fname = 'gdf2test.gdf'

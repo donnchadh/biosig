@@ -5,29 +5,36 @@ The aim of this repository is providing a C/C++ software library for biomedical 
 This library is called "BioSig for C/C++" and is complementary to "BioSig for Octave and Matlab". 
 
 BioSig4C++ provides several tools:  
+
 (1) "libbiosig.a" provides a library for accessing different dataformats. 
 Recommended: zlib (http://zlib.net/) and GNU Scientific Library (GSL)
 The supported data formats are listed here: 
 http://hci.tugraz.at/schloegl/biosig/TESTED
+
 (2) "save2gdf" is a converter between different file formats, 
 including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, CWFB.
     save2gdf can be also used to upload or retrieve data from a bscs server. 
+
 (3) "mexSLOAD" is a MEX-interface for Octave and Matlab
 Requirement: Matlab OR Octave (v2.9 or higher) with octave-headers
 For Matlab, precompiled binaries are available in matlab/mexSLOAD.mex*    
-(4) "_biosig.so" is an interface to python. 
-Requirement: python, python-dev, python-scipy, swig (http://www.swig.org/)
+
+(4) "biosig4python" is an interface to python. 
+Requirement: python, python-dev, swig (http://www.swig.org/)
+see ./python/example.py and ./python/demo.py for more information 
+
 (5) SigViewer 
 Requirement: qmake, Qt4
+
 (6) Precompiled binaries for Win32
    win32/save2gdf.exe  binary converter
    win32/libbiosig.a   library for MinGW 4.x (might work with other compilers too) 
 
 
 The internal data structure resemble the header structure similar to
-  http://biosig.cvs.sourceforge.net/biosig/biosig/doc/header.txt
+  http://biosig.svn.sourceforge.net/viewvc/biosig/trunk/biosig/doc/header.txt
 and is defined in
-  http://biosig.cvs.sourceforge.net/biosig/biosig4c++/biosig.h
+  http://biosig.svn.sourceforge.net/viewvc/biosig/trunk/biosig4c%2B%2B/biosig.h
 (see HDRTYPE and CHANNEL_TYPE)
 
 Encoding of Event/Markers/Annotations is available here: 
@@ -53,6 +60,8 @@ File(s):
     Makefile	script for compiling and testing under GNU/Linux
     Makefile.win32	script for compiling and testing on win32 using mingw
     win32/*	executables for Windows
+    python/*.py show example and demo
+    
 
 Compilation: 
 -------------
