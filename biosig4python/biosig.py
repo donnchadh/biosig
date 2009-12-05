@@ -1,15 +1,15 @@
 """BIOSIG Toolbox for Python
-    Copyright (C) 2005-2006 by Martin Hieden <martin.hieden@gmx.at> 
-	             and Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2005,2006 by Martin Hieden <martin.hieden@gmx.at> 
+    Copyright (C) 2005,2006,2009 by Alois Schloegl <a.schloegl@ieee.org>
 
     $Id: biosig.py,v 1.2 2008-05-13 11:21:25 schloegl Exp $
     This function is part of the "BioSig for Python" repository 
     (biosig4python) at http://biosig.sf.net/ 
 
 
-    This program is free software; you can redistribute it and/or modify
+    BioSig is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
+    the Free Software Foundation; either version 3 of the License, or
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
@@ -605,7 +605,7 @@ def sopen(FileName, MODE = 'r', HDR = HDR_TYPE()):
 						sr = numpy.fromstring(HDR.FILE.FID.read(3), uint8)
 						HDR.EVENT.SampleRate = sr[0]
 						for i in range(1,len(sr)):
-							HDR.EVENT.SampleRate = HDR.EVENT.SampleRate + sr[i]*2**i
+							HDR.EVENT.SampleRate = HDR.EVENT.SampleRate + sr[i]*256**i
 						
 						HDR.EVENT.N = numpy.fromstring(HDR.FILE.FID.read(4), uint32).tolist()[0]
 						HDR.EVENT.POS = numpy.fromstring(HDR.FILE.FID.read(HDR.EVENT.N*4), uint32)
