@@ -1200,6 +1200,7 @@ end;
                 if ~isfield(HDR.REC,'Technician')
                     HDR.REC.Technician = repmat(32,1,8);
                 end;
+                
                 if ~isfield(HDR,'NRec')
                         HDR.NRec=-1;
                 end;
@@ -1558,9 +1559,9 @@ end;
                 %H1(185:192)=sprintf('%-8i',HDR.HeadLen);
                 HDR.AS.SPR = HDR.AS.SPR(1:HDR.NS);
                 HDR.AS.spb = sum(HDR.AS.SPR);	% Samples per Block
-                HDR.AS.bi  = [0;cumsum(HDR.AS.SPR)];
+                HDR.AS.bi  = [0;cumsum(HDR.AS.SPR(:))];
                 HDR.AS.BPR = ceil(HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)');
-                while HDR.NS & any(HDR.AS.BPR  ~= HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)');
+                while HDR.NS & any(HDR.AS.BPR(:)  ~= HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP+1)');
                         fprintf(2,'\nWarning SOPEN (GDF/EDF/BDF): invalid block configuration in file %s.\n',HDR.FileName);
                         HDR.SPR,
                         DIV = 2;
@@ -1572,7 +1573,7 @@ end;
                 end;
                 HDR.AS.SAMECHANTYP = all(HDR.AS.BPR == (HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)')) & ~any(diff(HDR.GDFTYP));
                 HDR.AS.spb = sum(HDR.AS.SPR);	% Samples per Block
-                HDR.AS.bi  = [0;cumsum(HDR.AS.SPR)];
+                HDR.AS.bi  = [0;cumsum(HDR.AS.SPR(:))];
                 HDR.AS.bpb   = sum(ceil(HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)'));	% Bytes per Block
                 HDR.FILE.POS  = 0;
 
@@ -1645,12 +1646,16 @@ end;
 			        c=fwrite(HDR.FILE.FID,HDR.ELEC.REF(1:3),'float32'); % [X,Y,Z] position of reference electrode
 			        c=fwrite(HDR.FILE.FID,HDR.ELEC.GND(1:3),'float32'); % [X,Y,Z] position of ground electrode
                         else
+				Equipment  = [HDR.REC.Equipment, '        '];
+				Hospital   = [HDR.REC.Hospital,  '        '];
+				Technician = [HDR.REC.Technician,'        '];
+
                                 H1(169:184) = sprintf('%04i%02i%02i%02i%02i%02i%02i',floor(HDR.T0),floor(100*rem(HDR.T0(6),1)));
                                 c=fwrite(HDR.FILE.FID,H1(1:184),'uint8');
                                 c=fwrite(HDR.FILE.FID,[HDR.HeadLen,0],'int32');
-                                c=fwrite(HDR.FILE.FID,HDR.REC.Equipment,'uint8'); % EP_ID=ones(8,1)*32;
-                                c=fwrite(HDR.FILE.FID,HDR.REC.Hospital,'uint8'); % Lab_ID=ones(8,1)*32;
-                                c=fwrite(HDR.FILE.FID,HDR.REC.Technician,'uint8'); % T_ID=ones(8,1)*32;
+                                c=fwrite(HDR.FILE.FID,Equipment(1:8),'uint8'); % EP_ID=ones(8,1)*32;
+                                c=fwrite(HDR.FILE.FID,Hospital(1:8),'uint8'); % Lab_ID=ones(8,1)*32;
+                                c=fwrite(HDR.FILE.FID,Technician(1:8),'uint8'); % T_ID=ones(8,1)*32;
                                 c=fwrite(HDR.FILE.FID,ones(20,1)*32,'uint8'); % 
                         end;
 
@@ -1673,11 +1678,11 @@ end;
 	                        	fprintf(HDR.FILE.stderr,'Warning SOPEN(EDF write): Duration field truncated, error %e (%s instead of %-8f),\n',tmp,H1(245:252),HDR.Dur);
 	                        end; 	
                         end;
-	                        H1(253:256)=sprintf('%-4i',HDR.NS);
+                        H1(253:256)=sprintf('%-4i',HDR.NS);
                         H1(abs(H1)==0)=char(32); 
+
                         c=fwrite(HDR.FILE.FID,abs(H1),'uint8');
                 end;
-
                 %%%%%% generate Header 2,  NS*256 bytes 
                 if HDR.NS>0, 
                         %if ~strcmp(HDR.VERSION(1:3),'GDF');
