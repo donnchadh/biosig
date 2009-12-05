@@ -1,11 +1,14 @@
-    This package supports reading various biosignal dataformats into Python.
+    biosig4python supports reading various biosignal dataformats into Python.
     Currently the following formats are supported: 
 	EDF, BDF, GDF (v1 and v2)
 
+    However, biosig4c++ provides (through) swig a much faster implemenation, 
+    which supports more data formats, too. In other words, biosig4python is 
+    obsolete and it is recommended to use biosig4c++ instead.  
+    
 
-
-    Copyright (C) 2005,2006 by Martin Hieden <martin.hieden@gmx.at> 
-	             and Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2005,2006 Martin Hieden  <martin.hieden@gmx.at> 
+    Copyright (C) 2005,2006,2009 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for Python" repository 
     (BioSig4Python) at http://biosig.sf.net/ 
 
