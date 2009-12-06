@@ -215,13 +215,15 @@ tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinys
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinyxmlparser.o XMLParser/tinyxmlparser.cpp
 
 ####### Build rules
+python: 
+	make -C python biosig4python	
 
 biosig4python : python/_biosig.so python/biosig.py
-python/biosig.py swig_wrap.cxx : $(SOURCES) libbiosig.a swig.i 
-	$(SWIG) -c++ -python -I/usr/include -o swig_wrap.cxx swig.i
-python/_biosig.so : swig_wrap.cxx 
-	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python$(PYTHONVER) && \
- 	$(CXX) -shared swig_wrap.o $(LIBS) -o python/_biosig.so
+python/biosig.py python/swig_wrap.cxx: libbiosig.a python/swig.i 
+	$(SWIG) -c++ -python -I/usr/include -o python/swig_wrap.cxx python/swig.i
+python/_biosig.so : python/swig_wrap.cxx 
+	$(CXX) -c $(CXXFLAGS) python/swig_wrap.cxx -o python/swig_wrap.o -I/usr/include/python$(PYTHONVER) && \
+ 	$(CXX) -shared python/swig_wrap.o $(LIBS) -o python/_biosig.so
  
 #$(TARGET):  libbiosig.a 
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
@@ -405,7 +407,7 @@ distclean:
 	-$(DEL_FILE) *.oct
 	-$(DEL_FILE) t5.scp t6.scp save2gdf gztest test_scp_decode biosig_server biosig_client
 	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil /tmp/t1.*
-	-$(DEL_FILE) swig_wrap.* biosig.py 
+	-$(DEL_FILE) python/swig_wrap.* python/biosig.py 
 	-$(DEL_FILE) QMakefile
 	-$(DEL_FILE) win32/*.a
 	-$(DEL_FILE) win32/*.obj
@@ -419,8 +421,8 @@ clean:
 	-$(DEL_FILE) *.so
 	-$(DEL_FILE) *.mex*
 	-$(DEL_FILE) *.oct
-	-$(DEL_FILE) biosig.py*
-	-$(DEL_FILE) swig_wrap.*
+	-$(DEL_FILE) python/biosig.py*
+	-$(DEL_FILE) python/swig_wrap.*
 	-$(DEL_FILE) win32/*.a
 	-$(DEL_FILE) win32/*.o
 	-$(DEL_FILE) win32/*.obj
@@ -662,8 +664,9 @@ test6: /tmp/t1.scp save2gdf
 
 testpybdf : /tmp/BDFtestfiles.zip
 	unzip -u /tmp/BDFtestfiles.zip -d /tmp && \
-	python example.py /tmp/*-256.bdf 256 && \
-	python example.py /tmp/*-2048.bdf 2048
+	python python/demo.py /tmp/*-256.bdf
+	python python/example.py /tmp/*-256.bdf 256 && \
+	python python/example.py /tmp/*-2048.bdf 2048
 
 /tmp/BDFtestfiles.zip :
 	wget -P/tmp http://www.biosemi.com/download/BDFtestfiles.zip
