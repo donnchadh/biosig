@@ -66,7 +66,9 @@ File(s):
 Compilation: 
 -------------
 # Linux 
-You need g++(>4.0), make and zlib. (If you do not have zlib, do not define WITH_ZLIB).
+You need g++(>4.0), make, zlib (if you do not have zlib, do not define WITH_ZLIB), 
+libsuitesparse (if you do not have libsuitesparse, do not define WITH_CHOLMOD).
+
 Running make compiles the converter.
   make 		 	# makes the file format converter
   make save2gdf 	# makes the file format converter
