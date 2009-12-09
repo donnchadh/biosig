@@ -551,6 +551,7 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 				}
 				else if (tag==8) {
 					hdr->Patient.Sex = *(PtrCurSect+curSectPos);
+					if (hdr->Patient.Sex>2) hdr->Patient.Sex = 0;  
 				}
 				else if (tag==9) {
 				}

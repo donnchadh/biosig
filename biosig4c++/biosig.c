@@ -8656,7 +8656,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     		fprintf(fid,"Patient.Birthday  \t= %04i-%02i-%02i %02i:%02i:%02i\t# YYYY-MM-DD hh:mm:ss\n",t->tm_year+1900,t->tm_mon+1,t->tm_mday,t->tm_hour,t->tm_min,t->tm_sec);
     		fprintf(fid,"Patient.Weight    \t= %i\t# in [kg]\n",hdr->Patient.Weight);
     		fprintf(fid,"Patient.Height    \t= %i\t# in [cm]\n",hdr->Patient.Height);
-    		fprintf(fid,"Patient.Gender    \t= %i\t# 0:Unknown, 1: Right, 2: Left, 3: Equal\n",hdr->Patient.Sex);
+    		fprintf(fid,"Patient.Gender    \t= %i\t# 0:Unknown, 1: Male, 2: Female, 9: Unspecified\n",hdr->Patient.Sex);
     		fprintf(fid,"Patient.Handedness\t= %i\t# 0:Unknown, 1: Right, 2: Left, 3: Equal\n",hdr->Patient.Handedness);
     		fprintf(fid,"Patient.Smoking   \t= %i\t# 0:Unknown, 1: NO, 2: YES\n",hdr->Patient.Sex);
     		fprintf(fid,"Patient.AlcoholAbuse\t= %i\t# 0:Unknown, 1: NO, 2: YES\n",hdr->Patient.AlcoholAbuse);
