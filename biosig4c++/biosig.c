@@ -1748,7 +1748,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->data.block = (biosig_data_type*)malloc(0); 
       	hdr->T0 = (gdf_time)0; 
       	hdr->tzmin = 0; 
-      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.85";
+      	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.90";
       	hdr->ID.Manufacturer._field[0]    = 0;
       	hdr->ID.Manufacturer.Name         = " ";
       	hdr->ID.Manufacturer.Model        = " ";
@@ -2046,7 +2046,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = BCI2000;
 	    	hdr->VERSION = 1.1;
 	}    	
-    	else if (!memcmp(Header1+1,"BIOSEMI",7) && (hdr->AS.Header[0]==0xff)) {
+    	else if (!memcmp(Header1+1,"BIOSEMI",7) && (hdr->AS.Header[0]==0xff) && (hdr->HeadLen > 255)) {
     		hdr->TYPE = BDF;
     		hdr->VERSION = -1; 
     	}
@@ -2103,7 +2103,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     	else if (!memcmp(Header1,"EBS\x94\x0a\x13\x1a\x0d",8))
 	    	hdr->TYPE = EBS;
     	
-    	else if (!memcmp(Header1,"0       ",8)) {
+    	else if (!memcmp(Header1,"0       ",8) && (hdr->HeadLen > 255)) {
 	    	hdr->TYPE = EDF;
 	    	hdr->VERSION = 0; 
 	}
@@ -2155,7 +2155,7 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     	}
     	else if (!memcmp(Header1,"fLaC",4))
 	    	hdr->TYPE = FLAC;
-    	else if (!memcmp(Header1,"GDF",3))
+    	else if (!memcmp(Header1,"GDF",3) && (hdr->HeadLen > 255))
 	    	hdr->TYPE = GDF; 
     	else if (!memcmp(Header1,"GIF87a",6))
 	    	hdr->TYPE = GIF; 
@@ -2544,14 +2544,16 @@ void struct2gdfbin(HDRTYPE *hdr)
 	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i %i\n",tag, hdr->HeadLen,TagNLen[1]);
 	     	/* end */
 
-		hdr->VERSION = 2.11;
-		if (hdr->TYPE==GDF1) {
+		if (hdr->TYPE==GDF) {
+			hdr->VERSION = 2.20;
+			if (hdr->HeadLen & 0x00ff)	// in case of GDF v2, make HeadLen a multiple of 256. 
+			hdr->HeadLen = (hdr->HeadLen & 0xff00) + 256; 
+		}
+		else if (hdr->TYPE==GDF1) {
 			hdr->VERSION = 1.25;
 			hdr->TYPE = GDF;
 		}
-		else if (hdr->HeadLen & 0x00ff)	// in case of GDF v2, make HeadLen a multiple of 256. 
-			hdr->HeadLen = (hdr->HeadLen & 0xff00) + 256;  
-			
+		else 
 	     	if (VERBOSE_LEVEL>8) fprintf(stdout,"GDFw101 %i %i\n",hdr->HeadLen,TagNLen[1]);
 
 	    	hdr->AS.Header = (uint8_t*) calloc(hdr->HeadLen,1);
@@ -2704,7 +2706,7 @@ void struct2gdfbin(HDRTYPE *hdr)
 				*(float*) (Header2 + 4*k2 + 228*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[1]);
 				*(float*) (Header2 + 4*k2 + 232*NS) = l_endian_f32(hdr->CHANNEL[k].XYZ[2]);
 
-        		     	if (hdr->VERSION < 2.19) 
+        		     	if (hdr->VERSION < (float)2.19) 
        	     				Header2[k2+236*NS] = (uint8_t)ceil(log10(min(39e8,hdr->CHANNEL[k].Impedance))/log10(2.0)*8.0-0.5);
 
         		     	else switch (hdr->CHANNEL[k].PhysDimCode & 0xFFE0) {
@@ -2762,15 +2764,19 @@ void struct2gdfbin(HDRTYPE *hdr)
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"SOPEN(GDF)w: tag=%i,len=%i\n",tag,TagNLen[tag]);
 	     		memset(Header2+4,0,TagNLen[tag]);
 	     		size_t len = 0; 
+
      			strcpy((char*)(Header2+4), hdr->ID.Manufacturer.Name);
 		     	if (hdr->ID.Manufacturer.Name != NULL) 	
 		     		len += strlen(hdr->ID.Manufacturer.Name);
+
      			strcpy((char*)(Header2+5+len), hdr->ID.Manufacturer.Model);
 		     	if (hdr->ID.Manufacturer.Model != NULL)
 		     		len += strlen(hdr->ID.Manufacturer.Model);
+
      			strcpy((char*)(Header2+6+len), hdr->ID.Manufacturer.Version);
 		     	if (hdr->ID.Manufacturer.Version != NULL)
 		     		len += strlen(hdr->ID.Manufacturer.Version);
+
      			strcpy((char*)(Header2+7+len), hdr->ID.Manufacturer.SerialNumber);
 		     	if (hdr->ID.Manufacturer.SerialNumber != NULL)
 		     		len += strlen(hdr->ID.Manufacturer.SerialNumber);
@@ -3024,7 +3030,7 @@ int gdfbin2struct(HDRTYPE *hdr)
 				//memcpy(&hc->XYZ,Header2 + 4*k + 224*hdr->NS,12);
 				hc->Impedance= ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);
 
-        		     	if (hdr->VERSION < 2.19) 
+        		     	if (hdr->VERSION < (float)2.19) 
         				hc->Impedance = ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);
         		     	else switch(hdr->CHANNEL[k].PhysDimCode & 0xFFE0) {
         		     	        // context-specific header 2 area 
@@ -3616,16 +3622,18 @@ if (!strncmp(MODE,"r",1))
 		    	hdr->HeadLen = leu64p(hdr->AS.Header+184); 
 
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
-	    	if (hdr->HeadLen > count)
-		    	count   += ifread(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
+                if (count < hdr->HeadLen)
+		    	count += ifread(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
 
                 if (count < hdr->HeadLen) {
                         B4C_ERRNUM = B4C_INCOMPLETE_FILE; 
+                        B4C_ERRMSG = "reading GDF header failed"; 
+                        return(hdr);
 		}
 
 		gdfbin2struct(hdr);
 
-		hdr->EVENT.N = 0; 
+		hdr->EVENT.N   = 0; 
 		hdr->EVENT.POS = NULL; 
 		hdr->EVENT.TYP = NULL; 
 		hdr->EVENT.DUR = NULL; 
@@ -3668,11 +3676,13 @@ if (!strncmp(MODE,"r",1))
 			}	
 			int sze = (buf[0]>1) ? 12 : 6;
 			hdr->AS.rawEventData = (uint8_t*)realloc(hdr->AS.rawEventData,8+hdr->EVENT.N*sze);
-			if (sze*hdr->EVENT.N != ifread(hdr->AS.rawEventData+8, sze, hdr->EVENT.N, hdr)) {
-                                B4C_ERRNUM = B4C_INCOMPLETE_FILE; 
-			}
+			c = ifread(hdr->AS.rawEventData+8, sze, hdr->EVENT.N, hdr); 
 			ifseek(hdr, hdr->HeadLen, SEEK_SET); 
-			
+			if (c < hdr->EVENT.N) {
+                                B4C_ERRNUM = B4C_INCOMPLETE_FILE; 
+                                B4C_ERRMSG = "reading GDF eventtable failed"; 
+                                return(hdr);
+			}
 			rawEVT2hdrEVT(hdr); 
 		}	
 		else 
@@ -3682,6 +3692,12 @@ if (!strncmp(MODE,"r",1))
 
     	}
     	else if ((hdr->TYPE == EDF) || (hdr->TYPE == BDF))	{
+                if (count < 256) {
+                        B4C_ERRNUM = B4C_INCOMPLETE_FILE; 
+                        B4C_ERRMSG = "reading BDF/EDF fixed header failed"; 
+                        return(hdr);
+                }
+	    	
 		size_t	EventChannel = 0;
     		strncpy(hdr->Patient.Id,Header1+8,min(MAX_LENGTH_PID,80));
     		memcpy(hdr->ID.Recording,Header1+88,min(80,MAX_LENGTH_RID));
@@ -3808,6 +3824,12 @@ if (!strncmp(MODE,"r",1))
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
 	    	char *Header2 = (char*)hdr->AS.Header+256; 
 	    	count  += ifread(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
+
+                if (count < hdr->HeadLen) {
+                        B4C_ERRNUM = B4C_INCOMPLETE_FILE; 
+                        B4C_ERRMSG = "reading BDF/EDF variable header failed"; 
+                        return(hdr);
+                }
 
 		char p[9];
 		hdr->AS.bpb = 0; 
@@ -10533,7 +10555,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	}       // end if OnOff
 	}	// end for k1
 
-	if (VERBOSE_LEVEL>8)
+	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"swrite 313\n");
 
 #ifndef WITHOUT_NETWORK
@@ -10975,7 +10997,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 
 	if (VERBOSE>2) {
 		/* channel settings */ 
-		fprintf(fid,"\n[CHANNEL HEADER]");
+		fprintf(fid,"\n[CHANNEL HEADER] %p",hdr->CHANNEL);
 		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tSPR\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin HighPass LowPass Notch X Y Z");
 		size_t k;
 #ifdef CHOLMOD_H
