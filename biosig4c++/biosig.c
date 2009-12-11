@@ -3619,6 +3619,10 @@ if (!strncmp(MODE,"r",1))
 	    	if (hdr->HeadLen > count)
 		    	count   += ifread(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
 
+                if (count < hdr->HeadLen) {
+                        B4C_ERRNUM = B4C_INCOMPLETE_FILE; 
+		}
+
 		gdfbin2struct(hdr);
 
 		hdr->EVENT.N = 0; 
@@ -3664,7 +3668,9 @@ if (!strncmp(MODE,"r",1))
 			}	
 			int sze = (buf[0]>1) ? 12 : 6;
 			hdr->AS.rawEventData = (uint8_t*)realloc(hdr->AS.rawEventData,8+hdr->EVENT.N*sze);
-			ifread(hdr->AS.rawEventData+8, sze, hdr->EVENT.N, hdr);
+			if (sze*hdr->EVENT.N != ifread(hdr->AS.rawEventData+8, sze, hdr->EVENT.N, hdr)) {
+                                B4C_ERRNUM = B4C_INCOMPLETE_FILE; 
+			}
 			ifseek(hdr, hdr->HeadLen, SEEK_SET); 
 			
 			rawEVT2hdrEVT(hdr); 

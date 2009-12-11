@@ -118,6 +118,7 @@ enum B4C_ERROR {
 	B4C_MEMORY_ALLOCATION_FAILED,
 	B4C_RAWDATA_COLLAPSING_FAILED,
 	B4C_REREF_FAILED,
+	B4C_INCOMPLETE_FILE,
 	B4C_UNSPECIFIC_ERROR,
 };
 
@@ -246,10 +247,8 @@ typedef struct CHANNEL_STRUCT {
 
 	uint16_t 	GDFTYP 		ATT_ALI;	/* data type */
 	uint32_t 	SPR 		ATT_ALI;	/* samples per record (block) */
-#ifndef NO_BI
-	uint32_t	bi 		ATT_ALI;	/* start byte (byte index) of channel within data block */
-	uint32_t	bi8 		ATT_ALI;	/* start bit  (bit index) of channel within data block */
-#endif	
+	uint32_t	bi 		ATT_ALI __attribute__ ((deprecated));	/* start byte (byte index) of channel within data block */
+	uint32_t	bi8 		ATT_ALI __attribute__ ((deprecated));	/* start bit  (bit index) of channel within data block */
 	uint8_t*	bufptr		ATT_ALI;	/* pointer to buffer: NRec<=1 and bi,bi8 not used */
 } CHANNEL_TYPE	ATT_ALI;
 
@@ -272,7 +271,7 @@ typedef struct {
 	uint16_t 	NS 	ATT_ALI;	/* number of channels */
 	uint32_t 	SPR 	ATT_ALI;	/* samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR) */
 	nrec_t  	NRec 	ATT_ALI;	/* number of records/blocks -1 indicates length is unknown. */	
-	uint32_t 	Dur[2] 	__attribute__ ((deprecated));	/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
+	uint32_t 	Dur[2] 	ATT_ALI __attribute__ ((deprecated));	/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
 	double 		SampleRate ATT_ALI;	/* Sampling rate */
 	uint8_t 	IPaddr[16] ATT_ALI; 	/* IP address of recording device (if applicable) */
 	uint32_t  	LOC[4] 	ATT_ALI;	/* location of recording according to RFC1876 */
@@ -281,8 +280,10 @@ typedef struct {
 
 #ifdef CHOLMOD_H
 	cholmod_sparse  *Calib ATT_ALI;                  /* re-referencing matrix */
-	CHANNEL_TYPE 	*rerefCHANNEL ATT_ALI;  
+#else 	
+        void            *Calib ATT_ALI;                  /* re-referencing matrix */
 #endif 	
+	CHANNEL_TYPE 	*rerefCHANNEL ATT_ALI;  
 
 	/* Patient specific information */
 	struct {
@@ -296,7 +297,7 @@ typedef struct {
 		// 		Age;		/* the age is HDR.T0 - HDR.Patient.Birthday, even if T0 and Birthday are not known */ 		
 		uint16_t	Headsize[3]; 	/* circumference, nasion-inion, left-right mastoid in millimeter;  */
 		/* Patient classification */
-		int	 	Sex;		/* 0:Unknown, 1: Male, 2: Female  */
+		int	 	Sex;		/* 0:Unknown, 1: Male, 2: Female */
 		int		Handedness;	/* 0:Unknown, 1: Right, 2: Left, 3: Equal */
 		int		Smoking;	/* 0:Unknown, 1: NO, 2: YES */
 		int		AlcoholAbuse;	/* 0:Unknown, 1: NO, 2: YES */

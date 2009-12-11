@@ -34,6 +34,9 @@
 #include <sys/wait.h>
 #include <signal.h>
 
+#ifdef WITH_MICROMED 
+void sopen_trc_read(HDRTYPE *hdr);
+#endif
 #ifdef WITH_PDP 
 void sopen_pdp_read(HDRTYPE *hdr);
 #endif
@@ -171,7 +174,8 @@ void DoJob(int ns)
 		const char *greeting="Hi there,\n this is your experimental BSCS server. \n It is useful for testing the BioSig client-server architecture.\n";
 		msg.STATE = BSCS_VERSION_01 | BSCS_SEND_MSG | STATE_INIT | BSCS_NO_ERROR;
 		msg.LEN = b_endian_u32(strlen(greeting)); 
-		int s = send(ns,&msg,8,0);
+		int s; 
+		s = send(ns,&msg,8,0);
 		s = send(ns, greeting, strlen(greeting), 0);
 		
 	    	while (!stopflag) // wait for command 
@@ -246,7 +250,7 @@ void DoJob(int ns)
 					if (hdr->FILE.OPEN==0) {
 						msg.STATE = BSCS_VERSION_01 | BSCS_OPEN_R | BSCS_REPLY | STATE_INIT | BSCS_ERROR_CANNOT_OPEN_FILE;
 						STATUS = STATE_INIT; 
-					} else if (serror()) {
+					} else if (serror() || (hdr->NRec < 0)) {
 						sclose(hdr);
 						msg.STATE = BSCS_VERSION_01 | BSCS_OPEN_R | BSCS_REPLY | STATE_INIT | BSCS_ERROR_CANNOT_OPEN_FILE;
 						STATUS = STATE_INIT; 
@@ -945,8 +949,3 @@ int main () {
     	close(sd);
     	exit(0);
 }
-
-
-
-
-
