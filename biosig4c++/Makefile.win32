@@ -20,10 +20,11 @@ INCPATH       =
 LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        =
-LIBS          = libbiosig.a -lws2_32 #win32/libzdll.a	# static, for windows 
-#DEL_FILE      = del                    # Windows
-DEL_FILE      = rm
+LIBS          = libbiosig.lib -lws2_32 #win32/libzdll.a	# static, for windows 
+#DELETE      = del                    # Windows
+DELETE        = del
 COPY          = cp
+TEMP_DIR      = /tmp/
 
 SWIG          = swig
 PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
@@ -56,7 +57,8 @@ SOURCES       = biosig.c \
 		biosig_client.c \
 		biosig_server.c
 		
-OBJECTS       = biosig.o \
+OBJECTS       = \
+		crc4scp.o \
 		tinyxml.o \
 		tinyxmlparser.o \
 		tinyxmlerror.o \
@@ -66,15 +68,15 @@ OBJECTS       = biosig.o \
 		sopen_alpha_read.o \
 		scp-decode.o \
 		sopen_scp_write.o \
-		crc4scp.o \
 		sopen_hl7aecg.o \
 		getlogin_r.o \
 		biosig-network.o \
+		biosig.o \
 		sandbox.o 
 		 
 		
 
-TARGET        = save2gdf save2aecg save2scp libbiosig.a sigviewer #libbiosig.so 
+TARGET        = save2gdf.exe libbiosig.lib libbiosig.dll sigviewer #libbiosig.so 
 
 first: $(TARGET)
 all:   $(TARGET) mex sigviewer biosig4python win32 biosig_client biosig_server
@@ -161,71 +163,71 @@ tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinys
 ####### Build rules
 
 biosig4python : _biosig.so biosig.py
-biosig.py swig_wrap.cxx : $(SOURCES) libbiosig.a swig.i 
+biosig.py swig_wrap.cxx : $(SOURCES) libbiosig.lib swig.i 
 	$(SWIG) -c++ -python -I/usr/include -o swig_wrap.cxx swig.i
 _biosig.so : swig_wrap.cxx 
 	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python$(PYTHONVER) && \
  	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so
  
 
-#$(TARGET):  libbiosig.a 
+#$(TARGET):  libbiosig.lib 
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
 
-libbiosig.a: $(OBJECTS)
-	$(AR) libbiosig.a $(OBJECTS) 
+libbiosig.lib: $(OBJECTS)
+	$(AR) libbiosig.lib $(OBJECTS) 
 
-
+libbiosig.dll: $(OBJECTS) win32/zlib/zlib1.dll
+	$(CXX) -shared -fPIC  $(OBJECTS) win32/zlib/zlib1.dll -lws2_32 -o libbiosig.dll -Wl,--output-def,libbiosig.def,--out-implib,libbiosig.dll
 
 ####### application files 
  
-save2gdf: save2gdf.c libbiosig.a #libbiosig.so 
-	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf 
-#	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) $(TASN1_DIR).libs/libtasn1.a -o save2gdf 
+save2gdf.exe: save2gdf.c libbiosig.lib #libbiosig.so 
+	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf.exe 
 
-physicalunits: physicalunits.c libbiosig.a
-	$(CXX) $(CXXFLAGS) physicalunits.c $(LFLAGS) $(LIBS) -o physicalunits
+physicalunits.exe: physicalunits.c libbiosig.lib
+	$(CXX) $(CXXFLAGS) physicalunits.c $(LFLAGS) $(LIBS) -o physicalunits.exe
 
 bscs: biosig_client biosig_server sandbox.o biosig.omake
-biosig_client: biosig_client.c libbiosig.a biosig-network.o 
+biosig_client: biosig_client.c libbiosig.lib biosig-network.o 
 	$(CXX) $(CXXFLAGS) biosig_client.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_client
 
-biosig_server: biosig_server.c libbiosig.a biosig-network.o 
+biosig_server: biosig_server.c libbiosig.lib biosig-network.o 
 	$(CXX) $(CXXFLAGS) biosig_server.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_server
 
-win32 exe: win32/save2gdf.exe 
+win32 exe: save2gdf.exe 
 
 ### MEX-files for Matlab
 mex: mex4m mex4o
 mex4m: mexSLOAD.mexa64 mexSOPEN.mexa64
 mexSLOAD: mexSLOAD.mexa64
 mexSOPEN: mexSOPEN.mexa64
-mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.a
+mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.lib
 	$(MEX) mexSLOAD.cpp  $(LIBS) 
 	$(COPY) mexSLOAD.mexa64 ../biosig/t200/
-mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.a
+mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.lib
 	$(MEX) -DmexSOPEN mexSLOAD.cpp  $(LIBS) -output mexSOPEN
 	$(COPY) mexSOPEN.mexa64 ../biosig/t200/
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex 
-mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
+mexSLOAD.mex:  mexSLOAD.cpp libbiosig.lib 
 	mkoctfile  -v -g --mex mexSLOAD.cpp  $(LIBS) 
-mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a 
+mexSOPEN.mex:  mexSLOAD.cpp libbiosig.lib
 	mkoctfile  -D=mexSOPEN -v -g --mex mexSLOAD.cpp  $(LIBS) -o mexSOPEN.mex 
-#physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
+#physicalunits.mex:  physicalunits.cpp libbiosig.lib  libbiosig.so 
 #	mkoctfile  -v -g --mex physicalunits.cpp  $(LIBS) 
 
 oct:  mexSLOAD.oct
-mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
+mexSLOAD.oct:  mexSLOAD.cpp libbiosig.lib
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) 
 	mkoctfile -D=mexSOPEN mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSLOAD.mex 
 
 
 sigviewer: ../sigviewer/bin/sigviewer 
 	make -C ../sigviewer/src  
-../sigviewer/bin/sigviewer: libbiosig.a
+../sigviewer/bin/sigviewer: libbiosig.lib
 	copy biosig.h ..\sigviewer\extern\biosig.h
-	copy libbiosig.a ..\sigviewer\extern\libbiosig.a
+	copy libbiosig.lib ..\sigviewer\extern\libbiosig.a
 	make -C ../sigviewer/src  
 	
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
@@ -238,33 +240,33 @@ save2scp: save2gdf
 save2aecg: save2gdf
 
 distclean:
-	-$(DEL_FILE) *.a
-	-$(DEL_FILE) *.o
-	-$(DEL_FILE) *.so
-	-$(DEL_FILE) *.mex*
-	-$(DEL_FILE) *.oct
-	-$(DEL_FILE) t5.scp t6.scp save2gdf gztest test_scp_decode biosig_server biosig_client
-	-$(DEL_FILE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil /tmp/t1.*
-	-$(DEL_FILE) swig_wrap.* biosig.py 
-	-$(DEL_FILE) QMakefile
-	-$(DEL_FILE) win32/*.a
-	-$(DEL_FILE) win32/*.obj
-	-$(DEL_FILE) win32/*.exe
-	-$(DEL_FILE) -rf win32/zlib	
+	-$(DELETE) *.a
+	-$(DELETE) *.o
+	-$(DELETE) *.so
+	-$(DELETE) *.mex*
+	-$(DELETE) *.oct
+	-$(DELETE) t5.scp t6.scp save2gdf gztest test_scp_decode biosig_server biosig_client
+	-$(DELETE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil $(TEMP_DIR)t1.*
+	-$(DELETE) swig_wrap.* biosig.py 
+	-$(DELETE) QMakefile
+	-$(DELETE) win32/*.a
+	-$(DELETE) win32/*.obj
+	-$(DELETE) win32/*.exe
+	-$(DELETE) -rf win32/zlib	
 
 clean:		
-	-$(DEL_FILE) *~
-	-$(DEL_FILE) *.a
-	-$(DEL_FILE) *.o
-	-$(DEL_FILE) *.so
-	-$(DEL_FILE) *.mex*
-	-$(DEL_FILE) *.oct
-	-$(DEL_FILE) biosig.py*
-	-$(DEL_FILE) swig_wrap.*
-	-$(DEL_FILE) win32/*.a
-	-$(DEL_FILE) win32/*.o
-	-$(DEL_FILE) win32/*.obj
-	-$(DEL_FILE) win32/*.exe
+	-$(DELETE) *~
+	-$(DELETE) *.a
+	-$(DELETE) *.o
+	-$(DELETE) *.so
+	-$(DELETE) *.mex*
+	-$(DELETE) *.oct
+	-$(DELETE) biosig.py*
+	-$(DELETE) swig_wrap.*
+	-$(DELETE) win32/*.a
+	-$(DELETE) win32/*.o
+	-$(DELETE) win32/*.obj
+	-$(DELETE) win32/*.exe
 
 
 ####### INSTALL ########
@@ -277,7 +279,7 @@ install_octave: mexSLOAD.mex
 	mkdir -p  		$(DESTDIR)/usr/local/share/octave/site-m/
 	install mexSLOAD.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
 
-install: save2gdf libbiosig.so libbiosig.a doc/save2gdf.1
+install: save2gdf libbiosig.so libbiosig.lib doc/save2gdf.1
 	install -d 		$(BIN)
 	install save2gdf 	$(BIN)
 	install save2aecg 	$(BIN)
@@ -286,7 +288,7 @@ install: save2gdf libbiosig.so libbiosig.a doc/save2gdf.1
 	#install bin2rec  	$(BIN)
 	install biosig.h    	$(DESTDIR)/usr/include
 	install libbiosig.so 	$(LIB)
-	install libbiosig.a	$(LIB)
+	install libbiosig.lib	$(LIB)
 	mkdir -p  		$(DESTDIR)/usr/share/man/man1
 	install doc/*.1  	$(DESTDIR)/usr/share/man/man1
 	#install libbiosig.man $(DESTDIR)/usr/share/
@@ -294,210 +296,210 @@ install: save2gdf libbiosig.so libbiosig.a doc/save2gdf.1
 	#make install_octave
 
 remove: 
-	rm $(BIN)/save2gdf
-	rm $(BIN)/save2scp
-	rm $(BIN)/save2aecg
-	#rm $(BIN)/rec2bin
-	#rm $(BIN)/bin2rec
-	rm $(BIN)/sigviewer
-	rm $(BIN)/eventcodes.txt
-	rm $(DESTDIR)/usr/include/biosig.h
-	rm $(LIB)/libbiosig.*
-	rm $(DESTDIR)/usr/share/man/man1/save2gdf.1
-	rm $(DESTDIR)/usr/share/man/man1/mexSLOAD.1
-	rm $(DESTDIR)/usr/share/man/man1/sigviewer.1
-	#rm $(DESTDIR)/usr/share/man/man1/rec2bin.1
-	#rm $(DESTDIR)/usr/share/man/man1/bin2rec.1
+	$(DELETE) $(BIN)/save2gdf
+	$(DELETE) $(BIN)/save2scp
+	$(DELETE) $(BIN)/save2aecg
+	#$(DELETE) $(BIN)/rec2bin
+	#$(DELETE) $(BIN)/bin2rec
+	$(DELETE) $(BIN)/sigviewer
+	$(DELETE) $(BIN)/eventcodes.txt
+	$(DELETE) $(DESTDIR)/usr/include/biosig.h
+	$(DELETE) $(LIB)/libbiosig.*
+	$(DELETE) $(DESTDIR)/usr/share/man/man1/save2gdf.1
+	$(DELETE) $(DESTDIR)/usr/share/man/man1/mexSLOAD.1
+	$(DELETE) $(DESTDIR)/usr/share/man/man1/sigviewer.1
+	#$(DELETE) $(DESTDIR)/usr/share/man/man1/rec2bin.1
+	#$(DELETE) $(DESTDIR)/usr/share/man/man1/bin2rec.1
 	
 :
 ####### Testing ########
-#	./save2gdf -V8 ~/data/test/tms32/small_test.float32.log	
-	./save2gdf -f=TMSi t0.scp t2.log
+#	save2gdf.exe -V8 ~/data/test/tms32/small_test.float32.log	
+	save2gdf.exe -f=TMSi t0.scp t2.log
 	cat t2.log	
 
-/tmp/t1.scp: 
+$(TEMP_DIR)t1.scp: 
 	# scp example data sets
-	wget  -q -P/tmp http://www.openecg.net/ECGsamples.zip
-	wget  -q -P/tmp http://www.openecg.net/ECGsamplesc.zip
-	unzip -u /tmp/ECGsamples.zip "scp*.zip" -d /tmp
-	unzip -u /tmp/ECGsamplesc.zip "scp*.zip" -d /tmp
-	mkdir -p /tmp/scp/high
-	mkdir -p /tmp/scp/highc
-	mkdir -p /tmp/scp/redred
-	mkdir -p /tmp/scp/redredc
-	unzip -u /tmp/scp_high.zip -d /tmp/scp/high
-	unzip -u /tmp/scp_highc.zip -d /tmp/scp/highc
-	unzip -u /tmp/scp_redred.zip -d /tmp/scp/redred
-	unzip -u /tmp/scp_redredc.zip -d /tmp/scp/redredc
-	rm -rf /tmp/ECGsamples*.zip 
-	rm -rf /tmp/scp*.zip 
-	$(COPY) /tmp/scp/redred/PFE103.scp /tmp/t1.scp
-	touch /tmp/t1.scp
+	wget  -q -P$(TEMP_DIR) http://www.openecg.net/ECGsamples.zip
+	wget  -q -P$(TEMP_DIR) http://www.openecg.net/ECGsamplesc.zip
+	unzip -u $(TEMP_DIR)ECGsamples.zip "scp*.zip" -d /tmp
+	unzip -u $(TEMP_DIR)ECGsamplesc.zip "scp*.zip" -d /tmp
+	mkdir -p $(TEMP_DIR)scp/high
+	mkdir -p $(TEMP_DIR)scp/highc
+	mkdir -p $(TEMP_DIR)scp/redred
+	mkdir -p $(TEMP_DIR)scp/redredc
+	unzip -u $(TEMP_DIR)scp_high.zip -d /tmp/scp/high
+	unzip -u $(TEMP_DIR)scp_highc.zip -d /tmp/scp/highc
+	unzip -u $(TEMP_DIR)scp_redred.zip -d /tmp/scp/redred
+	unzip -u $(TEMP_DIR)scp_redredc.zip -d /tmp/scp/redredc
+	$(DELETE) $(TEMP_DIR)ECGsamples*.zip 
+	$(DELETE) $(TEMP_DIR)scp*.zip 
+	$(COPY) $(TEMP_DIR)scp/redred/PFE103.scp /tmp/t1.scp
+	touch $(TEMP_DIR)t1.scp
 
-/tmp/t1.hl7:
+$(TEMP_DIR)t1.hl7:
 	# HL7aECG example data set
-	wget -q -P/tmp http://hl7.org/library/committees/rcrim/annecg/aECG%20Release%201%20Schema%20and%20Example%2Ezip
-	unzip -u "/tmp/aECG Release 1 Schema and Example.zip"  -d /tmp
-	$(COPY) "/tmp/2003-12 Schema/example/Example aECG.xml" /tmp/t1.hl7
-	rm -rf "/tmp/aECG Release 1 Schema and Example.zip"
-	rm -rf "/tmp/2003-12 Schema"
-	touch /tmp/t1.hl7
+	wget -q -P$(TEMP_DIR) http://hl7.org/library/committees/rcrim/annecg/aECG%20Release%201%20Schema%20and%20Example%2Ezip
+	unzip -u "$(TEMP_DIR)aECG Release 1 Schema and Example.zip"  -d /tmp
+	$(COPY) "$(TEMP_DIR)2003-12 Schema/example/Example aECG.xml" /tmp/t1.hl7
+	rm -rf "$(TEMP_DIR)aECG Release 1 Schema and Example.zip"
+	rm -rf "$(TEMP_DIR)2003-12 Schema"
+	touch $(TEMP_DIR)t1.hl7
 
 /tmp/t1.edf:
 	# EDF+ example data set
 #	wget -q -P/home/schloegl/data/EDF/ http://www.edfplus.info/downloads/files/osas.zip
 #	unzip -u "/tmp/osas.zip"  -d /tmp
 	unzip -u /home/schloegl/data/test/edf/osas.zip  -d /tmp
-	$(COPY) "/tmp/Osas2002plusQRS.edf" /tmp/t1.edf
-	touch /tmp/t1.edf
+	$(COPY) "$(TEMP_DIR)Osas2002plusQRS.edf" /tmp/t1.edf
+	touch $(TEMP_DIR)t1.edf
 
 asc: save2gdf 
-	./save2gdf -f=ASCII t0.xxx t1.asc
+	save2gdf.exe -f=ASCII t0.xxx t1.asc
 
 bin: save2gdf 
-	./save2gdf -f=BIN t0.xxx t1.bin
+	save2gdf.exe -f=BIN t0.xxx t1.bin
 
 testbin: save2gdf /tmp/t1.edf
-	./save2gdf -f=BIN /tmp/t1.edf /tmp/t1.hdr
-	./save2gdf -f=BIN /tmp/t1.hdr /tmp/t2.hdr
-	./save2gdf -f=GDF /tmp/t2.hdr /tmp/t2.gdf
+	save2gdf.exe -f=BIN /tmp/t1.edf /tmp/t1.hdr
+	save2gdf.exe -f=BIN /tmp/t1.hdr /tmp/t2.hdr
+	save2gdf.exe -f=GDF /tmp/t2.hdr /tmp/t2.gdf
 
 testscp: save2gdf /tmp/t1.scp
 	# test converting SCP data
-	./save2gdf -f=HL7 /tmp/t1.scp /tmp/t1.scp.hl7
-	./save2gdf -f=GDF /tmp/t1.scp.hl7 /tmp/t1.scp.hl7.gdf
-	./save2gdf -f=SCP /tmp/t1.scp.hl7.gdf /tmp/t1.scp.hl7.gdf.scp
-	./save2gdf -f=GDF /tmp/t1.scp.hl7.gdf.scp /tmp/t1.scp.hl7.gdf.scp.gdf
-	./save2gdf -f=HL7 /tmp/t1.scp.hl7.gdf.scp.gdf /tmp/t1.scp.hl7.gdf.scp.gdf.hl7
-	./save2gdf -f=SCP /tmp/t1.scp.hl7.gdf.scp.gdf.hl7 /tmp/t1.scp.hl7.gdf.scp.gdf.hl7.scp
-	./save2gdf -f=GDF /tmp/t1.scp /tmp/t1.scp.gdf
-	./save2gdf -f=HL7 /tmp/t1.scp.gdf /tmp/t1.scp.gdf.hl7
-	./save2gdf -f=SCP /tmp/t1.scp.gdf.hl7 /tmp/t1.scp.gdf.hl7.scp
-	./save2gdf -f=HL7 /tmp/t1.scp.gdf.hl7.scp /tmp/t1.scp.gdf.hl7.scp.hl7
-	./save2gdf -f=GDF /tmp/t1.scp.gdf.hl7.scp.hl7 /tmp/t1.scp.gdf.hl7.scp.hl7.gdf
-	./save2gdf -f=SCP /tmp/t1.scp.gdf.hl7.scp.hl7.gdf /tmp/t1.scp.gdf.hl7.scp.hl7.gdf.scp
+	save2gdf.exe -f=HL7 $(TEMP_DIR)t1.scp $(TEMP_DIR)t1.scp.hl7
+	save2gdf.exe -f=GDF $(TEMP_DIR)t1.scp.hl7 $(TEMP_DIR)t1.scp.hl7.gdf
+	save2gdf.exe -f=SCP $(TEMP_DIR)t1.scp.hl7.gdf $(TEMP_DIR)t1.scp.hl7.gdf.scp
+	save2gdf.exe -f=GDF $(TEMP_DIR)t1.scp.hl7.gdf.scp $(TEMP_DIR)t1.scp.hl7.gdf.scp.gdf
+	save2gdf.exe -f=HL7 $(TEMP_DIR)t1.scp.hl7.gdf.scp.gdf $(TEMP_DIR)t1.scp.hl7.gdf.scp.gdf.hl7
+	save2gdf.exe -f=SCP $(TEMP_DIR)t1.scp.hl7.gdf.scp.gdf.hl7 $(TEMP_DIR)t1.scp.hl7.gdf.scp.gdf.hl7.scp
+	save2gdf.exe -f=GDF $(TEMP_DIR)t1.scp $(TEMP_DIR)t1.scp.gdf
+	save2gdf.exe -f=HL7 $(TEMP_DIR)t1.scp.gdf $(TEMP_DIR)t1.scp.gdf.hl7
+	save2gdf.exe -f=SCP $(TEMP_DIR)t1.scp.gdf.hl7 $(TEMP_DIR)t1.scp.gdf.hl7.scp
+	save2gdf.exe -f=HL7 $(TEMP_DIR)t1.scp.gdf.hl7.scp $(TEMP_DIR)t1.scp.gdf.hl7.scp.hl7
+	save2gdf.exe -f=GDF $(TEMP_DIR)t1.scp.gdf.hl7.scp.hl7 $(TEMP_DIR)t1.scp.gdf.hl7.scp.hl7.gdf
+	save2gdf.exe -f=SCP $(TEMP_DIR)t1.scp.gdf.hl7.scp.hl7.gdf $(TEMP_DIR)t1.scp.gdf.hl7.scp.hl7.gdf.scp
 
 testhl7: save2gdf /tmp/t1.hl7
 	# test converting HL7aECG data
-	./save2gdf -f=GDF /tmp/t1.hl7 /tmp/t1.hl7.gdf
-	./save2gdf -f=SCP /tmp/t1.hl7.gdf /tmp/t1.hl7.gdf.scp
-	./save2gdf -f=HL7 /tmp/t1.hl7.gdf.scp /tmp/t1.hl7.gdf.scp.hl7
-	./save2gdf -f=SCP /tmp/t1.hl7.gdf.scp.hl7 /tmp/t1.hl7.gdf.scp.hl7.scp
-	./save2gdf -f=GDF /tmp/t1.hl7.gdf.scp.hl7.scp /tmp/t1.hl7.gdf.scp.hl7.scp.gdf
-	./save2gdf -f=HL7 /tmp/t1.hl7.gdf.scp.hl7.scp.gdf /tmp/t1.hl7.gdf.scp.hl7.scp.gdf.hl7
-	./save2gdf -f=SCP /tmp/t1.hl7 /tmp/t1.hl7.scp
-	./save2gdf -f=GDF /tmp/t1.hl7.scp /tmp/t1.hl7.scp.gdf
-	./save2gdf -f=HL7 /tmp/t1.hl7.scp.gdf /tmp/t1.hl7.scp.gdf.hl7
-	./save2gdf -f=GDF /tmp/t1.hl7.scp.gdf.hl7 /tmp/t1.hl7.scp.gdf.hl7.gdf
-	./save2gdf -f=SCP /tmp/t1.hl7.scp.gdf.hl7.gdf /tmp/t1.hl7.scp.gdf.hl7.gdf.scp
-	./save2gdf -f=HL7 /tmp/t1.hl7.scp.gdf.hl7.gdf.scp /tmp/t1.hl7.scp.gdf.hl7.gdf.scp.hl7
+	save2gdf.exe -f=GDF $(TEMP_DIR)t1.hl7 $(TEMP_DIR)t1.hl7.gdf
+	save2gdf.exe -f=SCP $(TEMP_DIR)t1.hl7.gdf $(TEMP_DIR)t1.hl7.gdf.scp
+	save2gdf.exe -f=HL7 $(TEMP_DIR)t1.hl7.gdf.scp $(TEMP_DIR)t1.hl7.gdf.scp.hl7
+	save2gdf.exe -f=SCP $(TEMP_DIR)t1.hl7.gdf.scp.hl7 $(TEMP_DIR)t1.hl7.gdf.scp.hl7.scp
+	save2gdf.exe -f=GDF $(TEMP_DIR)t1.hl7.gdf.scp.hl7.scp $(TEMP_DIR)t1.hl7.gdf.scp.hl7.scp.gdf
+	save2gdf.exe -f=HL7 $(TEMP_DIR)t1.hl7.gdf.scp.hl7.scp.gdf $(TEMP_DIR)t1.hl7.gdf.scp.hl7.scp.gdf.hl7
+	save2gdf.exe -f=SCP $(TEMP_DIR)t1.hl7 $(TEMP_DIR)t1.hl7.scp
+	save2gdf.exe -f=GDF $(TEMP_DIR)t1.hl7.scp $(TEMP_DIR)t1.hl7.scp.gdf
+	save2gdf.exe -f=HL7 $(TEMP_DIR)t1.hl7.scp.gdf $(TEMP_DIR)t1.hl7.scp.gdf.hl7
+	save2gdf.exe -f=GDF $(TEMP_DIR)t1.hl7.scp.gdf.hl7 $(TEMP_DIR)t1.hl7.scp.gdf.hl7.gdf
+	save2gdf.exe -f=SCP $(TEMP_DIR)t1.hl7.scp.gdf.hl7.gdf $(TEMP_DIR)t1.hl7.scp.gdf.hl7.gdf.scp
+	save2gdf.exe -f=HL7 $(TEMP_DIR)t1.hl7.scp.gdf.hl7.gdf.scp $(TEMP_DIR)t1.hl7.scp.gdf.hl7.gdf.scp.hl7
 
-test: /tmp/t1.scp save2scp save2aecg save2gdf 
+test: $(TEMP_DIR)t1.scp save2scp save2aecg save2gdf 
 	# biosig4python
 	# includes test for on-the-fly compression and decompression 
-	./save2gdf  -z  /tmp/t1.scp        /tmp/t1.scp.gdf
-	./save2scp  -z 	/tmp/t1.scp        /tmp/t1.scp.scp
-	./save2aecg  	/tmp/t1.scp        /tmp/t1.scp.hl7
-	./save2gdf 	/tmp/t1.scp.gdf.gz /tmp/t1.scp.gdf.gdf
-	./save2gdf 	/tmp/t1.scp.scp.gz /tmp/t1.scp.scp.gdf  
-	./save2gdf 	/tmp/t1.scp.hl7    /tmp/t1.scp.hl7.gdf
-	./save2scp 	/tmp/t1.scp.gdf.gz /tmp/t1.scp.gdf.scp
-	./save2scp 	/tmp/t1.scp.scp.gz /tmp/t1.scp.scp.scp  
-	./save2scp 	/tmp/t1.scp.hl7    /tmp/t1.scp.hl7.scp
-	./save2aecg 	/tmp/t1.scp.gdf.gz /tmp/t1.scp.gdf.hl7
-	./save2aecg	/tmp/t1.scp.scp.gz /tmp/t1.scp.scp.hl7  
-	./save2aecg	/tmp/t1.scp.hl7    /tmp/t1.scp.hl7.hl7
+	save2gdf.exe 	  	$(TEMP_DIR)t1.scp     $(TEMP_DIR)t1.scp.gdf
+	save2gdf -f=SCP  	$(TEMP_DIR)t1.scp     $(TEMP_DIR)t1.scp.scp
+	save2gdf.exe -f=HL7  	$(TEMP_DIR)t1.scp     $(TEMP_DIR)t1.scp.hl7
+	save2gdf.exe 		$(TEMP_DIR)t1.scp.gdf $(TEMP_DIR)t1.scp.gdf.gdf
+	save2gdf.exe 		$(TEMP_DIR)t1.scp.scp $(TEMP_DIR)t1.scp.scp.gdf  
+	save2gdf.exe 		$(TEMP_DIR)t1.scp.hl7 $(TEMP_DIR)t1.scp.hl7.gdf
+	save2gdf -f=SCP 	$(TEMP_DIR)t1.scp.gdf $(TEMP_DIR)t1.scp.gdf.scp
+	save2gdf -f=SCP 	$(TEMP_DIR)t1.scp.scp $(TEMP_DIR)t1.scp.scp.scp  
+	save2gdf -f=SCP 	$(TEMP_DIR)t1.scp.hl7 $(TEMP_DIR)t1.scp.hl7.scp
+	save2gdf.exe -f=HL7 	$(TEMP_DIR)t1.scp.gdf $(TEMP_DIR)t1.scp.gdf.hl7
+	save2gdf.exe -f=HL7	$(TEMP_DIR)t1.scp.scp $(TEMP_DIR)t1.scp.scp.hl7  
+	save2gdf.exe -f=HL7	$(TEMP_DIR)t1.scp.hl7 $(TEMP_DIR)t1.scp.hl7.hl7
 	# python test.py
 
 zip: /tmp/t1.scp save2gdf
 	# test for on-the-fly compression and decompression 
 	# on-the-fly compression of output file 
-	./save2gdf -z -f=GDF /tmp/t1.scp t1.gdf
-	./save2gdf -z -f=GDF1 /tmp/t1.scp t1.gd1
-	./save2gdf -z -f=EDF /tmp/t1.scp t1.edf
-	./save2gdf -z -f=BDF /tmp/t1.scp t1.bdf
-	./save2gdf -z -f=SCP /tmp/t1.scp t1.scp
-	./save2gdf -z -f=HL7 /tmp/t1.scp t1.hl7
-	./save2gdf -z -f=CFW /tmp/t1.scp t1.cfw
-	./save2gdf -z -f=MFER /tmp/t1.scp t1.mwf
+	save2gdf.exe -z -f=GDF /tmp/t1.scp t1.gdf
+	save2gdf.exe -z -f=GDF1 /tmp/t1.scp t1.gd1
+	save2gdf.exe -z -f=EDF /tmp/t1.scp t1.edf
+	save2gdf.exe -z -f=BDF /tmp/t1.scp t1.bdf
+	save2gdf.exe -z -f=SCP /tmp/t1.scp t1.scp
+	save2gdf.exe -z -f=HL7 /tmp/t1.scp t1.hl7
+	save2gdf.exe -z -f=CFW /tmp/t1.scp t1.cfw
+	save2gdf.exe -z -f=MFER /tmp/t1.scp t1.mwf
 
 	gzip -c /tmp/t1.scp >/tmp/t1.scp.gz 
 	# on-the-fly decompression of input file 
-	./save2gdf -f=GDF /tmp/t1.scp.gz t1.gdf
-	./save2gdf -f=EDF /tmp/t1.scp.gz t1.edf
-	./save2gdf -f=BDF /tmp/t1.scp.gz t1.bdf
-	./save2gdf -f=SCP /tmp/t1.scp.gz t1.scp
-	./save2gdf -f=HL7 /tmp/t1.scp.gz t1.hl7
-	./save2gdf -f=CFW /tmp/t1.scp.gz t1.cfw
+	save2gdf.exe -f=GDF /tmp/t1.scp.gz t1.gdf
+	save2gdf.exe -f=EDF /tmp/t1.scp.gz t1.edf
+	save2gdf.exe -f=BDF /tmp/t1.scp.gz t1.bdf
+	save2gdf.exe -f=SCP /tmp/t1.scp.gz t1.scp
+	save2gdf.exe -f=HL7 /tmp/t1.scp.gz t1.hl7
+	save2gdf.exe -f=CFW /tmp/t1.scp.gz t1.cfw
 
 test6: /tmp/t1.scp save2gdf
 	$(COPY) /tmp/t1.scp t0.xxx
 	#test7: /tmp/t1.edf save2gdf
 	#$(COPY) /tmp/t1.edf t0.xxx
-	./save2gdf -z -f=GDF1 t0.xxx t1.gd1
-	./save2gdf -z -f=GDF t0.xxx t1.gdf
-	./save2gdf -z -f=EDF t0.xxx t1.edf
-	./save2gdf -z -f=BDF t0.xxx t1.bdf
-	./save2gdf -z -f=SCP t0.xxx t1.scp
-	./save2gdf -z -f=HL7 t0.xxx t1.hl7   # -z not supported for HL7
-	./save2gdf -z -f=CFWB t0.xxx t1.cfw
-	./save2gdf -z -f=MFER t0.xxx t1.mwf
-	./save2gdf -z -f=BVA t0.xxx t1.bva
-	./save2gdf -f=GDF1 t1.gd1.gz t2.gd1.gd1
-	./save2gdf -f=GDF t1.gd1.gz t2.gd1.gdf
-	./save2gdf -f=EDF t1.gd1.gz t2.gd1.edf
-	./save2gdf -f=BDF t1.gd1.gz t2.gd1.bdf
-	./save2gdf -f=SCP t1.gd1.gz t2.gd1.scp
-	./save2gdf -f=HL7 t1.gd1.gz t2.gd1.hl7
-	./save2gdf -f=CFWB t1.gd1.gz t2.gd1.cfw
-	./save2gdf -f=GDF1 t1.gdf.gz t2.gdf.gd1
-	./save2gdf -f=GDF t1.gdf.gz t2.gdf.gdf
-	./save2gdf -f=EDF t1.gdf.gz t2.gdf.edf
-	./save2gdf -f=BDF t1.gdf.gz t2.gdf.bdf
-	./save2gdf -f=SCP t1.gdf.gz t2.gdf.scp
-	./save2gdf -f=HL7 t1.gdf.gz t2.gdf.hl7
-	./save2gdf -f=CFWB t1.gdf.gz t2.gdf.cfw
-	./save2gdf -f=GDF1 t1.edf.gz t2.edf.gd1
-	./save2gdf -f=GDF t1.edf.gz t2.edf.gdf
-	./save2gdf -f=EDF t1.edf.gz t2.edf.edf
-	./save2gdf -f=BDF t1.edf.gz t2.edf.bdf
-	./save2gdf -f=SCP t1.edf.gz t2.edf.scp
-	./save2gdf -f=HL7 t1.edf.gz t2.edf.hl7
-	./save2gdf -f=CFWB t1.edf.gz t2.edf.cfw
-	./save2gdf -f=GDF1 t1.bdf.gz t2.bdf.gd1
-	./save2gdf -f=GDF t1.bdf.gz t2.bdf.gdf
-	./save2gdf -f=EDF t1.bdf.gz t2.bdf.edf
-	./save2gdf -f=BDF t1.bdf.gz t2.bdf.bdf
-	./save2gdf -f=SCP t1.bdf.gz t2.bdf.scp
-	./save2gdf -f=HL7 t1.bdf.gz t2.bdf.hl7
-	./save2gdf -f=CFWB t1.bdf.gz t2.bdf.cfw
-	./save2gdf -f=GDF1 t1.scp.gz t2.scp.gd1
-	./save2gdf -f=GDF t1.scp.gz t2.scp.gdf
-	./save2gdf -f=EDF t1.scp.gz t2.scp.edf
-	./save2gdf -f=BDF t1.scp.gz t2.scp.bdf
-#	./save2gdf -f=SCP t1.scp.gz t2.scp.scp
-	./save2gdf -f=HL7 t1.scp.gz t2.scp.hl7
-	./save2gdf -f=CFWB t1.scp.gz t2.scp.cfw
-	./save2gdf -f=GDF1 t1.hl7    t2.hl7.gd1
-	./save2gdf -f=GDF t1.hl7    t2.hl7.gdf
-	./save2gdf -f=EDF t1.hl7    t2.hl7.edf
-	./save2gdf -f=BDF t1.hl7    t2.hl7.bdf
-	./save2gdf -f=SCP t1.hl7    t2.hl7.scp
-	./save2gdf -f=HL7 t1.hl7    t2.hl7.hl7
-	./save2gdf -f=CFWB t1.hl7    t2.hl7.cfw
-	./save2gdf -f=GDF1 t1.cfw.gz t2.cfw.gd1
-	./save2gdf -f=GDF t1.cfw.gz t2.cfw.gdf
-	./save2gdf -f=EDF t1.cfw.gz t2.cfw.edf
-	./save2gdf -f=BDF t1.cfw.gz t2.cfw.bdf
-	./save2gdf -f=SCP t1.cfw.gz t2.cfw.scp
-	./save2gdf -f=HL7 t1.cfw.gz t2.cfw.hl7
+	save2gdf.exe -f=GDF1 t0.xxx t1.gd1
+	save2gdf.exe -f=GDF t0.xxx t1.gdf
+	save2gdf.exe -f=EDF t0.xxx t1.edf
+	save2gdf.exe -f=BDF t0.xxx t1.bdf
+	save2gdf.exe -f=SCP t0.xxx t1.scp
+	save2gdf.exe -f=HL7 t0.xxx t1.hl7   # -z not supported for HL7
+	save2gdf.exe -f=CFWB t0.xxx t1.cfw
+	save2gdf.exe -f=MFER t0.xxx t1.mwf
+	save2gdf.exe -f=BVA t0.xxx t1.bva
+	save2gdf.exe -f=GDF1 t1.gd1 t2.gd1.gd1
+	save2gdf.exe -f=GDF t1.gd1 t2.gd1.gdf
+	save2gdf.exe -f=EDF t1.gd1 t2.gd1.edf
+	save2gdf.exe -f=BDF t1.gd1 t2.gd1.bdf
+	save2gdf.exe -f=SCP t1.gd1 t2.gd1.scp
+	save2gdf.exe -f=HL7 t1.gd1 t2.gd1.hl7
+	save2gdf.exe -f=CFWB t1.gd1 t2.gd1.cfw
+	save2gdf.exe -f=GDF1 t1.gdf t2.gdf.gd1
+	save2gdf.exe -f=GDF t1.gdf t2.gdf.gdf
+	save2gdf.exe -f=EDF t1.gdf t2.gdf.edf
+	save2gdf.exe -f=BDF t1.gdf t2.gdf.bdf
+	save2gdf.exe -f=SCP t1.gdf t2.gdf.scp
+	save2gdf.exe -f=HL7 t1.gdf t2.gdf.hl7
+	save2gdf.exe -f=CFWB t1.gdf t2.gdf.cfw
+	save2gdf.exe -f=GDF1 t1.edf t2.edf.gd1
+	save2gdf.exe -f=GDF t1.edf t2.edf.gdf
+	save2gdf.exe -f=EDF t1.edf t2.edf.edf
+	save2gdf.exe -f=BDF t1.edf t2.edf.bdf
+	save2gdf.exe -f=SCP t1.edf t2.edf.scp
+	save2gdf.exe -f=HL7 t1.edf t2.edf.hl7
+	save2gdf.exe -f=CFWB t1.edf t2.edf.cfw
+	save2gdf.exe -f=GDF1 t1.bdf t2.bdf.gd1
+	save2gdf.exe -f=GDF t1.bdf t2.bdf.gdf
+	save2gdf.exe -f=EDF t1.bdf t2.bdf.edf
+	save2gdf.exe -f=BDF t1.bdf t2.bdf.bdf
+	save2gdf.exe -f=SCP t1.bdf t2.bdf.scp
+	save2gdf.exe -f=HL7 t1.bdf t2.bdf.hl7
+	save2gdf.exe -f=CFWB t1.bdf t2.bdf.cfw
+	save2gdf.exe -f=GDF1 t1.scp t2.scp.gd1
+	save2gdf.exe -f=GDF t1.scp t2.scp.gdf
+	save2gdf.exe -f=EDF t1.scp t2.scp.edf
+	save2gdf.exe -f=BDF t1.scp t2.scp.bdf
+#	save2gdf.exe -f=SCP t1.scp t2.scp.scp
+	save2gdf.exe -f=HL7 t1.scp t2.scp.hl7
+	save2gdf.exe -f=CFWB t1.scp t2.scp.cfw
+	save2gdf.exe -f=GDF1 t1.hl7    t2.hl7.gd1
+	save2gdf.exe -f=GDF t1.hl7    t2.hl7.gdf
+	save2gdf.exe -f=EDF t1.hl7    t2.hl7.edf
+	save2gdf.exe -f=BDF t1.hl7    t2.hl7.bdf
+	save2gdf.exe -f=SCP t1.hl7    t2.hl7.scp
+	save2gdf.exe -f=HL7 t1.hl7    t2.hl7.hl7
+	save2gdf.exe -f=CFWB t1.hl7    t2.hl7.cfw
+	save2gdf.exe -f=GDF1 t1.cfw t2.cfw.gd1
+	save2gdf.exe -f=GDF t1.cfw t2.cfw.gdf
+	save2gdf.exe -f=EDF t1.cfw t2.cfw.edf
+	save2gdf.exe -f=BDF t1.cfw t2.cfw.bdf
+	save2gdf.exe -f=SCP t1.cfw t2.cfw.scp
+	save2gdf.exe -f=HL7 t1.cfw t2.cfw.hl7
 
-	./save2gdf -f=GDF1 t1.mwf.gz t2.mwf.gd1
-	./save2gdf -f=GDF t1.mwf.gz t2.mwf.gdf
-	./save2gdf -f=EDF t1.mwf.gz t2.mwf.edf
-	./save2gdf -f=BDF t1.mwf.gz t2.mwf.bdf
-	./save2gdf -f=SCP t1.mwf.gz t2.mwf.scp
-	./save2gdf -f=HL7 t1.mwf.gz t2.mwf.hl7
+	save2gdf.exe -f=GDF1 t1.mwf t2.mwf.gd1
+	save2gdf.exe -f=GDF t1.mwf t2.mwf.gdf
+	save2gdf.exe -f=EDF t1.mwf t2.mwf.edf
+	save2gdf.exe -f=BDF t1.mwf t2.mwf.bdf
+	save2gdf.exe -f=SCP t1.mwf t2.mwf.scp
+	save2gdf.exe -f=HL7 t1.mwf t2.mwf.hl7
 
 testpybdf : /tmp/BDFtestfiles.zip
 	unzip -u /tmp/BDFtestfiles.zip -d /tmp && \

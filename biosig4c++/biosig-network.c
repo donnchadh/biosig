@@ -20,6 +20,7 @@
 
  */
 
+#include <ctype.h>
 #include <errno.h>
 #include <sys/stat.h>
 
@@ -259,7 +260,12 @@ int savelink(const char* filename) {
 fprintf(stdout,"savelink %s\n",logfile); 
 	
 	fid = fopen(logfile,"w");
-	fprintf(fid,"bscs://%s/%016lx",B4C_HOSTNAME,B4C_ID);
+#if __LP64__
+	fprintf(fid,"bscs://%s/%016lx\n",B4C_HOSTNAME,B4C_ID);
+#else
+	fprintf(fid,"bscs://%s/%016Lx\n",B4C_HOSTNAME,B4C_ID);
+#endif
+	
 	fclose(fid);
 	free(logfile);
 

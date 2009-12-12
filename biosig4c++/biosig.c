@@ -2155,8 +2155,12 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     	}
     	else if (!memcmp(Header1,"fLaC",4))
 	    	hdr->TYPE = FLAC;
-    	else if (!memcmp(Header1,"GDF",3) && (hdr->HeadLen > 255))
-	    	hdr->TYPE = GDF; 
+    	else if (!memcmp(Header1,"GDF",3) && (hdr->HeadLen > 255)) {
+	    	hdr->TYPE = GDF;
+	    	char tmp[6]; 
+      	    	strncpy(tmp,(char*)hdr->AS.Header+3,5); tmp[5]=0;
+	    	hdr->VERSION 	= strtod(tmp,NULL);
+	}    	
     	else if (!memcmp(Header1,"GIF87a",6))
 	    	hdr->TYPE = GIF; 
     	else if (!memcmp(Header1,"GIF89a",6))
@@ -2844,8 +2848,8 @@ int gdfbin2struct(HDRTYPE *hdr)
 //	char*		ptr_str;
 	struct tm 	tm_time; 
 //	time_t		tt;
+	uint32_t Dur[2];
 
-		uint32_t Dur[2];
       	    	strncpy(tmp,(char*)hdr->AS.Header+3,5); tmp[5]=0;
 	    	hdr->VERSION 	= strtod(tmp,NULL);
 	    	hdr->NRec 	= lei64p(hdr->AS.Header+236); 
@@ -2917,7 +2921,7 @@ int gdfbin2struct(HDRTYPE *hdr)
 		    	if (hdr->VERSION > 100000.0) {
 		    		fprintf(stdout,"%e \nb4c %c %i %c. %c%c%c%c%c%c%c\n",hdr->VERSION,169,2007,65,83,99,104,108,246,103,108);
 		    		FILE *fid = fopen("/tmp/b4c_tmp","wb");
-		    		if (fid != NULL)	{
+		    		if (fid != NULL) {
 			    		fprintf(fid,"\nb4c %f \n%c %i %c.%c%c%c%c%c%c%c\n",hdr->VERSION,169,2007,65,83,99,104,108,246,103,108);
 			    		fclose(fid);
 			    	}
@@ -3626,6 +3630,7 @@ if (!strncmp(MODE,"r",1))
 		    	count += ifread(hdr->AS.Header+count, 1, hdr->HeadLen-count, hdr);
 
                 if (count < hdr->HeadLen) {
+			if (VERBOSE_LEVEL>7) fprintf(stdout,"ambigous GDF header size: %i %i\n",count,hdr->HeadLen);
                         B4C_ERRNUM = B4C_INCOMPLETE_FILE; 
                         B4C_ERRMSG = "reading GDF header failed"; 
                         return(hdr);
