@@ -46,6 +46,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 	if(doc.LoadFile()){
 	    TiXmlHandle hDoc(&doc);
 	    TiXmlHandle geECG = hDoc.FirstChild("CardiologyXML");
+	    TiXmlHandle IHE = hDoc.FirstChild("IHEDocumentList");
 	    TiXmlHandle aECG = hDoc.FirstChild("AnnotatedECG");
 	    if (geECG.Element()) {
 
@@ -149,22 +150,165 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			hdr->AS.length = hdr->NRec; 	
 
 	    }
+	    else if (IHE.Element()) {
+
+		fprintf(stderr,"XML IHE: support for IHE XML is experimental - some important features are not implmented yet \n"); 
+
+		TiXmlHandle activityTime = IHE.FirstChild("activityTime");
+		TiXmlHandle recordTarget = IHE.FirstChild("recordTarget");
+		TiXmlHandle author = IHE.FirstChild("author");
+		/* 
+			an IHE file can contain several segments (i.e. components)
+		 	need to implement TARGET_SEGMENT feature
+		*/
+		TiXmlHandle component = IHE.FirstChild("component");
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"IHE: [413] \n"); 
+
+#if 0 
+		// this is not HDR.T0 !!!!!!!
+		if (activityTime.Element()) {
+			char T0[16];
+		    	strncpy(T0,activityTime.Element()->Attribute("value"),15);
+			struct tm t0; 
+			T0[14] = '\0';
+			t0.tm_sec  = atoi(T0+12);  	
+			T0[12] = '\0';
+			t0.tm_min  = atoi(T0+10);
+			T0[10] = '\0';
+			t0.tm_hour = atoi(T0+8);
+			T0[8]  = '\0';
+			t0.tm_mday = atoi(T0+6);
+			T0[6]  = '\0';
+			t0.tm_mon  = atoi(T0+4)-1;
+			T0[4]  = '\0';
+			t0.tm_year = atoi(T0)-1900;
+			t0.tm_isdst  = -1;
+ 			hdr->T0 = tm_time2gdf_time(&t0);
+		}	
+#endif 
+
+		if (author.FirstChild("assignedAuthor").Element()) {
+			// TiXmlHandle noteText = author.FirstChild("noteText").Element();
+			TiXmlHandle assignedAuthor = author.FirstChild("assignedAuthor").Element();
+			if (assignedAuthor.FirstChild("assignedDevice").Element()) {
+				TiXmlHandle assignedDevice = assignedAuthor.FirstChild("assignedDevice").Element();
+				hdr->ID.Manufacturer.Name = hdr->ID.Manufacturer._field;
+				
+				if (assignedDevice.Element()) {
+	 				strncpy(hdr->ID.Manufacturer._field, assignedDevice.FirstChild("manufacturerModelName").Element()->GetText(), MAX_LENGTH_MANUF);	
+					int len = strlen(hdr->ID.Manufacturer._field)+1;
+					hdr->ID.Manufacturer.Model = hdr->ID.Manufacturer._field+len;
+					strncpy(hdr->ID.Manufacturer._field+len, assignedDevice.FirstChild("code").Element()->Attribute("code"),MAX_LENGTH_MANUF-len);
+					len += strlen(hdr->ID.Manufacturer.Model)+1;
+				}
+			}	
+		}	
+
+		if (recordTarget.FirstChild("patient").Element()) {
+			TiXmlHandle patient = recordTarget.FirstChild("patient").Element();
+
+			TiXmlHandle id = patient.FirstChild("id").Element();
+			TiXmlHandle patientPatient = patient.FirstChild("patientPatient").Element();
+			TiXmlHandle providerOrganization = patient.FirstChild("providerOrganization").Element();
+			
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"IHE: [414] %p %p %p\n",id.Element(),patientPatient.Element(),providerOrganization.Element()); 
+
+			if (id.Element()) {	
+			    	char *strtmp = strdup(id.Element()->Attribute("root"));
+			    	size_t len = strlen(strtmp); 
+				strncpy(hdr->ID.Recording,strtmp,MAX_LENGTH_RID);
+				free(strtmp); 
+				strncat(hdr->ID.Recording," ",MAX_LENGTH_RID);
+			    	strtmp = strdup(id.Element()->Attribute("extension"));
+			    	len += 1+strlen(strtmp); 
+				strncat(hdr->ID.Recording,strtmp,MAX_LENGTH_RID);
+				free(strtmp); 
+		    		if (len>MAX_LENGTH_RID)	
+					fprintf(stdout,"Warning HL7aECG(read): length of Recording ID exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
+				fprintf(stdout,"IHE (read): length of Recording ID %i,%i\n",len,MAX_LENGTH_PID); 
+			}	
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"IHE: [414] RID= %s\n",hdr->ID.Recording); 
+			
+			if (providerOrganization.Element()) {
+				hdr->ID.Hospital = strdup(providerOrganization.FirstChild("name").Element()->GetText());
+			}	
+			
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"IHE: [414] hospital %s\n",hdr->ID.Hospital); 
+
+			if (patientPatient.Element()) {
+				TiXmlHandle Name = patientPatient.FirstChild("name").Element();
+				TiXmlHandle Gender = patientPatient.FirstChild("administrativeGenderCode").Element();
+				TiXmlHandle Birth = patientPatient.FirstChild("birthTime").Element();
+
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"IHE: [414] %p %p %p\n",Name.Element(),Gender.Element(),Birth.Element()); 
+
+				if (Name.Element()) {
+					strncpy(hdr->Patient.Name, Name.FirstChild("family").Element()->GetText(), MAX_LENGTH_NAME);
+					strncat(hdr->Patient.Name, ", ", MAX_LENGTH_NAME);
+					strncat(hdr->Patient.Name, Name.FirstChild("given").Element()->GetText(), MAX_LENGTH_NAME);
+				}
+
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"IHE: [414] Name=%s\n",hdr->Patient.Name); 
+
+				if (Gender.Element()) {
+					const char *gender = Gender.Element()->Attribute("code");
+					hdr->Patient.Sex = (tolower(gender[0])=='m') + (tolower(gender[0])=='f');
+				}
+				if (Birth.Element()) {
+					char T0[22];
+					strncpy(T0,Birth.Element()->Attribute("value"),16);
+					int len = strlen(tmp);
+					struct tm t0; 
+					if (len>8) {
+						T0[14] = '\0';
+						t0.tm_sec  = atoi(T0+12);
+						T0[12] = '\0';
+						t0.tm_min  = atoi(T0+10);
+						T0[10] = '\0';
+						t0.tm_hour = atoi(T0+8);
+					} 	 
+					else {
+						t0.tm_sec  = 0;
+						t0.tm_min  = 0;
+						t0.tm_hour = 12;
+					}
+					T0[8]  = '\0';
+					t0.tm_mday = atoi(T0+6);
+					T0[6]  = '\0';
+					t0.tm_mon  = atoi(T0+4)-1;
+					T0[4]  = '\0';
+					t0.tm_year = atoi(T0)-1900;
+					t0.tm_isdst  = -1;
+			 		hdr->Patient.Birthday = tm_time2gdf_time(&t0);
+				}
+			}
+			
+		}
+		
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"IHE: [415] \n"); 
+
+	    }
 	    else if(aECG.Element()){
 
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"hl7r: [412]\n"); 
 
-	    	char *strtmp = strdup(aECG.FirstChild("id").Element()->Attribute("root"));
-	    	size_t len = strlen(strtmp); 
+	    	size_t len = strlen(aECG.FirstChild("id").Element()->Attribute("root")); 
+		strncpy(hdr->ID.Recording,aECG.FirstChild("id").Element()->Attribute("root"),MAX_LENGTH_RID);
 	    	if (len>MAX_LENGTH_RID)	
 			fprintf(stdout,"Warning HL7aECG(read): length of Recording ID exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
-		strncpy(hdr->ID.Recording,strtmp,min(len,MAX_LENGTH_RID));
-		free(strtmp); 
 
 		TiXmlHandle effectiveTime = aECG.FirstChild("effectiveTime");
 
 		char *T0 = NULL;
-
 		if(effectiveTime.FirstChild("low").Element())
 		    T0 = (char *)effectiveTime.FirstChild("low").Element()->Attribute("value");
 		else if(effectiveTime.FirstChild("center").Element())
