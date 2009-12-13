@@ -241,21 +241,16 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 				fprintf(stdout,"IHE: [414] hospital %s\n",hdr->ID.Hospital); 
 
 			if (patientPatient.Element()) {
+				if (!hdr->FLAG.ANONYMOUS) {
 				TiXmlHandle Name = patientPatient.FirstChild("name").Element();
-				TiXmlHandle Gender = patientPatient.FirstChild("administrativeGenderCode").Element();
-				TiXmlHandle Birth = patientPatient.FirstChild("birthTime").Element();
-
-			if (VERBOSE_LEVEL>8)
-				fprintf(stdout,"IHE: [414] %p %p %p\n",Name.Element(),Gender.Element(),Birth.Element()); 
-
 				if (Name.Element()) {
 					strncpy(hdr->Patient.Name, Name.FirstChild("family").Element()->GetText(), MAX_LENGTH_NAME);
 					strncat(hdr->Patient.Name, ", ", MAX_LENGTH_NAME);
 					strncat(hdr->Patient.Name, Name.FirstChild("given").Element()->GetText(), MAX_LENGTH_NAME);
 				}
-
-			if (VERBOSE_LEVEL>8)
-				fprintf(stdout,"IHE: [414] Name=%s\n",hdr->Patient.Name); 
+				}
+				TiXmlHandle Gender = patientPatient.FirstChild("administrativeGenderCode").Element();
+				TiXmlHandle Birth = patientPatient.FirstChild("birthTime").Element();
 
 				if (Gender.Element()) {
 					const char *gender = Gender.Element()->Attribute("code");
@@ -289,7 +284,6 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			 		hdr->Patient.Birthday = tm_time2gdf_time(&t0);
 				}
 			}
-			
 		}
 		
 		if (VERBOSE_LEVEL>8)

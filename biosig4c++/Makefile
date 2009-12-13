@@ -1,6 +1,6 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile,v 1.72 2009/03/03 11:46:57 schloegl Exp $
+###  $Id$
 ###  Copyright (C) 2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -412,33 +412,33 @@ save2scp: save2gdf
 save2aecg: save2gdf
 
 distclean:
-	-$(DELETE) *.a
-	-$(DELETE) *.o
-	-$(DELETE) *.so
-	-$(DELETE) *.mex*
-	-$(DELETE) *.oct
-	-$(DELETE) t5.scp t6.scp save2gdf gztest test_scp_decode biosig_server biosig_client
-	-$(DELETE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil $(TEMP_DIR)/t1.*
-	-$(DELETE) python/swig_wrap.* python/biosig.py 
-	-$(DELETE) QMakefile
-	-$(DELETE) win32/*.a
-	-$(DELETE) win32/*.obj
-	-$(DELETE) win32/*.exe
-	-$(DELETE) -rf win32/zlib	
+	$(DELETE) *.a
+	$(DELETE) *.o
+	$(DELETE) *.so
+	$(DELETE) *.mex*
+	$(DELETE) *.oct
+	$(DELETE) t5.scp t6.scp save2gdf gztest test_scp_decode biosig_server biosig_client
+	$(DELETE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil $(TEMP_DIR)/t1.*
+	$(DELETE) python/swig_wrap.* python/biosig.py* python/_biosig.so 
+	$(DELETE) QMakefile
+	$(DELETE) win32/*.a
+	$(DELETE) win32/*.obj
+	$(DELETE) win32/*.exe
+	$(DELETE) -rf win32/zlib	
 
 clean:		
-	-$(DELETE) *~
-	-$(DELETE) *.a
-	-$(DELETE) *.o
-	-$(DELETE) *.so
-	-$(DELETE) *.mex*
-	-$(DELETE) *.oct
-	-$(DELETE) python/biosig.py*
-	-$(DELETE) python/swig_wrap.*
-	-$(DELETE) win32/*.a
-	-$(DELETE) win32/*.o
-	-$(DELETE) win32/*.obj
-	-$(DELETE) win32/*.exe
+	$(DELETE) *~
+	$(DELETE) *.a
+	$(DELETE) *.o
+	$(DELETE) *.so
+	$(DELETE) *.mex*
+	$(DELETE) *.oct
+	$(DELETE) python/biosig.py* _biosig.so
+	$(DELETE) python/swig_wrap.*
+	$(DELETE) win32/*.a
+	$(DELETE) win32/*.o
+	$(DELETE) win32/*.obj
+	$(DELETE) win32/*.exe
 
 
 ####### INSTALL ########

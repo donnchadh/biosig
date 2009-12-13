@@ -1,6 +1,6 @@
 ####### Makefile for WIN32 "BioSig for C/C++" #####################
 ###
-###  $Id: Makefile.win32,v 1.3 2009-03-03 11:46:57 schloegl Exp $
+###  $Id$
 ###  Copyright (C) 2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
 ###  This file is part of the "BioSig for C/C++" repository 
 ###  (biosig4c++) at http://biosig.sf.net/ 
@@ -21,21 +21,18 @@ LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        =
 LIBS          = libbiosig.lib -lws2_32 #win32/libzdll.a	# static, for windows 
-#DELETE      = del                    # Windows
 DELETE        = del
 COPY          = cp
-TEMP_DIR      = /tmp/
+TEMP_DIR      = c:\temp\
 
 SWIG          = swig
 PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
-TASN1_DIR     = /home/schloegl/src/libtasn1-1.5/lib/
-LIBTASN1      = $(TASN1_DIR).libs/libtasn1.a 
 
 ####### Output directory
 
 OBJ	      = ./obj
-BIN	      = $(DESTDIR)/usr/bin
-LIB	      = $(DESTDIR)/usr/lib
+BIN	      = $(DESTDIR)\bin
+LIB	      = $(DESTDIR)\lib
 
 ####### Files
 SOURCES       = biosig.c \
@@ -199,18 +196,18 @@ win32 exe: save2gdf.exe
 ### MEX-files for Matlab
 mex: mex4m mex4o
 mex4m: mexSLOAD.mexa64 mexSOPEN.mexa64
-mexSLOAD: mexSLOAD.mexa64
-mexSOPEN: mexSOPEN.mexa64
-mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.lib
-	$(MEX) mexSLOAD.cpp  $(LIBS) 
-	$(COPY) mexSLOAD.mexa64 ../biosig/t200/
-mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.lib
-	$(MEX) -DmexSOPEN mexSLOAD.cpp  $(LIBS) -output mexSOPEN
-	$(COPY) mexSOPEN.mexa64 ../biosig/t200/
+mexSLOAD: mexSLOAD.dll
+mexSOPEN: mexSOPEN.dll
+mexSLOAD.dll: mexSLOAD.cpp libbiosig.lib
+	echo make mexSLOAD not tested, probably you need gnumex from http://gnumex.sf.net 
+	$(MEX) mexSLOAD.cpp  $(LIBS)  -output mexSLOAD.dll
+mexSOPEN.dll: mexSLOAD.cpp libbiosig.lib
+	$(MEX) -DmexSOPEN mexSLOAD.cpp  $(LIBS) -output mexSOPEN.dll
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex 
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.lib 
+	echo make mexSLOAD for Octave not tested 
 	mkoctfile  -v -g --mex mexSLOAD.cpp  $(LIBS) 
 mexSOPEN.mex:  mexSLOAD.cpp libbiosig.lib
 	mkoctfile  -D=mexSOPEN -v -g --mex mexSLOAD.cpp  $(LIBS) -o mexSOPEN.mex 
@@ -220,7 +217,7 @@ mexSOPEN.mex:  mexSLOAD.cpp libbiosig.lib
 oct:  mexSLOAD.oct
 mexSLOAD.oct:  mexSLOAD.cpp libbiosig.lib
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) 
-	mkoctfile -D=mexSOPEN mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSLOAD.mex 
+	mkoctfile -D=mexSOPEN mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.oct 
 
 
 sigviewer: ../sigviewer/bin/sigviewer 
@@ -236,37 +233,37 @@ docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
 
 
 # for backward compatibility 
-save2scp: save2gdf
-save2aecg: save2gdf
+save2scp: save2gdf.exe
+save2aecg: save2gdf.exe
 
 distclean:
-	-$(DELETE) *.a
-	-$(DELETE) *.o
-	-$(DELETE) *.so
-	-$(DELETE) *.mex*
-	-$(DELETE) *.oct
-	-$(DELETE) t5.scp t6.scp save2gdf gztest test_scp_decode biosig_server biosig_client
-	-$(DELETE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil $(TEMP_DIR)t1.*
-	-$(DELETE) swig_wrap.* biosig.py 
-	-$(DELETE) QMakefile
-	-$(DELETE) win32/*.a
-	-$(DELETE) win32/*.obj
-	-$(DELETE) win32/*.exe
-	-$(DELETE) -rf win32/zlib	
+	$(DELETE) *.a
+	$(DELETE) *.o
+	$(DELETE) *.so
+	$(DELETE) *.mex*
+	$(DELETE) *.oct
+	$(DELETE) t5.scp t6.scp save2gdf gztest test_scp_decode biosig_server biosig_client
+	$(DELETE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil $(TEMP_DIR)t1.*
+	$(DELETE) python/swig_wrap.* python/biosig.py* python/_biosig.so
+	$(DELETE) QMakefile
+	$(DELETE) win32/*.a
+	$(DELETE) win32/*.o
+	$(DELETE) win32/*.exe
+	$(DELETE) -rf win32/zlib	
 
 clean:		
-	-$(DELETE) *~
-	-$(DELETE) *.a
-	-$(DELETE) *.o
-	-$(DELETE) *.so
-	-$(DELETE) *.mex*
-	-$(DELETE) *.oct
-	-$(DELETE) biosig.py*
-	-$(DELETE) swig_wrap.*
-	-$(DELETE) win32/*.a
-	-$(DELETE) win32/*.o
-	-$(DELETE) win32/*.obj
-	-$(DELETE) win32/*.exe
+	$(DELETE) *~
+	$(DELETE) *.a
+	$(DELETE) *.o
+	$(DELETE) *.so
+	$(DELETE) *.mex*
+	$(DELETE) *.oct
+	$(DELETE) python/biosig.py*
+	$(DELETE) python/swig_wrap.*
+	$(DELETE) win32/*.a
+	$(DELETE) win32/*.o
+	$(DELETE) win32/*.obj
+	$(DELETE) win32/*.exe
 
 
 ####### INSTALL ########
@@ -296,9 +293,7 @@ install: save2gdf libbiosig.so libbiosig.lib doc/save2gdf.1
 	#make install_octave
 
 remove: 
-	$(DELETE) $(BIN)/save2gdf
-	$(DELETE) $(BIN)/save2scp
-	$(DELETE) $(BIN)/save2aecg
+	$(DELETE) $(BIN)/save2gdf.exe
 	#$(DELETE) $(BIN)/rec2bin
 	#$(DELETE) $(BIN)/bin2rec
 	$(DELETE) $(BIN)/sigviewer
@@ -316,55 +311,62 @@ remove:
 #	save2gdf.exe -V8 ~/data/test/tms32/small_test.float32.log	
 	save2gdf.exe -f=TMSi t0.scp t2.log
 	cat t2.log	
+	echo "make t1.scp" does probably not work. 
+	echo Ensure that a file with supported format and named $(TEMP_DIR)t1.scp is available. 
 
 $(TEMP_DIR)t1.scp: 
+	echo "make t1.scp" does probably not work. 
+	echo Ensure that a file with SCP format named $(TEMP_DIR)t1.scp is available. 
 	# scp example data sets
 	wget  -q -P$(TEMP_DIR) http://www.openecg.net/ECGsamples.zip
 	wget  -q -P$(TEMP_DIR) http://www.openecg.net/ECGsamplesc.zip
-	unzip -u $(TEMP_DIR)ECGsamples.zip "scp*.zip" -d /tmp
-	unzip -u $(TEMP_DIR)ECGsamplesc.zip "scp*.zip" -d /tmp
+	unzip -u $(TEMP_DIR)ECGsamples.zip "scp*.zip" -d $(TEMP_DIR)
+	unzip -u $(TEMP_DIR)ECGsamplesc.zip "scp*.zip" -d $(TEMP_DIR)
 	mkdir -p $(TEMP_DIR)scp/high
 	mkdir -p $(TEMP_DIR)scp/highc
 	mkdir -p $(TEMP_DIR)scp/redred
 	mkdir -p $(TEMP_DIR)scp/redredc
-	unzip -u $(TEMP_DIR)scp_high.zip -d /tmp/scp/high
-	unzip -u $(TEMP_DIR)scp_highc.zip -d /tmp/scp/highc
-	unzip -u $(TEMP_DIR)scp_redred.zip -d /tmp/scp/redred
-	unzip -u $(TEMP_DIR)scp_redredc.zip -d /tmp/scp/redredc
+	unzip -u $(TEMP_DIR)scp_high.zip -d $(TEMP_DIR)scp/high
+	unzip -u $(TEMP_DIR)scp_highc.zip -d $(TEMP_DIR)scp/highc
+	unzip -u $(TEMP_DIR)scp_redred.zip -d $(TEMP_DIR)scp/redred
+	unzip -u $(TEMP_DIR)scp_redredc.zip -d $(TEMP_DIR)scp/redredc
 	$(DELETE) $(TEMP_DIR)ECGsamples*.zip 
 	$(DELETE) $(TEMP_DIR)scp*.zip 
-	$(COPY) $(TEMP_DIR)scp/redred/PFE103.scp /tmp/t1.scp
+	$(COPY) $(TEMP_DIR)scp/redred/PFE103.scp $(TEMP_DIR)t1.scp
 	touch $(TEMP_DIR)t1.scp
 
 $(TEMP_DIR)t1.hl7:
+	echo "make t1.hl7" does probably not work. 
+	echo Ensure that a file with HL7aECG format named $(TEMP_DIR)t1.hl7 is available. 
 	# HL7aECG example data set
 	wget -q -P$(TEMP_DIR) http://hl7.org/library/committees/rcrim/annecg/aECG%20Release%201%20Schema%20and%20Example%2Ezip
-	unzip -u "$(TEMP_DIR)aECG Release 1 Schema and Example.zip"  -d /tmp
-	$(COPY) "$(TEMP_DIR)2003-12 Schema/example/Example aECG.xml" /tmp/t1.hl7
+	unzip -u "$(TEMP_DIR)aECG Release 1 Schema and Example.zip"  -d $(TEMP_DIR)
+	$(COPY) "$(TEMP_DIR)2003-12 Schema/example/Example aECG.xml" $(TEMP_DIR)t1.hl7
 	rm -rf "$(TEMP_DIR)aECG Release 1 Schema and Example.zip"
 	rm -rf "$(TEMP_DIR)2003-12 Schema"
 	touch $(TEMP_DIR)t1.hl7
 
-/tmp/t1.edf:
+$(TEMP_DIR)t1.edf:
+	echo "make t1.edf" does probably not work. 
+	echo Ensure that an EDF file named $(TEMP_DIR)t1.hl7 is available. 
 	# EDF+ example data set
-#	wget -q -P/home/schloegl/data/EDF/ http://www.edfplus.info/downloads/files/osas.zip
-#	unzip -u "/tmp/osas.zip"  -d /tmp
-	unzip -u /home/schloegl/data/test/edf/osas.zip  -d /tmp
-	$(COPY) "$(TEMP_DIR)Osas2002plusQRS.edf" /tmp/t1.edf
+	wget -q -P$(TEMP_DIR) http://www.edfplus.info/downloads/files/osas.zip
+	unzip -u "$(TEMP_DIR)osas.zip"  -d $(TEMP_DIR)
+	$(COPY) "$(TEMP_DIR)Osas2002plusQRS.edf" $(TEMP_DIR)t1.edf
 	touch $(TEMP_DIR)t1.edf
 
-asc: save2gdf 
+asc: save2gdf.exe 
 	save2gdf.exe -f=ASCII t0.xxx t1.asc
 
-bin: save2gdf 
+bin: save2gdf.exe 
 	save2gdf.exe -f=BIN t0.xxx t1.bin
 
-testbin: save2gdf /tmp/t1.edf
-	save2gdf.exe -f=BIN /tmp/t1.edf /tmp/t1.hdr
-	save2gdf.exe -f=BIN /tmp/t1.hdr /tmp/t2.hdr
-	save2gdf.exe -f=GDF /tmp/t2.hdr /tmp/t2.gdf
+testbin: save2gdf.exe $(TEMP_DIR)t1.edf
+	save2gdf.exe -f=BIN $(TEMP_DIR)t1.edf $(TEMP_DIR)t1.hdr
+	save2gdf.exe -f=BIN $(TEMP_DIR)t1.hdr $(TEMP_DIR)t2.hdr
+	save2gdf.exe -f=GDF $(TEMP_DIR)t2.hdr $(TEMP_DIR)t2.gdf
 
-testscp: save2gdf /tmp/t1.scp
+testscp: save2gdf.exe $(TEMP_DIR)t1.scp
 	# test converting SCP data
 	save2gdf.exe -f=HL7 $(TEMP_DIR)t1.scp $(TEMP_DIR)t1.scp.hl7
 	save2gdf.exe -f=GDF $(TEMP_DIR)t1.scp.hl7 $(TEMP_DIR)t1.scp.hl7.gdf
@@ -379,7 +381,7 @@ testscp: save2gdf /tmp/t1.scp
 	save2gdf.exe -f=GDF $(TEMP_DIR)t1.scp.gdf.hl7.scp.hl7 $(TEMP_DIR)t1.scp.gdf.hl7.scp.hl7.gdf
 	save2gdf.exe -f=SCP $(TEMP_DIR)t1.scp.gdf.hl7.scp.hl7.gdf $(TEMP_DIR)t1.scp.gdf.hl7.scp.hl7.gdf.scp
 
-testhl7: save2gdf /tmp/t1.hl7
+testhl7: save2gdf.exe $(TEMP_DIR)t1.hl7
 	# test converting HL7aECG data
 	save2gdf.exe -f=GDF $(TEMP_DIR)t1.hl7 $(TEMP_DIR)t1.hl7.gdf
 	save2gdf.exe -f=SCP $(TEMP_DIR)t1.hl7.gdf $(TEMP_DIR)t1.hl7.gdf.scp
@@ -394,54 +396,54 @@ testhl7: save2gdf /tmp/t1.hl7
 	save2gdf.exe -f=SCP $(TEMP_DIR)t1.hl7.scp.gdf.hl7.gdf $(TEMP_DIR)t1.hl7.scp.gdf.hl7.gdf.scp
 	save2gdf.exe -f=HL7 $(TEMP_DIR)t1.hl7.scp.gdf.hl7.gdf.scp $(TEMP_DIR)t1.hl7.scp.gdf.hl7.gdf.scp.hl7
 
-test: $(TEMP_DIR)t1.scp save2scp save2aecg save2gdf 
+test: $(TEMP_DIR)t1.scp save2gdf.exe 
 	# biosig4python
 	# includes test for on-the-fly compression and decompression 
 	save2gdf.exe 	  	$(TEMP_DIR)t1.scp     $(TEMP_DIR)t1.scp.gdf
-	save2gdf -f=SCP  	$(TEMP_DIR)t1.scp     $(TEMP_DIR)t1.scp.scp
+	save2gdf.exe -f=SCP  	$(TEMP_DIR)t1.scp     $(TEMP_DIR)t1.scp.scp
 	save2gdf.exe -f=HL7  	$(TEMP_DIR)t1.scp     $(TEMP_DIR)t1.scp.hl7
 	save2gdf.exe 		$(TEMP_DIR)t1.scp.gdf $(TEMP_DIR)t1.scp.gdf.gdf
 	save2gdf.exe 		$(TEMP_DIR)t1.scp.scp $(TEMP_DIR)t1.scp.scp.gdf  
 	save2gdf.exe 		$(TEMP_DIR)t1.scp.hl7 $(TEMP_DIR)t1.scp.hl7.gdf
-	save2gdf -f=SCP 	$(TEMP_DIR)t1.scp.gdf $(TEMP_DIR)t1.scp.gdf.scp
-	save2gdf -f=SCP 	$(TEMP_DIR)t1.scp.scp $(TEMP_DIR)t1.scp.scp.scp  
-	save2gdf -f=SCP 	$(TEMP_DIR)t1.scp.hl7 $(TEMP_DIR)t1.scp.hl7.scp
+	save2gdf.exe -f=SCP 	$(TEMP_DIR)t1.scp.gdf $(TEMP_DIR)t1.scp.gdf.scp
+	save2gdf.exe -f=SCP 	$(TEMP_DIR)t1.scp.scp $(TEMP_DIR)t1.scp.scp.scp  
+	save2gdf.exe -f=SCP 	$(TEMP_DIR)t1.scp.hl7 $(TEMP_DIR)t1.scp.hl7.scp
 	save2gdf.exe -f=HL7 	$(TEMP_DIR)t1.scp.gdf $(TEMP_DIR)t1.scp.gdf.hl7
 	save2gdf.exe -f=HL7	$(TEMP_DIR)t1.scp.scp $(TEMP_DIR)t1.scp.scp.hl7  
 	save2gdf.exe -f=HL7	$(TEMP_DIR)t1.scp.hl7 $(TEMP_DIR)t1.scp.hl7.hl7
 	# python test.py
 
-zip: /tmp/t1.scp save2gdf
+zip: $(TEMP_DIR)t1.scp save2gdf.exe
 	# test for on-the-fly compression and decompression 
 	# on-the-fly compression of output file 
-	save2gdf.exe -z -f=GDF /tmp/t1.scp t1.gdf
-	save2gdf.exe -z -f=GDF1 /tmp/t1.scp t1.gd1
-	save2gdf.exe -z -f=EDF /tmp/t1.scp t1.edf
-	save2gdf.exe -z -f=BDF /tmp/t1.scp t1.bdf
-	save2gdf.exe -z -f=SCP /tmp/t1.scp t1.scp
-	save2gdf.exe -z -f=HL7 /tmp/t1.scp t1.hl7
-	save2gdf.exe -z -f=CFW /tmp/t1.scp t1.cfw
-	save2gdf.exe -z -f=MFER /tmp/t1.scp t1.mwf
+	save2gdf.exe -z -f=GDF $(TEMP_DIR)t1.scp t1.gdf
+	save2gdf.exe -z -f=GDF1 $(TEMP_DIR)t1.scp t1.gd1
+	save2gdf.exe -z -f=EDF $(TEMP_DIR)t1.scp t1.edf
+	save2gdf.exe -z -f=BDF $(TEMP_DIR)t1.scp t1.bdf
+	save2gdf.exe -z -f=SCP $(TEMP_DIR)t1.scp t1.scp
+	save2gdf.exe -z -f=HL7 $(TEMP_DIR)t1.scp t1.hl7
+	save2gdf.exe -z -f=CFW $(TEMP_DIR)t1.scp t1.cfw
+	save2gdf.exe -z -f=MFER $(TEMP_DIR)t1.scp t1.mwf
 
-	gzip -c /tmp/t1.scp >/tmp/t1.scp.gz 
+	gzip -c $(TEMP_DIR)t1.scp >$(TEMP_DIR)t1.scp.gz 
 	# on-the-fly decompression of input file 
-	save2gdf.exe -f=GDF /tmp/t1.scp.gz t1.gdf
-	save2gdf.exe -f=EDF /tmp/t1.scp.gz t1.edf
-	save2gdf.exe -f=BDF /tmp/t1.scp.gz t1.bdf
-	save2gdf.exe -f=SCP /tmp/t1.scp.gz t1.scp
-	save2gdf.exe -f=HL7 /tmp/t1.scp.gz t1.hl7
-	save2gdf.exe -f=CFW /tmp/t1.scp.gz t1.cfw
+	save2gdf.exe -f=GDF $(TEMP_DIR)t1.scp.gz t1.gdf
+	save2gdf.exe -f=EDF $(TEMP_DIR)t1.scp.gz t1.edf
+	save2gdf.exe -f=BDF $(TEMP_DIR)t1.scp.gz t1.bdf
+	save2gdf.exe -f=SCP $(TEMP_DIR)t1.scp.gz t1.scp
+	save2gdf.exe -f=HL7 $(TEMP_DIR)t1.scp.gz t1.hl7
+	save2gdf.exe -f=CFW $(TEMP_DIR)t1.scp.gz t1.cfw
 
-test6: /tmp/t1.scp save2gdf
-	$(COPY) /tmp/t1.scp t0.xxx
-	#test7: /tmp/t1.edf save2gdf
-	#$(COPY) /tmp/t1.edf t0.xxx
+test6: $(TEMP_DIR)t1.scp save2gdf.exe
+	$(COPY) $(TEMP_DIR)t1.scp t0.xxx
+	#test7: $(TEMP_DIR)t1.edf save2gdf
+	#$(COPY) $(TEMP_DIR)t1.edf t0.xxx
 	save2gdf.exe -f=GDF1 t0.xxx t1.gd1
 	save2gdf.exe -f=GDF t0.xxx t1.gdf
 	save2gdf.exe -f=EDF t0.xxx t1.edf
 	save2gdf.exe -f=BDF t0.xxx t1.bdf
 	save2gdf.exe -f=SCP t0.xxx t1.scp
-	save2gdf.exe -f=HL7 t0.xxx t1.hl7   # -z not supported for HL7
+	save2gdf.exe -f=HL7 t0.xxx t1.hl7
 	save2gdf.exe -f=CFWB t0.xxx t1.cfw
 	save2gdf.exe -f=MFER t0.xxx t1.mwf
 	save2gdf.exe -f=BVA t0.xxx t1.bva
@@ -501,10 +503,13 @@ test6: /tmp/t1.scp save2gdf
 	save2gdf.exe -f=SCP t1.mwf t2.mwf.scp
 	save2gdf.exe -f=HL7 t1.mwf t2.mwf.hl7
 
-testpybdf : /tmp/BDFtestfiles.zip
-	unzip -u /tmp/BDFtestfiles.zip -d /tmp && \
-	python example.py /tmp/*-256.bdf 256 && \
-	python example.py /tmp/*-2048.bdf 2048
+testpybdf : $(TEMP_DIR)Newtest17-256.bdf $(TEMP_DIR)Newtest17-2048.bdf
+	python example.py $(TEMP_DIR)*-256.bdf 256 && \
+	python example.py $(TEMP_DIR)*-2048.bdf 2048
 
-/tmp/BDFtestfiles.zip :
-	wget -P/tmp http://www.biosemi.com/download/BDFtestfiles.zip
+$(TEMP_DIR)Newtest17-256.bdf $(TEMP_DIR)Newtest17-2048.bdf:
+	echo make $(TEMP_DIR)BDFtestfiles.zip no tested 
+	echo download http://www.biosemi.com/download/BDFtestfiles.zip
+	echo and unzip BDFtestfiles.zip into $(TEMP_DIR)
+	wget -P$(TEMP_DIR) http://www.biosemi.com/download/BDFtestfiles.zip
+	unzip -u $(TEMP_DIR)BDFtestfiles.zip -d $(TEMP_DIR) && \
