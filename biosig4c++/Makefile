@@ -23,7 +23,7 @@ MEX	      = mex   # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex
 octVER	      = # default
 OCT	      =	mkoctfile$(octVER)
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB -D=WITH_CHOLMOD -D=__4HAERTEL__ -D=WITH_FAMOS #-D=WITH_FEF -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD #-D=WITH_FEF -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
@@ -128,7 +128,7 @@ TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o pdp2gdf #libbiosig
 first: $(TARGET)
 all:   $(TARGET) mex biosig4python win32 sigviewer biosig_client biosig_server
 
-####### Implicit rules
+    ####### Implicit rules
 
 .SUFFIXES: .o .c .cpp .cc .cxx .C
 
@@ -369,10 +369,10 @@ mexSLOAD: mexSLOAD.mexa64
 mexSOPEN: mexSOPEN.mexa64
 mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.a
 	$(MEX) $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LIBS) 
-#	$(COPY) mexSLOAD.mexa64 ../biosig/t200_FileAccess/
+	-$(COPY) mexSLOAD.mexa64 ../biosig/t200_FileAccess/
 mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.a
 	$(MEX) -DmexSOPEN $(DEFINES) mexSLOAD.cpp $(LIBS) -output mexSOPEN
-#	$(COPY) mexSOPEN.mexa64 ../biosig/t200_FileAccess/
+	-$(COPY) mexSOPEN.mexa64 ../biosig/t200_FileAccess/
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex 
@@ -381,7 +381,7 @@ mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a
 	$(COPY) mexSLOAD.mex ../biosig/t200_FileAccess/
 mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a 
 	$(OCT) -D=mexSOPEN $(DEFINES) -v -g --mex mexSLOAD.cpp $(LIBS) -o mexSOPEN.mex 
-	$(COPY) mexSOPEN.mex ../biosig/t200_FileAccess/
+	-$(COPY) mexSOPEN.mex ../biosig/t200_FileAccess/
 #physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
 #	$(OCT) -v -g --mex physicalunits.cpp  $(LIBS) 
 
@@ -389,8 +389,8 @@ oct:  mexSLOAD.oct
 mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
 	$(OCT)  $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) 
 	$(OCT) -D=mexSOPEN $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.oct 
-	$(COPY) mexSOPEN.oct ../biosig/t200_FileAccess/
-	$(COPY) mexSOPEN.oct ../biosig/t200_FileAccess/
+	-$(COPY) mexSOPEN.oct ../biosig/t200_FileAccess/
+	-$(COPY) mexSOPEN.oct ../biosig/t200_FileAccess/
 
 
 sigviewer: ../sigviewer/bin/sigviewer 
@@ -412,33 +412,33 @@ save2scp: save2gdf
 save2aecg: save2gdf
 
 distclean:
-	$(DELETE) *.a
-	$(DELETE) *.o
-	$(DELETE) *.so
-	$(DELETE) *.mex*
-	$(DELETE) *.oct
-	$(DELETE) t5.scp t6.scp save2gdf gztest test_scp_decode biosig_server biosig_client
-	$(DELETE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil $(TEMP_DIR)/t1.*
-	$(DELETE) python/swig_wrap.* python/biosig.py* python/_biosig.so 
-	$(DELETE) QMakefile
-	$(DELETE) win32/*.a
-	$(DELETE) win32/*.obj
-	$(DELETE) win32/*.exe
-	$(DELETE) -rf win32/zlib	
+	-$(DELETE) *.a
+	-$(DELETE) *.o
+	-$(DELETE) *.so
+	-$(DELETE) *.mex*
+	-$(DELETE) *.oct
+	-$(DELETE) t5.scp t6.scp save2gdf gztest test_scp_decode biosig_server biosig_client
+	-$(DELETE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil $(TEMP_DIR)/t1.*
+	-$(DELETE) python/swig_wrap.* python/biosig.py* python/_biosig.so 
+	-$(DELETE) QMakefile
+	-$(DELETE) win32/*.a
+	-$(DELETE) win32/*.obj
+	-$(DELETE) win32/*.exe
+	-$(DELETE) -rf win32/zlib	
 
 clean:		
-	$(DELETE) *~
-	$(DELETE) *.a
-	$(DELETE) *.o
-	$(DELETE) *.so
-	$(DELETE) *.mex*
-	$(DELETE) *.oct
-	$(DELETE) python/biosig.py* _biosig.so
-	$(DELETE) python/swig_wrap.*
-	$(DELETE) win32/*.a
-	$(DELETE) win32/*.o
-	$(DELETE) win32/*.obj
-	$(DELETE) win32/*.exe
+	-$(DELETE) *~
+	-$(DELETE) *.a
+	-$(DELETE) *.o
+	-$(DELETE) *.so
+	-$(DELETE) *.mex*
+	-$(DELETE) *.oct
+	-$(DELETE) python/biosig.py* _biosig.so
+	-$(DELETE) python/swig_wrap.*
+	-$(DELETE) win32/*.a
+	-$(DELETE) win32/*.o
+	-$(DELETE) win32/*.obj
+	-$(DELETE) win32/*.exe
 
 
 ####### INSTALL ########
