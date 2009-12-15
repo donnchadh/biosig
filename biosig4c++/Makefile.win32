@@ -11,7 +11,7 @@
 CC            = $(CXX)
 CXX           = g++
 MEX	      = mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
-DEFINES       = #-D=WITH_ZLIB #-D=WITH_GSL #-D=WITH_ASN1 #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = -D=WITHOUT_NETWORK #-D=WITH_ZLIB #-D=WITH_GSL #-D=WITH_ASN1 #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
@@ -50,9 +50,10 @@ SOURCES       = biosig.c \
 		win32/getlogin_r.c \
 		test0/sandbox.c \
 		physicalunits.c \
-		biosig-network.c \
-		biosig_client.c \
-		biosig_server.c
+
+#		biosig-network.c \
+#		biosig_client.c \
+#		biosig_server.c
 		
 OBJECTS       = \
 		crc4scp.o \
@@ -67,16 +68,17 @@ OBJECTS       = \
 		sopen_scp_write.o \
 		sopen_hl7aecg.o \
 		getlogin_r.o \
-		biosig-network.o \
 		biosig.o \
 		sandbox.o 
+
+#		biosig-network.o \
 		 
 		
 
 TARGET        = save2gdf.exe libbiosig.lib libbiosig.dll sigviewer #libbiosig.so 
 
 first: $(TARGET)
-all:   $(TARGET) mex sigviewer biosig4python win32 biosig_client biosig_server
+all:   $(TARGET) mex sigviewer biosig4python 
 
 ####### Implicit rules
 
@@ -175,6 +177,12 @@ libbiosig.lib: $(OBJECTS)
 
 libbiosig.dll: $(OBJECTS) win32/zlib/zlib1.dll
 	$(CXX) -shared -fPIC  $(OBJECTS) win32/zlib/zlib1.dll -lws2_32 -o libbiosig.dll -Wl,--output-def,libbiosig.def,--out-implib,libbiosig.dll
+
+win32/zlib/zlib1.dll: win32/zlib123-dll.zip
+
+
+win32/zlib123-dll.zip:
+	wget -q -Pwin32 http://www.zlib.net/zlib123-dll.zip
 
 ####### application files 
  

@@ -93,6 +93,7 @@ Currently, only the file converter save2gdf is supported.
 
 # Windows + MinGW
 Currently, only the file converter save2gdf is supported.
+Network support is turned off, because Windows is not Posix compliant.
 - You need MinGW with g++ and make.
 - run the make command 
    make -f Makefile.win32
