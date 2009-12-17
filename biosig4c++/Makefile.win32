@@ -14,7 +14,7 @@ MEX	      = mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex
 DEFINES       = -D=WITHOUT_NETWORK #-D=WITH_ZLIB #-D=WITH_GSL #-D=WITH_ASN1 #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
-AR            = ar crs
+AR            = ar -rsc
 INCPATH       = 
 #LINK          = gcc
 LINK          = $(CXX)
@@ -22,7 +22,7 @@ LINK          = $(CXX)
 LFLAGS        =
 LIBS          = libbiosig.lib -lws2_32 #win32/libzdll.a	# static, for windows 
 DELETE        = del
-COPY          = cp
+COPY          = copy
 TEMP_DIR      = c:\temp\
 
 SWIG          = swig
@@ -50,7 +50,6 @@ SOURCES       = biosig.c \
 		win32/getlogin_r.c \
 		test0/sandbox.c \
 		physicalunits.c \
-
 #		biosig-network.c \
 #		biosig_client.c \
 #		biosig_server.c
@@ -69,17 +68,15 @@ OBJECTS       = \
 		sopen_hl7aecg.o \
 		getlogin_r.o \
 		biosig.o \
-		sandbox.o 
-
+		sandbox.o \
 #		biosig-network.o \
-		 
-		
+		 		
 
-TARGET        = save2gdf.exe libbiosig.lib libbiosig.dll sigviewer #libbiosig.so 
+TARGET        =  libbiosig.lib save2gdf.exe sigviewer
 
 first: $(TARGET)
-all:   $(TARGET) mex sigviewer biosig4python 
-
+all:   $(TARGET) sigviewer mex biosig4python libbiosig.dll
+	
 ####### Implicit rules
 
 .SUFFIXES: .o .c .cpp .cc .cxx .C
@@ -166,20 +163,21 @@ biosig.py swig_wrap.cxx : $(SOURCES) libbiosig.lib swig.i
 	$(SWIG) -c++ -python -I/usr/include -o swig_wrap.cxx swig.i
 _biosig.so : swig_wrap.cxx 
 	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python$(PYTHONVER) && \
- 	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so
- 
+ 	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so 
 
 #$(TARGET):  libbiosig.lib 
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
 
 libbiosig.lib: $(OBJECTS)
+	-$(DELETE) libbiosig.lib
 	$(AR) libbiosig.lib $(OBJECTS) 
 
 libbiosig.dll: $(OBJECTS) win32/zlib/zlib1.dll
 	$(CXX) -shared -fPIC  $(OBJECTS) win32/zlib/zlib1.dll -lws2_32 -o libbiosig.dll -Wl,--output-def,libbiosig.def,--out-implib,libbiosig.dll
 
 win32/zlib/zlib1.dll: win32/zlib123-dll.zip
-
+	-mkdir win32/zlib
+	unzip -u win32/zlib123-dll.zip -d win32/zlib
 
 win32/zlib123-dll.zip:
 	wget -q -Pwin32 http://www.zlib.net/zlib123-dll.zip
@@ -231,8 +229,8 @@ mexSLOAD.oct:  mexSLOAD.cpp libbiosig.lib
 sigviewer: ../sigviewer/bin/sigviewer 
 	make -C ../sigviewer/src  
 ../sigviewer/bin/sigviewer: libbiosig.lib
-	copy biosig.h ..\sigviewer\extern\biosig.h
-	copy libbiosig.lib ..\sigviewer\extern\libbiosig.a
+	$(COPY) biosig.h ..\sigviewer\extern\biosig.h
+	$(COPY) libbiosig.lib ..\sigviewer\extern\libbiosig.a
 	make -C ../sigviewer/src  
 	
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
@@ -245,33 +243,35 @@ save2scp: save2gdf.exe
 save2aecg: save2gdf.exe
 
 distclean:
-	$(DELETE) *.a
-	$(DELETE) *.o
-	$(DELETE) *.so
-	$(DELETE) *.mex*
-	$(DELETE) *.oct
-	$(DELETE) t5.scp t6.scp save2gdf gztest test_scp_decode biosig_server biosig_client
-	$(DELETE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil $(TEMP_DIR)t1.*
-	$(DELETE) python/swig_wrap.* python/biosig.py* python/_biosig.so
-	$(DELETE) QMakefile
-	$(DELETE) win32/*.a
-	$(DELETE) win32/*.o
-	$(DELETE) win32/*.exe
-	$(DELETE) -rf win32/zlib	
+	-$(DELETE) *.a
+	-$(DELETE) *.lib
+	-$(DELETE) *.o
+	-$(DELETE) *.so
+	-$(DELETE) *.mex*
+	-$(DELETE) *.oct
+	-$(DELETE) t5.scp t6.scp save2gdf gztest test_scp_decode biosig_server biosig_client
+	-$(DELETE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil $(TEMP_DIR)t1.*
+	-$(DELETE) python/swig_wrap.* python/biosig.py* python/_biosig.so
+	-$(DELETE) QMakefile
+	-$(DELETE) win32/*.a
+	-$(DELETE) win32/*.o
+	-$(DELETE) win32/*.exe
+	-$(DELETE) win32/zlib	
 
 clean:		
-	$(DELETE) *~
-	$(DELETE) *.a
-	$(DELETE) *.o
-	$(DELETE) *.so
-	$(DELETE) *.mex*
-	$(DELETE) *.oct
-	$(DELETE) python/biosig.py*
-	$(DELETE) python/swig_wrap.*
-	$(DELETE) win32/*.a
-	$(DELETE) win32/*.o
-	$(DELETE) win32/*.obj
-	$(DELETE) win32/*.exe
+	-$(DELETE) *~
+	-$(DELETE) *.a
+	-$(DELETE) *.o
+	-$(DELETE) *.lib
+	-$(DELETE) *.so
+	-$(DELETE) *.mex*
+	-$(DELETE) *.oct
+	-$(DELETE) python/biosig.py*
+	-$(DELETE) python/swig_wrap.*
+	-$(DELETE) win32/*.a
+	-$(DELETE) win32/*.o
+	-$(DELETE) win32/*.obj
+	-$(DELETE) win32/*.exe
 
 
 ####### INSTALL ########
@@ -281,7 +281,7 @@ install_sigviewer: sigviewer
 	install ../biosig/doc/eventcodes.txt $(BIN)
 
 install_octave: mexSLOAD.mex 
-	mkdir -p  		$(DESTDIR)/usr/local/share/octave/site-m/
+	-mkdir 	 		$(DESTDIR)/usr/local/share/octave/site-m/
 	install mexSLOAD.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
 
 install: save2gdf libbiosig.so libbiosig.lib doc/save2gdf.1
@@ -294,7 +294,7 @@ install: save2gdf libbiosig.so libbiosig.lib doc/save2gdf.1
 	install biosig.h    	$(DESTDIR)/usr/include
 	install libbiosig.so 	$(LIB)
 	install libbiosig.lib	$(LIB)
-	mkdir -p  		$(DESTDIR)/usr/share/man/man1
+	-mkdir	  		$(DESTDIR)/usr/share/man/man1
 	install doc/*.1  	$(DESTDIR)/usr/share/man/man1
 	#install libbiosig.man $(DESTDIR)/usr/share/
 	#make install_sigviewer
@@ -330,10 +330,10 @@ $(TEMP_DIR)t1.scp:
 	wget  -q -P$(TEMP_DIR) http://www.openecg.net/ECGsamplesc.zip
 	unzip -u $(TEMP_DIR)ECGsamples.zip "scp*.zip" -d $(TEMP_DIR)
 	unzip -u $(TEMP_DIR)ECGsamplesc.zip "scp*.zip" -d $(TEMP_DIR)
-	mkdir -p $(TEMP_DIR)scp/high
-	mkdir -p $(TEMP_DIR)scp/highc
-	mkdir -p $(TEMP_DIR)scp/redred
-	mkdir -p $(TEMP_DIR)scp/redredc
+	-mkdir	 $(TEMP_DIR)scp/high
+	-mkdir	 $(TEMP_DIR)scp/highc
+	-mkdir	 $(TEMP_DIR)scp/redred
+	-mkdir	 $(TEMP_DIR)scp/redredc
 	unzip -u $(TEMP_DIR)scp_high.zip -d $(TEMP_DIR)scp/high
 	unzip -u $(TEMP_DIR)scp_highc.zip -d $(TEMP_DIR)scp/highc
 	unzip -u $(TEMP_DIR)scp_redred.zip -d $(TEMP_DIR)scp/redred
