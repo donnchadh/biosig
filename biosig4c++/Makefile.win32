@@ -8,22 +8,23 @@
 ##############################################################
 
 
-CC            = $(CXX)
+CC            = gcc
 CXX           = g++
 MEX	      = mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
-DEFINES       = -D=WITHOUT_NETWORK #-D=WITH_ZLIB #-D=WITH_GSL #-D=WITH_ASN1 #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
-CFLAGS        = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
-CXXFLAGS      = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
+DEFINES       = -D=WITHOUT_NETWORK -D=WITH_ZLIB #-D=WITH_GSL #-D=WITH_ASN1 #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+CFLAGS        = -pipe -fPIC  -O2  $(DEFINES) # -I cntopenlib/include/
+CXXFLAGS      = -pipe -fPIC  -O2  $(DEFINES) # -I cntopenlib/include/
 AR            = ar -rsc
 INCPATH       = 
 #LINK          = gcc
 LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        =
-LIBS          = libbiosig.lib -lws2_32 #win32/libzdll.a	# static, for windows 
+LIBS          = libbiosig.a -lws2_32 win32/libzdll.a	# static, for windows 
 DELETE        = del
 COPY          = copy
 TEMP_DIR      = c:\temp\
+MAKE          = mingw32-make
 
 SWIG          = swig
 PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
@@ -72,7 +73,7 @@ OBJECTS       = \
 #		biosig-network.o \
 		 		
 
-TARGET        =  libbiosig.lib save2gdf.exe sigviewer
+TARGET        =  libbiosig.a save2gdf.exe sigviewer
 
 first: $(TARGET)
 all:   $(TARGET) sigviewer mex biosig4python libbiosig.dll
@@ -119,7 +120,7 @@ save2gdf.o: save2gdf.c biosig-dev.h biosig.h
 
 sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h biosig.h\
 		biosig.h t210/structures.h t210/types.h
-	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_scp_read.o t210/sopen_scp_read.c
+	$(CXX) -c $(CFLAGS) $(INCPATH) -o sopen_scp_read.o t210/sopen_scp_read.c
 
 sopen_famos_read.o: t210/sopen_famos_read.c biosig-dev.h biosig.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_famos_read.o t210/sopen_famos_read.c
@@ -139,7 +140,7 @@ sopen_scp_write.o: t220/sopen_scp_write.c biosig-dev.h biosig.h
 
 sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
 		XMLParser/tinyxml.h XMLParser/tinystr.h XMLParser/Tokenizer.h
-	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_hl7aecg.o t230/sopen_hl7aecg.c
+	$(CXX) -c $(CFLAGS) $(INCPATH) -o sopen_hl7aecg.o t230/sopen_hl7aecg.c
 	
 getlogin_r.o: win32/getlogin_r.c
 	$(CC) -c $(CFLAGS) $(INCPATH) -o getlogin_r.o win32/getlogin_r.c
@@ -159,21 +160,21 @@ tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinys
 ####### Build rules
 
 biosig4python : _biosig.so biosig.py
-biosig.py swig_wrap.cxx : $(SOURCES) libbiosig.lib swig.i 
+biosig.py swig_wrap.cxx : $(SOURCES) libbiosig.a swig.i 
 	$(SWIG) -c++ -python -I/usr/include -o swig_wrap.cxx swig.i
 _biosig.so : swig_wrap.cxx 
 	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python$(PYTHONVER) && \
  	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so 
 
-#$(TARGET):  libbiosig.lib 
+#$(TARGET):  libbiosig.a 
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
 
-libbiosig.lib: $(OBJECTS)
-	-$(DELETE) libbiosig.lib
-	$(AR) libbiosig.lib $(OBJECTS) 
+libbiosig.a: $(OBJECTS)
+	-$(DELETE) libbiosig.a
+	$(AR) libbiosig.a $(OBJECTS) 
 
-libbiosig.dll: $(OBJECTS) win32/zlib/zlib1.dll
-	$(CXX) -shared -fPIC  $(OBJECTS) win32/zlib/zlib1.dll -lws2_32 -o libbiosig.dll -Wl,--output-def,libbiosig.def,--out-implib,libbiosig.dll
+libbiosig.dll: $(OBJECTS)
+	$(CXX) -shared -fPIC  $(OBJECTS) -lws2_32 -o libbiosig.dll -Wl,--output-def,libbiosig.def,--out-implib,libbiosig.dll
 
 win32/zlib/zlib1.dll: win32/zlib123-dll.zip
 	-mkdir win32/zlib
@@ -184,17 +185,17 @@ win32/zlib123-dll.zip:
 
 ####### application files 
  
-save2gdf.exe: save2gdf.c libbiosig.lib #libbiosig.so 
+save2gdf.exe: save2gdf.c libbiosig.a #libbiosig.so 
 	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf.exe 
 
-physicalunits.exe: physicalunits.c libbiosig.lib
+physicalunits.exe: physicalunits.c libbiosig.a
 	$(CXX) $(CXXFLAGS) physicalunits.c $(LFLAGS) $(LIBS) -o physicalunits.exe
 
 bscs: biosig_client biosig_server sandbox.o biosig.omake
-biosig_client: biosig_client.c libbiosig.lib biosig-network.o 
+biosig_client: biosig_client.c libbiosig.a biosig-network.o 
 	$(CXX) $(CXXFLAGS) biosig_client.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_client
 
-biosig_server: biosig_server.c libbiosig.lib biosig-network.o 
+biosig_server: biosig_server.c libbiosig.a biosig-network.o 
 	$(CXX) $(CXXFLAGS) biosig_server.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_server
 
 win32 exe: save2gdf.exe 
@@ -204,34 +205,34 @@ mex: mex4m mex4o
 mex4m: mexSLOAD.mexa64 mexSOPEN.mexa64
 mexSLOAD: mexSLOAD.dll
 mexSOPEN: mexSOPEN.dll
-mexSLOAD.dll: mexSLOAD.cpp libbiosig.lib
+mexSLOAD.dll: mexSLOAD.cpp libbiosig.a
 	echo make mexSLOAD not tested, probably you need gnumex from http://gnumex.sf.net 
 	$(MEX) mexSLOAD.cpp  $(LIBS)  -output mexSLOAD.dll
-mexSOPEN.dll: mexSLOAD.cpp libbiosig.lib
+mexSOPEN.dll: mexSLOAD.cpp libbiosig.a
 	$(MEX) -DmexSOPEN mexSLOAD.cpp  $(LIBS) -output mexSOPEN.dll
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex 
-mexSLOAD.mex:  mexSLOAD.cpp libbiosig.lib 
+mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
 	echo make mexSLOAD for Octave not tested 
 	mkoctfile  -v -g --mex mexSLOAD.cpp  $(LIBS) 
-mexSOPEN.mex:  mexSLOAD.cpp libbiosig.lib
+mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a
 	mkoctfile  -D=mexSOPEN -v -g --mex mexSLOAD.cpp  $(LIBS) -o mexSOPEN.mex 
-#physicalunits.mex:  physicalunits.cpp libbiosig.lib  libbiosig.so 
+#physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so 
 #	mkoctfile  -v -g --mex physicalunits.cpp  $(LIBS) 
 
 oct:  mexSLOAD.oct
-mexSLOAD.oct:  mexSLOAD.cpp libbiosig.lib
+mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
 	mkoctfile mexSLOAD.cpp $(LFLAGS) $(LIBS) 
 	mkoctfile -D=mexSOPEN mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.oct 
 
 
 sigviewer: ../sigviewer/bin/sigviewer 
-	make -C ../sigviewer/src  
-../sigviewer/bin/sigviewer: libbiosig.lib
+	$(MAKE) -C ../sigviewer/src  
+../sigviewer/bin/sigviewer: libbiosig.a
 	$(COPY) biosig.h ..\sigviewer\extern\biosig.h
-	$(COPY) libbiosig.lib ..\sigviewer\extern\libbiosig.a
-	make -C ../sigviewer/src  
+	$(COPY) libbiosig.a ..\sigviewer\extern\libbiosig.a
+	$(MAKE) -C ../SigViewer/src  
 	
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
 	asciidoc -d manpage docs/save2gdf.txt   
@@ -284,7 +285,7 @@ install_octave: mexSLOAD.mex
 	-mkdir 	 		$(DESTDIR)/usr/local/share/octave/site-m/
 	install mexSLOAD.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
 
-install: save2gdf libbiosig.so libbiosig.lib doc/save2gdf.1
+install: save2gdf libbiosig.so libbiosig.a doc/save2gdf.1
 	install -d 		$(BIN)
 	install save2gdf 	$(BIN)
 	install save2aecg 	$(BIN)
@@ -293,12 +294,12 @@ install: save2gdf libbiosig.so libbiosig.lib doc/save2gdf.1
 	#install bin2rec  	$(BIN)
 	install biosig.h    	$(DESTDIR)/usr/include
 	install libbiosig.so 	$(LIB)
-	install libbiosig.lib	$(LIB)
+	install libbiosig.a	$(LIB)
 	-mkdir	  		$(DESTDIR)/usr/share/man/man1
 	install doc/*.1  	$(DESTDIR)/usr/share/man/man1
 	#install libbiosig.man $(DESTDIR)/usr/share/
-	#make install_sigviewer
-	#make install_octave
+	#$(MAKE) install_sigviewer
+	#$(MAKE) install_octave
 
 remove: 
 	$(DELETE) $(BIN)/save2gdf.exe
