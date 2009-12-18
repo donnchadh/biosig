@@ -2,6 +2,7 @@
 ---------------------------------------------------------------------------
 Copyright (C) 2005-2006  Franco Chiarugi
 Developed at the Foundation for Research and Technology - Hellas, Heraklion, Crete
+Copyright (C) 2009 Alois Schloegl 
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -17,7 +18,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-$Id: crc4scp.c,v 1.2 2006-05-18 15:39:07 schloegl Exp $
+$Id$
 ---------------------------------------------------------------------------
 */
 
@@ -38,15 +39,19 @@ typedef char			int8_t;
 #endif
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif 
+
 /********************************************************************
-*	CRCEvaluate														*
-*																	*
+*	CRCEvaluate							*
+*									*
 * Parameters: datablock is the buffer on which to evaluate the CRC.	*
-*			  datalength is the length of the whole buffer			*
-*																	*
-* Description:	Evaluate the SCP-ECG CRC on a data block			*
-*				(all file or a section)								*
-*																	*
+*			  datalength is the length of the whole buffer	*
+*									*
+* Description:	Evaluate the SCP-ECG CRC on a data block		*
+*				(all file or a section)			*
+*									*
  ********************************************************************/
 
 uint16_t CRCEvaluate(uint8_t* datablock, uint32_t datalength) {
@@ -93,16 +98,16 @@ uint16_t CRCEvaluate(uint8_t* datablock, uint32_t datalength) {
 }
 
 /********************************************************************
-*	CRCCheck														*
-*																	*
+*	CRCCheck							*
+*									*
 * Parameters: datablock is the buffer on which to verify the CRC.	*
-*			  It starts with the two CRC-CCITT bytes.				*
-*			  datalength is the length of the whole buffer			*
-*			  (including the two CRC bytes)							*
-*																	*
-* Description:	Check the SCP-ECG CRC on a data block				*
-*				(all file or a section)								*
-*																	*
+*			  It starts with the two CRC-CCITT bytes.	*
+*			  datalength is the length of the whole buffer	*
+*			  (including the two CRC bytes)			*
+*									*
+* Description:	Check the SCP-ECG CRC on a data block			*
+*				(all file or a section)			*
+*									*
  ********************************************************************/
 
 int16_t CRCCheck(uint8_t* datablock, uint32_t datalength)
@@ -122,4 +127,9 @@ int16_t CRCCheck(uint8_t* datablock, uint32_t datalength)
 	else
 		return (1);
 }
+
+
+#ifdef __cplusplus
+}
+#endif 
 
