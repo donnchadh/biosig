@@ -20,7 +20,7 @@ INCPATH       =
 LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        =
-LIBS          = libbiosig.a -lws2_32 win32/libzdll.a	# static, for windows 
+LIBS          = libbiosig.a -lws2_32 win32/zdll.lib	# static, for windows 
 DELETE        = del
 COPY          = copy
 TEMP_DIR      = c:\temp\
@@ -169,23 +169,33 @@ _biosig.so : swig_wrap.cxx
 #$(TARGET):  libbiosig.a 
 #	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
 
-libbiosig.a: $(OBJECTS)
+libbiosig.a: $(OBJECTS) 
 	-$(DELETE) libbiosig.a
 	$(AR) libbiosig.a $(OBJECTS) 
 
 libbiosig.dll: $(OBJECTS)
 	$(CXX) -shared -fPIC  $(OBJECTS) -lws2_32 -o libbiosig.dll -Wl,--output-def,libbiosig.def,--out-implib,libbiosig.dll
 
+win32/zdll.lib: 
+        echo   Download the file http://www.zlib.net/zlib123-dll.zip  
+        echo   Extract lib/zdll.lib and save it to $(cd)/win32/zdll.lib 
+        echo   Press any key when finished.
+        pause 
+        
 win32/zlib/zlib1.dll: win32/zlib123-dll.zip
-	-mkdir win32/zlib
 	unzip -u win32/zlib123-dll.zip -d win32/zlib
+	-mkdir win32/zlib
+        echo unzip win32/zlib123-dll.zip into the directory win32/zlib. Press any key when finished.
+        pause
 
 win32/zlib123-dll.zip:
-	wget -q -Pwin32 http://www.zlib.net/zlib123-dll.zip
+	# wget -q -Pwin32 http://www.zlib.net/zlib123-dll.zip
+        echo download the file http://www.zlib.net/zlib123-dll.zip into directory $(cd)\win32. Press any key when finished.
+        pause 
 
 ####### application files 
  
-save2gdf.exe: save2gdf.c libbiosig.a #libbiosig.so 
+save2gdf.exe: save2gdf.c libbiosig.a win32/zdll.lib #libbiosig.so 
 	$(CXX) $(CXXFLAGS) save2gdf.c $(LFLAGS) $(LIBS) -o save2gdf.exe 
 
 physicalunits.exe: physicalunits.c libbiosig.a
@@ -230,9 +240,9 @@ mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
 sigviewer: ../sigviewer/bin/sigviewer 
 	$(MAKE) -C ../sigviewer/src  
 ../sigviewer/bin/sigviewer: libbiosig.a
-	$(COPY) biosig.h ..\sigviewer\extern\biosig.h
-	$(COPY) libbiosig.a ..\sigviewer\extern\libbiosig.a
-	$(MAKE) -C ../SigViewer/src  
+	$(COPY) biosig.h ../sigviewer/extern/biosig.h
+	$(COPY) libbiosig.a ../sigviewer/extern/libbiosig.a
+	$(MAKE) -C ../sigviewer/src  
 	
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
 	asciidoc -d manpage docs/save2gdf.txt   

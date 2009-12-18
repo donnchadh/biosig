@@ -7,7 +7,10 @@ This library is called "BioSig for C/C++" and is complementary to "BioSig for Oc
 BioSig4C++ provides several tools:  
 
 (1) "libbiosig.a" provides a library for accessing different dataformats. 
-Recommended: zlib (http://zlib.net/) and GNU Scientific Library (GSL)
+Recommended: 
+        cholmod
+        zlib (http://zlib.net/) 
+        GNU Scientific Library (GSL)
 The supported data formats are listed here: 
 http://hci.tugraz.at/schloegl/biosig/TESTED
 
@@ -86,17 +89,27 @@ Running make compiles the converter.
   make test6		# tests bidirectional conversion between 6 differerent data formats	
 
 # MinGW Crosscompiler on Linux for Windows  
-Currently, only the file converter save2gdf is supported.
 - install mingw32 mingw32-binutils mingw32-runtime
 - run the command  
-   make win32
+   make win32/save2gdf.exe      # converter between data format s
+   make win32/libbiosig.dll     # dynamic library 
+   make win32/libbiosig.lib     # static library    
+   make win32                   # all of the above
 
 # Windows + MinGW
 Currently, only the file converter save2gdf is supported.
 Network support is turned off, because Windows is not Posix compliant.
-- You need MinGW with g++ and make.
+- You need MinGW with gcc, g++, ar, and make.
 - run the make command 
+   make -f Makefile.win32 libbiosig.a
+   make -f Makefile.win32 save2gdf.exe
+   make -f Makefile.win32 sigviewer # see below 
    make -f Makefile.win32
+
+You can also start compilation of sigviewer. 
+   First, you need to have the sigviewer sources in ..\sigviewer and 
+   Then, you need to run once qmake in ..\sigviewer\src\ 
+   make -f Makefile.win32 sigviewer 
 
 # Windows + MinGW + Matlab
 do the steps in "Windows+MinGW"
@@ -105,12 +118,11 @@ install and configure gnumex (from http://gnumex.sf.net)
   start matlab
   >> gnumex 	% configure mingw for mex
   >> mex mexSLOAD.cpp libbiosig \mingw\lib\libws2_32.a
-
 	
 # Windows + Cygwin
 Currently, only the file converter save2gdf is supported.
 - install Cygwin
-- within Cygwin install g++, zlib, and make 
+- within Cygwin install gcc4 g++4, zlib, suitesparse/cholmod and make 
 - run the make command 
    make save2gdf 
 
