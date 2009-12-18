@@ -286,8 +286,7 @@ win32/libbiosig.dll: $(OBJECTS) win32/zlib/zlib1.dll
 	-$(COPY) win32/libbiosig.dll ../sigviewer/extern/
 
 win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib
-	$(MinGWLINK) $(MinGWCFLAGS) -o win32/save2gdf.exe save2gdf.c  $(MinGWLIBS) win32/libbiosig.lib
-#	$(MinGWCXX) $(MinGWCXXFLAGS) save2gdf.c $(MinGWLIBS) -o win32/save2gdf.exe 
+	$(MinGWCXX) $(MinGWCXXFLAGS) save2gdf.c $(MinGWOBJECTS) $(MinGWLIBS) -o win32/save2gdf.exe 
 
 win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.lib 
 	$(MinGWLINK) $(MinGWCFLAGS) -o win32/pdp2gdf.exe pdp2gdf.c win32/libbiosig.lib $(MinGWLIBS)  
