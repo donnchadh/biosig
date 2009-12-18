@@ -28,12 +28,44 @@
 
 #ifdef _WIN32
 #define TC (char*)	// WINSOCK's send and recv require (char*)buf 
+
+#if 0 
+/* 
+	these functions have a different name under windows, 
+	MinGW für windows requires these 
+*/
+int creat(const char *path, mode_t mode) {
+//	return(OpenFile(path, O_WRONLY|O_CREAT|O_TRUNC, mode));
+	return(OpenFile(path, , OF_WRITE|OF_CREAT ));
+}
+ssize_t write(int fildes, const void *buf, size_t nbyte) {
+	ssize_t sz;
+	WriteFile(fildes, buf, nbyte, &sz, NULL)
+	return(sz);
+}
+int close(int fildes) {
+	return(CloseFile(fildes)); {
+}
+// the following ones are not used 
+/*
+int open(const char *path, int oflag) {
+	return(OpenFile(path, oflag));
+}
+int open(const char *path, int oflag, mode_t mode ) {
+	return(OpenFile(path, oflag, mode));
+}
+ssize_t read(int fildes, const void *buf, size_t nbyte) {
+	return(ReadFile(fildes, buf, nbyte));
+}
+*/
+#endif 
+
 #else	
 #define TC
 #endif 
 
 uint64_t B4C_ID=0;	// ID of currently open file 
-char *B4C_HOSTNAME = NULL; 
+const char *B4C_HOSTNAME = NULL; 
 uint32_t SERVER_STATE; // state of server, useful for preliminary error checking 
 
 /*
@@ -91,7 +123,7 @@ void *get_in_addr(struct sockaddr *sa)
 /****************************************************************************************
 	OPEN CONNECTION TO SERVER
  ****************************************************************************************/
-int bscs_connect(char* hostname) {
+int bscs_connect(const char* hostname) {
 
 	int sd; 
     	struct sockaddr_in localAddr;
@@ -713,7 +745,7 @@ int bscs_get_file(int sd, uint64_t ID, char *filename) {
 #endif 	
 
 	int sdo = creat(filename, mode);
-
+	
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"get file (1) %i\n",sdo);
 
 	msg.STATE = BSCS_VERSION_01 | BSCS_GET_FILE | STATE_INIT | BSCS_NO_ERROR;

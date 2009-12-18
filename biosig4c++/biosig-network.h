@@ -59,6 +59,13 @@
 #define EADDRNOTAVAIL WSAEADDRNOTAVAIL
 #define EPROTONOSUPPORT WSAEPROTONOSUPPORT
 
+#if 0 //!__linux__ 
+// needed by MinGW on Windows
+#define creat(a, c)    OpenFile(a, O_WRONLY|O_CREAT|O_TRUNC, c)
+#define write(a,b,c)   WriteFile(a,b,c,0,0)
+#define close(a)       CloseFile(a)
+#endif 
+
 #else 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -164,7 +171,7 @@ void *get_in_addr(struct sockaddr *sa);
 	biosig client-server functions 
 */
 
-int bscs_connect(char* hostname); 
+int bscs_connect(const char* hostname); 
 /*  opens a connection to the server <hostname>
 	on success, the socket file descriptor (a positive integer) is returned
 	in case of failure, a negative integer is returned 	
