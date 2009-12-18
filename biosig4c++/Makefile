@@ -51,10 +51,11 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 # MinGW Crosscompiler: compile on linux binaries for windows  
 MinGWCC      = i586-mingw32msvc-gcc 
 MinGWCXX     = i586-mingw32msvc-g++ 
-MinGWCFLAGS  = -shared -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL #-D=WITH_CHOLMOD
+MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS #-D=WITH_CHOLMOD -D=WITH_FEF -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+MinGWCFLAGS  = -shared -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF)
 #MinGWLIBS   = win32/libbiosig.lib win32/libfef.a win32/zlib/lib/zdll.lib -lws2_32  # static
-MinGWLIBS   = win32/libbiosig.lib win32/zlib/lib/zdll.lib -lws2_32 #-lcholmod # static
-#MinGWLIBS    = -Lwin32 -l biosig -l zlib1 -lws2_32  # static
+MinGWLIBS    = win32/libbiosig.lib win32/zlib/lib/zdll.lib -lws2_32 #-lcholmod # stati
+#MinGWLIBS   = -Lwin32 -l biosig -l zlib1 -lws2_32  # dynamic
 MinGWLINK    = i586-mingw32msvc-g++
 
 ####### Output directory
@@ -126,56 +127,61 @@ MinGWOBJECTS  = \
 TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o pdp2gdf #libbiosig.so 
 
 first: $(TARGET)
-all:   $(TARGET) mex biosig4python win32 sigviewer biosig_client biosig_server
+all:   $(TARGET) mex4o biosig4python win32 sigviewer biosig_client biosig_server
 
-    ####### Implicit rules
+
+#############################################################
+#	Compilation: Implicit, default rules
+#############################################################
 
 .SUFFIXES: .o .c .cpp .cc .cxx .C
 
 .cpp.o:
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
-
 .cc.o:
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
-
 .cxx.o:
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
-
 .C.o:
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
+.c.o:
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
 
-%.o: test0/%.c %.c biosig.h biosig-dev.h
+%.o: %.c biosig.h biosig-dev.h 
 	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
+%.o: t210/%.c biosig.h biosig-dev.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
+%.o: t220/%.c biosig.h biosig-dev.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
+%.o: t230/%.c biosig.h biosig-dev.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
+%.o: t240/%.c biosig.h biosig-dev.h
+	$(CC) -c $(CFLAGS) -I t240 $(INCPATH) -o "$@" "$<"
+%.o: test0/%.c biosig.h biosig-dev.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
+%.o: XMLParser/%.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
 
-%.o: %.cpp biosig.h biosig-dev.h
-	$(CXX) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
+win32/%.obj: %.c  biosig-dev.h biosig.h 
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
+win32/%.obj: t210/%.c  biosig-dev.h biosig.h 
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
+win32/%.obj: t220/%.c  biosig-dev.h biosig.h 
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
+win32/%.obj: t230/%.c  biosig-dev.h biosig.h 
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
+win32/%.obj: t240/%.c  biosig-dev.h biosig.h 
+	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o "$@" "$<"
+win32/%.obj: XMLParser/%.cpp win32/zlib/include/zlib.h
+	$(MinGWCXX) -c $(MinGWCXXFLAGS) $(INCPATH) -o "$@" "$<"
 
-%.obj: %.cpp
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/"$@" "$<"
 
-
-####### Compile
-
-#biosig.o: biosig.c biosig-dev.h biosig.h 
-#	$(CC) -c $(CFLAGS) $(INCPATH) -o biosig.o biosig.c
-
-#biosig-network.o: biosig-network.c biosig-network.h
-#	$(CC) -c $(CFLAGS) $(INCPATH) -o biosig-network.o biosig-network.c
-
-#physicalunits.o: physicalunits.c biosig.h 
-#	$(CC) -c $(CFLAGS) $(INCPATH) -o physicalunits.o physicalunits.c
+#############################################################
+#	Compilation: exceptions, explicit rules
+#############################################################
 
 sandbox.o: test0/sandbox.c biosig.h 
 	$(CXX) -c $(CFLAGS) $(INCPATH) -o sandbox.o test0/sandbox.c
-
-sopen_alpha_read.o: t210/sopen_alpha_read.c biosig-dev.h biosig.h
-	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_alpha_read.o t210/sopen_alpha_read.c
-
-sopen_famos_read.o: t210/sopen_famos_read.c biosig-dev.h biosig.h
-	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_famos_read.o t210/sopen_famos_read.c
-
-sopen_dicom_read.o: t210/sopen_dicom_read.c biosig-dev.h biosig.h
-	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_dicom_read.o t210/sopen_dicom_read.c
 
 sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h
 	cd t240
@@ -202,84 +208,11 @@ scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h \
 		t210/types.h t210/structures.h t210/codes.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o scp-decode.o t210/scp-decode.cpp
 
-crc4scp.o: t220/crc4scp.c 
-	$(CC) -c $(CFLAGS) $(INCPATH) -o crc4scp.o t220/crc4scp.c
-
-sopen_scp_write.o: t220/sopen_scp_write.c biosig-dev.h biosig.h
-	$(CC) -c $(CFLAGS) $(INCPATH) -o sopen_scp_write.o t220/sopen_scp_write.c
-
-getlogin_r.o: win32/getlogin_r.c
+biosig-dev.h biosig.h getlogin_r.o: win32/getlogin_r.c
 	$(CC) -c $(CFLAGS) $(INCPATH) -o getlogin_r.o win32/getlogin_r.c
 
 #strtod.o: gnulib/strtod.c
 #	$(CC) -c $(CFLAGS) $(INCPATH) -o strtod.o gnulib/strtod.c
-
-tinystr.o: XMLParser/tinystr.cpp XMLParser/tinystr.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinystr.o XMLParser/tinystr.cpp
-
-tinyxml.o: XMLParser/tinyxml.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinyxml.o XMLParser/tinyxml.cpp
-
-tinyxmlerror.o: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinyxmlerror.o XMLParser/tinyxmlerror.cpp
-
-tinyxmlparser.o: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o tinyxmlparser.o XMLParser/tinyxmlparser.cpp
-
-####### Build rules
-python: 
-	make -C python biosig4python	
-
-biosig4python : python/_biosig.so python/biosig.py
-python/biosig.py python/swig_wrap.cxx: libbiosig.a python/swig.i 
-	$(SWIG) -c++ -python -I/usr/include -o python/swig_wrap.cxx python/swig.i
-python/_biosig.so : python/swig_wrap.cxx 
-	$(CXX) -c $(CXXFLAGS) python/swig_wrap.cxx -o python/swig_wrap.o -I/usr/include/python$(PYTHONVER) && \
- 	$(CXX) -shared python/swig_wrap.o $(LIBS) -o python/_biosig.so
- 
-#$(TARGET):  libbiosig.a 
-#	$(LINK) $(LFLAGS) -o "$(TARGET)" $(LIBS) $(TARGET)
-
-libbiosig.a: $(OBJECTS)
-	$(AR) libbiosig.a $(OBJECTS) 
-	
-libbiosig.so: $(OBJECTS)
-	$(CXX) -shared -fPIC -o libbiosig.so $(OBJECTS) 
-	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) 
-
-
-####### Windows executable
-
-win32/zlib123-dll.zip:
-#	wget -q -Pwin32 http://www.zlib.net/zlib123-dll.zip
-
-win32/zlib: win32/zlib123-dll.zip
-	mkdir -p win32/zlib
-	unzip -u win32/zlib123-dll.zip -d win32/zlib
-
-win32/zlib/lib/zdll.lib: win32/zlib
-	touch --reference=win32/zlib win32/zlib/lib/zdll.lib
-
-win32/zlib/include/zlib.h: win32/zlib
-	touch --reference=win32/zlib win32/zlib/include/zlib.h
-
-win32/libzdll.a: win32/zlib/lib/zdll.lib
-	$(COPY) win32/zlib/lib/zdll.lib win32/libzdll.a
-	
-win32/biosig.obj: biosig.c biosig-dev.h biosig.h win32/zlib/include/zlib.h
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/biosig.obj biosig.c
-
-win32/libbiosig.lib: $(MinGWOBJECTS)  
-	i586-mingw32msvc-$(AR) win32/libbiosig.lib   $(MinGWOBJECTS)  
-
-win32/libfef.a:	
-		
-	
-win32/libbiosig.dll: $(OBJECTS) win32/libzdll.a
-	$(MinGWCXX) -shared -fPIC  $(MinGWOBJECTS) win32/zlib/zlib1.dll -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
-
-win32/physicalunits.obj: physicalunits.c biosig.h  win32/zlib/include/zlib.h
-	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/physicalunits.obj physicalunits.c
 
 win32/sandbox.obj: test0/sandbox.c biosig.h  win32/zlib/include/zlib.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sandbox.obj test0/sandbox.c
@@ -288,62 +221,92 @@ win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h  win32/zlib/include
 		biosig.h t210/structures.h t210/types.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_scp_read.obj t210/sopen_scp_read.c
 
-win32/sopen_famos_read.obj: t210/sopen_famos_read.c biosig-dev.h 
-	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_famos_read.obj t210/sopen_famos_read.c
-
 win32/sopen_alpha_read.obj: t210/sopen_alpha_read.c biosig-dev.h 
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_alpha_read.obj t210/sopen_alpha_read.c
-
-win32/biosig-network.obj: biosig-network.c biosig-dev.h biosig-network.h 
-	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/biosig-network.obj biosig-network.c
 
 win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h win32/zlib/include/zlib.h \
 		t210/types.h t210/structures.h t210/codes.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/scp-decode.obj t210/scp-decode.cpp
 
-win32/crc4scp.obj: t220/crc4scp.c 
-	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/crc4scp.obj t220/crc4scp.c
-
-win32/sopen_scp_write.obj: t220/sopen_scp_write.c biosig-dev.h biosig.h win32/zlib/include/zlib.h
-	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_scp_write.obj t220/sopen_scp_write.c
-
-win32/sopen_fef_read.obj: t240/sopen_fef_read.c biosig-dev.h biosig.h 
-	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o win32/sopen_fef_read.obj t240/sopen_fef_read.c
+#win32/sopen_fef_read.obj: t240/sopen_fef_read.c biosig-dev.h biosig.h 
+#	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o win32/sopen_fef_read.obj t240/sopen_fef_read.c
 	
 win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h win32/zlib/include/zlib.h \
 		XMLParser/tinyxml.h XMLParser/tinystr.h # XMLParser/Tokenizer.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_hl7aecg.obj t230/sopen_hl7aecg.c
 
 win32/getlogin_r.obj: win32/getlogin_r.c
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
 
-#win32/strtod.obj: gnulib/strtod.c
-#	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/strtod.obj gnulib/strtod.c
 
-win32/tinystr.obj: XMLParser/tinystr.cpp XMLParser/tinystr.h
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinystr.obj XMLParser/tinystr.cpp
+#############################################################
+#	Python (Linux)
+#############################################################
 
-win32/tinyxml.obj: XMLParser/tinyxml.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinyxml.obj XMLParser/tinyxml.cpp
+python: 
+	make -C python biosig4python	
 
-win32/tinyxmlerror.obj: XMLParser/tinyxmlerror.cpp XMLParser/tinyxml.h XMLParser/tinystr.h win32/zlib/include/zlib.h
-	$(MinGWCXX) -c $(CXXFLAGS) $(INCPATH) -o win32/tinyxmlerror.obj XMLParser/tinyxmlerror.cpp
+biosig4python : python/_biosig.so python/biosig.py
 
-win32/tinyxmlparser.obj: XMLParser/tinyxmlparser.cpp XMLParser/tinyxml.h XMLParser/tinystr.h
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/tinyxmlparser.obj XMLParser/tinyxmlparser.cpp
+python/biosig.py python/swig_wrap.cxx: libbiosig.a python/swig.i 
+	$(SWIG) -c++ -python -I/usr/include -o python/swig_wrap.cxx python/swig.i
+
+python/_biosig.so : python/swig_wrap.cxx 
+	$(CXX) -c $(CXXFLAGS) python/swig_wrap.cxx -o python/swig_wrap.o -I/usr/include/python$(PYTHONVER) && \
+ 	$(CXX) -shared python/swig_wrap.o $(LIBS) -o python/_biosig.so
+ 
+
+#############################################################
+# 	Download zlib-dll
+#############################################################
+
+win32/zlib123-dll.zip:
+	wget -q -Pwin32 http://www.zlib.net/zlib123-dll.zip
+
+win32/zlib win32/zlib/lib/zdll.lib win32/zlib/zlib1.dll win32/zlib/include/zlib.h win32/libzdll.a: win32/zlib123-dll.zip
+	mkdir -p win32/zlib
+	unzip -u win32/zlib123-dll.zip -d win32/zlib
+	$(COPY) win32/zlib/lib/zdll.lib win32/libzdll.a
+
+win32/libzdll.a: win32/zlib/lib/zdll.lib
+	$(COPY) win32/zlib/lib/zdll.lib win32/libzdll.a
+
+#############################################################
+#	WIN32 - BUILD
+#############################################################
+
+win32/libbiosig.lib: $(MinGWOBJECTS)  
+	-$(DELETE) win32/libbiosig.lib
+	i586-mingw32msvc-$(AR) win32/libbiosig.lib   $(MinGWOBJECTS)  
+
+win32/libfef.a:	
+		
+win32/libbiosig.dll: $(OBJECTS) win32/zlib/zlib1.dll
+	$(MinGWCXX) -shared -fPIC  $(MinGWOBJECTS) win32/zlib/zlib1.dll -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
+	-$(COPY) win32/libbiosig.dll ../sigviewer/extern/
 
 win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib
-	$(MinGWLINK) $(MinGWCFLAGS)  -o win32/save2gdf.exe save2gdf.c $(MinGWOBJECTS) $(MinGWLIBS)
+	$(MinGWLINK) $(MinGWCFLAGS) -o win32/save2gdf.exe save2gdf.c  $(MinGWLIBS) win32/libbiosig.lib
+#	$(MinGWCXX) $(MinGWCXXFLAGS) save2gdf.c $(MinGWLIBS) -o win32/save2gdf.exe 
 
 win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.lib 
-	$(MinGWLINK) $(MinGWCFLAGS)  -o win32/pdp2gdf.exe pdp2gdf.c $(MinGWOBJECTS)  $(MinGWLIBS)  
+	$(MinGWLINK) $(MinGWCFLAGS) -o win32/pdp2gdf.exe pdp2gdf.c win32/libbiosig.lib $(MinGWLIBS)  
 
 win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.lib 
  
 
-
-####### application files 
+#############################################################
+#	GNU/Linux - BUILD 
+#############################################################
  
+libbiosig.a: $(OBJECTS)
+	-$(DELETE) libbiosig.a
+	$(AR) libbiosig.a $(OBJECTS) 
+	
+libbiosig.so: $(OBJECTS)
+	$(CXX) -shared -fPIC -o libbiosig.so $(OBJECTS) 
+	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) 
+
 save2gdf: save2gdf.o libbiosig.a #t240/libfef.a #libbiosig.so 
 	$(LINK) $(CXXFLAGS) save2gdf.o $(LFLAGS) $(LIBS) -o save2gdf 
 
@@ -360,9 +323,11 @@ biosig_client: biosig_client.c libbiosig.a biosig-network.o
 biosig_server: biosig_server.c libbiosig.a biosig-network.o 
 	$(LINK) $(CXXFLAGS) biosig_server.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_server
 
-win32 exe: win32/save2gdf.exe win32/pdp2gdf.exe 
 
-### MEX-files for Matlab
+#############################################################
+#	MEX-files for Octave and Matlab
+#############################################################
+ 
 mex: mex4m mex4o
 mex4m: mexSLOAD.mexa64 mexSOPEN.mexa64
 mexSLOAD: mexSLOAD.mexa64
@@ -371,7 +336,7 @@ mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.a
 	$(MEX) $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LIBS) 
 	-$(COPY) mexSLOAD.mexa64 ../biosig/t200_FileAccess/
 mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.a
-	$(MEX) -DmexSOPEN $(DEFINES) mexSLOAD.cpp $(LIBS) -output mexSOPEN
+	$(MEX) -DmexSOPEN $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LIBS) -output mexSOPEN
 	-$(COPY) mexSOPEN.mexa64 ../biosig/t200_FileAccess/
 
 ### MEX-files for Octave
@@ -393,11 +358,16 @@ mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
 	-$(COPY) mexSOPEN.oct ../biosig/t200_FileAccess/
 
 
+#############################################################
+#	SigViewer
+#############################################################
+
 sigviewer: ../sigviewer/bin/sigviewer 
 	make -C ../sigviewer/src  
 ../sigviewer/bin/sigviewer: libbiosig.a biosig.h
 	$(COPY) -lf biosig.h ../sigviewer/extern/
 	$(COPY) -lf libbiosig.a ../sigviewer/extern/
+	-$(COPY) -lf win32/libbiosig.dll ../sigviewer/extern/
 #	$(COPY) -lf t240/libfef.a ../sigviewer/extern/
 #	touch ../sigviewer/tmp/basic_header.o
 	make -C ../sigviewer/src  
@@ -411,9 +381,15 @@ docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
 save2scp: save2gdf
 save2aecg: save2gdf
 
+
+#############################################################
+#	INSTALL and DE-INSTALL
+#############################################################
+ 
 distclean:
 	-$(DELETE) *.a
 	-$(DELETE) *.o
+	-$(DELETE) *.lib
 	-$(DELETE) *.so
 	-$(DELETE) *.mex*
 	-$(DELETE) *.oct
@@ -422,6 +398,7 @@ distclean:
 	-$(DELETE) python/swig_wrap.* python/biosig.py* python/_biosig.so 
 	-$(DELETE) QMakefile
 	-$(DELETE) win32/*.a
+	-$(DELETE) win32/*.lib
 	-$(DELETE) win32/*.obj
 	-$(DELETE) win32/*.exe
 	-$(DELETE) -rf win32/zlib	
@@ -436,12 +413,10 @@ clean:
 	-$(DELETE) python/biosig.py* _biosig.so
 	-$(DELETE) python/swig_wrap.*
 	-$(DELETE) win32/*.a
+	-$(DELETE) win32/*.lib
 	-$(DELETE) win32/*.o
 	-$(DELETE) win32/*.obj
 	-$(DELETE) win32/*.exe
-
-
-####### INSTALL ########
 
 install_sigviewer: sigviewer
 	install ../sigviewer/bin/sigviewer $(BIN)
@@ -484,8 +459,10 @@ remove:
 	#rm $(DESTDIR)/usr/share/man/man1/rec2bin.1
 	#rm $(DESTDIR)/usr/share/man/man1/bin2rec.1
 	
-:
-####### Testing ########
+
+#############################################################
+#	Testing
+#############################################################
 #	./save2gdf -V8 ~/data/test/tms32/small_test.float32.log	
 	./save2gdf -f=TMSi t0.scp t2.log
 	cat t2.log	
