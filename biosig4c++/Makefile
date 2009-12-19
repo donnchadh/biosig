@@ -39,8 +39,6 @@ LINK          = $(CXX)
 LFLAGS        = -L /usr/local/lib/
 #LIBS          = -lz  -lbiosig  	# dynamic
 LIBS          = libbiosig.a -lz -lcholmod # t240/libfef.a #-lgdcmDSED -lgsl -lgslcblas -lm	# static
-#LIBS         = libbiosig.a -lws2_32 win32/zlib/lib/zdll.lib	# static, for windows 
-#DELETE        = del                    # Windows
 DELETE        = rm
 COPY          = cp -f
 TEMP_DIR      = /tmp/
@@ -51,12 +49,11 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 # MinGW Crosscompiler: compile on linux binaries for windows  
 MinGWCC      = i586-mingw32msvc-gcc 
 MinGWCXX     = i586-mingw32msvc-g++ 
-MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS #-D=WITH_CHOLMOD -D=WITH_FEF -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
-MinGWCFLAGS  = -shared -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF)
-#MinGWLIBS   = win32/libbiosig.lib win32/libfef.a win32/zlib/lib/zdll.lib -lws2_32  # static
-MinGWLIBS    = win32/libbiosig.lib win32/zlib/lib/zdll.lib -lws2_32 #-lcholmod # stati
+MinGWDEF     = -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_ZLIB #-D=WITH_CHOLMOD -D=WITH_FEF -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+MinGWCFLAGS  = -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF)
+MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a #-lcholmod # stati
 #MinGWLIBS   = -Lwin32 -l biosig -l zlib1 -lws2_32  # dynamic
-MinGWLINK    = i586-mingw32msvc-g++
+MinGWLINK    = $(MinGWCXX)
 
 ####### Output directory
 
@@ -103,9 +100,9 @@ OBJECTS       = \
 		sopen_hl7aecg.o \
 		getlogin_r.o \
 		biosig-network.o \
-		sandbox.o 
-		 
-		
+		sandbox.o
+
+
 MinGWOBJECTS  = \
 		win32/crc4scp.obj \
 		win32/biosig.obj \
@@ -162,18 +159,18 @@ all:   $(TARGET) mex4o biosig4python win32 sigviewer biosig_client biosig_server
 %.o: XMLParser/%.cpp
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
 
-win32/%.obj: %.c  biosig-dev.h biosig.h 
+win32/%.obj: %.c  biosig-dev.h biosig.h win32/zlib/include/zlib.h
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
-win32/%.obj: t210/%.c  biosig-dev.h biosig.h 
+win32/%.obj: t210/%.c  biosig-dev.h biosig.h win32/zlib/include/zlib.h
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
-win32/%.obj: t220/%.c  biosig-dev.h biosig.h 
+win32/%.obj: t220/%.c  biosig-dev.h biosig.h win32/zlib/include/zlib.h
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
-win32/%.obj: t230/%.c  biosig-dev.h biosig.h 
+win32/%.obj: t230/%.c  biosig-dev.h biosig.h win32/zlib/include/zlib.h
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
-win32/%.obj: t240/%.c  biosig-dev.h biosig.h 
+win32/%.obj: t240/%.c  biosig-dev.h biosig.h win32/zlib/include/zlib.h
 	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o "$@" "$<"
 win32/%.obj: XMLParser/%.cpp win32/zlib/include/zlib.h
-	$(MinGWCXX) -c $(MinGWCXXFLAGS) $(INCPATH) -o "$@" "$<"
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
 
 #############################################################
@@ -260,16 +257,15 @@ python/_biosig.so : python/swig_wrap.cxx
 # 	Download zlib-dll
 #############################################################
 
-win32/zlib123-dll.zip:
-	wget -q -Pwin32 http://www.zlib.net/zlib123-dll.zip
+win32/zlib-1.2.3-lib.zip:
+	wget -q -Pwin32 http://sourceforge.net/projects/gnuwin32/files/zlib/1.2.3/zlib-1.2.3-lib.zip/download
 
-win32/zlib win32/zlib/lib/zdll.lib win32/zlib/zlib1.dll win32/zlib/include/zlib.h win32/libzdll.a: win32/zlib123-dll.zip
+win32/zlib/lib/libz.a: win32/zlib-1.2.3-lib.zip
 	mkdir -p win32/zlib
-	unzip -u win32/zlib123-dll.zip -d win32/zlib
-	$(COPY) win32/zlib/lib/zdll.lib win32/libzdll.a
+	unzip -u -n win32/zlib-1.2.3-lib.zip -d win32/zlib
 
-win32/libzdll.a: win32/zlib/lib/zdll.lib
-	$(COPY) win32/zlib/lib/zdll.lib win32/libzdll.a
+win32/libz.a: win32/zlib/lib/libz.a
+	$(COPY) win32/zlib/lib/libz.a win32/libz.a
 
 #############################################################
 #	WIN32 - BUILD
@@ -281,15 +277,15 @@ win32/libbiosig.lib: $(MinGWOBJECTS)
 
 win32/libfef.a:	
 		
-win32/libbiosig.dll: $(OBJECTS) win32/zlib/zlib1.dll
-	$(MinGWCXX) -shared -fPIC  $(MinGWOBJECTS) win32/zlib/zlib1.dll -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
+win32/libbiosig.dll: $(MinGWOBJECTS) win32/libz.a
+	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
 	-$(COPY) win32/libbiosig.dll ../sigviewer/extern/
 
-win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib
-	$(MinGWCXX) $(MinGWCXXFLAGS) save2gdf.c $(MinGWOBJECTS) $(MinGWLIBS) -o win32/save2gdf.exe 
+win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib win32/libz.a
+	$(MinGWLINK) $(MinGWCFLAGS) save2gdf.c $(MinGWLIBS) -o win32/save2gdf.exe 
 
-win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.lib 
-	$(MinGWLINK) $(MinGWCFLAGS) -o win32/pdp2gdf.exe pdp2gdf.c win32/libbiosig.lib $(MinGWLIBS)  
+win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.lib win32/libz.a
+	$(MinGWLINK) $(MinGWCFLAGS) pdp2gdf.c $(MinGWLIBS) -o win32/pdp2gdf.exe  
 
 win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.lib 
  
