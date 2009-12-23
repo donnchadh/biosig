@@ -100,7 +100,7 @@ OBJECTS       = \
 		sopen_hl7aecg.o \
 		getlogin_r.o \
 		biosig-network.o \
-		sandbox.o
+		sandbox.o \
 
 
 MinGWOBJECTS  = \
@@ -119,7 +119,8 @@ MinGWOBJECTS  = \
 		win32/sopen_fef_read.obj \
 		win32/sopen_hl7aecg.obj \
 		win32/biosig-network.obj \
-		win32/sandbox.obj 
+		win32/sandbox.obj \
+		
 
 TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o pdp2gdf #libbiosig.so 
 
