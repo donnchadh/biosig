@@ -206,7 +206,7 @@ scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h \
 		t210/types.h t210/structures.h t210/codes.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o scp-decode.o t210/scp-decode.cpp
 
-biosig-dev.h biosig.h getlogin_r.o: win32/getlogin_r.c
+getlogin_r.o: win32/getlogin_r.c
 	$(CC) -c $(CFLAGS) $(INCPATH) -o getlogin_r.o win32/getlogin_r.c
 
 #strtod.o: gnulib/strtod.c
