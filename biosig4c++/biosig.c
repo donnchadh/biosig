@@ -2543,7 +2543,7 @@ void struct2gdfbin(HDRTYPE *hdr)
 	     	/* end */
 
 		if (hdr->TYPE==GDF) {
-			hdr->VERSION = 2.20;
+			hdr->VERSION = 2.21;
 			if (hdr->HeadLen & 0x00ff)	// in case of GDF v2, make HeadLen a multiple of 256. 
 			hdr->HeadLen = (hdr->HeadLen & 0xff00) + 256; 
 		}
@@ -2636,26 +2636,28 @@ void struct2gdfbin(HDRTYPE *hdr)
 		hdr->NRec *= hdr->SPR/DIV; 
 		hdr->SPR  = DIV; 
 	*/
-				 
-		/* Duration is expressed as an fraction of integers */ 
+
 		double fDur = hdr->SPR/hdr->SampleRate;
-		double dtmp1, dtmp2;
-		dtmp2 = modf(fDur, &dtmp1);
-		// approximate real with rational number 
-		if (fabs(dtmp2) < DBL_EPSILON) {
-			Dur[0] = lround(fDur); 
-			Dur[1] = 1; 
+		if (hdr->VERSION < 2.21) {
+			/* Duration is expressed as an fraction of integers */ 
+			double dtmp1, dtmp2;
+			dtmp2 = modf(fDur, &dtmp1);
+			// approximate real with rational number 
+			if (fabs(dtmp2) < DBL_EPSILON) {
+				Dur[0] = lround(fDur); 
+				Dur[1] = 1; 
+			}
+			else {   
+				Dur[1] = lround(1.0 / dtmp2 ); 
+				Dur[0] = lround(1.0 + dtmp1 * Dur[1]); 
+			}		
+
+			*(uint32_t*) (Header1+244) = l_endian_u32(Dur[0]);
+			*(uint32_t*) (Header1+248) = l_endian_u32(Dur[1]);
 		}
-		else {   
-			Dur[1] = lround(1.0 / dtmp2 ); 
-			Dur[0] = lround(1.0 + dtmp1 * Dur[1]); 
-		}		
-
-		if (VERBOSE_LEVEL>7)
-			fprintf(stdout,"\n SOPEN(GDF write): %i/%f to %i/%i\n",hdr->SPR,hdr->SampleRate,Dur[0],Dur[1]);
-
-		*(uint32_t*) (Header1+244) = l_endian_u32(Dur[0]);
-		*(uint32_t*) (Header1+248) = l_endian_u32(Dur[1]);
+		else 
+			*(double*) (Header1+244) = l_endian_f64(fDur);
+	
 		*(uint16_t*) (Header1+252) = l_endian_u16(NS);
 
 	     	/* define HDR.Header2 
@@ -3065,7 +3067,11 @@ int gdfbin2struct(HDRTYPE *hdr)
 				return(B4C_ERRNUM);
 			}
 		}	
-		hdr->SampleRate = ((double)(hdr->SPR))*Dur[1]/Dur[0];
+		
+		if (hdr->VERSION < 2.21) 
+			hdr->SampleRate = ((double)(hdr->SPR))*Dur[1]/Dur[0];
+		else 	
+			hdr->SampleRate = ((double)(hdr->SPR))/lef64p(Header1+244);
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[219] FMT=%s Ver=%4.2f\n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
 
@@ -4591,7 +4597,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 						
 						FILE *fid = fopen(datfile,"rb");
 						if (fid != NULL) {
-							size_t bufsiz = cp->SPR*GDFTYP_BITS[cp->GDFTYP];
+							size_t bufsiz = cp->SPR*GDFTYP_BITS[cp->GDFTYP]>>3;
 							hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata,lengthRawData+bufsiz+1);
 							count = fread(hdr->AS.rawdata+lengthRawData,1,bufsiz+1,fid);
 							if (count != bufsiz)
@@ -4617,7 +4623,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 							count = fread(hdr->AS.rawdata+lengthRawData, 1, FileBuf.st_size, fid);
 							fclose(fid);
 
-							const size_t bufsiz = cp->SPR*GDFTYP_BITS[cp->GDFTYP];
+							const size_t bufsiz = cp->SPR*GDFTYP_BITS[cp->GDFTYP]>>3;
 							hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata,lengthRawData+bufsiz);
 							
 							char **endptr = &buf;
