@@ -361,7 +361,7 @@ end;
                         HDR.NRec = fread(HDR.FILE.FID,1,'int32');      % 8 Byte # of data records
                         fread(HDR.FILE.FID,1,'int32');      % 8 Byte # of data records
                         %if strcmp(HDR.VERSION(4:8),' 0.10')
-                        if abs(HDR.VERSION - 0.10) < 2*eps
+                        if ((abs(HDR.VERSION - 0.10) < 2*eps) || (HDR.VERSION > 2.20)),
                                 HDR.Dur = fread(HDR.FILE.FID,1,'float64');	% 8 Byte # duration of data record in sec
                         else
                                 tmp  = fread(HDR.FILE.FID,2,'uint32');  % 8 Byte # duration of data record in sec
@@ -1019,20 +1019,20 @@ end;
                         HDR.VERSION = 0;
                 elseif strcmp(HDR.TYPE,'GDF')
                         if ~isfield(HDR,'VERSION')
-                                HDR.VERSION = 2.11;     %% default version 
+                                HDR.VERSION = 2.21;     %% default version 
                         elseif (HDR.VERSION < 1.30)
                                 HDR.VERSION = 1.25;     %% old version 
                         elseif (HDR.VERSION < 2.19)
                                 HDR.VERSION = 2.11;     %% stable version 
                         else
-                                HDR.VERSION = 2.19;     %% experimental 
+                                HDR.VERSION = 2.21;     %% experimental 
                         end;        
                 elseif strcmp(HDR.TYPE,'BDF'),
                         HDR.VERSION = -1;
                 end;
 
                 if ~isfield(HDR,'RID')
-                        HDR.RID=setstr(32+zeros(1,80));
+                        HDR.RID=char(32+zeros(1,80));
                 end;
                 if ~isfield(HDR,'T0')
                         HDR.T0=zeros(1,6);
@@ -1311,7 +1311,7 @@ end;
 %                         Label = [Label(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,16-tmp))];
 
                         if ~isfield(HDR,'Transducer')
-                                HDR.Transducer=repmat({' '},HDR.NS,1); %setstr(32+zeros(HDR.NS,80));
+                                HDR.Transducer=repmat({' '},HDR.NS,1); %char(32+zeros(HDR.NS,80));
 			elseif ischar(HDR.Transducer) 
                                 HDR.Transducer = cellstr(HDR.Transducer);
                         end; 
@@ -1350,7 +1350,7 @@ end;
                                 end;
                         end;
                         if ~isfield(HDR,'PreFilt')
-                                HDR.PreFilt = setstr(32+zeros(HDR.NS,80));
+                                HDR.PreFilt = char(32+zeros(HDR.NS,80));
                                 if isfield(HDR,'Filter'),
                                         if isfield(HDR.Filter,'LowPass') & isfield(HDR.Filter,'HighPass') & isfield(HDR.Filter,'Notch'),
                                                 if any(length(HDR.Filter.LowPass) == [1,HDR.NS]) & any(length(HDR.Filter.HighPass) == [1,HDR.NS]) & any(length(HDR.Filter.Notch) == [1,HDR.NS])
@@ -1369,7 +1369,7 @@ end;
                                 HDR.PreFilt = repmat(HDR.PreFilt,HDR.NS,1);
                         end;
                         tmp = min(80,size(HDR.PreFilt,2));
-                        HDR.PreFilt = [HDR.PreFilt(1:HDR.NS,1:tmp), setstr(32+zeros(HDR.NS,80-tmp))];
+                        HDR.PreFilt = [HDR.PreFilt(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,80-tmp))];
 
                         if isfield(HDR,'PhysDimCode')
 				HDR.PhysDimCode = HDR.PhysDimCode(1:HDR.NS);
@@ -1661,9 +1661,12 @@ end;
 
                         %c=fwrite(HDR.FILE.FID,HDR.NRec,'int64');
                         c=fwrite(HDR.FILE.FID,[HDR.NRec,0],'int32');
-                        %fwrite(HDR.FILE.FID,HDR.Dur,'float64');
-                        [n,d]=rat(HDR.Dur);
-                        fwrite(HDR.FILE.FID,[n d], 'uint32');
+			if (HDR.VERSION > 2.20)
+                        	fwrite(HDR.FILE.FID,HDR.Dur,'float64');
+                        else
+                        	[n,d]=rat(HDR.Dur);
+                        	fwrite(HDR.FILE.FID,[n d], 'uint32');
+                        end; 	
                         c=fwrite(HDR.FILE.FID,[HDR.NS,0],'uint16');
                 else
                         H1(168+(1:16))=sprintf('%02i.%02i.%02i%02i:%02i:%02i',floor(rem(HDR.T0([3 2 1 4 5 6]),100)));
@@ -1722,7 +1725,7 @@ end;
                                 
                                 idx1=cumsum([0 H2idx]);
                                 idx2=HDR.NS*idx1;
-                                h2=setstr(32*ones(HDR.NS,256));
+                                h2=char(32*ones(HDR.NS,256));
                                 size(h2);
                                 h2(:,idx1(1)+1:idx1(2))=Label;
                                 h2(:,idx1(2)+1:idx1(3))=Transducer;
@@ -3011,7 +3014,7 @@ elseif strcmp(HDR.TYPE,'SND'),
                 HDR.NS = fread(HDR.FILE.FID,1,'uint32');
 		HDR.Label = repmat({' '},HDR.NS,1);
                 [tmp,count] = fread(HDR.FILE.FID, [1,HDR.HeadLen-24],'uint8');
-                HDR.INFO = setstr(tmp);
+                HDR.INFO = char(tmp);
                 
         elseif ~isempty(findstr(HDR.FILE.PERMISSION,'w')),	%%%%% WRITE 
                 if ~isfield(HDR,'NS'),
@@ -3491,7 +3494,7 @@ elseif strcmp(HDR.TYPE,'QTFF'),
                         tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size 
                         if ~isempty(tagsize),
                                 offset = offset + tagsize; 
-                                tag = setstr(fread(HDR.FILE.FID,[1,4],'uint8'));
+                                tag = char(fread(HDR.FILE.FID,[1,4],'uint8'));
                                 if tagsize==0,
                                         tagsize=inf; %tagsize-8;        
                                 elseif tagsize==1,
@@ -3521,7 +3524,7 @@ elseif strcmp(HDR.TYPE,'QTFF'),
                                                         tagsize2=fread(HDR.FILE.FID,1,'uint64');        
                                                 end;
                                                 offset2 = offset2 + tagsize2;                
-                                                tag2 = setstr(fread(HDR.FILE.FID,[1,4],'uint8'));
+                                                tag2 = char(fread(HDR.FILE.FID,[1,4],'uint8'));
                                                 if tagsize2 <= 8,
                                                 elseif strcmp(tag2,'mvhd'),
                                                         HDR.MOOV.Version = fread(HDR.FILE.FID,1,'uint8');
@@ -3610,7 +3613,7 @@ elseif strcmp(HDR.TYPE,'MIDI') | strcmp(HDR.TYPE,'RMID') ,
                 end;
 
                 while ~feof(HDR.FILE.FID),	
-                        tag     = setstr(tmp);
+                        tag     = char(tmp);
                         tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size 
                         filepos = ftell(HDR.FILE.FID);
                         
@@ -3738,13 +3741,13 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
                 end;
                 
-                tmp = setstr(fread(HDR.FILE.FID,[1,4],'uint8'));
+                tmp = char(fread(HDR.FILE.FID,[1,4],'uint8'));
                 if ~strcmpi(tmp,'FORM') & ~strcmpi(tmp,'RIFF')
                         fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAV-format: file %s might be corrupted 1\n',HDR.FileName);
                 end;
                 tagsize  = fread(HDR.FILE.FID,1,'uint32');        % which size
                 tagsize0 = tagsize + rem(tagsize,2); 
-                tmp = setstr(fread(HDR.FILE.FID,[1,4],'uint8'));
+                tmp = char(fread(HDR.FILE.FID,[1,4],'uint8'));
                 if ~strncmpi(tmp,'AIF',3) & ~strncmpi(tmp,'WAVE',4) & ~strncmpi(tmp,'AVI ',4),
 			% not (AIFF or AIFC or WAVE)
                         fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAF-format: file %s might be corrupted 2\n',HDR.FileName);
@@ -3752,7 +3755,7 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                 
                 [tmp,c] = fread(HDR.FILE.FID,[1,4],'uint8');
                 while ~feof(HDR.FILE.FID),	
-                        tag     = setstr(tmp);
+                        tag     = char(tmp);
                         tagsize = fread(HDR.FILE.FID,1,'uint32');        % which size 
                         tagsize0= tagsize + rem(tagsize,2); 
                         filepos = ftell(HDR.FILE.FID);
@@ -3793,7 +3796,7 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                                 
                                 if tagsize>18,
                                         [tmp,c] = fread(HDR.FILE.FID,[1,4],'uint8');
-                                        HDR.AIF.CompressionType = setstr(tmp);
+                                        HDR.AIF.CompressionType = char(tmp);
                                         [tmp,c] = fread(HDR.FILE.FID,[1,tagsize-18-c],'uint8');
                                         HDR.AIF.CompressionName = tmp;
                                         
@@ -3879,11 +3882,10 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                                 HDR.AIF.COMT = fread(HDR.FILE.FID,[1,tagsize],'uint8');
                                 
                         elseif strcmpi(tag,'ANNO');
-                                HDR.AIF.ANNO = setstr(fread(HDR.FILE.FID,[1,tagsize],'uint8'));
+                                HDR.AIF.ANNO = char(fread(HDR.FILE.FID,[1,tagsize],'uint8'));
                                 
                         elseif strcmpi(tag,'(c) ');
-                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8');
-                                HDR.Copyright = setstr(tmp);
+                                [HDR.Copyright,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8=>char');
                                 
                                 %%%% WAV - section %%%%%
                         elseif strcmpi(tag,'fmt ')
@@ -3936,18 +3938,17 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                                         fprintf(HDR.FILE.stderr,'Error SOPEN WAV: incorrect tag size\n');
                                         return;
                                 end;
-                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8');
-                                HDR.RIFF.FACT = setstr(tmp);
+                                [HDR.RIFF.FACT,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8=>char');
                                 
                         elseif strcmpi(tag,'disp');
                                 if tagsize<8, 
                                         fprintf(HDR.FILE.stderr,'Error SOPEN WAV: incorrect tag size\n');
                                         return;
                                 end;
-                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8');
-                                HDR.RIFF.DISP = setstr(tmp);
+                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8=>char');
+                                HDR.RIFF.DISP = char(tmp);
                                 if ~all(tmp(1:8)==[0,1,0,0,0,0,1,1])
-                                        HDR.RIFF.DISPTEXT = setstr(tmp(5:length(tmp)));
+                                        HDR.RIFF.DISPTEXT = char(tmp(5:length(tmp)));
                                 end;
                                 
                         elseif strcmpi(tag,'list');
@@ -3964,7 +3965,7 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                                         HDR.RIFF.N1 = HDR.RIFF.N1+1;
                                 end;
                                 
-                                %HDR.RIFF.list = setstr(tmp);
+                                %HDR.RIFF.list = char(tmp);
                                 [tag,c1]  = fread(HDR.FILE.FID,[1,4],'uint8');
 				tag = char(tag);
                                 [val,c2]  = fread(HDR.FILE.FID,[1,tagsize-4],'uint8');
@@ -3988,56 +3989,49 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                                         fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
-                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8');
-                                HDR.RIFF.movi = setstr(tmp);
+                                [HDR.RIFF.movi,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8=>char');
                                 
                         elseif strcmp(tag,'idx1');
                                 if tagsize<4, 
                                         fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
-                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8');
-                                HDR.RIFF.idx1 = setstr(tmp);
+                                [HDR.RIFF.idx1,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8=>char');
                                 
                         elseif strcmpi(tag,'junk');
                                 if tagsize<4, 
                                         fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
-                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8');
-                                HDR.RIFF.junk = setstr(tmp);
+                                [HDR.RIFF.junk,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8=>char');
                                 
                         elseif strcmpi(tag,'MARK');
                                 if tagsize<4, 
                                         fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
-                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8');
-                                HDR.RIFF.MARK = setstr(tmp);
+                                [HDR.RIFF.MARK,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8=>char');
                                 
                         elseif strcmpi(tag,'AUTH');
                                 if tagsize<4, 
                                         fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
-                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8');
-                                HDR.RIFF.AUTH = setstr(tmp);
+                                [HDR.RIFF.AUTH,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8=>char');
                                 
                         elseif strcmpi(tag,'NAME');
                                 if tagsize<4, 
                                         fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
-                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8');
-                                HDR.RIFF.NAME = setstr(tmp);
+                                [HDR.RIFF.NAME,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8=>char');
                                 
                         elseif strcmpi(tag,'afsp');
                                 if tagsize<4, 
                                         fprintf(HDR.FILE.stderr,'Error SOPEN AVI: incorrect tag size\n');
                                         return;
                                 end;
-                                [tmp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8');
-                                HDR.RIFF.afsp = setstr(tmp);
+                                [HDR.RIFF.afsp,c] = fread(HDR.FILE.FID,[1,tagsize],'uint8=>char');
                                 
                         elseif ~isempty(tagsize)
                                 fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAV: unknown TAG in %s: %s(%i) \n',HDR.FileName,tag,tagsize);
@@ -4459,7 +4453,7 @@ elseif strcmp(HDR.TYPE,'TEAM'),		% Nicolet TEAM file format
         HDR.TEAM.DigitalOffset = 256 + 32*HDR.NS + HDR.NS*HDR.NRec*HDR.SPR*HDR.Samptype;
         status = fseek(HDR.FILE.FID,HDR.TEAM.DigitalOffset,'bof');
         if HDR.TEAM.DigitalOffset < HDR.TEAM.SegmentOffset,
-                HDR.EventLabels = setstr(fread(HDR.FILE.FID,[16,HDR.EVENT.N],'uint8')');
+                HDR.EventLabels = char(fread(HDR.FILE.FID,[16,HDR.EVENT.N],'uint8')');
                 
                 % Events could be detected in this way
                 % HDR.Events = zeros(HDR.SPR*HDR.NRec,1);
@@ -4549,36 +4543,36 @@ elseif strcmp(HDR.TYPE,'WFT'),	% implementation of this format is not finished y
         
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');
         [s,c] = fread(HDR.FILE.FID,1536,'uint8');
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         Nic_id0 = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         Niv_id1 = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         Nic_id2 = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         User_id = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         HDR.HeadLen = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         HDR.FILE.Size = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         HDR.VERSION = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         HDR.WFT.WaveformTitle = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         HDR.T0(1) = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         HDR.T0(1,2) = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         HDR.T0(1,3) = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         tmp = str2double(tmp);
         HDR.T0(1,4:6) = [floor(tmp/3600000),floor(rem(tmp,3600000)/60000),rem(tmp,60000)];
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         HDR.SPR = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         HDR.Off = str2double(tmp);
-        [tmp,s] = strtok(s,setstr([0,32]));
+        [tmp,s] = strtok(s,char([0,32]));
         HDR.Cal = str2double(tmp);
         
         fseek(HDR.FILE.FID,HDR.HeadLen,'bof');
@@ -4988,7 +4982,7 @@ elseif strcmp(HDR.TYPE,'DDF'),
                 HDR.FILE.POS = 0;
                 %HDR.ID = fread(HDR.FILE.FID,5,'uint8');
                 ds=fread(HDR.FILE.FID,[1,128],'uint8');
-                HDR.ID = setstr(ds(1:5));
+                HDR.ID = char(ds(1:5));
                 DataSource = ds;
                 k = 0;
                 while ~(any(ds==26)),
@@ -4997,10 +4991,10 @@ elseif strcmp(HDR.TYPE,'DDF'),
                         k = k+1;	
                 end;	
                 pos = find(ds==26)+k*128;
-                DataSource = setstr(DataSource(6:pos));
+                DataSource = char(DataSource(6:pos));
                 HDR.DDF.Source = DataSource;
                 while ~isempty(DataSource),
-                        [ds,DataSource] = strtok(setstr(DataSource),[10,13]);
+                        [ds,DataSource] = strtok(char(DataSource),[10,13]);
                         [field,value] = strtok(ds,'=');
                         if strfind(field,'SAMPLE RATE');
                                 [tmp1,tmp2] = strtok(value,'=');
@@ -5017,7 +5011,7 @@ elseif strcmp(HDR.TYPE,'DDF'),
                 if 0;%DataSource(length(DataSource))~=26,
                         fprintf(1,'Warning: DDF header seems to be incorrenct. Contact <alois.schloegl@tugraz.at> Subject: BIOSIG/DATAFORMAT/DDF  \n');
                 end;
-                HDR.DDF.CPUidentifier  = setstr(fread(HDR.FILE.FID,[1,2],'uint8'));
+                HDR.DDF.CPUidentifier  = fread(HDR.FILE.FID,[1,2],'uint8=>char');
                 HDR.HeadLen(1) = fread(HDR.FILE.FID,1,'uint16');
                 tmp = fread(HDR.FILE.FID,1,'uint16');
                 if tmp == 0, HDR.GDFTYP = 'uint16'; 		% streamer format (data are raw data in WORD=UINT16)
