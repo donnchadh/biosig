@@ -1733,10 +1733,8 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->AS.flag_collapsed_rawdata = 0;	// is rawdata not collapsed 
 	hdr->AS.first = 0;
 	hdr->AS.length  = 0;  // no data loaded 
-#ifdef CHOLMOD_H
 	hdr->Calib = NULL; 
         hdr->rerefCHANNEL = NULL;
-#endif 
 
       	hdr->NRec = 0; 
       	hdr->NS = NS;	
@@ -1893,10 +1891,6 @@ void destructHDR(HDRTYPE* hdr) {
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"destructHDR(%s): free HDR.aECG\n",hdr->FileName);
 
 	sclose(hdr); 
-
-#ifdef WITH_FEF
-	if (hdr->TYPE == FEF) sclose_fef_read(hdr);
-#endif 
 
     	if (hdr->aECG != NULL) {
 		if (((aECG_TYPE*)hdr->aECG)->Section8.NumberOfStatements>0)
@@ -4432,6 +4426,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		double duration = 0;
 		size_t lengthRawData = 0;
 		uint8_t FLAG_NUMBER_OF_FIELDS_READ;	// used to trigger consolidation of channel info   
+		CHANNEL_TYPE *cp = NULL;
+		char *datfile = NULL; 
+		uint16_t gdftyp = 0;
 
 		char *line  = strtok((char*)hdr->AS.Header,"\x0a\x0d");
 		while (line!=NULL) {
@@ -4446,10 +4443,11 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			else if (!strncmp(line,"[EVENT TABLE]",13)) {
 				status = 3;
 				hdr->EVENT.SampleRate = hdr->SampleRate; 
+				N = 0; 
 			}	
 
 			val = strchr(line,'=');	
-			if (val!=NULL) {
+			if ((val != NULL) && (status<3)) {
 				val += strspn(val,sep);
 				size_t c;
 				c = strspn(val,"#"); 
@@ -4458,7 +4456,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				if (c) line[c] = 0; // deblank 
 				FLAG_NUMBER_OF_FIELDS_READ++; 
 			}	
-if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val); 
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val); 
 
 			if (status==1) {
 				if (!strcmp(line,"Duration"))
@@ -4532,25 +4530,13 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 			}
 			
 			else if (status==2) {
-				CHANNEL_TYPE *cp = NULL;
 				if (!strcmp(line,"Filename")) {
 
 					// add next channel  	
 					++hdr->NS; 
 					hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL, hdr->NS*sizeof(CHANNEL_TYPE));
-					FILE *fid = fopen(val,"rb");
-					if (fid!=NULL) {
-						while (!feof(fid)) {
-							const size_t bufsiz = 1<<24;
-							hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata,lengthRawData+bufsiz);
-							count = fread(hdr->AS.rawdata+lengthRawData,1,bufsiz,fid);
-							lengthRawData += count;
-						}
-						fclose(fid);
-					} 
 					cp = hdr->CHANNEL+hdr->NS-1; 
 					cp->bi = hdr->AS.bpb;
-					hdr->AS.bpb  = lengthRawData;
 					cp->PhysDimCode = 0;
 					cp->HighPass = NaN;
 					cp->LowPass  = NaN;
@@ -4558,13 +4544,16 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					cp->Impedance= NaN;
 					cp->fZ       = NaN;
 					cp->LeadIdCode = 0; 
+					datfile      = val; 
 
 					FLAG_NUMBER_OF_FIELDS_READ = 1; 
+
 				}
+
 				else if (!strcmp(line,"Label"))
 					strncpy(cp->Label,val,MAX_LENGTH_LABEL);
+
 				else if (!strcmp(line,"GDFTYP")) {
-					uint16_t gdftyp;
 					if      (!strcmp(val,"int8"))	gdftyp = 1; 
 					else if (!strcmp(val,"uint8"))	gdftyp = 2; 
 					else if (!strcmp(val,"int16"))	gdftyp = 3; 
@@ -4578,12 +4567,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					else if (!strcmp(val,"float128"))	gdftyp = 18;
 					else if (!strcmp(val,"ascii"))	gdftyp = 0xfffe;
 					else 				gdftyp = atoi(val);
-					if ((gdftyp<1) || (gdftyp>255)) {					
-						B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-						B4C_ERRMSG = "ASCII/BIN: reading ASCII format not supported.";	
-					}
-					else
-						cp->GDFTYP = gdftyp;
+
 				}	
 				else if (!strcmp(line,"PhysicalUnits"))
 					cp->PhysDimCode = PhysDimCode(val);
@@ -4594,11 +4578,66 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 				}	
 				else if (!strcmp(line,"Transducer"))
 					strncpy(cp->Transducer,val,MAX_LENGTH_TRANSDUCER);
+
 				else if (!strcmp(line,"SamplingRate"))
 					Fs = atof(val);
+
 				else if (!strcmp(line,"NumberOfSamples")) {
 					cp->SPR = atol(val);
 					if (cp->SPR>0) hdr->SPR = lcm(hdr->SPR,cp->SPR);
+
+					if ((gdftyp>0) && (gdftyp<256)) {					
+						cp->GDFTYP = gdftyp;
+						
+						FILE *fid = fopen(datfile,"rb");
+						if (fid != NULL) {
+							size_t bufsiz = cp->SPR*GDFTYP_BITS[cp->GDFTYP];
+							hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata,lengthRawData+bufsiz+1);
+							count = fread(hdr->AS.rawdata+lengthRawData,1,bufsiz+1,fid);
+							if (count != bufsiz)
+								fprintf(stderr,"Warning SOPEN(BIN) #%i: mismatch between sample number and file size (%i,%i)\n",hdr->NS-1,count,bufsiz);
+							lengthRawData += bufsiz;
+							fclose(fid);
+						} 
+						else if (cp->SPR > 0) {
+							cp->SPR = 0; 
+							fprintf(stderr,"Warning SOPEN(BIN) #%i: data file (%s) not found\n",datfile);
+						}
+						hdr->AS.bpb  = lengthRawData;
+					}
+					else if (gdftyp==0xfffe) {
+						cp->GDFTYP = 17;	// double	
+						
+						struct stat FileBuf;
+						stat(datfile,&FileBuf);
+						char *buf = (char*)malloc(FileBuf.st_size);
+
+						FILE *fid = fopen(datfile,"rb");
+						if (fid != NULL) {
+							count = fread(hdr->AS.rawdata+lengthRawData, 1, FileBuf.st_size, fid);
+							fclose(fid);
+
+							const size_t bufsiz = cp->SPR*GDFTYP_BITS[cp->GDFTYP];
+							hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata,lengthRawData+bufsiz);
+							
+							char **endptr = &buf;
+							for (k = 0; k < cp->SPR; k++) {
+								double d = strtod(*endptr,endptr);
+								*(double*)(hdr->AS.rawdata+lengthRawData+sizeof(double)*k) = d;
+							}
+							lengthRawData += bufsiz;
+						} 
+						else if (cp->SPR > 0) {
+							cp->SPR = 0; 
+							fprintf(stderr,"Warning SOPEN(BIN) #%i: data file (%s) not found\n",datfile);
+						}
+						hdr->AS.bpb = lengthRawData;
+					}
+					else {
+						B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+						B4C_ERRMSG = "ASCII/BIN: data type unsupported";	
+					}	
+
 				}	
 				else if (!strcmp(line,"HighPassFilter"))
 					cp->HighPass = atof(val);
@@ -4622,7 +4661,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					sscanf(val,"%f \t%f \t%f",cp->XYZ,cp->XYZ+1,cp->XYZ+2);
 
 					// consolidate previos channel
-					if ((GDFTYP_BITS[cp->GDFTYP]*cp->SPR >> 3) != (hdr->AS.bpb-cp->bi)) {
+					if (((GDFTYP_BITS[cp->GDFTYP]*cp->SPR >> 3) != (hdr->AS.bpb-cp->bi)) && (hdr->TYPE==BIN)) {
 						fprintf(stdout,"Warning SOPEN(BIN): problems with channel %i - filesize %i does not fit header info %i\n",k+1, hdr->AS.bpb-hdr->CHANNEL[k].bi,GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR >> 3);
 					}
 					
@@ -4653,9 +4692,10 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 					else 	
 						hdr->EVENT.TYP[hdr->EVENT.N] = (typeof(hdr->EVENT.TYP[0]))i;	
 
-					double d;	
+					double d;
 					val = strchr(val,'\t')+1;
 					sscanf(val,"%lf",&d);
+
 					hdr->EVENT.POS[hdr->EVENT.N] = (typeof(*hdr->EVENT.POS))round(d*hdr->EVENT.SampleRate);  // 0-based indexing 
 					
 					val = strchr(val,'\t')+1;
@@ -4678,9 +4718,9 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"BIN <%s>=<%s> \n",line,val);
 						hdr->EVENT.CHN[hdr->EVENT.N] = 0;  
 
 					val = strchr(val,'\t')+1;
-					if ((hdr->EVENT.TYP[hdr->EVENT.N]==0x7fff) && (hdr->EVENT.CHN[hdr->EVENT.N]>0) && (!hdr->CHANNEL[hdr->EVENT.CHN[hdr->EVENT.N]-1].SPR))
+					if ((hdr->EVENT.TYP[hdr->EVENT.N]==0x7fff) && (hdr->EVENT.CHN[hdr->EVENT.N]>0) && (!hdr->CHANNEL[hdr->EVENT.CHN[hdr->EVENT.N]-1].SPR)) {
 						sscanf(val,"%d",&hdr->EVENT.DUR[hdr->EVENT.N]);
-					
+					}
 					++hdr->EVENT.N;
 				}	
 			}
@@ -8626,7 +8666,7 @@ if (VERBOSE_LEVEL>8)
 	*/
 
 }
-else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
+else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */           
 {
 	hdr->FILE.COMPRESSION = hdr->FILE.COMPRESSION || strchr(MODE,'z');
 	if (!strlen(hdr->Patient.Id))
@@ -8712,12 +8752,13 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
    		fprintf(fid,"\n[Header 2]\n");
 		char fn[1025];
 		strcpy(fn,hdr->FileName);
+		char e1 = (hdr->TYPE == ASCII ? 'a' : 's');		
 		if (strrchr(fn,'.')==NULL)
 			strcat(fn,".");
 			
     		for (k=0; k<hdr->NS; k++) 
     		if (hdr->CHANNEL[k].OnOff) {
-    			sprintf(strrchr(fn,'.'),".s%02i",k+1);
+    			sprintf(strrchr(fn,'.'),".%c%02i",e1,k+1);
     			if (hdr->FILE.COMPRESSION) strcat(fn,"_gz");
 	    		fprintf(fid,"Filename  \t= %s\n",fn);
 	    		fprintf(fid,"Label     \t= %s\n",hdr->CHANNEL[k].Label);
@@ -9788,11 +9829,7 @@ int V = VERBOSE_LEVEL;
 		fprintf(stdout,"SREAD: count=%i pos=[%i,%i,%i,%i], size of data = %ix%ix%ix%i = %i\n",(int)count,(int)start,(int)length,(int)POS,hdr->FILE.POS,(int)hdr->SPR, (int)count, (int)NS, sizeof(biosig_data_type), (int)(hdr->SPR * count * NS * sizeof(biosig_data_type)));
 
 	// transfer RAW into BIOSIG data format 
-	if ((data==NULL) 
-#ifdef CHOLMOD_H
-	   || hdr->Calib
-#endif
-	   ) {
+	if ((data==NULL) || hdr->Calib) {
 		// local data memory required
 		data1 = (biosig_data_type*) realloc(hdr->data.block, hdr->SPR * count * NS * sizeof(biosig_data_type));
 		hdr->data.block = data1; 
@@ -10388,7 +10425,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				fprintf(stdout,"swrite 313a #%i: [%i %i] %i %i %i %i %i\n",k1,hdr->data.size[0],hdr->data.size[1],k4,k5,hdr->SPR,DIV,nelem);
 
 			size_t k3=0;
-			if (VERBOSE_LEVEL>7)
+			if (VERBOSE_LEVEL>8)
 				fprintf(stdout,"swrite 313+: [%i %i %i %i %i] %i %i %i %i %i %i\n",k1,k2,k3,k4,k5,col,hdr->data.size[0],hdr->data.size[1],hdr->SPR,nelem,hdr->NRec);
 
         		if (hdr->FLAG.ROW_BASED_CHANNELS) {
@@ -10579,6 +10616,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		char fn[1025];
 		HDRTYPE H1;
 		H1.FILE.COMPRESSION = hdr->FILE.COMPRESSION;
+		char e1 = (hdr->TYPE == ASCII ? 'a' : 's');		
 		
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"swrite ASCII/BIN\n");
@@ -10590,7 +10628,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		for (k1=0; k1<hdr->NS; k1++) 
     		if (hdr->CHANNEL[k1].OnOff) {
 			CHptr 	= hdr->CHANNEL+k1;
-    			sprintf(strrchr(fn,'.'),".s%02i",k1+1);
+    			sprintf(strrchr(fn,'.'),".%c%02i",e1,k1+1);
 			if (H1.FILE.COMPRESSION)
 	    			strcat(fn,"_gz");
 	    		else	
@@ -10605,13 +10643,28 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 				DIV = hdr->SPR/CHptr->SPR;
 				size_t k2; 
 				for (k2=0; k2<CHptr->SPR*hdr->NRec; k2++) {
-					biosig_data_type i=0;
+					biosig_data_type i = 0.0;
 					size_t k3;
-					for (k3=0; k3<DIV; k3++) 
-						// assumes colume channels 
-						i += hdr->data.block[hdr->SPR*hdr->NRec*k1+k2*DIV+k3];
 						// TODO: row channels
-						
+					if (hdr->FLAG.ROW_BASED_CHANNELS)
+						for (k3=0; k3<DIV; k3++) 
+							i += hdr->data.block[k1+(k2*DIV+k3)*hdr->data.size[0]];
+					else 
+						// assumes column channels 
+						for (k3=0; k3<DIV; k3++) 
+							i += hdr->data.block[hdr->SPR*hdr->NRec*k1+k2*DIV+k3];
+							
+/*
+        		if (hdr->FLAG.ROW_BASED_CHANNELS) {
+            			for (k3=0, sample_value=0.0; k3 < DIV; k3++)
+        				sample_value += data[col + (k4*hdr->SPR + k5*DIV + k3)*hdr->data.size[0]];
+                        }
+            		else {
+            			for (k3=0, sample_value=0.0; k3 < DIV; k3++)
+        				sample_value += data[col*nelem*hdr->SPR + k4*hdr->SPR + k5*DIV + k3];
+                        }
+*/	
+					
 #ifdef ZLIB_H
 					if (H1.FILE.COMPRESSION)
 						gzprintf(H1.FILE.gzFID,"%f\n",i/DIV);
@@ -10726,6 +10779,10 @@ int sclose(HDRTYPE* hdr)
 	}		
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"sclose(122) OPEN=%i %s\n",hdr->FILE.OPEN,GetFileTypeString(hdr->TYPE)); 
+
+#ifdef WITH_FEF
+	if (hdr->TYPE == FEF) sclose_fef_read(hdr);
+#endif 
 
 #ifndef WITHOUT_NETWORK
 	if (hdr->FILE.Des>0) {
