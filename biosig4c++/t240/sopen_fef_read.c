@@ -132,12 +132,11 @@ if (VERBOSE_LEVEL>8) {
 		Test Section information 
 	 **********************************/	
 
-	size_t N=0; 
-
 //	asn_fprint(stdout, &asn_DEF_SessionTestSection, SAS->sessions.list.array[0]);
 //		asn_fprint(stdout, &asn_DEF_SessionTestSection, SAS->sessions.list.array[k]);
 	fprintf(stdout,"Number of TestSections %i\n",SAS->sessions.list.count);
 
+	size_t N = SAS->sessions.list.count; 
 	if (N>1) { 
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "FEF: multiple test sections are not supported, yet";

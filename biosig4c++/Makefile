@@ -23,7 +23,7 @@ MEX	      = mex   # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex
 octVER	      = # default
 OCT	      =	mkoctfile$(octVER)
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD #-D=WITH_FEF -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
@@ -38,7 +38,7 @@ LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        = -L /usr/local/lib/
 #LIBS          = -lz  -lbiosig  	# dynamic
-LIBS          = libbiosig.a -lz -lcholmod # t240/libfef.a #-lgdcmDSED -lgsl -lgslcblas -lm	# static
+LIBS          = libbiosig.a -lz -lcholmod #t240/libcnsfef.a #-lgdcmDSED -lgsl -lgslcblas -lm	# static
 DELETE        = rm
 COPY          = cp -f
 TEMP_DIR      = /tmp/
@@ -49,9 +49,9 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 # MinGW Crosscompiler: compile on linux binaries for windows  
 MinGWCC      = i586-mingw32msvc-gcc 
 MinGWCXX     = i586-mingw32msvc-g++ 
-MinGWDEF     = -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_ZLIB #-D=WITH_CHOLMOD -D=WITH_FEF -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS #-D=WITH_FEF #-D=WITH_CHOLMOD #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 MinGWCFLAGS  = -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF)
-MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a #-lcholmod # stati
+MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a #win32/libcnsfef.a #-lcholmod # stati
 #MinGWLIBS   = -Lwin32 -l biosig -l zlib1 -lws2_32  # dynamic
 MinGWLINK    = $(MinGWCXX)
 
@@ -82,6 +82,7 @@ SOURCES       = biosig.c \
 		save2gdf.c \
 		biosig_client.c \
 		biosig_server.c
+
 		
 OBJECTS       = \
 		crc4scp.o \
@@ -274,15 +275,16 @@ win32/libz.a: win32/zlib/lib/libz.a
 
 win32/libbiosig.lib: $(MinGWOBJECTS)  
 	-$(DELETE) win32/libbiosig.lib
-	i586-mingw32msvc-$(AR) win32/libbiosig.lib   $(MinGWOBJECTS)  
+	i586-mingw32msvc-$(AR) win32/libbiosig.lib $(MinGWOBJECTS) t240/*.obj
 
-win32/libfef.a:	
+win32/libcnsfef.a:	
+	make -C t240 ../win32/libcnsfef.a
 		
 win32/libbiosig.dll: $(MinGWOBJECTS) win32/libz.a
 	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
 	-$(COPY) win32/libbiosig.dll ../sigviewer/extern/
 
-win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib win32/libz.a
+win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib win32/libz.a #win32/libcnsfef.a
 	$(MinGWLINK) $(MinGWCFLAGS) save2gdf.c $(MinGWLIBS) -o win32/save2gdf.exe 
 
 win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.lib win32/libz.a
@@ -295,15 +297,19 @@ win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.lib
 #	GNU/Linux - BUILD 
 #############################################################
  
-libbiosig.a: $(OBJECTS)
+t240/libcnsfef.a: 
+#	make -C t240 regen		#
+	make -C t240 libcnsfef.a	# generate t240/*.o files 
+
+libbiosig.a: $(OBJECTS) t240/libcnsfef.a
 	-$(DELETE) libbiosig.a
-	$(AR) libbiosig.a $(OBJECTS) 
+	$(AR) libbiosig.a $(OBJECTS) t240/*.o
 	
 libbiosig.so: $(OBJECTS)
-	$(CXX) -shared -fPIC -o libbiosig.so $(OBJECTS) 
-	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) 
+	$(CXX) -shared -fPIC -o libbiosig.so $(OBJECTS) t240/*.o
+	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) t240/*.o
 
-save2gdf: save2gdf.o libbiosig.a #t240/libfef.a #libbiosig.so 
+save2gdf: save2gdf.o libbiosig.a #t240/libcnsfef.a #libbiosig.so 
 	$(LINK) $(CXXFLAGS) save2gdf.o $(LFLAGS) $(LIBS) -o save2gdf 
 
 pdp2gdf: pdp2gdf.o libbiosig.a #libbiosig.so 
@@ -339,7 +345,7 @@ mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.a
 mex4o:  mexSLOAD.mex mexSOPEN.mex 
 mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a 
 	$(OCT)  $(DEFINES) -v -g --mex mexSLOAD.cpp $(LIBS) 
-	$(COPY) mexSLOAD.mex ../biosig/t200_FileAccess/
+	-$(COPY) mexSLOAD.mex ../biosig/t200_FileAccess/
 mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a 
 	$(OCT) -D=mexSOPEN $(DEFINES) -v -g --mex mexSLOAD.cpp $(LIBS) -o mexSOPEN.mex 
 	-$(COPY) mexSOPEN.mex ../biosig/t200_FileAccess/
@@ -364,7 +370,8 @@ sigviewer: ../sigviewer/bin/sigviewer
 	$(COPY) -lf biosig.h ../sigviewer/extern/
 	$(COPY) -lf libbiosig.a ../sigviewer/extern/
 	-$(COPY) -lf win32/libbiosig.dll ../sigviewer/extern/
-#	$(COPY) -lf t240/libfef.a ../sigviewer/extern/
+	-$(COPY) -lf t240/libcnsfef.a ../sigviewer/extern/
+#	$(COPY) -lf t240/libcnsfef.a ../sigviewer/extern/
 #	touch ../sigviewer/tmp/basic_header.o
 	make -C ../sigviewer/src  
 	
@@ -413,6 +420,9 @@ clean:
 	-$(DELETE) win32/*.o
 	-$(DELETE) win32/*.obj
 	-$(DELETE) win32/*.exe
+	-$(DELETE) t240/*.o
+	-$(DELETE) t240/libcnsfef.a
+	-$(DELETE) t240/*.obj
 
 install_sigviewer: sigviewer
 	install ../sigviewer/bin/sigviewer $(BIN)

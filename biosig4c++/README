@@ -59,6 +59,8 @@ File(s):
     t210/*	reading SCP,FAMOS file format 
     t220/*      writing SCP file format 
     t230/*      support of HL7aECG file format 
+    t240/*	Support for CNSystems' File Exchange Format (CNS-FEF), note this is different to CENTS14271 in t241/ 
+    t241/*.asn1	ASN.1 specification of ISO11073-xxxxx and CENTS-14271 (FEF), 
     test0/*	scripts and functions for testing
     Makefile	script for compiling and testing under GNU/Linux
     Makefile.win32	script for compiling and testing on win32 using mingw
