@@ -1,0 +1,1199 @@
+/*
+
+ ASN.1 specification of the File Exchange Format for Vital Signs
+ The info was manually extracted from CEN/TC251/PT-40/4002N005
+ A number of bugs and typos were fixed. 
+
+    $Id$
+    Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
+    This file is part of BioSig http://biosig.sf.net/ 
+
+    BioSig is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 3
+    of the License, or (at your option) any later version.
+
+*/
+
+
+ModuleTest DEFINITIONS ::=
+BEGIN 
+
+/*
+B.1.1	ASN.1 built-in types used
+INTEGER 
+ISO/IEC 8824-1:1998 Ch. 18 
+REAL 
+ISO/IEC 8824-1:1998 Ch. 20 
+BIT-STRING 
+ISO/IEC 8824-1:1998 Ch. 21 
+OCTET-STRING 
+ISO/IEC 8824-1:1998 Ch. 22 
+SEQUENCE 
+ISO/IEC 8824-1:1998 Ch. 24 
+SEQUENCE-OF 
+ISO/IEC 8824-1:1998 Ch. 25 
+CHOICE 
+ISO/IEC 8824-1:1998 Ch. 28 
+Tagged types
+ISO/IEC 8824-1:1998 Ch. 30 
+UTF8String 
+ISO/IEC 8824-1:1998 Ch. 36.13; ISO/IEC 10646-1 
+Generalized time 
+ISO/IEC 8824-1:1998 Ch. 41; ISO 8601 
+Constrained types 
+ISO/IEC 8824-1:1998 Ch. 44 
+*/
+
+INT-U64 ::=              INTEGER -- (0 .. 18446744073709551615)	/* make asn1c v0.9.22 happy */
+INT-I64 ::=              INTEGER -- (-9223372036854775808 .. 9223372036854775807) /* reduced to make asn1c v0.9.22 happy */
+
+INT-U32 ::=              INTEGER (0 .. 4294967295)
+INT-I32 ::=              INTEGER (-2147483648 .. 2147483647)
+INT-U16 ::=              INTEGER (0 .. 65535)
+INT-I16 ::=              INTEGER (-32768 .. 32767)
+INT-U8  ::=              INTEGER (0 .. 255)
+INT-I8  ::=              INTEGER (-128 .. 127)
+
+BITS-32 ::=              BIT STRING SIZE (32)
+BITS-16 ::=              BIT STRING SIZE (16)
+BITS-8  ::=              BIT STRING SIZE (8)
+
+FEFString ::=               UTF8String
+FEFFloat ::=                REAL
+
+
+Fraction ::= SEQUENCE {
+    numerator               [1] INT-I32,	-- INT-32 is not defined 
+    denominator             [2] INT-I32
+}
+
+AbsoluteRange ::= SEQUENCE {
+    lowervalue              [1] FEFFloat,
+    uppervalue              [2] FEFFloat
+}
+
+Handle ::=                  [APPLICATION 2337] INT-U16
+HandleRef ::=               INT-U16
+DeviceCode ::=              INT-U16 
+                            -- block A: Device Nomenclature 
+UnitsOfMeasurementCode ::=  INT-U16 
+                            -- block B: Units of Measurement
+MetricsCode ::=             INT-U16 
+                            -- block C: Metrics
+BodySiteCode ::=            INT-U16 
+                            -- block D: Body Sites
+AlertCode ::=               INT-U16 
+                            -- block E: Alert Codes
+ExtNomenclatureCode ::=     INT-U16 
+                            -- block F: External Nomenclatures
+ParameterGroupCode ::=      INT-U16 
+                            -- unassigned block: Parameter Groups
+PrivateCode ::=             INT-U16
+                            -- code specified by the user or manufacturer
+                            -- ENV 13734 uses the term “PrivateOID” here
+                            
+Placeholder ::= [APPLICATION 6499] OCTET STRING    
+
+
+--    missing definitions  
+HealthCareProviderId ::= FEFString    
+Address ::= FEFString    
+UnitCode ::= FEFString    
+
+ManufacturerID ::= CHOICE {
+    oid                     [1] OBJECT IDENTIFIER,
+                            -- ISO 8824 object identifier
+                            
+    uuid                    [2] OCTET STRING SIZE (16)
+                            -- ISO 11578 universal unique identifier
+}
+
+AbsoluteTime ::= GeneralizedTime
+RelativeTime ::= INT-U32
+HighResRelativeTime ::= INT-U64
+
+ObservationTime ::= SEQUENCE {
+    absolutetimestamp       [APPLICATION 2448] AbsoluteTime, --OPTIONAL,
+    relativetimestamp       [APPLICATION 2449] RelativeTime, --OPTIONAL,
+    hirestimerelativestamp  [APPLICATION 2537] HighResRelativeTime --OPTIONAL
+}    
+
+SimpleColour ::= INTEGER {  
+    colblack                (0), -- RGB=000
+    colred                  (1), -- RGB=100
+    colgreen                (2), -- RGB=010
+    colyellow               (3), -- RGB=110
+    colblue                 (4), -- RGB=001
+    colmagenta              (5), -- RGB=101
+    colcyan                 (6), -- RGB=011
+    colwhite                (7)  -- RGB=111
+} (0..65535)
+
+ExtNomenRef ::= SEQUENCE {
+    nomenclatureid          ExtNomenclatureCode,
+    nomenclaturecode        ANY DEFINED BY nomenclatureid
+}
+
+MetricMeasure ::= SEQUENCE {
+    metricmeasurevalue      [1] FEFFloat,
+    metricmeasuremnit       [2] UnitsOfMeasurementCode
+}
+
+PersonNameGroup ::= SEQUENCE {
+    familyname              [1] FEFString,
+    givenname               [2] FEFString,
+    middlename              [3] FEFString,
+    prefix                  [4] FEFString,
+    suffix                  [5] FEFString,
+    degree                  [6] FEFString
+}        
+
+PersonName ::= SEQUENCE {
+    ungroupedname           [APPLICATION 6001] FEFString OPTIONAL,
+    characternamegroup      [APPLICATION 6002] PersonNameGroup OPTIONAL,
+    ideographicnamegroup    [APPLICATION 6003] PersonNameGroup OPTIONAL,
+    phoneticnamegroup       [APPLICATION 6004] PersonNameGroup OPTIONAL
+    -- at least one of the groups must be present
+    -- this will be the characternamegroup for European names
+}
+--
+-- Object Identifier Type as defined in nomenclature
+-- (do not confuse with ASN.1 OBJECT IDENTIFIER)
+--
+OID-Type ::= INT-U16		-- 16 bit integer type
+
+
+SessionArchiveSection ::= [APPLICATION 7001] SEQUENCE {
+    handle                  Handle,
+                            -- unique (within a file) handle
+    s-archive-id            [APPLICATION 2507] FEFString,
+    s-archive-name          [APPLICATION 2513] FEFString,
+    s-archive-comments      [APPLICATION 2530] FEFString OPTIONAL,
+    starttime               [APPLICATION 2538] AbsoluteTime,
+    stoptime                [APPLICATION 2539] AbsoluteTime,
+    protection              [APPLICATION 2519] ArchiveProtection OPTIONAL,
+    placeholder             Placeholder OPTIONAL,
+    manufacturerspecific    [APPLICATION 7002] ManufacturerSpecificSection OPTIONAL,
+    healthcareprovider      [APPLICATION 7003] HealthCareProviderSection OPTIONAL,
+    demographics            [APPLICATION 7004] PatientDemographicsSection,
+    sessions                [APPLICATION 7015] SEQUENCE SIZE (1..MAX) OF 
+    				SessionTestSection, /* SIZE (1..*), -- to make asn1c v0.9.22 happy */
+    notes                   [APPLICATION 7016] SEQUENCE OF 
+    				SessionNotesSection DEFAULT {}
+}
+
+ArchiveProtection ::= SEQUENCE {
+    protectiontype         [1] PrivateCode,
+    protectionkey          [2] ANY DEFINED BY protection-type
+} 
+ManufacturerSpecificSection ::= SEQUENCE {
+    manufacturerid          [APPLICATION 6005] ManufacturerID,
+                            --
+    encodedentries          [APPLICATION 6006] SEQUENCE OF
+                            ManufacturerSpecificEncoded
+                            DEFAULT {},
+    binaryentries           [APPLICATION 6007] SEQUENCE OF
+                            ManufacturerSpecificBinary
+                            DEFAULT {}
+}
+
+ManufacturerSpecificEncoded ::= SEQUENCE {
+    code                    [1] PrivateCode,
+    data                    [2] ANY DEFINED BY code
+}
+
+ManufacturerSpecificBinary ::= SEQUENCE {
+    code                    [1] PrivateCode,
+    data                    [2] OCTET STRING
+}
+
+HealthCareProviderSection ::= SEQUENCE {
+    identification          [APPLICATION 6008] HealthCareProviderId,
+                            --  
+    name                    [APPLICATION 6009] FEFString,
+                            --
+    address                 [APPLICATION 6010] Address OPTIONAL,
+                            --
+    placeholder             Placeholder OPTIONAL,
+    healthcareprofessionals [APPLICATION 7008] SEQUENCE OF 
+                            HealthCareProfessionalSection
+                            DEFAULT {}
+}
+
+HealthCareProfessionalSection ::= SEQUENCE {
+    handle                  Handle,
+                            -- unique (within a file) handle
+    COMPONENTS OF           PersonName,
+                            -- use common person name attributes
+    identification          [APPLICATION 6011] FEFString OPTIONAL,
+                            -- optional textual unique identification
+    identificationcode      [APPLICATION 6012] ExtNomenRef OPTIONAL,
+                            -- optional coded unique identification
+    authorization-level     [APPLICATION 2481] Authorization OPTIONAL, 
+                            -- optional organisation specific code
+    function                [APPLICATION 6048] FEFString OPTIONAL,
+                            -- optional textual function specification
+    functioncode            [APPLICATION 6049] ExtNomenRef OPTIONAL,
+                            -- optional coded function specification
+    placeholder             Placeholder OPTIONAL
+}
+
+Authorization ::= SEQUENCE {
+    authorization-type    [1] PrivateCode,
+    authorization-key     [2] ANY DEFINED BY authorization-type
+}
+
+PatientDemographicsSection ::= SEQUENCE {
+    handle                  Handle,
+                            -- unique (within file) handle
+    patientid               [APPLICATION 2394] FEFString OPTIONAL, 
+    COMPONENTS OF           PersonName,
+                            -- use common person name attributes
+    birthname               [APPLICATION 2398] FEFString OPTIONAL,
+                            -- maiden name
+    sex                     [APPLICATION 2401] PatientSex OPTIONAL,
+    race                    [APPLICATION 2526] PatientRace OPTIONAL,
+    patienttype             [APPLICATION 2402] PatientType OPTIONAL,
+    dateofbirth             [APPLICATION 2392] AbsoluteTime OPTIONAL,
+    patientgeninfo          [APPLICATION 2393] FEFString OPTIONAL,
+                            -- textual Patient related Information
+    patientage              [APPLICATION 2520] PatMeasure OPTIONAL,
+                            -- for neonatal, e.g. in hours or in weeks
+    gestationalage          [APPLICATION 2521] PatMeasure OPTIONAL,
+                            -- for neonatal
+    patientheight           [APPLICATION 2524] PatMeasure OPTIONAL,
+    patientweight           [APPLICATION 2527] PatMeasure OPTIONAL,
+    patientbirthlength      [APPLICATION 2522] PatMeasure OPTIONAL,
+    patientbirthweight      [APPLICATION 2523] PatMeasure OPTIONAL,
+    motherpatientid         [APPLICATION 2504] FEFString OPTIONAL,
+    mothername              [APPLICATION 2525] PersonName OPTIONAL,
+                            -- for neonatal
+    patientheadcircumference[APPLICATION 2490] PatMeasure OPTIONAL,
+    patientbsa              [APPLICATION 2390] PatMeasure OPTIONAL,
+                            -- Body Surface Area, can be calculated
+    bedid                   [APPLICATION 2501] FEFString OPTIONAL,
+    diagnosticinfo          [APPLICATION 2496] FEFString OPTIONAL,
+    diagnosticcodes         [APPLICATION 2492] SEQUENCE OF 
+                            ExtNomenRef 
+                            DEFAULT {},
+    admittingphysician      [APPLICATION 2515] HandleRef OPTIONAL,
+                            -- for ICU; references HealthCareProfessionalSection
+    attendingphysician      [APPLICATION 2516] HandleRef OPTIONAL,
+                            -- for ICU; references HealthCareProfessionalSection
+    dateofprocedure         [APPLICATION 2518] AbsoluteTime OPTIONAL,
+                            -- for OR
+    proceduredescription    [APPLICATION 2495] FEFString OPTIONAL,
+                            -- for OR
+    procedurecodes          [APPLICATION 2493] SEQUENCE OF 
+                            ExtNomenRef 
+                            DEFAULT {},
+                            -- for OR - procedure codes are specified in a 
+                            -- nomenclature scheme not defined in this standard
+    anaesthetist            [APPLICATION 2479] HandleRef OPTIONAL,
+                            -- for OR; references HealthCareProfessionalSection
+    surgeon                 [APPLICATION 2532] HandleRef OPTIONAL
+                            -- for OR; references HealthCareProfessionalSection
+}
+
+PatMeasure ::= SEQUENCE {
+    value                   [1] FEFFloat,
+    m-unit                  [2] UnitsOfMeasurementCode   
+                            -- code for units of measure
+}
+
+-- Patient Sex according to ISO 5218
+PatientSex ::= INTEGER {
+    sex-unknown             (0),
+    male                    (1),
+    female                  (2),
+    sex-unspecified         (9)
+} (0..65535)
+
+PatientType ::= INTEGER {
+    pt-unspecified          (0),
+    adult                   (1),
+    pediatric               (2),
+    neonatal                (3)
+} (0..65535)
+
+-- Patient Race according to SCP ECG
+PatientRace ::= INTEGER {
+    race-unspecified        (0),
+    race-caucasian          (1),
+    race-black              (2),
+    race-oriental           (3)
+} (0..65535)
+
+SessionTestSection ::= SEQUENCE {
+    handle                  Handle,
+                            -- unique (within a file) handle
+    st-archive-id           [APPLICATION 2506] FEFString,
+    st-archive-name         [APPLICATION 2512] FEFString,
+    st-archive-comments     [APPLICATION 2529] FEFString OPTIONAL,
+    starttime               [APPLICATION 2538] AbsoluteTime,
+    stoptime                [APPLICATION 2539] AbsoluteTime,
+    protection              [APPLICATION 2519] ArchiveProtection OPTIONAL,
+    placeholder             Placeholder OPTIONAL,
+    medicaldevicesystem     [APPLICATION 7005] MedicalDeviceSystemSection,
+    multimedia              [APPLICATION 7006] SEQUENCE OF 
+    				MultimediaSection DEFAULT {},
+    phases                  [APPLICATION 7017] SEQUENCE SIZE (1..MAX) OF 
+    				SessionPhaseSection /* SIZE (1..*) -- to make asn1c v0.9.22 happy */
+}
+
+MedicalDeviceSystemSection ::= SEQUENCE {
+    handle                  Handle,
+                            -- unique (within file) handle
+    systemtype              [APPLICATION 2438] DeviceCode,
+                            -- e.g. ventilator, monitor as 
+                            -- defined in nomenclature
+    systemmodel             [APPLICATION 2344] SystemModel,
+                            -- model describes manufacturer and
+                            -- model no
+    systemid                [APPLICATION 2436] FEFString,
+                            -- manufacturer specified system ID
+                            -- e.g. serial number
+    compatibilityid         [APPLICATION 2336] INT-U32 OPTIONAL,
+                            -- for manufacturer use
+    nomenclatureversion     [APPLICATION 2376] INT-U32,
+                            -- version of nomenclature used by 
+                            -- the system
+    requirednomenclatureversion [APPLICATION 6013] AbsoluteTime,
+                            -- required revision of nomenclature to
+                            -- interpret any information from
+                            -- this medical device system
+    usednomenclatureversion [APPLICATION 6014] AbsoluteTime,
+                            -- revision of nomenclature to
+                            -- interpret all information from
+                            -- this medical device system
+    systemspecification     [APPLICATION 2437] 
+                            SEQUENCE OF SystemSpecEntry
+                            DEFAULT {},
+                            -- defines functional components
+    productionspecification [APPLICATION 2349]
+                            SEQUENCE OF ProdSpecEntry
+                            DEFAULT {},
+                            -- component revisions, serial 
+                            -- numbers etc.
+    bedlabel                [APPLICATION 2334] FEFString OPTIONAL,
+                            -- printable string identifying 
+                            -- system location
+    softid                  [APPLICATION 2350] FEFString OPTIONAL,
+                            -- settable, e.g. hospital 
+                            -- inventory number
+    operatingmode           [APPLICATION 2374] PrivateCode OPTIONAL,
+    applicationarea         [APPLICATION 2317] ApplicationArea OPTIONAL,
+    powerstatus             [APPLICATION 2389] PowerStatus OPTIONAL,
+                            -- onBatteryoronMains
+    altitude                [APPLICATION 2316] INT-I16 OPTIONAL,
+                            -- above or below sea level in metres
+    linefrequency           [APPLICATION 2357] LineFrequency OPTIONAL,
+                            -- frequency of mains
+    placeholder             Placeholder OPTIONAL,
+                                
+    components              MedicalDeviceComponents
+}
+
+SystemModel ::= SEQUENCE {
+    manufacturer            [1] FEFString,
+    model-number            [2] FEFString
+}
+
+SystemSpecEntry ::= SEQUENCE {
+    component-capab-id      [1] PrivateCode,
+    component-spec          [2] ANY DEFINED BY component-capab-id
+}
+
+ProdSpecEntryType ::= INTEGER {
+    unspecified             (0),
+    serial-number           (1),
+    part-number             (2),
+    hw-revision             (3),
+    sw-revision             (4),
+    fw-revision             (5),
+    protocol-revision       (6) 
+} (0..65535)
+
+ProdSpecEntry ::= SEQUENCE {
+    spec-type               [1] ProdSpecEntryType,
+    component-id            [2] PrivateCode, 
+    prod-spec               [3] FEFString
+}
+
+
+ApplicationArea ::= INTEGER {
+    area-unspec             (0), 
+    area-operating-room     (1),
+    area-intensive-care     (2)
+} (0..65535)
+
+PowerStatus ::= BIT STRING {
+    onMains                 (0),
+    onBattery               (1),
+    chargingFull            (8),
+    chargingTrickle         (9),
+    chargingOff             (10)
+} SIZE(16)
+
+LineFrequency ::= INTEGER {
+    line-f-unspec           (0),
+    line-f-50hz             (1),
+    line-f-60hz             (2) 
+} (0..65535)
+
+MedicalDeviceComponents ::= CHOICE {
+    medicaldevice           [APPLICATION 7009] VirtualMedicalDeviceSection,
+                            -- Simple MDS
+    medicaldevices          [APPLICATION 7010] SEQUENCE SIZE (2..MAX) OF 
+                            VirtualMedicalDeviceSection, /* SIZE (2..*), -- to make asn1c v0.9.22 happy */
+                            -- Hydra MDS
+    subsystems              [APPLICATION 7011] SEQUENCE SIZE (1..MAX) OF 
+                            MedicalDeviceSystemSection /* SIZE (1..*), -- to make asn1c v0.9.22 happy */
+                            -- Composite Single Bed MDS
+}
+
+VirtualMedicalDeviceSection ::= SEQUENCE {
+    handle                  Handle,
+                            -- unique (within file) handle
+    devicetype              [APPLICATION 2351] DeviceCode,
+                            -- static, mandatory type specification
+    labelstring             [APPLICATION 2343] FEFString OPTIONAL,
+                            -- textual representation of devicetype
+    vmdmodel                [APPLICATION 2344] SystemModel OPTIONAL,
+                            -- manufacturer and model number
+    productionspecification [APPLICATION 2349] 
+                            SEQUENCE OF ProdSpecEntry
+                            DEFAULT {},
+                            -- serial numbers and revisions, 
+                            -- only present if VMD represents an 
+                            -- independent subsystem
+    compatibilityid         [APPLICATION 2336] INT-U32 OPTIONAL,
+                            -- static for manufacturer use
+    parametergroup          [APPLICATION 2346] ParameterGroupCode OPTIONAL,
+                            -- e.g. cardiovascular
+    position                [APPLICATION 2348] INT-U16 OPTIONAL,
+                            -- e.g. slot number, 0xffff marks 
+                            -- an invalid or unknown position
+    measurementprinciple    [APPLICATION 2560] MsmtPrinciple OPTIONAL
+                            -- describes the physical principle 
+                            -- of the measurement
+}
+
+
+MsmtPrinciple ::= BIT STRING {
+    msp-chemical            (1),
+    msp-electrical          (2),
+    msp-impedance           (3),
+    msp-nuclear             (4),
+    msp-optical             (5),
+    msp-thermal             (6),
+    msp-biological          (7),
+    msp-mechanical          (8),
+    msp-manual              (15) 
+} SIZE(16)
+
+ChannelDescriptionSection ::= SEQUENCE {
+    handle                Handle,
+                          -- unique (within a file) handle
+    metrictype            [APPLICATION 2351] MetricsCode,
+                          -- static, mandatory type specification
+    labelstring           [APPLICATION 2343] FEFString OPTIONAL,
+                          -- textual representation of metrictype
+    channelid             [APPLICATION 2318] MetricsCode OPTIONAL,
+                          -- contains dynamic identification (e.g. a specific 
+                          -- blood pressure label) compared to the 
+                          -- static identification is in metrictype
+    channelstatus         [APPLICATION 2320] MetricStatus DEFAULT {},
+                          -- usually part of an dynamic attribute change section
+    parametergroup        [APPLICATION 2346] ParameterGroupCode OPTIONAL,
+                          -- e.g. cardiovascular
+    physicalchannelnr     [APPLICATION 2319] INT-U16 DEFAULT 65535,
+                          -- e.g. ADC channel, 65535 (0xffff) marks 
+                          -- an invalid or unknown channel
+    measurementprinciple  [APPLICATION 2560] MsmtPrinciple OPTIONAL
+                          -- describes the physical principle 
+                          -- of the measurement
+}
+
+
+ChannelStatus ::= BIT STRING {
+    chn-off                 (0),
+    chn-not-ready           (1),
+    chn-standby             (2), 
+    chn-transduc-discon     (8),
+    chn-hw-discon           (9) 
+} SIZE(16)
+
+MultimediaSection ::= SEQUENCE {
+    starttime              [APPLICATION 2538] AbsoluteTime,
+    stoptime               [APPLICATION 2539] AbsoluteTime,
+    mimetype               [APPLICATION 6017] FEFString,
+    comments               [APPLICATION 6018] Comments OPTIONAL,
+    originallocation       [APPLICATION 6019] FEFString OPTIONAL,
+    placeholder            [APPLICATION 6499] Placeholder OPTIONAL,
+    contentorreference     [APPLICATION 6020] ContentOrReference
+}
+
+Comments ::= SEQUENCE {
+    commenttext             [1] FEFString,
+    commentator             [2] HandleRef
+                            -- references HealthCareProfessionalSection
+}
+
+ContentOrReference ::= CHOICE {
+    content                 [1] OCTET STRING,
+    reference               [2] FEFString
+}
+
+SessionPhaseSection ::= SEQUENCE {
+    handle                  Handle,
+                            -- unique (within a file) handle
+    starttime               [APPLICATION 2538] AbsoluteTime,
+    stoptime                [APPLICATION 2539] AbsoluteTime,
+    placeholder             Placeholder OPTIONAL,
+    descriptivedata         [APPLICATION 7018] DescriptiveDataSection,
+    measureddata            [APPLICATION 7019] SEQUENCE SIZE (1..MAX) OF 
+    				MeasuredDataSection /* SIZE (1..*) -- to make asn1c v0.9.22 happy */
+                            -- size = 1 except for streaming mode profile
+}
+
+DescriptiveDataSection ::= SEQUENCE {
+    handle                  Handle,
+                            -- unique (within a file) handle
+    placeholder             Placeholder OPTIONAL,
+    realtimesadescs         [APPLICATION 7020] SEQUENCE OF 
+                            RealTimeSampleArrayDescriptiveDataSection 
+                            DEFAULT {},
+    timesadescs             [APPLICATION 7021] SEQUENCE OF 
+                            TimeSampleArrayDescriptiveDataSection 
+                            DEFAULT {},
+    distributionsadescs     [APPLICATION 7022] SEQUENCE OF 
+                            RealTimeSampleArrayDescriptiveDataSection 
+                            DEFAULT {},
+    numericdescs            [APPLICATION 7023] SEQUENCE OF 
+                            NumericDescriptiveDataSection 
+                            DEFAULT {},
+    enumerationdescs        [APPLICATION 7024] SEQUENCE OF
+                            EnumerationDescriptiveDataSection 
+                            DEFAULT {}
+}
+
+MetricDescriptiveDataSection ::= SEQUENCE {
+    handle                Handle,
+                          -- unique (within a file) handle
+    devicehandle          [APPLICATION 6034] HandleRef,
+                          -- references the Virtual Medical Device Section or
+                          -- Channel Description Section this metric
+                          -- originates from
+    metrictype            [APPLICATION 2351] MetricsCode,
+                          -- static, mandatory type specification
+    labelstring           [APPLICATION 2343] FEFString OPTIONAL,
+                          -- textual representation of metrictype 
+    metriccategory        [APPLICATION 2367] MetricCategory DEFAULT mcat-unspec,
+                          -- the other COMPONENTS-OF MetricSpecification
+                          -- are not applicable for storage
+    metricstatus          [APPLICATION 2368] MetricStatus DEFAULT {},
+                          -- usually part of an dynamic attribute change section
+    measurementstatus     [APPLICATION 2375] MeasurementStatus DEFAULT {},
+                          -- usually part of an dynamic attribute change section
+    metricid              [APPLICATION 2347] MetricsCode OPTIONAL,
+                          -- contains dynamic identification (e.g. a specific 
+                          -- blood pressure label) compared to the 
+                          -- static identification is in metrictype
+    metricidext           [APPLICATION 2502] ExtNomenRef OPTIONAL,
+                          -- dynamic identification of the metric in a 
+                          -- different nomenclature or dictionary. Use of 
+                          -- this attribute severely limits interoperability 
+                          -- of applications.
+    unitcode              [APPLICATION 2454] UnitsOfMeasurementCode OPTIONAL,
+                          -- dimension, e.g. 'mV'
+    unitlabelstring       [APPLICATION 2457] FEFString OPTIONAL,
+                          -- textual representation of dimension
+    vmosourcelist         [APPLICATION 2467] SEQUENCE OF 
+                          MetricsCode
+                          DEFAULT {},
+                          -- indicates sources of this metric in 
+                          -- the form of references to other metrics
+    metricsourcelist      [APPLICATION 2366] SEQUENCE OF 
+                          HandleRef
+                          DEFAULT {},
+                          -- indicates sources of this metric in 
+                          -- the form of a list of metric IDs
+    msmtsitelist          [APPLICATION 2430] SEQUENCE OF 
+                          BodySiteCode
+                          DEFAULT {},
+                          -- Measurement Sites, specified in 
+                          -- internal nomenclature
+    msmtsitelistext       [APPLICATION 2551] SEQUENCE OF 
+                          ExtNomenRef
+                          DEFAULT {},
+                          -- Measurement Sites, specified in 
+                          -- external nomenclature
+    bodysitelist          [APPLICATION 2429] SEQUENCE OF
+                          BodySiteCode
+                          DEFAULT {},
+                          -- Body Sites, specified in internal  nomenclature
+    bodysitelistext       [APPLICATION 2550] SEQUENCE OF
+                          ExtNomenRef
+                          DEFAULT {},
+                          -- Body Sites, specified in external nomenclature
+    metriccalibration     [APPLICATION 2362] SEQUENCE OF 
+                          MetricCalEntry
+                          DEFAULT {},
+                          -- list time and state of calibrations
+    colour                [APPLICATION 2321] SimpleColour OPTIONAL,
+                          -- colour for representation
+    measuremode           [APPLICATION 2373] PrivateCode OPTIONAL,
+                          -- manufacturer measurement specific info
+    measureperiod         [APPLICATION 2443] MetricMeasure OPTIONAL,
+                          -- measurement repetition time, not necessarily 
+                          -- the same as update period
+    averagingperiod       [APPLICATION 2535] MetricMeasure OPTIONAL,
+                          -- Time period used to average values, e.g. for 
+                          -- an average flow of last hour metric
+    starttime             [APPLICATION 2538] AbsoluteTime OPTIONAL,
+                          -- time when measurement activity was started 
+                          -- (e.g. when infusion was started)
+    stoptime              [APPLICATION 2539] AbsoluteTime OPTIONAL,
+                          -- Time when measurement activity was stopped
+    metricinfolabelstring [APPLICATION 2365] FEFString OPTIONAL,
+                          -- textual attribute, allows e.g. to specify 
+                          -- electrode displacements or other specific 
+                          -- information about the measurement
+    substance             [APPLICATION 2542] ExtNomenRef OPTIONAL,
+                          -- substance that Metric pertains to, expressed 
+                          -- in nomenclature that is defined outside of 
+                          -- this standard
+    substancelabelstring  [APPLICATION 2508] FEFString OPTIONAL
+                          -- textual attribute that identifies the substance
+}
+
+/* already earlier defined 
+PatMeasure ::= SEQUENCE {
+    value                   [1] FEFFloat,
+    m-unit                  [2] UnitsOfMeasurementCode   
+                            -- code for units of measure
+}
+*/
+
+MetricStatus ::= BIT STRING {
+    metric-off              (0),
+    metric-not-ready        (1), 
+    metric-standby          (2), 
+    metric-transduc-discon  (8),
+    metric-hw-discon        (9) 
+} SIZE(16)
+
+MetricCategory ::= INTEGER {
+    mcat-unspec             (0),
+    auto-measurement        (1),
+    manual-measurement      (2),
+    auto-setting            (3),
+    manual-setting          (4),
+    auto-calculation        (5),
+    manual-calculation      (6)
+} (0..65535)
+
+MetricCalEntry ::= SEQUENCE  {
+    cal-type                [1] MetricCalType,
+    cal-state               [2] MetricCalState,
+    cal-time                [3] AbsoluteTime
+}
+
+MetricCalType ::= INTEGER {
+    cal-unspec              (0),
+    cal-offset              (1),
+    cal-gain                (2),
+    cal-two-point           (3)
+} (0..65535)
+
+MetricCalState ::= INTEGER {
+    not-calibrated          (0),
+    cal-required            (1),
+    calibrated              (2)
+} (0..65535)
+
+MeasurementStatus ::= BIT STRING {
+    invalid                 (0),
+    questionable            (1),
+    not-available           (2),
+    calibration-ongoing     (3),
+    test-data               (4),
+    demo-data               (5),
+    validated-data          (8),      
+                            -- relevant e.g. in an archive
+    early-indication        (9),
+                            -- early estimate of value
+    msmt-ongoing            (10)
+                            -- indicates that a new msmt is just 
+                            -- being taken (episodic) 
+} SIZE(16)
+
+SampleArrayDescriptiveDataSection ::= SEQUENCE {
+    COMPONENTS OF       MetricDescriptiveDataSection, 
+                        -- include COMPONENTS-OF super class
+    saspecification     [APPLICATION 2413] SaSpec,
+                        -- static description of sample array and sample types
+    compression         [APPLICATION 2322] PrivateCode OPTIONAL,
+                        -- defines potential compression algorithm
+    scaleandrangespec   [APPLICATION 2416] ScaleRangeSpec,
+                        -- defines mapping between samples and actual 
+                        -- values as well as measurement range, 
+    saphysiologicalrange[APPLICATION 2411] AbsoluteRange OPTIONAL,
+                        -- for optimum display scaling the physiological 
+                        -- meaningful range is specified
+    visualgrid          [APPLICATION 2331] SEQUENCE OF SaGridEntry DEFAULT {},
+                        -- defines gridline positions on displays 
+                        -- and recorders
+                        -- (Note: tag NOM_ATTR_GRID_VIS_I32 used)
+    sacalibrationdata   [APPLICATION 2405] SEQUENCE OF SaCalData DEFAULT {},
+                        -- defines positions of calibration markers on 
+                        -- display and recorders
+                        -- (Note: tag NOM_ATTR_SA_CALIB_I32 used)
+    filterspecification [APPLICATION 2329] SEQUENCE OF SaFilterEntry DEFAULT {},
+                        -- ...
+    sasignalfrequency   [APPLICATION 2408] SaSignalFrequency OPTIONAL,
+                        -- max. signal frequency
+    sameasureresolution [APPLICATION 2409] FEFFloat OPTIONAL
+                        -- ...
+}
+
+SaSpec ::= SEQUENCE {
+    storagesize           [1] INT-U8,     
+                          -- e.g. 8 for 8bit samples, 16 for 16bit samples, 
+    significantbits       [2] INT-U8 OPTIONAL,
+                          -- defines significant bits in one sample
+                          -- when not identical to storagesize
+    storagedatatype       [3] StorageDataType,
+    flags                 [4] SaFlags DEFAULT {},
+    arraysize             [5] INT-U16  -- defines the number of samples per
+                                       -- signal in a subblock of a SAMDB
+}
+
+StorageDataType ::= INTEGER {
+    unsigned                (0),
+    signed                  (1),
+    ieee754float            (2)
+} (0..255)
+
+--  allowed combinations of storagedatatype and storagedatasize are:
+--  storagedatatype storagesize
+--     unsigned            8
+--     unsigned           16
+--     unsigned           32
+--     signed              8
+--     signed             16
+--     signed             32
+--     ieee754float       32
+--     ieee754float       64
+
+SaFlags ::= BIT STRING {
+    smoothcurve           (0),
+                          -- for optimum display, use a smoothing algorithm
+    delayedcurve          (1),
+                          -- curve is delayed (not real time)
+    saextvalrange         (3)
+                          -- The non-significant bits in a sample are 
+                          -- not 0 (or sign extended in the signed case)
+} SIZE(16)
+
+-- The scale and range definition attribute describes a relation between
+-- scaled values and absolute values.
+-- Note: If a wave does not represent absolute values, the absolute value
+-- fields should be equal to the scaled value fields.
+-- lowerabsolutevalue shall be smaller than upperabsolutevalue
+-- lowervaluescaled is the scaled value representing the absolute value
+-- lowerabsolutevalue
+-- uppervaluescaled is the scaled value representing the absolute value
+-- upperabsolutevalue
+ScaleRangeSpec ::= SEQUENCE {
+    lowerabsolutevalue      [1] FEFFloat,
+    upperabsolutevalue      [2] FEFFloat,
+    lowervaluescaled        [3] FEFFloat,
+    uppervaluescaled        [4] FEFFloat
+}
+
+SaFilterEntry ::= SEQUENCE {
+    filtertype              [1] FilterType,
+    frequency               [2] FEFFloat,
+    filterorder             [3] INT-I16     -- e.g. -1: 6 dB/oct
+}
+
+FilterType ::= INTEGER {
+    other                   (0), 
+    lowpass                 (1), 
+    highpass                (2),
+    notch                   (3)
+} (0..65535)
+
+-- The visual grid definition attribute defines grid lines at different levels
+-- of grid lines.
+SaGridEntry ::= SEQUENCE {
+    absolute-value          [1] FEFFloat,
+    level                   [3] INT-I16
+}
+
+-- The calibration data definition attribute defines calibration markers
+-- on a display or on a recording strip.
+SaCalData ::= SEQUENCE {
+    lowerabsolutevalue      [1] FEFFloat,
+    upperabsolutevalue      [2] FEFFloat,
+    increment               [5] FEFFloat,        
+                          -- value for each step of the stair
+    cal-type                [6] SaCalDataType
+}
+
+SaCalDataType ::= INTEGER {
+    bar                   (0),
+                          -- display a calibration bar
+    stair                 (1)
+                          -- display a calibration stair
+} (0..65535)
+
+-- Specification of signal frequency
+SaSignalFrequency ::= SEQUENCE {
+    lowedgefreq            [1] FEFFloat,     -- in Hz 
+    highedgefreq           [2] FEFFloat      -- in Hz 
+} 
+
+RealTimeSampleArrayDescriptiveDataSection ::= SEQUENCE {
+    COMPONENTS OF         SampleArrayDescriptiveDataSection, 
+                          -- include COMPONENTS OF super class
+    sampleperiod          [APPLICATION 2445] Fraction,
+                          -- in seconds, expressed as fraction
+    sweepspeed            [APPLICATION 2431] MetricMeasure OPTIONAL
+                          -- e.g. mm/s
+}    
+
+
+TimeSampleArrayDescriptiveDataSection ::= SEQUENCE {
+    COMPONENTS OF         SampleArrayDescriptiveDataSection,
+                          -- include COMPONENTS-OF super class
+    sampleperiod          [APPLICATION 2445] Fraction,
+                          -- in seconds, expressed as fraction
+    sweepspeed            [APPLICATION 2431] MetricMeasure OPTIONAL
+                          -- e.g. mm/s
+}
+
+DistributionSampleArrayDescriptiveDataSection ::= SEQUENCE {
+    COMPONENTS OF         SampleArrayDescriptiveDataSection,
+                          -- include COMPONENTS-OF super class
+    distributionrangespec [APPLICATION 2403] DsaRangeSpec,
+                          -- maps array index to absolute value
+    xunitcode             [APPLICATION 2455] UnitsOfMeasurementCode OPTIONAL,
+                          -- applies to x-axis
+    xunitlabelstring      [APPLICATION 2458] FEFString OPTIONAL
+                          -- applies to x-axis
+}
+
+DsaRangeSpec ::= SEQUENCE {
+    first-element-value     [1] FEFFloat,
+    last-element-value      [2] FEFFloat
+}
+
+NumericDescriptiveDataSection ::= SEQUENCE {
+    COMPONENTS OF         MetricDescriptiveDataSection,
+                          -- include COMPONENTS-OF super class
+    numeasurerange        [APPLICATION 2382] AbsoluteRange OPTIONAL,
+                          -- potential measurement range
+    nuphysiologicalrange  [APPLICATION 2383] AbsoluteRange OPTIONAL,
+                          -- physiological reasonable range (note that 
+                          -- this is not an alarming range)
+    numeasureresolution   [APPLICATION 2381] FEFFloat OPTIONAL,
+                          -- resolution of measurement, minimum 
+                          -- difference between two observed values
+    displayresolution     [APPLICATION 2327] DispResolution OPTIONAL,
+                          -- if different resolution is needed when 
+                          -- value is displayed
+    accuracy              [APPLICATION 2378] FEFFloat OPTIONAL
+                          -- max. deviation of actual value from reported 
+                          -- observed value (if it can be specified)
+}
+
+EnumerationDescriptiveDataSection ::= SEQUENCE {
+    COMPONENTS OF         MetricDescriptiveDataSection,
+                          -- include COMPONENTS OF super class
+    enummeasurerange      [APPLICATION 2561] SEQUENCE OF MetricsCode 
+                          DEFAULT {},
+                          -- list of possible observed value object OIDs, 
+                          -- optional if the OID type is present in the 
+                          -- observed value, out of scope otherwise
+    enummeasurerangebits  [APPLICATION 2568] BITS-32 OPTIONAL
+                          -- list of possible observed value bits in the 
+                          -- bit string data type, optional if the BITS-32 
+                          -- type is used in the observed value, out of 
+                          -- scope otherwise
+}
+
+MeasuredDataSection ::= SEQUENCE {
+    realtimesas           [APPLICATION 7025] SEQUENCE OF 
+                          RealTimeSampleArrayMeasuredDataSection
+                          DEFAULT {},
+    timesas               [APPLICATION 7026] SEQUENCE OF 
+                          TimeSampleArrayMeasuredDataSection
+                          DEFAULT {},
+    distributionsas       [APPLICATION 7027] SEQUENCE OF 
+                          RealTimeSampleArrayMeasuredDataSection
+                          DEFAULT {},
+    numerics              [APPLICATION 7028] SEQUENCE OF 
+                          NumericMeasuredDataSection
+                          DEFAULT {},
+    enumerations          [APPLICATION 7029] SEQUENCE OF 
+                          EnumerationMeasuredDataSection
+                          DEFAULT {},
+    alerts                [APPLICATION 7007] SEQUENCE OF 
+                          AlertSection
+                          DEFAULT {},
+    attributechanges      [APPLICATION 7030] SEQUENCE OF 
+                          DynamicAttributeChangeSection
+                          DEFAULT {}
+}
+
+
+SampleArrayMeasuredDataSection ::= SEQUENCE {
+    numberofsubblocks     [APPLICATION 6035] INT-U32,
+    subblocklength        [APPLICATION 6036] Fraction,
+                          -- in seconds
+    subblocksize          [APPLICATION 6037] INT-U32,
+                          -- in octets
+    metriclist            [APPLICATION 6038] SEQUENCE SIZE (1..MAX) OF 
+    				HandleRef /* SIZE (1..*) -- to make asn1c v0.9.22 happy */
+                          -- references to SampleArrayDescriptiveDataSection
+}
+
+SampleArrayMeasuredDataBlock ::= [APPLICATION 6039] OCTET STRING
+
+RealTimeSampleArrayMeasuredDataSection ::= SEQUENCE {
+    COMPONENTS OF           SampleArrayMeasuredDataSection,
+    data                    SampleArrayMeasuredDataBlock
+                            -- measured data as SampleArrayMeasuredDataBlock
+}
+
+TimeSampleArrayMeasuredDataSection ::= SEQUENCE {
+    COMPONENTS OF         SampleArrayMeasuredDataSection,
+                          -- include COMPONENTS OF super class
+    tsamarkerlist         [APPLICATION 2452] SEQUENCE OF MarkerEntryRelTim
+                          DEFAULT {},
+                          -- marks positions in wave snippets
+    data                  SampleArrayMeasuredDataBlock
+                          -- measured data as SampleArrayMeasuredDataBlock
+}
+
+MarkerEntryRelTim ::= SEQUENCE {
+    markerid                [1] MetricsCode,
+    marktime                [2] RelativeTime
+}
+
+DistributionSampleArrayMeasuredDataSection ::= SEQUENCE {
+    COMPONENTS OF         SampleArrayMeasuredDataSection,
+                          -- include COMPONENTS OF super class
+    data                  SampleArrayMeasuredDataBlock
+                          -- measured data as SampleArrayMeasuredDataBlock
+}
+
+NumericMeasuredDataSection ::= SEQUENCE {
+    metricref [APPLICATION 6050] HandleRef, -- reference to
+                                            -- NumericDescriptiveDataSection
+    nuobservedvalue       ChoiceOfNuObsValue,
+                          -- simple or compound
+    timestamp             ObservationTime
+}
+
+ChoiceOfNuObsValue ::= CHOICE {
+    nuobservedvalue         [APPLICATION 2384] NuObsValue,
+                             -- e.g. measurement value, should also contain 
+                             -- validity information to be useful!
+    compoundnuobservedvalue  [APPLICATION 2379] SEQUENCE SIZE (2..MAX) OF 
+    				NuObsValue /* SIZE (2..*) -- to make asn1 v0.9.22 happy */
+                             -- used when multiple values are represented 
+                             -- in a single NU object (Structure is compound)
+}
+
+
+NuObsValue ::= SEQUENCE {
+    metricid                [1] MetricsCode OPTIONAL,
+    state                   [2] MeasurementStatus DEFAULT {},  
+    unitcode                [3] UnitsOfMeasurementCode OPTIONAL,
+    value                   [4] FEFFloat
+}
+-- value representation on a display (may be lower resolution)
+DispResolution ::= SEQUENCE {
+    prepoint                [1] INT-U8,     -- digits before decimal point
+    postpoint               [2] INT-U8      -- digits after decimal point
+}
+
+--	ASN.1 source defining EnumerationMeasuredDataSection
+
+EnumerationMeasuredDataSection ::= SEQUENCE {
+    metricref [APPLICATION 6050] HandleRef, -- reference to
+                                            -- EnumerationDescriptiveDataSection
+    enumobservedvalue     ChoiceOfEnumObsValue,
+                          -- simple or compound
+    enumadditionaldata    [APPLICATION 2498] ANY DEFINED BY enumobservedvalue
+                          OPTIONAL,
+                          -- additional non normative event specific 
+                          -- information can be provided (e.g. pacer 
+                          -- parameters of pace pulse detect). Requires 
+                          -- use of enum-obj-id in observed value!
+    enumtimestamp         ChoiceOfEnumTimeStamp
+                          -- one or more timestamps
+}
+
+
+EnumObsValue ::= SEQUENCE {
+    metric-id               [1] MetricsCode OPTIONAL,
+    state                   [2] MeasurementStatus DEFAULT {},
+    value                   [3] EnumVal
+}
+
+ChoiceOfEnumObsValue ::= CHOICE {
+    enumobservedvalue           [APPLICATION 2462] EnumObsValue,
+    compoundenumobservedvalue   [APPLICATION 2463] SEQUENCE SIZE (1..MAX) OF 
+    				EnumObsValue /* SIZE (1..*) -- to make asn1c v0.9.22 happy */
+}
+
+EnumVal ::= CHOICE {
+  enum-obj-id           [1] MetricsCode,  -- id of the metric
+  enum-text-string      [2] FEFString,    -- free text
+  enum-external-code    [8] ExtNomenRef,  -- code defined in other coding system
+  enum-bit-str          [16] BITS-32,         -- bit string
+  enum-record           [33] EnumRecordMetric, -- record type defined Metric ID
+  enum-record-oo        [34] EnumRecordOO     -- record type defined OO ID
+}
+
+EnumRecordMetric ::= SEQUENCE {
+  record-type-code MetricsCode,
+  record-data ANY DEFINED BY record-type-code
+}
+
+EnumRecordOO ::= SEQUENCE {
+  record-type-code OID-Type, -- from OO Partition
+  record-data ANY DEFINED BY record-type-code
+}
+
+ChoiceOfEnumTimeStamp ::= CHOICE {                        
+    timestamp               ObservationTime,
+    absolutetimestamparray  [APPLICATION 6042] SEQUENCE OF AbsoluteTime,
+    relativetimestamparray  [APPLICATION 6043] SEQUENCE OF RelativeTime,
+    hirestimestamparray     [APPLICATION 6044] SEQUENCE OF HighResRelativeTime
+}    
+
+AlertSection ::= SEQUENCE {
+    handle                Handle,
+                          -- unique (within a file) handle
+    alerttype             [APPLICATION 2351] AlertCode,
+                          -- static, mandatory type specification
+    labelstring           [APPLICATION 2343] FEFString OPTIONAL,
+                          -- textual representation of alerttype                                              
+    timestamp             ObservationTime,
+                          -- time of change
+    alertcondition        [APPLICATION 2476] AlertCondition,                        
+    limitspec             [APPLICATION 2477] LimitSpecEntry OPTIONAL,
+                          -- specification of the supervised limit                        
+    vmoreference          [APPLICATION 6045] HandleRef OPTIONAL 
+                          -- reference to MDSS, VMD or MDDS
+}
+
+AlertCondition ::= SEQUENCE {
+    objreference      [1] HandleRef,
+    controls          [2] AlertControls,
+    alertflags        [3] AlertFlags, -- supporting flags 
+    alertsource       [4] MetricsCode,
+    alertcode         [5] AlertCode,
+    alerttype         [6] AlertType,  -- defines type and severity of condition
+    alertinfoid       [7] PrivateCode OPTIONAL,  -- specific info can be appended
+    alertinfo         [8] ANY DEFINED BY alertinfoid OPTIONAL
+}
+
+-- Alert Controls define flags to communicate status information 
+-- relevant for alarm processor
+AlertControls ::= BIT STRING {
+    acobjoff        (0), -- the object supervised by the alert is off
+    acchanoff       (1), -- channel is off
+    acallobjaloff   (3), -- all alerts supervising the reference objects are off 
+    acalertoff      (4) -- this alert supervisor process is off
+} SIZE(16)
+
+-- Alert Flags give additional support information how to process the condition,
+AlertFlags ::= BIT STRING {
+    localaudible     (1), -- indicates that the condition is audible
+                          -- at the local system
+    remoteaudible    (2), -- condition can be audible at remote (not suppressed)
+    visuallatching   (3), -- visible latching of the condition is allowed
+    audiblelatching  (4), -- audio latching of the condition is allowed
+    derived          (6),
+    recordinhibit    (8) -- do not start alarm recording 
+} SIZE(16)
+
+-- Alert Type allows to distinguish severity of technical and
+-- physiological alarms
+AlertType ::=  INTEGER {
+    noalert         (0),
+    lowprital       (1), -- low priority technical alarm
+    medprital       (2), -- medium priority technical alarm
+    hiprital        (4), -- high priority technical alarm
+    lowpripal       (256), -- awareness condition
+    medpripal       (512), -- prompt response required (abnormal condition)
+    hipripal        (1024) -- immediate response required (emergency condition)
+} (0..65535)
+
+-- Specification of the supervised limit range
+LimitSpecEntry ::= SEQUENCE {
+    sectionhandle [1] HandleRef,
+    alsourceid    [2] MetricsCode, -- typically the metric ID of the measurement
+    unitcode      [3] UnitCode, -- from DIM partition 
+    limalstat     [4] CurLimAlStat, 
+    limalval      [5] AbsoluteRange 
+} 
+
+-- Current Limit Alert State -
+-- NOTE: The bits refer to the Limit Alarm only, not to the global alert
+-- state of the metric! 
+CurLimAlStat ::= BIT STRING {
+    limalertoff             (0), -- if this bit is set, all alerts (both
+                                 -- high and low) are off
+    limlowoff               (1), -- low limit violation detection is off
+    limhighoff              (2)  -- high limit violation detection is off
+} SIZE(16)
+
+DynamicAttributeChangeSection ::= SEQUENCE {
+    timestamp            ObservationTime,
+                         -- time of change
+    handle               [APPLICATION 6041] HandleRef, 
+                         -- reference to section whose attribute changed
+    attribute            [APPLICATION 6046] INT-U16,   
+                         -- attribute code
+    value                [APPLICATION 6047] ANY DEFINED BY attribute OPTIONAL
+                         -- new value
+                         -- or removal of optional attribute if absent
+}
+
+
+--	ASN.1 source defining SessionNotesSection
+
+SessionNotesSection ::= SEQUENCE {
+    handle                Handle,
+                          -- unique (within a file) handle
+    sn-id                 [APPLICATION 2505] FEFString,
+    sn-name               [APPLICATION 2511] FEFString,
+    sn-comments           [APPLICATION 2528] FEFString OPTIONAL,
+    starttime             [APPLICATION 2538] AbsoluteTime,
+    stoptime              [APPLICATION 2539] AbsoluteTime,
+    findings              [APPLICATION 2500] FEFString OPTIONAL,
+    diagnosticscodes      [APPLICATION 2492] SEQUENCE OF
+                          ExtNomenRef
+                          DEFAULT {},
+    diagnosisdescription  [APPLICATION 2494] FEFString OPTIONAL,
+    procedurecodes        [APPLICATION 2493] SEQUENCE OF
+                          ExtNomenRef
+                          DEFAULT {},
+    proceduredescription  [APPLICATION 2495] FEFString OPTIONAL,
+    protection            [APPLICATION 2519] ArchiveProtection OPTIONAL,
+    placeholder           Placeholder OPTIONAL
+}
+
+END
+
+
+

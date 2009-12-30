@@ -1,0 +1,40 @@
+/*
+
+ASN.1 specification of IEEE Std 11073-10417-2008
+Health Informatics—Personal health device communication
+Part 10417: Device specialization—Glucose meter
+
+The info was manually extracted. 
+
+
+    $Id$
+    Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
+    This file is part of BioSig http://biosig.sf.net/ 
+
+    BioSig is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 3
+    of the License, or (at your option) any later version.
+
+*/
+
+
+ModuleTest DEFINITIONS ::=
+BEGIN 
+
+GlucoseDevStat::= BIT STRING {
+device-battery-low(0),
+sensor-malfunction(1),
+sensor-sample-size-insufficient(2),
+sensor-strip-insertion(3),
+sensor-strip-type-incorrect(4),
+sensor-result-too-high(5),
+sensor-result-too-low(6),
+sensor-temp-too-high(7),
+sensor-temp-too-low(8),
+sensor-read-interrupt(9),
+device-gen-fault(10)
+} (SIZE(16))
+
+
+END

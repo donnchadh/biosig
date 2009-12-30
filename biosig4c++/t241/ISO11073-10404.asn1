@@ -1,0 +1,77 @@
+/*
+
+ASN.1 specification of IEEE Std 11073-10404-2008
+Health Informatics—Personal health device communication
+Part 10404: Device specialization—Pulse oximeter
+
+The info was manually extracted and modified for valid ASN.1 syntax.
+
+
+    $Id$
+    Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
+    This file is part of BioSig http://biosig.sf.net/ 
+
+    BioSig is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 3
+    of the License, or (at your option) any later version.
+
+*/
+
+
+PulseOximeter DEFINITIONS ::=
+BEGIN 
+
+
+--
+-- Alert-Op-State attribute defines the current limit alert state
+-- NOTE: The bits refer to the limit alarm only, not to the global alert state of the metric
+--
+CurLimAlStat ::= BIT STRING {
+lim-alert-off(0), -- if this bit is set, all alerts (both high and low) are off
+lim-low-off(1), -- low-limit violation detection is off
+lim-high-off(2) -- high-limit violation detection is off
+} (SIZE(16))
+--
+-- Current-Limits attribute
+--
+CurLimAlVal ::= SEQUENCE {
+lower FLOAT-Type,
+upper FLOAT-Type
+}
+--
+-- B.2 Alert-Op-Text-String attribute assigns individual labels to upper and lower alarm limit
+--
+AlertOpTextString ::= SEQUENCE {
+lower-text OCTET STRING,
+upper-text OCTET STRING
+}
+
+PulseOxPulsChar ::= BIT STRING {
+pulse-qual-nominal(0),
+pulse-qual-marginal(1),
+pulse-qual-minimal(2),
+pulse-qual-unacceptable(3)
+} (SIZE(16))
+
+PulseOxDevStat ::= BIT STRING {
+sensor-disconnected(0),
+sensor-malfunction(1),
+sensor-displaced(2),
+sensor-unsupported(3),
+sensor-off(4),
+sensor-interference(5),
+signal-searching(6),
+signal-pulse-questionable(7),
+signal-non-pulsatile(8),
+signal-erratic(9),
+signal-low-perfusion(10),
+signal-poor(11),
+signal-inadequate(12),
+signal-processing-irregularity(13),
+device-equipment-malfunction(14),
+device-extended-update(15)
+} (SIZE(16))
+
+
+END

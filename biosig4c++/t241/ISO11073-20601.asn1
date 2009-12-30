@@ -1,0 +1,1727 @@
+/*
+
+ ASN.1 Specification of 11073-20601
+ Health informatics – Personal health device communication – 
+ Part 20601: Application profile – Optimized exchange protocol
+
+ The info was manually extracted and adapted to be valid ASN1 syntax.
+
+    $Id$
+    Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
+    This file is part of BioSig http://biosig.sf.net/ 
+
+    BioSig is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 3
+    of the License, or (at your option) any later version.
+
+*/
+
+
+ModuleTest DEFINITIONS ::=
+BEGIN 
+
+
+/*
+General
+This annex provides ASN.1 definitions relevant for the PHD protocol.  
+Some are imported from other parts of the ISO/IEEE 11073 series of standards 
+and others are created specifically for the Personal Health Device domain. 
+If there is interest in understanding which structures are imported and which 
+are new, see I.  This annex ensures that all data structures required to implement this Standard are readily available.
+
+The naming convention followed in this annex is to use hyphen (-) to separate 
+words in attributes and to use mixed case when describing data types; however, 
+constructs that were imported from other specifications follow the existing use of capitalization and hyphenation.
+Common data types
+This subclause defines a set of ASN.1 data types that are used in the object definitions.
+Integer and bit string data types
+For representing integer numbers, the object definitions use fixed-size data types only. 
+The bit string data type represents a bit field where each single bit has a defined 
+meaning (i.e. flag fields). The following integer data types and bit string data types are used:
+*/
+--
+-- 8-bit unsigned integer
+--
+INT-U8 ::= INTEGER (0..255)
+--
+-- 8-bit signed integer
+--
+INT-I8 ::= INTEGER (-128..127)
+--
+-- 16-bit unsigned integer
+--
+INT-U16 ::= INTEGER (0..65535)
+--
+-- 16-bit signed integer
+--
+INT-I16 ::= INTEGER (-32768..32767)
+--
+-- 32-bit unsigned integer
+--
+INT-U32 ::= INTEGER (0..4294967295)
+--
+-- 32-bit signed integer
+--
+INT-I32 ::= INTEGER (-2147483648..2147483647)
+--
+-- 16-bit bit string
+--
+BITS-16 ::= BIT STRING (SIZE(16))
+--
+-- 32-bit bit string
+--
+BITS-32 ::= BIT STRING (SIZE(32))
+
+/*
+Note that in object definitions, integer and bit string data types with named constants or 
+named bits use the above defined basic data types for simplicity. This provides an 
+abbreviated notation, but it is illegal ASN.1 syntax.  It can be easily transformed 
+to the correct syntax.  For example, the definition
+NamedConstant ::= INT-U16 {
+const1(1),
+const2(2)
+}
+
+becomes correct ASN.1 syntax defined as:
+NamedConstant ::= INTEGER {
+const1(1),
+const2(2)
+} (0..65535)
+Identification data type
+All elements (e.g., classes, objects, measurement types) that need unique identification are assigned an Object Identifier (OID). The set of valid OIDs for this Standard is defined in ISO/IEEE Std 11073-10101. The nomenclature consists of a set of partitions, where each partition covers a specific concept and has its own 16-bit codes.  This means that a specific code is either identified by both its partition number and an OID within that partition or its use is context dependent.  In the case of context dependent codes, the specific partition the code utilizes is called out within the Standard.
+The 16-bit identification data type is defined as follows:
+*/
+
+--
+-- OID type as defined in nomenclature
+-- (do not confuse with ASN.1 OID)
+--
+OID-Type ::= INT-U16 -- 16-bit integer type
+
+/*
+A private partition is available for codes and IDs that are yet to be standardized or for manufacturer specific codes.
+*/
+--
+-- Private OID
+--
+PrivateOid ::= INT-U16
+
+/*
+Handle data type
+The handle data type is used for efficient and locally unique identification of all managed object instances. (Locally unique means unique within one MDS context.) This data type is defined as follows:
+*/
+--
+-- handle
+--
+HANDLE ::= INT-U16
+
+/*
+Instance number
+The Instance Number is used to distinguish class or object instances of the same type or object instances that are not directly manageable (used e.g. as the identification attribute for PM-Segment objects).
+*/
+--
+-- Instance Number
+--
+InstNumber ::= INT-U16
+
+/*
+Type ID data type
+The type ID data type is used to identify the type of all elements (e.g. classes, objects, measurement types). It is similar to the OID type (B2.2) but includes both the nomenclature partition and code to provide unique identification of an element. It shall be used when the context is not implicit. This data type is defined as follows:
+*/
+--
+-- Type ID
+--
+TYPE ::= SEQUENCE {
+	partition	NomPartition,
+	code	OID-Type
+}
+--
+-- The following nomenclature partitions exist
+--
+NomPartition ::= INTEGER {
+	nom-part-unspec(0),
+	nom-part-obj(1),		-- object-oriented partition
+	nom-part-metric(2),	-- metric [supervisory control and data acquisition
+			-- (SCADA)] partition
+	nom-part-alert(3),		-- alerts/events partition
+	nom-part-dim(4),		-- dimensions partition
+	nom-part-vattr(5),	-- virtual attribute partition for Operation objects
+	nom-part-pgrp(6),	-- parameter group ID partition
+	nom-part-sites(7),		-- measurement and body site locations
+	nom-part-infrastruct(8),	-- infrastructure elements partition
+	nom-part-fef(9),		-- file exchange format partition
+	nom-part-ecg-extn(10),	-- ECG extensions partition
+	nom-part-phd-dm(128),	-- Disease Mgmt (New, needs to be added)
+	nom-part-phd-hf(129),	-- Health & Fitness (New, needs to be added)
+	nom-part-phd-ai(130),	-- Aging Independently (New, needs to be added)
+	nom-part-ret-code(255),	-- return codes partition (New, needs to be added)
+	nom-part-ext-nom(256),	-- IDs of other nomenclatures and dictionaries
+	nom-part-priv(1024)	-- private partition
+} (0..65535)
+
+/*
+Attribute value assertion data type
+The Attribute Value Assertion (AVA) data type fully specifies the attribute of an object by its attribute id and its value. As the structure of the value is attribute dependent, the type is specified by ANY DEFINED BY. This data type supports a number of services used to access object attributes (e.g., GET, SET). The attribute id values are defined for each object type in the Attribute ID column of the object definition tables (i.e. , , , , , , , , , , and ).  The structure used for the attribute-value is defined by the Attribute Type column of the same tables.  The AVA data type is defined as follows:
+*/
+
+--
+AVA-Type ::= SEQUENCE {
+	attribute-id	OID-Type, 	-- This shall come from the nom-part-obj partition
+	attribute-value	ANY DEFINED BY attribute-id
+}
+/*
+Attribute list data type
+Frequently, a list of attribute ID–attribute value pairs is needed. The attribute list data type is a special data type that is provided for this situation and is defined as follows:
+*/
+
+--
+AttributeList ::= SEQUENCE OF AVA-Type
+
+/*
+Attribute ID list data type
+Frequently, a list of attribute IDs is used. The attribute ID list data type is a special type that is provided for convenience and is defined as follows:
+*/
+--
+AttributeIdList ::= SEQUENCE OF OID-Type
+
+/*
+Floating point type data type (FLOAT-Type)
+The floating point type data type (FLOAT-Type) is defined to represent numeric values that are not integer in type. The FLOAT-Type is defined as a 32-bit value with 24-bit mantissa and 8-bit exponent. See E.7 for full definition of this data type. This data type is defined as follows:
+*/
+--
+-- 32-bit float type; the integer type is a placeholder only
+--
+FLOAT-Type ::= INT-U32
+
+/*
+The 32-bits contain an 8-bit signed exponent to base 10, followed by a 24-bit signed integer (mantissa)
+
+Special values are assigned to express:
+
+NaN (not a number) [exponent 0, mantissa  +(2**23-1)  0x007FFFFF]
+NRes (not at this resolution) [exponent 0, mantissa -(2**23)  0x00800000]
++ INFINITY [exponent 0, mantissa +(2**23-2)  0x007FFFFE]
+– INFINITY [exponent 0, mantissa -(2**23-2)  0x00800002]
+Reserved for future use [exponent 0, mantissa -(2**23-1)  0x00800001]
+Short Floating point type data type (SFLOAT-Type)
+The short floating point type data type (SFLOAT-Type) is defined to represent numeric values that are not  integer in type and have limited resolution. The SFLOAT-Type is defined as a 16-bit value with 12-bit mantissa and 4-bit exponent. See Annex ‎E.7 for full definition of this data type. This data type is defined as follows:
+*/
+
+--
+-- 16-bit float type; the integer type is a placeholder only
+--
+SFLOAT-Type ::= INT-U16
+
+/*
+The 16–bit value contains a 4-bit exponent to base 10, followed by a 12-bit mantissa. Each is in 2’s complement form
+
+Special values are assigned to express:
+
+ NaN (not a number) [exponent 0, mantissa +(2**11 -1)  0x07FF]
+NRes (not at this resolution) [exponent 0, mantissa -(2**11)  0x0800]
++ INFINITY [exponent 0, mantissa +(2**11 -2)  0x07FE]
+– INFINITY [exponent 0, mantissa -(2**11 -2)  0x0802]
+Reserved for future use [exponent 0, mantissa -(2**11 -1)  0x0801]
+Relative time data type
+The relative time data type is a time counter that is used to determine the relative time between events. This data type is used to position events relative to each other. It is defined as follows:
+*/
+
+--
+-- Relative time has a resolution of 125 μs [least significant bit (LSB)], which is sufficient for sampling
+-- rates up to 8 kHz and spans time periods up to 6.2 days.
+-- The value of 0xFFFFFFFF shall be used when an Agent is required to send a relative time in an ASN.1
+-- structure but does not support a relative time clock.
+--
+RelativeTime ::= INT-U32
+
+/*
+Note that the actual time resolution is defined by the Agent.
+High-resolution relative time data type
+The high-resolution relative time data type is a high-resolution time counter that is used to determine the relative time between events. This data type is used to position events relative to each other. It is defined as follows:  
+*/
+--
+-- High-resolution time has a resolution of one microsecond and can represent time 
+-- spans of over 584,000 years. Theoretically, this could be modeled as an INT-U64;
+-- however, due to limitations in the ASN.1 compilers, embedded devices support 
+-- for 64-bit integers, and the MDER specifications, an OCTET STRING was
+-- used instead.
+--
+HighResRelativeTime ::= OCTET STRING (SIZE(8))
+
+/*
+Note that the Agent defines the actual time resolution used.
+*/
+--
+-- Absolute time adjust has a resolution of one hundredth of a second and can represent time 
+-- adjustments of plus or minus 44505 years. Theoretically, this could be modeled as an INT-I48;
+-- however, due to potential limitations in ASN.1 compilers, embedded devices support 
+-- for 48-bit integers, and the MDER specifications, an OCTET STRING was
+-- used instead.
+--
+AbsoluteTimeAdjust ::= OCTET STRING (SIZE(6))
+
+/*
+Absolute time data type
+The absolute time data type specifies the time of day with a resolution of 1/100 of a second. The hour field shall be reported in 24 hour time notion (i.e., from 0 to 23).  The values in the structure shall be BCD-encoded (i.e., 4-bit nibbles). For example, the year 1996 shall be represented by the hexadecimal value 0x19 in the century field and the hexadecimal value 0x96 in the year field. This format is easily converted to character-based or integer-based representations. The absolute time data type is defined as follows:
+*/
+--
+AbsoluteTime ::= SEQUENCE {
+	century	INT-U8,
+	year	INT-U8,
+	month	INT-U8,
+	day	INT-U8,
+	hour	INT-U8,
+	minute	INT-U8,
+	second	INT-U8,
+	sec-fractions	INT-U8	-- 1/100 of second if available
+}
+
+/*
+Note that the Agent defines the actual time resolution used (i.e. if the clock resolution is one second, then sec-fractions is always zero).  Agents should have a resolution of one second or better.
+Operational state data type
+The operational state data type defines if a certain object or other property is enabled or disabled. 
+*/
+
+--
+OperationalState ::= INTEGER {
+	disabled(0),
+	enabled(1),
+	notAvailable(2)
+} (0..65535)
+
+/*
+Attribute data types
+MDS attributes
+*/
+--
+-- System Model contains manufacturer name and manufacturer specific model information.
+-- While model-number field name suggests a number, there is no requirement that the field
+-- contains numeric values.  The format of the manufacturer name and model number strings
+-- are decided upon by the Agent vendor but shall be printable ASCII.
+--
+SystemModel ::= SEQUENCE {
+	manufacturer	OCTET STRING,	-- string size shall be even
+	model-number	OCTET STRING		-- string size shall be even
+}
+
+--
+-- Production Specification deals with serial numbers, part numbers, revisions, and etc.
+-- Note that an Agent may have multiple components so the prod-spec should be an 
+-- ASCII printable string of the format “spec-type: vendor-specified-str” where spec-type is
+-- replaced by the string representation of spec-type.  The format of the vendor-specified-str
+-- is determined by the vendor.
+--
+ProductionSpec ::= SEQUENCE OF ProdSpecEntry
+
+ProdSpecEntry ::= SEQUENCE {
+	spec-type	INTEGER {
+		unspecified(0),
+		serial-number(1),
+		part-number(2),
+		hw-revision(3),
+		sw-revision(4),
+		fw-revision(5),
+		protocol-revision(6),
+		prod-spec-gmdn(7)  	-- see note on GMDN below
+		} (0..65535),
+	component-id	PrivateOid, 
+	prod-spec	OCTET STRING		-- string size shall be even
+}
+
+-- Note: The Global Medical Device Nomenclature (GMDN) is based on EN ISO 15225 Nomenclature – 
+-- Specification for a nomenclature system for medical devices for the purpose of regulatory data exchange, 
+-- and was developed under the auspices of CEN TC257 SC1.
+
+--
+-- Power State defines whether device is on battery or on mains. Upper bits define the charging state.
+--
+PowerStatus ::= BIT STRING {
+	onMains(0),
+	onBattery(1),
+	chargingFull(8),
+	chargingTrickle(9),
+	chargingOff(10)
+} (SIZE(16))
+
+
+--
+-- All measures about the battery are values with their dimensions.  See the description 
+-- of Remaining-Battery-Time in  for a description of legal units.
+--
+BatMeasure ::= SEQUENCE {
+	value	FLOAT-Type,
+	unit	OID-Type	-- from nom-part-dim partition
+}
+
+/*
+Metric attributes
+This contains imported attribute definitions that apply to the Numeric, Enumeration, and the RT-SA objects.
+*/
+
+--
+-- Status of the measurement
+-- The bit values 14 and 15 are used in other IEEE 11073 documents and shall not be used for a different 
+-- purpose.
+-- 
+MeasurementStatus ::= BIT STRING {
+	invalid(0),
+	questionable(1),
+	not-available(2),
+	calibration-ongoing(3),
+	test-data(4),
+	demo-data(5),
+	validated-data(8),		-- relevant e.g. in an archive
+	early-indication(9),	-- early estimate of value
+	msmt-ongoing(10)	-- indicates a new msmt is just being taken (episodic)
+} (SIZE(16))
+/*
+Numeric attributes
+*/
+--
+-- NuObsValue (Numeric Observed Value) attribute always includes identification, state, and dimension
+--
+NuObsValue ::= SEQUENCE {
+	metric-id	OID-Type,	-- This code comes from the partition identified in
+			-- Metric::Type attribute of the Numeric object.
+	state	MeasurementStatus,
+	unit-code	OID-Type,	-- from nom-part-dim dimensions nomenclature partition
+	value	FLOAT-Type
+}
+
+--
+-- Observed value for compound numerics
+--
+NuObsValueCmp ::= SEQUENCE OF NuObsValue
+
+/*
+RT-SA attributes
+*/
+--
+-- Sample Array Specification
+--
+SaSpec ::= SEQUENCE {
+	array-size	INT-U16,	-- number of samples per metric update period
+	sample-type	SampleType,
+	flags	SaFlags
+}
+
+--
+-- Sample Type, describes one sample in the observed value array
+--
+SampleType ::= SEQUENCE {
+	sample-size	INT-U8,	-- e.g. 8 for 8-bit samples, 16 for 16-bit samples, 
+			-- shall be divisible by 8
+	significant-bits	INTEGER	-- defines significant bits in one sample
+	     { signed-samples(255)} (0..255)	-- if value is 255, the samples 
+			-- in Simple-Sa-Observed-Value and
+			-- lower-scaled-value and upper-scaled-value in
+			-- ScaleRangeSpec shall be interpreted as signed
+			-- integers in 2s complement form.
+}
+
+--
+-- SaFlags define additional wave form properties
+--
+SaFlags ::= BIT STRING {
+	smooth-curve(0),		-- for optimum display, use a smoothing algorithm
+	delayed-curve(1),		-- curve is delayed (not real time)
+	static-scale(2),		-- ScaleRangeSpec does not change 
+	sa-ext-val-range(3)	-- The non-significant bits in a sample are not 0, 
+			-- e.g. when they are used for annotations or markers. 
+			--The receiver shall apply a bit mask to extract the
+			-- significant bits from the sample.  If the samples are 
+			-- signed, the sa-ext-val-range bit shall not be set 
+			-- (because, by definition, there cannot be 
+			-- non-significant bits in the field).
+} (SIZE(16)) 
+
+--
+-- The scale and range definition attribute describes a mapping between scaled values
+-- and absolute values and defines the expected range of absolute values and scaled values. 
+-- Dependent on the range of the scaled values, multiple attribute types exist.
+-- The mapping between sample values and converted absolute values is defined by
+-- the Scale-and-Range-Specification formula in .
+--
+ScaleRangeSpec8 ::= SEQUENCE {
+	lower-absolute-value	FLOAT-Type,
+	upper-absolute-value	FLOAT-Type,
+	lower-scaled-value	INT-U8, 	-- n.b. interpret as INT-I8
+	upper-scaled-value	INT-U8	-- if Sa-Specification attribute
+				-- indicates signed samples
+}
+
+ScaleRangeSpec16 ::= SEQUENCE {
+	lower-absolute-value	FLOAT-Type,
+	upper-absolute-value	FLOAT-Type,
+	lower-scaled-value	INT-U16, 	-- n.b. interpret as INT-I16
+	upper-scaled-value	INT-U16	-- if Sa-Specification attribute
+				-- indicates signed samples
+} 
+
+ScaleRangeSpec32 ::= SEQUENCE {
+	lower-absolute-value	FLOAT-Type,
+	upper-absolute-value	FLOAT-Type,
+	lower-scaled-value	INT-U32, 	-- n.b. interpret as INT-I32
+	upper-scaled-value	INT-U32	-- if Sa-Specification attribute
+				-- indicates signed samples
+}
+
+/*
+Enumeration attributes
+*/
+--
+-- Enum-Observed-Value attribute
+--
+EnumObsValue ::= SEQUENCE {
+	metric-id 	OID-Type, 	-- This code comes from the partition defined in the
+			-- Metric-Id-Partition attribute, if valued.  Otherwise,
+-- it comes from the same partition as the Type
+-- attribute.
+	state 	MeasurementStatus,
+	value 	EnumVal 	-- supports different value data types
+}
+
+-- The enumeration value data type is used to denote different specific observation data types as follows
+-- (Note that the type of measurement is coded in the top level structure EnumObsVal::metric-id)
+--
+-- 	enum-obj-id: 	used to communicate a metric OID, e.g., as an annotation or
+-- 		other event defined in the Metric::Type partition
+-- 	enum-text-string: 	used to communicate a free text string (e.g., a status message)
+-- 	enum-bit-str: 	for coding bit string values; the bit string data type shall be
+-- 		defined separately, e.g., in the nomenclature or in a
+-- 		device-specific standard
+--
+-- Other data types defined in ISO/IEEE Std 11073-10201 are not included here as they are not 
+-- relevant for PHD
+--
+EnumVal ::= CHOICE {
+	enum-obj-id 	[1] OID-Type, 	-- This code comes from the partition defined in the
+			-- Enum-Observed-Value-Partition attribute, if
+-- valued.  Otherwise, it comes from the same
+-- partition as the Type attribute.
+
+	enum-text-string 	[2] OCTET STRING,	-- printable ASCII text, size even
+	enum-bit-str 	[16] BITS-32 		-- bit string
+}
+
+/*
+Scanner attributes
+None
+Configurable scanner attributes
+*/
+--
+-- Confirm-Mode attribute defines if confirmed event reports or unconfirmed event reports are used
+--
+ConfirmMode ::= INTEGER {
+	unconfirmed(0),
+	confirmed(1)
+} (0..65535)
+ 
+/*
+Episodic configurable scanner attributes
+None
+Periodic configurable scanner attributes
+None
+PM-Store and PM-Segment attributes
+*/
+--
+-- Sample Algorithm describes how samples are derived, averaged
+--
+StoSampleAlg ::= INTEGER {
+	st-alg-nos(0),		-- not otherwise specified
+	st-alg-moving-average(1),
+	st-alg-recursive(2),
+	st-alg-min-pick(3),
+	st-alg-max-pick(4),
+	st-alg-median(5),
+	st-alg-trended(512),	-- trend values are used
+	st-alg-no-downsampling(1024), 	-- means no averaging, this is a real measured sample
+	st-alg-manuf-specific-start(61440),	-- start of the reserved manufacturer specific range
+	st-alg-manuf-specific-end(65535)	-- end of the reserved manufacturer specific range
+} (0..65535)
+
+/*
+Action method related data types
+*/
+--
+-- Date/time to be set
+--
+SetTimeInvoke ::= SEQUENCE {
+	date-time	AbsoluteTime,
+	accuracy	FLOAT-Type 	-- accounts for set time (e.g., 2min error); 
+			-- value is defined in seconds.  This parameter is 
+			-- inherited from ISO/IEEE Std 11073-10201, but not
+			-- used.  Thus, it shall be zero (0)
+}
+
+--
+-- The SegmSelection selects the PM-Segments that are subject to the method
+--
+SegmSelection ::= CHOICE {
+	all-segments	[1] INT-U16,	-- if this type is chosen to select all segments 
+			-- the actual contents of the field is don’t care 
+			-- and shall be zero
+	segm-id-list	[2] SegmIdList,	-- using this list requires that the Manager already
+			-- knows the Instance-Number attributes of the 
+			-- PM-Segments, e.g. from a previous 
+			-- Get-Segment-Info method call.
+	abs-time-range	[3] AbsTimeRange 
+			-- support of abs-time-range is optional, indicated in
+			-- the PM-Store-Capab attribute
+}
+
+--
+-- The SegmIdList selects PM-Segments by ID
+--
+SegmIdList ::= SEQUENCE OF InstNumber
+
+--
+-- The Time Range allows selection of PM-Segments by time period
+--
+AbsTimeRange ::= SEQUENCE {
+	from-time	AbsoluteTime,
+	to-time	AbsoluteTime
+}
+
+--
+-- The SegmentInfoList data type returns the object attributes (except the Fixed-Segment-Data) of all
+-- selected PM-Segment object instances in response to the Get-Segment-Info PM-Store method. 
+-- This is required by the Manager to retrieve the dynamic information about the segments.
+--
+SegmentInfoList ::= SEQUENCE OF SegmentInfo
+
+SegmentInfo ::= SEQUENCE {
+	seg-inst-no	InstNumber,
+	seg-info	AttributeList
+}
+/*
+Message related data types
+*/
+ObservationScan ::= SEQUENCE {
+	obj-handle 	HANDLE,
+	attributes 	AttributeList
+}
+/*
+Other
+*/
+--
+-- Time protocol ID indicates the time protocols that are supported/used by the device
+--
+TimeProtocolId ::= OID-Type -- from the nom-part-infrastruct nomenclature partition
+
+/*
+PHD protocol frame
+The following data type represents the top level message frame of the PHD protocol.  The data Apdu (encapsulated by the PrstApdu) is interpreted according to this Standard as a result of the negotiation contained within the association procedure as described in .
+
+MDER encoding rules shall always apply to the structure in A.7.
+*/
+
+ApduType ::= CHOICE {
+	aarq	[57856] AarqApdu,	-- Association Request [0xE200]
+	aare	[58112] AareApdu,	-- Association Response [0xE300]
+	rlrq	[58368] RlrqApdu,	-- Association Release Request 
+				-- [0xE400]
+	rlre	[58624] RlreApdu,	-- Association Release Response
+				-- [0xE500]
+	abrt	[58880] AbrtApdu,	-- Association Abort [0xE600]
+	prst	[59136] PrstApdu		-- Presentation PDU  [0xE700]
+}
+/*
+Association protocol definitions
+MDER encoding rules shall always apply to the structures in A.8.
+*/
+
+AarqApdu ::= SEQUENCE {
+	-- The assoc-version defines the version of the association procedure
+	-- used by the Agent.  The Agent shall set exactly one
+	-- version bit.  If the Manager does not understand that version, it shall
+	-- reject the association request with rejected-unsupported-assoc-version.
+	assoc-version		AssociationVersion,
+	data-proto-list		DataProtoList
+}
+
+DataProtoList ::= SEQUENCE OF DataProto
+
+-- If the data-proto-id is set to data-proto-id-20601, the data-proto-info shall
+-- be filled with a PhdAssociationInformation structure
+-- If the data-proto-id is set to data-proto-id-external, the data-proto-info shall
+-- be filled with a ManufSpecAssociationInformation structure.
+-- If the data-proto-id is set to data-proto-id-empty, the data-proto-info shall
+-- be empty (only used when the AareApdu is a reject).
+DataProto ::= SEQUENCE {
+	data-proto-id		DataProtoId,
+	data-proto-info		ANY DEFINED BY data-proto-id
+}
+
+-- All other DataProtoId values are reserved and shall not be used
+DataProtoId ::= INTEGER {
+	data-proto-id-empty(0),	-- shall only be used in AareApdu when result is
+			-- a rejection
+	data-proto-id-20601(20601),	-- indicates exchange protocol follows this Standard
+	data-proto-id-external(65535)	-- indicates manufacturer specific
+			-- data protocol UUID is part of
+			-- the ManufSpecAssociationInformation
+} (0..65535)
+
+-- Association response
+AareApdu ::= SEQUENCE {
+	result		AssociateResult,
+	selected-data-proto	DataProto
+}
+
+-- Release request
+RlrqApdu ::= SEQUENCE {
+	reason		ReleaseRequestReason
+}
+
+-- Release response
+RlreApdu ::= SEQUENCE {
+	reason		ReleaseResponseReason
+}
+
+-- Abort
+AbrtApdu ::= SEQUENCE {
+	reason		Abort-reason
+}
+
+-- Reason for the Abort
+-- All unassigned " Abort-reason " values are reserved for future expansion and shall not be used.
+Abort-reason ::= INTEGER {	
+	undefined(0),
+	buffer-overflow(1),
+	response-timeout(2),
+	configuration-timeout(3)	-- Configuration message not received in timely 
+-- fashion
+} (0..65535)
+
+-- See  for a usage description.
+-- All unassigned " AssociateResult " values are reserved for future expansion and shall not be used.
+AssociateResult ::= INTEGER {
+	accepted(0),
+	rejected-permanent(1),
+	rejected-transient(2),
+	accepted-unknown-config(3),
+	rejected-no-common-protocol(4),
+	rejected-no-common-parameter(5),
+	rejected-unknown(6),
+	rejected-unauthorized(7),
+	rejected-unsupported-assoc-version(8)
+} (0..65535)
+
+-- All unassigned " ReleaseRequestReason " values are reserved for future expansion and shall not be used.
+ReleaseRequestReason ::= INTEGER {	
+	normal(0), 		-- used when the Agent or Manager decides to
+			-- release the association under normal conditions
+	no-more-configurations(1),	-- used by the Agent when all possible configurations
+			-- were attempted and the Manager
+			-- rejected them all.
+	configuration-changed(2)	-- used by the Agent when its configuration changes
+			-- requiring the Agent to release the association.  This
+			-- may be followed by an Association Request with
+			-- new configuration information.
+} (0..65535)
+
+-- All unassigned " ReleaseResponseReason " values are reserved for future expansion and 
+-- shall not be used.
+ReleaseResponseReason ::= INTEGER {	
+	normal(0)
+} (0..65535)
+
+-- Association Request DataProto values are mapped to the PhdAssociationInformation. 
+-- This information is used to announce and negotiate the protocol version, profile, etc.
+
+PhdAssociationInformation ::= SEQUENCE {
+	-- The protocolVersion information is used to communicate acceptable versions.  When
+	-- the Agent sends the protocolVersion, it shall set the bit(s) for each version 
+	-- that it supports.  When the Manager responds, it shall set a single bit 
+	-- to indicate the protocol version to be used by both.  If there is not 
+	-- a common protocol version, the Manager shall reject the association request 
+	-- and set the protocolVersion to all zeros.
+	protocol-version		ProtocolVersion,
+	encoding-rules		EncodingRules,
+	nomenclature-version	NomenclatureVersion,
+	functional-units		FunctionalUnits,
+	system-type		SystemType,
+	system-id		OCTET STRING,
+	dev-config-id		ConfigId,
+	data-req-mode-capab	DataReqModeCapab,
+	option-list		AttributeList
+}
+
+--
+-- Manufacturer Specific Association Information for a proprietary data protocol
+--
+ManufSpecAssociationInformation ::= SEQUENCE {
+	data-proto-id-ext		UuidIdent,
+	data-proto-info-ext	ANY DEFINED BY data-proto-id-ext
+}
+
+-- All unassigned " AssociationVersion " bit values are reserved for future expansion and 
+-- shall be set to zero.
+AssociationVersion ::= BIT STRING {
+	assoc-version1(0)		-- This bit shall be set if version 1 of the association
+			-- protocol is supported
+} (SIZE(32))
+
+-- All unassigned " ProtocolVersion " bit values are reserved for future expansion and shall be set to zero.
+ProtocolVersion ::= BIT STRING {
+	protocol-version1(0)	-- This bit shall be set if version 1 of the data
+			-- exchange protocol is supported
+} (SIZE(32))
+
+--
+--The Agent and Manager shall always support MDER.
+--The Agent and Manager may negotiate other encoding rules besides MDER.
+-- All unassigned " EncodingRules " bit values are reserved for future expansion and shall be set to zero.
+-- 
+EncodingRules ::= BIT STRING {
+	mder(0),		-- This bit shall be set if MDER supported/selected
+	xer(1),		-- This bit shall be set if XER supported/selected
+	per(2)		-- This bit shall be set if PER supported/selected
+} (SIZE(16))
+
+-- All unassigned " NomenclatureVersion " bit values are reserved for future expansion and
+-- shall be set to zero.
+NomenclatureVersion ::= BIT STRING {	-- values reference a specific nomenclature standard
+	nom-version1(0)		-- This bit shall be set if version 1 is supported
+} (SIZE(32))
+
+-- All unassigned " FunctionalUnits " bit values are reserved for future expansion and shall be set to zero.
+FunctionalUnits ::= BIT STRING {
+	fun-units-unidirectional(0),	-- Reserved for future use. This bit shall be set if 
+			-- the Agent is uni-directional
+	fun-units-havetestcap(1),    	-- This bit indicates if the device can enter a
+			-- test association
+	fun-units-createtestassoc(2)	-- This bit is used to indicate an intention to
+			-- form a test association
+} (SIZE(32))
+
+-- All unassigned " SystemType " bit values are reserved for future expansion and shall be set to zero.
+SystemType ::= BIT STRING {
+	sys-type-manager(0),
+	sys-type-agent(8)
+} (SIZE(32))
+
+ConfigId ::= INTEGER {
+	manager-config-response(0),
+	standard-config-start(1),
+	standard-config-end(16383),
+	extended-config-start(16384),
+	extended-config-end(32767),
+	reserved-start(32768),
+	reserved-end(65535)
+} (0..65535)
+
+/*
+Presentation protocol definitions
+MDER encoding rules shall always apply to the structures in A.9.
+*/
+
+--
+-- The OCTET STRING contains the data APDU encoded according to the abstract and transfer syntaxes
+-- negotiated at association time.  When the data-proto-id is negotiated to be data-proto-id-20601, the
+-- OCTET STRING shall be an encoded version of DataApdu.
+--
+PrstApdu ::=	OCTET STRING	
+
+/*
+Data protocol definitions
+General
+The DataApdu and the related structures in A.10 shall use encoding rules as negotiated during the association procedure as described in . The Agent and Manager shall always support the MDER. The Agent and Manager may negotiate other encoding rules besides MDER.
+
+Data protocol frame
+*/
+--
+-- Combined Remote Operation Primitive Type and Operation Type
+-- In the remote operation invoke messages (roiv-*), invoke-id is an opaque handle 
+-- that allows the sender of the message to identify the associated response message (if any).
+-- The sender of roiv-* message shall select a value of invoke-id that enables it to differentiate this message
+-- from any other roiv-* messages that have not been retired. Messages are retired either by the 
+-- reception of a response (rors-*, roer, or rorj) or by exceeding the confirmation timeout value.
+-- When a response message (rors-*, roer, or rorj) is returned, the invoke-id from the invocation 
+-- message shall be copied into the invoke-id of the response.  This allows the initiator to match
+-- responses to outstanding requests. Since the handle is opaque the receiver can make no other assumptions
+-- about invoke-id. In particular, it can not assume that it will be unique over any sequence of numbers or
+-- period of time.
+--
+DataApdu ::= SEQUENCE {
+	invoke-id		InvokeIDType,
+	message		CHOICE {
+	roiv-cmip-event-report	[256] EventReportArgumentSimple, -- [0x0100]
+	roiv-cmip-confirmed-event-report	[257] EventReportArgumentSimple, -- [0x0101]
+	roiv-cmip-get		[259] GetArgumentSimple, -- [0x0103]
+	roiv-cmip-set		[260] SetArgumentSimple, -- [0x0104]
+	roiv-cmip-confirmed-set	[261] SetArgumentSimple, -- [0x0105]
+	roiv-cmip-action		[262] ActionArgumentSimple, -- [0x0106]
+	roiv-cmip-confirmed-action	[263] ActionArgumentSimple, -- [0x0107]
+	rors-cmip-confirmed-event-report	[513] EventReportResultSimple, -- [0x0201]
+	rors-cmip-get		[515] GetResultSimple, -- [0x0203]
+	rors-cmip-confirmed-set	[517] SetResultSimple, -- [0x0205]
+	rors-cmip-confirmed-action	[519] ActionResultSimple, -- [0x0207]
+	roer		[768] ErrorResult, -- [0x0300]
+	rorj		[1024] RejectResult -- [0x0400]
+	}
+}
+
+-- The sender should limit the number of messages outstanding simultaneously.  
+-- In fact, the receiver might not be able to handle more than one message at a time.
+InvokeIDType ::= INT-U16
+
+-- At any point, if a DataApdu invoked action (roiv-*) results in an error, the receiver sends
+-- back an ErrorResult.  The invokeID is used to determine which invocation resulted in an
+-- error condition.  The error-value shall be filled in with an error value from the RoerErrorValue list
+-- below.  The parameter is filled in with further information if warranted by the error-value.  The use of
+-- the parameter value is defined in the comments found in RoerErrorValue.
+ErrorResult ::= SEQUENCE {
+	error-value	RoerErrorValue,
+	parameter	ANY DEFINED BY error-value
+}
+
+-- All unassigned " RoerErrorValue " values are reserved for future expansion and shall not be used.
+-- Note that ISO/IEEE Std 11073-20101 defines a number of RoerErrorValue values that are not defined
+-- in this Standard. For consistency, numbering of the RoerErrorValue skips any value already
+-- defined in ISO/IEEE Std 11073-20101.
+RoerErrorValue ::= INTEGER {
+	-- no-such-object-instance is returned when referencing an illegal handle or when there
+	-- there is an attempt to access any object other than the MDS before the configuration
+	-- is agreed, i.e. Agent and Manager are not in the operating state.
+	no-such-object-instance(1),
+	-- no-such-action is returned when the action command is illegal
+	no-such-action(9),
+	-- invalid-object-instance is returned when object exists but the command
+	-- is illegal for that object type (e.g. Get on any object except MDS or PM-Store)
+	invalid-object-instance(17),
+	-- protocol-violation is returned when there has been a protocol violation (e.g. APDU
+	-- exceeds maximum size)
+	protocol-violation(23) ,
+	-- not-allowed-by-object is returned when an action is attempted on an object
+	-- but the object did not allow the action
+	-- The higher layer may report the reason for aborting the action as an OID-Type
+	-- in the parameter field using a return code taken from the return code partition
+	not-allowed-by-object(24),
+	-- action-timed-out is returned when an action is aborted before completion, when to
+	-- complete the action would exceed the currently defined timeout value.
+	-- The higher layer may report the reason for aborting the action as an OID-Type
+	-- in the parameter field using a return code taken from the return code partition
+	action-timed-out(25),
+	-- action-aborted is returned when an action has been aborted due to reasons in the
+	-- higher layers (e.g. storage capacity exceeded).
+	-- The higher layer may report the reason for aborting the action as an OID-Type
+	-- in the parameter field using a return code taken from the return code partition
+	action-aborted(26)
+} (0..65535)
+
+-- The RejectResult shall be used when a message is rejected.
+RejectResult ::= SEQUENCE {
+	problem	RorjProblem
+}
+
+-- All unassigned " RorjProblem " values are reserved for future expansion and shall not be used.
+RorjProblem ::= INTEGER {
+	-- unrecognized-apdu is returned if the DataApdu is unrecognized, 
+	unrecognized-apdu(0),
+	-- badly-structured-apdu is returned when the receiver is unable to 
+	-- understand the DataApdu due to its structure (or lack thereof)
+	-- (e.g. incorrect data lengths)
+	badly-structured-apdu(2),
+	-- unrecognized-operation is sent when the operation being requested
+	-- is not understood by the receiver
+	unrecognized-operation(101),
+	-- resource-limitation is sent when the receiver cannot handle the
+	-- message due to limited resources.
+	resource-limitation(103),
+	-- unexpected-error covers error conditions where there is not a
+	-- more specific error code defined
+	unexpected-error(303)
+} (0..65535)
+/*
+Event report service
+*/
+-- For event reports defined in this version, obj-handle shall either be 0 to represent the MDS object 
+-- or a handle representing a Scanner or PM-Store object.
+-- If the Agent does not support RelativeTime (as indicated by the mds-time-capab-relative-time
+-- bit in MdsTimeCapState), it shall set the event-time to 0xFFFFFFFF.  Managers shall
+-- ignore the event-time if the Agent reports that it does not support RelativeTime.
+-- For the event-types defined in , , , and  the 
+-- corresponding event-info structure shall be used.  Accordingly, event-info will be one of 
+-- ConfigReport, ScanReportInfoFixed, ScanReportInfoVar, ScanReportInfoMPFixed,
+-- ScanReportInfoMPVar, ScanReportInfoGrouped, ScanReportInfoMPGrouped,
+-- or SegmentDataEvent
+EventReportArgumentSimple ::= SEQUENCE {
+	obj-handle	HANDLE,
+	event-time	RelativeTime,
+	event-type	OID-Type, 	-- From the nom-part-obj partition
+			-- Sub-partition NOTI (MDC_NOTI_*)
+	event-info	ANY DEFINED BY event-type
+}
+
+-- For event reports defined in this version, obj-handle shall be either 0 to represent the MDS object 
+-- or a handle representing a Scanner or PM-Store object.
+-- The event-type of the result shall be a copy of the event-type from the invocation.
+-- For the event-types defined in , , , and , the corresponding 
+-- event-reply-info shall be used.  Accordingly event-reply-info will be empty, ConfigReportRsp,
+-- or SegmentDataResult.
+EventReportResultSimple ::= SEQUENCE {
+	obj-handle	HANDLE,
+	currentTime	RelativeTime,
+	event-type	OID-Type, 	-- From the nom-part-obj partition
+			-- Sub-partition NOTI (MDC_NOTI_*)
+	event-reply-info	ANY DEFINED BY event-type
+}
+
+/*
+Get service
+*/
+-- For GETs defined in this version, obj-handle shall either be 0 to represent the MDS object 
+-- or a handle representing a PM-Store object.
+-- The attribute-id-list shall be left empty to query for all attributes of the MDS or PM-Store object.
+-- Alternatively, specific attributes of an object may be queried by listing the desired
+-- Attribute IDs found in  or .
+GetArgumentSimple ::= SEQUENCE {
+	obj-handle	HANDLE,
+	attribute-id-list	AttributeIdList
+}
+
+-- For GETs defined in this version, obj-handle shall either be 0 to represent the MDS object
+-- or a handle representing a PM-Store object.
+-- The attribute-list contains all the requested attributes using the variable format.
+-- If a requested attribute ID does not exist within the MDS object, it shall not
+-- be returned in the attribute-list.
+GetResultSimple ::= SEQUENCE {
+	obj-handle	HANDLE,
+	attribute-list	AttributeList
+}
+
+TypeVerList ::= SEQUENCE OF TypeVer
+
+
+-- Since the type shall come from the ISO/IEEE Std 11073-10101 document, communication
+--  nom-part-infrastruct partition, sub-partition DEVspec, a simple OID-Type is used rather
+-- than a TYPE.
+-- The individual IEEE 11073-104zz specializations define which specification is classified
+-- as version 1, 2, …, and so on; thus, version 3 may correspond to specification version 1.5.
+TypeVer ::= SEQUENCE {
+	type	OID-Type,
+	version	INT-U16
+}
+
+/*
+Set service
+*/
+-- For SETs defined in this version, obj-handle shall be the value of a handle representing a Scanner object.
+SetArgumentSimple ::= SEQUENCE {
+	obj-handle	HANDLE,
+	modification-list	ModificationList
+}
+
+ModificationList ::= SEQUENCE OF AttributeModEntry
+
+AttributeModEntry ::= SEQUENCE {
+	modify-operator	ModifyOperator,
+	attribute	AVA-Type
+}
+
+-- All unassigned " ModifyOperator " values are reserved for future expansion and shall not be used.
+ModifyOperator ::= INTEGER {
+	replace(0),
+	addValues(1),            -- used for modifying the values contained in “list” like data types
+	removeValues(2),      -- used for modifying the values contained in “list” like data types
+	setToDefault(3)
+} (0..65535)
+
+--
+-- The obj-handle shall be set to the value received in the SetArgumentSimple
+-- The attribute-list shall contain each attribute-id that was modified and return
+-- the new value of the attribute.  Normally, this is the value from the Set
+-- command; however, it is possible that due to rounding conditions or an
+-- error condition that the returned value could differ from the requested value.
+SetResultSimple ::= SEQUENCE {
+	obj-handle	HANDLE,
+	attribute-list	AttributeList
+}
+
+/*
+Action service
+*/
+-- For actions defined in this version, obj-handle shall either be 0 to represent the MDS object or
+-- a handle representing a PM-Store object.
+-- For the action-types defined in  and  the corresponding action-info-args
+-- structures shall be used.  Accordingly action-info-args will be one of DataRequest, 
+-- SetTimeInvoke, SegmSelection, or TrigSegmDataXferReq
+ActionArgumentSimple ::= SEQUENCE {
+	obj-handle	HANDLE,
+	action-type	OID-Type, 	-- From the nom-part-obj partition
+			-- Sub-partition ACT (MDC_ACT_*)
+
+	action-info-args	ANY DEFINED BY action-type
+}
+
+-- For actions defined in this version, obj-handle shall either be 0 to represent the MDS object or
+-- a handle representing a PM-Store object.
+-- The action-type shall be copied from the invocation message action-type.
+-- For the action-types defined in  and  the resulting action-info-args
+-- shall be used.  Accordingly action-info-args will be empty, DataResponse, 
+-- SegmentInfoList, or TrigSegmDataXferRsp.
+ActionResultSimple ::= SEQUENCE {
+	obj-handle	HANDLE,
+	action-type	OID-Type, 	-- From the nom-part-obj partition
+			-- Sub-partition ACT (MDC_ACT_*)
+	action-info-args	ANY DEFINED BY action-type
+}
+
+
+/*
+Data types for new object attributes and object services
+General Data Types
+*/
+
+AttrValMap ::= SEQUENCE OF AttrValMapEntry
+
+AttrValMapEntry ::= SEQUENCE {
+	attribute-id	OID-Type,  -- This comes from the nom-part-obj partition
+	attribute-len	INT-U16
+}
+
+/*
+MDS related data types
+*/
+UuidIdent ::= OCTET STRING(SIZE(16))
+
+-- time-sync-accuracy allows an Agent to report how closely synchronized its clock is with
+-- respect to the clock sync master when time synchronization is used.
+MdsTimeInfo ::= SEQUENCE {
+	mds-time-cap-state 	MdsTimeCapState,
+	time-sync-protocol	TimeProtocolId,	-- this is a nomenclature code from 
+				-- nom-part-infrastruct partition
+	time-sync-accuracy	RelativeTime,	-- 0xFFFFFFFF if unknown
+				-- 0 if better than 1/8ms
+	time-resolution-abs-time	INT-U16,	-- Resolution of the Agent’s
+				-- absolute time clock. 
+				-- 0 if unknown, otherwise
+				-- the number of 1/100 seconds
+				-- that elapse with each clock 
+				-- increment.  For example, if an
+				-- Agent has a clock that clicks at
+				-- 1 second intervals, this value
+				-- would be 100.
+	time-resolution-rel-time	INT-U16,	-- Resolution of the Agent’s 
+				-- relative time clock.  0 if
+				-- unknown, otherwise the number
+				-- of 125 microseconds that elapse
+				-- with each clock increment.  For
+				-- example,  if an Agent has a clock
+				-- that clicks at 1 second intervals, 
+				-- this value would be 8000.
+	time-resolution-high-res-time	INT-U32	-- Resolution of the Agent’s
+				-- high resolution time clock.
+				-- 0 if unknown, otherwise the 
+				-- the number of microseconds
+				-- that elapse with each clock 
+				-- increment.  For example, if an
+				-- Agent has a clock that clicks
+				-- at 1 second intervals, this value
+				-- would be 1000000.
+}
+
+-- All unassigned " MdsTimeCapState " bit values are reserved for future expansion and shall be set to zero.
+MdsTimeCapState ::= BIT STRING {
+	mds-time-capab-real-time-clock(0),		-- device supports an internal RTC
+	mds-time-capab-set-clock(1),		-- device supports Set Time Action
+	mds-time-capab-relative-time(2),		-- device supports RelativeTime
+	mds-time-capab-high-res-relative-time(3),	-- device supports 
+				-- HighResRelativeTime
+	mds-time-capab-sync-abs-time(4),		-- device syncs AbsoluteTime
+	mds-time-capab-sync-rel-time(5),		-- device syncs RelativeTime
+	mds-time-capab-sync-hi-res-relative-time(6),	-- device syncs HiResRelativeTime
+	mds-time-state-abs-time-synced(8),		-- AbsoluteTime is synced
+	mds-time-state-rel-time-synced(9),		-- RelativeTime is synced
+	mds-time-state-hi-res-relative-time-synced(10),	-- HiResRelativeTime is synced
+	mds-time-mgr-set-time(11)		-- Manager is encouraged to 
+				-- set the time
+} (SIZE(16))
+
+-- ************
+-- A list of various regulatory and certification compliance items that the Agent claims adherence to.
+-- ************
+RegCertDataList ::= SEQUENCE OF RegCertData
+
+RegCertData ::= SEQUENCE {
+	auth-body-and-struc-type	AuthBodyAndStrucType,
+	auth-body-data		ANY DEFINED BY auth-body-and-struc-type
+}
+
+AuthBodyAndStrucType ::= SEQUENCE {
+	auth-body		AuthBody,
+	auth-body-struc-type	AuthBodyStrucType
+}
+
+-- All unassigned "AuthBody" values are reserved for future expansion and shall not be used.
+AuthBody ::= INTEGER {
+	auth-body-empty(0),
+	auth-body-ieee-11073(1),
+	auth-body-continua(2),
+	auth-body-experimental(254),
+	auth-body-reserved(255)
+} (0..255)
+
+--
+-- Some other possible/expected authoritative bodies
+-- auth-body-eu(),
+-- auth-body-ieee(),
+-- auth-body-iso(),
+-- auth-body-us-fda(),
+-- specific values will be assigned when a given authoritative body
+--      assigns its first AuthBodyStrucType for a specific
+--      auth-body-data.
+
+
+-- AuthBodyStrucType is controlled and assigned by the authoritative body
+AuthBodyStrucType ::= INT-U8
+
+/*
+Metric related data types
+*/
+--
+-- SupplementalTypeList provides an extensible mechanism to list additional information about an object.
+-- This can hold information such as the location of the sensor or the responsiveness of the object.
+--
+SupplementalTypeList ::= SEQUENCE OF TYPE
+
+--
+-- The Metric Spec Small attribute is an abbreviated MetricSpec attribute as defined in ISO/IEEE Std
+-- 11073-10201. It defines availability, periodicity and category of the measurement.
+-- If the metric corresponds to default values (no bits set) the attribute is not required.
+-- All unassigned " MetricSpecSmall " bit values are reserved for future expansion and shall be set to zero.
+--
+MetricSpecSmall ::= BIT STRING {
+	mss-avail-intermittent(0),	-- value is available only intermittently
+	mss-avail-stored-data(1),	-- Agent may store and send multiple historical
+			-- values (e.g. a weighing scale stores up
+			-- to 25 values)
+	mss-upd-aperiodic(2),	-- value is sent only aperiodically 
+			-- (e.g. when changed)
+	mss-msmt-aperiodic(3),	-- the measurement is aperiodic
+	mss-msmt-phys-ev-id(4),	-- the measurement is a physiological trigger only
+			-- (e.g. to mark the detection of a heart beat)
+	mss-msmt-btb-metric(5),	-- the measurement is beat-to-beat or breath-to-breath
+	mss-acc-manager-initiated (8),	-- the object value can be accessed by Manager-
+			-- initiated measurement data transmission
+	mss-acc-agent-initiated(9),	-- the object value is updated using Agent-initiated
+			-- measurement data transmission
+	-- NOTES regarding the usage of the following mss-cat-* bits
+	-- For automatically acquired measurements, neither the mss-cat-setting nor the 
+	-- mss-cat-calculation bits are set. The metric represents a normal, regular measured
+	-- value. This implies that for automatically acquired measurements provided by an
+	-- Agent none of the mss-cat-* bits are set (default)
+	mss-cat-manual(12),	-- if this bit is set, the metric is acquired manually
+			-- (e.g. a person manually entered the value).
+			-- If this bit is not set, the metric is acquired
+			-- automatically (e.g. the device measures the value)
+	mss-cat-setting(13),	-- If this bit is set, the metric represents a device 
+			-- setting.  This may be a manually or automatically 
+			-- set value, as reported by the mss-cat-manual bit.
+	mss-cat-calculation(14)	-- If this bit is set, the metric represents a calculated 
+			-- value. This may be a manually or automatically 
+			-- calculated value, as reported by the
+			-- mss-cat-manual bit.  Calculated values are
+			-- derived from automatically acquired measurements 
+			-- and / or manually entered values.
+} (SIZE(16))
+
+-- This attribute is partly inherited from ISO/IEEE Std 11073-10201, but enhanced by 
+-- value ms-struct::fix-comp-no.
+--
+MetricStructureSmall ::= SEQUENCE {
+ms-struct INTEGER {
+ms-struct-simple(0),
+ms-struct-compound(1),	-- multiple observed values,
+-- same dynamic context
+ms-struct-reserved(2), 	-- for ISO/IEEE Std 11073-10201
+ms-struct-compound-fix(3)	-- similar to compound(1) but the
+-- compound observed value array
+-- size shall not be dynamic
+-- during an association
+} (0..255),
+ms-comp-no INT-U8	-- maximum number of compoments/ elements in
+-- compound observed value, 0 if ms-struct is set to
+-- ms-struct-simple
+}
+
+-- This attribute defines a list of MetricIds.
+--
+MetricIdList ::= SEQUENCE OF OID-Type
+
+--
+-- The EnumPrintableString is the data type to report Enumeration Observed Values in the form of 
+-- ASCII printable strings.
+--
+EnumPrintableString ::= OCTET STRING	-- string size shall be even
+
+PersonId ::= INTEGER {
+	unknown-person-id(65535)	-- 0xFFFF
+} (0..65535)
+
+
+/*
+Scanner Related Data Types
+*/
+HandleAttrValMap ::= SEQUENCE OF HandleAttrValMapEntry
+
+HandleAttrValMapEntry ::= SEQUENCE {
+	obj-handle	HANDLE,
+	attr-val-map	AttrValMap
+}
+
+HANDLEList ::= SEQUENCE OF HANDLE
+/*
+MDS services
+*/
+-- The following definitions support the above definitions of EventReportArgumentSimple
+-- and ActionArgumentSimple.
+--
+-- The Scan Report Info types are utilized as the result data types for the various 
+-- MDS-Dynamic-Data-Update* family of events (see  for more detail).
+--
+
+-- The ScanReport* definitions are used when reporting information about measurements
+-- that were sampled.  There are two vectors: A) single person or multiple person and 
+-- B) variable format fixed format, or grouped format leading to the six top-level definitions:
+-- ScanReportInfoVar, ScanReportInfoFixed, ScanReportInfoGrouped, 
+-- ScanReportInfoMPVar, ScanReportInfoMPFixed, and ScanReportInfoMPGrouped. 
+-- The SEQUENCE OF ObservationScan or ObservationScanFixed may contain multiple instances
+-- of the same handle as long as there is a time stamp to distinguish between the instances.
+-- In all cases, scan-report-no shall be initialized to zero at association time and monotonically 
+-- increasing by one until roll-over occurs.
+------------------------------------------------------------------------------------------------------------------------
+ScanReportInfoVar ::= SEQUENCE {
+	data-req-id	DataReqId,
+	scan-report-no	INT-U16,	-- counter for detection of missing scan reports
+	obs-scan-var	SEQUENCE OF ObservationScan
+}
+
+------------------------------------------------------------------------------------------------------------------------
+ScanReportInfoFixed ::= SEQUENCE {
+	data-req-id	DataReqId,
+	scan-report-no	INT-U16,	-- counter for detection of missing scan reports
+	obs-scan-fixed	SEQUENCE OF ObservationScanFixed
+}
+
+ObservationScanFixed ::= SEQUENCE {
+	obj-handle	HANDLE,	-- unique identification of metric object
+	obs-val-data	OCTET STRING	-- observed value data defined by obj-handle
+}
+------------------------------------------------------------------------------------------------------------------------
+-- obs-scan-grouped is a SEQUENCE OF so episodic measurements can combine more than
+-- one report into a single scan report.  Periodic reports should not need to place more than one
+-- report in a single ScanReport.
+ScanReportInfoGrouped ::= SEQUENCE {
+	data-req-id	INT-U16,
+	scan-report-no	INT-U16,	-- counter for detection of missing scan reports
+	obs-scan-grouped  SEQUENCE OF ObservationScanGrouped
+}
+
+ObservationScanGrouped ::= OCTET STRING	-- The format is defined by HandleAttrValMap
+
+------------------------------------------------------------------------------------------------------------------------
+ScanReportInfoMPVar ::= SEQUENCE {
+	data-req-id	DataReqId,
+	scan-report-no	INT-U16,	-- counter for detection of missing scan reports
+	scan-per-var	SEQUENCE OF ScanReportPerVar
+}
+
+DataReqId ::= INTEGER {
+	data-req-id-manager-initiated-min(0),	-- 0x0000
+	data-req-id-manager-initiated-max(61439),	-- 0xEFFF
+	-- Values between data-req-id-manager-initiated-min and
+	-- data-req-id-manager-initiated-max, inclusive, shall be used in 
+	-- Manager-initiated measurement data transmission.
+	--
+	data-req-id-agent-initiated(61440) 		-- 0xF000
+	-- data-req-id-agent-initiated shall be used in Agent-initiated measurement
+	-- data transmission.
+	--
+	-- Values between 0xF001 and 0xFFFF, inclusive, are reserved.
+}  (0..65535)
+
+--
+-- The value used for person-id is vendor determined (i.e. if an Agent has two buttons
+-- to distinguish between two people, the Agent may use id 1 and 2 or 35 and 97).
+-- The process of mapping this id to a specific person is outside the scope of this
+-- Standard.
+--
+ScanReportPerVar ::= SEQUENCE {
+	person-id	PersonId,
+	obs-scan-var	SEQUENCE OF ObservationScan
+}
+
+------------------------------------------------------------------------------------------------------------------------
+ScanReportInfoMPFixed ::= SEQUENCE {
+	data-req-id	DataReqId,
+	scan-report-no	INT-U16,	-- counter for detection of missing scan reports
+	scan-per-fixed	SEQUENCE OF ScanReportPerFixed
+}
+
+ScanReportPerFixed ::= SEQUENCE {
+	person-id	PersonId,
+	obs-scan-fixed	SEQUENCE OF ObservationScanFixed
+}
+
+------------------------------------------------------------------------------------------------------------------------
+ScanReportInfoMPGrouped ::= SEQUENCE {
+	data-req-id	INT-U16,
+	scan-report-no	INT-U16,	-- counter for detection of missing scan reports
+	scan-per-grouped	SEQUENCE OF ScanReportPerGrouped
+
+}
+
+ScanReportPerGrouped ::= SEQUENCE {
+	person-id	PersonId,
+	obs-scan-grouped  ObservationScanGrouped
+}
+
+------------------------------------------------------------------------------------------------------------------------
+-- The ConfigReport definition is used when reporting an Agent’s configuration to a Manager (see
+-- )
+ConfigReport ::= SEQUENCE {
+	config-report-id	ConfigId,
+	config-obj-list	ConfigObjectList
+}
+
+ConfigObjectList ::= SEQUENCE OF ConfigObject
+
+ConfigObject ::= SEQUENCE {
+	obj-class	OID-Type, 	-- From the nom-part-obj partition
+			-- Sub-partition MOC/BASE (MDC_MOC_VMD_*)
+	obj-handle 	HANDLE,
+	attributes 	AttributeList
+}
+
+ConfigReportRsp ::= SEQUENCE {
+	config-report-id	ConfigId,
+	config-result	ConfigResult
+}
+
+-- All unassigned " ConfigResult " values are reserved for future expansion and shall not be used.
+ConfigResult ::= INTEGER {
+	accepted-config(0),
+	unsupported-config(1),
+	standard-config-unknown(2)
+}  (0..65535)
+
+DataRequest ::= SEQUENCE {
+	data-req-id		DataReqId,	-- Allows differentiation of
+				-- responses for multiple data
+				-- requests (if the
+				-- device allows for multiple
+				-- simultaneous data requests).
+				-- Mirrored back in
+				-- ScanReportInfo* data-req-id
+	data-req-mode		DataReqMode,	-- Defines the mode by setting one
+				-- or more bits.
+	data-req-time		RelativeTime,	-- Tells how long the Agent is
+				-- allowed to transmit data.
+				-- This is only used for
+				-- data-req-mode-time-period.
+	data-req-person-id	INT-U16,	-- 0xFFFF all persons available
+	data-req-class		OID-Type, 	-- From the nom-part-obj
+				-- partition Sub-partition
+				-- MOC/BASE 
+				-- (MDC_MOC_VMD_*)
+	data-req-obj-handle-list	HANDLEList
+}
+
+-- All unassigned " DataReqMode " bit values are reserved for future expansion and shall be set to zero.
+DataReqMode ::= BIT STRING {
+	data-req-start-stop(0),	-- start data request: 1 | stop data request: 0
+	data-req-continuation(1),	-- continuation of a timed data request.
+			-- Set to 1 to extend the time allocated to a data
+			-- transfer.  If this is set to 1, all other bits shall
+			-- be ignored and the settings from the initial
+			-- start command shall be used.
+	-- exactly one of the following data-req-scope-* bits shall be set
+	data-req-scope-all(4),	
+	data-req-scope-class(5),
+	data-req-scope-handle(6),
+	-- exactly one of the following data-req-mode-* bits shall be set
+	data-req-mode-single-rsp(8),	-- response is directly embedded in DataResponse
+	data-req-mode-time-period(9),	-- time limited data request with
+			-- responses as event reports.  The time period
+			-- is specified in data-req-time in DataRequest.
+	data-req-mode-time-no-limit(10),	-- time unlimited data request with
+			-- responses as event reports
+	data-req-person-id(12)
+} (SIZE(16))
+
+DataReqModeCapab ::= SEQUENCE {
+	data-req-mode-flags	DataReqModeFlags,
+	data-req-init-agent-count INT-U8,	-- maximum number of parallel Agent initiated
+			-- data requests/ flows.  Shall currently only be
+			-- set to 0 or 1.
+	data-req-init-manager-count INT-U8 -- maximum number of parallel Manager 
+			-- initiated data requests
+}
+
+-- All unassigned " DataReqModeFlags " bit values are reserved for future expansion and 
+-- shall be set to zero.
+DataReqModeFlags ::= BIT STRING {		-- this field is used in the association to flag
+			-- data request capabilities
+	data-req-supp-stop(0),	-- supports stopping a running data request
+	data-req-supp-scope-all(4),	-- supports requesting all objects
+	data-req-supp-scope-class(5),	-- supports requesting objects based on object class
+	data-req-supp-scope-handle(6),	-- supports requesting objects based on object handle
+	data-req-supp-mode-single-rsp(8),	-- supports single response
+	data-req-supp-mode-time-period(9), -- supports time limited data request
+	data-req-supp-mode-time-no-limit(10), -- supports time unlimited data request
+	data-req-supp-person-id(11),
+data-req-supp-init-agent(15)	-- Agent uses Agent initiated data requests/flows
+} (SIZE(16))
+
+-- DataResponse is returned as a result of an MDS-Data-Request (see ).  However, the event-type
+-- and event-info fields are filled in using the same parameters as found in MDS object events.  See  
+-- for the legal event-type values and the corresponding event-info
+-- structure; however, for this usage, ConfigReport shall not be used.  Thus, event-info is 
+-- one of ScanReportInfoFixed, ScanReportInfoVar, ScanReportInfoMPFixed, ScanReportInfoMPVar
+DataResponse ::= SEQUENCE {
+	rel-time-stamp	RelativeTime,	-- set to 0xFFFFFFFF if RelativeTime not supported 
+	data-req-result	DataReqResult,
+	event-type	OID-Type,	-- event-type and event-info are only
+			-- in case of data-req-mode-single-rsp,
+			-- otherwise event-type shall be 0 and
+			-- event-info.length = 0
+			-- From the nom-part-obj partition
+			-- Sub-partition NOTI (MDC_NOTI_*)
+	event-info	ANY DEFINED BY event-type
+}
+
+-- The values in DataReqResult are used in a DataResponse data-req-result field.  This is returned
+-- in response to a DataRequest.  The Agent shall return data-req-result-no-error if the request
+-- was successful.  Otherwise, one of the defined errors shall be returned.
+-- All unassigned " DataReqResult " values are reserved for future expansion and shall not be used.
+DataReqResult ::= INTEGER {
+	data-req-result-no-error(0),
+	data-req-result-unspecific-error(1),
+	-- The following error codes are returned when the Manager request contains
+	-- a DataReqMode that is not supported by the Agent.
+	data-req-result-no-stop-support(2),
+	data-req-result-no-scope-all-support(3),
+	data-req-result-no-scope-class-support(4),
+	data-req-result-no-scope-handle-support(5),
+	data-req-result-no-mode-single-rsp-support(6),
+	data-req-result-no-mode-time-period-support(7),
+	data-req-result-no-mode-time-no-limit-support(8),
+	data-req-result-no-person-id-support(9),
+	-- The following error codes are returned when the Manager request contains
+	-- unknown values in the supporting fields (e.g. data-req-person-id)
+	data-req-result-unknown-person-id(11),
+	data-req-result-unknown-class(12),
+	data-req-result-unknown-handle(13),
+	-- The following note a condition where the Manager set more than one of the
+	-- scope or mode bits.
+	data-req-result-unsupp-scope(14),	-- unsupported scope bits set
+	data-req-result-unsupp-mode(15),	-- unsupported mode bits set
+
+data-req-result-init-manager-overflow(16),	-- Manager has tried to establish more than
+	-- data-req-init-manager-count flows
+data-req-result-continuation-not-supported(17), -- Manager has attempted to continue
+	-- a data transfer that is not running in
+	-- timed mode
+data-req-result-invalid-req-id(18)	-- Manager has attempted to continue
+	-- a data transfer on a non-existant 
+	-- data-req-id.  
+}  (0..65535)
+
+/*
+Scanner Services
+See A.11.5 for MDS Services type definitions which are re-used for the Scanner Services, namely
+
+ScanReportInfoVar
+ScanReportInfoFixed
+ScanReportInfoGrouped
+ScanReportInfoMPVar
+ScanReportInfoMPFixed
+ScanReportInfoMPGrouped
+Numeric related data types
+*/
+
+-- A simple numeric observed value is represented just by the floating point value
+-- 
+SimpleNuObsValue ::= FLOAT-Type
+
+-- A list type of SimpleNuObsValue
+--
+SimpleNuObsValueCmp ::= SEQUENCE OF SimpleNuObsValue
+
+-- In many cases, the basic numeric observed value can be expressed with a smaller floating point value
+--
+BasicNuObsValue ::= SFLOAT-Type
+
+-- A list type of BasicNuObsValue	
+--
+BasicNuObsValueCmp ::= SEQUENCE OF BasicNuObsValue
+/*
+PM-Store and PM-Segment related data types
+*/
+--
+-- The PM-Store-Capab attribute defines specific static capabilities and properties of the PM-Store object
+-- instance. The default value of this attribute is 0 (no bits set).
+-- All unassigned " PmStoreCapab " bit values are reserved for future expansion and shall be set to zero.
+--
+PmStoreCapab ::=BIT STRING {
+	pmsc-var-no-of-segm(0),	-- indicates that the number of PM-Segments
+			-- contained in this PM-Store is dynamic and may
+			--  change
+	pmsc-epi-seg-entries(4),	-- Some/ all PM-Segments contain 
+			-- episodic/ aperiodic entries and therefore have
+			-- to contain explicit time stamp information
+	pmsc-peri-seg-entries(5),	-- Some/ all PM-Segments contain periodically
+			-- sampled entries and therefore the PM-Segment
+			-- or PM-Store shall support the
+			-- Sample-Period attribute
+	pmsc-abs-time-select(6),	-- PM-Segments in the SegmSelection data type can
+ 			-- be selected by defining an abs-time-range
+	pmsc-clear-segm-by-list-sup(7),	-- clearing a list of segments is supported
+	pmsc-clear-segm-by-time-sup(8),	-- clearing segments by time range is supported
+	pmsc-clear-segm-remove(9), 	-- if this bit is set, the Agent will completely remove 
+			-- the specified PM-Segment instance as part of the 
+			-- Clear-Segment method. If this bit is not set, it will 
+			-- just remove all entries from the specified 
+			-- PM-Segment.
+	pmsc-multi-person(12)	-- The PM-Store supports PM-Segment for more 
+			-- than one person 
+} (SIZE(16))
+
+--
+-- All entries in the segment shall follow the format defined by this attribute.  First, the optional header 
+-- shall follow the description in segm-entry-header. This allows each entry in the segment to be preceded
+-- by an optional header (e.g. for time stamp information) that is applicable to all elements in an entry.    
+-- Next, the elements shall follow the format and order described in segm-entry-elem-list.  
+-- An element typically represents a measurement.  For each element, the stored data is defined in the form
+-- of an attribute value map, in the same way as metric objects.
+--
+PmSegmentEntryMap ::= SEQUENCE {
+	segm-entry-header	SegmEntryHeader,	-- defines optional elements in front
+				-- of each entry
+	segm-entry-elem-list	SegmEntryElemList
+}
+
+--
+-- The following bit string defines optional data items that are in front of each segment entry.
+-- Multiple data items are definable. In this case, the data item with the lower bit number shall come
+-- in front of items with higher bit numbers. The header allows definition of data items that are common
+-- to all elements in the entry.  If all bits are zero, the segment entry event report shall begin with data 
+-- from the first element.
+-- All unassigned " SegmEntryHeader " bit values are reserved for future expansion and shall be set to zero.
+-- If any bits are set to one beyond the expected bits (e.g. a new bit was added in a later version),
+-- the data shall not be retrieved since the offset to the first data element cannot be calculated.
+--
+SegmEntryHeader ::= BIT STRING {
+	seg-elem-hdr-absolute-time(0),	-- entry preceded by absolute time 
+			-- (data type AbsoluteTime)
+	seg-elem-hdr-relative-time(1), 	-- entry preceded by relative time
+			-- (data type RelativeTime)
+	seg-elem-hdr-hires-relative-time(2) -- entry preceded by high resolution relative time
+			-- (data type HighResRelativeTime)
+} (SIZE(16))
+
+SegmEntryElemList ::= SEQUENCE OF SegmEntryElem
+
+--
+-- SegmEntryElem shall reference a Metric object instance in the Agent configuration 
+-- using its Handle value.  This referenced object shall exist in the Agent
+-- configuration and the metric-type and class-id shall be equal to the corresponding attributes of the
+-- referenced Metric object.
+--
+SegmEntryElem ::= SEQUENCE {
+	class-id	OID-Type,	-- contains nomenclature code from OO nom-part-obj 
+			-- partition defining the object class (e.g. Numeric)
+	metric-type	TYPE,	--specific static TYPE of the stored element 
+	handle	HANDLE,	-- handle of referenced object
+	attr-val-map	AttrValMap	-- attribute value map describing the stored data
+}
+
+--
+-- Request to start the transfer of the specified segment
+--
+TrigSegmDataXferReq ::= SEQUENCE {
+	seg-inst-no	InstNumber 
+}
+
+TrigSegmDataXferRsp ::= SEQUENCE {
+ 	seg-inst-no	InstNumber,
+	trig-segm-xfer-rsp	TrigSegmXferRsp 
+}
+
+-- All unassigned " TrigSegmXferRsp " values are reserved for future expansion and shall not be used.
+TrigSegmXferRsp ::= INTEGER {
+	tsxr-successful(0),	-- Agent will start transfer of segment
+	tsxr-fail-no-such-segment(1), 	-- segment ID not found
+	tsxr-fail-clear-in-process(2),	-- the storage media is currently being cleared. No
+-- access is currently possible.
+	tsxr-fail-segm-empty(3),	-- the segment being requested is empty 
+	tsxr-fail-not-otherwise-specified(512)
+}  (0..65535)
+
+
+--
+-- the SegmentDataEvent
+--
+-- Notes:
+--     - the Agent shall transfer all segment entries in order, first entry first (first in first out). 
+--
+ 
+SegmentDataEvent ::= SEQUENCE {
+	segm-data-event-descr	SegmDataEventDescr,
+	segm-data-event-entries	OCTET STRING	-- contains the specified segment
+			-- entries in an opaque data structure.
+			-- Only complete entries shall be
+			-- included in this field. 
+}
+
+SegmentDataResult ::= SEQUENCE {
+	segm-data-event-descr	SegmDataEventDescr
+}
+
+--
+-- The Segment Data Event Descriptor defines which entries of the Segment Data are communicated in the
+-- Event message
+--
+SegmDataEventDescr ::= SEQUENCE {
+	segm-instance	InstNumber,	-- instance number of segment being transferred
+	segm-evt-entry-index	INT-U32,	-- array index of the first entry in this event
+	segm-evt-entry-count	INT-U32,	-- count of entries in this event
+	segm-evt-status	SegmEvtStatus
+}
+
+-- All unassigned " SegmEvtStatus " bit values are reserved for future expansion and shall be set to zero.
+SegmEvtStatus ::= BIT STRING {
+	sevtsta-first-entry(0),	-- this event contains the first segment entry 
+	sevtsta-last-entry(1),	-- this event contains the last segment entry (both first 
+			-- and last bits can be set if all entries fit in one event)
+	sevtsta-agent-abort(4),	-- transfer aborted by Agent (Manager shall reply
+			-- with the same status)
+	sevtsta-manager-confirm(8),	-- set in reply if segment was received correctly (if
+			-- not set in reply, Agent shall repeat the last event)
+	sevtsta-manager-abort(12)	-- sent in reply by Manager, Agent shall stop sending
+			-- messages)
+} (SIZE(16))
+ 
+SegmentStatistics ::= SEQUENCE OF SegmentStatisticEntry
+
+SegmentStatisticEntry ::= SEQUENCE {
+	segm-stat-type	SegmStatType,
+	segm-stat-entry	OCTET STRING	-- this attribute contains one segment entry in the 
+			-- format defined by the PmSegmentEntryMap
+}
+
+-- All unassigned " SegmStatType " values are reserved for future expansion and shall not be used.
+-- Values from 0xF000 to 0xFFFF are reserved for manufacturer-specific extensions.
+SegmStatType ::= INTEGER {
+	segm-stat-type-undefined (0),
+	segm-stat-type-minimum(1),
+	segm-stat-type-maximum(2),
+	segm-stat-type-average(3)
+}  (0..65535)
+
+
+END

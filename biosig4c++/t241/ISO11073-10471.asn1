@@ -1,0 +1,168 @@
+/*
+
+ASN.1 specification of IEEE Std 11073-10471-2008
+Health Informatics—Personal health device communication
+Part 10471: Device specialization—Independent living activity hub
+
+The info was manually extracted. 
+
+
+    $Id$
+    Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
+    This file is part of BioSig http://biosig.sf.net/ 
+
+    BioSig is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 3
+    of the License, or (at your option) any later version.
+
+*/
+
+
+ModuleTest DEFINITIONS ::=
+BEGIN 
+
+-- All unassigned "SensorHealthFlags" bit values are reserved for future expansion and
+-- shall be reset.
+-- Zero or more flags may be set.
+SensorHealthFlags ::= BIT STRING { -- this field is used in the activity data events
+	-- to report sensor health
+	auto-presence-received(16), -- For sensors that have “heartbeat” operational status:
+	-- indicates that the “heartbeat” has been seen and is ok.
+	-- This flag may not be set if auto-presence-failed is set.
+	auto-presence-failed(17), -- For sensors that have “heartbeat” operational status:
+	-- indicates that the “heartbeat” has not been seen as expected.
+	-- This flag may not be set if auto-presence-received is set.
+	low-battery(18), -- Indicates the sensor is in the low battery condition.
+	-- This determination is unique to the sensor.
+	fault(19), -- Indicates that the sensor is in a fault condition and needs attention.
+	-- This determination is unique to the sensor.
+	end-of-life(20) -- Indicates that the sensor has reached end of life.
+	-- This indication is unique to the sensor.
+} (SIZE(32))
+
+-- All unassigned "FallSensorFlags" bit values are reserved for future expansion and
+-- shall be reset.
+-- Only one flag can be set at a time.
+FallSensorFlags::= BIT STRING { -- this field is used in the fall sensor activity data events
+	fall-detected(0) -- indicates that a fall has been detected
+} (SIZE(32))
+
+-- All unassigned "PersSensorFlags" bit values are reserved for future expansion and
+-- shall be reset .
+-- Only one flag can be set at a time.
+PersSensorFlags::= BIT STRING { -- this field is used in the PERS sensor activity data events
+	pers-activated(0) -- indicates that a PERS event has been detected
+} (SIZE(32))
+
+-- All unassigned "EnvironmentalSensorFlags" bit values are reserved for future expansion and
+-- shall be reset.
+-- Only one flag can be set at a time.
+EnvironmentalSensorFlags::= BIT STRING {-- this field is used in the environmental sensor activity data events
+	condition-detected(0) -- indicates that an environmental event has been detected
+}(SIZE(32))
+
+-- All unassigned "MotionSensorFlags" bit values are reserved for future expansion and
+-- shall be reset.
+-- Only one motion flag can be set at a time.
+-- The tamper flag may be additionally set at any time.
+MotionSensorFlags::= BIT STRING { -- this field is used in the motion sensor activity data events
+	motion-detected(0), -- indicates that a motion event has been detected
+	motion-detected-delayed(1), -- indicates that a motion with delay event has been
+	-- detected
+	tamper-detected(2) -- indicates that a tamper event has been detected
+} (SIZE(32))
+
+-- All unassigned "PropertyExitSensorFlags" bit values are reserved for future expansion and
+-- shall be reset.
+-- Only one flag can be set at a time.
+PropertyExitSensorFlags::= BIT STRING {-- this field is used in the property exit sensor activity data events
+	occupant-exit-property(0), -- indicates that an occupant exit event has been detected
+	exit-door-left-open(1) -- indicates that an exit door left open event has been detected
+} (SIZE(32))
+
+-- All unassigned "EnuresisSensorFlags" bit values are reserved for future expansion and
+-- shall be reset.
+-- Only one flag can be set at a time.
+EnuresisSensorFlags::= BIT STRING {-- this field is used in the enuresis sensor activity data events
+	enuresis-detected(0) -- indicates that an enuresis event has been detected
+} (SIZE(32))
+
+-- All unassigned "ContactClosureSensorFlags" bit values are reserved for future expansion and
+-- shall be reset.
+-- Only one flag can be set at a time.
+ContactClosureSensorFlags::= BIT STRING {-- this field is used in the door use sensor activity data events
+	contact-opened(0), -- indicates that a door open event has been detected
+	contact-closed(1) -- indicates that a door close event has been detected
+} (SIZE(32))
+
+-- All unassigned "UsageSensorFlags" bit values are reserved for future expansion and
+-- shall be reset.
+-- Only one flag can be set at a time.
+UsageSensorFlags::= BIT STRING {-- this field is used in the usage sensor (bed/chair) activity data events
+	usage-started(0), -- indicates that a usage started event has been detected
+	usage-ended(1), -- indicates that a usage ended event has been detected
+	expected-use-start-violation(2), -- indicates that an expected use start violation event
+	-- has been detected
+	expected-use-stop-violation(3), -- indicates that an expected use stop violation event
+	-- has been detected
+	absence-violation(4) -- indicates that an absence violation event has been detected
+} (SIZE(32))
+
+-- All unassigned "SwitchSensorFlags" bit values are reserved for future expansion and
+-- shall be reset.
+-- Only one flag can be set at a time.
+SwitchSensorFlags::= BIT STRING { -- this field is used in the switch sensor activity data events
+	switch-on(0), -- indicates that a switch on event has been detected
+	switch-off(1) -- indicates that a switch off event has been detected
+} (SIZE(32))
+
+-- All unassigned "MedDosageSensorFlags" bit values are reserved for future expansion and
+-- shall be reset.
+-- Only one flag can be set at a time.
+MedDosageSensorFlags::= BIT STRING {-- this field is used in the dosage sensor activity data events
+	dosage-taken(0), -- indicates the med dosage was taken
+	dosage-missed(1) -- indicates the med dosage was not taken when expected
+} (SIZE(32)) 
+
+-- All unassigned "TemperatureSensorFlags" bit values are reserved for future expansion and
+-- shall be reset.
+-- Only one flag can be set at a time.
+TemperatureSensorFlags::= BIT STRING {-- this field is used in the temperature sensor activity data events
+	high-temperature-detected(0), -- indicates that a high temperature event has been detected
+	low-temperature-detected(1), -- indicates that a low temperature event has been detected
+	rate-of-change-too-fast(2) -- indicates that a rate of change too fast event
+-- has been detected
+} (SIZE(32))
+
+
+--All unassigned “StatusFlags” bit values are reserved for future expansion and shall be reset.
+--One or more flags may be set.
+StatusFlags ::=BIT STRING { -- this field is used to report medication monitor exceptions
+	not-dispensed-as-expected(0), --a medication dosage was not dispensed within the
+	--regimen allowed timing
+	dispensed-unexpectedly(1), --a medication was dispensed outside the regimen allowed
+	--timing
+	medication-unfit(2), --the medication monitor has determined that the medication
+	--has become unfit
+	tamper(3), --the medication monitor has detected tampering
+	environmental-exceeded-high(4), --the medication monitor has determined that the
+	--environment has exceeded the safe high levels
+	environmental-exceeded-low(5), --the medication monitor has determined that the
+	--environment has exceeded the safe low levels
+	medication-expiration(6), --the medication monitor has determined that the
+	--medication has expired
+	non-compliant-amber(7), --the non-compliant percentage is in the amber range
+	--(coaching may be required)
+	non-compliant-red(8), --the non-compliant percentage is in the red range
+	--(intervention needed)
+	medication-course-complete(9), --all the medication for the current course has
+	--been dispensed
+	medication-taken-incorrectly(10), --the medication monitor has determined that
+	--the medication is being taken incorrectly
+	client-side-effects(11) --the medication monitor has determined that the client
+	--is suffering side effects
+} (SIZE(32))
+
+
+END
