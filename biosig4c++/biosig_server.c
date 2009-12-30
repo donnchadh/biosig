@@ -41,7 +41,7 @@ void sopen_trc_read(HDRTYPE *hdr);
 void sopen_pdp_read(HDRTYPE *hdr);
 #endif
 
-char *LOGFILE = "/tmp/biosig/biosigd.log";
+const char *LOGFILE = "/tmp/biosig/biosigd.log";
 
 /* 
 	Key ID table and related functions 
@@ -323,7 +323,7 @@ void DoJob(int ns)
 if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR: c=%i,LEN=%i\n",count,LEN);				
 					count += recv(ns, hdr->AS.Header+count, LEN-count, 0);
 				}
-if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR: LEN=%i\n",LEN,count);				
+if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR: c=%i,LEN=%i\n",count,LEN);				
 
 				hdr->TYPE = GDF; 
 				hdr->FLAG.ANONYMOUS = 1; 	// do not store name 
@@ -635,16 +635,16 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
         				{
 #endif
 					sopen(f2,"r",hdr);
-					if (status=serror()) 
+					if ((status=serror())) 
 					        errcode = 11;
 					
 					else {
 						count = sread(NULL,0,hdr->NRec,hdr);
-						if (status=serror()) 
+						if ((status=serror())) 
 							errcode = 12;
 						
 						sclose(hdr);
-						if (status=serror()) 
+						if ((status=serror())) 
 							errcode = 13;
 						
 					}
@@ -658,15 +658,15 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"SND HDR RPLY: %08x\n",msg.STATE);
 					hdr->TYPE = GDF;
 					hdr->VERSION = 2; 
 					sopen(fullfilename,"w",hdr);
-					if (status=serror()) {
+					if ((status=serror())) {
 						errcode = 21;
 					} else {
 						//count = swrite(hdr->data.block, hdr->NRec, hdr);
 						ifwrite(hdr->AS.rawdata,hdr->AS.bpb,hdr->NRec,hdr);
-						if (status=serror())
+						if ((status=serror()))
 							errcode = 22;
 						sclose(hdr);
-						if (status=serror())
+						if ((status=serror()))
 							errcode = 23;
 					}	
 				}
