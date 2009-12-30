@@ -275,7 +275,7 @@ win32/libz.a: win32/zlib/lib/libz.a
 
 win32/libbiosig.lib: $(MinGWOBJECTS)  
 	-$(DELETE) win32/libbiosig.lib
-	i586-mingw32msvc-$(AR) win32/libbiosig.lib $(MinGWOBJECTS) t240/*.obj
+	i586-mingw32msvc-$(AR) win32/libbiosig.lib $(MinGWOBJECTS) 
 
 win32/libcnsfef.a:	
 	make -C t240 ../win32/libcnsfef.a
