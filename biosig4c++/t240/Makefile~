@@ -327,7 +327,7 @@ OBJS=${ASN_MODULE_SOURCES:.c=.o} ${ASN_CONVERTER_SOURCES:.c=.o}
 WINOBJS=${ASN_MODULE_SOURCES:.c=.obj} ${ASN_CONVERTER_SOURCES:.c=.obj}
 
 AR    = ar crs
-MinGWCC = i586-mingw32msvc-gcc 
+MinGWCC = /home/as/src/mingw-cross-env/usr/bin/i686-pc-mingw32-gcc 
 
 all: $(TARGET)
 
