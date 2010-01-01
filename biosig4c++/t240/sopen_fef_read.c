@@ -281,7 +281,7 @@ if (VERBOSE_LEVEL>8) {
 			
 			// TODO: 				
 		      	hc->LeadIdCode= 0;
-	      		strcpy(hc->Transducer, "EEG: Ag-AgCl electrodes");
+	      		strcpy(hc->Transducer, "");
 		      	hc->bi 	      = 0;
 	      		hc->OnOff     = 1;
 	      		hc->Notch     = -1;
