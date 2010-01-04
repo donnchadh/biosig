@@ -1,1 +1,0 @@
-/usr/share/asn1c/INTEGER.c
