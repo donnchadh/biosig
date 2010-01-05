@@ -61,8 +61,7 @@ EXTERN_C void sopen_fef_read(HDRTYPE* hdr) {
 	double val; 
 
 
-if (VERBOSE_LEVEL>7) 
-	fprintf(stdout,"ASN1: BER DECODING\n");
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"ASN1: BER DECODING\n");
 	
 	size_t pos =32;	
 	rval = ber_decode(0, pduType, (void **)&SAS, hdr->AS.Header+32, hdr->HeadLen-32);
@@ -86,8 +85,7 @@ fprintf(stdout,"%i/%i\n",pos,hdr->HeadLen);
 		pos += rval.consumed;
 	}
 */
-if (VERBOSE_LEVEL>7) 
-	fprintf(stdout,"%i/%i\nASN1: BER DECODING DONE\n",pos,hdr->HeadLen);
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"%i/%i\nASN1: BER DECODING DONE\n",pos,hdr->HeadLen);
 
 if (VERBOSE_LEVEL>8) {
 //	asn_fprint(stdout, &asn_DEF_SessionArchiveSection, SAS);
@@ -134,7 +132,7 @@ if (VERBOSE_LEVEL>8) {
 
 //	asn_fprint(stdout, &asn_DEF_SessionTestSection, SAS->sessions.list.array[0]);
 //		asn_fprint(stdout, &asn_DEF_SessionTestSection, SAS->sessions.list.array[k]);
-	fprintf(stdout,"Number of TestSections %i\n",SAS->sessions.list.count);
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"Number of TestSections %i\n",SAS->sessions.list.count);
 
 	size_t N = SAS->sessions.list.count; 
 	if (N>1) { 
@@ -203,7 +201,7 @@ if (VERBOSE_LEVEL>8) {
 			unsigned n=0, d=0;
 			asn_INTEGER2long(&RTSADDS->sampleperiod.denominator,&d);
 			asn_INTEGER2long(&RTSADDS->sampleperiod.numerator,&n);
-			fprintf(stdout,"#%i: %li %li\n",k,n,d);
+			if (VERBOSE_LEVEL>7) fprintf(stdout,"#%i: %li %li\n",k,n,d);
 			if (n && d) {
 				FsN = lcm(FsN,n);
 				FsD = lcm(FsD,d);
@@ -291,13 +289,13 @@ if (VERBOSE_LEVEL>8) {
 		      	hc->XYZ[2] 	= 0.0;
 	}
 	size_t d = gcd(FsD,FsN);
-	fprintf(stdout,"Fs=%i/%i\n",FsN,FsD);
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"Fs=%i/%i\n",FsN,FsD);
 	hdr->SampleRate = ((double)(FsD/d))/((double)(FsN/d));
 	hdr->SPR = FsD;
 
 	/************** Measured Data Section MeasDS ***********************/
 	N = SPS->measureddata.list.count;
-	fprintf(stdout,"Number of MeasuredData %i\n",N);
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"Number of MeasuredData %i\n",N);
 //	asn_fprint(stdout, &asn_DEF_SessionPhaseSection, SPS);
 	
 	for (k=0; k<N; k++) 
@@ -320,8 +318,9 @@ if (VERBOSE_LEVEL>8) {
 			asn_INTEGER2long(&RTSAMDS->subblocklength.denominator,&d);
 			asn_INTEGER2long(&RTSAMDS->subblocksize,&spr);
 
-			// &RTSAMDS->metriclist // 
-			fprintf(stdout,"%i blk: %i   #subblocks:%i subblocklength:%i/%i subblocksize:%i size:%i \n",n2,k,nrec,n,d,spr,RTSAMDS->data.size);
+			// &RTSAMDS->metriclist //
+			if (VERBOSE_LEVEL>7) 
+				fprintf(stdout,"%i blk: %i   #subblocks:%i subblocklength:%i/%i subblocksize:%i size:%i \n",n2,k,nrec,n,d,spr,RTSAMDS->data.size);
 			//RTSAMDS->data->buf
 			//RTSAMDS->data.size
 			
@@ -342,6 +341,7 @@ if (VERBOSE_LEVEL>8) {
  	 
  	 
 	/****** Notes Section information SNS **********************************/	
+	if (VERBOSE_LEVEL>7)
 	for (k=0; k<SAS->notes->list.count; k++) {
 		asn_fprint(stdout, &asn_DEF_SessionNotesSection, SAS->notes->list.array[k++]);
 	}
