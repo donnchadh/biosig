@@ -320,13 +320,16 @@ elseif strmatch(HDR.TYPE,{'BLSC2','CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Ni
 	S = []; count = 0;
 	while maxsamples>0,
     		[s,c] = fread(HDR.FILE.FID, [HDR.NS+tc,min(2^20/HDR.NS,maxsamples)], DT);
-		count = count + c;
-		maxsamples = maxsamples - c/(HDR.NS+tc);
+		count = count + c/(HDR.NS+tc);
+		maxsamples = maxsamples - c;
         	if c>0,
             		S = [S; s(HDR.InChanSelect+tc,:)'];
+            	else 
+		        fprintf(HDR.FILE.stderr,'Warning SREAD(%s): could not read %i samples, only %i samples read\n',HDR.TYPE,maxsamples+count,count);
+            		break; 	
     		end;
         end;
-	HDR.FILE.POS = HDR.FILE.POS + count/HDR.NS;
+	HDR.FILE.POS = HDR.FILE.POS + count;
 
 
 elseif strcmp(HDR.TYPE,'EPL'),
