@@ -1218,6 +1218,10 @@ end;
                 if ~isfield(HDR,'SampleRate')
                         HDR.SampleRate = NaN;
                 end;
+		if ~isnan(HDR.Dur) && ~isnan(HDR.SampleRate) && ~isfield(HDR,'SPR'),
+                	HDR.SPR = HDR.SampleRate*HDR.Dur; 
+                end
+
                 if ~isfield(HDR,'AS')
                         HDR.AS.SPR = repmat(NaN,1,HDR.NS);
                 end;
@@ -1233,12 +1237,10 @@ end;
 					HDR.SPR = lcm(HDR.SPR,HDR.AS.SPR(k));
 				end;	 
 			end; 
-                else
+                else 
                 	warning('either HDR.SPR or HDR.AS.SPR must be defined');
-       	        end;        
-                if ~isfield(HDR,'AS')
-                        HDR.AS.SampleRate = repmat(HDR.SampleRate,HDR.NS,1);
-                elseif ~isfield(HDR.AS,'SampleRate')
+       	        end;  
+                if ~isfield(HDR.AS,'SampleRate')
                         HDR.AS.SampleRate = HDR.SampleRate*HDR.AS.SPR/HDR.SPR;
                 end;
                 
@@ -1782,9 +1784,9 @@ end;
                                                 fwrite(HDR.FILE.FID,32*ones(19,HDR.NS),'uint8');
                                         else 
                                                 tmp = repmat(NaN,5,HDR.NS); 
-                                                ch  = find(bitand(HDR.PhysDimCode, hex2dec('ffe0'))==4256) % channel with voltage data  
+                                                ch  = find(bitand(HDR.PhysDimCode, hex2dec('ffe0'))==4256); % channel with voltage data  
                                                 tmp(1,ch) = HDR.Impedance(ch);
-                                                ch  = find(bitand(HDR.PhysDimCode, hex2dec('ffe0'))==4288) % channel with impedance data  
+                                                ch  = find(bitand(HDR.PhysDimCode, hex2dec('ffe0'))==4288); % channel with impedance data  
                                                 if isfield(HDR,'fZ')
                                                         tmp(1,ch) = HDR.fZ(ch);                      % probe frequency
                                                 end;
