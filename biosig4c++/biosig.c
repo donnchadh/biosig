@@ -3792,29 +3792,31 @@ if (!strncmp(MODE,"r",1))
 	    			ptr_str = strtok(NULL," ");
 				// check EDF+ Startdate against T0
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211e-] <%s>\n",ptr_str);
-	    			if (tm_time.tm_mday != atoi(strtok(ptr_str,"-")))
-	    				fprintf(stderr,"Warning SOPEN(EDF+): Day-of-the-Month %i <%s> corrupted\n",tm_time.tm_mday,ptr_str); 
-
+				/* TODO: 
+					fix "Startdate X ..."
+					
+				*/
+				if (strcmp(ptr_str,"X")) {
+					int d,m,y;
+					d = atoi(strtok(ptr_str,"-"));
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211e] <%s>\n",ptr_str);
-				ptr_str = strtok(NULL,"-");
-
+					ptr_str = strtok(NULL,"-");
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211f] <%s>\n",ptr_str);
-
-	    			strcpy(tmp,ptr_str);
-
+	    				strcpy(tmp,ptr_str);
+		    			for (k=0; k<strlen(tmp); ++k) tmp[k]=toupper(tmp[k]);	// convert to uppper case 
+		    			for (m=0; m<12; m++) if (!strcmp(tmp,ListOfMonth[m])) break;
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211g] <%s>\n",tmp);
-
-	    			tm_time.tm_year = atoi(strtok(NULL,"-")) - 1900; 
-
+	    				y = atoi(strtok(NULL,"-")) - 1900; 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211h] <%i>\n",tm_time.tm_year);
 
-		    		for (k=0; k<strlen(tmp); ++k) tmp[k]=toupper(tmp[k]);	// convert to uppper case 
-		    		for (k=0; k<12; k++) if (!strcmp(tmp,ListOfMonth[k])) break;
-
-	    			if (tm_time.tm_mon != (int)k)
-	    				fprintf(stderr,"Warning SOPEN(EDF+): %i <%s> Month corrupted\n",tm_time.tm_mon+1,tmp); 
-
-		    		tm_time.tm_isdst= -1;
+		    			if ((tm_time.tm_mday == d) && (tm_time.tm_mon == m)) {
+		    				tm_time.tm_year = y; 
+				    		tm_time.tm_isdst= -1;
+				    	}	
+					else {
+	    					fprintf(stderr,"Error SOPEN(EDF+): recording dates do not match %i/%i <> %i/%i\n",d,m,tm_time.tm_mday,tm_time.tm_mon); 
+	    				}	
+		    		}
 			} 
 			
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211z] #=%li\n",iftell(hdr));
