@@ -1,7 +1,7 @@
 /*
 
     $Id: mexSLOAD.cpp,v 1.52 2009-04-08 13:03:10 schloegl Exp $
-    Copyright (C) 2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2007,2008,2009,2010 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -310,6 +310,7 @@ void mexFunction(
 	if (hdr->FLAG.UCAL != FlagUCAL)
 		mexPrintf("Warning mexSLOAD: Flag UCAL is %i instead of %i (%s)\n",hdr->FLAG.UCAL,FlagUCAL,hdr->FileName);
 
+
 	if (VERBOSE_LEVEL>8) {
 		mexPrintf("#info @%p\n",&(hdr->CHANNEL));
 		for (size_t k=0; k<hdr->NS; ++k)
@@ -333,6 +334,8 @@ void mexFunction(
 			sprintf(msg,"Error mexSLOAD: Cannot open file %s - format %s not known.\n",FileName,GetFileTypeString(hdr->TYPE));
 		else if (status==B4C_FORMAT_UNSUPPORTED)
 			sprintf(msg,"Error mexSLOAD: Cannot open file %s - format %s not supported.\n",FileName,GetFileTypeString(hdr->TYPE));
+		else 	
+			sprintf(msg,"Error %i mexSLOAD: Cannot open file %s - format %s not supported.\n",status,FileName,GetFileTypeString(hdr->TYPE));
 			
 		destructHDR(hdr);
 		mexErrMsgTxt(msg);
@@ -621,10 +624,14 @@ void mexFunction(
 		for (numfields=0; patient_fields[numfields++] != 0; );
 		Patient = mxCreateStructMatrix(1, 1, --numfields, patient_fields);
 		const char *strarray[1];
-		strarray[0] = hdr->Patient.Name; 
-		mxSetField(Patient,0,"Name",mxCreateCharMatrixFromStrings(1,strarray));
-		strarray[0] = hdr->Patient.Id; 
-		mxSetField(Patient,0,"Id",mxCreateCharMatrixFromStrings(1,strarray));
+		if (hdr->Patient.Name) {
+			strarray[0] = hdr->Patient.Name; 
+			mxSetField(Patient,0,"Name",mxCreateCharMatrixFromStrings(1,strarray));
+		}	
+		if (hdr->Patient.Id) {
+			strarray[0] = hdr->Patient.Id; 
+			mxSetField(Patient,0,"Id",mxCreateCharMatrixFromStrings(1,strarray));
+		}	
 		mxSetField(Patient,0,"Handedness",mxCreateDoubleScalar(hdr->Patient.Handedness));
 
 		mxSetField(Patient,0,"Sex",mxCreateDoubleScalar(hdr->Patient.Sex));
@@ -647,14 +654,22 @@ void mexFunction(
 		const char *manufacturer_fields[] = {"Name","Model","Version","SerialNumber",NULL};
 		for (numfields=0; manufacturer_fields[numfields++] != 0; );
 		Manufacturer = mxCreateStructMatrix(1, 1, --numfields, manufacturer_fields);
-		strarray[0] = hdr->ID.Manufacturer.Name;
-		mxSetField(Manufacturer,0,"Name",mxCreateCharMatrixFromStrings(1,strarray));
-		strarray[0] = hdr->ID.Manufacturer.Model;
-		mxSetField(Manufacturer,0,"Model",mxCreateCharMatrixFromStrings(1,strarray));
-		strarray[0] = hdr->ID.Manufacturer.Version;
-		mxSetField(Manufacturer,0,"Version",mxCreateCharMatrixFromStrings(1,strarray));
-		strarray[0] = hdr->ID.Manufacturer.SerialNumber;
-		mxSetField(Manufacturer,0,"SerialNumber",mxCreateCharMatrixFromStrings(1,strarray));
+		if (hdr->ID.Manufacturer.Name) {
+			strarray[0] = hdr->ID.Manufacturer.Name;
+			mxSetField(Manufacturer,0,"Name",mxCreateCharMatrixFromStrings(1,strarray));
+		}	
+		if (hdr->ID.Manufacturer.Model) {
+			strarray[0] = hdr->ID.Manufacturer.Model;
+			mxSetField(Manufacturer,0,"Model",mxCreateCharMatrixFromStrings(1,strarray));
+		}	
+		if (hdr->ID.Manufacturer.Version) {
+			strarray[0] = hdr->ID.Manufacturer.Version;
+			mxSetField(Manufacturer,0,"Version",mxCreateCharMatrixFromStrings(1,strarray));
+		}	
+		if (hdr->ID.Manufacturer.SerialNumber) {
+			strarray[0] = hdr->ID.Manufacturer.SerialNumber;
+			mxSetField(Manufacturer,0,"SerialNumber",mxCreateCharMatrixFromStrings(1,strarray));
+		}
 		mxSetField(HDR,0,"Manufacturer",Manufacturer);
 
 	if (VERBOSE_LEVEL>8) 

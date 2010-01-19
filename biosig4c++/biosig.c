@@ -1,7 +1,7 @@
 /*
 
     $Id$
-    Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2005,2006,2007,2008,2009,2010 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -1748,11 +1748,11 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
       	hdr->tzmin = 0; 
       	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.90";
       	hdr->ID.Manufacturer._field[0]    = 0;
-      	hdr->ID.Manufacturer.Name         = " ";
-      	hdr->ID.Manufacturer.Model        = " ";
-      	hdr->ID.Manufacturer.Version      = " ";
-      	hdr->ID.Manufacturer.SerialNumber = " ";
-	hdr->ID.Technician[0] 	= 0; 
+      	hdr->ID.Manufacturer.Name         = NULL;
+      	hdr->ID.Manufacturer.Model        = NULL;
+      	hdr->ID.Manufacturer.Version      = NULL;
+      	hdr->ID.Manufacturer.SerialNumber = NULL;
+	hdr->ID.Technician[0] 	= 0;
 	hdr->ID.Hospital 	= "\x00";
 	memset(hdr->IPaddr, 0, 16);
 
@@ -3505,7 +3505,7 @@ if (!strncmp(MODE,"r",1))
 #ifndef WITHOUT_NETWORK
 	if (!memcmp(hdr->FileName,"bscs://",7)) {
 		uint64_t ID; 
-    		char *hostname = (char*)hdr->FileName+7;
+    		const char *hostname = (char*)hdr->FileName+7;
     		char *t = strrchr(hostname,'/');
     		if (t==NULL) {
 			B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
@@ -3778,25 +3778,25 @@ if (!strncmp(MODE,"r",1))
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211d] <%s>\n",hdr->ID.Recording);
 
-			strncpy(hdr->ID.Recording, Header1+88+22, 80-22);
-			hdr->ID.Recording[80-22]=0;
-			if (strtok(hdr->ID.Recording," ")!=NULL) {
-				strncpy(hdr->ID.Technician, strtok(NULL," "),MAX_LENGTH_TECHNICIAN);
-				hdr->ID.Manufacturer.Name  = strtok(NULL," ");
-			}	
+			if (!strncmp(Header1+88,"Startdate ",10)) {
+				size_t pos = strcspn(Header1+88+10," ")+10;
+				strncpy(hdr->ID.Recording, Header1+88+pos+1, 80-pos);
+				hdr->ID.Recording[80-pos-1] = 0;
+				if (strtok(hdr->ID.Recording," ")!=NULL) {
+					strncpy(hdr->ID.Technician, strtok(NULL," "),MAX_LENGTH_TECHNICIAN);
+					hdr->ID.Manufacturer.Name  = strtok(NULL," ");
+				}
 			
-			Header1[167]=0;
-	    		strtok(Header1+88," ");
-	    		ptr_str = strtok(NULL," ");
-			if (ptr_str != NULL) { 
-			// check EDF+ Startdate against T0
+				Header1[167]=0;
+		    		strtok(Header1+88," ");
+	    			ptr_str = strtok(NULL," ");
+				// check EDF+ Startdate against T0
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211e-] <%s>\n",ptr_str);
-	    		if (tm_time.tm_mday != atoi(strtok(ptr_str,"-")))
-	    			fprintf(stderr,"Warning SOPEN(EDF+): Day-of-the-Month %i <%s> corrupted\n",tm_time.tm_mday,ptr_str); 
+	    			if (tm_time.tm_mday != atoi(strtok(ptr_str,"-")))
+	    				fprintf(stderr,"Warning SOPEN(EDF+): Day-of-the-Month %i <%s> corrupted\n",tm_time.tm_mday,ptr_str); 
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211e] <%s>\n",ptr_str);
-			ptr_str = strtok(NULL,"-");
-//			if (ptr_str != NULL) { 
+				ptr_str = strtok(NULL,"-");
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211f] <%s>\n",ptr_str);
 
@@ -9079,7 +9079,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",localtime(&tt));
 */	
 		struct tm *t = gdf_time2tm_time(hdr->Patient.Birthday); 
-		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",t);
+		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%02d-%b-%04Y",t);
 		else strcpy(tmp,"X");	
 		
 		if (strlen(hdr->Patient.Id) > 0) 
@@ -9096,7 +9096,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	memcpy(Header1+8, cmd, strlen(cmd));
 	     	
 		t = gdf_time2tm_time(hdr->T0); 
-		if (hdr->T0>1) strftime(tmp,81,"%d-%b-%Y",t);
+		if (hdr->T0>1) strftime(tmp,81,"%02d-%b-%04Y",t);
 		else strcpy(tmp,"X");	
 		if (!strlen(hdr->ID.Technician)) strcpy(hdr->ID.Technician,"X");
 		size_t len = sprintf(cmd,"Startdate %s X %s ", tmp, hdr->ID.Technician);
