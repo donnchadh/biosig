@@ -7,12 +7,19 @@ This library is called "BioSig for C/C++" and is complementary to "BioSig for Oc
 BioSig4C++ provides several tools:  
 
 (1) "libbiosig.a" provides a library for accessing different dataformats. 
-Recommended: 
-        cholmod
-        zlib (http://zlib.net/) 
-        GNU Scientific Library (GSL)
 The supported data formats are listed here: 
 http://hci.tugraz.at/schloegl/biosig/TESTED
+
+The following DEFINES are recommended and require:
+ -D=WITH_CHOLMOD        used for re-referencing of data, REQUIREMENT: cholmod from libsuitesparse
+ -D=WITH_ZLIB	        used to handle gzip-ped files,  REQUIREMENT: zlib (http://zlib.net/)
+ -D=WITH_GSL	        provides interface to GSL, REQUIREMENT: GNU Scientific Library (GSL), 
+ -D=WITH_FEF	        includes support for FEF-format from CNSystems (fails with MinGW) 
+ -D=WITH_FAMOS	        includes (partial) support for FAMOS format 
+ -D=__4HAERTEL__	support for special flavor of FAMOS format (experimental) 
+ Other flags are used for experimental development 
+ -D=WITH_DICOM, -D=WITH_GDCM 	experimental DICOM support 
+If some libraries are not available on your system, remove the corresponding DEFINES in Makefile. 
 
 (2) "save2gdf" is a converter between different file formats, 
 including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, CWFB.
@@ -68,113 +75,6 @@ File(s):
     python/*.py show example and demo
     
 
-Compilation: 
--------------
-# Linux 
-You need g++(>4.0), make, zlib (if you do not have zlib, do not define WITH_ZLIB), 
-libsuitesparse (if you do not have libsuitesparse, do not define WITH_CHOLMOD).
-
-Running make compiles the converter.
-  make 		 	# makes the file format converter
-  make save2gdf 	# makes the file format converter
-  make win32		# makes the file format converter for Win32
-  make physicalunits 	# makes the en/decoder for physical units
-  make libbiosig.a  	# makes a static library 
-  make mex4o 		# makes mexSLOAD for Octave (requires Octave-headers2.9 or higher)
-  make mex4m 		# makes mexSLOAD for Matlab (path_to_mex need to be defined in Makefile)
-  make sigviewer 	# recompiles SigViewer	(requires qmake and Qt, and the sources of sigviewer must be in ../sigviewer)
-  make biosig4python 	# compiles the BioSig interface for Python (requires SWIG and Python)
-  make all  		# all of the above
-  make testscp 
-  make testhl7	
-  make test		# tests HL7<->SCP, SCP<->GDF, GDF<->HL7 converters
-  make test6		# tests bidirectional conversion between 6 differerent data formats	
-
-# MinGW Crosscompiler on Linux for Windows  
-- install mingw32 mingw32-binutils mingw32-runtime
-- run the command  
-   make win32/save2gdf.exe      # converter between data format s
-   make win32/libbiosig.dll     # dynamic library 
-   make win32/libbiosig.lib     # static library    
-   make win32                   # all of the above
-
-# Windows + MinGW
-Currently, only the file converter save2gdf is supported.
-Network support is turned off, because Windows is not Posix compliant.
-- You need MinGW with gcc, g++, ar, and make.
-- run the make command 
-   make -f Makefile.win32 libbiosig.a
-   make -f Makefile.win32 save2gdf.exe
-   make -f Makefile.win32 sigviewer # see below 
-   make -f Makefile.win32
-
-You can also start compilation of sigviewer. 
-   First, you need to have the sigviewer sources in ..\sigviewer and 
-   Then, you need to run once qmake in ..\sigviewer\src\ 
-   make -f Makefile.win32 sigviewer 
-
-# Windows + MinGW + Matlab
-do the steps in "Windows+MinGW"
-install and configure gnumex (from http://gnumex.sf.net)  
-  make libbiosig.a
-  start matlab
-  >> gnumex 	% configure mingw for mex
-  >> mex mexSLOAD.cpp libbiosig \mingw\lib\libws2_32.a
-	
-# Windows + Cygwin
-Currently, only the file converter save2gdf is supported.
-- install Cygwin
-- within Cygwin install gcc4 g++4, zlib, suitesparse/cholmod and make 
-- run the make command 
-   make save2gdf 
-
-# MSVC - Microsoft Visual C++
-  MSVC is currently not supported. The main incompatibility is 
-  the use of the typeof() operator. Since typeof() is very convinient, 
-  I'm not planning to change this. However, you can easy replace 
-  any typeof()-operator by the appropriate type, and the code 
-  should compile on MSVC as well. 
-
-# Other platforms (Windows+MSVC, MacOSX, Solaris, etc. )
-Not tested (yet). Let me know about successful compilations, 
-or tell me what changes are needed.   
-
-	
-Installation: 
--------------
-run as root 
-  make 
-  make install 		# installs save2gdf, save2scp, save2aecg, 
-  make install_octave	# installs mexSLOAD.mex in /usr/local/share/octave/site-m/
-  make install_sigviewer	# installs sigviewer
- 
-
-
-Execution:
-----------
-# if test.gdf exists, some header information is displayed
-save2gdf test.gdf     		
-
-# help and usage information 
-save2gdf -h
-
-# converts a data file into a GDF format (destination
-save2gdf PFE103.scp t5.gdf     		
-
-# converts a data file into a SCP format (destination
-save2scp t5.gdf t5.scp      		
-save2gdf -f=SCP t5.gdf t5.scp      		
-
-# converts a data file into a HL7aECG format (destination
-save2aecg t5.gdf t5.hl7      		
-save2gdf -f=HL7aECG t5.gdf t5.hl7
-
-# load matlab into octave or matlab
-start octave or matlab
-addpath path_to_mexSLOAD.mex
-[data,HDR] = mexSLOAD(filename); % loads data and header information 
-
-
 Open Issue(s) of the SCP-ECG <-> HL7aECG converter:
 ---------------------------------------------------
 The following fields of SCP-ECG are not converted to HL7. 
@@ -190,31 +90,14 @@ The following fields of HL7aECG are not converted to SCP-ECG.
 - study, treatment group, clinical trial, clinical trial protocol, trial sponsor, investigator etc. 
 
 
-Development & Testing:
-----------------------
-There are several testing functions included. 
-The following commands test the converter and should finish without errors.  
-	make test 
-	make testhl7
-	make testscp
-	make test6
-
-The Octave/Matlab script 
-	test0/test01.m 
-tests whether the various data formats give the same results 
-or whether some conversion error has been included.  
-
-
-
 More information is available at http://biosig.sf.net/
 
 If you have any questions you can also contact the mailinglist  
 https://lists.sourceforge.net/lists/listinfo/biosig-general
 
 
-
     $Id: README,v 1.26 2009/02/27 09:18:33 schloegl Exp $
-    Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2005,2006,2007,2008,2009,2010 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 
 
