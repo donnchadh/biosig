@@ -192,7 +192,6 @@ int main(int argc, char **argv){
 	hdr->FLAG.UCAL = ((TARGET_TYPE==BIN) || (TARGET_TYPE==ASCII));
 	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
 
-
 	hdr->FileName = source;
 	hdr = sopen(source, "r", hdr);
 #ifdef WITH_PDP 
@@ -294,6 +293,26 @@ int main(int argc, char **argv){
 	hdr->FILE.COMPRESSION = COMPRESSION_LEVEL;
 
    /********************************* 
+   	block size 
+   *********************************/
+
+	if (1) {
+		unsigned asGCD=hdr->CHANNEL[0].SPR, asLCM=1;
+    		for (k=0; k<hdr->NS; k++)
+	    	if (hdr->CHANNEL[k].OnOff && hdr->CHANNEL[k].SPR) 
+    		{
+			asGCD = gcd(asGCD, hdr->CHANNEL[k].SPR);
+			asLCM = lcm(asLCM, hdr->CHANNEL[k].SPR);
+		}	
+	    	for (k=0; k<hdr->NS; k++)
+    		{
+    			hdr->CHANNEL[k].SPR /= asGCD;
+		}	
+    		hdr->SPR  /= asGCD;
+	    	hdr->NRec *= asGCD;
+    	}
+
+   /********************************* 
    	re-referencing
    *********************************/
 
@@ -312,6 +331,9 @@ int main(int argc, char **argv){
    	Write data 
    *********************************/
     {	
+
+	//************ identify Max/Min **********
+	
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[201]\n");
 
         double PhysMaxValue0 = -INF; //hdr->data.block[0];
@@ -319,10 +341,14 @@ int main(int argc, char **argv){
 	biosig_data_type val; 
 	size_t N = hdr->NRec*hdr->SPR;
 	int k2=0;
+	unsigned asGCD=1, asLCM=1;
     	for (k=0; k<hdr->NS; k++)
     	if (hdr->CHANNEL[k].OnOff && hdr->CHANNEL[k].SPR) 
     	{
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[204] #%i\n",k);
+	
+		asGCD = gcd(asGCD, hdr->CHANNEL[k].SPR);
+		asLCM = lcm(asLCM, hdr->CHANNEL[k].SPR);
 
 		double MaxValue;
 		double MinValue;
@@ -356,7 +382,7 @@ int main(int argc, char **argv){
 
 		if ((SOURCE_TYPE==alpha) && (hdr->CHANNEL[k].GDFTYP==(255+12)) && (TARGET_TYPE==GDF)) 
 			// 12 bit into 16 bit 
-;//			hdr->CHANNEL[k].GDFTYP = 3;
+			; //hdr->CHANNEL[k].GDFTYP = 3;
 		else if ((SOURCE_TYPE==ETG4000) && (TARGET_TYPE==GDF)) {
 			hdr->CHANNEL[k].GDFTYP  = 16;
 			hdr->CHANNEL[k].PhysMax = MaxValue * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
