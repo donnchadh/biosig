@@ -1,7 +1,7 @@
 /*
 
-    $Id: save2gdf.c,v 1.56 2009/04/15 20:32:03 schloegl Exp $
-    Copyright (C) 2000,2005,2007,2008 Alois Schloegl <a.schloegl@ieee.org>
+    $Id$
+    Copyright (C) 2000,2005,2007,2008,2009,2010 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -292,29 +292,24 @@ int main(int argc, char **argv){
 
 	hdr->FILE.COMPRESSION = COMPRESSION_LEVEL;
 
-   /********************************* 
-   	block size 
-   *********************************/
+   /******************************************* 
+   	make block size as small as possible  
+    *******************************************/
 
 	if (1) {
-		unsigned asGCD=hdr->CHANNEL[0].SPR, asLCM=1;
+		uint32_t asGCD=hdr->SPR;
     		for (k=0; k<hdr->NS; k++)
-	    	if (hdr->CHANNEL[k].OnOff && hdr->CHANNEL[k].SPR) 
-    		{
-			asGCD = gcd(asGCD, hdr->CHANNEL[k].SPR);
-			asLCM = lcm(asLCM, hdr->CHANNEL[k].SPR);
-		}	
-	    	for (k=0; k<hdr->NS; k++)
-    		{
-    			hdr->CHANNEL[k].SPR /= asGCD;
-		}	
+		    	if (hdr->CHANNEL[k].OnOff && hdr->CHANNEL[k].SPR) 
+				asGCD = gcd(asGCD, hdr->CHANNEL[k].SPR);
     		hdr->SPR  /= asGCD;
 	    	hdr->NRec *= asGCD;
+	    	for (k=0; k<hdr->NS; k++)
+    			hdr->CHANNEL[k].SPR /= asGCD;
     	}
 
    /********************************* 
    	re-referencing
-   *********************************/
+    *********************************/
 
 #ifdef CHOLMOD_H
         if (hdr->Calib && hdr->rerefCHANNEL) {
@@ -341,15 +336,11 @@ int main(int argc, char **argv){
 	biosig_data_type val; 
 	size_t N = hdr->NRec*hdr->SPR;
 	int k2=0;
-	unsigned asGCD=1, asLCM=1;
     	for (k=0; k<hdr->NS; k++)
     	if (hdr->CHANNEL[k].OnOff && hdr->CHANNEL[k].SPR) 
     	{
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[204] #%i\n",k);
 	
-		asGCD = gcd(asGCD, hdr->CHANNEL[k].SPR);
-		asLCM = lcm(asLCM, hdr->CHANNEL[k].SPR);
-
 		double MaxValue;
 		double MinValue;
 		if (hdr->FLAG.ROW_BASED_CHANNELS) {
