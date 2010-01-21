@@ -62,7 +62,7 @@ else
         W = arg4;
 end;
 if nargin<5
-    mode = 2;
+    mode = 4;
 end;
 
 bp = [];
