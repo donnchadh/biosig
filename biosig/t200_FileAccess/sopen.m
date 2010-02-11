@@ -6883,31 +6883,35 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.EVENT.DUR = [HDR.gBS.EpochingSelect{:,4}]';
                 end;
                 HDR.TYPE = 'native'; 
-                
-	elseif isfield(tmp,'P_C_DAQ_S');
+
+        elseif isfield(tmp,'P_C_DAQ_S');
                 if ~isempty(tmp.P_C_DAQ_S.data),
                         HDR.data = double(tmp.P_C_DAQ_S.data{1});
-                        
-                elseif ~isempty(tmp.P_C_DAQ_S.daqboard),
-                        [tmppfad,file,ext] = fileparts(tmp.P_C_DAQ_S.daqboard{1}.ObjInfo.LogFileName);
-			if any(file=='\'),	
-				%% if file was recorded on WIN but analyzed in LINUX
-				file=file(max(find(file=='\'))+1:end);
-			end;	 
-                        file = fullfile(HDR.FILE.Path,[file,ext]);
-                        if exist(file,'file')
-                                HDR.data=daqread(file);        
-                                HDR.info=daqread(file,'info');        
-                        else
-                                fprintf(HDR.FILE.stderr,'Error SOPEN: data file %s not found\n',file);
-                                return;
+
+                else 
+                        for k=1:length(tmp.P_C_DAQ_S.daqboard),
+                                [tmppfad,file,ext] = fileparts(tmp.P_C_DAQ_S.daqboard{k}.ObjInfo.LogFileName);
+                                if any(file=='\'),
+                                        %% if file was recorded on WIN but analyzed in LINUX
+                                        file=file(max(find(file=='\'))+1:end);
+                                end;
+                                file = fullfile(HDR.FILE.Path,[file,ext]);
+                                if exist(file,'file')
+                                        HDR.info{k}=daqread(file,'info');
+                                        data = daqread(file);
+                                        if k==1,
+                                                HDR.data = data;
+                                        else 
+                                                len = min(size(data,1),size(HDR.data,1));
+                                                HDR.data = [HDR.data(1:len,:), data(1:len,:)];
+                                        end; 
+                                else
+                                        fprintf(HDR.FILE.stderr,'Error SOPEN: data file %s not found\n',file);
+                                        return;
+                                end;
                         end;
-                        
-                else
-                        fprintf(HDR.FILE.stderr,'Error SOPEN: no data file found\n');
-                        return;
                 end;
-                
+
                 HDR.NS = size(HDR.data,2);
                 HDR.Cal = tmp.P_C_DAQ_S.sens*(2.^(1-tmp.P_C_DAQ_S.daqboard{1}.HwInfo.Bits));
                 HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal);
