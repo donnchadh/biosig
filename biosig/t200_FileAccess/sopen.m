@@ -6757,7 +6757,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.TYPE = 'native'; 
                 
                 
-        elseif isfield(tmp,'Recorder1')    % Nicolet NRF format converted into Matlab 
+       elseif isfield(tmp,'Recorder1')    % Nicolet NRF format converted into Matlab 
                 for k = 1:length(s.Recorder1.Channels.ChannelInfos);
                         HDR.Label{k} = [s.Recorder1.Channels.ChannelInfos(k).ChannelInfo.Name,' '];
                         HDR.PhysDim{k} = [s.Recorder1.Channels.ChannelInfos(k).ChannelInfo.YUnits,' '];
@@ -6780,7 +6780,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.TYPE = 'native'; 
 
                 
-        elseif isfield(tmp,'ECoGdata') & isfield(tmp,'dataset')  %Michigan ECoG dataset 
+       elseif isfield(tmp,'ECoGdata') & isfield(tmp,'dataset')  %Michigan ECoG dataset 
                 HDR.data = tmp.ECoGdata';
                 HDR.T0 = datevec(datenum(tmp.dataset.filetype.timestamp));
                 HDR.SampleRate = tmp.dataset.specs.sample_rate;
@@ -6806,7 +6806,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 clear tmp; 
                 
                 
-        elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.5x data format
+       elseif isfield(tmp,'P_C_S');	% G.Tec Ver 1.02, 1.5x data format
                 HDR.FILE.POS = 0;
                 if isa(tmp.P_C_S,'data'), %isfield(tmp.P_C_S,'version'); % without BS.analyze	
                         if any(tmp.P_C_S.Version==[1.02, 1.5, 1.52, 3.00]),
@@ -6884,12 +6884,12 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 end;
                 HDR.TYPE = 'native'; 
 
-        elseif isfield(tmp,'P_C_DAQ_S');
+       elseif isfield(tmp,'P_C_DAQ_S');
                 if ~isempty(tmp.P_C_DAQ_S.data),
                         HDR.data = double(tmp.P_C_DAQ_S.data{1});
 
                 else 
-                        for k=1:length(tmp.P_C_DAQ_S.daqboard),
+                        for k = 1:length(tmp.P_C_DAQ_S.daqboard),
                                 [tmppfad,file,ext] = fileparts(tmp.P_C_DAQ_S.daqboard{k}.ObjInfo.LogFileName);
                                 if any(file=='\'),
                                         %% if file was recorded on WIN but analyzed in LINUX
@@ -6936,10 +6936,17 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.Dur  = sz(2)/HDR.SampleRate;
                 HDR.NS   = sz(3);
                 HDR.FLAG.TRIGGERED = HDR.NRec>1;
-                HDR.Filter.LowPass = tmp.P_C_DAQ_S.lowpass;
-                HDR.Filter.HighPass = tmp.P_C_DAQ_S.highpass;
-                HDR.Filter.Notch = tmp.P_C_DAQ_S.notch;
-                HDR.TYPE = 'native'; 
+                HDR.Label 	   = tmp.P_C_DAQ_S.channelname;
+		HDR.Filter.LowPass = tmp.P_C_DAQ_S.lowpass;
+		HDR.Filter.HighPass = tmp.P_C_DAQ_S.highpass;
+		HDR.Filter.Notch    = tmp.P_C_DAQ_S.notch;
+		if isfield(tmp.P_C_DAQ_S,'attribute')
+	                HDR.gBS.Attribute   = tmp.P_C_DAQ_S.attribute;
+		end; 
+                if isfield(tmp.P_C_DAQ_S,'attributename')
+	        	HDR.gBS.AttributeName = tmp.P_C_DAQ_S.attributename;
+		end; 
+		HDR.TYPE = 'native'; 
                 
                 
         elseif isfield(tmp,'eventmatrix') & isfield(tmp,'samplerate') 
