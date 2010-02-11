@@ -1236,14 +1236,14 @@ elseif strcmp(HDR.TYPE,'EEProbe-AVR'),
         
 elseif strncmp(HDR.TYPE,'BrainVision',11),   %Brainvision
         if strncmpi(HDR.BV.DataFormat, 'binary',5)
+		tc = strcmp(HDR.TYPE,'BrainVisionVAmp');
+		NS = HDR.NS+tc;
                 if strncmpi(HDR.BV.DataOrientation, 'multiplexed',6),
                         if nargin>2,
                                 STATUS = fseek(HDR.FILE.FID,StartPos*HDR.SampleRate*HDR.AS.bpb,'bof');        
                                 HDR.FILE.POS = HDR.SampleRate*StartPos;
                         end;
 
-			tc = strcmp(HDR.TYPE,'BrainVisionVAmp');
-			NS = HDR.NS+tc;
 			nr = min(HDR.SampleRate*NoS, HDR.SPR*HDR.NRec - HDR.FILE.POS);
 			if (length(HDR.InChanSelect)*2>HDR.NS)
 				[s,c] = fread(HDR.FILE.FID, [NS, nr], ['*',gdfdatatype(HDR.GDFTYP)]);
