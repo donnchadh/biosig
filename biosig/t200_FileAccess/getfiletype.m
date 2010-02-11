@@ -113,7 +113,6 @@ else
                 s = s';
         end;
 
-
         if c,
 		ss = char(s);
                 HDR.keycode = s(1:34); 
@@ -541,8 +540,6 @@ else
                         HDR.TYPE='RDF'; % UCSD ERPSS aquisition system 
                 elseif strncmp(ss,'Stamp',5)
                         HDR.TYPE='XLTEK-EVENT';
-                elseif (c>176) && any(s(176)==[0:4])
-                        HDR.TYPE='MicroMed TRC';
                         
                 elseif all(s(1:2)==[hex2dec('55'),hex2dec('3A')]);      % little endian 
                         HDR.TYPE='SEG2';
@@ -1042,6 +1039,10 @@ else
                                 HDR.TYPE='LX2';
                         end;
 			end;
+
+                elseif (c>176) && any(s(176)==[0:4])
+                        HDR.TYPE='MicroMed TRC';
+
                 else
                         HDR.TYPE='unknown';
 
