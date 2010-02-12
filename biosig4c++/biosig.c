@@ -5366,17 +5366,13 @@ if (VERBOSE_LEVEL>8)
 //				B4C_ERRMSG = "Error SOPEN(BrainVision): ASCII-format not supported (yet).";
 			}
 			else if (!strncmp(t,"[Channel Infos]",14)) {
-				seq = 3; 
-				hdr->AS.bpb = (hdr->NS*GDFTYP_BITS[gdftyp])>>3;
-				hdr->AS.bpb+= (hdr->TYPE==BrainVisionVAmp ? 4 : 0);			
-
-				if (VERBOSE_LEVEL==9) fprintf(stdout,"BVA210,%i,%i\n",pos,hdr->HeadLen);
+				seq = 3;
 
 				/* open data file */ 
 				if (FLAG_ASCII) hdr = ifopen(hdr,"rt");
 				else 	        hdr = ifopen(hdr,"rb");
 					
-				if (VERBOSE_LEVEL==9) fprintf(stdout,"BVA210,%i,%i\n",pos,hdr->HeadLen);
+				if (VERBOSE_LEVEL>7) fprintf(stdout,"BVA210,%i,%i\n",pos,hdr->HeadLen);
 
 				if (!npts) {
 					struct stat FileBuf;
@@ -5388,8 +5384,6 @@ if (VERBOSE_LEVEL>8)
 				hdr->FileName = filename;
 				free(tmpfile);
 
-				if (VERBOSE_LEVEL==9) fprintf(stdout,"BVA210,%i,%i,ERR=%i\n",pos,hdr->HeadLen,B4C_ERRNUM);
-
 				if (orientation == VEC) {
 					hdr->SPR = npts;
 					hdr->NRec= 1;
@@ -5397,8 +5391,10 @@ if (VERBOSE_LEVEL>8)
 					hdr->SPR = 1;
 					hdr->NRec= npts;
 				}
+				hdr->AS.bpb = (hdr->NS*hdr->SPR*GDFTYP_BITS[gdftyp])>>3;
+				hdr->AS.bpb+= (hdr->TYPE==BrainVisionVAmp ? 4 : 0)*hdr->SPR;
 
-				if (VERBOSE_LEVEL==9) fprintf(stdout,"BVA210,%i,%i\n",pos,hdr->HeadLen);
+				if (VERBOSE_LEVEL>7) fprintf(stdout,"BVA210,%i,%i,ERR=%i npts=%i\n",pos,hdr->HeadLen,B4C_ERRNUM,npts);
 
 			    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 				for (k=0; k<hdr->NS; k++) {
@@ -5419,9 +5415,10 @@ if (VERBOSE_LEVEL>8)
 					hc->OnOff   	= 1;
 				    	hc->PhysDimCode = 4275; // uV
 		    			hc->LeadIdCode  = 0;
-					hc->bi       = k*hdr->SPR*GDFTYP_BITS[gdftyp]>>3;
+					hc->bi          = k*hdr->SPR*GDFTYP_BITS[gdftyp]>>3;
 				}
-				if (VERBOSE_LEVEL==9) fprintf(stdout,"BVA210 seq=%i,pos=%i,%i <%s>\n",seq,pos,hdr->HeadLen,t);
+								
+				if (VERBOSE_LEVEL>7) fprintf(stdout,"BVA210 seq=%i,pos=%i,%i <%s> bpb=%i\n",seq,pos,hdr->HeadLen,t,hdr->AS.bpb);
 			}	
 			//else if (!strncmp(t,"[Common Infos]",14))
 			//	seq = 4; 
@@ -9081,7 +9078,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%d-%b-%Y",localtime(&tt));
 */	
 		struct tm *t = gdf_time2tm_time(hdr->Patient.Birthday); 
-		if (hdr->Patient.Birthday>1) strftime(tmp,81,"%02d-%b-%04Y",t);
+		if (hdr->Patient.Birthday>1) 
+			strftime(tmp,81,"%02d-%b-%04Y",t);
 		else strcpy(tmp,"X");	
 		
 		if (strlen(hdr->Patient.Id) > 0) 
@@ -9098,7 +9096,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	     	memcpy(Header1+8, cmd, strlen(cmd));
 	     	
 		t = gdf_time2tm_time(hdr->T0); 
-		if (hdr->T0>1) strftime(tmp,81,"%02d-%b-%04Y",t);
+		if (hdr->T0>1) 
+			strftime(tmp,81,"%02d-%b-%04Y",t);
 		else strcpy(tmp,"X");	
 		if (!strlen(hdr->ID.Technician)) strcpy(hdr->ID.Technician,"X");
 		size_t len = sprintf(cmd,"Startdate %s X %s ", tmp, hdr->ID.Technician);
@@ -9370,7 +9369,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		for (ch=0; ch<hdr->NS; ch++) {
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MFER 720-63 #%i/%i %i]:\n",ch,hdr->NS,hdr->CHANNEL[ch].LeadIdCode);
-
 
 		 	// FIXME: this is broken 
 			len = 0; 
@@ -9662,7 +9660,7 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 	nrec_t	nelem; 
 
 	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"####SREAD-RAW########## start=%d length=%d\n",(int)start,(int)length);
+		fprintf(stdout,"####SREAD-RAW########## start=%d length=%d bpb=%i\n",(int)start,(int)length, hdr->AS.bpb);
 
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"sread raw 211: %d %d %d %d\n",(int)start, (int)length,  (int)hdr->NRec, (int)hdr->FILE.POS);
@@ -9820,9 +9818,6 @@ int V = VERBOSE_LEVEL;
 //VERBOSE_LEVEL = 9;
 	count = sread_raw(start, length, hdr, 0);
 	
-	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"sread 222 %i=?=%i  %i=?=%i \n",(int)start,(int)hdr->AS.first,(int)(start+count),(int)hdr->AS.length);
-
 	toffset = start - hdr->AS.first;
 	
 	// set position of file handle 
@@ -9865,11 +9860,6 @@ int V = VERBOSE_LEVEL;
 
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
-
-	if (VERBOSE_LEVEL>7) {
-		fprintf(stdout,"sread 223+ ");
-		fprintf(stdout," %i %i %i %i %i\n",k1,k2,hdr->NS,NS,CHptr->bi);
-	}
 
 	if (CHptr->OnOff) {	/* read selected channels only */ 
 	if (CHptr->SPR > 0) {	
