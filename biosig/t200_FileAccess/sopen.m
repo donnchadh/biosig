@@ -3378,7 +3378,7 @@ elseif strcmp(HDR.TYPE,'MatrixMarket'),
                 fprintf(fid,'%% Spatial Filter for EEG/BioSig data\n');
                 fprintf(fid,'%i %i %i\n',size(HDR.Calib),length(V));
                 for k = 1:length(V),
-                        fprintf(fid,'%2i %2i %f\n',I(k),J(k),V(k));
+                        fprintf(fid,'%2i %2i %.18e\n',I(k),J(k),V(k));
                 end;
                 fclose(fid);        
 
