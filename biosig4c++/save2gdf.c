@@ -92,7 +92,7 @@ int main(int argc, char **argv){
 #endif
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
 		fprintf(stdout,"\tFMT must represent a valid target file format\n"); 
-		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF, EDF, BDF, CFWB, BIN, ASCII\n"); 
+		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF, EDF, BDF, CFWB, BIN, ASCII, BVA (BrainVision)\n"); 
 		fprintf(stdout,"   -z=#, compression level \n");
 		fprintf(stdout,"\t#=0 no compression; #=9 best compression\n");
 		fprintf(stdout,"   -s=#\tselect target segment # (in the multisegment file format EEG1100)\n");
