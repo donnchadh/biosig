@@ -5410,12 +5410,14 @@ if (VERBOSE_LEVEL>8)
 				    	hc->DigMax	= digmax;
 				    	hc->PhysMin	= physmin;		
 				    	hc->DigMin	= digmin;
+				    	hc->Impedance	= NaN;
 				    	hc->Cal		= cal;
 				    	hc->Off		= off;
 					hc->OnOff   	= 1;
 				    	hc->PhysDimCode = 4275; // uV
 		    			hc->LeadIdCode  = 0;
-					hc->bi          = k*hdr->SPR*GDFTYP_BITS[gdftyp]>>3;
+					hc->bi8         = k*hdr->SPR*GDFTYP_BITS[gdftyp];
+					hc->bi          = hc->bi8>>3;
 				}
 								
 				if (VERBOSE_LEVEL>7) fprintf(stdout,"BVA210 seq=%i,pos=%i,%i <%s> bpb=%i\n",seq,pos,hdr->HeadLen,t,hdr->AS.bpb);
@@ -8864,23 +8866,23 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
     		hdr->HeadLen = 0; 
     		FILE *fid = fopen(tmpfile,"wb");
-    		fprintf(fid,"Brain Vision Data Exchange Header File Version 1.0\n\r");
-    		fprintf(fid,"; Data created by BioSig4C++\n\r\n\r");
-    		fprintf(fid,"[Common Infos]\n\r");
-    		fprintf(fid,"DataFile=%s\n\r",hdr->FileName);
-    		fprintf(fid,"MarkerFile=%s\n\r",strcpy(strrchr(tmpfile,'.')+1,"vhdr"));
-    		fprintf(fid,"DataFormat=BINARY\n\r");
-    		fprintf(fid,"; Data orientation: MULTIPLEXED=ch1,pt1, ch2,pt1 ...\n\r");
-    		fprintf(fid,"DataOrientation=MULTIPLEXED\n\r");
+    		fprintf(fid,"Brain Vision Data Exchange Header File Version 1.0\r\n");
+    		fprintf(fid,"; Data created by BioSig4C++\r\n\r\n");
+    		fprintf(fid,"[Common Infos]\r\n");
+    		fprintf(fid,"DataFile=%s\r\n",hdr->FileName);
+    		fprintf(fid,"MarkerFile=%s\r\n",strcpy(strrchr(tmpfile,'.')+1,"vhdr"));
+    		fprintf(fid,"DataFormat=BINARY\r\n");
+    		fprintf(fid,"; Data orientation: MULTIPLEXED=ch1,pt1, ch2,pt1 ...\r\n");
+    		fprintf(fid,"DataOrientation=MULTIPLEXED\r\n");
     		hdr->NRec *= hdr->SPR; 
 		hdr->SPR = 1; 
-    		fprintf(fid,"NumberOfChannels=%i\n\r",hdr->NS);
-    		fprintf(fid,"; Sampling interval in microseconds\n\r");
-    		fprintf(fid,"SamplingInterval=%f\n\r\n\r",1e6/hdr->SampleRate);
+    		fprintf(fid,"NumberOfChannels=%i\r\n",hdr->NS);
+    		fprintf(fid,"; Sampling interval in microseconds\r\n");
+    		fprintf(fid,"SamplingInterval=%f\r\n\r\n",1e6/hdr->SampleRate);
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [212]\n");
 
-    		fprintf(fid,"[Binary Infos]\n\rBinaryFormat=");
+    		fprintf(fid,"[Binary Infos]\r\nBinaryFormat=");
 		uint16_t gdftyp = 0;
     		for (k=0; k<hdr->NS; k++) 
     			if (gdftyp < hdr->CHANNEL[k].GDFTYP) 
@@ -8898,11 +8900,11 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
 		hdr->AS.bpb = hdr->NS * hdr->SPR * GDFTYP_BITS[gdftyp] >> 3;
 
-    		fprintf(fid,"\n\r\n\r[Channel Infos]\n\r");
-    		fprintf(fid,"; Each entry: Ch<Channel number>=<Name>,<Reference channel name>,\n\r");
-    		fprintf(fid,"; <Resolution in \"Unit\">,<Unit>,,<Future extensions..\n\r");
-    		fprintf(fid,"; Fields are delimited by commas, some fields might be omitted (empty).\n\r");
-    		fprintf(fid,"; Commas in channel names are coded as \"\\1\".\n\r");
+    		fprintf(fid,"\r\n\r\n[Channel Infos]\r\n");
+    		fprintf(fid,"; Each entry: Ch<Channel number>=<Name>,<Reference channel name>,\r\n");
+    		fprintf(fid,"; <Resolution in \"Unit\">,<Unit>,,<Future extensions..\r\n");
+    		fprintf(fid,"; Fields are delimited by commas, some fields might be omitted (empty).\r\n");
+    		fprintf(fid,"; Commas in channel names are coded as \"\\1\".\r\n");
     		for (k=0; k<hdr->NS; k++) {
 
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [220] %i\n",k);
@@ -8914,62 +8916,76 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     			strcpy(Label,hdr->CHANNEL[k].Label);
     			size_t k1;
     			for (k1=0; Label[k1]; k1++) if (Label[k1]==',') Label[k1]=1;
-	    		fprintf(fid,"Ch%d=%s,,1,%s\n\r",k+1,Label,PhysDim(hdr->CHANNEL[k].PhysDimCode,physdim));
+	    		fprintf(fid,"Ch%d=%s,,1,%s\r\n",k+1,Label,PhysDim(hdr->CHANNEL[k].PhysDimCode,physdim));
     		}
-    		fprintf(fid,"\n\r\n\r[Coordinates]\n\r");
+    		fprintf(fid,"\r\n\r\n[Coordinates]\r\n");
     		// fprintf(fid,"; Each entry: Ch<Channel number>=<Radius>,<Theta>,<Phi>\n\r");
-    		fprintf(fid,"; Each entry: Ch<Channel number>=<X>,<Y>,<Z>\n\r");
+    		fprintf(fid,"; Each entry: Ch<Channel number>=<X>,<Y>,<Z>\r\n");
     		for (k=0; k<hdr->NS; k++)
-	    		fprintf(fid,"Ch%i=%f,%f,%f\n\r",k+1,hdr->CHANNEL[k].XYZ[0],hdr->CHANNEL[k].XYZ[1],hdr->CHANNEL[k].XYZ[2]);
+	    		fprintf(fid,"Ch%i=%f,%f,%f\r\n",k+1,hdr->CHANNEL[k].XYZ[0],hdr->CHANNEL[k].XYZ[1],hdr->CHANNEL[k].XYZ[2]);
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"BVA-write: [222]\n");
 
-    		fprintf(fid,"\n\r\n\r[Comment]\n\r\n\r");
+    		fprintf(fid,"\r\n\r\n[Comment]\r\n\r\n");
 
-		fprintf(fid,"A m p l i f i e r  S e t u p\n\r");
-		fprintf(fid,"============================\n\r");
-		fprintf(fid,"Number of channels: %i\n\r",hdr->NS);
-		fprintf(fid,"Sampling Rate [Hz]: %f\n\r",hdr->SampleRate);
-		fprintf(fid,"Sampling Interval [µS]: %f\n\r",1e6/hdr->SampleRate);
-		fprintf(fid,"Channels\n\r--------\n\r");
+		fprintf(fid,"A m p l i f i e r  S e t u p\r\n");
+		fprintf(fid,"============================\r\n");
+		fprintf(fid,"Number of channels: %i\r\n",hdr->NS);
+		fprintf(fid,"Sampling Rate [Hz]: %f\r\n",hdr->SampleRate);
+		fprintf(fid,"Sampling Interval [µS]: %f\r\n",1e6/hdr->SampleRate);
+		fprintf(fid,"Channels\r\n--------\r\n");
 		fprintf(fid,"#     Name      Phys. Chn.    Resolution [µV]  Low Cutoff [s]   High Cutoff [Hz]   Notch [Hz]\n\r");
     		for (k=0; k<hdr->NS; k++) {
-			fprintf(fid,"\n\r%6i %13s %17i %18f %15f %15f",k+1,hdr->CHANNEL[k].Label,k+1,hdr->CHANNEL[k].Cal,1/(2*3.141592653589793238462643383279502884197169399375*hdr->CHANNEL[k].HighPass),hdr->CHANNEL[k].LowPass);
-			if (hdr->CHANNEL[k].Notch)
-				fprintf(fid,"%f",hdr->CHANNEL[k].Notch);
+			fprintf(fid,"\r\n%6i %13s %17i %18f",k+1,hdr->CHANNEL[k].Label,k+1,hdr->CHANNEL[k].Cal);
+
+			if (hdr->CHANNEL[k].HighPass>0)
+				fprintf(fid," %15f",1/(2*3.141592653589793238462643383279502884197169399375*hdr->CHANNEL[k].HighPass));
 			else 	
-				fprintf(fid,"Off");
-		}	    		
+				fprintf(fid,"\t-");
+
+			if (hdr->CHANNEL[k].LowPass>0)
+				fprintf(fid," %15f",hdr->CHANNEL[k].LowPass);
+			else 	
+				fprintf(fid,"\t-");
+
+			if (hdr->CHANNEL[k].Notch>0)
+				fprintf(fid," %f",hdr->CHANNEL[k].Notch);
+			else 	
+				fprintf(fid,"\t-");
+		}
                 
-    		fprintf(fid,"\n\r\n\rImpedance [kOhm] :\n\r");
+    		fprintf(fid,"\r\n\r\nImpedance [kOhm] :\r\n\r\n");
     		for (k=0; k<hdr->NS; k++)
-			fprintf(fid,"%s:\t\t%f\n\r",hdr->CHANNEL[k].Label,hdr->CHANNEL[k].Impedance);
+    		if (isnan(hdr->CHANNEL[k].Impedance))
+			fprintf(fid,"%s:\t\t-\r\n",hdr->CHANNEL[k].Label);
+		else
+			fprintf(fid,"%s:\t\t%f\r\n",hdr->CHANNEL[k].Label,hdr->CHANNEL[k].Impedance);
 
 
 		fclose(fid); 
 		
 		strcpy(strrchr(tmpfile,'.')+1,"vmrk");
 		fid = fopen(tmpfile,"wb");
-    		fprintf(fid,"Brain Vision Data Exchange Marker File, Version 1.0\n\r");
-    		fprintf(fid,"; Data created by BioSig4C++\n\r\n\r");
-    		fprintf(fid,"[Common Infos]\n\r");
-    		fprintf(fid,"DataFile=%s\n\r\n\r",hdr->FileName);
-    		fprintf(fid,"[Marker Infos]\n\r");
-    		fprintf(fid,"; Each entry: Mk<Marker number>=<Type>,<Description>,<Position in data points>,\n\r");
-    		fprintf(fid,"; <Size in data points>, <Channel number (0 = marker is related to all channels)>\n\r");
-    		fprintf(fid,"; Fields are delimited by commas, some fields might be omitted (empty).\n\r");
-    		fprintf(fid,"; Commas in type or description text are coded as \"\\1\".\n\r");
+    		fprintf(fid,"Brain Vision Data Exchange Marker File, Version 1.0\r\n");
+    		fprintf(fid,"; Data created by BioSig4C++\r\n\r\n");
+    		fprintf(fid,"[Common Infos]\r\n");
+    		fprintf(fid,"DataFile=%s\r\n\r\n",hdr->FileName);
+    		fprintf(fid,"[Marker Infos]\r\n\r\n");
+    		fprintf(fid,"; Each entry: Mk<Marker number>=<Type>,<Description>,<Position in data points>,\r\n");
+    		fprintf(fid,"; <Size in data points>, <Channel number (0 = marker is related to all channels)>\r\n");
+    		fprintf(fid,"; Fields are delimited by commas, some fields might be omitted (empty).\r\n");
+    		fprintf(fid,"; Commas in type or description text are coded as \"\\1\".\r\n");
     		struct tm *T0 = gdf_time2tm_time(hdr->T0);
 		uint32_t us = (hdr->T0*24*3600 - floor(hdr->T0*24*3600))*1e6;
     		fprintf(fid,"Mk1=New Segment,,1,1,0,%04u%02u%02u%02u%02u%02u%06u",T0->tm_year+1900,T0->tm_mon+1,T0->tm_mday,T0->tm_hour,T0->tm_min,T0->tm_sec,us); // 20081002150147124211
 
 		if ((hdr->EVENT.DUR==NULL) && (hdr->EVENT.CHN==NULL))
 	    		for (k=0; k<hdr->EVENT.N; k++) {
-				fprintf(fid,"\n\rMk%i=,0x%04x,%u,1,0",k+2,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]+1);  // convert to 1-based indexing 
+				fprintf(fid,"\r\nMk%i=,0x%04x,%u,1,0",k+2,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]+1);  // convert to 1-based indexing 
    			}
     		else
     			for (k=0; k<hdr->EVENT.N; k++) {
-				fprintf(fid,"\n\rMk%i=,0x%04x,%u,%u,%u",k+2,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]+1,hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]); // convert EVENT.POS to 1-based indexing 
+				fprintf(fid,"\r\nMk%i=,0x%04x,%u,%u,%u",k+2,hdr->EVENT.TYP[k],hdr->EVENT.POS[k]+1,hdr->EVENT.DUR[k],hdr->EVENT.CHN[k]); // convert EVENT.POS to 1-based indexing 
 	   		}
 		fclose(fid); 
 		
