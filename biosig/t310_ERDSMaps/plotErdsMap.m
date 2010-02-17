@@ -57,6 +57,10 @@ if ~isempty(varargin)  % Are there optional parameters available?
    end;
 end;
 
+if ~isfield(r, 'refmethod')
+    r.refmethod = 'classic';
+end;
+
 % Does the range interval lie inside the calculated time segment?
 if ~isempty(t_range)
     if numel(t_range) ~= 2
