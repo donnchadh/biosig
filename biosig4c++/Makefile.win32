@@ -11,7 +11,7 @@
 CC            = gcc
 CXX           = g++
 MEX	      = mex  # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex	
-DEFINES       = -D=WITHOUT_NETWORK -D=WITH_ZLIB #-D=WITH_GSL #-D=WITH_ASN1 #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = -D=WITHOUT_NETWORK #-D=WITH_ZLIB #-D=WITH_GSL #-D=WITH_ASN1 #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 CFLAGS        = -pipe -fPIC  -O2  $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      = -pipe -fPIC  -O2  $(DEFINES) # -I cntopenlib/include/
 AR            = ar -rsc
@@ -178,20 +178,20 @@ libbiosig.dll: $(OBJECTS)
 
 win32/zdll.lib: 
         echo   Download the file http://www.zlib.net/zlib123-dll.zip  
-        echo   Extract lib/zdll.lib and save it to $(cd)/win32/zdll.lib 
-        echo   Press any key when finished.
-        pause 
+		echo   Extract lib/zdll.lib and save it to $(cd)/win32/zdll.lib 
+		echo   Press any key when finished.
+		pause 
         
 win32/zlib/zlib1.dll: win32/zlib123-dll.zip
 	unzip -u win32/zlib123-dll.zip -d win32/zlib
 	-mkdir win32/zlib
-        echo unzip win32/zlib123-dll.zip into the directory win32/zlib. Press any key when finished.
-        pause
+	echo unzip win32/zlib123-dll.zip into the directory win32/zlib. Press any key when finished.
+	pause
 
 win32/zlib123-dll.zip:
 	# wget -q -Pwin32 http://www.zlib.net/zlib123-dll.zip
-        echo download the file http://www.zlib.net/zlib123-dll.zip into directory $(cd)\win32. Press any key when finished.
-        pause 
+		echo download the file http://www.zlib.net/zlib123-dll.zip into directory $(cd)\win32. Press any key when finished.
+		pause 
 
 ####### application files 
  
