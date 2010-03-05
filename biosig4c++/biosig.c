@@ -1888,7 +1888,7 @@ void destructHDR(HDRTYPE* hdr) {
 
 	if (hdr==NULL) return;
 	
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"destructHDR(%s): free HDR.aECG\n",hdr->FileName);
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"destructHDR(%s): free HDR.aECG\n",hdr->FileName);
 
 	sclose(hdr); 
 
@@ -1902,32 +1902,32 @@ void destructHDR(HDRTYPE* hdr) {
 
     	if (hdr->AS.bci2000 != NULL) free(hdr->AS.bci2000);
 
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.AS.rawdata\n");
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.AS.rawdata\n");
 
     	if ((hdr->AS.rawdata != NULL) && (hdr->TYPE != SCP_ECG)) 
     	{	// for SCP: hdr->AS.rawdata is part of hdr->AS.Header 
         	free(hdr->AS.rawdata);
         }	
 
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.data.block\n");
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.data.block\n");
 
     	if (hdr->data.block != NULL) free(hdr->data.block);
        	hdr->data.size[0]=0;
        	hdr->data.size[1]=0;
 
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.CHANNEL[]\n");
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.CHANNEL[] %p %p\n",hdr->CHANNEL,hdr->rerefCHANNEL);
 
     	if (hdr->CHANNEL != NULL) free(hdr->CHANNEL);
     	hdr->CHANNEL = NULL;
 
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR.AS.Header\n");
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.AS.Header\n");
 
     	if (hdr->AS.rawEventData != NULL) free(hdr->AS.rawEventData);
     	hdr->AS.rawEventData = NULL; 
     	if (hdr->AS.Header != NULL) free(hdr->AS.Header);
 	hdr->AS.Header = NULL; 
 	
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free Event Table %p %p %p %p \n",hdr->EVENT.TYP,hdr->EVENT.POS,hdr->EVENT.DUR,hdr->EVENT.CHN);
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free Event Table %p %p %p %p \n",hdr->EVENT.TYP,hdr->EVENT.POS,hdr->EVENT.DUR,hdr->EVENT.CHN);
 
     	if (hdr->EVENT.POS != NULL)  free(hdr->EVENT.POS);
     	if (hdr->EVENT.TYP != NULL)  free(hdr->EVENT.TYP);
@@ -1935,23 +1935,25 @@ void destructHDR(HDRTYPE* hdr) {
     	if (hdr->EVENT.CHN != NULL)  free(hdr->EVENT.CHN);
     	if (hdr->EVENT.CodeDesc != NULL) free(hdr->EVENT.CodeDesc);
 
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR\n");
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR\n");
 
     	if (hdr->AS.auxBUF != NULL) free(hdr->AS.auxBUF);
 
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR\n");
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR\n");
 
 #ifdef CHOLMOD_H
         cholmod_common c ;
         cholmod_start (&c) ; /* start CHOLMOD */
         //if (hdr->Calib) cholmod_print_sparse(hdr->Calib,"destructHDR hdr->Calib",&c);
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free hdr->Calib\n");
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free hdr->Calib\n");
 	if (hdr->Calib) cholmod_free_sparse(&hdr->Calib,&c);
         cholmod_finish (&c) ;
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free hdr->rerefCHANNEL\n");
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free hdr->rerefCHANNEL %p\n",hdr->rerefCHANNEL);
 	if (hdr->rerefCHANNEL) free(hdr->rerefCHANNEL);
+	hdr->rerefCHANNEL = NULL;
 #endif 
-	if (VERBOSE_LEVEL>8)  fprintf(stdout,"destructHDR: free HDR\n");
+
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR\n");
 
 	free(hdr);
 	return; 
@@ -3941,7 +3943,7 @@ if (!strncmp(MODE,"r",1))
 				EventChannel = k+1; 
 			}	
 			else if ((hdr->TYPE==BDF) && !strcmp(hc->Label,"Status")) {
-				hc->OnOff = 0;
+				hc->OnOff = 1;
 				EventChannel = k+1; 
 			}
 			
@@ -4074,35 +4076,31 @@ if (!strncmp(MODE,"r",1))
 					d0 = d1;
 				}	
 
-				hdr->EVENT.N = N_EVENT;
+				hdr->EVENT.N = N_EVENT+1;
 				hdr->EVENT.SampleRate = hdr->SampleRate; 
 				hdr->EVENT.POS = (uint32_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.POS));
 				hdr->EVENT.TYP = (uint16_t*) calloc(hdr->EVENT.N,sizeof(*hdr->EVENT.TYP));
 				hdr->EVENT.DUR = NULL;
 				hdr->EVENT.CHN = NULL;
 				d0 = ((uint32_t)Marker[2]<<16) + ((uint32_t)Marker[1]<<8) + (uint32_t)Marker[0];
-				for (N_EVENT=0, k=1; k<len/3; k++) {
+				hdr->EVENT.POS[0] = 0;        // 0-based indexing 
+				hdr->EVENT.TYP[0] = d0 & 0x00ffff;
+				for (N_EVENT=1, k=1; k<len/3; k++) {
 
 					d1 = ((uint32_t)Marker[3*k+2]<<16) + ((uint32_t)Marker[3*k+1]<<8) + (uint32_t)Marker[3*k];
-					if ((d1 & 0x010000) > (d0 & 0x010000)) {
-						hdr->EVENT.POS[N_EVENT] = k-1;        // 0-based indexing 
+					if ((d1 & 0x010000) != (d0 & 0x010000)) {
+						hdr->EVENT.POS[N_EVENT] = k;        // 0-based indexing 
 						hdr->EVENT.TYP[N_EVENT] = 0x7ffe;
 						++N_EVENT;
 					}
-					else if ((d1 & 0x010000) < (d0 & 0x010000)) {
-						hdr->EVENT.POS[N_EVENT] = k-1;        // 0-based indexing 
-						hdr->EVENT.TYP[N_EVENT] = 0x7ffe;
+
+					if ((d1 & 0x00ffff) != (d0 & 0x00ffff)) {
+						hdr->EVENT.POS[N_EVENT] = k;        // 0-based indexing 
+						uint16_t d2 = d1 & 0x00ffff;
+						hdr->EVENT.TYP[N_EVENT] = d2;
 						++N_EVENT;
-					}
-					if ((d1 & 0x00ffff) > (d0 & 0x00ffff)) {
-						hdr->EVENT.POS[N_EVENT] = k-1;        // 0-based indexing 
-						hdr->EVENT.TYP[N_EVENT] = d1 & 0x00ff;
-						++N_EVENT;
-					}	
-					else if ((d1 & 0x00ffff) < (d0 & 0x00ffff)) {
-						hdr->EVENT.POS[N_EVENT] = k-1;        // 0-based indexing 
-						hdr->EVENT.TYP[N_EVENT] = (d0 & 0x00ff) | 0x8000;
-						++N_EVENT;
+						if (d2==0x7ffe)
+							fprintf(stdout,"Warning: BDF file %s uses ambigous code 0x7ffe; For details see file eventcodes.txt. \n",hdr->FileName);
 					}	
 					d0 = d1;
 				}	
@@ -4441,6 +4439,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 		char *line  = strtok((char*)hdr->AS.Header,"\x0a\x0d");
 		while (line!=NULL) {
 
+			if (VERBOSE_LEVEL>7) 
+				fprintf(stdout,"ASCII read line [%i]: <%s>\n",status,line);
+
 			if (!strncmp(line,"[Header 1]",10))
 				status = 1; 
 			else if (!strncmp(line,"[Header 2]",10)) {
@@ -4611,41 +4612,43 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 							cp->SPR = 0; 
 							fprintf(stderr,"Warning SOPEN(BIN) #%i: data file (%s) not found\n",datfile);
 						}
-						hdr->AS.bpb  = lengthRawData;
 					}
 					else if (gdftyp==0xfffe) {
 						cp->GDFTYP = 17;	// double	
 						
 						struct stat FileBuf;
-						stat(datfile,&FileBuf);
-						char *buf = (char*)malloc(FileBuf.st_size);
+						stat(datfile, &FileBuf);
 
 						FILE *fid = fopen(datfile,"rb");
 						if (fid != NULL) {
-							count = fread(hdr->AS.rawdata+lengthRawData, 1, FileBuf.st_size, fid);
+							char *buf = (char*)malloc(FileBuf.st_size+1);
+							count = fread(buf, 1, FileBuf.st_size, fid);
 							fclose(fid);
-
-							const size_t bufsiz = cp->SPR*GDFTYP_BITS[cp->GDFTYP]>>3;
-							hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata,lengthRawData+bufsiz);
+							buf[count] = 0; 
 							
-							char **endptr = &buf;
+							size_t sz = GDFTYP_BITS[cp->GDFTYP]>>3;
+							const size_t bufsiz = cp->SPR * sz;
+							hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, lengthRawData+bufsiz);
+							
+							char *bufbak  = buf; 	// backup copy
+							char **endptr = &bufbak;
 							for (k = 0; k < cp->SPR; k++) {
 								double d = strtod(*endptr,endptr);
-								*(double*)(hdr->AS.rawdata+lengthRawData+sizeof(double)*k) = d;
+								*(double*)(hdr->AS.rawdata+lengthRawData+sz*k) = d;
 							}
 							lengthRawData += bufsiz;
+							free(buf);
 						} 
 						else if (cp->SPR > 0) {
 							cp->SPR = 0; 
 							fprintf(stderr,"Warning SOPEN(BIN) #%i: data file (%s) not found\n",datfile);
 						}
-						hdr->AS.bpb = lengthRawData;
 					}
 					else {
 						B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 						B4C_ERRMSG = "ASCII/BIN: data type unsupported";	
 					}	
-
+					hdr->AS.bpb  = lengthRawData;
 				}	
 				else if (!strcmp(line,"HighPassFilter"))
 					cp->HighPass = atof(val);
@@ -4668,7 +4671,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 				else if (!strncmp(line,"Position",8)) {
 					sscanf(val,"%f \t%f \t%f",cp->XYZ,cp->XYZ+1,cp->XYZ+2);
 
-					// consolidate previos channel
+					// consolidate previous channel
 					if (((GDFTYP_BITS[cp->GDFTYP]*cp->SPR >> 3) != (hdr->AS.bpb-cp->bi)) && (hdr->TYPE==BIN)) {
 						fprintf(stdout,"Warning SOPEN(BIN): problems with channel %i - filesize %i does not fit header info %i\n",k+1, hdr->AS.bpb-hdr->CHANNEL[k].bi,GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP]*hdr->CHANNEL[k].SPR >> 3);
 					}
@@ -4734,7 +4737,7 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 			}
 			line = strtok(NULL,"\x0a\x0d");
 		}
-		hdr->AS.length  = hdr->NRec; 
+		hdr->AS.length = hdr->NRec; 
     	}
     	
 	else if (hdr->TYPE==BCI2000) {
@@ -10452,7 +10455,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
                         }
 
 			if (VERBOSE_LEVEL>8)
-				fprintf(stdout,"swrite 313b\n");
+				fprintf(stdout,"swrite 313b: %f/%i\n",sample_value,DIV);
 
 			sample_value /= DIV;
 
@@ -10468,7 +10471,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			ptr = hdr->AS.rawdata + (off>>3);
 
 			if (VERBOSE_LEVEL>8)
-				fprintf(stdout,"swrite 313e %i %i %li\n",k4,k5,off>>3);
+				fprintf(stdout,"swrite 313e %i %i %li %f\n",k4,k5,off>>3,sample_value);
 
 			// mapping of raw data type to (biosig_data_type)
 			switch (GDFTYP) {
