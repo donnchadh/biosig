@@ -405,7 +405,7 @@ EXTERN_C int sopen_SCP_write(HDRTYPE* hdr) {
 			*(int16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_i16(0x7fff); 
 			printf("Warning SOPEN(SCP,write): timezone not supported\n");
 #else
-			*(int16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_i16((int16_t)round(-timezone/60.0));
+			*(int16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_i16((int16_t)lrint(-timezone/60.0));
 #endif
 			//*(int16_t*)(ptr+sectionStart+curSectLen+3) = l_endian_u16((int16_t)round(T0_tm->tm_gmtoff/60));
 			*(int16_t*)(ptr+sectionStart+curSectLen+5) = 0; 
@@ -481,9 +481,9 @@ EXTERN_C int sopen_SCP_write(HDRTYPE* hdr) {
 				avm = hdr->CHANNEL[i].Cal * 1e9 * PhysDimScale(hdr->CHANNEL[i].PhysDimCode);
 				// check whether all channels have the same scaling factor
 				if (fabs((AVM - avm)/AVM) > 1e-14)
-					fprintf(stderr,"Warning SOPEN (SCP-WRITE): scaling factors differ between channels. Scaling factor of 1st channel is used.\n");
+					fprintf(stderr,"Warning SOPEN (SCP-WRITE): scaling factors differ between channel #1 and #%i. Scaling factor of 1st channel is used.\n",i+1);
 			};
-			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)AVM);
+			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)lrint(AVM));
 			avm = l_endian_u16(*(uint16_t*)(ptr+sectionStart+curSectLen));
 			curSectLen += 2;
 			if (fabs((AVM - avm)/AVM)>1e-14)
@@ -491,7 +491,7 @@ EXTERN_C int sopen_SCP_write(HDRTYPE* hdr) {
 
 			// Sample interval
 			AVM = 1e6/hdr->SampleRate;
-			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)AVM);
+			*(uint16_t*)(ptr+sectionStart+curSectLen) = l_endian_u16((uint16_t)lrint(AVM));
 			avm = l_endian_u16(*(uint16_t*)(ptr+sectionStart+curSectLen));
 			curSectLen += 2;
 			if (fabs((AVM - avm)/AVM)>1e-14)
