@@ -232,7 +232,7 @@ int main(int argc, char **argv){
         int flagREREF = 0;
 #endif
 	hdr->FLAG.OVERFLOWDETECTION = 0;
-	hdr->FLAG.UCAL = !flagREREF;
+	hdr->FLAG.UCAL = hdr->FLAG.UCAL && !flagREREF && (TARGET_TYPE==SCP_ECG);
 	hdr->FLAG.ROW_BASED_CHANNELS = flagREREF;
 	
 #ifdef CHOLMOD_H
@@ -312,6 +312,8 @@ int main(int argc, char **argv){
     *********************************/
 
 #ifdef CHOLMOD_H
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[199] %p %p\n",hdr->CHANNEL,hdr->rerefCHANNEL);
+
         if (hdr->Calib && hdr->rerefCHANNEL) {
 		hdr->NS = hdr->Calib->ncol; 
                 free(hdr->CHANNEL);
@@ -383,6 +385,24 @@ int main(int argc, char **argv){
 		}
 		else if ((SOURCE_TYPE==GDF) && (TARGET_TYPE==GDF)) 
 			;
+		else if ((TARGET_TYPE==SCP_ECG) && !hdr->FLAG.UCAL) {
+			double scale = PhysDimScale(hdr->CHANNEL[k].PhysDimCode) *1e9;
+			if (hdr->FLAG.ROW_BASED_CHANNELS) {
+				for (k1=0; k1<N; k1++)
+					hdr->data.block[k2 + k1*hdr->data.size[0]] *= scale;
+			}
+			else {
+				for (k1=0; k1<N; k1++) 
+					hdr->data.block[k2*N + k1] *= scale;
+			}
+	    		hdr->CHANNEL[k].GDFTYP = 3;
+	    		hdr->CHANNEL[k].PhysDimCode = 4276;	// nV
+	    		hdr->CHANNEL[k].DigMax = 2^15-1;
+	    		hdr->CHANNEL[k].DigMin = -hdr->CHANNEL[k].DigMax;
+			double PhysMax = max(fabs(PhysMaxValue0),fabs(PhysMinValue0)) * scale;
+	    		hdr->CHANNEL[k].PhysMax = PhysMax;
+	    		hdr->CHANNEL[k].PhysMin = -PhysMax;
+		}
 		else if ((hdr->CHANNEL[k].GDFTYP<10 ) && (TARGET_TYPE==GDF || TARGET_TYPE==CFWB)) {
 			/* heuristic to determine optimal data type */
 			if ((MaxValue <= 127) && (MinValue >= -128))
@@ -402,19 +422,8 @@ int main(int argc, char **argv){
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"#%3d %d [%f %f][%f %f]\n",k,hdr->CHANNEL[k].GDFTYP,MinValue,MaxValue,PhysMinValue0,PhysMaxValue0);
 		k2++;
 	}
-	if (0) //(hdr->TYPE==SCP_ECG && !hdr->FLAG.UCAL) 
-	    	for (k=0; k<hdr->NS; k++) {
-	    		hdr->CHANNEL[k].GDFTYP = 3;
-	    		hdr->CHANNEL[k].PhysMax = (PhysMaxValue0 > -PhysMinValue0 ? PhysMaxValue0 : -PhysMinValue0);
-	    		hdr->CHANNEL[k].PhysMin = -hdr->CHANNEL[k].PhysMax;
-	    		hdr->CHANNEL[k].Cal = ceil(hdr->CHANNEL[k].PhysMax/(ldexp(1.0,15)-1));
-	    		hdr->CHANNEL[k].Off = 0.0;
-	    		hdr->CHANNEL[k].DigMax = hdr->CHANNEL[k].PhysMax/hdr->CHANNEL[k].Cal;
-	    		hdr->CHANNEL[k].DigMin = -hdr->CHANNEL[k].DigMax;
-		}
-
     }
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[205]\n");
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[205] UCAL=%i\n", hdr->FLAG.UCAL);
 
 	/* write file */
 	strcpy(tmp,dest);
