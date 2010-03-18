@@ -440,7 +440,7 @@ end;
                                 if (length(bd)==11),
                                 	HDR.Patient.Birthday = zeros(1,6); 
                                 	bd(bd=='-') = ' '; 
-                                	[n,v,s]=str2double(bd);
+                                	[n,v,s]=str2double(bd,' ');
 					HDR.Patient.Birthday(1) = n(3);
 					HDR.Patient.Birthday(2) = strmatch(lower(s{2}),{'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'});
 					HDR.Patient.Birthday(3) = n(1);
@@ -512,15 +512,15 @@ end;
                         end;
                         h2=char(h2);
 
-                        HDR.Label      =            h2(:,idx1(1)+1:idx1(2));
+                        HDR.Label      =    cellstr(h2(:,idx1(1)+1:idx1(2)));
                         HDR.Transducer =    cellstr(h2(:,idx1(2)+1:idx1(3)));
-                        HDR.PhysDim    =            h2(:,idx1(3)+1:idx1(4));
-                        HDR.PhysMin    = str2double(h2(:,idx1(4)+1:idx1(5)))';
-                        HDR.PhysMax    = str2double(h2(:,idx1(5)+1:idx1(6)))';
-                        HDR.DigMin     = str2double(h2(:,idx1(6)+1:idx1(7)))';
-                        HDR.DigMax     = str2double(h2(:,idx1(7)+1:idx1(8)))';
+                        HDR.PhysDim    =    cellstr(h2(:,idx1(3)+1:idx1(4)));
+                        HDR.PhysMin    = str2double(cellstr(h2(:,idx1(4)+1:idx1(5))))';
+                        HDR.PhysMax    = str2double(cellstr(h2(:,idx1(5)+1:idx1(6))))';
+                        HDR.DigMin     = str2double(cellstr(h2(:,idx1(6)+1:idx1(7))))';
+                        HDR.DigMax     = str2double(cellstr(h2(:,idx1(7)+1:idx1(8))))';
                         HDR.PreFilt    =            h2(:,idx1(8)+1:idx1(9));
-                        HDR.AS.SPR     = str2double(h2(:,idx1(9)+1:idx1(10)));
+                        HDR.AS.SPR     = str2double(cellstr(h2(:,idx1(9)+1:idx1(10))));
                         %if ~all(abs(HDR.VERSION)==[255,abs('BIOSEMI')]),
                         if (HDR.VERSION ~= -1),
                                 HDR.GDFTYP     = 3*ones(1,HDR.NS);	%	datatype
