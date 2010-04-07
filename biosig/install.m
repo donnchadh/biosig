@@ -85,7 +85,7 @@ end;
 p = pwd; 
 try
 	cd([BIOSIG_HOME,'/NaN/src']);
-%	make 
+	make 
 end;
 cd(p);
 
