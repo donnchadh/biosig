@@ -23,11 +23,11 @@
 %  work, but does not support the handling of NaN's.
 
 %	$Id$
-%	Copyright (C) 2003-2005,2006,2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
-%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%	Copyright (C) 2003-2005,2006,2007,2008,2009,2010 by Alois Schloegl <a.schloegl@ieee.org>
+%	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 BIOSIG_HOME = pwd;	%
-if exist('t200','dir')
+if exist('./t200_FileAccess','dir')
 	% install.m may reside in .../biosig/ or above (...)
         [BIOSIG_HOME,f,e] = fileparts(BIOSIG_HOME);
 elseif exist('biosig','dir')
@@ -55,17 +55,15 @@ if ~exist('OCTAVE_VERSION','builtin'),
 
 end;
 
-if (~exist('butter','file') || ~exist('betainv','file')) && isdir([BIOSIG_HOME,'/freetb4matlab'])
-	path(path,[BIOSIG_HOME,'/freetb4matlab/signal']);	% Octave-Forge signal processing toolbox converted with freetb4matlab 
-	path(path,[BIOSIG_HOME,'/freetb4matlab/general']);	% Octave functions
-	path(path,[BIOSIG_HOME,'/freetb4matlab/statistics/distribution']);	% Octave-Forge statistics toolbox converted with freetb4matlab 
-end; 
+path([BIOSIG_HOME,'/freetb4matlab/signal'],path);	% Octave-Forge signal processing toolbox converted with freetb4matlab
+path([BIOSIG_HOME,'/freetb4matlab/statistics/distributions'],path);	% Octave-Forge statistics toolbox converted with freetb4matlab 
 
 path([BIOSIG_HOME,'/tsa'],path);		%  Time Series Analysis
 %path([BIOSIG_HOME,'/tsa/inst'],path);		%  Time Series Analysis
 % some users might get confused by this
 
-sel = 0; 
+sel = 0;    %% ask whether to install the NaN-toolbox
+sel = 2;    %% do not ask 
 while sel<2,
         sel = menu('Do You want to install NaN-toolbox? [Yes]/No','Help','Yes','No');
         if sel==1, 
@@ -77,10 +75,19 @@ while sel<2,
         fprintf(1,'Moreover, NaN-provides also a number of other useful functions. Installing NaN-toolbox is the recommended option.\n');
         end
 end; 
-if sel==2, 
-        path([BIOSIG_HOME,'/NaN'],path);		%  Statistics analysis for missing data
-        path([BIOSIG_HOME,'/NaN/inst'],path);		%  Statistics analysis for missing data
+if sel==2,
+	%% add NaN-toolbox: a toolbox for statistics and machine learning for data with Missing Values
+        path([BIOSIG_HOME,'/NaN'],path);
+        path([BIOSIG_HOME,'/NaN/inst'],path);
+        path([BIOSIG_HOME,'/NaN/src'],path);
 end; 
+
+p = pwd; 
+try
+	cd([BIOSIG_HOME,'/NaN/src']);
+%	make 
+end;
+cd(p);
 
 %%% NONFREE %%%
 if exist([BIOSIG_HOME,'/biosig/NONFREE/EEProbe'],'dir'),
@@ -98,15 +105,16 @@ for k = 1:length(fun),
                 fprintf(2,'Function %s is missing\n',upper(fun{k}));     
         end;
 end;
-try
-        mex([BIOSIG_HOME,'/NaN/sumskipnan_mex.cpp'], '-o', [BIOSIG_HOME,'/NaN/sumskipnan_mex'])
-end;
-try
-        mex([BIOSIG_HOME,'/NaN/covm_mex.cpp'], '-o', [BIOSIG_HOME,'/NaN/covm_mex'])
-end;
-try
-        mex([BIOSIG_HOME,'/NaN/histo_mex.cpp'], '-o', [BIOSIG_HOME,'/NaN/histo_mex'])
-end
+try 
+    x = betainv(.5, 1, 2);
+catch     
+    disp('statistics/distribution toolbox (betainv) is missing');	
+end; 
+try 
+    [b,a] = butter(5,[.08,.096]);
+catch
+    disp('signal processing toolbox (butter) is missing');	
+end; 
 
 disp('BIOSIG-toolbox activated');
 if ~exist('OCTAVE_VERSION'),	% OCTAVE
