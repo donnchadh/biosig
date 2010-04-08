@@ -279,7 +279,7 @@ end;
 
 FlagLoaded = 0;
 if exist('mexSLOAD','file')==3,
-	try
+if 1,%	try
 		valid_rerefmx = 1;
 		if ischar(CHAN)
 		        HDR = sopen(CHAN,'r'); HDR=sclose(HDR); 
@@ -392,6 +392,18 @@ if exist('mexSLOAD','file')==3,
 				ix = H.EVENT.CHN>0;
 				H.EVENT.CHN(ix) = a(H.EVENT.CHN(ix));	% assigning new channel number
 			end;	
+			
+		elseif strcmp(H.TYPE,'BDF');
+			H.BDF.ANNONS = zeros(HDR.NRec*HDR.SPR,1);
+			ix  = HDR.EVENT.TYP==hex2dec('7ffe');
+			ix1 = find(~ix); 
+			POS = HDR.EVENT.POS(ix1);
+			TYP = HDR.EVENT.TYP(ix1);
+			[s,ix2] = sort([POS; HDR.NRec*HDR.SPR+1]);
+			for k = 1:length(s)-1,
+				H.BDF.ANNONS(s(k):s(k+1)-1) = TYP(ix2(k));
+			end;
+			H.BDF.ANNONS(HDR.EVENT.POS(ix)) = H.BDF.ANNONS(HDR.EVENT.POS(ix)) | hex2dec('10000');
 			
 		elseif strcmp(H.TYPE,'BKR');
 	                H.Classlabel = [];
@@ -563,11 +575,11 @@ if exist('mexSLOAD','file')==3,
 
 		if isempty(signal);
 			signal = repmat(NaN,round(max(HDR.EVENT.POS)*HDR.SampleRate/HDR.EVENT.SampleRate),HDR.NS); 
+			for k = 1:HDR.NS, 
+				ix = find(HDR.EVENT.CHN==k);
+				signal(round(HDR.EVENT.POS(ix)*HDR.SampleRate/HDR.EVENT.SampleRate),k)=HDR.EVENT.DUR(ix);
+			end;
                 end;        
-		for k = 1:HDR.NS, 
-			ix = find(HDR.EVENT.CHN==k);
-			signal(round(HDR.EVENT.POS(ix)*HDR.SampleRate/HDR.EVENT.SampleRate),k)=HDR.EVENT.DUR(ix);
-		end;
 
 	        H.CHANTYP = repmat(' ',1,H.NS);
 		for k=1:H.NS,
@@ -581,7 +593,7 @@ if exist('mexSLOAD','file')==3,
 			end; 
 		end;
 
-	catch
+else%	catch
 		%fprintf(1,lasterr);
 		fprintf(1, 'SLOAD: mexSLOAD failed - the slower M-function is used.\n');
 	end;

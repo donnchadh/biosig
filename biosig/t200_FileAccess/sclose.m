@@ -145,7 +145,7 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                         len = [length(HDR.EVENT.POS),length(HDR.EVENT.TYP)]; 
                         EVENT.Version = 1;
                         if isfield(HDR.EVENT,'CHN') & isfield(HDR.EVENT,'DUR'), 
-                                if any(HDR.EVENT.CHN) | any(HDR.EVENT.DUR),
+                                if any(HDR.EVENT.CHN) || any(HDR.EVENT.DUR),
                                         EVENT.Version = 3;
 					len = [len,length(HDR.EVENT.CHN),length(HDR.EVENT.DUR)];
                                 end;

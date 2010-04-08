@@ -1673,7 +1673,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
                 end;
         end;
 
-        if (~isfield(X,'MEAN') || ~isfield(X,'STD')) %& isfield(X,'SUM') & isfield(X,'N') & isfield(X,'SSQ')
+        if (~isfield(X,'MEAN') || ~isfield(X,'SEM')) %& isfield(X,'SUM') & isfield(X,'N') & isfield(X,'SSQ')
                 X.MEAN 	= X.SUM./X.N;			% mean
                 X.MSQ  	= X.SSQ./X.N;;			% mean square
                 X.RMS  	= sqrt(X.MSQ);			% root mean square
@@ -1692,7 +1692,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
         else
                 minmean = floor(min(X.MEAN(:)));
                 maxmean = ceil(max(X.MEAN(:)));
-                maxstd  = ceil(max(X.STD(:)));
+                maxstd  = ceil(max(X.SEM(:)));
         end;
 
         for k0 = 1:sz(3),

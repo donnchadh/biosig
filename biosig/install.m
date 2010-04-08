@@ -57,6 +57,7 @@ end;
 
 path([BIOSIG_HOME,'/freetb4matlab/signal'],path);	% Octave-Forge signal processing toolbox converted with freetb4matlab
 path([BIOSIG_HOME,'/freetb4matlab/statistics/distributions'],path);	% Octave-Forge statistics toolbox converted with freetb4matlab 
+path([BIOSIG_HOME,'/freetb4matlab/statistics/tests'],path);	% Octave-Forge statistics toolbox converted with freetb4matlab 
 
 path([BIOSIG_HOME,'/tsa'],path);		%  Time Series Analysis
 %path([BIOSIG_HOME,'/tsa/inst'],path);		%  Time Series Analysis
@@ -105,6 +106,11 @@ for k = 1:length(fun),
                 fprintf(2,'Function %s is missing\n',upper(fun{k}));     
         end;
 end;
+try 
+    [p,t,df]=t_test_2(randn(100,1),randn(10,1));
+catch     
+    disp('statistics/distribution toolbox (ttest2) is missing');	
+end; 
 try 
     x = betainv(.5, 1, 2);
 catch     
