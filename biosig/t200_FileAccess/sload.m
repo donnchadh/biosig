@@ -279,7 +279,7 @@ end;
 
 FlagLoaded = 0;
 if exist('mexSLOAD','file')==3,
-if 1,%	try
+	try
 		valid_rerefmx = 1;
 		if ischar(CHAN)
 		        HDR = sopen(CHAN,'r'); HDR=sclose(HDR); 
@@ -593,7 +593,7 @@ if 1,%	try
 			end; 
 		end;
 
-else%	catch
+	catch
 		%fprintf(1,lasterr);
 		fprintf(1, 'SLOAD: mexSLOAD failed - the slower M-function is used.\n');
 	end;
