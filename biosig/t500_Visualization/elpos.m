@@ -1,7 +1,7 @@
-function [YX,code]=elpos(Label);
+function [XY,code]=elpos(Label);
 % ELPOS provides electrode positions in 2-D according to [1]
 %   
-% [YX,code]=elpos(Label);
+% [XYZ,code]=elpos(Label);
 %
 % see also: ELPOS3
 %
@@ -14,14 +14,14 @@ function [YX,code]=elpos(Label);
 %   CEN/TC251/PT-40 (2001)
 
 %	$Id$
-%	Copyright (c) 1997,1998,2004,2007 by Alois Schloegl
+%	Copyright (c) 1997,1998,2004,2007,2010 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
+% Version 3 of the License, or (at your option) any later version.
 %
 % This library is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -49,7 +49,10 @@ xy  = Theta.*exp(i*angle(XYZ*[1;i;0]))*180/pi;
 
 for k=1:nr;
 for l=1:length(BIOSIG_GLOBAL.Label),
-	if strcmp(upper(deblank(Label(k,:))),upper(BIOSIG_GLOBAL.Label{l}))
+	if iscell(Label) && strcmp(upper(deblank(Label{k}(5:end))),upper(BIOSIG_GLOBAL.Label{l})),
+		code(k)=l;
+break;
+	elseif ischar(Label) && strcmp(upper(deblank(Label(k,5:end))),upper(BIOSIG_GLOBAL.Label{l}))
 		code(k)=l;
 break;
 	end;	
@@ -57,6 +60,7 @@ end;
 end;
 
 K=code(code>0)';
+XY = [real(xy(K)),imag(xy(K))];
 
 T=0:.001:2*pi;
 R=180/pi*2;

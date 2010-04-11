@@ -15,14 +15,14 @@ function [xyz,code]=elpos3(Label);
  
 
 %	$Id$
-%	Copyright (c) 1997,1998,2004,2007 by Alois Schloegl
+%	Copyright (c) 1997,1998,2004,2007,2010 by Alois Schloegl
 %	a.schloegl@ieee.org	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
+% Version 3 of the License, or (at your option) any later version.
 %
 % This library is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -49,17 +49,21 @@ xyz=ones(nr,3);
 XYZ = BIOSIG_GLOBAL.XYZ;
 
 for k=1:nr,
-for l=1:length(BIOSIG_GLOBAL.Label),%size(Electrode.Theta,2), 
-	if strcmp(upper(deblank(Label(k,:))),upper(BIOSIG_GLOBAL.Label{l}))
+for l=1:length(BIOSIG_GLOBAL.Label),
+	if iscell(Label) && strcmp(upper(deblank(Label{k}(5:end))),upper(BIOSIG_GLOBAL.Label{l})),
 		code(k)=l;
-		xyz = BIOSIG_GLOBAL.XYZ(l,:);
 break;
-	end;
+	elseif ischar(Label) && strcmp(upper(deblank(Label(k,5:end))),upper(BIOSIG_GLOBAL.Label{l}))
+		code(k)=l;
+break;
+	end;	
 end;
 end;
 
 
-K=code(code>0)';
+K=code(code>0)'
+
+
 plot3(XYZ(:,1),XYZ(:,2),XYZ(:,3),'x',XYZ(K,1),XYZ(K,2),XYZ(K,3),'ro');
 for k=1:size(XYZ,1),
 	if all(~isnan(XYZ(k,:))),
@@ -67,5 +71,7 @@ for k=1:size(XYZ,1),
 	end;
 end; 
 set(gca,'xtick',0,'ytick',0)
+
+XYX = XYZ(k,:);
 
 
