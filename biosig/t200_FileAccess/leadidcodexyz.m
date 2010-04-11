@@ -157,7 +157,12 @@ else    % electrode code and position
                        		HDR.LeadIdCode = repmat(NaN,NS,1);
 	        	end;
                 	for k = 1:NS;
-	                        ix = strmatch(upper(deblank(HDR.Label{k})),BIOSIG_GLOBAL.Label,'exact');
+				Label = upper(deblank(HDR.Label{k})); 
+				pos = find(Label==':');
+				if ~isempty(pos)
+					Label = Label(pos+1:end);
+                            	end;        
+	                        ix = strmatch(Label,BIOSIG_GLOBAL.Label,'exact');
 
 	                        if length(ix)==2,
 	                        	%%%%% THIS IS A HACK %%%%%
