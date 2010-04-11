@@ -55,7 +55,7 @@ locs_2D=mk_sensors_plane(HDR.ELEC.XYZ(ix,:),para); %make a variable locs_2D
 
 
 %load cs_eeg %load an example for a cross-spectrum (this is real data at 10Hz) 
-cs = randn(size(locs_2D,1)); % use random data for demo 
+cs = randn(size(locs_2D,1))*[10+i]; % use random data for demo 
 figure;plot_coupling(imag(cs),locs_2D);  %show the imaginary part of the cross-spectrum
 
 %If you want to show a potential or field you can use 
