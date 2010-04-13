@@ -1078,7 +1078,7 @@ HDRTYPE* ifopen(HDRTYPE* hdr, const char* mode) {
 	} else	
 #endif
 	{ 
-	hdr->FILE.FID = fopen(hdr->FileName,mode);
+	hdr->FILE.FID = fopen(hdr->FileName, mode);
 	hdr->FILE.OPEN = (hdr->FILE.FID != NULL); 
 	} 
 	return(hdr);
@@ -5374,9 +5374,9 @@ if (VERBOSE_LEVEL>8)
 				/* open data file */ 
 				if (FLAG_ASCII) hdr = ifopen(hdr,"rt");
 				else 	        hdr = ifopen(hdr,"rb");
-					
-				if (VERBOSE_LEVEL>7) fprintf(stdout,"BVA210,%i,%i\n",pos,hdr->HeadLen);
 
+				hdr->AS.bpb = (hdr->NS*GDFTYP_BITS[gdftyp])>>3;
+				if (hdr->TYPE==BrainVisionVAmp) hdr->AS.bpb += 4;
 				if (!npts) {
 					struct stat FileBuf;
 					stat(hdr->FileName,&FileBuf);
@@ -5386,18 +5386,15 @@ if (VERBOSE_LEVEL>8)
 				/* restore input file name, and free temporary file name  */
 				hdr->FileName = filename;
 				free(tmpfile);
-
+					
 				if (orientation == VEC) {
 					hdr->SPR = npts;
 					hdr->NRec= 1;
+					hdr->AS.bpb*= hdr->SPR;
 				} else {
 					hdr->SPR = 1;
 					hdr->NRec= npts;
 				}
-				hdr->AS.bpb = (hdr->NS*hdr->SPR*GDFTYP_BITS[gdftyp])>>3;
-				hdr->AS.bpb+= (hdr->TYPE==BrainVisionVAmp ? 4 : 0)*hdr->SPR;
-
-				if (VERBOSE_LEVEL>7) fprintf(stdout,"BVA210,%i,%i,ERR=%i npts=%i\n",pos,hdr->HeadLen,B4C_ERRNUM,npts);
 
 			    	hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL,hdr->NS*sizeof(CHANNEL_TYPE));
 				for (k=0; k<hdr->NS; k++) {
@@ -5433,11 +5430,12 @@ if (VERBOSE_LEVEL>8)
 				seq = 6; 
 			else if (!strncmp(t,"[",1))
 				seq = 9; 
-			
+
 
 			else if (seq==1) {
-				if      (!strncmp(t,"DataFile=",9)) 
-					strcpy(ext,strrchr(t,'.')+1);		
+				if      (!strncmp(t,"DataFile=",9))
+					strcpy(ext,strrchr(t,'.')+1);
+
 				else if (!strncmp(t,"MarkerFile=",11)) {
 
 					char* mrkfile = (char*)calloc(strlen(hdr->FileName)+strlen(t),1);
@@ -6426,7 +6424,6 @@ if (VERBOSE_LEVEL>8)
 					// hdr->CHANNEL[k3].Notch    = 0;
 				}
 			}
-	
 		}
 		free(h2); 
 		free(h3); 
