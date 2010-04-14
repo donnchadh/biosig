@@ -40,7 +40,7 @@ function [lap, plot_index, n_rows, n_cols] = getMontage(montage, outfile)
 %   n_rows     ... Number of rows of the montage
 %   n_cols     ... Number of columns of the montage
 
-% Copyright by Clemens Brunner, Robert Leeb, Alois SchlÃ¶gl 
+% Copyright by Clemens Brunner, Robert Leeb, Alois Schlögl 
 % $Revision: 0.31 $ $Date: 10/27/2009 11:41:07 $
 % $Id$
 % E-Mail: clemens.brunner@tugraz.at
@@ -212,7 +212,11 @@ if 0,
         %% brief version using sopen      
         HDR = sopen(HDR,'w'); 
         sclose(HDR); 
+elseif 1          
+        if ischar(montage) m = montage; else m = '? (user specified)'; end;  
+	save2mm(HDR.FileName,HDR.Calib,m);
 else          
+	%% obsolete 
         [I,J,V] = find(HDR.Calib); 
         fid = fopen(HDR.FileName,'w+'); 
         fprintf(fid,'%%%%MatrixMarket matrix coordinate real general\n');
