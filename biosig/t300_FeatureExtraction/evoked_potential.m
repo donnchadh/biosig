@@ -1,21 +1,24 @@
 function R = evoked_potential(fn,CHAN,t1,t2,EventTyp)
 % EVOKED_POTENTIAL estimates evoked potentials (EP's)
 %
-%  R = EVOKED_POTENTIAL(filename, CHAN, t_start, t_end,EventTyp)
-%  R = EVOKED_POTENTIAL(s, HDR, t_start, t_end,EventTyp)
+%  R = EVOKED_POTENTIAL(filename, CHAN, t_start, t_end, EventTyp)
+%  R = EVOKED_POTENTIAL(s, HDR, t_start, t_end, EventTyp)
 %     filename  filename
 %     CHAN      channel selection; default: 0 (all)
 %     t_start   start time in seconds (relative to trigger time point)
 %     t_end     end time in seconds relative to trigger 
-%     EventTyp  [optional]
+%     EventTyp  (list of) trigger events
 %
-%  The trigger information must be available in the biosig file. 
-%  The EP is calculated for each selected channel, if classlabels 
-%  are available, the EP is calculated for each class
+%  The trigger information is obtained from HDR.EVENT.POS(HDR.EVENT.TYP==EventTyp))
+%  The EP is calculated for each selected channel. If more than one 
+%  EventTyp is used, an EP is obtained for every channel and every 
+%  type of events. The result can be visualized with 
+%     plota(R) 
 % 
+% see also: PLOTA
 
 %	$Id$
-%	Copyright (C) 2005,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
+%	Copyright (C) 2005,2008,2009,2010 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 % This library is free software; you can redistribute it and/or
@@ -34,7 +37,6 @@ function R = evoked_potential(fn,CHAN,t1,t2,EventTyp)
 % Boston, MA  02111-1307, USA.
 
 
-%% 
 %[S,HDR]=matload(fn,CHAN);
 %S(S> 400)=NaN;S(S<-400)=NaN;
 if ischar(fn)
@@ -47,6 +49,7 @@ if ischar(fn)
 elseif isnumeric(fn)
 	S = fn; 
 	HDR = CHAN;
+	CHAN = 0; 
 end;		
 %HDR = sopen(fn,'r',CHAN);[S,HDR]=sread(HDR);HDR = sclose(HDR); 
 %S = diff(S); 
@@ -74,11 +77,7 @@ t1 = floor(t1*HDR.SampleRate);
 t2 = ceil(t2*HDR.SampleRate);
 t  = t1:t2;
 for cl = 1:length(CL), 
-	if ~isfield(HDR,'Classlabel') || isempty(HDR.Classlabel)
-		trig = HDR.EVENT.POS(HDR.EVENT.TYP==CL(cl)); 
-	else	
-		trig = HDR.TRIG(HDR.Classlabel==CL(cl));
-	end;
+	trig = HDR.EVENT.POS(HDR.EVENT.TYP==CL(cl)); 
 	if 0, 
 		sz = [length(CHAN),length(t),length(ix)];
 		s  = repmat(NaN,sz);
@@ -91,10 +90,11 @@ for cl = 1:length(CL),
 			end;
 		end;
 	else 	 	
-        	[s,sz] = trigg(S,trig,t1,t2,0); 
+        	[s,sz] = trigg(S,trig,t1,t2,0);
         	N(cl)  = length(trig);
         	[se(:,:,cl), m(:,:,cl)] = sem(reshape(s,sz),3);
         end;  
+
         RES = statistic(reshape(s,sz),3); 
         %RES = statistic(center(s,2),3); 
         R0.SUM(:,:,cl) = RES.SUM';

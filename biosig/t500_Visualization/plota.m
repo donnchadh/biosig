@@ -1657,7 +1657,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
         else
                 nf = arg2;  % Handles to subplots
         end;
-        sz,
+
         if isempty(nf)
                 for k0 = 1:sz(3),
                         if sz(3)>1, figure(k0); end;
@@ -1702,7 +1702,7 @@ elseif strcmp(X.datatype,'MEAN+STD')
                         %subplot(nf(k0,k));
 			set (gcf(), 'currentaxes', nf(k0,k));
                         
-                        ax = plot(X.T,[X.MEAN(:,k),X.SEM(:,k)]*[1,1,1;0,-1,1],'k');
+                        ax = plot(X.T,[X.MEAN(:,k,k0),X.SEM(:,k,k0)]*[1,1,1;0,-1,1],'k');
                         set(ax(2),'color',[1,1,1]/2);
                         set(ax(3),'color',[1,1,1]/2);
                         
