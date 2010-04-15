@@ -190,7 +190,7 @@ void mexFunction(
 	if (nrhs<1) {
 #ifdef mexSOPEN
 		mexPrintf("   Usage of mexSOPEN:\n");
-		mexPrintf("\t[s,HDR]=mexSOPEN(f)\n");
+		mexPrintf("\tHDR = mexSOPEN(f)\n");
 		mexPrintf("   Input:\n\tf\tfilename\n");
 		mexPrintf("   Output:\n\tHDR\theader structure\n\n");
 #else
