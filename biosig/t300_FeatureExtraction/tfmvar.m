@@ -110,16 +110,15 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %	Cortical fuctional network organization from autoregressive modelling of loal field potential oscillations.
 %	Statistics in Medicine, doi: 10.1002/sim.2935 
 
-%	$Revision: 1.13 $
 %	$Id$
-%	Copyright (C) 2004,2005,2006,2007,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
+%	Copyright (C) 2004,2005,2006,2007,2008,2009,2010 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
+% Version 3 of the License, or (at your option) any later version.
 %
 % This library is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -332,8 +331,9 @@ for k1 = 1:size(T,2),
                         [AR1,RC1,PE1] = durlev(acovf(S0,MOP));
                         
                         for k=1:m;
-                                [h1,f] = freqz(sqrt(PE1(k,MOP+1)/(Fs*2*pi)),ar2poly(AR1(k,:)),f,Fs);
-                                H1(k,:)= h1(:)'; %F(:,k)=f(:);
+				h1 = sqrt(PE1(k,MOP+1)/(Fs*2*pi))./polyval(ar2poly(AR1(k,:)),e);
+				%[h1,f] = freqz(sqrt(PE1(k,MOP+1)/(Fs*2*pi)),ar2poly(AR1(k,:)),f,Fs);
+				H1(k,:)= h1(:)'; %F(:,k)=f(:);
                         end;
                         
                         %[S(:,:,:,k2),  h(:,:,:,k2), PDC(:,:,:,k2), COH(:,:,:,k2), DTF(:,:,:,k2), DC(:,:,1,k2), pCOH(:,:,:,k2), dDTF(:,:,:,k2), ffDTF(:,:,:,k2), pCOH2(:,:,:,k2),coh(:,:,:,k2)] = mvfreqz(X.B,X.A,X.C,f,Fs);
