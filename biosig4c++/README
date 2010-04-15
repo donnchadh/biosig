@@ -26,8 +26,17 @@ including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, 
     save2gdf can be also used to upload or retrieve data from a bscs server. 
 
 (3) "mexSLOAD" is a MEX-interface for Octave and Matlab
-Requirement: Matlab OR Octave (v2.9 or higher) with octave-headers
+Requirement: Matlab OR Octave (v2.9 or higher) with octave-headers, zlib, 
 For Matlab, precompiled binaries are available in matlab/mexSLOAD.mex*    
+
+For Matlab on MS-Windows, MinGW and GNUMEX are recommended. 
+After setup of MinGW and GNUMEX, mexSLOAD can be compiled in the following way
+
+   - start matlab
+   - change directory to .../biosig4c++ 
+   - and run this command: 
+   mex mexSLOAD.cpp win32/libbiosig.lib win32/zlib/lib/zdll.lib c:\MinGWtdm\lib\libws2_32.a -output matlab/mexSLOAD
+
 
 (4) "biosig4python" is an interface to python. 
 Requirement: python, python-dev, swig (http://www.swig.org/)
@@ -61,7 +70,7 @@ File(s):
     biosig-dev.h definition of internal functions	
     biosig.c	SOPEN, SREAD, SWRITE, SEOF, SCLOSE functions 
     save2gdf.c	converter between various file formats.
-    physicalunit.c 	en-/decodes physical units according to ISO/DIS 11073-10101:2003
+    physicalunit.c         en-/decodes physical units according to ISO/DIS 11073-10101:2003
     mexSLOAD.cpp is a MEX-File for loading data in Octave and Matab. 
     t210/*	reading SCP,FAMOS file format 
     t220/*      writing SCP file format 
@@ -71,9 +80,10 @@ File(s):
     test0/*	scripts and functions for testing
     Makefile	script for compiling and testing under GNU/Linux
     Makefile.win32	script for compiling and testing on win32 using mingw
-    win32/*	executables for Windows
+    matlab/*    contains pre-compiled/binary mex files 
+    win32/*	library and executables for Windows
     python/*.py show example and demo
-    
+            
 
 Open Issue(s) of the SCP-ECG <-> HL7aECG converter:
 ---------------------------------------------------
