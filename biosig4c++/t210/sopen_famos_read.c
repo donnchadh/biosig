@@ -474,10 +474,13 @@ EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 				int len = min(atoi(t2),MAX_LENGTH_PHYSDIM); 
 				// Einheit
 				t2 += p+1;
+				/*
 				strncpy(hdr->CHANNEL[CHAN].PhysDim,t2,len);
 				hdr->CHANNEL[CHAN].PhysDim[len] = 0;
 				hdr->CHANNEL[CHAN].PhysDimCode  = PhysDimCode(hdr->CHANNEL[CHAN].PhysDim);
-				
+				*/
+				hdr->CHANNEL[CHAN].PhysDimCode  = PhysDimCode(t2);
+
 			}
 			else if (!strncmp(t,"ND,1",4) && (level==4)) {
 				// Display properties 

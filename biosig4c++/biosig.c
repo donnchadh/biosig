@@ -284,7 +284,7 @@ struct global_t {
 uint32_t gcd(uint32_t A, uint32_t B)
 {	size_t t; 
 	if (A<B) {t=B; B=A; A=t;}; 
-	while (B) {
+	while (B>0) {
 		t = B; 
 		B = A%B;
 		A = t; 
@@ -527,7 +527,7 @@ void bef64a(  double i, uint8_t* r) {
 void* mfer_swap8b(uint8_t *buf, int8_t len, char FLAG_SWAP) 
 {	
 	if (VERBOSE_LEVEL==9) 
-		fprintf(stdout,"swap=%i %i %i \nlen=%i %2x%2x%2x%2x%2x%2x%2x%2x\n",FLAG_SWAP, __BYTE_ORDER, __LITTLE_ENDIAN, len, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7]); 
+		fprintf(stdout,"swap=%i %i %i \nlen=%i %2x%2x%2x%2x%2x%2x%2x%2x\n",(int)FLAG_SWAP, __BYTE_ORDER, __LITTLE_ENDIAN, len, buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6],buf[7]); 
 	
 	typedef uint64_t iType; 
 #if __BYTE_ORDER == __BIG_ENDIAN

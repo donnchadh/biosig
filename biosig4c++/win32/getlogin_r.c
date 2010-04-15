@@ -63,5 +63,23 @@ int getlogin_r(char* name, size_t namesize)
 	return SUCCESS;
 }
 
+/*
+	
+http://lists-archives.org/mingw-users/05939-building-gnu-global-setenv-is-missing.html
+http://lists-archives.org/mingw-users/05946-building-gnu-global-setenv-is-missing.html
+
+
+*/
+static void  mysetenv(const char *name, const char *value) {
+#ifdef HAVE_SETENV
+	setenv(name, value, 1);
+#else
+	int len = strlen(value)+1+strlen(value)+1;
+	char *str = malloc(len);
+	sprintf(str, "%s=%s", name, value);
+	putenv(str);
+#endif
+}
+
 #endif
 

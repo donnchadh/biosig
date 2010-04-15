@@ -38,7 +38,7 @@ Currently, only the file converter save2gdf is supported.
 Only the file converter save2gdf is supported.
 - You need MinGW with g++ and make.
 - run the make command 
-   make -f Makefile.win32 save2gdf
+   make -f Makefile.win32 save2gdf.exe
 
 
 	

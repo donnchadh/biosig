@@ -353,7 +353,7 @@ void mexFunction(
 	if (VERBOSE_LEVEL>8) 
 		fprintf(stderr,"[112] SOPEN-R finished NS=%i %i\n",hdr->NS,NS);
 
-	convert2to4_eventtable(hdr); 
+//	convert2to4_eventtable(hdr); 
 		
 #ifdef CHOLMOD_H
 	if (hdr->Calib != NULL) {

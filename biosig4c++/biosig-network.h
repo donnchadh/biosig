@@ -146,8 +146,8 @@
 typedef struct {
 	uint32_t STATE; 
 	uint32_t LEN; 
-	uint8_t  LOAD[max(8,BSCS_ID_BITLEN>>3)]; 	// must fit at leat ID length 	
-} mesg_t;
+	uint8_t  LOAD[max(8,BSCS_ID_BITLEN>>3)]  __attribute__ ((aligned (8))); 	// must fit at leat ID length 	
+} mesg_t  __attribute__ ((aligned (8)));
 
 extern uint32_t SERVER_STATE; 
 
