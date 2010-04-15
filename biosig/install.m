@@ -55,6 +55,7 @@ if ~exist('OCTAVE_VERSION','builtin'),
 
 end;
 
+path([BIOSIG_HOME,'/freetb4matlab/basic'],path);	% some basic functions used in Octave but not available in Matlab
 path([BIOSIG_HOME,'/freetb4matlab/signal'],path);	% Octave-Forge signal processing toolbox converted with freetb4matlab
 path([BIOSIG_HOME,'/freetb4matlab/statistics/distributions'],path);	% Octave-Forge statistics toolbox converted with freetb4matlab 
 path([BIOSIG_HOME,'/freetb4matlab/statistics/tests'],path);	% Octave-Forge statistics toolbox converted with freetb4matlab 
@@ -63,28 +64,26 @@ path([BIOSIG_HOME,'/tsa'],path);		%  Time Series Analysis
 %path([BIOSIG_HOME,'/tsa/inst'],path);		%  Time Series Analysis
 % some users might get confused by this
 
-sel = 0;    %% ask whether to install the NaN-toolbox
-sel = 2;    %% do not ask 
-while sel<2,
-        sel = menu('Do You want to install NaN-toolbox? [Yes]/No','Help','Yes','No');
-        if sel==1, 
-        fprintf(1,'The NaN-toolbox is a powerful statistical and machine learning toolbox, \nwhich is also able to handle data with missing values.\n');
-        fprintf(1,'Typically, samples with NaNs are simply skipped.\n');
-        fprintf(1,'If your data contains NaNs, installing the NaN-toolbox will \nmodify the following functions in order to ignore NaNs:\n');
-        fprintf(1,'\tcor, corrcoef, cov, geomean, harmmean, iqr, kurtosis, mad, mahal, mean, \n\tmedian, moment, quantile, prctile, skewness, std, var.\n');
-        fprintf(1,'If you do not have NaN, the behaviour is the same; if you have NaNs in your data, you will get more often a reasonable result instead of a NaN-result.\n');
-        fprintf(1,'Moreover, NaN-provides also a number of other useful functions. Installing NaN-toolbox is the recommended option.\n');
-        end
-end; 
-if sel==2,
+fprintf(1,'The NaN-toolbox is going to be installed\n'); 
+fprintf(1,'The NaN-toolbox is a powerful statistical and machine learning toolbox, \nwhich is also able to handle data with missing values.\n');
+fprintf(1,'Typically, samples with NaNs are simply skipped.\n');
+fprintf(1,'If your data contains NaNs, installing the NaN-toolbox will \nmodify the following functions in order to ignore NaNs:\n');
+fprintf(1,'\tcor, corrcoef, cov, geomean, harmmean, iqr, kurtosis, mad, mahal, mean, \n\tmedian, moment, quantile, prctile, skewness, std, var.\n');
+fprintf(1,'If you do not have NaN, the behaviour is the same; if you have NaNs in your data, you will get more often a reasonable result instead of a NaN-result.\n');
+fprintf(1,'If you do not want this behaviour, remove the directory NaN/inst from your path.\n'); 
+fprintf(1,'Moreover, NaN-provides also a number of other useful functions. Installing NaN-toolbox is recommended.\n');
+
 	%% add NaN-toolbox: a toolbox for statistics and machine learning for data with Missing Values
-        path([BIOSIG_HOME,'/NaN'],path);
-        path([BIOSIG_HOME,'/NaN/inst'],path);
-        path([BIOSIG_HOME,'/NaN/src'],path);
-end; 
+path([BIOSIG_HOME,'/NaN'],path);
+path([BIOSIG_HOME,'/NaN/inst'],path);
+path([BIOSIG_HOME,'/NaN/src'],path);
+
 
 p = pwd; 
 try
+	if ~exist('OCTAVE_VERSION','builtin') && ~strcmp(computer,'PCWIN'),
+		mex -setup
+	end; 
 	cd([BIOSIG_HOME,'/NaN/src']);
 	make 
 end;
@@ -123,7 +122,5 @@ catch
 end; 
 
 disp('BIOSIG-toolbox activated');
-if ~exist('OCTAVE_VERSION'),	% OCTAVE
-    disp('	If you want BIOSIG permanently installed, use the command PATH2RC.')
-    disp('	or use PATHTOOL to select and deselect certain components.')
-end; 
+disp('	If you want BIOSIG permanently installed, use the command SAVEPATH.')
+disp('	or use PATHTOOL to select and deselect certain components.')
