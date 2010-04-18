@@ -67,7 +67,7 @@ function [X] = heartratevariability(RRI,arg2)
 %	Med Bio Eng Comput (2006) 44:1031–1051
 
 %	$Id$
-%	Copyright (C) 2005,2008,2009 by Alois Schloegl <a.schloegl@ieee.org>	
+%	Copyright (C) 2005,2008,2009,2010 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % This program is free software; you can redistribute it and/or
@@ -192,7 +192,12 @@ X.SD1 	= sqrt(g(1)-g(2));
 X.r_RR	= g(2)/g(1);
 
 t   = round(NN * 128)/128; 
-HIS = histo3(t(:)); 
+try
+	HIS = histo_mex(t(:)); 
+	HIS.N = sum(HIS.H(~isnan(HIS.X)));
+catch 
+	HIS = histo3(t(:)); 
+end; 
 X.HRVindex128 = HIS.N/max(HIS.H); 
 
 %still missing 
