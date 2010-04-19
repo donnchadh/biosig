@@ -147,7 +147,10 @@ enum FileFormat {
 EXTERN_C int   B4C_ERRNUM;
 EXTERN_C const char *B4C_ERRMSG;
 
-#define BIOSIG_VERSION 0.80
+#define BIOSIG_VERSION_MAJOR 0
+#define BIOSIG_VERSION_MINOR 93
+#define BIOSIG_VERSION_STEPPING 0
+#define BIOSIG_VERSION (BIOSIG_VERSION_MAJOR+0.01*BIOSIG_VERSION_MINOR)
 
 EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
 //#define VERBOSE_LEVEL 0	// turn off debugging information 
@@ -237,8 +240,8 @@ typedef struct CHANNEL_STRUCT {
 	float 		HighPass	ATT_ALI;	/* high pass */
 	float 		Notch		ATT_ALI;	/* notch filter */
 	float 		XYZ[3]		ATT_ALI;	/* sensor position */
-//	float 		Orientation[3]	__attribute__ ((deprecated));	/* sensor direction */
-//	float 		Area		__attribute__ ((deprecated));	/* area of sensor (e.g. for MEG) */
+//	float 		Orientation[3]	__attribute__ ((deprecated));	// sensor direction
+//	float 		Area		__attribute__ ((deprecated));	// area of sensor (e.g. for MEG)
 
         /* context specific channel information */
 	float 		Impedance	ATT_ALI;   	/* Electrode Impedance in Ohm, defined only if PhysDim = _Volt */
@@ -288,13 +291,13 @@ typedef struct {
 	/* Patient specific information */
 	struct {
 		char		Name[MAX_LENGTH_NAME+1]; /* because for privacy protection it is by default not supported, support is turned on with FLAG.ANONYMOUS */
-//		char*		Name;	/* because for privacy protection it is by default not supported, support is turned on with FLAG.ANONYMOUS */
+//		char*		Name;	// because for privacy protection it is by default not supported, support is turned on with FLAG.ANONYMOUS
 		char		Id[MAX_LENGTH_PID+1];	/* patient identification, identification code as used in hospital  */
 		uint8_t		Weight;		/* weight in kilograms [kg] 0:unkown, 255: overflow  */
 		uint8_t		Height;		/* height in centimeter [cm] 0:unkown, 255: overflow  */
-		//		BMI;		/* the body-mass index = weight[kg]/height[m]^2 */
+		//		BMI;		// the body-mass index = weight[kg]/height[m]^2
 		gdf_time 	Birthday; 	/* Birthday of Patient */
-		// 		Age;		/* the age is HDR.T0 - HDR.Patient.Birthday, even if T0 and Birthday are not known */ 		
+		// 		Age;		// the age is HDR.T0 - HDR.Patient.Birthday, even if T0 and Birthday are not known
 		uint16_t	Headsize[3]; 	/* circumference, nasion-inion, left-right mastoid in millimeter;  */
 		/* Patient classification */
 		int	 	Sex;		/* 0:Unknown, 1: Male, 2: Female */
@@ -367,7 +370,7 @@ typedef struct {
 #endif
 		FILE* 		FID;		/* file handle  */
 		size_t 		POS;		/* current reading/writing position [in blocks] */
-		//size_t 	POS2;		/* current reading/writing position [in samples] */
+		//size_t 	POS2;		// current reading/writing position [in samples] */
 		int		Des;		/* file descriptor */
 		uint8_t		OPEN; 		/* 0: closed, 1:read, 2: write */
 		uint8_t		LittleEndian;   /* 1 if file is LittleEndian data format and 0 for big endian data format*/  
@@ -377,9 +380,9 @@ typedef struct {
 
 	/*	internal variables (not public)  */
 	struct {
-//		char 		PID[MAX_LENGTH_PID+1];	/* use HDR.Patient.Id instead */
-//		char* 		RID;		/* recording identification */ 
-//		uint32_t 	spb __attribute__ ((deprecated)); /* total samples per block */
+//		char 		PID[MAX_LENGTH_PID+1];	// use HDR.Patient.Id instead
+//		char* 		RID;		// recording identification
+//		uint32_t 	spb __attribute__ ((deprecated)); // total samples per block
 		uint32_t 	bpb;  		/* total bytes per block */
 		uint32_t 	bpb8;  		/* total bits per block */
 
