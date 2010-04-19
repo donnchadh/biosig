@@ -5672,10 +5672,20 @@ if (VERBOSE_LEVEL>8)
 	}
 
 	else if (hdr->TYPE==CNT) {
-		// TODO: fix handling of AVG files  
-	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,900);
-	    	hdr->VERSION = atof((char*)hdr->AS.Header+8);
-	    	count  += ifread(hdr->AS.Header+count,1,900-count,hdr);
+		
+		if (VERBOSE_LEVEL>7) 
+			fprintf(stdout,"SOPEN: Neuroscan format \n");		
+		
+		// TODO: fix handling of AVG and EEG files  
+	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, 900);
+	    	hdr->VERSION = atof((char*)hdr->AS.Header + 8);
+	    	count  += ifread(hdr->AS.Header+count, 1, 900-count, hdr);
+
+		uint16_t gdftyp = 0; 	
+	    	uint8_t minor_revision = hdr->AS.Header[804];
+	    	size_t eventtablepos = leu32p(hdr->AS.Header+886);
+	    	size_t nextfilepos = leu32p(hdr->AS.Header+12);
+	    	
 
 	    	ptr_str = (char*)hdr->AS.Header+136;
     		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
@@ -5694,24 +5704,83 @@ if (VERBOSE_LEVEL>8)
 		
 		hdr->NS  = leu16p(hdr->AS.Header+370); 
 	    	hdr->HeadLen = 900+hdr->NS*75; 
-		hdr->SPR    = 1; 
 		hdr->SampleRate = leu16p(hdr->AS.Header+376); 
 		hdr->AS.bpb = hdr->NS*2;
-	    	size_t eventtablepos = leu32p(hdr->AS.Header+886);
-		hdr->NRec   = (eventtablepos-hdr->HeadLen) / hdr->AS.bpb;
+
+		if (hdr->AS.Header[20]==1) {
+			// Neuroscan EEG
+			hdr->NRec = leu16p(hdr->AS.Header+362); 
+			hdr->SPR  = leu16p(hdr->AS.Header+368); 
+	    		hdr->AS.bpb = 2*hdr->NS*hdr->SPR+1+2+2+4+2+2;
+	    		size_t bpb4 = 4*hdr->NS*hdr->SPR+1+2+2+4+2+2;
+			struct stat FileBuf;
+
+			if (VERBOSE_LEVEL>7) 
+				fprintf(stdout,"SOPEN: Neuroscan format: minor rev=%i\n", minor_revision);		
+
+		    	switch (minor_revision) {
+		    	case 9:
+		    		// TODO: FIXME  
+    				fprintf(stderr,"Warning biosig/sopen (CNT/EEG): minor revision %i is experimental\n",minor_revision); 
+		    		gdftyp = 3;
+		    		hdr->FILE.LittleEndian = 0; 
+				stat(hdr->FileName,&FileBuf);
+				if (hdr->NRec <= 0) {
+					hdr->NRec = (min(FileBuf.st_size,nextfilepos) - hdr->HeadLen)/hdr->AS.bpb; 
+				}
+		    		break; 
+
+		    	case 12:
+		    		gdftyp = 3;
+		    		eventtablepos = hdr->HeadLen + hdr->NRec*hdr->AS.bpb; 
+		    		break; 
+
+		    	default: 
+	    			if (minor_revision != 16) 
+	    				fprintf(stderr,"Warning biosig/sopen (CNT/EEG): minor revision %i not tested\n",minor_revision); 
+
+				if (VERBOSE_LEVEL>7)
+		    			fprintf(stdout,"biosig/sopen (CNT/EEG):  %i %i %i %i %i %i \n", hdr->NRec, hdr->SPR, hdr->NS, eventtablepos, (hdr->AS.bpb * hdr->NRec + hdr->HeadLen), (bpb4 * hdr->NRec + hdr->HeadLen)); 
+
+	    			if ((hdr->AS.bpb * hdr->NRec + hdr->HeadLen) == eventtablepos)
+	    				gdftyp = 3; 
+	    			else if ((bpb4 * hdr->NRec + hdr->HeadLen) == eventtablepos) {
+	    				hdr->AS.bpb = bpb4;
+	    				gdftyp = 5; 
+	    			}	
+	    			else {
+	    				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+	    				B4C_ERRMSG = "CNT/EEG: type of format not supported"; 
+			    		return(B4C_ERRNUM);
+	    			}	
+		    	}
+		} 
+		else {
+			// Neuroscan CNT 
+			hdr->SPR    = 1; 
+			eventtablepos = leu32p(hdr->AS.Header+886);
+	    		gdftyp      = 3;
+		    	hdr->AS.bpb = hdr->NS*2;
+			hdr->NRec   = (eventtablepos-hdr->HeadLen) / hdr->AS.bpb;
+
+			if (VERBOSE_LEVEL>7) 
+	    			fprintf(stdout,"biosig/sopen (CNT):  %i %i %i %i %i \n", hdr->NRec, hdr->SPR, hdr->NS, eventtablepos, (hdr->AS.bpb * hdr->NRec + hdr->HeadLen) );
+		}
 		
 	    	hdr->AS.Header = (uint8_t*) realloc(Header1,hdr->HeadLen);
-	    	count  += ifread(Header1+900,1,hdr->NS*75,hdr);
-
+	    	count  += ifread(Header1+900, 1, hdr->NS*75, hdr);
+	    	
 	    	hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
-	    	hdr->AS.bpb = 0; 
-		for (k=0; k<hdr->NS;k++)	{
+	    	size_t bi = 0; 
+		for (k=0; k<hdr->NS; k++)	{
 			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
 		    	uint8_t* Header2 = hdr->AS.Header+900+k*75; 
 			hc->Transducer[0] = '\0';
-		    	hc->GDFTYP 	= 3;
-		    	hc->SPR 	= 1; // *(int32_t*)(Header1+56);
-		    	strncpy(hc->Label,(char*)Header2,min(10,MAX_LENGTH_LABEL));
+		    	hc->GDFTYP 	= gdftyp;
+		    	hc->SPR 	= hdr->SPR; // *(int32_t*)(Header1+56);
+		    	const size_t len = min(10, MAX_LENGTH_LABEL);
+		    	strncpy(hc->Label, (char*)Header2, len);
+		    	hc->Label[len]  = 0;
 		    	hc->LeadIdCode  = 0;
 			hc->PhysDimCode = 4256+19;  // uV
 		    	hc->Cal		= lef32p(Header2+59);
@@ -5720,20 +5789,20 @@ if (VERBOSE_LEVEL>8)
 		    	hc->HighPass	= CNT_SETTINGS_HIGHPASS[(uint8_t)Header2[64]];
 		    	hc->LowPass	= CNT_SETTINGS_LOWPASS[(uint8_t)Header2[65]];
 		    	hc->Notch	= CNT_SETTINGS_NOTCH[(uint8_t)Header1[682]];
-			hc->OnOff   = 1;
+			hc->OnOff       = 1;
 
 		    	hc->DigMax	=  (double)32767;
 		    	hc->DigMin	= -(double)32768;
 		    	hc->PhysMax	= hc->DigMax * hc->Cal + hc->Off;
 		    	hc->PhysMin	= hc->DigMin * hc->Cal + hc->Off;
-			hc->bi    = hdr->AS.bpb;
-			hdr->AS.bpb += GDFTYP_BITS[hc->GDFTYP]>>3;
+			hc->bi    	= bi;
+			bi 		+= hdr->SPR * GDFTYP_BITS[hc->GDFTYP]>>3;
 		}
 
-	    	if (!ifseek(hdr, eventtablepos, SEEK_SET)) {
+	    	if ((eventtablepos < nextfilepos) && !ifseek(hdr, eventtablepos, SEEK_SET)) {
 		    	/* read event table */
 			hdr->EVENT.SampleRate = hdr->SampleRate; 
-			ifread(tmp,9,1,hdr);	    	
+			ifread(tmp, 9, 1, hdr);
 			int8_t   TeegType   = tmp[0]; 
 			uint32_t TeegSize   = leu32p(tmp+1);
 			// uint32_t TeegOffset = leu32p(tmp+5); // not used
@@ -5852,11 +5921,7 @@ if (VERBOSE_LEVEL>8)
 		    	hc->DigMin	= ldexp(-1.0,31);
 		    	hc->PhysMax	= hc->DigMax * hc->Cal + hc->Off;
 		    	hc->PhysMin	= hc->DigMin * hc->Cal + hc->Off;
-/*
-		    	hc->HighPass= CNT_SETTINGS_HIGHPASS[(uint8_t)Header2[64]];
-		    	hc->LowPass	= CNT_SETTINGS_LOWPASS[(uint8_t)Header2[65]];
-		    	hc->Notch	= CNT_SETTINGS_NOTCH[(uint8_t)Header1[682]];
-*/
+
 			hc->bi    = hdr->AS.bpb;
 			hdr->AS.bpb += hdr->SPR*GDFTYP_BITS[hc->GDFTYP]>>3;
 		}
@@ -11092,7 +11157,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			char p[MAX_LENGTH_PHYSDIM+1];
 
 			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, p);
-			fprintf(fid,"\n#%2i: %3i %i %-27s\t%5f %5i",
+			fprintf(fid,"\n#%2i: %3i %i %-17s\t%5f %5i",
 				k+1,cp->LeadIdCode,cp->bi8,cp->Label,cp->SPR*hdr->SampleRate/hdr->SPR,cp->SPR);
 
 			if      (cp->GDFTYP<20)  fprintf(fid," %s  ",gdftyp_string[cp->GDFTYP]);
