@@ -44,11 +44,22 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		fprintf(stdout,"hl7r: [411]\n"); 
 
 	if(doc.LoadFile()){
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [412]\n"); 
+
+
 	    TiXmlHandle hDoc(&doc);
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [412]\n"); 
 	    TiXmlHandle geECG = hDoc.FirstChild("CardiologyXML");
 	    TiXmlHandle IHE = hDoc.FirstChild("IHEDocumentList");
 	    TiXmlHandle aECG = hDoc.FirstChild("AnnotatedECG");
-	    if (geECG.Element()) {
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [412]\n"); 
+	    TiXmlHandle SierraECG = hDoc.FirstChild("restingECG");
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [412]\n"); 
+	    if (SierraECG.Element()) {
+		fprintf(stdout,"Great! Philips Sierra ECG is recognized\n");
+	    }	    
+	    else if (geECG.Element()) {
 
 			struct tm t0; 
 			t0.tm_hour = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Hour").Element()->GetText());
@@ -59,7 +70,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			t0.tm_year = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Year").Element()->GetText())-1900;
 			hdr->T0    = tm_time2gdf_time(&t0);
 
-			hdr->ID.Manufacturer.Name = "GE";			
+			hdr->ID.Manufacturer.Name = "GE";
 			strncpy(hdr->ID.Manufacturer._field, geECG.FirstChild("Device-Type").Element()->GetText(),MAX_LENGTH_PID);
 			hdr->ID.Manufacturer.Model = hdr->ID.Manufacturer._field;			
 
@@ -492,7 +503,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		    strncpy(hc->Label,code,min(40,MAX_LENGTH_LABEL));
 		    hc->Label[MAX_LENGTH_LABEL] = '\0';
 		    hc->Transducer[0] = '\0';
-		    hc->GDFTYP = 5;	// int32
+		    hc->GDFTYP = 16;	// float32
 
 		    std::vector<std::string> vector;
 		    stringtokenizer(vector, channel.FirstChild("value").FirstChild("digits").Element()->GetText());
@@ -514,11 +525,11 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		    }	
 
 		    /* read data samples */	
-		    int32_t* data = (int32_t*)(hdr->AS.rawdata + (GDFTYP_BITS[hc->GDFTYP]>>3)*i*(hdr->SPR));
+		    float *data = (float*)(hdr->AS.rawdata + (GDFTYP_BITS[hc->GDFTYP]>>3)*i*(hdr->SPR));
 		    size_t DIV = hdr->SPR/hc->SPR;
 		    for(size_t j=0; j<hc->SPR; ++j) {
 			size_t k=0;
-			data[j*DIV+k] = atoi(vector[j].c_str());
+			data[j*DIV+k] = atof(vector[j].c_str());
 			while (++k<DIV) data[j*DIV+k] = data[j*DIV+k-1]; 
 			  
 			/* get Min/Max */
@@ -579,19 +590,17 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 
 };
 
-
-EXTERN_C int sopen_HL7aECG_write(HDRTYPE* hdr) {
+EXTERN_C void sopen_HL7aECG_write(HDRTYPE* hdr) {
 	size_t k;
 	for (k=0; k<hdr->NS; k++) {
-		hdr->CHANNEL[k].GDFTYP = 5; //int32
+		hdr->CHANNEL[k].GDFTYP = 16; //float32
 		hdr->CHANNEL[k].SPR *= hdr->NRec;
 	}
 	hdr->SPR *= hdr->NRec;
 	hdr->NRec = 1; 
 	hdr->FILE.OPEN=2;
-	return(0);
+	return;
 };
-
 
 EXTERN_C int sclose_HL7aECG_write(HDRTYPE* hdr){
 /*
@@ -981,15 +990,15 @@ EXTERN_C int sclose_HL7aECG_write(HDRTYPE* hdr){
 
 	std::stringstream digitsStream;
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"967 %i\n",i);
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[967] %i %f\n",i,*(float*)(hdr->AS.rawdata + hdr->CHANNEL[i].bi));
 
 	size_t sz = GDFTYP_BITS[hdr->CHANNEL[i].GDFTYP]>>3;
 	for (unsigned int j=0; j<hdr->CHANNEL[i].SPR; ++j) {
 #ifndef NO_BI
-	    	digitsStream << (*(int32_t*)(hdr->AS.rawdata + hdr->CHANNEL[i].bi + (j*sz))) << " ";
+	    	digitsStream << (*(float*)(hdr->AS.rawdata + hdr->CHANNEL[i].bi + (j*sz))) << " ";
 	}
 #else
-	    	digitsStream << (*(int32_t*)(hdr->AS.rawdata + bi + (j*sz))) << " ";
+	    	digitsStream << (*(float*)(hdr->AS.rawdata + bi + (j*sz))) << " ";
 	}
 	bi += hdr->CHANNEL[i].SPR*sz;
 #endif

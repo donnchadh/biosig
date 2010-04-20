@@ -86,7 +86,7 @@ extern "C" {
 int sopen_SCP_read     (HDRTYPE* hdr);
 int sopen_SCP_write    (HDRTYPE* hdr);
 int sopen_HL7aECG_read (HDRTYPE* hdr);
-int sopen_HL7aECG_write(HDRTYPE* hdr);
+void sopen_HL7aECG_write(HDRTYPE* hdr);
 int sopen_alpha_read   (HDRTYPE* hdr);
 int sopen_FAMOS_read   (HDRTYPE* hdr);
 int sclose_HL7aECG_write(HDRTYPE* hdr);
@@ -1977,6 +1977,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	// ToDo: use LEN to detect buffer overflow 
 
     	hdr->TYPE = unknown; 
+
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[GETFILETYPE 101]!\n");
 		
    	const uint8_t MAGIC_NUMBER_FEF1[] = {67,69,78,13,10,0x1a,4,0x84};
 	const uint8_t MAGIC_NUMBER_FEF2[] = {67,69,78,0x13,0x10,0x1a,4,0x84};
@@ -2012,6 +2014,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
     			return(hdr);
     		}
     	}
+
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[GETFILETYPE 200] %i %i!\n",leu16p(hdr->AS.Header),leu16p(hdr->AS.Header+154));
 
     	if (hdr->TYPE != unknown)
       		return(hdr); 
@@ -2361,6 +2365,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case AINF: 	{ FileType = "AINF"; break; }
 	case AIFC: 	{ FileType = "AIFC"; break; }
 	case AIFF: 	{ FileType = "AIFF"; break; }
+	case ASCII: 	{ FileType = "ASCII"; break; }
 	case ATES: 	{ FileType = "ATES"; break; }
 	case ATF: 	{ FileType = "ATF"; break; }
 	case AU: 	{ FileType = "AU"; break; }
@@ -5023,6 +5028,9 @@ fprintf(stdout,"ACQ EVENT: %i POS: %i\n",k,POS);
 	}      	
 
 	else if (hdr->TYPE==BKR) {
+	
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"libbiosig/sopen (BKR)\n");
+
 	    	hdr->HeadLen 	 = 1024; 
 	    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, hdr->HeadLen);
 	    	count   += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
@@ -9256,15 +9264,10 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
     	else if (hdr->TYPE==HL7aECG) {	
    		hdr->FileName = FileName;
-		for (k=0; k<hdr->NS; k++) {
-			hdr->CHANNEL[k].GDFTYP = 5; //int32: internal datatype 
-			hdr->CHANNEL[k].SPR *= hdr->NRec;
-		}
-		hdr->SPR *= hdr->NRec;
-		hdr->NRec = 1; 
-		hdr->FILE.OPEN = 2;
-    		// hdr->FLAG.SWAP = 0; 
-		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN); 
+		sopen_HL7aECG_write(hdr);
+
+		// hdr->FLAG.SWAP = 0; 
+		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN); // no byte-swapping 
 	}
 
     	else if (hdr->TYPE==MFER) {	
