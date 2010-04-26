@@ -18,13 +18,13 @@ function [SEN,SPEC,d,ACC,AREA,YI,c]=roc(d,c,color);
 % c	  TH(c) is the threshold that maximizes Yi 
 
 %	$Id$
-%	Copyright (c) 1997-2003,2005,2007 by  Alois Schloegl <a.schloegl@ieee.org>	
+%	Copyright (c) 1997-2003,2005,2007,2010 by  Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
-% version 2 of the License, or (at your option) any later version.
+% version 3 of the License, or (at your option) any later version.
 %
 % This library is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -40,7 +40,7 @@ function [SEN,SPEC,d,ACC,AREA,YI,c]=roc(d,c,color);
 
 % Problem : Wenn die Schwellwerte mehrfach vorkommen, kann es zu Ambiguiten kommen, welche sich auf die AUC auswirken.
 
-MODE = all(size(d)==size(c)) & all(all((c==1) | (c==0)))
+MODE = all(size(d)==size(c)) & all(all((c==1) | (c==0)));
 d=d(:);
 c=c(:);
         
