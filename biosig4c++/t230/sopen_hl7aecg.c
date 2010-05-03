@@ -25,6 +25,85 @@
 #include "../XMLParser/tinyxml.h"
 #include "../XMLParser/Tokenizer.h"
 
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+                convert time in string format into gdf-time format
+                Currently, the following formats are supported 
+                        YYYYMMDDhhmmss.uuuuuu        
+                        YYYYMMDDhhmmss        
+                        YYYYMMDD
+                in case of error, zero is returned        
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+EXTERN_C gdf_time str_time2gdf_time(const char *t1) {
+        
+        
+	struct tm t0; 
+	gdf_time T;
+	double fracsec = 0.0; 
+        double f;
+        int len = strlen(t1);
+#define MAXLEN  22        
+	char t[MAXLEN+1];
+
+        if (len>MAXLEN) return(0);
+	strncpy(t,t1,MAXLEN);
+        t[MAXLEN] = 0;	
+ 
+        if (VERBOSE_LEVEL>8) 
+                fprintf(stdout,"str_time2gdf_time: [%i]<%s>\n",len,t1);
+ 
+        char *p = strrchr(t,'.');
+        if (p==NULL) {
+                // no comma
+                p = t+len; 
+        }
+        else { 
+                for (p++, f=0.1; p[0]; p++, f=f/10) {
+                        if (p[0]<'0' || p[0]>'9') return(0);
+                        fracsec += (p[0]-'0')*f;
+                }        
+                p = strrchr(t,'.');
+        }       
+
+        if (VERBOSE_LEVEL>8) 
+                fprintf(stdout,"str_time2gdf_time: [%i]<%s>\n",len,t1);
+ 
+        if (len>=14) {
+                // decode hhmmss
+        	p[0] = '\0'; p-=2;
+	        t0.tm_sec  = atoi(p);  	
+	        p[0] = '\0'; p-=2;
+	        t0.tm_min  = atoi(p);
+	        p[0] = '\0'; p-=2;
+	        t0.tm_hour = atoi(p);
+        	p[0] = '\0'; 
+	}
+	else {
+	        t0.tm_sec  = 0;  	
+	        t0.tm_min  = 0;
+	        t0.tm_hour = 0;
+	}
+	p -= 2;
+	t0.tm_mday = atoi(p);
+
+	p[0] = '\0'; p-=2;
+	t0.tm_mon  = atoi(p)-1;
+
+	p[0] = '\0'; p-=4;
+	t0.tm_year = atoi(t)-1900;
+	t0.tm_isdst  = -1;
+	T = tm_time2gdf_time(&t0);
+
+	if (fracsec>0)
+	        T += ldexp(fracsec/86400,32);
+	        
+        if (VERBOSE_LEVEL>8) 
+                fprintf(stdout,"str_time2gdf_time: [%i]<%s>\n",len,t1);
+ 
+        return(T);
+}
+
+
 EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 /*
 	this function is a stub or placeholder and need to be defined in order to be useful.
@@ -180,23 +259,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 #if 0 
 		// this is not HDR.T0 !!!!!!!
 		if (activityTime.Element()) {
-			char T0[16];
-		    	strncpy(T0,activityTime.Element()->Attribute("value"),15);
-			struct tm t0; 
-			T0[14] = '\0';
-			t0.tm_sec  = atoi(T0+12);  	
-			T0[12] = '\0';
-			t0.tm_min  = atoi(T0+10);
-			T0[10] = '\0';
-			t0.tm_hour = atoi(T0+8);
-			T0[8]  = '\0';
-			t0.tm_mday = atoi(T0+6);
-			T0[6]  = '\0';
-			t0.tm_mon  = atoi(T0+4)-1;
-			T0[4]  = '\0';
-			t0.tm_year = atoi(T0)-1900;
-			t0.tm_isdst  = -1;
- 			hdr->T0 = tm_time2gdf_time(&t0);
+ 			hdr->T0 = str_time2gdf_time(activityTime.Element()->Attribute("value"));
 		}	
 #endif 
 
@@ -268,31 +331,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 					hdr->Patient.Sex = (tolower(gender[0])=='m') + (tolower(gender[0])=='f');
 				}
 				if (Birth.Element()) {
-					char T0[22];
-					strncpy(T0,Birth.Element()->Attribute("value"),16);
-					int len = strlen(tmp);
-					struct tm t0; 
-					if (len>8) {
-						T0[14] = '\0';
-						t0.tm_sec  = atoi(T0+12);
-						T0[12] = '\0';
-						t0.tm_min  = atoi(T0+10);
-						T0[10] = '\0';
-						t0.tm_hour = atoi(T0+8);
-					} 	 
-					else {
-						t0.tm_sec  = 0;
-						t0.tm_min  = 0;
-						t0.tm_hour = 12;
-					}
-					T0[8]  = '\0';
-					t0.tm_mday = atoi(T0+6);
-					T0[6]  = '\0';
-					t0.tm_mon  = atoi(T0+4)-1;
-					T0[4]  = '\0';
-					t0.tm_year = atoi(T0)-1900;
-					t0.tm_isdst  = -1;
-			 		hdr->Patient.Birthday = tm_time2gdf_time(&t0);
+			 		hdr->Patient.Birthday = str_time2gdf_time(Birth.Element()->Attribute("value"));
 				}
 			}
 		}
@@ -307,9 +346,17 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			fprintf(stdout,"hl7r: [412]\n"); 
 
 	    	size_t len = strlen(aECG.FirstChild("id").Element()->Attribute("root")); 
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"hl7r: [413]\n"); 
+
 		strncpy(hdr->ID.Recording,aECG.FirstChild("id").Element()->Attribute("root"),MAX_LENGTH_RID);
 	    	if (len>MAX_LENGTH_RID)	
 			fprintf(stdout,"Warning HL7aECG(read): length of Recording ID exceeds maximum length %i>%i\n",len,MAX_LENGTH_PID); 
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"hl7r: [414]\n"); 
+
 
 		TiXmlHandle effectiveTime = aECG.FirstChild("effectiveTime");
 
@@ -319,21 +366,14 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		else if(effectiveTime.FirstChild("center").Element())
 		    T0 = (char *)effectiveTime.FirstChild("center").Element()->Attribute("value");
 
-		struct tm t0; 
-		T0[14] = '\0';
-		t0.tm_sec  = atoi(T0+12);  	
-		T0[12] = '\0';
-		t0.tm_min  = atoi(T0+10);
-		T0[10] = '\0';
-		t0.tm_hour = atoi(T0+8);
-		T0[8]  = '\0';
-		t0.tm_mday = atoi(T0+6);
-		T0[6]  = '\0';
-		t0.tm_mon  = atoi(T0+4)-1;
-		T0[4]  = '\0';
-		t0.tm_year = atoi(T0)-1900;
-		t0.tm_isdst  = -1;
- 		hdr->T0 = tm_time2gdf_time(&t0);
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"hl7r: [413 2] <%s>\n", T0); 
+
+                if (T0 != NULL) 
+                        hdr->T0 = str_time2gdf_time(T0);
+
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"hl7r: [413 4]\n"); 
 
 		TiXmlHandle demographic = aECG.FirstChild("componentOf").FirstChild("timepointEvent").FirstChild("componentOf").FirstChild("subjectAssignment").FirstChild("subject").FirstChild("trialSubject");
 
@@ -346,7 +386,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		    	strncpy(hdr->Patient.Id,tmpstr,MAX_LENGTH_PID);
 		}    
 
-		if (VERBOSE_LEVEL>8)
+		if (VERBOSE_LEVEL>7)
 			fprintf(stdout,"hl7r: [413]\n"); 
 
 		if (!hdr->FLAG.ANONYMOUS) 
@@ -389,7 +429,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			}	
 		}		
 
-		if (VERBOSE_LEVEL>8)
+		if (VERBOSE_LEVEL>7)
 			fprintf(stdout,"hl7r: [414]\n"); 
 
 		/* non-standard fields height and weight */
@@ -403,7 +443,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		}
 		TiXmlElement *height = demographic.FirstChild("height").Element();
 
-		if (VERBOSE_LEVEL>8)
+		if (VERBOSE_LEVEL>7)
 			fprintf(stdout,"hl7r: [415]\n"); 
 
 		if (height) {
@@ -414,37 +454,19 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			hdr->Patient.Height = (uint8_t)(atof(height->Attribute("value"))*PhysDimScale(code)*1e+2);
 		}
 		
-		if (VERBOSE_LEVEL>8)
+		if (VERBOSE_LEVEL>7)
 			fprintf(stdout,"hl7r: [416]\n"); 
 
 		TiXmlElement *birthday = demographic.FirstChild("birthTime").Element();
 		if(birthday){
 		    T0 = (char *)birthday->Attribute("value");
 		    if (T0==NULL) T0=(char *)birthday->GetText();  // workaround for reading two different formats 
+		    hdr->Patient.Birthday = str_time2gdf_time(T0);
 		}
 
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"hl7r: [417]\n"); 
 
-		if (T0==NULL) 
-			;
-		else if (strlen(T0)>14) {
-		    T0[14] = '\0';
-		    t0.tm_sec = atoi(T0+12);
-		    T0[12] = '\0';
-		    t0.tm_min = atoi(T0+10);
-		    T0[10] = '\0';
-		    t0.tm_hour = atoi(T0+8);
-		    T0[8] = '\0';
-		    t0.tm_mday = atoi(T0+6);
-		    T0[6] = '\0';
-		    t0.tm_mon = atoi(T0+4)-1;
-		    T0[4] = '\0';
-		    t0.tm_year = atoi(T0)-1900;
-
-		    hdr->Patient.Birthday = tm_time2gdf_time(&t0);
-		}
-		
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"hl7r: [418]\n"); 
 
@@ -466,7 +488,6 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"hl7r: [419]\n"); 
 
-
 		int LowPass=0, HighPass=0, Notch=0;
 		TiXmlHandle channels = aECG.FirstChild("component").FirstChild("series").FirstChild("component").FirstChild("sequenceSet");
 		TiXmlHandle variables = aECG.FirstChild("component").FirstChild("series");
@@ -479,6 +500,7 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		    else if(!strcmp(tmpvar->FirstChildElement("controlVariable")->FirstChildElement("code")->Attribute("code"), "MDC_ATTR_FILTER_HIGH_PASS"))
 			HighPass = atoi(tmpvar->FirstChildElement("controlVariable")->FirstChildElement("component")->FirstChildElement("controlVariable")->FirstChildElement("value")->Attribute("value"));
 		}
+
 		hdr->NRec = 1;
 //		hdr->SPR = 1;
 //		hdr->AS.rawdata = (uint8_t *)malloc(hdr->SPR);
@@ -486,6 +508,60 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		
 		hdr->SampleRate = 1.0/atof(channels.FirstChild("component").FirstChild("sequence").FirstChild("value").FirstChild("increment").Element()->Attribute("value"));
 		
+                /*************** Annotations **********************/
+		TiXmlHandle AnnotationSet = aECG.FirstChild("component").FirstChild("series").FirstChild("subjectOf").FirstChild("annotationSet");
+		TiXmlHandle Annotation = AnnotationSet.Child("component", 1).FirstChild("annotation").FirstChild("component").FirstChild("annotation"); 
+		size_t N_Event = 0, N=14; 
+		for(int i = 1; i<12; ++i) {
+        		for(int j = 0; j<3; ++j) {
+
+		                Annotation = AnnotationSet.Child("component", i).FirstChild("annotation").Child("component",j).FirstChild("annotation");
+
+        		        const char *code = Annotation.FirstChild("value").Element()->Attribute("code");
+
+                                uint16_t EventTyp1 = 0, EventTyp2 = 0;
+
+                                if (!strcmp(code,"MDC_ECG_WAVC_PWAVE")) {
+                                        EventTyp1 = 0x0502;
+                                        EventTyp2 = 0x8502;
+                                }
+                                else if (!strcmp(code,"MDC_ECG_WAVC_QRSWAVE")) {
+                                        EventTyp1 = 0x0503;
+                                        EventTyp2 = 0x8505;
+                                }
+                                else if (!strcmp(code,"MDC_ECG_WAVC_TWAVE")) {
+                                        EventTyp1 = 0x0506;
+                                        EventTyp2 = 0x8506;
+                                }    
+
+                                if ((N+3) > N_Event) {
+                                	N_Event = 2*(N+2);
+                                	hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,N_Event*sizeof(*hdr->EVENT.TYP));
+                                	hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,N_Event*sizeof(*hdr->EVENT.POS));
+                                }
+
+        		        TiXmlHandle Boundary = Annotation.FirstChild("support").FirstChild("supportingROI").FirstChild("component").FirstChild("boundary").FirstChild("value");
+
+                                int64_t pos1=0, pos2=0;
+        		        if (Boundary.FirstChild("low").Element()) {
+                                        const char *tmpstr = (Boundary.FirstChild("low").Element()->Attribute("value"));
+                                        pos1 = (ldexp((str_time2gdf_time(tmpstr)-hdr->T0)*86400*hdr->SampleRate,-32));
+                                        hdr->EVENT.TYP[N] = EventTyp1;
+                                        hdr->EVENT.POS[N] = pos1; 
+                                        N++;        
+                                }        
+
+        		        if (Boundary.FirstChild("high").Element()) {
+                                        const char *tmpstr = (Boundary.FirstChild("high").Element()->Attribute("value"));
+                                        pos2 = (ldexp((str_time2gdf_time(tmpstr)-hdr->T0)*86400*hdr->SampleRate,-32));
+                                        hdr->EVENT.TYP[N] = EventTyp2;
+                                        hdr->EVENT.POS[N] = pos2;
+                                        N++;        
+                                }        
+               		}
+       		}
+       		hdr->EVENT.N = N;
+
 		TiXmlHandle channel = channels.Child("component", 1).FirstChild("sequence");
 		for(hdr->NS = 0; channel.Element(); ++(hdr->NS), channel = channels.Child("component", hdr->NS+1).FirstChild("sequence")) {};
 		hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));

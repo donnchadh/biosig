@@ -1007,7 +1007,7 @@ gdf_time tm_time2gdf_time(struct tm *t){
   	s = t->tm_hour*3600 + t->tm_min*60 + t->tm_sec; 
 
 	// s -= timezone;	
-  	o = ldexp(D+s/86400.0,32);
+  	o = (((int64_t)D) << 32) + (((int64_t)s) << 32)/86400;
 
 	return(o);
 }
@@ -1049,7 +1049,7 @@ struct tm *gdf_time2tm_time(gdf_time t) {
 	t3->tm_mon  = (int)m-1; 
 	t3->tm_mday = (int)d; 
 
-	double s = ldexp((double) (t & 0x00000000ffffffff),-32)*86400 + 1; // seconds of the day 
+	double s = ldexp((t & 0x00000000ffffffff)*86400,-32); // seconds of the day 
 	// s += timezone;	
 
 	t3->tm_hour = (int)(floor (s / 3600));
@@ -6542,7 +6542,7 @@ if (VERBOSE_LEVEL>8)
 
 						if (t0 >= hdr->T0) 
 						{
-							hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(ldexp(t0 - hdr->T0,-32)*24*3600*hdr->SampleRate);        // 0-based indexing 
+							hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(ldexp((t0 - hdr->T0)*86400*hdr->SampleRate,-32));        // 0-based indexing 
 							//hdr->EVENT.POS[hdr->EVENT.N] = (uint32_t)(atoi(strtok((char*)(LOG+lba+40+k1*45),"("))*hdr->SampleRate);
 							hdr->EVENT.DUR[hdr->EVENT.N] = 0; 
 							hdr->EVENT.CHN[hdr->EVENT.N] = 0;
