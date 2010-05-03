@@ -4,7 +4,7 @@ function varargout = sviewer(varargin)
 %
 % $Id: sviewer.m,v 1.16 2008-09-02 10:10:31 schloegl Exp $
 % Copyright by (C) 2004 Franz Einspieler <znarfi5@hotmail.com> and
-%              (C) 2004,2008 Alois Schloegl <a.schloegl@ieee.org>
+%              (C) 2004,2008,2010 Alois Schloegl <a.schloegl@ieee.org>
 % University of Technology Graz, Austria
 % This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
@@ -30,7 +30,7 @@ gui_State = struct('gui_Name',       mfilename, ...
                    'gui_OutputFcn',  @sviewer_OutputFcn, ...
                    'gui_LayoutFcn',  [] , ...
                    'gui_Callback',   []);
-if nargin & isstr(varargin{1})
+if nargin && isstr(varargin{1}),
     gui_State.gui_Callback = str2func(varargin{1});
 end
 
@@ -217,10 +217,10 @@ set(findobj('Tag','listbox_Event_detail'),'String',['all Events |' Eventdetail_s
 Data.detcolor = load('detcolor.mat');
 set(findobj('Tag', 'Slider1'), 'Value',0);
 
-newfile = [path,file];
+newfile = fullfile(path,file);
 Data.HDR = sopen(newfile,'r',0,'OVERFLOWDETECTION:OFF');
-Data.Total_length_samples = Data.HDR.NRec * max(Data.HDR.SPR);
-Data.Total_length_sec = Data.Total_length_samples / max(Data.HDR.SampleRate);
+Data.Total_length_samples = Data.HDR.NRec * Data.HDR.SPR;
+Data.Total_length_sec = Data.Total_length_samples / Data.HDR.SampleRate;
 Data.ShowSamples = min(1000,Data.Total_length_samples);
 
 Data.NS = Data.HDR.NS;
@@ -313,7 +313,7 @@ if ~isequal(Data, 0)
         Data.NS = [];
     end
     Data = get(findobj('Tag','sviewer'),'UserData');
-    Data.NoS = showsamples / max(Data.HDR.SampleRate);
+    Data.NoS = showsamples / Data.HDR.SampleRate;
     Data.NS = str2num(get(findobj('Tag','numb_act_channels'),'String'));
     tsec = Data.Total_length_sec;
     tmin = floor(tsec/60);
@@ -344,7 +344,7 @@ if ~isequal(Data, 0)
         pos_s1 = get(findobj('Tag', 'Slider1'), 'Value');
         Data.Slider.Pos = pos_s1;
         length_s1 = Data.Total_length_samples;
-        tsec_s1 = pos_s1 * (length_s1 - Data.ShowSamples) / max(Data.HDR.SampleRate);
+        tsec_s1 = pos_s1 * (length_s1 - Data.ShowSamples) / Data.HDR.SampleRate;
         tmin_ts = floor(tsec_s1 / 60);
         tsec1_ts = rem(tsec_s1,60);
         th_ts = floor(tmin_ts / 60);
@@ -501,8 +501,8 @@ function drawplot(numb_channel,only_plot)
             set(gca, ...
                 'UserData', Data.actButton, ...
                 'Units', 'Normalized', ...
-                'XLim',[0 Data.NoS*max(Data.HDR.SampleRate)], ...
-                'XTick',[0:Data.NoS*max(Data.HDR.SampleRate)/10:Data.NoS*max(Data.HDR.SampleRate)], ...
+                'XLim',[0 Data.NoS*Data.HDR.SampleRate], ...
+                'XTick',[0:Data.NoS*Data.HDR.SampleRate/10:Data.NoS*Data.HDR.SampleRate], ...
                 'XTickLabel',x_ticklabel, ...
                 'YLim', [Data.ChannelConf.Display_min(b) Data.ChannelConf.Display_max(b)]);
 
@@ -516,8 +516,8 @@ function drawplot(numb_channel,only_plot)
         else
             set(gca, ...
                 'UserData', Data.actButton, ...
-                'XLim',[0 Data.NoS*max(Data.HDR.SampleRate)], ...
-                'XTick',[0:Data.NoS*max(Data.HDR.SampleRate)/10:Data.NoS*max(Data.HDR.SampleRate)], ...
+                'XLim',[0 Data.NoS*Data.HDR.SampleRate], ...
+                'XTick',[0:Data.NoS*Data.HDR.SampleRate/10:Data.NoS*Data.HDR.SampleRate], ...
                 'XTickLabel','', ...
                 'YLim', [Data.ChannelConf.Display_min(b) Data.ChannelConf.Display_max(b)]); %, ...
             if isfield(Data,'Detection')
@@ -537,7 +537,7 @@ function drawplot(numb_channel,only_plot)
             end  
             text_dim = deblank(text_dim);
             
-            x_koord = Data.NoS*max(Data.HDR.SampleRate)+Data.NoS*max(Data.HDR.SampleRate)*0.03;
+            x_koord = Data.NoS*Data.HDR.SampleRate+Data.NoS*Data.HDR.SampleRate*0.03;
             plotpos = get(gca,'Position');
             y_koord = plotpos(2);
 	
@@ -698,9 +698,9 @@ if isfield(Data,'Detection')
     slider_step = get(findobj('Tag','Slider1'),'SliderStep');
     pos = Data.Slider.Pos;
     % X = startpoint of the plot in samples
-    X = pos/slider_step(1)*max(Data.HDR.SampleRate)*Data.NoS/2;
+    X = pos/slider_step(1)*Data.HDR.SampleRate*Data.NoS/2;
     % Y = endpoint of the plot in samples
-    Y = X + max(Data.HDR.SampleRate)*Data.NoS;
+    Y = X + Data.HDR.SampleRate*Data.NoS;
     if isequal(Data.Detection.Start,'on')
         if size(Data.Detection.EventMatrix) == 0
             return
@@ -876,7 +876,7 @@ for i = 1:numb_plot
             x_ticklabel = round(x_ticklabel1*100*10^factor)/(100*10^factor);
 		end
         set(gca, ...
-            'XTick',[0:Data.NoS*max(Data.HDR.SampleRate)/10:Data.NoS*max(Data.HDR.SampleRate)], ...
+            'XTick',[0:Data.NoS*Data.HDR.SampleRate/10:Data.NoS*Data.HDR.SampleRate], ...
             'XTickLabel',x_ticklabel);
     end
     if isfield(Data,'Detection')
@@ -911,7 +911,7 @@ end
 pos = pos1;
 if pos <= (length-Data.ShowSamples) 
     if pos ~= last_pos
-        tsec = pos * (length-Data.ShowSamples) / max(Data.HDR.SampleRate);
+        tsec = pos * (length-Data.ShowSamples) / Data.HDR.SampleRate;
         tmin = floor(tsec/60);
         tsec1 = rem(tsec,60);
         th = floor(tmin/60);
@@ -946,7 +946,7 @@ try
         if ~isequal(Data.Patch.firstline,[])
             slider_step = get(findobj('Tag','Slider1'),'SliderStep');
             pos = Data.Slider.Pos;
-            X = pos/slider_step(1)*max(Data.HDR.SampleRate)*Data.NoS / 2;
+            X = pos/slider_step(1)*Data.HDR.SampleRate*Data.NoS / 2;
             pos = Data.Patch.line;
             if X < pos
                 h = Data.SPlot;
@@ -991,7 +991,7 @@ try
             startchannel = round(startchannel);
             
             pos = Data.Slider.Pos;
-            X = pos/slider_step(1)*max(Data.HDR.SampleRate)*Data.NoS / 2;
+            X = pos/slider_step(1)*Data.HDR.SampleRate*Data.NoS / 2;
             pos = Data.Patch.line;
             if (X < pos) & (Data.Patch.selChannel >= startchannel) & (Data.Patch.selChannel <= startchannel + Data.NS -1)
                 h = Data.SPlot;
@@ -1174,7 +1174,7 @@ end
 
 if ~isempty(displaytime)
     set(findobj('Tag', 'Slider1'), 'Value',0);
-    Data.ShowSamples = displaytime * max(Data.HDR.SampleRate);
+    Data.ShowSamples = displaytime * Data.HDR.SampleRate;
     set(findobj('Tag','sviewer'),'UserData',Data);
     drawnew (file,path,Data.ShowSamples,0);
 end
@@ -1309,7 +1309,7 @@ if isempty(channel)
 end
 
 if ~isempty(displaytime)
-    Data.ShowSamples = displaytime * max(Data.HDR.SampleRate);
+    Data.ShowSamples = displaytime * Data.HDR.SampleRate;
     set(findobj('Tag','sviewer'),'UserData',Data);
     drawnew (file,path,Data.ShowSamples,1);
 end
@@ -1340,7 +1340,7 @@ goto_sec = str2num(get(findobj('Tag', 'goto_sec'), 'String'));
 pos_s1 = get(findobj('Tag', 'Slider1'), 'Value');
 Data.Slider.Pos = pos_s1;
 length_s1 = Data.Total_length_samples;
-tsec_s1 = pos_s1 * (length_s1 - Data.ShowSamples) / max(Data.HDR.SampleRate);
+tsec_s1 = pos_s1 * (length_s1 - Data.ShowSamples) / Data.HDR.SampleRate;
 tmin_ts = floor(tsec_s1 / 60);
 tsec1_ts = rem(tsec_s1,60);
 th_ts = floor(tmin_ts / 60);
@@ -1910,12 +1910,12 @@ if isfield(Data,'Detection')
     setdefault_detection_stop(Data,1);
 end
 [file,path]=uigetfile('*.*','Open Detection');
-if isequal(file,0) | isequal(path,0)
+if isequal(file,0) || isequal(path,0)
     return;
 else
-    tmpflag = isequal(Data.HDR.TYPE,'alpha') & isequal(file,'marker');
-    tmpflag = tmpflag | isequal(file,Data.File.file);
-    tmpflag = tmpflag & isequal(path,Data.File.path);
+    tmpflag = isequal(Data.HDR.TYPE,'alpha') && isequal(file,'marker');
+    tmpflag = tmpflag || isequal(file,Data.File.file);
+    tmpflag = tmpflag && isequal(path,Data.File.path);
     if tmpflag,
         H = Data.HDR;
     else
@@ -2021,8 +2021,8 @@ sel_channel = startchannel + get(gca, 'UserData') -1;
 pos_channel = sel_channel; 
 slider_step = get(findobj('Tag','Slider1'),'SliderStep');
 pos_slider = Data.Slider.Pos;
-X = pos_slider / slider_step(1) * max(Data.HDR.SampleRate) * Data.NoS / 2;
-Y = X + max(Data.HDR.SampleRate) * Data.NoS;
+X = pos_slider / slider_step(1) * Data.HDR.SampleRate * Data.NoS / 2;
+Y = X + Data.HDR.SampleRate * Data.NoS;
 pos1 = get(gca,'CurrentPoint');
 pos = pos1(1)+X;
 h = Data.SPlot;
