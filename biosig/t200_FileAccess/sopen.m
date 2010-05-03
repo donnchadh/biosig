@@ -9946,22 +9946,26 @@ elseif strcmp(HDR.TYPE,'ASCII:IBI')
 
 	return;
 	
+elseif strncmp(HDR.TYPE,'HL7aECG',3) || strncmp(HDR.TYPE,'XML',3),
+        if exist('mexSLOAD','file')
+                try
+                        [s,H]  = mexSLOAD(HDR.FileName,0,'UCAL:ON');
+                catch
+                	fprintf(stdout,'SOPEN: failed to read XML file %s.',HDR.FileName);
+                        return;
+                end;         
+                H.data = s; 
+                H.FLAG = HDR.FLAG; 
+                H.TYPE = 'native';
+                H.FILE = HDR.FILE; 
+                H.FILE.POS = 0;
+                HDR    = H;
+        else
+        	fprintf(stdout,'SOPEN: failed to read HL7aECG/FDA-XML files.\nUse mexSLOAD from BioSig4C++ instead!\n');
+	        %HDR = openxml(HDR); 	% experimental version for reading various xml files 
+	        return;
+	end; 
 
-
-elseif strncmp(HDR.TYPE,'HL7aECG',3),
-	fprintf(stdout,'SOPEN: failed to read HL7aECG/FDA-XML files.\nUse mexSLOAD from BioSig4C++ instead!\n');
-	%HDR = openxml(HDR); 	% experimental version for reading various xml files 
-	return;
-	
-
-elseif strncmp(HDR.TYPE,'XML',3),
-        if any(HDR.FILE.PERMISSION=='r'),
-		HDR = openxml(HDR); 	% experimental version for reading various xml files 
-	end;
-	if ~isfield(HDR,'Calib')
-		return;
-	end;	
-        
         
 elseif strcmp(HDR.TYPE,'ZIP'),
         % extract content into temporary directory; 
