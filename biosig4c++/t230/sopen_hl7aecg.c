@@ -511,8 +511,8 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
                 /*************** Annotations **********************/
 		TiXmlHandle AnnotationSet = aECG.FirstChild("component").FirstChild("series").FirstChild("subjectOf").FirstChild("annotationSet");
 		TiXmlHandle Annotation = AnnotationSet.Child("component", 1).FirstChild("annotation").FirstChild("component").FirstChild("annotation"); 
-		size_t N_Event = 0, N=14; 
-		for(int i = 1; i<12; ++i) {
+		size_t N_Event = 0, N=0; 
+		for(int i = 1; AnnotationSet.Child("component", i).Element(); ++i) {
         		for(int j = 0; j<3; ++j) {
 
 		                Annotation = AnnotationSet.Child("component", i).FirstChild("annotation").Child("component",j).FirstChild("annotation");
