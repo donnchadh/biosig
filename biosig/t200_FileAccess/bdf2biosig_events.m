@@ -117,7 +117,7 @@ case 7,
 	%% bit-based decoding 
 	POS = [];
 	TYP = [];
-	for k=1:16,k
+	for k=1:16,
 		t = bitand(HDR.BDF.ANNONS,2^(k-1));
 		t = t~=t(1);			% support of low-active and high-active
 		ix2 = diff(double([0;t]));	% labels 
