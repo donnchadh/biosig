@@ -223,7 +223,7 @@ GDFTYP_BYTE(256+(1:64))=(1:64)/8;
 GDFTYP_BYTE(512+(1:64))=(1:64)/8;
 GDFTYP_BYTE(1:19)=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8 16]';
 
-if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
+if strcmp(HDR.TYPE,'EDF') || strcmp(HDR.TYPE,'GDF') || strcmp(HDR.TYPE,'BDF'),
         H2idx = [16 80 8 8 8 8 8 80 8 32];
         
         HDR.ErrNo = 0; 
@@ -797,6 +797,7 @@ end;
                         %if ~strcmp(HDR.VERSION(1:3),'GDF'),
                         if ~strcmp(HDR.TYPE,'GDF'),
                                 HDR.ErrNo= [16,HDR.ErrNo];
+                                tmp = HDR.NRec; 
                                 HDR.NRec = floor((HDR.FILE.size - HDR.HeadLen) / HDR.AS.bpb);
                                 if tmp~=HDR.NRec,
                                         fprintf(2,'\nWarning SOPEN (EDF/BDF): filesize (%i) of %s does not fit headerinformation (NRec = %i not %i).\n',HDR.FILE.size,HDR.FileName,tmp,HDR.NRec);
