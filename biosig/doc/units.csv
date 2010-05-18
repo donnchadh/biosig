@@ -7,7 +7,7 @@
 # CEN/TC251/PT40 2001	
 # File Exchange Format for Vital Signs - Annex A 
 #
-# $Id: units.csv,v 1.12 2008-08-29 16:30:14 schloegl Exp $
+# $Id: units.csv,v 1.12 2008/08/29 16:30:14 schloegl Exp $
 # Copyright (C) 2005,2006,2008 Alois Schloegl <a.schloegl@ieee.org>
 # This file is part of the biosig project http://biosig.sf.net/
 #
@@ -255,9 +255,13 @@
 6176,"mmHg %-1","- ratio of paO2 to FIO2","millimetre(s) of mercury per percent"
 6208,"Pa %-1","- ratio of paO2 to FIO2","<magnitude> pascal per percent"
 6432,"B", "Bel", "relative power decibel"	
+6624,"m s-2", "meter per second squared", "acceleration"
+6656,"rad s2-2", "radians per second squared", "(angular) acceleration" 
 ### private: units with no standardized code
 #,"kgf m [J]",,Left Stroke Work (LSW)
 #,"kgf m min-1 [W]",,Left Cardiac Work (LCW)
+65184,"m/m",,""
+65216,"km/h",,"velocity kilometer per hour"
 65248,"g s-2 [J m-2, gf m-1]",,"Left Stroke Work Index (LSWI)"
 65280,"g s-3 [W m-2, gf m-1 s-1]",,"Indexed Left Cardiac Work (LCWI)"
 65312,"mHg s-1",,
