@@ -792,6 +792,8 @@ const struct PhysDimIdx
 	{ 6176 ,  "mmHg %-1" },
 	{ 6208 ,  "Pa %-1" },
 	{ 6432 ,  "B" },
+	{ 6624 ,  "m s-2"},             // acceleration 
+	{ 6656 ,  "rad s-2"},           // angular acceleration      
 	{65148 ,  "\xb0/m" },
 	{65184 ,  "m/m" },
 	{65216 ,  "km/h" },
@@ -3544,8 +3546,9 @@ if (!strncmp(MODE,"r",1))
     		B4C_ERRMSG = "Error SOPEN(READ); Cannot open file.";		
     		return(hdr); 
 	}	    
-    	hdr->AS.Header = (uint8_t*)malloc(352);
+    	hdr->AS.Header = (uint8_t*)malloc(353);
 	count = ifread(Header1,1,352,hdr);
+	hdr->AS.Header[352]=0;
 
 	const uint8_t MAGIC_NUMBER_GZIP[] = {31,139,8};
 	if (!memcmp(Header1,MAGIC_NUMBER_GZIP,3)) {
@@ -3563,6 +3566,7 @@ if (!strncmp(MODE,"r",1))
 	    		return(hdr);
 	    	}
 		count = ifread(Header1,1,352,hdr);
+        	hdr->AS.Header[352]=0;
 #else 	
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 	    	B4C_ERRMSG = "Error SOPEN(READ); *.gz file not supported because not linked with zlib.";
