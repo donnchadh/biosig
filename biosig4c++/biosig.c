@@ -1806,7 +1806,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 
 	hdr->FLAG.UCAL = 0; 		// un-calibration OFF (auto-scaling ON) 
 	hdr->FLAG.OVERFLOWDETECTION = 1; 	// overflow detection ON
-	hdr->FLAG.ANONYMOUS = 0; 	// 1: no personal names are processed 
+	hdr->FLAG.ANONYMOUS = 1; 	// <>0: no personal names are processed 
 	hdr->FLAG.TARGETSEGMENT = 1;   // read 1st segment 
 	
        	// define variable header 
@@ -6317,6 +6317,7 @@ if (VERBOSE_LEVEL>8)
 
 				LOG[count] = 0; 
 				// Name: @0x062e
+				
 				if (!hdr->FLAG.ANONYMOUS) {
 					strncpy(hdr->Patient.Name, (char*)(LOG+0x62e), MAX_LENGTH_PID);
 					hdr->Patient.Name[MAX_LENGTH_NAME] = 0;	
@@ -9816,6 +9817,12 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 
 
 		// allocate AS.rawdata 	
+                if (log2(hdr->AS.bpb) + log2(nelem) + 1 >= sizeof(size_t)*8) {
+                        // used to check the 2GByte limit on 32bit systems
+                        B4C_ERRNUM = B4C_MEMORY_ALLOCATION_FAILED;
+                        B4C_ERRMSG = "Size of rawdata buffer too large (exceeds size_t addressable space)!";
+                        return;
+                }       
 		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, hdr->AS.bpb*nelem);
 
 		if (VERBOSE_LEVEL>8)
@@ -9906,6 +9913,8 @@ int V = VERBOSE_LEVEL;
 //VERBOSE_LEVEL = 9;
 	count = sread_raw(start, length, hdr, 0);
 	
+	if (B4C_ERRNUM) return(0);
+	
 	toffset = start - hdr->AS.first;
 	
 	// set position of file handle 
@@ -9919,6 +9928,12 @@ int V = VERBOSE_LEVEL;
 	if (VERBOSE_LEVEL>7) 
 		fprintf(stdout,"SREAD: count=%i pos=[%i,%i,%i,%i], size of data = %ix%ix%ix%i = %i\n",(int)count,(int)start,(int)length,(int)POS,hdr->FILE.POS,(int)hdr->SPR, (int)count, (int)NS, sizeof(biosig_data_type), (int)(hdr->SPR * count * NS * sizeof(biosig_data_type)));
 
+        if (log2(hdr->SPR) + log2(count) + log2(NS) + log2(sizeof(biosig_data_type)) + 1 >= sizeof(size_t)*8) {
+                // used to check the 2GByte limit on 32bit systems
+                B4C_ERRNUM = B4C_MEMORY_ALLOCATION_FAILED;
+                B4C_ERRMSG = "Size of required data buffer too large (exceeds size_t addressable space)!";
+                return;
+        }       
 	// transfer RAW into BIOSIG data format 
 	if ((data==NULL) || hdr->Calib) {
 		// local data memory required
