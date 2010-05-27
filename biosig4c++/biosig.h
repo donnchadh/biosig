@@ -1,6 +1,6 @@
 /*
 % $Id: biosig.h,v 1.140 2009/04/09 15:06:55 schloegl Exp $
-% Copyright (C) 2005,2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
+% Copyright (C) 2005,2006,2007,2008,2009,2010 Alois Schloegl <a.schloegl@ieee.org>
 % This file is part of the "BioSig for C/C++" repository 
 % (biosig4c++) at http://biosig.sf.net/ 
 
@@ -132,7 +132,7 @@ enum FileFormat {
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
 	EBS, EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
-	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, Lexicor, 
+	GIF, GTF, GZIP, HDF, HL7aECG, ISHNE, JPEG, Lexicor, 
 	Matlab, MFER, MIDI, MIT, MM, MSI, 
 	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
 	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
@@ -148,7 +148,7 @@ EXTERN_C int   B4C_ERRNUM;
 EXTERN_C const char *B4C_ERRMSG;
 
 #define BIOSIG_VERSION_MAJOR 0
-#define BIOSIG_VERSION_MINOR 93
+#define BIOSIG_VERSION_MINOR 94
 #define BIOSIG_VERSION_STEPPING 0
 #define BIOSIG_VERSION (BIOSIG_VERSION_MAJOR+0.01*BIOSIG_VERSION_MINOR)
 

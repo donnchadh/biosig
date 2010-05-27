@@ -2175,6 +2175,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	}	
     	else if (!memcmp(Header1,"\x89HDF",4))
 	    	hdr->TYPE = HDF; 
+    	else if (!memcmp(Header1,"ISHNE1.0",8))
+	    	hdr->TYPE = ISHNE;
     	else if (!memcmp(Header1,"@  MFER ",8))
 	    	hdr->TYPE = MFER;
     	else if (!memcmp(Header1,"@ MFR ",6))
@@ -2414,6 +2416,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case GZIP: 	{ FileType = "GZIP"; break; }
 	case HDF: 	{ FileType = "HDF"; break; }
 	case HL7aECG: 	{ FileType = "HL7aECG"; break; }
+	case ISHNE: 	{ FileType = "ISHNE"; break; }
 	case JPEG: 	{ FileType = "JPEG"; break; }
 
 	case Matlab: 	{ FileType = "MAT"; break; }
@@ -7003,6 +7006,85 @@ if (VERBOSE_LEVEL>8)
 		return(hdr); 	
 	}
 
+    	else if (hdr->TYPE==ISHNE) {
+                   // unknown, generic, X,Y,Z, I-VF, V1-V6, ES, AS, AI  	
+    	        uint16_t Table1[] = {0,0,16,17,18,1,2,87,88,89,90,3,4,5,6,7,8,131,132,133};
+    	        size_t len;
+    	        struct tm  t; 
+		size_t bufsiz = 522;
+		hdr->HeadLen = 522 + lei32p(hdr->AS.Header+10);
+                if (count < hdr->HeadLen) {
+		    	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
+		    	count  += ifread(hdr->AS.Header+count,1,hdr->HeadLen-count,hdr);
+		}
+		hdr->HeadLen = count; 
+		
+		int offsetVarHdr = lei32p(hdr->AS.Header+18);
+		int offsetData = lei32p(hdr->AS.Header+22);
+		hdr->VERSION = (float)lei16p(hdr->AS.Header+26);
+
+                if (!hdr->FLAG.ANONYMOUS) {
+                        len = max(80,MAX_LENGTH_NAME);
+	               	strncpy(hdr->Patient.Name, hdr->AS.Header+28, len);
+	        	hdr->Patient.Name[len] = 0;
+	        }	
+                len = max(20, MAX_LENGTH_PID);
+		strncpy(hdr->Patient.Id, hdr->AS.Header+108, len);
+		hdr->Patient.Id[len] = 0;
+
+                hdr->Patient.Sex = lei16p(hdr->AS.Header+128);
+                // Race = lei16p(hdr->AS.Header+128);
+
+                t.tm_mday  = lei16p(hdr->AS.Header+132);
+                t.tm_mon   = lei16p(hdr->AS.Header+134)-1;
+                t.tm_year  = lei16p(hdr->AS.Header+136)-1900;
+                t.tm_hour  = 12;
+                t.tm_min   = 0;
+                t.tm_sec   = 0;
+                hdr->Patient.Birthday = tm_time2gdf_time(&t);                
+
+                t.tm_mday  = lei16p(hdr->AS.Header + 138);
+                t.tm_mon   = lei16p(hdr->AS.Header + 140) - 1;
+                t.tm_year  = lei16p(hdr->AS.Header + 142) - 1900;
+                //t.tm_hour  = lei16p(hdr->AS.Header + 144);
+                //t.tm_min   = lei16p(hdr->AS.Header + 146);
+                //t.tm_sec   = lei16p(hdr->AS.Header + 148);
+                t.tm_hour  = lei16p(hdr->AS.Header + 150);
+                t.tm_min   = lei16p(hdr->AS.Header + 152);
+                t.tm_sec   = lei16p(hdr->AS.Header + 154);
+                hdr->T0 = tm_time2gdf_time(&t);                
+
+                hdr->NS    = lei16p(hdr->AS.Header + 156);
+		hdr->SPR = 1;
+		hdr->NRec = lei32p(hdr->AS.Header+14)/hdr->NS;
+                hdr->AS.bpb = hdr->NS*2;
+                hdr->SampleRate = lei16p(hdr->AS.Header + 272);
+                hdr->Patient.Impairment.Heart = lei16p(hdr->AS.Header+230) ? 3 : 0;    // Pacemaker     
+		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
+		for (k=0; k < hdr->NS; k++) {
+			CHANNEL_TYPE* hc = hdr->CHANNEL+k;
+			hc->OnOff    = 1;
+			hc->GDFTYP   = 3;        //int16 - 2th complement 
+			hc->SPR      = 1; 
+			hc->Cal      = lei16p(hdr->AS.Header + 206 + 2*k); 
+			hc->Off      = 0.0;
+			hc->Transducer[0] = '\0';
+			hc->LowPass  = NaN;
+			hc->HighPass = NaN;
+			hc->DigMax   = (double)(int16_t)(0x7fff);
+			hc->DigMin   = (double)(int16_t)(0x8000);
+			hc->PhysMax  = hc->Cal * hc->DigMax;
+			hc->PhysMin  = hc->Cal * hc->DigMin;
+		    	hc->LeadIdCode  = Table1[lei16p(hdr->AS.Header + 158 + 2*k)];
+		    	hc->PhysDimCode = 4276;	        // nV
+		    	
+	    		hc->bi       = k*2;
+	    		strcpy(hc->Label, LEAD_ID_TABLE[hc->LeadIdCode]); 
+		}
+    		ifseek(hdr,offsetData,SEEK_SET);
+    		hdr->FILE.POS = 0; 
+	}
+
     	else if (hdr->TYPE==MFER) {	
 		// ISO/TS 11073-92001:2007(E), Table 5, p.9
     		/* ###  FIXME: some units are not encoded */  	
@@ -11177,10 +11259,12 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 #endif 
         			 
 			char p[MAX_LENGTH_PHYSDIM+1];
+			char *label = cp->Label;
+			if (label==NULL || strlen(label)==0) label = LEAD_ID_TABLE[cp->LeadIdCode];
 
 			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, p);
 			fprintf(fid,"\n#%2i: %3i %i %-17s\t%5f %5i",
-				k+1,cp->LeadIdCode,cp->bi8,cp->Label,cp->SPR*hdr->SampleRate/hdr->SPR,cp->SPR);
+				k+1,cp->LeadIdCode,cp->bi8,label,cp->SPR*hdr->SampleRate/hdr->SPR,cp->SPR);
 
 			if      (cp->GDFTYP<20)  fprintf(fid," %s  ",gdftyp_string[cp->GDFTYP]);
 			else if (cp->GDFTYP>511) fprintf(fid, " bit%i  ", cp->GDFTYP-511);

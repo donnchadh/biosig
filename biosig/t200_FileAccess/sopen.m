@@ -7489,22 +7489,32 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
                 HDR.ISHNE.Copyright = char(fread(HDR.FILE.FID,[1,80],'uint8'));
                 HDR.ISHNE.reserved1 = char(fread(HDR.FILE.FID,[1,80],'uint8'));
                 if ftell(HDR.FILE.FID) ~= HDR.offset_variable_length_block,
-                        fprintf(HDR.FILE.stderr,'ERROR: length of fixed header does not fit %i %i \n',ftell(HDR.FILE.FID),HDR.offset_variable_length_block);
+                        fprintf(HDR.FILE.stderr,'Warning: length of fixed header does not fit %i %i \n',ftell(HDR.FILE.FID),HDR.offset_variable_length_block);
                         HDR.ISHNE.reserved2 = char(fread(HDR.FILE.FID,[1,max(0,HDR.offset_variable_length_block-ftell(HDR.FILE.FID))],'uint8'));
                         fseek(HDR.FILE.FID,HDR.offset_variable_length_block,'bof'); 
                 end;
-                HDR.VariableHeader=fread(HDR.FILE.FID,[1,HDR.variable_length_block],'uint8');	
+                HDR.VariableHeader = fread(HDR.FILE.FID,[1,HDR.variable_length_block],'uint8');	
                 if ftell(HDR.FILE.FID)~=HDR.HeadLen,
                         fprintf(HDR.FILE.stderr,'ERROR: length of variable header does not fit %i %i \n',ftell(HDR.FILE.FID),HDR.HeadLen);
                         fseek(HDR.FILE.FID,HDR.HeadLen,'bof'); 
                 end;
-                HDR.Calib  = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Lead.AmplitudeResolution(1:HDR.NS)/1000,HDR.NS+1,HDR.NS);
                 HDR.PhysDim= 'uV';
                 HDR.AS.bpb = 2*HDR.NS;
-                HDR.GDFTYP = 3; % 'int16'
+
+                HDR.Cal = HDR.Lead.AmplitudeResolution(1:HDR.NS)/1000;
+                HDR.Calib  = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
+                if 1; %strncmp(HDR.ISHNE.Copyright(61:end),'ELA medical',11)
+                        HDR.GDFTYP = 3; % 'int16'
+                else 
+                        %% does not follow the specification (generated with Medilog Darwin software ?)
+                        HDR.GDFTYP = 4; % 'uint16'
+                        HDR.Off = -(2^15)*HDR.Cal;
+                        HDR.Calib(1,:)=HDR.Off';
+                end;         
+
                 HDR.AS.endpos = HDR.SPR;
                 HDR.FLAG.TRIGGERED = 0;	% Trigger Flag
-                HDR.Label = repmat({' '},HDR.NS,1); 
+                HDR.Label = cellstr([repmat('#',HDR.NS,1),num2str([1:HDR.NS]')]); 
                 HDR.FILE.POS = 0; 
         else
                 fprintf(HDR.FILE.stderr,'PERMISSION %s not supported\n',HDR.FILE.PERMISSION);	
