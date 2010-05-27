@@ -7462,17 +7462,18 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
                 HDR.Patient.Sex = fread(HDR.FILE.FID,1,'int16');		
                 HDR.Patient.Race = fread(HDR.FILE.FID,1,'int16');		
                 HDR.Patient.Birthday([3:-1:1,4:6]) = [fread(HDR.FILE.FID,[1,3],'int16'),12,0,0];		
-                %HDR.Patient.Surname  = char(fread(HDR.FILE.FID,40,'uint8')'); 
-                Date = fread(HDR.FILE.FID,[1,3],'int16');		
-                Date2= fread(HDR.FILE.FID,[1,3],'int16');		
-                Time = fread(HDR.FILE.FID,[1,3],'int16');
+                %HDR.Patient.Surname = char(fread(HDR.FILE.FID,40,'uint8')'); 
+                Date  = fread(HDR.FILE.FID,[1,3],'int16');		
+                Date2 = fread(HDR.FILE.FID,[1,3],'int16');		
+                Time  = fread(HDR.FILE.FID,[1,3],'int16');
                 HDR.T0 = [Date([3,2,1]),Time];
 
                 HDR.NS = fread(HDR.FILE.FID,1,'int16');
-                HDR.Lead.Specification = fread(HDR.FILE.FID,HDR.NS,'int16');		
-                HDR.Lead.Quality = fread(HDR.FILE.FID,HDR.NS,'int16');		
-                HDR.Lead.AmplitudeResolution = fread(HDR.FILE.FID,HDR.NS,'int16');
-                if any(HDR.Lead.AmplitudeResolution~=-9)
+                HDR.Lead.Specification = fread(HDR.FILE.FID,12,'int16');		
+                HDR.Lead.Quality = fread(HDR.FILE.FID,12,'int16');	
+
+                HDR.Lead.AmplitudeResolution = fread(HDR.FILE.FID,12,'int16');
+                if any(HDR.Lead.AmplitudeResolution ~= -9)
                         fprintf(HDR.FILE.stderr,'Warning: AmplitudeResolution and Number of Channels %i do not fit.\n',HDR.NS);
                 end;
                 
@@ -7503,7 +7504,7 @@ elseif strcmp(HDR.TYPE,'ISHNE'),
 
                 HDR.Cal = HDR.Lead.AmplitudeResolution(1:HDR.NS)/1000;
                 HDR.Calib  = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal,HDR.NS+1,HDR.NS);
-                if 1; %strncmp(HDR.ISHNE.Copyright(61:end),'ELA medical',11)
+                if HDR.VERSION,
                         HDR.GDFTYP = 3; % 'int16'
                 else 
                         %% does not follow the specification (generated with Medilog Darwin software ?)
