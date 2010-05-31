@@ -174,14 +174,13 @@ void DoJob(int ns)
 		const char *greeting="Hi there,\n this is your experimental BSCS server. \n It is useful for testing the BioSig client-server architecture.\n";
 		msg.STATE = BSCS_VERSION_01 | BSCS_SEND_MSG | STATE_INIT | BSCS_NO_ERROR;
 		msg.LEN = b_endian_u32(strlen(greeting)); 
-		int s; 
+		int s;
 		s = send(ns,&msg,8,0);
 		s = send(ns, greeting, strlen(greeting), 0);
 		
-	    	while (!stopflag) // wait for command 
+	    	while (!stopflag) // wait for command
 		{
-		
-			fprintf(stdout,":> "); 
+			fprintf(stdout,":> ");
 	   		ssize_t count = recv(ns, &msg, 8, 0);
 			fprintf(stdout,"STATUS=%08x c=%i MSG=%08x len=%i,errno=%i %s\n",STATUS,count,b_endian_u32(msg.STATE),b_endian_u32(msg.LEN),errno,strerror(errno)); 
 			size_t  LEN = b_endian_u32(msg.LEN);  
@@ -234,7 +233,12 @@ void DoJob(int ns)
 					msg.STATE = BSCS_VERSION_01 | BSCS_OPEN_W | BSCS_REPLY | STATE_OPEN_WRITE_HDR;
 					msg.LEN = b_endian_u32(8);
 					*(uint64_t*)&msg.LOAD  = l_endian_u64(ID); 
-					s = send(ns, &msg, 16, 0);	
+					s = send(ns, &msg, 16, 0);
+
+		FILE *fid = fopen(LOGFILE,"a");
+		fprintf(fid,"\t> %s",filename); 
+		fclose(fid); 
+
 				}
 				else if (LEN == 8) 		// open(r)
 				{
@@ -259,6 +263,9 @@ void DoJob(int ns)
 						STATUS = STATE_OPEN_READ; 
 					}
 					s = send(ns, &msg, 8, 0);	
+		FILE *fid = fopen(LOGFILE,"a");
+		fprintf(fid,"\t< %s",filename); 
+		fclose(fid); 
 				}
 				else //if (LEN != 8) 
 				{ 
@@ -771,7 +778,7 @@ int main () {
 	t[24]=0;
 
 	FILE *fid = fopen(LOGFILE,"a");
-	fprintf(fid,"%s\tserver started\n",t); 
+	fprintf(fid,"\n%s\tserver started",t); 
 	fclose(fid); 
 
 
@@ -912,7 +919,7 @@ int main () {
 
 
 		FILE *fid = fopen(LOGFILE,"a");
-		fprintf(fid,"%s\t%s\t%s\n",t,dst,hostname); 
+		fprintf(fid,"\n%s\t%s\t%s",t,dst,hostname); 
 		fclose(fid); 
 		
 	        if (!fork()) { // this is the child process
