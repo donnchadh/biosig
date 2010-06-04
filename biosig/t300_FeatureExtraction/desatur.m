@@ -60,7 +60,7 @@ else
 end;
 
 %%%%% Load data 
-if isstr(arg1),  % if string, assume arg1 is a Filename and SaO2 is at channel 16
+if ischar(arg1),  % if string, assume arg1 is a Filename and SaO2 is at channel 16
         if nargin<2, CH=16; else CH=arg2; end;
 	[s,HDR] = sload(arg1,CH);
         Fs = HDR.SampleRate;   

@@ -2037,7 +2037,7 @@ EDFHead.FILE.Ext = Filename(PPos+1:length(Filename));
 EDFHead.FILE.Name = Filename(SPos+1:PPos-1);
 EDFHead.FILE.Path = edfpath;
 
-H1 = setstr(fread(EDFHead.FILE.FID,184,'uchar')');     
+H1 = fread(EDFHead.FILE.FID,184,'uint8=>char')';     
 EDFHead.VERSION = H1(1:8);         % 8 Byte  Versionsnummer 
 IsGDF = strcmp(EDFHead.VERSION(1:3), 'GDF');
 if (~strcmp(EDFHead.VERSION, '0       ') & ~IsGDF)
@@ -2054,7 +2054,7 @@ if IsGDF                           % handle different file formats
         str2num(H1(168 + [11 12])) ...
         str2num(H1(168 + [13:16]))];
   if str2num(EDFHead.VERSION(4:8)) < 0.12
-    tmp = setstr(fread(EDFHead.FILE.FID, 8, 'uchar')');  % header-length
+    tmp = fread(EDFHead.FILE.FID, 8, 'uint8=>char')';  % header-length
     EDFHead.HeadLen = str2num(tmp);
   else
     EDFHead.HeadLen = fread(EDFHead.FILE.FID, 1, 'int64');
@@ -2080,7 +2080,7 @@ else
   elseif EDFHead.T0(1) < 100
     EDFHead.T0(1) = 1900 + EDFHead.T0(1);
   end
-  H1(185:256) = setstr(fread(EDFHead.FILE.FID, 256-184, 'uchar')');
+  H1(185:256) = fread(EDFHead.FILE.FID, 256-184, 'uint8=>char')';
   EDFHead.HeadLen = str2num(H1(185:192));  % 8 Byte  Length of Header
   EDFHead.NRec = str2num(H1(237:244));     % 8 Byte  # of data records
   EDFHead.Dur = str2num(H1(245:252));      % 8 Byte  # duration of data record in sec
@@ -2091,13 +2091,12 @@ if ~IsGDF
   idx1 = cumsum([0 H2idx]);
   idx2 = EDFHead.NS * idx1;
   h2 = zeros(EDFHead.NS, 256);
-  H2 = fread(EDFHead.FILE.FID, EDFHead.NS * 256, 'uchar');
+  H2 = fread(EDFHead.FILE.FID, EDFHead.NS * 256, 'uint8=>char');
   H2(H2==0) = 32; % set zero padded strings to blanks
   for k = 1:length(H2idx)
     h2(:, (idx1(k)+1):idx1(k+1)) = reshape(H2((idx2(k)+1):idx2(k+1)), ...
         H2idx(k), EDFHead.NS)';
   end
-  h2 = setstr(h2);
   EDFHead.Label      = h2(:, idx1(1)+1:idx1(2));
   EDFHead.Transducer = h2(:, idx1(2)+1:idx1(3));
   EDFHead.PhysDim    = cellstr(h2(:, idx1(3)+1:idx1(4)));
@@ -2110,18 +2109,14 @@ if ~IsGDF
   EDFHead.GDFTYP  = 3*ones(1, EDFHead.NS);
 else
   fseek(EDFHead.FILE.FID, 256, 'bof');
-  EDFHead.Label      =  setstr(fread(EDFHead.FILE.FID, [16,EDFHead.NS], ...
-      'char')'); 
-  EDFHead.Transducer =  setstr(fread(EDFHead.FILE.FID, [80,EDFHead.NS], ...
-      'char')');
-  EDFHead.PhysDim    =  cellstr(setstr(fread(EDFHead.FILE.FID, [8,EDFHead.NS], ...
-      'uchar')'));
+  EDFHead.Label      =  fread(EDFHead.FILE.FID, [16,EDFHead.NS], 'uint8=>char')';
+  EDFHead.Transducer =  fread(EDFHead.FILE.FID, [80,EDFHead.NS], 'uint8=>char')';
+  EDFHead.PhysDim    =  cellstr(fread(EDFHead.FILE.FID, [8,EDFHead.NS], 'uint8=>char')');
   EDFHead.PhysMin    =  fread(EDFHead.FILE.FID, [EDFHead.NS,1], 'float64');
   EDFHead.PhysMax    =  fread(EDFHead.FILE.FID, [EDFHead.NS,1], 'float64');
   EDFHead.DigMin     =  fread(EDFHead.FILE.FID, [EDFHead.NS,1], 'int64');
   EDFHead.DigMax     =  fread(EDFHead.FILE.FID, [EDFHead.NS,1], 'int64');
-  EDFHead.PreFilt    =  setstr(fread(EDFHead.FILE.FID, [80,EDFHead.NS], ...
-      'char')');
+  EDFHead.PreFilt    =  fread(EDFHead.FILE.FID, [80,EDFHead.NS], 'uint8=>char')';
   EDFHead.SPR        =  fread(EDFHead.FILE.FID, [1,EDFHead.NS], 'uint32')';
   EDFHead.GDFTYP     =  fread(EDFHead.FILE.FID, [1,EDFHead.NS], 'uint32');
   tmp = (EDFHead.GDFTYP == 0);

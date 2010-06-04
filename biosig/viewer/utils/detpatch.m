@@ -75,7 +75,7 @@ try
 	end
 end
 
-if isstr(varargin{1})
+if ischar(varargin{1})
   action = 'start';
   for i=1:2:length(varargin)
       switch lower(varargin{i})

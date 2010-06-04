@@ -50,7 +50,7 @@ if nargin<3,
         arg3=[]; 
 end;
 
-if isstr(arg1), 
+if ischar(arg1), 
         inpath = fileparts(arg1);
         infile = dir(arg1);	% input  file 
         if isempty(infile)
@@ -234,11 +234,8 @@ if isstruct(arg1),
 
         % final test 
         try
-                H2 = sopen(HDR.FileName,'r');
-	        H2.FLAG.UCAL = 0; 
-    		H2.FLAG.OVERFLOWDETECTION = 0; 
-    		[y1,H2] = sread(H2,inf);
-                H2 = sclose(H2);
+
+		[y1,H2]=sload(HDR.FileName,0,'UCAL','OFF');
 		d2 = [ones(size(data,1),1),data]*H2.Calib;
                 if all(all((d2==y1) | (isnan(d2) & isnan(y1)))),
                         fprintf(2,'SAVE2GDF: saving file %s OK.\n',HDR.FileName);

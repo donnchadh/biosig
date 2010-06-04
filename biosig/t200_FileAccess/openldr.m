@@ -49,19 +49,19 @@ if any(PERMISSION=='r');
         
         % reads line 1: size information
         s  = fgetl(fid);
-        if ~isstr(s), fprintf(2,'ERROR LOADLDR: file %s corrupted\n',FN); end;
+        if ~ischar(s), fprintf(2,'ERROR LOADLDR: file %s corrupted\n',FN); end;
         sz = str2num(s);
         
         % reads line 2: output labels
         s  = fgetl(fid);
-        if ~isstr(s), fprintf(2,'ERROR LOADLDR: file %s corrupted\n',FN); end;
+        if ~ischar(s), fprintf(2,'ERROR LOADLDR: file %s corrupted\n',FN); end;
         tmp = reshape(s,12,sz(2)+1)';
         LDR.Label_Out = tmp(2:sz(2)+1,:);
         
         % read lines 3+: input labels and weights
         for k = 1:sz(1),
                 s = fgetl(fid);
-                if ~isstr(s), fprintf(2,'ERROR LOADLDR: file %s corrupted\n',FN); end;
+                if ~ischar(s), fprintf(2,'ERROR LOADLDR: file %s corrupted\n',FN); end;
                 r = reshape(s,12,sz(2)+1)';
                 LDR.Label_In(k,1:12) = char(abs(s(1:12)));
                 LDR.RR(k,1:sz(2)) = str2num(r(2:size(r,1),:))';
