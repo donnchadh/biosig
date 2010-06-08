@@ -60,6 +60,7 @@ path([BIOSIG_HOME,'/freetb4matlab/signal'],path);	% Octave-Forge signal processi
 path([BIOSIG_HOME,'/freetb4matlab/statistics/distributions'],path);	% Octave-Forge statistics toolbox converted with freetb4matlab 
 path([BIOSIG_HOME,'/freetb4matlab/statistics/tests'],path);	% Octave-Forge statistics toolbox converted with freetb4matlab 
 
+return; 
 path([BIOSIG_HOME,'/tsa'],path);		%  Time Series Analysis
 %path([BIOSIG_HOME,'/tsa/inst'],path);		%  Time Series Analysis
 % some users might get confused by this
@@ -78,14 +79,15 @@ path([BIOSIG_HOME,'/NaN'],path);
 path([BIOSIG_HOME,'/NaN/inst'],path);
 path([BIOSIG_HOME,'/NaN/src'],path);
 
-
 p = pwd; 
 try
 	if ~exist('OCTAVE_VERSION','builtin') && ~strcmp(computer,'PCWIN'),
 		mex -setup
 	end; 
-	cd([BIOSIG_HOME,'/NaN/src']);
-	make 
+        if ~strcmp(computer,'PCWIN')
+        	cd([BIOSIG_HOME,'/NaN/src']);
+	        make
+	end;         
 end;
 cd(p);
 
