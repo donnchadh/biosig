@@ -441,14 +441,18 @@ end;
                                 	HDR.Patient.Birthday = zeros(1,6); 
                                 	bd(bd=='-') = ' '; 
                                 	[n,v,s] = str2double(bd,' ');
+                                        month_of_birth = strmatch(lower(s{2}),{'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'},'exact');
+                                        if ~isempty(month_of_birth)
+                                                v(2) = 0;
+                                        end
                                 	if any(v)
                                 	        HDR.Patient.Birthday(:) = NaN;
                                 	else
-					        HDR.Patient.Birthday(1) = n(3);
-                                                HDR.Patient.Birthday(2) = strmatch(lower(s{2}),{'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'});
-					        HDR.Patient.Birthday(3) = n(1);
-					        HDR.Patient.Birthday(4) = 12;
-					end;
+                                                HDR.Patient.Birthday(1) = n(3);
+                                                HDR.Patient.Birthday(2) = month_of_birth;
+                                                HDR.Patient.Birthday(3) = n(1);
+                                                HDR.Patient.Birthday(4) = 12;
+                                        end;
                                 end; 
                                 
                                 [chk, tmp] = strtok(HDR.RID,' ');
