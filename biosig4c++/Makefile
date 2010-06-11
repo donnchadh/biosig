@@ -23,9 +23,9 @@ MEX	      = mex   # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex
 octVER	      = # default
 OCT	      =	mkoctfile$(octVER)
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
-CFLAGS        =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
-CXXFLAGS      =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
+DEFINES       = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_FEF #-D=WITH_PDP -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+CFLAGS        = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
+CXXFLAGS      = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
 INCPATH       = -I /usr/local/include/gdcm-2.0/
 #		../gdcm-2.0.10/Source/DataStructureAndEncodingDefinition \
@@ -49,9 +49,9 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 # MinGW Crosscompiler: compile on linux binaries for windows  
 MinGWCC      = i586-mingw32msvc-gcc 
 MinGWCXX     = i586-mingw32msvc-g++ 
-MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS #-D=WITH_FEF #-D=WITH_CHOLMOD #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
-MinGWCFLAGS  = -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF)
-MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a #-lcholmod # stati
+MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS #-D=WITH_CHOLMOD #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
+MinGWCFLAGS  = -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I win32
+MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a #win32/libcholmod.dll.a #-lcholmod # stati
 #MinGWLIBS   = -Lwin32 -l biosig -l zlib1 -lws2_32  # dynamic
 MinGWLINK    = $(MinGWCXX)
 
@@ -177,6 +177,11 @@ win32/%.obj: XMLParser/%.cpp win32/zlib/include/zlib.h
 #	Compilation: exceptions, explicit rules
 #############################################################
 
+java: java/biosig.jar
+java/biosig.jar: java/test.cc
+	gcjh
+	gcj -C java/test.cc
+        
 sandbox.o: test0/sandbox.c biosig.h 
 	$(CXX) -c $(CFLAGS) $(INCPATH) -o sandbox.o test0/sandbox.c
 
@@ -271,6 +276,9 @@ win32/libz.a: win32/zlib/lib/libz.a
 #	WIN32 - BUILD
 #############################################################
 
+win32/libbiosig.a: win32/libbiosig.lib 
+        $(COPY) win32/libbiosig.lib win32/libbiosig.a
+        
 win32/libbiosig.lib: $(MinGWOBJECTS) win32/libcnsfef.a 
 	-$(DELETE) win32/libbiosig.lib
 	i586-mingw32msvc-$(AR) win32/libbiosig.lib $(MinGWOBJECTS) t240/*.obj
@@ -280,6 +288,7 @@ win32/libcnsfef.a:
 		
 win32/libbiosig.dll: $(MinGWOBJECTS) win32/libz.a
 	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
+#	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a win32/cholmod.dll -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
 	-$(COPY) win32/libbiosig.dll ../sigviewer/extern/
 
 win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib win32/libz.a
