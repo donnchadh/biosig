@@ -277,7 +277,7 @@ win32/libz.a: win32/zlib/lib/libz.a
 #############################################################
 
 win32/libbiosig.a: win32/libbiosig.lib 
-        $(COPY) win32/libbiosig.lib win32/libbiosig.a
+	$(COPY) win32/libbiosig.lib win32/libbiosig.a
         
 win32/libbiosig.lib: $(MinGWOBJECTS) win32/libcnsfef.a 
 	-$(DELETE) win32/libbiosig.lib
