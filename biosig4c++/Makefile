@@ -96,7 +96,6 @@ OBJECTS       = \
 		sopen_fef_read.o \
 		scp-decode.o \
 		sopen_scp_write.o \
-		sopen_fef_read.o \
 		sopen_hl7aecg.o \
 		biosig-network.o \
 		sandbox.o \
@@ -186,16 +185,13 @@ sandbox.o: test0/sandbox.c biosig.h
 	$(CXX) -c $(CFLAGS) $(INCPATH) -o sandbox.o test0/sandbox.c
 
 sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h
-	cd t240
-	#asn1c -fcompound-names -pdu=SessionArchiveSection -S /home/schloegl/cvs/asn1c/skeletons fef.asn1
-	asn1c -fcompound-names -pdu=SessionArchiveSection fef.asn1
-	#asn1c -fcompound-names iso11073-10471.asn1
-	#asn1c -fcompound-names iso11073-20601.asn1
-	cd ..
-	make -C t240 -f Makefile.am.sample 
-#	$(CC) -c $(CFLAGS) -I t240 $(INCPATH) -o sopen_fef_read.o t240/sopen_fef_read.c
-
-sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h 
+#	cd t240
+#	#asn1c -fcompound-names -pdu=SessionArchiveSection -S /home/schloegl/cvs/asn1c/skeletons fef.asn1
+#	asn1c -fcompound-names -pdu=SessionArchiveSection fef.asn1
+#	#asn1c -fcompound-names iso11073-10471.asn1
+#	#asn1c -fcompound-names iso11073-20601.asn1
+#	cd ..
+#	make -C t240 -f Makefile.am.sample 
 	$(CC) -c $(CFLAGS) -I t240 $(INCPATH) -o sopen_fef_read.o t240/sopen_fef_read.c
 	
 sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
