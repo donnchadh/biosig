@@ -35,20 +35,22 @@
                 in case of error, zero is returned        
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 EXTERN_C gdf_time str_time2gdf_time(const char *t1) {
-        
-        
-	struct tm t0; 
-	gdf_time T;
-	double fracsec = 0.0; 
-        double f;
-        int len = strlen(t1);
-#define MAXLEN  22        
-	char t[MAXLEN+1];
 
+        struct tm t0; 
+        gdf_time T;
+        double fracsec = 0.0; 
+        double f;
+        int len;
+#define MAXLEN  22        
+        char t[MAXLEN+1];
+
+        if (t1==NULL) return(0);
+        len = strlen(t1);
         if (len>MAXLEN) return(0);
-	strncpy(t,t1,MAXLEN);
-        t[MAXLEN] = 0;	
- 
+        if (len<8) return(0);
+        strncpy(t,t1,MAXLEN);
+        t[len] = 0;	
+
         if (VERBOSE_LEVEL>8) 
                 fprintf(stdout,"str_time2gdf_time: [%i]<%s>\n",len,t1);
  
@@ -124,64 +126,100 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 
 	if(doc.LoadFile()){
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [412]\n"); 
-
-
 	    TiXmlHandle hDoc(&doc);
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [412]\n"); 
 	    TiXmlHandle geECG = hDoc.FirstChild("CardiologyXML");
 	    TiXmlHandle IHE = hDoc.FirstChild("IHEDocumentList");
 	    TiXmlHandle aECG = hDoc.FirstChild("AnnotatedECG");
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [412]\n"); 
 	    TiXmlHandle SierraECG = hDoc.FirstChild("restingECG");
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [412]\n"); 
+
+	    if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [412]\n"); 
+
 	    if (SierraECG.Element()) {
 		fprintf(stdout,"Great! Philips Sierra ECG is recognized\n");
+
 	    }	    
 	    else if (geECG.Element()) {
-
-			struct tm t0; 
-			t0.tm_hour = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Hour").Element()->GetText());
-			t0.tm_min  = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Minute").Element()->GetText());
-			t0.tm_sec  = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Second").Element()->GetText());
-			t0.tm_mday = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Day").Element()->GetText());
-			t0.tm_mon  = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Month").Element()->GetText())-1;
-			t0.tm_year = atoi(geECG.FirstChild("ObservationDateTime").FirstChild("Year").Element()->GetText())-1900;
-			hdr->T0    = tm_time2gdf_time(&t0);
-
 			hdr->ID.Manufacturer.Name = "GE";
-			strncpy(hdr->ID.Manufacturer._field, geECG.FirstChild("Device-Type").Element()->GetText(),MAX_LENGTH_PID);
-			hdr->ID.Manufacturer.Model = hdr->ID.Manufacturer._field;			
 
-			strncpy(hdr->Patient.Id, geECG.FirstChild("PatientInfo").FirstChild("PID").Element()->GetText(),MAX_LENGTH_PID);
-			const char *tmp = geECG.FirstChild("PatientInfo").FirstChild("PID").Element()->GetText();
-			hdr->Patient.Sex = (toupper(tmp[0])=='M') + 2*(toupper(tmp[0])=='F');
-			if (!hdr->FLAG.ANONYMOUS) {
-				strncpy(hdr->Patient.Name, geECG.FirstChild("PatientInfo").FirstChild("Name").FirstChild("FamilyName").Element()->GetText(),MAX_LENGTH_PID);
-				strncat(hdr->Patient.Name, " ",MAX_LENGTH_PID);
-				strncat(hdr->Patient.Name, geECG.FirstChild("PatientInfo").FirstChild("Name").FirstChild("GivenName").Element()->GetText(),MAX_LENGTH_PID);
+			TiXmlHandle H = geECG.FirstChild("ClinicalInfo").FirstChild("ObservationDateTime");
+			if (H.Element()) {
+				struct tm t0;
+				t0.tm_hour = atoi(H.FirstChild("Hour").Element()->GetText());
+				t0.tm_min  = atoi(H.FirstChild("Minute").Element()->GetText());
+				t0.tm_sec  = atoi(H.FirstChild("Second").Element()->GetText());
+				t0.tm_mday = atoi(H.FirstChild("Day").Element()->GetText());
+				t0.tm_mon  = atoi(H.FirstChild("Month").Element()->GetText())-1;
+				t0.tm_year = atoi(H.FirstChild("Year").Element()->GetText())-1900;
+				hdr->T0    = tm_time2gdf_time(&t0);
+	                } 
+
+			H = geECG.FirstChild("Device-Type");
+			if (H.Element()) {
+				strncpy(hdr->ID.Manufacturer._field, H.Element()->GetText(),MAX_LENGTH_PID);
+				hdr->ID.Manufacturer.Model = hdr->ID.Manufacturer._field;
+			}				
+
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [413]\n"); 
+
+			H = geECG.FirstChild("PatientInfo");
+			if (H.Element()) {
+				strncpy(hdr->Patient.Id, H.FirstChild("PID").Element()->GetText(),MAX_LENGTH_PID);
+				const char *tmp = H.FirstChild("PID").Element()->GetText();
+				hdr->Patient.Sex = (toupper(tmp[0])=='M') + 2*(toupper(tmp[0])=='F');
+				if (!hdr->FLAG.ANONYMOUS) {
+					strncpy(hdr->Patient.Name, H.FirstChild("Name").FirstChild("FamilyName").Element()->GetText(),MAX_LENGTH_PID);
+					strncat(hdr->Patient.Name, " ",MAX_LENGTH_PID);
+					strncat(hdr->Patient.Name, H.FirstChild("Name").FirstChild("GivenName").Element()->GetText(),MAX_LENGTH_PID);
+				}
 			}
-			hdr->NS = atoi(geECG.FirstChild("StripData").FirstChild("NumberOfLeads").Element()->GetText());
-			hdr->SPR = 1;
-			hdr->NRec = atoi(geECG.FirstChild("StripData").FirstChild("ChannelSampleCountTotal").Element()->GetText());
-			hdr->SampleRate = atof(geECG.FirstChild("StripData").FirstChild("SampleRate").Element()->GetText());
-			double Cal = atof(geECG.FirstChild("StripData").FirstChild("Resolution").Element()->GetText());
 
-			double LP = atof(geECG.FirstChild("FilterSetting").FirstChild("LowPass").Element()->GetText());
-			double HP = atof(geECG.FirstChild("FilterSetting").FirstChild("HighPass").Element()->GetText());
-			double Notch = 0; 
-			if (!strcmpi("yes",geECG.FirstChild("FilterSetting").FirstChild("Filter50Hz").Element()->GetText()))
-				Notch = 50; 
-			else if (!strcmpi("yes",geECG.FirstChild("FilterSetting").FirstChild("Filter60Hz").Element()->GetText()))
-				Notch = 60; 
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [413]\n"); 
+
+			double Cal=0.0, LP=NaN, HP=NaN, Notch=0.0;
+			hdr->NRec= 0;
+			hdr->SPR = 1;
+			hdr->NS  = 1;
+
+			H = geECG.FirstChild("FilterSetting");
+			if (H.Element()) {
+				LP = atof(H.FirstChild("LowPass").Element()->GetText());
+				HP = atof(H.FirstChild("HighPass").Element()->GetText());
+				if (!strcmpi("yes",H.FirstChild("Filter50Hz").Element()->GetText()))
+					Notch = 50; 
+				else if (!strcmpi("yes",H.FirstChild("Filter60Hz").Element()->GetText()))
+					Notch = 60; 
+			}
+			
+			if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [413]\n"); 
+
+			H = geECG.FirstChild("StripData");
+			TiXmlElement *C = NULL;	
+			if (H.Element()) {
+				C = H.FirstChild("NumberOfLeads").Element();
+				if (C != NULL) hdr->NS = atoi(C->GetText());
+
+				C = H.FirstChild("ChannelSampleCountTotal").Element();
+				if (C != NULL) hdr->NRec = atoi(C->GetText());
+
+				hdr->SampleRate = atof(H.FirstChild("SampleRate").Element()->GetText());
+				Cal = atof(H.FirstChild("Resolution").Element()->GetText());
+			}
 			
 			uint16_t gdftyp = 3; 
 			hdr->AS.bpb = 0; 
-			hdr->CHANNEL = (CHANNEL_TYPE*) calloc(hdr->NS,sizeof(CHANNEL_TYPE));
-			hdr->AS.rawdata = (uint8_t*) calloc(hdr->NS,hdr->NRec*hdr->SPR*GDFTYP_BITS[gdftyp]>>3);
+			
+			int k=0, NCHAN = hdr->NS;
+			hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL, hdr->NS*sizeof(CHANNEL_TYPE));
+			C = H.FirstChild("WaveformData").Element();
+			while (C != NULL) {
 
-			TiXmlElement *C = geECG.FirstChild("StripData").FirstChild("WaveformData").Element();
-			for (int k=0; C && (k<hdr->NS); k++) {
+				if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [413] %i\n",k); 
+
+				if (k>=NCHAN) {
+					NCHAN = max(12,(NCHAN+1)*2);
+					hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL, NCHAN*sizeof(CHANNEL_TYPE));
+				}	
+
 				CHANNEL_TYPE *hc = hdr->CHANNEL + k;
 				// default values 
 				hc->GDFTYP	= gdftyp;	
@@ -212,13 +250,32 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 				hc->bi  	= hdr->AS.bpb;
 				hdr->AS.bpb    += hc->SPR * GDFTYP_BITS[hc->GDFTYP]>>3;
 
+				C = C->NextSiblingElement();
+				k++;
+			}
+
+			hdr->NS = k;	
+
+			C = H.FirstChild("WaveformData").Element();
+			for (k=0; k<hdr->NS; k++) {
+
+				if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [415] %i\n",k); 
+
+				CHANNEL_TYPE *hc = hdr->CHANNEL + k;
+
 				    /* read data samples */	
 				std::vector<std::string> vector;
 				stringtokenizer(vector, C->GetText(), ",");
 				
-				int16_t* data = (int16_t*)(hdr->AS.rawdata);
+				if (k==0) {
+					hdr->NRec = max(hdr->NRec, vector.size());
+					hdr->AS.rawdata = (uint8_t*) calloc(hdr->NS,hdr->NRec*hdr->SPR*GDFTYP_BITS[gdftyp]>>3);
+				}				
+				
 				hc->DigMax	= 0; 
 				hc->DigMin	= 0; 
+				int16_t* data = (int16_t*)(hdr->AS.rawdata);
+				size_t j;
 				for(j=0; j<vector.size(); ++j) {
 					int d = atoi(vector[j].c_str());
 
@@ -394,7 +451,6 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			demographic = demographic.FirstChild("subjectDemographicPerson");
 			TiXmlElement *Name1 = demographic.FirstChild("name").Element();
 
-
 			if (Name1 != NULL) {
 				const char *name = Name1->GetText();
 				if (name != NULL) {
@@ -406,9 +462,11 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 				}	
 				else {
 					fprintf(stderr,"Warning: composite subject name is not supported.\n");
-					for (int k=1;k<40;k++)
-						fprintf(stderr,"%c.",((char*)Name1)[k]);
-
+                        		if (VERBOSE_LEVEL>7) {
+                        			fprintf(stdout,"hl7r: [413++]<%s>\n",name);
+        					for (int k=1;k<40;k++)
+        						fprintf(stderr,"%c.",((char*)Name1)[k]);
+                                        }
 					//hdr->Patient.Name[0] = 0;
 /*
 				### FIXME: support of composite patient name.  
@@ -454,8 +512,8 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			hdr->Patient.Height = (uint8_t)(atof(height->Attribute("value"))*PhysDimScale(code)*1e+2);
 		}
 		
-		if (VERBOSE_LEVEL>7)
-			fprintf(stdout,"hl7r: [416]\n"); 
+		if (VERBOSE_LEVEL>7) 
+		        fprintf(stdout,"hl7r: [416]\n"); 
 
 		TiXmlElement *birthday = demographic.FirstChild("birthTime").Element();
 		if(birthday){
@@ -501,6 +559,9 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 			HighPass = atoi(tmpvar->FirstChildElement("controlVariable")->FirstChildElement("component")->FirstChildElement("controlVariable")->FirstChildElement("value")->Attribute("value"));
 		}
 
+		if (VERBOSE_LEVEL>8)
+			fprintf(stdout,"hl7r: [421]\n"); 
+
 		hdr->NRec = 1;
 //		hdr->SPR = 1;
 //		hdr->AS.rawdata = (uint8_t *)malloc(hdr->SPR);
@@ -512,30 +573,31 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 		TiXmlHandle AnnotationSet = aECG.FirstChild("component").FirstChild("series").FirstChild("subjectOf").FirstChild("annotationSet");
 		TiXmlHandle Annotation = AnnotationSet.Child("component", 1).FirstChild("annotation").FirstChild("component").FirstChild("annotation"); 
 		size_t N_Event = 0, N=0; 
-		for(int i = 1; AnnotationSet.Child("component", i).Element(); ++i) {
+		for(int i = 1; AnnotationSet.Child("component", i).FirstChild("annotation").Element(); ++i) {
         		for(int j = 0; j<3; ++j) {
 
 		                Annotation = AnnotationSet.Child("component", i).FirstChild("annotation").Child("component",j).FirstChild("annotation");
 
+				if (Annotation.FirstChild("value").Element() == NULL) break;
         		        const char *code = Annotation.FirstChild("value").Element()->Attribute("code");
 
                                 uint16_t EventTyp1 = 0, EventTyp2 = 0;
 
                                 if (!strcmp(code,"MDC_ECG_WAVC_PWAVE")) {
-                                        EventTyp1 = 0x0502;
-                                        EventTyp2 = 0x8502;
+                                        EventTyp1 = 0x0502;        // start P-Wave
+                                        EventTyp2 = 0x8502;        // end P-Wave
                                 }
                                 else if (!strcmp(code,"MDC_ECG_WAVC_QRSWAVE")) {
-                                        EventTyp1 = 0x0503;
-                                        EventTyp2 = 0x8505;
+                                        EventTyp1 = 0x0503;        // start QRS
+                                        EventTyp2 = 0x8505;        // end QRS
                                 }
                                 else if (!strcmp(code,"MDC_ECG_WAVC_TWAVE")) {
-                                        EventTyp1 = 0x0506;
-                                        EventTyp2 = 0x8506;
+                                        EventTyp1 = 0x0506;        // start T-Wave
+                                        EventTyp2 = 0x8506;        // end T-Wave
                                 }    
 
                                 if ((N+3) > N_Event) {
-                                	N_Event = 2*(N+2);
+                                	N_Event = max(16,2*(N+2));
                                 	hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,N_Event*sizeof(*hdr->EVENT.TYP));
                                 	hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,N_Event*sizeof(*hdr->EVENT.POS));
                                 }
