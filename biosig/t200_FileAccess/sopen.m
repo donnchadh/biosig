@@ -1680,7 +1680,7 @@ end;
                         end; 	
                         c=fwrite(HDR.FILE.FID,[HDR.NS,0],'uint16');
                 else
-                        H1(168+(1:16))=sprintf('%02i.%02i.%02i%02i:%02i:%02i',floor(rem(HDR.T0([3 2 1 4 5 6]),100)));
+                        H1(168+(1:16))=sprintf('%02i.%02i.%02i%02i.%02i.%02i',floor(rem(HDR.T0([3 2 1 4 5 6]),100)));
                         H1(185:192)=sprintf('%-8i',HDR.HeadLen);
                         H1(237:244)=sprintf('%-8i',HDR.NRec);
 			tmp = sprintf('%-8f',HDR.Dur);
