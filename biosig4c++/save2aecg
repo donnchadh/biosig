@@ -1,2 +1,4 @@
+#!/bin/sh
+
 #conversion into HL7aECG data format
-./save2gdf -f=HL7 $1 $2 $3 $4 $5 $6 $7
+save2gdf -f=HL7 $1 $2 $3 $4 $5 $6 $7

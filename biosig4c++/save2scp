@@ -1,2 +1,4 @@
+#!/bin/sh
+
 ### conversion into SCP-ECG (EN1064) standard
-./save2gdf -f=SCP $1 $2 $3 $4 $5 $6 $7 
+save2gdf -f=SCP $1 $2 $3 $4 $5 $6 $7 
