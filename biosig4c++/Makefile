@@ -442,6 +442,7 @@ install: save2gdf libbiosig.so libbiosig.a doc/save2gdf.1
 	install save2scp  	$(BIN)
 	#install rec2bin  	$(BIN)
 	#install bin2rec  	$(BIN)
+	install -d		$(LIB) $(DESTDIR)/usr/include
 	install biosig.h    	$(DESTDIR)/usr/include
 	install libbiosig.so 	$(LIB)
 	install libbiosig.a	$(LIB)
