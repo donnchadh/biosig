@@ -424,6 +424,7 @@ clean:
 	-$(DELETE) t240/*.o
 	-$(DELETE) t240/libcnsfef.a
 	-$(DELETE) t240/*.obj
+	-$(DELETE) pdp2gdf
 
 install_sigviewer: sigviewer
 	install ../sigviewer/bin/sigviewer $(BIN)
