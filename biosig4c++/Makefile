@@ -33,7 +33,6 @@ INCPATH       = -I /usr/local/include/gdcm-2.0/
 #		../gdcm-2.0.10/Source/MediaStorageAndFileFormat 	\
 #		../gdcm-2.0.10/Source/DataDictionary 			\
 #		../gdcm-2.0.10/Source/Common
-#LINK          = gcc
 LINK          = $(CXX)
 #LFLAGS        = -Wl,-subsystem,console # Windows
 LFLAGS        = -L /usr/local/lib/
@@ -47,11 +46,13 @@ SWIG          = swig
 PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 
 # MinGW Crosscompiler: compile on linux binaries for windows  
-MinGWCC      = i586-mingw32msvc-gcc 
-MinGWCXX     = i586-mingw32msvc-g++ 
-MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS #-D=WITH_CHOLMOD #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
-MinGWCFLAGS  = -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I win32
-MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a #win32/libcholmod.dll.a #-lcholmod # stati
+CROSS	     = i586-mingw32msvc-
+CROSS	     = i686-pc-mingw32-#mingw-cross-env
+MinGWCC      = $(CROSS)gcc 
+MinGWCXX     = $(CROSS)g++ 
+MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
+MinGWCFLAGS  = -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) 
+MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a -lcholmod #win32/libcholmod.dll.a # stati
 #MinGWLIBS   = -Lwin32 -l biosig -l zlib1 -lws2_32  # dynamic
 MinGWLINK    = $(MinGWCXX)
 
@@ -120,10 +121,10 @@ MinGWOBJECTS  = \
 		win32/sandbox.obj \
 		
 
-TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o pdp2gdf #libbiosig.so 
+TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o pdp2gdf libbiosig.so 
 
 first: $(TARGET)
-all:   $(TARGET) mex4o biosig4python win32 sigviewer biosig_client biosig_server
+all:   $(TARGET) mex4o biosig4python win32 biosig_client biosig_server #sigviewer
 
 
 #############################################################
@@ -277,7 +278,7 @@ win32/libbiosig.a: win32/libbiosig.lib
         
 win32/libbiosig.lib: $(MinGWOBJECTS) win32/libcnsfef.a 
 	-$(DELETE) win32/libbiosig.lib
-	i586-mingw32msvc-$(AR) win32/libbiosig.lib $(MinGWOBJECTS) t240/*.obj
+	$(CROSS)$(AR) win32/libbiosig.lib $(MinGWOBJECTS) t240/*.obj
 
 win32/libcnsfef.a:	
 	make -C t240 ../win32/libcnsfef.a
@@ -308,9 +309,16 @@ libbiosig.a: $(OBJECTS) t240/libcnsfef.a
 	-$(DELETE) libbiosig.a
 	$(AR) libbiosig.a $(OBJECTS) t240/*.o
 	
-libbiosig.so: $(OBJECTS)
+libbiosig.so: $(OBJECTS) t240/libcnsfef.a
 	$(CXX) -shared -fPIC -o libbiosig.so $(OBJECTS) t240/*.o
-	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) t240/*.o
+#	Automated expansion of version number not working yet
+#	MAJOR_VERSION := $(word 3, $(shell grep '#define BIOSIG_VERSION_MAJOR' biosig.h))
+#	MINOR_VERSION := $(word 3, $(shell grep '#define BIOSIG_VERSION_MINOR' biosig.h))
+#	STEPPING      := $(word 3, $(shell grep '#define BIOSIG_VERSION_STEPPING' biosig.h))
+#	$(CXX) -shared -fPIC -o libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} $(OBJECTS) t240/*.o
+#	ln  libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING}  libbiosig.so.${MAJOR_VERSION}
+#	ln  libbiosig.so.${MAJOR_VERSION}  libbiosig.so
+#	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) t240/*.o
 
 save2gdf: save2gdf.o libbiosig.a #libbiosig.so 
 	$(LINK) $(CXXFLAGS) save2gdf.o $(LFLAGS) $(LIBS) -o save2gdf 
