@@ -317,9 +317,8 @@ libbiosig.a: $(OBJECTS) t240/libcnsfef.a
 libbiosig.so: $(OBJECTS) t240/libcnsfef.a
 	$(CXX) -shared -fPIC -Wl,-soname,libbiosig.so.${MAJOR_VERSION} \
 		-o libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} $(OBJECTS) t240/*.o
-	ln -s libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING}  libbiosig.so.${MAJOR_VERSION}
-	ln -s libbiosig.so.${MAJOR_VERSION}  libbiosig.so
-	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) t240/*.o
+	ln -sf libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} libbiosig.so.${MAJOR_VERSION}
+	ln -sf libbiosig.so.${MAJOR_VERSION} libbiosig.so
 
 save2gdf: save2gdf.o libbiosig.a #libbiosig.so
 	$(LINK) $(CXXFLAGS) save2gdf.o $(LFLAGS) $(LIBS) -o save2gdf
@@ -455,7 +454,9 @@ install: save2gdf libbiosig.so libbiosig.a doc/save2gdf.1
 	#install bin2rec  	$(BIN)
 	install -d		$(LIB) $(DESTDIR)/usr/include
 	install biosig.h    	$(DESTDIR)/usr/include
-	install libbiosig.so 	$(LIB)
+	install libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} $(LIB)
+	ln -sf $(LIB)/libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} $(LIB)/libbiosig.so.${MAJOR_VERSION}
+	ln -sf $(LIB)/libbiosig.so.${MAJOR_VERSION} $(LIB)/libbiosig.so
 	install libbiosig.a	$(LIB)
 	mkdir -p  		$(DESTDIR)/usr/share/man/man1
 	install doc/*.1  	$(DESTDIR)/usr/share/man/man1
