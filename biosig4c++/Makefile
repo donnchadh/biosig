@@ -56,6 +56,11 @@ MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a -lcholmod #win32/libcho
 #MinGWLIBS   = -Lwin32 -l biosig -l zlib1 -lws2_32  # dynamic
 MinGWLINK    = $(MinGWCXX)
 
+# Versioning
+MAJOR_VERSION := $(word 3, $(shell grep '\#define BIOSIG_VERSION_MAJOR' biosig.h))
+MINOR_VERSION := $(word 3, $(shell grep '\#define BIOSIG_VERSION_MINOR' biosig.h))
+STEPPING      := $(word 3, $(shell grep '\#define BIOSIG_VERSION_STEPPING' biosig.h))
+
 ####### Output directory
 
 OBJ	      = ./obj
@@ -310,15 +315,11 @@ libbiosig.a: $(OBJECTS) t240/libcnsfef.a
 	$(AR) libbiosig.a $(OBJECTS) t240/*.o
 	
 libbiosig.so: $(OBJECTS) t240/libcnsfef.a
-	$(CXX) -shared -fPIC -o libbiosig.so $(OBJECTS) t240/*.o
-#	Automated expansion of version number not working yet
-#	MAJOR_VERSION := $(word 3, $(shell grep '#define BIOSIG_VERSION_MAJOR' biosig.h))
-#	MINOR_VERSION := $(word 3, $(shell grep '#define BIOSIG_VERSION_MINOR' biosig.h))
-#	STEPPING      := $(word 3, $(shell grep '#define BIOSIG_VERSION_STEPPING' biosig.h))
-#	$(CXX) -shared -fPIC -o libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} $(OBJECTS) t240/*.o
-#	ln  libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING}  libbiosig.so.${MAJOR_VERSION}
-#	ln  libbiosig.so.${MAJOR_VERSION}  libbiosig.so
-#	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) t240/*.o
+	$(CXX) -shared -fPIC -Wl,-soname,libbiosig.so.${MAJOR_VERSION} \
+		-o libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} $(OBJECTS) t240/*.o
+	ln -s libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING}  libbiosig.so.${MAJOR_VERSION}
+	ln -s libbiosig.so.${MAJOR_VERSION}  libbiosig.so
+	#$(CXX) -shared -Wl,-soname,libbiosig.so.1 -o libbiosig.so.1.0.1  $(OBJECTS) t240/*.o
 
 save2gdf: save2gdf.o libbiosig.a #libbiosig.so 
 	$(LINK) $(CXXFLAGS) save2gdf.o $(LFLAGS) $(LIBS) -o save2gdf 
@@ -403,6 +404,7 @@ distclean:
 	-$(DELETE) *.o
 	-$(DELETE) *.lib
 	-$(DELETE) *.so
+	-$(DELETE) *.so.*
 	-$(DELETE) *.mex*
 	-$(DELETE) *.oct
 	-$(DELETE) t5.scp t6.scp save2gdf gztest test_scp_decode biosig_server biosig_client
@@ -420,6 +422,7 @@ clean:
 	-$(DELETE) *.a
 	-$(DELETE) *.o
 	-$(DELETE) *.so
+	-$(DELETE) *.so.*
 	-$(DELETE) *.mex*
 	-$(DELETE) *.oct
 	-$(DELETE) python/biosig.py* _biosig.so
