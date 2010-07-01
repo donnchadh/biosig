@@ -55,10 +55,10 @@ if ~exist('OCTAVE_VERSION','builtin'),
 
 end;
 
-path([BIOSIG_HOME,'/freetb4matlab/basic'],path);	% some basic functions used in Octave but not available in Matlab
-path([BIOSIG_HOME,'/freetb4matlab/signal'],path);	% Octave-Forge signal processing toolbox converted with freetb4matlab
-path([BIOSIG_HOME,'/freetb4matlab/statistics/distributions'],path);	% Octave-Forge statistics toolbox converted with freetb4matlab 
-path([BIOSIG_HOME,'/freetb4matlab/statistics/tests'],path);	% Octave-Forge statistics toolbox converted with freetb4matlab 
+path(path,[BIOSIG_HOME,'/freetb4matlab/basic']);	% some basic functions used in Octave but not available in Matlab
+path(path,[BIOSIG_HOME,'/freetb4matlab/signal']);	% Octave-Forge signal processing toolbox converted with freetb4matlab
+path(path,[BIOSIG_HOME,'/freetb4matlab/statistics/distributions']);	% Octave-Forge statistics toolbox converted with freetb4matlab 
+path(path,[BIOSIG_HOME,'/freetb4matlab/statistics/tests']);	% Octave-Forge statistics toolbox converted with freetb4matlab 
 
 return; 
 path([BIOSIG_HOME,'/tsa'],path);		%  Time Series Analysis
