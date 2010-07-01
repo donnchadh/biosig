@@ -7052,11 +7052,11 @@ if (VERBOSE_LEVEL>8)
                 t.tm_hour  = lei16p(hdr->AS.Header + 150);
                 t.tm_min   = lei16p(hdr->AS.Header + 152);
                 t.tm_sec   = lei16p(hdr->AS.Header + 154);
-                hdr->T0 = tm_time2gdf_time(&t);                
+                hdr->T0    = tm_time2gdf_time(&t);                
 
                 hdr->NS    = lei16p(hdr->AS.Header + 156);
-		hdr->SPR = 1;
-		hdr->NRec = lei32p(hdr->AS.Header+14)/hdr->NS;
+		hdr->SPR   = 1;
+		hdr->NRec  = lei32p(hdr->AS.Header+14)/hdr->NS;
                 hdr->AS.bpb = hdr->NS*2;
                 hdr->SampleRate = lei16p(hdr->AS.Header + 272);
                 hdr->Patient.Impairment.Heart = lei16p(hdr->AS.Header+230) ? 3 : 0;    // Pacemaker     
@@ -7064,15 +7064,22 @@ if (VERBOSE_LEVEL>8)
 		for (k=0; k < hdr->NS; k++) {
 			CHANNEL_TYPE* hc = hdr->CHANNEL+k;
 			hc->OnOff    = 1;
-			hc->GDFTYP   = 3;        //int16 - 2th complement 
+			if (hdr->VERSION == 1) {
+        			hc->GDFTYP   = 3;        //int16 - 2th complement 
+        			hc->DigMax   = (double)(int16_t)(0x7fff);
+        			hc->DigMin   = (double)(int16_t)(0x8000);
+        		}
+        		else {
+        			hc->GDFTYP   = 4;        //uint16 
+        			hc->DigMax   = (double)(uint16_t)(0xffff);
+        			hc->DigMin   = (double)(uint16_t)(0x0000);
+        		}	
 			hc->SPR      = 1; 
 			hc->Cal      = lei16p(hdr->AS.Header + 206 + 2*k); 
 			hc->Off      = 0.0;
 			hc->Transducer[0] = '\0';
 			hc->LowPass  = NaN;
 			hc->HighPass = NaN;
-			hc->DigMax   = (double)(int16_t)(0x7fff);
-			hc->DigMin   = (double)(int16_t)(0x8000);
 			hc->PhysMax  = hc->Cal * hc->DigMax;
 			hc->PhysMin  = hc->Cal * hc->DigMin;
 		    	hc->LeadIdCode  = Table1[lei16p(hdr->AS.Header + 158 + 2*k)];
