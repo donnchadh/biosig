@@ -16,6 +16,13 @@
 ## make biosig4python - makes python interface (requires Python)
 ## make win32      - makes save2gdf.exe,libbiosig.lib,libbiosig.dll, for MSWindows, requires MinGW
 
+###############################
+# whether dynamic or static linking is used, can be controlled with 
+# LIBEXT. Setting it to 'a' links statically, 'so' links dynamically
+#
+# LIBEXT      = a	
+LIBEXT	      = so
+###############################
 
 CC            = gcc
 CXX           = g++
@@ -34,10 +41,18 @@ INCPATH       = -I /usr/local/include/gdcm-2.0/
 #		../gdcm-2.0.10/Source/DataDictionary 			\
 #		../gdcm-2.0.10/Source/Common
 LINK          = $(CXX)
-#LFLAGS        = -Wl,-subsystem,console # Windows
-LFLAGS        = -L /usr/local/lib/
-#LIBS          = -lz  -lbiosig  	# dynamic
-LIBS          = libbiosig.a -lz -lcholmod #-lgdcmDSED -lgsl -lgslcblas -lm	# static
+LFLAGS_dynamic = -L/usr/local/lib/ -L.
+LIBS_dynamic  = -lbiosig
+LFLAGS_static = -L/usr/local/lib/ 
+LIBS_static   = libbiosig.a
+ifeq ($(LIBEXT),so)
+  LFLAGS      = $(LFLAGS_dynamic)
+  LIBS        = $(LIBS_dynamic)
+else
+  LFLAGS      = $(LFLAGS_static)
+  LIBS        = $(LIBS_static)
+endif
+LIBS         += -lz -lcholmod #-lgdcmDSED -lgsl -lgslcblas -lm	# static
 DELETE        = rm
 COPY          = cp -f
 TEMP_DIR      = /tmp/
@@ -252,12 +267,12 @@ python:
 
 biosig4python : python/_biosig.so python/biosig.py
 
-python/biosig.py python/swig_wrap.cxx: libbiosig.a python/swig.i
+python/biosig.py python/swig_wrap.cxx: python/swig.i
 	$(SWIG) -c++ -python -I/usr/include -o python/swig_wrap.cxx python/swig.i
 
-python/_biosig.so : python/swig_wrap.cxx
+python/_biosig.so : python/swig_wrap.cxx  libbiosig.$(LIBEXT)
 	$(CXX) -c $(CXXFLAGS) python/swig_wrap.cxx -o python/swig_wrap.o -I/usr/include/python$(PYTHONVER)
-	$(CXX) -shared python/swig_wrap.o $(LIBS) -o python/_biosig.so
+	$(CXX) -shared python/swig_wrap.o  $(LFLAGS) $(LIBS) -o python/_biosig.so
 
 
 #############################################################
@@ -320,20 +335,20 @@ libbiosig.so: $(OBJECTS) t240/libcnsfef.a
 	ln -sf libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} libbiosig.so.${MAJOR_VERSION}
 	ln -sf libbiosig.so.${MAJOR_VERSION} libbiosig.so
 
-save2gdf: save2gdf.o libbiosig.a #libbiosig.so
+save2gdf: save2gdf.o libbiosig.$(LIBEXT)
 	$(LINK) $(CXXFLAGS) save2gdf.o $(LFLAGS) $(LIBS) -o save2gdf
 
-pdp2gdf: pdp2gdf.o libbiosig.a #libbiosig.so
+pdp2gdf: pdp2gdf.o libbiosig.$(LIBEXT)
 	$(LINK) $(CXXFLAGS) pdp2gdf.o $(LFLAGS) $(LIBS) -o pdp2gdf
 
-physicalunits: physicalunits.o libbiosig.a
+physicalunits: physicalunits.o libbiosig.$(LIBEXT)
 	$(LINK) $(CXXFLAGS) physicalunits.o $(LFLAGS) $(LIBS) -o physicalunits
 
 bscs: biosig_client biosig_server sandbox.o biosig.o
-biosig_client: biosig_client.c libbiosig.a biosig-network.o
+biosig_client: biosig_client.c libbiosig.$(LIBEXT) biosig-network.o
 	$(LINK) $(CXXFLAGS) biosig_client.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_client
 
-biosig_server: biosig_server.c libbiosig.a biosig-network.o
+biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o
 	$(LINK) $(CXXFLAGS) biosig_server.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_server
 
 
@@ -345,26 +360,26 @@ mex: mex4m mex4o
 mex4m: mexSLOAD.mexa64 mexSOPEN.mexa64
 mexSLOAD: mexSLOAD.mexa64
 mexSOPEN: mexSOPEN.mexa64
-mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.a
-	$(MEX) $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LIBS)
-	-$(COPY) mexSLOAD.mexa64 ../biosig/t200_FileAccess/
-mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.a
-	$(MEX) -DmexSOPEN $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LIBS) -output mexSOPEN
-	-$(COPY) mexSOPEN.mexa64 ../biosig/t200_FileAccess/
+mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.$(LIBEXT)
+	$(MEX) $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LFLAGS) $(LIBS)
+	-$(COPY) mexSLOAD.mex* ../biosig/t200_FileAccess/
+mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.$(LIBEXT)
+	$(MEX) -DmexSOPEN $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LFLAGS) $(LIBS) -output mexSOPEN
+	-$(COPY) mexSOPEN.mex* ../biosig/t200_FileAccess/
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex
-mexSLOAD.mex:  mexSLOAD.cpp libbiosig.a
-	$(OCT)  $(DEFINES) -v -g --mex mexSLOAD.cpp $(LIBS)
+mexSLOAD.mex:  mexSLOAD.cpp libbiosig.$(LIBEXT)
+	$(OCT)  $(DEFINES) -v -g --mex mexSLOAD.cpp $(LFLAGS) $(LIBS)
 	-$(COPY) mexSLOAD.mex ../biosig/t200_FileAccess/
-mexSOPEN.mex:  mexSLOAD.cpp libbiosig.a
-	$(OCT) -D=mexSOPEN $(DEFINES) -v -g --mex mexSLOAD.cpp $(LIBS) -o mexSOPEN.mex
+mexSOPEN.mex:  mexSLOAD.cpp libbiosig.$(LIBEXT)
+	$(OCT) -D=mexSOPEN $(DEFINES) -v -g --mex mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.mex
 	-$(COPY) mexSOPEN.mex ../biosig/t200_FileAccess/
-#physicalunits.mex:  physicalunits.cpp libbiosig.a  libbiosig.so
-#	$(OCT) -v -g --mex physicalunits.cpp  $(LIBS)
+#physicalunits.mex:  physicalunits.cpp libbiosig.$(LIBEXT)
+#	$(OCT) -v -g --mex physicalunits.cpp $(LFLAGS) $(LIBS)
 
 oct:  mexSLOAD.oct
-mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
+mexSLOAD.oct:  mexSLOAD.cpp libbiosig.$(LIBEXT)
 	$(OCT)  $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS)
 	$(OCT) -D=mexSOPEN $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.oct
 	-$(COPY) mexSOPEN.oct ../biosig/t200_FileAccess/
@@ -377,9 +392,9 @@ mexSLOAD.oct:  mexSLOAD.cpp libbiosig.a
 
 sigviewer: ../sigviewer/bin/sigviewer
 	make -C ../sigviewer/src
-../sigviewer/bin/sigviewer: libbiosig.a biosig.h
+../sigviewer/bin/sigviewer: libbiosig.$(LIBEXT) biosig.h
 	$(COPY) -lf biosig.h ../sigviewer/extern/
-	$(COPY) -lf libbiosig.a ../sigviewer/extern/
+	$(COPY) -lf libbiosig.$(LIBEXT) ../sigviewer/extern/
 	-$(COPY) -lf win32/libbiosig.dll ../sigviewer/extern/
 #	touch ../sigviewer/tmp/basic_header.o
 	make -C ../sigviewer/src
@@ -445,7 +460,7 @@ install_octave: mexSLOAD.mex
 	install mexSLOAD.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
 	install mexSOPEN.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
 
-install: save2gdf libbiosig.so libbiosig.a doc/save2gdf.1
+install: save2gdf libbiosig.a libbiosig.so doc/save2gdf.1
 	install -d 		$(BIN)
 	install save2gdf 	$(BIN)
 	install save2aecg 	$(BIN)
