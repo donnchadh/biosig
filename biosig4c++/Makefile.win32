@@ -48,6 +48,7 @@ SOURCES       = biosig.c \
 		t220/sopen_scp_write.c \
 		t220/crc4scp.c \
 		t230/sopen_hl7aecg.c \
+		t240/sopen_fef_read.c \
 		win32/getlogin_r.c \
 		test0/sandbox.c \
 		physicalunits.c \
@@ -64,6 +65,7 @@ OBJECTS       = \
 		sopen_scp_read.o \
 		sopen_famos_read.o \
 		sopen_alpha_read.o \
+		sopen_fef_read.o \
 		scp-decode.o \
 		sopen_scp_write.o \
 		sopen_hl7aecg.o \
@@ -115,6 +117,16 @@ physicalunits.o: physicalunits.c biosig.h
 sandbox.o: test0/sandbox.c biosig.h 
 	$(CC) -c $(CFLAGS) $(INCPATH) -o sandbox.o test0/sandbox.c
 
+sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h
+#	cd t240
+#	#asn1c -fcompound-names -pdu=SessionArchiveSection -S /home/schloegl/cvs/asn1c/skeletons fef.asn1
+#	asn1c -fcompound-names -pdu=SessionArchiveSection fef.asn1
+#	#asn1c -fcompound-names iso11073-10471.asn1
+#	#asn1c -fcompound-names iso11073-20601.asn1
+#	cd ..
+#	make -C t240 -f Makefile.am.sample 
+	$(CC) -c $(CFLAGS) -I t240 $(INCPATH) -o sopen_fef_read.o t240/sopen_fef_read.c
+	
 save2gdf.o: save2gdf.c biosig-dev.h biosig.h 
 	$(CC) -c $(CFLAGS) $(INCPATH) -o save2gdf.o save2gdf.c
 
