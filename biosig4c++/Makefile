@@ -15,14 +15,18 @@
 ## make libbiosig  - makes libbiosig
 ## make biosig4python - makes python interface (requires Python)
 ## make win32      - makes save2gdf.exe,libbiosig.lib,libbiosig.dll, for MSWindows, requires MinGW
+## make sigviewer  - makes sigviewer 
 
 ###############################
 # whether dynamic or static linking is used, can be controlled with 
 # LIBEXT. Setting it to 'a' links statically, 'so' links dynamically
 #
-# LIBEXT      = a	
+#LIBEXT        = a	
 LIBEXT	      = so
 ###############################
+
+##
+PathToSigViewer = ../../src/sigviewer/trunk
 
 CC            = gcc
 CXX           = g++
@@ -257,6 +261,13 @@ win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h win32/zlib/i
 win32/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
 
+win32/sigviewer.exe: 
+#	export PATH=$(HOME)/src/mingw-cross-env/usr/bin/:$PATH
+	cd $(PathToSigViewer)/src
+	i686-pc-mingw32-qmake
+	make
+	cd -
+	cp  $(PathToSigViewer)/bin/sigviewer.exe win32/
 
 #############################################################
 #	Python (Linux)
@@ -306,7 +317,7 @@ win32/libcnsfef.a:
 win32/libbiosig.dll: $(MinGWOBJECTS) win32/libz.a
 	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
 #	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a win32/cholmod.dll -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
-	-$(COPY) win32/libbiosig.dll ../sigviewer/extern/
+	-$(COPY) win32/libbiosig.dll $(PathToSigViewer)/extern/
 
 win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib win32/libz.a
 	$(MinGWLINK) $(MinGWCFLAGS) save2gdf.c $(MinGWLIBS) -o win32/save2gdf.exe
@@ -314,7 +325,7 @@ win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib win32/libz.a
 win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.lib win32/libz.a
 	$(MinGWLINK) $(MinGWCFLAGS) pdp2gdf.c $(MinGWLIBS) -o win32/pdp2gdf.exe
 
-win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.lib
+win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.lib win32/sigviewer.exe
 
 
 #############################################################
@@ -335,7 +346,7 @@ libbiosig.so: $(OBJECTS) t240/libcnsfef.a
 	ln -sf libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} libbiosig.so.${MAJOR_VERSION}
 	ln -sf libbiosig.so.${MAJOR_VERSION} libbiosig.so
 
-save2gdf: save2gdf.o libbiosig.$(LIBEXT)
+save2gdf: save2gdf.o libbiosig.$(LIBEXT) Makefile
 	$(LINK) $(CXXFLAGS) save2gdf.o $(LFLAGS) $(LIBS) -o save2gdf
 
 pdp2gdf: pdp2gdf.o libbiosig.$(LIBEXT)
@@ -345,10 +356,10 @@ physicalunits: physicalunits.o libbiosig.$(LIBEXT)
 	$(LINK) $(CXXFLAGS) physicalunits.o $(LFLAGS) $(LIBS) -o physicalunits
 
 bscs: biosig_client biosig_server sandbox.o biosig.o
-biosig_client: biosig_client.c libbiosig.$(LIBEXT) biosig-network.o
+biosig_client: biosig_client.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 	$(LINK) $(CXXFLAGS) biosig_client.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_client
 
-biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o
+biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 	$(LINK) $(CXXFLAGS) biosig_server.c  biosig-network.o $(LFLAGS) $(LIBS) -o biosig_server
 
 
@@ -360,26 +371,26 @@ mex: mex4m mex4o
 mex4m: mexSLOAD.mexa64 mexSOPEN.mexa64
 mexSLOAD: mexSLOAD.mexa64
 mexSOPEN: mexSOPEN.mexa64
-mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.$(LIBEXT)
+mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
 	$(MEX) $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LFLAGS) $(LIBS)
 	-$(COPY) mexSLOAD.mex* ../biosig/t200_FileAccess/
-mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.$(LIBEXT)
+mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
 	$(MEX) -DmexSOPEN $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LFLAGS) $(LIBS) -output mexSOPEN
 	-$(COPY) mexSOPEN.mex* ../biosig/t200_FileAccess/
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex
-mexSLOAD.mex:  mexSLOAD.cpp libbiosig.$(LIBEXT)
+mexSLOAD.mex:  mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
 	$(OCT)  $(DEFINES) -v -g --mex mexSLOAD.cpp $(LFLAGS) $(LIBS)
 	-$(COPY) mexSLOAD.mex ../biosig/t200_FileAccess/
-mexSOPEN.mex:  mexSLOAD.cpp libbiosig.$(LIBEXT)
+mexSOPEN.mex:  mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
 	$(OCT) -D=mexSOPEN $(DEFINES) -v -g --mex mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.mex
 	-$(COPY) mexSOPEN.mex ../biosig/t200_FileAccess/
 #physicalunits.mex:  physicalunits.cpp libbiosig.$(LIBEXT)
 #	$(OCT) -v -g --mex physicalunits.cpp $(LFLAGS) $(LIBS)
 
 oct:  mexSLOAD.oct
-mexSLOAD.oct:  mexSLOAD.cpp libbiosig.$(LIBEXT)
+mexSLOAD.oct:  mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
 	$(OCT)  $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS)
 	$(OCT) -D=mexSOPEN $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.oct
 	-$(COPY) mexSOPEN.oct ../biosig/t200_FileAccess/
@@ -390,14 +401,15 @@ mexSLOAD.oct:  mexSLOAD.cpp libbiosig.$(LIBEXT)
 #	SigViewer
 #############################################################
 
-sigviewer: ../sigviewer/bin/sigviewer
-	make -C ../sigviewer/src
+sigviewer: $(PathToSigViewer)/bin/sigviewer
+	qmake -C $(PathToSigViewer)/src 
+	make -C $(PathToSigViewer)/src
 ../sigviewer/bin/sigviewer: libbiosig.$(LIBEXT) biosig.h
-	$(COPY) -lf biosig.h ../sigviewer/extern/
-	$(COPY) -lf libbiosig.$(LIBEXT) ../sigviewer/extern/
-	-$(COPY) -lf win32/libbiosig.dll ../sigviewer/extern/
-#	touch ../sigviewer/tmp/basic_header.o
-	make -C ../sigviewer/src
+	$(COPY) -lf biosig.h $(PathToSigViewer)/extern/
+	$(COPY) -lf libbiosig.$(LIBEXT) $(PathToSigViewer)/extern/
+	-$(COPY) -lf win32/libbiosig.dll $(PathToSigViewer)/extern/
+#	touch $(PathToSigViewer)/tmp/basic_header.o
+	make -C $(PathToSigViewer)/src
 
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
 	asciidoc -d manpage docs/save2gdf.txt
@@ -452,7 +464,7 @@ clean:
 	-$(DELETE) pdp2gdf
 
 install_sigviewer: sigviewer
-	install ../sigviewer/bin/sigviewer $(BIN)
+	install $(PathToSigViewer)/bin/sigviewer $(BIN)
 	install ../biosig/doc/eventcodes.txt $(BIN)
 
 install_octave: mexSLOAD.mex
