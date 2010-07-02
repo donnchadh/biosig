@@ -1,5 +1,13 @@
 ./maybe-missing/README.TXT
 
+Note: Usually you do not need maybe-missing/* anymore, because they are 
+either (i) included in new releases (of Octave), or (ii) implemented in 
+freetb4matlab. The functions in maybe-missing are only included for 
+legacy reasons, and will eventually be removed. 
+
+
+--------------------
+
 The functions in this directory are a "must have". They are provided, 
 in case they are not installed in your system.
 It is sufficient to include this directory at the end of the path. 
