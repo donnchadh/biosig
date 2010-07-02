@@ -52,10 +52,10 @@ Wn2=[2*Bwn 3*Bwn];
 Wn3=[3*Bwn 4*Bwn];
 Wn4=[4*Bwn 5*Bwn];
 
-h1=fir1(N,Wn1,'bandpass');
-h2=fir1(N,Wn2,'bandpass');
-h3=fir1(N,Wn3,'bandpass');
-h4=fir1(N,Wn4,'bandpass');
+h1=fir1(N,Wn1,'DC-0');
+h2=fir1(N,Wn2,'DC-0');
+h3=fir1(N,Wn3,'DC-0');
+h4=fir1(N,Wn4,'DC-0');
 
 %Polyphase implementation of the filters
 y=cell(1,5);    
@@ -403,7 +403,7 @@ Bw=5.6;
 Bwn=1/(fs/2)*Bw;
 Wn=[Bwn 5*Bwn];
 N1=32;
-b=fir1(N1,Wn,'bandpass');
+b=fir1(N1,Wn,'DC-0');
 Sf=filtfilt(b,1,S);     %Filtered Signal with bandwidth 5.6-28 Hz
 beg=round(1.5*M);
 fin=1*M;
