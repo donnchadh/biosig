@@ -69,9 +69,9 @@ CROSS	     = i586-mingw32msvc-
 CROSS	     = i686-pc-mingw32-#mingw-cross-env
 MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
-MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
+MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS #-D=WITH_CHOLMOD #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
 MinGWCFLAGS  = -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF)
-MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a -lcholmod #win32/libcholmod.dll.a # stati
+MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a #-lcholmod #win32/libcholmod.dll.a # stati
 #MinGWLIBS   = -Lwin32 -l biosig -l zlib1 -lws2_32  # dynamic
 MinGWLINK    = $(MinGWCXX)
 
@@ -79,6 +79,7 @@ MinGWLINK    = $(MinGWCXX)
 MAJOR_VERSION := $(word 3, $(shell grep '\#define BIOSIG_VERSION_MAJOR' biosig.h))
 MINOR_VERSION := $(word 3, $(shell grep '\#define BIOSIG_VERSION_MINOR' biosig.h))
 STEPPING      := $(word 3, $(shell grep '\#define BIOSIG_VERSION_STEPPING' biosig.h))
+TODAY         := $(shell date +%Y%m%d)
 
 ####### Output directory
 
@@ -261,13 +262,11 @@ win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h win32/zlib/i
 win32/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
 
-win32/sigviewer.exe: 
-#	export PATH=$(HOME)/src/mingw-cross-env/usr/bin/:$PATH
-	cd $(PathToSigViewer)/src
-	i686-pc-mingw32-qmake
-	make
-	cd -
-	cp  $(PathToSigViewer)/bin/sigviewer.exe win32/
+win32/sigviewer.exe: win32/libbiosig.lib win32/libbiosig.dll
+	$(DELETE) $(PathToSigViewer)/extern/libbiosig*
+	$(COPY) win32/libbiosig.* $(PathToSigViewer)/extern/
+	(PATH=$(PathToSigViewer)/usr/bin/:$(PATH); cd $(PathToSigViewer)/src; i686-pc-mingw32-qmake; make)
+	$(COPY) $(PathToSigViewer)/bin/sigviewer.exe win32/
 
 #############################################################
 #	Python (Linux)
@@ -304,17 +303,17 @@ win32/libz.a: win32/zlib/lib/libz.a
 #	WIN32 - BUILD
 #############################################################
 
-win32/libbiosig.a: win32/libbiosig.lib
+win32/libbiosig.a: win32/libbiosig.lib 
 	$(COPY) win32/libbiosig.lib win32/libbiosig.a
 
-win32/libbiosig.lib: $(MinGWOBJECTS) win32/libcnsfef.a
+win32/libbiosig.lib: $(MinGWOBJECTS) win32/libcnsfef.a biosig.h biosig-dev.h
 	-$(DELETE) win32/libbiosig.lib
 	$(CROSS)$(AR) win32/libbiosig.lib $(MinGWOBJECTS) t240/*.obj
 
 win32/libcnsfef.a:
 	make -C t240 ../win32/libcnsfef.a
 
-win32/libbiosig.dll: $(MinGWOBJECTS) win32/libz.a
+win32/libbiosig.dll: $(MinGWOBJECTS) win32/libz.a biosig.h biosig-dev.h
 	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
 #	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a win32/cholmod.dll -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
 	-$(COPY) win32/libbiosig.dll $(PathToSigViewer)/extern/
@@ -336,11 +335,11 @@ t240/libcnsfef.a:
 #	make -C t240 regen		#
 	make -C t240 libcnsfef.a	# generate t240/*.o files
 
-libbiosig.a: $(OBJECTS) t240/libcnsfef.a
+libbiosig.a: $(OBJECTS) t240/libcnsfef.a biosig.h biosig-dev.h
 	-$(DELETE) libbiosig.a
 	$(AR) libbiosig.a $(OBJECTS) t240/*.o
 
-libbiosig.so: $(OBJECTS) t240/libcnsfef.a
+libbiosig.so: $(OBJECTS) t240/libcnsfef.a biosig.h biosig-dev.h
 	$(CXX) -shared -fPIC -Wl,-soname,libbiosig.so.${MAJOR_VERSION} \
 		-o libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} $(OBJECTS) t240/*.o
 	ln -sf libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} libbiosig.so.${MAJOR_VERSION}
@@ -402,14 +401,15 @@ mexSLOAD.oct:  mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
 #############################################################
 
 sigviewer: $(PathToSigViewer)/bin/sigviewer
-	qmake -C $(PathToSigViewer)/src 
-	make -C $(PathToSigViewer)/src
-../sigviewer/bin/sigviewer: libbiosig.$(LIBEXT) biosig.h
+	$(COPY) $(PathToSigViewer)/bin/sigviewer ~/bin/sigviewer-$(TODAY)
+	mv $(PathToSigViewer)/bin/sigviewer $(PathToSigViewer)/bin/sigviewer-$(TODAY)
+	ln -sf ~/bin/sigviewer-$(TODAY) ~/bin/sigviewer 
+	
+$(PathToSigViewer)/bin/sigviewer: libbiosig.$(LIBEXT) biosig.h
 	$(COPY) -lf biosig.h $(PathToSigViewer)/extern/
 	$(COPY) -lf libbiosig.$(LIBEXT) $(PathToSigViewer)/extern/
-	-$(COPY) -lf win32/libbiosig.dll $(PathToSigViewer)/extern/
 #	touch $(PathToSigViewer)/tmp/basic_header.o
-	make -C $(PathToSigViewer)/src
+	(cd $(PathToSigViewer)/src; qmake;make;)
 
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
 	asciidoc -d manpage docs/save2gdf.txt

@@ -327,9 +327,14 @@ TARGET = libcnsfef.a ../win32/libcnsfef.a ../win32/libcnsfef.dll
 CFLAGS += -pipe -fPIC -Wall -O2 -Wextra  -I.
 OBJS=${ASN_MODULE_SOURCES:.c=.o} ${ASN_CONVERTER_SOURCES:.c=.o}
 WINOBJS=${ASN_MODULE_SOURCES:.c=.obj} ${ASN_CONVERTER_SOURCES:.c=.obj}
+W64OBJS=${ASN_MODULE_SOURCES:.c=.o64} ${ASN_CONVERTER_SOURCES:.c=.o64}
 
-AR    = ar crs
-MinGWCC = i586-mingw32msvc-gcc 
+CROSS	  = i586-mingw32msvc-
+CROSS	  = i686-pc-mingw32-
+AR        = $(CROSS)ar crs
+MinGWCC   = $(CROSS)gcc 
+AR64      = amd64-mingw32msvc-ar 
+MinGW64CC = amd64-mingw32msvc-gcc 
 
 all: $(TARGET)
 
@@ -340,14 +345,20 @@ libcnsfef.a: $(OBJS)
 	$(AR) libcnsfef.a $(OBJS) 
 
 ../win32/libcnsfef.a: $(WINOBJS) 
-	i586-mingw32msvc-$(AR) ../win32/libcnsfef.a $(WINOBJS) 
+	$(AR) ../win32/libcnsfef.a $(WINOBJS) 
+
+../win64/libcnsfef.a: $(W64OBJS) 
+	$(AR64) ../win64/libcnsfef.a $(W64OBJS) 
 
 
 #../win32/libcnsfef.a: $(WINOBJS)  
-#	i586-mingw32msvc-$(AR) ../win32/libcnsfef.a   $(WINOBJS)  
+#	$(AR) ../win32/libcnsfef.a   $(WINOBJS)  
 
 ../win32/libcnsfef.dll: $(WINOBJS)
 	$(MinGWCC) -shared -fPIC  $(WINOBJS)  -Wl,--output-def,../win32/libcnsfef.def,--out-implib,../win32/libcnsfef.dll
+
+../win64/libcnsfef.dll: $(WINOBJS)
+	$(MinGW64CC) -shared -fPIC  $(W64OBJS)  -Wl,--output-def,../win64/libcnsfef.def,--out-implib,../win64/libcnsfef.dll
 
 
 .SUFFIXES:

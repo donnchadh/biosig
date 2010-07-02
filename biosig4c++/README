@@ -6,7 +6,7 @@ This library is called "BioSig for C/C++" and is complementary to "BioSig for Oc
 
 BioSig4C++ provides several tools:  
 
-(1) "libbiosig.a" provides a library for accessing different dataformats. 
+(1) "libbiosig" provides a library for accessing different dataformats. 
 The supported data formats are listed here: 
 http://hci.tugraz.at/schloegl/biosig/TESTED
 
@@ -47,8 +47,7 @@ Requirement: qmake, Qt4
 
 (6) Precompiled binaries for Win32
    win32/save2gdf.exe  binary converter
-   win32/libbiosig.a   library for MinGW 4.x (might work with other compilers too) 
-
+   win32/libbiosig.{lib,dll}  static and dynamic library (requires zlib and libws2_32)
 
 The internal data structure resemble the header structure similar to
   http://biosig.svn.sourceforge.net/viewvc/biosig/trunk/biosig/doc/header.txt
