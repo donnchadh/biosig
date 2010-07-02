@@ -113,7 +113,9 @@ font_size = 1/32;  % Default normalized axes font size
 
 f = figure;
 set(f, 'PaperOrientation', 'landscape');
-set(f, 'PaperType', 'A4');
+if ~exist('OCTAVE_VERSION','builtin')
+	set(f, 'PaperType', 'A4');
+end; 
 set(f, 'PaperUnits', 'centimeters');
 set(f, 'PaperPosition', [1, 1, 27.7, 19]);
 set(f, 'Color', [1 1 1]);
@@ -247,7 +249,11 @@ elseif strcmp(r.sig, 'boxcox')
 else
     temp_str{3} = [temp_str{3}, 'no significance test.'];
 end;
-text(0, 0, temp_str, 'FontUnits', 'normalized', 'FontSize', 1/6, 'VerticalAlignment', 'Top', 'Interpreter', 'Tex');
+if exist('OCTAVE_VERSION','builtin')
+	text([0,0,0], [0,1,2], temp_str, 'FontUnits', 'normalized', 'FontSize', 1/6, 'VerticalAlignment', 'Top', 'Interpreter', 'Tex');
+else
+	text(0, 0, temp_str, 'FontUnits', 'normalized', 'FontSize', 1/6, 'VerticalAlignment', 'Top', 'Interpreter', 'Tex');
+end
 %line([0, 1], [0, 0], 'Color', 'k');
 
 %hndl = findobj('parent', gcf, 'type', 'axes');

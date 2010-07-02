@@ -218,8 +218,8 @@ y=loc(:,2);
 xlin = linspace(1.4*min(x),1.4*max(x),resolution);
 ylin = linspace(1.4*min(y),1.4*max(y),resolution);
 [X,Y] = meshgrid(xlin,ylin);
-Z = griddata(x,y,z,X,Y,'invdist');
-%Z = griddata(x,y,z,X,Y,'nearest');
+%Z = griddata(x,y,z,X,Y,'invdist');
+Z = griddata(x,y,z,X,Y,'nearest');
 
 
   % Take data within head

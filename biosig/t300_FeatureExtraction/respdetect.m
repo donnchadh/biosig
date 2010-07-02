@@ -1,5 +1,4 @@
 function r=respdetect(S,fs);
-
 % respdetect - detection of respiration
 %
 %   r=respdetect(S,fs);
@@ -12,10 +11,13 @@ function r=respdetect(S,fs);
 %   r       fiducial points of the respiration
 
 % Copyright (C) 2006 by Rupert Ortner
-%
+%	$Id$
+%	Copyright (C) 2010 by Alois Schloegl <a.schloegl@ieee.org>
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
+
 %% This program is free software; you can redistribute it and/or modify
 %% it under the terms of the GNU General Public License as published by
-%% the Free Software Foundation; either version 2 of the License, or
+%% the Free Software Foundation; either version 3 of the License, or
 %% (at your option) any later version.
 %%
 %% This program is distributed in the hope that it will be useful, ...
@@ -29,6 +31,38 @@ function r=respdetect(S,fs);
 %% USA
 
 
+if 1, 
+%	Copyright (C) 2010 by Alois Schloegl <a.schloegl@ieee.org>	
+	n = fs*1; 		%% defines window length 	
+	w = [-ones(n,1); ones(n,1)];
+
+	u = filter(w,n,S);	%% identify ascending and descending slopes
+	t = find(diff(sign(u))>0);	%% identify maximum
+	
+	r.EVENT.POS = t;
+	r.EVENT.TYP = repmat(hex2dec('040e'),length(t),1);
+	
+	if 1,
+		%% just for debugging  
+		subplot(211)
+		plot([S,u])
+		hold on
+		plot(t,10,'xk');
+		hold off
+		subplot(212)
+		semilogy([t(2:end)+t(1:end-1)]/2,diff(t));
+	end; 
+	
+	%% summarizing results 
+		
+	t = t/fs;
+	r.BreathingRate = (t(end)-t(1))\(length(t)-1)*60;	
+	r.BreathingRateVariability = std(60./diff(t));
+
+else 
+% Copyright (C) 2006 by Rupert Ortner
+
+%% code failed for some several example data  ex1.txt, ex2.txt
 
 S=full(S);
 nans1=isnan(S);
@@ -107,3 +141,4 @@ end
 r=unique(null);
 
 
+end; 

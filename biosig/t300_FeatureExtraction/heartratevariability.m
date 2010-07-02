@@ -139,13 +139,19 @@ if isstruct(RRI)
                 Fs0 = 1; 
                 X.PhysDim = '?'; 
         end;
-        if isfield(EVENT,'POS') & isfield(EVENT,'TYP') & isfield(EVENT,'CHN') & isfield(EVENT,'DUR');
+        if isfield(EVENT,'POS') && isfield(EVENT,'TYP') && isfield(EVENT,'CHN') && isfield(EVENT,'DUR');
                 ix = find(EVENT.TYP==hex2dec('0501'));
                 if all(EVENT.CHN(ix(1)) == EVENT.CHN(ix));
                         on = EVENT.POS(EVENT.TYP==hex2dec('0501'))/Fs0;
+                        if isempty(on)
+                                on = EVENT.POS(EVENT.TYP==hex2dec('0503'))/Fs0;
+                        end;
                 end;
-        elseif isfield(EVENT,'POS') & isfield(EVENT,'TYP');
+        elseif isfield(EVENT,'POS') && isfield(EVENT,'TYP');
                 on = EVENT.POS(EVENT.TYP==hex2dec('0501'))/Fs0;
+                if isempty(on)
+                        on = EVENT.POS(EVENT.TYP==hex2dec('0503'))/Fs0;
+                end;
         end;
         NN = diff(on);         
         

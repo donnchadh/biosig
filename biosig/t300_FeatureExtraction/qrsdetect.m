@@ -9,7 +9,7 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 %   chan        channel number of ecg data
 %   s           ecg signal data 
 %   Fs          sample rate 
-%   Mode        optional - default is 1
+%   Mode        optional - default is 2
 %               1: method [1] is used
 %		2: method [2] is used	
 % OUTPUT
@@ -23,17 +23,15 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 %       Med. & Biol. Eng. & Comput., 1983, 21, 538-547.
 % [2] V. Afonso, W. Tompkins, T. Nguyen, and S. Luo, "ECG beat detection using filter banks,"
 % 	IEEE Trans. Biomed. Eng. 46(2):192-202, Feb. 1999.
-%
 
+% $Id$
+% Copyright (C) 2000-2003,2006,2009 by Alois Schloegl <a.schloegl@ieee.org>	
+% This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
-%	$Id$
-%	Copyright (C) 2000-2003,2006 by Alois Schloegl <a.schloegl@ieee.org>	
-%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
-
-% This library is free software; you can redistribute it and/or
+% BIOSIG is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
+% Version 3 of the License, or (at your option) any later version.
 %
 % This library is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -47,7 +45,7 @@ function [H2,HDR,s] = qrsdetect(fn,arg2,arg3)
 
 
 chan = 0; 
-MODE = 1;       % default: 
+MODE = 2;       % default: 
 if (nargin==2) 
 	if isnumeric(arg2)
 		chan = arg2;

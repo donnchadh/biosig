@@ -437,7 +437,7 @@ CNT.CNT.Filter.ON   = [e(:).filtered];
 CNT.CNT.minor_revision = h.minor_rev;
 CNT.CNT.EventTablePos  = h.eventtablepos;
 
-CNT.Label = setstr(e.lab');
+CNT.Label = char(e.lab');
 
 CNT.FILE.POS = 0;
 if strcmp(upper(CNT.FILE.Ext),'AVG'),
@@ -480,6 +480,7 @@ elseif strcmp(upper(CNT.FILE.Ext),'EEG'),
         % The Manual SCAN 4.2 Vol II, Page Headers-7 refers to "286 SCAN manual". Maybe this could bring a clarification. 
         % Anyway, the following code deals with the problem.   
         CNT.AS.bpb = -1;
+
         if CNT.CNT.minor_revision==12,
                 CNT.AS.bpb = 2*CNT.AS.spb+1+2+2+4+2+2;
                 CNT.GDFTYP = 3; %'int16';
@@ -524,7 +525,7 @@ elseif  strcmp(upper(CNT.FILE.Ext),'CNT'),
         CNT.CNT.h = h; 
         
         if (CNT.CNT.minor_revision==8),
-                CNT.GDFTYP = 3; %'int16';
+	        CNT.GDFTYP = 3; %'int16';
                 h.numsamples; % might have some meaning 
         elseif (CNT.CNT.minor_revision==12),
                 CNT.GDFTYP = 3; %'int16';
@@ -639,3 +640,4 @@ status = fseek(CNT.FILE.FID, CNT.HeadLen, 'bof');
 if status,
         fprintf(CNT.FILE.stderr,'Warning CNTOPEN: I/O error in file %s\n',CNT.FileName);
 end;        
+CNT.h = h;

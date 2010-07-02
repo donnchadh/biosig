@@ -1,15 +1,15 @@
 % BIOSIG toolbox contains many useful functions for biomedical signal processing
 %     http://biosig.sf.net/
 %
-% Copyright (C) 2003,2004,2007 by Alois Schloegl <a.schloegl@ieee.org>
+% Copyright (C) 2003,2004,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>
 % WWW: http://biosig.sf.net/
-% $Id: Contents.m,v 1.8 2008-01-23 22:04:41 schloegl Exp $
+% $Id: Contents.m,v 1.8 2008/01/23 22:04:41 schloegl Exp $
 % This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 % LICENSE:
 %     This program is free software; you can redistribute it and/or modify
 %     it under the terms of the GNU General Public License as published by
-%     the Free Software Foundation; either version 2 of the License, or
+%     the Free Software Foundation; either version 3 of the License, or
 %     (at your option) any later version.
 % 
 %     This program is distributed in the hope that it will be useful,
@@ -114,13 +114,14 @@
 % 	TRAIN_SC	estimates classifier from labelled data
 % 	TEST_SC         applies classifier to test data 
 % 	FINDCLASSIFIER	obtains classifier includeding performance test. 
-% 
+%	XVAL		cross-validation procedure
+%
 %
 % BIOSIG/T450: Statistical analysis, False Discovery Rate (FDR)
 % -------------------------------------------------------------
-%  	FDR	false discovery rate
+%	FDR	false discovery rate
 %	several utility functions
-%	
+%
 %
 % BIOSIG/T490: Evaluation criteria
 % ---------------------------------------------
