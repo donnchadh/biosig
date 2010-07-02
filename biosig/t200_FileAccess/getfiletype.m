@@ -1030,9 +1030,6 @@ else
 			[HDR.EVENT.CodeDesc,ix,HDR.EVENT.TYP]=unique(Desc);
 			HDR.TYPE='EVENT';
  				
-                elseif (c>176) && any(s(176)==[0:4])
-                        HDR.TYPE='MicroMed TRC';
-
                 elseif ~strcmp(version,'3.5') %% exclude FreeMat v3.5 
                         HDR.TYPE='unknown';
 
