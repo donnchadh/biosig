@@ -70,10 +70,7 @@ function [ht,m,r] = ECTBcorr(QRStime,ectb_times);
    end;
 
 % Instantaneous heart period hp
-   for k=2:length(t)
-      hp(k)=(t(k)-t(k-1));
-   end
-   hp(1)=NaN;
+   hp=[NaN,diff(t)];
    hp_mean=mean(hp)
 
 %heart period without ectopic beats
@@ -89,8 +86,16 @@ function [ht,m,r] = ECTBcorr(QRStime,ectb_times);
 %**************************************************%    
 % Are ectopic beats consecutive?
 %**************************************************%    
-   j=1;
    n_all=ones(1,length(ke_all)); %number of consecutive ectopic beats
+if 0,    
+   %% experimental: seems more efficient than the alternative below
+   %% ToDo: test for correctness/equivalence to method below      
+   j = find(diff(ke_all)==1);
+   ke_all(j)=[];
+   n_all(j)=2;
+else   
+   %% obsolete - just needed for some testing     
+   j=1;
    while j<length(ke_all)
       while ((j<=length(ke_all)-1)&((ke_all(j+1)-ke_all(j))==1))
          ke_all(j)=[]; %deletion of consecutive indices
@@ -98,6 +103,7 @@ function [ht,m,r] = ECTBcorr(QRStime,ectb_times);
       end;
       j=j+1;
    end;
+end; 
    n_all(length(ke_all)+1:end)=[];
 
 %Initialising the structure for truncation
@@ -115,7 +121,7 @@ function [ht,m,r] = ECTBcorr(QRStime,ectb_times);
    end;
  
 % if ectopic beats are at the beginning they will be truncated
-   if (ke_all(1)+1-n_all(1))==1
+   if (ke_all(1)==n_all(1))
       trunc.t=[trunc.t (ke_all(1)+1-n_all(1):ke_all(1))];
       trunc.hp=[trunc.hp (ke_all(1)+1-n_all(1):ke_all(1))];
       trunc.ke_all=[trunc.ke_all (1)];

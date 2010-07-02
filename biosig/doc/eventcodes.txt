@@ -3,8 +3,11 @@
 # GDF v2.x http://arxiv.org/abs/cs.DB/0608052 and 
 # GDF v1.x http://hci.tugraz.at/schloegl/matlab/eeg/gdf4/TR_GDF.pdf
 # and part of the BioSig project http://biosig.sf.net/
-# Copyright (C) 2004,2005,2006,2008 Alois Schloegl <a.schloegl@ieee.org>
+# Copyright (C) 2004,2005,2006,2008,2009,2010 Alois Schloegl <a.schloegl@ieee.org>
 # $Id: eventcodes.txt,v 1.15 2009-01-20 16:09:46 schloegl Exp $
+# 
+# The latest version is available from here:
+# http://biosig.svn.sourceforge.net/viewvc/biosig/trunk/biosig/doc/eventcodes.txt
 #
 # BioSig is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public
@@ -19,7 +22,7 @@
 # and changes should be addressed to the author.  
 #
 ### table of event codes: lines starting with # are omitted
-### add 0x8000 to indicate end of event
+### add 0x8000 to indicate the end (i.e. offset) of an event
 #
 ### 0x010_	EEG artifacts
 0x0101	artifact:EOG (blinks, fast, large amplitude)
@@ -141,11 +144,18 @@
 0x044a	arm (right) movement
 ### 0x050_	ECG events
 0x0501	ecg:Fiducial point of QRS complex
-0x0502	ecg:P-wave
-0x0503	ecg:QRS-complex
+0x0502	ecg:P-wave-onset
+#0x8502	ecg:P-wave-end
+0x0503	ecg:Q-wave-onset, QRS-onset
+#0x8503 ecg:Q-wave-peak, Q-wave-end
 0x0504	ecg:R-point
-0x0506	ecg:T-wave
-0x0507	ecg:U-wave
+0x0505	ecg:S-wave-onset, S-wave-peak
+#0x8505	ecg:S-wave-end, J-point, QRS-end
+0x0506	ecg:T-wave-onset
+#0x8506	ecg:T-wave-end
+0x0507	ecg:U-wave-onset
+#0x8507	ecg:U-wave-end
+#
 # related but non-concordant defintions can be found in   
 # - WFDB/MIT-BIH http://www.physionet.org/physiotools/wfdb/lib/ecgcodes.h
 # - SCP-ECG http://www.centc251.org/TCmeet/doclist/TCdoc02/N02-015-prEN1064.pdf
