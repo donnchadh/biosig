@@ -121,7 +121,7 @@ else
 		tmp = 256.^[0:3]*reshape(s(1:20),4,5);
 		mat4.flag = (c>20) & (tmp(5)<256) & (tmp(5)>1) & (tmp(1)<4053) & any(s(13)==[0,1]) & any(tmp(4)==[0,1]);
 		if mat4.flag,
-			mat4.matrixname = lower(s(21:20+tmp(5)-1));
+			mat4.matrixname = lower(char(s(21:20+tmp(5)-1)));
 	                mat4.type = sprintf('%04i',tmp(1))-48;
                         mat4.size = tmp(2:3);
                         mat4.imagf= tmp(4);
@@ -129,6 +129,7 @@ else
 			mat4.flag = all((mat4.matrixname>='0' & mat4.matrixname<='9') | (mat4.matrixname>='_' & mat4.matrixname<='z'));
 			mat4.flag = mat4.flag & all(any(mat4.type(ones(6,1),:)==[0,0:4;zeros(1,6);0:5;0:2,0,0,0]'));
 		end;
+
 		pos1_ascii10 = min(find(s==10));
 		FLAG.FS3 = any(s==10); 
 		if FLAG.FS3, 
@@ -1029,6 +1030,9 @@ else
 			[HDR.EVENT.CodeDesc,ix,HDR.EVENT.TYP]=unique(Desc);
 			HDR.TYPE='EVENT';
  				
+                elseif (c>176) && any(s(176)==[0:4])
+                        HDR.TYPE='MicroMed TRC';
+
                 elseif ~strcmp(version,'3.5') %% exclude FreeMat v3.5 
                         HDR.TYPE='unknown';
 

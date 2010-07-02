@@ -107,8 +107,10 @@ if size(cl,1)~=length(TRIG);
 end;
 
 TRIG = TRIG(:);
-TRIG(any(isnan(cl),2))=[];
-cl(any(isnan(cl),2))=[];
+tmp  = ~any(isnan(cl),2); 
+TRIG = TRIG(tmp);
+cl   = cl(tmp);
+
 if size(cl,2)>1,
         cl2 = cl(:,2);          % 2nd column contains the group definition, ( Leave-One (Group) - Out ) 
         cl  = cl(:,1); 
