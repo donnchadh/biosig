@@ -1,4 +1,4 @@
-function []=demo2();
+%function []=demo2();
 % DEMO2 demonstrates the use of the data set III from the BCI competition 2003 for 
 %   The demo shows the offline analysis for obtaining a classifier and 
 %   uses a jack-knife method (leave-one-trial out) for validation. 
@@ -141,6 +141,15 @@ for ch = 1:length(eegchan),
      	f2 = [f2,X.AAR,log(X.PE)];	
 end; 
 
+fprintf(1,'\tb: Differential Adaptive Autoregressive parameters (AAR).\n');
+f4 = [];
+ds = diff(s); 
+for ch = 1:length(eegchan),
+	X = tvaar(ds(:,eegchan(ch)),MODE.MOP,MODE.UC); 
+     	X = tvaar(ds(:,eegchan(ch)),X);		% AAR estimation
+     	f4 = [f4,X.AAR,log(X.PE)];	
+end; 
+
 %    3c: bandpower
 fprintf(1,'\tc: bandpower.\n');
 bands = [10,12;16,24]; % define frequency bands 
@@ -174,6 +183,7 @@ TYPE.TYPE = 'LDA';	% classifier type
 CC1 = findclassifier(f1, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
 CC2 = findclassifier(f2, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
 CC3 = findclassifier(f3, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
+CC4 = findclassifier(f4, HDR.TRIG, [HDR.Classlabel,NG], MODE, [], TYPE);
 
 % For online feedback, the weights of the linear classifier 
 %   are available through 
@@ -181,6 +191,7 @@ fprintf(1,'\tb: weights of linear classifier.\n');
 CC1.weights
 CC2.weights
 CC3.weights
+CC4.weights
 % the first element represents the bias. 
 
 % The chosen time segment used for computing the classifiers are: 
@@ -188,11 +199,13 @@ fprintf(1,'\tc: choosen time segment.\n');
 MODE.T(CC1.TI,[1,end])/HDR.SampleRate, 
 MODE.T(CC2.TI,[1,end])/HDR.SampleRate, 
 MODE.T(CC3.TI,[1,end])/HDR.SampleRate, 
+MODE.T(CC4.TI,[1,end])/HDR.SampleRate, 
  
 % Accordingly, the time-varying distance is available 
 d1 = [ones(size(f1,1),1),f1]*CC1.weights;
 d2 = [ones(size(f2,1),1),f2]*CC2.weights;
 d3 = [ones(size(f3,1),1),f3]*CC3.weights;
+d4 = [ones(size(f4,1),1),f4]*CC4.weights;
 % Note, if the same a1,a2,a3 were already used for classifier training, 
 %   these results are subject to overfitting. 
 
@@ -217,26 +230,30 @@ fprintf(1,'\t Fig 3: results from BandPower+%s results.\n',TYPE.TYPE);
 figure(3);
 plota(CC3)
 
+fprintf(1,'\t Fig 4: results from diff(AAR)+%s results.\n',TYPE.TYPE);
+figure(4);
+plota(CC4)
+
 
 fprintf(1,'\t Fig 3+: various evaluation criteria [Schlögl et al. 2007] for comparing different features ');
 
-LEG= {['TDP+',TYPE.TYPE],['AAR+',TYPE.TYPE],['BP+',TYPE.TYPE]};
+LEG= {['TDP+',TYPE.TYPE],['AAR+',TYPE.TYPE],['BP+',TYPE.TYPE],['diff(AAR)+',TYPE.TYPE]};
 M = length(unique(HDR.Classlabel));
 FFIELD = {'ERR','r','I','SNR','AUC','ACC00','KAP00','I_wolpaw','I_Nykopp','STMI'}; 
 TIT = {'Error rate','correlation coefficient','Mutual information','Signal-to-Noise ratio','Area-under-the-ROC-curve','Accuracy','Cohens kappa coefficient','Information transfer [Wolpaw]','Information transfer [Nykopp]','Steepness of mutual information'};
 PhysDim = {'[1]','[1]','[bit]','[1]','[1]','[1]','[1]','[bit]','[bit]','[bit/s]'};
 for k=1:length(FFIELD),
-	figure(k+3); 
+	figure(k+4); 
 	ffield = FFIELD{k};
-fprintf(1,'\t Fig %i: %s (CC.TSD.%s)\n',k+3,TIT{k},ffield);
+fprintf(1,'\t Fig %i: %s (CC.TSD.%s)\n',k+4,TIT{k},ffield);
 	if strcmp(ffield,'STMI') 	% steepness of mutual information 
 		t = CC1.T.t-CC1.T.t0;
 		t(t<0.5) = NaN; 
-		plot(CC1.T.t,[sum(CC1.TSD.I,2),sum(CC2.TSD.I,2),sum(CC3.TSD.I,2)]./t(:,[1,1,1])*(M-1)/M);
+		plot(CC1.T.t,[sum(CC1.TSD.I,2),sum(CC2.TSD.I,2),sum(CC3.TSD.I,2),sum(CC4.TSD.I,2)]./t(:,[1,1,1,1])*(M-1)/M);
 	elseif (size(getfield(CC1.TSD,ffield),2)>1)	
-		plot(CC1.T.t,[sum(getfield(CC1.TSD,ffield),2),sum(getfield(CC2.TSD,ffield),2),sum(getfield(CC3.TSD,ffield),2)]*(M-1)/M);
+		plot(CC1.T.t,[sum(getfield(CC1.TSD,ffield),2),sum(getfield(CC2.TSD,ffield),2),sum(getfield(CC3.TSD,ffield),2),sum(getfield(CC4.TSD,ffield),2)]*(M-1)/M);
 	else
-		plot(CC1.T.t,[getfield(CC1.TSD,ffield),getfield(CC2.TSD,ffield),getfield(CC3.TSD,ffield)]);
+		plot(CC1.T.t,[getfield(CC1.TSD,ffield),getfield(CC2.TSD,ffield),getfield(CC3.TSD,ffield),getfield(CC4.TSD,ffield)]);
 	end; 	
 	legend(LEG);
 	ylabel([ffield,' ',PhysDim{k}]); 

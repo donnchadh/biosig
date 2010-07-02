@@ -14,7 +14,7 @@
 %
 
 
-%	$Id: bench_biosig.m,v 1.7 2009-04-21 10:39:20 schloegl Exp $
+%	$Id: bench_biosig.m,v 1.7 2009/04/21 10:39:20 schloegl Exp $
 %	Copyright (C) 2005,2006 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -44,6 +44,11 @@ K=0; tic; t0=cputime();
 
 %[signal,HDR]=sload({[p,'x_train'],[p,'x_test']});
 [signal,HDR]=sload('l1.gdf');
+KK = 5;
+ng = ceil([0:length(HDR.Classlabel)-1]'/length(HDR.Classlabel)*KK);
+Classifiers = {'LD2','LD3','LD4','MDA','MD2','MD3','GRB','GRB2','QDA','MQU','INQ','Cauchy','SVM','SVM11','RBF','REG'};
+Classifiers = {'LDA','LDA/GSVD','LD2','LD3','LD4','NBC','aNBC','REG','MDA','MD2','MD3','GRB','GRB2','QDA','MQU','IMQ','Cauchy','LDA/sparse','SVM:LIB','SVM:OSU'};
+
 
 K=K+1;jo{K}='sload l1.gdf'; t(K)=cputime()-t0,t1(K)=toc
 z = zscore(signal);
@@ -52,12 +57,13 @@ try
         bp = bandpower(z,HDR.SampleRate);
         bp(bp<-10)=NaN;
         K=K+1;jo{K}='bandpower'; t(K)=cputime()-t0,t1(K)=toc
-catch, end;
+end;
 
 [SIGMA1,PHI1,OMEGA1,m01,m11,m21] = wackermann(z(:,1:2),HDR.SampleRate);
 [SIGMA2,PHI2,OMEGA2,m02,m12,m22] = wackermann(z(:,2:3),HDR.SampleRate);
 K=K+1;jo{K}='wackermann'; t(K)=cputime()-t0,t1(K)=toc
 
+if 1, 
 [a,f,s] = barlow(z,HDR.SampleRate);
 BARLOW = [a,f,s];
 K=K+1;jo{K}='barlow'; t(K)=cputime()-t0,t1(K)=toc
@@ -84,11 +90,6 @@ for ch = 1:size(signal,2),
 end
 
 %% K-fold Crossvalidation
-KK = 5;
-ng = ceil([0:length(HDR.Classlabel)-1]'/length(HDR.Classlabel)*KK);
-Classifiers = {'LD2','LD3','LD4','MDA','MD2','MD3','GRB','GRB2','QDA','MQU','INQ','Cauchy','SVM','SVM11','RBF','REG'};
-Classifiers = {'LDA','LDA/GSVD','LD2','LD3','LD4','NBC','aNBC','REG','MDA','MD2','MD3','GRB','GRB2','QDA','MQU','IMQ','Cauchy','LDA/sparse','SVM:LIB','SVM:OSU'};
-
 
 try,
         CC1 = findclassifier(bp,HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('300'))-1,[HDR.Classlabel,ng],reshape(1:1152,16,72)',[1:72]'>24,'LD3');
@@ -108,10 +109,13 @@ CC4.TSD.T = CC4.TSD.T/HDR.SampleRate;
 K=K+1; jo{K}='findclassifier aar LD3'; t(K)=cputime()-t0,t1(K)=toc
 CC5 = findclassifier([SIGMA1,PHI1,OMEGA1,SIGMA2,PHI2,OMEGA2],HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('300'))-1,[HDR.Classlabel,ng],reshape(1:1152,16,72)',[1:72]'>24,'LD3');
 CC5.TSD.T = CC5.TSD.T/HDR.SampleRate;
+end; 
+
 K=K+1; jo{K}='findclassifier Wackermann LD3'; t(K)=cputime()-t0,t1(K)=toc
 CC6 = findclassifier([SIGMA1,PHI1,OMEGA1,SIGMA2,PHI2,OMEGA2],HDR.EVENT.POS(HDR.EVENT.TYP==hex2dec('300'))-1,[HDR.Classlabel,ng],reshape(1:1152,16,72)',[1:72]'>24,'LD3');
 CC6.TSD.T = CC6.TSD.T/HDR.SampleRate;
 K=K+1; jo{K}='findclassifier TDP LD3'; t(K)=cputime()-t0,t1(K)=toc
+
 
 fprintf(1,'Version: %s\ncputime\t toc[s]\ttask\n================================\n',version); 
 t0 = [0,0]; 
@@ -119,6 +123,7 @@ for k=1:K,
 	fprintf(1,'%7.3f\t%7.3f\t%s\n',t(k)-t0(1),t1(k)-t0(2),jo{k});
 	t0 = [t(k),t1(k)];
 end; 
+fprintf(1,'-----------------------------------\n%7.3f\t%7.3f\t%s\n',t(k),t1(k),'total');
 return; 
 
 clear ACC KAP MI AUC
@@ -187,7 +192,7 @@ catch
 end;
 fid = fopen(outfile,'a');
 fprintf(fid,'\n\nDate:\t%s\n',date);
-fprintf(fid,'Revision:\t$Id: bench_biosig.m,v 1.7 2009-04-21 10:39:20 schloegl Exp $\n');
+fprintf(fid,'Revision:\t$Id: bench_biosig.m,v 1.7 2009/04/21 10:39:20 schloegl Exp $\n');
 fprintf(fid,'Computer:\t%s\nSoftware:\t%s\nVersion:\t%s\n',computer,om,version);
 
 tmp = [diff([0,t(:)']);t(:)']';

@@ -24,7 +24,7 @@ function y = demo7(arg1)
 %       Engineering 51(9) 1501-1510 (Sep 2004);
 %  [4] http://biosig.sf.net/
 
-%	$Id: demo7.m,v 1.3 2005-10-10 14:45:47 schloegl Exp $
+%	$Id: demo7.m,v 1.3 2005/10/10 14:45:47 schloegl Exp $
 %	Copyright (C) 1999-2005 by Alois Schloegl <a.schloegl@ieee.org>
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
@@ -68,8 +68,29 @@ y = mvfilter(eye(M),[eye(M),-AR0],x);
 [AR,RC,PE] = mvar(y',3);
 
 % The PDF and the DTF can be displayed with the following functions
-X.A = [eye(M),-AR0]; X.B = eye(M); X.C = eye(size(X.A,1));
+X.A = [eye(M), -AR0]; X.B = eye(M); X.C = eye(size(X.A,1));
 X.datatype = 'MVAR';
+X.SampleRate = 100;
+X0 = X;
+
+
+ffields = {'Af','logh','logS','COH','iCOH','DTF','PDC','GPDC','pCOH','phase','PDCF','dDTF','ffDTF','GGC','iSpectrum','rSpectrum'};
+TIT = {'A(f)','Tranfer Function H(f)','Auto- & Cross-spectra','COH','iCOH','DTF','PDC','GPDC','pCOH','phase','PDCF','dDTF','ffDTF','GGC','iSpectrum','rSpectrum'};
+
+figure(1)
+%ffields = {'phase','dT'};
+for k=1:length(ffields);
+%	figure(k)
+	plota(X0,ffields{k});
+%	figure(2)
+%	plota(X1,ffields{k});
+%	drawnow;
+%	pause
+	suptitle(TIT{k})
+	print('-dpng',ffields{k})
+
+end;
+return;
 
 figure(1)
 plota(X,'PDC')         

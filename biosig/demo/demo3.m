@@ -112,7 +112,7 @@ HDR.fZ = [NaN,NaN,NaN,400000,NaN,NaN];                % probe frequency in Hz fo
 
 t = [100:100:size(x,1)]';
 %HDR.NRec = 100;
-HDR.VERSION = 2.20;        % experimental  
+HDR.VERSION = 2.21;        % experimental  
 HDR = sopen(HDR,'w');
 %HDR.SIE.RAW = 0; % [default] channel data mode, one column is one channel 
 %HDR.SIE.RAW = 1; % switch to raw data mode, i.e. one column for one EDF-record
