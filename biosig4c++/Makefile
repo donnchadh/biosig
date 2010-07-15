@@ -27,6 +27,7 @@ LIBEXT	      = so
 
 ##
 PathToSigViewer = ../../src/sigviewer/trunk
+PathToSigViewerWIN32 = ../../src/sigviewer4win32/trunk
 
 CC            = gcc
 CXX           = g++
@@ -66,12 +67,12 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 
 # MinGW Crosscompiler: compile on linux binaries for windows
 CROSS	     = i586-mingw32msvc-
-CROSS	     = i686-pc-mingw32-#mingw-cross-env
+CROSS	     = i686-pc-mingw32-
 MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
 MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS #-D=WITH_CHOLMOD #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
 MinGWCFLAGS  = -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF)
-MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a #-lcholmod #win32/libcholmod.dll.a # stati
+MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a -lcholmod  # static
 #MinGWLIBS   = -Lwin32 -l biosig -l zlib1 -lws2_32  # dynamic
 MinGWLINK    = $(MinGWCXX)
 
@@ -262,11 +263,12 @@ win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h win32/zlib/i
 win32/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
 
-win32/sigviewer.exe: win32/libbiosig.lib win32/libbiosig.dll
-	$(DELETE) $(PathToSigViewer)/extern/libbiosig*
-	$(COPY) win32/libbiosig.* $(PathToSigViewer)/extern/
-	(PATH=$(PathToSigViewer)/usr/bin/:$(PATH); cd $(PathToSigViewer)/src; i686-pc-mingw32-qmake; make)
-	$(COPY) $(PathToSigViewer)/bin/sigviewer.exe win32/
+win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll
+	$(DELETE) $(PathToSigViewerWIN32)/extern/libbiosig*
+	$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/
+	$(COPY) win32/libbiosig.a $(PathToSigViewerWIN32)/extern/
+	(cd $(PathToSigViewerWIN32)/src; i686-pc-mingw32-qmake; make)
+	$(COPY) $(PathToSigViewerWIN32)/bin/release/sigviewer.exe win32/
 
 #############################################################
 #	Python (Linux)
@@ -316,7 +318,7 @@ win32/libcnsfef.a:
 win32/libbiosig.dll: $(MinGWOBJECTS) win32/libz.a biosig.h biosig-dev.h
 	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
 #	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a win32/cholmod.dll -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
-	-$(COPY) win32/libbiosig.dll $(PathToSigViewer)/extern/
+	-$(COPY) win32/libbiosig.dll $(PathToSigViewerWIN32)/extern/
 
 win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib win32/libz.a
 	$(MinGWLINK) $(MinGWCFLAGS) save2gdf.c $(MinGWLIBS) -o win32/save2gdf.exe
