@@ -323,15 +323,16 @@ libsomething_la_SOURCES=$(ASN_MODULE_SOURCES) $(ASN_MODULE_HEADERS)
 
 # This file may be used as an input for make(3)
 # Remove the lines below to convert it into a pure .am file
-TARGET = libcnsfef.a ../win32/libcnsfef.a ../win32/libcnsfef.dll
+WIN32  = ../win32/libcnsfef.a ../win32/libcnsfef.dll
+TARGET = libcnsfef.a $(WIN32)
 CFLAGS += -pipe -fPIC -Wall -O2 -Wextra  -I.
 OBJS=${ASN_MODULE_SOURCES:.c=.o} ${ASN_CONVERTER_SOURCES:.c=.o}
 WINOBJS=${ASN_MODULE_SOURCES:.c=.obj} ${ASN_CONVERTER_SOURCES:.c=.obj}
 W64OBJS=${ASN_MODULE_SOURCES:.c=.o64} ${ASN_CONVERTER_SOURCES:.c=.o64}
 
-CROSS	  = i586-mingw32msvc-
+#CROSS	  = i586-mingw32msvc-
 CROSS	  = i686-pc-mingw32-
-AR        = $(CROSS)ar crs
+AR        = ar crs
 MinGWCC   = $(CROSS)gcc 
 AR64      = amd64-mingw32msvc-ar 
 MinGW64CC = amd64-mingw32msvc-gcc 
@@ -345,7 +346,7 @@ libcnsfef.a: $(OBJS)
 	$(AR) libcnsfef.a $(OBJS) 
 
 ../win32/libcnsfef.a: $(WINOBJS) 
-	$(AR) ../win32/libcnsfef.a $(WINOBJS) 
+	$$(CROSS)(AR) ../win32/libcnsfef.a $(WINOBJS) 
 
 ../win64/libcnsfef.a: $(W64OBJS) 
 	$(AR64) ../win64/libcnsfef.a $(W64OBJS) 
@@ -365,7 +366,7 @@ libcnsfef.a: $(OBJS)
 .SUFFIXES: .c .o
 
 %.obj: %.c
-	$(MinGWCC) $(CFLAGS) -o $@ -c $<
+	$(CROSS)$(CC) $(CFLAGS) -o win32/$@ -c $<
 
 .c.o:
 	$(CC) $(CFLAGS) -o $@ -c $<

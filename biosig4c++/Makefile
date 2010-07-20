@@ -21,13 +21,16 @@
 # whether dynamic or static linking is used, can be controlled with 
 # LIBEXT. Setting it to 'a' links statically, 'so' links dynamically
 #
-#LIBEXT        = a	
-LIBEXT	      = so
+LIBEXT        = a	
+#LIBEXT	      = so
 ###############################
 
-##
+### User-specified options: its likely you want to change this
+MATLABOPT     = # -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
 PathToSigViewer = ../../src/sigviewer/trunk
 PathToSigViewerWIN32 = ../../src/sigviewer4win32/trunk
+
+## default options 
 
 CC            = gcc
 CXX           = g++
@@ -64,7 +67,7 @@ TEMP_DIR      = /tmp/
 
 SWIG          = swig
 PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
-
+ 
 # MinGW Crosscompiler: compile on linux binaries for windows
 CROSS	     = i586-mingw32msvc-
 CROSS	     = i686-pc-mingw32-
@@ -313,7 +316,7 @@ win32/libbiosig.lib: $(MinGWOBJECTS) win32/libcnsfef.a biosig.h biosig-dev.h
 	$(CROSS)$(AR) win32/libbiosig.lib $(MinGWOBJECTS) t240/*.obj
 
 win32/libcnsfef.a:
-	make -C t240 ../win32/libcnsfef.a
+	make -C CROSS=$(CROSS) t240 ../win32/libcnsfef.a 
 
 win32/libbiosig.dll: $(MinGWOBJECTS) win32/libz.a biosig.h biosig-dev.h
 	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
@@ -373,10 +376,10 @@ mex4m: mexSLOAD.mexa64 mexSOPEN.mexa64
 mexSLOAD: mexSLOAD.mexa64
 mexSOPEN: mexSOPEN.mexa64
 mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
-	$(MEX) $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LFLAGS) $(LIBS)
+	$(MEX) $(DEFINES) $(MATLABOPT) mexSLOAD.cpp $(LFLAGS) $(LIBS)
 	-$(COPY) mexSLOAD.mex* ../biosig/t200_FileAccess/
 mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
-	$(MEX) -DmexSOPEN $(DEFINES) -largeArrayDims mexSLOAD.cpp $(LFLAGS) $(LIBS) -output mexSOPEN
+	$(MEX) -DmexSOPEN $(DEFINES) $(MATLABOPT) mexSLOAD.cpp $(LFLAGS) $(LIBS) -output mexSOPEN
 	-$(COPY) mexSOPEN.mex* ../biosig/t200_FileAccess/
 
 ### MEX-files for Octave
