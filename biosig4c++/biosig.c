@@ -11269,7 +11269,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			char *label = cp->Label;
 			if (label==NULL || strlen(label)==0) label = LEAD_ID_TABLE[cp->LeadIdCode];
 
-			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, p);
+			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, p); else p[0] = 0; 
 			fprintf(fid,"\n#%2i: %3i %i %-17s\t%5f %5i",
 				k+1,cp->LeadIdCode,cp->bi8,label,cp->SPR*hdr->SampleRate/hdr->SPR,cp->SPR);
 
