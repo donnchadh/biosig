@@ -3969,7 +3969,7 @@ if (!strncmp(MODE,"r",1))
 
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 220] #=%li\n",iftell(hdr));
 
-		if (hdr->NRec < 0) {
+		if (hdr->NRec <= 0) {
         		struct stat FileBuf;
         		stat(hdr->FileName,&FileBuf);
 			hdr->NRec = (FileBuf.st_size - hdr->HeadLen)/hdr->AS.bpb; 
