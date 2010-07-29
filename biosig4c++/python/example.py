@@ -48,10 +48,10 @@ freq = 3
 print "Looking for sinusoidal signals at %f Hz" % freq
 sig = sig - S.mean(sig, axis=1)[:, S.newaxis]
 a1 = testsin(sig[0], sr, freq)
-print "channel A1, peak to peak amplitude of sin at %f Hz: %f (should be %f)" % (freq, 2*a1, 200)
+print "channel A1, peak to peak amplitude of sin at %f Hz: %f" % (freq, 2*a1)
 a2 = testsin(sig[1], sr, freq)
-print "channel A2, peak to peak amplitude of sin at %f Hz: %f (should be %f)" % (freq, 2*a2, 100)
+print "channel A2, peak to peak amplitude of sin at %f Hz: %f" % (freq, 2*a2)
 a3 = testsin(sig[0] + 2*sig[1], sr, freq)
-print "channel A1 + 2*A2, peak to peak amplitude of sin at %f Hz: %f (should be %f)" % (freq, 2*a3, 0)
+print "channel A1 + 2*A2, peak to peak amplitude of sin at %f Hz: %f" % (freq, 2*a3)
 a4 = testsin(sig[2], sr, freq)
-print "status channel, peak to peak amplitude of sin at %f Hz: %f (should be %f)" % (freq, 2*a4, 0)
+print "status channel, peak to peak amplitude of sin at %f Hz: %f" % (freq, 2*a4)
