@@ -5766,7 +5766,7 @@ if (VERBOSE_LEVEL>8)
 	    			else {
 	    				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 	    				B4C_ERRMSG = "CNT/EEG: type of format not supported"; 
-			    		return(B4C_ERRNUM);
+			    		return(hdr);
 	    			}	
 		    	}
 		} 
@@ -7025,11 +7025,11 @@ if (VERBOSE_LEVEL>8)
 
                 if (!hdr->FLAG.ANONYMOUS) {
                         len = max(80,MAX_LENGTH_NAME);
-	               	strncpy(hdr->Patient.Name, hdr->AS.Header+28, len);
+	               	strncpy(hdr->Patient.Name, (char*)(hdr->AS.Header+28), len);
 	        	hdr->Patient.Name[len] = 0;
 	        }	
                 len = max(20, MAX_LENGTH_PID);
-		strncpy(hdr->Patient.Id, hdr->AS.Header+108, len);
+		strncpy(hdr->Patient.Id, (char*)(hdr->AS.Header+108), len);
 		hdr->Patient.Id[len] = 0;
 
                 hdr->Patient.Sex = lei16p(hdr->AS.Header+128);
@@ -9910,7 +9910,7 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
                         // used to check the 2GByte limit on 32bit systems
                         B4C_ERRNUM = B4C_MEMORY_ALLOCATION_FAILED;
                         B4C_ERRMSG = "Size of rawdata buffer too large (exceeds size_t addressable space)!";
-                        return;
+                        return(0);
                 }       
 		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, hdr->AS.bpb*nelem);
 
@@ -10021,7 +10021,7 @@ int V = VERBOSE_LEVEL;
                 // used to check the 2GByte limit on 32bit systems
                 B4C_ERRNUM = B4C_MEMORY_ALLOCATION_FAILED;
                 B4C_ERRMSG = "Size of required data buffer too large (exceeds size_t addressable space)!";
-                return;
+                return(0);
         }       
 	// transfer RAW into BIOSIG data format 
 	if ((data==NULL) || hdr->Calib) {
@@ -11266,7 +11266,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 #endif 
         			 
 			char p[MAX_LENGTH_PHYSDIM+1];
-			char *label = cp->Label;
+			const char *label = cp->Label;
 			if (label==NULL || strlen(label)==0) label = LEAD_ID_TABLE[cp->LeadIdCode];
 
 			if (cp->PhysDimCode) PhysDim(cp->PhysDimCode, p); else p[0] = 0; 

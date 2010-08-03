@@ -304,6 +304,8 @@ win32/zlib/lib/libz.a: win32/zlib-1.2.3-lib.zip
 win32/libz.a: win32/zlib/lib/libz.a
 	$(COPY) win32/zlib/lib/libz.a win32/libz.a
 
+win32/zlib/include/zlib.h: win32/zlib/lib/libz.a 
+
 #############################################################
 #	WIN32 - BUILD
 #############################################################

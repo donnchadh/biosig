@@ -37,9 +37,10 @@ After setup of MinGW and GNUMEX, mexSLOAD can be compiled in the following way
    - and run this command: 
    mex mexSLOAD.cpp win32/libbiosig.lib win32/zlib/lib/zdll.lib c:\MinGWtdm\lib\libws2_32.a -output matlab/mexSLOAD
 
-
 (4) "biosig4python" is an interface to python. 
-Requirement: python, python-dev, swig (http://www.swig.org/)
+Requirement: python, python-dev, python-numpy, swig (http://www.swig.org/)
+for Debian/Ubuntu: 
+ 	sudo aptitude install python python-dev python-numpy swig
 see ./python/example.py and ./python/demo.py for more information 
 
 (5) SigViewer 
