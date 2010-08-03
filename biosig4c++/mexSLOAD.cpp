@@ -307,8 +307,18 @@ void mexFunction(
 	if ((status=serror())) {
 		//plhs[0] = mxCreateDoubleMatrix(0,0, mxREAL);
 
-		const char* fields[]={"TYPE","VERSION"};
-		HDR = mxCreateStructMatrix(1, 1, 2, fields);
+		const char* fields[]={"TYPE","FileName","FLAG","ErrNum","ErrMsg"};
+		HDR = mxCreateStructMatrix(1, 1, 5, fields);
+		mxSetField(HDR,0,"FileName",mxCreateString(hdr->FileName));
+		mxArray *errnum = mxCreateNumericMatrix(1,1,mxUINT8_CLASS,mxREAL);
+		*(uint8_t*)mxGetData(errnum) = (uint8_t)status;
+		mxSetField(HDR,0,"ErrNum",errnum);
+		
+#ifdef HAVE_OCTAVE
+		// handle bug in octave: mxCreateString(NULL) causes segmentation fault
+		const char *p = GetFileTypeString(hdr->TYPE);
+		if (p) mxSetField(HDR,0,"TYPE",mxCreateString(p));
+#else
 #ifdef HAVE_OCTAVE		
 		// Octave 3.2.3 causes a seg-fault in mxCreateString(NULL) 
 		const char *p = GetFileTypeString(hdr->TYPE);
@@ -316,7 +326,6 @@ void mexFunction(
 #else
 		mxSetField(HDR,0,"TYPE",mxCreateString(GetFileTypeString(hdr->TYPE)));
 #endif
-
 		mxSetField(HDR,0,"VERSION",mxCreateDoubleScalar(hdr->VERSION));
 
 		char msg[1024]; 
@@ -329,8 +338,9 @@ void mexFunction(
 		else 	
 			sprintf(msg,"Error %i mexSLOAD: Cannot open file %s - format %s not supported.\n",status,FileName,GetFileTypeString(hdr->TYPE));
 			
+		mxSetField(HDR,0,"ErrMsg",mxCreateString(msg));
 		destructHDR(hdr);
-		mexErrMsgTxt(msg);
+		//mexPrintf(msg);
 
 #ifdef mexSOPEN
 		plhs[0] = HDR; 
