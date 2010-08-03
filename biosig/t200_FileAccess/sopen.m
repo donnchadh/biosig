@@ -7784,7 +7784,7 @@ elseif strcmp(HDR.TYPE,'Nicolet'),
 	HDR.FILE.FID = fopen(fullfile(HDR.FILE.Path,HDR.FILE.Name,'.eeg'),'r','ieee-le');
         status = fseek(HDR.FILE.FID,-4,'eof');
 	if status,
-		fprintf(2,'Error GETFILETYPE: file %s\n',HDR.FileName);
+		fprintf(2,'Error SOPEN: file %s\n',HDR.FileName);
 		return;
 	end
 	datalen = fread(fid,1,'uint32');

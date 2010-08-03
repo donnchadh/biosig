@@ -315,12 +315,22 @@ if exist('mexSLOAD','file')==3,
 		end
 		if ~valid_rerefmx,
 			[signal,HDR] = mexSLOAD(FILENAME,0,arg1,arg2);
+			if isfield(HDR,'ErrNum') && HDR.ErrNum==3,
+				%% file not found - fopen failed
+				H = HDR;
+				return;
+			end	 
 			if isfield(HDR.FLAG,'ROW_BASED_CHANNELS') && HDR.FLAG.ROW_BASED_CHANNELS, signal = signal.'; end;
 			FlagLoaded   = isfield(HDR,'NS');
 			HDR.InChanSelect = 1:HDR.NS;
 		else
 			InChanSelect = find(any(ReRefMx,2));
 			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2);
+			if isfield(HDR,'ErrNum') && HDR.ErrNum==3,
+				%% file not found - fopen failed
+				H = HDR;
+				return;
+			end	 
 			if isfield(HDR.FLAG,'ROW_BASED_CHANNELS') && HDR.FLAG.ROW_BASED_CHANNELS, signal = signal.'; end;
 			FlagLoaded   = isfield(HDR,'NS');
 			HDR.InChanSelect = InChanSelect(InChanSelect <= HDR.NS);
@@ -632,7 +642,6 @@ if strncmp(H.TYPE,'IMAGE:',5)
 end;
 
 %%%%%%%%%%%%%%% --------- Load single file ------------%%%%%%%%%%%
-
 H = sopen(H,'r',CHAN,MODE);
 if 0, ~isnan(H.NS),
 %------ ignore 'NaC'-channels
@@ -1148,24 +1157,26 @@ elseif strcmp(H.TYPE,'VTK'),
 	
         
 elseif strcmp(H.TYPE,'unknown')
-        TYPE = upper(H.FILE.Ext);
+	[p,f,e]=fileparts(H.FileName);
+        TYPE = upper(e);
         if 0, 
-        elseif strcmp(TYPE,'RAW')
+        elseif strcmp(TYPE,'.RAW')
                 loadraw;
-        elseif strcmp(TYPE,'RDT')
+        elseif strcmp(TYPE,'.RDT')
                 [signal] = loadrdt(FILENAME,CHAN);
                 fs = 128;
-        elseif strcmp(TYPE,'XLS')
+        elseif strcmp(TYPE,'.XLS')
                 loadxls;
-        elseif strcmp(TYPE,'DA_')
+        elseif strcmp(TYPE,'.DA_')
                 fprintf('Warning SLOAD: Format DA# in testing state and is not supported\n');
                 loadda_;
-        elseif strcmp(TYPE,'RG64')
+        elseif strcmp(TYPE,'.RG64')
                 [signal,H.SampleRate,H.Label,H.PhysDim,H.NS]=loadrg64(FILENAME,CHAN);
                 %loadrg64;
         else
                 fprintf('Error SLOAD: Unknown Data Format\n');
                 signal = [];
+                return;
         end;
 end;
 
