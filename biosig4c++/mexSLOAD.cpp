@@ -288,13 +288,10 @@ void mexFunction(
 #endif 
 	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
 
-	if (VERBOSE_LEVEL>8) 
-		fprintf(stderr,"[101] SOPEN-R start\n");
-
 	hdr = sopen(FileName, "r", hdr);
 #ifdef WITH_PDP 
 	if (B4C_ERRNUM) {
-		B4C_ERRNUM = 0;  
+		B4C_ERRNUM = 0;
 		sopen_pdp_read(hdr);
 	}	
 #endif
@@ -302,29 +299,24 @@ void mexFunction(
 	RerefCHANNEL(hdr,rr,2);
 #endif
 
-	if (VERBOSE_LEVEL>8) 
-		fprintf(stderr,"[102]\n");
-
 	if (hdr->FLAG.OVERFLOWDETECTION != FlagOverflowDetection)
 		mexPrintf("Warning mexSLOAD: Overflowdetection not supported in file %s\n",hdr->FileName);
 	if (hdr->FLAG.UCAL != FlagUCAL)
 		mexPrintf("Warning mexSLOAD: Flag UCAL is %i instead of %i (%s)\n",hdr->FLAG.UCAL,FlagUCAL,hdr->FileName);
-
-
-	if (VERBOSE_LEVEL>8) {
-		mexPrintf("#info @%p\n",&(hdr->CHANNEL));
-		for (size_t k=0; k<hdr->NS; ++k)
-			mexPrintf("#%i: @%p %s\n",k,&(hdr->CHANNEL[k].Label),hdr->CHANNEL[k].Label);
-	}			
-	if (VERBOSE_LEVEL>8) 
-		fprintf(stderr,"[111] SOPEN-R finished. Status=%i\n", B4C_ERRNUM);
 
 	if ((status=serror())) {
 		//plhs[0] = mxCreateDoubleMatrix(0,0, mxREAL);
 
 		const char* fields[]={"TYPE","VERSION"};
 		HDR = mxCreateStructMatrix(1, 1, 2, fields);
+#ifdef HAVE_OCTAVE		
+		// Octave 3.2.3 causes a seg-fault in mxCreateString(NULL) 
+		const char *p = GetFileTypeString(hdr->TYPE);
+		if (p) mxSetField(HDR,0,"TYPE",mxCreateString(p));
+#else
 		mxSetField(HDR,0,"TYPE",mxCreateString(GetFileTypeString(hdr->TYPE)));
+#endif
+
 		mxSetField(HDR,0,"VERSION",mxCreateDoubleScalar(hdr->VERSION));
 
 		char msg[1024]; 
@@ -339,8 +331,7 @@ void mexFunction(
 			
 		destructHDR(hdr);
 		mexErrMsgTxt(msg);
-		//mexPrintf("ERROR(%i) in mexSLOAD: Cannot open file %s\n", status, FileName);
-		
+
 #ifdef mexSOPEN
 		plhs[0] = HDR; 
 #else
