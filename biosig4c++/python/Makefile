@@ -25,10 +25,10 @@ first: $(TARGET)
 
 biosig4python : _biosig.so biosig.py
 biosig.py swig_wrap.cxx: ../libbiosig.a swig.i 
-	$(SWIG) -c++ -python -I/usr/include -o swig_wrap.cxx swig.i
+	$(SWIG) -c++ -python -I/usr/include -I/usr/share/pyshared/numpy/core/include/numpy -o swig_wrap.cxx swig.i
 
 _biosig.so : swig_wrap.cxx 
-	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python$(PYTHONVER) && \
+	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o -I/usr/include/python$(PYTHONVER) -I/usr/share/pyshared/numpy/core/include/numpy && \
  	$(CXX) -shared swig_wrap.o $(LIBS) -o _biosig.so
 
 test: /tmp/BDFtestfiles.zip

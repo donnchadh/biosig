@@ -27,8 +27,8 @@ LIBEXT        = a
 
 ### User-specified options: its likely you want to change this
 MATLABOPT     = # -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
-PathToSigViewer = ../../src/sigviewer/trunk
-PathToSigViewerWIN32 = ../../src/sigviewer4win32/trunk
+PathToSigViewer = ../../src/sigviewer/
+PathToSigViewerWIN32 = ../../src/sigviewer4win32
 
 ## default options 
 
@@ -75,7 +75,7 @@ MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
 MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS #-D=WITH_CHOLMOD #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
 MinGWCFLAGS  = -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF)
-MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a -lcholmod  # static
+MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a #-lcholmod  # static
 #MinGWLIBS   = -Lwin32 -l biosig -l zlib1 -lws2_32  # dynamic
 MinGWLINK    = $(MinGWCXX)
 
@@ -267,11 +267,11 @@ win32/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
 
 win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll
-	$(DELETE) $(PathToSigViewerWIN32)/extern/libbiosig*
-	$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/
-	$(COPY) win32/libbiosig.a $(PathToSigViewerWIN32)/extern/
+	-$(DELETE) $(PathToSigViewerWIN32)/extern/libbiosig*
+	-$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/
+	-$(COPY) win32/libbiosig.a $(PathToSigViewerWIN32)/extern/
 	(cd $(PathToSigViewerWIN32)/src; i686-pc-mingw32-qmake; make)
-	$(COPY) $(PathToSigViewerWIN32)/bin/release/sigviewer.exe win32/
+	-$(COPY) $(PathToSigViewerWIN32)/bin/sigviewer.exe win32/
 
 #############################################################
 #	Python (Linux)
@@ -283,10 +283,10 @@ python:
 biosig4python : python/_biosig.so python/biosig.py
 
 python/biosig.py python/swig_wrap.cxx: python/swig.i
-	$(SWIG) -c++ -python -I/usr/include -o python/swig_wrap.cxx python/swig.i
+	$(SWIG) -c++ -python -I/usr/include -I/usr/share/pyshared/numpy/core/include/numpy -o python/swig_wrap.cxx python/swig.i
 
 python/_biosig.so : python/swig_wrap.cxx  libbiosig.$(LIBEXT)
-	$(CXX) -c $(CXXFLAGS) python/swig_wrap.cxx -o python/swig_wrap.o -I/usr/include/python$(PYTHONVER)
+	$(CXX) -c $(CXXFLAGS) python/swig_wrap.cxx -o python/swig_wrap.o -I/usr/include/python$(PYTHONVER) -I/usr/share/pyshared/numpy/core/include/numpy
 	$(CXX) -shared python/swig_wrap.o  $(LFLAGS) $(LIBS) -o python/_biosig.so
 
 
