@@ -64,7 +64,7 @@ ix1 = diff(double([0;bitand(t,2^16)]));	% start of epoch
 ix2 = diff(double([0;bitand(t,2^16-1)]));	% labels 
 
 % defines mapping of the BDF-status channel to BioSig event codes 			
-switch 7,    % determines default decoding
+switch 4,    % determines default decoding
 case 1,	
 	% epoching information is derived from bit17
 	% only lower 8 bits are supported
