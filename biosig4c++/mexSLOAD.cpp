@@ -316,10 +316,6 @@ void mexFunction(
 		
 #ifdef HAVE_OCTAVE
 		// handle bug in octave: mxCreateString(NULL) causes segmentation fault
-		const char *p = GetFileTypeString(hdr->TYPE);
-		if (p) mxSetField(HDR,0,"TYPE",mxCreateString(p));
-#else
-#ifdef HAVE_OCTAVE		
 		// Octave 3.2.3 causes a seg-fault in mxCreateString(NULL) 
 		const char *p = GetFileTypeString(hdr->TYPE);
 		if (p) mxSetField(HDR,0,"TYPE",mxCreateString(p));
