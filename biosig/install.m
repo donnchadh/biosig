@@ -60,7 +60,6 @@ path(path,[BIOSIG_HOME,'/freetb4matlab/signal']);	% Octave-Forge signal processi
 path(path,[BIOSIG_HOME,'/freetb4matlab/statistics/distributions']);	% Octave-Forge statistics toolbox converted with freetb4matlab 
 path(path,[BIOSIG_HOME,'/freetb4matlab/statistics/tests']);	% Octave-Forge statistics toolbox converted with freetb4matlab 
 
-return; 
 path([BIOSIG_HOME,'/tsa'],path);		%  Time Series Analysis
 %path([BIOSIG_HOME,'/tsa/inst'],path);		%  Time Series Analysis
 % some users might get confused by this
@@ -121,6 +120,12 @@ try
     [b,a] = butter(5,[.08,.096]);
 catch
     disp('signal processing toolbox (butter) is missing');	
+end; 
+try 
+    x = mod(1:10,3)'-1;
+    [Pxx,f]=periodogram(x,[],10,100);
+catch
+    disp('function periodogram() is missing or not up to date.');	
 end; 
 
 disp('BIOSIG-toolbox activated');
