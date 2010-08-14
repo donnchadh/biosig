@@ -2282,6 +2282,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	}    	
 */
 	
+	else if (!memcmp(Header1,"HEADER RECORD*******LIBRARY HEADER RECORD!!!!!!!000000000000000000000000000000",78))
+		hdr->TYPE = SASXPT;	// SAS Transport file format (XPORT)
 	else if (!memcmp(Header1,"IAvSFo",6))
 		hdr->TYPE = SIGIF;
 	else if (!memcmp(Header1,"\"Snap-Master Data File\"",24))
@@ -2434,6 +2436,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case PDP: 	{ FileType = "PDP"; break; }
 
 	case RIFF: 	{ FileType = "RIFF"; break; }
+	case SASXPT: 	{ FileType = "SAS_XPORT"; break; }
 	case SCP_ECG: 	{ FileType = "SCP"; break; }
 	case SIGIF: 	{ FileType = "SIGIF"; break; }
 	case Sigma: 	{ FileType = "Sigma"; break; }		// Sigma PLpro
@@ -4109,6 +4112,7 @@ if (!strncmp(MODE,"r",1))
 					if ((d1 & 0x00ffff) != (d0 & 0x00ffff)) {
 						hdr->EVENT.POS[N_EVENT] = k;        // 0-based indexing 
 						uint16_t d2 = d1 & 0x00ffff;
+						if (!d2) d2 = (uint16_t)(d0 & 0x00ffff) | 0x8000;
 						hdr->EVENT.TYP[N_EVENT] = d2;
 						++N_EVENT;
 						if (d2==0x7ffe)

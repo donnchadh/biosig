@@ -395,6 +395,8 @@ else
                         HDR.TYPE='IMA ADPCM';
                 elseif all(s([1:8])==[abs('NIST_1A'),0]); 
                         HDR.TYPE='NIST';
+                elseif strcmp(s(1:78),'HEADER RECORD*******LIBRARY HEADER RECORD!!!!!!!000000000000000000000000000000'); 
+                        HDR.TYPE='SAS_XPORT';
                 elseif all(s([1:7])==[abs('SOUND'),0,13]); 
                         HDR.TYPE='SNDT';
                 elseif strcmp(ss([1:18]),'SOUND SAMPLE DATA '); 

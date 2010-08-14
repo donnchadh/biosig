@@ -73,7 +73,9 @@ typedef char			int8_t;
  */
 
 #ifdef WITH_ZLIB
-    #ifdef __MINGW32__
+    #if defined(__MINGW64__)
+	#include "win64/zlib/zlib.h"
+    #elif defined(__MINGW32__)
 	#include "win32/zlib/include/zlib.h"
     #else
 	#include <zlib.h>
@@ -138,9 +140,10 @@ enum FileFormat {
 	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, TMSiLOG, TRC, UNIPRO, VRML, VTK, 
-	WAV, WinEEG, WMF, XML, XPM,
+	WAV, WinEEG, WMF, XML, XPM, 
 	Z, ZIP, ZIP2,
 	ASCII_IBI, ASCII, 
+	SASXPT,
 };
 
 
@@ -149,7 +152,7 @@ EXTERN_C const char *B4C_ERRMSG;
 
 #define BIOSIG_VERSION_MAJOR 0
 #define BIOSIG_VERSION_MINOR 94
-#define BIOSIG_VERSION_STEPPING 0
+#define BIOSIG_VERSION_STEPPING 1
 #define BIOSIG_VERSION (BIOSIG_VERSION_MAJOR+0.01*BIOSIG_VERSION_MINOR)
 
 EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
