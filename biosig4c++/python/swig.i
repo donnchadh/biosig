@@ -28,7 +28,7 @@
 %{
 #define SWIG_FILE_WITH_INIT
 #include "../biosig.h"
-#include <arrayobject.h>
+#include <numpy/arrayobject.h>
 %}
 
 
