@@ -64,12 +64,25 @@ LIBS         += -lz -lcholmod #-lgdcmDSED -lgsl -lgslcblas -lm	# static
 DELETE        = rm
 COPY          = cp -f
 TEMP_DIR      = /tmp/
-MEX_EXT       = $(shell $(MATLABDIR)/bin/mexext)
 
+##########################################################
+## set Matlab variables
+##  MEX_EXT need to be defined - uncomment one of the following definitions
+MEX_EXT       = mexglx
+#MEX_EXT       = $(shell $(shell readlink -f $(shell which matlab) | sed 's/matlab$$/mexext/'))
+#MATLABDIR     = /usr/local/matlab
+#MEX_EXT       = $(shell $(MATLABDIR)/bin/mexext)
+##########################################################
+
+##########################################################
+## set variables for Python
 SWIG          = swig
 PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
+##########################################################
  
-# MinGW Crosscompiler: compile on linux binaries for windows
+##########################################################
+## set variables for MinGW Crosscompiler: compile on linux binaries for windows
+##
 CROSS	     = i586-mingw32msvc-
 CROSS	     = i686-pc-mingw32-
 MinGWCC      = $(CROSS)gcc
@@ -79,6 +92,7 @@ MinGWCFLAGS  = -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF)
 MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a #-lcholmod  # static
 #MinGWLIBS   = -Lwin32 -l biosig -l zlib1 -lws2_32  # dynamic
 MinGWLINK    = $(MinGWCXX)
+##########################################################
 
 # Versioning
 MAJOR_VERSION := $(word 3, $(shell grep '\#define BIOSIG_VERSION_MAJOR' biosig.h))
