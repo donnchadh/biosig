@@ -64,6 +64,7 @@ LIBS         += -lz -lcholmod #-lgdcmDSED -lgsl -lgslcblas -lm	# static
 DELETE        = rm
 COPY          = cp -f
 TEMP_DIR      = /tmp/
+MEX_EXT       = $(shell $(MATLABDIR)/bin/mexext)
 
 SWIG          = swig
 PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
@@ -374,15 +375,15 @@ biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 #############################################################
 
 mex: mex4m mex4o
-mex4m: mexSLOAD.mexa64 mexSOPEN.mexa64
-mexSLOAD: mexSLOAD.mexa64
-mexSOPEN: mexSOPEN.mexa64
-mexSLOAD.mexa64: mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
+mex4m: mexSLOAD.$(MEX_EXT) mexSOPEN.$(MEX_EXT)
+mexSLOAD: mexSLOAD.$(MEX_EXT)
+mexSOPEN: mexSOPEN.$(MEX_EXT)
+mexSLOAD.$(MEX_EXT): mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
 	$(MEX) $(DEFINES) $(MATLABOPT) mexSLOAD.cpp $(LFLAGS) $(LIBS)
-	-$(COPY) mexSLOAD.mex* ../biosig/t200_FileAccess/
-mexSOPEN.mexa64: mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
+	-$(COPY) mexSLOAD.$(MEX_EXT) ../biosig/t200_FileAccess/
+mexSOPEN.$(MEX_EXT): mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
 	$(MEX) -DmexSOPEN $(DEFINES) $(MATLABOPT) mexSLOAD.cpp $(LFLAGS) $(LIBS) -output mexSOPEN
-	-$(COPY) mexSOPEN.mex* ../biosig/t200_FileAccess/
+	-$(COPY) mexSOPEN.$(MEX_EXT) ../biosig/t200_FileAccess/
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex
