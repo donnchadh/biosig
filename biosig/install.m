@@ -49,14 +49,18 @@ path([BIOSIG_HOME,'/biosig/t500_Visualization'],path);		% display and presentati
 path([BIOSIG_HOME,'/biosig/t501_VisualizeCoupling'],path);		% visualization ofcoupling analysis
 
 if ~exist('OCTAVE_VERSION','builtin'),	
+	%% Matlab
 	path([BIOSIG_HOME,'/biosig/viewer'],path);		% viewer
 	path([BIOSIG_HOME,'/biosig/viewer/utils'],path);	% viewer
 	path([BIOSIG_HOME,'/biosig/viewer/help'],path);	% viewer
 
+	path(path,[BIOSIG_HOME,'/freetb4matlab/signal'],'-end');	% Octave-Forge signal processing toolbox converted with freetb4matlab
+else 
+	%% Octave
+	path(path,[BIOSIG_HOME,'/freetb4matlab/signal']);	% Octave-Forge signal processing toolbox converted with freetb4matlab
 end;
 
-path(path,[BIOSIG_HOME,'/freetb4matlab/basic']);	% some basic functions used in Octave but not available in Matlab
-path(path,[BIOSIG_HOME,'/freetb4matlab/signal']);	% Octave-Forge signal processing toolbox converted with freetb4matlab
+path(path,[BIOSIG_HOME,'/freetb4matlab/basic'],'-end');	% some basic functions used in Octave but not available in Matlab
 path(path,[BIOSIG_HOME,'/freetb4matlab/statistics/distributions']);	% Octave-Forge statistics toolbox converted with freetb4matlab 
 path(path,[BIOSIG_HOME,'/freetb4matlab/statistics/tests']);	% Octave-Forge statistics toolbox converted with freetb4matlab 
 
@@ -64,14 +68,14 @@ path([BIOSIG_HOME,'/tsa'],path);		%  Time Series Analysis
 %path([BIOSIG_HOME,'/tsa/inst'],path);		%  Time Series Analysis
 % some users might get confused by this
 
-fprintf(1,'The NaN-toolbox is going to be installed\n'); 
+fprintf(1,'\nThe NaN-toolbox is going to be installed\n'); 
 fprintf(1,'The NaN-toolbox is a powerful statistical and machine learning toolbox, \nwhich is also able to handle data with missing values.\n');
 fprintf(1,'Typically, samples with NaNs are simply skipped.\n');
 fprintf(1,'If your data contains NaNs, installing the NaN-toolbox will \nmodify the following functions in order to ignore NaNs:\n');
 fprintf(1,'\tcor, corrcoef, cov, geomean, harmmean, iqr, kurtosis, mad, mahal, mean, \n\tmedian, moment, quantile, prctile, skewness, std, var.\n');
 fprintf(1,'If you do not have NaN, the behaviour is the same; if you have NaNs in your data, you will get more often a reasonable result instead of a NaN-result.\n');
 fprintf(1,'If you do not want this behaviour, remove the directory NaN/inst from your path.\n'); 
-fprintf(1,'Moreover, NaN-provides also a number of other useful functions. Installing NaN-toolbox is recommended.\n');
+fprintf(1,'Moreover, NaN-provides also a number of other useful functions. Installing NaN-toolbox is recommended.\n\n');
 
 	%% add NaN-toolbox: a toolbox for statistics and machine learning for data with Missing Values
 path([BIOSIG_HOME,'/NaN'],path);
@@ -106,11 +110,6 @@ for k = 1:length(fun),
                 fprintf(2,'Function %s is missing\n',upper(fun{k}));     
         end;
 end;
-try 
-    [p,t,df]=t_test_2(randn(100,1),randn(10,1));
-catch     
-    disp('statistics/distribution toolbox (ttest2) is missing');	
-end; 
 try 
     x = betainv(.5, 1, 2);
 catch     
