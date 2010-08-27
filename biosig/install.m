@@ -92,6 +92,8 @@ try
         	cd([BIOSIG_HOME,'/NaN/src']);
 	        make
 	end;         
+catch 
+	fprintf(1,'Compilation of Mex-files failed - precompiled binary mex-files are used instead\n'); 
 end;
 cd(p);
 
