@@ -143,7 +143,7 @@ enum FileFormat {
 	WAV, WinEEG, WMF, XML, XPM, 
 	Z, ZIP, ZIP2,
 	ASCII_IBI, ASCII, 
-	SASXPT,
+	ARFF, SASXPT, SPSS, STATA
 };
 
 

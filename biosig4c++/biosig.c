@@ -2284,6 +2284,21 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	
 	else if (!memcmp(Header1,"HEADER RECORD*******LIBRARY HEADER RECORD!!!!!!!000000000000000000000000000000",78))
 		hdr->TYPE = SASXPT;	// SAS Transport file format (XPORT)
+	else if (!memcmp(Header1,"$FL2@(#) SPSS DATA FILE",8)) {
+		hdr->TYPE = SPSS;	// SPSS file format 
+		switch (*(uint32_t*)(Header1+64)) {
+		case 0x00000002:
+		case 0x00000003:
+		    	hdr->FILE.LittleEndian = 1;
+		    	break; 
+		case 0x02000000:
+		case 0x03000000:
+		    	hdr->FILE.LittleEndian = 0;
+		    	break;
+		}
+	}
+	else if ((Header1[0]==0x71 || Header1[0]==0x72) && (Header1[1]==1 || Header1[1]==2) && Header1[2]==1  && Header1[3]==0 )  
+		hdr->TYPE = STATA;
 	else if (!memcmp(Header1,"IAvSFo",6))
 		hdr->TYPE = SIGIF;
 	else if (!memcmp(Header1,"\"Snap-Master Data File\"",24))
@@ -2371,6 +2386,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case AINF: 	{ FileType = "AINF"; break; }
 	case AIFC: 	{ FileType = "AIFC"; break; }
 	case AIFF: 	{ FileType = "AIFF"; break; }
+	case ARFF: 	{ FileType = "ARFF"; break; }
 	case ASCII: 	{ FileType = "ASCII"; break; }
 	case ATES: 	{ FileType = "ATES"; break; }
 	case ATF: 	{ FileType = "ATF"; break; }
@@ -2442,6 +2458,8 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case Sigma: 	{ FileType = "Sigma"; break; }		// Sigma PLpro
 	case SMA: 	{ FileType = "SMA"; break; }
 	case SND: 	{ FileType = "SND"; break; }
+	case SPSS: 	{ FileType = "SPSS"; break; }
+	case STATA: 	{ FileType = "STATA"; break; }
 	case SVG: 	{ FileType = "SVG"; break; }
 
 	case TIFF: 	{ FileType = "TIFF"; break; }

@@ -395,8 +395,16 @@ else
                         HDR.TYPE='IMA ADPCM';
                 elseif all(s([1:8])==[abs('NIST_1A'),0]); 
                         HDR.TYPE='NIST';
-                elseif strcmp(s(1:78),'HEADER RECORD*******LIBRARY HEADER RECORD!!!!!!!000000000000000000000000000000'); 
+                elseif strcmp(ss(1:78),'HEADER RECORD*******LIBRARY HEADER RECORD!!!!!!!000000000000000000000000000000'); 
                         HDR.TYPE='SAS_XPORT';
+                elseif strncmp(ss(1:23),'$FL2@(#) SPSS DATA FILE',8); 
+                        HDR.TYPE='SPSS';
+                        if all(s(66:68)==0) 		HDR.Endianity = 'ieee-le';
+                        elseif all(s(65:67)==0) 	HDR.Endianity = 'ieee-be';
+			end
+		elseif all(s(3:4)==[1,0]) && any(s(1)==[113,114]) && any(s(2)==[1:2]),
+			HDR.TYPE = 'STATA';
+			
                 elseif all(s([1:7])==[abs('SOUND'),0,13]); 
                         HDR.TYPE='SNDT';
                 elseif strcmp(ss([1:18]),'SOUND SAMPLE DATA '); 
