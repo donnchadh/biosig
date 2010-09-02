@@ -9944,7 +9944,7 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 		hdr->AS.flag_collapsed_rawdata = 0;	// is rawdata not collapsed 
 //		if ((count<nelem) && ((hdr->NRec < 0) || (hdr->NRec > start+count))) hdr->NRec = start+count; // get NRec if NRec undefined, not tested yet.
 		if (count<nelem) {
-			fprintf(stderr,"warning: less then requested blocks read (%i/%i) - something went wrong\n",count,nelem); 
+			fprintf(stderr,"warning: less then requested blocks read (%i/%i) from file %s - something went wrong\n",count,nelem,hdr->FileName); 
 			if (VERBOSE_LEVEL>7)
 				fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong (bpb=%i,pos=%li)\n",count,nelem,hdr->AS.bpb,iftell(hdr)); 
 		}	
