@@ -1683,7 +1683,11 @@ end;
                         H1(168+(1:16))=sprintf('%02i.%02i.%02i%02i.%02i.%02i',floor(rem(HDR.T0([3 2 1 4 5 6]),100)));
                         H1(185:192)=sprintf('%-8i',HDR.HeadLen);
                         H1(237:244)=sprintf('%-8i',HDR.NRec);
-			tmp = sprintf('%-8f',HDR.Dur);
+                        if (HDR.Dur==ceil(HDR.Dur))
+				tmp = sprintf('%-8i',HDR.Dur);
+			else	
+        			tmp = sprintf('%-8f',HDR.Dur);
+        		end; 	
                         H1(245:252)=tmp(1:8);
                         if length(tmp)~=8, 
                         	tmp = str2double(tmp);
