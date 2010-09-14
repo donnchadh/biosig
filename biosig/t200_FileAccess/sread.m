@@ -319,7 +319,8 @@ elseif strmatch(HDR.TYPE,{'BLSC2','CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Ni
         maxsamples = min(HDR.SampleRate*NoS, HDR.NRec*HDR.SPR-HDR.FILE.POS);
 	S = []; count = 0;
 	while maxsamples>0,
-    		[s,c] = fread(HDR.FILE.FID, [HDR.NS+tc,min(2^20/HDR.NS,maxsamples)], DT);
+		% the maximum block size of 2^23 is a heuristical value 
+    		[s,c] = fread(HDR.FILE.FID, [HDR.NS+tc,min(2^23/HDR.NS,maxsamples)], DT);
 		count = count + c/(HDR.NS+tc);
 		maxsamples = maxsamples - c;
         	if c>0,
