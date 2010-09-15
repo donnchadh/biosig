@@ -43,12 +43,16 @@ for Debian/Ubuntu:
  	sudo aptitude install python python-dev python-numpy swig
 see ./python/example.py and ./python/demo.py for more information 
 
+Interfaces to other languages (including Java, PHP, Perl, Ruby and TCL) are also provided through 
+SWIG. However, these are very experimental
+
 (5) SigViewer 
 Requirement: qmake, Qt4
 
 (6) Precompiled binaries for Win32
    win32/save2gdf.exe  binary converter
    win32/libbiosig.{lib,dll}  static and dynamic library (requires zlib and libws2_32)
+
 
 The internal data structure resemble the header structure similar to
   http://biosig.svn.sourceforge.net/viewvc/biosig/trunk/biosig/doc/header.txt

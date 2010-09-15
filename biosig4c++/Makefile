@@ -14,6 +14,11 @@
 ## make mex        - mex4o and mex4m combined
 ## make libbiosig  - makes libbiosig
 ## make biosig4python - makes python interface (requires Python)
+## make biosig4java - makes Java interface (experimental)
+## make biosig4php - makes PHP interface (experimental)
+## make biosig4perl - makes perl interface (experimental)
+## make biosig4ruby - makes ruby interface (experimental)
+## make biosig4tcl - makes tcl/tk interface (experimental)
 ## make win32      - makes save2gdf.exe,libbiosig.lib,libbiosig.dll, for MSWindows, requires MinGW
 ## make sigviewer  - makes sigviewer 
 
@@ -48,7 +53,7 @@ INCPATH       = -I /usr/local/include/gdcm-2.0/
 #		../gdcm-2.0.10/Source/MediaStorageAndFileFormat 	\
 #		../gdcm-2.0.10/Source/DataDictionary 			\
 #		../gdcm-2.0.10/Source/Common
-LINK          = $(CXX)
+LINK          = $(CXX) 
 LFLAGS_dynamic = -L/usr/local/lib/ -L.
 LIBS_dynamic  = -lbiosig
 LFLAGS_static = -L/usr/local/lib/ 
@@ -165,10 +170,10 @@ MinGWOBJECTS  = \
 		win32/sandbox.obj \
 
 
-TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o pdp2gdf libbiosig.so
+TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o libbiosig.so
 
 first: $(TARGET)
-all:   $(TARGET) mex4o biosig4python win32 biosig_client biosig_server #sigviewer
+all:   $(TARGET) mex4o biosig4python win32 biosig_client biosig_server java tcl perl php ruby #sigviewer 
 
 
 #############################################################
@@ -220,11 +225,6 @@ win32/%.obj: XMLParser/%.cpp win32/zlib/include/zlib.h
 #############################################################
 #	Compilation: exceptions, explicit rules
 #############################################################
-
-java: java/biosig.jar
-java/biosig.jar: java/test.cc
-	gcjh
-	gcj -C java/test.cc
 
 sandbox.o: test0/sandbox.c biosig.h
 	$(CXX) -c $(CFLAGS) $(INCPATH) -o sandbox.o test0/sandbox.c
@@ -304,6 +304,17 @@ python/_biosig.so : python/swig_wrap.cxx  libbiosig.$(LIBEXT)
 	$(CXX) -c $(CXXFLAGS) python/swig_wrap.cxx -o python/swig_wrap.o -I/usr/include/python$(PYTHONVER) -I/usr/share/pyshared/numpy/core/include/numpy
 	$(CXX) -shared python/swig_wrap.o  $(LFLAGS) $(LIBS) -o python/_biosig.so
 
+
+java: libbiosig.so
+	-make -C java 
+php: 
+	-make -C php 
+perl: libbiosig.so
+	-make -C perl 
+ruby: libbiosig.so
+	-make -C ruby 
+tcl: libbiosig.so
+	-make -C tcl 
 
 #############################################################
 # 	Download zlib-dll
@@ -464,6 +475,11 @@ distclean:
 	-$(DELETE) win32/*.obj
 	-$(DELETE) win32/*.exe
 	-$(DELETE) -rf win32/zlib
+	-make -C java clean
+	-make -C php clean
+	-make -C perl clean
+	-make -C ruby clean
+	-make -C tcl clean
 
 clean:
 	-$(DELETE) *~
@@ -484,6 +500,11 @@ clean:
 	-$(DELETE) t240/libcnsfef.a
 	-$(DELETE) t240/*.obj
 	-$(DELETE) pdp2gdf
+	-make -C java clean
+	-make -C php clean
+	-make -C perl clean
+	-make -C ruby clean
+	-make -C tcl clean
 
 install_sigviewer: sigviewer
 	install $(PathToSigViewer)/bin/sigviewer $(BIN)
