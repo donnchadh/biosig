@@ -564,13 +564,16 @@ int ftoa8(char* buf, double num)
 	// Important note: buf may need more than len+1 bytes. make sure there is enough memory allocated.   
 	double f1,f2;
 
-	sprintf(buf,"%f",num);
+	if (num==ceil(num))
+		sprintf(buf,"%d",(int)num);
+	else
+		sprintf(buf,"%f",num);	
 
 	f1 = atof(buf); 
 	buf[8] = 0; 	// truncate 
 	f2 = atof(buf); 
 
-	return (fabs((f1-f2)/(f1+f2)) > 1e-6); 
+	return (fabs(f1-f2) > (fabs(f1)+fabs(f2)) * 1e-6); 
 }
 
 int is_nihonkohden_signature(char *str) {
@@ -5724,6 +5727,16 @@ if (VERBOSE_LEVEL>8)
 	    	size_t nextfilepos = leu32p(hdr->AS.Header+12);
 	    	
 
+		/* make base of filename */
+		int i=0, j=0;
+		while (i<strlen(hdr->FileName)) {
+			if ((hdr->FileName[i]=='/') || (hdr->FileName[i]=='\\')) { j=i+1; } 
+			i++;
+		}
+		/* skip the extension '.cnt' of filename base and copy to Patient.Id */
+		strncpy(hdr->Patient.Id, hdr->FileName+j, min(MAX_LENGTH_PID,strlen(hdr->FileName)-j-4));
+		hdr->Patient.Id[MAX_LENGTH_PID] = 0;
+		
 	    	ptr_str = (char*)hdr->AS.Header+136;
     		hdr->Patient.Sex = (ptr_str[0]=='f')*2 + (ptr_str[0]=='F')*2 + (ptr_str[0]=='M') + (ptr_str[0]=='m');
 	    	ptr_str = (char*)hdr->AS.Header+137;
@@ -5796,8 +5809,13 @@ if (VERBOSE_LEVEL>8)
 			// Neuroscan CNT 
 			hdr->SPR    = 1; 
 			eventtablepos = leu32p(hdr->AS.Header+886);
+#ifdef CNT32
+	    		gdftyp      = 5;
+		    	hdr->AS.bpb = hdr->NS*4;
+#else
 	    		gdftyp      = 3;
 		    	hdr->AS.bpb = hdr->NS*2;
+#endif
 			hdr->NRec   = (eventtablepos-hdr->HeadLen) / hdr->AS.bpb;
 
 			if (VERBOSE_LEVEL>7) 
@@ -5828,8 +5846,13 @@ if (VERBOSE_LEVEL>8)
 		    	hc->Notch	= CNT_SETTINGS_NOTCH[(uint8_t)Header1[682]];
 			hc->OnOff       = 1;
 
+#ifdef CNT32
+		    	hc->DigMax	=  (double)(0x007fffff);
+		    	hc->DigMin	= -(double)(int32_t)(0xff800000);
+#else
 		    	hc->DigMax	=  (double)32767;
 		    	hc->DigMin	= -(double)32768;
+#endif
 		    	hc->PhysMax	= hc->DigMax * hc->Cal + hc->Off;
 		    	hc->PhysMin	= hc->DigMin * hc->Cal + hc->Off;
 			hc->bi    	= bi;
