@@ -1811,6 +1811,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	hdr->FLAG.OVERFLOWDETECTION = 1; 	// overflow detection ON
 	hdr->FLAG.ANONYMOUS = 1; 	// <>0: no personal names are processed 
 	hdr->FLAG.TARGETSEGMENT = 1;   // read 1st segment 
+	hdr->FLAG.CNT32 = 0; 		// assume 16-bit CNT format
 	
        	// define variable header 
 	hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
@@ -5809,13 +5810,8 @@ if (VERBOSE_LEVEL>8)
 			// Neuroscan CNT 
 			hdr->SPR    = 1; 
 			eventtablepos = leu32p(hdr->AS.Header+886);
-#ifdef CNT32
-	    		gdftyp      = 5;
-		    	hdr->AS.bpb = hdr->NS*4;
-#else
-	    		gdftyp      = 3;
-		    	hdr->AS.bpb = hdr->NS*2;
-#endif
+	    		gdftyp      = hdr->FLAG.CNT32 ? 5 : 3;
+		    	hdr->AS.bpb = hdr->NS*GDFTYP_BITS[gdftyp]/8;
 			hdr->NRec   = (eventtablepos-hdr->HeadLen) / hdr->AS.bpb;
 
 			if (VERBOSE_LEVEL>7) 
@@ -5846,13 +5842,14 @@ if (VERBOSE_LEVEL>8)
 		    	hc->Notch	= CNT_SETTINGS_NOTCH[(uint8_t)Header1[682]];
 			hc->OnOff       = 1;
 
-#ifdef CNT32
-		    	hc->DigMax	=  (double)(0x007fffff);
-		    	hc->DigMin	= -(double)(int32_t)(0xff800000);
-#else
-		    	hc->DigMax	=  (double)32767;
-		    	hc->DigMin	= -(double)32768;
-#endif
+			if (hdr->FLAG.CNT32) {
+			  	hc->DigMax	=  (double)(0x007fffff);
+			    	hc->DigMin	= -(double)(int32_t)(0xff800000);
+			} 
+			else {
+			    	hc->DigMax	=  (double)32767;
+			    	hc->DigMin	= -(double)32768;
+			}
 		    	hc->PhysMax	= hc->DigMax * hc->Cal + hc->Off;
 		    	hc->PhysMin	= hc->DigMin * hc->Cal + hc->Off;
 			hc->bi    	= bi;

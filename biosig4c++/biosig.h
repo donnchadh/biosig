@@ -124,6 +124,9 @@ enum B4C_ERROR {
 	B4C_UNSPECIFIC_ERROR,
 };
 
+#ifdef BIN
+#undef BIN 	// needed for biosig4perl 
+#endif  
 
 	/* list of file formats */
 enum FileFormat {
@@ -152,7 +155,7 @@ EXTERN_C const char *B4C_ERRMSG;
 
 #define BIOSIG_VERSION_MAJOR 0
 #define BIOSIG_VERSION_MINOR 94
-#define BIOSIG_VERSION_STEPPING 1
+#define BIOSIG_VERSION_STEPPING 2
 #define BIOSIG_VERSION (BIOSIG_VERSION_MAJOR+0.01*BIOSIG_VERSION_MINOR)
 
 EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
@@ -358,6 +361,7 @@ typedef struct {
 		char		ANONYMOUS; 	/* 1: anonymous mode, no personal names are processed */ 
 		char		ROW_BASED_CHANNELS;     /* 0: column-based data [default]; 1: row-based data */
 		char		TARGETSEGMENT; /* in multi-segment files (like Nihon-Khoden, EEG1100), it is used to select a segment */ 
+		char		CNT32;		/* 0: assume CNT format is 16 bit [default], <>0: CNT format is 32 bit*/
 	} FLAG ATT_ALI; 
 
 	CHANNEL_TYPE 	*CHANNEL ATT_ALI;  

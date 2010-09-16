@@ -57,6 +57,7 @@ int main(int argc, char **argv){
     int		status, k; 
     int		TARGETSEGMENT=1; 	// select segment in multi-segment file format EEG1100 (Nihon Kohden)
     int 	VERBOSE	= 1; 
+    char	FLAG_CNT32 = 0; 	// assume CNT format is 16bit
 #ifdef CHOLMOD_H
     cholmod_sparse *rr  = NULL; 
     char        *rrFile = NULL;
@@ -90,6 +91,7 @@ int main(int argc, char **argv){
 #ifdef CHOLMOD_H
 		fprintf(stdout,"   -r, --ref=MM  \n\trereference data with matrix file MM. \n\tMM must be a 'MatrixMarket matrix coordinate real general' file.\n");
 #endif
+		fprintf(stdout,"   -cnt32\n\tmust be set for reading 32 bit CNT files\n");
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
 		fprintf(stdout,"\tFMT must represent a valid target file format\n"); 
 		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF, EDF, BDF, CFWB, BIN, ASCII, BVA (BrainVision)\n"); 
@@ -164,6 +166,10 @@ int main(int argc, char **argv){
     		TARGETSEGMENT = atoi(argv[k]+3);
 	}
 
+    	else if (!strncmp(argv[k],"-cnt32",3))  	{
+    		FLAG_CNT32 = 1;
+	}
+
 	numopt = k-1;	
 		
     }
@@ -191,6 +197,8 @@ int main(int argc, char **argv){
 	// hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
 	hdr->FLAG.UCAL = ((TARGET_TYPE==BIN) || (TARGET_TYPE==ASCII));
 	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
+	hdr->FLAG.CNT32 = FLAG_CNT32;
+	// hdr->FLAG.ANONYMOUS = 0; 	// personal names are processed 
 
 	hdr->FileName = source;
 	hdr = sopen(source, "r", hdr);
@@ -336,6 +344,7 @@ int main(int argc, char **argv){
         double PhysMaxValue0 = -INF; //hdr->data.block[0];
 	double PhysMinValue0 = +INF; //hdr->data.block[0];
 	biosig_data_type val; 
+	char FLAG_CONVERSION_TESTED = 1; 
 	size_t N = hdr->NRec*hdr->SPR;
 	int k2=0;
     	for (k=0; k<hdr->NS; k++)
@@ -417,11 +426,16 @@ int main(int argc, char **argv){
 		    		hdr->CHANNEL[k].GDFTYP = 5;
 			else if ((MaxValue <= ldexp(1.0,32)-1.0) && (MinValue >= 0.0))
 		    		hdr->CHANNEL[k].GDFTYP = 6;
-		}    		
+		} 
+		else {
+			FLAG_CONVERSION_TESTED = 0;
+		}   		
 		
 		if (VERBOSE_LEVEL>8) fprintf(stdout,"#%3d %d [%f %f][%f %f]\n",k,hdr->CHANNEL[k].GDFTYP,MinValue,MaxValue,PhysMinValue0,PhysMaxValue0);
 		k2++;
 	}
+	if (!FLAG_CONVERSION_TESTED) 
+		fprintf(stderr,"Warning SAVE2GDF: conversion from %s to %s not tested\n",GetFileTypeString(SOURCE_TYPE),GetFileTypeString(TARGET_TYPE));
     }
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"[205] UCAL=%i\n", hdr->FLAG.UCAL);
 
