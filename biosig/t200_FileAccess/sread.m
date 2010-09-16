@@ -321,7 +321,8 @@ elseif strmatch(HDR.TYPE,{'BLSC2','CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Ni
 	while maxsamples>0,
 		% the maximum block size of 2^23 is a heuristical value 
     		[s,c] = fread(HDR.FILE.FID, [HDR.NS+tc,min(2^23/HDR.NS,maxsamples)], DT);
-		count = count + c/(HDR.NS+tc);
+    		c = c/(HDR.NS+tc);
+		count = count + c;
 		maxsamples = maxsamples - c;
         	if c>0,
             		S = [S; s(HDR.InChanSelect+tc,:)'];
