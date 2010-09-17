@@ -7,11 +7,9 @@
 %  Octave 2.1 or higher, or Matlab
 %  BioSig4OctMat from http:/biosig.sf.net/
 %
-%  run bench_biosig and compare the results at other platforms
-%   http://bci.tugraz.at/~schloegl/biosig/bench/
-%
-%  Send your benchmark result to <a.schloegl@ieee.org>
-%
+%  References: 
+%  [1] Alois Schloegl, BioSig - An application of Octave, 2006
+%      available online: http://arxiv.org/pdf/cs/0603001v1
 
 
 %	$Id: bench_biosig.m,v 1.7 2009/04/21 10:39:20 schloegl Exp $
@@ -22,7 +20,7 @@
 % This library is free software; you can redistribute it and/or
 % modify it under the terms of the GNU Library General Public
 % License as published by the Free Software Foundation; either
-% Version 2 of the License, or (at your option) any later version.
+% Version 3 of the License, or (at your option) any later version.
 %
 % This library is distributed in the hope that it will be useful,
 % but WITHOUT ANY WARRANTY; without even the implied warranty of
