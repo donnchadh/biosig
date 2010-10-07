@@ -334,6 +334,8 @@ else
                         HDR.TYPE='LEXICORE';
                 elseif all(s([1:4])==abs('NEX1')); 
                         HDR.TYPE='NEX';
+                elseif all(s([1:4])==abs('Neuron')); 
+                        HDR.TYPE='NEURON';
                 elseif all(s([1:4])==abs('SXDF')); 
                         HDR.TYPE='OpenXDF';
                 elseif all(s([1:4,6:132])==[abs('PLEX'),zeros(1,127)]); 	% http://WWW.PLEXONINC.COM
@@ -460,6 +462,10 @@ else
                 elseif all(s(1:4)==[38 0 16 0])
                         HDR.TYPE='EEProbe-AVR';     % averaged EEG in EEProbe format, ANT Software (NL) and MPI Leipzig (DE)
                         
+                elseif strncmp(ss,'eerT',4);
+                        HDR.TYPE='HEKA PatchMaster';
+                elseif strncmp(ss,'IGOR',4);
+                        HDR.TYPE='ITX';
                 elseif strncmp(ss,'ISHNE1.0',8);        % ISHNE Holter standard output file.
                         HDR.TYPE='ISHNE';
                 elseif strncmp(ss,'rhdE',4);	% Holter Excel 2 file, not supported yet. 

@@ -2083,6 +2083,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = BZ2;
     	else if (!memcmp(Header1,"CDF",3))
 	    	hdr->TYPE = CDF; 
+    	else if (!memcmp(Header1,"CEDFILE",7))
+	    	hdr->TYPE = CFS; 
     	else if (!memcmp(Header1,"CFWB\1\0\0\0",8))
 	    	hdr->TYPE = CFWB;
     	else if (!memcmp(Header1,"Version 3.0",11))
@@ -2179,6 +2181,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	}	
     	else if (!memcmp(Header1,"\x89HDF",4))
 	    	hdr->TYPE = HDF; 
+    	else if (!memcmp(Header1,"IGOR",4))
+	    	hdr->TYPE = IGOR;
     	else if (!memcmp(Header1,"ISHNE1.0",8))
 	    	hdr->TYPE = ISHNE;
     	else if (!memcmp(Header1,"@  MFER ",8))
@@ -2204,8 +2208,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = NIFTI;
     	else if (!memcmp(Header1,"NEX1",4))
 	    	hdr->TYPE = NEX1;
-    	else if (!memcmp(Header1,"OggS",4))
-	    	hdr->TYPE = OGG;
+    	else if (!memcmp(Header1,"Neuron",6))
+	    	hdr->TYPE = NEURON;
     	else if (!memcmp(Header1,"SXDF",4))
 	    	hdr->TYPE = OpenXDF;
     	else if (!memcmp(Header1,"PLEX",4))
@@ -2408,6 +2412,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case BZ2: 	{ FileType = "BZ2"; break; }
 
 	case CDF: 	{ FileType = "CDF"; break; }
+	case CFS: 	{ FileType = "CFS"; break; }
 	case CFWB: 	{ FileType = "CFWB"; break; }
 	case CNT: 	{ FileType = "CNT"; break; }
 	case CTF: 	{ FileType = "CTF"; break; }
@@ -2438,6 +2443,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case GZIP: 	{ FileType = "GZIP"; break; }
 	case HDF: 	{ FileType = "HDF"; break; }
 	case HL7aECG: 	{ FileType = "HL7aECG"; break; }
+	case IGOR: 	{ FileType = "IGOR"; break; }
 	case ISHNE: 	{ FileType = "ISHNE"; break; }
 	case JPEG: 	{ FileType = "JPEG"; break; }
 
@@ -2452,6 +2458,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case NetCDF: 	{ FileType = "NetCDF"; break; }
 	case NEX1: 	{ FileType = "NEX1"; break; }
 	case NIFTI: 	{ FileType = "NIFTI"; break; }
+	case NEURON: 	{ FileType = "NEURON"; break; }
 	case OGG: 	{ FileType = "OGG"; break; }
 	case PDP: 	{ FileType = "PDP"; break; }
 
@@ -3747,8 +3754,9 @@ if (!strncmp(MODE,"r",1))
     		memcpy(hdr->ID.Recording,Header1+88,min(80,MAX_LENGTH_RID));
 		hdr->ID.Recording[MAX_LENGTH_RID]=0;
 		
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211] #=%li\n",iftell(hdr));
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211] #=%li\nT0=<%16s>",iftell(hdr),Header1+168);
 
+		// TODO: sanity check of T0 
 		memset(tmp,0,9); 	
 		strncpy(tmp,Header1+168+14,2); 
     		tm_time.tm_sec  = atoi(tmp); 
@@ -3777,7 +3785,7 @@ if (!strncmp(MODE,"r",1))
 	    	hdr->NRec	= atoi(strncpy(tmp,Header1+236,8));
 	    	//Dur		= atof(strncpy(tmp,Header1+244,8));
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211b] #=%li\n",iftell(hdr));
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"[EDF 211b] #=%li\nT0=%s\n",iftell(hdr),asctime(&tm_time));
 
 		if (!strncmp(Header1+192,"EDF+",4)) {
 			char ListOfMonth[12][4] = {"JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"};
@@ -5658,6 +5666,9 @@ if (VERBOSE_LEVEL>8)
 	    	}
 	}
 
+	else if (hdr->TYPE==CFS) {
+	}
+
 	else if (hdr->TYPE==CFWB) {
 	    	hdr->SampleRate = 1.0/lef64p(hdr->AS.Header+8);
 		hdr->SPR    	= 1; 
@@ -7048,6 +7059,115 @@ if (VERBOSE_LEVEL>8)
 		return(hdr); 	
 	}
 
+    	else if (hdr->TYPE==IGOR) {
+#define IGOR_MAXLENLINE 400
+    		char line[IGOR_MAXLENLINE+1];
+    		char flag = 0;
+    		size_t ns=0, spr = 0, SPR = 0, DIV = 1; 
+    		//size_t SPR[32];
+    		double DUR[32];
+    		hdr->SPR = 0;
+
+    		ifseek(hdr,0,SEEK_SET);	    			
+    		while (!ifeof(hdr)) {
+	    		ifgets(line, IGOR_MAXLENLINE, hdr);
+	    		if (!strncmp(line,"BEGIN",5)) {
+	    			flag = 1;
+	    			spr = 0;
+	    			hdr->CHANNEL[ns].bi = SPR*sizeof(double);
+	    		}
+	    		else if (!strncmp(line,"END",3)) {
+	    			flag = 0;
+	    			hdr->CHANNEL[ns].SPR = spr;
+	    			SPR += spr;
+	    		}
+	    		else if (!strncmp(line,"X SetScale/P x,",15)) {
+	    			strtok(line,",");
+	    			strtok(NULL,",");
+	    			double dur = atof(strtok(NULL,","));
+	    			char *p = strchr(line,'"');
+	    			if (p != NULL) {
+	    				p++;
+	    				char *p2 = strchr(p,'"');
+	    				if (p2!=NULL) *p2=0;
+	    				dur *= PhysDimScale(PhysDimCode(p));
+	    			}
+	    			
+	    			//TODO: fix SPR
+	    			double div = spr / (hdr->SampleRate * dur);
+	    			if (ns==0) {
+	    				hdr->SampleRate = 1.0 / dur;
+	    				hdr->SPR = spr;
+	    			}
+	    			else if (hdr->SampleRate == 1.0 / dur)
+	    				;
+	    			else if (div == floor(div)) {
+	    				hdr->SampleRate *= div;
+	    			}
+	    					
+	    		}
+	    		else if (!strncmp(line,"X SetScale y,",13)) {
+	    			char *p = strchr(line,'"');
+	    			if (p!=NULL) {
+	    				p++;
+	    				char *p2 = strchr(p,'"');
+	    				if (p2!=NULL) *p2=0;
+	    				hdr->CHANNEL[ns].PhysDimCode = PhysDimCode(p);
+	    			}
+	    			ns++;
+	    		}
+	    		else if (!strncmp(line,"WAVES",5)) {
+				hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL,(ns+1)*sizeof(CHANNEL_TYPE));
+				CHANNEL_TYPE* hc = hdr->CHANNEL+ns;
+	    			strncpy(hc->Label,line+6,MAX_LENGTH_LABEL);
+
+				hc->OnOff    = 1;
+        			hc->GDFTYP   = 17;
+        			hc->DigMax   = (double)(int16_t)(0x7fff);
+        			hc->DigMin   = (double)(int16_t)(0x8000);
+
+				hc->Cal      = 1.0; 
+				hc->Off      = 0.0;
+				hc->Transducer[0] = '\0';
+				hc->LowPass  = NaN;
+				hc->HighPass = NaN;
+				hc->PhysMax  = hc->Cal * hc->DigMax;
+				hc->PhysMin  = hc->Cal * hc->DigMin;
+
+	    		}
+	    		else if (flag) 
+	    			spr++;
+	    	}		
+		hdr->NS = ns;
+		ns = 0;
+		
+		double *data = (double*)realloc(hdr->AS.rawdata,SPR*sizeof(double));
+		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN);   // no swapping 
+		hdr->AS.rawdata = (uint8_t*) data;
+	    	
+	    	spr = 0;
+    		ifseek(hdr, 0, SEEK_SET);
+    		while (!ifeof(hdr)) {
+	    		ifgets(line, IGOR_MAXLENLINE, hdr);
+	    		if (!strncmp(line,"BEGIN",5)) {
+	    			flag = 1;
+	    		}
+	    		else if (!strncmp(line,"END",3)) {
+	    			flag = 0;
+	    		}
+	    		else if (!strncmp(line,"X SetScale y,",13)) {
+	    			ns++;
+	    		}
+	    		else if (flag) {
+	    			data[spr++] = atof(line); 
+	    		}
+	    	}
+		hdr->NRec = 1;
+		hdr->AS.first  = 0;
+		hdr->AS.length = 1;
+#undef IGOR_MAXLENLINE	
+	}
+
     	else if (hdr->TYPE==ISHNE) {
                    // unknown, generic, X,Y,Z, I-VF, V1-V6, ES, AS, AI  	
     	        uint16_t Table1[] = {0,0,16,17,18,1,2,87,88,89,90,3,4,5,6,7,8,131,132,133};
@@ -8005,6 +8125,11 @@ if (VERBOSE_LEVEL>8)
                 return(hdr);
 	} /* END OF MatrixMarket */
 #endif 
+	
+	else if (hdr->TYPE==NEURON) {
+
+	} 
+	
 	
 	else if (hdr->TYPE==NIFTI) {
 	    	count += ifread(hdr->AS.Header+count, 1, 352-count, hdr);
