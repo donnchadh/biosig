@@ -2181,8 +2181,10 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	}	
     	else if (!memcmp(Header1,"\x89HDF",4))
 	    	hdr->TYPE = HDF; 
+    	else if (!memcmp(Header1,"DAT2\0\0\0\0",8))
+	    	hdr->TYPE = HEKA; 
     	else if (!memcmp(Header1,"IGOR",4))
-	    	hdr->TYPE = IGOR;
+	    	hdr->TYPE = ITX;
     	else if (!memcmp(Header1,"ISHNE1.0",8))
 	    	hdr->TYPE = ISHNE;
     	else if (!memcmp(Header1,"@  MFER ",8))
@@ -2442,8 +2444,9 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case GTF: 	{ FileType = "GTF"; break; }
 	case GZIP: 	{ FileType = "GZIP"; break; }
 	case HDF: 	{ FileType = "HDF"; break; }
+	case HEKA: 	{ FileType = "HEKA"; break; }
 	case HL7aECG: 	{ FileType = "HL7aECG"; break; }
-	case IGOR: 	{ FileType = "IGOR"; break; }
+	case ITX: 	{ FileType = "ITX"; break; }
 	case ISHNE: 	{ FileType = "ISHNE"; break; }
 	case JPEG: 	{ FileType = "JPEG"; break; }
 
@@ -5667,6 +5670,8 @@ if (VERBOSE_LEVEL>8)
 	}
 
 	else if (hdr->TYPE==CFS) {
+		hdr->HeadLen = count;
+    		sopen_zzztest(hdr);
 	}
 
 	else if (hdr->TYPE==CFWB) {
@@ -7059,12 +7064,17 @@ if (VERBOSE_LEVEL>8)
 		return(hdr); 	
 	}
 
-    	else if (hdr->TYPE==IGOR) {
+    	else if (hdr->TYPE==HEKA) {
+    		// HEKA PatchMaster file format
+		hdr->HeadLen = count;
+    		sopen_zzztest(hdr);
+	}
+
+    	else if (hdr->TYPE==ITX) {
 #define IGOR_MAXLENLINE 400
     		char line[IGOR_MAXLENLINE+1];
     		char flag = 0;
     		size_t ns=0, spr = 0, SPR = 0, DIV = 1; 
-    		//size_t SPR[32];
     		double DUR[32];
     		hdr->SPR = 0;
 

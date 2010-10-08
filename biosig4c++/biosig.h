@@ -41,17 +41,18 @@
 #ifdef _VCPP_DEF
 #define __BYTE_ORDER  __LITTLE_ENDIAN
 typedef unsigned __int64	uint64_t;
-typedef __int64			int64_t;
+typedef __int64				int64_t;
 typedef unsigned long		uint32_t;
-typedef long			int32_t;
+typedef long				int32_t;
 typedef unsigned short		uint16_t;
-typedef short			int16_t;
+typedef short				int16_t;
 typedef unsigned char		uint8_t;
-typedef char			int8_t;
+typedef char				int8_t;
 
 #else
     #include <inttypes.h>
 #endif
+
 
 #ifdef WITH_HDF5
     #include <hdf5.h>
@@ -127,6 +128,9 @@ enum B4C_ERROR {
 #ifdef BIN
 #undef BIN 	// needed for biosig4perl 
 #endif  
+#ifdef EVENT
+#undef EVENT 	// defined by MS VC++ 
+#endif  
 
 	/* list of file formats */
 enum FileFormat {
@@ -135,12 +139,14 @@ enum FileFormat {
 	BCI2000, BDF, BIN, BKR, BLSC, BMP, BNI, BSCS, 
 	BrainVision, BrainVisionVAmp, BrainVisionMarker, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
-	EBS, EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
+	EBS, EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, 
+	EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
 	GIF, GTF, GZIP, HDF, HL7aECG, ISHNE, JPEG, Lexicor, 
 	Matlab, MFER, MIDI, MIT, MM, MSI, 
 	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
-	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
+	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, 
+	PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
 	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, TMSiLOG, TRC, UNIPRO, VRML, VTK, 
 	WAV, WinEEG, WMF, XML, XPM, 
@@ -156,7 +162,7 @@ EXTERN_C const char *B4C_ERRMSG;
 
 #define BIOSIG_VERSION_MAJOR 0
 #define BIOSIG_VERSION_MINOR 94
-#define BIOSIG_VERSION_STEPPING 2
+#define BIOSIG_VERSION_STEPPING 3
 #define BIOSIG_VERSION (BIOSIG_VERSION_MAJOR+0.01*BIOSIG_VERSION_MINOR)
 
 EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
@@ -218,13 +224,19 @@ typedef int64_t 		nrec_t;	/* type for number of records */
 #define MAX_LENGTH_LABEL 	40	// TMS: 40 
 #define MAX_LENGTH_TRANSDUCER 	80
 #define MAX_LENGTH_PHYSDIM 	20
-#define MAX_LENGTH_PID	 	80      // length of Patient ID: MFER<65, GDF<67, EDF/BDF<81, etc. 
+#define MAX_LENGTH_PID	 	80  // length of Patient ID: MFER<65, GDF<67, EDF/BDF<81, etc. 
 #define MAX_LENGTH_RID		80	// length of Recording ID: EDF,GDF,BDF<80, HL7 ?  	
 #define MAX_LENGTH_NAME 	132	// max length of personal name: MFER<=128, EBS<=33*4
 #define MAX_LENGTH_MANUF 	128	// max length of manufacturer field: MFER<128
 #define MAX_LENGTH_TECHNICIAN 	128	// max length of manufacturer field: SCP<41 
 
+#ifdef __GNUC__
 #define ATT_ALI __attribute__ ((aligned (8)))	/* Matlab v7.3+ requires 8 byte alignment*/
+#define ATT_DEPREC __attribute__ ((deprecated))	
+#else
+#define ATT_ALI
+#define ATT_DEPREC
+#endif
 
 typedef struct CHANNEL_STRUCT {
 	double 		PhysMin ATT_ALI;	/* physical minimum */
@@ -238,7 +250,7 @@ typedef struct CHANNEL_STRUCT {
 	char		Label[MAX_LENGTH_LABEL+1] ATT_ALI; 	/* Label of channel */
 	uint16_t	LeadIdCode ATT_ALI;	/* Lead identification code */ 
 	char 		Transducer[MAX_LENGTH_TRANSDUCER+1] ATT_ALI;	/* transducer e.g. EEG: Ag-AgCl electrodes */
-	char 		PhysDim[MAX_LENGTH_PHYSDIM+1] ATT_ALI  	__attribute__ ((deprecated));	/* physical dimension */
+	char 		PhysDim[MAX_LENGTH_PHYSDIM+1] ATT_ALI ATT_DEPREC;	/* physical dimension */
 			/*PhysDim is now obsolete - use function PhysDim(PhysDimCode,PhysDimText) instead */
 	uint16_t	PhysDimCode ATT_ALI;	/* code for physical dimension */
 	/* char* 	PreFilt;	// pre-filtering */
@@ -247,8 +259,8 @@ typedef struct CHANNEL_STRUCT {
 	float 		HighPass	ATT_ALI;	/* high pass */
 	float 		Notch		ATT_ALI;	/* notch filter */
 	float 		XYZ[3]		ATT_ALI;	/* sensor position */
-//	float 		Orientation[3]	__attribute__ ((deprecated));	// sensor direction
-//	float 		Area		__attribute__ ((deprecated));	// area of sensor (e.g. for MEG)
+//	float 		Orientation[3]	ATT_DEPREC;	// sensor direction
+//	float 		Area		ATT_DEPREC;	// area of sensor (e.g. for MEG)
 
         /* context specific channel information */
 	float 		Impedance	ATT_ALI;   	/* Electrode Impedance in Ohm, defined only if PhysDim = _Volt */
@@ -257,8 +269,8 @@ typedef struct CHANNEL_STRUCT {
 
 	uint16_t 	GDFTYP 		ATT_ALI;	/* data type */
 	uint32_t 	SPR 		ATT_ALI;	/* samples per record (block) */
-	uint32_t	bi 		ATT_ALI __attribute__ ((deprecated));	/* start byte (byte index) of channel within data block */
-	uint32_t	bi8 		ATT_ALI __attribute__ ((deprecated));	/* start bit  (bit index) of channel within data block */
+	uint32_t	bi 			ATT_ALI ATT_DEPREC;	/* start byte (byte index) of channel within data block */
+	uint32_t	bi8 		ATT_ALI ATT_DEPREC;	/* start bit  (bit index) of channel within data block */
 	uint8_t*	bufptr		ATT_ALI;	/* pointer to buffer: NRec<=1 and bi,bi8 not used */
 } CHANNEL_TYPE	ATT_ALI;
 
@@ -268,8 +280,8 @@ typedef struct CHANNEL_STRUCT {
 */
 typedef struct {
 	
-	enum FileFormat TYPE 	ATT_ALI; 	/* type of file format */
-	float 		VERSION ATT_ALI;	/* GDF version number */ 
+	enum FileFormat TYPE 	 ATT_ALI; 	/* type of file format */
+	float 			VERSION  ATT_ALI;	/* GDF version number */ 
 	const char* 	FileName ATT_ALI;
 	
 	struct {
@@ -278,20 +290,20 @@ typedef struct {
 	} data ATT_ALI;
 
 	uint32_t 	HeadLen ATT_ALI;	/* length of header in bytes */
-	uint16_t 	NS 	ATT_ALI;	/* number of channels */
+	uint16_t 	NS 		ATT_ALI;	/* number of channels */
 	uint32_t 	SPR 	ATT_ALI;	/* samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR) */
 	nrec_t  	NRec 	ATT_ALI;	/* number of records/blocks -1 indicates length is unknown. */	
-	uint32_t 	Dur[2] 	ATT_ALI __attribute__ ((deprecated));	/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
+	uint32_t 	Dur[2] 	ATT_ALI ATT_DEPREC;	/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
 	double 		SampleRate ATT_ALI;	/* Sampling rate */
 	uint8_t 	IPaddr[16] ATT_ALI; 	/* IP address of recording device (if applicable) */
 	uint32_t  	LOC[4] 	ATT_ALI;	/* location of recording according to RFC1876 */
-	gdf_time 	T0 	ATT_ALI; 	/* starttime of recording */
+	gdf_time 	T0 		ATT_ALI; 	/* starttime of recording */
 	int16_t 	tzmin 	ATT_ALI;	/* time zone (minutes of difference to UTC */
 
 #ifdef CHOLMOD_H
 	cholmod_sparse  *Calib ATT_ALI;                  /* re-referencing matrix */
 #else 	
-        void            *Calib ATT_ALI;                  /* re-referencing matrix */
+        void        *Calib ATT_ALI;                  /* re-referencing matrix */
 #endif 	
 	CHANNEL_TYPE 	*rerefCHANNEL ATT_ALI;  
 
@@ -390,7 +402,7 @@ typedef struct {
 	struct {
 //		char 		PID[MAX_LENGTH_PID+1];	// use HDR.Patient.Id instead
 //		char* 		RID;		// recording identification
-//		uint32_t 	spb __attribute__ ((deprecated)); // total samples per block
+//		uint32_t 	spb ATT_DEPREC; // total samples per block
 		uint32_t 	bpb;  		/* total bytes per block */
 		uint32_t 	bpb8;  		/* total bits per block */
 
