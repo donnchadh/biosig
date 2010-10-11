@@ -366,7 +366,7 @@ libcnsfef.a: $(OBJS)
 .SUFFIXES: .c .o
 
 %.obj: %.c
-	$(CROSS)$(CC) $(CFLAGS) -o win32/$@ -c $<
+	$(CROSS)$(CC) $(CFLAGS) -o $@ -c $<
 
 .c.o:
 	$(CC) $(CFLAGS) -o $@ -c $<
