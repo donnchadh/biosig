@@ -1,25 +1,92 @@
-diff -r XOP Toolkit 5.bak/IgorXOPs5/XOP1/XOP1.c XOP Toolkit 5/IgorXOPs5/XOP1/XOP1.c
-131c131
-< 	return RegisterOperation(cmdTemplate, runtimeNumVarList, runtimeStrVarList, sizeof(XOP1RuntimeParams), ExecuteXOP1, 0);
----
-> 	return RegisterOperation(cmdTemplate, runtimeNumVarList, runtimeStrVarList, sizeof(XOP1RuntimeParams), (void*)&ExecuteXOP1, 0);
-172,173c172
-< HOST_IMPORT void
-< main(IORecHandle ioRecHandle)
----
-> HOST_IMPORT int main(IORecHandle ioRecHandle)
-183c182
-< 		return;
----
-> 		return (0);
-diff -r XOP Toolkit 5.bak/IgorXOPs5/XOP1/XOP1.h XOP Toolkit 5/IgorXOPs5/XOP1/XOP1.h
-8c8
-< HOST_IMPORT void main(IORecHandle ioRecHandle);
----
-> HOST_IMPORT int main(IORecHandle ioRecHandle);
-diff -r XOP Toolkit 5.bak/IgorXOPs5/XOPSupport/XOPStandardHeaders.h XOP Toolkit 5/IgorXOPs5/XOPSupport/XOPStandardHeaders.h
-39c39
-< 		#include <Windows.h>		// This creates the _WINDOWS_ symbol.
----
-> 		#include <windows.h>		// This creates the _WINDOWS_ symbol.
-Only in XOP Toolkit 5/IgorXOPs5/XOPSupport: XOPStandardHeaders.h~
+diff -rc IgorXOPs5.bak/XOP1/XOP1.c IgorXOPs5/XOP1/XOP1.c
+*** IgorXOPs5.bak/XOP1/XOP1.c	Mon Mar 22 14:26:10 2004
+--- IgorXOPs5/XOP1/XOP1.c	Mon Oct 18 14:02:39 2010
+***************
+*** 128,134 ****
+  	cmdTemplate = "XOP1 wave";
+  	runtimeNumVarList = "";
+  	runtimeStrVarList = "";
+! 	return RegisterOperation(cmdTemplate, runtimeNumVarList, runtimeStrVarList, sizeof(XOP1RuntimeParams), ExecuteXOP1, 0);
+  }
+  
+  static int
+--- 128,134 ----
+  	cmdTemplate = "XOP1 wave";
+  	runtimeNumVarList = "";
+  	runtimeStrVarList = "";
+! 	return RegisterOperation(cmdTemplate, runtimeNumVarList, runtimeStrVarList, sizeof(XOP1RuntimeParams), (void*)&ExecuteXOP1, 0);
+  }
+  
+  static int
+***************
+*** 169,176 ****
+  	main does any necessary initialization and then sets the XOPEntry field of the
+  	ioRecHandle to the address to be called for future messages.
+  */
+! HOST_IMPORT void
+! main(IORecHandle ioRecHandle)
+  {
+  	int result;
+  	
+--- 169,175 ----
+  	main does any necessary initialization and then sets the XOPEntry field of the
+  	ioRecHandle to the address to be called for future messages.
+  */
+! HOST_IMPORT int main(IORecHandle ioRecHandle)
+  {
+  	int result;
+  	
+diff -rc IgorXOPs5.bak/XOP1/XOP1.h IgorXOPs5/XOP1/XOP1.h
+*** IgorXOPs5.bak/XOP1/XOP1.h	Mon Mar 22 14:26:10 2004
+--- IgorXOPs5/XOP1/XOP1.h	Mon Oct 18 13:59:03 2010
+***************
+*** 5,8 ****
+  /*	no equates needed */
+  
+  /* Prototypes */
+! HOST_IMPORT void main(IORecHandle ioRecHandle);
+--- 5,8 ----
+  /*	no equates needed */
+  
+  /* Prototypes */
+! HOST_IMPORT int main(IORecHandle ioRecHandle);
+diff -rc IgorXOPs5.bak/XOPSupport/XOPStandardHeaders.h IgorXOPs5/XOPSupport/XOPStandardHeaders.h
+*** IgorXOPs5.bak/XOPSupport/XOPStandardHeaders.h	Fri Sep  1 10:36:28 2006
+--- IgorXOPs5/XOPSupport/XOPStandardHeaders.h	Mon Oct 18 14:03:25 2010
+***************
+*** 36,42 ****
+  
+  	// We use the WIN32 symbol to detect that we are compiling for Windows because _WINDOWS_ is not defined until we include Windows.h.
+  	#ifdef WIN32				// Compiling for Windows [
+! 		#include <Windows.h>		// This creates the _WINDOWS_ symbol.
+  		
+  		#ifdef SetPort				// SetPort is defined in WinSpool.h
+  			#undef SetPort			// But we use SetPort in the Macintosh sense.
+--- 36,42 ----
+  
+  	// We use the WIN32 symbol to detect that we are compiling for Windows because _WINDOWS_ is not defined until we include Windows.h.
+  	#ifdef WIN32				// Compiling for Windows [
+! 		#include <windows.h>		// This creates the _WINDOWS_ symbol.
+  		
+  		#ifdef SetPort				// SetPort is defined in WinSpool.h
+  			#undef SetPort			// But we use SetPort in the Macintosh sense.
+diff -rc IgorXOPs5.bak/XOPSupport/XOPSupport.c IgorXOPs5/XOPSupport/XOPSupport.c
+*** IgorXOPs5.bak/XOPSupport/XOPSupport.c	Fri Jul 13 13:30:50 2007
+--- IgorXOPs5/XOPSupport/XOPSupport.c	Mon Oct 18 14:34:36 2010
+***************
+*** 370,376 ****
+  		versionInfoSize = GetFileVersionInfoSize(igorName, &dwHandle);
+  		if (versionInfoSize <= 0)
+  			return 0;
+! 		versionBuffer = NewPtr(versionInfoSize);
+  		if (versionBuffer == NULL)
+  			return 0;
+  		if (GetFileVersionInfo(igorName, 0L, versionInfoSize, versionBuffer) == 0) {
+--- 370,376 ----
+  		versionInfoSize = GetFileVersionInfoSize(igorName, &dwHandle);
+  		if (versionInfoSize <= 0)
+  			return 0;
+! 		versionBuffer = (char*)NewPtr(versionInfoSize);
+  		if (versionBuffer == NULL)
+  			return 0;
+  		if (GetFileVersionInfo(igorName, 0L, versionInfoSize, versionBuffer) == 0) {

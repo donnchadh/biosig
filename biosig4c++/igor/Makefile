@@ -3,48 +3,51 @@
 #
 # Copyright 2010 A. Schloegl
 
-CC	   = gcc
+CC	        = g++
 CROSS      = i586-mingw32msvc-
-DEFINES	   = -D=WINIGOR -D=_WINDOWS_
+DEFINES	  = -D=WINIGOR -D=_WINDOWS_
 
 
-#IGORDIR    = $(HOME)/.wine/drive_c/Program\ Files/WaveMetrics/XOP\ Toolkit\ 6/IgorXOPs6
-IGORDIR    = $(HOME)/.wine/drive_c/Program\ Files/WaveMetrics/XOP\ Toolkit\ 5/IgorXOPs5
-XOP1	   = $(IGORDIR)/XOP1/XOP1.c
+#IGORDIR  = $(HOME)/.wine/drive_c/Program\ Files/WaveMetrics/XOP\ Toolkit\ 6/IgorXOPs6
+IGORDIR   = $(HOME)/.wine/drive_c/Program\ Files/WaveMetrics/XOP\ Toolkit\ 5/IgorXOPs5
+XOP1	    = $(IGORDIR)/XOP1/XOP1.c
 
-INCDIR     = -I$(IGORDIR)/XOPSupport/
-INCDIR    += -I$(IGORDIR)/XOP1/
+INCDIR    = -I$(IGORDIR)/XOPSupport/
+INCDIR   += -I$(IGORDIR)/XOP1/
 
-LIBDIR	   = -L $(IGORDIR)/XOPSupport/
-LIBDIR	  += -L /usr/i586-mingw32msvc/lib/
-LIBDIR	  += -L $(IGORDIR)/XOPSupport/VC6/
+LIBDIR	+= -L /usr/i586-mingw32msvc/lib/
+LIBDIR	+= -L $(IGORDIR)/XOPSupport/VC6/
+LIBDIR	 = -L $(IGORDIR)/XOPSupport/
 
-LIBS	   = -lws2_32 ../win32/zlib/lib/libz.a ../win32/libbiosig.a
-LIBS	  += $(IGORDIR)/XOPSupport/VC6/XOPSupport.lib
-LIBS	  += $(IGORDIR)/XOPSupport/IGOR.lib
-#LIBS	  += /usr/i586-mingw32msvc/lib/libmsvcrt.a
+LIBS	   += $(IGORDIR)/XOPSupport/VC6/XOPSupport.lib
+LIBS	   += $(IGORDIR)/XOPSupport/IGOR.lib
+LIBS	   += ../win32/libbiosig.a ../win32/zlib/lib/libz.a -lws2_32  
+LIBS	   += /usr/i586-mingw32msvc/lib/libversion.a
+LIBS	   += /usr/i586-mingw32msvc/lib/libmsvcrt.a
 
 all:x xopSLOAD.xop
 	
 xopSLOAD.o:xopSLOAD.c
 	$(CROSS)$(CC) $(DEFINES) $(INCDIR) xopSLOAD.c -o xopSLOAD.o -c
 xopSLOAD.xop:xopSLOAD.o
-	$(CROSS)$(CC) -shared -fPIC $(LIBS) xopSLOAD.o -Wl -o xopSLOAD.xop
+	$(CROSS)$(CC)  xopSLOAD.o $(LIBS) -o xopSLOAD.xop
 #	$(CROSS)$(CC) "$(IGORDIR)/XOPSupport/IGOR.lib" "$(IGORDIR)/XOPSupport/VC6/XOPSupport.lib" /usr/i586-mingw32msvc/lib/libmsvcrt.a xop1.o
 	
-xop.o:$(XOP1)
-	$(CROSS)$(CC) $(DEFINES) $(INCDIR) $(XOP1) -o xop.o -c
-#	dlltool --output-lib $(IGORDIR)/XOPSupport/VC6/XOPSupport.lib" -U --input-def libapr.def
-#	$(CROSS)$(CC) $(LIBDIR) $(LIBS) xop1.o  
-x:xop.o
-	$(CROSS)$(CC) $(LIBS) xop.o  
 
-#dlltool --output-lib libapr.a -U --input-def libapr.def
-#dlltool --output-lib libapr.a --input-def libapr.def
+XOPSupport.o:$(IGORDIR)/XOPSupport/XOPSupport.c
+	$(CROSS)$(CC) $(DEFINES) $(INCDIR) $(IGORDIR)/XOPSupport/XOPSupport.c -o XOPSupport.o -c
+
+xop.o:$(XOP1)
+#	patch -d $(IGORDIR) -p2 <patchIgorXOPs.diff 
+	$(CROSS)$(CC) $(DEFINES) $(INCDIR) $(XOP1) -o xop.o -c
+x:xop.o XOPSupport.o
+	$(CROSS)$(CC) xop.o XOPSupport.o $(LIBS) -o xop1.xop 
 
 
 clean:
 	rm *.o *.xop *.exe
 distclean:
 	rm *.o *.xop *~
+	
+	
 	

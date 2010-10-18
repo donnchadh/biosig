@@ -90,7 +90,7 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 ## set variables for MinGW Crosscompiler: compile on linux binaries for windows
 ##
 CROSS	     = i586-mingw32msvc-
-CROSS	     = i686-pc-mingw32-
+#CROSS	     = i686-pc-mingw32-
 MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
 MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS # -D=WITH_CHOLMOD #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
@@ -345,7 +345,7 @@ win32/libbiosig.lib: $(MinGWOBJECTS) win32/libcnsfef.a biosig.h biosig-dev.h
 	$(CROSS)$(AR) win32/libbiosig.lib $(MinGWOBJECTS) t240/*.obj
 
 win32/libcnsfef.a:
-	make -C t240 ../win32/libcnsfef.a 
+	make CROSS=$(CROSS) -C t240 ../win32/libcnsfef.a 
 
 win32/libbiosig.dll: $(MinGWOBJECTS) win32/libz.a biosig.h biosig-dev.h
 	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
