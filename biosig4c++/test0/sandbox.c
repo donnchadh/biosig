@@ -260,7 +260,7 @@ fprintf(stdout,"CFS 131 - %d,%d,%d,0x%x,0x%x,0x%x,%d,0x%x\n",hdr->NS,n,d,FileHea
 				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 				B4C_ERRMSG = "(CFS)Subsidiary or Matrix data not supported";
 			}
-			
+fprintf(stdout,"Channel #%i: [%s](%i/%i) <%s>/<%s> ByteSpace%i,Next#%i\n",k+1, H2 + 1 + k*H2LEN, gdftyp, H2[43], H2 + 23 + k*H2LEN, H2 + 33 + k*H2LEN, leu16p(H2+44+k*H2LEN), leu16p(H2+46+k*H2LEN));
 		}
 
 		size_t datapos = H1LEN + H2LEN*hdr->NS;
@@ -271,71 +271,103 @@ fprintf(stdout,"DataPos=%i(0x%x) %i(0x%x) %i(0x%x) \n",FileHeaderSize,FileHeader
 		// n*36 bytes		
 fprintf(stdout,"\n******* file variable information *********\n");
 		for (k = 0; k < n; k++) {
+			int i; double f;
 			size_t pos = datapos + k*36;
-			fprintf(stdout,"%3i: <%s>  %i  [%s] %i\n",k,hdr->AS.Header+pos+1,leu16p(hdr->AS.Header+pos+22),hdr->AS.Header+pos+25,leu16p(hdr->AS.Header+pos+34));
+			uint16_t typ = leu16p(hdr->AS.Header+pos+22);
+			uint16_t off = leu16p(hdr->AS.Header+pos+34);
+			fprintf(stdout,"\n%3i: <%s>  %i  [%s] %i ",k,hdr->AS.Header+pos+1,typ,hdr->AS.Header+pos+25,off);
+			size_t p3 = H1LEN + H2LEN*hdr->NS + (n+d)*36 + off + 42;
+			switch (typ) {
+			case 0:
+			case 1:
+				i = hdr->AS.Header[p3];
+				break;
+			case 2: 
+				i=lei16p(hdr->AS.Header+p3);
+				break;
+			case 3: 
+				i=leu16p(hdr->AS.Header+p3);
+				break;
+			case 4: 
+				i=lei32p(hdr->AS.Header+p3);
+				break;
+			case 5: 
+				f=lef32p(hdr->AS.Header+p3);
+				break;
+			case 6: 
+				f=lef64p(hdr->AS.Header+p3);
+				break;
+			}
+			if (typ<5) fprintf(stdout," *0x%x = [%d]",p3,i);
+			else if (typ<7) fprintf(stdout," *0x%x = [%g]",p3,f);
+			else if (typ==7) fprintf(stdout," *0x%x = <%s>",p3,hdr->AS.Header+p3);
+						
 		}
 fprintf(stdout,"\n******* DS variable information *********\n");
 		datapos = H1LEN + H2LEN*hdr->NS + n*36;
 		for (k = 0; k < d; k++) {
 			size_t pos = datapos + k*36;
 			size_t p2 = leu16p(hdr->AS.Header+pos+34);
-			size_t p3 = pos + p2;
+			size_t p3 = FileHeaderSize + DataSectionOffset + p2;
 			int i; double f;
 			uint16_t typ = leu16p(hdr->AS.Header+pos+22);
-			fprintf(stdout,"\n%3i: <%s>  %i  [%s] %i:",k,hdr->AS.Header+pos+1,typ,hdr->AS.Header+pos+25,p2);
+			fprintf(stdout,"\n%3i: <%s>  %i  [%s] %i:", k, hdr->AS.Header+pos+1, typ, hdr->AS.Header+pos+25, p2);
 			switch (typ) {
-			case 0: 
-			case 1: 
-				i=hdr->AS.Header[datapos+p3];
+			case 0:
+			case 1:
+				i = hdr->AS.Header[p3];
 				break;
 			case 2: 
-				i=lei16p(hdr->AS.Header+datapos+p3);
+				i=lei16p(hdr->AS.Header+p3);
 				break;
 			case 3: 
-				i=leu16p(hdr->AS.Header+datapos+p3);
+				i=leu16p(hdr->AS.Header+p3);
 				break;
 			case 4: 
-				i=lei32p(hdr->AS.Header+datapos+p3);
+				i=lei32p(hdr->AS.Header+p3);
 				break;
 			case 5: 
-				f=lef32p(hdr->AS.Header+datapos+p3);
+				f=lef32p(hdr->AS.Header+p3);
 				break;
 			case 6: 
-				f=lef64p(hdr->AS.Header+datapos+p3);
+				f=lef64p(hdr->AS.Header+p3);
 				break;
 			}
 			if (typ<5) fprintf(stdout," *0x%x = %d",p3,i);
 			else if (typ<7) fprintf(stdout," *0x%x = %g",p3,f);
-			else if (typ==7) fprintf(stdout," *0x%x = %s",p3,hdr->AS.Header+datapos+p3+1);
+			else if (typ==7) fprintf(stdout," *0x%x = %s",p3,hdr->AS.Header+p3);
 		}
-fprintf(stdout,"\n******* DS variable information *********\n");
 
-		datapos = H1LEN + H2LEN*hdr->NS + (n+d)*36;
+		datapos = FileHeaderSize;//+DataHeaderSize;
 		
 		/* data section variable information */
 		// DataHeaderSize*30
 		for (k=0; k<NumberDataSection; k++) {
 			// general data section header
+fprintf(stdout,"\n******* DATA SECTION --%03i-- *********\n",k);
 
-fprintf(stdout,"DS%i: prev=0x%08x,startCD=0x%08x,sizeCD=0x%08x\n",k,leu32p(hdr->AS.Header+datapos),leu32p(hdr->AS.Header+datapos+4),leu32p(hdr->AS.Header+datapos+8));
+		size_t StartPrevDataSection = leu32p(hdr->AS.Header+datapos);
+		size_t StartChanData  = leu32p(hdr->AS.Header+datapos+4);
+		size_t LengthChanData = leu32p(hdr->AS.Header+datapos+40);
+fprintf(stdout,"DS%i: prev=0x%08x,startCD=0x%08x/0x%08x,sizeCD=0x%08x,flag=%04i\n",k,StartPrevDataSection,leu32p(hdr->AS.Header+count+(k-NumberDataSection-1)*4),StartChanData,LengthChanData,leu16p(hdr->AS.Header+datapos+12));
+		// TODO: StartChanData does not fit Tail (list of starting points for channel data)
+
 			// channel information 
 			uint32_t pos = datapos;  //leu32p(hdr->AS.Header+datapos+4);
 			for (int n=0; n<hdr->NS; n++) {
-				uint32_t p = leu32p(hdr->AS.Header+pos+n*24);
-				uint32_t spr = leu32p(hdr->AS.Header+pos+n*24+4);
-				double cal   = lef32p(hdr->AS.Header+pos+n*24+8);
-				double off   = lef32p(hdr->AS.Header+pos+n*24+12);
-				double Xcal  = lef32p(hdr->AS.Header+pos+n*24+16);
-				double Xoff  = lef32p(hdr->AS.Header+pos+n*24+20);
+				uint32_t p   = leu32p(hdr->AS.Header+datapos+n*24);
+				uint32_t spr = leu32p(hdr->AS.Header+datapos+n*24+4);
+				double cal   = lef32p(hdr->AS.Header+datapos+n*24+8);
+				double off   = lef32p(hdr->AS.Header+datapos+n*24+12);
+				double Xcal  = lef32p(hdr->AS.Header+datapos+n*24+16);
+				double Xoff  = lef32p(hdr->AS.Header+datapos+n*24+20);
 fprintf(stdout,"DS%i#%i: 0x%08x %d %fY+%f %fxX+%f\n",k,n,p,spr,cal,off,Xcal,Xoff);
-				
 			}
-			datapos += 30;
-			datapos += hdr->NS*24;
+
+			datapos = StartChanData + LengthChanData;
 		}
 
 fprintf(stdout,"DataPos=%i(0x%x) %i(0x%x) %i(0x%x) \n",FileHeaderSize,FileHeaderSize,DataHeaderSize,DataHeaderSize,datapos,datapos);
-
 
 		/* channel information */
 
