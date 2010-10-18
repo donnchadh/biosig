@@ -15,15 +15,13 @@ XOP1	    = $(IGORDIR)/XOP1/XOP1.c
 INCDIR    = -I$(IGORDIR)/XOPSupport/
 INCDIR   += -I$(IGORDIR)/XOP1/
 
-LIBDIR	+= -L /usr/i586-mingw32msvc/lib/
 LIBDIR	+= -L $(IGORDIR)/XOPSupport/VC6/
-LIBDIR	 = -L $(IGORDIR)/XOPSupport/
+LIBDIR	+= -L $(IGORDIR)/XOPSupport/
 
+LIBS	   += -lversion -lmsvcrt -lws2_32
 LIBS	   += $(IGORDIR)/XOPSupport/VC6/XOPSupport.lib
 LIBS	   += $(IGORDIR)/XOPSupport/IGOR.lib
-LIBS	   += ../win32/libbiosig.a ../win32/zlib/lib/libz.a -lws2_32  
-LIBS	   += /usr/i586-mingw32msvc/lib/libversion.a
-LIBS	   += /usr/i586-mingw32msvc/lib/libmsvcrt.a
+LIBS	   += ../win32/libbiosig.a ../win32/zlib/lib/libz.a  
 
 all:x xopSLOAD.xop
 	
@@ -40,8 +38,9 @@ XOPSupport.o:$(IGORDIR)/XOPSupport/XOPSupport.c
 xop.o:$(XOP1)
 #	patch -d $(IGORDIR) -p2 <patchIgorXOPs.diff 
 	$(CROSS)$(CC) $(DEFINES) $(INCDIR) $(XOP1) -o xop.o -c
+	$(CROSS)windres $(DEFINES) $(INCDIR) $(IGORDIR)/XOP1/XOP1.rc -o XOP1res.o
 x:xop.o XOPSupport.o
-	$(CROSS)$(CC) xop.o XOPSupport.o $(LIBS) -o xop1.xop 
+	$(CROSS)$(CC) xop.o XOP1res.o XOPSupport.o $(LIBS) -o xop1.xop 
 
 
 clean:
