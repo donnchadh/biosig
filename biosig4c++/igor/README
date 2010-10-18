@@ -1,0 +1,25 @@
+# Biosig's XOP interface to IGOR
+# Copyright 2010 Alois Schloegl <alois.schloegl@gmail.com>
+
+This is currently in an experimental state. 
+
+An open issue is, that biosig4c++/libbiosig compiles 
+with GNU C++ compiler, but the supported platforms for Igor
+XOP's are only Mac and MS-Windows (MS VisualC++) 
+Therefore, there are three options, (A) mixing MinGW and MSVC++,
+(B) moving everthing to MinGW, and (C) moving everything to MSVC++. 
+Every option has currently one or more open issues: 
+ 
+(A) mingw/libbiosig + MSVC++/xop
+- alignment of struct variables
+
+(B) MinGW/libbiosig + MinGW/xop
+- MinGW-based XOP ? 
+
+(C) MSVC++/libbiosig + MSVC++/xop (MSVC++-based libbiosig) 
+- alignment 
+- GNU specific extensions 	 
+
+
+
+

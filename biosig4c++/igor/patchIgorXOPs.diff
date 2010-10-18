@@ -1,0 +1,25 @@
+diff -r XOP Toolkit 5.bak/IgorXOPs5/XOP1/XOP1.c XOP Toolkit 5/IgorXOPs5/XOP1/XOP1.c
+131c131
+< 	return RegisterOperation(cmdTemplate, runtimeNumVarList, runtimeStrVarList, sizeof(XOP1RuntimeParams), ExecuteXOP1, 0);
+---
+> 	return RegisterOperation(cmdTemplate, runtimeNumVarList, runtimeStrVarList, sizeof(XOP1RuntimeParams), (void*)&ExecuteXOP1, 0);
+172,173c172
+< HOST_IMPORT void
+< main(IORecHandle ioRecHandle)
+---
+> HOST_IMPORT int main(IORecHandle ioRecHandle)
+183c182
+< 		return;
+---
+> 		return (0);
+diff -r XOP Toolkit 5.bak/IgorXOPs5/XOP1/XOP1.h XOP Toolkit 5/IgorXOPs5/XOP1/XOP1.h
+8c8
+< HOST_IMPORT void main(IORecHandle ioRecHandle);
+---
+> HOST_IMPORT int main(IORecHandle ioRecHandle);
+diff -r XOP Toolkit 5.bak/IgorXOPs5/XOPSupport/XOPStandardHeaders.h XOP Toolkit 5/IgorXOPs5/XOPSupport/XOPStandardHeaders.h
+39c39
+< 		#include <Windows.h>		// This creates the _WINDOWS_ symbol.
+---
+> 		#include <windows.h>		// This creates the _WINDOWS_ symbol.
+Only in XOP Toolkit 5/IgorXOPs5/XOPSupport: XOPStandardHeaders.h~
