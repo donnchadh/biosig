@@ -4891,6 +4891,7 @@ elseif strcmp(HDR.TYPE,'RDF'),  % UCSD ERPSS acqusition software DIGITIZE
         HDR.SPR = block_size;
         HDR.AS.bpb = HDR.SPR*HDR.NS*2;
         HDR.Dur = HDR.SPR/HDR.SampleRate;
+        HDR.PhysDimCode = zeros(1,HDR.NS); 
         
         
 elseif strcmp(HDR.TYPE,'LABVIEW'),
