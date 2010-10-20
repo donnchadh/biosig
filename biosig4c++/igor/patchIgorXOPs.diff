@@ -14,7 +14,7 @@ diff -rc IgorXOPs5.bak/XOP1/XOP1.c IgorXOPs5/XOP1/XOP1.c
   	cmdTemplate = "XOP1 wave";
   	runtimeNumVarList = "";
   	runtimeStrVarList = "";
-! 	return RegisterOperation(cmdTemplate, runtimeNumVarList, runtimeStrVarList, sizeof(XOP1RuntimeParams), (void*)&ExecuteXOP1, 0);
+! 	return RegisterOperation(cmdTemplate, runtimeNumVarList, runtimeStrVarList, sizeof(XOP1RuntimeParams), (void*)(ExecuteXOP1), 0);
   }
   
   static int
