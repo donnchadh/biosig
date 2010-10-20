@@ -102,9 +102,12 @@ elseif ischar(arg2) & (strcmp(H.TYPE,'ELPOS') | (isfield(H,'ELEC') && strncmpi(a
         return;
 
         
-elseif all((H.LeadIdCode>0) & (H.LeadIdCode<256)) && (H.SPR*H.NRec==H.SampleRate*10) && all(H.PhysDimCode==H.PhysDimCode(1)) 
+elseif all((H.LeadIdCode>0) & (H.LeadIdCode<256)) && all(H.PhysDimCode==H.PhysDimCode(1)) 
 	% 12-lead, 10s ECG 
 	xlen = 5; 
+	if (H.TYPE == 'SCP') 
+		H.SampleRate = round(H.SampleRate);
+	end; 
 	d = repmat(NaN,[H.SampleRate*xlen,12]);
 	pos = [1,2,61:64,3:8];
 	x = leadidcodexyz(pos); 
@@ -132,14 +135,14 @@ elseif all((H.LeadIdCode>0) & (H.LeadIdCode<256)) && (H.SPR*H.NRec==H.SampleRate
 	d = reshape(permute(reshape(d,[H.SampleRate*xlen,3,4]),[1,3,2]),[H.SampleRate*xlen*4,3]);
 	d = [(abs([-(H.SampleRate/2):(H.SampleRate/2)])' < (H.SampleRate/4))*ones(1,3)*1e-3/scale(1); repmat(NaN,1,3); d];	
 	
-	plot([1:H.SampleRate*(xlen*4+1)+2]'/H.SampleRate, d + ones(size(d,1),1)*[0,-1,-2]*3*1e-3/scale(1),'k');
+	plot([1:H.SampleRate*(xlen*4+1)+2]'/H.SampleRate-1, d + ones(size(d,1),1)*[0,-1,-2]*3*1e-3/scale(1),'k');
 	set(gca,'xMinorTick','on','yMinorTick','on','xMinorGrid','on','yMinorGrid','on');
 	grid on
 	for k=1:length(pos),
 		h=text(xlen*floor((k-1)/3)+1,(1-3*mod(k-1,3))*1e-3/scale(1),x.Label(k));
 	end;
-	text(.1,-2e-4/scale(1),'0.5s / 1 mV'); 
-	set(gca,'xlim',[0,4*xlen+1]);
+	text(.1-1,-2e-4/scale(1),'0.5s / 1 mV'); 
+	set(gca,'xlim',[-1,4*xlen]);
 
 	gender='UMFX'; sex=gender(H.Patient.Sex+1);
 	if isfield(H.Patient,'Age') age=H.Patient.Age;
