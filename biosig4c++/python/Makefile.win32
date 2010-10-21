@@ -1,0 +1,44 @@
+####### Makefile for "BioSig for C/C++" #####################
+###
+###  $Id: Makefile,v 1.72 2009/03/03 11:46:57 schloegl Exp $
+###  Copyright (C) 2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
+###  Copyright (C) 2010 Brice Rebsamen	
+###  This file is part of the "BioSig for C/C++" repository
+###  (biosig4c++) at http://biosig.sf.net/
+###
+##############################################################
+
+CXX           = g++
+DEFINES       = -D=_NO_OLDNAMES #-D=WITH_ZLIB #-D=WITH_CHOLMOD -D=__4HAERTEL__ -D=WITH_FAMOS #-D=WITH_FEF -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+CXXFLAGS      =  -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
+LIBS          = ../libbiosig.a -lws2_32 #-lz #-lcholmod # t240/libfef.a #-lgdcmDSED -lgsl -lgslcblas -lm	# static
+SWIG          = swig
+DELETE        = del
+COPY          = copy
+MAKE          = mingw32-make
+
+PYTHONDIR     = C:\Python25
+INC           = -I$(PYTHONDIR)\include -I$(PYTHONDIR)\Lib\site-packages\numpy\core\include\numpy
+
+TARGET = biosig4python
+
+first: $(TARGET)
+
+../libbiosig.a:
+	$(MAKE) -C .. -f Makefile.win32 libbiosig.a
+
+biosig4python : _biosig.pyd biosig.py
+
+biosig.py swig_wrap.cxx : $(SOURCES) ../libbiosig.a swig.i 
+	$(SWIG) -c++ -python $(INC) -o swig_wrap.cxx swig.i
+    
+_biosig.pyd : swig_wrap.o
+	$(CXX) -shared swig_wrap.o $(LIBS) -L$(PYTHONDIR)/libs -lpython25 -o _biosig.pyd 
+    
+swig_wrap.o : swig_wrap.cxx
+	$(CXX) -c $(CXXFLAGS) swig_wrap.cxx -o swig_wrap.o $(INC)
+
+
+clean:
+	-$(DELETE) biosig.py* _biosig.pyd
+	-$(DELETE) swig_wrap.*
