@@ -14,12 +14,27 @@ Every option has currently one or more open issues:
 - alignment of struct variables
 
 (B) MinGW/libbiosig + MinGW/xop
-- MinGW-based XOP ? 
+- test of compiling XOP1 works fine. 
+	- need reimp utils form mingw/utils/reimp, 
+		on linux apply patchMinGW_utils_reimp.diff
+	- requires MinGW dlltool and assembler
+	- converts IGOR.lib into libIgor.a
+        - conversion of XOPSupport.lib fails, however it is not needed, linking with XOPSupport.lib works fine. 
+  
+ 
 
 (C) MSVC++/libbiosig + MSVC++/xop (MSVC++-based libbiosig) 
 - alignment 
 - GNU specific extensions 	 
 
 
-
+Open Issues:
+	XOP1 causes application error 
+		seen on Wine and WinXP
+		patchXOP1.diff ??
+			void main -> int main ? 
+		MinGW - most likely reason
+			http://wiki.osdev.org/MinGW
+	myXOP, XOPas do not work
+		
 

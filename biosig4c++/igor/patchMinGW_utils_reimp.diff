@@ -1,0 +1,29 @@
+? reimp/reimp
+Index: reimp/reimp.h
+===================================================================
+RCS file: /cvsroot/mingw/utils/reimp/reimp.h,v
+retrieving revision 1.1
+diff -r1.1 reimp.h
+0a1
+> #include <inttypes.h>
+6c7
+< #define uint32 unsigned long
+---
+> #define uint32 uint32_t
+10c11
+< #define uint16 unsigned short
+---
+> #define uint16 uint16_t
+90c91
+< int spawnvp (int, char *, char **);
+---
+> int spawnvp (int, char *, const char * const*);
+Index: reimp/util.c
+===================================================================
+RCS file: /cvsroot/mingw/utils/reimp/util.c,v
+retrieving revision 1.2
+diff -r1.2 util.c
+82c82
+< spawnvp (int mode, char *path, char **argv)
+---
+> spawnvp (int mode, char *path, const char * const *argv)
