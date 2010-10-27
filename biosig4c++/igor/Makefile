@@ -12,55 +12,46 @@ DEFINES	   = -D=WINIGOR -D=_WINDOWS_
 #IGORDIR    = $(HOME)/.wine/drive_c/Program\ Files/WaveMetrics/XOP\ Toolkit\ 6/IgorXOPs6
 IGORDIR     = $(HOME)/.wine/drive_c/Program\ Files/WaveMetrics/XOP\ Toolkit\ 5/IgorXOPs5
 XOP1	    = $(IGORDIR)/XOP1/XOP1.c
-XOP1	    = XOP1.c
 
 INCDIR      = -I$(IGORDIR)/XOPSupport/
 INCDIR     += -I$(IGORDIR)/XOP1/
 
-LIBDIR	   += -L $(IGORDIR)/XOPSupport/VC6/
-LIBDIR	   += -L $(IGORDIR)/XOPSupport/
-LIBDIR 	   += -L .
-
 LIBS	   += $(IGORDIR)/XOPSupport/VC6/XOPSupport.lib
-LIBS	   += libIgor.a
 LIBS	   += ../win32/libbiosig.a ../win32/zlib/lib/libz.a -lws2_32  
 LIBS	   += -lversion -lmsvcrt
  
-all:XOPas.xop
+all:XOP1.xop
+
 	
 xopSLOAD.o:xopSLOAD.c
 	$(CROSS)$(CC) $(DEFINES) $(INCDIR) xopSLOAD.c -o xopSLOAD.o  -c 
-xopSLOAD.xop:xopSLOAD.o
+xopSLOAD.xop:xopSLOAD.o libIgor.a
 #	$(CROSS)$(CC) -o xopSLOAD.xop xopSLOAD.o  $(LIBS)
 #	$(CROSS)$(CC) "$(IGORDIR)/XOPSupport/IGOR.lib" "$(IGORDIR)/XOPSupport/VC6/XOPSupport.lib" /usr/i586-mingw32msvc/lib/libmsvcrt.a xop1.o
-	$(CROSS)$(CC)  -shared  -o xopSLOAD.xop $(DEFINES) $(INCDIR) xopSLOAD.c xopSLOAD.o $(LIBS) 
+	$(CROSS)$(CC)  -shared  -o xopSLOAD.xop $(DEFINES) $(INCDIR) xopSLOAD.c xopSLOAD.o $(LIBS) libIgor.a  
+
 	
+libIgor.a: $(IGORDIR)/XOPSupport/IGOR.lib
+	$(CROSS)reimp -c --as $(CROSS)as --dlltool $(CROSS)dlltool $(IGORDIR)/XOPSupport/IGOR.lib
 
 XOPSupport.o:$(IGORDIR)/XOPSupport/XOPSupport.c
 	$(CROSS)$(CC) $(DEFINES) $(INCDIR) $(IGORDIR)/XOPSupport/XOPSupport.c -o XOPSupport.o -c
 
-xop.o:$(XOP1)
-#	patch -d $(IGORDIR) -p2 <patchIgorXOPs.diff 
-	$(CROSS)$(CC) -shared $(DEFINES) $(INCDIR) $(XOP1) -o xop.o -c
+
+## compiling XOP1: this should work
+XOP1res.o:$(IGORDIR)/XOP1/XOP1.rc
 	$(CROSS)windres $(DEFINES) $(INCDIR) $(IGORDIR)/XOP1/XOP1.rc -o XOP1res.o
-x:xop.o XOPSupport.o
-	$(CROSS)$(CC) -Wl,-T,LinkScript -o xop1.xop xop.o XOP1res.o XOPSupport.o $(LIBS) 
+XOP1.xop: XOPSupport.o libIgor.a XOP1res.o 
+	$(CROSS)$(CC) -shared -o XOP1.xop  $(DEFINES) $(INCDIR) $(XOP1) XOP1res.o XOPSupport.o $(LIBS) libIgor.a 
 
-IGOR.a: $(IGORDIR)/XOPSupport/IGOR.lib
-	/home/schloegl/src/mingw/utils/reimp/reimp -c --as $(CROSS)as --dlltool $(CROSS)dlltool IGOR.lib
-XOPSupport.a: $(IGORDIR)/XOPSupport/VC6/XOPSupport.lib
-	/home/schloegl/src/mingw/utils/reimp/reimp -c --as $(CROSS)as --dlltool $(CROSS)dlltool XOPSupport.lib
 
-y: XOPSupport.o	IGOR.a 
-	$(CROSS)windres $(DEFINES) $(INCDIR) $(IGORDIR)/XOP1/XOP1.rc -o XOP1res.o
-	$(CROSS)$(CC) -shared -o XOP1.xop  $(DEFINES) $(INCDIR) $(XOP1)  XOP1res.o XOPSupport.o  $(LIBS)
-
+## testing a modified XOP1
+XOPasres.o:XOPas.rc
+	$(CROSS)windres $(DEFINES) $(INCDIR) XOPas.rc -o XOPasres.o
 XOPas.o:XOPas.c
-#	patch -d $(IGORDIR) -p2 <patchIgorXOPs.diff 
 	$(CROSS)$(CC) $(DEFINES) $(INCDIR) XOPas.c -o XOPas.o -c
-	$(CROSS)windres $(DEFINES) $(INCDIR) $(IGORDIR)/XOP1/XOP1.rc -o XOP1res.o
-XOPas.xop:XOPas.o XOPSupport.o
-	$(CROSS)$(CC)  -o XOPas.xop XOPas.o XOP1res.o XOPSupport.o $(LIBS) 
+XOPas.xop:XOPas.o XOPSupport.o libIgor.a  XOPasres.o
+	$(CROSS)$(CC) -shared -o XOPas.xop XOPas.o XOPasres.o XOPSupport.o $(LIBS) libIgor.a 
 
 
 clean:
