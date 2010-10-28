@@ -90,3 +90,267 @@ diff -rc IgorXOPs5.bak/XOPSupport/XOPSupport.c IgorXOPs5/XOPSupport/XOPSupport.c
   		if (versionBuffer == NULL)
   			return 0;
   		if (GetFileVersionInfo(igorName, 0L, versionInfoSize, versionBuffer) == 0) {
+diff -rc IgorXOPs5.bak/GBLoadWave/GBLoadWave.c IgorXOPs5/GBLoadWave/GBLoadWave.c
+*** IgorXOPs5.bak/GBLoadWave/GBLoadWave.c	Mon Mar 22 14:25:16 2004
+--- IgorXOPs5/GBLoadWave/GBLoadWave.c	Thu Oct 28 10:13:30 2010
+***************
+*** 379,385 ****
+  	
+  	bytesInWave = arrayPoints * bytesInPoint;
+  	totalBytes = numArrays * bytesInWave;
+! 	buffer = NewPtr(totalBytes);
+  	if (buffer == NIL)
+  		return NOMEM;
+  
+--- 379,385 ----
+  	
+  	bytesInWave = arrayPoints * bytesInPoint;
+  	totalBytes = numArrays * bytesInWave;
+! 	buffer = (char*)NewPtr(totalBytes);
+  	if (buffer == NIL)
+  		return NOMEM;
+  
+***************
+*** 495,501 ****
+  	*/
+  	buffer = NIL;
+  	if (lsp->inputBytesPerPoint > lsp->outputBytesPerPoint) {	// Can't read directly into wave?
+! 		buffer = NewPtr(numPoints*lsp->inputBytesPerPoint);		// Get temporary buffer.
+  		if (buffer == NIL)
+  			return NOMEM;
+  	}
+--- 495,501 ----
+  	*/
+  	buffer = NIL;
+  	if (lsp->inputBytesPerPoint > lsp->outputBytesPerPoint) {	// Can't read directly into wave?
+! 		buffer = (char*)NewPtr(numPoints*lsp->inputBytesPerPoint);		// Get temporary buffer.
+  		if (buffer == NIL)
+  			return NOMEM;
+  	}
+***************
+*** 504,510 ****
+  		ciPtr = caPtr + column;
+  		GetWaveStuff(ciPtr->waveHandle, &ciPtr->hState, &dataType, &ciPtr->dataPtr);
+  		if (buffer==NIL)									// Reading directly into wave.
+! 			readDataPtr = ciPtr->dataPtr;
+  		else												// Reading into buffer.
+  			readDataPtr = buffer;
+  		count = lsp->inputBytesPerPoint*numPoints;
+--- 504,510 ----
+  		ciPtr = caPtr + column;
+  		GetWaveStuff(ciPtr->waveHandle, &ciPtr->hState, &dataType, &ciPtr->dataPtr);
+  		if (buffer==NIL)									// Reading directly into wave.
+! 			readDataPtr = (char*)ciPtr->dataPtr;
+  		else												// Reading into buffer.
+  			readDataPtr = buffer;
+  		count = lsp->inputBytesPerPoint*numPoints;
+***************
+*** 840,846 ****
+  	main does any necessary initialization and then sets the XOPEntry field of the
+  	XOPRecHandle to the address to be called for future messages.
+  */
+! HOST_IMPORT void
+  main(IORecHandle ioRecHandle)
+  {
+  	int result;
+--- 840,846 ----
+  	main does any necessary initialization and then sets the XOPEntry field of the
+  	XOPRecHandle to the address to be called for future messages.
+  */
+! HOST_IMPORT int
+  main(IORecHandle ioRecHandle)
+  {
+  	int result;
+***************
+*** 850,861 ****
+  
+  	if (igorVersion < 500) {
+  		SetXOPResult(OLD_IGOR);			// OLD_IGOR is defined in GBLoadWave.h and there are corresponding error strings in GBLoadWave.r and GBLoadWaveWinCustom.rc.
+! 		return;
+  	}
+  
+  	if (result = RegisterOperations()) {
+  		SetXOPResult(result);
+! 		return;
+  	}
+  
+  	SetXOPResult(0L);
+--- 850,861 ----
+  
+  	if (igorVersion < 500) {
+  		SetXOPResult(OLD_IGOR);			// OLD_IGOR is defined in GBLoadWave.h and there are corresponding error strings in GBLoadWave.r and GBLoadWaveWinCustom.rc.
+! 		return (0);
+  	}
+  
+  	if (result = RegisterOperations()) {
+  		SetXOPResult(result);
+! 		return (0);
+  	}
+  
+  	SetXOPResult(0L);
+diff -rc IgorXOPs5.bak/GBLoadWave/GBLoadWave.h IgorXOPs5/GBLoadWave/GBLoadWave.h
+*** IgorXOPs5.bak/GBLoadWave/GBLoadWave.h	Mon Mar 22 14:25:16 2004
+--- IgorXOPs5/GBLoadWave/GBLoadWave.h	Thu Oct 28 10:12:19 2010
+***************
+*** 111,117 ****
+  /* Prototypes */
+  
+  // In GBLoadWave.c
+! HOST_IMPORT void main(IORecHandle ioRecHandle);
+  int LoadWave(LoadSettings* lsp, const char* baseName, const char* symbolicPathName, const char* fileParam, int runningInUserFunction);
+  
+  // In GBLoadWaveOperation.c
+--- 111,117 ----
+  /* Prototypes */
+  
+  // In GBLoadWave.c
+! HOST_IMPORT int main(IORecHandle ioRecHandle);
+  int LoadWave(LoadSettings* lsp, const char* baseName, const char* symbolicPathName, const char* fileParam, int runningInUserFunction);
+  
+  // In GBLoadWaveOperation.c
+diff -rc IgorXOPs5.bak/GBLoadWave/GBLoadWaveDialog.c IgorXOPs5/GBLoadWave/GBLoadWaveDialog.c
+*** IgorXOPs5.bak/GBLoadWave/GBLoadWaveDialog.c	Mon Mar 22 14:25:16 2004
+--- IgorXOPs5/GBLoadWave/GBLoadWaveDialog.c	Thu Oct 28 11:34:13 2010
+***************
+*** 322,328 ****
+  }
+  
+  static int
+! DataTypeItemNumberToDataTypeCode(dataTypeItemNumber)
+  {
+  	int result;
+  	
+--- 322,328 ----
+  }
+  
+  static int
+! DataTypeItemNumberToDataTypeCode(int dataTypeItemNumber)
+  {
+  	int result;
+  	
+diff -rc IgorXOPs5.bak/GBLoadWave/GBLoadWaveOperation.c IgorXOPs5/GBLoadWave/GBLoadWaveOperation.c
+*** IgorXOPs5.bak/GBLoadWave/GBLoadWaveOperation.c	Mon Mar 22 14:25:16 2004
+--- IgorXOPs5/GBLoadWave/GBLoadWaveOperation.c	Thu Oct 28 10:47:16 2010
+***************
+*** 348,352 ****
+  	cmdTemplate = "GBLoadWave /A[=name:ABaseName] /B[=number:lowByteFirst] /D[=number:doublePrecision] /F=number:dataFormat /I[={string:macFilterStr,string:winFilterStr}] /J=number:floatFormat /L=number:dataLengthInBits /N[=name:NBaseName] /O[=number:overwrite] /P=name:pathName /Q[=number:quiet] /S=number:skipBytes /T={number:fileDataType,number:waveDataType} /U=number:pointsPerArray /V[=number:interleaved] /W=number:numberOfArraysInFile /Y={number:offset,number:multiplier} [string:fileParamStr]";
+  	runtimeNumVarList = "V_flag;";
+  	runtimeStrVarList = "S_fileName;S_path;S_waveNames;";
+! 	return RegisterOperation(cmdTemplate, runtimeNumVarList, runtimeStrVarList, sizeof(GBLoadWaveRuntimeParams), ExecuteGBLoadWave, 0);
+  }
+--- 348,352 ----
+  	cmdTemplate = "GBLoadWave /A[=name:ABaseName] /B[=number:lowByteFirst] /D[=number:doublePrecision] /F=number:dataFormat /I[={string:macFilterStr,string:winFilterStr}] /J=number:floatFormat /L=number:dataLengthInBits /N[=name:NBaseName] /O[=number:overwrite] /P=name:pathName /Q[=number:quiet] /S=number:skipBytes /T={number:fileDataType,number:waveDataType} /U=number:pointsPerArray /V[=number:interleaved] /W=number:numberOfArraysInFile /Y={number:offset,number:multiplier} [string:fileParamStr]";
+  	runtimeNumVarList = "V_flag;";
+  	runtimeStrVarList = "S_fileName;S_path;S_waveNames;";
+! 	return RegisterOperation(cmdTemplate, runtimeNumVarList, runtimeStrVarList, sizeof(GBLoadWaveRuntimeParams), (void*)(ExecuteGBLoadWave), 0);
+  }
+diff -rc IgorXOPs5.bak/XOP1/XOP1.c IgorXOPs5/XOP1/XOP1.c
+*** IgorXOPs5.bak/XOP1/XOP1.c	Mon Mar 22 14:26:10 2004
+--- IgorXOPs5/XOP1/XOP1.c	Wed Oct 27 14:08:58 2010
+***************
+*** 128,134 ****
+  	cmdTemplate = "XOP1 wave";
+  	runtimeNumVarList = "";
+  	runtimeStrVarList = "";
+! 	return RegisterOperation(cmdTemplate, runtimeNumVarList, runtimeStrVarList, sizeof(XOP1RuntimeParams), ExecuteXOP1, 0);
+  }
+  
+  static int
+--- 128,134 ----
+  	cmdTemplate = "XOP1 wave";
+  	runtimeNumVarList = "";
+  	runtimeStrVarList = "";
+! 	return RegisterOperation(cmdTemplate, runtimeNumVarList, runtimeStrVarList, sizeof(XOP1RuntimeParams), (void*)(ExecuteXOP1), 0);
+  }
+  
+  static int
+***************
+*** 169,176 ****
+  	main does any necessary initialization and then sets the XOPEntry field of the
+  	ioRecHandle to the address to be called for future messages.
+  */
+! HOST_IMPORT void
+! main(IORecHandle ioRecHandle)
+  {
+  	int result;
+  	
+--- 169,175 ----
+  	main does any necessary initialization and then sets the XOPEntry field of the
+  	ioRecHandle to the address to be called for future messages.
+  */
+! HOST_IMPORT int main(IORecHandle ioRecHandle)
+  {
+  	int result;
+  	
+***************
+*** 180,186 ****
+  
+  	if (result = RegisterOperations()) {
+  		SetXOPResult(result);
+! 		return;
+  	}
+  	
+  	SetXOPResult(0);
+--- 179,185 ----
+  
+  	if (result = RegisterOperations()) {
+  		SetXOPResult(result);
+! 		return (0);
+  	}
+  	
+  	SetXOPResult(0);
+diff -rc IgorXOPs5.bak/XOP1/XOP1.h IgorXOPs5/XOP1/XOP1.h
+*** IgorXOPs5.bak/XOP1/XOP1.h	Mon Mar 22 14:26:10 2004
+--- IgorXOPs5/XOP1/XOP1.h	Mon Oct 18 13:59:03 2010
+***************
+*** 5,8 ****
+  /*	no equates needed */
+  
+  /* Prototypes */
+! HOST_IMPORT void main(IORecHandle ioRecHandle);
+--- 5,8 ----
+  /*	no equates needed */
+  
+  /* Prototypes */
+! HOST_IMPORT int main(IORecHandle ioRecHandle);
+diff -rc IgorXOPs5.bak/XOPSupport/XOPStandardHeaders.h IgorXOPs5/XOPSupport/XOPStandardHeaders.h
+*** IgorXOPs5.bak/XOPSupport/XOPStandardHeaders.h	Fri Sep  1 10:36:28 2006
+--- IgorXOPs5/XOPSupport/XOPStandardHeaders.h	Mon Oct 18 14:03:25 2010
+***************
+*** 36,42 ****
+  
+  	// We use the WIN32 symbol to detect that we are compiling for Windows because _WINDOWS_ is not defined until we include Windows.h.
+  	#ifdef WIN32				// Compiling for Windows [
+! 		#include <Windows.h>		// This creates the _WINDOWS_ symbol.
+  		
+  		#ifdef SetPort				// SetPort is defined in WinSpool.h
+  			#undef SetPort			// But we use SetPort in the Macintosh sense.
+--- 36,42 ----
+  
+  	// We use the WIN32 symbol to detect that we are compiling for Windows because _WINDOWS_ is not defined until we include Windows.h.
+  	#ifdef WIN32				// Compiling for Windows [
+! 		#include <windows.h>		// This creates the _WINDOWS_ symbol.
+  		
+  		#ifdef SetPort				// SetPort is defined in WinSpool.h
+  			#undef SetPort			// But we use SetPort in the Macintosh sense.
+diff -rc IgorXOPs5.bak/XOPSupport/XOPSupport.c IgorXOPs5/XOPSupport/XOPSupport.c
+*** IgorXOPs5.bak/XOPSupport/XOPSupport.c	Fri Jul 13 13:30:50 2007
+--- IgorXOPs5/XOPSupport/XOPSupport.c	Mon Oct 18 14:34:36 2010
+***************
+*** 370,376 ****
+  		versionInfoSize = GetFileVersionInfoSize(igorName, &dwHandle);
+  		if (versionInfoSize <= 0)
+  			return 0;
+! 		versionBuffer = NewPtr(versionInfoSize);
+  		if (versionBuffer == NULL)
+  			return 0;
+  		if (GetFileVersionInfo(igorName, 0L, versionInfoSize, versionBuffer) == 0) {
+--- 370,376 ----
+  		versionInfoSize = GetFileVersionInfoSize(igorName, &dwHandle);
+  		if (versionInfoSize <= 0)
+  			return 0;
+! 		versionBuffer = (char*)NewPtr(versionInfoSize);
+  		if (versionBuffer == NULL)
+  			return 0;
+  		if (GetFileVersionInfo(igorName, 0L, versionInfoSize, versionBuffer) == 0) {
+Only in IgorXOPs5/XOPSupport: XOPSupport.c.rej

@@ -3,39 +3,68 @@
 #
 # Copyright 2010 A. Schloegl
 
-CC	   = g++
+
+# configure your cross-compiler and path to IGOR XOP toolkit 
 CROSS      = i586-mingw32msvc-
-CROSS      = /home/schloegl/src/mingw-cross-env/usr/bin/i686-pc-mingw32-
-DEFINES	   = -D=WINIGOR -D=_WINDOWS_
+CROSS      = $(HOME)/src/mingw-cross-env/usr/bin/i686-pc-mingw32-
 
-
+# define path to XOP toolkit
 #IGORDIR    = $(HOME)/.wine/drive_c/Program\ Files/WaveMetrics/XOP\ Toolkit\ 6/IgorXOPs6
 IGORDIR     = $(HOME)/.wine/drive_c/Program\ Files/WaveMetrics/XOP\ Toolkit\ 5/IgorXOPs5
+
+##### start of Makefile:  
+
 XOP1	    = $(IGORDIR)/XOP1/XOP1.c
+GBDIR	    = $(IGORDIR)/GBLoadWave
 
 INCDIR      = -I$(IGORDIR)/XOPSupport/
 INCDIR     += -I$(IGORDIR)/XOP1/
+INCDIR     += -I$(IGORDIR)/GBLoadWave/
+INCDIR     += -I.
 
 LIBS	   += $(IGORDIR)/XOPSupport/VC6/XOPSupport.lib
 LIBS	   += ../win32/libbiosig.a ../win32/zlib/lib/libz.a -lws2_32  
-LIBS	   += -lversion -lmsvcrt
+LIBS	   += -lversion -lmsvcrt -lcomdlg32
+
+CC	   = g++
+DEFINES	   = -D=WINIGOR -D=_WINDOWS_
  
-all:XOP1.xop
+all:XOP1.xop XOPas.xop GBLoadWave.xop
+
+
+GBLoadWaveres.o: $(GBDIR)/GBLoadWave.rc  
+	$(CROSS)windres $(DEFINES) $(INCDIR) $(GBDIR)/GBLoadWave.rc -o GBLoadWaveres.o
+GBLoadWave.o: $(GBDIR)/GBLoadWave.c  
+	$(CROSS)$(CC) -shared -c -o GBLoadWave.o $(DEFINES) $(INCDIR) -I./$(GBDIR)/ $(GBDIR)/GBLoadWave.c   
+GBLoadWaveDialog.o: $(GBDIR)/GBLoadWaveDialog.c  
+	$(CROSS)$(CC) -shared -c -o GBLoadWaveDialog.o $(DEFINES) $(INCDIR) -I./$(GBDIR)/ $(GBDIR)/GBLoadWaveDialog.c   
+GBLoadWaveOperation.o: $(GBDIR)/GBLoadWaveOperation.c
+	$(CROSS)$(CC) -shared -c -o GBLoadWaveOperation.o $(DEFINES) $(INCDIR) -I./$(GBDIR)/ $(GBDIR)/GBLoadWaveOperation.c   
+GBScalingDialog.o: $(GBDIR)/GBScalingDialog.c  
+	$(CROSS)$(CC) -shared -c -o GBScalingDialog.o $(DEFINES) $(INCDIR) -I./$(GBDIR)/ $(GBDIR)/GBScalingDialog.c   
+GBLoadWaveDialog.o: $(GBDIR)/GBLoadWaveDialog.c  
+	$(CROSS)$(CC) -shared -c -o GBLoadWaveDialog.o $(DEFINES) $(INCDIR) -I./$(GBDIR)/ $(GBDIR)/GBLoadWaveDialog.c   
+GBLoadWave.xop: GBLoadWave.o GBLoadWaveres.o GBLoadWaveOperation.o GBLoadWaveDialog.o GBScalingDialog.o XOPDialogsWin.o libIgor.a XOPSupport.o XOPFiles.o
+	$(CROSS)$(CC) -shared -o GBLoadWave.xop GBLoadWave.o GBLoadWaveOperation.o GBLoadWaveDialog.o GBScalingDialog.o XOPDialogsWin.o GBLoadWaveres.o XOPSupport.o XOPFiles.o $(LIBS) libIgor.a  
 
 	
 xopSLOAD.o:xopSLOAD.c
 	$(CROSS)$(CC) $(DEFINES) $(INCDIR) xopSLOAD.c -o xopSLOAD.o  -c 
-xopSLOAD.xop:xopSLOAD.o libIgor.a
-#	$(CROSS)$(CC) -o xopSLOAD.xop xopSLOAD.o  $(LIBS)
-#	$(CROSS)$(CC) "$(IGORDIR)/XOPSupport/IGOR.lib" "$(IGORDIR)/XOPSupport/VC6/XOPSupport.lib" /usr/i586-mingw32msvc/lib/libmsvcrt.a xop1.o
-	$(CROSS)$(CC)  -shared  -o xopSLOAD.xop $(DEFINES) $(INCDIR) xopSLOAD.c xopSLOAD.o $(LIBS) libIgor.a  
+#xopSLOAD.xop:libIgor.a XOPSupport.o 
+#	$(CROSS)$(CC) -shared -o xopSLOAD.xop $(DEFINES) $(INCDIR) xopSLOAD.c XOPSupport.o $(LIBS) libIgor.a  
+xopSLOAD.xop: xopSLOAD.o libIgor.a XOPSupport.o 
+	$(CROSS)$(CC) -shared -o xopSLOAD.xop xopSLOAD.o XOPSupport.o $(LIBS) libIgor.a  
 
 	
 libIgor.a: $(IGORDIR)/XOPSupport/IGOR.lib
 	$(CROSS)reimp -c --as $(CROSS)as --dlltool $(CROSS)dlltool $(IGORDIR)/XOPSupport/IGOR.lib
 
+XOPDialogsWin.o:$(IGORDIR)/XOPSupport/XOPDialogsWin.c
+	$(CROSS)$(CC) $(DEFINES) $(INCDIR) $(IGORDIR)/XOPSupport/XOPDialogsWin.c -o XOPDialogsWin.o -c
 XOPSupport.o:$(IGORDIR)/XOPSupport/XOPSupport.c
 	$(CROSS)$(CC) $(DEFINES) $(INCDIR) $(IGORDIR)/XOPSupport/XOPSupport.c -o XOPSupport.o -c
+XOPFiles.o:$(IGORDIR)/XOPSupport/XOPFiles.c
+	$(CROSS)$(CC) $(DEFINES) $(INCDIR) $(IGORDIR)/XOPSupport/XOPFiles.c -o XOPFiles.o -c
 
 
 ## compiling XOP1: this should work
