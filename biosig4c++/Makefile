@@ -66,7 +66,8 @@ else
   LFLAGS      = $(LFLAGS_static)
   LIBS        = $(LIBS_static)
 endif
-LIBS         += -lz -lcholmod #-lgdcmDSED -lgsl -lgslcblas -lm	# static
+LDLIBS      = -lz -lcholmod #-lgdcmDSED -lgsl -lgslcblas -lm	# static
+LIBS         += $(LDLIBS)
 DELETE        = rm
 COPY          = cp -f
 TEMP_DIR      = /tmp/
@@ -374,7 +375,7 @@ libbiosig.a: $(OBJECTS) t240/libcnsfef.a biosig.h biosig-dev.h
 	$(AR) libbiosig.a $(OBJECTS) t240/*.o
 
 libbiosig.so: $(OBJECTS) t240/libcnsfef.a biosig.h biosig-dev.h
-	$(CXX) -shared -fPIC -Wl,-soname,libbiosig.so.${MAJOR_VERSION} \
+	$(CXX) -shared -fPIC -Wl,-soname,libbiosig.so.${MAJOR_VERSION} $(LDLIBS) \
 		-o libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} $(OBJECTS) t240/*.o
 	ln -sf libbiosig.so.${MAJOR_VERSION}.${MINOR_VERSION}.${STEPPING} libbiosig.so.${MAJOR_VERSION}
 	ln -sf libbiosig.so.${MAJOR_VERSION} libbiosig.so
