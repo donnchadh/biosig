@@ -195,7 +195,9 @@ char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries
 	}
 	
 		
-	for (k=0; k<hdr->NS;k++) {
+	for (k=0; k<hdr->NS; k++) {
+		
+
 	}
 
 	if ((*ns)+1 > hdr->NS) {	// another channel 
@@ -214,6 +216,36 @@ int sopen_zzztest(HDRTYPE* hdr) {
 	}		
 	else if (hdr->TYPE==CFS) {
 
+		// DO NOT USE THESE STRUCTS UNLESS YOU ARE SURE THERE ARE NO ALIGNMENT ERRORS 
+		struct CFSGeneralHeader_t {
+			char 	Marker[8];
+			char 	Filename[14];
+			uint32_t Filesize;
+			char 	Time[8];
+			char 	Date[8];
+			uint16_t NChannels;
+			uint16_t NFileVars;
+			uint16_t NDataSectionVars;
+			uint16_t SizeHeader;
+			uint16_t SizeData;
+			uint32_t LastDataHeaderSectionOffset;
+			uint16_t NDataSections;
+			uint16_t DiskBlockSizeRounding;
+			char 	Comment[73];
+			uint32_t PointerTableOffset;
+			char	reserved[40];
+		} *CFSGeneralHeader=NULL;
+
+		struct CFSChannelDev_t {
+			char 	Channelname[22];
+			char 	YYnits[10];
+			char 	XUnits[10];
+			uint8_t datatype;
+			uint8_t datakind;
+			uint16_t ByteSpaceBetweenElements;
+			uint16_t NextChannel;
+		} *CFSChannelDev=NULL;
+
 		fprintf(stdout,"Warning: support for CFS is very experimental\n");
 
 #define H1LEN (8+14+4+8+8+2+2+2+2+2+4+2+2+74+4+40)
@@ -223,8 +255,11 @@ int sopen_zzztest(HDRTYPE* hdr) {
 			count += ifread(hdr->AS.Header+count,1,count,hdr);
 		}
 		hdr->AS.Header[count] = 0;
+		hdr->FLAG.OVERFLOWDETECTION = 0; 
 		
 		uint8_t k;
+		CFSGeneralHeader = (CFSGeneralHeader_t*)hdr->AS.Header;
+		hdr->NS = l_endian_u16(CFSGeneralHeader->NChannels);
 		/* General Header */			
 		uint32_t filesize = leu32p(hdr->AS.Header+22);
 		hdr->NS    = leu16p(hdr->AS.Header+42);	// 6  number of channels 
@@ -232,15 +267,23 @@ int sopen_zzztest(HDRTYPE* hdr) {
 		uint16_t d = leu16p(hdr->AS.Header+46);	// 8  number of data section variables 
 		uint16_t FileHeaderSize = leu16p(hdr->AS.Header+48);	// 9  byte size of file header 
 		uint16_t DataHeaderSize = leu16p(hdr->AS.Header+50);	// 10 byte size of data section header 
-		uint32_t DataSectionOffset = leu32p(hdr->AS.Header+52);	// 11 last data section header offset 
-		uint16_t NumberDataSection = leu16p(hdr->AS.Header+56);	// 12 last data section header offset
+		uint32_t LastDataSectionHeaderOffset = leu32p(hdr->AS.Header+52);	// 11 last data section header offset 
+		uint16_t NumberOfDataSections = leu16p(hdr->AS.Header+56);	// 12 last data section header offset
 
-fprintf(stdout,"CFS 131 - %d,%d,%d,0x%x,0x%x,0x%x,%d,0x%x\n",hdr->NS,n,d,FileHeaderSize,DataHeaderSize,DataSectionOffset,NumberDataSection,leu32p(hdr->AS.Header+0x86));
+		if (NumberOfDataSections) {
+			hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP, (hdr->EVENT.N + NumberOfDataSections - 1) * sizeof(*hdr->EVENT.TYP));
+			hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS, (hdr->EVENT.N + NumberOfDataSections - 1) * sizeof(*hdr->EVENT.POS));
+			hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN, (hdr->EVENT.N + NumberOfDataSections - 1) * sizeof(*hdr->EVENT.CHN));
+			hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR, (hdr->EVENT.N + NumberOfDataSections - 1) * sizeof(*hdr->EVENT.DUR));
+		}
+		
+
+fprintf(stdout,"CFS 131 - %d,%d,%d,0x%x,0x%x,0x%x,%d,0x%x\n",hdr->NS,n,d,FileHeaderSize,DataHeaderSize,LastDataSectionHeaderOffset,NumberOfDataSections,leu32p(hdr->AS.Header+0x86));
 		
 		/* channel information */
 		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS, sizeof(CHANNEL_TYPE));
 #define H2LEN (22+10+10+1+1+2+2)
-		char* H2 = (char*)(hdr->AS.Header + H1LEN);
+ 		char* H2 = (char*)(hdr->AS.Header + H1LEN);
 		double *xPhysDimScale = (double*) malloc(hdr->NS * sizeof(double));
 		for (k = 0; k < hdr->NS; k++) {
 			CHANNEL_TYPE *hc = hdr->CHANNEL + k;
@@ -260,6 +303,9 @@ fprintf(stdout,"CFS 131 - %d,%d,%d,0x%x,0x%x,0x%x,%d,0x%x\n",hdr->NS,n,d,FileHea
 				B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 				B4C_ERRMSG = "(CFS)Subsidiary or Matrix data not supported";
 			}
+			hc->LowPass  = NaN;
+			hc->HighPass = NaN;
+			hc->Notch    = NaN;
 fprintf(stdout,"Channel #%i: [%s](%i/%i) <%s>/<%s> ByteSpace%i,Next#%i\n",k+1, H2 + 1 + k*H2LEN, gdftyp, H2[43], H2 + 23 + k*H2LEN, H2 + 33 + k*H2LEN, leu16p(H2+44+k*H2LEN), leu16p(H2+46+k*H2LEN));
 		}
 
@@ -275,7 +321,7 @@ fprintf(stdout,"\n******* file variable information *********\n");
 			size_t pos = datapos + k*36;
 			uint16_t typ = leu16p(hdr->AS.Header+pos+22);
 			uint16_t off = leu16p(hdr->AS.Header+pos+34);
-			fprintf(stdout,"\n%3i: <%s>  %i  [%s] %i ",k,hdr->AS.Header+pos+1,typ,hdr->AS.Header+pos+25,off);
+			fprintf(stdout,"\n%3i @0x%6x: <%s>  %i  [%s] %i ",k, pos, hdr->AS.Header+pos+1,typ,hdr->AS.Header+pos+25,off);
 			size_t p3 = H1LEN + H2LEN*hdr->NS + (n+d)*36 + off + 42;
 			switch (typ) {
 			case 0:
@@ -301,78 +347,132 @@ fprintf(stdout,"\n******* file variable information *********\n");
 			if (typ<5) fprintf(stdout," *0x%x = [%d]",p3,i);
 			else if (typ<7) fprintf(stdout," *0x%x = [%g]",p3,f);
 			else if (typ==7) fprintf(stdout," *0x%x = <%s>",p3,hdr->AS.Header+p3);
-						
 		}
+		
+		
 fprintf(stdout,"\n******* DS variable information *********\n");
-		datapos = H1LEN + H2LEN*hdr->NS + n*36;
-		for (k = 0; k < d; k++) {
-			size_t pos = datapos + k*36;
-			size_t p2 = leu16p(hdr->AS.Header+pos+34);
-			size_t p3 = FileHeaderSize + DataSectionOffset + p2;
-			int i; double f;
-			uint16_t typ = leu16p(hdr->AS.Header+pos+22);
-			fprintf(stdout,"\n%3i: <%s>  %i  [%s] %i:", k, hdr->AS.Header+pos+1, typ, hdr->AS.Header+pos+25, p2);
-			switch (typ) {
+		datapos = LastDataSectionHeaderOffset; //H1LEN + H2LEN*hdr->NS + n*36;
+
+		void *VarChanInfoPos = hdr->AS.Header + datapos + 30;
+		char flag_ChanInfoChanged = 0; 
+		hdr->NRec = NumberOfDataSections;
+		for (char m = 0; m < NumberOfDataSections; m++) {
+			if (!leu32p(hdr->AS.Header+datapos+8)) continue; 	// empty segment 
+
+			flag_ChanInfoChanged |= memcmp(VarChanInfoPos, hdr->AS.Header + datapos + 30, 24*hdr->NS);
+
+fprintf(stdout,"\n******* DATA SECTION --%03i-- %i *********\n",m,flag_ChanInfoChanged);
+			fprintf(stdout,"\n[DS#%3i] 0x%x 0x%x [0x%x 0x%x szChanData=%i] 0x02%x\n", m, FileHeaderSize, datapos, leu32p(hdr->AS.Header+datapos), leu32p(hdr->AS.Header+datapos+4), leu32p(hdr->AS.Header+datapos+8), leu16p(hdr->AS.Header+datapos+12));
+
+			for (k = 0; k < hdr->NS; k++) {
+				void *pos = hdr->AS.Header + datapos + 30 + 24 * k;
+				
+				CHANNEL_TYPE *hc = hdr->CHANNEL + k;
+
+				uint32_t p   = leu32p(pos);
+				hc->SPR      = leu32p(pos+4);
+				hc->Cal      = lef32p(pos+8);
+				hc->Off      = lef32p(pos+12);
+				double Xcal  = lef32p(pos+16);
+				double Xoff  = lef32p(pos+20);
+
+fprintf(stdout,"DS%i#%i: %d %d %fY+%f %fxX+%f\n",k,n,p,hc->SPR,hc->Cal,hc->Off,Xcal,Xoff);
+
+				double Fs = 1.0 / (xPhysDimScale[k] * Xcal);
+				if (!m && !k) {
+					hdr->SampleRate = Fs;
+					fprintf(stdout,"========== Fs=%f %f %f\n",hdr->SampleRate, Fs,hdr->SampleRate - Fs);
+				}	
+				else if (fabs(hdr->SampleRate - Fs)>1e-3) {
+					fprintf(stdout,"========== Fs=%f %f %f\n",hdr->SampleRate, Fs,hdr->SampleRate - Fs);
+					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+					B4C_ERRMSG = "CED/CFS: different sampling rates are not supported";
+				}	 
+			}
+			
+			
+			for (k = 0; k < 0; k++) {
+				size_t pos = leu16p(hdr->AS.Header + datapos + 30 + hdr->NS * 24 + k * 36);
+				int i; double f;
+				uint16_t typ = leu16p(hdr->AS.Header+pos+22);
+				uint16_t off = leu16p(hdr->AS.Header+pos+34);
+				uint32_t p3  = pos+off;
+				fprintf(stdout,"\n[DS#%3i/%3i] @0x%6x: <%s>  %i  [%s] :", m, k, pos, hdr->AS.Header+datapos+pos+1, typ, hdr->AS.Header+datapos+pos+25);
+				switch (typ) {
+				case 0:
+				case 1:
+					i = hdr->AS.Header[p3];
+					break;
+				case 2: 
+					i=lei16p(hdr->AS.Header+p3);
+					break;
+				case 3: 
+					i=leu16p(hdr->AS.Header+p3);
+					break;
+				case 4: 
+					i=lei32p(hdr->AS.Header+p3);
+					break;
+				case 5: 
+					f=lef32p(hdr->AS.Header+p3);
+					break;
+				case 6: 
+					f=lef64p(hdr->AS.Header+p3);
+					break;
+				}
+				if (typ<5) fprintf(stdout," *0x%x = %d",p3,i);
+				else if (typ<7) fprintf(stdout," *0x%x = %g", p3,f);
+				else if (typ==7) fprintf(stdout," *0x%x = <%s>",p3,hdr->AS.Header+p3);
+			}
+
+			datapos = leu32p(hdr->AS.Header+datapos);
+		}
+
+		datapos = FileHeaderSize;  //+DataHeaderSize;
+		
+		if (flag_ChanInfoChanged) {
+			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+			B4C_ERRMSG = "CED/CFS: varying channel information not supported";
+		}
+		for (k = 0; k < hdr->NS; k++) {
+			if (k==0) 
+				hdr->SPR = hdr->CHANNEL[0].SPR;
+			else {
+				hdr->SPR = lcm(hdr->SPR, hdr->CHANNEL[k].SPR);
+			}
+			switch (hdr->CHANNEL[k].GDFTYP) {
 			case 0:
 			case 1:
-				i = hdr->AS.Header[p3];
-				break;
-			case 2: 
-				i=lei16p(hdr->AS.Header+p3);
-				break;
-			case 3: 
-				i=leu16p(hdr->AS.Header+p3);
-				break;
-			case 4: 
-				i=lei32p(hdr->AS.Header+p3);
-				break;
-			case 5: 
-				f=lef32p(hdr->AS.Header+p3);
-				break;
-			case 6: 
-				f=lef64p(hdr->AS.Header+p3);
-				break;
+				hdr->CHANNEL[k].DigMax  = 127; 
+				hdr->CHANNEL[k].DigMin  = -128;
+				break; 
+			case 2:
+				hdr->CHANNEL[k].DigMax  = 255; 
+				hdr->CHANNEL[k].DigMin  = 0;
+				break; 
+			case 3:
+				hdr->CHANNEL[k].DigMax  = (int16_t)0x7fff; 
+				hdr->CHANNEL[k].DigMin  = (int16_t)0x8000;
+				break; 
+			case 4:
+				hdr->CHANNEL[k].DigMax  = 0xffff; 
+				hdr->CHANNEL[k].DigMin  = 0;
+				break; 
+			case 16:
+			case 17:
+				hdr->CHANNEL[k].DigMax  = 1e9; 
+				hdr->CHANNEL[k].DigMin  = -1e9;
+				break; 
 			}
-			if (typ<5) fprintf(stdout," *0x%x = %d",p3,i);
-			else if (typ<7) fprintf(stdout," *0x%x = %g",p3,f);
-			else if (typ==7) fprintf(stdout," *0x%x = %s",p3,hdr->AS.Header+p3);
+			hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
+			hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 		}
-
-		datapos = FileHeaderSize;//+DataHeaderSize;
-		
-		/* data section variable information */
-		// DataHeaderSize*30
-		for (k=0; k<NumberDataSection; k++) {
-			// general data section header
-fprintf(stdout,"\n******* DATA SECTION --%03i-- *********\n",k);
-
-		size_t StartPrevDataSection = leu32p(hdr->AS.Header+datapos);
-		size_t StartChanData  = leu32p(hdr->AS.Header+datapos+4);
-		size_t LengthChanData = leu32p(hdr->AS.Header+datapos+40);
-fprintf(stdout,"DS%i: prev=0x%08x,startCD=0x%08x/0x%08x,sizeCD=0x%08x,flag=%04i\n",k,StartPrevDataSection,leu32p(hdr->AS.Header+count+(k-NumberDataSection-1)*4),StartChanData,LengthChanData,leu16p(hdr->AS.Header+datapos+12));
-		// TODO: StartChanData does not fit Tail (list of starting points for channel data)
-
-			// channel information 
-			uint32_t pos = datapos;  //leu32p(hdr->AS.Header+datapos+4);
-			for (int n=0; n<hdr->NS; n++) {
-				uint32_t p   = leu32p(hdr->AS.Header+datapos+n*24);
-				uint32_t spr = leu32p(hdr->AS.Header+datapos+n*24+4);
-				double cal   = lef32p(hdr->AS.Header+datapos+n*24+8);
-				double off   = lef32p(hdr->AS.Header+datapos+n*24+12);
-				double Xcal  = lef32p(hdr->AS.Header+datapos+n*24+16);
-				double Xoff  = lef32p(hdr->AS.Header+datapos+n*24+20);
-fprintf(stdout,"DS%i#%i: 0x%08x %d %fY+%f %fxX+%f\n",k,n,p,spr,cal,off,Xcal,Xoff);
-			}
-
-			datapos = StartChanData + LengthChanData;
-		}
-
-fprintf(stdout,"DataPos=%i(0x%x) %i(0x%x) %i(0x%x) \n",FileHeaderSize,FileHeaderSize,DataHeaderSize,DataHeaderSize,datapos,datapos);
-
-		/* channel information */
-
-		struct tm t;
-		//t.tm_year = atoi
+		for (k = 1; k < NumberOfDataSections; k++) {
+				hdr->EVENT.TYP[hdr->EVENT.N] = 0x7ffe;
+				hdr->EVENT.POS[hdr->EVENT.N] = k*hdr->SPR;
+				hdr->EVENT.CHN[hdr->EVENT.N] = 0;
+				hdr->EVENT.DUR[hdr->EVENT.N] = 0;
+				hdr->EVENT.N++;
+		}	
 		
 		if (xPhysDimScale) free(xPhysDimScale);
 #undef H1LEN 
@@ -537,8 +637,6 @@ fprintf(stdout,"DataPos=%i(0x%x) %i(0x%x) %i(0x%x) \n",FileHeaderSize,FileHeader
 		hdr->AS.length = 1;
 	}
 
-	B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-	B4C_ERRMSG = "asn1 currently not supported";
 	return(0);
 };
 
