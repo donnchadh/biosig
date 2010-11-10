@@ -23,7 +23,22 @@ function viewedf(Action, ActOption)
 % Version 3.04Alpha, 10/22/01
 % (c) Herbert Ramoser (herbert.ramoser@arcs.ac.at)
 %
-% This Software is subject to the GNU public license.
+% This Software is subject to the GNU public license
+
+%    This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%
+%    BioSig is free software: you can redistribute it and/or modify
+%    it under the terms of the GNU General Public License as published by
+%    the Free Software Foundation, either version 3 of the License, or
+%    (at your option) any later version.
+%
+%    BioSig is distributed in the hope that it will be useful,
+%    but WITHOUT ANY WARRANTY; without even the implied warranty of
+%    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+%    GNU General Public License for more details.
+%
+%    You should have received a copy of the GNU General Public License
+%    along with BioSig.  If not, see <http://www.gnu.org/licenses/>.
 
 % Changes:
 % 01/27/98 Ramoser: Plugins may replace EDF data, optional parameter string
@@ -255,7 +270,7 @@ uimenu(mh, ...
 
 % Strings
 textx = 0.02;
-textheight = LocalGetFontHeight;
+textheight = LocalGetFontHeight();
 texty = 1 - textheight / 4;
 Data.Display.Strings.CurrTime = uicontrol(fig, ... % Time string
     'Style', 'Text', ...
@@ -1974,7 +1989,8 @@ tempH = uicontrol(...
     'FontUnits', 'Normalized', ...
     'Position', [0, 0, 1, 1], ...
     'Visible', 'off');
-hght = get(tempH, 'FontSize') * 1.25; % 1.25 makes things look better
+t = get(tempH);
+hght = getfield(t, 'FontSize') * 1.25; % 1.25 makes things look better
 delete(tempH);
 
 
