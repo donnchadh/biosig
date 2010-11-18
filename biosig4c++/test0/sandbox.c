@@ -374,11 +374,13 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i] 0x%x 0x%x [0x%x 0x%x szChanData=
 				hc->Off     = lef32p(pos+12);
 				double Xcal = lef32p(pos+16);
 				//double Xoff = lef32p(pos+20);// unused
+				hc->OnOff   = 1;
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 409: %i #%i: SPR=%i=%i=%i  x%f+-%f %i\n",m,k,spr,SPR,hc->SPR,hc->Cal,hc->Off,p);
 
 				double Fs = 1.0 / (xPhysDimScale[k] * Xcal);
 				if (!m && !k) {
 					hdr->SampleRate = Fs;
-					SPR = hc->SPR;
 				}	
 				else if (fabs(hdr->SampleRate - Fs) > 1e-3) {
 					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
@@ -396,15 +398,25 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i] 0x%x 0x%x [0x%x 0x%x szChanData=
 				// hack: copy data into a single block, only if more than one section	
 				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata, (hdr->NS * SPR + spb) * sizeof(double));
 			
-				void *srcaddr = hdr->AS.Header+leu32p(hdr->AS.Header+datapos + 4);
-				
+/*
+				if (VERBOSE_LEVEL>7) 
+				 	fprintf(stdout,"CFS 411: @%p %i @%p\n",hdr->AS.rawdata, (hdr->NS * SPR + spb), srcaddr);						
+*/
 				hdr->AS.first = 0; 
 				for (k = 0; k < hdr->NS; k++) {
 					CHANNEL_TYPE *hc = hdr->CHANNEL + k;
 
+					uint32_t memoffset = leu32p(hdr->AS.Header + datapos + 30 + 24 * k);
+					uint8_t *srcaddr = hdr->AS.Header+leu32p(hdr->AS.Header+datapos + 4) + memoffset;
+				
+				if (VERBOSE_LEVEL>7) 
+				 	fprintf(stdout,"CFS 412 #%i %i: @%p %i\n", k, hc->SPR, srcaddr, leu32p(hdr->AS.Header+datapos + 4) + leu32p(hdr->AS.Header + datapos + 30 + 24 * k));						
+
+					int16_t szz = (GDFTYP_BITS[hc->GDFTYP]>>3);
 					for (int k2 = 0; k2 < hc->SPR; k2++) {
-						void *ptr = srcaddr + k2*((GDFTYP_BITS[hc->GDFTYP]>>3)); 
+						uint8_t *ptr = srcaddr + k2*szz; 
 						double val; 
+
 						switch (hc->GDFTYP) {
 						// reorder for performance reasons - more frequent gdftyp's come first	
 						case 3:  val = lei16p(ptr); break;
@@ -422,9 +434,13 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i] 0x%x 0x%x [0x%x 0x%x szChanData=
 							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 							B4C_ERRMSG = "CED/CFS: invalid data type";
 						}
-						*(double*)(hdr->AS.rawdata + (SPR+k2)*bpb + k*sizeof(double)) = val*hc->Cal + hc->Off;
+
+if (VERBOSE_LEVEL>8) 
+ 	fprintf(stdout,"CFS read: %2i #%2i:%5i [%i]: %f -> %f  @%p\n",m,k,k2,bpb,SPR,val,val*hc->Cal + hc->Off, hdr->AS.rawdata + ((SPR + k2) * hdr->NS + k) * sizeof(double));						
+
+						*(double*) (hdr->AS.rawdata + k * sizeof(double) + (SPR + k2) * hdr->NS * sizeof(double)) = val * hc->Cal + hc->Off;
 					}
-					srcaddr += hdr->CHANNEL[k].SPR * GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] >> 3;
+//					srcaddr += hdr->CHANNEL[k].SPR * GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] >> 3;
 				}
 			}
 			else {
@@ -441,6 +457,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i] 0x%x 0x%x [0x%x 0x%x szChanData=
 			}	
 			SPR += spr;	
 			SZ  += sz; 
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 414: SPR=%i,%i,%i NRec=%i, @%p\n",spr,SPR,hdr->SPR,hdr->NRec, hdr->AS.rawdata);
 			
 			// for (k = 0; k < d; k++) {
 			for (k = 0; k < 0; k++) {
@@ -470,14 +488,18 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i/%3i] @0x%6x+0x%3x: <%s>  %i  [%s]
 			datapos = leu32p(hdr->AS.Header + datapos);
 		}
 
+if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 419: SPR=%i=%i NRec=%i  @%p\n",SPR,hdr->SPR,hdr->NRec, hdr->AS.rawdata);
+
 		hdr->AS.first = 0;
 		if (NumberOfDataSections<=1) {
 			// hack: copy data into a single block, only if more than one section	
+			hdr->FLAG.UCAL = 0; 
 			hdr->SPR  = SPR;
 			hdr->NRec = 1;
 			hdr->AS.length = 1;
 		}
 		else  {			
+			hdr->FLAG.UCAL = 1; 
 			hdr->SPR       = 1;
 			hdr->NRec      = SPR;
 			hdr->AS.bpb    = hdr->NS * sizeof(double);
@@ -487,11 +509,11 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i/%3i] @0x%6x+0x%3x: <%s>  %i  [%s]
 				hc->GDFTYP  = 17;	// double 
 				hc->SPR     = hdr->SPR;
 				hc->Cal     = 1.0;
-				hc->Off     = 1.0;
+				hc->Off     = 0.0;
 			}
 		}	
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 404: SPR=%i NRec=%i\n",hdr->SPR,hdr->NRec);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,hdr->NRec);
 		datapos   = FileHeaderSize;  //+DataHeaderSize;
 		
 		if (flag_ChanInfoChanged) {
