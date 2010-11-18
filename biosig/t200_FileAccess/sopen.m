@@ -123,10 +123,10 @@ elseif ischar(CHAN)
         H2 = sopen(CHAN,'r'); H2=sclose(H2); 
         ReRefMx = H2.Calib;
         CHAN = find(any(CHAN,2));
-elseif all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | any(CHAN<0) | (any(CHAN==0) & (numel(CHAN)>1));
+elseif all(size(CHAN)>1) || any(floor(CHAN)~=CHAN) || any(CHAN<0) || (any(CHAN==0) && (numel(CHAN)>1));
         ReRefMx = CHAN; 
         CHAN = find(any(CHAN,2));
-elseif all(CHAN>0) & all(floor(CHAN)==CHAN), 
+elseif all(CHAN>0) && all(floor(CHAN)==CHAN), 
 	if any(diff(CHAN)<=0),
 	%	fprintf(HDR.FILE.FID,'Warning SOPEN: CHAN-argument not sorted - header information like Labels might not correspond to data.\n');
 	end;	
@@ -248,7 +248,7 @@ if strcmp(HDR.TYPE,'EDF') || strcmp(HDR.TYPE,'GDF') || strcmp(HDR.TYPE,'BDF'),
                 end;
                 
                 HDR.VERSION=char(H1(1:8));                     % 8 Byte  Versionsnummer 
-                if ~(strcmp(HDR.VERSION,'0       ') | all(abs(HDR.VERSION)==[255,abs('BIOSEMI')]) | strcmp(HDR.VERSION(1:3),'GDF'))
+                if ~(strcmp(HDR.VERSION,'0       ') || all(abs(HDR.VERSION)==[255,abs('BIOSEMI')]) || strcmp(HDR.VERSION(1:3),'GDF'))
                         HDR.ErrNo = [1,HDR.ErrNo];
                         if ~strcmp(HDR.VERSION(1:3),'   '); % if not a scoring file, 
                                 %	    return; 
@@ -316,7 +316,7 @@ end;
 				HDR.T0 = datevec(t1);
 				t2 = tmp(9:16)*256.^[-4:3]';
 				HDR.Patient.Birthday = datevec(t2);
-				if (t2 > 1) & (t2 < t1),
+				if (t2 > 1) && (t2 < t1),
 					HDR.Patient.Age = floor((t1-t2)/365.25);
 				end;
                                 HDR.REC.Equipment = fread(HDR.FILE.FID,[1,8],'uint8');   
@@ -381,7 +381,7 @@ end;
 			[tmp1,tmp] = strtok(tmp,' ');
                         HDR.Patient.Name = tmp(2:end); 
                                 
-                        tmp=(find((H1<32) | (H1>126))); 		%%% syntax for Matlab
+                        tmp = find((H1<32) | (H1>126)); 		%%% syntax for Matlab
                         if ~isempty(tmp) %%%%% not EDF because filled out with ASCII(0) - should be spaces
                                 %H1(tmp)=32; 
                                 HDR.ErrNo=[1025,HDR.ErrNo];
@@ -490,7 +490,7 @@ end;
                         HDR.Dur=30;
                 end;
                 
-                if  any(HDR.T0>[2084 12 31 24 59 59]) | any(HDR.T0<[1985 1 1 0 0 0])
+                if  any(HDR.T0>[2084 12 31 24 59 59]) || any(HDR.T0<[1985 1 1 0 0 0])
                         HDR.ErrNo = [4, HDR.ErrNo];
                 end;
 
@@ -643,7 +643,7 @@ end;
 	                if any(HDR.AS.BPR ~= HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)');
 	                        fprintf(2,'\nError SOPEN (GDF/EDF/BDF): block configuration in file %s not supported.\n',HDR.FileName);
 	                end;
-	                HDR.AS.SAMECHANTYP = all(HDR.AS.BPR == (HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)')) & ~any(diff(HDR.GDFTYP)); 
+	                HDR.AS.SAMECHANTYP = all(HDR.AS.BPR == (HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)')) && ~any(diff(HDR.GDFTYP)); 
 	                HDR.AS.bpb = sum(ceil(HDR.AS.SPR.*GDFTYP_BYTE(HDR.GDFTYP+1)'));	% Bytes per Block
 	                HDR.Calib  = [HDR.Off; diag(HDR.Cal)];
 
@@ -872,6 +872,18 @@ end;
 
                         % Classlabels according to 
                         % http://biosig.cvs.sourceforge.net/*checkout*/biosig/biosig/doc/eventcodes.txt
+                        % sort event table before extracting HDR.Classlabel and HDR.TRIG
+			if 0,   
+				%% TODO: check whether sorting of event table fixes the problem on Classlabel and TRIG.                      
+	                        [HDR.EVENT.POS,ix] = sort(HDR.EVENT.POS);
+        	                HDR.EVENT.TYP = HDR.EVENT.TYP(ix);
+                	        if isfield(HDR.EVENT,'CHN')
+	                	        HDR.EVENT.CHN = HDR.EVENT.CHN(ix);
+		                end;    	    
+        	                if isfield(HDR.EVENT,'DUR')
+	        	                HDR.EVENT.DUR = HDR.EVENT.DUR(ix);
+	                	end;
+	                end; 	
                         if (length(HDR.EVENT.TYP)>0)
                                 ix = (HDR.EVENT.TYP>hex2dec('0300')) & (HDR.EVENT.TYP<hex2dec('030d'));
                                 ix = ix | ((HDR.EVENT.TYP>=hex2dec('0320')) & (HDR.EVENT.TYP<=hex2dec('037f')));
@@ -967,7 +979,7 @@ end;
                                         FLAG.ANNONS = 0; % invalid         
                                 elseif strcmp(char(m),'TEST');
                                         t0 = t1;
-                                elseif ((length(m)==1) & ~isnan(t1-t0)),
+                                elseif ((length(m)==1) && ~isnan(t1-t0)),
                                         N = N+1;
                                         HDR.EVENT.POS(N,1) = t1;
                                         HDR.EVENT.TYP(N,1) = abs(m);
@@ -987,7 +999,7 @@ end;
                                 end;
                         end;
 
-                elseif strcmp(HDR.TYPE,'BDF') & any(strmatch('Status',HDR.Label)),
+                elseif strcmp(HDR.TYPE,'BDF') && any(strmatch('Status',HDR.Label)),
                         % BDF: 
 
                         tmp = strmatch('Status',HDR.Label);
@@ -1007,7 +1019,7 @@ end;
                         HDR.BDF.ANNONS = reshape(double(t),3,length(t)/3)'*2.^[0;8;16];
 			HDR = bdf2biosig_events(HDR); 
 
-                elseif strcmp(HDR.TYPE,'BDF') & ~any(strmatch('Status',HDR.Label)),
+                elseif strcmp(HDR.TYPE,'BDF') && ~any(strmatch('Status',HDR.Label)),
                         HDR.FLAG.OVERFLOWDETECTION = 0; 
                         fprintf(HDR.FILE.stderr,'Warning SOPEN(BDF): File %s does not contain Status Channel - overflowdetection not supported!\n',HDR.FileName);
                         
@@ -1068,9 +1080,9 @@ end;
 			HDR.Patient.Sex = 0; 
                 elseif isnumeric(HDR.Patient.Sex)
                         ;       % nothing to be done
-		elseif strcmpi(HDR.Patient.Sex,'m') | strcmpi(HDR.Patient.Sex,'male')
+		elseif strcmpi(HDR.Patient.Sex,'m') || strcmpi(HDR.Patient.Sex,'male')
 			HDR.Patient.Sex = 1; 
-		elseif strcmpi(HDR.Patient.Sex,'f') | strcmpi(HDR.Patient.Sex,'female')
+		elseif strcmpi(HDR.Patient.Sex,'f') || strcmpi(HDR.Patient.Sex,'female')
 			HDR.Patient.Sex = 2; 
                 else
 			HDR.Patient.Sex = 0; 
@@ -1080,9 +1092,9 @@ end;
 			HDR.Patient.Handedness = 0; 
                 elseif isnumeric(HDR.Patient.Handedness)
                         ;       % nothing to be done
-		elseif strcmpi(HDR.Patient.Handedness,'r') | strcmpi(HDR.Patient.Handedness,'right')
+		elseif strcmpi(HDR.Patient.Handedness,'r') || strcmpi(HDR.Patient.Handedness,'right')
 			HDR.Patient.Handedness = 1; 
-		elseif strcmpi(HDR.Patient.Handedness,'l') | strcmpi(HDR.Patient.Handedness,'left')
+		elseif strcmpi(HDR.Patient.Handedness,'l') || strcmpi(HDR.Patient.Handedness,'left')
 			HDR.Patient.Handedness = 2; 
 		else	
 			HDR.Patient.Handedness = 0; 
@@ -1091,9 +1103,9 @@ end;
                         HDR.Patient.Impairment.Visual = 0;
                 elseif isnumeric(HDR.Patient.Impairment.Visual)
                         ;       % nothing to be done
-                elseif strcmpi(HDR.Patient.Impairment.Visual,'NO') | strcmpi(HDR.Patient.Impairment.Visual,'NO')
+                elseif strcmpi(HDR.Patient.Impairment.Visual,'NO') || strcmpi(HDR.Patient.Impairment.Visual,'NO')
                         HDR.Patient.Impairment.Visual = 1;
-                elseif strcmpi(HDR.Patient.Impairment.Visual,'Y') | strcmpi(HDR.Patient.Impairment.Visual,'YES')
+                elseif strcmpi(HDR.Patient.Impairment.Visual,'Y') || strcmpi(HDR.Patient.Impairment.Visual,'YES')
                         HDR.Patient.Impairment.Visual = 2;
                 elseif strncmpi(HDR.Patient.Impairment.Visual,'corr',4)
                         HDR.Patient.Impairment.Visual = 3;
@@ -1105,9 +1117,9 @@ end;
                         HDR.Patient.Smoking = 0;
                 elseif isnumeric(HDR.Patient.Smoking)
                         ;       % nothing to be done
-                elseif strcmpi(HDR.Patient.Smoking,'NO') | strcmpi(HDR.Patient.Smoking,'NO')
+                elseif strcmpi(HDR.Patient.Smoking,'NO') || strcmpi(HDR.Patient.Smoking,'NO')
                         HDR.Patient.Smoking = 1;
-                elseif strcmpi(HDR.Patient.Smoking,'Y') | strcmpi(HDR.Patient.Smoking,'YES')
+                elseif strcmpi(HDR.Patient.Smoking,'Y') || strcmpi(HDR.Patient.Smoking,'YES')
                         HDR.Patient.Smoking = 2;
                 elseif isnumeric(HDR.Patient.Smoking)
                 else 
@@ -1117,9 +1129,9 @@ end;
                         HDR.Patient.AlcoholAbuse = 0;
                 elseif isnumeric(HDR.Patient.AlcoholAbuse)
                         ;       % nothing to be done
-                elseif strcmpi(HDR.Patient.AlcoholAbuse,'NO') | strcmpi(HDR.Patient.AlcoholAbuse,'NO')
+                elseif strcmpi(HDR.Patient.AlcoholAbuse,'NO') || strcmpi(HDR.Patient.AlcoholAbuse,'NO')
                         HDR.Patient.AlcoholAbuse = 1;
-                elseif strcmpi(HDR.Patient.AlcoholAbuse,'Y') | strcmpi(HDR.Patient.AlcoholAbuse,'YES')
+                elseif strcmpi(HDR.Patient.AlcoholAbuse,'Y') || strcmpi(HDR.Patient.AlcoholAbuse,'YES')
                         HDR.Patient.AlcoholAbuse = 2;
                 elseif isnumeric(HDR.Patient.AlcoholAbuse)
                 else 
@@ -1129,9 +1141,9 @@ end;
                         HDR.Patient.DrugAbuse = 0;
                 elseif isnumeric(HDR.Patient.DrugAbuse)
                         ;       % nothing to be done
-                elseif strcmpi(HDR.Patient.DrugAbuse,'NO') | strcmpi(HDR.Patient.DrugAbuse,'NO')
+                elseif strcmpi(HDR.Patient.DrugAbuse,'NO') || strcmpi(HDR.Patient.DrugAbuse,'NO')
                         HDR.Patient.DrugAbuse = 1;
-                elseif strcmpi(HDR.Patient.DrugAbuse,'Y') | strcmpi(HDR.Patient.DrugAbuse,'YES')
+                elseif strcmpi(HDR.Patient.DrugAbuse,'Y') || strcmpi(HDR.Patient.DrugAbuse,'YES')
                         HDR.Patient.DrugAbuse = 2;
                 elseif isnumeric(HDR.Patient.DrugAbuse)
                 else 
@@ -1141,9 +1153,9 @@ end;
                         HDR.Patient.Medication = 0;
                 elseif isnumeric(HDR.Patient.Medication)
                         ;       % nothing to be done
-                elseif strcmpi(HDR.Patient.Medication,'NO') | strcmpi(HDR.Patient.Medication,'NO')
+                elseif strcmpi(HDR.Patient.Medication,'NO') || strcmpi(HDR.Patient.Medication,'NO')
                         HDR.Patient.Medication = 1;
-                elseif strcmpi(HDR.Patient.Medication,'Y') | strcmpi(HDR.Patient.Medication,'YES')
+                elseif strcmpi(HDR.Patient.Medication,'Y') || strcmpi(HDR.Patient.Medication,'YES')
                         HDR.Patient.Medication = 2;
                 else 
                         HDR.Patient.Medication = 0;
@@ -1152,14 +1164,14 @@ end;
                         HDR.Patient.Weight = 0; 
                 elseif (HDR.Patient.Weight > 254),
 			HDR.Patient.Weight = 255; 
-                elseif isnan(HDR.Patient.Weight) | (isnan(HDR.Patient.Weight)<0)
+                elseif isnan(HDR.Patient.Weight) || (isnan(HDR.Patient.Weight)<0)
 			HDR.Patient.Weight = 0; 
                 end;
                 if ~isfield(HDR.Patient,'Height')
 			HDR.Patient.Height = 0; 
                 elseif (HDR.Patient.Height > 254),
 			HDR.Patient.Height = 255; 
-                elseif isnan(HDR.Patient.Height) | (isnan(HDR.Patient.Height)<0)
+                elseif isnan(HDR.Patient.Height) || (isnan(HDR.Patient.Height)<0)
 			HDR.Patient.Height = 0; 
                 end;
                 if ~isfield(HDR.Patient,'Birthday') 
@@ -1254,25 +1266,25 @@ end;
                 end;
                 
                 if ~HDR.NS,
-                elseif ~isnan(HDR.Dur) & any(isnan(HDR.AS.SPR)) & ~any(isnan(HDR.AS.SampleRate))
+                elseif ~isnan(HDR.Dur) && any(isnan(HDR.AS.SPR)) && ~any(isnan(HDR.AS.SampleRate))
                         HDR.AS.SPR = HDR.AS.SampleRate * HDR.Dur;
-                elseif ~isnan(HDR.Dur) & ~any(isnan(HDR.AS.SPR)) & any(isnan(HDR.AS.SampleRate))
+                elseif ~isnan(HDR.Dur) && ~any(isnan(HDR.AS.SPR)) && any(isnan(HDR.AS.SampleRate))
                         HDR.SampleRate = HDR.Dur * HDR.AS.SPR;
-                elseif isnan(HDR.Dur) & ~any(isnan(HDR.AS.SPR)) & ~any(isnan(HDR.AS.SampleRate))
+                elseif isnan(HDR.Dur) && ~any(isnan(HDR.AS.SPR)) && ~any(isnan(HDR.AS.SampleRate))
                         HDR.Dur = HDR.AS.SPR(:) ./ HDR.AS.SampleRate(:);
                         if all((HDR.Dur(1)-HDR.Dur)<5*eps)
                                 HDR.Dur = HDR.Dur(1);
                         else
                                 fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF): SPR and SampleRate do not fit\n');
                         end;
-                elseif ~isnan(HDR.Dur) & ~any(isnan(HDR.AS.SPR)) & ~any(isnan(HDR.AS.SampleRate))
+                elseif ~isnan(HDR.Dur) && ~any(isnan(HDR.AS.SPR)) && ~any(isnan(HDR.AS.SampleRate))
                         %% thats ok, 
                 else
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN (GDF/EDF/BDF): more than 1 of HDR.Dur, HDR.SampleRate, HDR.AS.SPR undefined.\n');
                         return; 
                 end;
 		
-                %if (abs(HDR.VERSION(1))==255)  & strcmp(HDR.VERSION(2:8),'BIOSEMI'),
+                %if (abs(HDR.VERSION(1))==255)  && strcmp(HDR.VERSION(2:8),'BIOSEMI'),
                 if (HDR.VERSION == -1),
                         HDR.GDFTYP=255+24+zeros(1,HDR.NS);                        
                 %elseif strcmp(HDR.VERSION,'0       '),
@@ -1363,8 +1375,8 @@ end;
                         if ~isfield(HDR,'PreFilt')
                                 HDR.PreFilt = char(32+zeros(HDR.NS,80));
                                 if isfield(HDR,'Filter'),
-                                        if isfield(HDR.Filter,'LowPass') & isfield(HDR.Filter,'HighPass') & isfield(HDR.Filter,'Notch'),
-                                                if any(length(HDR.Filter.LowPass) == [1,HDR.NS]) & any(length(HDR.Filter.HighPass) == [1,HDR.NS]) & any(length(HDR.Filter.Notch) == [1,HDR.NS])
+                                        if isfield(HDR.Filter,'LowPass') && isfield(HDR.Filter,'HighPass') && isfield(HDR.Filter,'Notch'),
+                                                if any(length(HDR.Filter.LowPass) == [1,HDR.NS]) && any(length(HDR.Filter.HighPass) == [1,HDR.NS]) && any(length(HDR.Filter.Notch) == [1,HDR.NS])
                                                         PreFilt = {};
                                                         for k = 1:HDR.NS,
                                                                 k1 = min(k,length(HDR.Filter.LowPass));
@@ -1572,7 +1584,7 @@ end;
                 HDR.AS.spb = sum(HDR.AS.SPR);	% Samples per Block
                 HDR.AS.bi  = [0;cumsum(HDR.AS.SPR(:))];
                 HDR.AS.BPR = ceil(HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)');
-                while HDR.NS & any(HDR.AS.BPR(:)  ~= HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP+1)');
+                while HDR.NS && any(HDR.AS.BPR(:)  ~= HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP+1)');
                         fprintf(2,'\nWarning SOPEN (GDF/EDF/BDF): invalid block configuration in file %s.\n',HDR.FileName);
                         HDR.SPR,
                         DIV = 2;
@@ -1582,7 +1594,7 @@ end;
                         HDR.NRec   = HDR.NRec/DIV; 
                         HDR.AS.BPR = ceil(HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)');
                 end;
-                HDR.AS.SAMECHANTYP = all(HDR.AS.BPR == (HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)')) & ~any(diff(HDR.GDFTYP));
+                HDR.AS.SAMECHANTYP = all(HDR.AS.BPR == (HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)')) && ~any(diff(HDR.GDFTYP));
                 HDR.AS.spb = sum(HDR.AS.SPR);	% Samples per Block
                 HDR.AS.bi  = [0;cumsum(HDR.AS.SPR(:))];
                 HDR.AS.bpb   = sum(ceil(HDR.AS.SPR(:).*GDFTYP_BYTE(HDR.GDFTYP(:)+1)'));	% Bytes per Block
@@ -1599,7 +1611,7 @@ end;
 		end;
 
                 %%%%% Open File 
-                if ((HDR.NRec<0) & any(HDR.FILE.PERMISSION=='z')),
+                if ((HDR.NRec<0) && any(HDR.FILE.PERMISSION=='z')),
                         %% due to a limitation zlib
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN (GDF/EDF/BDF) "wz": Update of HDR.NRec and writing Eventtable are not possible.\n',HDR.FileName);
                         fprintf(HDR.FILE.stderr,'\t Solution(s): (1) define exactly HDR.NRec before calling SOPEN(HDR,"wz"); or (2) write to uncompressed file instead.\n');
@@ -1713,7 +1725,7 @@ end;
                                         if lt<9
                                                 sPhysMin(k,1:lt)=tmp;
                                         else
-                                                if any(upper(tmp)=='E') | find(tmp=='.')>8,
+                                                if any(upper(tmp)=='E') || any(find(tmp=='.')>8),
                                                         fprintf(HDR.FILE.stderr,'Error SOPEN (GDF/EDF/BDF)-W: PhysMin(%i) does not fit into header\n', k);
                                                 else
                                                         sPhysMin(k,:)=tmp(1:8);
@@ -1724,7 +1736,7 @@ end;
                                         if lt<9
                                                 sPhysMax(k,1:lt)=tmp;
                                         else
-                                                if any(upper(tmp)=='E') | find(tmp=='.')>8,
+                                                if any(upper(tmp)=='E') || any(find(tmp=='.')>8),
                                                         fprintf(HDR.FILE.stderr,'Error SOPEN (GDF/EDF/BDF)-W: PhysMin(%i) does not fit into header\n', k);
                                                 else
                                                         sPhysMax(k,:)=tmp(1:8);
@@ -1846,7 +1858,7 @@ end;
         end;
         
 
-elseif strcmp(HDR.TYPE,'EVENT') & any(lower(HDR.FILE.PERMISSION)=='w'),
+elseif strcmp(HDR.TYPE,'EVENT') && any(lower(HDR.FILE.PERMISSION)=='w'),
 	%%% Save event file in GDF-format
 	HDR.TYPE = 'GDF';
 	HDR.NS   = 0; 
@@ -1889,7 +1901,7 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'},'exact')
                 if ~isfield(HDR,'NS'),
                         HDR.NS = 0;
                 end;
-                if ~isfinite(HDR.NS) | (HDR.NS<0)
+                if ~isfinite(HDR.NS) || (HDR.NS<0)
                         fprintf(HDR.FILE.stderr,'Error SOPEN CNT-Write: HDR.NS not defined\n');
                         return;
                 end;	
@@ -1935,7 +1947,7 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'},'exact')
                 end;
                 
                 % open file 
-                if any(HDR.FILE.PERMISSION=='z') & (HDR.SPR<=0),
+                if any(HDR.FILE.PERMISSION=='z') && (HDR.SPR<=0),
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN (CNT) "wz": Update of HDR.SPR is not possible.\n',HDR.FileName);
                         fprintf(HDR.FILE.stderr,'\t Solution(s): (1) define exactly HDR.SPR before calling SOPEN(HDR,"wz"); or (2) write to uncompressed file instead.\n');
                         return;
@@ -2041,7 +2053,7 @@ elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.Endianity);
         status = fseek(HDR.FILE.FID,32,'bof'); 	% skip preamble
         
-        if exist('fefopen','file') & ~status,
+        if exist('fefopen','file') && ~status,
                 HDR = fefopen(HDR);
         end;
         
@@ -2158,7 +2170,7 @@ elseif strcmp(HDR.TYPE,'rhdE'),
         fclose(HDR.FILE.FID);
         
         
-elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
+elseif strcmp(HDR.TYPE,'alpha') && any(HDR.FILE.PERMISSION=='r'),
         HDR.FILE.FID = -1;      % make sure SLOAD does not call SREAD;
 
         %%% 
@@ -2199,13 +2211,13 @@ elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
                                         end;
                                         end; 
 
-                                        if (flag.rawhead & strncmp(tag,'DispFlags',9) & (S.Version < 411.89))
+                                        if (flag.rawhead && strncmp(tag,'DispFlags',9) && (S.Version < 411.89))
                                                 state = 1;
                                                 k1 = 0; 
-                                        elseif (flag.rawhead & strncmp(tag,'Sec2Marker',9) & (S.Version > 411.89))
+                                        elseif (flag.rawhead && strncmp(tag,'Sec2Marker',9) && (S.Version > 411.89))
                                                 state = 1;
                                                 k1 = 0; 
-                                        elseif (flag.sleep & strncmp(tag,'SleepType',9))
+                                        elseif (flag.sleep && strncmp(tag,'SleepType',9))
                                                 state = 3;
                                                 k1 = 0; 
                                         end;
@@ -2425,7 +2437,7 @@ elseif strcmp(HDR.TYPE,'alpha') & any(HDR.FILE.PERMISSION=='r'),
                                         POS(k) = timestamp;     
                                         TYP(k) = hex2dec(type);   
                                         DUR(k) = 0;
-                                        if (k>1) & (TYP(k)==0),
+                                        if (k>1) && (TYP(k)==0),
                                                 DUR(k-1) = POS(k)-POS(k-1);
                                         end;
                                 else
@@ -2910,7 +2922,7 @@ elseif strcmp(HDR.TYPE,'RigSys'),       % thanks to  J. Chen
         HDR.RigSys.H1 = thdr;        
         empty_char = NaN; 
         STOPFLAG = 1; 
-        while (STOPFLAG & ~isempty(thdr));
+        while (STOPFLAG && ~isempty(thdr));
                 [tline, thdr] = strtok(thdr,[13,10,0]);
                 [tag, value]  = strtok(tline,'=');
                 value = strtok(value,'=');
@@ -3044,7 +3056,7 @@ elseif strcmp(HDR.TYPE,'SND'),
                 if ~isfinite(HDR.SPR)
                         HDR.SPR = 0;
                 end;	
-                if any(HDR.FILE.PERMISSION=='z') & any([HDR.SPR,HDR.NS] <= 0),
+                if any(HDR.FILE.PERMISSION=='z') && any([HDR.SPR,HDR.NS] <= 0),
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN (SND) "wz": Update of HDR.SPR and HDR.NS are not possible.\n',HDR.FileName);
                         fprintf(HDR.FILE.stderr,'\t Solution(s): (1) define exactly HDR.SPR and HDR.NS before calling SOPEN(HDR,"wz"); or (2) write to uncompressed file instead.\n');
                         fclose(HDR.FILE.FID)
@@ -3288,7 +3300,7 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
         fclose(HDR.FILE.FID);
         
         [t,status] = str2double(char([HDR.GTF.H1(35:36),32,HDR.GTF.H1(37:39)]));	
-        if ~any(status) & all(t>0)
+        if ~any(status) && all(t>0)
                 HDR.NS = t(1); 
                 HDR.SampleRate = t(2); 
         else
@@ -3616,7 +3628,7 @@ elseif strcmp(HDR.TYPE,'ASF') ,
         end; 
         
         
-elseif strcmp(HDR.TYPE,'MIDI') | strcmp(HDR.TYPE,'RMID') ,
+elseif strcmp(HDR.TYPE,'MIDI') || strcmp(HDR.TYPE,'RMID') ,
         HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.Endianity);
 
         if ~isempty(findstr(HDR.FILE.PERMISSION,'r')),		%%%%% READ 
@@ -3757,13 +3769,13 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                 end;
                 
                 tmp = char(fread(HDR.FILE.FID,[1,4],'uint8'));
-                if ~strcmpi(tmp,'FORM') & ~strcmpi(tmp,'RIFF')
+                if ~strcmpi(tmp,'FORM') && ~strcmpi(tmp,'RIFF')
                         fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAV-format: file %s might be corrupted 1\n',HDR.FileName);
                 end;
                 tagsize  = fread(HDR.FILE.FID,1,'uint32');        % which size
                 tagsize0 = tagsize + rem(tagsize,2); 
                 tmp = char(fread(HDR.FILE.FID,[1,4],'uint8'));
-                if ~strncmpi(tmp,'AIF',3) & ~strncmpi(tmp,'WAVE',4) & ~strncmpi(tmp,'AVI ',4),
+                if ~strncmpi(tmp,'AIF',3) && ~strncmpi(tmp,'WAVE',4) && ~strncmpi(tmp,'AVI ',4),
 			% not (AIFF or AIFC or WAVE)
                         fprintf(HDR.FILE.stderr,'Warning SOPEN AIF/WAF-format: file %s might be corrupted 2\n',HDR.FileName);
                 end;
@@ -3865,7 +3877,7 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                                 end;
                                 HDR.AIF.TimeStamp   = fread(HDR.FILE.FID,1,'uint32');
                                 
-                        elseif strcmp(tag,'DATA') & strcmp(HDR.TYPE,'AIF') ;	% AIF uses upper case, there is a potential conflict with WAV using lower case data  
+                        elseif strcmp(tag,'DATA') && strcmp(HDR.TYPE,'AIF') ;	% AIF uses upper case, there is a potential conflict with WAV using lower case data  
                                 HDR.AIF.DATA  = fread(HDR.FILE.FID,[1,tagsize],'uint8');
                                 
                         elseif strcmpi(tag,'INST');   % not sure if this is ok !
@@ -3937,7 +3949,7 @@ elseif strmatch(HDR.TYPE,['AIF';'IIF';'WAV';'AVI']),
                                         HDR.WAV.cbSize = fread(HDR.FILE.FID,1,'uint16');
                                 end;
                                 
-                        elseif strcmp(tag,'data') & strcmp(HDR.TYPE,'WAV') ;	% AIF uses upper case, there is a potential conflict with WAV using lower case data  
+                        elseif strcmp(tag,'data') && strcmp(HDR.TYPE,'WAV') ;	% AIF uses upper case, there is a potential conflict with WAV using lower case data  
                                 HDR.HeadLen = filepos; 
                                 if HDR.WAV.Format == 1, 
                                         HDR.AS.bpb = HDR.NS * ceil(HDR.Bits/8);
@@ -5150,7 +5162,7 @@ elseif strcmp(HDR.TYPE,'MIT')
                 
                 fid = HDR.FILE.FID;
                 z   = fgetl(fid);
-                while strncmp(z,'#',1) | isempty(z),
+                while strncmp(z,'#',1) || isempty(z),
                         z   = fgetl(fid);
                 end;
                 tmpfile = strtok(z,' /');
@@ -5424,7 +5436,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 		                HDR.FLAG.UCAL = 1;
 		                S = NaN;
 		                [S,HDR] = sread(HDR,HDR.SPR/HDR.SampleRate); % load 1st sample
-		                if (HDR.VERSION>0) & (any(S(1,:) - HDR.MIT.firstvalue)), 
+		                if (HDR.VERSION>0) && (any(S(1,:) - HDR.MIT.firstvalue)), 
 		                        fprintf(HDR.FILE.stderr,'Warning SOPEN MIT-ECG: First values of header and datablock do not fit in file %s.\n\tHeader:\t',HDR.FileName); 
 		                        fprintf(HDR.FILE.stderr,'\t%5i',HDR.MIT.firstvalue);
 		                        fprintf(HDR.FILE.stderr,'\n\tData 1:\t');
@@ -5587,7 +5599,7 @@ elseif strcmp(HDR.TYPE,'MIT-ATR'),
 		L   = A(:) - tmp*1024;
 		tmp = floor(A(:)/256);
 		t0  = char([A(:)-256*tmp, tmp])';
-                while ((i<=size(A,1)) & (A(i)>0)),
+                while ((i<=size(A,1)) && (A(i)>0)),
 			a = annoth(i);
                         if a==0,  % end of file
 			  
@@ -5771,7 +5783,7 @@ elseif 0, strcmp(HDR.TYPE,'DAQ'),
         HDR = daqopen(HDR,[HDR.FILE.PERMISSION,'b']);
         
         
-elseif strcmp(HDR.TYPE,'MAT4') & any(HDR.FILE.PERMISSION=='r'),
+elseif strcmp(HDR.TYPE,'MAT4') && any(HDR.FILE.PERMISSION=='r'),
     		HDR.FILE.FID = fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],HDR.MAT4.opentyp);
                 k=0; NB=0;
                 %type = fread(HDR.FILE.FID,4,'uint8'); 	% 4-byte header
@@ -6029,7 +6041,7 @@ elseif strcmp(HDR.TYPE,'BCI2003_III');
                 HDR.Classlabel = repmat(NaN,140,1);        
         end;
                 
-        %elseif isfield(tmp,'x_train') & isfield(tmp,'y_train') & isfield(tmp,'x_test');	
+        %elseif isfield(tmp,'x_train') && isfield(tmp,'y_train') && isfield(tmp,'x_test');	
         HDR.INFO  = 'BCI competition 2003, dataset 3 (Graz)'; 
         HDR.Label = {'C3a-C3p'; 'Cza-Czp'; 'C4a-C4p'};
         HDR.SampleRate = 128; 
@@ -6053,33 +6065,33 @@ elseif strncmp(HDR.TYPE,'MAT',3),
         warning(status);
         
 	HDR.FILE.FID = 0; 
-        flag.bci2002a = isfield(tmp,'x') & isfield(tmp,'y') & isfield(tmp,'z') & isfield(tmp,'fs') & isfield(tmp,'elab'); 
+        flag.bci2002a = isfield(tmp,'x') && isfield(tmp,'y') && isfield(tmp,'z') && isfield(tmp,'fs') && isfield(tmp,'elab'); 
         if flag.bci2002a,
         	flag.bci2002a = all(size(tmp.y) == [1501,27,516]); 
         end; 
-        flag.tfm = isfield(tmp,'HRV') | isfield(tmp,'BPV') | isfield(tmp,'BPVsBP');    % TFM BeatToBeat Matlab export 
-        if flag.tfm & isfield(tmp,'HRV'),
-                flag.tfm = (isfield(tmp.HRV,'HF_RRI') & isfield(tmp.HRV,'LF_RRI') & isfield(tmp.HRV,'PSD_RRI') & isfield(tmp.HRV,'VLF_RRI')); 
+        flag.tfm = isfield(tmp,'HRV') || isfield(tmp,'BPV') || isfield(tmp,'BPVsBP');    % TFM BeatToBeat Matlab export 
+        if flag.tfm && isfield(tmp,'HRV'),
+                flag.tfm = (isfield(tmp.HRV,'HF_RRI') && isfield(tmp.HRV,'LF_RRI') && isfield(tmp.HRV,'PSD_RRI') && isfield(tmp.HRV,'VLF_RRI')); 
         end
-        if flag.tfm & isfield(tmp,'BPV'),
-                flag.tfm = flag.tfm + 2*((isfield(tmp.BPV,'HF_dBP') & isfield(tmp.BPV,'LF_dBP') & isfield(tmp.BPV,'PSD_dBP') & isfield(tmp.BPV,'VLF_dBP'))); 
+        if flag.tfm && isfield(tmp,'BPV'),
+                flag.tfm = flag.tfm + 2*((isfield(tmp.BPV,'HF_dBP') && isfield(tmp.BPV,'LF_dBP') && isfield(tmp.BPV,'PSD_dBP') && isfield(tmp.BPV,'VLF_dBP'))); 
         end
-        if flag.tfm & isfield(tmp,'BPVsBP'),
-                flag.tfm = flag.tfm + 4*((isfield(tmp.BPVsBP,'HF_sBP') & isfield(tmp.BPVsBP,'LF_sBP') & isfield(tmp.BPVsBP,'PSD_sBP') & isfield(tmp.BPVsBP,'VLF_sBP'))); 
+        if flag.tfm && isfield(tmp,'BPVsBP'),
+                flag.tfm = flag.tfm + 4*((isfield(tmp.BPVsBP,'HF_sBP') && isfield(tmp.BPVsBP,'LF_sBP') && isfield(tmp.BPVsBP,'PSD_sBP') && isfield(tmp.BPVsBP,'VLF_sBP'))); 
         end; 
-        flag.bbci = isfield(tmp,'bbci') & isfield(tmp,'nfo');
+        flag.bbci = isfield(tmp,'bbci') && isfield(tmp,'nfo');
         flag.bcic2008_1 = isfield(tmp,'cnt') && isfield(tmp,'nfo') && isfield(tmp,'mrk'); 
         flag.bcic2008_3 = isfield(tmp,'test_data') && isfield(tmp,'training_data') && isfield(tmp,'Info'); 
         flag.bcic2008_4 = isfield(tmp,'test_data') && isfield(tmp,'train_data') && isfield(tmp,'train_dg'); 
         if flag.bbci
-        	flag.bbci = isfield(tmp,'mnt') & isfield(tmp,'mrk') & isfield(tmp,'dat') & isfield(tmp,'fs_orig') & isfield(tmp,'mrk_orig'); 
+        	flag.bbci = isfield(tmp,'mnt') && isfield(tmp,'mrk') && isfield(tmp,'dat') && isfield(tmp,'fs_orig') && isfield(tmp,'mrk_orig'); 
         	if ~(flag.bbci),
         		warning('identification of bbci data may be not correct');
         	end; 	
 	end; 
         flag.fieldtrip = isfield(tmp,'data');
         if flag.fieldtrip,
-         	flag.fieldtrip = isfield(tmp.data,'cfg') & isfield(tmp.data,'hdr') & isfield(tmp.data,'label') & isfield(tmp.data,'fsample'); 
+         	flag.fieldtrip = isfield(tmp.data,'cfg') && isfield(tmp.data,'hdr') && isfield(tmp.data,'label') && isfield(tmp.data,'fsample'); 
 	end; 
 	flag.brainvision = isfield(tmp,'Channels') && isfield(tmp,'ChannelCount') && isfield(tmp,'Markers') && isfield(tmp,'MarkerCount') && isfield(tmp,'SampleRate') && isfield(tmp,'SegmentCount') && isfield(tmp,'t');
 	
@@ -6109,7 +6121,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                         HDR.EVENT.CHN = []; 
                         HDR.EVENT.DUR = []; 
                 end; 
-                if ~isfield(HDR,'PhysDim') & ~isfield(HDR,'PhysDimCode')
+                if ~isfield(HDR,'PhysDim') && ~isfield(HDR,'PhysDimCode')
                         HDR.PhysDimCode = zeros(HDR.NS,1); 
                 end; 
 
@@ -6312,7 +6324,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.TYPE = 'native'; 
                 
                 
-        elseif [isfield(tmp,'cnt') | isfield(tmp,'X') ] & isfield(tmp,'nfo')
+        elseif ( isfield(tmp,'cnt') || isfield(tmp,'X') ) && isfield(tmp,'nfo')
         	if isfield(tmp,'cnt') 
                         HDR.data = tmp.cnt;
                         [HDR.SPR,HDR.NS] = size(tmp.cnt);
@@ -6384,7 +6396,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 clear tmp; 
 		
         
-        elseif isfield(tmp,'Signal') & isfield(tmp,'Flashing') & isfield(tmp,'StimulusCode')
+        elseif isfield(tmp,'Signal') && isfield(tmp,'Flashing') && isfield(tmp,'StimulusCode')
                 HDR.INFO = 'BCI competition 2005, dataset II (Albany)'; 
                 HDR.SampleRate = 240; 
 		HDR.Filter.LowPass   = 60;
@@ -6405,7 +6417,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 		clear tmp;
 		
                 
-        elseif isfield(tmp,'run') & isfield(tmp,'trial') & isfield(tmp,'sample') & isfield(tmp,'signal') & isfield(tmp,'TargetCode');
+        elseif isfield(tmp,'run') && isfield(tmp,'trial') && isfield(tmp,'sample') && isfield(tmp,'signal') && isfield(tmp,'TargetCode');
                 HDR.INFO = 'BCI competition 2002/2003, dataset 2a (Albany)'; 
                 HDR.SampleRate = 160; 
                 HDR.NRec = 1; 
@@ -6429,7 +6441,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.TYPE = 'native'; 
 
                 
-        elseif isfield(tmp,'runnr') & isfield(tmp,'trialnr') & isfield(tmp,'samplenr') & isfield(tmp,'signal') & isfield(tmp,'StimulusCode');
+        elseif isfield(tmp,'runnr') && isfield(tmp,'trialnr') && isfield(tmp,'samplenr') && isfield(tmp,'signal') && isfield(tmp,'StimulusCode');
                 HDR.INFO = 'BCI competition 2003, dataset 2b (Albany)'; 
                 HDR.SampleRate = 240; 
                 HDR.NRec = 1; 
@@ -6448,12 +6460,12 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 end;
                 
                 HDR.EVENT.N = length(HDR.EVENT.POS);
-                ix = find((tmp.StimulusCode(1:end-1)==0) & (tmp.StimulusCode(2:end)>0));
+                ix = find((tmp.StimulusCode(1:end-1)==0) && (tmp.StimulusCode(2:end)>0));
                 HDR.Classlabel = tmp.StimulusCode(ix+1); 
                 HDR.TYPE = 'native'; 
                 
                 
-        elseif isfield(tmp,'clab') & isfield(tmp,'x_train') & isfield(tmp,'y_train') & isfield(tmp,'x_test');	
+        elseif isfield(tmp,'clab') && isfield(tmp,'x_train') && isfield(tmp,'y_train') && isfield(tmp,'x_test');	
                 HDR.INFO  = 'BCI competition 2003, dataset 4 (Berlin)'; 
                 HDR.Label = tmp.clab;        
                 HDR.Classlabel = [repmat(nan,size(tmp.x_test,3),1);tmp.y_train';repmat(nan,size(tmp.x_test,3),1)];
@@ -6469,7 +6481,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.data = reshape(permute(cat(3,tmp.x_test,tmp.x_train,tmp.x_test),[2,1,3]),sz(1),sz(2)*sz(3))';
                 HDR.TYPE = 'native'; 
                 
-       elseif isfield(tmp,'x_train') & isfield(tmp,'y_train') & isfield(tmp,'x_test');	
+       elseif isfield(tmp,'x_train') && isfield(tmp,'y_train') && isfield(tmp,'x_test');	
                 HDR.INFO  = 'BCI competition 2003, dataset 3 (Graz)'; 
                 HDR.Label = {'C3a-C3p'; 'Cza-Czp'; 'C4a-C4p'};
                 HDR.SampleRate = 128; 
@@ -6626,7 +6638,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 	                HDR.ELEC.XYZ    = [[tmp.EEG.chanlocs.X]',[tmp.EEG.chanlocs.Y]',[tmp.EEG.chanlocs.Z]'];
 	        end;        
                 HDR.Label       = tmp.EEG.chanlocs.labels;
-                if ischar(tmp.EEG.data) & exist(tmp.EEG.data,'file')
+                if ischar(tmp.EEG.data) && exist(tmp.EEG.data,'file')
                         fid = fopen(tmp.EEG.data,'r','ieee-le');
                         HDR.data = fread(fid,[HDR.SPR*HDR.NS*HDR.NRec],'float32');
                         fclose(fid);
@@ -6676,7 +6688,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 
                 
         elseif isfield(tmp,'data');
-                if isfield(tmp,'readme') & iscell(tmp.data) ;	%Zachary A. Keirn, Purdue University, 1988. 
+                if isfield(tmp,'readme') && iscell(tmp.data) ;	%Zachary A. Keirn, Purdue University, 1988. 
                         HDR.Label = {'C3'; 'C4'; 'P3'; 'P4'; 'O1'; 'O2'; 'EOG'};                               
                         HDR.SampleRate = 250; 
                         HDR.FLAG.TRIGGERED  = 1; 
@@ -6756,7 +6768,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.data = tmp.daten.raw*100;
                 HDR.TYPE = 'native'; 
                 
-        elseif isfield(tmp,'neun') & isfield(tmp,'zehn') & isfield(tmp,'trig');	% guger, 
+        elseif isfield(tmp,'neun') && isfield(tmp,'zehn') && isfield(tmp,'trig');	% guger, 
                 HDR.NS=3;
                 HDR.NRec = 1; 
                 if ~isfield(tmp,'SampleRate')
@@ -6794,7 +6806,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 HDR.TYPE = 'native'; 
 
                 
-       elseif isfield(tmp,'ECoGdata') & isfield(tmp,'dataset')  %Michigan ECoG dataset 
+       elseif isfield(tmp,'ECoGdata') && isfield(tmp,'dataset')  %Michigan ECoG dataset 
                 HDR.data = tmp.ECoGdata';
                 HDR.T0 = datevec(datenum(tmp.dataset.filetype.timestamp));
                 HDR.SampleRate = tmp.dataset.specs.sample_rate;
@@ -6963,7 +6975,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
 		HDR.TYPE = 'native'; 
                 
                 
-        elseif isfield(tmp,'eventmatrix') & isfield(tmp,'samplerate') 
+        elseif isfield(tmp,'eventmatrix') && isfield(tmp,'samplerate') 
                 %%% F. Einspieler's Event information 
                 HDR.EVENT.POS = tmp.eventmatrix(:,1);
                 HDR.EVENT.TYP = tmp.eventmatrix(:,2);
@@ -6974,7 +6986,7 @@ elseif strncmp(HDR.TYPE,'MAT',3),
                 
                 
         elseif isfield(tmp,'Electrode') 
-        	if isfield(tmp.Electrode,'Theta') & isfield(tmp.Electrode,'Phi')
+        	if isfield(tmp.Electrode,'Theta') && isfield(tmp.Electrode,'Phi')
         		Theta = tmp.Electrode.Theta(:)*pi/180; 
         		Phi   = tmp.Electrode.Phi(:)*pi/180; 
         		HDR.ELEC.XYZ = [ sin(Theta).*cos(Phi), sin(Theta).*sin(Phi),cos(Theta)];
@@ -7007,13 +7019,13 @@ elseif strncmp(HDR.TYPE,'BCI2000',7),
 		[tmp,rr] = strtok(char(HDR.Header),[10,13]);
                 tmp(tmp=='=') = ' ';
                 [t,status,sa] = str2double(tmp,[9,32],[10,13]);
-                if (HDR.VERSION==1) & strcmp(sa{3},'SourceCh') & strcmp(sa{5},'StatevectorLen') & ~any(status([2,4,6]))
+                if (HDR.VERSION==1) && strcmp(sa{3},'SourceCh') && strcmp(sa{5},'StatevectorLen') && ~any(status([2,4,6]))
                         HDR.HeadLen = t(2);
                         HDR.NS = t(4);
                         HDR.BCI2000.StateVectorLength = t(6);
                         HDR.GDFTYP  = 3; % 'int16';
 
-                elseif (HDR.VERSION==1.1) & strcmp(sa{5},'SourceCh') & strcmp(sa{7},'StatevectorLen') & strcmp(sa{9},'DataFormat') & ~any(status([2:2:8]))
+                elseif (HDR.VERSION==1.1) && strcmp(sa{5},'SourceCh') && strcmp(sa{7},'StatevectorLen') && strcmp(sa{9},'DataFormat') && ~any(status([2:2:8]))
                         HDR.VERSION = t(2);
                         HDR.HeadLen = t(4);
                         HDR.NS = t(6);
@@ -7339,7 +7351,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                         HDR.Dur = 1/HDR.SampleRate; 
                 end;
                 
-                if (any(HDR.NRec<0) & any(HDR.FILE.PERMISSION=='z')),
+                if (any(HDR.NRec<0) && any(HDR.FILE.PERMISSION=='z')),
                         %% due to a limitation zlib
                         fprintf(HDR.FILE.stderr,'ERROR SOPEN (CFWB) "wz": Update of HDR.SPR not possible.\n',HDR.FileName);
                         fprintf(HDR.FILE.stderr,'\t Solution(s): (1) define exactly HDR.SPR before calling SOPEN(HDR,"wz"); or (2) write to uncompressed file instead.\n');
@@ -7774,7 +7786,7 @@ elseif strcmp(HDR.TYPE,'PLEXON'),
                 HDR.FILE.OPEN = 1; 
 
                 CH = find(HDR.PLX.adcount>0);
-                if isempty(ReRefMx) & any(CH) & (max(CH)<150),
+                if isempty(ReRefMx) && any(CH) && (max(CH)<150),
                         HDR.NS = max(CH); 
                         HDR.Label = HDR.Label(1:HDR.NS,:);
                 end;
@@ -7979,7 +7991,7 @@ elseif strncmp(HDR.TYPE,'SIGIF',5),
                 
                 if ~HDR.NRec, HDR.NRec = inf; end;
                 k = 0;
-                while (k < HDR.NRec) & ~feof(HDR.FILE.FID),
+                while (k < HDR.NRec) && ~feof(HDR.FILE.FID),
                         k = k+1;
                         HDR.Block.Pos(k) = ftell(HDR.FILE.FID);
                         if HDR.FLAG.TimeStamp,
@@ -8290,7 +8302,7 @@ elseif strncmp(HDR.TYPE,'BrainVision',11),
                         HDR.Label{chan,1} = tmp;
                         HDR.BV.reference{chan,1} = t2(ix(1)+1:ix(2)-1);
                         [v, stat] = str2double(t2(ix(2)+1:ix(3)-1));          % in microvolt
-                        if (prod(size(v))==1) & ~any(stat)
+                        if (prod(size(v))==1) && ~any(stat)
                                 HDR.Cal(chan) = v;                                
                         else
                                 UCAL = 1; 
@@ -8311,7 +8323,7 @@ elseif strncmp(HDR.TYPE,'BrainVision',11),
                         chan = v(1); R=v(2); Theta = v(3)*pi/180; Phi = v(4)*pi/180; 
                         HDR.ELEC.XYZ(chan,:) = R*[sin(Theta).*cos(Phi),sin(Theta).*sin(Phi),cos(Theta)]; 
                         
-                elseif (flag>=7) & (flag<8),   
+                elseif (flag>=7) && (flag<8),   
                         if flag==7, 
                                 if tline(1)=='#',
                                         flag = 7.1;
@@ -8957,9 +8969,9 @@ elseif strcmp(HDR.TYPE,'ABF2'),
 			if (HDR.Section{k}.BlockIndex)
 	       	        	fseek(HDR.FILE.FID,HDR.Section{k}.BlockIndex * 512,'bof');
 	       	        	
-		       	        if (NSections2>0) & (k==1), % StringsSection
+		       	        if (NSections2>0) && (k==1), % StringsSection
 		       	        	
-	       		        elseif (NSections2>0) & (k==10), % StringsSection
+	       		        elseif (NSections2>0) && (k==10), % StringsSection
 	       	        		HDR.ABF.StringSection = char(fread(HDR.FILE.FID,[1,HDR.Section{k}.NumEntries*HDR.Section{k}.Bytes],'uint8')); 
 	       	        	end;
 	       	        end;
@@ -9518,7 +9530,7 @@ elseif strcmp(HDR.TYPE,'ETG4000') 	 % NIRS - Hitachi ETG 4000
 		HDR.s(HDR.s==dlm)=9;
 		dlm = char(9); 
                 [t,s] = strtok(HDR.s,[10,13]); 
-                while ((t(1)<'0') | (t(1)>'9'))
+                while ((t(1)<'0') || (t(1)>'9'))
          		[NUM, STATUS,STRARRAY] = str2double(t,dlm); 
                         if 0,
                         elseif strncmp(t,'File Version',12)
@@ -9688,7 +9700,7 @@ elseif strcmp(HDR.TYPE,'FEPI3'), 	% Freiburg epileptic seizure prediction Contes
 					end
 
 					line = fgetl(fid);
-					if ischar(line) & ~isempty(line),
+					if ischar(line) && ~isempty(line),
 					switch STATUS,
 					case 1,
 						[t1,r] = strtok(line,[10,13,'=']); 
@@ -9829,7 +9841,7 @@ elseif strcmp(HDR.TYPE,'BIFF'),
 			NEW_INTERFACE=0; 
                 end;
                 if size(TFM.S,1)+1==size(TFM.E,1)
-                %if ~isnan(TFM.S(1,1)) & ~isempty(TFM.E{1,1})
+                %if ~isnan(TFM.S(1,1)) && ~isempty(TFM.E{1,1})
 		        fprintf('Warning: XLSREAD-BUG has occured in file %s.\n',HDR.FileName);
                         TFM.S = [repmat(NaN,1,size(TFM.S,2));TFM.S];
                 end;
@@ -9877,7 +9889,7 @@ elseif strcmp(HDR.TYPE,'BIFF'),
                 
                 HDR.Label   = TFM.E(4,:)';
                 HDR.PhysDim = TFM.E(5,:)';
-                if strcmp(HDR.Label{3},'RRI') & strcmp(HDR.PhysDim{3},'[%]')
+                if strcmp(HDR.Label{3},'RRI') && strcmp(HDR.PhysDim{3},'[%]')
                         %%%% correct bug in file (due to bug in TFM
                         %%%% software
                         HDR.PhysDim{3} = '[ms]';
@@ -10099,24 +10111,24 @@ elseif strcmp(HDR.TYPE,'unknown'),
         	s = HDR.s; 
                 if strcmpi(HDR.FILE.Ext,'DAT') 
                 	[NUM, STATUS,STRARRAY] = str2double(char(s));
-                        if (size(NUM,2)<4) & ~any(any(STATUS))
+                        if (size(NUM,2)<4) && ~any(any(STATUS))
                                 HDR.Label = strvcat(STRARRAY(:,1));
                                 r2 = sum(NUM(:,2:3).^2,2);
                                 HDR.ELEC.XYZ = [NUM(:,2:3),sqrt(max(r2)-r2)]; 
                                 HDR.CHAN  = NUM(:,1); 
                                 HDR.TYPE  = 'ELPOS'; 
-                        elseif (size(NUM,2)==4) & ~any(any(STATUS))
+                        elseif (size(NUM,2)==4) && ~any(any(STATUS))
                                 HDR.Label = strvcat(STRARRAY(:,1));
                                 HDR.ELEC.XYZ  = NUM(:,2:4); 
                                 HDR.ELEC.CHAN = NUM(:,1); 
                                 HDR.TYPE  = 'ELPOS'; 
-                        elseif (size(NUM,2)==4) & ~any(any(STATUS(:,[1,3:4])))
+                        elseif (size(NUM,2)==4) && ~any(any(STATUS(:,[1,3:4])))
                                 HDR.Label = strvcat(STRARRAY(:,2));
                                 r2 = sum(NUM(:,3:4).^2,2);
                                 HDR.ELEC.XYZ = [NUM(:,3:4),sqrt(max(r2)-r2)]; 
                                 HDR.CHAN  = NUM(:,1); 
                                 HDR.TYPE  = 'ELPOS'; 
-                        elseif (size(NUM,2)==5) & ~any(any(STATUS(:,3:5)))
+                        elseif (size(NUM,2)==5) && ~any(any(STATUS(:,3:5)))
                                 HDR.Label = strvcat(STRARRAY(:,1));
                                 HDR.ELEC.XYZ  = NUM(:,3:5); 
                                 HDR.TYPE  = 'ELPOS'; 
@@ -10124,7 +10136,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                         return;
 
                         
-                elseif strncmp(s,'NumberPositions',15) & strcmpi(HDR.FILE.Ext,'elc');  % Polhemus 
+                elseif strncmp(s,'NumberPositions',15) && strcmpi(HDR.FILE.Ext,'elc');  % Polhemus 
                         K = 0; 
                         [tline, s] = strtok(s, [10,13]);
                         while ~isempty(s),
@@ -10151,18 +10163,18 @@ elseif strcmp(HDR.TYPE,'unknown'),
                         end;
                         return;
                         
-                elseif strncmp(s,'Site',4) & strcmpi(HDR.FILE.Ext,'txt'); 
+                elseif strncmp(s,'Site',4) && strcmpi(HDR.FILE.Ext,'txt'); 
                         [line1, s] = strtok(s, [10,13]); 
                         s(s==',') = '.';
                         [NUM, STATUS, STRARRAY] = str2double(s,[9,32]);
-                        if (size(NUM,2)==3) & ~any(any(STATUS(:,2:3)))
+                        if (size(NUM,2)==3) && ~any(any(STATUS(:,2:3)))
                                 HDR.Label = strvcat(STRARRAY(:,1));
                                 Theta     = abs(NUM(:,2))*pi/180; 
                                 Phi       = NUM(:,3)*pi/180 + pi*(NUM(:,2)<0); 
                                 HDR.ELEC.XYZ = [sin(Theta).*cos(Phi),sin(Theta).*sin(Phi),cos(Theta)]; 
                                 HDR.ELEC.R   = 1; 
                                 HDR.TYPE     = 'ELPOS'; 
-                        elseif (size(NUM,2)==4) & ~any(any(STATUS(:,2:4)))
+                        elseif (size(NUM,2)==4) && ~any(any(STATUS(:,2:4)))
                                 HDR.Label = strvcat(STRARRAY(:,1));
                                 HDR.ELEC.XYZ = NUM(:,2:4); 
                                 HDR.TYPE  = 'ELPOS'; 
@@ -10206,7 +10218,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                         return;
                         
                         
-                elseif (strcmpi(HDR.FILE.Ext,'loc') | strcmpi(HDR.FILE.Ext,'locs'))
+                elseif (strcmpi(HDR.FILE.Ext,'loc') || strcmpi(HDR.FILE.Ext,'locs'))
 %                        [line1,s]=strtok(char(s),[10,13]);
                         [NUM, STATUS,STRARRAY] = str2double(char(s));
                         if ~any(any(STATUS(:,1:3)))
@@ -10301,7 +10313,7 @@ if HDR.NS>0,
 end;
 
 % add trigger information for triggered data
-if HDR.FLAG.TRIGGERED & isempty(HDR.EVENT.POS)
+if HDR.FLAG.TRIGGERED && isempty(HDR.EVENT.POS)
 	HDR.EVENT.POS = [0:HDR.NRec-1]'*HDR.SPR+1;
 	HDR.EVENT.TYP = repmat(hex2dec('0300'),HDR.NRec,1);
 	HDR.EVENT.CHN = repmat(0,HDR.NRec,1);
@@ -10309,7 +10321,7 @@ if HDR.FLAG.TRIGGERED & isempty(HDR.EVENT.POS)
 end;
 
 % apply channel selections to EVENT table
-if any(CHAN) & ~isempty(HDR.EVENT.POS) & isfield(HDR.EVENT,'CHN'),	% only if channels are selected. 
+if any(CHAN) && ~isempty(HDR.EVENT.POS) && isfield(HDR.EVENT,'CHN'),	% only if channels are selected. 
 	sel = (HDR.EVENT.CHN(:)==0);	% memory allocation, select all general events
 	for k = find(~sel'),		% select channel specific elements
 		sel(k) = any(HDR.EVENT.CHN(k)==CHAN);
@@ -10328,7 +10340,7 @@ if any(CHAN) & ~isempty(HDR.EVENT.POS) & isfield(HDR.EVENT,'CHN'),	% only if cha
 end;	
 
 % complete event information - needed by SVIEWER
-if ~isfield(HDR.EVENT,'CHN') & ~isfield(HDR.EVENT,'DUR'),  
+if ~isfield(HDR.EVENT,'CHN') && ~isfield(HDR.EVENT,'DUR'),  
 	HDR.EVENT.CHN = zeros(size(HDR.EVENT.POS)); 
 	HDR.EVENT.DUR = zeros(size(HDR.EVENT.POS)); 
 
@@ -10365,12 +10377,12 @@ HDR.EVENT.DUR=HDR.EVENT.DUR(ix);
 HDR.EVENT.CHN=HDR.EVENT.CHN(ix);
 
 % Calibration matrix
-if any(HDR.FILE.PERMISSION=='r') & (HDR.NS>0);
+if any(HDR.FILE.PERMISSION=='r') && (HDR.NS>0);
         if isempty(ReRefMx)     % CHAN==0,
                 ReRefMx = eye(max(1,HDR.NS));
         end;
         sz = size(ReRefMx);
-        if (HDR.NS > 0) & (sz(1) > HDR.NS),
+        if (HDR.NS > 0) && (sz(1) > HDR.NS),
                 fprintf(HDR.FILE.stderr,'ERROR SOPEN: to many channels (%i) required, only %i channels available.\n',size(ReRefMx,1),HDR.NS);
                 HDR = sclose(HDR);
                 return;

@@ -23,6 +23,7 @@ function [HDR] = getfiletype(arg1)
 %	(C) 2004,2005,2007,2008 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
+
 if ischar(arg1),
         HDR.FileName = arg1;
 elseif isfield(arg1,'name')
@@ -60,14 +61,14 @@ if exist(HDR.FileName,'dir')
 	if strcmpi(FileExt,'.ds'), % .. & isdir(HDR.FileName)
 	        f1 = fullfile(HDR.FileName,[file,'.meg4']);
 	        f2 = fullfile(HDR.FileName,[file,'.res4']);
-	        if (exist(f1,'file') & exist(f2,'file')), % & (exist(f3)==2)
+	        if (exist(f1,'file') && exist(f2,'file')), % && (exist(f3)==2)
             		HDR.FileName  = f1; 
 			% HDR.TYPE = 'MEG4'; % will be checked below 
 	        end;
         elseif exist(fullfile(HDR.FileName,'alpha.alp'),'file')
                 HDR.FileName = fullfile(HDR.FileName,'rawhead');
 
-        elseif exist(fullfile(HDR.FileName,'patient.txt'),'file') & exist(fullfile(HDR.FileName,'datafiles.txt'),'file')
+        elseif exist(fullfile(HDR.FileName,'patient.txt'),'file') && exist(fullfile(HDR.FileName,'datafiles.txt'),'file')
         	% Freiburg Prediction Contest
         	% https://epilepsy.uni-freiburg.de/seizure-prediction-workshop-2007/prediction-contest/data-download
 		HDR.FILE.Path = HDR.FileName;
@@ -119,15 +120,15 @@ else
 
                 %%%% file type check based on magic numbers %%%
 		tmp = 256.^[0:3]*reshape(s(1:20),4,5);
-		mat4.flag = (c>20) & (tmp(5)<256) & (tmp(5)>1) & (tmp(1)<4053) & any(s(13)==[0,1]) & any(tmp(4)==[0,1]);
+		mat4.flag = (c>20) && (tmp(5)<256) && (tmp(5)>1) && (tmp(1)<4053) && any(s(13)==[0,1]) && any(tmp(4)==[0,1]);
 		if mat4.flag,
 			mat4.matrixname = lower(char(s(21:20+tmp(5)-1)));
 	                mat4.type = sprintf('%04i',tmp(1))-48;
                         mat4.size = tmp(2:3);
                         mat4.imagf= tmp(4);
-			mat4.flag = mat4.flag & s(20+tmp(5));
-			mat4.flag = all((mat4.matrixname>='0' & mat4.matrixname<='9') | (mat4.matrixname>='_' & mat4.matrixname<='z'));
-			mat4.flag = mat4.flag & all(any(mat4.type(ones(6,1),:)==[0,0:4;zeros(1,6);0:5;0:2,0,0,0]'));
+			mat4.flag = mat4.flag && s(20+tmp(5));
+			mat4.flag = all((mat4.matrixname>='0' && mat4.matrixname<='9') || (mat4.matrixname>='_' && mat4.matrixname<='z'));
+			mat4.flag = mat4.flag && all(any(mat4.type(ones(6,1),:)==[0,0:4;zeros(1,6);0:5;0:2,0,0,0]'));
 		end;
 
 		pos1_ascii10 = min(find(s==10));
@@ -139,7 +140,7 @@ else
                 FLAG.IS_UFF = strncmp(ss,['    -1',repmat(' ',1,80-6)],80); 
                 if FLAG.IS_UFF, 
                 	K = strfind(ss(81:161),'    '); K = min(K);
-                	FLAG.IS_UFF = (K<4) & any(s(81)==[10,13]) & any(s(79+K)==[10,13]); 
+                	FLAG.IS_UFF = (K<4) && any(s(81)==[10,13]) && any(s(79+K)==[10,13]); 
                 end; 
 
                 if 0,
@@ -162,7 +163,7 @@ else
                 elseif all(256.^[0:3]*reshape(s(1:80),[4,20])==[0,16,32,32,512,536,1,1,1048,412,1,1,1460,80,32,1,4020,76,128,128]); 
                         HDR.TYPE='ET-MEG:SQD';
                         HDR.Endianity = 'ieee-le';
-                elseif all(s(1:4)==0) & strcmp(HDR.FILE.Ext,'raw')  & exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.ainf']),'file'); 
+                elseif all(s(1:4)==0) && strcmp(HDR.FILE.Ext,'raw') && exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.ainf']),'file'); 
                         HDR.TYPE='AINF';
                 elseif strncmp(ss,'[BioSig Header]',13); 
                         HDR.TYPE='BioSig';
@@ -178,7 +179,7 @@ else
                         HDR.TYPE='EBS';
                 %elseif all(s(1:4) == [hex2dec(['5f';'09';'a7';'82'])]'); 
                         %HDR.TYPE='ASN.1';
-                elseif strncmp(ss,'CEN',3) & all(s(6:8)==hex2dec(['1A';'04';'84'])') & (all(s(4:5)==hex2dec(['13';'10'])') | all(s(4:5)==hex2dec(['0D';'0A'])')); 
+                elseif strncmp(ss,'CEN',3) && all(s(6:8)==hex2dec(['1A';'04';'84'])') && (all(s(4:5)==hex2dec(['13';'10'])') || all(s(4:5)==hex2dec(['0D';'0A'])')); 
                         HDR.TYPE='FEF';
                         HDR.VERSION   = str2double(ss(9:16))/100;
                         HDR.Encoding  = str2double(ss(17:24));
@@ -191,9 +192,11 @@ else
                         %        fprintf(2,'Warning GETFILETYPE (FEF): incorrect preamble in file %s\n',HDR.FileName);
                         end;
                         
+                elseif strncmp(ss,'CEDFILE"',8); 
+                        HDR.TYPE='CFS';
                 elseif strncmp(ss,'MEG41CP',7); 
                         HDR.TYPE='CTF';
-                elseif strncmp(ss,'MEG41RS',7) | strncmp(ss,'MEG4RES',7); 
+                elseif strncmp(ss,'MEG41RS',7) || strncmp(ss,'MEG4RES',7); 
                         HDR.TYPE='CTF';
                 elseif strncmp(ss,'MEG4',4); 
                         HDR.TYPE='CTF';
@@ -227,7 +230,7 @@ else
                         HDR.TYPE='ETG4000';
                 elseif strncmp(ss,'GALILEO EEG TRACE FILE',22)     % Galilea EEG (from ESAOTE, EBNeuro spa) 
                         HDR.TYPE='GTF';
-                elseif strcmp(ss(3:11),'COHERENCE') & strcmp(ss(43+[1:length(HDR.FILE.Name)]),HDR.FILE.Name); 
+                elseif strcmp(ss(3:11),'COHERENCE') && strcmp(ss(43+[1:length(HDR.FILE.Name)]),HDR.FILE.Name); 
                         HDR.TYPE='Delta';
                         
                 elseif strcmp(ss(1:8),'@  MFER '); 
@@ -240,10 +243,10 @@ else
                         HDR.TYPE='PathFinder710_HighResolutionECG';
 
 		%% general SCP 
-                elseif all(s([9,10,12:14,17:24,26:34])==[0,0,0,0,0,abs('SCPECG'),0,0,0,0,0,7,0,0,0,1,0]) & (s(11)==s(25)); 
+                elseif all(s([9,10,12:14,17:24,26:34])==[0,0,0,0,0,abs('SCPECG'),0,0,0,0,0,7,0,0,0,1,0]) && (s(11)==s(25)); 
                         HDR.TYPE = 'SCP';
                         HDR.VERSION = s(15)/10; 
-                elseif all(s([9,10,12:14,17:24,26:34])==[0,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,7,0,0,0,1,0]) & (s(11)==s(25)); 
+                elseif all(s([9,10,12:14,17:24,26:34])==[0,0,0,0,0, 0,0,0,0,0,0, 0,0,0,0,0,7,0,0,0,1,0]) && (s(11)==s(25)); 
                         HDR.TYPE = 'SCP';
                         HDR.VERSION = s(15)/10; 
 
@@ -295,16 +298,16 @@ else
                 elseif strncmp(ss,'V3.0            ',16) && strncmp(ss(33:41),'[PatInfo]',9); 
                         HDR.TYPE='Sigma';	%% SigmaPLpro
                         HDR.HeadLen = s(17:20)*(256.^[0:3]');
-                elseif all(s([1:24,29:31])==[abs('POLY SAMPLE FILEversion '),13,10,26]) & (str2double(ss(25:28))==(s([32:33])*[1;256]/100)); % Poly5/TMS32 sample file format.
+                elseif all(s([1:24,29:31])==[abs('POLY SAMPLE FILEversion '),13,10,26]) && (str2double(ss(25:28))==(s([32:33])*[1;256]/100)); % Poly5/TMS32 sample file format.
                         HDR.TYPE='TMS32';
                 elseif strncmp(ss,['FileId=TMSi PortiLab sample log file'],36); % 
                         HDR.TYPE='TMSiLOG';
                         HDR.H1 = [ss(1:c),fread(fid,[1,inf],'uint8=>char')];  %% read whole file 
                 elseif strncmp(ss,'"Snap-Master Data File"',23);	% Snap-Master Data File .
                         HDR.TYPE='SMA';
-                elseif 0, all(s([1:2,20])==[1,0,0]) & any(s(19)==[2,4]); 
+                elseif 0, all(s([1:2,20])==[1,0,0]) && any(s(19)==[2,4]); 
                         HDR.TYPE='TEAM';	% Nicolet TEAM file format
-                elseif strncmp(ss,HDR.FILE.Name,length(HDR.FILE.Name)) & strcmpi(HDR.FILE.Ext,'HEA'); 
+                elseif strncmp(ss,HDR.FILE.Name,length(HDR.FILE.Name)) && strcmpi(HDR.FILE.Ext,'HEA'); 
                         HDR.TYPE='MIT';
                 elseif strncmp(ss,'DEMG',4);	% www.Delsys.com
                         HDR.TYPE='DEMG';
@@ -328,13 +331,13 @@ else
                 elseif strncmp(ss(436:446),[HDR.FILE.Name,0,0,0,0],length(HDR.FILE.Name)+4) % CeeGraph, Bio-Logic Systems Corp. 
                         HDR.TYPE='BLSC2';
                         
-                elseif any(s(1)==[100:103]) & all(s([2:8])==[0,0,0,176,1,0,0]) & strcmpi(HDR.FILE.Ext,'DDT'); 
+                elseif any(s(1)==[100:103]) && all(s([2:8])==[0,0,0,176,1,0,0]) && strcmpi(HDR.FILE.Ext,'DDT'); 
                         HDR.TYPE='DDT';
                 elseif all(s([1:32])==[0,0,0,0,0,0,58,1,58,1,58,1,105,0,4,0,128,0,4,0,0,0,0,0,2,0,0,0,0,0,0,0]); 
                         HDR.TYPE='LEXICORE';
                 elseif all(s([1:4])==abs('NEX1')); 
                         HDR.TYPE='NEX';
-                elseif all(s([1:4])==abs('Neuron')); 
+                elseif all(s([1:6])==abs('Neuron')); 
                         HDR.TYPE='NEURON';
                 elseif all(s([1:4])==abs('SXDF')); 
                         HDR.TYPE='OpenXDF';
@@ -376,7 +379,7 @@ else
                 elseif all(s([1:4,9:21])==[abs('RIFFRMIDMThd'),0,0,0,6,0]); 
                         HDR.TYPE='RMID';
                         HDR.Endianity = 'ieee-be';
-                elseif all(s(1:9)==[abs('MThd'),0,0,0,6,0]) & any(s(10)==[0:2]); 
+                elseif all(s(1:9)==[abs('MThd'),0,0,0,6,0]) && any(s(10)==[0:2]); 
                         HDR.TYPE='MIDI';
 			HDR.Endianity = 'ieee-be';
                 elseif ~isempty(findstr(ss(1:16),'8SVXVHDR')); 
@@ -415,7 +418,7 @@ else
                         HDR.TYPE='VOC';
                 elseif strcmp(ss([5:8]),'moov'); 	% QuickTime movie 
                         HDR.TYPE='QTFF';
-                elseif strncmp(ss,'FWS',3) | strncmp(ss,'CWS',3); 	% Macromedia 
+                elseif strncmp(ss,'FWS',3) || strncmp(ss,'CWS',3); 	% Macromedia 
                         HDR.TYPE='SWF';
 			HDR.VERSION = s(4); 
 			HDR.SWF.size = s(5:8)*256.^[0:3]';
@@ -434,7 +437,7 @@ else
                         HDR.TYPE='LABVIEW';
                 elseif strncmp(ss,'IAvSFo',6); 
                         HDR.TYPE='SIGIF';
-                elseif any(s(4)==(2:7)) & all(s(1:3)==0); % [int32] 2...7
+                elseif any(s(4)==(2:7)) && all(s(1:3)==0); % [int32] 2...7
                         HDR.TYPE='EGI';
                         
                 elseif FLAG.IS_UFF,
@@ -503,7 +506,7 @@ else
                                 HDR.TYPE = 'ACQ';
                         end;
                         
-                elseif (s(1) == 253) & (HDR.FILE.size==(s(6:7)*[1;256]+7));
+                elseif (s(1) == 253) && (HDR.FILE.size==(s(6:7)*[1;256]+7));
                         HDR.TYPE='AKO+';
                 elseif all(s(1:4) == [253, 174, 45, 5]); 
                         HDR.TYPE='AKO';
@@ -513,7 +516,7 @@ else
                 elseif strfind(ss,'ALPHA-TRACE-MEDICAL');
                         HDR.TYPE='alpha';
                         
-                elseif strncmp(ss,'SamplingRate=',13) & strcmp(HDR.FILE.Name,'patient'),
+                elseif strncmp(ss,'SamplingRate=',13) && strcmp(HDR.FILE.Name,'patient'),
                 	% Freiburg Prediction Contest
 	        	% https://epilepsy.uni-freiburg.de/seizure-prediction-workshop-2007/prediction-contest/data-download
 			HDR.FEPI.PatientFile = fullfile(HDR.FILE.Path,'patient.txt');
@@ -582,15 +585,15 @@ else
                 elseif all(s(1:16)==[15   195   123    28   207    45   109    75   138   234    31   100   206  210   185    23])
                         HDR.TYPE='no spec (nicolet?)';
                         
-                elseif any(s(1)==[49:51]) & all(s([2:4,6])==[0,50,0,0]) & any(s(5)==[49:50]),
+                elseif any(s(1)==[49:51]) && all(s([2:4,6])==[0,50,0,0]) && any(s(5)==[49:50]),
                         HDR.TYPE = 'WFT';	% nicolet
                         
-                elseif all(s(1:3)==[255,255,254]) & FLAG.FS3,
-		%any(s==10) & all((s(4:pos1_ascii10)>=32) & (s(4:pos1_ascii10)<128)); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
+                elseif all(s(1:3)==[255,255,254]) && FLAG.FS3,
+		%any(s==10) && all((s(4:pos1_ascii10)>=32) & (s(4:pos1_ascii10)<128)); 	% FREESURVER TRIANGLE_FILE_MAGIC_NUMBER
                         HDR.TYPE='FS3';
                 elseif all(s(1:3)==[255,255,255]); 	% FREESURVER QUAD_FILE_MAGIC_NUMBER or CURVATURE
                         HDR.TYPE='FS4';
-                elseif all(s(2:6)==[134,1,0,2,0]) & any(s(1)==[162:164]); 	% SCAN *.TRI file 
+                elseif all(s(2:6)==[134,1,0,2,0]) && any(s(1)==[162:164]); 	% SCAN *.TRI file 
                         HDR.TYPE='TRI';
                         
                 elseif strncmp(ss,'3D Geometry File Format ',24); % Rhino Model file 
@@ -599,10 +602,10 @@ else
                         HDR.TYPE='GEO:IGES';
                 elseif strncmp(ss,'solid',5); 
                         HDR.TYPE='GEO:STL:ASCII';
-                elseif strncmp(ss,'STL binary file',15) & (HDR.FILE.size==(s(81:84)*256.^[3:-1:0]')*50+84); 
+                elseif strncmp(ss,'STL binary file',15) && (HDR.FILE.size==(s(81:84)*256.^[3:-1:0]')*50+84); 
                         HDR.TYPE='GEO:STL:BIN';
 			HDR.Endianity='ieee-be';                       
-                elseif strncmp(ss,'STL binary file',15) & (HDR.FILE.size==(s(81:84)*256.^[0:3]')*50+84); 
+                elseif strncmp(ss,'STL binary file',15) && (HDR.FILE.size==(s(81:84)*256.^[0:3]')*50+84); 
                         HDR.TYPE='GEO:STL:BIN';
 			HDR.Endianity='ieee-le';
                 elseif strncmp(ss,'PLY',3); 	% Polygon file format 
@@ -651,7 +654,7 @@ else
 
                 elseif all(s(129:132)==abs('DICM')); 
                         HDR.TYPE='DICOM';
-                elseif all(s([2,4,6:8])==0) & all(s([1,3,5]));            % DICOM candidate
+                elseif all(s([2,4,6:8])==0) && all(s([1,3,5]));            % DICOM candidate
                         HDR.TYPE='DICOM';
                 elseif all(s(1:18)==[8,0,5,0,10,0,0,0,abs('ISO_IR 100')])             % DICOM candidate
                         HDR.TYPE='DICOM';
@@ -721,7 +724,7 @@ else
                         HDR.TYPE='HL7aECG';
                 elseif strncmp(ss,'<WORLD>',7)
                         HDR.TYPE='XML';
-                elseif all(s(1:2)==[255,254]) & all(s(4:2:end)==0)
+                elseif all(s(1:2)==[255,254]) && all(s(4:2:end)==0)
                         HDR.TYPE='XML-UTF16';
                 elseif ~isempty(findstr(ss,'?xml version'))
                         HDR.TYPE='XML-UTF8';
@@ -755,7 +758,7 @@ else
 			HDR.VERSION = strtok(ss(6:end),[10,13]);
                 elseif strncmp(ss,'SIMPLE  =                    T / Standard FITS format',30)
                         HDR.TYPE='IMAGE:FITS';
-                elseif all(s(1:40)==[137,abs('HDF'),13,10,26,10,0,0,0,0,0,8,8,0,4,0,16,0,3,zeros(1,11),repmat(255,1,8)]) & (HDR.FILE.size==s(41:44)*2.^[0:8:24]')
+                elseif all(s(1:40)==[137,abs('HDF'),13,10,26,10,0,0,0,0,0,8,8,0,4,0,16,0,3,zeros(1,11),repmat(255,1,8)]) && (HDR.FILE.size==s(41:44)*2.^[0:8:24]')
                         HDR.TYPE='HDF';
                 elseif strncmp(ss,'CDF',3)
                         HDR.TYPE='NETCDF';
@@ -775,7 +778,7 @@ else
 			HDR.ND = 4;
                 elseif strncmp(ss,'.PBF',4)      
                         HDR.TYPE='PBF';
-                elseif all(s([1,3])==[10,1]) & any(s(2)==[0,2,3,5]) & any(s(4)==[1,4,8,24]) & any(s(59)==[4,3])
+                elseif all(s([1,3])==[10,1]) && any(s(2)==[0,2,3,5]) && any(s(4)==[1,4,8,24]) && any(s(59)==[4,3])
                         HDR.TYPE='PCX';
 			tmp = [2.5, 0, 2.8, 2.8, 0, 3];
                         HDR.VERSION=tmp(s(2)+1);
@@ -790,12 +793,12 @@ else
                         HDR.TYPE='IMAGE:JNG';
                 elseif all(s(1:8)==[137,80,78,71,13,10,26,10]) 
                         HDR.TYPE='IMAGE:PNG';
-		elseif (ss(1)=='P') & any(ss(2)=='123')	% PBMA, PGMA, PPMA
+		elseif (ss(1)=='P') && any(ss(2)=='123')	% PBMA, PGMA, PPMA
                         HDR.TYPE='IMAGE:PBMA';
 			id = 'BGP';
 			HDR.TYPE(8)=id(s(2)-48);
 			
-		elseif (ss(1)=='P') & any(ss(2)=='456')	% PBMB, PGMB, PPMB
+		elseif (ss(1)=='P') && any(ss(2)=='456')	% PBMB, PGMB, PPMB
                         HDR.TYPE='IMAGE:PBMB';
 			id = 'BGP';
 			HDR.TYPE(8) = id(s(2)-abs('3'));
@@ -813,7 +816,7 @@ else
 			HDR.DigMax  = str2double(t);
 			HDR.HeadLen = lt;
 
-                elseif strcmpi(HDR.FILE.Ext,'XBM') & ~isempty(strfind(ss,'bits[]')) & ~isempty(strfind(ss,'width')) & ~isempty(strfind(ss,'height'))
+                elseif strcmpi(HDR.FILE.Ext,'XBM') && ~isempty(strfind(ss,'bits[]')) && ~isempty(strfind(ss,'width')) && ~isempty(strfind(ss,'height'))
                         HDR.TYPE='IMAGE:XBM';
                 elseif strncmp(ss,'/* XBM ',7)
                         HDR.TYPE='IMAGE:XBM';
@@ -825,7 +828,7 @@ else
 
                 elseif strncmp(ss,['#  ',HDR.FILE.Name,'.poly'],8+length(HDR.FILE.Name)) 
                         HDR.TYPE='POLY';
-                elseif all(s([1,3,7:12])==[255,255,abs('Exif'),0,0]) & any(s(2)==[216:217]) & any(s(4)==[224:225]); 
+                elseif all(s([1,3,7:12])==[255,255,abs('Exif'),0,0]) && any(s(2)==[216:217]) && any(s(4)==[224:225]); 
                         HDR.TYPE='IMAGE:EXIF';
                         HDR.Endianity = 'ieee-be';
                 elseif all(s([1:4,7:12])==[255,216,255,225,abs('Exif'),0,0]); 
@@ -843,7 +846,7 @@ else
                 elseif all(s(1:4)==[216,255,224,255])
                         HDR.TYPE='IMAGE:JPG3';
                         HDR.Endianity = 'ieee-le';
-                elseif all(s([1,3,65])==[10,1,0]) & any(s(2)==[0,2,3,4,5]) & any(s(4)==[1,2,4,8]) & any(s(66)==[1:4]) & any(s(69)==[1:2])
+                elseif all(s([1,3,65])==[10,1,0]) && any(s(2)==[0,2,3,4,5]) && any(s(4)==[1,2,4,8]) && any(s(66)==[1:4]) && any(s(69)==[1:2])
                         HDR.TYPE='IMAGE:PCX';
                         HDR.Endianity = 'ieee-le';
                 elseif all(s(1:4)==[149, 106, 166, 89])
@@ -864,7 +867,7 @@ else
                 elseif strcmp(ss(1:3),'MMD'); 
                         HDR.TYPE='MED';
                 elseif 0, % conflict with some WFDB-data
-			%(s(1)==255) & any(s(2)>=224); 
+			%(s(1)==255) && any(s(2)>=224); 
                         HDR.TYPE='MPEG';
                 elseif strncmp(ss(5:8),'mdat',4); 
                         HDR.TYPE='MOV';
@@ -938,7 +941,7 @@ else
                         end;
                 elseif all(s(1:3)==[31,157,144]); 
                         HDR.TYPE='Z';
-                elseif all(s([1:4])==[80,75,3,4]) & (c>=30)
+                elseif all(s([1:4])==[80,75,3,4]) && (c>=30)
                         HDR.TYPE='ZIP';
                         HDR.VERSION = s(5:6)*[1;256];
                         HDR.ZIP.FLAG = s(7:8);
@@ -970,7 +973,7 @@ else
                         end;
                 elseif strncmp(ss,'ZYXEL',5); 
                         HDR.TYPE='ZYXEL';
-                elseif strcmpi([HDR.FILE.Name,' '],ss(1:length(HDR.FILE.Name)+1)) & any(ss(length(HDR.FILE.Name)+2)==' 0123456789');
+                elseif strcmpi([HDR.FILE.Name,' '],ss(1:length(HDR.FILE.Name)+1)) && any(ss(length(HDR.FILE.Name)+2)==' 0123456789');
                         HDR.TYPE='MIT';
                 elseif strcmpi(HDR.FILE.Name,ss(1:length(HDR.FILE.Name)))
                         HDR.TYPE='TAR?';
@@ -978,8 +981,8 @@ else
                         HDR.TYPE='SMNI';
 			
                 elseif mat4.flag,
-		%(c>20) & (s(1:4)*256.^[0:3]'<4053) & any(s(13)==[0,1]) & all(s(14:16)==0) & any(s(17:20)>0) & all(mat4.matrixname>='0' & mat4.matrixname<='z') & ~mat4.matrixname(20+mat4.matrixname_len) & all(any(mat4.type(ones(6,1),:)==[0,0:4;zeros(1,6);0:5;0:2,0,0,0]')),  
-		%& (type_mat4(1)==(0:4)) & (type_mat4(2)==0) & (type_mat4(3)==(0:5)) & (type_mat4(4)==(0:2)) 
+		%(c>20) && (s(1:4)*256.^[0:3]'<4053) && any(s(13)==[0,1]) && all(s(14:16)==0) && any(s(17:20)>0) && all(mat4.matrixname>='0' && mat4.matrixname<='z') && ~mat4.matrixname(20+mat4.matrixname_len) && all(any(mat4.type(ones(6,1),:)==[0,0:4;zeros(1,6);0:5;0:2,0,0,0]')),  
+		%& (type_mat4(1)==(0:4)) && (type_mat4(2)==0) && (type_mat4(3)==(0:5)) && (type_mat4(4)==(0:2)) 
 			% should be last, otherwise to many false detections
                         HDR.TYPE = 'MAT4';
                         HDR.MAT4 = mat4; 
@@ -1051,7 +1054,7 @@ else
 
                         status = fseek(fid,3228,-1);
                         [s0,c]=fread(fid,[1,4],'uint8'); 
-			if (status & (c==4)) 
+			if (status && (c==4)) 
 			if all((s0(1:4)*(2.^[24;16;8;1]))==1229801286); 	% GE LX2 format image 
                                 HDR.TYPE='LX2';
                         end;
@@ -1073,7 +1076,7 @@ else
                                 s = HDR.s; 
                         end; 
                         
-                        if all((s==32) | ((s>='0') & (s<='9'))) & strcmpi(HDR.FILE.Ext,'DCD') & (len>=3000);
+                        if all((s==32) | ((s>='0') & (s<='9'))) && strcmpi(HDR.FILE.Ext,'DCD') && (len>=3000);
 	                        s = s(1:3000); 
                         	HDR.HeadLen = 3000; 
                         	HDR.TYPE = 'CSE-database';
@@ -1096,7 +1099,7 @@ else
                 %%% this is the file type check based on the file extionsion, only.  
                 if 0, 
                         
-                elseif exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dm6']),'file') & exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.chn']),'file') & exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.log']),'file'), 
+                elseif exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.dm6']),'file') && exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.chn']),'file') && exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.log']),'file'), 
                 	% Nakamura dataset from S. Bressler
                 	HDR.TYPE='nakamura';
                 	
@@ -1105,7 +1108,7 @@ else
                         % MIT-ECG / Physiobank format
                 	HDR.TYPE='MIT';
 
-		elseif length(HDR.FILE.Ext) & strmatch(HDR.FILE.Ext,{'16a','abp','al','apn','ari','atr','atr-','ecg','pap','ple','qrs','qrsc','sta','stb','stc'},'exact'),  
+		elseif length(HDR.FILE.Ext) && strmatch(HDR.FILE.Ext,{'16a','abp','al','apn','ari','atr','atr-','ecg','pap','ple','qrs','qrsc','sta','stb','stc'},'exact'),  
 			% Physiobank annotation files 
 			HDR.TYPE='MIT-ATR';
 			
@@ -1162,16 +1165,16 @@ else
                                 HDR = getfiletype(fullfile(HDR.FILE.Path,tmp.name));
                         end
                         
-                elseif strcmpi(HDR.FILE.Ext,'flt') & exist([HDR.FileName,'.hdr'],'file'); 
+                elseif strcmpi(HDR.FILE.Ext,'flt') && exist([HDR.FileName,'.hdr'],'file'); 
                         HDR.TYPE = 'ET-MEG'; % ET-MEG format
                         HDR.FileName = [HDR.FileName,'.hdr'];
-                elseif strcmpi(HDR.FILE.Ext,'bin') & exist([HDR.FileName,'.hdr'],'file'); 
+                elseif strcmpi(HDR.FILE.Ext,'bin') && exist([HDR.FileName,'.hdr'],'file'); 
                         HDR.TYPE = 'ET-MEG'; % ET-MEG format
                         HDR.FileName = [HDR.FileName,'.hdr'];
-                elseif strcmpi(HDR.FILE.Ext,'int') & exist([HDR.FileName,'.hdr'],'file'); 
+                elseif strcmpi(HDR.FILE.Ext,'int') && exist([HDR.FileName,'.hdr'],'file'); 
                         HDR.TYPE = 'ET-MEG'; % ET-MEG format
                         HDR.FileName = [HDR.FileName,'.hdr'];
-                elseif strcmpi(HDR.FILE.Ext,'hdr') & exist(fullfile(HDR.FILE.Path,HDR.FILE.Name),'file'); 
+                elseif strcmpi(HDR.FILE.Ext,'hdr') && exist(fullfile(HDR.FILE.Path,HDR.FILE.Name),'file'); 
                         HDR.TYPE = 'ET-MEG'; % ET-MEG format
                         %HDR.FileName = fullfile(HDR.FILE.Path,HDR.FILE.Name); 
                         
@@ -1193,7 +1196,7 @@ else
 	                	HDR.TYPE = 'BCI2002b';
                 	end;end;end;end; 
                         
-                elseif strcmpi(HDR.FILE.Ext,'txt') & (any(strfind(HDR.FILE.Path,'a34lkt')) | any(strfind(HDR.FILE.Path,'egl2ln'))) & any(strmatch(HDR.FILE.Name,{'Traindata_0','Traindata_1','Testdata'}))
+                elseif strcmpi(HDR.FILE.Ext,'txt') && (any(strfind(HDR.FILE.Path,'a34lkt')) || any(strfind(HDR.FILE.Path,'egl2ln'))) && any(strmatch(HDR.FILE.Name,{'Traindata_0','Traindata_1','Testdata'}))
                         HDR.TYPE = 'BCI2003_Ia+b';
                         
                 elseif any(strmatch(HDR.FILE.Name,{'x_train','x_test'}))
@@ -1207,10 +1210,10 @@ else
                         
                 elseif strcmpi(HDR.FILE.Ext,'shape_info')
                         
-                elseif strcmpi(HDR.FILE.Ext,'trg') & HDR.FLAG.ASCII
+                elseif strcmpi(HDR.FILE.Ext,'trg') && HDR.FLAG.ASCII
                 	HDR.TYPE = 'EEProbe-TRG';
                         
-                elseif strcmpi(HDR.FILE.Ext,'ainf') & HDR.FLAG.ASCII & exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.raw']),'file')
+                elseif strcmpi(HDR.FILE.Ext,'ainf') && HDR.FLAG.ASCII && exist(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.raw']),'file')
                 	HDR.TYPE = 'AINF';
                         
                 elseif strcmpi(HDR.FILE.Ext,'rej')
@@ -1258,7 +1261,7 @@ else
 			fclose(fid);
 
                         % the following are Brainvision format, see http://www.brainproducts.de
-                elseif strcmpi(HDR.FILE.Ext,'seg') | strcmpi(HDR.FILE.Ext,'vmrk')
+                elseif strcmpi(HDR.FILE.Ext,'seg') || strcmpi(HDR.FILE.Ext,'vmrk')
                         % If this is really a BrainVision file, there should also be a
                         % header with the same name and extension *.vhdr.
                         tmp = fullfile(HDR.FILE.Path, [HDR.FILE.Name '.vhdr']);
@@ -1295,15 +1298,15 @@ else
                         
                 elseif strcmpi(HDR.FILE.Ext,'trl')
                         
-                elseif (length(HDR.FILE.Ext)>2) & all(s>31),
-                        if all(HDR.FILE.Ext(1:2)=='0') & any(abs(HDR.FILE.Ext(3))==abs([48:57])),	% WSCORE scoring file
+                elseif (length(HDR.FILE.Ext)>2) && all(s>31),
+                        if all(HDR.FILE.Ext(1:2)=='0') && any(abs(HDR.FILE.Ext(3))==abs([48:57])),	% WSCORE scoring file
                                 x = load('-ascii',HDR.FileName);
                                 HDR.EVENT.POS = x(:,1);
                                 HDR.EVENT.WSCORETYP = x(:,2);
                                 HDR.TYPE = 'WCORE_EVENT';
                         end;
 
-                elseif strcmpi(HDR.FILE.Ext,'hgt') & (rem(sqrt(HDR.FILE.size/2),1)==0)
+                elseif strcmpi(HDR.FILE.Ext,'hgt') && (rem(sqrt(HDR.FILE.size/2),1)==0)
                 	HDR.TYPE = 'IMAGE:HGT'; 
                         
                 end;

@@ -47,7 +47,7 @@ end;
 	        [s,H] = sload(s);
 		CHAN = 1:size(s,2);
         
-	elseif isnumeric(s) & (length(H.InChanSelect)==size(s,2))
+	elseif isnumeric(s) && (length(H.InChanSelect)==size(s,2))
 	        CHAN = 1:size(s,2);
 	        H.Label = H.Label(H.InChanSelect,:);
 	else    
@@ -61,7 +61,7 @@ end;
 %if strmatch(H.TYPE,{'BMP','PBMA','PGMA','PPMA','PBMB','PGMB','PPMB','XPM'}),
 if isfield(H,'IMAGE');
         if exist('OCTAVE_VERSION','builtin')
-                if (length(size(s))==3) & (size(s,3)==3)
+                if (length(size(s))==3) && (size(s,3)==3)
                         imshow(s(:,:,1),s(:,:,2),s(:,:,3));
 		else
 		        imshow(s);
@@ -74,7 +74,7 @@ if isfield(H,'IMAGE');
         end;
         return;
 
-elseif ischar(arg2) & (strcmp(H.TYPE,'ELPOS') | (isfield(H,'ELEC') && strncmpi(arg2,'ELPOS',5)));
+elseif ischar(arg2) && (strcmp(H.TYPE,'ELPOS') || (isfield(H,'ELEC') && strncmpi(arg2,'ELPOS',5)));
 	XYZ = H.ELEC.XYZ;
 	K = 1:size(XYZ,1); 
 		
@@ -239,10 +239,10 @@ elseif isfield(H.EVENT,'CodeDesc'),
         EVENT.CodeDesc{32766} = 'New Segment';
         EVENT.CodeDesc{32767} = 'sparse sample';
 	EVENT.Desc = EVENT.CodeDesc(H.EVENT.TYP);	
-elseif ~isfield(H.EVENT,'Desc') & (length(H.EVENT.TYP)>0),
+elseif ~isfield(H.EVENT,'Desc') && (length(H.EVENT.TYP)>0),
 	[p,f,e]=fileparts(which('sopen.m'));
 	[p,f,e]=fileparts(p);
-        g = sopen(fullfile(p,'doc/eventcodes.txt'));g=sclose(g);
+        g = sopen(fullfile(p,'doc','eventcodes.txt'));g=sclose(g);
         ix = sparse(g.EVENT.CodeIndex,1,1:length(g.EVENT.CodeIndex));
         EVENT = H.EVENT;
         try,
@@ -264,7 +264,7 @@ end;
 
 
 ix = find(EVENT.POS>0 & EVENT.POS<=length(t));
-if isfield(EVENT,'Desc') & ~isempty(ix) %& ~exist('OCTAVE_VERSION','builtin')
+if isfield(EVENT,'Desc') && ~isempty(ix) %& ~exist('OCTAVE_VERSION','builtin')
 	ix2 = find((EVENT.POS>0) & (EVENT.POS<=length(t))); % & (EVENT.DUR>0));
         v = axis;
         hold on;
@@ -304,7 +304,7 @@ end;
 if 0, length(H.EVENT.POS) > 0,
         hold on;
         if 0, 
-        elseif isfield(H.EVENT,'DUR') & isfield(H.EVENT,'CHN');
+        elseif isfield(H.EVENT,'DUR') && isfield(H.EVENT,'CHN');
                 plot([H.EVENT.POS,H.EVENT.POS+H.EVENT.DUR]'/H.SampleRate,[dd;dd]*H.EVENT.CHN','+-');    
                 
         elseif isfield(H.EVENT,'CHN');
