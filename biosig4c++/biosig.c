@@ -46,7 +46,7 @@
 #include <errno.h>
 #include <float.h>
 #include <locale.h>
-#include <stdio.h>
+//#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -1910,8 +1910,8 @@ void destructHDR(HDRTYPE* hdr) {
 
 	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.AS.rawdata\n");
 
-    	if ((hdr->AS.rawdata != NULL) && (hdr->TYPE != SCP_ECG)) 
-    	{	// for SCP: hdr->AS.rawdata is part of hdr->AS.Header 
+	if ((hdr->AS.rawdata != NULL) && (hdr->TYPE != SCP_ECG)) 
+	{	// for SCP: hdr->AS.rawdata is part of hdr->AS.Header 
         	free(hdr->AS.rawdata);
         }	
 
@@ -2216,6 +2216,14 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	    	hdr->TYPE = OpenXDF;
     	else if (!memcmp(Header1,"PLEX",4))
 	    	hdr->TYPE = PLEXON;
+    	else if (!memcmp(Header1,"\x55\xAA\x00\xb0",2)) {
+	    	hdr->TYPE = RDF;	// UCSD ERPSS aquisition system
+	    	hdr->FILE.LittleEndian = 1; 
+	}    	
+    	else if (!memcmp(Header1,"\xAA\x55\xb0\x00",2)) {
+	    	hdr->TYPE = RDF;	// UCSD ERPSS aquisition system
+	    	hdr->FILE.LittleEndian = 0; 
+	}    	
     	else if (!memcmp(Header1,"RIFF",4)) {
 	    	hdr->TYPE = RIFF;
 	    	if (!memcmp(Header1+8,"WAVE",4))
@@ -2348,6 +2356,8 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 		hdr->TYPE = ZIP;
 	else if (!strncmp(Header1,"PK\005\006",4))
 		hdr->TYPE = ZIP;
+	else if (!strncmp(Header1,"!<arch>\n",8))
+		hdr->TYPE = MSVCLIB;
 	else if (!strncmp(Header1,"ZIP2",4))
 		hdr->TYPE = ZIP2;
 	else if (!memcmp(Header1,"<?xml version",13))
@@ -2456,6 +2466,7 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case MIT: 	{ FileType = "MIT"; break; }
 	case MM: 	{ FileType = "MatrixMarket"; break; }
 	case MSI: 	{ FileType = "MSI"; break; }
+	case MSVCLIB: 	{ FileType = "MS VC++ Library"; break; }
 
 	case native: 	{ FileType = "native"; break; }
 	case NetCDF: 	{ FileType = "NetCDF"; break; }
@@ -2465,7 +2476,9 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case OGG: 	{ FileType = "OGG"; break; }
 	case PDP: 	{ FileType = "PDP"; break; }
 
+	case RDF: 	{ FileType = "RDF"; break; }		// UCSD ERPSS aquisition system 
 	case RIFF: 	{ FileType = "RIFF"; break; }
+
 	case SASXPT: 	{ FileType = "SAS_XPORT"; break; }
 	case SCP_ECG: 	{ FileType = "SCP"; break; }
 	case SIGIF: 	{ FileType = "SIGIF"; break; }
@@ -3552,7 +3565,7 @@ if (!strncmp(MODE,"r",1))
 #ifndef WITHOUT_NETWORK
 	if (!memcmp(hdr->FileName,"bscs://",7)) {
 		uint64_t ID; 
-    		const char *hostname = (char*)hdr->FileName+7;
+    		char *hostname = (char*)hdr->FileName+7;
     		char *t = strrchr(hostname,'/');
     		if (t==NULL) {
 			B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
@@ -5364,7 +5377,7 @@ if (VERBOSE_LEVEL>8)
 		char* tmpfile = (char*)calloc(strlen(hdr->FileName)+5,1);		
 		strcpy(tmpfile,hdr->FileName);
 		hdr->FileName = tmpfile;
-		char* ext = strrchr(hdr->FileName,'.')+1; 
+		char* ext = strrchr((char*)hdr->FileName,'.')+1; 
 
 		while (!ifeof(hdr)) {
 			size_t bufsiz = 4096;
@@ -8069,7 +8082,7 @@ if (VERBOSE_LEVEL>8)
 			char *f1 = (char*) malloc(strlen(hdr->FileName)+strlen(DatFiles[0])+2);
 			strcpy(f1,hdr->FileName);
 			hdr->FileName = f1; 
-			char *ptr = strrchr(hdr->FileName,FILESEP);
+			char *ptr = (char*) strrchr(hdr->FileName,FILESEP);
 			if (ptr != NULL) 
 				strcpy(ptr+1,DatFiles[0]);
 			else 		
@@ -8228,6 +8241,74 @@ if (VERBOSE_LEVEL>8)
     		B4C_ERRMSG = "Format Persyst not supported,yet.";
 	}
 
+	else if (hdr->TYPE==RDF) {
+
+		// UCSD ERPSS aquisition system
+		
+		#define RH_F_CONV   0x0001   /* converted from other format */
+		#define RH_F_RCOMP  0x0002   /* raw file is compressed */
+		#define RH_F_DCMAP  0x4000   /* channel mapping used during dig. */
+
+		#define RH_CHANS       256   /* maximum # channels */
+		#define RH_DESC         64   /* max # chars in description */
+		#define RH_CHDESC        8   /* max # chars in channel descriptor */
+		#define RH_SFILL         4   /* short filler */
+		#define RH_LFILL         6   /* long filler */
+		#define RH_ALOG        828   /* max # chars in ASCII log */
+
+		typedef struct rawhdr {
+			uint16_t rh_byteswab;          /* ERPSS byte swab indicator */
+			uint16_t rh_magic;             /* file magic number */
+			uint16_t rh_flags;             /* flags */
+			uint16_t rh_nchans;            /* # channels */
+			uint16_t rh_calsize;           /* (if norm, |cal|) */
+			uint16_t rh_res;               /* (if norm, in pts/unit) */
+			uint16_t rh_pmod;              /* # times processed */
+			uint16_t rh_dvers;             /* dig. program version */
+			uint16_t rh_l2recsize;         /* log 2 record size */
+			uint16_t rh_recsize;           /* record size in pts */
+			uint16_t rh_errdetect;         /* error detection in effect */
+			uint16_t rh_chksum;            /* error detection chksum */
+			uint16_t rh_tcomp;             /* log 2  time comp/exp */
+			uint16_t rh_narbins;           /* (# art. rej. count slots) */
+			uint16_t rh_sfill[RH_SFILL];   /* short filler (to 16 slots) */
+			uint16_t rh_nrmcs[RH_CHANS];   /* (cal sizes used for norm.) */
+			uint32_t rh_time;              /* creation time, secs since 1970 */
+			uint32_t rh_speriod;           /* digitization sampling period */
+			uint32_t rh_lfill[RH_LFILL];   /* long filler (to 8 slots) */
+			char     rh_chdesc[RH_CHANS][RH_CHDESC]; /* chan descriptions */
+			char     rh_chmap[RH_CHANS];   /* input chan mapping array */
+			char     rh_subdesc[RH_DESC];  /* subject description */
+			char     rh_expdesc[RH_DESC];  /* experimenter description */
+			char     rh_ename[RH_DESC];    /* experiment name */
+			char     rh_hname[RH_DESC];    /* host machine name */
+			char     rh_filedesc[RH_DESC]; /* file description */
+			char     rh_arbdescs[RH_DESC]; /* (art. rej. descriptions) */
+			char     rh_alog[RH_ALOG];     /* ASCII log */
+		} RAWHDR;
+
+		if (count < sizeof(struct rawhdr)) {
+			hdr->HeadLen = sizeof(struct rawhdr);
+		    	hdr->AS.Header = (uint8_t*) realloc(hdr->AS.Header,hdr->HeadLen+1);
+    			count += ifread(Header1+count, 1, hdr->HeadLen-count, hdr);
+			hdr->AS.Header[hdr->HeadLen]=0;
+		}
+
+		hdr->NS = *(uint16_t*)(hdr->AS.Header+2);
+		uint32_t T0 = *(uint32_t*)(hdr->AS.Header+32);	// seconds since 1970
+		hdr->SampleRate = 1e6 / (*(uint32_t*)(hdr->AS.Header+36));
+		strncpy(hdr->Patient.Id, (const char*)hdr->AS.Header+32+24+256*9, min(64,MAX_LENGTH_PID));
+		hdr->CHANNEL = (CHANNEL_TYPE*)calloc(hdr->NS,sizeof(CHANNEL_TYPE));
+		for (k=0; k<hdr->NS; k++) {
+			CHANNEL_TYPE *hc = hdr->CHANNEL + k;
+			hc->OnOff = 1;
+			strncmp(hc->Label,(char*)(hdr->AS.Header+32+24+8*k),8);
+		}	
+
+    		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+    		B4C_ERRMSG = "Format RDF (UCSD ERPSS) not supported,yet.";
+	}
+
 	else if (hdr->TYPE==SCP_ECG) {
 		hdr->HeadLen   = leu32p(hdr->AS.Header+2);
 		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
@@ -8290,6 +8371,9 @@ if (VERBOSE_LEVEL>8)
 			pos += len+1;
 			while ((line[0]==10) || (line[0]==13)) pos++; 
 		} 	
+
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"333 SIGMA  pos=%i, 0x%x\n", pos, pos);
+
 		hdr->NS = leu16p(hdr->AS.Header+pos);
 		hdr->SampleRate = 128;
 		hdr->SPR  = 1;
@@ -8300,6 +8384,9 @@ if (VERBOSE_LEVEL>8)
 			hdr->NRec = (stbuf.st_size-hdr->HeadLen)/(2*hdr->NS);
 		else 
 			fprintf(stdout,"Compressed Sigma file (%s) is currently not supported. Uncompress file and try again.", hdr->FileName);	
+
+
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"333 SIGMA NS=%i/0x%x, Fs=%f, SPR=%i, NRec=%i\n",hdr->NS,hdr->NS, hdr->SampleRate,hdr->SPR,hdr->NRec);
 
 	       	// define variable header 
 		pos     = 148;
@@ -9031,7 +9118,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
     	if (!memcmp(hdr->FileName,"bscs://",7)) {
     		// network: write to server
                 const char *hostname = hdr->FileName+7;
-                char *tmp= strchr(hostname,'/');
+                char *tmp= (char*)strchr(hostname,'/');
                 if (tmp != NULL) tmp[0]=0;   // ignore terminating slash       
 
                 uint64_t ID=0; 
@@ -10225,7 +10312,7 @@ int V = VERBOSE_LEVEL;
 	}	
 
 	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"sread 223 alpha12bit=%i SWAP=%i spr=%i\n",ALPHA12BIT,SWAP,hdr->SPR);
+		fprintf(stdout,"sread 223 alpha12bit=%i SWAP=%i spr=%i   %p\n", ALPHA12BIT, SWAP, hdr->SPR, hdr->AS.rawdata);
 
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
@@ -10256,6 +10343,9 @@ int V = VERBOSE_LEVEL;
 		// size_t off = (k4+toffset)*hdr->AS.bpb + CHptr->bi + (k5*SZ>>3);
 		// ptr = hdr->AS.rawdata + off;
 		ptr = ptr1 + (k5*SZ>>3);
+
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"SREAD 555: k_i = [%d %d %d %d ] 0x%08x[%f] @%p => ",k1,k2,k4,k5,leu32p(ptr),lef64p(ptr),ptr);
 
 		switch (GDFTYP) { 
 		case 1: 
@@ -10463,6 +10553,9 @@ int V = VERBOSE_LEVEL;
 		else if (!hdr->FLAG.UCAL)	// scaling 
 			sample_value = sample_value * CHptr->Cal + CHptr->Off;
 
+		if (VERBOSE_LEVEL>8) 
+			fprintf(stdout,"%f\n",sample_value);
+
 		// resampling 1->DIV samples
 		if (hdr->FLAG.ROW_BASED_CHANNELS) {
 			size_t k3;
@@ -10644,7 +10737,7 @@ int V = VERBOSE_LEVEL;
 			if (VERBOSE_LEVEL>8) fprintf(stdout,"%f -> %f\n",*(double*)X.x,*(double*)Y.x);
 			free(X.x);
 			if (data==NULL) 
-				hdr->data.block = Y.x;
+				hdr->data.block = (biosig_data_type*)Y.x;
 			else 
 				hdr->data.block = NULL;
 					
@@ -11204,8 +11297,7 @@ int sclose(HDRTYPE* hdr)
 		}	
 
 	}		
-	else if ((hdr->FILE.OPEN>1) && (hdr->TYPE==SCP_ECG))
-	{
+	else if ((hdr->FILE.OPEN>1) && (hdr->TYPE==SCP_ECG)) {
 		uint16_t 	crc; 
 		uint8_t*	ptr; 	// pointer to memory mapping of the file layout
 
