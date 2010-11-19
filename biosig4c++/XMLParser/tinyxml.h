@@ -54,11 +54,12 @@ Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 #include <assert.h>
 
 #ifdef WITH_ZLIB
-#ifdef __MINGW32__
-	// requires zlib e.g. from here: http://www.zlib.net/zlib123-dll.zip
-#include "../win32/zlib/include/zlib.h"
-#else
 #include <zlib.h>
+#ifndef ZLIB_H
+	#ifdef __MINGW32__
+	// requires zlib e.g. from here: http://www.zlib.net/zlib123-dll.zip
+	#include "../win32/zlib/include/zlib.h"
+	#endif 
 #endif 
 #endif 
 

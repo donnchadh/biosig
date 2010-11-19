@@ -32,7 +32,7 @@ LIBEXT        = a
 
 ### User-specified options: its likely you want to change this
 MATLABOPT     = # -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
-PathToSigViewer = ../../src/sigviewer/
+PathToSigViewer = ../../src/sigviewer/trunk
 PathToSigViewerWIN32 = ../../src/sigviewer4win32
 
 ## default options 
@@ -66,7 +66,7 @@ else
   LFLAGS      = $(LFLAGS_static)
   LIBS        = $(LIBS_static)
 endif
-LDLIBS      = -lz -lcholmod #-lgdcmDSED -lgsl -lgslcblas -lm	# static
+LDLIBS        = -lz -lcholmod #-lgdcmDSED 	# static
 LIBS         += $(LDLIBS)
 DELETE        = rm
 COPY          = cp -f
@@ -91,13 +91,12 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 ## set variables for MinGW Crosscompiler: compile on linux binaries for windows
 ##
 CROSS	     = i586-mingw32msvc-
-#CROSS	     = i686-pc-mingw32-
+CROSS	     = i686-pc-mingw32-
 MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
-MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS # -D=WITH_CHOLMOD #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
-MinGWCFLAGS  = -pipe -fPIC -Wall -O2 -W -D_REENTRANT -D=BUILD_DLL $(MinGWDEF)
-MinGWLIBS    = win32/libbiosig.lib -lws2_32 win32/libz.a #-lcholmod  # static
-#MinGWLIBS   = -Lwin32 -l biosig -l zlib1 -lws2_32  # dynamic
+MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
+MinGWCFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF)
+MinGWLIBS    = win32/libbiosig.lib -L/home/schloegl/src/mingw-cross-env/usr/i686-pc-mingw32/lib/ -lws2_32 $(LDLIBS) # static
 MinGWLINK    = $(MinGWCXX)
 ##########################################################
 
@@ -210,17 +209,17 @@ all:   $(TARGET) mex4o biosig4python win32 biosig_client biosig_server java tcl 
 %.o: XMLParser/%.cpp
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
 
-win32/%.obj: %.c  biosig-dev.h biosig.h win32/zlib/include/zlib.h
+win32/%.obj: %.c  biosig-dev.h biosig.h 
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
-win32/%.obj: t210/%.c  biosig-dev.h biosig.h win32/zlib/include/zlib.h
+win32/%.obj: t210/%.c  biosig-dev.h biosig.h 
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
-win32/%.obj: t220/%.c  biosig-dev.h biosig.h win32/zlib/include/zlib.h
+win32/%.obj: t220/%.c  biosig-dev.h biosig.h 
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
-win32/%.obj: t230/%.c  biosig-dev.h biosig.h win32/zlib/include/zlib.h
+win32/%.obj: t230/%.c  biosig-dev.h biosig.h 
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
-win32/%.obj: t240/%.c  biosig-dev.h biosig.h win32/zlib/include/zlib.h
+win32/%.obj: t240/%.c  biosig-dev.h biosig.h 
 	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o "$@" "$<"
-win32/%.obj: XMLParser/%.cpp win32/zlib/include/zlib.h
+win32/%.obj: XMLParser/%.cpp 
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
 
@@ -259,24 +258,24 @@ getlogin_r.o: win32/getlogin_r.c
 #strtod.o: gnulib/strtod.c
 #	$(CC) -c $(CFLAGS) $(INCPATH) -o strtod.o gnulib/strtod.c
 
-win32/sandbox.obj: test0/sandbox.c biosig.h  win32/zlib/include/zlib.h
+win32/sandbox.obj: test0/sandbox.c biosig.h 
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sandbox.obj test0/sandbox.c
 
-win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h  win32/zlib/include/zlib.h \
+win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h \
 		biosig.h t210/structures.h t210/types.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_scp_read.obj t210/sopen_scp_read.c
 
 win32/sopen_alpha_read.obj: t210/sopen_alpha_read.c biosig-dev.h
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_alpha_read.obj t210/sopen_alpha_read.c
 
-win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h win32/zlib/include/zlib.h \
+win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h \
 		t210/types.h t210/structures.h t210/codes.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/scp-decode.obj t210/scp-decode.cpp
 
 #win32/sopen_fef_read.obj: t240/sopen_fef_read.c biosig-dev.h biosig.h
 #	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o win32/sopen_fef_read.obj t240/sopen_fef_read.c
 
-win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h win32/zlib/include/zlib.h \
+win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
 		XMLParser/tinyxml.h XMLParser/tinystr.h # XMLParser/Tokenizer.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_hl7aecg.obj t230/sopen_hl7aecg.c
 
@@ -318,21 +317,6 @@ ruby: libbiosig.so
 tcl: libbiosig.so
 	-make -C tcl 
 
-#############################################################
-# 	Download zlib-dll
-#############################################################
-
-win32/zlib-1.2.3-lib.zip:
-	wget -q -Pwin32 http://sourceforge.net/projects/gnuwin32/files/zlib/1.2.3/zlib-1.2.3-lib.zip/download
-
-win32/zlib/lib/libz.a: win32/zlib-1.2.3-lib.zip
-	mkdir -p win32/zlib
-	unzip -u -n win32/zlib-1.2.3-lib.zip -d win32/zlib
-
-win32/libz.a: win32/zlib/lib/libz.a
-	$(COPY) win32/zlib/lib/libz.a win32/libz.a
-
-win32/zlib/include/zlib.h: win32/zlib/lib/libz.a 
 
 #############################################################
 #	WIN32 - BUILD
@@ -348,18 +332,17 @@ win32/libbiosig.lib: $(MinGWOBJECTS) win32/libcnsfef.a biosig.h biosig-dev.h
 win32/libcnsfef.a:
 	make CROSS=$(CROSS) -C t240 ../win32/libcnsfef.a 
 
-win32/libbiosig.dll: $(MinGWOBJECTS) win32/libz.a biosig.h biosig-dev.h
-	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
-#	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) win32/libz.a win32/cholmod.dll -lws2_32 -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
+win32/libbiosig.dll: $(MinGWOBJECTS) biosig.h biosig-dev.h
+	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) $(MinGWLIBS) -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
 	-$(COPY) win32/libbiosig.dll $(PathToSigViewerWIN32)/extern/
 
-win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib win32/libz.a
+win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib
 	$(MinGWLINK) $(MinGWCFLAGS) save2gdf.c $(MinGWLIBS) -o win32/save2gdf.exe
 
-win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.lib win32/libz.a
+win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.lib
 	$(MinGWLINK) $(MinGWCFLAGS) pdp2gdf.c $(MinGWLIBS) -o win32/pdp2gdf.exe
 
-win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.lib win32/sigviewer.exe
+win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.lib #win32/sigviewer.exe
 
 
 #############################################################

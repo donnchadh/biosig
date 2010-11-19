@@ -30,8 +30,12 @@ The files were already compiled with MinGW and WITH_ZLIB for the i386-platform.
 # MinGW Crosscompiler on Linux for Windows  
 Currently, only the file converter save2gdf is supported.
 - install mingw32 mingw32-binutils mingw32-runtime
+- patch mingw's io.h with 
+	patch_mingw_io_remove_internal_sopen.diff
+- adapt the path to mingw in Makefile	
 - run the command  
-   make win32
+        make win32 
+
 
 # Windows + MinGW
 <this option is currently broken: fixes are welcome>
@@ -54,7 +58,7 @@ https://lists.sourceforge.net/lists/listinfo/biosig-general
 
 
     $Id: README,v 1.2 2008/08/23 22:12:27 schloegl Exp $
-    Copyright (C) 2008,2009 Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2008,2009,2010 Alois Schloegl <a.schloegl@ieee.org>
     This function is part of the "BioSig for C/C++" repository 
     (BioSig4C++) at http://biosig.sf.net/ 
 

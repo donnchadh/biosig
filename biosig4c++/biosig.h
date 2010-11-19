@@ -41,13 +41,13 @@
 #ifdef _VCPP_DEF
 #define __BYTE_ORDER  __LITTLE_ENDIAN
 typedef unsigned __int64	uint64_t;
-typedef __int64				int64_t;
+typedef __int64			int64_t;
 typedef unsigned long		uint32_t;
-typedef long				int32_t;
+typedef long			int32_t;
 typedef unsigned short		uint16_t;
-typedef short				int16_t;
+typedef short			int16_t;
 typedef unsigned char		uint8_t;
-typedef char				int8_t;
+typedef char			int8_t;
 
 #else
     #include <inttypes.h>
@@ -63,9 +63,9 @@ typedef char				int8_t;
 
 
 #ifdef __cplusplus
-    #define EXTERN_C extern "C"
+#define EXTERN_C extern "C"
 #else
-    #define EXTERN_C
+#define EXTERN_C
 #endif
 
 /* 
@@ -74,13 +74,14 @@ typedef char				int8_t;
  */
 
 #ifdef WITH_ZLIB
+#include <zlib.h>
+#ifndef ZLIB_H
     #if defined(__MINGW64__)
 	#include "win64/zlib/zlib.h"
     #elif defined(__MINGW32__)
 	#include "win32/zlib/include/zlib.h"
-    #else
-	#include <zlib.h>
     #endif 
+#endif 
 #endif 
 
 #ifdef WITH_CHOLMOD
@@ -147,13 +148,15 @@ enum FileFormat {
 	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
 	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, 
 	PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
-	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
+	RDF, RIFF, 
+	SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, TMSiLOG, TRC, UNIPRO, VRML, VTK, 
 	WAV, WinEEG, WMF, XML, XPM, 
 	Z, ZIP, ZIP2,
 	ASCII_IBI, ASCII, 
 	ARFF, SASXPT, SPSS, STATA, 
-	CFS, HEKA, ITX, NEURON
+	CFS, HEKA, ITX, NEURON,
+	MSVCLIB
 };
 
 
