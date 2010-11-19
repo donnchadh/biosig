@@ -54,14 +54,14 @@ if ~exist('OCTAVE_VERSION','builtin'),
 	path([BIOSIG_HOME,'/biosig/viewer/utils'],path);	% viewer
 	path([BIOSIG_HOME,'/biosig/viewer/help'],path);	% viewer
 
-	path(path,[BIOSIG_HOME,'/freetb4matlab/signal'],'-end');	% Octave-Forge signal processing toolbox converted with freetb4matlab
+	path(path,[BIOSIG_HOME,'/freetb4matlab/signal']);	% Octave-Forge signal processing toolbox converted with freetb4matlab
 else 
 	%% Octave
 	path(path,[BIOSIG_HOME,'/freetb4matlab/signal']);	% Octave-Forge signal processing toolbox converted with freetb4matlab
 end;
 
-path(path,[BIOSIG_HOME,'/freetb4matlab/oct2mat'],'-end');	% some basic functions used in Octave but not available in Matlab
-path(path,[BIOSIG_HOME,'/freetb4matlab/general'],'-end');	% some basic functions used in Octave but not available in Matlab
+path(path,[BIOSIG_HOME,'/freetb4matlab/oct2mat']);	% some basic functions used in Octave but not available in Matlab
+path(path,[BIOSIG_HOME,'/freetb4matlab/general']);	% some basic functions used in Octave but not available in Matlab
 path(path,[BIOSIG_HOME,'/freetb4matlab/statistics/distributions']);	% Octave-Forge statistics toolbox converted with freetb4matlab 
 path(path,[BIOSIG_HOME,'/freetb4matlab/statistics/tests']);	% Octave-Forge statistics toolbox converted with freetb4matlab 
 
