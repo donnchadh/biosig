@@ -330,6 +330,7 @@ OBJS=${ASN_MODULE_SOURCES:.c=.o} ${ASN_CONVERTER_SOURCES:.c=.o}
 WINOBJS=${ASN_MODULE_SOURCES:.c=.obj} ${ASN_CONVERTER_SOURCES:.c=.obj}
 W64OBJS=${ASN_MODULE_SOURCES:.c=.o64} ${ASN_CONVERTER_SOURCES:.c=.o64}
 
+CC        = gcc
 AR        = ar crs
 MinGWCC   = $(CROSS)gcc 
 AR64      = amd64-mingw32msvc-ar 

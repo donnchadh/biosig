@@ -34,6 +34,7 @@ LIBEXT        = a
 MATLABOPT     = # -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
 PathToSigViewer = ../../src/sigviewer/trunk
 PathToSigViewerWIN32 = ../../src/sigviewer4win32
+PathToMinGW   = $(HOME)/src/mingw-cross-env
 
 ## default options 
 
@@ -91,12 +92,12 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 ## set variables for MinGW Crosscompiler: compile on linux binaries for windows
 ##
 CROSS	     = i586-mingw32msvc-
-CROSS	     = i686-pc-mingw32-
+CROSS	     = $(PathToMinGW)/usr/bin/i686-pc-mingw32-
 MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
-MinGWDEF     = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
-MinGWCFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF)
-MinGWLIBS    = win32/libbiosig.lib -L/home/schloegl/src/mingw-cross-env/usr/i686-pc-mingw32/lib/ -lws2_32 $(LDLIBS) # static
+MinGWDEF     = -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD #-D=WITH_ZLIB -D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
+MinGWCFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW)/usr/i686-pc-mingw32/include/
+MinGWLIBS    = win32/libbiosig.lib -L$(PathToMinGW)/usr/i686-pc-mingw32/lib/ -lws2_32 $(LDLIBS) # static
 MinGWLINK    = $(MinGWCXX)
 ##########################################################
 
