@@ -20,6 +20,7 @@
 %       kemp's feedback loop model
 %	evoked potential 
 %	arspectrum
+%	cfm - cerebral function monitor
 %   EMG analysis
 %       Paynter
 %   ECG analysis
@@ -38,6 +39,7 @@
 %       Hjorth
 %       Bandpower
 %	Wackermann
+%	Hurst (Hurst coefficients)
 % 
 %
 % REFERENCES: 
