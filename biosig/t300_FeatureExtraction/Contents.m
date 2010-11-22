@@ -31,6 +31,8 @@
 %	heartratevariability
 %   SaO2 - Oxygen saturation
 %	desatur
+%   Bloodpressure
+%	abp - arterial blood pressure pulse detection 
 %   Others:
 %	Brainrate (including SEF90, SEF95)
 %       Hjorth
