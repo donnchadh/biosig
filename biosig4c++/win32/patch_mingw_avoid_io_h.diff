@@ -1,0 +1,23 @@
+*** include/unistd.h.orig	Mon Nov 22 10:54:17 2010
+--- include/unistd.h	Mon Nov 22 11:02:56 2010
+***************
+*** 9,15 ****
+  #define _UNISTD_H
+  #define __UNISTD_H_SOURCED__ 1
+  
+- #include <io.h>
+  #include <process.h>
+  #include <getopt.h>
+  
+--- 9,14 ----
+***************
+*** 36,41 ****
+--- 35,42 ----
+  int __cdecl __MINGW_NOTHROW usleep(useconds_t useconds);
+  #endif  /* Not __NO_ISOCEXT */
+  
++ _CRTIMP int __cdecl __MINGW_NOTHROW _chsize (int, long);
++ 
+  /* This is defined as a real library function to allow autoconf
+     to verify its existence. */
+  int ftruncate(int, off_t);
