@@ -16,7 +16,7 @@ function [HDR] = sclose(HDR)
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
-if (HDR.FILE.FID<0) | ~HDR.FILE.OPEN, 
+if (HDR.FILE.FID<0) || ~HDR.FILE.OPEN, 
         HDR.FILE.status = -1;
         %fprintf(HDR.FILE.stderr,'Warning SCLOSE (%s): invalid handle\n',HDR.FileName);
 end;
@@ -64,7 +64,7 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                         count = fwrite(HDR.FILE.FID,HDR.FLAG.TRIGGERED,'int16');           % FLAG TRIGGERED
                 end;
 
-	elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'GDF'),
+	elseif strcmp(HDR.TYPE,'EDF') || strcmp(HDR.TYPE,'BDF') || strcmp(HDR.TYPE,'GDF'),
          	tmp = floor((EndPos - HDR.HeadLen) / HDR.AS.bpb);  % calculate number of records
                 if isnan(tmp)
                 	tmp = 0; 
@@ -84,7 +84,7 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                         end;
                 end;
 
-                if strcmp(HDR.TYPE,'GDF') & isfield(HDR,'EVENT'),
+                if strcmp(HDR.TYPE,'GDF') && isfield(HDR,'EVENT'),
                 	if ~all([HDR.NS, HDR.NRec, HDR.AS.bpb]>0)
                 		HDR.AS.EVENTTABLEPOS = HDR.HeadLen; 
                 	else
@@ -119,7 +119,7 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
                                         fprintf(2,'Warning SCLOSE: Sparse sampling values must be of type integer using no more than 32 bits. Data is converted to uint32.\n');
                                 end;
 
-                                if any(HDR.AS.SPR(tmp)) | flag.invalid,
+                                if any(HDR.AS.SPR(tmp)) || flag.invalid,
                                         fprintf(2,'Warning SCLOSE: Sparse sampling value for non-sparse channels not allowed. The following channel(s) is(are) affected: ');
                                         fprintf(2,'%i', tmp(HDR.AS.SPR(tmp)>0) );
                                         fprintf(2,'.  Samples are not stored.\n')
@@ -144,7 +144,7 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
 
                         len = [length(HDR.EVENT.POS),length(HDR.EVENT.TYP)]; 
                         EVENT.Version = 1;
-                        if isfield(HDR.EVENT,'CHN') & isfield(HDR.EVENT,'DUR'), 
+                        if isfield(HDR.EVENT,'CHN') && isfield(HDR.EVENT,'DUR'), 
                                 if any(HDR.EVENT.CHN) || any(HDR.EVENT.DUR),
                                         EVENT.Version = 3;
 					len = [len,length(HDR.EVENT.CHN),length(HDR.EVENT.DUR)];
@@ -208,7 +208,7 @@ if HDR.FILE.OPEN >= 2,          % write-open of files
         elseif strcmp(HDR.TYPE,'SND');
                 tmp = (EndPos-HDR.HeadLen)/HDR.AS.bpb;
                 if isnan(tmp), tmp=0; end;
-                if (HDR.FILE.OPEN==3) & (tmp~=HDR.SPR);
+                if (HDR.FILE.OPEN==3) && (tmp~=HDR.SPR);
                         if ~any(HDR.FILE.PERMISSION=='z')
                                 HDR.SPR = tmp;
                                 fseek(HDR.FILE.FID,8,'bof');
@@ -244,7 +244,7 @@ if 0,
 elseif strcmp(HDR.TYPE,'ZIP')
         [SUCCESS,MESSAGE,MESSAGEID] = rmdir(HDR.ZIP.TEMPDIR,'s');
 
-elseif strcmp(HDR.TYPE,'FIF') & HDR.FILE.OPEN;
+elseif strcmp(HDR.TYPE,'FIF') && HDR.FILE.OPEN;
         global FLAG_NUMBER_OF_OPEN_FIF_FILES
         rawdata('close');
         HDR.FILE.OPEN = 0;

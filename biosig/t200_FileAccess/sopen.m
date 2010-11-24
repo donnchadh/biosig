@@ -4336,7 +4336,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
         HDR.Bits = fread(HDR.FILE.FID,1,'uint16');
         HDR.DigMax  = 2^HDR.Bits;
         HDR.PhysMax = fread(HDR.FILE.FID,1,'uint16');
-        if ( HDR.Bits ~= 0 & HDR.PhysMax ~= 0 )
+        if ( HDR.Bits ~= 0 && HDR.PhysMax ~= 0 )
                 HDR.Cal = repmat(HDR.PhysMax/HDR.DigMax,1,HDR.NS);
         else
                 HDR.Cal = ones(1,HDR.NS);
@@ -8329,7 +8329,7 @@ elseif strncmp(HDR.TYPE,'BrainVision',11),
                                         flag = 7.1;
                                 end; 
                         elseif flag==7.1,
-                                if (tline(1)<'0') | (tline(1)>'9'),
+                                if (tline(1)<'0') || (tline(1)>'9'),
                                 	if ~isempty(strfind(tline,'Impedance')); 
                                 		ix1 = find(tline=='['); 
                                 		ix2 = find(tline==']'); 
@@ -8708,7 +8708,7 @@ elseif strcmp(HDR.TYPE,'AndrewsHerzberg1985')
 	ix2 = find(s>'@');	% letters
 	ix3 = []; 
 	for k=2:length(ix1)
-		if any(s(ix1(k-1)+1:ix1(k))>64) & (s(ix1(k-1)+1)==' ')
+		if any(s(ix1(k-1)+1:ix1(k))>64) && (s(ix1(k-1)+1)==' ')
 			ix3 = [ix3,k-1];
 			HDR.Label{length(ix3)} = s(ix1(k-1)+1:ix1(k)-1);
 			t = str2double(s(ix1(k-2)+1:ix1(k-1)-1));
