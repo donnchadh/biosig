@@ -27,10 +27,10 @@ function [HDR]=eeg2hist(FILENAME,CHAN);
 % Qualitätskontrolle von Biosignalen,
 % Jahrestagung der Österreichischen Gesellschaft für Klinische Neurophysiologie, 27. Nov. 1999, Vienna.
 %
-% [3] http://www.dpmi.tu-graz.ac.at/~schloegl/lectures/Q/index.htm
+% [3] http://pub.ist.ac.at/~schloegl/lectures/Q/index.htm
 %
 % [4] A. Schlögl, Time Series Analysis toolbox for Matlab. 1996-2003
-% http://www.dpmi.tu-graz.ac.at/~schloegl/matlab/tsa/
+% http://pub.ist.ac.at/~schloegl/matlab/tsa/
 
 % 	$Id$
 %	Copyright (C) 2002,2003,2006,2007 by Alois Schloegl <a.schloegl@ieee.org>		
@@ -50,8 +50,6 @@ function [HDR]=eeg2hist(FILENAME,CHAN);
 %    along with BioSig.  If not, see <http://www.gnu.org/licenses/>.
 
 
-%%% FIXME: if there is only a single value exceeding the threshold, this is not visualized
-
 MODE=0; 
 if nargin<2, CHAN=0; end; 
 if ischar(CHAN), 
@@ -60,9 +58,11 @@ if ischar(CHAN),
 end; 
  
 
-if 1, 
+if 0, 
 [s, HDR] = sload(FILENAME,0,'OVERFLOWDETECTION','OFF','UCAL','ON');
+%%% FIXME: if there is only a single value exceeding the threshold, this is not visualized
 H = histo2(s)
+
 
 else
 HDR = sopen(FILENAME,'r',CHAN,'UCAL');	% open EEG file in uncalibrated mode (no scaling of the data)
