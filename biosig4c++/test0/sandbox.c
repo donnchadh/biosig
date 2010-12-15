@@ -375,6 +375,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i] 0x%x 0x%x [0x%x 0x%x szChanData=
 				double Xcal = lef32p(pos+16);
 				//double Xoff = lef32p(pos+20);// unused
 				hc->OnOff   = 1;
+				hc->bi      = bpb;
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 409: %i #%i: SPR=%i=%i=%i  x%f+-%f %i\n",m,k,spr,SPR,hc->SPR,hc->Cal,hc->Off,p);
 
@@ -408,9 +409,10 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 409: %i #%i: SPR=%i=%i=%i  x%f+-%f %i\n
 
 					uint32_t memoffset = leu32p(hdr->AS.Header + datapos + 30 + 24 * k);
 					uint8_t *srcaddr = hdr->AS.Header+leu32p(hdr->AS.Header+datapos + 4) + memoffset;
+					uint32_t tmp = leu32p(hdr->AS.Header+datapos + 4) + memoffset;
 				
 				if (VERBOSE_LEVEL>7) 
-				 	fprintf(stdout,"CFS 412 #%i %i: @%p %i\n", k, hc->SPR, srcaddr, leu32p(hdr->AS.Header+datapos + 4) + leu32p(hdr->AS.Header + datapos + 30 + 24 * k));						
+				 	fprintf(stdout,"CFS 412 #%i %i: @%x %i = [%i->%f]\n", k, hc->SPR, tmp, tmp, lei16p(hdr->AS.Header+tmp), lei16p(hdr->AS.Header+tmp) * hc->Cal + hc->Off);						
 
 					int16_t szz = (GDFTYP_BITS[hc->GDFTYP]>>3);
 					for (int k2 = 0; k2 < hc->SPR; k2++) {
@@ -447,17 +449,19 @@ if (VERBOSE_LEVEL>8)
 				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,sz);
 				memcpy(hdr->AS.rawdata, hdr->AS.Header + leu32p(hdr->AS.Header+datapos + 4), leu32p(hdr->AS.Header+datapos + 8));
 				hdr->AS.bpb = sz; 
+				
 			}
-			if (k>0) {
+
+			if (m>0) {
 				hdr->EVENT.TYP[hdr->EVENT.N] = 0x7ffe;
 				hdr->EVENT.POS[hdr->EVENT.N] = SPR;
 				hdr->EVENT.CHN[hdr->EVENT.N] = 0;
 				hdr->EVENT.DUR[hdr->EVENT.N] = 0;
 				hdr->EVENT.N++;
 			}	
+
 			SPR += spr;	
 			SZ  += sz; 
-
 if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 414: SPR=%i,%i,%i NRec=%i, @%p\n",spr,SPR,hdr->SPR,hdr->NRec, hdr->AS.rawdata);
 			
 			// for (k = 0; k < d; k++) {
@@ -481,9 +485,11 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i/%3i] @0x%6x+0x%3x: <%s>  %i  [%s]
 				case 5: f = lef32p(hdr->AS.Header+p3); break;
 				case 6: f = lef64p(hdr->AS.Header+p3); break;
 				}
+if (VERBOSE_LEVEL>7) {
 				if (typ<5) fprintf(stdout," *0x%x = %d",p3,i);
 				else if (typ<7) fprintf(stdout," *0x%x = %g", p3,f);
 				else if (typ==7) fprintf(stdout," *0x%x = <%s>",p3,hdr->AS.Header+p3);
+}
 			}
 			datapos = leu32p(hdr->AS.Header + datapos);
 		}
@@ -507,6 +513,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 419: SPR=%i=%i NRec=%i  @%p\n",SPR,hdr-
 			for (k = 0; k < hdr->NS; k++) {
 				CHANNEL_TYPE *hc = hdr->CHANNEL + k;
 				hc->GDFTYP  = 17;	// double 
+				hc->bi      = sizeof(double)*k;
 				hc->SPR     = hdr->SPR;
 				hc->Cal     = 1.0;
 				hc->Off     = 0.0;
@@ -548,6 +555,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 			}
 			hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
 			hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 433 #%i: SPR=%i=%i bpb=%i, bi=%i\n",k,SPR,hdr->SPR,hdr->AS.bpb,hdr->CHANNEL[k].bi);
+
 		}
 #undef H1LEN 
 	}
