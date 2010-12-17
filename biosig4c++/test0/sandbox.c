@@ -1,10 +1,9 @@
 /*
-
+ 
     sandbox is used for development and under constraction work
     The functions here are either under construction or experimental. 
     The functions will be either fixed, then they are moved to another place;
     or the functions are discarded. Do not rely on the interface in this function
-       	
 
     $Id: sandbox.c,v 1.5 2009-04-16 20:19:17 schloegl Exp $
     Copyright (C) 2008,2009 Alois Schloegl <a.schloegl@ieee.org>
@@ -36,6 +35,20 @@
 
 // these functios are stubs
 
+#ifdef WITH_DCMTK
+#undef WITH_DICOM
+#undef WITH_GDCM
+
+
+extern "C" int sopen_dicom_read(HDRTYPE* hdr) {
+	fprintf(stdout,"DCMTK is used to read dicom files.\n");
+
+}
+
+#endif 
+
+
+
 #ifdef WITH_GDCM
 #undef WITH_DICOM
 
@@ -45,15 +58,41 @@
 #include "gdcmDataSet.h"
 #include "gdcmAttribute.h"
 
+//#include "gdcmCommon.h"
+#include "gdcmPreamble.h"
+#include "gdcmFile.h"
+#include "gdcmFileMetaInformation.h"
+#include "gdcmReader.h"
+#include "gdcmImageReader.h"
+#include "gdcmWriter.h"
+#include "gdcmDataSet.h"
+#include <gdcmAttribute.h>
+#include <gdcmWaveform.h>
+
 extern "C" int sopen_dicom_read(HDRTYPE* hdr) {
 
-	gdcm::Reader r;
-  	r.SetFileName( hdr->FileName );
-  	if( !r.Read() )   
-  		return 1;
+	fprintf(stdout,"GDCM is used to read dicom files.\n");
 
-  	gdcm::File &file = r.GetFile();
-  	gdcm::DataSet& ds = file.GetDataSet();
+	gdcm::Reader r;
+        const gdcm::DataElement *de;
+	r.SetFileName( hdr->FileName );
+	if( !r.Read() )
+		return 1;
+
+	gdcm::File &file = r.GetFile(); 
+	gdcm::FileMetaInformation &header = file.GetHeader();
+	if ( header.FindDataElement( gdcm::Tag(0x0002, 0x0013 ) ) )
+		const gdcm::DataElement &de = header.GetDataElement( gdcm::Tag(0x0002, 0x0013) );
+
+	gdcm::DataSet &ds = file.GetDataSet();
+
+	if ( header.FindDataElement( gdcm::Tag(0x0002, 0x0010 ) ) )
+		de = &header.GetDataElement( gdcm::Tag(0x0002, 0x0010) );
+
+
+fprintf(stdout,"attr <0x0002,0x0010> len=%i\n",de->GetByteValue() );
+
+
 /*
 	{
 		gdcm::Attribute<0x28,0x100> at;
@@ -63,15 +102,28 @@ extern "C" int sopen_dicom_read(HDRTYPE* hdr) {
 		//at.SetValue( 32 );
 		//ds.Replace( at.GetAsDataElement() );
 	}
-*/
 	{
 
 fprintf(stdout,"attr <0x0008,0x002a>\n");
 		gdcm::Attribute<0x0008,0x002a> at;
+fprintf(stdout,"attr <0x0008,0x002a>\n");
  		ds.GetDataElement( at.GetTag() );
-//		at.SetFromDataElement( ds.GetDataElement( at.GetTag() ) );
+fprintf(stdout,"attr <0x0008,0x002a>\n");
+		at.SetFromDataElement( ds.GetDataElement( at.GetTag() ) );
 
 		fprintf(stdout,"DCM: [0008,002a]: %i %p\n",at.GetNumberOfValues(), at.GetValue());
+	}
+*/
+	{
+
+fprintf(stdout,"attr <0x0008,0x0023>\n");
+		gdcm::Attribute<0x0008,0x0023> at;
+fprintf(stdout,"attr <0x0008,0x0023>\n");
+ 		ds.GetDataElement( at.GetTag() );
+fprintf(stdout,"attr <0x0008,0x0023>\n");
+//		at.SetFromDataElement( ds.GetDataElement( at.GetTag() ) );
+
+//		fprintf(stdout,"DCM: [0008,0023]: %i %p\n",at.GetNumberOfValues(), at.GetValue());
 	}
 
 
@@ -287,10 +339,10 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 131 - %d,%d,%d,0x%x,0x%x,0x%x,%d,0x%x\n
 		double xPhysDimScale[100];		// CFS is limited to 99 channels 
 		for (k = 0; k < hdr->NS; k++) {
 			CHANNEL_TYPE *hc = hdr->CHANNEL + k;
-			/* 
+			/*
 				1 offset because CFS uses pascal type strings (first byte contains string length)
 				in addition, the strings are \0 terminated.
-			*/ 
+			*/
 			hc->OnOff = 1; 
 
 			char len = min(21, MAX_LENGTH_LABEL);
@@ -346,12 +398,20 @@ if (VERBOSE_LEVEL>7) 	{
 		
 if (VERBOSE_LEVEL>7) fprintf(stdout,"\n******* DS variable information *********\n");
 		datapos = LastDataSectionHeaderOffset; //H1LEN + H2LEN*hdr->NS + n*36;
-
+		// reverse order of data sections	
+		uint32_t *DATAPOS = (uint32_t*)malloc(sizeof(uint32_t)*NumberOfDataSections);	
+		for (char m = NumberOfDataSections; 0 < m; ) {
+			DATAPOS[--m] = datapos;
+			datapos = leu32p(hdr->AS.Header + datapos);
+		}
+		NumberOfDataSections = k; 
+		
 //		void *VarChanInfoPos = hdr->AS.Header + datapos + 30;  // unused
 		char flag_ChanInfoChanged = 0; 
 		hdr->NRec = NumberOfDataSections;
 		size_t SPR = 0, SZ = 0;
 		for (char m = 0; m < NumberOfDataSections; m++) {
+			datapos = DATAPOS[m];
 			if (!leu32p(hdr->AS.Header+datapos+8)) continue; 	// empty segment 
 
 //			flag_ChanInfoChanged |= memcmp(VarChanInfoPos, hdr->AS.Header + datapos + 30, 24*hdr->NS);
@@ -376,7 +436,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i] 0x%x 0x%x [0x%x 0x%x szChanData=
 				//double Xoff = lef32p(pos+20);// unused
 				hc->OnOff   = 1;
 				hc->bi      = bpb;
-
+                                
 if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 409: %i #%i: SPR=%i=%i=%i  x%f+-%f %i\n",m,k,spr,SPR,hc->SPR,hc->Cal,hc->Off,p);
 
 				double Fs = 1.0 / (xPhysDimScale[k] * Xcal);
@@ -409,10 +469,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 409: %i #%i: SPR=%i=%i=%i  x%f+-%f %i\n
 
 					uint32_t memoffset = leu32p(hdr->AS.Header + datapos + 30 + 24 * k);
 					uint8_t *srcaddr = hdr->AS.Header+leu32p(hdr->AS.Header+datapos + 4) + memoffset;
-					uint32_t tmp = leu32p(hdr->AS.Header+datapos + 4) + memoffset;
 				
 				if (VERBOSE_LEVEL>7) 
-				 	fprintf(stdout,"CFS 412 #%i %i: @%x %i = [%i->%f]\n", k, hc->SPR, tmp, tmp, lei16p(hdr->AS.Header+tmp), lei16p(hdr->AS.Header+tmp) * hc->Cal + hc->Off);						
+				 	fprintf(stdout,"CFS 412 #%i %i: @%p %i\n", k, hc->SPR, srcaddr, leu32p(hdr->AS.Header+datapos + 4) + leu32p(hdr->AS.Header + datapos + 30 + 24 * k));						
 
 					int16_t szz = (GDFTYP_BITS[hc->GDFTYP]>>3);
 					for (int k2 = 0; k2 < hc->SPR; k2++) {
@@ -449,7 +508,6 @@ if (VERBOSE_LEVEL>8)
 				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,sz);
 				memcpy(hdr->AS.rawdata, hdr->AS.Header + leu32p(hdr->AS.Header+datapos + 4), leu32p(hdr->AS.Header+datapos + 8));
 				hdr->AS.bpb = sz; 
-				
 			}
 
 			if (m>0) {
@@ -489,11 +547,12 @@ if (VERBOSE_LEVEL>7) {
 				if (typ<5) fprintf(stdout," *0x%x = %d",p3,i);
 				else if (typ<7) fprintf(stdout," *0x%x = %g", p3,f);
 				else if (typ==7) fprintf(stdout," *0x%x = <%s>",p3,hdr->AS.Header+p3);
-}
+}				
 			}
 			datapos = leu32p(hdr->AS.Header + datapos);
 		}
-
+		free(DATAPOS); 
+		
 if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 419: SPR=%i=%i NRec=%i  @%p\n",SPR,hdr->SPR,hdr->NRec, hdr->AS.rawdata);
 
 		hdr->AS.first = 0;
@@ -555,9 +614,6 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 			}
 			hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
 			hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
-
-if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 433 #%i: SPR=%i=%i bpb=%i, bi=%i\n",k,SPR,hdr->SPR,hdr->AS.bpb,hdr->CHANNEL[k].bi);
-
 		}
 #undef H1LEN 
 	}
@@ -606,39 +662,39 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 433 #%i: SPR=%i=%i bpb=%i, bi=%i\n",k,S
 
 	    	size_t ns=0, NS=0, spr = 0, SPR = 0, DIV = 1, k; 
 		size_t ngroup=0, nseries=0, nsweep=0, NSWEEP=0;
-    		double DUR[32];
-    		double deltaT = -1.0/0.0;
-    		hdr->SPR = 0;
+		double DUR[32];
+		double deltaT = -1.0/0.0;
+		hdr->SPR = 0;
 
-    		ifseek(hdr,0,SEEK_SET);	    			
-	    	while (!ifeof(hdr)) {
+		ifseek(hdr,0,SEEK_SET);	    			
+		while (!ifeof(hdr)) {
 		    	ifgets(line, ITX_MAXLINELENGTH, hdr);
-	    		if (!strlen(line))
-	    			;
-	    		else if (!strncmp(line,"BEGIN",5)) {
-	    			flag = 1;
-	    			spr = 0;
-		    	}	
+			if (!strlen(line))
+				;
+			else if (!strncmp(line,"BEGIN",5)) {
+				flag = 1;
+				spr = 0;
+		}	
 		    	else if (!strncmp(line,"END",3)) {
-	    			flag = 0;
-	    			hdr->CHANNEL[ns].SPR += spr;
+				flag = 0;
+				hdr->CHANNEL[ns].SPR += spr;
 		    	}
 		    	else if (!strncmp(line,"X SetScale/P x,",15)) {
-	    			strtok(line,",");
-	    			strtok(NULL,",");
+				strtok(line,",");
+				strtok(NULL,",");
 		    		double dur = atof(strtok(NULL,","));
 		    		char *p = strchr(line,'"');
-	    			if (p != NULL) {
-	    				p++;
+				if (p != NULL) {
+					p++;
 		    			char *p2 = strchr(p,'"');
 		    			if (p2!=NULL) *p2=0;
-	    				dur *= PhysDimScale(PhysDimCode(p));
-	    			}
-	    			if (deltaT < 0.0) {
-	    				deltaT = dur; 
+					dur *= PhysDimScale(PhysDimCode(p));
+				}
+				if (deltaT < 0.0) {
+					deltaT = dur; 
 		    			hdr->SampleRate = 1.0 / dur;
-		    		}
-	    			else if (deltaT != dur) {
+				}
+				else if (deltaT != dur) {
 					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 					B4C_ERRMSG = "different sampling rates not supported for ITX format";
 				}	
@@ -733,16 +789,21 @@ int sopen_unipro_read(HDRTYPE* hdr) {
 
 #ifdef WITH_DICOM
 int sopen_dicom_read(HDRTYPE* hdr) {
-		char FLAG_implicite_VR = 1;	
+
+		fprintf(stdout,"home-made parser is used to read dicom files.\n");
+
+		char FLAG_implicite_VR = 0;	
+		int EndOfGroup2=-1; 
+
 		if (hdr->HeadLen<132) {
 			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, 132);
 		    	hdr->HeadLen += ifread(hdr->AS.Header+hdr->HeadLen, 1, 132-hdr->HeadLen, hdr);
 		}
-		size_t pos = 0; 
 		size_t count = hdr->HeadLen;
+		size_t pos = 128; 
 		while (!hdr->AS.Header[pos] && (pos<128)) pos++;
 		if ((pos==128) && !memcmp(hdr->AS.Header+128,"DICM",4)) {
-			FLAG_implicite_VR = 0;	
+//			FLAG_implicite_VR = 0;	
 			pos = 132;
 		}	
 		else
@@ -768,11 +829,12 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 		nextTag[1] = *(uint16_t*)(hdr->AS.Header+pos+2);
 		while (pos < count) {	
 
-			if (hdr->FILE.LittleEndian) {
-				Tag  = (((uint32_t)l_endian_u16(nextTag[0])) << 16) + l_endian_u16(nextTag[1]);
+			if ((__BYTE_ORDER == __BIG_ENDIAN) ^ !hdr->FILE.LittleEndian) {
+				// swapping required  
+				Tag  = (((uint32_t)bswap_16(nextTag[0])) << 16) + bswap_16(nextTag[1]);
 				pos += 4;
 				if (FLAG_implicite_VR) {
-					Len = leu32p(hdr->AS.Header+pos);
+					Len = bswap_32(*(uint32_t*)(hdr->AS.Header+pos));
 					pos += 4; 
 				}	
 				else {
@@ -785,20 +847,41 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 					 && memcmp(hdr->AS.Header+pos,"SQ",2)
 					 && memcmp(hdr->AS.Header+pos,"UT",2)
 					 && memcmp(hdr->AS.Header+pos,"UN",2) ) { 
-						Len = leu16p(hdr->AS.Header+pos+2);
+						Len = bswap_16(*(uint16_t*)(hdr->AS.Header+pos+2));
 						pos += 4; 
 					}	
 					else {	
-						Len = leu32p(hdr->AS.Header+pos+4);
+						Len = bswap_32(*(uint32_t*)(hdr->AS.Header+pos+4));
 						pos += 8; 
 					}
 				}	
 			}
 			else {
-				fprintf(stdout,"Warning BigEndian Dicom not tested\n");			
-				Tag  = (((uint32_t)b_endian_u16(nextTag[0])) << 16) + b_endian_u16(nextTag[1]);
-				//Tag = (beu16p(hdr->AS.Header+pos)<<16) + beu16p(hdr->AS.Header+pos+2);
-				Len =  beu16p(hdr->AS.Header+pos+6);
+				// no swapping 
+				Tag  = (((uint32_t)nextTag[0]) << 16) + nextTag[1];
+				pos += 4; 
+				if (FLAG_implicite_VR) {
+					Len = *(uint32_t*)(hdr->AS.Header+pos);
+					pos += 4; 
+				}	
+				else {
+					// explicite_VR
+					if (pos+4 > count) break;
+					
+					if (memcmp(hdr->AS.Header+pos,"OB",2) 
+					 && memcmp(hdr->AS.Header+pos,"OW",2)
+					 && memcmp(hdr->AS.Header+pos,"OF",2)
+					 && memcmp(hdr->AS.Header+pos,"SQ",2)
+					 && memcmp(hdr->AS.Header+pos,"UT",2)
+					 && memcmp(hdr->AS.Header+pos,"UN",2) ) { 
+						Len = *(uint16_t*)(hdr->AS.Header+pos+2);
+						pos += 4; 
+					}	
+					else {	
+						Len = *(uint32_t*)(hdr->AS.Header+pos+4);
+						pos += 8; 
+					}
+				}	
 			}
 
 			/*
@@ -817,6 +900,30 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 				
 			switch (Tag) {
 
+
+			/* elements of group 0x0002 use always 
+				Explicite VR little Endian encoding 	
+			*/
+			case 0x00020000: {
+				int c = 0; 
+				if (!memcmp(hdr->AS.Header+pos-8,"UL",2))
+					c = leu32p(hdr->AS.Header+pos);
+				else if (!memcmp(hdr->AS.Header+pos-8,"SL",2))
+					c = lei32p(hdr->AS.Header+pos);
+				else if (!memcmp(hdr->AS.Header+pos-8,"US",2))
+					c = leu16p(hdr->AS.Header+pos);
+				else if (!memcmp(hdr->AS.Header+pos-8,"SS",2))
+					c = lei16p(hdr->AS.Header+pos);
+				else  {
+					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+					B4C_ERRMSG = "DICOM (0002,0000): unsupported";
+				}
+				EndOfGroup2 = c + pos; 
+				break;
+				}
+			case 0x00020001:
+				break;
+
 			case 0x00020002: {
 				hdr->NS = 1; 
 				char *t = (char*)hdr->AS.Header+pos;
@@ -831,6 +938,10 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 				if (!strcmp(t,*ct)) hdr->NS = 12; 
 				break;
 				}	
+
+			case 0x00020003:
+				break;
+
 			case 0x00020010: {
 				char *t = (char*)hdr->AS.Header+pos;
 				while (isspace(*t)) t++;	// deblank
@@ -839,7 +950,8 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 						"1.2.840.10008.1.2.1.99",
 						"1.2.840.10008.1.2.2"
 						};
-				if (!strcmp(t,*ct)) FLAG_implicite_VR = 1;	
+
+				if      (!strcmp(t,*ct))   FLAG_implicite_VR = 1;	
 				else if (!strcmp(t,*ct+1)) FLAG_implicite_VR = 0;	
 				else if (!strcmp(t,*ct+3)) FLAG_implicite_VR = 1;	
 				break;
@@ -954,18 +1066,27 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 					fprintf(stdout,"ignored %6x:   (%04x,%04x) %8d\t%s\n",pos,Tag>>16,Tag&0x0ffff,Len,(char*)hdr->AS.Header+pos);			
 			
 			}
-			if (VERBOSE_LEVEL>6)
-				fprintf(stdout,"%s %6x:   (%04x,%04x) %8d\t%s\n",(flag_ignored?"ignored":"       "),pos,Tag>>16,Tag&0x0ffff,Len,(char*)hdr->AS.Header+pos);			
-			
-			pos += Len; 
+
+			if (VERBOSE_LEVEL>6) {
+			if (!FLAG_implicite_VR || (Tag < 0x00030000))	
+				fprintf(stdout,"%s %6x:   (%04x,%04x) %8d %c%c \t%s\n",(flag_ignored?"ignored":"       "),pos,Tag>>16,Tag&0x0ffff,Len,hdr->AS.Header[pos-8],hdr->AS.Header[pos-7],(char*)hdr->AS.Header+pos);
+			else 	
+				fprintf(stdout,"%s %6x:   (%04x,%04x) %8d\t%s\n",(flag_ignored?"ignored":"       "),pos,Tag>>16,Tag&0x0ffff,Len,(char*)hdr->AS.Header+pos);
+			}					
+			pos += Len + (Len & 0x01 ? 1 : 0); // even number of bytes	
+
 		}
 		if (flag_t0 == 3) hdr->T0 = tm_time2gdf_time(&T0); 
-
+	return(0);
 }
 #endif 
 
 #ifdef WITH_PDP
 #include "../NONFREE/sopen_pdp_read.c"
+#endif 
+
+#ifdef WITH_TRC
+#include "../NONFREE/sopen_trc_read.c"
 #endif 
 
 #ifdef __cplusplus
