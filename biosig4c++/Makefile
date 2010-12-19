@@ -26,13 +26,13 @@
 # whether dynamic or static linking is used, can be controlled with 
 # LIBEXT. Setting it to 'a' links statically, 'so' links dynamically
 #
-LIBEXT        = a	
+LIBEXT        = a
 #LIBEXT	      = so
 ###############################
 
 ### User-specified options: its likely you want to change this
-MATLABOPT     = # -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
-PathToSigViewer = ../../src/sigviewer/trunk
+MEX_OPTION    = -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
+PathToSigViewer = ../../src/sigviewer
 PathToSigViewerWIN32 = ../../src/sigviewer4win32
 PathToMinGW   = $(HOME)/src/mingw-cross-env
 
@@ -384,16 +384,15 @@ biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 #############################################################
 #	MEX-files for Octave and Matlab
 #############################################################
-
 mex: mex4m mex4o
 mex4m: mexSLOAD.$(MEX_EXT) mexSOPEN.$(MEX_EXT)
 mexSLOAD: mexSLOAD.$(MEX_EXT)
 mexSOPEN: mexSOPEN.$(MEX_EXT)
 mexSLOAD.$(MEX_EXT): mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
-	$(MEX) $(DEFINES) $(MATLABOPT) mexSLOAD.cpp $(LFLAGS) $(LIBS)
+	$(MEX) $(MEX_OPTION) $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS)
 	-$(COPY) mexSLOAD.$(MEX_EXT) ../biosig/t200_FileAccess/
 mexSOPEN.$(MEX_EXT): mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
-	$(MEX) -DmexSOPEN $(DEFINES) $(MATLABOPT) mexSLOAD.cpp $(LFLAGS) $(LIBS) -output mexSOPEN
+	$(MEX) $(MEX_OPTION) -DmexSOPEN $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) -output mexSOPEN
 	-$(COPY) mexSOPEN.$(MEX_EXT) ../biosig/t200_FileAccess/
 
 ### MEX-files for Octave

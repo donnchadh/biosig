@@ -237,18 +237,16 @@ char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries
 				case 3: *ngroup = n;
 					nvar++;
 					break;
-				}									
+				}
 				inLabel[k] = 0;
-			}	
+			}
 		}
 		for (k=1; inLabel[pos4+k-1]; k++) {
 			inLabel[pos1+k] = inLabel[pos4+k]; 
 		}
 	}
-	
-		
+
 	for (k=0; k<hdr->NS; k++) {
-		
 
 	}
 
@@ -256,7 +254,7 @@ char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries
 		hdr->NS = (*ns)+1;
 		hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL, hdr->NS * sizeof(CHANNEL_TYPE));
 	}
-		
+
 	return(inLabel);
 }
 
@@ -264,8 +262,8 @@ int sopen_zzztest(HDRTYPE* hdr) {
 	size_t count = hdr->HeadLen;
 
 	if (0) {
-	
-	}		
+
+	}
 	else if (hdr->TYPE==CFS) {
 
 		// DO NOT USE THESE STRUCTS UNLESS YOU ARE SURE THERE ARE NO ALIGNMENT ERRORS 
@@ -369,7 +367,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"Channel #%i: [%s](%i/%i) <%s>/<%s> ByteSpac
 		size_t datapos = H1LEN + H2LEN*hdr->NS;
 
 		/* file variable information */
-		// n*36 bytes		
+		// n*36 bytes
 if (VERBOSE_LEVEL>7) fprintf(stdout,"\n******* file variable information *********\n");
 		for (k = 0; k < n; k++) {
 			int i; double f;
@@ -395,24 +393,23 @@ if (VERBOSE_LEVEL>7) 	{
 			else if (typ==7) fprintf(stdout," *0x%x = <%s>",p3,hdr->AS.Header+p3);
 			}
 		}
-		
+
 if (VERBOSE_LEVEL>7) fprintf(stdout,"\n******* DS variable information *********\n");
 		datapos = LastDataSectionHeaderOffset; //H1LEN + H2LEN*hdr->NS + n*36;
-		// reverse order of data sections	
-		uint32_t *DATAPOS = (uint32_t*)malloc(sizeof(uint32_t)*NumberOfDataSections);	
+		// reverse order of data sections
+		uint32_t *DATAPOS = (uint32_t*)malloc(sizeof(uint32_t)*NumberOfDataSections);
 		for (char m = NumberOfDataSections; 0 < m; ) {
 			DATAPOS[--m] = datapos;
 			datapos = leu32p(hdr->AS.Header + datapos);
 		}
-		NumberOfDataSections = k; 
-		
+
 //		void *VarChanInfoPos = hdr->AS.Header + datapos + 30;  // unused
-		char flag_ChanInfoChanged = 0; 
+		char flag_ChanInfoChanged = 0;
 		hdr->NRec = NumberOfDataSections;
 		size_t SPR = 0, SZ = 0;
 		for (char m = 0; m < NumberOfDataSections; m++) {
 			datapos = DATAPOS[m];
-			if (!leu32p(hdr->AS.Header+datapos+8)) continue; 	// empty segment 
+			if (!leu32p(hdr->AS.Header+datapos+8)) continue; 	// empty segment
 
 //			flag_ChanInfoChanged |= memcmp(VarChanInfoPos, hdr->AS.Header + datapos + 30, 24*hdr->NS);
 
@@ -421,11 +418,11 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i] 0x%x 0x%x [0x%x 0x%x szChanData=
 
 			uint32_t sz    = 0;
 			uint32_t bpb   = 0, spb = 0, spr = 0;
-			hdr->AS.first  = 0; 
-			hdr->AS.length = 0; 
+			hdr->AS.first  = 0;
+			hdr->AS.length = 0;
 			for (k = 0; k < hdr->NS; k++) {
-				void *pos = hdr->AS.Header + datapos + 30 + 24 * k;
-				
+				uint8_t *pos = hdr->AS.Header + datapos + 30 + 24 * k;
+
 				CHANNEL_TYPE *hc = hdr->CHANNEL + k;
 
 				uint32_t p  = leu32p(pos);
@@ -436,47 +433,47 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i] 0x%x 0x%x [0x%x 0x%x szChanData=
 				//double Xoff = lef32p(pos+20);// unused
 				hc->OnOff   = 1;
 				hc->bi      = bpb;
-                                
+
 if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 409: %i #%i: SPR=%i=%i=%i  x%f+-%f %i\n",m,k,spr,SPR,hc->SPR,hc->Cal,hc->Off,p);
 
 				double Fs = 1.0 / (xPhysDimScale[k] * Xcal);
 				if (!m && !k) {
 					hdr->SampleRate = Fs;
-				}	
+				}
 				else if (fabs(hdr->SampleRate - Fs) > 1e-3) {
 					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 					B4C_ERRMSG = "CED/CFS: different sampling rates are not supported";
-				}	 
+				}
 
-				spr  = hc->SPR;	
-				spb += hc->SPR;	
+				spr  = hc->SPR;
+				spb += hc->SPR;
 				sz  += hc->SPR * GDFTYP_BITS[hc->GDFTYP] >> 3;
-				bpb += GDFTYP_BITS[hc->GDFTYP]>>3;	// per single sample 
-				hdr->AS.length += hc->SPR; 
+				bpb += GDFTYP_BITS[hc->GDFTYP]>>3;	// per single sample
+				hdr->AS.length += hc->SPR;
 			}
 
 			if (NumberOfDataSections > 1) {
-				// hack: copy data into a single block, only if more than one section	
+				// hack: copy data into a single block, only if more than one section
 				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata, (hdr->NS * SPR + spb) * sizeof(double));
-			
+
 /*
-				if (VERBOSE_LEVEL>7) 
-				 	fprintf(stdout,"CFS 411: @%p %i @%p\n",hdr->AS.rawdata, (hdr->NS * SPR + spb), srcaddr);						
+				if (VERBOSE_LEVEL>7)
+				 	fprintf(stdout,"CFS 411: @%p %i @%p\n",hdr->AS.rawdata, (hdr->NS * SPR + spb), srcaddr);
 */
-				hdr->AS.first = 0; 
+				hdr->AS.first = 0;
 				for (k = 0; k < hdr->NS; k++) {
 					CHANNEL_TYPE *hc = hdr->CHANNEL + k;
 
 					uint32_t memoffset = leu32p(hdr->AS.Header + datapos + 30 + 24 * k);
 					uint8_t *srcaddr = hdr->AS.Header+leu32p(hdr->AS.Header+datapos + 4) + memoffset;
-				
-				if (VERBOSE_LEVEL>7) 
-				 	fprintf(stdout,"CFS 412 #%i %i: @%p %i\n", k, hc->SPR, srcaddr, leu32p(hdr->AS.Header+datapos + 4) + leu32p(hdr->AS.Header + datapos + 30 + 24 * k));						
+
+				if (VERBOSE_LEVEL>7)
+				 	fprintf(stdout,"CFS 412 #%i %i: @%p %i\n", k, hc->SPR, srcaddr, leu32p(hdr->AS.Header+datapos + 4) + leu32p(hdr->AS.Header + datapos + 30 + 24 * k));
 
 					int16_t szz = (GDFTYP_BITS[hc->GDFTYP]>>3);
 					for (int k2 = 0; k2 < hc->SPR; k2++) {
-						uint8_t *ptr = srcaddr + k2*szz; 
-						double val; 
+						uint8_t *ptr = srcaddr + k2*szz;
+						double val;
 
 						switch (hc->GDFTYP) {
 						// reorder for performance reasons - more frequent gdftyp's come first	
@@ -496,7 +493,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 409: %i #%i: SPR=%i=%i=%i  x%f+-%f %i\n
 							B4C_ERRMSG = "CED/CFS: invalid data type";
 						}
 
-if (VERBOSE_LEVEL>8) 
+if (VERBOSE_LEVEL>8)
  	fprintf(stdout,"CFS read: %2i #%2i:%5i [%i]: %f -> %f  @%p\n",m,k,k2,bpb,SPR,val,val*hc->Cal + hc->Off, hdr->AS.rawdata + ((SPR + k2) * hdr->NS + k) * sizeof(double));						
 
 						*(double*) (hdr->AS.rawdata + k * sizeof(double) + (SPR + k2) * hdr->NS * sizeof(double)) = val * hc->Cal + hc->Off;
@@ -518,10 +515,10 @@ if (VERBOSE_LEVEL>8)
 				hdr->EVENT.N++;
 			}	
 
-			SPR += spr;	
+			SPR += spr;
 			SZ  += sz; 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 414: SPR=%i,%i,%i NRec=%i, @%p\n",spr,SPR,hdr->SPR,hdr->NRec, hdr->AS.rawdata);
-			
+
 			// for (k = 0; k < d; k++) {
 			for (k = 0; k < 0; k++) {
 			// read data variables of each block - this currently broken. 	
@@ -547,12 +544,12 @@ if (VERBOSE_LEVEL>7) {
 				if (typ<5) fprintf(stdout," *0x%x = %d",p3,i);
 				else if (typ<7) fprintf(stdout," *0x%x = %g", p3,f);
 				else if (typ==7) fprintf(stdout," *0x%x = <%s>",p3,hdr->AS.Header+p3);
-}				
+}
 			}
 			datapos = leu32p(hdr->AS.Header + datapos);
 		}
 		free(DATAPOS); 
-		
+
 if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 419: SPR=%i=%i NRec=%i  @%p\n",SPR,hdr->SPR,hdr->NRec, hdr->AS.rawdata);
 
 		hdr->AS.first = 0;
@@ -563,8 +560,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 419: SPR=%i=%i NRec=%i  @%p\n",SPR,hdr-
 			hdr->NRec = 1;
 			hdr->AS.length = 1;
 		}
-		else  {			
-			hdr->FLAG.UCAL = 1; 
+		else  {
+			hdr->FLAG.UCAL = 1;
 			hdr->SPR       = 1;
 			hdr->NRec      = SPR;
 			hdr->AS.bpb    = hdr->NS * sizeof(double);
@@ -577,75 +574,77 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 419: SPR=%i=%i NRec=%i  @%p\n",SPR,hdr-
 				hc->Cal     = 1.0;
 				hc->Off     = 0.0;
 			}
-		}	
+		}
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,hdr->NRec);
 		datapos   = FileHeaderSize;  //+DataHeaderSize;
-		
+
 		if (flag_ChanInfoChanged) {
 			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 			B4C_ERRMSG = "CED/CFS: varying channel information not supported";
 		}
-		for (k = 0; k < hdr->NS; k++) {
 
+		for (k = 0; k < hdr->NS; k++) {
 			switch (hdr->CHANNEL[k].GDFTYP) {
 			case 0:
 			case 1:
-				hdr->CHANNEL[k].DigMax  =  127; 
+				hdr->CHANNEL[k].DigMax  =  127;
 				hdr->CHANNEL[k].DigMin  = -128;
-				break; 
+				break;
 			case 2:
-				hdr->CHANNEL[k].DigMax  =  255; 
+				hdr->CHANNEL[k].DigMax  =  255;
 				hdr->CHANNEL[k].DigMin  =  0;
-				break; 
+				break;
 			case 3:
-				hdr->CHANNEL[k].DigMax  = (int16_t)0x7fff; 
+				hdr->CHANNEL[k].DigMax  = (int16_t)0x7fff;
 				hdr->CHANNEL[k].DigMin  = (int16_t)0x8000;
-				break; 
+				break;
 			case 4:
-				hdr->CHANNEL[k].DigMax  = 0xffff; 
+				hdr->CHANNEL[k].DigMax  = 0xffff;
 				hdr->CHANNEL[k].DigMin  = 0;
-				break; 
+				break;
 			case 16:
 			case 17:
-				hdr->CHANNEL[k].DigMax  = 1e9; 
+				hdr->CHANNEL[k].DigMax  =  1e9;
 				hdr->CHANNEL[k].DigMin  = -1e9;
-				break; 
+				break;
 			}
 			hdr->CHANNEL[k].PhysMax = hdr->CHANNEL[k].DigMax * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off; 
 			hdr->CHANNEL[k].PhysMin = hdr->CHANNEL[k].DigMin * hdr->CHANNEL[k].Cal + hdr->CHANNEL[k].Off;
 		}
+		hdr->FLAG.UCAL = 0;
+
 #undef H1LEN 
 	}
 
-    	else if (hdr->TYPE==HEKA) {
+	else if (hdr->TYPE==HEKA) {
 		fprintf(stdout,"Warning: support for HEKA-PatchMaster is very experimental\n");
 
     		// HEKA PatchMaster file format
-    		
+
 		hdr->FILE.LittleEndian = !!*(uint32_t*)(hdr->AS.Header+52);
 		char SWAP = (hdr->FILE.LittleEndian && (__BYTE_ORDER == __BIG_ENDIAN)) ||	  \
 			    (!hdr->FILE.LittleEndian && (__BYTE_ORDER == __LITTLE_ENDIAN));
-		
-    		for (int k=0; k<12; k++) {
-    			uint32_t start  = *(uint32_t*)(hdr->AS.Header+k*16+64);
-    			uint32_t length = *(uint32_t*)(hdr->AS.Header+k*16+64+4);
-    			if (SWAP) {
-    				start = bswap_32(start);
-    				length = bswap_32(length);
-    			}
-    			uint8_t *ext = hdr->AS.Header + k*16 + 64 + 8;
-    			if (!start) break; 
-    			if (!memcmp(ext,".dat\0\0\0\0",8)) {
-    				uint16_t gdftyp = 3;
+
+		for (int k=0; k<12; k++) {
+			uint32_t start  = *(uint32_t*)(hdr->AS.Header+k*16+64);
+			uint32_t length = *(uint32_t*)(hdr->AS.Header+k*16+64+4);
+			if (SWAP) {
+				start = bswap_32(start);
+				length = bswap_32(length);
+			}
+			uint8_t *ext = hdr->AS.Header + k*16 + 64 + 8;
+			if (!start) break; 
+			if (!memcmp(ext,".dat\0\0\0\0",8)) {
+				uint16_t gdftyp = 3;
 				ifseek(hdr,start,SEEK_SET);
 				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,length);
 				ifread(hdr->AS.rawdata, 1, length, hdr);
-    			}
-    		}
+			}
+		}
 	}
 
-    	else if (hdr->TYPE==ITX) {
+	else if (hdr->TYPE==ITX) {
 
 		fprintf(stdout,"Warning: support for ITX is very experimental\n");
 
