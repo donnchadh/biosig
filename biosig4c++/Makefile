@@ -40,9 +40,6 @@ PathToMinGW   = $(HOME)/src/mingw-cross-env
 
 CC            = gcc
 CXX           = g++
-MEX	      = mex   # add full path to .../matlab/bin/mex $(MATLABPATH)/bin/mex
-octVER	      = # default
-OCT	      =	mkoctfile$(octVER)
 #DEFINES      = -D=WITHOUT_SCP_DECODE
 DEFINES       = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_FEF #-D=WITH_PDP -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 #DEFINES      += -D=CNT32
@@ -74,12 +71,12 @@ COPY          = cp -f
 TEMP_DIR      = /tmp/
 
 ##########################################################
-## set Matlab variables
-##  MEX_EXT need to be defined - uncomment one of the following definitions
-MEX_EXT       = mexglx
-#MEX_EXT       = $(shell $(shell readlink -f $(shell which matlab) | sed 's/matlab$$/mexext/'))
-#MATLABDIR     = /usr/local/matlab
-#MEX_EXT       = $(shell $(MATLABDIR)/bin/mexext)
+## set Matlab and Octave variables
+MATLABDIR     = $(shell readlink -f $(shell which matlab) | sed 's,/matlab$$,,')
+MEX           = $(MATLABDIR)/mex
+MEX_EXT       = $(shell $(MATLABDIR)/mexext)
+octVER        = # default
+OCT           = mkoctfile$(octVER)
 ##########################################################
 
 ##########################################################
