@@ -72,9 +72,11 @@ TEMP_DIR      = /tmp/
 
 ##########################################################
 ## set Matlab and Octave variables
-MATLABDIR     = $(shell readlink -f $(shell which matlab) | sed 's,/matlab$$,,')
-MEX           = $(MATLABDIR)/mex
-MEX_EXT       = $(shell $(MATLABDIR)/mexext)
+ifneq ($(shell which matlab), )
+  MATLABDIR  := $(dir $(shell readlink -f $(shell which matlab) ) )
+  MEX         = $(MATLABDIR)mex
+  MEX_EXT    := $(shell $(MATLABDIR)mexext)
+endif
 octVER        = # default
 OCT           = mkoctfile$(octVER)
 ##########################################################
@@ -382,6 +384,7 @@ biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 #	MEX-files for Octave and Matlab
 #############################################################
 mex: mex4m mex4o
+ifneq ($(shell which matlab), )
 mex4m: mexSLOAD.$(MEX_EXT) mexSOPEN.$(MEX_EXT)
 mexSLOAD: mexSLOAD.$(MEX_EXT)
 mexSOPEN: mexSOPEN.$(MEX_EXT)
@@ -391,6 +394,7 @@ mexSLOAD.$(MEX_EXT): mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
 mexSOPEN.$(MEX_EXT): mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
 	$(MEX) $(MEX_OPTION) -DmexSOPEN $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) -output mexSOPEN
 	-$(COPY) mexSOPEN.$(MEX_EXT) ../biosig/t200_FileAccess/
+endif
 
 ### MEX-files for Octave
 mex4o:  mexSLOAD.mex mexSOPEN.mex
