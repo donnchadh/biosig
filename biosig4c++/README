@@ -53,6 +53,9 @@ Requirement: qmake, Qt4
    win32/save2gdf.exe  binary converter
    win32/libbiosig.{lib,dll}  static and dynamic library (requires zlib and libws2_32)
 
+(7) MathLink interface to Mathematica
+   see ../mma/ for more details. 
+
 
 The internal data structure resemble the header structure similar to
   http://biosig.svn.sourceforge.net/viewvc/biosig/trunk/biosig/doc/header.txt
@@ -85,9 +88,10 @@ File(s):
     Makefile	script for compiling and testing under GNU/Linux
     Makefile.win32	script for compiling and testing on win32 using mingw
     matlab/*    contains pre-compiled/binary mex files 
+    mma/*	MathLink interface to mathematica
     win32/*	library and executables for Windows
     python/*.py show example and demo
-            
+
 
 Open Issue(s) of the SCP-ECG <-> HL7aECG converter:
 ---------------------------------------------------

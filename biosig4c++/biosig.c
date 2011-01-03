@@ -11741,51 +11741,6 @@ int sflush_gdf_event_table(HDRTYPE* hdr)
 
 
 /****************************************************************************/
-/**     SLOAD                                                              **/
-/**	loads header and data of one file                                  **/ 
-/****************************************************************************/
-HDRTYPE* sload(const char* FileName, size_t ChanList[], biosig_data_type** DATA)
-{
-	size_t k,NS;
-	int status;
-	HDRTYPE* hdr; 
-	hdr = sopen(FileName,"r",NULL); 
-	if ((status=serror())) {
-		destructHDR(hdr);
-		return(NULL);
-	} 
-
-	/* ChanList is currently not supported. 	
-
-	if ((ChanList[0] == 1) && (ChanList[1] == 0)) { 	// all channels
-		for (k=0; k<hdr->NS; ++k)
-			hdr->CHANNEL[k].OnOff = 1; // set 
-	}		
-	else {		
-		for (k=0; k<hdr->NS; ++k)
-			hdr->CHANNEL[k].OnOff = 0; // reset 
-			
-		for (k=1; k<=ChanList[0]; ++k) {
-			size_t ch = (int)ChanList[k];
-			if ((ch < 1) || (ch > hdr->NS)) 
-				fprintf(stdout,"Invalid channel number CHAN(%i) = %i!\n",k,ch); 
-			else 	
-				hdr->CHANNEL[ch-1].OnOff = 1;  // set
-		}		
-	}
-	*/	
-
-	for (k=0, NS=0; k<hdr->NS; k++)
-		if (hdr->CHANNEL[k-1].OnOff) NS++;
-	
-	*DATA = (biosig_data_type*)realloc(*DATA,hdr->SPR*hdr->NRec*NS*sizeof(biosig_data_type));
-	sread(*DATA,0,hdr->NRec,hdr); 	
-	sclose(hdr);
-	return(hdr); 
-}
-
-
-/****************************************************************************/
 /**                     HDR2ASCII                                          **/
 /**	displaying header information                                      **/ 
 /****************************************************************************/

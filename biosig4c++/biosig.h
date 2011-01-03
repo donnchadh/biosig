@@ -596,15 +596,6 @@ const char* GetFileTypeString(enum FileFormat FMT);
  --------------------------------------------------------------- */
 
 
-HDRTYPE* sload(const char* FileName, size_t CHANLIST[], biosig_data_type** DATA);
-/*	FileName: name of file 
-	returns a HDR struct containing the header information 
-	CHANLIST[0] contains the length of the channel list 
-	CHANLIST[1..CHANLIST[0]] contains the selected channels 
-	and DATA points to a matrix with HDR.SPR*HDR.NRec samples and HDR.NS channels
- --------------------------------------------------------------- */
-
-
 uint16_t PhysDimCode(char* PhysDim0);
 /* Encodes  Physical Dimension as 16bit integer according to 
    ISO/IEEE 11073-10101:2004 Vital Signs Units of Measurement
