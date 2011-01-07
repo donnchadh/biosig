@@ -1908,20 +1908,20 @@ void destructHDR(HDRTYPE* hdr) {
 
     	if (hdr->AS.bci2000 != NULL) free(hdr->AS.bci2000);
 
-	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.AS.rawdata\n");
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.AS.rawdata @%p\n",hdr->AS.rawdata);
 
 	if ((hdr->AS.rawdata != NULL) && (hdr->TYPE != SCP_ECG)) 
 	{	// for SCP: hdr->AS.rawdata is part of hdr->AS.Header 
         	free(hdr->AS.rawdata);
         }	
 
-	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.data.block\n");
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.data.block @%p\n",hdr->data.block);
 
     	if (hdr->data.block != NULL) free(hdr->data.block);
        	hdr->data.size[0]=0;
        	hdr->data.size[1]=0;
 
-	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.CHANNEL[] %p %p\n",hdr->CHANNEL,hdr->rerefCHANNEL);
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.CHANNEL[] @%p %p\n",hdr->CHANNEL,hdr->rerefCHANNEL);
 
     	if (hdr->CHANNEL != NULL) free(hdr->CHANNEL);
     	hdr->CHANNEL = NULL;
@@ -7445,25 +7445,46 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 
     	else if (hdr->TYPE==ITX) {
 #define IGOR_MAXLENLINE 400
+
     		char line[IGOR_MAXLENLINE+1];
-    		char flag = 0;
-    		size_t ns=0, spr = 0, SPR = 0, DIV = 1; 
-    		double DUR[32];
+    		char flagData = 0;
+    		char flagSupported = 1;
+
+	        if (VERBOSE_LEVEL>7) 
+                        fprintf(stdout,"[701] start reading %s,v%4.2f format \n",GetFileTypeString(hdr->TYPE),hdr->VERSION);                    
+		
+		typeof(hdr->SPR) SPR = 0, spr = 0;
+		typeof(hdr->NS)  ns  = 0, NS  = 0;
+    		size_t DIV = 1;
+		int chanNo=0, PrevChanNo=0, sweepNo=0, PrevSweepNo=0;
     		hdr->SPR = 0;
+    		hdr->NRec= 0;
+
+		/*
+			checks the structure of the file and extracts formating information 
+		*/
 
     		ifseek(hdr,0,SEEK_SET);	    			
     		while (!ifeof(hdr)) {
-	    		ifgets(line, IGOR_MAXLENLINE, hdr);
-	    		if (!strncmp(line,"BEGIN",5)) {
-	    			flag = 1;
+			ifgets(line, IGOR_MAXLENLINE, hdr);
+
+			if (!strncmp(line,"BEGIN",5)) {
+	    			flagData = 1;
 	    			spr = 0;
 	    			hdr->CHANNEL[ns].bi = SPR*sizeof(double);
 	    		}
 	    		else if (!strncmp(line,"END",3)) {
-	    			flag = 0;
-	    			hdr->CHANNEL[ns].SPR = spr;
-	    			SPR += spr;
+	    			flagData = 0;
+                                if ((SPR!=0) && (SPR != spr)) 
+					flagSupported = 0;
+				else 
+					SPR = spr; 	
+
+				PrevChanNo  = chanNo;
+				PrevSweepNo = sweepNo;
+				if (ns==0) hdr->SPR += SPR;
 	    		}
+	    		
 	    		else if (!strncmp(line,"X SetScale/P x,",15)) {
 	    			strtok(line,",");
 	    			strtok(NULL,",");
@@ -7472,42 +7493,53 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 	    			if (p != NULL) {
 	    				p++;
 	    				char *p2 = strchr(p,'"');
-	    				if (p2!=NULL) *p2=0;
+	    				if (p2 != NULL) *p2=0;
 	    				dur *= PhysDimScale(PhysDimCode(p));
 	    			}
 	    			
-	    			//TODO: fix SPR
 	    			double div = spr / (hdr->SampleRate * dur);
 	    			if (ns==0) {
 	    				hdr->SampleRate = 1.0 / dur;
-	    				hdr->SPR = spr;
-	    			}
+				}
 	    			else if (hdr->SampleRate == 1.0 / dur)
 	    				;
 	    			else if (div == floor(div)) {
 	    				hdr->SampleRate *= div;
 	    			}
-	    					
 	    		}
+	    		
 	    		else if (!strncmp(line,"X SetScale y,",13)) {
 	    			char *p = strchr(line,'"');
 	    			if (p!=NULL) {
 	    				p++;
 	    				char *p2 = strchr(p,'"');
 	    				if (p2!=NULL) *p2=0;
-	    				hdr->CHANNEL[ns].PhysDimCode = PhysDimCode(p);
+					if (hdr->CHANNEL[ns].PhysDimCode == 0) 
+		    				hdr->CHANNEL[ns].PhysDimCode = PhysDimCode(p);
+					else if (hdr->CHANNEL[ns].PhysDimCode != PhysDimCode(p))
+						flagSupported = 0;	// physical units do not match	
 	    			}
-	    			ns++;
 	    		}
 	    		else if (!strncmp(line,"WAVES",5)) {
-				hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL,(ns+1)*sizeof(CHANNEL_TYPE));
-				CHANNEL_TYPE* hc = hdr->CHANNEL+ns;
-	    			strncpy(hc->Label,line+6,MAX_LENGTH_LABEL);
+				char *p; 
+				p = strrchr(line,'_'); chanNo  = atoi(p+1); ns = chanNo - 1; p[0] = 0; 
+				p = strrchr(line,'_'); sweepNo = atoi(p+1); if (sweepNo > hdr->NRec) hdr->NRec = sweepNo; p[0] = 0; 
 
-				hc->OnOff    = 1;
+				flagSupported &= (ns==0) || (chanNo == PrevChanNo+1); 	// reset flag if channel number does not increment by one. 
+				flagSupported &= (ns==0 && sweepNo==PrevSweepNo+1) || (sweepNo == PrevSweepNo); 	// reset flag if sweep number does not increment by one when chanNo==0. 
+
+				if (ns >= hdr->NS) {
+					hdr->NS = ns+1;
+					hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL, hdr->NS * sizeof(CHANNEL_TYPE));
+				}
+				CHANNEL_TYPE* hc = hdr->CHANNEL + ns;
+	    			strncpy(hc->Label, line+6, MAX_LENGTH_LABEL);
+
+ 				hc->OnOff    = 1;
         			hc->GDFTYP   = 17;
         			hc->DigMax   = (double)(int16_t)(0x7fff);
-        			hc->DigMin   = (double)(int16_t)(0x8000);
+        			hc->DigMin   = (double)(int16_t)(0x8000);	
+				hc->LeadIdCode = 0;
 
 				hc->Cal      = 1.0; 
 				hc->Off      = 0.0;
@@ -7516,38 +7548,93 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 				hc->HighPass = NaN;
 				hc->PhysMax  = hc->Cal * hc->DigMax;
 				hc->PhysMin  = hc->Cal * hc->DigMin;
+				hc->PhysDimCode = 0;
+
+				// decode channel number and sweep number
+                if (VERBOSE_LEVEL>7)
+                        fprintf(stdout,"[776]<%s>#%i: %i/%i\n",line,(int)ns,(int)spr,(int)hdr->SPR);
 
 	    		}
-	    		else if (flag) 
+	    		else if (flagData) 
 	    			spr++;
 	    	}		
-		hdr->NS = ns;
-		ns = 0;
+
+                if (VERBOSE_LEVEL>7)
+                        fprintf(stdout,"[751] scaning %s,v%4.2f format \n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
+                                                                 		
+		if (!flagSupported) {
+			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+			B4C_ERRMSG = "This ITX format is not supported. Possible reasons: not generated by Heka-Patchmaster, corrupted, physical units do not match between sweeos, or do not fullfil some other requirements\n";
+			return(hdr);
+		}
 		
-		double *data = (double*)realloc(hdr->AS.rawdata,SPR*sizeof(double));
+                if (VERBOSE_LEVEL>7)
+                        fprintf(stdout,"[781] [%i,%i,%i] = %i\n",(int)hdr->NS,(int)hdr->SPR,(int)hdr->NRec,(int)hdr->NRec*hdr->SPR*hdr->NS);
+
+		hdr->EVENT.N = hdr->NRec - 1;  
+		hdr->EVENT.SampleRate = hdr->SampleRate;
+		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS,hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
+		hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP,hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
+
+		hdr->NRec = hdr->SPR;        
+		hdr->SPR  = 1;        
+		hdr->AS.first  = 0;
+		hdr->AS.length = hdr->NRec;
+		hdr->AS.bpb = sizeof(double)*hdr->NS;
+	    	for (ns=0; ns<hdr->NS; ns++) {
+			hdr->CHANNEL[ns].SPR = hdr->SPR;
+			hdr->CHANNEL[ns].bi  = sizeof(double)*ns;
+		}
+		
+       		double *data = (double*)realloc(hdr->AS.rawdata,hdr->NRec*hdr->SPR*hdr->NS*sizeof(double));
 		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN);   // no swapping 
 		hdr->AS.rawdata = (uint8_t*) data;
 	    	
-	    	spr = 0;
+		/*
+			reads and converts data into biosig structure 
+		*/
+
+	    	spr = 0;SPR = 0; 
     		ifseek(hdr, 0, SEEK_SET);
     		while (!ifeof(hdr)) {
 	    		ifgets(line, IGOR_MAXLENLINE, hdr);
 	    		if (!strncmp(line,"BEGIN",5)) {
-	    			flag = 1;
+	    			flagData = 1;
+				spr = 0; 
 	    		}
 	    		else if (!strncmp(line,"END",3)) {
-	    			flag = 0;
+	    			flagData = 0;
+				if (chanNo+1 == hdr->NS) SPR += spr;
 	    		}
 	    		else if (!strncmp(line,"X SetScale y,",13)) {
-	    			ns++;
+	    			//ns++;
 	    		}
-	    		else if (flag) {
-	    			data[spr++] = atof(line); 
+	    		else if (!strncmp(line,"WAVES",5)) {
+				// decode channel number and sweep number
+				char *p; 
+				p = strrchr(line,'_'); chanNo  = atoi(p+1)-1; p[0] = 0; 
+				p = strrchr(line,'_'); sweepNo = atoi(p+1)-1; p[0] = 0; 
+				spr = 0;
+				if (sweepNo > 0 && chanNo==0) {
+					hdr->EVENT.POS[sweepNo-1] = SPR;
+					hdr->EVENT.TYP[sweepNo-1] = 0x7ffe;
+				}
+			}
+	    		else if (flagData) {
+				double val = atof(line);
+				data[hdr->NS*(SPR + spr) + chanNo] = val;
+				spr++; 
 	    		}
 	    	}
-		hdr->NRec = 1;
+
+                if (VERBOSE_LEVEL>7)
+			fprintf(stdout,"[791] reading %s,v%4.2f format finished \n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
+                                 
+		hdr->SPR   = 1;        
+		hdr->NRec *= hdr->SPR;        
 		hdr->AS.first  = 0;
-		hdr->AS.length = 1;
+		hdr->AS.length = hdr->NRec;
+		hdr->AS.bpb = sizeof(double)*hdr->NS;
 #undef IGOR_MAXLENLINE	
 	}
 
@@ -10676,6 +10763,9 @@ int V = VERBOSE_LEVEL;
 
 	for (k1=0,k2=0; k1<hdr->NS; k1++) {
 		CHptr 	= hdr->CHANNEL+k1;
+
+	if (VERBOSE_LEVEL>7)
+		fprintf(stdout,"sread 223a #%i#%i: alpha12bit=%i SWAP=%i spr=%i   %p | bi=%i bpb=%i \n", k1,k2, ALPHA12BIT, SWAP, hdr->SPR, hdr->AS.rawdata,(int)CHptr->bi,(int)hdr->AS.bpb );
 
 	if (CHptr->OnOff) {	/* read selected channels only */ 
 	if (CHptr->SPR > 0) {	
