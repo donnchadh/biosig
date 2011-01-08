@@ -20,6 +20,7 @@ function [signal,H] = sload(FILENAME,varargin)
 %	'SampleRate'		Fs		target sampling rate (supports resampling)
 %	'EOG_CORRECTION'	'On'		uses two-channel regression analysis - if possible 
 %				'Off'		no correction of EOG artifacts [default]
+%       'CNT32', '32bit'			force CNT 32bit format 
 %	
 % The list of supported formats is available here: 
 % http://hci.tugraz.at/~schloegl/biosig/TESTED
@@ -42,7 +43,7 @@ function [signal,H] = sload(FILENAME,varargin)
 
 
 %	$Id$
-%	Copyright (C) 1997-2007,2008,2009 by Alois Schloegl 
+%	Copyright (C) 1997-2007,2008,2009,2010,2011 by Alois Schloegl 
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 %
@@ -66,6 +67,7 @@ else
 end;
 
 CHAN = 0; 
+STATE.CNT32 = 0; 
 STATE.UCAL = 0; 
 STATE.OVERFLOWDETECTION = 1; 
 STATE.NUMBER_OF_NAN_IN_BREAK = 100; 
@@ -120,6 +122,8 @@ while (k<=length(varargin))
 	elseif strcmpi(varargin{k},'SampleRate')
 		Fs = varargin{k+1};
 		k=k+1;
+	elseif strcmpi(varargin{k},'CNT32') || strcmpi(varargin{k},'32bit')  
+		STATE.CNT32 = 1;
 	elseif exist(varargin{k},'file') && (k==1)
 	        CHAN = varargin{k};	
 	end; 	
@@ -137,7 +141,7 @@ if any(FILENAME=='*')
                 f(k).name = fullfile(p,f(k).name);
                 [p,g,e]   = fileparts(f(k).name);
                 lg = length(g);
-                if (lg>2) & strcmp(upper(g(lg+(-2:0))),'EOG')
+                if (lg>2) && strcmp(upper(g(lg+(-2:0))),'EOG')
                         EOGix(k) = 1;
                 end
         end;
@@ -288,10 +292,10 @@ if exist('mexSLOAD','file')==3,
 		        else
         			valid_rerefmx = 0;
 		        end;         
-		elseif all(size(CHAN)>1) | any(floor(CHAN)~=CHAN) | any(CHAN<0) | (any(CHAN==0) & (numel(CHAN)>1));
+		elseif all(size(CHAN)>1) || any(floor(CHAN)~=CHAN) || any(CHAN<0) || (any(CHAN==0) && (numel(CHAN)>1));
 		        ReRefMx = CHAN; 
 	        	CHAN = find(any(CHAN,2));
-		elseif all(CHAN>0) & all(floor(CHAN)==CHAN), 
+		elseif all(CHAN>0) && all(floor(CHAN)==CHAN), 
 			[tmp,ix]= sort(CHAN);
 		        ReRefMx = sparse(CHAN,1:length(CHAN),1);
 		else
@@ -313,8 +317,11 @@ if exist('mexSLOAD','file')==3,
 		else
 			arg2 = 'UCAL:OFF';
 		end
+		if STATE.CNT32
+			arg2 = {arg2,'CNT32'};
+		end
 		if ~valid_rerefmx,
-			[signal,HDR] = mexSLOAD(FILENAME,0,arg1,arg2);
+			[signal,HDR] = mexSLOAD(FILENAME,0,arg1,arg2{:});
 			if isfield(HDR,'ErrNum') && HDR.ErrNum==3,
 				%% file not found - fopen failed
 				H = HDR;
@@ -325,7 +332,7 @@ if exist('mexSLOAD','file')==3,
 			HDR.InChanSelect = 1:HDR.NS;
 		else
 			InChanSelect = find(any(ReRefMx,2));
-			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2);
+			[signal,HDR] = mexSLOAD(FILENAME,InChanSelect,arg1,arg2{2});
 			if isfield(HDR,'ErrNum') && HDR.ErrNum==3,
 				%% file not found - fopen failed
 				H = HDR;
@@ -528,7 +535,7 @@ if exist('mexSLOAD','file')==3,
                                 end;
                         end;
                         if isfield(H,'ArtifactSelection'),
-                                if any(H.ArtifactSelection>1) | (length(H.ArtifactSelection)<length(H.Classlabel))
+                                if any(H.ArtifactSelection>1) || (length(H.ArtifactSelection)<length(H.Classlabel))
                                         sel = zeros(size(H.Classlabel));
                                         sel(H.ArtifactSelection) = 1;
                                         H.ArtifactSelection = sel(:);
@@ -914,11 +921,11 @@ elseif strcmp(H.TYPE,'OFF'),
 		
                 line1 = fgetl(H.FILE.FID);
                 line2 = fgetl(H.FILE.FID);
-		while ~feof(H.FILE.FID) & (line2(1)=='#'),
+		while ~feof(H.FILE.FID) && (line2(1)=='#'),
 	                line2 = fgetl(H.FILE.FID);
 		end;
 		[tmp,status] = str2double(line2);
-		if status | (size(tmp,2)~=3), 
+		if status || (size(tmp,2)~=3), 
 			fclose(H.FILE.FID);
 			error('SOPEN (OFF)');
 		else
@@ -930,7 +937,7 @@ elseif strcmp(H.TYPE,'OFF'),
 		H.Vertex = repmat(NaN,H.VertexCount,3);
 		for k = 1:H.VertexCount,
 			line = '';
-			while isempty(line) | strncmp(line,'#',1)
+			while isempty(line) || strncmp(line,'#',1)
 				line = fgetl(H.FILE.FID);
 			end;
 			len = min(length(line),min(find(line=='#')));
@@ -941,7 +948,7 @@ elseif strcmp(H.TYPE,'OFF'),
 %		H.Face = repmat(NaN,H.FaceCount,3);
 		for k = 1:H.FaceCount,
 			line = '';
-			while isempty(line) | strncmp(line,'#',1)
+			while isempty(line) || strncmp(line,'#',1)
 				line = fgetl(H.FILE.FID);
 			end;
 			len = min(length(line),min(find(line=='#')));
@@ -1211,9 +1218,9 @@ if strcmp(H.TYPE,'CNT');
                 catch
                         tmp = []; 
                 end
-                if isfield(tmp,'classlabel') & ~isfield(H,'Classlabel')
+                if isfield(tmp,'classlabel') && ~isfield(H,'Classlabel')
                         H.Classlabel=tmp.classlabel(:);                        
-                elseif isfield(tmp,'classlabel') & isfield(tmp,'header') & isfield(tmp.header,'iniFile') & strcmp(tmp.header.iniFile,'oom.ini'), %%% for OOM study only. 
+                elseif isfield(tmp,'classlabel') && isfield(tmp,'header') && isfield(tmp.header,'iniFile') && strcmp(tmp.header.iniFile,'oom.ini'), %%% for OOM study only. 
                         H.Classlabel=tmp.classlabel(:);                        
                 end;
         end;
@@ -1224,7 +1231,7 @@ if strcmp(H.TYPE,'CNT');
                 catch
                         tmp = []; 
                 end
-                if isfield(tmp,'classlabel') & ~isfield(H,'Classlabel')
+                if isfield(tmp,'classlabel') && ~isfield(H,'Classlabel')
                         H.Classlabel=tmp.classlabel(:);                        
                 end;
         end;
@@ -1235,10 +1242,10 @@ if strcmp(H.TYPE,'CNT');
                 catch
                         tmp = []; 
                 end
-                if isfield(tmp,'Classlabel') & (size(tmp.Classlabel,2)==4)
+                if isfield(tmp,'Classlabel') && (size(tmp.Classlabel,2)==4)
                         [x,H.Classlabel] = max(tmp.Classlabel,[],2);                        
                 end;
-                if isfield(tmp,'classlabel') & (size(tmp.classlabel,2)==4)
+                if isfield(tmp,'classlabel') && (size(tmp.classlabel,2)==4)
                         [x,H.Classlabel] = max(tmp.classlabel,[],2);                        
                 end;
         end;
@@ -1252,7 +1259,7 @@ if strcmp(H.TYPE,'CNT');
 		tmp = fread(fid,inf,'uint8');
 		fclose(fid);
 		[tmp,v] = str2double(char(tmp'));
-		if any(isnan(tmp)) |any(tmp~=ceil(tmp)) | any(tmp<0) | (any(tmp==0) & any(tmp>1))
+		if any(isnan(tmp)) || any(tmp~=ceil(tmp)) || any(tmp<0) || (any(tmp==0) && any(tmp>1))
                         fprintf(2,'Warning SLOAD(CNT): corrupted SEL-file %s\n',f);
                 else
                         if ~isfield(H,'Classlabel'), 
@@ -1261,7 +1268,7 @@ if strcmp(H.TYPE,'CNT');
                         n = length(H.Classlabel);
                         
                         H.ArtifactSelection = zeros(n,1);
-                        if all((tmp==0) | (tmp==1)) & (length(tmp)>1) & (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
+                        if all((tmp==0) || (tmp==1)) && (length(tmp)>1) && (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
                                 H.ArtifactSelection = logical(tmp);         
                         else
                                 H.ArtifactSelection(tmp) = 1;         
@@ -1310,7 +1317,7 @@ if strcmp(H.TYPE,'GDF')
                                                         H.TriggerOffset = H.BCI.Paradigm.TriggerOnset;
                                                 end;
 
-                                                if isfield(H,'Classlabel') & isempty(H.Classlabel),
+                                                if isfield(H,'Classlabel') && isempty(H.Classlabel),
                                                         H.Classlabel = x.header.Paradigm.Classlabel;
                                                 end;
                                         end;
@@ -1329,11 +1336,11 @@ if strcmp(H.TYPE,'GDF')
                 [tmp,v,sa] = str2double(tmp);
                 if isempty(sa) || isempty(sa{1})
                         H.ArtifactSelection = repmat(0,length(H.TRIG),1);
-                elseif any(isnan(tmp)) |any(tmp~=ceil(tmp)) | any(tmp<0) | (any(tmp==0) & any(tmp>1))
+                elseif any(isnan(tmp)) || any(tmp~=ceil(tmp)) || any(tmp<0) || (any(tmp==0) && any(tmp>1))
                         fprintf(2,'Warning SLOAD(GDF): corrupted SEL-file %s\n',fullfile(H.FILE.Path,[H.FILE.Name,'.sel']));
 		else                        
                         H.ArtifactSelection = zeros(length(H.TRIG),1);
-                        if all((tmp==0) | (tmp==1)) & (length(tmp)>1) & (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
+                        if all((tmp==0) || (tmp==1)) && (length(tmp)>1) && (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
                                 H.ArtifactSelection = logical(tmp);
                         else
                                 H.ArtifactSelection(tmp) = 1;
@@ -1345,8 +1352,8 @@ end;
 
 
 % resampling 
-if ~isnan(Fs) & (H.SampleRate~=Fs);
-        tmp = ~mod(H.SampleRate,Fs) | ~mod(Fs,H.SampleRate);
+if ~isnan(Fs) && (H.SampleRate~=Fs);
+        tmp = ~mod(H.SampleRate,Fs) || ~mod(Fs,H.SampleRate);
         tmp2= ~mod(H.SampleRate,Fs*2.56);
         if tmp,
                 signal = rs(signal,H.SampleRate,Fs);
