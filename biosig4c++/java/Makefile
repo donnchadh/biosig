@@ -10,8 +10,14 @@
 # More information on SWIG-Java interface is available here
 # http://www.swig.org/Doc1.3/Java.html
 
-swig -c++ -java biosig.i
+all:
+	swig -c++ -java biosig.i
+	g++ -fPIC -c biosig_wrap.cxx  -I/usr/lib/gcc/x86_64-linux-gnu/4.4/include/ -I/usr/lib/jvm/java-1.5.0-gcj-4.4/include
+	ld -G biosig_wrap.o  -o libbiosig4java.so
 
-g++ -fPIC -c biosig_wrap.cxx  -I/usr/lib/gcc/x86_64-linux-gnu/4.4/include/ -I/usr/lib/jvm/java-1.5.0-gcj-4.4/include
+clean: 
+	-rm *.java
+	-rm *.o 
+	-rm *.cxx 
+	-rm *.so
 
-ld -G biosig_wrap.o  -o libexample.so

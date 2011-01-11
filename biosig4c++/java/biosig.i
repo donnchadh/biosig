@@ -45,17 +45,23 @@ enum FileFormat {
 	BCI2000, BDF, BIN, BKR, BLSC, BMP, BNI, BSCS, 
 	BrainVision, BrainVisionVAmp, BrainVisionMarker, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
-	EBS, EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
+	EBS, EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, 
+	EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
-	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, Lexicor, 
+	GIF, GTF, GZIP, HDF, HL7aECG, ISHNE, JPEG, Lexicor, 
 	Matlab, MFER, MIDI, MIT, MM, MSI, 
 	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
-	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
-	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
+	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, 
+	PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
+	RDF, RIFF, 
+	SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, TMSiLOG, TRC, UNIPRO, VRML, VTK, 
-	WAV, WinEEG, WMF, XML, XPM,
+	WAV, WinEEG, WMF, XML, XPM, 
 	Z, ZIP, ZIP2,
 	ASCII_IBI, ASCII, 
+	ARFF, SASXPT, SPSS, STATA, 
+	CFS, HEKA, ITX, NEURON,
+	MSVCLIB
 };
 
 typedef struct {
@@ -189,8 +195,8 @@ typedef struct {
 	} FLAG; 
 
 	CHANNEL_TYPE *CHANNEL;
-	  
-	%immutable 
+	
+%immutable;  
 	struct {	/* File specific data  */
 #ifdef ZLIB_H
 		gzFile		gzFID;
@@ -212,23 +218,24 @@ typedef struct {
 //		char 		PID[MAX_LENGTH_PID+1];	/* use HDR.Patient.Id instead */
 //		char* 		RID;		/* recording identification */ 
 //		uint32_t 	spb;		/* total samples per block */
-		%immutable 
 		uint32_t 	bpb;  		/* total bytes per block */
 		uint32_t 	bpb8;  		/* total bits per block */
-		uint32_t 	*bi __attribute__ ((deprecated)); /* this information redundant with HDR.CHANNEL[k].bi[0] - and might become obsolete */
+
 		uint8_t*	Header; 
 		uint8_t*	rawEventData;
 		uint8_t*	rawdata; 	/* raw data block */
+		char		flag_collapsed_rawdata; /*0 if rawdata contain obsolete channels, too. 	*/
 		nrec_t		first;		/* first block loaded in buffer - this is equivalent to hdr->FILE.POS */
 		nrec_t		length;		/* number of block(s) loaded in buffer */
 		uint8_t*	auxBUF;		/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor */
 		char*		bci2000;
 	} AS;
-	
 	void *aECG;
-	%mutable 
-	
+%mutable;	
 } HDRTYPE;
+
+
+
 
 HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT);
 void 	 destructHDR(HDRTYPE* hdr);
@@ -244,7 +251,6 @@ int	hdr2ascii(HDRTYPE* hdr, FILE *fid, int verbosity);
 
 int RerefCHANNEL(HDRTYPE *hdr, void *ReRef, char rrtype);
 const char* GetFileTypeString(enum FileFormat FMT);
-HDRTYPE* sload(const char* FileName, size_t CHANLIST[], biosig_data_type** DATA);
 
 uint16_t PhysDimCode(char* PhysDim0);
 char* 	PhysDim(uint16_t PhysDimCode, char *PhysDimText);

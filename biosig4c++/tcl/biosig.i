@@ -45,17 +45,23 @@ enum FileFormat {
 	BCI2000, BDF, BIN, BKR, BLSC, BMP, BNI, BSCS, 
 	BrainVision, BrainVisionVAmp, BrainVisionMarker, BZ2, 
 	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
-	EBS, EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
+	EBS, EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, 
+	EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
-	GIF, GTF, GZIP, HDF, HL7aECG, JPEG, Lexicor, 
+	GIF, GTF, GZIP, HDF, HL7aECG, ISHNE, JPEG, Lexicor, 
 	Matlab, MFER, MIDI, MIT, MM, MSI, 
 	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
-	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
-	RIFF, SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
+	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, 
+	PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
+	RDF, RIFF, 
+	SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
 	TIFF, TMS32, TMSiLOG, TRC, UNIPRO, VRML, VTK, 
-	WAV, WinEEG, WMF, XML, XPM,
+	WAV, WinEEG, WMF, XML, XPM, 
 	Z, ZIP, ZIP2,
 	ASCII_IBI, ASCII, 
+	ARFF, SASXPT, SPSS, STATA, 
+	CFS, HEKA, ITX, NEURON,
+	MSVCLIB
 };
 
 typedef struct {
@@ -242,7 +248,6 @@ int	hdr2ascii(HDRTYPE* hdr, FILE *fid, int verbosity);
 
 int RerefCHANNEL(HDRTYPE *hdr, void *ReRef, char rrtype);
 const char* GetFileTypeString(enum FileFormat FMT);
-HDRTYPE* sload(const char* FileName, size_t CHANLIST[], biosig_data_type** DATA);
 
 uint16_t PhysDimCode(char* PhysDim0);
 char* 	PhysDim(uint16_t PhysDimCode, char *PhysDimText);
