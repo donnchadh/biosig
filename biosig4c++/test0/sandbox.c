@@ -1,14 +1,14 @@
 /*
- 
+
     sandbox is used for development and under constraction work
-    The functions here are either under construction or experimental. 
+    The functions here are either under construction or experimental.
     The functions will be either fixed, then they are moved to another place;
     or the functions are discarded. Do not rely on the interface in this function
 
     $Id: sandbox.c,v 1.5 2009-04-16 20:19:17 schloegl Exp $
     Copyright (C) 2008,2009 Alois Schloegl <a.schloegl@ieee.org>
-    This file is part of the "BioSig for C/C++" repository 
-    (biosig4c++) at http://biosig.sf.net/ 
+    This file is part of the "BioSig for C/C++" repository
+    (biosig4c++) at http://biosig.sf.net/
 
     BioSig is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -21,7 +21,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
  */
@@ -45,7 +45,7 @@ extern "C" int sopen_dicom_read(HDRTYPE* hdr) {
 
 }
 
-#endif 
+#endif
 
 
 
@@ -79,7 +79,7 @@ extern "C" int sopen_dicom_read(HDRTYPE* hdr) {
 	if( !r.Read() )
 		return 1;
 
-	gdcm::File &file = r.GetFile(); 
+	gdcm::File &file = r.GetFile();
 	gdcm::FileMetaInformation &header = file.GetHeader();
 	if ( header.FindDataElement( gdcm::Tag(0x0002, 0x0013 ) ) )
 		const gdcm::DataElement &de = header.GetDataElement( gdcm::Tag(0x0002, 0x0013) );
@@ -97,7 +97,7 @@ fprintf(stdout,"attr <0x0002,0x0010> len=%i\n",de->GetByteValue() );
 	{
 		gdcm::Attribute<0x28,0x100> at;
 		at.SetFromDataElement( ds.GetDataElement( at.GetTag() ) );
-		if( at.GetValue() != 8 ) 
+		if( at.GetValue() != 8 )
 			return 1;
 		//at.SetValue( 32 );
 		//ds.Replace( at.GetAsDataElement() );
@@ -129,7 +129,7 @@ fprintf(stdout,"attr <0x0008,0x0023>\n");
 
 /*
 				{
-				struct tm t0; 
+				struct tm t0;
 				hdr->AS.Header[pos+14]=0;
 				t0.tm_sec = atoi((char*)hdr->AS.Header+pos+12);
 				hdr->AS.Header[pos+12]=0;
@@ -143,10 +143,10 @@ fprintf(stdout,"attr <0x0008,0x0023>\n");
 				hdr->AS.Header[pos+4]=0;
 				t0.tm_year = atoi((char*)hdr->AS.Header+pos)-1900;
 
-				hdr->T0 = tm_time2gdf_time(&t0); 
+				hdr->T0 = tm_time2gdf_time(&t0);
 				break;
 				}
-			
+
 */
 }
 #endif
@@ -155,7 +155,7 @@ fprintf(stdout,"attr <0x0008,0x0023>\n");
 
 #ifdef __cplusplus
 extern "C" {
-#endif 
+#endif
 
 
 int sopen_eeprobe(HDRTYPE* hdr) {
@@ -169,7 +169,7 @@ int sopen_eeprobe(HDRTYPE* hdr) {
 
 size_t NumSegments = 0, NSEGS=0;
 struct SegElem_t {
-	size_t group;	// 0: undefined 
+	size_t group;	// 0: undefined
 	size_t series;	// 0: undefined
 	size_t sweep;	// 0: undefined
 	size_t chan;	// 0: undefined
@@ -192,19 +192,30 @@ void ReadPatchMasterTree(char *mem) {
 	}
 }
 
+
+
+/*
+#define RootRecSize   544
+#define GroupRecSize  128
+#define SeriesRecSize 1120
+#define SweepRecSize  160
+#define TraceRecSize  296
+#define AmplifierStateSize 400
+*/
+
 char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries, size_t *nsweep, size_t *ns) {
 	/*
-		extract Channel Label of IGOR ITX data format 
+		extract Channel Label of IGOR ITX data format
 	*/
-	
-	*ns = 0; 
+
+	*ns = 0;
 	static char Label[ITX_MAXLINELENGTH+1];
 	int k, s = 0, pos4=0, pos1=0;
 	for (k = strlen(inLabel); inLabel[k] < ' '; k--);
 	inLabel[k+1] = 0;
-	
+
 	while (inLabel[k] >= ' ') {
-		while ( inLabel[k] >= '0' && inLabel[k] <= '9' ) 
+		while ( inLabel[k] >= '0' && inLabel[k] <= '9' )
 			k--;
 		if (inLabel[k]=='_') {
 			s++;
@@ -212,18 +223,18 @@ char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries
 			if (s==4) pos1 = k;
 			k--;
 		}
-		if ( inLabel[k] < '0' || inLabel[k] > '9' ) 
+		if ( inLabel[k] < '0' || inLabel[k] > '9' )
 			break;
 	}
 
-	if (3 < s) {	
+	if (3 < s) {
 		char nvar = 0;
 		for (k = strlen(inLabel); 0 < k && nvar < 4; k--) {
 			if (inLabel[k] == '_') {
 				inLabel[k] = 0;
 				char  *v = inLabel+k+1;
 				size_t n = atol(v);
-				
+
 				switch (nvar) {
 				case 0: *ns = n;
 					nvar++;
@@ -242,7 +253,7 @@ char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries
 			}
 		}
 		for (k=1; inLabel[pos4+k-1]; k++) {
-			inLabel[pos1+k] = inLabel[pos4+k]; 
+			inLabel[pos1+k] = inLabel[pos4+k];
 		}
 	}
 
@@ -250,7 +261,7 @@ char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries
 
 	}
 
-	if ((*ns)+1 > hdr->NS) {	// another channel 
+	if ((*ns)+1 > hdr->NS) {	// another channel
 		hdr->NS = (*ns)+1;
 		hdr->CHANNEL = (CHANNEL_TYPE*)realloc(hdr->CHANNEL, hdr->NS * sizeof(CHANNEL_TYPE));
 	}
@@ -271,8 +282,8 @@ int sopen_zzztest(HDRTYPE* hdr) {
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 111\n");
 
-		if (hdr->HeadLen < 256 ) {	
-			count = hdr->HeadLen; 
+		if (hdr->HeadLen < 256 ) {
+			count = hdr->HeadLen;
 			hdr->AS.Header = (uint8_t*) realloc(hdr->AS.Header, 257);
 			hdr->HeadLen += ifread(hdr->AS.Header+count, 1, 256-hdr->HeadLen, hdr);
 			hdr->AS.Header[hdr->HeadLen] = 0;
@@ -285,7 +296,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 114\n");
 			    (!hdr->FILE.LittleEndian && (__BYTE_ORDER == __LITTLE_ENDIAN));
 
 		double oTime;
-		uint32_t nItems; 
+		uint32_t nItems;
 		if (hdr->FILE.LittleEndian) {
 			oTime  = lef64p(hdr->AS.Header+40);
 			nItems = leu32p(hdr->AS.Header+48);
@@ -298,9 +309,31 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 114\n");
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 117\n");
 
 		char magic[4];
-		int32_t Levels;
-		int32_t *Sizes=NULL; 
-		uint32_t StartOfData; 
+		int32_t Levels=0;
+		//int32_t *Sizes=NULL;
+		int32_t Counts[5], counts[5]; //, Sizes[5];
+		memset(Counts,0,20);
+		memset(counts,0,20);
+		//memset(Sizes,0,20);
+		uint32_t StartOfData,StartOfPulse;
+
+/*
+		int32_t RootRecSize  = 544;
+		int32_t GroupRecSize = 128;
+		int32_t SeriesRecSize= 1120;
+		int32_t SweepRecSize = 160;
+		int32_t TraceRecSize = 296;
+*/		union {
+			struct {
+				int32_t Root;
+				int32_t Group;
+				int32_t Series;
+				int32_t Sweep;
+				int32_t Trace;
+			} Rec;
+			int32_t all[5];
+		} Sizes;
+
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 121 nItems=%i\n",nItems);
 
 		if (hdr->VERSION == 2)
@@ -318,50 +351,224 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 131 nItems=%i\n",k);
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA #%i: <%s> [%i:+%i]\n",k,ext,start,length);
 
-			if (!start) break; 
+			if (!start) break;
 
 			if (!memcmp(ext,".pul\0\0\0\0",8)) {
 				// find pulse data
 				uint16_t gdftyp = 3;
-				ifseek(hdr,start,SEEK_SET);
+				ifseek(hdr, start, SEEK_SET);
 
 				ifread(magic, 1, 4, hdr);
 				ifread(&Levels, 1, 4, hdr);
 				if (SWAP) Levels = bswap_32(Levels);
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA123 #%i    Levels=%i\n",k,Levels);
-				Sizes = (int32_t*)realloc(Sizes, Levels*4);
+
+				if (Levels>5) {
+					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+					B4C_ERRMSG = "Heka/Patchmaster format with more than 5 levels not supported;";
+					return(-1);
+				}
+
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA124 #%i    Levels=%i\n",k,Levels);
-				ifread(Sizes, Levels, 4, hdr);	
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA125 #%i    Levels=%i\n",k,Levels);
-				if (SWAP) for (int l=0; l < Levels; l++) Sizes[l] = bswap_32(Sizes[l]);
-if (VERBOSE_LEVEL>7) for (int l=0; l < Levels; l++) fprintf(stdout,"HEKA #%i       %i\n",l, Sizes[l]);
-				size_t Position = iftell(hdr);	
+
+				ifread(Sizes.all, Levels, 4, hdr);
+				if (SWAP) for (int l=0; l < Levels; l++) Sizes.all[l] = bswap_32(Sizes.all[l]);
+
+if (VERBOSE_LEVEL>7) for (int l=0; l < Levels; l++) fprintf(stdout,"HEKA #%i       %i\n",l, Sizes.all[l]);
+
+				StartOfPulse = iftell(hdr);
 
 				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,length);
 				ifread(hdr->AS.rawdata, 1, length, hdr);
-
 			}
 
 			else if (!memcmp(ext,".dat\0\0\0\0",8)) {
-				StartOfData = start;												
+				StartOfData = start;
 			}
 		}
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 989\n");
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 989: \n");
 
-		if (!Sizes) free(Sizes); Sizes=NULL;
-		ifseek(hdr, StartOfData, SEEK_SET);
-
+		// if (!Sizes) free(Sizes); Sizes=NULL;
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999\n");
 
-	}
+/* TODO:
+	pass 1:
+		+ get number of sweeps
+		+ get number of channels
+		+ check whether all traces of a single sweep have the same SPR, and Fs
+		- check whether channelnumber (TrAdcChannel) and Label fit amoung all sweeps
+		+ extract the total number of samples
+		physical units
+		+ level 4 may have no children
+		- count event descriptions Level2/SeLabel
+	pass 2:
+		initialize data to NaN
+		skip sweeps if selected channel is not in it
+		Y scale
+		Event.CodeDescription, Events,
+		resampling 
+*/
+		ifseek(hdr, StartOfPulse, SEEK_SET);
 
+		uint32_t k0=0, k1=0, k2=0, k3=0, k4=0;
+		uint32_t K0=0, K1=0, K2=0, K3=0, K4=0, K5=0;
+		uint32_t nchild = 0;
+		double t;
+		size_t count, pos;
+		// read root
+		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, Sizes.Rec.Root+4);
+		count = ifread(hdr->AS.Header, 1, Sizes.Rec.Root+4, hdr);
+		// read K1
+
+		if (SWAP) {
+			K1 		= bswap_32(*(uint32_t*)(hdr->AS.Header+Sizes.Rec.Root));
+			hdr->VERSION 	= bswap_32(*(uint32_t*)(hdr->AS.Header));
+			t  		= bswap_64(*(double*)(hdr->AS.Header+520));
+		} else {
+			K1 		= (*(uint32_t*)(hdr->AS.Header+Sizes.Rec.Root));
+			hdr->VERSION 	= (*(uint32_t*)(hdr->AS.Header));
+			t  		= (*(double*)(hdr->AS.Header+520));
+		}
+		t -= 1580970496; if (t<0) t += 4294967296; t += 9561652096;
+		hdr->T0 = t/(24.0*60*60) + 584755; // +datenum(1601,1,1));
+		hdr->SampleRate = 0.0;
+		double *DT = NULL; 	// list of sampling intervals per channel
+
+		pos = count;
+		// read remainder into memory
+		while (!ifeof(hdr)) {
+			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, 2*count);
+			count += ifread(hdr->AS.Header+count, 1, count, hdr);
+		}
+
+		for (k1=0; k1<K1; k1++)	{
+		// read group
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L1 @%i=\t%i/%i \n",pos+StartOfData,k1,K1);
+
+			pos += Sizes.Rec.Group+4;
+			// read number of children
+			K2 = (*(uint32_t*)(hdr->AS.Header+pos-4));
+			for (k2=0; k2<K2; k2++)	{
+				// read series
+				char *SeLabel = (char*)(hdr->AS.Header+pos+4);	// max 32 bytes
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s\t%i/%i %i/%i \n",pos+StartOfData,SeLabel,k1,K1,k2,K2);
+
+				/* move to reading of data */
+/*
+				hdr->EVENT.LenCodeDesc++;
+				hdr->EVENT.CodeDesc = (char**)realloc(hdr->EVENT.CodeDesc, hdr->EVENT.LenCodeDesc * sizeof(char*));
+				hdr->AS.auxBUF      = (uint8_t*) realloc(hdr->AS.auxBUF, hdr->EVENT.LenCodeDesc*33);
+				strncpy((char*)(hdr->AS.auxBUF+k2*33), SeLabel, 32);
+				hdr->EVENT.CodeDesc[k2] = (char*)hdr->AS.auxBUF + k2*33;
+*/
+				pos += Sizes.Rec.Series+4;
+				// read number of children
+				K3 = (*(uint32_t*)(hdr->AS.Header+pos-4));
+				for (k3=0; k3<K3; k3++)	{
+					// read sweep
+					hdr->NRec++; 	// increase number of sweeps
+					uint32_t SPR = 0, spr = 0;
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+StartOfData,k1,K1,k2,K2,k3,K3);
+
+					pos += Sizes.Rec.Sweep+4;
+					// read number of children
+					K4 = (*(uint32_t*)(hdr->AS.Header+pos-4));
+					for (k4=0; k4<K4; k4++)	{
+						// read trace
+						uint32_t ns = (*(uint32_t*)(hdr->AS.Header+pos+36));
+						spr = (*(uint32_t*)(hdr->AS.Header+pos+44));
+						uint64_t dT_i = *(uint64_t*)(hdr->AS.Header+pos+104);
+						if (SWAP) {
+ 							ns  = bswap_32(ns);
+							spr = bswap_32(spr);
+							dT_i= bswap_64(dT_i);
+ 						}
+						uint16_t pdc = PhysDimCode((char*)(hdr->AS.Header + pos + 96));
+                                                // sample rate
+						double dT = *(double*)(&dT_i);
+                                                double Fs = 1.0 / dT;
+
+						// samples per sweep
+						if (k4==0) SPR = spr;
+						else if (SPR != spr) {
+							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+							B4C_ERRMSG = "Heka/Patchmaster: number of samples amoung channels within a single sweep do not match.";
+							return(-1);
+						}
+
+						char *Label = (char*)hdr->AS.Header+pos+4;
+						for (ns=0; ns < hdr->NS; ns++) {
+							if (!strcmp(hdr->CHANNEL[ns].Label,Label)) break;
+						}
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i, %s %f-%fHz\t%i/%i %i/%i %i/%i %i/%i \n",pos+StartOfData,ns,Label,hdr->SampleRate,Fs,k1,K1,k2,K2,k3,K3,k4,K4);
+
+						if (ns >= hdr->NS) {
+							hdr->NS = ns + 1;
+							hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL, hdr->NS * sizeof(CHANNEL_TYPE));
+							strncpy(hdr->CHANNEL[ns].Label, Label, max(32, MAX_LENGTH_LABEL));
+							hdr->CHANNEL[ns].Label[max(32,MAX_LENGTH_LABEL)] = 0;
+                                                        hdr->CHANNEL[ns].SPR = 1;
+                                                        hdr->CHANNEL[ns].Cal = 1.0;
+                                                        hdr->CHANNEL[ns].Off = 0.0;
+							hdr->CHANNEL[ns].PhysDimCode = pdc;
+                                                        hdr->CHANNEL[ns].OnOff  = 1;
+							/*TODO: fix remaining channel header  */
+							hdr->CHANNEL[ns].GDFTYP = 0;
+							/* Transducer, Phys/Dig/Min/Max, Transducer, LowPass, HighPass, Notch, Impedance, */
+
+							DT = (double*)realloc(DT, hdr->NS*sizeof(double));
+							DT[ns] = dT;
+						}
+/*
+						else if (strcmp(hdr->CHANNEL[ns].Label, (char*)hdr->AS.Header+pos+4)) {
+							fprintf(stdout,"Warning HEKA: channel labels changed <%s> <%s>\n",hdr->CHANNEL[ns].Label, (char*)hdr->AS.Header+pos+4);
+						}
+*/
+						if (hdr->SampleRate <= 0.0) hdr->SampleRate = Fs;
+                                                if (fabs(hdr->SampleRate - Fs) > 1e-9) {
+							hdr->SampleRate = lcm(round(hdr->SampleRate), round(Fs));
+						}
+
+						if ((pdc & 0xFFE0) != (hdr->CHANNEL[ns].PhysDimCode & 0xFFE0)) {
+                                                        fprintf(stdout, "Warning: Yunits do not match #%i,%f-%fHz\n",ns, DT[ns],dT);
+                                                        B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+                                                        B4C_ERRMSG = "Heka/Patchmaster: Yunits do not match.";
+						}
+                                                if ( abs( DT[ns] - dT) > 1e-9 * dT) {
+							fprintf(stdout, "Warning sampleing intervales do not match #%i,%f-%fHz\n",ns, DT[ns],dT);
+                                                        B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+                                                        B4C_ERRMSG = "Heka/Patchmaster: sampling intervals do not match.";
+                                                }
+
+						pos += Sizes.Rec.Trace+4;
+						// read number of children -- this should be 0 - ALWAYS;
+						K5 = (*(uint32_t*)(hdr->AS.Header+pos-4));
+						if (K5) {
+							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+							B4C_ERRMSG = "Heka/Patchmaster: Level 4 has some children.";
+						}
+					}
+					hdr->SPR += SPR;
+				}
+			}
+		}
+		if (DT) free(DT);
+
+		if (B4C_ERRNUM) return(-1);
+
+		ifseek(hdr, StartOfData, SEEK_SET);
+
+	}
 	else if (hdr->TYPE==ITX) {
 
 		fprintf(stdout,"Warning: support for ITX is very experimental\n");
 
 /*
-		while (~ifeof(hdr)) {	
+		while (~ifeof(hdr)) {
 			hdr->Header = realloc(hdr->Header,count*2+1);
 			count += ifread(hdr->Header+count,1,count,hdr);
 		}
@@ -369,15 +576,15 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999\n");
 */
     		char line[ITX_MAXLINELENGTH+1];
     		char flag = 0;
-		double *data = NULL; 		
+		double *data = NULL;
 
-	    	size_t ns=0, NS=0, spr = 0, SPR = 0, DIV = 1, k; 
+	    	size_t ns=0, NS=0, spr = 0, SPR = 0, DIV = 1, k;
 		size_t ngroup=0, nseries=0, nsweep=0, NSWEEP=0;
 		double DUR[32];
 		double deltaT = -1.0/0.0;
 		hdr->SPR = 0;
 
-		ifseek(hdr,0,SEEK_SET);	    			
+		ifseek(hdr,0,SEEK_SET);
 		while (!ifeof(hdr)) {
 		    	ifgets(line, ITX_MAXLINELENGTH, hdr);
 			if (!strlen(line))
@@ -385,7 +592,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999\n");
 			else if (!strncmp(line,"BEGIN",5)) {
 				flag = 1;
 				spr = 0;
-		}	
+		}
 		    	else if (!strncmp(line,"END",3)) {
 				flag = 0;
 				hdr->CHANNEL[ns].SPR += spr;
@@ -402,13 +609,13 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999\n");
 					dur *= PhysDimScale(PhysDimCode(p));
 				}
 				if (deltaT < 0.0) {
-					deltaT = dur; 
+					deltaT = dur;
 		    			hdr->SampleRate = 1.0 / dur;
 				}
 				else if (deltaT != dur) {
 					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 					B4C_ERRMSG = "different sampling rates not supported for ITX format";
-				}	
+				}
 		    	}
 	    		else if (!strncmp(line,"X SetScale y,",13)) {
 	    			char *p = strchr(line,'"');
@@ -426,17 +633,17 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999\n");
 	    				NSEGS = max(NSEGS*2,16);
 	    				SegElem = (SegElem_t*)realloc(SegElem,NSEGS*sizeof(SegElem_t));
 	    			}
-	    			
+
 				IgorChanLabel(line+6, hdr, &ngroup, &nseries, &nsweep, &ns); 	// terminating \0
-				CHANNEL_TYPE *hc = hdr->CHANNEL+ns;			
-			
+				CHANNEL_TYPE *hc = hdr->CHANNEL+ns;
+
 				hc->OnOff    = 1;
 				hc->SPR      = 0;
         			hc->GDFTYP   = 17;
         			hc->DigMax   = (double)(int16_t)(0x7fff);
         			hc->DigMin   = (double)(int16_t)(0x8000);
 
-				hc->Cal      = 1.0; 
+				hc->Cal      = 1.0;
 				hc->Off      = 0.0;
 				hc->Transducer[0] = '\0';
 				hc->LowPass  = NaN;
@@ -444,32 +651,32 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999\n");
 				hc->PhysMax  = hc->Cal * hc->DigMax;
 				hc->PhysMin  = hc->Cal * hc->DigMin;
 	    		}
-	    		else if (flag) 
+	    		else if (flag)
 	    			spr++;
-	    	}		
+	    	}
 		hdr->NS = ns;
 
 		hdr->SPR = 0;
 		for (ns=0; ns<NS; ns++) {
-			hdr->CHANNEL[ns].bi  = SPR*sizeof(double); 
-			hdr->CHANNEL[ns].bi8 = SPR*sizeof(double)*8; 
-			SPR += hdr->CHANNEL[ns].SPR; 
-			if (hdr->SPR < hdr->CHANNEL[ns].SPR) 
+			hdr->CHANNEL[ns].bi  = SPR*sizeof(double);
+			hdr->CHANNEL[ns].bi8 = SPR*sizeof(double)*8;
+			SPR += hdr->CHANNEL[ns].SPR;
+			if (hdr->SPR < hdr->CHANNEL[ns].SPR)
 				hdr->SPR = hdr->CHANNEL[ns].SPR;
 			hdr->CHANNEL[ns].SPR = 0;	// reset
-		}	
-		
+		}
+
 		data = (double*)realloc(hdr->AS.rawdata, SPR*sizeof(double));
-		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN);   // no swapping 
+		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN);   // no swapping
 		hdr->AS.rawdata = (uint8_t*) data;
-	    	
+
     		ifseek(hdr, 0, SEEK_SET);
     		while (!ifeof(hdr)) {
 	    		ifgets(line, ITX_MAXLINELENGTH, hdr);
 	    		if (!strncmp(line,"BEGIN",5)) {
 	    			flag = 1;
 	    			spr = 0;
-	    			
+
 	    		}
 	    		else if (!strncmp(line,"END",3)) {
 	    			flag = 0;
@@ -478,9 +685,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999\n");
 	    		else if (!strncmp(line,"WAVES",5)) {
 	    			// get current channel
 				IgorChanLabel(line+6, hdr, &ngroup, &nseries, &nsweep, &ns); 	// terminating \0
-			}	
+			}
 	    		else if (flag) {
-	    			data[hdr->CHANNEL[ns].SPR + hdr->CHANNEL[ns].bi + spr++] = atof(line); 
+	    			data[hdr->CHANNEL[ns].SPR + hdr->CHANNEL[ns].bi + spr++] = atof(line);
 	    		}
 	    	}
 		hdr->NRec = 1;
@@ -503,20 +710,20 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 
 		fprintf(stdout,"home-made parser is used to read dicom files.\n");
 
-		char FLAG_implicite_VR = 0;	
-		int EndOfGroup2=-1; 
+		char FLAG_implicite_VR = 0;
+		int EndOfGroup2=-1;
 
 		if (hdr->HeadLen<132) {
 			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, 132);
 		    	hdr->HeadLen += ifread(hdr->AS.Header+hdr->HeadLen, 1, 132-hdr->HeadLen, hdr);
 		}
 		size_t count = hdr->HeadLen;
-		size_t pos = 128; 
+		size_t pos = 128;
 		while (!hdr->AS.Header[pos] && (pos<128)) pos++;
 		if ((pos==128) && !memcmp(hdr->AS.Header+128,"DICM",4)) {
-//			FLAG_implicite_VR = 0;	
+//			FLAG_implicite_VR = 0;
 			pos = 132;
-		}	
+		}
 		else
 			pos = 0;
 
@@ -526,73 +733,73 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 		    	count += ifread(hdr->AS.Header+count, 1, bufsiz, hdr);
 		    	bufsiz *= 2;
 		}
-	    	ifclose(hdr); 
+	    	ifclose(hdr);
 	    	hdr->AS.Header[count] = 0;
 
 		uint16_t nextTag[2];
 
-		struct tm T0; 
-		char flag_t0=0; 
-		char flag_ignored; 
+		struct tm T0;
+		char flag_t0=0;
+		char flag_ignored;
 		uint32_t Tag;
 		uint32_t Len;
 		nextTag[0] = *(uint16_t*)(hdr->AS.Header+pos);
 		nextTag[1] = *(uint16_t*)(hdr->AS.Header+pos+2);
-		while (pos < count) {	
+		while (pos < count) {
 
 			if ((__BYTE_ORDER == __BIG_ENDIAN) ^ !hdr->FILE.LittleEndian) {
-				// swapping required  
+				// swapping required
 				Tag  = (((uint32_t)bswap_16(nextTag[0])) << 16) + bswap_16(nextTag[1]);
 				pos += 4;
 				if (FLAG_implicite_VR) {
 					Len = bswap_32(*(uint32_t*)(hdr->AS.Header+pos));
-					pos += 4; 
-				}	
+					pos += 4;
+				}
 				else {
 					// explicite_VR
 					if (pos+4 > count) break;
-					
-					if (memcmp(hdr->AS.Header+pos,"OB",2) 
+
+					if (memcmp(hdr->AS.Header+pos,"OB",2)
 					 && memcmp(hdr->AS.Header+pos,"OW",2)
 					 && memcmp(hdr->AS.Header+pos,"OF",2)
 					 && memcmp(hdr->AS.Header+pos,"SQ",2)
 					 && memcmp(hdr->AS.Header+pos,"UT",2)
-					 && memcmp(hdr->AS.Header+pos,"UN",2) ) { 
+					 && memcmp(hdr->AS.Header+pos,"UN",2) ) {
 						Len = bswap_16(*(uint16_t*)(hdr->AS.Header+pos+2));
-						pos += 4; 
-					}	
-					else {	
-						Len = bswap_32(*(uint32_t*)(hdr->AS.Header+pos+4));
-						pos += 8; 
+						pos += 4;
 					}
-				}	
+					else {
+						Len = bswap_32(*(uint32_t*)(hdr->AS.Header+pos+4));
+						pos += 8;
+					}
+				}
 			}
 			else {
-				// no swapping 
+				// no swapping
 				Tag  = (((uint32_t)nextTag[0]) << 16) + nextTag[1];
-				pos += 4; 
+				pos += 4;
 				if (FLAG_implicite_VR) {
 					Len = *(uint32_t*)(hdr->AS.Header+pos);
-					pos += 4; 
-				}	
+					pos += 4;
+				}
 				else {
 					// explicite_VR
 					if (pos+4 > count) break;
-					
-					if (memcmp(hdr->AS.Header+pos,"OB",2) 
+
+					if (memcmp(hdr->AS.Header+pos,"OB",2)
 					 && memcmp(hdr->AS.Header+pos,"OW",2)
 					 && memcmp(hdr->AS.Header+pos,"OF",2)
 					 && memcmp(hdr->AS.Header+pos,"SQ",2)
 					 && memcmp(hdr->AS.Header+pos,"UT",2)
-					 && memcmp(hdr->AS.Header+pos,"UN",2) ) { 
+					 && memcmp(hdr->AS.Header+pos,"UN",2) ) {
 						Len = *(uint16_t*)(hdr->AS.Header+pos+2);
-						pos += 4; 
-					}	
-					else {	
-						Len = *(uint32_t*)(hdr->AS.Header+pos+4);
-						pos += 8; 
+						pos += 4;
 					}
-				}	
+					else {
+						Len = *(uint32_t*)(hdr->AS.Header+pos+4);
+						pos += 8;
+					}
+				}
 			}
 
 			/*
@@ -602,21 +809,21 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 				nextTag[0] = *(uint16_t*)(hdr->AS.Header+pos+Len);
 				nextTag[1] = *(uint16_t*)(hdr->AS.Header+pos+Len+2);
 				hdr->AS.Header[pos+Len] = 0;
-	    		}	
-			
+	    		}
+
 
 			flag_ignored = 0;
 			if (VERBOSE_LEVEL>8)
-				fprintf(stdout,"        %6x:   (%04x,%04x) %8d\t%s\n",pos,Tag>>16,Tag&0x0ffff,Len,(char*)hdr->AS.Header+pos);			
-				
+				fprintf(stdout,"        %6x:   (%04x,%04x) %8d\t%s\n",pos,Tag>>16,Tag&0x0ffff,Len,(char*)hdr->AS.Header+pos);
+
 			switch (Tag) {
 
 
-			/* elements of group 0x0002 use always 
-				Explicite VR little Endian encoding 	
+			/* elements of group 0x0002 use always
+				Explicite VR little Endian encoding
 			*/
 			case 0x00020000: {
-				int c = 0; 
+				int c = 0;
 				if (!memcmp(hdr->AS.Header+pos-8,"UL",2))
 					c = leu32p(hdr->AS.Header+pos);
 				else if (!memcmp(hdr->AS.Header+pos-8,"SL",2))
@@ -629,26 +836,26 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 					B4C_ERRMSG = "DICOM (0002,0000): unsupported";
 				}
-				EndOfGroup2 = c + pos; 
+				EndOfGroup2 = c + pos;
 				break;
 				}
 			case 0x00020001:
 				break;
 
 			case 0x00020002: {
-				hdr->NS = 1; 
+				hdr->NS = 1;
 				char *t = (char*)hdr->AS.Header+pos;
 				while (isspace(*t)) t++;	// deblank
-				char *ct[] = {	"1.2.840.10008.5.1.4.1.1.9.1.1", 
+				char *ct[] = {	"1.2.840.10008.5.1.4.1.1.9.1.1",
 						"1.2.840.10008.5.1.4.1.1.9.1.2",
 						"1.2.840.10008.5.1.4.1.1.9.1.3",
 						"1.2.840.10008.5.1.4.1.1.9.2.1",
 						"1.2.840.10008.5.1.4.1.1.9.3.1",
 						"1.2.840.10008.5.1.4.1.1.9.4.1"
-						};			
-				if (!strcmp(t,*ct)) hdr->NS = 12; 
+						};
+				if (!strcmp(t,*ct)) hdr->NS = 12;
 				break;
-				}	
+				}
 
 			case 0x00020003:
 				break;
@@ -656,20 +863,20 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 			case 0x00020010: {
 				char *t = (char*)hdr->AS.Header+pos;
 				while (isspace(*t)) t++;	// deblank
-				char *ct[] = {	"1.2.840.10008.1.2", 
+				char *ct[] = {	"1.2.840.10008.1.2",
 						"1.2.840.10008.1.2.1",
 						"1.2.840.10008.1.2.1.99",
 						"1.2.840.10008.1.2.2"
 						};
 
-				if      (!strcmp(t,*ct))   FLAG_implicite_VR = 1;	
-				else if (!strcmp(t,*ct+1)) FLAG_implicite_VR = 0;	
-				else if (!strcmp(t,*ct+3)) FLAG_implicite_VR = 1;	
+				if      (!strcmp(t,*ct))   FLAG_implicite_VR = 1;
+				else if (!strcmp(t,*ct+1)) FLAG_implicite_VR = 0;
+				else if (!strcmp(t,*ct+3)) FLAG_implicite_VR = 1;
 				break;
 				}
 
-			case 0x00080020:  // StudyDate 
-			case 0x00080023:  // ContentDate 
+			case 0x00080020:  // StudyDate
+			case 0x00080023:  // ContentDate
 				{
 				hdr->AS.Header[pos+8]=0;
 				T0.tm_mday = atoi((char*)hdr->AS.Header+pos+6);
@@ -677,12 +884,12 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 				T0.tm_mon = atoi((char*)hdr->AS.Header+pos+4)-1;
 				hdr->AS.Header[pos+4]=0;
 				T0.tm_year = atoi((char*)hdr->AS.Header+pos)-1900;
-				flag_t0 |= 1; 
+				flag_t0 |= 1;
 				break;
 				}
-			case 0x0008002a:  // AcquisitionDateTime 
+			case 0x0008002a:  // AcquisitionDateTime
 				{
-				struct tm t0; 
+				struct tm t0;
 				hdr->AS.Header[pos+14]=0;
 				t0.tm_sec = atoi((char*)hdr->AS.Header+pos+12);
 				hdr->AS.Header[pos+12]=0;
@@ -696,11 +903,11 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 				hdr->AS.Header[pos+4]=0;
 				t0.tm_year = atoi((char*)hdr->AS.Header+pos)-1900;
 
-				hdr->T0 = tm_time2gdf_time(&t0); 
+				hdr->T0 = tm_time2gdf_time(&t0);
 				break;
 				}
-			case 0x00080030:  // StudyTime 
-			case 0x00080033:  // ContentTime 
+			case 0x00080030:  // StudyTime
+			case 0x00080033:  // ContentTime
 				{
 				hdr->AS.Header[pos+6]=0;
 				T0.tm_sec = atoi((char*)hdr->AS.Header+pos+4);
@@ -708,42 +915,42 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 				T0.tm_min = atoi((char*)hdr->AS.Header+pos+2);
 				hdr->AS.Header[pos+2]=0;
 				T0.tm_hour = atoi((char*)hdr->AS.Header+pos);
-				flag_t0 |= 2; 
+				flag_t0 |= 2;
 				break;
 				}
-			case 0x00080070:  // Manufacturer 
+			case 0x00080070:  // Manufacturer
 				{
 				strncpy(hdr->ID.Manufacturer._field,(char*)hdr->AS.Header+pos,MAX_LENGTH_MANUF);
 				hdr->ID.Manufacturer.Name = hdr->ID.Manufacturer._field;
 				break;
-				}	
+				}
 			case 0x00081050:  // Performing Physician
 				{
 				strncpy(hdr->ID.Technician,(char*)hdr->AS.Header+pos,MAX_LENGTH_TECHNICIAN);
 				break;
-				}	
+				}
 			case 0x00081090: // Manufacturer Model
 				{
 				const size_t nn = strlen(hdr->ID.Manufacturer.Name)+1;
 				strncpy(hdr->ID.Manufacturer._field+nn,(char*)hdr->AS.Header+pos,MAX_LENGTH_MANUF-nn-1);
 				hdr->ID.Manufacturer.Model = hdr->ID.Manufacturer._field+nn;
 				break;
-				}	
-				
-			case 0x00100010: // Name 
+				}
+
+			case 0x00100010: // Name
 				if (!hdr->FLAG.ANONYMOUS) {
 					strncpy(hdr->Patient.Name,(char*)hdr->AS.Header+pos,MAX_LENGTH_NAME);
 					hdr->Patient.Name[MAX_LENGTH_NAME]=0;
 				}
-				break;		
-			case 0x00100020: // ID 
+				break;
+			case 0x00100020: // ID
 				strncpy(hdr->Patient.Id,(char*)hdr->AS.Header+pos,MAX_LENGTH_NAME);
 				hdr->Patient.Id[MAX_LENGTH_PID]=0;
 				break;
-				
-			case 0x00100030: // Birthday 
+
+			case 0x00100030: // Birthday
 				{
-				struct tm t0; 
+				struct tm t0;
 				t0.tm_sec = 0;
 				t0.tm_min = 0;
 				t0.tm_hour = 12;
@@ -755,52 +962,52 @@ int sopen_dicom_read(HDRTYPE* hdr) {
 				hdr->AS.Header[pos+4]=0;
 				t0.tm_year = atoi((char*)hdr->AS.Header+pos)-1900;
 
-				hdr->Patient.Birthday = tm_time2gdf_time(&t0); 
+				hdr->Patient.Birthday = tm_time2gdf_time(&t0);
 				break;
 				}
-			case 0x00100040: 
+			case 0x00100040:
 				hdr->Patient.Sex = (toupper(hdr->AS.Header[pos])=='M') + 2*(toupper(hdr->AS.Header[pos])=='F');
 				break;
 
-			case 0x00101010: //Age 
+			case 0x00101010: //Age
 				break;
-			case 0x00101020: 
+			case 0x00101020:
 				hdr->Patient.Height = (uint8_t)(atof((char*)hdr->AS.Header+pos)*100.0);
 				break;
-			case 0x00101030: 
+			case 0x00101030:
 				hdr->Patient.Weight = (uint8_t)atoi((char*)hdr->AS.Header+pos);
 				break;
-				
+
 			default:
 				flag_ignored = 1;
 				if (VERBOSE_LEVEL<7)
-					fprintf(stdout,"ignored %6x:   (%04x,%04x) %8d\t%s\n",pos,Tag>>16,Tag&0x0ffff,Len,(char*)hdr->AS.Header+pos);			
-			
+					fprintf(stdout,"ignored %6x:   (%04x,%04x) %8d\t%s\n",pos,Tag>>16,Tag&0x0ffff,Len,(char*)hdr->AS.Header+pos);
+
 			}
 
 			if (VERBOSE_LEVEL>6) {
-			if (!FLAG_implicite_VR || (Tag < 0x00030000))	
+			if (!FLAG_implicite_VR || (Tag < 0x00030000))
 				fprintf(stdout,"%s %6x:   (%04x,%04x) %8d %c%c \t%s\n",(flag_ignored?"ignored":"       "),pos,Tag>>16,Tag&0x0ffff,Len,hdr->AS.Header[pos-8],hdr->AS.Header[pos-7],(char*)hdr->AS.Header+pos);
-			else 	
+			else
 				fprintf(stdout,"%s %6x:   (%04x,%04x) %8d\t%s\n",(flag_ignored?"ignored":"       "),pos,Tag>>16,Tag&0x0ffff,Len,(char*)hdr->AS.Header+pos);
-			}					
-			pos += Len + (Len & 0x01 ? 1 : 0); // even number of bytes	
+			}
+			pos += Len + (Len & 0x01 ? 1 : 0); // even number of bytes
 
 		}
-		if (flag_t0 == 3) hdr->T0 = tm_time2gdf_time(&T0); 
+		if (flag_t0 == 3) hdr->T0 = tm_time2gdf_time(&T0);
 	return(0);
 }
-#endif 
+#endif
 
 #ifdef WITH_PDP
 #include "../NONFREE/sopen_pdp_read.c"
-#endif 
+#endif
 
 #ifdef WITH_TRC
 #include "../NONFREE/sopen_trc_read.c"
-#endif 
+#endif
 
 #ifdef __cplusplus
 }
-#endif 
+#endif
 
