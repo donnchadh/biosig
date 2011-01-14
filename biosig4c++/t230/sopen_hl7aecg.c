@@ -1,7 +1,7 @@
 /*
 
     $Id: sopen_hl7aecg.c,v 1.36 2009/04/09 13:54:04 schloegl Exp $
-    Copyright (C) 2006,2007,2009 Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2006,2007,2009,2011 Alois Schloegl <a.schloegl@ieee.org>
     Copyright (C) 2007 Elias Apostolopoulos
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
@@ -17,13 +17,13 @@
 
 
 #include <stdio.h>             // system includes
-#include <vector>
 #include <string>
 #include <sstream>
 
 #include "../biosig-dev.h"
 #include "../XMLParser/tinyxml.h"
-#include "../XMLParser/Tokenizer.h"
+
+
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
@@ -247,8 +247,6 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 				hc->Off		= 0.0;
 				hc->SPR		= 1; 
 				hc->OnOff	= 1;	
-				hc->bi  	= hdr->AS.bpb;
-				hdr->AS.bpb    += hc->SPR * GDFTYP_BITS[hc->GDFTYP]>>3;
 
 				C = C->NextSiblingElement();
 				k++;
@@ -256,7 +254,13 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 
 			hdr->NS = k;	
 
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [417] %i\n",hdr->NS); 
+
+
 			C = H.FirstChild("WaveformData").Element();
+			size_t szRawData = 5000 * hdr->NS; 
+			size_t SPR = 0;	
+			hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, szRawData*sizeof(int16_t));
 			for (k=0; k<hdr->NS; k++) {
 
 				if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [415] %i\n",k); 
@@ -264,37 +268,43 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 				CHANNEL_TYPE *hc = hdr->CHANNEL + k;
 
 				    /* read data samples */	
-				std::vector<std::string> vector;
-				stringtokenizer(vector, C->GetText(), ",");
-				
-				if (k==0) {
-					hdr->NRec = max(hdr->NRec, vector.size());
-					hdr->AS.rawdata = (uint8_t*) calloc(hdr->NS,hdr->NRec*hdr->SPR*GDFTYP_BITS[gdftyp]>>3);
-				}				
-				
-				hc->DigMax	= 0; 
-				hc->DigMin	= 0; 
-				int16_t* data = (int16_t*)(hdr->AS.rawdata);
-				size_t j;
-				for(j=0; j<vector.size(); ++j) {
-					int d = atoi(vector[j].c_str());
+				hc->DigMax	= -1.0/0.0; 
+				hc->DigMin	=  1.0/0.0; 
+				int16_t* data = (int16_t*)(hdr->AS.rawdata)+SPR;
 
-					data[j*hdr->NS+k] = d;
+				hc->bi	= hdr->AS.bpb; 
+				char *s = (char*)C->GetText();
+				const char *delim = ",";
+				size_t spr = 0; 	
+				while (1) {
+					if (*s == 0) break;
+					s += strspn(s, delim);	//skip kommas
+					if (SPR+spr+1 >= szRawData) {
+						szRawData *= 2;
+						hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, szRawData * sizeof(int16_t));
+					}	
+					double d = strtod(s,&s);
+					((int16_t*)hdr->AS.rawdata)[SPR+spr++] = d;				
 					/* get Min/Max */
-					if(d > hc->DigMax) hc->DigMax = d;
-					if(d < hc->DigMin) hc->DigMin = d;
+					if (d > hc->DigMax) hc->DigMax = d;
+					if (d < hc->DigMin) hc->DigMin = d;
 				}
-				for(; j<hdr->NRec; ++j) {
-					data[j*hdr->NS+k] = (double)(int16_t)0x8000;	// set to NaN 
-				}
+				SPR += spr;		 	
+				hc->SPR	= spr;
+				hdr->SPR = lcm(hdr->SPR,spr); 
 
 				hc->PhysMax	= hc->DigMax * hc->Cal + hc->Off; 
 				hc->PhysMin	= hc->DigMin * hc->Cal + hc->Off; 
 
 				C = C->NextSiblingElement();
 			}
+			hdr->AS.bpb    += hdr->SPR * 2;
+			hdr->NRec = 1;
 			hdr->AS.first = 0; 	
 			hdr->AS.length = hdr->NRec; 	
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [497] %i\n",hdr->NS); 
+
 
 	    }
 	    else if (IHE.Element()) {
@@ -312,13 +322,6 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"IHE: [413] \n"); 
-
-#if 0 
-		// this is not HDR.T0 !!!!!!!
-		if (activityTime.Element()) {
- 			hdr->T0 = str_time2gdf_time(activityTime.Element()->Attribute("value"));
-		}	
-#endif 
 
 		if (author.FirstChild("assignedAuthor").Element()) {
 			// TiXmlHandle noteText = author.FirstChild("noteText").Element();
@@ -568,6 +571,8 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 //		int32_t *data;
 		
 		hdr->SampleRate = 1.0/atof(channels.FirstChild("component").FirstChild("sequence").FirstChild("value").FirstChild("increment").Element()->Attribute("value"));
+
+		if (VERBOSE_LEVEL>8) fprintf(stdout,"hl7r: [517] %i\n",hdr->SampleRate); 
 		
                 /*************** Annotations **********************/
 		TiXmlHandle AnnotationSet = aECG.FirstChild("component").FirstChild("series").FirstChild("subjectOf").FirstChild("annotationSet");
@@ -630,6 +635,11 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
 
 		channel = channels.Child("component", 1).FirstChild("sequence");
 		hdr->AS.bpb = 0; 
+
+		size_t szRawData = 5000 * hdr->NS; 
+		size_t SPR = 0;	
+		hdr->SPR = 1;
+		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, szRawData*sizeof(float));
 		for(int i = 0; channel.Element(); ++i, channel = channels.Child("component", i+1).FirstChild("sequence")){
 
 		    const char *code = channel.FirstChild("code").Element()->Attribute("code");
@@ -638,68 +648,53 @@ EXTERN_C int sopen_HL7aECG_read(HDRTYPE* hdr) {
   		    if (VERBOSE_LEVEL>8)
 				fprintf(stdout,"hl7r: [420] %i\n",i); 
 
-		    strncpy(hc->Label,code,min(40,MAX_LENGTH_LABEL));
-		    hc->Label[MAX_LENGTH_LABEL] = '\0';
-		    hc->Transducer[0] = '\0';
-		    hc->GDFTYP = 16;	// float32
+		    	strncpy(hc->Label,code,min(40,MAX_LENGTH_LABEL));
+		    	hc->Label[MAX_LENGTH_LABEL] = '\0';
+		    	hc->Transducer[0] = '\0';
+		    	hc->GDFTYP = 16;	// float32
+   		    	hc->DigMax	= -1.0/0.0; 
+			hc->DigMin	=  1.0/0.0; 
 
-		    std::vector<std::string> vector;
-		    stringtokenizer(vector, channel.FirstChild("value").FirstChild("digits").Element()->GetText());
-
-		    hc->SPR = vector.size();
-		    if (i==0) {
-		    	hdr->SPR = hc->SPR;
-			hdr->AS.rawdata = (uint8_t *)realloc(hdr->AS.rawdata, 4*hdr->NS*hdr->SPR*hdr->NRec);
-		    }
-		    else if (hdr->SPR != hc->SPR) {
-			if (hdr->SPR != lcm(hdr->SPR, hc->SPR)) 
-			{
-				fprintf(stderr,"Error: number of samples %i of #%i differ from %i in #0.\n",hc->SPR,i+1,hdr->SPR);
-				B4C_ERRNUM = B4C_UNSPECIFIC_ERROR;
-				B4C_ERRMSG = "HL7aECG: initial sample rate is not a multiple of all samplerates";
-				exit(-5);
-			}	
-			
-		    }	
-
-		    /* read data samples */	
-		    float *data = (float*)(hdr->AS.rawdata + (GDFTYP_BITS[hc->GDFTYP]>>3)*i*(hdr->SPR));
-		    size_t DIV = hdr->SPR/hc->SPR;
-		    for(size_t j=0; j<hc->SPR; ++j) {
-			size_t k=0;
-			data[j*DIV+k] = atof(vector[j].c_str());
-			while (++k<DIV) data[j*DIV+k] = data[j*DIV+k-1]; 
-			  
-			/* get Min/Max */
-			if(data[j] > hc->DigMax) {
-			    hc->DigMax = data[j];
+			char *s = (char*) channel.FirstChild("value").FirstChild("digits").Element()->GetText();
+			const char *delim = " \t\n";
+			size_t spr = 0; 	
+			while (1) {
+				if (*s == 0) break;
+				s += strspn(s, delim);	//skip kommas
+				if (*s == 0) break;
+				if (SPR+spr+1 >= szRawData) {
+					szRawData *= 2;
+					hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, szRawData * sizeof(float));
+				}	
+				double d = strtod(s,&s);
+				((float*)(hdr->AS.rawdata))[SPR + spr++] = d;				
+				/* get Min/Max */
+				if(d > hc->DigMax) hc->DigMax = d;
+				if(d < hc->DigMin) hc->DigMin = d;
 			}
-			if(data[j] < hc->DigMin){
-			    hc->DigMin = data[j];
-			}
-		    }
-		    hc->OnOff = 1;
-#ifndef NO_BI
-		    hc->bi = hdr->AS.bpb;
-#endif 
-  		    hdr->AS.bpb += hc->SPR*GDFTYP_BITS[hc->GDFTYP]>>3;
- 	    
+	   	    	hc->bi = hdr->AS.bpb;
+			SPR += spr;		 	
+			hc->SPR	= spr;
+			hdr->SPR = lcm(hdr->SPR,spr); 
 
-		    /* scaling factors */ 
-		    hc->Cal  = atof(channel.FirstChild("value").FirstChild("scale").Element()->Attribute("value"));
-		    hc->Off  = atof(channel.FirstChild("value").FirstChild("origin").Element()->Attribute("value"));
-		    hc->DigMax += 1;
-		    hc->DigMin -= 1;
-		    hc->PhysMax = hc->DigMax*hc->Cal + hc->Off;
-		    hc->PhysMin = hc->DigMin*hc->Cal + hc->Off;
+			hc->OnOff = 1;
+  			hdr->AS.bpb += hc->SPR * sizeof(float);
 
-		    /* Physical units */ 
-		    strncpy(tmp, channel.FirstChild("value").FirstChild("origin").Element()->Attribute("unit"),20);
- 		    hc->PhysDimCode = PhysDimCode(tmp);
+			/* scaling factors */ 
+			hc->Cal  = atof(channel.FirstChild("value").FirstChild("scale").Element()->Attribute("value"));
+			hc->Off  = atof(channel.FirstChild("value").FirstChild("origin").Element()->Attribute("value"));
+			hc->DigMax += 1;
+			hc->DigMin -= 1;
+			hc->PhysMax = hc->DigMax*hc->Cal + hc->Off;
+			hc->PhysMin = hc->DigMin*hc->Cal + hc->Off;
+
+			/* Physical units */ 
+			strncpy(tmp, channel.FirstChild("value").FirstChild("origin").Element()->Attribute("unit"),20);
+ 			hc->PhysDimCode = PhysDimCode(tmp);
  		    
-		    hc->LowPass  = LowPass;
-		    hc->HighPass = HighPass;
-		    hc->Notch    = Notch;
+			hc->LowPass  = LowPass;
+			hc->HighPass = HighPass;
+			hc->Notch    = Notch;
 // 			hc->XYZ[0]   = l_endian_f32( *(float*) (Header2+ 4*k + 224*hdr->NS) );
 // 			hc->XYZ[1]   = l_endian_f32( *(float*) (Header2+ 4*k + 228*hdr->NS) );
 // 			hc->XYZ[2]   = l_endian_f32( *(float*) (Header2+ 4*k + 232*hdr->NS) );
