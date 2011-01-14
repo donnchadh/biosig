@@ -1,6 +1,6 @@
 /*
 www.sourceforge.net/projects/tinyxml
-Original code (2.0 and earlier )copyright (c) 2000-2006 Lee Thomason (www.grinninglizard.com)
+Original code by Lee Thomason (www.grinninglizard.com)
 
 This software is provided 'as-is', without any express or implied
 warranty. In no event will the authors be held liable for any
@@ -22,21 +22,24 @@ must not be misrepresented as being the original software.
 distribution.
 
 
-Modified by Alois Schlögl 
-Apr 7, 2009: add support for biosig's gzipped(zlib)-xml data
-	
-    $Id: tinyxml.cpp,v 1.7 2009-04-15 20:31:53 schloegl Exp $
+Modified:  Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
+add support for zlib-compressed (gzipped) XML data
+
+    $Id: tinyxml.h,v 1.5 2009/04/09 09:12:09 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository
     (biosig4c++) at http://biosig.sf.net/
 
-    This program is free software; you can redistribute it and/or
+    BioSig is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
     as published by the Free Software Foundation; either version 3
     of the License, or (at your option) any later version.
+	
 
 
 */
+
+#include <ctype.h>
 
 #ifdef TIXML_USE_STL
 #include <sstream>
@@ -59,7 +62,7 @@ FILE* TiXmlFOpen( const char* filename, const char* mode )
 		return 0;
 	#else
 		return fopen( filename, mode );
-	#endif   
+	#endif
 }
 
 void TiXmlBase::EncodeString( const TIXML_STRING& str, TIXML_STRING* outString )
@@ -130,8 +133,8 @@ void TiXmlBase::EncodeString( const TIXML_STRING& str, TIXML_STRING* outString )
 				sprintf( buf, "&#x%02X;", (unsigned) ( c & 0xff ) );
 			#endif		
 
-			// *ME:	warning C4267: convert 'size_t' to 'int'
-			// *ME:	Int-Cast to make compiler happy ...
+			//*ME:	warning C4267: convert 'size_t' to 'int'
+			//*ME:	Int-Cast to make compiler happy ...
 			outString->append( buf, (int)strlen( buf ) );
 			++i;
 		}
@@ -656,40 +659,40 @@ const std::string* TiXmlElement::Attribute( const std::string& name, double* d )
 
 int TiXmlElement::QueryIntAttribute( const char* name, int* ival ) const
 {
-	const TiXmlAttribute* node = attributeSet.Find( name );
-	if ( !node )
+	const TiXmlAttribute* attrib = attributeSet.Find( name );
+	if ( !attrib )
 		return TIXML_NO_ATTRIBUTE;
-	return node->QueryIntValue( ival );
+	return attrib->QueryIntValue( ival );
 }
 
 
 #ifdef TIXML_USE_STL
 int TiXmlElement::QueryIntAttribute( const std::string& name, int* ival ) const
 {
-	const TiXmlAttribute* node = attributeSet.Find( name );
-	if ( !node )
+	const TiXmlAttribute* attrib = attributeSet.Find( name );
+	if ( !attrib )
 		return TIXML_NO_ATTRIBUTE;
-	return node->QueryIntValue( ival );
+	return attrib->QueryIntValue( ival );
 }
 #endif
 
 
 int TiXmlElement::QueryDoubleAttribute( const char* name, double* dval ) const
 {
-	const TiXmlAttribute* node = attributeSet.Find( name );
-	if ( !node )
+	const TiXmlAttribute* attrib = attributeSet.Find( name );
+	if ( !attrib )
 		return TIXML_NO_ATTRIBUTE;
-	return node->QueryDoubleValue( dval );
+	return attrib->QueryDoubleValue( dval );
 }
 
 
 #ifdef TIXML_USE_STL
 int TiXmlElement::QueryDoubleAttribute( const std::string& name, double* dval ) const
 {
-	const TiXmlAttribute* node = attributeSet.Find( name );
-	if ( !node )
+	const TiXmlAttribute* attrib = attributeSet.Find( name );
+	if ( !attrib )
 		return TIXML_NO_ATTRIBUTE;
-	return node->QueryDoubleValue( dval );
+	return attrib->QueryDoubleValue( dval );
 }
 #endif
 
@@ -811,8 +814,10 @@ void TiXmlElement::Print( FILE* cfile, int depth ) const
 	else if ( firstChild == lastChild && firstChild->ToText() )
 	{
 		fprintf( cfile, ">" );
+//		firstChild->Print( stdout, depth + 1 );
 		firstChild->Print( cfile, depth + 1 );
 		fprintf( cfile, "</%s>", value.c_str() );
+//		fprintf( stdout, "<%s>\n", value.c_str() );
 	}
 	else
 	{
@@ -992,35 +997,17 @@ void TiXmlDocument::operator=( const TiXmlDocument& copy )
 
 bool TiXmlDocument::LoadFile( TiXmlEncoding encoding )
 {
-	// See STL_STRING_BUG below.
-	//StringToBuffer buf( value );
-
 	return LoadFile( Value(), encoding );
 }
 
 
 bool TiXmlDocument::SaveFile() const
 {
-	// See STL_STRING_BUG below.
-//	StringToBuffer buf( value );
-//
-//	if ( buf.buffer && SaveFile( buf.buffer ) )
-//		return true;
-//
-//	return false;
 	return SaveFile( Value() );
 }
 
 bool TiXmlDocument::LoadFile( const char* _filename, TiXmlEncoding encoding )
 {
-	// There was a really terrifying little bug here. The code:
-	//		value = filename
-	// in the STL case, cause the assignment method of the std::string to
-	// be called. What is strange, is that the std::string had the same
-	// address as its c_str() method, and so bad things happen. Looks
-	// like a bug in the Microsoft STL implementation.
-	// Add an extra string to avoid the crash.
-
 	TIXML_STRING filename( _filename );
 	value = filename;
 
@@ -1037,7 +1024,7 @@ bool TiXmlDocument::LoadFile( const char* _filename, TiXmlEncoding encoding )
 	}
 #else
 	FILE* file = TiXmlFOpen( value.c_str (), "rb" );	
-	// FILE* file = fopen( value.c_str(), "rb" );	
+
 	if ( file )
 	{
 		bool result = LoadFile( file, encoding );
@@ -1170,7 +1157,7 @@ bool TiXmlDocument::LoadFile( FILE* file, TiXmlEncoding encoding )
 	// a single #xA character.
 	// </quote>
 	//
-	// It is not clear fgets does that, and certainly is not clear it works cross platform. 
+	// It is not clear fgets does that, and certainly isn't clear it works cross platform. 
 	// Generally, you expect fgets to translate from the convention of the OS to the c/unix
 	// convention, and not work generally.
 
@@ -1273,9 +1260,7 @@ bool TiXmlDocument::SaveFile( const char * filename, char compression ) const
 
 bool TiXmlDocument::SaveFile( const char * filename ) const
 {
-
 	// The old c stuff lives on...
-
 	FILE* fp = TiXmlFOpen( filename, "w" );
 	if ( fp )
 	{
@@ -1397,17 +1382,6 @@ const TiXmlAttribute* TiXmlAttribute::Next() const
 	return next;
 }
 
-/*
-TiXmlAttribute* TiXmlAttribute::Next()
-{
-	// We are using knowledge of the sentinel. The sentinel
-	// have a value or name.
-	if ( next->value.empty() && next->name.empty() )
-		return 0;
-	return next;
-}
-*/
-
 const TiXmlAttribute* TiXmlAttribute::Previous() const
 {
 	// We are using knowledge of the sentinel. The sentinel
@@ -1416,17 +1390,6 @@ const TiXmlAttribute* TiXmlAttribute::Previous() const
 		return 0;
 	return prev;
 }
-
-/*
-TiXmlAttribute* TiXmlAttribute::Previous()
-{
-	// We are using knowledge of the sentinel. The sentinel
-	// have a value or name.
-	if ( prev->value.empty() && prev->name.empty() )
-		return 0;
-	return prev;
-}
-*/
 
 void TiXmlAttribute::Print( FILE* cfile, int /*depth*/, TIXML_STRING* str ) const
 {

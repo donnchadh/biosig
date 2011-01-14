@@ -25,7 +25,7 @@ distribution.
 Modified by Alois Schlögl 
 Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 	
-    $Id: tinyxml.h,v 1.6 2009-04-15 20:31:54 schloegl Exp $
+    $Id: tinyxml.h,v 1.6 2009/04/15 20:31:54 schloegl Exp $
     Copyright (C) 2009 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository
     (biosig4c++) at http://biosig.sf.net/
@@ -79,7 +79,7 @@ Apr 6, 2009: add support for zlib-compressed (gzipped) XML data
 #endif
 
 // Deprecated library function hell. Compilers want to use the
-// new safe versions. This probably does not fully address the problem,
+// new safe versions. This probably doesn't fully address the problem,
 // but it gets closer. There are too many compilers for me to fully
 // test. If you get compilation troubles, undefine TIXML_SAFE
 #define TIXML_SAFE
@@ -139,7 +139,7 @@ struct TiXmlCursor
 	you will get called with a VisitEnter/VisitExit pair. Nodes that are always leaves
 	are simple called with Visit().
 
-	If you return TRUE from a Visit method, recursive parsing will continue. If you return
+	If you return 'true' from a Visit method, recursive parsing will continue. If you return
 	false, <b>no children of this node or its sibilings</b> will be Visited.
 
 	All flavors of Visit methods have a default implementation that returns 'true' (continue 
@@ -652,9 +652,9 @@ public:
 
     #ifdef TIXML_USE_STL
 	const TiXmlNode* PreviousSibling( const std::string& _value ) const	{	return PreviousSibling (_value.c_str ());	}	///< STL std::string form.
-	TiXmlNode* PreviousSibling( const std::string& _value ) 			{	return PreviousSibling (_value.c_str ());	}	///< STL std::string form.
+	TiXmlNode* PreviousSibling( const std::string& _value ) 		{	return PreviousSibling (_value.c_str ());	}	///< STL std::string form.
 	const TiXmlNode* NextSibling( const std::string& _value) const		{	return NextSibling (_value.c_str ());	}	///< STL std::string form.
-	TiXmlNode* NextSibling( const std::string& _value) 					{	return NextSibling (_value.c_str ());	}	///< STL std::string form.
+	TiXmlNode* NextSibling( const std::string& _value) 			{	return NextSibling (_value.c_str ());	}	///< STL std::string form.
 	#endif
 
 	/// Navigate to a sibling node.
@@ -1414,8 +1414,8 @@ public:
 
 	virtual const char* Parse( const char* p, TiXmlParsingData* data, TiXmlEncoding encoding );
 
-	virtual const TiXmlUnknown*     ToUnknown()     const { return this; } ///< Cast to a more defined type. Will return null not of the requested type.
-	virtual TiXmlUnknown*           ToUnknown()	    { return this; } ///< Cast to a more defined type. Will return null not of the requested type.
+	virtual const TiXmlUnknown*     ToUnknown()     const 	{ return this; } ///< Cast to a more defined type. Will return null not of the requested type.
+	virtual TiXmlUnknown*           ToUnknown()			    	{ return this; } ///< Cast to a more defined type. Will return null not of the requested type.
 
 	/** Walk the XML tree visiting this node and all of its children. 
 	*/
@@ -1572,7 +1572,7 @@ public:
 											}
 
 	/** Write the document to standard out using formatted printing ("pretty print"). */
-	void Print() const	{ Print( stdout, 0 ); }
+	void Print() const						{ Print( stdout, 0 ); }
 
 	/* Write the document to a string using formatted printing ("pretty print"). This
 		will allocate a character array (new char[]) and return it as a pointer. The
