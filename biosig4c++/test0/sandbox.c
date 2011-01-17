@@ -6,7 +6,7 @@
     or the functions are discarded. Do not rely on the interface in this function
 
     $Id: sandbox.c,v 1.5 2009-04-16 20:19:17 schloegl Exp $
-    Copyright (C) 2008,2009 Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2008,2009,2010,2011 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository
     (biosig4c++) at http://biosig.sf.net/
 
@@ -269,6 +269,8 @@ char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries
 	return(inLabel);
 }
 
+
+#define NEWHEKA
 int sopen_zzztest(HDRTYPE* hdr) {
 	size_t count = hdr->HeadLen;
 
@@ -282,12 +284,15 @@ int sopen_zzztest(HDRTYPE* hdr) {
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 111\n");
 
-		if (hdr->HeadLen < 256 ) {
-			count = hdr->HeadLen;
-			hdr->AS.Header = (uint8_t*) realloc(hdr->AS.Header, 257);
-			hdr->HeadLen += ifread(hdr->AS.Header+count, 1, 256-hdr->HeadLen, hdr);
-			hdr->AS.Header[hdr->HeadLen] = 0;
+		count = hdr->HeadLen;
+		ifseek(hdr,0,SEEK_SET);
+		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, 1024);
+		count = ifread(hdr->AS.Header, 1, 1024, hdr);
+		while (!ifeof(hdr)) {
+			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, 2*count);
+			count += ifread(hdr->AS.Header+count, 1, count, hdr);
 		}
+		hdr->HeadLen = count;
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 114\n");
 
@@ -317,13 +322,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 117\n");
 		//memset(Sizes,0,20);
 		uint32_t StartOfData,StartOfPulse;
 
-/*
-		int32_t RootRecSize  = 544;
-		int32_t GroupRecSize = 128;
-		int32_t SeriesRecSize= 1120;
-		int32_t SweepRecSize = 160;
-		int32_t TraceRecSize = 296;
-*/		union {
+		union {
 			struct {
 				int32_t Root;
 				int32_t Group;
@@ -358,10 +357,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA #%i: <%s> [%i:+%i]\n",k,ext,start,leng
 				uint16_t gdftyp = 3;
 				ifseek(hdr, start, SEEK_SET);
 
-				ifread(magic, 1, 4, hdr);
-				ifread(&Levels, 1, 4, hdr);
+				//magic  = *(int32_t*)(hdr->AS.Header+start); 
+				Levels = *(int32_t*)(hdr->AS.Header+start+4); 
 				if (SWAP) Levels = bswap_32(Levels);
-
 				if (Levels>5) {
 					B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 					B4C_ERRMSG = "Heka/Patchmaster format with more than 5 levels not supported;";
@@ -370,15 +368,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA #%i: <%s> [%i:+%i]\n",k,ext,start,leng
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA124 #%i    Levels=%i\n",k,Levels);
 
-				ifread(Sizes.all, Levels, 4, hdr);
+				memcpy(Sizes.all,hdr->AS.Header+start+8,sizeof(int32_t)*Levels);
 				if (SWAP) for (int l=0; l < Levels; l++) Sizes.all[l] = bswap_32(Sizes.all[l]);
 
 if (VERBOSE_LEVEL>7) for (int l=0; l < Levels; l++) fprintf(stdout,"HEKA #%i       %i\n",l, Sizes.all[l]);
 
-				StartOfPulse = iftell(hdr);
-
-				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,length);
-				ifread(hdr->AS.rawdata, 1, length, hdr);
+				StartOfPulse = start + 8 + 4 * Levels;
 			}
 
 			else if (!memcmp(ext,".dat\0\0\0\0",8)) {
@@ -389,7 +384,6 @@ if (VERBOSE_LEVEL>7) for (int l=0; l < Levels; l++) fprintf(stdout,"HEKA #%i    
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 989: \n");
 
 		// if (!Sizes) free(Sizes); Sizes=NULL;
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999\n");
 
 /* TODO:
 	pass 1:
@@ -398,48 +392,49 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999\n");
 		+ check whether all traces of a single sweep have the same SPR, and Fs
 		- check whether channelnumber (TrAdcChannel) and Label fit amoung all sweeps
 		+ extract the total number of samples
-		physical units
+		+ physical units
 		+ level 4 may have no children
 		- count event descriptions Level2/SeLabel
 	pass 2:
 		initialize data to NaN
 		skip sweeps if selected channel is not in it
-		Y scale
+		Y scale, physical scale
 		Event.CodeDescription, Events,
 		resampling 
 */
-		ifseek(hdr, StartOfPulse, SEEK_SET);
 
-		uint32_t k0=0, k1=0, k2=0, k3=0, k4=0;
-		uint32_t K0=0, K1=0, K2=0, K3=0, K4=0, K5=0;
-		uint32_t nchild = 0;
+		uint32_t k1=0, k2=0, k3=0, k4=0;
+		uint32_t K1=0, K2=0, K3=0, K4=0, K5=0;
+		char flagModifiedTraceHeaders = 0; 
 		double t;
-		size_t count, pos;
-		// read root
-		hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, Sizes.Rec.Root+4);
-		count = ifread(hdr->AS.Header, 1, Sizes.Rec.Root+4, hdr);
-		// read K1
+		size_t pos;
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 995\n");
 
+		// read K1
 		if (SWAP) {
-			K1 		= bswap_32(*(uint32_t*)(hdr->AS.Header+Sizes.Rec.Root));
-			hdr->VERSION 	= bswap_32(*(uint32_t*)(hdr->AS.Header));
-			t  		= bswap_64(*(double*)(hdr->AS.Header+520));
+			K1 		= bswap_32(*(uint32_t*)(hdr->AS.Header + StartOfPulse + Sizes.Rec.Root));
+			hdr->VERSION 	= bswap_32(*(uint32_t*)(hdr->AS.Header + StartOfPulse));
+			t  		= bswap_64(*(double*)(hdr->AS.Header + StartOfPulse + 520));
 		} else {
-			K1 		= (*(uint32_t*)(hdr->AS.Header+Sizes.Rec.Root));
-			hdr->VERSION 	= (*(uint32_t*)(hdr->AS.Header));
-			t  		= (*(double*)(hdr->AS.Header+520));
+			K1 		= (*(uint32_t*)(hdr->AS.Header + StartOfPulse + Sizes.Rec.Root));
+			hdr->VERSION 	= (*(uint32_t*)(hdr->AS.Header + StartOfPulse));
+			t  		= (*(double*)(hdr->AS.Header + StartOfPulse + 520));
 		}
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 997\n");
+
 		t -= 1580970496; if (t<0) t += 4294967296; t += 9561652096;
 		hdr->T0 = t/(24.0*60*60) + 584755; // +datenum(1601,1,1));
 		hdr->SampleRate = 0.0;
 		double *DT = NULL; 	// list of sampling intervals per channel
 
-		pos = count;
-		// read remainder into memory
-		while (!ifeof(hdr)) {
-			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, 2*count);
-			count += ifread(hdr->AS.Header+count, 1, count, hdr);
-		}
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999\n");
+
+		/**************************************************************************
+			HEKA: read structural information 
+ 		 **************************************************************************/
+
+		pos = StartOfPulse + Sizes.Rec.Root + 4;
 
 		for (k1=0; k1<K1; k1++)	{
 		// read group
@@ -449,11 +444,14 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L1 @%i=\t%i/%i \n",pos+StartOfData,k1,
 			pos += Sizes.Rec.Group+4;
 			// read number of children
 			K2 = (*(uint32_t*)(hdr->AS.Header+pos-4));
+
 			for (k2=0; k2<K2; k2++)	{
 				// read series
-				char *SeLabel = (char*)(hdr->AS.Header+pos+4);	// max 32 bytes
+				char *SeLabel = (char*)(hdr->AS.Header+pos+4);		// max 32 bytes
+				double Delay    = *(double*)(hdr->AS.Header+pos+472+176);
+				*(uint64_t*)&Delay = bswap_64(*(uint64_t*)&Delay);
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s\t%i/%i %i/%i \n",pos+StartOfData,SeLabel,k1,K1,k2,K2);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",pos+StartOfData,SeLabel,Delay,k1,K1,k2,K2);
 
 				/* move to reading of data */
 /*
@@ -473,20 +471,61 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s\t%i/%i %i/%i \n",pos+StartOf
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+StartOfData,k1,K1,k2,K2,k3,K3);
 
-					pos += Sizes.Rec.Sweep+4;
+					pos += Sizes.Rec.Sweep + 4;
 					// read number of children
 					K4 = (*(uint32_t*)(hdr->AS.Header+pos-4));
 					for (k4=0; k4<K4; k4++)	{
 						// read trace
-						uint32_t ns = (*(uint32_t*)(hdr->AS.Header+pos+36));
-						spr = (*(uint32_t*)(hdr->AS.Header+pos+44));
-						uint64_t dT_i = *(uint64_t*)(hdr->AS.Header+pos+104);
+						double DigMin, DigMax;
+						uint16_t gdftyp  = 0;
+						uint32_t ns      = (*(uint32_t*)(hdr->AS.Header+pos+36));
+						uint32_t DataPos = (*(uint32_t*)(hdr->AS.Header+pos+40));
+						spr              = (*(uint32_t*)(hdr->AS.Header+pos+44));
+						uint16_t pdc     = PhysDimCode((char*)(hdr->AS.Header + pos + 96));
+						uint64_t dT_i    = *(uint64_t*)(hdr->AS.Header+pos+104);
+						double YRange    = (*(double*)(hdr->AS.Header+pos+128));
+						double YOffset   = (*(double*)(hdr->AS.Header+pos+136));
+						uint16_t AdcChan = (*(uint16_t*)(hdr->AS.Header+pos+222));
+						double PhysMin   = (*(double*)(hdr->AS.Header+pos+224));
+						double PhysMax   = (*(double*)(hdr->AS.Header+pos+232));
+
+
+						switch (hdr->AS.Header[pos+70]) {
+						case 0: gdftyp = 3; 		//int16
+							DigMax = (double)(int16_t)0x7fff;
+							DigMin = (double)(int16_t)0x8000;
+							break;
+						case 1: gdftyp = 5; 		//int32
+							DigMax = (double)(int32_t)0x7fffffff;
+							DigMin = (double)(int32_t)0x80000000;
+							break;
+						case 2: gdftyp = 16; 		//float32
+							DigMax =  1e9;
+							DigMin = -1e9;
+							break;
+						case 3: gdftyp = 17; 		//float64
+							DigMax =  1e9;
+							DigMin = -1e9;
+							break;
+						default: 
+							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+							B4C_ERRMSG = "Heka/Patchmaster: data type not supported.";
+						};
+
 						if (SWAP) {
+ 							AdcChan = bswap_16(AdcChan);
  							ns  = bswap_32(ns);
+ 							DataPos = bswap_32(DataPos);
 							spr = bswap_32(spr);
 							dT_i= bswap_64(dT_i);
+							*(uint64_t*)&YRange  = bswap_64(*(uint64_t*)&YRange);
+							*(uint64_t*)&YOffset = bswap_64(*(uint64_t*)&YOffset);
+							*(uint64_t*)&PhysMax = bswap_64(*(uint64_t*)&PhysMax);
+							*(uint64_t*)&PhysMin = bswap_64(*(uint64_t*)&PhysMin);
  						}
-						uint16_t pdc = PhysDimCode((char*)(hdr->AS.Header + pos + 96));
+						double Cal = YRange / (DigMax - DigMin);
+						double Off = YOffset;
+
                                                 // sample rate
 						double dT = *(double*)(&dT_i);
                                                 double Fs = 1.0 / dT;
@@ -504,30 +543,63 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+Sta
 							if (!strcmp(hdr->CHANNEL[ns].Label,Label)) break;
 						}
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i, %s %f-%fHz\t%i/%i %i/%i %i/%i %i/%i \n",pos+StartOfData,ns,Label,hdr->SampleRate,Fs,k1,K1,k2,K2,k3,K3,k4,K4);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%i %i/%i %i/%i \n",pos+StartOfData,ns,AdcChan,Label,hdr->SampleRate,Fs,k1,K1,k2,K2,k3,K3,k4,K4);
 
 						if (ns >= hdr->NS) {
 							hdr->NS = ns + 1;
 							hdr->CHANNEL = (CHANNEL_TYPE*) realloc(hdr->CHANNEL, hdr->NS * sizeof(CHANNEL_TYPE));
-							strncpy(hdr->CHANNEL[ns].Label, Label, max(32, MAX_LENGTH_LABEL));
-							hdr->CHANNEL[ns].Label[max(32,MAX_LENGTH_LABEL)] = 0;
-                                                        hdr->CHANNEL[ns].SPR = 1;
-                                                        hdr->CHANNEL[ns].Cal = 1.0;
-                                                        hdr->CHANNEL[ns].Off = 0.0;
-							hdr->CHANNEL[ns].PhysDimCode = pdc;
-                                                        hdr->CHANNEL[ns].OnOff  = 1;
-							/*TODO: fix remaining channel header  */
-							hdr->CHANNEL[ns].GDFTYP = 0;
-							/* Transducer, Phys/Dig/Min/Max, Transducer, LowPass, HighPass, Notch, Impedance, */
+							CHANNEL_TYPE *hc = hdr->CHANNEL + ns;
+							strncpy(hc->Label, Label, max(32, MAX_LENGTH_LABEL));
+							hc->Label[max(32,MAX_LENGTH_LABEL)] = 0;
+							hc->Transducer[0] = 0;
+                                                        hc->SPR     = 1;
+                                                        hc->Cal     = 1.0;
+                                                        hc->Off     = 0.0;
+							hc->PhysDimCode = pdc;
+                                                        hc->OnOff   = 1;
+							hc->GDFTYP  = gdftyp;
+							hc->LeadIdCode = 0;
+							hc->DigMin  = DigMin;
+							hc->DigMax  = DigMax;
+							// hc->PhysMax = PhysMax;
+							// hc->PhysMin = PhysMin;
+							hc->PhysMax =  YRange/2+YOffset;
+							hc->PhysMin = -YRange/2-YOffset;
+							hc->Cal = Cal;
+							hc->Off = Off;
 
-							DT = (double*)realloc(DT, hdr->NS*sizeof(double));
+							/* TODO: fix remaining channel header  */
+							/* LowPass, HighPass, Notch, Impedance, */
+
+							DT = (double*) realloc(DT, hdr->NS*sizeof(double));
 							DT[ns] = dT;
+						}
+						else {
+							if (hdr->CHANNEL[ns].PhysMax < PhysMax) hdr->CHANNEL[ns].PhysMax = PhysMax;
+							if (hdr->CHANNEL[ns].PhysMin > PhysMin) hdr->CHANNEL[ns].PhysMin = PhysMin;
+
+							if (fabs(hdr->CHANNEL[ns].Cal - Cal) > 1e-9*Cal) flagModifiedTraceHeaders = 1; 
+							if (fabs(hdr->CHANNEL[ns].Off - Off) > 1e-9*Off) flagModifiedTraceHeaders = 1; 
+							if (hdr->CHANNEL[ns].GDFTYP == gdftyp) flagModifiedTraceHeaders = 1; 
 						}
 /*
 						else if (strcmp(hdr->CHANNEL[ns].Label, (char*)hdr->AS.Header+pos+4)) {
 							fprintf(stdout,"Warning HEKA: channel labels changed <%s> <%s>\n",hdr->CHANNEL[ns].Label, (char*)hdr->AS.Header+pos+4);
 						}
 */
+						if (YOffset) {
+                                                        B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+                                                        B4C_ERRMSG = "Heka/Patchmaster: Yoffset is not zero.";
+						}
+						if (hdr->AS.Header[pos+220] != 1) {
+                                                        B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+                                                        B4C_ERRMSG = "Heka/Patchmaster: ValidYRange not set.";
+						}
+						if (hdr->CHANNEL[ns].GDFTYP != gdftyp) {
+                                                        B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+                                                        B4C_ERRMSG = "Heka/Patchmaster: data types do not match.";
+						}
+
 						if (hdr->SampleRate <= 0.0) hdr->SampleRate = Fs;
                                                 if (fabs(hdr->SampleRate - Fs) > 1e-9) {
 							hdr->SampleRate = lcm(round(hdr->SampleRate), round(Fs));
@@ -539,10 +611,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i, %s %f-%fHz\t%i/%i %i/%i %
                                                         B4C_ERRMSG = "Heka/Patchmaster: Yunits do not match.";
 						}
                                                 if ( abs( DT[ns] - dT) > 1e-9 * dT) {
-							fprintf(stdout, "Warning sampleing intervales do not match #%i,%f-%fHz\n",ns, DT[ns],dT);
+							fprintf(stdout, "Warning sampling intervals do not match #%i,%f-%fHz\n",ns, DT[ns],dT);
                                                         B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
                                                         B4C_ERRMSG = "Heka/Patchmaster: sampling intervals do not match.";
                                                 }
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%i %i/%i %i/%i \n",pos+StartOfData,ns,AdcChan,Label,hdr->SampleRate,Fs,k1,K1,k2,K2,k3,K3,k4,K4);
 
 						pos += Sizes.Rec.Trace+4;
 						// read number of children -- this should be 0 - ALWAYS;
@@ -560,7 +634,133 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i, %s %f-%fHz\t%i/%i %i/%i %
 
 		if (B4C_ERRNUM) return(-1);
 
-		ifseek(hdr, StartOfData, SEEK_SET);
+		hdr->NRec = hdr->SPR;
+		hdr->SPR  = 1;
+		hdr->AS.bpb = 0;
+		for (uint16_t k=0; k<hdr->NS; k++) {
+			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
+			hc->bi = hdr->AS.bpb;
+			hc->SPR = 1;
+			hdr->AS.bpb += GDFTYP_BITS[hc->GDFTYP]>>3; 
+		}
+
+		hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata, hdr->NRec * hdr->SPR * hdr->AS.bpb);
+		memset(hdr->AS.rawdata, 0xff, hdr->NRec * hdr->SPR * hdr->AS.bpb); 	// initialize with NaN's
+
+if (VERBOSE_LEVEL>9) hdr2ascii(hdr,stdout,4);
+
+
+		/**************************************************************************
+			HEKA: read data blocks
+ 		 **************************************************************************/
+		uint32_t SPR = 0; 
+		pos = StartOfPulse + Sizes.Rec.Root + 4;
+		for (k1=0; k1<K1; k1++)	{
+		// read group
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L1 @%i=\t%i/%i \n",pos+StartOfData,k1,K1);
+
+			pos += Sizes.Rec.Group+4;
+			// read number of children
+			K2 = (*(uint32_t*)(hdr->AS.Header+pos-4));
+
+			for (k2=0; k2<K2; k2++)	{
+				// read series
+				uint32_t spr = 0;
+				char *SeLabel = (char*)(hdr->AS.Header+pos+4);		// max 32 bytes
+				double Delay    = *(double*)(hdr->AS.Header+pos+472+176);
+				*(uint64_t*)&Delay = bswap_64(*(uint64_t*)&Delay);
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L2 @%i=%s %f\t%i/%i %i/%i \n",pos+StartOfData,SeLabel,Delay,k1,K1,k2,K2);
+
+				/* move to reading of data */
+/*
+				hdr->EVENT.LenCodeDesc++;
+				hdr->EVENT.CodeDesc = (char**)realloc(hdr->EVENT.CodeDesc, hdr->EVENT.LenCodeDesc * sizeof(char*));
+				hdr->AS.auxBUF      = (uint8_t*) realloc(hdr->AS.auxBUF, hdr->EVENT.LenCodeDesc*33);
+				strncpy((char*)(hdr->AS.auxBUF+k2*33), SeLabel, 32);
+				hdr->EVENT.CodeDesc[k2] = (char*)hdr->AS.auxBUF + k2*33;
+*/
+				pos += Sizes.Rec.Series+4;
+				// read number of children
+				K3 = (*(uint32_t*)(hdr->AS.Header+pos-4));
+				for (k3=0; k3<K3; k3++)	{
+					// read sweep
+					hdr->NRec++; 	// increase number of sweeps
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+StartOfData,k1,K1,k2,K2,k3,K3);
+
+					pos += Sizes.Rec.Sweep + 4;
+					// read number of children
+					K4 = (*(uint32_t*)(hdr->AS.Header+pos-4));
+					for (k4=0; k4<K4; k4++)	{
+
+						// read trace
+						double DigMin, DigMax;
+						uint32_t ns      = (*(uint32_t*)(hdr->AS.Header+pos+36));
+						uint32_t DataPos = (*(uint32_t*)(hdr->AS.Header+pos+40));
+						spr              = (*(uint32_t*)(hdr->AS.Header+pos+44));
+						//uint16_t pdc     = PhysDimCode((char*)(hdr->AS.Header + pos + 96));
+						//uint64_t dT_i    = *(uint64_t*)(hdr->AS.Header+pos+104);
+						double YRange    = (*(double*)(hdr->AS.Header+pos+128));
+						double YOffset   = (*(double*)(hdr->AS.Header+pos+136));
+						uint16_t AdcChan = (*(uint16_t*)(hdr->AS.Header+pos+222));
+						double PhysMin   = (*(double*)(hdr->AS.Header+pos+224));
+						double PhysMax   = (*(double*)(hdr->AS.Header+pos+232));
+
+						if (SWAP) {
+ 							AdcChan = bswap_16(AdcChan);
+ 							ns  = bswap_32(ns);
+ 							DataPos = bswap_32(DataPos);
+							spr = bswap_32(spr);
+						//	dT_i= bswap_64(dT_i);
+							*(uint64_t*)&YRange  = bswap_64(*(uint64_t*)&YRange);
+							*(uint64_t*)&YOffset = bswap_64(*(uint64_t*)&YOffset);
+							*(uint64_t*)&PhysMax = bswap_64(*(uint64_t*)&PhysMax);
+							*(uint64_t*)&PhysMin = bswap_64(*(uint64_t*)&PhysMin);
+ 						}
+
+						char *Label = (char*)hdr->AS.Header+pos+4;
+						for (ns=0; ns < hdr->NS; ns++) {
+							if (!strcmp(hdr->CHANNEL[ns].Label, Label)) break;
+						}
+						CHANNEL_TYPE *hc = hdr->CHANNEL+ns; 
+
+
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i, %s\t%i/%i %i/%i %i/%i %i/%i \n",pos+StartOfData,ns,AdcChan,Label,k1,K1,k2,K2,k3,K3,k4,K4);
+
+						double *data = (double*)hdr->AS.rawdata;
+						// no need to check byte order because File.Endian is set and endian conversion is done in sread
+						switch (hc->GDFTYP) {
+						case 3: 
+							for (size_t k = 0; k < spr; k++) {
+if (VERBOSE_LEVEL>8) fprintf(stdout,"HEKA+L4 @%i= #%i %i/%i \n",DataPos,ns,k,spr);
+								memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + (SPR+k) * hdr->AS.bpb, hdr->AS.Header + DataPos + k * 2, 2);
+							}
+							break;
+						case 5:
+						case 16: 
+							for (size_t k = 0; k < spr; k++) {
+								memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + (SPR+k) * hdr->AS.bpb, hdr->AS.Header + DataPos + k * 4, 4);
+							}
+							break;
+						case 17: 
+							for (size_t k = 0; k < spr; k++) {
+								memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + (SPR+k) * hdr->AS.bpb, hdr->AS.Header + DataPos + k * 8, 8);
+							}
+							break;
+						}	
+
+						pos += Sizes.Rec.Trace+4;
+					}
+				}
+				SPR += spr;
+			}
+		}
+		hdr->AS.first  = 0; 
+		hdr->AS.length = hdr->NRec; 
+		
 
 	}
 	else if (hdr->TYPE==ITX) {
@@ -574,6 +774,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i, %s %f-%fHz\t%i/%i %i/%i %
 		}
 		hdr->Header[count]=0;
 */
+
     		char line[ITX_MAXLINELENGTH+1];
     		char flag = 0;
 		double *data = NULL;
