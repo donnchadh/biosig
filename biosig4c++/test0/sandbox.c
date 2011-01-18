@@ -270,7 +270,6 @@ char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries
 }
 
 
-#define NEWHEKA
 int sopen_zzztest(HDRTYPE* hdr) {
 	size_t count = hdr->HeadLen;
 
@@ -394,7 +393,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 989: \n");
 		+ extract the total number of samples
 		+ physical units
 		+ level 4 may have no children
-		- count event descriptions Level2/SeLabel
+		+ count event descriptions Level2/SeLabel
 	pass 2:
 		initialize data to NaN
 		skip sweeps if selected channel is not in it
@@ -414,7 +413,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 995\n");
 		if (SWAP) {
 			K1 		= bswap_32(*(uint32_t*)(hdr->AS.Header + StartOfPulse + Sizes.Rec.Root));
 			hdr->VERSION 	= bswap_32(*(uint32_t*)(hdr->AS.Header + StartOfPulse));
-			t  		= bswap_64(*(double*)(hdr->AS.Header + StartOfPulse + 520));
+			*(uint64_t*)&t	= bswap_64(*(uint64_t*)(hdr->AS.Header + StartOfPulse + 520));
 		} else {
 			K1 		= (*(uint32_t*)(hdr->AS.Header + StartOfPulse + Sizes.Rec.Root));
 			hdr->VERSION 	= (*(uint32_t*)(hdr->AS.Header + StartOfPulse));
@@ -428,13 +427,15 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 997\n");
 		hdr->SampleRate = 0.0;
 		double *DT = NULL; 	// list of sampling intervals per channel
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999\n");
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999 %p\n",hdr->EVENT.CodeDesc);
 
 		/**************************************************************************
 			HEKA: read structural information 
  		 **************************************************************************/
 
 		pos = StartOfPulse + Sizes.Rec.Root + 4;
+		size_t EventN=0;
+		uint16_t LenCodeDesc=0;
 
 		for (k1=0; k1<K1; k1++)	{
 		// read group
@@ -445,31 +446,49 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L1 @%i=\t%i/%i \n",pos+StartOfData,k1,
 			// read number of children
 			K2 = (*(uint32_t*)(hdr->AS.Header+pos-4));
 
+			hdr->AS.auxBUF = (uint8_t*)realloc(hdr->AS.auxBUF,K2*33);	// used to store name of series
 			for (k2=0; k2<K2; k2++)	{
 				// read series
-				char *SeLabel = (char*)(hdr->AS.Header+pos+4);		// max 32 bytes
-				double Delay    = *(double*)(hdr->AS.Header+pos+472+176);
+				char *SeLabel =  (char*)(hdr->AS.Header+pos+4);		// max 32 bytes
+				strncpy((char*)hdr->AS.auxBUF + 33*k2, (char*)hdr->AS.Header+pos+4, 32); hdr->AS.auxBUF[33*k2+32] = 0;
+				SeLabel = (char*)hdr->AS.auxBUF + 33*k2;
+				double Delay  = *(double*)(hdr->AS.Header+pos+472+176);
 				*(uint64_t*)&Delay = bswap_64(*(uint64_t*)&Delay);
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",pos+StartOfData,SeLabel,Delay,k1,K1,k2,K2);
 
-				/* move to reading of data */
-/*
-				hdr->EVENT.LenCodeDesc++;
-				hdr->EVENT.CodeDesc = (char**)realloc(hdr->EVENT.CodeDesc, hdr->EVENT.LenCodeDesc * sizeof(char*));
-				hdr->AS.auxBUF      = (uint8_t*) realloc(hdr->AS.auxBUF, hdr->EVENT.LenCodeDesc*33);
-				strncpy((char*)(hdr->AS.auxBUF+k2*33), SeLabel, 32);
-				hdr->EVENT.CodeDesc[k2] = (char*)hdr->AS.auxBUF + k2*33;
-*/
-				pos += Sizes.Rec.Series+4;
+				pos += Sizes.Rec.Series + 4;
 				// read number of children
 				K3 = (*(uint32_t*)(hdr->AS.Header+pos-4));
+
+				if (EventN <= hdr->EVENT.N + K3 + 2) {
+					EventN = max(max(16,EventN),hdr->EVENT.N+K3+2) * 2;	
+					hdr->EVENT.TYP = (typeof(hdr->EVENT.TYP)) realloc(hdr->EVENT.TYP,EventN*sizeof(*hdr->EVENT.TYP));
+					hdr->EVENT.POS = (typeof(hdr->EVENT.POS)) realloc(hdr->EVENT.POS,EventN*sizeof(*hdr->EVENT.POS));
+					if (hdr->EVENT.CHN != NULL && hdr->EVENT.DUR != NULL) {
+						hdr->EVENT.CHN = (typeof(hdr->EVENT.CHN)) realloc(hdr->EVENT.CHN,EventN*sizeof(*hdr->EVENT.CHN));
+						hdr->EVENT.DUR = (typeof(hdr->EVENT.DUR)) realloc(hdr->EVENT.DUR,EventN*sizeof(*hdr->EVENT.DUR));
+					}
+				}
+
+				// marker for start of series 
+				FreeTextEvent(hdr, hdr->EVENT.N, SeLabel);
+				hdr->EVENT.POS[hdr->EVENT.N] = hdr->SPR;	// within reading the structure, hdr->SPR is used as a intermediate variable counting the number of samples
+				hdr->EVENT.N++;
+
 				for (k3=0; k3<K3; k3++)	{
 					// read sweep
 					hdr->NRec++; 	// increase number of sweeps
 					uint32_t SPR = 0, spr = 0;
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+StartOfData,k1,K1,k2,K2,k3,K3);
+
+					if (hdr->SPR > 0) {
+						// marker for start of sweep 
+						hdr->EVENT.POS[hdr->EVENT.N] = hdr->SPR;	// within reading the structure, hdr->SPR is used as a intermediate variable counting the number of samples
+						hdr->EVENT.TYP[hdr->EVENT.N] = 0xfffe;
+						hdr->EVENT.N++;
+					}
 
 					pos += Sizes.Rec.Sweep + 4;
 					// read number of children
@@ -632,8 +651,6 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 		}
 		if (DT) free(DT);
 
-		if (B4C_ERRNUM) return(-1);
-
 		hdr->NRec = hdr->SPR;
 		hdr->SPR  = 1;
 		hdr->AS.bpb = 0;
@@ -644,11 +661,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 			hdr->AS.bpb += GDFTYP_BITS[hc->GDFTYP]>>3; 
 		}
 
+		if (B4C_ERRNUM) return(-1);
+
 		hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata, hdr->NRec * hdr->SPR * hdr->AS.bpb);
 		memset(hdr->AS.rawdata, 0xff, hdr->NRec * hdr->SPR * hdr->AS.bpb); 	// initialize with NaN's
 
-if (VERBOSE_LEVEL>9) hdr2ascii(hdr,stdout,4);
-
+if (VERBOSE_LEVEL>7) hdr2ascii(hdr,stdout,4);
 
 		/**************************************************************************
 			HEKA: read data blocks
@@ -674,19 +692,11 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L1 @%i=\t%i/%i \n",pos+StartOfData,k1,
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L2 @%i=%s %f\t%i/%i %i/%i \n",pos+StartOfData,SeLabel,Delay,k1,K1,k2,K2);
 
 				/* move to reading of data */
-/*
-				hdr->EVENT.LenCodeDesc++;
-				hdr->EVENT.CodeDesc = (char**)realloc(hdr->EVENT.CodeDesc, hdr->EVENT.LenCodeDesc * sizeof(char*));
-				hdr->AS.auxBUF      = (uint8_t*) realloc(hdr->AS.auxBUF, hdr->EVENT.LenCodeDesc*33);
-				strncpy((char*)(hdr->AS.auxBUF+k2*33), SeLabel, 32);
-				hdr->EVENT.CodeDesc[k2] = (char*)hdr->AS.auxBUF + k2*33;
-*/
 				pos += Sizes.Rec.Series+4;
 				// read number of children
 				K3 = (*(uint32_t*)(hdr->AS.Header+pos-4));
 				for (k3=0; k3<K3; k3++)	{
 					// read sweep
-					hdr->NRec++; 	// increase number of sweeps
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+StartOfData,k1,K1,k2,K2,k3,K3);
 
@@ -726,16 +736,13 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+Sta
 						}
 						CHANNEL_TYPE *hc = hdr->CHANNEL+ns; 
 
-
-
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i, %s\t%i/%i %i/%i %i/%i %i/%i \n",pos+StartOfData,ns,AdcChan,Label,k1,K1,k2,K2,k3,K3,k4,K4);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %i/%i %i/%i \n",pos+StartOfData,ns,AdcChan,spr,SPR,Label,k1,K1,k2,K2,k3,K3,k4,K4);
 
 						double *data = (double*)hdr->AS.rawdata;
 						// no need to check byte order because File.Endian is set and endian conversion is done in sread
 						switch (hc->GDFTYP) {
 						case 3: 
 							for (size_t k = 0; k < spr; k++) {
-if (VERBOSE_LEVEL>8) fprintf(stdout,"HEKA+L4 @%i= #%i %i/%i \n",DataPos,ns,k,spr);
 								memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + (SPR+k) * hdr->AS.bpb, hdr->AS.Header + DataPos + k * 2, 2);
 							}
 							break;
@@ -754,13 +761,12 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"HEKA+L4 @%i= #%i %i/%i \n",DataPos,ns,k,spr
 
 						pos += Sizes.Rec.Trace+4;
 					}
+					SPR += spr;
 				}
-				SPR += spr;
 			}
 		}
 		hdr->AS.first  = 0; 
 		hdr->AS.length = hdr->NRec; 
-		
 
 	}
 	else if (hdr->TYPE==ITX) {
