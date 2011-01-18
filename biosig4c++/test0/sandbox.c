@@ -426,7 +426,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 997\n");
 		hdr->T0 = t/(24.0*60*60) + 584755; // +datenum(1601,1,1));
 		hdr->SampleRate = 0.0;
 		double *DT = NULL; 	// list of sampling intervals per channel
-
+		hdr->SPR = 0; 
+	
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 999 %p\n",hdr->EVENT.CodeDesc);
 
 		/**************************************************************************
@@ -601,11 +602,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 							if (fabs(hdr->CHANNEL[ns].Off - Off) > 1e-9*Off) flagModifiedTraceHeaders = 1; 
 							if (hdr->CHANNEL[ns].GDFTYP == gdftyp) flagModifiedTraceHeaders = 1; 
 						}
-/*
-						else if (strcmp(hdr->CHANNEL[ns].Label, (char*)hdr->AS.Header+pos+4)) {
-							fprintf(stdout,"Warning HEKA: channel labels changed <%s> <%s>\n",hdr->CHANNEL[ns].Label, (char*)hdr->AS.Header+pos+4);
-						}
-*/
+
 						if (YOffset) {
                                                         B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
                                                         B4C_ERRMSG = "Heka/Patchmaster: Yoffset is not zero.";
@@ -621,7 +618,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 
 						if (hdr->SampleRate <= 0.0) hdr->SampleRate = Fs;
                                                 if (fabs(hdr->SampleRate - Fs) > 1e-9) {
-							hdr->SampleRate = lcm(round(hdr->SampleRate), round(Fs));
+							// hdr->SampleRate = lcm(round(hdr->SampleRate), round(Fs));
+                                                        B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+                                                        B4C_ERRMSG = "Heka/Patchmaster: sampling rates do not match.";
 						}
 
 						if ((pdc & 0xFFE0) != (hdr->CHANNEL[ns].PhysDimCode & 0xFFE0)) {
@@ -651,20 +650,43 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 		}
 		if (DT) free(DT);
 
-		hdr->NRec = hdr->SPR;
-		hdr->SPR  = 1;
+		hdr->NRec = 1;
 		hdr->AS.bpb = 0;
 		for (uint16_t k=0; k<hdr->NS; k++) {
 			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
 			hc->bi = hdr->AS.bpb;
-			hc->SPR = 1;
-			hdr->AS.bpb += GDFTYP_BITS[hc->GDFTYP]>>3; 
+			hc->SPR = hdr->SPR;
+			hdr->AS.bpb += hc->SPR * GDFTYP_BITS[hc->GDFTYP]>>3; 
 		}
 
-		if (B4C_ERRNUM) return(-1);
+		if (B4C_ERRNUM) {
+				
+			return(-1);
+		}
 
-		hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata, hdr->NRec * hdr->SPR * hdr->AS.bpb);
-		memset(hdr->AS.rawdata, 0xff, hdr->NRec * hdr->SPR * hdr->AS.bpb); 	// initialize with NaN's
+		hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata, hdr->NRec * hdr->AS.bpb);
+		memset(hdr->AS.rawdata, 0xff, hdr->NRec * hdr->AS.bpb); 	// initialize with NaN's
+
+
+		/* initialize with NaN's */		
+		for (uint16_t k=0; k<hdr->NS; k++) {
+			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
+			switch (hc->GDFTYP) {
+			case 3: 
+				for (size_t k1=0; k1<hc->SPR; k1++) *(uint16_t*)(hdr->AS.rawdata + hc->bi + k1 * 2) = 0x8000;
+				break;
+			case 5:
+				for (size_t k1=0; k1<hc->SPR; k1++) *(uint32_t*)(hdr->AS.rawdata + hc->bi + k1 * 4) = 0x80000000;
+				break;
+			case 16: 
+				for (size_t k1=0; k1<hc->SPR; k1++) *(float*)(hdr->AS.rawdata + hc->bi + k1 * 4) = 0.0/0.0;
+				break;
+			case 17: 
+				for (size_t k1=0; k1<hc->SPR; k1++) *(double*)(hdr->AS.rawdata + hc->bi + k1 * 8) = 0.0/0.0;
+				break;
+			}	
+		}
+
 
 if (VERBOSE_LEVEL>7) hdr2ascii(hdr,stdout,4);
 
@@ -742,20 +764,14 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 						// no need to check byte order because File.Endian is set and endian conversion is done in sread
 						switch (hc->GDFTYP) {
 						case 3: 
-							for (size_t k = 0; k < spr; k++) {
-								memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + (SPR+k) * hdr->AS.bpb, hdr->AS.Header + DataPos + k * 2, 2);
-							}
+							memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + SPR * 2, hdr->AS.Header + DataPos, spr * 2);
 							break;
 						case 5:
 						case 16: 
-							for (size_t k = 0; k < spr; k++) {
-								memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + (SPR+k) * hdr->AS.bpb, hdr->AS.Header + DataPos + k * 4, 4);
-							}
+							memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + SPR * 4, hdr->AS.Header + DataPos, spr * 4);
 							break;
 						case 17: 
-							for (size_t k = 0; k < spr; k++) {
-								memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + (SPR+k) * hdr->AS.bpb, hdr->AS.Header + DataPos + k * 8, 8);
-							}
+							memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + SPR * 8, hdr->AS.Header + DataPos, spr * 8);
 							break;
 						}	
 
