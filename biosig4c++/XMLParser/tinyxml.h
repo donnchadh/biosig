@@ -56,10 +56,11 @@ Jan 2011: update to latest TinyXML
 #ifdef WITH_ZLIB
 #include <zlib.h>
 #ifndef ZLIB_H
-	#ifdef __MINGW32__
-	// requires zlib e.g. from here: http://www.zlib.net/zlib123-dll.zip
+    #if defined(__MINGW64__)
+	#include "../win64/zlib/zlib.h"
+    #elif defined(__MINGW32__)
 	#include "../win32/zlib/include/zlib.h"
-	#endif 
+    #endif 
 #endif 
 #endif 
 
@@ -1273,7 +1274,9 @@ public:
 
 	// Write this text object to a FILE stream.
 	virtual void Print( FILE* cfile, int depth ) const;
+#ifdef ZLIB_H
 	virtual void gzPrint( gzFile cfile, int depth ) const;
+#endif
 
 	/// Queries whether this represents text using a CDATA section.
 	bool CDATA() const				{ return cdata; }
