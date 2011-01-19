@@ -296,12 +296,14 @@ void mexFunction(
 	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
 
 	hdr = sopen(FileName, "r", hdr);
+
 #ifdef WITH_PDP 
 	if (B4C_ERRNUM) {
 		B4C_ERRNUM = 0;
 		sopen_pdp_read(hdr);
 	}	
 #endif
+
 #ifdef CHOLMOD_H
 	RerefCHANNEL(hdr,rr,2);
 #endif
@@ -312,10 +314,9 @@ void mexFunction(
 		mexPrintf("Warning mexSLOAD: Flag UCAL is %i instead of %i (%s)\n",hdr->FLAG.UCAL,FlagUCAL,hdr->FileName);
 
 	if ((status=serror())) {
-		//plhs[0] = mxCreateDoubleMatrix(0,0, mxREAL);
 
-		const char* fields[]={"TYPE","FileName","FLAG","ErrNum","ErrMsg"};
-		HDR = mxCreateStructMatrix(1, 1, 5, fields);
+		const char* fields[]={"TYPE","VERSION","FileName","FLAG","ErrNum","ErrMsg"};
+		HDR = mxCreateStructMatrix(1, 1, 6, fields);
 		mxSetField(HDR,0,"FileName",mxCreateString(hdr->FileName));
 		mxArray *errnum = mxCreateNumericMatrix(1,1,mxUINT8_CLASS,mxREAL);
 		*(uint8_t*)mxGetData(errnum) = (uint8_t)status;
@@ -340,24 +341,23 @@ void mexFunction(
 		else if (status==B4C_FORMAT_UNKNOWN)
 			sprintf(msg,"Error mexSLOAD: Cannot open file %s - format %s not known.\n",FileName,GetFileTypeString(hdr->TYPE));
 		else if (status==B4C_FORMAT_UNSUPPORTED)
-			sprintf(msg,"Error mexSLOAD: Cannot open file %s - format %s not supported.\n",FileName,GetFileTypeString(hdr->TYPE));
+			sprintf(msg,"Error mexSLOAD: Cannot open file %s - format %s not supported [%s].\n", FileName, GetFileTypeString(hdr->TYPE), B4C_ERRMSG);
 		else 	
-			sprintf(msg,"Error %i mexSLOAD: Cannot open file %s - format %s not supported.\n",status,FileName,GetFileTypeString(hdr->TYPE));
+			sprintf(msg,"Error %i mexSLOAD: Cannot open file %s - format %s not supported [%s].\n", status, FileName, GetFileTypeString(hdr->TYPE), B4C_ERRMSG);
 			
 		mxSetField(HDR,0,"ErrMsg",mxCreateString(msg));
 		destructHDR(hdr);
-		//mexPrintf(msg);
 
 #ifdef mexSOPEN
 		plhs[0] = HDR; 
 #else
+		plhs[0] = mxCreateDoubleMatrix(0,0, mxREAL);
 		plhs[1] = HDR; 
 #endif 		 
 		return; 
 	}
-	if (hdr==NULL) return;
 
-	if (VERBOSE_LEVEL>8) 
+	if (VERBOSE_LEVEL>7) 
 		fprintf(stderr,"[112] SOPEN-R finished NS=%i %i\n",hdr->NS,NS);
 
 //	convert2to4_eventtable(hdr); 
@@ -393,6 +393,7 @@ void mexFunction(
 		plhs[0] = mxCreateDoubleMatrix(NS, hdr->NRec*hdr->SPR, mxREAL);
 	else
 		plhs[0] = mxCreateDoubleMatrix(hdr->NRec*hdr->SPR, NS, mxREAL);
+
 	count = sread(mxGetPr(plhs[0]), 0, hdr->NRec, hdr);
 	hdr->NRec = count; 
 #endif
@@ -691,12 +692,13 @@ void mexFunction(
 	plhs[0] = HDR; 
 #endif
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[151] going for SCLOSE\n");
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[151] going for SCLOSE\n");
 #ifdef CHOLMOD_H
 	hdr->Calib = NULL; // is refering to &RR, do not destroy
 #endif
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[156] SCLOSE finished\n");
 	destructHDR(hdr);
 	hdr = NULL; 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[157] SCLOSE finished\n");
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[157] SCLOSE finished\n");
 };
 
