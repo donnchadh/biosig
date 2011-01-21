@@ -28,7 +28,7 @@ all: sload.exe
 sloadtm.c : sload.tm
 	${MPREP} $? -o $@
 
-sload.exe: sload.o sloadtm.o
+sload.exe: sload.o sloadtm.o ../libbiosig.a
 	${CC} sloadtm.o sload.o -L${LIBDIR} -l${MLLIB} ${EXTRALIBS} -o $@
 
 
