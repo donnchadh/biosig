@@ -94,9 +94,9 @@ CROSS	     = i586-mingw32msvc-
 CROSS	     = $(PathToMinGW)/usr/bin/i686-pc-mingw32-
 MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
-MinGWDEF     = -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD #-D=WITH_ZLIB -D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
+MinGWDEF     = -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_ZLIB #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
 MinGWCFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW)/usr/i686-pc-mingw32/include/
-MinGWLIBS    = win32/libbiosig.lib -L$(PathToMinGW)/usr/i686-pc-mingw32/lib/ -lws2_32 $(LDLIBS) # static
+MinGWLIBS    = win32/libbiosig.lib -L$(PathToMinGW)/usr/i686-pc-mingw32/lib/ -lz -lws2_32 $(LDLIBS) # static
 MinGWLINK    = $(MinGWCXX)
 ##########################################################
 
@@ -174,8 +174,8 @@ MinGWOBJECTS  = \
 TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o libbiosig.so
 
 first: $(TARGET)
-all:   $(TARGET) mex4o biosig4python win32 biosig_client biosig_server java tcl perl php ruby #sigviewer 
-
+all:   $(TARGET) mex4o biosig4python win32 biosig_client biosig_server mma java tcl perl php ruby #sigviewer 
+lib:	libbiosig.a libbiosig.so win32/libbiosig.dll win32/libbiosig.lib
 
 #############################################################
 #	Compilation: Implicit, default rules
@@ -241,7 +241,7 @@ sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h
 	$(CC) -c $(CFLAGS) -I t240 $(INCPATH) -o sopen_fef_read.o t240/sopen_fef_read.c
 
 sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
-		XMLParser/tinyxml.h XMLParser/tinystr.h # XMLParser/Tokenizer.h
+		XMLParser/tinyxml.h XMLParser/tinystr.h
 	$(CXX) -c $(CFLAGS) $(INCPATH) -o sopen_hl7aecg.o t230/sopen_hl7aecg.c
 
 sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h biosig.h\
@@ -276,17 +276,18 @@ win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h \
 #	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o win32/sopen_fef_read.obj t240/sopen_fef_read.c
 
 win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
-		XMLParser/tinyxml.h XMLParser/tinystr.h # XMLParser/Tokenizer.h
+		XMLParser/tinyxml.h XMLParser/tinystr.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_hl7aecg.obj t230/sopen_hl7aecg.c
 
 win32/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
 
 win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll
-	-$(DELETE) $(PathToSigViewerWIN32)/extern/libbiosig*
-	-$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/
-	-$(COPY) win32/libbiosig.a $(PathToSigViewerWIN32)/extern/
-	(cd $(PathToSigViewerWIN32)/src; $(CROSS)qmake; make)
+	-$(DELETE) $(PathToSigViewerWIN32)/extern/include/*.h
+	-$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/include
+	-$(DELETE) $(PathToSigViewerWIN32)/extern/lib/lib*
+	-$(COPY) win32/libbiosig.a $(PathToSigViewerWIN32)/extern/lib
+	-(cd $(PathToSigViewerWIN32)/src; $(CROSS)qmake; make)
 	-$(COPY) $(PathToSigViewerWIN32)/bin/sigviewer.exe win32/
 
 #############################################################
@@ -333,8 +334,8 @@ win32/libcnsfef.a:
 	make CROSS=$(CROSS) -C t240 ../win32/libcnsfef.a 
 
 win32/libbiosig.dll: $(MinGWOBJECTS) biosig.h biosig-dev.h
-	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) $(MinGWLIBS) -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,libbiosig.dll
-	-$(COPY) win32/libbiosig.dll $(PathToSigViewerWIN32)/extern/
+	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) $(MinGWLIBS) -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,win32/libbiosig.dll.a
+	-$(COPY) win32/libbiosig.dll $(PathToSigViewerWIN32)/extern/lib/
 
 win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib
 	$(MinGWLINK) $(MinGWCFLAGS) save2gdf.c $(MinGWLIBS) -o win32/save2gdf.exe
@@ -381,6 +382,12 @@ biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 
 
 #############################################################
+#	MathLink interface to Mathematica 
+#############################################################
+mma: libbiosig.$(LIBEXT) 
+	make -C mma 
+
+#############################################################
 #	MEX-files for Octave and Matlab
 #############################################################
 mex: mex4m mex4o
@@ -420,13 +427,13 @@ mexSLOAD.oct:  mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
 #############################################################
 
 sigviewer: $(PathToSigViewer)/bin/sigviewer
-	$(COPY) $(PathToSigViewer)/bin/sigviewer ~/bin/sigviewer-$(TODAY)
-	mv $(PathToSigViewer)/bin/sigviewer $(PathToSigViewer)/bin/sigviewer-$(TODAY)
+	$(COPY) $(PathToSigViewer)/bin/release/sigviewer ~/bin/sigviewer-$(TODAY)
+	mv $(PathToSigViewer)/bin/release/sigviewer $(PathToSigViewer)/bin/sigviewer-$(TODAY)
 	ln -sf ~/bin/sigviewer-$(TODAY) ~/bin/sigviewer 
 	
 $(PathToSigViewer)/bin/sigviewer: libbiosig.$(LIBEXT) biosig.h
-	$(COPY) -lf biosig.h $(PathToSigViewer)/extern/
-	$(COPY) -lf libbiosig.$(LIBEXT) $(PathToSigViewer)/extern/
+	$(COPY) -lf biosig.h $(PathToSigViewer)/extern/include/
+	$(COPY) -lf libbiosig.$(LIBEXT) $(PathToSigViewer)/extern/lib/
 #	touch $(PathToSigViewer)/tmp/basic_header.o
 	(cd $(PathToSigViewer)/src; qmake;make;)
 
@@ -668,7 +675,8 @@ test6: $(TEMP_DIR)t1.scp save2gdf
 	./save2gdf -z -f=EDF t0.xxx t1.edf
 	./save2gdf -z -f=BDF t0.xxx t1.bdf
 	./save2gdf -z -f=SCP t0.xxx t1.scp
-	./save2gdf -z -f=HL7 t0.xxx t1.hl7   # -z not supported for HL7
+	./save2gdf    -f=HL7 t0.xxx t1.hl7   # -z not supported for HL7
+	gzip t1.hl7
 	./save2gdf -z -f=CFWB t0.xxx t1.cfw
 	./save2gdf -z -f=MFER t0.xxx t1.mwf
 	./save2gdf -z -f=BVA t0.xxx t1.bva

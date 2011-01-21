@@ -34,7 +34,7 @@ typedef char			int8_t;
 
 #else
 
-#include <inttypes.h>
+#include <stdint.h>
 
 #endif
 

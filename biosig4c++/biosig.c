@@ -1,7 +1,7 @@
 /*
 
     $Id$
-    Copyright (C) 2005,2006,2007,2008,2009,2010 Alois Schloegl <a.schloegl@ieee.org>
+    Copyright (C) 2005,2006,2007,2008,2009,2010,2011 Alois Schloegl <a.schloegl@ieee.org>
     This file is part of the "BioSig for C/C++" repository 
     (biosig4c++) at http://biosig.sf.net/ 
 
@@ -740,8 +740,8 @@ const struct PhysDimIdx
 	{ 4320 ,  "Wm" },
 	{ 4352 ,  "F" },
 	{ 4384 ,  "K" },
-	{ 6048 ,  "\xB0\x43" },	//°C
-	{ 4416 ,  "\xB0\x46" }, //°F
+	{ 6048 ,  "\xB0\x43" },	//degree C
+	{ 4416 ,  "\xB0\x46" }, //degree F
 	{ 4448 ,  "K W-1" },
 	{ 4480 ,  "cd" },
 	{ 4512 ,  "osmole" },
@@ -1894,10 +1894,9 @@ void destructHDR(HDRTYPE* hdr) {
 
 	if (hdr==NULL) return;
 	
-	if (VERBOSE_LEVEL>7) fprintf(stdout,"destructHDR(%s): free HDR.aECG\n",hdr->FileName);
-
 	sclose(hdr); 
 
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"destructHDR(%s): free HDR.aECG\n",hdr->FileName);
     	if (hdr->aECG != NULL) {
 		if (((aECG_TYPE*)hdr->aECG)->Section8.NumberOfStatements>0)
 			free(((aECG_TYPE*)hdr->aECG)->Section8.Statements); 
@@ -1941,11 +1940,11 @@ void destructHDR(HDRTYPE* hdr) {
     	if (hdr->EVENT.CHN != NULL)  free(hdr->EVENT.CHN);
     	if (hdr->EVENT.CodeDesc != NULL) free(hdr->EVENT.CodeDesc);
 
-	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR\n");
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.AS.auxBUF\n");
 
     	if (hdr->AS.auxBUF != NULL) free(hdr->AS.auxBUF);
 
-	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR\n");
+	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR.rerefCHANNEL\n");
 
 #ifdef CHOLMOD_H
         cholmod_common c ;
@@ -1961,7 +1960,7 @@ void destructHDR(HDRTYPE* hdr) {
 
 	if (VERBOSE_LEVEL>7)  fprintf(stdout,"destructHDR: free HDR\n");
 
-	free(hdr);
+	if (hdr != NULL) free(hdr);
 	return; 
 }
 
@@ -3162,7 +3161,7 @@ int gdfbin2struct(HDRTYPE *hdr)
 		    		if (0) {}
 		    		else if (tag==1) {	
 		    			// user-specific events i.e. free text annotations 
-		    			fprintf(stdout,"user-specific events defined\n");
+if (VERBOSE_LEVEL>6) fprintf(stdout,"user-specific events defined\n");
 					hdr->AS.auxBUF = (uint8_t*) realloc(hdr->AS.auxBUF,len);	
 					memcpy(hdr->AS.auxBUF, Header2+pos+4, len);
 					hdr->EVENT.CodeDesc = (typeof(hdr->EVENT.CodeDesc)) realloc(hdr->EVENT.CodeDesc,257*sizeof(*hdr->EVENT.CodeDesc));
@@ -7423,24 +7422,26 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 #else
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "VITAL/FEF Format not supported\n";
-		return(hdr); 	
+		return(hdr);
 
-#endif		
+#endif
 	}
 
     	else if (hdr->TYPE==HDF) {
 #ifdef _HDF5_H
 #endif
-		ifclose(hdr); 
+		ifclose(hdr);
 		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 		B4C_ERRMSG = "Format HDF not supported\n";
-		return(hdr); 	
+		return(hdr);
 	}
 
     	else if (hdr->TYPE==HEKA) {
     		// HEKA PatchMaster file format
 		hdr->HeadLen = count;
+
     		sopen_zzztest(hdr);
+
 	}
 
     	else if (hdr->TYPE==ITX) {
@@ -7450,9 +7451,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
     		char flagData = 0;
     		char flagSupported = 1;
 
-	        if (VERBOSE_LEVEL>7) 
-                        fprintf(stdout,"[701] start reading %s,v%4.2f format \n",GetFileTypeString(hdr->TYPE),hdr->VERSION);                    
-		
+	        if (VERBOSE_LEVEL>7)
+                        fprintf(stdout,"[701] start reading %s,v%4.2f format \n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
+
 		typeof(hdr->SPR) SPR = 0, spr = 0;
 		typeof(hdr->NS)  ns  = 0, NS  = 0;
     		size_t DIV = 1;
@@ -7461,10 +7462,10 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
     		hdr->NRec= 0;
 
 		/*
-			checks the structure of the file and extracts formating information 
+			checks the structure of the file and extracts formating information
 		*/
 
-    		ifseek(hdr,0,SEEK_SET);	    			
+    		ifseek(hdr,0,SEEK_SET);
     		while (!ifeof(hdr)) {
 			ifgets(line, IGOR_MAXLENLINE, hdr);
 
@@ -7475,16 +7476,16 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 	    		}
 	    		else if (!strncmp(line,"END",3)) {
 	    			flagData = 0;
-                                if ((SPR!=0) && (SPR != spr)) 
+                                if ((SPR!=0) && (SPR != spr))
 					flagSupported = 0;
-				else 
-					SPR = spr; 	
+				else
+					SPR = spr;
 
 				PrevChanNo  = chanNo;
 				PrevSweepNo = sweepNo;
 				if (ns==0) hdr->SPR += SPR;
 	    		}
-	    		
+
 	    		else if (!strncmp(line,"X SetScale/P x,",15)) {
 	    			strtok(line,",");
 	    			strtok(NULL,",");
@@ -7496,7 +7497,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 	    				if (p2 != NULL) *p2=0;
 	    				dur *= PhysDimScale(PhysDimCode(p));
 	    			}
-	    			
+
 	    			double div = spr / (hdr->SampleRate * dur);
 	    			if (ns==0) {
 	    				hdr->SampleRate = 1.0 / dur;
@@ -7507,7 +7508,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 	    				hdr->SampleRate *= div;
 	    			}
 	    		}
-	    		
+
 	    		else if (!strncmp(line,"X SetScale y,",13)) {
 	    			char *p = strchr(line,'"');
 	    			if (p!=NULL) {
@@ -7538,10 +7539,10 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
  				hc->OnOff    = 1;
         			hc->GDFTYP   = 17;
         			hc->DigMax   = (double)(int16_t)(0x7fff);
-        			hc->DigMin   = (double)(int16_t)(0x8000);	
+        			hc->DigMin   = (double)(int16_t)(0x8000);
 				hc->LeadIdCode = 0;
 
-				hc->Cal      = 1.0; 
+				hc->Cal      = 1.0;
 				hc->Off      = 0.0;
 				hc->Transducer[0] = '\0';
 				hc->LowPass  = NaN;
@@ -7555,29 +7556,29 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
                         fprintf(stdout,"[776]<%s>#%i: %i/%i\n",line,(int)ns,(int)spr,(int)hdr->SPR);
 
 	    		}
-	    		else if (flagData) 
+	    		else if (flagData)
 	    			spr++;
-	    	}		
+	    	}
 
                 if (VERBOSE_LEVEL>7)
                         fprintf(stdout,"[751] scaning %s,v%4.2f format \n",GetFileTypeString(hdr->TYPE),hdr->VERSION);
-                                                                 		
+
 		if (!flagSupported) {
 			B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 			B4C_ERRMSG = "This ITX format is not supported. Possible reasons: not generated by Heka-Patchmaster, corrupted, physical units do not match between sweeos, or do not fullfil some other requirements\n";
 			return(hdr);
 		}
-		
+
                 if (VERBOSE_LEVEL>7)
                         fprintf(stdout,"[781] [%i,%i,%i] = %i\n",(int)hdr->NS,(int)hdr->SPR,(int)hdr->NRec,(int)hdr->NRec*hdr->SPR*hdr->NS);
 
-		hdr->EVENT.N = hdr->NRec - 1;  
+		hdr->EVENT.N = hdr->NRec - 1;
 		hdr->EVENT.SampleRate = hdr->SampleRate;
 		hdr->EVENT.POS = (uint32_t*) realloc(hdr->EVENT.POS,hdr->EVENT.N*sizeof(*hdr->EVENT.POS));
 		hdr->EVENT.TYP = (uint16_t*) realloc(hdr->EVENT.TYP,hdr->EVENT.N*sizeof(*hdr->EVENT.TYP));
 
-		hdr->NRec = hdr->SPR;        
-		hdr->SPR  = 1;        
+		hdr->NRec = hdr->SPR;
+		hdr->SPR  = 1;
 		hdr->AS.first  = 0;
 		hdr->AS.length = hdr->NRec;
 		hdr->AS.bpb = sizeof(double)*hdr->NS;
@@ -7585,22 +7586,22 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 			hdr->CHANNEL[ns].SPR = hdr->SPR;
 			hdr->CHANNEL[ns].bi  = sizeof(double)*ns;
 		}
-		
+
        		double *data = (double*)realloc(hdr->AS.rawdata,hdr->NRec*hdr->SPR*hdr->NS*sizeof(double));
-		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN);   // no swapping 
+		hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN);   // no swapping
 		hdr->AS.rawdata = (uint8_t*) data;
-	    	
+
 		/*
-			reads and converts data into biosig structure 
+			reads and converts data into biosig structure
 		*/
 
-	    	spr = 0;SPR = 0; 
+	    	spr = 0;SPR = 0;
     		ifseek(hdr, 0, SEEK_SET);
     		while (!ifeof(hdr)) {
 	    		ifgets(line, IGOR_MAXLENLINE, hdr);
 	    		if (!strncmp(line,"BEGIN",5)) {
 	    			flagData = 1;
-				spr = 0; 
+				spr = 0;
 	    		}
 	    		else if (!strncmp(line,"END",3)) {
 	    			flagData = 0;
@@ -9513,7 +9514,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 		fprintf(stdout,"[189] #%i\n",hdr->NS);
 		
 	for (k=0; k<hdr->NS; k++) {	
-		if (VERBOSE_LEVEL>8)
+		if (VERBOSE_LEVEL>7)
 			fprintf(stdout,"[190] #%i: LeadIdCode=%i\n",k,hdr->CHANNEL[k].LeadIdCode);
 			
 		// set HDR.PhysDim - this part will become obsolete 
@@ -10403,7 +10404,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	} 
 	hdr->AS.bpb8 = bpb8;
 	hdr->AS.bpb  = bpb8>>3;
-	hdr->AS.bpb = bpb8>>3;
 	if ((hdr->TYPE==GDF) && (bpb8 & 0x07)) { 
 		// each block must use whole number of bytes  
 		hdr->AS.bpb++;  
@@ -10795,7 +10795,7 @@ int V = VERBOSE_LEVEL;
 		ptr = ptr1 + (k5*SZ>>3);
 
 		if (VERBOSE_LEVEL>8) 
-			fprintf(stdout,"SREAD 555: k_i = [%d %d %d %d ] 0x%08x[%f] @%p => ",k1,k2,k4,k5,leu32p(ptr),lef64p(ptr),ptr);
+			fprintf(stdout,"SREAD 555: k_i = [%d %d %d %d ] 0x%08x[%f] @%p => ",(int)k1,(int)k2,(int)k4,(int)k5,(int)leu32p(ptr),(int)lef64p(ptr),ptr);
 
 		switch (GDFTYP) { 
 		case 1: 
@@ -11326,17 +11326,17 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 		size_t col = (hdr->data.size[1-hdr->FLAG.ROW_BASED_CHANNELS]<hdr->NS) ? k2 : k1;        // if collapsed data, use k2, otherwise use k1
 
 	if (VERBOSE_LEVEL>7)
-		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i %i %f %f %f %f %i\n",k1,GDFTYP,bi8,SZ,CHptr->SPR,CHptr->Cal,CHptr->Off,iCal,iOff,bpb8);
+		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i %i %f %f %f %f %i\n",k1,GDFTYP,(int)bi8,(int)SZ,(int)CHptr->SPR,CHptr->Cal,CHptr->Off,iCal,iOff,(int)bpb8);
 
 		for (k4 = 0; k4 < hdr->NRec; k4++) {
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
 
 			if (VERBOSE_LEVEL>8)
-				fprintf(stdout,"swrite 313a #%i: [%i %i] %i %i %i %i %i\n",k1,hdr->data.size[0],hdr->data.size[1],k4,k5,hdr->SPR,DIV,nelem);
+				fprintf(stdout,"swrite 313a #%i: [%i %i] %i %i %i %i %i\n",(int)k1,(int)hdr->data.size[0],(int)hdr->data.size[1],(int)k4,(int)k5,(int)hdr->SPR,(int)DIV,(int)nelem);
 
 			size_t k3=0;
 			if (VERBOSE_LEVEL>8)
-				fprintf(stdout,"swrite 313+: [%i %i %i %i %i] %i %i %i %i %i %i\n",k1,k2,k3,k4,k5,col,hdr->data.size[0],hdr->data.size[1],hdr->SPR,nelem,hdr->NRec);
+				fprintf(stdout,"swrite 313+: [%i %i %i %i %i] %i %i %i %i %i %i\n",(int)k1,(int)k2,(int)k3,(int)k4,(int)k5,(int)col,(int)hdr->data.size[0],(int)hdr->data.size[1],(int)hdr->SPR,nelem,(int)hdr->NRec);
 
         		if (hdr->FLAG.ROW_BASED_CHANNELS) {
             			for (k3=0, sample_value=0.0; k3 < DIV; k3++)
@@ -11951,7 +11951,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 			else if (cp->GDFTYP>511) fprintf(fid, " bit%i  ", cp->GDFTYP-511);
 			else if (cp->GDFTYP>255) fprintf(fid, " bit%i  ", cp->GDFTYP-255);
 
-			fprintf(fid,"%e %e %s\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
+			fprintf(fid,"%e %e %s\t%g\t%g\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f\t%5f",
 				cp->Cal, cp->Off, p,  
 				cp->PhysMax, cp->PhysMin, cp->DigMax, cp->DigMin,cp->HighPass,cp->LowPass,cp->Notch,
 				cp->XYZ[0],cp->XYZ[1],cp->XYZ[2]);
