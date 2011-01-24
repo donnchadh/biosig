@@ -95,21 +95,20 @@ int main(int argc, char **argv){
 		fprintf(stdout,"   -f=FMT  \n\tconverts data into format FMT\n");
 		fprintf(stdout,"\tFMT must represent a valid target file format\n"); 
 		fprintf(stdout,"\tCurrently are supported: HL7aECG, SCP_ECG (EN1064), GDF, EDF, BDF, CFWB, BIN, ASCII, BVA (BrainVision)\n"); 
-		fprintf(stdout,"   -z=#, compression level \n");
-		fprintf(stdout,"\t#=0 no compression; #=9 best compression\n");
+		fprintf(stdout,"   -z=#, -z#\n\t# indicates the compression level (#=0 no compression; #=9 best compression, default #=1)\n");
 		fprintf(stdout,"   -s=#\tselect target segment # (in the multisegment file format EEG1100)\n");
-		fprintf(stdout,"   -VERBOSE=#, verbosity level #\n\t0=silent, 9=debugging");
+		fprintf(stdout,"   -VERBOSE=#, verbosity level #\n\t0=silent [default], 9=debugging");
 		fprintf(stdout,"\n\n");
 		return(0);
 	}	
-    	else if (!strncmp(argv[k],"-z",3))  	{
+    	else if (!strncmp(argv[k],"-z",2))  	{
 #ifdef ZLIB_H
-		COMPRESSION_LEVEL = 1;  
-		if (strlen(argv[k])>3) {
-	    		COMPRESSION_LEVEL = argv[k][3]-48;
-	    		if (COMPRESSION_LEVEL<0 || COMPRESSION_LEVEL>9)
-				fprintf(stderr,"Error %s: Invalid Compression Level %s\n",argv[0],argv[k]); 
-    		}   
+		COMPRESSION_LEVEL = 1;	// default 
+		char *s = argv[k] + 2; 
+		if (s[0] == '=') s++;	// skip "="
+		if (strlen(s)>0) COMPRESSION_LEVEL = atoi(s);
+    		if (COMPRESSION_LEVEL<0 || COMPRESSION_LEVEL>9)
+			fprintf(stderr,"Error %s: Invalid Compression Level %s\n",argv[0],argv[k]); 
 #else
 	     	fprintf(stderr,"Warning: option -z (compression) not supported. zlib not linked.\n");
 #endif 
@@ -444,7 +443,7 @@ int main(int argc, char **argv){
 	if (hdr->FILE.COMPRESSION)  // add .gz extension to filename  
 		strcat(tmp,".gz");
 
-	if (VERBOSE_LEVEL>8) 
+	if (VERBOSE_LEVEL>7) 
 		fprintf(stdout,"[211] z=%i sd=%i\n",hdr->FILE.COMPRESSION,hdr->FILE.Des);
 
 	hdr->FLAG.ANONYMOUS = 1; 	// no personal names are processed 
