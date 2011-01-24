@@ -421,9 +421,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 995\n");
 		}
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 997\n");
-
+		
 		t -= 1580970496; if (t<0) t += 4294967296; t += 9561652096;
-		hdr->T0 = t/(24.0*60*60) + 584755; // +datenum(1601,1,1));
+		hdr->T0 = (uint64_t)ldexp(t/(24.0*60*60) + 584755, 32); // +datenum(1601,1,1));
 		hdr->SampleRate = 0.0;
 		double *DT = NULL; 	// list of sampling intervals per channel
 		hdr->SPR = 0;
@@ -453,6 +453,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L1 @%i=\t%i/%i \n",pos+StartOfData,k1,
 				char *SeLabel =  (char*)(hdr->AS.Header+pos+4);		// max 32 bytes
 				strncpy((char*)hdr->AS.auxBUF + 33*k2, (char*)hdr->AS.Header+pos+4, 32); hdr->AS.auxBUF[33*k2+32] = 0;
 				SeLabel = (char*)hdr->AS.auxBUF + 33*k2;
+				double t  = *(double*)(hdr->AS.Header+pos+136);		// time of series 
 				double Delay  = *(double*)(hdr->AS.Header+pos+472+176);
 				*(uint64_t*)&Delay = bswap_64(*(uint64_t*)&Delay);
 
@@ -481,6 +482,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",pos+Star
 					// read sweep
 					hdr->NRec++; 	// increase number of sweeps
 					uint32_t SPR = 0, spr = 0;
+					double t  = *(double*)(hdr->AS.Header+pos+48);		// time of sweep
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+StartOfData,k1,K1,k2,K2,k3,K3);
 
@@ -501,6 +503,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+Sta
 						uint32_t ns      = (*(uint32_t*)(hdr->AS.Header+pos+36));
 						uint32_t DataPos = (*(uint32_t*)(hdr->AS.Header+pos+40));
 						spr              = (*(uint32_t*)(hdr->AS.Header+pos+44));
+						double Toffset   = (*(double*)(hdr->AS.Header+pos+80));		// time offset of 
 						uint16_t pdc     = PhysDimCode((char*)(hdr->AS.Header + pos + 96));
 						uint64_t dT_i    = *(uint64_t*)(hdr->AS.Header+pos+104);
 						double YRange    = (*(double*)(hdr->AS.Header+pos+128));
@@ -542,6 +545,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+Sta
 							*(uint64_t*)&YOffset = bswap_64(*(uint64_t*)&YOffset);
 							*(uint64_t*)&PhysMax = bswap_64(*(uint64_t*)&PhysMax);
 							*(uint64_t*)&PhysMin = bswap_64(*(uint64_t*)&PhysMin);
+							*(uint64_t*)&Toffset = bswap_64(*(uint64_t*)&Toffset);
  						}
 						double Cal = 2 * YRange / (DigMax - DigMin);
 						double Off = YOffset;
@@ -587,6 +591,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 							hc->PhysMin = -YRange-YOffset;
 							hc->Cal = Cal;
 							hc->Off = Off;
+							hc->TOffset = Toffset;
 
 							/* TODO: fix remaining channel header  */
 							/* LowPass, HighPass, Notch, Impedance, */
@@ -649,20 +654,25 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 				}
 			}
 		}
-		if (DT) free(DT);
+
+		/*
+		  if (DT) free(DT);
+		  size_t *BI = (size_t*) malloc(hdr->NS,sizeof(size_t));
+		*/
+		size_t *BI = (size_t*) DT;      // DT is not used anymore, use space for BI
 
 		hdr->NRec = 1;
 		hdr->AS.bpb = 0;
-		for (uint16_t k=0; k<hdr->NS; k++) {
+		for (uint16_t k = 0; k < hdr->NS; k++) {
 			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
-			hc->bi = hdr->AS.bpb;
+			BI[k] = hdr->AS.bpb;
 			hc->SPR = hdr->SPR;
 			hdr->AS.bpb += hc->SPR * GDFTYP_BITS[hc->GDFTYP]>>3;
 		}
 
 		if (B4C_ERRNUM) {
-
-			return(-1);
+			if (BI) free(BI);
+ 			return(-1);
 		}
 
 		hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata, hdr->NRec * hdr->AS.bpb);
@@ -674,16 +684,16 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
 			switch (hc->GDFTYP) {
 			case 3:
-				for (size_t k1=0; k1<hc->SPR; k1++) *(uint16_t*)(hdr->AS.rawdata + hc->bi + k1 * 2) = 0x8000;
+				for (size_t k1=0; k1<hc->SPR; k1++) *(uint16_t*)(hdr->AS.rawdata + BI[k] + k1 * 2) = 0x8000;
 				break;
 			case 5:
-				for (size_t k1=0; k1<hc->SPR; k1++) *(uint32_t*)(hdr->AS.rawdata + hc->bi + k1 * 4) = 0x80000000;
+				for (size_t k1=0; k1<hc->SPR; k1++) *(uint32_t*)(hdr->AS.rawdata + BI[k] + k1 * 4) = 0x80000000;
 				break;
 			case 16:
-				for (size_t k1=0; k1<hc->SPR; k1++) *(float*)(hdr->AS.rawdata + hc->bi + k1 * 4) = 0.0/0.0;
+				for (size_t k1=0; k1<hc->SPR; k1++) *(float*)(hdr->AS.rawdata + BI[k] + k1 * 4) = 0.0/0.0;
 				break;
 			case 17:
-				for (size_t k1=0; k1<hc->SPR; k1++) *(double*)(hdr->AS.rawdata + hc->bi + k1 * 8) = 0.0/0.0;
+				for (size_t k1=0; k1<hc->SPR; k1++) *(double*)(hdr->AS.rawdata + BI[k] + k1 * 8) = 0.0/0.0;
 				break;
 			}
 		}
@@ -770,14 +780,14 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 						// no need to check byte order because File.Endian is set and endian conversion is done in sread
 						switch (hc->GDFTYP) {
 						case 3:
-							memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + SPR * 2, hdr->AS.Header + DataPos, spr * 2);
+							memcpy(hdr->AS.rawdata + BI[ns] + SPR * 2, hdr->AS.Header + DataPos, spr * 2);
 							break;
 						case 5:
 						case 16:
-							memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + SPR * 4, hdr->AS.Header + DataPos, spr * 4);
+							memcpy(hdr->AS.rawdata + BI[ns] + SPR * 4, hdr->AS.Header + DataPos, spr * 4);
 							break;
 						case 17:
-							memcpy(hdr->AS.rawdata + hdr->CHANNEL[ns].bi + SPR * 8, hdr->AS.Header + DataPos, spr * 8);
+							memcpy(hdr->AS.rawdata + BI[ns] + SPR * 8, hdr->AS.Header + DataPos, spr * 8);
 							break;
 						}
 
@@ -787,8 +797,11 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 				}
 			}
 		}
+		if (BI) free(BI);
 		hdr->AS.first  = 0;
 		hdr->AS.length = hdr->NRec;
+		free(hdr->AS.Header);
+		hdr->AS.Header = NULL; 
 
 	}
 	else if (hdr->TYPE==ITX) {

@@ -426,7 +426,7 @@ void mexFunction(
 		const char *fnames[] = {"TYPE","VERSION","FileName","T0","FILE","Patient",\
 		"HeadLen","NS","SPR","NRec","SampleRate", "FLAG", \
 		"EVENT","Label","LeadIdCode","PhysDimCode","PhysDim","Filter",\
-		"PhysMax","PhysMin","DigMax","DigMin","Transducer","Cal","Off","GDFTYP",\
+		"PhysMax","PhysMin","DigMax","DigMin","Transducer","Cal","Off","GDFTYP","TOffset",\
 		"LowPass","HighPass","Notch","ELEC","Impedance","fZ","AS","Dur","REC","Manufacturer",NULL};
 
 		for (numfields=0; fnames[numfields++] != 0; );
@@ -462,6 +462,7 @@ void mexFunction(
 		mxArray *DigMin      = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
 		mxArray *Cal         = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
 		mxArray *Off         = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
+		mxArray *Toffset     = mxCreateDoubleMatrix(1,hdr->NS, mxREAL);
 		mxArray *ELEC_POS    = mxCreateDoubleMatrix(hdr->NS,3, mxREAL);
 		mxArray *ELEC_Orient = mxCreateDoubleMatrix(hdr->NS,3, mxREAL);
 		mxArray *ELEC_Area   = mxCreateDoubleMatrix(hdr->NS,1, mxREAL);
@@ -484,6 +485,7 @@ void mexFunction(
 			*(mxGetPr(PhysMin)+k) 	  = (double)hdr->CHANNEL[k].PhysMin;
 			*(mxGetPr(DigMax)+k) 	  = (double)hdr->CHANNEL[k].DigMax;
 			*(mxGetPr(DigMin)+k) 	  = (double)hdr->CHANNEL[k].DigMin;
+			*(mxGetPr(Toffset)+k) 	  = (double)hdr->CHANNEL[k].TOffset;
 			*(mxGetPr(Cal)+k) 	  = (double)hdr->CHANNEL[k].Cal;
 			*(mxGetPr(Off)+k) 	  = (double)hdr->CHANNEL[k].Off;
 			*(mxGetPr(SPR)+k) 	  = (double)hdr->CHANNEL[k].SPR;
@@ -516,6 +518,7 @@ void mexFunction(
 		mxSetField(HDR,0,"PhysMin",PhysMin);
 		mxSetField(HDR,0,"DigMax",DigMax);
 		mxSetField(HDR,0,"DigMin",DigMin);
+		mxSetField(HDR,0,"TOffset",Toffset);
 		mxSetField(HDR,0,"Cal",Cal);
 		mxSetField(HDR,0,"Off",Off);
 		mxSetField(HDR,0,"Impedance",Impedance);

@@ -156,7 +156,7 @@ enum FileFormat {
 	ASCII_IBI, ASCII,
 	ARFF, SASXPT, SPSS, STATA,
 	CFS, HEKA, ITX, NEURON,
-	MSVCLIB
+	MSVCLIB, MS_LNK
 };
 
 
@@ -164,8 +164,8 @@ EXTERN_C int   B4C_ERRNUM;
 EXTERN_C const char *B4C_ERRMSG;
 
 #define BIOSIG_VERSION_MAJOR 0
-#define BIOSIG_VERSION_MINOR 95
-#define BIOSIG_VERSION_STEPPING 2
+#define BIOSIG_VERSION_MINOR 96
+#define BIOSIG_VERSION_STEPPING 1
 #define BIOSIG_VERSION (BIOSIG_VERSION_MAJOR+0.01*BIOSIG_VERSION_MINOR)
 
 EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
@@ -258,6 +258,7 @@ typedef struct CHANNEL_STRUCT {
 	uint16_t	PhysDimCode ATT_ALI;	/* code for physical dimension */
 	/* char* 	PreFilt;	// pre-filtering */
 
+	float 		TOffset 	ATT_ALI;	/* time delay of sampling */
 	float 		LowPass		ATT_ALI;	/* lowpass filter */
 	float 		HighPass	ATT_ALI;	/* high pass */
 	float 		Notch		ATT_ALI;	/* notch filter */
@@ -265,10 +266,11 @@ typedef struct CHANNEL_STRUCT {
 //	float 		Orientation[3]	ATT_DEPREC;	// sensor direction
 //	float 		Area		ATT_DEPREC;	// area of sensor (e.g. for MEG)
 
+	union {
         /* context specific channel information */
 	float 		Impedance	ATT_ALI;   	/* Electrode Impedance in Ohm, defined only if PhysDim = _Volt */
 	float 		fZ        	ATT_ALI;   	/* ICG probe frequency, defined only if PhysDim = _Ohm */
-	/* end of context specific channel information */
+	} ATT_ALI;
 
 	uint16_t 	GDFTYP 		ATT_ALI;	/* data type */
 	uint32_t 	SPR 		ATT_ALI;	/* samples per record (block) */
