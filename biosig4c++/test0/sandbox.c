@@ -26,6 +26,7 @@
 
  */
 
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -655,48 +656,60 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 			}
 		}
 
-		/*
-		  if (DT) free(DT);
-		  size_t *BI = (size_t*) malloc(hdr->NS,sizeof(size_t));
-		*/
+#ifndef NO_BI
+		if (DT) free(DT);
+#else
 		size_t *BI = (size_t*) DT;      // DT is not used anymore, use space for BI
+#endif
+                DT = NULL;
 
 		hdr->NRec = 1;
 		hdr->AS.bpb = 0;
 		for (uint16_t k = 0; k < hdr->NS; k++) {
 			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
+#ifndef NO_BI
+			hc->bi = hdr->AS.bpb;
+#else
 			BI[k] = hdr->AS.bpb;
+#endif
 			hc->SPR = hdr->SPR;
 			hdr->AS.bpb += hc->SPR * GDFTYP_BITS[hc->GDFTYP]>>3;
 		}
 
 		if (B4C_ERRNUM) {
+#ifdef NO_BI
 			if (BI) free(BI);
+#endif
  			return(-1);
 		}
 
 		hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata, hdr->NRec * hdr->AS.bpb);
 		memset(hdr->AS.rawdata, 0xff, hdr->NRec * hdr->AS.bpb); 	// initialize with NaN's
 
-
+#ifdef NO_BI
+#define _BI (BI[k])
+#else
+#define _BI (hc->bi)
+#endif
 		/* initialize with NaN's */
 		for (uint16_t k=0; k<hdr->NS; k++) {
 			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
 			switch (hc->GDFTYP) {
 			case 3:
-				for (size_t k1=0; k1<hc->SPR; k1++) *(uint16_t*)(hdr->AS.rawdata + BI[k] + k1 * 2) = 0x8000;
+				for (size_t k1=0; k1<hc->SPR; k1++) *(uint16_t*)(hdr->AS.rawdata + _BI + k1 * 2) = 0x8000;
 				break;
 			case 5:
-				for (size_t k1=0; k1<hc->SPR; k1++) *(uint32_t*)(hdr->AS.rawdata + BI[k] + k1 * 4) = 0x80000000;
+				for (size_t k1=0; k1<hc->SPR; k1++) *(uint32_t*)(hdr->AS.rawdata + _BI + k1 * 4) = 0x80000000;
 				break;
 			case 16:
-				for (size_t k1=0; k1<hc->SPR; k1++) *(float*)(hdr->AS.rawdata + BI[k] + k1 * 4) = 0.0/0.0;
+				for (size_t k1=0; k1<hc->SPR; k1++) *(float*)(hdr->AS.rawdata + _BI + k1 * 4) = 0.0/0.0;
 				break;
 			case 17:
-				for (size_t k1=0; k1<hc->SPR; k1++) *(double*)(hdr->AS.rawdata + BI[k] + k1 * 8) = 0.0/0.0;
+				for (size_t k1=0; k1<hc->SPR; k1++) *(double*)(hdr->AS.rawdata + _BI + k1 * 8) = 0.0/0.0;
 				break;
 			}
 		}
+#undef _BI
 
 
 if (VERBOSE_LEVEL>7) hdr2ascii(hdr,stdout,4);
@@ -776,20 +789,26 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+Sta
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %i/%i %i/%i \n",pos+StartOfData,ns,AdcChan,spr,SPR,Label,k1,K1,k2,K2,k3,K3,k4,K4);
 
+#ifdef NO_BI
+#define _BI (BI[ns])
+#else
+#define _BI (hc->bi)
+#endif
 						double *data = (double*)hdr->AS.rawdata;
 						// no need to check byte order because File.Endian is set and endian conversion is done in sread
 						switch (hc->GDFTYP) {
 						case 3:
-							memcpy(hdr->AS.rawdata + BI[ns] + SPR * 2, hdr->AS.Header + DataPos, spr * 2);
+							memcpy(hdr->AS.rawdata + _BI + SPR * 2, hdr->AS.Header + DataPos, spr * 2);
 							break;
 						case 5:
 						case 16:
-							memcpy(hdr->AS.rawdata + BI[ns] + SPR * 4, hdr->AS.Header + DataPos, spr * 4);
+							memcpy(hdr->AS.rawdata + _BI + SPR * 4, hdr->AS.Header + DataPos, spr * 4);
 							break;
 						case 17:
-							memcpy(hdr->AS.rawdata + BI[ns] + SPR * 8, hdr->AS.Header + DataPos, spr * 8);
+							memcpy(hdr->AS.rawdata + _BI + SPR * 8, hdr->AS.Header + DataPos, spr * 8);
 							break;
 						}
+#undef _BI
 
 						pos += Sizes.Rec.Trace+4;
 					}
@@ -797,7 +816,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 				}
 			}
 		}
+#ifdef NO_BI
 		if (BI) free(BI);
+#endif
 		hdr->AS.first  = 0;
 		hdr->AS.length = hdr->NRec;
 		free(hdr->AS.Header);
@@ -834,7 +855,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 			else if (!strncmp(line,"BEGIN",5)) {
 				flag = 1;
 				spr = 0;
-		}
+                        }
 		    	else if (!strncmp(line,"END",3)) {
 				flag = 0;
 				hdr->CHANNEL[ns].SPR += spr;
@@ -900,8 +921,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 
 		hdr->SPR = 0;
 		for (ns=0; ns<NS; ns++) {
+#ifndef NO_BI
 			hdr->CHANNEL[ns].bi  = SPR*sizeof(double);
-			hdr->CHANNEL[ns].bi8 = SPR*sizeof(double)*8;
+#endif
 			SPR += hdr->CHANNEL[ns].SPR;
 			if (hdr->SPR < hdr->CHANNEL[ns].SPR)
 				hdr->SPR = hdr->CHANNEL[ns].SPR;
@@ -929,7 +951,11 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 				IgorChanLabel(line+6, hdr, &ngroup, &nseries, &nsweep, &ns); 	// terminating \0
 			}
 	    		else if (flag) {
+#ifndef NO_BI
 	    			data[hdr->CHANNEL[ns].SPR + hdr->CHANNEL[ns].bi + spr++] = atof(line);
+#else
+#error .bi not defined yet
+#endif
 	    		}
 	    	}
 		hdr->NRec = 1;
