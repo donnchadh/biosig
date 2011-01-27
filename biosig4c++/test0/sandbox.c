@@ -168,42 +168,6 @@ int sopen_eeprobe(HDRTYPE* hdr) {
 
 #define ITX_MAXLINELENGTH 400
 
-size_t NumSegments = 0, NSEGS=0;
-struct SegElem_t {
-	size_t group;	// 0: undefined
-	size_t series;	// 0: undefined
-	size_t sweep;	// 0: undefined
-	size_t chan;	// 0: undefined
-	size_t SPR;
-	double Fs;
-	double Cal;
-	double Off;
-	char   Label[ITX_MAXLINELENGTH+1];
-} *SegElem;
-
-
-void ReadPatchMasterTree(char *mem) {
-	char SWAP = (*(uint32_t*)mem == 0x54726565) ^ (__BYTE_ORDER == __BIG_ENDIAN);
-	uint32_t N = *(uint32_t*)(mem+4);
-	if (SWAP) N = bswap_32(N);
-	uint32_t M[9];
-	for (int k=0; k<N; k++) {
-		M[k] = *(uint32_t*)(mem + 8 + 4*k);
-		if (SWAP) M[k] = bswap_32(M[k]);
-	}
-}
-
-
-
-/*
-#define RootRecSize   544
-#define GroupRecSize  128
-#define SeriesRecSize 1120
-#define SweepRecSize  160
-#define TraceRecSize  296
-#define AmplifierStateSize 400
-*/
-
 char *IgorChanLabel(char *inLabel, HDRTYPE *hdr, size_t *ngroup, size_t *nseries, size_t *nsweep, size_t *ns) {
 	/*
 		extract Channel Label of IGOR ITX data format
@@ -277,6 +241,7 @@ int sopen_zzztest(HDRTYPE* hdr) {
 	if (0) {
 
 	}
+
 	else if (hdr->TYPE==HEKA && hdr->VERSION == 2) {
 		fprintf(stdout,"Warning: support for HEKA-PatchMaster is very experimental\n");
 
@@ -655,6 +620,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 				}
 			}
 		}
+                hdr->EVENT.SampleRate = hdr->SampleRate; 
 
 #ifndef NO_BI
 		if (DT) free(DT);
@@ -825,6 +791,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 		hdr->AS.Header = NULL; 
 
 	}
+
+	else if (hdr->TYPE==HEKA) {
+		B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+		B4C_ERRMSG = "Heka/Patchmaster format has unsupported version number.";
+        }
+
 	else if (hdr->TYPE==ITX) {
 
 		fprintf(stdout,"Warning: support for ITX is very experimental\n");
@@ -891,13 +863,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 				ns++;
 			}
 			else if (!strncmp(line,"WAVES",5)) {
-				NumSegments++;
-				if (NumSegments >= NSEGS) {
-					NSEGS = max(NSEGS*2,16);
-					SegElem = (SegElem_t*)realloc(SegElem,NSEGS*sizeof(SegElem_t));
-				}
-
-				IgorChanLabel(line+6, hdr, &ngroup, &nseries, &nsweep, &ns); 	// terminating \0
+	    			// get properties of current trace, allocate new channel when needed
+				IgorChanLabel(line+6, hdr, &ngroup, &nseries, &nsweep, &ns);
 				CHANNEL_TYPE *hc = hdr->CHANNEL+ns;
 
 				hc->OnOff    = 1;
@@ -940,15 +907,14 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 	    		if (!strncmp(line,"BEGIN",5)) {
 	    			flag = 1;
 	    			spr = 0;
-
 	    		}
 	    		else if (!strncmp(line,"END",3)) {
 	    			flag = 0;
 	    			hdr->CHANNEL[ns].SPR += spr;
 	    		}
 	    		else if (!strncmp(line,"WAVES",5)) {
-	    			// get current channel
-				IgorChanLabel(line+6, hdr, &ngroup, &nseries, &nsweep, &ns); 	// terminating \0
+	    			// get properties of current trace
+				IgorChanLabel(line+6, hdr, &ngroup, &nseries, &nsweep, &ns);
 			}
 	    		else if (flag) {
 #ifndef NO_BI
