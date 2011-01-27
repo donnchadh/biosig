@@ -40,58 +40,62 @@ typedef int64_t nrec_t; 	/* type for number of records */
 
 	/* list of file formats */
 enum FileFormat {
-	noFile, unknown, 
-	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, AU, ASF, ATES, ATF, AVI,
-	BCI2000, BDF, BIN, BKR, BLSC, BMP, BNI, BSCS, 
-	BrainVision, BrainVisionVAmp, BrainVisionMarker, BZ2, 
-	CDF, CFWB, CNT, CTF, DICOM, DEMG, 
-	EBS, EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI, 
-	EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF, 
+	noFile, unknown,
+	ABF, ACQ, ACR_NEMA, AIFC, AIFF, AINF, alpha, ARFF, 
+	ASCII_IBI, ASCII, AU, ASF, ATES, ATF, AVI,
+	BCI2000, BDF, BIN, BKR, BLSC, BMP, BNI, BSCS,
+	BrainVision, BrainVisionVAmp, BrainVisionMarker, BZ2,
+	CDF, CFS, CFWB, CNT, CTF, DICOM, DEMG,
+	EBS, EDF, EEG1100, EEProbe, EEProbe2, EEProbeAvr, EGI,
+	EGIS, ELF, EMBLA, ET_MEG, ETG4000, EVENT, EXIF,
 	FAMOS, FEF, FITS, FLAC, GDF, GDF1,
-	GIF, GTF, GZIP, HDF, HL7aECG, ISHNE, JPEG, Lexicor, 
-	Matlab, MFER, MIDI, MIT, MM, MSI, 
-	native, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
-	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB, 
-	PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS, 
-	RDF, RIFF, 
-	SCP_ECG, SIGIF, Sigma, SMA, SND, SVG, SXI,    
-	TIFF, TMS32, TMSiLOG, TRC, UNIPRO, VRML, VTK, 
-	WAV, WinEEG, WMF, XML, XPM, 
-	Z, ZIP, ZIP2,
-	ASCII_IBI, ASCII, 
-	ARFF, SASXPT, SPSS, STATA, 
-	CFS, HEKA, ITX, NEURON,
-	MSVCLIB
+	GIF, GTF, GZIP, HDF, HL7aECG, HEKA, 
+	ISHNE, ITX, JPEG, Lexicor,
+	Matlab, MFER, MIDI, MIT, MM, MSI, MSVCLIB, MS_LNK, 
+	native, NEURON, NetCDF, NEX1, NIFTI, OGG, OpenXDF,
+	PBMA, PBMN, PDF, PDP, Persyst, PGMA, PGMB,
+	PLEXON, PNG, PNM, POLY5, PPMA, PPMB, PS,
+	RDF, RIFF,
+	SASXPT, SCP_ECG, SIGIF, Sigma, SMA, SND, SPSS, STATA, SVG, SXI,
+	TIFF, TMS32, TMSiLOG, TRC, UNIPRO, VRML, VTK,
+	WAV, WinEEG, WMF, XML, XPM,
+	Z, ZIP, ZIP2
 };
 
-typedef struct {
-	double 		PhysMin;	/* physical minimum */
-	double 		PhysMax;	/* physical maximum */
-	double 		DigMin;		/* digital minimum */
-	double	 	DigMax;		/* digital maximum */
-	double		Cal;		/* gain factor */ 
-	double		Off;		/* bias */ 
 
-	uint8_t		OnOff; 		
-	char		Label[MAX_LENGTH_LABEL+1]; 	/* Label of channel */
-	uint16_t	LeadIdCode;	/* Lead identification code */ 
+typedef struct CHANNEL_STRUCT {
+	double 		PhysMin;		/* physical minimum */
+	double 		PhysMax;		/* physical maximum */
+	double 		DigMin;			/* digital minimum */
+	double	 	DigMax;			/* digital maximum */
+	double		Cal;			/* gain factor */
+	double		Off;			/* bias */
+
+	char		OnOff;
+	char		Label[MAX_LENGTH_LABEL+1]; 		/* Label of channel */
+	uint16_t	LeadIdCode;				/* Lead identification code */
 	char 		Transducer[MAX_LENGTH_TRANSDUCER+1];	/* transducer e.g. EEG: Ag-AgCl electrodes */
-#	char 		PhysDim[MAX_LENGTH_PHYSDIM+1];	/* physical dimension */
-	uint16_t	PhysDimCode;	/* code for physical dimension */
-	/* char* 	PreFilt;	// pre-filtering */
+	char 		PhysDim[MAX_LENGTH_PHYSDIM+1] ;		/* physical dimension */
+			/*PhysDim is now obsolete - use function PhysDim(PhysDimCode,PhysDimText) instead */
+	uint16_t	PhysDimCode;		/* code for physical dimension */
+	/* char* 	PreFilt;		// pre-filtering */
 
-	float 		LowPass;	/* lowpass filter */
-	float 		HighPass;	/* high pass */
-	float 		Notch;		/* notch filter */
-	float 		XYZ[3];		/* sensor position */
-//	float 		Orientation[3];	/* sensor direction */
-//	float 		Area;		/* area of sensor (in m^2 e.g. for MEG) */
-	float 		Impedance;   	/* in Ohm */
-	float 		fZ;	   	/* probe freqency in Hertz */
-	
-	uint16_t 	GDFTYP;		/* data type */
-	uint32_t 	SPR;		/* samples per record (block) */
-	
+	float 		TOffset;		/* time delay of sampling */
+	float 		LowPass;		/* lowpass filter */
+	float 		HighPass;		/* high pass */
+	float 		Notch;			/* notch filter */
+	float 		XYZ[3];			/* sensor position */
+//	float 		Orientation[3];		// sensor direction
+//	float 		Area;			// area of sensor (e.g. for MEG)
+
+	union {
+        /* context specific channel information */
+	float 		Impedance;   		/* Electrode Impedance in Ohm, defined only if PhysDim = _Volt */
+	float 		fZ;	   		/* ICG probe frequency, defined only if PhysDim = _Ohm */
+	};
+
+	uint16_t 	GDFTYP;			/* data type */
+	uint32_t 	SPR;			/* samples per record (block) */
 } CHANNEL_TYPE;
 
 

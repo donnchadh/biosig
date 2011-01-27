@@ -42,6 +42,8 @@
 */
 
 
+/* TODO: ensure that hdr->CHANNEL[.].TOffset gets initialized after very alloc() */
+
 #include <ctype.h>
 #include <errno.h>
 #include <float.h>
@@ -1828,6 +1830,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 	      	hc->DigMin    = -2048;
 	      	hc->Cal	      = NaN; 
 	      	hc->Off	      = 0.0; 
+	      	hc->TOffset   = 0.0; 
 	      	hc->GDFTYP    = 3;	// int16
 	      	hc->SPR       = 1;	// one sample per block
 	      	hc->bi 	      = 2*k;
@@ -2390,6 +2393,10 @@ HDRTYPE* getfiletype(HDRTYPE* hdr)
 	{	hdr->TYPE = TRC; // Micromed *.TRC format 
 		hdr->FILE.LittleEndian = 1;
     	}
+	else if (!memcmp(hdr->AS.Header,"\x4c\x00\x00\x00\x01\x14\x02\x00\x00\x00\x00\x00\xC0\x00\x00\x00\x00\x00\x46",20)) 
+	{	hdr->TYPE = MS_LNK; // Microsoft *.LNK format 
+		hdr->FILE.LittleEndian = 1;
+ 	}
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"[228] %i %s %s \n",hdr->TYPE,GetFileTypeString(hdr->TYPE),hdr->FileName);
     	
@@ -2475,7 +2482,8 @@ const char* GetFileTypeString(enum FileFormat FMT) {
 	case MIT: 	{ FileType = "MIT"; break; }
 	case MM: 	{ FileType = "MatrixMarket"; break; }
 	case MSI: 	{ FileType = "MSI"; break; }
-	case MSVCLIB: 	{ FileType = "MS VC++ Library"; break; }
+	case MS_LNK:    { FileType = ".LNK"; break; }
+ 	case MSVCLIB: 	{ FileType = "MS VC++ Library"; break; }
 
 	case native: 	{ FileType = "native"; break; }
 	case NetCDF: 	{ FileType = "NetCDF"; break; }
@@ -3077,6 +3085,7 @@ int gdfbin2struct(HDRTYPE *hdr)
 				hc->LowPass  = NaN;
 				hc->HighPass = NaN;
 				hc->Notch    = NaN;
+				hc->TOffset = NaN;
 				float lf,hf;
 				if (sscanf(PreFilt,"%f - %f Hz",&lf,&hf)==2) {
 					hc->LowPass  = hf;
@@ -3096,8 +3105,9 @@ int gdfbin2struct(HDRTYPE *hdr)
 				hc->XYZ[0]   = lef32p(Header2+ 4*k + 224*hdr->NS);
 				hc->XYZ[1]   = lef32p(Header2+ 4*k + 228*hdr->NS);
 				hc->XYZ[2]   = lef32p(Header2+ 4*k + 232*hdr->NS);
-				//memcpy(&hc->XYZ,Header2 + 4*k + 224*hdr->NS,12);
+				// memcpy(&hc->XYZ,Header2 + 4*k + 224*hdr->NS,12);
 				hc->Impedance= ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);
+				hc->TOffset  = NaN;
 
         		     	if (hdr->VERSION < (float)2.19) 
         				hc->Impedance = ldexp(1.0, (uint8_t)Header2[k + 236*hdr->NS]/8);

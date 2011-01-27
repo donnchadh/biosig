@@ -429,7 +429,7 @@ void mexFunction(
 		"PhysMax","PhysMin","DigMax","DigMin","Transducer","Cal","Off","GDFTYP","TOffset",\
 		"LowPass","HighPass","Notch","ELEC","Impedance","fZ","AS","Dur","REC","Manufacturer",NULL};
 
-		for (numfields=0; fnames[numfields++] != 0; );
+		for (numfields=0; fnames[numfields++] != NULL; );
 		HDR = mxCreateStructMatrix(1, 1, --numfields, fnames);
 
 		mxSetField(HDR,0,"TYPE",mxCreateString(GetFileTypeString(hdr->TYPE)));
