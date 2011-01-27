@@ -478,29 +478,6 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+Sta
 						double PhysMin   = (*(double*)(hdr->AS.Header+pos+224));
 						double PhysMax   = (*(double*)(hdr->AS.Header+pos+232));
 
-
-						switch (hdr->AS.Header[pos+70]) {
-						case 0: gdftyp = 3; 		//int16
-							DigMax = (double)(int16_t)0x7fff;
-							DigMin = (double)(int16_t)0x8000;
-							break;
-						case 1: gdftyp = 5; 		//int32
-							DigMax = (double)(int32_t)0x7fffffff;
-							DigMin = (double)(int32_t)0x80000000;
-							break;
-						case 2: gdftyp = 16; 		//float32
-							DigMax =  1e9;
-							DigMin = -1e9;
-							break;
-						case 3: gdftyp = 17; 		//float64
-							DigMax =  1e9;
-							DigMin = -1e9;
-							break;
-						default:
-							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-							B4C_ERRMSG = "Heka/Patchmaster: data type not supported.";
-						};
-
 						if (SWAP) {
  							AdcChan = bswap_16(AdcChan);
  							ns  = bswap_32(ns);
@@ -513,8 +490,35 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+Sta
 							*(uint64_t*)&PhysMin = bswap_64(*(uint64_t*)&PhysMin);
 							*(uint64_t*)&Toffset = bswap_64(*(uint64_t*)&Toffset);
  						}
-						double Cal = 2 * YRange / (DigMax - DigMin);
+
+						double Cal;
 						double Off = YOffset;
+						switch (hdr->AS.Header[pos+70]) {
+						case 0: gdftyp = 3; 		//int16
+							DigMax = (double)(int16_t)0x7fff;
+							DigMin = (double)(int16_t)0x8000;
+							Cal    = ldexp(YRange, -15); 
+							break;
+						case 1: gdftyp = 5; 		//int32
+							DigMax = (double)(int32_t)0x7fffffff;
+							DigMin = (double)(int32_t)0x80000000;
+							Cal    = ldexp(YRange, -31); 
+							break;
+						case 2: gdftyp = 16; 		//float32
+							DigMax =  1e9;
+							DigMin = -1e9;
+							Cal = YRange / DigMax;
+							break;
+						case 3: gdftyp = 17; 		//float64
+							DigMax =  1e9;
+							DigMin = -1e9;
+							Cal = YRange / DigMax;
+							break;
+						default:
+							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+							B4C_ERRMSG = "Heka/Patchmaster: data type not supported.";
+						};
+
 
                                                 // sample rate
 						double dT = *(double*)(&dT_i);
