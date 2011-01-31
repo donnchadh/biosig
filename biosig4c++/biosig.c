@@ -5834,7 +5834,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n******* DS variable information *********
 		datapos = LastDataSectionHeaderOffset; //H1LEN + H2LEN*hdr->NS + n*36;
 		// reverse order of data sections
 		uint32_t *DATAPOS = (uint32_t*)malloc(sizeof(uint32_t)*NumberOfDataSections);
-		
+
 		uint8_t m;
 		for (m = NumberOfDataSections; 0 < m; ) {
 			DATAPOS[--m] = datapos;
@@ -5915,7 +5915,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 409: %i #%i: SPR=%i=%i=%i  x%f+-%f %i\n
 						double val;
 
 						switch (hc->GDFTYP) {
-						// reorder for performance reasons - more frequent gdftyp's come first	
+						// reorder for performance reasons - more frequent gdftyp's come first
 						case 3:  val = lei16p(ptr); break;
 						case 4:  val = leu16p(ptr); break;
 						case 16: val = lef32p(ptr); break;
@@ -5933,7 +5933,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 409: %i #%i: SPR=%i=%i=%i  x%f+-%f %i\n
 						}
 
 if (VERBOSE_LEVEL>8)
- 	fprintf(stdout,"CFS read: %2i #%2i:%5i [%i]: %f -> %f  @%p\n",m,k,k2,bpb,SPR,val,val*hc->Cal + hc->Off, hdr->AS.rawdata + ((SPR + k2) * hdr->NS + k) * sizeof(double));						
+ 	fprintf(stdout,"CFS read: %2i #%2i:%5i [%i]: %f -> %f  @%p\n",m,k,k2,bpb,SPR,val,val*hc->Cal + hc->Off, hdr->AS.rawdata + ((SPR + k2) * hdr->NS + k) * sizeof(double));
 
 						*(double*) (hdr->AS.rawdata + k * sizeof(double) + (SPR + k2) * hdr->NS * sizeof(double)) = val * hc->Cal + hc->Off;
 					}
@@ -5943,7 +5943,7 @@ if (VERBOSE_LEVEL>8)
 			else {
 				hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,sz);
 				memcpy(hdr->AS.rawdata, hdr->AS.Header + leu32p(hdr->AS.Header+datapos + 4), leu32p(hdr->AS.Header+datapos + 8));
-				hdr->AS.bpb = sz; 
+				hdr->AS.bpb = sz;
 			}
 
 			if (m>0) {
@@ -5952,15 +5952,15 @@ if (VERBOSE_LEVEL>8)
 				hdr->EVENT.CHN[hdr->EVENT.N] = 0;
 				hdr->EVENT.DUR[hdr->EVENT.N] = 0;
 				hdr->EVENT.N++;
-			}	
+			}
 
 			SPR += spr;
-			SZ  += sz; 
+			SZ  += sz;
 if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 414: SPR=%i,%i,%i NRec=%i, @%p\n",spr,SPR,hdr->SPR,hdr->NRec, hdr->AS.rawdata);
 
 			// for (k = 0; k < d; k++) {
 			for (k = 0; k < 0; k++) {
-			// read data variables of each block - this currently broken. 	
+			// read data variables of each block - this currently broken.
 				//size_t pos = leu16p(hdr->AS.Header + datapos + 30 + hdr->NS * 24 + k * 36 + 34);
 				size_t pos = datapos + 30 + hdr->NS * 24;
 				int i; double f;
@@ -5987,14 +5987,15 @@ if (VERBOSE_LEVEL>7) {
 			}
 			datapos = leu32p(hdr->AS.Header + datapos);
 		}
-		free(DATAPOS); 
+		free(DATAPOS);
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 419: SPR=%i=%i NRec=%i  @%p\n",SPR,hdr->SPR,hdr->NRec, hdr->AS.rawdata);
 
 		hdr->AS.first = 0;
+		hdr->EVENT.SampleRate = hdr->SampleRate;
 		if (NumberOfDataSections<=1) {
-			// hack: copy data into a single block, only if more than one section	
-			hdr->FLAG.UCAL = 0; 
+			// hack: copy data into a single block, only if more than one section
+			hdr->FLAG.UCAL = 0;
 			hdr->SPR  = SPR;
 			hdr->NRec = 1;
 			hdr->AS.length = 1;
@@ -6007,7 +6008,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 419: SPR=%i=%i NRec=%i  @%p\n",SPR,hdr-
 			hdr->AS.length = SPR;
 			for (k = 0; k < hdr->NS; k++) {
 				CHANNEL_TYPE *hc = hdr->CHANNEL + k;
-				hc->GDFTYP  = 17;	// double 
+				hc->GDFTYP  = 17;	// double
 				hc->bi      = sizeof(double)*k;
 				hc->SPR     = hdr->SPR;
 				hc->Cal     = 1.0;
