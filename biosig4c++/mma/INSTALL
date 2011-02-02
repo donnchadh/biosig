@@ -1,0 +1,28 @@
+
+
+Compling for Linux/Unix/Mac platform:
+	adapt Makefile with the correct directory in the section "userspecified variables"
+	and run 
+    make 
+    
+    Usse the file "sload" for loading 
+
+Compiling for Windows 
+	Compilation on the windows platform has not been tested yet.  
+	I used a cross-compiler on Linux for compiling the windows executable. 
+	Set setup mingw-cross-env and wine on some Linux machine, 
+	Copy the Mathlink developer files 
+		e.g. C:\Program Files\Wolfram Research\Mathematica\7.0\SystemFiles\Links\MathLink\DeveloperKit\Windows*
+	from Windows to the linux computer (copyied them into the corresponding Mathematica directory on linux)
+		e.g. /usr/local/Wolfram/gridMathematicaServer/7.0/SystemFiles/Links/MathLink/DeveloperKit/
+	Adapt the user-defined variables in Makefile.win32
+	and run 
+
+    make win32
+
+
+Copyright (C) 2011 Alois Schloegl 
+[1] http://pub.ist.ac.at/~schloegl/biosig/TESTED
+
+
+

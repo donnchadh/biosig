@@ -18,21 +18,23 @@ EXTRALIBS = -lm -lpthread -lrt -lstdc++ -lcholmod -lz -L.. -lbiosig# Set these w
 
 MPREP     = ${CADDSDIR}/mprep
 
-all: sload.exe
+all: sload
 
+win, win32:
+	make -f Makefile.win32
 
 .c.o :
 	${CC} -c -I${INCDIR} $<
 
-
 sloadtm.c : sload.tm
 	${MPREP} $? -o $@
 
-sload.exe: sload.o sloadtm.o ../libbiosig.a
+sload: sload.o sloadtm.o ../libbiosig.a
 	${CC} sloadtm.o sload.o -L${LIBDIR} -l${MLLIB} ${EXTRALIBS} -o $@
 
-
 clean: 
-	rm *.exe
-	rm *.o
-	rm *tm.c
+	-rm *.exe
+	-rm *.o
+	-rm *.obj
+	-rm *tm.c
+	-rm sload

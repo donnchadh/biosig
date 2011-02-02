@@ -44,7 +44,11 @@ if (VERBOSE_LEVEL > 5)
 	hdr->FLAG.ROW_BASED_CHANNELS = 1;
 	sread(NULL, 0, hdr->NRec*hdr->SPR, hdr);
 
+#ifdef _WIN32
+	long int sz[2];
+#else
 	size_t sz[2];
+#endif
 	sz[0] = hdr->data.size[1];
 	sz[1] = hdr->data.size[0];
 	if (!MLPutRealArray(stdlink, hdr->data.block, sz, NULL, 2))	
