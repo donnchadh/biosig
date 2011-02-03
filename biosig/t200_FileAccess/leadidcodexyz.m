@@ -133,7 +133,7 @@ else    % electrode code and position
         tmp.flag2 = isfield(HDR,'LeadIdCode');
         tmp.flag3 = isfield(HDR,'Label');
 
-        if (~tmp.flag1 | ~tmp.flag2 | ~tmp.flag3),
+        if (~tmp.flag1 || ~tmp.flag2 || ~tmp.flag3),
         	if 0, 
         	elseif tmp.flag3,
                         if ischar(HDR.Label)

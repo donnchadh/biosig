@@ -118,7 +118,7 @@ tmp  = sort(abs([cdelim,rdelim]));
 flag = zeros(size(tmp));
 k1 = 1;
 k2 = 1;
-while (k1 <= length(tmp)) & (k2 <= length(valid_delim)),
+while (k1 <= length(tmp)) && (k2 <= length(valid_delim)),
         if tmp(k1) == valid_delim(k2),            
                 flag(k1) = 1; 
                 k1 = k1 + 1;
@@ -134,7 +134,7 @@ end;
 
 %%%%% various input parameters 
 if isnumeric(s) 
-	if all(s<256) & all(s>=0)
+	if all(s<256) && all(s>=0)
     	        s = char(s);
 	else
 		error('STR2DOUBLE: input variable must be a string')
@@ -180,7 +180,7 @@ else %if isschar(s),
         sl = length(s);
         ix = 1;
         %while (ix < sl) & any(abs(s(ix))==[rdelim,cdelim]),
-        while (ix < sl) & CD(ix), 
+        while (ix < sl) && CD(ix), 
                 ix = ix + 1;
         end;
         ta = ix; te = [];
@@ -204,7 +204,7 @@ else %if isschar(s),
                         
                         flag = 0;
                         %while any(abs(s(ix))==[cdelim(1),rdelim(1)]) & (ix < sl),
-                        while CD(ix) & (ix < sl),
+                        while CD(ix) && (ix < sl),
                                 flag = flag | RD(ix);
                                 ix = ix + 1;
                         end;
@@ -258,7 +258,7 @@ for k2 = 1:nc,
 			end;	
 			if FLAG_OCTAVE,		%% Octave
 	    			[v,tmp2,c] = sscanf(char(t),'%f %s','C');
-	    		elseif all(VER(1:2)=='3.') & any(VER(3)=='567');  %% FreeMat 3.5, 3.6, 3.7
+	    		elseif all(VER(1:2)=='3.') && any(VER(3)=='567');  %% FreeMat 3.5, 3.6, 3.7
 				[v,c,em] = sscanf(char(t),'%f %s');
 				c = 1;
 	    		else	%% Matlab 

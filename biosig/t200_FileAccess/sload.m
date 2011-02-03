@@ -283,7 +283,7 @@ end;
 
 FlagLoaded = 0;
 if exist('mexSLOAD','file')==3,
-if 1,%	try
+	try
 		valid_rerefmx = 1;
 		if ischar(CHAN)
 		        HDR = sopen(CHAN,'r'); HDR=sclose(HDR); 
@@ -325,7 +325,7 @@ if 1,%	try
 			if isfield(HDR,'ErrNum') && (HDR.ErrNum>0),
 				fprintf(1,'%s\n',HDR.ErrMsg);
 				H = HDR;
-				return;
+				x = HDR.nonsense; 	% hack: triggers CATCH branch in TRY-CATCH-END;
 			end	 
 
 			if isfield(HDR.FLAG,'ROW_BASED_CHANNELS') && HDR.FLAG.ROW_BASED_CHANNELS, signal = signal.'; end;
@@ -370,6 +370,18 @@ if 1,%	try
 		if strcmp(H.TYPE,'GDF');
                         % Classlabels according to 
                         % http://biosig.cvs.sourceforge.net/*checkout*/biosig/biosig/doc/eventcodes.txt
+                        % sort event table before extracting HDR.Classlabel and HDR.TRIG
+			if 0,   
+				%% TODO: check whether sorting of event table fixes the problem on Classlabel and TRIG.                      
+	                        [HDR.EVENT.POS,ix] = sort(HDR.EVENT.POS);
+        	                HDR.EVENT.TYP = HDR.EVENT.TYP(ix);
+                	        if isfield(HDR.EVENT,'CHN')
+	                	        HDR.EVENT.CHN = HDR.EVENT.CHN(ix);
+		                end;    	    
+        	                if isfield(HDR.EVENT,'DUR')
+	        	                HDR.EVENT.DUR = HDR.EVENT.DUR(ix);
+	                	end;
+	                end; 	
                         if (length(H.EVENT.TYP)>0)
                                 ix = (H.EVENT.TYP>hex2dec('0300')) & (H.EVENT.TYP<hex2dec('030d'));
                                 ix = ix | ((H.EVENT.TYP>=hex2dec('0320')) & (H.EVENT.TYP<=hex2dec('037f')));
@@ -611,7 +623,7 @@ if 1,%	try
 			end; 
 		end;
 
-else,%	catch
+	catch
 		%fprintf(1,lasterr);
 		fprintf(1, 'SLOAD: mexSLOAD failed - the slower M-function is used.\n');
 	end;
@@ -1269,7 +1281,7 @@ if strcmp(H.TYPE,'CNT');
                         n = length(H.Classlabel);
                         
                         H.ArtifactSelection = zeros(n,1);
-                        if all((tmp==0) || (tmp==1)) && (length(tmp)>1) && (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
+                        if all((tmp==0) | (tmp==1)) && (length(tmp)>1) && (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
                                 H.ArtifactSelection = logical(tmp);         
                         else
                                 H.ArtifactSelection(tmp) = 1;         
@@ -1341,7 +1353,7 @@ if strcmp(H.TYPE,'GDF')
                         fprintf(2,'Warning SLOAD(GDF): corrupted SEL-file %s\n',fullfile(H.FILE.Path,[H.FILE.Name,'.sel']));
 		else                        
                         H.ArtifactSelection = zeros(length(H.TRIG),1);
-                        if all((tmp==0) || (tmp==1)) && (length(tmp)>1) && (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
+                        if all((tmp==0) | (tmp==1)) && (length(tmp)>1) && (sum(diff(sort(tmp))~=0) ~= length(tmp)-1)
                                 H.ArtifactSelection = logical(tmp);
                         else
                                 H.ArtifactSelection(tmp) = 1;
