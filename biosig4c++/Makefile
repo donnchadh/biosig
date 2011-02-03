@@ -230,7 +230,7 @@ win32/%.obj: XMLParser/%.cpp
 biosig.c: eventcodes.i
 
 eventcodes.i : ../biosig/doc/eventcodes.txt
-	cat ../biosig/doc/eventcodes.txt | awk "-F\t" '/^[^#]/ {print "\t"$1", \""$2,"\","}' > eventcodes.i
+	cat ../biosig/doc/eventcodes.txt | awk "-F\t" '/^[^#]/ {print "\t"$$1", \""$$2,"\","}' > eventcodes.i
 
 
 #############################################################
@@ -393,8 +393,9 @@ biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 #############################################################
 #	MathLink interface to Mathematica 
 #############################################################
-mma: libbiosig.$(LIBEXT) 
+mma: libbiosig.$(LIBEXT) win32/libbiosig.lib
 	make -C mma 
+	make -C mma -f Makefile.win32
 
 #############################################################
 #	MEX-files for Octave and Matlab
@@ -475,9 +476,11 @@ distclean:
 	-$(DELETE) QMakefile
 	-$(DELETE) win32/*.a
 	-$(DELETE) win32/*.lib
+	-$(DELETE) win32/libbiosig.*
 	-$(DELETE) win32/*.obj
 	-$(DELETE) win32/*.exe
 	-$(DELETE) -rf win32/zlib
+	-make -C mma clean
 	-make -C java clean
 	-make -C php clean
 	-make -C perl clean
@@ -502,6 +505,7 @@ clean:
 	-$(DELETE) win32/*.exe
 	-$(DELETE) t240/*.o
 	-$(DELETE) t240/libcnsfef.a
+	-$(DELETE) t240/libbiosig.*
 	-$(DELETE) t240/*.obj
 	-$(DELETE) pdp2gdf
 	-make -C java clean
