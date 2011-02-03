@@ -105,6 +105,8 @@ int sopen_dicom_read(HDRTYPE* hdr);
 }
 #endif
 
+
+
 const int16_t GDFTYP_BITS[] = {
 	8, 8, 8,16,16,32,32,64,64,32,64, 0, 0, 0, 0, 0,   /* 0  */
 	32,64,128,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 16 */
@@ -273,7 +275,19 @@ struct global_t {
 #endif
 } Global;
 
+#ifdef HARDCODED_EVENTTABLE
+struct etd_t {
+        uint16_t typ;
+        char*   desc;
+} ETD[];
 
+
+struct etd_t ETD[] = { 
+#include "eventcodes.i"
+	0, NULL 
+};
+
+#endif
 
 
 /****************************************************************************/
@@ -1455,6 +1469,21 @@ void LoadGlobalEventCodeTable()
 
 	if (VERBOSE_LEVEL>8) fprintf(stdout,"LoadGlobalEventTable(101)%i %i\n",GLOBAL_EVENTCODES_ISLOADED,Global.LenCodeDesc);
 
+#ifdef HARDCODED_EVENTTABLE
+
+	size_t N = 0;
+	while (ETD[N].desc != NULL) N++;
+	N += 256; 	// make sure there is enough space for free text events 
+	Global.CodeIndex = (uint16_t*)realloc(Global.CodeIndex, N*sizeof(uint16_t));
+	Global.CodeDesc  = (char**)realloc(Global.CodeDesc, N*sizeof(char*));
+
+	while (ETD[Global.LenCodeDesc].desc != NULL) {
+		Global.CodeDesc[Global.LenCodeDesc]  = ETD[Global.LenCodeDesc].desc;
+		Global.CodeIndex[Global.LenCodeDesc] = ETD[Global.LenCodeDesc].typ;
+		Global.LenCodeDesc++;
+	}
+
+#else
 	HDRTYPE HDR;
 	HDR.FileName = "eventcodes.txt";
 	HDR.FILE.COMPRESSION = 0;
@@ -1520,6 +1549,9 @@ void LoadGlobalEventCodeTable()
 		}
 		line = strtok(NULL,"\x0a\x0d");
 	}
+
+#endif 
+
 	GLOBAL_EVENTCODES_ISLOADED = 1;
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"LoadGlobalEventTable(end)%i\n",Global.LenCodeDesc);
 }
@@ -3618,7 +3650,7 @@ if (!strncmp(MODE,"r",1))
 	}
     	hdr->AS.Header = (uint8_t*)malloc(353);
 	count = ifread(Header1,1,352,hdr);
-	hdr->AS.Header[352]=0;
+	hdr->AS.Header[count]=0;
 
 	const uint8_t MAGIC_NUMBER_GZIP[] = {31,139,8};
 	if (!memcmp(Header1,MAGIC_NUMBER_GZIP,3)) {
@@ -8609,6 +8641,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 #endif
 
 	else if (hdr->TYPE==NEURON) {
+		hdr->HeadLen = count;
 
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"NEURON: start\n");
 
@@ -8654,8 +8687,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 			}
 			else if (status==1) {
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"NEURON 311: <%s>\n",t);
-				char *val = t+strlen(t)-1;
-				while (isspace(*val)) val--; val[1]=0;	// remove trailing blanks
+				char *val = t+strlen(t);
+				while (isspace(*(--val))) {}; val[1]=0;	// remove trailing blanks
 				val = strchr(t,':');			// find right value 
 				val[0] = 0;
 				while (isspace(*(++val))) {};
@@ -8690,6 +8723,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 			}
 			t = strtok(NULL, "\x0A\x0D");
 		}
+		free(hdr->AS.Header); 
+		hdr->AS.Header = NULL;
 	}
 
 

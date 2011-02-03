@@ -41,7 +41,7 @@ PathToMinGW   = $(HOME)/src/mingw-cross-env
 CC            = gcc
 CXX           = g++
 #DEFINES      = -D=WITHOUT_SCP_DECODE
-DEFINES       = -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_FEF #-D=WITH_PDP -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
+DEFINES       = -D=HARDCODED_EVENTTABLE -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_FEF #-D=WITH_PDP -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 #DEFINES      += -D=CNT32
 CFLAGS        = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 CXXFLAGS      = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
@@ -224,6 +224,16 @@ win32/%.obj: XMLParser/%.cpp
 
 
 #############################################################
+#	event table: conversion from ascii to C code
+#############################################################
+
+biosig.c: eventcodes.i
+
+eventcodes.i : ../biosig/doc/eventcodes.txt
+	cat ../biosig/doc/eventcodes.txt | awk "-F\t" '/^[^#]/ {print "\t"$1", \""$2,"\","}' > eventcodes.i
+
+
+#############################################################
 #	Compilation: exceptions, explicit rules
 #############################################################
 
@@ -291,11 +301,8 @@ win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll
 	-$(COPY) $(PathToSigViewerWIN32)/bin/sigviewer.exe win32/
 
 #############################################################
-#	Python (Linux)
+#	other language bindings (on Linux)
 #############################################################
-
-python:
-	make -C python biosig4python
 
 biosig4python : python/_biosig.so python/biosig.py
 
@@ -307,16 +314,18 @@ python/_biosig.so : python/swig_wrap.cxx  libbiosig.$(LIBEXT)
 	$(CXX) -shared python/swig_wrap.o  $(LFLAGS) $(LIBS) -o python/_biosig.so
 
 
-java: libbiosig.so
-	-make -C java 
-php: 
-	-make -C php 
-perl: libbiosig.so
-	-make -C perl 
-ruby: libbiosig.so
-	-make -C ruby 
-tcl: libbiosig.so
-	-make -C tcl 
+java: libbiosig.$(LIBEXT) java/biosig.i
+	make -C java 
+perl: libbiosig.$(LIBEXT) perl/biosig.i
+	make -C perl 
+php: libbiosig.$(LIBEXT) php/biosig.i
+	make -C php 
+python: libbiosig.$(LIBEXT) python/swig.i
+	make -C python 
+ruby: libbiosig.$(LIBEXT) ruby/biosig.i
+	make -C ruby 
+tcl: libbiosig.$(LIBEXT) tcl/biosig.i
+	make -C tcl 
 
 
 #############################################################
@@ -453,6 +462,7 @@ save2aecg: save2gdf
 
 distclean:
 	-$(DELETE) *.a
+	-$(DELETE) eventcodes.i
 	-$(DELETE) *.o
 	-$(DELETE) *.lib
 	-$(DELETE) *.so
@@ -477,6 +487,7 @@ distclean:
 clean:
 	-$(DELETE) *~
 	-$(DELETE) *.a
+	-$(DELETE) eventcodes.i
 	-$(DELETE) *.o
 	-$(DELETE) *.so
 	-$(DELETE) *.so.*
