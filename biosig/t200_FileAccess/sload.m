@@ -283,7 +283,7 @@ end;
 
 FlagLoaded = 0;
 if exist('mexSLOAD','file')==3,
-	try
+if 1,%	try
 		valid_rerefmx = 1;
 		if ischar(CHAN)
 		        HDR = sopen(CHAN,'r'); HDR=sclose(HDR); 
@@ -313,20 +313,21 @@ if exist('mexSLOAD','file')==3,
 			arg1 = 'OVERFLOWDETECTION:OFF';
 		end
 		if STATE.UCAL,
-			arg2 = 'UCAL:ON';
+			arg2 = {'UCAL:ON'};
 		else
-			arg2 = 'UCAL:OFF';
+			arg2 = {'UCAL:OFF'};
 		end
 		if STATE.CNT32
 			arg2 = {arg2,'CNT32'};
 		end
 		if ~valid_rerefmx,
 			[signal,HDR] = mexSLOAD(FILENAME,0,arg1,arg2{:});
-			if isfield(HDR,'ErrNum') && HDR.ErrNum==3,
-				%% file not found - fopen failed
+			if isfield(HDR,'ErrNum') && (HDR.ErrNum>0),
+				fprintf(1,'%s\n',HDR.ErrMsg);
 				H = HDR;
 				return;
 			end	 
+
 			if isfield(HDR.FLAG,'ROW_BASED_CHANNELS') && HDR.FLAG.ROW_BASED_CHANNELS, signal = signal.'; end;
 			FlagLoaded   = isfield(HDR,'NS');
 			HDR.InChanSelect = 1:HDR.NS;
@@ -610,7 +611,7 @@ if exist('mexSLOAD','file')==3,
 			end; 
 		end;
 
-	catch
+else,%	catch
 		%fprintf(1,lasterr);
 		fprintf(1, 'SLOAD: mexSLOAD failed - the slower M-function is used.\n');
 	end;

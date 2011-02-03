@@ -262,7 +262,7 @@ else
 end;
 %box('off'); 
 
-
+EVENT,EVENT.Desc',
 ix = find(EVENT.POS>0 & EVENT.POS<=length(t));
 if isfield(EVENT,'Desc') && ~isempty(ix) %& ~exist('OCTAVE_VERSION','builtin')
 	ix2 = find((EVENT.POS>0) & (EVENT.POS<=length(t))); % & (EVENT.DUR>0));
@@ -270,7 +270,7 @@ if isfield(EVENT,'Desc') && ~isempty(ix) %& ~exist('OCTAVE_VERSION','builtin')
         hold on;
         N  = length(EVENT.POS);
         plot([1;1]*t(EVENT.POS(ix))',v(3:4),':k');
-        if length(EVENT.DUR)==length(EVENT.POS),
+        if isfield(EVENT,'DUR') && (length(EVENT.DUR)==length(EVENT.POS)),
         for k=1:length(ix2),
 		x = t(EVENT.POS(ix2(k))+[0,EVENT.DUR(ix2(k))])';
 		y = v(3:4);
