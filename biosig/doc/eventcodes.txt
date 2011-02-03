@@ -3,7 +3,7 @@
 # GDF v2.x http://arxiv.org/abs/cs.DB/0608052 and 
 # GDF v1.x http://hci.tugraz.at/schloegl/matlab/eeg/gdf4/TR_GDF.pdf
 # and part of the BioSig project http://biosig.sf.net/
-# Copyright (C) 2004,2005,2006,2008,2009,2010 Alois Schloegl <a.schloegl@ieee.org>
+# Copyright (C) 2004,2005,2006,2008,2009,2010,2011 Alois Schloegl <a.schloegl@ieee.org>
 # $Id: eventcodes.txt,v 1.15 2009-01-20 16:09:46 schloegl Exp $
 # 
 # The latest version is available from here:
@@ -58,8 +58,8 @@
 0x0132	SSAEP
 0x0133	SSSEP
 ### 0x014_	Response
-0x0144  Go
-0x0145  NoGo
+0x0144	Go
+0x0145	NoGo
 ### 0x03__	BCI: Trigger, cues, classlabels, 
 0x0300	Start of Trial, Trigger at t=0s
 0x0301	class1, Left hand	- cue onset (BCI experiment)
@@ -261,6 +261,6 @@
 ### 0x4___	up to 4096 different stimuli
 ### 0x7f__      special codes
 0x7ffe	start of a new segment (after a break)
-0x7fff  non-equidistant sampling value
+0x7fff	non-equidistant sampling value
 # 
 
