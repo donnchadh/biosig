@@ -8667,9 +8667,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 		hdr->CHANNEL[0].bi8      = 0;
 		hdr->CHANNEL[0].LeadIdCode = 0;
 		hdr->CHANNEL[0].SPR      = hdr->SPR;
-		hdr->CHANNEL[0].LowPass  = NAN;
-		hdr->CHANNEL[0].HighPass = NAN;
-		hdr->CHANNEL[0].Notch    = NAN;
+		hdr->CHANNEL[0].LowPass  = NaN;
+		hdr->CHANNEL[0].HighPass = NaN;
+		hdr->CHANNEL[0].Notch    = NaN;
 
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"NEURON 202: \n");
 

@@ -388,7 +388,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 995\n");
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 997\n");
 		
-		t -= 1580970496; if (t<0) t += 4294967296; t += 9561652096;
+		t -= 1580970496.; if (t<0) t += 4294967296.; t += 9561652096.;
 		hdr->T0 = (uint64_t)ldexp(t/(24.0*60*60) + 584755, 32); // +datenum(1601,1,1));
 		hdr->SampleRate = 0.0;
 		double *DT = NULL; 	// list of sampling intervals per channel
