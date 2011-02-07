@@ -26,16 +26,7 @@ including but not limited to SCP-ECG(EN1064), HL7aECG (FDA-XML), GDF, EDF, BDF, 
     save2gdf can be also used to upload or retrieve data from a bscs server. 
 
 (3) "mexSLOAD" is a MEX-interface for Octave and Matlab
-Requirement: Matlab OR Octave (v2.9 or higher) with octave-headers, zlib, 
-For Matlab, precompiled binaries are available in matlab/mexSLOAD.mex*    
-
-For Matlab on MS-Windows, MinGW and GNUMEX are recommended. 
-After setup of MinGW and GNUMEX, mexSLOAD can be compiled in the following way
-
-   - start matlab
-   - change directory to .../biosig4c++ 
-   - and run this command: 
-   mex mexSLOAD.cpp win32/libbiosig.lib win32/zlib/lib/zdll.lib c:\MinGWtdm\lib\libws2_32.a -output matlab/mexSLOAD
+for details see mex/README
 
 (4) "biosig4python" is an interface to python. 
 Requirement: python, python-dev, python-numpy, swig (http://www.swig.org/)

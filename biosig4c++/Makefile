@@ -400,37 +400,14 @@ mma: libbiosig.$(LIBEXT) win32/libbiosig.lib
 #############################################################
 #	MEX-files for Octave and Matlab
 #############################################################
-mex: mex4m mex4o
-ifneq ($(shell which matlab), )
-mex4m: mexSLOAD.$(MEX_EXT) mexSOPEN.$(MEX_EXT)
-mexSLOAD: mexSLOAD.$(MEX_EXT)
-mexSOPEN: mexSOPEN.$(MEX_EXT)
-mexSLOAD.$(MEX_EXT): mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
-	$(MEX) $(MEX_OPTION) $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS)
-	-$(COPY) mexSLOAD.$(MEX_EXT) ../biosig/t200_FileAccess/
-mexSOPEN.$(MEX_EXT): mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
-	$(MEX) $(MEX_OPTION) -DmexSOPEN $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) -output mexSOPEN
-	-$(COPY) mexSOPEN.$(MEX_EXT) ../biosig/t200_FileAccess/
-endif
+mex: 
+	make -C mex -k
 
-### MEX-files for Octave
-mex4o:  mexSLOAD.mex mexSOPEN.mex
-mexSLOAD.mex:  mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
-	$(OCT)  $(DEFINES) -v -g --mex mexSLOAD.cpp $(LFLAGS) $(LIBS)
-	-$(COPY) mexSLOAD.mex ../biosig/t200_FileAccess/
-mexSOPEN.mex:  mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
-	$(OCT) -D=mexSOPEN $(DEFINES) -v -g --mex mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.mex
-	-$(COPY) mexSOPEN.mex ../biosig/t200_FileAccess/
-#physicalunits.mex:  physicalunits.cpp libbiosig.$(LIBEXT)
-#	$(OCT) -v -g --mex physicalunits.cpp $(LFLAGS) $(LIBS)
+mex mex4m mex4o mexw32 oct:
+	make -C mex $@
 
-oct:  mexSLOAD.oct
-mexSLOAD.oct:  mexSLOAD.cpp libbiosig.$(LIBEXT) Makefile
-	$(OCT)  $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS)
-	$(OCT) -D=mexSOPEN $(DEFINES) mexSLOAD.cpp $(LFLAGS) $(LIBS) -o mexSOPEN.oct
-	-$(COPY) mexSOPEN.oct ../biosig/t200_FileAccess/
-	-$(COPY) mexSOPEN.oct ../biosig/t200_FileAccess/
-
+%.mex %.mex.$(MEX_EXT) %.mexw32:
+	make -C mex $@
 
 #############################################################
 #	SigViewer
@@ -480,8 +457,9 @@ distclean:
 	-$(DELETE) win32/*.obj
 	-$(DELETE) win32/*.exe
 	-$(DELETE) -rf win32/zlib
-	-make -C mma clean
 	-make -C java clean
+	-make -C matlab clean
+	-make -C mma clean
 	-make -C php clean
 	-make -C perl clean
 	-make -C ruby clean
@@ -509,6 +487,8 @@ clean:
 	-$(DELETE) t240/*.obj
 	-$(DELETE) pdp2gdf
 	-make -C java clean
+	-make -C matlab clean
+	-make -C mma clean
 	-make -C php clean
 	-make -C perl clean
 	-make -C ruby clean
@@ -520,8 +500,8 @@ install_sigviewer: sigviewer
 
 install_octave: mexSLOAD.mex
 	mkdir -p  		$(DESTDIR)/usr/local/share/octave/site-m/
-	install mexSLOAD.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
-	install mexSOPEN.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
+	install mex/mexSLOAD.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
+	install mex/mexSOPEN.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
 
 install: save2gdf libbiosig.a libbiosig.so doc/save2gdf.1
 	install -d 		$(BIN)
