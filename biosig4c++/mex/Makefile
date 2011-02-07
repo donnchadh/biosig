@@ -33,9 +33,9 @@ MEX_OPTION    = -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
 LIBS          = -lbiosig -lz -lcholmod
 LFLAGS        = -L.. 
 
-
-all: mex4m mex4o win32
+mex: mex4m mex4o
 win32 win mexw32: mexSLOAD.mexw32 mexSOPEN.mexw32 
+all: mex4m mex4o win32
 
 ##########################################################
 ## set Matlab and Octave variables

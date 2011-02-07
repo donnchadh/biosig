@@ -401,7 +401,7 @@ mma: libbiosig.$(LIBEXT) win32/libbiosig.lib
 #	MEX-files for Octave and Matlab
 #############################################################
 mex: 
-	make -C mex -k
+	make -C mex mex -k
 
 mex mex4m mex4o mexw32 oct:
 	make -C mex $@
