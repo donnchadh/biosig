@@ -34,7 +34,8 @@ LIBEXT        = a
 MEX_OPTION    = -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
 PathToSigViewer = ../../src/sigviewer
 PathToSigViewerWIN32 = ../../src/sigviewer4win32
-PathToMinGW   = $(HOME)/src/mingw-cross-env
+PathToMinGW   = $(HOME)/R:/src/mingw-cross-env
+PathToMinGW64   = $(HOME)/R:/src/mce-w64
 
 ## default options 
 
@@ -92,6 +93,7 @@ PYTHONVER     = $(shell python -c "import sys; print sys.version[:3]")
 ##
 CROSS	     = i586-mingw32msvc-
 CROSS	     = $(PathToMinGW)/usr/bin/i686-pc-mingw32-
+CROSS64	     = $(PathToMinGW64)/usr/bin/x86_64-w64-mingw32-
 MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
 MinGWDEF     = -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_ZLIB #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
@@ -238,7 +240,7 @@ eventcodes.i : ../biosig/doc/eventcodes.txt
 #############################################################
 
 sandbox.o: test0/sandbox.c biosig.h
-	$(CXX) -c $(CFLAGS) $(INCPATH) -o sandbox.o test0/sandbox.c
+	$(CXX) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
 sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h
 #	cd t240
@@ -248,49 +250,43 @@ sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h
 #	#asn1c -fcompound-names iso11073-20601.asn1
 #	cd ..
 #	make -C t240 -f Makefile.am.sample
-	$(CC) -c $(CFLAGS) -I t240 $(INCPATH) -o sopen_fef_read.o t240/sopen_fef_read.c
+	$(CC) -c $(CFLAGS) -I t240 $(INCPATH) -o "$@" "$<"
 
-sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
-		XMLParser/tinyxml.h XMLParser/tinystr.h
-	$(CXX) -c $(CFLAGS) $(INCPATH) -o sopen_hl7aecg.o t230/sopen_hl7aecg.c
+sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h XMLParser/tinyxml.h XMLParser/tinystr.h
+	$(CXX) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
-sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h biosig.h\
-		biosig.h t210/structures.h t210/types.h
-	$(CXX) -c $(CFLAGS) $(INCPATH) -o sopen_scp_read.o t210/sopen_scp_read.c
+sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h biosig.h biosig.h t210/structures.h t210/types.h
+	$(CXX) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
-scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h \
-		t210/types.h t210/structures.h t210/codes.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o scp-decode.o t210/scp-decode.cpp
+scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h t210/types.h t210/structures.h t210/codes.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
 
 getlogin_r.o: win32/getlogin_r.c
-	$(CC) -c $(CFLAGS) $(INCPATH) -o getlogin_r.o win32/getlogin_r.c
+	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
 #strtod.o: gnulib/strtod.c
 #	$(CC) -c $(CFLAGS) $(INCPATH) -o strtod.o gnulib/strtod.c
 
 win32/sandbox.obj: test0/sandbox.c biosig.h 
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sandbox.obj test0/sandbox.c
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
-win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h \
-		biosig.h t210/structures.h t210/types.h
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_scp_read.obj t210/sopen_scp_read.c
+win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h biosig.h t210/structures.h t210/types.h
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
 win32/sopen_alpha_read.obj: t210/sopen_alpha_read.c biosig-dev.h
-	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_alpha_read.obj t210/sopen_alpha_read.c
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
-win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h \
-		t210/types.h t210/structures.h t210/codes.h
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/scp-decode.obj t210/scp-decode.cpp
+win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h t210/types.h t210/structures.h t210/codes.h
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
 #win32/sopen_fef_read.obj: t240/sopen_fef_read.c biosig-dev.h biosig.h
-#	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o win32/sopen_fef_read.obj t240/sopen_fef_read.c
+#	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o "$@" "$<"
 
-win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h \
-		XMLParser/tinyxml.h XMLParser/tinystr.h
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o win32/sopen_hl7aecg.obj t230/sopen_hl7aecg.c
+win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h XMLParser/tinyxml.h XMLParser/tinystr.h
+	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
 win32/getlogin_r.obj: win32/getlogin_r.c
-	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o win32/getlogin_r.obj win32/getlogin_r.c
+	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
 win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll
 	-$(DELETE) $(PathToSigViewerWIN32)/extern/include/*.h
@@ -332,27 +328,27 @@ tcl: libbiosig.$(LIBEXT) tcl/biosig.i
 #	WIN32 - BUILD
 #############################################################
 
-win32/libbiosig.a: win32/libbiosig.lib 
-	$(COPY) win32/libbiosig.lib win32/libbiosig.a
+win32/libbiosig.lib: win32/libbiosig.a 
+	$(COPY) "$<" "$@"
 
-win32/libbiosig.lib: $(MinGWOBJECTS) win32/libcnsfef.a biosig.h biosig-dev.h
-	-$(DELETE) win32/libbiosig.lib
-	$(CROSS)$(AR) win32/libbiosig.lib $(MinGWOBJECTS) t240/*.obj
+win32/libbiosig.a: $(MinGWOBJECTS) win32/libcnsfef.a biosig.h biosig-dev.h
+	-$(DELETE) "$@"
+	$(CROSS)$(AR) "$@" $(MinGWOBJECTS) t240/*.obj
 
 win32/libcnsfef.a:
 	make CROSS=$(CROSS) -C t240 ../win32/libcnsfef.a 
 
 win32/libbiosig.dll: $(MinGWOBJECTS) biosig.h biosig-dev.h
-	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) $(MinGWLIBS) -o win32/libbiosig.dll -Wl,--output-def,win32/libbiosig.def,--out-implib,win32/libbiosig.dll.a
-	-$(COPY) win32/libbiosig.dll $(PathToSigViewerWIN32)/extern/lib/
+	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) $(MinGWLIBS) -o "$@" -Wl,--output-def,win32/libbiosig.def,--out-implib,win32/libbiosig.dll.a
+	-$(COPY) "$@" $(PathToSigViewerWIN32)/extern/lib/
 
 win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib
-	$(MinGWLINK) $(MinGWCFLAGS) save2gdf.c $(MinGWLIBS) -o win32/save2gdf.exe
+	$(MinGWLINK) $(MinGWCFLAGS) "$<" $(MinGWLIBS) -o "$@"
 
 win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.lib
-	$(MinGWLINK) $(MinGWCFLAGS) pdp2gdf.c $(MinGWLIBS) -o win32/pdp2gdf.exe
+	$(MinGWLINK) $(MinGWCFLAGS) "$<" $(MinGWLIBS) -o "$@"
 
-win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.lib #win32/sigviewer.exe
+win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.lib mexw32 win32mma 
 
 
 #############################################################
@@ -393,20 +389,23 @@ biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 #############################################################
 #	MathLink interface to Mathematica 
 #############################################################
-mma: libbiosig.$(LIBEXT) win32/libbiosig.lib
-	make -C mma 
-	make -C mma -f Makefile.win32
+mma: libbiosig.$(LIBEXT) 
+	make -C mma sload
+
+win32mma: win32/libbiosig.a
+	make -C mma sload.exe
+
 
 #############################################################
 #	MEX-files for Octave and Matlab
 #############################################################
-mex: 
+mex: libbioisig.a
 	make -C mex mex -k
 
 mex mex4m mex4o mexw32 oct:
 	make -C mex $@
 
-%.mex %.mex.$(MEX_EXT) %.mexw32:
+%.mex %.mex.$(MEX_EXT) %.mexw32: win32/libbiosig.a
 	make -C mex $@
 
 #############################################################

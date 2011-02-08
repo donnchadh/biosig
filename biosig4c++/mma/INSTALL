@@ -1,24 +1,42 @@
 
 
-Compling for Linux/Unix/Mac platform:
-	adapt Makefile with the correct directory in the section "userspecified variables"
-	and run 
-    make 
-    
-    Usse the file "sload" for loading 
+== Compling for Linux/Unix/Mac platform ===============
+	adapt biosig4c++/Makefile and biosig4c++/mma/Makefile with the 
+	correct directory in the section "userspecified variables" and run 
 
-Compiling for Windows 
-	Compilation on the windows platform has not been tested yet.  
-	I used a cross-compiler on Linux for compiling the windows executable. 
-	Set setup mingw-cross-env and wine on some Linux machine, 
-	Copy the Mathlink developer files 
+    cd  biosig4c++/mma/	
+    make sload
+    
+
+== Compiling on Windows ===============================
+Prerequisites: 
+	MinGW 
+	Mathematica (tested with v7.0) 
+	Download and extract sources of biosig4c++ (v0.96.2 or later)
+	Start MinGW shell 
+
+		cd biosig4c++/mma
+		make -f Makefile.win32 sload.exe 
+
+
+== Cross-Compiling on Linux for Windows ===============
+Prerequisites:
+	Cross-compiler (e.g. mingw-cross-env)
+        wine 
+	Mathlink developer files from Windows 
 		e.g. C:\Program Files\Wolfram Research\Mathematica\7.0\SystemFiles\Links\MathLink\DeveloperKit\Windows*
-	from Windows to the linux computer (copyied them into the corresponding Mathematica directory on linux)
+	to the linux computer (copyied them into the corresponding Mathematica directory on linux)
 		e.g. /usr/local/Wolfram/gridMathematicaServer/7.0/SystemFiles/Links/MathLink/DeveloperKit/
 	Adapt the user-defined variables in Makefile.win32
 	and run 
 
-    make win32
+    make sload.exe
+
+
+===== TESTING =========================================
+The installation can be tested by starting Mathematica, loading and running test.nb. 
+
+
 
 
 Copyright (C) 2011 Alois Schloegl 

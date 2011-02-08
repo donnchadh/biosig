@@ -8,7 +8,7 @@ BioSig4C++ provides several tools:
 
 (1) "libbiosig" provides a library for accessing different dataformats. 
 The supported data formats are listed here: 
-http://hci.tugraz.at/schloegl/biosig/TESTED
+http://pub.ist.ac.at/~schloegl/biosig/TESTED
 
 The following DEFINES are recommended and require:
  -D=WITH_CHOLMOD        used for re-referencing of data, REQUIREMENT: cholmod from libsuitesparse
@@ -43,6 +43,8 @@ Requirement: qmake, Qt4
 (6) Precompiled binaries for Win32
    win32/save2gdf.exe  binary converter
    win32/libbiosig.{lib,dll}  static and dynamic library (requires zlib and libws2_32)
+   mma/sload.exe     Mathematica binding through Mathlink interface
+   mex/mexSLOAD.mexw32   Mex-file for Win32/Matlab
 
 (7) MathLink interface to Mathematica
    see ../mma/ for more details. 
@@ -55,10 +57,10 @@ and is defined in
 (see HDRTYPE and CHANNEL_TYPE)
 
 Encoding of Event/Markers/Annotations is available here: 
-  http://hci.tugraz.at/schloegl/matlab/eeg/EventCodes.html
+  http://pub.ist.ac.at/~schloegl/matlab/eeg/EventCodes.html
 
 The latest list of supported data formats is available here: 
-  http://hci.tugraz.at/schloegl/biosig/TESTED
+  http://pub.ist.ac.at/~schloegl/biosig/TESTED
 
 
 File(s): 
@@ -78,7 +80,7 @@ File(s):
     test0/*	scripts and functions for testing
     Makefile	script for compiling and testing under GNU/Linux
     Makefile.win32	script for compiling and testing on win32 using mingw
-    matlab/*    contains pre-compiled/binary mex files 
+    mex/*       Octave/Matlab binding through MEX-interface
     mma/*	MathLink interface to mathematica
     win32/*	library and executables for Windows
     python/*.py show example and demo

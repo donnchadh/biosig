@@ -47,30 +47,37 @@ Running make compiles the converter.
    make win32/save2gdf.exe      # converter between data format s
    make win32/libbiosig.dll     # dynamic library 
    make win32/libbiosig.lib     # static library    
+   make mexw32			# Win32/Matlab mex interface 
+   make win32mma		# Win32/Mathematica interface
    make win32                   # all of the above
 
 # Windows + MinGW
-Currently, only the file converter save2gdf is supported.
-Network support is turned off, because Windows is not Posix compliant.
+Support for FEF, ZLIB, CHOLMOD is turned off, because of lack of support in MinGW. 
+In general, Makefile.win32 should be used. 
 - You need MinGW with gcc, g++, ar, and make.
 - run the make command 
    make -f Makefile.win32 libbiosig.a
    make -f Makefile.win32 save2gdf.exe
-   make -f Makefile.win32 sigviewer # see below 
-   make -f Makefile.win32
+   make -f Makefile.win32 sigviewer
+   make -C mma -f Makefile.win32 sload.exe	# mathematica interface
 
 You can also start compilation of sigviewer. 
    First, you need to have the sigviewer sources in ..\sigviewer and 
    Then, you need to run once qmake in ..\sigviewer\src\ 
    make -f Makefile.win32 sigviewer 
 
-# Windows + MinGW + Matlab
+# Matlab/Win32 using MinGW on Windows
 do the steps in "Windows+MinGW"
 install and configure gnumex (from http://gnumex.sf.net)  
   make libbiosig.a
   start matlab
   >> gnumex 	% configure mingw for mex
   >> mex mexSLOAD.cpp libbiosig \mingw\lib\libws2_32.a
+	
+# Mathematica/Win32 using MinGW on Windows
+Adapt user-specified variables (directory names) in Makefile.win32 and mma/Makefile.win32	
+  cd biosig4c++/mma
+  make -f Makefile.win32 sload.exe
 	
 # Windows + Cygwin
 Currently, only the file converter save2gdf is supported.

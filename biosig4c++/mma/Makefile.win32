@@ -1,41 +1,46 @@
-# Makefile to compile sload.exe for loading data supported by libbiosig into Mathematica
+# Makefile to compile sload1.exe for loading data supported by libbiosig into Mathematica
 # Copyright (C) 2010, 2011 Alois Schloegl
 
 ###########################################
 # user-defined variables 
 ########################################### 
-MLINKDIR  = /usr/local/Wolfram/gridMathematicaServer/7.0/SystemFiles/Links/MathLink/DeveloperKit
+MLINKDIR  = C:/Program\ Files/Wolfram\ Research/Mathematica/7.0/SystemFiles/Links/MathLink/DeveloperKit
 SYS       = Windows# Set this value with the result of evaluating $SystemID
 MLLIB     = ml32i3m # Set this to ML64i3 if using a 64-bit system
 ###########################################
 
 
-CC        = $(HOME)/src/mingw-cross-env/usr/bin/i686-pc-mingw32-gcc
+CC	  = g++ 
+RM        = rm 
 CADDSDIR  = ${MLINKDIR}/${SYS}/CompilerAdditions/mldev32
 INCDIR    = ${CADDSDIR}/include
 LIBDIR    = ${CADDSDIR}/lib
 
-EXTRALIBS =  ../win32/libbiosig.lib -lgdi32 -lm -lpthread -lstdc++ -lws2_32 -lcholmod -lz  # Set these with appropriate libs for your system.
+EXTRALIBS = -mwindows -lm -lpthread -lstdc++ -L.. -lbiosig -lws2_32 # -lcholmod -lz #Set these with appropriate libs for your system.
 
-MPREP     = ${CADDSDIR}/bin/mprep
+MPREP     = ${CADDSDIR}/bin/mprep.exe
 
-all: sload.exe
+all : sload.exe
 
+win win32 :
+	make -f Makefile.win32
 
-sloadtm.win32.c : sload.tm
-	wine ${MPREP} $? -o $@
+../libbiosig.a: 
+	make -C .. -f Makefile.win32 libbiosig.a
 
-sload.obj: sload.c
-	${CC} -c -I${INCDIR} $< -o $@
-sloadtm.obj: sloadtm.win32.c
-	${CC} -c -I${INCDIR} $< -o $@
+.c.o :
+	${CC} -c -I${INCDIR} $<
 
-sload.exe: sload.obj sloadtm.obj ../win32/libbiosig.lib
-	${CC} sload.obj sloadtm.obj -L${LIBDIR} -l${MLLIB} ${EXTRALIBS} -o $@
+sloadtm.c : sload.tm
+	${MPREP} $? -o $@
 
+sload.exe : sload.o sloadtm.o ../libbiosig.a
+	${CC} sloadtm.o sload.o -L${LIBDIR} -l${MLLIB} ${EXTRALIBS} -o $@
 
-clean: 
-	-rm *.exe
-	-rm *.o
-	-rm *tm.c
-	-rm sload
+clean:
+	-$(RM) *.o
+	-$(RM) *.obj
+	-$(RM) *tm.c
+	-$(RM) sload
+	-$(RM) sload.exe
+	

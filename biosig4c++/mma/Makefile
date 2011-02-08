@@ -7,8 +7,12 @@
 MLINKDIR  = /usr/local/Wolfram/gridMathematicaServer/7.0/SystemFiles/Links/MathLink/DeveloperKit
 SYS       = Linux-x86-64# Set this value with the result of evaluating $SystemID
 MLLIB     = ML64i3 # ML32i3 # Set this to ML64i3 if using a 64-bit system
+#
+# Windows
+#MLINKDIR  = /usr/local/Wolfram/gridMathematicaServer/7.0/SystemFiles/Links/MathLink/DeveloperKit
+SYSwin       = Windows# Set this value with the result of evaluating $SystemID
+MLLIBwin     = ml32i3m# Set this to ML64i3 if using a 64-bit system
 ###########################################
-
 
 CADDSDIR  = ${MLINKDIR}/${SYS}/CompilerAdditions
 INCDIR    = ${CADDSDIR}
@@ -18,10 +22,14 @@ EXTRALIBS = -lm -lpthread -lrt -lstdc++ -lcholmod -lz -L.. -lbiosig# Set these w
 
 MPREP     = ${CADDSDIR}/mprep
 
-all: sload
+all : sload sload.exe
+win win32 : sload.exe
 
-win, win32:
-	make -f Makefile.win32
+../libbiosig.a:
+	make -C .. libbiosig.a
+
+../win32/libbiosig.a: 
+	make -C .. win32/libbiosig.a
 
 .c.o :
 	${CC} -c -I${INCDIR} $<
@@ -29,12 +37,41 @@ win, win32:
 sloadtm.c : sload.tm
 	${MPREP} $? -o $@
 
-sload: sload.o sloadtm.o ../libbiosig.a
+sload : sload.o sloadtm.o ../libbiosig.a
 	${CC} sloadtm.o sload.o -L${LIBDIR} -l${MLLIB} ${EXTRALIBS} -o $@
 
-clean: 
-	-rm *.exe
-	-rm *.o
-	-rm *.obj
-	-rm *tm.c
-	-rm sload
+
+###########################################
+#   Windows - cross-compilation 
+###########################################
+
+
+CCwin        = $(HOME)/src/mingw-cross-env/usr/bin/i686-pc-mingw32-gcc
+CADDSDIRwin  = ${MLINKDIR}/${SYSwin}/CompilerAdditions/mldev32
+INCDIRwin    = ${CADDSDIRwin}/include
+LIBDIRwin    = ${CADDSDIRwin}/lib
+
+EXTRALIBSwin =  ../win32/libbiosig.a -lgdi32 -lm -lpthread -lstdc++ -lws2_32 -lcholmod -lz  # Set these with appropriate libs for your system.
+
+MPREPwin     = ${CADDSDIRwin}/bin/mprep
+
+sloadtm.win32.c : sload.tm
+	wine ${MPREPwin} $? -o $@
+
+sload.obj : sload.c
+	${CCwin} -c -I${INCDIRwin} $< -o $@
+sloadtm.obj : sloadtm.win32.c
+	${CCwin} -c -I${INCDIRwin} $< -o $@
+
+sload.exe : sload.obj sloadtm.obj ../win32/libbiosig.a
+	${CCwin} sload.obj sloadtm.obj -L${LIBDIRwin} -l${MLLIBwin} ${EXTRALIBSwin} -o $@
+
+	
+###########################################
+clean:
+	-$(RM) *.o
+	-$(RM) *.obj
+	-$(RM) *tm.c
+	-$(RM) sload.exe
+	-$(RM) sload
+	
