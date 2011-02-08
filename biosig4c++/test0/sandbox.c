@@ -243,7 +243,6 @@ int sopen_zzztest(HDRTYPE* hdr) {
 	}
 
 	else if (hdr->TYPE==HEKA && hdr->VERSION == 2) {
-		fprintf(stdout,"Warning: support for HEKA-PatchMaster is very experimental\n");
 
     		// HEKA PatchMaster file format
 
