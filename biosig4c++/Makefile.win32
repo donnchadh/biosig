@@ -56,7 +56,7 @@ INCPATH       = -I /usr/local/include/gdcm-2.0/
 LINK          = $(CXX) 
 LFLAGS_dynamic = -L/usr/local/lib/ -L.
 LIBS_dynamic  = -lbiosig
-LFLAGS_static =  -static-libgcc -L/usr/local/lib/
+LFLAGS_static = -L/usr/local/lib/ 
 LIBS_static   = libbiosig.a
 ifeq ($(LIBEXT),so)
   LFLAGS      = $(LFLAGS_dynamic)
@@ -96,7 +96,7 @@ CROSS	     = $(PathToMinGW)/usr/bin/i686-pc-mingw32-
 CROSS64	     = $(PathToMinGW64)/usr/bin/x86_64-w64-mingw32-
 MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
-MinGWDEF     = -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_ZLIB #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
+MinGWDEF     = -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD #-D=WITH_ZLIB #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
 MinGWCFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW)/usr/i686-pc-mingw32/include/
 MinGWLIBS    = win32/libbiosig.a -L$(PathToMinGW)/usr/i686-pc-mingw32/lib/ -lz -lws2_32 $(LDLIBS) # static
 MinGWLINK    = $(MinGWCXX)
@@ -297,6 +297,7 @@ win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll
 	-(cd $(PathToSigViewerWIN32)/src; $(CROSS)qmake; make)
 	-$(COPY) $(PathToSigViewerWIN32)/bin/sigviewer.exe win32/
 
+
 #############################################################
 #	other language bindings (on Linux)
 #############################################################
@@ -393,6 +394,8 @@ biosig_server: biosig_server.c libbiosig.$(LIBEXT) biosig-network.o Makefile
 mma: libbiosig.a
 	make -C mma -f Makefile.win32
 
+mex mex4m mex4o mexw32 oct:
+	make -C mex $@
 
 #############################################################
 #	MEX-files for Octave and Matlab
