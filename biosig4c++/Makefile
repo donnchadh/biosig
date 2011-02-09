@@ -32,10 +32,10 @@ LIBEXT        = a
 
 ### User-specified options: its likely you want to change this
 MEX_OPTION    = -largeArrayDims # turn on for 64 bit Matlab, otherwise empty
-PathToSigViewer = ../../src/sigviewer
-PathToSigViewerWIN32 = ../../src/sigviewer4win32
-PathToMinGW   = $(HOME)/R:/src/mingw-cross-env
-PathToMinGW64   = $(HOME)/R:/src/mce-w64
+PathToSigViewer = ../sigviewer
+PathToSigViewerWIN32 = ../sigviewer4win32
+PathToMinGW   = $(HOME)/R/src/mingw-cross-env
+PathToMinGW64   = $(HOME)/R/src/mce-w64
 
 ## default options 
 
@@ -70,6 +70,8 @@ LIBS         += $(LDLIBS)
 DELETE        = rm
 COPY          = cp -f
 TEMP_DIR      = /tmp/
+libGDFobj     = $(patsubst %.cpp, %.o, $(shell ls -1 ../libgdf/libgdf/src/ |tr  '\n\r' ' '))
+libGDFwin32obj     = $(patsubst %.cpp, win32/%.obj, $(shell ls -1 ../libgdf/libgdf/src/ |tr  '\n\r' ' '))
 
 ##########################################################
 ## set Matlab and Octave variables
@@ -98,7 +100,7 @@ MinGWCC      = $(CROSS)gcc
 MinGWCXX     = $(CROSS)g++
 MinGWDEF     = -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_ZLIB #-D=WITH_FEF #-D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE
 MinGWCFLAGS  = -pipe -fPIC -O2 -D_REENTRANT -D=BUILD_DLL $(MinGWDEF) -I$(PathToMinGW)/usr/i686-pc-mingw32/include/
-MinGWLIBS    = win32/libbiosig.lib -L$(PathToMinGW)/usr/i686-pc-mingw32/lib/ -lz -lws2_32 $(LDLIBS) # static
+MinGWLIBS    = win32/libbiosig.a -L$(PathToMinGW)/usr/i686-pc-mingw32/lib/ -lz -lws2_32 $(LDLIBS) # static
 MinGWLINK    = $(MinGWCXX)
 ##########################################################
 
@@ -177,7 +179,7 @@ TARGET        = save2gdf save2aecg save2scp libbiosig.a mex4o libbiosig.so
 
 first: $(TARGET)
 all:   $(TARGET) mex4o biosig4python win32 biosig_client biosig_server mma java tcl perl php ruby #sigviewer 
-lib:	libbiosig.a libbiosig.so win32/libbiosig.dll win32/libbiosig.lib
+lib:	libbiosig.a libbiosig.so win32/libbiosig.dll win32/libbiosig.a
 
 #############################################################
 #	Compilation: Implicit, default rules
@@ -236,6 +238,25 @@ eventcodes.i : ../biosig/doc/eventcodes.txt
 
 
 #############################################################
+#	generate libGDF.a
+#############################################################
+
+%.o : ../libgdf/libgdf/src/%.cpp
+	$(CXX) -I../libgdf/libgdf/include -c "$<" -o "$@"
+
+libGDF.a: $(libGDFobj)
+	-$(DELETE) "$@"
+	$(AR) "$@" $(libGDFobj)
+	
+win32/%.obj : ../libgdf/libgdf/src/%.cpp
+	$(CROSS)$(CXX) -I../libgdf/libgdf/include -c "$<" -o "$@"
+
+win32/libGDF.a: $(libGDFwin32obj)
+	-$(DELETE) "$@"
+	$(CROSS)$(AR) "$@" $(libGDFwin32obj)
+	
+
+#############################################################
 #	Compilation: exceptions, explicit rules
 #############################################################
 
@@ -288,13 +309,17 @@ win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h XMLParser/ti
 win32/getlogin_r.obj: win32/getlogin_r.c
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
-win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll
+win32/sigviewer.exe: win32/libbiosig.a win32/libbiosig.dll win32/libGDF.a
 	-$(DELETE) $(PathToSigViewerWIN32)/extern/include/*.h
 	-$(COPY) biosig.h $(PathToSigViewerWIN32)/extern/include
+	-$(COPY) -r ../libgdf/libgdf/include/GDF $(PathToSigViewerWIN32)/extern/include/
 	-$(DELETE) $(PathToSigViewerWIN32)/extern/lib/lib*
 	-$(COPY) win32/libbiosig.a $(PathToSigViewerWIN32)/extern/lib
+	-$(COPY) win32/libGDF.a $(PathToSigViewerWIN32)/extern/lib
+	sed -i 's;-lGDF[[:space:]]*$$;-lGDF -lcholmod -lz;' $(PathToSigViewerWIN32)/src/src.pro
 	-(cd $(PathToSigViewerWIN32)/src; $(CROSS)qmake; make)
-	-$(COPY) $(PathToSigViewerWIN32)/bin/sigviewer.exe win32/
+	-$(COPY) $(PathToSigViewerWIN32)/bin/release/sigviewer.exe win32/
+
 
 #############################################################
 #	other language bindings (on Linux)
@@ -342,13 +367,13 @@ win32/libbiosig.dll: $(MinGWOBJECTS) biosig.h biosig-dev.h
 	$(MinGWLINK) -shared -fPIC  $(MinGWOBJECTS) $(MinGWLIBS) -o "$@" -Wl,--output-def,win32/libbiosig.def,--out-implib,win32/libbiosig.dll.a
 	-$(COPY) "$@" $(PathToSigViewerWIN32)/extern/lib/
 
-win32/save2gdf.exe: save2gdf.c win32/libbiosig.lib
+win32/save2gdf.exe: save2gdf.c win32/libbiosig.a
 	$(MinGWLINK) $(MinGWCFLAGS) "$<" $(MinGWLIBS) -o "$@"
 
-win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.lib
+win32/pdp2gdf.exe: pdp2gdf.c win32/libbiosig.a
 	$(MinGWLINK) $(MinGWCFLAGS) "$<" $(MinGWLIBS) -o "$@"
 
-win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.lib mexw32 win32mma 
+win32 exe: win32/save2gdf.exe win32/libbiosig.dll win32/libbiosig.a mexw32 win32mma 
 
 
 #############################################################
@@ -412,15 +437,19 @@ mex mex4m mex4o mexw32 oct:
 #	SigViewer
 #############################################################
 
-sigviewer: $(PathToSigViewer)/bin/sigviewer
+sigviewer: $(PathToSigViewer)/bin/sigviewer 
 	$(COPY) $(PathToSigViewer)/bin/release/sigviewer ~/bin/sigviewer-$(TODAY)
-	mv $(PathToSigViewer)/bin/release/sigviewer $(PathToSigViewer)/bin/sigviewer-$(TODAY)
+	mv $(PathToSigViewer)/bin/release/sigviewer ~/bin/sigviewer-$(TODAY)
 	ln -sf ~/bin/sigviewer-$(TODAY) ~/bin/sigviewer 
 	
-$(PathToSigViewer)/bin/sigviewer: libbiosig.$(LIBEXT) biosig.h
-	$(COPY) -lf biosig.h $(PathToSigViewer)/extern/include/
-	$(COPY) -lf libbiosig.$(LIBEXT) $(PathToSigViewer)/extern/lib/
-#	touch $(PathToSigViewer)/tmp/basic_header.o
+$(PathToSigViewer)/bin/sigviewer: libbiosig.$(LIBEXT) libGDF.a biosig.h
+	-$(DELETE) $(PathToSigViewer)/extern/include/*
+	-$(COPY) biosig.h $(PathToSigViewer)/extern/include
+	-$(COPY) -r ../libgdf/libgdf/include/GDF $(PathToSigViewer)/extern/include/
+	-$(DELETE) $(PathToSigViewer)/extern/lib/lib*
+	-$(COPY) libbiosig.a $(PathToSigViewer)/extern/lib
+	-$(COPY) libGDF.a $(PathToSigViewer)/extern/lib
+	sed -i 's;-lGDF[[:space:]]*$$;-lGDF -lcholmod -lz;' $(PathToSigViewer)/src/src.pro
 	(cd $(PathToSigViewer)/src; qmake;make;)
 
 docs: 	docs/save2gdf.txt  docs/mexSLOAD.txt
