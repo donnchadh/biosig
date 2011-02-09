@@ -1,7 +1,7 @@
 ####### Makefile for "BioSig for C/C++" #####################
 ###
 ###  $Id$
-###  Copyright (C) 2006,2007,2008,2009 Alois Schloegl <a.schloegl@ieee.org>
+###  Copyright (C) 2006,2007,2008,2009,2010,2011 Alois Schloegl <alois.schloegl@gmail.com>
 ###  This file is part of the "BioSig for C/C++" repository
 ###  (biosig4c++) at http://biosig.sf.net/
 ###
@@ -523,13 +523,12 @@ clean:
 	-make -C tcl clean
 
 install_sigviewer: sigviewer
-	install $(PathToSigViewer)/bin/sigviewer $(BIN)
-	install ../biosig/doc/eventcodes.txt $(BIN)
+	install $(PathToSigViewer)/bin/release/sigviewer $(BIN)
 
-install_octave: mexSLOAD.mex
+install_octave: mexSLOAD.mex 
 	mkdir -p  		$(DESTDIR)/usr/local/share/octave/site-m/
-	install mex/mexSLOAD.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
-	install mex/mexSOPEN.mex 	$(DESTDIR)/usr/local/share/octave/site-m/
+	install mex/mexSLOAD.mex* 	$(DESTDIR)/usr/local/share/octave/site-m/
+	install mex/mexSOPEN.mex* 	$(DESTDIR)/usr/local/share/octave/site-m/
 
 install: save2gdf libbiosig.a libbiosig.so doc/save2gdf.1
 	install -d 		$(BIN)

@@ -20,7 +20,9 @@ import numpy as S
 
 #def load(fname):
 HDR = biosig.constructHDR(0, 0)
-HDR = biosig.sopen('/tmp/Newtest17-256.bdf' , 'r', HDR)
+#HDR = biosig.sopen('/scratch/schloegl/R/data/test/HekaPatchMaster/AP100427b.dat' , 'r', HDR)
+#HDR = biosig.sopen('/scratch/schloegl/R/data/test/HekaPatchMaster/AP100429a.dat' , 'r', HDR)
+HDR = biosig.sopen('/scratch/schloegl/R/data/test/CFS/example_6channels.dat' , 'r', HDR)
 
 # show header information 
 biosig.hdr2ascii(HDR,4)  

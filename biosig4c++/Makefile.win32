@@ -56,7 +56,7 @@ INCPATH       = -I /usr/local/include/gdcm-2.0/
 LINK          = $(CXX) 
 LFLAGS_dynamic = -L/usr/local/lib/ -L.
 LIBS_dynamic  = -lbiosig
-LFLAGS_static = -L/usr/local/lib/ 
+LFLAGS_static =  -static-libgcc -L/usr/local/lib/
 LIBS_static   = libbiosig.a
 ifeq ($(LIBEXT),so)
   LFLAGS      = $(LFLAGS_dynamic)
