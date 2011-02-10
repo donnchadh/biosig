@@ -133,17 +133,17 @@ end;
 if isstruct(arg1) 
 	HDR = arg1;
 	if 0, 
-	elseif  isfield(HDR,'PhysDim') &  isfield(HDR,'PhysDimCode')
+	elseif  isfield(HDR,'PhysDim') && isfield(HDR,'PhysDimCode')
 		[PhysDimCode,scale] = physicalunits(HDR.PhysDim);
 		if any(PhysDimCode(:)~=HDR.PhysDimCode(:))
 			warning('PhysDim and PhysDimCode differ');
 			PhysDim',HDR.PhysDim'
 		end;
-	elseif ~isfield(HDR,'PhysDim') &  isfield(HDR,'PhysDimCode')
+	elseif ~isfield(HDR,'PhysDim') && isfield(HDR,'PhysDimCode')
 		[HDR.PhysDim, scale] = physicalunits(HDR.PhysDimCode);
 	elseif  isfield(HDR,'PhysDim') % ~isfield(HDR,'PhysDimCode')
 		[HDR.PhysDimCode,scale] = physicalunits(HDR.PhysDim);
-	elseif ~isfield(HDR,'PhysDim') & ~isfield(HDR,'PhysDimCode')
+	elseif ~isfield(HDR,'PhysDim') && ~isfield(HDR,'PhysDimCode')
 		HDR.PhysDimCode = zeros(HDR.NS,1); 
 		HDR.PhysDim = repmat({'?'},HDR.NS,1); 
 		scale = ones(HDR.NS,1); 
@@ -169,7 +169,7 @@ elseif isnumeric(arg1)
 	end; 
 	out = PhysDim;
 	
-elseif ischar(arg1) | iscell(arg1) 
+elseif ischar(arg1) || iscell(arg1) 
 	if iscell(arg1)
                 N    = length(arg1); 
         elseif ischar(arg1)     

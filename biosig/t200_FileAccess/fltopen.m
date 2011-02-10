@@ -301,7 +301,7 @@ if any(HDR.FILE.PERMISSION=='r'),
         	HDR.SPR = floor(HDR.AS.endpos/HDR.NRec);
         end;	
 
-else
+elseif any(HDR.FILE.PERMISSION=='w'),
 	fid = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.hdr']),'wt');
 	if 0, isfield(HDR,'H1') 
 		% copy header
@@ -490,5 +490,12 @@ else
 	HDR.FILE.FID  = fopen(fullfile(HDR.FILE.Path,HDR.FILE.Name),'wb','ieee-le');
 	HDR.FILE.OPEN = 2;
 	HDR.HeadLen   = 0; 
+
+
+elseif any(HDR.FILE.PERMISSION=='a'),
+	HDR.FILE.FID  = fopen(fullfile(HDR.FILE.Path,HDR.FILE.Name),'ab','ieee-le');
+	HDR.FILE.OPEN = 3;
+	HDR.HeadLen   = 0; 
+
 end;
 

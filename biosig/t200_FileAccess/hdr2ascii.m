@@ -248,11 +248,11 @@ end;
 if ~isfield(HDR,'Calib'); HDR.Calib = sparse(2:HDR.NS+1,1:HDR.NS,HDR.Cal); end 
 
 for k = 1:length(HDR.EVENT.POS);
-	if size(HDR.T0,1)==1,
+	if length(HDR.T0)==1,
 		T0 = HDR.T0;
 	else
 		T0 = datenum(HDR.T0);
-	end; 	
+	end;
 	t = datevec(HDR.EVENT.POS(k)/(24*3600*HDR.SampleRate)+T0);
 	fprintf(fid,'0x%04x\t%9i\t%04i-%02i-%02i %02i:%02i:%07.4f',[HDR.EVENT.TYP(k),HDR.EVENT.POS(k),t(1:6)]); 
 %%	fprintf(fid,'0x%04x\t%9i',[HDR.EVENT.TYP(k),HDR.EVENT.POS(k)]'); 
