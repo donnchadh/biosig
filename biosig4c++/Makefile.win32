@@ -65,7 +65,7 @@ else
   LFLAGS      = $(LFLAGS_static)
   LIBS        = $(LIBS_static)
 endif
-LDLIBS        = -lz -lcholmod #-lgdcmDSED 	# static
+LDLIBS        = -static-libgcc -static-libstdc++ -lz -lcholmod #-lgdcmDSED 	# static
 #LIBS         += $(LDLIBS)
 DELETE        = rm
 COPY          = cp -f

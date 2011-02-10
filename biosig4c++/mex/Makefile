@@ -20,7 +20,7 @@ LIBEXT        = a
 # WIN32 settings: 
 # Mingw crosscompiler: available at http://www.nongnu.org/mingw-cross-env/
 # whether dynamic or static linking is used, can be controlled with 
-CROSS   = $(HOME)/R:/src/mingw-cross-env/usr/bin/i686-pc-mingw32-
+CROSS   = $(HOME)/R/src/mingw-cross-env/usr/bin/i686-pc-mingw32-
 # include directory for Win32-Matlab include
 W32MAT_INC = $(HOME)/bin/Matlab/R2010/extern/include/
 # path to GNUMEX libraries, available from here http://sourceforge.net/projects/gnumex/

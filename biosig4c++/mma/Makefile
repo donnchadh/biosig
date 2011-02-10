@@ -64,7 +64,7 @@ sloadtm.obj : sloadtm.win32.c
 	${CCwin} -c -I${INCDIRwin} $< -o $@
 
 sload.exe : sload.obj sloadtm.obj ../win32/libbiosig.a
-	${CCwin} sload.obj sloadtm.obj -L${LIBDIRwin} -l${MLLIBwin} ${EXTRALIBSwin} -o $@
+	${CCwin} sload.obj sloadtm.obj -static-libgcc -static-libstdc++ -L${LIBDIRwin} -l${MLLIBwin} ${EXTRALIBSwin} -o $@
 
 	
 ###########################################
