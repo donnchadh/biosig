@@ -23,13 +23,14 @@ function viewedf(Action, ActOption)
 % Version 3.04Alpha, 10/22/01
 % (c) Herbert Ramoser (herbert.ramoser@arcs.ac.at)
 %
-% This Software is subject to the GNU public license
+% This Software is subject to the GNU public license v2 or later.
 
-%    This is part of the BIOSIG-toolbox http://biosig.sf.net/
+%	$Id: sopen.m 2529 2010-09-06 23:32:46Z schloegl $
+%    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 %
 %    BioSig is free software: you can redistribute it and/or modify
 %    it under the terms of the GNU General Public License as published by
-%    the Free Software Foundation, either version 3 of the License, or
+%    the Free Software Foundation, either version 2 of the License, or
 %    (at your option) any later version.
 %
 %    BioSig is distributed in the hope that it will be useful,
@@ -39,6 +40,7 @@ function viewedf(Action, ActOption)
 %
 %    You should have received a copy of the GNU General Public License
 %    along with BioSig.  If not, see <http://www.gnu.org/licenses/>.
+
 
 % Changes:
 % 01/27/98 Ramoser: Plugins may replace EDF data, optional parameter string
@@ -406,7 +408,7 @@ end
 
 % update plugin-data
 LocalWatchOn;
-if Data.UpdatePlugin | ~KeepOldPlots
+if Data.UpdatePlugin || ~KeepOldPlots,
   for i = 1:length(Data.Plugin)
     [Data.Plugin(i).EDF, Data.Plugin(i).UserData] = ...
         feval(Data.Plugin(i).Name, Data.EDF(Data.Plugin(i).EDFFile), ...
@@ -439,7 +441,7 @@ Opt.XPixels = 4*xpix;
 Opt.ShowRange = Data.ShowRange;
 
 % clear old buttons and labels
-if ~KeepOldPlots & ~isempty(Data.Display.Axes) 
+if ~KeepOldPlots && ~isempty(Data.Display.Axes), 
   delete(Data.Display.HScrollBar);
   if ~isempty(Data.Display.Cursor); 
     delete(Data.Display.Cursor.Line(:));
@@ -588,7 +590,7 @@ set(Data.Display.HScrollBar, ...
     'Position', [pos(1) pos(2) pos(3) fhght]); 
 
 % draw cursor
-if Data.ShowCursor & ~KeepOldPlots
+if Data.ShowCursor && ~KeepOldPlots,
   Data.Display.Cursor = LocalDrawCursor(Data.Display);
 end
 
@@ -1335,7 +1337,7 @@ if ~strcmp(get(gco,'UserData'),'Cancel')
   dmax = str2num(get(dmaxh, 'String'));
   stplot = get(ploth, 'Value');
   udplot = get(updownh, 'Value');
-  if (length(dmin) == 1) & (length(dmax) == 1) & (dmin < dmax)
+  if (length(dmin) == 1) && (length(dmax) == 1) && (dmin < dmax),
     changed = 1;
     if strcmp(get(gco,'UserData'),'OK')
       switch(whichbut{1})
@@ -2056,7 +2058,7 @@ EDFHead.FILE.Path = edfpath;
 H1 = fread(EDFHead.FILE.FID,184,'uint8=>char')';     
 EDFHead.VERSION = H1(1:8);         % 8 Byte  Versionsnummer 
 IsGDF = strcmp(EDFHead.VERSION(1:3), 'GDF');
-if (~strcmp(EDFHead.VERSION, '0       ') & ~IsGDF)
+if (~strcmp(EDFHead.VERSION, '0       ') && ~IsGDF)
   errordlg('Unknown file version', 'File error');
   return;
 end
@@ -2320,13 +2322,13 @@ end
 % LocalEDFSeek
 % change position in EDF file
 function [status] = LocalEDFSeek(EDFHead, offset, origin)
-if origin == -1 | origin == 'bof'
+if (origin == -1) || (origin == 'bof'),
   offset = EDFHead.HeadLen + EDFHead.AS.bpb * offset;
   status = fseek(EDFHead.FILE.FID, offset, origin);
-elseif origin == 0 | origin == 'cof'
+elseif (origin == 0) || (origin == 'cof'),
   offset = EDFHead.AS.bpb * offset;
   status = fseek(EDFHead.FILE.FID, offset, origin);
-elseif origin == 1 | origin == 'eof'
+elseif (origin == 1) || (origin == 'eof'),
   offset = EDFHead.HeadLen + EDFHead.AS.bpb * (EDFHead.NRec + offset);
   status = fseek(EDFHead.FILE.FID, offset, -1);
 end;
