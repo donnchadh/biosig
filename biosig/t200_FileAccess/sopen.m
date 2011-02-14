@@ -873,17 +873,15 @@ end;
                         % Classlabels according to 
                         % http://biosig.cvs.sourceforge.net/*checkout*/biosig/biosig/doc/eventcodes.txt
                         % sort event table before extracting HDR.Classlabel and HDR.TRIG
-			if 0,   
-				%% TODO: check whether sorting of event table fixes the problem on Classlabel and TRIG.                      
-	                        [HDR.EVENT.POS,ix] = sort(HDR.EVENT.POS);
-        	                HDR.EVENT.TYP = HDR.EVENT.TYP(ix);
-                	        if isfield(HDR.EVENT,'CHN')
-	                	        HDR.EVENT.CHN = HDR.EVENT.CHN(ix);
-		                end;    	    
-        	                if isfield(HDR.EVENT,'DUR')
-	        	                HDR.EVENT.DUR = HDR.EVENT.DUR(ix);
-	                	end;
-	                end; 	
+			[HDR.EVENT.POS,ix] = sort(HDR.EVENT.POS);
+			HDR.EVENT.TYP = HDR.EVENT.TYP(ix);
+			if isfield(HDR.EVENT,'CHN')
+				HDR.EVENT.CHN = HDR.EVENT.CHN(ix);
+			end;    	    
+			if isfield(HDR.EVENT,'DUR')
+				HDR.EVENT.DUR = HDR.EVENT.DUR(ix);
+			end; 	
+
                         if (length(HDR.EVENT.TYP)>0)
                                 ix = (HDR.EVENT.TYP>hex2dec('0300')) & (HDR.EVENT.TYP<hex2dec('030d'));
                                 ix = ix | ((HDR.EVENT.TYP>=hex2dec('0320')) & (HDR.EVENT.TYP<=hex2dec('037f')));
