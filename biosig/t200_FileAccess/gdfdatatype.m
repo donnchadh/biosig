@@ -45,9 +45,9 @@ if iscell(GDFTYP),
                         gdftyp(k) = 7;
                 elseif strncmpi(GDFTYP{k},'uint64',6)
                         gdftyp(k) = 8;
-                elseif strncmpi(GDFTYP{k},'float32',7) | strcmp(GDFTYP{k},'float')
+                elseif strncmpi(GDFTYP{k},'float32',7) || strcmp(GDFTYP{k},'float')
                         gdftyp(k) = 16;
-                elseif strncmpi(GDFTYP{k},'float64',7) | strcmp(GDFTYP{k},'double')
+                elseif strncmpi(GDFTYP{k},'float64',7) || strcmp(GDFTYP{k},'double')
                         gdftyp(k) = 17;
                 elseif strncmpi(GDFTYP{k},'float128',7)
                         gdftyp(k) = 18;
@@ -120,11 +120,11 @@ for k=1:length(GDFTYP),
                 datatyp=('float128');
                 limit = [-inf,inf,NaN];        
                 nbits = 128; 
-        elseif (GDFTYP(k)>255) & (GDFTYP(k)<512)
+        elseif (GDFTYP(k)>255) && (GDFTYP(k)<512)
                 nbits = GDFTYP(k)-255;
                 datatyp=['bit',int2str(nbits)];
                 limit = [-(2^(nbits-1)),2^(nbits-1)-1,-(2^(nbits-1))];
-        elseif (GDFTYP(k)>511) & (GDFTYP(k)<768)
+        elseif (GDFTYP(k)>511) && (GDFTYP(k)<768)
                 nbits = GDFTYP(k)-511;
                 datatyp=['ubit',int2str(nbits)];
                 limit = [0,2^nbits,2^nbits];

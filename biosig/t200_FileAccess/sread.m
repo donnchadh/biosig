@@ -35,7 +35,7 @@ if nargin<2,
         NoS = inf; 
 end;
 
-if ~isnumeric(NoS) | (NoS<0),
+if ~isnumeric(NoS) || (NoS<0),
         fprintf(HDR.FILE.stderr,'Error SREAD: NoS must be non-negative number\n');
         return;
 end;
@@ -151,7 +151,7 @@ elseif strcmp(HDR.TYPE,'BDF'),
                 S = S - 2^24*(S>=2^23);
         end
 
-elseif strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'ACQ'),
+elseif strcmp(HDR.TYPE,'EDF') || strcmp(HDR.TYPE,'GDF') || strcmp(HDR.TYPE,'BDF') || strcmp(HDR.TYPE,'ACQ'),
 	% experimental, might replace SDFREAD.M 
         if nargin==3,
                 HDR.FILE.POS = round(HDR.SampleRate*StartPos);
@@ -309,7 +309,7 @@ elseif strmatch(HDR.TYPE,{'BLSC2','CFWB','CNT','DEMG','DDT','ET-MEG','ISHNE','Ni
         end;
         if strcmpi(HDR.FLAG.OUTPUT,'single'),
 		DT = [gdfdatatype(HDR.GDFTYP),'=>single'];
-        elseif any(HDR.GDFTYP==[1:6,16]) & ~exist('OCTAVE_VERSION','builtin'),
+        elseif any(HDR.GDFTYP==[1:6,16]) && ~exist('OCTAVE_VERSION','builtin'),
         	% preserve data type
 		DT = ['*',gdfdatatype(HDR.GDFTYP)];
 	else
@@ -476,7 +476,7 @@ elseif strcmp(HDR.TYPE,'MIT'),
         if HDR.VERSION == 212, 
                 [A,count] = fread(HDR.FILE.FID, [1,DataLen*HDR.AS.bpb], 'uint8');  % matrix with 3 rows, each 8 bits long, = 2*12bit
 		DataLen = floor(count/HDR.AS.bpb);
-		if (count~= DataLen*HDR.AS.bpb) & isfinite(DataLen),
+		if (count~= DataLen*HDR.AS.bpb) && isfinite(DataLen),
 			fprintf(HDR.FILE.stderr,'Warning SREAD (MIT): non-integer block length %i,%f\n',count, DataLen*HDR.AS.bpb);
 			%HDR = sseek(HDR,HDR.FILE.POS,'bof');
 			%return;
@@ -614,7 +614,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
                         
                         [s,count] = fread(HDR.FILE.FID, [HDR.NS + HDR.EGI.N, HDR.SPR*HDR.NRec], gdfdatatype(HDR.GDFTYP));
                         tmp = (HDR.NS + HDR.EGI.N) * HDR.SPR;
-	                if isfinite(tmp) & (count < tmp),
+	                if isfinite(tmp) && (count < tmp),
                                 fprintf(HDR.FILE.stderr,'Warning SREAD EGI: only %i out of %i samples read\n',count,tmp);
                         end;
                         HDR.FILE.POS = HDR.FILE.POS + count/tmp;
@@ -628,7 +628,7 @@ elseif strcmp(HDR.TYPE,'EGI'),
         else
                 [S,count] = fread(HDR.FILE.FID,[HDR.NS + HDR.EGI.N, HDR.SampleRate*NoS],gdfdatatype(HDR.GDFTYP));
                 tmp = HDR.SampleRate * NoS;
-                if isfinite(tmp) & (count < tmp),
+                if isfinite(tmp) && (count < tmp),
                         fprintf(HDR.FILE.stderr,'Warning SREAD EGI: only %i out of %i samples read\n',count,tmp);
                 end;
                 HDR.FILE.POS = HDR.FILE.POS + round(count/(HDR.NS + HDR.EGI.N));
@@ -651,7 +651,7 @@ elseif strcmp(HDR.TYPE,'AVG'),
         
 elseif strcmp(HDR.TYPE,'COH'),
         warning('.COH data not tested yet')
-        if prod(size(NoS))==1 & nargin>2, 
+        if (prod(size(NoS))==1) && (nargin>2), 
                 rows = NoS; cols = StartPos;
         elseif prod(size(NoS))==2
                 rows = NoS(1); cols = NoS(2);
@@ -901,9 +901,9 @@ elseif strcmp(HDR.TYPE,'SCP'),
         
 	S2 = []; 
 	for k3 = 5:6,
-		if (k3==5) & isfield(HDR,'SCP5');
+		if (k3==5) && isfield(HDR,'SCP5');
 			SCP = HDR.SCP5;
-		elseif (k3==6) & isfield(HDR,'SCP6');
+		elseif (k3==6) && isfield(HDR,'SCP6');
 			SCP = HDR.SCP6;
 		else 
 			SCP = []; 
@@ -926,7 +926,7 @@ elseif strcmp(HDR.TYPE,'SCP'),
 					x  = [];
 					HT = HDR.SCP2.HT(find(HDR.SCP2.HT(:,1)==1),3:7);
 					while (l2 < HDR.LeadPos(k,2)),
-						while ((c < max(HT(:,2))) & (k1<length(s2)-1));
+						while ((c < max(HT(:,2))) && (k1<length(s2)-1));
 							k1 = k1 + 1;
 							dd = s2(k1);
 							accu = accu + ACC(dd+1)*(2^c);
@@ -1027,7 +1027,7 @@ elseif strcmp(HDR.TYPE,'SCP'),
                                                         %accu = bitshift(accu, HDR.Huffman.prefix(ixx),32);
                                                         accu  = mod(accu.*(2^HDR.Huffman.prefix(ixx)),2^32);
                                                         l2    = l2 + 1;
-                                                        while (c > 7) & (l < Ntmp),
+                                                        while (c > 7) && (l < Ntmp),
                                                                 l = l+1;
                                                                 c = c-8;
                                                                 accu = accu + tmp(l)*2^c;
@@ -1047,7 +1047,7 @@ elseif strcmp(HDR.TYPE,'SCP'),
                                                         c = c + 16;
                                                 end;
                                                 
-                                                while (c > 7) & (l < Ntmp),
+                                                while (c > 7) && (l < Ntmp),
                                                         l = l+1;
                                                         c = c-8;
                                                         accu = accu + tmp(l)*(2^c);
@@ -1064,7 +1064,7 @@ elseif strcmp(HDR.TYPE,'SCP'),
 						return;
                                         end;
                                 end;
-                        elseif (HDR.SCP2.NHT==1) & (HDR.SCP2.NCT==1) & (HDR.SCP2.prefix==0), 
+                        elseif (HDR.SCP2.NHT==1) && (HDR.SCP2.NCT==1) && (HDR.SCP2.prefix==0), 
 				S2 = SCP.data(:,HDR.InChanSelect);                      
                                 
                         elseif HDR.SCP2.NHT~=19999,
@@ -1084,10 +1084,10 @@ elseif strcmp(HDR.TYPE,'SCP'),
                         end;
                         S2 = S2 * SCP.Cal;
 
-			if (k3==5) & isfield(HDR,'SCP5');
+			if (k3==5) && isfield(HDR,'SCP5');
 			%	HDR.SCP5.data = S2; 
 
-			elseif (k3==6) & isfield(HDR,'SCP6');
+			elseif (k3==6) && isfield(HDR,'SCP6');
                                 if HDR.SCP6.FLAG.bimodal_compression,
                                         F = HDR.SCP5.SampleRate/HDR.SCP6.SampleRate;
                                         HDR.SampleRate = HDR.SCP5.SampleRate;
@@ -1370,7 +1370,7 @@ elseif strcmp(HDR.TYPE,'WG1'),   %walter-graphtek
         endloop= 0;
         c = 1; 
         offset = 0; 
-    	while ~endloop & (c>0) & (offset(1)~=(hex2dec('AEAE5555')-2^32)) & (count<nr);
+    	while ~endloop & (c>0) && (offset(1)~=(hex2dec('AEAE5555')-2^32)) && (count<nr);
 	        [offset,c] = fread(HDR.FILE.FID, HDR.WG1.szOffset, 'int32');
 		[databuf,c] = fread(HDR.FILE.FID,[HDR.WG1.szBlock,HDR.NS+HDR.WG1.szExtra],'uint8');
             	dt = HDR.WG1.conv(databuf(:,1:HDR.NS)+1);
@@ -1388,7 +1388,7 @@ elseif strcmp(HDR.TYPE,'WG1'),   %walter-graphtek
 		ix1 = 0;	% reset starting index, 
 
                 k = 0; 
-                while (k<HDR.WG1.szExtra) & ~endloop, 
+                while (k<HDR.WG1.szExtra) && ~endloop, 
                         endloop = ~isempty(strfind(databuf(:,HDR.NS+k)',[85,85,174,174]));
                         k = k+1; 
                 end;
@@ -1439,7 +1439,7 @@ elseif strcmp(HDR.TYPE,'FIF'),
         count = 0;
         status = 'ok';
         
-        while (t2<(StartPos + NoS)) & ~strcmp(status,'eof'),
+        while (t2<(StartPos + NoS)) && ~strcmp(status,'eof'),
                 [buf, status] = rawdata('next');
                 if 0
                 elseif strcmp(status, 'ok')
@@ -1495,7 +1495,7 @@ end;
 
 if isempty(S),
 
-elseif isfield(HDR,'THRESHOLD') & HDR.FLAG.OVERFLOWDETECTION,
+elseif isfield(HDR,'THRESHOLD') && HDR.FLAG.OVERFLOWDETECTION,
         ix = (S~=S);
         for k=1:length(HDR.InChanSelect),
                 TH = THRESHOLD(HDR.InChanSelect(k),:);
