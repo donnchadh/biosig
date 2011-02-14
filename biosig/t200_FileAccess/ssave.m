@@ -79,7 +79,11 @@ if (nargin > 1),
 	end;    	
 
 	if (nargin > 2),
-        	if strcmp(TYPE,'GDF2'),
+        	if strcmp(TYPE,'EVENT'),
+        		HDR.TYPE = 'GDF';
+	        	HDR.VERSION = 2;
+			HDR.NS = 0; 
+        	elseif strcmp(TYPE,'GDF2'),
         		HDR.TYPE = 'GDF';
 	        	HDR.VERSION = 2;
         	elseif strncmp(TYPE,'GDF',3),
@@ -90,9 +94,13 @@ if (nargin > 1),
 		end;        
 	end;
 	HDR = sopen(HDR,'w');
-	HDR = swrite(HDR,DATA);
+	if ~isempty(DATA)
+		HDR = swrite(HDR,DATA);
+	end;
 	HDR = sclose(HDR);
 end;
+
+if strcmp(TYPE,'EVENT') return; end; 
 
 % Convert EVENT into WSCORE event format
 if all([length(HDR.EVENT.POS), length(HDR.EVENT.TYP)]),
@@ -114,7 +122,7 @@ if all([length(HDR.EVENT.POS), length(HDR.EVENT.TYP)]),
 	% write "free form" scoring file for WSCORE
 	fid   = fopen(fullfile(HDR.FILE.Path,[HDR.FILE.Name,'.C07']),'w');
 	for k = 1:length(TYP), 
-    		fprintf(fid,'%2i %s (%s)\r\n', k, HDR.EVENT.CodeDesc(mod(TYP(k),2^15)==HDR.EVENT.CodeIndex), OnOff{(TYP(k)>=2^15)+1});
+    		fprintf(fid,'%2i %s (%s)\r\n', k, HDR.EVENT.CodeDesc{mod(TYP(k),2^15)==HDR.EVENT.CodeIndex}, OnOff{(TYP(k)>=2^15)+1});
 	end;
 	fclose(fid);
 
