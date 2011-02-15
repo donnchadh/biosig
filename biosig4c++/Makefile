@@ -44,8 +44,8 @@ CXX           = g++
 #DEFINES      = -D=WITHOUT_SCP_DECODE
 DEFINES       = -D=HARDCODED_EVENTTABLE -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_FEF #-D=WITH_PDP -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 #DEFINES      += -D=CNT32
-CFLAGS        = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
-CXXFLAGS      = -pipe -fPIC -Wall -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
+CFLAGS        = -pipe -fPIC -W -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
+CXXFLAGS      = -pipe -fPIC -W -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
 AR            = ar crs
 INCPATH       = -I /usr/local/include/gdcm-2.0/
 #		../gdcm-2.0.10/Source/DataStructureAndEncodingDefinition \
@@ -194,9 +194,9 @@ lib:	libbiosig.a libbiosig.so win32/libbiosig.dll win32/libbiosig.a
 .cxx.o:
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
 .C.o:
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
+	$(CC) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
 .c.o:
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
+	$(CC) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
 
 %.o: %.c biosig.h biosig-dev.h
 	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
@@ -222,6 +222,8 @@ win32/%.obj: t220/%.c  biosig-dev.h biosig.h
 win32/%.obj: t230/%.c  biosig-dev.h biosig.h 
 	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 win32/%.obj: t240/%.c  biosig-dev.h biosig.h 
+	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o "$@" "$<"
+win32/%.obj: test0/%.c  biosig-dev.h biosig.h 
 	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o "$@" "$<"
 win32/%.obj: XMLParser/%.cpp 
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
@@ -260,9 +262,6 @@ win32/libGDF.a: $(libGDFwin32obj)
 #	Compilation: exceptions, explicit rules
 #############################################################
 
-sandbox.o: test0/sandbox.c biosig.h
-	$(CXX) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
-
 sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h
 #	cd t240
 #	#asn1c -fcompound-names -pdu=SessionArchiveSection -S /home/schloegl/cvs/asn1c/skeletons fef.asn1
@@ -285,23 +284,11 @@ scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h t210/types.h t210/struct
 getlogin_r.o: win32/getlogin_r.c
 	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
-#strtod.o: gnulib/strtod.c
-#	$(CC) -c $(CFLAGS) $(INCPATH) -o strtod.o gnulib/strtod.c
-
-win32/sandbox.obj: test0/sandbox.c biosig.h 
-	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
-
 win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h biosig.h t210/structures.h t210/types.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
-win32/sopen_alpha_read.obj: t210/sopen_alpha_read.c biosig-dev.h
-	$(MinGWCC) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
-
 win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h t210/types.h t210/structures.h t210/codes.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
-
-#win32/sopen_fef_read.obj: t240/sopen_fef_read.c biosig-dev.h biosig.h
-#	$(MinGWCC) -c $(MinGWCFLAGS) -I t240 $(INCPATH) -o "$@" "$<"
 
 win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h XMLParser/tinyxml.h XMLParser/tinystr.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
@@ -424,7 +411,7 @@ win32mma: win32/libbiosig.a
 #############################################################
 #	MEX-files for Octave and Matlab
 #############################################################
-mex: libbioisig.a
+mex: libbiosig.a
 	make -C mex mex -k
 
 mex mex4m mex4o mexw32 oct:

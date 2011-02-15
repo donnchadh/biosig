@@ -244,6 +244,39 @@ int sopen_zzztest(HDRTYPE* hdr) {
 
 	else if (hdr->TYPE==HEKA && hdr->VERSION == 2) {
 
+
+/* TODO:
+	+ support for resampling (needed by mexSLOAD, SigViewer, save2gdf)
+	- support for selection of experiment,series,sweep,trace (needed by MMA)
+	- event-table -> MMA
+*/
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 107\n");
+
+		char magic[4];
+		int32_t Levels=0;
+		uint16_t k;
+		//int32_t *Sizes=NULL;
+		int32_t Counts[5], counts[5]; //, Sizes[5];
+		memset(Counts,0,20);
+		memset(counts,0,20);
+		//memset(Sizes,0,20);
+		uint32_t StartOfData,StartOfPulse;
+
+		union {
+			struct {
+				int32_t Root;
+				int32_t Group;
+				int32_t Series;
+				int32_t Sweep;
+				int32_t Trace;
+			} Rec;
+			int32_t all[5];
+		} Sizes;
+
+		int32_t *SZ = (int32_t*)hdr->aECG;	// aECG is (ab)used as input parameter for selecting sweeps.
+
+
     		// HEKA PatchMaster file format
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 111\n");
@@ -275,39 +308,17 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 114\n");
 			nItems = beu32p(hdr->AS.Header+48);
 		}
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 117\n");
-
-		char magic[4];
-		int32_t Levels=0;
-		//int32_t *Sizes=NULL;
-		int32_t Counts[5], counts[5]; //, Sizes[5];
-		memset(Counts,0,20);
-		memset(counts,0,20);
-		//memset(Sizes,0,20);
-		uint32_t StartOfData,StartOfPulse;
-
-		union {
-			struct {
-				int32_t Root;
-				int32_t Group;
-				int32_t Series;
-				int32_t Sweep;
-				int32_t Trace;
-			} Rec;
-			int32_t all[5];
-		} Sizes;
-
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 121 nItems=%i\n",nItems);
 
 		if (hdr->VERSION == 2)
-		for (int k=0; k < min(12,nItems); k++) {
+		for (k=0; k < min(12,nItems); k++) {
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 131 nItems=%i\n",k);
 
 			uint32_t start  = *(uint32_t*)(hdr->AS.Header+k*16+64);
 			uint32_t length = *(uint32_t*)(hdr->AS.Header+k*16+64+4);
 			if (SWAP) {
-				start = bswap_32(start);
+				start  = bswap_32(start);
 				length = bswap_32(length);
 			}
 			uint8_t *ext = hdr->AS.Header + k*16 + 64 + 8;
@@ -333,9 +344,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA #%i: <%s> [%i:+%i]\n",k,ext,start,leng
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA124 #%i    Levels=%i\n",k,Levels);
 
 				memcpy(Sizes.all,hdr->AS.Header+start+8,sizeof(int32_t)*Levels);
-				if (SWAP) for (int l=0; l < Levels; l++) Sizes.all[l] = bswap_32(Sizes.all[l]);
+				if (SWAP) {
+					int l;
+					for (l=0; l < Levels; l++) Sizes.all[l] = bswap_32(Sizes.all[l]);
+				}
 
-if (VERBOSE_LEVEL>7) for (int l=0; l < Levels; l++) fprintf(stdout,"HEKA #%i       %i\n",l, Sizes.all[l]);
+if (VERBOSE_LEVEL>7) {int l; for (l=0; l < Levels; l++) fprintf(stdout,"HEKA #%i       %i\n",l, Sizes.all[l]); }
 
 				StartOfPulse = start + 8 + 4 * Levels;
 			}
@@ -387,7 +401,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 995\n");
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 997\n");
 		
-		t -= 1580970496.; if (t<0) t += 4294967296.; t += 9561652096.;
+		t -= 1580970496; if (t<0) t += 4294967296; t += 9561652096;
 		hdr->T0 = (uint64_t)ldexp(t/(24.0*60*60) + 584755, 32); // +datenum(1601,1,1));
 		hdr->SampleRate = 0.0;
 		double *DT = NULL; 	// list of sampling intervals per channel
@@ -477,6 +491,29 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+Sta
 						double PhysMin   = (*(double*)(hdr->AS.Header+pos+224));
 						double PhysMax   = (*(double*)(hdr->AS.Header+pos+232));
 
+
+						switch (hdr->AS.Header[pos+70]) {
+						case 0: gdftyp = 3; 		//int16
+							DigMax = (double)(int16_t)0x7fff;
+							DigMin = (double)(int16_t)0x8000;
+							break;
+						case 1: gdftyp = 5; 		//int32
+							DigMax = (double)(int32_t)0x7fffffff;
+							DigMin = (double)(int32_t)0x80000000;
+							break;
+						case 2: gdftyp = 16; 		//float32
+							DigMax =  1e9;
+							DigMin = -1e9;
+							break;
+						case 3: gdftyp = 17; 		//float64
+							DigMax =  1e9;
+							DigMin = -1e9;
+							break;
+						default:
+							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+							B4C_ERRMSG = "Heka/Patchmaster: data type not supported.";
+						};
+
 						if (SWAP) {
  							AdcChan = bswap_16(AdcChan);
  							ns  = bswap_32(ns);
@@ -489,39 +526,38 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+Sta
 							*(uint64_t*)&PhysMin = bswap_64(*(uint64_t*)&PhysMin);
 							*(uint64_t*)&Toffset = bswap_64(*(uint64_t*)&Toffset);
  						}
-
-						double Cal;
+						double Cal = 2 * YRange / (DigMax - DigMin);
 						double Off = YOffset;
-						switch (hdr->AS.Header[pos+70]) {
-						case 0: gdftyp = 3; 		//int16
-							DigMax = (double)(int16_t)0x7fff;
-							DigMin = (double)(int16_t)0x8000;
-							Cal    = ldexp(YRange, -15); 
-							break;
-						case 1: gdftyp = 5; 		//int32
-							DigMax = (double)(int32_t)0x7fffffff;
-							DigMin = (double)(int32_t)0x80000000;
-							Cal    = ldexp(YRange, -31); 
-							break;
-						case 2: gdftyp = 16; 		//float32
-							DigMax =  1e9;
-							DigMin = -1e9;
-							Cal = YRange / DigMax;
-							break;
-						case 3: gdftyp = 17; 		//float64
-							DigMax =  1e9;
-							DigMin = -1e9;
-							Cal = YRange / DigMax;
-							break;
-						default:
-							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-							B4C_ERRMSG = "Heka/Patchmaster: data type not supported.";
-						};
-
 
                                                 // sample rate
 						double dT = *(double*)(&dT_i);
-                                                double Fs = 1.0 / dT;
+                                                double Fs = round(1.0 / dT);
+
+						if (hdr->SampleRate <= 0.0) hdr->SampleRate = Fs;
+
+						unsigned long DIV1 = 1, DIV2 = 1;
+                                                if (fabs(hdr->SampleRate - Fs) > 1e-9) {
+							unsigned long F0 = lcm(round(hdr->SampleRate), Fs);
+							
+							DIV1 = F0 / hdr->SampleRate;
+							if (DIV1 > 1) {
+								hdr->SPR *= DIV1; 
+								size_t n = 0;
+								while (n < hdr->EVENT.N) 
+									hdr->EVENT.POS[n++] *= DIV1;
+							}	
+
+							DIV2 = F0 / Fs;
+							if (DIV2 > 1) spr *= DIV2; 
+							
+							hdr->SampleRate = F0; 
+
+/*	OBSOLETE:
+							// FIXME: once resampling is implemented, the error can be removed
+                                                        B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+                                                        B4C_ERRMSG = "Heka/Patchmaster: sampling rates do not match.";
+*/
+						}
 
 						// samples per sweep
 						if (k4==0) SPR = spr;
@@ -574,7 +610,10 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 
 							if (fabs(hdr->CHANNEL[ns].Cal - Cal) > 1e-9*Cal) flagModifiedTraceHeaders = 1;
 							if (fabs(hdr->CHANNEL[ns].Off - Off) > 1e-9*Off) flagModifiedTraceHeaders = 1;
-							if (hdr->CHANNEL[ns].GDFTYP == gdftyp) flagModifiedTraceHeaders = 1;
+							if (hdr->CHANNEL[ns].GDFTYP < gdftyp) {
+								hdr->CHANNEL[ns].GDFTYP = gdftyp;
+// OBSOLETE 								flagModifiedTraceHeaders = 1;
+							}
 						}
 
 						if (YOffset) {
@@ -585,19 +624,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
                                                         B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
                                                         B4C_ERRMSG = "Heka/Patchmaster: ValidYRange not set.";
 						}
+/* OBSOLETE
 						if (hdr->CHANNEL[ns].GDFTYP != gdftyp) {
                                                         B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
                                                         B4C_ERRMSG = "Heka/Patchmaster: data types do not match.";
 						}
-
-						if (hdr->SampleRate <= 0.0) hdr->SampleRate = Fs;
-                                                if (fabs(hdr->SampleRate - Fs) > 1e-9) {
-							hdr->SampleRate = lcm(round(hdr->SampleRate), round(Fs));
-							// FIXME: once resampling is implemented, the error can be removed
-                                                        B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-                                                        B4C_ERRMSG = "Heka/Patchmaster: sampling rates do not match.";
-						}
-
+*/ 
 						if ((pdc & 0xFFE0) != (hdr->CHANNEL[ns].PhysDimCode & 0xFFE0)) {
                                                         fprintf(stdout, "Warning: Yunits do not match #%i,%f-%fHz\n",ns, DT[ns],dT);
                                                         B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
@@ -618,11 +650,11 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 							B4C_ERRMSG = "Heka/Patchmaster: Level 4 has some children.";
 						}
-					}
+					}	// end loop k4
 					hdr->SPR += SPR;
-				}
-			}
-		}
+				}		// end loop k3
+			}			// end loop k2
+		}				// end loop k1
                 hdr->EVENT.SampleRate = hdr->SampleRate; 
 
 #ifndef NO_BI
@@ -634,7 +666,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 
 		hdr->NRec = 1;
 		hdr->AS.bpb = 0;
-		for (uint16_t k = 0; k < hdr->NS; k++) {
+		for (k = 0; k < hdr->NS; k++) {
 			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
 #ifndef NO_BI
 			hc->bi = hdr->AS.bpb;
@@ -661,20 +693,21 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 #define _BI (hc->bi)
 #endif
 		/* initialize with NaN's */
-		for (uint16_t k=0; k<hdr->NS; k++) {
+		for (k=0; k<hdr->NS; k++) {
+			size_t k1;
 			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
 			switch (hc->GDFTYP) {
 			case 3:
-				for (size_t k1=0; k1<hc->SPR; k1++) *(uint16_t*)(hdr->AS.rawdata + _BI + k1 * 2) = 0x8000;
+				for (k1=0; k1<hc->SPR; k1++) *(uint16_t*)(hdr->AS.rawdata + _BI + k1 * 2) = 0x8000;
 				break;
 			case 5:
-				for (size_t k1=0; k1<hc->SPR; k1++) *(uint32_t*)(hdr->AS.rawdata + _BI + k1 * 4) = 0x80000000;
+				for (k1=0; k1<hc->SPR; k1++) *(uint32_t*)(hdr->AS.rawdata + _BI + k1 * 4) = 0x80000000;
 				break;
 			case 16:
-				for (size_t k1=0; k1<hc->SPR; k1++) *(float*)(hdr->AS.rawdata + _BI + k1 * 4) = 0.0/0.0;
+				for (k1=0; k1<hc->SPR; k1++) *(float*)(hdr->AS.rawdata + _BI + k1 * 4) = 0.0/0.0;
 				break;
 			case 17:
-				for (size_t k1=0; k1<hc->SPR; k1++) *(double*)(hdr->AS.rawdata + _BI + k1 * 8) = 0.0/0.0;
+				for (k1=0; k1<hc->SPR; k1++) *(double*)(hdr->AS.rawdata + _BI + k1 * 8) = 0.0/0.0;
 				break;
 			}
 		}
@@ -718,10 +751,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+Sta
 					pos += Sizes.Rec.Sweep + 4;
 					// read number of children
 					K4 = (*(uint32_t*)(hdr->AS.Header+pos-4));
+					size_t DIV = 1;
 					for (k4=0; k4<K4; k4++)	{
 
 						// read trace
 						double DigMin, DigMax;
+						uint16_t gdftyp  = 0;	
 						uint32_t ns      = (*(uint32_t*)(hdr->AS.Header+pos+36));
 						uint32_t DataPos = (*(uint32_t*)(hdr->AS.Header+pos+40));
 						spr              = (*(uint32_t*)(hdr->AS.Header+pos+44));
@@ -733,30 +768,34 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+Sta
 						double PhysMin   = (*(double*)(hdr->AS.Header+pos+224));
 						double PhysMax   = (*(double*)(hdr->AS.Header+pos+232));
 
+						switch (hdr->AS.Header[pos+70]) {
+						case 0: gdftyp = 3;  break;	// int16
+						case 1: gdftyp = 5;  break;	// int32
+						case 2: gdftyp = 16; break;	// float32
+						case 3: gdftyp = 17; break;	// float64
+						};
+
 						if (SWAP) {
- 							AdcChan = bswap_16(AdcChan);
- 							ns  = bswap_32(ns);
- 							DataPos = bswap_32(DataPos);
-							spr = bswap_32(spr);
-							dT_i= bswap_64(dT_i);
+ 							AdcChan  = bswap_16(AdcChan);
+ 							ns       = bswap_32(ns);
+ 							DataPos  = bswap_32(DataPos);
+							spr      = bswap_32(spr);
+							dT_i     = bswap_64(dT_i);
 							*(uint64_t*)&YRange  = bswap_64(*(uint64_t*)&YRange);
 							*(uint64_t*)&YOffset = bswap_64(*(uint64_t*)&YOffset);
 							*(uint64_t*)&PhysMax = bswap_64(*(uint64_t*)&PhysMax);
 							*(uint64_t*)&PhysMin = bswap_64(*(uint64_t*)&PhysMin);
  						}
-                                                double Fs = round(1.0 / *(double*)(&dT_i));
-						size_t DIV = 1;
-                                                if (fabs(hdr->SampleRate - Fs) > 1e-9) {
-							DIV = round(hdr->SampleRate/Fs);
-						}
+                                                double Fs  = round(1.0 / *(double*)(&dT_i));
+						DIV = round(hdr->SampleRate / Fs);
 
-						char *Label = (char*)hdr->AS.Header+pos+4;
+						char *Label = (char*)(hdr->AS.Header+pos+4);
 						for (ns=0; ns < hdr->NS; ns++) {
 							if (!strcmp(hdr->CHANNEL[ns].Label, Label)) break;
 						}
 						CHANNEL_TYPE *hc = hdr->CHANNEL+ns;
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %i/%i %i/%i \n",pos+StartOfData,ns,AdcChan,spr,SPR,Label,k1,K1,k2,K2,k3,K3,k4,K4);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %i/%i %i/%i DIV=%i,%i,%i\n",pos+StartOfData,ns,AdcChan,spr,SPR,Label,k1,K1,k2,K2,k3,K3,k4,K4,DIV,gdftyp,hc->GDFTYP);
 
 #ifdef NO_BI
 #define _BI (BI[ns])
@@ -765,23 +804,115 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L4 @%i= #%i,%i,%i/%i %s\t%i/%i %i/%i %
 #endif
 						double *data = (double*)hdr->AS.rawdata;
 						// no need to check byte order because File.Endian is set and endian conversion is done in sread
-						switch (hc->GDFTYP) {
-						case 3:
-							memcpy(hdr->AS.rawdata + _BI + SPR * 2, hdr->AS.Header + DataPos, spr * 2);
-							break;
-						case 5:
-						case 16:
-							memcpy(hdr->AS.rawdata + _BI + SPR * 4, hdr->AS.Header + DataPos, spr * 4);
-							break;
-						case 17:
-							memcpy(hdr->AS.rawdata + _BI + SPR * 8, hdr->AS.Header + DataPos, spr * 8);
-							break;
+						if ((DIV==1) && (gdftyp == hc->GDFTYP))	{
+							int sz;	
+							switch (hc->GDFTYP) {
+							case 3:  sz = 2; break;
+							case 5:
+							case 16: sz = 4; break;
+							case 17: sz = 8; break;
+							}
+							memcpy(hdr->AS.rawdata + _BI + SPR * sz, hdr->AS.Header + DataPos, spr * sz);
+						}
+						else if (1) {
+							uint32_t k5,k6;
+							switch (gdftyp) {
+							case 3: 
+								switch (hc->GDFTYP) {
+								case 3: 
+									for (k5 = 0; k5 < spr; ++k5) {
+										int16_t ival = *(int16_t*)(hdr->AS.Header + DataPos + k5 * 2);
+
+if (VERBOSE_LEVEL>8) fprintf(stdout,"HEKA re-arrange data: [%i,%i,%i,%i] %i,%i,%i,@%i,@%i = %i\n",k1,k2,k3,k4,DIV,k5,k6,DataPos + k5 * 2,_BI + (SPR + k5*DIV + k6) * 2, ival);
+
+										for (k6 = 0; k6 < DIV; ++k6) 
+											*(int16_t*)(hdr->AS.rawdata + _BI + (SPR + k5*DIV + k6) * 2) = ival;
+									}
+									break;
+								case 5: 
+									for (k5 = 0; k5 < spr; ++k5) {
+										int16_t ival = *(int16_t*)(hdr->AS.Header + DataPos + k5 * 2);
+										for (k6 = 0; k6 < DIV; ++k6) 
+											*(int32_t*)(hdr->AS.rawdata + _BI + (SPR + k5*DIV + k6) * 4) = (int32_t)ival;
+									}
+									break;
+								case 16: 
+									for (k5 = 0; k5 < spr; ++k5) {
+										int16_t ival = *(int16_t*)(hdr->AS.Header + DataPos + k5 * 2);
+										for (k6 = 0; k6 < DIV; ++k6) 
+											*(float*)(hdr->AS.rawdata + _BI + (SPR + k5*DIV + k6) * 4) = (float)ival;
+									}
+									break;
+								case 17: 
+									for (k5 = 0; k5 < spr; ++k5) {
+										int16_t ival = *(int16_t*)(hdr->AS.Header + DataPos + k5 * 2);
+										for (k6 = 0; k6 < DIV; ++k6) 
+											*(double*)(hdr->AS.rawdata + _BI + (SPR + k5*DIV + k6) * 8) = (double)ival;
+									}
+									break;
+								}
+								break;
+							case 5:
+								switch (hc->GDFTYP) {
+								case 5: 
+									for (k5 = 0; k5 < spr; ++k5) {
+										int32_t ival = *(int32_t*)(hdr->AS.Header + DataPos + k5 * 4);
+										for (k6 = 0; k6 < DIV; ++k6) 
+											*(int32_t*)(hdr->AS.rawdata + _BI + (SPR + k5*DIV + k6) * 4) = ival;
+									}
+									break;
+								case 16: 
+									for (k5 = 0; k5 < spr; ++k5) {
+										int32_t ival = *(int32_t*)(hdr->AS.Header + DataPos + k5 * 4);
+										for (k6 = 0; k6 < DIV; ++k6) 
+											*(float*)(hdr->AS.rawdata + _BI + (SPR + k5*DIV + k6) * 4) = (float)ival;
+									}
+									break;
+								case 17: 
+									for (k5 = 0; k5 < spr; ++k5) {
+										int32_t ival = *(int32_t*)(hdr->AS.Header + DataPos + k5 * 4);
+										for (k6 = 0; k6 < DIV; ++k6) 
+											*(double*)(hdr->AS.rawdata + _BI + (SPR + k5*DIV + k6) * 8) = (double)ival;
+									}
+									break;
+								}
+								break;
+							case 16:
+								switch (hc->GDFTYP) {
+								case 16: 
+									for (k5 = 0; k5 < spr; ++k5) {
+										float ival = *(float*)(hdr->AS.Header + DataPos + k5 * 4);
+										for (k6 = 0; k6 < DIV; ++k6) 
+											*(float*)(hdr->AS.rawdata + _BI + (SPR + k5*DIV + k6) * 4) = ival;
+									}
+									break;
+								case 17: 
+									for (k5 = 0; k5 < spr; ++k5) {
+										float ival = *(float*)(hdr->AS.Header + DataPos + k5 * 4);
+										for (k6 = 0; k6 < DIV; ++k6) 
+											*(double*)(hdr->AS.rawdata + _BI + (SPR + k5*DIV + k6) * 8) = (double)ival;
+									}
+									break;
+								}
+								break;
+							case 17:
+								switch (hc->GDFTYP) {
+								case 17: 
+									for (k5 = 0; k5 < spr; ++k5) {
+										double ival = *(double*)(hdr->AS.Header + DataPos + k5 * 8);
+										for (k6 = 0; k6 < DIV; ++k6) 
+											*(double*)(hdr->AS.rawdata + _BI + (SPR + k5*DIV + k6) * 8) = ival;
+									}
+									break;
+								}
+								break;
+							}
 						}
 #undef _BI
 
 						pos += Sizes.Rec.Trace+4;
 					}
-					SPR += spr;
+					SPR += spr*DIV;
 				}
 			}
 		}
