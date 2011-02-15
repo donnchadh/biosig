@@ -4013,7 +4013,7 @@ if (!strncmp(MODE,"r",1))
 			uint32_t nbits 	= GDFTYP_BITS[hc->GDFTYP]*hc->SPR;
 			BitsPerBlock   += nbits;
 			uint32_t nbytes = nbits>>3;
-			hdr->AS.bpb 	+= nbytes;
+			hdr->AS.bpb    += nbytes;
 
 			if (VERBOSE_LEVEL>8)
 				fprintf(stdout,"[EDF 216] #%i/%i/%i/%i/%i/%i\n",k,hdr->NS,nbytes,hdr->AS.bpb,hc->SPR,hdr->SPR);
@@ -4021,35 +4021,28 @@ if (!strncmp(MODE,"r",1))
 			hc->LowPass = NaN;
 			hc->HighPass = NaN;
 			hc->Notch = NaN;
+
 			// decode filter information into hdr->Filter.{Lowpass, Highpass, Notch}
-			float lf,hf;
-			char *PreFilt = (Header2+ 80*k + 136*hdr->NS);
-			char s1[40],s2[40];
-			PreFilt[79] = 0;
-			uint16_t d, pdc;
-			d = sscanf(PreFilt,"HP: %f %s LP:%f %s ",&lf,s1,&hf,s2);
-			if (d==4) {
-				pdc = PhysDimCode(s1);
-				if ((pdc & 0xffe0) == 2496)	// Hz
-					hc->HighPass = lf * PhysDimScale(pdc);
-				pdc = PhysDimCode(s2);
-				if ((pdc & 0xffe0) == 2496)	// Hz
-					hc->LowPass  = hf * PhysDimScale(pdc);
-			}
-			else {
-				d = sscanf(PreFilt,"HP: %s LP: %f %s ",s1,&hf,s2);
-				if (d==3) {
-					if (!strncmp(s1,"DC",2))
-						hc->HighPass = 0;
-					pdc = PhysDimCode(s2);
-					if ((pdc & 0xffe0) == 2496)	// Hz
-						hc->LowPass  = hf * PhysDimScale(pdc);
-				}
-			}
+			char kk; 			
+			char PreFilt[81];
+			strncpy(PreFilt, Header2+ 80*k + 136*hdr->NS, 80);
+			for (kk=0; kk<80; kk++) PreFilt[kk] = toupper(PreFilt[kk]);	
+			PreFilt[80] = 0;
 
 			if (VERBOSE_LEVEL>8)
-				fprintf(stdout,"[EDF 218] #%i/%i/%i\n",k,hdr->NS,hdr->SPR);
+				fprintf(stdout,"#%i# <%s>\n",k,PreFilt);
 
+			char *s1;
+			s1 = strstr(PreFilt,"HP:");
+			if (s1) hc->HighPass = strtod(s1+3, &s1);
+			s1 = strstr(PreFilt,"LP:");
+			if (s1) hc->LowPass  = strtod(s1+3, &s1);
+			s1 = strstr(PreFilt,"NOTCH:");
+			if (s1) hc->Notch    = strtod(s1+6, &s1);
+
+			if (VERBOSE_LEVEL>8)
+				fprintf(stdout,"#%i# HP: %fHz  LP:%fHz NOTCH=%i\n",k,hc->HighPass,hc->LowPass,hc->Notch);
+				
 			if ((hdr->TYPE==EDF) && !strncmp(Header1+192,"EDF+",4) && !strcmp(hc->Label,"EDF Annotations")) {
 				hc->OnOff = 0;
 				EventChannel = k+1;
