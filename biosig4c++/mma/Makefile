@@ -1,10 +1,15 @@
-# Makefile to compile sload1.exe for loading data supported by libbiosig into Mathematica
+# Makefile to compile sload.exe for loading data supported by libbiosig into Mathematica
 # Copyright (C) 2010, 2011 Alois Schloegl
 
 ###########################################
 # user-defined variables 
 ########################################### 
+##########################################################
+## set Mathematica variables
 MLINKDIR  = /usr/local/Wolfram/gridMathematicaServer/7.0/SystemFiles/Links/MathLink/DeveloperKit
+ifneq ($(shell which mathematica), )
+  MLINKDIR  := $(dir $(shell readlink -f $(shell which mathematica) ) )../SystemFiles/Links/MathLink/DeveloperKit
+endif
 SYS       = Linux-x86-64# Set this value with the result of evaluating $SystemID
 MLLIB     = ML64i3 # ML32i3 # Set this to ML64i3 if using a 64-bit system
 #
@@ -46,7 +51,7 @@ sload : sload.o sloadtm.o ../libbiosig.a
 ###########################################
 
 
-CCwin        = $(HOME)/src/mingw-cross-env/usr/bin/i686-pc-mingw32-gcc
+CCwin        = $(HOME)/R/src/mingw-cross-env/usr/bin/i686-pc-mingw32-gcc
 CADDSDIRwin  = ${MLINKDIR}/${SYSwin}/CompilerAdditions/mldev32
 INCDIRwin    = ${CADDSDIRwin}/include
 LIBDIRwin    = ${CADDSDIRwin}/lib
@@ -73,5 +78,5 @@ clean:
 	-$(RM) *.obj
 	-$(RM) *tm.c
 	-$(RM) sload.exe
-	-$(RM) sload
+	-$(RM) sload 
 	

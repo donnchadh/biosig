@@ -4018,9 +4018,9 @@ if (!strncmp(MODE,"r",1))
 			if (VERBOSE_LEVEL>8)
 				fprintf(stdout,"[EDF 216] #%i/%i/%i/%i/%i/%i\n",k,hdr->NS,nbytes,hdr->AS.bpb,hc->SPR,hdr->SPR);
 
-			hc->LowPass = NaN;
+			hc->LowPass  = NaN;
 			hc->HighPass = NaN;
-			hc->Notch = NaN;
+			hc->Notch    = NaN;
 
 			// decode filter information into hdr->Filter.{Lowpass, Highpass, Notch}
 			char kk; 			
@@ -5953,6 +5953,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 409: %i #%i: SPR=%i=%i=%i  x%f+-%f %i\n
 						case 7:  val = lei64p(ptr); break;
 						case 8:  val = leu64p(ptr); break;
 						default:
+							val = NaN;
 							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
 							B4C_ERRMSG = "CED/CFS: invalid data type";
 						}
@@ -5983,6 +5984,7 @@ if (VERBOSE_LEVEL>8)
 			SZ  += sz;
 if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 414: SPR=%i,%i,%i NRec=%i, @%p\n",spr,SPR,hdr->SPR,hdr->NRec, hdr->AS.rawdata);
 
+#if 0
 			// for (k = 0; k < d; k++) {
 			for (k = 0; k < 0; k++) {
 			// read data variables of each block - this currently broken.
@@ -6010,6 +6012,7 @@ if (VERBOSE_LEVEL>7) {
 				else if (typ==7) fprintf(stdout," *0x%x = <%s>",p3,hdr->AS.Header+p3);
 }
 			}
+#endif
 			datapos = leu32p(hdr->AS.Header + datapos);
 		}
 		free(DATAPOS);
@@ -10675,9 +10678,7 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 
 	if ((nrec_t)start > hdr->NRec)
 		return(0);
-	else if ((nrec_t)start+length < 0)
-		return(0);
-	else if (start < 0)
+	else if ((ssize_t)start < 0)
 		start = hdr->FILE.POS;
 
 
@@ -10736,13 +10737,14 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 
 
 		// allocate AS.rawdata
-                if (log2(hdr->AS.bpb) + log2(nelem) + 1 >= sizeof(size_t)*8) {
-                        // used to check the 2GByte limit on 32bit systems
+		void *tmpptr = realloc(hdr->AS.rawdata, hdr->AS.bpb*nelem);
+		if (tmpptr!=NULL) 
+			hdr->AS.rawdata = (uint8_t*) tmpptr;
+		else {
                         B4C_ERRNUM = B4C_MEMORY_ALLOCATION_FAILED;
-                        B4C_ERRMSG = "Size of rawdata buffer too large (exceeds size_t addressable space)!";
+                        B4C_ERRMSG = "memory allocation failed - not enough memory!";
                         return(0);
-                }
-		hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata, hdr->AS.bpb*nelem);
+		}	
 
 		if (VERBOSE_LEVEL>8)
 			fprintf(stdout,"#sread(%i %li)\n",hdr->HeadLen + hdr->FILE.POS*hdr->AS.bpb, iftell(hdr));
@@ -10826,7 +10828,6 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	biosig_data_type	*data1=NULL;
 
 	if (start >= hdr->NRec) return(0);
-	if ((start + length) < 0) return(0);
 
 int V = VERBOSE_LEVEL;
 //VERBOSE_LEVEL = 9;
@@ -10856,7 +10857,14 @@ int V = VERBOSE_LEVEL;
 	// transfer RAW into BIOSIG data format
 	if ((data==NULL) || hdr->Calib) {
 		// local data memory required
-		data1 = (biosig_data_type*) realloc(hdr->data.block, hdr->SPR * count * NS * sizeof(biosig_data_type));
+		void *tmpptr = realloc(hdr->data.block, hdr->SPR * count * NS * sizeof(biosig_data_type));
+		if (tmpptr!=NULL) 
+			data1 = (biosig_data_type*) tmpptr;
+		else {
+                        B4C_ERRNUM = B4C_MEMORY_ALLOCATION_FAILED;
+                        B4C_ERRMSG = "memory allocation failed - not enough memory!";
+                        return(0);
+		}	
 		hdr->data.block = data1;
 	}
 	else

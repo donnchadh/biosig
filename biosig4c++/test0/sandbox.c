@@ -247,11 +247,11 @@ int sopen_zzztest(HDRTYPE* hdr) {
 
 /* TODO:
 	+ support for resampling (needed by mexSLOAD, SigViewer, save2gdf)
-	- support for selection of experiment,series,sweep,trace (needed by MMA)
+	+ support for selection of experiment,series,sweep,trace (needed by MMA)
 	- event-table -> MMA
 */
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 107\n");
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 107: @%p\n",hdr->aECG);
 
 		char magic[4];
 		int32_t Levels=0;
@@ -274,12 +274,13 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 107\n");
 			int32_t all[5];
 		} Sizes;
 
-		int32_t *SZ = (int32_t*)hdr->aECG;	// aECG is (ab)used as input parameter for selecting sweeps.
 
+//		hdr->aECG = realloc(hdr->aECG,5*4);
+		int32_t *SZ = (int32_t*)hdr->aECG;	// aECG is (ab)used as input parameter for selecting sweeps.
 
     		// HEKA PatchMaster file format
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 111\n");
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 111 [%i,%i,%i,%i]\n",SZ[0],SZ[1],SZ[2],SZ[3]);
 
 		count = hdr->HeadLen;
 		ifseek(hdr,0,SEEK_SET);
@@ -463,7 +464,10 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",pos+Star
 					uint32_t SPR = 0, spr = 0;
 					double t  = *(double*)(hdr->AS.Header+pos+48);		// time of sweep
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+StartOfData,k1,K1,k2,K2,k3,K3);
+					char flagSweepSelected = (SZ[0]==0 || k1+1==SZ[0])  && (SZ[1]==0 || k2+1==SZ[1])  && (SZ[2]==0 || k3+1==SZ[2]);
+
+if (VERBOSE_LEVEL>7) fprintf(stdout,"flag=%i%i%i%i%i%i\n",SZ[0]==0, k1+1==SZ[0], SZ[1]==0, k2+1==SZ[1], SZ[2]==0, k3+1==SZ[2]);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",pos+StartOfData,k1,K1,k2,K2,k3,K3,flagSweepSelected);
 
 					if (hdr->SPR > 0) {
 						// marker for start of sweep
@@ -533,38 +537,30 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+Sta
 						double dT = *(double*)(&dT_i);
                                                 double Fs = round(1.0 / dT);
 
-						if (hdr->SampleRate <= 0.0) hdr->SampleRate = Fs;
+						if (flagSweepSelected) {
+							if (hdr->SampleRate <= 0.0) hdr->SampleRate = Fs;
+        	                                        if (fabs(hdr->SampleRate - Fs) > 1e-9) {
+								unsigned long DIV1 = 1, DIV2 = 1;
+								unsigned long F0 = lcm(round(hdr->SampleRate), Fs);
+								DIV1 = F0 / hdr->SampleRate;
+								if (DIV1 > 1) {
+									hdr->SPR *= DIV1; 
+									size_t n = 0;
+									while (n < hdr->EVENT.N) 
+										hdr->EVENT.POS[n++] *= DIV1;
+								}	
+								DIV2 = F0 / Fs;
+								if (DIV2 > 1) spr *= DIV2; 
+								hdr->SampleRate = F0; 
+							}
 
-						unsigned long DIV1 = 1, DIV2 = 1;
-                                                if (fabs(hdr->SampleRate - Fs) > 1e-9) {
-							unsigned long F0 = lcm(round(hdr->SampleRate), Fs);
-							
-							DIV1 = F0 / hdr->SampleRate;
-							if (DIV1 > 1) {
-								hdr->SPR *= DIV1; 
-								size_t n = 0;
-								while (n < hdr->EVENT.N) 
-									hdr->EVENT.POS[n++] *= DIV1;
-							}	
-
-							DIV2 = F0 / Fs;
-							if (DIV2 > 1) spr *= DIV2; 
-							
-							hdr->SampleRate = F0; 
-
-/*	OBSOLETE:
-							// FIXME: once resampling is implemented, the error can be removed
-                                                        B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-                                                        B4C_ERRMSG = "Heka/Patchmaster: sampling rates do not match.";
-*/
-						}
-
-						// samples per sweep
-						if (k4==0) SPR = spr;
-						else if (SPR != spr) {
-							B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
-							B4C_ERRMSG = "Heka/Patchmaster: number of samples amoung channels within a single sweep do not match.";
-							return(-1);
+							// samples per sweep
+							if (k4==0) SPR = spr;
+							else if (SPR != spr) {
+								B4C_ERRNUM = B4C_FORMAT_UNSUPPORTED;
+								B4C_ERRMSG = "Heka/Patchmaster: number of samples amoung channels within a single sweep do not match.";
+								return(-1);
+							}
 						}
 
 						char *Label = (char*)hdr->AS.Header+pos+4;
@@ -651,7 +647,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
 							B4C_ERRMSG = "Heka/Patchmaster: Level 4 has some children.";
 						}
 					}	// end loop k4
-					hdr->SPR += SPR;
+
+					// if sweep is selected, add number of samples to counter 
+					if (flagSweepSelected) hdr->SPR += SPR;
 				}		// end loop k3
 			}			// end loop k2
 		}				// end loop k1
@@ -684,7 +682,14 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L4 @%i= #%i,%i, %s %f-%fHz\t%i/%i %i/%
  			return(-1);
 		}
 
-		hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata, hdr->NRec * hdr->AS.bpb);
+		void* tmpptr = realloc(hdr->AS.rawdata, hdr->NRec * hdr->AS.bpb);
+		if (tmpptr!=NULL) 
+			hdr->AS.rawdata = (uint8_t*) tmpptr;
+		else {
+                        B4C_ERRNUM = B4C_MEMORY_ALLOCATION_FAILED;
+                        B4C_ERRMSG = "memory allocation failed - not enough memory!";
+                        return(0);
+		}	
 		memset(hdr->AS.rawdata, 0xff, hdr->NRec * hdr->AS.bpb); 	// initialize with NaN's
 
 #ifdef NO_BI
@@ -745,14 +750,19 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L2 @%i=%s %f\t%i/%i %i/%i \n",pos+Star
 				K3 = (*(uint32_t*)(hdr->AS.Header+pos-4));
 				for (k3=0; k3<K3; k3++)	{
 					// read sweep
+					char flagSweepSelected = (SZ[0]==0 || k1+1==SZ[0])  && (SZ[1]==0 || k2+1==SZ[1])  && (SZ[2]==0 || k3+1==SZ[2]);
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i \n",pos+StartOfData,k1,K1,k2,K2,k3,K3);
+if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",pos+StartOfData,k1,K1,k2,K2,k3,K3,flagSweepSelected);
 
 					pos += Sizes.Rec.Sweep + 4;
 					// read number of children
 					K4 = (*(uint32_t*)(hdr->AS.Header+pos-4));
-					size_t DIV = 1;
+					size_t DIV=1;
 					for (k4=0; k4<K4; k4++)	{
+						if (!flagSweepSelected) {
+							pos += Sizes.Rec.Trace+4;
+							continue;
+						}
 
 						// read trace
 						double DigMin, DigMax;
@@ -909,10 +919,9 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"HEKA re-arrange data: [%i,%i,%i,%i] %i,%i,%
 							}
 						}
 #undef _BI
-
 						pos += Sizes.Rec.Trace+4;
 					}
-					SPR += spr*DIV;
+					if (flagSweepSelected) SPR += spr * DIV;
 				}
 			}
 		}

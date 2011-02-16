@@ -19,16 +19,23 @@
 
  */
 
-#include "../biosig.h"
 #include "mathlink.h"
+#include "../biosig.h"
 
 #define VERBOSE_LEVEL 0
 
-void sload(const char *fn) {
-	HDRTYPE *hdr = NULL;
+void sload(const char *fn, int *SZ, long SZlen) {
+	int k;
+
+	HDRTYPE *hdr = constructHDR(0,0);
 
 if (VERBOSE_LEVEL > 5)
 	fprintf(stdout,"=== start sload ===\n");
+
+	hdr->aECG = realloc(hdr->aECG, sizeof(int32_t)*5); 	// contains [experiment,series,sweep,trace] numbers for selecting data. 
+	for (k=0; k < SZlen; k++) *(int32_t*)(hdr->aECG + 4*k) = (int32_t)SZ[k];
+	for (; k < 5; k++) *(int32_t*)(hdr->aECG + 4*k) = (int32_t)0;
+
 
 	// ********* open file and read header ************
 	hdr = sopen(fn, "r", hdr);
@@ -55,7 +62,6 @@ if (VERBOSE_LEVEL > 5)
 		fprintf(stdout,"unable to send the double array\n");
 
 if (VERBOSE_LEVEL > 5) {
-	int k;
 	for (k=0;k<hdr->NS;k++)
 		fprintf(stdout,"%f ",hdr->data.block[k]);
 	fprintf(stdout,"\n\nopen filename <%s>@%p sz=[%i,%i]\n", fn, hdr->data.block, hdr->data.size[0], hdr->data.size[1]);

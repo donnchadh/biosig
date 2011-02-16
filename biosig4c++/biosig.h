@@ -272,8 +272,8 @@ typedef struct CHANNEL_STRUCT {
 
 	uint16_t 	GDFTYP 		ATT_ALI;	/* data type */
 	uint32_t 	SPR 		ATT_ALI;	/* samples per record (block) */
-	uint32_t	bi 		ATT_ALI ATT_DEPREC;	/* start byte (byte index) of channel within data block */
-	uint32_t	bi8 		ATT_ALI ATT_DEPREC;	/* start bit  (bit index) of channel within data block */
+	uint32_t	bi 		ATT_ALI;	/* start byte (byte index) of channel within data block */
+	uint32_t	bi8 		ATT_ALI;	/* start bit  (bit index) of channel within data block */
 	uint8_t*	bufptr		ATT_ALI;	/* pointer to buffer: NRec<=1 and bi,bi8 not used */
 } CHANNEL_TYPE	ATT_ALI;
 
@@ -293,14 +293,14 @@ typedef struct {
 	} data ATT_ALI;
 
 	uint32_t 	HeadLen ATT_ALI;	/* length of header in bytes */
-	uint16_t 	NS 		ATT_ALI;	/* number of channels */
+	uint16_t 	NS 	ATT_ALI;	/* number of channels */
 	uint32_t 	SPR 	ATT_ALI;	/* samples per block (when different sampling rates are used, this is the LCM(CHANNEL[..].SPR) */
 	nrec_t  	NRec 	ATT_ALI;	/* number of records/blocks -1 indicates length is unknown. */
 	uint32_t 	Dur[2] 	ATT_ALI ATT_DEPREC;	/* Duration of each block in seconds expressed in the fraction Dur[0]/Dur[1]  */
 	double 		SampleRate ATT_ALI;	/* Sampling rate */
 	uint8_t 	IPaddr[16] ATT_ALI; 	/* IP address of recording device (if applicable) */
 	uint32_t  	LOC[4] 	ATT_ALI;	/* location of recording according to RFC1876 */
-	gdf_time 	T0 		ATT_ALI; 	/* starttime of recording */
+	gdf_time 	T0 	ATT_ALI; 	/* starttime of recording */
 	int16_t 	tzmin 	ATT_ALI;	/* time zone (minutes of difference to UTC */
 
 #ifdef CHOLMOD_H
@@ -322,17 +322,16 @@ typedef struct {
 		// 		Age;		// the age is HDR.T0 - HDR.Patient.Birthday, even if T0 and Birthday are not known
 		uint16_t	Headsize[3]; 	/* circumference, nasion-inion, left-right mastoid in millimeter;  */
 		/* Patient classification */
-		int	 	Sex;		/* 0:Unknown, 1: Male, 2: Female */
-		int		Handedness;	/* 0:Unknown, 1: Right, 2: Left, 3: Equal */
-		int		Smoking;	/* 0:Unknown, 1: NO, 2: YES */
-		int		AlcoholAbuse;	/* 0:Unknown, 1: NO, 2: YES */
-		int		DrugAbuse;	/* 0:Unknown, 1: NO, 2: YES */
-		int		Medication;	/* 0:Unknown, 1: NO, 2: YES */
+		int8_t	 	Sex;		/* 0:Unknown, 1: Male, 2: Female */
+		int8_t		Handedness;	/* 0:Unknown, 1: Right, 2: Left, 3: Equal */
+		int8_t		Smoking;	/* 0:Unknown, 1: NO, 2: YES */
+		int8_t		AlcoholAbuse;	/* 0:Unknown, 1: NO, 2: YES */
+		int8_t		DrugAbuse;	/* 0:Unknown, 1: NO, 2: YES */
+		int8_t		Medication;	/* 0:Unknown, 1: NO, 2: YES */
 		struct {
-			int 	Visual;		/* 0:Unknown, 1: NO, 2: YES, 3: Corrected */
-			int 	Heart;		/* 0:Unknown, 1: NO, 2: YES, 3: Pacemaker */
+			int8_t 	Visual;		/* 0:Unknown, 1: NO, 2: YES, 3: Corrected */
+			int8_t 	Heart;		/* 0:Unknown, 1: NO, 2: YES, 3: Pacemaker */
 		} Impairment;
-
 	} Patient ATT_ALI;
 
 	struct {
@@ -387,6 +386,8 @@ typedef struct {
 	struct {	/* File specific data  */
 #ifdef ZLIB_H
 		gzFile		gzFID;
+#else
+		void*		gzFID;
 #endif
 #ifdef _BZLIB_H
 //		BZFILE*		bzFID;
