@@ -179,6 +179,7 @@ void mexFunction(
 	int		NS = -1;
 	char		FlagOverflowDetection = 1, FlagUCAL = 0;
 	char		FLAG_CNT32 = 0;
+	int		argSweepSel = -1;
 	
 #ifdef CHOLMOD_H
 	cholmod_sparse RR,*rr=NULL;
@@ -205,16 +206,19 @@ void mexFunction(
 		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'OVERFLOWDETECTION:ON')\n");
 		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'OVERFLOWDETECTION:OFF')\n");
 		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'UCAL:ON')\n");
-		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'UCAL:OFF')\n\n");
-		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'OUTPUT:SINGLE')\n\n");
-		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'TARGETSEGMENT:<N>')\n\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'UCAL:OFF')\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'OUTPUT:SINGLE')\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'TARGETSEGMENT:<N>')\n");
+		mexPrintf("\t[s,HDR]=mexSLOAD(f,chan,'SWEEP',[NE, NG, NS])\n");
 		mexPrintf("   Input:\n\tf\tfilename\n");
 		mexPrintf("\tchan\tlist of selected channels; 0=all channels [default]\n");
 		mexPrintf("\tCNT32: needed to read 32bit CNT files \n");
 		mexPrintf("\tUCAL\tON: do not calibrate data; default=OFF\n");
 //		mexPrintf("\tOUTPUT\tSINGLE: single precision; default='double'\n");
 		mexPrintf("\tOVERFLOWDETECTION\tdefault = ON\n\t\tON: values outside dynamic range are not-a-number (NaN)\n");
-		mexPrintf("\tTARGETSEGMENT:<N>\n\t\tselect segment <N> in multisegment files (like Nihon-Khoden), default=1\n\t\tIt has no effect for other data formats.");
+		mexPrintf("\tTARGETSEGMENT:<N>\n\t\tselect segment <N> in multisegment files (like Nihon-Khoden), default=1\n\t\tIt has no effect for other data formats.\n");
+		mexPrintf("\t[NE, NG, NS] are the number of the experiment, the series and the sweep, resp. for sweep selection in HEKA/PatchMaster files. (0 indicates all)\n");
+		mexPrintf("\t\t examples: [1,2,3] the 3rd sweep from the 2nd series of experiment 1; [1,3,0] selects all sweeps from experiment=1, series=3. \n\n");
 		mexPrintf("   Output:\n\ts\tsignal data, each column is one channel\n");
 		mexPrintf("\tHDR\theader structure\n\n");
 #endif
@@ -279,10 +283,13 @@ void mexFunction(
 //				FlagMXclass = mxSINGLE_CLASS;
 			else if (!strncmp(mxArrayToString(prhs[k]),"TARGETSEGMENT:",14))
 				TARGETSEGMENT = atoi(mxArrayToString(prhs[k])+14);
+			else if (!strcmpi(mxArrayToString(prhs[k]),"SWEEP") && (prhs[k+1]!=NULL) && mxIsNumeric(prhs[k+1]))
+				argSweepSel = ++k;	 
 		}
 	}
 
-	/* open and read file, convert into M-struct */
+	if (VERBOSE_LEVEL>7) 
+		mexPrintf("110: input arguments checked\n");
 
 	hdr = constructHDR(0,0);
 	hdr->FLAG.OVERFLOWDETECTION = FlagOverflowDetection; 
@@ -294,6 +301,19 @@ void mexFunction(
 	hdr->FLAG.ROW_BASED_CHANNELS = 0; 
 #endif 
 	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
+
+	// sweep selection for Heka format 
+	if (argSweepSel>0) { 				
+		double *SZ     = (double*) mxGetData(prhs[argSweepSel]);
+		k = 0;
+		while (k < mxGetNumberOfElements(prhs[argSweepSel]) && k < 5) { 
+			hdr->AS.SegSel[k] = (uint32_t)SZ[k];
+			k++;
+		}
+	}
+
+	if (VERBOSE_LEVEL>7) 
+		mexPrintf("120: going to sopen\n");
 
 	hdr = sopen(FileName, "r", hdr);
 
@@ -409,8 +429,9 @@ void mexFunction(
 #endif 
 	if ((status=serror())) return;  
 
-	if (VERBOSE_LEVEL>8) 
+	if (VERBOSE_LEVEL>7) 
 		fprintf(stderr,"\n[129] SREAD/SCLOSE on %s successful [%i,%i] [%Li,%i] %i.\n",hdr->FileName,hdr->data.size[0],hdr->data.size[1],hdr->NRec,count,NS);
+
 
 //	hdr2ascii(hdr,stderr,4);	
 

@@ -58,6 +58,7 @@ int main(int argc, char **argv){
     int		TARGETSEGMENT=1; 	// select segment in multi-segment file format EEG1100 (Nihon Kohden)
     int 	VERBOSE	= 1; 
     char	FLAG_CNT32 = 0; 	// assume CNT format is 16bit
+    char	*argsweep = NULL;
 #ifdef CHOLMOD_H
     cholmod_sparse *rr  = NULL; 
     char        *rrFile = NULL;
@@ -98,6 +99,7 @@ int main(int argc, char **argv){
 		fprintf(stdout,"   -z=#, -z#\n\t# indicates the compression level (#=0 no compression; #=9 best compression, default #=1)\n");
 		fprintf(stdout,"   -s=#\tselect target segment # (in the multisegment file format EEG1100)\n");
 		fprintf(stdout,"   -VERBOSE=#, verbosity level #\n\t0=silent [default], 9=debugging");
+		fprintf(stdout,"   -SWEEP=ne,ng,ns\tsweep selection of HEKA/PM files");
 		fprintf(stdout,"\n\n");
 		return(0);
 	}	
@@ -113,12 +115,16 @@ int main(int argc, char **argv){
 	     	fprintf(stderr,"Warning: option -z (compression) not supported. zlib not linked.\n");
 #endif 
 	}
-    	else if (!strncmp(argv[k],"-VERBOSE",2))  	{
+    	else if (!strncmp(argv[k],"-VERBOSE",2))  {
 	    	VERBOSE = argv[k][strlen(argv[k])-1]-48;
 #ifndef VERBOSE_LEVEL
 	// then VERBOSE_LEVEL is not a constant but a variable
 	VERBOSE_LEVEL = VERBOSE; 
 #endif
+	}
+    	else if (!strncmpi(argv[k],"-SWEEP=",7))  {
+	    	argsweep = argv[k]+6;
+
 	}
     	else if (!strncmp(argv[k],"-f=",3))  	{
     		if (0) {}
@@ -189,7 +195,7 @@ int main(int argc, char **argv){
     	}	
 
 	if (VERBOSE_LEVEL<0) VERBOSE=1; // default 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[111] SAVE2GDF started\n");
+	if (VERBOSE_LEVEL>8) fprintf(stdout,"[108] SAVE2GDF started\n");
 
 	tzset();
 	hdr = constructHDR(0,0);
@@ -198,6 +204,15 @@ int main(int argc, char **argv){
 	hdr->FLAG.TARGETSEGMENT = TARGETSEGMENT;
 	hdr->FLAG.CNT32 = FLAG_CNT32;
 	// hdr->FLAG.ANONYMOUS = 0; 	// personal names are processed 
+	
+	if (argsweep) {
+		k = 0;
+		do {
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"SWEEP [109] %i: %s\t",k,argsweep);
+			hdr->AS.SegSel[k++] = strtod(argsweep+1, &argsweep);
+	if (VERBOSE_LEVEL>7) fprintf(stdout,",%i\n",hdr->AS.SegSel[k-1]);
+		} while (argsweep[0]==',' && (k < 5) );
+	}
 
 	hdr->FileName = source;
 	hdr = sopen(source, "r", hdr);
@@ -212,14 +227,14 @@ int main(int argc, char **argv){
                 fprintf(stdout,"error: option %s not supported (link with -lcholmod)\n",argv[k]); 
 #endif
 
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[112] SOPEN-R finished\n");
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[112] SOPEN-R finished\n");
 
 	if ((status=serror())) {
 		destructHDR(hdr);
 		exit(status); 
 	} 
 	
-	if (VERBOSE_LEVEL>8) fprintf(stdout,"[113] SOPEN-R finished\n");
+	if (VERBOSE_LEVEL>7) fprintf(stdout,"[113] SOPEN-R finished\n");
 
 	hdr2ascii(hdr,stdout,VERBOSE);
 //	hdr2ascii(hdr,stdout,3);
