@@ -25,16 +25,18 @@
 #define VERBOSE_LEVEL 0
 
 void sload(const char *fn, int *SZ, long SZlen) {
-	int k;
 
 	HDRTYPE *hdr = constructHDR(0,0);
 
 if (VERBOSE_LEVEL > 5)
 	fprintf(stdout,"=== start sload ===\n");
 
-	hdr->aECG = realloc(hdr->aECG, sizeof(int32_t)*5); 	// contains [experiment,series,sweep,trace] numbers for selecting data. 
-	for (k=0; k < SZlen; k++) *(int32_t*)(hdr->aECG + 4*k) = (int32_t)SZ[k];
-	for (; k < 5; k++) *(int32_t*)(hdr->aECG + 4*k) = (int32_t)0;
+// contains [experiment,series,sweep,trace] numbers for selecting data. 
+	int k = 0;
+	while (k < SZlen && k < 5) { 
+		hdr->AS.SegSel[k] = (uint32_t)SZ[k];
+		k++;
+	}
 
 
 	// ********* open file and read header ************

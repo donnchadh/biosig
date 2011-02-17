@@ -163,7 +163,7 @@ EXTERN_C const char *B4C_ERRMSG;
 
 #define BIOSIG_VERSION_MAJOR 0
 #define BIOSIG_VERSION_MINOR 96
-#define BIOSIG_VERSION_STEPPING 2
+#define BIOSIG_VERSION_STEPPING 3
 #define BIOSIG_VERSION (BIOSIG_VERSION_MAJOR+0.01*BIOSIG_VERSION_MINOR)
 
 EXTERN_C int   VERBOSE_LEVEL; 	// used for debugging
@@ -417,6 +417,7 @@ typedef struct {
 		nrec_t		first;		/* first block loaded in buffer - this is equivalent to hdr->FILE.POS */
 		nrec_t		length;		/* number of block(s) loaded in buffer */
 		uint8_t*	auxBUF;  	/* auxillary buffer - used for storing EVENT.CodeDesc, MIT FMT infor, alpha:rawdata header */
+		uint32_t	SegSel[5];	/* segment selection in a hirachical data formats, e.g. sweeps in HEKA/PatchMaster format */
 		char*		bci2000;
 	} AS ATT_ALI;
 

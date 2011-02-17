@@ -251,8 +251,6 @@ int sopen_zzztest(HDRTYPE* hdr) {
 	- event-table -> MMA
 */
 
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 107: @%p\n",hdr->aECG);
-
 		char magic[4];
 		int32_t Levels=0;
 		uint16_t k;
@@ -275,12 +273,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 107: @%p\n",hdr->aECG);
 		} Sizes;
 
 
-//		hdr->aECG = realloc(hdr->aECG,5*4);
-		int32_t *SZ = (int32_t*)hdr->aECG;	// aECG is (ab)used as input parameter for selecting sweeps.
-
     		// HEKA PatchMaster file format
-
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA 111 [%i,%i,%i,%i]\n",SZ[0],SZ[1],SZ[2],SZ[3]);
 
 		count = hdr->HeadLen;
 		ifseek(hdr,0,SEEK_SET);
@@ -464,10 +457,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",pos+Star
 					uint32_t SPR = 0, spr = 0;
 					double t  = *(double*)(hdr->AS.Header+pos+48);		// time of sweep
 
-					char flagSweepSelected = (SZ[0]==0 || k1+1==SZ[0])  && (SZ[1]==0 || k2+1==SZ[1])  && (SZ[2]==0 || k3+1==SZ[2]);
-
-if (VERBOSE_LEVEL>7) fprintf(stdout,"flag=%i%i%i%i%i%i\n",SZ[0]==0, k1+1==SZ[0], SZ[1]==0, k2+1==SZ[1], SZ[2]==0, k3+1==SZ[2]);
-if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",pos+StartOfData,k1,K1,k2,K2,k3,K3,flagSweepSelected);
+					char flagSweepSelected = (hdr->AS.SegSel[0]==0 || k1+1==hdr->AS.SegSel[0])
+						              && (hdr->AS.SegSel[1]==0 || k2+1==hdr->AS.SegSel[1])
+							      && (hdr->AS.SegSel[2]==0 || k3+1==hdr->AS.SegSel[2]);
 
 					if (hdr->SPR > 0) {
 						// marker for start of sweep
@@ -750,7 +742,9 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L2 @%i=%s %f\t%i/%i %i/%i \n",pos+Star
 				K3 = (*(uint32_t*)(hdr->AS.Header+pos-4));
 				for (k3=0; k3<K3; k3++)	{
 					// read sweep
-					char flagSweepSelected = (SZ[0]==0 || k1+1==SZ[0])  && (SZ[1]==0 || k2+1==SZ[1])  && (SZ[2]==0 || k3+1==SZ[2]);
+					char flagSweepSelected = (hdr->AS.SegSel[0]==0 || k1+1==hdr->AS.SegSel[0])
+						              && (hdr->AS.SegSel[1]==0 || k2+1==hdr->AS.SegSel[1])
+							      && (hdr->AS.SegSel[2]==0 || k3+1==hdr->AS.SegSel[2]);
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA+L3 @%i=\t%i/%i %i/%i %i/%i sel=%i\n",pos+StartOfData,k1,K1,k2,K2,k3,K3,flagSweepSelected);
 

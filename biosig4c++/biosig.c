@@ -1768,10 +1768,11 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
 
       	hdr->TYPE = noFile;
       	hdr->VERSION = 2.0;
-      	hdr->AS.rawdata = NULL; //(uint8_t*) malloc(0);
+      	hdr->AS.rawdata = NULL; 		//(uint8_t*) malloc(0);
 	hdr->AS.flag_collapsed_rawdata = 0;	// is rawdata not collapsed
 	hdr->AS.first = 0;
-	hdr->AS.length  = 0;  // no data loaded
+	hdr->AS.length  = 0;  			// no data loaded
+	memset(hdr->AS.SegSel,0,sizeof(hdr->AS.SegSel)); 
 	hdr->Calib = NULL;
         hdr->rerefCHANNEL = NULL;
 
@@ -10738,7 +10739,7 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 
 		// allocate AS.rawdata
 		void *tmpptr = realloc(hdr->AS.rawdata, hdr->AS.bpb*nelem);
-		if (tmpptr!=NULL) 
+		if (tmpptr!=NULL || hdr->AS.bpb*nelem==0) 
 			hdr->AS.rawdata = (uint8_t*) tmpptr;
 		else {
                         B4C_ERRNUM = B4C_MEMORY_ALLOCATION_FAILED;
@@ -10857,8 +10858,9 @@ int V = VERBOSE_LEVEL;
 	// transfer RAW into BIOSIG data format
 	if ((data==NULL) || hdr->Calib) {
 		// local data memory required
-		void *tmpptr = realloc(hdr->data.block, hdr->SPR * count * NS * sizeof(biosig_data_type));
-		if (tmpptr!=NULL) 
+		size_t sz = hdr->SPR * count * NS * sizeof(biosig_data_type);
+		void *tmpptr = realloc(hdr->data.block, sz);
+		if (tmpptr!=NULL || !sz) 
 			data1 = (biosig_data_type*) tmpptr;
 		else {
                         B4C_ERRNUM = B4C_MEMORY_ALLOCATION_FAILED;
