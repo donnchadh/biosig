@@ -3373,14 +3373,32 @@ elseif strcmp(HDR.TYPE,'MatrixMarket'),
         if (HDR.FILE.PERMISSION=='r')
                 fid = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
                 k = 0; 
+                status = 0;
                 while ~feof(fid);
                         line = fgetl(fid);
-                        if isempty(line)
+                        if length(line)<3,
                                 ;
-                        elseif line(1)=='%'
-                                ;
+                        elseif (line(1:2)=='%') && isspace(line(3)),
+                        	if strncmp(line,'%% LABELS',9)
+                        		status = 1; 
+                        	elseif strncmp(line,'%% ENDLABEL',11)
+                        		status = 0;
+                        	elseif status,
+                        		k=3; 
+                        		while (isspace(line(k))) k=k+1; end;
+                        		[t,r] = strtok(line(k:end),char([9,32]));
+                        		ch = str2double(t);
+                        		k = 1; 
+                        		while (isspace(r(k))) k=k+1; end;
+                        		r = r(k:end); 
+                        		k = length(r); 
+                        		while (isspace(r(k))) k=k-1; end;
+                        		HDR.Label{ch} = r(1:k);			
+                                end;
+                        elseif (line(1)=='%')
+                        	;
                         else 
-                                [n,v,sa]=str2double(line);
+                                [n,v,sa] = str2double(line);
                                 k = k+1; 
                                 if (k==1)
                                         HDR.Calib = sparse([],[],[],n(1),n(2),n(3));

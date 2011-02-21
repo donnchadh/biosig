@@ -3413,7 +3413,7 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 		uint16_t flag,NS;
                 size_t i,j,k;
                 long r;
-
+		char flagLabelIsSet = 0; 
                 cholmod_common c ;
                 cholmod_start (&c) ; /* start CHOLMOD */
 
@@ -3421,6 +3421,7 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 case 1: {
                         HDRTYPE *RR = sopen((char*)arg2,"r",NULL);
                         ReRef       = RR->Calib;
+                        flagLabelIsSet = (RR->rerefCHANNEL != NULL); 
                         RR->Calib   = NULL; // do not destroy ReRef
                         destructHDR(RR);
                         break;
@@ -3463,8 +3464,9 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
                 cholmod_finish (&c) ;        // stop cholmod
 
                 hdr->Calib = ReRef;
-		CHANNEL_TYPE *NEWCHANNEL = (CHANNEL_TYPE*) realloc(hdr->rerefCHANNEL, A->ncol*sizeof(CHANNEL_TYPE));
-		hdr->rerefCHANNEL = NEWCHANNEL;
+                if (hdr->rerefCHANNEL==NULL)
+			hdr->rerefCHANNEL = (CHANNEL_TYPE*) realloc(hdr->rerefCHANNEL, A->ncol*sizeof(CHANNEL_TYPE));
+		CHANNEL_TYPE *NEWCHANNEL = hdr->rerefCHANNEL; 
                 hdr->FLAG.ROW_BASED_CHANNELS = 1;
 
                 // check each component
@@ -3523,7 +3525,9 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 			else if (mix>-1) r=mix;   // use the info from channel with the largest scale;
 			else r = -1;
 
-			if (!flag && (r<hdr->NS) && (r>=0)) {
+			if (flagLabelIsSet)
+				; 
+			else if (!flag && (r<hdr->NS) && (r>=0)) {
 			        // if successful
 			        memcpy(NEWCHANNEL[i].Label, hdr->CHANNEL[r].Label, MAX_LENGTH_LABEL);
 				NEWCHANNEL[i].GDFTYP = 16; // float
@@ -8619,7 +8623,46 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 #ifdef CHOLMOD_H
 	else if ((hdr->TYPE==MM) && (!hdr->FILE.COMPRESSION)) {
 
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MM 001] %i,%i\n",count,hdr->FILE.COMPRESSION);
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 001] %i,%i\n",hdr->HeadLen,hdr->FILE.COMPRESSION);
+
+		while (!ifeof(hdr)) {
+			count = max(5000, hdr->HeadLen*2);
+			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header, count);
+			hdr->HeadLen  += ifread(hdr->AS.Header + hdr->HeadLen, 1, count - hdr->HeadLen - 1, hdr);
+		}
+
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 003] %i,%i\n",hdr->HeadLen,hdr->FILE.COMPRESSION);
+
+		char *line = strtok(hdr->AS.Header, "\x0a\x0d");
+		char status = 0; 
+		unsigned long ns = 0; 
+		while (line != NULL) {
+
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 013] <%s>\n",line);
+
+			if ((line[0]=='%') && (line[1]=='%') && isspace(line[2])) {
+				if (!strncmp(line+3,"LABELS",6)) 
+					status = 1;
+				else if (!strncmp(line+3,"ENDLABEL",8)) 
+					status = 0;
+
+				if (status) {
+					int k = 3;
+					while (isspace(line[k])) k++; 
+					unsigned long ch = strtoul(line+k, &line, 10);
+					while (isspace(line[k])) k++;
+					if (ch >= ns) {	
+						hdr->rerefCHANNEL = (CHANNEL_TYPE*)realloc(hdr->rerefCHANNEL, ch*sizeof(CHANNEL_TYPE));
+						while (ns < ch) hdr->rerefCHANNEL[ns++].Label[0] = 0;
+					}	 
+					strncpy(hdr->rerefCHANNEL[ch-1].Label, line+k, MAX_LENGTH_LABEL);
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 027] %i <%s>\n",ch,line+k);
+				}
+			}
+			line = strtok(NULL,"\x0a\x0d");
+		}
+
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 033]\n");
 
 		ifseek(hdr,0,SEEK_SET);
                 cholmod_common c ;
@@ -8627,12 +8670,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
                 c.print = 5;
                 hdr->Calib = cholmod_read_sparse (hdr->FILE.FID, &c); /* read in a matrix */
 
-                if (VERBOSE_LEVEL>8)
+                if (VERBOSE_LEVEL>7)
                         cholmod_print_sparse (hdr->Calib, "Calib", &c); /* print the matrix */
                 cholmod_finish (&c) ; /* finish CHOLMOD */
 
 		ifclose(hdr);
-		if (VERBOSE_LEVEL>8) fprintf(stdout,"[MM 003] %i\n",count);
+		if (VERBOSE_LEVEL>7) fprintf(stdout,"[MM 999]\n");
 		return(hdr);
 	} /* END OF MatrixMarket */
 #endif

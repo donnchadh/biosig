@@ -55,7 +55,7 @@ end;
 if (nargin > 1),
 	[HDR.SPR, HDR.NS] = size(DATA); HDR.NRec = 1; 
 %	HDR.AS = rmfield(HDR.AS,'SPR'); 
-	if (strcmp(HDR.TYPE,'BDF') | strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF')) & (~isfield(HDR,'DigMax') | ~isfield(HDR,'DigMin') |~isfield(HDR,'PhysMax') | ~isfield(HDR,'PhysMin'))
+	if (strcmp(HDR.TYPE,'BDF') || strcmp(HDR.TYPE,'EDF') || strcmp(HDR.TYPE,'GDF')) && (~isfield(HDR,'DigMax') || ~isfield(HDR,'DigMin') || ~isfield(HDR,'PhysMax') || ~isfield(HDR,'PhysMin'))
 		HDR.PhysMax = max(DATA,[],1);
 		HDR.PhysMin = min(DATA,[],1);
 		ix = find(HDR.PhysMax == HDR.PhysMin);
