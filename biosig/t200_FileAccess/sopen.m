@@ -3370,7 +3370,7 @@ elseif strcmp(HDR.TYPE,'MatrixMarket'),
                         line = fgetl(fid);
                         if length(line)<3,
                                 ;
-                        elseif (line(1:2)=='%') && isspace(line(3)),
+                        elseif all(line(1:2)=='%') && isspace(line(3)),
                         	if strncmp(line,'%% LABELS',9)
                         		status = 1; 
                         	elseif strncmp(line,'%% ENDLABEL',11)
