@@ -233,7 +233,6 @@ void bef64a(  double i, uint8_t* r);
 #define min(a,b)	(((a) < (b)) ? (a) : (b))
 #define max(a,b)	(((a) > (b)) ? (a) : (b))
 #define fix(m)     	(m<0 ? ceil(m) : floor(m))	
-#define isnan(a)	(a != a)
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	global constants and variables 
