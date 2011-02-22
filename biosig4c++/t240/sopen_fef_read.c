@@ -198,8 +198,8 @@ if (VERBOSE_LEVEL>8) {
 				hc->PhysDimCode = PhysDimCode(RTSADDS->unitlabelstring->buf);
 			
 			//******************* samplerate *****************/
-			unsigned n=0, d=0;
-			asn_INTEGER2long(&RTSADDS->sampleperiod.denominator,&d);
+			unsigned long n=0, d=0;
+			asn_INTEGER2long(&RTSADDS->sampleperiod.denominator, &d);
 			asn_INTEGER2long(&RTSADDS->sampleperiod.numerator,&n);
 			if (VERBOSE_LEVEL>7) fprintf(stdout,"#%i: %li %li\n",k,n,d);
 			if (n && d) {
@@ -225,7 +225,7 @@ if (VERBOSE_LEVEL>8) {
 			hc->Off =  hc->PhysMin-hc->Cal*hc->DigMin;
 			
 			//******************* bits *****************/
-			int bits=-1,dt=-1;
+			long int bits=-1,dt=-1;
 			asn_INTEGER2long(&RTSADDS->saspecification.storagesize,&bits);
 			asn_INTEGER2long(&RTSADDS->saspecification.storagedatatype,&dt);
 			hc->GDFTYP = 0;
@@ -254,7 +254,7 @@ if (VERBOSE_LEVEL>8) {
 				else if (bits==32)	hc->GDFTYP = 6; //
 				else if (bits==64)	hc->GDFTYP = 8; //
 			}
-			int arraysize=0; 
+			long int arraysize=0; 
 			asn_INTEGER2long(&RTSADDS->saspecification.storagesize,&arraysize);
 			if (!arraysize) hc->SPR = arraysize; 
 			// else 
@@ -267,8 +267,11 @@ if (VERBOSE_LEVEL>8) {
 
 			//******************* filters *****************/
 			if (RTSADDS->sasignalfrequency) {
-				asn_REAL2double(&RTSADDS->sasignalfrequency->lowedgefreq, &hc->HighPass);
-				asn_REAL2double(&RTSADDS->sasignalfrequency->highedgefreq, &hc->LowPass);
+				double d;
+				asn_REAL2double(&RTSADDS->sasignalfrequency->lowedgefreq, &d);
+				hc->HighPass = d;
+				asn_REAL2double(&RTSADDS->sasignalfrequency->highedgefreq, &d);
+				hc->LowPass = d;
 			} else 	
 			{
 			      	hc->HighPass  = -1;
@@ -300,7 +303,7 @@ if (VERBOSE_LEVEL>8) {
 	
 	for (k=0; k<N; k++) 
 	{
-		int nrec,dur,spr,n,d; 
+		long int nrec,dur,spr,n,d; 
 
 		MeasuredDataSection_t *MDS = SPS->measureddata.list.array[k];
 //		asn_fprint(stdout, &asn_DEF_RealTimeSampleArrayMeasuredDataSection, RTSAMDS);

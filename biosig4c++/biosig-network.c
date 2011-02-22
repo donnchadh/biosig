@@ -281,7 +281,7 @@ int savelink(const char* filename) {
 	
 	FILE *fid;
 	// check whether file already exists 
-	while ((fid=fopen(logfile,"r"))>0) {
+	while ((fid=fopen(logfile,"r")) != NULL) {
 		fclose(fid);
 		sprintf(tmp,".%i",k);
 		strcpy(logfile+sl,tmp);
@@ -355,10 +355,11 @@ int bscs_open(int sd, uint64_t* ID) {
 	
 	uint8_t buf[8];
 	count = 0;
-	while (LEN>count) 
-		count += recv(sd, TC &buf, min(8,max(0,LEN-count)), 0);
+	while (LEN > (size_t)count) { 	
+		count += recv(sd, TC &buf, min(8,LEN-count), 0);
 	 	// invalid packet or error opening file 
-
+	}
+	
 	if (VERBOSE_LEVEL>7) 	fprintf(stdout,"ERR: state= %08x %08x len=%i\n",b_endian_u32(msg.STATE),BSCS_VERSION_01 | BSCS_OPEN_R | BSCS_REPLY | STATE_OPEN_READ | BSCS_NO_ERROR,LEN);
 	
 	return(msg.STATE);
@@ -561,7 +562,7 @@ int bscs_requ_hdr(int sd, HDRTYPE *hdr) {
     	hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,hdr->HeadLen);
     	hdr->TYPE      = GDF; 
 	count = 0; 
-	while (hdr->HeadLen>count) {
+	while (hdr->HeadLen > (size_t)count) {
 		count += recv(sd, TC hdr->AS.Header+count, hdr->HeadLen-count, 0);
 	}
 
@@ -599,13 +600,13 @@ ssize_t bscs_requ_dat(int sd, size_t start, size_t length, HDRTYPE *hdr) {
 	
 	hdr->AS.rawdata = (uint8_t*) realloc(hdr->AS.rawdata,LEN);
 	count = 0; 
-	while (LEN>count) {
+	while (LEN > (size_t)count) {
 		count += recv(sd, TC hdr->AS.rawdata+count, LEN-count, 0);
 	}	
 	
 	hdr->AS.first = start;
 if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ DAT: %i %i\n",count,hdr->AS.bpb);
-	hdr->AS.length= (hdr->AS.bpb ? count/hdr->AS.bpb : length);  
+	hdr->AS.length= (hdr->AS.bpb ? (size_t)count/hdr->AS.bpb : length);  
 if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ DAT: %i %i\n",hdr->AS.first,hdr->AS.length);
 
 	return(0);
@@ -636,7 +637,7 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"REQ EVT: %i %i \n",s,LEN);
 	if (LEN>0) {
 	    	hdr->AS.rawEventData = (uint8_t*)realloc(hdr->AS.rawEventData,LEN);
 		int count = 0; 
-		while (LEN>count) {
+		while (LEN > (size_t)count) {
 			count += recv(sd, TC hdr->AS.rawEventData+count, LEN-count, 0);
 		}
 	   	rawEVT2hdrEVT(hdr); // TODO: replace this function because it is inefficient  
@@ -698,12 +699,12 @@ if (VERBOSE_LEVEL>8) fprintf(stdout,"PUT FILE(1) %s\n",filename);
 
 //if (VERBOSE_LEVEL>8) fprintf(stdout,"PUT FILE(2) %i %i\n",LEN,sdi);
 
-	const int BUFLEN = 1024;
+	const unsigned BUFLEN = 1024;
 	char buf[BUFLEN]; 
 	size_t count = 0;
 	while (count<LEN) {
 		//size_t len  = read(sdi, buf, min(LEN-count,BUFLEN));
-		size_t len  = fread( buf, 1, min(LEN-count,BUFLEN),fid);
+		size_t len  = fread( buf, 1, min(LEN - count, BUFLEN), fid);
 		count += send(sd, buf, len, 0);
 //		fprintf(stdout,"\b\b\b\b%02i%% ",100.0*count/LEN);
 	}
@@ -763,12 +764,12 @@ int bscs_get_file(int sd, uint64_t ID, char *filename) {
 
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"get file (3) %i\n",LEN);
 
-	const int BUFLEN=1024;
+	const unsigned BUFLEN = 1024;
 	char buf[BUFLEN]; 
 	count = 0; 
 	size_t len = 0; 
-	while (count<LEN) {
-		size_t len = recv(sd, buf, min(LEN-count,BUFLEN), 0);
+	while ((size_t)count < LEN) {
+		size_t len = recv(sd, buf, min(LEN - count,BUFLEN), 0);
 		count+=write(sdo,buf,len);
 	}
 	if (VERBOSE_LEVEL>7) fprintf(stdout,"get file (1) %i\n",count);

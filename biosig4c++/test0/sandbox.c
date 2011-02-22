@@ -259,7 +259,7 @@ int sopen_zzztest(HDRTYPE* hdr) {
 		memset(Counts,0,20);
 		memset(counts,0,20);
 		//memset(Sizes,0,20);
-		uint32_t StartOfData,StartOfPulse;
+		uint32_t StartOfData=0,StartOfPulse=0;
 
 		union {
 			struct {

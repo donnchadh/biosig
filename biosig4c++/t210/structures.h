@@ -22,9 +22,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #ifndef __STRUCTURES_H__
 #define __STRUCTURES_H__
-// #include <sys/types.h>
 #include <time.h>
-#include "types.h"
+
+#define int_S	int8_t
+#define int_M	int16_t
+#define int_L	int32_t
+#define U_int_S	uint8_t
+#define U_int_M	uint16_t
+#define U_int_L	uint32_t
+#define dec_S	float
+#define dec_M	double
+#define dec_L	long double
+#define str	char
+
+#define bool char
+#define true 1
+#define false 0
+#define TRUE 1
+#define FALSE 0
 
 struct alfabetic
 {
@@ -102,11 +117,11 @@ struct demographic
 	char 	 *last_name;
 	char 	 *ID;
 	char 	 *second_last_name;
-	numeric  age;
+	struct numeric  age;
 	char 	 *date_birth;
         time_t   date_birth2;    // by E.C. feb 2006
-	numeric  height;
-	numeric  weight;
+	struct numeric  height;
+	struct numeric  weight;
 	U_int_S  sex;
 	U_int_S  race;
 	U_int_M  systolic_pressure;
@@ -116,11 +131,11 @@ struct demographic
 struct clinic
 {
 	U_int_M	number_drug;
-	info_drug	*drug;
+	struct info_drug	*drug;
 	char		*text_drug;
 
 	U_int_M	number_diagnose;
-	numeric	*diagnose;
+	struct numeric	*diagnose;
 	char		*text_diagnose;
 
 	char		*referring_physician;
@@ -128,21 +143,21 @@ struct clinic
 	char 		*technician_description;
 
 	U_int_M	number_text;
-	numeric	*free_text;
+	struct numeric	*free_text;
 	char		*text_free_text;
 
 	U_int_M	number_hystory;
-	numeric	*medical_hystory;
+	struct numeric	*medical_hystory;
 
 	U_int_M	number_free_hystory;
-	numeric	*free_medical_hystory;
+	struct numeric	*free_medical_hystory;
 	char		*text_free_medical_hystory;
 };
 
 struct descriptive
 {
-	device_info 	acquiring;
-	device_info 	analyzing;
+	struct device_info 	acquiring;
+	struct device_info 	analyzing;
 	char 		*acquiring_institution;
 	char 		*analyzing_institution;
 	char 		*acquiring_department;
@@ -161,8 +176,8 @@ struct device
 	U_int_M   lowpass_filter;
 	U_int_S   other_filter[4];
 	char 	  *sequence_number;
-	numeric   electrode_configuration;
-	Time_Zone TZ;
+	struct numeric   electrode_configuration;
+	struct Time_Zone TZ;
 };
 
 struct table_H
@@ -329,21 +344,21 @@ struct statement_coded
 //_____________________________________
 struct DATA_DECODE
 {
-	table_H *t_Huffman;
+	struct table_H *t_Huffman;
 	U_int_M *flag_Huffman;
 
-	lead *data_lead;
-	f_lead flag_lead;
+	struct lead *data_lead;
+	struct f_lead flag_lead;
 
-	Protected_Area *data_protected;
-	Subtraction_Zone *data_subtraction;
+	struct Protected_Area *data_protected;
+	struct Subtraction_Zone *data_subtraction;
 
-	f_BdR0 flag_BdR0;
+	struct f_BdR0 flag_BdR0;
 	U_int_M *length_BdR0;
 	U_int_S *samples_BdR0;
 	int_L *Median;
 
-	f_Res flag_Res;
+	struct f_Res flag_Res;
 	U_int_M *length_Res;
 	U_int_S *samples_Res;
 	int_L *Residual;
@@ -354,8 +369,8 @@ struct DATA_DECODE
 struct TREE_NODE
 //struttura di un nodo dell'albero
 {
-	TREE_NODE *next_0;
-	TREE_NODE *next_1;
+	struct TREE_NODE *next_0;
+	struct TREE_NODE *next_1;
 	int_M row;
 };
 
@@ -364,14 +379,14 @@ struct TREE_NODE
 //_____________________________________
 struct DATA_RECORD
 {
-	global_measurement data_global;
-	spike *data_spike;
+	struct global_measurement data_global;
+	struct spike *data_spike;
 	U_int_S *type_BdR;
-	BdR_measurement *data_BdR;
-	additional_measurement *data_additional;
+	struct BdR_measurement *data_BdR;
+	struct additional_measurement *data_additional;
 
-	header_lead_measurement header_lead;
-	lead_measurement_block *lead_block;
+	struct header_lead_measurement header_lead;
+	struct lead_measurement_block *lead_block;
 };
 
 //_____________________________________
@@ -379,17 +394,17 @@ struct DATA_RECORD
 //_____________________________________
 struct DATA_INFO
 {
-	demographic ana;
-	clinic cli;
-	descriptive des;
-	device dev;
+	struct demographic ana;
+	struct clinic cli;
+	struct descriptive des;
+	struct device dev;
 
-	info flag_report;
-	numeric *text_dim;
+	struct info flag_report;
+	struct numeric *text_dim;
 	char *text_report;
 
-	info flag_statement;
-	statement_coded *data_statement;
+	struct info flag_statement;
+	struct statement_coded *data_statement;
 	char *text_statement;
 };
 

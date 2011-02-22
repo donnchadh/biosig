@@ -91,8 +91,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //      by E.C. 13.10.2003   part nedded to compile with gcc (Linux).
 //                           To compile with Borland C++ add the conditional define: WIN32.
 //                           In porting, I nedded to adapt fseek() and write a custom ultoa()
-#define TRUE 1
-#define FALSE 0
 
 #define COMPAT
 
@@ -108,7 +106,6 @@ using namespace std;
 //               FILE POINTERS
 
 #include "../biosig-dev.h"
-#include "types.h"
 #include "structures.h"
 #include "codes.h"
 //     the following define is private of Eugenio Cervesato. Please other readers ignore it!
@@ -335,7 +332,7 @@ char *ReadString(char *temp_string, U_int_M num)
 	}
 
 	if(!num)
-		return "";
+		return NULL;
 
 	_COUNT_BYTE+=num;
 
@@ -370,7 +367,7 @@ char *FindString(U_int_M max)
 	long filepos;
 
 	if(!max)
-		return "";
+		return NULL;
 
 	filepos = iftell(in); //FGETPOS(in,&filepos);
 	do
@@ -389,7 +386,7 @@ char *FindString(U_int_M max)
 	}
 
 	if(!num)
-		return "";
+		return NULL;
 
 	_COUNT_BYTE+=num;
 
@@ -742,7 +739,7 @@ void section_0(pointer_section *info, int size_max)
 			if(dim)
 			{
 				ReadByte(ini);
-				if (ini<size_max) {            // by E.C. may 2004 check overflow of file
+				if (ini<(unsigned)size_max) {            // by E.C. may 2004 check overflow of file
 					info[ind].ID=ind;
 					info[ind].length=dim;
 					info[ind].index=ini;
@@ -1285,14 +1282,14 @@ void section_1_14(descriptive &des)
 	if(des.acquiring.AC>2)
 		des.acquiring.AC=0;
 	Skip(16);
-	des.acquiring.analysing_program_revision_number="\x0";
-	des.acquiring.serial_number_device="\0";
-	des.acquiring.device_system_software="\0";
-	des.acquiring.device_SCP_implementation_software="\0";
-	des.acquiring.manifacturer_trade_name="\0";
+	des.acquiring.analysing_program_revision_number=NULL;
+	des.acquiring.serial_number_device=NULL;
+	des.acquiring.device_system_software=NULL;
+	des.acquiring.device_SCP_implementation_software=NULL;
+	des.acquiring.manifacturer_trade_name=NULL;
 	ReadByte(i);
 	if(!i)
-		des.acquiring.analysing_program_revision_number="\0";
+		des.acquiring.analysing_program_revision_number=NULL;
 	else
 		des.acquiring.analysing_program_revision_number=ReadString(des.acquiring.analysing_program_revision_number=NULL,i);
 
@@ -1365,15 +1362,15 @@ void section_1_15(descriptive &des)
 	if(des.analyzing.AC>2)
 		des.analyzing.AC=0;
 	Skip(16);
-	des.analyzing.analysing_program_revision_number="\0";
-	des.analyzing.serial_number_device="\0";
-	des.analyzing.device_system_software="\0";
-	des.analyzing.device_SCP_implementation_software="\0";
-	des.analyzing.manifacturer_trade_name="\0";
+	des.analyzing.analysing_program_revision_number=NULL;
+	des.analyzing.serial_number_device=NULL;
+	des.analyzing.device_system_software=NULL;
+	des.analyzing.device_SCP_implementation_software=NULL;
+	des.analyzing.manifacturer_trade_name=NULL;
 
 	ReadByte(i);
 	if(!i)
-		des.analyzing.analysing_program_revision_number="\0";
+		des.analyzing.analysing_program_revision_number=NULL;
 	else
 		des.analyzing.analysing_program_revision_number=ReadString(des.analyzing.analysing_program_revision_number=NULL,i);
 
@@ -1668,9 +1665,9 @@ void section_1_34(device &dev)
 	ReadByte(dev.TZ.offset); //complemented if negative
 	ReadByte(dev.TZ.index);
 	if(dim-4)
-		dev.TZ.description=FindString(dim-4);
+		dev.TZ.description = FindString(dim-4);
 	else
-		dev.TZ.description="-";
+		dev.TZ.description = "-";
 }//end section_1_34
 
 void section_1_35(clinic &cli, U_int_M &dim)

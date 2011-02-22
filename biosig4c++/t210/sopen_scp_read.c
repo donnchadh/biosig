@@ -32,8 +32,8 @@
 #include "../biosig-dev.h"
 
 #include "structures.h"
-static const U_int_S _NUM_SECTION=12U;	//consider first 11 sections of SCP
-static bool add_filter=true;             // additional filtering gives better shape, but use with care
+static const uint8_t _NUM_SECTION = 12U;	//consider first 11 sections of SCP
+static bool add_filter = true;             // additional filtering gives better shape, but use with care
 
 #ifndef WITHOUT_SCP_DECODE
 int scp_decode(HDRTYPE*, pointer_section*, DATA_DECODE&, DATA_RECORD&, DATA_INFO&, bool&);
@@ -324,7 +324,7 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 	uint8_t*	ptr; 	// pointer to memory mapping of the file layout
 	uint8_t*	PtrCurSect;	// point to current section 
 	uint8_t*	Ptr2datablock=NULL; 	// pointer to data block 
-	int32_t* 	data;		// point to rawdata
+	int32_t* 	data=NULL;		// point to rawdata
 	uint16_t	curSect=0; 	// current section
 	uint32_t 	len; 
 	uint16_t 	crc; 
@@ -334,7 +334,7 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 	int 		NSections = 12;
 	uint8_t		tag;
 	float 		HighPass=0, LowPass=1.0/0.0, Notch=-1; 	// filter settings
-	uint16_t	Cal5=0, Cal6=0, Cal0;	// scaling coefficients 
+	uint16_t	Cal5=0, Cal6=0, Cal0=0;	// scaling coefficients 
 	uint16_t 	dT_us = 1000; 	// sampling interval in microseconds
 
 	/* 
@@ -349,11 +349,11 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 		aECG = (aECG_TYPE*)hdr->aECG;
 		aECG->diastolicBloodPressure=0.0;				 
 		aECG->systolicBloodPressure=0.0;
-		aECG->MedicationDrugs = "\x0";
-		aECG->ReferringPhysician= "\x0";
+		aECG->MedicationDrugs = NULL;
+		aECG->ReferringPhysician= NULL;
 		
-		aECG->LatestConfirmingPhysician="\x00";
-		aECG->Diagnosis="\x00";
+		aECG->LatestConfirmingPhysician=NULL;
+		aECG->Diagnosis=NULL;
 		aECG->EmergencyLevel=0;
 	}
 	else 
@@ -685,7 +685,7 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 				}
 				else if (tag==32) {
 					if (PtrCurSect[curSectPos]==0) {
-						for (int k=1;k<len1;k++) {
+						for (unsigned k=1; k < len1; k++) {
 							if ((PtrCurSect[curSectPos+k] > 9) && (PtrCurSect[curSectPos+k] < 40)) 
 								hdr->Patient.Impairment.Heart = 2; 
 							else if (PtrCurSect[curSectPos+k]==1) 
@@ -980,13 +980,13 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 				if (aECG->FLAG.BIMODAL) {
 					// ### FIXME ### 
 					ix = i*hdr->SPR;		// memory offset
-					k1 = en1064.Section4.SPR-1; 	// SPR of decimated data 
+					k1 = en1064.Section4.SPR; 	// SPR of decimated data 
 					k2 = hdr->SPR;			// SPR of sample data
 					uint32_t k3 = en1064.Section4.N-1; // # of protected zones 
 					uint8_t  k4 = 4;		// decimation factor 
 					do {
 						--k2;
-						data[ix + k2] = data[ix + k1];
+						data[ix + k2] = data[ix + k1 - 1];
 						if (k2 > en1064.Section4.beat[k3].QE) { // outside protected zone 
 							if (--k4==0) {k4=4; --k1; };
 						}
@@ -994,7 +994,7 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 							--k1;
 							if (k2<en1064.Section4.beat[k3].QB) {--k3; k4=4;};
 						}
-					} while (k2 && (k1>=0));
+					} while (k2 && (k1>0));
 				}
 			
 				if (en1064.FLAG.REF_BEAT) {
@@ -1003,9 +1003,9 @@ EXTERN_C int sopen_SCP_read(HDRTYPE* hdr) {
 					for (k1 = 0; k1 < en1064.Section4.N; k1++) {
 						if (en1064.Section4.beat[k1].btyp == 0)
 						for (ix = 0; ix < en1064.Section5.Length; ix++) {
-							int32_t ix1 = en1064.Section4.beat[k1].SB - en1064.Section4.beat[k1].fcM + ix;
-							int32_t ix2 = i*hdr->SPR + ix1;
-							if ((en1064.Section4.beat[k1].btyp==0) && (ix1 >= 0) && (ix1 < hdr->SPR))
+							uint32_t ix1 = en1064.Section4.beat[k1].SB - en1064.Section4.beat[k1].fcM + ix;
+							uint32_t ix2 = i*hdr->SPR + ix1;
+							if ((en1064.Section4.beat[k1].btyp==0) && (ix1 < hdr->SPR))
 								data[ix2] = data[ix2] * cal6 + en1064.Section5.datablock[i*en1064.Section5.Length+ix] * cal5;
 						}
 					}

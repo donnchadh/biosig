@@ -44,8 +44,8 @@ CXX           = g++
 #DEFINES      = -D=WITHOUT_SCP_DECODE
 DEFINES       = -D=HARDCODED_EVENTTABLE -D=WITH_ZLIB -D=__4HAERTEL__ -D=WITH_FAMOS -D=WITH_CHOLMOD -D=WITH_FEF #-D=WITH_PDP -D=WITH_DICOM #-D=WITH_GDCM #-D=WITH_GSL #-D=WITH_EEPROBE #-D=SOFTCODED_PHYSDIMTABLE # if you have zlib
 #DEFINES      += -D=CNT32
-CFLAGS        = -pipe -fPIC -W -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
-CXXFLAGS      = -pipe -fPIC -W -O2 -Wextra $(DEFINES) # -I cntopenlib/include/
+CFLAGS        = -pipe -fPIC -W -O2 $(DEFINES) -Wextra # -I cntopenlib/include/
+CXXFLAGS      = -pipe -fPIC -W -O2 $(DEFINES) -Wextra # -I cntopenlib/include/
 AR            = ar crs
 INCPATH       = -I /usr/local/include/gdcm-2.0/
 #		../gdcm-2.0.10/Source/DataStructureAndEncodingDefinition \
@@ -275,19 +275,19 @@ sopen_fef_read.o: t240/sopen_fef_read.c biosig-dev.h biosig.h
 sopen_hl7aecg.o: t230/sopen_hl7aecg.c biosig-dev.h biosig.h XMLParser/tinyxml.h XMLParser/tinystr.h
 	$(CXX) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
-sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h biosig.h biosig.h t210/structures.h t210/types.h
+sopen_scp_read.o: t210/sopen_scp_read.c biosig-dev.h biosig.h biosig.h t210/structures.h
 	$(CXX) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
-scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h t210/types.h t210/structures.h t210/codes.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o "$@" "$<"
+scp-decode.o: t210/scp-decode.cpp biosig-dev.h biosig.h t210/structures.h t210/codes.h
+	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
 getlogin_r.o: win32/getlogin_r.c
 	$(CC) -c $(CFLAGS) $(INCPATH) -o "$@" "$<"
 
-win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h biosig.h t210/structures.h t210/types.h
+win32/sopen_scp_read.obj: t210/sopen_scp_read.c biosig-dev.h biosig.h t210/structures.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
-win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h t210/types.h t210/structures.h t210/codes.h
+win32/scp-decode.obj: t210/scp-decode.cpp biosig-dev.h biosig.h t210/structures.h t210/codes.h
 	$(MinGWCXX) -c $(MinGWCFLAGS) $(INCPATH) -o "$@" "$<"
 
 win32/sopen_hl7aecg.obj: t230/sopen_hl7aecg.c biosig-dev.h biosig.h XMLParser/tinyxml.h XMLParser/tinystr.h
@@ -466,6 +466,7 @@ distclean:
 	-$(DELETE) t?.[bge]df* t?.hl7* t?.scp* t?.cfw* t?.gd1* t?.*.gz *.fil $(TEMP_DIR)/t1.*
 	-$(DELETE) python/swig_wrap.* python/biosig.py* python/_biosig.so
 	-$(DELETE) QMakefile
+	-$(DELETE) igor/libIgor.a
 	-$(DELETE) win32/*.a
 	-$(DELETE) win32/*.lib
 	-$(DELETE) win32/libbiosig.*

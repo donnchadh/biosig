@@ -47,7 +47,7 @@ EXTERN_C int sopen_FAMOS_read(HDRTYPE* hdr) {
 		pos  = strspn(Header1, EOL);
 		uint16_t gdftyp, CHAN=0;
 		char OnOff=1;		
-		double Fs;
+		double Fs = NaN;
 		uint32_t NoChanCurrentGroup = 0;	// number of (undefined) channels of current group 
 		int level = 0; 	// to check consistency of file
 

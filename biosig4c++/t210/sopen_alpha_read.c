@@ -226,7 +226,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"<%6.2f> %i- %s | %s\n",hdr->VERSION, STATUS
 			char flag[MAX_LENGTH_LABEL+1];
 			double cal,off; 
 			char *t0,*t1,*t2,*t3; 
-			int n=0; 	// 		
+			unsigned n=0; 	// 		
 			for (k=0; max(k,n)<hdr->NS; k++) { 
 				t = strtok(NULL,"\xA\xD");
 			

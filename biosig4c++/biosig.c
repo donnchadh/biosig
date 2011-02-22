@@ -3384,7 +3384,7 @@ void rawEVT2hdrEVT(HDRTYPE *hdr) {
 
 int NumberOfChannels(HDRTYPE *hdr)
 {
-        int k,NS;
+        unsigned int k,NS;
         for (k=0, NS=0; k<hdr->NS; k++)
                 if (hdr->CHANNEL[k].OnOff) NS++;
 
@@ -3392,7 +3392,7 @@ int NumberOfChannels(HDRTYPE *hdr)
         if (hdr->Calib == NULL)
                 return (NS);
 
-        if (NS==hdr->Calib->nrow)
+        if (NS == hdr->Calib->nrow)
                 return (hdr->Calib->ncol);
 #endif
         return(hdr->NS);
@@ -3476,7 +3476,7 @@ int RerefCHANNEL(HDRTYPE *hdr, void *arg2, char Mode)
 			int mix = -1, oix = -1, pix = -1;
 			double m  = 0.0;
 			double v;
-			for (j = *(((int*)A->p)+i); j < *(((int*)A->p)+i+1); j++) {
+			for (j = *((unsigned*)(A->p)+i); j < *((unsigned*)(A->p)+i+1); j++) {
 
 				v = *(((double*)A->x)+j);
 				r = *(((int*)A->i)+j);        // r .. row index
@@ -3558,7 +3558,7 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 	const float	CNT_SETTINGS_LOWPASS[] = {30, 40, 50, 70, 100, 200, 500, 1000, 1500, 2000, 2500, 3000};
 	const float	CNT_SETTINGS_HIGHPASS[] = {NaN, 0, .05, .1, .15, .3, 1, 5, 10, 30, 100, 150, 300};
 
-    	unsigned int 	k,k2;
+//    	unsigned int 	k2;
 //    	uint32_t	k32u;
     	size_t	 	count;
     	char 		tmp[81];
@@ -3777,7 +3777,7 @@ if (!strncmp(MODE,"r",1))
 			ifseek(hdr, hdr->HeadLen + hdr->AS.bpb*hdr->NRec, SEEK_SET);
 			// READ EVENTTABLE
 			hdr->AS.rawEventData = (uint8_t*)realloc(hdr->AS.rawEventData,8);
-			int c = ifread(hdr->AS.rawEventData, sizeof(uint8_t), 8, hdr);
+			size_t c = ifread(hdr->AS.rawEventData, sizeof(uint8_t), 8, hdr);
     			uint8_t *buf = hdr->AS.rawEventData;
 
 			if (c<8) {
@@ -5836,7 +5836,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"Channel #%i: [%s](%i/%i) <%s>/<%s> ByteSpac
 		// n*36 bytes
 if (VERBOSE_LEVEL>7) fprintf(stdout,"\n******* file variable information *********\n");
 		for (k = 0; k < n; k++) {
-			int i; double f;
+			int i=-1; double f=NaN;
 			size_t pos = datapos + k*36;
 			uint16_t typ = leu16p(hdr->AS.Header+pos+22);
 			uint16_t off = leu16p(hdr->AS.Header+pos+34);
@@ -5939,7 +5939,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 409: %i #%i: SPR=%i=%i=%i  x%f+-%f %i\n
 				 	fprintf(stdout,"CFS 412 #%i %i: @%p %i\n", k, hc->SPR, srcaddr, leu32p(hdr->AS.Header+datapos + 4) + leu32p(hdr->AS.Header + datapos + 30 + 24 * k));
 
 					int16_t szz = (GDFTYP_BITS[hc->GDFTYP]>>3);
-					int k2;
+					size_t k2;
 					for (k2 = 0; k2 < hc->SPR; k2++) {
 						uint8_t *ptr = srcaddr + k2*szz;
 						double val;
@@ -6157,11 +6157,11 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 		uint16_t gdftyp = 0;
 	    	uint8_t minor_revision = hdr->AS.Header[804];
 	    	size_t eventtablepos = leu32p(hdr->AS.Header+886);
-	    	size_t nextfilepos = leu32p(hdr->AS.Header+12);
+	    	uint32_t nextfilepos = leu32p(hdr->AS.Header+12);
 
 
 		/* make base of filename */
-		int i=0, j=0;
+		size_t i=0, j=0;
 		while (i<strlen(hdr->FileName)) {
 			if ((hdr->FileName[i]=='/') || (hdr->FileName[i]=='\\')) { j=i+1; }
 			i++;
@@ -6209,7 +6209,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 		    		hdr->FILE.LittleEndian = 0;
 				stat(hdr->FileName,&FileBuf);
 				if (hdr->NRec <= 0) {
-					hdr->NRec = (min(FileBuf.st_size,nextfilepos) - hdr->HeadLen)/hdr->AS.bpb;
+					hdr->NRec = (min(FileBuf.st_size, nextfilepos) - hdr->HeadLen)/hdr->AS.bpb;
 				}
 		    		break;
 
@@ -6225,7 +6225,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 				if (VERBOSE_LEVEL>7)
 		    			fprintf(stdout,"biosig/sopen (CNT/EEG):  %i %i %i %i %i %i \n", hdr->NRec, hdr->SPR, hdr->NS, eventtablepos, (hdr->AS.bpb * hdr->NRec + hdr->HeadLen), (bpb4 * hdr->NRec + hdr->HeadLen));
 
-	    			if ((hdr->AS.bpb * hdr->NRec + hdr->HeadLen) == eventtablepos)
+	    			if ((size_t)(hdr->AS.bpb * hdr->NRec + hdr->HeadLen) == eventtablepos)
 	    				gdftyp = 3;
 	    			else if ((bpb4 * hdr->NRec + hdr->HeadLen) == eventtablepos) {
 	    				hdr->AS.bpb = bpb4;
@@ -6820,7 +6820,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 			}
 
 
-		size_t n1,n2,pos1,pos2;
+		size_t n1,n2,k2,pos1,pos2;
 		n1 = hdr->AS.Header[145];
 		if ((n1*20+0x92) > count) {
 			hdr->AS.Header = (uint8_t*)realloc(hdr->AS.Header,n1*20+0x92+1);
@@ -7167,7 +7167,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 
 			size_t skip	= hdr->AS.bpb - NEC * sz;
 			ifseek(hdr, hdr->HeadLen + skip, SEEK_SET);
-			int k1;
+			typeof(NEC) k1;
 			nrec_t k;
 			for (k=0; (k < hdr->NRec*hdr->SPR) && !ifeof(hdr); k++) {
 				ifread(buf, sz,   NEC, hdr);
@@ -8833,7 +8833,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 				status = 5;
 			else if (!strncmp(line,"[SampleTimes]",13))
 				status = 6;
-
+/*
 			else if (status==1) {
 //					filename = strchr(line,'=')+1;
 					if (!strncmp(line,"File",4))
@@ -8841,8 +8841,8 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 //						hdr->FILE.FID = fopen(''
 					else if (!strncmp(line,"File",4))
 					;
-
 				}
+*/
 
 
 			line = strtok(NULL,"\n\r");
@@ -8952,7 +8952,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 		size_t pos = leu32p(hdr->AS.Header+28);
 		uint8_t len;
 
-		int k;
+		typeof(hdr->NS) k;
 		for (k=0; k<5; k++) {
 #define line ((char*)(hdr->AS.Header+pos))
 			len = strcspn(line,"\x0a\x0d");
@@ -9036,7 +9036,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 		      	hc->XYZ[1]    = 0.0;
 		      	hc->XYZ[2]    = 0.0;
 
-			int k1;
+			unsigned k1;
 			for (k1 = sizeof(p)/sizeof(p[0]); k1>0; ) {
 				k1--;
 				len = hdr->AS.Header[pos+p[k1]];
@@ -9393,10 +9393,12 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 				}
 				else {
 					// hdr->FLAG.SWAP = 0; 	// no swaping required
+					typeof(hdr->NS) k2;
+					size_t k;
 					hdr->FILE.LittleEndian = (__BYTE_ORDER == __LITTLE_ENDIAN);
 					size_t sz = hdr->NS*hdr->SPR*hdr->NRec*GDFTYP_BITS[gdftyp]>>3;
 					hdr->AS.rawdata = (uint8_t*)realloc(hdr->AS.rawdata,sz);
-					for (k=0; k < hdr->SPR*hdr->NRec; k++)
+					for (k=0; k < (size_t)hdr->SPR*hdr->NRec; k++)
 					if (fgets(line,sz,fid)) {
 						char *next;
 						strtoul(line, &next, 10);	// skip index entry
@@ -9404,7 +9406,6 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 429: SPR=%i=%i NRec=%i\n",SPR,hdr->SPR,
 							*(double*)(hdr->AS.rawdata+(k*hdr->NS+k2)*sizeof(double)) = strtod(next,&next);
 					}
 					else {
-						int k2;
 						for (k2=0;k2<hdr->NS;k2++)
 							*(double*)(hdr->AS.rawdata+(k*hdr->NS+k2)*sizeof(double)) = NaN;
 					}
@@ -9754,15 +9755,19 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 #endif
 
 	// NS number of channels selected for writing
-     	typeof(hdr->NS)  NS = 0;
-	for (k=0; k<hdr->NS; k++)
-		if (hdr->CHANNEL[k].OnOff) NS++;
+     	typeof(hdr->NS) NS = 0;
+     	{
+     		typeof(hdr->NS) k;
+		for (k=0; k<hdr->NS; k++)
+			if (hdr->CHANNEL[k].OnOff) NS++;
+	}		
 
 	if (VERBOSE_LEVEL>8)
 		fprintf(stdout,"sopen-W ns=%i (%s)\n",NS,GetFileTypeString(hdr->TYPE));
 
     	if ((hdr->TYPE==ASCII) || (hdr->TYPE==BIN)) {
 
+		size_t k;
     		FILE *fid = fopen(hdr->FileName,"w");
 		hdr->FILE.LittleEndian = 1;
 
@@ -9873,7 +9878,6 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		fprintf(fid,"TYP\tPOS [s]\tDUR [s]\tCHN\tVAL/Desc");
 		if (!GLOBAL_EVENTCODES_ISLOADED) LoadGlobalEventCodeTable();
 
-		size_t k;
 		for (k=0; k<hdr->EVENT.N; k++) {
 
 			fprintf(fid,"\n0x%04x\t%f\t",hdr->EVENT.TYP[k],hdr->EVENT.POS[k]/hdr->EVENT.SampleRate);   // EVENT.POS uses 0-based indexing
@@ -9929,6 +9933,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 
     		fprintf(fid,"[Binary Infos]\r\nBinaryFormat=");
 		uint16_t gdftyp = 0;
+		typeof(hdr->NS) k;
     		for (k=0; k<hdr->NS; k++)
     			if (gdftyp < hdr->CHANNEL[k].GDFTYP)
     				gdftyp = hdr->CHANNEL[k].GDFTYP;
@@ -10061,6 +10066,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	    	*(int32_t*) (Header1+60) = l_endian_i32(0);	// 1: time channel
 
 	    	int32_t gdftyp = 3; // 1:double, 2:float, 3: int16; see CFWB_GDFTYP too.
+		typeof(hdr->NS) k,k2;
 		for (k=0; k<hdr->NS; k++)
 		if (hdr->CHANNEL[k].OnOff)
 		{
@@ -10102,6 +10108,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		struct2gdfbin(hdr);
 
 		size_t bpb8 = 0;
+		typeof(hdr->NS) k;
 		for (k=0, hdr->AS.bpb=0; k<hdr->NS; k++) {
 			CHANNEL_TYPE *hc = hdr->CHANNEL+k;
 			hc->bi8 = bpb8;
@@ -10143,11 +10150,13 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 			strftime(tmp,81,"%02d-%b-%04Y",t);
 		else strcpy(tmp,"X");
 
-		if (strlen(hdr->Patient.Id) > 0)
+		if (strlen(hdr->Patient.Id) > 0) {
+			size_t k; 
 			for (k=0; hdr->Patient.Id[k]; k++)
 				if (isspace(hdr->Patient.Id[k]))
 					hdr->Patient.Id[k] = '_';
-
+		}
+		
 	    	char cmd[256];
 		if (!hdr->FLAG.ANONYMOUS)
 			sprintf(cmd,"%s %c %s %s",hdr->Patient.Id,GENDER[hdr->Patient.Sex],tmp,hdr->Patient.Name);
@@ -10186,6 +10195,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 		if (len>4) fprintf(stderr,"Warning: NS is (%s) too long (%i>4).\n",tmp,len);
 	     	memcpy(Header1+252, tmp, len);
 
+		typeof(hdr->NS) k,k2;
 		for (k=0,k2=0; k<hdr->NS; k++)
 		if (hdr->CHANNEL[k].OnOff)
 		{
@@ -10559,7 +10569,8 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	else
 		hdr->AS.bpb = 0;
 
-	for (k=0, hdr->SPR = 1; k<hdr->NS; k++) {
+	typeof(hdr->NS) k; 
+	for (k=0, hdr->SPR = 1; k < hdr->NS; k++) {
 		hdr->CHANNEL[k].bi  = bpb8>>3;
 		hdr->CHANNEL[k].bi8 = bpb8;
 		if (hdr->CHANNEL[k].OnOff) {
@@ -10582,6 +10593,7 @@ else if (!strncmp(MODE,"w",1))	 /* --- WRITE --- */
 	if (hdr->FILE.POS != 0)
 		fprintf(stdout,"Debugging Information: (Format=%d) FILE.POS=%d is not zero.\n",hdr->TYPE,hdr->FILE.POS);
 
+	typeof(hdr->NS) k;
 	for (k=0; k<hdr->NS; k++)
 	if  (GDFTYP_BITS[hdr->CHANNEL[k].GDFTYP] % 8) {
 
@@ -10711,8 +10723,7 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 	if (hdr->AS.flag_collapsed_rawdata && ! flag)
 		hdr->AS.length = 0; // 	force reloading of data
 
-	size_t	count;
-	nrec_t	nelem;
+	size_t	count, nelem;
 
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"####SREAD-RAW########## start=%d length=%d bpb=%i\n",(int)start,(int)length, hdr->AS.bpb);
@@ -10732,7 +10743,7 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 	// limit reading to end of data block
 	if (hdr->NRec<0)
 		nelem = length;
-	else if (start>=hdr->NRec)
+	else if (start >= (size_t)hdr->NRec)
 		nelem = 0;
 	else
 		nelem = min(length, hdr->NRec - start);
@@ -10797,7 +10808,7 @@ size_t sread_raw(size_t start, size_t length, HDRTYPE* hdr, char flag) {
 		count = ifread(hdr->AS.rawdata, hdr->AS.bpb, nelem, hdr);
 		hdr->AS.flag_collapsed_rawdata = 0;	// is rawdata not collapsed
 //		if ((count<nelem) && ((hdr->NRec < 0) || (hdr->NRec > start+count))) hdr->NRec = start+count; // get NRec if NRec undefined, not tested yet.
-		if (count<nelem) {
+		if (count < nelem) {
 			fprintf(stderr,"warning: less then requested blocks read (%i/%i) from file %s - something went wrong\n",count,nelem,hdr->FileName);
 			if (VERBOSE_LEVEL>7)
 				fprintf(stderr,"warning: only %i instead of %i blocks read - something went wrong (bpb=%i,pos=%li)\n",count,nelem,hdr->AS.bpb,iftell(hdr));
@@ -10823,7 +10834,7 @@ int cachingWholeFile(HDRTYPE* hdr) {
 
 	sread_raw(0,hdr->NRec,hdr, 0);
 
-	return((hdr->AS.first != 0) || (hdr->AS.length!=hdr->NRec));
+	return((hdr->AS.first != 0) || (hdr->AS.length != (size_t)hdr->NRec));
 }
 
 
@@ -10871,7 +10882,7 @@ size_t sread(biosig_data_type* data, size_t start, size_t length, HDRTYPE* hdr) 
 	size_t			toffset;	// time offset for rawdata
 	biosig_data_type	*data1=NULL;
 
-	if (start >= hdr->NRec) return(0);
+	if (start >= (size_t)hdr->NRec) return(0);
 
 int V = VERBOSE_LEVEL;
 //VERBOSE_LEVEL = 9;
@@ -11500,7 +11511,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 	if (VERBOSE_LEVEL>7)
 		fprintf(stdout,"swrite 312=#%i gdftyp=%i %i %i %i %f %f %f %f %i\n",k1,GDFTYP,(int)bi8,(int)SZ,(int)CHptr->SPR,CHptr->Cal,CHptr->Off,iCal,iOff,(int)bpb8);
 
-		for (k4 = 0; k4 < hdr->NRec; k4++) {
+		for (k4 = 0; k4 < (size_t)hdr->NRec; k4++) {
 		for (k5 = 0; k5 < CHptr->SPR; k5++) {
 
 			if (VERBOSE_LEVEL>8)
@@ -11724,7 +11735,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 			if (hdr->TYPE == ASCII) {
 				DIV = hdr->SPR/CHptr->SPR;
 				size_t k2;
-				for (k2=0; k2<CHptr->SPR*hdr->NRec; k2++) {
+				for (k2=0; k2 < CHptr->SPR*(size_t)hdr->NRec; k2++) {
 					biosig_data_type i = 0.0;
 					size_t k3;
 						// TODO: row channels
@@ -11785,7 +11796,7 @@ size_t swrite(const biosig_data_type *data, size_t nelem, HDRTYPE* hdr) {
 /****************************************************************************/
 int seof(HDRTYPE* hdr)
 {
-	return (hdr->FILE.POS >= hdr->NRec);
+	return (hdr->FILE.POS >= (size_t)hdr->NRec);
 }
 
 
@@ -11833,7 +11844,7 @@ long int stell(HDRTYPE* hdr)
 
 	if (pos<0)
 		return(-1);
-	else if (pos != (hdr->FILE.POS * hdr->AS.bpb + hdr->HeadLen))
+	else if ((size_t)pos != (hdr->FILE.POS * hdr->AS.bpb + hdr->HeadLen))
 		return(-1);
 	else
 		return(hdr->FILE.POS);
@@ -12099,7 +12110,7 @@ int hdr2ascii(HDRTYPE* hdr, FILE *fid, int VERBOSE)
 		fprintf(fid,"\n#No  LeadId Label\tFs[Hz]\tSPR\tGDFTYP\tCal\tOff\tPhysDim PhysMax  PhysMin DigMax DigMin HighPass LowPass Notch X Y Z");
 		size_t k;
 #ifdef CHOLMOD_H
-                int NS = hdr->NS;
+                typeof(hdr->NS) NS = hdr->NS;
                 if (hdr->Calib) NS += hdr->Calib->ncol;
 		for (k=0; k<NS; k++) {
 		        if (k<hdr->NS)
