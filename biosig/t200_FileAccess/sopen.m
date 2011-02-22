@@ -1324,23 +1324,15 @@ end;
                         else
                                 fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF)-W: HDR.Label not defined\n');
                         end; 
-%                         Label = strvcat(HDR.Label);     % local copy of HDR.Label
-%                         if size(Label,1) < HDR.NS,
-%                                 Label = [Label;repmat(' ',HDR.NS-size(Label,1),size(Label,2))];
-%                         end;
-%                         tmp = min(16,size(Label,2));
-%                         Label = [Label(1:HDR.NS,1:tmp), char(32+zeros(HDR.NS,16-tmp))];
 
                         if ~isfield(HDR,'Transducer')
                                 HDR.Transducer=repmat({' '},HDR.NS,1); %char(32+zeros(HDR.NS,80));
 			elseif ischar(HDR.Transducer) 
                                 HDR.Transducer = cellstr(HDR.Transducer);
                         end; 
-                        for k=1:HDR.NS,
-	                        tmp = min(80,length(HDR.Transducer{k}));
-                        	HDR.Transducer{k} = [HDR.Transducer{k}, repmat(' ',1,80-tmp)];
-                        end; 	
-			Transducer = strvcat(HDR.Transducer); 
+			Transducer = char(HDR.Transducer); 
+                        tmp = min(80,size(Transducer,2));
+                       	Transducer = [Transducer, repmat(' ',size(Transducer,1),80-tmp)];
 			Transducer = Transducer(:,1:80);                        
                         
                         if ~isfield(HDR,'Filter')
@@ -1382,7 +1374,7 @@ end;
                                                                 k3 = min(k,length(HDR.Filter.Notch));
                                                                 PreFilt{k,1} = sprintf('LP: %5.f Hz; HP: %5.2f Hz; Notch: %i',HDR.Filter.LowPass(k1),HDR.Filter.HighPass(k2),HDR.Filter.Notch(k3));
                                                         end;
-                                                        HDR.PreFilt = strvcat(PreFilt);
+                                                        HDR.PreFilt = char(PreFilt);
                                                 end;
                                         end
                                 end
@@ -1414,7 +1406,7 @@ end;
                                 elseif size(HDR.PhysDim,1)>HDR.NS,
                                         HDR.PhysDim = HDR.PhysDim(1:HDR.NS); 
                                 end;
-	                        PhysDim = strvcat(HDR.PhysDim); % local copy 
+	                        PhysDim = char(HDR.PhysDim); % local copy 
 	                        if size(PhysDim,1)~=HDR.NS,
 		                        PhysDim = char(32+zeros(HDR.NS,8));
 				end; 	                        
@@ -1926,7 +1918,7 @@ elseif strmatch(HDR.TYPE,{'CNT';'AVG';'EEG'},'exact')
                 if ~isfield(HDR,'Label')
                         HDR.Label = int2str((1:HDR.NS)');
                 elseif iscell(HDR.Label),
-                        HDR.Label = strvcat(HDR.Label);
+                        HDR.Label = char(HDR.Label);
                 end;
                 if size(HDR.Label,2)>10,
                         HDR.Label = HDR.Label(:,1:10);
@@ -2287,7 +2279,7 @@ elseif strcmp(HDR.TYPE,'alpha') && any(HDR.FILE.PERMISSION=='r'),
 			end;
 			HDR.PhysDim{k}=[deblank(sa{5}),' '];
 		end;
-		HDR.PhysDim = strvcat(HDR.PhysDim);
+		HDR.PhysDim = char(HDR.PhysDim);
 	else
                 fprintf(HDR.FILE.stderr,'Error SOPEN (alpha): couldnot open RAWHEAD\n');
 	end;
@@ -2355,7 +2347,7 @@ elseif strcmp(HDR.TYPE,'alpha') && any(HDR.FILE.PERMISSION=='r'),
 	                        HDR.Off(ch,1) = val(k, 4);
 	                end; 	
 		end; 
-%                HDR.Label2 = strvcat(strarray(HDR.alpha.chanorder,1));
+%                HDR.Label2 = char(strarray(HDR.alpha.chanorder,1));
 		OK = strmatch('no',strarray(:,2));
 		
                 HDR.FLAG.UCAL = ~isempty(OK);
@@ -3324,7 +3316,7 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
         sts.Desc = [repmat('S: ',length(ix),1),HDR.GTF.L2(sts.TYP,:)];
         HDR.EVENT.POS  = [ann.POS(:); msg.POS(:); sts.POS(:)];
         HDR.EVENT.TYP  = [ann.TYP(:); msg.TYP(:)+10; sts.TYP(:)+10];
-        HDR.EVENT.Desc = cellstr(strvcat(ann.Desc,msg.Desc,sts.Desc));
+        HDR.EVENT.Desc = cellstr(char(ann.Desc,msg.Desc,sts.Desc));
         
         HDR.GTF.ann = ann; 
         HDR.GTF.msg = msg; 
@@ -5415,7 +5407,7 @@ elseif strcmp(HDR.TYPE,'MIT')
 	                        MACHINE_FORMAT='ieee-le';
 	                end;
 	
-			DAT = strvcat(HDR.FILE.DAT);
+			DAT = char(HDR.FILE.DAT);
 			if all(all(DAT == DAT(ones(size(DAT,1),1),:))),
 				% single DAT-file: only this provides high performance 
 				HDR.FILE.DAT = DAT(1,:);
@@ -7417,12 +7409,8 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                         for k = 1:HDR.NS,
                                 Label{k} = sprintf('channel %i',k);
                         end;
-                elseif iscell(HDR.Label)
-                        for k = 1:min(HDR.NS,length(HDR.Label)),
-                                HDR.Label{k}= [HDR.Label{k},' ']; 
-                        end;
                 end;
-                Label = strvcat(HDR.Label);  % local copy of Label 
+                Label = char(HDR.Label);  % local copy of Label 
                 Label = [Label, char(repmat(32,size(Label,1),max(0,CHANNEL_TITLE_LEN-size(Label,2))))];
                 Label = [Label; char(repmat(32,max(0,HDR.NS-size(Label,1)),size(Label,2)))];
                 
@@ -7438,7 +7426,7 @@ elseif strcmp(HDR.TYPE,'CFWB'),		% Chart For Windows Binary data, defined by ADI
                                 HDR.PhysDim{k} = [HDR.PhysDim{k},' ']; 
                         end;
                 end
-                PhysDim = strvcat(HDR.PhysDim);     %local copy 
+                PhysDim = char(HDR.PhysDim);     %local copy 
                 PhysDim = [PhysDim, char(repmat(32,size(PhysDim,1),max(0,UNITS_LEN-size(PhysDim,2))))];
                 PhysDim = [PhysDim; char(repmat(32,max(0,HDR.NS-size(PhysDim,1)),size(PhysDim,2)))];
                 
@@ -10128,24 +10116,24 @@ elseif strcmp(HDR.TYPE,'unknown'),
                 if strcmpi(HDR.FILE.Ext,'DAT') 
                 	[NUM, STATUS,STRARRAY] = str2double(char(s));
                         if (size(NUM,2)<4) && ~any(any(STATUS))
-                                HDR.Label = strvcat(STRARRAY(:,1));
+                                HDR.Label = STRARRAY(:,1);
                                 r2 = sum(NUM(:,2:3).^2,2);
                                 HDR.ELEC.XYZ = [NUM(:,2:3),sqrt(max(r2)-r2)]; 
                                 HDR.CHAN  = NUM(:,1); 
                                 HDR.TYPE  = 'ELPOS'; 
                         elseif (size(NUM,2)==4) && ~any(any(STATUS))
-                                HDR.Label = strvcat(STRARRAY(:,1));
+                                HDR.Label = STRARRAY(:,1);
                                 HDR.ELEC.XYZ  = NUM(:,2:4); 
                                 HDR.ELEC.CHAN = NUM(:,1); 
                                 HDR.TYPE  = 'ELPOS'; 
                         elseif (size(NUM,2)==4) && ~any(any(STATUS(:,[1,3:4])))
-                                HDR.Label = strvcat(STRARRAY(:,2));
+                                HDR.Label = STRARRAY(:,2);
                                 r2 = sum(NUM(:,3:4).^2,2);
                                 HDR.ELEC.XYZ = [NUM(:,3:4),sqrt(max(r2)-r2)]; 
                                 HDR.CHAN  = NUM(:,1); 
                                 HDR.TYPE  = 'ELPOS'; 
                         elseif (size(NUM,2)==5) && ~any(any(STATUS(:,3:5)))
-                                HDR.Label = strvcat(STRARRAY(:,1));
+                                HDR.Label = STRARRAY(:,1);
                                 HDR.ELEC.XYZ  = NUM(:,3:5); 
                                 HDR.TYPE  = 'ELPOS'; 
                         end;
@@ -10184,14 +10172,14 @@ elseif strcmp(HDR.TYPE,'unknown'),
                         s(s==',') = '.';
                         [NUM, STATUS, STRARRAY] = str2double(s,[9,32]);
                         if (size(NUM,2)==3) && ~any(any(STATUS(:,2:3)))
-                                HDR.Label = strvcat(STRARRAY(:,1));
+                                HDR.Label = STRARRAY(:,1);
                                 Theta     = abs(NUM(:,2))*pi/180; 
                                 Phi       = NUM(:,3)*pi/180 + pi*(NUM(:,2)<0); 
                                 HDR.ELEC.XYZ = [sin(Theta).*cos(Phi),sin(Theta).*sin(Phi),cos(Theta)]; 
                                 HDR.ELEC.R   = 1; 
                                 HDR.TYPE     = 'ELPOS'; 
                         elseif (size(NUM,2)==4) && ~any(any(STATUS(:,2:4)))
-                                HDR.Label = strvcat(STRARRAY(:,1));
+                                HDR.Label = STRARRAY(:,1);
                                 HDR.ELEC.XYZ = NUM(:,2:4); 
                                 HDR.TYPE  = 'ELPOS'; 
                         end;
@@ -10202,7 +10190,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                         [NUM, STATUS,STRARRAY] = str2double(char(s));
                         if size(NUM,2)==3,
                                 if ~any(any(STATUS(:,2:3)))
-                                        HDR.Label = strvcat(STRARRAY(:,1));
+                                        HDR.Label = STRARRAY(:,1);
 	                                Theta = NUM(:,2)*pi/180; 
 	                                Phi   = NUM(:,3)*pi/180; 
 	                                HDR.ELEC.XYZ = [sin(Theta).*cos(Phi),sin(Theta).*sin(Phi),cos(Theta)]; 
@@ -10211,7 +10199,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                                 end;
                         elseif size(NUM,2)==4,
                                 if ~any(any(STATUS(:,3:4)))
-                                        HDR.Label = strvcat(STRARRAY(:,2));
+                                        HDR.Label = STRARRAY(:,2);
 	                                Theta = NUM(:,2)*pi/180; 
 	                                Phi   = NUM(:,3)*pi/180; 
 	                                HDR.ELEC.XYZ = [sin(Theta).*cos(Phi),sin(Theta).*sin(Phi),cos(Theta)]; 
@@ -10226,7 +10214,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                         [line1,s]=strtok(char(s),[10,13]);
                         [NUM, STATUS,STRARRAY] = str2double(char(s));
                         if ~any(any(STATUS(:,[1,5:7])))
-                                HDR.Label = strvcat(STRARRAY(:,2));
+                                HDR.Label = STRARRAY(:,2);
                                 HDR.ELEC.XYZ  = NUM(:,5:7)*[0,1,0;-1,0,0;0,0,1]; 
                                 HDR.ELEC.CHAN = NUM(:,1); 
                                 HDR.TYPE  = 'ELPOS'; 
@@ -10238,7 +10226,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
 %                        [line1,s]=strtok(char(s),[10,13]);
                         [NUM, STATUS,STRARRAY] = str2double(char(s));
                         if ~any(any(STATUS(:,1:3)))
-                                HDR.Label = strvcat(STRARRAY(:,4));
+                                HDR.Label = STRARRAY(:,4);
                                 HDR.CHAN  = NUM(:,1); 
                                 Phi       = NUM(:,2)/180*pi; 
                                 %Theta     = asin(NUM(:,3)); 
@@ -10251,7 +10239,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                 elseif strcmpi(HDR.FILE.Ext,'sfp')
                         [NUM, STATUS,STRARRAY] = str2double(char(s));
                         if ~any(any(STATUS(:,2:4)))
-                                HDR.Label    = strvcat(STRARRAY(:,1));
+                                HDR.Label    = STRARRAY(:,1);
                                 HDR.ELEC.XYZ = NUM(:,2:4); 
                                 HDR.TYPE     = 'ELPOS'; 
                         end;
@@ -10260,7 +10248,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                 elseif strcmpi(HDR.FILE.Ext,'xyz')
                         [NUM, STATUS,STRARRAY] = str2double(char(s));
                         if ~any(any(STATUS(:,2:4)))
-                                HDR.Label    = strvcat(STRARRAY(:,5));
+                                HDR.Label    = STRARRAY(:,5);
                                 HDR.ELEC.CHAN= NUM(:,1); 
                                 HDR.ELEC.XYZ = NUM(:,2:4); 
                                 HDR.TYPE     = 'ELPOS'; 
@@ -10308,8 +10296,6 @@ if HDR.NS>0,
                 HDR.Label = cellstr([repmat('#',HDR.NS,1),int2str([1:HDR.NS]')]);
         elseif ischar(HDR.Label)
                 HDR.Label = cellstr(HDR.Label); 
-        else
-                %HDR.Label = strvcat(HDR.Label);
         end;
         if ischar(HDR.PhysDim)
                 HDR.PhysDim = cellstr(HDR.PhysDim); 
@@ -10317,7 +10303,7 @@ if HDR.NS>0,
         HDR.CHANTYP = repmat(' ',1,HDR.NS);
         tmp = HDR.NS-length(HDR.Label);
         %HDR.Label = [HDR.Label(1:HDR.NS,:);repmat(' ',max(0,tmp),size(HDR.Label,2))];
-        Label = strvcat(HDR.Label);
+        Label = char(HDR.Label);
         tmp = reshape(lower([[Label(1:min(HDR.NS,size(Label,1)),:);repmat(' ',max(0,tmp),size(Label,2))],repmat(' ',HDR.NS,1)])',1,HDR.NS*(size(Label,2)+1));
         
         HDR.CHANTYP(ceil([strfind(tmp,'eeg'),strfind(tmp,'meg')]/(size(Label,2)+1))) = 'E'; 
