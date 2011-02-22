@@ -1,0 +1,14 @@
+*** ../mingw-cross-env/usr/i686-pc-mingw32/include/io.h.orig	Wed Feb  2 13:57:17 2011
+--- ../mingw-cross-env/usr/i686-pc-mingw32/include/io.h	Wed Feb  2 13:57:42 2011
+***************
+*** 451,457 ****
+--- 451,459 ----
+  _CRTIMP int __cdecl __MINGW_NOTHROW open (const char*, int, ...);
+  _CRTIMP int __cdecl __MINGW_NOTHROW read (int, void*, unsigned int);
+  _CRTIMP int __cdecl __MINGW_NOTHROW setmode (int, int);
++ #if __UNISTD_H_SOURCED__
+  _CRTIMP int __cdecl __MINGW_NOTHROW sopen (const char*, int, int, ...);
++ #endif
+  _CRTIMP long __cdecl __MINGW_NOTHROW tell (int);
+  _CRTIMP int __cdecl __MINGW_NOTHROW umask (int);
+  _CRTIMP int __cdecl __MINGW_NOTHROW unlink (const char*);

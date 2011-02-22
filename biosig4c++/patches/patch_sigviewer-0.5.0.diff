@@ -1,0 +1,47 @@
+Index: src/src.pro
+===================================================================
+--- src/src.pro	(revision 543)
++++ src/src.pro	(working copy)
+@@ -34,7 +34,7 @@
+                $$_PRO_FILE_PWD_/.
+ LIBS += -L$$_PRO_FILE_PWD_/../extern/lib \
+     -lbiosig \
+-    -lGDF
++    -lGDF -lcholmod -lz
+ 
+ RESOURCES = src.qrc
+ win32:RC_FILE = src.rc
+Index: src/version.txt
+===================================================================
+--- src/version.txt	(revision 543)
++++ src/version.txt	(working copy)
+@@ -1,2 +1,2 @@
+-0.5.0
++0.5.1-as
+ 
+Index: src/file_handling_impl/biosig_reader.cpp
+===================================================================
+--- src/file_handling_impl/biosig_reader.cpp	(revision 543)
++++ src/file_handling_impl/biosig_reader.cpp	(working copy)
+@@ -56,6 +56,12 @@
+ FILE_SIGNAL_READER_REGISTRATION(cnt, BioSigReader);
+ FILE_SIGNAL_READER_REGISTRATION(eeg, BioSigReader);
+ FILE_SIGNAL_READER_REGISTRATION(bkr, BioSigReader);
++FILE_SIGNAL_READER_REGISTRATION(gz,  BioSigReader);
++FILE_SIGNAL_READER_REGISTRATION(itx, BioSigReader);
++FILE_SIGNAL_READER_REGISTRATION(rec, BioSigReader);
++FILE_SIGNAL_READER_REGISTRATION(acq, BioSigReader);
++FILE_SIGNAL_READER_REGISTRATION(bva, BioSigReader);
++FILE_SIGNAL_READER_REGISTRATION(vhdr, BioSigReader);
+ 
+ FILE_SIGNAL_READER_REGISTRATION(evt, BioSigReader);
+ 
+@@ -192,7 +198,7 @@
+             destructHDR(biosig_header_);
+             biosig_header_ = 0;
+             delete c_file_name;
+-            return "file not supported";
++            return B4C_ERRMSG;
+     }
+ 
+     // (C) 2008 AS: EVENT.DUR and EVENT.CHN are optional in SOPEN, but SigViewer needs them.
