@@ -29,7 +29,7 @@ if HDR.FILE.OPEN < 2,
 end;
 
 
-if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
+if strcmp(HDR.TYPE,'EDF') || strcmp(HDR.TYPE,'GDF') || strcmp(HDR.TYPE,'BDF'),
         if ~all(HDR.GDFTYP==HDR.GDFTYP(1)) 
                 fprintf(2,'Error SWRITE: different GDFTYPs not supported yet!\n');
                 return;
@@ -115,7 +115,7 @@ if strcmp(HDR.TYPE,'EDF') | strcmp(HDR.TYPE,'GDF') | strcmp(HDR.TYPE,'BDF'),
         
 elseif strcmp(HDR.TYPE,'BKR'),
         count=0;
-        if HDR.NS~=size(data,2) & HDR.NS==size(data,1),
+        if HDR.NS~=size(data,2) && HDR.NS==size(data,1),
                 fprintf(2,'SWRITE: number of channels fits number of rows. Transposed data\n');
                 data = data';
         end
@@ -150,7 +150,7 @@ elseif strcmp(HDR.TYPE,'BKR'),
         
 elseif strcmp(HDR.TYPE,'CFWB')
         count=0;
-        if HDR.NS~=size(data,2) & HDR.NS==size(data,1),
+        if HDR.NS~=size(data,2) && HDR.NS==size(data,1),
                 fprintf(2,'SWRITE: number of channels fits number of rows. Transposed data\n');
                 data = data';
         end
@@ -173,9 +173,9 @@ elseif strcmp(HDR.TYPE,'CFWB')
         %HDR.AS.endpos = HDR.AS.endpos + size(data,1);
         
         
-elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
+elseif strcmp(HDR.TYPE,'AIF') || strcmp(HDR.TYPE,'SND') || strcmp(HDR.TYPE,'WAV'),
         count = 0;
-        if (HDR.NS ~= size(data,2)) & (HDR.NS==size(data,1)),
+        if (HDR.NS ~= size(data,2)) && (HDR.NS==size(data,1)),
                 fprintf(2,'Warning SWRITE: number of channels fits number of rows. Transposed data\n');
                 data = data';
         end
@@ -202,7 +202,7 @@ elseif strcmp(HDR.TYPE,'AIF') | strcmp(HDR.TYPE,'SND') | strcmp(HDR.TYPE,'WAV'),
         
 elseif strcmp(HDR.TYPE,'MIT')
         count = 0;
-        if HDR.NS~=size(data,2) & HDR.NS==size(data,1),
+        if HDR.NS~=size(data,2) && HDR.NS==size(data,1),
                 fprintf(2,'SWRITE: number of channels do not fit number of columns but number of rows. Data transposed!?!\n');
                 data = data';
         end

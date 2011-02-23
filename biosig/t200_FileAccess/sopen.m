@@ -3364,7 +3364,7 @@ elseif strcmp(HDR.TYPE,'GTF'),          % Galileo EBNeuro EEG Trace File
 elseif strcmp(HDR.TYPE,'MatrixMarket'),
         if (HDR.FILE.PERMISSION=='r')
                 fid = fopen(HDR.FileName,HDR.FILE.PERMISSION,'ieee-le');
-                k = 0; 
+                K = 0; 
                 status = 0;
                 while ~feof(fid);
                         line = fgetl(fid);
@@ -3391,8 +3391,8 @@ elseif strcmp(HDR.TYPE,'MatrixMarket'),
                         	;
                         else 
                                 [n,v,sa] = str2double(line);
-                                k = k+1; 
-                                if (k==1)
+                                K = K+1;
+                                if (K==1)
                                         HDR.Calib = sparse([],[],[],n(1),n(2),n(3));
                                 else 
                                         HDR.Calib(n(1),n(2))=n(3);                                                  
