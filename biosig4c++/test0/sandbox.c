@@ -464,7 +464,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"HEKA L2 @%i=%s %f\t%i/%i %i/%i \n",pos+Star
 					if (hdr->SPR > 0) {
 						// marker for start of sweep
 						hdr->EVENT.POS[hdr->EVENT.N] = hdr->SPR;	// within reading the structure, hdr->SPR is used as a intermediate variable counting the number of samples
-						hdr->EVENT.TYP[hdr->EVENT.N] = 0xfffe;
+						hdr->EVENT.TYP[hdr->EVENT.N] = 0x7ffe;
 						hdr->EVENT.N++;
 					}
 
