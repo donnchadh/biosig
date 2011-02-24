@@ -139,8 +139,8 @@ if isempty(MODE), MODE=' '; end;	% Make sure MODE is not empty -> FINDSTR
 % test for type of file 
 if any(HDR.FILE.PERMISSION=='r'),
         HDR = getfiletype(HDR);
-	if HDR.ERROR.status, 
-		fprintf(HDR.FILE.stderr,'%s\n',HDR.ERROR.message);
+	if HDR.ErrNum, 
+		fprintf(HDR.FILE.stderr,'%s\n',HDR.ErrMsg);
 		return;
 	end;
 elseif any(HDR.FILE.PERMISSION=='w'),
@@ -157,8 +157,8 @@ elseif any(HDR.FILE.PERMISSION=='w'),
         end;
 	HDR.FILE.OPEN = 0;
         HDR.FILE.FID  = -1;
-	HDR.ERROR.status  = 0; 
-	HDR.ERROR.message = '';
+	HDR.ErrNum  = 0; 
+	HDR.ErrMsg = '';
 	
 	if isfield(HDR,'NS') && (HDR.NS>0), 
 	        HDR = physicalunits(HDR); 
@@ -226,7 +226,7 @@ GDFTYP_BYTE(1:19)=[1 1 1 2 2 4 4 8 8 4 8 0 0 0 0 0 4 8 16]';
 if strcmp(HDR.TYPE,'EDF') || strcmp(HDR.TYPE,'GDF') || strcmp(HDR.TYPE,'BDF'),
         H2idx = [16 80 8 8 8 8 8 80 8 32];
         
-        HDR.ErrNo = 0; 
+        HDR.ErrNum = 0; 
         HANDEDNESS = {'unknown','right','left','equal'}; 
         GENDER  = {'X','Male','Female'};
         SCALE13 = {'unknown','no','yes'};
@@ -236,20 +236,20 @@ if strcmp(HDR.TYPE,'EDF') || strcmp(HDR.TYPE,'GDF') || strcmp(HDR.TYPE,'BDF'),
                 [HDR.FILE.FID]=fopen(HDR.FileName,[HDR.FILE.PERMISSION,'b'],'ieee-le');          
                 
                 if HDR.FILE.FID<0 
-                        HDR.ErrNo = [32,HDR.ErrNo];
+                        HDR.ErrNum = [32,HDR.ErrNum];
                         return;
                 end;
 
                 %%% Read Fixed Header %%%
                 [H1,count]=fread(HDR.FILE.FID,[1,192],'uint8');     %
                 if count<192,
-                        HDR.ErrNo = [64,HDR.ErrNo];
+                        HDR.ErrNum = [64,HDR.ErrNum];
                         return;
                 end;
                 
                 HDR.VERSION=char(H1(1:8));                     % 8 Byte  Versionsnummer 
                 if ~(strcmp(HDR.VERSION,'0       ') || all(abs(HDR.VERSION)==[255,abs('BIOSEMI')]) || strcmp(HDR.VERSION(1:3),'GDF'))
-                        HDR.ErrNo = [1,HDR.ErrNo];
+                        HDR.ErrNum = [1,HDR.ErrNum];
                         if ~strcmp(HDR.VERSION(1:3),'   '); % if not a scoring file, 
                                 %	    return; 
                         end;
@@ -261,7 +261,7 @@ if strcmp(HDR.TYPE,'EDF') || strcmp(HDR.TYPE,'GDF') || strcmp(HDR.TYPE,'BDF'),
                 elseif all(H1(1:3)==abs('GDF'))
                         HDR.VERSION = str2double(char(H1(4:8))); 
                 else
-                        HDR.ErrNo = [1,HDR.ErrNo];
+                        HDR.ErrNum = [1,HDR.ErrNum];
                         if ~strcmp(HDR.VERSION(1:3),'   '); % if not a scoring file, 
                                 %	    return; 
                         end;
@@ -384,7 +384,7 @@ end;
                         tmp = find((H1<32) | (H1>126)); 		%%% syntax for Matlab
                         if ~isempty(tmp) %%%%% not EDF because filled out with ASCII(0) - should be spaces
                                 %H1(tmp)=32; 
-                                HDR.ErrNo=[1025,HDR.ErrNo];
+                                HDR.ErrNum=[1025,HDR.ErrNum];
                         end;
                         
                         tmp = repmat(' ',1,22);
@@ -395,7 +395,7 @@ end;
                         end;
                         
                         if any(isnan(HDR.T0)),
-                                HDR.ErrNo = [1032,HDR.ErrNo];
+                                HDR.ErrNum = [1032,HDR.ErrNum];
                                 
                                 tmp = H1(168 + [1:16]);
                                 tmp(tmp=='.' | tmp==':' | tmp=='/' | tmp=='-') = ' ';
@@ -408,7 +408,7 @@ end;
                                         HDR.T0(4:6) = tmp1; 
                                 end;
                                 if any(isnan(HDR.T0)),
-                                        HDR.ErrNo = [2,HDR.ErrNo];
+                                        HDR.ErrNum = [2,HDR.ErrNum];
                                 end;
                         end;
                         
@@ -468,7 +468,7 @@ end;
                 
                 if any(size(HDR.NS)~=1) %%%%% not EDF because filled out with ASCII(0) - should be spaces
                         fprintf(HDR.FILE.stderr, 'Warning SOPEN (GDF/EDF/BDF): invalid NS-value in header of %s\n',HDR.FileName);
-                        HDR.ErrNo=[1040,HDR.ErrNo];
+                        HDR.ErrNum=[1040,HDR.ErrNum];
                         HDR.NS=1;
                 end;
                 % Octave assumes HDR.NS is a matrix instead of a scalare. Therefore, we need
@@ -476,22 +476,22 @@ end;
                 HDR.NS = HDR.NS(1);     
                 
                 if isempty(HDR.HeadLen) %%%%% not EDF because filled out with ASCII(0) - should be spaces
-                        HDR.ErrNo=[1056,HDR.ErrNo];
+                        HDR.ErrNum=[1056,HDR.ErrNum];
                         HDR.HeadLen=256*(1+HDR.NS);
                 end;
                 
                 if isempty(HDR.NRec) %%%%% not EDF because filled out with ASCII(0) - should be spaces
-                        HDR.ErrNo=[1027,HDR.ErrNo];
+                        HDR.ErrNum=[1027,HDR.ErrNum];
                         HDR.NRec = -1;
                 end;
                 
                 if isempty(HDR.Dur) %%%%% not EDF because filled out with ASCII(0) - should be spaces
-                        HDR.ErrNo=[1088,HDR.ErrNo];
+                        HDR.ErrNum=[1088,HDR.ErrNum];
                         HDR.Dur=30;
                 end;
                 
                 if  any(HDR.T0>[2084 12 31 24 59 59]) || any(HDR.T0<[1985 1 1 0 0 0])
-                        HDR.ErrNo = [4, HDR.ErrNo];
+                        HDR.ErrNum = [4, HDR.ErrNum];
                 end;
 
                 %%% Read variable Header %%%
@@ -503,7 +503,7 @@ end;
                         h2=zeros(HDR.NS,256);
                         [H2,count]=fread(HDR.FILE.FID,HDR.NS*256,'uint8');
                         if count < HDR.NS*256 
-                                HDR.ErrNo=[8,HDR.ErrNo];
+                                HDR.ErrNum=[8,HDR.ErrNum];
                                 return; 
                         end;
                         
@@ -511,7 +511,7 @@ end;
                         tmp = find((H2<32) | ((H2>126) & (H2~=255) & (H2~=181)& (H2~=230))); 
                         if ~isempty(tmp) %%%%% not EDF because filled out with ASCII(0) - should be spaces
                                 H2(tmp) = 32; 
-                                HDR.ErrNo = [1026,HDR.ErrNo];
+                                HDR.ErrNum = [1026,HDR.ErrNum];
                         end;
                         
                         for k=1:length(H2idx);
@@ -539,7 +539,7 @@ end;
                         if isempty(HDR.AS.SPR), 
                                 fprintf(HDR.FILE.stderr, 'Warning SOPEN (GDF/EDF/BDF): invalid SPR-value in header of %s\n',HDR.FileName);
                                 HDR.AS.SPR=ones(HDR.NS,1);
-                                HDR.ErrNo=[1028,HDR.ErrNo];
+                                HDR.ErrNum=[1028,HDR.ErrNum];
                         end;
                 elseif (HDR.NS>0)
                         if (ftell(HDR.FILE.FID)~=256),
@@ -607,8 +607,8 @@ end;
 	                        	fprintf(2,'   A copy is available here, too: http://www.dpmi.tugraz.at/schloegl/publications/neurophys1999_2165.pdf \n'); 
 				end;
 			end; 
-	                if any(HDR.PhysMax==HDR.PhysMin), HDR.ErrNo=[1029,HDR.ErrNo]; end;	
-	                if any(HDR.DigMax ==HDR.DigMin ), HDR.ErrNo=[1030,HDR.ErrNo]; end;	
+	                if any(HDR.PhysMax==HDR.PhysMin), HDR.ErrNum=[1029,HDR.ErrNum]; end;	
+	                if any(HDR.DigMax ==HDR.DigMin ), HDR.ErrNum=[1030,HDR.ErrNum]; end;	
 	                HDR.Cal = (HDR.PhysMax-HDR.PhysMin)./(HDR.DigMax-HDR.DigMin);
 	                HDR.Off = HDR.PhysMin - HDR.Cal .* HDR.DigMin;
 			if any(~isfinite(HDR.Cal)),
@@ -804,7 +804,7 @@ end;
                 if  (HDR.NRec*HDR.AS.bpb) ~= (HDR.FILE.size - HDR.HeadLen);
                         %if ~strcmp(HDR.VERSION(1:3),'GDF'),
                         if ~strcmp(HDR.TYPE,'GDF'),
-                                HDR.ErrNo= [16,HDR.ErrNo];
+                                HDR.ErrNum= [16,HDR.ErrNum];
                                 tmp = HDR.NRec; 
                                 HDR.NRec = floor((HDR.FILE.size - HDR.HeadLen) / HDR.AS.bpb);
                                 if tmp~=HDR.NRec,
@@ -1230,8 +1230,8 @@ end;
                         HDR.Dur=NaN;
                 end;
                 if ~isfield(HDR,'NS')
-                        HDR.ERROR = sprintf('Error SOPEN (GDF/EDF/BDF)-W: HDR.NS not defined\n');
-                        HDR.ErrNo = HDR.ErrNo + 128;
+                        HDR.ErrMsg = sprintf('Error SOPEN (GDF/EDF/BDF)-W: HDR.NS not defined\n');
+                        HDR.ErrNum = HDR.ErrNum + 128;
                         return;
                 end;
                 if ~isfield(HDR,'SampleRate')
@@ -1293,8 +1293,8 @@ end;
                         if HDR.NS == 0;
                                 HDR.GDFTYP = 3;
                         elseif ~isfield(HDR,'GDFTYP'),
-                                HDR.ERROR = sprintf('Warning SOPEN (GDF/EDF/BDF)-W: HDR.GDFTYP not defined\n');
-                                HDR.ErrNo = HDR.ErrNo + 128;
+                                HDR.ErrMsg = sprintf('Warning SOPEN (GDF/EDF/BDF)-W: HDR.GDFTYP not defined\n');
+                                HDR.ErrNum = HDR.ErrNum + 128;
                                 % fclose(HDR.FILE.FID); return;
                         elseif length(HDR.GDFTYP)==1,
                                 HDR.GDFTYP = HDR.GDFTYP(ones(HDR.NS,1));
@@ -1509,8 +1509,8 @@ end;
                                         fprintf('Warning SOPEN (GDF/EDF/BDF)-W: HDR.AS.SPR not defined\n');
                                 end;
                                 HDR.AS.SPR = repmat(nan,HDR.NS,1);
-                                HDR.ERROR = sprintf('Error SOPEN (GDF/EDF/BDF)-W: HDR.AS.SPR not defined\n');
-                                HDR.ErrNo = HDR.ErrNo + 128;
+                                HDR.ErrMsg = sprintf('Error SOPEN (GDF/EDF/BDF)-W: HDR.AS.SPR not defined\n');
+                                HDR.ErrNum = HDR.ErrNum + 128;
                                 %fclose(HDR.FILE.FID); return;
                         else
                                 HDR.AS.SPR=reshape(HDR.AS.SPR(1:HDR.NS),HDR.NS,1);
@@ -1624,7 +1624,7 @@ end;
                 if HDR.FILE.FID<0 
                         %fprintf(HDR.FILE.stderr,'Error EDFOPEN: %s\n',MESSAGE);  
                         H1=MESSAGE;H2=[];
-                        HDR.ErrNo = HDR.ErrNo + 32;
+                        HDR.ErrNum = HDR.ErrNum + 32;
                         fprintf(HDR.FILE.stderr,'Error SOPEN (GDF/EDF/BDF)-W: Could not open %s \n',HDR.FileName);
                         return;
                 end;
@@ -1843,8 +1843,8 @@ end;
                 fprintf(HDR.FILE.stderr,'Warning SOPEN (GDF/EDF/BDF): Incorrect 2nd argument. \n');
         end;        
         
-        if HDR.ErrNo>0
-                fprintf(HDR.FILE.stderr,'ERROR %i SOPEN (GDF/EDF/BDF)\n',HDR.ErrNo);
+        if HDR.ErrNum>0
+                fprintf(HDR.FILE.stderr,'ERROR %i SOPEN (GDF/EDF/BDF)\n',HDR.ErrNum);
         end;
         
 
@@ -2055,7 +2055,7 @@ elseif strcmp(HDR.TYPE,'FEF'),		% FEF/Vital format included
 elseif strcmp(HDR.TYPE,'SCP'),	%
         HDR = scpopen(HDR,CHAN);
         HDR.GDFTYP = repmat(5,1,HDR.NS);
-	if HDR.ERROR.status,
+	if HDR.ErrNum,
 		fclose(HDR.FILE.FID);
 		HDR.FILE.OPEN = 0; 
 		return;
@@ -5806,18 +5806,18 @@ elseif strcmp(HDR.TYPE,'MAT4') && any(HDR.FILE.PERMISSION=='r'),
                         namelen  = fread(HDR.FILE.FID,1,'uint32'); 	% tag, datatype
                         if namelen>HDR.FILE.size,
 			%	fclose(HDR.FILE.FID);
-				HDR.ERROR.status  = -1; 
-				HDR.ERROR.message = sprintf('Error SOPEN (MAT4): Could not open %s\n',HDR.FileName);
+				HDR.ErrNum  = -1; 
+				HDR.ErrMsg = sprintf('Error SOPEN (MAT4): Could not open %s\n',HDR.FileName);
 				return;
 			end;
 			[name,c] = fread(HDR.FILE.FID,namelen,'uint8'); 
                         
                         if imagf, 
-				HDR.ERROR.status=-1; 
+				HDR.ErrNum=-1; 
 				fprintf(HDR.FILE.stderr,'Warning %s: Imaginary data not tested\n',mfilename); 
 			end;
                         if type(4)==2,
-                                HDR.ERROR.status=-1;
+                                HDR.ErrNum=-1;
                                 fprintf(HDR.FILE.stderr,'Error %s: sparse data not supported\n',mfilename);
                         elseif type(4)>2, 
                                 type(4)=rem(type(4),2);
@@ -5857,8 +5857,8 @@ elseif strcmp(HDR.TYPE,'MAT4') && any(HDR.FILE.PERMISSION=='r'),
                         
                         tmp2=ftell(HDR.FILE.FID);
                         if (tmp2-tmp1) < tmp,  % if skipping the block was not successful
-                                HDR.ErrNo = -1;
-                                HDR.ERROR = sprintf('file %s is corrupted',HDR.FileName);
+                                HDR.ErrNum = -1;
+                                HDR.ErrMsg = sprintf('file %s is corrupted',HDR.FileName);
                                 fprintf(HDR.FILE.stderr,'Error SOPEN: MAT4 (ADICHT) file %s is corrupted\n',HDR.FileName);
                                 return;
                         end;	                
@@ -5944,7 +5944,7 @@ elseif strcmp(HDR.TYPE,'MAT4') && any(HDR.FILE.PERMISSION=='r'),
                 % Test if timeindex is increasing
                 tmp = size(HDR.ADI.ti,1);
                 if ~all(HDR.ADI.ti(2:tmp,2)>HDR.ADI.ti(1:tmp-1,1)), 
-                        HDR.ErrNo=-1;
+                        HDR.ErrNum=-1;
                         fprintf(HDR.FILE.stderr,'Warning MATOPEN: Time index are not monotonic increasing !!!\n');
                         return;
                 end;	
@@ -10256,7 +10256,7 @@ elseif strcmp(HDR.TYPE,'unknown'),
                         return;
         	end;
 	else
-		%HDR.ERROR.message = sprintf('ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
+		%HDR.ErrMsg = sprintf('ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
 		%fprintf(HDR.FILE.stderr,'ERROR SOPEN: File %s could not be opened - unknown type.\n',HDR.FileName);
         end; 
         

@@ -44,8 +44,8 @@ end;
 HDR.TYPE = 'unknown';
 HDR.FILE.OPEN = 0;
 HDR.FILE.FID  = -1;
-HDR.ERROR.status  = 0; 
-HDR.ERROR.message = ''; 
+HDR.ErrNum    = 0; 
+HDR.ErrMsg    = ''; 
 if ~isfield(HDR.FILE,'stderr'),
         HDR.FILE.stderr = 2;
 end;
@@ -84,8 +84,8 @@ end;
 %fid = fopen(HDR.FileName,PERMISSION,'ieee-le');
 fid = fopen(HDR.FileName,HDR.FILE.PERMISSION);
 if fid < 0,
-	HDR.ERROR.status = -1; 
-        HDR.ERROR.message = sprintf('Error GETFILETYPE: file %s not found.\n',HDR.FileName);
+	HDR.ErrNum = -1; 
+        HDR.ErrMsg = sprintf('Error GETFILETYPE: file %s not found.\n',HDR.FileName);
         return;
 else
         [pfad,file,FileExt] = fileparts(HDR.FileName);
