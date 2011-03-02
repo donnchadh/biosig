@@ -5865,7 +5865,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n******* DS variable information *********
 		// reverse order of data sections
 		uint32_t *DATAPOS = (uint32_t*)malloc(sizeof(uint32_t)*NumberOfDataSections);
 
-		uint8_t m;
+		uint16_t m;
 		for (m = NumberOfDataSections; 0 < m; ) {
 			DATAPOS[--m] = datapos;
 			datapos = leu32p(hdr->AS.Header + datapos);
