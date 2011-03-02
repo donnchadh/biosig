@@ -93,7 +93,10 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 % see also: tsa/MVAR, tsa/MVFREQZ, PLOTA
 %
 % Reference(s):
-% [1] Kay S. M., Marple S. L., Spectrum Analysis - A Modern Perspective, Proc. IEEE, 1981
+% [1] A. Schlögl, G. Supp.Analyzing event-related EEG data with multivariate autoregressive parameters.
+%      (Eds.) C. Neuper and W. Klimesch, Progress in Brain Research: Event-related Dynamics of Brain Oscillations. 
+%      Analysis of dynamics of brain oscillations: methodological advances. Elsevier. 
+%      Progress in Brain Research 159, 2006, p. 135 - 147
 % [2] Baccala L. A., Sameshima K., Partial Directed Coherence: A New Concept in Neural Structure Determination, Biological Cybernetics 84, 2001
 % [3] Kaminski M., Blinowska K., Szelenberger W., Topographic Analysis of Coherence and Propagation of EEG Activity During Sleep and Wakefulness, Electroencephalography and Clinical Neurophysiology 102, 1997
 % [4] Franaszczuk P. J., Bergey G. K., An Autoregressive Method for the Measurement of Synchronization of Interictal and Ictal EEG Signals, Biological Cybernetics 81, 1999
@@ -111,7 +114,7 @@ function [R] = tfmvar(s,TRIG,T,MOP,f,Fs,cl)
 %	Statistics in Medicine, doi: 10.1002/sim.2935 
 
 %	$Id$
-%	Copyright (C) 2004,2005,2006,2007,2008,2009,2010 by Alois Schloegl <a.schloegl@ieee.org>	
+%	Copyright (C) 2004,2005,2006,2007,2008,2009,2010,2011 by Alois Schloegl <a.schloegl@ieee.org>	
 %    	This is part of the BIOSIG-toolbox http://biosig.sf.net/
 
 
