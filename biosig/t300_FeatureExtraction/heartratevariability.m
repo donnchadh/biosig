@@ -235,7 +235,6 @@ else
 	%% [y,m] = center(hrv);       %%% use HRV spectral estimates   
 end;
 
-plot(y)
 pmax = 100;
 % choose levinson-durbin or Burg algorithm 
 [mx,pe]=durlev(acovf(y(:)',pmax));
