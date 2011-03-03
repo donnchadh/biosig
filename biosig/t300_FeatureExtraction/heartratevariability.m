@@ -18,8 +18,8 @@ function [X] = heartratevariability(RRI,arg2)
 %
 % OUTPUT
 %   X  		struct containing the results as defined by [1]
-%   X.meanRR      	meanRR = meanNN
-%   X.SDRR		standard deviaation of RR intervales
+%   X.meanNN      	meanRR = meanNN
+%   X.SDNN		standard deviation of RR intervales
 %   X.RMSSD       	rmsSD = SDSD
 %     NN50count1
 %     NN50count2
@@ -32,7 +32,7 @@ function [X] = heartratevariability(RRI,arg2)
 %   X.VLF               power of very low frequency band (< 0.04 Hz) 
 %   X.LF                power of low frequency band (0.04-0.15 Hz)
 %   X.HF                power of high low frequency band (0.15-0.4 Hz)
-%   X.TotalPower        power of high low frequency band (0.15-0.4 Hz)
+%   X.TotalPower        total power 
 %   X.LFHFratio         LF/HF-ratio
 %   X.LFnu              normalized units of LF power (0.04-0.15 Hz)
 %   X.HFnu              normalized units of HF power  (0.15-0.4 Hz)
@@ -45,7 +45,9 @@ function [X] = heartratevariability(RRI,arg2)
 %   X.FFT.LFnu
 %   X.FFT.HFnu
 %
-%  semilogy(X.f,X.ASpectrum) shows the spectral density function  %  semilogy(X.FFT.f,X.FFT.ASpectrum) shows the FFT-based spectral density function  %
+%  semilogy(X.f,X.ASpectrum) shows the spectral density function
+%  semilogy(X.FFT.f,X.FFT.ASpectrum) shows the FFT-based spectral density function
+%
 % The spectral estimates are based on an autoregressive spectrum estimator 
 % of the data which is oversampled by a factor of 4 using the Berger method.  
 % The default model order is 15. In order to change these default settings, 
@@ -180,6 +182,7 @@ on = on/t_scale;
 
 
 X.datatype = 'HeartRateVariability'; 
+X.N        = sum(~isnan(NN));	% number of intervals
 
 %%%%%%%%% time domain parameters %%%%%%%%%%%%%%%%%%%%
 X.meanNN   = mean(NN); 
@@ -188,8 +191,7 @@ X.RMSSD    = rms(diff(NN));  % SDSD
 X.NN50count1 = sum(-diff(NN)>0.050/t_scale);
 X.NN50count2 = sum( diff(NN)>0.050/t_scale);
 X.NN50count  = sum(abs(diff(NN))>0.050/t_scale);
-X.pNN50    = X.NN50count/sum(~isnan(NN)); 
-
+X.pNN50    = X.NN50count/X.N; 
 
 g = acovf(center(NN(:)'),2);
 X.SD1 	= sqrt(g(1)-g(2));
@@ -229,7 +231,8 @@ else
 	OS = 4; 
 	f0  = OS*1000/(X.meanNN);%% four-times oversampling
         [hrv,y] = berger(on/1000,f0); % resampleing 
-	[y,m] = center(y*1000);    %%% use RRI spectral estimates   	%% [y,m] = center(hrv);       %%% use HRV spectral estimates   
+	[y,m] = center(y*1000);    %%% use RRI spectral estimates   
+	%% [y,m] = center(hrv);       %%% use HRV spectral estimates   
 end;
 
 plot(y)
@@ -246,7 +249,7 @@ X.mops = [optFPE,optAIC,optBIC,optSBC,optMDL,optCAT,optPHI];
 % select model order - vary the model order in order to check how robust the results are with respect to the model order  
 X.mop = optBIC;
 %X.mop = optAIC; 
-%X.mop = 15;
+X.mop = 15;
 [a,r] = arcext(mx,X.mop);
 
 [h,f] = freqz(sqrt(pe(X.mop+1)/f0),[1,-a],[0:512]/512*f0/OS,f0);
@@ -260,7 +263,6 @@ ix = (f>0.04) & (f<0.15);
 X.LF = trapz(f(ix),abs(h(ix)).^2);
 ix = (f>0.15) & (f<0.40);
 X.HF = trapz(f(ix),abs(h(ix)).^2);
-ix = (f>0.15) & (f<0.40);
 X.TotalPower = trapz(f,abs(h).^2);
 X.LFHFratio = X.LF./X.HF; 
 X.LFnu = X.LF./(X.TotalPower-X.VLF);
