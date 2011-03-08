@@ -1783,7 +1783,7 @@ HDRTYPE* constructHDR(const unsigned NS, const unsigned N_EVENT)
       	strcpy(hdr->ID.Recording,"00000000");
 	hdr->data.size[0] = 0; 	// rows
 	hdr->data.size[1] = 0;  // columns
-	hdr->data.block = (biosig_data_type*)malloc(0);
+	hdr->data.block = NULL;
       	hdr->T0 = (gdf_time)0;
       	hdr->tzmin = 0;
       	hdr->ID.Equipment = *(uint64_t*) & "b4c_0.95";
@@ -3573,6 +3573,14 @@ HDRTYPE* sopen(const char* FileName, const char* MODE, HDRTYPE* hdr)
 		hdr = constructHDR(0,0);	// initializes fields that may stay undefined during SOPEN
 
 	hdr->FileName = FileName;
+
+
+	if (FileName == NULL) {
+		B4C_ERRNUM = B4C_CANNOT_OPEN_FILE;
+		B4C_ERRMSG = "no filename specified";
+		return; 
+	}
+
 
 	setlocale(LC_NUMERIC,"C");
 
@@ -5900,7 +5908,7 @@ if (VERBOSE_LEVEL>7) fprintf(stdout,"\n[DS#%3i] 0x%x 0x%x [0x%x 0x%x szChanData=
 				double Xcal = lef32p(pos+16);
 				//double Xoff = lef32p(pos+20);// unused
 				hc->OnOff   = 1;
-				hc->bi      = bpb;
+				hc->bi      = sz;
 
 if (VERBOSE_LEVEL>7) fprintf(stdout,"CFS 409: %i #%i: SPR=%i=%i=%i  x%f+-%f %i\n",m,k,spr,SPR,hc->SPR,hc->Cal,hc->Off,p);
 
